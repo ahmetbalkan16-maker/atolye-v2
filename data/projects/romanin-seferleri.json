@@ -1,0 +1,43 @@
+{
+  "topic": "Roma'nın Seferleri",
+  "summary": "Roma İmparatorluğu, tarih boyunca geniş topraklara yayılmasını sağlayan birçok askeri sefer düzenlemiştir. Bu seferler, Roma'nın Akdeniz çevresindeki hakimiyetini pekiştirmiş ve İmparatorluğun kültürel, ekonomik ve siyasi yapısını şekillendirmiştir.",
+  "timeline": [
+    "MÖ 264-146: Pön Savaşları (Roma ve Kartaca arasındaki mücadeleler)",
+    "MÖ 58-50: Galyalı Julius Sezar'ın Galia Seferleri",
+    "MÖ 43-17: Roma'nın Britanya Seferleri",
+    "MS 9: Teutoburg Ormanı Muharebesi",
+    "MS 53: Partlar ile Carrhae Muharebesi",
+    "MS 33-63: İmparator Claudius'un Mezopotamya Seferleri"
+  ],
+  "characters": [
+    "Julius Sezar",
+    "Scipio Africanus",
+    "Pompey",
+    "Mark Antony",
+    "Trajan",
+    "Claudius"
+  ],
+  "controversies": [
+    "Roma'nın seferlerinin yerli halklar üzerindeki yıkıcı etkileri ve kültürel asimilasyon zorunluluğu",
+    "Roma ordusundaki kölelerin ve alt sınıfların askeri seferlere zorlanması",
+    "Seferlerin ekonomik yükü ve Roma toplumundaki sınıfsal gerilimler",
+    "Roma'nın sınır güvenliği politikalarının yerel halklar üzerinde yol açtığı huzursuzluklar"
+  ],
+  "documentaryFlow": [
+    "Roma'nın kuruluşu ve ilk seferlere hazırlık dönemi",
+    "Pön Savaşları ile Akdeniz'in kontrolünü ele geçirme süreci",
+    "Julius Sezar'ın Galia Seferleri ve Roma'nın genişlemesi",
+    "İmparatorluk döneminde yapılan sınır seferleri ve savunma stratejileri",
+    "Seferlerin Roma toplumuna etkileri ve yerel halkların direnişleri",
+    "Roma'nın askeri teknolojisi ve organizasyon yapısının incelenmesi",
+    "Sonuç: Roma'nın seferlerinin tarihsel önemi ve günümüze yansımaları"
+  ],
+  "sources": [
+    "Mary Beard, SPQR: Roma Halkının Kısa Tarihi",
+    "Adrian Goldsworthy, Roma Savaşları Tarihi",
+    "The Cambridge Ancient History",
+    "Tacitus, Annals",
+    "Julius Sezar, De Bello Gallico",
+    "Plutarch, Parallel Lives"
+  ]
+}
