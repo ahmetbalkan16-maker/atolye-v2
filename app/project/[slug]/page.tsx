@@ -1,94 +1,93 @@
-import fs from "fs";
-import path from "path";
+import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
+import { ProjectManager } from "@/lib/project/ProjectManager";
 
-type PageProps = {
+type Props = {
   params: Promise<{
     slug: string;
   }>;
 };
 
-export default async function ProjectPage({ params }: PageProps) {
+export default async function ProjectPage({ params }: Props) {
   const { slug } = await params;
 
-  const filePath = path.join(
-    process.cwd(),
-    "data",
-    "projects",
-    `${slug}.json`
-  );
+  const project = ProjectManager.getProject(slug);
+  const research = ProjectManager.loadResearch(slug);
+  const script = ProjectManager.loadScript(slug);
 
-  if (!fs.existsSync(filePath)) {
+  if (!project) {
     return (
       <main className="flex min-h-screen bg-black text-white">
         <Sidebar />
-
         <section className="flex-1 p-10">
-          <h1 className="text-4xl font-bold">
-            Proje bulunamadı
-          </h1>
+          <h1 className="text-4xl font-bold text-red-400">Proje bulunamadı.</h1>
+          <Link href="/" className="mt-6 inline-block text-yellow-400">
+            Kontrol paneline dön
+          </Link>
         </section>
       </main>
     );
   }
-
-  const project = JSON.parse(
-    fs.readFileSync(filePath, "utf8")
-  );
 
   return (
     <main className="flex min-h-screen bg-black text-white">
       <Sidebar />
 
       <section className="flex-1 p-10">
-
-        <h1 className="text-5xl font-bold">
-          {project.topic}
-        </h1>
-
-        <p className="mt-5 text-zinc-400">
-          {project.summary}
+        <p className="text-sm font-bold uppercase tracking-[0.4em] text-yellow-400">
+          PROJE ÇALIŞMA ALANI
         </p>
 
-        <div className="mt-10 grid grid-cols-4 gap-5">
+        <h1 className="mt-4 text-5xl font-bold">{project.title}</h1>
 
+        {project.description && (
+          <p className="mt-4 max-w-4xl text-zinc-400">{project.description}</p>
+        )}
+
+        <div className="mt-8 rounded-3xl border border-white/10 bg-zinc-900 p-6">
+          <h2 className="text-2xl font-bold text-yellow-400">📋 Proje Bilgileri</h2>
+
+          <div className="mt-4 grid gap-3 text-sm text-zinc-300">
+            <p>Durum: {project.status}</p>
+            <p>Slug: {project.slug}</p>
+            <p>Oluşturulma: {new Date(project.createdAt).toLocaleString("tr-TR")}</p>
+            <p>Son Güncelleme: {new Date(project.updatedAt).toLocaleString("tr-TR")}</p>
+          </div>
+        </div>
+
+        <div className="mt-8 grid gap-4">
           <ModuleCard
-            title="📚 Araştırma"
-            color="border-yellow-500"
+            title="📖 Araştırma"
+            description={research ? "Araştırma tamamlandı." : "Henüz araştırma yapılmadı."}
+            status={research ? "Tamamlandı" : "Bekliyor"}
+            href={`/project/${project.slug}/research`}
+            buttonText={research ? "Araştırmayı Gör" : "Araştırmayı Başlat"}
           />
 
           <ModuleCard
             title="✍️ Senaryo"
-            color="border-blue-500"
+            description={
+              script
+                ? "Senaryo tamamlandı."
+                : research
+                ? "Araştırma hazır. Senaryo oluşturulabilir."
+                : "Önce araştırma tamamlanmalı."
+            }
+            status={script ? "Tamamlandı" : research ? "Hazır" : "Kilitli"}
+            href={research ? `/project/${project.slug}/script` : "#"}
+            buttonText={script ? "Senaryoyu Gör" : "Senaryoyu Oluştur"}
+            disabled={!research}
           />
 
           <ModuleCard
             title="🎬 Sahneler"
-            color="border-green-500"
+            description="Senaryo tamamlandıktan sonra sahne planı oluşturulacak."
+            status={script ? "Hazır" : "Kilitli"}
+            href={script ? `/project/${project.slug}/scenes` : "#"}
+            buttonText="Sahneleri Oluştur"
+            disabled={!script}
           />
-
-          <ModuleCard
-            title="🖼 Görseller"
-            color="border-purple-500"
-          />
-
-          <ModuleCard
-            title="🎥 Animasyon"
-            color="border-pink-500"
-          />
-
-          <ModuleCard
-            title="🎙 Ses"
-            color="border-cyan-500"
-          />
-
-          <ModuleCard
-            title="📺 YouTube"
-            color="border-red-500"
-          />
-
         </div>
-
       </section>
     </main>
   );
@@ -96,22 +95,40 @@ export default async function ProjectPage({ params }: PageProps) {
 
 function ModuleCard({
   title,
-  color,
+  description,
+  status,
+  href,
+  buttonText,
+  disabled = false,
 }: {
   title: string;
-  color: string;
+  description: string;
+  status: string;
+  href: string;
+  buttonText: string;
+  disabled?: boolean;
 }) {
   return (
-    <div
-      className={`rounded-2xl border-2 ${color} bg-zinc-900 p-8 text-center hover:scale-105 transition`}
-    >
-      <h2 className="text-xl font-bold">
-        {title}
-      </h2>
+    <div className="rounded-2xl border border-white/10 bg-zinc-900 p-6">
+      <div className="flex items-center justify-between gap-6">
+        <div>
+          <h2 className="text-2xl font-bold text-yellow-400">{title}</h2>
+          <p className="mt-2 text-zinc-400">{description}</p>
+          <span className="mt-4 inline-block rounded-full bg-yellow-500/20 px-3 py-1 text-sm text-yellow-400">
+            {status}
+          </span>
+        </div>
 
-      <button className="mt-6 rounded-xl bg-yellow-500 px-5 py-3 font-bold text-black">
-        Aç
-      </button>
+        {disabled ? (
+          <button disabled className="rounded-xl bg-zinc-700 px-5 py-3 font-bold text-zinc-400">
+            {buttonText}
+          </button>
+        ) : (
+          <Link href={href} className="rounded-xl bg-yellow-500 px-5 py-3 font-bold text-black">
+            {buttonText}
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

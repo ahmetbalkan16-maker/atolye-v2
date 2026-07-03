@@ -1,51 +1,23 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { ProjectManager } from "@/lib/project/ProjectManager";
 
 export async function GET() {
   try {
-    const folder = path.join(process.cwd(), "data", "projects");
-
-    if (!fs.existsSync(folder)) {
-      return NextResponse.json({
-        success: true,
-        projects: [],
-      });
-    }
-
-    const files = fs.readdirSync(folder);
-
-    const projects = files
-      .filter((f) => f.endsWith(".json"))
-      .map((file) => {
-        const filePath = path.join(folder, file);
-
-        const json = JSON.parse(
-          fs.readFileSync(filePath, "utf8")
-        );
-
-        return {
-          file,
-          topic: json.topic,
-          summary: json.summary,
-        };
-      });
+    const projects = ProjectManager.listProjects();
 
     return NextResponse.json({
       success: true,
       projects,
     });
-
   } catch (err) {
-    console.error(err);
+    console.error("PROJECTS API ERROR:", err);
 
     return NextResponse.json(
       {
         success: false,
+        error: err instanceof Error ? err.message : "Projeler alınamadı.",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
 }

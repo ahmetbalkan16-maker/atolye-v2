@@ -1,13 +1,15 @@
+import Link from "next/link";
+
 const menuItems = [
-  "Dashboard",
-  "Araştırma",
-  "Senaryo",
-  "Sahneler",
-  "Görseller",
-  "Animasyon",
-  "Ses",
-  "YouTube",
-  "Ayarlar",
+  { name: "Kontrol Paneli", href: "/" },
+  { name: "Araştırma", href: "/research" },
+  { name: "Senaryo", href: "/script" },
+  { name: "Sahneler", href: "/scenes" },
+  { name: "Görseller", href: "/visuals" },
+  { name: "Animasyon", href: "/animation" },
+  { name: "Ses", href: "/audio" },
+  { name: "YouTube", href: "/youtube" },
+  { name: "Ayarlar", href: "/settings" },
 ];
 
 export default function Sidebar() {
@@ -21,12 +23,13 @@ export default function Sidebar() {
 
       <nav className="mt-10 space-y-2">
         {menuItems.map((item) => (
-          <button
-            key={item}
-            className="w-full rounded-xl px-4 py-3 text-left text-sm text-zinc-300 transition hover:bg-white/10 hover:text-white"
+          <Link
+            key={item.name}
+            href={item.href}
+            className="block rounded-xl px-4 py-3 text-sm text-zinc-300 transition hover:bg-white/10 hover:text-white"
           >
-            {item}
-          </button>
+            {item.name}
+          </Link>
         ))}
       </nav>
     </aside>
