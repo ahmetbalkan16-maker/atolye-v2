@@ -20,7 +20,7 @@ export default function GenerateVisualsButton({ projectId, slug, scenes }: Props
       const res = await fetch("/api/visuals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: slug, scenes }),
+        body: JSON.stringify({ projectId, slug, scenes }),
       });
 
       const data = await res.json();

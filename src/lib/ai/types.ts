@@ -1,3 +1,1 @@
-export interface AIProvider {
-  generate(prompt: string): Promise<string>;
-}
+export type { AIProvider } from "./providers/AIProvider";

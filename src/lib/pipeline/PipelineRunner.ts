@@ -1,5 +1,5 @@
 import { ProjectManager } from "@/lib/projects/ProjectManager";
-import { AIManager } from "@/ai/AIManager";
+import { AIManager } from "@/lib/ai/AIManager";
 
 export class PipelineRunner {
   static async run(topic: string) {
@@ -13,7 +13,7 @@ export class PipelineRunner {
     await ProjectManager.saveResearch(slug, research);
 
     // 3. SCRIPT
-    const script = await AIManager.runScript(topic, research);
+    const script = await AIManager.runScript(topic);
     await ProjectManager.saveScript(slug, script);
 
     // 4. SCENES

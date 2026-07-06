@@ -24,7 +24,7 @@ export async function scriptStep(topic: string) {
 
   try {
     return JSON.parse(text);
-  } catch (err) {
+  } catch {
     console.error("SCRIPT PARSE ERROR:", text);
 
     return {

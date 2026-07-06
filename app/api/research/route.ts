@@ -29,7 +29,7 @@ export async function POST(req: Request) {
       project,
       research,
     });
-  } catch (err) {
+  } catch {
     return NextResponse.json(
       { success: false, error: "Pipeline error" },
       { status: 500 }

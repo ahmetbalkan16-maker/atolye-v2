@@ -8,7 +8,7 @@ import TopicInput from "@/components/TopicInput";
 export default function HomeClient() {
   const [topic, setTopic] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<unknown | null>(null);
 
   const startResearch = async () => {
     if (!topic.trim()) return;
@@ -33,7 +33,7 @@ export default function HomeClient() {
       }
 
       setResult(data);
-    } catch (err) {
+    } catch {
       setResult({ error: "Server error" });
     } finally {
       setLoading(false);
@@ -45,7 +45,7 @@ export default function HomeClient() {
       <Sidebar />
 
       <div className="flex-1 p-6">
-        <Dashboard projects={[]} />
+        <Dashboard />
 
         <TopicInput
           topic={topic}
@@ -59,9 +59,9 @@ export default function HomeClient() {
           </p>
         )}
 
-        {result && (
+        {result !== null && (
           <pre className="mt-6 whitespace-pre-wrap text-white">
-            {JSON.stringify(result, null, 2)}
+            {String(JSON.stringify(result, null, 2))}
           </pre>
         )}
       </div>
