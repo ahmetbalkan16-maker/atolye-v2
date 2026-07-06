@@ -12,102 +12,73 @@ export interface Project {
   id: string;
   slug: string;
   title: string;
-
   description?: string;
-
   status: ProjectStatus;
-
   createdAt: string;
   updatedAt: string;
 }
 
 export interface ResearchData {
   topic: string;
-
   summary: string;
-
   historicalContext: string;
-
   timeline: string[];
-
   characters: string[];
-
   locations: string[];
-
   keyEvents: string[];
-
   strategies: string[];
-
   controversies: string[];
-
   interestingFacts: string[];
-
   documentaryFlow: string[];
-
   sceneIdeas: string[];
-
   imagePrompts: string[];
-
   animationPrompts: string[];
-
-  musicIdeas: string[];
-
-  soundEffects: string[];
-
-  thumbnailIdeas: string[];
-
-  youtubeTitles: string[];
-
   sources: string[];
 }
 
-export interface ScriptChapter {
-  id: number;
-
+export interface ScriptData {
   title: string;
+  intro: string;
+  sections: {
+    heading: string;
+    narration: string;
+  }[];
+  outro: string;
+  estimatedDuration: number;
+}
 
+export interface SceneData {
+  id: number;
+  title: string;
   narration: string;
-
   duration: number;
 
-  visualGoal: string;
+  visualDescription: string;
+  imagePrompt: string;
+  animationPrompt: string;
 
-  emotion: string;
-
+  cameraMovement: string;
+  soundEffects: string[];
+  backgroundMusic: string;
   transition: string;
-}
-export interface ScriptData {
-  topic: string;
 
-  title: string;
-
+  voiceEmotion: string;
+  voiceSpeed: number;
   subtitle: string;
 
-  hook: string;
+  mapRequired: boolean;
+  timelineRequired: boolean;
 
-  introduction: string;
+  assetStatus: "pending" | "generated" | "approved";
 
-  chapters: ScriptChapter[];
+  historicalNotes: string[];
+  references: string[];
+}
 
-  conclusion: string;
-
-  callToAction: string;
-
-  estimatedDuration: number;
-
-  narrationWordCount: number;
-
-  targetAudience: string;
-
-  language: string;
-
-  voiceStyle: string;
-
-  musicStyle: string;
-
-  thumbnailIdea: string;
-
-  seoKeywords: string[];
-
+export interface ScenesFile {
+  projectId: string;
   createdAt: string;
+  updatedAt: string;
+  totalDuration: number;
+  scenes: SceneData[];
 }

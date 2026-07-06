@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { researchStep } from "@/lib/ai/steps/researchStep";
-import { ProjectManager } from "@/lib/project/ProjectManager";
+import { ProjectManager } from "@/lib/projects/ProjectManager";
 
 export async function POST(req: Request) {
   try {
@@ -21,9 +21,9 @@ export async function POST(req: Request) {
 
     const research = await researchStep(cleanTopic);
 
-    const project = ProjectManager.createProject(cleanTopic);
+    const project = await ProjectManager.createProject(cleanTopic);
 
-    ProjectManager.saveResearch(project.slug, research);
+    await ProjectManager.saveResearch(project.slug, research);
 
     return NextResponse.json({
       success: true,
