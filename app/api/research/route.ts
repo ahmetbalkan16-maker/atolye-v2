@@ -4,41 +4,34 @@ import { ProjectManager } from "@/lib/projects/ProjectManager";
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const topic = body?.topic;
+    const { topic } = await req.json();
 
-    if (!topic || typeof topic !== "string" || topic.trim() === "") {
+    if (!topic || typeof topic !== "string") {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Konu boş olamaz.",
-        },
+        { success: false, error: "Konu boş olamaz" },
         { status: 400 }
       );
     }
 
     const cleanTopic = topic.trim();
 
+    // 1. RESEARCH STEP
     const research = await researchStep(cleanTopic);
 
+    // 2. PROJECT CREATE
     const project = await ProjectManager.createProject(cleanTopic);
 
+    // 3. SAVE RESEARCH
     await ProjectManager.saveResearch(project.slug, research);
 
     return NextResponse.json({
       success: true,
-      message: "Araştırma tamamlandı ve proje kaydedildi.",
       project,
       research,
     });
-  } catch (error) {
-    console.error("Research API error:", error);
-
+  } catch (err) {
     return NextResponse.json(
-      {
-        success: false,
-        error: "Araştırma sırasında bir hata oluştu.",
-      },
+      { success: false, error: "Pipeline error" },
       { status: 500 }
     );
   }

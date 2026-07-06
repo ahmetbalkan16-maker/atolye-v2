@@ -13,11 +13,13 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
+
+    // 🔥 KRİTİK FIX
     "baseUrl": ".",
-    "ignoreDeprecations": "6.0",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["src/*"]
     },
+
     "plugins": [
       {
         "name": "next"
