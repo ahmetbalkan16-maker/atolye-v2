@@ -1,43 +1,21 @@
-import { openai } from "../client";
+import { runPipeline } from "../pipeline";
 
 export async function researchStep(topic: string) {
   const prompt = `
-You are a senior research analyst.
+Sen profesyonel bir tarih araştırmacısısın.
 
-Analyze the topic and return a structured JSON ONLY.
+Konu:
+${topic}
 
-Topic: ${topic}
+Aşağıdaki başlıklarda kapsamlı bir araştırma hazırla:
 
-Return format:
-{
-  "topic": string,
-  "angles": string[],
-  "keywords": string[],
-  "summary": string
-}
+1. Kısa Özet
+2. Tarihsel Arka Plan
+3. Kronoloji
+4. Önemli Kişiler
+5. Tartışmalı Noktalar
+6. Belgesel Açısından Önemi
 `;
 
-  const res = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      { role: "system", content: "Return ONLY valid JSON." },
-      { role: "user", content: prompt },
-    ],
-    temperature: 0.7,
-  });
-
-  const text = res.choices[0].message.content || "{}";
-
-  try {
-    return JSON.parse(text);
-  } catch (err) {
-    console.error("JSON PARSE ERROR:", text);
-
-    return {
-      topic,
-      angles: [],
-      keywords: [],
-      summary: text,
-    };
-  }
+  return await runPipeline(prompt);
 }

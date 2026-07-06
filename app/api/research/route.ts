@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { runAIResearch } from "@/src/lib/ai/router";
-import { saveProject } from "@/src/lib/projects/saveProject";
+import { researchStep } from "@/lib/ai/steps/researchStep";
+import { saveProject } from "@/lib/project/saveProject";
 
 export async function POST(req: Request) {
   try {
-    const { topic } = await req.json();
+    const body = await req.json();
+    const topic = body?.topic;
 
-    if (!topic || topic.trim() === "") {
+    if (!topic || typeof topic !== "string" || topic.trim() === "") {
       return NextResponse.json(
         {
           success: false,
@@ -16,14 +17,14 @@ export async function POST(req: Request) {
       );
     }
 
-    const result = await runAIResearch(topic);
+    const research = await researchStep(topic.trim());
 
-    const savedProject = saveProject(topic, result);
+    const project = saveProject(topic.trim(), research);
 
     return NextResponse.json({
       success: true,
       message: "Araştırma tamamlandı ve proje kaydedildi.",
-      project: savedProject,
+      project,
     });
   } catch (error) {
     console.error("Research API error:", error);

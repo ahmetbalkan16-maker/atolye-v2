@@ -62,12 +62,42 @@ export interface ResearchData {
 }
 
 export interface ScriptChapter {
-  title: string;
-  content: string;
-}
+  id: number;
 
-export interface ScriptData {
   title: string;
+
+  summary: string;
+
+  narration: string;
+
+  duration: number;
+
+  visualGoal: string;
+
+  cameraShot: string;
+
+  animationGoal: string;
+
+  musicMood: string;
+
+  soundEffects: string[];
+
+  keyPoints: string[];
+
+  imagePrompts: string[];
+
+  animationPrompts: string[];
+}
+export interface ScriptData {
+  id: string;
+
+  projectId: string;
+
+  topic: string;
+
+  title: string;
+
+  summary: string;
 
   hook: string;
 
@@ -77,5 +107,21 @@ export interface ScriptData {
 
   closing: string;
 
-  narrationStyle: string;
+  narrationStyle: "documentary" | "cinematic" | "dramatic";
+
+  targetAudience: string;
+
+  language: "tr" | "en";
+
+  estimatedDuration: number;
+
+  totalChapters: number;
+
+  version: string;
+
+  aiProvider: string;
+
+  createdAt: string;
+
+  updatedAt: string;
 }
