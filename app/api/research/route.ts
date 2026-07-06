@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { generateScript } from "@/src/lib/script/generateScript";
+import { runAIResearch } from "@/src/lib/ai/router";
+import { saveProject } from "@/src/lib/projects/saveProject";
 
 export async function POST(req: Request) {
   try {
@@ -15,19 +16,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const script = await generateScript(topic);
+    const result = await runAIResearch(topic);
+
+    const savedProject = saveProject(topic, result);
 
     return NextResponse.json({
       success: true,
-      script,
+      message: "Araştırma tamamlandı ve proje kaydedildi.",
+      project: savedProject,
     });
   } catch (error) {
-    console.error("Script API Error:", error);
+    console.error("Research API error:", error);
 
     return NextResponse.json(
       {
         success: false,
-        error: "Script oluşturulamadı.",
+        error: "Araştırma sırasında bir hata oluştu.",
       },
       { status: 500 }
     );

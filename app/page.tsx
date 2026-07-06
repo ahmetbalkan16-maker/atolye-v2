@@ -1,35 +1,57 @@
+"use client";
+
+import { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import Dashboard from "@/components/Dashboard";
-import fs from "fs";
-import path from "path";
+import TopicInput from "@/components/TopicInput";
 
-export default async function HomePage() {
-  const folder = path.join(process.cwd(), "data", "projects");
+export default function HomePage() {
+  const [topic, setTopic] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState("");
 
-  let projects: any[] = [];
+  const startResearch = async () => {
+    setLoading(true);
 
-  if (fs.existsSync(folder)) {
-    const files = fs.readdirSync(folder);
+    const res = await fetch("/api/research", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ topic }),
+    });
 
-    projects = files
-      .filter((f) => f.endsWith(".json"))
-      .map((file) => {
-        const json = JSON.parse(
-          fs.readFileSync(path.join(folder, file), "utf8")
-        );
+    const data = await res.json();
 
-        return {
-          file,
-          topic: json.topic,
-          summary: json.summary,
-        };
-      });
-  }
+    setResult(data.result);
+    setLoading(false);
+  };
 
   return (
     <main className="flex min-h-screen bg-black">
       <Sidebar />
-      <Dashboard projects={projects} />
+
+      <div className="flex-1 p-6">
+        <Dashboard projects={[]} />
+
+        <TopicInput
+          topic={topic}
+          setTopic={setTopic}
+          onStart={startResearch}
+        />
+
+        {loading && (
+          <p className="text-yellow-400 mt-6">
+            Araştırılıyor...
+          </p>
+        )}
+
+        {result && (
+          <pre className="mt-6 text-white whitespace-pre-wrap">
+            {result}
+          </pre>
+        )}
+      </div>
     </main>
   );
 }
