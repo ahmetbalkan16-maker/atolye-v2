@@ -66,62 +66,48 @@ export interface ScriptChapter {
 
   title: string;
 
-  summary: string;
-
   narration: string;
 
   duration: number;
 
   visualGoal: string;
 
-  cameraShot: string;
+  emotion: string;
 
-  animationGoal: string;
-
-  musicMood: string;
-
-  soundEffects: string[];
-
-  keyPoints: string[];
-
-  imagePrompts: string[];
-
-  animationPrompts: string[];
+  transition: string;
 }
 export interface ScriptData {
-  id: string;
-
-  projectId: string;
-
   topic: string;
 
   title: string;
 
-  summary: string;
+  subtitle: string;
 
   hook: string;
 
-  intro: string;
+  introduction: string;
 
   chapters: ScriptChapter[];
 
-  closing: string;
+  conclusion: string;
 
-  narrationStyle: "documentary" | "cinematic" | "dramatic";
-
-  targetAudience: string;
-
-  language: "tr" | "en";
+  callToAction: string;
 
   estimatedDuration: number;
 
-  totalChapters: number;
+  narrationWordCount: number;
 
-  version: string;
+  targetAudience: string;
 
-  aiProvider: string;
+  language: string;
+
+  voiceStyle: string;
+
+  musicStyle: string;
+
+  thumbnailIdea: string;
+
+  seoKeywords: string[];
 
   createdAt: string;
-
-  updatedAt: string;
 }

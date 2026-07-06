@@ -1,45 +1,26 @@
 import { openai } from "../client";
+import { createScriptPrompt } from "../prompts/script";
 
-export async function scriptStep(research: any) {
-  const prompt = `
-You are a professional YouTube documentary script writer.
-
-Based on this research JSON, create a structured video script.
-
-RESEARCH:
-${JSON.stringify(research)}
-
-Return ONLY valid JSON in this format:
-
-{
-  "title": string,
-  "hook": string,
-  "sections": [
-    {
-      "heading": string,
-      "narration": string
-    }
-  ],
-  "outro": string
-}
-
-Rules:
-- Make it cinematic
-- Make it engaging
-- Short sentences for voiceover
-- No extra text outside JSON
-`;
+export async function scriptStep(topic: string) {
+  const prompt = createScriptPrompt(topic);
 
   const res = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
-      { role: "system", content: "Return ONLY valid JSON." },
-      { role: "user", content: prompt },
+      {
+        role: "system",
+        content:
+          "Sen yalnızca geçerli JSON döndüren profesyonel bir Türkçe belgesel senaryo motorusun.",
+      },
+      {
+        role: "user",
+        content: prompt,
+      },
     ],
-    temperature: 0.8,
+    temperature: 0.7,
   });
 
-  const text = res.choices[0].message.content || "{}";
+  const text = res.choices[0]?.message?.content || "{}";
 
   try {
     return JSON.parse(text);
@@ -47,10 +28,23 @@ Rules:
     console.error("SCRIPT PARSE ERROR:", text);
 
     return {
-      title: "Error Script",
+      topic,
+      title: "Senaryo oluşturulamadı",
+      subtitle: "",
       hook: "",
-      sections: [],
-      outro: "",
+      introduction: "",
+      chapters: [],
+      conclusion: "",
+      callToAction: "",
+      estimatedDuration: 0,
+      narrationWordCount: 0,
+      targetAudience: "",
+      language: "tr",
+      voiceStyle: "",
+      musicStyle: "",
+      thumbnailIdea: "",
+      seoKeywords: [],
+      createdAt: new Date().toISOString(),
     };
   }
 }

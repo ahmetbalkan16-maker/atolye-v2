@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { researchStep } from "@/lib/ai/steps/researchStep";
-import { saveProject } from "@/lib/project/saveProject";
+import { ProjectManager } from "@/lib/project/ProjectManager";
 
 export async function POST(req: Request) {
   try {
@@ -17,14 +17,19 @@ export async function POST(req: Request) {
       );
     }
 
-    const research = await researchStep(topic.trim());
+    const cleanTopic = topic.trim();
 
-    const project = saveProject(topic.trim(), research);
+    const research = await researchStep(cleanTopic);
+
+    const project = ProjectManager.createProject(cleanTopic);
+
+    ProjectManager.saveResearch(project.slug, research);
 
     return NextResponse.json({
       success: true,
       message: "Araştırma tamamlandı ve proje kaydedildi.",
       project,
+      research,
     });
   } catch (error) {
     console.error("Research API error:", error);

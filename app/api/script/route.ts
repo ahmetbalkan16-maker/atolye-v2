@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { generateScript } from "@/src/lib/script/generateScript";
+import { scriptStep } from "@/lib/ai/steps/scriptStep";
 
 export async function POST(req: Request) {
   try {
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const script = await generateScript(topic);
+    const script = await scriptStep(topic);
 
     return NextResponse.json({
       success: true,

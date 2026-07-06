@@ -3,42 +3,56 @@
 import { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 
-type Chapter = {
+type ScriptChapter = {
+  id: number;
   title: string;
-  content: string;
+  narration: string;
+  duration: number;
+  visualGoal: string;
+  emotion: string;
+  transition: string;
 };
 
 type ScriptData = {
-  title?: string;
-  hook?: string;
-  intro?: string;
-  chapters?: Chapter[];
-  closing?: string;
-  narrationStyle?: string;
+  topic: string;
+  title: string;
+  subtitle: string;
+  hook: string;
+  introduction: string;
+  chapters: ScriptChapter[];
+  conclusion: string;
+  callToAction: string;
+  estimatedDuration: number;
+  narrationWordCount: number;
+  targetAudience: string;
+  language: string;
+  voiceStyle: string;
+  musicStyle: string;
+  thumbnailIdea: string;
+  seoKeywords: string[];
+  createdAt: string;
 };
 
 export default function ScriptPage() {
-  const [researchText, setResearchText] = useState("");
+  const [topic, setTopic] = useState("");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ScriptData | null>(null);
   const [error, setError] = useState("");
 
   async function generateScript() {
-    if (!researchText.trim() || loading) return;
+    if (!topic.trim() || loading) return;
 
     setLoading(true);
     setError("");
     setData(null);
 
     try {
-      const parsedResearch = JSON.parse(researchText);
-
       const response = await fetch("/api/script", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ research: parsedResearch }),
+        body: JSON.stringify({ topic }),
       });
 
       const result = await response.json();
@@ -48,12 +62,10 @@ export default function ScriptPage() {
         return;
       }
 
-      setData(result.data);
+      setData(result.script);
     } catch (err) {
       console.error(err);
-      setError(
-        "Araştırma verisi geçerli JSON olmalı. Kaydedilen araştırma dosyasının içeriğini buraya yapıştır."
-      );
+      setError("Senaryo oluşturulurken beklenmeyen bir hata oluştu.");
     } finally {
       setLoading(false);
     }
@@ -72,20 +84,20 @@ export default function ScriptPage() {
           <h1 className="mt-4 text-5xl font-bold">AI Belgesel Senaryosu</h1>
 
           <p className="mt-4 max-w-3xl text-zinc-400">
-            Araştırma paketini buraya yapıştır. Atölye bunu güçlü bir YouTube
-            belgesel senaryosuna dönüştürsün.
+            Bir konu yaz. Atölye bunu güçlü bir YouTube belgesel senaryosuna
+            dönüştürsün.
           </p>
 
           <div className="mt-10 rounded-3xl border border-yellow-500/20 bg-zinc-900/80 p-6">
             <label className="text-sm font-semibold text-zinc-300">
-              Araştırma JSON Verisi
+              Belgesel Konusu
             </label>
 
-            <textarea
-              value={researchText}
-              onChange={(e) => setResearchText(e.target.value)}
-              placeholder='{"topic":"Attila’nın Yükselişi","summary":"..."}'
-              className="mt-3 min-h-72 w-full rounded-xl border border-white/10 bg-black p-4 text-white outline-none transition focus:border-yellow-500"
+            <input
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="Örn: Atilla'nın yükselişi"
+              className="mt-3 w-full rounded-xl border border-white/10 bg-black p-4 text-white outline-none transition focus:border-yellow-500"
             />
 
             <button
@@ -105,22 +117,53 @@ export default function ScriptPage() {
 
           {data && (
             <div className="mt-8 grid gap-6">
-              <ScriptCard title="🎬 Başlık" content={data.title || ""} />
-              <ScriptCard title="⚡ Hook" content={data.hook || ""} />
-              <ScriptCard title="🎙️ Giriş" content={data.intro || ""} />
+              <ScriptCard title="🎬 Başlık" content={data.title} />
+              <ScriptCard title="📌 Alt Başlık" content={data.subtitle} />
+              <ScriptCard title="⚡ Hook" content={data.hook} />
+              <ScriptCard title="🎙️ Giriş" content={data.introduction} />
 
-              {data.chapters?.map((chapter, index) => (
-                <ScriptCard
-                  key={index}
-                  title={`Bölüm ${index + 1}: ${chapter.title}`}
-                  content={chapter.content}
-                />
+              {data.chapters?.map((chapter) => (
+                <div
+                  key={chapter.id}
+                  className="rounded-2xl border border-white/10 bg-zinc-900 p-6"
+                >
+                  <h2 className="text-xl font-bold text-yellow-400">
+                    Bölüm {chapter.id}: {chapter.title}
+                  </h2>
+
+                  <p className="mt-3 whitespace-pre-line leading-7 text-zinc-300">
+                    {chapter.narration}
+                  </p>
+
+                  <div className="mt-5 grid gap-3 text-sm text-zinc-400 md:grid-cols-2">
+                    <p>
+                      <span className="text-zinc-200">Süre:</span>{" "}
+                      {chapter.duration} sn
+                    </p>
+                    <p>
+                      <span className="text-zinc-200">Duygu:</span>{" "}
+                      {chapter.emotion}
+                    </p>
+                    <p>
+                      <span className="text-zinc-200">Görsel Hedef:</span>{" "}
+                      {chapter.visualGoal}
+                    </p>
+                    <p>
+                      <span className="text-zinc-200">Geçiş:</span>{" "}
+                      {chapter.transition}
+                    </p>
+                  </div>
+                </div>
               ))}
 
-              <ScriptCard title="🏁 Kapanış" content={data.closing || ""} />
+              <ScriptCard title="🏁 Sonuç" content={data.conclusion} />
+              <ScriptCard title="📣 Çağrı" content={data.callToAction} />
+              <ScriptCard title="🎧 Ses Tarzı" content={data.voiceStyle} />
+              <ScriptCard title="🎵 Müzik Tarzı" content={data.musicStyle} />
+              <ScriptCard title="🖼️ Thumbnail Fikri" content={data.thumbnailIdea} />
               <ScriptCard
-                title="🎧 Anlatım Tarzı"
-                content={data.narrationStyle || ""}
+                title="🔎 SEO Anahtar Kelimeleri"
+                content={data.seoKeywords?.join(", ")}
               />
             </div>
           )}
@@ -135,7 +178,7 @@ function ScriptCard({
   content,
 }: {
   title: string;
-  content: string;
+  content?: string;
 }) {
   if (!content) return null;
 
