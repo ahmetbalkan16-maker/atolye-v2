@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
-import { ProjectManager } from "@/lib/project/ProjectManager";
+import { ProjectManager } from "@/lib/projects/ProjectManager";
 
 type Props = {
   params: Promise<{

@@ -107,6 +107,10 @@ export class ProjectManager {
   }
 
   static async getScenes(slug: string) {
-    return ProjectReader.readJSON<ScenesFile>(slug, "scene.json");
-  }
+  return ProjectReader.readJSON<ScenesFile>(slug, "scene.json");
+}
+
+static async listProjects() {
+  return [];
+}
 }

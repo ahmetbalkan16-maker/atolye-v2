@@ -1,21 +1,21 @@
 import { NextResponse } from "next/server";
-import { ProjectManager } from "@/lib/project/ProjectManager";
+import { ProjectManager } from "@/lib/projects/ProjectManager";
 
 export async function GET() {
   try {
-    const projects = ProjectManager.listProjects();
+    const projects = await ProjectManager.listProjects();
 
     return NextResponse.json({
       success: true,
       projects,
     });
-  } catch (err) {
-    console.error("PROJECTS API ERROR:", err);
+  } catch (error) {
+    console.error("Projects API error:", error);
 
     return NextResponse.json(
       {
         success: false,
-        error: err instanceof Error ? err.message : "Projeler alınamadı.",
+        error: "Projeler alınamadı.",
       },
       { status: 500 }
     );

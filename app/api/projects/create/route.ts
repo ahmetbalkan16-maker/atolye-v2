@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { ProjectManager } from "@/lib/project/ProjectManager";
+import { ProjectManager } from "@/lib/projects/ProjectManager";
 
 export async function POST(req: Request) {
   try {
-    const { title, description } = await req.json();
+    const { title } = await req.json();
 
     if (!title || typeof title !== "string") {
       return NextResponse.json(
@@ -12,7 +12,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const project = ProjectManager.createProject(title, description);
+    const project = await ProjectManager.createProject(title);
 
     return NextResponse.json({
       success: true,
