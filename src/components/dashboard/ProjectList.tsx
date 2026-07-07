@@ -23,8 +23,8 @@ export default function ProjectList() {
         if (data.success) {
           setProjects(data.projects);
         }
-      } catch (err) {
-        console.error(err);
+      } catch (error) {
+        console.error("Project loading error:", error);
       } finally {
         setLoading(false);
       }
@@ -35,7 +35,7 @@ export default function ProjectList() {
 
   if (loading) {
     return (
-      <div className="text-gray-500">
+      <div className="text-gray-600">
         Projeler yükleniyor...
       </div>
     );
@@ -43,7 +43,7 @@ export default function ProjectList() {
 
   if (projects.length === 0) {
     return (
-      <div className="text-gray-500">
+      <div className="text-gray-600">
         Henüz proje bulunmuyor.
       </div>
     );
@@ -54,17 +54,28 @@ export default function ProjectList() {
       {projects.map((project) => (
         <div
           key={project.id}
-          className="rounded-xl border p-4 shadow-sm"
+          className="
+            rounded-xl 
+            border 
+            border-gray-200 
+            bg-white 
+            p-5 
+            shadow-sm
+          "
         >
-          <h2 className="text-lg font-bold">
+          <h2 className="mb-2 text-lg font-bold text-black">
             {project.title}
           </h2>
 
-          <p className="text-sm text-gray-500">
-            Durum: {project.status}
+          <p className="text-sm text-gray-700">
+            Durum:
+            {" "}
+            <span className="font-medium">
+              {project.status}
+            </span>
           </p>
 
-          <p className="text-sm text-gray-500">
+          <p className="mt-1 text-sm text-gray-600">
             Son Güncelleme:
             {" "}
             {new Date(project.updatedAt).toLocaleString("tr-TR")}

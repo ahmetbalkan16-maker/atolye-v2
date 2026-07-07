@@ -2,8 +2,12 @@ import { promises as fs } from "fs";
 import path from "path";
 
 export class ProjectReader {
+  static getProjectsRoot() {
+    return path.join(process.cwd(), "data", "projects");
+  }
+
   static getProjectFolder(slug: string) {
-    return path.join(process.cwd(), "data", "projects", slug);
+    return path.join(this.getProjectsRoot(), slug);
   }
 
   static async readJSON<T>(
@@ -18,6 +22,35 @@ export class ProjectReader {
       return JSON.parse(content) as T;
     } catch {
       return null;
+    }
+  }
+
+  static async listProjects() {
+    const root = this.getProjectsRoot();
+
+    try {
+      const items = await fs.readdir(root, {
+        withFileTypes: true,
+      });
+
+      const projects = [];
+
+      for (const item of items) {
+        if (!item.isDirectory()) continue;
+
+        const project = await this.readJSON(
+          item.name,
+          "project.json"
+        );
+
+        if (project) {
+          projects.push(project);
+        }
+      }
+
+      return projects;
+    } catch {
+      return [];
     }
   }
 }
