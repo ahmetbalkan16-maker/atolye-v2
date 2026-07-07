@@ -6,6 +6,10 @@ export function getString(value: unknown, fallback: string): string {
   return typeof value === "string" && value.trim() ? value : fallback;
 }
 
+export function getStringAllowEmpty(value: unknown, fallback: string): string {
+  return typeof value === "string" ? value : fallback;
+}
+
 export function getOptionalString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }

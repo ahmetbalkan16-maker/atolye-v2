@@ -1,4 +1,11 @@
 import { AIRouter } from "@/lib/ai/router/AIRouter";
+import {
+  getCreatedAt,
+  getNumber,
+  getStringAllowEmpty,
+  isRecord,
+  parseAIJsonResponse,
+} from "@/lib/ai/utils";
 import type { SceneData, SceneItem } from "@/types/scene";
 import type {
   ThumbnailConcept,
@@ -34,11 +41,10 @@ export class VisualManager {
         return fallback;
       }
 
-      const parsed = JSON.parse(this.extractJson(response)) as Partial<VisualData>;
+      const parsed = parseAIJsonResponse<Partial<VisualData>>(response);
       const visualScenes = this.mapVisualScenes(parsed.scenes, scenes.scenes, style);
       const thumbnail = this.mapThumbnail(parsed.thumbnail, fallback.thumbnail);
-      const createdAt =
-        typeof parsed.createdAt === "string" ? parsed.createdAt : fallback.createdAt;
+      const createdAt = getCreatedAt(parsed.createdAt, fallback.createdAt);
 
       return {
         scenes: visualScenes,
@@ -115,18 +121,18 @@ export class VisualManager {
 
       return {
         sceneId:
-          typeof scene.sceneId === "number"
-            ? scene.sceneId
-            : sourceScene?.id ?? index + 1,
+          getNumber(scene.sceneId, sourceScene?.id ?? index + 1),
         visualPrompt:
-          typeof scene.visualPrompt === "string"
-            ? scene.visualPrompt
-            : this.createFallbackVisualScene(sourceScene, style).visualPrompt,
+          getStringAllowEmpty(
+            scene.visualPrompt,
+            this.createFallbackVisualScene(sourceScene, style).visualPrompt,
+          ),
         animationPrompt:
-          typeof scene.animationPrompt === "string"
-            ? scene.animationPrompt
-            : "Slow cinematic camera movement, documentary style",
-        style: typeof scene.style === "string" ? scene.style : style,
+          getStringAllowEmpty(
+            scene.animationPrompt,
+            "Slow cinematic camera movement, documentary style",
+          ),
+        style: getStringAllowEmpty(scene.style, style),
       };
     });
   }
@@ -137,18 +143,18 @@ export class VisualManager {
   ): ThumbnailConcept {
     const thumbnail = value as Partial<ThumbnailConcept>;
 
-    if (!thumbnail || typeof thumbnail !== "object") {
+    if (!isRecord(thumbnail)) {
       return fallback;
     }
 
     return {
-      title: typeof thumbnail.title === "string" ? thumbnail.title : fallback.title,
-      prompt: typeof thumbnail.prompt === "string" ? thumbnail.prompt : fallback.prompt,
-      composition:
-        typeof thumbnail.composition === "string"
-          ? thumbnail.composition
-          : fallback.composition,
-      mood: typeof thumbnail.mood === "string" ? thumbnail.mood : fallback.mood,
+      title: getStringAllowEmpty(thumbnail.title, fallback.title),
+      prompt: getStringAllowEmpty(thumbnail.prompt, fallback.prompt),
+      composition: getStringAllowEmpty(
+        thumbnail.composition,
+        fallback.composition,
+      ),
+      mood: getStringAllowEmpty(thumbnail.mood, fallback.mood),
     };
   }
 
@@ -175,21 +181,4 @@ export class VisualManager {
     }));
   }
 
-  private static extractJson(response: string): string {
-    const trimmed = response.trim();
-    const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-
-    if (fencedMatch?.[1]) {
-      return fencedMatch[1].trim();
-    }
-
-    const start = trimmed.indexOf("{");
-    const end = trimmed.lastIndexOf("}");
-
-    if (start !== -1 && end !== -1 && end > start) {
-      return trimmed.slice(start, end + 1);
-    }
-
-    return trimmed;
-  }
 }
