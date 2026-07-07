@@ -23,17 +23,37 @@ export interface Project {
   updatedAt: string;
 }
 
+export type ProductionStepKey =
+  | "research"
+  | "script"
+  | "scenes"
+  | "visuals"
+  | "audio"
+  | "thumbnail"
+  | "seo"
+  | "assembly";
+
+export type PackageStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed"
+  | "missing";
+
+export interface ProjectPackageManifest {
+  key: ProductionStepKey;
+  status: PackageStatus;
+  fileName: string;
+  updatedAt?: string;
+  error?: string;
+}
+
 export interface ProjectManifest {
   project: Project;
-  packages: {
-    research: boolean;
-    script: boolean;
-    scenes: boolean;
-    visuals: boolean;
-    audio: boolean;
-    thumbnail: boolean;
-    seo: boolean;
-    assembly: boolean;
-  };
+  projectId: string;
+  slug: string;
+  version: 1;
+  packages: Record<ProductionStepKey, ProjectPackageManifest>;
+  createdAt: string;
   updatedAt: string;
 }
