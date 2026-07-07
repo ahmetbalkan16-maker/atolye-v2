@@ -49,10 +49,26 @@ export function generateVisualPrompts(
   const prompts = scenes.scenes.map((scene, index) =>
     createVisualPrompt(scene, index)
   );
+  const generatedAt = new Date().toISOString();
 
   return {
     projectId,
+    scenes: prompts.map((prompt, index) => ({
+      sceneId: Number.parseInt(prompt.sceneId, 10) || index + 1,
+      visualPrompt: prompt.prompt,
+      animationPrompt:
+        "Slow cinematic camera movement, realistic motion, documentary style",
+      style: prompt.style,
+    })),
+    thumbnail: {
+      title: "Historical Documentary Thumbnail",
+      prompt:
+        "Epic historical YouTube thumbnail, strong character focus, high contrast, cinematic documentary style",
+      composition: "Centered hero subject with dramatic background.",
+      mood: "epic, dramatic, historical",
+    },
+    createdAt: generatedAt,
     prompts,
-    generatedAt: new Date().toISOString(),
+    generatedAt,
   };
 }

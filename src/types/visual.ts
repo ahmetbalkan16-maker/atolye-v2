@@ -34,10 +34,36 @@ export interface VisualPrompt {
   createdAt: string;
 }
 
+export interface VisualScene {
+  sceneId: number;
+
+  visualPrompt: string;
+
+  animationPrompt: string;
+
+  style: string;
+}
+
+export interface ThumbnailConcept {
+  title: string;
+
+  prompt: string;
+
+  composition: string;
+
+  mood: string;
+}
+
 export interface VisualData {
   projectId: string;
 
-  prompts: VisualPrompt[];
+  scenes: VisualScene[];
 
-  generatedAt: string;
+  thumbnail: ThumbnailConcept;
+
+  createdAt: string;
+
+  prompts?: VisualPrompt[];
+
+  generatedAt?: string;
 }
