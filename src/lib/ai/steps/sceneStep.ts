@@ -1,4 +1,45 @@
-import { ResearchData, ScriptData, ScenesFile, SceneData } from "@/types/project";
+import type { ResearchData } from "@/types/research";
+
+type LegacyScriptSection = {
+  heading: string;
+  narration: string;
+};
+
+type LegacyScriptData = {
+  intro: string;
+  sections: LegacyScriptSection[];
+  outro: string;
+};
+
+type LegacySceneData = {
+  id: number;
+  title: string;
+  narration: string;
+  duration: number;
+  visualDescription: string;
+  imagePrompt: string;
+  animationPrompt: string;
+  cameraMovement: string;
+  soundEffects: string[];
+  backgroundMusic: string;
+  transition: string;
+  voiceEmotion: string;
+  voiceSpeed: number;
+  subtitle: string;
+  mapRequired: boolean;
+  timelineRequired: boolean;
+  assetStatus: "pending" | "ready" | "failed";
+  historicalNotes: string[];
+  references: string[];
+};
+
+type LegacyScenesFile = {
+  projectId: string;
+  createdAt: string;
+  updatedAt: string;
+  totalDuration: number;
+  scenes: LegacySceneData[];
+};
 
 function includesAny(text: string, words: string[]) {
   const lowerText = text.toLowerCase();
@@ -14,11 +55,11 @@ function estimateDuration(text: string) {
 export async function sceneStep(
   projectId: string,
   research: ResearchData,
-  script: ScriptData
-): Promise<ScenesFile> {
+  script: LegacyScriptData
+): Promise<LegacyScenesFile> {
   const now = new Date().toISOString();
 
-  const scenes: SceneData[] = [];
+  const scenes: LegacySceneData[] = [];
   let id = 1;
 
   scenes.push({
