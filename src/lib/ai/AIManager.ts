@@ -1,4 +1,5 @@
 import type { ResearchData } from "@/types/research";
+import type { SceneData, SceneItem } from "@/types/scene";
 import type { ScriptChapter, ScriptData } from "@/types/script";
 import { AIRouter } from "./router/AIRouter";
 
@@ -281,8 +282,8 @@ export class AIManager {
     }
   }
 
-  static async runScenes(script: ScriptData) {
-    return {
+  static async runScenes(script: ScriptData): Promise<SceneData> {
+    const fallback: SceneData = {
       scenes: [
         {
           id: 1,
@@ -290,6 +291,96 @@ export class AIManager {
           description: script.title,
         },
       ],
+      createdAt: new Date().toISOString(),
     };
+
+    const scriptInput = {
+      topic: script.topic,
+      title: script.title,
+      subtitle: script.subtitle,
+      hook: script.hook,
+      introduction: script.introduction,
+      chapters: script.chapters,
+      conclusion: script.conclusion,
+      voiceStyle: script.voiceStyle,
+      musicStyle: script.musicStyle,
+    };
+
+    const prompt = [
+      "You are a professional documentary scene planner.",
+      "Create production-ready scene data from the given documentary script.",
+      "Return only valid JSON. Do not include markdown, comments, or extra text.",
+      "The JSON object must match this TypeScript shape:",
+      "{",
+      '  "scenes": [',
+      "    {",
+      '      "id": 1,',
+      '      "title": "string",',
+      '      "description": "string",',
+      '      "visualPrompt": "string",',
+      '      "duration": 0',
+      "    }",
+      "  ],",
+      '  "createdAt": "string"',
+      "}",
+      "Rules:",
+      "- Write scene titles and descriptions in Turkish.",
+      "- Create one opening scene, one scene per script chapter, and one closing scene.",
+      "- description must explain what happens in the scene for a production team.",
+      "- visualPrompt must be cinematic, historically grounded, and useful for image/video generation.",
+      "- duration must be in seconds and should follow the script pacing.",
+      "- Keep ids as sequential numbers starting from 1.",
+      "Script JSON:",
+      JSON.stringify(scriptInput),
+    ].join("\n");
+
+    try {
+      const provider = this.router.getProvider("openai");
+      const response = await provider.generate(prompt);
+
+      if (!response.trim()) {
+        console.error("[AIManager.runScenes] Empty provider response.");
+        return fallback;
+      }
+
+      const jsonText = this.extractJson(response);
+      const parsed = JSON.parse(jsonText) as Partial<SceneData>;
+
+      const getString = (
+        value: unknown,
+        fallbackValue: string,
+      ): string => (typeof value === "string" ? value : fallbackValue);
+
+      const getNumber = (
+        value: unknown,
+        fallbackValue: number,
+      ): number => (typeof value === "number" ? value : fallbackValue);
+
+      const scenes: SceneItem[] = Array.isArray(parsed.scenes)
+        ? parsed.scenes.map((scene, index) => {
+            const item = scene as Partial<SceneItem>;
+
+            return {
+              id: getNumber(item.id, index + 1),
+              title: getString(item.title, `Scene ${index + 1}`),
+              description: getString(item.description, ""),
+              visualPrompt: getString(item.visualPrompt, ""),
+              duration: getNumber(item.duration, 0),
+            };
+          })
+        : fallback.scenes;
+
+      return {
+        scenes,
+        createdAt: getString(parsed.createdAt, fallback.createdAt),
+      };
+    } catch (error) {
+      console.error("[AIManager.runScenes] Falling back to mock scenes:", {
+        scriptTitle: script.title,
+        error,
+      });
+
+      return fallback;
+    }
   }
 }
