@@ -5,7 +5,8 @@ export type ProductionStepKey =
   | "visuals"
   | "audio"
   | "thumbnail"
-  | "seo";
+  | "seo"
+  | "assembly";
 
 export type ProductionStepState = {
   key: ProductionStepKey;
@@ -24,6 +25,7 @@ const stepLabels: Record<ProductionStepKey, string> = {
   audio: "Ses",
   thumbnail: "Thumbnail",
   seo: "SEO",
+  assembly: "Kurgu",
 };
 
 export function createProductionSteps(

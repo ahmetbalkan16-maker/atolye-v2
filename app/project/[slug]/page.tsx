@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import {
+  AssemblyPanel,
   AudioPanel,
   ProductionPackageSummary,
   ProjectActions,
@@ -16,6 +17,7 @@ import {
   calculateProductionProgress,
   createProductionSteps,
 } from "@/lib/projects/projectProgress";
+import type { AssemblyPlanData } from "@/types/assembly";
 import type { Project } from "@/types/project";
 import type { AudioData } from "@/types/audio";
 import type { ResearchData } from "@/types/research";
@@ -36,8 +38,17 @@ export default async function ProjectStudioPage({
 }: ProjectStudioPageProps) {
   const { slug } = await params;
 
-  const [project, research, script, scenes, visuals, audio, thumbnail, seo] =
-    await Promise.all([
+  const [
+    project,
+    research,
+    script,
+    scenes,
+    visuals,
+    audio,
+    thumbnail,
+    seo,
+    assembly,
+  ] = await Promise.all([
       ProjectManager.getProject(slug) as Promise<Project | null>,
       ProjectManager.getResearch(slug) as Promise<ResearchData | null>,
       ProjectManager.getScript(slug) as Promise<ScriptData | null>,
@@ -46,6 +57,7 @@ export default async function ProjectStudioPage({
       ProjectManager.getAudio(slug) as Promise<AudioData | null>,
       ProjectManager.getThumbnail(slug) as Promise<ThumbnailData | null>,
       ProjectManager.getSEO(slug) as Promise<SEOData | null>,
+      ProjectManager.getAssembly(slug) as Promise<AssemblyPlanData | null>,
     ]);
 
   if (!project) {
@@ -60,6 +72,7 @@ export default async function ProjectStudioPage({
     audio: Boolean(audio),
     thumbnail: Boolean(thumbnail),
     seo: Boolean(seo),
+    assembly: Boolean(assembly),
   };
   const progress = calculateProductionProgress(progressInput);
   const productionSteps = createProductionSteps(progressInput, project.updatedAt);
@@ -114,6 +127,7 @@ export default async function ProjectStudioPage({
         <AudioPanel audio={audio} />
         <ThumbnailPanel thumbnail={thumbnail} />
         <SEOPanel seo={seo} />
+        <AssemblyPanel assembly={assembly} />
       </div>
     </StudioLayout>
   );
