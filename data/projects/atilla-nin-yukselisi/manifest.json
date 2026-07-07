@@ -1,0 +1,58 @@
+{
+  "project": {
+    "id": "c85c5d14-648f-4ecf-9c04-6b4ed131a489",
+    "slug": "atilla-nin-yukselisi",
+    "title": "Atilla'nın yükselişi",
+    "status": "draft",
+    "createdAt": "2026-07-07T05:16:56.783Z",
+    "updatedAt": "2026-07-07T05:16:56.783Z"
+  },
+  "projectId": "c85c5d14-648f-4ecf-9c04-6b4ed131a489",
+  "slug": "atilla-nin-yukselisi",
+  "version": 1,
+  "packages": {
+    "research": {
+      "key": "research",
+      "status": "completed",
+      "fileName": "research.json",
+      "updatedAt": "2026-07-07T21:09:18.262Z"
+    },
+    "script": {
+      "key": "script",
+      "status": "missing",
+      "fileName": "script.json"
+    },
+    "scenes": {
+      "key": "scenes",
+      "status": "missing",
+      "fileName": "scenes.json"
+    },
+    "visuals": {
+      "key": "visuals",
+      "status": "missing",
+      "fileName": "visuals.json"
+    },
+    "audio": {
+      "key": "audio",
+      "status": "missing",
+      "fileName": "audio.json"
+    },
+    "thumbnail": {
+      "key": "thumbnail",
+      "status": "missing",
+      "fileName": "thumbnail.json"
+    },
+    "seo": {
+      "key": "seo",
+      "status": "missing",
+      "fileName": "seo.json"
+    },
+    "assembly": {
+      "key": "assembly",
+      "status": "missing",
+      "fileName": "assembly.json"
+    }
+  },
+  "createdAt": "2026-07-07T05:16:56.783Z",
+  "updatedAt": "2026-07-07T21:09:18.262Z"
+}
