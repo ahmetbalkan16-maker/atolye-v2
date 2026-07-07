@@ -52,6 +52,10 @@ export class ProjectManager {
     await ProjectWriter.writeJSON(slug, "visuals.json", visuals);
   }
 
+  static async saveAudio(slug: string, audio: unknown) {
+    await ProjectWriter.writeJSON(slug, "audio.json", audio);
+  }
+
   static async getProject(slug: string) {
     return ProjectReader.readJSON(slug, "project.json");
   }
@@ -70,6 +74,10 @@ export class ProjectManager {
 
   static async getVisuals(slug: string) {
     return ProjectReader.readJSON(slug, "visuals.json");
+  }
+
+  static async getAudio(slug: string) {
+    return ProjectReader.readJSON(slug, "audio.json");
   }
 
   static async updateStatus(slug: string, status: ProjectStatus) {
