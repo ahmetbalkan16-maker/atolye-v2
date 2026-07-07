@@ -60,6 +60,10 @@ export class ProjectManager {
     await ProjectWriter.writeJSON(slug, "thumbnail.json", thumbnail);
   }
 
+  static async saveSEO(slug: string, seo: unknown) {
+    await ProjectWriter.writeJSON(slug, "seo.json", seo);
+  }
+
   static async getProject(slug: string) {
     return ProjectReader.readJSON(slug, "project.json");
   }
@@ -86,6 +90,10 @@ export class ProjectManager {
 
   static async getThumbnail(slug: string) {
     return ProjectReader.readJSON(slug, "thumbnail.json");
+  }
+
+  static async getSEO(slug: string) {
+    return ProjectReader.readJSON(slug, "seo.json");
   }
 
   static async updateStatus(slug: string, status: ProjectStatus) {
