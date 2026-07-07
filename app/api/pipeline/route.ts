@@ -1,0 +1,36 @@
+import { NextResponse } from "next/server";
+import { PipelineRunner } from "@/lib/pipeline/PipelineRunner";
+
+export async function POST(req: Request) {
+  try {
+    const { topic } = await req.json();
+
+    if (!topic || typeof topic !== "string" || !topic.trim()) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Konu bos olamaz.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const result = await PipelineRunner.run(topic.trim());
+
+    return NextResponse.json({
+      success: true,
+      slug: result.slug,
+      projectUrl: `/project/${result.slug}`,
+    });
+  } catch (error) {
+    console.error("[Pipeline API] Pipeline failed:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Uretim akisi tamamlanamadi.",
+      },
+      { status: 500 },
+    );
+  }
+}
