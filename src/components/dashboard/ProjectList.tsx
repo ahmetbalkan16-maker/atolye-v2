@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import ProjectProgressCard from "@/components/projects/ProjectProgressCard";
+import type { ProductionStepKey } from "@/types/project";
 
 type Project = {
   id: string;
@@ -9,6 +11,20 @@ type Project = {
   title: string;
   status: string;
   updatedAt: string;
+  progress: ProjectProgressSummary | null;
+};
+
+type ProjectProgressSummary = {
+  currentStage: ProjectProgressStageSummary | null;
+  nextStage: ProjectProgressStageSummary | null;
+  completionPercentage: number;
+  completedStagesCount: number;
+  totalStagesCount: number;
+};
+
+type ProjectProgressStageSummary = {
+  key: ProductionStepKey;
+  label: string;
 };
 
 export default function ProjectList() {
@@ -86,6 +102,16 @@ export default function ProjectList() {
             {" "}
             {new Date(project.updatedAt).toLocaleString("tr-TR")}
           </p>
+
+          {project.progress ? (
+            <ProjectProgressCard
+              currentStage={project.progress.currentStage}
+              nextStage={project.progress.nextStage}
+              completionPercentage={project.progress.completionPercentage}
+              completedStagesCount={project.progress.completedStagesCount}
+              totalStagesCount={project.progress.totalStagesCount}
+            />
+          ) : null}
         </Link>
       ))}
     </div>
