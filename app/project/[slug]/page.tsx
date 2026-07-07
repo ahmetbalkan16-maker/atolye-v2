@@ -1,8 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
-import StudioCard from "@/components/studio/StudioCard";
-import StudioLayout from "@/components/studio/StudioLayout";
+import {
+  ProjectActions,
+  ProjectProgress,
+  ProjectStatusCards,
+  StudioCard,
+  StudioLayout,
+} from "@/components/studio";
+import {
+  calculateProductionProgress,
+  createProductionSteps,
+} from "@/lib/projects/projectProgress";
 import type { Project } from "@/types/project";
 import type { ResearchData } from "@/types/research";
 import type { SceneData } from "@/types/scene";
@@ -31,6 +40,15 @@ export default async function ProjectStudioPage({
   if (!project) {
     notFound();
   }
+
+  const progressInput = {
+    research: Boolean(research),
+    script: Boolean(script),
+    scenes: Boolean(scenes),
+    visuals: Boolean(visuals),
+  };
+  const progress = calculateProductionProgress(progressInput);
+  const productionSteps = createProductionSteps(progressInput, project.updatedAt);
 
   return (
     <StudioLayout
@@ -63,6 +81,14 @@ export default async function ProjectStudioPage({
                 value={project.description ?? "Açıklama eklenmemiş."}
               />
             </div>
+          </div>
+        </StudioCard>
+
+        <StudioCard title="Üretim Kontrol Merkezi">
+          <div className="space-y-6">
+            <ProjectProgress progress={progress} />
+            <ProjectStatusCards steps={productionSteps} />
+            <ProjectActions slug={slug} />
           </div>
         </StudioCard>
 
