@@ -64,6 +64,10 @@ export class ProjectManager {
     await ProjectWriter.writeJSON(slug, "seo.json", seo);
   }
 
+  static async saveAssembly(slug: string, assembly: unknown) {
+    await ProjectWriter.writeJSON(slug, "assembly.json", assembly);
+  }
+
   static async getProject(slug: string) {
     return ProjectReader.readJSON(slug, "project.json");
   }
@@ -94,6 +98,10 @@ export class ProjectManager {
 
   static async getSEO(slug: string) {
     return ProjectReader.readJSON(slug, "seo.json");
+  }
+
+  static async getAssembly(slug: string) {
+    return ProjectReader.readJSON(slug, "assembly.json");
   }
 
   static async updateStatus(slug: string, status: ProjectStatus) {
