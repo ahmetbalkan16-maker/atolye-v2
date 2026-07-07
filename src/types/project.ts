@@ -4,6 +4,7 @@ export type ProjectStatus =
   | "script"
   | "scenes"
   | "visuals"
+  | "audio"
   | "animation"
   | "voice"
   | "youtube"

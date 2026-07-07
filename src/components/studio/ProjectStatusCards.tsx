@@ -6,7 +6,7 @@ type ProjectStatusCardsProps = {
 
 export default function ProjectStatusCards({ steps }: ProjectStatusCardsProps) {
   return (
-    <div className="grid gap-4 md:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-5">
       {steps.map((step) => (
         <div
           key={step.key}

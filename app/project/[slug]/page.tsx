@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import {
+  AudioPanel,
   ProjectActions,
   ProjectProgress,
   ProjectStatusCards,
@@ -13,6 +14,7 @@ import {
   createProductionSteps,
 } from "@/lib/projects/projectProgress";
 import type { Project } from "@/types/project";
+import type { AudioData } from "@/types/audio";
 import type { ResearchData } from "@/types/research";
 import type { SceneData } from "@/types/scene";
 import type { ScriptData } from "@/types/script";
@@ -29,12 +31,13 @@ export default async function ProjectStudioPage({
 }: ProjectStudioPageProps) {
   const { slug } = await params;
 
-  const [project, research, script, scenes, visuals] = await Promise.all([
+  const [project, research, script, scenes, visuals, audio] = await Promise.all([
     ProjectManager.getProject(slug) as Promise<Project | null>,
     ProjectManager.getResearch(slug) as Promise<ResearchData | null>,
     ProjectManager.getScript(slug) as Promise<ScriptData | null>,
     ProjectManager.getScenes(slug) as Promise<SceneData | null>,
     ProjectManager.getVisuals(slug) as Promise<VisualData | null>,
+    ProjectManager.getAudio(slug) as Promise<AudioData | null>,
   ]);
 
   if (!project) {
@@ -46,6 +49,7 @@ export default async function ProjectStudioPage({
     script: Boolean(script),
     scenes: Boolean(scenes),
     visuals: Boolean(visuals),
+    audio: Boolean(audio),
   };
   const progress = calculateProductionProgress(progressInput);
   const productionSteps = createProductionSteps(progressInput, project.updatedAt);
@@ -96,6 +100,7 @@ export default async function ProjectStudioPage({
         <ScriptPanel script={script} />
         <ScenePanel scenes={scenes} />
         <VisualPanel visuals={visuals} />
+        <AudioPanel audio={audio} />
       </div>
     </StudioLayout>
   );

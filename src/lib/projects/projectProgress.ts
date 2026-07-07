@@ -1,4 +1,9 @@
-export type ProductionStepKey = "research" | "script" | "scenes" | "visuals";
+export type ProductionStepKey =
+  | "research"
+  | "script"
+  | "scenes"
+  | "visuals"
+  | "audio";
 
 export type ProductionStepState = {
   key: ProductionStepKey;
@@ -14,6 +19,7 @@ const stepLabels: Record<ProductionStepKey, string> = {
   script: "Senaryo",
   scenes: "Sahneler",
   visuals: "Görseller",
+  audio: "Ses",
 };
 
 export function createProductionSteps(
@@ -32,5 +38,7 @@ export function calculateProductionProgress(
   input: ProductionProgressInput,
 ): number {
   const completed = Object.values(input).filter(Boolean).length;
-  return completed * 25;
+  const total = Object.keys(stepLabels).length;
+
+  return Math.round((completed / total) * 100);
 }
