@@ -3,7 +3,9 @@ export type ProductionStepKey =
   | "script"
   | "scenes"
   | "visuals"
-  | "audio";
+  | "audio"
+  | "thumbnail"
+  | "seo";
 
 export type ProductionStepState = {
   key: ProductionStepKey;
@@ -20,6 +22,8 @@ const stepLabels: Record<ProductionStepKey, string> = {
   scenes: "Sahneler",
   visuals: "Görseller",
   audio: "Ses",
+  thumbnail: "Thumbnail",
+  seo: "SEO",
 };
 
 export function createProductionSteps(

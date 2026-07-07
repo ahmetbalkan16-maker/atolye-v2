@@ -6,3 +6,6 @@ export { default as ProjectActions } from "./ProjectActions";
 export { default as ProjectProgress } from "./ProjectProgress";
 export { default as ProjectStatusCards } from "./ProjectStatusCards";
 export { default as AudioPanel } from "./AudioPanel";
+export { default as ThumbnailPanel } from "./ThumbnailPanel";
+export { default as SEOPanel } from "./SEOPanel";
+export { default as ProductionPackageSummary } from "./ProductionPackageSummary";

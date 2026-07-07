@@ -3,11 +3,14 @@ import { notFound } from "next/navigation";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import {
   AudioPanel,
+  ProductionPackageSummary,
   ProjectActions,
   ProjectProgress,
   ProjectStatusCards,
+  SEOPanel,
   StudioCard,
   StudioLayout,
+  ThumbnailPanel,
 } from "@/components/studio";
 import {
   calculateProductionProgress,
@@ -17,7 +20,9 @@ import type { Project } from "@/types/project";
 import type { AudioData } from "@/types/audio";
 import type { ResearchData } from "@/types/research";
 import type { SceneData } from "@/types/scene";
+import type { SEOData } from "@/types/seo";
 import type { ScriptData } from "@/types/script";
+import type { ThumbnailData } from "@/types/thumbnail";
 import type { VisualData } from "@/types/visual";
 
 type ProjectStudioPageProps = {
@@ -31,14 +36,17 @@ export default async function ProjectStudioPage({
 }: ProjectStudioPageProps) {
   const { slug } = await params;
 
-  const [project, research, script, scenes, visuals, audio] = await Promise.all([
-    ProjectManager.getProject(slug) as Promise<Project | null>,
-    ProjectManager.getResearch(slug) as Promise<ResearchData | null>,
-    ProjectManager.getScript(slug) as Promise<ScriptData | null>,
-    ProjectManager.getScenes(slug) as Promise<SceneData | null>,
-    ProjectManager.getVisuals(slug) as Promise<VisualData | null>,
-    ProjectManager.getAudio(slug) as Promise<AudioData | null>,
-  ]);
+  const [project, research, script, scenes, visuals, audio, thumbnail, seo] =
+    await Promise.all([
+      ProjectManager.getProject(slug) as Promise<Project | null>,
+      ProjectManager.getResearch(slug) as Promise<ResearchData | null>,
+      ProjectManager.getScript(slug) as Promise<ScriptData | null>,
+      ProjectManager.getScenes(slug) as Promise<SceneData | null>,
+      ProjectManager.getVisuals(slug) as Promise<VisualData | null>,
+      ProjectManager.getAudio(slug) as Promise<AudioData | null>,
+      ProjectManager.getThumbnail(slug) as Promise<ThumbnailData | null>,
+      ProjectManager.getSEO(slug) as Promise<SEOData | null>,
+    ]);
 
   if (!project) {
     notFound();
@@ -50,6 +58,8 @@ export default async function ProjectStudioPage({
     scenes: Boolean(scenes),
     visuals: Boolean(visuals),
     audio: Boolean(audio),
+    thumbnail: Boolean(thumbnail),
+    seo: Boolean(seo),
   };
   const progress = calculateProductionProgress(progressInput);
   const productionSteps = createProductionSteps(progressInput, project.updatedAt);
@@ -96,11 +106,14 @@ export default async function ProjectStudioPage({
           </div>
         </StudioCard>
 
+        <ProductionPackageSummary steps={productionSteps} />
         <ResearchPanel research={research} />
         <ScriptPanel script={script} />
         <ScenePanel scenes={scenes} />
         <VisualPanel visuals={visuals} />
         <AudioPanel audio={audio} />
+        <ThumbnailPanel thumbnail={thumbnail} />
+        <SEOPanel seo={seo} />
       </div>
     </StudioLayout>
   );
