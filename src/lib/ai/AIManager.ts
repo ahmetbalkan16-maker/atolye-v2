@@ -2,6 +2,13 @@ import type { ResearchData } from "@/types/research";
 import type { SceneData, SceneItem } from "@/types/scene";
 import type { ScriptChapter, ScriptData } from "@/types/script";
 import { AIRouter } from "./router/AIRouter";
+import {
+  getCreatedAt,
+  getNumber,
+  getStringAllowEmpty,
+  getStringArray,
+  parseAIJsonResponse,
+} from "./utils";
 
 export class AIManager {
   private static router = new AIRouter();
@@ -69,23 +76,12 @@ export class AIManager {
         return fallback;
       }
 
-      const jsonText = this.extractJson(response);
-      const parsed = JSON.parse(jsonText) as Partial<ResearchData>;
-
-      const getString = (
-        value: unknown,
-        fallbackValue: string,
-      ): string => (typeof value === "string" ? value : fallbackValue);
-
-      const getStringArray = (value: unknown): string[] =>
-        Array.isArray(value)
-          ? value.filter((item): item is string => typeof item === "string")
-          : [];
+      const parsed = parseAIJsonResponse<Partial<ResearchData>>(response);
 
       return {
-        topic: getString(parsed.topic, fallback.topic),
-        summary: getString(parsed.summary, fallback.summary),
-        historicalContext: getString(
+        topic: getStringAllowEmpty(parsed.topic, fallback.topic),
+        summary: getStringAllowEmpty(parsed.summary, fallback.summary),
+        historicalContext: getStringAllowEmpty(
           parsed.historicalContext,
           fallback.historicalContext,
         ),
@@ -105,7 +101,7 @@ export class AIManager {
         thumbnailIdeas: getStringArray(parsed.thumbnailIdeas),
         youtubeTitles: getStringArray(parsed.youtubeTitles),
         sources: getStringArray(parsed.sources),
-        createdAt: getString(parsed.createdAt, fallback.createdAt),
+        createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
       };
     } catch (error) {
       console.error("[AIManager.runResearch] Falling back to mock research:", {
@@ -115,24 +111,6 @@ export class AIManager {
 
       return fallback;
     }
-  }
-
-  private static extractJson(response: string): string {
-    const trimmed = response.trim();
-    const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-
-    if (fencedMatch?.[1]) {
-      return fencedMatch[1].trim();
-    }
-
-    const start = trimmed.indexOf("{");
-    const end = trimmed.lastIndexOf("}");
-
-    if (start !== -1 && end !== -1 && end > start) {
-      return trimmed.slice(start, end + 1);
-    }
-
-    return trimmed;
   }
 
   static async runScript(topic: string): Promise<ScriptData> {
@@ -210,23 +188,7 @@ export class AIManager {
         return fallback;
       }
 
-      const jsonText = this.extractJson(response);
-      const parsed = JSON.parse(jsonText) as Partial<ScriptData>;
-
-      const getString = (
-        value: unknown,
-        fallbackValue: string,
-      ): string => (typeof value === "string" ? value : fallbackValue);
-
-      const getNumber = (
-        value: unknown,
-        fallbackValue: number,
-      ): number => (typeof value === "number" ? value : fallbackValue);
-
-      const getStringArray = (value: unknown): string[] =>
-        Array.isArray(value)
-          ? value.filter((item): item is string => typeof item === "string")
-          : [];
+      const parsed = parseAIJsonResponse<Partial<ScriptData>>(response);
 
       const chapters: ScriptChapter[] = Array.isArray(parsed.chapters)
         ? parsed.chapters.map((chapter, index) => {
@@ -234,25 +196,25 @@ export class AIManager {
 
             return {
               id: getNumber(item.id, index + 1),
-              title: getString(item.title, `Bölüm ${index + 1}`),
-              narration: getString(item.narration, ""),
+              title: getStringAllowEmpty(item.title, `Bölüm ${index + 1}`),
+              narration: getStringAllowEmpty(item.narration, ""),
               duration: getNumber(item.duration, 0),
-              visualGoal: getString(item.visualGoal, ""),
-              emotion: getString(item.emotion, ""),
-              transition: getString(item.transition, ""),
+              visualGoal: getStringAllowEmpty(item.visualGoal, ""),
+              emotion: getStringAllowEmpty(item.emotion, ""),
+              transition: getStringAllowEmpty(item.transition, ""),
             };
           })
         : fallback.chapters;
 
       return {
-        topic: getString(parsed.topic, fallback.topic),
-        title: getString(parsed.title, fallback.title),
-        subtitle: getString(parsed.subtitle, fallback.subtitle),
-        hook: getString(parsed.hook, fallback.hook),
-        introduction: getString(parsed.introduction, fallback.introduction),
+        topic: getStringAllowEmpty(parsed.topic, fallback.topic),
+        title: getStringAllowEmpty(parsed.title, fallback.title),
+        subtitle: getStringAllowEmpty(parsed.subtitle, fallback.subtitle),
+        hook: getStringAllowEmpty(parsed.hook, fallback.hook),
+        introduction: getStringAllowEmpty(parsed.introduction, fallback.introduction),
         chapters,
-        conclusion: getString(parsed.conclusion, fallback.conclusion),
-        callToAction: getString(parsed.callToAction, fallback.callToAction),
+        conclusion: getStringAllowEmpty(parsed.conclusion, fallback.conclusion),
+        callToAction: getStringAllowEmpty(parsed.callToAction, fallback.callToAction),
         estimatedDuration: getNumber(
           parsed.estimatedDuration,
           fallback.estimatedDuration,
@@ -261,16 +223,16 @@ export class AIManager {
           parsed.narrationWordCount,
           fallback.narrationWordCount,
         ),
-        targetAudience: getString(
+        targetAudience: getStringAllowEmpty(
           parsed.targetAudience,
           fallback.targetAudience,
         ),
-        language: getString(parsed.language, fallback.language),
-        voiceStyle: getString(parsed.voiceStyle, fallback.voiceStyle),
-        musicStyle: getString(parsed.musicStyle, fallback.musicStyle),
-        thumbnailIdea: getString(parsed.thumbnailIdea, fallback.thumbnailIdea),
+        language: getStringAllowEmpty(parsed.language, fallback.language),
+        voiceStyle: getStringAllowEmpty(parsed.voiceStyle, fallback.voiceStyle),
+        musicStyle: getStringAllowEmpty(parsed.musicStyle, fallback.musicStyle),
+        thumbnailIdea: getStringAllowEmpty(parsed.thumbnailIdea, fallback.thumbnailIdea),
         seoKeywords: getStringArray(parsed.seoKeywords),
-        createdAt: getString(parsed.createdAt, fallback.createdAt),
+        createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
       };
     } catch (error) {
       console.error("[AIManager.runScript] Falling back to mock script:", {
@@ -343,18 +305,7 @@ export class AIManager {
         return fallback;
       }
 
-      const jsonText = this.extractJson(response);
-      const parsed = JSON.parse(jsonText) as Partial<SceneData>;
-
-      const getString = (
-        value: unknown,
-        fallbackValue: string,
-      ): string => (typeof value === "string" ? value : fallbackValue);
-
-      const getNumber = (
-        value: unknown,
-        fallbackValue: number,
-      ): number => (typeof value === "number" ? value : fallbackValue);
+      const parsed = parseAIJsonResponse<Partial<SceneData>>(response);
 
       const scenes: SceneItem[] = Array.isArray(parsed.scenes)
         ? parsed.scenes.map((scene, index) => {
@@ -362,9 +313,9 @@ export class AIManager {
 
             return {
               id: getNumber(item.id, index + 1),
-              title: getString(item.title, `Scene ${index + 1}`),
-              description: getString(item.description, ""),
-              visualPrompt: getString(item.visualPrompt, ""),
+              title: getStringAllowEmpty(item.title, `Scene ${index + 1}`),
+              description: getStringAllowEmpty(item.description, ""),
+              visualPrompt: getStringAllowEmpty(item.visualPrompt, ""),
               duration: getNumber(item.duration, 0),
             };
           })
@@ -372,7 +323,7 @@ export class AIManager {
 
       return {
         scenes,
-        createdAt: getString(parsed.createdAt, fallback.createdAt),
+        createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
       };
     } catch (error) {
       console.error("[AIManager.runScenes] Falling back to mock scenes:", {
