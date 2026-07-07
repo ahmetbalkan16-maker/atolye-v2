@@ -1,7 +1,10 @@
 import { ResearchData } from "@/types/research";
 import { ScriptData } from "@/types/script";
+import { AIRouter } from "./router/AIRouter";
 
 export class AIManager {
+  private static router = new AIRouter();
+
   static async runResearch(topic: string): Promise<ResearchData> {
     return {
       topic,

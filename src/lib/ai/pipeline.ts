@@ -1,11 +1,13 @@
 import type { AIProvider } from "./providers";
-import { OpenAIProvider } from "./providers";
+import { AIRouter } from "./router/AIRouter";
 
-const defaultProvider = new OpenAIProvider();
+const router = new AIRouter();
+
+const defaultProvider = router.getProvider("openai");
 
 export async function runPipeline(
   prompt: string,
-  selectedProvider: AIProvider = provider,
+  selectedProvider: AIProvider = defaultProvider,
 ): Promise<string> {
   return await selectedProvider.generate(prompt);
 }
