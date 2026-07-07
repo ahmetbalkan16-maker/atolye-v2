@@ -1,4 +1,11 @@
 import { AIRouter } from "@/lib/ai/router/AIRouter";
+import {
+  getCreatedAt,
+  getOptionalString,
+  getString,
+  isRecord,
+  parseAIJsonResponse,
+} from "@/lib/ai/utils";
 import type { ScriptData } from "@/types/script";
 import type { ThumbnailData, ThumbnailGenerationInfo } from "@/types/thumbnail";
 import type { VisualData } from "@/types/visual";
@@ -23,27 +30,22 @@ export class ThumbnailManager {
         return fallback;
       }
 
-      const parsed = JSON.parse(
-        this.extractJson(response),
-      ) as Partial<ThumbnailData>;
+      const parsed = parseAIJsonResponse<Partial<ThumbnailData>>(response);
 
       return {
-        titleIdea: this.getString(parsed.titleIdea, fallback.titleIdea),
-        concept: this.getString(parsed.concept, fallback.concept),
-        mainSubject: this.getString(parsed.mainSubject, fallback.mainSubject),
-        composition: this.getString(parsed.composition, fallback.composition),
-        colorStyle: this.getString(parsed.colorStyle, fallback.colorStyle),
-        textSuggestion: this.getString(
+        titleIdea: getString(parsed.titleIdea, fallback.titleIdea),
+        concept: getString(parsed.concept, fallback.concept),
+        mainSubject: getString(parsed.mainSubject, fallback.mainSubject),
+        composition: getString(parsed.composition, fallback.composition),
+        colorStyle: getString(parsed.colorStyle, fallback.colorStyle),
+        textSuggestion: getString(
           parsed.textSuggestion,
           fallback.textSuggestion,
         ),
-        imagePrompt: this.getString(parsed.imagePrompt, fallback.imagePrompt),
-        clickReason: this.getString(parsed.clickReason, fallback.clickReason),
+        imagePrompt: getString(parsed.imagePrompt, fallback.imagePrompt),
+        clickReason: getString(parsed.clickReason, fallback.clickReason),
         generation: this.mapGeneration(parsed.generation, fallback.generation),
-        createdAt:
-          typeof parsed.createdAt === "string"
-            ? parsed.createdAt
-            : fallback.createdAt,
+        createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
       };
     } catch (error) {
       console.error(
@@ -100,14 +102,14 @@ export class ThumbnailManager {
   ): ThumbnailGenerationInfo | undefined {
     const generation = value as Partial<ThumbnailGenerationInfo>;
 
-    if (!generation || typeof generation !== "object") {
+    if (!isRecord(generation)) {
       return fallback;
     }
 
     return {
-      provider: this.getOptionalString(generation.provider),
-      model: this.getOptionalString(generation.model),
-      imageUrl: this.getOptionalString(generation.imageUrl),
+      provider: getOptionalString(generation.provider),
+      model: getOptionalString(generation.model),
+      imageUrl: getOptionalString(generation.imageUrl),
       status:
         generation.status === "generated" ||
         generation.status === "failed" ||
@@ -117,35 +119,9 @@ export class ThumbnailManager {
     };
   }
 
-  private static extractJson(response: string): string {
-    const trimmed = response.trim();
-    const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-
-    if (fencedMatch?.[1]) {
-      return fencedMatch[1].trim();
-    }
-
-    const start = trimmed.indexOf("{");
-    const end = trimmed.lastIndexOf("}");
-
-    if (start !== -1 && end !== -1 && end > start) {
-      return trimmed.slice(start, end + 1);
-    }
-
-    return trimmed;
-  }
-
   private static createShortText(value: string): string {
     const words = value.trim().split(/\s+/).filter(Boolean).slice(0, 3);
 
     return words.length > 0 ? words.join(" ").toUpperCase() : "GERCEK NE?";
-  }
-
-  private static getString(value: unknown, fallback: string): string {
-    return typeof value === "string" && value.trim() ? value : fallback;
-  }
-
-  private static getOptionalString(value: unknown): string | undefined {
-    return typeof value === "string" ? value : undefined;
   }
 }

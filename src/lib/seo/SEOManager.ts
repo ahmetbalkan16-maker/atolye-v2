@@ -1,4 +1,10 @@
 import { AIRouter } from "@/lib/ai/router/AIRouter";
+import {
+  getCreatedAt,
+  getString,
+  getStringArray,
+  parseAIJsonResponse,
+} from "@/lib/ai/utils";
 import type { ScriptData } from "@/types/script";
 import type { SEOData } from "@/types/seo";
 import type { ThumbnailData } from "@/types/thumbnail";
@@ -24,26 +30,23 @@ export class SEOManager {
         return fallback;
       }
 
-      const parsed = JSON.parse(this.extractJson(response)) as Partial<SEOData>;
+      const parsed = parseAIJsonResponse<Partial<SEOData>>(response);
 
       return {
         titleSuggestions: this.getStringArray(
           parsed.titleSuggestions,
           fallback.titleSuggestions,
         ),
-        description: this.getString(parsed.description, fallback.description),
+        description: getString(parsed.description, fallback.description),
         tags: this.getStringArray(parsed.tags, fallback.tags),
         hashtags: this.getHashtags(parsed.hashtags, fallback.hashtags),
         keywords: this.getStringArray(parsed.keywords, fallback.keywords),
-        targetAudience: this.getString(
+        targetAudience: getString(
           parsed.targetAudience,
           fallback.targetAudience,
         ),
-        searchIntent: this.getString(parsed.searchIntent, fallback.searchIntent),
-        createdAt:
-          typeof parsed.createdAt === "string"
-            ? parsed.createdAt
-            : fallback.createdAt,
+        searchIntent: getString(parsed.searchIntent, fallback.searchIntent),
+        createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
       };
     } catch (error) {
       console.error("[SEOManager] Falling back to local SEO plan:", error);
@@ -91,36 +94,12 @@ export class SEOManager {
     };
   }
 
-  private static extractJson(response: string): string {
-    const trimmed = response.trim();
-    const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-
-    if (fencedMatch?.[1]) {
-      return fencedMatch[1].trim();
-    }
-
-    const start = trimmed.indexOf("{");
-    const end = trimmed.lastIndexOf("}");
-
-    if (start !== -1 && end !== -1 && end > start) {
-      return trimmed.slice(start, end + 1);
-    }
-
-    return trimmed;
-  }
-
-  private static getString(value: unknown, fallback: string): string {
-    return typeof value === "string" && value.trim() ? value : fallback;
-  }
-
   private static getStringArray(
     value: unknown,
     fallback: string[],
   ): string[] {
     return Array.isArray(value)
-      ? this.uniqueStrings(
-          value.filter((item): item is string => typeof item === "string"),
-        )
+      ? this.uniqueStrings(getStringArray(value))
       : fallback;
   }
 

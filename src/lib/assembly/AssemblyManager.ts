@@ -1,4 +1,12 @@
 import { AIRouter } from "@/lib/ai/router/AIRouter";
+import {
+  getCreatedAt,
+  getOptionalString,
+  getString,
+  getStringArray,
+  isRecord,
+  parseAIJsonResponse,
+} from "@/lib/ai/utils";
 import type { AssemblyPlanData, AssemblyRenderInfo, AssemblyScene } from "@/types/assembly";
 import type { AudioData, AudioSection } from "@/types/audio";
 import type { SceneData, SceneItem } from "@/types/scene";
@@ -32,22 +40,17 @@ export class AssemblyManager {
         return fallback;
       }
 
-      const parsed = JSON.parse(
-        this.extractJson(response),
-      ) as Partial<AssemblyPlanData>;
+      const parsed = parseAIJsonResponse<Partial<AssemblyPlanData>>(response);
 
       return {
         scenes: this.mapScenes(parsed.scenes, fallback.scenes),
-        totalDuration: this.getString(
+        totalDuration: getString(
           parsed.totalDuration,
           fallback.totalDuration,
         ),
-        style: this.getString(parsed.style, fallback.style),
+        style: getString(parsed.style, fallback.style),
         render: this.mapRender(parsed.render, fallback.render),
-        createdAt:
-          typeof parsed.createdAt === "string"
-            ? parsed.createdAt
-            : fallback.createdAt,
+        createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
       };
     } catch (error) {
       console.error(
@@ -134,22 +137,22 @@ export class AssemblyManager {
           typeof scene.sceneId === "number"
             ? scene.sceneId
             : fallbackScene.sceneId,
-        duration: this.getString(scene.duration, fallbackScene.duration),
-        visualReference: this.getString(
+        duration: getString(scene.duration, fallbackScene.duration),
+        visualReference: getString(
           scene.visualReference,
           fallbackScene.visualReference,
         ),
-        audioReference: this.getString(
+        audioReference: getString(
           scene.audioReference,
           fallbackScene.audioReference,
         ),
-        transition: this.getString(scene.transition, fallbackScene.transition),
-        cameraMovement: this.getString(
+        transition: getString(scene.transition, fallbackScene.transition),
+        cameraMovement: getString(
           scene.cameraMovement,
           fallbackScene.cameraMovement,
         ),
-        effects: this.getStringArray(scene.effects, fallbackScene.effects),
-        notes: this.getOptionalString(scene.notes) ?? fallbackScene.notes,
+        effects: getStringArray(scene.effects, fallbackScene.effects),
+        notes: getOptionalString(scene.notes) ?? fallbackScene.notes,
       };
     });
   }
@@ -160,7 +163,7 @@ export class AssemblyManager {
   ): AssemblyRenderInfo | undefined {
     const render = value as Partial<AssemblyRenderInfo>;
 
-    if (!render || typeof render !== "object") {
+    if (!isRecord(render)) {
       return fallback;
     }
 
@@ -171,7 +174,7 @@ export class AssemblyManager {
         render.status === "planned"
           ? render.status
           : fallback?.status ?? "planned",
-      outputUrl: this.getOptionalString(render.outputUrl),
+      outputUrl: getOptionalString(render.outputUrl),
       format: render.format === "mp4" ? render.format : fallback?.format,
     };
   }
@@ -223,24 +226,6 @@ export class AssemblyManager {
     ];
   }
 
-  private static extractJson(response: string): string {
-    const trimmed = response.trim();
-    const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-
-    if (fencedMatch?.[1]) {
-      return fencedMatch[1].trim();
-    }
-
-    const start = trimmed.indexOf("{");
-    const end = trimmed.lastIndexOf("}");
-
-    if (start !== -1 && end !== -1 && end > start) {
-      return trimmed.slice(start, end + 1);
-    }
-
-    return trimmed;
-  }
-
   private static formatDuration(seconds: number): string {
     const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
     const minutes = Math.floor(safeSeconds / 60);
@@ -251,20 +236,4 @@ export class AssemblyManager {
     ).padStart(2, "0")}`;
   }
 
-  private static getString(value: unknown, fallback: string): string {
-    return typeof value === "string" && value.trim() ? value : fallback;
-  }
-
-  private static getOptionalString(value: unknown): string | undefined {
-    return typeof value === "string" ? value : undefined;
-  }
-
-  private static getStringArray(
-    value: unknown,
-    fallback: string[],
-  ): string[] {
-    return Array.isArray(value)
-      ? value.filter((item): item is string => typeof item === "string")
-      : fallback;
-  }
 }
