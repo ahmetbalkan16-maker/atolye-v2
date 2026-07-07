@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Project = {
@@ -52,15 +53,20 @@ export default function ProjectList() {
   return (
     <div className="space-y-4">
       {projects.map((project) => (
-        <div
+        <Link
           key={project.id}
+          href={`/project/${project.slug}`}
           className="
+            block
             rounded-xl 
             border 
             border-gray-200 
             bg-white 
             p-5 
             shadow-sm
+            transition
+            hover:border-yellow-400
+            hover:shadow-md
           "
         >
           <h2 className="mb-2 text-lg font-bold text-black">
@@ -80,7 +86,7 @@ export default function ProjectList() {
             {" "}
             {new Date(project.updatedAt).toLocaleString("tr-TR")}
           </p>
-        </div>
+        </Link>
       ))}
     </div>
   );
