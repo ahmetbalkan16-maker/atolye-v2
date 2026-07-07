@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { researchStep } from "@/lib/ai/steps/researchStep";
+import { AIManager } from "@/lib/ai/AIManager";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 
 export async function POST(req: Request) {
@@ -15,8 +15,8 @@ export async function POST(req: Request) {
 
     const cleanTopic = topic.trim();
 
-    // 1. RESEARCH STEP
-    const research = await researchStep(cleanTopic);
+    // 1. RESEARCH
+    const research = await AIManager.runResearch(cleanTopic);
 
     // 2. PROJECT CREATE
     const project = await ProjectManager.createProject(cleanTopic);
@@ -29,7 +29,9 @@ export async function POST(req: Request) {
       project,
       research,
     });
-  } catch {
+  } catch (error) {
+    console.error("[Research API] Pipeline error:", error);
+
     return NextResponse.json(
       { success: false, error: "Pipeline error" },
       { status: 500 }
