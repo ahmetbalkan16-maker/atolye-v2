@@ -128,6 +128,7 @@ export default async function ProjectStudioPage({
         <AssetGallery
           projectId={project.id}
           projectSlug={slug}
+          scenes={scenes}
           visualData={visuals}
         />
         <AudioPanel audio={audio} />

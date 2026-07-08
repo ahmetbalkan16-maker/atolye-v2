@@ -17,7 +17,7 @@ Araştırma → Senaryo → Sahne → Görsel → Animasyon → Video üretim ak
 
 Commit:
 
-feat(animation): add animation service layer
+feat(animation): add animation ui integration
 
 Durum:
 GitHub'a pushlandı.
@@ -165,6 +165,25 @@ AnimationData ve animation asset sonuclarini tip guvenli sekilde dondurur.
 Provider ve mock yapisini degistirmez.
 
 ---
+
+# Sprint 37 — Animation UI Integration
+
+Tamamlandi:
+
+Animation UI Integration
+
+Konum:
+
+app/project/[slug]/page.tsx
+src/components/assets/AssetGallery.tsx
+
+Gorev:
+
+Proje detay ekraninda AnimationService katmani uzerinden animasyon uretimini baslatan kucuk UI entegrasyonu eklendi.
+AssetGallery, SceneData + VisualData ile animasyon uretimini tetikler ve basarili uretimden sonra asset listesini yeniler.
+Mevcut gorsel asset uretim akisi, API davranisi ve provider yapisi korunur.
+
+---
 # Son Test
 
 Başarılı:
@@ -175,18 +194,18 @@ npx.cmd tsc --noEmit
 
 # Sonraki Gorev
 
-## Sprint 37 — Animation UI Integration
+## Sprint 38 — Animation Asset UI Separation
 
 Hedef:
 
-Animation Service Layer'i UI tarafina baglamak.
+Image ve animation asset gorunumlerini UI icinde daha net ayirmak.
 
 Yapilacaklar:
 
-* UI'dan animasyon uretimini baslatma
-* AnimationService sonucundaki asset'leri ekranda gosterme
-* Loading, error ve success state'lerini ekleme
-* Mevcut API ve provider davranisini bozmadan uctan uca test
+* Animation assetleri icin ayri bolum veya filtreleme
+* Image active asset mantigini bozmadan animation asset kartlarini netlestirme
+* Animation regenerate/scene bazli uretim ihtiyacini analiz etme
+* Mevcut AssetGallery davranisini geriye donuk uyumlu koruma
 
 ---
 

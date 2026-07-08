@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AnimationService } from "@/lib/animation/AnimationService";
 import type { Asset } from "@/types/asset";
+import type { SceneData } from "@/types/scene";
 import type { VisualData } from "@/types/visual";
 import VisualPromptPreview from "./VisualPromptPreview";
 
 interface AssetGalleryProps {
   projectId: string;
   projectSlug: string;
+  scenes: SceneData | null;
   visualData: VisualData | null;
 }
 
@@ -28,16 +31,19 @@ type AssetGroup = {
 export default function AssetGallery({
   projectId,
   projectSlug,
+  scenes,
   visualData,
 }: AssetGalleryProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [generatingAnimations, setGeneratingAnimations] = useState(false);
   const [generatingSceneId, setGeneratingSceneId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [editableVisualData, setEditableVisualData] =
     useState<VisualData | null>(visualData);
   const hasVisualPlan = Boolean(editableVisualData);
+  const canGenerateAnimations = Boolean(scenes && editableVisualData);
   const assetGroups = groupAssetsByScene(assets);
 
   async function loadAssets() {
@@ -139,6 +145,31 @@ export default function AssetGallery({
     }
   }
 
+  async function generateAnimations() {
+    if (!scenes || !editableVisualData || generatingAnimations) {
+      return;
+    }
+
+    try {
+      setGeneratingAnimations(true);
+      setError("");
+
+      await AnimationService.generateFromSceneVisualData({
+        projectId,
+        projectSlug,
+        scenes,
+        visuals: editableVisualData,
+      });
+
+      await loadAssets();
+    } catch (err) {
+      console.error("[AssetGallery] Animation generation failed:", err);
+      setError("Animasyon uretimi sirasinda hata olustu.");
+    } finally {
+      setGeneratingAnimations(false);
+    }
+  }
+
   useEffect(() => {
     loadAssets();
   }, [projectSlug]);
@@ -151,14 +182,24 @@ export default function AssetGallery({
     <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-bold text-white">Görsel Üretimleri</h2>
-        <button
-          type="button"
-          onClick={generateAssets}
-          disabled={!hasVisualPlan || generating}
-          className="rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
-        >
-          {generating ? "Üretiliyor..." : "Tüm Sahne Görsellerini Üret"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={generateAnimations}
+            disabled={!canGenerateAnimations || generatingAnimations}
+            className="rounded-xl border border-yellow-500/40 px-4 py-2 text-sm font-bold text-yellow-300 transition hover:border-yellow-400 hover:text-yellow-200 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:text-zinc-500"
+          >
+            {generatingAnimations ? "Animasyon uretiliyor..." : "Animasyon uret"}
+          </button>
+          <button
+            type="button"
+            onClick={generateAssets}
+            disabled={!hasVisualPlan || generating}
+            className="rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
+          >
+            {generating ? "Uretiliyor..." : "Tum Sahne Gorsellerini Uret"}
+          </button>
+        </div>
       </div>
 
       {!hasVisualPlan ? (
@@ -167,10 +208,23 @@ export default function AssetGallery({
         </p>
       ) : null}
 
+      {!scenes ? (
+        <p className="mt-3 text-sm text-zinc-500">
+          Animasyon uretimi icin once sahne plani olusturulmali.
+        </p>
+      ) : null}
+
       {generating ? (
         <p className="mt-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-200">
           Sahne görselleri üretiliyor. Bu işlem tamamlanana kadar buton
           pasif kalacak.
+        </p>
+      ) : null}
+
+      {generatingAnimations ? (
+        <p className="mt-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-200">
+          Sahne animasyonlari uretiliyor. Bu islem tamamlanana kadar animasyon
+          butonu pasif kalacak.
         </p>
       ) : null}
 
