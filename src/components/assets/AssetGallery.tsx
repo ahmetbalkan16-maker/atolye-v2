@@ -133,9 +133,11 @@ export default function AssetGallery({
               key={asset.id}
               className="rounded-xl border border-zinc-800 bg-zinc-950 p-4"
             >
+              <AssetPreview asset={asset} />
+
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h3 className="font-semibold text-yellow-400">
-                  {asset.type}
+                  {getAssetName(asset)}
                 </h3>
                 <span className="rounded-full bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-300">
                   {asset.status}
@@ -143,6 +145,7 @@ export default function AssetGallery({
               </div>
 
               <div className="mt-4 grid gap-3 text-sm text-zinc-400 sm:grid-cols-2">
+                <Info label="Type" value={asset.type} />
                 <Info label="Provider" value={asset.provider} />
                 <Info label="Oluşturulma" value={formatDate(asset.createdAt)} />
               </div>
@@ -163,6 +166,40 @@ export default function AssetGallery({
   );
 }
 
+function AssetPreview({ asset }: { asset: Asset }) {
+  const [failed, setFailed] = useState(false);
+  const imageSrc = getAssetImageSource(asset);
+
+  if (!imageSrc || failed) {
+    return <AssetPreviewFallback asset={asset} />;
+  }
+
+  return (
+    <div className="mb-4 aspect-video overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900">
+      <img
+        src={imageSrc}
+        alt={getAssetName(asset)}
+        className="h-full w-full object-cover"
+        loading="lazy"
+        onError={() => setFailed(true)}
+      />
+    </div>
+  );
+}
+
+function AssetPreviewFallback({ asset }: { asset: Asset }) {
+  return (
+    <div className="mb-4 flex aspect-video items-center justify-center rounded-lg border border-dashed border-zinc-800 bg-zinc-900">
+      <div className="text-center">
+        <p className="text-sm font-semibold text-zinc-300">
+          {asset.type.toUpperCase()}
+        </p>
+        <p className="mt-1 text-xs text-zinc-500">Görsel önizleme yok</p>
+      </div>
+    </div>
+  );
+}
+
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
@@ -172,6 +209,34 @@ function Info({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-zinc-200">{value}</p>
     </div>
   );
+}
+
+function getAssetName(asset: Asset) {
+  if (asset.sceneId) {
+    return `Sahne ${asset.sceneId} Asset`;
+  }
+
+  return `${asset.type} asset`;
+}
+
+function getAssetImageSource(asset: Asset) {
+  const source = asset.url?.trim() || asset.filePath?.trim();
+
+  if (!source) {
+    return "";
+  }
+
+  if (
+    source.startsWith("http://") ||
+    source.startsWith("https://") ||
+    source.startsWith("/") ||
+    source.startsWith("data:image/") ||
+    source.startsWith("blob:")
+  ) {
+    return source;
+  }
+
+  return "";
 }
 
 function formatDate(value: string) {
