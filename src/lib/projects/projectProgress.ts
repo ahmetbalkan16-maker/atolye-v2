@@ -58,6 +58,7 @@ export const projectProgressStages: readonly ProductionStepKey[] = [
   "script",
   "scenes",
   "visuals",
+  "animation",
   "audio",
   "thumbnail",
   "seo",
@@ -71,6 +72,7 @@ const stepLabels: Record<ProductionStepKey, string> = {
   script: "Senaryo",
   scenes: "Sahneler",
   visuals: "Görseller",
+  animation: "Animasyon",
   audio: "Ses",
   thumbnail: "Thumbnail",
   seo: "SEO",
@@ -363,8 +365,12 @@ function getNextTaskSuggestion(
     return "Üretimi gözden geçir";
   }
 
-  if (completedStages.includes("visuals") && currentStage === "audio") {
-    return "Animasyon ve ses aşamasına geç";
+  if (completedStages.includes("visuals") && currentStage === "animation") {
+    return "Animasyon uretimini baslat";
+  }
+
+  if (completedStages.includes("animation") && currentStage === "audio") {
+    return "Ses asamasina gec";
   }
 
   if (completedStages.includes("script") && currentStage === "scenes") {

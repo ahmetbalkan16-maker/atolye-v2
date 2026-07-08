@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AnimationAssetPipeline } from "@/lib/animation/AnimationAssetPipeline";
 import { AnimationPromptGenerator } from "@/lib/animation/prompts/AnimationPromptGenerator";
+import { ProjectManager } from "@/lib/projects/ProjectManager";
 import type { AnimationData, AnimationScene } from "@/types/animation";
 import type { SceneData } from "@/types/scene";
 import type { VisualData } from "@/types/visual";
@@ -54,11 +55,22 @@ export async function POST(req: Request) {
       );
     }
 
+    const trimmedProjectId = projectId.trim();
+    const trimmedProjectSlug = projectSlug.trim();
+
     const projectAssets = await AnimationAssetPipeline.generateAnimationAssets({
-      projectId: projectId.trim(),
-      projectSlug: projectSlug.trim(),
+      projectId: trimmedProjectId,
+      projectSlug: trimmedProjectSlug,
       scenes: animationScenes,
     });
+
+    const animationDataToSave: AnimationData = generatedAnimationData ?? {
+      projectId: trimmedProjectId,
+      scenes: animationScenes,
+      createdAt: new Date().toISOString(),
+    };
+
+    await ProjectManager.saveAnimation(trimmedProjectSlug, animationDataToSave);
 
     return NextResponse.json({
       success: true,

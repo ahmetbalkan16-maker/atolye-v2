@@ -7,6 +7,7 @@ import {
   AudioPanel,
   ProductionPackageSummary,
   ProjectActions,
+  PipelineStatus,
   ProjectProgress,
   ProjectStatusCards,
   SEOPanel,
@@ -16,8 +17,11 @@ import {
 } from "@/components/studio";
 import {
   calculateProductionProgress,
+  createProgressSummary,
   createProductionSteps,
+  getProjectProgress,
 } from "@/lib/projects/projectProgress";
+import type { AnimationData } from "@/types/animation";
 import type { AssemblyPlanData } from "@/types/assembly";
 import type { Project } from "@/types/project";
 import type { AudioData } from "@/types/audio";
@@ -45,20 +49,24 @@ export default async function ProjectStudioPage({
     script,
     scenes,
     visuals,
+    animation,
     audio,
     thumbnail,
     seo,
     assembly,
+    pipelineProgress,
   ] = await Promise.all([
       ProjectManager.getProject(slug) as Promise<Project | null>,
       ProjectManager.getResearch(slug) as Promise<ResearchData | null>,
       ProjectManager.getScript(slug) as Promise<ScriptData | null>,
       ProjectManager.getScenes(slug) as Promise<SceneData | null>,
       ProjectManager.getVisuals(slug) as Promise<VisualData | null>,
+      ProjectManager.getAnimation(slug) as Promise<AnimationData | null>,
       ProjectManager.getAudio(slug) as Promise<AudioData | null>,
       ProjectManager.getThumbnail(slug) as Promise<ThumbnailData | null>,
       ProjectManager.getSEO(slug) as Promise<SEOData | null>,
       ProjectManager.getAssembly(slug) as Promise<AssemblyPlanData | null>,
+      getProjectProgress(slug),
     ]);
 
   if (!project) {
@@ -70,6 +78,7 @@ export default async function ProjectStudioPage({
     script: Boolean(script),
     scenes: Boolean(scenes),
     visuals: Boolean(visuals),
+    animation: Boolean(animation),
     audio: Boolean(audio),
     thumbnail: Boolean(thumbnail),
     seo: Boolean(seo),
@@ -77,6 +86,9 @@ export default async function ProjectStudioPage({
   };
   const progress = calculateProductionProgress(progressInput);
   const productionSteps = createProductionSteps(progressInput, project.updatedAt);
+  const pipelineSummary = pipelineProgress
+    ? createProgressSummary(pipelineProgress.manifest)
+    : null;
 
   return (
     <StudioLayout
@@ -119,6 +131,17 @@ export default async function ProjectStudioPage({
             <ProjectActions slug={slug} />
           </div>
         </StudioCard>
+
+        {pipelineProgress && pipelineSummary ? (
+          <PipelineStatus
+            stages={pipelineProgress.stages}
+            completionPercentage={pipelineSummary.completionPercentage}
+            currentStage={pipelineSummary.currentStage}
+            nextStage={pipelineSummary.nextStage}
+            statusDescription={pipelineSummary.statusDescription}
+            nextTaskSuggestion={pipelineSummary.nextTaskSuggestion}
+          />
+        ) : null}
 
         <ProductionPackageSummary steps={productionSteps} />
         <ResearchPanel research={research} />

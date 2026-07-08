@@ -15,6 +15,7 @@ export class ProjectManager {
     script: "script.json",
     scenes: "scenes.json",
     visuals: "visuals.json",
+    animation: "animation.json",
     audio: "audio.json",
     thumbnail: "thumbnail.json",
     seo: "seo.json",
@@ -181,6 +182,11 @@ export class ProjectManager {
     await this.updatePackageStatus(slug, "visuals", "completed");
   }
 
+  static async saveAnimation(slug: string, animation: unknown) {
+    await ProjectWriter.writeJSON(slug, "animation.json", animation);
+    await this.updatePackageStatus(slug, "animation", "completed");
+  }
+
   static async saveAudio(slug: string, audio: unknown) {
     await ProjectWriter.writeJSON(slug, "audio.json", audio);
     await this.updatePackageStatus(slug, "audio", "completed");
@@ -219,6 +225,10 @@ export class ProjectManager {
 
   static async getVisuals(slug: string) {
     return ProjectReader.readJSON(slug, "visuals.json");
+  }
+
+  static async getAnimation(slug: string) {
+    return ProjectReader.readJSON(slug, "animation.json");
   }
 
   static async getAudio(slug: string) {
@@ -409,6 +419,7 @@ export class ProjectManager {
       "script",
       "scenes",
       "visuals",
+      "animation",
       "audio",
       "thumbnail",
       "seo",

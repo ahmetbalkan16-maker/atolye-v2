@@ -28,6 +28,7 @@ export type ProductionStepKey =
   | "script"
   | "scenes"
   | "visuals"
+  | "animation"
   | "audio"
   | "thumbnail"
   | "seo"

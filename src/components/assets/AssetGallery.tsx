@@ -44,7 +44,10 @@ export default function AssetGallery({
     useState<VisualData | null>(visualData);
   const hasVisualPlan = Boolean(editableVisualData);
   const canGenerateAnimations = Boolean(scenes && editableVisualData);
-  const assetGroups = groupAssetsByScene(assets);
+  const imageAssets = assets.filter((asset) => asset.type === "image");
+  const animationAssets = assets.filter((asset) => asset.type === "animation");
+  const imageAssetGroups = groupAssetsByScene(imageAssets);
+  const animationAssetGroups = groupAssetsByScene(animationAssets);
 
   async function loadAssets() {
     try {
@@ -257,48 +260,114 @@ export default function AssetGallery({
 
       {!loading && !error && assets.length > 0 ? (
         <div className="mt-5 space-y-6">
-          {assetGroups.map((group) => (
-            <section key={group.key} className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h3 className="font-semibold text-white">{group.title}</h3>
-                <span className="text-xs font-medium text-zinc-500">
-                  {group.assets.length} versiyon
-                </span>
-              </div>
+          <section className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-lg font-bold text-white">Gorsel Uretimleri</h3>
+              <span className="text-xs font-medium text-zinc-500">
+                {imageAssets.length} asset
+              </span>
+            </div>
 
-              {group.activeAsset ? (
-                <AssetCard
-                  asset={group.activeAsset}
-                  active
-                  generating={generating}
-                  generatingSceneId={generatingSceneId}
-                  onRegenerate={generateSceneAsset}
-                />
-              ) : null}
+            {imageAssetGroups.length > 0 ? (
+              <AssetGroupList
+                groups={imageAssetGroups}
+                generating={generating}
+                generatingSceneId={generatingSceneId}
+                onRegenerate={generateSceneAsset}
+                showRegenerate
+              />
+            ) : (
+              <p className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-500">
+                Henuz gorsel asset bulunmuyor.
+              </p>
+            )}
+          </section>
 
-              {group.otherAssets.length > 0 ? (
-                <div>
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    Diğer Versiyonlar
-                  </p>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {group.otherAssets.map((asset) => (
-                      <AssetCard
-                        key={asset.id}
-                        asset={asset}
-                        generating={generating}
-                        generatingSceneId={generatingSceneId}
-                        onRegenerate={generateSceneAsset}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </section>
-          ))}
+          <section className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-lg font-bold text-white">Animasyon Uretimleri</h3>
+              <span className="text-xs font-medium text-zinc-500">
+                {animationAssets.length} asset
+              </span>
+            </div>
+
+            {animationAssetGroups.length > 0 ? (
+              <AssetGroupList
+                groups={animationAssetGroups}
+                generating={generatingAnimations}
+                generatingSceneId={null}
+                onRegenerate={generateSceneAsset}
+                showRegenerate={false}
+              />
+            ) : (
+              <p className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-500">
+                Henuz animasyon asset bulunmuyor.
+              </p>
+            )}
+          </section>
         </div>
       ) : null}
     </section>
+  );
+}
+
+function AssetGroupList({
+  groups,
+  generating,
+  generatingSceneId,
+  onRegenerate,
+  showRegenerate,
+}: {
+  groups: AssetGroup[];
+  generating: boolean;
+  generatingSceneId: number | null;
+  onRegenerate: (sceneId: number) => void;
+  showRegenerate: boolean;
+}) {
+  return (
+    <div className="space-y-6">
+      {groups.map((group) => (
+        <section key={group.key} className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="font-semibold text-white">{group.title}</h3>
+            <span className="text-xs font-medium text-zinc-500">
+              {group.assets.length} versiyon
+            </span>
+          </div>
+
+          {group.activeAsset ? (
+            <AssetCard
+              asset={group.activeAsset}
+              active
+              generating={generating}
+              generatingSceneId={generatingSceneId}
+              onRegenerate={onRegenerate}
+              showRegenerate={showRegenerate}
+            />
+          ) : null}
+
+          {group.otherAssets.length > 0 ? (
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Diger Versiyonlar
+              </p>
+              <div className="grid gap-4 md:grid-cols-2">
+                {group.otherAssets.map((asset) => (
+                  <AssetCard
+                    key={asset.id}
+                    asset={asset}
+                    generating={generating}
+                    generatingSceneId={generatingSceneId}
+                    onRegenerate={onRegenerate}
+                    showRegenerate={showRegenerate}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ))}
+    </div>
   );
 }
 
@@ -329,12 +398,14 @@ function AssetCard({
   generating,
   generatingSceneId,
   onRegenerate,
+  showRegenerate = true,
 }: {
   asset: Asset;
   active?: boolean;
   generating: boolean;
   generatingSceneId: number | null;
   onRegenerate: (sceneId: number) => void;
+  showRegenerate?: boolean;
 }) {
   return (
     <article className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
@@ -353,7 +424,7 @@ function AssetCard({
           <span className="rounded-full bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-300">
             {asset.status}
           </span>
-          {typeof asset.sceneId === "number" ? (
+          {showRegenerate && typeof asset.sceneId === "number" ? (
             <button
               type="button"
               onClick={() => onRegenerate(asset.sceneId as number)}

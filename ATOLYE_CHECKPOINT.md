@@ -192,23 +192,92 @@ npx.cmd tsc --noEmit
 
 ---
 
-# Sonraki Gorev
+# Sprint 38 — Animation Asset UI Separation
 
-## Sprint 38 â€” Animation Asset UI Separation
+Tamamlandi:
 
-Hedef:
+Animation Asset UI Separation
 
-Image ve animation asset gorunumlerini UI icinde daha net ayirmak.
+Konum:
 
-Yapilacaklar:
+src/components/assets/AssetGallery.tsx
 
-* Animation assetleri icin ayri bolum veya filtreleme
-* Image active asset mantigini bozmadan animation asset kartlarini netlestirme
-* Animation regenerate/scene bazli uretim ihtiyacini analiz etme
-* Mevcut AssetGallery davranisini geriye donuk uyumlu koruma
+Gorev:
+
+Image asset ve animation asset listeleri UI icinde ayrildi.
+Gorsel Uretimleri mevcut image asset akisini korur.
+Animasyon Uretimleri animation assetleri scene bazli ayri bolumde gosterir.
+Animation kartlarinda regenerate aksiyonu gizlendi, image kartlarinda korundu.
 
 ---
 
+# Sprint 39 — Project Pipeline Status
+
+Tamamlandi:
+
+Project Pipeline Status
+
+Konum:
+
+src/components/studio/PipelineStatus.tsx
+src/components/studio/index.ts
+app/project/[slug]/page.tsx
+
+Gorev:
+
+Project manifest/progress verisini kullanan PipelineStatus bileseni eklendi.
+Completion percentage, currentStage, nextStage, statusDescription ve nextTaskSuggestion proje detay ekraninda gosterilir.
+Mevcut progress kartlari ve Dashboard davranisi korunur.
+
+---
+
+# Sprint 40 — Animation Manifest Stage Integration
+
+Tamamlandi:
+
+Animation Manifest Stage Integration
+
+Konum:
+
+src/types/project.ts
+src/lib/projects/ProjectManager.ts
+src/lib/projects/projectProgress.ts
+app/api/animations/route.ts
+app/project/[slug]/page.tsx
+
+Gorev:
+
+Animation resmi ProductionStepKey ve manifest package asamasi haline getirildi.
+ProjectManager animation.json icin save/get destegi kazandi.
+Pipeline sirasi visuals -> animation -> audio olacak sekilde guncellendi.
+/api/animations basarili asset uretiminden sonra animation.json kaydeder ve manifest animation asamasini completed yapar.
+Asset sistemi ve AnimationService davranisi korunur.
+
+---
+# Son Test
+
+Basarili:
+
+npx.cmd tsc --noEmit
+
+---
+
+# Sonraki Gorev
+
+## Sprint 41 — Animation Scene-Level Regeneration
+
+Hedef:
+
+Animation assetleri icin scene bazli yeniden uretim akisini guvenli sekilde eklemek.
+
+Yapilacaklar:
+
+* Scene bazli animation regenerate ihtiyacini analiz etme
+* Mevcut animation asset kayitlarini bozmadan yeni uretim tetikleme
+* AnimationService ve /api/animations uyumlulugunu koruma
+* UI icinde animation regenerate aksiyonunu kontrollu sekilde tasarlama
+
+---
 # Notlar
 
 TypeScript uyarÄ±sÄ±:
