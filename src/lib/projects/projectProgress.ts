@@ -35,6 +35,16 @@ export interface ProjectProgress {
   updatedAt: string;
 }
 
+export interface ProjectProgressSummary {
+  completedCount: number;
+  totalStages: number;
+  currentStage: ProductionStepKey | null;
+  nextStage: ProductionStepKey | null;
+  completionPercentage: number;
+  statusDescription: string;
+  nextTaskSuggestion: string;
+}
+
 const productionStageOrder: readonly ProductionStepKey[] = [
   "research",
   "script",
@@ -75,6 +85,32 @@ export function calculateProductionProgress(
   const completed = Object.values(input).filter(Boolean).length;
 
   return calculateCompletionPercentage(completed);
+}
+
+export function createProgressSummary(
+  manifest: ProjectManifest,
+): ProjectProgressSummary {
+  const stages = getStageProgress(manifest);
+  const completedStages = getCompletedStagesFromProgress(stages);
+  const currentStage = getCurrentStageFromProgress(stages);
+  const nextStage = getNextStageFromProgress(stages, currentStage);
+  const completionPercentage = calculateCompletionPercentage(
+    completedStages.length,
+  );
+
+  return {
+    completedCount: completedStages.length,
+    totalStages: stages.length,
+    currentStage,
+    nextStage,
+    completionPercentage,
+    statusDescription: getStatusDescription(
+      stages,
+      currentStage,
+      completionPercentage,
+    ),
+    nextTaskSuggestion: getNextTaskSuggestion(completedStages, currentStage),
+  };
 }
 
 export async function getProjectProgress(
@@ -188,6 +224,56 @@ function getNextStageFromProgress(
   return (
     stages.slice(currentIndex + 1).find((stage) => !stage.completed)?.key ?? null
   );
+}
+
+function getStatusDescription(
+  stages: ProjectStageProgress[],
+  currentStage: ProductionStepKey | null,
+  completionPercentage: number,
+): string {
+  if (completionPercentage === 100) {
+    return "Üretim tamamlandı";
+  }
+
+  if (stages.some((stage) => stage.status === "running")) {
+    return "Üretim devam ediyor";
+  }
+
+  if (
+    stages.find((stage) => stage.key === "research")?.completed &&
+    currentStage === "script"
+  ) {
+    return "Senaryo hazırlanmaya hazır";
+  }
+
+  if (currentStage) {
+    return `${stepLabels[currentStage]} aşaması bekliyor`;
+  }
+
+  return "Üretim başlatılmaya hazır";
+}
+
+function getNextTaskSuggestion(
+  completedStages: ProductionStepKey[],
+  currentStage: ProductionStepKey | null,
+): string {
+  if (!currentStage) {
+    return "Üretimi gözden geçir";
+  }
+
+  if (completedStages.includes("visuals") && currentStage === "audio") {
+    return "Animasyon ve ses aşamasına geç";
+  }
+
+  if (completedStages.includes("script") && currentStage === "scenes") {
+    return "Sahne planı oluştur";
+  }
+
+  if (completedStages.includes("research") && currentStage === "script") {
+    return "Senaryo oluştur";
+  }
+
+  return `${stepLabels[currentStage]} aşamasını başlat`;
 }
 
 function calculateCompletionPercentage(completedStageCount: number): number {

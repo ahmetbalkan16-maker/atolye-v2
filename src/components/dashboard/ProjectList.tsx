@@ -20,6 +20,10 @@ type ProjectProgressSummary = {
   completionPercentage: number;
   completedStagesCount: number;
   totalStagesCount: number;
+  completedCount?: number;
+  totalStages?: number;
+  statusDescription?: string;
+  nextTaskSuggestion?: string;
 };
 
 type ProjectProgressStageSummary = {
@@ -110,6 +114,10 @@ export default function ProjectList() {
               completionPercentage={project.progress.completionPercentage}
               completedStagesCount={project.progress.completedStagesCount}
               totalStagesCount={project.progress.totalStagesCount}
+              completedCount={project.progress.completedCount}
+              totalStages={project.progress.totalStages}
+              statusDescription={project.progress.statusDescription}
+              nextTaskSuggestion={project.progress.nextTaskSuggestion}
             />
           ) : null}
         </Link>

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { ProjectReader } from "@/lib/projects/ProjectReader";
-import { getProjectProgress } from "@/lib/projects/projectProgress";
+import {
+  createProgressSummary,
+  getProjectProgress,
+} from "@/lib/projects/projectProgress";
 import type { ProductionStepKey, Project } from "@/types/project";
 
 type ProjectProgressSummary = {
@@ -9,6 +12,10 @@ type ProjectProgressSummary = {
   completionPercentage: number;
   completedStagesCount: number;
   totalStagesCount: number;
+  completedCount: number;
+  totalStages: number;
+  statusDescription: string;
+  nextTaskSuggestion: string;
 };
 
 type ProjectProgressStageSummary = {
@@ -45,16 +52,22 @@ async function getProgressSummary(
     return null;
   }
 
+  const summary = createProgressSummary(progress.manifest);
+
   return {
-    currentStage: progress.currentStage
-      ? getStageSummary(progress.stages, progress.currentStage)
+    currentStage: summary.currentStage
+      ? getStageSummary(progress.stages, summary.currentStage)
       : null,
-    nextStage: progress.nextStage
-      ? getStageSummary(progress.stages, progress.nextStage)
+    nextStage: summary.nextStage
+      ? getStageSummary(progress.stages, summary.nextStage)
       : null,
-    completionPercentage: progress.completionPercentage,
-    completedStagesCount: progress.completedStages.length,
-    totalStagesCount: progress.stages.length,
+    completionPercentage: summary.completionPercentage,
+    completedStagesCount: summary.completedCount,
+    totalStagesCount: summary.totalStages,
+    completedCount: summary.completedCount,
+    totalStages: summary.totalStages,
+    statusDescription: summary.statusDescription,
+    nextTaskSuggestion: summary.nextTaskSuggestion,
   };
 }
 

@@ -6,6 +6,10 @@ type ProjectProgressCardProps = {
   completionPercentage: number;
   completedStagesCount: number;
   totalStagesCount: number;
+  completedCount?: number;
+  totalStages?: number;
+  statusDescription?: string;
+  nextTaskSuggestion?: string;
 };
 
 type ProgressStageSummary = {
@@ -19,7 +23,14 @@ export default function ProjectProgressCard({
   completionPercentage,
   completedStagesCount,
   totalStagesCount,
+  completedCount,
+  totalStages,
+  statusDescription,
+  nextTaskSuggestion,
 }: ProjectProgressCardProps) {
+  const completedValue = completedCount ?? completedStagesCount;
+  const totalValue = totalStages ?? totalStagesCount;
+
   return (
     <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-4">
       <div className="flex items-center justify-between gap-4">
@@ -29,6 +40,12 @@ export default function ProjectProgressCard({
 
       <ProgressBar value={completionPercentage} />
 
+      {statusDescription ? (
+        <p className="mt-2 text-sm font-medium text-gray-800">
+          {statusDescription}
+        </p>
+      ) : null}
+
       <div className="mt-3 grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
         <StageLabel title="Sonraki aşama" stage={nextStage} fallback="Hazır" />
         <div>
@@ -36,10 +53,21 @@ export default function ProjectProgressCard({
             Tamamlanan
           </p>
           <p className="font-medium text-gray-900">
-            {completedStagesCount}/{totalStagesCount} aşama
+            {completedValue}/{totalValue} aşama
           </p>
         </div>
       </div>
+
+      {nextTaskSuggestion ? (
+        <div className="mt-3 border-t border-gray-200 pt-3 text-sm">
+          <p className="text-xs font-semibold uppercase text-gray-500">
+            Sıradaki görev
+          </p>
+          <p className="mt-1 font-medium text-gray-900">
+            {nextTaskSuggestion}
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
