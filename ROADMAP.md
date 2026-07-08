@@ -1,62 +1,208 @@
-# Atölye V2 Roadmap
+---
+Document: ROADMAP.md
+Version: 1.0.0
+Status: Active
+Priority: High
+Owner: Atölye V2
+Last Updated: 2026-07-08
+---
 
-## Current Status
+# Atölye V2 — Development Roadmap
 
-### Sprint 30 — Project Manifest Layer
+## Amaç
 
-Status: In Progress
+Bu belge önümüzdeki sprintlerde yapılacak teknik geliştirmeleri içerir.
 
-#### Completed
+Bu belge yaşayan bir dokümandır.
 
-- Sprint 30 Aşama 1
-  - ProjectManifest types expanded.
-  - Manifest creation and normalization added.
-  - New projects now create manifest.json.
-  - Old boolean manifests are normalized.
+Sprint tamamlandıkça güncellenmelidir.
 
-- Sprint 30 Aşama 2
-  - ProjectManager save functions are connected to manifest status tracking.
-  - Completed stages are marked automatically:
-    - research
-    - script
-    - scenes
-    - visuals
-    - audio
-    - thumbnail
-    - seo
-    - assembly
+Uzun vadeli ürün vizyonu için:
 
-- Sprint 30 Aşama 3
-  - Manifest is now the central project progress source.
-  - Shared progress helper functions were added.
-  - Project progress can be read without duplicating manifest logic.
+ATOLYE_MASTER_ROADMAP.md
 
-- Sprint 30 Aşama 4
-  - Dashboard project list can receive manifest-based progress data.
-  - Progress UI is presentational and does not calculate business logic.
-  - Project progress is prepared server-side through the progress utility.
-
-#### Next
-
-- Sprint 30 stabilization
-  - Replace remaining file-presence progress reads in project detail pages with manifest progress data.
-  - Resolve existing lint issues in unrelated UI files.
-  - Review dashboard/project detail UX before closing Sprint 30.
+referans alınmalıdır.
 
 ---
 
-## Master Vision
+# Mevcut Durum
 
-Atölye V2 is a personal AI documentary and content production studio.
+Aktif Faz
 
-Long-term goals:
+Phase 2 — Production Engine
 
-- Multi AI provider architecture
-- AI Director
-- Historical Documentary Engine
-- Dynamic map and timeline storytelling
-- Mobile access
-- Security layer
-- YouTube workflow integration
-- Personal production memory
-- Future local/custom AI layer
+Aktif Sprint
+
+Sprint 41
+
+---
+
+# Sprint 41
+
+## Animation Scene-Level Regeneration
+
+Durum
+
+🟡 Hazır
+
+### Görevler
+
+- Scene bazlı animation regenerate
+- animation.json merge
+- Asset versioning koruma
+- Animation active version seçimi
+- UI regenerate butonu
+
+---
+
+# Sprint 42
+
+## Video Engine Foundation
+
+Planlanan
+
+- Video Provider
+- Video Service
+- Video Pipeline
+- Video API
+- Video Types
+
+---
+
+# Sprint 43
+
+## Timeline Engine
+
+Planlanan
+
+- Timeline modeli
+- Scene timeline
+- Duration sistemi
+- Clip sıralaması
+- Timeline JSON
+
+---
+
+# Sprint 44
+
+## Voice Engine Foundation
+
+Planlanan
+
+- Voice Provider
+- Voice Service
+- Narration
+- ElevenLabs
+- OpenAI Voice
+
+---
+
+# Sprint 45
+
+## Voice Timeline
+
+Planlanan
+
+- Voice Segment
+- Scene eşleme
+- Timing
+- Manifest
+
+---
+
+# Sprint 46
+
+## Assembly Engine
+
+Planlanan
+
+- Scene Merge
+- Subtitle
+- Music
+- Sound FX
+- Export
+
+---
+
+# Sprint 47
+
+## Render Queue
+
+Planlanan
+
+- Job Queue
+- Render Worker
+- Progress
+- Retry
+
+---
+
+# Sprint 48
+
+## Publishing Studio
+
+Planlanan
+
+- Thumbnail
+- SEO
+- YouTube Upload
+- Schedule
+
+---
+
+# Sprint 49
+
+## AI Director Foundation
+
+Planlanan
+
+- Pipeline Controller
+- AI Suggestions
+- Quality Check
+
+---
+
+# Sprint 50
+
+## Knowledge Engine
+
+Planlanan
+
+- Historical Knowledge
+- Timeline Analysis
+- Character Relations
+- Event Graph
+
+---
+
+# Sprint Öncelik Kuralları
+
+Her sprint;
+
+- küçük olmalı
+- bağımsız tamamlanabilmeli
+- TypeScript testi geçmeli
+- mevcut sistemi bozmamalı
+
+---
+
+# Tamamlanma Kriteri
+
+Bir sprint aşağıdaki şartlar sağlanınca tamamlanır.
+
+- Kod tamamlandı
+- TypeScript geçti
+- Rapor hazırlandı
+- Checkpoint güncellendi
+- Git commit
+- Git push
+
+---
+
+# Sonraki Güncelleme
+
+Sprint tamamlandığında;
+
+- Aktif Sprint değiştirilir.
+- Tamamlanan sprint kaldırılmaz.
+- Durumu "Completed" yapılır.

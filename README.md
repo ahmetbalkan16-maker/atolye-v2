@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🎬 Atölye V2
+# 🚀 AI QUICK START
 
-## Getting Started
+Bu projeye ilk kez giriyorsanız aşağıdaki sırayı takip edin:
 
-First, run the development server:
+1. README.md
+2. ATOLYE_CHECKPOINT.md
+3. ATOLYE_AI_RULES.md
+4. ATOLYE_CONTEXT.md
+5. ROADMAP.md
+6. ATOLYE_MASTER_ROADMAP.md
+7. ARCHITECTURE_DECISIONS.md
+8. CHANGELOG.md
+9. AI_MEMORY.md
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Bu belgeler okunmadan geliştirmeye başlanmamalıdır.
+Türkçe öncelikli, yapay zekâ destekli kişisel içerik üretim stüdyosu.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Atölye V2; araştırmadan başlayarak yayınlanmaya hazır profesyonel içerik üretimine kadar uzanan tüm süreci tek bir platform içerisinde yönetmek amacıyla geliştirilmektedir.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Amaç
 
-## Learn More
+Kullanıcı yalnızca bir konu girer.
 
-To learn more about Next.js, take a look at the following resources:
+Atölye üretim hattı:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```text
+Research
+↓
+Script
+↓
+Scenes
+↓
+Visuals
+↓
+Animation
+↓
+Voice
+↓
+Assembly
+↓
+Thumbnail
+↓
+SEO
+↓
+YouTube

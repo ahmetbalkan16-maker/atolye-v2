@@ -1,174 +1,264 @@
-# ATOLYE AI RULES
+---
+Document: ATOLYE_AI_RULES.md
+Version: 1.0.0
+Status: Active
+Priority: Critical
+Owner: Atölye V2
+Last Updated: 2026-07-08
+---
+
+# Atölye V2 — AI Development Rules
 
 ## Amaç
 
-Bu belge Atölye V2 projesinin kalıcı geliştirme kurallarını içerir.
+Bu belge Atölye V2 geliştirilirken tüm AI araçlarının uyması gereken resmi geliştirme kurallarını içerir.
 
-Her yeni AI oturumunda önce:
+Bu belge tavsiye niteliğinde değildir.
 
-1. ATOLYE_CHECKPOINT.md
-2. ATOLYE_AI_RULES.md
-
-okunmalıdır.
-
-Bu iki belge proje için temel referanstır.
+Mümkün olduğu sürece bu kurallar korunmalıdır.
 
 ---
 
-# 1. Proje Amacı
+# Öncelik Sırası
 
-Atölye V2;
+Her yeni AI oturumunda aşağıdaki belgeler okunmalıdır.
 
-Türkçe öncelikli, AI destekli kişisel içerik ve belgesel üretim stüdyosudur.
+1. README.md
+2. ATOLYE_CHECKPOINT.md
+3. ATOLYE_AI_RULES.md
+4. ATOLYE_CONTEXT.md
+5. ROADMAP.md
 
-Temel hedef:
-
-**En az hata ile en hızlı tamamlanan Atölye.**
-
-Kod kalitesi, sürdürülebilirlik ve mimari bütünlük hız kadar önemlidir.
-
----
-
-# 2. Geliştirme Prensipleri
-
-* Önce analiz, sonra kodlama.
-* Mevcut çalışan sistemi bozma.
-* Gereksiz refactor yapma.
-* Küçük ama güvenli adımlarla ilerle.
-* Mevcut mimariyi koru.
-* Kod tekrarından kaçın.
-* Yeni özellik eklerken geriye dönük uyumluluğu koru.
+Bu belgeler okunmadan geliştirmeye başlanmamalıdır.
 
 ---
 
-# 3. Mimari Kuralları
+# Temel İlke
 
-* İş mantığı mümkün olduğunca lib/ ve service katmanlarında bulunmalıdır.
-* UI sadece kullanıcı etkileşimini yönetmeli ve sonuç göstermelidir.
-* API katmanı iş akışını yönetmeli, iş mantığını taşımamalıdır.
-* Provider mimarisi korunmalıdır.
-* AI Router yapısı değiştirilmemelidir.
-* Tek bir AI sağlayıcısına bağımlı mimari oluşturulmamalıdır.
+Atölye'nin temel hedefi:
 
----
+> **En az hata ile en hızlı tamamlanan Atölye.**
 
-# 4. Pipeline Kuralları
+Hız önemlidir.
 
-Atölye üretim hattı:
+Ancak;
 
-Research
-→ Script
-→ Scenes
-→ Visuals
-→ Animation
-→ Audio
-→ Thumbnail
-→ SEO
-→ Assembly
-→ YouTube
+- mimari
+- kalite
+- sürdürülebilirlik
 
-Yeni özellikler mümkün olduğunca bu pipeline içine entegre edilmelidir.
+her zaman önceliklidir.
 
 ---
 
-# 5. Manifest Kuralları
+# Mimari Kuralları
 
-Manifest sistemi projenin resmi durum kaynağıdır.
+## Architecture First
 
-Yeni üretim aşamaları:
-
-* Manifest ile uyumlu olmalıdır.
-* Gerekli ise yeni package olarak eklenmelidir.
-* Eski manifestlerle uyumluluk korunmalıdır.
+Kod yazmadan önce mevcut mimari analiz edilmelidir.
 
 ---
 
-# 6. Kod Kuralları
+## Modülerlik
 
-* TypeScript strict uyumluluğu korunmalıdır.
-* Yeni tipler mevcut yapıyı bozmayacak şekilde eklenmelidir.
-* Gereksiz bağımlılık eklenmemelidir.
-* Dosya yapısı sebepsiz yere değiştirilmemelidir.
-* Public fonksiyonlar okunabilir isimlendirilmelidir.
+Yeni özellikler mevcut mimariye entegre edilmelidir.
+
+Bağımsız sistemler oluşturulmamalıdır.
 
 ---
 
-# 7. Test Kuralları
+## Service Layer
+
+İş mantığı UI içerisine yazılmamalıdır.
+
+Business Logic;
+
+- Service
+- Manager
+- Pipeline
+
+katmanlarında bulunmalıdır.
+
+---
+
+## API
+
+API katmanı yalnızca orkestrasyon yapmalıdır.
+
+İş mantığı mümkün olduğunca Service katmanında olmalıdır.
+
+---
+
+## Provider Sistemi
+
+Tek AI sağlayıcısına bağımlı kod yazılmamalıdır.
+
+AI Router korunmalıdır.
+
+Provider yapısı bozulmamalıdır.
+
+---
+
+# Kod Kuralları
+
+## TypeScript
+
+Strict uyumluluk korunmalıdır.
+
+---
+
+## Geriye Dönük Uyumluluk
+
+Çalışan sistem bozulmamalıdır.
+
+Yeni özellikler mevcut davranışı değiştirmemelidir.
+
+---
+
+## Refactor
+
+Gereksiz büyük refactor yapılmamalıdır.
+
+Küçük ve güvenli adımlar tercih edilmelidir.
+
+---
+
+## Dosya Yapısı
+
+Sebepsiz yere dosya taşınmamalıdır.
+
+Sebepsiz yere klasör yapısı değiştirilmemelidir.
+
+---
+
+# Manifest Kuralları
+
+Manifest;
+
+projenin resmi durum kaynağıdır.
+
+Yeni pipeline aşamaları mümkün olduğunca manifest sistemine entegre edilmelidir.
+
+---
+
+# Asset Kuralları
+
+Asset sistemi append-only çalışmalıdır.
+
+Eski assetler silinmemelidir.
+
+Version mantığı korunmalıdır.
+
+---
+
+# Sprint Kuralları
+
+Her sprint aşağıdaki sırayla ilerler.
+
+1. Analiz
+2. Kullanıcı onayı
+3. Kodlama
+4. Test
+5. Rapor
+6. Checkpoint
+7. Git
+
+Bu sıra mümkün olduğunca korunmalıdır.
+
+---
+
+# Test Kuralları
 
 Her sprint sonunda en az:
 
+```bash
 npx.cmd tsc --noEmit
+```
 
 çalıştırılmalıdır.
 
-Kod derlenmeden sprint tamamlanmış sayılmaz.
+Test geçmeden sprint tamamlanmış sayılmaz.
 
 ---
 
-# 8. Rapor Kuralları
-
-Her görev sonunda şu bilgiler verilmelidir:
-
-* Yapılan değişiklikler
-* Değişen dosyalar
-* Çalışma mantığı
-* Test sonucu
-* Riskler / Notlar
-* Sonraki önerilen görev
-
----
-
-# 9. Git Kuralları
+# Git Kuralları
 
 Kullanıcı onayı olmadan:
 
-* commit yapılmaz.
-* push yapılmaz.
+- Commit yapılmaz.
+- Push yapılmaz.
 
-Commit öncesinde:
+Git işleminden önce:
 
-* git status
+```bash
+git status
+```
 
-kontrol edilir.
+kontrol edilmelidir.
 
-Commit sonrasında:
+Git işleminden sonra raporlanmalıdır:
 
-* Commit hash
-* Push sonucu
-* Working tree durumu
-
-raporlanır.
-
----
-
-# 10. Sprint Kuralları
-
-Her sprint şu sırayla yürütülür:
-
-1. Mimari analiz
-2. Onay
-3. Uygulama
-4. TypeScript testi
-5. Rapor
-6. Checkpoint güncellemesi
-7. Git işlemleri (kullanıcı onayıyla)
+- Commit hash
+- Push sonucu
+- Working tree durumu
 
 ---
 
-# 11. AI Çalışma Kuralları
+# Raporlama Kuralları
 
-* Tamamlanan sprintleri tekrar yapma.
-* Önce mevcut kodu incele.
-* Önce ATOLYE_CHECKPOINT.md dosyasını oku.
-* Bu dosyadaki kurallara uy.
-* Gereksiz dosya değiştirme.
-* Gereksiz büyük refactor önerme.
-* Projenin uzun vadeli mimarisini koru.
+Her geliştirme sonunda aşağıdaki bilgiler verilmelidir.
+
+- Yapılan değişiklikler
+- Değişen dosyalar
+- Çalışma mantığı
+- Test sonucu
+- Riskler
+- Sonraki önerilen görev
 
 ---
 
-# 12. Temel İlke
+# Dokümantasyon Kuralları
 
-Her karar şu hedefe hizmet etmelidir:
+Her önemli geliştirme sonrası aşağıdaki belgeler gözden geçirilmelidir.
 
-**Atölye V2'yi en az hata ile, sürdürülebilir ve profesyonel bir AI içerik üretim stüdyosu haline getirmek.**
+- ATOLYE_CHECKPOINT.md
+- ROADMAP.md
+- CHANGELOG.md
+
+Gerekiyorsa güncellenmelidir.
+
+---
+
+# AI Davranış Kuralları
+
+AI aşağıdaki davranışları benimsemelidir.
+
+- Önce analiz yap.
+- Gereksiz dosya değiştirme.
+- Tamamlanan sprintleri tekrar yapma.
+- Önce mevcut kodu incele.
+- Gereksiz bağımlılık ekleme.
+- Gereksiz mimari değişiklik önerme.
+- Her zaman mevcut sistemi koruyarak ilerle.
+
+---
+
+# Yasaklar
+
+Aşağıdaki davranışlardan kaçınılmalıdır.
+
+- Büyük kapsamlı plansız refactor
+- Çalışan sistemi bozacak değişiklikler
+- Kullanıcı onayı olmadan Git işlemleri
+- Tek AI sağlayıcısına bağımlı mimari
+- Test yapılmadan sprint tamamlama
+
+---
+
+# Başarı Kriteri
+
+Her yeni geliştirme sonunda şu soru sorulmalıdır:
+
+> Bu değişiklik Atölye'yi daha sağlam, daha sürdürülebilir ve daha profesyonel hale getiriyor mu?
+
+Cevap "evet" ise geliştirme doğru yöndedir.
