@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { mergeAnimationData } from "@/lib/animation/animationMerge";
 import { AnimationAssetPipeline } from "@/lib/animation/AnimationAssetPipeline";
 import { AnimationPromptGenerator } from "@/lib/animation/prompts/AnimationPromptGenerator";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
@@ -9,7 +10,15 @@ import type { VisualData } from "@/types/visual";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { projectId, projectSlug, scenes, visuals, animationData, style } = body;
+    const {
+      projectId,
+      projectSlug,
+      scenes,
+      visuals,
+      animationData,
+      style,
+      sceneId,
+    } = body;
 
     if (
       typeof projectId !== "string" ||
@@ -26,25 +35,94 @@ export async function POST(req: Request) {
       );
     }
 
-    const generatedAnimationData =
-      isAnimationData(animationData)
-        ? animationData
-        : isAnimationScenes(scenes)
-          ? null
-          : isSceneData(scenes) && isVisualData(visuals)
-            ? await AnimationPromptGenerator.generateAnimationData({
-                projectId: projectId.trim(),
-                scenes,
-                visuals,
-                style: typeof style === "string" ? style : undefined,
-              })
-            : null;
+    const trimmedProjectId = projectId.trim();
+    const trimmedProjectSlug = projectSlug.trim();
+    const normalizedSceneId = normalizeSceneId(sceneId);
 
-    const animationScenes = isAnimationScenes(scenes)
-      ? scenes
-      : generatedAnimationData?.scenes;
+    if (sceneId !== undefined && normalizedSceneId === null) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "sceneId gecerli bir sayi olmalidir.",
+        },
+        { status: 400 },
+      );
+    }
 
-    if (!animationScenes) {
+    let animationScenes: AnimationScene[] | null = null;
+
+    if (isAnimationData(animationData)) {
+      if (normalizedSceneId !== null) {
+        animationScenes = filterAnimationScenesBySceneId(
+          animationData.scenes,
+          normalizedSceneId,
+        );
+
+        if (!animationScenes) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Istenen sahne animationData icinde bulunamadi.",
+            },
+            { status: 404 },
+          );
+        }
+      } else {
+        animationScenes = animationData.scenes;
+      }
+    } else if (isAnimationScenes(scenes)) {
+      if (normalizedSceneId !== null) {
+        animationScenes = filterAnimationScenesBySceneId(scenes, normalizedSceneId);
+
+        if (!animationScenes) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Istenen sahne animation sahneleri icinde bulunamadi.",
+            },
+            { status: 404 },
+          );
+        }
+      } else {
+        animationScenes = scenes;
+      }
+    } else if (isSceneData(scenes) && isVisualData(visuals)) {
+      if (normalizedSceneId !== null) {
+        const visualScene = visuals.scenes.find(
+          (item) => item.sceneId === normalizedSceneId,
+        );
+
+        if (!visualScene) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Istenen sahne visualData icinde bulunamadi.",
+            },
+            { status: 404 },
+          );
+        }
+
+        const animationScene =
+          await AnimationPromptGenerator.generateAnimationSceneData({
+            scenes,
+            visual: visualScene,
+            style: typeof style === "string" ? style : undefined,
+          });
+
+        animationScenes = [animationScene];
+      } else {
+        const generatedAnimationData =
+          await AnimationPromptGenerator.generateAnimationData({
+            projectId: trimmedProjectId,
+            scenes,
+            visuals,
+            style: typeof style === "string" ? style : undefined,
+          });
+        animationScenes = generatedAnimationData.scenes;
+      }
+    }
+
+    if (!animationScenes || animationScenes.length === 0) {
       return NextResponse.json(
         {
           success: false,
@@ -55,26 +133,29 @@ export async function POST(req: Request) {
       );
     }
 
-    const trimmedProjectId = projectId.trim();
-    const trimmedProjectSlug = projectSlug.trim();
+    const savedAnimation = await ProjectManager.getAnimation(trimmedProjectSlug);
+    const existingAnimation = isAnimationData(savedAnimation)
+      ? savedAnimation
+      : null;
 
-    const projectAssets = await AnimationAssetPipeline.generateAnimationAssets({
-      projectId: trimmedProjectId,
-      projectSlug: trimmedProjectSlug,
-      scenes: animationScenes,
-    });
+    const { projectAssets, updatedScenes } =
+      await AnimationAssetPipeline.generateAnimationAssets({
+        projectId: trimmedProjectId,
+        projectSlug: trimmedProjectSlug,
+        scenes: animationScenes,
+      });
 
-    const animationDataToSave: AnimationData = generatedAnimationData ?? {
-      projectId: trimmedProjectId,
-      scenes: animationScenes,
-      createdAt: new Date().toISOString(),
-    };
+    const mergedAnimation = mergeAnimationData(
+      existingAnimation,
+      updatedScenes,
+      trimmedProjectId,
+    );
 
-    await ProjectManager.saveAnimation(trimmedProjectSlug, animationDataToSave);
+    await ProjectManager.saveAnimation(trimmedProjectSlug, mergedAnimation);
 
     return NextResponse.json({
       success: true,
-      animationData: generatedAnimationData,
+      animationData: mergedAnimation,
       assets: projectAssets.assets,
     });
   } catch (error) {
@@ -88,6 +169,35 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+}
+
+function normalizeSceneId(value: unknown): number | null {
+  if (value === undefined) {
+    return null;
+  }
+
+  if (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 0
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
+function filterAnimationScenesBySceneId(
+  scenes: AnimationScene[],
+  sceneId: number,
+): AnimationScene[] | null {
+  const scene = scenes.find((item) => item.sceneId === sceneId);
+
+  if (!scene) {
+    return null;
+  }
+
+  return [scene];
 }
 
 function isAnimationData(value: unknown): value is AnimationData {

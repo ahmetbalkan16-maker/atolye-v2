@@ -1,6 +1,6 @@
 import { AssetManager } from "@/lib/assets/AssetManager";
 import type { ProjectAssets } from "@/types/asset";
-import type { AnimationScene } from "@/types/animation";
+import type { AnimationScene, AnimationStatus } from "@/types/animation";
 import type { AnimationProvider } from "./providers/AnimationProvider";
 import { MockAnimationProvider } from "./providers/MockAnimationProvider";
 
@@ -11,18 +11,24 @@ type GenerateAnimationAssetsInput = {
   provider?: AnimationProvider;
 };
 
+export type AnimationAssetPipelineResult = {
+  projectAssets: ProjectAssets;
+  updatedScenes: AnimationScene[];
+};
+
 export class AnimationAssetPipeline {
   static async generateAnimationAssets({
     projectId,
     projectSlug,
     scenes,
     provider,
-  }: GenerateAnimationAssetsInput): Promise<ProjectAssets> {
+  }: GenerateAnimationAssetsInput): Promise<AnimationAssetPipelineResult> {
     const animationProvider = provider ?? new MockAnimationProvider();
     let projectAssets = AssetManager.getProjectAssets(
       projectSlug,
       projectId,
     );
+    const updatedScenes: AnimationScene[] = [];
 
     for (const scene of scenes) {
       const result = await animationProvider.generateAnimation({
@@ -50,14 +56,38 @@ export class AnimationAssetPipeline {
         projectId,
         asset,
       );
+
+      updatedScenes.push({
+        ...scene,
+        outputAssetId: asset.id,
+        provider: result.provider,
+        model: result.model,
+        status: toAnimationStatus(result.error ? "failed" : result.status),
+      });
     }
 
-    return projectAssets;
+    return {
+      projectAssets,
+      updatedScenes,
+    };
   }
 }
 
 export async function generateAnimationAssets(
   input: GenerateAnimationAssetsInput,
-): Promise<ProjectAssets> {
+): Promise<AnimationAssetPipelineResult> {
   return AnimationAssetPipeline.generateAnimationAssets(input);
+}
+
+function toAnimationStatus(status: string): AnimationStatus {
+  if (
+    status === "planned" ||
+    status === "generating" ||
+    status === "generated" ||
+    status === "failed"
+  ) {
+    return status;
+  }
+
+  return "generated";
 }

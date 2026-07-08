@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimationService } from "@/lib/animation/AnimationService";
+import type { AnimationData } from "@/types/animation";
 import type { Asset } from "@/types/asset";
 import type { SceneData } from "@/types/scene";
 import type { VisualData } from "@/types/visual";
@@ -12,6 +13,7 @@ interface AssetGalleryProps {
   projectSlug: string;
   scenes: SceneData | null;
   visualData: VisualData | null;
+  animationData?: AnimationData | null;
 }
 
 type AssetsResponse = {
@@ -33,21 +35,33 @@ export default function AssetGallery({
   projectSlug,
   scenes,
   visualData,
+  animationData = null,
 }: AssetGalleryProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [generatingAnimations, setGeneratingAnimations] = useState(false);
   const [generatingSceneId, setGeneratingSceneId] = useState<number | null>(null);
+  const [generatingAnimationSceneId, setGeneratingAnimationSceneId] =
+    useState<number | null>(null);
   const [error, setError] = useState("");
   const [editableVisualData, setEditableVisualData] =
     useState<VisualData | null>(visualData);
+  const [localAnimationData, setLocalAnimationData] =
+    useState<AnimationData | null>(animationData);
   const hasVisualPlan = Boolean(editableVisualData);
   const canGenerateAnimations = Boolean(scenes && editableVisualData);
   const imageAssets = assets.filter((asset) => asset.type === "image");
   const animationAssets = assets.filter((asset) => asset.type === "animation");
+  const animationActiveAssetIds = useMemo(
+    () => buildActiveAssetIdMap(localAnimationData),
+    [localAnimationData],
+  );
   const imageAssetGroups = groupAssetsByScene(imageAssets);
-  const animationAssetGroups = groupAssetsByScene(animationAssets);
+  const animationAssetGroups = groupAssetsByScene(
+    animationAssets,
+    animationActiveAssetIds,
+  );
 
   async function loadAssets() {
     try {
@@ -157,12 +171,16 @@ export default function AssetGallery({
       setGeneratingAnimations(true);
       setError("");
 
-      await AnimationService.generateFromSceneVisualData({
+      const result = await AnimationService.generateFromSceneVisualData({
         projectId,
         projectSlug,
         scenes,
         visuals: editableVisualData,
       });
+
+      if (result.animationData) {
+        setLocalAnimationData(result.animationData);
+      }
 
       await loadAssets();
     } catch (err) {
@@ -173,6 +191,38 @@ export default function AssetGallery({
     }
   }
 
+  async function generateSceneAnimation(sceneId: number) {
+    if (!scenes || !editableVisualData || generatingAnimations) {
+      return;
+    }
+
+    try {
+      setGeneratingAnimations(true);
+      setGeneratingAnimationSceneId(sceneId);
+      setError("");
+
+      const result = await AnimationService.regenerateSceneAnimation({
+        projectId,
+        projectSlug,
+        scenes,
+        visuals: editableVisualData,
+        sceneId,
+      });
+
+      if (result.animationData) {
+        setLocalAnimationData(result.animationData);
+      }
+
+      await loadAssets();
+    } catch (err) {
+      console.error("[AssetGallery] Scene animation generation failed:", err);
+      setError("Sahne animasyon uretimi sirasinda hata olustu.");
+    } finally {
+      setGeneratingAnimations(false);
+      setGeneratingAnimationSceneId(null);
+    }
+  }
+
   useEffect(() => {
     loadAssets();
   }, [projectSlug]);
@@ -180,6 +230,10 @@ export default function AssetGallery({
   useEffect(() => {
     setEditableVisualData(visualData);
   }, [visualData]);
+
+  useEffect(() => {
+    setLocalAnimationData(animationData);
+  }, [animationData]);
 
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
@@ -295,9 +349,9 @@ export default function AssetGallery({
               <AssetGroupList
                 groups={animationAssetGroups}
                 generating={generatingAnimations}
-                generatingSceneId={null}
-                onRegenerate={generateSceneAsset}
-                showRegenerate={false}
+                generatingSceneId={generatingAnimationSceneId}
+                onRegenerate={generateSceneAnimation}
+                showRegenerate
               />
             ) : (
               <p className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-500">
@@ -487,7 +541,10 @@ function Info({ label, value }: { label: string; value: string }) {
   );
 }
 
-function groupAssetsByScene(assets: Asset[]): AssetGroup[] {
+function groupAssetsByScene(
+  assets: Asset[],
+  activeAssetIds: Map<number, string> = new Map(),
+): AssetGroup[] {
   const groups = new Map<string, Asset[]>();
 
   for (const asset of assets) {
@@ -502,7 +559,10 @@ function groupAssetsByScene(assets: Asset[]): AssetGroup[] {
   return Array.from(groups.entries())
     .map(([key, groupAssets]) => {
       const sortedAssets = sortAssetsByNewest(groupAssets);
-      const activeAsset = getActiveAsset(sortedAssets);
+      const sceneId = sortedAssets[0]?.sceneId;
+      const preferredAssetId =
+        typeof sceneId === "number" ? activeAssetIds.get(sceneId) : undefined;
+      const activeAsset = getActiveAsset(sortedAssets, preferredAssetId);
 
       return {
         key,
@@ -517,13 +577,42 @@ function groupAssetsByScene(assets: Asset[]): AssetGroup[] {
     .sort((a, b) => getGroupSortValue(a) - getGroupSortValue(b));
 }
 
-function getActiveAsset(assets: Asset[]) {
+function buildActiveAssetIdMap(animationData: AnimationData | null) {
+  const activeAssetIds = new Map<number, string>();
+
+  if (!animationData) {
+    return activeAssetIds;
+  }
+
+  for (const scene of animationData.scenes) {
+    if (scene.outputAssetId) {
+      activeAssetIds.set(scene.sceneId, scene.outputAssetId);
+    }
+  }
+
+  return activeAssetIds;
+}
+
+function getActiveAsset(assets: Asset[], preferredAssetId?: string) {
+  if (preferredAssetId) {
+    const matched = assets.find((asset) => asset.id === preferredAssetId);
+
+    if (matched) {
+      return matched;
+    }
+  }
+
+  const assetType = assets[0]?.type;
+  const generatedAssets = assets.filter(
+    (asset) =>
+      asset.status === "generated" &&
+      (!assetType || asset.type === assetType),
+  );
+
   return (
-    sortAssetsByNewest(
-      assets.filter(
-        (asset) => asset.type === "image" && asset.status === "generated",
-      ),
-    )[0] ?? null
+    sortAssetsByNewest(generatedAssets)[0] ??
+    sortAssetsByNewest(assets)[0] ??
+    null
   );
 }
 

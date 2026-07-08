@@ -28,7 +28,15 @@ export type GenerateAnimationsFromAnimationDataInput =
 export type GenerateAnimationsFromScenesInput =
   AnimationServiceBaseInput & {
     scenes: AnimationScene[];
+    sceneId?: number;
   };
+
+export type RegenerateSceneAnimationInput = AnimationServiceBaseInput & {
+  scenes: SceneData;
+  visuals: VisualData;
+  sceneId: number;
+  style?: string;
+};
 
 export type AnimationServiceResult = {
   animationData: AnimationData | null;
@@ -49,16 +57,19 @@ type AnimationApiPayload =
       scenes: SceneData;
       visuals: VisualData;
       style?: string;
+      sceneId?: number;
     }
   | {
       projectId: string;
       projectSlug: string;
       animationData: AnimationData;
+      sceneId?: number;
     }
   | {
       projectId: string;
       projectSlug: string;
       scenes: AnimationScene[];
+      sceneId?: number;
     };
 
 const defaultEndpoint = "/api/animations";
@@ -115,6 +126,7 @@ export class AnimationService {
     projectId,
     projectSlug,
     scenes,
+    sceneId,
     endpoint,
     fetcher,
   }: GenerateAnimationsFromScenesInput): Promise<AnimationServiceResult> {
@@ -123,6 +135,34 @@ export class AnimationService {
         projectId,
         projectSlug,
         scenes,
+        sceneId,
+      },
+      {
+        endpoint,
+        fetcher,
+      },
+    );
+  }
+
+  /** Regenerates animation for a single scene through the animation API. */
+  static async regenerateSceneAnimation({
+    projectId,
+    projectSlug,
+    scenes,
+    visuals,
+    sceneId,
+    style,
+    endpoint,
+    fetcher,
+  }: RegenerateSceneAnimationInput): Promise<AnimationServiceResult> {
+    return this.requestAnimations(
+      {
+        projectId,
+        projectSlug,
+        scenes,
+        visuals,
+        sceneId,
+        style,
       },
       {
         endpoint,
@@ -178,6 +218,13 @@ export async function generateAnimationsFromAnimationScenes(
   input: GenerateAnimationsFromScenesInput,
 ): Promise<AnimationServiceResult> {
   return AnimationService.generateFromAnimationScenes(input);
+}
+
+/** Regenerates animation for a single scene through the shared animation service. */
+export async function regenerateSceneAnimation(
+  input: RegenerateSceneAnimationInput,
+): Promise<AnimationServiceResult> {
+  return AnimationService.regenerateSceneAnimation(input);
 }
 
 function isAnimationData(value: unknown): value is AnimationData {

@@ -95,6 +95,17 @@ Tamamlandı
 
 ---
 
+### Animation Scene-Level Regeneration
+
+Tamamlandı
+
+- Tek sahne animation regenerate akışı eklendi
+- animation.json merge mantığı ile korunur hale getirildi
+- Yeni animation asset outputAssetId ile ilgili sahneye bağlandı
+- Animasyon kartlarında Yeniden Üret aksiyonu aktif edildi
+
+---
+
 ### Studio
 
 Tamamlandı

@@ -153,6 +153,7 @@ export default async function ProjectStudioPage({
           projectSlug={slug}
           scenes={scenes}
           visualData={visuals}
+          animationData={animation}
         />
         <AudioPanel audio={audio} />
         <ThumbnailPanel thumbnail={thumbnail} />

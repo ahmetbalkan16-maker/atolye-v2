@@ -50,6 +50,22 @@ export class AnimationPromptGenerator {
     };
   }
 
+  static async generateAnimationSceneData({
+    scenes,
+    visual,
+    style,
+  }: {
+    scenes: SceneData;
+    visual: VisualScene;
+    style?: string;
+  }): Promise<AnimationScene> {
+    return this.generateAnimationScene({
+      scenes,
+      visual,
+      style,
+    });
+  }
+
   private static async generateAnimationScene({
     scenes,
     visual,
