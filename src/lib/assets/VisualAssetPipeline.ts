@@ -18,7 +18,7 @@ export class VisualAssetPipeline {
     visualData,
     provider,
   }: GenerateAssetsInput): Promise<ProjectAssets> {
-    const imageProvider = provider ?? ImageProviderRouter.getProvider("mock");
+    const imageProvider = provider ?? ImageProviderRouter.getProvider();
 
     let projectAssets = AssetManager.getProjectAssets(
       projectSlug,
@@ -30,6 +30,7 @@ export class VisualAssetPipeline {
         prompt: scene.visualPrompt,
         style: scene.style,
         sceneId: scene.sceneId,
+        projectSlug,
       });
 
       const asset = AssetManager.createAsset({

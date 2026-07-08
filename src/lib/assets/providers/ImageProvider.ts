@@ -8,6 +8,8 @@ export interface ImageGenerationInput {
   size?: string;
 
   sceneId?: number;
+
+  projectSlug?: string;
 }
 
 export interface ImageProvider {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { AssetManager } from "@/lib/assets/AssetManager";
 import { VisualAssetPipeline } from "@/lib/assets/VisualAssetPipeline";
-import { MockImageProvider } from "@/lib/assets/providers/MockImageProvider";
+import { ImageProviderRouter } from "@/lib/assets/providers/ImageProviderRouter";
 import type { VisualData } from "@/types/visual";
 
 export async function GET(req: Request) {
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const provider = new MockImageProvider();
+    const provider = ImageProviderRouter.getProvider();
     const projectAssets = await VisualAssetPipeline.generateAssets({
       projectId: projectId.trim(),
       projectSlug: projectSlug.trim(),
