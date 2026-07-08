@@ -17,7 +17,7 @@ Araştırma → Senaryo → Sahne → Görsel → Animasyon → Video üretim ak
 
 Commit:
 
-feat(animation): add animation engine and prompt foundation
+feat(animation): connect animation prompt generator to api
 
 Durum:
 GitHub'a pushlandı.
@@ -112,45 +112,64 @@ SceneData + VisualData kullanarak
 AI animasyon prompt hazırlama altyapısı.
 
 ---
+# Sprint 35 Phase 2.3
 
+Tamamlandi:
+
+AnimationPromptGenerator
+
+Konum:
+
+src/lib/animation/prompts/AnimationPromptGenerator.ts
+
+Gorev:
+
+SceneData + VisualData kullanarak AIRouter uzerinden animasyon prompt uretimi yapar.
+AI cevabini JSON olarak parse eder, AnimationData olusturur ve fallback mekanizmasi saglar.
+
+---
+
+# Sprint 35 Phase 2.4
+
+Tamamlandi:
+
+AnimationPromptGenerator API entegrasyonu
+
+Konum:
+
+app/api/animations/route.ts
+
+Gorev:
+
+POST /api/animations endpoint'i AnimationScene[] ile eski akisi korur.
+SceneData + VisualData geldiginde once AnimationPromptGenerator ile AnimationData uretir,
+sonra mevcut AnimationAssetPipeline akisini calistirir.
+
+---
 # Son Test
 
 Başarılı:
 
-npx tsc --noEmit --incremental false
+npx.cmd tsc --noEmit
 
 ---
 
-# Sonraki Görev
+# Sonraki Gorev
 
-## Sprint 35 Phase 2.3
+## Sprint 35 Phase 2.5
 
-AnimationPromptGenerator
+Animation client/UI/service entegrasyonu.
 
 Hedef:
 
-SceneData
-+
-VisualData
+SceneData + VisualData + AnimationData uretim akisini uygulama icinden tetiklemek.
 
-↓
+Yapilacaklar:
 
-AnimationPromptGenerator
-
-↓
-
-AIRouter
-
-↓
-
-AnimationData
-
-Yapılacaklar:
-
-* AI ile animasyon prompt üretimi
-* JSON parse
-* AnimationData oluşturma
-* Fallback mekanizması
+* Animation API icin client/service katmani
+* UI tarafindan animasyon uretimini baslatma
+* Uretilen animation asset sonuclarini ekranda gosterme
+* Mevcut mock/provider yapisini bozmadan uctan uca test
 
 ---
 
