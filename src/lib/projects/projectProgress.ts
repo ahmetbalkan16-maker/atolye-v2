@@ -45,7 +45,15 @@ export interface ProjectProgressSummary {
   nextTaskSuggestion: string;
 }
 
-const productionStageOrder: readonly ProductionStepKey[] = [
+export type ProjectProgressCurrentStage = ProductionStepKey | "completed";
+
+export interface ManifestProjectProgress {
+  completedStages: ProductionStepKey[];
+  currentStage: ProjectProgressCurrentStage;
+  percentage: number;
+}
+
+export const projectProgressStages: readonly ProductionStepKey[] = [
   "research",
   "script",
   "scenes",
@@ -55,6 +63,8 @@ const productionStageOrder: readonly ProductionStepKey[] = [
   "seo",
   "assembly",
 ];
+
+const productionStageOrder = projectProgressStages;
 
 const stepLabels: Record<ProductionStepKey, string> = {
   research: "Araştırma",
@@ -113,7 +123,23 @@ export function createProgressSummary(
   };
 }
 
-export async function getProjectProgress(
+export function getProjectProgress(
+  manifest: ProjectManifest,
+): ManifestProjectProgress;
+export function getProjectProgress(
+  projectSlug: string,
+): Promise<ProjectProgress | null>;
+export function getProjectProgress(
+  input: ProjectManifest | string,
+): ManifestProjectProgress | Promise<ProjectProgress | null> {
+  if (typeof input !== "string") {
+    return createManifestProjectProgress(input);
+  }
+
+  return getProjectProgressBySlug(input);
+}
+
+async function getProjectProgressBySlug(
   projectSlug: string,
 ): Promise<ProjectProgress | null> {
   const manifest = await ProjectManager.ensureManifest(projectSlug);
@@ -139,18 +165,50 @@ export async function getProjectProgress(
   };
 }
 
-export async function getCompletedStages(
+export function getCompletedStages(
+  manifest: ProjectManifest,
+): ProductionStepKey[];
+export function getCompletedStages(
+  projectSlug: string,
+): Promise<ProductionStepKey[]>;
+export function getCompletedStages(
+  input: ProjectManifest | string,
+): ProductionStepKey[] | Promise<ProductionStepKey[]> {
+  if (typeof input !== "string") {
+    return getCompletedStagesFromManifest(input);
+  }
+
+  return getCompletedStagesBySlug(input);
+}
+
+async function getCompletedStagesBySlug(
   projectSlug: string,
 ): Promise<ProductionStepKey[]> {
-  const progress = await getProjectProgress(projectSlug);
+  const progress = await getProjectProgressBySlug(projectSlug);
 
   return progress?.completedStages ?? [];
 }
 
-export async function getCurrentStage(
+export function getCurrentStage(
+  manifest: ProjectManifest,
+): ProjectProgressCurrentStage;
+export function getCurrentStage(
+  projectSlug: string,
+): Promise<ProductionStepKey | null>;
+export function getCurrentStage(
+  input: ProjectManifest | string,
+): ProjectProgressCurrentStage | Promise<ProductionStepKey | null> {
+  if (typeof input !== "string") {
+    return getCurrentStageFromManifest(input);
+  }
+
+  return getCurrentStageBySlug(input);
+}
+
+async function getCurrentStageBySlug(
   projectSlug: string,
 ): Promise<ProductionStepKey | null> {
-  const progress = await getProjectProgress(projectSlug);
+  const progress = await getProjectProgressBySlug(projectSlug);
 
   return progress?.currentStage ?? null;
 }
@@ -158,17 +216,61 @@ export async function getCurrentStage(
 export async function getNextStage(
   projectSlug: string,
 ): Promise<ProductionStepKey | null> {
-  const progress = await getProjectProgress(projectSlug);
+  const progress = await getProjectProgressBySlug(projectSlug);
 
   return progress?.nextStage ?? null;
 }
 
-export async function getCompletionPercentage(
+export function getCompletionPercentage(manifest: ProjectManifest): number;
+export function getCompletionPercentage(projectSlug: string): Promise<number>;
+export function getCompletionPercentage(
+  input: ProjectManifest | string,
+): number | Promise<number> {
+  if (typeof input !== "string") {
+    return calculateCompletionPercentage(
+      getCompletedStagesFromManifest(input).length,
+    );
+  }
+
+  return getCompletionPercentageBySlug(input);
+}
+
+async function getCompletionPercentageBySlug(
   projectSlug: string,
 ): Promise<number> {
-  const progress = await getProjectProgress(projectSlug);
+  const progress = await getProjectProgressBySlug(projectSlug);
 
   return progress?.completionPercentage ?? 0;
+}
+
+function createManifestProjectProgress(
+  manifest: ProjectManifest,
+): ManifestProjectProgress {
+  const completedStages = getCompletedStagesFromManifest(manifest);
+
+  return {
+    completedStages,
+    currentStage: getCurrentStageFromManifest(manifest),
+    percentage: calculateCompletionPercentage(completedStages.length),
+  };
+}
+
+function getCompletedStagesFromManifest(
+  manifest: ProjectManifest,
+): ProductionStepKey[] {
+  return productionStageOrder.filter(
+    (key) => manifest.packages[key].status === "completed",
+  );
+}
+
+function getCurrentStageFromManifest(
+  manifest: ProjectManifest,
+): ProjectProgressCurrentStage {
+  return (
+    productionStageOrder.find(
+      (key) => manifest.packages[key].status !== "completed",
+    ) ?? "completed"
+  );
 }
 
 function getStageProgress(manifest: ProjectManifest): ProjectStageProgress[] {
