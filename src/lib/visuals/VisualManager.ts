@@ -13,6 +13,7 @@ import type {
   VisualPrompt,
   VisualScene,
 } from "@/types/visual";
+import { AnimationPromptEngine } from "./AnimationPromptEngine";
 import { VisualPromptEngine } from "./VisualPromptEngine";
 
 type VisualManagerInput = {
@@ -100,8 +101,7 @@ export class VisualManager {
         "8K detail",
         "no text, no logo, no watermark",
       ].join(", "),
-      animationPrompt:
-        "Slow cinematic camera movement, realistic motion, atmospheric particles, documentary style",
+      animationPrompt: AnimationPromptEngine.createFallbackPrompt(scene, style),
       style,
     };
   }
@@ -127,11 +127,11 @@ export class VisualManager {
             scene.visualPrompt,
             this.createFallbackVisualScene(sourceScene, style).visualPrompt,
           ),
-        animationPrompt:
-          getStringAllowEmpty(
-            scene.animationPrompt,
-            "Slow cinematic camera movement, documentary style",
-          ),
+        animationPrompt: AnimationPromptEngine.normalizePrompt(
+          scene.animationPrompt,
+          sourceScene,
+          style,
+        ),
         style: getStringAllowEmpty(scene.style, style),
       };
     });
