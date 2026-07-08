@@ -150,6 +150,7 @@ export default async function ProjectStudioPage({
         {pipelineProgress && pipelineSummary ? (
           <>
             <PipelineStatus
+              projectSlug={slug}
               stages={pipelineProgress.stages}
               completionPercentage={pipelineSummary.completionPercentage}
               currentStage={pipelineSummary.currentStage}
