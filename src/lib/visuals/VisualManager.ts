@@ -13,7 +13,7 @@ import type {
   VisualPrompt,
   VisualScene,
 } from "@/types/visual";
-import { createVisualPrompt } from "./prompts/visualPrompt";
+import { VisualPromptEngine } from "./VisualPromptEngine";
 
 type VisualManagerInput = {
   projectId?: string;
@@ -30,7 +30,7 @@ export class VisualManager {
     style = "cinematic",
   }: VisualManagerInput): Promise<VisualData> {
     const fallback = this.createFallbackVisualData(scenes, style, projectId);
-    const prompt = createVisualPrompt(scenes, style);
+    const prompt = VisualPromptEngine.createPrompt(scenes, style);
 
     try {
       const provider = this.router.getProvider("openai");
