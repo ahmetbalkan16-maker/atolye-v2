@@ -1,3 +1,12 @@
+export type AudioStatus =
+  | "planned"
+  | "generating"
+  | "generated"
+  | "failed";
+
+export type AudioProviderName =
+  | "mock";
+
 export interface AudioNarrator {
   style: string;
 
@@ -27,6 +36,14 @@ export interface AudioSection {
 
   sourceText: string;
 
+  outputAssetId?: string;
+
+  status?: AudioStatus;
+
+  provider?: AudioProviderName | string;
+
+  model?: string;
+
   audioFileUrl?: string;
 }
 
@@ -45,12 +62,20 @@ export interface AudioProductionInfo {
 
   estimatedTotalDuration: string;
 
-  generationStatus: "planned" | "generated" | "failed";
+  generationStatus: AudioStatus;
 
   audioFileUrl?: string;
 }
 
 export interface AudioData {
+  outputAssetId?: string;
+
+  status?: AudioStatus;
+
+  provider?: AudioProviderName | string;
+
+  model?: string;
+
   narrator: AudioNarrator;
 
   sections: AudioSection[];

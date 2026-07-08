@@ -165,7 +165,11 @@ export default async function ProjectStudioPage({
           video={video}
           canGenerate={Boolean(animation)}
         />
-        <AudioPanel audio={audio} />
+        <AudioPanel
+          slug={slug}
+          audio={audio}
+          canGenerate={Boolean(script && video)}
+        />
         <ThumbnailPanel thumbnail={thumbnail} />
         <SEOPanel seo={seo} />
         <AssemblyPanel assembly={assembly} />

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { AudioManager } from "@/lib/audio/AudioManager";
+import { AudioPipeline } from "@/lib/audio/AudioPipeline";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
+import type { Project } from "@/types/project";
 import type { ScriptData } from "@/types/script";
 
 export async function POST(req: Request) {
@@ -20,15 +22,32 @@ export async function POST(req: Request) {
       );
     }
 
-    const audio = await AudioManager.generateAudioData(scriptData);
+    const audioPlan = await AudioManager.generateAudioData(scriptData);
 
     if (typeof slug === "string" && slug.trim()) {
-      await ProjectManager.saveAudio(slug.trim(), audio);
+      const normalizedSlug = slug.trim();
+      const project = (await ProjectManager.getProject(
+        normalizedSlug,
+      )) as Project | null;
+      const { audio, projectAssets } = await AudioPipeline.generateAudio({
+        projectId: project?.id ?? normalizedSlug,
+        projectSlug: normalizedSlug,
+        audio: audioPlan,
+      });
+
+      await ProjectManager.saveAudio(normalizedSlug, audio);
+
+      return NextResponse.json({
+        success: true,
+        audio,
+        assets: projectAssets.assets,
+      });
     }
 
     return NextResponse.json({
       success: true,
-      audio,
+      audio: audioPlan,
+      assets: [],
     });
   } catch (error) {
     console.error("[Audio API] Audio Engine failed:", error);
