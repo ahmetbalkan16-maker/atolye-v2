@@ -125,7 +125,11 @@ export default async function ProjectStudioPage({
         <ScriptPanel script={script} />
         <ScenePanel scenes={scenes} />
         <VisualPanel visuals={visuals} />
-        <AssetGallery projectSlug={slug} />
+        <AssetGallery
+          projectId={project.id}
+          projectSlug={slug}
+          visualData={visuals}
+        />
         <AudioPanel audio={audio} />
         <ThumbnailPanel thumbnail={thumbnail} />
         <SEOPanel seo={seo} />

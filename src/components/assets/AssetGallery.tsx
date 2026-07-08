@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import type { Asset } from "@/types/asset";
+import type { VisualData } from "@/types/visual";
 
 interface AssetGalleryProps {
+  projectId: string;
   projectSlug: string;
+  visualData: VisualData | null;
 }
 
 type AssetsResponse = {
@@ -13,42 +16,99 @@ type AssetsResponse = {
   error?: string;
 };
 
-export default function AssetGallery({ projectSlug }: AssetGalleryProps) {
+export default function AssetGallery({
+  projectId,
+  projectSlug,
+  visualData,
+}: AssetGalleryProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function loadAssets() {
-      try {
-        setLoading(true);
-        setError("");
+  async function loadAssets() {
+    try {
+      setLoading(true);
+      setError("");
 
-        const res = await fetch(
-          `/api/assets?projectSlug=${encodeURIComponent(projectSlug)}`,
-        );
-        const data = (await res.json()) as AssetsResponse;
+      const res = await fetch(
+        `/api/assets?projectSlug=${encodeURIComponent(projectSlug)}`,
+      );
+      const data = (await res.json()) as AssetsResponse;
 
-        if (!res.ok || !data.success) {
-          setError(data.error || "Assetler yuklenemedi.");
-          return;
-        }
-
-        setAssets(data.assets ?? []);
-      } catch (err) {
-        console.error("[AssetGallery] Asset loading failed:", err);
-        setError("Assetler yuklenirken hata olustu.");
-      } finally {
-        setLoading(false);
+      if (!res.ok || !data.success) {
+        setError(data.error || "Assetler yuklenemedi.");
+        return;
       }
+
+      setAssets(data.assets ?? []);
+    } catch (err) {
+      console.error("[AssetGallery] Asset loading failed:", err);
+      setError("Assetler yuklenirken hata olustu.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function generateAssets() {
+    if (!visualData || generating) {
+      return;
     }
 
+    try {
+      setGenerating(true);
+      setError("");
+
+      const res = await fetch("/api/assets", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          projectId,
+          projectSlug,
+          visualData,
+        }),
+      });
+      const data = (await res.json()) as AssetsResponse;
+
+      if (!res.ok || !data.success) {
+        setError(data.error || "Asset uretimi tamamlanamadi.");
+        return;
+      }
+
+      await loadAssets();
+    } catch (err) {
+      console.error("[AssetGallery] Asset generation failed:", err);
+      setError("Asset uretimi sirasinda hata olustu.");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  useEffect(() => {
     loadAssets();
   }, [projectSlug]);
 
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
-      <h2 className="text-xl font-bold text-white">Görsel Üretimleri</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xl font-bold text-white">Görsel Üretimleri</h2>
+        <button
+          type="button"
+          onClick={generateAssets}
+          disabled={!visualData || generating}
+          className="rounded-xl bg-yellow-400 px-4 py-2 text-sm font-bold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
+        >
+          {generating ? "Üretiliyor..." : "Görsel Asset Üret"}
+        </button>
+      </div>
+
+      {!visualData ? (
+        <p className="mt-3 text-sm text-zinc-500">
+          Görsel plan oluşmadan asset üretimi başlatılamaz.
+        </p>
+      ) : null}
 
       {loading ? (
         <p className="mt-4 text-sm text-zinc-500">Assetler yükleniyor...</p>
