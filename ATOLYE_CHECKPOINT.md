@@ -17,7 +17,7 @@ Araştırma → Senaryo → Sahne → Görsel → Animasyon → Video üretim ak
 
 Commit:
 
-feat(animation): connect animation prompt generator to api
+feat(animation): add animation service layer
 
 Durum:
 GitHub'a pushlandı.
@@ -146,6 +146,25 @@ SceneData + VisualData geldiginde once AnimationPromptGenerator ile AnimationDat
 sonra mevcut AnimationAssetPipeline akisini calistirir.
 
 ---
+
+# Sprint 36 — Animation Service Layer
+
+Tamamlandi:
+
+Animation Service Layer
+
+Konum:
+
+src/lib/animation/AnimationService.ts
+
+Gorev:
+
+UI ve ileride Video Engine tarafinin /api/animations endpoint'i ile dogrudan konusmadan animasyon uretim akisini tetiklemesini saglar.
+SceneData + VisualData, hazir AnimationData veya AnimationScene[] girdilerini destekler.
+AnimationData ve animation asset sonuclarini tip guvenli sekilde dondurur.
+Provider ve mock yapisini degistirmez.
+
+---
 # Son Test
 
 Başarılı:
@@ -156,20 +175,18 @@ npx.cmd tsc --noEmit
 
 # Sonraki Gorev
 
-## Sprint 35 Phase 2.5
-
-Animation client/UI/service entegrasyonu.
+## Sprint 37 — Animation UI Integration
 
 Hedef:
 
-SceneData + VisualData + AnimationData uretim akisini uygulama icinden tetiklemek.
+Animation Service Layer'i UI tarafina baglamak.
 
 Yapilacaklar:
 
-* Animation API icin client/service katmani
-* UI tarafindan animasyon uretimini baslatma
-* Uretilen animation asset sonuclarini ekranda gosterme
-* Mevcut mock/provider yapisini bozmadan uctan uca test
+* UI'dan animasyon uretimini baslatma
+* AnimationService sonucundaki asset'leri ekranda gosterme
+* Loading, error ve success state'lerini ekleme
+* Mevcut API ve provider davranisini bozmadan uctan uca test
 
 ---
 
