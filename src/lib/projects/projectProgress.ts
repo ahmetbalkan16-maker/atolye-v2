@@ -61,9 +61,9 @@ export const projectProgressStages: readonly ProductionStepKey[] = [
   "animation",
   "video",
   "audio",
+  "assembly",
   "thumbnail",
   "seo",
-  "assembly",
 ];
 
 const productionStageOrder = projectProgressStages;
@@ -76,9 +76,9 @@ const stepLabels: Record<ProductionStepKey, string> = {
   animation: "Animasyon",
   video: "Video",
   audio: "Ses",
+  assembly: "Kurgu",
   thumbnail: "Thumbnail",
   seo: "SEO",
-  assembly: "Kurgu",
 };
 
 export function createProductionSteps(
@@ -377,6 +377,10 @@ function getNextTaskSuggestion(
 
   if (completedStages.includes("video") && currentStage === "audio") {
     return "Ses asamasina gec";
+  }
+
+  if (completedStages.includes("audio") && currentStage === "assembly") {
+    return "Kurgu paketini olustur";
   }
 
   if (completedStages.includes("script") && currentStage === "scenes") {

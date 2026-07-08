@@ -1,3 +1,4 @@
+import type { AssemblySourceData } from "@/lib/assembly/AssemblyManager";
 import type { AudioData } from "@/types/audio";
 import type { SceneData } from "@/types/scene";
 import type { ScriptData } from "@/types/script";
@@ -8,6 +9,7 @@ export function createAssemblyPrompt(
   scenes: SceneData,
   visuals: VisualData,
   audio: AudioData,
+  sources: AssemblySourceData = {},
 ): string {
   return [
     "You are a professional documentary video editor.",
@@ -21,6 +23,9 @@ export function createAssemblyPrompt(
     '      "sceneId": 1,',
     '      "duration": "mm:ss",',
     '      "visualReference": "visual-1",',
+    '      "animationAssetId": "asset-id",',
+    '      "videoAssetId": "asset-id",',
+    '      "audioAssetId": "asset-id",',
     '      "audioReference": "section-1",',
     '      "transition": "string",',
     '      "cameraMovement": "string",',
@@ -41,6 +46,7 @@ export function createAssemblyPrompt(
     "- Keep sceneId, visualReference, and audioReference clear and stable.",
     "- visualReference should use visual-{sceneId}.",
     "- audioReference should use section-{chapterId}.",
+    "- Preserve provided animationAssetId, videoAssetId, and audioAssetId references when available.",
     "- Use documentary cinematic editing language.",
     "- render.status must be planned.",
     "Script JSON:",
@@ -51,5 +57,35 @@ export function createAssemblyPrompt(
     JSON.stringify(visuals),
     "Audio JSON:",
     JSON.stringify(audio),
+    "Active media source JSON:",
+    JSON.stringify({
+      project: sources.project
+        ? {
+            id: sources.project.id,
+            slug: sources.project.slug,
+            title: sources.project.title,
+          }
+        : null,
+      animationScenes: sources.animation?.scenes.map((scene) => ({
+        sceneId: scene.sceneId,
+        outputAssetId: scene.outputAssetId,
+      })),
+      video: sources.video
+        ? {
+            outputAssetId: sources.video.outputAssetId,
+            scenes: sources.video.scenes.map((scene) => ({
+              sceneId: scene.sceneId,
+              outputAssetId: scene.outputAssetId,
+            })),
+          }
+        : null,
+      audio: {
+        outputAssetId: audio.outputAssetId,
+        sections: audio.sections.map((section) => ({
+          chapterId: section.chapterId,
+          outputAssetId: section.outputAssetId,
+        })),
+      },
+    }),
   ].join("\n");
 }

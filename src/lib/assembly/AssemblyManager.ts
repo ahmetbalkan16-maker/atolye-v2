@@ -7,12 +7,21 @@ import {
   isRecord,
   parseAIJsonResponse,
 } from "@/lib/ai/utils";
+import type { AnimationData } from "@/types/animation";
 import type { AssemblyPlanData, AssemblyRenderInfo, AssemblyScene } from "@/types/assembly";
 import type { AudioData, AudioSection } from "@/types/audio";
+import type { Project } from "@/types/project";
 import type { SceneData, SceneItem } from "@/types/scene";
 import type { ScriptChapter, ScriptData } from "@/types/script";
+import type { VideoData, VideoScene } from "@/types/video";
 import type { VisualData, VisualScene } from "@/types/visual";
 import { createAssemblyPrompt } from "./prompts/assemblyPrompt";
+
+export type AssemblySourceData = {
+  project?: Project | null;
+  animation?: AnimationData | null;
+  video?: VideoData | null;
+};
 
 export class AssemblyManager {
   private static router = new AIRouter();
@@ -22,14 +31,16 @@ export class AssemblyManager {
     scenes: SceneData,
     visuals: VisualData,
     audio: AudioData,
+    sources: AssemblySourceData = {},
   ): Promise<AssemblyPlanData> {
     const fallback = this.createFallbackAssemblyPlan(
       script,
       scenes,
       visuals,
       audio,
+      sources,
     );
-    const prompt = createAssemblyPrompt(script, scenes, visuals, audio);
+    const prompt = createAssemblyPrompt(script, scenes, visuals, audio, sources);
 
     try {
       const provider = this.router.getProvider("openai");
@@ -43,6 +54,13 @@ export class AssemblyManager {
       const parsed = parseAIJsonResponse<Partial<AssemblyPlanData>>(response);
 
       return {
+        projectId: fallback.projectId,
+        slug: fallback.slug,
+        title: fallback.title,
+        status: "assembled",
+        sourceVideoAssetId: fallback.sourceVideoAssetId,
+        sourceAudioAssetId: fallback.sourceAudioAssetId,
+        outputAssetId: fallback.outputAssetId,
         scenes: this.mapScenes(parsed.scenes, fallback.scenes),
         totalDuration: getString(
           parsed.totalDuration,
@@ -51,6 +69,7 @@ export class AssemblyManager {
         style: getString(parsed.style, fallback.style),
         render: this.mapRender(parsed.render, fallback.render),
         createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
+        updatedAt: new Date().toISOString(),
       };
     } catch (error) {
       console.error(
@@ -66,16 +85,33 @@ export class AssemblyManager {
     scenes: SceneData,
     visuals: VisualData,
     audio: AudioData,
+    sources: AssemblySourceData,
   ): AssemblyPlanData {
     const assemblyScenes = scenes.scenes.map((scene, index) => {
       const chapter = this.findChapter(script.chapters, scene, index);
       const visual = this.findVisual(visuals.scenes, scene, index);
       const section = this.findAudioSection(audio.sections, scene, index);
+      const videoScene = this.findVideoScene(sources.video?.scenes, scene, index);
 
-      return this.createFallbackScene(scene, chapter, visual, section, index);
+      return this.createFallbackScene(
+        scene,
+        chapter,
+        visual,
+        section,
+        videoScene,
+        sources.animation,
+        index,
+      );
     });
+    const now = new Date().toISOString();
 
     return {
+      projectId: sources.project?.id,
+      slug: sources.project?.slug,
+      title: sources.project?.title,
+      status: "assembled",
+      sourceVideoAssetId: sources.video?.outputAssetId,
+      sourceAudioAssetId: audio.outputAssetId,
       scenes: assemblyScenes,
       totalDuration:
         audio.production.estimatedTotalDuration ||
@@ -85,7 +121,8 @@ export class AssemblyManager {
         status: "planned",
         format: "mp4",
       },
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
   }
 
@@ -94,9 +131,14 @@ export class AssemblyManager {
     chapter: ScriptChapter | undefined,
     visual: VisualScene | undefined,
     section: AudioSection | undefined,
+    video: VideoScene | undefined,
+    animation: AnimationData | null | undefined,
     index: number,
   ): AssemblyScene {
     const sceneId = scene.id || index + 1;
+    const animationScene = animation?.scenes.find(
+      (item) => item.sceneId === sceneId,
+    );
 
     return {
       sceneId,
@@ -104,6 +146,9 @@ export class AssemblyManager {
         section?.duration ||
         this.formatDuration(scene.duration ?? chapter?.duration ?? 30),
       visualReference: `visual-${visual?.sceneId ?? sceneId}`,
+      animationAssetId: animationScene?.outputAssetId,
+      videoAssetId: video?.outputAssetId,
+      audioAssetId: section?.outputAssetId,
       audioReference: `section-${section?.chapterId ?? chapter?.id ?? sceneId}`,
       transition: chapter?.transition || "fade",
       cameraMovement: this.inferCameraMovement(visual?.animationPrompt),
@@ -122,7 +167,7 @@ export class AssemblyManager {
 
     return value.map((item, index) => {
       const scene = item as Partial<AssemblyScene>;
-      const fallbackScene = fallback[index] ?? {
+      const fallbackScene: AssemblyScene = fallback[index] ?? {
         sceneId: index + 1,
         duration: "00:30",
         visualReference: `visual-${index + 1}`,
@@ -142,6 +187,13 @@ export class AssemblyManager {
           scene.visualReference,
           fallbackScene.visualReference,
         ),
+        animationAssetId:
+          getOptionalString(scene.animationAssetId) ??
+          fallbackScene.animationAssetId,
+        videoAssetId:
+          getOptionalString(scene.videoAssetId) ?? fallbackScene.videoAssetId,
+        audioAssetId:
+          getOptionalString(scene.audioAssetId) ?? fallbackScene.audioAssetId,
         audioReference: getString(
           scene.audioReference,
           fallbackScene.audioReference,
@@ -204,6 +256,18 @@ export class AssemblyManager {
       sections.find((section) => section.chapterId === scene.id) ??
       sections[index]
     );
+  }
+
+  private static findVideoScene(
+    videos: VideoScene[] | undefined,
+    scene: SceneItem,
+    index: number,
+  ): VideoScene | undefined {
+    if (!videos) {
+      return undefined;
+    }
+
+    return videos.find((video) => video.sceneId === scene.id) ?? videos[index];
   }
 
   private static inferCameraMovement(animationPrompt?: string): string {

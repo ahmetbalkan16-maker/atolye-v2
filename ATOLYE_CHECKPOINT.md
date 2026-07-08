@@ -45,17 +45,17 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 44**
+**Sprint 45**
 
-Voice Engine Foundation
+Thumbnail Engine Foundation
 
 **Durum**
 
 🟡 Hazır
 
-Sprint 43 kodu tamamlandı ve TypeScript kontrolü geçti.
+Sprint 44 tamamlandı ve TypeScript kontrolü geçti.
 
-Commit ve push kullanıcı talimatıyla yapılmadı.
+Sprint 45 için Thumbnail Engine Foundation sıradadır.
 
 ---
 
@@ -67,13 +67,11 @@ main
 
 Son Commit
 
-8c15471
+Sprint 44 — feat(assembly): add final production package foundation
 
 Durum
 
 ✅ GitHub ile senkron
-
-⚠️ Working tree Sprint 43 değişikliklerini içeriyor
 
 ---
 
@@ -97,6 +95,13 @@ Durum
 - Scene Engine
 - Visual Engine
 - Animation Engine
+- Video Engine
+- Audio Engine
+- Assembly Engine
+
+Mevcut pipeline sırası:
+
+Research → Script → Scenes → Visuals → Animation → Video → Audio → Assembly → Thumbnail → SEO
 
 ---
 
@@ -154,6 +159,14 @@ Audio Engine Foundation
 
 ---
 
+## Sprint 44
+
+Assembly Engine Foundation
+
+✅ Tamamlandı
+
+---
+
 ## Sprint 39
 
 Pipeline Status Panel
@@ -172,22 +185,22 @@ Animation Asset UI Separation
 
 # 🎯 Bir Sonraki Görev
 
-## Sprint 44
+## Sprint 45
 
-Voice Engine Foundation
+Thumbnail Engine Foundation
 
 ### Amaç
 
-Mock audio altyapısı üzerinden gerçek voice provider mimarisine hazırlanmak.
+Video/audio/assembly çıktılarından thumbnail üretimi için mock-first temel altyapıyı kurmak.
 
 
 ---
 
 # ⚠️ Bilinen Riskler
 
-- Sprint 43 değişiklikleri commit edilmeden yeni sprint kodlamasına başlanmamalı.
-- Gerçek voice provider entegrasyonu mock audio akışını bozmamalı.
-- Asset append-only yaklaşımı korunmalı.
+- Sprint 45 başlamadan önce assembly çıktıları örnek projede doğrulanmalı.
+- Assembly gerçek render üretmemeli; yalnızca render planı hazırlamalı.
+- Video/audio/animation aktif asset referansları korunmalı.
 
 ---
 

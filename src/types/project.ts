@@ -7,9 +7,9 @@ export type ProjectStatus =
   | "animation"
   | "video"
   | "audio"
+  | "assembly"
   | "thumbnail"
   | "seo"
-  | "assembly"
   | "voice"
   | "youtube"
   | "completed";
@@ -32,9 +32,9 @@ export type ProductionStepKey =
   | "animation"
   | "video"
   | "audio"
+  | "assembly"
   | "thumbnail"
-  | "seo"
-  | "assembly";
+  | "seo";
 
 export type PackageStatus =
   | "pending"

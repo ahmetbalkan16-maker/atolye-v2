@@ -132,6 +132,18 @@ Tamamlandı
 
 ---
 
+### Assembly Engine Foundation
+
+Tamamlandı
+
+- Assembly modeli final production package alanlarıyla genişletildi
+- Video, audio ve animation aktif asset referansları assembly.json içine bağlandı
+- Assembly API tüm proje üretim çıktılarını okuyacak şekilde genişletildi
+- Kurgu paneline minimal Kurgu paketi oluştur aksiyonu eklendi
+- Progress sırasında assembly audio sonrasına taşındı
+
+---
+
 ### Studio
 
 Tamamlandı

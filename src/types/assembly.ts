@@ -1,9 +1,20 @@
+export type AssemblyStatus =
+  | "planned"
+  | "assembled"
+  | "failed";
+
 export interface AssemblyScene {
   sceneId: number;
 
   duration: string;
 
   visualReference: string;
+
+  animationAssetId?: string;
+
+  videoAssetId?: string;
+
+  audioAssetId?: string;
 
   audioReference: string;
 
@@ -25,6 +36,20 @@ export interface AssemblyRenderInfo {
 }
 
 export interface AssemblyPlanData {
+  projectId?: string;
+
+  slug?: string;
+
+  title?: string;
+
+  status?: AssemblyStatus;
+
+  sourceVideoAssetId?: string;
+
+  sourceAudioAssetId?: string;
+
+  outputAssetId?: string;
+
   scenes: AssemblyScene[];
 
   totalDuration: string;
@@ -34,4 +59,6 @@ export interface AssemblyPlanData {
   render?: AssemblyRenderInfo;
 
   createdAt: string;
+
+  updatedAt?: string;
 }

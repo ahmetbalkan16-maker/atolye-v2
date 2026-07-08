@@ -18,9 +18,9 @@ export class ProjectManager {
     animation: "animation.json",
     video: "video.json",
     audio: "audio.json",
+    assembly: "assembly.json",
     thumbnail: "thumbnail.json",
     seo: "seo.json",
-    assembly: "assembly.json",
   };
 
   static createSlug(text: string) {
@@ -432,9 +432,9 @@ export class ProjectManager {
       "animation",
       "video",
       "audio",
+      "assembly",
       "thumbnail",
       "seo",
-      "assembly",
     ];
   }
 
