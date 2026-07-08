@@ -1,7 +1,46 @@
 import { NextResponse } from "next/server";
+import { AssetManager } from "@/lib/assets/AssetManager";
 import { VisualAssetPipeline } from "@/lib/assets/VisualAssetPipeline";
 import { MockImageProvider } from "@/lib/assets/providers/MockImageProvider";
 import type { VisualData } from "@/types/visual";
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const projectSlug = searchParams.get("projectSlug");
+    const projectId = searchParams.get("projectId") ?? projectSlug;
+
+    if (!projectSlug?.trim()) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "projectSlug zorunludur.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const projectAssets = AssetManager.getProjectAssets(
+      projectSlug.trim(),
+      projectId?.trim() || projectSlug.trim(),
+    );
+
+    return NextResponse.json({
+      success: true,
+      assets: projectAssets.assets,
+    });
+  } catch (error) {
+    console.error("[Assets API] Asset read failed:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Asset verileri okunamadi.",
+      },
+      { status: 500 },
+    );
+  }
+}
 
 export async function POST(req: Request) {
   try {
