@@ -3,7 +3,6 @@ import {
   getCreatedAt,
   getNumber,
   getStringAllowEmpty,
-  isRecord,
   parseAIJsonResponse,
 } from "@/lib/ai/utils";
 import type { SceneData, SceneItem } from "@/types/scene";
@@ -14,6 +13,7 @@ import type {
   VisualScene,
 } from "@/types/visual";
 import { AnimationPromptEngine } from "./AnimationPromptEngine";
+import { ThumbnailConceptEngine } from "./ThumbnailConceptEngine";
 import { VisualPromptEngine } from "./VisualPromptEngine";
 
 type VisualManagerInput = {
@@ -73,13 +73,7 @@ export class VisualManager {
 
     return {
       scenes: visualScenes,
-      thumbnail: {
-        title: "Historical Documentary Thumbnail",
-        prompt:
-          "Epic historical YouTube thumbnail, strong character focus, high contrast, cinematic documentary style",
-        composition: "Centered hero subject with dramatic background and strong depth.",
-        mood: "epic, dramatic, historical",
-      },
+      thumbnail: ThumbnailConceptEngine.createFallbackConcept(style),
       createdAt,
       projectId: projectId ?? "visual-project",
       prompts: this.toLegacyPrompts(visualScenes, scenes.scenes, createdAt),
@@ -141,21 +135,7 @@ export class VisualManager {
     value: unknown,
     fallback: ThumbnailConcept,
   ): ThumbnailConcept {
-    const thumbnail = value as Partial<ThumbnailConcept>;
-
-    if (!isRecord(thumbnail)) {
-      return fallback;
-    }
-
-    return {
-      title: getStringAllowEmpty(thumbnail.title, fallback.title),
-      prompt: getStringAllowEmpty(thumbnail.prompt, fallback.prompt),
-      composition: getStringAllowEmpty(
-        thumbnail.composition,
-        fallback.composition,
-      ),
-      mood: getStringAllowEmpty(thumbnail.mood, fallback.mood),
-    };
+    return ThumbnailConceptEngine.normalizeConcept(value, fallback);
   }
 
   private static toLegacyPrompts(
