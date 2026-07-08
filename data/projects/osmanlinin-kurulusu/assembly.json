@@ -1,0 +1,34 @@
+{
+  "projectId": "3ab5a04d-43fe-4aa8-83ba-9140ae7f1b9b",
+  "slug": "osmanlinin-kurulusu",
+  "title": "osmanlının kuruluşu",
+  "status": "assembled",
+  "sourceVideoAssetId": "616d0a58-a8c5-4aeb-ba46-a47f552d9bd1",
+  "sourceAudioAssetId": "16ea14fb-e42e-431a-a937-b997a9b16bac",
+  "scenes": [
+    {
+      "sceneId": 1,
+      "duration": "00:30",
+      "visualReference": "visual-1",
+      "animationAssetId": "3e008311-27be-409b-8699-49234196600a",
+      "videoAssetId": "616d0a58-a8c5-4aeb-ba46-a47f552d9bd1",
+      "audioReference": "section-1",
+      "transition": "fade",
+      "cameraMovement": "Slow cinematic camera movement, realistic motion, atmospheric particles, documentary style",
+      "effects": [
+        "cinematic grade",
+        "documentary pacing",
+        "subtle dust"
+      ],
+      "notes": "osmanlının kuruluşu"
+    }
+  ],
+  "totalDuration": "00:00",
+  "style": "documentary cinematic",
+  "render": {
+    "status": "planned",
+    "format": "mp4"
+  },
+  "createdAt": "2026-07-08T21:56:25.814Z",
+  "updatedAt": "2026-07-08T21:56:25.814Z"
+}

@@ -1,0 +1,89 @@
+{
+  "project": {
+    "id": "3ab5a04d-43fe-4aa8-83ba-9140ae7f1b9b",
+    "slug": "osmanlinin-kurulusu",
+    "title": "osmanlının kuruluşu",
+    "status": "export",
+    "createdAt": "2026-07-08T21:56:25.574Z",
+    "updatedAt": "2026-07-08T21:56:25.906Z"
+  },
+  "projectId": "3ab5a04d-43fe-4aa8-83ba-9140ae7f1b9b",
+  "slug": "osmanlinin-kurulusu",
+  "version": 1,
+  "packages": {
+    "research": {
+      "key": "research",
+      "status": "completed",
+      "fileName": "research.json",
+      "updatedAt": "2026-07-08T21:56:25.628Z"
+    },
+    "script": {
+      "key": "script",
+      "status": "completed",
+      "fileName": "script.json",
+      "updatedAt": "2026-07-08T21:56:25.663Z"
+    },
+    "scenes": {
+      "key": "scenes",
+      "status": "completed",
+      "fileName": "scenes.json",
+      "updatedAt": "2026-07-08T21:56:25.688Z"
+    },
+    "visuals": {
+      "key": "visuals",
+      "status": "completed",
+      "fileName": "visuals.json",
+      "updatedAt": "2026-07-08T21:56:25.717Z"
+    },
+    "animation": {
+      "key": "animation",
+      "status": "completed",
+      "fileName": "animation.json",
+      "updatedAt": "2026-07-08T21:56:25.752Z"
+    },
+    "video": {
+      "key": "video",
+      "status": "completed",
+      "fileName": "video.json",
+      "updatedAt": "2026-07-08T21:56:25.775Z"
+    },
+    "audio": {
+      "key": "audio",
+      "status": "completed",
+      "fileName": "audio.json",
+      "updatedAt": "2026-07-08T21:56:25.801Z"
+    },
+    "assembly": {
+      "key": "assembly",
+      "status": "completed",
+      "fileName": "assembly.json",
+      "updatedAt": "2026-07-08T21:56:25.840Z"
+    },
+    "thumbnail": {
+      "key": "thumbnail",
+      "status": "completed",
+      "fileName": "thumbnail.json",
+      "updatedAt": "2026-07-08T21:56:25.861Z"
+    },
+    "seo": {
+      "key": "seo",
+      "status": "completed",
+      "fileName": "seo.json",
+      "updatedAt": "2026-07-08T21:56:25.882Z"
+    },
+    "youtube": {
+      "key": "youtube",
+      "status": "completed",
+      "fileName": "youtube.json",
+      "updatedAt": "2026-07-08T21:56:25.902Z"
+    },
+    "export": {
+      "key": "export",
+      "status": "completed",
+      "fileName": "export.json",
+      "updatedAt": "2026-07-08T21:56:25.921Z"
+    }
+  },
+  "createdAt": "2026-07-08T21:56:25.574Z",
+  "updatedAt": "2026-07-08T21:56:25.921Z"
+}

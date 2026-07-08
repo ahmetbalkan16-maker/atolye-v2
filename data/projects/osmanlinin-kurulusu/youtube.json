@@ -1,0 +1,54 @@
+{
+  "projectId": "3ab5a04d-43fe-4aa8-83ba-9140ae7f1b9b",
+  "slug": "osmanlinin-kurulusu",
+  "provider": "mock",
+  "model": "mock-youtube-publisher",
+  "status": "planned",
+  "metadata": {
+    "title": "osmanlının kuruluşu | Belgesel",
+    "description": "osmanlının kuruluşu | Belgesel\n\nBu yayin paketi Atolye uretim hattindaki video, ses, kurgu ve thumbnail planindan mock-first olarak hazirlandi.\nTahmini sure: 00:00.\nThumbnail metin onerisi: OSMANLININ KURULUŞU.\nBolumler aciklama alanina eklendi.",
+    "tags": [
+      "osmanlının",
+      "kuruluşu",
+      "gercegi",
+      "belgesel",
+      "tarih",
+      "atolye",
+      "turkce",
+      "documentarycinematic",
+      "cinematic"
+    ],
+    "category": "Education",
+    "language": "tr",
+    "visibility": "private",
+    "audience": "not-made-for-kids"
+  },
+  "chapters": [
+    {
+      "startTime": "0:00",
+      "title": "osmanlının kuruluşu",
+      "sourceSceneId": 1
+    }
+  ],
+  "assetReferences": {
+    "videoAssetId": "616d0a58-a8c5-4aeb-ba46-a47f552d9bd1",
+    "audioAssetId": "16ea14fb-e42e-431a-a937-b997a9b16bac",
+    "thumbnailVariantId": "mock-variant-hero"
+  },
+  "checklist": {
+    "hasVideo": true,
+    "hasAudio": true,
+    "hasAssembly": true,
+    "hasThumbnail": true,
+    "hasTitle": true,
+    "hasDescription": true,
+    "hasTags": true,
+    "readyToPublish": true
+  },
+  "notes": [
+    "Mock-first YouTube yayin paketi hazirlandi; gercek YouTube API, OAuth veya upload kullanilmadi.",
+    "Gercek thumbnail gorseli yok; paket thumbnail varyant referansi tasir."
+  ],
+  "createdAt": "2026-07-08T21:56:25.894Z",
+  "updatedAt": "2026-07-08T21:56:25.894Z"
+}

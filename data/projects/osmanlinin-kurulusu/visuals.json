@@ -1,0 +1,36 @@
+{
+  "scenes": [
+    {
+      "sceneId": 1,
+      "visualPrompt": "cinematic documentary style, osmanlının kuruluşu, realistic historical atmosphere, dramatic lighting, 8K detail, no text, no logo, no watermark",
+      "animationPrompt": "Slow cinematic camera movement, realistic motion, atmospheric particles, documentary style",
+      "style": "cinematic"
+    }
+  ],
+  "thumbnail": {
+    "title": "Historical Documentary Thumbnail",
+    "prompt": "Epic historical YouTube thumbnail, strong character focus, high contrast, cinematic documentary style",
+    "composition": "Centered hero subject with dramatic background and strong depth.",
+    "mood": "epic, dramatic, historical"
+  },
+  "createdAt": "2026-07-08T21:56:25.706Z",
+  "projectId": "3ab5a04d-43fe-4aa8-83ba-9140ae7f1b9b",
+  "prompts": [
+    {
+      "id": "visual-1",
+      "sceneId": "1",
+      "title": "mock scene",
+      "prompt": "cinematic documentary style, osmanlının kuruluşu, realistic historical atmosphere, dramatic lighting, 8K detail, no text, no logo, no watermark",
+      "negativePrompt": "text, subtitles, logo, watermark, modern clothes, modern buildings, cartoon, anime, low quality, blurry",
+      "aspectRatio": "16:9",
+      "style": "cinematic",
+      "camera": "wide cinematic shot",
+      "lighting": "dramatic historical lighting",
+      "lens": "35mm lens",
+      "mood": "epic, emotional, documentary",
+      "colorPalette": "natural historical colors, cinematic contrast",
+      "createdAt": "2026-07-08T21:56:25.706Z"
+    }
+  ],
+  "generatedAt": "2026-07-08T21:56:25.706Z"
+}

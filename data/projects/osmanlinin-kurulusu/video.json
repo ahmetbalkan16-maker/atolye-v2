@@ -1,0 +1,18 @@
+{
+  "projectId": "3ab5a04d-43fe-4aa8-83ba-9140ae7f1b9b",
+  "outputAssetId": "616d0a58-a8c5-4aeb-ba46-a47f552d9bd1",
+  "provider": "mock",
+  "model": "mock-video-model",
+  "status": "generated",
+  "scenes": [
+    {
+      "sceneId": 1,
+      "sourceAnimationAssetId": "3e008311-27be-409b-8699-49234196600a",
+      "status": "generated",
+      "outputAssetId": "616d0a58-a8c5-4aeb-ba46-a47f552d9bd1",
+      "provider": "mock",
+      "model": "mock-video-model"
+    }
+  ],
+  "createdAt": "2026-07-08T21:56:25.769Z"
+}

@@ -1,0 +1,25 @@
+{
+  "narrator": {
+    "style": "documentary",
+    "tone": "serious",
+    "language": "tr",
+    "voiceProvider": "planned"
+  },
+  "sections": [],
+  "music": {
+    "mood": "cinematic",
+    "suggestion": "cinematic",
+    "intensity": "medium"
+  },
+  "production": {
+    "targetFormat": "mp3",
+    "sampleRate": 44100,
+    "estimatedTotalDuration": "00:00",
+    "generationStatus": "generated"
+  },
+  "createdAt": "2026-07-08T21:56:25.787Z",
+  "outputAssetId": "16ea14fb-e42e-431a-a937-b997a9b16bac",
+  "status": "generated",
+  "provider": "mock",
+  "model": "mock-audio-model"
+}

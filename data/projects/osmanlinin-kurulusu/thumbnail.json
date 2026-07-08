@@ -1,0 +1,62 @@
+{
+  "projectId": "3ab5a04d-43fe-4aa8-83ba-9140ae7f1b9b",
+  "slug": "osmanlinin-kurulusu",
+  "provider": "mock",
+  "model": "mock-thumbnail-planner",
+  "status": "planned",
+  "sourceVideoAssetId": "616d0a58-a8c5-4aeb-ba46-a47f552d9bd1",
+  "sourceAudioAssetId": "16ea14fb-e42e-431a-a937-b997a9b16bac",
+  "variants": [
+    {
+      "id": "mock-variant-hero",
+      "title": "osmanlının kuruluşu Gercegi",
+      "concept": "Ana karakter ya da konu merkezde, arka planda final videonun en dramatik sahne hissi.",
+      "prompt": "YouTube documentary thumbnail for \"osmanlının kuruluşu\" about osmanlının kuruluşu. Strong central subject, cinematic realistic lighting, high contrast, 16:9. Use production cues from video asset 616d0a58-a8c5-4aeb-ba46-a47f552d9bd1, animation source 3e008311-27be-409b-8699-49234196600a.",
+      "negativePrompt": "low quality, blurry, distorted face, extra fingers, unreadable text, cluttered layout, misleading imagery",
+      "style": "documentary",
+      "composition": "visual-1",
+      "textOverlaySuggestion": "OSMANLININ KURULUŞU",
+      "priority": 1,
+      "status": "planned"
+    },
+    {
+      "id": "mock-variant-conflict",
+      "title": "osmanlının kuruluşu Donum Noktasi",
+      "concept": "Sol tarafta ana konu, sag tarafta karsi guc veya dramatik sonuc; net bir gerilim kurar.",
+      "prompt": "Split-composition cinematic thumbnail about osmanlının kuruluşu. Dramatic before-after tension, sharp rim light, documentary realism, bold negative space for Turkish text. osmanlının kuruluşu",
+      "negativePrompt": "flat lighting, generic stock photo, crowded background, tiny subject, fake UI, watermark",
+      "style": "dramatic",
+      "composition": "Iki bolgeli kompozisyon, ana konu solda buyuk, sagda dramatik arka plan ve metin alani",
+      "textOverlaySuggestion": "NE OLDU?",
+      "priority": 2,
+      "status": "planned"
+    },
+    {
+      "id": "mock-variant-mystery",
+      "title": "osmanlının kuruluşu Sirri",
+      "concept": "Yakindan bakis, golge ve tek sembolik detay ile merak odakli kapak alternatifi.",
+      "prompt": "Mystery-focused historical documentary thumbnail about osmanlının kuruluşu. Close-up subject detail, dark cinematic shadows, warm highlight, clean layout, 16:9. ",
+      "negativePrompt": "overexposed, noisy, cartoonish, messy typography, unrelated objects, duplicate faces",
+      "style": "mystery",
+      "composition": "Yakin plan ana detay, arka planda karanlik doku, sag ustte kisa metin icin temiz alan",
+      "textOverlaySuggestion": "GIZLI GERCEK",
+      "priority": 3,
+      "status": "planned"
+    }
+  ],
+  "titleIdea": "osmanlının kuruluşu Gercegi",
+  "concept": "Ana karakter ya da konu merkezde, arka planda final videonun en dramatik sahne hissi.",
+  "mainSubject": "osmanlının kuruluşu",
+  "composition": "visual-1",
+  "colorStyle": "Yuksek kontrastli sinematik belgesel renkleri",
+  "textSuggestion": "OSMANLININ KURULUŞU",
+  "imagePrompt": "YouTube documentary thumbnail for \"osmanlının kuruluşu\" about osmanlının kuruluşu. Strong central subject, cinematic realistic lighting, high contrast, 16:9. Use production cues from video asset 616d0a58-a8c5-4aeb-ba46-a47f552d9bd1, animation source 3e008311-27be-409b-8699-49234196600a.",
+  "clickReason": "Assembly, video ve audio planindan gelen ana gerilim tek karede toplandigi icin konu hizli anlasilir ve merak uyandirir.",
+  "generation": {
+    "provider": "mock",
+    "model": "mock-thumbnail-planner",
+    "status": "planned"
+  },
+  "createdAt": "2026-07-08T21:56:25.854Z",
+  "updatedAt": "2026-07-08T21:56:25.854Z"
+}

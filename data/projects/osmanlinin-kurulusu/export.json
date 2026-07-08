@@ -1,0 +1,207 @@
+{
+  "projectId": "3ab5a04d-43fe-4aa8-83ba-9140ae7f1b9b",
+  "slug": "osmanlinin-kurulusu",
+  "provider": "mock",
+  "model": "mock-export-packager",
+  "status": "planned",
+  "format": "json",
+  "manifest": {
+    "projectId": "3ab5a04d-43fe-4aa8-83ba-9140ae7f1b9b",
+    "slug": "osmanlinin-kurulusu",
+    "title": "osmanlının kuruluşu",
+    "format": "json",
+    "version": 1,
+    "items": [
+      {
+        "id": "project",
+        "type": "project",
+        "label": "Project metadata",
+        "fileName": "project.json",
+        "sourcePackage": "project",
+        "required": true,
+        "included": true,
+        "status": "planned",
+        "notes": "Mock export item reference prepared; no physical file was created."
+      },
+      {
+        "id": "video",
+        "type": "video",
+        "label": "Final video plan",
+        "fileName": "video.json",
+        "sourcePackage": "video",
+        "sourceAssetId": "616d0a58-a8c5-4aeb-ba46-a47f552d9bd1",
+        "required": true,
+        "included": true,
+        "status": "planned",
+        "notes": "Mock export item reference prepared; no physical file was created."
+      },
+      {
+        "id": "audio",
+        "type": "audio",
+        "label": "Final audio plan",
+        "fileName": "audio.json",
+        "sourcePackage": "audio",
+        "sourceAssetId": "16ea14fb-e42e-431a-a937-b997a9b16bac",
+        "required": true,
+        "included": true,
+        "status": "planned",
+        "notes": "Mock export item reference prepared; no physical file was created."
+      },
+      {
+        "id": "assembly",
+        "type": "assembly",
+        "label": "Assembly package",
+        "fileName": "assembly.json",
+        "sourcePackage": "assembly",
+        "required": true,
+        "included": true,
+        "status": "planned",
+        "notes": "Mock export item reference prepared; no physical file was created."
+      },
+      {
+        "id": "thumbnail",
+        "type": "thumbnail",
+        "label": "Thumbnail plan",
+        "fileName": "thumbnail.json",
+        "sourcePackage": "thumbnail",
+        "required": true,
+        "included": true,
+        "status": "planned",
+        "notes": "Mock export item reference prepared; no physical file was created."
+      },
+      {
+        "id": "seo",
+        "type": "seo",
+        "label": "SEO package",
+        "fileName": "seo.json",
+        "sourcePackage": "seo",
+        "required": false,
+        "included": true,
+        "status": "planned",
+        "notes": "Mock export item reference prepared; no physical file was created."
+      },
+      {
+        "id": "youtube",
+        "type": "youtube",
+        "label": "YouTube publishing package",
+        "fileName": "youtube.json",
+        "sourcePackage": "youtube",
+        "sourceAssetId": "616d0a58-a8c5-4aeb-ba46-a47f552d9bd1",
+        "required": true,
+        "included": true,
+        "status": "planned",
+        "notes": "Mock export item reference prepared; no physical file was created."
+      },
+      {
+        "id": "manifest",
+        "type": "manifest",
+        "label": "Export manifest",
+        "fileName": "manifest.json",
+        "sourcePackage": "manifest",
+        "required": true,
+        "included": true,
+        "status": "planned",
+        "notes": "Mock export item reference prepared; no physical file was created."
+      }
+    ],
+    "createdAt": "2026-07-08T21:56:25.915Z"
+  },
+  "items": [
+    {
+      "id": "project",
+      "type": "project",
+      "label": "Project metadata",
+      "fileName": "project.json",
+      "sourcePackage": "project",
+      "required": true,
+      "included": true,
+      "status": "planned",
+      "notes": "Mock export item reference prepared; no physical file was created."
+    },
+    {
+      "id": "video",
+      "type": "video",
+      "label": "Final video plan",
+      "fileName": "video.json",
+      "sourcePackage": "video",
+      "sourceAssetId": "616d0a58-a8c5-4aeb-ba46-a47f552d9bd1",
+      "required": true,
+      "included": true,
+      "status": "planned",
+      "notes": "Mock export item reference prepared; no physical file was created."
+    },
+    {
+      "id": "audio",
+      "type": "audio",
+      "label": "Final audio plan",
+      "fileName": "audio.json",
+      "sourcePackage": "audio",
+      "sourceAssetId": "16ea14fb-e42e-431a-a937-b997a9b16bac",
+      "required": true,
+      "included": true,
+      "status": "planned",
+      "notes": "Mock export item reference prepared; no physical file was created."
+    },
+    {
+      "id": "assembly",
+      "type": "assembly",
+      "label": "Assembly package",
+      "fileName": "assembly.json",
+      "sourcePackage": "assembly",
+      "required": true,
+      "included": true,
+      "status": "planned",
+      "notes": "Mock export item reference prepared; no physical file was created."
+    },
+    {
+      "id": "thumbnail",
+      "type": "thumbnail",
+      "label": "Thumbnail plan",
+      "fileName": "thumbnail.json",
+      "sourcePackage": "thumbnail",
+      "required": true,
+      "included": true,
+      "status": "planned",
+      "notes": "Mock export item reference prepared; no physical file was created."
+    },
+    {
+      "id": "seo",
+      "type": "seo",
+      "label": "SEO package",
+      "fileName": "seo.json",
+      "sourcePackage": "seo",
+      "required": false,
+      "included": true,
+      "status": "planned",
+      "notes": "Mock export item reference prepared; no physical file was created."
+    },
+    {
+      "id": "youtube",
+      "type": "youtube",
+      "label": "YouTube publishing package",
+      "fileName": "youtube.json",
+      "sourcePackage": "youtube",
+      "sourceAssetId": "616d0a58-a8c5-4aeb-ba46-a47f552d9bd1",
+      "required": true,
+      "included": true,
+      "status": "planned",
+      "notes": "Mock export item reference prepared; no physical file was created."
+    },
+    {
+      "id": "manifest",
+      "type": "manifest",
+      "label": "Export manifest",
+      "fileName": "manifest.json",
+      "sourcePackage": "manifest",
+      "required": true,
+      "included": true,
+      "status": "planned",
+      "notes": "Mock export item reference prepared; no physical file was created."
+    }
+  ],
+  "notes": [
+    "Mock-first export package planned as json; no zip, folder, render or upload was created."
+  ],
+  "createdAt": "2026-07-08T21:56:25.915Z",
+  "updatedAt": "2026-07-08T21:56:25.915Z"
+}
