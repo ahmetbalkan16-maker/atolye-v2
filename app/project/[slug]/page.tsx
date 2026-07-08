@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import AssetGallery from "@/components/assets/AssetGallery";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import {
   AssemblyPanel,
@@ -124,6 +125,7 @@ export default async function ProjectStudioPage({
         <ScriptPanel script={script} />
         <ScenePanel scenes={scenes} />
         <VisualPanel visuals={visuals} />
+        <AssetGallery projectSlug={slug} />
         <AudioPanel audio={audio} />
         <ThumbnailPanel thumbnail={thumbnail} />
         <SEOPanel seo={seo} />
