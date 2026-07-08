@@ -2,12 +2,13 @@ import { AssetManager } from "@/lib/assets/AssetManager";
 import type { ProjectAssets } from "@/types/asset";
 import type { VisualData } from "@/types/visual";
 import type { ImageProvider } from "./providers/ImageProvider";
+import { ImageProviderRouter } from "./providers/ImageProviderRouter";
 
 type GenerateAssetsInput = {
   projectId: string;
   projectSlug: string;
   visualData: VisualData;
-  provider: ImageProvider;
+  provider?: ImageProvider;
 };
 
 export class VisualAssetPipeline {
@@ -17,13 +18,15 @@ export class VisualAssetPipeline {
     visualData,
     provider,
   }: GenerateAssetsInput): Promise<ProjectAssets> {
+    const imageProvider = provider ?? ImageProviderRouter.getProvider("mock");
+
     let projectAssets = AssetManager.getProjectAssets(
       projectSlug,
       projectId,
     );
 
     for (const scene of visualData.scenes) {
-      const result = await provider.generateImage({
+      const result = await imageProvider.generateImage({
         prompt: scene.visualPrompt,
         style: scene.style,
         sceneId: scene.sceneId,
