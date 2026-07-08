@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: High
 Owner: Atölye V2
-Last Updated: 2026-07-08
+Last Updated: 2026-07-09
 ---
 
 # Atölye V2 — Development Roadmap
@@ -33,7 +33,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 42
+Sprint 43
 
 ---
 
@@ -59,7 +59,7 @@ Completed
 
 ## Video Engine Foundation
 
-Planlanan
+Completed
 
 - Video Provider
 - Video Service

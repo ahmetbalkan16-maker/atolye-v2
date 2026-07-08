@@ -14,6 +14,7 @@ import {
   StudioCard,
   StudioLayout,
   ThumbnailPanel,
+  VideoPanel,
 } from "@/components/studio";
 import {
   calculateProductionProgress,
@@ -31,6 +32,7 @@ import type { SEOData } from "@/types/seo";
 import type { ScriptData } from "@/types/script";
 import type { ThumbnailData } from "@/types/thumbnail";
 import type { VisualData } from "@/types/visual";
+import type { VideoData } from "@/types/video";
 
 type ProjectStudioPageProps = {
   params: Promise<{
@@ -50,6 +52,7 @@ export default async function ProjectStudioPage({
     scenes,
     visuals,
     animation,
+    video,
     audio,
     thumbnail,
     seo,
@@ -62,6 +65,7 @@ export default async function ProjectStudioPage({
       ProjectManager.getScenes(slug) as Promise<SceneData | null>,
       ProjectManager.getVisuals(slug) as Promise<VisualData | null>,
       ProjectManager.getAnimation(slug) as Promise<AnimationData | null>,
+      ProjectManager.getVideo(slug) as Promise<VideoData | null>,
       ProjectManager.getAudio(slug) as Promise<AudioData | null>,
       ProjectManager.getThumbnail(slug) as Promise<ThumbnailData | null>,
       ProjectManager.getSEO(slug) as Promise<SEOData | null>,
@@ -79,6 +83,7 @@ export default async function ProjectStudioPage({
     scenes: Boolean(scenes),
     visuals: Boolean(visuals),
     animation: Boolean(animation),
+    video: Boolean(video),
     audio: Boolean(audio),
     thumbnail: Boolean(thumbnail),
     seo: Boolean(seo),
@@ -154,6 +159,11 @@ export default async function ProjectStudioPage({
           scenes={scenes}
           visualData={visuals}
           animationData={animation}
+        />
+        <VideoPanel
+          slug={slug}
+          video={video}
+          canGenerate={Boolean(animation)}
         />
         <AudioPanel audio={audio} />
         <ThumbnailPanel thumbnail={thumbnail} />

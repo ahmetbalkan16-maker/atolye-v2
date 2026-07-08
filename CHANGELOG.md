@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Medium
 Owner: Atölye V2
-Last Updated: 2026-07-08
+Last Updated: 2026-07-09
 ---
 
 # Atölye V2 — Changelog
@@ -103,6 +103,19 @@ Tamamlandı
 - animation.json merge mantığı ile korunur hale getirildi
 - Yeni animation asset outputAssetId ile ilgili sahneye bağlandı
 - Animasyon kartlarında Yeniden Üret aksiyonu aktif edildi
+
+---
+
+### Video Engine Foundation
+
+Tamamlandı
+
+- Video type modeli eklendi
+- Mock video provider mimarisi kuruldu
+- Video pipeline ve service katmanı eklendi
+- Aktif animation assetlerinden mock video üretimi eklendi
+- video.json ve append-only video asset kaydı eklendi
+- Manifest ve progress sırasına video aşaması eklendi
 
 ---
 

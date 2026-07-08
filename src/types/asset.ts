@@ -1,6 +1,7 @@
 export type AssetType =
   | "image"
   | "animation"
+  | "video"
   | "thumbnail";
 
 export type AssetStatus =
