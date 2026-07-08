@@ -52,3 +52,21 @@ export interface ProjectAssets {
 
   updatedAt: string;
 }
+
+export interface ImageGenerationResult {
+  id?: string;
+
+  provider: string;
+
+  model?: string;
+
+  url?: string;
+
+  filePath?: string;
+
+  mimeType?: string;
+
+  createdAt: string;
+
+  error?: string;
+}
