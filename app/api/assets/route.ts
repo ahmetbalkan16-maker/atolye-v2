@@ -45,7 +45,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { projectId, projectSlug, visualData } = body;
+    const { projectId, projectSlug, visualData, sceneId } = body;
 
     if (
       typeof projectId !== "string" ||
@@ -63,11 +63,29 @@ export async function POST(req: Request) {
       );
     }
 
+    const normalizedSceneId =
+      typeof sceneId === "number" && Number.isFinite(sceneId)
+        ? sceneId
+        : null;
+    const filteredVisualData = normalizedSceneId
+      ? filterVisualDataBySceneId(visualData, normalizedSceneId)
+      : visualData;
+
+    if (!filteredVisualData) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Istenen sahne visualData icinde bulunamadi.",
+        },
+        { status: 404 },
+      );
+    }
+
     const provider = ImageProviderRouter.getProvider();
     const projectAssets = await VisualAssetPipeline.generateAssets({
       projectId: projectId.trim(),
       projectSlug: projectSlug.trim(),
-      visualData,
+      visualData: filteredVisualData,
       provider,
     });
 
@@ -86,6 +104,22 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+}
+
+function filterVisualDataBySceneId(
+  visualData: VisualData,
+  sceneId: number,
+): VisualData | null {
+  const scene = visualData.scenes.find((item) => item.sceneId === sceneId);
+
+  if (!scene) {
+    return null;
+  }
+
+  return {
+    ...visualData,
+    scenes: [scene],
+  };
 }
 
 function isVisualData(value: unknown): value is VisualData {
