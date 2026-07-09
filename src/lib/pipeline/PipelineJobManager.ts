@@ -37,6 +37,47 @@ export class PipelineJobManager {
     return this.seedJobsFromManifest(projectSlug, current);
   }
 
+  static async markStageRunning(
+    projectSlug: string,
+    stage: ProductionStepKey,
+  ): Promise<PipelineJobList> {
+    return this.updateStageJob(projectSlug, stage, (job, now) => ({
+      ...job,
+      status: "running",
+      updatedAt: now,
+      startedAt: now,
+      completedAt: undefined,
+      error: undefined,
+    }));
+  }
+
+  static async markStageCompleted(
+    projectSlug: string,
+    stage: ProductionStepKey,
+  ): Promise<PipelineJobList> {
+    return this.updateStageJob(projectSlug, stage, (job, now) => ({
+      ...job,
+      status: "completed",
+      updatedAt: now,
+      completedAt: now,
+      error: undefined,
+    }));
+  }
+
+  static async markStageFailed(
+    projectSlug: string,
+    stage: ProductionStepKey,
+    error: string,
+  ): Promise<PipelineJobList> {
+    return this.updateStageJob(projectSlug, stage, (job, now) => ({
+      ...job,
+      status: "failed",
+      updatedAt: now,
+      completedAt: now,
+      error,
+    }));
+  }
+
   static async applyAction(
     projectSlug: string,
     jobId: string,
@@ -98,6 +139,47 @@ export class PipelineJobManager {
     };
   }
 
+  private static async updateStageJob(
+    projectSlug: string,
+    stage: ProductionStepKey,
+    update: (job: PipelineJob, now: string) => PipelineJob,
+  ): Promise<PipelineJobList> {
+    const current = await this.listJobs(projectSlug);
+    const now = new Date().toISOString();
+    const jobId = getJobId(projectSlug, stage);
+    const existingJob = current.jobs.find((job) => job.id === jobId);
+    const nextJob = update(
+      existingJob ?? this.createJob(projectSlug, stage, now),
+      now,
+    );
+    const jobs = existingJob
+      ? current.jobs.map((job) => (job.id === jobId ? nextJob : job))
+      : [...current.jobs, nextJob];
+
+    return this.writeJobList(projectSlug, {
+      ...current,
+      jobs,
+      updatedAt: now,
+    });
+  }
+
+  private static createJob(
+    projectSlug: string,
+    stage: ProductionStepKey,
+    now: string,
+  ): PipelineJob {
+    return {
+      id: getJobId(projectSlug, stage),
+      projectSlug,
+      stage,
+      title: stageLabels[stage],
+      status: "queued",
+      attempts: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
   private static async seedJobsFromManifest(
     projectSlug: string,
     current: PipelineJobList,
@@ -111,7 +193,7 @@ export class PipelineJobManager {
 
     const jobs: PipelineJob[] = Object.values(manifest.packages).map(
       (packageManifest) => ({
-        id: `${projectSlug}-${packageManifest.key}`,
+        id: getJobId(projectSlug, packageManifest.key),
         projectSlug,
         stage: packageManifest.key,
         title: stageLabels[packageManifest.key],
@@ -179,6 +261,10 @@ export class PipelineJobManager {
       typeof record.updatedAt === "string"
     );
   }
+}
+
+function getJobId(projectSlug: string, stage: ProductionStepKey) {
+  return `${projectSlug}-${stage}`;
 }
 
 function toJobStatus(status: PackageStatus): PipelineJobStatus {

@@ -1,4 +1,5 @@
 import { ProjectManager } from "@/lib/projects/ProjectManager";
+import { PipelineJobManager } from "./PipelineJobManager";
 import { PipelineRecoveryPlanner } from "./PipelineRecoveryPlanner";
 import { PipelineStageExecutor } from "./PipelineStageExecutor";
 import type {
@@ -193,14 +194,20 @@ export class PipelineRunner {
       undefined,
       { runType },
     );
+    await PipelineJobManager.markStageRunning(slug, stage);
 
     try {
-      return await action();
+      const result = await action();
+
+      await PipelineJobManager.markStageCompleted(slug, stage);
+
+      return result;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Pipeline stage failed.";
 
       await ProjectManager.updatePackageStatus(slug, stage, "failed", message);
+      await PipelineJobManager.markStageFailed(slug, stage, message);
       console.error("[PipelineRunner] Stage failed:", {
         slug,
         stage,
