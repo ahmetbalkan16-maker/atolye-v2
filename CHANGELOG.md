@@ -265,6 +265,18 @@ Tamamlandi
 - API, UI, downstream reset, resume(projectSlug) ve run(topic) davranislari degistirilmeden Sprint 58 tamamlandi.
 
 ---
+
+### Pipeline Retry API Foundation
+
+Tamamlandi
+
+- Project-scoped POST /api/projects/[slug]/pipeline/retry endpoint eklendi.
+- Request body icindeki stage alani whitelist ile validate edilir hale getirildi.
+- Endpoint slug validation, body parse, project existence ve blocked retry response kontrollerini yapar hale getirildi.
+- Blocked retry sonuclari HTTP 409 ile guvenli response doner hale getirildi.
+- Resume endpoint, /api/pipeline route'u, UI ve retry execution davranisi degistirilmeden Sprint 59 tamamlandi.
+
+---
 ### Studio
 
 Tamamlandı

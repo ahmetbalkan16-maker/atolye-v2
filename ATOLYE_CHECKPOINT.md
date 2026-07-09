@@ -45,17 +45,17 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 59**
+**Sprint 60**
 
-Pipeline Retry API Foundation
+Pipeline Retry Studio Action
 
 **Durum**
 
 🟡 Hazır
 
-Sprint 58 tamamlandi ve TypeScript kontrolu gecti.
+Sprint 59 tamamlandi ve TypeScript kontrolu gecti.
 
-Sprint 59 icin Pipeline Retry API Foundation siradadir.
+Sprint 60 icin Pipeline Retry Studio Action siradadir.
 
 ---
 
@@ -279,6 +279,14 @@ Completed
 
 ---
 
+## Sprint 59
+
+Pipeline Retry API Foundation
+
+Completed
+
+---
+
 ## Sprint 39
 
 Pipeline Status Panel
@@ -489,18 +497,18 @@ Başarılı.
 
 # 🎯 Bir Sonraki Görev
 
-# Sprint 59
-## Pipeline Retry API Foundation
+# Sprint 60
+## Pipeline Retry Studio Action
 
 Amaç:
 
-Internal retry foundation'i guvenli bir API endpoint uzerinden erisilebilir hale getirmek.
+Studio icinden failed stage retry endpoint'ini guvenli bir aksiyon olarak kullanima acmak.
 
 Plan:
 
-- Project-scoped retry endpoint tasarimi
-- Failed stage retry request validation
-- UI eklemeden API foundation
+- Failed stage retry action tasarimi
+- Blocked/success/error state gosterimi
+- Resume davranisini bozmadan retry UI foundation
 
 ---
 
