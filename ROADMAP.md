@@ -33,7 +33,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 58
+Sprint 59
 
 ---
 
@@ -272,11 +272,23 @@ Completed
 
 ## Pipeline Retry Foundation
 
-Planlanan
+Completed
 
 - Retry foundation scope
 - Stage dependency readiness for retry
 - No UI action until safe API contract is ready
+
+---
+
+# Sprint 59
+
+## Pipeline Retry API Foundation
+
+Planlanan
+
+- Project-scoped retry endpoint
+- Failed stage retry request validation
+- No UI action until API behavior is verified
 
 ---
 

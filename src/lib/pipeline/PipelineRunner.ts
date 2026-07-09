@@ -4,6 +4,7 @@ import { PipelineStageExecutor } from "./PipelineStageExecutor";
 import type { ProductionStepKey, ProjectStatus } from "@/types/project";
 import type {
   PipelineRecoveryStageKey,
+  PipelineRetryResult,
   PipelineResumeResult,
 } from "@/types/pipelineRecovery";
 
@@ -110,6 +111,53 @@ export class PipelineRunner {
       projectSlug,
       resumedFrom: plan.startStage,
       completedStages,
+      blocked: false,
+      plan,
+    };
+  }
+
+  static async retryStage(
+    projectSlug: string,
+    stage: PipelineRecoveryStageKey,
+  ): Promise<PipelineRetryResult> {
+    const plan = await PipelineRecoveryPlanner.createRetryPlan(
+      projectSlug,
+      stage,
+    );
+
+    if (plan.blocked) {
+      return {
+        success: false,
+        projectSlug,
+        retriedStage: stage,
+        completedStages: [],
+        blocked: true,
+        reason: plan.reason,
+        plan,
+      };
+    }
+
+    const state = await PipelineStageExecutor.loadState(projectSlug);
+
+    if (!state) {
+      return {
+        success: false,
+        projectSlug,
+        retriedStage: stage,
+        completedStages: [],
+        blocked: true,
+        reason: "Project could not be read.",
+        plan,
+      };
+    }
+
+    await this.runPipelineStage(projectSlug, stage, state);
+
+    return {
+      success: true,
+      projectSlug,
+      retriedStage: stage,
+      completedStages: [stage],
       blocked: false,
       plan,
     };

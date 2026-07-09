@@ -45,17 +45,17 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 58**
+**Sprint 59**
 
-Pipeline Retry Foundation
+Pipeline Retry API Foundation
 
 **Durum**
 
 🟡 Hazır
 
-Sprint 57 tamamlandi ve TypeScript kontrolu gecti.
+Sprint 58 tamamlandi ve TypeScript kontrolu gecti.
 
-Sprint 58 icin Pipeline Retry Foundation siradadir.
+Sprint 59 icin Pipeline Retry API Foundation siradadir.
 
 ---
 
@@ -271,6 +271,14 @@ Completed
 
 ---
 
+## Sprint 58
+
+Pipeline Retry Execution Foundation
+
+Completed
+
+---
+
 ## Sprint 39
 
 Pipeline Status Panel
@@ -481,18 +489,18 @@ Başarılı.
 
 # 🎯 Bir Sonraki Görev
 
-# Sprint 58
-## Pipeline Retry Foundation
+# Sprint 59
+## Pipeline Retry API Foundation
 
 Amaç:
 
-Pipeline retry icin guvenli foundation planini uygulamaya hazir hale getirmek.
+Internal retry foundation'i guvenli bir API endpoint uzerinden erisilebilir hale getirmek.
 
 Plan:
 
-- Retry plan kapsam sinirlarini netlestirme
-- Retry execution icin dependency readiness yaklasimi
-- Resume davranisini bozmadan retry foundation hazirligi
+- Project-scoped retry endpoint tasarimi
+- Failed stage retry request validation
+- UI eklemeden API foundation
 
 ---
 

@@ -33,3 +33,13 @@ export interface PipelineResumeResult {
   reason?: string;
   plan: PipelineRecoveryPlan;
 }
+
+export interface PipelineRetryResult {
+  success: boolean;
+  projectSlug: string;
+  retriedStage: PipelineRecoveryStageKey;
+  completedStages: PipelineRecoveryStageKey[];
+  blocked: boolean;
+  reason?: string;
+  plan: PipelineRecoveryPlan;
+}

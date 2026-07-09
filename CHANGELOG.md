@@ -252,6 +252,19 @@ Tamamlandi
 - Retry UI, PipelineRunner ve Resume API endpoint'i degistirilmeden Sprint 57 tamamlandi.
 
 ---
+
+### Pipeline Retry Execution Foundation
+
+Tamamlandi
+
+- PipelineRetryResult tipi eklendi.
+- PipelineRunner.retryStage(projectSlug, stage) internal foundation olarak eklendi.
+- Retry execution sadece PipelineRecoveryPlanner.createRetryPlan sonucu blocked degilse baslar hale getirildi.
+- Sadece failed stage retry edilebilir; completed, pending, missing ve running stage'ler planner tarafindan blocked kalir.
+- Retry yalnizca istenen tek stage'i calistirir, pipeline otomatik devam etmez.
+- API, UI, downstream reset, resume(projectSlug) ve run(topic) davranislari degistirilmeden Sprint 58 tamamlandi.
+
+---
 ### Studio
 
 Tamamlandı
