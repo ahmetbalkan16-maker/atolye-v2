@@ -47,7 +47,7 @@ TÃ¼rkÃ§e Ã¶ncelikli AI destekli kiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosu
 
 ## Aktif Sprint
 
-**Sprint 66**
+**Sprint 67**
 
 Pipeline Queue UI Controls Hardening
 
@@ -55,9 +55,9 @@ Pipeline Queue UI Controls Hardening
 
 ğŸŸ¡ HazÄ±r
 
-Sprint 65 tamamlandi ve TypeScript kontrolu gecti.
+Sprint 66 tamamlandi ve TypeScript kontrolu gecti.
 
-Sprint 66 icin Pipeline Queue UI Controls Hardening siradadir.
+Sprint 67 icin Pipeline Queue UI Controls Hardening siradadir.
 
 Not:
 
@@ -344,6 +344,14 @@ Completed
 
 ---
 
+## Sprint 66
+
+Pipeline Queue Scheduler
+
+Completed
+
+---
+
 ## Sprint 39
 
 Pipeline Status Panel
@@ -554,7 +562,7 @@ BaÅŸarÄ±lÄ±.
 
 # ğŸ¯ Bir Sonraki GÃ¶rev
 
-# Sprint 66
+# Sprint 67
 ## Pipeline Queue UI Controls Hardening
 
 AmaÃ§:

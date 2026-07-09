@@ -369,6 +369,22 @@ Tamamlandi
 
 ---
 
+### Pipeline Queue Scheduler
+
+Tamamlandi
+
+- Pipeline Queue Scheduler eklendi.
+- PipelineQueueScheduler ilk calistirilabilir stage'i seciyor.
+- Ayni anda birden fazla running stage engelleniyor.
+- completed stage'ler otomatik atlaniyor.
+- failed ve cancelled stage'ler otomatik calistirilmiyor.
+- PipelineRunner initial ve resume akislari scheduler uzerinden ilerliyor.
+- Scheduler manifest ve job durumlarini guvenli sekilde degerlendiriyor.
+- Stage bilgisi eksik oldugunda crash olusmuyor.
+- npx tsc --noEmit temiz gecti.
+
+---
+
 ### Documentation Vision Alignment
 
 Tamamlandi
