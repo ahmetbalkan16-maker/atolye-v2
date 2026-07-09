@@ -33,7 +33,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 52
+Sprint 53
 
 ---
 
@@ -193,13 +193,26 @@ Completed
 
 # Sprint 52
 
-## AI Usage Filters & Diagnostics Summary
+## AI Usage Diagnostics Summary
+
+Completed
+
+- Total AI calls summary
+- Success/fallback/failed counts
+- Average duration and last call time
+- Provider distribution summary
+
+---
+
+# Sprint 53
+
+## AI Usage Filters
 
 Planlanan
 
 - Stage/provider/status filters
-- Fallback and error summary
-- Diagnostics summary cards
+- Filtered usage records table
+- Summary metrics aligned with active filters
 
 ---
 

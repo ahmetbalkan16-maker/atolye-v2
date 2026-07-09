@@ -181,6 +181,17 @@ Tamamlandi
 - PipelineRunner ve AI cagri davranisi degistirilmeden observability gorunurlugu saglandi.
 
 ---
+
+### AI Usage Diagnostics Summary
+
+Tamamlandi
+
+- AI Diagnostics paneline toplam AI cagrisi, success, fallback ve failed summary kartlari eklendi.
+- Ortalama sure ve son AI cagrisi zamani read-only usage kayitlarindan hesaplanir hale getirildi.
+- Provider dagilimi kompakt metin olarak gosterildi.
+- Mevcut son 20 kayit tablosu ve API contract korunarak UI okunabilirligi artirildi.
+
+---
 ### Studio
 
 Tamamlandı

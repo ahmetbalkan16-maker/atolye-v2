@@ -14,6 +14,21 @@ type AIUsageResponse = {
   error?: string;
 };
 
+type UsageSummary = {
+  totalCalls: number;
+  successCount: number;
+  fallbackCount: number;
+  failedCount: number;
+  averageDurationMs: number | null;
+  lastCallAt: string | null;
+  providerDistribution: ProviderDistributionItem[];
+};
+
+type ProviderDistributionItem = {
+  provider: string;
+  count: number;
+};
+
 const maxVisibleRecords = 20;
 
 export default function AIUsagePanel({ projectSlug }: AIUsagePanelProps) {
@@ -66,28 +81,58 @@ export default function AIUsagePanel({ projectSlug }: AIUsagePanelProps) {
     };
   }, [projectSlug]);
 
+  const sortedRecords = useMemo(() => sortByNewest(records), [records]);
+  const summary = useMemo(() => createUsageSummary(sortedRecords), [sortedRecords]);
   const visibleRecords = useMemo(
-    () => sortByNewest(records).slice(0, maxVisibleRecords),
-    [records],
+    () => sortedRecords.slice(0, maxVisibleRecords),
+    [sortedRecords],
+  );
+  const averageDurationLabel =
+    summary.averageDurationMs === null
+      ? "-"
+      : `${Math.round(summary.averageDurationMs)} ms`;
+
+  const providerDistributionLabel = useMemo(
+    () =>
+      summary.providerDistribution.length > 0
+        ? summary.providerDistribution
+            .map((item) => `${item.provider}: ${item.count}`)
+            .join(", ")
+        : "-",
+    [summary.providerDistribution],
   );
 
   return (
     <StudioCard title="AI Diagnostics">
       <div className="space-y-5">
         <div className="grid gap-4 text-sm text-zinc-300 md:grid-cols-3">
-          <SummaryItem label="Kayit sayisi" value={String(records.length)} />
+          <SummaryItem label="Toplam AI cagrisi" value={String(summary.totalCalls)} />
+          <SummaryItem label="Success" value={String(summary.successCount)} />
+          <SummaryItem label="Fallback" value={String(summary.fallbackCount)} />
+          <SummaryItem label="Failed" value={String(summary.failedCount)} />
+          <SummaryItem label="Ortalama sure" value={averageDurationLabel} />
           <SummaryItem
-            label="Gosterilen"
-            value={`${visibleRecords.length}/${maxVisibleRecords}`}
-          />
-          <SummaryItem
-            label="Son kayit"
+            label="Son AI cagrisi"
             value={
-              visibleRecords[0]
-                ? formatDate(visibleRecords[0].createdAt)
+              summary.lastCallAt
+                ? formatDate(summary.lastCallAt)
                 : "Belirtilmedi"
             }
           />
+        </div>
+
+        <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Provider dagilimi
+          </p>
+          <p className="mt-2 text-sm font-semibold text-zinc-100">
+            {providerDistributionLabel}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-500">
+          <span>Gosterilen: {visibleRecords.length}/{maxVisibleRecords}</span>
+          <span>Kaynak: read-only ai-usage.json</span>
         </div>
 
         {loading ? (
@@ -190,6 +235,58 @@ function getStatusClassName(status: AIUsageStatus) {
   };
 
   return classNames[status];
+}
+
+function createUsageSummary(records: AIUsageRecord[]): UsageSummary {
+  if (records.length === 0) {
+    return {
+      totalCalls: 0,
+      successCount: 0,
+      fallbackCount: 0,
+      failedCount: 0,
+      averageDurationMs: null,
+      lastCallAt: null,
+      providerDistribution: [],
+    };
+  }
+
+  const providerCounts = new Map<string, number>();
+  let successCount = 0;
+  let fallbackCount = 0;
+  let failedCount = 0;
+  let totalDurationMs = 0;
+
+  for (const record of records) {
+    if (record.status === "success") {
+      successCount += 1;
+    }
+
+    if (record.status === "fallback" || record.fallbackUsed) {
+      fallbackCount += 1;
+    }
+
+    if (record.status === "failed") {
+      failedCount += 1;
+    }
+
+    totalDurationMs += record.durationMs;
+    providerCounts.set(
+      record.provider,
+      (providerCounts.get(record.provider) ?? 0) + 1,
+    );
+  }
+
+  return {
+    totalCalls: records.length,
+    successCount,
+    fallbackCount,
+    failedCount,
+    averageDurationMs: totalDurationMs / records.length,
+    lastCallAt: records[0]?.createdAt ?? null,
+    providerDistribution: Array.from(providerCounts.entries())
+      .map(([provider, count]) => ({ provider, count }))
+      .sort((a, b) => b.count - a.count || a.provider.localeCompare(b.provider)),
+  };
 }
 
 function sortByNewest(records: AIUsageRecord[]) {

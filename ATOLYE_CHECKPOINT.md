@@ -45,17 +45,17 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 52**
+**Sprint 53**
 
-AI Usage Filters & Diagnostics Summary
+AI Usage Filters
 
 **Durum**
 
 🟡 Hazır
 
-Sprint 51 tamamlandı ve TypeScript kontrolü geçti.
+Sprint 52 tamamlandı ve TypeScript kontrolü geçti.
 
-Sprint 52 için AI Usage Filters & Diagnostics Summary sıradadır.
+Sprint 53 için AI Usage Filters sıradadır.
 
 ---
 
@@ -218,6 +218,14 @@ Completed
 ## Sprint 51
 
 Usage Viewer / AI Diagnostics Panel
+
+Completed
+
+---
+
+## Sprint 52
+
+AI Usage Diagnostics Summary
 
 Completed
 
@@ -433,18 +441,18 @@ Başarılı.
 
 # 🎯 Bir Sonraki Görev
 
-# Sprint 52
-## AI Usage Filters & Diagnostics Summary
+# Sprint 53
+## AI Usage Filters
 
 Amaç:
 
-AI usage kayıtlarını filtrelenebilir hale getirmek ve diagnostics summary görünümünü geliştirmek.
+AI usage kayıtlarını stage, provider ve status bazında filtrelenebilir hale getirmek.
 
 Plan:
 
 - Stage/provider/status filtreleri
-- Fallback ve hata summary alanları
-- Usage kayıtları için daha okunabilir diagnostics özeti
+- Filtrelenmiş tablo görünümü
+- Summary metriklerinin filtrelerle uyumlu davranması
 
 ---
 
