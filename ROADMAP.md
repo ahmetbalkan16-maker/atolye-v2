@@ -1,27 +1,33 @@
----
+﻿---
 Document: ROADMAP.md
 Version: 1.0.0
 Status: Active
 Priority: High
-Owner: Atölye V2
+Owner: AtÃ¶lye V2
 Last Updated: 2026-07-09
 ---
 
-# Atölye V2 — Development Roadmap
+# AtÃ¶lye V2 â€” Development Roadmap
 
-## Amaç
+## AmaÃ§
 
-Bu belge önümüzdeki sprintlerde yapılacak teknik geliştirmeleri içerir.
+Bu belge Ã¶nÃ¼mÃ¼zdeki sprintlerde yapÄ±lacak teknik geliÅŸtirmeleri iÃ§erir.
 
-Bu belge yaşayan bir dokümandır.
+Bu belge yaÅŸayan bir dokÃ¼mandÄ±r.
 
-Sprint tamamlandıkça güncellenmelidir.
+Sprint tamamlandÄ±kÃ§a gÃ¼ncellenmelidir.
 
-Uzun vadeli ürün vizyonu için:
+Nihai urun vizyonu icin:
+
+VISION.md
+
+referans alinmalidir.
+
+Uzun vadeli fazlar icin:
 
 ATOLYE_MASTER_ROADMAP.md
 
-referans alınmalıdır.
+referans alÄ±nmalÄ±dÄ±r.
 
 ---
 
@@ -29,7 +35,7 @@ referans alınmalıdır.
 
 Aktif Faz
 
-Phase 2 — Production Engine
+Phase 2 â€” Production Engine
 
 Aktif Sprint
 
@@ -45,12 +51,12 @@ Durum
 
 Completed
 
-### Görevler
+### GÃ¶revler
 
-- Scene bazlı animation regenerate
+- Scene bazlÄ± animation regenerate
 - animation.json merge
 - Asset versioning koruma
-- Animation active version seçimi
+- Animation active version seÃ§imi
 - UI regenerate butonu
 
 ---
@@ -145,10 +151,10 @@ Planlanan
 
 Completed
 
-- Research → Export tam akış kontrolü
-- PipelineRunner uçtan uca orchestrator
+- Research â†’ Export tam akÄ±ÅŸ kontrolÃ¼
+- PipelineRunner uÃ§tan uca orchestrator
 - Manifest/progress senkronizasyonu
-- Stage bazlı hata yönetimi
+- Stage bazlÄ± hata yÃ¶netimi
 
 ---
 
@@ -355,35 +361,35 @@ Planlanan
 
 ---
 
-# Sprint Öncelik Kuralları
+# Sprint Ã–ncelik KurallarÄ±
 
 Her sprint;
 
-- küçük olmalı
-- bağımsız tamamlanabilmeli
-- TypeScript testi geçmeli
-- mevcut sistemi bozmamalı
+- kÃ¼Ã§Ã¼k olmalÄ±
+- baÄŸÄ±msÄ±z tamamlanabilmeli
+- TypeScript testi geÃ§meli
+- mevcut sistemi bozmamalÄ±
 
 ---
 
 # Tamamlanma Kriteri
 
-Bir sprint aşağıdaki şartlar sağlanınca tamamlanır.
+Bir sprint aÅŸaÄŸÄ±daki ÅŸartlar saÄŸlanÄ±nca tamamlanÄ±r.
 
-- Kod tamamlandı
-- TypeScript geçti
-- Rapor hazırlandı
-- Checkpoint güncellendi
+- Kod tamamlandÄ±
+- TypeScript geÃ§ti
+- Rapor hazÄ±rlandÄ±
+- Checkpoint gÃ¼ncellendi
 - Git commit
 - Git push
 
 ---
 
-# Sonraki Güncelleme
+# Sonraki GÃ¼ncelleme
 
-Sprint tamamlandığında;
+Sprint tamamlandÄ±ÄŸÄ±nda;
 
-- Aktif Sprint değiştirilir.
-- Tamamlanan sprint kaldırılmaz.
-- Durumu "Completed" yapılır.
+- Aktif Sprint deÄŸiÅŸtirilir.
+- Tamamlanan sprint kaldÄ±rÄ±lmaz.
+- Durumu "Completed" yapÄ±lÄ±r.
 

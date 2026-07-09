@@ -1,45 +1,47 @@
----
+﻿---
 Document: ATOLYE_CHECKPOINT.md
 Version: 1.0.0
 Status: Active
 Priority: Critical
-Owner: Atölye V2
+Owner: AtÃ¶lye V2
 Last Updated: 2026-07-09
 ---
 
-# ⚠️ AI START HERE
+# âš ï¸ AI START HERE
 
-# Atölye V2 — Project Checkpoint
+# AtÃ¶lye V2 â€” Project Checkpoint
 
-Bu belge Atölye V2 projesinin resmi geliştirme checkpoint dosyasıdır.
+Bu belge AtÃ¶lye V2 projesinin resmi geliÅŸtirme checkpoint dosyasÄ±dÄ±r.
 
 Her yeni AI oturumunda okunacak ilk belge budur.
 
-Bu belge okunduktan sonra aşağıdaki belgeler sırasıyla okunmalıdır:
+Bu belge okunduktan sonra aÅŸaÄŸÄ±daki belgeler sÄ±rasÄ±yla okunmalÄ±dÄ±r:
 
-1. ATOLYE_AI_RULES.md
-2. ATOLYE_CONTEXT.md
-3. ROADMAP.md
-4. ATOLYE_MASTER_ROADMAP.md
-5. ARCHITECTURE_DECISIONS.md
-6. CHANGELOG.md
-7. AI_MEMORY.md
+1. PROJECT_PHILOSOPHY.md
+2. VISION.md
+3. ATOLYE_AI_RULES.md
+4. ATOLYE_CONTEXT.md
+5. ROADMAP.md
+6. ATOLYE_MASTER_ROADMAP.md
+7. ARCHITECTURE_DECISIONS.md
+8. CHANGELOG.md
+9. AI_MEMORY.md
 
 ---
 
-# 📌 Dashboard
+# ğŸ“Œ Dashboard
 
 ## Proje
 
-**Atölye V2**
+**AtÃ¶lye V2**
 
-Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
+TÃ¼rkÃ§e Ã¶ncelikli AI destekli kiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosu.
 
 ---
 
 ## Mevcut Faz
 
-**Phase 2 — Production Engine**
+**Phase 2 â€” Production Engine**
 
 ---
 
@@ -51,7 +53,7 @@ Pipeline Recovery Diagnostics Data Wiring
 
 **Durum**
 
-🟡 Hazır
+ğŸŸ¡ HazÄ±r
 
 Sprint 62 tamamlandi ve TypeScript kontrolu gecti.
 
@@ -76,11 +78,11 @@ Son Commit
 
 Durum
 
-✅ GitHub ile senkron
+âœ… GitHub ile senkron
 
 ---
 
-# ✅ Tamamlanan Büyük Modüller
+# âœ… Tamamlanan BÃ¼yÃ¼k ModÃ¼ller
 
 ## Foundation
 
@@ -104,9 +106,11 @@ Durum
 - Audio Engine
 - Assembly Engine
 
-Mevcut pipeline sırası:
+Mevcut pipeline sÄ±rasÄ±:
 
-Research → Script → Scenes → Visuals → Animation → Video → Audio → Assembly → Thumbnail → SEO → YouTube → Export
+Research â†’ Script â†’ Scenes â†’ Visuals â†’ Animation â†’ Video â†’ Audio â†’ Assembly â†’ Thumbnail â†’ SEO â†’ YouTube â†’ Export
+
+Canonical vizyon akisi: Tek konu -> Research -> Script -> Scene Planning -> Visual Production -> Animation -> Audio -> Video Editing -> Thumbnail -> SEO -> Publishing
 
 ---
 
@@ -130,13 +134,13 @@ Research → Script → Scenes → Visuals → Animation → Video → Audio →
 
 ---
 
-# 📅 Son Tamamlanan Sprintler
+# ğŸ“… Son Tamamlanan Sprintler
 
 ## Sprint 40
 
 Animation Manifest Stage
 
-✅ Tamamlandı
+âœ… TamamlandÄ±
 
 ---
 
@@ -144,7 +148,7 @@ Animation Manifest Stage
 
 Animation Scene-Level Regeneration
 
-✅ Tamamlandı
+âœ… TamamlandÄ±
 
 ---
 
@@ -152,7 +156,7 @@ Animation Scene-Level Regeneration
 
 Video Engine Foundation
 
-✅ Tamamlandı
+âœ… TamamlandÄ±
 
 ---
 
@@ -160,7 +164,7 @@ Video Engine Foundation
 
 Audio Engine Foundation
 
-✅ Tamamlandı
+âœ… TamamlandÄ±
 
 ---
 
@@ -168,7 +172,7 @@ Audio Engine Foundation
 
 Assembly Engine Foundation
 
-✅ Tamamlandı
+âœ… TamamlandÄ±
 
 ---
 
@@ -176,7 +180,7 @@ Assembly Engine Foundation
 
 Thumbnail Engine Foundation
 
-✅ Tamamlandı
+âœ… TamamlandÄ±
 
 ---
 
@@ -184,7 +188,7 @@ Thumbnail Engine Foundation
 
 YouTube Engine Foundation
 
-✅ Tamamlandı
+âœ… TamamlandÄ±
 
 ---
 
@@ -192,7 +196,7 @@ YouTube Engine Foundation
 
 Export Engine Foundation
 
-✅ Tamamlandı
+âœ… TamamlandÄ±
 
 ---
 
@@ -320,7 +324,7 @@ Completed
 
 Pipeline Status Panel
 
-✅ Tamamlandı
+âœ… TamamlandÄ±
 
 ---
 
@@ -328,7 +332,7 @@ Pipeline Status Panel
 
 Animation Asset UI Separation
 
-✅ Tamamlandı
+âœ… TamamlandÄ±
 
 ---
 
@@ -336,17 +340,17 @@ Animation Asset UI Separation
 ## Thumbnail Engine Foundation
 
 Durum:
-✅ Tamamlandı
+âœ… TamamlandÄ±
 
-İçerik:
-- Thumbnail type sistemi oluşturuldu.
+Ä°Ã§erik:
+- Thumbnail type sistemi oluÅŸturuldu.
 - Thumbnail provider mimarisi eklendi.
-- MockThumbnailProvider oluşturuldu.
-- ThumbnailProviderRouter oluşturuldu.
-- ThumbnailEngine oluşturuldu.
-- Thumbnail config yapısı eklendi.
-- POST /api/thumbnails endpoint oluşturuldu.
-- ProjectManager üzerinden thumbnail.json kayıt desteği bağlandı.
+- MockThumbnailProvider oluÅŸturuldu.
+- ThumbnailProviderRouter oluÅŸturuldu.
+- ThumbnailEngine oluÅŸturuldu.
+- Thumbnail config yapÄ±sÄ± eklendi.
+- POST /api/thumbnails endpoint oluÅŸturuldu.
+- ProjectManager Ã¼zerinden thumbnail.json kayÄ±t desteÄŸi baÄŸlandÄ±.
 
 Yeni dosyalar:
 
@@ -359,22 +363,22 @@ src/lib/thumbnail/
 - providers/ThumbnailProvider.ts
 - providers/MockThumbnailProvider.ts
 
-Güncellenen dosyalar:
+GÃ¼ncellenen dosyalar:
 
 src/types/thumbnail.ts
 src/lib/thumbnail/ThumbnailManager.ts
 
 Mimari kararlar:
-- Mock-first yaklaşımı korundu.
-- Gerçek görsel üretimi yapılmadı.
-- Provider mimarisi ileride farklı AI servisleri eklenebilecek şekilde hazırlandı.
-- Mevcut thumbnail sistemi bozulmadan yeni engine katmanı eklendi.
+- Mock-first yaklaÅŸÄ±mÄ± korundu.
+- GerÃ§ek gÃ¶rsel Ã¼retimi yapÄ±lmadÄ±.
+- Provider mimarisi ileride farklÄ± AI servisleri eklenebilecek ÅŸekilde hazÄ±rlandÄ±.
+- Mevcut thumbnail sistemi bozulmadan yeni engine katmanÄ± eklendi.
 
 Test:
 npx tsc --noEmit --incremental false
 
-Sonuç:
-Başarılı.
+SonuÃ§:
+BaÅŸarÄ±lÄ±.
 
 ---
 
@@ -382,16 +386,16 @@ Başarılı.
 ## YouTube Engine Foundation
 
 Durum:
-✅ Tamamlandı
+âœ… TamamlandÄ±
 
-Yapılanlar:
-- YouTube type sistemi oluşturuldu.
+YapÄ±lanlar:
+- YouTube type sistemi oluÅŸturuldu.
 - YouTube provider mimarisi kuruldu.
 - MockYouTubeProvider eklendi.
-- YouTubeEngine oluşturuldu.
+- YouTubeEngine oluÅŸturuldu.
 - POST /api/youtube endpoint eklendi.
-- youtube.json ProjectManager desteği eklendi.
-- Manifest ve progress sistemine youtube aşaması bağlandı.
+- youtube.json ProjectManager desteÄŸi eklendi.
+- Manifest ve progress sistemine youtube aÅŸamasÄ± baÄŸlandÄ±.
 
 Yeni dosyalar:
 src/types/youtube.ts
@@ -405,22 +409,22 @@ src/lib/youtube/
 
 app/api/youtube/route.ts
 
-Güncellenen:
+GÃ¼ncellenen:
 src/types/project.ts
 src/lib/projects/ProjectManager.ts
 src/lib/projects/projectProgress.ts
 app/project/[slug]/page.tsx
 
 Mimari:
-- Mock-first yaklaşım korundu.
-- Gerçek YouTube API/OAuth/upload yapılmadı.
-- Thumbnail Engine provider modeli tekrar kullanıldı.
+- Mock-first yaklaÅŸÄ±m korundu.
+- GerÃ§ek YouTube API/OAuth/upload yapÄ±lmadÄ±.
+- Thumbnail Engine provider modeli tekrar kullanÄ±ldÄ±.
 
 Test:
 npx tsc --noEmit --incremental false
 
-Sonuç:
-Başarılı.
+SonuÃ§:
+BaÅŸarÄ±lÄ±.
 
 ---
 
@@ -428,18 +432,18 @@ Başarılı.
 ## Export Engine Foundation
 
 Durum:
-✅ Tamamlandı
+âœ… TamamlandÄ±
 
-İçerik:
+Ä°Ã§erik:
 
-- Export type sistemi oluşturuldu.
+- Export type sistemi oluÅŸturuldu.
 - Export provider mimarisi eklendi.
-- MockExportProvider oluşturuldu.
-- ExportProviderRouter oluşturuldu.
-- ExportEngine oluşturuldu.
-- POST /api/export endpoint oluşturuldu.
-- export.json ProjectManager desteği eklendi.
-- Manifest ve progress sistemine export aşaması bağlandı.
+- MockExportProvider oluÅŸturuldu.
+- ExportProviderRouter oluÅŸturuldu.
+- ExportEngine oluÅŸturuldu.
+- POST /api/export endpoint oluÅŸturuldu.
+- export.json ProjectManager desteÄŸi eklendi.
+- Manifest ve progress sistemine export aÅŸamasÄ± baÄŸlandÄ±.
 
 Yeni dosyalar:
 
@@ -454,7 +458,7 @@ src/lib/export/
 
 app/api/export/route.ts
 
-Güncellenen dosyalar:
+GÃ¼ncellenen dosyalar:
 
 src/types/project.ts
 src/lib/projects/ProjectManager.ts
@@ -463,18 +467,18 @@ app/project/[slug]/page.tsx
 
 Mimari kararlar:
 
-- Mock-first yaklaşımı korundu.
-- Gerçek zip/folder üretimi yapılmadı.
-- Render veya upload yapılmadı.
-- Export katmanı metadata/package planı olarak tasarlandı.
+- Mock-first yaklaÅŸÄ±mÄ± korundu.
+- GerÃ§ek zip/folder Ã¼retimi yapÄ±lmadÄ±.
+- Render veya upload yapÄ±lmadÄ±.
+- Export katmanÄ± metadata/package planÄ± olarak tasarlandÄ±.
 - Engine/provider/router mimarisi korundu.
 
 Test:
 
 npx tsc --noEmit --incremental false
 
-Sonuç:
-Başarılı.
+SonuÃ§:
+BaÅŸarÄ±lÄ±.
 
 ---
 
@@ -484,20 +488,20 @@ Başarılı.
 Durum:
 Completed
 
-İçerik:
+Ä°Ã§erik:
 
-- Final Pipeline Integration tamamlandı.
-- PipelineRunner uçtan uca orchestrator haline getirildi.
-- Research → Script → Scenes → Visuals → Animation → Video → Audio → Assembly → Thumbnail → SEO → YouTube → Export akışı bağlandı.
-- Manifest/progress entegrasyonu tamamlandı.
-- Kontrollü hata yönetimi ve stage bazlı orchestration eklendi.
-- Mock-first yaklaşımı korundu.
+- Final Pipeline Integration tamamlandÄ±.
+- PipelineRunner uÃ§tan uca orchestrator haline getirildi.
+- Research â†’ Script â†’ Scenes â†’ Visuals â†’ Animation â†’ Video â†’ Audio â†’ Assembly â†’ Thumbnail â†’ SEO â†’ YouTube â†’ Export akÄ±ÅŸÄ± baÄŸlandÄ±.
+- Manifest/progress entegrasyonu tamamlandÄ±.
+- KontrollÃ¼ hata yÃ¶netimi ve stage bazlÄ± orchestration eklendi.
+- Mock-first yaklaÅŸÄ±mÄ± korundu.
 
 Test:
 npx.cmd tsc --noEmit --incremental false
 
-Sonuç:
-Başarılı.
+SonuÃ§:
+BaÅŸarÄ±lÄ±.
 
 ---
 
@@ -507,29 +511,29 @@ Başarılı.
 Durum:
 Completed
 
-İçerik:
+Ä°Ã§erik:
 
-- AI çağrı metadata kaydı eklendi.
-- data/projects/{slug}/ai-usage.json append-only usage dosyası oluşturuldu.
-- Provider, model, süre, fallback, hata ve prompt/response boyutu metadata olarak kaydedilir hale getirildi.
-- Prompt ve response içeriği kaydedilmeden observability temeli kuruldu.
-- PipelineRunner ilgili AI manager çağrılarına projectSlug/stage context aktarmaya başladı.
-- Mock-first yaklaşımı korundu.
+- AI Ã§aÄŸrÄ± metadata kaydÄ± eklendi.
+- data/projects/{slug}/ai-usage.json append-only usage dosyasÄ± oluÅŸturuldu.
+- Provider, model, sÃ¼re, fallback, hata ve prompt/response boyutu metadata olarak kaydedilir hale getirildi.
+- Prompt ve response iÃ§eriÄŸi kaydedilmeden observability temeli kuruldu.
+- PipelineRunner ilgili AI manager Ã§aÄŸrÄ±larÄ±na projectSlug/stage context aktarmaya baÅŸladÄ±.
+- Mock-first yaklaÅŸÄ±mÄ± korundu.
 
 Test:
 npx.cmd tsc --noEmit --incremental false
 
-Sonuç:
-Başarılı.
+SonuÃ§:
+BaÅŸarÄ±lÄ±.
 
 ---
 
-# 🎯 Bir Sonraki Görev
+# ğŸ¯ Bir Sonraki GÃ¶rev
 
 # Sprint 63
 ## Pipeline Recovery Diagnostics Data Wiring
 
-Amaç:
+AmaÃ§:
 
 Pipeline diagnostics verilerini manifest ve usage kaynaklariyla daha tutarli baglamak.
 
@@ -541,53 +545,55 @@ Plan:
 
 ---
 
-# ⚠️ Bilinen Riskler
+# âš ï¸ Bilinen Riskler
 
-- Sprint 45 başlamadan önce assembly çıktıları örnek projede doğrulanmalı.
-- Assembly gerçek render üretmemeli; yalnızca render planı hazırlamalı.
-- Video/audio/animation aktif asset referansları korunmalı.
+- Sprint 45 baÅŸlamadan Ã¶nce assembly Ã§Ä±ktÄ±larÄ± Ã¶rnek projede doÄŸrulanmalÄ±.
+- Assembly gerÃ§ek render Ã¼retmemeli; yalnÄ±zca render planÄ± hazÄ±rlamalÄ±.
+- Video/audio/animation aktif asset referanslarÄ± korunmalÄ±.
 
 ---
 
-# 📚 Dokümantasyon
+# ğŸ“š DokÃ¼mantasyon
 
-| Belge | Amaç |
+| Belge | AmaÃ§ |
 |--------|------|
-| README.md | Proje tanıtımı |
-| ATOLYE_AI_RULES.md | AI geliştirme kuralları |
+| README.md | Proje tanÄ±tÄ±mÄ± |
+| PROJECT_PHILOSOPHY.md | Projenin varlik nedeni |
+| VISION.md | Nihai urun vizyonu |
+| ATOLYE_AI_RULES.md | AI geliÅŸtirme kurallarÄ± |
 | ATOLYE_CONTEXT.md | Proje vizyonu |
-| ROADMAP.md | Yakın dönem plan |
+| ROADMAP.md | YakÄ±n dÃ¶nem plan |
 | ATOLYE_MASTER_ROADMAP.md | Uzun vadeli strateji |
 | ARCHITECTURE_DECISIONS.md | Mimari kararlar |
-| CHANGELOG.md | Kilometre taşları |
-| AI_MEMORY.md | AI tecrübeleri |
+| CHANGELOG.md | Kilometre taÅŸlarÄ± |
+| AI_MEMORY.md | AI tecrÃ¼beleri |
 
 ---
 
-# 🤖 AI Başlangıç Talimatı
+# ğŸ¤– AI BaÅŸlangÄ±Ã§ TalimatÄ±
 
-Her yeni AI oturumu aşağıdaki adımları takip etmelidir.
+Her yeni AI oturumu aÅŸaÄŸÄ±daki adÄ±mlarÄ± takip etmelidir.
 
 1. Bu belgeyi oku.
-2. AI Rules dosyasını oku.
-3. Aktif sprinti doğrula.
-4. Tamamlanan sprintleri tekrar yapma.
-5. Aktif sprintten devam et.
-6. Kod yazmadan önce mevcut mimariyi incele.
+2. AI Rules dosyasÄ±nÄ± oku.
+3. Aktif sprinti doÄŸrula.
+4. Aktif sprinti dogrula.
+5. Tamamlanan sprintleri tekrar yapma.
+6. Kod yazmadan Ã¶nce mevcut mimariyi incele.
 
 ---
 
-# 🔄 Güncelleme Kuralları
+# ğŸ”„ GÃ¼ncelleme KurallarÄ±
 
-Her sprint sonunda yalnızca aşağıdaki alanlar güncellenir.
+Her sprint sonunda yalnÄ±zca aÅŸaÄŸÄ±daki alanlar gÃ¼ncellenir.
 
 - Aktif Sprint
 - Son Commit
 - Son Tamamlanan Sprint
-- Bir Sonraki Görev
+- Bir Sonraki GÃ¶rev
 - Bilinen Riskler
 - Last Updated
 
-Bu belge mümkün olduğunca kısa tutulmalıdır.
+Bu belge mÃ¼mkÃ¼n olduÄŸunca kÄ±sa tutulmalÄ±dÄ±r.
 
-Detaylı bilgiler ilgili dokümantasyon dosyalarında bulunmalıdır.
+DetaylÄ± bilgiler ilgili dokÃ¼mantasyon dosyalarÄ±nda bulunmalÄ±dÄ±r.

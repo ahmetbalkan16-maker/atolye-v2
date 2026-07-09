@@ -1,55 +1,59 @@
----
+﻿---
 Document: DEVELOPMENT_STANDARD.md
 Version: 1.0.0
 Status: Active
 Priority: Critical
-Owner: Atölye V2
+Owner: AtÃ¶lye V2
 Last Updated: 2026-07-08
 ---
 
-# Atölye V2 Development Standard
+# AtÃ¶lye V2 Development Standard
 
-## Amaç
+## AmaÃ§
 
-Bu belge Atölye V2'nin geliştirme standartlarını tanımlar.
+Bu belge AtÃ¶lye V2'nin geliÅŸtirme standartlarÄ±nÄ± tanÄ±mlar.
 
-Kod yazma biçimi,
+Kod yazma biÃ§imi,
 
-dokümantasyon,
+dokÃ¼mantasyon,
 
 Git,
 
 kalite kontrol,
 
-AI çalışma şekli
+AI Ã§alÄ±ÅŸma ÅŸekli
 
-bu belgeye göre yürütülür.
-
----
-
-# Temel İlke
-
-Atölye'nin geliştirme prensibi:
-
-> En az hata ile en hızlı tamamlanan Atölye.
-
-Hız;
-
-kaliteyi düşürmemelidir.
+bu belgeye gÃ¶re yÃ¼rÃ¼tÃ¼lÃ¼r.
 
 ---
 
-# Sprint Döngüsü
+# Temel Ä°lke
 
-Her sprint aynı sırayla ilerler.
+AtÃ¶lye'nin geliÅŸtirme prensibi:
+
+> En az hata ile en hÄ±zlÄ± tamamlanan AtÃ¶lye.
+
+Urun pusulasi:
+
+> Bu gelistirme Atolye'yi daha iyi bir kisisel AI produksiyon studyosu yapiyor mu?
+
+HÄ±z;
+
+kaliteyi dÃ¼ÅŸÃ¼rmemelidir.
+
+---
+
+# Sprint DÃ¶ngÃ¼sÃ¼
+
+Her sprint aynÄ± sÄ±rayla ilerler.
 
 1. Analiz
-2. Kullanıcı Onayı
+2. KullanÄ±cÄ± OnayÄ±
 3. Kodlama
 4. TypeScript Testi
-5. Kod İncelemesi
+5. Kod Ä°ncelemesi
 6. Rapor
-7. Dokümantasyon
+7. DokÃ¼mantasyon
 8. Git
 9. Checkpoint
 
@@ -60,50 +64,50 @@ Her sprint aynı sırayla ilerler.
 Yeni kod;
 
 - okunabilir,
-- modüler,
+- modÃ¼ler,
 - test edilebilir,
-- geriye dönük uyumlu
+- geriye dÃ¶nÃ¼k uyumlu
 
-olmalıdır.
+olmalÄ±dÄ±r.
 
 ---
 
-# Dokümantasyon
+# DokÃ¼mantasyon
 
-Kod değişikliği önemliyse;
+Kod deÄŸiÅŸikliÄŸi Ã¶nemliyse;
 
-ilgili belgeler de güncellenmelidir.
+ilgili belgeler de gÃ¼ncellenmelidir.
 
 ---
 
 # Mimari
 
-Mevcut mimari korunmalıdır.
+Mevcut mimari korunmalÄ±dÄ±r.
 
-Yeni geliştirmeler mevcut sisteme entegre edilmelidir.
+Yeni geliÅŸtirmeler mevcut sisteme entegre edilmelidir.
 
 ---
 
 # Git
 
-Commit küçük ve anlamlı olmalıdır.
+Commit kÃ¼Ã§Ã¼k ve anlamlÄ± olmalÄ±dÄ±r.
 
-Push kullanıcı onayı ile yapılmalıdır.
+Push kullanÄ±cÄ± onayÄ± ile yapÄ±lmalÄ±dÄ±r.
 
 ---
 
-# Başarı Ölçütü
+# BaÅŸarÄ± Ã–lÃ§Ã¼tÃ¼
 
-Bir sprint tamamlandı sayılabilmesi için:
+Bir sprint tamamlandÄ± sayÄ±labilmesi iÃ§in:
 
-✓ Kod tamamlandı
+âœ“ Kod tamamlandÄ±
 
-✓ Test geçti
+âœ“ Test geÃ§ti
 
-✓ Dokümantasyon güncellendi
+âœ“ DokÃ¼mantasyon gÃ¼ncellendi
 
-✓ Checkpoint güncellendi
+âœ“ Checkpoint gÃ¼ncellendi
 
-✓ Commit alındı
+âœ“ Commit alÄ±ndÄ±
 
-✓ Push yapıldı
+âœ“ Push yapÄ±ldÄ±

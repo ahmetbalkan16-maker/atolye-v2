@@ -1,23 +1,23 @@
----
+﻿---
 Document: ARCHITECTURE_DECISIONS.md
 Version: 1.0.0
 Status: Active
 Priority: High
-Owner: Atölye V2
+Owner: AtÃ¶lye V2
 Last Updated: 2026-07-08
 ---
 
-# Atölye V2 — Architecture Decision Records (ADR)
+# AtÃ¶lye V2 â€” Architecture Decision Records (ADR)
 
-## Amaç
+## AmaÃ§
 
-Bu belge Atölye V2 geliştirilirken alınan önemli mimari kararları kayıt altında tutar.
+Bu belge AtÃ¶lye V2 geliÅŸtirilirken alÄ±nan Ã¶nemli mimari kararlarÄ± kayÄ±t altÄ±nda tutar.
 
-Kod değişebilir.
+Kod deÄŸiÅŸebilir.
 
-Sprintler değişebilir.
+Sprintler deÄŸiÅŸebilir.
 
-Ancak bu kararlar mümkün olduğunca korunmalıdır.
+Ancak bu kararlar mÃ¼mkÃ¼n olduÄŸunca korunmalÄ±dÄ±r.
 
 ---
 
@@ -27,13 +27,13 @@ Ancak bu kararlar mümkün olduğunca korunmalıdır.
 
 ### Karar
 
-Provider seçimleri AI Router üzerinden yapılacaktır.
+Provider seÃ§imleri AI Router Ã¼zerinden yapÄ±lacaktÄ±r.
 
 ### Sebep
 
-- Tek AI firmasına bağımlı olmamak
+- Tek AI firmasÄ±na baÄŸÄ±mlÄ± olmamak
 - Yeni provider ekleyebilmek
-- Kod tekrarını önlemek
+- Kod tekrarÄ±nÄ± Ã¶nlemek
 
 ### Durum
 
@@ -47,13 +47,13 @@ Accepted
 
 ### Karar
 
-Tüm AI sistemleri ortak Provider interface'i kullanacaktır.
+TÃ¼m AI sistemleri ortak Provider interface'i kullanacaktÄ±r.
 
 ### Sebep
 
 - Standart API
-- Test kolaylığı
-- Yeni AI ekleme kolaylığı
+- Test kolaylÄ±ÄŸÄ±
+- Yeni AI ekleme kolaylÄ±ÄŸÄ±
 
 ### Durum
 
@@ -67,11 +67,11 @@ Accepted
 
 ### Karar
 
-Business Logic UI içerisine yazılmayacaktır.
+Business Logic UI iÃ§erisine yazÄ±lmayacaktÄ±r.
 
 ### Sebep
 
-Kod tekrarını önlemek.
+Kod tekrarÄ±nÄ± Ã¶nlemek.
 
 Video Engine,
 
@@ -81,7 +81,7 @@ API,
 
 CLI
 
-aynı servisleri kullanabilmelidir.
+aynÄ± servisleri kullanabilmelidir.
 
 ---
 
@@ -111,11 +111,11 @@ Resume
 
 ### Karar
 
-İlk sürüm JSON tabanlı olacaktır.
+Ä°lk sÃ¼rÃ¼m JSON tabanlÄ± olacaktÄ±r.
 
 ### Sebep
 
-Hızlı geliştirme.
+HÄ±zlÄ± geliÅŸtirme.
 
 Kolay test.
 
@@ -129,13 +129,13 @@ Kolay backup.
 
 ### Karar
 
-Asset sistemi append-only olacaktır.
+Asset sistemi append-only olacaktÄ±r.
 
 ### Sebep
 
-Eski üretimleri korumak.
+Eski Ã¼retimleri korumak.
 
-Versiyon karşılaştırması.
+Versiyon karÅŸÄ±laÅŸtÄ±rmasÄ±.
 
 Rollback.
 
@@ -147,13 +147,13 @@ Rollback.
 
 ### Karar
 
-Koddan önce mimari.
+Koddan Ã¶nce mimari.
 
 ### Sebep
 
-Hataları azaltmak.
+HatalarÄ± azaltmak.
 
-Tekrar eden refactor ihtiyacını önlemek.
+Tekrar eden refactor ihtiyacÄ±nÄ± Ã¶nlemek.
 
 ---
 
@@ -163,7 +163,7 @@ Tekrar eden refactor ihtiyacını önlemek.
 
 ### Karar
 
-Küçük ama güvenli geliştirmeler.
+KÃ¼Ã§Ã¼k ama gÃ¼venli geliÅŸtirmeler.
 
 ### Sebep
 
@@ -171,7 +171,7 @@ Daha az risk.
 
 Kolay test.
 
-Kolay geri dönüş.
+Kolay geri dÃ¶nÃ¼ÅŸ.
 
 ---
 
@@ -181,11 +181,11 @@ Kolay geri dönüş.
 
 ### Karar
 
-Yeni özellik eski davranışı bozmamalıdır.
+Yeni Ã¶zellik eski davranÄ±ÅŸÄ± bozmamalÄ±dÄ±r.
 
 ### Sebep
 
-Kararlılık.
+KararlÄ±lÄ±k.
 
 ---
 
@@ -195,17 +195,17 @@ Kararlılık.
 
 ### Karar
 
-Kod kadar dokümantasyon da önemlidir.
+Kod kadar dokÃ¼mantasyon da Ã¶nemlidir.
 
 ### Sebep
 
 Yeni AI
 
-Yeni geliştirici
+Yeni geliÅŸtirici
 
 Yeni bilgisayar
 
-için hızlı adaptasyon.
+iÃ§in hÄ±zlÄ± adaptasyon.
 
 ---
 
@@ -215,7 +215,7 @@ için hızlı adaptasyon.
 
 ### Karar
 
-Her üretim aşaması mümkün olduğunca Manifest'e entegre edilir.
+Her Ã¼retim aÅŸamasÄ± mÃ¼mkÃ¼n olduÄŸunca Manifest'e entegre edilir.
 
 ### Sebep
 
@@ -229,7 +229,7 @@ Pipeline takibi.
 
 ### Karar
 
-Hiçbir modül tek AI firmasına bağımlı olmayacaktır.
+HiÃ§bir modÃ¼l tek AI firmasÄ±na baÄŸÄ±mlÄ± olmayacaktÄ±r.
 
 ### Sebep
 
@@ -237,32 +237,70 @@ Esneklik.
 
 Maliyet.
 
-Geleceğe hazırlık.
+GeleceÄŸe hazÄ±rlÄ±k.
 
 ---
 
 # ADR-013
 
-## Atölye Platformdur
+## AtÃ¶lye Platformdur
 
 ### Karar
 
-Atölye;
+AtÃ¶lye;
 
-tek özellik geliştiren uygulama değildir.
+tek Ã¶zellik geliÅŸtiren uygulama deÄŸildir.
 
 ### Sebep
 
-Uzun vadeli büyüme.
+Uzun vadeli bÃ¼yÃ¼me.
 
-Yeni modül entegrasyonu.
+Yeni modÃ¼l entegrasyonu.
+
+---
+
+# ADR-014
+
+## Personal AI Production Studio
+
+### Karar
+
+Atolye ticari SaaS oncelikli bir urun olarak degil, kisisel AI produksiyon studyosu olarak gelistirilecektir.
+
+Kullanici yonetmen, Atolye produksiyon ekibi rolundedir.
+
+### Sebep
+
+Urun kararlarinin cok kullanicili SaaS karmasasi yerine kisisel uretim hizi, dosya kontrolu, guvenlik ve tamamlanabilir pipeline uzerinden alinmasi.
+
+### Durum
+
+Accepted
+
+---
+
+# ADR-015
+
+## Secure Remote Personal Studio
+
+### Karar
+
+Atolye uzun vadede kullanicinin kendi sunucusunda calisan, HTTPS ve guvenli login ile internet uzerinden erisilebilen kisisel studyoyu hedefler.
+
+### Sebep
+
+Proje dosyalari, API key bilgileri, production memory ve yayin paketleri kullanicinin kontrolunde ve gizli kalmalidir.
+
+### Durum
+
+Accepted
 
 ---
 
 # Yeni ADR Ekleme
 
-Yeni önemli mimari kararlar;
+Yeni Ã¶nemli mimari kararlar;
 
-ADR numarası verilerek bu belgeye eklenmelidir.
+ADR numarasÄ± verilerek bu belgeye eklenmelidir.
 
-Mevcut ADR'ler mümkün olduğunca değiştirilmemelidir.
+Mevcut ADR'ler mÃ¼mkÃ¼n olduÄŸunca deÄŸiÅŸtirilmemelidir.

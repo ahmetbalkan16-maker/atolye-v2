@@ -1,8 +1,16 @@
 # Atolye Vizyonu
 
+## Belge Rolu
+
+Bu belge su soruya cevap verir:
+
+Nihai urun nasil olacak?
+
+PROJECT_PHILOSOPHY.md projenin neden var oldugunu, ATOLYE_MASTER_ROADMAP.md uzun vadeli fazlari, ROADMAP.md aktif sprintleri, ATOLYE_CHECKPOINT.md guncel durumu takip eder.
+
 ## 1. Atolye Nedir?
 
-Atolye, kisisel bir AI produksiyon studyosudur.
+Atolye, kisisel bir AI calisma arkadasi ve AI produksiyon studyosudur.
 
 Amaci ticari SaaS urunu olmak degil, tek bir kisinin kendi icerik uretim surecini ucundan sonuna kadar yonetebilecegi guclu, esnek ve guvenilir bir produksiyon ortami olmaktir.
 
@@ -14,7 +22,7 @@ Atolye'nin nihai hedefi, tek bir konu girildiginde YouTube'a hazir bir icerik ur
 
 Hedeflenen ana akis:
 
-Research -> Script -> Scenes -> Visuals -> Animation -> Audio -> Video Editing -> Thumbnail -> SEO -> YouTube Package
+Tek konu -> Research -> Script -> Scene Planning -> Visual Production -> Animation -> Audio -> Video Editing -> Thumbnail -> SEO -> Publishing
 
 Bu akis yalnizca dosya ureten bir pipeline degil, kullanicinin her asamada kontrol edebildigi, gerektiginde geri donebildigi ve uretimi yonetebildigi bir kisisel studyodur.
 
@@ -22,7 +30,7 @@ Bu akis yalnizca dosya ureten bir pipeline degil, kullanicinin her asamada kontr
 
 Atolye AI saglayici bagimsiz bir yapi uzerine kurulmalidir. OpenAI, yerel modeller veya baska servisler degisebilir; Atolye'nin ana mimarisi bu degisimlerden en az etkilenmelidir.
 
-Moduler mimari korunmalidir. Research, Script, Scenes, Visuals, Animation, Audio, Video Editing, Thumbnail, SEO ve YouTube Package gibi her ana sistem kendi sorumluluk sinirlari icinde gelismelidir.
+Moduler mimari korunmalidir. Research, Script, Scene Planning, Visual Production, Animation, Audio, Video Editing, Thumbnail, SEO ve Publishing gibi her ana sistem kendi sorumluluk sinirlari icinde gelismelidir.
 
 Katmanli servis yapisi temel ilkedir. UI, API, manager, pipeline, provider ve storage katmanlari birbirine karismadan calismalidir.
 
