@@ -3,6 +3,7 @@ import type {
   PackageStatus,
   ProductionStepKey,
   ProjectManifest,
+  ProjectPackageUsage,
 } from "@/types/project";
 
 export type ProductionStepState = {
@@ -21,7 +22,11 @@ export interface ProjectStageProgress {
   completed: boolean;
   fileName: string;
   updatedAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  durationMs?: number;
   error?: string;
+  usage?: ProjectPackageUsage;
 }
 
 export interface ProjectProgress {
@@ -292,7 +297,11 @@ function getStageProgress(manifest: ProjectManifest): ProjectStageProgress[] {
       completed: packageManifest.status === "completed",
       fileName: packageManifest.fileName,
       updatedAt: packageManifest.updatedAt,
+      startedAt: packageManifest.startedAt,
+      completedAt: packageManifest.completedAt,
+      durationMs: packageManifest.durationMs,
       error: packageManifest.error,
+      usage: packageManifest.usage,
     };
   });
 }

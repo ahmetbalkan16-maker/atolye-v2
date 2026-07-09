@@ -51,7 +51,19 @@ export interface ProjectPackageManifest {
   status: PackageStatus;
   fileName: string;
   updatedAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  durationMs?: number;
   error?: string;
+  usage?: ProjectPackageUsage;
+}
+
+export interface ProjectPackageUsage {
+  model?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  estimatedCost?: number;
 }
 
 export interface ProjectManifest {

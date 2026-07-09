@@ -292,6 +292,21 @@ Tamamlandi
 - npm run lint existing unrelated lint issues nedeniyle bu sprint degisikliginden bagimsiz hatalara takiliyor.
 
 ---
+
+### Pipeline Recovery UX Hardening
+
+Tamamlandi
+
+- PipelineStatus stage kartlari expandable hale getirildi.
+- Stage details paneli eklendi.
+- Stage details panelinde stage name, status, startedAt, completedAt, duration, failed error ve usage metadata optional olarak gosterilir hale getirildi.
+- Retry button expand davranisiyla cakismayacak sekilde ayrildi.
+- Invalid date fallback eklendi.
+- Retry/running sirasinda eski completedAt ve durationMs tasinmaz hale getirildi.
+- Manifest/progress tipleri optional timing ve usage metadata ile genisletildi.
+- npx tsc --noEmit temiz gecti.
+
+---
 ### Studio
 
 Tamamlandı

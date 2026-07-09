@@ -40,6 +40,9 @@ export default function PipelineStatus({
   const [retryingStage, setRetryingStage] = useState<ProductionStepKey | null>(
     null,
   );
+  const [expandedStage, setExpandedStage] = useState<ProductionStepKey | null>(
+    null,
+  );
   const [retryMessage, setRetryMessage] = useState("");
   const [retryError, setRetryError] = useState("");
   const currentStageLabel = getStageLabel(stages, currentStage, "Tamamlandi");
@@ -127,32 +130,49 @@ export default function PipelineStatus({
           {stages.map((stage) => {
             const canRetry = isRetryableStatus(stage.status);
             const isRetrying = retryingStage === stage.key;
+            const isExpanded = expandedStage === stage.key;
 
             return (
               <div
                 key={stage.key}
                 className="rounded-xl border border-zinc-800 bg-zinc-950 p-4"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="font-semibold text-white">{stage.label}</h3>
-                  <StatusBadge status={stage.status} />
-                </div>
+                <button
+                  type="button"
+                  aria-expanded={isExpanded}
+                  onClick={() =>
+                    setExpandedStage(isExpanded ? null : stage.key)
+                  }
+                  className="block w-full text-left"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="font-semibold text-white">{stage.label}</h3>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={stage.status} />
+                      <span className="text-xs font-semibold text-zinc-500">
+                        {isExpanded ? "Kapat" : "Detay"}
+                      </span>
+                    </div>
+                  </div>
 
-                <p className="mt-3 text-xs text-zinc-500">
-                  Dosya: {stage.fileName}
-                </p>
-                <p className="mt-1 text-xs text-zinc-500">
-                  Son guncelleme:{" "}
-                  {stage.updatedAt
-                    ? new Date(stage.updatedAt).toLocaleString("tr-TR")
-                    : "Belirtilmedi"}
-                </p>
+                  <p className="mt-3 text-xs text-zinc-500">
+                    Dosya: {stage.fileName}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Son guncelleme:{" "}
+                    {stage.updatedAt
+                      ? new Date(stage.updatedAt).toLocaleString("tr-TR")
+                      : "Belirtilmedi"}
+                  </p>
+                </button>
 
-                {stage.error ? (
+                {stage.error && !isExpanded ? (
                   <p className="mt-3 rounded-lg border border-red-500/30 bg-red-950/30 p-2 text-xs text-red-300">
                     {stage.error}
                   </p>
                 ) : null}
+
+                {isExpanded ? <StageDetails stage={stage} /> : null}
 
                 {canRetry ? (
                   <button
@@ -178,6 +198,92 @@ export default function PipelineStatus({
         </div>
       </div>
     </StudioCard>
+  );
+}
+
+function StageDetails({ stage }: { stage: ProjectStageProgress }) {
+  const duration = getDurationLabel(stage);
+  const usage = stage.usage;
+  const hasUsage = Boolean(
+    usage &&
+      (usage.model ||
+        usage.promptTokens !== undefined ||
+        usage.completionTokens !== undefined ||
+        usage.totalTokens !== undefined ||
+        usage.estimatedCost !== undefined),
+  );
+
+  return (
+    <div className="mt-4 border-t border-zinc-800 pt-4">
+      <div className="grid gap-3 text-xs sm:grid-cols-2">
+        <DetailItem label="Stage" value={stage.label} />
+        <DetailItem label="Status" value={getStatusLabel(stage.status)} />
+        {stage.startedAt ? (
+          <DetailItem label="Started At" value={formatDateTime(stage.startedAt)} />
+        ) : null}
+        {stage.completedAt ? (
+          <DetailItem
+            label="Completed At"
+            value={formatDateTime(stage.completedAt)}
+          />
+        ) : null}
+        {duration ? <DetailItem label="Duration" value={duration} /> : null}
+      </div>
+
+      {stage.status === "failed" && stage.error ? (
+        <p className="mt-3 rounded-lg border border-red-500/30 bg-red-950/30 p-2 text-xs text-red-300">
+          {stage.error}
+        </p>
+      ) : null}
+
+      {hasUsage && usage ? (
+        <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Usage
+          </p>
+          <div className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
+            {usage.model ? (
+              <DetailItem label="Model" value={usage.model} />
+            ) : null}
+            {usage.promptTokens !== undefined ? (
+              <DetailItem
+                label="Prompt Tokens"
+                value={formatNumber(usage.promptTokens)}
+              />
+            ) : null}
+            {usage.completionTokens !== undefined ? (
+              <DetailItem
+                label="Completion Tokens"
+                value={formatNumber(usage.completionTokens)}
+              />
+            ) : null}
+            {usage.totalTokens !== undefined ? (
+              <DetailItem
+                label="Total Tokens"
+                value={formatNumber(usage.totalTokens)}
+              />
+            ) : null}
+            {usage.estimatedCost !== undefined ? (
+              <DetailItem
+                label="Estimated Cost"
+                value={formatCost(usage.estimatedCost)}
+              />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="font-semibold uppercase tracking-wide text-zinc-500">
+        {label}
+      </p>
+      <p className="mt-1 font-medium text-zinc-200">{value}</p>
+    </div>
   );
 }
 
@@ -293,4 +399,50 @@ function getStatusClassName(status: PackageStatus) {
   };
 
   return classNames[status];
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("tr-TR");
+}
+
+function getDurationLabel(stage: ProjectStageProgress) {
+  if (typeof stage.durationMs === "number") {
+    return formatDuration(stage.durationMs);
+  }
+
+  if (stage.startedAt && stage.completedAt) {
+    const durationMs =
+      new Date(stage.completedAt).getTime() -
+      new Date(stage.startedAt).getTime();
+
+    return durationMs >= 0 ? formatDuration(durationMs) : undefined;
+  }
+
+  return undefined;
+}
+
+function formatDuration(durationMs: number) {
+  if (durationMs < 1000) {
+    return `${durationMs} ms`;
+  }
+
+  const totalSeconds = Math.round(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (minutes === 0) {
+    return `${seconds} sn`;
+  }
+
+  return `${minutes} dk ${seconds} sn`;
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("tr-TR").format(value);
+}
+
+function formatCost(value: number) {
+  return `$${value.toFixed(4)}`;
 }

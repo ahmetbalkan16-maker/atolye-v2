@@ -6,6 +6,7 @@ import type {
   Project,
   ProjectManifest,
   ProjectPackageManifest,
+  ProjectPackageUsage,
   ProjectStatus,
 } from "@/types/project";
 
@@ -146,16 +147,38 @@ export class ProjectManager {
     }
 
     const now = new Date().toISOString();
+    const currentPackage = manifest.packages[packageKey];
+    const startedAt =
+      status === "running" ? now : currentPackage.startedAt;
+    const completedAt =
+      status === "completed" || status === "failed"
+        ? now
+        : undefined;
+    const durationMs =
+      startedAt && completedAt
+        ? new Date(completedAt).getTime() - new Date(startedAt).getTime()
+        : undefined;
+    const updatedPackage = this.createPackageManifest(
+      packageKey,
+      status,
+      now,
+      error,
+    );
+
     const updatedManifest: ProjectManifest = {
       ...manifest,
       packages: {
         ...manifest.packages,
-        [packageKey]: this.createPackageManifest(
-          packageKey,
-          status,
-          now,
-          error,
-        ),
+        [packageKey]: {
+          ...updatedPackage,
+          startedAt,
+          completedAt,
+          durationMs:
+            typeof durationMs === "number" && durationMs >= 0
+              ? durationMs
+              : undefined,
+          usage: currentPackage.usage,
+        },
       },
       updatedAt: now,
     };
@@ -378,7 +401,7 @@ export class ProjectManager {
         }
 
         if (this.isRecord(packageValue)) {
-          acc[key] = this.createPackageManifest(
+          const packageManifest = this.createPackageManifest(
             key,
             this.normalizePackageStatus(packageValue.status),
             typeof packageValue.updatedAt === "string"
@@ -388,6 +411,28 @@ export class ProjectManager {
               ? packageValue.error
               : undefined,
           );
+          const startedAt =
+            typeof packageValue.startedAt === "string"
+              ? packageValue.startedAt
+              : undefined;
+          const completedAt =
+            typeof packageValue.completedAt === "string"
+              ? packageValue.completedAt
+              : undefined;
+          const durationMs =
+            typeof packageValue.durationMs === "number" &&
+            Number.isFinite(packageValue.durationMs)
+              ? packageValue.durationMs
+              : undefined;
+          const usage = this.normalizePackageUsage(packageValue.usage);
+
+          acc[key] = {
+            ...packageManifest,
+            startedAt,
+            completedAt,
+            durationMs,
+            usage,
+          };
 
           return acc;
         }
@@ -411,6 +456,32 @@ export class ProjectManager {
     }
 
     return "missing";
+  }
+
+  private static normalizePackageUsage(
+    value: unknown,
+  ): ProjectPackageUsage | undefined {
+    if (!this.isRecord(value)) {
+      return undefined;
+    }
+
+    const usage: ProjectPackageUsage = {
+      model: typeof value.model === "string" ? value.model : undefined,
+      promptTokens: this.getOptionalNumber(value.promptTokens),
+      completionTokens: this.getOptionalNumber(value.completionTokens),
+      totalTokens: this.getOptionalNumber(value.totalTokens),
+      estimatedCost: this.getOptionalNumber(value.estimatedCost),
+    };
+
+    return Object.values(usage).some((usageValue) => usageValue !== undefined)
+      ? usage
+      : undefined;
+  }
+
+  private static getOptionalNumber(value: unknown) {
+    return typeof value === "number" && Number.isFinite(value)
+      ? value
+      : undefined;
   }
 
   private static getProjectFromManifest(value: unknown): Project | null {

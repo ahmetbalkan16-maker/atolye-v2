@@ -45,17 +45,17 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 61**
+**Sprint 62**
 
-Pipeline Recovery UX Hardening
+Pipeline Recovery Diagnostics Polish
 
 **Durum**
 
 🟡 Hazır
 
-Sprint 60 tamamlandi ve TypeScript kontrolu gecti.
+Sprint 61 tamamlandi ve TypeScript kontrolu gecti.
 
-Sprint 61 icin Pipeline Recovery UX Hardening siradadir.
+Sprint 62 icin Pipeline Recovery Diagnostics Polish siradadir.
 
 Not:
 
@@ -300,6 +300,14 @@ Completed
 
 ---
 
+## Sprint 61
+
+Pipeline Recovery UX Hardening
+
+Completed
+
+---
+
 ## Sprint 39
 
 Pipeline Status Panel
@@ -510,17 +518,17 @@ Başarılı.
 
 # 🎯 Bir Sonraki Görev
 
-# Sprint 61
-## Pipeline Recovery UX Hardening
+# Sprint 62
+## Pipeline Recovery Diagnostics Polish
 
 Amaç:
 
-Retry ve resume aksiyonlarinin proje workspace icindeki kullanici deneyimini sertlestirmek.
+Pipeline recovery gorunumlerini daha net diagnostics ve polish katmanina tasimak.
 
 Plan:
 
-- Recovery aksiyonlari icin daha net durum mesajlari
-- Retry/resume sonrasi workspace gorunum dogrulama
+- Stage details icin okunabilirlik ve diagnostics iyilestirmeleri
+- Usage metadata kaynaklarinin manifest ile daha tutarli baglanmasi
 - existing unrelated lint issues temizligi icin ayri sprint planlama
 
 ---
