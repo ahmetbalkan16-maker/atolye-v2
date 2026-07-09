@@ -3,7 +3,7 @@ import { AIRouter } from "./router/AIRouter";
 
 const router = new AIRouter();
 
-const defaultProvider = router.getProvider("openai");
+const defaultProvider = router.getProvider();
 
 export async function runPipeline(
   prompt: string,

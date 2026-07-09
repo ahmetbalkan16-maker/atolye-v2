@@ -1,26 +1,16 @@
-import { openai } from "../client";
 import { createScriptPrompt } from "../prompts/script";
+import { AIRouter } from "../router/AIRouter";
 
 export async function scriptStep(topic: string) {
   const prompt = createScriptPrompt(topic);
-
-  const res = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content:
-          "Sen yalnızca geçerli JSON döndüren profesyonel bir Türkçe belgesel senaryo motorusun.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    temperature: 0.7,
-  });
-
-  const text = res.choices[0]?.message?.content || "{}";
+  const provider = new AIRouter().getProvider();
+  const text =
+    (await provider.generate(
+      [
+        "Sen yalnizca gecerli JSON donduren profesyonel bir Turkce belgesel senaryo motorusun.",
+        prompt,
+      ].join("\n\n"),
+    )) || "{}";
 
   try {
     return JSON.parse(text);
@@ -29,7 +19,7 @@ export async function scriptStep(topic: string) {
 
     return {
       topic,
-      title: "Senaryo oluşturulamadı",
+      title: "Senaryo olusturulamadi",
       subtitle: "",
       hook: "",
       introduction: "",

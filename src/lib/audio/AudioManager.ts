@@ -26,7 +26,7 @@ export class AudioManager {
     const prompt = createAudioPrompt(script);
 
     try {
-      const provider = this.router.getProvider("openai");
+      const provider = this.router.getProvider();
       const response = await provider.generate(prompt);
 
       if (!response.trim()) {

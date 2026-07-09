@@ -22,7 +22,7 @@ export class SEOManager {
     const prompt = createSEOPrompt(topic, script, thumbnail);
 
     try {
-      const provider = this.router.getProvider("openai");
+      const provider = this.router.getProvider();
       const response = await provider.generate(prompt);
 
       if (!response.trim()) {

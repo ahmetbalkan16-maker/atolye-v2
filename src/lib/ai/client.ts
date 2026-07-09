@@ -7,6 +7,7 @@ export interface ChatCompletionCreateParams {
   model: string;
   messages: ChatCompletionMessage[];
   temperature?: number;
+  max_tokens?: number;
 }
 
 export interface ChatCompletionResponse {
@@ -20,10 +21,16 @@ export interface ChatCompletionResponse {
 async function createChatCompletion(
   body: ChatCompletionCreateParams,
 ): Promise<ChatCompletionResponse> {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is not configured.");
+  }
+
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY ?? ""}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),

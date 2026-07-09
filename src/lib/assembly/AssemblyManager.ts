@@ -43,7 +43,7 @@ export class AssemblyManager {
     const prompt = createAssemblyPrompt(script, scenes, visuals, audio, sources);
 
     try {
-      const provider = this.router.getProvider("openai");
+      const provider = this.router.getProvider();
       const response = await provider.generate(prompt);
 
       if (!response.trim()) {
