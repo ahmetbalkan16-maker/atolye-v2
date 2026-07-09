@@ -214,57 +214,63 @@ function StageDetails({ stage }: { stage: ProjectStageProgress }) {
   );
 
   return (
-    <div className="mt-4 border-t border-zinc-800 pt-4">
-      <div className="grid gap-3 text-xs sm:grid-cols-2">
-        <DetailItem label="Stage" value={stage.label} />
-        <DetailItem label="Status" value={getStatusLabel(stage.status)} />
-        {stage.startedAt ? (
-          <DetailItem label="Started At" value={formatDateTime(stage.startedAt)} />
-        ) : null}
-        {stage.completedAt ? (
-          <DetailItem
-            label="Completed At"
-            value={formatDateTime(stage.completedAt)}
-          />
-        ) : null}
-        {duration ? <DetailItem label="Duration" value={duration} /> : null}
+    <div className="mt-4 space-y-4 border-t border-zinc-800 pt-4">
+      <div className="grid gap-3 text-xs">
+        <div className="flex items-start justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
+          <DetailItem label="Stage" value={stage.label} />
+          <StatusDetailItem status={stage.status} />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {stage.startedAt ? (
+            <DetailItem
+              label="Started At"
+              value={formatDateTime(stage.startedAt)}
+            />
+          ) : null}
+          {stage.completedAt ? (
+            <DetailItem
+              label="Completed At"
+              value={formatDateTime(stage.completedAt)}
+            />
+          ) : null}
+          {duration ? <DetailItem label="Duration" value={duration} /> : null}
+        </div>
       </div>
 
       {stage.status === "failed" && stage.error ? (
-        <p className="mt-3 rounded-lg border border-red-500/30 bg-red-950/30 p-2 text-xs text-red-300">
-          {stage.error}
-        </p>
+        <ErrorBlock message={stage.error} />
       ) : null}
 
       {hasUsage && usage ? (
-        <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
+        <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
             Usage
           </p>
-          <div className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
+          <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
             {usage.model ? (
-              <DetailItem label="Model" value={usage.model} />
+              <UsageItem label="Model" value={usage.model} />
             ) : null}
             {usage.promptTokens !== undefined ? (
-              <DetailItem
+              <UsageItem
                 label="Prompt Tokens"
                 value={formatNumber(usage.promptTokens)}
               />
             ) : null}
             {usage.completionTokens !== undefined ? (
-              <DetailItem
+              <UsageItem
                 label="Completion Tokens"
                 value={formatNumber(usage.completionTokens)}
               />
             ) : null}
             {usage.totalTokens !== undefined ? (
-              <DetailItem
+              <UsageItem
                 label="Total Tokens"
                 value={formatNumber(usage.totalTokens)}
               />
             ) : null}
             {usage.estimatedCost !== undefined ? (
-              <DetailItem
+              <UsageItem
                 label="Estimated Cost"
                 value={formatCost(usage.estimatedCost)}
               />
@@ -278,11 +284,46 @@ function StageDetails({ stage }: { stage: ProjectStageProgress }) {
 
 function DetailItem({ label, value }: { label: string; value: string }) {
   return (
-    <div>
+    <div className="min-w-0">
       <p className="font-semibold uppercase tracking-wide text-zinc-500">
         {label}
       </p>
-      <p className="mt-1 font-medium text-zinc-200">{value}</p>
+      <p className="mt-1 break-words font-medium text-zinc-200">{value}</p>
+    </div>
+  );
+}
+
+function StatusDetailItem({ status }: { status: PackageStatus }) {
+  return (
+    <div className="shrink-0 text-right">
+      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        Status
+      </p>
+      <StatusBadge status={status} />
+    </div>
+  );
+}
+
+function ErrorBlock({ message }: { message: string }) {
+  return (
+    <div className="rounded-lg border border-red-500/30 bg-red-950/30 p-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-red-300">
+        Error
+      </p>
+      <p className="mt-2 max-h-32 overflow-auto break-words text-xs leading-5 text-red-200">
+        {message}
+      </p>
+    </div>
+  );
+}
+
+function UsageItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-md border border-zinc-800 bg-zinc-950/70 px-2 py-2">
+      <p className="truncate font-semibold uppercase tracking-wide text-zinc-500">
+        {label}
+      </p>
+      <p className="mt-1 break-words font-semibold text-zinc-200">{value}</p>
     </div>
   );
 }
@@ -404,7 +445,12 @@ function getStatusClassName(status: PackageStatus) {
 function formatDateTime(value: string) {
   const date = new Date(value);
 
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("tr-TR");
+  return Number.isNaN(date.getTime())
+    ? value
+    : new Intl.DateTimeFormat("tr-TR", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(date);
 }
 
 function getDurationLabel(stage: ProjectStageProgress) {

@@ -33,7 +33,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 62
+Sprint 63
 
 ---
 
@@ -330,10 +330,27 @@ Completed
 
 ## Pipeline Recovery Diagnostics Polish
 
+Completed
+
+- Pipeline diagnostics details UI polish tamamlandi.
+- Status badge/label gorunumu iyilestirildi.
+- startedAt / completedAt daha kullanici dostu formatlandi.
+- durationMs okunabilir hale getirildi.
+- Error mesaji ayri, scroll guvenli blokta gosterilir hale getirildi.
+- Usage metadata kompakt kutucuklarla gosterilir hale getirildi.
+- Retry button ve expand davranisi korundu.
+- npx tsc --noEmit temiz gecti.
+
+---
+
+# Sprint 63
+
+## Pipeline Recovery Diagnostics Data Wiring
+
 Planlanan
 
-- Stage details icin okunabilirlik ve diagnostics iyilestirmeleri
 - Usage metadata kaynaklarinin manifest ile daha tutarli baglanmasi
+- Stage timing alanlarinin uretim akisi boyunca dogrulanmasi
 - existing unrelated lint issues temizligi icin ayri sprint planlama
 
 ---

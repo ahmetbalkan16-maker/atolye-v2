@@ -45,17 +45,17 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 62**
+**Sprint 63**
 
-Pipeline Recovery Diagnostics Polish
+Pipeline Recovery Diagnostics Data Wiring
 
 **Durum**
 
 🟡 Hazır
 
-Sprint 61 tamamlandi ve TypeScript kontrolu gecti.
+Sprint 62 tamamlandi ve TypeScript kontrolu gecti.
 
-Sprint 62 icin Pipeline Recovery Diagnostics Polish siradadir.
+Sprint 63 icin Pipeline Recovery Diagnostics Data Wiring siradadir.
 
 Not:
 
@@ -308,6 +308,14 @@ Completed
 
 ---
 
+## Sprint 62
+
+Pipeline Recovery Diagnostics Polish
+
+Completed
+
+---
+
 ## Sprint 39
 
 Pipeline Status Panel
@@ -518,17 +526,17 @@ Başarılı.
 
 # 🎯 Bir Sonraki Görev
 
-# Sprint 62
-## Pipeline Recovery Diagnostics Polish
+# Sprint 63
+## Pipeline Recovery Diagnostics Data Wiring
 
 Amaç:
 
-Pipeline recovery gorunumlerini daha net diagnostics ve polish katmanina tasimak.
+Pipeline diagnostics verilerini manifest ve usage kaynaklariyla daha tutarli baglamak.
 
 Plan:
 
-- Stage details icin okunabilirlik ve diagnostics iyilestirmeleri
 - Usage metadata kaynaklarinin manifest ile daha tutarli baglanmasi
+- Stage timing alanlarinin uretim akisi boyunca dogrulanmasi
 - existing unrelated lint issues temizligi icin ayri sprint planlama
 
 ---

@@ -307,6 +307,21 @@ Tamamlandi
 - npx tsc --noEmit temiz gecti.
 
 ---
+
+### Pipeline Recovery Diagnostics Polish
+
+Tamamlandi
+
+- Pipeline diagnostics details UI polish tamamlandi.
+- Status badge/label gorunumu iyilestirildi.
+- startedAt / completedAt daha kullanici dostu formatlandi.
+- durationMs okunabilir hale getirildi.
+- Error mesaji ayri, scroll guvenli blokta gosterilir hale getirildi.
+- Usage metadata kompakt kutucuklarla gosterilir hale getirildi.
+- Retry button ve expand davranisi korundu.
+- npx tsc --noEmit temiz gecti.
+
+---
 ### Studio
 
 Tamamlandı
