@@ -13,6 +13,8 @@ Bu projeye ilk kez giriyorsanız aşağıdaki sırayı takip edin:
 8. CHANGELOG.md
 9. AI_MEMORY.md
 
+Yeni sprint baslatmadan veya tamamlamadan once SPRINT_TEMPLATE.md takip edilmelidir.
+
 Bu belgeler okunmadan geliştirmeye başlanmamalıdır.
 Türkçe öncelikli, yapay zekâ destekli kişisel içerik üretim stüdyosu.
 
