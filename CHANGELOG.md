@@ -203,6 +203,18 @@ Tamamlandi
 - Mevcut son 20 kayit tablosu, API contract ve read-only davranis korundu.
 
 ---
+
+### Pipeline Retry & Resume Planning Foundation
+
+Tamamlandi
+
+- Pipeline recovery plan tipleri eklendi.
+- Stage order ve stage dependency map tanimlandi.
+- Resume plan, ilk tamamlanmamis asamadan itibaren calisacak stage listesini uretir hale getirildi.
+- Retry plan, yalnizca failed stage icin dependency readiness kontrolu yapacak sekilde planlanir hale getirildi.
+- Execution, API ve UI aksiyonu eklenmeden read-only planning foundation kuruldu.
+
+---
 ### Studio
 
 Tamamlandı

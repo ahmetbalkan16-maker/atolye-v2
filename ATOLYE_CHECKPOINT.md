@@ -45,17 +45,17 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 54**
+**Sprint 55**
 
-Pipeline Retry & Resume Planning
+Pipeline Resume API Foundation
 
 **Durum**
 
 🟡 Hazır
 
-Sprint 53 tamamlandı ve TypeScript kontrolü geçti.
+Sprint 54 tamamlandı ve TypeScript kontrolü geçti.
 
-Sprint 54 için Pipeline Retry & Resume Planning sıradadır.
+Sprint 55 için Pipeline Resume API Foundation sıradadır.
 
 ---
 
@@ -234,6 +234,14 @@ Completed
 ## Sprint 53
 
 AI Usage Filters & Diagnostics Search
+
+Completed
+
+---
+
+## Sprint 54
+
+Pipeline Retry & Resume Planning Foundation
 
 Completed
 
@@ -449,18 +457,18 @@ Başarılı.
 
 # 🎯 Bir Sonraki Görev
 
-# Sprint 54
-## Pipeline Retry & Resume Planning
+# Sprint 55
+## Pipeline Resume API Foundation
 
 Amaç:
 
-Pipeline adımlarının güvenli retry ve resume davranışı için planlama yapmak.
+Pipeline resume planını API üzerinden güvenli ve read-only şekilde görünür hale getirmek.
 
 Plan:
 
-- Retry/resume ihtiyaç analizi
-- Manifest durumlarıyla güvenli devam akışı
-- Pipeline davranışını değiştirmeden minimum mimari planı
+- Resume plan endpoint tasarımı
+- Retry plan endpoint tasarımı
+- Execution eklemeden API foundation
 
 ---
 

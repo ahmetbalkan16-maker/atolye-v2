@@ -33,7 +33,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 54
+Sprint 55
 
 ---
 
@@ -219,13 +219,26 @@ Completed
 
 # Sprint 54
 
-## Pipeline Retry & Resume Planning
+## Pipeline Retry & Resume Planning Foundation
 
-Planlanan
+Completed
 
 - Retry/resume requirements analysis
 - Manifest-aware continuation plan
 - Minimum safe pipeline recovery architecture
+- Stage dependency readiness checks
+
+---
+
+# Sprint 55
+
+## Pipeline Resume API Foundation
+
+Planlanan
+
+- Resume plan API endpoint
+- Retry plan API endpoint
+- Read-only recovery planning API
 
 ---
 
