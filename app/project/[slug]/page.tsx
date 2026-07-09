@@ -8,6 +8,7 @@ import {
   AudioPanel,
   ProductionPackageSummary,
   ProjectActions,
+  PipelineResumeAction,
   PipelineStatus,
   ProjectProgress,
   ProjectStatusCards,
@@ -147,14 +148,20 @@ export default async function ProjectStudioPage({
         </StudioCard>
 
         {pipelineProgress && pipelineSummary ? (
-          <PipelineStatus
-            stages={pipelineProgress.stages}
-            completionPercentage={pipelineSummary.completionPercentage}
-            currentStage={pipelineSummary.currentStage}
-            nextStage={pipelineSummary.nextStage}
-            statusDescription={pipelineSummary.statusDescription}
-            nextTaskSuggestion={pipelineSummary.nextTaskSuggestion}
-          />
+          <>
+            <PipelineStatus
+              stages={pipelineProgress.stages}
+              completionPercentage={pipelineSummary.completionPercentage}
+              currentStage={pipelineSummary.currentStage}
+              nextStage={pipelineSummary.nextStage}
+              statusDescription={pipelineSummary.statusDescription}
+              nextTaskSuggestion={pipelineSummary.nextTaskSuggestion}
+            />
+            <PipelineResumeAction
+              projectSlug={slug}
+              pipelineProgress={pipelineProgress}
+            />
+          </>
         ) : null}
 
         <AIUsagePanel projectSlug={slug} />

@@ -45,17 +45,17 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 57**
+**Sprint 58**
 
-Pipeline Resume Studio Action
+Pipeline Retry Foundation
 
 **Durum**
 
 🟡 Hazır
 
-Sprint 56 tamamlandi ve TypeScript kontrolu gecti.
+Sprint 57 tamamlandi ve TypeScript kontrolu gecti.
 
-Sprint 57 icin Pipeline Resume Studio Action siradadir.
+Sprint 58 icin Pipeline Retry Foundation siradadir.
 
 ---
 
@@ -258,6 +258,14 @@ Completed
 ## Sprint 56
 
 Pipeline Resume API Foundation
+
+Completed
+
+---
+
+## Sprint 57
+
+Pipeline Resume Studio Action
 
 Completed
 
@@ -473,18 +481,18 @@ Başarılı.
 
 # 🎯 Bir Sonraki Görev
 
-# Sprint 57
-## Pipeline Resume Studio Action
+# Sprint 58
+## Pipeline Retry Foundation
 
 Amaç:
 
-Studio icinden mevcut projeyi guvenli sekilde resume endpoint'i ile tetikleyebilmek.
+Pipeline retry icin guvenli foundation planini uygulamaya hazir hale getirmek.
 
 Plan:
 
-- Project workspace icin resume aksiyonu
-- Blocked/success/error state gosterimi
-- Retry execution eklemeden resume endpoint kullanimi
+- Retry plan kapsam sinirlarini netlestirme
+- Retry execution icin dependency readiness yaklasimi
+- Resume davranisini bozmadan retry foundation hazirligi
 
 ---
 

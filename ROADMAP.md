@@ -33,7 +33,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 57
+Sprint 58
 
 ---
 
@@ -260,11 +260,23 @@ Completed
 
 ## Pipeline Resume Studio Action
 
-Planlanan
+Completed
 
 - Project workspace resume action
 - Loading, success, blocked and error states
 - No retry execution
+
+---
+
+# Sprint 58
+
+## Pipeline Retry Foundation
+
+Planlanan
+
+- Retry foundation scope
+- Stage dependency readiness for retry
+- No UI action until safe API contract is ready
 
 ---
 
@@ -299,3 +311,4 @@ Sprint tamamlandığında;
 - Aktif Sprint değiştirilir.
 - Tamamlanan sprint kaldırılmaz.
 - Durumu "Completed" yapılır.
+

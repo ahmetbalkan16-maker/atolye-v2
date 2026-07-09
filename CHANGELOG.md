@@ -239,6 +239,19 @@ Tamamlandi
 - /api/pipeline, UI ve retry endpoint eklenmeden Sprint 56 tamamlandi.
 
 ---
+
+### Pipeline Resume Studio Action
+
+Tamamlandi
+
+- Project workspace icine PipelineResumeAction component'i eklendi.
+- Resume aksiyonu PipelineStatus altinda ve AIUsagePanel oncesinde gosterilir hale getirildi.
+- Production tamamlandiginda resume butonu gizlenir, running stage varken disabled olur hale getirildi.
+- Resume API success durumunda router.refresh() ile workspace verileri yenilenir hale getirildi.
+- Blocked, success ve error durumlari UI icinde kisa mesajlarla gosterilir hale getirildi.
+- Retry UI, PipelineRunner ve Resume API endpoint'i degistirilmeden Sprint 57 tamamlandi.
+
+---
 ### Studio
 
 Tamamlandı
