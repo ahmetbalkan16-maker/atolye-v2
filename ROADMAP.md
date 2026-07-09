@@ -33,7 +33,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 49
+Sprint 51
 
 ---
 
@@ -154,9 +154,9 @@ Completed
 
 # Sprint 49
 
-## Real AI Provider Integration
+## Real AI Provider Integration Guardrails
 
-Aktif
+Completed
 
 - Real provider adapters
 - Provider configuration
@@ -167,14 +167,27 @@ Aktif
 
 # Sprint 50
 
-## Knowledge Engine
+## AI Reliability & Observability Foundation
 
-Planlanan
+Completed
 
-- Historical Knowledge
-- Timeline Analysis
-- Character Relations
-- Event Graph
+- Append-only ai-usage.json
+- AI provider usage metadata
+- Fallback/error observability
+- Pipeline AI context propagation
+
+---
+
+# Sprint 51
+
+## Usage Viewer / AI Diagnostics Panel
+
+Aktif
+
+- ai-usage.json viewer
+- Usage summary
+- Stage diagnostics
+- Provider and fallback filters
 
 ---
 

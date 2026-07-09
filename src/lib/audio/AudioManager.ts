@@ -1,4 +1,4 @@
-import { AIRouter } from "@/lib/ai/router/AIRouter";
+import { runObservedAIRequest } from "@/lib/ai/runObservedAIRequest";
 import {
   getCreatedAt,
   getNumber,
@@ -8,6 +8,7 @@ import {
   isRecord,
   parseAIJsonResponse,
 } from "@/lib/ai/utils";
+import type { AIRequestContext } from "@/types/aiUsage";
 import type {
   AudioData,
   AudioMusicPlan,
@@ -19,15 +20,22 @@ import type { ScriptChapter, ScriptData } from "@/types/script";
 import { createAudioPrompt } from "./prompts/audioPrompt";
 
 export class AudioManager {
-  private static router = new AIRouter();
-
-  static async generateAudioData(script: ScriptData): Promise<AudioData> {
+  static async generateAudioData(
+    script: ScriptData,
+    context?: Partial<AIRequestContext>,
+  ): Promise<AudioData> {
     const fallback = this.createFallbackAudioData(script);
     const prompt = createAudioPrompt(script);
 
     try {
-      const provider = this.router.getProvider();
-      const response = await provider.generate(prompt);
+      const { response } = await runObservedAIRequest({
+        prompt,
+        context: {
+          ...context,
+          operation: context?.operation ?? "audio-plan",
+          stage: context?.stage ?? "audio",
+        },
+      });
 
       if (!response.trim()) {
         console.error("[AudioManager] Empty provider response.");

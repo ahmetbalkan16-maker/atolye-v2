@@ -1,4 +1,4 @@
-import { AIRouter } from "@/lib/ai/router/AIRouter";
+import { runObservedAIRequest } from "@/lib/ai/runObservedAIRequest";
 import {
   getCreatedAt,
   getOptionalString,
@@ -6,6 +6,7 @@ import {
   isRecord,
   parseAIJsonResponse,
 } from "@/lib/ai/utils";
+import type { AIRequestContext } from "@/types/aiUsage";
 import type { ScriptData } from "@/types/script";
 import type {
   ThumbnailData,
@@ -16,18 +17,23 @@ import type { VisualData } from "@/types/visual";
 import { createThumbnailPrompt } from "./prompts/thumbnailPrompt";
 
 export class ThumbnailManager {
-  private static router = new AIRouter();
-
   static async generateThumbnailData(
     script: ScriptData,
     visuals: VisualData,
+    context?: Partial<AIRequestContext>,
   ): Promise<ThumbnailData> {
     const fallback = this.createFallbackThumbnailData(script, visuals);
     const prompt = createThumbnailPrompt(script, visuals);
 
     try {
-      const provider = this.router.getProvider();
-      const response = await provider.generate(prompt);
+      const { response } = await runObservedAIRequest({
+        prompt,
+        context: {
+          ...context,
+          operation: context?.operation ?? "thumbnail-plan",
+          stage: context?.stage ?? "thumbnail",
+        },
+      });
 
       if (!response.trim()) {
         console.error("[ThumbnailManager] Empty provider response.");

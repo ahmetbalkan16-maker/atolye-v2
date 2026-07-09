@@ -45,17 +45,17 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 49**
+**Sprint 51**
 
-Real AI Provider Integration
+Usage Viewer / AI Diagnostics Panel
 
 **Durum**
 
 🟡 Hazır
 
-Sprint 48 tamamlandı ve TypeScript kontrolü geçti.
+Sprint 50 tamamlandı ve TypeScript kontrolü geçti.
 
-Sprint 49 için Real AI Provider Integration sıradadır.
+Sprint 51 için Usage Viewer / AI Diagnostics Panel sıradadır.
 
 ---
 
@@ -67,7 +67,7 @@ main
 
 Son Commit
 
-c1244e6fca2535496fbfda9c75141c08d72a130b
+0108d60a99cdf551e5689f595711443fdb72511a
 
 Durum
 
@@ -194,6 +194,22 @@ Export Engine Foundation
 ## Sprint 48
 
 Final Pipeline Integration
+
+Completed
+
+---
+
+## Sprint 49
+
+Real AI Provider Integration Guardrails
+
+Completed
+
+---
+
+## Sprint 50
+
+AI Reliability & Observability Foundation
 
 Completed
 
@@ -384,21 +400,44 @@ Başarılı.
 
 ---
 
+# Sprint 50
+## AI Reliability & Observability Foundation
+
+Durum:
+Completed
+
+İçerik:
+
+- AI çağrı metadata kaydı eklendi.
+- data/projects/{slug}/ai-usage.json append-only usage dosyası oluşturuldu.
+- Provider, model, süre, fallback, hata ve prompt/response boyutu metadata olarak kaydedilir hale getirildi.
+- Prompt ve response içeriği kaydedilmeden observability temeli kuruldu.
+- PipelineRunner ilgili AI manager çağrılarına projectSlug/stage context aktarmaya başladı.
+- Mock-first yaklaşımı korundu.
+
+Test:
+npx.cmd tsc --noEmit --incremental false
+
+Sonuç:
+Başarılı.
+
+---
+
 # 🎯 Bir Sonraki Görev
 
-# Sprint 49
-## Real AI Provider Integration
+# Sprint 51
+## Usage Viewer / AI Diagnostics Panel
 
 Amaç:
 
-Atölye'nin mock-first mimarisini bozmadan gerçek AI provider entegrasyonlarına hazırlanmak.
+AI usage kayıtlarını proje arayüzünde okunabilir hale getirmek ve AI diagnostics paneli için temel oluşturmak.
 
 Plan:
 
-- Real provider adapters
-- Provider configuration
-- Error handling
-- Cost and usage safeguards
+- ai-usage.json okuma desteği
+- AI usage summary
+- Stage bazlı diagnostics görünümü
+- Provider/fallback/error filtreleri
 
 ---
 

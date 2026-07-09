@@ -1,4 +1,4 @@
-import { AIRouter } from "@/lib/ai/router/AIRouter";
+import { runObservedAIRequest } from "@/lib/ai/runObservedAIRequest";
 import {
   getCreatedAt,
   getOptionalString,
@@ -7,6 +7,7 @@ import {
   isRecord,
   parseAIJsonResponse,
 } from "@/lib/ai/utils";
+import type { AIRequestContext } from "@/types/aiUsage";
 import type { AnimationData } from "@/types/animation";
 import type { AssemblyPlanData, AssemblyRenderInfo, AssemblyScene } from "@/types/assembly";
 import type { AudioData, AudioSection } from "@/types/audio";
@@ -24,14 +25,13 @@ export type AssemblySourceData = {
 };
 
 export class AssemblyManager {
-  private static router = new AIRouter();
-
   static async generateAssemblyPlan(
     script: ScriptData,
     scenes: SceneData,
     visuals: VisualData,
     audio: AudioData,
     sources: AssemblySourceData = {},
+    context?: Partial<AIRequestContext>,
   ): Promise<AssemblyPlanData> {
     const fallback = this.createFallbackAssemblyPlan(
       script,
@@ -43,8 +43,15 @@ export class AssemblyManager {
     const prompt = createAssemblyPrompt(script, scenes, visuals, audio, sources);
 
     try {
-      const provider = this.router.getProvider();
-      const response = await provider.generate(prompt);
+      const { response } = await runObservedAIRequest({
+        prompt,
+        context: {
+          ...context,
+          projectSlug: context?.projectSlug ?? sources.project?.slug,
+          operation: context?.operation ?? "assembly-plan",
+          stage: context?.stage ?? "assembly",
+        },
+      });
 
       if (!response.trim()) {
         console.error("[AssemblyManager] Empty provider response.");

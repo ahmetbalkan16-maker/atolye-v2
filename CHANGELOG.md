@@ -157,6 +157,18 @@ Tamamlandı
 
 ---
 
+### AI Reliability & Observability Foundation
+
+Tamamlandi
+
+- AI cagri usage metadata modeli eklendi.
+- Proje bazli append-only ai-usage.json kaydi eklendi.
+- Provider, model, sure, fallback, hata ve prompt/response boyutu metadata olarak izlenebilir hale getirildi.
+- Prompt ve response icerigi kaydedilmeden guvenli observability temeli kuruldu.
+- Text AI manager cagrilari observed request helper uzerinden gecirildi.
+- PipelineRunner AI cagrilarina projectSlug/stage context aktarmaya basladi.
+
+---
 ### Studio
 
 Tamamlandı

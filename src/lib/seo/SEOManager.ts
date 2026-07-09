@@ -1,29 +1,35 @@
-import { AIRouter } from "@/lib/ai/router/AIRouter";
+import { runObservedAIRequest } from "@/lib/ai/runObservedAIRequest";
 import {
   getCreatedAt,
   getString,
   getStringArray,
   parseAIJsonResponse,
 } from "@/lib/ai/utils";
+import type { AIRequestContext } from "@/types/aiUsage";
 import type { ScriptData } from "@/types/script";
 import type { SEOData } from "@/types/seo";
 import type { ThumbnailData } from "@/types/thumbnail";
 import { createSEOPrompt } from "./prompts/seoPrompt";
 
 export class SEOManager {
-  private static router = new AIRouter();
-
   static async generateSEOData(
     topic: string,
     script: ScriptData,
     thumbnail: ThumbnailData,
+    context?: Partial<AIRequestContext>,
   ): Promise<SEOData> {
     const fallback = this.createFallbackSEOData(topic, script, thumbnail);
     const prompt = createSEOPrompt(topic, script, thumbnail);
 
     try {
-      const provider = this.router.getProvider();
-      const response = await provider.generate(prompt);
+      const { response } = await runObservedAIRequest({
+        prompt,
+        context: {
+          ...context,
+          operation: context?.operation ?? "seo-plan",
+          stage: context?.stage ?? "seo",
+        },
+      });
 
       if (!response.trim()) {
         console.error("[SEOManager] Empty provider response.");

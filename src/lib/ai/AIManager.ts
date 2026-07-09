@@ -1,7 +1,8 @@
 import type { ResearchData } from "@/types/research";
 import type { SceneData, SceneItem } from "@/types/scene";
 import type { ScriptChapter, ScriptData } from "@/types/script";
-import { AIRouter } from "./router/AIRouter";
+import type { AIRequestContext } from "@/types/aiUsage";
+import { runObservedAIRequest } from "./runObservedAIRequest";
 import {
   getCreatedAt,
   getNumber,
@@ -11,9 +12,10 @@ import {
 } from "./utils";
 
 export class AIManager {
-  private static router = new AIRouter();
-
-  static async runResearch(topic: string): Promise<ResearchData> {
+  static async runResearch(
+    topic: string,
+    context?: Partial<AIRequestContext>,
+  ): Promise<ResearchData> {
     const fallback: ResearchData = {
       topic,
       summary: "mock",
@@ -68,8 +70,14 @@ export class AIManager {
     ].join("\n");
 
     try {
-      const provider = this.router.getProvider();
-      const response = await provider.generate(prompt);
+      const { response } = await runObservedAIRequest({
+        prompt,
+        context: {
+          ...context,
+          operation: context?.operation ?? "research",
+          stage: context?.stage ?? "research",
+        },
+      });
 
       if (!response.trim()) {
         console.error("[AIManager.runResearch] Empty provider response.");
@@ -113,7 +121,10 @@ export class AIManager {
     }
   }
 
-  static async runScript(topic: string): Promise<ScriptData> {
+  static async runScript(
+    topic: string,
+    context?: Partial<AIRequestContext>,
+  ): Promise<ScriptData> {
     const fallback: ScriptData = {
       topic,
       title: topic,
@@ -180,8 +191,14 @@ export class AIManager {
     ].join("\n");
 
     try {
-      const provider = this.router.getProvider();
-      const response = await provider.generate(prompt);
+      const { response } = await runObservedAIRequest({
+        prompt,
+        context: {
+          ...context,
+          operation: context?.operation ?? "script",
+          stage: context?.stage ?? "script",
+        },
+      });
 
       if (!response.trim()) {
         console.error("[AIManager.runScript] Empty provider response.");
@@ -244,7 +261,10 @@ export class AIManager {
     }
   }
 
-  static async runScenes(script: ScriptData): Promise<SceneData> {
+  static async runScenes(
+    script: ScriptData,
+    context?: Partial<AIRequestContext>,
+  ): Promise<SceneData> {
     const fallback: SceneData = {
       scenes: [
         {
@@ -297,8 +317,14 @@ export class AIManager {
     ].join("\n");
 
     try {
-      const provider = this.router.getProvider();
-      const response = await provider.generate(prompt);
+      const { response } = await runObservedAIRequest({
+        prompt,
+        context: {
+          ...context,
+          operation: context?.operation ?? "scenes",
+          stage: context?.stage ?? "scenes",
+        },
+      });
 
       if (!response.trim()) {
         console.error("[AIManager.runScenes] Empty provider response.");

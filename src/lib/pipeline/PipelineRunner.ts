@@ -20,19 +20,31 @@ export class PipelineRunner {
 
     try {
       const research = await this.runStage(slug, "research", async () => {
-        const data = await AIManager.runResearch(topic);
+        const data = await AIManager.runResearch(topic, {
+          projectSlug: slug,
+          stage: "research",
+          operation: "research",
+        });
         await ProjectManager.saveResearch(slug, data);
         return data;
       });
 
       const script = await this.runStage(slug, "script", async () => {
-        const data = await AIManager.runScript(topic);
+        const data = await AIManager.runScript(topic, {
+          projectSlug: slug,
+          stage: "script",
+          operation: "script",
+        });
         await ProjectManager.saveScript(slug, data);
         return data;
       });
 
       const scenes = await this.runStage(slug, "scenes", async () => {
-        const data = await AIManager.runScenes(script);
+        const data = await AIManager.runScenes(script, {
+          projectSlug: slug,
+          stage: "scenes",
+          operation: "scenes",
+        });
         await ProjectManager.saveScenes(slug, data);
         return data;
       });
@@ -40,7 +52,13 @@ export class PipelineRunner {
       const visuals = await this.runStage(slug, "visuals", async () => {
         const data = await VisualManager.generateVisualData({
           projectId: project.id,
+          projectSlug: slug,
           scenes,
+          aiContext: {
+            projectSlug: slug,
+            stage: "visuals",
+            operation: "visuals",
+          },
         });
         await ProjectManager.saveVisuals(slug, data);
         return data;
@@ -49,8 +67,14 @@ export class PipelineRunner {
       const animation = await this.runStage(slug, "animation", async () => {
         const animationPlan = await AnimationPromptGenerator.generateAnimationData({
           projectId: project.id,
+          projectSlug: slug,
           scenes,
           visuals,
+          aiContext: {
+            projectSlug: slug,
+            stage: "animation",
+            operation: "animation-prompt",
+          },
         });
         const { updatedScenes } =
           await AnimationAssetPipeline.generateAnimationAssets({
@@ -79,7 +103,11 @@ export class PipelineRunner {
       });
 
       const audio = await this.runStage(slug, "audio", async () => {
-        const audioPlan = await AudioManager.generateAudioData(script);
+        const audioPlan = await AudioManager.generateAudioData(script, {
+          projectSlug: slug,
+          stage: "audio",
+          operation: "audio-plan",
+        });
         const { audio: data } = await AudioPipeline.generateAudio({
           projectId: project.id,
           projectSlug: slug,
@@ -100,6 +128,11 @@ export class PipelineRunner {
             project,
             animation,
             video,
+          },
+          {
+            projectSlug: slug,
+            stage: "assembly",
+            operation: "assembly-plan",
           },
         );
 
@@ -126,6 +159,11 @@ export class PipelineRunner {
           project.title,
           script,
           thumbnail,
+          {
+            projectSlug: slug,
+            stage: "seo",
+            operation: "seo-plan",
+          },
         );
 
         await ProjectManager.saveSEO(slug, data);

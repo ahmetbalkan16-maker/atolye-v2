@@ -1,8 +1,9 @@
-import { AIRouter } from "@/lib/ai/router/AIRouter";
+import { runObservedAIRequest } from "@/lib/ai/runObservedAIRequest";
 import {
   getStringAllowEmpty,
   parseAIJsonResponse,
 } from "@/lib/ai/utils";
+import type { AIRequestContext } from "@/types/aiUsage";
 import type { AnimationData, AnimationScene } from "@/types/animation";
 import type { SceneData } from "@/types/scene";
 import type { VisualData, VisualScene } from "@/types/visual";
@@ -10,9 +11,11 @@ import { buildAnimationPrompt } from "./animationPrompt";
 
 export type AnimationPromptGeneratorInput = {
   projectId: string;
+  projectSlug?: string;
   scenes: SceneData;
   visuals: VisualData;
   style?: string;
+  aiContext?: Partial<AIRequestContext>;
 };
 
 type AnimationPromptResponse = {
@@ -22,13 +25,13 @@ type AnimationPromptResponse = {
 };
 
 export class AnimationPromptGenerator {
-  private static router = new AIRouter();
-
   static async generateAnimationData({
     projectId,
+    projectSlug,
     scenes,
     visuals,
     style,
+    aiContext,
   }: AnimationPromptGeneratorInput): Promise<AnimationData> {
     const createdAt = new Date().toISOString();
     const animationScenes: AnimationScene[] = [];
@@ -36,9 +39,11 @@ export class AnimationPromptGenerator {
     for (const visual of visuals.scenes) {
       animationScenes.push(
         await this.generateAnimationScene({
+          projectSlug,
           scenes,
           visual,
           style,
+          aiContext,
         }),
       );
     }
@@ -51,29 +56,39 @@ export class AnimationPromptGenerator {
   }
 
   static async generateAnimationSceneData({
+    projectSlug,
     scenes,
     visual,
     style,
+    aiContext,
   }: {
+    projectSlug?: string;
     scenes: SceneData;
     visual: VisualScene;
     style?: string;
+    aiContext?: Partial<AIRequestContext>;
   }): Promise<AnimationScene> {
     return this.generateAnimationScene({
+      projectSlug,
       scenes,
       visual,
       style,
+      aiContext,
     });
   }
 
   private static async generateAnimationScene({
+    projectSlug,
     scenes,
     visual,
     style,
+    aiContext,
   }: {
+    projectSlug?: string;
     scenes: SceneData;
     visual: VisualScene;
     style?: string;
+    aiContext?: Partial<AIRequestContext>;
   }): Promise<AnimationScene> {
     const fallback = this.createFallbackAnimationScene(visual);
     const prompt = buildAnimationPrompt({
@@ -83,8 +98,16 @@ export class AnimationPromptGenerator {
     });
 
     try {
-      const provider = this.router.getProvider();
-      const response = await provider.generate(prompt);
+      const { response } = await runObservedAIRequest({
+        prompt,
+        context: {
+          ...aiContext,
+          projectSlug: aiContext?.projectSlug ?? projectSlug,
+          operation:
+            aiContext?.operation ?? `animation-prompt-scene-${visual.sceneId}`,
+          stage: aiContext?.stage ?? "animation",
+        },
+      });
 
       if (!response.trim()) {
         console.error("[AnimationPromptGenerator] Empty provider response.");

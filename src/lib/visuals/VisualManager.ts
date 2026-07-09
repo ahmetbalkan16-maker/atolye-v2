@@ -1,10 +1,11 @@
-import { AIRouter } from "@/lib/ai/router/AIRouter";
+import { runObservedAIRequest } from "@/lib/ai/runObservedAIRequest";
 import {
   getCreatedAt,
   getNumber,
   getStringAllowEmpty,
   parseAIJsonResponse,
 } from "@/lib/ai/utils";
+import type { AIRequestContext } from "@/types/aiUsage";
 import type { SceneData, SceneItem } from "@/types/scene";
 import type {
   ThumbnailConcept,
@@ -18,24 +19,33 @@ import { VisualPromptEngine } from "./VisualPromptEngine";
 
 type VisualManagerInput = {
   projectId?: string;
+  projectSlug?: string;
   scenes: SceneData;
   style?: string;
+  aiContext?: Partial<AIRequestContext>;
 };
 
 export class VisualManager {
-  private static router = new AIRouter();
-
   static async generateVisualData({
     projectId,
+    projectSlug,
     scenes,
     style = "cinematic",
+    aiContext,
   }: VisualManagerInput): Promise<VisualData> {
     const fallback = this.createFallbackVisualData(scenes, style, projectId);
     const prompt = VisualPromptEngine.createPrompt(scenes, style);
 
     try {
-      const provider = this.router.getProvider();
-      const response = await provider.generate(prompt);
+      const { response } = await runObservedAIRequest({
+        prompt,
+        context: {
+          ...aiContext,
+          projectSlug: aiContext?.projectSlug ?? projectSlug,
+          operation: aiContext?.operation ?? "visuals",
+          stage: aiContext?.stage ?? "visuals",
+        },
+      });
 
       if (!response.trim()) {
         console.error("[VisualManager] Empty provider response.");
