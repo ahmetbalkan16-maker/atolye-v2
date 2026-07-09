@@ -277,6 +277,21 @@ Tamamlandi
 - Resume endpoint, /api/pipeline route'u, UI ve retry execution davranisi degistirilmeden Sprint 59 tamamlandi.
 
 ---
+
+### Pipeline Retry Studio Action
+
+Tamamlandi
+
+- PipelineStatus failed stage'lerde Retry butonu gosterir hale getirildi.
+- Retry aksiyonu projectSlug ile POST /api/projects/[slug]/pipeline/retry endpoint'ine baglandi.
+- Retry sirasinda ilgili stage icin button disabled olur ve "Retrying..." metni gosterilir hale getirildi.
+- Retry basarili olunca router.refresh() ile pipeline gorunumu yenilenir hale getirildi.
+- Hata durumunda kullaniciya basit error mesaji gosterilir hale getirildi.
+- npx tsc --noEmit temiz gecti.
+- npm run typecheck script'i yok.
+- npm run lint existing unrelated lint issues nedeniyle bu sprint degisikliginden bagimsiz hatalara takiliyor.
+
+---
 ### Studio
 
 Tamamlandı

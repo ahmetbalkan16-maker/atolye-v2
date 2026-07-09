@@ -45,17 +45,22 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 60**
+**Sprint 61**
 
-Pipeline Retry Studio Action
+Pipeline Recovery UX Hardening
 
 **Durum**
 
 🟡 Hazır
 
-Sprint 59 tamamlandi ve TypeScript kontrolu gecti.
+Sprint 60 tamamlandi ve TypeScript kontrolu gecti.
 
-Sprint 60 icin Pipeline Retry Studio Action siradadir.
+Sprint 61 icin Pipeline Recovery UX Hardening siradadir.
+
+Not:
+
+- npm run typecheck script'i yok.
+- npm run lint existing unrelated lint issues nedeniyle bu sprint degisikliginden bagimsiz hatalara takiliyor.
 
 ---
 
@@ -287,6 +292,14 @@ Completed
 
 ---
 
+## Sprint 60
+
+Pipeline Retry Studio Action
+
+Completed
+
+---
+
 ## Sprint 39
 
 Pipeline Status Panel
@@ -497,18 +510,18 @@ Başarılı.
 
 # 🎯 Bir Sonraki Görev
 
-# Sprint 60
-## Pipeline Retry Studio Action
+# Sprint 61
+## Pipeline Recovery UX Hardening
 
 Amaç:
 
-Studio icinden failed stage retry endpoint'ini guvenli bir aksiyon olarak kullanima acmak.
+Retry ve resume aksiyonlarinin proje workspace icindeki kullanici deneyimini sertlestirmek.
 
 Plan:
 
-- Failed stage retry action tasarimi
-- Blocked/success/error state gosterimi
-- Resume davranisini bozmadan retry UI foundation
+- Recovery aksiyonlari icin daha net durum mesajlari
+- Retry/resume sonrasi workspace gorunum dogrulama
+- existing unrelated lint issues temizligi icin ayri sprint planlama
 
 ---
 

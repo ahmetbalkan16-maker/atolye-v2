@@ -33,7 +33,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 60
+Sprint 61
 
 ---
 
@@ -296,11 +296,28 @@ Completed
 
 ## Pipeline Retry Studio Action
 
+Completed
+
+- PipelineStatus failed stage'lerde Retry butonu gosterir hale getirildi.
+- Retry request POST /api/projects/[slug]/pipeline/retry endpoint'ine stage key ile gonderilir hale getirildi.
+- Retry sirasinda per-stage loading state "Retrying..." olarak gosterilir hale getirildi.
+- Retry basarili olunca router.refresh() ile pipeline gorunumu yenilenir hale getirildi.
+- Hata durumunda kullaniciya basit error mesaji gosterilir hale getirildi.
+- npx tsc --noEmit temiz gecti.
+- npm run typecheck script'i yok.
+- npm run lint existing unrelated lint issues nedeniyle bu sprint degisikliginden bagimsiz hatalara takiliyor.
+
+---
+
+# Sprint 61
+
+## Pipeline Recovery UX Hardening
+
 Planlanan
 
-- Failed stage retry action in project workspace
-- Loading, success, blocked and error states
-- No resume behavior changes
+- Recovery aksiyonlari icin daha net durum mesajlari
+- Retry/resume sonrasi workspace gorunum dogrulama
+- existing unrelated lint issues temizligi icin ayri sprint planlama
 
 ---
 

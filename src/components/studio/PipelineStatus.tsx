@@ -164,7 +164,7 @@ export default function PipelineStatus({
                     {isRetrying ? (
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-red-300" />
                     ) : null}
-                    {isRetrying ? "Retry deneniyor..." : "Retry"}
+                    {isRetrying ? "Retrying..." : "Retry"}
                   </button>
                 ) : null}
               </div>
