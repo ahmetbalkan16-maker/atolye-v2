@@ -23,3 +23,13 @@ export interface PipelineRecoveryPlan {
   dependencies: PipelineDependencyStatus[];
   createdAt: string;
 }
+
+export interface PipelineResumeResult {
+  success: boolean;
+  projectSlug: string;
+  resumedFrom: PipelineRecoveryStageKey | null;
+  completedStages: PipelineRecoveryStageKey[];
+  blocked: boolean;
+  reason?: string;
+  plan: PipelineRecoveryPlan;
+}

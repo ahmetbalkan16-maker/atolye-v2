@@ -215,6 +215,18 @@ Tamamlandi
 - Execution, API ve UI aksiyonu eklenmeden read-only planning foundation kuruldu.
 
 ---
+
+### Pipeline Resume Execution Foundation
+
+Tamamlandi
+
+- PipelineRunner icine internal resume(projectSlug) foundation eklendi.
+- Resume, PipelineRecoveryPlanner planini kullanarak blocked durumda execution baslatmadan guvenli sonuc doner hale getirildi.
+- Completed stage'ler tekrar calistirilmadan ilk incomplete stage'den devam akisi eklendi.
+- Stage inputlari mevcut proje dosyalarindan ProjectManager read metodlariyla yuklenir hale getirildi.
+- API, UI ve retry execution eklenmeden mevcut run(topic) davranisi korundu.
+
+---
 ### Studio
 
 Tamamlandı
