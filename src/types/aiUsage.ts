@@ -30,6 +30,10 @@ export interface AIUsageRecord {
   durationMs: number;
   promptLength: number;
   responseLength?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  estimatedCost?: number;
   error?: string;
   createdAt: string;
 }

@@ -47,17 +47,17 @@ TÃ¼rkÃ§e Ã¶ncelikli AI destekli kiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosu
 
 ## Aktif Sprint
 
-**Sprint 63**
+**Sprint 64**
 
-Pipeline Recovery Diagnostics Data Wiring
+Pipeline Diagnostics UI Usage Review
 
 **Durum**
 
 ğŸŸ¡ HazÄ±r
 
-Sprint 62 tamamlandi ve TypeScript kontrolu gecti.
+Sprint 63 tamamlandi ve TypeScript kontrolu gecti.
 
-Sprint 63 icin Pipeline Recovery Diagnostics Data Wiring siradadir.
+Sprint 64 icin Pipeline Diagnostics UI Usage Review siradadir.
 
 Not:
 
@@ -316,6 +316,14 @@ Completed
 
 Pipeline Recovery Diagnostics Polish
 
+
+---
+
+## Sprint 63
+
+Pipeline Recovery Diagnostics Data Wiring
+
+Completed
 Completed
 
 ---
@@ -530,17 +538,17 @@ BaÅŸarÄ±lÄ±.
 
 # ğŸ¯ Bir Sonraki GÃ¶rev
 
-# Sprint 63
-## Pipeline Recovery Diagnostics Data Wiring
+# Sprint 64
+## Pipeline Diagnostics UI Usage Review
 
 AmaÃ§:
 
-Pipeline diagnostics verilerini manifest ve usage kaynaklariyla daha tutarli baglamak.
+Pipeline diagnostics UI uzerinde yeni stage metadata ve usage alanlarinin gorunumunu degerlendirmek.
 
 Plan:
 
-- Usage metadata kaynaklarinin manifest ile daha tutarli baglanmasi
-- Stage timing alanlarinin uretim akisi boyunca dogrulanmasi
+- Stage metadata ve usage mapping gorunumunun UI tarafinda dogrulanmasi
+- Retry attempt bilgisinin diagnostics panelinde yeterli olup olmadiginin incelenmesi
 - existing unrelated lint issues temizligi icin ayri sprint planlama
 
 ---

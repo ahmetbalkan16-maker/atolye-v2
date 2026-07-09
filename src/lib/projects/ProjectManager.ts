@@ -5,10 +5,16 @@ import type {
   ProductionStepKey,
   Project,
   ProjectManifest,
+  ProjectPackageAttemptMetadata,
   ProjectPackageManifest,
+  ProjectPackageRunType,
   ProjectPackageUsage,
   ProjectStatus,
 } from "@/types/project";
+
+type UpdatePackageStatusOptions = {
+  runType?: ProjectPackageRunType;
+};
 
 export class ProjectManager {
   private static readonly packageFiles: Record<ProductionStepKey, string> = {
@@ -139,6 +145,7 @@ export class ProjectManager {
     packageKey: ProductionStepKey,
     status: PackageStatus,
     error?: string,
+    options?: UpdatePackageStatusOptions,
   ) {
     const manifest = await this.ensureManifest(slug);
 
@@ -158,6 +165,12 @@ export class ProjectManager {
       startedAt && completedAt
         ? new Date(completedAt).getTime() - new Date(startedAt).getTime()
         : undefined;
+    const attempts = this.updateAttemptMetadata(
+      currentPackage.attempts,
+      status,
+      now,
+      options?.runType,
+    );
     const updatedPackage = this.createPackageManifest(
       packageKey,
       status,
@@ -177,7 +190,39 @@ export class ProjectManager {
             typeof durationMs === "number" && durationMs >= 0
               ? durationMs
               : undefined,
+          attempts,
           usage: currentPackage.usage,
+        },
+      },
+      updatedAt: now,
+    };
+
+    await ProjectWriter.writeJSON(slug, "manifest.json", updatedManifest);
+
+    return updatedManifest;
+  }
+
+  static async updatePackageUsage(
+    slug: string,
+    packageKey: ProductionStepKey,
+    usage: ProjectPackageUsage,
+  ) {
+    const manifest = await this.ensureManifest(slug);
+
+    if (!manifest) {
+      return null;
+    }
+
+    const now = new Date().toISOString();
+    const currentPackage = manifest.packages[packageKey];
+    const nextUsage = this.mergePackageUsage(currentPackage.usage, usage, now);
+    const updatedManifest: ProjectManifest = {
+      ...manifest,
+      packages: {
+        ...manifest.packages,
+        [packageKey]: {
+          ...currentPackage,
+          usage: nextUsage,
         },
       },
       updatedAt: now,
@@ -425,12 +470,16 @@ export class ProjectManager {
               ? packageValue.durationMs
               : undefined;
           const usage = this.normalizePackageUsage(packageValue.usage);
+          const attempts = this.normalizeAttemptMetadata(
+            packageValue.attempts,
+          );
 
           acc[key] = {
             ...packageManifest,
             startedAt,
             completedAt,
             durationMs,
+            attempts,
             usage,
           };
 
@@ -466,11 +515,23 @@ export class ProjectManager {
     }
 
     const usage: ProjectPackageUsage = {
+      provider: typeof value.provider === "string" ? value.provider : undefined,
       model: typeof value.model === "string" ? value.model : undefined,
+      operation:
+        typeof value.operation === "string" ? value.operation : undefined,
+      status: typeof value.status === "string" ? value.status : undefined,
+      fallbackUsed:
+        typeof value.fallbackUsed === "boolean"
+          ? value.fallbackUsed
+          : undefined,
+      requestCount: this.getOptionalNumber(value.requestCount),
+      durationMs: this.getOptionalNumber(value.durationMs),
       promptTokens: this.getOptionalNumber(value.promptTokens),
       completionTokens: this.getOptionalNumber(value.completionTokens),
       totalTokens: this.getOptionalNumber(value.totalTokens),
       estimatedCost: this.getOptionalNumber(value.estimatedCost),
+      updatedAt:
+        typeof value.updatedAt === "string" ? value.updatedAt : undefined,
     };
 
     return Object.values(usage).some((usageValue) => usageValue !== undefined)
@@ -482,6 +543,78 @@ export class ProjectManager {
     return typeof value === "number" && Number.isFinite(value)
       ? value
       : undefined;
+  }
+
+  private static normalizeAttemptMetadata(
+    value: unknown,
+  ): ProjectPackageAttemptMetadata | undefined {
+    if (!this.isRecord(value)) {
+      return undefined;
+    }
+
+    const total = this.getOptionalNumber(value.total);
+    const retry = this.getOptionalNumber(value.retry);
+
+    if (total === undefined && retry === undefined) {
+      return undefined;
+    }
+
+    const lastRunType = this.normalizeRunType(value.lastRunType);
+
+    return {
+      total: total ?? 0,
+      retry: retry ?? 0,
+      lastAttemptAt:
+        typeof value.lastAttemptAt === "string"
+          ? value.lastAttemptAt
+          : undefined,
+      lastRunType,
+    };
+  }
+
+  private static updateAttemptMetadata(
+    current: ProjectPackageAttemptMetadata | undefined,
+    status: PackageStatus,
+    now: string,
+    runType?: ProjectPackageRunType,
+  ): ProjectPackageAttemptMetadata | undefined {
+    if (status !== "running") {
+      return current;
+    }
+
+    const nextRunType = runType ?? current?.lastRunType ?? "initial";
+    const total = (current?.total ?? 0) + 1;
+    const retry = (current?.retry ?? 0) + (nextRunType === "retry" ? 1 : 0);
+
+    return {
+      total,
+      retry,
+      lastAttemptAt: now,
+      lastRunType: nextRunType,
+    };
+  }
+
+  private static mergePackageUsage(
+    current: ProjectPackageUsage | undefined,
+    next: ProjectPackageUsage,
+    now: string,
+  ): ProjectPackageUsage {
+    return {
+      ...current,
+      ...next,
+      requestCount: (current?.requestCount ?? 0) + 1,
+      updatedAt: now,
+    };
+  }
+
+  private static normalizeRunType(
+    value: unknown,
+  ): ProjectPackageRunType | undefined {
+    if (value === "initial" || value === "resume" || value === "retry") {
+      return value;
+    }
+
+    return undefined;
   }
 
   private static getProjectFromManifest(value: unknown): Project | null {

@@ -39,7 +39,7 @@ Phase 2 â€” Production Engine
 
 Aktif Sprint
 
-Sprint 63
+Sprint 64
 
 ---
 
@@ -353,13 +353,28 @@ Completed
 
 ## Pipeline Recovery Diagnostics Data Wiring
 
+Completed
+
+- Stage metadata standardi attempts, lastAttemptAt ve lastRunType alanlariyla gelistirildi.
+- Provider bagimsiz usage mapping ai-usage kayitlarindan manifest stage usage alanina baglandi.
+- Retry metadata initial/resume/retry run type ayrimi ve retry attempt sayisi ile genisletildi.
+- ProjectManager ve projectProgress akisi optional metadata alanlarini tasiyacak sekilde guncellendi.
+- PipelineStatus stage details icinde attempt bilgisi optional olarak gosterilir hale getirildi.
+- npx tsc --noEmit temiz gecti.
+
+---
+# Sprint 64
+
+## Pipeline Diagnostics UI Usage Review
+
 Planlanan
 
-- Usage metadata kaynaklarinin manifest ile daha tutarli baglanmasi
-- Stage timing alanlarinin uretim akisi boyunca dogrulanmasi
+- Stage metadata ve usage mapping gorunumunun UI tarafinda dogrulanmasi
+- Retry attempt bilgisinin diagnostics panelinde yeterli olup olmadiginin incelenmesi
 - existing unrelated lint issues temizligi icin ayri sprint planlama
 
 ---
+
 
 # Sprint Ã–ncelik KurallarÄ±
 

@@ -55,15 +55,32 @@ export interface ProjectPackageManifest {
   completedAt?: string;
   durationMs?: number;
   error?: string;
+  attempts?: ProjectPackageAttemptMetadata;
   usage?: ProjectPackageUsage;
 }
 
+export type ProjectPackageRunType = "initial" | "resume" | "retry";
+
+export interface ProjectPackageAttemptMetadata {
+  total: number;
+  retry: number;
+  lastAttemptAt?: string;
+  lastRunType?: ProjectPackageRunType;
+}
+
 export interface ProjectPackageUsage {
+  provider?: string;
   model?: string;
+  operation?: string;
+  status?: string;
+  fallbackUsed?: boolean;
+  requestCount?: number;
+  durationMs?: number;
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
   estimatedCost?: number;
+  updatedAt?: string;
 }
 
 export interface ProjectManifest {

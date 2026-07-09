@@ -322,6 +322,19 @@ Tamamlandi
 - npx tsc --noEmit temiz gecti.
 
 ---
+### Pipeline Recovery Diagnostics Data Wiring
+
+Tamamlandi
+
+- Stage metadata standardi attempts, lastAttemptAt ve lastRunType alanlariyla gelistirildi.
+- Provider bagimsiz usage mapping ai-usage kayitlarindan manifest stage usage alanina baglandi.
+- Retry metadata initial/resume/retry run type ayrimi ve retry attempt sayisi ile genisletildi.
+- ProjectManager ve projectProgress akisi optional metadata alanlarini tasiyacak sekilde guncellendi.
+- PipelineStatus stage details icinde attempt bilgisi optional olarak gosterilir hale getirildi.
+- npx tsc --noEmit temiz gecti.
+
+---
+
 ### Documentation Vision Alignment
 
 Tamamlandi

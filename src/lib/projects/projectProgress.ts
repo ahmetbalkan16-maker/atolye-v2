@@ -3,6 +3,7 @@ import type {
   PackageStatus,
   ProductionStepKey,
   ProjectManifest,
+  ProjectPackageAttemptMetadata,
   ProjectPackageUsage,
 } from "@/types/project";
 
@@ -26,6 +27,7 @@ export interface ProjectStageProgress {
   completedAt?: string;
   durationMs?: number;
   error?: string;
+  attempts?: ProjectPackageAttemptMetadata;
   usage?: ProjectPackageUsage;
 }
 
@@ -301,6 +303,7 @@ function getStageProgress(manifest: ProjectManifest): ProjectStageProgress[] {
       completedAt: packageManifest.completedAt,
       durationMs: packageManifest.durationMs,
       error: packageManifest.error,
+      attempts: packageManifest.attempts,
       usage: packageManifest.usage,
     };
   });

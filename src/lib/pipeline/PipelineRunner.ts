@@ -1,7 +1,11 @@
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { PipelineRecoveryPlanner } from "./PipelineRecoveryPlanner";
 import { PipelineStageExecutor } from "./PipelineStageExecutor";
-import type { ProductionStepKey, ProjectStatus } from "@/types/project";
+import type {
+  ProductionStepKey,
+  ProjectPackageRunType,
+  ProjectStatus,
+} from "@/types/project";
 import type {
   PipelineRecoveryStageKey,
   PipelineRetryResult,
@@ -94,7 +98,7 @@ export class PipelineRunner {
         continue;
       }
 
-      await this.runPipelineStage(projectSlug, stage, state);
+      await this.runPipelineStage(projectSlug, stage, state, "resume");
       completedStages.push(stage);
     }
 
@@ -151,7 +155,7 @@ export class PipelineRunner {
       };
     }
 
-    await this.runPipelineStage(projectSlug, stage, state);
+    await this.runPipelineStage(projectSlug, stage, state, "retry");
 
     return {
       success: true,
@@ -167,9 +171,11 @@ export class PipelineRunner {
     slug: string,
     stage: ProductionStepKey,
     state: Parameters<typeof PipelineStageExecutor.execute>[2],
+    runType: ProjectPackageRunType = "initial",
   ) {
     return this.runStage(slug, stage, () =>
       PipelineStageExecutor.execute(slug, stage, state),
+      runType,
     );
   }
 
@@ -177,9 +183,16 @@ export class PipelineRunner {
     slug: string,
     stage: ProductionStepKey,
     action: () => Promise<T>,
+    runType: ProjectPackageRunType,
   ): Promise<T> {
     await ProjectManager.updateStatus(slug, stage as ProjectStatus);
-    await ProjectManager.updatePackageStatus(slug, stage, "running");
+    await ProjectManager.updatePackageStatus(
+      slug,
+      stage,
+      "running",
+      undefined,
+      { runType },
+    );
 
     try {
       return await action();

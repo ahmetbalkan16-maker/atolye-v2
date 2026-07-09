@@ -235,6 +235,30 @@ function StageDetails({ stage }: { stage: ProjectStageProgress }) {
             />
           ) : null}
           {duration ? <DetailItem label="Duration" value={duration} /> : null}
+          {stage.attempts?.total !== undefined ? (
+            <DetailItem
+              label="Attempts"
+              value={formatNumber(stage.attempts.total)}
+            />
+          ) : null}
+          {stage.attempts?.retry !== undefined ? (
+            <DetailItem
+              label="Retry Attempts"
+              value={formatNumber(stage.attempts.retry)}
+            />
+          ) : null}
+          {stage.attempts?.lastAttemptAt ? (
+            <DetailItem
+              label="Last Attempt"
+              value={formatDateTime(stage.attempts.lastAttemptAt)}
+            />
+          ) : null}
+          {stage.attempts?.lastRunType ? (
+            <DetailItem
+              label="Last Run Type"
+              value={getRunTypeLabel(stage.attempts.lastRunType)}
+            />
+          ) : null}
         </div>
       </div>
 
@@ -428,6 +452,16 @@ function getStatusLabel(status: PackageStatus) {
   };
 
   return labels[status];
+}
+
+function getRunTypeLabel(runType: string) {
+  const labels: Record<string, string> = {
+    initial: "Initial",
+    resume: "Resume",
+    retry: "Retry",
+  };
+
+  return labels[runType] ?? runType;
 }
 
 function getStatusClassName(status: PackageStatus) {
