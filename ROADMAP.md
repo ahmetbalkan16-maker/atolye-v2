@@ -33,7 +33,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 56
+Sprint 57
 
 ---
 
@@ -247,11 +247,24 @@ Completed
 
 ## Pipeline Resume API Foundation
 
+Completed
+
+- Project-scoped POST /api/projects/[slug]/pipeline/resume endpoint
+- Slug validation and project existence check
+- Blocked resume plan response with HTTP 409
+- Resume execution result response without UI or retry endpoint
+
+---
+
+# Sprint 57
+
+## Pipeline Resume Studio Action
+
 Planlanan
 
-- Resume plan API endpoint
-- Retry plan API endpoint
-- Read-only recovery planning API
+- Project workspace resume action
+- Loading, success, blocked and error states
+- No retry execution
 
 ---
 

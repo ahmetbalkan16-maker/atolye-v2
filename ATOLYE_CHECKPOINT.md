@@ -45,17 +45,17 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 56**
+**Sprint 57**
 
-Pipeline Resume API Foundation
+Pipeline Resume Studio Action
 
 **Durum**
 
 🟡 Hazır
 
-Sprint 55 tamamlandı ve TypeScript kontrolü geçti.
+Sprint 56 tamamlandi ve TypeScript kontrolu gecti.
 
-Sprint 56 için Pipeline Resume API Foundation sıradadır.
+Sprint 57 icin Pipeline Resume Studio Action siradadir.
 
 ---
 
@@ -250,6 +250,14 @@ Completed
 ## Sprint 55
 
 Pipeline Resume Execution Foundation
+
+Completed
+
+---
+
+## Sprint 56
+
+Pipeline Resume API Foundation
 
 Completed
 
@@ -465,18 +473,18 @@ Başarılı.
 
 # 🎯 Bir Sonraki Görev
 
-# Sprint 56
-## Pipeline Resume API Foundation
+# Sprint 57
+## Pipeline Resume Studio Action
 
 Amaç:
 
-Pipeline resume planını API üzerinden güvenli ve read-only şekilde görünür hale getirmek.
+Studio icinden mevcut projeyi guvenli sekilde resume endpoint'i ile tetikleyebilmek.
 
 Plan:
 
-- Resume plan endpoint tasarımı
-- Retry plan endpoint tasarımı
-- Execution eklemeden API foundation
+- Project workspace icin resume aksiyonu
+- Blocked/success/error state gosterimi
+- Retry execution eklemeden resume endpoint kullanimi
 
 ---
 

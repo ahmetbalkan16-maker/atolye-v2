@@ -227,6 +227,18 @@ Tamamlandi
 - API, UI ve retry execution eklenmeden mevcut run(topic) davranisi korundu.
 
 ---
+
+### Pipeline Resume API Foundation
+
+Tamamlandi
+
+- Project-scoped POST /api/projects/[slug]/pipeline/resume endpoint eklendi.
+- Endpoint slug validation ve ProjectManager.getProject(slug) kontrolu yapar hale getirildi.
+- Blocked resume planlari HTTP 409 ile guvenli response doner hale getirildi.
+- Success response resume execution result bilgisini doner hale getirildi.
+- /api/pipeline, UI ve retry endpoint eklenmeden Sprint 56 tamamlandi.
+
+---
 ### Studio
 
 Tamamlandı
