@@ -39,7 +39,7 @@ Phase 2 â€” Production Engine
 
 Aktif Sprint
 
-Sprint 65
+Sprint 66
 
 ---
 
@@ -386,10 +386,27 @@ Completed
 
 ## Pipeline Queue Execution Wiring
 
+Completed
+
+- Pipeline Queue Execution Wiring tamamlandi.
+- PipelineJobManager lifecycle helper'lari eklendi: markStageRunning, markStageCompleted, markStageFailed.
+- PipelineRunner stage lifecycle ile job lifecycle senkronize edildi.
+- Stage baslarken job running olur hale getirildi.
+- Stage basariyla tamamlaninca job completed olur hale getirildi.
+- Stage hata alinca job failed olur ve error bilgisi kaydedilir hale getirildi.
+- PipelineStatus, diagnostics ve retry davranisi korundu.
+- attempts sayaci yalnizca retry sirasinda artar hale getirildi.
+- npx tsc --noEmit temiz gecti.
+
+---
+# Sprint 66
+
+## Pipeline Queue UI Controls Hardening
+
 Planlanan
 
-- Queue job state ile pipeline run/resume/retry akislari arasindaki baglantinin planlanmasi
-- Cancel/retry job aksiyonlarinin execution davranisina etkisinin netlestirilmesi
+- Job action durum mesajlarini iyilestirme
+- Queue/job UI edge case kontrolleri
 - existing unrelated lint issues temizligi icin ayri sprint planlama
 
 ---

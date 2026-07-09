@@ -47,17 +47,17 @@ TÃ¼rkÃ§e Ã¶ncelikli AI destekli kiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosu
 
 ## Aktif Sprint
 
-**Sprint 65**
+**Sprint 66**
 
-Pipeline Queue Execution Wiring
+Pipeline Queue UI Controls Hardening
 
 **Durum**
 
 ğŸŸ¡ HazÄ±r
 
-Sprint 64 tamamlandi ve TypeScript kontrolu gecti.
+Sprint 65 tamamlandi ve TypeScript kontrolu gecti.
 
-Sprint 65 icin Pipeline Queue Execution Wiring siradadir.
+Sprint 66 icin Pipeline Queue UI Controls Hardening siradadir.
 
 Not:
 
@@ -336,6 +336,14 @@ Completed
 
 ---
 
+## Sprint 65
+
+Pipeline Queue Execution Wiring
+
+Completed
+
+---
+
 ## Sprint 39
 
 Pipeline Status Panel
@@ -546,17 +554,17 @@ BaÅŸarÄ±lÄ±.
 
 # ğŸ¯ Bir Sonraki GÃ¶rev
 
-# Sprint 65
-## Pipeline Queue Execution Wiring
+# Sprint 66
+## Pipeline Queue UI Controls Hardening
 
 AmaÃ§:
 
-Pipeline queue/job temelini gercek pipeline execution akislariyla guvenli sekilde baglamak.
+Pipeline queue/job panelindeki aksiyonlari daha guvenli ve okunabilir hale getirmek.
 
 Plan:
 
-- Queue job state ile pipeline run/resume/retry akislari arasindaki baglantinin planlanmasi
-- Cancel/retry job aksiyonlarinin execution davranisina etkisinin netlestirilmesi
+- Job action durum mesajlarini iyilestirme
+- Queue/job UI edge case kontrolleri
 - existing unrelated lint issues temizligi icin ayri sprint planlama
 
 ---
