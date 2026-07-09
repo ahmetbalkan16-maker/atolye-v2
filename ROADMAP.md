@@ -39,7 +39,7 @@ Phase 2 â€” Production Engine
 
 Aktif Sprint
 
-Sprint 64
+Sprint 65
 
 ---
 
@@ -365,15 +365,35 @@ Completed
 ---
 # Sprint 64
 
-## Pipeline Diagnostics UI Usage Review
+## Pipeline Queue / Job Management Foundation
+
+Completed
+
+- Pipeline Queue / Job Management temeli eklendi.
+- PipelineJob domain modeli olusturuldu.
+- PipelineJobManager eklendi.
+- Proje bazli pipeline-jobs.json storage eklendi.
+- GET /api/projects/[slug]/pipeline/jobs endpointi eklendi.
+- POST /api/projects/[slug]/pipeline/jobs/[jobId] endpointi eklendi.
+- cancel / retry job aksiyonlari eklendi.
+- Studio tarafina PipelineJobsPanel eklendi.
+- Proje sayfasina PipelineJobsPanel baglandi.
+- Mevcut PipelineStatus ve diagnostics yapisina dokunulmadi.
+- npx tsc --noEmit temiz gecti.
+
+---
+# Sprint 65
+
+## Pipeline Queue Execution Wiring
 
 Planlanan
 
-- Stage metadata ve usage mapping gorunumunun UI tarafinda dogrulanmasi
-- Retry attempt bilgisinin diagnostics panelinde yeterli olup olmadiginin incelenmesi
+- Queue job state ile pipeline run/resume/retry akislari arasindaki baglantinin planlanmasi
+- Cancel/retry job aksiyonlarinin execution davranisina etkisinin netlestirilmesi
 - existing unrelated lint issues temizligi icin ayri sprint planlama
 
 ---
+
 
 
 # Sprint Ã–ncelik KurallarÄ±

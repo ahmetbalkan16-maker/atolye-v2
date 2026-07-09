@@ -335,6 +335,24 @@ Tamamlandi
 
 ---
 
+### Pipeline Queue / Job Management Foundation
+
+Tamamlandi
+
+- Pipeline Queue / Job Management temeli eklendi.
+- PipelineJob domain modeli olusturuldu.
+- PipelineJobManager eklendi.
+- Proje bazli pipeline-jobs.json storage eklendi.
+- GET /api/projects/[slug]/pipeline/jobs endpointi eklendi.
+- POST /api/projects/[slug]/pipeline/jobs/[jobId] endpointi eklendi.
+- cancel / retry job aksiyonlari eklendi.
+- Studio tarafina PipelineJobsPanel eklendi.
+- Proje sayfasina PipelineJobsPanel baglandi.
+- Mevcut PipelineStatus ve diagnostics yapisina dokunulmadi.
+- npx tsc --noEmit temiz gecti.
+
+---
+
 ### Documentation Vision Alignment
 
 Tamamlandi

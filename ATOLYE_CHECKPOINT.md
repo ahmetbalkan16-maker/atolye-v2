@@ -47,17 +47,17 @@ TÃ¼rkÃ§e Ã¶ncelikli AI destekli kiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosu
 
 ## Aktif Sprint
 
-**Sprint 64**
+**Sprint 65**
 
-Pipeline Diagnostics UI Usage Review
+Pipeline Queue Execution Wiring
 
 **Durum**
 
 ğŸŸ¡ HazÄ±r
 
-Sprint 63 tamamlandi ve TypeScript kontrolu gecti.
+Sprint 64 tamamlandi ve TypeScript kontrolu gecti.
 
-Sprint 64 icin Pipeline Diagnostics UI Usage Review siradadir.
+Sprint 65 icin Pipeline Queue Execution Wiring siradadir.
 
 Not:
 
@@ -323,6 +323,14 @@ Pipeline Recovery Diagnostics Polish
 
 Pipeline Recovery Diagnostics Data Wiring
 
+
+---
+
+## Sprint 64
+
+Pipeline Queue / Job Management Foundation
+
+Completed
 Completed
 Completed
 
@@ -538,17 +546,17 @@ BaÅŸarÄ±lÄ±.
 
 # ğŸ¯ Bir Sonraki GÃ¶rev
 
-# Sprint 64
-## Pipeline Diagnostics UI Usage Review
+# Sprint 65
+## Pipeline Queue Execution Wiring
 
 AmaÃ§:
 
-Pipeline diagnostics UI uzerinde yeni stage metadata ve usage alanlarinin gorunumunu degerlendirmek.
+Pipeline queue/job temelini gercek pipeline execution akislariyla guvenli sekilde baglamak.
 
 Plan:
 
-- Stage metadata ve usage mapping gorunumunun UI tarafinda dogrulanmasi
-- Retry attempt bilgisinin diagnostics panelinde yeterli olup olmadiginin incelenmesi
+- Queue job state ile pipeline run/resume/retry akislari arasindaki baglantinin planlanmasi
+- Cancel/retry job aksiyonlarinin execution davranisina etkisinin netlestirilmesi
 - existing unrelated lint issues temizligi icin ayri sprint planlama
 
 ---
