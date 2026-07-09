@@ -45,17 +45,17 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 53**
+**Sprint 54**
 
-AI Usage Filters
+Pipeline Retry & Resume Planning
 
 **Durum**
 
 🟡 Hazır
 
-Sprint 52 tamamlandı ve TypeScript kontrolü geçti.
+Sprint 53 tamamlandı ve TypeScript kontrolü geçti.
 
-Sprint 53 için AI Usage Filters sıradadır.
+Sprint 54 için Pipeline Retry & Resume Planning sıradadır.
 
 ---
 
@@ -226,6 +226,14 @@ Completed
 ## Sprint 52
 
 AI Usage Diagnostics Summary
+
+Completed
+
+---
+
+## Sprint 53
+
+AI Usage Filters & Diagnostics Search
 
 Completed
 
@@ -441,18 +449,18 @@ Başarılı.
 
 # 🎯 Bir Sonraki Görev
 
-# Sprint 53
-## AI Usage Filters
+# Sprint 54
+## Pipeline Retry & Resume Planning
 
 Amaç:
 
-AI usage kayıtlarını stage, provider ve status bazında filtrelenebilir hale getirmek.
+Pipeline adımlarının güvenli retry ve resume davranışı için planlama yapmak.
 
 Plan:
 
-- Stage/provider/status filtreleri
-- Filtrelenmiş tablo görünümü
-- Summary metriklerinin filtrelerle uyumlu davranması
+- Retry/resume ihtiyaç analizi
+- Manifest durumlarıyla güvenli devam akışı
+- Pipeline davranışını değiştirmeden minimum mimari planı
 
 ---
 

@@ -192,6 +192,17 @@ Tamamlandi
 - Mevcut son 20 kayit tablosu ve API contract korunarak UI okunabilirligi artirildi.
 
 ---
+
+### AI Usage Filters & Diagnostics Search
+
+Tamamlandi
+
+- AI Diagnostics paneline stage, provider ve status filtreleri eklendi.
+- Operation, stage, provider, model ve status alanlarinda basit text search eklendi.
+- Summary metrikleri filtrelenmis kayitlar uzerinden hesaplanir hale getirildi.
+- Mevcut son 20 kayit tablosu, API contract ve read-only davranis korundu.
+
+---
 ### Studio
 
 Tamamlandı

@@ -33,7 +33,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 53
+Sprint 54
 
 ---
 
@@ -206,13 +206,26 @@ Completed
 
 # Sprint 53
 
-## AI Usage Filters
+## AI Usage Filters & Diagnostics Search
 
-Planlanan
+Completed
 
 - Stage/provider/status filters
 - Filtered usage records table
 - Summary metrics aligned with active filters
+- Basic diagnostics search
+
+---
+
+# Sprint 54
+
+## Pipeline Retry & Resume Planning
+
+Planlanan
+
+- Retry/resume requirements analysis
+- Manifest-aware continuation plan
+- Minimum safe pipeline recovery architecture
 
 ---
 

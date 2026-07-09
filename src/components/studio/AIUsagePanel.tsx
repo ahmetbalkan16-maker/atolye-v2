@@ -35,6 +35,10 @@ export default function AIUsagePanel({ projectSlug }: AIUsagePanelProps) {
   const [records, setRecords] = useState<AIUsageRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedStage, setSelectedStage] = useState("all");
+  const [selectedProvider, setSelectedProvider] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -81,7 +85,29 @@ export default function AIUsagePanel({ projectSlug }: AIUsagePanelProps) {
     };
   }, [projectSlug]);
 
-  const sortedRecords = useMemo(() => sortByNewest(records), [records]);
+  const stageOptions = useMemo(
+    () => getUniqueOptions(records.map((record) => record.stage)),
+    [records],
+  );
+  const providerOptions = useMemo(
+    () => getUniqueOptions(records.map((record) => record.provider)),
+    [records],
+  );
+  const statusOptions = useMemo(
+    () => getUniqueOptions(records.map((record) => record.status)),
+    [records],
+  );
+  const filteredRecords = useMemo(
+    () =>
+      filterUsageRecords(records, {
+        selectedStage,
+        selectedProvider,
+        selectedStatus,
+        searchQuery,
+      }),
+    [records, selectedStage, selectedProvider, selectedStatus, searchQuery],
+  );
+  const sortedRecords = useMemo(() => sortByNewest(filteredRecords), [filteredRecords]);
   const summary = useMemo(() => createUsageSummary(sortedRecords), [sortedRecords]);
   const visibleRecords = useMemo(
     () => sortedRecords.slice(0, maxVisibleRecords),
@@ -130,6 +156,43 @@ export default function AIUsagePanel({ projectSlug }: AIUsagePanelProps) {
           </p>
         </div>
 
+        <div className="grid gap-3 rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-sm md:grid-cols-4">
+          <FilterSelect
+            label="Stage"
+            value={selectedStage}
+            options={stageOptions}
+            onChange={setSelectedStage}
+          />
+          <FilterSelect
+            label="Provider"
+            value={selectedProvider}
+            options={providerOptions}
+            onChange={setSelectedProvider}
+          />
+          <FilterSelect
+            label="Status"
+            value={selectedStatus}
+            options={statusOptions}
+            onChange={setSelectedStatus}
+          />
+          <div>
+            <label
+              htmlFor="ai-usage-search"
+              className="text-xs font-semibold uppercase tracking-wide text-zinc-500"
+            >
+              Search
+            </label>
+            <input
+              id="ai-usage-search"
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="operation, model..."
+              className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-yellow-500/60"
+            />
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-500">
           <span>Gosterilen: {visibleRecords.length}/{maxVisibleRecords}</span>
           <span>Kaynak: read-only ai-usage.json</span>
@@ -147,9 +210,15 @@ export default function AIUsagePanel({ projectSlug }: AIUsagePanelProps) {
           </p>
         ) : null}
 
-        {!loading && !error && visibleRecords.length === 0 ? (
+        {!loading && !error && records.length === 0 ? (
           <p className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-500">
             Bu proje icin henuz AI usage kaydi bulunmuyor.
+          </p>
+        ) : null}
+
+        {!loading && !error && records.length > 0 && filteredRecords.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-500">
+            Secili filtrelerle eslesen AI usage kaydi yok.
           </p>
         ) : null}
 
@@ -204,6 +273,38 @@ export default function AIUsagePanel({ projectSlug }: AIUsagePanelProps) {
   );
 }
 
+function FilterSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        {label}
+      </label>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-100 outline-none transition focus:border-yellow-500/60"
+      >
+        <option value="all">Tumu</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function SummaryItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
@@ -235,6 +336,57 @@ function getStatusClassName(status: AIUsageStatus) {
   };
 
   return classNames[status];
+}
+
+function filterUsageRecords(
+  records: AIUsageRecord[],
+  filters: {
+    selectedStage: string;
+    selectedProvider: string;
+    selectedStatus: string;
+    searchQuery: string;
+  },
+) {
+  const normalizedSearch = filters.searchQuery.trim().toLowerCase();
+
+  return records.filter((record) => {
+    if (filters.selectedStage !== "all" && record.stage !== filters.selectedStage) {
+      return false;
+    }
+
+    if (
+      filters.selectedProvider !== "all" &&
+      record.provider !== filters.selectedProvider
+    ) {
+      return false;
+    }
+
+    if (filters.selectedStatus !== "all" && record.status !== filters.selectedStatus) {
+      return false;
+    }
+
+    if (!normalizedSearch) {
+      return true;
+    }
+
+    return getSearchableRecordText(record).includes(normalizedSearch);
+  });
+}
+
+function getSearchableRecordText(record: AIUsageRecord) {
+  return [
+    record.operation,
+    record.stage,
+    record.provider,
+    record.model ?? "",
+    record.status,
+  ]
+    .join(" ")
+    .toLowerCase();
+}
+
+function getUniqueOptions(values: string[]) {
+  return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
 }
 
 function createUsageSummary(records: AIUsageRecord[]): UsageSummary {
