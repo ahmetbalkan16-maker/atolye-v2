@@ -33,7 +33,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 45
+Sprint 49
 
 ---
 
@@ -141,14 +141,14 @@ Planlanan
 
 # Sprint 48
 
-## Timeline Engine
+## Final Pipeline Integration
 
-Planlanan
+Completed
 
-- Timeline model
-- Scene/audio/video sync
-- Timeline preview data
-- Timeline UI foundation
+- Research → Export tam akış kontrolü
+- PipelineRunner uçtan uca orchestrator
+- Manifest/progress senkronizasyonu
+- Stage bazlı hata yönetimi
 
 ---
 
@@ -156,7 +156,7 @@ Planlanan
 
 ## Real AI Provider Integration
 
-Planlanan
+Aktif
 
 - Real provider adapters
 - Provider configuration
