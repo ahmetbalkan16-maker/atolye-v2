@@ -64,6 +64,8 @@ export const projectProgressStages: readonly ProductionStepKey[] = [
   "assembly",
   "thumbnail",
   "seo",
+  "youtube",
+  "export",
 ];
 
 const productionStageOrder = projectProgressStages;
@@ -79,6 +81,8 @@ const stepLabels: Record<ProductionStepKey, string> = {
   assembly: "Kurgu",
   thumbnail: "Thumbnail",
   seo: "SEO",
+  youtube: "YouTube",
+  export: "Export",
 };
 
 export function createProductionSteps(
@@ -381,6 +385,22 @@ function getNextTaskSuggestion(
 
   if (completedStages.includes("audio") && currentStage === "assembly") {
     return "Kurgu paketini olustur";
+  }
+
+  if (completedStages.includes("assembly") && currentStage === "thumbnail") {
+    return "Thumbnail planini olustur";
+  }
+
+  if (completedStages.includes("thumbnail") && currentStage === "seo") {
+    return "SEO paketini olustur";
+  }
+
+  if (completedStages.includes("seo") && currentStage === "youtube") {
+    return "YouTube yayin paketini olustur";
+  }
+
+  if (completedStages.includes("youtube") && currentStage === "export") {
+    return "Export paketini olustur";
   }
 
   if (completedStages.includes("script") && currentStage === "scenes") {

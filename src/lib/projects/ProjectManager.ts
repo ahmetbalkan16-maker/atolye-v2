@@ -21,6 +21,8 @@ export class ProjectManager {
     assembly: "assembly.json",
     thumbnail: "thumbnail.json",
     seo: "seo.json",
+    youtube: "youtube.json",
+    export: "export.json",
   };
 
   static createSlug(text: string) {
@@ -208,6 +210,16 @@ export class ProjectManager {
     await this.updatePackageStatus(slug, "seo", "completed");
   }
 
+  static async saveYouTube(slug: string, youtube: unknown) {
+    await ProjectWriter.writeJSON(slug, "youtube.json", youtube);
+    await this.updatePackageStatus(slug, "youtube", "completed");
+  }
+
+  static async saveExport(slug: string, exportPackage: unknown) {
+    await ProjectWriter.writeJSON(slug, "export.json", exportPackage);
+    await this.updatePackageStatus(slug, "export", "completed");
+  }
+
   static async saveAssembly(slug: string, assembly: unknown) {
     await ProjectWriter.writeJSON(slug, "assembly.json", assembly);
     await this.updatePackageStatus(slug, "assembly", "completed");
@@ -251,6 +263,14 @@ export class ProjectManager {
 
   static async getSEO(slug: string) {
     return ProjectReader.readJSON(slug, "seo.json");
+  }
+
+  static async getYouTube(slug: string) {
+    return ProjectReader.readJSON(slug, "youtube.json");
+  }
+
+  static async getExport(slug: string) {
+    return ProjectReader.readJSON(slug, "export.json");
   }
 
   static async getAssembly(slug: string) {
@@ -435,6 +455,8 @@ export class ProjectManager {
       "assembly",
       "thumbnail",
       "seo",
+      "youtube",
+      "export",
     ];
   }
 

@@ -24,6 +24,7 @@ import {
 } from "@/lib/projects/projectProgress";
 import type { AnimationData } from "@/types/animation";
 import type { AssemblyPlanData } from "@/types/assembly";
+import type { ExportPackageData } from "@/types/export";
 import type { Project } from "@/types/project";
 import type { AudioData } from "@/types/audio";
 import type { ResearchData } from "@/types/research";
@@ -33,6 +34,7 @@ import type { ScriptData } from "@/types/script";
 import type { ThumbnailData } from "@/types/thumbnail";
 import type { VisualData } from "@/types/visual";
 import type { VideoData } from "@/types/video";
+import type { YouTubePublishingPackage } from "@/types/youtube";
 
 type ProjectStudioPageProps = {
   params: Promise<{
@@ -56,6 +58,8 @@ export default async function ProjectStudioPage({
     audio,
     thumbnail,
     seo,
+    youtube,
+    exportPackage,
     assembly,
     pipelineProgress,
   ] = await Promise.all([
@@ -69,6 +73,8 @@ export default async function ProjectStudioPage({
       ProjectManager.getAudio(slug) as Promise<AudioData | null>,
       ProjectManager.getThumbnail(slug) as Promise<ThumbnailData | null>,
       ProjectManager.getSEO(slug) as Promise<SEOData | null>,
+      ProjectManager.getYouTube(slug) as Promise<YouTubePublishingPackage | null>,
+      ProjectManager.getExport(slug) as Promise<ExportPackageData | null>,
       ProjectManager.getAssembly(slug) as Promise<AssemblyPlanData | null>,
       getProjectProgress(slug),
     ]);
@@ -87,6 +93,8 @@ export default async function ProjectStudioPage({
     audio: Boolean(audio),
     thumbnail: Boolean(thumbnail),
     seo: Boolean(seo),
+    youtube: Boolean(youtube),
+    export: Boolean(exportPackage),
     assembly: Boolean(assembly),
   };
   const progress = calculateProductionProgress(progressInput);

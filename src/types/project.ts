@@ -12,6 +12,7 @@ export type ProjectStatus =
   | "seo"
   | "voice"
   | "youtube"
+  | "export"
   | "completed";
 
 export interface Project {
@@ -34,7 +35,9 @@ export type ProductionStepKey =
   | "audio"
   | "assembly"
   | "thumbnail"
-  | "seo";
+  | "seo"
+  | "youtube"
+  | "export";
 
 export type PackageStatus =
   | "pending"
