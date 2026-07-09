@@ -1,6 +1,10 @@
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { PipelineJobManager } from "./PipelineJobManager";
-import { PipelineRecoveryPlanner } from "./PipelineRecoveryPlanner";
+import { PipelineQueueScheduler } from "./PipelineQueueScheduler";
+import {
+  PipelineRecoveryPlanner,
+  pipelineRecoveryStageOrder,
+} from "./PipelineRecoveryPlanner";
 import { PipelineStageExecutor } from "./PipelineStageExecutor";
 import type {
   ProductionStepKey,
@@ -20,18 +24,7 @@ export class PipelineRunner {
     const state = PipelineStageExecutor.createInitialState(project);
 
     try {
-      await this.runPipelineStage(slug, "research", state);
-      await this.runPipelineStage(slug, "script", state);
-      await this.runPipelineStage(slug, "scenes", state);
-      await this.runPipelineStage(slug, "visuals", state);
-      await this.runPipelineStage(slug, "animation", state);
-      await this.runPipelineStage(slug, "video", state);
-      await this.runPipelineStage(slug, "audio", state);
-      await this.runPipelineStage(slug, "assembly", state);
-      await this.runPipelineStage(slug, "thumbnail", state);
-      await this.runPipelineStage(slug, "seo", state);
-      await this.runPipelineStage(slug, "youtube", state);
-      await this.runPipelineStage(slug, "export", state);
+      await this.runScheduledStages(slug, pipelineRecoveryStageOrder, state);
 
       await ProjectManager.updateStatus(slug, "completed");
 
@@ -92,15 +85,23 @@ export class PipelineRunner {
       };
     }
 
-    const completedStages: PipelineRecoveryStageKey[] = [];
+    const { completedStages, stopReason } = await this.runScheduledStages(
+      projectSlug,
+      plan.stagesToRun,
+      state,
+      "resume",
+    );
 
-    for (const stage of plan.stagesToRun) {
-      if (await this.isStageCompleted(projectSlug, stage)) {
-        continue;
-      }
-
-      await this.runPipelineStage(projectSlug, stage, state, "resume");
-      completedStages.push(stage);
+    if (completedStages.length === 0 && stopReason) {
+      return {
+        success: false,
+        projectSlug,
+        resumedFrom: plan.startStage,
+        completedStages,
+        blocked: true,
+        reason: stopReason,
+        plan,
+      };
     }
 
     if (plan.stagesToRun.length > 0) {
@@ -178,6 +179,38 @@ export class PipelineRunner {
       PipelineStageExecutor.execute(slug, stage, state),
       runType,
     );
+  }
+
+  private static async runScheduledStages(
+    slug: string,
+    stages: readonly PipelineRecoveryStageKey[],
+    state: Parameters<typeof PipelineStageExecutor.execute>[2],
+    runType: ProjectPackageRunType = "initial",
+  ): Promise<{
+    completedStages: PipelineRecoveryStageKey[];
+    stopReason?: string;
+  }> {
+    const completedStages: PipelineRecoveryStageKey[] = [];
+
+    while (true) {
+      const next = await PipelineQueueScheduler.getNextRunnableStage(
+        slug,
+        stages,
+      );
+
+      if (!next.stage) {
+        return {
+          completedStages,
+          stopReason:
+            next.reason === "No queued stage is available."
+              ? undefined
+              : next.reason,
+        };
+      }
+
+      await this.runPipelineStage(slug, next.stage, state, runType);
+      completedStages.push(next.stage);
+    }
   }
 
   private static async runStage<T>(
