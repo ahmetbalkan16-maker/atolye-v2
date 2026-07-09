@@ -1,0 +1,58 @@
+import { NextResponse } from "next/server";
+import { PipelineJobManager } from "@/lib/pipeline/PipelineJobManager";
+import { ProjectManager } from "@/lib/projects/ProjectManager";
+
+type RouteContext = {
+  params: Promise<{
+    slug: string;
+  }>;
+};
+
+export async function GET(_req: Request, context: RouteContext) {
+  try {
+    const { slug } = await context.params;
+
+    if (!isSafeSlug(slug)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid project slug.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const project = await ProjectManager.getProject(slug);
+
+    if (!project) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Project not found.",
+        },
+        { status: 404 },
+      );
+    }
+
+    const jobs = await PipelineJobManager.listJobs(slug);
+
+    return NextResponse.json({
+      success: true,
+      jobs,
+    });
+  } catch (error) {
+    console.error("[Pipeline Jobs API] Jobs could not be read:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Pipeline jobs could not be read.",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+function isSafeSlug(value: string) {
+  return /^[a-zA-Z0-9-_]+$/.test(value);
+}

@@ -1,0 +1,110 @@
+import { NextResponse } from "next/server";
+import { PipelineJobManager } from "@/lib/pipeline/PipelineJobManager";
+import { ProjectManager } from "@/lib/projects/ProjectManager";
+import type { PipelineJobAction } from "@/types/pipelineJob";
+
+type RouteContext = {
+  params: Promise<{
+    slug: string;
+    jobId: string;
+  }>;
+};
+
+type JobActionRequestBody = {
+  action?: unknown;
+};
+
+export async function POST(req: Request, context: RouteContext) {
+  try {
+    const { slug, jobId } = await context.params;
+
+    if (!isSafeSlug(slug) || !isSafeJobId(jobId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid pipeline job request.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const body = await readActionBody(req);
+
+    if (!isPipelineJobAction(body?.action)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid pipeline job action.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const project = await ProjectManager.getProject(slug);
+
+    if (!project) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Project not found.",
+        },
+        { status: 404 },
+      );
+    }
+
+    const jobs = await PipelineJobManager.applyAction(slug, jobId, body.action);
+
+    if (!jobs) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Pipeline job not found.",
+        },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      jobs,
+    });
+  } catch (error) {
+    console.error("[Pipeline Jobs API] Job action failed:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Pipeline job action failed.",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+async function readActionBody(
+  req: Request,
+): Promise<JobActionRequestBody | null> {
+  try {
+    const body = (await req.json()) as unknown;
+
+    if (!body || typeof body !== "object") {
+      return null;
+    }
+
+    return body as JobActionRequestBody;
+  } catch {
+    return null;
+  }
+}
+
+function isPipelineJobAction(value: unknown): value is PipelineJobAction {
+  return value === "cancel" || value === "retry";
+}
+
+function isSafeSlug(value: string) {
+  return /^[a-zA-Z0-9-_]+$/.test(value);
+}
+
+function isSafeJobId(value: string) {
+  return /^[a-zA-Z0-9-_]+$/.test(value);
+}

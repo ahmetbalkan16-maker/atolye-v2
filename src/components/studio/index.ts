@@ -6,6 +6,7 @@ export { default as ProjectActions } from "./ProjectActions";
 export { default as ProjectProgress } from "./ProjectProgress";
 export { default as ProjectStatusCards } from "./ProjectStatusCards";
 export { default as PipelineStatus } from "./PipelineStatus";
+export { default as PipelineJobsPanel } from "./PipelineJobsPanel";
 export { default as PipelineResumeAction } from "./PipelineResumeAction";
 export { default as AIUsagePanel } from "./AIUsagePanel";
 export { default as VideoPanel } from "./VideoPanel";

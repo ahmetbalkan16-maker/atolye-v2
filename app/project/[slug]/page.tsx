@@ -8,6 +8,7 @@ import {
   AudioPanel,
   ProductionPackageSummary,
   ProjectActions,
+  PipelineJobsPanel,
   PipelineResumeAction,
   PipelineStatus,
   ProjectProgress,
@@ -162,6 +163,7 @@ export default async function ProjectStudioPage({
               projectSlug={slug}
               pipelineProgress={pipelineProgress}
             />
+            <PipelineJobsPanel projectSlug={slug} />
           </>
         ) : null}
 
