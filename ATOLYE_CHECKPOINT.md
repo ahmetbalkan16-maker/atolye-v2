@@ -45,17 +45,17 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 51**
+**Sprint 52**
 
-Usage Viewer / AI Diagnostics Panel
+AI Usage Filters & Diagnostics Summary
 
 **Durum**
 
 🟡 Hazır
 
-Sprint 50 tamamlandı ve TypeScript kontrolü geçti.
+Sprint 51 tamamlandı ve TypeScript kontrolü geçti.
 
-Sprint 51 için Usage Viewer / AI Diagnostics Panel sıradadır.
+Sprint 52 için AI Usage Filters & Diagnostics Summary sıradadır.
 
 ---
 
@@ -210,6 +210,14 @@ Completed
 ## Sprint 50
 
 AI Reliability & Observability Foundation
+
+Completed
+
+---
+
+## Sprint 51
+
+Usage Viewer / AI Diagnostics Panel
 
 Completed
 
@@ -425,19 +433,18 @@ Başarılı.
 
 # 🎯 Bir Sonraki Görev
 
-# Sprint 51
-## Usage Viewer / AI Diagnostics Panel
+# Sprint 52
+## AI Usage Filters & Diagnostics Summary
 
 Amaç:
 
-AI usage kayıtlarını proje arayüzünde okunabilir hale getirmek ve AI diagnostics paneli için temel oluşturmak.
+AI usage kayıtlarını filtrelenebilir hale getirmek ve diagnostics summary görünümünü geliştirmek.
 
 Plan:
 
-- ai-usage.json okuma desteği
-- AI usage summary
-- Stage bazlı diagnostics görünümü
-- Provider/fallback/error filtreleri
+- Stage/provider/status filtreleri
+- Fallback ve hata summary alanları
+- Usage kayıtları için daha okunabilir diagnostics özeti
 
 ---
 

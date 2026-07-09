@@ -33,7 +33,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 51
+Sprint 52
 
 ---
 
@@ -182,12 +182,24 @@ Completed
 
 ## Usage Viewer / AI Diagnostics Panel
 
-Aktif
+Completed
 
 - ai-usage.json viewer
-- Usage summary
-- Stage diagnostics
-- Provider and fallback filters
+- Read-only AI diagnostics panel
+- Project workspace usage records view
+- API endpoint for project AI usage
+
+---
+
+# Sprint 52
+
+## AI Usage Filters & Diagnostics Summary
+
+Planlanan
+
+- Stage/provider/status filters
+- Fallback and error summary
+- Diagnostics summary cards
 
 ---
 

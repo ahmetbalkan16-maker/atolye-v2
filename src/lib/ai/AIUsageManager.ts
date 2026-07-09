@@ -5,6 +5,10 @@ import type { AIUsageLog, AIUsageRecord } from "@/types/aiUsage";
 const usageFileName = "ai-usage.json";
 
 export class AIUsageManager {
+  static async getUsageLog(projectSlug: string): Promise<AIUsageLog> {
+    return this.readUsageLog(projectSlug);
+  }
+
   static async appendRecord(record: AIUsageRecord): Promise<AIUsageLog> {
     const current = await this.readUsageLog(record.projectSlug);
     const now = new Date().toISOString();

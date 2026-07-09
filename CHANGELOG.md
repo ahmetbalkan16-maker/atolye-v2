@@ -169,6 +169,18 @@ Tamamlandi
 - PipelineRunner AI cagrilarina projectSlug/stage context aktarmaya basladi.
 
 ---
+
+### Usage Viewer / AI Diagnostics Panel
+
+Tamamlandi
+
+- AI usage kayitlari icin read-only public okuma metodu eklendi.
+- GET /api/projects/[slug]/ai-usage endpoint'i eklendi.
+- Proje workspace icinde AI Diagnostics paneli eklendi.
+- Panel son AI usage kayitlarini stage, operation, provider, model, status, fallback, duration ve createdAt alanlariyla gosterir hale getirildi.
+- PipelineRunner ve AI cagri davranisi degistirilmeden observability gorunurlugu saglandi.
+
+---
 ### Studio
 
 Tamamlandı

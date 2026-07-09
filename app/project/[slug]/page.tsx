@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import AssetGallery from "@/components/assets/AssetGallery";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import {
+  AIUsagePanel,
   AssemblyPanel,
   AudioPanel,
   ProductionPackageSummary,
@@ -156,6 +157,7 @@ export default async function ProjectStudioPage({
           />
         ) : null}
 
+        <AIUsagePanel projectSlug={slug} />
         <ProductionPackageSummary steps={productionSteps} />
         <ResearchPanel research={research} />
         <ScriptPanel script={script} />
