@@ -47,6 +47,14 @@ type PipelineHistoryInsights = {
   queueHealth: string;
 };
 
+type PipelineHealthSeverity = "idle" | "healthy" | "active" | "waiting" | "attention";
+
+type PipelineHealthInsights = {
+  severity: PipelineHealthSeverity;
+  statusLabel: string;
+  attentionItems: string[];
+};
+
 const pipelineJobStatuses = [
   "queued",
   "running",
@@ -55,6 +63,7 @@ const pipelineJobStatuses = [
   "cancelled",
 ] as const;
 const activeRefreshIntervalMs = 5000;
+const LONG_RUNNING_THRESHOLD_MS = 10 * 60 * 1000;
 
 export default function PipelineJobsPanel({
   projectSlug,
@@ -395,6 +404,7 @@ export default function PipelineJobsPanel({
   const actionLocked = Boolean(actionState);
   const sortedHistory = sortHistoryEvents(history);
   const historyInsights = createHistoryInsights(history, jobs, nowMs);
+  const healthInsights = createPipelineHealthInsights(history, jobs, nowMs);
 
   return (
     <StudioCard title="Pipeline Queue / Jobs">
@@ -464,7 +474,10 @@ export default function PipelineJobsPanel({
             </p>
           ) : !historyError ? (
             <>
-              <PipelineIntelligence insights={historyInsights} />
+              <PipelineIntelligence
+                insights={historyInsights}
+                healthInsights={healthInsights}
+              />
               {history.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-500">
                   Bu proje icin execution history kaydi yok.
@@ -486,8 +499,10 @@ export default function PipelineJobsPanel({
 
 function PipelineIntelligence({
   insights,
+  healthInsights,
 }: {
   insights: PipelineHistoryInsights;
+  healthInsights: PipelineHealthInsights;
 }) {
   return (
     <div className="mb-4 rounded-lg border border-zinc-800 bg-zinc-950 p-4">
@@ -514,6 +529,13 @@ function PipelineIntelligence({
           value={formatLastHistoryEvent(insights.lastTerminalEvent)}
         />
         <JobDetail label="Queue Health" value={insights.queueHealth} />
+      </div>
+      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+        <JobDetail label="Health" value={healthInsights.statusLabel} />
+        <JobDetail
+          label="Attention"
+          value={formatAttentionItems(healthInsights.attentionItems)}
+        />
       </div>
     </div>
   );
@@ -742,6 +764,76 @@ function createHistoryInsights(
   };
 }
 
+function createPipelineHealthInsights(
+  history: PipelineJobHistoryEvent[],
+  jobs: PipelineJob[],
+  nowMs: number,
+): PipelineHealthInsights {
+  const summary = createJobSummary(jobs);
+  const longRunningCount = getLongRunningJobs(jobs, nowMs).length;
+  const retryPressureCount = jobs.filter((job) => job.attempts > 0).length;
+
+  if (jobs.length === 0) {
+    return {
+      severity: "idle",
+      statusLabel: "Idle",
+      attentionItems: [],
+    };
+  }
+
+  const attentionItems = [
+    summary.failed > 0 ? `${formatNumber(summary.failed)} failed job` : "",
+    summary.cancelled > 0
+      ? `${formatNumber(summary.cancelled)} cancelled job`
+      : "",
+    longRunningCount > 0
+      ? `${formatNumber(longRunningCount)} running over 10 minutes`
+      : "",
+    retryPressureCount > 0
+      ? `${formatNumber(retryPressureCount)} retried job`
+      : "",
+    getRecentHistoryAttention(history),
+  ].filter(Boolean).slice(0, 3);
+
+  if (summary.failed > 0 || summary.cancelled > 0 || longRunningCount > 0) {
+    return {
+      severity: "attention",
+      statusLabel: "Attention",
+      attentionItems,
+    };
+  }
+
+  if (summary.queued > 0 && summary.running === 0) {
+    return {
+      severity: "waiting",
+      statusLabel: "Waiting",
+      attentionItems,
+    };
+  }
+
+  if (summary.running > 0) {
+    return {
+      severity: "active",
+      statusLabel: "Active",
+      attentionItems,
+    };
+  }
+
+  if (summary.completed > 0) {
+    return {
+      severity: "healthy",
+      statusLabel: "Healthy",
+      attentionItems,
+    };
+  }
+
+  return {
+    severity: "idle",
+    statusLabel: "Idle",
+    attentionItems,
+  };
+}
+
 function canCancel(status: PipelineJobStatus) {
   return status === "queued" || status === "running";
 }
@@ -888,6 +980,10 @@ function formatOptionalDuration(value?: number) {
   return typeof value === "number" ? formatDuration(value) : "Not available";
 }
 
+function formatAttentionItems(items: string[]) {
+  return items.length > 0 ? items.join(" / ") : "No action required";
+}
+
 function formatLastHistoryEvent(event?: PipelineJobHistoryEvent) {
   if (!event) {
     return "Not available";
@@ -932,6 +1028,31 @@ function getHistoryStatusClassName(status: PipelineJobHistoryEvent["status"]) {
   };
 
   return classNames[status];
+}
+
+function getLongRunningJobs(jobs: PipelineJob[], nowMs: number) {
+  return jobs.filter((job) => {
+    if (job.status !== "running") {
+      return false;
+    }
+
+    const startedAtMs = getTimestampMs(job.startedAt);
+
+    return (
+      startedAtMs !== null &&
+      nowMs - startedAtMs > LONG_RUNNING_THRESHOLD_MS
+    );
+  });
+}
+
+function getRecentHistoryAttention(history: PipelineJobHistoryEvent[]) {
+  const latestEvent = sortHistoryEvents(history)[0];
+
+  if (!latestEvent || latestEvent.status === "completed") {
+    return "";
+  }
+
+  return `last event ${latestEvent.status}`;
 }
 
 function getQueueHealthLabel(jobs: PipelineJob[], nowMs: number) {
