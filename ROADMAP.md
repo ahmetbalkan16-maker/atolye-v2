@@ -39,7 +39,7 @@ Phase 2 â€” Production Engine
 
 Aktif Sprint
 
-Sprint 70
+Sprint 71
 
 ---
 
@@ -470,11 +470,28 @@ Completed
 
 ## Unused Vars and Imports Cleanup
 
+Completed
+
+- Tum 10 @typescript-eslint/no-unused-vars warning'i giderildi.
+- Kapsam app/api/assembly/route.ts, MockAnimationProvider.ts, MockImageProvider.ts, MockExportProvider.ts, MockVideoProvider.ts, AnimationPromptEngine.ts ve ThumbnailConceptEngine.ts ile sinirli tutuldu.
+- Mock/foundation function signature'lari korundu.
+- Intentionally unused parametreler davranis degistirmeden ele alindi.
+- Assembly route icindeki unused research fetch/type kaldirildi.
+- npx tsc --noEmit temiz gecti.
+- npm run lint artik 6 total problems rapor ediyor: 4 errors, 2 warnings.
+- Kalan lint kategorileri: 4 react-hooks/set-state-in-effect errors, 1 react-hooks/exhaustive-deps warning, 1 @next/next/no-img-element warning.
+
+---
+# Sprint 71
+
+## React Hook State and Effect Cleanup
+
 Active
 
-- Kapsam yalnizca daha once belirlenen 10 @typescript-eslint/no-unused-vars warning'i.
-- Placeholder/foundation amaci olan intentionally unused parametreler korunacak.
-- Davranis degisikligi yapilmadan unused vars/imports warning'leri azaltilacak.
+- Kapsam src/components/HomeClient.tsx ve src/components/assets/AssetGallery.tsx.
+- Hedef react-hooks/set-state-in-effect ve react-hooks/exhaustive-deps issue'larini gidermek.
+- Mevcut UI ve async loading davranisi korunacak.
+- next/image warning'i bu sprintte ele alinmayacak.
 
 ---
 

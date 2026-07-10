@@ -47,27 +47,33 @@ TÃ¼rkÃ§e Ã¶ncelikli AI destekli kiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosu
 
 ## Aktif Sprint
 
-**Sprint 70**
+**Sprint 71**
 
-Unused Vars and Imports Cleanup
+React Hook State and Effect Cleanup
 
 **Durum**
 
 Hazir
 
-Sprint 69 tamamlandi. react/no-unescaped-entities hatalari kapatildi ve TypeScript kontrolu gecti.
+Sprint 70 tamamlandi. Tum 10 @typescript-eslint/no-unused-vars warning'i kapatildi ve TypeScript kontrolu gecti.
 
-Sprint 70 icin yalnizca daha once belirlenen 10 @typescript-eslint/no-unused-vars warning'i ele alinacak.
+Sprint 71 icin yalnizca React hook/effect lint sorunlari ele alinacak.
 
 Kapsam:
 
-- Daha once tespit edilen 10 unused vars/imports warning'i
-- Placeholder/foundation amaci olan intentionally unused parametreler korunacak
+- src/components/HomeClient.tsx
+- src/components/assets/AssetGallery.tsx
+
+Hedef:
+
+- react-hooks/set-state-in-effect issue'larini gidermek
+- react-hooks/exhaustive-deps warning'ini gidermek
+- Mevcut UI ve async loading davranisini korumak
+- next/image issue'sunu bu sprintte ele almamak
 
 Not:
 
-- npm run lint Sprint 69 sonrasi yalnizca scope disi kalan 16 problem nedeniyle fail ediyor.
-- Kalan lint durumu: 4 errors, 12 warnings.
+- npm run lint Sprint 70 sonrasi 6 total problems rapor ediyor: 4 errors, 2 warnings.
 
 ---
 
@@ -575,23 +581,23 @@ BaÅŸarÄ±lÄ±.
 
 # Bir Sonraki Gorev
 
-# Sprint 70
-## Unused Vars and Imports Cleanup
+# Sprint 71
+## React Hook State and Effect Cleanup
 
 Amac:
 
-Daha once belirlenen 10 @typescript-eslint/no-unused-vars warning'ini davranis degistirmeden temizlemek.
+React hook/effect lint issue'larini mevcut UI ve async loading davranisini koruyarak temizlemek.
 
 Kapsam:
 
-- Yalnizca daha once tespit edilen 10 unused vars/imports warning'i
-- Placeholder/foundation amaci olan intentionally unused parametreler korunacak
+- src/components/HomeClient.tsx
+- src/components/assets/AssetGallery.tsx
 
 Plan:
 
-- Gercekten gereksiz import ve degiskenleri kaldirma
-- Intentionally unused parametrelerde mevcut foundation niyetini koruma
-- Davranis degisikligi yapmadan lint warning sayisini azaltma
+- react-hooks/set-state-in-effect issue'larini gidermek
+- react-hooks/exhaustive-deps warning'ini gidermek
+- next/image warning'ini bu sprintte ele almamak
 
 ---
 

@@ -3,6 +3,8 @@ import type { ThumbnailConcept } from "@/types/visual";
 
 export class ThumbnailConceptEngine {
   static createFallbackConcept(_style?: string): ThumbnailConcept {
+    void _style;
+
     return {
       title: "Historical Documentary Thumbnail",
       prompt:

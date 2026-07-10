@@ -8,6 +8,8 @@ export class MockImageProvider implements ImageProvider {
   async generateImage(
     _input: ImageGenerationInput,
   ): Promise<ImageGenerationResult> {
+    void _input;
+
     return {
       id: crypto.randomUUID(),
       provider: "mock",

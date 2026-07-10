@@ -11,6 +11,9 @@ export class AnimationPromptEngine {
     _scene?: SceneItem,
     _style?: string,
   ): string {
+    void _scene;
+    void _style;
+
     return fallbackPrompt;
   }
 
@@ -19,6 +22,9 @@ export class AnimationPromptEngine {
     _scene?: SceneItem,
     _style?: string,
   ): string {
+    void _scene;
+    void _style;
+
     return value?.trim() ? value : normalizedFallbackPrompt;
   }
 }

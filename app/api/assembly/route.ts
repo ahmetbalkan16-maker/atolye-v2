@@ -4,7 +4,6 @@ import { ProjectManager } from "@/lib/projects/ProjectManager";
 import type { AnimationData } from "@/types/animation";
 import type { AudioData } from "@/types/audio";
 import type { Project } from "@/types/project";
-import type { ResearchData } from "@/types/research";
 import type { SceneData } from "@/types/scene";
 import type { ScriptData } from "@/types/script";
 import type { VideoData } from "@/types/video";
@@ -28,7 +27,6 @@ export async function POST(req: Request) {
     const normalizedSlug = slug.trim();
     const [
       project,
-      _research,
       script,
       scenes,
       visuals,
@@ -37,7 +35,6 @@ export async function POST(req: Request) {
       audio,
     ] = await Promise.all([
       ProjectManager.getProject(normalizedSlug) as Promise<Project | null>,
-      ProjectManager.getResearch(normalizedSlug) as Promise<ResearchData | null>,
       ProjectManager.getScript(normalizedSlug) as Promise<ScriptData | null>,
       ProjectManager.getScenes(normalizedSlug) as Promise<SceneData | null>,
       ProjectManager.getVisuals(normalizedSlug) as Promise<VisualData | null>,

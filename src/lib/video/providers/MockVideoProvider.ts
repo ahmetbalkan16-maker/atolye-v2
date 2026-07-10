@@ -8,6 +8,8 @@ export class MockVideoProvider implements VideoProvider {
   async generateVideo(
     _input: VideoGenerationInput,
   ): Promise<VideoGenerationResult> {
+    void _input;
+
     return {
       provider: "mock",
       model: "mock-video-model",
