@@ -11,6 +11,7 @@ import { ThumbnailEngine } from "@/lib/thumbnail/ThumbnailEngine";
 import { VideoPipeline } from "@/lib/video/VideoPipeline";
 import { VisualManager } from "@/lib/visuals/VisualManager";
 import { YouTubeEngine } from "@/lib/youtube/YouTubeEngine";
+import { PipelineJobManager } from "./PipelineJobManager";
 import type { AnimationData } from "@/types/animation";
 import type { AssemblyPlanData } from "@/types/assembly";
 import type { AudioData } from "@/types/audio";
@@ -116,7 +117,7 @@ export class PipelineStageExecutor {
     projectSlug: string,
     stage: ProductionStepKey,
     state: PipelineExecutionState,
-  ): Promise<void> {
+  ): Promise<boolean> {
     switch (stage) {
       case "research":
         state.research = await AIManager.runResearch(state.project.title, {
@@ -124,8 +125,9 @@ export class PipelineStageExecutor {
           stage: "research",
           operation: "research",
         });
-        await ProjectManager.saveResearch(projectSlug, state.research);
-        return;
+        return this.persistStageResult(projectSlug, stage, () =>
+          ProjectManager.saveResearch(projectSlug, state.research),
+        );
 
       case "script":
         state.script = await AIManager.runScript(state.project.title, {
@@ -133,8 +135,9 @@ export class PipelineStageExecutor {
           stage: "script",
           operation: "script",
         });
-        await ProjectManager.saveScript(projectSlug, state.script);
-        return;
+        return this.persistStageResult(projectSlug, stage, () =>
+          ProjectManager.saveScript(projectSlug, state.script),
+        );
 
       case "scenes": {
         const script = requireStageInput(state.script, "script", stage);
@@ -143,8 +146,9 @@ export class PipelineStageExecutor {
           stage: "scenes",
           operation: "scenes",
         });
-        await ProjectManager.saveScenes(projectSlug, state.scenes);
-        return;
+        return this.persistStageResult(projectSlug, stage, () =>
+          ProjectManager.saveScenes(projectSlug, state.scenes),
+        );
       }
 
       case "visuals": {
@@ -159,8 +163,9 @@ export class PipelineStageExecutor {
             operation: "visuals",
           },
         });
-        await ProjectManager.saveVisuals(projectSlug, state.visuals);
-        return;
+        return this.persistStageResult(projectSlug, stage, () =>
+          ProjectManager.saveVisuals(projectSlug, state.visuals),
+        );
       }
 
       case "animation": {
@@ -187,8 +192,9 @@ export class PipelineStageExecutor {
           ...animationPlan,
           scenes: updatedScenes,
         };
-        await ProjectManager.saveAnimation(projectSlug, state.animation);
-        return;
+        return this.persistStageResult(projectSlug, stage, () =>
+          ProjectManager.saveAnimation(projectSlug, state.animation),
+        );
       }
 
       case "video": {
@@ -199,8 +205,9 @@ export class PipelineStageExecutor {
           animation,
         });
         state.video = video;
-        await ProjectManager.saveVideo(projectSlug, state.video);
-        return;
+        return this.persistStageResult(projectSlug, stage, () =>
+          ProjectManager.saveVideo(projectSlug, state.video),
+        );
       }
 
       case "audio": {
@@ -216,8 +223,9 @@ export class PipelineStageExecutor {
           audio: audioPlan,
         });
         state.audio = audio;
-        await ProjectManager.saveAudio(projectSlug, state.audio);
-        return;
+        return this.persistStageResult(projectSlug, stage, () =>
+          ProjectManager.saveAudio(projectSlug, state.audio),
+        );
       }
 
       case "assembly": {
@@ -243,8 +251,9 @@ export class PipelineStageExecutor {
             operation: "assembly-plan",
           },
         );
-        await ProjectManager.saveAssembly(projectSlug, state.assembly);
-        return;
+        return this.persistStageResult(projectSlug, stage, () =>
+          ProjectManager.saveAssembly(projectSlug, state.assembly),
+        );
       }
 
       case "thumbnail": {
@@ -259,8 +268,9 @@ export class PipelineStageExecutor {
           video,
           audio,
         });
-        await ProjectManager.saveThumbnail(projectSlug, state.thumbnail);
-        return;
+        return this.persistStageResult(projectSlug, stage, () =>
+          ProjectManager.saveThumbnail(projectSlug, state.thumbnail),
+        );
       }
 
       case "seo": {
@@ -276,8 +286,9 @@ export class PipelineStageExecutor {
             operation: "seo-plan",
           },
         );
-        await ProjectManager.saveSEO(projectSlug, state.seo);
-        return;
+        return this.persistStageResult(projectSlug, stage, () =>
+          ProjectManager.saveSEO(projectSlug, state.seo),
+        );
       }
 
       case "youtube": {
@@ -294,8 +305,9 @@ export class PipelineStageExecutor {
           assembly,
           thumbnail,
         });
-        await ProjectManager.saveYouTube(projectSlug, state.youtube);
-        return;
+        return this.persistStageResult(projectSlug, stage, () =>
+          ProjectManager.saveYouTube(projectSlug, state.youtube),
+        );
       }
 
       case "export": {
@@ -317,10 +329,19 @@ export class PipelineStageExecutor {
           youtube,
           seo,
         });
-        await ProjectManager.saveExport(projectSlug, state.exportPackage);
-        return;
+        return this.persistStageResult(projectSlug, stage, () =>
+          ProjectManager.saveExport(projectSlug, state.exportPackage),
+        );
       }
     }
+  }
+
+  private static async persistStageResult(
+    projectSlug: string,
+    stage: ProductionStepKey,
+    persist: () => Promise<void>,
+  ) {
+    return PipelineJobManager.persistStageSuccess(projectSlug, stage, persist);
   }
 }
 

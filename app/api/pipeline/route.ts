@@ -17,6 +17,18 @@ export async function POST(req: Request) {
 
     const result = await PipelineRunner.run(topic.trim());
 
+    if (result.stopReason) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: result.stopReason,
+          slug: result.slug,
+          projectUrl: `/project/${result.slug}`,
+        },
+        { status: 409 },
+      );
+    }
+
     return NextResponse.json({
       success: true,
       slug: result.slug,

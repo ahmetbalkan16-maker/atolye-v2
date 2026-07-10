@@ -47,41 +47,36 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 81**
+**Sprint 83**
 
-Pipeline Intelligence Foundation
+Pipeline Job State Consistency
 
 **Durum**
 
 Completed
 
-Sprint 81 tamamlandi.
+Sprint 83 tamamlandi.
 
-- Client-side Pipeline Intelligence eklendi.
-- History ve jobs verilerinden derived metrikler uretildi.
-- Success Rate, Failures, Average Duration, Last Event ve Queue Health gosteriliyor.
-- Intelligence paneli history bos olsa bile render ediliyor.
-- API, PipelineJobManager ve contract degismedi.
-- TypeScript ve smoke test basarili gecti.
-
-Kapsam:
-
-- Project workspace production surfaces
-- Pipeline status / queue / jobs gorunumu
-- AssetGallery preview ve asset reload davranisi
-- Recent lint hardening sonrasi UI regresyon kontrolu
-
-Hedef:
-
-- Manuel browser/UI smoke validation yapmak
-- Davranis degisikligi yapmadan regresyon risklerini kaydetmek
-- Bulgu varsa sonraki kucuk sprintlere ayirmak
+- Merkezi ve kuralli job state transition modeli eklendi.
+- queued -> running/cancelled, running -> completed/failed/cancelled, failed/cancelled -> queued retry akisi tanimlandi.
+- completed durumu terminal olarak korundu.
+- cancelRequestedAt kalici olarak saklanir; retry attempt'i artirir ve cancellation bilgisini temizler.
+- Proje bazli async lock ve cancellation-aware persistence coordinator eklendi.
+- startStage, persistStageSuccess, persistStageFailure ve persistProjectCompletion coordinator uzerinden calisir.
+- PipelineStageExecutor persist akislari coordinator'a baglandi.
+- Scheduler cancelled job durumunu manifest durumundan daha otoriter kabul eder.
+- Cancellation stop reason runner ve API seviyesine tasindi.
+- Cancelled execution sonrasi stage output, manifest completed/failed ve proje completed yazilmasi engellendi.
+- Manuel API save yollari pipeline job state'inden ayri tutuldu.
+- TypeScript validation, final code review ve tum runtime smoke senaryolari basarili.
+- Gecici smoke fixture ve harness dosyalari temizlendi.
 
 Not:
 
-- npm run lint Sprint 72 sonrasi 0 errors ve 0 warnings ile geciyor.
-- npx tsc --noEmit Sprint 72 icin gecti.
-- Sprint 72 icinde manuel browser/UI testi yapilmadi.
+- Lock yalnizca process-local calisir.
+- Dosya yazimlari gercek transaction degildir.
+- Ayni projede paralel manuel save ve pipeline execution icin ileride revision/transaction tabanli iyilestirme gerekebilir.
+- Cancel uzun suren AI/asset uretimini fiziksel olarak durdurmaz; yalnizca sonucu persist etmeyi engeller.
 
 ---
 
@@ -714,6 +709,33 @@ Plan:
 
 ---
 
+# Sprint 83
+## Pipeline Job State Consistency
+
+Durum:
+Completed
+
+Kapsam:
+
+- Job transition modeli: queued -> running/cancelled, running -> completed/failed/cancelled, failed/cancelled -> queued.
+- completed terminal state olarak korunur.
+- cancelRequestedAt cancel istegini kaydeder; retry attempt'i artirir ve bu bilgiyi temizler.
+- startStage, persistStageSuccess, persistStageFailure ve persistProjectCompletion proje bazli async lock kullanir.
+- PipelineStageExecutor persistence coordinator uzerinden output/manifest/job sonucunu yazar.
+- Cancelled execution stage output, manifest completed/failed ve proje completed durumunu persist edemez.
+- Scheduler cancelled job durumunu manifest durumundan daha otoriter kabul eder.
+- Cancellation stop reason runner ve /api/pipeline seviyesine tasinir.
+- Manuel API save yollari job state'i degistirmez ve cancelled queue yeniden baslatilmaz.
+- TypeScript validation, final review ve runtime smoke testleri basarili; fixture/harness temizlendi.
+
+Kalan riskler:
+
+- Lock process-localdir; filesystem yazimlari transaction degildir.
+- Paralel manuel save/pipeline execution icin ileride revision/transaction tabanli iyilestirme gerekebilir.
+- Cancel uzun suren AI/asset uretimini fiziksel olarak durdurmaz.
+
+---
+
 # Sprint 81
 ## Pipeline Intelligence Foundation
 
@@ -780,6 +802,10 @@ Plan:
 - Sprint 45 başlamadan önce assembly çıktıları örnek projede doğrulanmalı.
 - Assembly gerçek render üretmemeli; yalnızca render planı hazırlamalı.
 - Video/audio/animation aktif asset referansları korunmalı.
+- Sprint 83 lock'u yalnizca process-localdir.
+- Dosya yazimlari gercek transaction degildir.
+- Ayni proje icin paralel manuel save ve pipeline execution gelecekte revision/transaction tabanli olarak sertlestirilmeli.
+- Cancel uzun suren AI/asset uretimini durdurmaz; sonucu persist etmeyi engeller.
 
 ---
 

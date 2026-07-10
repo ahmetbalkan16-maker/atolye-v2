@@ -22,6 +22,17 @@ const pipelineJobStatuses = [
   "cancelled",
 ] as const;
 
+const allowedStateTransitions: Record<
+  PipelineJobStatus,
+  readonly PipelineJobStatus[]
+> = {
+  queued: ["running", "cancelled"],
+  running: ["completed", "failed", "cancelled"],
+  completed: [],
+  failed: ["queued"],
+  cancelled: ["queued"],
+};
+
 const stageLabels: Record<ProductionStepKey, string> = {
   research: "Research",
   script: "Script",
@@ -38,6 +49,8 @@ const stageLabels: Record<ProductionStepKey, string> = {
 };
 
 export class PipelineJobManager {
+  private static projectLocks = new Map<string, Promise<void>>();
+
   static async listJobs(projectSlug: string): Promise<PipelineJobList> {
     const current = await this.readJobList(projectSlug);
 
@@ -52,48 +65,172 @@ export class PipelineJobManager {
     return this.readHistory(projectSlug);
   }
 
-  static async markStageRunning(
+  static async persistStageSuccess(
     projectSlug: string,
     stage: ProductionStepKey,
-  ): Promise<PipelineJobList> {
-    return this.updateStageJob(projectSlug, stage, (job, now) => ({
-      ...job,
-      status: "running",
-      updatedAt: now,
-      startedAt: now,
-      completedAt: undefined,
-      error: undefined,
-    }));
+    persist: () => Promise<void>,
+  ): Promise<boolean> {
+    return this.withProjectLock(projectSlug, async () => {
+      const current = await this.listJobs(projectSlug);
+      const job = current.jobs.find(
+        (item) => item.id === getJobId(projectSlug, stage),
+      );
+
+      if (!this.canPersistStageResult(job)) {
+        return false;
+      }
+
+      await persist();
+      await this.transitionStageJobUnlocked(
+        projectSlug,
+        stage,
+        "completed",
+        (currentJob, now) => ({
+          ...currentJob,
+          status: "completed",
+          updatedAt: now,
+          completedAt: now,
+          error: undefined,
+        }),
+      );
+
+      return true;
+    });
   }
 
-  static async markStageCompleted(
+  static async startStage(
     projectSlug: string,
     stage: ProductionStepKey,
-  ): Promise<PipelineJobList> {
-    return this.updateStageJob(projectSlug, stage, (job, now) => ({
-      ...job,
-      status: "completed",
-      updatedAt: now,
-      completedAt: now,
-      error: undefined,
-    }));
+    persist: () => Promise<void>,
+  ): Promise<boolean> {
+    return this.withProjectLock(projectSlug, async () => {
+      const current = await this.listJobs(projectSlug);
+      const job = current.jobs.find(
+        (item) => item.id === getJobId(projectSlug, stage),
+      );
+
+      if (!job || !this.canTransition(job.status, "running")) {
+        return false;
+      }
+
+      await persist();
+      await this.transitionStageJobUnlocked(
+        projectSlug,
+        stage,
+        "running",
+        (currentJob, now) => ({
+          ...currentJob,
+          status: "running",
+          updatedAt: now,
+          startedAt: now,
+          completedAt: undefined,
+          cancelRequestedAt: undefined,
+          error: undefined,
+        }),
+      );
+
+      return true;
+    });
   }
 
-  static async markStageFailed(
+  static async persistStageFailure(
     projectSlug: string,
     stage: ProductionStepKey,
+    persist: () => Promise<void>,
     error: string,
-  ): Promise<PipelineJobList> {
-    return this.updateStageJob(projectSlug, stage, (job, now) => ({
-      ...job,
-      status: "failed",
-      updatedAt: now,
-      completedAt: now,
-      error,
-    }));
+  ): Promise<boolean> {
+    return this.withProjectLock(projectSlug, async () => {
+      const current = await this.listJobs(projectSlug);
+      const job = current.jobs.find(
+        (item) => item.id === getJobId(projectSlug, stage),
+      );
+
+      if (!this.canPersistStageResult(job)) {
+        return false;
+      }
+
+      await persist();
+      await this.transitionStageJobUnlocked(
+        projectSlug,
+        stage,
+        "failed",
+        (currentJob, now) => ({
+          ...currentJob,
+          status: "failed",
+          updatedAt: now,
+          completedAt: now,
+          error,
+        }),
+      );
+
+      return true;
+    });
+  }
+
+  static async persistProjectCompletion(
+    projectSlug: string,
+    persist: () => Promise<void>,
+  ): Promise<boolean> {
+    return this.withProjectLock(projectSlug, async () => {
+      const current = await this.listJobs(projectSlug);
+      const hasBlockingJob = current.jobs.some(
+        (job) => job.status !== "completed",
+      );
+
+      if (hasBlockingJob) {
+        return false;
+      }
+
+      await persist();
+
+      return true;
+    });
+  }
+
+  static async queueStageRetry(
+    projectSlug: string,
+    stage: ProductionStepKey,
+  ): Promise<boolean> {
+    return this.withProjectLock(projectSlug, async () => {
+      const current = await this.listJobs(projectSlug);
+      const jobId = getJobId(projectSlug, stage);
+      const job = current.jobs.find((item) => item.id === jobId);
+
+      if (!job) {
+        return false;
+      }
+
+      if (job.status === "queued") {
+        return true;
+      }
+
+      if (!this.canTransition(job.status, "queued")) {
+        return false;
+      }
+
+      const now = new Date().toISOString();
+      const nextJob = this.retryJob(job, now);
+      await this.writeJobList(projectSlug, {
+        ...current,
+        jobs: current.jobs.map((item) => (item.id === jobId ? nextJob : item)),
+        updatedAt: now,
+      });
+
+      return true;
+    });
   }
 
   static async applyAction(
+    projectSlug: string,
+    jobId: string,
+    action: PipelineJobAction,
+  ): Promise<PipelineJobActionResult> {
+    return this.withProjectLock(projectSlug, () =>
+      this.applyActionUnlocked(projectSlug, jobId, action),
+    );
+  }
+
+  private static async applyActionUnlocked(
     projectSlug: string,
     jobId: string,
     action: PipelineJobAction,
@@ -109,7 +246,9 @@ export class PipelineJobManager {
       };
     }
 
-    if (!this.canApplyAction(job.status, action)) {
+    const nextStatus = action === "cancel" ? "cancelled" : "queued";
+
+    if (!this.canTransition(job.status, nextStatus)) {
       return {
         success: false,
         status: 409,
@@ -158,6 +297,7 @@ export class PipelineJobManager {
       status: "cancelled",
       updatedAt: now,
       completedAt: now,
+      cancelRequestedAt: now,
     };
   }
 
@@ -173,34 +313,35 @@ export class PipelineJobManager {
       updatedAt: now,
       startedAt: undefined,
       completedAt: undefined,
+      cancelRequestedAt: undefined,
       error: undefined,
     };
   }
 
-  private static canApplyAction(
-    status: PipelineJobStatus,
-    action: PipelineJobAction,
+  private static canTransition(
+    currentStatus: PipelineJobStatus,
+    nextStatus: PipelineJobStatus,
   ) {
-    if (action === "cancel") {
-      return status === "queued" || status === "running";
-    }
-
-    return status === "failed" || status === "cancelled";
+    return allowedStateTransitions[currentStatus].includes(nextStatus);
   }
 
-  private static async updateStageJob(
+  private static async transitionStageJobUnlocked(
     projectSlug: string,
     stage: ProductionStepKey,
+    nextStatus: PipelineJobStatus,
     update: (job: PipelineJob, now: string) => PipelineJob,
   ): Promise<PipelineJobList> {
     const current = await this.listJobs(projectSlug);
     const now = new Date().toISOString();
     const jobId = getJobId(projectSlug, stage);
     const existingJob = current.jobs.find((job) => job.id === jobId);
-    const nextJob = update(
-      existingJob ?? this.createJob(projectSlug, stage, now),
-      now,
-    );
+    const currentJob = existingJob ?? this.createJob(projectSlug, stage, now);
+
+    if (!this.canTransition(currentJob.status, nextStatus)) {
+      return current;
+    }
+
+    const nextJob = update(currentJob, now);
     const jobs = existingJob
       ? current.jobs.map((job) => (job.id === jobId ? nextJob : job))
       : [...current.jobs, nextJob];
@@ -214,6 +355,34 @@ export class PipelineJobManager {
     await this.recordHistoryEvent(projectSlug, nextJob, now);
 
     return nextJobs;
+  }
+
+  private static canPersistStageResult(job: PipelineJob | undefined) {
+    return job?.status === "running" && !job.cancelRequestedAt;
+  }
+
+  private static async withProjectLock<T>(
+    projectSlug: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    let releaseCurrentLock: (() => void) | undefined;
+    const currentLock = new Promise<void>((resolve) => {
+      releaseCurrentLock = resolve;
+    });
+    const previousLock = this.projectLocks.get(projectSlug);
+
+    this.projectLocks.set(projectSlug, currentLock);
+    await previousLock;
+
+    try {
+      return await operation();
+    } finally {
+      releaseCurrentLock?.();
+
+      if (this.projectLocks.get(projectSlug) === currentLock) {
+        this.projectLocks.delete(projectSlug);
+      }
+    }
   }
 
   private static createJob(

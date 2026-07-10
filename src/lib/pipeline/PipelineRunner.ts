@@ -24,13 +24,22 @@ export class PipelineRunner {
     const state = PipelineStageExecutor.createInitialState(project);
 
     try {
-      await this.runScheduledStages(slug, pipelineRecoveryStageOrder, state);
+      const { stopReason } = await this.runScheduledStages(
+        slug,
+        pipelineRecoveryStageOrder,
+        state,
+      );
 
-      await ProjectManager.updateStatus(slug, "completed");
+      if (!stopReason) {
+        await PipelineJobManager.persistProjectCompletion(slug, async () => {
+          await ProjectManager.updateStatus(slug, "completed");
+        });
+      }
 
       return {
-        success: true,
+        success: !stopReason,
         slug,
+        stopReason,
         project,
         research: state.research,
         script: state.script,
@@ -92,7 +101,7 @@ export class PipelineRunner {
       "resume",
     );
 
-    if (completedStages.length === 0 && stopReason) {
+    if (stopReason) {
       return {
         success: false,
         projectSlug,
@@ -108,7 +117,12 @@ export class PipelineRunner {
       const exportCompleted = await this.isStageCompleted(projectSlug, "export");
 
       if (exportCompleted) {
-        await ProjectManager.updateStatus(projectSlug, "completed");
+        await PipelineJobManager.persistProjectCompletion(
+          projectSlug,
+          async () => {
+            await ProjectManager.updateStatus(projectSlug, "completed");
+          },
+        );
       }
     }
 
@@ -157,7 +171,41 @@ export class PipelineRunner {
       };
     }
 
-    await this.runPipelineStage(projectSlug, stage, state, "retry");
+    const queued = await PipelineJobManager.queueStageRetry(
+      projectSlug,
+      stage,
+    );
+
+    if (!queued) {
+      return {
+        success: false,
+        projectSlug,
+        retriedStage: stage,
+        completedStages: [],
+        blocked: true,
+        reason: `Stage "${stage}" could not be queued for retry.`,
+        plan,
+      };
+    }
+
+    const completed = await this.runPipelineStage(
+      projectSlug,
+      stage,
+      state,
+      "retry",
+    );
+
+    if (!completed) {
+      return {
+        success: false,
+        projectSlug,
+        retriedStage: stage,
+        completedStages: [],
+        blocked: true,
+        reason: `Stage "${stage}" was cancelled.`,
+        plan,
+      };
+    }
 
     return {
       success: true,
@@ -208,39 +256,68 @@ export class PipelineRunner {
         };
       }
 
-      await this.runPipelineStage(slug, next.stage, state, runType);
+      const completed = await this.runPipelineStage(
+        slug,
+        next.stage,
+        state,
+        runType,
+      );
+
+      if (!completed) {
+        return {
+          completedStages,
+          stopReason: `Stage "${next.stage}" was cancelled.`,
+        };
+      }
+
       completedStages.push(next.stage);
     }
   }
 
-  private static async runStage<T>(
+  private static async runStage(
     slug: string,
     stage: ProductionStepKey,
-    action: () => Promise<T>,
+    action: () => Promise<boolean>,
     runType: ProjectPackageRunType,
-  ): Promise<T> {
-    await ProjectManager.updateStatus(slug, stage as ProjectStatus);
-    await ProjectManager.updatePackageStatus(
+  ): Promise<boolean> {
+    const started = await PipelineJobManager.startStage(
       slug,
       stage,
-      "running",
-      undefined,
-      { runType },
+      async () => {
+        await ProjectManager.updateStatus(slug, stage as ProjectStatus);
+        await ProjectManager.updatePackageStatus(
+          slug,
+          stage,
+          "running",
+          undefined,
+          { runType },
+        );
+      },
     );
-    await PipelineJobManager.markStageRunning(slug, stage);
+
+    if (!started) {
+      return false;
+    }
 
     try {
-      const result = await action();
-
-      await PipelineJobManager.markStageCompleted(slug, stage);
-
-      return result;
+      return await action();
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Pipeline stage failed.";
 
-      await ProjectManager.updatePackageStatus(slug, stage, "failed", message);
-      await PipelineJobManager.markStageFailed(slug, stage, message);
+      await PipelineJobManager.persistStageFailure(
+        slug,
+        stage,
+        async () => {
+          await ProjectManager.updatePackageStatus(
+            slug,
+            stage,
+            "failed",
+            message,
+          );
+        },
+        message,
+      );
       console.error("[PipelineRunner] Stage failed:", {
         slug,
         stage,

@@ -532,6 +532,27 @@ Tamamlandi
 - TypeScript ve smoke test basarili gecti.
 
 ---
+### Pipeline Job State Consistency
+
+Tamamlandi
+
+- Merkezi transition modeli eklendi: queued -> running/cancelled, running -> completed/failed/cancelled ve failed/cancelled -> queued retry.
+- completed durumu terminal olarak korunur.
+- cancelRequestedAt alanı cancel istegini kalici olarak kaydeder.
+- Retry attempt'i artirir ve cancellation bilgisini temizler.
+- Proje bazli async lock ile cancellation-aware persistence coordinator eklendi.
+- startStage, persistStageSuccess, persistStageFailure ve persistProjectCompletion ortak persistence sinirini olusturur.
+- PipelineStageExecutor stage output/manifest/job persistence akislari coordinator uzerinden calisir.
+- Scheduler cancelled job durumunu manifest completed durumundan once degerlendirir.
+- Cancellation stop reason runner ve /api/pipeline seviyesine tasindi.
+- Cancelled execution sonrasi stage output, manifest completed/failed ve proje completed durumu yazilmaz.
+- Manuel API save yollari pipeline job state'inden ayri tutulur; cancelled queue yeniden baslatilmaz.
+- TypeScript validation ve final code review basarili.
+- Runtime smoke senaryolari basarili; gecici fixture ve harness dosyalari temizlendi.
+- Kalan riskler: lock process-localdir, dosya yazimlari transaction degildir, paralel manuel save/pipeline execution icin ileride revision/transaction iyilestirmesi gerekebilir ve cancel uzun suren AI/asset uretimini fiziksel olarak durdurmaz.
+
+---
+
 ### Existing Lint Issues Cleanup Planning
 
 Tamamlandi

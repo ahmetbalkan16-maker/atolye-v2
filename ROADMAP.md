@@ -39,7 +39,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 81
+Sprint 83
 
 ---
 
@@ -684,6 +684,37 @@ Her sprint;
 - bağımsız tamamlanabilmeli
 - TypeScript testi geçmeli
 - mevcut sistemi bozmamalı
+
+---
+
+# Sprint 83
+
+## Pipeline Job State Consistency
+
+Completed
+
+- Merkezi ve kuralli job transition modeli eklendi:
+  - queued -> running/cancelled
+  - running -> completed/failed/cancelled
+  - failed/cancelled -> queued retry
+- completed durumu terminal olarak korundu.
+- cancelRequestedAt kalici olarak kaydedilir; retry attempt'i artirir ve cancellation bilgisini temizler.
+- Proje bazli async lock ile cancellation-aware persistence coordinator eklendi.
+- startStage, persistStageSuccess, persistStageFailure ve persistProjectCompletion ortak persistence sinirini olusturur.
+- PipelineStageExecutor persist akislari coordinator uzerinden gecirildi.
+- Scheduler cancelled job durumunu manifest completed durumundan once degerlendirir.
+- Cancellation stop reason runner ve /api/pipeline seviyesine tasindi.
+- Cancelled execution sonrasi stage output, manifest completed/failed ve proje completed durumu persist edilmez.
+- Manuel API save yollari job state'inden ayri tutulur; cancelled queue yeniden baslatilmaz.
+- TypeScript validation, final code review ve tum runtime smoke senaryolari basarili.
+- Gecici smoke fixture ve harness dosyalari temizlendi.
+
+Kalan riskler:
+
+- Lock process-localdir.
+- Dosya yazimlari gercek transaction degildir.
+- Paralel manuel save/pipeline execution icin ileride revision/transaction tabanli iyilestirme gerekebilir.
+- Cancel uzun suren AI/asset uretimini fiziksel olarak durdurmaz; sonucu persist etmeyi engeller.
 
 ---
 

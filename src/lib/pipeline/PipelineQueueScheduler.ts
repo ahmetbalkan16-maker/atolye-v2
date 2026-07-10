@@ -39,6 +39,13 @@ export class PipelineQueueScheduler {
       const job = jobList.jobs.find((item) => item.stage === stage);
       const jobStatus = job?.status;
 
+      if (jobStatus === "cancelled") {
+        return {
+          stage: null,
+          reason: `Stage "${stage}" is cancelled.`,
+        };
+      }
+
       if (packageStatus === "completed" || jobStatus === "completed") {
         continue;
       }
@@ -47,13 +54,6 @@ export class PipelineQueueScheduler {
         return {
           stage: null,
           reason: `Stage "${stage}" is failed and requires manual retry.`,
-        };
-      }
-
-      if (jobStatus === "cancelled") {
-        return {
-          stage: null,
-          reason: `Stage "${stage}" is cancelled.`,
         };
       }
 

@@ -24,6 +24,7 @@ export interface PipelineJob {
   updatedAt: string;
   startedAt?: string;
   completedAt?: string;
+  cancelRequestedAt?: string;
   error?: string;
 }
 
