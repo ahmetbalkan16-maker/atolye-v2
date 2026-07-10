@@ -520,6 +520,18 @@ Tamamlandi
 - npx tsc --noEmit passed.
 
 ---
+### Pipeline Intelligence Foundation
+
+Tamamlandi
+
+- Client-side Pipeline Intelligence eklendi.
+- History ve jobs verilerinden derived metrikler uretildi.
+- Success Rate, Failures, Average Duration, Last Event ve Queue Health gosteriliyor.
+- Intelligence paneli history bos olsa bile render ediliyor.
+- API, PipelineJobManager ve contract degismedi.
+- TypeScript ve smoke test basarili gecti.
+
+---
 ### Existing Lint Issues Cleanup Planning
 
 Tamamlandi

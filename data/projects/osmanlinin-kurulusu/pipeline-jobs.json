@@ -1,0 +1,127 @@
+{
+  "projectSlug": "osmanlinin-kurulusu",
+  "jobs": [
+    {
+      "id": "osmanlinin-kurulusu-research",
+      "projectSlug": "osmanlinin-kurulusu",
+      "stage": "research",
+      "title": "Research",
+      "status": "completed",
+      "attempts": 0,
+      "createdAt": "2026-07-08T21:56:25.628Z",
+      "updatedAt": "2026-07-08T21:56:25.628Z"
+    },
+    {
+      "id": "osmanlinin-kurulusu-script",
+      "projectSlug": "osmanlinin-kurulusu",
+      "stage": "script",
+      "title": "Script",
+      "status": "completed",
+      "attempts": 0,
+      "createdAt": "2026-07-08T21:56:25.663Z",
+      "updatedAt": "2026-07-08T21:56:25.663Z"
+    },
+    {
+      "id": "osmanlinin-kurulusu-scenes",
+      "projectSlug": "osmanlinin-kurulusu",
+      "stage": "scenes",
+      "title": "Scene Planning",
+      "status": "completed",
+      "attempts": 0,
+      "createdAt": "2026-07-08T21:56:25.688Z",
+      "updatedAt": "2026-07-08T21:56:25.688Z"
+    },
+    {
+      "id": "osmanlinin-kurulusu-visuals",
+      "projectSlug": "osmanlinin-kurulusu",
+      "stage": "visuals",
+      "title": "Visual Production",
+      "status": "completed",
+      "attempts": 0,
+      "createdAt": "2026-07-08T21:56:25.717Z",
+      "updatedAt": "2026-07-08T21:56:25.717Z"
+    },
+    {
+      "id": "osmanlinin-kurulusu-animation",
+      "projectSlug": "osmanlinin-kurulusu",
+      "stage": "animation",
+      "title": "Animation",
+      "status": "completed",
+      "attempts": 0,
+      "createdAt": "2026-07-08T21:56:25.752Z",
+      "updatedAt": "2026-07-08T21:56:25.752Z"
+    },
+    {
+      "id": "osmanlinin-kurulusu-video",
+      "projectSlug": "osmanlinin-kurulusu",
+      "stage": "video",
+      "title": "Video",
+      "status": "completed",
+      "attempts": 0,
+      "createdAt": "2026-07-08T21:56:25.775Z",
+      "updatedAt": "2026-07-08T21:56:25.775Z"
+    },
+    {
+      "id": "osmanlinin-kurulusu-audio",
+      "projectSlug": "osmanlinin-kurulusu",
+      "stage": "audio",
+      "title": "Audio",
+      "status": "completed",
+      "attempts": 0,
+      "createdAt": "2026-07-08T21:56:25.801Z",
+      "updatedAt": "2026-07-08T21:56:25.801Z"
+    },
+    {
+      "id": "osmanlinin-kurulusu-assembly",
+      "projectSlug": "osmanlinin-kurulusu",
+      "stage": "assembly",
+      "title": "Video Editing",
+      "status": "completed",
+      "attempts": 0,
+      "createdAt": "2026-07-08T21:56:25.840Z",
+      "updatedAt": "2026-07-08T21:56:25.840Z"
+    },
+    {
+      "id": "osmanlinin-kurulusu-thumbnail",
+      "projectSlug": "osmanlinin-kurulusu",
+      "stage": "thumbnail",
+      "title": "Thumbnail",
+      "status": "completed",
+      "attempts": 0,
+      "createdAt": "2026-07-08T21:56:25.861Z",
+      "updatedAt": "2026-07-08T21:56:25.861Z"
+    },
+    {
+      "id": "osmanlinin-kurulusu-seo",
+      "projectSlug": "osmanlinin-kurulusu",
+      "stage": "seo",
+      "title": "SEO",
+      "status": "completed",
+      "attempts": 0,
+      "createdAt": "2026-07-08T21:56:25.882Z",
+      "updatedAt": "2026-07-08T21:56:25.882Z"
+    },
+    {
+      "id": "osmanlinin-kurulusu-youtube",
+      "projectSlug": "osmanlinin-kurulusu",
+      "stage": "youtube",
+      "title": "Publishing",
+      "status": "completed",
+      "attempts": 0,
+      "createdAt": "2026-07-08T21:56:25.902Z",
+      "updatedAt": "2026-07-08T21:56:25.902Z"
+    },
+    {
+      "id": "osmanlinin-kurulusu-export",
+      "projectSlug": "osmanlinin-kurulusu",
+      "stage": "export",
+      "title": "Export",
+      "status": "completed",
+      "attempts": 0,
+      "createdAt": "2026-07-08T21:56:25.921Z",
+      "updatedAt": "2026-07-08T21:56:25.921Z"
+    }
+  ],
+  "createdAt": "2026-07-10T10:05:39.943Z",
+  "updatedAt": "2026-07-10T10:05:39.958Z"
+}

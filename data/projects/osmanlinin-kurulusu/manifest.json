@@ -3,9 +3,9 @@
     "id": "3ab5a04d-43fe-4aa8-83ba-9140ae7f1b9b",
     "slug": "osmanlinin-kurulusu",
     "title": "osmanlının kuruluşu",
-    "status": "export",
+    "status": "completed",
     "createdAt": "2026-07-08T21:56:25.574Z",
-    "updatedAt": "2026-07-08T21:56:25.906Z"
+    "updatedAt": "2026-07-08T21:56:25.924Z"
   },
   "projectId": "3ab5a04d-43fe-4aa8-83ba-9140ae7f1b9b",
   "slug": "osmanlinin-kurulusu",
@@ -39,7 +39,8 @@
       "key": "animation",
       "status": "completed",
       "fileName": "animation.json",
-      "updatedAt": "2026-07-08T21:56:25.752Z"
+      "updatedAt": "2026-07-10T10:06:23.407Z",
+      "completedAt": "2026-07-10T10:06:23.407Z"
     },
     "video": {
       "key": "video",
@@ -85,5 +86,5 @@
     }
   },
   "createdAt": "2026-07-08T21:56:25.574Z",
-  "updatedAt": "2026-07-08T21:56:25.921Z"
+  "updatedAt": "2026-07-10T10:06:23.407Z"
 }

@@ -47,24 +47,22 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 80**
+**Sprint 81**
 
-Pipeline Execution Timeline Foundation
+Pipeline Intelligence Foundation
 
 **Durum**
 
 Completed
 
-Sprint 80 tamamlandi.
+Sprint 81 tamamlandi.
 
-- Improved execution history UI into timeline-style viewer.
-- Sorted history events by timestamp.
-- Displayed event time information clearly.
-- Added status visualization for completed, failed and cancelled events.
-- Existing loading, empty and error states preserved.
-- Existing job actions and API contracts preserved.
-- PipelineJobManager unchanged.
-- TypeScript validation passed.
+- Client-side Pipeline Intelligence eklendi.
+- History ve jobs verilerinden derived metrikler uretildi.
+- Success Rate, Failures, Average Duration, Last Event ve Queue Health gosteriliyor.
+- Intelligence paneli history bos olsa bile render ediliyor.
+- API, PipelineJobManager ve contract degismedi.
+- TypeScript ve smoke test basarili gecti.
 
 Kapsam:
 
@@ -713,6 +711,24 @@ Plan:
 - Existing job actions ve API contracts preserved.
 - PipelineJobManager unchanged.
 - npx tsc --noEmit passed.
+
+---
+
+# Sprint 81
+## Pipeline Intelligence Foundation
+
+Amac:
+
+Pipeline history ve jobs state'lerinden client-side derived intelligence uretmek.
+
+Plan:
+
+- Client-side Pipeline Intelligence eklendi.
+- History ve jobs verilerinden derived metrikler uretildi.
+- Success Rate, Failures, Average Duration, Last Event ve Queue Health gosteriliyor.
+- Intelligence paneli history bos olsa bile render ediliyor.
+- API, PipelineJobManager ve contract degismedi.
+- TypeScript ve smoke test basarili gecti.
 
 ---
 

@@ -1,0 +1,21 @@
+{
+  "projectSlug": "unknown",
+  "records": [
+    {
+      "id": "e3df466b-f1f1-4622-ba30-16ff754a082e",
+      "projectSlug": "unknown",
+      "stage": "animation",
+      "operation": "animation-prompt-scene-1",
+      "provider": "mock",
+      "model": "mock-ai-provider",
+      "status": "fallback",
+      "fallbackUsed": true,
+      "durationMs": 0,
+      "promptLength": 1267,
+      "responseLength": 0,
+      "createdAt": "2026-07-10T10:06:23.395Z"
+    }
+  ],
+  "createdAt": "2026-07-10T10:06:23.395Z",
+  "updatedAt": "2026-07-10T10:06:23.395Z"
+}

@@ -37,6 +37,16 @@ type JobActionState = {
   action: PipelineJobAction;
 };
 
+type PipelineHistoryInsights = {
+  totalTerminalEvents: number;
+  completedCount: number;
+  failedCount: number;
+  successRate?: number;
+  lastTerminalEvent?: PipelineJobHistoryEvent;
+  averageDurationMs?: number;
+  queueHealth: string;
+};
+
 const pipelineJobStatuses = [
   "queued",
   "running",
@@ -384,6 +394,7 @@ export default function PipelineJobsPanel({
   const summary = createJobSummary(jobs);
   const actionLocked = Boolean(actionState);
   const sortedHistory = sortHistoryEvents(history);
+  const historyInsights = createHistoryInsights(history, jobs, nowMs);
 
   return (
     <StudioCard title="Pipeline Queue / Jobs">
@@ -451,20 +462,60 @@ export default function PipelineJobsPanel({
             <p className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-500">
               Execution history yukleniyor.
             </p>
-          ) : !historyError && history.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-500">
-              Bu proje icin execution history kaydi yok.
-            </p>
           ) : !historyError ? (
-            <div className="space-y-3 border-l border-zinc-800 pl-4">
-              {sortedHistory.map((event) => (
-                <HistoryRow key={event.id} event={event} />
-              ))}
-            </div>
+            <>
+              <PipelineIntelligence insights={historyInsights} />
+              {history.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-500">
+                  Bu proje icin execution history kaydi yok.
+                </p>
+              ) : (
+                <div className="space-y-3 border-l border-zinc-800 pl-4">
+                  {sortedHistory.map((event) => (
+                    <HistoryRow key={event.id} event={event} />
+                  ))}
+                </div>
+              )}
+            </>
           ) : null}
         </section>
       </div>
     </StudioCard>
+  );
+}
+
+function PipelineIntelligence({
+  insights,
+}: {
+  insights: PipelineHistoryInsights;
+}) {
+  return (
+    <div className="mb-4 rounded-lg border border-zinc-800 bg-zinc-950 p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h4 className="text-sm font-semibold text-zinc-100">
+          Pipeline Intelligence
+        </h4>
+        <span className="text-xs text-zinc-500">
+          {insights.totalTerminalEvents} terminal events
+        </span>
+      </div>
+      <div className="grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-5">
+        <JobDetail
+          label="Success Rate"
+          value={formatOptionalPercent(insights.successRate)}
+        />
+        <JobDetail label="Failures" value={formatNumber(insights.failedCount)} />
+        <JobDetail
+          label="Average Duration"
+          value={formatOptionalDuration(insights.averageDurationMs)}
+        />
+        <JobDetail
+          label="Last Event"
+          value={formatLastHistoryEvent(insights.lastTerminalEvent)}
+        />
+        <JobDetail label="Queue Health" value={insights.queueHealth} />
+      </div>
+    </div>
   );
 }
 
@@ -657,6 +708,40 @@ function sortHistoryEvents(events: PipelineJobHistoryEvent[]) {
   );
 }
 
+function createHistoryInsights(
+  history: PipelineJobHistoryEvent[],
+  jobs: PipelineJob[],
+  nowMs: number,
+): PipelineHistoryInsights {
+  const totalTerminalEvents = history.length;
+  const completedCount = history.filter(
+    (event) => event.status === "completed",
+  ).length;
+  const failedCount = history.filter((event) => event.status === "failed")
+    .length;
+  const successRate =
+    totalTerminalEvents > 0 ? completedCount / totalTerminalEvents : undefined;
+  const lastTerminalEvent = sortHistoryEvents(history)[0];
+  const durationValues = history
+    .map(getHistoryDurationMs)
+    .filter((duration): duration is number => typeof duration === "number");
+  const averageDurationMs =
+    durationValues.length > 0
+      ? durationValues.reduce((total, duration) => total + duration, 0) /
+        durationValues.length
+      : undefined;
+
+  return {
+    totalTerminalEvents,
+    completedCount,
+    failedCount,
+    successRate,
+    lastTerminalEvent,
+    averageDurationMs,
+    queueHealth: getQueueHealthLabel(jobs, nowMs),
+  };
+}
+
 function canCancel(status: PipelineJobStatus) {
   return status === "queued" || status === "running";
 }
@@ -733,6 +818,12 @@ function getJobDurationLabel(job: PipelineJob, nowMs: number) {
 }
 
 function getHistoryDurationLabel(event: PipelineJobHistoryEvent) {
+  const durationMs = getHistoryDurationMs(event);
+
+  return typeof durationMs === "number" ? formatDuration(durationMs) : undefined;
+}
+
+function getHistoryDurationMs(event: PipelineJobHistoryEvent) {
   const startedAtMs = getTimestampMs(event.startedAt);
   const completedAtMs = getTimestampMs(event.completedAt);
 
@@ -744,7 +835,7 @@ function getHistoryDurationLabel(event: PipelineJobHistoryEvent) {
     return undefined;
   }
 
-  return formatDuration(completedAtMs - startedAtMs);
+  return completedAtMs - startedAtMs;
 }
 
 function getHistoryEventTimeLabel(event: PipelineJobHistoryEvent) {
@@ -784,6 +875,27 @@ function formatNumber(value: number) {
     : "0";
 }
 
+function formatOptionalPercent(value?: number) {
+  return typeof value === "number"
+    ? new Intl.NumberFormat("tr-TR", {
+        maximumFractionDigits: 0,
+        style: "percent",
+      }).format(value)
+    : "Not available";
+}
+
+function formatOptionalDuration(value?: number) {
+  return typeof value === "number" ? formatDuration(value) : "Not available";
+}
+
+function formatLastHistoryEvent(event?: PipelineJobHistoryEvent) {
+  if (!event) {
+    return "Not available";
+  }
+
+  return `${event.stage} / ${event.status} / ${getHistoryEventTimeLabel(event)}`;
+}
+
 function formatDuration(durationMs: number) {
   if (durationMs < 1000) {
     return `${durationMs} ms`;
@@ -820,6 +932,47 @@ function getHistoryStatusClassName(status: PipelineJobHistoryEvent["status"]) {
   };
 
   return classNames[status];
+}
+
+function getQueueHealthLabel(jobs: PipelineJob[], nowMs: number) {
+  const summary = createJobSummary(jobs);
+
+  if (summary.failed > 0) {
+    return `${formatNumber(summary.failed)} failed`;
+  }
+
+  if (summary.cancelled > 0) {
+    return `${formatNumber(summary.cancelled)} cancelled`;
+  }
+
+  if (summary.running > 0) {
+    const staleRunningJobs = jobs.filter((job) => {
+      if (job.status !== "running") {
+        return false;
+      }
+
+      const startedAtMs = getTimestampMs(job.startedAt);
+
+      return (
+        startedAtMs !== null &&
+        nowMs - startedAtMs > activeRefreshIntervalMs * 12
+      );
+    }).length;
+
+    return staleRunningJobs > 0
+      ? `${formatNumber(staleRunningJobs)} long running`
+      : `${formatNumber(summary.running)} running`;
+  }
+
+  if (summary.queued > 0) {
+    return `${formatNumber(summary.queued)} queued`;
+  }
+
+  if (summary.completed > 0) {
+    return "Healthy";
+  }
+
+  return "No jobs";
 }
 
 function parseJobList(

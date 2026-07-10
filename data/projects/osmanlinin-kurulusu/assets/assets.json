@@ -43,8 +43,52 @@
       "mimeType": "audio/mpeg",
       "id": "16ea14fb-e42e-431a-a937-b997a9b16bac",
       "createdAt": "2026-07-08T21:56:25.793Z"
+    },
+    {
+      "projectId": "3ab5a04d-43fe-4aa8-83ba-9140ae7f1b9b",
+      "projectSlug": "osmanlinin-kurulusu",
+      "sceneId": 1,
+      "type": "image",
+      "status": "generated",
+      "provider": "mock",
+      "model": "mock-image-model",
+      "prompt": "cinematic documentary style, osmanlının kuruluşu, realistic historical atmosphere, dramatic lighting, 8K detail, no text, no logo, no watermark",
+      "filePath": "",
+      "url": "",
+      "mimeType": "image/mock",
+      "createdAt": "2026-07-10T10:06:20.258Z",
+      "id": "d0c1a4d1-5284-46ea-9adc-6dc775e3a383"
+    },
+    {
+      "projectId": "3ab5a04d-43fe-4aa8-83ba-9140ae7f1b9b",
+      "projectSlug": "osmanlinin-kurulusu",
+      "sceneId": 1,
+      "type": "animation",
+      "status": "generated",
+      "provider": "mock",
+      "model": "mock-animation-model",
+      "prompt": "Slow cinematic camera movement, realistic motion, atmospheric particles, documentary style",
+      "filePath": "",
+      "url": "",
+      "id": "100bfab1-0154-4666-b25f-c4dd94f98721",
+      "createdAt": "2026-07-10T10:06:23.401Z"
+    },
+    {
+      "projectId": "3ab5a04d-43fe-4aa8-83ba-9140ae7f1b9b",
+      "projectSlug": "osmanlinin-kurulusu",
+      "sceneId": 1,
+      "type": "image",
+      "status": "generated",
+      "provider": "mock",
+      "model": "mock-image-model",
+      "prompt": "cinematic documentary style, osmanlının kuruluşu, realistic historical atmosphere, dramatic lighting, 8K detail, no text, no logo, no watermark",
+      "filePath": "",
+      "url": "",
+      "mimeType": "image/mock",
+      "createdAt": "2026-07-10T10:06:28.251Z",
+      "id": "9033173d-cfb3-4485-8700-7378e9d6a7b2"
     }
   ],
   "createdAt": "2026-07-08T21:56:25.742Z",
-  "updatedAt": "2026-07-08T21:56:25.794Z"
+  "updatedAt": "2026-07-10T10:06:28.252Z"
 }

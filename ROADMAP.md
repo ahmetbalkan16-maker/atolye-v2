@@ -39,7 +39,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 80
+Sprint 81
 
 ---
 
@@ -660,6 +660,21 @@ Completed
 ---
 
 
+
+# Sprint 81
+
+## Pipeline Intelligence Foundation
+
+Completed
+
+- Client-side Pipeline Intelligence eklendi.
+- History ve jobs verilerinden derived metrikler uretildi.
+- Success Rate, Failures, Average Duration, Last Event ve Queue Health gosteriliyor.
+- Intelligence paneli history bos olsa bile render ediliyor.
+- API, PipelineJobManager ve contract degismedi.
+- TypeScript ve smoke test basarili gecti.
+
+---
 
 # Sprint Öncelik Kuralları
 
