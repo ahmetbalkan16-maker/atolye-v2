@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PipelineJobManager } from "@/lib/pipeline/PipelineJobManager";
+import { PipelineRunner } from "@/lib/pipeline/PipelineRunner";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import type { PipelineJobAction } from "@/types/pipelineJob";
 
@@ -52,11 +53,36 @@ export async function POST(req: Request, context: RouteContext) {
       );
     }
 
-    const result = await PipelineJobManager.applyAction(
-      slug,
-      jobId,
-      body.action,
-    );
+    if (body.action === "retry") {
+      const retryResult = await PipelineRunner.executeJobRetry(slug, jobId);
+      const jobs = await PipelineJobManager.listJobs(slug);
+
+      if (!retryResult.success) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: retryResult.reason,
+            jobs,
+            execution: {
+              status: retryResult.blocked ? "blocked" : "failed",
+              stage: retryResult.retriedStage,
+            },
+          },
+          { status: retryResult.status },
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        jobs,
+        execution: {
+          status: "completed",
+          stage: retryResult.retriedStage,
+        },
+      });
+    }
+
+    const result = await PipelineJobManager.applyAction(slug, jobId, body.action);
 
     if (!result.success) {
       return NextResponse.json(

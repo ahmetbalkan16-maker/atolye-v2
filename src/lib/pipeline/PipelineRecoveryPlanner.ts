@@ -152,6 +152,40 @@ export class PipelineRecoveryPlanner {
       createdAt,
     };
   }
+
+  static async createJobRetryPlan(
+    projectSlug: string,
+    stage: PipelineRecoveryStageKey,
+  ): Promise<PipelineRecoveryPlan> {
+    const createdAt = new Date().toISOString();
+    const manifest = await ProjectManager.getManifest(projectSlug);
+
+    if (!manifest) {
+      return createBlockedPlan({
+        projectSlug,
+        type: "retry",
+        startStage: stage,
+        stagesToRun: [stage],
+        dependencies: [],
+        reason: "Project manifest could not be read.",
+        createdAt,
+      });
+    }
+
+    const dependencies = await getDependencyStatuses(projectSlug, manifest, stage);
+    const blockedReason = getBlockedReason(dependencies);
+
+    return {
+      projectSlug,
+      type: "retry",
+      startStage: stage,
+      stagesToRun: [stage],
+      blocked: Boolean(blockedReason),
+      reason: blockedReason,
+      dependencies,
+      createdAt,
+    };
+  }
 }
 
 function getNextIncompleteStageFromManifest(

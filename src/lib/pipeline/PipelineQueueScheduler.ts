@@ -46,6 +46,10 @@ export class PipelineQueueScheduler {
         };
       }
 
+      if (jobStatus === "queued") {
+        return { stage };
+      }
+
       if (packageStatus === "completed" || jobStatus === "completed") {
         continue;
       }
@@ -62,10 +66,6 @@ export class PipelineQueueScheduler {
           stage: null,
           reason: `Stage "${stage}" is already running.`,
         };
-      }
-
-      if (jobStatus === "queued") {
-        return { stage };
       }
 
       if (!jobStatus) {

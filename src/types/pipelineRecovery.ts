@@ -43,3 +43,15 @@ export interface PipelineRetryResult {
   reason?: string;
   plan: PipelineRecoveryPlan;
 }
+
+export interface PipelineJobRetryExecutionResult {
+  success: boolean;
+  status: 200 | 404 | 409;
+  projectSlug: string;
+  jobId: string;
+  retriedStage?: PipelineRecoveryStageKey;
+  completedStages: PipelineRecoveryStageKey[];
+  blocked: boolean;
+  reason?: string;
+  plan?: PipelineRecoveryPlan;
+}

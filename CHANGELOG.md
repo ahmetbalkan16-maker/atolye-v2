@@ -552,6 +552,21 @@ Tamamlandi
 - Kalan riskler: lock process-localdir, dosya yazimlari transaction degildir, paralel manuel save/pipeline execution icin ileride revision/transaction iyilestirmesi gerekebilir ve cancel uzun suren AI/asset uretimini fiziksel olarak durdurmaz.
 
 ---
+### Retry Execution Integration
+
+Tamamlandi
+
+- PipelineRunner.executeJobRetry tek retry execution entrypoint'i oldu.
+- failed/cancelled -> queued hazirligi lock altinda yapilir; attempt artar ve cancelRequestedAt temizlenir.
+- Atomik queued -> running claim paralel retry cagrilarinda tek execution saglar; ikinci istek conflict alir.
+- Retry hedefi job.stage alanindan secilir, dependency readiness kontrol edilir ve yalnizca hedef stage execute edilir.
+- Downstream stage'ler otomatik baslatilmaz.
+- /pipeline/retry ve job action retry ayni runner akisinda birlestirildi.
+- UI retry sonucunu queued mesaji yerine gercek execution completed veya blocked durumu olarak gosterir.
+- TypeScript validation, tum runtime smoke testleri ve final code review basarili.
+- Kalan riskler: dependency blocked retry job'i queued kalir ve ileride explicit blocked state gerekebilir; stage execution error durumunda route genel 500 response doner, bu nedenle ileride yapilandirilmis execution result response eklenmeli.
+
+---
 
 ### Existing Lint Issues Cleanup Planning
 

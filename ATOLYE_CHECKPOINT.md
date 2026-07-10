@@ -47,36 +47,29 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 83**
+**Sprint 84**
 
-Pipeline Job State Consistency
+Retry Execution Integration
 
 **Durum**
 
 Completed
 
-Sprint 83 tamamlandi.
+Sprint 84 tamamlandi.
 
-- Merkezi ve kuralli job state transition modeli eklendi.
-- queued -> running/cancelled, running -> completed/failed/cancelled, failed/cancelled -> queued retry akisi tanimlandi.
-- completed durumu terminal olarak korundu.
-- cancelRequestedAt kalici olarak saklanir; retry attempt'i artirir ve cancellation bilgisini temizler.
-- Proje bazli async lock ve cancellation-aware persistence coordinator eklendi.
-- startStage, persistStageSuccess, persistStageFailure ve persistProjectCompletion coordinator uzerinden calisir.
-- PipelineStageExecutor persist akislari coordinator'a baglandi.
-- Scheduler cancelled job durumunu manifest durumundan daha otoriter kabul eder.
-- Cancellation stop reason runner ve API seviyesine tasindi.
-- Cancelled execution sonrasi stage output, manifest completed/failed ve proje completed yazilmasi engellendi.
-- Manuel API save yollari pipeline job state'inden ayri tutuldu.
-- TypeScript validation, final code review ve tum runtime smoke senaryolari basarili.
-- Gecici smoke fixture ve harness dosyalari temizlendi.
+- PipelineRunner.executeJobRetry tek retry execution entrypoint'i oldu.
+- failed/cancelled -> queued hazirligi atomik olarak yapilir; attempt artar ve cancelRequestedAt temizlenir.
+- startStage queued -> running claim'i paralel retry cagrilarinda tek execution saglar; diger istek conflict alir.
+- Hedef stage job.stage alanindan secilir ve dependency readiness kontrolunden sonra yalnizca o stage calisir.
+- Downstream stage'ler retry sonucunda otomatik baslamaz.
+- /pipeline/retry ve job action retry ayni runner akisinda birlestirildi.
+- UI gercek retry execution sonucunu completed veya blocked olarak gosterir.
+- TypeScript validation, tum runtime smoke testleri ve final code review basarili.
 
 Not:
 
-- Lock yalnizca process-local calisir.
-- Dosya yazimlari gercek transaction degildir.
-- Ayni projede paralel manuel save ve pipeline execution icin ileride revision/transaction tabanli iyilestirme gerekebilir.
-- Cancel uzun suren AI/asset uretimini fiziksel olarak durdurmaz; yalnizca sonucu persist etmeyi engeller.
+- Dependency nedeniyle blocked olan retry job'i queued durumda kalir; ileride explicit blocked state gerekebilir.
+- Stage execution error durumunda route genel 500 response doner; ileride yapilandirilmis execution result response eklenmeli.
 
 ---
 
@@ -733,6 +726,30 @@ Kalan riskler:
 - Lock process-localdir; filesystem yazimlari transaction degildir.
 - Paralel manuel save/pipeline execution icin ileride revision/transaction tabanli iyilestirme gerekebilir.
 - Cancel uzun suren AI/asset uretimini fiziksel olarak durdurmaz.
+
+---
+
+# Sprint 84
+## Retry Execution Integration
+
+Durum:
+Completed
+
+Kapsam:
+
+- PipelineRunner.executeJobRetry tek retry execution entrypoint'i olarak eklendi.
+- failed/cancelled -> queued hazirligi lock altinda yapilir; attempt artar ve cancelRequestedAt temizlenir.
+- queued -> running claim'i atomiktir; paralel retry cagrilarindan yalnizca biri execution baslatir, digeri conflict alir.
+- Retry hedefi job.stage alanindan alinir ve dependency readiness kontrolunden sonra yalnizca hedef stage calisir.
+- Downstream stage'ler otomatik baslamaz.
+- /pipeline/retry ve job action retry ayni runner akisinda birlestirildi.
+- UI retry sonucunu queued yerine gercek execution completed/blocked durumu olarak gosterir.
+- TypeScript validation, tum runtime smoke testleri ve final code review basarili.
+
+Kalan riskler:
+
+- Dependency blocked retry job'i queued durumda kalir; ileride explicit blocked state gerekebilir.
+- Stage execution error durumunda route genel 500 response doner; ileride yapilandirilmis execution result response eklenmeli.
 
 ---
 

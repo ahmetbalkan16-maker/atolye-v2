@@ -39,7 +39,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 83
+Sprint 84
 
 ---
 
@@ -715,6 +715,28 @@ Kalan riskler:
 - Dosya yazimlari gercek transaction degildir.
 - Paralel manuel save/pipeline execution icin ileride revision/transaction tabanli iyilestirme gerekebilir.
 - Cancel uzun suren AI/asset uretimini fiziksel olarak durdurmaz; sonucu persist etmeyi engeller.
+
+---
+
+# Sprint 84
+
+## Retry Execution Integration
+
+Completed
+
+- PipelineRunner.executeJobRetry tek retry execution entrypoint'i oldu.
+- failed/cancelled -> queued hazirligi lock altinda yapilir; attempt artar ve cancelRequestedAt temizlenir.
+- startStage atomik queued -> running claim'i ile paralel retry cagrilarindan yalnizca birinin execution baslatmasini saglar; diger istek conflict alir.
+- Hedef stage job.stage alanindan secilir, dependency readiness kontrol edilir ve yalnizca hedef stage calisir.
+- Downstream stage'ler retry sonucunda otomatik baslamaz.
+- /pipeline/retry ve job action retry ayni runner akisinda birlestirildi.
+- UI gercek retry execution sonucunu completed veya blocked olarak gosterir.
+- TypeScript validation, tum runtime smoke testleri ve final code review basarili.
+
+Kalan riskler:
+
+- Dependency blocked retry job'i queued durumda kalir; ileride explicit blocked state gerekebilir.
+- Stage execution error durumunda route genel 500 response doner; ileride yapilandirilmis execution result response eklenmeli.
 
 ---
 

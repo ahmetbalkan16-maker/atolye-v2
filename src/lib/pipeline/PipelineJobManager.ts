@@ -65,6 +65,67 @@ export class PipelineJobManager {
     return this.readHistory(projectSlug);
   }
 
+  static async getJob(
+    projectSlug: string,
+    jobId: string,
+  ): Promise<PipelineJob | null> {
+    const current = await this.listJobs(projectSlug);
+
+    return current.jobs.find((job) => job.id === jobId) ?? null;
+  }
+
+  static async getJobForStage(
+    projectSlug: string,
+    stage: ProductionStepKey,
+  ): Promise<PipelineJob | null> {
+    const current = await this.listJobs(projectSlug);
+
+    return current.jobs.find((job) => job.stage === stage) ?? null;
+  }
+
+  static async prepareJobRetry(
+    projectSlug: string,
+    jobId: string,
+  ): Promise<PipelineJobRetryPreparationResult> {
+    return this.withProjectLock(projectSlug, async () => {
+      const current = await this.listJobs(projectSlug);
+      const job = current.jobs.find((item) => item.id === jobId);
+
+      if (!job) {
+        return {
+          success: false,
+          status: 404,
+          error: "Pipeline job not found.",
+        };
+      }
+
+      if (!this.canTransition(job.status, "queued")) {
+        return {
+          success: false,
+          status: 409,
+          error: `Retry is not supported for "${job.status}" jobs.`,
+        };
+      }
+
+      const now = new Date().toISOString();
+      const nextJob = this.retryJob(job, now);
+      const jobs = current.jobs.map((item) =>
+        item.id === jobId ? nextJob : item,
+      );
+      const nextJobs = await this.writeJobList(projectSlug, {
+        ...current,
+        jobs,
+        updatedAt: now,
+      });
+
+      return {
+        success: true,
+        job: nextJob,
+        jobs: nextJobs,
+      };
+    });
+  }
+
   static async persistStageSuccess(
     projectSlug: string,
     stage: ProductionStepKey,
@@ -187,39 +248,6 @@ export class PipelineJobManager {
     });
   }
 
-  static async queueStageRetry(
-    projectSlug: string,
-    stage: ProductionStepKey,
-  ): Promise<boolean> {
-    return this.withProjectLock(projectSlug, async () => {
-      const current = await this.listJobs(projectSlug);
-      const jobId = getJobId(projectSlug, stage);
-      const job = current.jobs.find((item) => item.id === jobId);
-
-      if (!job) {
-        return false;
-      }
-
-      if (job.status === "queued") {
-        return true;
-      }
-
-      if (!this.canTransition(job.status, "queued")) {
-        return false;
-      }
-
-      const now = new Date().toISOString();
-      const nextJob = this.retryJob(job, now);
-      await this.writeJobList(projectSlug, {
-        ...current,
-        jobs: current.jobs.map((item) => (item.id === jobId ? nextJob : item)),
-        updatedAt: now,
-      });
-
-      return true;
-    });
-  }
-
   static async applyAction(
     projectSlug: string,
     jobId: string,
@@ -235,6 +263,14 @@ export class PipelineJobManager {
     jobId: string,
     action: PipelineJobAction,
   ): Promise<PipelineJobActionResult> {
+    if (action === "retry") {
+      return {
+        success: false,
+        status: 409,
+        error: "Retry must be executed through PipelineRunner.",
+      };
+    }
+
     const current = await this.listJobs(projectSlug);
     const job = current.jobs.find((item) => item.id === jobId);
 
@@ -246,9 +282,7 @@ export class PipelineJobManager {
       };
     }
 
-    const nextStatus = action === "cancel" ? "cancelled" : "queued";
-
-    if (!this.canTransition(job.status, nextStatus)) {
+    if (!this.canTransition(job.status, "cancelled")) {
       return {
         success: false,
         status: 409,
@@ -263,12 +297,7 @@ export class PipelineJobManager {
         return item;
       }
 
-      if (action === "cancel") {
-        actionJob = this.cancelJob(item, now);
-        return actionJob;
-      }
-
-      actionJob = this.retryJob(item, now);
+      actionJob = this.cancelJob(item, now);
       return actionJob;
     });
     const nextJobs = await this.writeJobList(projectSlug, {
@@ -552,6 +581,18 @@ export class PipelineJobManager {
 type PipelineJobActionResult =
   | {
       success: true;
+      jobs: PipelineJobList;
+    }
+  | {
+      success: false;
+      status: 404 | 409;
+      error: string;
+    };
+
+type PipelineJobRetryPreparationResult =
+  | {
+      success: true;
+      job: PipelineJob;
       jobs: PipelineJobList;
     }
   | {

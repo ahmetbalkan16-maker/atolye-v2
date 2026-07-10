@@ -19,6 +19,10 @@ type JobsResponse = {
   success?: boolean;
   error?: string;
   jobs?: unknown;
+  execution?: {
+    status?: unknown;
+    stage?: unknown;
+  };
 };
 
 type HistoryResponse = {
@@ -374,22 +378,33 @@ export default function PipelineJobsPanel({
       );
       const data = (await response.json()) as JobsResponse;
 
-      if (!response.ok || !data.success) {
-        setError(data.error || "Pipeline job aksiyonu tamamlanamadi.");
-        return;
+      const jobList = parseJobList(data.jobs, projectSlug);
+
+      if (jobList) {
+        setJobs(jobList.jobs);
       }
 
-      const jobList = parseJobList(data.jobs, projectSlug);
+      if (!response.ok || !data.success) {
+        if (action === "retry" && data.execution?.status === "blocked") {
+          setError(
+            data.error || "Retry queued ancak execution baslatilamadi.",
+          );
+        } else {
+          setError(data.error || "Pipeline job aksiyonu tamamlanamadi.");
+        }
+        return;
+      }
 
       if (!jobList) {
         setError("Pipeline job aksiyonu tamamlandi ancak guncel veri okunamadi.");
         return;
       }
 
-      setJobs(jobList.jobs);
       await loadHistory({ silent: true, queueIfInFlight: true });
       setSuccessMessage(
-        `${job.title || job.id} icin ${getActionProgressLabel(action)} tamamlandi.`,
+        action === "retry"
+          ? `${job.title || job.id} icin retry execution tamamlandi.`
+          : `${job.title || job.id} icin ${getActionProgressLabel(action)} tamamlandi.`,
       );
     } catch (err) {
       console.error("[PipelineJobsPanel] Job action failed:", err);
@@ -662,7 +677,7 @@ function JobRow({
               className="rounded-lg border border-yellow-500/40 px-3 py-2 text-xs font-bold text-yellow-300 transition hover:border-yellow-400 hover:text-yellow-200 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:text-zinc-600"
             >
               {actionInProgress && actionState?.action === "retry"
-                ? "Retrying..."
+                ? "Retrying execution..."
                 : "Retry"}
             </button>
           ) : null}

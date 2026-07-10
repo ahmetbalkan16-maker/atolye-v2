@@ -87,7 +87,9 @@ export default function PipelineStatus({
         return;
       }
 
-      setRetryMessage("Pipeline retry tamamlandi. Proje verileri yenileniyor.");
+      setRetryMessage(
+        "Pipeline retry execution tamamlandi. Proje verileri yenileniyor.",
+      );
       router.refresh();
     } catch (err) {
       console.error("[PipelineStatus] Retry request failed:", err);

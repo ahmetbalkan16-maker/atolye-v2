@@ -12,6 +12,7 @@ import type {
   ProjectStatus,
 } from "@/types/project";
 import type {
+  PipelineJobRetryExecutionResult,
   PipelineRecoveryStageKey,
   PipelineRetryResult,
   PipelineResumeResult,
@@ -140,7 +141,75 @@ export class PipelineRunner {
     projectSlug: string,
     stage: PipelineRecoveryStageKey,
   ): Promise<PipelineRetryResult> {
-    const plan = await PipelineRecoveryPlanner.createRetryPlan(
+    const job = await PipelineJobManager.getJobForStage(projectSlug, stage);
+    const fallbackPlan = await PipelineRecoveryPlanner.createJobRetryPlan(
+      projectSlug,
+      stage,
+    );
+
+    if (!job) {
+      return {
+        success: false,
+        projectSlug,
+        retriedStage: stage,
+        completedStages: [],
+        blocked: true,
+        reason: `Pipeline job for stage "${stage}" could not be found.`,
+        plan: fallbackPlan,
+      };
+    }
+
+    const result = await this.executeJobRetry(projectSlug, job.id);
+
+    return {
+      success: result.success,
+      projectSlug,
+      retriedStage: stage,
+      completedStages: result.completedStages,
+      blocked: result.blocked,
+      reason: result.reason,
+      plan: result.plan ?? fallbackPlan,
+    };
+  }
+
+  static async executeJobRetry(
+    projectSlug: string,
+    jobId: string,
+  ): Promise<PipelineJobRetryExecutionResult> {
+    const existingJob = await PipelineJobManager.getJob(projectSlug, jobId);
+
+    if (!existingJob) {
+      return {
+        success: false,
+        status: 404,
+        projectSlug,
+        jobId,
+        completedStages: [],
+        blocked: true,
+        reason: "Pipeline job not found.",
+      };
+    }
+
+    const prepared = await PipelineJobManager.prepareJobRetry(
+      projectSlug,
+      jobId,
+    );
+
+    if (!prepared.success) {
+      return {
+        success: false,
+        status: prepared.status,
+        projectSlug,
+        jobId,
+        retriedStage: existingJob.stage,
+        completedStages: [],
+        blocked: true,
+        reason: prepared.error,
+      };
+    }
+
+    const stage = prepared.job.stage;
+    const plan = await PipelineRecoveryPlanner.createJobRetryPlan(
       projectSlug,
       stage,
     );
@@ -148,11 +217,32 @@ export class PipelineRunner {
     if (plan.blocked) {
       return {
         success: false,
+        status: 409,
         projectSlug,
+        jobId,
         retriedStage: stage,
         completedStages: [],
         blocked: true,
         reason: plan.reason,
+        plan,
+      };
+    }
+
+    const scheduled = await PipelineQueueScheduler.getNextRunnableStage(
+      projectSlug,
+      [stage],
+    );
+
+    if (scheduled.stage !== stage) {
+      return {
+        success: false,
+        status: 409,
+        projectSlug,
+        jobId,
+        retriedStage: stage,
+        completedStages: [],
+        blocked: true,
+        reason: scheduled.reason || `Stage "${stage}" could not be scheduled.`,
         plan,
       };
     }
@@ -162,28 +252,13 @@ export class PipelineRunner {
     if (!state) {
       return {
         success: false,
+        status: 409,
         projectSlug,
+        jobId,
         retriedStage: stage,
         completedStages: [],
         blocked: true,
         reason: "Project could not be read.",
-        plan,
-      };
-    }
-
-    const queued = await PipelineJobManager.queueStageRetry(
-      projectSlug,
-      stage,
-    );
-
-    if (!queued) {
-      return {
-        success: false,
-        projectSlug,
-        retriedStage: stage,
-        completedStages: [],
-        blocked: true,
-        reason: `Stage "${stage}" could not be queued for retry.`,
         plan,
       };
     }
@@ -198,7 +273,9 @@ export class PipelineRunner {
     if (!completed) {
       return {
         success: false,
+        status: 409,
         projectSlug,
+        jobId,
         retriedStage: stage,
         completedStages: [],
         blocked: true,
@@ -209,7 +286,9 @@ export class PipelineRunner {
 
     return {
       success: true,
+      status: 200,
       projectSlug,
+      jobId,
       retriedStage: stage,
       completedStages: [stage],
       blocked: false,
