@@ -607,6 +607,24 @@ Completed
 
 ---
 
+# Sprint 78
+
+## Pipeline History API Foundation
+
+Completed
+
+- Added PipelineJobManager.listHistory().
+- Added GET /api/projects/[slug]/pipeline/history.
+- Exposed existing pipeline-history.json safely.
+- Empty history fallback preserved.
+- Existing pipeline job APIs unchanged.
+- No UI changes.
+- No API contract changes.
+- API contract compatibility preserved.
+- npx tsc --noEmit passed.
+
+---
+
 
 
 # Sprint Ã–ncelik KurallarÄ±

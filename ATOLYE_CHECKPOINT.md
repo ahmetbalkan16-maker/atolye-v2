@@ -47,24 +47,24 @@ TÃ¼rkÃ§e Ã¶ncelikli AI destekli kiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosu
 
 ## Aktif Sprint
 
-**Sprint 77**
+**Sprint 78**
 
-Pipeline Execution History Foundation
+Pipeline History API Foundation
 
 **Durum**
 
 Completed
 
-Sprint 77 tamamlandi.
+Sprint 78 tamamlandi.
 
-- Added pipeline-history.json storage layer.
-- Preserved pipeline-jobs.json behavior.
-- Added terminal lifecycle history events.
-- Recorded completed, failed and cancelled job events.
-- Stored job metadata including timestamps.
+- Added PipelineJobManager.listHistory().
+- Added GET /api/projects/[slug]/pipeline/history.
+- Exposed existing pipeline-history.json safely.
+- Empty history fallback preserved.
+- Existing pipeline job APIs unchanged.
 - No UI changes.
 - No API contract changes.
-- Retry/running/queued states do not create history events.
+- API contract compatibility preserved.
 - TypeScript validation passed.
 
 Kapsam:
@@ -652,6 +652,27 @@ Plan:
 - Stale project request results prevented from updating new project state.
 - Background refresh preserves the current loading/empty UI.
 - API contracts and existing action behavior unchanged.
+- npx tsc --noEmit passed.
+
+---
+
+# Sprint 78
+## Pipeline History API Foundation
+
+Amac:
+
+Mevcut pipeline-history.json execution history verisini guvenli bir read API uzerinden acmak.
+
+Plan:
+
+- Added PipelineJobManager.listHistory().
+- Added GET /api/projects/[slug]/pipeline/history.
+- Exposed existing pipeline-history.json safely.
+- Empty history fallback preserved.
+- Existing pipeline job APIs unchanged.
+- No UI changes.
+- No API contract changes.
+- API contract compatibility preserved.
 - npx tsc --noEmit passed.
 
 ---

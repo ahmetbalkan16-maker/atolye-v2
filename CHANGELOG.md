@@ -476,6 +476,22 @@ Tamamlandi
 - npx tsc --noEmit passed.
 
 ---
+
+### Pipeline History API Foundation
+
+Tamamlandi
+
+- Added PipelineJobManager.listHistory().
+- Added GET /api/projects/[slug]/pipeline/history.
+- Exposed existing pipeline-history.json safely.
+- Empty history fallback preserved.
+- Existing pipeline job APIs unchanged.
+- No UI changes.
+- No API contract changes.
+- API contract compatibility preserved.
+- npx tsc --noEmit passed.
+
+---
 ### Existing Lint Issues Cleanup Planning
 
 Tamamlandi

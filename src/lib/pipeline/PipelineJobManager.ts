@@ -48,6 +48,10 @@ export class PipelineJobManager {
     return this.seedJobsFromManifest(projectSlug, current);
   }
 
+  static async listHistory(projectSlug: string): Promise<PipelineJobHistory> {
+    return this.readHistory(projectSlug);
+  }
+
   static async markStageRunning(
     projectSlug: string,
     stage: ProductionStepKey,
