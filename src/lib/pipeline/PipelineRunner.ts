@@ -141,27 +141,14 @@ export class PipelineRunner {
     projectSlug: string,
     stage: PipelineRecoveryStageKey,
   ): Promise<PipelineRetryResult> {
-    const job = await PipelineJobManager.getJobForStage(projectSlug, stage);
-
-    if (!job) {
-      const plan = await PipelineRecoveryPlanner.createJobRetryPlan(
-        projectSlug,
-        stage,
-      );
-
-      return {
-        success: false,
-        status: 409,
-        projectSlug,
-        retriedStage: stage,
-        completedStages: [],
-        blocked: true,
-        reason: `Pipeline job for stage "${stage}" could not be found.`,
-        plan,
-      };
-    }
-
-    const result = await this.executeJobRetry(projectSlug, job.id);
+    const job = await PipelineJobManager.getJobForStageReadOnly(
+      projectSlug,
+      stage,
+    );
+    const result = await this.executeJobRetry(
+      projectSlug,
+      job?.id ?? `${projectSlug}-${stage}`,
+    );
     const plan =
       result.plan ??
       (await PipelineRecoveryPlanner.createJobRetryPlan(projectSlug, stage));
@@ -182,9 +169,13 @@ export class PipelineRunner {
     projectSlug: string,
     jobId: string,
   ): Promise<PipelineJobRetryExecutionResult> {
-    const existingJob = await PipelineJobManager.getJob(projectSlug, jobId);
+    const existingJob = await PipelineJobManager.getJobReadOnly(
+      projectSlug,
+      jobId,
+    );
+    const stage = existingJob?.stage ?? getRetryStageFromJobId(projectSlug, jobId);
 
-    if (!existingJob) {
+    if (!stage) {
       return {
         success: false,
         status: 404,
@@ -196,7 +187,6 @@ export class PipelineRunner {
       };
     }
 
-    const stage = existingJob.stage;
     const plan = await PipelineRecoveryPlanner.createJobRetryPlan(
       projectSlug,
       stage,
@@ -216,6 +206,22 @@ export class PipelineRunner {
       };
     }
 
+    const state = await PipelineStageExecutor.loadState(projectSlug);
+
+    if (!state) {
+      return {
+        success: false,
+        status: 409,
+        projectSlug,
+        jobId,
+        retriedStage: stage,
+        completedStages: [],
+        blocked: true,
+        reason: "Project could not be read.",
+        plan,
+      };
+    }
+
     const prepared = await PipelineJobManager.prepareJobRetry(
       projectSlug,
       jobId,
@@ -227,7 +233,7 @@ export class PipelineRunner {
         status: prepared.status,
         projectSlug,
         jobId,
-        retriedStage: existingJob.stage,
+        retriedStage: stage,
         completedStages: [],
         blocked: true,
         reason: prepared.error,
@@ -249,22 +255,6 @@ export class PipelineRunner {
         completedStages: [],
         blocked: true,
         reason: scheduled.reason || `Stage "${stage}" could not be scheduled.`,
-        plan,
-      };
-    }
-
-    const state = await PipelineStageExecutor.loadState(projectSlug);
-
-    if (!state) {
-      return {
-        success: false,
-        status: 409,
-        projectSlug,
-        jobId,
-        retriedStage: stage,
-        completedStages: [],
-        blocked: true,
-        reason: "Project could not be read.",
         plan,
       };
     }
@@ -437,4 +427,19 @@ export class PipelineRunner {
 
     return manifest?.packages[stage].status === "completed";
   }
+}
+
+function getRetryStageFromJobId(
+  projectSlug: string,
+  jobId: string,
+): PipelineRecoveryStageKey | null {
+  const prefix = `${projectSlug}-`;
+
+  if (!jobId.startsWith(prefix)) {
+    return null;
+  }
+
+  const stage = jobId.slice(prefix.length) as PipelineRecoveryStageKey;
+
+  return pipelineRecoveryStageOrder.includes(stage) ? stage : null;
 }

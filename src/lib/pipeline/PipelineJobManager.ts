@@ -74,11 +74,29 @@ export class PipelineJobManager {
     return current.jobs.find((job) => job.id === jobId) ?? null;
   }
 
+  static async getJobReadOnly(
+    projectSlug: string,
+    jobId: string,
+  ): Promise<PipelineJob | null> {
+    const current = await this.readJobList(projectSlug);
+
+    return current.jobs.find((job) => job.id === jobId) ?? null;
+  }
+
   static async getJobForStage(
     projectSlug: string,
     stage: ProductionStepKey,
   ): Promise<PipelineJob | null> {
     const current = await this.listJobs(projectSlug);
+
+    return current.jobs.find((job) => job.stage === stage) ?? null;
+  }
+
+  static async getJobForStageReadOnly(
+    projectSlug: string,
+    stage: ProductionStepKey,
+  ): Promise<PipelineJob | null> {
+    const current = await this.readJobList(projectSlug);
 
     return current.jobs.find((job) => job.stage === stage) ?? null;
   }

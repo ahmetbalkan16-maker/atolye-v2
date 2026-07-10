@@ -47,29 +47,29 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 86**
+**Sprint 87**
 
-Retry Dependency Preflight Hardening
+Retry State-Load Preflight Hardening
 
 **Durum**
 
 Completed
 
-Sprint 86 tamamlandi.
+Sprint 87 tamamlandi.
 
-- Dependency retry plani herhangi bir job mutation'indan once olusturulur.
-- Dependency blocked durumda HTTP 409 ve blocked: true doner; prepareJobRetry cagrilmaz ve job alanlari degismez.
-- Ready durumda preflight -> prepareJobRetry -> scheduler/atomik claim -> execution akisi korunur.
-- Basarili retry HTTP 200; cancel, conflict ve manifest/job tutarsizligi HTTP 409 davranisini korur.
-- Sprint 85 execution-failure HTTP 500 sozlesmesi aynen korunur.
-- Review sirasinda gereksiz ikinci dependency plan hesaplamasi kaldirildi.
+- Read-only job lookup, dependency planı ve state-load preflight queued mutation oncesinde tamamlanir.
+- State yuklenemezse HTTP 409, blocked: true ve "Project could not be read." sonucu doner; prepareJobRetry cagrilmaz.
+- Seed edilmemis job storage icin read-only lookup manifestten seed etmez ve dosya yazmaz.
+- Ready durumda mevcut seed/preparation -> scheduler/atomik claim -> execution akisi korunur.
+- Basarili retry HTTP 200; cancel/conflict HTTP 409 ve Sprint 85 execution-failure HTTP 500 sozlesmesi korunur.
+- Job ID -> stage turetmesi tam slug prefix'i ve pipeline stage whitelist'i ile sinirlandirildi.
 - TypeScript, hedefli smoke ve npm run build dogrulamalari basarili.
 
 Not:
 
-- Planlama ile preparation arasinda kisa bir race window vardir.
-- Lock process-localdir ve filesystem persistence transaction degildir.
-- Dependency disi scheduler/state-load bloklarinda queued kalma riski ayri bir gelecek istir.
+- State ile execution arasindaki mevcut eszamanli manuel-save penceresi daha uzundur.
+- Scheduler sonrasinda queued kalma riski ayri bir takip isidir.
+- JSON filesystem persistence transaction veya mutlak dosya atomikligi saglamaz.
 
 ---
 
@@ -797,6 +797,38 @@ Kalan riskler:
 - Planlama ile preparation arasinda kisa bir race window vardir.
 - Lock process-localdir ve filesystem persistence transaction degildir.
 - Dependency disi scheduler/state-load bloklarinda queued kalma riski ayri bir gelecek istir.
+
+---
+
+# Sprint 87
+## Retry State-Load Preflight Hardening
+
+Durum:
+Completed
+
+Kapsam:
+
+- Read-only job lookup -> dependency preflight -> state-load preflight -> prepareJobRetry -> scheduler/atomik claim -> execution sirasi kuruldu.
+- State yuklenemezse HTTP 409, blocked: true ve "Project could not be read." sonucu doner; prepareJobRetry cagrilmaz.
+- Bu durumda job status, attempts, cancellation ve zaman alanlari degismez.
+- Seed edilmemis job storage icin getJobReadOnly ve getJobForStageReadOnly eklendi; mevcut pipeline-jobs.json okunur, manifestten seed edilmez ve dosya yazilmaz.
+- Storage'da bulunmayan gecerli retry job ID'si icin stage, tam proje slug prefix'i ve pipeline stage whitelist'i ile guvenli bicimde turetilir.
+- State basariyla yuklendikten sonra mevcut seed/preparation, scheduler/atomik claim ve execution davranisi korunur.
+- Basarili retry HTTP 200, cancel/conflict HTTP 409 ve Sprint 85 execution-failure HTTP 500 sozlesmeleri degismedi.
+- Yeni job state'i, API alani, UI davranisi veya persistence mimarisi eklenmedi.
+- TypeScript, hedefli smoke ve npm run build basarili; Turbopack dinamik dosya izleme uyarisi build'i engellemedi.
+
+Review sonucu:
+
+- Bloklayici bulgu yok.
+- Read-only lookup, dependency planı ve state-load tamamlanana kadar write-capable yol calismaz.
+- Normal seed eden lookup davranislari degistirilmedi.
+
+Kalan riskler / takip isleri:
+
+- State'in preparation ve scheduler oncesinde okunmasi, state ile execution arasindaki mevcut eszamanli manuel-save penceresini uzatir.
+- Scheduler sonrasinda queued kalma riski bu sprintin disindadir.
+- JSON filesystem persistence icin transaction veya mutlak dosya atomikligi eklenmedi.
 
 ---
 
