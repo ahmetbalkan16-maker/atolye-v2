@@ -414,6 +414,20 @@ Tamamlandi
 - Production Engine pipeline davranisi dogrulandi.
 
 ---
+
+### Pipeline Queue UX Hardening
+
+Tamamlandi
+
+- PipelineJobsPanel UI state handling iyilestirildi.
+- Proje degisiminde stale job listesi temizleniyor.
+- Invalid slug, API error ve fetch error yollarinda stale state temizleniyor.
+- Action state ve action lock guvenli sekilde sifirlaniyor.
+- Runtime action validation eklendi.
+- Action feedback daha tutarli hale getirildi.
+- TypeScript validation passed.
+
+---
 ### Existing Lint Issues Cleanup Planning
 
 Tamamlandi

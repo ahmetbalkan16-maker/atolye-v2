@@ -44,14 +44,18 @@ export default function PipelineJobsPanel({
 
   useEffect(() => {
     let mounted = true;
+    actionInFlightRef.current = false;
+    setActionState(null);
 
     async function loadJobs() {
       try {
         setLoading(true);
+        setJobs([]);
         setSuccessMessage("");
         setError("");
 
         if (!isSafeSlug(projectSlug)) {
+          setJobs([]);
           setError("Gecersiz proje bilgisi nedeniyle pipeline jobs yuklenemedi.");
           return;
         }
@@ -66,6 +70,7 @@ export default function PipelineJobsPanel({
         }
 
         if (!response.ok || !data.success) {
+          setJobs([]);
           setError(data.error || "Pipeline jobs yuklenemedi.");
           return;
         }
@@ -83,6 +88,7 @@ export default function PipelineJobsPanel({
         console.error("[PipelineJobsPanel] Jobs could not be loaded:", err);
 
         if (mounted) {
+          setJobs([]);
           setError("Pipeline jobs yuklenemedi.");
         }
       } finally {
@@ -101,6 +107,12 @@ export default function PipelineJobsPanel({
 
   async function applyAction(jobId: string, action: PipelineJobAction) {
     if (actionInFlightRef.current) {
+      return;
+    }
+
+    if (!isPipelineJobAction(action)) {
+      setSuccessMessage("");
+      setError("Pipeline job aksiyonu gecersiz.");
       return;
     }
 
@@ -152,7 +164,7 @@ export default function PipelineJobsPanel({
 
       setJobs(jobList.jobs);
       setSuccessMessage(
-        `${job.title || job.id} icin ${getActionLabel(action)} tamamlandi.`,
+        `${job.title || job.id} icin ${getActionProgressLabel(action)} tamamlandi.`,
       );
     } catch (err) {
       console.error("[PipelineJobsPanel] Job action failed:", err);
@@ -360,6 +372,10 @@ function getActionLabel(action: PipelineJobAction) {
   return action === "cancel" ? "Cancel" : "Retry";
 }
 
+function getActionProgressLabel(action: PipelineJobAction) {
+  return action === "cancel" ? "cancel" : "retry";
+}
+
 function getStatusLabel(status: PipelineJobStatus) {
   const labels: Record<PipelineJobStatus, string> = {
     queued: "queued",
@@ -441,6 +457,10 @@ function isPipelineJob(value: unknown): value is PipelineJob {
 
 function isPipelineJobStatus(value: unknown): value is PipelineJobStatus {
   return pipelineJobStatuses.includes(value as PipelineJobStatus);
+}
+
+function isPipelineJobAction(value: unknown): value is PipelineJobAction {
+  return value === "cancel" || value === "retry";
 }
 
 function isSafeSlug(value: string) {

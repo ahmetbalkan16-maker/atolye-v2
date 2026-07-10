@@ -47,22 +47,23 @@ TÃ¼rkÃ§e Ã¶ncelikli AI destekli kiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosu
 
 ## Aktif Sprint
 
-**Sprint 73**
+**Sprint 74**
 
-Production Engine Smoke Validation
+Pipeline Queue UX Hardening
 
 **Durum**
 
 Completed
 
-Sprint 73 tamamlandi.
+Sprint 74 tamamlandi.
 
-- Production Engine Smoke Validation tamamlandi.
-- Structured research rendering compatibility duzeltildi.
-- timeline, characters ve keyEvents hem legacy string hem structured object verilerini guvenli render ediyor.
+- PipelineJobsPanel UI state handling iyilestirildi.
+- Proje degisiminde stale job listesi temizleniyor.
+- Invalid slug, API error ve fetch error yollarinda stale state temizleniyor.
+- Action state ve action lock guvenli sekilde sifirlaniyor.
+- Runtime action validation eklendi.
+- Action feedback daha tutarli hale getirildi.
 - TypeScript validation passed.
-- Smoke validation basarili.
-- Production Engine pipeline davranisi dogrulandi.
 
 Kapsam:
 
@@ -611,6 +612,25 @@ Plan:
 - TypeScript validation passed.
 - Smoke validation basarili.
 - Production Engine pipeline davranisi dogrulandi.
+
+---
+
+# Sprint 74
+## Pipeline Queue UX Hardening
+
+Amac:
+
+Pipeline Queue / Jobs panelinde kalan UI state ve action feedback edge case'lerini kucuk kapsamda guvenli hale getirmek.
+
+Plan:
+
+- PipelineJobsPanel UI state handling iyilestirildi.
+- Proje degisiminde stale job listesi temizleniyor.
+- Invalid slug, API error ve fetch error yollarinda stale state temizleniyor.
+- Action state ve action lock guvenli sekilde sifirlaniyor.
+- Runtime action validation eklendi.
+- Action feedback daha tutarli hale getirildi.
+- TypeScript validation passed.
 
 ---
 
