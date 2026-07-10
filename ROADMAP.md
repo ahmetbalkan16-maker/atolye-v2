@@ -39,7 +39,7 @@ Phase 2 â€” Production Engine
 
 Aktif Sprint
 
-Sprint 72
+Sprint 73
 
 ---
 
@@ -508,12 +508,30 @@ Completed
 
 ## Asset Image Rendering Cleanup
 
+Completed
+
+- Kapsam src/components/assets/AssetGallery.tsx olarak tutuldu.
+- Existing plain <img> implementation bilincli olarak korundu.
+- next/image migration reddedildi; AssetGallery http/https sources, local API-served paths, data:image URLs ve blob/object URLs destekliyor.
+- next.config.ts icinde remote image domain/remotePatterns configuration bulunmadigi kaydedildi.
+- Bunun yerine dar kapsamli, gerekceli lint suppression eklendi.
+- Existing layout, aspect ratio, sizing, lazy loading, fallback ve onError davranisi korundu.
+- npx tsc --noEmit temiz gecti.
+- npm run lint 0 errors ve 0 warnings ile temiz gecti.
+- Rendering risk dusuk olarak kaydedildi.
+- Manuel browser/UI testi yapilmadi.
+
+---
+# Sprint 73
+
+## Production Engine Smoke Validation
+
 Active
 
-- Kapsam src/components/assets/AssetGallery.tsx.
-- Hedef kalan @next/next/no-img-element warning'ini gidermek.
-- Mevcut asset URL, layout, sizing ve rendering davranisi korunacak.
-- next/image gereksinimleri implementasyondan once degerlendirilecek.
+- Kapsam Project workspace production surfaces, Pipeline status / queue / jobs gorunumu ve AssetGallery preview / reload davranisi.
+- Hedef son hardening sprintlerinden sonra manuel browser/UI smoke validation yapmak.
+- Davranis degisikligi yapmadan regresyon risklerini kaydetmek.
+- Bulgu varsa sonraki kucuk sprintlere ayirmak.
 
 ---
 

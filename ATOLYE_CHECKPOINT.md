@@ -47,33 +47,36 @@ TÃ¼rkÃ§e Ã¶ncelikli AI destekli kiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosu
 
 ## Aktif Sprint
 
-**Sprint 72**
+**Sprint 73**
 
-Asset Image Rendering Cleanup
+Production Engine Smoke Validation
 
 **Durum**
 
 Hazir
 
-Sprint 71 tamamlandi. React hook/effect lint issue'lari kapatildi ve TypeScript kontrolu gecti.
+Sprint 72 tamamlandi. AssetGallery image rendering warning'i mevcut davranis korunarak kapatildi ve lint temiz gecti.
 
-Sprint 72 icin yalnizca AssetGallery image rendering warning'i ele alinacak.
+Sprint 73 icin son hardening sprintlerinden sonra Production Engine yuzeylerinde kucuk, bagimsiz smoke validation yapilacak.
 
 Kapsam:
 
-- src/components/assets/AssetGallery.tsx
+- Project workspace production surfaces
+- Pipeline status / queue / jobs gorunumu
+- AssetGallery preview ve asset reload davranisi
+- Recent lint hardening sonrasi UI regresyon kontrolu
 
 Hedef:
 
-- Kalan @next/next/no-img-element warning'ini gidermek
-- Mevcut asset URL, layout, sizing ve rendering davranisini korumak
-- next/image gereksinimlerini implementasyondan once degerlendirmek
+- Manuel browser/UI smoke validation yapmak
+- Davranis degisikligi yapmadan regresyon risklerini kaydetmek
+- Bulgu varsa sonraki kucuk sprintlere ayirmak
 
 Not:
 
-- Sprint 71 sonrasi npm run lint 0 errors ve 1 warning ile basarili calisiyor.
-- Kalan warning: @next/next/no-img-element in AssetGallery.tsx.
-- Manuel browser/UI testi yapilmadi.
+- npm run lint Sprint 72 sonrasi 0 errors ve 0 warnings ile geciyor.
+- npx tsc --noEmit Sprint 72 icin gecti.
+- Sprint 72 icinde manuel browser/UI testi yapilmadi.
 
 ---
 
@@ -581,22 +584,25 @@ BaÅŸarÄ±lÄ±.
 
 # Bir Sonraki Gorev
 
-# Sprint 72
-## Asset Image Rendering Cleanup
+# Sprint 73
+## Production Engine Smoke Validation
 
 Amac:
 
-AssetGallery icindeki kalan @next/next/no-img-element warning'ini mevcut gorsel davranisi koruyarak gidermek.
+Son hardening sprintlerinden sonra Production Engine yuzeylerinde kucuk, bagimsiz manual smoke validation yapmak.
 
 Kapsam:
 
-- src/components/assets/AssetGallery.tsx
+- Project workspace production surfaces
+- Pipeline status / queue / jobs gorunumu
+- AssetGallery preview ve asset reload davranisi
+- Recent lint hardening sonrasi UI regresyon kontrolu
 
 Plan:
 
-- next/image gereksinimlerini degerlendirme
-- Mevcut asset URL, layout, sizing ve rendering davranisini koruma
-- Image warning'ini davranis degistirmeden kapatma
+- Browser/UI smoke validation calistirma
+- Davranis degisikligi yapmadan bulgu kaydi
+- Gerekirse bulgulari sonraki kucuk sprintlere ayirma
 
 ---
 

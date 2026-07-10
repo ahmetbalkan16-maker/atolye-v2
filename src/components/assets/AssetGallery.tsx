@@ -492,6 +492,7 @@ function AssetPreview({ asset }: { asset: Asset }) {
 
   return (
     <div className="mb-4 aspect-video overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900">
+      {/* eslint-disable-next-line @next/next/no-img-element -- Asset previews can be local API paths, remote URLs, data URLs, or blob URLs; plain img preserves the current preview behavior without requiring image config. */}
       <img
         src={imageSrc}
         alt={getAssetName(asset)}

@@ -468,6 +468,23 @@ Tamamlandi
 - Kaynak kodda Sprint 71 kapsami disinda degisiklik, commit veya push yapilmadi.
 
 ---
+### Asset Image Rendering Cleanup
+
+Tamamlandi
+
+- Kapsam src/components/assets/AssetGallery.tsx olarak tutuldu.
+- Existing plain <img> implementation bilincli olarak korundu.
+- next/image migration reddedildi; AssetGallery http/https sources, local API-served paths, data:image URLs ve blob/object URLs destekliyor.
+- next.config.ts icinde remote image domain/remotePatterns configuration bulunmadigi kaydedildi.
+- Bunun yerine dar kapsamli, gerekceli lint suppression eklendi.
+- Existing layout, aspect ratio, sizing, lazy loading, fallback ve onError davranisi korundu.
+- npx tsc --noEmit temiz gecti.
+- npm run lint 0 errors ve 0 warnings ile temiz gecti.
+- Rendering risk dusuk olarak kaydedildi.
+- Manuel browser/UI testi yapilmadi.
+- Kaynak kodda Sprint 72 kapsami disinda degisiklik, commit veya push yapilmadi.
+
+---
 ### Documentation Vision Alignment
 
 Tamamlandi
