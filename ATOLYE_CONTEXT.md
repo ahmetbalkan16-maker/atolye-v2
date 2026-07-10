@@ -1,29 +1,29 @@
-﻿---
+---
 Document: ATOLYE_CONTEXT.md
 Version: 1.0.0
 Status: Active
 Priority: Critical
-Owner: AtÃ¶lye V2
+Owner: Atölye V2
 Last Updated: 2026-07-08
 ---
 
-# AtÃ¶lye V2 â€” Project Context
+# Atölye V2 — Project Context
 
-## AmaÃ§
+## Amaç
 
-Bu belge AtÃ¶lye V2'nin amacÄ±, vizyonu ve geliÅŸtirme felsefesini aÃ§Ä±klar.
+Bu belge Atölye V2'nin amacı, vizyonu ve geliştirme felsefesini açıklar.
 
-Teknik kurallar iÃ§ermez.
+Teknik kurallar içermez.
 
-Teknik kurallar iÃ§in:
+Teknik kurallar için:
 
 **ATOLYE_AI_RULES.md**
 
-belgesi referans alÄ±nmalÄ±dÄ±r.
+belgesi referans alınmalıdır.
 
 ---
 
-# AtÃ¶lye Nedir?
+# Atölye Nedir?
 
 Belge rolu:
 
@@ -31,17 +31,17 @@ Bu belge Atolye'nin proje baglamini ve calisma felsefesini ozetler.
 
 Nihai urun tarifi VISION.md belgesindedir. Projenin neden var oldugu PROJECT_PHILOSOPHY.md belgesinde, uzun vadeli fazlar ATOLYE_MASTER_ROADMAP.md belgesinde takip edilir.
 
-AtÃ¶lye V2;
+Atölye V2;
 
-TÃ¼rkÃ§e Ã¶ncelikli,
+Türkçe öncelikli,
 
-Yapay zekÃ¢ destekli,
+Yapay zekâ destekli,
 
-KiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosudur.
+Kişisel içerik üretim stüdyosudur.
 
-Temel amacÄ±;
+Temel amacı;
 
-Profesyonel iÃ§erik Ã¼retim sÃ¼recini tek platform altÄ±nda toplamaktÄ±r.
+Profesyonel içerik üretim sürecini tek platform altında toplamaktır.
 
 Buradaki platform ifadesi ticari SaaS onceligi anlamina gelmez. Atolye oncelikle kisisel, self-hosted ve guvenli remote erisim hedefleyen bir AI produksiyon studyosudur.
 
@@ -55,73 +55,73 @@ Canonical uzun vadeli akis:
 
 Tek konu -> Research -> Script -> Scene Planning -> Visual Production -> Animation -> Audio -> Video Editing -> Thumbnail -> SEO -> Publishing
 
-KullanÄ±cÄ± yalnÄ±zca bir konu girer.
+Kullanıcı yalnızca bir konu girer.
 
-AtÃ¶lye ise;
+Atölye ise;
 
-AraÅŸtÄ±rÄ±r.
+Araştırır.
 
-â†“
+↓
 
 Planlar.
 
-â†“
+↓
 
-Senaryo oluÅŸturur.
+Senaryo oluşturur.
 
-â†“
+↓
 
-Sahneleri Ã¼retir.
+Sahneleri üretir.
 
-â†“
+↓
 
-GÃ¶rseller oluÅŸturur.
+Görseller oluşturur.
 
-â†“
+↓
 
-Animasyon Ã¼retir.
+Animasyon üretir.
 
-â†“
+↓
 
-Ses Ã¼retir.
+Ses üretir.
 
-â†“
+↓
 
-Videoyu birleÅŸtirir.
+Videoyu birleştirir.
 
-â†“
+↓
 
-Thumbnail oluÅŸturur.
+Thumbnail oluşturur.
 
-â†“
+↓
 
-SEO Ã¼retir.
+SEO üretir.
 
-â†“
+↓
 
-YouTube yayÄ±nÄ±na hazÄ±r hale getirir.
+YouTube yayınına hazır hale getirir.
 
 ---
 
-# KullanÄ±m AmacÄ±
+# Kullanım Amacı
 
 Bu proje;
 
-Ã¶ncelikle kiÅŸisel kullanÄ±m amacÄ±yla geliÅŸtirilmektedir.
+öncelikle kişisel kullanım amacıyla geliştirilmektedir.
 
 Ana hedef;
 
-YouTube iÃ§erik Ã¼retimini hÄ±zlandÄ±rmak,
+YouTube içerik üretimini hızlandırmak,
 
-kaliteyi artÄ±rmak,
+kaliteyi artırmak,
 
-tekrarlayan iÅŸleri otomatikleÅŸtirmektir.
+tekrarlayan işleri otomatikleştirmektir.
 
 ---
 
-# Ä°Ã§erik KapsamÄ±
+# İçerik Kapsamı
 
-Ä°lk odak alanÄ±:
+İlk odak alanı:
 
 Tarih
 
@@ -132,109 +132,109 @@ Ancak mimari;
 - Bilim
 - Teknoloji
 - Uzay
-- EÄŸitim
+- Eğitim
 - Gizem
-- KÃ¼ltÃ¼r
+- Kültür
 - Sanat
 
-gibi farklÄ± iÃ§erik kategorilerini de destekleyecek ÅŸekilde tasarlanmÄ±ÅŸtÄ±r.
+gibi farklı içerik kategorilerini de destekleyecek şekilde tasarlanmıştır.
 
 ---
 
-# GeliÅŸtirme Felsefesi
+# Geliştirme Felsefesi
 
-Her yeni Ã¶zellik;
+Her yeni özellik;
 
-mevcut Ã¼retim hattÄ±na entegre edilmelidir.
+mevcut üretim hattına entegre edilmelidir.
 
-AtÃ¶lye;
+Atölye;
 
-bir Ã¶zellik koleksiyonu deÄŸildir.
+bir özellik koleksiyonu değildir.
 
-Tek bir Ã¼retim platformudur.
+Tek bir üretim platformudur.
 
 Bu ifade, cok kullanicili SaaS hedefinden cok entegre kisisel studyoyu anlatir.
 
 ---
 
-# Mimari YaklaÅŸÄ±m
+# Mimari Yaklaşım
 
-AtÃ¶lye aÅŸaÄŸÄ±daki prensiplere gÃ¶re geliÅŸtirilmektedir.
+Atölye aşağıdaki prensiplere göre geliştirilmektedir.
 
-- ModÃ¼ler mimari
-- KatmanlÄ± yapÄ±
+- Modüler mimari
+- Katmanlı yapı
 - Service Layer
 - AI Router
 - Provider Architecture
 - Manifest Pipeline
 - Asset Versioning
 
-Bu mimari uzun vadede korunmalÄ±dÄ±r.
+Bu mimari uzun vadede korunmalıdır.
 
 ---
 
-# AI YaklaÅŸÄ±mÄ±
+# AI Yaklaşımı
 
-AtÃ¶lye;
+Atölye;
 
-tek bir AI saÄŸlayÄ±cÄ±sÄ±na baÄŸÄ±mlÄ± olmayacaktÄ±r.
+tek bir AI sağlayıcısına bağımlı olmayacaktır.
 
-Desteklenmesi hedeflenen saÄŸlayÄ±cÄ±lar:
+Desteklenmesi hedeflenen sağlayıcılar:
 
 - OpenAI
 - Gemini
 - Claude
 - OpenRouter
 - Yerel modeller
-- Gelecekte eklenecek diÄŸer sistemler
+- Gelecekte eklenecek diğer sistemler
 
-AI Router bu esnekliÄŸi saÄŸlamak iÃ§in kullanÄ±lmaktadÄ±r.
+AI Router bu esnekliği sağlamak için kullanılmaktadır.
 
 ---
 
-# Manifest YaklaÅŸÄ±mÄ±
+# Manifest Yaklaşımı
 
 Manifest;
 
-projenin resmi Ã¼retim durumudur.
+projenin resmi üretim durumudur.
 
-Yeni Ã¼retim aÅŸamalarÄ± mÃ¼mkÃ¼n olduÄŸunca manifest sistemine entegre edilmelidir.
-
----
-
-# Asset YaklaÅŸÄ±mÄ±
-
-Asset sistemi append-only mantÄ±ÄŸÄ±yla Ã§alÄ±ÅŸÄ±r.
-
-Eski Ã¼retimler korunur.
-
-Yeni Ã¼retimler mevcut assetleri silmez.
-
-Bu yaklaÅŸÄ±m versiyon yÃ¶netimini mÃ¼mkÃ¼n kÄ±lar.
+Yeni üretim aşamaları mümkün olduğunca manifest sistemine entegre edilmelidir.
 
 ---
 
-# KullanÄ±cÄ± Deneyimi
+# Asset Yaklaşımı
 
-AtÃ¶lye;
+Asset sistemi append-only mantığıyla çalışır.
 
-teknik bir geliÅŸtirme aracÄ± deÄŸil,
+Eski üretimler korunur.
 
-Ã¼retim odaklÄ± bir stÃ¼dyo olmalÄ±dÄ±r.
+Yeni üretimler mevcut assetleri silmez.
 
-KullanÄ±cÄ± mÃ¼mkÃ¼n olduÄŸunca:
+Bu yaklaşım versiyon yönetimini mümkün kılar.
 
-- az ayar yapmalÄ±,
-- az teknik detay gÃ¶rmeli,
-- Ã¼retime odaklanmalÄ±dÄ±r.
+---
+
+# Kullanıcı Deneyimi
+
+Atölye;
+
+teknik bir geliştirme aracı değil,
+
+üretim odaklı bir stüdyo olmalıdır.
+
+Kullanıcı mümkün olduğunca:
+
+- az ayar yapmalı,
+- az teknik detay görmeli,
+- üretime odaklanmalıdır.
 
 ---
 
 # Uzun Vadeli Vizyon
 
-AtÃ¶lye;
+Atölye;
 
-yalnÄ±zca video Ã¼reten bir sistem olmayacaktÄ±r.
+yalnızca video üreten bir sistem olmayacaktır.
 
 Uzun vadede;
 
@@ -245,35 +245,35 @@ Uzun vadede;
 - Voice Engine
 - Publishing Studio
 
-gibi modÃ¼llerle tam kapsamlÄ± kiÅŸisel AI Production Studio haline gelecektir.
+gibi modüllerle tam kapsamlı kişisel AI Production Studio haline gelecektir.
 
 ---
 
 # Historical Documentary Engine
 
-Bu proje iÃ§in en Ã¶nemli uzun vadeli vizyonlardan biridir.
+Bu proje için en önemli uzun vadeli vizyonlardan biridir.
 
-AmaÃ§;
+Amaç;
 
-Tarihi yalnÄ±zca anlatmak deÄŸil,
+Tarihi yalnızca anlatmak değil,
 
 anlamak,
 
-iliÅŸkilendirmek,
+ilişkilendirmek,
 
-haritalandÄ±rmak,
+haritalandırmak,
 
 karakterleri analiz etmek,
 
-olaylarÄ± dramatize etmek,
+olayları dramatize etmek,
 
-ve profesyonel belgesel anlatÄ±mÄ±na dÃ¶nÃ¼ÅŸtÃ¼rmektir.
+ve profesyonel belgesel anlatımına dönüştürmektir.
 
 ---
 
 # Platform Hedefi
 
-AtÃ¶lye;
+Atölye;
 
 ticari SaaS oncelikli bir platform olarak degil,
 
@@ -285,40 +285,40 @@ ileride
 - Telefon
 - Tablet
 
-Ã¼zerinden eriÅŸilebilen,
+üzerinden erişilebilen,
 
-gÃ¼venli,
+güvenli,
 
 guvenli internet erisimli,
 
-kiÅŸisel AI stÃ¼dyosu olacaktÄ±r.
+kişisel AI stüdyosu olacaktır.
 
 ---
 
-# Temel Ä°lke
+# Temel İlke
 
-Her yeni geliÅŸtirme ÅŸu soruya cevap vermelidir:
+Her yeni geliştirme şu soruya cevap vermelidir:
 
 > Bu gelistirme Atolye'yi daha iyi bir kisisel AI produksiyon studyosu yapiyor mu?
 
-EÄŸer cevap "hayÄ±r" ise,
+Eğer cevap "hayır" ise,
 
-Ã¶zellik yeniden deÄŸerlendirilmelidir.
+özellik yeniden değerlendirilmelidir.
 
 ---
 
 # Nihai Vizyon
 
-AtÃ¶lye;
+Atölye;
 
-bir sohbet uygulamasÄ± deÄŸildir.
+bir sohbet uygulaması değildir.
 
-Bir kod editÃ¶rÃ¼ deÄŸildir.
+Bir kod editörü değildir.
 
-Bir video editÃ¶rÃ¼ deÄŸildir.
+Bir video editörü değildir.
 
-AtÃ¶lye;
+Atölye;
 
 **kisisel AI destekli profesyonel icerik uretim studyosudur.**
 
-TÃ¼m mimari kararlar bu hedefe hizmet etmelidir.
+Tüm mimari kararlar bu hedefe hizmet etmelidir.

@@ -1,8 +1,8 @@
-﻿# ATOLYE_MASTER_ROADMAP.md
+# ATOLYE_MASTER_ROADMAP.md
 
-# AtÃ¶lye V2 â€” Master Roadmap
+# Atölye V2 — Master Roadmap
 
-Son GÃ¼ncelleme:
+Son Güncelleme:
 2026-07-08
 
 ---
@@ -22,33 +22,33 @@ Ortak vizyon dili:
 - Kullanici yonetmendir; Atolye produksiyon ekibidir.
 - Uzun vadede kendi sunucusunda calisan Secure Remote Personal Studio olacaktir.
 
-AtÃ¶lye V2;
+Atölye V2;
 
-TÃ¼rkÃ§e Ã¶ncelikli, yapay zekÃ¢ destekli kiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosudur.
+Türkçe öncelikli, yapay zekâ destekli kişisel içerik üretim stüdyosudur.
 
 Uzun vadeli hedef;
 
-Tek bir konu verildiÄŸinde araÅŸtÄ±rmadan baÅŸlayarak, yayÄ±nlanmaya hazÄ±r profesyonel video Ã¼retebilen uÃ§tan uca bir AI Production Studio oluÅŸturmaktÄ±r.
+Tek bir konu verildiğinde araştırmadan başlayarak, yayınlanmaya hazır profesyonel video üretebilen uçtan uca bir AI Production Studio oluşturmaktır.
 
 Temel ilke:
 
-> **En az hata ile en hÄ±zlÄ± tamamlanan AtÃ¶lye.**
+> **En az hata ile en hızlı tamamlanan Atölye.**
 
 ---
 
-# Temel TasarÄ±m Ä°lkeleri
+# Temel Tasarım İlkeleri
 
-* ModÃ¼ler mimari
-* KatmanlÄ± yapÄ±
-* AI Provider baÄŸÄ±msÄ±zlÄ±ÄŸÄ±
-* Service tabanlÄ± iÅŸ mantÄ±ÄŸÄ±
-* Manifest tabanlÄ± pipeline
-* Geriye dÃ¶nÃ¼k uyumluluk
-* Ã–nce mimari, sonra kod
+* Modüler mimari
+* Katmanlı yapı
+* AI Provider bağımsızlığı
+* Service tabanlı iş mantığı
+* Manifest tabanlı pipeline
+* Geriye dönük uyumluluk
+* Önce mimari, sonra kod
 
 ---
 
-# Ãœretim Pipeline'Ä±
+# Üretim Pipeline'ı
 
 Canonical uzun vadeli akis:
 
@@ -56,56 +56,56 @@ Tek konu -> Research -> Script -> Scene Planning -> Visual Production -> Animati
 
 Asagidaki mevcut modul isimleri, bu canonical akisin uygulamadaki karsiliklaridir.
 
-AraÅŸtÄ±rma
+Araştırma
 
-â†“
+↓
 
 Senaryo
 
-â†“
+↓
 
 Sahneler
 
-â†“
+↓
 
-GÃ¶rseller
+Görseller
 
-â†“
+↓
 
 Animasyon
 
-â†“
+↓
 
 Ses
 
-â†“
+↓
 
 Thumbnail
 
-â†“
+↓
 
 SEO
 
-â†“
+↓
 
 Montaj
 
-â†“
+↓
 
 YouTube
 
-Bu pipeline AtÃ¶lye'nin temel Ã¼retim hattÄ±dÄ±r.
+Bu pipeline Atölye'nin temel üretim hattıdır.
 
-Yeni geliÅŸtirilecek tÃ¼m Ã¶zellikler mÃ¼mkÃ¼n olduÄŸunca bu yapÄ± iÃ§erisine entegre edilmelidir.
+Yeni geliştirilecek tüm özellikler mümkün olduğunca bu yapı içerisine entegre edilmelidir.
 
 ---
 
-# PHASE 1 â€” Foundation âœ…
+# PHASE 1 — Foundation ✅
 
 Durum:
-TamamlandÄ±
+Tamamlandı
 
-Ä°Ã§erik:
+İçerik:
 
 * AI Router
 * Provider Architecture
@@ -121,22 +121,22 @@ TamamlandÄ±
 * Animation Service
 * Animation API
 
-AmaÃ§:
+Amaç:
 
-SaÄŸlam ve sÃ¼rdÃ¼rÃ¼lebilir temel mimari oluÅŸturmak.
+Sağlam ve sürdürülebilir temel mimari oluşturmak.
 
 ---
 
-# PHASE 2 â€” Production Engine
+# PHASE 2 — Production Engine
 
 Durum:
 Devam Ediyor
 
 Hedef:
 
-Video Ã¼retim hattÄ±nÄ± tamamlamak.
+Video üretim hattını tamamlamak.
 
-Planlanan modÃ¼ller:
+Planlanan modüller:
 
 * Animation Scene Regeneration
 * Video Engine
@@ -147,34 +147,34 @@ Planlanan modÃ¼ller:
 * Render Queue
 * Render Job Management
 
-AmaÃ§:
+Amaç:
 
-AnimasyonlarÄ± gerÃ§ek video Ã¼retim sÃ¼recine dÃ¶nÃ¼ÅŸtÃ¼rmek.
+Animasyonları gerçek video üretim sürecine dönüştürmek.
 
 ---
 
-# PHASE 3 â€” Voice Engine
+# PHASE 3 — Voice Engine
 
-Planlanan modÃ¼ller:
+Planlanan modüller:
 
 * Voice Service
 * Voice Provider
 * ElevenLabs
 * OpenAI Voice
-* Ã‡oklu Voice Provider
+* Çoklu Voice Provider
 * Narration Engine
 * Voice Timeline
 * Voice Manifest
 
-AmaÃ§:
+Amaç:
 
-Profesyonel anlatÄ±cÄ± sistemi oluÅŸturmak.
+Profesyonel anlatıcı sistemi oluşturmak.
 
 ---
 
-# PHASE 4 â€” Assembly Engine
+# PHASE 4 — Assembly Engine
 
-Planlanan modÃ¼ller:
+Planlanan modüller:
 
 * Video Assembly
 * Scene Merge
@@ -183,15 +183,15 @@ Planlanan modÃ¼ller:
 * Sound Effects
 * Export Manager
 
-AmaÃ§:
+Amaç:
 
-TÃ¼m iÃ§erikleri tek video haline getirmek.
+Tüm içerikleri tek video haline getirmek.
 
 ---
 
-# PHASE 5 â€” Publishing
+# PHASE 5 — Publishing
 
-Planlanan modÃ¼ller:
+Planlanan modüller:
 
 * Thumbnail Studio
 * SEO Studio
@@ -200,13 +200,13 @@ Planlanan modÃ¼ller:
 * Playlist Manager
 * Schedule Manager
 
-AmaÃ§:
+Amaç:
 
-Videoyu doÄŸrudan yayÄ±nlanabilir hale getirmek.
+Videoyu doğrudan yayınlanabilir hale getirmek.
 
 ---
 
-# PHASE 6 â€” Intelligence
+# PHASE 6 — Intelligence
 
 Uzun vadeli hedef.
 
@@ -214,25 +214,25 @@ Planlanan sistemler:
 
 ## AI Director
 
-GÃ¶revleri:
+Görevleri:
 
-* Pipeline yÃ¶netmek
-* Eksik adÄ±mlarÄ± tespit etmek
-* Sonraki gÃ¶revi Ã¶nermek
-* Kalite kontrolÃ¼ yapmak
+* Pipeline yönetmek
+* Eksik adımları tespit etmek
+* Sonraki görevi önermek
+* Kalite kontrolü yapmak
 
 ---
 
 ## Knowledge Engine
 
-GÃ¶revleri:
+Görevleri:
 
-* Bilgi doÄŸrulama
-* Kaynak yÃ¶netimi
+* Bilgi doğrulama
+* Kaynak yönetimi
 * Tarihsel analiz
-* Olay iliÅŸkileri
-* Karakter iliÅŸkileri
-* Timeline yÃ¶netimi
+* Olay ilişkileri
+* Karakter ilişkileri
+* Timeline yönetimi
 
 ---
 
@@ -242,15 +242,15 @@ Uzun vadeli vizyon.
 
 Hedef:
 
-AtÃ¶lye'nin tarihi olaylarÄ± yalnÄ±zca anlatmasÄ± deÄŸil;
+Atölye'nin tarihi olayları yalnızca anlatması değil;
 
-* anlamasÄ±,
+* anlaması,
 * analiz etmesi,
 * dramatize etmesi,
-* sahnelere dÃ¶nÃ¼ÅŸtÃ¼rmesi,
-* haritalar oluÅŸturmasÄ±,
-* savaÅŸ hareketlerini canlandÄ±rmasÄ±,
-* belgesel diliyle sunmasÄ±.
+* sahnelere dönüştürmesi,
+* haritalar oluşturması,
+* savaş hareketlerini canlandırması,
+* belgesel diliyle sunması.
 
 ---
 
@@ -265,13 +265,13 @@ Gorevleri:
 
 ---
 
-# PHASE 7 â€” Platform
+# PHASE 7 — Platform
 
 Uzun vadeli Secure Remote Personal Studio hedefleri.
 
 Planlanan sistemler:
 
-* GÃ¼venlik
+* Güvenlik
 * Authentication
 * Authorization
 * API Key Management
@@ -279,99 +279,99 @@ Planlanan sistemler:
 * Dosya gizliligi
 * Kisisel yedekleme ve istege bagli sync
 * Self Hosting
-* Mobil EriÅŸim
-* Ã‡oklu cihaz desteÄŸi
+* Mobil Erişim
+* Çoklu cihaz desteği
 * Proje yedekleme
-* GeliÅŸmiÅŸ ayarlar
+* Gelişmiş ayarlar
 
 ---
 
-# Mimari Ä°lkeler
+# Mimari İlkeler
 
-AtÃ¶lye;
+Atölye;
 
-HiÃ§bir zaman tek bir AI saÄŸlayÄ±cÄ±sÄ±na baÄŸÄ±mlÄ± olmayacaktÄ±r.
+Hiçbir zaman tek bir AI sağlayıcısına bağımlı olmayacaktır.
 
-AI Router mimarisi korunacaktÄ±r.
+AI Router mimarisi korunacaktır.
 
-Provider sistemi geliÅŸtirilmeye devam edecektir.
+Provider sistemi geliştirilmeye devam edecektir.
 
-Ä°ÅŸ mantÄ±ÄŸÄ± mÃ¼mkÃ¼n olduÄŸunca Service katmanlarÄ±nda tutulacaktÄ±r.
+İş mantığı mümkün olduğunca Service katmanlarında tutulacaktır.
 
-UI yalnÄ±zca kullanÄ±cÄ± etkileÅŸimini yÃ¶netecektir.
+UI yalnızca kullanıcı etkileşimini yönetecektir.
 
 ---
 
-# Kalite StandartlarÄ±
+# Kalite Standartları
 
 Her sprint sonunda:
 
-* TypeScript kontrolÃ¼
+* TypeScript kontrolü
 * Kod incelemesi
-* Checkpoint gÃ¼ncellemesi
+* Checkpoint güncellemesi
 * Git commit
 * Git push
 
-tamamlanmalÄ±dÄ±r.
+tamamlanmalıdır.
 
 ---
 
-# BaÅŸarÄ± Kriteri
+# Başarı Kriteri
 
-AtÃ¶lye V2 baÅŸarÄ±ya ulaÅŸmÄ±ÅŸ sayÄ±lÄ±r;
+Atölye V2 başarıya ulaşmış sayılır;
 
-KullanÄ±cÄ± yalnÄ±zca bir konu girdiÄŸinde sistemin:
+Kullanıcı yalnızca bir konu girdiğinde sistemin:
 
-AraÅŸtÄ±rma
+Araştırma
 
-â†“
+↓
 
 Senaryo
 
-â†“
+↓
 
 Sahneler
 
-â†“
+↓
 
-GÃ¶rseller
+Görseller
 
-â†“
+↓
 
 Animasyon
 
-â†“
+↓
 
 Seslendirme
 
-â†“
+↓
 
 Montaj
 
-â†“
+↓
 
 Thumbnail
 
-â†“
+↓
 
 SEO
 
-â†“
+↓
 
 YouTube
 
-sÃ¼reÃ§lerini tek bir Ã¼retim hattÄ± iÃ§erisinde yÃ¶netebildiÄŸi zaman.
+süreçlerini tek bir üretim hattı içerisinde yönetebildiği zaman.
 
 ---
 
 # Nihai Hedef
 
-AtÃ¶lye yalnÄ±zca bir AI uygulamasÄ± deÄŸildir.
+Atölye yalnızca bir AI uygulaması değildir.
 
 Uzun vadede;
 
-**kiÅŸisel AI destekli profesyonel iÃ§erik Ã¼retim stÃ¼dyosu**
+**kişisel AI destekli profesyonel içerik üretim stüdyosu**
 
-olmasÄ± hedeflenmektedir.
+olması hedeflenmektedir.
 
-TÃ¼m mimari kararlar bu vizyona hizmet etmelidir.
+Tüm mimari kararlar bu vizyona hizmet etmelidir.

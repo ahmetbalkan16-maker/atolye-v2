@@ -3,19 +3,19 @@ Document: ROADMAP.md
 Version: 1.0.0
 Status: Active
 Priority: High
-Owner: AtÃ¶lye V2
+Owner: Atölye V2
 Last Updated: 2026-07-10
 ---
 
-# AtÃ¶lye V2 â€” Development Roadmap
+# Atölye V2 — Development Roadmap
 
-## AmaÃ§
+## Amaç
 
-Bu belge Ã¶nÃ¼mÃ¼zdeki sprintlerde yapÄ±lacak teknik geliÅŸtirmeleri iÃ§erir.
+Bu belge önümüzdeki sprintlerde yapılacak teknik geliştirmeleri içerir.
 
-Bu belge yaÅŸayan bir dokÃ¼mandÄ±r.
+Bu belge yaşayan bir dokümandır.
 
-Sprint tamamlandÄ±kÃ§a gÃ¼ncellenmelidir.
+Sprint tamamlandıkça güncellenmelidir.
 
 Nihai urun vizyonu icin:
 
@@ -27,7 +27,7 @@ Uzun vadeli fazlar icin:
 
 ATOLYE_MASTER_ROADMAP.md
 
-referans alÄ±nmalÄ±dÄ±r.
+referans alınmalıdır.
 
 ---
 
@@ -35,11 +35,11 @@ referans alÄ±nmalÄ±dÄ±r.
 
 Aktif Faz
 
-Phase 2 â€” Production Engine
+Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 73
+Sprint 79
 
 ---
 
@@ -51,12 +51,12 @@ Durum
 
 Completed
 
-### GÃ¶revler
+### Görevler
 
-- Scene bazlÄ± animation regenerate
+- Scene bazlı animation regenerate
 - animation.json merge
 - Asset versioning koruma
-- Animation active version seÃ§imi
+- Animation active version seçimi
 - UI regenerate butonu
 
 ---
@@ -151,10 +151,10 @@ Planlanan
 
 Completed
 
-- Research â†’ Export tam akÄ±ÅŸ kontrolÃ¼
-- PipelineRunner uÃ§tan uca orchestrator
+- Research → Export tam akış kontrolü
+- PipelineRunner uçtan uca orchestrator
 - Manifest/progress senkronizasyonu
-- Stage bazlÄ± hata yÃ¶netimi
+- Stage bazlı hata yönetimi
 
 ---
 
@@ -625,37 +625,54 @@ Completed
 
 ---
 
+# Sprint 79
+
+## Pipeline History Viewer Foundation
+
+Completed
+
+- Execution history UI PipelineJobsPanel icinde eklendi.
+- Existing GET /api/projects/[slug]/pipeline/history endpoint'i tuketildi.
+- Loading, empty ve error state'leri eklendi.
+- History refresh active job polling ile senkronize edildi.
+- Basarili retry/cancel job action'lari history refresh'i guvenilir sekilde tetikliyor.
+- Existing job actions ve API contracts preserved.
+- PipelineJobManager unchanged.
+- npx tsc --noEmit passed.
+
+---
 
 
-# Sprint Ã–ncelik KurallarÄ±
+
+# Sprint Öncelik Kuralları
 
 Her sprint;
 
-- kÃ¼Ã§Ã¼k olmalÄ±
-- baÄŸÄ±msÄ±z tamamlanabilmeli
-- TypeScript testi geÃ§meli
-- mevcut sistemi bozmamalÄ±
+- küçük olmalı
+- bağımsız tamamlanabilmeli
+- TypeScript testi geçmeli
+- mevcut sistemi bozmamalı
 
 ---
 
 # Tamamlanma Kriteri
 
-Bir sprint aÅŸaÄŸÄ±daki ÅŸartlar saÄŸlanÄ±nca tamamlanÄ±r.
+Bir sprint aşağıdaki şartlar sağlanınca tamamlanır.
 
-- Kod tamamlandÄ±
-- TypeScript geÃ§ti
-- Rapor hazÄ±rlandÄ±
-- Checkpoint gÃ¼ncellendi
+- Kod tamamlandı
+- TypeScript geçti
+- Rapor hazırlandı
+- Checkpoint güncellendi
 - Git commit
 - Git push
 
 ---
 
-# Sonraki GÃ¼ncelleme
+# Sonraki Güncelleme
 
-Sprint tamamlandÄ±ÄŸÄ±nda;
+Sprint tamamlandığında;
 
-- Aktif Sprint deÄŸiÅŸtirilir.
-- Tamamlanan sprint kaldÄ±rÄ±lmaz.
-- Durumu "Completed" yapÄ±lÄ±r.
+- Aktif Sprint değiştirilir.
+- Tamamlanan sprint kaldırılmaz.
+- Durumu "Completed" yapılır.
 

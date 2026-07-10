@@ -1,67 +1,67 @@
-﻿---
+---
 Document: AI_MEMORY.md
 Version: 1.0.0
 Status: Active
 Priority: High
-Owner: AtÃ¶lye V2
+Owner: Atölye V2
 Last Updated: 2026-07-08
 ---
 
-# AtÃ¶lye V2 â€” AI Memory
+# Atölye V2 — AI Memory
 
-## AmaÃ§
+## Amaç
 
-Bu belge AtÃ¶lye V2 geliÅŸtirme sÃ¼recinde edinilen deneyimleri, Ã¶nemli dersleri ve tekrar edilmemesi gereken hatalarÄ± kayÄ±t altÄ±nda tutar.
+Bu belge Atölye V2 geliştirme sürecinde edinilen deneyimleri, önemli dersleri ve tekrar edilmemesi gereken hataları kayıt altında tutar.
 
-Bu belge teknik kurallarÄ± iÃ§ermez.
+Bu belge teknik kuralları içermez.
 
-Teknik kurallar iÃ§in:
+Teknik kurallar için:
 
 ATOLYE_AI_RULES.md
 
-referans alÄ±nmalÄ±dÄ±r.
+referans alınmalıdır.
 
 ---
 
 # AI MEMORY-001
 
-## Ã–nce Mimari
+## Önce Mimari
 
-### Ã–ÄŸrenilen Ders
+### Öğrenilen Ders
 
-Koddan Ã¶nce mimari planlandÄ±ÄŸÄ±nda hata oranÄ± ciddi ÅŸekilde azalÄ±yor.
+Koddan önce mimari planlandığında hata oranı ciddi şekilde azalıyor.
 
-### SonuÃ§
+### Sonuç
 
-Her geliÅŸtirme Ã¶nce analiz ile baÅŸlamalÄ±dÄ±r.
+Her geliştirme önce analiz ile başlamalıdır.
 
 ---
 
 # AI MEMORY-002
 
-## KÃ¼Ã§Ã¼k AdÄ±mlar
+## Küçük Adımlar
 
-### Ã–ÄŸrenilen Ders
+### Öğrenilen Ders
 
-BÃ¼yÃ¼k refactor'lar risk oluÅŸturuyor.
+Büyük refactor'lar risk oluşturuyor.
 
-### SonuÃ§
+### Sonuç
 
-KÃ¼Ã§Ã¼k ve kontrollÃ¼ geliÅŸtirmeler tercih edilmeli.
+Küçük ve kontrollü geliştirmeler tercih edilmeli.
 
 ---
 
 # AI MEMORY-003
 
-## Geriye DÃ¶nÃ¼k Uyumluluk
+## Geriye Dönük Uyumluluk
 
-### Ã–ÄŸrenilen Ders
+### Öğrenilen Ders
 
-Yeni Ã¶zellikler mevcut sistemi bozmadan eklenebiliyor.
+Yeni özellikler mevcut sistemi bozmadan eklenebiliyor.
 
-### SonuÃ§
+### Sonuç
 
-Backward Compatibility korunmalÄ±.
+Backward Compatibility korunmalı.
 
 ---
 
@@ -69,13 +69,13 @@ Backward Compatibility korunmalÄ±.
 
 ## Service Layer
 
-### Ã–ÄŸrenilen Ders
+### Öğrenilen Ders
 
-Business Logic UI iÃ§erisine taÅŸÄ±ndÄ±ÄŸÄ±nda kod tekrarlarÄ± oluÅŸuyor.
+Business Logic UI içerisine taşındığında kod tekrarları oluşuyor.
 
-### SonuÃ§
+### Sonuç
 
-Ä°ÅŸ mantÄ±ÄŸÄ± Service katmanÄ±nda tutulmalÄ±.
+İş mantığı Service katmanında tutulmalı.
 
 ---
 
@@ -83,13 +83,13 @@ Business Logic UI iÃ§erisine taÅŸÄ±ndÄ±ÄŸÄ±nda kod tekrarlarÄ± olu
 
 ## Manifest
 
-### Ã–ÄŸrenilen Ders
+### Öğrenilen Ders
 
-Manifest sistemi proje ilerlemesini takip etmeyi kolaylaÅŸtÄ±rÄ±yor.
+Manifest sistemi proje ilerlemesini takip etmeyi kolaylaştırıyor.
 
-### SonuÃ§
+### Sonuç
 
-Yeni Ã¼retim aÅŸamalarÄ± mÃ¼mkÃ¼n olduÄŸunca manifest sistemine entegre edilmeli.
+Yeni üretim aşamaları mümkün olduğunca manifest sistemine entegre edilmeli.
 
 ---
 
@@ -97,13 +97,13 @@ Yeni Ã¼retim aÅŸamalarÄ± mÃ¼mkÃ¼n olduÄŸunca manifest sistemine ente
 
 ## Asset Versioning
 
-### Ã–ÄŸrenilen Ders
+### Öğrenilen Ders
 
-Asset geÃ§miÅŸinin korunmasÄ± geliÅŸtirme sÄ±rasÄ±nda bÃ¼yÃ¼k avantaj saÄŸlÄ±yor.
+Asset geçmişinin korunması geliştirme sırasında büyük avantaj sağlıyor.
 
-### SonuÃ§
+### Sonuç
 
-Append-only yaklaÅŸÄ±mÄ± korunmalÄ±.
+Append-only yaklaşımı korunmalı.
 
 ---
 
@@ -111,13 +111,13 @@ Append-only yaklaÅŸÄ±mÄ± korunmalÄ±.
 
 ## AI Router
 
-### Ã–ÄŸrenilen Ders
+### Öğrenilen Ders
 
-Tek AI saÄŸlayÄ±cÄ±sÄ±na baÄŸÄ±mlÄ± olmak uzun vadede risk oluÅŸturuyor.
+Tek AI sağlayıcısına bağımlı olmak uzun vadede risk oluşturuyor.
 
-### SonuÃ§
+### Sonuç
 
-Provider sistemi korunmalÄ±.
+Provider sistemi korunmalı.
 
 ---
 
@@ -125,33 +125,33 @@ Provider sistemi korunmalÄ±.
 
 ## Sprint Disiplini
 
-### Ã–ÄŸrenilen Ders
+### Öğrenilen Ders
 
-AÅŸaÄŸÄ±daki sÄ±ra en gÃ¼venli yÃ¶ntem oldu.
+Aşağıdaki sıra en güvenli yöntem oldu.
 
 Analiz
 
-â†“
+↓
 
 Onay
 
-â†“
+↓
 
 Kod
 
-â†“
+↓
 
 Test
 
-â†“
+↓
 
 Rapor
 
-â†“
+↓
 
 Checkpoint
 
-â†“
+↓
 
 Git
 
@@ -159,79 +159,79 @@ Git
 
 # AI MEMORY-009
 
-## Git GÃ¼venliÄŸi
+## Git Güvenliği
 
-### Ã–ÄŸrenilen Ders
+### Öğrenilen Ders
 
-Her anlamlÄ± geliÅŸtirme gÃ¼venli bir commit ile kayÄ±t altÄ±na alÄ±nmalÄ±dÄ±r.
+Her anlamlı geliştirme güvenli bir commit ile kayıt altına alınmalıdır.
 
-### SonuÃ§
+### Sonuç
 
-Uzun sÃ¼re commit almadan Ã§alÄ±ÅŸÄ±lmamalÄ±dÄ±r.
+Uzun süre commit almadan çalışılmamalıdır.
 
 ---
 
 # AI MEMORY-010
 
-## Token YÃ¶netimi
+## Token Yönetimi
 
-### Ã–ÄŸrenilen Ders
+### Öğrenilen Ders
 
-Token azaldÄ±ÄŸÄ±nda yeni geliÅŸtirmeye baÅŸlamak risk oluÅŸturuyor.
+Token azaldığında yeni geliştirmeye başlamak risk oluşturuyor.
 
-### SonuÃ§
+### Sonuç
 
-Token dÃ¼ÅŸÃ¼kse;
+Token düşükse;
 
-- analiz hazÄ±rlanÄ±r,
-- dokÃ¼mantasyon geliÅŸtirilir,
-- kodlama sonraki oturuma bÄ±rakÄ±lÄ±r.
+- analiz hazırlanır,
+- dokümantasyon geliştirilir,
+- kodlama sonraki oturuma bırakılır.
 
 ---
 
 # AI MEMORY-011
 
-## DokÃ¼mantasyon
+## Dokümantasyon
 
-### Ã–ÄŸrenilen Ders
+### Öğrenilen Ders
 
-Ä°yi dokÃ¼mantasyon yeni AI oturumlarÄ±nÄ±n adapte olma sÃ¼resini ciddi ÅŸekilde azaltÄ±yor.
+İyi dokümantasyon yeni AI oturumlarının adapte olma süresini ciddi şekilde azaltıyor.
 
-### SonuÃ§
+### Sonuç
 
-Kod kadar dokÃ¼mantasyon da gÃ¼ncel tutulmalÄ±.
+Kod kadar dokümantasyon da güncel tutulmalı.
 
 ---
 
 # AI MEMORY-012
 
-## AtÃ¶lye Bir Platformdur
+## Atölye Bir Platformdur
 
-### Ã–ÄŸrenilen Ders
+### Öğrenilen Ders
 
-BaÄŸÄ±msÄ±z Ã¶zellikler yerine Ã¼retim hattÄ±na entegre edilen modÃ¼ller daha sÃ¼rdÃ¼rÃ¼lebilir oluyor.
+Bağımsız özellikler yerine üretim hattına entegre edilen modüller daha sürdürülebilir oluyor.
 
-### SonuÃ§
+### Sonuç
 
-Yeni geliÅŸtirmeler mevcut pipeline'a entegre edilmelidir.
+Yeni geliştirmeler mevcut pipeline'a entegre edilmelidir.
 
 ---
 
 # AI MEMORY-013
 
-## KullanÄ±cÄ± Tercihi
+## Kullanıcı Tercihi
 
-### Ã–ÄŸrenilen Ders
+### Öğrenilen Ders
 
 Projenin temel hedefi:
 
-**En az hata ile en hÄ±zlÄ± tamamlanan AtÃ¶lye**
+**En az hata ile en hızlı tamamlanan Atölye**
 
-olmalÄ±dÄ±r.
+olmalıdır.
 
-HÄ±z Ã¶nemlidir.
+Hız önemlidir.
 
-Ancak kalite ve sÃ¼rdÃ¼rÃ¼lebilirlik daha Ã¶nemlidir.
+Ancak kalite ve sürdürülebilirlik daha önemlidir.
 
 ---
 
@@ -239,13 +239,13 @@ Ancak kalite ve sÃ¼rdÃ¼rÃ¼lebilirlik daha Ã¶nemlidir.
 
 ## Yeni AI Oturumu
 
-### Ã–ÄŸrenilen Ders
+### Öğrenilen Ders
 
-Yeni bir AI doÄŸrudan kod yazmaya baÅŸlamamalÄ±dÄ±r.
+Yeni bir AI doğrudan kod yazmaya başlamamalıdır.
 
-### SonuÃ§
+### Sonuç
 
-Ã–nce ÅŸu belgeler okunmalÄ±dÄ±r:
+Önce şu belgeler okunmalıdır:
 
 - README.md
 - ATOLYE_CHECKPOINT.md
@@ -257,17 +257,17 @@ Yeni bir AI doÄŸrudan kod yazmaya baÅŸlamamalÄ±dÄ±r.
 
 # AI MEMORY-015
 
-## SÃ¼rekli Ä°yileÅŸtirme
+## Sürekli İyileştirme
 
-### Ã–ÄŸrenilen Ders
+### Öğrenilen Ders
 
-Kod kadar sÃ¼reÃ§ de geliÅŸtirilebilir.
+Kod kadar süreç de geliştirilebilir.
 
-Daha iyi bir yÃ¶ntem bulunduÄŸunda;
+Daha iyi bir yöntem bulunduğunda;
 
-Ã¶nce deÄŸerlendirilmeli,
+önce değerlendirilmeli,
 
-uygunsa dokÃ¼mantasyona eklenmelidir.
+uygunsa dokümantasyona eklenmelidir.
 
 ---
 
@@ -291,8 +291,8 @@ Korunacak uzun vadeli sistemler: AI Director, Historical Documentary Engine, Kno
 
 # Yeni Memory Ekleme
 
-Yeni Ã¶nemli deneyimler bu belgeye sÄ±radaki AI MEMORY numarasÄ± ile eklenmelidir.
+Yeni önemli deneyimler bu belgeye sıradaki AI MEMORY numarası ile eklenmelidir.
 
-Eski kayÄ±tlar silinmemelidir.
+Eski kayıtlar silinmemelidir.
 
-Bu belge AtÃ¶lye V2'nin kurumsal hafÄ±zasÄ±dÄ±r.
+Bu belge Atölye V2'nin kurumsal hafızasıdır.

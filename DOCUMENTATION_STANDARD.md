@@ -1,31 +1,31 @@
-﻿---
+---
 Document: DOCUMENTATION_STANDARD.md
 Version: 1.0.0
 Status: Active
 Priority: Critical
-Owner: AtÃ¶lye V2
+Owner: Atölye V2
 Last Updated: 2026-07-08
 ---
 
-# AtÃ¶lye V2 Documentation Standard
+# Atölye V2 Documentation Standard
 
-## AmaÃ§
+## Amaç
 
-Bu belge AtÃ¶lye V2 dokÃ¼mantasyon sisteminin nasÄ±l kullanÄ±lacaÄŸÄ±nÄ± aÃ§Ä±klar.
+Bu belge Atölye V2 dokümantasyon sisteminin nasıl kullanılacağını açıklar.
 
-Her belge farklÄ± bir sorumluluÄŸa sahiptir.
+Her belge farklı bir sorumluluğa sahiptir.
 
 Bilgiler tekrar edilmemelidir.
 
-Her belge yalnÄ±zca kendi sorumluluÄŸundaki bilgileri iÃ§ermelidir.
+Her belge yalnızca kendi sorumluluğundaki bilgileri içermelidir.
 
 ---
 
-# DokÃ¼mantasyon YapÄ±sÄ±
+# Dokümantasyon Yapısı
 
 README.md
 
-â†“
+↓
 
 PROJECT_PHILOSOPHY.md
 
@@ -37,41 +37,41 @@ VISION.md
 
 ATOLYE_CHECKPOINT.md
 
-â†“
+↓
 
 ATOLYE_AI_RULES.md
 
-â†“
+↓
 
 ATOLYE_CONTEXT.md
 
-â†“
+↓
 
 ROADMAP.md
 
-â†“
+↓
 
 ATOLYE_MASTER_ROADMAP.md
 
-â†“
+↓
 
 ARCHITECTURE_DECISIONS.md
 
-â†“
+↓
 
 CHANGELOG.md
 
-â†“
+↓
 
 AI_MEMORY.md
 
 ---
 
-# Belge SorumluluklarÄ±
+# Belge Sorumlulukları
 
 README
 
-Projenin tanÄ±tÄ±mÄ±.
+Projenin tanıtımı.
 
 ---
 
@@ -89,13 +89,13 @@ Nihai urun nasil olacak?
 
 CHECKPOINT
 
-Åu anda neredeyiz?
+Şu anda neredeyiz?
 
 ---
 
 AI_RULES
 
-NasÄ±l geliÅŸtirilmeli?
+Nasıl geliştirilmeli?
 
 ---
 
@@ -107,7 +107,7 @@ Proje baglami ve calisma felsefesi.
 
 ROADMAP
 
-SÄ±radaki teknik iÅŸler.
+Sıradaki teknik işler.
 
 ---
 
@@ -119,27 +119,27 @@ Uzun vadeli fazlar.
 
 ADR
 
-Neden bu mimari seÃ§ildi?
+Neden bu mimari seçildi?
 
 ---
 
 CHANGELOG
 
-Åimdiye kadar ne yapÄ±ldÄ±?
+Şimdiye kadar ne yapıldı?
 
 ---
 
 AI_MEMORY
 
-BugÃ¼ne kadar neler Ã¶ÄŸrendik?
+Bugüne kadar neler öğrendik?
 
 ---
 
-# GÃ¼ncelleme KurallarÄ±
+# Güncelleme Kuralları
 
 README
 
-Ã‡ok nadir gÃ¼ncellenir.
+Çok nadir güncellenir.
 
 ---
 
@@ -157,13 +157,13 @@ Nihai urun vizyonu degisirse guncellenir.
 
 CHECKPOINT
 
-Her sprint sonunda gÃ¼ncellenir.
+Her sprint sonunda güncellenir.
 
 ---
 
 ROADMAP
 
-Sprint tamamlandÄ±ÄŸÄ±nda gÃ¼ncellenir.
+Sprint tamamlandığında güncellenir.
 
 ---
 
@@ -175,35 +175,35 @@ Uzun vadeli faz plani degisirse guncellenir.
 
 ADR
 
-Yeni mimari karar alÄ±nÄ±rsa gÃ¼ncellenir.
+Yeni mimari karar alınırsa güncellenir.
 
 ---
 
 CHANGELOG
 
-Ã–nemli geliÅŸtirme tamamlanÄ±nca gÃ¼ncellenir.
+Önemli geliştirme tamamlanınca güncellenir.
 
 ---
 
 AI_MEMORY
 
-Yeni Ã¶nemli tecrÃ¼be edinildiÄŸinde gÃ¼ncellenir.
+Yeni önemli tecrübe edinildiğinde güncellenir.
 
 ---
 
-# Bilgi TekrarÄ±
+# Bilgi Tekrarı
 
-AynÄ± bilgi birden fazla belgede tutulmamalÄ±dÄ±r.
+Aynı bilgi birden fazla belgede tutulmamalıdır.
 
-Belge kendi alanÄ±ndaki bilgiye sahip olmalÄ±dÄ±r.
+Belge kendi alanındaki bilgiye sahip olmalıdır.
 
-DiÄŸer bilgiler referans verilerek yÃ¶nlendirilmelidir.
+Diğer bilgiler referans verilerek yönlendirilmelidir.
 
 ---
 
-# AI BaÅŸlangÄ±Ã§ AkÄ±ÅŸÄ±
+# AI Başlangıç Akışı
 
-Her yeni AI ÅŸu sÄ±rayla ilerler.
+Her yeni AI şu sırayla ilerler.
 
 README
 
@@ -215,42 +215,42 @@ PROJECT_PHILOSOPHY
 
 VISION
 
-â†“
+↓
 
 CHECKPOINT
 
-â†“
+↓
 
 AI_RULES
 
-â†“
+↓
 
 CONTEXT
 
-â†“
+↓
 
 ROADMAP
 
-â†“
+↓
 
 Kod Analizi
 
-â†“
+↓
 
 Kodlama
 
-â†“
+↓
 
 Test
 
-â†“
+↓
 
 Rapor
 
-â†“
+↓
 
 Checkpoint
 
-â†“
+↓
 
 Git

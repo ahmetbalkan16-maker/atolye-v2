@@ -1,23 +1,23 @@
-﻿---
+---
 Document: ARCHITECTURE_DECISIONS.md
 Version: 1.0.0
 Status: Active
 Priority: High
-Owner: AtÃ¶lye V2
+Owner: Atölye V2
 Last Updated: 2026-07-08
 ---
 
-# AtÃ¶lye V2 â€” Architecture Decision Records (ADR)
+# Atölye V2 — Architecture Decision Records (ADR)
 
-## AmaÃ§
+## Amaç
 
-Bu belge AtÃ¶lye V2 geliÅŸtirilirken alÄ±nan Ã¶nemli mimari kararlarÄ± kayÄ±t altÄ±nda tutar.
+Bu belge Atölye V2 geliştirilirken alınan önemli mimari kararları kayıt altında tutar.
 
-Kod deÄŸiÅŸebilir.
+Kod değişebilir.
 
-Sprintler deÄŸiÅŸebilir.
+Sprintler değişebilir.
 
-Ancak bu kararlar mÃ¼mkÃ¼n olduÄŸunca korunmalÄ±dÄ±r.
+Ancak bu kararlar mümkün olduğunca korunmalıdır.
 
 ---
 
@@ -27,13 +27,13 @@ Ancak bu kararlar mÃ¼mkÃ¼n olduÄŸunca korunmalÄ±dÄ±r.
 
 ### Karar
 
-Provider seÃ§imleri AI Router Ã¼zerinden yapÄ±lacaktÄ±r.
+Provider seçimleri AI Router üzerinden yapılacaktır.
 
 ### Sebep
 
-- Tek AI firmasÄ±na baÄŸÄ±mlÄ± olmamak
+- Tek AI firmasına bağımlı olmamak
 - Yeni provider ekleyebilmek
-- Kod tekrarÄ±nÄ± Ã¶nlemek
+- Kod tekrarını önlemek
 
 ### Durum
 
@@ -47,13 +47,13 @@ Accepted
 
 ### Karar
 
-TÃ¼m AI sistemleri ortak Provider interface'i kullanacaktÄ±r.
+Tüm AI sistemleri ortak Provider interface'i kullanacaktır.
 
 ### Sebep
 
 - Standart API
-- Test kolaylÄ±ÄŸÄ±
-- Yeni AI ekleme kolaylÄ±ÄŸÄ±
+- Test kolaylığı
+- Yeni AI ekleme kolaylığı
 
 ### Durum
 
@@ -67,11 +67,11 @@ Accepted
 
 ### Karar
 
-Business Logic UI iÃ§erisine yazÄ±lmayacaktÄ±r.
+Business Logic UI içerisine yazılmayacaktır.
 
 ### Sebep
 
-Kod tekrarÄ±nÄ± Ã¶nlemek.
+Kod tekrarını önlemek.
 
 Video Engine,
 
@@ -81,7 +81,7 @@ API,
 
 CLI
 
-aynÄ± servisleri kullanabilmelidir.
+aynı servisleri kullanabilmelidir.
 
 ---
 
@@ -111,11 +111,11 @@ Resume
 
 ### Karar
 
-Ä°lk sÃ¼rÃ¼m JSON tabanlÄ± olacaktÄ±r.
+İlk sürüm JSON tabanlı olacaktır.
 
 ### Sebep
 
-HÄ±zlÄ± geliÅŸtirme.
+Hızlı geliştirme.
 
 Kolay test.
 
@@ -129,13 +129,13 @@ Kolay backup.
 
 ### Karar
 
-Asset sistemi append-only olacaktÄ±r.
+Asset sistemi append-only olacaktır.
 
 ### Sebep
 
-Eski Ã¼retimleri korumak.
+Eski üretimleri korumak.
 
-Versiyon karÅŸÄ±laÅŸtÄ±rmasÄ±.
+Versiyon karşılaştırması.
 
 Rollback.
 
@@ -147,13 +147,13 @@ Rollback.
 
 ### Karar
 
-Koddan Ã¶nce mimari.
+Koddan önce mimari.
 
 ### Sebep
 
-HatalarÄ± azaltmak.
+Hataları azaltmak.
 
-Tekrar eden refactor ihtiyacÄ±nÄ± Ã¶nlemek.
+Tekrar eden refactor ihtiyacını önlemek.
 
 ---
 
@@ -163,7 +163,7 @@ Tekrar eden refactor ihtiyacÄ±nÄ± Ã¶nlemek.
 
 ### Karar
 
-KÃ¼Ã§Ã¼k ama gÃ¼venli geliÅŸtirmeler.
+Küçük ama güvenli geliştirmeler.
 
 ### Sebep
 
@@ -171,7 +171,7 @@ Daha az risk.
 
 Kolay test.
 
-Kolay geri dÃ¶nÃ¼ÅŸ.
+Kolay geri dönüş.
 
 ---
 
@@ -181,11 +181,11 @@ Kolay geri dÃ¶nÃ¼ÅŸ.
 
 ### Karar
 
-Yeni Ã¶zellik eski davranÄ±ÅŸÄ± bozmamalÄ±dÄ±r.
+Yeni özellik eski davranışı bozmamalıdır.
 
 ### Sebep
 
-KararlÄ±lÄ±k.
+Kararlılık.
 
 ---
 
@@ -195,17 +195,17 @@ KararlÄ±lÄ±k.
 
 ### Karar
 
-Kod kadar dokÃ¼mantasyon da Ã¶nemlidir.
+Kod kadar dokümantasyon da önemlidir.
 
 ### Sebep
 
 Yeni AI
 
-Yeni geliÅŸtirici
+Yeni geliştirici
 
 Yeni bilgisayar
 
-iÃ§in hÄ±zlÄ± adaptasyon.
+için hızlı adaptasyon.
 
 ---
 
@@ -215,7 +215,7 @@ iÃ§in hÄ±zlÄ± adaptasyon.
 
 ### Karar
 
-Her Ã¼retim aÅŸamasÄ± mÃ¼mkÃ¼n olduÄŸunca Manifest'e entegre edilir.
+Her üretim aşaması mümkün olduğunca Manifest'e entegre edilir.
 
 ### Sebep
 
@@ -229,7 +229,7 @@ Pipeline takibi.
 
 ### Karar
 
-HiÃ§bir modÃ¼l tek AI firmasÄ±na baÄŸÄ±mlÄ± olmayacaktÄ±r.
+Hiçbir modül tek AI firmasına bağımlı olmayacaktır.
 
 ### Sebep
 
@@ -237,25 +237,25 @@ Esneklik.
 
 Maliyet.
 
-GeleceÄŸe hazÄ±rlÄ±k.
+Geleceğe hazırlık.
 
 ---
 
 # ADR-013
 
-## AtÃ¶lye Platformdur
+## Atölye Platformdur
 
 ### Karar
 
-AtÃ¶lye;
+Atölye;
 
-tek Ã¶zellik geliÅŸtiren uygulama deÄŸildir.
+tek özellik geliştiren uygulama değildir.
 
 ### Sebep
 
-Uzun vadeli bÃ¼yÃ¼me.
+Uzun vadeli büyüme.
 
-Yeni modÃ¼l entegrasyonu.
+Yeni modül entegrasyonu.
 
 ---
 
@@ -299,8 +299,8 @@ Accepted
 
 # Yeni ADR Ekleme
 
-Yeni Ã¶nemli mimari kararlar;
+Yeni önemli mimari kararlar;
 
-ADR numarasÄ± verilerek bu belgeye eklenmelidir.
+ADR numarası verilerek bu belgeye eklenmelidir.
 
-Mevcut ADR'ler mÃ¼mkÃ¼n olduÄŸunca deÄŸiÅŸtirilmemelidir.
+Mevcut ADR'ler mümkün olduğunca değiştirilmemelidir.

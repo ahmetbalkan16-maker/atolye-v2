@@ -1,27 +1,27 @@
-﻿---
+---
 Document: ATOLYE_AI_RULES.md
 Version: 1.0.0
 Status: Active
 Priority: Critical
-Owner: AtÃ¶lye V2
+Owner: Atölye V2
 Last Updated: 2026-07-08
 ---
 
-# AtÃ¶lye V2 â€” AI Development Rules
+# Atölye V2 — AI Development Rules
 
-## AmaÃ§
+## Amaç
 
-Bu belge AtÃ¶lye V2 geliÅŸtirilirken tÃ¼m AI araÃ§larÄ±nÄ±n uymasÄ± gereken resmi geliÅŸtirme kurallarÄ±nÄ± iÃ§erir.
+Bu belge Atölye V2 geliştirilirken tüm AI araçlarının uyması gereken resmi geliştirme kurallarını içerir.
 
-Bu belge tavsiye niteliÄŸinde deÄŸildir.
+Bu belge tavsiye niteliğinde değildir.
 
-MÃ¼mkÃ¼n olduÄŸu sÃ¼rece bu kurallar korunmalÄ±dÄ±r.
+Mümkün olduğu sürece bu kurallar korunmalıdır.
 
 ---
 
-# Ã–ncelik SÄ±rasÄ±
+# Öncelik Sırası
 
-Her yeni AI oturumunda aÅŸaÄŸÄ±daki belgeler okunmalÄ±dÄ±r.
+Her yeni AI oturumunda aşağıdaki belgeler okunmalıdır.
 
 1. README.md
 2. PROJECT_PHILOSOPHY.md
@@ -31,51 +31,51 @@ Her yeni AI oturumunda aÅŸaÄŸÄ±daki belgeler okunmalÄ±dÄ±r.
 6. ATOLYE_CONTEXT.md
 7. ROADMAP.md
 
-Bu belgeler okunmadan geliÅŸtirmeye baÅŸlanmamalÄ±dÄ±r.
+Bu belgeler okunmadan geliştirmeye başlanmamalıdır.
 
 ---
 
-# Temel Ä°lke
+# Temel İlke
 
-AtÃ¶lye'nin temel hedefi:
+Atölye'nin temel hedefi:
 
-> **En az hata ile en hÄ±zlÄ± tamamlanan AtÃ¶lye.**
+> **En az hata ile en hızlı tamamlanan Atölye.**
 
 Urun pusulasi:
 
 > Atolye kisisel AI produksiyon studyosudur. Kullanici yonetmendir; Atolye produksiyon ekibidir.
 
-HÄ±z Ã¶nemlidir.
+Hız önemlidir.
 
 Ancak;
 
 - mimari
 - kalite
-- sÃ¼rdÃ¼rÃ¼lebilirlik
+- sürdürülebilirlik
 
-her zaman Ã¶nceliklidir.
+her zaman önceliklidir.
 
 ---
 
-# Mimari KurallarÄ±
+# Mimari Kuralları
 
 ## Architecture First
 
-Kod yazmadan Ã¶nce mevcut mimari analiz edilmelidir.
+Kod yazmadan önce mevcut mimari analiz edilmelidir.
 
 ---
 
-## ModÃ¼lerlik
+## Modülerlik
 
-Yeni Ã¶zellikler mevcut mimariye entegre edilmelidir.
+Yeni özellikler mevcut mimariye entegre edilmelidir.
 
-BaÄŸÄ±msÄ±z sistemler oluÅŸturulmamalÄ±dÄ±r.
+Bağımsız sistemler oluşturulmamalıdır.
 
 ---
 
 ## Service Layer
 
-Ä°ÅŸ mantÄ±ÄŸÄ± UI iÃ§erisine yazÄ±lmamalÄ±dÄ±r.
+İş mantığı UI içerisine yazılmamalıdır.
 
 Business Logic;
 
@@ -83,97 +83,97 @@ Business Logic;
 - Manager
 - Pipeline
 
-katmanlarÄ±nda bulunmalÄ±dÄ±r.
+katmanlarında bulunmalıdır.
 
 ---
 
 ## API
 
-API katmanÄ± yalnÄ±zca orkestrasyon yapmalÄ±dÄ±r.
+API katmanı yalnızca orkestrasyon yapmalıdır.
 
-Ä°ÅŸ mantÄ±ÄŸÄ± mÃ¼mkÃ¼n olduÄŸunca Service katmanÄ±nda olmalÄ±dÄ±r.
+İş mantığı mümkün olduğunca Service katmanında olmalıdır.
 
 ---
 
 ## Provider Sistemi
 
-Tek AI saÄŸlayÄ±cÄ±sÄ±na baÄŸÄ±mlÄ± kod yazÄ±lmamalÄ±dÄ±r.
+Tek AI sağlayıcısına bağımlı kod yazılmamalıdır.
 
-AI Router korunmalÄ±dÄ±r.
+AI Router korunmalıdır.
 
-Provider yapÄ±sÄ± bozulmamalÄ±dÄ±r.
+Provider yapısı bozulmamalıdır.
 
 ---
 
-# Kod KurallarÄ±
+# Kod Kuralları
 
 ## TypeScript
 
-Strict uyumluluk korunmalÄ±dÄ±r.
+Strict uyumluluk korunmalıdır.
 
 ---
 
-## Geriye DÃ¶nÃ¼k Uyumluluk
+## Geriye Dönük Uyumluluk
 
-Ã‡alÄ±ÅŸan sistem bozulmamalÄ±dÄ±r.
+Çalışan sistem bozulmamalıdır.
 
-Yeni Ã¶zellikler mevcut davranÄ±ÅŸÄ± deÄŸiÅŸtirmemelidir.
+Yeni özellikler mevcut davranışı değiştirmemelidir.
 
 ---
 
 ## Refactor
 
-Gereksiz bÃ¼yÃ¼k refactor yapÄ±lmamalÄ±dÄ±r.
+Gereksiz büyük refactor yapılmamalıdır.
 
-KÃ¼Ã§Ã¼k ve gÃ¼venli adÄ±mlar tercih edilmelidir.
-
----
-
-## Dosya YapÄ±sÄ±
-
-Sebepsiz yere dosya taÅŸÄ±nmamalÄ±dÄ±r.
-
-Sebepsiz yere klasÃ¶r yapÄ±sÄ± deÄŸiÅŸtirilmemelidir.
+Küçük ve güvenli adımlar tercih edilmelidir.
 
 ---
 
-# Manifest KurallarÄ±
+## Dosya Yapısı
+
+Sebepsiz yere dosya taşınmamalıdır.
+
+Sebepsiz yere klasör yapısı değiştirilmemelidir.
+
+---
+
+# Manifest Kuralları
 
 Manifest;
 
-projenin resmi durum kaynaÄŸÄ±dÄ±r.
+projenin resmi durum kaynağıdır.
 
-Yeni pipeline aÅŸamalarÄ± mÃ¼mkÃ¼n olduÄŸunca manifest sistemine entegre edilmelidir.
+Yeni pipeline aşamaları mümkün olduğunca manifest sistemine entegre edilmelidir.
 
 ---
 
-# Asset KurallarÄ±
+# Asset Kuralları
 
-Asset sistemi append-only Ã§alÄ±ÅŸmalÄ±dÄ±r.
+Asset sistemi append-only çalışmalıdır.
 
 Eski assetler silinmemelidir.
 
-Version mantÄ±ÄŸÄ± korunmalÄ±dÄ±r.
+Version mantığı korunmalıdır.
 
 ---
 
-# Sprint KurallarÄ±
+# Sprint Kuralları
 
-Her sprint aÅŸaÄŸÄ±daki sÄ±rayla ilerler.
+Her sprint aşağıdaki sırayla ilerler.
 
 1. Analiz
-2. KullanÄ±cÄ± onayÄ±
+2. Kullanıcı onayı
 3. Kodlama
 4. Test
 5. Rapor
 6. Checkpoint
 7. Git
 
-Bu sÄ±ra mÃ¼mkÃ¼n olduÄŸunca korunmalÄ±dÄ±r.
+Bu sıra mümkün olduğunca korunmalıdır.
 
 ---
 
-# Test KurallarÄ±
+# Test Kuralları
 
 Her sprint sonunda en az:
 
@@ -181,20 +181,20 @@ Her sprint sonunda en az:
 npx.cmd tsc --noEmit
 ```
 
-Ã§alÄ±ÅŸtÄ±rÄ±lmalÄ±dÄ±r.
+çalıştırılmalıdır.
 
-Test geÃ§meden sprint tamamlanmÄ±ÅŸ sayÄ±lmaz.
+Test geçmeden sprint tamamlanmış sayılmaz.
 
 ---
 
-# Git KurallarÄ±
+# Git Kuralları
 
-KullanÄ±cÄ± onayÄ± olmadan:
+Kullanıcı onayı olmadan:
 
-- Commit yapÄ±lmaz.
-- Push yapÄ±lmaz.
+- Commit yapılmaz.
+- Push yapılmaz.
 
-Git iÅŸleminden Ã¶nce:
+Git işleminden önce:
 
 ```bash
 git status
@@ -202,7 +202,7 @@ git status
 
 kontrol edilmelidir.
 
-Git iÅŸleminden sonra raporlanmalÄ±dÄ±r:
+Git işleminden sonra raporlanmalıdır:
 
 - Commit hash
 - Push sonucu
@@ -210,61 +210,61 @@ Git iÅŸleminden sonra raporlanmalÄ±dÄ±r:
 
 ---
 
-# Raporlama KurallarÄ±
+# Raporlama Kuralları
 
-Her geliÅŸtirme sonunda aÅŸaÄŸÄ±daki bilgiler verilmelidir.
+Her geliştirme sonunda aşağıdaki bilgiler verilmelidir.
 
-- YapÄ±lan deÄŸiÅŸiklikler
-- DeÄŸiÅŸen dosyalar
-- Ã‡alÄ±ÅŸma mantÄ±ÄŸÄ±
+- Yapılan değişiklikler
+- Değişen dosyalar
+- Çalışma mantığı
 - Test sonucu
 - Riskler
-- Sonraki Ã¶nerilen gÃ¶rev
+- Sonraki önerilen görev
 
 ---
 
-# DokÃ¼mantasyon KurallarÄ±
+# Dokümantasyon Kuralları
 
-Her Ã¶nemli geliÅŸtirme sonrasÄ± aÅŸaÄŸÄ±daki belgeler gÃ¶zden geÃ§irilmelidir.
+Her önemli geliştirme sonrası aşağıdaki belgeler gözden geçirilmelidir.
 
 - ATOLYE_CHECKPOINT.md
 - ROADMAP.md
 - CHANGELOG.md
 
-Gerekiyorsa gÃ¼ncellenmelidir.
+Gerekiyorsa güncellenmelidir.
 
 ---
 
-# AI DavranÄ±ÅŸ KurallarÄ±
+# AI Davranış Kuralları
 
-AI aÅŸaÄŸÄ±daki davranÄ±ÅŸlarÄ± benimsemelidir.
+AI aşağıdaki davranışları benimsemelidir.
 
-- Ã–nce analiz yap.
-- Gereksiz dosya deÄŸiÅŸtirme.
+- Önce analiz yap.
+- Gereksiz dosya değiştirme.
 - Tamamlanan sprintleri tekrar yapma.
-- Ã–nce mevcut kodu incele.
-- Gereksiz baÄŸÄ±mlÄ±lÄ±k ekleme.
-- Gereksiz mimari deÄŸiÅŸiklik Ã¶nerme.
+- Önce mevcut kodu incele.
+- Gereksiz bağımlılık ekleme.
+- Gereksiz mimari değişiklik önerme.
 - Her zaman mevcut sistemi koruyarak ilerle.
 
 ---
 
 # Yasaklar
 
-AÅŸaÄŸÄ±daki davranÄ±ÅŸlardan kaÃ§Ä±nÄ±lmalÄ±dÄ±r.
+Aşağıdaki davranışlardan kaçınılmalıdır.
 
-- BÃ¼yÃ¼k kapsamlÄ± plansÄ±z refactor
-- Ã‡alÄ±ÅŸan sistemi bozacak deÄŸiÅŸiklikler
-- KullanÄ±cÄ± onayÄ± olmadan Git iÅŸlemleri
-- Tek AI saÄŸlayÄ±cÄ±sÄ±na baÄŸÄ±mlÄ± mimari
-- Test yapÄ±lmadan sprint tamamlama
+- Büyük kapsamlı plansız refactor
+- Çalışan sistemi bozacak değişiklikler
+- Kullanıcı onayı olmadan Git işlemleri
+- Tek AI sağlayıcısına bağımlı mimari
+- Test yapılmadan sprint tamamlama
 
 ---
 
-# BaÅŸarÄ± Kriteri
+# Başarı Kriteri
 
-Her yeni geliÅŸtirme sonunda ÅŸu soru sorulmalÄ±dÄ±r:
+Her yeni geliştirme sonunda şu soru sorulmalıdır:
 
 > Bu gelistirme Atolye'yi daha iyi bir kisisel AI produksiyon studyosu yapiyor mu?
 
-Cevap "evet" ise geliÅŸtirme doÄŸru yÃ¶ndedir.
+Cevap "evet" ise geliştirme doğru yöndedir.

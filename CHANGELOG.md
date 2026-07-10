@@ -3,23 +3,23 @@ Document: CHANGELOG.md
 Version: 1.0.0
 Status: Active
 Priority: Medium
-Owner: AtÃ¶lye V2
+Owner: Atölye V2
 Last Updated: 2026-07-10
 ---
 
-# AtÃ¶lye V2 â€” Changelog
+# Atölye V2 — Changelog
 
-## AmaÃ§
+## Amaç
 
-Bu belge AtÃ¶lye V2'nin Ã¶nemli geliÅŸtirme kilometre taÅŸlarÄ±nÄ± kronolojik olarak kayÄ±t altÄ±nda tutar.
+Bu belge Atölye V2'nin önemli geliştirme kilometre taşlarını kronolojik olarak kayıt altında tutar.
 
-Bu belge gelecek planlarÄ±nÄ± iÃ§ermez.
+Bu belge gelecek planlarını içermez.
 
-Gelecek geliÅŸtirmeler iÃ§in:
+Gelecek geliştirmeler için:
 
 ROADMAP.md
 
-referans alÄ±nmalÄ±dÄ±r.
+referans alınmalıdır.
 
 ---
 
@@ -29,7 +29,7 @@ referans alÄ±nmalÄ±dÄ±r.
 
 ### Foundation
 
-TamamlandÄ±
+Tamamlandı
 
 - AI Router
 - Provider Architecture
@@ -42,7 +42,7 @@ TamamlandÄ±
 
 ### Research Engine
 
-TamamlandÄ±
+Tamamlandı
 
 - Research API
 - AI Integration
@@ -53,7 +53,7 @@ TamamlandÄ±
 
 ### Script Engine
 
-TamamlandÄ±
+Tamamlandı
 
 - Script Generator
 - AI Provider Integration
@@ -63,7 +63,7 @@ TamamlandÄ±
 
 ### Scene Engine
 
-TamamlandÄ±
+Tamamlandı
 
 - Scene Generator
 - Scene Mapping
@@ -73,7 +73,7 @@ TamamlandÄ±
 
 ### Visual Engine
 
-TamamlandÄ±
+Tamamlandı
 
 - Visual Prompt Generator
 - Asset Generation
@@ -83,7 +83,7 @@ TamamlandÄ±
 
 ### Animation Engine
 
-TamamlandÄ±
+Tamamlandı
 
 - Animation Prompt Builder
 - Animation Prompt Generator
@@ -97,62 +97,62 @@ TamamlandÄ±
 
 ### Animation Scene-Level Regeneration
 
-TamamlandÄ±
+Tamamlandı
 
-- Tek sahne animation regenerate akÄ±ÅŸÄ± eklendi
-- animation.json merge mantÄ±ÄŸÄ± ile korunur hale getirildi
-- Yeni animation asset outputAssetId ile ilgili sahneye baÄŸlandÄ±
-- Animasyon kartlarÄ±nda Yeniden Ãœret aksiyonu aktif edildi
+- Tek sahne animation regenerate akışı eklendi
+- animation.json merge mantığı ile korunur hale getirildi
+- Yeni animation asset outputAssetId ile ilgili sahneye bağlandı
+- Animasyon kartlarında Yeniden Üret aksiyonu aktif edildi
 
 ---
 
 ### Video Engine Foundation
 
-TamamlandÄ±
+Tamamlandı
 
 - Video type modeli eklendi
 - Mock video provider mimarisi kuruldu
-- Video pipeline ve service katmanÄ± eklendi
-- Aktif animation assetlerinden mock video Ã¼retimi eklendi
-- video.json ve append-only video asset kaydÄ± eklendi
-- Manifest ve progress sÄ±rasÄ±na video aÅŸamasÄ± eklendi
+- Video pipeline ve service katmanı eklendi
+- Aktif animation assetlerinden mock video üretimi eklendi
+- video.json ve append-only video asset kaydı eklendi
+- Manifest ve progress sırasına video aşaması eklendi
 
 ---
 
 ### Audio Engine Foundation
 
-TamamlandÄ±
+Tamamlandı
 
-- Audio type modeli aktif asset alanlarÄ±yla geniÅŸletildi
+- Audio type modeli aktif asset alanlarıyla genişletildi
 - Mock audio provider mimarisi kuruldu
-- Audio pipeline ve service katmanÄ± eklendi
-- Mevcut audio plan Ã¼retimi korunarak mock audio asset Ã¼retimi eklendi
-- audio.json ve append-only audio asset kaydÄ± eklendi
-- Audio paneline minimal Ses Ãœret aksiyonu eklendi
+- Audio pipeline ve service katmanı eklendi
+- Mevcut audio plan üretimi korunarak mock audio asset üretimi eklendi
+- audio.json ve append-only audio asset kaydı eklendi
+- Audio paneline minimal Ses Üret aksiyonu eklendi
 
 ---
 
 ### Assembly Engine Foundation
 
-TamamlandÄ±
+Tamamlandı
 
-- Assembly modeli final production package alanlarÄ±yla geniÅŸletildi
-- Video, audio ve animation aktif asset referanslarÄ± assembly.json iÃ§ine baÄŸlandÄ±
-- Assembly API tÃ¼m proje Ã¼retim Ã§Ä±ktÄ±larÄ±nÄ± okuyacak ÅŸekilde geniÅŸletildi
-- Kurgu paneline minimal Kurgu paketi oluÅŸtur aksiyonu eklendi
-- Progress sÄ±rasÄ±nda assembly audio sonrasÄ±na taÅŸÄ±ndÄ±
+- Assembly modeli final production package alanlarıyla genişletildi
+- Video, audio ve animation aktif asset referansları assembly.json içine bağlandı
+- Assembly API tüm proje üretim çıktılarını okuyacak şekilde genişletildi
+- Kurgu paneline minimal Kurgu paketi oluştur aksiyonu eklendi
+- Progress sırasında assembly audio sonrasına taşındı
 
 ---
 
 ### Final Pipeline Integration
 
-TamamlandÄ±
+Tamamlandı
 
-- PipelineRunner tam Ã¼retim orchestrator'Ã¼ne dÃ¶nÃ¼ÅŸtÃ¼rÃ¼ldÃ¼.
-- Research â†’ Export uÃ§tan uca Ã¼retim hattÄ± tamamlandÄ±.
-- Stage bazlÄ± orchestration eklendi.
-- Manifest ve progress senkronizasyonu gÃ¼Ã§lendirildi.
-- Hata yÃ¶netimi iyileÅŸtirildi.
+- PipelineRunner tam üretim orchestrator'üne dönüştürüldü.
+- Research → Export uçtan uca üretim hattı tamamlandı.
+- Stage bazlı orchestration eklendi.
+- Manifest ve progress senkronizasyonu güçlendirildi.
+- Hata yönetimi iyileştirildi.
 - Mock-first mimarisi korunarak mevcut engine'ler entegre edildi.
 
 ---
@@ -492,6 +492,20 @@ Tamamlandi
 - npx tsc --noEmit passed.
 
 ---
+### Pipeline History Viewer Foundation
+
+Tamamlandi
+
+- Execution history UI PipelineJobsPanel icinde eklendi.
+- Existing GET /api/projects/[slug]/pipeline/history endpoint'i tuketildi.
+- Loading, empty ve error state'leri eklendi.
+- History refresh active job polling ile senkronize edildi.
+- Basarili retry/cancel job action'lari history refresh'i guvenilir sekilde tetikliyor.
+- Existing job actions ve API contracts preserved.
+- PipelineJobManager unchanged.
+- npx tsc --noEmit passed.
+
+---
 ### Existing Lint Issues Cleanup Planning
 
 Tamamlandi
@@ -589,7 +603,7 @@ Tamamlandi
 
 ### Studio
 
-TamamlandÄ±
+Tamamlandı
 
 - Dashboard
 - Project Workspace
@@ -620,14 +634,14 @@ Eklendi
 
 ## v1.0
 
-Ä°lk bÃ¼yÃ¼k mimari tamamlandÄ±.
+İlk büyük mimari tamamlandı.
 
-Foundation katmanÄ± hazÄ±r.
+Foundation katmanı hazır.
 
-Animation sistemi hazÄ±r.
+Animation sistemi hazır.
 
-Manifest sistemi hazÄ±r.
+Manifest sistemi hazır.
 
-Pipeline sistemi hazÄ±r.
+Pipeline sistemi hazır.
 
-AtÃ¶lye artÄ±k Video Engine geliÅŸtirme aÅŸamasÄ±na geÃ§meye hazÄ±rdÄ±r.
+Atölye artık Video Engine geliştirme aşamasına geçmeye hazırdır.

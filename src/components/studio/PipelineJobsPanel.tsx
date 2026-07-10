@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   PipelineJob,
   PipelineJobAction,
+  PipelineJobHistory,
+  PipelineJobHistoryEvent,
   PipelineJobList,
   PipelineJobStatus,
 } from "@/types/pipelineJob";
@@ -17,6 +19,17 @@ type JobsResponse = {
   success?: boolean;
   error?: string;
   jobs?: unknown;
+};
+
+type HistoryResponse = {
+  success?: boolean;
+  error?: string;
+  history?: unknown;
+};
+
+type LoadHistoryOptions = {
+  silent?: boolean;
+  queueIfInFlight?: boolean;
 };
 
 type JobActionState = {
@@ -38,12 +51,18 @@ export default function PipelineJobsPanel({
 }: PipelineJobsPanelProps) {
   const [jobs, setJobs] = useState<PipelineJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [history, setHistory] = useState<PipelineJobHistoryEvent[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState("");
   const [actionState, setActionState] = useState<JobActionState | null>(null);
   const [successMessage, setSuccessMessage] = useState("");
   const [error, setError] = useState("");
   const [nowMs, setNowMs] = useState(() => Date.now());
   const actionInFlightRef = useRef(false);
   const refreshInFlightRef = useRef(false);
+  const historyRefreshPromiseRef = useRef<Promise<void> | null>(null);
+  const historyRefreshQueuedRef = useRef(false);
+  const historyRefreshStartedCountRef = useRef(0);
   const latestProjectSlugRef = useRef(projectSlug);
 
   latestProjectSlugRef.current = projectSlug;
@@ -119,12 +138,126 @@ export default function PipelineJobsPanel({
     [projectSlug],
   );
 
+  const loadHistory = useCallback(
+    async ({
+      silent = false,
+      queueIfInFlight = false,
+    }: LoadHistoryOptions = {}) => {
+      if (historyRefreshPromiseRef.current) {
+        const startedCount = historyRefreshStartedCountRef.current;
+
+        if (queueIfInFlight) {
+          historyRefreshQueuedRef.current = true;
+        }
+
+        await historyRefreshPromiseRef.current;
+
+        if (
+          queueIfInFlight &&
+          historyRefreshStartedCountRef.current <= startedCount
+        ) {
+          await loadHistory({ silent: true });
+        }
+
+        return;
+      }
+
+      let nextSilent = silent;
+      const refreshPromise = (async () => {
+        do {
+          historyRefreshQueuedRef.current = false;
+          const requestedSlug = projectSlug;
+          historyRefreshStartedCountRef.current += 1;
+
+          try {
+            if (!nextSilent) {
+              setHistoryLoading(true);
+              setHistory([]);
+              setHistoryError("");
+            }
+
+            if (!isSafeSlug(requestedSlug)) {
+              if (latestProjectSlugRef.current === requestedSlug) {
+                setHistory([]);
+                setHistoryError(
+                  "Gecersiz proje bilgisi nedeniyle execution history yuklenemedi.",
+                );
+              }
+
+              return;
+            }
+
+            const response = await fetch(
+              `/api/projects/${encodeURIComponent(requestedSlug)}/pipeline/history`,
+            );
+            const data = (await response.json()) as HistoryResponse;
+
+            if (latestProjectSlugRef.current !== requestedSlug) {
+              return;
+            }
+
+            if (!response.ok || !data.success) {
+              setHistory([]);
+              setHistoryError(data.error || "Execution history yuklenemedi.");
+              return;
+            }
+
+            const historyList = parseHistory(data.history, requestedSlug);
+
+            if (!historyList) {
+              setHistory([]);
+              setHistoryError("Execution history verisi eksik veya gecersiz.");
+              return;
+            }
+
+            setHistory(historyList.events);
+            setHistoryError("");
+          } catch (err) {
+            console.error(
+              "[PipelineJobsPanel] Execution history could not be loaded:",
+              err,
+            );
+
+            if (latestProjectSlugRef.current === requestedSlug) {
+              setHistory([]);
+              setHistoryError("Execution history yuklenemedi.");
+            }
+          } finally {
+            if (latestProjectSlugRef.current === requestedSlug && !nextSilent) {
+              setHistoryLoading(false);
+            }
+
+            nextSilent = true;
+          }
+        } while (
+          historyRefreshQueuedRef.current &&
+          latestProjectSlugRef.current === projectSlug
+        );
+      })();
+
+      historyRefreshPromiseRef.current = refreshPromise;
+
+      try {
+        await refreshPromise;
+      } finally {
+        if (historyRefreshPromiseRef.current === refreshPromise) {
+          historyRefreshPromiseRef.current = null;
+          historyRefreshQueuedRef.current = false;
+        }
+      }
+    },
+    [projectSlug],
+  );
+
   useEffect(() => {
     actionInFlightRef.current = false;
     refreshInFlightRef.current = false;
+    historyRefreshPromiseRef.current = null;
+    historyRefreshQueuedRef.current = false;
     setActionState(null);
     loadJobs();
-  }, [loadJobs]);
+    loadHistory();
+  }, [loadJobs, loadHistory]);
 
   const hasActiveJobs = jobs.some(isActiveJob);
   const hasRunningJobs = jobs.some((job) => job.status === "running");
@@ -136,6 +269,7 @@ export default function PipelineJobsPanel({
 
     const intervalId = window.setInterval(() => {
       loadJobs({ silent: true });
+      loadHistory({ silent: true, queueIfInFlight: true });
     }, activeRefreshIntervalMs);
 
     return () => {
@@ -163,6 +297,7 @@ export default function PipelineJobsPanel({
     function refreshOnFocus() {
       if (document.visibilityState === "visible") {
         loadJobs({ silent: true });
+        loadHistory({ silent: true, queueIfInFlight: true });
       }
     }
 
@@ -173,7 +308,7 @@ export default function PipelineJobsPanel({
       window.removeEventListener("focus", refreshOnFocus);
       document.removeEventListener("visibilitychange", refreshOnFocus);
     };
-  }, [loadJobs]);
+  }, [loadJobs, loadHistory]);
 
   async function applyAction(jobId: string, action: PipelineJobAction) {
     if (actionInFlightRef.current) {
@@ -233,6 +368,7 @@ export default function PipelineJobsPanel({
       }
 
       setJobs(jobList.jobs);
+      await loadHistory({ silent: true, queueIfInFlight: true });
       setSuccessMessage(
         `${job.title || job.id} icin ${getActionProgressLabel(action)} tamamlandi.`,
       );
@@ -293,8 +429,74 @@ export default function PipelineJobsPanel({
             ))}
           </div>
         )}
+
+        <section className="border-t border-zinc-800 pt-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-zinc-100">
+              Execution History
+            </h3>
+            <span className="text-xs text-zinc-500">
+              {history.length} {history.length === 1 ? "event" : "events"}
+            </span>
+          </div>
+
+          {historyError ? (
+            <p className="rounded-lg border border-red-500/30 bg-red-950/30 p-3 text-sm text-red-300">
+              {historyError}
+            </p>
+          ) : null}
+
+          {historyLoading ? (
+            <p className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-500">
+              Execution history yukleniyor.
+            </p>
+          ) : !historyError && history.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-500">
+              Bu proje icin execution history kaydi yok.
+            </p>
+          ) : !historyError ? (
+            <div className="space-y-2">
+              {history.map((event) => (
+                <HistoryRow key={event.id} event={event} />
+              ))}
+            </div>
+          ) : null}
+        </section>
       </div>
     </StudioCard>
+  );
+}
+
+function HistoryRow({ event }: { event: PipelineJobHistoryEvent }) {
+  const duration = getHistoryDurationLabel(event);
+
+  return (
+    <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 className="font-semibold text-zinc-100">{event.stage}</h4>
+            <span className="rounded-full bg-zinc-800 px-2 py-1 text-xs font-semibold text-zinc-300">
+              {event.status}
+            </span>
+          </div>
+          <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-3">
+            <JobDetail label="Job ID" value={event.jobId} />
+            <JobDetail label="Recorded" value={formatDate(event.recordedAt)} />
+            {event.startedAt ? (
+              <JobDetail label="Started At" value={formatDate(event.startedAt)} />
+            ) : null}
+            {event.completedAt ? (
+              <JobDetail
+                label="Completed At"
+                value={formatDate(event.completedAt)}
+              />
+            ) : null}
+            {duration ? <JobDetail label="Duration" value={duration} /> : null}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -517,6 +719,21 @@ function getJobDurationLabel(job: PipelineJob, nowMs: number) {
   return formatDuration(completedAtMs - startedAtMs);
 }
 
+function getHistoryDurationLabel(event: PipelineJobHistoryEvent) {
+  const startedAtMs = getTimestampMs(event.startedAt);
+  const completedAtMs = getTimestampMs(event.completedAt);
+
+  if (
+    startedAtMs === null ||
+    completedAtMs === null ||
+    completedAtMs < startedAtMs
+  ) {
+    return undefined;
+  }
+
+  return formatDuration(completedAtMs - startedAtMs);
+}
+
 function getTimestampMs(value: unknown) {
   if (typeof value !== "string") {
     return null;
@@ -588,6 +805,29 @@ function parseJobList(
   return jobList;
 }
 
+function parseHistory(
+  value: unknown,
+  projectSlug: string,
+): PipelineJobHistory | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const historyList = value as PipelineJobHistory;
+
+  if (
+    historyList.projectSlug !== projectSlug ||
+    !Array.isArray(historyList.events) ||
+    typeof historyList.createdAt !== "string" ||
+    typeof historyList.updatedAt !== "string" ||
+    !historyList.events.every(isPipelineJobHistoryEvent)
+  ) {
+    return null;
+  }
+
+  return historyList;
+}
+
 function isPipelineJob(value: unknown): value is PipelineJob {
   if (!value || typeof value !== "object") {
     return false;
@@ -615,6 +855,32 @@ function isPipelineJobStatus(value: unknown): value is PipelineJobStatus {
 
 function isPipelineJobAction(value: unknown): value is PipelineJobAction {
   return value === "cancel" || value === "retry";
+}
+
+function isPipelineJobHistoryEvent(
+  value: unknown,
+): value is PipelineJobHistoryEvent {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const event = value as PipelineJobHistoryEvent;
+
+  return (
+    typeof event.id === "string" &&
+    event.id.length > 0 &&
+    typeof event.jobId === "string" &&
+    event.jobId.length > 0 &&
+    typeof event.stage === "string" &&
+    (event.status === "completed" ||
+      event.status === "failed" ||
+      event.status === "cancelled") &&
+    typeof event.jobCreatedAt === "string" &&
+    typeof event.jobUpdatedAt === "string" &&
+    typeof event.recordedAt === "string" &&
+    (event.startedAt === undefined || typeof event.startedAt === "string") &&
+    (event.completedAt === undefined || typeof event.completedAt === "string")
+  );
 }
 
 function isSafeSlug(value: string) {
