@@ -47,21 +47,21 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 79**
+**Sprint 80**
 
-Pipeline History Viewer Foundation
+Pipeline Execution Timeline Foundation
 
 **Durum**
 
 Completed
 
-Sprint 79 tamamlandi.
+Sprint 80 tamamlandi.
 
-- Added execution history UI in PipelineJobsPanel.
-- Consumed existing GET /api/projects/[slug]/pipeline/history.
-- Added loading, empty and error states.
-- Synchronized history refresh with active job polling.
-- Successful job actions refresh history reliably.
+- Improved execution history UI into timeline-style viewer.
+- Sorted history events by timestamp.
+- Displayed event time information clearly.
+- Added status visualization for completed, failed and cancelled events.
+- Existing loading, empty and error states preserved.
 - Existing job actions and API contracts preserved.
 - PipelineJobManager unchanged.
 - TypeScript validation passed.
@@ -691,6 +691,26 @@ Plan:
 - History refresh active job polling ile senkronize edildi.
 - Basarili retry/cancel job action'lari history refresh'i guvenilir sekilde tetikliyor.
 - Existing job action davranislari ve API contracts korundu.
+- PipelineJobManager unchanged.
+- npx tsc --noEmit passed.
+
+---
+
+# Sprint 80
+## Pipeline Execution Timeline Foundation
+
+Amac:
+
+Existing execution history verisini timeline-style bir gorunumle daha okunabilir hale getirmek.
+
+Plan:
+
+- PipelineJobsPanel history section timeline-style viewer haline getirildi.
+- History events timestamp'e gore siralaniyor.
+- Event time bilgisi net gosteriliyor.
+- completed, failed ve cancelled status visualization eklendi.
+- Existing loading, empty ve error state'leri korundu.
+- Existing job actions ve API contracts preserved.
 - PipelineJobManager unchanged.
 - npx tsc --noEmit passed.
 

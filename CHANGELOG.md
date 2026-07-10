@@ -506,6 +506,20 @@ Tamamlandi
 - npx tsc --noEmit passed.
 
 ---
+### Pipeline Execution Timeline Foundation
+
+Tamamlandi
+
+- PipelineJobsPanel history section timeline-style viewer haline getirildi.
+- History events timestamp'e gore siralaniyor.
+- Event time bilgisi net gosteriliyor.
+- completed, failed ve cancelled status visualization eklendi.
+- Existing loading, empty ve error state'leri korundu.
+- Existing job actions ve API contracts preserved.
+- PipelineJobManager unchanged.
+- npx tsc --noEmit passed.
+
+---
 ### Existing Lint Issues Cleanup Planning
 
 Tamamlandi

@@ -275,7 +275,7 @@ export default function PipelineJobsPanel({
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [hasActiveJobs, loadJobs]);
+  }, [hasActiveJobs, loadJobs, loadHistory]);
 
   useEffect(() => {
     if (!hasRunningJobs) {
@@ -383,6 +383,7 @@ export default function PipelineJobsPanel({
 
   const summary = createJobSummary(jobs);
   const actionLocked = Boolean(actionState);
+  const sortedHistory = sortHistoryEvents(history);
 
   return (
     <StudioCard title="Pipeline Queue / Jobs">
@@ -455,8 +456,8 @@ export default function PipelineJobsPanel({
               Bu proje icin execution history kaydi yok.
             </p>
           ) : !historyError ? (
-            <div className="space-y-2">
-              {history.map((event) => (
+            <div className="space-y-3 border-l border-zinc-800 pl-4">
+              {sortedHistory.map((event) => (
                 <HistoryRow key={event.id} event={event} />
               ))}
             </div>
@@ -469,18 +470,24 @@ export default function PipelineJobsPanel({
 
 function HistoryRow({ event }: { event: PipelineJobHistoryEvent }) {
   const duration = getHistoryDurationLabel(event);
+  const eventTime = getHistoryEventTimeLabel(event);
+  const statusClassName = getHistoryStatusClassName(event.status);
 
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
+    <div className="relative rounded-lg border border-zinc-800 bg-zinc-950 p-4">
+      <span className="absolute -left-[23px] top-5 h-3 w-3 rounded-full border border-zinc-950 bg-zinc-500" />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h4 className="font-semibold text-zinc-100">{event.stage}</h4>
-            <span className="rounded-full bg-zinc-800 px-2 py-1 text-xs font-semibold text-zinc-300">
+            <span
+              className={`rounded-full px-2 py-1 text-xs font-semibold ${statusClassName}`}
+            >
               {event.status}
             </span>
           </div>
           <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-3">
+            <JobDetail label="Event Time" value={eventTime} />
             <JobDetail label="Job ID" value={event.jobId} />
             <JobDetail label="Recorded" value={formatDate(event.recordedAt)} />
             {event.startedAt ? (
@@ -644,6 +651,12 @@ function createJobSummary(jobs: PipelineJob[]) {
   );
 }
 
+function sortHistoryEvents(events: PipelineJobHistoryEvent[]) {
+  return [...events].sort(
+    (left, right) => getHistoryEventTimeMs(right) - getHistoryEventTimeMs(left),
+  );
+}
+
 function canCancel(status: PipelineJobStatus) {
   return status === "queued" || status === "running";
 }
@@ -734,6 +747,23 @@ function getHistoryDurationLabel(event: PipelineJobHistoryEvent) {
   return formatDuration(completedAtMs - startedAtMs);
 }
 
+function getHistoryEventTimeLabel(event: PipelineJobHistoryEvent) {
+  const value =
+    event.completedAt ?? event.recordedAt ?? event.jobUpdatedAt ?? event.jobCreatedAt;
+
+  return formatDate(value);
+}
+
+function getHistoryEventTimeMs(event: PipelineJobHistoryEvent) {
+  return (
+    getTimestampMs(event.completedAt) ??
+    getTimestampMs(event.recordedAt) ??
+    getTimestampMs(event.jobUpdatedAt) ??
+    getTimestampMs(event.jobCreatedAt) ??
+    0
+  );
+}
+
 function getTimestampMs(value: unknown) {
   if (typeof value !== "string") {
     return null;
@@ -774,6 +804,16 @@ function getStatusClassName(status: PipelineJobStatus) {
   const classNames: Record<PipelineJobStatus, string> = {
     queued: "bg-zinc-800 text-zinc-300",
     running: "bg-blue-500/10 text-blue-300",
+    completed: "bg-green-500/10 text-green-300",
+    failed: "bg-red-500/10 text-red-300",
+    cancelled: "bg-zinc-700 text-zinc-400",
+  };
+
+  return classNames[status];
+}
+
+function getHistoryStatusClassName(status: PipelineJobHistoryEvent["status"]) {
+  const classNames: Record<PipelineJobHistoryEvent["status"], string> = {
     completed: "bg-green-500/10 text-green-300",
     failed: "bg-red-500/10 text-red-300",
     cancelled: "bg-zinc-700 text-zinc-400",

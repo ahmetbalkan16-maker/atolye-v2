@@ -39,7 +39,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 79
+Sprint 80
 
 ---
 
@@ -642,6 +642,23 @@ Completed
 
 ---
 
+# Sprint 80
+
+## Pipeline Execution Timeline Foundation
+
+Completed
+
+- PipelineJobsPanel history section timeline-style viewer haline getirildi.
+- History events timestamp'e gore siralaniyor.
+- Event time bilgisi net gosteriliyor.
+- completed, failed ve cancelled status visualization eklendi.
+- Existing loading, empty ve error state'leri korundu.
+- Existing job actions ve API contracts preserved.
+- PipelineJobManager unchanged.
+- npx tsc --noEmit passed.
+
+---
+
 
 
 # Sprint Öncelik Kuralları
@@ -675,4 +692,3 @@ Sprint tamamlandığında;
 - Aktif Sprint değiştirilir.
 - Tamamlanan sprint kaldırılmaz.
 - Durumu "Completed" yapılır.
-
