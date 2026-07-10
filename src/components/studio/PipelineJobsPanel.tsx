@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   PipelineJob,
   PipelineJobAction,
@@ -16,16 +16,31 @@ type PipelineJobsPanelProps = {
 type JobsResponse = {
   success?: boolean;
   error?: string;
-  jobs?: PipelineJobList;
+  jobs?: unknown;
 };
+
+type JobActionState = {
+  jobId: string;
+  action: PipelineJobAction;
+};
+
+const pipelineJobStatuses = [
+  "queued",
+  "running",
+  "completed",
+  "failed",
+  "cancelled",
+] as const;
 
 export default function PipelineJobsPanel({
   projectSlug,
 }: PipelineJobsPanelProps) {
   const [jobs, setJobs] = useState<PipelineJob[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actingJobId, setActingJobId] = useState<string | null>(null);
+  const [actionState, setActionState] = useState<JobActionState | null>(null);
+  const [successMessage, setSuccessMessage] = useState("");
   const [error, setError] = useState("");
+  const actionInFlightRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -33,7 +48,13 @@ export default function PipelineJobsPanel({
     async function loadJobs() {
       try {
         setLoading(true);
+        setSuccessMessage("");
         setError("");
+
+        if (!isSafeSlug(projectSlug)) {
+          setError("Gecersiz proje bilgisi nedeniyle pipeline jobs yuklenemedi.");
+          return;
+        }
 
         const response = await fetch(
           `/api/projects/${encodeURIComponent(projectSlug)}/pipeline/jobs`,
@@ -49,7 +70,15 @@ export default function PipelineJobsPanel({
           return;
         }
 
-        setJobs(data.jobs?.jobs ?? []);
+        const jobList = parseJobList(data.jobs, projectSlug);
+
+        if (!jobList) {
+          setJobs([]);
+          setError("Pipeline job verisi eksik veya gecersiz.");
+          return;
+        }
+
+        setJobs(jobList.jobs);
       } catch (err) {
         console.error("[PipelineJobsPanel] Jobs could not be loaded:", err);
 
@@ -71,12 +100,30 @@ export default function PipelineJobsPanel({
   }, [projectSlug]);
 
   async function applyAction(jobId: string, action: PipelineJobAction) {
-    if (actingJobId) {
+    if (actionInFlightRef.current) {
+      return;
+    }
+
+    const job = jobs.find((item) => item.id === jobId);
+
+    if (!job || !isSafeJobId(jobId)) {
+      setSuccessMessage("");
+      setError("Pipeline job verisi eksik veya gecersiz.");
+      return;
+    }
+
+    if (!canApplyAction(job.status, action)) {
+      setSuccessMessage("");
+      setError(
+        `${getActionLabel(action)} aksiyonu ${getStatusLabel(job.status)} durumundaki job icin desteklenmiyor.`,
+      );
       return;
     }
 
     try {
-      setActingJobId(jobId);
+      actionInFlightRef.current = true;
+      setActionState({ jobId, action });
+      setSuccessMessage("");
       setError("");
 
       const response = await fetch(
@@ -96,16 +143,28 @@ export default function PipelineJobsPanel({
         return;
       }
 
-      setJobs(data.jobs?.jobs ?? []);
+      const jobList = parseJobList(data.jobs, projectSlug);
+
+      if (!jobList) {
+        setError("Pipeline job aksiyonu tamamlandi ancak guncel veri okunamadi.");
+        return;
+      }
+
+      setJobs(jobList.jobs);
+      setSuccessMessage(
+        `${job.title || job.id} icin ${getActionLabel(action)} tamamlandi.`,
+      );
     } catch (err) {
       console.error("[PipelineJobsPanel] Job action failed:", err);
       setError("Pipeline job aksiyonu tamamlanamadi.");
     } finally {
-      setActingJobId(null);
+      actionInFlightRef.current = false;
+      setActionState(null);
     }
   }
 
   const summary = createJobSummary(jobs);
+  const actionLocked = Boolean(actionState);
 
   return (
     <StudioCard title="Pipeline Queue / Jobs">
@@ -124,6 +183,12 @@ export default function PipelineJobsPanel({
           </p>
         ) : null}
 
+        {successMessage ? (
+          <p className="rounded-lg border border-green-500/30 bg-green-950/30 p-3 text-sm text-green-300">
+            {successMessage}
+          </p>
+        ) : null}
+
         {loading ? (
           <p className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-500">
             Pipeline jobs yukleniyor.
@@ -138,7 +203,8 @@ export default function PipelineJobsPanel({
               <JobRow
                 key={job.id}
                 job={job}
-                acting={actingJobId === job.id}
+                actionState={actionState}
+                actionLocked={actionLocked}
                 onAction={applyAction}
               />
             ))}
@@ -151,23 +217,40 @@ export default function PipelineJobsPanel({
 
 function JobRow({
   job,
-  acting,
+  actionState,
+  actionLocked,
   onAction,
 }: {
   job: PipelineJob;
-  acting: boolean;
+  actionState: JobActionState | null;
+  actionLocked: boolean;
   onAction: (jobId: string, action: PipelineJobAction) => void;
 }) {
+  const jobIsValid = isPipelineJob(job);
+  const actionInProgress = actionState?.jobId === job.id;
+  const unsupportedReason = jobIsValid
+    ? getUnsupportedReason(job.status)
+    : "Job verisi eksik veya gecersiz.";
+
   return (
     <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-semibold text-zinc-100">{job.title}</h3>
-            <StatusBadge status={job.status} />
+            <h3 className="font-semibold text-zinc-100">
+              {job.title || "Untitled job"}
+            </h3>
+            {jobIsValid ? (
+              <StatusBadge status={job.status} />
+            ) : (
+              <span className="rounded-full bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-300">
+                invalid
+              </span>
+            )}
           </div>
           <p className="mt-1 text-xs text-zinc-500">
-            Attempts: {job.attempts} / Updated: {formatDate(job.updatedAt)}
+            Attempts: {Number.isFinite(job.attempts) ? job.attempts : 0} /
+            Updated: {formatDate(job.updatedAt)}
           </p>
           {job.error ? (
             <p className="mt-2 max-h-20 overflow-auto break-words rounded-md border border-red-500/30 bg-red-950/30 p-2 text-xs text-red-300">
@@ -177,28 +260,38 @@ function JobRow({
         </div>
 
         <div className="flex items-center gap-2">
-          {canCancel(job.status) ? (
+          {jobIsValid && canCancel(job.status) ? (
             <button
               type="button"
-              disabled={acting}
+              aria-busy={actionInProgress && actionState?.action === "cancel"}
+              disabled={actionLocked}
               onClick={() => onAction(job.id, "cancel")}
-              className="rounded-lg border border-zinc-700 px-3 py-2 text-xs font-bold text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:text-zinc-600"
+              className="rounded-lg border border-zinc-700 px-3 py-2 text-xs font-bold text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:text-zinc-600"
             >
-              {acting ? "..." : "Cancel"}
+              {actionInProgress && actionState?.action === "cancel"
+                ? "Canceling..."
+                : "Cancel"}
             </button>
           ) : null}
-          {canRetry(job.status) ? (
+          {jobIsValid && canRetry(job.status) ? (
             <button
               type="button"
-              disabled={acting}
+              aria-busy={actionInProgress && actionState?.action === "retry"}
+              disabled={actionLocked}
               onClick={() => onAction(job.id, "retry")}
-              className="rounded-lg border border-yellow-500/40 px-3 py-2 text-xs font-bold text-yellow-300 transition hover:border-yellow-400 hover:text-yellow-200 disabled:cursor-not-allowed disabled:text-zinc-600"
+              className="rounded-lg border border-yellow-500/40 px-3 py-2 text-xs font-bold text-yellow-300 transition hover:border-yellow-400 hover:text-yellow-200 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:text-zinc-600"
             >
-              {acting ? "..." : "Retry"}
+              {actionInProgress && actionState?.action === "retry"
+                ? "Retrying..."
+                : "Retry"}
             </button>
           ) : null}
         </div>
       </div>
+
+      {unsupportedReason ? (
+        <p className="mt-3 text-xs text-zinc-500">{unsupportedReason}</p>
+      ) : null}
     </div>
   );
 }
@@ -248,6 +341,37 @@ function canRetry(status: PipelineJobStatus) {
   return status === "failed" || status === "cancelled";
 }
 
+function canApplyAction(
+  status: PipelineJobStatus,
+  action: PipelineJobAction,
+) {
+  return action === "cancel" ? canCancel(status) : canRetry(status);
+}
+
+function getUnsupportedReason(status: PipelineJobStatus) {
+  if (canCancel(status) || canRetry(status)) {
+    return "";
+  }
+
+  return `Bu job ${getStatusLabel(status)} durumunda; kullanilabilir aksiyon yok.`;
+}
+
+function getActionLabel(action: PipelineJobAction) {
+  return action === "cancel" ? "Cancel" : "Retry";
+}
+
+function getStatusLabel(status: PipelineJobStatus) {
+  const labels: Record<PipelineJobStatus, string> = {
+    queued: "queued",
+    running: "running",
+    completed: "completed",
+    failed: "failed",
+    cancelled: "cancelled",
+  };
+
+  return labels[status];
+}
+
 function formatDate(value: string) {
   const date = new Date(value);
 
@@ -269,4 +393,60 @@ function getStatusClassName(status: PipelineJobStatus) {
   };
 
   return classNames[status];
+}
+
+function parseJobList(
+  value: unknown,
+  projectSlug: string,
+): PipelineJobList | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const jobList = value as PipelineJobList;
+
+  if (
+    jobList.projectSlug !== projectSlug ||
+    !Array.isArray(jobList.jobs) ||
+    typeof jobList.createdAt !== "string" ||
+    typeof jobList.updatedAt !== "string" ||
+    !jobList.jobs.every(isPipelineJob)
+  ) {
+    return null;
+  }
+
+  return jobList;
+}
+
+function isPipelineJob(value: unknown): value is PipelineJob {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const job = value as PipelineJob;
+
+  return (
+    typeof job.id === "string" &&
+    isSafeJobId(job.id) &&
+    typeof job.projectSlug === "string" &&
+    typeof job.stage === "string" &&
+    typeof job.title === "string" &&
+    isPipelineJobStatus(job.status) &&
+    typeof job.attempts === "number" &&
+    Number.isFinite(job.attempts) &&
+    typeof job.createdAt === "string" &&
+    typeof job.updatedAt === "string"
+  );
+}
+
+function isPipelineJobStatus(value: unknown): value is PipelineJobStatus {
+  return pipelineJobStatuses.includes(value as PipelineJobStatus);
+}
+
+function isSafeSlug(value: string) {
+  return /^[a-zA-Z0-9-_]+$/.test(value);
+}
+
+function isSafeJobId(value: string) {
+  return /^[a-zA-Z0-9-_]+$/.test(value);
 }

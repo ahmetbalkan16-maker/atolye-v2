@@ -52,21 +52,25 @@ export async function POST(req: Request, context: RouteContext) {
       );
     }
 
-    const jobs = await PipelineJobManager.applyAction(slug, jobId, body.action);
+    const result = await PipelineJobManager.applyAction(
+      slug,
+      jobId,
+      body.action,
+    );
 
-    if (!jobs) {
+    if (!result.success) {
       return NextResponse.json(
         {
           success: false,
-          error: "Pipeline job not found.",
+          error: result.error,
         },
-        { status: 404 },
+        { status: result.status },
       );
     }
 
     return NextResponse.json({
       success: true,
-      jobs,
+      jobs: result.jobs,
     });
   } catch (error) {
     console.error("[Pipeline Jobs API] Job action failed:", error);

@@ -1,10 +1,10 @@
-﻿---
+---
 Document: ROADMAP.md
 Version: 1.0.0
 Status: Active
 Priority: High
 Owner: AtÃ¶lye V2
-Last Updated: 2026-07-09
+Last Updated: 2026-07-10
 ---
 
 # AtÃ¶lye V2 â€” Development Roadmap
@@ -39,7 +39,7 @@ Phase 2 â€” Production Engine
 
 Aktif Sprint
 
-Sprint 67
+Sprint 68
 
 ---
 
@@ -420,11 +420,29 @@ Completed
 
 ## Pipeline Queue UI Controls Hardening
 
-Planlanan
+Completed
 
-- Job action durum mesajlarini iyilestirme
-- Queue/job UI edge case kontrolleri
-- existing unrelated lint issues temizligi icin ayri sprint planlama
+- Pipeline Queue / Jobs panelinde loading, success, error, disabled, invalid-data ve unsupported-state feedback netlestirildi.
+- Job action duplicate submission engeli eklendi.
+- Client tarafinda invalid slug, job ID, payload ve unsupported action guard'lari eklendi.
+- API unsupported job state transition icin HTTP 409 doner hale getirildi.
+- Mevcut response contract korundu: { success, error?, jobs? }.
+- Malformed stored job kayitlari tek tek filtrelenir hale getirildi; valid queue state korunur.
+- npx tsc --noEmit temiz gecti.
+- Manuel browser/UI testi yapilmadi.
+- Existing unrelated lint issues ve dependency advisories bu sprint kapsami disinda birakildi.
+
+---
+# Sprint 68
+
+## Existing Lint Issues Cleanup Planning
+
+Active
+
+- Existing unrelated lint issues envanteri
+- Dependency advisory risk degerlendirmesi
+- Davranis degistirmeden temizlik plani
+- TypeScript kontrolunun korunmasi
 
 ---
 

@@ -1,10 +1,10 @@
-﻿---
+---
 Document: ATOLYE_CHECKPOINT.md
 Version: 1.0.0
 Status: Active
 Priority: Critical
 Owner: AtÃ¶lye V2
-Last Updated: 2026-07-09
+Last Updated: 2026-07-10
 ---
 
 # âš ï¸ AI START HERE
@@ -47,22 +47,23 @@ TÃ¼rkÃ§e Ã¶ncelikli AI destekli kiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosu
 
 ## Aktif Sprint
 
-**Sprint 67**
+**Sprint 68**
 
-Pipeline Queue UI Controls Hardening
+Existing Lint Issues Cleanup Planning
 
 **Durum**
 
 ğŸŸ¡ HazÄ±r
 
-Sprint 66 tamamlandi ve TypeScript kontrolu gecti.
+Sprint 67 tamamlandi ve TypeScript kontrolu gecti.
 
-Sprint 67 icin Pipeline Queue UI Controls Hardening siradadir.
+Sprint 68 icin existing unrelated lint issues ve dependency advisory temizligi ayri sprint olarak siradadir.
 
 Not:
 
 - npm run typecheck script'i yok.
-- npm run lint existing unrelated lint issues nedeniyle bu sprint degisikliginden bagimsiz hatalara takiliyor.
+- npm run lint existing unrelated lint issues nedeniyle Sprint 67 degisikliginden bagimsiz hatalara takiliyor.
+- Sprint 67 icinde manuel browser/UI testi yapilmadi.
 
 ---
 
@@ -352,6 +353,14 @@ Completed
 
 ---
 
+## Sprint 67
+
+Pipeline Queue UI Controls Hardening
+
+Completed
+
+---
+
 ## Sprint 39
 
 Pipeline Status Panel
@@ -562,18 +571,18 @@ BaÅŸarÄ±lÄ±.
 
 # ğŸ¯ Bir Sonraki GÃ¶rev
 
-# Sprint 67
-## Pipeline Queue UI Controls Hardening
+# Sprint 68
+## Existing Lint Issues Cleanup Planning
 
 AmaÃ§:
 
-Pipeline queue/job panelindeki aksiyonlari daha guvenli ve okunabilir hale getirmek.
+Sprint 67 disinda kalan mevcut lint sorunlarini ve dependency advisory risklerini ayri, kontrollu bir sprintte ele almak.
 
 Plan:
 
-- Job action durum mesajlarini iyilestirme
-- Queue/job UI edge case kontrolleri
-- existing unrelated lint issues temizligi icin ayri sprint planlama
+- Existing unrelated lint issues envanteri
+- Dependency advisory degerlendirmesi
+- Kod davranisini degistirmeden temizlik plani
 
 ---
 

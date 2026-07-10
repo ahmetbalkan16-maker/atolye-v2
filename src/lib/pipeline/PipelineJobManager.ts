@@ -10,6 +10,13 @@ import type {
 } from "@/types/pipelineJob";
 
 const pipelineJobsFileName = "pipeline-jobs.json";
+const pipelineJobStatuses = [
+  "queued",
+  "running",
+  "completed",
+  "failed",
+  "cancelled",
+] as const;
 
 const stageLabels: Record<ProductionStepKey, string> = {
   research: "Research",
@@ -82,12 +89,24 @@ export class PipelineJobManager {
     projectSlug: string,
     jobId: string,
     action: PipelineJobAction,
-  ): Promise<PipelineJobList | null> {
+  ): Promise<PipelineJobActionResult> {
     const current = await this.listJobs(projectSlug);
     const job = current.jobs.find((item) => item.id === jobId);
 
     if (!job) {
-      return null;
+      return {
+        success: false,
+        status: 404,
+        error: "Pipeline job not found.",
+      };
+    }
+
+    if (!this.canApplyAction(job.status, action)) {
+      return {
+        success: false,
+        status: 409,
+        error: `Action "${action}" is not supported for "${job.status}" jobs.`,
+      };
     }
 
     const now = new Date().toISOString();
@@ -103,11 +122,14 @@ export class PipelineJobManager {
       return this.retryJob(item, now);
     });
 
-    return this.writeJobList(projectSlug, {
-      ...current,
-      jobs,
-      updatedAt: now,
-    });
+    return {
+      success: true,
+      jobs: await this.writeJobList(projectSlug, {
+        ...current,
+        jobs,
+        updatedAt: now,
+      }),
+    };
   }
 
   private static cancelJob(job: PipelineJob, now: string): PipelineJob {
@@ -137,6 +159,17 @@ export class PipelineJobManager {
       completedAt: undefined,
       error: undefined,
     };
+  }
+
+  private static canApplyAction(
+    status: PipelineJobStatus,
+    action: PipelineJobAction,
+  ) {
+    if (action === "cancel") {
+      return status === "queued" || status === "running";
+    }
+
+    return status === "failed" || status === "cancelled";
   }
 
   private static async updateStageJob(
@@ -232,7 +265,10 @@ export class PipelineJobManager {
       };
     }
 
-    return stored;
+    return {
+      ...stored,
+      jobs: stored.jobs.filter(isPipelineJob),
+    };
   }
 
   private static async writeJobList(
@@ -263,8 +299,44 @@ export class PipelineJobManager {
   }
 }
 
+type PipelineJobActionResult =
+  | {
+      success: true;
+      jobs: PipelineJobList;
+    }
+  | {
+      success: false;
+      status: 404 | 409;
+      error: string;
+    };
+
 function getJobId(projectSlug: string, stage: ProductionStepKey) {
   return `${projectSlug}-${stage}`;
+}
+
+function isPipelineJob(value: unknown): value is PipelineJob {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const job = value as PipelineJob;
+
+  return (
+    typeof job.id === "string" &&
+    job.id.length > 0 &&
+    typeof job.projectSlug === "string" &&
+    typeof job.stage === "string" &&
+    typeof job.title === "string" &&
+    isPipelineJobStatus(job.status) &&
+    typeof job.attempts === "number" &&
+    Number.isFinite(job.attempts) &&
+    typeof job.createdAt === "string" &&
+    typeof job.updatedAt === "string"
+  );
+}
+
+function isPipelineJobStatus(value: unknown): value is PipelineJobStatus {
+  return pipelineJobStatuses.includes(value as PipelineJobStatus);
 }
 
 function toJobStatus(status: PackageStatus): PipelineJobStatus {
