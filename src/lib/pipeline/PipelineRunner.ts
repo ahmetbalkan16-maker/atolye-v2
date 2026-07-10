@@ -150,6 +150,7 @@ export class PipelineRunner {
     if (!job) {
       return {
         success: false,
+        status: 409,
         projectSlug,
         retriedStage: stage,
         completedStages: [],
@@ -163,6 +164,7 @@ export class PipelineRunner {
 
     return {
       success: result.success,
+      status: result.status === 404 ? 409 : result.status,
       projectSlug,
       retriedStage: stage,
       completedStages: result.completedStages,
@@ -263,12 +265,28 @@ export class PipelineRunner {
       };
     }
 
-    const completed = await this.runPipelineStage(
-      projectSlug,
-      stage,
-      state,
-      "retry",
-    );
+    let completed: boolean;
+
+    try {
+      completed = await this.runPipelineStage(
+        projectSlug,
+        stage,
+        state,
+        "retry",
+      );
+    } catch {
+      return {
+        success: false,
+        status: 500,
+        projectSlug,
+        jobId,
+        retriedStage: stage,
+        completedStages: [],
+        blocked: false,
+        reason: "Pipeline retry execution failed.",
+        plan,
+      };
+    }
 
     if (!completed) {
       return {

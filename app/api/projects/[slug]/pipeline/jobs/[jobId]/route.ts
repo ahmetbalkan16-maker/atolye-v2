@@ -61,7 +61,9 @@ export async function POST(req: Request, context: RouteContext) {
         return NextResponse.json(
           {
             success: false,
+            blocked: retryResult.blocked,
             error: retryResult.reason,
+            result: retryResult,
             jobs,
             execution: {
               status: retryResult.blocked ? "blocked" : "failed",

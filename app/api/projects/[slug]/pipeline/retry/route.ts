@@ -78,15 +78,15 @@ export async function POST(req: Request, context: RouteContext) {
 
     const result = await PipelineRunner.retryStage(slug, body.stage);
 
-    if (result.blocked) {
+    if (!result.success) {
       return NextResponse.json(
         {
           success: false,
-          blocked: true,
+          blocked: result.blocked,
           error: result.reason,
           result,
         },
-        { status: 409 },
+        { status: result.status },
       );
     }
 

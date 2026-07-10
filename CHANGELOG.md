@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Medium
 Owner: Atölye V2
-Last Updated: 2026-07-10
+Last Updated: 2026-07-11
 ---
 
 # Atölye V2 — Changelog
@@ -565,6 +565,20 @@ Tamamlandi
 - UI retry sonucunu queued mesaji yerine gercek execution completed veya blocked durumu olarak gosterir.
 - TypeScript validation, tum runtime smoke testleri ve final code review basarili.
 - Kalan riskler: dependency blocked retry job'i queued kalir ve ileride explicit blocked state gerekebilir; stage execution error durumunda route genel 500 response doner, bu nedenle ileride yapilandirilmis execution result response eklenmeli.
+
+---
+
+### Retry Execution Failure Response Hardening
+
+Tamamlandi
+
+- Stage execution exception runner icinde yapilandirilmis retry sonucuna cevrildi.
+- Execution failure iki retry endpoint'inde HTTP 500, success: false, blocked: false, error: "Pipeline retry execution failed." ve result.status: 500 ile ortak sozlesmeye baglandi.
+- Basarili retry HTTP 200; dependency-blocked ve conflict akislari HTTP 409 olarak korundu.
+- Job endpoint'i mevcut jobs ve execution alanlarini geriye uyumlu olarak korudu.
+- Provider/stage exception ayrintilari istemciye sizdirilmaz; gercek hata yalniz sunucu logu ve failure persistence akisinda kalir.
+- TypeScript, hedefli smoke ve npm run build dogrulamalari basarili.
+- Kalan sinirlar: lock process-localdir, filesystem persistence transaction degildir ve sunucu log erisimi guvenli tutulmalidir.
 
 ---
 

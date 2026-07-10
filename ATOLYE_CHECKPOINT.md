@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Critical
 Owner: Atölye V2
-Last Updated: 2026-07-10
+Last Updated: 2026-07-11
 ---
 
 # ⚠️ AI START HERE
@@ -47,29 +47,27 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 84**
+**Sprint 85**
 
-Retry Execution Integration
+Retry Execution Failure Response Hardening
 
 **Durum**
 
 Completed
 
-Sprint 84 tamamlandi.
+Sprint 85 tamamlandi.
 
-- PipelineRunner.executeJobRetry tek retry execution entrypoint'i oldu.
-- failed/cancelled -> queued hazirligi atomik olarak yapilir; attempt artar ve cancelRequestedAt temizlenir.
-- startStage queued -> running claim'i paralel retry cagrilarinda tek execution saglar; diger istek conflict alir.
-- Hedef stage job.stage alanindan secilir ve dependency readiness kontrolunden sonra yalnizca o stage calisir.
-- Downstream stage'ler retry sonucunda otomatik baslamaz.
-- /pipeline/retry ve job action retry ayni runner akisinda birlestirildi.
-- UI gercek retry execution sonucunu completed veya blocked olarak gosterir.
-- TypeScript validation, tum runtime smoke testleri ve final code review basarili.
+- Stage execution exception runner icinde yapilandirilmis retry sonucuna cevrilir.
+- Her iki retry endpoint'i execution failure icin HTTP 500, success: false, blocked: false, error: "Pipeline retry execution failed." ve result.status: 500 doner.
+- Basarili retry HTTP 200; dependency-blocked ve conflict akislari HTTP 409 davranisini korur.
+- Job endpoint'i jobs ve execution alanlarini geriye uyumlu olarak korur.
+- Provider/stage exception ayrintilari istemciye sizmaz; gercek hata yalniz sunucu logu ve failure persistence akisinda kalir.
+- TypeScript, hedefli smoke ve npm run build dogrulamalari basarili.
 
 Not:
 
-- Dependency nedeniyle blocked olan retry job'i queued durumda kalir; ileride explicit blocked state gerekebilir.
-- Stage execution error durumunda route genel 500 response doner; ileride yapilandirilmis execution result response eklenmeli.
+- Lock process-localdir ve filesystem persistence transaction degildir.
+- Sunucu log erisimi guvenli tutulmalidir.
 
 ---
 
@@ -750,6 +748,28 @@ Kalan riskler:
 
 - Dependency blocked retry job'i queued durumda kalir; ileride explicit blocked state gerekebilir.
 - Stage execution error durumunda route genel 500 response doner; ileride yapilandirilmis execution result response eklenmeli.
+
+---
+
+# Sprint 85
+## Retry Execution Failure Response Hardening
+
+Durum:
+Completed
+
+Kapsam:
+
+- Stage execution exception runner icinde yapilandirilmis retry sonucuna cevrildi.
+- Execution failure iki retry endpoint'inde HTTP 500, success: false, blocked: false, error: "Pipeline retry execution failed." ve result.status: 500 ile ortak sozlesmeye baglandi.
+- Basarili retry HTTP 200; dependency-blocked ve conflict akislari HTTP 409 olarak korundu.
+- Job endpoint'i jobs ve execution alanlarini geriye uyumlu olarak korudu.
+- Provider/stage exception ayrintilari istemciye sizdirilmaz; gercek hata sunucu logu ve failure persistence akisinda kalir.
+- TypeScript, hedefli smoke ve npm run build basarili.
+
+Kalan riskler:
+
+- Lock process-localdir ve filesystem persistence transaction degildir.
+- Sunucu log erisimi guvenli tutulmalidir.
 
 ---
 

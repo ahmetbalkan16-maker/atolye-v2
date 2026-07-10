@@ -36,6 +36,7 @@ export interface PipelineResumeResult {
 
 export interface PipelineRetryResult {
   success: boolean;
+  status: 200 | 409 | 500;
   projectSlug: string;
   retriedStage: PipelineRecoveryStageKey;
   completedStages: PipelineRecoveryStageKey[];
@@ -46,7 +47,7 @@ export interface PipelineRetryResult {
 
 export interface PipelineJobRetryExecutionResult {
   success: boolean;
-  status: 200 | 404 | 409;
+  status: 200 | 404 | 409 | 500;
   projectSlug: string;
   jobId: string;
   retriedStage?: PipelineRecoveryStageKey;

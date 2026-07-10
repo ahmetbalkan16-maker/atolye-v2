@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: High
 Owner: Atölye V2
-Last Updated: 2026-07-10
+Last Updated: 2026-07-11
 ---
 
 # Atölye V2 — Development Roadmap
@@ -39,7 +39,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 84
+Sprint 85
 
 ---
 
@@ -737,6 +737,27 @@ Kalan riskler:
 
 - Dependency blocked retry job'i queued durumda kalir; ileride explicit blocked state gerekebilir.
 - Stage execution error durumunda route genel 500 response doner; ileride yapilandirilmis execution result response eklenmeli.
+
+---
+
+# Sprint 85
+
+## Retry Execution Failure Response Hardening
+
+Completed
+
+- Stage execution exception runner icinde yapilandirilmis retry sonucuna cevrildi.
+- Execution failure iki retry endpoint'inde ortak sozlesmeyle doner: HTTP 500, success: false, blocked: false, error: "Pipeline retry execution failed." ve result.status: 500.
+- Basarili retry HTTP 200; dependency-blocked ve conflict akislari HTTP 409 davranisini korur.
+- Job endpoint'i jobs ve execution alanlarini geriye uyumlu olarak korur.
+- Provider/stage exception ayrintilari istemciye sizdirilmaz; gercek hata sunucu logu ve failure persistence akisinda kalir.
+- TypeScript, hedefli smoke ve npm run build basarili.
+
+Kalan riskler:
+
+- Lock process-localdir.
+- Filesystem persistence transaction degildir.
+- Sunucu log erisimi guvenli tutulmalidir.
 
 ---
 
