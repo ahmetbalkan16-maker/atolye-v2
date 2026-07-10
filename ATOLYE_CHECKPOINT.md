@@ -53,11 +53,16 @@ Production Engine Smoke Validation
 
 **Durum**
 
-Hazir
+Completed
 
-Sprint 72 tamamlandi. AssetGallery image rendering warning'i mevcut davranis korunarak kapatildi ve lint temiz gecti.
+Sprint 73 tamamlandi.
 
-Sprint 73 icin son hardening sprintlerinden sonra Production Engine yuzeylerinde kucuk, bagimsiz smoke validation yapilacak.
+- Production Engine Smoke Validation tamamlandi.
+- Structured research rendering compatibility duzeltildi.
+- timeline, characters ve keyEvents hem legacy string hem structured object verilerini guvenli render ediyor.
+- TypeScript validation passed.
+- Smoke validation basarili.
+- Production Engine pipeline davranisi dogrulandi.
 
 Kapsam:
 
@@ -600,9 +605,12 @@ Kapsam:
 
 Plan:
 
-- Browser/UI smoke validation calistirma
-- Davranis degisikligi yapmadan bulgu kaydi
-- Gerekirse bulgulari sonraki kucuk sprintlere ayirma
+- Production Engine Smoke Validation tamamlandi.
+- Structured research rendering compatibility duzeltildi.
+- timeline, characters ve keyEvents hem legacy string hem structured object verilerini guvenli render ediyor.
+- TypeScript validation passed.
+- Smoke validation basarili.
+- Production Engine pipeline davranisi dogrulandi.
 
 ---
 

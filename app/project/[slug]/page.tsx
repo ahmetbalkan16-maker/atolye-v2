@@ -211,8 +211,16 @@ function ResearchPanel({ research }: { research: ResearchData | null }) {
         <div className="space-y-6">
           <TextBlock title="Kısa Özet" text={research.summary} />
           <TextBlock title="Tarihsel Arka Plan" text={research.historicalContext} />
-          <ListBlock title="Kronoloji" items={research.timeline} />
-          <ListBlock title="Karakterler" items={research.characters} />
+          <ListBlock
+            title="Kronoloji"
+            items={research.timeline}
+            formatItem={formatTimelineItem}
+          />
+          <ListBlock
+            title="Karakterler"
+            items={research.characters}
+            formatItem={formatCharacterItem}
+          />
           <ListBlock title="Önemli Olaylar" items={research.keyEvents} />
         </div>
       )}
@@ -356,7 +364,15 @@ function TextBlock({ title, text }: { title: string; text: string }) {
   );
 }
 
-function ListBlock({ title, items }: { title: string; items: string[] }) {
+function ListBlock({
+  title,
+  items,
+  formatItem = formatListItem,
+}: {
+  title: string;
+  items: unknown[];
+  formatItem?: (item: unknown) => string;
+}) {
   if (items.length === 0) {
     return <EmptyState text={`${title} verisi bulunmuyor.`} />;
   }
@@ -368,12 +384,89 @@ function ListBlock({ title, items }: { title: string; items: string[] }) {
         {items.map((item, index) => (
           <li key={`${title}-${index}`} className="leading-7">
             <span className="mr-2 text-yellow-400">{index + 1}.</span>
-            {item}
+            {formatItem(item)}
           </li>
         ))}
       </ul>
     </div>
   );
+}
+
+function formatTimelineItem(item: unknown) {
+  if (typeof item === "string") {
+    return item;
+  }
+
+  if (isRecord(item)) {
+    const date = getStringValue(item, "date");
+    const event = getStringValue(item, "event");
+
+    if (date && event) {
+      return `${date}: ${event}`;
+    }
+
+    return event || date || formatListItem(item);
+  }
+
+  return formatListItem(item);
+}
+
+function formatCharacterItem(item: unknown) {
+  if (typeof item === "string") {
+    return item;
+  }
+
+  if (isRecord(item)) {
+    const name = getStringValue(item, "name");
+    const description = getStringValue(item, "description");
+
+    if (name && description) {
+      return `${name}: ${description}`;
+    }
+
+    return description || name || formatListItem(item);
+  }
+
+  return formatListItem(item);
+}
+
+function formatListItem(item: unknown) {
+  if (typeof item === "string") {
+    return item;
+  }
+
+  if (typeof item === "number" || typeof item === "boolean") {
+    return String(item);
+  }
+
+  if (isRecord(item)) {
+    const date = getStringValue(item, "date");
+    const event = getStringValue(item, "event");
+    const name = getStringValue(item, "name");
+    const description = getStringValue(item, "description");
+
+    if (date && event) {
+      return `${date}: ${event}`;
+    }
+
+    if (name && description) {
+      return `${name}: ${description}`;
+    }
+
+    return event || description || name || date || "Beklenmeyen veri.";
+  }
+
+  return "Beklenmeyen veri.";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function getStringValue(record: Record<string, unknown>, key: string) {
+  const value = record[key];
+
+  return typeof value === "string" ? value : "";
 }
 
 function EmptyState({ text }: { text: string }) {

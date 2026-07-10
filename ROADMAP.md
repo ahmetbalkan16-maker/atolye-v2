@@ -526,12 +526,14 @@ Completed
 
 ## Production Engine Smoke Validation
 
-Active
+Completed
 
-- Kapsam Project workspace production surfaces, Pipeline status / queue / jobs gorunumu ve AssetGallery preview / reload davranisi.
-- Hedef son hardening sprintlerinden sonra manuel browser/UI smoke validation yapmak.
-- Davranis degisikligi yapmadan regresyon risklerini kaydetmek.
-- Bulgu varsa sonraki kucuk sprintlere ayirmak.
+- Production Engine Smoke Validation tamamlandi.
+- Structured research rendering compatibility duzeltildi.
+- timeline, characters ve keyEvents hem legacy string hem structured object verilerini guvenli render ediyor.
+- TypeScript validation passed.
+- Smoke validation basarili.
+- Production Engine pipeline davranisi dogrulandi.
 
 ---
 
