@@ -460,6 +460,22 @@ Tamamlandi
 - npx tsc --noEmit passed.
 
 ---
+
+### Pipeline Execution History Foundation
+
+Tamamlandi
+
+- Added pipeline-history.json storage layer.
+- Preserved pipeline-jobs.json behavior.
+- Added terminal lifecycle history events.
+- Recorded completed, failed and cancelled job events.
+- Stored job metadata including timestamps.
+- No UI changes.
+- No API contract changes.
+- Retry/running/queued states do not create history events.
+- npx tsc --noEmit passed.
+
+---
 ### Existing Lint Issues Cleanup Planning
 
 Tamamlandi

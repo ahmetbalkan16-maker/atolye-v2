@@ -5,11 +5,15 @@ import type { PackageStatus, ProductionStepKey } from "@/types/project";
 import type {
   PipelineJob,
   PipelineJobAction,
+  PipelineJobHistory,
+  PipelineJobHistoryEvent,
+  PipelineJobHistoryStatus,
   PipelineJobList,
   PipelineJobStatus,
 } from "@/types/pipelineJob";
 
 const pipelineJobsFileName = "pipeline-jobs.json";
+const pipelineHistoryFileName = "pipeline-history.json";
 const pipelineJobStatuses = [
   "queued",
   "running",
@@ -110,25 +114,33 @@ export class PipelineJobManager {
     }
 
     const now = new Date().toISOString();
+    let actionJob: PipelineJob | undefined;
     const jobs = current.jobs.map((item) => {
       if (item.id !== jobId) {
         return item;
       }
 
       if (action === "cancel") {
-        return this.cancelJob(item, now);
+        actionJob = this.cancelJob(item, now);
+        return actionJob;
       }
 
-      return this.retryJob(item, now);
+      actionJob = this.retryJob(item, now);
+      return actionJob;
     });
+    const nextJobs = await this.writeJobList(projectSlug, {
+      ...current,
+      jobs,
+      updatedAt: now,
+    });
+
+    if (actionJob) {
+      await this.recordHistoryEvent(projectSlug, actionJob, now);
+    }
 
     return {
       success: true,
-      jobs: await this.writeJobList(projectSlug, {
-        ...current,
-        jobs,
-        updatedAt: now,
-      }),
+      jobs: nextJobs,
     };
   }
 
@@ -189,11 +201,15 @@ export class PipelineJobManager {
       ? current.jobs.map((job) => (job.id === jobId ? nextJob : job))
       : [...current.jobs, nextJob];
 
-    return this.writeJobList(projectSlug, {
+    const nextJobs = await this.writeJobList(projectSlug, {
       ...current,
       jobs,
       updatedAt: now,
     });
+
+    await this.recordHistoryEvent(projectSlug, nextJob, now);
+
+    return nextJobs;
   }
 
   private static createJob(
@@ -280,6 +296,49 @@ export class PipelineJobManager {
     return jobList;
   }
 
+  private static async recordHistoryEvent(
+    projectSlug: string,
+    job: PipelineJob,
+    now: string,
+  ) {
+    if (!isPipelineJobHistoryStatus(job.status)) {
+      return;
+    }
+
+    const current = await this.readHistory(projectSlug);
+    const event = createHistoryEvent(job, job.status, now);
+
+    await ProjectWriter.writeJSON(projectSlug, pipelineHistoryFileName, {
+      ...current,
+      events: [...current.events, event],
+      updatedAt: now,
+    });
+  }
+
+  private static async readHistory(
+    projectSlug: string,
+  ): Promise<PipelineJobHistory> {
+    const now = new Date().toISOString();
+    const stored = await ProjectReader.readJSON<unknown>(
+      projectSlug,
+      pipelineHistoryFileName,
+    );
+
+    if (!this.isHistory(stored, projectSlug)) {
+      return {
+        projectSlug,
+        events: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+    }
+
+    return {
+      ...stored,
+      events: stored.events.filter(isPipelineJobHistoryEvent),
+    };
+  }
+
   private static isJobList(
     value: unknown,
     projectSlug: string,
@@ -293,6 +352,24 @@ export class PipelineJobManager {
     return (
       record.projectSlug === projectSlug &&
       Array.isArray(record.jobs) &&
+      typeof record.createdAt === "string" &&
+      typeof record.updatedAt === "string"
+    );
+  }
+
+  private static isHistory(
+    value: unknown,
+    projectSlug: string,
+  ): value is PipelineJobHistory {
+    if (!value || typeof value !== "object") {
+      return false;
+    }
+
+    const record = value as PipelineJobHistory;
+
+    return (
+      record.projectSlug === projectSlug &&
+      Array.isArray(record.events) &&
       typeof record.createdAt === "string" &&
       typeof record.updatedAt === "string"
     );
@@ -337,6 +414,54 @@ function isPipelineJob(value: unknown): value is PipelineJob {
 
 function isPipelineJobStatus(value: unknown): value is PipelineJobStatus {
   return pipelineJobStatuses.includes(value as PipelineJobStatus);
+}
+
+function isPipelineJobHistoryStatus(
+  value: PipelineJobStatus,
+): value is PipelineJobHistoryStatus {
+  return (
+    value === "completed" || value === "failed" || value === "cancelled"
+  );
+}
+
+function createHistoryEvent(
+  job: PipelineJob,
+  status: PipelineJobHistoryStatus,
+  now: string,
+): PipelineJobHistoryEvent {
+  return {
+    id: `${job.id}-${status}-${now}`,
+    jobId: job.id,
+    stage: job.stage,
+    status,
+    startedAt: job.startedAt,
+    completedAt: job.completedAt,
+    jobCreatedAt: job.createdAt,
+    jobUpdatedAt: job.updatedAt,
+    recordedAt: now,
+  };
+}
+
+function isPipelineJobHistoryEvent(
+  value: unknown,
+): value is PipelineJobHistoryEvent {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const event = value as PipelineJobHistoryEvent;
+
+  return (
+    typeof event.id === "string" &&
+    event.id.length > 0 &&
+    typeof event.jobId === "string" &&
+    event.jobId.length > 0 &&
+    typeof event.stage === "string" &&
+    isPipelineJobHistoryStatus(event.status as PipelineJobStatus) &&
+    typeof event.jobCreatedAt === "string" &&
+    typeof event.jobUpdatedAt === "string" &&
+    typeof event.recordedAt === "string"
+  );
 }
 
 function toJobStatus(status: PackageStatus): PipelineJobStatus {

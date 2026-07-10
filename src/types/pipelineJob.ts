@@ -8,6 +8,10 @@ export type PipelineJobStatus =
   | "cancelled";
 
 export type PipelineJobAction = "cancel" | "retry";
+export type PipelineJobHistoryStatus = Extract<
+  PipelineJobStatus,
+  "completed" | "failed" | "cancelled"
+>;
 
 export interface PipelineJob {
   id: string;
@@ -26,6 +30,25 @@ export interface PipelineJob {
 export interface PipelineJobList {
   projectSlug: string;
   jobs: PipelineJob[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PipelineJobHistoryEvent {
+  id: string;
+  jobId: string;
+  stage: ProductionStepKey;
+  status: PipelineJobHistoryStatus;
+  startedAt?: string;
+  completedAt?: string;
+  jobCreatedAt: string;
+  jobUpdatedAt: string;
+  recordedAt: string;
+}
+
+export interface PipelineJobHistory {
+  projectSlug: string;
+  events: PipelineJobHistoryEvent[];
   createdAt: string;
   updatedAt: string;
 }

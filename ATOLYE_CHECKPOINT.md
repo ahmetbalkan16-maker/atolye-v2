@@ -47,25 +47,24 @@ TÃ¼rkÃ§e Ã¶ncelikli AI destekli kiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosu
 
 ## Aktif Sprint
 
-**Sprint 76**
+**Sprint 77**
 
-Pipeline Observability UI Layer
+Pipeline Execution History Foundation
 
 **Durum**
 
 Completed
 
-Sprint 76 tamamlandi.
+Sprint 77 tamamlandi.
 
-- Added job timestamp visibility.
-- Added duration calculations.
-- Running job live elapsed time calculated client-side.
-- Completed/failed/cancelled duration derived from existing timestamps.
-- Retry attempts visibility.
-- Existing failed job error visibility preserved.
+- Added pipeline-history.json storage layer.
+- Preserved pipeline-jobs.json behavior.
+- Added terminal lifecycle history events.
+- Recorded completed, failed and cancelled job events.
+- Stored job metadata including timestamps.
+- No UI changes.
 - No API contract changes.
-- PipelineJobManager unchanged.
-- Sprint 75 refresh/action behavior preserved.
+- Retry/running/queued states do not create history events.
 - TypeScript validation passed.
 
 Kapsam:
@@ -653,6 +652,27 @@ Plan:
 - Stale project request results prevented from updating new project state.
 - Background refresh preserves the current loading/empty UI.
 - API contracts and existing action behavior unchanged.
+- npx tsc --noEmit passed.
+
+---
+
+# Sprint 77
+## Pipeline Execution History Foundation
+
+Amac:
+
+Pipeline job terminal lifecycle event'lerini pipeline-jobs.json davranisini koruyarak ayri history storage katmanina kaydetmek.
+
+Plan:
+
+- Added pipeline-history.json storage layer.
+- Preserved pipeline-jobs.json behavior.
+- Added terminal lifecycle history events.
+- Recorded completed, failed and cancelled job events.
+- Stored job metadata including timestamps.
+- No UI changes.
+- No API contract changes.
+- Retry/running/queued states do not create history events.
 - npx tsc --noEmit passed.
 
 ---
