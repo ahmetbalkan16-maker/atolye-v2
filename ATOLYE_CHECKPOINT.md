@@ -47,23 +47,28 @@ TÃ¼rkÃ§e Ã¶ncelikli AI destekli kiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosu
 
 ## Aktif Sprint
 
-**Sprint 68**
+**Sprint 69**
 
-Existing Lint Issues Cleanup Planning
+JSX Unescaped Entities Cleanup
 
 **Durum**
 
-ğŸŸ¡ HazÄ±r
+ÄŸÅ¸Å¸Â¡ HazÃ„Â±r
 
-Sprint 67 tamamlandi ve TypeScript kontrolu gecti.
+Sprint 68 tamamlandi. npm run lint mevcut durumda 7 error ve 12 warning ile fail ediyor.
 
-Sprint 68 icin existing unrelated lint issues ve dependency advisory temizligi ayri sprint olarak siradadir.
+Sprint 69 icin react/no-unescaped-entities hatalari davranis degistirmeden temizlenecek.
+
+Kapsam:
+
+- src/components/studio/AssemblyPanel.tsx
+- src/components/studio/ProjectActions.tsx
 
 Not:
 
-- npm run typecheck script'i yok.
-- npm run lint existing unrelated lint issues nedeniyle Sprint 67 degisikliginden bagimsiz hatalara takiliyor.
-- Sprint 67 icinde manuel browser/UI testi yapilmadi.
+- Sprint 68 analizinde toplam 19 lint issue belirlendi.
+- Lint issue'lari Sprint 67 degisikliklerinden bagimsizdir.
+- npm run lint CI/pre-commit workflow'larini bloke edebilir.
 
 ---
 
@@ -569,20 +574,25 @@ BaÅŸarÄ±lÄ±.
 
 ---
 
-# ğŸ¯ Bir Sonraki GÃ¶rev
+# ÄŸÅ¸ÂÂ¯ Bir Sonraki GÃƒÂ¶rev
 
-# Sprint 68
-## Existing Lint Issues Cleanup Planning
+# Sprint 69
+## JSX Unescaped Entities Cleanup
 
-AmaÃ§:
+AmaÃƒÂ§:
 
-Sprint 67 disinda kalan mevcut lint sorunlarini ve dependency advisory risklerini ayri, kontrollu bir sprintte ele almak.
+react/no-unescaped-entities hatalarini davranis degistirmeden temizlemek.
+
+Kapsam:
+
+- src/components/studio/AssemblyPanel.tsx
+- src/components/studio/ProjectActions.tsx
 
 Plan:
 
-- Existing unrelated lint issues envanteri
-- Dependency advisory degerlendirmesi
-- Kod davranisini degistirmeden temizlik plani
+- JSX text icindeki unescaped apostrophe karakterlerini guvenli sekilde duzeltme
+- UI metni ve davranisini koruma
+- npm run lint sonucunda bu kategoriye ait 3 error'i kapatma
 
 ---
 

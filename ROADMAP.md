@@ -39,7 +39,7 @@ Phase 2 â€” Production Engine
 
 Aktif Sprint
 
-Sprint 68
+Sprint 69
 
 ---
 
@@ -437,12 +437,29 @@ Completed
 
 ## Existing Lint Issues Cleanup Planning
 
+Completed
+
+- npm run lint mevcut durumda 7 errors ve 12 warnings ile fail ediyor.
+- Toplam belirlenen lint issue sayisi: 19.
+- React hook/effect state management: 4 errors, 1 warning.
+- JSX unescaped entities: 3 errors.
+- Unused vars/imports: 10 warnings.
+- Next image optimization: 1 warning.
+- Issue'lar Sprint 67 degisikliklerinden bagimsizdir.
+- AssetGallery.tsx ve hook cleanup daha yuksek riskli alanlar olarak kaydedildi.
+- Lint mevcut haliyle CI/pre-commit workflow'larini bloke edebilir.
+- Onerilen cleanup sirasi: JSX unescaped entities, unused vars/imports, React hook cleanup, Next image optimization.
+
+---
+# Sprint 69
+
+## JSX Unescaped Entities Cleanup
+
 Active
 
-- Existing unrelated lint issues envanteri
-- Dependency advisory risk degerlendirmesi
-- Davranis degistirmeden temizlik plani
-- TypeScript kontrolunun korunmasi
+- Kapsam sadece src/components/studio/AssemblyPanel.tsx ve src/components/studio/ProjectActions.tsx.
+- Hedef react/no-unescaped-entities error'larini davranis degistirmeden kaldirmak.
+- UI metinleri ve mevcut component davranisi korunacak.
 
 ---
 

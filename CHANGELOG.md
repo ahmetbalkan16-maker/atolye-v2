@@ -401,6 +401,23 @@ Tamamlandi
 - Existing unrelated lint issues ve dependency advisories bu sprint kapsami disinda birakildi.
 
 ---
+### Existing Lint Issues Cleanup Planning
+
+Tamamlandi
+
+- npm run lint mevcut durumda 7 errors ve 12 warnings ile fail ediyor.
+- Toplam belirlenen lint issue sayisi: 19.
+- React hook/effect state management kategorisinde 4 errors ve 1 warning kaydedildi.
+- JSX unescaped entities kategorisinde 3 errors kaydedildi.
+- Unused vars/imports kategorisinde 10 warnings kaydedildi.
+- Next image optimization kategorisinde 1 warning kaydedildi.
+- Bu lint issue'larinin Sprint 67 degisikliklerinden bagimsiz oldugu dogrulandi.
+- AssetGallery.tsx ve hook cleanup daha yuksek riskli alanlar olarak kaydedildi.
+- Lint'in CI/pre-commit workflow'larini bloke edebilecegi kaydedildi.
+- Onerilen phased cleanup sirasi belirlendi: JSX unescaped entities, unused vars/imports, React hook cleanup, Next image optimization.
+- Kaynak kod, dokumantasyon disi dosyalar, commit ve push islemleri yapilmadi.
+
+---
 ### Documentation Vision Alignment
 
 Tamamlandi
