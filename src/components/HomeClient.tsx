@@ -29,7 +29,6 @@ export default function HomeClient() {
 
   useEffect(() => {
     if (!loading) {
-      setLoadingStep(0);
       return;
     }
 
@@ -45,6 +44,7 @@ export default function HomeClient() {
   const startPipeline = async () => {
     if (!topic.trim() || loading) return;
 
+    setLoadingStep(0);
     setLoading(true);
     setError("");
 

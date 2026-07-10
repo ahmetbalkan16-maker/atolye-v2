@@ -39,7 +39,7 @@ Phase 2 â€” Production Engine
 
 Aktif Sprint
 
-Sprint 71
+Sprint 72
 
 ---
 
@@ -486,12 +486,34 @@ Completed
 
 ## React Hook State and Effect Cleanup
 
+Completed
+
+- Kapsam src/components/HomeClient.tsx ve src/components/assets/AssetGallery.tsx olarak tutuldu.
+- Tum react-hooks/set-state-in-effect error'lari giderildi.
+- react-hooks/exhaustive-deps warning'i giderildi.
+- HomeClient loading-step reset'i pipeline start event'ine tasindi.
+- AssetGallery asset loading stale-safe async akislar olarak refactor edildi.
+- projectSlug degisimleri icin cancellation/stale-result guard'lari eklendi.
+- Manual reload ve generation loading davranisi korundu.
+- Effect-based editable visual/animation prop sync yerine guarded render-time synchronization kullanildi.
+- Review sirasinda manual reload stale-result riski bulundu ve giderildi.
+- npx tsc --noEmit temiz gecti.
+- npm run lint 0 errors ve 1 warning ile basarili calisiyor.
+- Kalan warning: @next/next/no-img-element in AssetGallery.tsx.
+- Manuel browser/UI testi yapilmadi.
+- Kalan async/UI risk dusuk-orta olarak kaydedildi.
+
+---
+# Sprint 72
+
+## Asset Image Rendering Cleanup
+
 Active
 
-- Kapsam src/components/HomeClient.tsx ve src/components/assets/AssetGallery.tsx.
-- Hedef react-hooks/set-state-in-effect ve react-hooks/exhaustive-deps issue'larini gidermek.
-- Mevcut UI ve async loading davranisi korunacak.
-- next/image warning'i bu sprintte ele alinmayacak.
+- Kapsam src/components/assets/AssetGallery.tsx.
+- Hedef kalan @next/next/no-img-element warning'ini gidermek.
+- Mevcut asset URL, layout, sizing ve rendering davranisi korunacak.
+- next/image gereksinimleri implementasyondan once degerlendirilecek.
 
 ---
 

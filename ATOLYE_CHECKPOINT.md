@@ -47,33 +47,33 @@ TÃ¼rkÃ§e Ã¶ncelikli AI destekli kiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosu
 
 ## Aktif Sprint
 
-**Sprint 71**
+**Sprint 72**
 
-React Hook State and Effect Cleanup
+Asset Image Rendering Cleanup
 
 **Durum**
 
 Hazir
 
-Sprint 70 tamamlandi. Tum 10 @typescript-eslint/no-unused-vars warning'i kapatildi ve TypeScript kontrolu gecti.
+Sprint 71 tamamlandi. React hook/effect lint issue'lari kapatildi ve TypeScript kontrolu gecti.
 
-Sprint 71 icin yalnizca React hook/effect lint sorunlari ele alinacak.
+Sprint 72 icin yalnizca AssetGallery image rendering warning'i ele alinacak.
 
 Kapsam:
 
-- src/components/HomeClient.tsx
 - src/components/assets/AssetGallery.tsx
 
 Hedef:
 
-- react-hooks/set-state-in-effect issue'larini gidermek
-- react-hooks/exhaustive-deps warning'ini gidermek
-- Mevcut UI ve async loading davranisini korumak
-- next/image issue'sunu bu sprintte ele almamak
+- Kalan @next/next/no-img-element warning'ini gidermek
+- Mevcut asset URL, layout, sizing ve rendering davranisini korumak
+- next/image gereksinimlerini implementasyondan once degerlendirmek
 
 Not:
 
-- npm run lint Sprint 70 sonrasi 6 total problems rapor ediyor: 4 errors, 2 warnings.
+- Sprint 71 sonrasi npm run lint 0 errors ve 1 warning ile basarili calisiyor.
+- Kalan warning: @next/next/no-img-element in AssetGallery.tsx.
+- Manuel browser/UI testi yapilmadi.
 
 ---
 
@@ -581,23 +581,22 @@ BaÅŸarÄ±lÄ±.
 
 # Bir Sonraki Gorev
 
-# Sprint 71
-## React Hook State and Effect Cleanup
+# Sprint 72
+## Asset Image Rendering Cleanup
 
 Amac:
 
-React hook/effect lint issue'larini mevcut UI ve async loading davranisini koruyarak temizlemek.
+AssetGallery icindeki kalan @next/next/no-img-element warning'ini mevcut gorsel davranisi koruyarak gidermek.
 
 Kapsam:
 
-- src/components/HomeClient.tsx
 - src/components/assets/AssetGallery.tsx
 
 Plan:
 
-- react-hooks/set-state-in-effect issue'larini gidermek
-- react-hooks/exhaustive-deps warning'ini gidermek
-- next/image warning'ini bu sprintte ele almamak
+- next/image gereksinimlerini degerlendirme
+- Mevcut asset URL, layout, sizing ve rendering davranisini koruma
+- Image warning'ini davranis degistirmeden kapatma
 
 ---
 

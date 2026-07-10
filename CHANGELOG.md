@@ -447,6 +447,27 @@ Tamamlandi
 - Kaynak kodda Sprint 70 kapsami disinda degisiklik, commit veya push yapilmadi.
 
 ---
+### React Hook State and Effect Cleanup
+
+Tamamlandi
+
+- Kapsam src/components/HomeClient.tsx ve src/components/assets/AssetGallery.tsx olarak tutuldu.
+- Tum react-hooks/set-state-in-effect error'lari giderildi.
+- react-hooks/exhaustive-deps warning'i giderildi.
+- HomeClient loading-step reset'i pipeline start event'ine tasindi.
+- AssetGallery asset loading stale-safe async akislar olarak refactor edildi.
+- projectSlug degisimleri icin cancellation/stale-result guard'lari eklendi.
+- Manual reload ve generation loading davranisi korundu.
+- Effect-based editable visual/animation prop sync yerine guarded render-time synchronization kullanildi.
+- Review sirasinda manual reload stale-result riski bulundu ve giderildi.
+- npx tsc --noEmit temiz gecti.
+- npm run lint 0 errors ve 1 warning ile basarili calisiyor.
+- Kalan warning: @next/next/no-img-element in AssetGallery.tsx.
+- Manuel browser/UI testi yapilmadi.
+- Kalan async/UI risk dusuk-orta olarak kaydedildi.
+- Kaynak kodda Sprint 71 kapsami disinda degisiklik, commit veya push yapilmadi.
+
+---
 ### Documentation Vision Alignment
 
 Tamamlandi

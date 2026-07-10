@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimationService } from "@/lib/animation/AnimationService";
 import type { AnimationData } from "@/types/animation";
 import type { Asset } from "@/types/asset";
@@ -30,6 +30,19 @@ type AssetGroup = {
   otherAssets: Asset[];
 };
 
+async function fetchProjectAssets(projectSlug: string) {
+  const res = await fetch(
+    `/api/assets?projectSlug=${encodeURIComponent(projectSlug)}`,
+  );
+  const data = (await res.json()) as AssetsResponse;
+
+  if (!res.ok || !data.success) {
+    throw new Error(data.error || "Assetler yuklenemedi.");
+  }
+
+  return data.assets ?? [];
+}
+
 export default function AssetGallery({
   projectId,
   projectSlug,
@@ -38,17 +51,24 @@ export default function AssetGallery({
   animationData = null,
 }: AssetGalleryProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadedProjectSlug, setLoadedProjectSlug] = useState("");
+  const [reloadingAssets, setReloadingAssets] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generatingAnimations, setGeneratingAnimations] = useState(false);
   const [generatingSceneId, setGeneratingSceneId] = useState<number | null>(null);
   const [generatingAnimationSceneId, setGeneratingAnimationSceneId] =
     useState<number | null>(null);
   const [error, setError] = useState("");
+  const [visualDataSource, setVisualDataSource] =
+    useState<VisualData | null>(visualData);
   const [editableVisualData, setEditableVisualData] =
     useState<VisualData | null>(visualData);
+  const [animationDataSource, setAnimationDataSource] =
+    useState<AnimationData | null>(animationData);
   const [localAnimationData, setLocalAnimationData] =
     useState<AnimationData | null>(animationData);
+  const latestProjectSlugRef = useRef(projectSlug);
+  const loading = reloadingAssets || loadedProjectSlug !== projectSlug;
   const hasVisualPlan = Boolean(editableVisualData);
   const canGenerateAnimations = Boolean(scenes && editableVisualData);
   const imageAssets = assets.filter((asset) => asset.type === "image");
@@ -63,27 +83,39 @@ export default function AssetGallery({
     animationActiveAssetIds,
   );
 
+  if (visualData !== visualDataSource) {
+    setVisualDataSource(visualData);
+    setEditableVisualData(visualData);
+  }
+
+  if (animationData !== animationDataSource) {
+    setAnimationDataSource(animationData);
+    setLocalAnimationData(animationData);
+  }
+
   async function loadAssets() {
+    const requestedProjectSlug = projectSlug;
+
     try {
-      setLoading(true);
+      setReloadingAssets(true);
       setError("");
 
-      const res = await fetch(
-        `/api/assets?projectSlug=${encodeURIComponent(projectSlug)}`,
-      );
-      const data = (await res.json()) as AssetsResponse;
+      const nextAssets = await fetchProjectAssets(requestedProjectSlug);
 
-      if (!res.ok || !data.success) {
-        setError(data.error || "Assetler yuklenemedi.");
+      if (latestProjectSlugRef.current !== requestedProjectSlug) {
         return;
       }
 
-      setAssets(data.assets ?? []);
+      setAssets(nextAssets);
+      setLoadedProjectSlug(requestedProjectSlug);
     } catch (err) {
       console.error("[AssetGallery] Asset loading failed:", err);
-      setError("Assetler yuklenirken hata olustu.");
+
+      if (latestProjectSlugRef.current === requestedProjectSlug) {
+        setError("Assetler yuklenirken hata olustu.");
+      }
     } finally {
-      setLoading(false);
+      setReloadingAssets(false);
     }
   }
 
@@ -224,16 +256,41 @@ export default function AssetGallery({
   }
 
   useEffect(() => {
-    loadAssets();
+    latestProjectSlugRef.current = projectSlug;
   }, [projectSlug]);
 
   useEffect(() => {
-    setEditableVisualData(visualData);
-  }, [visualData]);
+    let cancelled = false;
 
-  useEffect(() => {
-    setLocalAnimationData(animationData);
-  }, [animationData]);
+    async function loadProjectAssets() {
+      try {
+        const nextAssets = await fetchProjectAssets(projectSlug);
+
+        if (cancelled) {
+          return;
+        }
+
+        setAssets(nextAssets);
+        setError("");
+      } catch (err) {
+        console.error("[AssetGallery] Asset loading failed:", err);
+
+        if (!cancelled) {
+          setError("Assetler yuklenirken hata olustu.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadedProjectSlug(projectSlug);
+        }
+      }
+    }
+
+    loadProjectAssets();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectSlug]);
 
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
