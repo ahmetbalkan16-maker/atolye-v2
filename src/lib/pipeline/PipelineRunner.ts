@@ -142,12 +142,13 @@ export class PipelineRunner {
     stage: PipelineRecoveryStageKey,
   ): Promise<PipelineRetryResult> {
     const job = await PipelineJobManager.getJobForStage(projectSlug, stage);
-    const fallbackPlan = await PipelineRecoveryPlanner.createJobRetryPlan(
-      projectSlug,
-      stage,
-    );
 
     if (!job) {
+      const plan = await PipelineRecoveryPlanner.createJobRetryPlan(
+        projectSlug,
+        stage,
+      );
+
       return {
         success: false,
         status: 409,
@@ -156,11 +157,14 @@ export class PipelineRunner {
         completedStages: [],
         blocked: true,
         reason: `Pipeline job for stage "${stage}" could not be found.`,
-        plan: fallbackPlan,
+        plan,
       };
     }
 
     const result = await this.executeJobRetry(projectSlug, job.id);
+    const plan =
+      result.plan ??
+      (await PipelineRecoveryPlanner.createJobRetryPlan(projectSlug, stage));
 
     return {
       success: result.success,
@@ -170,7 +174,7 @@ export class PipelineRunner {
       completedStages: result.completedStages,
       blocked: result.blocked,
       reason: result.reason,
-      plan: result.plan ?? fallbackPlan,
+      plan,
     };
   }
 
@@ -192,25 +196,7 @@ export class PipelineRunner {
       };
     }
 
-    const prepared = await PipelineJobManager.prepareJobRetry(
-      projectSlug,
-      jobId,
-    );
-
-    if (!prepared.success) {
-      return {
-        success: false,
-        status: prepared.status,
-        projectSlug,
-        jobId,
-        retriedStage: existingJob.stage,
-        completedStages: [],
-        blocked: true,
-        reason: prepared.error,
-      };
-    }
-
-    const stage = prepared.job.stage;
+    const stage = existingJob.stage;
     const plan = await PipelineRecoveryPlanner.createJobRetryPlan(
       projectSlug,
       stage,
@@ -227,6 +213,24 @@ export class PipelineRunner {
         blocked: true,
         reason: plan.reason,
         plan,
+      };
+    }
+
+    const prepared = await PipelineJobManager.prepareJobRetry(
+      projectSlug,
+      jobId,
+    );
+
+    if (!prepared.success) {
+      return {
+        success: false,
+        status: prepared.status,
+        projectSlug,
+        jobId,
+        retriedStage: existingJob.stage,
+        completedStages: [],
+        blocked: true,
+        reason: prepared.error,
       };
     }
 

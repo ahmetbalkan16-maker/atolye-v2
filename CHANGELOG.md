@@ -582,6 +582,21 @@ Tamamlandi
 
 ---
 
+### Retry Dependency Preflight Hardening
+
+Tamamlandi
+
+- Dependency retry plani herhangi bir job mutation'indan once olusturuldu.
+- Dependency blocked durumda HTTP 409 ve blocked: true doner; prepareJobRetry cagrilmaz, status, attempts, cancelRequestedAt ve tum zaman alanlari korunur.
+- Ready durumda preflight -> prepareJobRetry -> scheduler/atomik claim -> execution akisi korundu.
+- Basarili retry HTTP 200; cancel, conflict ve manifest/job tutarsizligi HTTP 409 olarak korundu.
+- Sprint 85 execution-failure HTTP 500 sozlesmesi aynen korundu.
+- Review sirasinda gereksiz ikinci dependency plan hesaplamasi kaldirildi.
+- TypeScript, hedefli smoke ve npm run build dogrulamalari basarili.
+- Kalan sinirlar: planlama ile preparation arasinda kisa bir race window vardir; lock process-localdir, filesystem persistence transaction degildir ve dependency disi scheduler/state-load bloklarinda queued kalma riski ayri bir gelecek istir.
+
+---
+
 ### Existing Lint Issues Cleanup Planning
 
 Tamamlandi

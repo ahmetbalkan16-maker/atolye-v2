@@ -39,7 +39,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 85
+Sprint 86
 
 ---
 
@@ -758,6 +758,28 @@ Kalan riskler:
 - Lock process-localdir.
 - Filesystem persistence transaction degildir.
 - Sunucu log erisimi guvenli tutulmalidir.
+
+---
+
+# Sprint 86
+
+## Retry Dependency Preflight Hardening
+
+Completed
+
+- Dependency retry plani herhangi bir job mutation'indan once olusturuldu.
+- Dependency blocked durumda HTTP 409 ve blocked: true doner; prepareJobRetry cagrilmaz, status, attempts, cancelRequestedAt ve tum zaman alanlari korunur.
+- Ready durumda preflight -> prepareJobRetry -> scheduler/atomik claim -> execution akisi korundu.
+- Basarili retry HTTP 200; cancel, conflict ve manifest/job tutarsizligi HTTP 409 davranisini korur.
+- Sprint 85 execution-failure HTTP 500 sozlesmesi aynen korunur.
+- Review sirasinda gereksiz ikinci dependency plan hesaplamasi kaldirildi.
+- TypeScript, hedefli smoke ve npm run build basarili.
+
+Kalan riskler:
+
+- Planlama ile preparation arasinda kisa bir race window vardir.
+- Lock process-localdir ve filesystem persistence transaction degildir.
+- Dependency disi scheduler/state-load bloklarinda queued kalma riski ayri bir gelecek istir.
 
 ---
 

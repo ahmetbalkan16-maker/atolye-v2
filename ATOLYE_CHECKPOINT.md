@@ -47,27 +47,29 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 85**
+**Sprint 86**
 
-Retry Execution Failure Response Hardening
+Retry Dependency Preflight Hardening
 
 **Durum**
 
 Completed
 
-Sprint 85 tamamlandi.
+Sprint 86 tamamlandi.
 
-- Stage execution exception runner icinde yapilandirilmis retry sonucuna cevrilir.
-- Her iki retry endpoint'i execution failure icin HTTP 500, success: false, blocked: false, error: "Pipeline retry execution failed." ve result.status: 500 doner.
-- Basarili retry HTTP 200; dependency-blocked ve conflict akislari HTTP 409 davranisini korur.
-- Job endpoint'i jobs ve execution alanlarini geriye uyumlu olarak korur.
-- Provider/stage exception ayrintilari istemciye sizmaz; gercek hata yalniz sunucu logu ve failure persistence akisinda kalir.
+- Dependency retry plani herhangi bir job mutation'indan once olusturulur.
+- Dependency blocked durumda HTTP 409 ve blocked: true doner; prepareJobRetry cagrilmaz ve job alanlari degismez.
+- Ready durumda preflight -> prepareJobRetry -> scheduler/atomik claim -> execution akisi korunur.
+- Basarili retry HTTP 200; cancel, conflict ve manifest/job tutarsizligi HTTP 409 davranisini korur.
+- Sprint 85 execution-failure HTTP 500 sozlesmesi aynen korunur.
+- Review sirasinda gereksiz ikinci dependency plan hesaplamasi kaldirildi.
 - TypeScript, hedefli smoke ve npm run build dogrulamalari basarili.
 
 Not:
 
+- Planlama ile preparation arasinda kisa bir race window vardir.
 - Lock process-localdir ve filesystem persistence transaction degildir.
-- Sunucu log erisimi guvenli tutulmalidir.
+- Dependency disi scheduler/state-load bloklarinda queued kalma riski ayri bir gelecek istir.
 
 ---
 
@@ -770,6 +772,31 @@ Kalan riskler:
 
 - Lock process-localdir ve filesystem persistence transaction degildir.
 - Sunucu log erisimi guvenli tutulmalidir.
+
+---
+
+# Sprint 86
+## Retry Dependency Preflight Hardening
+
+Durum:
+Completed
+
+Kapsam:
+
+- Dependency retry plani herhangi bir job mutation'indan once olusturuldu.
+- Dependency blocked durumda HTTP 409 ve blocked: true doner; prepareJobRetry cagrilmaz.
+- Blocked job icin status, attempts, cancelRequestedAt ve tum zaman alanlari degismez.
+- Ready durumda preflight -> prepareJobRetry -> scheduler/atomik claim -> execution akisi korundu.
+- Basarili retry HTTP 200; cancel, conflict ve manifest/job tutarsizligi HTTP 409 olarak korundu.
+- Sprint 85 execution-failure HTTP 500 sozlesmesi aynen korundu.
+- Review sirasinda gereksiz ikinci dependency plan hesaplamasi kaldirildi.
+- TypeScript, hedefli smoke ve npm run build basarili.
+
+Kalan riskler:
+
+- Planlama ile preparation arasinda kisa bir race window vardir.
+- Lock process-localdir ve filesystem persistence transaction degildir.
+- Dependency disi scheduler/state-load bloklarinda queued kalma riski ayri bir gelecek istir.
 
 ---
 
