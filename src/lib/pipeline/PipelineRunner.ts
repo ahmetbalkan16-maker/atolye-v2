@@ -246,6 +246,12 @@ export class PipelineRunner {
     );
 
     if (scheduled.stage !== stage) {
+      await PipelineJobManager.compensatePreparedRetry(
+        projectSlug,
+        prepared.previousJob,
+        prepared.job,
+      );
+
       return {
         success: false,
         status: 409,

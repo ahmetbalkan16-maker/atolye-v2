@@ -614,6 +614,23 @@ Tamamlandi
 
 ---
 
+### Retry Post-Preparation Compensation Hardening
+
+Tamamlandi
+
+- Scheduler stage dondurmezse prepared target job, yalniz ayni queued attempt icinse preparation oncesi snapshot'a kosullu olarak geri alinir.
+- prepareJobRetry internal basari sonucu previousJob, queued prepared job ve guncel job listesini tasir; HTTP/API response alanlari degismedi.
+- Compensation process-local lock altinda storage'i yeniden okur; ayni job ID, queued status, prepared attempt ve bos cancelRequestedAt kosullarinda restore uygular.
+- Status, attempts, error, cancellation ve job zaman alanlari tam previous snapshot'tan geri yuklenir; diger job'lar korunur.
+- Cancelled, running/claimed veya sonraki attempt'e gecmis job geri alinmaz; kosullar eslesmezse write yapilmaz.
+- Runner compensation'i yalniz scheduler stage dondurmediginde cagirir; startStage conflict/cancel ve execution-failure yollarinda calismaz.
+- Scheduler blocked HTTP 409, ready retry HTTP 200, preparation/cancel/conflict HTTP 409 ve Sprint 85 execution-failure HTTP 500 sozlesmeleri korundu.
+- TypeScript, izole compensation smoke ve npm run build dogrulamalari basarili; Turbopack dinamik dosya izleme uyarisi build'i engellemedi.
+- Review sonucu: bloklayici bulgu yok.
+- Acik riskler: compensation write basarisiz olursa endpoint 500 donebilir; preparation ve compensation iki ayri JSON write islemidir; process-local lock surecler arasi atomiklik saglamaz; lock disi ayni queued attempt yazimi eski snapshot ile ezilebilir; previousJob mevcut primitive alanli PipelineJob icin referans olarak tasinir.
+
+---
+
 ### Existing Lint Issues Cleanup Planning
 
 Tamamlandi

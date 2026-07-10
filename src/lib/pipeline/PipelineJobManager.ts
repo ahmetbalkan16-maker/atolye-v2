@@ -139,8 +139,41 @@ export class PipelineJobManager {
       return {
         success: true,
         job: nextJob,
+        previousJob: job,
         jobs: nextJobs,
       };
+    });
+  }
+
+  static async compensatePreparedRetry(
+    projectSlug: string,
+    previousJob: PipelineJob,
+    preparedJob: PipelineJob,
+  ): Promise<boolean> {
+    return this.withProjectLock(projectSlug, async () => {
+      const current = await this.readJobList(projectSlug);
+      const currentJob = current.jobs.find((job) => job.id === preparedJob.id);
+
+      if (
+        !currentJob ||
+        currentJob.id !== previousJob.id ||
+        currentJob.status !== "queued" ||
+        currentJob.attempts !== preparedJob.attempts ||
+        currentJob.cancelRequestedAt
+      ) {
+        return false;
+      }
+
+      const now = new Date().toISOString();
+      await this.writeJobList(projectSlug, {
+        ...current,
+        jobs: current.jobs.map((job) =>
+          job.id === preparedJob.id ? previousJob : job,
+        ),
+        updatedAt: now,
+      });
+
+      return true;
     });
   }
 
@@ -611,6 +644,7 @@ type PipelineJobRetryPreparationResult =
   | {
       success: true;
       job: PipelineJob;
+      previousJob: PipelineJob;
       jobs: PipelineJobList;
     }
   | {

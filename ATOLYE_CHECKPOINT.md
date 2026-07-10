@@ -47,29 +47,28 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 87**
+**Sprint 88**
 
-Retry State-Load Preflight Hardening
+Retry Post-Preparation Compensation Hardening
 
 **Durum**
 
 Completed
 
-Sprint 87 tamamlandi.
+Sprint 88 tamamlandi.
 
-- Read-only job lookup, dependency planı ve state-load preflight queued mutation oncesinde tamamlanir.
-- State yuklenemezse HTTP 409, blocked: true ve "Project could not be read." sonucu doner; prepareJobRetry cagrilmaz.
-- Seed edilmemis job storage icin read-only lookup manifestten seed etmez ve dosya yazmaz.
-- Ready durumda mevcut seed/preparation -> scheduler/atomik claim -> execution akisi korunur.
-- Basarili retry HTTP 200; cancel/conflict HTTP 409 ve Sprint 85 execution-failure HTTP 500 sozlesmesi korunur.
-- Job ID -> stage turetmesi tam slug prefix'i ve pipeline stage whitelist'i ile sinirlandirildi.
-- TypeScript, hedefli smoke ve npm run build dogrulamalari basarili.
+- Scheduler stage dondurmezse prepared target job, yalniz ayni queued attempt icinse preparation oncesi snapshot'a kosullu olarak geri alinir.
+- prepareJobRetry internal sonucu previousJob, queued prepared job ve guncel job listesini tasir; HTTP/API alanlari degismedi.
+- Compensation lock altinda storage'i yeniden okur; queued status, ayni attempt ve bos cancelRequestedAt kosullariyla restore uygular.
+- Cancelled, running/claimed veya sonraki attempt'e gecmis job geri alinmaz; kosullar eslesmezse write yapilmaz.
+- Ready retry HTTP 200; scheduler blocked, cancel/conflict HTTP 409 ve Sprint 85 execution-failure HTTP 500 sozlesmesi korunur.
+- TypeScript, izole compensation smoke ve npm run build dogrulamalari basarili.
 
 Not:
 
-- State ile execution arasindaki mevcut eszamanli manuel-save penceresi daha uzundur.
-- Scheduler sonrasinda queued kalma riski ayri bir takip isidir.
-- JSON filesystem persistence transaction veya mutlak dosya atomikligi saglamaz.
+- Compensation write basarisiz olursa endpoint 500 donebilir; queued job guvenle geri alinamamis olur.
+- Preparation ve compensation iki ayri JSON write islemidir; transaction degildir.
+- Process-local lock surecler arasi atomiklik saglamaz; lock disi ayni queued attempt yazimi eski snapshot ile ezilebilir.
 
 ---
 
@@ -829,6 +828,40 @@ Kalan riskler / takip isleri:
 - State'in preparation ve scheduler oncesinde okunmasi, state ile execution arasindaki mevcut eszamanli manuel-save penceresini uzatir.
 - Scheduler sonrasinda queued kalma riski bu sprintin disindadir.
 - JSON filesystem persistence icin transaction veya mutlak dosya atomikligi eklenmedi.
+
+---
+
+# Sprint 88
+## Retry Post-Preparation Compensation Hardening
+
+Durum:
+Completed
+
+Kapsam:
+
+- prepareJobRetry basarili olduktan sonra scheduler stage dondurmezse, prepared target job kosullu compensation ile preparation oncesi snapshot'a geri alinir.
+- prepareJobRetry internal basari sonucu previousJob, queued prepared job ve guncel job listesini tasir; HTTP/API response alanlari degismedi.
+- compensatePreparedRetry process-local project lock altinda storage'i yeniden okur.
+- Restore yalniz ayni job ID, queued status, prepared attempt ile ayni attempts ve bos cancelRequestedAt kosullarinda uygulanir.
+- Status, attempts, error, cancellation ve job zaman alanlari tam previousJob snapshot'inden geri yuklenir; diger job'lar korunur.
+- Cancelled, running/claimed veya sonraki retry attempt'ine gecmis job geri alinmaz; kosullar eslesmezse write yapilmaz.
+- Runner compensation'i yalniz scheduler stage dondurmediginde cagirir; startStage conflict/cancel ve execution-failure yollarinda calismaz.
+- Ready retry HTTP 200; scheduler blocked, preparation conflict ve cancel/conflict HTTP 409; Sprint 85 execution failure HTTP 500 sozlesmesi korundu.
+- TypeScript, izole compensation smoke ve npm run build basarili; Turbopack dinamik dosya izleme uyarisi build'i engellemedi.
+
+Review sonucu:
+
+- Bloklayici bulgu yok.
+- Snapshot restore yalniz guncel queued prepared attempt icin calisir.
+- previousJob mevcut akista mutation oncesinden alinir; retry yeni object uretir ve API sozlesmesine alan sizmaz.
+
+Kalan riskler / takip isleri:
+
+- Compensation write basarisiz olursa exception yukari tasinabilir ve endpoint 500 donebilir; queued job guvenle geri alinamamis olur.
+- Preparation ve compensation iki ayri JSON write islemidir; transaction degildir.
+- Process-local lock surecler arasi atomiklik saglamaz.
+- Lock disi ayni queued attempt storage yazimi varsa compensation bunu ayirt edemez ve eski snapshot ile ezebilir.
+- previousJob bagimsiz clone yerine referans olarak tasinir; mevcut PipelineJob alanlari primitive ve mevcut akista sonradan mutation yoktur.
 
 ---
 

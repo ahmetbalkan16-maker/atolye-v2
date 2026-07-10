@@ -39,7 +39,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 87
+Sprint 88
 
 ---
 
@@ -803,6 +803,29 @@ Kalan riskler / takip isleri:
 - State ile execution arasindaki mevcut eszamanli manuel-save penceresi uzar.
 - Scheduler sonrasinda queued kalma riski ayri bir takip isidir.
 - JSON filesystem persistence transaction veya mutlak dosya atomikligi saglamaz.
+
+---
+
+# Sprint 88
+
+## Retry Post-Preparation Compensation Hardening
+
+Completed
+
+- Scheduler stage dondurmezse prepared target job, yalniz ayni queued attempt icinse preparation oncesi snapshot'a kosullu olarak geri alinir.
+- prepareJobRetry internal basari sonucu previousJob, queued prepared job ve guncel job listesini tasir; HTTP/API response alanlari degismedi.
+- Compensation lock altinda storage'i yeniden okur; ayni job ID, queued status, prepared attempt ve bos cancelRequestedAt kosullarinda restore uygular.
+- Status, attempts, error, cancellation ve job zaman alanlari tam previous snapshot'tan geri yuklenir; diger job'lar korunur.
+- Cancelled, running/claimed veya sonraki attempt'e gecmis job geri alinmaz; kosullar eslesmezse write yapilmaz.
+- Runner compensation'i yalniz scheduler stage dondurmediginde cagirir; startStage conflict/cancel ve execution-failure yollarinda calismaz.
+- Scheduler blocked HTTP 409, ready retry HTTP 200, preparation/cancel/conflict HTTP 409 ve Sprint 85 execution-failure HTTP 500 sozlesmeleri korundu.
+- TypeScript, izole compensation smoke ve npm run build basarili; Turbopack dinamik dosya izleme uyarisi build'i engellemedi.
+
+Kalan riskler / takip isleri:
+
+- Compensation write basarisiz olursa endpoint 500 donebilir ve queued job geri alinamamis olur.
+- Preparation ve compensation iki ayri JSON write islemidir; transaction degildir.
+- Process-local lock surecler arasi atomiklik saglamaz; lock disi ayni queued attempt yazimi eski snapshot ile ezilebilir.
 
 ---
 
