@@ -39,7 +39,7 @@ Phase 2 â€” Production Engine
 
 Aktif Sprint
 
-Sprint 69
+Sprint 70
 
 ---
 
@@ -455,11 +455,26 @@ Completed
 
 ## JSX Unescaped Entities Cleanup
 
+Completed
+
+- Kapsam sadece src/components/studio/AssemblyPanel.tsx ve src/components/studio/ProjectActions.tsx olarak tutuldu.
+- Tum react/no-unescaped-entities error'lari giderildi.
+- UI davranisi korundu.
+- npx tsc --noEmit temiz gecti.
+- npm run lint yalnizca scope disi kalan issue'lar nedeniyle fail ediyor.
+- Kalan lint durumu: 16 total problems, 4 errors, 12 warnings.
+- Kalan lint kategorileri: 4 react-hooks/set-state-in-effect errors, 10 @typescript-eslint/no-unused-vars warnings, 1 react-hooks/exhaustive-deps warning, 1 @next/next/no-img-element warning.
+
+---
+# Sprint 70
+
+## Unused Vars and Imports Cleanup
+
 Active
 
-- Kapsam sadece src/components/studio/AssemblyPanel.tsx ve src/components/studio/ProjectActions.tsx.
-- Hedef react/no-unescaped-entities error'larini davranis degistirmeden kaldirmak.
-- UI metinleri ve mevcut component davranisi korunacak.
+- Kapsam yalnizca daha once belirlenen 10 @typescript-eslint/no-unused-vars warning'i.
+- Placeholder/foundation amaci olan intentionally unused parametreler korunacak.
+- Davranis degisikligi yapilmadan unused vars/imports warning'leri azaltilacak.
 
 ---
 

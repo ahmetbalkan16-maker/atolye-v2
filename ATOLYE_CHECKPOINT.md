@@ -47,28 +47,27 @@ TÃ¼rkÃ§e Ã¶ncelikli AI destekli kiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosu
 
 ## Aktif Sprint
 
-**Sprint 69**
+**Sprint 70**
 
-JSX Unescaped Entities Cleanup
+Unused Vars and Imports Cleanup
 
 **Durum**
 
-ÄŸÅ¸Å¸Â¡ HazÃ„Â±r
+Hazir
 
-Sprint 68 tamamlandi. npm run lint mevcut durumda 7 error ve 12 warning ile fail ediyor.
+Sprint 69 tamamlandi. react/no-unescaped-entities hatalari kapatildi ve TypeScript kontrolu gecti.
 
-Sprint 69 icin react/no-unescaped-entities hatalari davranis degistirmeden temizlenecek.
+Sprint 70 icin yalnizca daha once belirlenen 10 @typescript-eslint/no-unused-vars warning'i ele alinacak.
 
 Kapsam:
 
-- src/components/studio/AssemblyPanel.tsx
-- src/components/studio/ProjectActions.tsx
+- Daha once tespit edilen 10 unused vars/imports warning'i
+- Placeholder/foundation amaci olan intentionally unused parametreler korunacak
 
 Not:
 
-- Sprint 68 analizinde toplam 19 lint issue belirlendi.
-- Lint issue'lari Sprint 67 degisikliklerinden bagimsizdir.
-- npm run lint CI/pre-commit workflow'larini bloke edebilir.
+- npm run lint Sprint 69 sonrasi yalnizca scope disi kalan 16 problem nedeniyle fail ediyor.
+- Kalan lint durumu: 4 errors, 12 warnings.
 
 ---
 
@@ -574,25 +573,25 @@ BaÅŸarÄ±lÄ±.
 
 ---
 
-# ÄŸÅ¸ÂÂ¯ Bir Sonraki GÃƒÂ¶rev
+# Bir Sonraki Gorev
 
-# Sprint 69
-## JSX Unescaped Entities Cleanup
+# Sprint 70
+## Unused Vars and Imports Cleanup
 
-AmaÃƒÂ§:
+Amac:
 
-react/no-unescaped-entities hatalarini davranis degistirmeden temizlemek.
+Daha once belirlenen 10 @typescript-eslint/no-unused-vars warning'ini davranis degistirmeden temizlemek.
 
 Kapsam:
 
-- src/components/studio/AssemblyPanel.tsx
-- src/components/studio/ProjectActions.tsx
+- Yalnizca daha once tespit edilen 10 unused vars/imports warning'i
+- Placeholder/foundation amaci olan intentionally unused parametreler korunacak
 
 Plan:
 
-- JSX text icindeki unescaped apostrophe karakterlerini guvenli sekilde duzeltme
-- UI metni ve davranisini koruma
-- npm run lint sonucunda bu kategoriye ait 3 error'i kapatma
+- Gercekten gereksiz import ve degiskenleri kaldirma
+- Intentionally unused parametrelerde mevcut foundation niyetini koruma
+- Davranis degisikligi yapmadan lint warning sayisini azaltma
 
 ---
 

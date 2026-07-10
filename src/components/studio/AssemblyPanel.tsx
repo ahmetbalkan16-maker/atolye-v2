@@ -64,7 +64,7 @@ export default function AssemblyPanel({
     <StudioCard title="Kurgu Paneli">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-zinc-400">
-          Video ve ses çıktılarından render'a hazır kurgu paketi oluşturur.
+          Video ve ses çıktılarından render&apos;a hazır kurgu paketi oluşturur.
           Gerçek render yapılmaz.
         </p>
         <button
@@ -114,7 +114,7 @@ export default function AssemblyPanel({
           </div>
 
           <p className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-200">
-            Bu aşama yalnızca render'a hazır assembly.json üretir; MP4 render
+            Bu aşama yalnızca render&apos;a hazır assembly.json üretir; MP4 render
             yapılmaz.
           </p>
 

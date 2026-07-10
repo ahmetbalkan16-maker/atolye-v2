@@ -18,7 +18,7 @@ export default function ProjectActions({ slug }: ProjectActionsProps) {
         href={`/project/${slug}`}
         className="rounded-xl border border-zinc-700 px-4 py-3 text-sm font-bold text-white transition hover:border-yellow-400 hover:text-yellow-300"
       >
-        Studio'ya Git
+        Studio&apos;ya Git
       </Link>
 
       <button
