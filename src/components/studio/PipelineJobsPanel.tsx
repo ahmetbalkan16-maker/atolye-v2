@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   PipelineJob,
   PipelineJobAction,
@@ -31,6 +31,7 @@ const pipelineJobStatuses = [
   "failed",
   "cancelled",
 ] as const;
+const activeRefreshIntervalMs = 5000;
 
 export default function PipelineJobsPanel({
   projectSlug,
@@ -41,31 +42,45 @@ export default function PipelineJobsPanel({
   const [successMessage, setSuccessMessage] = useState("");
   const [error, setError] = useState("");
   const actionInFlightRef = useRef(false);
+  const refreshInFlightRef = useRef(false);
+  const latestProjectSlugRef = useRef(projectSlug);
 
-  useEffect(() => {
-    let mounted = true;
-    actionInFlightRef.current = false;
-    setActionState(null);
+  latestProjectSlugRef.current = projectSlug;
 
-    async function loadJobs() {
+  const loadJobs = useCallback(
+    async ({ silent = false }: { silent?: boolean } = {}) => {
+      if (refreshInFlightRef.current) {
+        return;
+      }
+
+      const requestedSlug = projectSlug;
+      refreshInFlightRef.current = true;
+
       try {
-        setLoading(true);
-        setJobs([]);
-        setSuccessMessage("");
-        setError("");
-
-        if (!isSafeSlug(projectSlug)) {
+        if (!silent) {
+          setLoading(true);
           setJobs([]);
-          setError("Gecersiz proje bilgisi nedeniyle pipeline jobs yuklenemedi.");
+          setSuccessMessage("");
+          setError("");
+        }
+
+        if (!isSafeSlug(requestedSlug)) {
+          if (latestProjectSlugRef.current === requestedSlug) {
+            setJobs([]);
+            setError(
+              "Gecersiz proje bilgisi nedeniyle pipeline jobs yuklenemedi.",
+            );
+          }
+
           return;
         }
 
         const response = await fetch(
-          `/api/projects/${encodeURIComponent(projectSlug)}/pipeline/jobs`,
+          `/api/projects/${encodeURIComponent(requestedSlug)}/pipeline/jobs`,
         );
         const data = (await response.json()) as JobsResponse;
 
-        if (!mounted) {
+        if (latestProjectSlugRef.current !== requestedSlug) {
           return;
         }
 
@@ -75,7 +90,7 @@ export default function PipelineJobsPanel({
           return;
         }
 
-        const jobList = parseJobList(data.jobs, projectSlug);
+        const jobList = parseJobList(data.jobs, requestedSlug);
 
         if (!jobList) {
           setJobs([]);
@@ -84,26 +99,63 @@ export default function PipelineJobsPanel({
         }
 
         setJobs(jobList.jobs);
+        setError("");
       } catch (err) {
         console.error("[PipelineJobsPanel] Jobs could not be loaded:", err);
 
-        if (mounted) {
+        if (latestProjectSlugRef.current === requestedSlug) {
           setJobs([]);
           setError("Pipeline jobs yuklenemedi.");
         }
       } finally {
-        if (mounted) {
+        if (latestProjectSlugRef.current === requestedSlug && !silent) {
           setLoading(false);
         }
+
+        refreshInFlightRef.current = false;
+      }
+    },
+    [projectSlug],
+  );
+
+  useEffect(() => {
+    actionInFlightRef.current = false;
+    refreshInFlightRef.current = false;
+    setActionState(null);
+    loadJobs();
+  }, [loadJobs]);
+
+  const hasActiveJobs = jobs.some(isActiveJob);
+
+  useEffect(() => {
+    if (!hasActiveJobs) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      loadJobs({ silent: true });
+    }, activeRefreshIntervalMs);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [hasActiveJobs, loadJobs]);
+
+  useEffect(() => {
+    function refreshOnFocus() {
+      if (document.visibilityState === "visible") {
+        loadJobs({ silent: true });
       }
     }
 
-    loadJobs();
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnFocus);
 
     return () => {
-      mounted = false;
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshOnFocus);
     };
-  }, [projectSlug]);
+  }, [loadJobs]);
 
   async function applyAction(jobId: string, action: PipelineJobAction) {
     if (actionInFlightRef.current) {
@@ -351,6 +403,10 @@ function canCancel(status: PipelineJobStatus) {
 
 function canRetry(status: PipelineJobStatus) {
   return status === "failed" || status === "cancelled";
+}
+
+function isActiveJob(job: PipelineJob) {
+  return job.status === "queued" || job.status === "running";
 }
 
 function canApplyAction(

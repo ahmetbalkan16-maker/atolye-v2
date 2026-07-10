@@ -47,22 +47,23 @@ TÃ¼rkÃ§e Ã¶ncelikli AI destekli kiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosu
 
 ## Aktif Sprint
 
-**Sprint 74**
+**Sprint 75**
 
-Pipeline Queue UX Hardening
+Pipeline Queue Reliability
 
 **Durum**
 
 Completed
 
-Sprint 74 tamamlandi.
+Sprint 75 tamamlandi.
 
-- PipelineJobsPanel UI state handling iyilestirildi.
-- Proje degisiminde stale job listesi temizleniyor.
-- Invalid slug, API error ve fetch error yollarinda stale state temizleniyor.
-- Action state ve action lock guvenli sekilde sifirlaniyor.
-- Runtime action validation eklendi.
-- Action feedback daha tutarli hale getirildi.
+- 5-second polling only while queued/running jobs exist.
+- Polling stops when active jobs finish.
+- Silent refresh on window focus and tab visibility return.
+- Overlapping refresh requests prevented.
+- Stale project request results prevented from updating new project state.
+- Background refresh preserves the current loading/empty UI.
+- API contracts and existing action behavior unchanged.
 - TypeScript validation passed.
 
 Kapsam:
@@ -631,6 +632,26 @@ Plan:
 - Runtime action validation eklendi.
 - Action feedback daha tutarli hale getirildi.
 - TypeScript validation passed.
+
+---
+
+# Sprint 75
+## Pipeline Queue Reliability
+
+Amac:
+
+Pipeline Queue / Jobs panelinin refresh guvenilirligini API contract degistirmeden iyilestirmek.
+
+Plan:
+
+- 5-second polling only while queued/running jobs exist.
+- Polling stops when active jobs finish.
+- Silent refresh on window focus and tab visibility return.
+- Overlapping refresh requests prevented.
+- Stale project request results prevented from updating new project state.
+- Background refresh preserves the current loading/empty UI.
+- API contracts and existing action behavior unchanged.
+- npx tsc --noEmit passed.
 
 ---
 

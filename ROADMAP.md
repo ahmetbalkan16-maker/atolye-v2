@@ -553,6 +553,23 @@ Completed
 
 ---
 
+# Sprint 75
+
+## Pipeline Queue Reliability
+
+Completed
+
+- 5-second polling only while queued/running jobs exist.
+- Polling stops when active jobs finish.
+- Silent refresh on window focus and tab visibility return.
+- Overlapping refresh requests prevented.
+- Stale project request results prevented from updating new project state.
+- Background refresh preserves the current loading/empty UI.
+- API contracts and existing action behavior unchanged.
+- npx tsc --noEmit passed.
+
+---
+
 
 
 # Sprint Ã–ncelik KurallarÄ±
