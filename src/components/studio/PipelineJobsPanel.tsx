@@ -41,6 +41,7 @@ export default function PipelineJobsPanel({
   const [actionState, setActionState] = useState<JobActionState | null>(null);
   const [successMessage, setSuccessMessage] = useState("");
   const [error, setError] = useState("");
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const actionInFlightRef = useRef(false);
   const refreshInFlightRef = useRef(false);
   const latestProjectSlugRef = useRef(projectSlug);
@@ -126,6 +127,7 @@ export default function PipelineJobsPanel({
   }, [loadJobs]);
 
   const hasActiveJobs = jobs.some(isActiveJob);
+  const hasRunningJobs = jobs.some((job) => job.status === "running");
 
   useEffect(() => {
     if (!hasActiveJobs) {
@@ -140,6 +142,22 @@ export default function PipelineJobsPanel({
       window.clearInterval(intervalId);
     };
   }, [hasActiveJobs, loadJobs]);
+
+  useEffect(() => {
+    if (!hasRunningJobs) {
+      return;
+    }
+
+    setNowMs(Date.now());
+
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [hasRunningJobs]);
 
   useEffect(() => {
     function refreshOnFocus() {
@@ -270,6 +288,7 @@ export default function PipelineJobsPanel({
                 actionState={actionState}
                 actionLocked={actionLocked}
                 onAction={applyAction}
+                nowMs={nowMs}
               />
             ))}
           </div>
@@ -284,17 +303,22 @@ function JobRow({
   actionState,
   actionLocked,
   onAction,
+  nowMs,
 }: {
   job: PipelineJob;
   actionState: JobActionState | null;
   actionLocked: boolean;
   onAction: (jobId: string, action: PipelineJobAction) => void;
+  nowMs: number;
 }) {
   const jobIsValid = isPipelineJob(job);
   const actionInProgress = actionState?.jobId === job.id;
   const unsupportedReason = jobIsValid
     ? getUnsupportedReason(job.status)
     : "Job verisi eksik veya gecersiz.";
+  const duration = getJobDurationLabel(job, nowMs);
+  const startedAt = getOptionalString(job.startedAt);
+  const completedAt = getOptionalString(job.completedAt);
 
   return (
     <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
@@ -312,11 +336,21 @@ function JobRow({
               </span>
             )}
           </div>
-          <p className="mt-1 text-xs text-zinc-500">
-            Attempts: {Number.isFinite(job.attempts) ? job.attempts : 0} /
-            Updated: {formatDate(job.updatedAt)}
-          </p>
-          {job.error ? (
+          <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-3">
+            <JobDetail label="Updated" value={formatDate(job.updatedAt)} />
+            {startedAt ? (
+              <JobDetail label="Started At" value={formatDate(startedAt)} />
+            ) : null}
+            {completedAt ? (
+              <JobDetail label="Completed At" value={formatDate(completedAt)} />
+            ) : null}
+            {duration ? <JobDetail label="Duration" value={duration} /> : null}
+            <JobDetail
+              label="Retry Attempts"
+              value={formatNumber(job.attempts)}
+            />
+          </div>
+          {job.status === "failed" && job.error ? (
             <p className="mt-2 max-h-20 overflow-auto break-words rounded-md border border-red-500/30 bg-red-950/30 p-2 text-xs text-red-300">
               {job.error}
             </p>
@@ -356,6 +390,17 @@ function JobRow({
       {unsupportedReason ? (
         <p className="mt-3 text-xs text-zinc-500">{unsupportedReason}</p>
       ) : null}
+    </div>
+  );
+}
+
+function JobDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-2">
+      <p className="font-semibold uppercase tracking-wide text-zinc-500">
+        {label}
+      </p>
+      <p className="mt-1 break-words text-zinc-300">{value}</p>
     </div>
   );
 }
@@ -453,6 +498,59 @@ function formatDate(value: string) {
         dateStyle: "medium",
         timeStyle: "short",
       }).format(date);
+}
+
+function getJobDurationLabel(job: PipelineJob, nowMs: number) {
+  const startedAtMs = getTimestampMs(job.startedAt);
+
+  if (startedAtMs === null) {
+    return undefined;
+  }
+
+  const completedAtMs =
+    job.status === "running" ? nowMs : getTimestampMs(job.completedAt);
+
+  if (completedAtMs === null || completedAtMs < startedAtMs) {
+    return undefined;
+  }
+
+  return formatDuration(completedAtMs - startedAtMs);
+}
+
+function getTimestampMs(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const timestamp = new Date(value).getTime();
+
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
+function getOptionalString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function formatNumber(value: number) {
+  return Number.isFinite(value)
+    ? new Intl.NumberFormat("tr-TR").format(value)
+    : "0";
+}
+
+function formatDuration(durationMs: number) {
+  if (durationMs < 1000) {
+    return `${durationMs} ms`;
+  }
+
+  const totalSeconds = Math.round(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (minutes === 0) {
+    return `${seconds} sn`;
+  }
+
+  return `${minutes} dk ${seconds} sn`;
 }
 
 function getStatusClassName(status: PipelineJobStatus) {

@@ -570,6 +570,25 @@ Completed
 
 ---
 
+# Sprint 76
+
+## Pipeline Observability UI Layer
+
+Completed
+
+- Added job timestamp visibility.
+- Added duration calculations.
+- Running job live elapsed time calculated client-side.
+- Completed/failed/cancelled duration derived from existing timestamps.
+- Retry attempts visibility.
+- Existing failed job error visibility preserved.
+- No API contract changes.
+- PipelineJobManager unchanged.
+- Sprint 75 refresh/action behavior preserved.
+- npx tsc --noEmit passed.
+
+---
+
 
 
 # Sprint Ã–ncelik KurallarÄ±

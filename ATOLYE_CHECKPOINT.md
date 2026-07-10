@@ -47,23 +47,25 @@ TÃ¼rkÃ§e Ã¶ncelikli AI destekli kiÅŸisel iÃ§erik Ã¼retim stÃ¼dyosu
 
 ## Aktif Sprint
 
-**Sprint 75**
+**Sprint 76**
 
-Pipeline Queue Reliability
+Pipeline Observability UI Layer
 
 **Durum**
 
 Completed
 
-Sprint 75 tamamlandi.
+Sprint 76 tamamlandi.
 
-- 5-second polling only while queued/running jobs exist.
-- Polling stops when active jobs finish.
-- Silent refresh on window focus and tab visibility return.
-- Overlapping refresh requests prevented.
-- Stale project request results prevented from updating new project state.
-- Background refresh preserves the current loading/empty UI.
-- API contracts and existing action behavior unchanged.
+- Added job timestamp visibility.
+- Added duration calculations.
+- Running job live elapsed time calculated client-side.
+- Completed/failed/cancelled duration derived from existing timestamps.
+- Retry attempts visibility.
+- Existing failed job error visibility preserved.
+- No API contract changes.
+- PipelineJobManager unchanged.
+- Sprint 75 refresh/action behavior preserved.
 - TypeScript validation passed.
 
 Kapsam:
@@ -651,6 +653,28 @@ Plan:
 - Stale project request results prevented from updating new project state.
 - Background refresh preserves the current loading/empty UI.
 - API contracts and existing action behavior unchanged.
+- npx tsc --noEmit passed.
+
+---
+
+# Sprint 76
+## Pipeline Observability UI Layer
+
+Amac:
+
+Pipeline Queue / Jobs panelinde mevcut PipelineJob metadata'sini API contract degistirmeden daha gorunur hale getirmek.
+
+Plan:
+
+- Added job timestamp visibility.
+- Added duration calculations.
+- Running job live elapsed time calculated client-side.
+- Completed/failed/cancelled duration derived from existing timestamps.
+- Retry attempts visibility.
+- Existing failed job error visibility preserved.
+- No API contract changes.
+- PipelineJobManager unchanged.
+- Sprint 75 refresh/action behavior preserved.
 - npx tsc --noEmit passed.
 
 ---

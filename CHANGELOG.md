@@ -443,6 +443,23 @@ Tamamlandi
 - npx tsc --noEmit passed.
 
 ---
+
+### Pipeline Observability UI Layer
+
+Tamamlandi
+
+- Added job timestamp visibility.
+- Added duration calculations.
+- Running job live elapsed time calculated client-side.
+- Completed/failed/cancelled duration derived from existing timestamps.
+- Retry attempts visibility.
+- Existing failed job error visibility preserved.
+- No API contract changes.
+- PipelineJobManager unchanged.
+- Sprint 75 refresh/action behavior preserved.
+- npx tsc --noEmit passed.
+
+---
 ### Existing Lint Issues Cleanup Planning
 
 Tamamlandi
