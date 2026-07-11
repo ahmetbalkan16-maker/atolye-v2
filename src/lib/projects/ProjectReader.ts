@@ -25,6 +25,34 @@ export class ProjectReader {
     }
   }
 
+  static async readJSONState<T>(
+    slug: string,
+    fileName: string,
+  ): Promise<ProjectJSONReadResult<T>> {
+    const folder = this.getProjectFolder(slug);
+    const file = path.join(folder, fileName);
+    let content: string;
+
+    try {
+      content = await fs.readFile(file, "utf-8");
+    } catch (error) {
+      if (isNodeError(error) && error.code === "ENOENT") {
+        return { status: "missing" };
+      }
+
+      throw error;
+    }
+
+    try {
+      return {
+        status: "parsed",
+        value: JSON.parse(content) as T,
+      };
+    } catch {
+      return { status: "malformed" };
+    }
+  }
+
   static async listProjects() {
     const root = this.getProjectsRoot();
 
@@ -53,4 +81,13 @@ export class ProjectReader {
       return [];
     }
   }
+}
+
+export type ProjectJSONReadResult<T> =
+  | { status: "missing" }
+  | { status: "malformed" }
+  | { status: "parsed"; value: T };
+
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error;
 }

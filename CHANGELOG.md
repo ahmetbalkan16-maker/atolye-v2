@@ -667,6 +667,26 @@ Tamamlandi
 
 ---
 
+### Pipeline State Corruption Detection
+
+Tamamlandi
+
+- pipeline-jobs.json ve pipeline-history.json corruption-aware state reader kullanmaya basladi.
+- Missing, parsed ve malformed persistence read sonuclari ayri ele alinir.
+- Yalniz ENOENT missing file kabul edilir; permission, I/O ve diger filesystem hatalari internal failure olarak propagate edilir.
+- Malformed JSON parsing ve structural validation failure ayri internal error mesajlariyla raporlanir.
+- Error mesajlari etkilenen pipeline state filename ve failure type bilgisini tasir; raw file content eklenmez.
+- Corrupted state dosyalari write, truncate, rename, delete veya silently replace edilmez.
+- Missing jobs/history dosyalarinda mevcut empty-state payload shape ve davranisi korunur.
+- Generic ProjectReader.readJSON() davranisi degismedi.
+- Mevcut PipelineJob ve PipelineJobHistory schema contract'lari korundu.
+- Mevcut stored pipeline state dosyalari read-only incelendi ve yeni validation kurallariyla uyumlu bulundu.
+- Null optional field, unknown stage, slug mismatch veya invalid nested record iceren legacy-invalid data artik silently filtered edilmek yerine structural validation failure ile reddedilir.
+- npx tsc --noEmit, Sprint 91 pipeline state corruption smoke ve git diff --check basarili.
+- Non-blocking sinirlar: attempts finite number olarak dogrulanir ancak integer/non-negative sarti yoktur; timestamp alanlari string olarak dogrulanir ancak parse edilebilir ISO date sarti yoktur.
+
+---
+
 ### Existing Lint Issues Cleanup Planning
 
 Tamamlandi

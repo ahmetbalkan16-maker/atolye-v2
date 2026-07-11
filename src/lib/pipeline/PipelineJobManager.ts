@@ -520,12 +520,13 @@ export class PipelineJobManager {
     projectSlug: string,
   ): Promise<PipelineJobList> {
     const now = new Date().toISOString();
-    const stored = await ProjectReader.readJSON<unknown>(
+    const stored = await this.readPipelineStateFile(
       projectSlug,
       pipelineJobsFileName,
+      (value): value is PipelineJobList => this.isJobList(value, projectSlug),
     );
 
-    if (!this.isJobList(stored, projectSlug)) {
+    if (!stored) {
       return {
         projectSlug,
         jobs: [],
@@ -534,10 +535,7 @@ export class PipelineJobManager {
       };
     }
 
-    return {
-      ...stored,
-      jobs: stored.jobs.filter(isPipelineJob),
-    };
+    return stored;
   }
 
   private static async writeJobList(
@@ -580,12 +578,14 @@ export class PipelineJobManager {
     projectSlug: string,
   ): Promise<PipelineJobHistory> {
     const now = new Date().toISOString();
-    const stored = await ProjectReader.readJSON<unknown>(
+    const stored = await this.readPipelineStateFile(
       projectSlug,
       pipelineHistoryFileName,
+      (value): value is PipelineJobHistory =>
+        this.isHistory(value, projectSlug),
     );
 
-    if (!this.isHistory(stored, projectSlug)) {
+    if (!stored) {
       return {
         projectSlug,
         events: [],
@@ -594,10 +594,36 @@ export class PipelineJobManager {
       };
     }
 
-    return {
-      ...stored,
-      events: stored.events.filter(isPipelineJobHistoryEvent),
-    };
+    return stored;
+  }
+
+  private static async readPipelineStateFile<T>(
+    projectSlug: string,
+    fileName: string,
+    validate: (value: unknown) => value is T,
+  ): Promise<T | null> {
+    const result = await ProjectReader.readJSONState<unknown>(
+      projectSlug,
+      fileName,
+    );
+
+    if (result.status === "missing") {
+      return null;
+    }
+
+    if (result.status === "malformed") {
+      throw new Error(
+        `Pipeline state file "${fileName}" failed JSON parsing.`,
+      );
+    }
+
+    if (!validate(result.value)) {
+      throw new Error(
+        `Pipeline state file "${fileName}" failed structural validation.`,
+      );
+    }
+
+    return result.value;
   }
 
   private static isJobList(
@@ -614,7 +640,10 @@ export class PipelineJobManager {
       record.projectSlug === projectSlug &&
       Array.isArray(record.jobs) &&
       typeof record.createdAt === "string" &&
-      typeof record.updatedAt === "string"
+      typeof record.updatedAt === "string" &&
+      record.jobs.every(
+        (job) => isPipelineJob(job) && job.projectSlug === projectSlug,
+      )
     );
   }
 
@@ -632,7 +661,8 @@ export class PipelineJobManager {
       record.projectSlug === projectSlug &&
       Array.isArray(record.events) &&
       typeof record.createdAt === "string" &&
-      typeof record.updatedAt === "string"
+      typeof record.updatedAt === "string" &&
+      record.events.every(isPipelineJobHistoryEvent)
     );
   }
 }
@@ -676,13 +706,17 @@ function isPipelineJob(value: unknown): value is PipelineJob {
     typeof job.id === "string" &&
     job.id.length > 0 &&
     typeof job.projectSlug === "string" &&
-    typeof job.stage === "string" &&
+    isProductionStepKey(job.stage) &&
     typeof job.title === "string" &&
     isPipelineJobStatus(job.status) &&
     typeof job.attempts === "number" &&
     Number.isFinite(job.attempts) &&
     typeof job.createdAt === "string" &&
-    typeof job.updatedAt === "string"
+    typeof job.updatedAt === "string" &&
+    isOptionalString(job.startedAt) &&
+    isOptionalString(job.completedAt) &&
+    isOptionalString(job.cancelRequestedAt) &&
+    isOptionalString(job.error)
   );
 }
 
@@ -730,12 +764,25 @@ function isPipelineJobHistoryEvent(
     event.id.length > 0 &&
     typeof event.jobId === "string" &&
     event.jobId.length > 0 &&
-    typeof event.stage === "string" &&
+    isProductionStepKey(event.stage) &&
     isPipelineJobHistoryStatus(event.status as PipelineJobStatus) &&
     typeof event.jobCreatedAt === "string" &&
     typeof event.jobUpdatedAt === "string" &&
-    typeof event.recordedAt === "string"
+    typeof event.recordedAt === "string" &&
+    isOptionalString(event.startedAt) &&
+    isOptionalString(event.completedAt)
   );
+}
+
+function isProductionStepKey(value: unknown): value is ProductionStepKey {
+  return (
+    typeof value === "string" &&
+    Object.prototype.hasOwnProperty.call(stageLabels, value)
+  );
+}
+
+function isOptionalString(value: unknown) {
+  return value === undefined || typeof value === "string";
 }
 
 function toJobStatus(status: PackageStatus): PipelineJobStatus {

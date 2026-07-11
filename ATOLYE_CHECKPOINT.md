@@ -47,7 +47,7 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 91**
+**Sprint 92**
 
 Planning
 
@@ -55,11 +55,11 @@ Planning
 
 Planning
 
-Sprint 90 tamamlandi. Sprint 91 planlama asamasina gecildi.
+Sprint 91 tamamlandi. Sprint 92 planlama asamasina gecildi.
 
 Not:
 
-- Sprint 91 kapsami henuz belirlenmedi.
+- Sprint 92 kapsami henuz belirlenmedi.
 
 ---
 
@@ -908,6 +908,35 @@ Kalan riskler / takip isleri:
 - JSON storage ve process-local locking sinirlari degismedi; transaction veya distributed locking eklenmedi.
 - Cleanup isleminin kendisi basarisiz olursa artik temporary file kalabilir; orijinal persistence hatasi yine korunur.
 - Eszamanli surecler arasi history yazimlarinda revision/lost-update korumasi yoktur.
+
+---
+
+# Sprint 91
+## Pipeline State Corruption Detection
+
+Durum:
+Completed
+
+Kapsam:
+
+- pipeline-jobs.json ve pipeline-history.json corruption-aware state reader kullanir.
+- Persistence read sonucunda missing, parsed ve malformed durumlari ayri ele alinir.
+- Yalniz ENOENT missing file olarak kabul edilir; permission, I/O ve diger filesystem hatalari internal failure olarak yukari tasinir.
+- Malformed JSON ile structural validation failure ayri internal error mesajlari uretir.
+- Hatalar etkilenen pipeline state filename ve failure type bilgisini tasir; raw dosya icerigi mesajlara eklenmez.
+- Corrupted state dosyalari write, truncate, rename, delete veya silent replacement islemine tabi tutulmaz.
+- Missing jobs/history dosyalari mevcut projectSlug, bos liste, createdAt ve updatedAt empty-state payload davranisini korur.
+- Generic ProjectReader.readJSON() davranisi degismedi.
+- Mevcut PipelineJobList ve PipelineJobHistory schema contract'lari korundu.
+- Mevcut stored pipeline state dosyalari read-only kontrol edildi ve yeni kurallarla uyumlu bulundu.
+- Null optional alan, unknown stage, job/root slug mismatch veya invalid item iceren legacy-invalid payload'lar artik sessizce filtrelenmek yerine structural validation failure ile reddedilir.
+- npx tsc --noEmit, Sprint 91 pipeline state corruption smoke ve git diff --check basarili.
+
+Kalan riskler / takip isleri:
+
+- attempts finite number olarak dogrulanir; integer veya non-negative olma sarti uygulanmaz.
+- Timestamp alanlari string olarak dogrulanir; parse edilebilir ISO date olma sarti uygulanmaz.
+- Non-ENOENT filesystem failure ve mevcut-valid-empty dosya yollari smoke icinde ayri failure injection senaryolari degildir; kod yollari review ile dogrulandi.
 
 ---
 

@@ -39,7 +39,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 91 — Planning
+Sprint 92 — Planning
 
 ---
 
@@ -881,14 +881,39 @@ Kalan riskler / takip isleri:
 
 # Sprint 91
 
+## Pipeline State Corruption Detection
+
+Completed
+
+- pipeline-jobs.json ve pipeline-history.json corruption-aware state reader kullanir.
+- Missing, parsed ve malformed read sonuclari ayri ele alinir.
+- Yalniz ENOENT missing file olarak kabul edilir; diger filesystem hatalari internal failure olarak propagate edilir.
+- Malformed JSON ve structural validation failure ayri hata turleri olarak raporlanir.
+- Error mesajlari etkilenen state filename/type bilgisini tasir ve raw dosya icerigi sizdirmaz.
+- Corrupted state dosyalari write, truncate, rename, delete veya silently replace edilmez.
+- Missing jobs/history dosyalari mevcut empty-state payload davranisini korur.
+- Generic ProjectReader.readJSON() davranisi degismedi; job ve history schema contract'lari korundu.
+- Mevcut stored pipeline state dosyalari yeni validation kurallariyla uyumlu bulundu.
+- Null optional alanlar, unknown stage veya slug mismatch iceren legacy-invalid data artik sessizce filtrelenmek yerine reddedilir.
+- npx tsc --noEmit, Sprint 91 pipeline state corruption smoke ve git diff --check basarili.
+
+Kalan riskler / takip isleri:
+
+- attempts finite number olarak dogrulanir; integer/non-negative olmasi zorunlu degildir.
+- Timestamp alanlari string olarak dogrulanir; parse edilebilir ISO date olmasi zorunlu degildir.
+
+---
+
+# Sprint 92
+
 ## Planning
 
 Durum
 
 Planning
 
-- Sprint 90 tamamlandi.
-- Sprint 91 kapsami sonraki planlama adiminda belirlenecek.
+- Sprint 91 tamamlandi.
+- Sprint 92 kapsami sonraki planlama adiminda belirlenecek.
 
 ---
 
