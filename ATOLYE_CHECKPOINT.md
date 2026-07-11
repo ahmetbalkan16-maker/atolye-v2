@@ -55,11 +55,11 @@ Production Intelligence
 
 In Progress
 
-Sprint 95.1-Sprint 95.8 Production Intelligence, Read-Only Production Snapshot, Health Service/API, typed consumer, UI ve findings detail calismalari tamamlandi.
+Sprint 95.1-Sprint 95.9 Production Intelligence, Read-Only Production Snapshot, Health Service/API, typed consumer, UI, findings ve evidence calismalari tamamlandi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 95.9 Production Health Finding Evidence Foundation.
+- Bir sonraki onerilen gorev Sprint 96.0 Production Intelligence Phase Review.
 
 ---
 
@@ -1344,6 +1344,53 @@ Test ve regresyon:
 Bir sonraki onerilen sprint:
 
 - Sprint 95.9 — Production Health Finding Evidence Foundation.
+
+---
+
+### Sprint 95.9 — Production Health Finding Evidence Foundation
+
+Durum:
+Completed
+
+Olusturulan dosyalar:
+
+- src/components/studio/ProductionHealthFindingEvidence.tsx
+- scripts/smoke-production-health-evidence.ts
+
+Degistirilen dosyalar:
+
+- src/components/studio/ProductionHealthFindingsPanel.tsx
+- ATOLYE_CHECKPOINT.md
+
+Evidence panel ozellikleri:
+
+- Finding evidence paneli her mevcut finding kartina read-only olarak entegre edildi.
+- Panel yalniz API consumer report'u icindeki finding.evidence, finding.sources, finding.stage/scope ve health source confidence verilerini kullanir.
+- Evidence JSON-safe primitive degerleri gelen object key sirasi korunarak render edilir; sort, filter veya search eklenmez.
+- Source listesi, affected resource ve confidence her finding icin gosterilir.
+- Stage varsa affected resource stage; yoksa finding scope olarak gosterilir.
+- Evidence veya source eksikse guvenli placeholder kullanilir.
+- Unknown health durumunda evidence completeness icin guvenli mesaj gosterilir.
+- Uzun evidence key/value ve metadata metinleri whitespace-pre-wrap, break-words, break-all ve overflow-wrap:anywhere ile guvenli satir kirar.
+- Polling, auto refresh, persistence, fetch veya API contract degisikligi eklenmedi.
+
+Test ve regresyon:
+
+- npx tsc --noEmit --incremental false basarili.
+- Sprint 95.9 production health evidence smoke PASS (10 senaryo).
+- Smoke kapsami success, empty evidence, unknown, malformed response, deterministic render, long evidence, missing source, retry sonrasi render, multiple findings ve confidence render senaryolarini kapsar.
+- Hedefli ESLint evidence panel, findings panel ve smoke icin 0 error/0 warning ile basarili.
+- Sprint 95.8 production health findings smoke PASS (10 senaryo).
+- Sprint 95.7 production health UI smoke PASS (10 senaryo).
+- Sprint 95.6 production health API consumer smoke PASS (15 senaryo).
+- Sprint 95.5 production health service/API smoke PASS (24 senaryo).
+- Sprint 95.4 production health rules smoke PASS (37 senaryo).
+- Sprint 95.3 production snapshot builder smoke PASS (29 senaryo).
+- git diff --check basarili.
+
+Bir sonraki onerilen sprint:
+
+- Sprint 96.0 — Production Intelligence Phase Review.
 
 ---
 

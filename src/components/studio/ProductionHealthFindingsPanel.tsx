@@ -3,6 +3,7 @@ import type {
   ProductionHealthSourceConfidenceLevel,
   ProductionHealthStatus,
 } from "@/types/productionHealth";
+import ProductionHealthFindingEvidence from "./ProductionHealthFindingEvidence";
 
 type ProductionHealthFindingsPanelProps = {
   findings: readonly ProductionHealthFinding[];
@@ -47,6 +48,7 @@ export default function ProductionHealthFindingsPanel({
               key={`${finding.code}-${finding.stage ?? "project"}-${index}`}
               finding={finding}
               sourceConfidence={sourceConfidence}
+              status={status}
             />
           ))}
         </div>
@@ -58,9 +60,11 @@ export default function ProductionHealthFindingsPanel({
 function FindingCard({
   finding,
   sourceConfidence,
+  status,
 }: {
   finding: ProductionHealthFinding;
   sourceConfidence: ProductionHealthSourceConfidenceLevel;
+  status: ProductionHealthStatus;
 }) {
   return (
     <article className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
@@ -93,6 +97,12 @@ function FindingCard({
         />
         <Detail label="Source confidence" value={sourceConfidence} />
       </dl>
+
+      <ProductionHealthFindingEvidence
+        finding={finding}
+        confidence={sourceConfidence}
+        status={status}
+      />
     </article>
   );
 }
