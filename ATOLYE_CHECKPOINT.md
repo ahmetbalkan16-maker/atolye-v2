@@ -47,7 +47,7 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 93**
+**Sprint 94**
 
 Planning
 
@@ -55,11 +55,11 @@ Planning
 
 Planning
 
-Sprint 92 tamamlandi. Sprint 93 planlama asamasina gecildi.
+Sprint 93 tamamlandi. Sprint 94 planlama asamasina gecildi.
 
 Not:
 
-- Sprint 93 kapsami henuz belirlenmedi.
+- Sprint 94 kapsami henuz belirlenmedi.
 
 ---
 
@@ -963,6 +963,54 @@ Kapsam:
 - Mevcut HTTP 200, 404 ve valid 409 contract'lari korundu.
 - UI, storage schema, persistence format ve recovery davranisi degismedi.
 - npx tsc --noEmit, 18-case Sprint 92 pipeline state error contract smoke ve git diff --check basarili.
+
+---
+
+# Sprint 93
+## Pipeline Orchestration Foundation
+
+Durum:
+Completed
+
+Kapsam:
+
+- Merkezi pipelineRecoveryStageOrder uzerinden getNextPipelineStage() helper'i eklendi.
+- Downstream orchestration yalniz gercek running -> completed transition sonrasinda calisir.
+- Completed source job ile eksik downstream queued job ayni pipeline-jobs.json atomic write isleminde persist edilir.
+- Final export stage sonrasinda yeni downstream job olusturulmaz.
+- Failed, cancelled, queued veya gecersiz transition durumlari downstream enqueue tetiklemez.
+- Duplicate guard ayni downstream stage icin herhangi bir mevcut job kaydini korur ve yeni kayit eklemez.
+- Bu davranis deterministik project+stage tek-job modeliyle bilincli olarak uyumludur.
+- Failed/cancelled downstream stage yeni job yerine ayni job uzerinde retry attempt ile ilerler.
+- Retry completion, polling ve tekrar completion cagrilari idempotent kalir.
+- Existing queued, running ve terminal downstream kayitlari ezilmez veya yeniden initialize edilmez.
+- History yazimi jobs yazimindan ayri atomic persistence islemidir.
+- History write failure durumunda completed source ve queued downstream jobs state korunur; history error propagate edilir ve jobs rollback uygulanmaz.
+- Ayni-process concurrent completion cagrilari withProjectLock() ile serialize edilir ve tek downstream job uretir.
+- Farkli processler icin distributed lock yoktur; mevcut JSON lost-update siniri devam eder.
+- pipelineRecoveryStageOrder adi kullanim alanini dar gostermektedir; Sprint 93 kapsaminda rename/refactor yapilmadi.
+- API route, UI, persistence schema ve mevcut HTTP 200/404/409/safe 500 contract'lari korundu.
+- npx tsc --noEmit, 10-scenario Sprint 93 pipeline orchestration smoke, 18-case Sprint 92 state error contract smoke ve git diff --check basarili.
+
+Smoke kapsami:
+
+- Completed -> next queued.
+- Duplicate completion.
+- Failed.
+- Cancelled.
+- Incomplete/queued stage.
+- Final stage.
+- Existing queued/running downstream.
+- Retry completion idempotency.
+- History write failure sonrasi jobs orchestration state korunmasi.
+- Promise.all concurrent completion idempotency.
+
+Kalan riskler / takip isleri:
+
+- Jobs ve history ayri atomic islemlerdir; history failure jobs state'i geri almaz.
+- Process-local lock surecler arasi koordinasyon saglamaz.
+- Farkli process yazimlarinda revision/distributed lock olmadigi icin lost-update riski devam eder.
+- Canonical stage order gelecekte recovery disi neutral bir module/isim altina alinabilir.
 
 ---
 

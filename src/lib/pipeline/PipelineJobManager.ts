@@ -5,6 +5,7 @@ import {
   PipelineStateError,
   type PipelineStateKind,
 } from "./PipelineStateError";
+import { getNextPipelineStage } from "./PipelineRecoveryPlanner";
 import type { PackageStatus, ProductionStepKey } from "@/types/project";
 import type {
   PipelineJob,
@@ -208,6 +209,7 @@ export class PipelineJobManager {
           completedAt: now,
           error: undefined,
         }),
+        true,
       );
 
       return true;
@@ -414,6 +416,7 @@ export class PipelineJobManager {
     stage: ProductionStepKey,
     nextStatus: PipelineJobStatus,
     update: (job: PipelineJob, now: string) => PipelineJob,
+    enqueueNextStage = false,
   ): Promise<PipelineJobList> {
     const current = await this.listJobs(projectSlug);
     const now = new Date().toISOString();
@@ -426,9 +429,20 @@ export class PipelineJobManager {
     }
 
     const nextJob = update(currentJob, now);
-    const jobs = existingJob
+    let jobs = existingJob
       ? current.jobs.map((job) => (job.id === jobId ? nextJob : job))
       : [...current.jobs, nextJob];
+
+    if (enqueueNextStage) {
+      const nextStage = getNextPipelineStage(stage);
+      const hasDownstreamJob = nextStage
+        ? jobs.some((job) => job.stage === nextStage)
+        : false;
+
+      if (nextStage && !hasDownstreamJob) {
+        jobs = [...jobs, this.createJob(projectSlug, nextStage, now)];
+      }
+    }
 
     const nextJobs = await this.writeJobList(projectSlug, {
       ...current,

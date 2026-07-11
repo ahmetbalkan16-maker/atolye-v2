@@ -39,7 +39,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 93 — Planning
+Sprint 94 — Planning
 
 ---
 
@@ -929,14 +929,36 @@ Completed
 
 # Sprint 93
 
+## Pipeline Orchestration Foundation
+
+Completed
+
+- Merkezi pipelineRecoveryStageOrder ile getNextPipelineStage() helper'i eklendi.
+- Downstream orchestration yalniz running -> completed transition sonrasinda calisir.
+- Completed source ve eksik downstream queued job ayni pipeline-jobs.json atomic write isleminde persist edilir.
+- Export final stage olarak kalir; yeni job olusturmaz.
+- Failed, cancelled, queued ve invalid transition durumlari downstream tetiklemez.
+- Herhangi bir existing downstream stage kaydi duplicate olusumunu engeller ve aynen korunur.
+- Deterministik project+stage tek-job modeli korunur; failed/cancelled downstream ayni job uzerinde retry attempt kullanir.
+- Retry, polling, tekrar completion ve same-process concurrent completion idempotent'tir.
+- Jobs/history ayri atomic islemlerdir; history failure completed source + queued downstream state'ini rollback etmez ve error propagate edilir.
+- withProjectLock() ayni-process completion cagrilarini serialize eder; processler arasi distributed lock yoktur ve JSON lost-update siniri devam eder.
+- pipelineRecoveryStageOrder adi Sprint 93 kapsaminda degistirilmedi.
+- API, UI, persistence schema ve HTTP 200/404/409/safe 500 contract'lari korundu.
+- npx tsc --noEmit, 10-scenario Sprint 93 orchestration smoke, 18-case Sprint 92 state error smoke ve git diff --check basarili.
+
+---
+
+# Sprint 94
+
 ## Planning
 
 Durum
 
 Planning
 
-- Sprint 92 tamamlandi.
-- Sprint 93 kapsami sonraki planlama adiminda belirlenecek.
+- Sprint 93 tamamlandi.
+- Next sprint planning; kesin kapsam henuz belirlenmedi.
 
 ---
 

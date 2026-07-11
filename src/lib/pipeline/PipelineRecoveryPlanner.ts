@@ -39,6 +39,21 @@ export const pipelineStageDependencies: Record<
   export: ["video", "audio", "assembly", "thumbnail", "youtube", "seo"],
 };
 
+export function getNextPipelineStage(
+  completedStage: PipelineRecoveryStageKey,
+): PipelineRecoveryStageKey | null {
+  const completedIndex = pipelineRecoveryStageOrder.indexOf(completedStage);
+
+  if (
+    completedIndex === -1 ||
+    completedIndex === pipelineRecoveryStageOrder.length - 1
+  ) {
+    return null;
+  }
+
+  return pipelineRecoveryStageOrder[completedIndex + 1];
+}
+
 export class PipelineRecoveryPlanner {
   static async getNextIncompleteStage(
     projectSlug: string,

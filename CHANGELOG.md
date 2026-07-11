@@ -708,6 +708,28 @@ Tamamlandi
 
 ---
 
+### Pipeline Orchestration Foundation
+
+Tamamlandi
+
+- Merkezi pipelineRecoveryStageOrder uzerinden getNextPipelineStage() helper'i eklendi.
+- Downstream enqueue yalniz gercek running -> completed transition sonrasinda calisir.
+- Completed source job ve eksik downstream queued job tek pipeline-jobs.json atomic write isleminde persist edilir.
+- Export final stage olarak yeni downstream job olusturmaz.
+- Failed, cancelled, queued ve invalid transition durumlari downstream tetiklemez.
+- Duplicate guard ayni downstream stage icin queued, running veya terminal herhangi bir existing job kaydini korur.
+- Deterministik project+stage tek-job modeli korunur; failed/cancelled downstream yeni job yerine ayni job uzerinde retry attempt kullanir.
+- Retry completion, polling, tekrar completion ve concurrent same-process completion cagrilari idempotent kalir.
+- Existing downstream kayitlari ezilmez veya yeniden initialize edilmez.
+- History ve jobs persistence ayri atomic islemlerdir; history failure completed source + queued downstream jobs state'ini korur, error propagate edilir ve rollback yapilmaz.
+- withProjectLock() ayni-process completion cagrilarini serialize eder; farkli processler icin distributed lock yoktur ve JSON lost-update siniri devam eder.
+- pipelineRecoveryStageOrder ismi kullanim alanini dar gosterse de Sprint 93 kapsaminda rename yapilmadi.
+- API route, UI, persistence schema ve HTTP 200/404/409/safe 500 contract'lari degismedi.
+- npx tsc --noEmit, 10-scenario Sprint 93 pipeline orchestration smoke, 18-case Sprint 92 pipeline state error contract smoke ve git diff --check basarili.
+- Smoke kapsami: completed -> next queued, duplicate completion, failed, cancelled, incomplete/queued, final stage, existing queued/running downstream, retry idempotency, history failure state korumasi ve Promise.all concurrent completion.
+
+---
+
 ### Existing Lint Issues Cleanup Planning
 
 Tamamlandi
