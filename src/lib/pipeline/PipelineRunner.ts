@@ -168,6 +168,106 @@ export class PipelineRunner {
     };
   }
 
+  static async continueProject(
+    projectSlug: string,
+  ): Promise<PipelineContinuationResult> {
+    const jobList = await PipelineJobManager.listJobsReadOnly(projectSlug);
+    const queuedStage = pipelineRecoveryStageOrder.find((stage) =>
+      jobList.jobs.some(
+        (job) => job.stage === stage && job.status === "queued",
+      ),
+    );
+
+    if (!queuedStage) {
+      return { continued: false };
+    }
+
+    const queuedStageIndex = pipelineRecoveryStageOrder.indexOf(queuedStage);
+    const scheduled = await PipelineQueueScheduler.getNextRunnableStage(
+      projectSlug,
+      pipelineRecoveryStageOrder.slice(0, queuedStageIndex + 1),
+    );
+
+    if (scheduled.stage !== queuedStage) {
+      return {
+        continued: false,
+        reason: scheduled.reason,
+      };
+    }
+
+    const plan = await PipelineRecoveryPlanner.createJobRetryPlan(
+      projectSlug,
+      queuedStage,
+    );
+
+    if (plan.blocked) {
+      return {
+        continued: false,
+        reason: plan.reason,
+      };
+    }
+
+    const state = await PipelineStageExecutor.loadState(projectSlug);
+
+    if (!state) {
+      return {
+        continued: false,
+        reason: "Project could not be read.",
+      };
+    }
+
+    let claimed = true;
+    let completed: boolean;
+
+    try {
+      completed = await this.runPipelineStage(
+        projectSlug,
+        queuedStage,
+        state,
+        "initial",
+        () => {
+          claimed = false;
+        },
+      );
+    } catch (error) {
+      if (isPipelineStateError(error)) {
+        throw error;
+      }
+
+      return {
+        continued: true,
+        stage: queuedStage,
+        completed: false,
+        reason: "Pipeline continuation execution failed.",
+      };
+    }
+
+    if (!claimed) {
+      return {
+        continued: false,
+        reason: `Stage "${queuedStage}" could not be claimed.`,
+      };
+    }
+
+    if (completed && queuedStage === "export") {
+      await PipelineJobManager.persistProjectCompletion(
+        projectSlug,
+        async () => {
+          await ProjectManager.updateStatus(projectSlug, "completed");
+        },
+      );
+    }
+
+    return {
+      continued: true,
+      stage: queuedStage,
+      completed,
+      reason: completed
+        ? undefined
+        : `Stage "${queuedStage}" was cancelled.`,
+    };
+  }
+
   static async executeJobRetry(
     projectSlug: string,
     jobId: string,
@@ -327,6 +427,16 @@ export class PipelineRunner {
       };
     }
 
+    try {
+      await this.continueProject(projectSlug);
+    } catch (error) {
+      console.error("[PipelineRunner] Pipeline continuation after retry failed:", {
+        projectSlug,
+        stage,
+        error,
+      });
+    }
+
     return {
       success: true,
       status: 200,
@@ -344,10 +454,14 @@ export class PipelineRunner {
     stage: ProductionStepKey,
     state: Parameters<typeof PipelineStageExecutor.execute>[2],
     runType: ProjectPackageRunType = "initial",
+    onClaimConflict?: () => void,
   ) {
-    return this.runStage(slug, stage, () =>
-      PipelineStageExecutor.execute(slug, stage, state),
+    return this.runStage(
+      slug,
+      stage,
+      () => PipelineStageExecutor.execute(slug, stage, state),
       runType,
+      onClaimConflict,
     );
   }
 
@@ -401,6 +515,7 @@ export class PipelineRunner {
     stage: ProductionStepKey,
     action: () => Promise<boolean>,
     runType: ProjectPackageRunType,
+    onClaimConflict?: () => void,
   ): Promise<boolean> {
     const started = await PipelineJobManager.startStage(
       slug,
@@ -418,6 +533,7 @@ export class PipelineRunner {
     );
 
     if (!started) {
+      onClaimConflict?.();
       return false;
     }
 
@@ -463,6 +579,18 @@ export class PipelineRunner {
     return manifest?.packages[stage].status === "completed";
   }
 }
+
+export type PipelineContinuationResult =
+  | {
+      continued: false;
+      reason?: string;
+    }
+  | {
+      continued: true;
+      stage: PipelineRecoveryStageKey;
+      completed: boolean;
+      reason?: string;
+    };
 
 function getRetryStageFromJobId(
   projectSlug: string,

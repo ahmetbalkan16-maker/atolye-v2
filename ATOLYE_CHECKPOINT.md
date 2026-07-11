@@ -47,7 +47,7 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 94**
+**Sprint 95**
 
 Planning
 
@@ -55,11 +55,11 @@ Planning
 
 Planning
 
-Sprint 93 tamamlandi. Sprint 94 planlama asamasina gecildi.
+Sprint 94 tamamlandi. Sprint 95 planlama ve mimari inceleme asamasina gecildi.
 
 Not:
 
-- Sprint 94 kapsami henuz belirlenmedi.
+- Sprint 95 kapsami henuz belirlenmedi.
 
 ---
 
@@ -1011,6 +1011,41 @@ Kalan riskler / takip isleri:
 - Process-local lock surecler arasi koordinasyon saglamaz.
 - Farkli process yazimlarinda revision/distributed lock olmadigi icin lost-update riski devam eder.
 - Canonical stage order gelecekte recovery disi neutral bir module/isim altina alinabilir.
+
+---
+
+# Sprint 94
+## Pipeline Auto-Continuation
+
+Durum:
+Completed
+
+Kapsam:
+
+- PipelineRunner.continueProject(projectSlug) project-level continuation entrypoint'i olarak eklendi.
+- Her continuation cagrisi en fazla bir queued stage calistirir.
+- Queue secimi canonical pipelineRecoveryStageOrder ile yapilir; mevcut PipelineQueueScheduler ve PipelineRecoveryPlanner dependency/readiness semantigi korunur.
+- Production execution zinciri runPipelineStage -> runStage -> PipelineJobManager.startStage olarak korunur.
+- Atomic startStage reread ve process-local project lock sayesinde ayni-process concurrent cagrilarda yalniz bir execution claim alir.
+- Claim conflict veya stale candidate no-op sonucu continued: false doner ve cancellation olarak raporlanmaz.
+- Claim alinmis gercek execution cancellation sonucu continued: true ve completed: false olarak kalir.
+- Basarili retry sonrasinda continuation bir kez ve best-effort calisir; typed veya generic continuation hatasi basarili retry 200/success: true response'unu bozmaz ve server-side loglanir.
+- Basarili export continuation sonrasinda project-level completion mevcut PipelineJobManager.persistProjectCompletion() ve ProjectManager.updateStatus(projectSlug, "completed") yolu ile kaydedilir.
+- Export finalization, stage execution generic catch sinirindan ayridir; finalization callback hatasi dogrudan continueProject() cagrisi icin reject edilir.
+- Retry sonrasindaki export finalization hatasi best-effort sinirinda loglanir ve retry basarisi korunur.
+- PipelineJobManager.listJobsReadOnly() yalniz mevcut read-only job list okuma yolunu expose eder; schema veya write davranisi eklemez.
+- Sprint 94 auto-continuation smoke 18 senaryodur.
+- npx tsc --noEmit --incremental false, 18-case Sprint 92 state error contract smoke, 10-scenario Sprint 93 orchestration smoke, 18-scenario Sprint 94 auto-continuation smoke ve git diff --check basarili.
+
+Bilinen mimari riskler:
+
+- Project lock process-localdir; distributed lock saglamaz.
+- Filesystem persistence gercek transaction degildir.
+- Gercek dis servis ve pahali stage uretimi Sprint 94 smoke kapsami disinda tutulur.
+
+Sonraki gorev:
+
+- Sprint 95 planlama ve mimari inceleme.
 
 ---
 

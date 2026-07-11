@@ -70,6 +70,10 @@ export class PipelineJobManager {
     return this.readHistory(projectSlug);
   }
 
+  static async listJobsReadOnly(projectSlug: string): Promise<PipelineJobList> {
+    return this.readJobList(projectSlug);
+  }
+
   static async getJob(
     projectSlug: string,
     jobId: string,
