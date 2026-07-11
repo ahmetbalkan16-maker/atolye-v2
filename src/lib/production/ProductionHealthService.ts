@@ -1,5 +1,6 @@
 import { ProductionHealthEngine } from "./ProductionHealthEngine";
 import { ProductionHealthError } from "./ProductionHealthError";
+import { isValidProductionProjectSlug } from "./ProductionProjectSlug";
 import { ProductionSnapshotBuilder } from "./ProductionSnapshotBuilder";
 import { productionHealthSchemaVersion } from "@/types/productionHealth";
 import type { ProductionHealthResult } from "@/types/productionHealth";
@@ -60,6 +61,4 @@ export class ProductionHealthService {
   }
 }
 
-export function isValidProductionProjectSlug(value: string): boolean {
-  return /^[a-zA-Z0-9_-]+$/.test(value);
-}
+export { isValidProductionProjectSlug } from "./ProductionProjectSlug";

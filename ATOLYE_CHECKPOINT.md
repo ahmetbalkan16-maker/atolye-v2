@@ -55,11 +55,11 @@ Production Intelligence
 
 In Progress
 
-Sprint 95.1-Sprint 95.5 Production Intelligence, Read-Only Production Snapshot, Health Rules ve Health Service/API calismalari tamamlandi.
+Sprint 95.1-Sprint 95.6 Production Intelligence, Read-Only Production Snapshot, Health Service/API ve typed API consumer calismalari tamamlandi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 95.6 Production Health API Consumer Foundation.
+- Bir sonraki onerilen gorev Sprint 95.7 Production Health UI Integration Foundation.
 
 ---
 
@@ -1198,6 +1198,58 @@ Determinism ve dogrulama:
 Bir sonraki onerilen sprint:
 
 - Sprint 95.6 — Production Health API Consumer Foundation.
+
+---
+
+### Sprint 95.6 — Production Health API Consumer Foundation
+
+Durum:
+Completed
+
+Olusturulan dosyalar:
+
+- src/lib/production/ProductionHealthApiClient.ts
+- src/lib/production/ProductionProjectSlug.ts
+- scripts/smoke-production-health-api-consumer.ts
+
+Degistirilen dosyalar:
+
+- src/lib/production/ProductionHealthService.ts
+- ATOLYE_CHECKPOINT.md
+
+Consumer contract:
+
+- getProductionHealth(slug, options?) GET /api/production/health/[slug] endpoint'ini typed ve read-only olarak tuketir.
+- ProductionHealthReport ve ProductionHealthErrorCode mevcut Sprint 95.5 domain contract'larindan type-only yeniden kullanilir; kopya response/domain type olusturulmaz.
+- Consumer success, invalid_slug, api_error, network_error, timeout, aborted ve malformed_response sonuclarini ayirir.
+- isProductionHealthApiConsumerError() public type guard'i eklendi.
+- Fetch UI katmanina sizdirilmaz; consumer method GET ve cache: no-store ile calisir.
+- Optional AbortSignal, timeoutMs, baseUrl ve test edilebilir fetchImpl injection desteklenir.
+- Timeout fetch ve response body parsing tamamlanana kadar aktiftir; caller abort timeout'tan ayri raporlanir.
+
+Guvenlik ve validation:
+
+- Ortak ProductionProjectSlug helper'i service ve consumer slug dogrulamasini tek yerde tutar.
+- Success response report, snapshot, health, counts, source confidence, summary, findings, stages ve source state yuzeylerinde runtime validate edilir.
+- API domain error payload'i yalniz stable ProductionHealthErrorCode degerleriyle kabul edilir.
+- Server message, network error, stack trace, filesystem path veya ham internal detail public consumer message'ina tasinmaz.
+- Malformed JSON, wrong response shape ve missing data kontrollu malformed_response sonucu uretir.
+- Consumer polling, persistence, UI veya dashboard degisikligi yapmaz.
+
+Test ve regresyon:
+
+- npx tsc --noEmit --incremental false basarili.
+- Sprint 95.6 production health API consumer smoke PASS (15 senaryo).
+- Smoke kapsami success, warning/critical/unknown, local/API invalid slug, HTTP 400/500, network, timeout, abort, malformed JSON/shape, missing data, safe message, no-store ve deterministic tasimayi kapsar.
+- Sprint 95.5 production health service/API smoke PASS (24 senaryo).
+- Sprint 95.4 production health rules smoke PASS (37 senaryo).
+- Sprint 95.3 production snapshot builder smoke PASS (29 senaryo).
+- Sprint 95.2 production snapshot contract smoke PASS (16 senaryo).
+- git diff --check basarili.
+
+Bir sonraki onerilen sprint:
+
+- Sprint 95.7 — Production Health UI Integration Foundation.
 
 ---
 
