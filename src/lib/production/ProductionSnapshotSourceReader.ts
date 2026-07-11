@@ -1,4 +1,5 @@
 import { ProjectReader } from "@/lib/projects/ProjectReader";
+import { PipelineJobManager } from "@/lib/pipeline/PipelineJobManager";
 import { pipelineRecoveryStageOrder } from "@/lib/pipeline/PipelineRecoveryPlanner";
 import type { AIUsageLog, AIUsageRecord } from "@/types/aiUsage";
 import type {
@@ -49,10 +50,22 @@ export interface ProductionSnapshotSourceBundle {
 
 export class ProductionSnapshotSourceReader {
   static async read(projectSlug: string): Promise<ProductionSnapshotSourceBundle> {
+    return PipelineJobManager.withProjectLock(projectSlug, () =>
+      this.readSources(projectSlug),
+    );
+  }
+
+  private static async readSources(
+    projectSlug: string,
+  ): Promise<ProductionSnapshotSourceBundle> {
     const [project, manifest, jobs, history, aiUsage, outputEntries] =
       await Promise.all([
-        readValidatedSource(projectSlug, "project.json", isProject),
-        readValidatedSource(projectSlug, "manifest.json", isManifest),
+        readValidatedSource(projectSlug, "project.json", (value) =>
+          isProject(value, projectSlug),
+        ),
+        readValidatedSource(projectSlug, "manifest.json", (value) =>
+          isManifest(value, projectSlug),
+        ),
         readValidatedSource(projectSlug, "pipeline-jobs.json", (value) =>
           isJobList(value, projectSlug),
         ),
@@ -134,11 +147,11 @@ async function readOutputSource(
   }
 }
 
-function isProject(value: unknown): value is Project {
+function isProject(value: unknown, projectSlug: string): value is Project {
   if (!isRecord(value)) return false;
   return (
     typeof value.id === "string" &&
-    typeof value.slug === "string" &&
+    value.slug === projectSlug &&
     typeof value.title === "string" &&
     isProjectStatus(value.status) &&
     typeof value.createdAt === "string" &&
@@ -146,14 +159,21 @@ function isProject(value: unknown): value is Project {
   );
 }
 
-function isManifest(value: unknown): value is ProjectManifest {
-  if (!isRecord(value) || !isRecord(value.packages) || !isProject(value.project)) {
+function isManifest(
+  value: unknown,
+  projectSlug: string,
+): value is ProjectManifest {
+  if (
+    !isRecord(value) ||
+    !isRecord(value.packages) ||
+    !isProject(value.project, projectSlug)
+  ) {
     return false;
   }
   const packages = value.packages;
   return (
     typeof value.projectId === "string" &&
-    typeof value.slug === "string" &&
+    value.slug === projectSlug &&
     value.version === 1 &&
     typeof value.createdAt === "string" &&
     typeof value.updatedAt === "string" &&
@@ -217,17 +237,20 @@ function isUsageLog(value: unknown, projectSlug: string): value is AIUsageLog {
     isRecord(value) &&
     value.projectSlug === projectSlug &&
     Array.isArray(value.records) &&
-    value.records.every(isUsageRecord) &&
+    value.records.every((record) => isUsageRecord(record, projectSlug)) &&
     typeof value.createdAt === "string" &&
     typeof value.updatedAt === "string"
   );
 }
 
-function isUsageRecord(value: unknown): value is AIUsageRecord {
+function isUsageRecord(
+  value: unknown,
+  projectSlug: string,
+): value is AIUsageRecord {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
-    typeof value.projectSlug === "string" &&
+    value.projectSlug === projectSlug &&
     typeof value.stage === "string" &&
     typeof value.operation === "string" &&
     typeof value.provider === "string" &&

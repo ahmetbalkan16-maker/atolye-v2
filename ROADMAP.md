@@ -39,7 +39,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 94 — Planning
+Sprint 95 — Production Intelligence
 
 ---
 
@@ -959,6 +959,30 @@ Planning
 
 - Sprint 93 tamamlandi.
 - Next sprint planning; kesin kapsam henuz belirlenmedi.
+
+---
+
+# Sprint 95.3
+
+## Read-Only Production Snapshot Builder
+
+Durum
+
+Completed
+
+- Production snapshot kaynaklarinin tamami mevcut PipelineJobManager project-level lock altinda ve write-free okunur.
+- Yeni lock, execution entrypoint veya duplicate execution path eklenmedi; snapshot pipeline state mutation yapmaz.
+- Project slug, manifest dis slug, manifest.project.slug, AI usage log slug ve tum AI usage kayitlarinin projectSlug degerleri dogrulanir.
+- Slug uyusmazliklari mevcut malformed source durumuyla raporlanir; unavailable ve error propagation sozlesmeleri korunur.
+- Torn-state concurrency senaryosu ve dort wrong-project-slug senaryosu smoke kapsamindadir.
+- Runner, scheduler, retry ve auto-continuation akislari degistirilmedi.
+- Final review P0-P3 bulgusuz gecti.
+- npx tsc --noEmit --incremental false, Sprint 95.3 smoke PASS (29 senaryo) ve git diff --check basarili.
+- Gecici fixture kalmadi.
+
+Sonraki gorev:
+
+- Sprint 95.4 — Health Check Rules Foundation.
 
 ---
 

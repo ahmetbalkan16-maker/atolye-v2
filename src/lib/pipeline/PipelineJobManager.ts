@@ -463,7 +463,7 @@ export class PipelineJobManager {
     return job?.status === "running" && !job.cancelRequestedAt;
   }
 
-  private static async withProjectLock<T>(
+  static async withProjectLock<T>(
     projectSlug: string,
     operation: () => Promise<T>,
   ): Promise<T> {

@@ -1124,7 +1124,15 @@ Temel mimari kararlar:
 - Consistency findings stable code ve deterministic sirayla uretilir.
 - Builder input mutate etmez ve ayni input ile generatedAt icin ayni sonucu uretir.
 - Gercek filesystem smoke testi builder'in source icerigi, boyutu ve mtime degerlerini degistirmedigini dogrular.
-- Sprint 95.3 production snapshot builder smoke 24 senaryodur.
+- Production snapshot kaynaklarinin tamami mevcut PipelineJobManager project-level lock altinda ve write-free okunur.
+- Yeni lock, execution entrypoint veya duplicate execution path eklenmedi; snapshot okumasinda pipeline state mutation yapilmaz.
+- Project slug, manifest dis slug, manifest.project.slug, AI usage log slug ve tum AI usage kayitlarinin projectSlug degerleri istenen proje ile dogrulanir.
+- Slug uyusmazliklari mevcut source contract'ina uygun olarak malformed kabul edilir; unavailable ve error propagation davranislari korunur.
+- Runner, scheduler, retry ve auto-continuation execution akislari degistirilmedi.
+- Torn-state concurrency ve dort wrong-project-slug senaryosu smoke kapsamindadir.
+- Final review P0-P3 bulgusuz gecti.
+- npx tsc --noEmit --incremental false, Sprint 95.3 production snapshot builder smoke PASS (29 senaryo) ve git diff --check basarili.
+- Smoke fixture'lari temizlendi; gecici fixture kalmadi.
 
 Bilinen kapsam disi maddeler:
 

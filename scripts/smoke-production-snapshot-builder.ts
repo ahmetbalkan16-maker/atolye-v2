@@ -8,6 +8,7 @@ import {
 import { selectLatestJob } from "../src/lib/production/ProductionSnapshotParts";
 import type { ProductionSnapshotSourceBundle } from "../src/lib/production/ProductionSnapshotSourceReader";
 import { pipelineRecoveryStageOrder } from "../src/lib/pipeline/PipelineRecoveryPlanner";
+import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
 import type { AIUsageLog, AIUsageRecord } from "../src/types/aiUsage";
 import type {
   PipelineJob,
@@ -285,7 +286,7 @@ async function main() {
 
   await verifyFilesystemReadOnly();
 
-  console.log("Sprint 95.3 production snapshot builder smoke: PASS (24 scenarios)");
+  console.log("Sprint 95.3 production snapshot builder smoke: PASS (29 scenarios)");
 }
 
 async function verifyFilesystemReadOnly() {
@@ -316,6 +317,53 @@ async function verifyFilesystemReadOnly() {
     assert.equal(partial.sourceState.jobs.status, "missing");
     assert.deepEqual(missingJobsAfter, missingJobsBefore);
     await assert.rejects(fs.access(path.join(projectFolder, "pipeline-jobs.json")));
+
+    await writeJson("pipeline-jobs.json", sourceBundle.jobs.data);
+
+    await writeJson("project.json", { ...sourceBundle.project.data, slug: "wrong-project" });
+    const wrongProject = await ProductionSnapshotBuilder.build(slug, generatedAt);
+    assert.equal(wrongProject.sourceState.project.status, "malformed");
+    await writeJson("project.json", sourceBundle.project.data);
+
+    await writeJson("manifest.json", { ...sourceBundle.manifest.data, slug: "wrong-project" });
+    const wrongManifestSlug = await ProductionSnapshotBuilder.build(slug, generatedAt);
+    assert.equal(wrongManifestSlug.sourceState.manifest.status, "malformed");
+
+    await writeJson("manifest.json", {
+      ...sourceBundle.manifest.data,
+      project: { ...sourceBundle.manifest.data?.project, slug: "wrong-project" },
+    });
+    const wrongManifestProject = await ProductionSnapshotBuilder.build(slug, generatedAt);
+    assert.equal(wrongManifestProject.sourceState.manifest.status, "malformed");
+    await writeJson("manifest.json", sourceBundle.manifest.data);
+
+    const foreignUsage = usage([usageRecord("u1", "mock", undefined)]);
+    foreignUsage.records[0].projectSlug = "wrong-project";
+    await writeJson("ai-usage.json", foreignUsage);
+    const wrongUsageProject = await ProductionSnapshotBuilder.build(slug, generatedAt);
+    assert.equal(wrongUsageProject.sourceState.aiUsage.status, "malformed");
+    await writeJson("ai-usage.json", sourceBundle.aiUsage.data);
+
+    let lockedSnapshot: Promise<Awaited<ReturnType<typeof ProductionSnapshotBuilder.build>>> | undefined;
+    let snapshotSettled = false;
+    await PipelineJobManager.withProjectLock(slug, async () => {
+      lockedSnapshot = ProductionSnapshotBuilder.build(slug, generatedAt);
+      void lockedSnapshot.then(() => {
+        snapshotSettled = true;
+      });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.equal(snapshotSettled, false);
+
+      const transitioningProject = project("export");
+      await writeJson("project.json", transitioningProject);
+      await writeJson("manifest.json", manifest(transitioningProject));
+    });
+    assert.ok(lockedSnapshot);
+    const postTransitionSnapshot = await lockedSnapshot;
+    assert.deepEqual(postTransitionSnapshot.project.projectStatus, {
+      state: "known",
+      value: "export",
+    });
   } finally {
     await fs.rm(projectFolder, { recursive: true, force: true });
   }

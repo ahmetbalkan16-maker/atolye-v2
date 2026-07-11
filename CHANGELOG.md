@@ -730,6 +730,22 @@ Tamamlandi
 
 ---
 
+### Sprint 95.3 — Read-Only Production Snapshot Builder
+
+Completed
+
+- Production snapshot kaynaklarinin tamami mevcut PipelineJobManager project-level lock altinda ve write-free okunur.
+- Yeni lock, execution entrypoint veya duplicate execution path eklenmedi; snapshot okumasinda pipeline state mutation yapilmaz.
+- Project slug, manifest dis slug, manifest.project.slug, AI usage log slug ve tum AI usage kayitlarinin projectSlug degerleri istenen proje ile dogrulanir.
+- Slug uyusmazliklari mevcut source contract'ina uygun olarak malformed kabul edilir; unavailable ve error propagation davranislari korunur.
+- Torn-state concurrency senaryosu ve dort wrong-project-slug senaryosu Sprint 95.3 smoke kapsaminda dogrulandi.
+- Runner, scheduler, retry ve auto-continuation execution akislari degistirilmedi.
+- Final review P0-P3 bulgusuz gecti.
+- npx tsc --noEmit --incremental false, Sprint 95.3 smoke PASS (29 senaryo) ve git diff --check basarili.
+- Smoke fixture'lari temizlendi; gecici fixture kalmadi.
+
+---
+
 ### Existing Lint Issues Cleanup Planning
 
 Tamamlandi
