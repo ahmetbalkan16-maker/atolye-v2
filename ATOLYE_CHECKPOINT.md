@@ -49,17 +49,17 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 **Sprint 95**
 
-Planning
+Production Intelligence
 
 **Durum**
 
-Planning
+In Progress
 
-Sprint 94 tamamlandi. Sprint 95 planlama ve mimari inceleme asamasina gecildi.
+Sprint 95.1 Production Intelligence Gap Audit ve Sprint 95.2 Production Snapshot Contract tamamlandi.
 
 Not:
 
-- Sprint 95 kapsami henuz belirlenmedi.
+- Bir sonraki gorev Sprint 95.3 Read-Only Production Snapshot Builder.
 
 ---
 
@@ -1046,6 +1046,59 @@ Bilinen mimari riskler:
 Sonraki gorev:
 
 - Sprint 95 planlama ve mimari inceleme.
+
+---
+
+# Sprint 95
+## Production Intelligence Foundation
+
+### Sprint 95.1 — Production Intelligence Gap Audit
+
+Durum:
+Completed
+
+Mimari kararlar:
+
+- Yeni pipeline-diagnostics.json veya ayri diagnostics store su asamada gerekli degildir.
+- Once mevcut source-of-truth kaynaklarindan write-free Production Snapshot olusturulacaktir.
+- project.json project-level status kaynagidir.
+- manifest.json stage/package status, timings, attempts ve usage ozeti kaynagidir.
+- pipeline-jobs.json queue, claim, cancellation ve live execution kaynagidir.
+- pipeline-history.json terminal lifecycle event kaynagidir.
+- ai-usage.json provider/model/status/fallback/duration/token/cost cagri telemetrisi kaynagidir.
+- Stage output dosyalari artifact readiness kaynagidir.
+- Continuation bir runType degildir; trigger/origin ayri bir boyuttur.
+- Metrics aggregation simdilik read-time yapilmalidir.
+- Correlation/runId ileride gerekli olabilir; Production Snapshot ve Health Check v1 icin zorunlu degildir.
+
+### Sprint 95.2 — Production Snapshot Contract
+
+Durum:
+Completed
+
+Eklenenler:
+
+- src/types/productionSnapshot.ts
+- src/lib/production/ProductionSnapshotContract.ts
+- scripts/smoke-production-snapshot-contract.ts
+
+Temel kararlar:
+
+- Production Snapshot yeni source of truth degildir; mevcut kaynaklarin write-free read model sozlesmesidir.
+- project.json project completion icin authoritative kaynaktir.
+- Jobs canli queue, running, cancellation ve claim durumlari icin authoritative kaynaktir.
+- Manifest stage/package ve artifact durum kaynagidir.
+- Output readiness celiskileri sessizce completed sayilmaz; inconsistent olarak modellenir.
+- Queue bagimsiz persisted kaynak degildir; jobs'tan turetilir.
+- SnapshotValue<T> gercek sifir ile not-recorded, missing, malformed, unreadable, inconsistent ve not-applicable durumlarini ayirir.
+- Token ve cost degerleri coverage bilgisiyle modellenir.
+- Consistency finding sozlesmesi Health Check Foundation icin hazirlanmistir.
+- Pure helper'lar filesystem ve persistence kullanmaz; deterministic ve mutation-free calisir.
+- Sprint 95.2 production snapshot contract smoke 16 senaryodur.
+
+Bir sonraki gorev:
+
+- Sprint 95.3 — Read-Only Production Snapshot Builder.
 
 ---
 
