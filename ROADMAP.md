@@ -39,7 +39,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 88
+Sprint 90 — Planning
 
 ---
 
@@ -826,6 +826,44 @@ Kalan riskler / takip isleri:
 - Compensation write basarisiz olursa endpoint 500 donebilir ve queued job geri alinamamis olur.
 - Preparation ve compensation iki ayri JSON write islemidir; transaction degildir.
 - Process-local lock surecler arasi atomiklik saglamaz; lock disi ayni queued attempt yazimi eski snapshot ile ezilebilir.
+
+---
+
+# Sprint 89
+
+## Retry Persistence Failure Hardening
+
+Completed
+
+- Pipeline job persistence benzersiz temporary file ve ayni klasorde atomic rename kullanir.
+- Preparation persistence write veya rename hatasinda mevcut destination dosyasi, previous job snapshot'i ve onceki attempt state'i korunur.
+- Scheduler blocked retry basarili compensation sonrasinda HTTP 409 ve blocked: true donmeye devam eder.
+- Compensation restore persistence hatasi HTTP 500, success: false ve blocked: false internal failure sonucu doner.
+- Basarili retry HTTP 200; normal dependency, state ve scheduler conflict sonuclari HTTP 409 olarak korunur.
+- Sprint 88 previousJob snapshot contract'i ile cancelled, running/claimed ve new-attempt compensation guard'lari degismedi.
+- JSON storage, process-local locking ve non-distributed concurrency sinirlari korunur.
+- TypeScript validation, Sprint 89 retry persistence smoke ve git diff --check basarili.
+- Windows destination replacement davranisi dogrulandi.
+
+Kalan riskler / takip isleri:
+
+- Preparation ve compensation ayri JSON persistence islemleridir; transaction degildir.
+- Process-local lock surecler arasi veya distributed atomiklik saglamaz.
+- Eszamanli surecler arasi yazimlarda son basarili rename kazanir; revision/lost-update korumasi yoktur.
+- Temporary file cleanup persistence hatalarinda best-effort'tur.
+
+---
+
+# Sprint 90
+
+## Planning
+
+Durum
+
+Planning
+
+- Sprint 89 tamamlandi.
+- Sprint 90 kapsami sonraki planlama adiminda belirlenecek.
 
 ---
 

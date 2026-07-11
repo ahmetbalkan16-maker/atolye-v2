@@ -47,28 +47,19 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 88**
+**Sprint 90**
 
-Retry Post-Preparation Compensation Hardening
+Planning
 
 **Durum**
 
-Completed
+Planning
 
-Sprint 88 tamamlandi.
-
-- Scheduler stage dondurmezse prepared target job, yalniz ayni queued attempt icinse preparation oncesi snapshot'a kosullu olarak geri alinir.
-- prepareJobRetry internal sonucu previousJob, queued prepared job ve guncel job listesini tasir; HTTP/API alanlari degismedi.
-- Compensation lock altinda storage'i yeniden okur; queued status, ayni attempt ve bos cancelRequestedAt kosullariyla restore uygular.
-- Cancelled, running/claimed veya sonraki attempt'e gecmis job geri alinmaz; kosullar eslesmezse write yapilmaz.
-- Ready retry HTTP 200; scheduler blocked, cancel/conflict HTTP 409 ve Sprint 85 execution-failure HTTP 500 sozlesmesi korunur.
-- TypeScript, izole compensation smoke ve npm run build dogrulamalari basarili.
+Sprint 89 tamamlandi. Sprint 90 planlama asamasina gecildi.
 
 Not:
 
-- Compensation write basarisiz olursa endpoint 500 donebilir; queued job guvenle geri alinamamis olur.
-- Preparation ve compensation iki ayri JSON write islemidir; transaction degildir.
-- Process-local lock surecler arasi atomiklik saglamaz; lock disi ayni queued attempt yazimi eski snapshot ile ezilebilir.
+- Sprint 90 kapsami henuz belirlenmedi.
 
 ---
 
@@ -862,6 +853,33 @@ Kalan riskler / takip isleri:
 - Process-local lock surecler arasi atomiklik saglamaz.
 - Lock disi ayni queued attempt storage yazimi varsa compensation bunu ayirt edemez ve eski snapshot ile ezebilir.
 - previousJob bagimsiz clone yerine referans olarak tasinir; mevcut PipelineJob alanlari primitive ve mevcut akista sonradan mutation yoktur.
+
+---
+
+# Sprint 89
+## Retry Persistence Failure Hardening
+
+Durum:
+Completed
+
+Kapsam:
+
+- Pipeline job persistence, ayni proje klasorundeki benzersiz temporary file'a yazim ve atomic rename ile guclendirildi.
+- Retry preparation persistence write veya rename hatasinda mevcut destination dosyasi korunur; previous job snapshot'i ve onceki attempt state'i observable olarak degismez.
+- Scheduler blocked retry icin compensation restore basariliysa mevcut HTTP 409 ve blocked: true sozlesmesi korunur.
+- Compensation restore persistence hatasi HTTP 500, success: false ve blocked: false internal failure sonucu olarak doner; normal scheduler-blocked 409 sonucu kullanilmaz.
+- Basarili retry HTTP 200; normal dependency, state ve scheduler conflict sonuclari HTTP 409 olarak kalir.
+- Sprint 88 previousJob snapshot contract'i ile cancelled, running/claimed ve new-attempt compensation guard'lari korundu.
+- JSON storage mimarisi, process-local project lock ve surecler arasi/distributed locking sinirlari degismedi.
+- TypeScript validation, Sprint 89 retry persistence smoke ve git diff --check basarili.
+- Windows ortaminda mevcut destination uzerine rename/replacement davranisi dogrulandi.
+
+Kalan riskler / takip isleri:
+
+- Preparation ve compensation ayri persistence islemleridir; filesystem transaction eklenmedi.
+- Process-local lock surecler arasi koordinasyon veya distributed locking saglamaz.
+- Eszamanli surecler arasi yazimlarda son basarili rename kazanir; revision tabanli lost-update korumasi yoktur.
+- Persistence hatasi sonrasi temporary file temizligi best-effort'tur; cleanup isleminin kendisi basarisiz olursa artik dosya kalabilir.
 
 ---
 

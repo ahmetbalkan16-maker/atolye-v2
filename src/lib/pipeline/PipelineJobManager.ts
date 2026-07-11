@@ -544,7 +544,11 @@ export class PipelineJobManager {
     projectSlug: string,
     jobList: PipelineJobList,
   ) {
-    await ProjectWriter.writeJSON(projectSlug, pipelineJobsFileName, jobList);
+    await ProjectWriter.writeJSONAtomically(
+      projectSlug,
+      pipelineJobsFileName,
+      jobList,
+    );
 
     return jobList;
   }

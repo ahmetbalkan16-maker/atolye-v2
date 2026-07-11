@@ -246,11 +246,25 @@ export class PipelineRunner {
     );
 
     if (scheduled.stage !== stage) {
-      await PipelineJobManager.compensatePreparedRetry(
-        projectSlug,
-        prepared.previousJob,
-        prepared.job,
-      );
+      try {
+        await PipelineJobManager.compensatePreparedRetry(
+          projectSlug,
+          prepared.previousJob,
+          prepared.job,
+        );
+      } catch {
+        return {
+          success: false,
+          status: 500,
+          projectSlug,
+          jobId,
+          retriedStage: stage,
+          completedStages: [],
+          blocked: false,
+          reason: "Pipeline retry compensation failed.",
+          plan,
+        };
+      }
 
       return {
         success: false,
