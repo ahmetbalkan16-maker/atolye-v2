@@ -55,11 +55,11 @@ Production Intelligence
 
 In Progress
 
-Sprint 95.1 Production Intelligence Gap Audit ve Sprint 95.2 Production Snapshot Contract tamamlandi.
+Sprint 95.1, Sprint 95.2 ve Sprint 95.3 Read-Only Production Snapshot Builder tamamlandi.
 
 Not:
 
-- Bir sonraki gorev Sprint 95.3 Read-Only Production Snapshot Builder.
+- Bir sonraki gorev Sprint 95.4 Health Check Rules Foundation.
 
 ---
 
@@ -1096,9 +1096,49 @@ Temel kararlar:
 - Pure helper'lar filesystem ve persistence kullanmaz; deterministic ve mutation-free calisir.
 - Sprint 95.2 production snapshot contract smoke 16 senaryodur.
 
+### Sprint 95.3 — Read-Only Production Snapshot Builder
+
+Durum:
+Completed
+
+Eklenen dosyalar:
+
+- src/lib/production/ProductionSnapshotBuilder.ts
+- src/lib/production/ProductionSnapshotSourceReader.ts
+- src/lib/production/ProductionSnapshotParts.ts
+- scripts/smoke-production-snapshot-builder.ts
+
+Temel mimari kararlar:
+
+- Production Snapshot mevcut source-of-truth dosyalarindan read-time olusturulur; persisted edilmez ve yeni source of truth degildir.
+- Okunan kaynaklar project.json, manifest.json, pipeline-jobs.json, pipeline-history.json, ai-usage.json ve canonical stage output dosyalaridir.
+- Source reader seed, sync, repair veya write islemi yapmaz.
+- Missing, malformed ve unreadable source durumlari ayri modellenir.
+- Project kaynagi eksik veya bozuk olsa bile project slug uzerinden partial snapshot uretilebilir.
+- Canonical stage sirasi research, script, scenes, visuals, animation, video, audio, assembly, thumbnail, seo, youtube ve export olarak korunur.
+- Stage effective status icin Sprint 95.2 pure precedence helper'lari yeniden kullanilir.
+- Cancellation ve canli execution icin jobs authoritative kaynaktir.
+- Manifest completed fakat output ready degilse stage inconsistent olarak gorunur.
+- Queue yalniz jobs listesinden turetilir.
+- History ve AI usage metrikleri read-time aggregate edilir; token ve cost bulunmayan kayitlar sifir sayilmaz.
+- Consistency findings stable code ve deterministic sirayla uretilir.
+- Builder input mutate etmez ve ayni input ile generatedAt icin ayni sonucu uretir.
+- Gercek filesystem smoke testi builder'in source icerigi, boyutu ve mtime degerlerini degistirmedigini dogrular.
+- Sprint 95.3 production snapshot builder smoke 24 senaryodur.
+
+Bilinen kapsam disi maddeler:
+
+- Source freshness/stale esikleri.
+- Full Health Engine ve health score.
+- Automatic repair.
+- Snapshot cache/persistence.
+- API ve UI.
+- runId, attemptId ve trigger/origin persistence.
+- Distributed lock.
+
 Bir sonraki gorev:
 
-- Sprint 95.3 — Read-Only Production Snapshot Builder.
+- Sprint 95.4 — Health Check Rules Foundation.
 
 ---
 
