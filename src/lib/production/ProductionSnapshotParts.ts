@@ -13,7 +13,7 @@ import type {
   PipelineJobHistoryEvent,
   PipelineJobList,
 } from "@/types/pipelineJob";
-import type { ProductionStepKey, ProjectManifest } from "@/types/project";
+import type { ProductionStepKey } from "@/types/project";
 import type {
   EffectiveStageStatus,
   ProductionSnapshotConsistencyFinding,

@@ -47,7 +47,7 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 95**
+**Sprint 96**
 
 Production Intelligence
 
@@ -55,11 +55,11 @@ Production Intelligence
 
 In Progress
 
-Sprint 95.1-Sprint 95.9 Production Intelligence, Read-Only Production Snapshot, Health Service/API, typed consumer, UI, findings ve evidence calismalari tamamlandi.
+Sprint 96.0 Production Intelligence Phase Review tamamlandi; Sprint 95.2-Sprint 95.9 zinciri uctan uca dogrulandi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 96.0 Production Intelligence Phase Review.
+- Bir sonraki onerilen gorev Sprint 96.1 Production Intelligence Operational Readiness Planning.
 
 ---
 
@@ -1391,6 +1391,56 @@ Test ve regresyon:
 Bir sonraki onerilen sprint:
 
 - Sprint 96.0 — Production Intelligence Phase Review.
+
+---
+
+### Sprint 96.0 — Production Intelligence Phase Review
+
+Durum:
+Completed
+
+Olusturulan dosya:
+
+- scripts/smoke-production-intelligence-review.ts
+
+Degistirilen dosyalar:
+
+- src/lib/production/ProductionSnapshotParts.ts
+- ATOLYE_CHECKPOINT.md
+
+Review kapsami ve bulgular:
+
+- Snapshot -> Health Engine -> Service/API -> typed Consumer -> UI/Findings/Evidence zinciri gercek route adapter'i ile uctan uca dogrulandi.
+- Public type, service, API, consumer veya UI contract'i degistirilmedi; yeni urun ozelligi eklenmedi.
+- report.generatedAt, snapshot.generatedAt ve health.evaluatedAt tek evaluation zamanini tasir.
+- Snapshot finding detectedAt degerleri health mapping sonrasinda korunur.
+- Ayni source state ve evaluatedAt icin report ve finding sirasi deterministiktir.
+- API ve consumer no-store davranislari birlikte dogrulandi.
+- Invalid slug ve API domain error consumer tarafinda stabil, guvenli mesajlara map edilir.
+- API internal error response'u stack trace, filesystem path veya ham internal detail sizdirmaz.
+- UI yalniz ProductionHealthApiClient consumer'ini kullanir; dogrudan fetch yoktur.
+- Service/snapshot/health/API/consumer/UI zincirinde write, persistence, polling veya state mutation cagrisi bulunmadigi statik ve filesystem kontrolleriyle dogrulandi.
+- Review P0-P3 seviyesinde bloklayici veya anlamli bulgu uretmedi.
+- Yalniz ProductionSnapshotParts.ts icindeki kullanilmayan ProjectManifest type import'u risksiz cleanup olarak kaldirildi; runtime davranis degismedi.
+
+Test ve regresyon:
+
+- npx tsc --noEmit --incremental false basarili.
+- Sprint 96.0 production intelligence phase review smoke PASS (9 senaryo).
+- Sprint 95.2 snapshot contract smoke PASS (16 senaryo).
+- Sprint 95.3 snapshot builder smoke PASS (29 senaryo).
+- Sprint 95.4 health rules smoke PASS (37 senaryo).
+- Sprint 95.5 health service/API smoke PASS (24 senaryo).
+- Sprint 95.6 API consumer smoke PASS (15 senaryo).
+- Sprint 95.7 health UI smoke PASS (10 senaryo).
+- Sprint 95.8 findings smoke PASS (10 senaryo).
+- Sprint 95.9 evidence smoke PASS (10 senaryo).
+- Hedefli ESLint production intelligence zinciri icin 0 error/0 warning ile basarili.
+- git diff --check basarili.
+
+Bir sonraki onerilen sprint:
+
+- Sprint 96.1 — Production Intelligence Operational Readiness Planning.
 
 ---
 
