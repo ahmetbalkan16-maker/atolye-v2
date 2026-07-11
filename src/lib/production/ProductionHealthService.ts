@@ -60,8 +60,16 @@ export class ProductionHealthService {
       generatedAt: evaluatedAt,
       snapshot,
       health,
-      intelligence: ProductionIntelligenceService.derive(snapshot, health),
+      ...deriveIntelligence(snapshot, health),
     };
+  }
+}
+
+function deriveIntelligence(snapshot: ProductionSnapshot, health: ProductionHealthResult): { intelligence?: ProductionIntelligence } {
+  try {
+    return { intelligence: ProductionIntelligenceService.derive(snapshot, health) };
+  } catch {
+    return {};
   }
 }
 

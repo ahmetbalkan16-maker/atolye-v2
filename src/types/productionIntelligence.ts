@@ -115,5 +115,10 @@ export interface ProductionIntelligence {
 }
 
 export function productionFindingRef(finding: ProductionHealthFinding) {
-  return `${finding.code}:${finding.stage ?? finding.scope}`;
+  const sources = [...finding.sources].sort().join(",");
+  const evidence = Object.keys(finding.evidence)
+    .sort()
+    .map((key) => `${key}:${JSON.stringify(finding.evidence[key])}`)
+    .join(",");
+  return `${finding.code}:${finding.stage ?? finding.scope}:${sources}:${evidence}`;
 }

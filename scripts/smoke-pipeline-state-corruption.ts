@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
+import { PipelineStateError, type PipelineStateFailure } from "../src/lib/pipeline/PipelineStateError";
 import type {
   PipelineJob,
   PipelineJobHistory,
@@ -76,11 +77,12 @@ async function captureError(operation: () => Promise<unknown>) {
 function assertIdentifiedError(
   error: Error,
   fileName: string,
-  failureType: "JSON parsing" | "structural validation",
+  failure: PipelineStateFailure,
   rawMarker: string,
 ) {
+  assert.ok(error instanceof PipelineStateError);
   assert.match(error.message, new RegExp(fileName.replace(".", "\\.")));
-  assert.match(error.message, new RegExp(failureType));
+  assert.equal(error.failure, failure);
   assert.equal(error.message.includes(rawMarker), false);
 }
 
@@ -106,7 +108,7 @@ async function testMalformedJobs() {
   assertIdentifiedError(
     error,
     "pipeline-jobs.json",
-    "JSON parsing",
+    "malformed",
     "private-jobs-marker",
   );
   assert.equal(await fs.readFile(jobsFile, "utf-8"), raw);
@@ -120,7 +122,7 @@ async function testMalformedHistory() {
   assertIdentifiedError(
     error,
     "pipeline-history.json",
-    "JSON parsing",
+    "malformed",
     "private-history-marker",
   );
   assert.equal(await fs.readFile(historyFile, "utf-8"), raw);
@@ -140,7 +142,7 @@ async function testStructurallyInvalidJobs() {
   assertIdentifiedError(
     error,
     "pipeline-jobs.json",
-    "structural validation",
+    "invalid",
     rawMarker,
   );
   assert.equal(await fs.readFile(jobsFile, "utf-8"), raw);
@@ -160,7 +162,7 @@ async function testStructurallyInvalidHistory() {
   assertIdentifiedError(
     error,
     "pipeline-history.json",
-    "structural validation",
+    "invalid",
     rawMarker,
   );
   assert.equal(await fs.readFile(historyFile, "utf-8"), raw);

@@ -47,19 +47,19 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 96.6**
+**Sprint 96.7**
 
-Production Execution Job Contract Foundation
+Production Intelligence Phase Review
 
 **Durum**
 
 Completed
 
-Sprint 96.1-Sprint 96.6 Production Intelligence planning ve read-only execution preview temelleri tamamlandi.
+Sprint 96.1-Sprint 96.6 Production Intelligence zinciri contract, determinism, read-only, API ve UI seviyelerinde review edildi ve minimum hardening tamamlandi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 96.7 Production Intelligence contract hardening ve genisletilmis validation.
+- Bir sonraki onerilen gorev Sprint 96.8 Production Intelligence consumer contract versioning review.
 
 ---
 
@@ -1488,6 +1488,52 @@ Test ve dogrulama:
 Bir sonraki onerilen adim:
 
 - Sprint 96.7 Production Intelligence contract hardening ve genisletilmis validation.
+
+---
+
+### Sprint 96.7 — Production Intelligence Phase Review
+
+Durum:
+Completed
+
+Incelenen zincir:
+
+- ProductionSnapshot -> ProductionHealth -> Finding Evidence -> Recommended Actions -> Dependency Graph -> Production Planner -> Execution Contract -> Dry-Run Gateway -> Execution Job Preview -> ProductionHealthService -> API -> UI passive plan summary.
+
+Bulgu ozeti:
+
+- P0: 0.
+- P1: 1. Optional intelligence derivation hatasi mevcut health API response'unu bozabiliyordu; intelligence best-effort optional hale getirildi.
+- P2: 3. Finding reference source/evidence kimligini tasimadigi icin ayri source finding'leri tek action'a dusebiliyordu; reference ve collision secimi canonical yapildi. Retry/resume stage zorunlulugu ile request/idempotency butunlugu eksikti; validator sertlestirildi. Malformed optional intelligence consumer'dan UI'a gecebilirdi; runtime validation eklendi.
+- P3: 2. Cycle, order independence, unreliable snapshot, stale/unsupported preview ve fallback senaryolari eksikti; Sprint 96.7 review smoke eklendi. Pipeline state corruption smoke eski hata metnini bekliyordu; stable PipelineStateError failure contract'ina uyarlandi.
+
+Korunan contract ve sinirlar:
+
+- Mevcut API response alanlari degismedi; intelligence optional ve backward-compatible kaldi.
+- Unreliable required source durumunda plan unknown olur ve recommended step sunmaz.
+- Canonical stage order ve dependency map yalniz PipelineRecoveryPlanner kaynagindan kullanilir.
+- Stable action, plan, request, idempotency ve job kimlikleri runtime zaman, locale, random veya UUID kullanmaz.
+- Action, graph, planner, gateway ve job preview katmanlari filesystem, network, AI, persistence, queue veya pipeline execution cagrisi yapmaz.
+- UI passive summary olarak kaldi; gercek execution kontrolu eklenmedi.
+
+Test ve dogrulama:
+
+- Sprint 96.7 phase review smoke PASS (18 senaryo).
+- Sprint 96.1-96.6 smoke testleri PASS.
+- Sprint 95.2-96.0 Production Intelligence regresyonlari PASS.
+- Sprint 89-94 ilgili retry, history, state, orchestration ve auto-continuation smoke testleri PASS.
+- npm run lint PASS.
+- npx tsc --noEmit --incremental false PASS.
+- npm run build PASS.
+- git diff --check PASS.
+
+Deferred risk:
+
+- Turbopack NFT trace uyarisi next.config.ts -> FileStorage -> AssetManager -> assets route legacy import zincirinden gelir. Sprint 96.x diff'inden kaynaklanmaz ve build'i engellemez; kapsam disi olarak ertelendi.
+
+Bir sonraki onerilen adim:
+
+- Sprint 96.8 Production Intelligence consumer contract versioning review.
 
 ---
 

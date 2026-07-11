@@ -12,8 +12,13 @@ export class ProductionPlanner {
       return { id: stableProductionId("step", action.id), actionId: action.id, actionType: action.actionType, ...(action.affectedStage ? { stage: action.affectedStage } : {}), status: blocked ? "blocked" as const : "ready" as const, prerequisites: node?.upstreamDependencies ?? [], unlocks: node?.downstreamUnlocks ?? [], rootCauseFindingRefs: node?.rootCauseFindingRefs ?? [action.findingRef], selectionReasons: [blocked ? "upstream-prerequisite-blocked" : "executable", `downstream-unlocks:${node?.downstreamUnlocks.length ?? 0}`, `canonical-rank:${action.affectedStage ? pipelineRecoveryStageOrder.indexOf(action.affectedStage) : -1}`], confirmationRequired: action.confirmationRequired };
     }).sort((a,b) => Number(b.status === "ready") - Number(a.status === "ready") || b.unlocks.length - a.unlocks.length || stageRank(a.stage) - stageRank(b.stage) || a.id.localeCompare(b.id));
     const recommended = steps.find((step) => step.status === "ready");
-    const status = snapshot.pipeline.isTerminal && snapshot.stages.every((stage) => stage.effectiveStatus === "completed") ? "complete" : recommended ? "ready" : steps.length ? "blocked" : "unknown";
-    return { id: stableProductionId("plan", { snapshotFingerprint, steps }), snapshotFingerprint, status, recommendedStepId: recommended?.id, steps };
+    const unreliable = isUnreliable(snapshot);
+    const status = snapshot.pipeline.isTerminal && snapshot.stages.every((stage) => stage.effectiveStatus === "completed") ? "complete" : unreliable ? "unknown" : recommended ? "ready" : steps.length ? "blocked" : "unknown";
+    return { id: stableProductionId("plan", { snapshotFingerprint, steps }), snapshotFingerprint, status, ...(!unreliable && recommended ? { recommendedStepId: recommended.id } : {}), steps };
   }
 }
 function stageRank(stage?: ProductionPlanStep["stage"]) { return stage ? pipelineRecoveryStageOrder.indexOf(stage) : -1; }
+function isUnreliable(snapshot: ProductionSnapshot) {
+  const required = [snapshot.sourceState.project, snapshot.sourceState.manifest];
+  return required.some((source) => source.status === "malformed" || source.status === "unreadable") || required.every((source) => source.status === "missing");
+}

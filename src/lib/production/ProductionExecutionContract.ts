@@ -18,6 +18,9 @@ export class ProductionExecutionContract {
     if (step.status === "blocked") return { valid: false, code: "blocked-step" };
     if (request.stage !== step.stage || (request.stage && !pipelineRecoveryStageOrder.includes(request.stage))) return { valid: false, code: "stage-mismatch" };
     if (request.actionType !== step.actionType) return { valid: false, code: "invalid-action" };
+    if ((request.actionType === "retry-stage" || request.actionType === "resume-stage") && !request.stage) return { valid: false, code: "stage-mismatch" };
+    const expected = this.build(request.projectSlug, plan, step, request.confirmation === "provided");
+    if (request.requestId !== expected.requestId || request.idempotencyKey !== expected.idempotencyKey) return { valid: false, code: "invalid-request" };
     if (step.confirmationRequired && request.confirmation !== "provided") return { valid: false, code: "confirmation-required" };
     return { valid: true, code: "valid", request };
   }

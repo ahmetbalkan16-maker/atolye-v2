@@ -1,5 +1,5 @@
 import { pipelineRecoveryStageOrder } from "@/lib/pipeline/PipelineRecoveryPlanner";
-import { stableProductionId } from "./ProductionDeterminism";
+import { stableProductionId, stableProductionValue } from "./ProductionDeterminism";
 import { productionFindingRef, type ProductionActionPriority, type ProductionActionType, type ProductionRecommendedAction } from "@/types/productionIntelligence";
 import type { ProductionHealthFinding, ProductionHealthResult } from "@/types/productionHealth";
 
@@ -8,7 +8,11 @@ export class ProductionActionEngine {
     const unique = new Map<string, ProductionRecommendedAction>();
     for (const finding of health.findings) {
       const action = toAction(finding);
-      unique.set(`${action.findingRef}|${action.actionType}|${action.affectedStage ?? ""}`, action);
+      const identity = `${action.findingRef}|${action.actionType}|${action.affectedStage ?? ""}`;
+      const existing = unique.get(identity);
+      if (!existing || stableProductionValue(action) < stableProductionValue(existing)) {
+        unique.set(identity, action);
+      }
     }
     return [...unique.values()].sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority) || stageRank(a.affectedStage) - stageRank(b.affectedStage) || a.id.localeCompare(b.id));
   }

@@ -17,8 +17,8 @@ export class ProductionDependencyGraphBuilder {
     const blockedStages = nodes.filter((node) => node.status === "blocked").map((node) => node.stage);
     const rootCauseStages = nodes.filter((node) => blockedStages.includes(node.stage) && !node.upstreamDependencies.some((stage) => blockedStages.includes(stage))).map((node) => node.stage);
     void actions;
-    return { nodes, edges, blockedStages, rootCauseStages, cycles: detectCycles(edges) };
+    return { nodes, edges, blockedStages, rootCauseStages, cycles: detectProductionDependencyCycles(edges) };
   }
 }
 function reaches(from: ProductionStepKey, to: ProductionStepKey, seen = new Set<ProductionStepKey>()): boolean { if (seen.has(to)) return false; seen.add(to); const deps = pipelineStageDependencies[to]; return deps.includes(from) || deps.some((dep) => reaches(from, dep, seen)); }
-function detectCycles(edges: { from: ProductionStepKey; to: ProductionStepKey }[]) { const cycles: ProductionStepKey[][] = []; const visit = (node: ProductionStepKey, path: ProductionStepKey[]) => { const index = path.indexOf(node); if (index >= 0) { cycles.push([...path.slice(index), node]); return; } for (const edge of edges.filter((item) => item.from === node)) visit(edge.to, [...path, node]); }; for (const stage of pipelineRecoveryStageOrder) visit(stage, []); return cycles.sort((a,b)=>a.join("|").localeCompare(b.join("|"))); }
+export function detectProductionDependencyCycles(edges: { from: ProductionStepKey; to: ProductionStepKey }[]) { const cycles: ProductionStepKey[][] = []; const visit = (node: ProductionStepKey, path: ProductionStepKey[]) => { const index = path.indexOf(node); if (index >= 0) { cycles.push([...path.slice(index), node]); return; } for (const edge of edges.filter((item) => item.from === node)) visit(edge.to, [...path, node]); }; for (const stage of pipelineRecoveryStageOrder) visit(stage, []); return cycles.sort((a,b)=>a.join("|").localeCompare(b.join("|"))); }
