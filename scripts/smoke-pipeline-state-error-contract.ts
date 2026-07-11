@@ -22,6 +22,18 @@ import type {
   PipelineJobHistory,
   PipelineJobList,
 } from "../src/types/pipelineJob";
+import type { Project, ProductionStepKey, ProjectPackageRunType } from "../src/types/project";
+import type { PipelineRecoveryStageKey } from "../src/types/pipelineRecovery";
+
+type PipelineExecutorHarness = {
+  loadState(projectSlug: string): Promise<unknown>;
+  createInitialState(project: Project): unknown;
+};
+type PipelineRunnerHarness = {
+  runPipelineStage(projectSlug: string, stage: ProductionStepKey, state: unknown, runType?: ProjectPackageRunType, onClaimConflict?: () => void): Promise<boolean>;
+  runStage(projectSlug: string, stage: ProductionStepKey, action: () => Promise<boolean>, runType: ProjectPackageRunType, onClaimConflict?: () => void): Promise<boolean>;
+  runScheduledStages(projectSlug: string, stages: readonly PipelineRecoveryStageKey[], state: unknown, runType?: ProjectPackageRunType): Promise<{ completedStages: PipelineRecoveryStageKey[]; stopReason?: string }>;
+};
 
 const slug = `sprint-92-error-contract-${process.pid}`;
 const projectFolder = path.join(process.cwd(), "data", "projects", slug);
@@ -428,11 +440,11 @@ async function testNotFoundAndUnexpectedError() {
 }
 
 async function testRetryStatePropagationAndGenericFailures() {
-  const manager = PipelineJobManager as any;
-  const planner = PipelineRecoveryPlanner as any;
-  const scheduler = PipelineQueueScheduler as any;
-  const executor = PipelineStageExecutor as any;
-  const runner = PipelineRunner as any;
+  const manager = PipelineJobManager;
+  const planner = PipelineRecoveryPlanner;
+  const scheduler = PipelineQueueScheduler;
+  const executor = PipelineStageExecutor as unknown as PipelineExecutorHarness;
+  const runner = PipelineRunner as unknown as PipelineRunnerHarness;
   const originals = {
     getJobForStageReadOnly: manager.getJobForStageReadOnly,
     getJobReadOnly: manager.getJobReadOnly,
@@ -591,9 +603,9 @@ async function testRetryStatePropagationAndGenericFailures() {
 }
 
 async function testMainPipelineSingleTypedLog() {
-  const projectManager = ProjectManager as any;
-  const executor = PipelineStageExecutor as any;
-  const runner = PipelineRunner as any;
+  const projectManager = ProjectManager;
+  const executor = PipelineStageExecutor as unknown as PipelineExecutorHarness;
+  const runner = PipelineRunner as unknown as PipelineRunnerHarness;
   const originals = {
     createSlug: projectManager.createSlug,
     createProject: projectManager.createProject,

@@ -6,13 +6,18 @@ import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
 import { PipelineQueueScheduler } from "../src/lib/pipeline/PipelineQueueScheduler";
 import {
   PipelineRecoveryPlanner,
-  pipelineRecoveryStageOrder,
 } from "../src/lib/pipeline/PipelineRecoveryPlanner";
 import { PipelineRunner } from "../src/lib/pipeline/PipelineRunner";
 import { PipelineStageExecutor } from "../src/lib/pipeline/PipelineStageExecutor";
 import { PipelineStateError } from "../src/lib/pipeline/PipelineStateError";
 import type { PipelineJob, PipelineJobList } from "../src/types/pipelineJob";
-import type { ProductionStepKey } from "../src/types/project";
+import type { ProductionStepKey, ProjectPackageRunType, ProjectStatus } from "../src/types/project";
+
+type PipelineExecutorHarness = { loadState(projectSlug: string): Promise<unknown> };
+type PipelineRunnerHarness = {
+  runPipelineStage(projectSlug: string, stage: ProductionStepKey, state: unknown, runType?: ProjectPackageRunType, onClaimConflict?: () => void): Promise<boolean>;
+  runStage(projectSlug: string, stage: ProductionStepKey, action: () => Promise<boolean>, runType: ProjectPackageRunType, onClaimConflict?: () => void): Promise<boolean>;
+};
 
 const slug = `sprint-94-continuation-${process.pid}`;
 const projectFolder = path.join(process.cwd(), "data", "projects", slug);
@@ -78,11 +83,11 @@ function jobsForStage(list: PipelineJobList, stage: ProductionStepKey) {
 }
 
 async function main() {
-  const scheduler = PipelineQueueScheduler as any;
-  const planner = PipelineRecoveryPlanner as any;
-  const executor = PipelineStageExecutor as any;
-  const runner = PipelineRunner as any;
-  const projectManager = ProjectManager as any;
+  const scheduler = PipelineQueueScheduler;
+  const planner = PipelineRecoveryPlanner;
+  const executor = PipelineStageExecutor as unknown as PipelineExecutorHarness;
+  const runner = PipelineRunner as unknown as PipelineRunnerHarness;
+  const projectManager = ProjectManager;
   const originals = {
     getNextRunnableStage: scheduler.getNextRunnableStage,
     createJobRetryPlan: planner.createJobRetryPlan,
@@ -104,7 +109,7 @@ async function main() {
 
   projectManager.updateStatus = async (
     projectSlug: string,
-    status: string,
+    status: ProjectStatus,
   ) => {
     if (failProjectCompletion && status === "completed") {
       throw new Error("Injected project completion failure.");

@@ -88,7 +88,9 @@ export default function PipelineJobsPanel({
   const historyRefreshStartedCountRef = useRef(0);
   const latestProjectSlugRef = useRef(projectSlug);
 
-  latestProjectSlugRef.current = projectSlug;
+  useEffect(() => {
+    latestProjectSlugRef.current = projectSlug;
+  }, [projectSlug]);
 
   const loadJobs = useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -167,20 +169,11 @@ export default function PipelineJobsPanel({
       queueIfInFlight = false,
     }: LoadHistoryOptions = {}) => {
       if (historyRefreshPromiseRef.current) {
-        const startedCount = historyRefreshStartedCountRef.current;
-
         if (queueIfInFlight) {
           historyRefreshQueuedRef.current = true;
         }
 
         await historyRefreshPromiseRef.current;
-
-        if (
-          queueIfInFlight &&
-          historyRefreshStartedCountRef.current <= startedCount
-        ) {
-          await loadHistory({ silent: true });
-        }
 
         return;
       }
@@ -277,9 +270,13 @@ export default function PipelineJobsPanel({
     refreshInFlightRef.current = false;
     historyRefreshPromiseRef.current = null;
     historyRefreshQueuedRef.current = false;
-    setActionState(null);
-    loadJobs();
-    loadHistory();
+    const initialization = window.setTimeout(() => {
+      setActionState(null);
+      loadJobs();
+      loadHistory();
+    }, 0);
+
+    return () => window.clearTimeout(initialization);
   }, [loadJobs, loadHistory]);
 
   const hasActiveJobs = jobs.some(isActiveJob);
@@ -305,13 +302,14 @@ export default function PipelineJobsPanel({
       return;
     }
 
-    setNowMs(Date.now());
+    const initialUpdateId = window.setTimeout(() => setNowMs(Date.now()), 0);
 
     const intervalId = window.setInterval(() => {
       setNowMs(Date.now());
     }, 1000);
 
     return () => {
+      window.clearTimeout(initialUpdateId);
       window.clearInterval(intervalId);
     };
   }, [hasRunningJobs]);

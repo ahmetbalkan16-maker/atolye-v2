@@ -7,6 +7,12 @@ import { PipelineRecoveryPlanner } from "../src/lib/pipeline/PipelineRecoveryPla
 import { PipelineRunner } from "../src/lib/pipeline/PipelineRunner";
 import { PipelineStageExecutor } from "../src/lib/pipeline/PipelineStageExecutor";
 import type { PipelineJob, PipelineJobList } from "../src/types/pipelineJob";
+import type { ProductionStepKey, ProjectPackageRunType } from "../src/types/project";
+
+type PipelineExecutorHarness = { loadState(projectSlug: string): Promise<unknown> };
+type PipelineRunnerHarness = {
+  runPipelineStage(projectSlug: string, stage: ProductionStepKey, state: unknown, runType?: ProjectPackageRunType, onClaimConflict?: () => void): Promise<boolean>;
+};
 
 const slug = `sprint-89-smoke-${process.pid}`;
 const projectFolder = path.join(process.cwd(), "data", "projects", slug);
@@ -126,11 +132,11 @@ async function testCompensationGuards() {
 }
 
 async function testRunnerContracts() {
-  const manager = PipelineJobManager as any;
-  const planner = PipelineRecoveryPlanner as any;
-  const scheduler = PipelineQueueScheduler as any;
-  const executor = PipelineStageExecutor as any;
-  const runner = PipelineRunner as any;
+  const manager = PipelineJobManager;
+  const planner = PipelineRecoveryPlanner;
+  const scheduler = PipelineQueueScheduler;
+  const executor = PipelineStageExecutor as unknown as PipelineExecutorHarness;
+  const runner = PipelineRunner as unknown as PipelineRunnerHarness;
   const originals = {
     getJobReadOnly: manager.getJobReadOnly,
     prepareJobRetry: manager.prepareJobRetry,

@@ -2,9 +2,11 @@ import { ProductionHealthEngine } from "./ProductionHealthEngine";
 import { ProductionHealthError } from "./ProductionHealthError";
 import { isValidProductionProjectSlug } from "./ProductionProjectSlug";
 import { ProductionSnapshotBuilder } from "./ProductionSnapshotBuilder";
+import { ProductionIntelligenceService } from "./ProductionIntelligenceService";
 import { productionHealthSchemaVersion } from "@/types/productionHealth";
 import type { ProductionHealthResult } from "@/types/productionHealth";
 import type { ProductionSnapshot } from "@/types/productionSnapshot";
+import type { ProductionIntelligence } from "@/types/productionIntelligence";
 
 export interface GetProductionHealthInput {
   projectSlug: string;
@@ -17,6 +19,7 @@ export interface ProductionHealthReport {
   generatedAt: string;
   snapshot: ProductionSnapshot;
   health: ProductionHealthResult;
+  intelligence?: ProductionIntelligence;
 }
 
 export class ProductionHealthService {
@@ -57,6 +60,7 @@ export class ProductionHealthService {
       generatedAt: evaluatedAt,
       snapshot,
       health,
+      intelligence: ProductionIntelligenceService.derive(snapshot, health),
     };
   }
 }

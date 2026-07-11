@@ -47,19 +47,19 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 96**
+**Sprint 96.6**
 
-Production Intelligence
+Production Execution Job Contract Foundation
 
 **Durum**
 
-In Progress
+Completed
 
-Sprint 96.0 Production Intelligence Phase Review tamamlandi; Sprint 95.2-Sprint 95.9 zinciri uctan uca dogrulandi.
+Sprint 96.1-Sprint 96.6 Production Intelligence planning ve read-only execution preview temelleri tamamlandi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 96.1 Production Intelligence Operational Readiness Planning.
+- Bir sonraki onerilen gorev Sprint 96.7 Production Intelligence contract hardening ve genisletilmis validation.
 
 ---
 
@@ -1441,6 +1441,53 @@ Test ve regresyon:
 Bir sonraki onerilen sprint:
 
 - Sprint 96.1 — Production Intelligence Operational Readiness Planning.
+
+---
+
+### Sprint 96.1-96.6 — Production Intelligence Continuation Package
+
+Durum:
+Completed
+
+Mimari kararlar:
+
+- Health finding'lerinden stable id, finding reference, action type, stage, priority, safety ve confirmation metadata'si tasiyan pure recommended action'lar turetildi.
+- Canonical stage order ve dependency map mevcut PipelineRecoveryPlanner kaynagindan yeniden kullanildi; paralel stage modeli olusturulmadi.
+- Snapshot, health ve action girdilerinden deterministic dependency graph, blocked stages, downstream unlocks, root causes ve cycle sonucu uretildi.
+- Planner ready/blocked/complete/unknown durumlariyla root cause yakinligi, executable olma, downstream unlock sayisi ve canonical sira uzerinden deterministic adim secti.
+- Execution request builder/validator stable snapshot fingerprint, request id ve idempotency key uretir; slug, allowlist, stage uyumu, stale plan, blocked step ve confirmation kurallarini uygular.
+- Execution gateway yalniz dry-run metadata uretir; registry yalniz mevcut PipelineRunner retry/resume servis girislerini tanimlar, execute modu reddedilir.
+- Job contract mevcut queue/job sistemine alternatif motor eklemeden kucuk preview adapter'i olarak tasarlandi; snapshot, health, graph veya buyuk payload kopyalanmaz.
+- ProductionHealthReport'a optional intelligence alani ve Studio health paneline pasif ozet additive olarak eklendi.
+
+Korunan sinirlar:
+
+- Filesystem write/read, network, AI, persistence, polling, queue dispatch veya gercek pipeline execution eklenmedi.
+- Date.now, Math.random, runtime UUID, execute endpoint, retry/rollback/attempt sistemi eklenmedi.
+- Mevcut public alanlar ve ortak stage/finding/severity/job tipleri degistirilmedi; yeni contractlar additive tutuldu.
+- UI yalniz bilgi gosterir; run/start/execute/confirm aksiyonu eklenmedi.
+
+Test ve dogrulama:
+
+- Sprint 96.1 actions smoke PASS (5 senaryo).
+- Sprint 96.2 dependency graph smoke PASS (5 senaryo).
+- Sprint 96.3 planner smoke PASS (5 senaryo).
+- Sprint 96.4 execution contract smoke PASS (4 senaryo).
+- Sprint 96.5 execution gateway smoke PASS (5 senaryo).
+- Sprint 96.6 execution job contract smoke PASS (5 senaryo).
+- Sprint 95.2-96.0 Production Intelligence regresyon smoke testleri PASS.
+- npx tsc --noEmit --incremental false PASS.
+- Repository-wide npm run lint PASS; onceki 22 error ve 1 warning temizlendi.
+- Lint icin yalniz scripts/smoke-pipeline-auto-continuation.ts, scripts/smoke-pipeline-state-error-contract.ts, scripts/smoke-retry-persistence.ts ve src/components/studio/PipelineJobsPanel.tsx degistirildi.
+- Test monkey-patch any cast'leri typed harness contract'larina cevrildi; kullanilmayan import kaldirildi.
+- PipelineJobsPanel ref/callback/effect lint duzeltmeleri mevcut polling, stale-response, history queue ve elapsed-time davranislarini korudu.
+- npm run build PASS; mevcut next.config/FileStorage trace warning'i devam ediyor.
+- Sprint 89 retry persistence, Sprint 92 pipeline state error contract ve Sprint 94 auto-continuation smoke testleri PASS.
+- git diff --check PASS.
+
+Bir sonraki onerilen adim:
+
+- Sprint 96.7 Production Intelligence contract hardening ve genisletilmis validation.
 
 ---
 

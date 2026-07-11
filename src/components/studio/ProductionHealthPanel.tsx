@@ -206,6 +206,14 @@ function HealthSummary({
         status={health.status}
       />
 
+      {report.intelligence ? (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Production plan</p>
+          <p className="mt-2 text-zinc-200">{report.intelligence.actions.length} recommended actions · {report.intelligence.graph.blockedStages.length} blocked stages · plan {report.intelligence.plan.status}</p>
+          <p className="mt-2 text-xs text-zinc-500">Read-only preview; no action is executed or queued.</p>
+        </div>
+      ) : null}
+
       <p className="text-xs text-zinc-500">
         Read-only health summary. Findings are not persisted by this panel.
       </p>
