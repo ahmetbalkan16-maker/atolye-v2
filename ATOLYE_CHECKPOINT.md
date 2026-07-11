@@ -55,11 +55,11 @@ Production Intelligence
 
 In Progress
 
-Sprint 95.1, Sprint 95.2 ve Sprint 95.3 Read-Only Production Snapshot Builder tamamlandi.
+Sprint 95.1-Sprint 95.5 Production Intelligence, Read-Only Production Snapshot, Health Rules ve Health Service/API calismalari tamamlandi.
 
 Not:
 
-- Bir sonraki gorev Sprint 95.4 Health Check Rules Foundation.
+- Bir sonraki onerilen gorev Sprint 95.6 Production Health API Consumer Foundation.
 
 ---
 
@@ -1147,6 +1147,57 @@ Bilinen kapsam disi maddeler:
 Bir sonraki gorev:
 
 - Sprint 95.4 — Health Check Rules Foundation.
+
+---
+
+### Sprint 95.5 — Read-Only Production Health Service & API
+
+Durum:
+Completed
+
+Olusturulan dosyalar:
+
+- src/lib/production/ProductionHealthService.ts
+- src/lib/production/ProductionHealthError.ts
+- src/lib/production/ProductionHealthApiError.ts
+- app/api/production/health/[slug]/route.ts
+- scripts/smoke-production-health-service.ts
+
+Service mimarisi:
+
+- Cagri zinciri GET /api/production/health/[slug] -> ProductionHealthService -> ProductionSnapshotBuilder -> ProductionHealthEngine olarak kuruldu.
+- Service tek evaluatedAt degeri uretir veya enjekte edilen degeri kullanir; ayni deger snapshot generatedAt ve health evaluatedAt alanlarina aktarilir.
+- Snapshot builder disinda production source dosyalari okunmaz; health engine disinda rule evaluation, siralama veya dedup yapilmaz.
+- Service ve API pipeline state mutation, manifest save, job update, history append, usage persist veya project mutation yapmaz.
+- Health verisi persist edilmez; endpoint yalniz GET ve no-store cache contract'i ile calisir.
+- Snapshot icindeki finding detectedAt degerleri korunur; service health finding sirasini veya engine sonucunu degistirmez.
+
+Hata ve guvenlik modeli:
+
+- Stable domain error code'lari INVALID_PROJECT_SLUG, PROJECT_NOT_FOUND, SNAPSHOT_BUILD_FAILED, HEALTH_EVALUATION_FAILED ve UNKNOWN_PRODUCTION_HEALTH_ERROR olarak tanimlandi.
+- Eksik project.json mevcut Sprint 95.3 partial snapshot davranisini korur; PROJECT_NOT_FOUND otomatik uretilmez.
+- Slug validation bosluk, traversal, slash, backslash, null byte, encoded traversal ve izin verilmeyen karakterleri reddeder.
+- API response ham error, stack trace, absolute filesystem path veya internal detail sizdirmaz.
+- Basarili response success: true ve data report'u; hata response'u success: false ile stable code/message nesnesini tasir.
+
+Determinism ve dogrulama:
+
+- Ayni kaynaklar ve ayni evaluatedAt icin service sonucu deterministiktir.
+- report.generatedAt, snapshot.generatedAt ve health.evaluatedAt ayni evaluation zamanini tasir.
+- Sprint 95.5 production health service/API smoke PASS (24 senaryo).
+- Smoke kapsami complete/partial/missing/malformed/unreadable sources, missing outputs, cancellation authority, determinism, timestamp/finding preservation, slug traversal, read-only filesystem ve API success/domain/internal error contract'larini kapsar.
+- npx tsc --noEmit --incremental false basarili.
+- Sprint 95.2 snapshot contract smoke PASS (16 senaryo).
+- Sprint 95.3 snapshot builder smoke PASS (29 senaryo).
+- Sprint 95.4 health rules smoke PASS (37 senaryo).
+- Sprint 92 state error contract smoke PASS (18 senaryo).
+- Sprint 93 orchestration smoke PASS (10 senaryo).
+- Sprint 94 auto-continuation smoke PASS (18 senaryo).
+- git diff --check basarili; smoke temporary fixture'i temizlendi.
+
+Bir sonraki onerilen sprint:
+
+- Sprint 95.6 — Production Health API Consumer Foundation.
 
 ---
 
