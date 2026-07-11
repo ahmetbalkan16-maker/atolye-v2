@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { PipelineRunner } from "@/lib/pipeline/PipelineRunner";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
+import { createPipelineStateErrorResponse } from "@/lib/pipeline/PipelineStateApiError";
 
 type RouteContext = {
   params: Promise<{
@@ -53,6 +54,15 @@ export async function POST(_req: Request, context: RouteContext) {
       result,
     });
   } catch (error) {
+    const stateErrorResponse = createPipelineStateErrorResponse(
+      error,
+      "[Pipeline Resume API] Pipeline state failed:",
+    );
+
+    if (stateErrorResponse) {
+      return stateErrorResponse;
+    }
+
     console.error("[Pipeline Resume API] Pipeline resume failed:", error);
 
     return NextResponse.json(

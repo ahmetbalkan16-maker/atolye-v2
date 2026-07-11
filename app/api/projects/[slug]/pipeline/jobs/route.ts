@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { PipelineJobManager } from "@/lib/pipeline/PipelineJobManager";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
+import { createPipelineStateErrorResponse } from "@/lib/pipeline/PipelineStateApiError";
 
 type RouteContext = {
   params: Promise<{
@@ -41,6 +42,15 @@ export async function GET(_req: Request, context: RouteContext) {
       jobs,
     });
   } catch (error) {
+    const stateErrorResponse = createPipelineStateErrorResponse(
+      error,
+      "[Pipeline Jobs API] Pipeline state failed:",
+    );
+
+    if (stateErrorResponse) {
+      return stateErrorResponse;
+    }
+
     console.error("[Pipeline Jobs API] Jobs could not be read:", error);
 
     return NextResponse.json(

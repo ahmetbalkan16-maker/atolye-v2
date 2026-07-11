@@ -39,7 +39,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 92 — Planning
+Sprint 93 — Planning
 
 ---
 
@@ -906,14 +906,37 @@ Kalan riskler / takip isleri:
 
 # Sprint 92
 
+## Pipeline State Error Contract Hardening
+
+Completed
+
+- Malformed, structurally invalid ve non-ENOENT read failure'lari typed PipelineStateError contract'i kullanir.
+- Jobs stable code'lari: PIPELINE_JOBS_STATE_MALFORMED, PIPELINE_JOBS_STATE_INVALID, PIPELINE_JOBS_STATE_READ_FAILED.
+- History stable code'lari: PIPELINE_HISTORY_STATE_MALFORMED, PIPELINE_HISTORY_STATE_INVALID, PIPELINE_HISTORY_STATE_READ_FAILED.
+- Ilgili alti pipeline API route ortak createPipelineStateErrorResponse() helper'ini kullanir.
+- Public state-error response HTTP 500 ve yalniz success: false, code ve fixed safe error message alanlarini tasir.
+- Raw JSON, absolute path, stack, permission/filesystem details ve Error.cause public response'a sizmaz.
+- Non-ENOENT original error Error.cause olarak korunur ve server-side diagnostics icin kullanilir.
+- Typed discrimination trusted Symbol.for + WeakSet registry ile stable field validation kullanir; yalniz instanceof'e dayanmaz.
+- State error'lar stage, runner, retry execution ve compensation catch'lerinden degistirilmeden propagate edilir.
+- Typed error logging yalniz ortak API helper'a aittir; runStage generic failure persistence uygulamaz.
+- Non-state runner/stage logging ve generic failure contract'lari degismedi.
+- HTTP 200, 404 ve valid 409 contract'lari korundu.
+- UI, storage schema, persistence format ve recovery davranisi degismedi.
+- npx tsc --noEmit, 18-case Sprint 92 pipeline state error contract smoke ve git diff --check basarili.
+
+---
+
+# Sprint 93
+
 ## Planning
 
 Durum
 
 Planning
 
-- Sprint 91 tamamlandi.
-- Sprint 92 kapsami sonraki planlama adiminda belirlenecek.
+- Sprint 92 tamamlandi.
+- Sprint 93 kapsami sonraki planlama adiminda belirlenecek.
 
 ---
 

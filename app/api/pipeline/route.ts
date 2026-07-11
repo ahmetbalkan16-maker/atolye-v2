@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PipelineRunner } from "@/lib/pipeline/PipelineRunner";
+import { createPipelineStateErrorResponse } from "@/lib/pipeline/PipelineStateApiError";
 
 export async function POST(req: Request) {
   try {
@@ -35,6 +36,15 @@ export async function POST(req: Request) {
       projectUrl: `/project/${result.slug}`,
     });
   } catch (error) {
+    const stateErrorResponse = createPipelineStateErrorResponse(
+      error,
+      "[Pipeline API] Pipeline state failed:",
+    );
+
+    if (stateErrorResponse) {
+      return stateErrorResponse;
+    }
+
     console.error("[Pipeline API] Pipeline failed:", error);
 
     return NextResponse.json(

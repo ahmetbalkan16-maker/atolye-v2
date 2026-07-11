@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { PipelineRunner } from "@/lib/pipeline/PipelineRunner";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import type { PipelineRecoveryStageKey } from "@/types/pipelineRecovery";
+import { createPipelineStateErrorResponse } from "@/lib/pipeline/PipelineStateApiError";
 
 type RouteContext = {
   params: Promise<{
@@ -95,6 +96,15 @@ export async function POST(req: Request, context: RouteContext) {
       result,
     });
   } catch (error) {
+    const stateErrorResponse = createPipelineStateErrorResponse(
+      error,
+      "[Pipeline Retry API] Pipeline state failed:",
+    );
+
+    if (stateErrorResponse) {
+      return stateErrorResponse;
+    }
+
     console.error("[Pipeline Retry API] Pipeline retry failed:", error);
 
     return NextResponse.json(

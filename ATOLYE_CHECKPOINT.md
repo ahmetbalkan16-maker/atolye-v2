@@ -47,7 +47,7 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 92**
+**Sprint 93**
 
 Planning
 
@@ -55,11 +55,11 @@ Planning
 
 Planning
 
-Sprint 91 tamamlandi. Sprint 92 planlama asamasina gecildi.
+Sprint 92 tamamlandi. Sprint 93 planlama asamasina gecildi.
 
 Not:
 
-- Sprint 92 kapsami henuz belirlenmedi.
+- Sprint 93 kapsami henuz belirlenmedi.
 
 ---
 
@@ -937,6 +937,32 @@ Kalan riskler / takip isleri:
 - attempts finite number olarak dogrulanir; integer veya non-negative olma sarti uygulanmaz.
 - Timestamp alanlari string olarak dogrulanir; parse edilebilir ISO date olma sarti uygulanmaz.
 - Non-ENOENT filesystem failure ve mevcut-valid-empty dosya yollari smoke icinde ayri failure injection senaryolari degildir; kod yollari review ile dogrulandi.
+
+---
+
+# Sprint 92
+## Pipeline State Error Contract Hardening
+
+Durum:
+Completed
+
+Kapsam:
+
+- Malformed, structurally invalid ve non-ENOENT pipeline state read failure'lari typed PipelineStateError contract'i kullanir.
+- Jobs state stable code'lari PIPELINE_JOBS_STATE_MALFORMED, PIPELINE_JOBS_STATE_INVALID ve PIPELINE_JOBS_STATE_READ_FAILED olarak sabitlendi.
+- History state stable code'lari PIPELINE_HISTORY_STATE_MALFORMED, PIPELINE_HISTORY_STATE_INVALID ve PIPELINE_HISTORY_STATE_READ_FAILED olarak sabitlendi.
+- Ilgili alti pipeline API route typed state error'lari ortak createPipelineStateErrorResponse() helper'i ile map eder.
+- Public state-error response HTTP 500, success: false, stable code ve fixed safe error message alanlariyla sinirlidir.
+- Raw JSON, absolute path, stack trace, permission/filesystem detayi ve Error.cause public response'a eklenmez.
+- Non-ENOENT filesystem error exact orijinal nesnesi Error.cause olarak korunur ve server-side diagnostics icin ortak helper tarafindan loglanir.
+- Typed discrimination trusted Symbol.for + WeakSet registry ve stable state/failure/filename/code validation kullanir; yalniz instanceof'e dayanmaz.
+- Trusted state error stage, runner, retry execution ve retry compensation catch'lerinden ayni nesne olarak propagate edilir.
+- Typed state error yalniz ortak API helper tarafindan bir kez loglanir.
+- Runner ve stage katmanlari non-state error'lar icin onceki logging ve generic failure davranisini korur.
+- runStage trusted state error icin generic stage failure persistence calistirmaz.
+- Mevcut HTTP 200, 404 ve valid 409 contract'lari korundu.
+- UI, storage schema, persistence format ve recovery davranisi degismedi.
+- npx tsc --noEmit, 18-case Sprint 92 pipeline state error contract smoke ve git diff --check basarili.
 
 ---
 

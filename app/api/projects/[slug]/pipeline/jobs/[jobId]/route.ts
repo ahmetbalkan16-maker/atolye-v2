@@ -3,6 +3,7 @@ import { PipelineJobManager } from "@/lib/pipeline/PipelineJobManager";
 import { PipelineRunner } from "@/lib/pipeline/PipelineRunner";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import type { PipelineJobAction } from "@/types/pipelineJob";
+import { createPipelineStateErrorResponse } from "@/lib/pipeline/PipelineStateApiError";
 
 type RouteContext = {
   params: Promise<{
@@ -101,6 +102,15 @@ export async function POST(req: Request, context: RouteContext) {
       jobs: result.jobs,
     });
   } catch (error) {
+    const stateErrorResponse = createPipelineStateErrorResponse(
+      error,
+      "[Pipeline Jobs API] Pipeline state failed:",
+    );
+
+    if (stateErrorResponse) {
+      return stateErrorResponse;
+    }
+
     console.error("[Pipeline Jobs API] Job action failed:", error);
 
     return NextResponse.json(

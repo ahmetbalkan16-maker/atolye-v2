@@ -687,6 +687,27 @@ Tamamlandi
 
 ---
 
+### Pipeline State Error Contract Hardening
+
+Tamamlandi
+
+- Malformed, structurally invalid ve non-ENOENT pipeline state read failure'lari typed PipelineStateError contract'ina baglandi.
+- Stable jobs code'lari PIPELINE_JOBS_STATE_MALFORMED, PIPELINE_JOBS_STATE_INVALID ve PIPELINE_JOBS_STATE_READ_FAILED olarak eklendi.
+- Stable history code'lari PIPELINE_HISTORY_STATE_MALFORMED, PIPELINE_HISTORY_STATE_INVALID ve PIPELINE_HISTORY_STATE_READ_FAILED olarak eklendi.
+- Ana pipeline, jobs, history, job action, retry ve resume API route'lari ortak createPipelineStateErrorResponse() helper'ini kullanir.
+- Public state-error response HTTP 500 ve tam olarak success: false, stable code ve fixed safe error message alanlarini tasir.
+- Raw JSON, absolute path, stack trace, permission/filesystem detail ve Error.cause public response'a eklenmez.
+- Non-ENOENT filesystem failure exact original error object'i Error.cause olarak korur; ortak API helper server-side diagnostics icin cause dahil tek log uretir.
+- Typed error discrimination trusted Symbol.for + WeakSet registry ile stable state/failure/filename/code validation kullanir ve yalniz instanceof'e dayanmaz.
+- Trusted state error runStage, runPipelineStage, main runner, retry execution ve retry compensation catch'lerinden degistirilmeden propagate edilir.
+- Runner ve stage katmanlari typed state error'i loglamaz veya generic failure'a cevirmez; non-state logging ve generic contract'lar korunur.
+- runStage trusted state error icin persistStageFailure cagirmaz.
+- HTTP 200, 404 ve valid 409 response contract'lari degismedi.
+- UI, storage schema, persistence format ve recovery davranisi degismedi.
+- npx tsc --noEmit, 18-case Sprint 92 pipeline state error contract smoke ve git diff --check basarili.
+
+---
+
 ### Existing Lint Issues Cleanup Planning
 
 Tamamlandi

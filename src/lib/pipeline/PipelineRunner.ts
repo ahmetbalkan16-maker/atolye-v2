@@ -6,6 +6,7 @@ import {
   pipelineRecoveryStageOrder,
 } from "./PipelineRecoveryPlanner";
 import { PipelineStageExecutor } from "./PipelineStageExecutor";
+import { isPipelineStateError } from "./PipelineStateError";
 import type {
   ProductionStepKey,
   ProjectPackageRunType,
@@ -56,11 +57,13 @@ export class PipelineRunner {
         export: state.exportPackage,
       };
     } catch (error) {
-      console.error("[PipelineRunner] Pipeline failed:", {
-        slug,
-        topic,
-        error,
-      });
+      if (!isPipelineStateError(error)) {
+        console.error("[PipelineRunner] Pipeline failed:", {
+          slug,
+          topic,
+          error,
+        });
+      }
 
       throw error;
     }
@@ -252,7 +255,11 @@ export class PipelineRunner {
           prepared.previousJob,
           prepared.job,
         );
-      } catch {
+      } catch (error) {
+        if (isPipelineStateError(error)) {
+          throw error;
+        }
+
         return {
           success: false,
           status: 500,
@@ -288,7 +295,11 @@ export class PipelineRunner {
         state,
         "retry",
       );
-    } catch {
+    } catch (error) {
+      if (isPipelineStateError(error)) {
+        throw error;
+      }
+
       return {
         success: false,
         status: 500,
@@ -413,6 +424,10 @@ export class PipelineRunner {
     try {
       return await action();
     } catch (error) {
+      if (isPipelineStateError(error)) {
+        throw error;
+      }
+
       const message =
         error instanceof Error ? error.message : "Pipeline stage failed.";
 

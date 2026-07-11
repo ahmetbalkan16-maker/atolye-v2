@@ -1,6 +1,10 @@
 import { ProjectReader } from "@/lib/projects/ProjectReader";
 import { ProjectWriter } from "@/lib/projects/ProjectWriter";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
+import {
+  PipelineStateError,
+  type PipelineStateKind,
+} from "./PipelineStateError";
 import type { PackageStatus, ProductionStepKey } from "@/types/project";
 import type {
   PipelineJob,
@@ -602,25 +606,30 @@ export class PipelineJobManager {
     fileName: string,
     validate: (value: unknown) => value is T,
   ): Promise<T | null> {
-    const result = await ProjectReader.readJSONState<unknown>(
-      projectSlug,
-      fileName,
-    );
+    const state = getPipelineStateKind(fileName);
+    let result: Awaited<
+      ReturnType<typeof ProjectReader.readJSONState<unknown>>
+    >;
+
+    try {
+      result = await ProjectReader.readJSONState<unknown>(
+        projectSlug,
+        fileName,
+      );
+    } catch (cause) {
+      throw new PipelineStateError(state, "read-failed", fileName, { cause });
+    }
 
     if (result.status === "missing") {
       return null;
     }
 
     if (result.status === "malformed") {
-      throw new Error(
-        `Pipeline state file "${fileName}" failed JSON parsing.`,
-      );
+      throw new PipelineStateError(state, "malformed", fileName);
     }
 
     if (!validate(result.value)) {
-      throw new Error(
-        `Pipeline state file "${fileName}" failed structural validation.`,
-      );
+      throw new PipelineStateError(state, "invalid", fileName);
     }
 
     return result.value;
@@ -783,6 +792,10 @@ function isProductionStepKey(value: unknown): value is ProductionStepKey {
 
 function isOptionalString(value: unknown) {
   return value === undefined || typeof value === "string";
+}
+
+function getPipelineStateKind(fileName: string): PipelineStateKind {
+  return fileName === pipelineJobsFileName ? "jobs" : "history";
 }
 
 function toJobStatus(status: PackageStatus): PipelineJobStatus {
