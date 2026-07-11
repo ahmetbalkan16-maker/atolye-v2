@@ -47,19 +47,19 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 96.7**
+**Sprint 96.8**
 
-Production Intelligence Phase Review
+Production Intelligence Consumer Contract Versioning Review
 
 **Durum**
 
 Completed
 
-Sprint 96.1-Sprint 96.6 Production Intelligence zinciri contract, determinism, read-only, API ve UI seviyelerinde review edildi ve minimum hardening tamamlandi.
+Production Intelligence payload versioning, merkezi runtime validation, legacy fallback ve consumer/UI uyumlulugu tamamlandi. Sprint 96.x serisi kapandi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 96.8 Production Intelligence consumer contract versioning review.
+- Bir sonraki onerilen gorev Sprint 97.0 Production Intelligence phase closure ve sonraki faz planlamasi.
 
 ---
 
@@ -1534,6 +1534,63 @@ Deferred risk:
 Bir sonraki onerilen adim:
 
 - Sprint 96.8 Production Intelligence consumer contract versioning review.
+
+---
+
+### Sprint 96.8 — Production Intelligence Consumer Contract Versioning Review
+
+Durum:
+Completed — Sprint 96.x closed
+
+Contract modeli:
+
+- ProductionIntelligence payload'i tek ortak contract uzerinde schemaVersion: "1" tasir.
+- actions, graph ve plan version 1 required alanlaridir.
+- executionPreview ve jobPreview optional/additive alanlardir.
+- Version parser yalniz public API consumer sinirinda calisir; internal engine sonucu tekrar validate edilmez.
+
+Consumer policy:
+
+- intelligence alani yoksa absent kabul edilir; health response ve mevcut UI korunur.
+- Version 1 valid payload bilinen alanlara normalize edilerek kullanilir.
+- Version 1 future additive alanlari kabul edilir fakat consumer sonucuna kopyalanmaz.
+- Version eksik veya malformed payload invalid kabul edilir; intelligence omit edilir, health response korunur.
+- Bilinmeyen version unsupported olarak ayrilir; version 1 gibi tahmin edilmez ve UI'a verilmez.
+- Invalid execution/job preview tum health response'u dusurmez; optional intelligence butun olarak omit edilir.
+
+Schema evolution kurallari:
+
+- Yeni optional alan ayni schema version icinde additive olabilir.
+- Mevcut alanin anlamini veya tipini degistirmek yeni schema version gerektirir.
+- Alan kaldirmak veya optional alani required yapmak yeni schema version gerektirir.
+- Enum daraltmak breaking degisikliktir.
+- Yeni enum degeri yalniz consumer unknown degeri guvenli reddediyorsa additive olabilir.
+- Version parser merkezi kalir; unsupported version health-only fallback kullanir.
+
+Bulgu ozeti:
+
+- P0: 0.
+- P1: 2. Payload version'sizdi ve nested runtime validator enum/contract butunlugunu eksik kontrol ediyordu; schema version ve merkezi strict parser eklendi.
+- P2: 1. Invalid intelligence tum health consumer sonucunu malformed yapabiliyordu; intelligence-independent health fallback eklendi.
+- P3: 1. Legacy, versioning, future field, prototype key, UI fallback ve parser determinism senaryolari eksikti; 22 senaryolu smoke eklendi.
+
+Test ve sinirlar:
+
+- Sprint 96.8 consumer versioning smoke PASS (22 senaryo).
+- Sprint 96.7 review smoke PASS (18 senaryo).
+- Sprint 96.1-96.6 smoke testleri PASS.
+- Sprint 95.2-96.0 Production Intelligence regresyonlari PASS.
+- npm run lint, npx tsc --noEmit --incremental false, npm run build ve git diff --check PASS.
+- Parser pure, deterministic ve side-effect-free kalir; filesystem, network, AI, persistence, queue, execution, polling, random, UUID veya runtime-time version kullanmaz.
+- Mevcut health API top-level alanlari degismedi; intelligence optional ve backward-compatible kaldi.
+
+Deferred risk:
+
+- Legacy next.config.ts -> FileStorage -> AssetManager -> assets route Turbopack NFT trace uyarisi build'i engellemez ve Sprint 96.x kaynakli degildir; ertelendi.
+
+Bir sonraki onerilen adim:
+
+- Sprint 97.0 Production Intelligence phase closure ve sonraki faz planlamasi.
 
 ---
 

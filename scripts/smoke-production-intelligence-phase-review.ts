@@ -4,7 +4,7 @@ import { detectProductionDependencyCycles } from "../src/lib/production/Producti
 import { ProductionExecutionContract } from "../src/lib/production/ProductionExecutionContract";
 import { ProductionExecutionGateway } from "../src/lib/production/ProductionExecutionGateway";
 import { ProductionExecutionJobContract } from "../src/lib/production/ProductionExecutionJobContract";
-import { getProductionHealth, ProductionHealthApiConsumerError } from "../src/lib/production/ProductionHealthApiClient";
+import { getProductionHealth } from "../src/lib/production/ProductionHealthApiClient";
 import { ProductionHealthService } from "../src/lib/production/ProductionHealthService";
 import { ProductionIntelligenceService } from "../src/lib/production/ProductionIntelligenceService";
 import type { ProductionHealthFinding } from "../src/types/productionHealth";
@@ -131,14 +131,11 @@ async function main() {
     evaluatedAt: "2026-07-11T21:00:00.000Z",
   });
   const malformed = { ...report, intelligence: { actions: null } };
-  await assert.rejects(
-    getProductionHealth(slug, {
-      fetchImpl: async () => Response.json({ success: true, data: malformed }),
-    }),
-    (error: unknown) =>
-      error instanceof ProductionHealthApiConsumerError &&
-      error.kind === "malformed_response",
-  );
+  const healthWithMalformedIntelligence = await getProductionHealth(slug, {
+    fetchImpl: async () => Response.json({ success: true, data: malformed }),
+  });
+  assert.equal(healthWithMalformedIntelligence.projectSlug, slug);
+  assert.equal(healthWithMalformedIntelligence.intelligence, undefined);
 
   const serialized = JSON.stringify({ baseline, request, staleJob });
   assert.ok(!serialized.includes("C:\\Users"));

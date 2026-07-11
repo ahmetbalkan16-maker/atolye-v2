@@ -1,6 +1,8 @@
 import type { ProductionHealthFinding } from "./productionHealth";
 import type { ProductionStepKey } from "./project";
 
+export const productionIntelligenceSchemaVersion = "1" as const;
+
 export type ProductionActionType =
   | "inspect-source"
   | "reconcile-state"
@@ -109,9 +111,12 @@ export interface ProductionExecutionJobPreview {
 }
 
 export interface ProductionIntelligence {
+  schemaVersion: typeof productionIntelligenceSchemaVersion;
   actions: ProductionRecommendedAction[];
   graph: ProductionDependencyGraph;
   plan: ProductionPlan;
+  executionPreview?: ProductionExecutionDryRunResult;
+  jobPreview?: ProductionExecutionJobPreview;
 }
 
 export function productionFindingRef(finding: ProductionHealthFinding) {

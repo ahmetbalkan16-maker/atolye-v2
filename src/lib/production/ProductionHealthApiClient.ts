@@ -1,5 +1,6 @@
 import { isValidProductionProjectSlug } from "./ProductionProjectSlug";
 import { productionHealthSchemaVersion } from "@/types/productionHealth";
+import { parseProductionIntelligence } from "./ProductionIntelligenceConsumer";
 import type { ProductionHealthErrorCode } from "./ProductionHealthError";
 import type { ProductionHealthReport } from "./ProductionHealthService";
 
@@ -142,7 +143,16 @@ export async function getProductionHealth(
     });
   }
 
-  return payload.data;
+  const intelligence = parseProductionIntelligence(payload.data.intelligence);
+  const report: ProductionHealthReport = {
+    schemaVersion: payload.data.schemaVersion,
+    projectSlug: payload.data.projectSlug,
+    generatedAt: payload.data.generatedAt,
+    snapshot: payload.data.snapshot,
+    health: payload.data.health,
+    ...(intelligence.status === "valid" ? { intelligence: intelligence.value } : {}),
+  };
+  return report;
 }
 
 export function isProductionHealthApiConsumerError(
@@ -176,29 +186,7 @@ function isSuccessPayload(
     report.projectSlug === projectSlug &&
     typeof report.generatedAt === "string" &&
     isSnapshot(report.snapshot, projectSlug) &&
-    isHealthResult(report.health, report.generatedAt) &&
-    (report.intelligence === undefined || isProductionIntelligence(report.intelligence))
-  );
-}
-
-function isProductionIntelligence(value: unknown) {
-  if (!isRecord(value) || !Array.isArray(value.actions) || !isRecord(value.graph) || !isRecord(value.plan)) return false;
-  return (
-    value.actions.every((action) =>
-      isRecord(action) &&
-      typeof action.id === "string" &&
-      typeof action.findingRef === "string" &&
-      typeof action.actionType === "string" &&
-      typeof action.title === "string" &&
-      typeof action.reason === "string" &&
-      typeof action.confirmationRequired === "boolean"
-    ) &&
-    Array.isArray(value.graph.nodes) &&
-    Array.isArray(value.graph.edges) &&
-    Array.isArray(value.graph.blockedStages) &&
-    value.graph.blockedStages.every(isProductionStage) &&
-    Array.isArray(value.plan.steps) &&
-    (value.plan.status === "ready" || value.plan.status === "blocked" || value.plan.status === "complete" || value.plan.status === "unknown")
+    isHealthResult(report.health, report.generatedAt)
   );
 }
 
