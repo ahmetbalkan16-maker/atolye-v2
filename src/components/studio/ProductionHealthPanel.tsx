@@ -12,6 +12,7 @@ import type {
   ProductionHealthStatus,
 } from "@/types/productionHealth";
 import StudioCard from "./StudioCard";
+import ProductionHealthFindingsPanel from "./ProductionHealthFindingsPanel";
 
 export type ProductionHealthUiState =
   | { kind: "loading" }
@@ -199,15 +200,15 @@ function HealthSummary({
         </p>
       ) : null}
 
-      {health.findings.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-500">
-          No production health findings were reported.
-        </p>
-      ) : (
-        <p className="text-xs text-zinc-500">
-          Read-only health summary. Findings are not persisted by this panel.
-        </p>
-      )}
+      <ProductionHealthFindingsPanel
+        findings={health.findings}
+        sourceConfidence={health.sourceConfidence.level}
+        status={health.status}
+      />
+
+      <p className="text-xs text-zinc-500">
+        Read-only health summary. Findings are not persisted by this panel.
+      </p>
     </div>
   );
 }

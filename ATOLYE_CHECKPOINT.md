@@ -55,11 +55,11 @@ Production Intelligence
 
 In Progress
 
-Sprint 95.1-Sprint 95.7 Production Intelligence, Read-Only Production Snapshot, Health Service/API, typed consumer ve UI foundation calismalari tamamlandi.
+Sprint 95.1-Sprint 95.8 Production Intelligence, Read-Only Production Snapshot, Health Service/API, typed consumer, UI ve findings detail calismalari tamamlandi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 95.8 Production Health Findings Detail Foundation.
+- Bir sonraki onerilen gorev Sprint 95.9 Production Health Finding Evidence Foundation.
 
 ---
 
@@ -1296,6 +1296,54 @@ Test ve regresyon:
 Bir sonraki onerilen sprint:
 
 - Sprint 95.8 — Production Health Findings Detail Foundation.
+
+---
+
+### Sprint 95.8 — Production Health Findings Detail Foundation
+
+Durum:
+Completed
+
+Olusturulan dosyalar:
+
+- src/components/studio/ProductionHealthFindingsPanel.tsx
+- scripts/smoke-production-health-findings.ts
+
+Degistirilen dosyalar:
+
+- src/components/studio/ProductionHealthPanel.tsx
+- ATOLYE_CHECKPOINT.md
+
+Findings panel ozellikleri:
+
+- Findings detail paneli mevcut ProductionHealthPanel success yuzeyine entegre edildi.
+- Panel yalniz typed consumer report'u icindeki ProductionHealthFinding[] ve sourceConfidence verisini kullanir; fetch veya API contract degisikligi yoktur.
+- Her finding severity, category, stable code, description, affected stage ve source confidence alanlariyla gosterilir.
+- Finding stage alani yoksa affected stage Project-wide olarak gosterilir.
+- Info mavi, warning sari ve critical kirmizi mevcut badge/renk diliyle render edilir.
+- Findings engine/consumer tarafindan gelen deterministic sirayla map edilir; sort, filter veya search eklenmez.
+- Toplam finding sayisi, empty findings state ve unknown health icin guvenli completeness mesaji vardir.
+- Uzun aciklamalar whitespace-pre-wrap, break-words ve overflow-wrap:anywhere ile guvenli satir kirar.
+- Retry sonrasi yeni consumer report findings listesi ayni panelde render edilir.
+- Polling, auto refresh, persistence veya production state mutation eklenmedi.
+
+Test ve regresyon:
+
+- npx tsc --noEmit --incremental false basarili.
+- Sprint 95.8 production health findings smoke PASS (10 senaryo).
+- Smoke kapsami empty, success, warning, critical, unknown, deterministic order, affected stages, long description, retry sonrasi render ve malformed response senaryolarini kapsar.
+- Hedefli ESLint findings panel, parent health panel ve smoke icin 0 error/0 warning ile basarili.
+- Sprint 95.7 production health UI smoke PASS (10 senaryo).
+- Sprint 95.6 production health API consumer smoke PASS (15 senaryo).
+- Sprint 95.5 production health service/API smoke PASS (24 senaryo).
+- Sprint 95.4 production health rules smoke PASS (37 senaryo).
+- Sprint 95.3 production snapshot builder smoke PASS (29 senaryo).
+- Sprint 95.2 production snapshot contract smoke PASS (16 senaryo).
+- git diff --check basarili.
+
+Bir sonraki onerilen sprint:
+
+- Sprint 95.9 — Production Health Finding Evidence Foundation.
 
 ---
 
