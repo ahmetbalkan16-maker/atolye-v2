@@ -55,11 +55,11 @@ Production Intelligence
 
 In Progress
 
-Sprint 95.1-Sprint 95.6 Production Intelligence, Read-Only Production Snapshot, Health Service/API ve typed API consumer calismalari tamamlandi.
+Sprint 95.1-Sprint 95.7 Production Intelligence, Read-Only Production Snapshot, Health Service/API, typed consumer ve UI foundation calismalari tamamlandi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 95.7 Production Health UI Integration Foundation.
+- Bir sonraki onerilen gorev Sprint 95.8 Production Health Findings Detail Foundation.
 
 ---
 
@@ -1250,6 +1250,52 @@ Test ve regresyon:
 Bir sonraki onerilen sprint:
 
 - Sprint 95.7 — Production Health UI Integration Foundation.
+
+---
+
+### Sprint 95.7 — Production Health UI Integration Foundation
+
+Durum:
+Completed
+
+Olusturulan dosyalar:
+
+- src/components/studio/ProductionHealthPanel.tsx
+- scripts/smoke-production-health-ui.ts
+
+Degistirilen dosyalar:
+
+- src/components/studio/index.ts
+- app/project/[slug]/page.tsx
+- ATOLYE_CHECKPOINT.md
+
+UI ozellikleri:
+
+- Production Health paneli proje studyosuna mevcut StudioCard tasarim sistemiyle read-only olarak eklendi.
+- UI veri erisimi yalniz ProductionHealthApiClient getProductionHealth() consumer'i uzerinden yapilir; component icinde dogrudan fetch yoktur.
+- Overall status, overall severity, source confidence, findings count ve evaluatedAt alanlari gosterilir.
+- Healthy/none yesil, info mavi, warning sari, critical kirmizi ve unknown zinc renkleri mevcut status badge diliyle uyumludur.
+- Loading, error, unknown ve empty findings durumlari ayridir.
+- Retry butonu yalniz consumer loader'ini yeniden cagirir; pipeline veya production state mutation yapmaz.
+- Project slug degisiminde stale request sonucu korunmaz; onceki request AbortController ile iptal edilir.
+- Polling, auto refresh, state persistence, API contract veya dashboard listesi degisikligi eklenmedi.
+
+Test ve regresyon:
+
+- npx tsc --noEmit --incremental false basarili.
+- Sprint 95.7 production health UI smoke PASS (10 senaryo).
+- Smoke kapsami loading, success, warning, critical, unknown, error, retry, malformed response, empty findings ve deterministic render senaryolarini kapsar.
+- Hedefli ESLint ProductionHealthPanel ve UI smoke icin 0 error/0 warning ile basarili.
+- Sprint 95.6 production health API consumer smoke PASS (15 senaryo).
+- Sprint 95.5 production health service/API smoke PASS (24 senaryo).
+- Sprint 95.4 production health rules smoke PASS (37 senaryo).
+- Sprint 95.3 production snapshot builder smoke PASS (29 senaryo).
+- Sprint 95.2 production snapshot contract smoke PASS (16 senaryo).
+- git diff --check basarili.
+
+Bir sonraki onerilen sprint:
+
+- Sprint 95.8 — Production Health Findings Detail Foundation.
 
 ---
 

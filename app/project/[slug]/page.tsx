@@ -7,6 +7,7 @@ import {
   AssemblyPanel,
   AudioPanel,
   ProductionPackageSummary,
+  ProductionHealthPanel,
   ProjectActions,
   PipelineJobsPanel,
   PipelineResumeAction,
@@ -167,6 +168,7 @@ export default async function ProjectStudioPage({
           </>
         ) : null}
 
+        <ProductionHealthPanel projectSlug={slug} />
         <AIUsagePanel projectSlug={slug} />
         <ProductionPackageSummary steps={productionSteps} />
         <ResearchPanel research={research} />

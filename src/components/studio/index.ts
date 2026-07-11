@@ -9,6 +9,7 @@ export { default as PipelineStatus } from "./PipelineStatus";
 export { default as PipelineJobsPanel } from "./PipelineJobsPanel";
 export { default as PipelineResumeAction } from "./PipelineResumeAction";
 export { default as AIUsagePanel } from "./AIUsagePanel";
+export { default as ProductionHealthPanel } from "./ProductionHealthPanel";
 export { default as VideoPanel } from "./VideoPanel";
 export { default as AudioPanel } from "./AudioPanel";
 export { default as ThumbnailPanel } from "./ThumbnailPanel";
