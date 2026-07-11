@@ -39,7 +39,7 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 90 — Planning
+Sprint 91 — Planning
 
 ---
 
@@ -856,14 +856,39 @@ Kalan riskler / takip isleri:
 
 # Sprint 90
 
+## Pipeline History Persistence Hardening
+
+Completed
+
+- pipeline-history.json persistence mevcut writeJSONAtomically() mekanizmasini kullanir.
+- Sprint 89 pipeline-jobs.json atomic persistence yolu degismedi.
+- History schema ve persistence payload shape korundu.
+- Mevcut event sirasi korunur ve yeni event listenin sonuna append edilir.
+- Mevcut limitsiz retention davranisi degismedi; trimming veya limit eklenmedi.
+- Temporary write, JSON serialization veya rename hatasi mevcut destination'i byte-for-byte korur.
+- Orijinal persistence error object maskelenmeden yukari tasinir; cleanup best-effort'tur ve cleanup hatasi orijinal hatanin yerini almaz.
+- Cancel ve completed/failed transition history yazimlari ortak atomic recordHistoryEvent() yolunu kullanir.
+- Normal ProjectWriter.writeJSON(), UI, API ve HTTP contract davranislari degismedi.
+- npx tsc --noEmit, Sprint 90 pipeline history persistence smoke ve git diff --check basarili.
+
+Kalan riskler / takip isleri:
+
+- JSON storage, process-local locking ve non-distributed concurrency sinirlari degismedi.
+- Cleanup basarisizliginda artik temporary file kalabilir; orijinal persistence hatasi korunur.
+- Surecler arasi eszamanli history yazimlarinda revision/lost-update korumasi yoktur.
+
+---
+
+# Sprint 91
+
 ## Planning
 
 Durum
 
 Planning
 
-- Sprint 89 tamamlandi.
-- Sprint 90 kapsami sonraki planlama adiminda belirlenecek.
+- Sprint 90 tamamlandi.
+- Sprint 91 kapsami sonraki planlama adiminda belirlenecek.
 
 ---
 

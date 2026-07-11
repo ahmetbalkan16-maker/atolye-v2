@@ -47,7 +47,7 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 90**
+**Sprint 91**
 
 Planning
 
@@ -55,11 +55,11 @@ Planning
 
 Planning
 
-Sprint 89 tamamlandi. Sprint 90 planlama asamasina gecildi.
+Sprint 90 tamamlandi. Sprint 91 planlama asamasina gecildi.
 
 Not:
 
-- Sprint 90 kapsami henuz belirlenmedi.
+- Sprint 91 kapsami henuz belirlenmedi.
 
 ---
 
@@ -880,6 +880,34 @@ Kalan riskler / takip isleri:
 - Process-local lock surecler arasi koordinasyon veya distributed locking saglamaz.
 - Eszamanli surecler arasi yazimlarda son basarili rename kazanir; revision tabanli lost-update korumasi yoktur.
 - Persistence hatasi sonrasi temporary file temizligi best-effort'tur; cleanup isleminin kendisi basarisiz olursa artik dosya kalabilir.
+
+---
+
+# Sprint 90
+## Pipeline History Persistence Hardening
+
+Durum:
+Completed
+
+Kapsam:
+
+- pipeline-history.json persistence mevcut ProjectWriter.writeJSONAtomically() mekanizmasini kullanir.
+- Sprint 89 pipeline-jobs.json atomic persistence davranisi degismedi.
+- Pipeline history schema ve persistence payload shape aynen korundu.
+- Mevcut history event'leri siralarini korur; yeni event listenin sonuna append edilir.
+- Mevcut limitsiz retention davranisi degismedi; event trimming veya yeni limit eklenmedi.
+- Temporary write, JSON serialization veya rename hatasinda mevcut destination byte-for-byte korunur.
+- Orijinal persistence error object degistirilmeden yukari tasinir ve cleanup hatasi tarafindan maskelenmez.
+- Temporary file cleanup best-effort olarak uygulanir.
+- Cancel ile completed/failed transition history persistence yollari ortak atomic recordHistoryEvent() akisinda birlesir.
+- Normal ProjectWriter.writeJSON(), UI, API ve HTTP contract davranislari degismedi.
+- npx tsc --noEmit, Sprint 90 pipeline history persistence smoke ve git diff --check basarili.
+
+Kalan riskler / takip isleri:
+
+- JSON storage ve process-local locking sinirlari degismedi; transaction veya distributed locking eklenmedi.
+- Cleanup isleminin kendisi basarisiz olursa artik temporary file kalabilir; orijinal persistence hatasi yine korunur.
+- Eszamanli surecler arasi history yazimlarinda revision/lost-update korumasi yoktur.
 
 ---
 

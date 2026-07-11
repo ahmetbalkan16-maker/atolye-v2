@@ -648,6 +648,25 @@ Tamamlandi
 
 ---
 
+### Pipeline History Persistence Hardening
+
+Tamamlandi
+
+- pipeline-history.json persistence mevcut ProjectWriter.writeJSONAtomically() mekanizmasina gecirildi.
+- Sprint 89 pipeline-jobs.json atomic persistence davranisi degismedi.
+- Pipeline history schema ve persistence payload shape aynen korundu.
+- Mevcut history event sirasi korunur; yeni event listenin sonuna append edilir.
+- Mevcut limitsiz retention davranisi degismedi; trimming veya yeni limit eklenmedi.
+- Temporary write, JSON serialization veya rename hatasinda mevcut destination byte-for-byte korunur.
+- Orijinal persistence error object degistirilmeden yukari tasinir; cleanup hatasi orijinal persistence hatasini maskeleyemez.
+- Temporary file cleanup best-effort olarak uygulanir.
+- Cancel ve completed/failed transition history persistence yollari ortak atomic recordHistoryEvent() akisindan gecmeye devam eder.
+- Normal ProjectWriter.writeJSON(), UI, API ve HTTP contract davranislari degismedi.
+- npx tsc --noEmit, Sprint 90 pipeline history persistence smoke ve git diff --check basarili.
+- Acik riskler: JSON storage ve process-local locking sinirlari degismedi; transaction veya distributed locking eklenmedi; cleanup basarisizliginda artik temporary file kalabilir; surecler arasi yazimlarda revision/lost-update korumasi yoktur.
+
+---
+
 ### Existing Lint Issues Cleanup Planning
 
 Tamamlandi

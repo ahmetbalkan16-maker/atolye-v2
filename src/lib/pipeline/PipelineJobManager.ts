@@ -565,11 +565,15 @@ export class PipelineJobManager {
     const current = await this.readHistory(projectSlug);
     const event = createHistoryEvent(job, job.status, now);
 
-    await ProjectWriter.writeJSON(projectSlug, pipelineHistoryFileName, {
-      ...current,
-      events: [...current.events, event],
-      updatedAt: now,
-    });
+    await ProjectWriter.writeJSONAtomically(
+      projectSlug,
+      pipelineHistoryFileName,
+      {
+        ...current,
+        events: [...current.events, event],
+        updatedAt: now,
+      },
+    );
   }
 
   private static async readHistory(
