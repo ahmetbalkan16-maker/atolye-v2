@@ -29,7 +29,7 @@ export const productionCapabilityMatrix: readonly ProductionCapability[] = [
   capability("retry-policy", "planned", "not-defined", false, ["audit-trail", "recovery"], "Failure classification and safe retry rules are undefined."),
   capability("rollback", "unsupported", "not-defined", true, ["recovery"], "Rollback support must be declared per operation; none is promised."),
   capability("recovery", "planned", "not-defined", false, ["audit-trail", "persistent-idempotency"], "Partial-success recovery and journals are not implemented."),
-  capability("controlled-rollout", "planned", "not-defined", true, ["authorization", "confirmation", "persistent-idempotency", "audit-trail"], "Real execution remains default-off until policy gates pass."),
+  capability("controlled-rollout", "ready", "stable", true, ["authorization", "confirmation", "persistent-idempotency", "audit-trail"], "Pure rollout and kill-switch policy foundation; real execution remains default-off."),
 ];
 
 export const productionExecutionThreats: readonly ProductionExecutionThreat[] = [
