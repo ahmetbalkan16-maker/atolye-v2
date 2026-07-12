@@ -47,19 +47,19 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 97.4**
+**Sprint 97.5**
 
-Execution Transaction Contract
+Operation Journal Contract
 
 **Durum**
 
 Completed
 
-Declarative transaction plan, mutation intent, temp/validate/commit/manifest-last/consistency ve rollback contract foundation'i tamamlandi. Gercek write kapali kaldi.
+Append-only journal event, correlation, sequence validation ve canonical projection contract foundation'i tamamlandi. Gercek append/persistence kapali kaldi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 97.5 Operation Journal Contract.
+- Bir sonraki onerilen gorev Sprint 97.6 Queue & Dispatch Contract.
 
 ---
 
@@ -71,7 +71,7 @@ main
 
 Son Commit
 
-d655db9
+3652d01
 
 Durum
 
@@ -1771,6 +1771,20 @@ Durum: Completed
 - Gercek temp/write/rename/delete/manifest/rollback/journal islemi eklenmedi.
 - Smoke PASS (50 senaryo); idempotency regresyonu, TypeScript ve diff check PASS.
 - Sonraki sprint: Sprint 97.5 Operation Journal Contract.
+
+---
+
+### Sprint 97.5 — Operation Journal Contract
+
+Durum: Completed
+
+- Commit: 3652d01 feat(production): add operation journal contract
+- Schema v1 append-only event, stable event type, correlation ve integrity contract'lari eklendi.
+- Pure sequence validator event/sequence uniqueness, gap, timestamp, binding, attempt ve terminal invariants'i dogrular.
+- Projection unordered inputu canonical sequence ile lifecycle state'e map eder; unsafe evidence public payloada sizmaz.
+- Gercek append, dosya/database persistence, telemetry veya external audit sink eklenmedi.
+- Smoke PASS (50 senaryo); transaction regresyonu, TypeScript ve diff check PASS.
+- Sonraki sprint: Sprint 97.6 Queue & Dispatch Contract.
 
 ---
 
