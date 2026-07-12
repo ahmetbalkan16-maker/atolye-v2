@@ -47,19 +47,19 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 97.2**
+**Sprint 97.3**
 
-Execution Confirmation Contract
+Persistent Idempotency Contract
 
 **Durum**
 
 Completed
 
-Production execution icin pure, deterministic confirmation request, grant, binding ve validation contract foundation'i tamamlandi. Token, persistence ve execution kapali kaldi.
+Production execution icin pure, deterministic persistent idempotency identity, lifecycle, replay, recovery ve lease contract foundation'i tamamlandi. Gercek persistence, lock, queue ve execution kapali kaldi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 97.3 Persistent Idempotency Contract.
+- Bir sonraki onerilen gorev Sprint 97.4 Execution Transaction Contract.
 
 ---
 
@@ -71,7 +71,7 @@ main
 
 Son Commit
 
-e528878
+b4ec40e
 
 Durum
 
@@ -1716,6 +1716,47 @@ Sinirlar ve test:
 Bir sonraki onerilen adim:
 
 - Sprint 97.3 Persistent Idempotency Contract.
+
+---
+
+### Sprint 97.3 — Persistent Idempotency Contract
+
+Durum:
+Completed
+
+Commit:
+
+- b4ec40e feat(production): add persistent idempotency contract
+
+Identity ve persistent record contract:
+
+- Schema v1 deterministic execution identity; idempotency/request/execution/binding fingerprint, authorization, confirmation, actor, project, operation, action, stage, policy, risk ve explicit createdAt baglarini tasir.
+- Mevcut canonical serialization ve stableProductionId yalniz deterministic identity/integrity amaciyla kullanilir; kriptografik guvenlik iddiasi yoktur.
+- Persistent record snapshot contract'i state, attempt/maxAttempts, lifecycle timestamps, lease, result, failure, recovery, evidence ve versioned integrity alanlarini tanimlar; storage adapter'i eklenmedi.
+- Canonical lifecycle reserved -> prepared -> queued -> running -> succeeded/failed/cancelled/partially-succeeded olarak tanimlandi.
+
+Transition, replay ve recovery:
+
+- Pure transition evaluator canonical graph, source state, expected version, timestamp, attempt, worker scope ve running lease kosullarini deny-by-default degerlendirir.
+- Duplicate reserved/prepared/queued/running request yeni execution baslatmaz; succeeded replay mevcut sonucu dondurme adayidir.
+- Ayni key ile farkli binding veya execution fingerprint ve ayni request ID ile farkli key conflict uretir.
+- Failed retry; partially-succeeded resume veya reconcile adayidir. Attempt limiti ve server policy zorunludur.
+- High-risk retry/resume yeni authorization ve confirmation gereksinimini metadata olarak tasir; single-use confirmation yeniden kullanilamaz.
+- Lease contract active/expired/released/invalid status, worker ID/scope, explicit acquired/heartbeat/expiry ve version alanlarini tanimlar; lock, acquisition veya heartbeat write yoktur.
+
+Sinirlar ve test:
+
+- Persistent-idempotency capability canonical matrix'te ready, stable ve read-only durumuna getirildi.
+- Filesystem/database write, idempotency store, reservation persistence, mutex/lock, lease write, queue/worker, execution, mutation, provider/network call, retry/resume/reconcile execution, endpoint, UI veya polling eklenmedi.
+- Sprint 97.3 idempotency smoke PASS (60 senaryo).
+- Sprint 97.2 confirmation, Sprint 97.1 authorization ve Sprint 97.0 closure smoke PASS.
+- Sprint 96.1-96.8, Sprint 95.2-96.0 ve retry/state/corruption/orchestration/history/continuation regresyonlari PASS.
+- npm run lint 0 warning, npx tsc --noEmit --incremental false, npm run build ve git diff --check PASS.
+- Legacy next.config.ts -> FileStorage -> AssetManager -> assets route Turbopack NFT trace uyarisi build'i engellemez ve Sprint 97.3 kaynakli degildir.
+
+Bir sonraki onerilen adim:
+
+- Sprint 97.4 Execution Transaction Contract.
 
 ---
 
