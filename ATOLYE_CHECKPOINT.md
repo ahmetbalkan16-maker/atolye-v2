@@ -47,19 +47,19 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 97.1**
+**Sprint 97.2**
 
-Execution Authorization Contract
+Execution Confirmation Contract
 
 **Durum**
 
 Completed
 
-Production execution icin pure, deterministic ve deny-by-default authorization contract foundation'i tamamlandi. Real execution ve enforcement kapali kaldi.
+Production execution icin pure, deterministic confirmation request, grant, binding ve validation contract foundation'i tamamlandi. Token, persistence ve execution kapali kaldi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 97.2 Execution Confirmation Contract.
+- Bir sonraki onerilen gorev Sprint 97.3 Persistent Idempotency Contract.
 
 ---
 
@@ -71,7 +71,7 @@ main
 
 Son Commit
 
-0d7b72c
+e528878
 
 Durum
 
@@ -1675,6 +1675,47 @@ Test ve dogrulama:
 Bir sonraki onerilen adim:
 
 - Sprint 97.2 Execution Confirmation Contract.
+
+---
+
+### Sprint 97.2 — Execution Confirmation Contract
+
+Durum:
+Completed
+
+Commit:
+
+- e528878 feat(production): add execution confirmation contract
+
+Confirmation contract foundation:
+
+- Schema v1 confirmation request, immutable grant, stable status, build result ve validation result contract'lari eklendi.
+- Request authorization decision, actor, project, operation, action, stage, request ID, idempotency key, execution fingerprint, policy version, risk, confirmation level, expiry ve single-use alanlarina baglidir.
+- Binding fingerprint mevcut canonical serialization ve stableProductionId helper'i ile deterministic integrity identity olarak uretilir; kriptografik token veya imza iddiasi tasimaz.
+- Authorization decision contract'ina deterministic decisionId, actor type ve execution request identity alanlari additive olarak eklendi.
+
+Validation ve policy:
+
+- Pure builder yalniz allow/authorized ve confirmation-required authorization sonucundan request uretir.
+- Pure validator actor/project/operation/action/stage, authorization decision, request/idempotency/fingerprint, policy/risk/level ve binding fingerprint eslesmelerini deny-by-default dogrular.
+- Explicit evaluatedAt kullanilir; gizli sistem zamani yoktur. ISO UTC issued/requested/expiry sirasi ve expiration kontrol edilir.
+- Default confirmation policy disabled durumdadir. High ve critical risk single-use gerektirir; critical risk distinct confirmer gereksinimi metadata/validation seviyesinde tanimlidir.
+- Retry-stage ve resume-stage high risk ve en az high confirmation gereksinimini korur.
+- Consumed, revoked, rejected, pending, expired, invalid ve unknown status/level/risk valid uretmez.
+- Evidence yalniz deterministic public-safe policy/reason kategorileri tasir; raw exception, secret, stack trace veya absolute path tasimaz.
+
+Sinirlar ve test:
+
+- Confirmation token/JWT/signing, endpoint, store, persistence, consumption write, idempotency reservation, execution, mutation, queue/worker, provider/network call, middleware enforcement, UI kontrolu veya polling eklenmedi.
+- Sprint 97.2 confirmation smoke PASS (48 senaryo).
+- Sprint 97.1 authorization ve Sprint 97.0 closure smoke PASS.
+- Sprint 96.1-96.8, Sprint 95.2-96.0 ve ilgili retry/state/corruption/orchestration/history/continuation regresyonlari PASS.
+- npm run lint, npx tsc --noEmit --incremental false, npm run build ve git diff --check PASS.
+- Legacy next.config.ts -> FileStorage -> AssetManager -> assets route Turbopack NFT trace uyarisi build'i engellemez ve Sprint 97.2 kaynakli degildir.
+
+Bir sonraki onerilen adim:
+
+- Sprint 97.3 Persistent Idempotency Contract.
 
 ---
 
