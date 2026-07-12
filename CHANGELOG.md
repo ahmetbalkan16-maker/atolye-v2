@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Medium
 Owner: Atölye V2
-Last Updated: 2026-07-11
+Last Updated: 2026-07-12
 ---
 
 # Atölye V2 — Changelog
@@ -24,6 +24,28 @@ referans alınmalıdır.
 ---
 
 # Version 1.x
+
+## Sprint 98.0 — Production Execution Persistence Adapter Foundation
+
+Completed
+
+- Transaction, operation journal, idempotency ve reservation kayitlari icin ortak, type-safe persistence adapter interface'i eklendi; Sprint 97 frozen schema v1 contract'lari degistirilmedi.
+- Trusted JSON/file adapter traversal-safe canonical record key, unique temp artifact, exclusive `wx` create, canonical temp validation ve hard-link no-replace commit kullanir.
+- Paralel writer'lar ayni payload icin created + idempotent replay, farkli payload icin created + stable existing-record conflict uretir. Race kaybeden writer committed target'i yeniden okur.
+- Temp ownership ve cleanup diagnostics sertlestirildi; basarisiz exclusive create baska writer'in temp dosyasini silemez. Cleanup failure committed sonucu maskelemez ve `tempArtifactPossible` bilgisini korur.
+- Canonical serialization key-order bagimsizdir; circular, BigInt, non-finite, unsupported ve special-prototype degerler stabil serialization failure uretir.
+- Read/write discriminated union'lari ve stabil error code'lari invalid input/schema, not-found, permission/I/O, corrupt record, temp validation, commit ve conflict durumlarini ayirir; absolute path veya raw filesystem mesaji sizdirmaz.
+- Transaction frozen builder/validator ile yeniden uretilip canonical tam plan olarak karsilastirilir. Journal frozen event builder/sequence validator; idempotency frozen identity builder/replay evaluator; reservation frozen validator/identity builder kullanir.
+- Review P0: 0, P1: 0. Ilk shallow-validation ve atomic-create P1 bulgulari kapandi.
+- P2 takip: frozen transaction schema v1 actor/project alanlarini ID core veya integrity fingerprint'e dahil etmez. Bu inherited limitation adapter bug'i degildir; frozen v1 degistirilmeden schema v2 + migration + version negotiation ile ele alinacak.
+- P3 takip: runtime shape gate icin dusuk oncelikli bakim/contract-drift riski.
+- Gateway disabled/preview-only ve dispatch/execution false kaldi. Adapter production execution akisina baglanmadi; provider execution, mutation route, queue dispatch, worker processing veya UI execution eklenmedi.
+- Sprint 98.0 smoke 70 senaryo, Sprint 97 zinciri 10/10 ve tum Sprint 89-98 smoke betikleri 34/34 PASS. TypeScript, lint 0 warning, production build, diff/whitespace ve execution boundary kontrolleri PASS.
+- Build'de yalniz Sprint 98.0 disindaki eski Turbopack NFT whole-project trace uyarisi kaldi.
+- Kaynaklar commit edilmedi veya push edilmedi: `src/types/productionExecutionPersistence.ts`, `src/lib/production/ProductionExecutionPersistence.ts`, `scripts/smoke-production-execution-persistence.ts`.
+- `app/project/[slug]/page.tsx` icerik diff'i olmayan modified isaretiyle korundu; restore/reset/stash/discard uygulanmadi.
+
+---
 
 ## 2026-07
 

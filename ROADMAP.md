@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: High
 Owner: Atölye V2
-Last Updated: 2026-07-11
+Last Updated: 2026-07-12
 ---
 
 # Atölye V2 — Development Roadmap
@@ -39,7 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 95 — Production Intelligence
+Sprint 98.0 — Production Execution Persistence Adapter Foundation (Completed)
+
+Siradaki Planlama Adimi
+
+Sprint 98.1 — Durable Idempotency and Reservation Storage Integration
+
+Sprint 98.1 otomatik uygulanmayacak; gercek production execution kapali kalacaktir.
 
 ---
 
@@ -983,6 +989,31 @@ Completed
 Sonraki gorev:
 
 - Sprint 95.4 — Health Check Rules Foundation.
+
+---
+
+# Sprint 98.0
+
+## Production Execution Persistence Adapter Foundation
+
+Durum
+
+Completed
+
+- Transaction, operation journal, idempotency ve reservation icin ortak persistence adapter interface'i tamamlandi; frozen schema v1 contract'lari korunuyor.
+- JSON/file adapter canonical serialization, exclusive unique temp write, temp read/validation ve hard-link no-replace commit kullanir.
+- Paralel writer davranisi ayni payload icin created + idempotent replay, farkli payload icin created + stable conflict olarak dogrulandi.
+- Frozen transaction builder/validator, journal builder/validator, idempotency identity builder/replay evaluator ve reservation validator kullanilir.
+- Invalid incoming payload, corrupt existing record, filesystem failure ve cleanup diagnostic contract'lari ayridir.
+- Gateway disabled/preview-only; dispatch, execution, provider, mutation, queue, worker ve UI execution kapali kalir.
+- Review: P0 0, P1 0. P2 inherited transaction schema v1 actor/project integrity kapsami; P3 runtime shape gate bakim/drift riski.
+- Frozen v1 degistirilmeyecek. Actor/project integrity kapsami transaction schema v2, migration ve version negotiation takip maddesidir.
+- Sprint 98.0 smoke 70 senaryo PASS; Sprint 97 zinciri 10/10 ve tum Sprint 89-98 smoke betikleri 34/34 PASS. TypeScript, lint 0 warning, build ve diff check PASS.
+
+Sonraki planlama adimi:
+
+- Sprint 98.1 — Durable Idempotency and Reservation Storage Integration.
+- Sprint 98.1 otomatik uygulanmayacak ve gercek execution acilmayacak.
 
 ---
 

@@ -47,19 +47,19 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 97.9**
+**Sprint 98.0**
 
-Production Execution Phase Review
+Production Execution Persistence Adapter Foundation
 
 **Durum**
 
 Completed
 
-Production execution contract foundation review, smoke ve minimum hardening ile kapatildi. Contract'lar freeze edildi; gercek execution, persistence, queue dispatch, worker ve UI execution kontrolleri kapali kaldi.
+Transaction, operation journal, idempotency ve reservation kayitlari icin ortak, kontrollu ve test edilebilir persistence adapter foundation tamamlandi. Gercek execution kapali kaldi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 98'de tek bir dusuk riskli executable action secimi ve persistence/recovery tasarim onayidir.
+- Bir sonraki planlama adimi Sprint 98.1 Durable Idempotency and Reservation Storage Integration'dir; otomatik uygulanmayacak ve gercek execution acilmayacaktir.
 
 ---
 
@@ -71,11 +71,11 @@ main
 
 Son Commit
 
-35b40d0
+cda6d48
 
 Durum
 
-✅ GitHub ile senkron
+Sprint 98.0 kaynak ve dokumantasyon degisiklikleri commit edilmedi; origin/main HEAD cda6d48.
 
 ---
 
@@ -1842,6 +1842,60 @@ Durum: Completed
 - Gercek execution, persistence, confirmation consumption/reservation write, queue dispatch, worker ve UI execution kontrolleri kapali; gateway default disabled/preview-only ve dispatchAllowed/executionAllowed false kalir.
 - Final review: `docs/PRODUCTION_EXECUTION_PHASE_REVIEW.md`.
 - Sonraki sprint: Sprint 98 icin tek bir dusuk riskli executable action sec; persistence adapter, transaction recovery, trusted identity, durable audit/idempotency ve rollout/kill-switch sahipligini uygulamadan once onayla.
+
+---
+
+### Sprint 98.0 — Production Execution Persistence Adapter Foundation
+
+Durum: Completed
+
+Kapsam:
+
+- Transaction, operation journal, idempotency ve reservation kayitlari ortak `ProductionExecutionPersistenceAdapter` sinirindan geciyor; frozen schema v1 contract'lari degistirilmedi.
+- Ilk adapter trusted composition root altinda kontrollu JSON/file persistence kullanir. Record key'ler lowercase ASCII, sayi ve sinirli separator kullanan traversal-safe, platformlar arasi tasinabilir canonical formatla sinirlidir.
+- Her write attempt benzersiz temp dosyasi ve exclusive `wx` create kullanir. Temp icerik canonical serialization sonrasinda tekrar okunur, schema ve integrity acisindan dogrulanir.
+- Final target hard-link no-replace ile olusturulur; POSIX rename overwrite davranisina bagimlilik yoktur. Commit yarisini kaybeden writer target'i tekrar okuyarak ayni payload icin idempotent replay, farkli payload icin stable existing-record conflict uretir.
+- Temp ownership yalniz exclusive create basarili oldugunda kazanilir. Attempt-ID collision durumunda basarisiz writer baska writer'in temp dosyasini silmez.
+- Cleanup failure ana sonucu maskelemez; safe cause code ve `tempArtifactPossible` diagnostic'i korunur.
+- Canonical serialization object key sirasindan bagimsizdir. Circular reference, BigInt, non-finite number, unsupported runtime value ve ozel prototype stabil serialization failure uretir.
+- Read/write sonuclari discriminated union'dir. ENOENT, permission/I/O, corrupt record, invalid input/schema, temp validation, commit ve conflict durumlari stabil error code'larla ayrilir; absolute path veya filesystem mesaji public contract'a sizmaz.
+
+Frozen schema validation:
+
+- Transaction: frozen `validateProductionExecutionTransactionPlan` ve `buildProductionExecutionTransactionPlan` kullanilir; rebuilt canonical plan incoming plan ile tam karsilastirilir. Stale transaction/operation ID, execution fingerprint binding, step icerigi, copied integrity ve corrupt-on-disk integrity reddedilir.
+- Journal: frozen event builder ve sequence validator kullanilir.
+- Idempotency: authorization/confirmation girdileri record'dan yeniden kurulur; frozen `buildProductionExecutionIdempotencyIdentity` ile rebuilt identity/fingerprint karsilastirilir ve frozen replay evaluator lifecycle/state kontrolu yapar.
+- Reservation: frozen reservation validator ve identity builder kullanilir. Incoming invalid payload ile diskteki corrupt record ayri sonuclardir.
+- Runtime shape gate yalniz guvenli narrowing yapar; semantic ve integrity karari frozen builder/validator/evaluator kaynaklarina aittir.
+
+Review:
+
+- P0: 0.
+- P1: 0. Ilk review'daki shallow schema validation ve atomic create/conflict P1 bulgulari kapandi.
+- P2: Frozen transaction schema v1 actor/project alanlarini transaction ID core'una veya integrity fingerprint girdisine dahil etmez. Bu inherited frozen-contract limitation adapter bug'i degildir ve Sprint 98.0 kapanisini bloklamaz. Frozen v1 degistirilmeyecek; takip cozum transaction schema v2, migration ve version negotiation tasarimidir.
+- P3: Runtime shape gate icin dusuk oncelikli bakim/contract-drift riski.
+
+Guvenlik sinirlari:
+
+- Controlled gateway `enabled:false`, `mode:"preview-only"`, `allowDispatch:false` ve `allowExecution:false` kalir.
+- Adapter production execution akisina baglanmadi. Provider execution, mutation endpoint, queue enqueue/dispatch, worker processing veya UI execution eklenmedi.
+- Sprint 97 frozen contract dosyalari degistirilmedi.
+
+Dogrulama:
+
+- Sprint 98.0 persistence smoke PASS (70 senaryo).
+- Sprint 97.0-97.9 zinciri 10/10 PASS; tum Sprint 89-98 smoke betikleri 34/34 PASS.
+- TypeScript PASS; lint PASS (0 warning); production build PASS; `git diff --check` PASS.
+- Untracked whitespace/conflict-marker kontrolu PASS.
+- Yasak production execution boundary, dogrudan execution-state write, production route execution ve UI execution taramalari temiz.
+- Build'de yalniz eski Turbopack NFT whole-project trace uyarisi bulunur; Sprint 98.0 kaynakli degildir ve build'i engellemez.
+
+Calisma agaci notu:
+
+- Sprint 98.0 kaynaklari: `src/types/productionExecutionPersistence.ts`, `src/lib/production/ProductionExecutionPersistence.ts`, `scripts/smoke-production-execution-persistence.ts`.
+- `app/project/[slug]/page.tsx` icerik diff'i olmayan modified isaretiyle korundu; dosyaya dokunulmadi ve restore/reset/stash/discard uygulanmadi.
+- Sprint 98.0 icin commit veya push yapilmadi.
+- Sonraki planlama adimi: Sprint 98.1 — Durable Idempotency and Reservation Storage Integration. Otomatik uygulanmayacak; gercek execution kapali kalacak.
 
 ---
 
