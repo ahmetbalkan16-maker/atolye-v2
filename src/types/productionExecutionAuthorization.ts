@@ -6,6 +6,7 @@ export const productionExecutionAuthorizationSchemaVersion = "1" as const;
 export type ProductionExecutionActorType = "user" | "service" | "worker" | "system";
 export type ProductionExecutionAuthorizationDecision = "allow" | "deny" | "indeterminate";
 export type ProductionExecutionAuthorizationRisk = "none" | "low" | "medium" | "high" | "critical";
+export type ProductionExecutionAuthorizationConfirmationLevel = "none" | "standard" | "elevated" | "high" | "critical";
 export type ProductionExecutionAuthorizationReasonCode =
   | "AUTHORIZED"
   | "ACTOR_MISSING"
@@ -73,7 +74,7 @@ export interface ProductionExecutionAuthorizationPolicy {
   allowedStages: readonly string[];
   requiredCapabilitiesByAction: Readonly<Partial<Record<ProductionActionType, readonly ProductionCapabilityId[]>>>;
   workerRequirements: { requiredOperations: readonly string[] };
-  riskRequirements: Readonly<Partial<Record<ProductionActionType, { risk: ProductionExecutionAuthorizationRisk; requiresConfirmation: boolean; requiredConfirmationLevel: "none" | "standard" | "high" }>>>;
+  riskRequirements: Readonly<Partial<Record<ProductionActionType, { risk: ProductionExecutionAuthorizationRisk; requiresConfirmation: boolean; requiredConfirmationLevel: ProductionExecutionAuthorizationConfirmationLevel }>>>;
 }
 
 export interface ProductionExecutionAuthorizationContext {
@@ -82,12 +83,17 @@ export interface ProductionExecutionAuthorizationContext {
 
 export interface ProductionExecutionAuthorizationResult {
   schemaVersion: typeof productionExecutionAuthorizationSchemaVersion;
+  decisionId: string;
   decision: ProductionExecutionAuthorizationDecision;
   authorized: boolean;
   reasonCode: ProductionExecutionAuthorizationReasonCode;
   reason: string;
   evaluatedAt: string;
+  requestId: string;
+  idempotencyKey: string;
+  executionFingerprint: string;
   actorId: string;
+  actorType: ProductionExecutionActorType;
   projectSlug: string;
   operation: string;
   action: string;
@@ -98,6 +104,6 @@ export interface ProductionExecutionAuthorizationResult {
   policyVersion: string;
   risk: ProductionExecutionAuthorizationRisk;
   requiresConfirmation: boolean;
-  requiredConfirmationLevel: "none" | "standard" | "high";
+  requiredConfirmationLevel: ProductionExecutionAuthorizationConfirmationLevel;
   evidence: string[];
 }

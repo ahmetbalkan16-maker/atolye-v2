@@ -10,6 +10,7 @@ import type {
 import { productionExecutionAuthorizationSchemaVersion } from "@/types/productionExecutionAuthorization";
 import type { ProductionCapabilityId } from "@/types/productionExecutionSafety";
 import { isValidProductionProjectSlug } from "./ProductionProjectSlug";
+import { stableProductionId } from "./ProductionDeterminism";
 import { productionActionRiskProfiles, productionCapabilityMatrix } from "./ProductionExecutionSafetyPlan";
 
 const actions: readonly ProductionActionType[] = ["inspect-source", "reconcile-state", "retry-stage", "resume-stage", "review-metric"];
@@ -88,8 +89,13 @@ function result(request: ProductionExecutionAuthorizationRequest, policy: Produc
   const granted = canonical(context.grantedCapabilities);
   const risk = action ? policy.riskRequirements[action] : undefined;
   return {
-    schemaVersion: productionExecutionAuthorizationSchemaVersion, decision, authorized: decision === "allow", reasonCode,
-    reason: reasonMessages[reasonCode], evaluatedAt: request.requestedAt, actorId: request.actor?.id ?? "unknown-actor",
+    schemaVersion: productionExecutionAuthorizationSchemaVersion,
+    decisionId: stableProductionId("authorization-decision", { requestId: request.requestId, actorId: request.actor?.id, projectSlug: request.project.slug, operation: request.operation, action: request.action, stage: request.stage, policyVersion: policy.policyVersion, evaluatedAt: request.requestedAt, decision, reasonCode }),
+    decision, authorized: decision === "allow", reasonCode,
+    reason: reasonMessages[reasonCode], evaluatedAt: request.requestedAt,
+    requestId: publicIdentifier(request.requestId), idempotencyKey: publicIdentifier(request.idempotencyKey), executionFingerprint: publicIdentifier(request.executionFingerprint),
+    actorId: request.actor?.id ?? "unknown-actor",
+    actorType: request.actor?.type ?? "system",
     projectSlug: request.project.slug, operation: request.operation, action: request.action, ...(request.stage ? { stage: request.stage } : {}),
     requiredCapabilities: required, grantedCapabilities: granted, missingCapabilities: required.filter((item) => !granted.includes(item)),
     policyVersion: policy.policyVersion || "invalid-policy", risk: risk?.risk ?? "none",
@@ -115,3 +121,4 @@ function hasCycle(ids: readonly ProductionCapabilityId[]) {
 function validPolicy(policy: ProductionExecutionAuthorizationPolicy) {
   return Boolean(policy.policyVersion) && policy.allowedActions.every((action) => actions.includes(action)) && policy.allowedStages.every((stage) => pipelineRecoveryStageOrder.includes(stage as (typeof pipelineRecoveryStageOrder)[number]));
 }
+function publicIdentifier(value: string) { return /^[a-zA-Z0-9_-]{1,200}$/.test(value) && !/secret|api[_-]?key|stack|token|password/i.test(value) ? value : "invalid-identifier"; }
