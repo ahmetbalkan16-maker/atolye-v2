@@ -87,5 +87,5 @@ async function main(){const root=await fs.mkdtemp(path.join(os.tmpdir(),"atolye-
 function assertFailure(result:{ok:boolean;errorCode?:string},code:string){assert.equal(result.ok,false);if(!result.ok)assert.equal(result.errorCode,code)}
 function assertReadFailure(result:{ok:boolean;status:string;errorCode?:string},code:string){assert.equal(result.status,"failed");if(!result.ok)assert.equal(result.errorCode,code)}
 function codeError(code:string){return Object.assign(new Error("injected"),{code})}
-function operations(overrides:Partial<TrustedProductionExecutionPersistenceFileOperations>):TrustedProductionExecutionPersistenceFileOperations{return{access:fs.access,mkdir:fs.mkdir,readFile:fs.readFile,writeFile:fs.writeFile,link:fs.link,unlink:fs.unlink,...overrides} as TrustedProductionExecutionPersistenceFileOperations}
+function operations(overrides:Partial<TrustedProductionExecutionPersistenceFileOperations>):TrustedProductionExecutionPersistenceFileOperations{return{access:fs.access,mkdir:fs.mkdir,readFile:fs.readFile,readdir:fs.readdir,writeFile:fs.writeFile,link:fs.link,unlink:fs.unlink,...overrides} as TrustedProductionExecutionPersistenceFileOperations}
 void main();

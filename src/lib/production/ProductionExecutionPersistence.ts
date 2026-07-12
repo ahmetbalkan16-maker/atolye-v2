@@ -9,12 +9,13 @@ import type { ProductionExecutionAuthorizationResult } from "@/types/productionE
 import type { ProductionExecutionConfirmationValidationResult } from "@/types/productionExecutionConfirmation";
 import type { ProductionExecutionTransactionPlan } from "@/types/productionExecutionTransaction";
 import type { ProductionOperationJournalEvent } from "@/types/productionOperationJournal";
-import type { ProductionExecutionPersistenceAdapter, ProductionExecutionPersistenceDiagnostic, ProductionExecutionPersistenceErrorCode, ProductionExecutionPersistencePayloadByKind, ProductionExecutionPersistenceReadResult, ProductionExecutionPersistenceRecordKind, ProductionExecutionPersistenceWriteResult } from "@/types/productionExecutionPersistence";
+import type { ProductionExecutionPersistenceAdapter, ProductionExecutionPersistenceDiagnostic, ProductionExecutionPersistenceErrorCode, ProductionExecutionPersistenceListResult, ProductionExecutionPersistencePayloadByKind, ProductionExecutionPersistenceReadResult, ProductionExecutionPersistenceRecordKind, ProductionExecutionPersistenceWriteResult } from "@/types/productionExecutionPersistence";
 
 export interface TrustedProductionExecutionPersistenceFileOperations {
   access(filePath: string): Promise<void>;
   mkdir(directoryPath: string, options: { recursive: true }): Promise<unknown>;
   readFile(filePath: string, encoding: "utf8"): Promise<string>;
+  readdir(directoryPath: string): Promise<string[]>;
   writeFile(filePath: string, data: string, options: { encoding: "utf8"; flag: "wx" }): Promise<unknown>;
   link(existingPath: string, newPath: string): Promise<void>;
   unlink(filePath: string): Promise<void>;
@@ -101,6 +102,16 @@ export class ProductionExecutionFilePersistenceAdapter implements ProductionExec
     return { ok: true, status: "found", kind, key, value: result.value as ProductionExecutionPersistencePayloadByKind[K] };
   }
 
+  async listKeys<K extends ProductionExecutionPersistenceRecordKind>(kind: K): Promise<ProductionExecutionPersistenceListResult<K>> {
+    try {
+      const names = await this.operations.readdir(this.directory(kind));
+      return { ok: true, status: "listed", kind, keys: names.filter((name) => name.endsWith(".json") && !name.includes(".tmp")).map((name) => name.slice(0, -5)).sort() };
+    } catch (error) {
+      if (errorCode(error) === "ENOENT") return { ok: true, status: "listed", kind, keys: [] };
+      return { ok: false, status: "failed", kind, errorCode: "PERSISTENCE_READ_FAILED", diagnostics: [diagnostic("read", error, false)] };
+    }
+  }
+
   private async ensureDirectory(directory: string): Promise<{ errorCode: "PERSISTENCE_DIRECTORY_MISSING" | "PERSISTENCE_READ_FAILED"; diagnostic: ProductionExecutionPersistenceDiagnostic } | undefined> {
     try { if (this.createDirectory) await this.operations.mkdir(directory, { recursive: true }); else await this.operations.access(directory); return undefined; }
     catch (error) { return { errorCode: errorCode(error) === "ENOENT" ? "PERSISTENCE_DIRECTORY_MISSING" : "PERSISTENCE_READ_FAILED", diagnostic: diagnostic("directory", error, false) }; }
@@ -148,6 +159,10 @@ function validatePayload(kind: ProductionExecutionPersistenceRecordKind, value: 
     if (kind === "idempotency") return { valid: idempotencyRecordValid(value), schemaUnsupported: false };
     return { valid: reservationValid(value), schemaUnsupported: false };
   } catch { return { valid: false, schemaUnsupported: false }; }
+}
+
+export function validateProductionExecutionPersistencePayload(kind: ProductionExecutionPersistenceRecordKind, value: unknown): boolean {
+  return validatePayload(kind, value).valid;
 }
 
 function transactionShape(v: Record<string, unknown>) { return strings(v, ["transactionId","operationId","idempotencyRecordId","requestId","idempotencyKey","executionFingerprint","actorId","projectSlug","operation","action","policyVersion","plannedAt"]) && integer(v.attempt) && Array.isArray(v.steps) && v.steps.length > 0 && v.steps.every((s) => isRecord(s) && strings(s,["stepId","type","resource","expectedOutcome","failureMode","journalEventType","status"]) && integer(s.sequence) && arrays(s,["dependsOn","preconditions"])) && arrays(v,["resources","preconditions","postconditions"]) && isRecord(v.rollbackPlan) && typeof v.rollbackPlan.required === "boolean" && Array.isArray(v.rollbackPlan.steps) && isRecord(v.consistencyPlan) && typeof v.consistencyPlan.required === "boolean" && Array.isArray(v.consistencyPlan.checks) && isRecord(v.journalPlan) && typeof v.journalPlan.required === "boolean" && Array.isArray(v.journalPlan.eventTypes) && integrity(v.integrity); }
