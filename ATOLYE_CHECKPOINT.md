@@ -47,19 +47,19 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 97.3**
+**Sprint 97.4**
 
-Persistent Idempotency Contract
+Execution Transaction Contract
 
 **Durum**
 
 Completed
 
-Production execution icin pure, deterministic persistent idempotency identity, lifecycle, replay, recovery ve lease contract foundation'i tamamlandi. Gercek persistence, lock, queue ve execution kapali kaldi.
+Declarative transaction plan, mutation intent, temp/validate/commit/manifest-last/consistency ve rollback contract foundation'i tamamlandi. Gercek write kapali kaldi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 97.4 Execution Transaction Contract.
+- Bir sonraki onerilen gorev Sprint 97.5 Operation Journal Contract.
 
 ---
 
@@ -71,7 +71,7 @@ main
 
 Son Commit
 
-b4ec40e
+d655db9
 
 Durum
 
@@ -1757,6 +1757,20 @@ Sinirlar ve test:
 Bir sonraki onerilen adim:
 
 - Sprint 97.4 Execution Transaction Contract.
+
+---
+
+### Sprint 97.4 — Execution Transaction Contract
+
+Durum: Completed
+
+- Commit: d655db9 feat(production): add execution transaction contract
+- Schema v1 transaction plan, mutation intent, canonical steps, rollback, consistency ve journal plan contract'lari eklendi.
+- Temp -> write -> validate -> commit -> manifest-last -> consistency -> terminal journal sirasi pure builder/validator ile dogrulandi.
+- Relative target, traversal, fingerprint, write-mode, dependency, cycle, sequence ve binding kontrolleri deny-by-default calisir.
+- Gercek temp/write/rename/delete/manifest/rollback/journal islemi eklenmedi.
+- Smoke PASS (50 senaryo); idempotency regresyonu, TypeScript ve diff check PASS.
+- Sonraki sprint: Sprint 97.5 Operation Journal Contract.
 
 ---
 
