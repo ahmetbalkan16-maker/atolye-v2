@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Critical
 Owner: Atölye V2
-Last Updated: 2026-07-12
+Last Updated: 2026-07-13
 ---
 
 # ⚠️ AI START HERE
@@ -47,20 +47,20 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 99.1**
+**Sprint 100**
 
-Durable Storage Recovery & Index Hardening
+Durable Lease & Worker Ownership Foundation
 
 **Durum**
 
 Completed
 
-Write-free recovery scan, explicit recovery apply, orphan artifact policy, rebuildable derived lookup index ve directory durability limitation contract'i tamamlandi. Canonical durable records source of truth kaldi; gercek execution kapali kaldi.
+Durable worker/session ownership, lease acquisition, heartbeat/renewal, explicit expiry/takeover ve release contract'lari append-only CAS modeliyle tamamlandi. Gercek worker veya execution acilmadi.
 
 Not:
 
-- Recovery caller tarafindan explicit cagrilir; startup cleanup, polling veya background orchestration yoktur.
-- Execution, queue, worker, provider/network ve UI execution sinirlari kapali kalir.
+- Tum lease degerlendirmeleri caller tarafindan verilen explicit `evaluatedAt` ile yapilir; heartbeat interval, polling veya background expiration yoktur.
+- Process/worker, queue, provider/network, execution API ve UI execution sinirlari kapali kalir.
 
 ---
 
@@ -72,11 +72,11 @@ main
 
 Son Commit
 
-42ff8de
+7561f3d
 
 Durum
 
-Sprint 99.1 tamamlandi; kullanici talebi geregi commit ve push yapilmadi.
+Sprint 100 tamamlandi; kullanici talebi geregi commit ve push yapilmadi.
 
 ---
 
@@ -1944,6 +1944,25 @@ Completed
 - Recovery execution, queue, worker, provider/network, UI execution, polling, timer veya startup cleanup akisina baglanmadi; gerekli operation girdileri caller-controlled kalir.
 - Sprint 99.1 smoke PASS (29 senaryo); Sprint 97.1–99.0 hedefli regresyon zinciri 11/11 PASS; genel smoke runner 36/36 PASS.
 - `npx tsc --noEmit --incremental false`, lint (0 error/0 warning) ve production build PASS. Build'de yalniz legacy `next.config.ts -> FileStorage -> AssetManager -> assets route` Turbopack NFT whole-project trace uyarisi kaldi.
+- Commit veya push yapilmadi.
+
+---
+
+### Sprint 100 — Durable Lease & Worker Ownership Foundation
+
+Completed
+
+- Portable server-controlled worker identity, worker session identity, lease identity, ownership evidence, acquisition, heartbeat/renewal, evaluation, takeover ve release contract'lari eklendi. Public contract PID, hostname, process bilgisi veya secret tasimaz.
+- Lease mutation'lari canonical durable record'i overwrite etmez; mevcut append-only `record-vN` modeli, expectedVersion CAS ve atomic hard-link no-replace commit ile her basarili mutation'da record version'i tam bir artirir.
+- Acquisition valid non-terminal ve unexpired reservation, canonical worker/session/lease kimligi, explicit evaluatedAt, valid interval ve bos/expired ownership kosullarini deny-by-default dogrular. Ayni request idempotent replay'dir.
+- Heartbeat yalniz workerId + workerSessionId + leaseId sahibi tarafindan yapilir. Heartbeat geriye gidemez, expiry ileri gitmelidir, policy'deki maximum renewal window acik uygulanir ve expired/released lease sessizce canlandirilmaz.
+- Expiry yalniz caller-provided evaluatedAt ile degerlendirilir. Active lease takeover reddedilir; expired lease icin explicit takeover evaluation ve mutation yeni immutable version olusturur, previous/new owner evidence public-safe fingerprint tasir.
+- Release yalniz owner tarafindan explicit yapilir ve replay-safe'tir. Release ile reservation cancel semantigi ayridir; released lease heartbeat ile active hale getirilemez, cancelled reservation ayri stable reason code ile reddedilir.
+- Corrupt canonical veya lease integrity mismatch implicit empty state'e cevrilmez ve mutation ile overwrite edilmez. Recovery metadata tasiyan non-terminal kayit lease mutation icin recovery-required olarak reddedilir.
+- Path traversal ve absolute path reddedilir. Date.now, random identity, environment evaluator, process spawn, worker, queue consumer/dispatch, pipeline execution, provider/network, timer, polling, startup recovery, API route veya UI execution eklenmedi.
+- Sprint 100 smoke PASS (40 senaryo); Sprint 97.1–99.1 hedefli regresyon 12/12 PASS; genel smoke runner 37/37 PASS.
+- `npx tsc --noEmit --incremental false`, lint (0 error/0 warning) ve production build PASS. Legacy Turbopack NFT whole-project trace warning devam eder.
+- Sprint 99.1 directory fsync limitation degismedi: unsupported platformlarda sessiz durability garantisi verilmez.
 - Commit veya push yapilmadi.
 
 ---

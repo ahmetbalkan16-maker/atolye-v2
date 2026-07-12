@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: High
 Owner: Atölye V2
-Last Updated: 2026-07-12
+Last Updated: 2026-07-13
 ---
 
 # Atölye V2 — Development Roadmap
@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 99.1 — Durable Storage Recovery & Index Hardening (Completed)
+Sprint 100 — Durable Lease & Worker Ownership Foundation (Completed)
 
 Siradaki Planlama Adimi
 
-Sprint 99.2 — Durable Storage Recovery Review / Next Scope Planning
+Sprint 100.1 — Durable Lease Review / Next Scope Planning
 
-Sprint 99.2 otomatik uygulanmayacak; gercek production execution, queue, worker, provider ve UI execution kapali kalacaktir.
+Sprint 100.1 otomatik uygulanmayacak; gercek production execution, queue, worker, provider ve UI execution kapali kalacaktir.
 
 ---
 
@@ -1032,6 +1032,26 @@ Completed
 - Recovery caller-driven explicit servistir. Execution, queue, worker, provider/network, UI execution, polling, timer ve background/startup cleanup kapali kalir.
 - Sprint 99.1 smoke 29/29, Sprint 97.1–99.0 regresyonu 11/11 ve genel smoke runner 36/36 PASS.
 - TypeScript, lint ve production build PASS. Legacy Turbopack NFT whole-project trace warning devam eder.
+- Commit ve push yapilmadi.
+
+---
+
+# Sprint 100
+
+## Durable Lease & Worker Ownership Foundation
+
+Completed
+
+- Server-controlled canonical worker ve worker-session identity ile reservation/execution-bound durable lease contract'i tamamlandi.
+- Acquire, heartbeat/renewal, explicit expiry evaluation, takeover ve release operation'lari append-only immutable record version'lari ve expectedVersion CAS kullanir.
+- Ayni request replay-safe'tir; stale/version/next-version, owner/session/lease-ID ve active ownership conflict'leri stable reason code'larla ayrilir.
+- Heartbeat geriye gidemez; renewal expiry'yi ileri tasir ve acik policy maximum window/duration sinirlarina uyar. Expired veya released lease implicit revive edilmez.
+- Expiry background timer olmadan yalniz explicit evaluatedAt ile hesaplanir. Active takeover deny; expired takeover explicit evaluation + mutation ile yeni version olusturur.
+- Release ile cancel semantigi ayridir; yalniz owner release yapar ve release replay-safe'tir.
+- Corrupt/integrity-mismatch/recovery-required canonical kayit mutation ile overwrite edilmez veya empty state kabul edilmez.
+- Gercek worker process, queue consumer/dispatch, pipeline execution, provider/network, scheduler, polling, startup recovery, execution API ve UI execution kapali kalir.
+- Sprint 100 smoke 40/40, Sprint 97.1–99.1 regresyonu 12/12 ve genel smoke runner 37/37 PASS.
+- TypeScript, lint ve production build PASS; legacy Turbopack NFT trace warning ve Sprint 99.1 directory fsync platform limitation degismedi.
 - Commit ve push yapilmadi.
 
 ---
