@@ -47,19 +47,19 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 96.8**
+**Sprint 97.0**
 
-Production Intelligence Consumer Contract Versioning Review
+Production Intelligence Phase Closure & Execution Safety Plan
 
 **Durum**
 
 Completed
 
-Production Intelligence payload versioning, merkezi runtime validation, legacy fallback ve consumer/UI uyumlulugu tamamlandi. Sprint 96.x serisi kapandi.
+Sprint 96.x Production Intelligence fazi resmen kapatildi; real execution default-off kalacak sekilde Sprint 97.x Execution Safety plani tanimlandi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 97.0 Production Intelligence phase closure ve sonraki faz planlamasi.
+- Bir sonraki onerilen gorev Sprint 97.1 Execution Authorization Contract.
 
 ---
 
@@ -1591,6 +1591,56 @@ Deferred risk:
 Bir sonraki onerilen adim:
 
 - Sprint 97.0 Production Intelligence phase closure ve sonraki faz planlamasi.
+
+---
+
+### Sprint 97.0 — Production Intelligence Phase Closure & Execution Safety Plan
+
+Durum:
+Completed
+
+Phase closure:
+
+- Sprint 96.x Snapshot -> Health -> Evidence -> Actions -> Graph -> Planner -> Execution Contract -> Dry-Run Gateway -> Job Preview -> Versioned Consumer -> API -> Passive UI zinciri ready/preview-only olarak kapatildi.
+- Real execution, Production Intelligence queue dispatch, authorization, confirmation, persistent idempotency, audit persistence, transactional recovery ve controlled rollout halen kapali veya planned durumdadir.
+- Production Intelligence schema v1, action, graph, planner, execution request, dry-run result, job preview ve consumer parser contract'lari architecture freeze kapsamindadir; breaking degisiklik yeni schema version gerektirir.
+
+Capability ve safety modeli:
+
+- 23 capability merkezi deterministic matrix'te ready, preview-only, planned, blocked veya unsupported olarak siniflandirildi.
+- 21 execution tehdidi prevention, detection, recovery ve prerequisite alanlariyla kaydedildi.
+- 20 zorunlu execution invariant'i tanimlandi; validation, stale/unsupported rejection, confirmation, idempotency, immutable queue contract, project isolation, consistency, audit, secret/path guvenligi ve default-off rollout kapsanir.
+- Action risk profilleri conservative tutuldu. Retry-stage ve resume-stage high-risk preview-only; inspect-source/review-metric executable degil; reconcile-state unresolved. Ilk real execution adayi henuz secilmedi.
+
+Execution safety gereksinimleri:
+
+- Authorization actor/project/operation scope ve worker identity'yi baglamalidir; local mode bypass degildir.
+- Confirmation request/idempotency/project/action/stage/fingerprint/actor/expiry ve single-use policy'ye baglanmalidir.
+- Persistent idempotency reserved -> prepared -> queued -> running -> succeeded/failed/cancelled/partially-succeeded state contract'i gerektirir.
+- Mevcut queue adapte edilecek, paralel queue motoru kurulmayacaktir; enqueue oncesi stale/auth/confirmation/prerequisite kontrolu tekrarlanir.
+- ProjectWriter tek dosyada temp+rename kullanir; output/manifest/audit icin transaction yoktur. Gelecek strateji temp, validation, atomic rename, manifest-last, consistency verification ve operation journal gerektirir.
+- Audit contract actor ve lifecycle referanslarini tasir; secret, binary, absolute path ve public stack trace tasimaz.
+- Real execution merkezi server policy ile default-off kalir; UI yalniz server-confirmed capability ile kontrol gosterebilir.
+
+Sprint 97.x roadmap:
+
+- 97.1 Authorization Contract; 97.2 Confirmation Contract; 97.3 Persistent Idempotency Contract; 97.4 Queue Adapter; 97.5 Audit Contract; 97.6 Transactional Write & Recovery; 97.7 Controlled Single-Action Execution; 97.8 Cancellation & Retry Safety; 97.9 Phase Review.
+
+Test ve sinirlar:
+
+- Sprint 97.0 phase closure smoke PASS (20 senaryo).
+- Sprint 96.8, Sprint 96.7, Sprint 96.1-96.6 ve Sprint 95.2-96.0 regresyonlari PASS.
+- Ilgili queue/job/state/retry regresyonlari PASS.
+- npm run lint, npx tsc --noEmit --incremental false, npm run build ve git diff --check PASS.
+- Bu sprint POST execute endpoint, execution, queue dispatch, worker, persistence, mutation, provider/network call, token, middleware, UI action, polling, retry/rollback/cancellation engine veya rollout flag eklemedi.
+
+Deferred risk:
+
+- Legacy Turbopack NFT trace uyarisi assets/FileStorage import zincirinden gelir, build'i engellemez ve Sprint 97.0 kapsaminda ertelendi.
+
+Bir sonraki onerilen adim:
+
+- Sprint 97.1 Execution Authorization Contract.
 
 ---
 
