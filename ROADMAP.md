@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 100 — Durable Lease & Worker Ownership Foundation (Completed)
+Sprint 102 — Durable Execution Attempt & Outcome Journal Foundation (Completed)
 
 Siradaki Planlama Adimi
 
-Sprint 100.1 — Durable Lease Review / Next Scope Planning
+Sprint 102.1 — Durable Attempt Journal Review / Next Scope Planning
 
-Sprint 100.1 otomatik uygulanmayacak; gercek production execution, queue, worker, provider ve UI execution kapali kalacaktir.
+Sprint 102.1 otomatik uygulanmayacak; gercek production execution, queue, worker, provider ve UI execution kapali kalacaktir.
 
 ---
 
@@ -1053,6 +1053,43 @@ Completed
 - Sprint 100 smoke 40/40, Sprint 97.1–99.1 regresyonu 12/12 ve genel smoke runner 37/37 PASS.
 - TypeScript, lint ve production build PASS; legacy Turbopack NFT trace warning ve Sprint 99.1 directory fsync platform limitation degismedi.
 - Commit ve push yapilmadi.
+
+---
+
+# Sprint 101
+
+## Durable Execution Claim & Recovery Coordination
+
+Completed
+
+- Reservation, idempotency record ve durable lease canonical source'lari write-free preflight ile tek claim binding snapshot'inda yeniden dogrulanir.
+- Claim coordination source kayitlarini kopyalamaz; tek append-only `claims/<claimId>-vN.json` coordination record'i kullanir.
+- Claim acquire/release/abandon expected claim version CAS, unique temp validation, hard-link no-replace ve readback validation uygular. Exact replay write-free'dir.
+- Coordination transactional degildir: intended writes ve stabil commit order aciktir, implicit rollback yoktur. Partial commit canonical write'i overwrite etmez; recovery/compensation-required olarak raporlanir.
+- Recovery assessment write-free; no claim, active/replay-safe, expired/released lease, missing/stale link, partial, malformed/integrity/unsupported/ambiguous ve recovery-required durumlarini ayirir.
+- Lease/reservation expiry yalniz explicit evaluatedAt ile belirlenir. Released claim yeniden active olmaz; abandon release'den ayri recovery operation'idir.
+- Gercek execution, worker, queue consumer/dispatch, provider/network, process spawn, timer, polling, scheduler, startup recovery, API route, UI execution ve distributed lock kapali kalir.
+- Sprint 101 smoke 39/39, Sprint 97.1–100 regresyonu 13/13 ve genel smoke runner 38/38 PASS.
+- TypeScript, lint ve production build PASS; legacy Turbopack trace warning ve directory fsync platform limitation devam eder.
+- Commit ve push yapilmadi.
+
+---
+
+# Sprint 102
+
+## Durable Execution Attempt & Outcome Journal Foundation
+
+Completed
+
+- Active claim/reservation/lease ownership altinda append-only attempt lifecycle ve canonical binding tamamlandi.
+- Attempt journal embedded append-only source-of-truth; sequence contiguous/monotonic, entry replay-safe ve payload public-safe'tir.
+- Outcome proposal terminal degildir; matching explicit finalization success/failure/cancelled terminal state uretir.
+- Attempt, journal ve outcome mutation'lari tek `attempts/<attemptId>-vN.json` CAS zincirinde unique temp -> validation -> no-replace -> readback sirasi kullanir.
+- Coordination transactional degildir, implicit rollback yoktur; partial/ambiguous durum recovery/compensation-required kalir.
+- Recovery assessment write-free; linked claim/lease/reservation canonical olarak yeniden dogrulanir.
+- Execution, provider/network, queue, worker process, timer/polling, scheduler, startup recovery, API/UI ve distributed lock kapali kalir.
+- Sprint 102 smoke 58/58, Sprint 97.1–101 regresyonu 14/14 ve genel runner 39/39 PASS; TypeScript/lint/build PASS.
+- Legacy Turbopack trace warning ve unsupported directory fsync limitation devam eder. Commit/push yapilmadi.
 
 ---
 

@@ -1,14 +1,18 @@
 import type { ProductionExecutionIdempotencyRecord, ProductionExecutionIdempotencyReservationRequest } from "./productionExecutionIdempotency";
 import type { ProductionExecutionTransactionPlan } from "./productionExecutionTransaction";
 import type { ProductionOperationJournalEvent } from "./productionOperationJournal";
+import type { ProductionExecutionDurableClaimRecord } from "./productionExecutionDurableClaim";
+import type { ProductionExecutionDurableAttemptRecord } from "./productionExecutionDurableAttempt";
 
-export type ProductionExecutionPersistenceRecordKind = "transaction" | "journal" | "idempotency" | "reservation";
+export type ProductionExecutionPersistenceRecordKind = "transaction" | "journal" | "idempotency" | "reservation" | "claim" | "attempt";
 
 export interface ProductionExecutionPersistencePayloadByKind {
   transaction: ProductionExecutionTransactionPlan;
   journal: readonly ProductionOperationJournalEvent[];
   idempotency: ProductionExecutionIdempotencyRecord;
   reservation: ProductionExecutionIdempotencyReservationRequest;
+  claim: ProductionExecutionDurableClaimRecord;
+  attempt: ProductionExecutionDurableAttemptRecord;
 }
 
 export type ProductionExecutionPersistenceErrorCode =

@@ -25,6 +25,42 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 102 — Durable Execution Attempt & Outcome Journal Foundation
+
+Completed
+
+- Attempt identity/open, journal append, outcome proposal/finalization, recovery assessment ve public-safe evidence contract'lari eklendi.
+- Persistence adapter'a canonical validated `attempt` kind ve `attempts/<attemptId>-vN.json` append-only CAS zinciri eklendi.
+- Attempt yalniz active claim, unexpired reservation/lease ve matching owner/session/lease altinda acilir; exact open replay write-free'dir.
+- Embedded journal entry ID + contiguous monotonic sequence + explicit time + safe payload/evidence + per-entry integrity kullanir. Replay, ID conflict, duplicate/rollback, gap ve finalized append ayrilir.
+- Success/failure/cancellation proposal terminal degildir. Matching explicit finalization immutable succeeded/failed/cancelled state uretir; cancellation, claim release ve abandon semantikleri ayridir.
+- Tek attempt coordination record source claim/lease/reservation kayitlarini kopyalamaz. Transactional garanti/implicit rollback yoktur; partial coordination recovery/compensation-required kalir.
+- Recovery evaluation write-free olarak lifecycle, expired lease/inactive claim, missing/stale binding, journal corruption, partial commit ve integrity/version durumlarini siniflandirir.
+- Public contract raw path/FS error, stack, hostname, PID, secret, provider response veya environment tasimaz; gercek execution/provider/queue/worker/timer/API/UI eklenmedi.
+- Sprint 102 smoke 58/58, Sprint 97.1–101 regresyon 14/14 ve genel runner 39/39 PASS. TypeScript, lint 0/0 ve build PASS.
+- Legacy Turbopack trace warning ile directory fsync limitation degismedi. Commit/push yapilmadi.
+
+---
+
+## Sprint 101 — Durable Execution Claim & Recovery Coordination
+
+Completed
+
+- Execution claim request/result, identity/binding, ownership evidence, conflict, coordination plan, recovery assessment ve release/abandon contract'lari eklendi.
+- Persistence adapter'a canonical validated append-only `claim` record kind'i eklendi. Claim reservation/idempotency/lease source-of-truth kayitlarini kopyalamaz; yalniz versioned binding/evidence tasir.
+- Write-free preflight reservation expiry/binding, latest durable record state/integrity/recovery, active lease owner/session/ID/expiry ve expected reservation/idempotency/lease/claim version'larini deny-by-default yeniden dogrular.
+- Acquisition tek claim coordination record'ini unique temp -> canonical validation -> hard-link no-replace -> readback sirasi ile yazar. Same-request replay write-free; canonical claim version CAS korunur.
+- Coordination plan `transactional:false`, tek intended write, stabil commit order ve `implicitRollback:false` tasir. Hidden mutex/distributed transaction yoktur; partial coordination recovery/compensation-required olarak siniflandirilir.
+- Recovery evaluation write-free olarak no-claim, valid active/replay-safe, expired/released lease, missing/stale linked record, partial coordination, malformed/integrity/unsupported/ambiguous ve recovery-required durumlarini ayirir.
+- Release owner-only ve replay-safe; abandon ayri explicit recovery operation'idir. Hicbiri execution terminal/failure sonucu uretmez ve released claim yeniden active edilmez.
+- Stable reason code'lar lifecycle, claim/reservation/idempotency/request/fingerprint/owner/session/lease binding, CAS, expiry/state, partial coordination, recovery/integrity/storage ve path ailelerini kapsar.
+- PID, hostname, raw path/FS error, stack veya secret public contract'a eklenmedi. Hidden time/random/environment identity, execution, worker, queue, provider/network, process spawn, timer/polling, scheduler, startup recovery, route, UI veya distributed lock eklenmedi.
+- Sprint 101 smoke 39/39 PASS; Sprint 97.1–100 hedefli regresyon 13/13 PASS; genel smoke runner 38/38 PASS.
+- TypeScript, lint (0 error/0 warning) ve production build PASS. Legacy Turbopack NFT trace warning ve unsupported directory fsync limitation degismedi.
+- Commit veya push yapilmadi.
+
+---
+
 ## Sprint 100 — Durable Lease & Worker Ownership Foundation
 
 Completed

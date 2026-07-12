@@ -47,20 +47,20 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 100**
+**Sprint 102**
 
-Durable Lease & Worker Ownership Foundation
+Durable Execution Attempt & Outcome Journal Foundation
 
 **Durum**
 
 Completed
 
-Durable worker/session ownership, lease acquisition, heartbeat/renewal, explicit expiry/takeover ve release contract'lari append-only CAS modeliyle tamamlandi. Gercek worker veya execution acilmadi.
+Active claim'e bagli append-only attempt lifecycle, monotonic journal ve outcome proposal/finalization contract'i tamamlandi. Gercek worker, provider veya execution acilmadi.
 
 Not:
 
-- Tum lease degerlendirmeleri caller tarafindan verilen explicit `evaluatedAt` ile yapilir; heartbeat interval, polling veya background expiration yoktur.
-- Process/worker, queue, provider/network, execution API ve UI execution sinirlari kapali kalir.
+- Attempt preflight ve recovery assessment write-free, deterministic ve caller-provided explicit `evaluatedAt` kullanir.
+- Process/worker, queue, provider/network, execution API, UI execution, timer ve background recovery sinirlari kapali kalir.
 
 ---
 
@@ -72,11 +72,11 @@ main
 
 Son Commit
 
-7561f3d
+80adfc8
 
 Durum
 
-Sprint 100 tamamlandi; kullanici talebi geregi commit ve push yapilmadi.
+Sprint 102 tamamlandi; Sprint 101 ve 102 degisiklikleri kullanici talebi geregi commit/push edilmedi.
 
 ---
 
@@ -1963,6 +1963,46 @@ Completed
 - Sprint 100 smoke PASS (40 senaryo); Sprint 97.1–99.1 hedefli regresyon 12/12 PASS; genel smoke runner 37/37 PASS.
 - `npx tsc --noEmit --incremental false`, lint (0 error/0 warning) ve production build PASS. Legacy Turbopack NFT whole-project trace warning devam eder.
 - Sprint 99.1 directory fsync limitation degismedi: unsupported platformlarda sessiz durability garantisi verilmez.
+- Commit veya push yapilmadi.
+
+---
+
+### Sprint 101 — Durable Execution Claim & Recovery Coordination
+
+Completed
+
+- Execution claim reservation record, request/idempotency key, execution fingerprint, worker/session/lease ve expected reservation/idempotency/lease/claim version baglarini canonical claim identity ve binding contract'inda birlestirir.
+- Claim mutation oncesi preflight write-free ve deterministiktir; reservation existence/expiry, canonical idempotency binding/state, recovery/integrity, active lease ownership/expiry ve tum expected version'lar yeniden dogrulanir. Derived index authority degildir.
+- Claim coordination `claims/<claimId>-vN.json` altinda tek append-only canonical coordination record kullanir; source-of-truth reservation/idempotency/lease kayitlarini kopyalayip yeni authority yaratmaz.
+- Commit modeli acikca preflight snapshot -> intended single claim write -> unique temp/canonical validation -> hard-link no-replace -> readback validation'dir. `transactional:false`, stabil commit order ve `implicitRollback:false` raporlanir; sahte distributed transaction veya hidden lock garantisi verilmez.
+- Exact same-request claim replay write-free'dir. Farkli claim ID/binding/owner/session/lease, stale/version/next-version, terminal, expired lease/reservation ve recovery/integrity durumlari stable reason code'larla ayrilir.
+- Recovery assessment write-free olarak no-claim, valid-active, replay-safe, expired/released lease, missing linked record, stale linked version, partial coordination, malformed/integrity/unsupported/ambiguous ve recovery-required durumlarini modeller.
+- Claim release owner-only ve replay-safe'tir; release execution terminal sonucu degildir. Abandon ayri explicit recovery/coordination operation'idir ve execution failure sonucu uretmez. Released claim ayni canonical claim olarak yeniden active yapilmaz.
+- Partial coordination sonucu onceki canonical write'i overwrite etmez; `CLAIM_PARTIAL_COMMIT` ve recovery/compensation-required semantics ile explicit raporlanir. Corrupt veya ambiguous canonical artifact otomatik silinmez/onarilmaz.
+- PID, hostname, raw path/FS error, stack ve secret public contract'a girmez. Date.now, random UUID, environment identity, process spawn, worker, queue, provider/network, timer, polling, scheduler, startup recovery, API route veya UI execution eklenmedi.
+- Sprint 101 smoke PASS (39 senaryo); Sprint 97.1–100 hedefli regresyon 13/13 PASS; genel smoke runner 38/38 PASS.
+- TypeScript ve production build PASS; final lint 0 error/0 warning ve diff check kapanista dogrulandi. Legacy Turbopack NFT whole-project trace warning devam eder.
+- Sprint 99.1 directory fsync limitation degismedi; unsupported platformlarda sessiz durability garantisi verilmez.
+- Commit veya push yapilmadi.
+
+---
+
+### Sprint 102 — Durable Execution Attempt & Outcome Journal Foundation
+
+Completed
+
+- Attempt identity active claim, reservation, request/idempotency, execution fingerprint, worker/session/lease ve expected claim/attempt version baglarini tasir.
+- Lifecycle opened -> active -> outcome-proposed -> succeeded/failed/cancelled terminal durumlarini ve ayri recovery-only abandoned durumunu kapsar. Finalized attempt yeniden active/opened olmaz.
+- Attempt records `attempts/<attemptId>-vN.json` altinda append-only immutable CAS, unique temp, canonical validation, hard-link no-replace ve readback modeliyle persist edilir.
+- Journal attempt record icinde append-only source-of-truth'tur. Entry ID, attempt ID, monotonic contiguous sequence, canonical entry type, explicit recordedAt, public-safe payload/evidence ve per-entry integrity tasir.
+- Exact journal replay write-free; entry-ID payload conflict, duplicate/rollback sequence, gap ve finalized attempt progress append ayrica reddedilir.
+- Outcome proposal caller-provided success/failure/cancellation evidence kabul eder ve terminal sonuc sayilmaz. Finalization yalniz matching proposal uzerinden terminal state uretir; replay-safe ve immutable'dir.
+- Cancellation execution outcome semantics'tir; claim release ownership koordinasyonu, attempt abandon recovery koordinasyonu olarak ayri kalir.
+- Coordination tek authoritative attempt record kullanir; claim/lease/reservation kopyalanmaz. Preflight write-free, intended write/commit order stabil, `transactional:false`, `implicitRollback:false`; partial commit recovery/compensation-required olarak raporlanir.
+- Recovery evaluation write-free olarak no/opened/active/proposed/finalized states, expired lease, inactive/missing/stale claim/lease, journal corruption, partial coordination, malformed/integrity/unsupported ve recovery-required durumlarini ayirir.
+- Raw provider response, path, FS error, stack, hostname, PID, secret veya environment public evidence'e girmez. Execution/provider/queue/worker/process/timer/polling/scheduler/startup recovery/API/UI/distributed lock eklenmedi.
+- Sprint 102 smoke PASS (58 senaryo); Sprint 97.1–101 hedefli regresyon 14/14 PASS; genel smoke runner 39/39 PASS.
+- TypeScript, lint (0 error/0 warning) ve production build PASS. Legacy Turbopack NFT trace warning ve directory fsync platform limitation devam eder.
 - Commit veya push yapilmadi.
 
 ---
