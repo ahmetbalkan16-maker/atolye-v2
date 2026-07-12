@@ -47,19 +47,19 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 97.5**
+**Sprint 97.6**
 
-Operation Journal Contract
+Queue & Dispatch Contract
 
 **Durum**
 
 Completed
 
-Append-only journal event, correlation, sequence validation ve canonical projection contract foundation'i tamamlandi. Gercek append/persistence kapali kaldi.
+Immutable dispatch envelope, queue eligibility, dependency/deduplication/priority/rollout contract foundation'i tamamlandi. Gercek enqueue/dispatch kapali kaldi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 97.6 Queue & Dispatch Contract.
+- Bir sonraki onerilen gorev Sprint 97.7 Worker Execution Contract.
 
 ---
 
@@ -71,7 +71,7 @@ main
 
 Son Commit
 
-3652d01
+8017502
 
 Durum
 
@@ -1785,6 +1785,20 @@ Durum: Completed
 - Gercek append, dosya/database persistence, telemetry veya external audit sink eklenmedi.
 - Smoke PASS (50 senaryo); transaction regresyonu, TypeScript ve diff check PASS.
 - Sonraki sprint: Sprint 97.6 Queue & Dispatch Contract.
+
+---
+
+### Sprint 97.6 — Queue & Dispatch Contract
+
+Durum: Completed
+
+- Commit: 8017502 feat(production): add queue dispatch contract
+- Schema v1 immutable dispatch envelope, priority, queue, dependency, payload reference, lease ve worker requirement contract'lari eklendi.
+- Pure eligibility evaluator authorization/confirmation/idempotency/transaction/journal, duplicate/conflict, attempt, schedule, dependency ve worker scope kosullarini dogrular.
+- Client priority ignored; server policy effective priority uretir. Default rollout action listesi bos ve dispatch blocked kalir.
+- Gercek enqueue, dispatch call, job persistence, worker spawn, background task, polling veya paralel queue motoru eklenmedi.
+- Smoke PASS (55 senaryo); journal/transaction regresyonlari, TypeScript ve diff check PASS.
+- Sonraki sprint: Sprint 97.7 Worker Execution Contract.
 
 ---
 
