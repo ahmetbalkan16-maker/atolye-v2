@@ -25,6 +25,24 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 99.1 — Durable Storage Recovery & Index Hardening
+
+Completed
+
+- Acik recovery scan/result, finding, apply, derived lookup index ve directory durability contract'lari eklendi.
+- Scan write-free ve caller-driven kalir; cleanup/quarantine explicit apply islemidir. Yalniz canonical validator'dan gecen unique orphan temp artifact apply edilebilir.
+- Canonical target mevcutken orphan temp source of truth kabul edilmez. Partial, malformed ve ambiguous artifact silinmez; recovery-required olarak raporlanir.
+- Corrupt canonical kayit implicit empty state'e cevrilmez, overwrite edilmez veya derived index'ten onarilmaz. Public-safe reason/evidence/diagnostics raw path, filesystem error, stack ve secret sizdirmaz.
+- Reservation, versioned idempotency key ve request ID lookup index'i canonical kayitlardan deterministik rebuild edilen content-addressed immutable derived artifact olarak eklendi. Missing, stale veya corrupt index canonical kayitlari etkilemez ve execution/business decision kaynagi olmaz.
+- Index rebuild mevcut unique temp, canonical readback validation ve hard-link no-replace atomic commit yaklasimini kullanir.
+- Directory durability supported/unsupported/failed/indeterminate olarak modellenir. Unsupported platformlarda sessiz directory fsync garantisi verilmez; Sprint 99.0 atomicity garantisi genisletilmez.
+- Traversal, absolute path ve root escape reddedilir. Recovery execution, queue, worker, provider/network, UI execution, polling, timer veya background/startup cleanup'a baglanmadi.
+- Yeni Sprint 99.1 smoke 29/29 PASS; Sprint 97.1–99.0 hedefli regresyon 11/11 PASS; genel smoke runner 36/36 PASS.
+- TypeScript, lint (0 error/0 warning) ve production build PASS. Legacy Turbopack NFT whole-project trace warning degismeden kaldi.
+- Commit veya push yapilmadi.
+
+---
+
 ## Sprint 98.0 — Production Execution Persistence Adapter Foundation
 
 Completed

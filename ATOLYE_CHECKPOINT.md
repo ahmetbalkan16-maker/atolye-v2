@@ -47,19 +47,20 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 99.0**
+**Sprint 99.1**
 
-Durable Idempotency & Reservation Storage Foundation
+Durable Storage Recovery & Index Hardening
 
 **Durum**
 
 Completed
 
-Durable reservation, append-only versioned idempotency record, optimistic concurrency, recovery read ve stable corruption contract foundation tamamlandi. Gercek execution kapali kaldi.
+Write-free recovery scan, explicit recovery apply, orphan artifact policy, rebuildable derived lookup index ve directory durability limitation contract'i tamamlandi. Canonical durable records source of truth kaldi; gercek execution kapali kaldi.
 
 Not:
 
-- Bir sonraki onerilen adim Sprint 99.1 Durable Storage Recovery & Index Hardening Review'dur; otomatik uygulanmayacak ve gercek execution acilmayacaktir.
+- Recovery caller tarafindan explicit cagrilir; startup cleanup, polling veya background orchestration yoktur.
+- Execution, queue, worker, provider/network ve UI execution sinirlari kapali kalir.
 
 ---
 
@@ -71,11 +72,11 @@ main
 
 Son Commit
 
-02bf9b6
+42ff8de
 
 Durum
 
-Sprint 99.0 implementation commit'i olusturuldu; checkpoint commit ve push bekliyor.
+Sprint 99.1 tamamlandi; kullanici talebi geregi commit ve push yapilmadi.
 
 ---
 
@@ -1925,6 +1926,25 @@ Durum: Completed
 - Yasak sinir taramasi temiz: provider/network, queue enqueue/dispatch, worker spawn/process, child process/shell, execute endpoint, UI execution, polling/background interval, manifest mutation veya pipeline execution baglantisi yoktur.
 - Controlled gateway disabled/preview-only; `allowDispatch:false` ve `allowExecution:false` kalir.
 - Sonraki onerilen adim: Sprint 99.1 Durable Storage Recovery & Index Hardening Review. Gercek execution acilmadan orphan cleanup policy, index scalability ve directory durability stratejisi review edilmelidir.
+
+---
+
+### Sprint 99.1 — Durable Storage Recovery & Index Hardening
+
+Completed
+
+- Canonical reservation ve append-only versioned idempotency kayitlari source of truth olarak kalir; corrupt canonical kayitlar implicit empty state'e cevrilmez, overwrite edilmez veya index verisiyle onarilmaz.
+- Recovery scan ve apply ayrildi. Scan deterministik ve write-free'dir; cleanup/quarantine yalniz explicit apply istegi ve scan tarafindan izin verilen, canonical olarak dogrulanmis orphan temp artifact icin uygulanabilir.
+- Unique atomic-write temp artifact'lari algilanir. Valid canonical target varken temp artifact source of truth sayilmaz. Partial, malformed veya adi belirsiz artifact otomatik silinmez ve recovery-required sonucu uretir.
+- Recovery contract missing, valid, malformed, unreadable, unsupported schema/storage version, integrity mismatch, orphan temp, partial/ambiguous artifact, missing/stale/malformed/integrity-mismatch index ve recovery-required durumlarini stable public-safe reason code'larla siniflandirir.
+- Reservation, idempotency key ve request ID lookup index'i canonical kayitlardan deterministik uretilen, content-addressed, immutable ve rebuildable derived artifact'tir. Authorization, execution veya business decision kaynagi degildir.
+- Missing, stale veya corrupt index canonical kayitlara zarar vermez. Rebuild mevcut canonical validation ile atomic unique temp + validation + hard-link no-replace commit modelini kullanir.
+- Directory durability helper'i supported, unsupported, failed ve indeterminate durumlarini stabil sonuc olarak modeller. Unsupported platformlarda sessiz fsync garantisi verilmez; platform hata mesaji public sonuca sizmaz. Sprint 99.0 atomicity iddialari genisletilmedi.
+- Path traversal, absolute path ve trusted root disina cikis reddedilir. Public sonuc raw path, filesystem error, stack veya secret tasimaz.
+- Recovery execution, queue, worker, provider/network, UI execution, polling, timer veya startup cleanup akisina baglanmadi; gerekli operation girdileri caller-controlled kalir.
+- Sprint 99.1 smoke PASS (29 senaryo); Sprint 97.1–99.0 hedefli regresyon zinciri 11/11 PASS; genel smoke runner 36/36 PASS.
+- `npx tsc --noEmit --incremental false`, lint (0 error/0 warning) ve production build PASS. Build'de yalniz legacy `next.config.ts -> FileStorage -> AssetManager -> assets route` Turbopack NFT whole-project trace uyarisi kaldi.
+- Commit veya push yapilmadi.
 
 ---
 

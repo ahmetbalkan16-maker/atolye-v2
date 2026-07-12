@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 98.0 — Production Execution Persistence Adapter Foundation (Completed)
+Sprint 99.1 — Durable Storage Recovery & Index Hardening (Completed)
 
 Siradaki Planlama Adimi
 
-Sprint 98.1 — Durable Idempotency and Reservation Storage Integration
+Sprint 99.2 — Durable Storage Recovery Review / Next Scope Planning
 
-Sprint 98.1 otomatik uygulanmayacak; gercek production execution kapali kalacaktir.
+Sprint 99.2 otomatik uygulanmayacak; gercek production execution, queue, worker, provider ve UI execution kapali kalacaktir.
 
 ---
 
@@ -1014,6 +1014,25 @@ Sonraki planlama adimi:
 
 - Sprint 98.1 — Durable Idempotency and Reservation Storage Integration.
 - Sprint 98.1 otomatik uygulanmayacak ve gercek execution acilmayacak.
+
+---
+
+# Sprint 99.1
+
+## Durable Storage Recovery & Index Hardening
+
+Completed
+
+- Canonical durable reservation ve append-only idempotency kayitlari tek source of truth'tur; recovery veya index canonical corruption'i overwrite etmez ve implicit empty state uretmez.
+- Deterministik, write-free scan ile explicit cleanup/quarantine apply islemleri ayridir.
+- Atomic write'tan kalan valid unique temp artifact'lari orphan olarak siniflandirilir; valid target varsa temp kaynak gerceklik sayilmaz. Partial, malformed ve ambiguous artifact otomatik silinmez, recovery-required kalir.
+- Reservation, idempotency key ve request ID lookup icin content-addressed immutable index canonical kayitlardan deterministik rebuild edilir. Index derived artifact'tir; authorization, execution veya business decision kaynagi degildir.
+- Missing, stale, malformed veya integrity mismatch index canonical kayitlara zarar vermez. Rebuild canonical validation, temp validation ve hard-link no-replace commit sinirini yeniden kullanir.
+- Directory durability supported, unsupported, failed ve indeterminate olarak acik modellenir; unsupported platformlarda fsync garantisi verilmez ve platform-specific hata public contract'a sizmaz.
+- Recovery caller-driven explicit servistir. Execution, queue, worker, provider/network, UI execution, polling, timer ve background/startup cleanup kapali kalir.
+- Sprint 99.1 smoke 29/29, Sprint 97.1–99.0 regresyonu 11/11 ve genel smoke runner 36/36 PASS.
+- TypeScript, lint ve production build PASS. Legacy Turbopack NFT whole-project trace warning devam eder.
+- Commit ve push yapilmadi.
 
 ---
 
