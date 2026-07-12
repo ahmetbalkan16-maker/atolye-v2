@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Critical
 Owner: Atölye V2
-Last Updated: 2026-07-11
+Last Updated: 2026-07-12
 ---
 
 # ⚠️ AI START HERE
@@ -47,19 +47,19 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 97.0**
+**Sprint 97.1**
 
-Production Intelligence Phase Closure & Execution Safety Plan
+Execution Authorization Contract
 
 **Durum**
 
 Completed
 
-Sprint 96.x Production Intelligence fazi resmen kapatildi; real execution default-off kalacak sekilde Sprint 97.x Execution Safety plani tanimlandi.
+Production execution icin pure, deterministic ve deny-by-default authorization contract foundation'i tamamlandi. Real execution ve enforcement kapali kaldi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 97.1 Execution Authorization Contract.
+- Bir sonraki onerilen gorev Sprint 97.2 Execution Confirmation Contract.
 
 ---
 
@@ -71,7 +71,7 @@ main
 
 Son Commit
 
-7afa3c8ed2d4b40ad39127ceaa6a5560ad6da81e
+0d7b72c
 
 Durum
 
@@ -1641,6 +1641,40 @@ Deferred risk:
 Bir sonraki onerilen adim:
 
 - Sprint 97.1 Execution Authorization Contract.
+
+---
+
+### Sprint 97.1 — Execution Authorization Contract
+
+Durum:
+Completed
+
+Contract ve policy:
+
+- Schema v1 actor, project, operation, action, stage, worker identity, request identity, capability ve server policy context alanlarini tanimlar.
+- Pure synchronous evaluator deny-by-default calisir; inputlari mutate etmez, global state veya gizli zaman kaynagi kullanmaz ve ayni input icin ayni sonucu verir.
+- Stabil allow, deny ve indeterminate decision contract'i ile deterministic public reason code'lari eklendi.
+- Default merkezi policy disabled durumdadir. Local mode bypass degildir; client permission bilgisi trusted sayilmaz.
+- Authorization capability canonical matrix'te ready, stable ve read-only durumuna getirildi. Dependency'ler canonical sirayla cozulur; unknown, missing, dependency-missing ve cycle durumlari allow uretmez.
+
+Scope, worker ve risk sinirlari:
+
+- Actor identity, authenticated/trusted source, actor type, project scope ve operation scope zorunludur.
+- Worker gereken operation icin ayri trusted worker identity ve acik worker operation scope zorunludur; worker actor yerine gecmez.
+- Inspect-source ve review-metric executable degildir; reconcile-state unresolved kalir.
+- Retry-stage ve resume-stage en az high-risk authorization adayi olarak kalir ve high confirmation metadata'si tasir; token uretimi veya confirmation validation eklenmedi.
+- Real execution, API enforcement, endpoint, mutation, queue dispatch, worker process, persistence, provider/network call ve UI execution kontrolu eklenmedi.
+
+Test ve dogrulama:
+
+- Sprint 97.1 authorization smoke PASS (28 senaryo).
+- Sprint 97.0 closure, Sprint 96.1-96.8 ve Sprint 95.2-96.0 Production Intelligence regresyonlari PASS.
+- npm run lint, npx tsc --noEmit --incremental false, npm run build ve git diff --check PASS.
+- Legacy next.config.ts -> FileStorage -> AssetManager -> assets route Turbopack NFT trace uyarisi build'i engellemez ve kapsam disi ertelenmistir.
+
+Bir sonraki onerilen adim:
+
+- Sprint 97.2 Execution Confirmation Contract.
 
 ---
 

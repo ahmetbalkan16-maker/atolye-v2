@@ -21,7 +21,7 @@ export const productionCapabilityMatrix: readonly ProductionCapability[] = [
   capability("passive-ui", "ready", "stable", true, ["api-integration"], "Validated passive summary; no execution control."),
   capability("real-execution", "blocked", "not-defined", false, ["authorization", "confirmation", "persistent-idempotency", "audit-trail", "controlled-rollout"], "No Production Intelligence execute entrypoint exists."),
   capability("queue-dispatch", "blocked", "not-defined", false, ["real-execution", "persistent-idempotency"], "No Production Intelligence job is enqueued."),
-  capability("authorization", "planned", "not-defined", true, ["consumer-versioning"], "Actor, project and operation scopes must be defined."),
+  capability("authorization", "ready", "stable", true, ["consumer-versioning"], "Pure deny-by-default actor, project, operation and worker authorization contract."),
   capability("confirmation", "planned", "not-defined", true, ["authorization", "execution-contract"], "Bound, expiring and auditable confirmation is required."),
   capability("persistent-idempotency", "planned", "not-defined", false, ["execution-contract"], "Deterministic keys are not yet reserved persistently."),
   capability("audit-trail", "planned", "not-defined", false, ["authorization", "persistent-idempotency"], "Execution lifecycle audit persistence is absent."),
