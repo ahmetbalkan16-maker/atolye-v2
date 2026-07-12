@@ -47,19 +47,19 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 97.6**
+**Sprint 97.7**
 
-Queue & Dispatch Contract
+Worker Execution Contract
 
 **Durum**
 
 Completed
 
-Immutable dispatch envelope, queue eligibility, dependency/deduplication/priority/rollout contract foundation'i tamamlandi. Gercek enqueue/dispatch kapali kaldi.
+Trusted worker identity, claim/lease eligibility, immutable worker plan ve safe result envelope contract foundation'i tamamlandi. Gercek worker/execution kapali kaldi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 97.7 Worker Execution Contract.
+- Bir sonraki onerilen gorev Sprint 97.8 Controlled Execution Gateway.
 
 ---
 
@@ -71,7 +71,7 @@ main
 
 Son Commit
 
-8017502
+560e013
 
 Durum
 
@@ -1799,6 +1799,20 @@ Durum: Completed
 - Gercek enqueue, dispatch call, job persistence, worker spawn, background task, polling veya paralel queue motoru eklenmedi.
 - Smoke PASS (55 senaryo); journal/transaction regresyonlari, TypeScript ve diff check PASS.
 - Sonraki sprint: Sprint 97.7 Worker Execution Contract.
+
+---
+
+### Sprint 97.7 — Worker Execution Contract
+
+Durum: Completed
+
+- Commit: 560e013 feat(production): add worker execution contract
+- Schema v1 trusted worker identity, capability/operation/stage scope, claim, lease, immutable execution plan ve safe result envelope eklendi.
+- Pure claim evaluator schema/build/capability/scope/dispatch/attempt/fingerprint/lease/cancellation ve rollout kosullarini deny-by-default dogrular.
+- Local worker bypass degildir; worker actor yerine gecmez. Arbitrary command/path/resource planlari reddedilir.
+- Gercek process/thread/shell, queue consumption, lease/heartbeat write, filesystem/provider/network veya execution engine eklenmedi.
+- Smoke PASS (55 senaryo); dispatch/journal/transaction regresyonlari, TypeScript ve diff check PASS.
+- Sonraki sprint: Sprint 97.8 Controlled Execution Gateway.
 
 ---
 
