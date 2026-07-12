@@ -47,19 +47,19 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 97.8**
+**Sprint 97.9**
 
-Controlled Execution Gateway
+Production Execution Phase Review
 
 **Durum**
 
 Completed
 
-Safety -> worker zinciri pure preview-only controlled gateway ile birlestirildi. Dispatch ve execution kapali kaldi.
+Production execution contract foundation review, smoke ve minimum hardening ile kapatildi. Contract'lar freeze edildi; gercek execution, persistence, queue dispatch, worker ve UI execution kontrolleri kapali kaldi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 97.9 Production Execution Phase Review.
+- Bir sonraki onerilen gorev Sprint 98'de tek bir dusuk riskli executable action secimi ve persistence/recovery tasarim onayidir.
 
 ---
 
@@ -71,7 +71,7 @@ main
 
 Son Commit
 
-e70e173
+35b40d0
 
 Durum
 
@@ -1827,6 +1827,21 @@ Durum: Completed
 - Gercek endpoint, mutation, enqueue/dispatch, worker claim/process, filesystem/provider/network, UI veya polling eklenmedi.
 - Smoke PASS (70 senaryo); Sprint 97.0-97.7 zinciri, TypeScript ve diff check PASS.
 - Sonraki sprint: Sprint 97.9 Production Execution Phase Review.
+
+---
+
+### Sprint 97.9 — Production Execution Phase Review
+
+Durum: Completed
+
+- Commit: 35b40d0 test(production): complete execution phase review
+- Safety -> Authorization -> Confirmation -> Idempotency -> Transaction -> Journal -> Dispatch -> Worker -> Controlled Gateway schema v1 contract zinciri review edildi ve freeze edildi.
+- P0: 0, P1: 0, P2: 0 acik bulgu. P3: 1 ertelenmis legacy Turbopack NFT whole-project trace uyarisi; Sprint 97 kaynakli degil ve build'i engellemiyor.
+- Smoke PASS (80 senaryo); 33 betiklik tam regresyon zinciri, lint 0 warning, TypeScript, build ve diff check PASS.
+- Sprint 97 yasak sinir taramasi temiz: filesystem/database write, journal append, queue enqueue/dispatch, worker process/thread, provider/network call, execute endpoint, mutation route, UI execution control, polling veya background execution eklenmedi.
+- Gercek execution, persistence, confirmation consumption/reservation write, queue dispatch, worker ve UI execution kontrolleri kapali; gateway default disabled/preview-only ve dispatchAllowed/executionAllowed false kalir.
+- Final review: `docs/PRODUCTION_EXECUTION_PHASE_REVIEW.md`.
+- Sonraki sprint: Sprint 98 icin tek bir dusuk riskli executable action sec; persistence adapter, transaction recovery, trusted identity, durable audit/idempotency ve rollout/kill-switch sahipligini uygulamadan once onayla.
 
 ---
 
