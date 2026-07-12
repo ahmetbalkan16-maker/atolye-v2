@@ -47,19 +47,19 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 98.0**
+**Sprint 99.0**
 
-Production Execution Persistence Adapter Foundation
+Durable Idempotency & Reservation Storage Foundation
 
 **Durum**
 
 Completed
 
-Transaction, operation journal, idempotency ve reservation kayitlari icin ortak, kontrollu ve test edilebilir persistence adapter foundation tamamlandi. Gercek execution kapali kaldi.
+Durable reservation, append-only versioned idempotency record, optimistic concurrency, recovery read ve stable corruption contract foundation tamamlandi. Gercek execution kapali kaldi.
 
 Not:
 
-- Bir sonraki planlama adimi Sprint 98.1 Durable Idempotency and Reservation Storage Integration'dir; otomatik uygulanmayacak ve gercek execution acilmayacaktir.
+- Bir sonraki onerilen adim Sprint 99.1 Durable Storage Recovery & Index Hardening Review'dur; otomatik uygulanmayacak ve gercek execution acilmayacaktir.
 
 ---
 
@@ -71,11 +71,11 @@ main
 
 Son Commit
 
-cda6d48
+02bf9b6
 
 Durum
 
-Sprint 98.0 kaynak ve dokumantasyon degisiklikleri commit edilmedi; origin/main HEAD cda6d48.
+Sprint 99.0 implementation commit'i olusturuldu; checkpoint commit ve push bekliyor.
 
 ---
 
@@ -1896,6 +1896,35 @@ Calisma agaci notu:
 - `app/project/[slug]/page.tsx` icerik diff'i olmayan modified isaretiyle korundu; dosyaya dokunulmadi ve restore/reset/stash/discard uygulanmadi.
 - Sprint 98.0 icin commit veya push yapilmadi.
 - Sonraki planlama adimi: Sprint 98.1 — Durable Idempotency and Reservation Storage Integration. Otomatik uygulanmayacak; gercek execution kapali kalacak.
+
+---
+
+### Sprint 99.0 — Durable Idempotency & Reservation Storage Foundation
+
+Durum: Completed
+
+- Implementation commit: `02bf9b6 feat(production): add durable execution storage foundation`.
+- Yeni dosyalar: `src/types/productionExecutionDurableStorage.ts`, `src/lib/production/ProductionExecutionDurableStorage.ts`, `scripts/smoke-production-execution-durable-storage.ts`.
+- Sprint 98 adapter'ina read-only `listKeys` ve frozen payload validator reuse export'u eklendi; unsafe overwrite veya execution entegrasyonu eklenmedi.
+- Durable schema/storage version v1; record identity actor/project/operation/action/stage/request/idempotency/execution/binding/authorization/confirmation/policy/risk alanlarini ve canonical Sprint 97.3 lifecycle state'lerini korur.
+- Reservation create idempotency key, request ID, execution/binding fingerprint, authorization, confirmation, initial reserved state, attempt/maxAttempts ve explicit expiry kurallarini deny-by-default dogrular.
+- Ayni identity replay'dir; idempotency/request/binding/execution fingerprint uyusmazliklari stable conflict reason code'lari uretir. In-flight veya succeeded kayit implicit overwrite edilmez.
+- Idempotency record'lari append-only `recordId-vN` snapshot anahtarlariyla persist edilir. CAS expectedVersion kontrolu yapar; stale/version conflict writer yeni snapshot'i overwrite edemez ve version deterministik bir artar.
+- Transition frozen Sprint 97.3 evaluator'u kullanir; shortcut, same-state ve terminal overwrite reddedilir. Release/cancel reservation ayni transition sinirindan gecer.
+- Recovery-ready read latest version'i bulur; terminal/partial state `DURABLE_STORAGE_RECOVERY_REQUIRED` metadata'si uretir. Idempotency-key ve request-ID lookup read-only list/read sinirini kullanir.
+- Atomic strateji Sprint 98 unique temp -> validation/integrity -> hard-link no-replace -> read-back zinciridir. Durable update target replace etmez; yeni immutable version target'i yaratir.
+- Directory sync adapter tarafindan garanti edilmez; platform/filesystem durability limitation'i olarak kalir. Sahte fsync garantisi verilmez.
+- Missing, malformed/corrupt, unreadable, unsupported schema/storage version, integrity mismatch, stale/version conflict, partial/orphan temp ve recovery-required durumlari stable public-safe reason code'larla ayrilir.
+- Canonical serialization ve frozen identity validation kullanilir; `stable-production-id-v1` deterministic integrity amaclidir, kriptografik authentication/signature iddiasi yoktur.
+- Record/path anahtarlari server-controlled root ve lowercase portable logical identity ile sinirlidir; traversal/absolute path reddedilir ve evidence/reason icine raw path, secret veya stack sizmaz.
+- Reservation/lease expiry yalniz explicit `evaluatedAt` ile degerlendirilir; `Date.now()` veya gizli zaman kaynagi yoktur. Gercek heartbeat/lease acquisition eklenmedi.
+- Stable reason-code ailesi policy/input/path, missing/malformed/unreadable, schema/version/integrity, idempotency/request/binding/fingerprint/version conflict, transition/terminal, expiry, atomic/readback, corruption/recovery ve indeterminate durumlarini kapsar.
+- Sprint 99.0 smoke PASS (63 senaryo). Tum smoke runner 35/35 PASS; retry, state error/corruption, orchestration, history ve continuation regresyonlari PASS.
+- TypeScript PASS; lint 0 warning PASS; production build PASS; `git diff --check` PASS.
+- Legacy Turbopack NFT whole-project trace uyarisi ayni eski `next.config.ts -> FileStorage -> AssetManager -> assets route` zincirinden gelir; Sprint 99.0 kaynakli degildir ve build'i engellemez.
+- Yasak sinir taramasi temiz: provider/network, queue enqueue/dispatch, worker spawn/process, child process/shell, execute endpoint, UI execution, polling/background interval, manifest mutation veya pipeline execution baglantisi yoktur.
+- Controlled gateway disabled/preview-only; `allowDispatch:false` ve `allowExecution:false` kalir.
+- Sonraki onerilen adim: Sprint 99.1 Durable Storage Recovery & Index Hardening Review. Gercek execution acilmadan orphan cleanup policy, index scalability ve directory durability stratejisi review edilmelidir.
 
 ---
 
