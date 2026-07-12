@@ -47,19 +47,19 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 97.7**
+**Sprint 97.8**
 
-Worker Execution Contract
+Controlled Execution Gateway
 
 **Durum**
 
 Completed
 
-Trusted worker identity, claim/lease eligibility, immutable worker plan ve safe result envelope contract foundation'i tamamlandi. Gercek worker/execution kapali kaldi.
+Safety -> worker zinciri pure preview-only controlled gateway ile birlestirildi. Dispatch ve execution kapali kaldi.
 
 Not:
 
-- Bir sonraki onerilen gorev Sprint 97.8 Controlled Execution Gateway.
+- Bir sonraki onerilen gorev Sprint 97.9 Production Execution Phase Review.
 
 ---
 
@@ -71,7 +71,7 @@ main
 
 Son Commit
 
-560e013
+e70e173
 
 Durum
 
@@ -1813,6 +1813,20 @@ Durum: Completed
 - Gercek process/thread/shell, queue consumption, lease/heartbeat write, filesystem/provider/network veya execution engine eklenmedi.
 - Smoke PASS (55 senaryo); dispatch/journal/transaction regresyonlari, TypeScript ve diff check PASS.
 - Sonraki sprint: Sprint 97.8 Controlled Execution Gateway.
+
+---
+
+### Sprint 97.8 — Controlled Execution Gateway
+
+Durum: Completed
+
+- Commit: e70e173 feat(production): add controlled execution gateway
+- Schema v1 request/policy/decision/orchestration plan contract'i Safety -> Authorization -> Confirmation -> Idempotency -> Transaction -> Journal -> Dispatch -> Worker zincirini preview seviyesinde birlestirir.
+- Canonical 11-step orchestration, rollout policy ve kill switch deny/block/preview kararlarini deterministic uretir.
+- Default policy disabled/preview-only; dispatchAllowed=false ve executionAllowed=false contract seviyesinde sabittir. Client allow flag'lari ignored.
+- Gercek endpoint, mutation, enqueue/dispatch, worker claim/process, filesystem/provider/network, UI veya polling eklenmedi.
+- Smoke PASS (70 senaryo); Sprint 97.0-97.7 zinciri, TypeScript ve diff check PASS.
+- Sonraki sprint: Sprint 97.9 Production Execution Phase Review.
 
 ---
 
