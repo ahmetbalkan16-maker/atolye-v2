@@ -23,7 +23,7 @@ export const productionCapabilityMatrix: readonly ProductionCapability[] = [
   capability("queue-dispatch", "blocked", "not-defined", false, ["real-execution", "persistent-idempotency"], "No Production Intelligence job is enqueued."),
   capability("authorization", "ready", "stable", true, ["consumer-versioning"], "Pure deny-by-default actor, project, operation and worker authorization contract."),
   capability("confirmation", "ready", "stable", true, ["authorization", "execution-contract"], "Pure bound confirmation request, grant and validation contract; no token or persistence."),
-  capability("persistent-idempotency", "planned", "not-defined", false, ["execution-contract"], "Deterministic keys are not yet reserved persistently."),
+  capability("persistent-idempotency", "ready", "stable", true, ["execution-contract"], "Pure identity, lifecycle, replay, recovery and lease contract; no persistence or reservation write."),
   capability("audit-trail", "planned", "not-defined", false, ["authorization", "persistent-idempotency"], "Execution lifecycle audit persistence is absent."),
   capability("cancellation", "planned", "not-defined", false, ["queue-dispatch", "audit-trail"], "Production Intelligence cancellation semantics are undefined."),
   capability("retry-policy", "planned", "not-defined", false, ["audit-trail", "recovery"], "Failure classification and safe retry rules are undefined."),

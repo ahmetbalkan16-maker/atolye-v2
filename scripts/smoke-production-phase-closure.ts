@@ -40,7 +40,7 @@ async function main() {
   const confirmed = ProductionExecutionContract.build("closure-project", plan, step, true);
   assert.equal(ProductionExecutionContract.validate(confirmed, plan, "stale-fingerprint").code, "stale-plan");
 
-  assert.equal(capability("persistent-idempotency").status, "planned");
+  assert.equal(capability("persistent-idempotency").status, "ready");
   assert.equal(capability("audit-trail").status, "planned");
   assert.equal(capability("rollback").status, "unsupported");
   assert.equal(firstRealExecutionCandidate, "not-selected");

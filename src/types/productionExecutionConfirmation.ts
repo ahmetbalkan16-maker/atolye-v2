@@ -54,6 +54,7 @@ export interface ProductionExecutionConfirmationValidationResult {
   confirmationRequestId: string; authorizationDecisionId: string; requestId: string; idempotencyKey: string; actorId: string;
   projectSlug: string; operation: string; action: string; stage?: string; riskLevel: string;
   requiredConfirmationLevel: string; providedConfirmationLevel: string; bindingMatches: boolean; expired: boolean;
+  bindingFingerprint: string;
   singleUse: boolean; consumed: boolean; policyVersion: string; evidence: string[];
 }
 export interface ProductionExecutionConfirmationBuilderInput { authorization: ProductionExecutionAuthorizationResult; executionRequest: ProductionExecutionRequest }
