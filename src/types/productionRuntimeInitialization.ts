@@ -1,4 +1,5 @@
 import type { ProductionExecutionRecoveryBootstrapClassification, ProductionExecutionRecoveryBootstrapResult } from "./productionExecutionRecoveryBootstrap";
+import type { ProductionWorkerLifecycleSnapshot } from "./productionWorkerLifecycle";
 
 export const productionRuntimeInitializationSchemaVersion = "1" as const;
 
@@ -9,7 +10,8 @@ export type ProductionRuntimeInitializationReasonCode =
   | "RUNTIME_PROJECT_DISCOVERY_FAILED"
   | "RUNTIME_PROJECT_ID_INVALID"
   | "RUNTIME_BOOTSTRAP_FAILED"
-  | "RUNTIME_BOOTSTRAP_INVALID";
+  | "RUNTIME_BOOTSTRAP_INVALID"
+  | "RUNTIME_WORKER_START_FAILED";
 
 export interface ProductionRuntimeProjectBootstrapResult {
   projectSlug: string;
@@ -30,6 +32,7 @@ export interface ProductionRuntimeInitializationSuccess extends ProductionRuntim
   reasonCode: "RUNTIME_INITIALIZED" | "RUNTIME_RECOVERY_REQUIRED";
   projects: readonly ProductionRuntimeProjectBootstrapResult[];
   counts: Readonly<Record<ProductionExecutionRecoveryBootstrapClassification, number>>;
+  worker: ProductionWorkerLifecycleSnapshot;
 }
 
 export interface ProductionRuntimeInitializationFailure extends ProductionRuntimeInitializationBase {
@@ -38,7 +41,7 @@ export interface ProductionRuntimeInitializationFailure extends ProductionRuntim
   reasonCode: Exclude<ProductionRuntimeInitializationReasonCode, "RUNTIME_INITIALIZED" | "RUNTIME_RECOVERY_REQUIRED">;
   projects: readonly [];
   failedProjectSlug?: string;
+  worker: ProductionWorkerLifecycleSnapshot;
 }
 
 export type ProductionRuntimeInitializationResult = ProductionRuntimeInitializationSuccess | ProductionRuntimeInitializationFailure;
-

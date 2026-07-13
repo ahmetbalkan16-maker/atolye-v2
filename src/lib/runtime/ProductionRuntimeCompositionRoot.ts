@@ -4,8 +4,11 @@ import { ProjectReader } from "@/lib/projects/ProjectReader";
 import { ProductionExecutionFilePersistenceAdapter } from "@/lib/production/ProductionExecutionPersistence";
 import { ProductionExecutionRecoveryBootstrap } from "@/lib/production/ProductionExecutionRecoveryBootstrap";
 import { ProductionRuntimeInitializationError, ProductionRuntimeInitializer } from "@/lib/production/ProductionRuntimeInitializer";
+import { ProductionWorkerLifecycle } from "@/lib/production/ProductionWorkerLifecycle";
+import { configureProductionPipelineExecution } from "@/lib/production/ProductionPipelineExecutionFactory";
 import type { ProductionRuntimeInitializationSuccess } from "@/types/productionRuntimeInitialization";
 
+const productionWorkerLifecycle = new ProductionWorkerLifecycle();
 const processRuntimeInitializer = new ProductionRuntimeInitializer({
   now: () => new Date().toISOString(),
   listProjectSlugs: listProjectSlugsReadOnly,
@@ -13,11 +16,13 @@ const processRuntimeInitializer = new ProductionRuntimeInitializer({
     trustedRootDirectory: path.join(ProjectReader.getProjectFolder(projectSlug), "production-execution"),
     createRootDirectory: false,
   })),
+  workerLifecycle: productionWorkerLifecycle,
 });
 
 export async function initializeProductionProcessRuntime(): Promise<ProductionRuntimeInitializationSuccess> {
   const result = await processRuntimeInitializer.initialize();
   if (!result.ok) throw new ProductionRuntimeInitializationError(result);
+  configureProductionPipelineExecution({ lifecycle: productionWorkerLifecycle });
   return result;
 }
 
@@ -32,4 +37,3 @@ async function listProjectSlugsReadOnly(): Promise<readonly string[]> {
 }
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException { return error instanceof Error; }
-

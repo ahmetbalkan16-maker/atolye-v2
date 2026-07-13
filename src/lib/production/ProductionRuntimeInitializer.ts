@@ -1,11 +1,13 @@
 import type { ProductionExecutionRecoveryBootstrap } from "./ProductionExecutionRecoveryBootstrap";
 import type { ProductionExecutionRecoveryBootstrapClassification, ProductionExecutionRecoveryBootstrapResult } from "@/types/productionExecutionRecoveryBootstrap";
 import type { ProductionRuntimeInitializationFailure, ProductionRuntimeInitializationResult, ProductionRuntimeInitializationSuccess, ProductionRuntimeProjectBootstrapResult } from "@/types/productionRuntimeInitialization";
+import type { ProductionWorkerLifecycle } from "./ProductionWorkerLifecycle";
 
 export interface ProductionRuntimeInitializerDependencies {
   now(): string;
   listProjectSlugs(): Promise<readonly string[]>;
   createRecoveryBootstrap(projectSlug: string): Pick<ProductionExecutionRecoveryBootstrap, "bootstrapRecovery">;
+  workerLifecycle: Pick<ProductionWorkerLifecycle, "start" | "fail" | "snapshot">;
 }
 
 const slugPattern = /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/;
@@ -25,21 +27,21 @@ export class ProductionRuntimeInitializer {
     try {
       initializedAt = this.dependencies.now();
     } catch {
-      return failure("RUNTIME_CLOCK_INVALID", "invalid");
+      return this.failure("RUNTIME_CLOCK_INVALID", "invalid");
     }
-    if (!validDate(initializedAt)) return failure("RUNTIME_CLOCK_INVALID", "invalid");
+    if (!validDate(initializedAt)) return this.failure("RUNTIME_CLOCK_INVALID", "invalid");
 
     let projectSlugs: readonly string[];
     try {
       projectSlugs = await this.dependencies.listProjectSlugs();
     } catch {
-      return failure("RUNTIME_PROJECT_DISCOVERY_FAILED", initializedAt);
+      return this.failure("RUNTIME_PROJECT_DISCOVERY_FAILED", initializedAt);
     }
-    if (!Array.isArray(projectSlugs) || !projectSlugs.every((slug) => typeof slug === "string")) return failure("RUNTIME_PROJECT_ID_INVALID", initializedAt);
+    if (!Array.isArray(projectSlugs) || !projectSlugs.every((slug) => typeof slug === "string")) return this.failure("RUNTIME_PROJECT_ID_INVALID", initializedAt);
 
     const normalized = [...new Set(projectSlugs)].sort();
     const invalidSlug = normalized.find((slug) => !slugPattern.test(slug));
-    if (invalidSlug) return failure("RUNTIME_PROJECT_ID_INVALID", initializedAt);
+    if (invalidSlug) return this.failure("RUNTIME_PROJECT_ID_INVALID", initializedAt);
 
     const projects: ProductionRuntimeProjectBootstrapResult[] = [];
     for (const projectSlug of normalized) {
@@ -47,16 +49,24 @@ export class ProductionRuntimeInitializer {
       try {
         bootstrap = await this.dependencies.createRecoveryBootstrap(projectSlug).bootstrapRecovery({ evaluatedAt: initializedAt });
       } catch {
-        return failure("RUNTIME_BOOTSTRAP_FAILED", initializedAt, projectSlug);
+        return this.failure("RUNTIME_BOOTSTRAP_FAILED", initializedAt, projectSlug);
       }
-      if (!validBootstrap(bootstrap)) return failure("RUNTIME_BOOTSTRAP_INVALID", initializedAt, projectSlug);
+      if (!validBootstrap(bootstrap)) return this.failure("RUNTIME_BOOTSTRAP_INVALID", initializedAt, projectSlug);
       projects.push({ projectSlug, bootstrap });
     }
 
     const counts = emptyCounts();
     for (const project of projects) for (const classification of classifications) counts[classification] += project.bootstrap.counts[classification];
     const recoveryRequired = projects.some((project) => project.bootstrap.decision === "recovery-required");
-    return success(recoveryRequired ? "RUNTIME_RECOVERY_REQUIRED" : "RUNTIME_INITIALIZED", initializedAt, projects, counts);
+    const provisional = success(recoveryRequired ? "RUNTIME_RECOVERY_REQUIRED" : "RUNTIME_INITIALIZED", initializedAt, projects, counts, this.dependencies.workerLifecycle.snapshot());
+    const started = await this.dependencies.workerLifecycle.start({ initialization: provisional });
+    if (!started.ok || started.snapshot.state !== "ready") return this.failure("RUNTIME_WORKER_START_FAILED", initializedAt);
+    return { ...provisional, worker: started.snapshot };
+  }
+
+  private failure(reasonCode: ProductionRuntimeInitializationFailure["reasonCode"], initializedAt: string, failedProjectSlug?: string): ProductionRuntimeInitializationFailure {
+    this.dependencies.workerLifecycle.fail(reasonCode);
+    return failure(reasonCode, initializedAt, this.dependencies.workerLifecycle.snapshot(), failedProjectSlug);
   }
 }
 
@@ -69,12 +79,12 @@ export class ProductionRuntimeInitializationError extends Error {
 
 const classifications: readonly ProductionExecutionRecoveryBootstrapClassification[] = ["active", "running", "terminal", "orphaned", "expired-lease", "replayable"];
 
-function success(reasonCode: ProductionRuntimeInitializationSuccess["reasonCode"], initializedAt: string, projects: ProductionRuntimeProjectBootstrapResult[], counts: ProductionRuntimeInitializationSuccess["counts"]): ProductionRuntimeInitializationSuccess {
-  return { schemaVersion: "1", ok: true, decision: reasonCode === "RUNTIME_RECOVERY_REQUIRED" ? "recovery-required" : "ready", reasonCode, initializedAt, writeFree: true, partialInitialization: false, projects, counts, evidence: [`reason:${reasonCode}`, "runtime-initialization:write-free"] };
+function success(reasonCode: ProductionRuntimeInitializationSuccess["reasonCode"], initializedAt: string, projects: ProductionRuntimeProjectBootstrapResult[], counts: ProductionRuntimeInitializationSuccess["counts"], worker: ProductionRuntimeInitializationSuccess["worker"]): ProductionRuntimeInitializationSuccess {
+  return { schemaVersion: "1", ok: true, decision: reasonCode === "RUNTIME_RECOVERY_REQUIRED" ? "recovery-required" : "ready", reasonCode, initializedAt, writeFree: true, partialInitialization: false, projects, counts, worker, evidence: [`reason:${reasonCode}`, "runtime-initialization:write-free"] };
 }
 
-function failure(reasonCode: ProductionRuntimeInitializationFailure["reasonCode"], initializedAt: string, failedProjectSlug?: string): ProductionRuntimeInitializationFailure {
-  return { schemaVersion: "1", ok: false, decision: "failed", reasonCode, initializedAt, writeFree: true, partialInitialization: false, projects: [], ...(failedProjectSlug ? { failedProjectSlug } : {}), evidence: [`reason:${reasonCode}`, "runtime-initialization:not-committed"] };
+function failure(reasonCode: ProductionRuntimeInitializationFailure["reasonCode"], initializedAt: string, worker: ProductionRuntimeInitializationFailure["worker"], failedProjectSlug?: string): ProductionRuntimeInitializationFailure {
+  return { schemaVersion: "1", ok: false, decision: "failed", reasonCode, initializedAt, writeFree: true, partialInitialization: false, projects: [], worker, ...(failedProjectSlug ? { failedProjectSlug } : {}), evidence: [`reason:${reasonCode}`, "runtime-initialization:not-committed"] };
 }
 
 function validBootstrap(value: ProductionExecutionRecoveryBootstrapResult): boolean {

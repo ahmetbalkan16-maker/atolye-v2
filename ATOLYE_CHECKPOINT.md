@@ -49,20 +49,21 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 **Sprint 110**
 
-Planning
+Production Worker Lifecycle
 
 **Durum**
 
-Planned
+Completed
 
-Sprint 109 Process Startup Bootstrap Integration tamamlandi. Sonraki aktif calisma Sprint 110 kapsam planlamasidir.
+Sprint 110 Production Worker Lifecycle tamamlandi. Sonraki calisma ayri planlama ve onay ile belirlenecektir.
 
 Not:
 
-- Sprint 109, `instrumentation.ts/register()` ile process-start bootstrap baglantisini tamamlar.
-- `ProductionRuntimeCompositionRoot`, idempotent `ProductionRuntimeInitializer` ve instance-scoped cached initialization Promise kullanilir.
-- Bootstrap write-free ve fail-closed kalir; partial initialization, yeni persistence formati veya durable mutation olusmaz.
-- Sprint 110 kapsamı otomatik uygulanmayacak; planning sonucu ayrica onaylanacaktir.
+- Worker lifecycle `created -> starting -> ready -> draining -> stopped` ve `failed` durumlarini merkezilestirir.
+- Recovery initialization ve sonuc dogrulamasi tamamlanmadan worker `ready` olmaz.
+- Composition root tek lifecycle instance'ini initializer ve gercek pipeline execution factory'siyle paylasir.
+- Admission gate execution yan etkilerinden once calisir; kabul ve active execution sayimi atomiktir.
+- Drain yeni execution'i reddeder, aktif isleri bekler; `start()`, `drain()` ve `stop()` idempotenttir.
 
 ---
 
@@ -78,7 +79,7 @@ Son Commit
 
 Durum
 
-Sprint 109 tamamlandi; Sprint 110 planning aktif calisma olarak birakildi. Sprint 109 degisiklikleri kullanici talebi geregi commit/push edilmedi.
+Sprint 110 tamamlandi. Sprint 110 degisiklikleri kullanici talebi geregi commit/push edilmedi.
 
 ---
 
@@ -2131,6 +2132,25 @@ Completed
 - Sprint 109 startup smoke PASS (11/11); Sprint 108 recovery bootstrap PASS (15/15); pipeline orchestration PASS (10/10); production execution persistence PASS (70/70).
 - `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
 - Acik riskler: once-only garantisi process kapsamindadir; development HMR yeniden yukleme riski tasir; snapshot isolation yoktur; proje sayisi arttikca startup suresi uzayabilir; distributed recovery, leader election, distributed lock ve expired lease remediation sonraki kapsamdir.
+- Commit veya push yapilmadi.
+
+---
+
+### Sprint 110 — Production Worker Lifecycle
+
+Completed
+
+- Merkezi lifecycle `created -> starting -> ready -> draining -> stopped` ve guvenli `failed` durum modelini uygular.
+- Recovery initialization ve bootstrap sonuc dogrulamasi tamamen basarili olmadan worker `ready` durumuna gecmez; failure, partial initialization birakmadan `failed` sonucuna kapanir.
+- `ProductionRuntimeCompositionRoot` tek lifecycle instance'i olusturur ve ayni instance'i hem `ProductionRuntimeInitializer` hem gercek `ProductionPipelineExecutionFactory` execution yoluna verir.
+- Lifecycle admission gate reservation, claim, lease ve stage handler dahil execution yan etkilerinden once calisir. State kontrolu ile active-count artirimi arasinda async bosluk yoktur.
+- Kabul edilen sync veya async execution, sonucundan bagimsiz olarak `finally` ile active-count'u azaltir. Drain basladiktan sonra yeni execution deterministik reddedilir ve kabul edilmis aktif isler tamamlanana kadar beklenir.
+- `start()`, `drain()` ve `stop()` API'leri instance-scoped cached Promise ile idempotenttir; aktif execution yoksa drain hemen tamamlanir. `draining`, `stopped` ve `failed` durumlari yeni execution kabul etmez.
+- Scheduler, persistence formati, recovery bootstrap ve execution sonuc sozlesmeleri korunur; yeni durable mutation eklenmez.
+- Sprint 110 worker lifecycle smoke PASS (16/16); Sprint 109 startup PASS (11/11); Sprint 108 recovery bootstrap PASS (15/15); Sprint 107 wiring PASS (19/19); pipeline orchestration PASS (10/10); production execution persistence PASS (70/70); worker execution regresyonlari PASS (55/55 ve 18/18).
+- `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- SIGTERM/SIGINT, framework shutdown wiring, distributed drain ve cross-process coordination kapsam disidir.
+- Acik riskler: lifecycle ve active-count process/instance kapsamindadir; process kesintisi in-flight handler'i atomik kapatmaz; distributed drain ve cross-process admission garantisi yoktur.
 - Commit veya push yapilmadi.
 
 ---

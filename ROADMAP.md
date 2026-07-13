@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 110 — Planning
+Sprint 110 — Production Worker Lifecycle (Completed)
 
 Siradaki Planlama Adimi
 
-Sprint 110 — Scope Definition / Next Work Planning
+Sonraki sprint — Planning
 
-Sprint 109 Process Startup Bootstrap Integration tamamlandi. Sprint 110 otomatik uygulanmayacak; kapsam, kabul kriterleri ve risk sinirlari planning asamasinda ayrica belirlenecektir.
+Sprint 110 Production Worker Lifecycle tamamlandi. Sonraki sprint kapsami ayrica planlanacak ve onaylanacaktir.
 
 ---
 
@@ -1215,6 +1215,27 @@ Completed
 - Sprint 109 startup smoke 11/11; Sprint 108 recovery bootstrap 15/15; pipeline orchestration 10/10; production execution persistence 70/70 PASS.
 - `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
 - Acik riskler: once-only garantisi process kapsamindadir; development HMR yeniden yukleme riski vardir; snapshot isolation yoktur; proje sayisi startup suresini artirabilir; distributed recovery, leader election, distributed lock ve expired lease remediation sonraki kapsamdir.
+- Commit veya push yapilmadi.
+
+---
+
+# Sprint 110
+
+## Production Worker Lifecycle
+
+Completed
+
+- `created -> starting -> ready -> draining -> stopped` ve `failed` durum modeli merkezi `ProductionWorkerLifecycle` tarafindan yonetilir.
+- Recovery initialization ve sonuc dogrulamasi tamamen basarili olmadan worker `ready` olmaz; startup failure partial initialization birakmadan `failed` durumuna gecer.
+- `ProductionRuntimeCompositionRoot` tek lifecycle instance'ini initializer ve gercek pipeline execution factory'siyle paylasir.
+- Gercek execution yolundaki admission gate reservation, claim, lease ve handler yan etkilerinden once calisir. Kabul kontrolu ile active-count artirimi atomiktir ve arada async bosluk yoktur.
+- Kabul edilen execution sync veya async hata verse de active-count `finally` ile azalir. Drain yeni execution'i reddeder ve aktif execution'lar tamamlanana kadar bekler.
+- `start()`, `drain()` ve `stop()` instance-scoped cached Promise kullanarak idempotent davranir; bos drain hemen tamamlanir. `draining`, `stopped` ve `failed` durumlari yeni execution'i deterministik reddeder.
+- Scheduler, persistence formati, recovery bootstrap ve execution sonuc sozlesmeleri korunur; yeni durable mutation eklenmez.
+- Sprint 110 worker lifecycle 16/16; Sprint 109 startup 11/11; Sprint 108 recovery bootstrap 15/15; Sprint 107 wiring 19/19; pipeline orchestration 10/10; production execution persistence 70/70; worker execution regresyonlari 55/55 ve 18/18 PASS.
+- `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- SIGTERM/SIGINT, framework shutdown wiring, distributed drain ve cross-process coordination kapsam disidir.
+- Acik riskler: lifecycle process/instance kapsamindadir; in-flight handler ile process shutdown atomik degildir; distributed drain ve cross-process admission garantisi yoktur.
 - Commit veya push yapilmadi.
 
 ---

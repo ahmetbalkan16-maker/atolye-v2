@@ -25,6 +25,22 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 110 — Production Worker Lifecycle
+
+Completed
+
+- Merkezi `ProductionWorkerLifecycle`, `created -> starting -> ready -> draining -> stopped` ve `failed` durum modelini ekledi.
+- Recovery initialization ve sonuc validation tamamen basarili olmadan worker `ready` olmaz; failure fail-closed davranir ve partial initialization birakmaz.
+- `ProductionRuntimeCompositionRoot` tek lifecycle instance'ini hem `ProductionRuntimeInitializer` hem gercek `ProductionPipelineExecutionFactory` execution yolunda kullanir.
+- Admission gate reservation, claim, lease ve handler yan etkilerinden once calisir. Kabul kontrolu ve active-count artirimi arasinda async bosluk yoktur; kabul edilen execution sayaci sync/async hata dahil `finally` ile azalir.
+- Drain basladiktan sonra yeni execution deterministik reddedilir ve aktif execution'lar beklenir; aktif execution yoksa drain hemen tamamlanir. `start()`, `drain()` ve `stop()` idempotent cached Promise davranisina sahiptir.
+- `draining`, `stopped` ve `failed` durumlarinda execution kabul edilmez. Scheduler, persistence formati, recovery bootstrap ve execution sonuc sozlesmeleri korunur; yeni durable mutation eklenmez.
+- Sprint 110 worker lifecycle smoke 16/16; Sprint 109 startup 11/11; Sprint 108 recovery bootstrap 15/15; Sprint 107 wiring 19/19; pipeline orchestration 10/10; production execution persistence 70/70; worker execution regresyonlari 55/55 ve 18/18 PASS.
+- `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- SIGTERM/SIGINT, framework shutdown wiring, distributed drain ve cross-process coordination kapsam disidir.
+- Acik riskler: lifecycle process/instance kapsamindadir; process kesintisi in-flight handler ile atomik degildir; distributed drain ve cross-process admission garantisi yoktur.
+- Commit veya push yapilmadi.
+
 ## Sprint 109 — Process Startup Bootstrap Integration
 
 Completed
