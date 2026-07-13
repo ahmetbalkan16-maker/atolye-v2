@@ -25,6 +25,20 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 106 — Pipeline Stage Durable Execution Integration
+
+Completed
+
+- `PipelineRunner.runStage` cevresine opsiyonel durable adapter eklendi; durable baslangic basarili olmadan job claim/stage handler calismaz, adapter yoksa legacy davranis korunur.
+- Mevcut stage handler'lari yeniden yazilmadan `ProductionExecutionWorkerExecutionService` wrapper'i uzerinden calistirilir.
+- Success, failure, cancellation ve terminal replay sonuclari mevcut boolean/exception pipeline sozlesmesine cevrilir; exact replay handler'i yeniden calistirmaz.
+- Journal'a yalniz minimal guvenli metadata girer; raw stage output, secret ve stack trace persist edilmez. Public API/UI ve persistence formati degismez.
+- Retry, queue, scheduler, history, auto-continuation ve recovery davranislari korunur.
+- Sprint 106 smoke 17/17; retry persistence 5/5 grup; orchestration 10/10; history 6/6; auto-continuation 18/18; `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Acik riskler: composition root adapter/request factory etkinlestirmesi gerekir; pipeline job/attempt persistence atomik degildir; duplicate lock instance-scope'tur ve distributed lock garantisi yoktur.
+- Commit veya push yapilmadi.
+
+---
 ## Sprint 105 — Durable Worker Execution Foundation
 
 Completed

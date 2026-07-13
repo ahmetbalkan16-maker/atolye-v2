@@ -7,6 +7,7 @@ import {
 } from "./PipelineRecoveryPlanner";
 import { PipelineStageExecutor } from "./PipelineStageExecutor";
 import { isPipelineStateError } from "./PipelineStateError";
+import type { ProductionPipelineExecutionAdapter } from "@/lib/production/ProductionPipelineExecutionAdapter";
 import type {
   ProductionStepKey,
   ProjectPackageRunType,
@@ -20,6 +21,9 @@ import type {
 } from "@/types/pipelineRecovery";
 
 export class PipelineRunner {
+  private static durableExecution?: Pick<ProductionPipelineExecutionAdapter, "execute">;
+
+  static configureDurableExecution(adapter?: Pick<ProductionPipelineExecutionAdapter, "execute">) { this.durableExecution = adapter; }
   static async run(topic: string) {
     const slug = ProjectManager.createSlug(topic);
     const project = await ProjectManager.createProject(topic);
@@ -511,6 +515,17 @@ export class PipelineRunner {
   }
 
   private static async runStage(
+    slug: string,
+    stage: ProductionStepKey,
+    action: () => Promise<boolean>,
+    runType: ProjectPackageRunType,
+    onClaimConflict?: () => void,
+  ): Promise<boolean> {
+    const legacy = () => this.runStageLegacy(slug, stage, action, runType, onClaimConflict);
+    return this.durableExecution ? this.durableExecution.execute({ projectSlug: slug, stage, runType }, legacy) : legacy();
+  }
+
+  private static async runStageLegacy(
     slug: string,
     stage: ProductionStepKey,
     action: () => Promise<boolean>,

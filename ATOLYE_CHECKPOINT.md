@@ -47,21 +47,21 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 105**
+**Sprint 106**
 
-Durable Worker Execution Foundation
+Pipeline Stage Durable Execution Integration
 
 **Durum**
 
 Completed
 
-Coordinator ile acilan durable attempt, tek public `execute` API uzerinden lifecycle running ve terminal gecislerine baglandi.
+Pipeline stage execution, `PipelineRunner.runStage` cevresindeki opsiyonel durable adapter ile worker execution hattina baglandi.
 
 Not:
 
-- Success completed/succeeded, handler hatasi failed ve pre/post cancellation cancelled terminal sonucu uretir.
-- Terminal exact replay handler'i yeniden calistirmadan write-free doner; ownership, expired lease ve duplicate execution deny-by-default'tur.
-- Acik risk: duplicate lock yalniz servis instance'i kapsamindadir ve distributed lock degildir; handler yan etkileri persistence ile atomik degildir.
+- Durable baslangic basarili olmadan job claim ve legacy stage handler zinciri calismaz; adapter yoksa mevcut davranis aynen korunur.
+- Success/failure/cancellation/replay sonuclari mevcut boolean/exception pipeline sozlesmesine cevrilir; public API ve UI degismez.
+- Acik risk: activation composition root request factory gerektirir; pipeline job ve attempt persistence atomik degildir; duplicate lock distributed degildir.
 
 ---
 
@@ -77,7 +77,7 @@ Son Commit
 
 Durum
 
-Sprint 105 tamamlandi; Sprint 101–105 degisiklikleri kullanici talebi geregi commit/push edilmedi.
+Sprint 106 tamamlandi; Sprint 101–106 degisiklikleri kullanici talebi geregi commit/push edilmedi.
 
 ---
 
@@ -2057,6 +2057,24 @@ Completed
 - Her lifecycle mutation yalniz bir immutable attempt version artisi uretir; journal sequence contiguous ve monotonik kalir. Yeni persistence formati eklenmedi.
 - Sprint 105 worker smoke PASS (18/18); Sprint 97.7 worker regresyonu PASS (55/55); `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
 - Acik riskler: duplicate lock yalniz servis instance'i kapsamindadir ve distributed lock degildir; handler yan etkileri attempt persistence ile atomik degildir; running sonrasi process kesintisi mevcut recovery sozlesmeleriyle ele alinmalidir.
+- Commit veya push yapilmadi.
+
+---
+
+### Sprint 106 — Pipeline Stage Durable Execution Integration
+
+Completed
+
+- Entegrasyon `PipelineRunner.runStage` cevresindeki opsiyonel durable adapter noktasinda yapildi.
+- Durable worker preflight/running basarili olmadan mevcut job claim ve stage handler zinciri calismaz. Adapter yoksa legacy pipeline davranisi birebir korunur.
+- `ProductionPipelineExecutionAdapter`, mevcut stage handler'lari yeniden yazmadan wrapper olarak `ProductionExecutionWorkerExecutionService` uzerinden calistirir.
+- Success, failure, cancellation ve terminal replay sonuclari mevcut pipeline boolean/exception sozlesmesine cevrilir; public API response shape ve UI sozlesmeleri degismez.
+- Exact replay stage handler'i tekrar calistirmaz ve durable worker'in write-free terminal replay sonucunu kullanir.
+- Journal'a yalniz stage/run-type tabanli minimal, guvenli metadata yazilir; raw stage output, secret, stack trace veya buyuk/kontrolsuz payload persist edilmez.
+- Retry, cancellation, queue, scheduler, history, auto-continuation ve recovery akislarinin mevcut sozlesmeleri korunur.
+- Sprint 106 smoke PASS (17/17); retry persistence PASS (5/5 grup); pipeline orchestration PASS (10/10); history persistence PASS (6/6); auto-continuation PASS (18/18).
+- `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Acik riskler: durable entegrasyon composition root tarafindan adapter ve request factory ile etkinlestirilmelidir; pipeline job mutation'lari ile durable attempt persistence atomik degildir; worker duplicate kilidi instance-scope'tur ve distributed lock garantisi yoktur.
 - Commit veya push yapilmadi.
 
 ---

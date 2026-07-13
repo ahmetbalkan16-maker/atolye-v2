@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 105 — Durable Worker Execution Foundation (Completed)
+Sprint 106 — Pipeline Stage Durable Execution Integration (Completed)
 
 Siradaki Planlama Adimi
 
-Sprint 105.1 — Durable Worker Execution Review / Next Scope Planning
+Sprint 106.1 — Pipeline Durable Integration Review / Next Scope Planning
 
-Sprint 105.1 otomatik uygulanmayacak; distributed lock, handler/persistence atomikligi, gercek pipeline stage entegrasyonu, queue, provider ve UI execution kapali kalacaktir.
+Sprint 106.1 otomatik uygulanmayacak; composition-root activation, cross-store atomiklik, distributed lock, provider ve UI execution takip kapsaminda kalacaktir.
 
 ---
 
@@ -1141,6 +1141,23 @@ Completed
 - Mutation basina tek version artisi ve contiguous/monotonik journal sequence korunur; yeni persistence formati eklenmedi.
 - Sprint 105 worker smoke 18/18 ve Sprint 97.7 worker regresyonu 55/55 PASS; `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
 - Acik riskler: duplicate lock instance-scope'tur ve distributed lock degildir; handler yan etkileri attempt persistence ile atomik degildir; running sonrasi process kesintisi recovery sozlesmeleriyle ele alinmalidir.
+- Commit veya push yapilmadi.
+
+---
+
+# Sprint 106
+
+## Pipeline Stage Durable Execution Integration
+
+Completed
+
+- `PipelineRunner.runStage`, opsiyonel durable adapter ile sarildi; durable baslangic olmadan job claim ve stage handler calismaz, adapter yoksa legacy davranis korunur.
+- Mevcut handler'lar adapter/wrapper ile `ProductionExecutionWorkerExecutionService` uzerinden calisir; handler implementasyonlari yeniden yazilmadi.
+- Success/failure/cancellation/replay mevcut boolean/exception sozlesmesine cevrilir. Exact replay handler'i tekrar calistirmaz.
+- Minimal guvenli metadata journal'a yazilir; raw output, secret ve stack persist edilmez. Public API/UI degismez.
+- Retry, queue, scheduler, history, auto-continuation ve recovery davranislari regresyonsuz korunur.
+- Sprint 106 smoke 17/17, retry persistence 5/5 grup, orchestration 10/10, history 6/6 ve auto-continuation 18/18 PASS; TypeScript, hedefli ESLint ve diff check PASS.
+- Acik riskler: composition root adapter/request factory saglamalidir; pipeline job ile attempt persistence atomik degildir; duplicate lock instance-scope'tur ve distributed lock garantisi yoktur.
 - Commit veya push yapilmadi.
 
 ---
