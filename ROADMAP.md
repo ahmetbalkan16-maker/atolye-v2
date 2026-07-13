@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 103 — Production Execution Coordinator Foundation (Completed)
+Sprint 104 — Durable Attempt Lifecycle Foundation (Completed)
 
 Siradaki Planlama Adimi
 
-Sprint 103.1 — Production Execution Coordinator Review / Next Scope Planning
+Sprint 104.1 — Durable Attempt Lifecycle Review / Next Scope Planning
 
-Sprint 103.1 otomatik uygulanmayacak; claim/lease provisioning, katmanlar arasi atomik transaction, gercek production execution, queue, worker, provider ve UI execution kapali kalacaktir.
+Sprint 104.1 otomatik uygulanmayacak; claim/lease provisioning, katmanlar arasi atomik transaction, worker execution, queue, provider ve UI execution kapali kalacaktir.
 
 ---
 
@@ -1106,6 +1106,23 @@ Completed
 - Mevcut CAS, immutable versioning, canonical validation, no-replace ve recovery sozlesmeleri korunur. Replay, recovery ve worker execution davranislari degismez.
 - Sprint 103 smoke 9/9 PASS; `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
 - Acik risk: claim ve lease coordinator cagrisi oncesinde mevcut olmalidir; katmanlar arasi atomik transaction henuz yoktur.
+- Commit veya push yapilmadi.
+
+---
+
+# Sprint 104
+
+## Durable Attempt Lifecycle Foundation
+
+Completed
+
+- Tek public lifecycle `mutate` API ile created/prepared -> running, running -> completed/failed ve active -> cancelled gecisleri merkezilestirildi.
+- Completed public lifecycle sonucu mevcut durable attempt `succeeded` state'ine eslenir; failed ve cancelled terminaldir.
+- Expected-version CAS, claim/worker/session/lease ownership dogrulamasi ve mutation basina tek immutable attempt version korunur.
+- Journal append-only source of truth'tur; sequence contiguous ve monotoniktir. Exact replay write-free, ayni event ID/farkli payload conflict ve stale version conflict deterministiktir.
+- Gecersiz transition sirasi ve terminal attempt mutation'i reddedilir.
+- Sprint 104 smoke 16/16 PASS; `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Acik riskler: claim ve lease onceden mevcut olmalidir; katmanlar arasi atomik transaction yoktur; worker execution entegrasyonu henuz yapilmadi.
 - Commit veya push yapilmadi.
 
 ---

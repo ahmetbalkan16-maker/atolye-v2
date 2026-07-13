@@ -47,21 +47,21 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 103**
+**Sprint 104**
 
-Production Execution Coordinator Foundation
+Durable Attempt Lifecycle Foundation
 
 **Durum**
 
 Completed
 
-Claim, lease ve durable attempt create/open/exact replay akislarini tek public `coordinate` girisinde birlestiren coordinator katmani tamamlandi.
+Durable attempt yasam dongusu tek public `mutate` API ile merkezi, CAS-korumali ve append-only olarak yonetilir.
 
 Not:
 
-- Claim preflight ve exact replay write-free; lease evaluation ile claim/lease/worker/session conflict dogrulamalari deterministiktir.
-- Yeni persistence formati eklenmedi; CAS, immutable versioning, validation, no-replace ve recovery sozlesmeleri korundu.
-- Acik risk: claim ve lease onceden mevcut olmalidir; katmanlar arasi atomik transaction henuz yoktur.
+- created/prepared -> running, running -> completed/failed ve active -> cancelled gecisleri desteklenir; completed mevcut durable attempt `succeeded` state'ine eslenir.
+- Exact replay write-free; ownership, event ID/payload, stale version, transition sirasi ve terminal state dogrulamalari deny-by-default'tur.
+- Acik risk: claim ve lease onceden mevcut olmalidir; katmanlar arasi atomik transaction ve worker execution entegrasyonu yoktur.
 
 ---
 
@@ -77,7 +77,7 @@ Son Commit
 
 Durum
 
-Sprint 103 tamamlandi; Sprint 101–103 degisiklikleri kullanici talebi geregi commit/push edilmedi.
+Sprint 104 tamamlandi; Sprint 101–104 degisiklikleri kullanici talebi geregi commit/push edilmedi.
 
 ---
 
@@ -2020,6 +2020,24 @@ Completed
 - Mevcut CAS/version, immutable versioning, canonical validation, no-replace ve recovery sozlesmeleri korunur; replay, recovery ve worker execution davranislari degistirilmez.
 - Sprint 103 coordinator smoke PASS (9/9); `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
 - Acik risk: coordinator mevcut durable claim ve lease'in onceden olusturulmus olmasini bekler; katmanlar arasi atomik transaction henuz yoktur.
+- Commit veya push yapilmadi.
+
+---
+
+### Sprint 104 — Durable Attempt Lifecycle Foundation
+
+Completed
+
+- Tek public lifecycle `mutate` API, attempt yasam dongusu gecislerini merkezi olarak yonetir.
+- created/prepared -> running, running -> completed, running -> failed ve active -> cancelled gecisleri desteklenir. Public completed sonucu mevcut durable attempt sozlesmesindeki `succeeded` state'ine eslenir.
+- Her gercek mutation expected-version CAS kullanir ve yalniz bir yeni immutable attempt version uretir.
+- Claim, worker, session ve lease ownership baglari transition oncesinde yeniden dogrulanir.
+- Attempt journal append-only source of truth kalir; event sequence contiguous ve monotoniktir. Timestamp ve transition metadata caller-provided ve deterministiktir.
+- Exact transition replay write-free'dir. Ayni event ID ile farkli transition/payload conflict; stale expected-version ayri conflict uretir.
+- Gecersiz transition sirasi reddedilir; completed/succeeded, failed ve cancelled terminal attempt'ler yeni mutation kabul etmez.
+- Yeni persistence formati veya worker execution entegrasyonu eklenmedi; mevcut coordinator, recovery, storage ve attempt davranislari korundu.
+- Sprint 104 lifecycle smoke PASS (16/16); `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Acik riskler: claim ve lease onceden mevcut olmalidir; katmanlar arasi atomik transaction yoktur; worker execution entegrasyonu henuz yapilmadi.
 - Commit veya push yapilmadi.
 
 ---

@@ -25,6 +25,20 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 104 — Durable Attempt Lifecycle Foundation
+
+Completed
+
+- Tek public lifecycle `mutate` API ile created/prepared -> running, running -> completed/failed ve active -> cancelled durum ilerlemeleri eklendi; completed mevcut durable attempt `succeeded` state'ine eslenir.
+- Her mutation expected-version CAS ve claim/worker/session/lease ownership validation kullanir; gercek mutation yalniz bir yeni immutable attempt version uretir.
+- Attempt journal append-only kalir; event sequence contiguous ve monotoniktir. Deterministik timestamp/metadata kaydedilir.
+- Exact replay write-free'dir. Ayni event ID/farkli payload, stale version, gecersiz transition sirasi ve terminal attempt mutation'i deterministik olarak reddedilir.
+- Yeni persistence formati, katmanlar arasi atomik transaction veya worker execution entegrasyonu eklenmedi.
+- Sprint 104 lifecycle smoke 16/16 PASS; `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Acik riskler: claim ve lease onceden mevcut olmalidir; katmanlar arasi atomik transaction yoktur; worker execution entegrasyonu henuz yapilmadi.
+- Commit veya push yapilmadi.
+
+---
 ## Sprint 103 — Production Execution Coordinator Foundation
 
 Completed
