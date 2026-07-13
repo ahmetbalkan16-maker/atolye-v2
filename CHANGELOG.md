@@ -25,6 +25,22 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 111 — Production Worker Health & Runtime Diagnostics
+
+Completed
+
+- Merkezi `ProductionWorkerLifecycle` singleton'inin state, active execution counter ve admission bilgisinden uretilen yeni read-only `ProductionRuntimeStatus` sozlesmesi eklendi. `ProductionRuntimeCompositionRoot`, ayni merkezi instance uzerinden senkron `getProductionRuntimeStatus()` getter'i sunar.
+- Snapshot lifecycle state, active execution count, execution acceptance, initialized, recovery completed, worker ready, draining, startup timestamp, last state transition timestamp ve normalize initialization failure alanlarini ayri ve deterministik anlamlarla raporlar.
+- Initialization oncesi created, recovery sirasinda starting, recovery sonrasi ready, drain sirasinda draining, stop sonrasi stopped ve startup failure sonrasi failed durumlari gozlemlenebilir. Recovery tamamen dogrulanmadan ready veya acceptance true raporlanmaz.
+- Basarili initialization sonrasinda `initialized` ve `recoveryCompleted` drain/stop boyunca korunur; `workerReady` ve `acceptingExecutions` current lifecycle state'i izler. Active execution count admission gate'in gercek, race-free sayacindan gelir.
+- `startupTimestamp` startup baslangicinda bir kez atanir; `lastStateTransitionTimestamp` yalniz gercek transition sirasinda yenilenir. Cached initialize/start replay ve snapshot okumalari state veya timestamp mutation'i uretmez.
+- Her status cagrisi yeni, top-level ve nested failure nesnesi frozen, write-free value object dondurur. Normalize failure yalniz safe reason code ve varsa validation'dan gecmis failed project slug tasir; raw Error/message/stack/cause/path, Promise veya mutable collection sizdirilmaz.
+- Status getter persistence write, scheduler, recovery bootstrap veya execution side effect cagirmaz. Scheduler, persistence, recovery bootstrap, runtime startup ve execution admission sozlesmeleri korundu.
+- API endpoint, UI, timer/polling, SIGTERM/SIGINT, framework shutdown hook ve distributed/cross-process status coordination kapsam disinda birakildi.
+- Final source reviewde ready state transition timestamp'inin startup timestamp'ini yeniden kullanmasi duzeltildi; ready transition lifecycle clock'u ile kaydedilir. Smoke kapsami repeat initialize/start, boolean state matrisi, transition-only timestamp, nested failure immutability ve failure sanitization kontrolleriyle 15 senaryoya genisletildi.
+- Sprint 111 runtime status smoke 15/15; Sprint 110 worker lifecycle 16/16; Sprint 109 runtime startup 11/11 PASS. `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Commit veya push yapilmadi.
+
 ## Sprint 110 — Production Worker Lifecycle
 
 Completed

@@ -7,10 +7,12 @@ import { ProductionRuntimeInitializationError, ProductionRuntimeInitializer } fr
 import { ProductionWorkerLifecycle } from "@/lib/production/ProductionWorkerLifecycle";
 import { configureProductionPipelineExecution } from "@/lib/production/ProductionPipelineExecutionFactory";
 import type { ProductionRuntimeInitializationSuccess } from "@/types/productionRuntimeInitialization";
+import type { ProductionRuntimeStatus } from "@/types/productionRuntimeStatus";
 
-const productionWorkerLifecycle = new ProductionWorkerLifecycle();
+const runtimeNow = () => new Date().toISOString();
+const productionWorkerLifecycle = new ProductionWorkerLifecycle(runtimeNow);
 const processRuntimeInitializer = new ProductionRuntimeInitializer({
-  now: () => new Date().toISOString(),
+  now: runtimeNow,
   listProjectSlugs: listProjectSlugsReadOnly,
   createRecoveryBootstrap: (projectSlug) => new ProductionExecutionRecoveryBootstrap(new ProductionExecutionFilePersistenceAdapter({
     trustedRootDirectory: path.join(ProjectReader.getProjectFolder(projectSlug), "production-execution"),
@@ -24,6 +26,10 @@ export async function initializeProductionProcessRuntime(): Promise<ProductionRu
   if (!result.ok) throw new ProductionRuntimeInitializationError(result);
   configureProductionPipelineExecution({ lifecycle: productionWorkerLifecycle });
   return result;
+}
+
+export function getProductionRuntimeStatus(): ProductionRuntimeStatus {
+  return productionWorkerLifecycle.statusSnapshot();
 }
 
 async function listProjectSlugsReadOnly(): Promise<readonly string[]> {

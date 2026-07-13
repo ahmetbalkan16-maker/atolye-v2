@@ -47,23 +47,23 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 110**
+**Sprint 111**
 
-Production Worker Lifecycle
+Production Worker Health & Runtime Diagnostics
 
 **Durum**
 
 Completed
 
-Sprint 110 Production Worker Lifecycle tamamlandi. Sonraki calisma ayri planlama ve onay ile belirlenecektir.
+Sprint 111 Production Worker Health & Runtime Diagnostics tamamlandi. Sonraki calisma ayri planlama ve onay ile belirlenecektir.
 
 Not:
 
-- Worker lifecycle `created -> starting -> ready -> draining -> stopped` ve `failed` durumlarini merkezilestirir.
-- Recovery initialization ve sonuc dogrulamasi tamamlanmadan worker `ready` olmaz.
-- Composition root tek lifecycle instance'ini initializer ve gercek pipeline execution factory'siyle paylasir.
-- Admission gate execution yan etkilerinden once calisir; kabul ve active execution sayimi atomiktir.
-- Drain yeni execution'i reddeder, aktif isleri bekler; `start()`, `drain()` ve `stop()` idempotenttir.
+- Merkezi lifecycle singleton'i read-only ve deterministik runtime status snapshot'i uretir.
+- Snapshot initialization oncesi, starting, ready, draining, stopped ve failed durumlarini gozlemlenebilir yapar.
+- Gercek lifecycle active execution sayaci ve ayni admission kaynagindan execution acceptance bilgisi raporlanir.
+- Recovery tamamlanmadan `workerReady` ve execution acceptance true olmaz.
+- Her status cagrisi yeni, frozen ve write-free value object dondurur; normalize failure bilgisi raw hata verisi tasimaz.
 
 ---
 
@@ -79,7 +79,7 @@ Son Commit
 
 Durum
 
-Sprint 110 tamamlandi. Sprint 110 degisiklikleri kullanici talebi geregi commit/push edilmedi.
+Sprint 111 tamamlandi. Sprint 111 degisiklikleri kullanici talebi geregi commit/push edilmedi.
 
 ---
 
@@ -2151,6 +2151,25 @@ Completed
 - `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
 - SIGTERM/SIGINT, framework shutdown wiring, distributed drain ve cross-process coordination kapsam disidir.
 - Acik riskler: lifecycle ve active-count process/instance kapsamindadir; process kesintisi in-flight handler'i atomik kapatmaz; distributed drain ve cross-process admission garantisi yoktur.
+- Commit veya push yapilmadi.
+
+---
+
+### Sprint 111 — Production Worker Health & Runtime Diagnostics
+
+Completed
+
+- Merkezi `ProductionWorkerLifecycle` singleton'i uzerinden senkron, read-only ve deterministik `ProductionRuntimeStatus` snapshot sozlesmesi eklendi; composition root `getProductionRuntimeStatus()` getter'ini ayni initializer ve execution admission lifecycle instance'indan uretir.
+- Snapshot `lifecycleState`, `activeExecutionCount`, `acceptingExecutions`, `initialized`, `recoveryCompleted`, `workerReady`, `draining`, `startupTimestamp`, `lastStateTransitionTimestamp` ve normalize `initializationFailure` alanlarini tasir. `initialized` ve `recoveryCompleted` basarili runtime initialization bilgisini korurken `workerReady` yalniz mevcut ready state'ini, `acceptingExecutions` ise gercek admission gate kararini ifade eder.
+- Initialization oncesi created, recovery boyunca starting, recovery sonrasi ready, drain sirasinda draining, stop sonrasi stopped ve startup failure sonrasi failed durumlari deterministik olarak gozlemlenebilir. Recovery tamamen dogrulanmadan ready veya execution acceptance raporlanmaz.
+- Active execution count dogrudan lifecycle admission sayacindan gelir; state kontrolu ve sayac artirimi arasinda async bosluk bulunmaz. Drain/stop sonrasinda initialized ve recovery-completed bilgisi korunur, worker readiness ve acceptance kapanir.
+- `startupTimestamp` yalniz gercek startup baslangicinda bir kez atanir. `lastStateTransitionTimestamp` yalniz lifecycle state transition'inda yenilenir; tekrar initialize/start ve status snapshot cagrilari timestamp'leri degistirmez.
+- Her status cagrisi yeni, top-level ve nested failure nesnesi frozen, write-free value object uretir. Snapshot internal mutable collection, Promise veya Error tasimaz ve dis mutasyon lifecycle state'ini etkileyemez.
+- Initialization failure yalniz normalize `reasonCode` ve varsa validation'dan gecmis `failedProjectSlug` tasir; raw message, stack, cause, path veya hassas veri disari sizmaz. Failed initialization `initialized:false`, `recoveryCompleted:false`, `workerReady:false` ve `acceptingExecutions:false` raporlar.
+- Status getter persistence write, scheduler action, recovery bootstrap cagrisi veya execution side effect uretmez. Mevcut scheduler, persistence, recovery bootstrap, execution admission ve startup sozlesmeleri korundu.
+- API endpoint, UI, background timer/polling, SIGTERM/SIGINT, framework shutdown hook ve distributed/cross-process status coordination sonraki kapsama birakildi.
+- Sprint 111 runtime status smoke PASS (15/15); Sprint 110 worker lifecycle PASS (16/16); Sprint 109 runtime startup PASS (11/11). `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Final source reviewde ready transition timestamp'inin startup timestamp'ini yeniden kullanmasi duzeltildi; ready transition artik lifecycle clock'u ile gercek son state transition zamanini kaydeder. Bloklayici veya acik onemli bulgu kalmadi.
 - Commit veya push yapilmadi.
 
 ---

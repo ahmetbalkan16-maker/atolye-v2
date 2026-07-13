@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 110 — Production Worker Lifecycle (Completed)
+Sprint 111 — Production Worker Health & Runtime Diagnostics (Completed)
 
 Siradaki Planlama Adimi
 
 Sonraki sprint — Planning
 
-Sprint 110 Production Worker Lifecycle tamamlandi. Sonraki sprint kapsami ayrica planlanacak ve onaylanacaktir.
+Sprint 111 Production Worker Health & Runtime Diagnostics tamamlandi. Sonraki sprint kapsami ayrica planlanacak ve onaylanacaktir.
 
 ---
 
@@ -1236,6 +1236,24 @@ Completed
 - `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
 - SIGTERM/SIGINT, framework shutdown wiring, distributed drain ve cross-process coordination kapsam disidir.
 - Acik riskler: lifecycle process/instance kapsamindadir; in-flight handler ile process shutdown atomik degildir; distributed drain ve cross-process admission garantisi yoktur.
+- Commit veya push yapilmadi.
+
+---
+
+# Sprint 111
+
+## Production Worker Health & Runtime Diagnostics
+
+Completed
+
+- Merkezi lifecycle singleton'i read-only `ProductionRuntimeStatus` snapshot'inin tek state, active-count ve admission kaynagidir; composition root ayni instance uzerinden senkron `getProductionRuntimeStatus()` getter'i sunar.
+- Snapshot lifecycle state, gercek active execution count, execution acceptance, initialized, recovery-completed, worker-ready, draining, startup ve last-transition timestamp'leri ile normalize initialization failure bilgisini ayri anlamlarla raporlar.
+- Created, starting, ready, draining, stopped ve failed durumlari deterministik olarak gozlemlenir; recovery dogrulanmadan ready veya acceptance true olmaz. Basarili initialization bilgisi drain ve stop sonrasinda korunurken current readiness kapanir.
+- Her cagri yeni ve frozen write-free value object dondurur; nested failure nesnesi de frozen'dir. Raw Error, message, stack, cause, path, Promise veya mutable internal collection disari sizmaz; failed project slug yalniz guvenli validation sonrasinda eklenir.
+- Status okumalari lifecycle state mutation, persistence write, scheduler action, recovery bootstrap veya execution side effect uretmez. Mevcut scheduler, persistence, recovery bootstrap, startup ve execution admission sozlesmeleri degismez.
+- API endpoint, UI, polling/timer, OS signal/shutdown hook ve distributed/cross-process status coordination kapsam disinda kalir.
+- Final reviewde ready transition timestamp semantigi duzeltildi ve smoke kapsami tekrar initialize/start stabilitesi, state boolean matrisi, timestamp transition-only davranisi, nested immutability ve failure sanitization senaryolariyla genisletildi.
+- Sprint 111 runtime status smoke 15/15; Sprint 110 worker lifecycle 16/16; Sprint 109 runtime startup 11/11 PASS. `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
 - Commit veya push yapilmadi.
 
 ---

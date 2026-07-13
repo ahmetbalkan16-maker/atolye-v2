@@ -7,7 +7,7 @@ export interface ProductionRuntimeInitializerDependencies {
   now(): string;
   listProjectSlugs(): Promise<readonly string[]>;
   createRecoveryBootstrap(projectSlug: string): Pick<ProductionExecutionRecoveryBootstrap, "bootstrapRecovery">;
-  workerLifecycle: Pick<ProductionWorkerLifecycle, "start" | "fail" | "snapshot">;
+  workerLifecycle: Pick<ProductionWorkerLifecycle, "beginInitialization" | "start" | "fail" | "snapshot">;
 }
 
 const slugPattern = /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/;
@@ -30,6 +30,7 @@ export class ProductionRuntimeInitializer {
       return this.failure("RUNTIME_CLOCK_INVALID", "invalid");
     }
     if (!validDate(initializedAt)) return this.failure("RUNTIME_CLOCK_INVALID", "invalid");
+    this.dependencies.workerLifecycle.beginInitialization(initializedAt);
 
     let projectSlugs: readonly string[];
     try {
@@ -65,7 +66,7 @@ export class ProductionRuntimeInitializer {
   }
 
   private failure(reasonCode: ProductionRuntimeInitializationFailure["reasonCode"], initializedAt: string, failedProjectSlug?: string): ProductionRuntimeInitializationFailure {
-    this.dependencies.workerLifecycle.fail(reasonCode);
+    this.dependencies.workerLifecycle.fail(reasonCode, { failedProjectSlug });
     return failure(reasonCode, initializedAt, this.dependencies.workerLifecycle.snapshot(), failedProjectSlug);
   }
 }
