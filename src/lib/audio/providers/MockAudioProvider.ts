@@ -1,20 +1,30 @@
 import type {
   AudioGenerationInput,
-  AudioGenerationResult,
   AudioProvider,
 } from "./AudioProvider";
+import type { AudioGenerationResult } from "@/types/audio";
 
 export class MockAudioProvider implements AudioProvider {
+  readonly name = "mock";
+
+  validateInput(_input: AudioGenerationInput): void {
+    void _input;
+  }
+
   async generateAudio(
     input: AudioGenerationInput,
   ): Promise<AudioGenerationResult> {
     return {
+      success: true,
+      target: input.target,
       provider: "mock",
       model: "mock-audio-model",
       url: "",
       filePath: "",
-      mimeType: input.format === "wav" ? "audio/wav" : "audio/mpeg",
-      status: "generated",
+      mimeType: "audio/mock",
+      byteLength: 0,
+      durationSeconds: 0,
+      createdAt: new Date().toISOString(),
     };
   }
 }

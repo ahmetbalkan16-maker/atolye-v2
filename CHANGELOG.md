@@ -25,6 +25,28 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 114 — Production Narration Audio Pipeline Activation
+
+Completed
+
+- `AUDIO_PROVIDER` tanimsiz/bos durumda mock-first default kullanir; `mock` `MockAudioProvider`, `openai` `OpenAIAudioProvider` secer ve bilinmeyen deger safe configuration error ile fail-closed kapanir. Import/provider resolution ag cagrisi veya generation baslatmaz.
+- `OPENAI_TTS_MODEL` server-side config'ten okunur ve default `tts-1` kullanilir. Whitespace-only `OPENAI_API_KEY` fetch oncesinde reddedilir.
+- Her OpenAI request'i bagimsiz AbortController kullanir. `OPENAI_TTS_TIMEOUT_MS` default 60000, `OPENAI_TTS_MAX_RESPONSE_BYTES` default 64 MiB'dir. Content-Length body oncesinde, headersiz response chunk-by-chunk sinirlandirilir; oversize/never-ending stream abort ve cancellation ile, null/empty/truncated body fail-closed kapanir.
+- Pipeline audio stage mevcut audio plan -> tum section/mix generation -> `saveAudio` -> stage success sirasina baglandi. Her section `sceneId = chapterId` asset'i uretir; project-level mix ve `audio.outputAssetId = mix asset ID` contract'i korunur.
+- Bos section listesi, non-positive/non-safe/duplicate chapterId ve bos narration tum provider cagrilarindan once reddedilir. Provider/target/chapter mismatch, malformed runtime object ve getter exception safe failure uretir.
+- OpenAI success yalniz `audio/wav`, guvenli project-relative filePath, exact `/api/assets/audio/{slug}/{fileName}` URL, gercek byteLength ve positive finite duration ile kabul edilir; storage readback metadata'si birebir dogrulanir.
+- WAV validation RIFF/WAVE, tam bir `fmt` ve tam bir non-empty `data` chunk, RIFF/file size, chunk bounds, channel/sample/byte rate, block alignment, bits-per-sample ve bounded duration kosullarini uygular. Duplicate fmt/data ve truncated chunk reddedilir; ancillary chunk ve odd padding desteklenir.
+- Mock success exact provider `mock`, `audio/mock`, bos filePath/url, zero byteLength ve zero duration sentinel invariant'lariyla runtime'da dogrulanir.
+- `/api/assets/audio/{slug}/{fileName}` route'u yalniz guvenli `.wav` dosyalarini `audio/wav` olarak sunar; traversal, absolute/drive, UNC, root-relative, backslash ve storage disi path'ler guvenli 404 ile reddedilir.
+- AudioStorage save/readback, AssetManager get/add, failed-asset append, `ProjectManager.saveAudio` ve stage persistence hatalari normalize edilir. Raw fetch/provider/filesystem error, URL/body, EACCES/ENOSPC/EPERM, narration, secret, stack veya hassas path asset metadata, job, manifest, history, durable attempt/journal ve loglara sizmaz.
+- Kismi uretim append-only kalir; rollback/orphan cleanup eklenmez. Failure stage/job/manifest/history'yi failed yapar; assembly enqueue, audio success persistence ve completed persistence engellenir.
+- Gercek `prepareProductionPipelineExecution` -> `ProductionPipelineExecutionAdapter` -> `ProductionExecutionFilePersistenceAdapter` yolunda versioned attempt ve journal storage'dan yeniden okundu; terminal attempt/event failed ve durable kayitlar sanitize olarak dogrulandi.
+- Yeni runner, lifecycle, initializer, composition root veya paralel execution graph eklenmedi; Sprint 109-113 davranislari korundu.
+- Sprint 114 audio wiring 74/74; Sprint 113 visual wiring 54/54; pipeline orchestration 10/10; durable execution 17/17; durable wiring 19/19; runtime health API 24/24; runtime status 15/15; worker lifecycle 16/16; runtime startup 11/11 PASS.
+- TypeScript, hedefli ESLint ve `git diff --check` PASS; fixture cleanup temiz (`fixture_count=0`).
+- Takip: exact-limit response success; ayri malformed/negatif/NaN Content-Length ve null/empty body smoke'lari; durable filesystem-failure matrisi; `WORKER_HANDLER_FAILED` payload assertion'i; audio-specific asset discriminated type; AudioPipeline/smoke helper ayrismasi ileride ele alinabilir.
+- Commit veya push yapilmadi.
+
 ## Sprint 113 — Production Visual Asset Pipeline Activation
 
 Completed

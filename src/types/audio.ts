@@ -4,8 +4,63 @@ export type AudioStatus =
   | "generated"
   | "failed";
 
-export type AudioProviderName =
-  | "mock";
+export type AudioProviderName = "mock" | "openai";
+
+export type AudioMimeType = "audio/wav";
+
+export type AudioGenerationTarget =
+  | {
+      kind: "section";
+      chapterId: number;
+    }
+  | {
+      kind: "mix";
+    };
+
+type AudioGenerationResultBase = {
+  target: AudioGenerationTarget;
+  provider: AudioProviderName;
+  model?: string;
+  createdAt: string;
+};
+
+export type AudioGenerationMockSuccess = AudioGenerationResultBase & {
+  success: true;
+  provider: "mock";
+  filePath: "";
+  url: "";
+  mimeType: "audio/mock";
+  byteLength: 0;
+  durationSeconds: 0;
+  error?: never;
+};
+
+export type AudioGenerationRealSuccess = AudioGenerationResultBase & {
+  success: true;
+  provider: "openai";
+  model: string;
+  filePath: string;
+  url: string;
+  mimeType: AudioMimeType;
+  byteLength: number;
+  durationSeconds: number;
+  error?: never;
+};
+
+export type AudioGenerationFailure = AudioGenerationResultBase & {
+  success: false;
+  error: string;
+  filePath?: never;
+  url?: never;
+  mimeType?: never;
+  byteLength?: never;
+  durationSeconds?: never;
+};
+
+export type AudioGenerationResult =
+  | AudioGenerationMockSuccess
+  | AudioGenerationRealSuccess
+  | AudioGenerationFailure;
 
 export interface AudioNarrator {
   style: string;
@@ -45,6 +100,10 @@ export interface AudioSection {
   model?: string;
 
   audioFileUrl?: string;
+
+  byteLength?: number;
+
+  durationSeconds?: number;
 }
 
 export interface AudioMusicPlan {
@@ -65,6 +124,10 @@ export interface AudioProductionInfo {
   generationStatus: AudioStatus;
 
   audioFileUrl?: string;
+
+  byteLength?: number;
+
+  durationSeconds?: number;
 }
 
 export interface AudioData {

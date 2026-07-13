@@ -3,7 +3,11 @@ import { AnimationAssetPipeline } from "@/lib/animation/AnimationAssetPipeline";
 import { AnimationPromptGenerator } from "@/lib/animation/prompts/AnimationPromptGenerator";
 import { AssemblyManager } from "@/lib/assembly/AssemblyManager";
 import { AudioManager } from "@/lib/audio/AudioManager";
-import { AudioPipeline } from "@/lib/audio/AudioPipeline";
+import {
+  AudioAssetGenerationError,
+  AudioPipeline,
+} from "@/lib/audio/AudioPipeline";
+import type { AudioProvider } from "@/lib/audio/providers/AudioProvider";
 import { VisualAssetPipeline } from "@/lib/assets/VisualAssetPipeline";
 import type { ImageProvider } from "@/lib/assets/providers/ImageProvider";
 import { ExportEngine } from "@/lib/export/ExportEngine";
@@ -46,6 +50,7 @@ export type PipelineExecutionState = {
 
 export type PipelineStageExecutionOptions = {
   visualAssetProvider?: ImageProvider;
+  audioProvider?: AudioProvider;
 };
 
 export class PipelineStageExecutor {
@@ -234,11 +239,16 @@ export class PipelineStageExecutor {
           projectId: state.project.id,
           projectSlug,
           audio: audioPlan,
+          provider: options.audioProvider,
         });
         state.audio = audio;
-        return this.persistStageResult(projectSlug, stage, () =>
-          ProjectManager.saveAudio(projectSlug, state.audio),
-        );
+        try {
+          return await this.persistStageResult(projectSlug, stage, () =>
+            ProjectManager.saveAudio(projectSlug, state.audio),
+          );
+        } catch {
+          throw new AudioAssetGenerationError();
+        }
       }
 
       case "assembly": {

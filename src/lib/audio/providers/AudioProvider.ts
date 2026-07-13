@@ -1,23 +1,21 @@
-import type { AudioProviderName, AudioStatus } from "@/types/audio";
+import type {
+  AudioGenerationResult,
+  AudioGenerationTarget,
+  AudioProviderName,
+} from "@/types/audio";
 
 export interface AudioGenerationInput {
-  chapterId?: number;
+  target: AudioGenerationTarget;
   title?: string;
   sourceText: string;
   voiceStyle?: string;
-  format: "mp3" | "wav";
-}
-
-export interface AudioGenerationResult {
-  provider: AudioProviderName | string;
-  model?: string;
-  url?: string;
-  filePath?: string;
-  mimeType?: string;
-  status: AudioStatus;
-  error?: string;
+  projectSlug: string;
 }
 
 export interface AudioProvider {
+  readonly name: AudioProviderName;
+
+  validateInput(input: AudioGenerationInput): void;
+
   generateAudio(input: AudioGenerationInput): Promise<AudioGenerationResult>;
 }

@@ -36,6 +36,10 @@ export interface Asset {
 
   mimeType?: string;
 
+  byteLength?: number;
+
+  durationSeconds?: number;
+
   error?: string;
 
   createdAt: string;

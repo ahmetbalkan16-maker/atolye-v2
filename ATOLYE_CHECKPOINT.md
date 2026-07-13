@@ -47,28 +47,30 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 113**
+**Sprint 114**
 
-Production Visual Asset Pipeline Activation
+Production Narration Audio Pipeline Activation
 
 **Durum**
 
 Completed
 
-Sprint 113 Production Visual Asset Pipeline Activation tamamlandi. Sonraki sprint yalniz Planning durumundadir ve kapsami ayri onaylanacaktir.
+Sprint 114 Production Narration Audio Pipeline Activation tamamlandi. Sonraki sprint yalniz Planning durumundadir ve kapsami ayri onaylanacaktir.
 
 Not:
 
-- `IMAGE_PROVIDER` tanimsiz/bos ise mock, `mock` ise `MockImageProvider`, `openai` ise `OpenAIImageProvider` secilir; bilinmeyen deger guvenli configuration error ile fail-closed kapanir.
-- Provider secimi import sirasinda ag, generation veya yeni runtime graph olusturmaz.
-- Visuals stage mevcut `VisualAssetPipeline` ile scene bazli gercek asset generation'a baglidir; visual plan korunur ve stage success persistence yalniz asset batch basarisindan sonra calisir.
-- Scene batch non-empty, positive safe-integer ve unique `sceneId` kosullariyla preflight edilir.
-- Gercek provider MIME allowlist'i `image/png`, `image/jpeg` ve `image/webp` ile sinirlidir; locator validation project-relative storage, HTTP/HTTPS ve exact `/api/assets/images/{slug}/{fileName}` sozlesmesini uygular.
-- Mock success exact `mock` provider, dogru sceneId, `image/mock`, bos filePath/url ve gecerli createdAt invariant'lariyla runtime'da dogrulanir.
-- Malformed provider sonucu safe failed asset ve stage failure uretir; raw provider error, secret, stack, unsafe locator veya hassas path persistence/loglara sizmaz.
-- Kismi uretim append-only kalir; production rollback/cleanup eklenmez ve batch/stage failed olur.
-- Gercek runner failure yolunda failed job/manifest/history, downstream animation enqueue ve completed persistence engelleri dogrulandi.
-- Yeni runner, lifecycle, initializer, composition root veya paralel execution graph eklenmedi; Sprint 109-112 davranislari korundu.
+- `AUDIO_PROVIDER` tanimsiz/bos ise mock, `mock` ise `MockAudioProvider`, `openai` ise `OpenAIAudioProvider` secilir; bilinmeyen deger safe configuration error ile fail-closed kapanir.
+- `OPENAI_TTS_MODEL` server-side config'ten okunur ve varsayilan `tts-1` kullanilir. Whitespace-only API key fetch oncesinde reddedilir; provider resolution ag veya generation baslatmaz.
+- Audio stage mevcut `AudioPipeline` ile tum section ve project-level mix asset generation'a baglandi; `sceneId = chapterId`, `audio.outputAssetId = mix asset ID` sozlesmeleri korundu.
+- Section batch non-empty, positive safe-integer ve unique chapterId kosullariyla tum provider cagrilarindan once preflight edilir.
+- OpenAI request'leri bagimsiz AbortController, 60000 ms default timeout ve 64 MiB default bounded streaming limiti kullanir; null, empty, truncated ve oversize body fail-closed kapanir.
+- Gercek success yalniz readback ile dogrulanmis `audio/wav`, guvenli project-relative filePath, exact `/api/assets/audio/{slug}/{fileName}` URL, byteLength ve positive finite duration ile kabul edilir.
+- WAV parser RIFF/WAVE, tam birer `fmt` ve non-empty `data` chunk, size/alignment ve duration invariant'larini uygular; duplicate/truncated chunk reddedilir, ancillary chunk ve odd padding korunur.
+- Mock success exact `mock`, `audio/mock`, bos locator, zero byteLength ve zero duration sentinel sozlesmesiyle runtime'da dogrulanir.
+- Storage, registry ve stage persistence hatalari normalize edilir; raw provider/filesystem error, narration, secret, stack veya hassas path asset/job/manifest/history/durable/log alanlarina sizmaz.
+- Kismi uretim append-only kalir; rollback/orphan cleanup eklenmez ve batch/stage failed olur. Assembly enqueue, audio success persistence ve completed persistence engellenir.
+- Gercek production durable adapter yolunda versioned failed attempt ve terminal journal event storage'dan yeniden okundu.
+- Yeni runner, lifecycle, initializer, composition root veya paralel execution graph eklenmedi; Sprint 109-113 davranislari korundu.
 
 ---
 
@@ -80,11 +82,11 @@ codex/sprint-111-runtime-status
 
 Son Commit
 
-c812810
+bec4962
 
 Durum
 
-Sprint 113 tamamlandi. Sprint 113 degisiklikleri ve dokumantasyon kapanisi henuz commit/push edilmedi.
+Sprint 114 tamamlandi. Sprint 114 degisiklikleri ve dokumantasyon kapanisi henuz commit/push edilmedi.
 
 ---
 
@@ -2222,6 +2224,30 @@ Completed
 - Sprint 113 smoke PASS (54/54); pipeline orchestration PASS (10/10); durable execution PASS (17/17); durable wiring PASS (19/19); runtime health API PASS (24/24); runtime status PASS (15/15); worker lifecycle PASS (16/16); runtime startup PASS (11/11).
 - TypeScript, hedefli ESLint ve `git diff --check` PASS; fixture cleanup temiz.
 - Takip: wrong-slug ve filePath-URL filename mismatch negatif smoke'lari eklenebilir; full scheduled-runner completed-persistence call engeli ve gercek durable terminal persistence daha guclu ayrica dogrulanabilir; ayni scene icin tekrarli basarili calismalarda current/version selection politikasi belirlenmelidir.
+- Commit veya push yapilmadi.
+
+---
+
+### Sprint 114 — Production Narration Audio Pipeline Activation
+
+Completed
+
+- `AUDIO_PROVIDER` tanimsiz/bos durumda mock-first default kullanir; `mock` `MockAudioProvider`, `openai` `OpenAIAudioProvider` secer ve bilinmeyen deger safe configuration error ile fail-closed kapanir. Provider resolution import sirasinda ag cagrisi veya generation baslatmaz.
+- `OPENAI_TTS_MODEL` server-side config'ten okunur ve varsayilan `tts-1` kullanilir. Whitespace-only `OPENAI_API_KEY` fetch oncesinde reddedilir; model, voice ve config failure mesajlari sabit ve guvenlidir.
+- Her OpenAI request'i bagimsiz AbortController kullanir. `OPENAI_TTS_TIMEOUT_MS` default 60000, `OPENAI_TTS_MAX_RESPONSE_BYTES` default 64 MiB'dir. Content-Length body oncesinde; headersiz body chunk-by-chunk sinirlandirilir. Oversize/never-ending stream abort ve reader cancellation ile; null, empty ve truncated body fail-closed kapanir.
+- Audio stage sirasi audio plan -> tum section/mix generation -> `saveAudio` -> stage success olarak korunur. Her section asset'i `sceneId = chapterId` kullanir; project-level mix korunur ve `audio.outputAssetId` mix asset ID'sini gosterir.
+- Gercek section/mix asset'leri yalniz `audio/wav`, guvenli project-relative filePath, exact `/api/assets/audio/{slug}/{fileName}` URL, gercek byteLength ve durationSeconds ile kabul edilir. Storage readback degerleri provider sonucuyla karsilastirilir.
+- Mock success exact provider `mock`, `audio/mock`, bos filePath/url, zero byteLength ve zero duration sentinel invariant'lariyla runtime'da dogrulanir.
+- Batch preflight bos section listesi, non-positive/non-safe/duplicate chapterId ve bos narration'i tum provider cagrilarindan once reddeder. Provider/target/chapter mismatch, malformed runtime object ve getter exception safe failure uretir.
+- WAV validation RIFF/WAVE, tam bir `fmt` ve tam bir non-empty `data` chunk, RIFF/file size, chunk bounds, channel/sample/byte rate, block alignment, bits-per-sample ve positive finite bounded duration kosullarini uygular. Duplicate fmt/data ve truncated chunk reddedilir; unknown ancillary chunk ve odd padding desteklenir.
+- Audio route yalniz guvenli `/api/assets/audio/{slug}/{fileName}` `.wav` dosyalarini `audio/wav` ile sunar. Traversal, absolute/drive, UNC, root-relative, backslash ve storage disi yollar reddedilir; filesystem detaylari guvenli 404 arkasinda kalir.
+- AudioStorage save/readback, AssetManager get/add, failed-asset append, `ProjectManager.saveAudio` ve stage persistence hatalari normalize edilir. Raw fetch/provider/filesystem error, URL/body, EACCES/ENOSPC/EPERM, narration, secret, stack veya hassas path asset metadata, job, manifest, history, durable attempt/journal ve loglara sizmaz.
+- Kismi uretim append-only kalir; rollback/orphan cleanup eklenmez. Her failure batch/stage/job/manifest/history failed sonucu uretir; assembly enqueue, audio success persistence ve completed persistence engellenir.
+- Gercek durable test `prepareProductionPipelineExecution` -> `ProductionPipelineExecutionAdapter` -> `ProductionExecutionFilePersistenceAdapter` yolunu kullanir; versioned attempt ve journal storage'dan yeniden okunur, terminal state/event failed olarak dogrulanir.
+- Yeni runner, lifecycle, initializer, composition root veya paralel execution graph eklenmedi; Sprint 109-113 davranislari korundu.
+- Sprint 114 audio wiring PASS (74/74); Sprint 113 visual wiring PASS (54/54); pipeline orchestration PASS (10/10); durable execution PASS (17/17); durable wiring PASS (19/19); runtime health API PASS (24/24); runtime status PASS (15/15); worker lifecycle PASS (16/16); runtime startup PASS (11/11).
+- TypeScript, hedefli ESLint ve `git diff --check` PASS; fixture cleanup temiz (`fixture_count=0`).
+- Takip: exact-limit response success, malformed/negatif/NaN Content-Length ve null/empty body smoke'lari eklenebilir; durable filesystem-failure matrisi ve `WORKER_HANDLER_FAILED` payload assertion'i guclendirilebilir; audio-specific discriminated asset type ve AudioPipeline/smoke helper ayrismasi ileride ele alinabilir.
 - Commit veya push yapilmadi.
 
 ---

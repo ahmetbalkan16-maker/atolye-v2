@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 113 — Production Visual Asset Pipeline Activation (Completed)
+Sprint 114 — Production Narration Audio Pipeline Activation (Completed)
 
 Siradaki Planlama Adimi
 
 Sonraki sprint — Planning
 
-Sprint 113 Production Visual Asset Pipeline Activation tamamlandi. Sonraki sprint yalniz Planning durumundadir; kapsami ayrica planlanacak ve onaylanacaktir.
+Sprint 114 Production Narration Audio Pipeline Activation tamamlandi. Sonraki sprint yalniz Planning durumundadir; kapsami ayrica planlanacak ve onaylanacaktir.
 
 ---
 
@@ -1298,6 +1298,30 @@ Completed
 - Sprint 113 smoke 54/54; pipeline orchestration 10/10; durable execution 17/17; durable wiring 19/19; runtime health API 24/24; runtime status 15/15; worker lifecycle 16/16; runtime startup 11/11 PASS.
 - TypeScript, hedefli ESLint ve `git diff --check` PASS; fixture cleanup temiz.
 - Takip: wrong-slug ve filePath-URL filename mismatch negatif smoke'lari eklenebilir; full scheduled-runner completed-persistence call engeli ve gercek durable terminal persistence daha guclu ayrica dogrulanabilir; ayni scene icin tekrarli basarili calismalarda current/version selection politikasi belirlenmelidir.
+- Commit veya push yapilmadi.
+
+---
+
+# Sprint 114
+
+## Production Narration Audio Pipeline Activation
+
+Completed
+
+- `AUDIO_PROVIDER` tanimsiz/bos durumda mock-first default kullanir; `mock` `MockAudioProvider`, `openai` `OpenAIAudioProvider` secer ve bilinmeyen deger safe configuration error ile fail-closed kapanir. Provider resolution import sirasinda ag veya generation baslatmaz.
+- `OPENAI_TTS_MODEL` server-side config'ten okunur; default `tts-1` korunur. Whitespace-only API key fetch oncesinde reddedilir.
+- OpenAI request'leri bagimsiz AbortController kullanir. Timeout default 60000 ms, response limiti default 64 MiB'dir. Content-Length preflight ve headersiz chunk-by-chunk bounded read uygulanir; oversize/never-ending stream iptal edilir, null/empty/truncated body reddedilir.
+- Audio stage mevcut plan -> tum section/mix asset generation -> `saveAudio` -> stage success sirasina baglandi. Section `sceneId = chapterId`, mix `audio.outputAssetId` sozlesmeleri korundu.
+- Batch preflight bos section listesi, non-positive/non-safe/duplicate chapterId ve bos narration'i provider cagrisindan once reddeder. Provider/target/chapter mismatch, malformed object ve getter exception fail-closed kapanir.
+- Gercek success yalniz `audio/wav`, guvenli project-relative storage path, exact `/api/assets/audio/{slug}/{fileName}` URL, gercek byteLength ve positive finite duration ile kabul edilir; storage readback metadata'si provider sonucuyla eslesmelidir.
+- WAV parser RIFF/WAVE, tam birer fmt/non-empty data chunk, size/bounds, audio format alanlari ve bounded duration validation uygular. Duplicate fmt/data ve truncated chunk reddedilir; ancillary chunk ve odd padding korunur.
+- Audio route yalniz guvenli `.wav` dosyalarini `audio/wav` ile sunar; traversal, absolute/drive, UNC, root-relative, backslash ve storage disi path'ler guvenli 404 ile reddedilir.
+- Mock exact `audio/mock`, bos locator ve zero byte/duration sentinel contract'ini korur.
+- Storage, registry ve stage persistence failure'lari normalize edilir; raw provider/fetch/filesystem error, narration, secret, stack veya hassas path asset/job/manifest/history/durable/log alanlarina sizmaz.
+- Kismi production append-only kalir; rollback/orphan cleanup eklenmez. Failure stage/job/manifest/history'yi failed yapar; assembly enqueue, audio success persistence ve completed persistence engellenir.
+- Gercek durable production adapter yolunda versioned failed attempt ve terminal journal event storage'dan yeniden okundu. Yeni runner, lifecycle, composition root veya execution graph eklenmedi; Sprint 109-113 davranislari korundu.
+- Audio wiring 74/74; visual wiring 54/54; orchestration 10/10; durable execution 17/17; durable wiring 19/19; health API 24/24; runtime status 15/15; worker lifecycle 16/16; startup 11/11 PASS. TypeScript, hedefli ESLint ve `git diff --check` PASS; `fixture_count=0`.
+- Takip: exact-limit success ve ayri Content-Length/null/empty smoke'lari; durable filesystem-failure matrisi ve terminal payload assertion'i; audio-specific asset discriminated type; AudioPipeline/smoke validator-helper ayrismasi ileride ele alinabilir.
 - Commit veya push yapilmadi.
 
 ---
