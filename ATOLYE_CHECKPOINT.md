@@ -47,23 +47,23 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 111**
+**Sprint 112**
 
-Production Worker Health & Runtime Diagnostics
+Production Runtime Health API
 
 **Durum**
 
 Completed
 
-Sprint 111 Production Worker Health & Runtime Diagnostics tamamlandi. Sonraki calisma ayri planlama ve onay ile belirlenecektir.
+Sprint 112 Production Runtime Health API tamamlandi. Sonraki calisma ayri planlama ve onay ile belirlenecektir.
 
 Not:
 
-- Merkezi lifecycle singleton'i read-only ve deterministik runtime status snapshot'i uretir.
-- Snapshot initialization oncesi, starting, ready, draining, stopped ve failed durumlarini gozlemlenebilir yapar.
-- Gercek lifecycle active execution sayaci ve ayni admission kaynagindan execution acceptance bilgisi raporlanir.
-- Recovery tamamlanmadan `workerReady` ve execution acceptance true olmaz.
-- Her status cagrisi yeni, frozen ve write-free value object dondurur; normalize failure bilgisi raw hata verisi tasimaz.
+- `GET /api/runtime/health` yalniz mevcut `ProductionRuntimeCompositionRoot.getProductionRuntimeStatus()` getter'ini kullanir.
+- Versioned ve discriminated union HTTP envelope `schemaVersion: "1"`, API health durumu, readiness, runtime snapshot ve API gozlem zamani `observedAt` alanlarini tasir.
+- Healthy runtime HTTP 200; starting, draining, stopped ve failed durumlari HTTP 503; getter hatasi, bilinmeyen lifecycle veya readiness tutarsizligi HTTP 503 unavailable doner.
+- Tum readiness invariant'lari fail-closed dogrulanir; tutarsiz veya guvenli olmayan snapshot `runtime:null` ile kapanir ve failed durumda yalniz normalize guvenli failure bilgisi tasinir.
+- Endpoint `Cache-Control: no-store`, Node.js runtime, force-dynamic ve `revalidate=0` ile process-local, write-free health sunar; distributed health garantisi vermez.
 
 ---
 
@@ -71,15 +71,15 @@ Not:
 
 Branch
 
-main
+codex/sprint-111-runtime-status
 
 Son Commit
 
-80adfc8
+0e442b3
 
 Durum
 
-Sprint 111 tamamlandi. Sprint 111 degisiklikleri kullanici talebi geregi commit/push edilmedi.
+Sprint 112 tamamlandi. Sprint 112 degisiklikleri henuz commit/push edilmedi.
 
 ---
 
@@ -2170,6 +2170,24 @@ Completed
 - API endpoint, UI, background timer/polling, SIGTERM/SIGINT, framework shutdown hook ve distributed/cross-process status coordination sonraki kapsama birakildi.
 - Sprint 111 runtime status smoke PASS (15/15); Sprint 110 worker lifecycle PASS (16/16); Sprint 109 runtime startup PASS (11/11). `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
 - Final source reviewde ready transition timestamp'inin startup timestamp'ini yeniden kullanmasi duzeltildi; ready transition artik lifecycle clock'u ile gercek son state transition zamanini kaydeder. Bloklayici veya acik onemli bulgu kalmadi.
+- Commit veya push yapilmadi.
+
+---
+
+### Sprint 112 — Production Runtime Health API
+
+Completed
+
+- Yeni `GET /api/runtime/health` endpoint'i, yalniz mevcut `ProductionRuntimeCompositionRoot.getProductionRuntimeStatus()` getter'ini kullanarak Sprint 111 read-only runtime snapshot'ini versioned HTTP projection olarak sunar.
+- Route yeni runtime graph, lifecycle, initializer, recovery, scheduler, persistence veya execution baslatmaz. Gercek `GET()` wiring'i ayni merkezi getter ve projection handler yolunu kullanir; tekrarlanan cagrilar write-free kalir ve snapshot'i mutate etmez.
+- Discriminated union HTTP envelope `schemaVersion: "1"`, `status`, `ready`, `acceptingExecutions`, `runtime` ve yalniz API gozlem zamanini ifade eden `observedAt` alanlarini tasir. Healthy disindaki branch'lerde API-level readiness ve execution acceptance false kalir.
+- Tam hazir ve execution kabul eden runtime HTTP 200 `healthy`; created/starting HTTP 503 `starting`; draining, stopped ve failed durumlari kendi normalize status'lariyla HTTP 503 doner. Getter hatasi, bilinmeyen lifecycle veya readiness tutarsizligi HTTP 503 `unavailable` uretir.
+- Initialized/recovery-completed, worker-ready, accepting-executions, draining ve failure iliskileri runtime sinirinda fail-closed dogrulanir. Tutarsiz veya guvenli olmayan snapshot `runtime:null` ile kapanir.
+- Failed lifecycle yalniz Sprint 111 tarafindan normalize edilmis safe reason code ve varsa guvenli project slug failure bilgisini tasir; raw exception, message, stack, cause, path veya hassas detay sizdirilmaz.
+- Tum cevaplar guvenli JSON'dur. `Cache-Control: no-store`, `runtime = "nodejs"`, `dynamic = "force-dynamic"` ve `revalidate = 0` ile static caching kapatilir.
+- Endpoint yalniz process-local runtime health sunar; distributed worker veya cross-process health garantisi vermez.
+- Sprint 112 health API smoke PASS (24/24); Sprint 111 runtime status PASS (15/15); Sprint 110 worker lifecycle PASS (16/16); Sprint 109 runtime startup PASS (11/11). TypeScript, hedefli ESLint ve `git diff --check` PASS.
+- Final review bloklayici ve bloklayici olmayan bulgu olmadan tamamlandi. Gercek GET wiring'i ve tekrar cagrilarda write-free davranis dogrulandi.
 - Commit veya push yapilmadi.
 
 ---

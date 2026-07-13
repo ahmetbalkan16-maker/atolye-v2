@@ -25,6 +25,21 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 112 — Production Runtime Health API
+
+Completed
+
+- Yeni `GET /api/runtime/health` endpoint'i, yalniz mevcut `ProductionRuntimeCompositionRoot.getProductionRuntimeStatus()` getter'ini versioned ve read-only HTTP projection olarak sunar.
+- Route yeni runtime graph, lifecycle, initializer, recovery, scheduler, persistence veya execution baslatmaz. Gercek GET wiring'i ayni merkezi getter yolunu kullanir ve tekrarlanan cagrilar write-free kalir.
+- Discriminated union HTTP envelope `schemaVersion: "1"`, normalize status, API-level readiness, execution acceptance, Sprint 111 runtime snapshot'i ve yalniz API gozlem zamanini ifade eden `observedAt` alanlarini tasir.
+- Tam hazir runtime HTTP 200 `healthy`; starting, draining, stopped ve failed HTTP 503; getter hatasi, bilinmeyen lifecycle veya readiness tutarsizligi HTTP 503 `unavailable` doner.
+- Tum readiness invariant'lari fail-closed dogrulanir. Tutarsiz veya guvenli olmayan snapshot `runtime:null` ile kapanir; failed durumda yalniz normalize safe reason code ve varsa guvenli project slug tasinir.
+- Raw exception, message, stack, cause, path veya hassas detay response'a sizdirilmaz. Snapshot mutate edilmeden `runtime` altinda korunur ve draining active execution bilgisi kaybolmaz.
+- `Cache-Control: no-store`, `runtime = "nodejs"`, `dynamic = "force-dynamic"` ve `revalidate = 0` ile static caching kapatilir. Endpoint process-local health sunar ve distributed health garantisi vermez.
+- Sprint 112 smoke 24/24; Sprint 111 smoke 15/15; Sprint 110 smoke 16/16; Sprint 109 smoke 11/11 PASS. TypeScript, hedefli ESLint ve `git diff --check` PASS.
+- Final review bloklayici veya bloklayici olmayan bulgu olmadan tamamlandi.
+- Commit veya push yapilmadi.
+
 ## Sprint 111 — Production Worker Health & Runtime Diagnostics
 
 Completed

@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 111 — Production Worker Health & Runtime Diagnostics (Completed)
+Sprint 112 — Production Runtime Health API (Completed)
 
 Siradaki Planlama Adimi
 
 Sonraki sprint — Planning
 
-Sprint 111 Production Worker Health & Runtime Diagnostics tamamlandi. Sonraki sprint kapsami ayrica planlanacak ve onaylanacaktir.
+Sprint 112 Production Runtime Health API tamamlandi. Sonraki sprint kapsami ayrica planlanacak ve onaylanacaktir.
 
 ---
 
@@ -1254,6 +1254,24 @@ Completed
 - API endpoint, UI, polling/timer, OS signal/shutdown hook ve distributed/cross-process status coordination kapsam disinda kalir.
 - Final reviewde ready transition timestamp semantigi duzeltildi ve smoke kapsami tekrar initialize/start stabilitesi, state boolean matrisi, timestamp transition-only davranisi, nested immutability ve failure sanitization senaryolariyla genisletildi.
 - Sprint 111 runtime status smoke 15/15; Sprint 110 worker lifecycle 16/16; Sprint 109 runtime startup 11/11 PASS. `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Commit veya push yapilmadi.
+
+---
+
+# Sprint 112
+
+## Production Runtime Health API
+
+Completed
+
+- `GET /api/runtime/health`, yalniz mevcut `ProductionRuntimeCompositionRoot.getProductionRuntimeStatus()` getter'ini kullanir ve yeni runtime graph, lifecycle, initializer, recovery, scheduler, persistence veya execution baslatmaz.
+- Discriminated union HTTP envelope `schemaVersion: "1"`, normalize API status, readiness, execution acceptance, Sprint 111 runtime snapshot'i ve yalniz API gozlem zamanini ifade eden `observedAt` alanlarini sunar.
+- Healthy ve execution kabul eden runtime HTTP 200; starting, draining, stopped ve failed HTTP 503; getter hatasi, bilinmeyen lifecycle veya readiness tutarsizligi HTTP 503 unavailable doner.
+- Tum readiness invariant'lari fail-closed dogrulanir. Tutarsiz veya guvenli olmayan snapshot `runtime:null` ile kapanir; failed lifecycle yalniz normalize guvenli failure bilgisini tasir.
+- `Cache-Control: no-store`, Node.js runtime, force-dynamic ve `revalidate=0` static caching'i kapatir. Endpoint process-local health sunar; distributed health garantisi vermez.
+- Gercek GET wiring'i, tekrarlanan cagrilarin write-free davranisi ve snapshot mutasyon siniri dogrulandi.
+- Sprint 112 health API smoke 24/24; Sprint 111 runtime status 15/15; Sprint 110 worker lifecycle 16/16; Sprint 109 runtime startup 11/11 PASS. TypeScript, hedefli ESLint ve `git diff --check` PASS.
+- Final review bloklayici veya bloklayici olmayan bulgu olmadan tamamlandi.
 - Commit veya push yapilmadi.
 
 ---
