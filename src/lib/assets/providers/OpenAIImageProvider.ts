@@ -17,6 +17,8 @@ type OpenAIImageResponse = {
 };
 
 export class OpenAIImageProvider implements ImageProvider {
+  readonly name = "openai";
+
   async generateImage(
     input: ImageGenerationInput,
   ): Promise<ImageGenerationResult> {
@@ -28,6 +30,7 @@ export class OpenAIImageProvider implements ImageProvider {
       return createErrorResult(
         "OpenAI image provider not configured",
         createdAt,
+        input.sceneId,
       );
     }
 
@@ -55,13 +58,18 @@ export class OpenAIImageProvider implements ImageProvider {
           payload.error?.message ??
             `OpenAI image request failed: ${response.status}`,
           createdAt,
+          input.sceneId,
         );
       }
 
       const image = payload.data?.[0];
 
       if (!image?.b64_json && !image?.url) {
-        return createErrorResult("OpenAI image response is empty", createdAt);
+        return createErrorResult(
+          "OpenAI image response is empty",
+          createdAt,
+          input.sceneId,
+        );
       }
 
       if (image.b64_json) {
@@ -69,6 +77,7 @@ export class OpenAIImageProvider implements ImageProvider {
           return createErrorResult(
             "Project slug is required to store OpenAI image output",
             createdAt,
+            input.sceneId,
           );
         }
 
@@ -79,19 +88,33 @@ export class OpenAIImageProvider implements ImageProvider {
         });
 
         return {
+          success: true,
+          sceneId: input.sceneId,
           provider: "openai",
           model: config.model,
           filePath: savedImage.filePath,
           url: savedImage.url,
-          mimeType: savedImage.mimeType,
+          mimeType: config.mimeType,
           createdAt,
         };
       }
 
+      const imageUrl = image.url;
+
+      if (!imageUrl) {
+        return createErrorResult(
+          "OpenAI image response is empty",
+          createdAt,
+          input.sceneId,
+        );
+      }
+
       return {
+        success: true,
+        sceneId: input.sceneId,
         provider: "openai",
         model: config.model,
-        url: image.url,
+        url: imageUrl,
         mimeType: config.mimeType,
         createdAt,
       };
@@ -101,6 +124,7 @@ export class OpenAIImageProvider implements ImageProvider {
           ? error.message
           : "OpenAI image request failed",
         createdAt,
+        input.sceneId,
       );
     }
   }
@@ -117,11 +141,13 @@ function createPrompt(input: ImageGenerationInput) {
 function createErrorResult(
   error: string,
   createdAt: string,
+  sceneId: number,
 ): ImageGenerationResult {
   return {
+    success: false,
+    sceneId,
     provider: "openai",
     model: imageProviderConfig.openai.model,
-    mimeType: imageProviderConfig.openai.mimeType,
     createdAt,
     error,
   };

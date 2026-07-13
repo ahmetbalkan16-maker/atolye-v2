@@ -4,6 +4,8 @@ import { AnimationPromptGenerator } from "@/lib/animation/prompts/AnimationPromp
 import { AssemblyManager } from "@/lib/assembly/AssemblyManager";
 import { AudioManager } from "@/lib/audio/AudioManager";
 import { AudioPipeline } from "@/lib/audio/AudioPipeline";
+import { VisualAssetPipeline } from "@/lib/assets/VisualAssetPipeline";
+import type { ImageProvider } from "@/lib/assets/providers/ImageProvider";
 import { ExportEngine } from "@/lib/export/ExportEngine";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { SEOManager } from "@/lib/seo/SEOManager";
@@ -40,6 +42,10 @@ export type PipelineExecutionState = {
   seo: SEOData | null;
   youtube: YouTubePublishingPackage | null;
   exportPackage: ExportPackageData | null;
+};
+
+export type PipelineStageExecutionOptions = {
+  visualAssetProvider?: ImageProvider;
 };
 
 export class PipelineStageExecutor {
@@ -117,6 +123,7 @@ export class PipelineStageExecutor {
     projectSlug: string,
     stage: ProductionStepKey,
     state: PipelineExecutionState,
+    options: PipelineStageExecutionOptions = {},
   ): Promise<boolean> {
     switch (stage) {
       case "research":
@@ -162,6 +169,12 @@ export class PipelineStageExecutor {
             stage: "visuals",
             operation: "visuals",
           },
+        });
+        await VisualAssetPipeline.generateAssets({
+          projectId: state.project.id,
+          projectSlug,
+          visualData: state.visuals,
+          provider: options.visualAssetProvider,
         });
         return this.persistStageResult(projectSlug, stage, () =>
           ProjectManager.saveVisuals(projectSlug, state.visuals),

@@ -25,6 +25,27 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 113 — Production Visual Asset Pipeline Activation
+
+Completed
+
+- `IMAGE_PROVIDER` tanimsiz veya bos oldugunda mock-first default korunur; `mock` `MockImageProvider`, `openai` `OpenAIImageProvider` secer ve bilinmeyen deger safe configuration error ile fail-closed kapanir.
+- Provider resolution import sirasinda ag cagrisi, image generation veya yeni runtime graph olusturmaz.
+- Pipeline visuals stage mevcut `VisualAssetPipeline` ile gercek scene asset generation'a baglandi. Visual plan korunur; asset generation tamamlanmadan stage success persistence calismaz.
+- Her scene provider'a kendi sceneId degeriyle gider ve sonuc ayni sceneId ile deterministik eslestirilir. Bos batch, positive safe-integer olmayan sceneId ve duplicate sceneId provider cagrisi veya asset write oncesinde reddedilir.
+- Gercek provider MIME allowlist'i yalniz `image/png`, `image/jpeg` ve `image/webp` degerlerini kabul eder.
+- Dis URL yalniz HTTP/HTTPS olabilir. Application-local URL yalniz exact `/api/assets/images/{slug}/{fileName}` contract'i ile, `ImageStorage.getImageUrl(projectSlug, fileName)` sonucuna ve filePath filename degerine birebir uydugunda kabul edilir.
+- File path yalniz gercek ImageStorage kokundeki guvenli project-relative tek-dosya yoludur; traversal, absolute/drive, UNC, root-relative, backslash, alt klasor ve storage disi path'ler reddedilir.
+- Gecerli OpenAI base64 response gercek `OpenAIImageProvider` ve `ImageStorage` yoluyla diske yazim, safe filePath/local URL, asset registry ve batch success seviyelerinde dogrulandi; fixture cleanup temiz kaldi.
+- Mock success runtime'da exact provider `mock`, dogru sceneId, `image/mock`, `filePath: ""`, `url: ""` ve gecerli createdAt invariant'lariyla dogrulanir. Type union disi eksik veya getter exception ureten nesneler dahil malformed sonuclar fail-closed kapanir.
+- Malformed provider sonucu safe failed asset ve stage failure uretir. Raw provider error, secret, stack, unsafe locator veya hassas absolute path persistence/loglara sizmaz.
+- Kismi uretimde append-only asset davranisi korunur; production rollback veya cleanup eklenmez. Onceki basarili asset korunurken batch ve stage failed olur.
+- Gercek `PipelineRunner` failure yolunda failed job, failed manifest, failed history, downstream animation enqueue engeli ve completed persistence engeli dogrulandi.
+- Yeni runner, lifecycle, initializer, composition root veya paralel execution graph eklenmedi; Sprint 109-112 runtime/lifecycle davranislari korundu.
+- Sprint 113 visual asset smoke 54/54; pipeline orchestration 10/10; durable execution 17/17; durable wiring 19/19; runtime health API 24/24; runtime status 15/15; worker lifecycle 16/16; runtime startup 11/11 PASS.
+- TypeScript, hedefli ESLint ve `git diff --check` PASS; fixture cleanup temiz.
+- Commit veya push yapilmadi.
+
 ## Sprint 112 — Production Runtime Health API
 
 Completed

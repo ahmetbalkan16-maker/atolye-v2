@@ -1,25 +1,23 @@
-import { imageProviderConfig } from "./ImageProviderConfig";
+import { resolveImageProviderName } from "./ImageProviderConfig";
 import type { ImageProvider } from "./ImageProvider";
 import { MockImageProvider } from "./MockImageProvider";
 import { OpenAIImageProvider } from "./OpenAIImageProvider";
 
 export class ImageProviderRouter {
   static getProvider(name?: string): ImageProvider {
-    const providerName = name ?? imageProviderConfig.defaultProvider;
+    const providerName = resolveImageProviderName(name);
 
-    switch (providerName.toLowerCase()) {
+    switch (providerName) {
       case "mock":
         return new MockImageProvider();
       case "openai":
         return new OpenAIImageProvider();
-      default:
-        return new MockImageProvider();
     }
   }
 }
 
 export function getDefaultProvider(): ImageProvider {
-  return ImageProviderRouter.getProvider(imageProviderConfig.defaultProvider);
+  return ImageProviderRouter.getProvider();
 }
 
 export function getProvider(name?: string): ImageProvider {

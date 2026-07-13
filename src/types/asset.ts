@@ -55,20 +55,54 @@ export interface ProjectAssets {
   updatedAt: string;
 }
 
-export interface ImageGenerationResult {
+export type ImageProviderName = "mock" | "openai";
+
+export type ImageMimeType = "image/png" | "image/jpeg" | "image/webp";
+
+type ImageGenerationResultBase = {
   id?: string;
-
-  provider: string;
-
+  sceneId: number;
+  provider: ImageProviderName;
   model?: string;
-
-  url?: string;
-
-  filePath?: string;
-
-  mimeType?: string;
-
   createdAt: string;
+};
 
-  error?: string;
-}
+export type ImageGenerationMockSuccess = ImageGenerationResultBase & {
+  success: true;
+  provider: "mock";
+  filePath: "";
+  url: "";
+  mimeType: "image/mock";
+  error?: never;
+};
+
+type ImageGenerationFileLocator = {
+  filePath: string;
+  url?: string;
+};
+
+type ImageGenerationUrlLocator = {
+  filePath?: string;
+  url: string;
+};
+
+export type ImageGenerationRealSuccess = ImageGenerationResultBase &
+  (ImageGenerationFileLocator | ImageGenerationUrlLocator) & {
+    success: true;
+    provider: "openai";
+    mimeType: ImageMimeType;
+    error?: never;
+  };
+
+export type ImageGenerationFailure = ImageGenerationResultBase & {
+  success: false;
+  error: string;
+  filePath?: never;
+  url?: never;
+  mimeType?: never;
+};
+
+export type ImageGenerationResult =
+  | ImageGenerationMockSuccess
+  | ImageGenerationRealSuccess
+  | ImageGenerationFailure;

@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 112 — Production Runtime Health API (Completed)
+Sprint 113 — Production Visual Asset Pipeline Activation (Completed)
 
 Siradaki Planlama Adimi
 
 Sonraki sprint — Planning
 
-Sprint 112 Production Runtime Health API tamamlandi. Sonraki sprint kapsami ayrica planlanacak ve onaylanacaktir.
+Sprint 113 Production Visual Asset Pipeline Activation tamamlandi. Sonraki sprint yalniz Planning durumundadir; kapsami ayrica planlanacak ve onaylanacaktir.
 
 ---
 
@@ -1272,6 +1272,32 @@ Completed
 - Gercek GET wiring'i, tekrarlanan cagrilarin write-free davranisi ve snapshot mutasyon siniri dogrulandi.
 - Sprint 112 health API smoke 24/24; Sprint 111 runtime status 15/15; Sprint 110 worker lifecycle 16/16; Sprint 109 runtime startup 11/11 PASS. TypeScript, hedefli ESLint ve `git diff --check` PASS.
 - Final review bloklayici veya bloklayici olmayan bulgu olmadan tamamlandi.
+- Commit veya push yapilmadi.
+
+---
+
+# Sprint 113
+
+## Production Visual Asset Pipeline Activation
+
+Completed
+
+- `IMAGE_PROVIDER` tanimsiz/bos durumda mock-first default kullanir; `mock` `MockImageProvider`, `openai` `OpenAIImageProvider` secer ve bilinmeyen deger safe configuration error ile fail-closed kapanir.
+- Provider resolution import sirasinda ag cagrisi, image generation veya yeni runtime graph olusturmaz.
+- Pipeline visuals stage mevcut `VisualAssetPipeline` ile gercek asset generation'a baglidir. Visual plan korunur ve success persistence yalniz asset batch basarisindan sonra calisir.
+- Her scene sonucu kendi sceneId degeriyle deterministik eslestirilir. Bos scene listesi, positive safe-integer olmayan sceneId ve duplicate sceneId provider cagrisi veya asset write oncesinde reddedilir.
+- Gercek provider MIME allowlist'i `image/png`, `image/jpeg` ve `image/webp` ile sinirlidir.
+- Dis URL yalniz HTTP/HTTPS olabilir. Application-local URL yalniz exact `/api/assets/images/{slug}/{fileName}` contract'i, `ImageStorage.getImageUrl()` sonucu ve filePath filename eslesmesiyle kabul edilir.
+- File path yalniz guvenli project-relative ImageStorage kokundeki tek-dosya yoludur; traversal, absolute/drive, UNC, root-relative, backslash, alt klasor ve storage disi path reddedilir.
+- Gecerli OpenAI base64/storage yolu gercek `OpenAIImageProvider` ve `ImageStorage` uzerinden file write, asset registry ve batch success ile dogrulandi.
+- Mock result exact provider `mock`, dogru sceneId, `image/mock`, `filePath: ""`, `url: ""` ve gecerli createdAt invariant'lariyla runtime'da dogrulanir. Malformed ve getter exception ureten sonuclar safe failed asset/stage failure uretir.
+- Raw provider error, secret, stack, unsafe locator veya hassas path persistence/loglara sizmaz.
+- Kismi uretim append-only kalir; production rollback/cleanup eklenmez. Batch ve stage failed olur.
+- Gercek runner failure yolunda failed job, failed manifest, failed history, downstream animation enqueue engeli ve completed persistence engeli dogrulandi.
+- Yeni runner, lifecycle, initializer, composition root veya paralel execution graph eklenmedi; Sprint 109-112 davranislari korundu.
+- Sprint 113 smoke 54/54; pipeline orchestration 10/10; durable execution 17/17; durable wiring 19/19; runtime health API 24/24; runtime status 15/15; worker lifecycle 16/16; runtime startup 11/11 PASS.
+- TypeScript, hedefli ESLint ve `git diff --check` PASS; fixture cleanup temiz.
+- Takip: wrong-slug ve filePath-URL filename mismatch negatif smoke'lari eklenebilir; full scheduled-runner completed-persistence call engeli ve gercek durable terminal persistence daha guclu ayrica dogrulanabilir; ayni scene icin tekrarli basarili calismalarda current/version selection politikasi belirlenmelidir.
 - Commit veya push yapilmadi.
 
 ---

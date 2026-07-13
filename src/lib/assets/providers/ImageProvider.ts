@@ -1,4 +1,7 @@
-import type { ImageGenerationResult } from "@/types/asset";
+import type {
+  ImageGenerationResult,
+  ImageProviderName,
+} from "@/types/asset";
 
 export interface ImageGenerationInput {
   prompt: string;
@@ -7,12 +10,14 @@ export interface ImageGenerationInput {
 
   size?: string;
 
-  sceneId?: number;
+  sceneId: number;
 
   projectSlug?: string;
 }
 
 export interface ImageProvider {
+  readonly name: ImageProviderName;
+
   generateImage(
     input: ImageGenerationInput,
   ): Promise<ImageGenerationResult>;

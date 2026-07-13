@@ -47,23 +47,28 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 112**
+**Sprint 113**
 
-Production Runtime Health API
+Production Visual Asset Pipeline Activation
 
 **Durum**
 
 Completed
 
-Sprint 112 Production Runtime Health API tamamlandi. Sonraki calisma ayri planlama ve onay ile belirlenecektir.
+Sprint 113 Production Visual Asset Pipeline Activation tamamlandi. Sonraki sprint yalniz Planning durumundadir ve kapsami ayri onaylanacaktir.
 
 Not:
 
-- `GET /api/runtime/health` yalniz mevcut `ProductionRuntimeCompositionRoot.getProductionRuntimeStatus()` getter'ini kullanir.
-- Versioned ve discriminated union HTTP envelope `schemaVersion: "1"`, API health durumu, readiness, runtime snapshot ve API gozlem zamani `observedAt` alanlarini tasir.
-- Healthy runtime HTTP 200; starting, draining, stopped ve failed durumlari HTTP 503; getter hatasi, bilinmeyen lifecycle veya readiness tutarsizligi HTTP 503 unavailable doner.
-- Tum readiness invariant'lari fail-closed dogrulanir; tutarsiz veya guvenli olmayan snapshot `runtime:null` ile kapanir ve failed durumda yalniz normalize guvenli failure bilgisi tasinir.
-- Endpoint `Cache-Control: no-store`, Node.js runtime, force-dynamic ve `revalidate=0` ile process-local, write-free health sunar; distributed health garantisi vermez.
+- `IMAGE_PROVIDER` tanimsiz/bos ise mock, `mock` ise `MockImageProvider`, `openai` ise `OpenAIImageProvider` secilir; bilinmeyen deger guvenli configuration error ile fail-closed kapanir.
+- Provider secimi import sirasinda ag, generation veya yeni runtime graph olusturmaz.
+- Visuals stage mevcut `VisualAssetPipeline` ile scene bazli gercek asset generation'a baglidir; visual plan korunur ve stage success persistence yalniz asset batch basarisindan sonra calisir.
+- Scene batch non-empty, positive safe-integer ve unique `sceneId` kosullariyla preflight edilir.
+- Gercek provider MIME allowlist'i `image/png`, `image/jpeg` ve `image/webp` ile sinirlidir; locator validation project-relative storage, HTTP/HTTPS ve exact `/api/assets/images/{slug}/{fileName}` sozlesmesini uygular.
+- Mock success exact `mock` provider, dogru sceneId, `image/mock`, bos filePath/url ve gecerli createdAt invariant'lariyla runtime'da dogrulanir.
+- Malformed provider sonucu safe failed asset ve stage failure uretir; raw provider error, secret, stack, unsafe locator veya hassas path persistence/loglara sizmaz.
+- Kismi uretim append-only kalir; production rollback/cleanup eklenmez ve batch/stage failed olur.
+- Gercek runner failure yolunda failed job/manifest/history, downstream animation enqueue ve completed persistence engelleri dogrulandi.
+- Yeni runner, lifecycle, initializer, composition root veya paralel execution graph eklenmedi; Sprint 109-112 davranislari korundu.
 
 ---
 
@@ -75,11 +80,11 @@ codex/sprint-111-runtime-status
 
 Son Commit
 
-0e442b3
+c812810
 
 Durum
 
-Sprint 112 tamamlandi. Sprint 112 degisiklikleri henuz commit/push edilmedi.
+Sprint 113 tamamlandi. Sprint 113 degisiklikleri ve dokumantasyon kapanisi henuz commit/push edilmedi.
 
 ---
 
@@ -570,6 +575,12 @@ Başarılı.
 ---
 
 # Bir Sonraki Gorev
+
+Planning
+
+Sonraki sprintin adi ve kapsami henuz belirlenmedi. Ayri mimari analiz ve kullanici onayi ile planlanacaktir.
+
+---
 
 # Sprint 73
 ## Production Engine Smoke Validation
@@ -2188,6 +2199,29 @@ Completed
 - Endpoint yalniz process-local runtime health sunar; distributed worker veya cross-process health garantisi vermez.
 - Sprint 112 health API smoke PASS (24/24); Sprint 111 runtime status PASS (15/15); Sprint 110 worker lifecycle PASS (16/16); Sprint 109 runtime startup PASS (11/11). TypeScript, hedefli ESLint ve `git diff --check` PASS.
 - Final review bloklayici ve bloklayici olmayan bulgu olmadan tamamlandi. Gercek GET wiring'i ve tekrar cagrilarda write-free davranis dogrulandi.
+- Commit veya push yapilmadi.
+
+---
+
+### Sprint 113 — Production Visual Asset Pipeline Activation
+
+Completed
+
+- `IMAGE_PROVIDER` tanimsiz/bos durumda mock-first default kullanir; `mock` `MockImageProvider`, `openai` `OpenAIImageProvider` secer ve bilinmeyen deger safe configuration error ile fail-closed kapanir.
+- Provider resolution import sirasinda ag cagrisi, generation veya yeni runtime graph olusturmaz.
+- Pipeline visuals stage mevcut `VisualAssetPipeline` ile gercek scene asset generation'a baglandi; visual plan korunur ve stage success persistence yalniz asset batch basarisindan sonra calisir.
+- Scene sonucu kendi sceneId degeriyle deterministik eslestirilir. Bos batch, positive safe-integer olmayan sceneId ve duplicate sceneId provider cagrisi veya asset write oncesinde reddedilir.
+- Gercek provider MIME allowlist'i yalniz `image/png`, `image/jpeg` ve `image/webp` kabul eder.
+- Dis URL yalniz HTTP/HTTPS olabilir. Local URL exact `/api/assets/images/{slug}/{fileName}` contract'i, `ImageStorage.getImageUrl()` sonucu ve filePath filename eslesmesiyle dogrulanir. File path yalniz guvenli project-relative ImageStorage kokunde olabilir; traversal, absolute/drive, UNC, root-relative, backslash, alt klasor ve storage disi path reddedilir.
+- OpenAI base64/storage success gercek `OpenAIImageProvider` ve `ImageStorage` ile dosya, locator, asset registry ve batch success seviyelerinde dogrulandi.
+- Mock success exact provider, sceneId, `image/mock`, bos filePath/url ve gecerli createdAt invariant'lariyla runtime'da dogrulanir; malformed ve getter exception ureten nesneler safe failed asset/stage failure uretir.
+- Raw provider error, secret, stack, unsafe locator veya hassas path persistence/loglara sizmaz.
+- Kismi uretim append-only kalir; production rollback/cleanup eklenmez. Batch ve stage failed olur.
+- Gercek runner failure yolunda failed job, manifest ve history; downstream animation enqueue ve completed persistence engelleri dogrulandi.
+- Yeni runner, lifecycle, initializer, composition root veya paralel execution graph eklenmedi; Sprint 109-112 davranislari korundu.
+- Sprint 113 smoke PASS (54/54); pipeline orchestration PASS (10/10); durable execution PASS (17/17); durable wiring PASS (19/19); runtime health API PASS (24/24); runtime status PASS (15/15); worker lifecycle PASS (16/16); runtime startup PASS (11/11).
+- TypeScript, hedefli ESLint ve `git diff --check` PASS; fixture cleanup temiz.
+- Takip: wrong-slug ve filePath-URL filename mismatch negatif smoke'lari eklenebilir; full scheduled-runner completed-persistence call engeli ve gercek durable terminal persistence daha guclu ayrica dogrulanabilir; ayni scene icin tekrarli basarili calismalarda current/version selection politikasi belirlenmelidir.
 - Commit veya push yapilmadi.
 
 ---
