@@ -25,6 +25,20 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 108 — Durable Recovery Bootstrap Integration
+
+Completed
+
+- Tek public `bootstrapRecovery` API durable attempt kayitlarini read-only tarar; active, running, terminal, orphaned, expired-lease ve replayable siniflandirmalarini uretir.
+- Immutable version zinciri, append-only journal ve contiguous sequence dogrulanir; mevcut lifecycle recovery degerlendirmesi yeniden kullanilir.
+- `PipelineRecoveryPlanner` entegrasyon ciktisi guvenli ve deterministik normalize edilir. Terminal attempt'ler yeniden planlanmaz, expired lease attempt'ler recovery adayi olur.
+- Exact bootstrap replay write-free kalir; yeni persistence formati veya mutation eklenmez. Pipeline, retry, scheduler, queue, history ve auto-continuation davranislari korunur.
+- Sprint 108 recovery bootstrap 15/15; durable storage recovery 29/29; pipeline state corruption/recovery 18/18; pipeline orchestration 10/10; production execution persistence 70/70 PASS.
+- `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Sprint 99–108 Durable Production Execution fazi Sprint 108 ile tamamlandi.
+- Acik riskler: bootstrap process-start composition root'una bagli degildir; snapshot isolation yoktur; concurrent mutation indeterminate degerlendirme uretebilir; expired lease remediation coordinator/lifecycle/worker hattindadir; distributed recovery, leader election ve distributed lock garantisi yoktur.
+- Commit veya push yapilmadi.
+
 ## Sprint 107 — Durable Pipeline Composition Root Wiring
 
 Completed

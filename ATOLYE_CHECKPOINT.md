@@ -47,22 +47,23 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 107**
+**Sprint 108**
 
-Durable Pipeline Composition Root Wiring
+Durable Recovery Bootstrap Integration
 
 **Durum**
 
 Completed
 
-Durable pipeline execution, merkezi `ProductionPipelineExecutionFactory` ile gercek API composition root'larinda feature-guarded olarak etkinlestirildi.
+Durable execution recovery bootstrap, attempt durumlarini salt okunur tarayip mevcut lifecycle recovery degerlendirmesi ve `PipelineRecoveryPlanner` icin guvenli planlama ciktisi uretecek bicimde tamamlandi.
 
 Not:
 
-- Normal run, stage retry, pipeline resume ve job-action retry ayni configured `PipelineRunner` ve merkezi factory'yi kullanir; auto-continuation ayni runner uzerinden ilerler.
-- Ayni job attempt ayni deterministik identity'yi, yeni retry attempt farkli identity'yi uretir; claim/lease hazirligi handler'dan once tamamlanir.
-- `ATOLYE_DURABLE_PIPELINE_EXECUTION=enabled` guard acikken durable adapter etkinlesir, kapaliyken legacy davranis korunur; public API ve UI degismez.
-- Acik risk: process-global runner konfigurasyonu, atomik olmayan job/durable persistence, instance-scope duplicate lock ve distributed lock garantisinin olmamasi.
+- Tek public `bootstrapRecovery` API attempt'leri active, running, terminal, orphaned, expired-lease ve replayable olarak siniflandirir.
+- Immutable version zinciri, append-only journal ve contiguous sequence read-only dogrulanir; exact bootstrap replay write-free ve deterministiktir.
+- Terminal attempt'ler yeniden planlanmaz; expired lease attempt'ler recovery adayi olur. Yeni persistence formati veya mutation eklenmedi.
+- Sprint 99–108 Durable Production Execution fazi Sprint 108 ile tamamlandi.
+- Acik risk: bootstrap process-start composition root'una bagli degildir; snapshot isolation ve distributed recovery/lock garantisi yoktur.
 
 ---
 
@@ -78,7 +79,7 @@ Son Commit
 
 Durum
 
-Sprint 107 tamamlandi; Sprint 101–107 degisiklikleri kullanici talebi geregi commit/push edilmedi.
+Sprint 108 tamamlandi; Sprint 99–108 Durable Production Execution fazi kapatildi. Sprint 108 degisiklikleri kullanici talebi geregi commit/push edilmedi.
 
 ---
 
@@ -2093,6 +2094,25 @@ Completed
 - Sprint 107 wiring smoke PASS (19/19); retry persistence PASS (5/5 grup); pipeline orchestration PASS (10/10); history persistence PASS (6/6); auto-continuation PASS (18/18); state corruption/recovery PASS (8/8).
 - `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
 - Acik riskler: `PipelineRunner` konfigurasyonu process-global'dir; job ve durable persistence atomik degildir; duplicate lock instance-scope'tur ve distributed lock garantisi yoktur; reservation/lease sure politikasi ileride operasyonel config'e tasinmalidir.
+- Commit veya push yapilmadi.
+
+---
+
+### Sprint 108 — Durable Recovery Bootstrap Integration
+
+Completed
+
+- Tek public `bootstrapRecovery` API eklendi; durable attempt kayitlari recovery baslangicinda read-only taranir.
+- Attempt'ler active, running, terminal, orphaned, expired-lease ve replayable siniflarinda deterministik olarak degerlendirilir.
+- Immutable attempt version zinciri, append-only journal butunlugu ve contiguous/monotonik sequence dogrulanir; CAS ve immutable versioning sozlesmeleri degistirilmez.
+- Mevcut lifecycle recovery degerlendirmesi yeniden kullanilir ve `PipelineRecoveryPlanner` entegrasyonu icin guvenli bootstrap ciktisi uretilir.
+- Terminal attempt'ler yeniden planlanmaz; expired lease attempt'ler recovery adayi olarak isaretlenir ve remediation coordinator/lifecycle/worker hattina birakilir.
+- Planner ciktisi yalniz guvenli, deterministik ve normalize edilmis alanlarla dondurulur. Exact bootstrap replay write-free kalir.
+- Yeni persistence formati veya mutation eklenmedi; mevcut pipeline, retry, scheduler, queue, history ve auto-continuation davranislari korundu.
+- Sprint 108 recovery bootstrap PASS (15/15); durable storage recovery PASS (29/29); pipeline state corruption/recovery PASS (18/18); pipeline orchestration PASS (10/10); production execution persistence PASS (70/70).
+- `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Sprint 99–108 Durable Production Execution fazi bu sprint ile tamamlandi.
+- Acik riskler: bootstrap process-start composition root'una henuz bagli degildir; tarama sirasinda snapshot isolation yoktur; eszamanli mutation indeterminate degerlendirme uretebilir; expired lease remediation coordinator/lifecycle/worker hattindadir; distributed recovery, leader election ve distributed lock garantisi yoktur.
 - Commit veya push yapilmadi.
 
 ---
