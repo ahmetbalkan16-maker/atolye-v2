@@ -25,6 +25,20 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 105 — Durable Worker Execution Foundation
+
+Completed
+
+- Tek public `execute` API coordinator attempt create/open/replay, lifecycle running/terminal gecisleri ve generic handler execution'i merkezilestirdi.
+- Success completed/succeeded, handler error failed ve pre/post cancellation cancelled terminal sonucu uretir; running transition basarisizsa handler cagrilmaz.
+- Terminal exact replay handler'i tekrar calistirmadan write-free mevcut sonucu dondurur. Claim/lease/worker/session mismatch, expired lease ve duplicate concurrent execution deterministik olarak engellenir.
+- Handler yalniz bir kez cagrilir; sonucu guvenli serializable ozet olarak persist edilir. Raw exception, stack, secret ve kontrolsuz payload persist edilmez.
+- Mutation basina tek immutable version ve contiguous/monotonik journal sequence korunur; yeni persistence formati eklenmedi.
+- Sprint 105 worker smoke 18/18, Sprint 97.7 worker regresyonu 55/55, `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Acik riskler: duplicate lock servis instance'i kapsamindadir ve distributed lock degildir; handler yan etkileri attempt persistence ile atomik degildir; running sonrasi process kesintisi recovery sozlesmeleriyle ele alinmalidir.
+- Commit veya push yapilmadi.
+
+---
 ## Sprint 104 — Durable Attempt Lifecycle Foundation
 
 Completed

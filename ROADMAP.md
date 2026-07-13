@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 104 — Durable Attempt Lifecycle Foundation (Completed)
+Sprint 105 — Durable Worker Execution Foundation (Completed)
 
 Siradaki Planlama Adimi
 
-Sprint 104.1 — Durable Attempt Lifecycle Review / Next Scope Planning
+Sprint 105.1 — Durable Worker Execution Review / Next Scope Planning
 
-Sprint 104.1 otomatik uygulanmayacak; claim/lease provisioning, katmanlar arasi atomik transaction, worker execution, queue, provider ve UI execution kapali kalacaktir.
+Sprint 105.1 otomatik uygulanmayacak; distributed lock, handler/persistence atomikligi, gercek pipeline stage entegrasyonu, queue, provider ve UI execution kapali kalacaktir.
 
 ---
 
@@ -1123,6 +1123,24 @@ Completed
 - Gecersiz transition sirasi ve terminal attempt mutation'i reddedilir.
 - Sprint 104 smoke 16/16 PASS; `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
 - Acik riskler: claim ve lease onceden mevcut olmalidir; katmanlar arasi atomik transaction yoktur; worker execution entegrasyonu henuz yapilmadi.
+- Commit veya push yapilmadi.
+
+---
+
+# Sprint 105
+
+## Durable Worker Execution Foundation
+
+Completed
+
+- Tek public `execute` API coordinator attempt create/open/replay, lifecycle running/terminal transition ve generic handler execution akislarini birlestirir.
+- Success completed/succeeded, handler error failed, pre/post cancellation cancelled uretir. Running transition basarisizsa handler cagrilmaz.
+- Terminal exact replay handler'i yeniden calistirmadan ve write uretmeden mevcut sonucu dondurur.
+- Claim/lease/worker/session ownership ve expired lease engeli korunur; duplicate concurrent execution deterministik conflict uretir.
+- Handler bir kez cagrilir; yalniz guvenli serializable ozet persist edilir. Raw error stack, secret veya kontrolsuz payload journal'a girmez.
+- Mutation basina tek version artisi ve contiguous/monotonik journal sequence korunur; yeni persistence formati eklenmedi.
+- Sprint 105 worker smoke 18/18 ve Sprint 97.7 worker regresyonu 55/55 PASS; `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Acik riskler: duplicate lock instance-scope'tur ve distributed lock degildir; handler yan etkileri attempt persistence ile atomik degildir; running sonrasi process kesintisi recovery sozlesmeleriyle ele alinmalidir.
 - Commit veya push yapilmadi.
 
 ---

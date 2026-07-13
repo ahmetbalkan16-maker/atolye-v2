@@ -47,21 +47,21 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 104**
+**Sprint 105**
 
-Durable Attempt Lifecycle Foundation
+Durable Worker Execution Foundation
 
 **Durum**
 
 Completed
 
-Durable attempt yasam dongusu tek public `mutate` API ile merkezi, CAS-korumali ve append-only olarak yonetilir.
+Coordinator ile acilan durable attempt, tek public `execute` API uzerinden lifecycle running ve terminal gecislerine baglandi.
 
 Not:
 
-- created/prepared -> running, running -> completed/failed ve active -> cancelled gecisleri desteklenir; completed mevcut durable attempt `succeeded` state'ine eslenir.
-- Exact replay write-free; ownership, event ID/payload, stale version, transition sirasi ve terminal state dogrulamalari deny-by-default'tur.
-- Acik risk: claim ve lease onceden mevcut olmalidir; katmanlar arasi atomik transaction ve worker execution entegrasyonu yoktur.
+- Success completed/succeeded, handler hatasi failed ve pre/post cancellation cancelled terminal sonucu uretir.
+- Terminal exact replay handler'i yeniden calistirmadan write-free doner; ownership, expired lease ve duplicate execution deny-by-default'tur.
+- Acik risk: duplicate lock yalniz servis instance'i kapsamindadir ve distributed lock degildir; handler yan etkileri persistence ile atomik degildir.
 
 ---
 
@@ -77,7 +77,7 @@ Son Commit
 
 Durum
 
-Sprint 104 tamamlandi; Sprint 101–104 degisiklikleri kullanici talebi geregi commit/push edilmedi.
+Sprint 105 tamamlandi; Sprint 101–105 degisiklikleri kullanici talebi geregi commit/push edilmedi.
 
 ---
 
@@ -2038,6 +2038,25 @@ Completed
 - Yeni persistence formati veya worker execution entegrasyonu eklenmedi; mevcut coordinator, recovery, storage ve attempt davranislari korundu.
 - Sprint 104 lifecycle smoke PASS (16/16); `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
 - Acik riskler: claim ve lease onceden mevcut olmalidir; katmanlar arasi atomik transaction yoktur; worker execution entegrasyonu henuz yapilmadi.
+- Commit veya push yapilmadi.
+
+---
+
+### Sprint 105 — Durable Worker Execution Foundation
+
+Completed
+
+- Tek public `execute` API coordinator, lifecycle ve generic handler execution akislarini merkezilestirir.
+- Coordinator attempt create/open/replay yapar; lifecycle running gecisini handler'dan once, completed/failed/cancelled terminal gecisini handler sonucundan sonra uygular.
+- Basarili handler completed public sonucu ve mevcut durable attempt `succeeded` state'i uretir. Handler exception'i raw hata tasimadan failed sonucuna donusur.
+- Cancellation handler oncesi ve sonrasinda kontrol edilir; handler sonrasi cancellation completed yerine cancelled terminal sonucu uretir.
+- Terminal exact replay handler'i yeniden calistirmaz, yeni write uretmez ve mevcut sonucu write-free dondurur. Running transition basarisizsa handler cagrilmaz.
+- Claim, lease, worker ve session ownership baglari korunur; expired lease execution'i baslatmaz.
+- Duplicate concurrent execution servis instance kilidi ve persisted running state ile deterministik conflict uretir; handler tek execution akisinda yalniz bir kez cagrilir.
+- Handler sonucu yalniz guvenli, deterministik ve serializable summary/evidence olarak journal'a yazilir; raw exception, stack, secret ve kontrolsuz payload persist edilmez.
+- Her lifecycle mutation yalniz bir immutable attempt version artisi uretir; journal sequence contiguous ve monotonik kalir. Yeni persistence formati eklenmedi.
+- Sprint 105 worker smoke PASS (18/18); Sprint 97.7 worker regresyonu PASS (55/55); `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Acik riskler: duplicate lock yalniz servis instance'i kapsamindadir ve distributed lock degildir; handler yan etkileri attempt persistence ile atomik degildir; running sonrasi process kesintisi mevcut recovery sozlesmeleriyle ele alinmalidir.
 - Commit veya push yapilmadi.
 
 ---

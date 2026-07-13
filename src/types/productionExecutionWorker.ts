@@ -8,3 +8,14 @@ export type ProductionExecutionWorkerReasonCode="WORKER_ELIGIBLE"|"WORKER_POLICY
 export interface ProductionExecutionWorkerClaimResult{eligible:boolean;decision:"eligible"|"blocked"|"deny"|"indeterminate";reasonCode:ProductionExecutionWorkerReasonCode;claim?:ProductionExecutionWorkerClaim;evidence:string[]}
 export interface ProductionExecutionWorkerPlan{executionPlanId:string;workerId:string;claimId:string;transactionId:string;orderedSteps:{stepId:string;type:string;resource:string}[];allowedResources:string[];expectedFingerprints:string[];cancellationPolicy:string;timeoutPolicy:{seconds:number};resultPolicy:string;failurePolicy:string;journalRequirements:string[];integrity:{algorithm:"stable-production-id-v1";fingerprint:string}}
 export interface ProductionExecutionWorkerResultEnvelope{status:"succeeded"|"failed"|"cancelled"|"partially-succeeded"|"invalid";operationId:string;transactionId:string;claimId:string;workerId:string;attempt:number;startedAt:string;finishedAt:string;completedSteps:string[];failedStep?:string;resultFingerprint:string;partial:boolean;safeSummary:string;failure?:{code:string;category:string;safeMessage:string};evidence:string[];integrity:{algorithm:"stable-production-id-v1";fingerprint:string}}
+
+import type { ProductionExecutionCoordinatorPolicy, ProductionExecutionCoordinatorRequest } from "./productionExecutionCoordinator";
+import type { ProductionExecutionDurableAttemptRecord } from "./productionExecutionDurableAttempt";
+
+export type ProductionExecutionWorkerExecutionStatus = "completed" | "failed" | "cancelled";
+export type ProductionExecutionWorkerExecutionReasonCode = "WORKER_EXECUTION_COMPLETED" | "WORKER_EXECUTION_FAILED" | "WORKER_EXECUTION_CANCELLED" | "WORKER_EXECUTION_REPLAYED" | "WORKER_EXECUTION_CONFLICT" | "WORKER_EXECUTION_COORDINATION_FAILED" | "WORKER_EXECUTION_RUNNING_FAILED" | "WORKER_EXECUTION_OWNERSHIP_CONFLICT" | "WORKER_EXECUTION_LEASE_INVALID" | "WORKER_EXECUTION_INDETERMINATE";
+export interface ProductionExecutionWorkerExecutionRequest { coordinator:ProductionExecutionCoordinatorRequest;policy:ProductionExecutionCoordinatorPolicy;runningAt:string;finishedAt:string;runningEventId:string;terminalEventId:string }
+export interface ProductionExecutionWorkerHandlerResult { summary:string;evidence?:readonly string[] }
+export type ProductionExecutionWorkerHandler = () => ProductionExecutionWorkerHandlerResult | Promise<ProductionExecutionWorkerHandlerResult>;
+export interface ProductionExecutionCancellationSignal { isCancellationRequested():boolean }
+export interface ProductionExecutionWorkerExecutionResult { schemaVersion:"1";ok:boolean;decision:"completed"|"failed"|"cancelled"|"replayed"|"deny"|"indeterminate";reasonCode:ProductionExecutionWorkerExecutionReasonCode;status?:ProductionExecutionWorkerExecutionStatus;attempt?:ProductionExecutionDurableAttemptRecord;handlerCalled:boolean;writeFree:boolean;evidence:readonly string[] }
