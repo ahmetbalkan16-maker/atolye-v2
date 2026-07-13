@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 106 — Pipeline Stage Durable Execution Integration (Completed)
+Sprint 107 — Durable Pipeline Composition Root Wiring (Completed)
 
 Siradaki Planlama Adimi
 
-Sprint 106.1 — Pipeline Durable Integration Review / Next Scope Planning
+Sprint 107.1 — Durable Pipeline Wiring Review / Next Scope Planning
 
-Sprint 106.1 otomatik uygulanmayacak; composition-root activation, cross-store atomiklik, distributed lock, provider ve UI execution takip kapsaminda kalacaktir.
+Sprint 107.1 otomatik uygulanmayacak; process-global configuration, cross-store atomiklik, distributed lock ve reservation/lease operational config takip kapsaminda kalacaktir.
 
 ---
 
@@ -1161,6 +1161,25 @@ Completed
 - Commit veya push yapilmadi.
 
 ---
+
+# Sprint 107
+
+## Durable Pipeline Composition Root Wiring
+
+Completed
+
+- Normal pipeline run, stage retry API, pipeline resume API ve job-action retry API ayni merkezi composition factory ile configured `PipelineRunner` kullanir; auto-continuation ayni runner uzerinden ilerler.
+- `ProductionPipelineExecutionFactory`, job-attempt identity'sini deterministik uretir. Ayni attempt ayni identity'yi, yeni retry attempt farkli identity'yi alir.
+- Mevcut reservation/record replay kullanilir; claim ve lease stage handler'dan once hazirlanir. Hazirlik basarisizsa handler ve legacy job claim zinciri calismaz.
+- `ATOLYE_DURABLE_PIPELINE_EXECUTION=enabled` guard acikken durable adapter etkinlesir; guard kapaliyken legacy davranis korunur.
+- Public API ve UI sozlesmeleri degismedi; retry, queue, scheduler, history, recovery ve auto-continuation davranislari korundu.
+- Sprint 107 wiring smoke 19/19, retry persistence 5/5 grup, pipeline orchestration 10/10, history persistence 6/6, auto-continuation 18/18 ve state corruption/recovery 8/8 PASS.
+- `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Acik riskler: `PipelineRunner` konfigurasyonu process-global'dir; job/durable persistence atomik degildir; duplicate lock instance-scope'tur; distributed lock garantisi yoktur; reservation/lease sure politikasi operasyonel config'e tasinmalidir.
+- Commit veya push yapilmadi.
+
+---
+
 # Tamamlanma Kriteri
 
 Bir sprint aşağıdaki şartlar sağlanınca tamamlanır.

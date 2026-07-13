@@ -25,6 +25,19 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 107 — Durable Pipeline Composition Root Wiring
+
+Completed
+
+- Normal pipeline run, stage retry, pipeline resume ve job-action retry API composition root'lari merkezi `ProductionPipelineExecutionFactory` ile ayni configured `PipelineRunner`'i kullanir; auto-continuation ayni runner uzerinden ilerler.
+- Deterministik job-attempt identity ayni attempt icin ayni, yeni retry attempt icin farkli uretilir; mevcut reservation/record replay kullanilir.
+- Claim/lease hazirligi stage handler'dan once tamamlanir; hazirlik basarisizsa handler ve legacy job claim zinciri cagrilmaz.
+- `ATOLYE_DURABLE_PIPELINE_EXECUTION=enabled` guard acikken durable adapter etkinlesir, kapaliyken legacy davranis korunur. Public API ve UI sozlesmeleri degismedi.
+- Sprint 107 wiring smoke 19/19; retry persistence 5/5 grup; pipeline orchestration 10/10; history persistence 6/6; auto-continuation 18/18; state corruption/recovery 8/8 PASS.
+- `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Acik riskler: process-global `PipelineRunner` konfigurasyonu; atomik olmayan job/durable persistence; instance-scope duplicate lock; distributed lock garantisinin olmamasi; reservation/lease sure politikasinin operasyonel config'e tasinmasi geregi.
+- Commit veya push yapilmadi.
+
 ## Sprint 106 — Pipeline Stage Durable Execution Integration
 
 Completed

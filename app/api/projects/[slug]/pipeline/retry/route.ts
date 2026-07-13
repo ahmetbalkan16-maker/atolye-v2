@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { PipelineRunner } from "@/lib/pipeline/PipelineRunner";
+import { configureProductionPipelineExecution } from "@/lib/production/ProductionPipelineExecutionFactory";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import type { PipelineRecoveryStageKey } from "@/types/pipelineRecovery";
 import { createPipelineStateErrorResponse } from "@/lib/pipeline/PipelineStateApiError";
+
+configureProductionPipelineExecution();
 
 type RouteContext = {
   params: Promise<{

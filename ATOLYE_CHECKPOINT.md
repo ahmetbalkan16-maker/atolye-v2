@@ -47,21 +47,22 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 106**
+**Sprint 107**
 
-Pipeline Stage Durable Execution Integration
+Durable Pipeline Composition Root Wiring
 
 **Durum**
 
 Completed
 
-Pipeline stage execution, `PipelineRunner.runStage` cevresindeki opsiyonel durable adapter ile worker execution hattina baglandi.
+Durable pipeline execution, merkezi `ProductionPipelineExecutionFactory` ile gercek API composition root'larinda feature-guarded olarak etkinlestirildi.
 
 Not:
 
-- Durable baslangic basarili olmadan job claim ve legacy stage handler zinciri calismaz; adapter yoksa mevcut davranis aynen korunur.
-- Success/failure/cancellation/replay sonuclari mevcut boolean/exception pipeline sozlesmesine cevrilir; public API ve UI degismez.
-- Acik risk: activation composition root request factory gerektirir; pipeline job ve attempt persistence atomik degildir; duplicate lock distributed degildir.
+- Normal run, stage retry, pipeline resume ve job-action retry ayni configured `PipelineRunner` ve merkezi factory'yi kullanir; auto-continuation ayni runner uzerinden ilerler.
+- Ayni job attempt ayni deterministik identity'yi, yeni retry attempt farkli identity'yi uretir; claim/lease hazirligi handler'dan once tamamlanir.
+- `ATOLYE_DURABLE_PIPELINE_EXECUTION=enabled` guard acikken durable adapter etkinlesir, kapaliyken legacy davranis korunur; public API ve UI degismez.
+- Acik risk: process-global runner konfigurasyonu, atomik olmayan job/durable persistence, instance-scope duplicate lock ve distributed lock garantisinin olmamasi.
 
 ---
 
@@ -77,7 +78,7 @@ Son Commit
 
 Durum
 
-Sprint 106 tamamlandi; Sprint 101–106 degisiklikleri kullanici talebi geregi commit/push edilmedi.
+Sprint 107 tamamlandi; Sprint 101–107 degisiklikleri kullanici talebi geregi commit/push edilmedi.
 
 ---
 
@@ -2078,6 +2079,24 @@ Completed
 - Commit veya push yapilmadi.
 
 ---
+
+### Sprint 107 — Durable Pipeline Composition Root Wiring
+
+Completed
+
+- Normal pipeline run, stage retry API, pipeline resume API ve job-action retry API composition root'lari ayni merkezi durable wiring ile configured `PipelineRunner` olusturur; auto-continuation ayni runner uzerinden ilerler.
+- Merkezi `ProductionPipelineExecutionFactory`, her job attempt icin deterministik durable identity uretir: ayni attempt ayni identity'yi, yeni retry attempt farkli identity'yi alir.
+- Factory mevcut reservation/record replay sozlesmelerini kullanir; yeni persistence formati eklenmez.
+- Claim ve lease hazirligi stage handler'dan once tamamlanir. Hazirlik basarisizsa stage handler ve legacy job claim zinciri cagrilmaz.
+- `ATOLYE_DURABLE_PIPELINE_EXECUTION=enabled` feature guard acikken durable adapter etkinlesir; guard kapaliyken legacy pipeline davranisi aynen korunur.
+- Public API response shape'leri ve UI sozlesmeleri degismedi; retry, queue, scheduler, history, recovery ve auto-continuation davranislari korundu.
+- Sprint 107 wiring smoke PASS (19/19); retry persistence PASS (5/5 grup); pipeline orchestration PASS (10/10); history persistence PASS (6/6); auto-continuation PASS (18/18); state corruption/recovery PASS (8/8).
+- `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Acik riskler: `PipelineRunner` konfigurasyonu process-global'dir; job ve durable persistence atomik degildir; duplicate lock instance-scope'tur ve distributed lock garantisi yoktur; reservation/lease sure politikasi ileride operasyonel config'e tasinmalidir.
+- Commit veya push yapilmadi.
+
+---
+
 # Sprint 81
 ## Pipeline Intelligence Foundation
 
