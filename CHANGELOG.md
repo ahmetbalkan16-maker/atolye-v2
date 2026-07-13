@@ -25,6 +25,20 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 109 — Process Startup Bootstrap Integration
+
+Completed
+
+- `instrumentation.ts/register()` startup hook'u `ProductionRuntimeCompositionRoot` ve idempotent `ProductionRuntimeInitializer` uzerinden proje bazli `bootstrapRecovery` hattina baglandi.
+- Ilk initialization Promise'i instance/process kapsaminda cache edilir; tek timestamp ile deterministik proje taramasi yapilir ve tekrar initialization duplicate bootstrap uretmez.
+- Recovery bootstrap write-free kalir; sonucu dogrulanmadan initialized kabul edilmez. Failure fail-closed ve yapilandirilmis, partial initialization ise kapali tutulur.
+- Terminal attempt'ler yeniden planlanmaz; expired lease attempt'ler yalniz recovery adayi olarak kalir.
+- Scheduler, worker ve remediation davranislari degismedi; persistence formati veya yeni durable mutation eklenmedi.
+- Sprint 109 startup smoke 11/11; Sprint 108 recovery bootstrap 15/15; pipeline orchestration 10/10; production execution persistence 70/70 PASS.
+- `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Acik riskler: once-only garantisi process kapsamindadir; development HMR yeniden yukleme riski, snapshot isolation eksikligi ve proje sayisiyla startup suresinin artmasi devam eder; distributed recovery, leader election, distributed lock ve expired lease remediation sonraki kapsamdir.
+- Commit veya push yapilmadi.
+
 ## Sprint 108 — Durable Recovery Bootstrap Integration
 
 Completed

@@ -1,0 +1,35 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import { ProjectReader } from "@/lib/projects/ProjectReader";
+import { ProductionExecutionFilePersistenceAdapter } from "@/lib/production/ProductionExecutionPersistence";
+import { ProductionExecutionRecoveryBootstrap } from "@/lib/production/ProductionExecutionRecoveryBootstrap";
+import { ProductionRuntimeInitializationError, ProductionRuntimeInitializer } from "@/lib/production/ProductionRuntimeInitializer";
+import type { ProductionRuntimeInitializationSuccess } from "@/types/productionRuntimeInitialization";
+
+const processRuntimeInitializer = new ProductionRuntimeInitializer({
+  now: () => new Date().toISOString(),
+  listProjectSlugs: listProjectSlugsReadOnly,
+  createRecoveryBootstrap: (projectSlug) => new ProductionExecutionRecoveryBootstrap(new ProductionExecutionFilePersistenceAdapter({
+    trustedRootDirectory: path.join(ProjectReader.getProjectFolder(projectSlug), "production-execution"),
+    createRootDirectory: false,
+  })),
+});
+
+export async function initializeProductionProcessRuntime(): Promise<ProductionRuntimeInitializationSuccess> {
+  const result = await processRuntimeInitializer.initialize();
+  if (!result.ok) throw new ProductionRuntimeInitializationError(result);
+  return result;
+}
+
+async function listProjectSlugsReadOnly(): Promise<readonly string[]> {
+  try {
+    const entries = await fs.readdir(ProjectReader.getProjectsRoot(), { withFileTypes: true });
+    return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return [];
+    throw error;
+  }
+}
+
+function isNodeError(error: unknown): error is NodeJS.ErrnoException { return error instanceof Error; }
+

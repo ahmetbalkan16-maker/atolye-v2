@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 108 — Durable Recovery Bootstrap Integration (Completed)
+Sprint 110 — Planning
 
 Siradaki Planlama Adimi
 
-Sprint 108.1 — Durable Production Execution Phase Review / Next Scope Planning
+Sprint 110 — Scope Definition / Next Work Planning
 
-Sprint 99–108 Durable Production Execution fazi Sprint 108 ile tamamlandi. Sprint 108.1 otomatik uygulanmayacak; process-start wiring, snapshot isolation, expired lease remediation ve distributed recovery/locking takip kapsaminda kalacaktir.
+Sprint 109 Process Startup Bootstrap Integration tamamlandi. Sprint 110 otomatik uygulanmayacak; kapsam, kabul kriterleri ve risk sinirlari planning asamasinda ayrica belirlenecektir.
 
 ---
 
@@ -1195,6 +1195,26 @@ Completed
 - `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
 - Sprint 99–108 Durable Production Execution fazi bu sprint ile tamamlandi.
 - Acik riskler: process-start composition root wiring eksiktir; snapshot isolation yoktur ve eszamanli mutation indeterminate sonuc uretebilir; expired lease remediation coordinator/lifecycle/worker hattindadir; distributed recovery, leader election ve distributed lock garantisi yoktur.
+- Commit veya push yapilmadi.
+
+---
+
+# Sprint 109
+
+## Process Startup Bootstrap Integration
+
+Completed
+
+- `instrumentation.ts/register()` process-start hook'u `ProductionRuntimeCompositionRoot` uzerinden runtime initializer'a baglanir.
+- Idempotent `ProductionRuntimeInitializer`, ilk initialization Promise'ini instance/process kapsaminda cache eder; tekrar cagri duplicate bootstrap uretmez.
+- Tek timestamp ile projeler deterministik sirada taranir ve proje basina mevcut `bootstrapRecovery` API cagrilir.
+- Recovery bootstrap write-free kalir; sonucu dogrulanmadan initialized karari verilmez.
+- Startup fail-closed ve yapilandirilmis hata davranisina sahiptir; partial initialization olusmaz.
+- Terminal attempt'ler yeniden planlanmaz; expired lease attempt'ler yalniz recovery adayi olarak raporlanir.
+- Scheduler, worker ve remediation davranislari degistirilmedi; persistence formati veya yeni durable mutation eklenmedi.
+- Sprint 109 startup smoke 11/11; Sprint 108 recovery bootstrap 15/15; pipeline orchestration 10/10; production execution persistence 70/70 PASS.
+- `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Acik riskler: once-only garantisi process kapsamindadir; development HMR yeniden yukleme riski vardir; snapshot isolation yoktur; proje sayisi startup suresini artirabilir; distributed recovery, leader election, distributed lock ve expired lease remediation sonraki kapsamdir.
 - Commit veya push yapilmadi.
 
 ---
