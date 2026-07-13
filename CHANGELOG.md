@@ -25,6 +25,20 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 103 — Production Execution Coordinator Foundation
+
+Completed
+
+- Claim, lease ve durable attempt akislarini tek public `coordinate` giris noktasinda birlestiren merkezi coordinator katmani eklendi.
+- Coordinator write-free claim preflight -> lease evaluation -> durable attempt create/open/exact replay sirasini mevcut servisleri kullanarak yonetir; claim, lease, worker ve session uyusmazliklari deterministik conflict olarak doner.
+- Ayni idempotency request exact replay'de mevcut attempt'i yeni write uretmeden dondurur; farkli payload deterministik conflict olusturur.
+- Attempt version ve embedded journal butunlugu korunur. Yeni persistence formati eklenmedi; mevcut CAS, immutable versioning, canonical validation, no-replace ve recovery sozlesmeleri degistirilmedi.
+- Replay, recovery ve worker execution davranislari degismedi; coordinator mevcut claim ve lease'in onceden olusturulmus olmasini bekler.
+- Sprint 103 coordinator smoke 9/9 PASS; `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Acik risk: claim ve lease onceden mevcut olmalidir; katmanlar arasi atomik transaction henuz yoktur.
+- Commit veya push yapilmadi.
+
+---
 ## Sprint 102 — Durable Execution Attempt & Outcome Journal Foundation
 
 Completed

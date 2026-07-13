@@ -47,20 +47,21 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 102**
+**Sprint 103**
 
-Durable Execution Attempt & Outcome Journal Foundation
+Production Execution Coordinator Foundation
 
 **Durum**
 
 Completed
 
-Active claim'e bagli append-only attempt lifecycle, monotonic journal ve outcome proposal/finalization contract'i tamamlandi. Gercek worker, provider veya execution acilmadi.
+Claim, lease ve durable attempt create/open/exact replay akislarini tek public `coordinate` girisinde birlestiren coordinator katmani tamamlandi.
 
 Not:
 
-- Attempt preflight ve recovery assessment write-free, deterministic ve caller-provided explicit `evaluatedAt` kullanir.
-- Process/worker, queue, provider/network, execution API, UI execution, timer ve background recovery sinirlari kapali kalir.
+- Claim preflight ve exact replay write-free; lease evaluation ile claim/lease/worker/session conflict dogrulamalari deterministiktir.
+- Yeni persistence formati eklenmedi; CAS, immutable versioning, validation, no-replace ve recovery sozlesmeleri korundu.
+- Acik risk: claim ve lease onceden mevcut olmalidir; katmanlar arasi atomik transaction henuz yoktur.
 
 ---
 
@@ -76,7 +77,7 @@ Son Commit
 
 Durum
 
-Sprint 102 tamamlandi; Sprint 101 ve 102 degisiklikleri kullanici talebi geregi commit/push edilmedi.
+Sprint 103 tamamlandi; Sprint 101–103 degisiklikleri kullanici talebi geregi commit/push edilmedi.
 
 ---
 
@@ -2007,6 +2008,21 @@ Completed
 
 ---
 
+### Sprint 103 — Production Execution Coordinator Foundation
+
+Completed
+
+- Merkezi `ProductionExecutionCoordinator`, claim, lease ve durable attempt akislarini tek public `coordinate` giris noktasinda birlestirir.
+- Islem sirasi mevcut servislerle write-free claim preflight -> lease evaluation -> durable attempt create/open/exact replay olarak yonetilir; mevcut mantiklar kopyalanmaz.
+- Claim, lease, worker ve session binding uyusmazliklari deterministik conflict sonucu verir.
+- Ayni idempotency request exact replay'de mevcut attempt'i write-free dondurur; farkli payload deterministik conflict olusturur.
+- Attempt version ve embedded journal butunlugu korunur. Yeni persistence formati eklenmedi.
+- Mevcut CAS/version, immutable versioning, canonical validation, no-replace ve recovery sozlesmeleri korunur; replay, recovery ve worker execution davranislari degistirilmez.
+- Sprint 103 coordinator smoke PASS (9/9); `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Acik risk: coordinator mevcut durable claim ve lease'in onceden olusturulmus olmasini bekler; katmanlar arasi atomik transaction henuz yoktur.
+- Commit veya push yapilmadi.
+
+---
 # Sprint 81
 ## Pipeline Intelligence Foundation
 

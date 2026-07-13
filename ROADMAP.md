@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 102 — Durable Execution Attempt & Outcome Journal Foundation (Completed)
+Sprint 103 — Production Execution Coordinator Foundation (Completed)
 
 Siradaki Planlama Adimi
 
-Sprint 102.1 — Durable Attempt Journal Review / Next Scope Planning
+Sprint 103.1 — Production Execution Coordinator Review / Next Scope Planning
 
-Sprint 102.1 otomatik uygulanmayacak; gercek production execution, queue, worker, provider ve UI execution kapali kalacaktir.
+Sprint 103.1 otomatik uygulanmayacak; claim/lease provisioning, katmanlar arasi atomik transaction, gercek production execution, queue, worker, provider ve UI execution kapali kalacaktir.
 
 ---
 
@@ -1093,6 +1093,22 @@ Completed
 
 ---
 
+# Sprint 103
+
+## Production Execution Coordinator Foundation
+
+Completed
+
+- Tek public `coordinate` girisi claim, lease ve durable attempt acilisini merkezi olarak koordine eder.
+- Write-free claim preflight ve lease evaluation mevcut servisler uzerinden sirali calisir; claim, lease, worker ve session conflict'leri deterministik olarak raporlanir.
+- Durable attempt ilk istekte create/open edilir; ayni idempotency request exact replay'de mevcut attempt write-free doner, farkli payload deterministik conflict uretir.
+- Attempt version ve embedded journal butunlugu korunur; yeni persistence formati eklenmedi.
+- Mevcut CAS, immutable versioning, canonical validation, no-replace ve recovery sozlesmeleri korunur. Replay, recovery ve worker execution davranislari degismez.
+- Sprint 103 smoke 9/9 PASS; `npx tsc --noEmit`, hedefli ESLint ve `git diff --check` PASS.
+- Acik risk: claim ve lease coordinator cagrisi oncesinde mevcut olmalidir; katmanlar arasi atomik transaction henuz yoktur.
+- Commit veya push yapilmadi.
+
+---
 # Tamamlanma Kriteri
 
 Bir sprint aşağıdaki şartlar sağlanınca tamamlanır.
