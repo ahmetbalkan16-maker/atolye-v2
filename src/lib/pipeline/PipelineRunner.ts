@@ -22,8 +22,10 @@ import type {
 
 export class PipelineRunner {
   private static durableExecution?: Pick<ProductionPipelineExecutionAdapter, "execute">;
+  private static continuationAdmission?: PipelineContinuationAdmission;
 
   static configureDurableExecution(adapter?: Pick<ProductionPipelineExecutionAdapter, "execute">) { this.durableExecution = adapter; }
+  static configureContinuationAdmission(admission?: PipelineContinuationAdmission) { this.continuationAdmission = admission; }
   static async run(topic: string) {
     const slug = ProjectManager.createSlug(topic);
     const project = await ProjectManager.createProject(topic);
@@ -174,9 +176,79 @@ export class PipelineRunner {
 
   static async continueProject(
     projectSlug: string,
+    stages: readonly PipelineRecoveryStageKey[] = pipelineRecoveryStageOrder,
+  ): Promise<PipelineContinuationResult> {
+    const operation = () => this.continueProjectOnce(projectSlug, stages);
+    return this.continuationAdmission
+      ? this.continuationAdmission.execute(operation)
+      : operation();
+  }
+
+  static async dispatchProjectContinuation(
+    projectSlug: string,
+    stopStage: PipelineRecoveryStageKey = "assembly",
+  ): Promise<PipelineContinuationDispatchResult> {
+    const completedStages: PipelineRecoveryStageKey[] = [];
+    const stopIndex = pipelineRecoveryStageOrder.indexOf(stopStage);
+    const continuationStageOrder = pipelineRecoveryStageOrder.slice(
+      0,
+      stopIndex + 1,
+    );
+
+    for (let iteration = 0; iteration < continuationStageOrder.length; iteration++) {
+      const jobList = await PipelineJobManager.listJobsReadOnly(projectSlug);
+      const queuedStage = continuationStageOrder.find((stage) =>
+        jobList.jobs.some(
+          (job) => job.stage === stage && job.status === "queued",
+        ),
+      );
+
+      if (!queuedStage || !continuationStageOrder.includes(queuedStage)) {
+        return { completedStages, iterations: iteration };
+      }
+
+      const result = await this.continueProject(projectSlug, continuationStageOrder);
+
+      if (!result.continued) {
+        return {
+          completedStages,
+          iterations: iteration + 1,
+          reason: result.reason,
+        };
+      }
+
+      if (!result.completed) {
+        return {
+          completedStages,
+          iterations: iteration + 1,
+          reason: result.reason,
+        };
+      }
+
+      completedStages.push(result.stage);
+
+      if (result.stage === stopStage) {
+        return {
+          completedStages,
+          iterations: iteration + 1,
+          terminal: true,
+        };
+      }
+    }
+
+    return {
+      completedStages,
+      iterations: continuationStageOrder.length,
+      reason: "Pipeline continuation iteration limit reached.",
+    };
+  }
+
+  private static async continueProjectOnce(
+    projectSlug: string,
+    stages: readonly PipelineRecoveryStageKey[],
   ): Promise<PipelineContinuationResult> {
     const jobList = await PipelineJobManager.listJobsReadOnly(projectSlug);
-    const queuedStage = pipelineRecoveryStageOrder.find((stage) =>
+    const queuedStage = stages.find((stage) =>
       jobList.jobs.some(
         (job) => job.stage === stage && job.status === "queued",
       ),
@@ -186,10 +258,10 @@ export class PipelineRunner {
       return { continued: false };
     }
 
-    const queuedStageIndex = pipelineRecoveryStageOrder.indexOf(queuedStage);
+    const queuedStageIndex = stages.indexOf(queuedStage);
     const scheduled = await PipelineQueueScheduler.getNextRunnableStage(
       projectSlug,
-      pipelineRecoveryStageOrder.slice(0, queuedStageIndex + 1),
+      stages.slice(0, queuedStageIndex + 1),
     );
 
     if (scheduled.stage !== queuedStage) {
@@ -432,7 +504,12 @@ export class PipelineRunner {
     }
 
     try {
-      await this.continueProject(projectSlug);
+      const retryStageIndex = pipelineRecoveryStageOrder.indexOf(stage);
+      const assemblyIndex = pipelineRecoveryStageOrder.indexOf("assembly");
+      await this.dispatchProjectContinuation(
+        projectSlug,
+        retryStageIndex <= assemblyIndex ? "assembly" : "export",
+      );
     } catch (error) {
       console.error("[PipelineRunner] Pipeline continuation after retry failed:", {
         projectSlug,
@@ -606,6 +683,17 @@ export type PipelineContinuationResult =
       completed: boolean;
       reason?: string;
     };
+
+export interface PipelineContinuationDispatchResult {
+  completedStages: PipelineRecoveryStageKey[];
+  iterations: number;
+  terminal?: true;
+  reason?: string;
+}
+
+interface PipelineContinuationAdmission {
+  execute<T>(operation: () => T | Promise<T>): Promise<T>;
+}
 
 function getRetryStageFromJobId(
   projectSlug: string,

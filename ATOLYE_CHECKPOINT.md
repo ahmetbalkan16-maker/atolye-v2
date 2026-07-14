@@ -47,32 +47,27 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 118**
+**Sprint 119**
 
-Assembly Scene-Video Consumption
+Pipeline Retry Continuation Hardening
 
 **Durum**
 
 Completed
 
-Sprint 118 Assembly Scene-Video Consumption tamamlandi. Sonraki sprint yalniz Planning durumundadir ve kapsami ayri onaylanacaktir.
+Sprint 119 Pipeline Retry Continuation Hardening tamamlandi. Sonraki sprint yalniz Planning durumundadir ve kapsami ayri onaylanacaktir.
 
 Not:
 
-- Merkezi stage sirasi `research -> script -> scenes -> visuals -> animation -> video -> audio -> assembly`, dependency graph, `PipelineRunner`, continuation wiring ve durable execution degistirilmedi.
-- Assembly production yolu full-v2 scene-video verisinde image yerine dogrulanmis scene MP4'leri tuketir. Yeni input `inputType: "scene-video"`, scene/video/source-image/animation identity, filePath/url, scene ve narration duration, byteLength, provider, generationMode, status ve audioFilePath tasir.
-- Video null/yok veya gecerli marker'siz legacy `video.json` Sprint 115 image assembly yolunu kullanir. Full `schemaVersion: "2"` + `artifactType: "scene-video"` yalniz scene-video kullanir; kismi, mixed veya global marker'siz v2 fail-closed reddedilir. Registry history tek basina v2 secimini tetiklemez.
-- Canonical scene/assembly/animation/video sirasi birebir; latest active visual, active motion-plan, registry, video.json ve storage metadata zinciri render oncesinde dogrulanir. Duplicate sceneId, videoAssetId, filePath ve URL reddedilir.
-- Scene MP4 preflight tek H.264 video stream, sifir audio stream, 1920x1080, yuv420p, rasyonel 30 FPS ve duration toleransi ister. Identity/storage/probe hatasinda legacy veya image fallback yapilmaz.
-- Stream-copy yalniz scene/narration farki en fazla 1/30 saniye ve tum stream profile, level, codec tag, timebase, field order ve extradata degerleri birebir ayniysa kullanilir. Video `-c:v copy`; narration WAV'lari normalize edilip concat edilir ve AAC encode edilir.
-- Uyumsuz veya farkli sureli girdiler re-encode yoluna gider: kisa video son frame clone-pad edilir, uzun video trim edilir, her scene PTS sifirlanir ve H.264/yuv420p, 1920x1080, 30 FPS output uretilir.
-- Final FFprobe atomic rename sonrasi final dosyada calisir; tam bir video ve bir audio stream, H.264/AAC, geometry, pixfmt, rasyonel FPS, attached-picture reddi ve video/audio/container duration uyumu dogrulanir. byteLength final readback'ten gelir; registry write bundan sonra yapilir.
-- Final review'de uc P1 giderildi: duplicate scene-video locator reddi; sure-only stream-copy yerine exact stream signature eslesmesi; final output stream/FPS/A-V/container validation hardening. Acik P0/P1/P3 bulgu yoktur.
-- Failure provider oncesi veya concat/probe sirasinda fail-closed olur; final generated asset yazilmaz, assembly job/manifest failed kalir ve project completion engellenir. Completed replay FFprobe/filesystem/provider/registry'ye dokunmadan write-free kalir.
-- Non-blocking P2: live FFmpeg/FFprobe E2E calismadi; mock runner gercek ffconcat parsing, H.264 boundary, AAC mux, packet/edit-list timeline ve tpad/trim davranisini kanitlamaz. Final asset coklu scene lineage'i assembly.json'a baglidir; forced-settlement cleanup yarisi teoriktir ve multi-file persistence tam transaction degildir.
-- Ilk production kullanimindan once stream-copy, clone-pad, trim, cok sahneli concat, bosluk/Turkce karakterli Windows path ve final FFprobe senaryolari live kabulden gecmelidir.
-- Sprint 118 19/19; Sprint 117 23/23; Sprint 116 21/21; Sprint 115 46/46; Sprint 114 74/74; Sprint 113 54/54; orchestration 10/10; auto-continuation 18/18; durable execution 17/17; durable wiring 19/19 PASS.
-- Runtime startup 11/11, worker lifecycle 16/16, runtime status 15/15 ve runtime health 24/24 PASS. TypeScript, hedefli ESLint (0 warning) ve `git diff --check` PASS; LF -> CRLF uyarilari non-blocking'dir.
+- Retry sonrasinda `research -> script -> scenes -> visuals -> animation -> video -> audio -> assembly` akisi bounded ve non-recursive dispatcher ile devam eder. `continueProject()` cagri basina en fazla tek stage calistirma sozlesmesini korur.
+- Dispatcher her iterasyonda kalici job durumunu yeniden okur; success, no-op, conflict, failure, blocked, terminal ve iterasyon sinirlarinda guvenli durur.
+- Standalone continuation ve retry ayni dispatcher/lifecycle kurallarini kullanir. Draining, stopped ve failed lifecycle durumlarinda yeni continuation kabul edilmez.
+- Drain aktif isi bekler; sonraki queued stage kalici ve yeniden calistirilabilir kalir. Dispatcher hatasi tamamlanmis retry stage'ini geri almaz.
+- Final review'de eszamanli dispatcher'larin assembly sinirini gecerek thumbnail calistirmasina yol acan P1 yarisi giderildi. Acik P0/P1/P2/P3 bulgu yoktur.
+- Merkezi stage sirasi ve dependency modeli degistirilmedi; ikinci orchestrator veya yeni kalici kaynak olusturulmadi.
+- Restart recovery icin cron/polling eklenmedi; mevcut durable job kayitlari uzerinden sonraki dispatch/recovery tetiklemesinde devam edilir.
+- Sprint 119 smoke PASS (22 senaryo); Sprint 118-113 regresyonlari PASS; pipeline orchestration PASS (10); auto-continuation PASS (18); durable execution PASS (17); durable wiring PASS (19); worker lifecycle PASS (16).
+- Runtime startup/status/health regresyonlari PASS. TypeScript PASS; ESLint PASS; `git diff --check` PASS.
 
 ---
 
@@ -88,7 +83,7 @@ bec4962
 
 Durum
 
-Sprint 118 tamamlandi. Sprint 118 degisiklikleri ve dokumantasyon kapanisi henuz commit/push edilmedi.
+Sprint 119 tamamlandi. Sprint 119 degisiklikleri ve dokumantasyon kapanisi henuz commit/push edilmedi. Sonraki sprint yalniz Planning durumundadir.
 
 ---
 
@@ -2455,6 +2450,23 @@ Her sprint sonunda yalnızca aşağıdaki alanlar güncellenir.
 - Bir Sonraki Görev
 - Bilinen Riskler
 - Last Updated
+
+---
+
+### Sprint 119 — Pipeline Retry Continuation Hardening
+
+Completed
+
+- Retry sonrasında `research -> script -> scenes -> visuals -> animation -> video -> audio -> assembly` akışı bounded ve non-recursive dispatcher ile devam eder. `continueProject()` çağrı başına en fazla tek stage çalıştırma sözleşmesini korur.
+- Dispatcher her iterasyonda kalıcı job durumunu yeniden okur; success, no-op, conflict, failure, blocked, terminal ve iterasyon sınırlarında güvenli durur.
+- Standalone continuation ve retry aynı dispatcher/lifecycle kurallarını kullanır. Draining, stopped ve failed lifecycle durumlarında yeni continuation kabul edilmez.
+- Drain aktif işi bekler; sonraki queued stage kalıcı ve yeniden çalıştırılabilir kalır. Dispatcher hatası tamamlanmış retry stage'ini geri almaz.
+- Final review'de eşzamanlı dispatcher'ların assembly sınırını geçerek thumbnail çalıştırmasına yol açan P1 yarışı giderildi. Açık P0/P1/P2/P3 bulgu yoktur.
+- Merkezi stage sırası ve dependency modeli değiştirilmedi; ikinci orchestrator veya yeni kalıcı kaynak oluşturulmadı.
+- Restart recovery için cron/polling eklenmedi; mevcut durable job kayıtları üzerinden sonraki dispatch/recovery tetiklemesinde devam edilir.
+- Sprint 119 smoke PASS (22 senaryo); Sprint 118-113 regresyonları PASS; pipeline orchestration PASS (10); auto-continuation PASS (18); durable execution PASS (17); durable wiring PASS (19); worker lifecycle PASS (16).
+- Runtime startup/status/health regresyonları PASS. TypeScript PASS; ESLint PASS; `git diff --check` PASS.
+- Dokümantasyon kapanışı tamamlandı; commit veya push yapılmadı. Sonraki sprint yalnız Planning durumundadır.
 
 Bu belge mümkün olduğunca kısa tutulmalıdır.
 

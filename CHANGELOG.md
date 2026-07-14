@@ -25,6 +25,21 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 119 — Pipeline Retry Continuation Hardening
+
+Completed
+
+- Retry sonrasında `research -> script -> scenes -> visuals -> animation -> video -> audio -> assembly` akışı bounded ve non-recursive dispatcher ile devam eder. `continueProject()` çağrı başına en fazla tek stage çalıştırma sözleşmesini korur.
+- Dispatcher her iterasyonda kalıcı job durumunu yeniden okur; success, no-op, conflict, failure, blocked, terminal ve iterasyon sınırlarında güvenli durur.
+- Standalone continuation ve retry aynı dispatcher/lifecycle kurallarını kullanır. Draining, stopped ve failed lifecycle durumlarında yeni continuation kabul edilmez.
+- Drain aktif işi bekler; sonraki queued stage kalıcı ve yeniden çalıştırılabilir kalır. Dispatcher hatası tamamlanmış retry stage'ini geri almaz.
+- Final review'de eşzamanlı dispatcher'ların assembly sınırını geçerek thumbnail çalıştırmasına yol açan P1 yarışı giderildi. Açık P0/P1/P2/P3 bulgu yoktur.
+- Merkezi stage sırası ve dependency modeli değiştirilmedi; ikinci orchestrator veya yeni kalıcı kaynak oluşturulmadı.
+- Restart recovery için cron/polling eklenmedi; mevcut durable job kayıtları üzerinden sonraki dispatch/recovery tetiklemesinde devam edilir.
+- Sprint 119 smoke PASS (22 senaryo); Sprint 118-113 regresyonları PASS; pipeline orchestration PASS (10); auto-continuation PASS (18); durable execution PASS (17); durable wiring PASS (19); worker lifecycle PASS (16).
+- Runtime startup/status/health regresyonları PASS. TypeScript PASS; ESLint PASS; `git diff --check` PASS.
+- Dokümantasyon kapanışı tamamlandı; commit veya push yapılmadı.
+
 ## Sprint 118 — Assembly Scene-Video Consumption
 
 Completed

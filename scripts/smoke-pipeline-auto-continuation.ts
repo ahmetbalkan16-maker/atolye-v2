@@ -93,6 +93,7 @@ async function main() {
     createJobRetryPlan: planner.createJobRetryPlan,
     loadState: executor.loadState,
     runPipelineStage: runner.runPipelineStage,
+    dispatchProjectContinuation: PipelineRunner.dispatchProjectContinuation,
     updateStatus: projectManager.updateStatus,
   };
   let dependencyBlocked = false;
@@ -100,7 +101,6 @@ async function main() {
   let failedExecutionStage: ProductionStepKey | null = null;
   let cancelledExecutionStage: ProductionStepKey | null = null;
   let forceClaimConflict = false;
-  let schedulerErrorAfterCall: { call: number; error: unknown } | null = null;
   let loadStateErrorAfterCall: { call: number; error: unknown } | null = null;
   let schedulerCalls = 0;
   let loadStateCalls = 0;
@@ -123,10 +123,6 @@ async function main() {
     stages: readonly ProductionStepKey[],
   ) => {
     schedulerCalls += 1;
-
-    if (schedulerErrorAfterCall?.call === schedulerCalls) {
-      throw schedulerErrorAfterCall.error;
-    }
 
     if (forceSchedulerConflict) {
       return { stage: null, reason: "scheduler conflict" };
@@ -230,7 +226,6 @@ async function main() {
     failedExecutionStage = null;
     cancelledExecutionStage = null;
     forceClaimConflict = false;
-    schedulerErrorAfterCall = null;
     loadStateErrorAfterCall = null;
     schedulerCalls = 0;
     loadStateCalls = 0;
@@ -386,11 +381,22 @@ async function main() {
     );
     assert.equal(retryResult.status, 200);
     assert.equal(retryResult.success, true);
-    assert.deepEqual(executedStages, ["research", "script"]);
+    assert.deepEqual(executedStages, [
+      "research",
+      "script",
+      "scenes",
+      "visuals",
+      "animation",
+      "video",
+      "audio",
+      "assembly",
+    ]);
     stored = await readJobs();
     assert.equal(jobsForStage(stored, "research")[0].status, "completed");
     assert.equal(jobsForStage(stored, "script")[0].status, "completed");
-    assert.equal(jobsForStage(stored, "scenes").length, 1);
+    assert.equal(jobsForStage(stored, "assembly")[0].status, "completed");
+    assert.equal(jobsForStage(stored, "thumbnail").length, 1);
+    assert.equal(jobsForStage(stored, "thumbnail")[0].status, "queued");
 
     await reset([job("research", "failed", 1)]);
     loadStateErrorAfterCall = {
@@ -409,14 +415,19 @@ async function main() {
     assert.equal(typedContinuationFailure.success, true);
 
     await reset([job("research", "failed", 1)]);
-    schedulerErrorAfterCall = {
-      call: 2,
-      error: new Error("Injected continuation scheduler failure."),
+    PipelineRunner.dispatchProjectContinuation = async () => {
+      throw new Error("Injected continuation dispatch failure.");
     };
-    const genericContinuationFailure = await PipelineRunner.executeJobRetry(
-      slug,
-      `${slug}-research`,
-    );
+    let genericContinuationFailure;
+    try {
+      genericContinuationFailure = await PipelineRunner.executeJobRetry(
+        slug,
+        `${slug}-research`,
+      );
+    } finally {
+      PipelineRunner.dispatchProjectContinuation =
+        originals.dispatchProjectContinuation;
+    }
     assert.equal(genericContinuationFailure.status, 200);
     assert.equal(genericContinuationFailure.success, true);
 
@@ -463,6 +474,8 @@ async function main() {
     planner.createJobRetryPlan = originals.createJobRetryPlan;
     executor.loadState = originals.loadState;
     runner.runPipelineStage = originals.runPipelineStage;
+    PipelineRunner.dispatchProjectContinuation =
+      originals.dispatchProjectContinuation;
     projectManager.updateStatus = originals.updateStatus;
     await fs.rm(projectFolder, { recursive: true, force: true });
   }
