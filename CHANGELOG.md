@@ -25,6 +25,26 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 118 — Assembly Scene-Video Consumption
+
+Completed
+
+- Kanonik `research -> script -> scenes -> visuals -> animation -> video -> audio -> assembly` stage sirasi, dependency graph, `PipelineRunner`, continuation wiring ve durable execution degistirilmedi.
+- Assembly production input'i `inputType: "scene-video"`, scene/video/source-image/animation identity, filePath/url, duration/narrationDuration, byteLength, provider, generationMode, status ve audioFilePath tasir.
+- Null/yok video ve gecerli marker'siz legacy video.json Sprint 115 image fallback'ini korur. Full `schemaVersion: "2"` + `artifactType: "scene-video"` yalniz scene-video kullanir; kismi/mixed/global marker'siz v2 fail-closed olur. Registry history tek basina v2 secmez.
+- Canonical scene/assembly/animation/video sirasi ve latest visual -> motion-plan -> scene-video identity zinciri registry/video.json/storage readback ile provider oncesinde dogrulanir. Duplicate sceneId/videoAssetId/filePath/URL reddedilir.
+- Scene MP4'ler tek H.264 video, audio tracksiz, 1920x1080, yuv420p, rasyonel 30 FPS ve duration toleransi icin FFprobe edilir.
+- Stream-copy yalniz sure farki en fazla 1/30 saniye ve profile/level/codec tag/timebase/field order/extradata birebir ayniysa acilir. Guvenli internal ffconcat girdileri video `-c:v copy`; narration WAV'lari AAC encode ile birlestirir.
+- Uyumsuzlukta re-encode uygulanir: kisa video son frame clone-pad, uzun video narration suresine trim edilir; scene PTS sifirlanir ve final H.264/AAC, 1920x1080, yuv420p, 30 FPS uretilir.
+- FFprobe atomic rename sonrasi final dosyada tek video + tek audio, H.264/AAC, geometry, pixfmt, rasyonel FPS, attached-picture reddi ve video/audio/container duration uyumunu dogrular. byteLength final readback'ten sonra belirlenir; registry write yalniz bundan sonra yapilir.
+- Final review'de uc P1 giderildi: duplicate locator reddi; exact stream signature olmadan stream-copy yapilmamasi; final stream/FPS/A-V/container validation hardening. Acik P0/P1/P3 yoktur.
+- Identity/order/registry/storage hatasi provider oncesi, scene probe hatasi concat oncesi fail-closed olur. Final probe failure generated asset yazmaz. Assembly failure job/manifest'i failed yapar ve project completion'i engeller; completed replay write-free kalir.
+- Non-blocking P2: gercek FFmpeg/FFprobe live E2E calismadi; mock runner ffconcat parsing, H.264 boundary, AAC mux, edit-list/packet timeline ve tpad/trim'i kanitlamaz. Final registry coklu scene lineage'i assembly.json'a baglidir; forced-settlement cleanup yarisi teoriktir ve multi-file persistence tam transaction degildir.
+- Production oncesi zorunlu live acceptance: es sureli stream-copy, clone-pad, trim, cok sahneli concat, bosluk/Turkce karakterli Windows path ve final FFprobe. Her output tek H.264 + tek AAC, 1920x1080, yuv420p, rasyonel 30 FPS, toleransli A/V/container sureleri, dogru scene sirasi ve boundary decode/audio continuity saglamalidir.
+- Sprint 118 19/19; Sprint 117 23/23; Sprint 116 21/21; Sprint 115 46/46; Sprint 114 74/74; Sprint 113 54/54; orchestration 10/10; auto-continuation 18/18; durable execution 17/17; durable wiring 19/19 PASS.
+- Runtime startup/lifecycle/status/health 11/16/15/24 PASS. TypeScript PASS; hedefli ESLint PASS (0 warning); `git diff --check` PASS. LF -> CRLF uyarilari non-blocking'dir.
+- Dokumantasyon kapanisi tamamlandi; commit veya push yapilmadi.
+
 ## Sprint 117 — Production Scene Video Rendering Activation
 
 Completed

@@ -1,11 +1,33 @@
 export type VideoAssemblyProviderName = "mock" | "ffmpeg";
 
-export interface VideoAssemblySceneInput {
+export interface VideoAssemblyLegacySceneInput {
+  inputType: "image";
   sceneId: number;
   imageFilePath: string;
   audioFilePath: string;
   durationSeconds: number;
 }
+
+export interface VideoAssemblySceneVideoInput {
+  inputType: "scene-video";
+  sceneId: number;
+  videoAssetId: string;
+  sourceImageAssetId: string;
+  animationAssetId: string;
+  filePath: string;
+  url: string;
+  durationSeconds: number;
+  narrationDurationSeconds: number;
+  byteLength: number;
+  provider: "ffmpeg";
+  generationMode: "production";
+  status: "generated";
+  audioFilePath: string;
+}
+
+export type VideoAssemblySceneInput =
+  | VideoAssemblyLegacySceneInput
+  | VideoAssemblySceneVideoInput;
 
 export interface VideoAssemblyInput {
   projectSlug: string;

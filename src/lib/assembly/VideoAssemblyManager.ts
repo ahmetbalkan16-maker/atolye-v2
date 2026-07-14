@@ -1,13 +1,21 @@
 import path from "node:path";
+import { isAnimationMotionPlanData } from "@/lib/animation/AnimationMotionPlanValidation";
 import { AssetManager } from "@/lib/assets/AssetManager";
 import { AudioStorage } from "@/lib/assets/storage/AudioStorage";
 import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
 import { VideoStorage } from "@/lib/assets/storage/VideoStorage";
+import {
+  isCompatibleVideoData,
+  isSceneVideoData,
+  isSceneVideoScene,
+} from "@/lib/video/VideoDataValidation";
+import type { AnimationData, AnimationMotionPlanScene } from "@/types/animation";
 import type { AssemblyPlanData } from "@/types/assembly";
 import type { Asset, ImageMimeType } from "@/types/asset";
 import type { AudioData, AudioSection } from "@/types/audio";
 import type { SceneData } from "@/types/scene";
-import type { VideoAssemblyResult } from "@/types/videoAssembly";
+import type { VideoData, VideoScene } from "@/types/video";
+import type { VideoAssemblyInput, VideoAssemblyResult } from "@/types/videoAssembly";
 import type { VisualData } from "@/types/visual";
 import type { VideoAssemblyProvider } from "./providers/VideoAssemblyProvider";
 import { VideoAssemblyProviderRouter } from "./providers/VideoAssemblyProviderRouter";
@@ -38,6 +46,8 @@ export interface RenderExistingAssetsInput {
   visuals: VisualData;
   audio: AudioData;
   assembly: AssemblyPlanData;
+  animation?: AnimationData | null;
+  video?: VideoData | null;
   provider?: VideoAssemblyProvider;
 }
 
@@ -49,6 +59,8 @@ export class VideoAssemblyManager {
     visuals,
     audio,
     assembly,
+    animation,
+    video,
     provider,
   }: RenderExistingAssetsInput): Promise<AssemblyPlanData> {
     const selected = provider ?? VideoAssemblyProviderRouter.getProvider();
@@ -88,14 +100,24 @@ export class VideoAssemblyManager {
       throw new VideoAssemblyError();
     }
 
-    let renderScenes: Array<{
-      sceneId: number;
-      imageFilePath: string;
-      audioFilePath: string;
-      durationSeconds: number;
-    }>;
+    let renderScenes: VideoAssemblyInput["scenes"];
 
     try {
+      const sceneVideo = resolveSceneVideoData(video);
+
+      if (sceneVideo) {
+        if (!isAnimationMotionPlanData(animation)) {
+          throw new VideoAssemblyError();
+        }
+        requireOrderedIds(
+          scenes.scenes.map((scene) => scene.id),
+          assembly.scenes.map((scene) => scene.sceneId),
+          sceneVideo.scenes.map((scene) => scene.sceneId),
+          animation.scenes.map((scene) => scene.sceneId),
+        );
+        requireUniqueSceneVideoLocators(sceneVideo.scenes);
+      }
+
       renderScenes = scenes.scenes.map((scene) => {
         const sceneId = scene.id;
         const section = audio.sections.find((item) => item.chapterId === sceneId);
@@ -107,12 +129,6 @@ export class VideoAssemblyManager {
           throw new VideoAssemblyError();
         }
 
-        const image = requireImageAsset(
-          assets.assets,
-          projectId,
-          projectSlug,
-          sceneId,
-        );
         const audioAsset = requireAudioAsset(
           assets.assets,
           projectId,
@@ -125,7 +141,40 @@ export class VideoAssemblyManager {
           throw new VideoAssemblyError();
         }
 
+        if (sceneVideo) {
+          const videoScene = sceneVideo.scenes.find(
+            (item) => item.sceneId === sceneId,
+          );
+          const motionPlan = (animation as AnimationData).scenes.find(
+            (item) => item.sceneId === sceneId,
+          ) as AnimationMotionPlanScene | undefined;
+
+          if (!videoScene || !motionPlan) {
+            throw new VideoAssemblyError();
+          }
+
+          return requireSceneVideoInput({
+            assets: assets.assets,
+            projectId,
+            projectSlug,
+            sceneId,
+            videoScene,
+            motionPlan,
+            assemblyScene,
+            audioFilePath: audioAsset.filePath as string,
+            narrationDurationSeconds: audioAsset.durationSeconds as number,
+          });
+        }
+
+        const image = requireImageAsset(
+          assets.assets,
+          projectId,
+          projectSlug,
+          sceneId,
+        );
+
         return {
+          inputType: "image" as const,
           sceneId,
           imageFilePath: image.filePath as string,
           audioFilePath: audioAsset.filePath as string,
@@ -275,6 +324,193 @@ function sameIds(left: number[], right: number[]) {
     left.length === right.length &&
     left.every((id) => right.includes(id))
   );
+}
+
+function resolveSceneVideoData(video: VideoData | null | undefined) {
+  if (video === null || video === undefined) return null;
+  if (isSceneVideoData(video)) return video;
+  if (!isCompatibleVideoData(video)) throw new VideoAssemblyError();
+
+  const hasV2Scene = video.scenes.some(
+    (scene) =>
+      scene.artifactType !== undefined ||
+      scene.videoAssetId !== undefined ||
+      scene.sourceImageAssetId !== undefined ||
+      scene.generationMode !== undefined,
+  );
+  if (
+    video.schemaVersion !== undefined ||
+    video.artifactType !== undefined ||
+    hasV2Scene
+  ) {
+    throw new VideoAssemblyError();
+  }
+  return null;
+}
+
+function requireOrderedIds(...sets: number[][]) {
+  const canonical = sets[0];
+  if (
+    canonical.length === 0 ||
+    sets.some(
+      (set) =>
+        set.length !== canonical.length ||
+        set.some((id, index) => id !== canonical[index]),
+    )
+  ) {
+    throw new VideoAssemblyError();
+  }
+}
+
+function requireUniqueSceneVideoLocators(scenes: VideoScene[]) {
+  const filePaths = new Set<string>();
+  const urls = new Set<string>();
+
+  for (const scene of scenes) {
+    if (
+      !isSceneVideoScene(scene) ||
+      scene.generationMode !== "production" ||
+      filePaths.has(scene.filePath) ||
+      urls.has(scene.url)
+    ) {
+      throw new VideoAssemblyError();
+    }
+    filePaths.add(scene.filePath);
+    urls.add(scene.url);
+  }
+}
+
+function requireSceneVideoInput({
+  assets,
+  projectId,
+  projectSlug,
+  sceneId,
+  videoScene,
+  motionPlan,
+  assemblyScene,
+  audioFilePath,
+  narrationDurationSeconds,
+}: {
+  assets: Asset[];
+  projectId: string;
+  projectSlug: string;
+  sceneId: number;
+  videoScene: VideoScene;
+  motionPlan: AnimationMotionPlanScene;
+  assemblyScene: AssemblyPlanData["scenes"][number];
+  audioFilePath: string;
+  narrationDurationSeconds: number;
+}): VideoAssemblyInput["scenes"][number] {
+  if (
+    !isSceneVideoScene(videoScene) ||
+    videoScene.generationMode !== "production" ||
+    videoScene.provider !== "ffmpeg" ||
+    motionPlan.sceneId !== sceneId ||
+    videoScene.sourceImageAssetId !== motionPlan.sourceImageAssetId ||
+    videoScene.animationAssetId !== motionPlan.animationAssetId ||
+    assemblyScene.videoAssetId !== videoScene.videoAssetId ||
+    assemblyScene.animationAssetId !== videoScene.animationAssetId
+  ) {
+    throw new VideoAssemblyError();
+  }
+
+  const images = assets.filter(
+    (asset) =>
+      asset.projectId === projectId &&
+      asset.projectSlug === projectSlug &&
+      asset.sceneId === sceneId &&
+      asset.type === "image" &&
+      asset.status === "generated",
+  );
+  if (
+    images.length === 0 ||
+    images[images.length - 1].id !== videoScene.sourceImageAssetId
+  ) {
+    throw new VideoAssemblyError();
+  }
+
+  const motionAssets = assets.filter(
+    (asset) => asset.id === videoScene.animationAssetId,
+  );
+  if (
+    motionAssets.length !== 1 ||
+    motionAssets[0].projectId !== projectId ||
+    motionAssets[0].projectSlug !== projectSlug ||
+    motionAssets[0].sceneId !== sceneId ||
+    motionAssets[0].type !== "animation" ||
+    motionAssets[0].status !== "generated" ||
+    motionAssets[0].artifactType !== "motion-plan" ||
+    motionAssets[0].mimeType !== "application/vnd.atolye.motion-plan+json" ||
+    motionAssets[0].sourceAssetId !== videoScene.sourceImageAssetId ||
+    motionAssets[0].prompt !== motionPlan.animationPrompt ||
+    motionAssets[0].durationSeconds !== motionPlan.durationSeconds ||
+    motionAssets[0].provider !== motionPlan.provider ||
+    motionAssets[0].generationMode !== motionPlan.generationMode ||
+    motionAssets[0].filePath !== undefined ||
+    motionAssets[0].url !== undefined
+  ) {
+    throw new VideoAssemblyError();
+  }
+
+  const candidates = assets.filter((asset) => asset.id === videoScene.videoAssetId);
+  if (candidates.length !== 1) throw new VideoAssemblyError();
+  const asset = candidates[0];
+  if (
+    asset.projectId !== projectId ||
+    asset.projectSlug !== projectSlug ||
+    asset.sceneId !== sceneId ||
+    asset.type !== "video" ||
+    asset.status !== "generated" ||
+    asset.artifactType !== "scene-video" ||
+    asset.provider !== "ffmpeg" ||
+    asset.generationMode !== "production" ||
+    asset.sourceAssetId !== videoScene.sourceImageAssetId ||
+    asset.animationAssetId !== videoScene.animationAssetId ||
+    asset.filePath !== videoScene.filePath ||
+    asset.url !== videoScene.url ||
+    asset.mimeType !== "video/mp4" ||
+    asset.byteLength !== videoScene.byteLength ||
+    asset.durationSeconds !== videoScene.durationSeconds ||
+    asset.width !== videoScene.width ||
+    asset.height !== videoScene.height ||
+    asset.frameRate !== videoScene.frameRate
+  ) {
+    throw new VideoAssemblyError();
+  }
+
+  try {
+    const fileName = path.posix.basename(videoScene.filePath);
+    const inspection = VideoStorage.inspectStoredMp4(
+      projectSlug,
+      videoScene.filePath,
+      8 * 1024 * 1024 * 1024,
+    );
+    if (
+      inspection.byteLength !== videoScene.byteLength ||
+      videoScene.url !== VideoStorage.getVideoUrl(projectSlug, fileName)
+    ) {
+      throw new Error(SAFE_ERROR);
+    }
+  } catch {
+    throw new VideoAssemblyError();
+  }
+
+  return {
+    inputType: "scene-video",
+    sceneId,
+    videoAssetId: videoScene.videoAssetId,
+    sourceImageAssetId: videoScene.sourceImageAssetId,
+    animationAssetId: videoScene.animationAssetId,
+    filePath: videoScene.filePath,
+    url: videoScene.url,
+    durationSeconds: videoScene.durationSeconds,
+    narrationDurationSeconds,
+    byteLength: videoScene.byteLength,
+    provider: "ffmpeg",
+    generationMode: "production",
+    status: "generated",
+    audioFilePath,
+  };
 }
 
 function requireImageAsset(

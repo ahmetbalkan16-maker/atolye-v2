@@ -297,6 +297,8 @@ export class PipelineStageExecutor {
           visuals,
           audio,
           assembly: assemblyPlan,
+          animation,
+          video,
           provider: options.videoAssemblyProvider,
         });
         try {

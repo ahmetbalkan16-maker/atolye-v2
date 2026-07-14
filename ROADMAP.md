@@ -1390,6 +1390,30 @@ Completed
 
 ---
 
+# Sprint 118
+
+## Assembly Scene-Video Consumption
+
+Completed
+
+- Kanonik `research -> script -> scenes -> visuals -> animation -> video -> audio -> assembly` stage sirasi, dependency graph, `PipelineRunner`, continuation wiring ve durable execution degismedi.
+- Yeni assembly input modeli `inputType: "scene-video"` ile scene/video/source-image/animation identity, filePath/url, scene ve narration duration, byteLength, provider, generationMode, status ve audioFilePath tasir.
+- Video null/yok veya gecerli marker'siz legacy video.json Sprint 115 image assembly yolunu korur. Full v2 yalniz scene-video kullanir; kismi/mixed/global marker'siz v2 fail-closed reddedilir ve registry history tek basina v2 secimini tetiklemez.
+- Canonical scene/assembly/animation/video sirasi, latest active visual, active motion-plan, registry/video.json/storage metadata ve production locator benzersizligi provider oncesi dogrulanir. Duplicate sceneId, videoAssetId, filePath ve URL reddedilir.
+- Scene MP4 FFprobe preflight'i tek H.264 video, sifir audio, 1920x1080, yuv420p, rasyonel 30 FPS ve duration toleransi uygular.
+- Stream-copy yalniz scene/narration farki en fazla 1/30 saniye ve profile, level, codec tag, timebase, field order, extradata birebir ayniysa acilir. Internal VideoStorage locator'lari ffconcat ile `-c:v copy` edilir; narration AAC encode edilir.
+- Diger durumda kisa video son frame clone-pad, uzun video trim edilir; PTS sifirlanir ve final H.264/AAC, 1920x1080, yuv420p, 30 FPS re-encode edilir.
+- Final FFprobe atomic rename sonrasi final dosyada tek video/tek audio, H.264/AAC, geometry, pixfmt, rasyonel FPS, attached-picture reddi ve A/V/container duration uyumunu dogrular. byteLength final readback'ten gelir ve registry write sonradir.
+- Final review'de uc P1 giderildi: duplicate scene-video locator; sure-only stream-copy; yetersiz final stream/FPS/A-V/container validation. Acik P0/P1/P3 kalmadi.
+- Failure fail-closed kalir; final probe failure generated asset yazmaz, assembly failure job/manifest'i failed yapar ve project completion'i engeller. Completed replay write-free kalir.
+- Non-blocking P2: live FFmpeg/FFprobe E2E yoktur; final registry coklu scene lineage'i assembly.json'a baglidir; forced-settlement cleanup yarisi teoriktir; multi-file persistence tam transaction degildir.
+- Production oncesi stream-copy, clone-pad, trim, cok sahneli concat, bosluk/Turkce karakterli Windows path ve final FFprobe live acceptance zorunludur. Boundary decode ve audio continuity dahil output contract'i gercek araclarla kanitlanmalidir.
+- Sprint 118 19/19; Sprint 117 23/23; Sprint 116 21/21; Sprint 115 46/46; Sprint 114 74/74; Sprint 113 54/54; orchestration 10/10; auto-continuation 18/18; durable execution 17/17; durable wiring 19/19 PASS.
+- Runtime startup/lifecycle/status/health 11/16/15/24 PASS. TypeScript, hedefli ESLint (0 warning) ve `git diff --check` PASS; LF -> CRLF uyarilari non-blocking'dir.
+- Dokumantasyon kapanisi tamamlandi; commit veya push yapilmadi.
+
+---
+
 # Tamamlanma Kriteri
 
 Bir sprint aşağıdaki şartlar sağlanınca tamamlanır.

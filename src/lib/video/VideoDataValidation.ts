@@ -34,6 +34,17 @@ export function isCompatibleVideoData(value: unknown): value is VideoData {
   return statuses.has(data.status);
 }
 
+export function isSceneVideoData(value: unknown): value is VideoData & {
+  schemaVersion: "2";
+  artifactType: "scene-video";
+} {
+  return (
+    isCompatibleVideoData(value) &&
+    value.schemaVersion === "2" &&
+    value.artifactType === "scene-video"
+  );
+}
+
 export function isSceneVideoScene(value: unknown): value is VideoScene & {
   sourceImageAssetId: string;
   animationAssetId: string;
