@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { requireContainedStorageFile } from "./StoragePathSecurity";
 
 export interface SaveAudioInput {
   projectSlug: string;
@@ -78,13 +79,17 @@ export class AudioStorage {
     }
 
     const absolutePath = resolvePath(filePath);
-    const stat = fs.statSync(absolutePath);
+    const storageRoot = resolvePath(this.getAudioDir(projectSlug));
+    const { realPath, stat } = requireContainedStorageFile(
+      storageRoot,
+      absolutePath,
+    );
 
-    if (!stat.isFile()) {
+    if (stat.size <= 0 || stat.size > AUDIO_STORAGE_MAX_BYTES) {
       throw new Error("Invalid WAV file.");
     }
 
-    return this.inspectWav(fs.readFileSync(absolutePath));
+    return this.inspectWav(fs.readFileSync(realPath));
   }
 
   static inspectWav(buffer: Buffer): AudioInspection {

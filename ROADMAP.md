@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: High
 Owner: Atölye V2
-Last Updated: 2026-07-13
+Last Updated: 2026-07-14
 ---
 
 # Atölye V2 — Development Roadmap
@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 114 — Production Narration Audio Pipeline Activation (Completed)
+Sprint 115 — Production Video Assembly Activation (Completed)
 
 Siradaki Planlama Adimi
 
 Sonraki sprint — Planning
 
-Sprint 114 Production Narration Audio Pipeline Activation tamamlandi. Sonraki sprint yalniz Planning durumundadir; kapsami ayrica planlanacak ve onaylanacaktir.
+Sprint 115 Production Video Assembly Activation tamamlandi. Sonraki sprint yalniz Planning durumundadir; kapsami ayrica planlanacak ve onaylanacaktir.
 
 ---
 
@@ -1323,6 +1323,25 @@ Completed
 - Audio wiring 74/74; visual wiring 54/54; orchestration 10/10; durable execution 17/17; durable wiring 19/19; health API 24/24; runtime status 15/15; worker lifecycle 16/16; startup 11/11 PASS. TypeScript, hedefli ESLint ve `git diff --check` PASS; `fixture_count=0`.
 - Takip: exact-limit success ve ayri Content-Length/null/empty smoke'lari; durable filesystem-failure matrisi ve terminal payload assertion'i; audio-specific asset discriminated type; AudioPipeline/smoke validator-helper ayrismasi ileride ele alinabilir.
 - Commit veya push yapilmadi.
+
+---
+
+# Sprint 115
+
+## Production Video Assembly Activation
+
+Completed
+
+- `FFmpegVideoAssemblyProvider` ve `VideoAssemblyManager` mevcut assembly stage'e entegre edildi; mock-first plan davranisi ve mevcut pipeline mimarisi korundu.
+- Assembly plan ile secilen `audioAssetId`, canonical scene/visual/audio kimlik setleri, section audio asset'leri ve project-level mix asset render oncesinde registry ve storage readback verileriyle dogrulanir.
+- Image/audio/video storage path security; canonical project-relative locator, realpath containment, symlink/junction reddi, storage-root containment ve structural file validation kontrolleriyle fail-closed calisir.
+- FFmpeg temporary output -> MP4/FFprobe validation -> atomic final rename -> generated video asset registry persistence sirasi uygulandi. Video asset route yalniz dogrulanmis `.mp4` dosyalarini guvenli 404 siniriyla sunar.
+- Process runner bounded stdout/stderr, timeout, two-phase kill, forced settlement, listener/timer cleanup ve late-error absorption uygular; raw process/filesystem detaylari public veya durable kayitlara sizmaz.
+- Runner/provider/storage/registry/persistence failure'lari stage failure'a propagate olur; assembly success persistence, downstream enqueue ve project completion engellenir.
+- Sprint 115 smoke 46/46; Sprint 114 audio 74/74; Sprint 113 visual 54/54; orchestration 10/10; durable execution 17/17; durable wiring 19/19 PASS.
+- Runtime health API 24/24, runtime status 15/15, worker lifecycle 16/16 ve runtime startup 11/11 PASS. TypeScript, hedefli ESLint ve `git diff --check` PASS.
+- `tsx` yerel dev dependency olarak eklendi; `package.json` ve `package-lock.json` guncellendi. LF -> CRLF Git uyarilari non-blocking olarak kaydedildi.
+- Final review P0-P3 bulgusuz tamamlandi. Commit veya push yapilmadi.
 
 ---
 

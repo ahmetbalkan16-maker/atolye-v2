@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { requireContainedStorageFile } from "./StoragePathSecurity";
 
 type ImageData = string | Buffer;
 
@@ -16,6 +17,10 @@ export interface SavedImage {
   filePath: string;
   url: string;
   mimeType: string;
+}
+
+export interface ImageInspection {
+  byteLength: number;
 }
 
 type ParsedImageData = {
@@ -64,6 +69,61 @@ export class ImageStorage {
     const imageFileName = encodeURIComponent(sanitizeFileName(fileName));
 
     return `/api/assets/images/${slug}/${imageFileName}`;
+  }
+
+  static inspectStoredImage(
+    projectSlug: string,
+    filePath: string,
+    mimeType: "image/png" | "image/jpeg" | "image/webp",
+  ): ImageInspection {
+    if (!/^[a-zA-Z0-9-_]+$/.test(projectSlug) || filePath.includes("\\")) {
+      throw new Error("Invalid image path.");
+    }
+
+    const fileName = path.posix.basename(filePath);
+    const expected = this.getImagePath(projectSlug, fileName);
+
+    if (filePath !== expected || fileName.includes("..")) {
+      throw new Error("Invalid image path.");
+    }
+
+    const absolutePath = path.resolve(ROOT_DIR, ...filePath.split("/"));
+    const storageRoot = path.resolve(
+      ROOT_DIR,
+      ...this.getImagesDir(projectSlug).split("/"),
+    );
+    const { realPath, stat } = requireContainedStorageFile(
+      storageRoot,
+      absolutePath,
+    );
+
+    if (stat.size <= 0 || stat.size > 64 * 1024 * 1024) {
+      throw new Error("Invalid image file.");
+    }
+
+    const buffer = fs.readFileSync(realPath);
+    const valid =
+      mimeType === "image/png"
+        ? buffer.length >= 8 &&
+          buffer.subarray(0, 8).equals(
+            Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+          )
+        : mimeType === "image/jpeg"
+          ? buffer.length >= 4 &&
+            buffer[0] === 0xff &&
+            buffer[1] === 0xd8 &&
+            buffer.at(-2) === 0xff &&
+            buffer.at(-1) === 0xd9
+          : buffer.length >= 12 &&
+            buffer.toString("ascii", 0, 4) === "RIFF" &&
+            buffer.toString("ascii", 8, 12) === "WEBP" &&
+            buffer.readUInt32LE(4) + 8 === buffer.length;
+
+    if (!valid) {
+      throw new Error("Invalid image file.");
+    }
+
+    return { byteLength: buffer.length };
   }
 }
 

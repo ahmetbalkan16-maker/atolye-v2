@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Medium
 Owner: Atölye V2
-Last Updated: 2026-07-13
+Last Updated: 2026-07-14
 ---
 
 # Atölye V2 — Changelog
@@ -24,6 +24,23 @@ referans alınmalıdır.
 ---
 
 # Version 1.x
+
+## Sprint 115 — Production Video Assembly Activation
+
+Completed
+
+- `FFmpegVideoAssemblyProvider` ve `VideoAssemblyManager` mevcut assembly stage'e entegre edildi; mock-first plan davranisi ve geriye donuk uyumluluk korundu.
+- Assembly plan ile secilen `audioAssetId`, canonical scene/visual/audio kimlik setleri, section audio asset'leri ve project-level mix asset render oncesinde registry/storage readback ile dogrulanir.
+- Image, audio ve video storage path'leri canonical project-relative locator, realpath containment, symlink/junction reddi, storage-root containment ve structural file validation kontrolleriyle korunur.
+- FFmpeg sonucu temporary `.partial.mp4` dosyasina yazilir; MP4 box yapisi ve FFprobe codec/duration/geometry metadata'si dogrulandiktan sonra final path'e atomik rename edilir ve generated video asset registry'ye persist edilir.
+- `/api/assets/videos/{slug}/{fileName}` route'u yalniz guvenli ve readback ile dogrulanmis MP4 dosyalarini exact Content-Length ile sunar; traversal, invalid locator ve storage disi path'ler safe 404 ile reddedilir.
+- Process runner bounded stdout/stderr, timeout, two-phase kill, forced settlement, listener/timer cleanup ve late-error absorption uygular. Spawn/stream/overflow/timeout/signal/probe failure'lari sabit safe error'a normalize edilir.
+- Runner/provider/storage/registry/stage persistence failure'lari terminal failure'a propagate olur; assembly success persistence, downstream enqueue ve project completion engellenir. Durable attempt/journal terminal failure kayitlari korunur.
+- Sprint 115 video assembly smoke 46/46; Sprint 114 audio 74/74; Sprint 113 visual 54/54; pipeline orchestration 10/10; durable execution 17/17; durable wiring 19/19 PASS.
+- Runtime health API 24/24, runtime status 15/15, worker lifecycle 16/16 ve runtime startup 11/11 PASS.
+- TypeScript, hedefli ESLint ve `git diff --check` PASS; final review P0-P3 bulgusuz tamamlandi.
+- `tsx` yerel dev dependency olarak eklendi; `package.json` ve `package-lock.json` guncellendi. LF -> CRLF Git uyarilari non-blocking'dir.
+- Commit veya push yapilmadi.
 
 ## Sprint 114 — Production Narration Audio Pipeline Activation
 

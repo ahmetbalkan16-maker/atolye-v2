@@ -32,7 +32,23 @@ export interface AssemblyRenderInfo {
 
   outputUrl?: string;
 
+  filePath?: string;
+
   format?: "mp4";
+
+  mimeType?: "video/mp4";
+
+  byteLength?: number;
+
+  durationSeconds?: number;
+
+  width?: number;
+
+  height?: number;
+
+  videoCodec?: string;
+
+  audioCodec?: string;
 }
 
 export interface AssemblyPlanData {

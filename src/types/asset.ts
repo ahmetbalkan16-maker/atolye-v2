@@ -63,6 +63,8 @@ export type ImageProviderName = "mock" | "openai";
 
 export type ImageMimeType = "image/png" | "image/jpeg" | "image/webp";
 
+export type VideoMimeType = "video/mp4";
+
 type ImageGenerationResultBase = {
   id?: string;
   sceneId: number;

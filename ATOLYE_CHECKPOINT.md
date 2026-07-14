@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Critical
 Owner: Atölye V2
-Last Updated: 2026-07-13
+Last Updated: 2026-07-14
 ---
 
 # ⚠️ AI START HERE
@@ -47,30 +47,28 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 114**
+**Sprint 115**
 
-Production Narration Audio Pipeline Activation
+Production Video Assembly Activation
 
 **Durum**
 
 Completed
 
-Sprint 114 Production Narration Audio Pipeline Activation tamamlandi. Sonraki sprint yalniz Planning durumundadir ve kapsami ayri onaylanacaktir.
+Sprint 115 Production Video Assembly Activation tamamlandi. Sonraki sprint yalniz Planning durumundadir ve kapsami ayri onaylanacaktir.
 
 Not:
 
-- `AUDIO_PROVIDER` tanimsiz/bos ise mock, `mock` ise `MockAudioProvider`, `openai` ise `OpenAIAudioProvider` secilir; bilinmeyen deger safe configuration error ile fail-closed kapanir.
-- `OPENAI_TTS_MODEL` server-side config'ten okunur ve varsayilan `tts-1` kullanilir. Whitespace-only API key fetch oncesinde reddedilir; provider resolution ag veya generation baslatmaz.
-- Audio stage mevcut `AudioPipeline` ile tum section ve project-level mix asset generation'a baglandi; `sceneId = chapterId`, `audio.outputAssetId = mix asset ID` sozlesmeleri korundu.
-- Section batch non-empty, positive safe-integer ve unique chapterId kosullariyla tum provider cagrilarindan once preflight edilir.
-- OpenAI request'leri bagimsiz AbortController, 60000 ms default timeout ve 64 MiB default bounded streaming limiti kullanir; null, empty, truncated ve oversize body fail-closed kapanir.
-- Gercek success yalniz readback ile dogrulanmis `audio/wav`, guvenli project-relative filePath, exact `/api/assets/audio/{slug}/{fileName}` URL, byteLength ve positive finite duration ile kabul edilir.
-- WAV parser RIFF/WAVE, tam birer `fmt` ve non-empty `data` chunk, size/alignment ve duration invariant'larini uygular; duplicate/truncated chunk reddedilir, ancillary chunk ve odd padding korunur.
-- Mock success exact `mock`, `audio/mock`, bos locator, zero byteLength ve zero duration sentinel sozlesmesiyle runtime'da dogrulanir.
-- Storage, registry ve stage persistence hatalari normalize edilir; raw provider/filesystem error, narration, secret, stack veya hassas path asset/job/manifest/history/durable/log alanlarina sizmaz.
-- Kismi uretim append-only kalir; rollback/orphan cleanup eklenmez ve batch/stage failed olur. Assembly enqueue, audio success persistence ve completed persistence engellenir.
-- Gercek production durable adapter yolunda versioned failed attempt ve terminal journal event storage'dan yeniden okundu.
-- Yeni runner, lifecycle, initializer, composition root veya paralel execution graph eklenmedi; Sprint 109-113 davranislari korundu.
+- `FFmpegVideoAssemblyProvider` ve `VideoAssemblyManager` mevcut assembly stage'e baglandi; mock-first plan davranisi korundu.
+- Assembly plan ile secilen section audio asset kimlikleri, canonical scene/chapter identity setleri ve project-level mix asset'i render oncesinde dogrulanir.
+- Image, audio ve video storage path'leri project-relative canonical path, realpath containment, symlink/junction ve dosya readback kontrolleriyle fail-closed korunur.
+- Dogrulanmis MP4 asset'i registry'ye persist edilir; `/api/assets/videos/{slug}/{fileName}` route'u yalniz containment ve MP4 structural readback kontrolunden gecen dosyalari sunar.
+- Process runner bounded stdout/stderr, timeout, two-phase kill, forced settlement, listener/timer cleanup ve late-error absorption uygular.
+- Provider, storage, registry ve assembly persistence failure'lari normalize edilir; runner failure stage/job/manifest/history/durable failure akisina propagate olur ve downstream enqueue/project completion engellenir.
+- Sprint 115 video assembly smoke 46/46; Sprint 114 audio 74/74; Sprint 113 visual 54/54; orchestration 10/10; durable execution 17/17; durable wiring 19/19 PASS.
+- Runtime health API 24/24, runtime status 15/15, worker lifecycle 16/16 ve runtime startup 11/11 regresyonlari PASS.
+- TypeScript, hedefli ESLint ve `git diff --check` PASS. LF -> CRLF Git uyari mesajlari non-blocking olarak kaydedildi.
+- `tsx` yerel dev dependency olarak eklendi; `package.json` ve `package-lock.json` guncellendi.
 
 ---
 
@@ -86,7 +84,7 @@ bec4962
 
 Durum
 
-Sprint 114 tamamlandi. Sprint 114 degisiklikleri ve dokumantasyon kapanisi henuz commit/push edilmedi.
+Sprint 115 tamamlandi. Sprint 115 degisiklikleri ve dokumantasyon kapanisi henuz commit/push edilmedi.
 
 ---
 
@@ -2225,6 +2223,26 @@ Completed
 - TypeScript, hedefli ESLint ve `git diff --check` PASS; fixture cleanup temiz.
 - Takip: wrong-slug ve filePath-URL filename mismatch negatif smoke'lari eklenebilir; full scheduled-runner completed-persistence call engeli ve gercek durable terminal persistence daha guclu ayrica dogrulanabilir; ayni scene icin tekrarli basarili calismalarda current/version selection politikasi belirlenmelidir.
 - Commit veya push yapilmadi.
+
+---
+
+### Sprint 115 — Production Video Assembly Activation
+
+Completed
+
+- `VIDEO_ASSEMBLY_PROVIDER` tanimsiz/bos durumda mock-first default kullanir; `mock` plan-only davranisi korur, `ffmpeg` gercek MP4 render yolunu secer ve bilinmeyen deger safe configuration error ile fail-closed kapanir.
+- `FFmpegVideoAssemblyProvider` ve `VideoAssemblyManager` mevcut assembly stage'e entegre edildi. Yeni runner, lifecycle, initializer, composition root veya paralel execution graph eklenmedi.
+- Assembly plan, canonical scene/visual/audio kimlik setleri ve her scene icin secilen `audioAssetId` degeri render oncesinde asset registry ile dogrulanir. Section audio asset'leri ile project-level mix asset ayni proje, slug, type, MIME, locator, byteLength ve duration sozlesmelerini saglamalidir.
+- Image/audio/video storage readback akislari project-relative canonical path, `realpath` containment, symlink/junction reddi, storage-root containment ve dosya structural validation kontrolleriyle guclendirildi.
+- FFmpeg sonucu once temporary `.partial.mp4` yolunda uretilir; MP4 box yapisi ve FFprobe metadata'si dogrulandiktan sonra final path'e atomik rename edilir ve generated video asset registry'ye append edilir.
+- `/api/assets/videos/{slug}/{fileName}` route'u yalniz guvenli `.mp4` dosya adlarini, containment/readback kontrolunden sonra `video/mp4`, exact Content-Length ve immutable cache header'lariyla sunar; invalid veya storage disi istekler safe 404 alir.
+- Process runner `shell: false`, ayri argument listesi, bounded stdout/stderr, timeout, two-phase kill, forced settlement, listener/timer cleanup ve late-error absorption kullanir. Spawn, stream, overflow, timeout, signal ve probe failure'lari sabit safe error'a normalize edilir.
+- Runner/provider/storage/registry/stage persistence failure'lari terminal failure akisina propagate olur. Assembly success persistence, downstream enqueue ve project completion failure durumunda engellenir; durable attempt ve journal terminal failure kaydi korunur.
+- Sprint 115 video assembly smoke PASS (46/46); Sprint 114 audio PASS (74/74); Sprint 113 visual PASS (54/54); pipeline orchestration PASS (10/10); durable execution PASS (17/17); durable wiring PASS (19/19).
+- Runtime health API PASS (24/24); runtime status PASS (15/15); worker lifecycle PASS (16/16); runtime startup PASS (11/11).
+- TypeScript, hedefli ESLint ve `git diff --check` PASS. LF -> CRLF uyari mesajlari non-blocking'dir.
+- `tsx` yerel dev dependency olarak eklendi; `package.json` ve `package-lock.json` guncellendi.
+- Final review P0-P3 bulgusuz tamamlandi. Commit veya push yapilmadi.
 
 ---
 

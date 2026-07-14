@@ -2,6 +2,11 @@ import { AIManager } from "@/lib/ai/AIManager";
 import { AnimationAssetPipeline } from "@/lib/animation/AnimationAssetPipeline";
 import { AnimationPromptGenerator } from "@/lib/animation/prompts/AnimationPromptGenerator";
 import { AssemblyManager } from "@/lib/assembly/AssemblyManager";
+import {
+  VideoAssemblyError,
+  VideoAssemblyManager,
+} from "@/lib/assembly/VideoAssemblyManager";
+import type { VideoAssemblyProvider } from "@/lib/assembly/providers/VideoAssemblyProvider";
 import { AudioManager } from "@/lib/audio/AudioManager";
 import {
   AudioAssetGenerationError,
@@ -51,6 +56,7 @@ export type PipelineExecutionState = {
 export type PipelineStageExecutionOptions = {
   visualAssetProvider?: ImageProvider;
   audioProvider?: AudioProvider;
+  videoAssemblyProvider?: VideoAssemblyProvider;
 };
 
 export class PipelineStageExecutor {
@@ -258,7 +264,7 @@ export class PipelineStageExecutor {
         const audio = requireStageInput(state.audio, "audio", stage);
         const animation = requireStageInput(state.animation, "animation", stage);
         const video = requireStageInput(state.video, "video", stage);
-        state.assembly = await AssemblyManager.generateAssemblyPlan(
+        const assemblyPlan = await AssemblyManager.generateAssemblyPlan(
           script,
           scenes,
           visuals,
@@ -274,9 +280,22 @@ export class PipelineStageExecutor {
             operation: "assembly-plan",
           },
         );
-        return this.persistStageResult(projectSlug, stage, () =>
-          ProjectManager.saveAssembly(projectSlug, state.assembly),
-        );
+        state.assembly = await VideoAssemblyManager.renderExistingAssets({
+          projectId: state.project.id,
+          projectSlug,
+          scenes,
+          visuals,
+          audio,
+          assembly: assemblyPlan,
+          provider: options.videoAssemblyProvider,
+        });
+        try {
+          return await this.persistStageResult(projectSlug, stage, () =>
+            ProjectManager.saveAssembly(projectSlug, state.assembly),
+          );
+        } catch {
+          throw new VideoAssemblyError();
+        }
       }
 
       case "thumbnail": {
