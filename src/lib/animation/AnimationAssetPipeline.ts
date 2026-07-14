@@ -1,8 +1,41 @@
+import path from "node:path";
 import { AssetManager } from "@/lib/assets/AssetManager";
-import type { ProjectAssets } from "@/types/asset";
-import type { AnimationScene, AnimationStatus } from "@/types/animation";
-import type { AnimationProvider } from "./providers/AnimationProvider";
-import { MockAnimationProvider } from "./providers/MockAnimationProvider";
+import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
+import type { Asset, ImageMimeType, ProjectAssets } from "@/types/asset";
+import {
+  animationMotionTypes,
+  animationTransitionTypes,
+  type AnimationMotionPlanScene,
+  type AnimationScene,
+} from "@/types/animation";
+import {
+  isValidAnimationDuration,
+  isValidAnimationMotionFrame,
+} from "./AnimationMotionPlanValidation";
+import type {
+  AnimationGenerationSuccess,
+  AnimationProvider,
+} from "./providers/AnimationProvider";
+import { AnimationProviderRouter } from "./providers/AnimationProviderRouter";
+
+const SAFE_ERROR = "Animation motion plan generation failed.";
+const MOTION_PLAN_MIME_TYPE = "application/vnd.atolye.motion-plan+json";
+const DEFAULT_DURATION_SECONDS = 6;
+const IMAGE_MIME_TYPES = new Set<ImageMimeType>([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+]);
+
+export class AnimationMotionPlanError extends Error {
+  readonly code = "ANIMATION_MOTION_PLAN_FAILED";
+
+  constructor() {
+    super(SAFE_ERROR);
+    this.name = "AnimationMotionPlanError";
+    this.stack = undefined;
+  }
+}
 
 type GenerateAnimationAssetsInput = {
   projectId: string;
@@ -13,7 +46,13 @@ type GenerateAnimationAssetsInput = {
 
 export type AnimationAssetPipelineResult = {
   projectAssets: ProjectAssets;
-  updatedScenes: AnimationScene[];
+  updatedScenes: AnimationMotionPlanScene[];
+};
+
+type PreparedScene = {
+  scene: AnimationScene;
+  sourceImageAssetId: string;
+  durationSeconds: number;
 };
 
 export class AnimationAssetPipeline {
@@ -23,53 +62,90 @@ export class AnimationAssetPipeline {
     scenes,
     provider,
   }: GenerateAnimationAssetsInput): Promise<AnimationAssetPipelineResult> {
-    const animationProvider = provider ?? new MockAnimationProvider();
-    let projectAssets = AssetManager.getProjectAssets(
-      projectSlug,
-      projectId,
-    );
-    const updatedScenes: AnimationScene[] = [];
-
-    for (const scene of scenes) {
-      const result = await animationProvider.generateAnimation({
-        sceneId: scene.sceneId,
-        animationPrompt: scene.animationPrompt,
-        sourceImageAssetId: scene.sourceImageAssetId,
-      });
-
-      const asset = AssetManager.createAsset({
+    try {
+      validateSceneBatch(scenes);
+      const selectedProvider = provider ?? AnimationProviderRouter.getProvider();
+      const providerName = requireProviderName(selectedProvider);
+      const generationMode: "mock" | "production" =
+        providerName === "mock" ? "mock" : "production";
+      const currentAssets = AssetManager.getProjectAssets(projectSlug, projectId);
+      const preparedScenes = prepareScenes(
+        scenes,
+        currentAssets.assets,
         projectId,
         projectSlug,
-        sceneId: scene.sceneId,
-        type: "animation",
-        status: result.error ? "failed" : result.status,
-        provider: result.provider,
-        model: result.model,
-        prompt: scene.animationPrompt,
-        filePath: result.filePath,
-        url: result.url,
-        error: result.error,
-      });
-
-      projectAssets = AssetManager.addAsset(
-        projectSlug,
-        projectId,
-        asset,
       );
+      const plans: AnimationGenerationSuccess[] = [];
 
-      updatedScenes.push({
-        ...scene,
-        outputAssetId: asset.id,
-        provider: result.provider,
-        model: result.model,
-        status: toAnimationStatus(result.error ? "failed" : result.status),
+      for (const prepared of preparedScenes) {
+        const result = await selectedProvider.generateAnimation({
+          sceneId: prepared.scene.sceneId,
+          animationPrompt: prepared.scene.animationPrompt,
+          sourceImageAssetId: prepared.sourceImageAssetId,
+          durationSeconds: prepared.durationSeconds,
+        });
+        plans.push(
+          requireValidPlan(
+            result,
+            providerName,
+            generationMode,
+            prepared.scene.sceneId,
+            prepared.sourceImageAssetId,
+            prepared.durationSeconds,
+          ),
+        );
+      }
+
+      const createdAssets: Asset[] = [];
+      const updatedScenes = preparedScenes.map((prepared, index) => {
+        const plan = plans[index];
+        const asset = AssetManager.createAsset({
+          projectId,
+          projectSlug,
+          sceneId: prepared.scene.sceneId,
+          type: "animation",
+          status: "generated",
+          provider: plan.provider,
+          model: plan.model,
+          prompt: prepared.scene.animationPrompt,
+          mimeType: MOTION_PLAN_MIME_TYPE,
+          durationSeconds: plan.durationSeconds,
+          artifactType: "motion-plan",
+          sourceAssetId: plan.sourceImageAssetId,
+          generationMode,
+        });
+        createdAssets.push(asset);
+
+        return {
+          ...prepared.scene,
+          sourceImageAssetId: plan.sourceImageAssetId,
+          outputAssetId: asset.id,
+          animationAssetId: asset.id,
+          durationSeconds: plan.durationSeconds,
+          motionType: plan.motionType,
+          start: plan.start,
+          end: plan.end,
+          transition: plan.transition,
+          provider: plan.provider,
+          model: plan.model,
+          generationMode,
+          artifactType: "motion-plan" as const,
+          status: "generated" as const,
+        };
       });
-    }
+      const now = new Date().toISOString();
+      const projectAssets = AssetManager.saveProjectAssets(projectSlug, {
+        ...currentAssets,
+        projectId,
+        projectSlug: currentAssets.projectSlug ?? projectSlug,
+        assets: [...currentAssets.assets, ...createdAssets],
+        updatedAt: now,
+      });
 
-    return {
-      projectAssets,
-      updatedScenes,
-    };
+      return { projectAssets, updatedScenes };
+    } catch {
+      throw new AnimationMotionPlanError();
+    }
   }
 }
 
@@ -79,15 +155,152 @@ export async function generateAnimationAssets(
   return AnimationAssetPipeline.generateAnimationAssets(input);
 }
 
-function toAnimationStatus(status: string): AnimationStatus {
-  if (
-    status === "planned" ||
-    status === "generating" ||
-    status === "generated" ||
-    status === "failed"
-  ) {
-    return status;
+function validateSceneBatch(scenes: AnimationScene[]) {
+  if (!Array.isArray(scenes) || scenes.length === 0) {
+    throw new AnimationMotionPlanError();
   }
 
-  return "generated";
+  const sceneIds = new Set<number>();
+
+  for (const scene of scenes) {
+    const sceneId = (scene as { sceneId?: unknown } | null)?.sceneId;
+    const prompt = (scene as { animationPrompt?: unknown } | null)
+      ?.animationPrompt;
+
+    if (
+      !Number.isSafeInteger(sceneId) ||
+      (sceneId as number) <= 0 ||
+      sceneIds.has(sceneId as number) ||
+      typeof prompt !== "string" ||
+      !prompt.trim()
+    ) {
+      throw new AnimationMotionPlanError();
+    }
+
+    const duration = (scene as { durationSeconds?: unknown }).durationSeconds;
+    if (duration !== undefined && !isValidAnimationDuration(duration)) {
+      throw new AnimationMotionPlanError();
+    }
+    sceneIds.add(sceneId as number);
+  }
+}
+
+function prepareScenes(
+  scenes: AnimationScene[],
+  assets: Asset[],
+  projectId: string,
+  projectSlug: string,
+): PreparedScene[] {
+  const sourceIds = new Set<string>();
+
+  return scenes.map((scene) => {
+    const candidates = assets.filter(
+      (asset) =>
+        asset.projectId === projectId &&
+        asset.projectSlug === projectSlug &&
+        asset.sceneId === scene.sceneId &&
+        asset.type === "image" &&
+        asset.status === "generated",
+    );
+
+    if (candidates.length === 0) {
+      throw new AnimationMotionPlanError();
+    }
+
+    const source = candidates[candidates.length - 1];
+    validateSourceImage(source, projectSlug);
+
+    if (!source.id || sourceIds.has(source.id)) {
+      throw new AnimationMotionPlanError();
+    }
+    sourceIds.add(source.id);
+
+    return {
+      scene,
+      sourceImageAssetId: source.id,
+      durationSeconds: scene.durationSeconds ?? DEFAULT_DURATION_SECONDS,
+    };
+  });
+}
+
+function validateSourceImage(asset: Asset, projectSlug: string) {
+  if (asset.provider === "mock") {
+    if (
+      asset.mimeType !== "image/mock" ||
+      asset.filePath !== "" ||
+      asset.url !== ""
+    ) {
+      throw new AnimationMotionPlanError();
+    }
+    return;
+  }
+
+  if (
+    typeof asset.mimeType !== "string" ||
+    !IMAGE_MIME_TYPES.has(asset.mimeType as ImageMimeType) ||
+    typeof asset.filePath !== "string" ||
+    typeof asset.url !== "string"
+  ) {
+    throw new AnimationMotionPlanError();
+  }
+
+  const fileName = path.posix.basename(asset.filePath);
+  const inspection = ImageStorage.inspectStoredImage(
+    projectSlug,
+    asset.filePath,
+    asset.mimeType as ImageMimeType,
+  );
+
+  if (
+    inspection.byteLength <= 0 ||
+    asset.url !== ImageStorage.getImageUrl(projectSlug, fileName)
+  ) {
+    throw new AnimationMotionPlanError();
+  }
+}
+
+function requireProviderName(provider: AnimationProvider) {
+  const name = provider.name;
+
+  if (typeof name !== "string" || !/^[a-z0-9-_]+$/.test(name)) {
+    throw new AnimationMotionPlanError();
+  }
+  return name;
+}
+
+function requireValidPlan(
+  value: unknown,
+  providerName: string,
+  generationMode: "mock" | "production",
+  sceneId: number,
+  sourceImageAssetId: string,
+  durationSeconds: number,
+): AnimationGenerationSuccess {
+  const plan = value as AnimationGenerationSuccess & Record<string, unknown>;
+
+  if (
+    !plan ||
+    typeof plan !== "object" ||
+    plan.success !== true ||
+    plan.artifactType !== "motion-plan" ||
+    plan.status !== "generated" ||
+    plan.sceneId !== sceneId ||
+    plan.sourceImageAssetId !== sourceImageAssetId ||
+    plan.provider !== providerName ||
+    plan.durationSeconds !== durationSeconds ||
+    !isValidAnimationDuration(plan.durationSeconds) ||
+    !animationMotionTypes.includes(plan.motionType) ||
+    !animationTransitionTypes.includes(plan.transition) ||
+    !isValidAnimationMotionFrame(plan.start) ||
+    !isValidAnimationMotionFrame(plan.end) ||
+    plan.filePath !== undefined ||
+    plan.url !== undefined ||
+    plan.mimeType !== undefined ||
+    plan.error !== undefined ||
+    plan.generationMode !== generationMode
+  ) {
+    throw new AnimationMotionPlanError();
+  }
+
+  return plan;
 }

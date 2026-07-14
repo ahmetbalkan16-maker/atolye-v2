@@ -1,6 +1,8 @@
 import { AIManager } from "@/lib/ai/AIManager";
 import { AnimationAssetPipeline } from "@/lib/animation/AnimationAssetPipeline";
+import { isCompatibleAnimationData } from "@/lib/animation/AnimationMotionPlanValidation";
 import { AnimationPromptGenerator } from "@/lib/animation/prompts/AnimationPromptGenerator";
+import type { AnimationProvider } from "@/lib/animation/providers/AnimationProvider";
 import { AssemblyManager } from "@/lib/assembly/AssemblyManager";
 import {
   VideoAssemblyError,
@@ -55,6 +57,7 @@ export type PipelineExecutionState = {
 
 export type PipelineStageExecutionOptions = {
   visualAssetProvider?: ImageProvider;
+  animationProvider?: AnimationProvider;
   audioProvider?: AudioProvider;
   videoAssemblyProvider?: VideoAssemblyProvider;
 };
@@ -103,7 +106,7 @@ export class PipelineStageExecutor {
       ProjectManager.getScript(projectSlug) as Promise<ScriptData | null>,
       ProjectManager.getScenes(projectSlug) as Promise<SceneData | null>,
       ProjectManager.getVisuals(projectSlug) as Promise<VisualData | null>,
-      ProjectManager.getAnimation(projectSlug) as Promise<AnimationData | null>,
+      ProjectManager.getAnimation(projectSlug),
       ProjectManager.getVideo(projectSlug) as Promise<VideoData | null>,
       ProjectManager.getAudio(projectSlug) as Promise<AudioData | null>,
       ProjectManager.getAssembly(projectSlug) as Promise<AssemblyPlanData | null>,
@@ -119,7 +122,7 @@ export class PipelineStageExecutor {
       script,
       scenes,
       visuals,
-      animation,
+      animation: isCompatibleAnimationData(animation) ? animation : null,
       video,
       audio,
       assembly,
@@ -211,9 +214,12 @@ export class PipelineStageExecutor {
             projectId: state.project.id,
             projectSlug,
             scenes: animationPlan.scenes,
+            provider: options.animationProvider,
           });
         state.animation = {
           ...animationPlan,
+          schemaVersion: "2",
+          artifactType: "motion-plan",
           scenes: updatedScenes,
         };
         return this.persistStageResult(projectSlug, stage, () =>

@@ -1,32 +1,48 @@
-import type { AnimationStatus } from "@/types/animation";
+import type {
+  AnimationGenerationMode,
+  AnimationMotionFrame,
+  AnimationMotionType,
+  AnimationTransitionType,
+} from "@/types/animation";
 
 export interface AnimationGenerationInput {
   sceneId: number;
-
   animationPrompt: string;
-
-  sourceImageAssetId?: string;
-
-  duration?: number;
-
-  style?: string;
+  sourceImageAssetId: string;
+  durationSeconds: number;
 }
 
-export interface AnimationGenerationResult {
+type AnimationGenerationResultBase = {
+  sceneId: number;
+  sourceImageAssetId: string;
   provider: string;
-
   model?: string;
+  generationMode: AnimationGenerationMode;
+};
 
-  url?: string;
+export type AnimationGenerationSuccess = AnimationGenerationResultBase & {
+  success: true;
+  artifactType: "motion-plan";
+  status: "generated";
+  durationSeconds: number;
+  motionType: AnimationMotionType;
+  start: AnimationMotionFrame;
+  end: AnimationMotionFrame;
+  transition: AnimationTransitionType;
+  error?: never;
+};
 
-  filePath?: string;
+export type AnimationGenerationFailure = AnimationGenerationResultBase & {
+  success: false;
+  error: string;
+};
 
-  status: AnimationStatus;
-
-  error?: string;
-}
+export type AnimationGenerationResult =
+  | AnimationGenerationSuccess
+  | AnimationGenerationFailure;
 
 export interface AnimationProvider {
+  readonly name: string;
   generateAnimation(
     input: AnimationGenerationInput,
   ): Promise<AnimationGenerationResult>;

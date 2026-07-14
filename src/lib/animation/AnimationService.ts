@@ -1,4 +1,5 @@
 import type { AnimationData, AnimationScene } from "@/types/animation";
+import { isCompatibleAnimationData } from "./AnimationMotionPlanValidation";
 import type { Asset } from "@/types/asset";
 import type { SceneData } from "@/types/scene";
 import type { VisualData } from "@/types/visual";
@@ -191,7 +192,7 @@ export class AnimationService {
     }
 
     return {
-      animationData: isAnimationData(data.animationData)
+      animationData: isCompatibleAnimationData(data.animationData)
         ? data.animationData
         : null,
       assets: isAssets(data.assets) ? data.assets : [],
@@ -225,30 +226,6 @@ export async function regenerateSceneAnimation(
   input: RegenerateSceneAnimationInput,
 ): Promise<AnimationServiceResult> {
   return AnimationService.regenerateSceneAnimation(input);
-}
-
-function isAnimationData(value: unknown): value is AnimationData {
-  return (
-    Boolean(value) &&
-    typeof value === "object" &&
-    typeof (value as AnimationData).projectId === "string" &&
-    typeof (value as AnimationData).createdAt === "string" &&
-    isAnimationScenes((value as AnimationData).scenes)
-  );
-}
-
-function isAnimationScenes(value: unknown): value is AnimationScene[] {
-  return (
-    Array.isArray(value) &&
-    value.every(
-      (scene) =>
-        Boolean(scene) &&
-        typeof scene === "object" &&
-        typeof (scene as AnimationScene).sceneId === "number" &&
-        typeof (scene as AnimationScene).animationPrompt === "string" &&
-        typeof (scene as AnimationScene).status === "string",
-    )
-  );
 }
 
 function isAssets(value: unknown): value is Asset[] {

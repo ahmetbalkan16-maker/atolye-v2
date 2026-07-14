@@ -47,28 +47,27 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 115**
+**Sprint 116**
 
-Production Video Assembly Activation
+Animation Motion Plan Production Contract
 
 **Durum**
 
 Completed
 
-Sprint 115 Production Video Assembly Activation tamamlandi. Sonraki sprint yalniz Planning durumundadir ve kapsami ayri onaylanacaktir.
+Sprint 116 Animation Motion Plan Production Contract tamamlandi. Sonraki sprint yalniz Planning durumundadir ve kapsami ayri onaylanacaktir.
 
 Not:
 
-- `FFmpegVideoAssemblyProvider` ve `VideoAssemblyManager` mevcut assembly stage'e baglandi; mock-first plan davranisi korundu.
-- Assembly plan ile secilen section audio asset kimlikleri, canonical scene/chapter identity setleri ve project-level mix asset'i render oncesinde dogrulanir.
-- Image, audio ve video storage path'leri project-relative canonical path, realpath containment, symlink/junction ve dosya readback kontrolleriyle fail-closed korunur.
-- Dogrulanmis MP4 asset'i registry'ye persist edilir; `/api/assets/videos/{slug}/{fileName}` route'u yalniz containment ve MP4 structural readback kontrolunden gecen dosyalari sunar.
-- Process runner bounded stdout/stderr, timeout, two-phase kill, forced settlement, listener/timer cleanup ve late-error absorption uygular.
-- Provider, storage, registry ve assembly persistence failure'lari normalize edilir; runner failure stage/job/manifest/history/durable failure akisina propagate olur ve downstream enqueue/project completion engellenir.
-- Sprint 115 video assembly smoke 46/46; Sprint 114 audio 74/74; Sprint 113 visual 54/54; orchestration 10/10; durable execution 17/17; durable wiring 19/19 PASS.
-- Runtime health API 24/24, runtime status 15/15, worker lifecycle 16/16 ve runtime startup 11/11 regresyonlari PASS.
-- TypeScript, hedefli ESLint ve `git diff --check` PASS. LF -> CRLF Git uyari mesajlari non-blocking olarak kaydedildi.
-- `tsx` yerel dev dependency olarak eklendi; `package.json` ve `package-lock.json` guncellendi.
+- Merkezi stage sirasi, recovery graph, video/assembly davranisi ve continuation wiring degistirilmedi.
+- Animation stage fiziksel medya yerine `schemaVersion: "2"`, `artifactType: "motion-plan"` ve `application/vnd.atolye.motion-plan+json` MIME degerli scene-level motion-plan artifact uretir; filePath/url yazmaz.
+- `sourceImageAssetId` gercek visual asset identity zincirini korur. Append-only visual retry gecmisinde ayni scene icin son generated image registry append sirasina gore deterministik secilir.
+- `animationAssetId === outputAssetId`; duration, motion, transition, crop, scale, translation ve tum nested numeric alanlar finite-number ve allowlist/sinir kontrollerinden gecer.
+- Mock provider deterministik gecerli plan uretir; provider config/router ve executor injection mevcut provider mimarisine baglidir.
+- Legacy, mixed ve full-v2 ayrimi merkezi guard ile yapilir; kismi/bozuk v2 fail-closed reddedilir ve merge/API/service/pipeline okuma yollari ortak guard kullanir.
+- Provider batch tamamen dogrulanmadan registry write yapilmaz. Animation failure video enqueue etmez; completed-stage replay write-free/idempotent kalir.
+- Sprint 116 motion plan 21; Sprint 115 video assembly 46; Sprint 114 audio 74; Sprint 113 visuals 54; orchestration 10; auto-continuation 18; durable execution 17; durable wiring 19 PASS.
+- Runtime startup 11/11, worker lifecycle 16/16, runtime status 15/15 ve runtime health 24/24 PASS. TypeScript, hedefli ESLint (0 warning) ve `git diff --check` PASS; LF -> CRLF uyarilari non-blocking'dir.
 
 ---
 
@@ -84,7 +83,7 @@ bec4962
 
 Durum
 
-Sprint 115 tamamlandi. Sprint 115 degisiklikleri ve dokumantasyon kapanisi henuz commit/push edilmedi.
+Sprint 116 tamamlandi. Sprint 116 degisiklikleri ve dokumantasyon kapanisi henuz commit/push edilmedi.
 
 ---
 
@@ -2243,6 +2242,29 @@ Completed
 - TypeScript, hedefli ESLint ve `git diff --check` PASS. LF -> CRLF uyari mesajlari non-blocking'dir.
 - `tsx` yerel dev dependency olarak eklendi; `package.json` ve `package-lock.json` guncellendi.
 - Final review P0-P3 bulgusuz tamamlandi. Commit veya push yapilmadi.
+
+---
+
+### Sprint 116 — Animation Motion Plan Production Contract
+
+Completed
+
+- Merkezi stage sirasi `research -> script -> scenes -> visuals -> animation -> video -> audio -> assembly`, `PipelineRecoveryPlanner` dependency graph'i, video/assembly davranisi ve continuation wiring degistirilmedi. Animation veya video bypass edilmedi; ikinci orchestration sistemi eklenmedi.
+- Animation stage artik fiziksel image/video dosyasi degil, her scene icin dogrulanmis ve persist edilmis motion-plan artifact uretir. Dosya sozlesmesi `schemaVersion: "2"`; data ve scene artifact sozlesmesi `artifactType: "motion-plan"`; registry MIME degeri `application/vnd.atolye.motion-plan+json` olarak kaydedilir.
+- Motion-plan asset medya dosyasi olmadigi icin `filePath` ve `url` yazilmaz. Registry kaydi `type: "animation"`, `artifactType: "motion-plan"`, MIME, source identity ve generation mode tasir; image/audio/video secimlerine fiziksel medya gibi girmez.
+- Her planin `sourceImageAssetId` degeri ayni `sceneId` icin gercek generated visual asset'ten alinir ve provider inputu, persisted animation scene'i ve registry `sourceAssetId` boyunca degismeden korunur. Missing, wrong-scene ve sahneler arasi duplicate source identity batch baslamadan fail-closed reddedilir.
+- Append-only registry'de visual retry sonrasi ayni scene icin birden fazla generated image bulunmasi normal version history olarak ele alinir; registry append sirasindaki son generated image deterministik secilir ve secilen son surum yeniden storage/sentinel validation'dan gecer.
+- Her generated scene'de `animationAssetId === outputAssetId` zorunludur. Duration 1-300 saniye; motion ve transition merkezi allowlist; crop x/y/width/height, crop containment, scale ve translation alanlari kesin araliklar ve `Number.isFinite` ile dogrulanir. Provider donusundeki start/end frame'leri yeniden dogrulanir.
+- `MockAnimationProvider` birden fazla scene icin deterministik, gecerli, locator icermeyen motion plan uretir. Provider config/router mock-first test/dev davranisini korur, bilinmeyen degeri fail-closed reddeder ve `PipelineStageExecutor` option injection gercek provider secimine ulasir. `generationMode` provider sonucuna guvenilmeden merkezi olarak belirlenir.
+- Merkezi `AnimationMotionPlanValidation` guard'i legacy, mixed legacy/v2 ve full-v2 animation.json kayitlarini ayirir. Tek tarafli schema/artifact marker'i, eksik v2 alani, bozuk nested numeric veri, duplicate identity veya asset ID mismatch legacy fallback'e dusmeden fail-closed reddedilir.
+- Merge yalniz tum scene'ler derin motion-plan validation'dan gecerse schema v2/artifact marker'i yazar. Animation API, video API, `AnimationService` ve pipeline state load yollari ayni ortak guard'i kullanir; v2 alanlari merge sirasinda dusurulmez veya legacy kayit v2 gibi etiketlenmez.
+- Provider sonuclari scene/source/provider/duration/motion/transition/start/end/status/artifact ve locator invariant'lariyla batch write oncesinde tamamen dogrulanir. Batch'teki herhangi bir malformed sonuc tum batch'i persistence oncesinde reddeder.
+- Animation failure stage/job/manifest/history failure akisina propagate olur ve video stage enqueue edilmez. Completed-stage replay provider/storage/registry cagirmadan write-free ve idempotent kalir; retry yeni tutarli plan ile aktif animation.json identity baglantisini yeniler.
+- Final review'de iki P1 giderildi: visual retry history nedeniyle birden fazla generated image'in animation preflight'i bloke etmesi, son appended generated image'in deterministik secimiyle cozuldu; eksik/bozuk schemaVersion 2 kayitlarinin legacy kabul edilmesi merkezi derin validation ile kapatildi. Acik P0/P1 bulgu kalmadi.
+- Non-blocking P2 takip: registry -> animation.json/manifest -> job/history cok-dosyali persistence tam transaction degildir; registry sonrasindaki hata orphan motion-plan artifact birakabilir. Job list ile history yazimi arasinda da mevcut transaction siniri vardir. Bunlar Sprint 116'ya ozgu degildir, dogrulanan akista yanlis downstream yurutme uretmez ve ayri ileriki mimari hardening kapsaminda ele alinacaktir.
+- Sprint 116 motion plan PASS (21); Sprint 115 video assembly PASS (46); Sprint 114 audio PASS (74); Sprint 113 visuals PASS (54); pipeline orchestration PASS (10); auto-continuation PASS (18); durable execution PASS (17); durable wiring PASS (19).
+- Runtime startup PASS (11/11); worker lifecycle PASS (16/16); runtime status PASS (15/15); runtime health PASS (24/24). TypeScript PASS; hedefli ESLint PASS (0 warning); `git diff --check` PASS. LF -> CRLF uyarilari non-blocking'dir.
+- Dokumantasyon kapanisi tamamlandi; commit veya push yapilmadi.
 
 ---
 

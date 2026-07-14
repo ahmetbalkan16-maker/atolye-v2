@@ -90,7 +90,11 @@ export class AnimationPromptGenerator {
     style?: string;
     aiContext?: Partial<AIRequestContext>;
   }): Promise<AnimationScene> {
-    const fallback = this.createFallbackAnimationScene(visual);
+    const sourceScene = scenes.scenes.find((scene) => scene.id === visual.sceneId);
+    const fallback = this.createFallbackAnimationScene(
+      visual,
+      sourceScene?.duration ?? 6,
+    );
     const prompt = buildAnimationPrompt({
       scene: scenes,
       visual,
@@ -122,6 +126,7 @@ export class AnimationPromptGenerator {
           parsed.animationPrompt,
           fallback.animationPrompt,
         ),
+        durationSeconds: fallback.durationSeconds,
         status: "planned",
       };
     } catch (error) {
@@ -139,6 +144,7 @@ export class AnimationPromptGenerator {
 
   private static createFallbackAnimationScene(
     visual: VisualScene,
+    durationSeconds = 6,
   ): AnimationScene {
     return {
       sceneId: visual.sceneId,
@@ -151,6 +157,7 @@ export class AnimationPromptGenerator {
           "subtle depth and particles",
           visual.visualPrompt,
         ].join(", "),
+      durationSeconds,
       status: "planned",
     };
   }

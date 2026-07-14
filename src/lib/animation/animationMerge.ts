@@ -1,4 +1,5 @@
 import type { AnimationData, AnimationScene } from "@/types/animation";
+import { isAnimationMotionPlanScene } from "./AnimationMotionPlanValidation";
 
 export function mergeAnimationData(
   existing: AnimationData | null,
@@ -6,9 +7,13 @@ export function mergeAnimationData(
   projectId: string,
 ): AnimationData {
   if (!existing) {
+    const scenes = sortAnimationScenes(updatedScenes);
+    const allMotionPlans = scenes.every(isAnimationMotionPlanScene);
     return {
       projectId,
-      scenes: sortAnimationScenes(updatedScenes),
+      schemaVersion: allMotionPlans ? "2" : undefined,
+      artifactType: allMotionPlans ? "motion-plan" : undefined,
+      scenes,
       createdAt: new Date().toISOString(),
     };
   }
@@ -22,10 +27,15 @@ export function mergeAnimationData(
     sceneMap.set(scene.sceneId, previous ? { ...previous, ...scene } : scene);
   }
 
+  const scenes = sortAnimationScenes(Array.from(sceneMap.values()));
+  const allMotionPlans = scenes.every(isAnimationMotionPlanScene);
+
   return {
     ...existing,
     projectId: existing.projectId || projectId,
-    scenes: sortAnimationScenes(Array.from(sceneMap.values())),
+    schemaVersion: allMotionPlans ? "2" : undefined,
+    artifactType: allMotionPlans ? "motion-plan" : undefined,
+    scenes,
   };
 }
 

@@ -40,6 +40,12 @@ export interface Asset {
 
   durationSeconds?: number;
 
+  artifactType?: "motion-plan";
+
+  sourceAssetId?: string;
+
+  generationMode?: "mock" | "production";
+
   error?: string;
 
   createdAt: string;

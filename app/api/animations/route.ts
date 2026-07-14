@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { mergeAnimationData } from "@/lib/animation/animationMerge";
 import { AnimationAssetPipeline } from "@/lib/animation/AnimationAssetPipeline";
+import { isCompatibleAnimationData } from "@/lib/animation/AnimationMotionPlanValidation";
 import { AnimationPromptGenerator } from "@/lib/animation/prompts/AnimationPromptGenerator";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
-import type { AnimationData, AnimationScene } from "@/types/animation";
+import type { AnimationScene } from "@/types/animation";
 import type { SceneData } from "@/types/scene";
 import type { VisualData } from "@/types/visual";
 
@@ -51,7 +52,7 @@ export async function POST(req: Request) {
 
     let animationScenes: AnimationScene[] | null = null;
 
-    if (isAnimationData(animationData)) {
+    if (isCompatibleAnimationData(animationData)) {
       if (normalizedSceneId !== null) {
         animationScenes = filterAnimationScenesBySceneId(
           animationData.scenes,
@@ -134,7 +135,7 @@ export async function POST(req: Request) {
     }
 
     const savedAnimation = await ProjectManager.getAnimation(trimmedProjectSlug);
-    const existingAnimation = isAnimationData(savedAnimation)
+    const existingAnimation = isCompatibleAnimationData(savedAnimation)
       ? savedAnimation
       : null;
 
@@ -198,16 +199,6 @@ function filterAnimationScenesBySceneId(
   }
 
   return [scene];
-}
-
-function isAnimationData(value: unknown): value is AnimationData {
-  return (
-    Boolean(value) &&
-    typeof value === "object" &&
-    typeof (value as AnimationData).projectId === "string" &&
-    typeof (value as AnimationData).createdAt === "string" &&
-    isAnimationScenes((value as AnimationData).scenes)
-  );
 }
 
 function isAnimationScenes(value: unknown): value is AnimationScene[] {

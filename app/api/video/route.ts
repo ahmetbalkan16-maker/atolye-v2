@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
+import { isCompatibleAnimationData } from "@/lib/animation/AnimationMotionPlanValidation";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { VideoPipeline } from "@/lib/video/VideoPipeline";
-import type { AnimationData, AnimationScene } from "@/types/animation";
 import type { Project } from "@/types/project";
 
 export async function POST(req: Request) {
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
       ProjectManager.getAnimation(normalizedSlug),
     ]);
 
-    if (!isAnimationData(savedAnimation)) {
+    if (!isCompatibleAnimationData(savedAnimation)) {
       return NextResponse.json(
         {
           success: false,
@@ -59,28 +59,4 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
-}
-
-function isAnimationData(value: unknown): value is AnimationData {
-  return (
-    Boolean(value) &&
-    typeof value === "object" &&
-    typeof (value as AnimationData).projectId === "string" &&
-    typeof (value as AnimationData).createdAt === "string" &&
-    isAnimationScenes((value as AnimationData).scenes)
-  );
-}
-
-function isAnimationScenes(value: unknown): value is AnimationScene[] {
-  return (
-    Array.isArray(value) &&
-    value.every(
-      (scene) =>
-        Boolean(scene) &&
-        typeof scene === "object" &&
-        typeof (scene as AnimationScene).sceneId === "number" &&
-        typeof (scene as AnimationScene).animationPrompt === "string" &&
-        typeof (scene as AnimationScene).status === "string",
-    )
-  );
 }
