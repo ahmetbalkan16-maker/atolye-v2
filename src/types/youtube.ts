@@ -1,97 +1,28 @@
-export type YouTubeStatus =
-  | "planned"
-  | "generating"
-  | "generated"
-  | "failed";
-
-export type YouTubeProviderName =
-  | "mock";
-
-export type YouTubeVisibility =
-  | "private"
-  | "unlisted"
-  | "public";
-
-export type YouTubeAudience =
-  | "made-for-kids"
-  | "not-made-for-kids";
+export type YouTubeProviderName = "mock" | "openai";
 
 export interface YouTubeChapter {
-  startTime: string;
-
+  startSeconds: number;
   title: string;
-
-  sourceSceneId?: number;
 }
 
-export interface YouTubeMetadata {
+export interface YouTubePackageDraft {
   title: string;
-
   description: string;
-
   tags: string[];
-
-  category: string;
-
-  language: string;
-
-  visibility: YouTubeVisibility;
-
-  audience: YouTubeAudience;
-}
-
-export interface YouTubeAssetReferences {
-  videoAssetId?: string;
-
-  audioAssetId?: string;
-
-  assemblyAssetId?: string;
-
-  thumbnailVariantId?: string;
-
-  thumbnailImageUrl?: string;
-}
-
-export interface YouTubePublishChecklist {
-  hasVideo: boolean;
-
-  hasAudio: boolean;
-
-  hasAssembly: boolean;
-
-  hasThumbnail: boolean;
-
-  hasTitle: boolean;
-
-  hasDescription: boolean;
-
-  hasTags: boolean;
-
-  readyToPublish: boolean;
-}
-
-export interface YouTubePublishingPackage {
-  projectId?: string;
-
-  slug?: string;
-
-  provider?: YouTubeProviderName | string;
-
-  model?: string;
-
-  status: YouTubeStatus;
-
-  metadata: YouTubeMetadata;
-
+  hashtags: string[];
   chapters: YouTubeChapter[];
+  pinnedComment: string;
+  thumbnailText: string;
+}
 
-  assetReferences: YouTubeAssetReferences;
-
-  checklist: YouTubePublishChecklist;
-
-  notes: string[];
-
-  createdAt: string;
-
-  updatedAt?: string;
+export interface YouTubePublishingPackage extends YouTubePackageDraft {
+  schemaVersion: "1";
+  projectId: string;
+  slug: string;
+  provider: YouTubeProviderName;
+  model?: string;
+  status: "generated";
+  videoAssetId: string;
+  thumbnailAssetId: string;
+  generatedAt: string;
 }

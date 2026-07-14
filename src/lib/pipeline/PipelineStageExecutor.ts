@@ -30,7 +30,12 @@ import { VideoPipeline } from "@/lib/video/VideoPipeline";
 import { isCompatibleVideoData } from "@/lib/video/VideoDataValidation";
 import type { VideoProvider } from "@/lib/video/providers/VideoProvider";
 import { VisualManager } from "@/lib/visuals/VisualManager";
-import { YouTubeEngine } from "@/lib/youtube/YouTubeEngine";
+import {
+  YouTubePackageGenerationError,
+  YouTubePackagePipeline,
+} from "@/lib/youtube/YouTubePackagePipeline";
+import { isYouTubePublishingPackage } from "@/lib/youtube/YouTubePackageValidation";
+import type { YouTubeProvider } from "@/lib/youtube/providers/YouTubeProvider";
 import { PipelineJobManager } from "./PipelineJobManager";
 import type { AnimationData } from "@/types/animation";
 import type { AssemblyPlanData } from "@/types/assembly";
@@ -69,6 +74,7 @@ export type PipelineStageExecutionOptions = {
   audioProvider?: AudioProvider;
   videoAssemblyProvider?: VideoAssemblyProvider;
   thumbnailProvider?: ThumbnailProvider;
+  youtubeProvider?: YouTubeProvider;
 };
 
 export class PipelineStageExecutor {
@@ -376,22 +382,37 @@ export class PipelineStageExecutor {
       }
 
       case "youtube": {
-        const video = requireStageInput(state.video, "video", stage);
-        const audio = requireStageInput(state.audio, "audio", stage);
         const assembly = requireStageInput(state.assembly, "assembly", stage);
         const thumbnail = requireStageInput(state.thumbnail, "thumbnail", stage);
-        state.youtube = await new YouTubeEngine().generatePublishingPackage({
-          projectId: state.project.id,
-          projectSlug,
-          title: state.project.title,
-          video,
-          audio,
+        const seo = requireStageInput(state.seo, "seo", stage);
+        const previousYouTube = state.youtube;
+        state.youtube = await YouTubePackagePipeline.generatePackage({
+          project: state.project,
           assembly,
           thumbnail,
+          seo,
+          provider: options.youtubeProvider,
         });
-        return this.persistStageResult(projectSlug, stage, () =>
-          ProjectManager.saveYouTube(projectSlug, state.youtube),
-        );
+        try {
+          return await this.persistStageResult(projectSlug, stage, () =>
+            ProjectManager.saveYouTube(projectSlug, state.youtube, {
+              reuseExisting:
+                isYouTubePublishingPackage(previousYouTube) &&
+                JSON.stringify(previousYouTube) === JSON.stringify(state.youtube),
+            }),
+          );
+        } catch {
+          try {
+            if (isYouTubePublishingPackage(previousYouTube)) {
+              await ProjectManager.restoreYouTube(projectSlug, previousYouTube);
+            } else {
+              await ProjectManager.removeYouTube(projectSlug);
+            }
+          } catch {
+            // The runner's failed manifest/job state remains authoritative.
+          }
+          throw new YouTubePackageGenerationError();
+        }
       }
 
       case "export": {

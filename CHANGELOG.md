@@ -25,6 +25,26 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 121 — Production YouTube Package Pipeline Activation
+
+Completed
+
+- Canonical `schemaVersion: "1"` YouTube package sözleşmesi aktive edildi. Provider yalnız yaratıcı draft üretti; identity, metadata, `generatedAt` ve status alanları pipeline tarafından eklendi.
+- Final video yalnız `assembly.outputAssetId`, thumbnail yalnız `thumbnail.outputAssetId` üzerinden seçildi. Export API canonical top-level alanları tüketmeye başladı.
+- Default mock provider korundu. OpenAI yalnız explicit activation ile seçildi; unknown provider fail-closed reddedildi ve provider failure sonrasında mock fallback uygulanmadı.
+- SEO mevcut merkezi sıra değiştirilmeden YouTube dependency listesine eklendi. Merkezi pipeline sırası, durable execution ve worker lifecycle değiştirilmedi.
+- Legacy/malformed paketler recovery-ready kabul edilmedi. Replay sırasında geçerli canonical paket provider çağrısı ve gereksiz overwrite olmadan yeniden kullanıldı.
+- MP4 registry/locator/URL/byteLength/file structure/`mvhd` duration doğrulamaları ile thumbnail registry, generationMode, provider/model, MIME, dimensions, byteLength ve locator doğrulamaları eklendi. `assetId` ↔ `fileName` invariant'ı zorunlu tutuldu.
+- Duplicate, stale, failed, cross-project ve eksik generationMode asset'ler reddedildi.
+- NFC normalization, control-character reddi ve uzunluk sınırları uygulandı; tag/hashtag deduplication case-insensitive yapıldı.
+- Chapter başlangıçlarının 0'dan başlaması, strictly increasing olması ve video süresi içinde kalması zorunlu tutuldu.
+- `youtube.json` temp file, fsync ve rename ile atomic yazıldı; containment ile symlink/junction parent kontrolleri uygulandı.
+- API yalnız stored project state ve registry kullandı; istemci asset payload'larına güvenmedi. Güvenli sabit hata envelope'u korundu.
+- Final review sırasında bulunan eksik thumbnail generationMode P1'ı giderildi; açık P0/P1 kalmadı.
+- Doğrulamalar: Sprint 121 YouTube package smoke PASS — 58; Sprint 120 thumbnail PASS — 42; Sprint 119 retry continuation PASS — 22; Auto-continuation PASS — 18; Pipeline orchestration PASS — 10; Durable execution PASS — 17; Durable wiring PASS — 19; Sprint 118 assembly PASS — 19; Sprint 117 scene video PASS — 23; Sprint 116 animation PASS — 21; Sprint 115 assembly wiring PASS — 46; Sprint 114 audio PASS — 74; Sprint 113 visuals PASS — 54; TypeScript PASS; full repository ESLint PASS — 0 warning; `git diff --check` PASS; fixture cleanup temiz.
+- Non-blocking P2 takipleri: `youtube.json`, manifest ve job kayıtları tek filesystem transaction değildir; durable/distributed execution kapalı çok-process kullanımda pipeline kilidi process-localdır; gerçek OpenAI credential ile live E2E çalıştırılmadı; `youtube.json`, manifest ve job timestamp'leri birebir aynı olmak zorunda değildir; MP4 validation bounded `mvhd` inspection kullanır ve ayrıca live FFprobe acceptance çalıştırılmadı.
+- Dokümantasyon kapanışı tamamlandı; commit veya push yapılmadı. Sonraki sprint yalnız Planning durumundadır; adı ve kapsamı kesinleştirilmedi ve uygulamasına başlanmadı.
+
 ## Sprint 120 — Production Thumbnail Pipeline Activation
 
 Completed

@@ -1,26 +1,22 @@
 import type { YouTubeProviderName } from "@/types/youtube";
 import { MockYouTubeProvider } from "./providers/MockYouTubeProvider";
+import { OpenAIYouTubeProvider } from "./providers/OpenAIYouTubeProvider";
 import type { YouTubeProvider } from "./providers/YouTubeProvider";
-import {
-  defaultYouTubeProviderConfig,
-  type YouTubeProviderConfig,
-} from "./YouTubeProviderConfig";
+import { resolveYouTubeProviderName } from "./YouTubeProviderConfig";
 
 export class YouTubeProviderRouter {
   private readonly providers: Record<YouTubeProviderName, YouTubeProvider>;
-  private readonly config: YouTubeProviderConfig;
 
   constructor(
     providers?: Partial<Record<YouTubeProviderName, YouTubeProvider>>,
-    config: YouTubeProviderConfig = defaultYouTubeProviderConfig,
   ) {
     this.providers = {
       mock: providers?.mock ?? new MockYouTubeProvider(),
+      openai: providers?.openai ?? new OpenAIYouTubeProvider(),
     };
-    this.config = config;
   }
 
-  getProvider(providerName = this.config.provider): YouTubeProvider {
-    return this.providers[providerName] ?? this.providers.mock;
+  getProvider(providerName?: string): YouTubeProvider {
+    return this.providers[resolveYouTubeProviderName(providerName)];
   }
 }

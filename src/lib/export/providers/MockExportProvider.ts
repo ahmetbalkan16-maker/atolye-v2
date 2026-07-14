@@ -36,7 +36,7 @@ export function createMockExportPackage(
     input.title ??
     input.project?.title ??
     input.assembly?.title ??
-    input.youtube?.metadata.title;
+    input.youtube?.title;
   const items = createExportItems(input);
 
   return {
@@ -128,7 +128,7 @@ function createExportItems(input: ExportGenerationInput): ExportItem[] {
       label: "YouTube publishing package",
       fileName: "youtube.json",
       sourcePackage: "youtube",
-      sourceAssetId: input.youtube?.assetReferences.videoAssetId,
+      sourceAssetId: input.youtube?.videoAssetId,
       required: true,
       included: Boolean(input.youtube),
     }),

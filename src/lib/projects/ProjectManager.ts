@@ -1,5 +1,6 @@
 import { ProjectWriter } from "./ProjectWriter";
 import { ProjectReader } from "./ProjectReader";
+import { validateYouTubePublishingPackage } from "@/lib/youtube/YouTubePackageValidation";
 import type {
   PackageStatus,
   ProductionStepKey,
@@ -278,9 +279,30 @@ export class ProjectManager {
     await this.updatePackageStatus(slug, "seo", "completed");
   }
 
-  static async saveYouTube(slug: string, youtube: unknown) {
-    await ProjectWriter.writeJSON(slug, "youtube.json", youtube);
+  static async saveYouTube(
+    slug: string,
+    youtube: unknown,
+    options?: { reuseExisting?: boolean },
+  ) {
+    validateYouTubePublishingPackage(youtube, { slug });
+    if (!options?.reuseExisting) {
+      await ProjectWriter.writeJSONAtomically(slug, "youtube.json", youtube);
+    }
+    const readback = await ProjectReader.readJSON<unknown>(slug, "youtube.json");
+    validateYouTubePublishingPackage(readback, { slug });
+    if (JSON.stringify(readback) !== JSON.stringify(youtube)) {
+      throw new Error("YouTube package persistence failed.");
+    }
     await this.updatePackageStatus(slug, "youtube", "completed");
+  }
+
+  static async removeYouTube(slug: string) {
+    await ProjectWriter.removeJSON(slug, "youtube.json");
+  }
+
+  static async restoreYouTube(slug: string, youtube: unknown) {
+    validateYouTubePublishingPackage(youtube, { slug });
+    await ProjectWriter.writeJSONAtomically(slug, "youtube.json", youtube);
   }
 
   static async saveExport(slug: string, exportPackage: unknown) {

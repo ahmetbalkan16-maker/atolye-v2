@@ -9,6 +9,7 @@ import type { Project } from "@/types/project";
 import type { SEOData } from "@/types/seo";
 import type { ThumbnailData } from "@/types/thumbnail";
 import type { YouTubePublishingPackage } from "@/types/youtube";
+import { isYouTubePublishingPackage } from "@/lib/youtube/YouTubePackageValidation";
 
 export async function POST(req: Request) {
   try {
@@ -70,7 +71,7 @@ export async function POST(req: Request) {
       title:
         projectData.project?.title ||
         assembly?.title ||
-        youtube?.metadata.title ||
+        youtube?.title ||
         (typeof body.title === "string" ? body.title : undefined),
       format: normalizeFormat(body.format),
       project: projectData.project,
@@ -169,18 +170,6 @@ function isThumbnailData(value: unknown): value is ThumbnailData {
     typeof value === "object" &&
     Array.isArray((value as ThumbnailData).variants) &&
     typeof (value as ThumbnailData).createdAt === "string"
-  );
-}
-
-function isYouTubePublishingPackage(
-  value: unknown,
-): value is YouTubePublishingPackage {
-  return (
-    Boolean(value) &&
-    typeof value === "object" &&
-    typeof (value as YouTubePublishingPackage).createdAt === "string" &&
-    Boolean((value as YouTubePublishingPackage).metadata) &&
-    Boolean((value as YouTubePublishingPackage).checklist)
   );
 }
 

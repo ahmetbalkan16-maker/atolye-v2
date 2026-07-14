@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 120 — Production Thumbnail Pipeline Activation (Completed)
+Sprint 121 — Production YouTube Package Pipeline Activation (Completed)
 
 Siradaki Planlama Adimi
 
 Sonraki sprint — Planning
 
-Sprint 120 Production Thumbnail Pipeline Activation tamamlandı. Sonraki sprint yalnız Planning durumundadır; kapsamı ayrıca planlanacak ve onaylanacaktır.
+Sprint 121 Production YouTube Package Pipeline Activation tamamlandı. Sonraki sprint yalnız Planning durumundadır; adı ve kapsamı ayrıca planlanacak ve onaylanacaktır.
 
 ---
 
@@ -1456,6 +1456,30 @@ Completed
 
 ---
 
+# Sprint 121
+
+## Production YouTube Package Pipeline Activation
+
+Completed
+
+- Canonical `schemaVersion: "1"` YouTube package sözleşmesi aktive edildi. Provider yalnız yaratıcı draft üretir; identity, metadata, `generatedAt` ve status alanlarını pipeline ekler.
+- Final video yalnız `assembly.outputAssetId`, thumbnail yalnız `thumbnail.outputAssetId` üzerinden seçilir. Export API canonical top-level alanları tüketir.
+- Default provider mock'tur. OpenAI yalnız explicit activation ile açılır; unknown provider fail-closed olur ve provider failure sonrasında mock fallback uygulanmaz.
+- SEO, mevcut merkezi sıra değiştirilmeden YouTube dependency listesine eklendi. Merkezi pipeline sırası, durable execution ve worker lifecycle değiştirilmedi.
+- Legacy/malformed paketler recovery-ready kabul edilmez. Replay sırasında geçerli canonical paket provider çağrısı ve gereksiz overwrite olmadan yeniden kullanılır.
+- MP4 registry/locator/URL/byteLength/file structure/`mvhd` duration doğrulamaları ile thumbnail registry, generationMode, provider/model, MIME, dimensions, byteLength ve locator doğrulamaları fail-closed uygulanır. `assetId` ↔ `fileName` invariant'ı zorunludur.
+- Duplicate, stale, failed, cross-project ve eksik generationMode asset'ler reddedilir.
+- NFC normalization, control-character reddi ve uzunluk sınırları uygulanır; tag/hashtag deduplication case-insensitive yapılır.
+- Chapter başlangıçları 0'dan başlar, strictly increasing olur ve video süresi içinde kalır.
+- `youtube.json` temp file, fsync ve rename ile atomic yazılır; containment ve symlink/junction parent kontrolleri zorunludur.
+- API yalnız stored project state ve registry kullanır, istemci asset payload'larına güvenmez ve güvenli sabit hata envelope'u döndürür.
+- Final review sırasında bulunan eksik thumbnail generationMode P1'ı giderildi; açık P0/P1 kalmadı.
+- Doğrulamalar: Sprint 121 YouTube package smoke PASS — 58; Sprint 120 thumbnail PASS — 42; Sprint 119 retry continuation PASS — 22; Auto-continuation PASS — 18; Pipeline orchestration PASS — 10; Durable execution PASS — 17; Durable wiring PASS — 19; Sprint 118 assembly PASS — 19; Sprint 117 scene video PASS — 23; Sprint 116 animation PASS — 21; Sprint 115 assembly wiring PASS — 46; Sprint 114 audio PASS — 74; Sprint 113 visuals PASS — 54; TypeScript PASS; full repository ESLint PASS — 0 warning; `git diff --check` PASS; fixture cleanup temiz.
+- Non-blocking P2 takipleri: `youtube.json`, manifest ve job kayıtları tek filesystem transaction değildir; durable/distributed execution kapalı çok-process kullanımda pipeline kilidi process-localdır; gerçek OpenAI credential ile live E2E çalıştırılmadı; `youtube.json`, manifest ve job timestamp'leri birebir aynı olmak zorunda değildir; MP4 validation bounded `mvhd` inspection kullanır ve ayrıca live FFprobe acceptance çalıştırılmadı.
+- Dokümantasyon kapanışı tamamlandı; commit veya push yapılmadı.
+
+---
+
 # Sonraki Sprint
 
 ## Planning
@@ -1463,7 +1487,7 @@ Completed
 Planning
 
 - Yeni sprint uygulamasına başlanmadı.
-- Kapsam ayrıca planlanacak ve onaylanacaktır.
+- Sprint adı ve kapsamı kesinleştirilmedi; ayrıca planlanacak ve onaylanacaktır.
 
 ---
 

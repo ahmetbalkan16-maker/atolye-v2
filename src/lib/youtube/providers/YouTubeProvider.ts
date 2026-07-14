@@ -1,32 +1,43 @@
 import type { AssemblyPlanData } from "@/types/assembly";
-import type { AudioData } from "@/types/audio";
+import type { SEOData } from "@/types/seo";
 import type { ThumbnailData } from "@/types/thumbnail";
-import type { VideoData } from "@/types/video";
 import type {
+  YouTubePackageDraft,
   YouTubeProviderName,
-  YouTubePublishingPackage,
-  YouTubeStatus,
 } from "@/types/youtube";
 
+export const YOUTUBE_GENERATION_ERROR =
+  "YouTube package generation failed." as const;
+
 export interface YouTubeGenerationInput {
-  projectId?: string;
-  projectSlug?: string;
-  title?: string;
-  video?: VideoData | null;
-  audio?: AudioData | null;
-  assembly?: AssemblyPlanData | null;
-  thumbnail?: ThumbnailData | null;
+  projectId: string;
+  projectSlug: string;
+  title: string;
+  videoDurationSeconds: number;
+  assembly: AssemblyPlanData;
+  thumbnail: ThumbnailData;
+  seo: SEOData;
 }
 
-export interface YouTubeGenerationResult {
-  provider: YouTubeProviderName | string;
-  model?: string;
-  status: YouTubeStatus;
-  package: YouTubePublishingPackage;
-  error?: string;
-}
+export type YouTubeGenerationResult =
+  | {
+      success: true;
+      provider: YouTubeProviderName;
+      model?: string;
+      draft: YouTubePackageDraft;
+      error?: never;
+    }
+  | {
+      success: false;
+      provider: YouTubeProviderName;
+      model?: string;
+      error: typeof YOUTUBE_GENERATION_ERROR;
+      draft?: never;
+    };
 
 export interface YouTubeProvider {
+  readonly name: YouTubeProviderName;
+  readonly model?: string;
   generatePublishingPackage(
     input: YouTubeGenerationInput,
   ): Promise<YouTubeGenerationResult>;

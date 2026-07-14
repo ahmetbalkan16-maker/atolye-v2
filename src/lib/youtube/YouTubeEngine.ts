@@ -1,10 +1,6 @@
-import type { YouTubePublishingPackage } from "@/types/youtube";
-import {
-  createMockYouTubePackage,
-  MockYouTubeProvider,
-} from "./providers/MockYouTubeProvider";
 import type {
   YouTubeGenerationInput,
+  YouTubeGenerationResult,
   YouTubeProvider,
 } from "./providers/YouTubeProvider";
 import { YouTubeProviderRouter } from "./YouTubeProviderRouter";
@@ -14,47 +10,12 @@ export type GenerateYouTubePackageInput = YouTubeGenerationInput & {
 };
 
 export class YouTubeEngine {
-  private readonly router: YouTubeProviderRouter;
-
-  constructor(router = new YouTubeProviderRouter()) {
-    this.router = router;
-  }
+  constructor(private readonly router = new YouTubeProviderRouter()) {}
 
   async generatePublishingPackage(
     input: GenerateYouTubePackageInput,
-  ): Promise<YouTubePublishingPackage> {
-    try {
-      const provider = input.provider ?? this.router.getProvider();
-      const result = await provider.generatePublishingPackage(input);
-
-      if (result.error) {
-        return this.createFallback(input);
-      }
-
-      return result.package;
-    } catch (error) {
-      console.error("[YouTubeEngine] Falling back to mock package:", error);
-      return this.createFallback(input);
-    }
+  ): Promise<YouTubeGenerationResult> {
+    const provider = input.provider ?? this.router.getProvider();
+    return provider.generatePublishingPackage(input);
   }
-
-  private async createFallback(
-    input: YouTubeGenerationInput,
-  ): Promise<YouTubePublishingPackage> {
-    const fallbackProvider = new MockYouTubeProvider();
-
-    try {
-      const result = await fallbackProvider.generatePublishingPackage(input);
-
-      return result.package;
-    } catch {
-      return createMockYouTubePackage(input);
-    }
-  }
-}
-
-export async function generatePublishingPackage(
-  input: GenerateYouTubePackageInput,
-): Promise<YouTubePublishingPackage> {
-  return new YouTubeEngine().generatePublishingPackage(input);
 }

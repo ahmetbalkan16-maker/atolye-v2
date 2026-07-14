@@ -1,5 +1,6 @@
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { isCompatibleVideoData } from "@/lib/video/VideoDataValidation";
+import { isYouTubePublishingPackage } from "@/lib/youtube/YouTubePackageValidation";
 import type { ProjectManifest } from "@/types/project";
 import type {
   PipelineDependencyStatus,
@@ -36,7 +37,7 @@ export const pipelineStageDependencies: Record<
   assembly: ["script", "scenes", "visuals", "audio", "video"],
   thumbnail: ["assembly", "video", "audio"],
   seo: ["script", "thumbnail"],
-  youtube: ["video", "audio", "assembly", "thumbnail"],
+  youtube: ["video", "audio", "assembly", "thumbnail", "seo"],
   export: ["video", "audio", "assembly", "thumbnail", "youtube", "seo"],
 };
 
@@ -246,7 +247,9 @@ async function isStageFileReady(
 ) {
   const data = await readStageData(projectSlug, stage);
 
-  return stage === "video" ? isCompatibleVideoData(data) : data !== null;
+  if (stage === "video") return isCompatibleVideoData(data);
+  if (stage === "youtube") return isYouTubePublishingPackage(data);
+  return data !== null;
 }
 
 function readStageData(projectSlug: string, stage: PipelineRecoveryStageKey) {

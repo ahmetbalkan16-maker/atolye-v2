@@ -6,6 +6,7 @@ const ROOT_DIR = process.cwd();
 
 export interface VideoInspection {
   byteLength: number;
+  durationSeconds?: number;
 }
 
 export interface StoredVideoInspection extends VideoInspection {
@@ -86,6 +87,7 @@ export class VideoStorage {
     let hasFtyp = false;
     let hasMoov = false;
     let hasMdat = false;
+    let durationSeconds: number | undefined;
 
     try {
       while (offset < stat.size) {
@@ -128,7 +130,14 @@ export class VideoStorage {
         }
 
         hasFtyp ||= boxType === "ftyp";
-        hasMoov ||= boxType === "moov";
+        if (boxType === "moov") {
+          hasMoov = true;
+          durationSeconds = readMovieDuration(
+            descriptor,
+            offset + headerSize,
+            boxSize - headerSize,
+          );
+        }
         hasMdat ||= boxType === "mdat";
         first = false;
         offset += boxSize;
@@ -141,7 +150,7 @@ export class VideoStorage {
       throw new Error("Invalid MP4 file.");
     }
 
-    return { byteLength: stat.size };
+    return { byteLength: stat.size, durationSeconds };
   }
 
   static inspectStoredMp4(
@@ -171,6 +180,45 @@ export class VideoStorage {
       // Best-effort cleanup must not replace the normalized render failure.
     }
   }
+}
+
+function readMovieDuration(
+  descriptor: number,
+  payloadOffset: number,
+  payloadLength: number,
+) {
+  if (payloadLength <= 0 || payloadLength > 64 * 1024 * 1024) return undefined;
+  const payload = Buffer.alloc(payloadLength);
+  if (fs.readSync(descriptor, payload, 0, payloadLength, payloadOffset) !== payloadLength) {
+    return undefined;
+  }
+  let offset = 0;
+  while (offset + 8 <= payload.length) {
+    const size = payload.readUInt32BE(offset);
+    const type = payload.toString("ascii", offset + 4, offset + 8);
+    if (size < 8 || offset + size > payload.length) return undefined;
+    if (type === "mvhd") {
+      const content = payload.subarray(offset + 8, offset + size);
+      const version = content[0];
+      if (version === 0 && content.length >= 20) {
+        return seconds(content.readUInt32BE(12), content.readUInt32BE(16));
+      }
+      if (version === 1 && content.length >= 32) {
+        const duration = content.readBigUInt64BE(24);
+        if (duration > BigInt(Number.MAX_SAFE_INTEGER)) return undefined;
+        return seconds(content.readUInt32BE(20), Number(duration));
+      }
+      return undefined;
+    }
+    offset += size;
+  }
+  return undefined;
+}
+
+function seconds(timescale: number, duration: number) {
+  if (timescale <= 0 || duration <= 0) return undefined;
+  const value = duration / timescale;
+  return Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
 function resolveRelative(relativePath: string) {
