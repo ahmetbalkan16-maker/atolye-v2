@@ -11,6 +11,8 @@ const CONFIGURATION_NAMES = [
   "OPENAI_MAX_TOKENS",
   "OPENAI_TEMPERATURE",
   "IMAGE_PROVIDER",
+  "IMAGE_OPENAI_TIMEOUT_MS",
+  "IMAGE_OPENAI_MAX_RESPONSE_BYTES",
   "AUDIO_PROVIDER",
   "OPENAI_TTS_MODEL",
   "OPENAI_TTS_VOICE",
@@ -47,6 +49,14 @@ interface ProductionAcceptanceMarker {
   readonly productionReady: boolean;
   readonly published: false;
   readonly validatedAt?: string;
+}
+
+export interface ProductionAcceptanceMarkerSnapshot {
+  readonly runId: string;
+  readonly configurationFingerprint: string;
+  readonly acceptanceStatus: "prepared" | "validated";
+  readonly productionReady: boolean;
+  readonly published: false;
 }
 
 export class ProductionAcceptancePolicyError extends Error {
@@ -138,6 +148,25 @@ export async function readProductionAcceptancePolicy(projectSlug: string): Promi
     strictProductionAcceptance: true,
     youtubePublishMode: "package-only",
   };
+}
+
+export async function readProductionAcceptanceMarker(
+  projectSlug: string,
+): Promise<ProductionAcceptanceMarkerSnapshot> {
+  if (!safeSlug(projectSlug)) throw new ProductionAcceptancePolicyError();
+  const state = await ProjectReader.readJSONState<unknown>(projectSlug, MARKER_FILE);
+  if (
+    state.status !== "parsed" ||
+    !validMarker(state.value) ||
+    state.value.configurationFingerprint !== productionAcceptanceConfigurationFingerprint()
+  ) throw new ProductionAcceptancePolicyError();
+  return Object.freeze({
+    runId: state.value.runId,
+    configurationFingerprint: state.value.configurationFingerprint,
+    acceptanceStatus: state.value.acceptanceStatus,
+    productionReady: state.value.productionReady,
+    published: false,
+  });
 }
 
 export function productionAcceptanceConfigurationFingerprint(

@@ -199,6 +199,10 @@ export class AIManager {
       "- duration and estimatedDuration must be in seconds.",
       "- visualGoal must clearly describe the visual scene for production.",
       "- seoKeywords must be Turkish search keywords.",
+      ...(policy?.failClosed ? [
+        "- Production acceptance estimatedDuration must be between 60 and 120 seconds; target 90 seconds.",
+        "- The sum of chapter durations must match estimatedDuration within 5 seconds.",
+      ] : []),
       `Topic: ${topic}`,
     ].join("\n");
 
@@ -286,6 +290,9 @@ export class AIManager {
       scenes: [
         {
           id: 1,
+          ...(policy?.failClosed
+            ? { chapterId: script.chapters[0]?.id ?? 1 }
+            : {}),
           title: "mock scene",
           description: script.title,
         },
@@ -314,6 +321,7 @@ export class AIManager {
       '  "scenes": [',
       "    {",
       '      "id": 1,',
+      ...(policy?.failClosed ? ['      "chapterId": 1,'] : []),
       '      "title": "string",',
       '      "description": "string",',
       '      "visualPrompt": "string",',
@@ -324,11 +332,22 @@ export class AIManager {
       "}",
       "Rules:",
       "- Write scene titles and descriptions in Turkish.",
-      "- Create one opening scene, one scene per script chapter, and one closing scene.",
+      ...(policy?.failClosed ? [
+        "- Create one or more scenes for every script chapter.",
+        "- chapterId must reference an existing script chapter id.",
+        "- Keep scenes grouped in script chapter order.",
+        "- Integrate opening and closing beats into chapter-owned scenes; do not create ownerless scenes.",
+      ] : [
+        "- Create one opening scene, one scene per script chapter, and one closing scene.",
+      ]),
       "- description must explain what happens in the scene for a production team.",
       "- visualPrompt must be cinematic, historically grounded, and useful for image/video generation.",
       "- duration must be in seconds and should follow the script pacing.",
       "- Keep ids as sequential numbers starting from 1.",
+      ...(policy?.failClosed ? [
+        "- The sum of scene durations for each chapter must match that chapter duration within 5 seconds.",
+        "- The total scene duration must be between 60 and 120 seconds and match script estimatedDuration within 5 seconds.",
+      ] : []),
       "Script JSON:",
       JSON.stringify(scriptInput),
     ].join("\n");
@@ -350,7 +369,7 @@ export class AIManager {
       }
 
       const parsed = parseAIJsonResponse<Partial<SceneData>>(response);
-      if (policy?.failClosed && !isStrictSceneResponse(parsed)) throw new Error("invalid");
+      if (policy?.failClosed && !isStrictSceneResponse(parsed, script)) throw new Error("invalid");
 
       const scenes: SceneItem[] = Array.isArray(parsed.scenes)
         ? parsed.scenes.map((scene, index) => {
@@ -358,6 +377,14 @@ export class AIManager {
 
             return {
               id: getNumber(item.id, index + 1),
+              ...(policy?.failClosed
+                ? {
+                    chapterId: getNumber(
+                      item.chapterId,
+                      script.chapters[0]?.id ?? index + 1,
+                    ),
+                  }
+                : {}),
               title: getStringAllowEmpty(item.title, `Scene ${index + 1}`),
               description: getStringAllowEmpty(item.description, ""),
               visualPrompt: getStringAllowEmpty(item.visualPrompt, ""),
@@ -412,10 +439,12 @@ function isStrictScriptResponse(value: Partial<ScriptData>) {
       typeof chapter.duration === "number" && Number.isFinite(chapter.duration));
 }
 
-function isStrictSceneResponse(value: Partial<SceneData>) {
+function isStrictSceneResponse(value: Partial<SceneData>, script: ScriptData) {
+  const chapterIds = new Set(script.chapters.map((chapter) => chapter.id));
   return validTimestamp(value.createdAt) && Array.isArray(value.scenes) &&
     value.scenes.length > 0 && value.scenes.every((scene) =>
       typeof scene?.id === "number" && Number.isFinite(scene.id) &&
+      typeof scene.chapterId === "number" && chapterIds.has(scene.chapterId) &&
       [scene.title, scene.description, scene.visualPrompt].every((item) => typeof item === "string") &&
       typeof scene.duration === "number" && Number.isFinite(scene.duration));
 }

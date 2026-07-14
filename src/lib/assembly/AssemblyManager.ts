@@ -65,7 +65,7 @@ export class AssemblyManager {
       const parsed = parseAIJsonResponse<Partial<AssemblyPlanData>>(response);
       if (
         options.generationPolicy?.failClosed &&
-        !isStrictAssemblyResponse(parsed, scenes.scenes.length)
+        !isStrictAssemblyResponse(parsed, scenes)
       ) throw new Error("invalid");
 
       return {
@@ -158,6 +158,7 @@ export class AssemblyManager {
 
     return {
       sceneId,
+      chapterId: scene.chapterId ?? chapter?.id,
       duration:
         section?.duration ||
         this.formatDuration(scene.duration ?? chapter?.duration ?? 30),
@@ -198,6 +199,10 @@ export class AssemblyManager {
           typeof scene.sceneId === "number"
             ? scene.sceneId
             : fallbackScene.sceneId,
+        chapterId:
+          typeof scene.chapterId === "number"
+            ? scene.chapterId
+            : fallbackScene.chapterId,
         duration: getString(scene.duration, fallbackScene.duration),
         visualReference: getString(
           scene.visualReference,
@@ -252,7 +257,8 @@ export class AssemblyManager {
     scene: SceneItem,
     index: number,
   ): ScriptChapter | undefined {
-    return chapters.find((chapter) => chapter.id === scene.id) ?? chapters[index];
+    return chapters.find((chapter) => chapter.id === scene.chapterId) ??
+      chapters.find((chapter) => chapter.id === scene.id) ?? chapters[index];
   }
 
   private static findVisual(
@@ -269,6 +275,7 @@ export class AssemblyManager {
     index: number,
   ): AudioSection | undefined {
     return (
+      sections.find((section) => section.chapterId === scene.chapterId) ??
       sections.find((section) => section.chapterId === scene.id) ??
       sections[index]
     );
@@ -318,10 +325,13 @@ export class AssemblyManager {
 
 }
 
-function isStrictAssemblyResponse(value: Partial<AssemblyPlanData>, expectedSceneCount: number) {
+function isStrictAssemblyResponse(value: Partial<AssemblyPlanData>, source: SceneData) {
   const render = value.render as Partial<AssemblyRenderInfo> | undefined;
-  return Array.isArray(value.scenes) && value.scenes.length === expectedSceneCount &&
-    value.scenes.every((scene) => typeof scene?.sceneId === "number" &&
+  return Array.isArray(value.scenes) && value.scenes.length === source.scenes.length &&
+    value.scenes.every((scene, index) => typeof scene?.sceneId === "number" &&
+      scene.sceneId === source.scenes[index]?.id &&
+      typeof scene.chapterId === "number" &&
+      scene.chapterId === source.scenes[index]?.chapterId &&
       [scene.duration, scene.visualReference, scene.audioReference, scene.transition, scene.cameraMovement]
         .every(nonEmptyString) &&
       Array.isArray(scene.effects) && scene.effects.every((item) => typeof item === "string") &&

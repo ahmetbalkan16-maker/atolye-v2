@@ -47,17 +47,37 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 127**
+**Sprint 128.2**
 
-Production Animation Provider Activation
+Production Acceptance P1 Hardening
 
 **Durum**
 
 Completed
 
-Sprint 127 Production Animation Provider Activation tamamlandı. Sonraki sprint Sprint 128 Planning — Production Environment and Provider Configuration Activation durumundadır.
+Sprint 128.2 Production Acceptance P1 Hardening tamamlandı. Sonraki adım production environment binding ve readiness-only gerçek makine doğrulamasıdır.
 
 Not:
+
+- Completed acceptance replay artık completed recovery planında `PipelineRunner.resume()` çağırmadan marker, strict state, FFprobe, job ve registry doğrulamalarını yeniden çalıştırır; marker transition idempotent ve `published:false` kalır.
+- Strict marker taşıyan resume, scenes sonrasındaki bir aşamadan devam edecekse script/scene preflight'ini `PipelineRunner.resume()` sınırında yeniden uygular. Assembly çağrısı explicit strict policy taşır; legacy mapping strict acceptance içinde devreye giremez.
+- Finalizer assembly video ve thumbnail asset ID'lerini registry'de tekil, generated, doğru tip/project/slug ve canonical path/URL olarak doğrular. Thumbnail physical readback ve YouTube package asset kimlikleri geçmeden `productionReady:true` yazılmaz.
+- Image fallback assembly, scene-video yoluyla aynı chapter audio segmentinin `audioStartSeconds`, `audioEndSeconds`, `atrim start/end` ve `asetpts=PTS-STARTPTS` sözleşmesini kullanır.
+- AI scene prompt/parsing davranışı explicit generation policy ile ayrıldı: non-strict pipeline opening/chapter/closing ve chapterId'siz legacy JSON davranışını korur; strict acceptance chapter ownership zorunluluğunu sürdürür.
+- Doğrulamalar: Sprint 128.2 P1 hardening smoke PASS — 30; Sprint 126 readiness/acceptance PASS; animation motion-plan PASS — 21; scene-video PASS — 23; assembly PASS — 19; TypeScript ve hedefli ESLint PASS. Gerçek provider veya acceptance run çalıştırılmadı.
+
+Sprint 128.1 kaydı:
+
+- Scene modeli geriye uyumlu `chapterId` ile genişletildi; production acceptance her scene için bilinen chapter sahipliği, deterministik chapter sırası, her chapter için en az bir scene ve benzersiz scene/audio kimlikleri zorunlu tutar. Chapter = scene eşitliği kurulmadı; bir chapter birden fazla scene taşıyabilir.
+- Chapter audio WAV'ı aynı chapter'a ait sıralı scene videolarına planlanan duration oranlarıyla deterministik `audioStartSeconds` ve segment duration olarak dağıtılır. Assembly exact scene/visual/video kimliğini korur; unknown/ownerless chapter, duplicate ve eşleşmemiş scene/audio fail-closed reddedilir.
+- Strict acceptance script ve scene üretiminde 60–120 saniye aralığı, 90 saniye hedefi, pozitif finite duration ve merkezi 5 saniye tolerans uygulanır. Preflight script aşamasında ve scene aşamasında, ücretli image/animation/audio/FFmpeg üretiminden önce çalışır; ihlaller `PRODUCTION_DURATION_PREFLIGHT_FAILED` veya `PRODUCTION_SCENE_MAPPING_INVALID` ile kapanır.
+- OpenAI image production sonucu yalnız bounded timeout/response limit sonrasında base64 image'ın project-contained `ImageStorage` alanına yazılması, canonical local path/URL ve physical readback doğrulamasıyla kabul edilir. URL-only cevap visuals stage'ini tamamlayamaz; secret veya response body hata çıktısına taşınmaz.
+- `scripts/run-production-acceptance.ts` readiness-only, explicit-confirm execute ve mevcut marker/slug/fingerprint üzerinde resume-finalize modlarını sağlar. Prepared marker `productionReady:false`, `published:false` kalır; final FFprobe, package referansları ve bütün job'lar doğrulanmadan production-ready yazılmaz.
+- Package-only YouTube recovery, publish kaydı aramadan geçerli stored package'ı ready kabul eder; gerçek YouTube publish çağrısı yapılmaz. Canonical pipeline, motion-plan, FFmpeg scene-video/final assembly, durable lifecycle ve storage sözleşmeleri korunur.
+- Doğrulamalar: Sprint 128.1 smoke PASS — 20; Sprint 126 readiness/acceptance PASS; animation motion-plan PASS — 21; scene-video PASS — 23; assembly PASS — 19; `npx tsc --noEmit --incremental false` PASS; hedefli ESLint PASS; `git diff --check` PASS.
+- Mevcut gerçek makine readiness sonucu hâlâ `ready=false`: production environment/provider/API key/FFmpeg/FFprobe değerleri bağlı değildir; runtime, durable execution ve health blokludur. Ücretli acceptance run çalıştırılmadı ve gerçek video üretilmedi.
+
+Sprint 127 kaydı:
 
 - Mevcut `OpenAI motion-plan → VideoPipeline / FFmpegSceneVideoProvider → VideoAssemblyManager` akışı korunarak gerçek OpenAI production motion-plan provider'ı eklendi. Yeni video-generation servisi, video pipeline, assembly veya publish sistemi kurulmadı; animation provider fiziksel MP4 üretmez, scene-video mevcut FFmpeg katmanında oluşturulur.
 - `ANIMATION_PROVIDER=openai` seçimi; scene/source identity, prompt ve duration doğrulaması, izin verilen resmi Chat Completions endpoint'i, redirectsiz bounded istek, deterministik JSON, `temperature: 0`, JSON response formatı, SHA-256 request identity/idempotency, bağımsız attempt timeout'ları, byte limitleri ve yalnız geçici hatalarda 0–2 retry uygular.
@@ -83,11 +103,11 @@ main
 
 Son Commit
 
-c70a533
+7a10970
 
 Durum
 
-Sprint 127 tamamlandı ve dokümantasyon kapanışı hazırlandı; commit/push yapılmayacaktır. Sonraki sprint Sprint 128 Planning — Production Environment and Provider Configuration Activation durumundadır. Sprint 128 yeni provider veya pipeline geliştirme sprinti değildir; production yapılandırmasını aktive edip ilk acceptance run öncesi readiness geçişini hedefler. Readiness tamamen geçmeden ücretli acceptance run ve gerçek YouTube publish yapılmayacaktır.
+Sprint 128.2 tamamlandı ve dokümantasyon kapanışı hazırlandı; commit/push yapılmayacaktır. Sonraki adım production environment binding ve readiness-only gerçek makine doğrulamasıdır. Readiness tamamen `READY` olmadan ücretli acceptance run ve gerçek YouTube publish yapılmayacaktır.
 
 ---
 
@@ -581,13 +601,14 @@ Başarılı.
 
 Planning
 
-Sprint 128 — Production Environment and Provider Configuration Activation.
+Production Environment Binding and Readiness-Only Machine Validation.
 
-- Production environment değerlerini secret'ları repository'ye yazmadan hazırlamak.
+- Production environment değerlerini secret'ları repository'ye yazmadan gerçek işletim ortamına bağlamak.
 - FFmpeg/FFprobe yollarını ve AI, image, audio, animation, video, assembly, thumbnail ile publish-package provider seçimlerini doğrulamak.
 - Model, endpoint, API key ve diğer runtime yapılandırmalarını işletim ortamına bağlamak.
 - `NOT_CONFIGURED` ve `BLOCKED` readiness sonuçlarını gerçek `READY` durumuna taşımak.
 - Readiness tamamen geçmeden ücretli acceptance run başlatmamak ve gerçek YouTube publish yapmamak.
+- `npm run production:acceptance:readiness` ile gerçek makinede readiness-only raporunu almak.
 - Yeni provider veya pipeline geliştirmek yerine ilk acceptance run öncesi son production configuration/readiness geçişini tamamlamak.
 
 ---

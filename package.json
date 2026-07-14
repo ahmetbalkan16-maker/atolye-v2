@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "production:acceptance:readiness": "tsx scripts/run-production-acceptance.ts readiness-only",
+    "production:acceptance:execute": "tsx scripts/run-production-acceptance.ts execute",
+    "production:acceptance:resume": "tsx scripts/run-production-acceptance.ts resume-finalize"
   },
   "dependencies": {
     "next": "16.2.10",

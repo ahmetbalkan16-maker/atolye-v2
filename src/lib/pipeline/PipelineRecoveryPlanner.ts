@@ -11,6 +11,7 @@ import type {
   PipelineRecoveryPlan,
   PipelineRecoveryStageKey,
 } from "@/types/pipelineRecovery";
+import { readProductionAcceptancePolicy } from "@/lib/production/ProductionAcceptancePolicy";
 
 export const pipelineRecoveryStageOrder: readonly PipelineRecoveryStageKey[] = [
   "research",
@@ -259,6 +260,8 @@ async function isStageFileReady(
   if (stage === "video") return isCompatibleVideoData(data);
   if (stage === "youtube") {
     if (!isYouTubePublishingPackage(data)) return false;
+    const acceptancePolicy = await readProductionAcceptancePolicy(projectSlug);
+    if (acceptancePolicy?.youtubePublishMode === "package-only") return true;
     const [project, publish] = await Promise.all([
       ProjectManager.getProject(projectSlug),
       ProjectManager.getYouTubePublish(projectSlug),

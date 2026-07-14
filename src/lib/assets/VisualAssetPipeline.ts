@@ -185,7 +185,8 @@ function normalizeGenerationResult(
     !mimeType ||
     (hasFilePath && !filePath) ||
     (hasUrl && !url) ||
-    (!filePath && !url)
+    !filePath || !url ||
+    !hasFilePath || !hasUrl
   ) {
     return null;
   }

@@ -1,5 +1,6 @@
 export interface SceneItem {
   id: number;
+  chapterId?: number;
   title: string;
   description: string;
   visualPrompt?: string;

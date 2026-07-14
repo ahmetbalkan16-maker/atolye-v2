@@ -7,8 +7,11 @@ import {
 } from "./PipelineRecoveryPlanner";
 import {
   PipelineStageExecutor,
+  type PipelineExecutionState,
   type PipelineStageExecutionOptions,
 } from "./PipelineStageExecutor";
+import { readProductionAcceptancePolicy } from "@/lib/production/ProductionAcceptancePolicy";
+import { validateProductionAcceptancePreflight } from "@/lib/production/ProductionAcceptancePreflight";
 import { isPipelineStateError } from "./PipelineStateError";
 import type { ProductionPipelineExecutionAdapter } from "@/lib/production/ProductionPipelineExecutionAdapter";
 import type {
@@ -108,6 +111,24 @@ export class PipelineRunner {
         completedStages: [],
         blocked: true,
         reason: "Project could not be read.",
+        plan,
+      };
+    }
+    try {
+      const policy = await readProductionAcceptancePolicy(projectSlug);
+      validateStrictProductionResumeState(
+        state,
+        plan.startStage,
+        policy?.strictProductionAcceptance === true,
+      );
+    } catch {
+      return {
+        success: false,
+        projectSlug,
+        resumedFrom: plan.startStage,
+        completedStages: [],
+        blocked: true,
+        reason: "Strict production acceptance preflight failed.",
         plan,
       };
     }
@@ -681,6 +702,21 @@ export class PipelineRunner {
     const manifest = await ProjectManager.getManifest(projectSlug);
 
     return manifest?.packages[stage].status === "completed";
+  }
+}
+
+export function validateStrictProductionResumeState(
+  state: PipelineExecutionState,
+  startStage: PipelineRecoveryStageKey,
+  strictProductionAcceptance: boolean,
+) {
+  if (
+    strictProductionAcceptance &&
+    pipelineRecoveryStageOrder.indexOf(startStage) >
+      pipelineRecoveryStageOrder.indexOf("scenes")
+  ) {
+    if (!state.script || !state.scenes) throw new Error("Strict preflight failed.");
+    validateProductionAcceptancePreflight(state.script, state.scenes);
   }
 }
 

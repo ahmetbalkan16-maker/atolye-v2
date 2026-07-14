@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 127 — Production Animation Provider Activation (Completed)
+Sprint 128.2 — Production Acceptance P1 Hardening (Completed)
 
 Siradaki Planlama Adimi
 
-Sprint 128 — Production Environment and Provider Configuration Activation (Planning)
+Production Environment Binding and Readiness-Only Machine Validation (Planning)
 
-Sprint 127, mevcut motion-plan → FFmpeg scene-video → assembly mimarisini koruyarak gerçek OpenAI production motion-plan provider'ını etkinleştirdi. Animation readiness geçerli OpenAI yapılandırmasıyla `READY` üretebilir; mevcut environment/provider/runtime eksikleri nedeniyle overall readiness hâlâ `ready=false` ve ilk gerçek acceptance videosu üretilmedi. Sprint 128 yalnız production environment/provider yapılandırmasını aktive etmek ve ilk acceptance run öncesi readiness geçişini tamamlamak üzere Planning durumundadır.
+Sprint 128.2, bağımsız final review'de bulunan beş P1'i scope genişletmeden kapattı: idempotent completed finalize replay, strict resume preflight/legacy ayrımı, canonical finalizer registry doğrulaması, image assembly audio offset eşitliği ve non-strict/strict AI scene policy ayrımı. Mevcut environment/provider/runtime eksikleri nedeniyle overall readiness hâlâ `ready=false`; ücretli acceptance run ve gerçek YouTube publish yapılmadı. Sonraki adım production environment binding ve readiness-only gerçek makine doğrulamasıdır.
 
 ---
 
@@ -1634,6 +1634,38 @@ Planning
 - Readiness raporundaki `NOT_CONFIGURED` ve `BLOCKED` sonuçlarını gerçek `READY` durumuna taşımak.
 - Readiness tamamen geçmeden ücretli acceptance run başlatmamak ve gerçek YouTube publish yapmamak.
 - Bu sprint yeni provider veya pipeline geliştirme değil, ilk acceptance run öncesi production configuration activation ve son readiness geçişidir.
+
+---
+
+# Sprint 128.1
+
+## Production Acceptance P0 Closure and Operator Entrypoint
+
+Completed
+
+- `chapterId` geriye uyumlu biçimde scene ve assembly sözleşmesine eklendi; bir chapter birden fazla sıralı scene taşıyabilir. Her chapter dolu, scene/audio kimlikleri benzersiz ve bütün eşlemeler fail-closed olmak zorundadır.
+- Chapter WAV'ları scene duration oranlarıyla ardışık audio segmentlerine ayrılır; FFmpeg assembly her scene için deterministik offset/duration kullanır. Canonical scene-video ve assembly akışı korunur.
+- Strict acceptance script/chapter/scene duration preflight'i 60–120 saniye aralığı, 90 saniye hedefi, pozitif finite değer ve merkezi 5 saniye tolerans uygular; production asset çağrılarından önce durur.
+- OpenAI image yalnız bounded timeout/response limit, base64 physical storage, canonical local locator ve readback sonrasında production success sayılır; URL-only cevap reddedilir.
+- Acceptance CLI readiness-only, explicit-confirm execute ve mevcut acceptance slug'ı üzerinde resume-finalize modlarını sağlar. Marker identity/fingerprint, package-only, final FFprobe ve `published:false` korunur.
+- Sprint 128.1 smoke 20, Sprint 126 readiness, animation 21, scene-video 23 ve assembly 19 senaryo PASS; TypeScript, hedefli ESLint ve `git diff --check` PASS.
+- Gerçek ücretli provider çağrısı, acceptance videosu veya YouTube publish yapılmadı. Sonraki adım production environment binding ve readiness-only gerçek makine doğrulamasıdır.
+
+---
+
+# Sprint 128.2
+
+## Production Acceptance P1 Hardening
+
+Completed
+
+- Completed acceptance replay pipeline resume çağrısını atlar ve mevcut run'ı yeniden doğrulayarak idempotent finalize eder.
+- Strict acceptance resume, scenes sonrası recovery'de preflight'i yeniden uygular ve assembly'ye explicit strict policy aktararak legacy mapping'i kapatır.
+- Finalizer video/thumbnail registry tekilliği, generated/type/project/slug, canonical locator, thumbnail readback ve YouTube package kimliklerini doğrular.
+- Image fallback FFmpeg assembly, chapter audio start/end offset ve PTS reset sözleşmesini scene-video yolu ile eşitler.
+- Non-strict scene prompt/parsing opening/chapter/closing ve eski chapterId'siz JSON davranışını korur; strict policy chapter ownership zorunluluğunu sürdürür.
+- Sprint 128.2 smoke 30, Sprint 126 readiness, animation 21, scene-video 23 ve assembly 19 senaryo PASS; TypeScript ve hedefli ESLint PASS.
+- Yeni provider, pipeline veya mimari eklenmedi. Gerçek ücretli provider çağrısı, acceptance videosu, publish, commit veya push yapılmadı.
 
 ---
 

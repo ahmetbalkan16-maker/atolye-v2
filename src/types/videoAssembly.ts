@@ -3,8 +3,10 @@ export type VideoAssemblyProviderName = "mock" | "ffmpeg";
 export interface VideoAssemblyLegacySceneInput {
   inputType: "image";
   sceneId: number;
+  chapterId?: number;
   imageFilePath: string;
   audioFilePath: string;
+  audioStartSeconds?: number;
   durationSeconds: number;
 }
 
@@ -18,6 +20,8 @@ export interface VideoAssemblySceneVideoInput {
   url: string;
   durationSeconds: number;
   narrationDurationSeconds: number;
+  chapterId?: number;
+  audioStartSeconds?: number;
   byteLength: number;
   provider: "ffmpeg";
   generationMode: "production";

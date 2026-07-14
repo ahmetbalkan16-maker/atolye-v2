@@ -9,7 +9,10 @@ import { AudioStorage } from "@/lib/assets/storage/AudioStorage";
 import { VideoStorage } from "@/lib/assets/storage/VideoStorage";
 import { ThumbnailStorage } from "@/lib/thumbnail/ThumbnailStorage";
 import { FileStorage } from "@/lib/storage/FileStorage";
-import { resolveImageProviderName } from "@/lib/assets/providers/ImageProviderConfig";
+import {
+  getOpenAIImageProviderConfig,
+  resolveImageProviderName,
+} from "@/lib/assets/providers/ImageProviderConfig";
 import { AudioProviderRouter } from "@/lib/audio/providers/AudioProviderRouter";
 import {
   getOpenAIAudioProviderConfig,
@@ -195,6 +198,7 @@ export class ProductionReadinessService {
         return check("model-configuration", "INVALID", "AI_CONFIG_SNAPSHOT_MISMATCH");
       }
       getOpenAIAudioProviderConfig();
+      getOpenAIImageProviderConfig(this.environment);
       const expectedYouTubeModel = readValue(this.environment.YOUTUBE_OPENAI_MODEL) ?? "gpt-4.1-mini";
       if (
         !safeConfig(youtubeProviderConfig.openai.model) ||

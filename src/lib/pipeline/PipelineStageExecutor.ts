@@ -54,6 +54,10 @@ import type { VideoData } from "@/types/video";
 import type { VisualData } from "@/types/visual";
 import type { YouTubePublishingPackage } from "@/types/youtube";
 import { readProductionAcceptancePolicy } from "@/lib/production/ProductionAcceptancePolicy";
+import {
+  validateProductionAcceptancePreflight,
+  validateProductionAcceptanceScriptDuration,
+} from "@/lib/production/ProductionAcceptancePreflight";
 
 export type PipelineExecutionState = {
   project: Project;
@@ -181,6 +185,9 @@ export class PipelineStageExecutor {
           stage: "script",
           operation: "script",
         }, options.aiProvider, generationPolicy);
+        if (persistedPolicy?.strictProductionAcceptance) {
+          validateProductionAcceptanceScriptDuration(state.script);
+        }
         return this.persistStageResult(projectSlug, stage, () =>
           ProjectManager.saveScript(projectSlug, state.script),
         );
@@ -192,6 +199,9 @@ export class PipelineStageExecutor {
           stage: "scenes",
           operation: "scenes",
         }, options.aiProvider, generationPolicy);
+        if (persistedPolicy?.strictProductionAcceptance) {
+          validateProductionAcceptancePreflight(script, state.scenes);
+        }
         return this.persistStageResult(projectSlug, stage, () =>
           ProjectManager.saveScenes(projectSlug, state.scenes),
         );
@@ -333,6 +343,8 @@ export class PipelineStageExecutor {
           animation,
           video,
           provider: options.videoAssemblyProvider,
+          strictProductionAcceptance:
+            persistedPolicy?.strictProductionAcceptance === true,
         });
         try {
           return await this.persistStageResult(projectSlug, stage, () =>

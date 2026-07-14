@@ -6,6 +6,8 @@ export type AssemblyStatus =
 export interface AssemblyScene {
   sceneId: number;
 
+  chapterId?: number;
+
   duration: string;
 
   visualReference: string;

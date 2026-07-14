@@ -25,6 +25,33 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 128.2 — Production Acceptance P1 Hardening
+
+Completed
+
+- Completed acceptance run replay'i, completed recovery planında `PipelineRunner.resume()` çağırmadan mevcut marker ve final state'i yeniden doğrular. Marker validation idempotent, `productionReady:true` ve `published:false` sözleşmesi korunur.
+- Strict marker taşıyan resume, scenes sonrasındaki recovery başlangıcında production duration/identity preflight'ini yeniden uygular. Assembly explicit strict policy alır; legacy chapterId'siz fallback strict acceptance içinde kapalıdır.
+- Finalizer assembly video ve thumbnail registry kayıtlarının tekilliğini, generated durumunu, doğru asset tipini, project/slug kimliğini, canonical path/URL'yi, thumbnail physical readback'i ve YouTube package ID eşleşmesini doğrular.
+- Image fallback assembly input'una chapter audio offset eklendi; FFmpeg image ve scene-video yolları `atrim start/end`, segment duration ve PTS reset davranışını paylaşır.
+- AI scene prompt/parsing policy üzerinden ayrıldı. Non-strict pipeline eski opening/chapter/closing ve chapterId'siz JSON uyumluluğunu; strict acceptance chapter ownership ve identity zorunluluğunu korur.
+- Sprint 128.2 P1 hardening smoke PASS — 30; Sprint 126 readiness/acceptance PASS; animation motion-plan PASS — 21; production scene-video PASS — 23; production assembly PASS — 19; TypeScript ve hedefli ESLint PASS.
+- Yeni özellik, mimari veya provider eklenmedi. Gerçek ücretli provider çağrısı, acceptance run, YouTube publish, commit veya push yapılmadı.
+
+## Sprint 128.1 — Production Acceptance P0 Closure and Operator Entrypoint
+
+Completed
+
+- Scene ve assembly veri modelleri geriye uyumlu `chapterId` alanıyla genişletildi. Production acceptance; deterministik chapter sırası, her chapter için en az bir scene, bilinen chapter sahipliği ve benzersiz scene/audio kimlikleri uygular. Kalıcı chapter = scene eşitliği kurulmadı; bir chapter birden fazla scene taşıyabilir.
+- `ProductionAcceptancePreflight`, script/chapter/scene duration değerlerini production asset çağrılarından önce doğrular. Toplam 60–120 saniye, hedef 90 saniye, pozitif finite değerler ve merkezi 5 saniye tolerans zorunludur; stabil `PRODUCTION_DURATION_PREFLIGHT_FAILED` ve `PRODUCTION_SCENE_MAPPING_INVALID` kodları kullanılır.
+- `VideoAssemblyManager`, chapter audio asset'ini aynı chapter'a ait sıralı scene'lere planlanan süre oranıyla deterministik offset/segment olarak bağlar. FFmpeg provider `atrim` başlangıç/bitiş değerleriyle WAV'ı tekrar başlatmadan scene videolarıyla birleştirir. Legacy chapterId'siz bire-bir fixture sözleşmesi korunur.
+- OpenAI image provider'a bounded timeout ve response-byte limiti eklendi. Production success yalnız base64 image'ın project-contained `ImageStorage` alanına yazılması, canonical filePath/local URL ve physical readback sonrasında üretilir; URL-only cevap ile raw provider/response error reddedilir.
+- Acceptance fingerprint'ine image timeout/response-limit alanları eklendi ve readiness aynı config doğrulamasını kullanır.
+- `ProductionAcceptanceOrchestrator` readiness evaluation, yeni execute ve mevcut slug üzerinde resume/finalize olarak ayrıldı. Marker runId → canonical slug identity, config fingerprint, stored project ve package-only policy yeniden doğrulanır. Final FFprobe, bütün job'lar ve video/thumbnail package referansları geçmeden `productionReady:true` yazılmaz.
+- `scripts/run-production-acceptance.ts` ve package komutları eklendi: readiness-only, explicit-confirm execute ve explicit-confirm resume-finalize. Raporlar secret içermez; güvenli project slug ve stabil error code üretir.
+- Package-only acceptance recovery geçerli YouTube paketini publish record gerektirmeden ready kabul eder; gerçek upload/publish ve published state yazımı yapılmaz.
+- Doğrulamalar: Sprint 128.1 smoke PASS — 20; Sprint 126 readiness/acceptance PASS; animation motion-plan PASS — 21; production scene-video PASS — 23; production assembly PASS — 19; `npx tsc --noEmit --incremental false` PASS; hedefli ESLint PASS; `git diff --check` PASS.
+- Mevcut makinede production environment/provider/API key/FFmpeg/FFprobe binding yapılmadığı için readiness `ready=false`; ücretli acceptance run ve ilk gerçek video henüz çalıştırılmadı. Sonraki adım production environment binding ve readiness-only gerçek makine doğrulamasıdır. Commit veya push yapılmadı.
+
 ## Sprint 127 — Production Animation Provider Activation
 
 Completed

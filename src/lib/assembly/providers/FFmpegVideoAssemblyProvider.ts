@@ -340,6 +340,8 @@ function validateInput(input: VideoAssemblyInput) {
       ids.has(scene.sceneId) ||
       !Number.isFinite(scene.durationSeconds) ||
       scene.durationSeconds <= 0 ||
+      (scene.audioStartSeconds !== undefined &&
+        (!Number.isFinite(scene.audioStartSeconds) || scene.audioStartSeconds < 0)) ||
       !isSafeInputPath(
         scene.audioFilePath,
         AudioStorage.getAudioDir(input.projectSlug),
@@ -428,6 +430,8 @@ function buildFFmpegArgs(
   input.scenes.forEach((scene, index) => {
     if (scene.inputType !== "image") throw new Error(SAFE_ERROR);
     const duration = scene.durationSeconds.toFixed(6);
+    const audioStartSeconds = audioStart(scene).toFixed(6);
+    const audioEndSeconds = (audioStart(scene) + scene.durationSeconds).toFixed(6);
     const imageIndex = index * 2;
     const audioIndex = imageIndex + 1;
     args.push(
@@ -444,7 +448,7 @@ function buildFFmpegArgs(
     );
     filters.push(
       `[${imageIndex}:v]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease,pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2,fps=${FPS},format=yuv420p,trim=duration=${duration},setpts=PTS-STARTPTS[v${index}]`,
-      `[${audioIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,atrim=duration=${duration},asetpts=PTS-STARTPTS[a${index}]`,
+      `[${audioIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,atrim=start=${audioStartSeconds}:end=${audioEndSeconds},atrim=duration=${duration},asetpts=PTS-STARTPTS[a${index}]`,
     );
     concatInputs.push(`[v${index}][a${index}]`);
   });
@@ -535,8 +539,10 @@ function buildCopyConcatArgs(
   input.scenes.forEach((scene, index) => {
     args.push("-i", absoluteInput(scene.audioFilePath));
     const duration = narrationDuration(scene).toFixed(6);
+    const start = audioStart(scene).toFixed(6);
+    const end = (audioStart(scene) + narrationDuration(scene)).toFixed(6);
     audioLabels.push(
-      `[${index + 1}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,atrim=duration=${duration},asetpts=PTS-STARTPTS[a${index}]`,
+      `[${index + 1}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,atrim=start=${start}:end=${end},atrim=duration=${duration},asetpts=PTS-STARTPTS[a${index}]`,
     );
   });
   audioLabels.push(
@@ -560,11 +566,13 @@ function buildRetimedConcatArgs(input: VideoAssemblyInput, outputPath: string) {
     const videoIndex = index * 2;
     const audioIndex = videoIndex + 1;
     const duration = scene.narrationDurationSeconds.toFixed(6);
+    const audioStartSeconds = audioStart(scene).toFixed(6);
+    const audioEndSeconds = (audioStart(scene) + scene.narrationDurationSeconds).toFixed(6);
     const padding = Math.max(0, scene.narrationDurationSeconds - scene.durationSeconds).toFixed(6);
     args.push("-i", absoluteInput(scene.filePath), "-i", absoluteInput(scene.audioFilePath));
     filters.push(
       `[${videoIndex}:v]tpad=stop_mode=clone:stop_duration=${padding},trim=duration=${duration},setpts=PTS-STARTPTS,fps=${FPS},format=yuv420p[v${index}]`,
-      `[${audioIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,atrim=duration=${duration},asetpts=PTS-STARTPTS[a${index}]`,
+      `[${audioIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,atrim=start=${audioStartSeconds}:end=${audioEndSeconds},atrim=duration=${duration},asetpts=PTS-STARTPTS[a${index}]`,
     );
     concatInputs.push(`[v${index}][a${index}]`);
   });
@@ -582,6 +590,10 @@ function narrationDuration(scene: VideoAssemblyInput["scenes"][number]) {
   return scene.inputType === "scene-video"
     ? scene.narrationDurationSeconds
     : scene.durationSeconds;
+}
+
+function audioStart(scene: VideoAssemblyInput["scenes"][number]) {
+  return scene.audioStartSeconds ?? 0;
 }
 
 function expectedOutputDuration(input: VideoAssemblyInput) {

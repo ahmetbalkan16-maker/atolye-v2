@@ -19,6 +19,10 @@ import type { VideoData, VideoScene } from "@/types/video";
 import type { VideoAssemblyInput, VideoAssemblyResult } from "@/types/videoAssembly";
 import type { VisualData } from "@/types/visual";
 import type { VideoAssemblyProvider } from "./providers/VideoAssemblyProvider";
+import {
+  allocateProductionSceneAudioSegments,
+  validateProductionSceneAudioMapping,
+} from "@/lib/production/ProductionAcceptancePreflight";
 import { VideoAssemblyProviderRouter } from "./providers/VideoAssemblyProviderRouter";
 
 const SAFE_ERROR = "Video assembly failed.";
@@ -50,6 +54,7 @@ export interface RenderExistingAssetsInput {
   animation?: AnimationData | null;
   video?: VideoData | null;
   provider?: VideoAssemblyProvider;
+  strictProductionAcceptance?: boolean;
 }
 
 export class VideoAssemblyManager {
@@ -63,12 +68,19 @@ export class VideoAssemblyManager {
     animation,
     video,
     provider,
+    strictProductionAcceptance = false,
   }: RenderExistingAssetsInput): Promise<AssemblyPlanData> {
     const selected = provider ?? VideoAssemblyProviderRouter.getProvider();
     const providerName = getProviderName(selected);
 
     try {
-      validateIdentitySets(scenes, visuals, audio, assembly);
+      validateIdentitySets(
+        scenes,
+        visuals,
+        audio,
+        assembly,
+        strictProductionAcceptance,
+      );
     } catch {
       throw new VideoAssemblyError();
     }
@@ -105,6 +117,13 @@ export class VideoAssemblyManager {
 
     try {
       const sceneVideo = resolveSceneVideoData(video);
+      const audioSegments = buildAudioSegments(
+        scenes,
+        audio,
+        assets.assets,
+        projectId,
+        projectSlug,
+      );
 
       if (sceneVideo) {
         if (!isAnimationMotionPlanData(animation)) {
@@ -121,12 +140,13 @@ export class VideoAssemblyManager {
 
       renderScenes = scenes.scenes.map((scene) => {
         const sceneId = scene.id;
-        const section = audio.sections.find((item) => item.chapterId === sceneId);
+        const segment = audioSegments.get(sceneId);
+        const section = segment?.section;
         const assemblyScene = assembly.scenes.find(
           (item) => item.sceneId === sceneId,
         );
 
-        if (!section || !assemblyScene) {
+        if (!section || !segment || !assemblyScene) {
           throw new VideoAssemblyError();
         }
 
@@ -134,7 +154,7 @@ export class VideoAssemblyManager {
           assets.assets,
           projectId,
           projectSlug,
-          sceneId,
+          segment.chapterId,
           section,
         );
 
@@ -163,7 +183,9 @@ export class VideoAssemblyManager {
             motionPlan,
             assemblyScene,
             audioFilePath: audioAsset.filePath as string,
-            narrationDurationSeconds: audioAsset.durationSeconds as number,
+            narrationDurationSeconds: segment.durationSeconds,
+            chapterId: segment.chapterId,
+            audioStartSeconds: segment.startSeconds,
           });
         }
 
@@ -177,9 +199,11 @@ export class VideoAssemblyManager {
         return {
           inputType: "image" as const,
           sceneId,
+          chapterId: segment.chapterId,
           imageFilePath: image.filePath as string,
           audioFilePath: audioAsset.filePath as string,
-          durationSeconds: audioAsset.durationSeconds as number,
+          audioStartSeconds: segment.startSeconds,
+          durationSeconds: segment.durationSeconds,
         };
       });
 
@@ -278,19 +302,75 @@ function validateIdentitySets(
   visuals: VisualData,
   audio: AudioData,
   assembly: AssemblyPlanData,
+  strictProductionAcceptance: boolean,
 ) {
   const canonical = requireIds(scenes?.scenes, (value) => value?.id);
   const visualIds = requireIds(visuals?.scenes, (value) => value?.sceneId);
-  const audioIds = requireIds(audio?.sections, (value) => value?.chapterId);
   const assemblyIds = requireIds(assembly?.scenes, (value) => value?.sceneId);
 
   if (
     !sameIds(canonical, visualIds) ||
-    !sameIds(canonical, audioIds) ||
     !sameIds(canonical, assemblyIds)
   ) {
     throw new VideoAssemblyError();
   }
+  const chapterMappingPresent = scenes.scenes.some((scene) => scene.chapterId !== undefined);
+  if (!strictProductionAcceptance && !chapterMappingPresent) {
+    const audioIds = requireIds(audio?.sections, (value) => value?.chapterId);
+    if (!sameIds(canonical, audioIds)) throw new VideoAssemblyError();
+  } else {
+    if (scenes.scenes.some((scene) => scene.chapterId === undefined)) {
+      throw new VideoAssemblyError();
+    }
+    try {
+      validateProductionSceneAudioMapping(scenes, audio, assembly);
+    } catch {
+      throw new VideoAssemblyError();
+    }
+  }
+}
+
+function buildAudioSegments(
+  scenes: SceneData,
+  audio: AudioData,
+  assets: Asset[],
+  projectId: string,
+  projectSlug: string,
+) {
+  const result = new Map<number, {
+    chapterId: number;
+    section: AudioSection;
+    startSeconds: number;
+    durationSeconds: number;
+  }>();
+  const sections = new Map<number, AudioSection>();
+  const durations = new Map<number, number>();
+  for (const section of audio.sections) {
+    if (sections.has(section.chapterId)) throw new VideoAssemblyError();
+    sections.set(section.chapterId, section);
+  }
+  for (const [chapterId, section] of sections) {
+    const asset = requireAudioAsset(
+      assets,
+      projectId,
+      projectSlug,
+      chapterId,
+      section,
+    );
+    durations.set(chapterId, asset.durationSeconds as number);
+  }
+  let segments: ReturnType<typeof allocateProductionSceneAudioSegments>;
+  try {
+    segments = allocateProductionSceneAudioSegments(scenes, durations);
+  } catch {
+    throw new VideoAssemblyError();
+  }
+  for (const [sceneId, segment] of segments) {
+    const section = sections.get(segment.chapterId);
+    if (!section) throw new VideoAssemblyError();
+    result.set(sceneId, { ...segment, section });
+  }
+  return result;
 }
 
 function requireIds<T>(
@@ -391,6 +471,8 @@ function requireSceneVideoInput({
   assemblyScene,
   audioFilePath,
   narrationDurationSeconds,
+  chapterId,
+  audioStartSeconds,
 }: {
   assets: Asset[];
   projectId: string;
@@ -401,6 +483,8 @@ function requireSceneVideoInput({
   assemblyScene: AssemblyPlanData["scenes"][number];
   audioFilePath: string;
   narrationDurationSeconds: number;
+  chapterId: number;
+  audioStartSeconds: number;
 }): VideoAssemblyInput["scenes"][number] {
   if (
     !isSceneVideoScene(videoScene) ||
@@ -517,6 +601,8 @@ function requireSceneVideoInput({
     url: videoScene.url,
     durationSeconds: videoScene.durationSeconds,
     narrationDurationSeconds,
+    chapterId,
+    audioStartSeconds,
     byteLength: videoScene.byteLength,
     provider: "ffmpeg",
     generationMode: "production",
