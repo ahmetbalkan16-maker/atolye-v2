@@ -47,27 +47,26 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 119**
+**Sprint 120**
 
-Pipeline Retry Continuation Hardening
+Production Thumbnail Pipeline Activation
 
 **Durum**
 
 Completed
 
-Sprint 119 Pipeline Retry Continuation Hardening tamamlandi. Sonraki sprint yalniz Planning durumundadir ve kapsami ayri onaylanacaktir.
+Sprint 120 Production Thumbnail Pipeline Activation tamamlandı. Sonraki sprint yalnız Planning durumundadır ve kapsamı ayrıca onaylanacaktır.
 
 Not:
 
-- Retry sonrasinda `research -> script -> scenes -> visuals -> animation -> video -> audio -> assembly` akisi bounded ve non-recursive dispatcher ile devam eder. `continueProject()` cagri basina en fazla tek stage calistirma sozlesmesini korur.
-- Dispatcher her iterasyonda kalici job durumunu yeniden okur; success, no-op, conflict, failure, blocked, terminal ve iterasyon sinirlarinda guvenli durur.
-- Standalone continuation ve retry ayni dispatcher/lifecycle kurallarini kullanir. Draining, stopped ve failed lifecycle durumlarinda yeni continuation kabul edilmez.
-- Drain aktif isi bekler; sonraki queued stage kalici ve yeniden calistirilabilir kalir. Dispatcher hatasi tamamlanmis retry stage'ini geri almaz.
-- Final review'de eszamanli dispatcher'larin assembly sinirini gecerek thumbnail calistirmasina yol acan P1 yarisi giderildi. Acik P0/P1/P2/P3 bulgu yoktur.
-- Merkezi stage sirasi ve dependency modeli degistirilmedi; ikinci orchestrator veya yeni kalici kaynak olusturulmadi.
-- Restart recovery icin cron/polling eklenmedi; mevcut durable job kayitlari uzerinden sonraki dispatch/recovery tetiklemesinde devam edilir.
-- Sprint 119 smoke PASS (22 senaryo); Sprint 118-113 regresyonlari PASS; pipeline orchestration PASS (10); auto-continuation PASS (18); durable execution PASS (17); durable wiring PASS (19); worker lifecycle PASS (16).
-- Runtime startup/status/health regresyonlari PASS. TypeScript PASS; ESLint PASS; `git diff --check` PASS.
+- Sprint 45'ten kalan plan-only thumbnail foundation genişletildi; mevcut `ThumbnailProvider`, router ve `ThumbnailEngine` korundu. Gerçek asset üretimi `ThumbnailAssetPipeline` üzerinden mevcut thumbnail stage'e bağlandı; paralel sistem kurulmadı.
+- Kalıcı asset kaydı `AssetManager`, stage/manifest/project persistence ise mevcut `ProjectManager` ve `PipelineJobManager` akışlarıyla yapılır.
+- Merkezi stage sırası ve dependency graph ile `PipelineRunner`, continuation dispatcher, retry, durable execution, recovery ve worker lifecycle değiştirilmedi.
+- Thumbnail failure stage'i failed yapar, SEO'yu başlatmaz ve completed assembly'yi korur. Retry assembly'yi yeniden çalıştırmaz.
+- Provider contract, storage locator/URL/identity invariant'ları, raster byte yapısı ve route readback fail-closed doğrulanır; mock fiziksel ve deterministik 1280×720 PNG üretir.
+- Persistence failure compensation/reconciliation ile generated kayıt failed durumuna çekilir, locator'ları temizlenir ve dosyası kaldırılır. Retry stale kayıtları uzlaştırır; concurrent continuation tek claim/provider çağrısı/generated asset üretir.
+- Final review: P0 yok, P1 yok. Üç non-blocking P2 ve bounded structural raster parser için bir P3 takip kaydedildi.
+- Sprint 120 thumbnail smoke PASS (42); Sprint 119 PASS (22); ilgili Sprint 118-113, orchestration, auto-continuation ve durable regresyonları PASS. TypeScript, tam ESLint (0 warning), `git diff --check` ve fixture cleanup PASS.
 
 ---
 
@@ -83,7 +82,7 @@ bec4962
 
 Durum
 
-Sprint 119 tamamlandi. Sprint 119 degisiklikleri ve dokumantasyon kapanisi henuz commit/push edilmedi. Sonraki sprint yalniz Planning durumundadir.
+Sprint 120 tamamlandı. Sprint 120 değişiklikleri ve dokümantasyon kapanışı henüz commit/push edilmedi. Sonraki sprint yalnız Planning durumundadır.
 
 ---
 
@@ -2467,6 +2466,28 @@ Completed
 - Sprint 119 smoke PASS (22 senaryo); Sprint 118-113 regresyonları PASS; pipeline orchestration PASS (10); auto-continuation PASS (18); durable execution PASS (17); durable wiring PASS (19); worker lifecycle PASS (16).
 - Runtime startup/status/health regresyonları PASS. TypeScript PASS; ESLint PASS; `git diff --check` PASS.
 - Dokümantasyon kapanışı tamamlandı; commit veya push yapılmadı. Sonraki sprint yalnız Planning durumundadır.
+
+### Sprint 120 — Production Thumbnail Pipeline Activation
+
+Completed
+
+- Sprint 45'ten kalan mevcut plan-only thumbnail foundation genişletildi; paralel thumbnail sistemi kurulmadı. Mevcut `ThumbnailProvider` ve router korundu, `ThumbnailEngine` plan üretmeye devam ederken gerçek asset üretimi `ThumbnailAssetPipeline` üzerinden mevcut thumbnail stage'e bağlandı.
+- Kalıcı asset kaydı mevcut `AssetManager` ile yapılır. Stage, manifest ve project persistence mevcut `ProjectManager` ve `PipelineJobManager` akışlarını kullanır.
+- Merkezi stage sırası, dependency graph, `PipelineRunner`, continuation dispatcher, retry, durable execution, recovery ve worker lifecycle değiştirilmedi. Thumbnail başarısızlığında stage failed olur, SEO başlamaz, assembly completed kalır ve retry assembly'yi yeniden çalıştırmaz.
+- Discriminated provider result içindeki `assetId`, `fileName`, `filePath`, URL, MIME, width, height, byteLength, provider, model, generationMode, status ve `createdAt` doğrulanır. `assetId` ↔ `fileName` ↔ `filePath` ↔ URL ↔ MIME exact invariant'ları korunur.
+- Mock provider deterministik, fiziksel ve geçerli 1280×720 PNG üretir. Production provider sonucu da aynı contract ve doğrulama hattından geçer.
+- Storage katmanında PNG/JPEG/WebP MIME allowlist'i, MIME–uzantı–gerçek byte signature uyumu, exact storage path/public URL eşleşmesi, path containment, root/parent güvenliği ve symlink/junction kaçışı fail-closed doğrulanır.
+- Publish temporary file + fsync + atomic hard-link ile yapılır; collision mevcut final dosyayı overwrite etmez ve temp/collision cleanup uygulanır. Route readback realpath üzerinden ikinci kez doğrulanır; encoded traversal, Windows separator ve root escape reddedilir. Ham filesystem/provider hataları API yüzeyine sızdırılmaz.
+- Raster doğrulaması 64 MiB ve width/height 16.384 üst sınırlarıyla bounded çalışır. PNG chunk sınırları ve CRC, JPEG SOI/SOF/EOI, WebP container/dimension yapısı doğrulanır; dimensions fiziksel byte yapısından okunur.
+- Fiziksel dosya sonrası `AssetManager`, thumbnail, manifest veya job persistence hataları için compensation/reconciliation uygulanır. Thumbnail yolları `assets.json` atomic registry metotlarını, `thumbnail.json` ise mevcut atomic `ProjectWriter` helper'ını kullanır.
+- Geç persistence failure generated asset'i failed durumuna çeker, locator'larını temizler ve fiziksel dosyayı kaldırır. Retry başlangıcı stale generated kayıtları uzlaştırır; production retry yeni kimlik üretse dahi eski orphan'ı kullanmaz.
+- Retry sonunda registry'de yalnız bir generated thumbnail, diskte yalnız onun dosyası ve `thumbnail.json` içinde yalnız onun `outputAssetId` değeri kalır. Eşzamanlı continuation doğrulamasında tek claim, tek provider çağrısı ve tek generated asset oluşur.
+- Final review'de altı P1 giderildi: direct write'ın partial file bırakması; geç persistence failure sonrası registry/fiziksel orphan; `assets.json`/`thumbnail.json` direct overwrite; güvenilmeyen storage root sonrası secondary failed-asset yazımı; eksik OpenAI timeout/abort/response-size sınırları; route containment sonrası farklı dosya okuma yarışı.
+- Final review sonucu P0 yok, P1 yok. Non-blocking P2 takipleri: fiziksel dosya/registry/thumbnail/manifest/job tek transaction değildir ve eşzamanlı bağımsız filesystem arızalarında canonical olmayan byte orphan kalabilir; durable adapter kapalı çok-process kullanımda `PipelineJobManager` kilidi process-localdır; gerçek OpenAI credential/live E2E çalıştırılmadı, fake/injected provider ile timeout, response ve contract doğrulandı.
+- P3 takip: PNG/JPEG/WebP doğrulaması bounded structural parser'dır, tam raster decoder değildir.
+- Doğrulamalar: Sprint 120 thumbnail 42/42; Sprint 119 retry continuation 22/22; auto-continuation 18/18; pipeline orchestration 10/10; Sprint 118 19/19; Sprint 117 23/23; Sprint 116 21/21; Sprint 115 46/46; Sprint 114 74/74; Sprint 113 54/54; durable execution 17/17; durable wiring 19/19 PASS. TypeScript PASS; tam repository ESLint PASS (0 warning); `git diff --check` PASS; fixture cleanup temiz.
+- Açık takipler: credential bulunan kontrollü ortamda gerçek OpenAI PNG üretimi ve route üzerinden canlı readback; tüm asset türleri için ortak atomic registry API değerlendirmesi; distributed claim kapalı çok-process kurulumlar için genel mimari hardening.
+- Dokümantasyon kapanışı tamamlandı; commit veya push yapılmadı. Sonraki sprint yalnız Planning durumundadır ve uygulamasına başlanmadı.
 
 Bu belge mümkün olduğunca kısa tutulmalıdır.
 

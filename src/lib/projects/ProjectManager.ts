@@ -269,7 +269,7 @@ export class ProjectManager {
   }
 
   static async saveThumbnail(slug: string, thumbnail: unknown) {
-    await ProjectWriter.writeJSON(slug, "thumbnail.json", thumbnail);
+    await ProjectWriter.writeJSONAtomically(slug, "thumbnail.json", thumbnail);
     await this.updatePackageStatus(slug, "thumbnail", "completed");
   }
 

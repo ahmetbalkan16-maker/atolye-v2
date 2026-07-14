@@ -29,6 +29,24 @@ export class FileStorage {
     return data;
   }
 
+  static saveJsonAtomically(relativePath: string, data: unknown) {
+    const filePath = resolvePath(relativePath);
+    ensureDir(filePath);
+    const temporaryPath = path.join(
+      path.dirname(filePath),
+      `.${path.basename(filePath)}.${process.pid}.${crypto.randomUUID()}.tmp`,
+    );
+
+    try {
+      fs.writeFileSync(temporaryPath, JSON.stringify(data, null, 2), "utf-8");
+      fs.renameSync(temporaryPath, filePath);
+      return data;
+    } catch (error) {
+      try { fs.rmSync(temporaryPath, { force: true }); } catch { /* best effort */ }
+      throw error;
+    }
+  }
+
   static loadJson<T>(relativePath: string): T | null {
     const filePath = resolvePath(relativePath);
 

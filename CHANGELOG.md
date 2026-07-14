@@ -25,6 +25,27 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 120 — Production Thumbnail Pipeline Activation
+
+Completed
+
+- Sprint 45'ten kalan plan-only thumbnail foundation genişletildi; mevcut `ThumbnailProvider` ve router korundu, `ThumbnailEngine` plan üretmeye devam etti ve gerçek asset üretimi `ThumbnailAssetPipeline` üzerinden mevcut thumbnail stage'e bağlandı. Paralel thumbnail sistemi kurulmadı.
+- Kalıcı asset kaydı mevcut `AssetManager`; stage, manifest ve project persistence mevcut `ProjectManager` ve `PipelineJobManager` akışlarıyla yapıldı. Merkezi stage sırası/dependency graph, `PipelineRunner`, continuation dispatcher, retry, durable execution, recovery ve worker lifecycle değiştirilmedi.
+- Thumbnail failure stage'i failed yaptı, SEO'yu başlatmadı ve assembly'yi completed bıraktı. Retry assembly'yi yeniden çalıştırmadı.
+- Discriminated provider result içinde `assetId`, `fileName`, `filePath`, URL, MIME, width, height, byteLength, provider, model, generationMode, status ve `createdAt` doğrulandı. `assetId` ↔ `fileName` ↔ `filePath` ↔ URL ↔ MIME exact invariant'ları korundu.
+- Mock provider deterministik, fiziksel ve geçerli 1280×720 PNG üretti; production provider sonucu aynı contract ve doğrulama hattından geçti.
+- PNG/JPEG/WebP MIME allowlist'i, MIME–uzantı–signature uyumu, exact path/URL, containment, root/parent ve symlink/junction güvenliği fail-closed uygulandı. Temporary file + fsync + atomic hard-link publish collision overwrite'ini engelledi ve cleanup sağladı.
+- Route readback realpath üzerinden tekrar doğrulandı; encoded traversal, Windows separator ve root escape reddedildi. Ham filesystem/provider hataları API yüzeyine sızdırılmadı.
+- Raster doğrulamasına 64 MiB ve 16.384 dimension sınırları eklendi. PNG chunk/CRC, JPEG SOI/SOF/EOI ve WebP container/dimension yapısı doğrulandı; dimensions fiziksel byte'lardan okundu.
+- Fiziksel write sonrası `AssetManager`, thumbnail, manifest veya job persistence failure'ları için compensation/reconciliation eklendi. Thumbnail yolları `assets.json` atomic registry metotlarını, `thumbnail.json` mevcut atomic `ProjectWriter` helper'ını kullanır.
+- Late persistence failure generated kaydı failed durumuna çekti, locator'ları temizledi ve dosyayı kaldırdı. Retry stale generated kayıtları uzlaştırdı; yeni production identity eski orphan'ı kullanmadı.
+- Retry sonunda tek generated thumbnail kaydı, yalnız onun disk dosyası ve eşleşen `thumbnail.json.outputAssetId` kaldı. Concurrent continuation tek claim, tek provider çağrısı ve tek generated asset ile doğrulandı.
+- Final review'de altı P1 giderildi: partial file bırakabilen direct write; late persistence registry/fiziksel orphan; `assets.json`/`thumbnail.json` direct overwrite; untrusted storage root sonrası secondary failed-asset write; eksik OpenAI timeout/abort/response-size bounds; route post-containment farklı dosya okuma yarışı.
+- Final review sonucu P0 yok, P1 yok. Non-blocking P2: çoklu persistence tek transaction değildir ve eşzamanlı bağımsız filesystem arızalarında canonical olmayan byte orphan kalabilir; durable adapter kapalı çok-process `PipelineJobManager` kilidi process-localdır; gerçek OpenAI credential/live E2E çalışmadı, fake/injected provider ile timeout/response/contract doğrulandı. P3: raster kontrolü bounded structural parser'dır, tam decoder değildir.
+- Sprint 120 thumbnail 42/42; Sprint 119 retry continuation 22/22; auto-continuation 18/18; pipeline orchestration 10/10; Sprint 118 19/19; Sprint 117 23/23; Sprint 116 21/21; Sprint 115 46/46; Sprint 114 74/74; Sprint 113 54/54; durable execution 17/17; durable wiring 19/19 PASS. TypeScript PASS; tam repository ESLint PASS (0 warning); `git diff --check` PASS; fixture cleanup temiz.
+- Açık takipler: credential bulunan kontrollü ortamda gerçek OpenAI PNG üretimi ve route live readback; tüm asset türleri için ortak atomic registry API değerlendirmesi; distributed claim kapalı çok-process kurulumlar için genel mimari hardening.
+- Dokümantasyon kapanışı tamamlandı; commit veya push yapılmadı. Sonraki sprint yalnız Planning durumundadır ve uygulamasına başlanmadı.
+
 ## Sprint 119 — Pipeline Retry Continuation Hardening
 
 Completed

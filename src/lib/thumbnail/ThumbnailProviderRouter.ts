@@ -1,26 +1,23 @@
 import type { ThumbnailProviderName } from "@/types/thumbnail";
 import { MockThumbnailProvider } from "./providers/MockThumbnailProvider";
+import { OpenAIThumbnailProvider } from "./providers/OpenAIThumbnailProvider";
 import type { ThumbnailProvider } from "./providers/ThumbnailProvider";
 import {
-  defaultThumbnailProviderConfig,
-  type ThumbnailProviderConfig,
+  resolveThumbnailProviderName,
 } from "./ThumbnailProviderConfig";
 
 export class ThumbnailProviderRouter {
   private readonly providers: Record<ThumbnailProviderName, ThumbnailProvider>;
-  private readonly config: ThumbnailProviderConfig;
-
   constructor(
     providers?: Partial<Record<ThumbnailProviderName, ThumbnailProvider>>,
-    config: ThumbnailProviderConfig = defaultThumbnailProviderConfig,
   ) {
     this.providers = {
       mock: providers?.mock ?? new MockThumbnailProvider(),
+      openai: providers?.openai ?? new OpenAIThumbnailProvider(),
     };
-    this.config = config;
   }
 
-  getProvider(providerName = this.config.provider): ThumbnailProvider {
-    return this.providers[providerName] ?? this.providers.mock;
+  getProvider(providerName?: string): ThumbnailProvider {
+    return this.providers[resolveThumbnailProviderName(providerName)];
   }
 }

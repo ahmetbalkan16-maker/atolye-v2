@@ -2,13 +2,19 @@ import type { AssemblyScene } from "@/types/assembly";
 import type { AudioSection } from "@/types/audio";
 import type { ThumbnailData, ThumbnailVariant } from "@/types/thumbnail";
 import type { VideoScene } from "@/types/video";
+import { deflateSync } from "node:zlib";
+import { ThumbnailStorage } from "../ThumbnailStorage";
 import type {
+  ThumbnailAssetGenerationInput,
+  ThumbnailAssetGenerationResult,
   ThumbnailGenerationInput,
   ThumbnailGenerationResult,
   ThumbnailProvider,
 } from "./ThumbnailProvider";
 
 export class MockThumbnailProvider implements ThumbnailProvider {
+  readonly name = "mock" as const;
+
   async generateThumbnailPlan(
     input: ThumbnailGenerationInput,
   ): Promise<ThumbnailGenerationResult> {
@@ -20,6 +26,43 @@ export class MockThumbnailProvider implements ThumbnailProvider {
       status: "planned",
       thumbnail,
     };
+  }
+
+  async generateThumbnailAsset(
+    input: ThumbnailAssetGenerationInput,
+  ): Promise<ThumbnailAssetGenerationResult> {
+    const assetId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+
+    try {
+      const saved = ThumbnailStorage.saveThumbnail({
+        projectSlug: input.projectSlug,
+        assetId,
+        data: createDeterministicThumbnailPng(1280, 720),
+        mimeType: "image/png",
+      });
+
+      return {
+        success: true,
+        assetId,
+        provider: "mock",
+        model: "mock-thumbnail-image",
+        status: "generated",
+        generationMode: "mock",
+        createdAt,
+        ...saved,
+      };
+    } catch {
+      return {
+        success: false,
+        assetId,
+        provider: "mock",
+        model: "mock-thumbnail-image",
+        status: "failed",
+        createdAt,
+        error: "Mock thumbnail generation failed.",
+      };
+    }
   }
 }
 
@@ -196,4 +239,54 @@ function createOverlayText(subject: string): string {
     .slice(0, 2)
     .join(" ")
     .toUpperCase() || "GERCEK";
+}
+
+function createDeterministicThumbnailPng(width: number, height: number) {
+  const rowLength = width * 3 + 1;
+  const raw = Buffer.alloc(rowLength * height);
+
+  for (let y = 0; y < height; y++) {
+    const row = y * rowLength;
+    raw[row] = 0;
+    for (let x = 0; x < width; x++) {
+      const offset = row + 1 + x * 3;
+      raw[offset] = 18 + Math.floor((x / width) * 42);
+      raw[offset + 1] = 24 + Math.floor((y / height) * 32);
+      raw[offset + 2] = 48 + Math.floor(((x + y) / (width + height)) * 72);
+    }
+  }
+
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 2;
+  return Buffer.concat([
+    signature,
+    pngChunk("IHDR", ihdr),
+    pngChunk("IDAT", deflateSync(raw, { level: 9 })),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+function pngChunk(type: string, data: Buffer) {
+  const typeBuffer = Buffer.from(type, "ascii");
+  const result = Buffer.alloc(data.length + 12);
+  result.writeUInt32BE(data.length, 0);
+  typeBuffer.copy(result, 4);
+  data.copy(result, 8);
+  result.writeUInt32BE(crc32(Buffer.concat([typeBuffer, data])), data.length + 8);
+  return result;
+}
+
+function crc32(data: Buffer) {
+  let crc = 0xffffffff;
+  for (const byte of data) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit++) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
 }

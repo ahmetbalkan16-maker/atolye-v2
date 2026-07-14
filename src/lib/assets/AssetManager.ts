@@ -49,6 +49,16 @@ export class AssetManager {
     ) as ProjectAssets;
   }
 
+  static saveProjectAssetsAtomically(
+    slug: string,
+    data: ProjectAssets,
+  ): ProjectAssets {
+    return FileStorage.saveJsonAtomically(
+      this.getAssetsPath(slug),
+      data,
+    ) as ProjectAssets;
+  }
+
   static createAsset(input: CreateAssetInput): Asset {
     return {
       ...input,
@@ -74,6 +84,22 @@ export class AssetManager {
     };
 
     return this.saveProjectAssets(slug, updatedAssets);
+  }
+
+  static addAssetAtomically(
+    slug: string,
+    projectId: string,
+    asset: Asset,
+  ): ProjectAssets {
+    const current = this.getProjectAssets(slug, projectId);
+    const now = new Date().toISOString();
+    return this.saveProjectAssetsAtomically(slug, {
+      ...current,
+      projectId,
+      projectSlug: current.projectSlug ?? slug,
+      assets: [...current.assets, asset],
+      updatedAt: now,
+    });
   }
 
   static updateAsset(

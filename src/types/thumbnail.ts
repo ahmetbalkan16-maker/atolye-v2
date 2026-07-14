@@ -5,7 +5,15 @@ export type ThumbnailStatus =
   | "failed";
 
 export type ThumbnailProviderName =
-  | "mock";
+  | "mock"
+  | "openai";
+
+export type ThumbnailMimeType =
+  | "image/png"
+  | "image/jpeg"
+  | "image/webp";
+
+export type ThumbnailGenerationMode = "mock" | "production";
 
 export type ThumbnailStyle =
   | "documentary"
@@ -42,7 +50,23 @@ export interface ThumbnailGenerationInfo {
 
   model?: string;
 
+  assetId?: string;
+
+  fileName?: string;
+
+  filePath?: string;
+
   imageUrl?: string;
+
+  mimeType?: ThumbnailMimeType;
+
+  width?: number;
+
+  height?: number;
+
+  byteLength?: number;
+
+  generationMode?: ThumbnailGenerationMode;
 
   status: ThumbnailStatus;
 }
@@ -63,6 +87,8 @@ export interface ThumbnailData {
   sourceVideoAssetId?: string;
 
   sourceAudioAssetId?: string;
+
+  outputAssetId?: string;
 
   variants: ThumbnailVariant[];
 

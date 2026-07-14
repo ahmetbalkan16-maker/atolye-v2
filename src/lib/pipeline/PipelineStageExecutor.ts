@@ -21,6 +21,11 @@ import { ExportEngine } from "@/lib/export/ExportEngine";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { SEOManager } from "@/lib/seo/SEOManager";
 import { ThumbnailEngine } from "@/lib/thumbnail/ThumbnailEngine";
+import {
+  ThumbnailAssetGenerationError,
+  ThumbnailAssetPipeline,
+} from "@/lib/thumbnail/ThumbnailAssetPipeline";
+import type { ThumbnailProvider } from "@/lib/thumbnail/providers/ThumbnailProvider";
 import { VideoPipeline } from "@/lib/video/VideoPipeline";
 import { isCompatibleVideoData } from "@/lib/video/VideoDataValidation";
 import type { VideoProvider } from "@/lib/video/providers/VideoProvider";
@@ -63,6 +68,7 @@ export type PipelineStageExecutionOptions = {
   videoProvider?: VideoProvider;
   audioProvider?: AudioProvider;
   videoAssemblyProvider?: VideoAssemblyProvider;
+  thumbnailProvider?: ThumbnailProvider;
 };
 
 export class PipelineStageExecutor {
@@ -314,17 +320,41 @@ export class PipelineStageExecutor {
         const assembly = requireStageInput(state.assembly, "assembly", stage);
         const video = requireStageInput(state.video, "video", stage);
         const audio = requireStageInput(state.audio, "audio", stage);
-        state.thumbnail = await new ThumbnailEngine().generateThumbnailPlan({
+        const previousThumbnail = state.thumbnail;
+        const thumbnailPlan = await new ThumbnailEngine().generateThumbnailPlan({
           projectId: state.project.id,
           projectSlug,
           title: state.project.title,
           assembly,
           video,
           audio,
+          provider: options.thumbnailProvider,
         });
-        return this.persistStageResult(projectSlug, stage, () =>
-          ProjectManager.saveThumbnail(projectSlug, state.thumbnail),
-        );
+        state.thumbnail = await ThumbnailAssetPipeline.generateThumbnail({
+          projectId: state.project.id,
+          projectSlug,
+          title: state.project.title,
+          assembly,
+          thumbnail: thumbnailPlan,
+          previousThumbnail,
+          provider: options.thumbnailProvider,
+        });
+        try {
+          return await this.persistStageResult(projectSlug, stage, async () => {
+            try {
+              await ProjectManager.saveThumbnail(projectSlug, state.thumbnail);
+            } catch {
+              await ThumbnailAssetPipeline.compensatePersistenceFailure(
+                state.project.id,
+                projectSlug,
+                state.thumbnail as ThumbnailData,
+              );
+              throw new ThumbnailAssetGenerationError();
+            }
+          });
+        } catch {
+          throw new ThumbnailAssetGenerationError();
+        }
       }
 
       case "seo": {
