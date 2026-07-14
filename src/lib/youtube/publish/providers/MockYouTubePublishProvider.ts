@@ -1,12 +1,22 @@
 import { createHash } from "node:crypto";
 import type { YouTubePublishProviderResult, YouTubePublishRequest } from "@/types/youtubePublish";
 import type { YouTubePublishProvider } from "./YouTubePublishProvider";
+import { YOUTUBE_PUBLISH_ERROR } from "./YouTubePublishProvider";
 
 export class MockYouTubePublishProvider implements YouTubePublishProvider {
   readonly name = "mock" as const;
   readonly model = "mock-youtube-publish-v1";
 
   async publish(request: YouTubePublishRequest): Promise<YouTubePublishProviderResult> {
+    if (request.signal?.aborted) {
+      return {
+        success: false,
+        provider: this.name,
+        model: this.model,
+        outcome: "failed",
+        error: YOUTUBE_PUBLISH_ERROR,
+      };
+    }
     const remoteVideoId = `mock-${createHash("sha256")
       .update(request.packageIdentity, "utf8")
       .digest("hex")

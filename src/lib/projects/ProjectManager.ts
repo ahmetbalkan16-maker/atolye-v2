@@ -309,8 +309,38 @@ export class ProjectManager {
     }
   }
 
+  static async saveYouTubePublishRecovery(slug: string, publish: unknown) {
+    validateYouTubePublishRecord(publish, { slug });
+    if ((publish as { status?: unknown }).status !== "published") {
+      throw new Error("YouTube publish recovery record is invalid.");
+    }
+    await ProjectWriter.writeJSONAtomically(
+      slug,
+      "youtube-publish-recovery.json",
+      publish,
+    );
+    const readback = await ProjectReader.readJSON<unknown>(
+      slug,
+      "youtube-publish-recovery.json",
+    );
+    validateYouTubePublishRecord(readback, { slug });
+    if (
+      (readback as { status?: unknown }).status !== "published" ||
+      JSON.stringify(readback) !== JSON.stringify(publish)
+    ) {
+      throw new Error("YouTube publish recovery persistence failed.");
+    }
+  }
+
   static getYouTubePublishState(slug: string) {
     return ProjectReader.readJSONState<unknown>(slug, "youtube-publish.json");
+  }
+
+  static getYouTubePublishRecoveryState(slug: string) {
+    return ProjectReader.readJSONState<unknown>(
+      slug,
+      "youtube-publish-recovery.json",
+    );
   }
 
   static async getYouTubePublish(slug: string) {
@@ -319,6 +349,10 @@ export class ProjectManager {
 
   static async removeYouTubePublish(slug: string) {
     await ProjectWriter.removeJSON(slug, "youtube-publish.json");
+  }
+
+  static async removeYouTubePublishRecovery(slug: string) {
+    await ProjectWriter.removeJSON(slug, "youtube-publish-recovery.json");
   }
 
   static async markYouTubePublished(slug: string) {

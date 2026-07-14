@@ -57,7 +57,10 @@ export async function POST(request: Request) {
             JSON.stringify(previous) === JSON.stringify(generated),
           updatePackageStatus: false,
         });
-        const publish = await YouTubePublishPipeline.publishStoredPackage({ projectSlug });
+        const publish = await YouTubePublishPipeline.publishStoredPackage({
+          projectSlug,
+          signal: request.signal,
+        });
         await ProjectManager.markYouTubePublished(projectSlug);
         return { youtube: generated, publish };
       },

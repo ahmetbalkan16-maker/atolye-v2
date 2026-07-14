@@ -17,6 +17,7 @@ export interface YouTubePublishRequest {
   videoAbsolutePath: string;
   thumbnailAbsolutePath: string;
   metadata: YouTubePublishMetadata;
+  signal?: AbortSignal;
 }
 
 export type YouTubePublishProviderResult =

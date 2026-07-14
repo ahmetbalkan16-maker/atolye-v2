@@ -47,27 +47,28 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 122**
+**Sprint 123**
 
-Production YouTube Publish Pipeline Foundation
+Production End-to-End Stabilization
 
 **Durum**
 
 Completed
 
-Sprint 122 Production YouTube Publish Pipeline Foundation tamamlandı. Sonraki sprint yalnız Planning durumundadır; adı ve kapsamı kesinleştirilmedi.
+Sprint 123 Production End-to-End Stabilization tamamlandı. Sonraki sprint yalnız Planning durumundadır; adı ve kapsamı kesinleştirilmedi.
 
 Not:
 
-- Yeni merkezi stage eklenmedi. Mevcut YouTube stage canonical package üretimini ve publish işlemini birlikte yönetir; merkezi `Thumbnail → SEO → YouTube → Export` sırası korunur.
-- Canonical `schemaVersion: "1"` publish kaydı `youtube-publish.json` içinde `publishing`, `published` ve `failed` durumlarını saklar. Provider yalnız uzak yayın sonucunu üretir; project, package ve asset identity, attempt, timestamp ve canonical status alanlarını pipeline ekler.
-- Default provider mock'tur. Gerçek provider yalnız `YOUTUBE_PUBLISH_PROVIDER=youtube-data-api` ve `YOUTUBE_ACCESS_TOKEN` ile etkinleşir; bilinmeyen veya eksik yapılandırma fail-closed olur. Resumable video upload ve thumbnail upload provider boundary içinde, fetch transport injection ile test edilebilir tutulur.
-- Yalnız stored project/package/stage state ve asset registry kullanılır; istemci override'ları reddedilir. Canonical package ve video/thumbnail zinciri fiziksel storage readback ile yeniden doğrulanır.
-- Missing, malformed, duplicate, failed, stale, cross-project, locator uyumsuz ve generationMode eksik asset'ler reddedilir. MP4 structure/byteLength/`mvhd` duration/containment ile thumbnail MIME/dimensions/byteLength/locator/`assetId` ↔ `fileName` kontrolleri uygulanır.
-- Metadata NFC normalization, trim, control-character reddi ve YouTube sınırlarından geçer. Package identity SHA-256 ile deterministik bağlanır; published replay provider'ı yeniden çağırmaz, existing publishing intent ikinci upload'ı fail-closed engeller.
-- Explicit failure false-success üretmez. Indeterminate timeout/upload durumunda publishing intent korunur ve otomatik ikinci upload yapılmaz. Atomic sonuç yazımı temp file, fsync, rename, containment ve symlink/junction parent kontrollerini kullanır.
-- API sabit güvenli hata envelope'u ve `Cache-Control: no-store` kullanır; raw provider/API/credential hataları sızdırılmaz. Durable execution, claim, lease, attempt ve worker lifecycle değiştirilmedi.
-- Sprint 122 YouTube publish smoke PASS (31); Sprint 121-113 ve ilgili continuation/orchestration/durable regresyonları PASS. TypeScript, tam repository ESLint (0 warning), `git diff --check` ve fixture cleanup PASS.
+- Yeni stage veya paralel pipeline eklenmedi; mevcut merkezi stage sırası korundu. Completed manifest state, fiziksel stage dosyası hazır değilse recovery tarafından tamamlanmış kabul edilmez.
+- YouTube package ile publish kaydı project, package SHA-256 identity ve asset kimlikleri üzerinden birlikte doğrulanır. Published package/publish binding bozulduğunda export yerine YouTube ilk recovery hedefi olur.
+- Assembly, thumbnail, package ve publish replay işlemlerinin upstream dosyaları değiştirmediği doğrulandı. Mevcut log formatı ve güvenli hata sözleşmeleri korundu; hassas bilgi veya credential loglaması eklenmedi.
+- Uzak publish başarısından sonra canonical sonuçtan önce atomik `youtube-publish-recovery.json` receipt yazılır. Final canonical persistence başarısızsa restart, receipt'i canonical publish validation ile project/package/asset/provider binding'leri üzerinden doğrular ve provider çağrısı veya yeni upload olmadan canonical kayda yükseltir.
+- Recovery receipt yalnız canonical `published` kayıt taşıyabilir; malformed veya stale receipt fail-closed reddedilir. Başarılı canonical persistence sonrasında receipt best-effort temizlenir. Geçerli receipt bulunmayan existing `publishing` intent duplicate upload'ı engellemeye devam eder.
+- Recovery planner completed fakat eksik veya malformed stage state'ini ilk resume hedefi seçer. Recovery readiness package identity, project/slug, `videoAssetId` ve `thumbnailAssetId` eşleşmelerini doğrular.
+- HTTP request abort signal'ı publish pipeline ve provider'a aktarılır; mock provider aborted çağrıyı güvenli failure ile sonuçlandırır. YouTube Data API provider caller abort ile timeout controller'ını birleştirir ve sonunda timer, abort listener ile açık video read stream'i temizler.
+- Uzak başarıdan sonra cancellation olsa bile remote sonucu kaybetmemek için reconciliation persistence tamamlanır. Raw API, provider ve credential hataları dışarı sızdırılmaz.
+- Doğrulamalar: Sprint 123 stabilization PASS — 26; Sprint 122 YouTube publish PASS — 31; Sprint 121 YouTube package PASS — 58; Sprint 120 thumbnail PASS — 42; Sprint 119 retry continuation PASS — 22; Auto-continuation PASS — 18; Pipeline orchestration PASS — 10; Durable execution PASS — 17; Durable wiring PASS — 19; Sprint 118 assembly PASS — 19; Sprint 117 scene video PASS — 23; Sprint 116 animation PASS — 21; Sprint 115 assembly wiring PASS — 46; Sprint 114 audio PASS — 74; Sprint 113 visuals PASS — 54; TypeScript PASS; full repository ESLint PASS — 0 warning; `git diff --check` PASS; fixture/temp cleanup temiz.
+- Non-blocking P2 takipleri: recovery receipt, canonical publish, manifest ve job kayıtları tek filesystem transaction değildir; uzak başarıdan sonra receipt yazımı da başarısız olursa otomatik reconciliation mümkün değildir, manuel inceleme gerekir ve otomatik yeniden upload yapılmaz; receipt yokken gerçek YouTube tarafını sorgulayan remote reconciliation uygulanmadı; HTTP cancellation provider'a aktarılır ancak çalışan durable job cancellation'ı aktif provider çağrısına doğrudan abort signal taşımaz; durable/distributed execution kapalı çok-process kullanımda proje kilidi process-localdır; video ve YouTube dışındaki legacy stage readiness çoğunlukla parse edilebilir dosya varlığına dayanır; gerçek credential ile live OpenAI, YouTube ve tam canlı production E2E acceptance çalıştırılmadı.
 
 ---
 
@@ -83,7 +84,7 @@ bec4962
 
 Durum
 
-Sprint 122 tamamlandı. Sprint 122 değişiklikleri ve dokümantasyon kapanışı henüz commit/push edilmedi. Sonraki sprint yalnız Planning durumundadır; adı ve kapsamı kesinleştirilmedi.
+Sprint 123 tamamlandı. Sprint 123 değişiklikleri ve dokümantasyon kapanışı henüz commit/push edilmedi. Sonraki sprint yalnız Planning durumundadır; adı ve kapsamı kesinleştirilmedi.
 
 ---
 

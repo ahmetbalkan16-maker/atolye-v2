@@ -39,13 +39,15 @@ export class YouTubePublishPipeline {
     provider?: YouTubePublishProvider;
     timestamp?: string;
     attemptId?: string;
+    signal?: AbortSignal;
   }): Promise<YouTubePublishRecord> {
     try {
       const slug = safeSlug(input.projectSlug);
       const timestamp = requireTimestamp(input.timestamp ?? new Date().toISOString());
       const attemptId = normalizeId(input.attemptId ?? crypto.randomUUID());
       const provider = input.provider ?? new YouTubePublishProviderRouter().getProvider();
-      const [project, publishingPackage, assembly, thumbnail, seo, publishState] =
+      input.signal?.throwIfAborted();
+      const [project, publishingPackage, assembly, thumbnail, seo, publishState, recoveryState] =
         await Promise.all([
           ProjectManager.getProject(slug) as Promise<Project | null>,
           ProjectManager.getYouTube(slug) as Promise<YouTubePublishingPackage | null>,
@@ -53,6 +55,7 @@ export class YouTubePublishPipeline {
           ProjectManager.getThumbnail(slug) as Promise<ThumbnailData | null>,
           ProjectManager.getSEO(slug) as Promise<SEOData | null>,
           ProjectManager.getYouTubePublishState(slug),
+          ProjectManager.getYouTubePublishRecoveryState(slug),
         ]);
       if (!project || !publishingPackage || !assembly || !thumbnail || !seo) {
         throw new Error("invalid");
@@ -67,9 +70,25 @@ export class YouTubePublishPipeline {
       );
       const packageIdentity = createYouTubePackageIdentity(validatedPackage);
       const assets = requireAssets(project, validatedPackage);
-      const request = createProviderRequest(validatedPackage, packageIdentity, assets);
+      const request = createProviderRequest(
+        validatedPackage,
+        packageIdentity,
+        assets,
+        input.signal,
+      );
 
       if (publishState.status === "malformed") throw new Error("invalid");
+      if (recoveryState.status === "malformed") throw new Error("invalid");
+      const recovered = recoveryState.status === "parsed"
+        ? requireMatchingPublishedRecord(recoveryState.value, {
+            projectId: project.id,
+            slug,
+            packageIdentity,
+            videoAssetId: validatedPackage.videoAssetId,
+            thumbnailAssetId: validatedPackage.thumbnailAssetId,
+            provider: provider.name,
+          })
+        : null;
       if (publishState.status === "parsed") {
         validateYouTubePublishRecord(publishState.value);
         const previous = publishState.value;
@@ -80,10 +99,16 @@ export class YouTubePublishPipeline {
           previous.thumbnailAssetId !== validatedPackage.thumbnailAssetId ||
           previous.provider !== provider.name
         ) throw new Error("stale");
-        if (previous.status === "published") return previous;
+        if (previous.status === "published") {
+          await removeRecoveryReceiptBestEffort(slug);
+          return previous;
+        }
+        if (recovered) return promoteRecoveryReceipt(slug, recovered);
         if (previous.status === "publishing") throw new Error("indeterminate");
       }
+      if (recovered) return promoteRecoveryReceipt(slug, recovered);
 
+      input.signal?.throwIfAborted();
       const publishing: YouTubePublishRecord = {
         schemaVersion: "1",
         projectId: project.id,
@@ -131,7 +156,9 @@ export class YouTubePublishPipeline {
         videoAssetId: validatedPackage.videoAssetId,
         thumbnailAssetId: validatedPackage.thumbnailAssetId,
       });
+      await ProjectManager.saveYouTubePublishRecovery(slug, published);
       await ProjectManager.saveYouTubePublish(slug, published);
+      await removeRecoveryReceiptBestEffort(slug);
       return published;
     } catch {
       throw new YouTubePublishError();
@@ -210,6 +237,7 @@ function createProviderRequest(
   publishingPackage: YouTubePublishingPackage,
   packageIdentity: string,
   assets: ReturnType<typeof requireAssets>,
+  signal?: AbortSignal,
 ): YouTubePublishRequest {
   return {
     schemaVersion: "1",
@@ -218,7 +246,43 @@ function createProviderRequest(
     videoAbsolutePath: assets.videoAbsolutePath,
     thumbnailAbsolutePath: assets.thumbnailAbsolutePath,
     metadata: createYouTubePublishMetadata(publishingPackage),
+    ...(signal ? { signal } : {}),
   };
+}
+
+function requireMatchingPublishedRecord(
+  value: unknown,
+  expected: {
+    projectId: string;
+    slug: string;
+    packageIdentity: string;
+    videoAssetId: string;
+    thumbnailAssetId: string;
+    provider: YouTubePublishProvider["name"];
+  },
+) {
+  validateYouTubePublishRecord(value, expected);
+  if (value.status !== "published" || value.provider !== expected.provider) {
+    throw new Error("invalid");
+  }
+  return value;
+}
+
+async function promoteRecoveryReceipt(
+  slug: string,
+  recovered: Extract<YouTubePublishRecord, { status: "published" }>,
+) {
+  await ProjectManager.saveYouTubePublish(slug, recovered);
+  await removeRecoveryReceiptBestEffort(slug);
+  return recovered;
+}
+
+async function removeRecoveryReceiptBestEffort(slug: string) {
+  try {
+    await ProjectManager.removeYouTubePublishRecovery(slug);
+  } catch {
+    // A validated published record remains authoritative; stale receipt cleanup is retryable.
+  }
 }
 
 function uniqueAsset(assets: Asset[], id: string) {

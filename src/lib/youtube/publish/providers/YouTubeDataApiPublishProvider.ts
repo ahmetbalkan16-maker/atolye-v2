@@ -32,8 +32,12 @@ export class YouTubeDataApiPublishProvider implements YouTubePublishProvider {
     ) return failure("failed");
 
     const controller = new AbortController();
+    const abortFromCaller = () => controller.abort();
+    if (request.signal?.aborted) return failure("failed");
+    request.signal?.addEventListener("abort", abortFromCaller, { once: true });
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     let uploadAccepted = false;
+    let videoStream: fs.ReadStream | null = null;
     try {
       const videoStat = fs.statSync(request.videoAbsolutePath);
       const thumbnailStat = fs.statSync(request.thumbnailAbsolutePath);
@@ -69,6 +73,7 @@ export class YouTubeDataApiPublishProvider implements YouTubePublishProvider {
       if (!isTrustedUploadUrl(uploadUrl)) return failure("failed");
 
       uploadAccepted = true;
+      videoStream = fs.createReadStream(request.videoAbsolutePath);
       const uploaded = await this.fetcher(uploadUrl, {
         method: "PUT",
         headers: {
@@ -77,7 +82,7 @@ export class YouTubeDataApiPublishProvider implements YouTubePublishProvider {
           "Content-Type": "video/mp4",
         },
         signal: controller.signal,
-        body: fs.createReadStream(request.videoAbsolutePath) as unknown as BodyInit,
+        body: videoStream as unknown as BodyInit,
         duplex: "half",
       });
       if (!uploaded.ok) return failure(uploaded.status >= 500 ? "indeterminate" : "failed");
@@ -116,6 +121,8 @@ export class YouTubeDataApiPublishProvider implements YouTubePublishProvider {
       return failure(uploadAccepted ? "indeterminate" : "failed");
     } finally {
       clearTimeout(timer);
+      request.signal?.removeEventListener("abort", abortFromCaller);
+      videoStream?.destroy();
     }
   }
 }

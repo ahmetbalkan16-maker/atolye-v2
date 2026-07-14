@@ -1,7 +1,10 @@
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { isCompatibleVideoData } from "@/lib/video/VideoDataValidation";
 import { isYouTubePublishingPackage } from "@/lib/youtube/YouTubePackageValidation";
-import { isYouTubePublishRecord } from "@/lib/youtube/publish/YouTubePublishValidation";
+import {
+  createYouTubePackageIdentity,
+  validateYouTubePublishRecord,
+} from "@/lib/youtube/publish/YouTubePublishValidation";
 import type { ProjectManifest } from "@/types/project";
 import type {
   PipelineDependencyStatus,
@@ -67,7 +70,7 @@ export class PipelineRecoveryPlanner {
       return null;
     }
 
-    return getNextIncompleteStageFromManifest(manifest);
+    return getNextIncompleteOrUnreadyStage(projectSlug, manifest);
   }
 
   static async getFailedStages(
@@ -102,7 +105,7 @@ export class PipelineRecoveryPlanner {
       });
     }
 
-    const startStage = getNextIncompleteStageFromManifest(manifest);
+    const startStage = await getNextIncompleteOrUnreadyStage(projectSlug, manifest);
 
     if (!startStage) {
       return {
@@ -206,14 +209,19 @@ export class PipelineRecoveryPlanner {
   }
 }
 
-function getNextIncompleteStageFromManifest(
+async function getNextIncompleteOrUnreadyStage(
+  projectSlug: string,
   manifest: ProjectManifest,
-): PipelineRecoveryStageKey | null {
-  return (
-    pipelineRecoveryStageOrder.find(
-      (stage) => manifest.packages[stage].status !== "completed",
-    ) ?? null
-  );
+): Promise<PipelineRecoveryStageKey | null> {
+  for (const stage of pipelineRecoveryStageOrder) {
+    if (
+      manifest.packages[stage].status !== "completed" ||
+      !(await isStageFileReady(projectSlug, stage))
+    ) {
+      return stage;
+    }
+  }
+  return null;
 }
 
 async function getDependencyStatuses(
@@ -250,9 +258,24 @@ async function isStageFileReady(
 
   if (stage === "video") return isCompatibleVideoData(data);
   if (stage === "youtube") {
-    const publish = await ProjectManager.getYouTubePublish(projectSlug);
-    return isYouTubePublishingPackage(data) &&
-      isYouTubePublishRecord(publish) && publish.status === "published";
+    if (!isYouTubePublishingPackage(data)) return false;
+    const [project, publish] = await Promise.all([
+      ProjectManager.getProject(projectSlug),
+      ProjectManager.getYouTubePublish(projectSlug),
+    ]);
+    if (!project) return false;
+    try {
+      validateYouTubePublishRecord(publish, {
+        projectId: project.id,
+        slug: projectSlug,
+        packageIdentity: createYouTubePackageIdentity(data),
+        videoAssetId: data.videoAssetId,
+        thumbnailAssetId: data.thumbnailAssetId,
+      });
+      return publish.status === "published";
+    } catch {
+      return false;
+    }
   }
   return data !== null;
 }
