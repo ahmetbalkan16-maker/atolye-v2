@@ -3,6 +3,10 @@ import type { SceneData, SceneItem } from "@/types/scene";
 import type { ScriptChapter, ScriptData } from "@/types/script";
 import type { AIRequestContext } from "@/types/aiUsage";
 import type { AIProvider } from "./providers";
+import {
+  failClosedOrReturn,
+  type GenerationExecutionPolicy,
+} from "./GenerationExecutionPolicy";
 import { runObservedAIRequest } from "./runObservedAIRequest";
 import {
   getCreatedAt,
@@ -17,6 +21,7 @@ export class AIManager {
     topic: string,
     context?: Partial<AIRequestContext>,
     provider?: AIProvider,
+    policy?: GenerationExecutionPolicy,
   ): Promise<ResearchData> {
     const fallback: ResearchData = {
       topic,
@@ -84,10 +89,11 @@ export class AIManager {
 
       if (!response.trim()) {
         console.error("[AIManager.runResearch] Empty provider response.");
-        return fallback;
+        return failClosedOrReturn(fallback, policy);
       }
 
       const parsed = parseAIJsonResponse<Partial<ResearchData>>(response);
+      if (policy?.failClosed && !isStrictResearchResponse(parsed)) throw new Error("invalid");
 
       return {
         topic: getStringAllowEmpty(parsed.topic, fallback.topic),
@@ -115,12 +121,13 @@ export class AIManager {
         createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
       };
     } catch (error) {
+      if (policy?.failClosed) return failClosedOrReturn(fallback, policy);
       console.error("[AIManager.runResearch] Falling back to mock research:", {
         topic,
         error,
       });
 
-      return fallback;
+      return failClosedOrReturn(fallback, policy);
     }
   }
 
@@ -128,6 +135,7 @@ export class AIManager {
     topic: string,
     context?: Partial<AIRequestContext>,
     provider?: AIProvider,
+    policy?: GenerationExecutionPolicy,
   ): Promise<ScriptData> {
     const fallback: ScriptData = {
       topic,
@@ -207,10 +215,11 @@ export class AIManager {
 
       if (!response.trim()) {
         console.error("[AIManager.runScript] Empty provider response.");
-        return fallback;
+        return failClosedOrReturn(fallback, policy);
       }
 
       const parsed = parseAIJsonResponse<Partial<ScriptData>>(response);
+      if (policy?.failClosed && !isStrictScriptResponse(parsed)) throw new Error("invalid");
 
       const chapters: ScriptChapter[] = Array.isArray(parsed.chapters)
         ? parsed.chapters.map((chapter, index) => {
@@ -257,12 +266,13 @@ export class AIManager {
         createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
       };
     } catch (error) {
+      if (policy?.failClosed) return failClosedOrReturn(fallback, policy);
       console.error("[AIManager.runScript] Falling back to mock script:", {
         topic,
         error,
       });
 
-      return fallback;
+      return failClosedOrReturn(fallback, policy);
     }
   }
 
@@ -270,6 +280,7 @@ export class AIManager {
     script: ScriptData,
     context?: Partial<AIRequestContext>,
     provider?: AIProvider,
+    policy?: GenerationExecutionPolicy,
   ): Promise<SceneData> {
     const fallback: SceneData = {
       scenes: [
@@ -335,10 +346,11 @@ export class AIManager {
 
       if (!response.trim()) {
         console.error("[AIManager.runScenes] Empty provider response.");
-        return fallback;
+        return failClosedOrReturn(fallback, policy);
       }
 
       const parsed = parseAIJsonResponse<Partial<SceneData>>(response);
+      if (policy?.failClosed && !isStrictSceneResponse(parsed)) throw new Error("invalid");
 
       const scenes: SceneItem[] = Array.isArray(parsed.scenes)
         ? parsed.scenes.map((scene, index) => {
@@ -359,12 +371,61 @@ export class AIManager {
         createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
       };
     } catch (error) {
+      if (policy?.failClosed) return failClosedOrReturn(fallback, policy);
       console.error("[AIManager.runScenes] Falling back to mock scenes:", {
         scriptTitle: script.title,
         error,
       });
 
-      return fallback;
+      return failClosedOrReturn(fallback, policy);
     }
   }
+}
+
+function isStrictResearchResponse(value: Partial<ResearchData>) {
+  const arrays = [
+    value.timeline, value.characters, value.locations, value.keyEvents,
+    value.strategies, value.controversies, value.interestingFacts,
+    value.documentaryFlow, value.sceneIdeas, value.imagePrompts,
+    value.animationPrompts, value.musicIdeas, value.soundEffects,
+    value.thumbnailIdeas, value.youtubeTitles, value.sources,
+  ];
+  return typeof value.topic === "string" && typeof value.summary === "string" &&
+    typeof value.historicalContext === "string" && arrays.every(isStringArray) &&
+    validTimestamp(value.createdAt);
+}
+
+function isStrictScriptResponse(value: Partial<ScriptData>) {
+  const strings = [
+    value.topic, value.title, value.subtitle, value.hook, value.introduction,
+    value.conclusion, value.callToAction, value.targetAudience, value.language,
+    value.voiceStyle, value.musicStyle, value.thumbnailIdea,
+  ];
+  return strings.every((item) => typeof item === "string") &&
+    typeof value.estimatedDuration === "number" && Number.isFinite(value.estimatedDuration) &&
+    typeof value.narrationWordCount === "number" && Number.isFinite(value.narrationWordCount) &&
+    isStringArray(value.seoKeywords) && validTimestamp(value.createdAt) &&
+    Array.isArray(value.chapters) && value.chapters.length > 0 && value.chapters.every((chapter) =>
+      typeof chapter?.id === "number" && Number.isFinite(chapter.id) &&
+      [chapter.title, chapter.narration, chapter.visualGoal, chapter.emotion, chapter.transition]
+        .every((item) => typeof item === "string") &&
+      typeof chapter.duration === "number" && Number.isFinite(chapter.duration));
+}
+
+function isStrictSceneResponse(value: Partial<SceneData>) {
+  return validTimestamp(value.createdAt) && Array.isArray(value.scenes) &&
+    value.scenes.length > 0 && value.scenes.every((scene) =>
+      typeof scene?.id === "number" && Number.isFinite(scene.id) &&
+      [scene.title, scene.description, scene.visualPrompt].every((item) => typeof item === "string") &&
+      typeof scene.duration === "number" && Number.isFinite(scene.duration));
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function validTimestamp(value: unknown) {
+  if (typeof value !== "string") return false;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString() === value;
 }

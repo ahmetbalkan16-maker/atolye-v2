@@ -1,4 +1,6 @@
 import { runObservedAIRequest } from "@/lib/ai/runObservedAIRequest";
+import { failClosedOrReturn, type GenerationExecutionPolicy } from "@/lib/ai/GenerationExecutionPolicy";
+import type { AIProvider } from "@/lib/ai/providers";
 import {
   getCreatedAt,
   getNumber,
@@ -23,6 +25,8 @@ type VisualManagerInput = {
   scenes: SceneData;
   style?: string;
   aiContext?: Partial<AIRequestContext>;
+  aiProvider?: AIProvider;
+  generationPolicy?: GenerationExecutionPolicy;
 };
 
 export class VisualManager {
@@ -32,6 +36,8 @@ export class VisualManager {
     scenes,
     style = "cinematic",
     aiContext,
+    aiProvider,
+    generationPolicy,
   }: VisualManagerInput): Promise<VisualData> {
     const fallback = this.createFallbackVisualData(scenes, style, projectId);
     const prompt = VisualPromptEngine.createPrompt(scenes, style);
@@ -39,6 +45,7 @@ export class VisualManager {
     try {
       const { response } = await runObservedAIRequest({
         prompt,
+        provider: aiProvider,
         context: {
           ...aiContext,
           projectSlug: aiContext?.projectSlug ?? projectSlug,
@@ -49,10 +56,14 @@ export class VisualManager {
 
       if (!response.trim()) {
         console.error("[VisualManager] Empty provider response.");
-        return fallback;
+        return failClosedOrReturn(fallback, generationPolicy);
       }
 
       const parsed = parseAIJsonResponse<Partial<VisualData>>(response);
+      if (
+        generationPolicy?.failClosed &&
+        !isStrictVisualResponse(parsed, scenes.scenes.length)
+      ) throw new Error("invalid");
       const visualScenes = this.mapVisualScenes(parsed.scenes, scenes.scenes, style);
       const thumbnail = this.mapThumbnail(parsed.thumbnail, fallback.thumbnail);
       const createdAt = getCreatedAt(parsed.createdAt, fallback.createdAt);
@@ -66,8 +77,9 @@ export class VisualManager {
         generatedAt: createdAt,
       };
     } catch (error) {
+      if (generationPolicy?.failClosed) return failClosedOrReturn(fallback, generationPolicy);
       console.error("[VisualManager] Falling back to local visual prompts:", error);
-      return fallback;
+      return failClosedOrReturn(fallback, generationPolicy);
     }
   }
 
@@ -171,4 +183,21 @@ export class VisualManager {
     }));
   }
 
+}
+
+function isStrictVisualResponse(value: Partial<VisualData>, expectedSceneCount: number) {
+  const thumbnail = value.thumbnail as Partial<ThumbnailConcept> | undefined;
+  return Array.isArray(value.scenes) && value.scenes.length === expectedSceneCount &&
+    value.scenes.every((scene) => typeof scene?.sceneId === "number" &&
+      [scene.visualPrompt, scene.animationPrompt, scene.style].every((item) => typeof item === "string" && item.trim())) &&
+    Boolean(thumbnail) &&
+    [thumbnail?.title, thumbnail?.prompt, thumbnail?.composition, thumbnail?.mood]
+      .every((item) => typeof item === "string" && item.trim()) &&
+    validTimestamp(value.createdAt);
+}
+
+function validTimestamp(value: unknown) {
+  if (typeof value !== "string") return false;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString() === value;
 }

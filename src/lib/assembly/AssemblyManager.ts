@@ -1,4 +1,6 @@
 import { runObservedAIRequest } from "@/lib/ai/runObservedAIRequest";
+import { failClosedOrReturn, type GenerationExecutionPolicy } from "@/lib/ai/GenerationExecutionPolicy";
+import type { AIProvider } from "@/lib/ai/providers";
 import {
   getCreatedAt,
   getOptionalString,
@@ -32,6 +34,7 @@ export class AssemblyManager {
     audio: AudioData,
     sources: AssemblySourceData = {},
     context?: Partial<AIRequestContext>,
+    options: { aiProvider?: AIProvider; generationPolicy?: GenerationExecutionPolicy } = {},
   ): Promise<AssemblyPlanData> {
     const fallback = this.createFallbackAssemblyPlan(
       script,
@@ -45,6 +48,7 @@ export class AssemblyManager {
     try {
       const { response } = await runObservedAIRequest({
         prompt,
+        provider: options.aiProvider,
         context: {
           ...context,
           projectSlug: context?.projectSlug ?? sources.project?.slug,
@@ -55,10 +59,14 @@ export class AssemblyManager {
 
       if (!response.trim()) {
         console.error("[AssemblyManager] Empty provider response.");
-        return fallback;
+        return failClosedOrReturn(fallback, options.generationPolicy);
       }
 
       const parsed = parseAIJsonResponse<Partial<AssemblyPlanData>>(response);
+      if (
+        options.generationPolicy?.failClosed &&
+        !isStrictAssemblyResponse(parsed, scenes.scenes.length)
+      ) throw new Error("invalid");
 
       return {
         projectId: fallback.projectId,
@@ -79,11 +87,12 @@ export class AssemblyManager {
         updatedAt: new Date().toISOString(),
       };
     } catch (error) {
+      if (options.generationPolicy?.failClosed) return failClosedOrReturn(fallback, options.generationPolicy);
       console.error(
         "[AssemblyManager] Falling back to local assembly plan:",
         error,
       );
-      return fallback;
+      return failClosedOrReturn(fallback, options.generationPolicy);
     }
   }
 
@@ -308,3 +317,19 @@ export class AssemblyManager {
   }
 
 }
+
+function isStrictAssemblyResponse(value: Partial<AssemblyPlanData>, expectedSceneCount: number) {
+  const render = value.render as Partial<AssemblyRenderInfo> | undefined;
+  return Array.isArray(value.scenes) && value.scenes.length === expectedSceneCount &&
+    value.scenes.every((scene) => typeof scene?.sceneId === "number" &&
+      [scene.duration, scene.visualReference, scene.audioReference, scene.transition, scene.cameraMovement]
+        .every(nonEmptyString) &&
+      Array.isArray(scene.effects) && scene.effects.every((item) => typeof item === "string") &&
+      (scene.notes === undefined || typeof scene.notes === "string")) &&
+    nonEmptyString(value.totalDuration) && nonEmptyString(value.style) &&
+    render?.status === "planned" && render.format === "mp4" &&
+    validTimestamp(value.createdAt);
+}
+
+function nonEmptyString(value: unknown): value is string { return typeof value === "string" && Boolean(value.trim()); }
+function validTimestamp(value: unknown) { if (typeof value !== "string") return false; const parsed = Date.parse(value); return Number.isFinite(parsed) && new Date(parsed).toISOString() === value; }

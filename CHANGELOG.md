@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Medium
 Owner: Atölye V2
-Last Updated: 2026-07-14
+Last Updated: 2026-07-15
 ---
 
 # Atölye V2 — Changelog
@@ -24,6 +24,27 @@ referans alınmalıdır.
 ---
 
 # Version 1.x
+
+## Sprint 126 — Real Production Acceptance Run Preparation
+
+Completed
+
+- `ProductionReadinessService` ile `READY`, `NOT_CONFIGURED`, `INVALID`, `UNAVAILABLE` ve `BLOCKED` durum modeli eklendi. Overall `ready=true` yalnız bütün kritik kontroller `READY` olduğunda üretilebilir.
+- Environment, API key, provider selection/endpoint/model, FFmpeg/FFprobe, projects/assets root, image/audio/video/thumbnail/assembly storage, filesystem permission/containment, runtime, durable execution, health ve image/audio/animation/video/assembly/thumbnail/publish provider bağımlılıkları güvenli reason code'larla kontrol edildi.
+- Readiness ücretli provider çağrısı yapmaz, kullanıcı projelerini değiştirmez ve secret, API key, raw exception veya hassas mutlak path raporlamaz.
+- Merkezi `GenerationExecutionPolicy` ve marker tabanlı `ProductionAcceptancePolicy` eklendi. Strict policy yalnız acceptance marker'ından türetilir; global state kullanmaz ve retry, resume, auto-continuation ile durable recovery boyunca yeniden okunur. Normal markersız mock-first/fallback davranışı korundu.
+- AI research, script, scenes, visual planning, animation prompt, audio planning, assembly planning, SEO ve thumbnail sonuçlarında exception, boş cevap veya geçersiz şema strict modda güvenli `GENERATION_FALLBACK_BLOCKED` koduyla fail-closed kapatıldı; raw provider exception taşınmadı.
+- Allowlist edilmiş environment/config değerlerinin SHA-256 fingerprint'i secret veya ham değer kaydetmeden acceptance marker'a bağlandı. Fingerprint runtime/readiness sonrası, her stage'de, pipeline sonunda ve acceptance validation sırasında yeniden doğrulanarak config TOCTOU değişiklikleri fail-closed durduruldu.
+- Acceptance marker publish modunu `package-only` olarak sabitledi. YouTube paketi üretilirken gerçek publish provider, `markYouTubePublished`, published state/history, remote ID ve `publishedAt` yazımı engellendi; retry/resume gerçek publish tetiklemedi. Normal markersız publish davranışı korundu.
+- `ProductionAcceptanceOrchestrator` mevcut `ProductionRuntimeCompositionRoot` ve production `PipelineRunner` entrypoint'ini kullanacak şekilde eklendi. Runtime startup sonrası readiness yeniden değerlendirilir; bütün kritik kontroller `READY` olmadan proje, pipeline veya ücretli provider çağrısı başlatılmaz.
+- Acceptance projesi UUID içeren benzersiz slug ve atomik/exclusive marker rezervasyonuyla existing kullanıcı projelerinden ayrıldı. Başarısız final validation `productionReady=false` bırakır.
+- Mevcut production FFmpeg config'i ve bounded `SpawnRunner` ile version, exit code, timeout, output limiti, gerçek H.264/AAC encode ve FFprobe MP4 container/stream/codec/resolution/duration kontrolleri eklendi. Final acceptance medya kriterleri 60–120 saniye, 1920×1080, H.264 video ve AAC audio olarak doğrulandı.
+- Storage probe projects root altında sentinel korumalı UUID dizininde gerçek image/audio/video/thumbnail/assembly adapter write/read ve containment kontrollerini uygular. Cleanup öncesi sentinel, `lstat`, `realpath` ve junction/symlink yeniden doğrulanır; cleanup başarısızlığı sahte `READY` bırakmaz.
+- Sprint 126 smoke strict/normal fallback ayrımı, run izolasyonu, retry/resume policy kalıcılığı, config TOCTOU, mock/unknown animation, runtime sonrası readiness, package-only resume, sentinel/junction güvenliği, FFmpeg timeout cleanup, readiness check-set bozuklukları ve readiness öncesi sıfır project/provider çağrısını kapsadı.
+- Doğrulamalar: `npx tsc --noEmit` PASS; Sprint 126 readiness/acceptance smoke PASS; hedefli ESLint PASS; `git diff --check` PASS; pipeline orchestration 10, auto-continuation 18, retry/continuation hardening 22, runtime startup/status 11 + 15, durable wiring 19, visual/audio/animation 54 + 74 + 21, scene video/assembly 23 + 46, thumbnail 42, YouTube package/publish 58 + 31 ve Sprint 125 end-to-end regression 20 senaryo PASS.
+- Final production safety review: P0 yok, P1 yok, P2 yok. Gerçek animation provider bulunmadığı ve production environment/provider yapılandırmaları eksik olduğu için mevcut ortam `ready=false` kaldı. Missing animation `NOT_CONFIGURED`, explicit mock `BLOCKED`, unknown provider `INVALID` olur; mock animation hiçbir koşulda production-ready kabul edilmez.
+- Readiness altyapısı, strict production acceptance policy'si ve güvenli acceptance orchestration tamamlandı. Gerçek production acceptance run pipeline başlamadan fail-closed engellendi ve ilk gerçek video bu sprintte üretilmedi. Bu operasyonel blokaj kod hatası veya review bulgusu değildir.
+- Dokümantasyon kapanışı tamamlandı; commit veya push yapılmadı. Sprint 127 Planning odağı `Production Animation Provider Activation` olarak belirlendi; gerçek YouTube publish ve geniş kapsamlı yeni pipeline planlanmadı.
 
 ## Sprint 125 — Production End-to-End Validation
 

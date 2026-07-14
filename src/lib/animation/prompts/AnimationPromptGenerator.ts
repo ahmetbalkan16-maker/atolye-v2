@@ -1,4 +1,6 @@
 import { runObservedAIRequest } from "@/lib/ai/runObservedAIRequest";
+import { failClosedOrReturn, type GenerationExecutionPolicy } from "@/lib/ai/GenerationExecutionPolicy";
+import type { AIProvider } from "@/lib/ai/providers";
 import {
   getStringAllowEmpty,
   parseAIJsonResponse,
@@ -16,6 +18,8 @@ export type AnimationPromptGeneratorInput = {
   visuals: VisualData;
   style?: string;
   aiContext?: Partial<AIRequestContext>;
+  aiProvider?: AIProvider;
+  generationPolicy?: GenerationExecutionPolicy;
 };
 
 type AnimationPromptResponse = {
@@ -32,6 +36,8 @@ export class AnimationPromptGenerator {
     visuals,
     style,
     aiContext,
+    aiProvider,
+    generationPolicy,
   }: AnimationPromptGeneratorInput): Promise<AnimationData> {
     const createdAt = new Date().toISOString();
     const animationScenes: AnimationScene[] = [];
@@ -44,6 +50,8 @@ export class AnimationPromptGenerator {
           visual,
           style,
           aiContext,
+          aiProvider,
+          generationPolicy,
         }),
       );
     }
@@ -61,12 +69,16 @@ export class AnimationPromptGenerator {
     visual,
     style,
     aiContext,
+    aiProvider,
+    generationPolicy,
   }: {
     projectSlug?: string;
     scenes: SceneData;
     visual: VisualScene;
     style?: string;
     aiContext?: Partial<AIRequestContext>;
+    aiProvider?: AIProvider;
+    generationPolicy?: GenerationExecutionPolicy;
   }): Promise<AnimationScene> {
     return this.generateAnimationScene({
       projectSlug,
@@ -74,6 +86,8 @@ export class AnimationPromptGenerator {
       visual,
       style,
       aiContext,
+      aiProvider,
+      generationPolicy,
     });
   }
 
@@ -83,12 +97,16 @@ export class AnimationPromptGenerator {
     visual,
     style,
     aiContext,
+    aiProvider,
+    generationPolicy,
   }: {
     projectSlug?: string;
     scenes: SceneData;
     visual: VisualScene;
     style?: string;
     aiContext?: Partial<AIRequestContext>;
+    aiProvider?: AIProvider;
+    generationPolicy?: GenerationExecutionPolicy;
   }): Promise<AnimationScene> {
     const sourceScene = scenes.scenes.find((scene) => scene.id === visual.sceneId);
     const fallback = this.createFallbackAnimationScene(
@@ -104,6 +122,7 @@ export class AnimationPromptGenerator {
     try {
       const { response } = await runObservedAIRequest({
         prompt,
+        provider: aiProvider,
         context: {
           ...aiContext,
           projectSlug: aiContext?.projectSlug ?? projectSlug,
@@ -115,10 +134,15 @@ export class AnimationPromptGenerator {
 
       if (!response.trim()) {
         console.error("[AnimationPromptGenerator] Empty provider response.");
-        return fallback;
+        return failClosedOrReturn(fallback, generationPolicy);
       }
 
       const parsed = parseAIJsonResponse<AnimationPromptResponse>(response);
+      if (
+        generationPolicy?.failClosed &&
+        (parsed.sceneId !== visual.sceneId ||
+          typeof parsed.animationPrompt !== "string" || !parsed.animationPrompt.trim())
+      ) throw new Error("invalid");
 
       return {
         sceneId: visual.sceneId,
@@ -130,6 +154,7 @@ export class AnimationPromptGenerator {
         status: "planned",
       };
     } catch (error) {
+      if (generationPolicy?.failClosed) return failClosedOrReturn(fallback, generationPolicy);
       console.error(
         "[AnimationPromptGenerator] Falling back to visual animation prompt:",
         {
@@ -138,7 +163,7 @@ export class AnimationPromptGenerator {
         },
       );
 
-      return fallback;
+      return failClosedOrReturn(fallback, generationPolicy);
     }
   }
 

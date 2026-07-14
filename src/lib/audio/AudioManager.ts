@@ -1,4 +1,6 @@
 import { runObservedAIRequest } from "@/lib/ai/runObservedAIRequest";
+import { failClosedOrReturn, type GenerationExecutionPolicy } from "@/lib/ai/GenerationExecutionPolicy";
+import type { AIProvider } from "@/lib/ai/providers";
 import {
   getCreatedAt,
   getNumber,
@@ -23,6 +25,7 @@ export class AudioManager {
   static async generateAudioData(
     script: ScriptData,
     context?: Partial<AIRequestContext>,
+    options: { aiProvider?: AIProvider; generationPolicy?: GenerationExecutionPolicy } = {},
   ): Promise<AudioData> {
     const fallback = this.createFallbackAudioData(script);
     const prompt = createAudioPrompt(script);
@@ -30,6 +33,7 @@ export class AudioManager {
     try {
       const { response } = await runObservedAIRequest({
         prompt,
+        provider: options.aiProvider,
         context: {
           ...context,
           operation: context?.operation ?? "audio-plan",
@@ -39,10 +43,14 @@ export class AudioManager {
 
       if (!response.trim()) {
         console.error("[AudioManager] Empty provider response.");
-        return fallback;
+        return failClosedOrReturn(fallback, options.generationPolicy);
       }
 
       const parsed = parseAIJsonResponse<Partial<AudioData>>(response);
+      if (
+        options.generationPolicy?.failClosed &&
+        !isStrictAudioResponse(parsed, script.chapters.length)
+      ) throw new Error("invalid");
 
       return {
         narrator: this.mapNarrator(parsed.narrator, fallback.narrator),
@@ -52,8 +60,9 @@ export class AudioManager {
         createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
       };
     } catch (error) {
+      if (options.generationPolicy?.failClosed) return failClosedOrReturn(fallback, options.generationPolicy);
       console.error("[AudioManager] Falling back to local audio plan:", error);
-      return fallback;
+      return failClosedOrReturn(fallback, options.generationPolicy);
     }
   }
 
@@ -226,3 +235,24 @@ export class AudioManager {
   }
 
 }
+
+function isStrictAudioResponse(value: Partial<AudioData>, expectedSectionCount: number) {
+  const narrator = value.narrator as Partial<AudioNarrator> | undefined;
+  const music = value.music as Partial<AudioMusicPlan> | undefined;
+  const production = value.production as Partial<AudioProductionInfo> | undefined;
+  return Boolean(narrator) && [narrator?.style, narrator?.tone, narrator?.language]
+    .every(nonEmptyString) &&
+    Array.isArray(value.sections) && value.sections.length === expectedSectionCount &&
+    value.sections.every((section) => typeof section?.chapterId === "number" &&
+      [section.title, section.duration, section.emotion, section.narrationNotes, section.pacing, section.sourceText]
+        .every(nonEmptyString) && Array.isArray(section.emphasis) && section.emphasis.every((item) => typeof item === "string")) &&
+    Boolean(music) && [music?.mood, music?.suggestion, music?.intensity].every(nonEmptyString) &&
+    Boolean(production) && (production?.targetFormat === "mp3" || production?.targetFormat === "wav") &&
+    typeof production?.sampleRate === "number" && Number.isFinite(production.sampleRate) &&
+    nonEmptyString(production.estimatedTotalDuration) &&
+    ["planned", "generating", "generated", "failed"].includes(production.generationStatus ?? "") &&
+    validTimestamp(value.createdAt);
+}
+
+function nonEmptyString(value: unknown): value is string { return typeof value === "string" && Boolean(value.trim()); }
+function validTimestamp(value: unknown) { if (typeof value !== "string") return false; const parsed = Date.parse(value); return Number.isFinite(parsed) && new Date(parsed).toISOString() === value; }

@@ -1,4 +1,6 @@
 import { runObservedAIRequest } from "@/lib/ai/runObservedAIRequest";
+import { failClosedOrReturn, type GenerationExecutionPolicy } from "@/lib/ai/GenerationExecutionPolicy";
+import type { AIProvider } from "@/lib/ai/providers";
 import {
   getCreatedAt,
   getString,
@@ -17,6 +19,7 @@ export class SEOManager {
     script: ScriptData,
     thumbnail: ThumbnailData,
     context?: Partial<AIRequestContext>,
+    options: { aiProvider?: AIProvider; generationPolicy?: GenerationExecutionPolicy } = {},
   ): Promise<SEOData> {
     const fallback = this.createFallbackSEOData(topic, script, thumbnail);
     const prompt = createSEOPrompt(topic, script, thumbnail);
@@ -24,6 +27,7 @@ export class SEOManager {
     try {
       const { response } = await runObservedAIRequest({
         prompt,
+        provider: options.aiProvider,
         context: {
           ...context,
           operation: context?.operation ?? "seo-plan",
@@ -33,10 +37,14 @@ export class SEOManager {
 
       if (!response.trim()) {
         console.error("[SEOManager] Empty provider response.");
-        return fallback;
+        return failClosedOrReturn(fallback, options.generationPolicy);
       }
 
       const parsed = parseAIJsonResponse<Partial<SEOData>>(response);
+      if (
+        options.generationPolicy?.failClosed &&
+        !isStrictSEOResponse(parsed)
+      ) throw new Error("invalid");
 
       return {
         titleSuggestions: this.getStringArray(
@@ -55,8 +63,9 @@ export class SEOManager {
         createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
       };
     } catch (error) {
+      if (options.generationPolicy?.failClosed) return failClosedOrReturn(fallback, options.generationPolicy);
       console.error("[SEOManager] Falling back to local SEO plan:", error);
-      return fallback;
+      return failClosedOrReturn(fallback, options.generationPolicy);
     }
   }
 
@@ -125,3 +134,13 @@ export class SEOManager {
     );
   }
 }
+
+function isStrictSEOResponse(value: Partial<SEOData>) {
+  return [value.titleSuggestions, value.tags, value.hashtags, value.keywords]
+    .every((items) => Array.isArray(items) && items.length > 0 && items.every((item) => typeof item === "string" && item.trim())) &&
+    [value.description, value.targetAudience, value.searchIntent]
+      .every((item) => typeof item === "string" && item.trim()) &&
+    validTimestamp(value.createdAt);
+}
+
+function validTimestamp(value: unknown) { if (typeof value !== "string") return false; const parsed = Date.parse(value); return Number.isFinite(parsed) && new Date(parsed).toISOString() === value; }

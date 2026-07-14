@@ -1,4 +1,5 @@
 import { AIManager } from "@/lib/ai/AIManager";
+import { strictGenerationExecutionPolicy } from "@/lib/ai/GenerationExecutionPolicy";
 import type { AIProvider } from "@/lib/ai/providers";
 import { AnimationAssetPipeline } from "@/lib/animation/AnimationAssetPipeline";
 import { isCompatibleAnimationData } from "@/lib/animation/AnimationMotionPlanValidation";
@@ -52,6 +53,7 @@ import type { ThumbnailData } from "@/types/thumbnail";
 import type { VideoData } from "@/types/video";
 import type { VisualData } from "@/types/visual";
 import type { YouTubePublishingPackage } from "@/types/youtube";
+import { readProductionAcceptancePolicy } from "@/lib/production/ProductionAcceptancePolicy";
 
 export type PipelineExecutionState = {
   project: Project;
@@ -158,13 +160,17 @@ export class PipelineStageExecutor {
     state: PipelineExecutionState,
     options: PipelineStageExecutionOptions = {},
   ): Promise<boolean> {
+    const persistedPolicy = await readProductionAcceptancePolicy(projectSlug);
+    const generationPolicy = persistedPolicy?.strictProductionAcceptance
+      ? strictGenerationExecutionPolicy
+      : undefined;
     switch (stage) {
       case "research":
         state.research = await AIManager.runResearch(state.project.title, {
           projectSlug,
           stage: "research",
           operation: "research",
-        }, options.aiProvider);
+        }, options.aiProvider, generationPolicy);
         return this.persistStageResult(projectSlug, stage, () =>
           ProjectManager.saveResearch(projectSlug, state.research),
         );
@@ -174,7 +180,7 @@ export class PipelineStageExecutor {
           projectSlug,
           stage: "script",
           operation: "script",
-        }, options.aiProvider);
+        }, options.aiProvider, generationPolicy);
         return this.persistStageResult(projectSlug, stage, () =>
           ProjectManager.saveScript(projectSlug, state.script),
         );
@@ -185,7 +191,7 @@ export class PipelineStageExecutor {
           projectSlug,
           stage: "scenes",
           operation: "scenes",
-        }, options.aiProvider);
+        }, options.aiProvider, generationPolicy);
         return this.persistStageResult(projectSlug, stage, () =>
           ProjectManager.saveScenes(projectSlug, state.scenes),
         );
@@ -202,6 +208,8 @@ export class PipelineStageExecutor {
             stage: "visuals",
             operation: "visuals",
           },
+          aiProvider: options.aiProvider,
+          generationPolicy,
         });
         await VisualAssetPipeline.generateAssets({
           projectId: state.project.id,
@@ -227,6 +235,8 @@ export class PipelineStageExecutor {
             stage: "animation",
             operation: "animation-prompt",
           },
+          aiProvider: options.aiProvider,
+          generationPolicy,
         });
         const { updatedScenes } =
           await AnimationAssetPipeline.generateAnimationAssets({
@@ -266,6 +276,9 @@ export class PipelineStageExecutor {
           projectSlug,
           stage: "audio",
           operation: "audio-plan",
+        }, {
+          aiProvider: options.aiProvider,
+          generationPolicy,
         });
         const { audio } = await AudioPipeline.generateAudio({
           projectId: state.project.id,
@@ -305,6 +318,10 @@ export class PipelineStageExecutor {
             stage: "assembly",
             operation: "assembly-plan",
           },
+          {
+            aiProvider: options.aiProvider,
+            generationPolicy,
+          },
         );
         state.assembly = await VideoAssemblyManager.renderExistingAssets({
           projectId: state.project.id,
@@ -339,6 +356,7 @@ export class PipelineStageExecutor {
           video,
           audio,
           provider: options.thumbnailProvider,
+          generationPolicy,
         });
         state.thumbnail = await ThumbnailAssetPipeline.generateThumbnail({
           projectId: state.project.id,
@@ -379,6 +397,10 @@ export class PipelineStageExecutor {
             stage: "seo",
             operation: "seo-plan",
           },
+          {
+            aiProvider: options.aiProvider,
+            generationPolicy,
+          },
         );
         return this.persistStageResult(projectSlug, stage, () =>
           ProjectManager.saveSEO(projectSlug, state.seo),
@@ -404,6 +426,9 @@ export class PipelineStageExecutor {
               JSON.stringify(previousYouTube) === JSON.stringify(state.youtube),
             updatePackageStatus: false,
           });
+          if (persistedPolicy?.youtubePublishMode === "package-only") {
+            return await this.persistStageResult(projectSlug, stage, async () => {});
+          }
           await YouTubePublishPipeline.publishStoredPackage({
             projectSlug,
             provider: options.youtubePublishProvider,
