@@ -1,6 +1,7 @@
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { isCompatibleVideoData } from "@/lib/video/VideoDataValidation";
 import { isYouTubePublishingPackage } from "@/lib/youtube/YouTubePackageValidation";
+import { isYouTubePublishRecord } from "@/lib/youtube/publish/YouTubePublishValidation";
 import type { ProjectManifest } from "@/types/project";
 import type {
   PipelineDependencyStatus,
@@ -248,7 +249,11 @@ async function isStageFileReady(
   const data = await readStageData(projectSlug, stage);
 
   if (stage === "video") return isCompatibleVideoData(data);
-  if (stage === "youtube") return isYouTubePublishingPackage(data);
+  if (stage === "youtube") {
+    const publish = await ProjectManager.getYouTubePublish(projectSlug);
+    return isYouTubePublishingPackage(data) &&
+      isYouTubePublishRecord(publish) && publish.status === "published";
+  }
   return data !== null;
 }
 

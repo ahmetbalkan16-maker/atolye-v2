@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 121 — Production YouTube Package Pipeline Activation (Completed)
+Sprint 122 — Production YouTube Publish Pipeline Foundation (Completed)
 
 Siradaki Planlama Adimi
 
 Sonraki sprint — Planning
 
-Sprint 121 Production YouTube Package Pipeline Activation tamamlandı. Sonraki sprint yalnız Planning durumundadır; adı ve kapsamı ayrıca planlanacak ve onaylanacaktır.
+Sprint 122 Production YouTube Publish Pipeline Foundation tamamlandı. Sonraki sprint yalnız Planning durumundadır; adı ve kapsamı ayrıca planlanacak ve onaylanacaktır.
 
 ---
 
@@ -1476,6 +1476,32 @@ Completed
 - Final review sırasında bulunan eksik thumbnail generationMode P1'ı giderildi; açık P0/P1 kalmadı.
 - Doğrulamalar: Sprint 121 YouTube package smoke PASS — 58; Sprint 120 thumbnail PASS — 42; Sprint 119 retry continuation PASS — 22; Auto-continuation PASS — 18; Pipeline orchestration PASS — 10; Durable execution PASS — 17; Durable wiring PASS — 19; Sprint 118 assembly PASS — 19; Sprint 117 scene video PASS — 23; Sprint 116 animation PASS — 21; Sprint 115 assembly wiring PASS — 46; Sprint 114 audio PASS — 74; Sprint 113 visuals PASS — 54; TypeScript PASS; full repository ESLint PASS — 0 warning; `git diff --check` PASS; fixture cleanup temiz.
 - Non-blocking P2 takipleri: `youtube.json`, manifest ve job kayıtları tek filesystem transaction değildir; durable/distributed execution kapalı çok-process kullanımda pipeline kilidi process-localdır; gerçek OpenAI credential ile live E2E çalıştırılmadı; `youtube.json`, manifest ve job timestamp'leri birebir aynı olmak zorunda değildir; MP4 validation bounded `mvhd` inspection kullanır ve ayrıca live FFprobe acceptance çalıştırılmadı.
+- Dokümantasyon kapanışı tamamlandı; commit veya push yapılmadı.
+
+---
+
+# Sprint 122
+
+## Production YouTube Publish Pipeline Foundation
+
+Completed
+
+- Yeni merkezi stage eklenmedi. Mevcut YouTube stage canonical package üretimini ve publish işlemini birlikte yönetir; merkezi `Thumbnail → SEO → YouTube → Export` sırası korundu.
+- Canonical publish kaydı `schemaVersion: "1"` kullanır; `youtube-publish.json` içinde `publishing`, `published` ve `failed` durumları saklanır.
+- Provider yalnız uzak yayın sonucunu üretir; project, package ve asset identity, attempt, timestamp ve canonical status alanlarını pipeline ekler.
+- Default provider mock'tur. Gerçek provider yalnız `YOUTUBE_PUBLISH_PROVIDER=youtube-data-api` ve `YOUTUBE_ACCESS_TOKEN` ile etkinleşir; unknown veya eksik yapılandırma fail-closed olur.
+- YouTube Data API resumable video upload ve thumbnail upload işlemleri provider boundary içinde tutulur; fetch transport injection credential gerektirmeyen testleri destekler.
+- Durable execution, claim, lease, attempt ve worker lifecycle değiştirilmedi.
+- Yalnız stored `project.json`, canonical `youtube.json`, assembly, thumbnail, SEO ve asset registry kullanılır; istemci package/video/thumbnail/metadata override'ları reddedilir.
+- Canonical package ve video/thumbnail asset zinciri fiziksel storage readback ile yeniden doğrulanır. Missing, malformed, duplicate, failed, stale, cross-project, locator uyumsuz ve generationMode eksik asset'ler reddedilir.
+- MP4 structure, byteLength, `mvhd` duration ve containment ile thumbnail MIME, dimensions, byteLength, locator ve `assetId` ↔ `fileName` doğrulamaları uygulanır.
+- Metadata NFC normalization, trim, control-character reddi ve YouTube sınırlarından geçer. Package identity SHA-256 ile deterministik bağlanır.
+- Geçerli published replay provider'ı yeniden çağırmaz. Existing publishing intent ikinci uzak upload'ı fail-closed engeller; stale package/provider/asset binding kabul edilmez.
+- Provider explicit failure false-success üretmez. Indeterminate timeout/upload durumunda publishing intent korunur ve otomatik ikinci upload yapılmaz.
+- Atomic sonuç yazımı temp file, fsync, rename, containment ve symlink/junction parent kontrollerini kullanır.
+- API sabit güvenli hata envelope'u ve `Cache-Control: no-store` kullanır; raw provider/API/credential hataları dışarı sızdırılmaz.
+- Doğrulamalar: Sprint 122 YouTube publish smoke PASS — 31; Sprint 121 YouTube package PASS — 58; Sprint 120 thumbnail PASS — 42; Sprint 119 retry continuation PASS — 22; Auto-continuation PASS — 18; Pipeline orchestration PASS — 10; Durable execution PASS — 17; Durable wiring PASS — 19; Sprint 118 assembly PASS — 19; Sprint 117 scene video PASS — 23; Sprint 116 animation PASS — 21; Sprint 115 assembly wiring PASS — 46; Sprint 114 audio PASS — 74; Sprint 113 visuals PASS — 54; TypeScript PASS; full repository ESLint PASS — 0 warning; `git diff --check` PASS; fixture cleanup temiz.
+- Non-blocking P2 takipleri: `youtube.json`, `youtube-publish.json`, manifest ve job kayıtları tek filesystem transaction değildir; başarılı uzak upload sonrası final persistence başarısızsa publishing intent manuel reconciliation gerektirir ve otomatik yeniden upload yapılmaz; durable/distributed execution kapalı çok-process kullanımda pipeline kilidi process-localdır; gerçek credential ile live YouTube video upload, thumbnail upload ve canlı API acceptance çalıştırılmadı.
 - Dokümantasyon kapanışı tamamlandı; commit veya push yapılmadı.
 
 ---

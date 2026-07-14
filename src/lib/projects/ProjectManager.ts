@@ -1,6 +1,7 @@
 import { ProjectWriter } from "./ProjectWriter";
 import { ProjectReader } from "./ProjectReader";
 import { validateYouTubePublishingPackage } from "@/lib/youtube/YouTubePackageValidation";
+import { validateYouTubePublishRecord } from "@/lib/youtube/publish/YouTubePublishValidation";
 import type {
   PackageStatus,
   ProductionStepKey,
@@ -282,7 +283,7 @@ export class ProjectManager {
   static async saveYouTube(
     slug: string,
     youtube: unknown,
-    options?: { reuseExisting?: boolean },
+    options?: { reuseExisting?: boolean; updatePackageStatus?: boolean },
   ) {
     validateYouTubePublishingPackage(youtube, { slug });
     if (!options?.reuseExisting) {
@@ -293,6 +294,34 @@ export class ProjectManager {
     if (JSON.stringify(readback) !== JSON.stringify(youtube)) {
       throw new Error("YouTube package persistence failed.");
     }
+    if (options?.updatePackageStatus !== false) {
+      await this.updatePackageStatus(slug, "youtube", "completed");
+    }
+  }
+
+  static async saveYouTubePublish(slug: string, publish: unknown) {
+    validateYouTubePublishRecord(publish, { slug });
+    await ProjectWriter.writeJSONAtomically(slug, "youtube-publish.json", publish);
+    const readback = await ProjectReader.readJSON<unknown>(slug, "youtube-publish.json");
+    validateYouTubePublishRecord(readback, { slug });
+    if (JSON.stringify(readback) !== JSON.stringify(publish)) {
+      throw new Error("YouTube publish persistence failed.");
+    }
+  }
+
+  static getYouTubePublishState(slug: string) {
+    return ProjectReader.readJSONState<unknown>(slug, "youtube-publish.json");
+  }
+
+  static async getYouTubePublish(slug: string) {
+    return ProjectReader.readJSON(slug, "youtube-publish.json");
+  }
+
+  static async removeYouTubePublish(slug: string) {
+    await ProjectWriter.removeJSON(slug, "youtube-publish.json");
+  }
+
+  static async markYouTubePublished(slug: string) {
     await this.updatePackageStatus(slug, "youtube", "completed");
   }
 

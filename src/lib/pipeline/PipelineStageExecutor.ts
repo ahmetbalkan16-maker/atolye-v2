@@ -31,11 +31,12 @@ import { isCompatibleVideoData } from "@/lib/video/VideoDataValidation";
 import type { VideoProvider } from "@/lib/video/providers/VideoProvider";
 import { VisualManager } from "@/lib/visuals/VisualManager";
 import {
-  YouTubePackageGenerationError,
   YouTubePackagePipeline,
 } from "@/lib/youtube/YouTubePackagePipeline";
 import { isYouTubePublishingPackage } from "@/lib/youtube/YouTubePackageValidation";
 import type { YouTubeProvider } from "@/lib/youtube/providers/YouTubeProvider";
+import { YouTubePublishError, YouTubePublishPipeline } from "@/lib/youtube/publish/YouTubePublishPipeline";
+import type { YouTubePublishProvider } from "@/lib/youtube/publish/providers/YouTubePublishProvider";
 import { PipelineJobManager } from "./PipelineJobManager";
 import type { AnimationData } from "@/types/animation";
 import type { AssemblyPlanData } from "@/types/assembly";
@@ -75,6 +76,7 @@ export type PipelineStageExecutionOptions = {
   videoAssemblyProvider?: VideoAssemblyProvider;
   thumbnailProvider?: ThumbnailProvider;
   youtubeProvider?: YouTubeProvider;
+  youtubePublishProvider?: YouTubePublishProvider;
 };
 
 export class PipelineStageExecutor {
@@ -394,24 +396,21 @@ export class PipelineStageExecutor {
           provider: options.youtubeProvider,
         });
         try {
+          await ProjectManager.saveYouTube(projectSlug, state.youtube, {
+            reuseExisting:
+              isYouTubePublishingPackage(previousYouTube) &&
+              JSON.stringify(previousYouTube) === JSON.stringify(state.youtube),
+            updatePackageStatus: false,
+          });
+          await YouTubePublishPipeline.publishStoredPackage({
+            projectSlug,
+            provider: options.youtubePublishProvider,
+          });
           return await this.persistStageResult(projectSlug, stage, () =>
-            ProjectManager.saveYouTube(projectSlug, state.youtube, {
-              reuseExisting:
-                isYouTubePublishingPackage(previousYouTube) &&
-                JSON.stringify(previousYouTube) === JSON.stringify(state.youtube),
-            }),
+            ProjectManager.markYouTubePublished(projectSlug),
           );
         } catch {
-          try {
-            if (isYouTubePublishingPackage(previousYouTube)) {
-              await ProjectManager.restoreYouTube(projectSlug, previousYouTube);
-            } else {
-              await ProjectManager.removeYouTube(projectSlug);
-            }
-          } catch {
-            // The runner's failed manifest/job state remains authoritative.
-          }
-          throw new YouTubePackageGenerationError();
+          throw new YouTubePublishError();
         }
       }
 

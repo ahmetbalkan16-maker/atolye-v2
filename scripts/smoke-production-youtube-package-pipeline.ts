@@ -28,6 +28,7 @@ import {
   resolveYouTubeProviderName,
 } from "../src/lib/youtube/YouTubeProviderConfig";
 import { YouTubeProviderRouter } from "../src/lib/youtube/YouTubeProviderRouter";
+import { createYouTubePackageIdentity } from "../src/lib/youtube/publish/YouTubePublishValidation";
 import type { Asset, ProjectAssets } from "../src/types/asset";
 import type { AssemblyPlanData } from "../src/types/assembly";
 import type { Project } from "../src/types/project";
@@ -343,6 +344,23 @@ async function assetFailureTests() {
 async function persistenceTests() {
   const canonical = await generate(new DraftProvider());
   await ProjectManager.saveYouTube(slug, canonical);
+  await ProjectManager.saveYouTubePublish(slug, {
+    schemaVersion: "1",
+    projectId: project.id,
+    slug,
+    packageIdentity: createYouTubePackageIdentity(canonical),
+    videoAssetId: canonical.videoAssetId,
+    thumbnailAssetId: canonical.thumbnailAssetId,
+    provider: "mock",
+    model: "mock-youtube-publish-v1",
+    attemptId: "sprint-121-compatibility",
+    status: "published",
+    remoteVideoId: "mock-sprint-121",
+    remoteVideoUrl: "https://www.youtube.com/watch?v=mock-sprint-121",
+    channelId: "mock-channel",
+    publishedAt: "2026-07-14T01:00:00.000Z",
+    createdAt: "2026-07-14T01:00:00.000Z",
+  });
   assert.deepEqual(await ProjectManager.getYouTube(slug), canonical); pass();
   assert.equal(isYouTubePublishingPackage(await ProjectManager.getYouTube(slug)), true); pass();
   const exported = createMockExportPackage({

@@ -23,6 +23,10 @@ export interface ThumbnailInspection {
   byteLength: number;
 }
 
+export interface StoredThumbnailInspection extends ThumbnailInspection {
+  realPath: string;
+}
+
 export class ThumbnailStorage {
   static saveThumbnail(input: {
     projectSlug: string;
@@ -120,7 +124,7 @@ export class ThumbnailStorage {
     projectSlug: string,
     filePath: string,
     mimeType: ThumbnailMimeType,
-  ): ThumbnailInspection {
+  ): StoredThumbnailInspection {
     requireSafeSegment(projectSlug);
     if (filePath.includes("\\")) throw new Error("Invalid thumbnail path.");
 
@@ -150,7 +154,7 @@ export class ThumbnailStorage {
     if (inspection.byteLength !== stat.size) {
       throw new Error("Invalid thumbnail file.");
     }
-    return inspection;
+    return { ...inspection, realPath };
   }
 
   static readThumbnail(
