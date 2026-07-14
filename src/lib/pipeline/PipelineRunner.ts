@@ -5,7 +5,10 @@ import {
   PipelineRecoveryPlanner,
   pipelineRecoveryStageOrder,
 } from "./PipelineRecoveryPlanner";
-import { PipelineStageExecutor } from "./PipelineStageExecutor";
+import {
+  PipelineStageExecutor,
+  type PipelineStageExecutionOptions,
+} from "./PipelineStageExecutor";
 import { isPipelineStateError } from "./PipelineStateError";
 import type { ProductionPipelineExecutionAdapter } from "@/lib/production/ProductionPipelineExecutionAdapter";
 import type {
@@ -26,7 +29,10 @@ export class PipelineRunner {
 
   static configureDurableExecution(adapter?: Pick<ProductionPipelineExecutionAdapter, "execute">) { this.durableExecution = adapter; }
   static configureContinuationAdmission(admission?: PipelineContinuationAdmission) { this.continuationAdmission = admission; }
-  static async run(topic: string) {
+  static async run(
+    topic: string,
+    options: { stageExecution?: PipelineStageExecutionOptions } = {},
+  ) {
     const slug = ProjectManager.createSlug(topic);
     const project = await ProjectManager.createProject(topic);
     const state = PipelineStageExecutor.createInitialState(project);
@@ -36,6 +42,8 @@ export class PipelineRunner {
         slug,
         pipelineRecoveryStageOrder,
         state,
+        "initial",
+        options.stageExecution,
       );
 
       if (!stopReason) {
@@ -536,11 +544,12 @@ export class PipelineRunner {
     state: Parameters<typeof PipelineStageExecutor.execute>[2],
     runType: ProjectPackageRunType = "initial",
     onClaimConflict?: () => void,
+    stageExecution?: PipelineStageExecutionOptions,
   ) {
     return this.runStage(
       slug,
       stage,
-      () => PipelineStageExecutor.execute(slug, stage, state),
+      () => PipelineStageExecutor.execute(slug, stage, state, stageExecution),
       runType,
       onClaimConflict,
     );
@@ -551,6 +560,7 @@ export class PipelineRunner {
     stages: readonly PipelineRecoveryStageKey[],
     state: Parameters<typeof PipelineStageExecutor.execute>[2],
     runType: ProjectPackageRunType = "initial",
+    stageExecution?: PipelineStageExecutionOptions,
   ): Promise<{
     completedStages: PipelineRecoveryStageKey[];
     stopReason?: string;
@@ -578,6 +588,8 @@ export class PipelineRunner {
         next.stage,
         state,
         runType,
+        undefined,
+        stageExecution,
       );
 
       if (!completed) {

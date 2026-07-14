@@ -2,6 +2,7 @@ import type { ResearchData } from "@/types/research";
 import type { SceneData, SceneItem } from "@/types/scene";
 import type { ScriptChapter, ScriptData } from "@/types/script";
 import type { AIRequestContext } from "@/types/aiUsage";
+import type { AIProvider } from "./providers";
 import { runObservedAIRequest } from "./runObservedAIRequest";
 import {
   getCreatedAt,
@@ -15,6 +16,7 @@ export class AIManager {
   static async runResearch(
     topic: string,
     context?: Partial<AIRequestContext>,
+    provider?: AIProvider,
   ): Promise<ResearchData> {
     const fallback: ResearchData = {
       topic,
@@ -72,6 +74,7 @@ export class AIManager {
     try {
       const { response } = await runObservedAIRequest({
         prompt,
+        provider,
         context: {
           ...context,
           operation: context?.operation ?? "research",
@@ -124,6 +127,7 @@ export class AIManager {
   static async runScript(
     topic: string,
     context?: Partial<AIRequestContext>,
+    provider?: AIProvider,
   ): Promise<ScriptData> {
     const fallback: ScriptData = {
       topic,
@@ -193,6 +197,7 @@ export class AIManager {
     try {
       const { response } = await runObservedAIRequest({
         prompt,
+        provider,
         context: {
           ...context,
           operation: context?.operation ?? "script",
@@ -264,6 +269,7 @@ export class AIManager {
   static async runScenes(
     script: ScriptData,
     context?: Partial<AIRequestContext>,
+    provider?: AIProvider,
   ): Promise<SceneData> {
     const fallback: SceneData = {
       scenes: [
@@ -319,6 +325,7 @@ export class AIManager {
     try {
       const { response } = await runObservedAIRequest({
         prompt,
+        provider,
         context: {
           ...context,
           operation: context?.operation ?? "scenes",

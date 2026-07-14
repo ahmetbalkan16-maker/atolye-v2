@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 124 — Production Publish Reconciliation Hardening (Completed)
+Sprint 125 — Production End-to-End Validation (Completed)
 
 Siradaki Planlama Adimi
 
-Sonraki sprint — Planning
+Sprint 126 — Real Production Acceptance Run Preparation (Planning)
 
-Sprint 124 Production Publish Reconciliation Hardening tamamlandı. Sonraki sprint yalnız Planning durumundadır; adı ve kapsamı ayrıca planlanacak ve onaylanacaktır.
+Sprint 125 Production End-to-End Validation tamamlandı. Sprint 126, gerçek production acceptance run hazırlığı için Planning durumundadır.
 
 ---
 
@@ -1558,14 +1558,40 @@ Completed
 
 ---
 
-# Sonraki Sprint
+# Sprint 125
 
-## Planning
+## Production End-to-End Validation
+
+Completed
+
+- Amaç, yeni mimari veya provider eklemeden mevcut production pipeline'ı gerçek `PipelineRunner.run()` entrypoint'i üzerinden uçtan uca doğrulamaktı.
+- Production composition root ile runtime ve durable execution wiring'i kullanıldı.
+- Canonical sıra doğrudan `PipelineRecoveryPlanner.ts` içindeki `pipelineRecoveryStageOrder` kaynağından kullanıldı: `Research → Script → Scenes → Visuals → Animation → Video → Audio → Assembly → Thumbnail → SEO → YouTube → Export`.
+- `AIManager`, `PipelineRunner` ve `PipelineStageExecutor` çağrı kapsamlı, opsiyonel AI provider enjeksiyonuyla genişletildi. Enjeksiyon yokken mevcut environment/router production davranışı korundu; global/static provider state değiştirilmedi.
+- `src/lib/production/ProductionEndToEndValidation.ts` ve `scripts/smoke-production-end-to-end.ts` eklendi.
+- Manifest, jobs, history, retry geçmişi, canonical sıra, duplicate active/completed job, active/obsolete asset, duplicate asset ID, görsel, audio, scene video, final video, thumbnail, storage containment, MIME, byte length, duration, final package referansları ve runtime readiness doğrulandı.
+- Snapshot kaynakları project lock altında okundu; final tekrar okumada değişiklik algılanırsa `SNAPSHOT_CHANGED` ile fail-closed davranıldı.
+- Deterministik Türkçe fixture sentinel ve containment guard'larıyla izole edildi. Provider/config state `finally` içinde restore edildi; gerçek YouTube publish yapılmadı.
+- Fixture sonucu `mode: structural-only`, `reasonCode: FFPROBE_NOT_EXECUTED`, `productionReady: false` olarak işaretlendi. Production FFmpeg/FFprobe acceptance yolu eksik executable durumunda fail-closed kalır.
+- Doğrulamalar: TypeScript PASS; Sprint 125 smoke PASS — 20; regression smoke PASS — 17 script / 534 case; hedefli ESLint PASS — 5 dosya / 0 hata / 0 uyarı; `git diff --check` PASS; fixture/temp cleanup temiz.
+- P0/P1 yok. P2 sınırları: gerçek FFprobe executable bu ortamda çalıştırılmadı; snapshot kilidi process-localdır ve distributed/filesystem transaction eklenmedi.
+- Mevcut pipeline'ın deterministic fixture üzerinde canonical production entrypoint ve gerçek stage wiring'i üzerinden uçtan uca çalıştığı doğrulandı. İlk gerçek yayınlanabilir video kabulü için gerçek executable ve credential'larla production acceptance run gereklidir.
+
+---
+
+# Sprint 126
+
+## Real Production Acceptance Run Preparation
 
 Planning
 
-- Yeni sprint uygulamasına başlanmadı.
-- Sprint adı ve kapsamı kesinleştirilmedi; ayrıca planlanacak ve onaylanacaktır.
+- Gerçek FFmpeg ve FFprobe executable doğrulaması.
+- Gerçek provider/config readiness kontrolü.
+- Gerçek bir konu ile kontrollü production run.
+- İlk izlenebilir final videonun üretilmesi.
+- Kalite ve süre gözlemlerinin kaydedilmesi.
+- Gerçek YouTube publish işlemi yapılmadan publish-ready çıktının insan tarafından incelenmesi.
+- Yeni geniş özellik geliştirmesine başlanmadan önce acceptance kapsamı ayrıca planlanacak ve onaylanacaktır.
 
 ---
 

@@ -47,29 +47,28 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 124**
+**Sprint 125**
 
-Production Publish Reconciliation Hardening
+Production End-to-End Validation
 
 **Durum**
 
 Completed
 
-Sprint 124 Production Publish Reconciliation Hardening tamamlandı. Sonraki sprint yalnız Planning durumundadır; adı ve kapsamı kesinleştirilmedi.
+Sprint 125 Production End-to-End Validation tamamlandı. Sonraki sprint Sprint 126 Planning — Real Production Acceptance Run Preparation durumundadır.
 
 Not:
 
-- Yeni stage, endpoint veya paralel publish akışı eklenmedi. Provider sözleşmesi geriye uyumlu, opsiyonel `reconcilePublish` operasyonuyla genişletildi; sonuçlar `matched`, `not_found`, `ambiguous`, `indeterminate` ve `failure` discriminated union'larıyla modellendi.
-- Öncelik `canonical published → recovery receipt → publishing intent reconciliation` olarak korundu. Yalnız `matched` sonuç canonical `published` kayda yükseltilir; reconciliation hiçbir durumda upload başlatmaz.
-- Credential içermeyen, bounded ve log-safe `atolye-v1-<sha256>` marker project/slug, package SHA-256, `videoAssetId`, `thumbnailAssetId`, provider/model ve mevcutsa channel binding'i kapsar.
-- Mock provider deterministic remote registry, injected sonuçlar ve ayrı upload/reconciliation sayaçları sağlar. YouTube Data API reconciliation yalnız salt-okunur search sorgusu kullanır; marker ve kanal doğrulanır, pagination veya birden fazla aday `ambiguous` kabul edilir. Normal upload sırasında marker uzak video açıklamasına eklenir.
-- Existing canonical published replay provider'ı çağırmaz; valid receipt promotion korunur ve exact remote match yeni upload olmadan canonical kayda yükseltilir. Legacy/corrupt intent, stale binding, mismatch, `not_found`, `ambiguous` ve `indeterminate` intent'i koruyarak fail-closed kalır.
-- Canonical persistence başarısızlığında publishing intent korunur. Recovery planner publishing, ambiguous ve indeterminate durumları export-ready kabul etmez; YouTube recovery hedefi korunur.
-- Marker provider boundary ve canonical pipeline katmanında yeniden hesaplanır. Provider/model/channel/project/package/asset binding'leri exact eşleşir; unknown alanlar, malformed ID/URL ve raw provider payload'ları reddedilir.
-- HTTP abort ve provider timeout birlikte uygulanır; timer, listener ve response body temizlenir. Matched sonuçtan sonra canonical persistence caller abort'tan etkilenmeden tamamlanır. Güvenli sabit hata sözleşmeleri korunur; credential ve API ayrıntıları sızdırılmaz.
-- Doğrulamalar: Sprint 124 reconciliation PASS — 36; Sprint 123 stabilization PASS — 26; Sprint 122 YouTube publish PASS — 31; Sprint 121 YouTube package PASS — 58; Sprint 120 thumbnail PASS — 42; Sprint 119 retry continuation PASS — 22; Auto-continuation PASS — 18; Pipeline orchestration PASS — 10; Durable execution PASS — 17; Durable wiring PASS — 19; Sprint 118 assembly PASS — 19; Sprint 117 scene video PASS — 23; Sprint 116 animation PASS — 21; Sprint 115 assembly wiring PASS — 46; Sprint 114 audio PASS — 74; Sprint 113 visuals PASS — 54; TypeScript PASS; full repository ESLint PASS — 0 warning; `git diff --check` PASS; fixture/temp cleanup temiz.
-- Sprint 115'in ilk toplu koşusunda Windows filesystem kilidi nedeniyle geçici `EPERM` oluştu; izole tekrar PASS — 46 sonuçlandı ve durum bloklayıcı kabul edilmedi.
-- Non-blocking P2 takipleri: YouTube search indexing gecikmesi veya marker'ın uzaktan değiştirilmesi `not_found`/`indeterminate` bırakabilir ve otomatik upload yapılmaz; `YOUTUBE_CHANNEL_ID` yoksa pre-publish explicit channel binding bulunmaz, uzak sorgu access-token `forMine` account scope'una dayanır; markersız legacy publishing intent manuel inceleme gerektirir; reconciliation persistence, manifest ve job kayıtları tek filesystem transaction değildir; durable job cancellation aktif provider çağrısına doğrudan abort signal taşımaz; gerçek credential ile live YouTube acceptance çalıştırılmadı.
+- Yeni pipeline, stage veya provider eklenmedi. Mevcut production composition root, runtime, durable execution wiring'i ve gerçek `PipelineRunner.run()` entrypoint'i kullanıldı.
+- Canonical sıra doğrudan `PipelineRecoveryPlanner.ts` içindeki `pipelineRecoveryStageOrder` kaynağından alındı: `Research → Script → Scenes → Visuals → Animation → Video → Audio → Assembly → Thumbnail → SEO → YouTube → Export`.
+- `AIManager`, `PipelineRunner` ve `PipelineStageExecutor` çağrı kapsamlı, opsiyonel AI provider enjeksiyonuyla genişletildi. Enjeksiyon yokken environment/router production davranışı ve fail-closed provider kontrolleri korundu; mock provider yalnız Sprint 125 test wiring'inde kullanıldı.
+- `ProductionEndToEndValidation` manifest, jobs, history, retry geçmişi, active/obsolete asset ayrımı, duplicate job/asset reddi, storage-backed assetler, final package referansları ve runtime readiness invariant'larını doğrular.
+- Snapshot kaynakları mevcut project lock altında okunur, validation sonunda tekrar karşılaştırılır ve concurrent mutation `SNAPSHOT_CHANGED` ile fail-closed reddedilir.
+- Deterministik Türkçe fixture sentinel ve containment guard'larıyla kullanıcı projelerinden ayrılır; provider/config state `finally` içinde restore edilir, gerçek YouTube publish yapılmaz ve cleanup kalıntısız tamamlanır.
+- Fixture video doğrulaması `mode: structural-only`, `reasonCode: FFPROBE_NOT_EXECUTED`, `productionReady: false` olarak sınıflandırıldı. Structural sonuç production codec acceptance sayılmaz; gerçek production FFmpeg/FFprobe yolu eksik executable durumunda fail-closed kalır.
+- Doğrulamalar: TypeScript PASS; Sprint 125 smoke PASS — 20; regression smoke PASS — 17 script / 534 case; hedefli ESLint PASS — 5 dosya / 0 hata / 0 uyarı; `git diff --check` PASS; fixture/temp cleanup temiz.
+- P0/P1 bulgusu yok. Non-blocking P2: bu ortamda gerçek FFprobe executable çalıştırılmadı; snapshot kilidi process-localdır ve filesystem/distributed transaction eklenmedi.
+- İlk gerçek yayınlanabilir video kabulü için gerçek FFmpeg/FFprobe executable'ları ve gerçek provider credential'larıyla kontrollü production acceptance run gereklidir.
 
 ---
 
@@ -85,7 +84,7 @@ bec4962
 
 Durum
 
-Sprint 124 tamamlandı. Sprint 124 değişiklikleri ve dokümantasyon kapanışı henüz commit/push edilmedi. Sonraki sprint yalnız Planning durumundadır; adı ve kapsamı kesinleştirilmedi.
+Sprint 125 tamamlandı ve dokümantasyon kapanışı hazırlandı; commit/push henüz yapılmadı. Sonraki sprint Sprint 126 Planning — Real Production Acceptance Run Preparation durumundadır.
 
 ---
 

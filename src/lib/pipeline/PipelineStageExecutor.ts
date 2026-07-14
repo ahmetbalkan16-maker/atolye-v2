@@ -1,4 +1,5 @@
 import { AIManager } from "@/lib/ai/AIManager";
+import type { AIProvider } from "@/lib/ai/providers";
 import { AnimationAssetPipeline } from "@/lib/animation/AnimationAssetPipeline";
 import { isCompatibleAnimationData } from "@/lib/animation/AnimationMotionPlanValidation";
 import { AnimationPromptGenerator } from "@/lib/animation/prompts/AnimationPromptGenerator";
@@ -69,6 +70,7 @@ export type PipelineExecutionState = {
 };
 
 export type PipelineStageExecutionOptions = {
+  aiProvider?: AIProvider;
   visualAssetProvider?: ImageProvider;
   animationProvider?: AnimationProvider;
   videoProvider?: VideoProvider;
@@ -162,7 +164,7 @@ export class PipelineStageExecutor {
           projectSlug,
           stage: "research",
           operation: "research",
-        });
+        }, options.aiProvider);
         return this.persistStageResult(projectSlug, stage, () =>
           ProjectManager.saveResearch(projectSlug, state.research),
         );
@@ -172,7 +174,7 @@ export class PipelineStageExecutor {
           projectSlug,
           stage: "script",
           operation: "script",
-        });
+        }, options.aiProvider);
         return this.persistStageResult(projectSlug, stage, () =>
           ProjectManager.saveScript(projectSlug, state.script),
         );
@@ -183,7 +185,7 @@ export class PipelineStageExecutor {
           projectSlug,
           stage: "scenes",
           operation: "scenes",
-        });
+        }, options.aiProvider);
         return this.persistStageResult(projectSlug, stage, () =>
           ProjectManager.saveScenes(projectSlug, state.scenes),
         );
