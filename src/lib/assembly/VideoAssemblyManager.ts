@@ -1,5 +1,6 @@
 import path from "node:path";
 import { isAnimationMotionPlanData } from "@/lib/animation/AnimationMotionPlanValidation";
+import { requireStoredProductionMotionPlan } from "@/lib/animation/AnimationStorage";
 import { AssetManager } from "@/lib/assets/AssetManager";
 import { AudioStorage } from "@/lib/assets/storage/AudioStorage";
 import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
@@ -446,10 +447,21 @@ function requireSceneVideoInput({
     motionAssets[0].durationSeconds !== motionPlan.durationSeconds ||
     motionAssets[0].provider !== motionPlan.provider ||
     motionAssets[0].generationMode !== motionPlan.generationMode ||
-    motionAssets[0].filePath !== undefined ||
     motionAssets[0].url !== undefined
   ) {
     throw new VideoAssemblyError();
+  }
+  const motionAsset = motionAssets[0];
+  if (motionPlan.generationMode === "mock") {
+    if (motionAsset.filePath !== undefined || motionAsset.byteLength !== undefined) {
+      throw new VideoAssemblyError();
+    }
+  } else {
+    try {
+      requireStoredProductionMotionPlan(projectSlug, motionAsset, motionPlan);
+    } catch {
+      throw new VideoAssemblyError();
+    }
   }
 
   const candidates = assets.filter((asset) => asset.id === videoScene.videoAssetId);

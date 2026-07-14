@@ -25,6 +25,24 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 127 — Production Animation Provider Activation
+
+Completed
+
+- Mevcut `OpenAI motion-plan → VideoPipeline / FFmpegSceneVideoProvider → VideoAssemblyManager` akışı korunarak `OpenAIAnimationProvider` eklendi. Yeni video-generation servisi, video pipeline, assembly veya publish sistemi kurulmadı; animation provider fiziksel MP4 üretmez ve scene-video mevcut FFmpeg katmanında oluşturulur.
+- `ANIMATION_PROVIDER=openai` production seçimi; scene/source identity, prompt ve duration doğrulaması, yalnız izin verilen resmi Chat Completions endpoint'i, redirectsiz bounded istek, deterministik JSON, `temperature: 0`, JSON response formatı, SHA-256 request identity/idempotency, bağımsız attempt timeout'ları, request/response byte limitleri ve 0–2 retry uygular. Retry yalnız timeout, transport, 408, 429 ve 5xx içindir.
+- Endpoint kontrolü HTTP, userinfo, alt alan, suffix, port, query ve fragment'i reddeder. Kalıcı 4xx ve schema hataları retry edilmez. Hatalar yalnız `ANIMATION_PROVIDER_REQUEST_FAILED`, `ANIMATION_PROVIDER_TIMEOUT` ve `ANIMATION_PROVIDER_RESPONSE_INVALID` kodlarıyla dışarı çıkar; raw exception, response body, endpoint veya API key sızdırılmaz.
+- Motion-plan exact-key şeması motion/transition allowlist'leri, frame/crop/transform sınırları, prototype pollution, aşırı JSON derinliği, `NaN`, `Infinity`, negatif/sınır dışı değer ve duration kontrolleri uygular. Scene/source identity ile locator/path provider cevabına bırakılmaz; boş veya geçersiz motion-plan production sonucu kabul edilmez.
+- `AnimationStorage`, artifact'ları `data/projects/<slug>/assets/animations/<asset-id>.json` altında `.atolye-animation-storage-v1` sentinel, traversal ve symlink/junction/realpath containment, `wx` temp file, `0600`, `fsync` ve aynı dizinde atomic hard-link publish ile saklar. Existing target overwrite ve eksik/yanlış sentinel fail-closed reddedilir; concurrent writer veya registry failure cleanup'ı başka batch artifact'ını silmez.
+- Production animation asset'i asset/scene/source ID, request identity, prompt digest, provider/model, `generationMode: production`, MIME, locator, byte length, duration, motion type, start/end frame ve transition alanlarını taşır. Exact replay geçerli artifact/registry varsa provider çağrısını atlar; identity/payload, duplicate scene/source ve locator conflict'leri reddedilir. Başarısız stage aktif asset bırakmaz; mock davranışı geriye uyumludur.
+- `VideoPipeline` ve `VideoAssemblyManager` ortak stored-motion-plan doğrulamasıyla güvenilir locator, fiziksel readback, byte length, asset/scene/source identity, request identity, prompt digest, provider/model, duration, motion/transition/frame ve storage containment'i kontrol eder. Tampering, eksik locator ve cross-project yönlendirme fail-closed kapanır; mevcut FFmpeg scene-video davranışı değişmedi.
+- Animation readiness missing provider için `NOT_CONFIGURED`, mock için `BLOCKED`, unknown için `INVALID`, eksik API key/model/endpoint için `NOT_CONFIGURED`, geçersiz timeout/retry/response limit için `INVALID` ve geçerli OpenAI config için `READY` üretir. Readiness ücretli generation çağrısı yapmaz; router ile ortak config/endpoint kurallarını kullanır.
+- Acceptance fingerprint'ine provider, model, endpoint, timeout, retry ve response limit eklendi. API key ham olarak kaydedilmez; key rotasyonu ayrı SHA-256 digest ile TOCTOU değişikliği olarak algılanır.
+- Mevcut ortamda `animation-provider: NOT_CONFIGURED`, reason code `ANIMATION_PROVIDER_MISSING` ve overall `ready=false` sonucu doğrulandı. Runtime, durable execution ve health `BLOCKED`; gerekli environment/provider/model/API-key alanları `NOT_CONFIGURED` kaldı.
+- Doğrulamalar: `npx tsc --noEmit` PASS; Sprint 127 production animation smoke 30, animation motion-plan regression 21, production scene-video 23, production assembly 46, pipeline orchestration 10, auto-continuation 18, durable wiring 19, durable execution 17 ve Sprint 125 production E2E 20 senaryo PASS; Sprint 126 readiness/acceptance, retry persistence (5 grup), hedefli ESLint ve `git diff --check` PASS; fixture/artifact kalıntısı yok.
+- Final production safety review: P0 yok, P1 yok, P2 yok. Gerçek ücretli acceptance run ve gerçek YouTube publish yapılmadı. Animation provider production seviyesine taşındı; eksik environment/provider/runtime yapılandırmaları nedeniyle ilk gerçek production acceptance videosu henüz üretilmedi.
+- Dokümantasyon kapanışı tamamlandı; commit veya push yapılmadı. Sprint 128 Planning odağı `Production Environment and Provider Configuration Activation` olarak belirlendi.
+
 ## Sprint 126 — Real Production Acceptance Run Preparation
 
 Completed

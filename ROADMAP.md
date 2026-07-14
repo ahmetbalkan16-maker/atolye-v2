@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 126 — Real Production Acceptance Run Preparation (Completed)
+Sprint 127 — Production Animation Provider Activation (Completed)
 
 Siradaki Planlama Adimi
 
-Sprint 127 — Production Animation Provider Activation (Planning)
+Sprint 128 — Production Environment and Provider Configuration Activation (Planning)
 
-Sprint 126 readiness altyapısı, strict acceptance policy ve güvenli orchestration ile tamamlandı. Gerçek acceptance run, mock-only animation provider ve eksik production environment/provider yapılandırmaları nedeniyle pipeline başlamadan fail-closed engellendi; ilk gerçek video üretilmedi. Sprint 127 Production Animation Provider Activation Planning durumundadır.
+Sprint 127, mevcut motion-plan → FFmpeg scene-video → assembly mimarisini koruyarak gerçek OpenAI production motion-plan provider'ını etkinleştirdi. Animation readiness geçerli OpenAI yapılandırmasıyla `READY` üretebilir; mevcut environment/provider/runtime eksikleri nedeniyle overall readiness hâlâ `ready=false` ve ilk gerçek acceptance videosu üretilmedi. Sprint 128 yalnız production environment/provider yapılandırmasını aktive etmek ve ilk acceptance run öncesi readiness geçişini tamamlamak üzere Planning durumundadır.
 
 ---
 
@@ -1607,14 +1607,33 @@ Completed
 
 ## Production Animation Provider Activation
 
+Completed
+
+- Mevcut `OpenAI motion-plan → VideoPipeline / FFmpegSceneVideoProvider → VideoAssemblyManager` mimarisi korundu. Yeni video-generation servisi, video pipeline, assembly veya publish sistemi eklenmedi; animation provider fiziksel MP4 üretmez.
+- `OpenAIAnimationProvider`, `ANIMATION_PROVIDER=openai` seçimiyle güvenli endpoint allowlist'i, redirectsiz ve bounded deterministic JSON istekleri, SHA-256 request identity/idempotency, attempt bazlı timeout, byte limitleri ve yalnız geçici hatalarda 0–2 retry uygular.
+- Exact-key motion-plan şeması; allowlist, frame/crop/transform/duration sınırları, prototype pollution, aşırı JSON derinliği ve non-finite/sınır dışı değer kontrolleriyle fail-closed doğrulanır. Provider scene/source identity veya locator/path belirleyemez.
+- `AnimationStorage`, production motion-plan artifact'larını project-contained sentinel, traversal/realpath/symlink kontrolleri ve durable atomic publish ile saklar. Exact replay provider çağrısını atlar; identity/payload, duplicate scene/source ve locator çakışmaları reddedilir.
+- `VideoPipeline` ve `VideoAssemblyManager` stored motion-plan artifact'ını fiziksel readback, identity, digest, provider/model, duration, motion içeriği ve containment üzerinden ortak biçimde doğrular. Artifact tampering ve cross-project locator fail-closed kapanır.
+- Animation readiness geçerli OpenAI config ile `READY` üretebilir; missing `NOT_CONFIGURED`, mock `BLOCKED`, unknown veya geçersiz config `INVALID` kalır. Fingerprint provider/model/endpoint/timeout/retry/response limit ile key rotation digest'ini kapsar; API key ham olarak persist edilmez.
+- Mevcut ortam sonucu `animation-provider: NOT_CONFIGURED`, `ANIMATION_PROVIDER_MISSING`, overall `ready=false`; runtime/durable/health `BLOCKED` ve gerekli environment/provider/model/API-key alanları `NOT_CONFIGURED` durumundadır.
+- `npx tsc --noEmit` PASS; Sprint 127 smoke 30, animation 21, scene-video 23, assembly 46, orchestration 10, auto-continuation 18, durable wiring 19, durable execution 17 ve Sprint 125 E2E 20 senaryo PASS; Sprint 126 readiness/acceptance, retry persistence (5 grup), hedefli ESLint ve `git diff --check` PASS; kalıntı yok.
+- Final review P0/P1/P2 bulgusu olmadan tamamlandı. Ücretli production acceptance run ve gerçek YouTube publish yapılmadı; ilk gerçek acceptance videosu henüz üretilmedi.
+
+---
+
+# Sprint 128
+
+## Production Environment and Provider Configuration Activation
+
 Planning
 
-- Mevcut animation provider contract'ına gerçek production provider bağlamak.
-- Mock-only animation blokajını kaldırırken unknown ve mock provider fail-closed politikasını korumak.
-- Üretilen sahne hareketlerinin gerçek scene-video pipeline ile uyumunu doğrulamak.
-- Readiness animation provider kontrolünü gerçek `READY` durumuna getirebilmek.
-- Sonraki gerçek acceptance run için kalan provider blokajlarını azaltmak.
-- Gerçek YouTube publish yapılmayacak ve geniş kapsamlı yeni pipeline kurulmayacaktır.
+- Gerçek production environment değerlerini secret'ları repository'ye yazmadan güvenli biçimde hazırlamak.
+- FFmpeg ve FFprobe yollarını doğrulamak.
+- AI, image, audio, animation, video, assembly, thumbnail ve publish-package provider seçimlerini tamamlamak.
+- Gerekli model, endpoint, API key ve secret yapılandırmalarını işletim ortamına bağlamak.
+- Readiness raporundaki `NOT_CONFIGURED` ve `BLOCKED` sonuçlarını gerçek `READY` durumuna taşımak.
+- Readiness tamamen geçmeden ücretli acceptance run başlatmamak ve gerçek YouTube publish yapmamak.
+- Bu sprint yeni provider veya pipeline geliştirme değil, ilk acceptance run öncesi production configuration activation ve son readiness geçişidir.
 
 ---
 

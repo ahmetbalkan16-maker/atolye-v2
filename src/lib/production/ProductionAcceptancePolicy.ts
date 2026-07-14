@@ -17,6 +17,11 @@ const CONFIGURATION_NAMES = [
   "OPENAI_TTS_TIMEOUT_MS",
   "OPENAI_TTS_MAX_RESPONSE_BYTES",
   "ANIMATION_PROVIDER",
+  "ANIMATION_OPENAI_MODEL",
+  "ANIMATION_OPENAI_ENDPOINT",
+  "ANIMATION_OPENAI_TIMEOUT_MS",
+  "ANIMATION_OPENAI_RETRY_COUNT",
+  "ANIMATION_OPENAI_MAX_RESPONSE_BYTES",
   "VIDEO_PROVIDER",
   "VIDEO_ASSEMBLY_PROVIDER",
   "FFMPEG_PATH",
@@ -138,8 +143,20 @@ export async function readProductionAcceptancePolicy(projectSlug: string): Promi
 export function productionAcceptanceConfigurationFingerprint(
   environment: NodeJS.ProcessEnv = process.env,
 ): string {
-  const snapshot = CONFIGURATION_NAMES.map((name) => [name, environment[name] ?? null]);
+  const snapshot = CONFIGURATION_NAMES.map((name) => [
+    name,
+    name === "OPENAI_API_KEY"
+      ? secretFingerprint(environment[name])
+      : environment[name] ?? null,
+  ]);
   return createHash("sha256").update(JSON.stringify(snapshot)).digest("hex");
+}
+
+function secretFingerprint(value: string | undefined) {
+  const normalized = value?.trim();
+  return normalized
+    ? createHash("sha256").update(normalized).digest("hex")
+    : null;
 }
 
 function validMarker(value: unknown): value is ProductionAcceptanceMarker {

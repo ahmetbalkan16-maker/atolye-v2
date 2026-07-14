@@ -18,6 +18,7 @@ type AnimationGenerationResultBase = {
   provider: string;
   model?: string;
   generationMode: AnimationGenerationMode;
+  requestIdentity?: string;
 };
 
 export type AnimationGenerationSuccess = AnimationGenerationResultBase & {
@@ -34,15 +35,28 @@ export type AnimationGenerationSuccess = AnimationGenerationResultBase & {
 
 export type AnimationGenerationFailure = AnimationGenerationResultBase & {
   success: false;
-  error: string;
+  error:
+    | "ANIMATION_PROVIDER_REQUEST_FAILED"
+    | "ANIMATION_PROVIDER_TIMEOUT"
+    | "ANIMATION_PROVIDER_RESPONSE_INVALID";
 };
 
 export type AnimationGenerationResult =
   | AnimationGenerationSuccess
   | AnimationGenerationFailure;
 
+export interface AnimationRequestIdentity {
+  readonly assetId: string;
+  readonly requestIdentity: string;
+  readonly promptDigest: string;
+  readonly model: string;
+}
+
 export interface AnimationProvider {
   readonly name: string;
+  getRequestIdentity?(
+    input: AnimationGenerationInput,
+  ): AnimationRequestIdentity;
   generateAnimation(
     input: AnimationGenerationInput,
   ): Promise<AnimationGenerationResult>;

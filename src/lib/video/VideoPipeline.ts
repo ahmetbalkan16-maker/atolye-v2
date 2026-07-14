@@ -1,5 +1,6 @@
 import path from "node:path";
 import { isAnimationMotionPlanData } from "@/lib/animation/AnimationMotionPlanValidation";
+import { requireStoredProductionMotionPlan } from "@/lib/animation/AnimationStorage";
 import { AssetManager } from "@/lib/assets/AssetManager";
 import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
 import { VideoStorage } from "@/lib/assets/storage/VideoStorage";
@@ -256,9 +257,19 @@ function validateMotionAsset(
     asset.durationSeconds !== plan.durationSeconds ||
     asset.provider !== plan.provider ||
     asset.generationMode !== plan.generationMode ||
-    asset.filePath !== undefined ||
     asset.url !== undefined
   ) {
+    throw new SceneVideoGenerationError();
+  }
+  if (plan.generationMode === "mock") {
+    if (asset.filePath !== undefined || asset.byteLength !== undefined) {
+      throw new SceneVideoGenerationError();
+    }
+    return;
+  }
+  try {
+    requireStoredProductionMotionPlan(projectSlug, asset, plan);
+  } catch {
     throw new SceneVideoGenerationError();
   }
 }

@@ -15,7 +15,11 @@ import {
   getOpenAIAudioProviderConfig,
   resolveAudioProviderName,
 } from "@/lib/audio/providers/AudioProviderConfig";
-import { resolveAnimationProviderName } from "@/lib/animation/providers/AnimationProviderConfig";
+import {
+  getOpenAIAnimationProviderConfig,
+  resolveAnimationProviderName,
+} from "@/lib/animation/providers/AnimationProviderConfig";
+import { AnimationProviderRouter } from "@/lib/animation/providers/AnimationProviderRouter";
 import { VideoProviderRouter } from "@/lib/video/providers/VideoProviderRouter";
 import {
   getFFmpegSceneVideoConfig,
@@ -128,7 +132,7 @@ export class ProductionReadinessService {
         ImageProviderRouter.getProvider(resolveImageProviderName(this.environment.IMAGE_PROVIDER))),
       providerCheck("audio-provider", this.environment.AUDIO_PROVIDER, "openai", () =>
         AudioProviderRouter.getProvider(resolveAudioProviderName(this.environment.AUDIO_PROVIDER))),
-      animationProviderCheck(this.environment.ANIMATION_PROVIDER),
+      animationProviderCheck(this.environment),
       providerCheck("video-provider", this.environment.VIDEO_PROVIDER, "ffmpeg", () =>
         VideoProviderRouter.getProvider(resolveVideoProviderName(this.environment.VIDEO_PROVIDER))),
       providerCheck("assembly-provider", this.environment.VIDEO_ASSEMBLY_PROVIDER, "ffmpeg", () =>
@@ -198,6 +202,15 @@ export class ProductionReadinessService {
       ) {
         return check("model-configuration", "INVALID", "PUBLISH_MODEL_INVALID");
       }
+      if (normalize(this.environment.ANIMATION_PROVIDER) === "openai") {
+        const animationModel = readValue(this.environment.ANIMATION_OPENAI_MODEL);
+        if (!animationModel) {
+          return check("model-configuration", "NOT_CONFIGURED", "ANIMATION_MODEL_NOT_CONFIGURED");
+        }
+        if (!safeConfig(animationModel)) {
+          return check("model-configuration", "INVALID", "ANIMATION_MODEL_INVALID");
+        }
+      }
       return check("model-configuration", "READY", "MODELS_CONFIGURED");
     } catch {
       return check("model-configuration", "INVALID", "MODEL_CONFIGURATION_INVALID");
@@ -225,7 +238,7 @@ export class ProductionReadinessService {
 
   private providerEndpointCheck(providerChecks: readonly ProductionReadinessCheck[]) {
     const endpointProviders = providerChecks.filter((item) =>
-      item.id === "image-provider" || item.id === "audio-provider" || item.id === "thumbnail-provider" || item.id === "publish-package-provider");
+      item.id === "image-provider" || item.id === "audio-provider" || item.id === "animation-provider" || item.id === "thumbnail-provider" || item.id === "publish-package-provider");
     if (endpointProviders.some((item) => item.status === "INVALID")) {
       return check("provider-endpoint", "INVALID", "PROVIDER_ENDPOINT_SELECTION_INVALID");
     }
@@ -548,13 +561,29 @@ function providerCheck(id: ProductionReadinessCheckId, raw: string | undefined, 
   }
 }
 
-function animationProviderCheck(raw: string | undefined): ProductionReadinessCheck {
+function animationProviderCheck(environment: NodeJS.ProcessEnv): ProductionReadinessCheck {
+  const raw = environment.ANIMATION_PROVIDER;
   if (!readValue(raw)) return check("animation-provider", "NOT_CONFIGURED", "ANIMATION_PROVIDER_MISSING");
+  const selected = normalize(raw);
+  if (selected === "mock") return check("animation-provider", "BLOCKED", "ANIMATION_PROVIDER_MOCK_ONLY");
+  if (selected !== "openai") return check("animation-provider", "INVALID", "ANIMATION_PROVIDER_INVALID");
+  if (!readValue(environment.OPENAI_API_KEY)) {
+    return check("animation-provider", "NOT_CONFIGURED", "ANIMATION_PROVIDER_API_KEY_MISSING");
+  }
+  if (!readValue(environment.ANIMATION_OPENAI_MODEL)) {
+    return check("animation-provider", "NOT_CONFIGURED", "ANIMATION_PROVIDER_MODEL_MISSING");
+  }
+  if (!readValue(environment.ANIMATION_OPENAI_ENDPOINT)) {
+    return check("animation-provider", "NOT_CONFIGURED", "ANIMATION_PROVIDER_ENDPOINT_MISSING");
+  }
   try {
     resolveAnimationProviderName(raw);
-    return check("animation-provider", "BLOCKED", "ANIMATION_PROVIDER_MOCK_ONLY");
+    getOpenAIAnimationProviderConfig(environment);
+    return AnimationProviderRouter.getProvider("openai").name === "openai"
+      ? check("animation-provider", "READY", "ANIMATION_PROVIDER_READY")
+      : check("animation-provider", "INVALID", "ANIMATION_PROVIDER_ROUTER_INVALID");
   } catch {
-    return check("animation-provider", "INVALID", "ANIMATION_PROVIDER_INVALID");
+    return check("animation-provider", "INVALID", "ANIMATION_PROVIDER_CONFIGURATION_INVALID");
   }
 }
 
