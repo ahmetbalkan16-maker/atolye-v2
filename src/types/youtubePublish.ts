@@ -17,8 +17,42 @@ export interface YouTubePublishRequest {
   videoAbsolutePath: string;
   thumbnailAbsolutePath: string;
   metadata: YouTubePublishMetadata;
+  reconciliationMarker?: string;
+  channelBinding?: string;
   signal?: AbortSignal;
 }
+
+export interface YouTubePublishReconciliationRequest {
+  schemaVersion: "1";
+  projectId: string;
+  slug: string;
+  packageIdentity: string;
+  videoAssetId: string;
+  thumbnailAssetId: string;
+  provider: YouTubePublishProviderName;
+  model?: string;
+  reconciliationMarker: string;
+  channelBinding?: string;
+  signal?: AbortSignal;
+}
+
+export type YouTubePublishReconciliationResult =
+  | {
+      outcome: "matched";
+      provider: YouTubePublishProviderName;
+      model?: string;
+      reconciliationMarker: string;
+      remoteVideoId: string;
+      remoteVideoUrl: string;
+      channelId?: string;
+      providerRequestId?: string;
+    }
+  | {
+      outcome: "not_found" | "ambiguous" | "indeterminate" | "failure";
+      provider: YouTubePublishProviderName;
+      model?: string;
+      error: "YouTube publish reconciliation failed.";
+    };
 
 export type YouTubePublishProviderResult =
   | {
@@ -52,6 +86,8 @@ interface YouTubePublishRecordBase {
   model?: string;
   attemptId: string;
   createdAt: string;
+  reconciliationMarker?: string;
+  channelBinding?: string;
 }
 
 export interface YouTubePublishingRecord extends YouTubePublishRecordBase {

@@ -3,6 +3,7 @@ import type { YouTubePublishingPackage } from "@/types/youtube";
 import type {
   YouTubePublishMetadata,
   YouTubePublishProviderName,
+  YouTubePublishReconciliationResult,
   YouTubePublishRecord,
 } from "@/types/youtubePublish";
 import { validateYouTubePublishingPackage } from "../YouTubePackageValidation";
@@ -10,6 +11,7 @@ import { validateYouTubePublishingPackage } from "../YouTubePackageValidation";
 const SAFE_SEGMENT = /^[a-zA-Z0-9-_]+$/;
 const SAFE_ID = /^[a-zA-Z0-9._:-]+$/;
 const SHA256 = /^[a-f0-9]{64}$/;
+const RECONCILIATION_MARKER = /^atolye-v1-[a-f0-9]{64}$/;
 const CONTROL = /[\u0000-\u001f\u007f-\u009f]/u;
 
 export class YouTubePublishValidationError extends Error {
@@ -25,6 +27,40 @@ export class YouTubePublishValidationError extends Error {
 export function createYouTubePackageIdentity(value: YouTubePublishingPackage) {
   validateYouTubePublishingPackage(value);
   return createHash("sha256").update(JSON.stringify(value), "utf8").digest("hex");
+}
+
+export function createYouTubeReconciliationMarker(value: {
+  projectId: string;
+  slug: string;
+  packageIdentity: string;
+  videoAssetId: string;
+  thumbnailAssetId: string;
+  provider: YouTubePublishProviderName;
+  model?: string;
+  channelBinding?: string;
+}) {
+  if (
+    !safeText(value.projectId, 200) ||
+    !SAFE_SEGMENT.test(value.slug) ||
+    !SHA256.test(value.packageIdentity) ||
+    !safeText(value.videoAssetId, 300) ||
+    !safeText(value.thumbnailAssetId, 300) ||
+    !isProvider(value.provider) ||
+    (value.model !== undefined && !safeText(value.model, 200)) ||
+    (value.channelBinding !== undefined && !safeRemoteId(value.channelBinding))
+  ) throw new YouTubePublishValidationError();
+  const binding = JSON.stringify({
+    schemaVersion: "1",
+    projectId: value.projectId,
+    slug: value.slug,
+    packageIdentity: value.packageIdentity,
+    videoAssetId: value.videoAssetId,
+    thumbnailAssetId: value.thumbnailAssetId,
+    provider: value.provider,
+    model: value.model ?? null,
+    channelBinding: value.channelBinding ?? null,
+  });
+  return `atolye-v1-${createHash("sha256").update(binding, "utf8").digest("hex")}`;
 }
 
 export function createYouTubePublishMetadata(
@@ -51,6 +87,45 @@ export function isYouTubePublishRecord(value: unknown): value is YouTubePublishR
   }
 }
 
+export function validateYouTubePublishReconciliationResult(
+  value: unknown,
+): asserts value is YouTubePublishReconciliationResult {
+  try {
+    const result = requireRecord(value);
+    const outcomes = new Set([
+      "matched", "not_found", "ambiguous", "indeterminate", "failure",
+    ]);
+    if (typeof result.outcome !== "string" || !outcomes.has(result.outcome)) {
+      throw new Error("invalid");
+    }
+    const allowed = result.outcome === "matched"
+      ? new Set([
+          "outcome", "provider", "model", "reconciliationMarker", "remoteVideoId",
+          "remoteVideoUrl", "channelId", "providerRequestId",
+        ])
+      : new Set(["outcome", "provider", "model", "error"]);
+    if (
+      Object.keys(result).some((key) => !allowed.has(key)) ||
+      !isProvider(result.provider) ||
+      (result.model !== undefined && !safeText(result.model, 200))
+    ) throw new Error("invalid");
+    if (result.outcome === "matched") {
+      if (
+        typeof result.reconciliationMarker !== "string" ||
+        !RECONCILIATION_MARKER.test(result.reconciliationMarker) ||
+        !safeRemoteId(result.remoteVideoId) ||
+        result.remoteVideoUrl !== `https://www.youtube.com/watch?v=${result.remoteVideoId}` ||
+        (result.channelId !== undefined && !safeRemoteId(result.channelId)) ||
+        (result.providerRequestId !== undefined && !safeText(result.providerRequestId, 300))
+      ) throw new Error("invalid");
+    } else if (result.error !== "YouTube publish reconciliation failed.") {
+      throw new Error("invalid");
+    }
+  } catch {
+    throw new YouTubePublishValidationError();
+  }
+}
+
 export function validateYouTubePublishRecord(
   value: unknown,
   expected: {
@@ -59,6 +134,10 @@ export function validateYouTubePublishRecord(
     packageIdentity?: string;
     videoAssetId?: string;
     thumbnailAssetId?: string;
+    provider?: YouTubePublishProviderName;
+    model?: string;
+    reconciliationMarker?: string;
+    channelBinding?: string;
   } = {},
 ): asserts value is YouTubePublishRecord {
   try {
@@ -66,7 +145,7 @@ export function validateYouTubePublishRecord(
     const common = new Set([
       "schemaVersion", "projectId", "slug", "packageIdentity",
       "videoAssetId", "thumbnailAssetId", "provider", "model", "attemptId",
-      "status", "createdAt",
+      "status", "createdAt", "reconciliationMarker", "channelBinding",
     ]);
     const statusKeys: Record<string, string[]> = {
       publishing: [],
@@ -97,6 +176,30 @@ export function validateYouTubePublishRecord(
       (expected.packageIdentity !== undefined && record.packageIdentity !== expected.packageIdentity) ||
       (expected.videoAssetId !== undefined && record.videoAssetId !== expected.videoAssetId) ||
       (expected.thumbnailAssetId !== undefined && record.thumbnailAssetId !== expected.thumbnailAssetId)
+      || (expected.provider !== undefined && record.provider !== expected.provider)
+      || (expected.model !== undefined && record.model !== expected.model)
+      || (expected.reconciliationMarker !== undefined &&
+        record.reconciliationMarker !== expected.reconciliationMarker)
+      || (expected.channelBinding !== undefined && record.channelBinding !== expected.channelBinding)
+    ) throw new Error("invalid");
+
+    if (
+      (record.reconciliationMarker !== undefined &&
+        (typeof record.reconciliationMarker !== "string" ||
+          !RECONCILIATION_MARKER.test(record.reconciliationMarker) ||
+          record.reconciliationMarker !== createYouTubeReconciliationMarker({
+            projectId: record.projectId as string,
+            slug: record.slug as string,
+            packageIdentity: record.packageIdentity as string,
+            videoAssetId: record.videoAssetId as string,
+            thumbnailAssetId: record.thumbnailAssetId as string,
+            provider: record.provider as YouTubePublishProviderName,
+            ...(record.model === undefined ? {} : { model: record.model as string }),
+            ...(record.channelBinding === undefined
+              ? {}
+              : { channelBinding: record.channelBinding as string }),
+          }))) ||
+      (record.channelBinding !== undefined && !safeRemoteId(record.channelBinding))
     ) throw new Error("invalid");
 
     if (record.status === "published") {

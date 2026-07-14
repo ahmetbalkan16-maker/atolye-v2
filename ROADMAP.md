@@ -39,13 +39,13 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 123 — Production End-to-End Stabilization (Completed)
+Sprint 124 — Production Publish Reconciliation Hardening (Completed)
 
 Siradaki Planlama Adimi
 
 Sonraki sprint — Planning
 
-Sprint 123 Production End-to-End Stabilization tamamlandı. Sonraki sprint yalnız Planning durumundadır; adı ve kapsamı ayrıca planlanacak ve onaylanacaktır.
+Sprint 124 Production Publish Reconciliation Hardening tamamlandı. Sonraki sprint yalnız Planning durumundadır; adı ve kapsamı ayrıca planlanacak ve onaylanacaktır.
 
 ---
 
@@ -1528,6 +1528,32 @@ Completed
 - Uzak başarıdan sonra cancellation olsa bile remote sonucu kaybetmemek için reconciliation persistence tamamlanır. Raw API, provider ve credential hataları dışarı sızdırılmaz.
 - Doğrulamalar: Sprint 123 stabilization PASS — 26; Sprint 122 YouTube publish PASS — 31; Sprint 121 YouTube package PASS — 58; Sprint 120 thumbnail PASS — 42; Sprint 119 retry continuation PASS — 22; Auto-continuation PASS — 18; Pipeline orchestration PASS — 10; Durable execution PASS — 17; Durable wiring PASS — 19; Sprint 118 assembly PASS — 19; Sprint 117 scene video PASS — 23; Sprint 116 animation PASS — 21; Sprint 115 assembly wiring PASS — 46; Sprint 114 audio PASS — 74; Sprint 113 visuals PASS — 54; TypeScript PASS; full repository ESLint PASS — 0 warning; `git diff --check` PASS; fixture/temp cleanup temiz.
 - Non-blocking P2 takipleri: recovery receipt, canonical publish, manifest ve job kayıtları tek filesystem transaction değildir; uzak başarıdan sonra recovery receipt yazımı da başarısız olursa otomatik reconciliation mümkün değildir, manuel inceleme gerekir ve otomatik yeniden upload yapılmaz; receipt bulunmadığında gerçek YouTube tarafını sorgulayan remote reconciliation uygulanmadı; HTTP cancellation provider'a aktarılır ancak çalışan durable pipeline job cancellation'ı aktif provider çağrısına doğrudan abort signal taşımaz; durable/distributed execution kapalı çok-process kullanımda proje kilidi process-localdır; video ve YouTube için derin recovery readiness uygulanırken diğer legacy stage'lerde readiness çoğunlukla parse edilebilir dosya varlığına dayanır; gerçek credential ile live OpenAI, YouTube ve tam canlı production E2E acceptance çalıştırılmadı.
+- Dokümantasyon kapanışı tamamlandı; commit veya push yapılmadı.
+
+---
+
+# Sprint 124
+
+## Production Publish Reconciliation Hardening
+
+Completed
+
+- Yeni stage, endpoint veya paralel publish akışı eklenmedi.
+- Provider sözleşmesi geriye uyumlu ve opsiyonel `reconcilePublish` operasyonuyla genişletildi. Reconciliation sonuçları `matched`, `not_found`, `ambiguous`, `indeterminate` ve `failure` discriminated union'larıyla modellendi.
+- Öncelik sırası `canonical published → recovery receipt → publishing intent reconciliation` olarak uygulandı. Yalnız `matched` sonuç canonical `published` kayda yükseltilir; reconciliation hiçbir durumda upload başlatmaz.
+- Credential içermeyen, bounded ve log-safe `atolye-v1-<sha256>` marker project/slug, package SHA-256, `videoAssetId`, `thumbnailAssetId`, provider/model ve mevcutsa channel binding'i kapsar.
+- Mock provider deterministic remote registry, injected sonuçlar ve ayrı upload/reconciliation sayaçları sağlar.
+- YouTube Data API reconciliation yalnız salt-okunur search sorgusu kullanır. Marker ve kanal doğrulanır; pagination veya birden fazla aday `ambiguous` kabul edilir. Normal upload sırasında marker uzak video açıklamasına eklenir.
+- Existing canonical published replay provider'ı çağırmaz. Valid recovery receipt promotion yolu korunur ve exact remote match yeni upload olmadan canonical kayda yükseltilir.
+- Legacy/corrupt intent, stale binding, mismatch, `not_found`, `ambiguous` ve `indeterminate` sonuçlar intent'i koruyarak fail-closed kalır. Canonical persistence başarısızlığında publishing intent korunur.
+- Recovery planner publishing, ambiguous ve indeterminate durumları export-ready kabul etmez; YouTube recovery hedefi korunur.
+- Marker provider boundary ve canonical pipeline katmanında yeniden hesaplanıp doğrulanır. Provider, model, channel, project, package ve asset binding'leri exact eşleşir.
+- Reconciliation sonuçlarındaki unknown alanlar, malformed ID/URL ve raw provider payload'ları reddedilir.
+- HTTP abort ve provider timeout birlikte uygulanır; timer, listener ve response body cleanup yapılır. Matched sonuçtan sonra canonical persistence caller abort'tan etkilenmeden tamamlanır.
+- Güvenli sabit hata sözleşmeleri korunur; credential ve API ayrıntıları dışarı sızdırılmaz.
+- Doğrulamalar: Sprint 124 reconciliation PASS — 36; Sprint 123 stabilization PASS — 26; Sprint 122 YouTube publish PASS — 31; Sprint 121 YouTube package PASS — 58; Sprint 120 thumbnail PASS — 42; Sprint 119 retry continuation PASS — 22; Auto-continuation PASS — 18; Pipeline orchestration PASS — 10; Durable execution PASS — 17; Durable wiring PASS — 19; Sprint 118 assembly PASS — 19; Sprint 117 scene video PASS — 23; Sprint 116 animation PASS — 21; Sprint 115 assembly wiring PASS — 46; Sprint 114 audio PASS — 74; Sprint 113 visuals PASS — 54; TypeScript PASS; full repository ESLint PASS — 0 warning; `git diff --check` PASS; fixture/temp cleanup temiz.
+- Sprint 115'in ilk toplu koşusunda Windows filesystem kilidi nedeniyle geçici `EPERM` oluştu; izole tekrar PASS — 46 sonuçlandı ve durum bloklayıcı kabul edilmedi.
+- Non-blocking P2 takipleri: YouTube search indexing gecikmesi veya marker'ın uzaktan değiştirilmesi `not_found`/`indeterminate` bırakabilir ve otomatik upload yapılmaz; `YOUTUBE_CHANNEL_ID` verilmezse pre-publish explicit channel binding bulunmaz ve uzak sorgu access-token `forMine` account scope'una dayanır; marker içermeyen legacy publishing intent manuel inceleme gerektirir; reconciliation persistence, manifest ve job kayıtları tek filesystem transaction değildir; durable job cancellation aktif provider çağrısına doğrudan abort signal taşımaz; gerçek credential ile live YouTube acceptance çalıştırılmadı.
 - Dokümantasyon kapanışı tamamlandı; commit veya push yapılmadı.
 
 ---

@@ -20,6 +20,10 @@ export class YouTubePublishProviderRouter {
     if (resolved === "youtube-data-api" && !process.env.YOUTUBE_ACCESS_TOKEN?.trim()) {
       throw new YouTubePublishProviderConfigurationError();
     }
+    if (
+      resolved === "youtube-data-api" && process.env.YOUTUBE_CHANNEL_ID !== undefined &&
+      !/^[a-zA-Z0-9._:-]{1,200}$/.test(process.env.YOUTUBE_CHANNEL_ID.trim())
+    ) throw new YouTubePublishProviderConfigurationError();
     return this.providers[resolved];
   }
 }

@@ -10,12 +10,18 @@ import type { Project } from "@/types/project";
 import type { SEOData } from "@/types/seo";
 import type { ThumbnailData, ThumbnailMimeType } from "@/types/thumbnail";
 import type { YouTubePublishingPackage } from "@/types/youtube";
-import type { YouTubePublishRecord, YouTubePublishRequest } from "@/types/youtubePublish";
+import type {
+  YouTubePublishingRecord,
+  YouTubePublishRecord,
+  YouTubePublishRequest,
+} from "@/types/youtubePublish";
 import { YouTubePackagePipeline } from "../YouTubePackagePipeline";
 import type { YouTubeProvider } from "../providers/YouTubeProvider";
 import {
   createYouTubePackageIdentity,
   createYouTubePublishMetadata,
+  createYouTubeReconciliationMarker,
+  validateYouTubePublishReconciliationResult,
   validateYouTubePublishRecord,
 } from "./YouTubePublishValidation";
 import type { YouTubePublishProvider } from "./providers/YouTubePublishProvider";
@@ -70,14 +76,49 @@ export class YouTubePublishPipeline {
       );
       const packageIdentity = createYouTubePackageIdentity(validatedPackage);
       const assets = requireAssets(project, validatedPackage);
+      const channelBinding = provider.reconciliationChannelId === undefined
+        ? undefined
+        : normalizeRemoteId(provider.reconciliationChannelId);
+      const reconciliationMarker = createYouTubeReconciliationMarker({
+        projectId: project.id,
+        slug,
+        packageIdentity,
+        videoAssetId: validatedPackage.videoAssetId,
+        thumbnailAssetId: validatedPackage.thumbnailAssetId,
+        provider: provider.name,
+        ...(provider.model ? { model: normalizeId(provider.model, 200) } : {}),
+        ...(channelBinding ? { channelBinding } : {}),
+      });
       const request = createProviderRequest(
         validatedPackage,
         packageIdentity,
         assets,
+        reconciliationMarker,
+        channelBinding,
         input.signal,
       );
 
       if (publishState.status === "malformed") throw new Error("invalid");
+      let previous: YouTubePublishRecord | null = null;
+      if (publishState.status === "parsed") {
+        validateYouTubePublishRecord(publishState.value);
+        previous = publishState.value;
+        if (
+          previous.projectId !== project.id || previous.slug !== slug ||
+          previous.packageIdentity !== packageIdentity ||
+          previous.videoAssetId !== validatedPackage.videoAssetId ||
+          previous.thumbnailAssetId !== validatedPackage.thumbnailAssetId ||
+          previous.provider !== provider.name || previous.model !== provider.model ||
+          (previous.reconciliationMarker !== undefined &&
+            (previous.reconciliationMarker !== reconciliationMarker ||
+              previous.channelBinding !== channelBinding))
+        ) throw new Error("stale");
+        if (previous.status === "published") {
+          await removeRecoveryReceiptBestEffort(slug);
+          return previous;
+        }
+      }
+
       if (recoveryState.status === "malformed") throw new Error("invalid");
       const recovered = recoveryState.status === "parsed"
         ? requireMatchingPublishedRecord(recoveryState.value, {
@@ -87,24 +128,26 @@ export class YouTubePublishPipeline {
             videoAssetId: validatedPackage.videoAssetId,
             thumbnailAssetId: validatedPackage.thumbnailAssetId,
             provider: provider.name,
+            model: provider.model,
+            reconciliationMarker,
+            channelBinding,
           })
         : null;
-      if (publishState.status === "parsed") {
-        validateYouTubePublishRecord(publishState.value);
-        const previous = publishState.value;
-        if (
-          previous.projectId !== project.id || previous.slug !== slug ||
-          previous.packageIdentity !== packageIdentity ||
-          previous.videoAssetId !== validatedPackage.videoAssetId ||
-          previous.thumbnailAssetId !== validatedPackage.thumbnailAssetId ||
-          previous.provider !== provider.name
-        ) throw new Error("stale");
-        if (previous.status === "published") {
-          await removeRecoveryReceiptBestEffort(slug);
-          return previous;
-        }
+      if (previous) {
         if (recovered) return promoteRecoveryReceipt(slug, recovered);
-        if (previous.status === "publishing") throw new Error("indeterminate");
+        if (previous.status === "publishing") {
+          if (
+            previous.reconciliationMarker !== reconciliationMarker ||
+            previous.channelBinding !== channelBinding
+          ) throw new Error("stale");
+          return reconcilePublishingIntent({
+            slug,
+            provider,
+            publishing: previous,
+            timestamp,
+            signal: input.signal,
+          });
+        }
       }
       if (recovered) return promoteRecoveryReceipt(slug, recovered);
 
@@ -121,6 +164,8 @@ export class YouTubePublishPipeline {
         attemptId,
         status: "publishing",
         createdAt: timestamp,
+        reconciliationMarker,
+        ...(channelBinding ? { channelBinding } : {}),
       };
       await ProjectManager.saveYouTubePublish(slug, publishing);
 
@@ -149,12 +194,18 @@ export class YouTubePublishPipeline {
         ...(result.providerRequestId ? { providerRequestId: normalizeId(result.providerRequestId, 300) } : {}),
         publishedAt: timestamp,
       };
+      if (channelBinding !== undefined && result.channelId !== channelBinding) {
+        throw new Error("invalid");
+      }
       validateYouTubePublishRecord(published, {
         projectId: project.id,
         slug,
         packageIdentity,
         videoAssetId: validatedPackage.videoAssetId,
         thumbnailAssetId: validatedPackage.thumbnailAssetId,
+        provider: provider.name,
+        reconciliationMarker,
+        ...(channelBinding ? { channelBinding } : {}),
       });
       await ProjectManager.saveYouTubePublishRecovery(slug, published);
       await ProjectManager.saveYouTubePublish(slug, published);
@@ -237,6 +288,8 @@ function createProviderRequest(
   publishingPackage: YouTubePublishingPackage,
   packageIdentity: string,
   assets: ReturnType<typeof requireAssets>,
+  reconciliationMarker: string,
+  channelBinding?: string,
   signal?: AbortSignal,
 ): YouTubePublishRequest {
   return {
@@ -246,8 +299,74 @@ function createProviderRequest(
     videoAbsolutePath: assets.videoAbsolutePath,
     thumbnailAbsolutePath: assets.thumbnailAbsolutePath,
     metadata: createYouTubePublishMetadata(publishingPackage),
+    reconciliationMarker,
+    ...(channelBinding ? { channelBinding } : {}),
     ...(signal ? { signal } : {}),
   };
+}
+
+async function reconcilePublishingIntent(input: {
+  slug: string;
+  provider: YouTubePublishProvider;
+  publishing: YouTubePublishingRecord;
+  timestamp: string;
+  signal?: AbortSignal;
+}) {
+  input.signal?.throwIfAborted();
+  const reconciliationMarker = input.publishing.reconciliationMarker;
+  if (!reconciliationMarker) throw new Error("invalid");
+  if (!input.provider.reconcilePublish) throw new Error("indeterminate");
+  const result = await input.provider.reconcilePublish({
+    schemaVersion: "1",
+    projectId: input.publishing.projectId,
+    slug: input.publishing.slug,
+    packageIdentity: input.publishing.packageIdentity,
+    videoAssetId: input.publishing.videoAssetId,
+    thumbnailAssetId: input.publishing.thumbnailAssetId,
+    provider: input.publishing.provider,
+    ...(input.publishing.model ? { model: input.publishing.model } : {}),
+    reconciliationMarker,
+    ...(input.publishing.channelBinding
+      ? { channelBinding: input.publishing.channelBinding }
+      : {}),
+    ...(input.signal ? { signal: input.signal } : {}),
+  });
+  validateYouTubePublishReconciliationResult(result);
+  if (result.provider !== input.provider.name || result.model !== input.provider.model) {
+    throw new Error("invalid");
+  }
+  if (result.outcome !== "matched") throw new Error("indeterminate");
+  if (
+    result.reconciliationMarker !== reconciliationMarker ||
+    (input.publishing.channelBinding !== undefined &&
+      result.channelId !== input.publishing.channelBinding)
+  ) throw new Error("invalid");
+
+  const published: YouTubePublishRecord = {
+    ...input.publishing,
+    status: "published",
+    remoteVideoId: normalizeRemoteId(result.remoteVideoId),
+    remoteVideoUrl: result.remoteVideoUrl,
+    ...(result.channelId ? { channelId: normalizeRemoteId(result.channelId) } : {}),
+    ...(result.providerRequestId
+      ? { providerRequestId: normalizeId(result.providerRequestId, 300) }
+      : {}),
+    publishedAt: input.timestamp,
+  };
+  validateYouTubePublishRecord(published, {
+    projectId: input.publishing.projectId,
+    slug: input.publishing.slug,
+    packageIdentity: input.publishing.packageIdentity,
+    videoAssetId: input.publishing.videoAssetId,
+    thumbnailAssetId: input.publishing.thumbnailAssetId,
+    provider: input.publishing.provider,
+    reconciliationMarker,
+    ...(input.publishing.channelBinding
+      ? { channelBinding: input.publishing.channelBinding }
+      : {}),
+  });
+  await ProjectManager.saveYouTubePublish(input.slug, published);
+  return published;
 }
 
 function requireMatchingPublishedRecord(
@@ -259,10 +378,26 @@ function requireMatchingPublishedRecord(
     videoAssetId: string;
     thumbnailAssetId: string;
     provider: YouTubePublishProvider["name"];
+    model?: string;
+    reconciliationMarker: string;
+    channelBinding?: string;
   },
 ) {
-  validateYouTubePublishRecord(value, expected);
-  if (value.status !== "published" || value.provider !== expected.provider) {
+  validateYouTubePublishRecord(value, {
+    projectId: expected.projectId,
+    slug: expected.slug,
+    packageIdentity: expected.packageIdentity,
+    videoAssetId: expected.videoAssetId,
+    thumbnailAssetId: expected.thumbnailAssetId,
+    provider: expected.provider,
+  });
+  if (
+    value.status !== "published" || value.provider !== expected.provider ||
+    value.model !== expected.model ||
+    (value.reconciliationMarker !== undefined &&
+      (value.reconciliationMarker !== expected.reconciliationMarker ||
+        value.channelBinding !== expected.channelBinding))
+  ) {
     throw new Error("invalid");
   }
   return value;
