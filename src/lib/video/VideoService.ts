@@ -1,5 +1,6 @@
 import type { Asset } from "@/types/asset";
 import type { VideoData } from "@/types/video";
+import { isCompatibleVideoData } from "./VideoDataValidation";
 
 type VideoServiceOptions = {
   endpoint?: string;
@@ -45,7 +46,7 @@ export class VideoService {
     }
 
     return {
-      video: isVideoData(data.video) ? data.video : null,
+      video: isCompatibleVideoData(data.video) ? data.video : null,
       assets: isAssets(data.assets) ? data.assets : [],
     };
   }
@@ -55,16 +56,6 @@ export async function generateVideo(
   input: GenerateVideoInput,
 ): Promise<VideoServiceResult> {
   return VideoService.generateVideo(input);
-}
-
-function isVideoData(value: unknown): value is VideoData {
-  return (
-    Boolean(value) &&
-    typeof value === "object" &&
-    typeof (value as VideoData).projectId === "string" &&
-    typeof (value as VideoData).createdAt === "string" &&
-    Array.isArray((value as VideoData).scenes)
-  );
 }
 
 function isAssets(value: unknown): value is Asset[] {

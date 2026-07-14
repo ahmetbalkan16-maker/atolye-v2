@@ -40,11 +40,21 @@ export interface Asset {
 
   durationSeconds?: number;
 
-  artifactType?: "motion-plan";
+  artifactType?: "motion-plan" | "scene-video";
 
   sourceAssetId?: string;
 
+  animationAssetId?: string;
+
   generationMode?: "mock" | "production";
+
+  width?: number;
+
+  height?: number;
+
+  frameRate?: number;
+
+  transition?: string;
 
   error?: string;
 

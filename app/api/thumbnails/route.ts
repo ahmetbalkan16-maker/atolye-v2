@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { ThumbnailEngine } from "@/lib/thumbnail/ThumbnailEngine";
+import { isCompatibleVideoData } from "@/lib/video/VideoDataValidation";
 import type { AssemblyPlanData } from "@/types/assembly";
 import type { AudioData } from "@/types/audio";
 import type { Project } from "@/types/project";
-import type { VideoData } from "@/types/video";
 
 export async function POST(req: Request) {
   try {
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     const directAssembly = isAssemblyPlanData(body.assembly)
       ? body.assembly
       : null;
-    const directVideo = isVideoData(body.video) ? body.video : null;
+    const directVideo = isCompatibleVideoData(body.video) ? body.video : null;
     const directAudio = isAudioData(body.audio) ? body.audio : null;
 
     if (!projectSlug && !directAssembly && !directVideo && !directAudio) {
@@ -76,14 +76,14 @@ async function loadProjectThumbnailSources(projectSlug: string) {
   const [project, assembly, video, audio] = await Promise.all([
     ProjectManager.getProject(projectSlug) as Promise<Project | null>,
     ProjectManager.getAssembly(projectSlug) as Promise<AssemblyPlanData | null>,
-    ProjectManager.getVideo(projectSlug) as Promise<VideoData | null>,
+    ProjectManager.getVideo(projectSlug),
     ProjectManager.getAudio(projectSlug) as Promise<AudioData | null>,
   ]);
 
   return {
     project,
     assembly,
-    video,
+    video: isCompatibleVideoData(video) ? video : null,
     audio,
   };
 }
@@ -103,15 +103,6 @@ function isAssemblyPlanData(value: unknown): value is AssemblyPlanData {
     Array.isArray((value as AssemblyPlanData).scenes) &&
     typeof (value as AssemblyPlanData).totalDuration === "string" &&
     typeof (value as AssemblyPlanData).createdAt === "string"
-  );
-}
-
-function isVideoData(value: unknown): value is VideoData {
-  return (
-    Boolean(value) &&
-    typeof value === "object" &&
-    Array.isArray((value as VideoData).scenes) &&
-    typeof (value as VideoData).createdAt === "string"
   );
 }
 

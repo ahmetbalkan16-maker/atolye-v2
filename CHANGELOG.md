@@ -25,6 +25,27 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 117 — Production Scene Video Rendering Activation
+
+Completed
+
+- Kanonik `research -> script -> scenes -> visuals -> animation -> video -> audio -> assembly` stage sirasi, recovery dependency graph, continuation wiring ve assembly renderer degistirilmedi.
+- Scene-video v2 data `schemaVersion: "2"`, `artifactType: "scene-video"` kullanir. Her scene ayri asset tasir; `sourceAnimationAssetId === animationAssetId`, `videoAssetId === outputAssetId`; aggregate outputAssetId kaldirildi. Production alanlari scene/source/animation/video identity, filePath/url, `video/mp4`, byteLength, duration, width/height, provider, generationMode, transition metadata ve generated status'tur.
+- Mock kayitlar fiziksel MP4 gibi temsil edilmez: `generationMode: "mock"`, `video/mock`, bos locator ve sifir byteLength/geometry ile scene basina ayri deterministik identity kullanir.
+- `FFmpegSceneVideoProvider` gercek source image ve motion-plan'dan scene basina ayri H.264/yuv420p, 1920x1080, 30 FPS, audio tracksiz MP4 render eder. static, zoom-in, zoom-out, pan-left ve pan-right desteklenir; transition yalniz metadata'dir. FFprobe codec, stream, geometry, FPS ve duration outputunu dogrular.
+- Latest generated image -> sourceImageAssetId -> active motion-plan v2 -> animationAssetId -> scene-video zinciri korunur. Visual retry sonrasi son generated image append sirasina gore deterministik secilir; stale plan veya identity mismatch batch baslamadan reddedilir.
+- Tum scene inputlari provider oncesi preflight edilir ve tum provider sonuclari dogrulanmadan registry write yapilmaz. Locator slug/filename eslesmesi ve production batch filePath/url benzersizligi zorunludur.
+- Retry yeni scene-specific UUID path uretir ve overwrite etmez; completed replay write-free/idempotenttir. Video failure normal initial/resume/continuation akisini video'da durdurur ve downstream runnable olmaz.
+- Legacy placeholder video readable kalir; kismi/mixed v2 marker fail-closed olur. Pipeline, recovery, `VideoService` ve assembly/export/thumbnail/youtube API yollari ortak deep video guard kullanir.
+- `PipelineRecoveryPlanner` video readiness icin `data !== null` yerine `isCompatibleVideoData()` kullanir. Merkezi sira/dependency graph degismedi; gecerli legacy ready kalir, full v2 derin dogrulanir, malformed v2 reddedilir ve assembly video dependency'si korunur.
+- Final review'de uc P1 giderildi: ayni physical MP4'un birden fazla scene'e atanmasi filePath/url uniqueness ile engellendi; zoompan progress frame-index yerine output time `ot` ile 0..1 hesaplandi ve 1/300 saniye uclari dogrulandi; motion-plan effective zoom'un FFmpeg 1-10 sinirini asmasi render oncesi fail-closed provider kontroluyle kapatildi. Sprint 116 contract'i degistirilmedi; acik P0/P1 kalmadi.
+- Non-blocking P2 takip: hostta live FFmpeg/FFprobe E2E calismadi; controlled process runner syntax/encoder/live probe uyumlulugunu kanitlamaz. FFprobe kontrolu container duration/avg_frame_rate ile dar/katidir; MP4 structural validation deep container parser degildir; MP4 -> registry -> video.json/manifest -> job/history tam transaction degildir; inherited forced-settlement cleanup yarisi teoriktir; manual audio retry canonical graph geregi video failure'dan bagimsiz olabilir.
+- P3: scene provider SpawnRunner'i assembly modulunden import eder ancak runtime cycle yoktur; ortak process-supervision modulu ve VideoPipeline sorumluluk ayrimi ileriki refactor adayidir.
+- Ilk production kullanimindan once mutlak `FFMPEG_PATH` ve `FFPROBE_PATH` ile fiziksel PNG/JPEG fixture uzerinde static, zoom-in, zoom-out, pan-left ve pan-right live render zorunludur. Her output gercek ffprobe ile tek H.264 stream, audio yok, 1920x1080, yuv420p, 30 FPS, duration toleransi, ayri MP4 ve ayri registry identity kosullarini saglamalidir. Ayri live acceptance repo smoke komutu henuz bulunmamaktadir.
+- Sprint 117 scene video 23/23; Sprint 116 motion plan 21; Sprint 115 video assembly 46; Sprint 114 audio 74; Sprint 113 visuals 54; pipeline orchestration 10; auto-continuation 18; durable execution 17; durable wiring 19 PASS.
+- Runtime startup 11/11, worker lifecycle 16/16, runtime status 15/15, runtime health 24/24 PASS. TypeScript PASS; hedefli ESLint PASS (0 warning); `git diff --check` PASS. LF -> CRLF uyarilari non-blocking'dir.
+- Dokumantasyon kapanisi tamamlandi; commit veya push yapilmadi.
+
 ## Sprint 116 — Animation Motion Plan Production Contract
 
 Completed

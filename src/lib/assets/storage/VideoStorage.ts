@@ -28,7 +28,17 @@ export class VideoStorage {
   }
 
   static createRenderPaths(projectSlug: string) {
-    const id = crypto.randomUUID();
+    return this.createPaths(projectSlug, crypto.randomUUID());
+  }
+
+  static createSceneRenderPaths(projectSlug: string, sceneId: number) {
+    if (!Number.isSafeInteger(sceneId) || sceneId <= 0) {
+      throw new Error("Invalid scene id.");
+    }
+    return this.createPaths(projectSlug, `scene-${sceneId}-${crypto.randomUUID()}`);
+  }
+
+  private static createPaths(projectSlug: string, id: string) {
     const fileName = `${id}.mp4`;
     const temporaryFileName = `${id}.partial.mp4`;
     const directory = resolveRelative(this.getVideoDir(projectSlug));

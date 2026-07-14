@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { YouTubeEngine } from "@/lib/youtube/YouTubeEngine";
+import { isCompatibleVideoData } from "@/lib/video/VideoDataValidation";
 import type { AssemblyPlanData } from "@/types/assembly";
 import type { AudioData } from "@/types/audio";
 import type { Project } from "@/types/project";
 import type { ThumbnailData } from "@/types/thumbnail";
-import type { VideoData } from "@/types/video";
 
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Record<string, unknown>;
     const projectSlug = normalizeSlug(body.projectSlug ?? body.slug);
-    const directVideo = isVideoData(body.video) ? body.video : null;
+    const directVideo = isCompatibleVideoData(body.video) ? body.video : null;
     const directAudio = isAudioData(body.audio) ? body.audio : null;
     const directAssembly = isAssemblyPlanData(body.assembly)
       ? body.assembly
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
 async function loadProjectYouTubeSources(projectSlug: string) {
   const [project, video, audio, assembly, thumbnail] = await Promise.all([
     ProjectManager.getProject(projectSlug) as Promise<Project | null>,
-    ProjectManager.getVideo(projectSlug) as Promise<VideoData | null>,
+    ProjectManager.getVideo(projectSlug),
     ProjectManager.getAudio(projectSlug) as Promise<AudioData | null>,
     ProjectManager.getAssembly(projectSlug) as Promise<AssemblyPlanData | null>,
     ProjectManager.getThumbnail(projectSlug) as Promise<ThumbnailData | null>,
@@ -96,7 +96,7 @@ async function loadProjectYouTubeSources(projectSlug: string) {
 
   return {
     project,
-    video,
+    video: isCompatibleVideoData(video) ? video : null,
     audio,
     assembly,
     thumbnail,
@@ -109,15 +109,6 @@ function normalizeSlug(value: unknown): string | null {
   }
 
   return value.trim();
-}
-
-function isVideoData(value: unknown): value is VideoData {
-  return (
-    Boolean(value) &&
-    typeof value === "object" &&
-    Array.isArray((value as VideoData).scenes) &&
-    typeof (value as VideoData).createdAt === "string"
-  );
 }
 
 function isAudioData(value: unknown): value is AudioData {

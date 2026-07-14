@@ -1,4 +1,5 @@
 import { ProjectManager } from "@/lib/projects/ProjectManager";
+import { isCompatibleVideoData } from "@/lib/video/VideoDataValidation";
 import type { ProjectManifest } from "@/types/project";
 import type {
   PipelineDependencyStatus,
@@ -245,7 +246,7 @@ async function isStageFileReady(
 ) {
   const data = await readStageData(projectSlug, stage);
 
-  return data !== null;
+  return stage === "video" ? isCompatibleVideoData(data) : data !== null;
 }
 
 function readStageData(projectSlug: string, stage: PipelineRecoveryStageKey) {

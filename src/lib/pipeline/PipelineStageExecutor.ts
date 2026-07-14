@@ -22,6 +22,8 @@ import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { SEOManager } from "@/lib/seo/SEOManager";
 import { ThumbnailEngine } from "@/lib/thumbnail/ThumbnailEngine";
 import { VideoPipeline } from "@/lib/video/VideoPipeline";
+import { isCompatibleVideoData } from "@/lib/video/VideoDataValidation";
+import type { VideoProvider } from "@/lib/video/providers/VideoProvider";
 import { VisualManager } from "@/lib/visuals/VisualManager";
 import { YouTubeEngine } from "@/lib/youtube/YouTubeEngine";
 import { PipelineJobManager } from "./PipelineJobManager";
@@ -58,6 +60,7 @@ export type PipelineExecutionState = {
 export type PipelineStageExecutionOptions = {
   visualAssetProvider?: ImageProvider;
   animationProvider?: AnimationProvider;
+  videoProvider?: VideoProvider;
   audioProvider?: AudioProvider;
   videoAssemblyProvider?: VideoAssemblyProvider;
 };
@@ -107,7 +110,7 @@ export class PipelineStageExecutor {
       ProjectManager.getScenes(projectSlug) as Promise<SceneData | null>,
       ProjectManager.getVisuals(projectSlug) as Promise<VisualData | null>,
       ProjectManager.getAnimation(projectSlug),
-      ProjectManager.getVideo(projectSlug) as Promise<VideoData | null>,
+      ProjectManager.getVideo(projectSlug),
       ProjectManager.getAudio(projectSlug) as Promise<AudioData | null>,
       ProjectManager.getAssembly(projectSlug) as Promise<AssemblyPlanData | null>,
       ProjectManager.getThumbnail(projectSlug) as Promise<ThumbnailData | null>,
@@ -123,7 +126,7 @@ export class PipelineStageExecutor {
       scenes,
       visuals,
       animation: isCompatibleAnimationData(animation) ? animation : null,
-      video,
+      video: isCompatibleVideoData(video) ? video : null,
       audio,
       assembly,
       thumbnail,
@@ -233,6 +236,7 @@ export class PipelineStageExecutor {
           projectId: state.project.id,
           projectSlug,
           animation,
+          provider: options.videoProvider,
         });
         state.video = video;
         return this.persistStageResult(projectSlug, stage, () =>

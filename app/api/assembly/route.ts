@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { AssemblyManager } from "@/lib/assembly/AssemblyManager";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
+import { isCompatibleVideoData } from "@/lib/video/VideoDataValidation";
 import type { AnimationData } from "@/types/animation";
 import type { AudioData } from "@/types/audio";
 import type { Project } from "@/types/project";
 import type { SceneData } from "@/types/scene";
 import type { ScriptData } from "@/types/script";
-import type { VideoData } from "@/types/video";
 import type { VisualData } from "@/types/visual";
 
 export async function POST(req: Request) {
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       scenes,
       visuals,
       animation,
-      video,
+      rawVideo,
       audio,
     ] = await Promise.all([
       ProjectManager.getProject(normalizedSlug) as Promise<Project | null>,
@@ -39,9 +39,10 @@ export async function POST(req: Request) {
       ProjectManager.getScenes(normalizedSlug) as Promise<SceneData | null>,
       ProjectManager.getVisuals(normalizedSlug) as Promise<VisualData | null>,
       ProjectManager.getAnimation(normalizedSlug) as Promise<AnimationData | null>,
-      ProjectManager.getVideo(normalizedSlug) as Promise<VideoData | null>,
+      ProjectManager.getVideo(normalizedSlug),
       ProjectManager.getAudio(normalizedSlug) as Promise<AudioData | null>,
     ]);
+    const video = isCompatibleVideoData(rawVideo) ? rawVideo : null;
 
     if (!script) {
       return NextResponse.json(

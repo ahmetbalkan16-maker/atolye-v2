@@ -116,6 +116,18 @@ export function isCompatibleAnimationData(value: unknown): value is AnimationDat
   return true;
 }
 
+export function isAnimationMotionPlanData(
+  value: unknown,
+): value is AnimationData & { schemaVersion: "2"; artifactType: "motion-plan" } {
+  return (
+    isCompatibleAnimationData(value) &&
+    value.schemaVersion === "2" &&
+    value.artifactType === "motion-plan" &&
+    value.scenes.length > 0 &&
+    value.scenes.every(isAnimationMotionPlanScene)
+  );
+}
+
 function isLegacyAnimationScene(value: unknown): value is AnimationScene {
   if (!value || typeof value !== "object") return false;
   const scene = value as AnimationScene;
