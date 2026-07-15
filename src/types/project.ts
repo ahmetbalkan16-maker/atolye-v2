@@ -1,3 +1,5 @@
+import type { PipelineErrorEvidence } from "./errorEvidence";
+
 export type ProjectStatus =
   | "draft"
   | "research"
@@ -55,7 +57,7 @@ export interface ProjectPackageManifest {
   completedAt?: string;
   durationMs?: number;
   error?: string;
-  errorEvidence?: AIResponseSchemaEvidence;
+  errorEvidence?: PipelineErrorEvidence;
   attempts?: ProjectPackageAttemptMetadata;
   usage?: ProjectPackageUsage;
 }
@@ -93,4 +95,3 @@ export interface ProjectManifest {
   createdAt: string;
   updatedAt: string;
 }
-import type { AIResponseSchemaEvidence } from "./aiResponse";

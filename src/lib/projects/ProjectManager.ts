@@ -2,8 +2,8 @@ import { ProjectWriter } from "./ProjectWriter";
 import { ProjectReader } from "./ProjectReader";
 import { validateYouTubePublishingPackage } from "@/lib/youtube/YouTubePackageValidation";
 import { validateYouTubePublishRecord } from "@/lib/youtube/publish/YouTubePublishValidation";
-import { isAIResponseSchemaEvidence } from "@/lib/ai/AIResponseError";
-import type { AIResponseSchemaEvidence } from "@/types/aiResponse";
+import { isPipelineErrorEvidence } from "@/lib/pipeline/PipelineErrorEvidence";
+import type { PipelineErrorEvidence } from "@/types/errorEvidence";
 import type {
   PackageStatus,
   ProductionStepKey,
@@ -18,7 +18,7 @@ import type {
 
 type UpdatePackageStatusOptions = {
   runType?: ProjectPackageRunType;
-  errorEvidence?: AIResponseSchemaEvidence;
+  errorEvidence?: PipelineErrorEvidence;
 };
 
 export class ScriptArtifactConflictError extends Error {
@@ -636,7 +636,7 @@ export class ProjectManager {
               ? packageValue.durationMs
               : undefined;
           const usage = this.normalizePackageUsage(packageValue.usage);
-          const errorEvidence = isAIResponseSchemaEvidence(packageValue.errorEvidence)
+          const errorEvidence = isPipelineErrorEvidence(packageValue.errorEvidence)
             ? packageValue.errorEvidence
             : undefined;
           const attempts = this.normalizeAttemptMetadata(

@@ -446,6 +446,7 @@ async function testRetryStatePropagationAndGenericFailures() {
   const executor = PipelineStageExecutor as unknown as PipelineExecutorHarness;
   const runner = PipelineRunner as unknown as PipelineRunnerHarness;
   const originals = {
+    getJob: manager.getJob,
     getJobForStageReadOnly: manager.getJobForStageReadOnly,
     getJobReadOnly: manager.getJobReadOnly,
     prepareJobRetry: manager.prepareJobRetry,
@@ -478,6 +479,7 @@ async function testRetryStatePropagationAndGenericFailures() {
     createdAt: now,
   };
 
+  manager.getJob = async () => failedJob;
   manager.getJobForStageReadOnly = async () => failedJob;
   manager.getJobReadOnly = async () => failedJob;
   manager.prepareJobRetry = async () => ({
@@ -588,6 +590,7 @@ async function testRetryStatePropagationAndGenericFailures() {
     assert.equal(genericExecution.reason, "Pipeline retry execution failed.");
   } finally {
     Object.assign(manager, {
+      getJob: originals.getJob,
       getJobForStageReadOnly: originals.getJobForStageReadOnly,
       getJobReadOnly: originals.getJobReadOnly,
       prepareJobRetry: originals.prepareJobRetry,

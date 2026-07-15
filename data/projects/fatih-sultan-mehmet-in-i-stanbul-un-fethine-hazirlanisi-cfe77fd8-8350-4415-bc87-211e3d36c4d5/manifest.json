@@ -3,9 +3,9 @@
     "id": "1ba3bebf-abe9-4b3c-9b4a-b9d238b98534",
     "slug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
     "title": "Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5",
-    "status": "visuals",
+    "status": "animation",
     "createdAt": "2026-07-15T12:05:09.729Z",
-    "updatedAt": "2026-07-15T14:55:58.841Z"
+    "updatedAt": "2026-07-15T19:32:45.125Z"
   },
   "projectId": "1ba3bebf-abe9-4b3c-9b4a-b9d238b98534",
   "slug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
@@ -97,17 +97,16 @@
     },
     "visuals": {
       "key": "visuals",
-      "status": "failed",
+      "status": "completed",
       "fileName": "visuals.json",
-      "updatedAt": "2026-07-15T14:56:04.683Z",
-      "error": "Production generation failed closed.",
-      "startedAt": "2026-07-15T14:55:58.842Z",
-      "completedAt": "2026-07-15T14:56:04.683Z",
-      "durationMs": 5841,
+      "updatedAt": "2026-07-15T19:32:44.073Z",
+      "startedAt": "2026-07-15T19:28:05.136Z",
+      "completedAt": "2026-07-15T19:32:44.073Z",
+      "durationMs": 278937,
       "attempts": {
-        "total": 1,
+        "total": 3,
         "retry": 0,
-        "lastAttemptAt": "2026-07-15T14:55:58.842Z",
+        "lastAttemptAt": "2026-07-15T19:28:05.136Z",
         "lastRunType": "resume"
       },
       "usage": {
@@ -116,18 +115,42 @@
         "operation": "visuals",
         "status": "success",
         "fallbackUsed": false,
-        "requestCount": 1,
-        "durationMs": 5808,
-        "promptTokens": 1135,
-        "completionTokens": 375,
-        "totalTokens": 1510,
-        "updatedAt": "2026-07-15T14:56:04.679Z"
+        "requestCount": 3,
+        "durationMs": 15082,
+        "promptTokens": 1307,
+        "completionTokens": 1017,
+        "totalTokens": 2324,
+        "updatedAt": "2026-07-15T19:28:20.230Z"
       }
     },
     "animation": {
       "key": "animation",
-      "status": "pending",
-      "fileName": "animation.json"
+      "status": "failed",
+      "fileName": "animation.json",
+      "updatedAt": "2026-07-15T19:33:11.613Z",
+      "error": "Animation motion plan generation failed.",
+      "startedAt": "2026-07-15T19:32:45.126Z",
+      "completedAt": "2026-07-15T19:33:11.613Z",
+      "durationMs": 26487,
+      "attempts": {
+        "total": 1,
+        "retry": 0,
+        "lastAttemptAt": "2026-07-15T19:32:45.126Z",
+        "lastRunType": "resume"
+      },
+      "usage": {
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "operation": "animation-prompt",
+        "status": "success",
+        "fallbackUsed": false,
+        "requestCount": 6,
+        "durationMs": 3087,
+        "promptTokens": 420,
+        "completionTokens": 219,
+        "totalTokens": 639,
+        "updatedAt": "2026-07-15T19:33:08.316Z"
+      }
     },
     "video": {
       "key": "video",
@@ -166,5 +189,5 @@
     }
   },
   "createdAt": "2026-07-15T12:05:09.729Z",
-  "updatedAt": "2026-07-15T14:56:04.683Z"
+  "updatedAt": "2026-07-15T19:33:11.613Z"
 }

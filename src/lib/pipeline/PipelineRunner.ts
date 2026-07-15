@@ -13,7 +13,7 @@ import {
 import { readProductionAcceptancePolicy } from "@/lib/production/ProductionAcceptancePolicy";
 import { validateProductionAcceptancePreflight } from "@/lib/production/ProductionAcceptancePreflight";
 import { isPipelineStateError } from "./PipelineStateError";
-import { getAIResponseSchemaEvidence } from "@/lib/ai/AIResponseError";
+import { getPipelineErrorEvidence } from "./PipelineErrorEvidence";
 import type { ProductionPipelineExecutionAdapter } from "@/lib/production/ProductionPipelineExecutionAdapter";
 import { prepareFailedStageRetry } from "./PipelineFailedStageRetry";
 import type {
@@ -698,7 +698,8 @@ export class PipelineRunner {
 
       const message =
         error instanceof Error ? error.message : "Pipeline stage failed.";
-      const errorEvidence = getAIResponseSchemaEvidence(error);
+      const errorEvidence = getPipelineErrorEvidence(error);
+      const errorCode = canonicalErrorCode(error) ?? message;
 
       await PipelineJobManager.persistStageFailure(
         slug,
@@ -708,11 +709,11 @@ export class PipelineRunner {
             slug,
             stage,
             "failed",
-            message,
+            errorCode,
             { errorEvidence },
           );
         },
-        message,
+        errorCode,
         errorEvidence,
       );
       console.error("[PipelineRunner] Stage failed:", {
@@ -778,6 +779,13 @@ function retryExecutionReasonCode(error: unknown) {
   return typeof candidate?.reasonCode === "string" && /^[A-Z0-9_]{1,100}$/.test(candidate.reasonCode)
     ? candidate.reasonCode
     : "PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED";
+}
+
+function canonicalErrorCode(error: unknown) {
+  const candidate = error as { code?: unknown };
+  return typeof candidate?.code === "string" && /^[A-Z0-9_]{1,80}$/.test(candidate.code)
+    ? candidate.code
+    : undefined;
 }
 
 function getRetryStageFromJobId(

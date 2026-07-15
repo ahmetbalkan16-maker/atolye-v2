@@ -236,7 +236,7 @@ async function main() {
       }, () => config({ maximumResponseBytes: 1024, retryCount: 2 }));
       const result = await provider.generateAnimation(input());
       assert.equal(result.success, false);
-      if (!result.success) assert.equal(result.error, "ANIMATION_PROVIDER_RESPONSE_INVALID");
+      if (!result.success) assert.equal(result.error, "ANIMATION_RESPONSE_TOO_LARGE");
       assert.equal(calls, 1);
     });
 
@@ -249,7 +249,7 @@ async function main() {
         const provider = new OpenAIAnimationProvider(async () => new Response(JSON.stringify({ choices: [{ message: { content } }] })), () => config({ retryCount: 0 }));
         const result = await provider.generateAnimation(input());
         assert.equal(result.success, false);
-        if (!result.success) assert.equal(result.error, "ANIMATION_PROVIDER_RESPONSE_INVALID");
+        if (!result.success) assert.equal(result.error, "ANIMATION_RESPONSE_SCHEMA_INVALID");
       }
     });
 
@@ -302,7 +302,7 @@ async function main() {
       const result = await provider.generateAnimation(input());
       assert.equal(result.success, false);
       if (result.success) throw new Error("expected failure");
-      assert.equal(result.error, "ANIMATION_PROVIDER_TIMEOUT");
+      assert.equal(result.error, "ANIMATION_PROVIDER_RETRY_EXHAUSTED");
       assert.equal(calls, 2);
     });
 
@@ -314,12 +314,12 @@ async function main() {
       }, () => config());
       const malformedResult = await malformed.generateAnimation(input());
       assert.equal(malformedResult.success, false);
-      if (!malformedResult.success) assert.equal(malformedResult.error, "ANIMATION_PROVIDER_RESPONSE_INVALID");
+      if (!malformedResult.success) assert.equal(malformedResult.error, "ANIMATION_RESPONSE_INVALID_JSON");
       assert.equal(malformedCalls, 1);
       const invalid = new OpenAIAnimationProvider(async () => openAIResponse(input(), (value) => ({ ...value, sceneId: 2 })), () => config());
       const invalidResult = await invalid.generateAnimation(input());
       assert.equal(invalidResult.success, false);
-      if (!invalidResult.success) assert.equal(invalidResult.error, "ANIMATION_PROVIDER_RESPONSE_INVALID");
+      if (!invalidResult.success) assert.equal(invalidResult.error, "ANIMATION_RESPONSE_SCHEMA_INVALID");
     });
 
     await scenario("readiness distinguishes READY, missing, mock and unknown", async () => {

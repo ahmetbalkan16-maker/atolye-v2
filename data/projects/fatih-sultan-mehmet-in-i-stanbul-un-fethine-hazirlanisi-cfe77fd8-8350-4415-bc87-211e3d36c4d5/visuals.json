@@ -1,0 +1,141 @@
+{
+  "scenes": [
+    {
+      "sceneId": 1,
+      "visualPrompt": "Dramatic lighting highlights the young Fatih Sultan Mehmet ascending the Ottoman throne in 1451 at age 19, set within the richly decorated interior of the Ottoman palace. Nearby, a detailed, large map of Istanbul is displayed on a wooden table, with the conquest target clearly marked. The scene captures period-accurate royal garments, intricate architectural details, and a solemn yet hopeful atmosphere.",
+      "animationPrompt": "Slow dolly-in toward Fatih on the throne, gentle flicker of candlelight creating shadows, subtle dust particles in the air, camera pans to the Istanbul map where a glowing marker pulses over the conquest target, conveying determination and youthful ambition.",
+      "style": "cinematic"
+    },
+    {
+      "sceneId": 2,
+      "visualPrompt": "Intense training scenes of the Janissaries practicing archery and swordsmanship in an open courtyard surrounded by stone walls. Blacksmiths and craftsmen are shown forging cannons and weapons in a bustling foundry with molten metal glowing. Soldiers organize siege equipment and prepare armor, all dressed in authentic Ottoman military attire, emphasizing discipline and readiness.",
+      "animationPrompt": "Tracking shots following soldiers in synchronized drills, sparks flying from the forge, slow-motion close-ups of weapon strikes, ambient sounds of hammering and commands, a steady build-up of tension and military precision.",
+      "style": "cinematic"
+    },
+    {
+      "sceneId": 3,
+      "visualPrompt": "Massive bronze and iron cannons being cast in a fiery foundry, with molten metal pouring into molds. Ottoman engineer Urban is depicted examining detailed blueprints and supervising the construction of towering siege towers. Soldiers position the siege engines near the imposing city walls under a dramatic sky, highlighting technological innovation and military might.",
+      "animationPrompt": "Crane shots sweeping over the foundry and siege towers, glowing embers drifting through the air, close-ups of Urban’s focused face and blueprint sketches, slow reveal of the assembled artillery facing the city walls, evoking awe and strategic genius.",
+      "style": "cinematic"
+    },
+    {
+      "sceneId": 4,
+      "visualPrompt": "Vast storerooms filled with neatly stacked food supplies and ammunition crates. Ottoman naval ships are prepared along the harbor, with sailors securing ropes and checking equipment. The massive chain blocking the Golden Horn is shown with soldiers planning its removal. The scene conveys meticulous organization and the critical nature of supply lines during the siege.",
+      "animationPrompt": "Steady panoramic shot across the storerooms and harbor, soft ambient light filtering through windows, subtle movement of workers carrying supplies, gentle waves lapping at ships, a quiet but intense atmosphere of preparation and anticipation.",
+      "style": "cinematic"
+    },
+    {
+      "sceneId": 5,
+      "visualPrompt": "Formal diplomatic meetings inside an ornate Ottoman palace chamber, with envoys seated around a large table covered in maps and documents. Ottoman statesmen engage in serious discussion, their expressions resolute. The room is richly decorated with period furniture and tapestries, reflecting political stability and strategic planning.",
+      "animationPrompt": "Slow zoom on faces of diplomats as they deliberate, flickering candlelight casting warm shadows, subtle camera shifts to emphasize tension and cooperation, faint sounds of murmured negotiation underscoring the scene’s gravity.",
+      "style": "cinematic"
+    },
+    {
+      "sceneId": 6,
+      "visualPrompt": "The Ottoman army marching resolutely toward the formidable walls of Istanbul in spring 1453. Siege lines are established with tents and artillery positioned strategically. Soldiers in traditional armor advance with banners fluttering, while the massive city walls loom ahead under a dramatic sky, capturing the epic beginning of the historic siege.",
+      "animationPrompt": "Wide sweeping aerial shot following the army’s advance, slow crane shot rising to reveal the scale of the siege works, dust particles in the air, stirring wind moving banners and flags, an atmosphere charged with anticipation and epic resolve.",
+      "style": "cinematic"
+    }
+  ],
+  "thumbnail": {
+    "title": "Fatih Sultan Mehmet and the Conquest of Istanbul 1453",
+    "prompt": "A cinematic, realistic portrayal of young Fatih Sultan Mehmet seated on the Ottoman throne with a detailed map of Istanbul before him, illuminated by warm candlelight inside an ornate palace chamber. The composition centers on his determined expression and the marked conquest target on the map, evoking the pivotal moment of his vision to capture the city.",
+    "composition": "Centered portrait of Fatih on throne with map foregrounded, warm lighting highlighting facial features and intricate palace details, balanced framing with architectural elements and map creating depth and focus.",
+    "mood": "Determined, hopeful, solemn, and visionary atmosphere reflecting the ambition and gravity of the historic moment."
+  },
+  "createdAt": "2026-07-15T19:28:20.233Z",
+  "projectId": "1ba3bebf-abe9-4b3c-9b4a-b9d238b98534",
+  "prompts": [
+    {
+      "id": "visual-1",
+      "sceneId": "1",
+      "title": "Genç Fatih’in Tahta Çıkışı ve Hedef Belirlemesi",
+      "prompt": "Dramatic lighting highlights the young Fatih Sultan Mehmet ascending the Ottoman throne in 1451 at age 19, set within the richly decorated interior of the Ottoman palace. Nearby, a detailed, large map of Istanbul is displayed on a wooden table, with the conquest target clearly marked. The scene captures period-accurate royal garments, intricate architectural details, and a solemn yet hopeful atmosphere.",
+      "negativePrompt": "text, subtitles, logo, watermark, modern clothes, modern buildings, cartoon, anime, low quality, blurry",
+      "aspectRatio": "16:9",
+      "style": "cinematic",
+      "camera": "wide cinematic shot",
+      "lighting": "dramatic historical lighting",
+      "lens": "35mm lens",
+      "mood": "epic, emotional, documentary",
+      "colorPalette": "natural historical colors, cinematic contrast",
+      "createdAt": "2026-07-15T19:28:20.233Z"
+    },
+    {
+      "id": "visual-2",
+      "sceneId": "2",
+      "title": "Yeniçeri Ocağı ve Orduyu Güçlendirme Çalışmaları",
+      "prompt": "Intense training scenes of the Janissaries practicing archery and swordsmanship in an open courtyard surrounded by stone walls. Blacksmiths and craftsmen are shown forging cannons and weapons in a bustling foundry with molten metal glowing. Soldiers organize siege equipment and prepare armor, all dressed in authentic Ottoman military attire, emphasizing discipline and readiness.",
+      "negativePrompt": "text, subtitles, logo, watermark, modern clothes, modern buildings, cartoon, anime, low quality, blurry",
+      "aspectRatio": "16:9",
+      "style": "cinematic",
+      "camera": "wide cinematic shot",
+      "lighting": "dramatic historical lighting",
+      "lens": "35mm lens",
+      "mood": "epic, emotional, documentary",
+      "colorPalette": "natural historical colors, cinematic contrast",
+      "createdAt": "2026-07-15T19:28:20.233Z"
+    },
+    {
+      "id": "visual-3",
+      "sceneId": "3",
+      "title": "Dev Topların Dökümü ve Mühendislik Yenilikleri",
+      "prompt": "Massive bronze and iron cannons being cast in a fiery foundry, with molten metal pouring into molds. Ottoman engineer Urban is depicted examining detailed blueprints and supervising the construction of towering siege towers. Soldiers position the siege engines near the imposing city walls under a dramatic sky, highlighting technological innovation and military might.",
+      "negativePrompt": "text, subtitles, logo, watermark, modern clothes, modern buildings, cartoon, anime, low quality, blurry",
+      "aspectRatio": "16:9",
+      "style": "cinematic",
+      "camera": "wide cinematic shot",
+      "lighting": "dramatic historical lighting",
+      "lens": "35mm lens",
+      "mood": "epic, emotional, documentary",
+      "colorPalette": "natural historical colors, cinematic contrast",
+      "createdAt": "2026-07-15T19:28:20.233Z"
+    },
+    {
+      "id": "visual-4",
+      "sceneId": "4",
+      "title": "Lojistik Hazırlıklar ve İkmal Hatlarının Güçlendirilmesi",
+      "prompt": "Vast storerooms filled with neatly stacked food supplies and ammunition crates. Ottoman naval ships are prepared along the harbor, with sailors securing ropes and checking equipment. The massive chain blocking the Golden Horn is shown with soldiers planning its removal. The scene conveys meticulous organization and the critical nature of supply lines during the siege.",
+      "negativePrompt": "text, subtitles, logo, watermark, modern clothes, modern buildings, cartoon, anime, low quality, blurry",
+      "aspectRatio": "16:9",
+      "style": "cinematic",
+      "camera": "wide cinematic shot",
+      "lighting": "dramatic historical lighting",
+      "lens": "35mm lens",
+      "mood": "epic, emotional, documentary",
+      "colorPalette": "natural historical colors, cinematic contrast",
+      "createdAt": "2026-07-15T19:28:20.233Z"
+    },
+    {
+      "id": "visual-5",
+      "sceneId": "5",
+      "title": "Diplomasi ve İç İstikrarın Sağlanması",
+      "prompt": "Formal diplomatic meetings inside an ornate Ottoman palace chamber, with envoys seated around a large table covered in maps and documents. Ottoman statesmen engage in serious discussion, their expressions resolute. The room is richly decorated with period furniture and tapestries, reflecting political stability and strategic planning.",
+      "negativePrompt": "text, subtitles, logo, watermark, modern clothes, modern buildings, cartoon, anime, low quality, blurry",
+      "aspectRatio": "16:9",
+      "style": "cinematic",
+      "camera": "wide cinematic shot",
+      "lighting": "dramatic historical lighting",
+      "lens": "35mm lens",
+      "mood": "epic, emotional, documentary",
+      "colorPalette": "natural historical colors, cinematic contrast",
+      "createdAt": "2026-07-15T19:28:20.233Z"
+    },
+    {
+      "id": "visual-6",
+      "sceneId": "6",
+      "title": "Son Hazırlıklar ve Kuşatma Başlangıcı",
+      "prompt": "The Ottoman army marching resolutely toward the formidable walls of Istanbul in spring 1453. Siege lines are established with tents and artillery positioned strategically. Soldiers in traditional armor advance with banners fluttering, while the massive city walls loom ahead under a dramatic sky, capturing the epic beginning of the historic siege.",
+      "negativePrompt": "text, subtitles, logo, watermark, modern clothes, modern buildings, cartoon, anime, low quality, blurry",
+      "aspectRatio": "16:9",
+      "style": "cinematic",
+      "camera": "wide cinematic shot",
+      "lighting": "dramatic historical lighting",
+      "lens": "35mm lens",
+      "mood": "epic, emotional, documentary",
+      "colorPalette": "natural historical colors, cinematic contrast",
+      "createdAt": "2026-07-15T19:28:20.233Z"
+    }
+  ],
+  "generatedAt": "2026-07-15T19:28:20.233Z"
+}

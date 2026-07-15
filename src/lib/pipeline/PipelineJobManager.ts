@@ -7,8 +7,8 @@ import {
 } from "./PipelineStateError";
 import { getNextPipelineStage } from "./PipelineRecoveryPlanner";
 import type { PackageStatus, ProductionStepKey } from "@/types/project";
-import { isAIResponseSchemaEvidence } from "@/lib/ai/AIResponseError";
-import type { AIResponseSchemaEvidence } from "@/types/aiResponse";
+import { isPipelineErrorEvidence } from "./PipelineErrorEvidence";
+import type { PipelineErrorEvidence } from "@/types/errorEvidence";
 import type {
   PipelineJob,
   PipelineJobAction,
@@ -278,7 +278,7 @@ export class PipelineJobManager {
     stage: ProductionStepKey,
     persist: () => Promise<void>,
     error: string,
-    errorEvidence?: AIResponseSchemaEvidence,
+    errorEvidence?: PipelineErrorEvidence,
   ): Promise<boolean> {
     return this.withProjectLock(projectSlug, async () => {
       const current = await this.listJobs(projectSlug);
@@ -767,7 +767,7 @@ function isPipelineJob(value: unknown): value is PipelineJob {
     isOptionalString(job.completedAt) &&
     isOptionalString(job.cancelRequestedAt) &&
     isOptionalString(job.error) &&
-    (job.errorEvidence === undefined || isAIResponseSchemaEvidence(job.errorEvidence))
+    (job.errorEvidence === undefined || isPipelineErrorEvidence(job.errorEvidence))
   );
 }
 
@@ -827,7 +827,7 @@ function isPipelineJobHistoryEvent(
     isOptionalString(event.startedAt) &&
     isOptionalString(event.completedAt) &&
     isOptionalString(event.errorCode) &&
-    (event.errorEvidence === undefined || isAIResponseSchemaEvidence(event.errorEvidence))
+    (event.errorEvidence === undefined || isPipelineErrorEvidence(event.errorEvidence))
   );
 }
 

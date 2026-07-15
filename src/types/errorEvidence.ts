@@ -1,0 +1,6 @@
+import type { AIResponseSchemaEvidence } from "./aiResponse";
+import type { AnimationMotionPlanErrorEvidence } from "./animationError";
+
+export type PipelineErrorEvidence =
+  | AIResponseSchemaEvidence
+  | AnimationMotionPlanErrorEvidence;

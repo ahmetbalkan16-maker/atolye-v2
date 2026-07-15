@@ -4,6 +4,10 @@ import type {
   AnimationMotionType,
   AnimationTransitionType,
 } from "@/types/animation";
+import type {
+  AnimationMotionPlanErrorCode,
+  AnimationProviderDiagnosticMetadata,
+} from "@/types/animationError";
 
 export interface AnimationGenerationInput {
   sceneId: number;
@@ -19,6 +23,7 @@ type AnimationGenerationResultBase = {
   model?: string;
   generationMode: AnimationGenerationMode;
   requestIdentity?: string;
+  diagnostic?: AnimationProviderDiagnosticMetadata;
 };
 
 export type AnimationGenerationSuccess = AnimationGenerationResultBase & {
@@ -35,10 +40,7 @@ export type AnimationGenerationSuccess = AnimationGenerationResultBase & {
 
 export type AnimationGenerationFailure = AnimationGenerationResultBase & {
   success: false;
-  error:
-    | "ANIMATION_PROVIDER_REQUEST_FAILED"
-    | "ANIMATION_PROVIDER_TIMEOUT"
-    | "ANIMATION_PROVIDER_RESPONSE_INVALID";
+  error: AnimationMotionPlanErrorCode;
 };
 
 export type AnimationGenerationResult =

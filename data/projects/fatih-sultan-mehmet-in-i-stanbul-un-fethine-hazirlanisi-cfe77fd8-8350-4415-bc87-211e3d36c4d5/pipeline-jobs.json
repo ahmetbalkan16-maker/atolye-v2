@@ -42,23 +42,25 @@
       "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
       "stage": "visuals",
       "title": "Visual Production",
-      "status": "failed",
-      "attempts": 0,
+      "status": "completed",
+      "attempts": 2,
       "createdAt": "2026-07-15T12:05:09.729Z",
-      "updatedAt": "2026-07-15T14:56:04.684Z",
-      "startedAt": "2026-07-15T14:55:58.843Z",
-      "completedAt": "2026-07-15T14:56:04.684Z",
-      "error": "Production generation failed closed."
+      "updatedAt": "2026-07-15T19:32:44.075Z",
+      "startedAt": "2026-07-15T19:28:05.138Z",
+      "completedAt": "2026-07-15T19:32:44.075Z"
     },
     {
       "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-animation",
       "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
       "stage": "animation",
       "title": "Animation",
-      "status": "queued",
+      "status": "failed",
       "attempts": 0,
       "createdAt": "2026-07-15T12:05:09.729Z",
-      "updatedAt": "2026-07-15T12:05:09.730Z"
+      "updatedAt": "2026-07-15T19:33:11.618Z",
+      "startedAt": "2026-07-15T19:32:45.128Z",
+      "completedAt": "2026-07-15T19:33:11.618Z",
+      "error": "Animation motion plan generation failed."
     },
     {
       "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-video",
@@ -132,5 +134,5 @@
     }
   ],
   "createdAt": "2026-07-15T12:05:09.731Z",
-  "updatedAt": "2026-07-15T14:56:04.684Z"
+  "updatedAt": "2026-07-15T19:33:11.618Z"
 }

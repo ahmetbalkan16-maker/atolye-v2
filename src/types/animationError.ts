@@ -1,0 +1,58 @@
+export const animationMotionPlanErrorCodes = [
+  "ANIMATION_MOTION_PLAN_FAILED",
+  "ANIMATION_RESPONSE_EMPTY",
+  "ANIMATION_RESPONSE_INVALID_JSON",
+  "ANIMATION_RESPONSE_SCHEMA_INVALID",
+  "ANIMATION_PROVIDER_HTTP_FAILED",
+  "ANIMATION_PROVIDER_TIMEOUT",
+  "ANIMATION_PROVIDER_RETRY_EXHAUSTED",
+  "ANIMATION_RESPONSE_TOO_LARGE",
+] as const;
+
+export type AnimationMotionPlanErrorCode =
+  typeof animationMotionPlanErrorCodes[number];
+
+export const animationFailurePhases = [
+  "input-validation",
+  "asset-preflight",
+  "provider-request",
+  "provider-response",
+  "plan-validation",
+  "persistence",
+  "settlement",
+  "unknown",
+] as const;
+
+export type AnimationFailurePhase = typeof animationFailurePhases[number];
+
+export const animationFinishReasons = [
+  "stop",
+  "length",
+  "content-filter",
+  "tool-calls",
+  "unknown",
+] as const;
+
+export type AnimationFinishReason = typeof animationFinishReasons[number];
+
+export interface AnimationProviderDiagnosticMetadata {
+  sceneId: number;
+  phase: AnimationFailurePhase;
+  provider?: string;
+  model?: string;
+  reason?: string;
+  httpStatus?: number;
+  finishReason?: AnimationFinishReason;
+  responseLength?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  durationMs?: number;
+  retryCount?: number;
+}
+
+export interface AnimationMotionPlanErrorEvidence
+  extends AnimationProviderDiagnosticMetadata {
+  kind: "animation-motion-plan-error";
+  code: AnimationMotionPlanErrorCode;
+}

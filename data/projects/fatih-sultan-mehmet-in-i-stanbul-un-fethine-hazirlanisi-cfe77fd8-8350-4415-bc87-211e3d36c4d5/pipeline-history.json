@@ -112,8 +112,42 @@
       "jobCreatedAt": "2026-07-15T12:05:09.729Z",
       "jobUpdatedAt": "2026-07-15T14:56:04.684Z",
       "recordedAt": "2026-07-15T14:56:04.684Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-visuals-failed-2026-07-15T18:48:09.556Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-visuals",
+      "stage": "visuals",
+      "status": "failed",
+      "startedAt": "2026-07-15T18:47:53.707Z",
+      "completedAt": "2026-07-15T18:48:09.556Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-07-15T18:48:09.556Z",
+      "recordedAt": "2026-07-15T18:48:09.556Z",
+      "errorCode": "AI_RESPONSE_INVALID_JSON"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-visuals-completed-2026-07-15T19:32:44.075Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-visuals",
+      "stage": "visuals",
+      "status": "completed",
+      "startedAt": "2026-07-15T19:28:05.138Z",
+      "completedAt": "2026-07-15T19:32:44.075Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-07-15T19:32:44.075Z",
+      "recordedAt": "2026-07-15T19:32:44.075Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-animation-failed-2026-07-15T19:33:11.618Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-animation",
+      "stage": "animation",
+      "status": "failed",
+      "startedAt": "2026-07-15T19:32:45.128Z",
+      "completedAt": "2026-07-15T19:33:11.618Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-07-15T19:33:11.618Z",
+      "recordedAt": "2026-07-15T19:33:11.618Z"
     }
   ],
   "createdAt": "2026-07-15T12:05:48.020Z",
-  "updatedAt": "2026-07-15T14:56:04.684Z"
+  "updatedAt": "2026-07-15T19:33:11.618Z"
 }

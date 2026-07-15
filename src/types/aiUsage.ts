@@ -1,5 +1,6 @@
 import type { ProductionStepKey } from "./project";
 import type { ProviderName } from "@/lib/ai/router/AIRouter";
+import type { AnimationFailurePhase } from "./animationError";
 
 export type AIUsageStatus =
   | "success"
@@ -40,6 +41,10 @@ export interface AIUsageRecord {
   estimatedCost?: number;
   error?: string;
   errorCode?: string;
+  sceneId?: number;
+  phase?: AnimationFailurePhase;
+  httpStatus?: number;
+  retryCount?: number;
   createdAt: string;
 }
 

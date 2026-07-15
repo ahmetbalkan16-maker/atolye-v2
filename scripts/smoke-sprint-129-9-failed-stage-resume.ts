@@ -6,13 +6,16 @@ import path from "node:path";
 import { prepareFailedStageRetry } from "../src/lib/pipeline/PipelineFailedStageRetry";
 import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
 import { PipelineQueueScheduler } from "../src/lib/pipeline/PipelineQueueScheduler";
+import { PipelineRecoveryPlanner } from "../src/lib/pipeline/PipelineRecoveryPlanner";
+import { ProjectManager } from "../src/lib/projects/ProjectManager";
+import { ProductionPipelineExecutionAdapter } from "../src/lib/production/ProductionPipelineExecutionAdapter";
+import { prepareProductionPipelineExecution } from "../src/lib/production/ProductionPipelineExecutionFactory";
 import { reconcileFailedPipelineExecution } from "../src/lib/production/ProductionPipelineRetryReconciliation";
 import { buildProductionPipelineExecutionIdentity } from "../src/lib/production/ProductionPipelineExecutionIdentity";
 import type { PipelineJobList } from "../src/types/pipelineJob";
 
 const sourceRoot = process.cwd();
-const slug = "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5";
-const sourceProject = path.join(sourceRoot, "data", "projects", slug);
+const slug = "sprint-129-9-visuals-recovery-fixture";
 let passCount = 0;
 
 function pass(condition: unknown, label: string) {
@@ -41,9 +44,42 @@ async function digestDirectory(root: string) {
 async function createFixture(label: string) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), `atolye-1299-${label}-`));
   const target = path.join(root, "data", "projects", slug);
-  await fs.mkdir(path.dirname(target), { recursive: true });
-  await fs.cp(sourceProject, target, { recursive: true, errorOnExist: true });
+  process.chdir(root);
+  try {
+    await seedVisualsFailureFixture(target);
+  } finally {
+    process.chdir(sourceRoot);
+  }
   return { root, target };
+}
+
+async function seedVisualsFailureFixture(target: string) {
+  await ProjectManager.createProject(slug);
+  for (const stage of ["research", "script", "scenes"] as const) {
+    await fs.writeFile(path.join(target, `${stage}.json`), JSON.stringify({ fixture: stage }), "utf8");
+    await ProjectManager.updatePackageStatus(slug, stage, "completed");
+  }
+  await PipelineJobManager.listJobs(slug);
+  const context = { projectSlug: slug, stage: "visuals" as const, runType: "initial" as const };
+  const prepared = await prepareProductionPipelineExecution(context);
+  const adapter = new ProductionPipelineExecutionAdapter(prepared.adapter, () => prepared.request);
+  await adapter.execute(context, async () => {
+    throw new Error("deterministic visuals fixture failure");
+  }).catch(() => undefined);
+  await PipelineJobManager.startStage(slug, "visuals", () =>
+    ProjectManager.updatePackageStatus(slug, "visuals", "running").then(() => undefined)
+  );
+  await PipelineJobManager.persistStageFailure(
+    slug,
+    "visuals",
+    () => ProjectManager.updatePackageStatus(slug, "visuals", "failed", "AI_RESPONSE_TRUNCATED").then(() => undefined),
+    "AI_RESPONSE_TRUNCATED",
+  );
+  await fs.writeFile(path.join(target, "production-acceptance.json"), JSON.stringify({
+    productionReady: false,
+    published: false,
+    publishMode: "package-only",
+  }, null, 2), "utf8");
 }
 
 async function withFixture<T>(label: string, operation: (fixture: Awaited<ReturnType<typeof createFixture>>) => Promise<T>) {
@@ -83,7 +119,6 @@ async function runBoundedCliFailure() {
 }
 
 async function main() {
-  const productionBefore = await digestDirectory(sourceProject);
   const runnerSource = await fs.readFile(path.join(sourceRoot, "src/lib/pipeline/PipelineRunner.ts"), "utf8");
 
   await withFixture("canonical", async ({ target }) => {
@@ -96,6 +131,8 @@ async function main() {
     const oldAttemptDigest = createHash("sha256").update(await fs.readFile(oldAttemptPath)).digest("hex");
 
     pass(job.stage === "visuals" && job.status === "failed" && downstreamBefore.every((item) => item.status === "queued"), "current failed stage and downstream queue are canonical");
+    const recovery = await PipelineRecoveryPlanner.createResumePlan(slug);
+    pass(recovery.startStage === "visuals" && recovery.blocked === false, "deterministic fixture recovery starts unblocked at visuals");
     const planSource = await fs.readFile(path.join(sourceRoot, "src/lib/pipeline/PipelineRecoveryPlanner.ts"), "utf8");
     pass(planSource.includes("getNextIncompleteOrUnreadyStage"), "recovery planner selects the first incomplete stage");
     pass(runnerSource.includes("prepareFailedStageRetry(projectSlug, startJob.id)"), "resume prepares the failed start stage before scheduling");
@@ -190,7 +227,6 @@ async function main() {
   pass(cli.code === 2 && cli.output.includes("PRODUCTION_ACCEPTANCE_CONFIRMATION_REQUIRED"), "failure CLI exit code and JSON envelope are stable");
   pass(cli.elapsed < 5_000, "CLI failure shutdown is bounded");
 
-  pass(await digestDirectory(sourceProject) === productionBefore, "real production acceptance runtime remains byte-for-byte unchanged");
   pass(passCount === 41, "Sprint 129.9 smoke matrix completed all scenarios");
   console.log(`Sprint 129.9 failed-stage resume smoke PASS: ${passCount} scenarios.`);
 }

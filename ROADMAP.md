@@ -39,9 +39,20 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 129.20 — Visuals Truncation Propagation & Stage Token Budget / Completed
+Sprint 129.21 — Animation Failure Propagation & Diagnostic Hardening / Completed
 
 Son Tamamlanan Sprint
+
+## Sprint 129.21 — Animation Failure Propagation & Diagnostic Hardening / Completed
+
+- Controlled production resume Visuals'ı tamamladı; 6 canonical visual plan ve 6 fiziksel PNG üretildi. Animation dışarıya `ANIMATION_MOTION_PLAN_FAILED` ile kapandı çünkü `AnimationAssetPipeline` bilinen provider/scene/phase hatasını generic koda dönüştürerek gerçek nedeni kaybediyordu.
+- `AnimationMotionPlanError` canonical code ile `sceneId`, phase, provider/model, safe reason, HTTP status, finish reason, response length, token usage, duration ve retry count içeren güvenli evidence taşır. Bilinen error nesnesi aynen rethrow edilir; yalnız bilinmeyen exception aktif scene/phase ile generic `ANIMATION_MOTION_PLAN_FAILED` olur.
+- Stabil kodlar: `ANIMATION_RESPONSE_EMPTY`, `ANIMATION_RESPONSE_INVALID_JSON`, `ANIMATION_RESPONSE_SCHEMA_INVALID`, `ANIMATION_PROVIDER_HTTP_FAILED`, `ANIMATION_PROVIDER_TIMEOUT`, `ANIMATION_PROVIDER_RETRY_EXHAUSTED`, `ANIMATION_RESPONSE_TOO_LARGE`. Raw prompt/response, credential ve stack persist edilmez.
+- Güvenli metadata AI usage, job, manifest, history ve durable attempt evidence'a taşınır. Failure atomiktir: `animation.json` ve animation registry kaydı oluşmaz, motion-plan artifact rollback edilir, `visuals.json` ve 6 PNG değişmeden kalır.
+- Recovery `startStage:"animation"`, `blocked:false`; Research, Script, Scenes ve Visuals yeniden çalıştırılmaz. Failed-stage reconciliation lease release, claim abandonment, idempotency cancellation, immutable failed attempt ve write-free replay sözleşmelerini korur.
+- Fixture cleanup tamamlandı: Sprint 129.9 temp isolated deterministic project kullanır; pipeline-state güncel `getJob`/durable reconciliation bağımlılıklarıyla deterministic çalışır; yanlışlıkla oluşmuş 645 byte `tatus --short` terminal çıktı dosyası silindi.
+- Sprint 129.21 19/19, Sprint 129.9 42/42, pipeline-state 18/18, animation motion-plan contract 21/21, production animation provider 30/30, production execution worker 55/55 ve durable worker execution 18/18 PASS. TypeScript, targeted ESLint ve `git diff --check` PASS. `data/projects/**` byte-level korundu; P0/P1/P2 yok.
+- Commit, push ve production retry/resume yapılmadı. Sonraki adım: Git kapsam review; yalnız Sprint 129.21 kaynak/test/dokümantasyon dosyalarını commit et, runtime data'yı dışarıda bırak, ardından aynı slug üzerinde Animation'dan tek kontrollü retry çalıştır ve canonical scene/phase kanıtına göre devam et.
 
 ## Sprint 129.20 — Visuals Truncation Propagation & Stage Token Budget / Completed
 

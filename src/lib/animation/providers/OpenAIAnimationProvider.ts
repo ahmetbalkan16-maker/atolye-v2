@@ -18,6 +18,11 @@ import {
   getOpenAIAnimationProviderConfig,
   type OpenAIAnimationProviderConfig,
 } from "./AnimationProviderConfig";
+import type {
+  AnimationFinishReason,
+  AnimationMotionPlanErrorCode,
+  AnimationProviderDiagnosticMetadata,
+} from "@/types/animationError";
 
 type Fetcher = typeof fetch;
 type FailureCode = Extract<AnimationGenerationResult, { success: false }>["error"];
@@ -40,13 +45,24 @@ export class OpenAIAnimationProvider implements AnimationProvider {
   async generateAnimation(
     input: AnimationGenerationInput,
   ): Promise<AnimationGenerationResult> {
+    const startedAt = Date.now();
     let model: string | undefined;
     try {
       validateInput(input);
       const config = this.loadConfig();
       model = config.model;
       const apiKey = process.env.OPENAI_API_KEY?.trim();
-      if (!apiKey) return failure(input, model, "ANIMATION_PROVIDER_REQUEST_FAILED");
+      if (!apiKey) {
+        return failure(input, model, "ANIMATION_MOTION_PLAN_FAILED", {
+          sceneId: input.sceneId,
+          phase: "provider-request",
+          provider: "openai",
+          model,
+          reason: "PROVIDER_NOT_CONFIGURED",
+          durationMs: Date.now() - startedAt,
+          retryCount: 0,
+        });
+      }
       const body = deterministicRequest(input, config.model);
       const identity = requestIdentity(input, config, body);
 
@@ -59,15 +75,38 @@ export class OpenAIAnimationProvider implements AnimationProvider {
           identity.requestIdentity,
         );
         if (result.success || !result.retryable || attempt === config.retryCount) {
+          const metadata = {
+            ...result.metadata,
+            durationMs: Date.now() - startedAt,
+            retryCount: attempt,
+          };
           return result.success
-            ? success(input, config.model, identity.requestIdentity, result.plan)
-            : failure(input, config.model, result.code);
+            ? success(input, config.model, identity.requestIdentity, result.plan, metadata)
+            : failure(
+                input,
+                config.model,
+                result.retryable && attempt > 0
+                  ? "ANIMATION_PROVIDER_RETRY_EXHAUSTED"
+                  : result.code,
+                {
+                  ...metadata,
+                  ...(result.retryable && attempt > 0 ? { reason: result.code } : {}),
+                },
+              );
         }
       }
     } catch {
       // Normalize all configuration, transport and validation details.
     }
-    return failure(input, model, "ANIMATION_PROVIDER_REQUEST_FAILED");
+    return failure(input, model, "ANIMATION_MOTION_PLAN_FAILED", {
+      sceneId: validSceneId(input.sceneId) ? input.sceneId : 0,
+      phase: "input-validation",
+      provider: "openai",
+      ...(model ? { model } : {}),
+      reason: "UNKNOWN_PROVIDER_FAILURE",
+      durationMs: Date.now() - startedAt,
+      retryCount: 0,
+    });
   }
 
   private async request(
@@ -95,33 +134,66 @@ export class OpenAIAnimationProvider implements AnimationProvider {
         await cancelBody(response.body);
         return {
           success: false,
-          code: "ANIMATION_PROVIDER_REQUEST_FAILED",
+          code: "ANIMATION_PROVIDER_HTTP_FAILED",
           retryable: response.status === 408 || response.status === 429 || response.status >= 500,
+          metadata: diagnostic(input, "provider-request", {
+            httpStatus: response.status,
+            reason: "HTTP_STATUS_FAILED",
+          }),
         };
       }
-      const payload = await readBoundedJson(response, config.maximumResponseBytes, controller);
+      const bounded = await readBoundedJson(response, config.maximumResponseBytes, controller);
       if (controller.signal.aborted) {
-        return { success: false, code: "ANIMATION_PROVIDER_TIMEOUT", retryable: true };
+        return timeoutFailure(input);
       }
+      const payload = bounded.payload;
+      const choice = payload?.choices?.[0];
       const content = payload?.choices?.[0]?.message?.content;
       if (typeof content !== "string" || !content.trim()) {
-        return invalid();
+        return invalid(input, "ANIMATION_RESPONSE_EMPTY", {
+          finishReason: normalizeFinishReason(choice?.finish_reason),
+          responseLength: typeof content === "string" ? content.length : 0,
+          ...usage(payload?.usage),
+        });
       }
       let plan: unknown;
       try {
         plan = JSON.parse(content);
       } catch {
-        return invalid();
+        return invalid(input, "ANIMATION_RESPONSE_INVALID_JSON", {
+          finishReason: normalizeFinishReason(choice?.finish_reason),
+          responseLength: content.length,
+          ...usage(payload?.usage),
+        });
       }
-      if (!safeJsonTree(plan, 4)) return invalid();
+      const metadata = diagnostic(input, "provider-response", {
+        finishReason: normalizeFinishReason(choice?.finish_reason),
+        responseLength: content.length,
+        ...usage(payload?.usage),
+      });
+      if (!safeJsonTree(plan, 4)) {
+        return invalid(input, "ANIMATION_RESPONSE_SCHEMA_INVALID", metadata);
+      }
       return validPlan(plan, input)
-        ? { success: true, plan }
-        : invalid();
+        ? { success: true, plan, metadata }
+        : invalid(input, "ANIMATION_RESPONSE_SCHEMA_INVALID", metadata);
     } catch (error) {
-      if (error instanceof ResponseInvalidError) return invalid();
+      if (error instanceof ResponseValidationError) {
+        return invalid(input, error.code, {
+          responseLength: error.responseLength,
+          reason: error.reason,
+        });
+      }
       return controller.signal.aborted || isAbort(error)
-        ? { success: false, code: "ANIMATION_PROVIDER_TIMEOUT", retryable: true }
-        : { success: false, code: "ANIMATION_PROVIDER_REQUEST_FAILED", retryable: true };
+        ? timeoutFailure(input)
+        : {
+            success: false,
+            code: "ANIMATION_PROVIDER_HTTP_FAILED",
+            retryable: true,
+            metadata: diagnostic(input, "provider-request", {
+              reason: "NETWORK_REQUEST_FAILED",
+            }),
+          };
     } finally {
       clearTimeout(timeout);
     }
@@ -139,8 +211,34 @@ type MotionPlan = {
 };
 
 type RequestResult =
-  | { success: true; plan: MotionPlan }
-  | { success: false; code: FailureCode; retryable: boolean };
+  | {
+      success: true;
+      plan: MotionPlan;
+      metadata: AnimationProviderDiagnosticMetadata;
+    }
+  | {
+      success: false;
+      code: FailureCode;
+      retryable: boolean;
+      metadata: AnimationProviderDiagnosticMetadata;
+    };
+
+type ProviderPayload = {
+  choices?: Array<{
+    finish_reason?: string | null;
+    message?: { content?: string | null; refusal?: string | null };
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+};
+
+type BoundedProviderResponse = {
+  payload: ProviderPayload;
+  responseLength: number;
+};
 
 function deterministicRequest(input: AnimationGenerationInput, model: string) {
   const body = JSON.stringify({
@@ -241,6 +339,7 @@ function success(
   model: string,
   requestIdentity: string,
   plan: MotionPlan,
+  diagnostic: AnimationProviderDiagnosticMetadata,
 ): AnimationGenerationResult {
   return {
     success: true,
@@ -257,6 +356,7 @@ function success(
     start: plan.start,
     end: plan.end,
     transition: plan.transition,
+    diagnostic,
   };
 }
 
@@ -264,6 +364,7 @@ function failure(
   input: AnimationGenerationInput,
   model: string | undefined,
   error: FailureCode,
+  diagnostic: AnimationProviderDiagnosticMetadata,
 ): AnimationGenerationResult {
   return {
     success: false,
@@ -273,25 +374,96 @@ function failure(
     model,
     generationMode: "production",
     error,
+    diagnostic,
   };
 }
 
-function invalid(): RequestResult {
-  return { success: false, code: "ANIMATION_PROVIDER_RESPONSE_INVALID", retryable: false };
+function invalid(
+  input: AnimationGenerationInput,
+  code: Extract<AnimationMotionPlanErrorCode,
+    | "ANIMATION_RESPONSE_EMPTY"
+    | "ANIMATION_RESPONSE_INVALID_JSON"
+    | "ANIMATION_RESPONSE_SCHEMA_INVALID"
+    | "ANIMATION_RESPONSE_TOO_LARGE">,
+  metadata: Partial<AnimationProviderDiagnosticMetadata> = {},
+): RequestResult {
+  return {
+    success: false,
+    code,
+    retryable: false,
+    metadata: diagnostic(input, "provider-response", metadata),
+  };
+}
+
+function timeoutFailure(input: AnimationGenerationInput): RequestResult {
+  return {
+    success: false,
+    code: "ANIMATION_PROVIDER_TIMEOUT",
+    retryable: true,
+    metadata: diagnostic(input, "provider-request", { reason: "REQUEST_TIMEOUT" }),
+  };
+}
+
+function diagnostic(
+  input: AnimationGenerationInput,
+  phase: AnimationProviderDiagnosticMetadata["phase"],
+  metadata: Partial<AnimationProviderDiagnosticMetadata> = {},
+): AnimationProviderDiagnosticMetadata {
+  return {
+    sceneId: validSceneId(input.sceneId) ? input.sceneId : 0,
+    phase,
+    provider: "openai",
+    ...metadata,
+  };
+}
+
+function usage(value: ProviderPayload["usage"]) {
+  return {
+    ...(safeCount(value?.prompt_tokens) !== undefined
+      ? { promptTokens: safeCount(value?.prompt_tokens) }
+      : {}),
+    ...(safeCount(value?.completion_tokens) !== undefined
+      ? { completionTokens: safeCount(value?.completion_tokens) }
+      : {}),
+    ...(safeCount(value?.total_tokens) !== undefined
+      ? { totalTokens: safeCount(value?.total_tokens) }
+      : {}),
+  };
+}
+
+function normalizeFinishReason(value: string | null | undefined): AnimationFinishReason {
+  if (value === "stop" || value === "length") return value;
+  if (value === "content_filter") return "content-filter";
+  if (value === "tool_calls" || value === "function_call") return "tool-calls";
+  return "unknown";
+}
+
+function safeCount(value: number | undefined) {
+  return Number.isSafeInteger(value) && (value as number) >= 0 ? value : undefined;
+}
+
+function validSceneId(value: number) {
+  return Number.isSafeInteger(value) && value > 0;
 }
 
 async function readBoundedJson(
   response: Response,
   maximumBytes: number,
   controller: AbortController,
-): Promise<{ choices?: Array<{ message?: { content?: string } }> }> {
+): Promise<BoundedProviderResponse> {
   const length = response.headers.get("content-length");
   if (length !== null && (!/^\d+$/.test(length) || Number(length) > maximumBytes)) {
     controller.abort();
     await cancelBody(response.body);
-    throw new ResponseInvalidError();
+    throw new ResponseValidationError(
+      "ANIMATION_RESPONSE_TOO_LARGE",
+      "RESPONSE_BYTE_LIMIT_EXCEEDED",
+      /^\d+$/.test(length) ? Number(length) : undefined,
+    );
   }
-  if (!response.body) throw new ResponseInvalidError();
+  if (!response.body) {
+    throw new ResponseValidationError("ANIMATION_RESPONSE_EMPTY", "RESPONSE_BODY_EMPTY", 0);
+  }
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -303,7 +475,11 @@ async function readBoundedJson(
       if (!Number.isSafeInteger(total) || total > maximumBytes) {
         controller.abort();
         await reader.cancel();
-        throw new ResponseInvalidError();
+        throw new ResponseValidationError(
+          "ANIMATION_RESPONSE_TOO_LARGE",
+          "RESPONSE_BYTE_LIMIT_EXCEEDED",
+          total,
+        );
       }
       chunks.push(value);
     }
@@ -314,11 +490,20 @@ async function readBoundedJson(
   } finally {
     reader.releaseLock();
   }
-  if (total <= 0) throw new ResponseInvalidError();
+  if (total <= 0) {
+    throw new ResponseValidationError("ANIMATION_RESPONSE_EMPTY", "RESPONSE_BODY_EMPTY", 0);
+  }
   try {
-    return JSON.parse(Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)), total).toString("utf8"));
+    return {
+      payload: JSON.parse(Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)), total).toString("utf8")),
+      responseLength: total,
+    };
   } catch {
-    throw new ResponseInvalidError();
+    throw new ResponseValidationError(
+      "ANIMATION_RESPONSE_INVALID_JSON",
+      "PROVIDER_ENVELOPE_INVALID_JSON",
+      total,
+    );
   }
 }
 
@@ -357,4 +542,17 @@ function isAbort(error: unknown) {
   return error instanceof Error && error.name === "AbortError";
 }
 
-class ResponseInvalidError extends Error {}
+class ResponseValidationError extends Error {
+  constructor(
+    readonly code: Extract<AnimationMotionPlanErrorCode,
+      | "ANIMATION_RESPONSE_EMPTY"
+      | "ANIMATION_RESPONSE_INVALID_JSON"
+      | "ANIMATION_RESPONSE_TOO_LARGE">,
+    readonly reason: string,
+    readonly responseLength?: number,
+  ) {
+    super("Animation provider response validation failed.");
+    this.name = "ResponseValidationError";
+    this.stack = undefined;
+  }
+}
