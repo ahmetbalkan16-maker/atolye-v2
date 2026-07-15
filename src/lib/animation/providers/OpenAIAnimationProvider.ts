@@ -2,12 +2,14 @@ import { createHash } from "node:crypto";
 import {
   animationMotionTypes,
   animationTransitionTypes,
-  type AnimationMotionFrame,
 } from "@/types/animation";
+import { isValidAnimationDuration } from "../AnimationMotionPlanValidation";
 import {
-  isValidAnimationDuration,
-  isValidAnimationMotionFrame,
-} from "../AnimationMotionPlanValidation";
+  canonicalAnimationProviderSchema,
+  createAnimationMotionPlanSystemPrompt,
+  validateAnimationProviderPlan,
+  type CanonicalAnimationProviderPlan,
+} from "../AnimationStructuredOutput";
 import type {
   AnimationGenerationInput,
   AnimationGenerationResult,
@@ -148,12 +150,40 @@ export class OpenAIAnimationProvider implements AnimationProvider {
       }
       const payload = bounded.payload;
       const choice = payload?.choices?.[0];
-      const content = payload?.choices?.[0]?.message?.content;
+      const content = choice?.message?.content;
+      const finishReason = normalizeFinishReason(choice?.finish_reason);
+      const responseMetadata = {
+        finishReason,
+        responseLength: typeof content === "string" ? content.length : 0,
+        ...usage(payload?.usage),
+      };
+      if (typeof choice?.message?.refusal === "string" && choice.message.refusal.trim()) {
+        return invalid(input, "ANIMATION_PROVIDER_REFUSAL", {
+          ...responseMetadata,
+          reason: "PROVIDER_REFUSAL",
+        });
+      }
+      if (finishReason === "length") {
+        return invalid(input, "ANIMATION_RESPONSE_TRUNCATED", {
+          ...responseMetadata,
+          reason: "COMPLETION_LENGTH_LIMIT",
+        });
+      }
+      if (finishReason !== "stop") {
+        return invalid(input, "ANIMATION_RESPONSE_INCOMPLETE", {
+          ...responseMetadata,
+          reason: "COMPLETION_NOT_STOPPED",
+        });
+      }
+      if (typeof content !== "string") {
+        return invalid(input, "ANIMATION_RESPONSE_INCOMPLETE", {
+          ...responseMetadata,
+          reason: "RESPONSE_CONTENT_SHAPE_INVALID",
+        });
+      }
       if (typeof content !== "string" || !content.trim()) {
         return invalid(input, "ANIMATION_RESPONSE_EMPTY", {
-          finishReason: normalizeFinishReason(choice?.finish_reason),
-          responseLength: typeof content === "string" ? content.length : 0,
-          ...usage(payload?.usage),
+          ...responseMetadata,
         });
       }
       let plan: unknown;
@@ -161,22 +191,21 @@ export class OpenAIAnimationProvider implements AnimationProvider {
         plan = JSON.parse(content);
       } catch {
         return invalid(input, "ANIMATION_RESPONSE_INVALID_JSON", {
-          finishReason: normalizeFinishReason(choice?.finish_reason),
-          responseLength: content.length,
-          ...usage(payload?.usage),
+          ...responseMetadata,
         });
       }
       const metadata = diagnostic(input, "provider-response", {
-        finishReason: normalizeFinishReason(choice?.finish_reason),
-        responseLength: content.length,
-        ...usage(payload?.usage),
+        ...responseMetadata,
       });
-      if (!safeJsonTree(plan, 4)) {
-        return invalid(input, "ANIMATION_RESPONSE_SCHEMA_INVALID", metadata);
-      }
-      return validPlan(plan, input)
-        ? { success: true, plan, metadata }
-        : invalid(input, "ANIMATION_RESPONSE_SCHEMA_INVALID", metadata);
+      const validation = validateAnimationProviderPlan(plan);
+      return validation.success
+        ? { success: true, plan: validation.plan, metadata }
+        : invalid(input, "ANIMATION_RESPONSE_SCHEMA_INVALID", {
+            ...metadata,
+            reason: "MOTION_PLAN_SCHEMA_INVALID",
+            issueCount: validation.issueCount,
+            schemaIssues: validation.issues,
+          });
     } catch (error) {
       if (error instanceof ResponseValidationError) {
         return invalid(input, error.code, {
@@ -200,20 +229,10 @@ export class OpenAIAnimationProvider implements AnimationProvider {
   }
 }
 
-type MotionPlan = {
-  sceneId: number;
-  sourceImageAssetId: string;
-  durationSeconds: number;
-  motionType: (typeof animationMotionTypes)[number];
-  start: AnimationMotionFrame;
-  end: AnimationMotionFrame;
-  transition: (typeof animationTransitionTypes)[number];
-};
-
 type RequestResult =
   | {
       success: true;
-      plan: MotionPlan;
+      plan: CanonicalAnimationProviderPlan;
       metadata: AnimationProviderDiagnosticMetadata;
     }
   | {
@@ -246,13 +265,11 @@ function deterministicRequest(input: AnimationGenerationInput, model: string) {
     messages: [
       {
         role: "system",
-        content: "Return only a JSON motion plan using allowed motion and transition values. Preserve all input identity and duration fields exactly.",
+        content: createAnimationMotionPlanSystemPrompt(),
       },
       {
         role: "user",
         content: JSON.stringify({
-          sceneId: input.sceneId,
-          sourceImageAssetId: input.sourceImageAssetId,
           animationPrompt: input.animationPrompt.trim(),
           durationSeconds: input.durationSeconds,
           allowedMotionTypes: animationMotionTypes,
@@ -260,7 +277,14 @@ function deterministicRequest(input: AnimationGenerationInput, model: string) {
         }),
       },
     ],
-    response_format: { type: "json_object" },
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "animation_motion_plan",
+        strict: true,
+        schema: canonicalAnimationProviderSchema.jsonSchema,
+      },
+    },
     temperature: 0,
   });
   if (Buffer.byteLength(body, "utf8") > MAXIMUM_REQUEST_BYTES) {
@@ -293,52 +317,11 @@ function validateInput(input: AnimationGenerationInput) {
   ) throw new Error("invalid");
 }
 
-function validPlan(value: unknown, input: AnimationGenerationInput): value is MotionPlan {
-  if (!value || typeof value !== "object") return false;
-  const plan = value as MotionPlan & Record<string, unknown>;
-  return exactObject(plan, ["sceneId", "sourceImageAssetId", "durationSeconds", "motionType", "start", "end", "transition"]) &&
-    plan.sceneId === input.sceneId &&
-    plan.sourceImageAssetId === input.sourceImageAssetId &&
-    plan.durationSeconds === input.durationSeconds &&
-    animationMotionTypes.includes(plan.motionType) &&
-    animationTransitionTypes.includes(plan.transition) && exactFrame(plan.start) && exactFrame(plan.end) &&
-    isValidAnimationMotionFrame(plan.start) &&
-    isValidAnimationMotionFrame(plan.end);
-}
-
-function exactFrame(value: unknown): value is AnimationMotionFrame {
-  if (!exactObject(value, ["crop", "transform"])) return false;
-  const frame = value as AnimationMotionFrame;
-  return exactObject(frame.crop, ["x", "y", "width", "height"]) &&
-    exactObject(frame.transform, ["scale", "translateX", "translateY"]);
-}
-
-function exactObject(value: unknown, keys: readonly string[]) {
-  if (!value || typeof value !== "object" || Object.getPrototypeOf(value) !== Object.prototype) return false;
-  const actual = Object.keys(value).sort();
-  return actual.length === keys.length && actual.every((key, index) => key === [...keys].sort()[index]);
-}
-
-function safeJsonTree(value: unknown, maximumDepth: number) {
-  const stack: Array<{ value: unknown; depth: number }> = [{ value, depth: 0 }];
-  while (stack.length > 0) {
-    const current = stack.pop()!;
-    if (current.depth > maximumDepth) return false;
-    if (!current.value || typeof current.value !== "object") continue;
-    if (Object.getPrototypeOf(current.value) !== Object.prototype && !Array.isArray(current.value)) return false;
-    for (const [key, nested] of Object.entries(current.value)) {
-      if (key === "__proto__" || key === "prototype" || key === "constructor") return false;
-      if (nested && typeof nested === "object") stack.push({ value: nested, depth: current.depth + 1 });
-    }
-  }
-  return true;
-}
-
 function success(
   input: AnimationGenerationInput,
   model: string,
   requestIdentity: string,
-  plan: MotionPlan,
+  plan: CanonicalAnimationProviderPlan,
   diagnostic: AnimationProviderDiagnosticMetadata,
 ): AnimationGenerationResult {
   return {
@@ -384,6 +367,9 @@ function invalid(
     | "ANIMATION_RESPONSE_EMPTY"
     | "ANIMATION_RESPONSE_INVALID_JSON"
     | "ANIMATION_RESPONSE_SCHEMA_INVALID"
+    | "ANIMATION_RESPONSE_TRUNCATED"
+    | "ANIMATION_RESPONSE_INCOMPLETE"
+    | "ANIMATION_PROVIDER_REFUSAL"
     | "ANIMATION_RESPONSE_TOO_LARGE">,
   metadata: Partial<AnimationProviderDiagnosticMetadata> = {},
 ): RequestResult {

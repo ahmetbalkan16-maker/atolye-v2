@@ -45,7 +45,8 @@ function frame(scale: number) {
 }
 
 function plan(value: AnimationGenerationInput) {
-  return { sceneId: value.sceneId, sourceImageAssetId: value.sourceImageAssetId, durationSeconds: value.durationSeconds, motionType: "zoom-in", start: frame(1), end: frame(1.2), transition: "fade" };
+  void value;
+  return { motionType: "zoom-in", start: frame(1), end: frame(1.2), transition: "fade" };
 }
 
 function response(content: string) {
@@ -88,7 +89,7 @@ function diagnosticProvider(failureScene: number, unknown = false): AnimationPro
     async generateAnimation(value): Promise<AnimationGenerationResult> {
       if (value.sceneId === failureScene) {
         if (unknown) throw new Error("unsafe raw provider detail");
-        return { success: false, sceneId: value.sceneId, sourceImageAssetId: value.sourceImageAssetId, provider: "openai", model: "gpt-4.1-mini", generationMode: "production", error: "ANIMATION_RESPONSE_INVALID_JSON", diagnostic: { sceneId: value.sceneId, phase: "provider-response", provider: "openai", model: "gpt-4.1-mini", reason: "CONTENT_INVALID_JSON", finishReason: "stop", responseLength: 17, promptTokens: 20, completionTokens: 30, totalTokens: 50, durationMs: 4, retryCount: 0 } };
+        return { success: false, sceneId: value.sceneId, sourceImageAssetId: value.sourceImageAssetId, provider: "openai", model: "gpt-4.1-mini", generationMode: "production", error: "ANIMATION_RESPONSE_SCHEMA_INVALID", diagnostic: { sceneId: value.sceneId, phase: "provider-response", provider: "openai", model: "gpt-4.1-mini", reason: "MOTION_PLAN_SCHEMA_INVALID", finishReason: "stop", responseLength: 17, promptTokens: 20, completionTokens: 30, totalTokens: 50, durationMs: 4, retryCount: 0, issueCount: 1, schemaIssues: [{ path: "$.motionType", code: "INVALID_ENUM", expected: "motion-type", received: "string" }] } };
       }
       return { success: true, sceneId: value.sceneId, sourceImageAssetId: value.sourceImageAssetId, provider: "openai", model: "gpt-4.1-mini", generationMode: "production", requestIdentity: `request-${value.sceneId}`, artifactType: "motion-plan", status: "generated", durationSeconds: value.durationSeconds, motionType: "zoom-in", start: frame(1), end: frame(1.2), transition: "fade", diagnostic: { sceneId: value.sceneId, phase: "provider-response", provider: "openai", model: "gpt-4.1-mini", finishReason: "stop", responseLength: 100, durationMs: 3, retryCount: 0 } };
     },
@@ -163,9 +164,10 @@ async function main() {
       known = error;
     }
     await test("known animation error is preserved exactly", () => {
-      assert.equal(known.code, "ANIMATION_RESPONSE_INVALID_JSON", JSON.stringify(known.evidence));
+      assert.equal(known.code, "ANIMATION_RESPONSE_SCHEMA_INVALID", JSON.stringify(known.evidence));
       assert.equal(known.evidence.sceneId, 3);
       assert.equal(known.evidence.phase, "provider-response");
+      assert.equal(known.evidence.issueCount, 1);
     });
     await test("known error contains no raw payload", () => assert.equal(JSON.stringify(known).includes("unsafe raw"), false));
     await test("failure is atomic before animation persistence", () => {
@@ -178,11 +180,12 @@ async function main() {
     const failedUsage = usage.records.findLast((record) => record.operation === "animation-motion-plan-scene-3");
     await test("failed scene telemetry contains only safe diagnostic metadata", () => {
       assert.equal(failedUsage?.status, "failed");
-      assert.equal(failedUsage?.errorCode, "ANIMATION_RESPONSE_INVALID_JSON");
+      assert.equal(failedUsage?.errorCode, "ANIMATION_RESPONSE_SCHEMA_INVALID");
       assert.equal(failedUsage?.sceneId, 3);
       assert.equal(failedUsage?.phase, "provider-response");
       assert.equal(failedUsage?.responseLength, 17);
       assert.equal(failedUsage?.totalTokens, 50);
+      assert.equal(failedUsage?.schemaIssues?.[0]?.path, "$.motionType");
       assert.equal(JSON.stringify(failedUsage).includes("not-json"), false);
     });
 
@@ -214,6 +217,8 @@ async function main() {
       assert(manifestEvidence && "kind" in manifestEvidence && manifestEvidence.kind === "animation-motion-plan-error");
       const historyEvidence = evidenceHistory.events.at(-1)?.errorEvidence;
       assert(historyEvidence && "kind" in historyEvidence && historyEvidence.kind === "animation-motion-plan-error");
+      assert.equal(manifestEvidence.issueCount, 1);
+      assert.equal(historyEvidence.issueCount, 1);
       assert.equal(evidenceHistory.events.at(-1)?.errorCode, known.code);
     });
     const missingDurableReconciliation = await reconcileFailedPipelineExecution(evidenceJob!);
@@ -249,6 +254,8 @@ async function main() {
       assert.equal(journal?.payload.code, known.code, JSON.stringify(durableFailure));
       assert(journal?.evidence.includes("animation-scene:3"));
       assert(journal?.evidence.includes("animation-phase:provider-result"));
+      assert(journal?.evidence.includes("animation-schema-issue-count:1"));
+      assert(journal?.evidence.includes("animation-schema-issue:$.motionType:INVALID_ENUM:motion-type:string"));
     });
     const failedDurableJob = { ...durableJob, status: "failed" as const, error: known.code };
     const reconciliationAt = new Date(Date.parse(durableJob.updatedAt) + 1_000).toISOString();

@@ -1,6 +1,6 @@
 import type { ProductionStepKey } from "./project";
 import type { ProviderName } from "@/lib/ai/router/AIRouter";
-import type { AnimationFailurePhase } from "./animationError";
+import type { AnimationFailurePhase, AnimationSchemaIssue } from "./animationError";
 
 export type AIUsageStatus =
   | "success"
@@ -45,6 +45,8 @@ export interface AIUsageRecord {
   phase?: AnimationFailurePhase;
   httpStatus?: number;
   retryCount?: number;
+  issueCount?: number;
+  schemaIssues?: readonly AnimationSchemaIssue[];
   createdAt: string;
 }
 

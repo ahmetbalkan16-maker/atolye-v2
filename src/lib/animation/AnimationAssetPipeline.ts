@@ -21,7 +21,10 @@ import type {
 } from "./providers/AnimationProvider";
 import { AnimationProviderRouter } from "./providers/AnimationProviderRouter";
 import { AnimationStorage } from "./AnimationStorage";
-import { AnimationMotionPlanError } from "./AnimationMotionPlanError";
+import {
+  AnimationMotionPlanError,
+  sanitizeAnimationProviderDiagnosticMetadata,
+} from "./AnimationMotionPlanError";
 import type { AnimationFailurePhase } from "@/types/animationError";
 
 const MOTION_PLAN_MIME_TYPE = "application/vnd.atolye.motion-plan+json";
@@ -579,14 +582,20 @@ async function persistProviderUsage(
   scene: AnimationScene,
   result: AnimationGenerationResult,
 ) {
-  const metadata = result.diagnostic;
+  const metadata = sanitizeAnimationProviderDiagnosticMetadata({
+    sceneId: scene.sceneId,
+    phase: result.diagnostic?.phase ?? (result.success ? "provider-response" : "unknown"),
+    provider: "openai",
+    ...(result.model ? { model: result.model } : {}),
+    ...(result.diagnostic ?? {}),
+  });
   await AIUsageManager.appendRecord({
     id: crypto.randomUUID(),
     projectSlug,
     stage: "animation",
     operation: `animation-motion-plan-scene-${scene.sceneId}`,
     provider: "openai",
-    model: result.model,
+    model: metadata.model,
     status: result.success ? "success" : "failed",
     fallbackUsed: false,
     durationMs: metadata?.durationMs ?? 0,
@@ -602,6 +611,8 @@ async function persistProviderUsage(
     phase: metadata?.phase ?? (result.success ? "provider-response" : "unknown"),
     httpStatus: metadata?.httpStatus,
     retryCount: metadata?.retryCount,
+    issueCount: metadata?.issueCount,
+    schemaIssues: metadata?.schemaIssues,
     createdAt: new Date().toISOString(),
   });
 }

@@ -3,6 +3,9 @@ export const animationMotionPlanErrorCodes = [
   "ANIMATION_RESPONSE_EMPTY",
   "ANIMATION_RESPONSE_INVALID_JSON",
   "ANIMATION_RESPONSE_SCHEMA_INVALID",
+  "ANIMATION_RESPONSE_TRUNCATED",
+  "ANIMATION_RESPONSE_INCOMPLETE",
+  "ANIMATION_PROVIDER_REFUSAL",
   "ANIMATION_PROVIDER_HTTP_FAILED",
   "ANIMATION_PROVIDER_TIMEOUT",
   "ANIMATION_PROVIDER_RETRY_EXHAUSTED",
@@ -35,6 +38,34 @@ export const animationFinishReasons = [
 
 export type AnimationFinishReason = typeof animationFinishReasons[number];
 
+export const animationSchemaIssueCodes = [
+  "MISSING_REQUIRED_FIELD",
+  "UNKNOWN_FIELD",
+  "WRONG_TYPE",
+  "INVALID_ENUM",
+  "OUT_OF_RANGE",
+  "NON_FINITE",
+] as const;
+
+export type AnimationSchemaIssueCode = typeof animationSchemaIssueCodes[number];
+
+export const animationSchemaValueCategories = [
+  "array", "boolean", "crop-bounds", "crop-size", "finite-number",
+  "forbidden", "missing", "motion-type", "null", "number", "object",
+  "scale", "string", "transition-type", "translation", "unknown",
+  "normalized-number",
+] as const;
+
+export type AnimationSchemaValueCategory =
+  typeof animationSchemaValueCategories[number];
+
+export interface AnimationSchemaIssue {
+  path: string;
+  code: AnimationSchemaIssueCode;
+  expected: AnimationSchemaValueCategory;
+  received: AnimationSchemaValueCategory;
+}
+
 export interface AnimationProviderDiagnosticMetadata {
   sceneId: number;
   phase: AnimationFailurePhase;
@@ -49,6 +80,8 @@ export interface AnimationProviderDiagnosticMetadata {
   totalTokens?: number;
   durationMs?: number;
   retryCount?: number;
+  issueCount?: number;
+  schemaIssues?: readonly AnimationSchemaIssue[];
 }
 
 export interface AnimationMotionPlanErrorEvidence

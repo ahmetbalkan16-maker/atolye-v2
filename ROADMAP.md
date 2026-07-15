@@ -39,9 +39,22 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 129.21 — Animation Failure Propagation & Diagnostic Hardening / Completed
+Sprint 129.22 — Animation Structured Output Diagnosis and Hardening / Completed
 
 Son Tamamlanan Sprint
+
+## Sprint 129.22 — Animation Structured Output Diagnosis and Hardening / Completed
+
+- Eski animation contract provider'dan platform-owned `sceneId`, `sourceImageAssetId` ve `durationSeconds` alanlarını echo etmesini istiyor ve bunları motion alanlarıyla birlikte exact-match doğruluyordu. Fixture'lar yalnız kusursuz echo cevabını kapsıyordu. Historical raw response saklanmadığı için eski failure'ın exact field/path'i bilinemez; kanıt response'un parse edildiği fakat strict schema'yı geçemediğidir.
+- Yeni provider-owned contract yalnız `motionType`, `start`, `end`, `transition` içerir. Scene/source/duration, request ve asset/storage identity, provider/model/generation metadata, timestamp ve persistence alanları validation sonrasında trusted platform context'ten üretilir. Provider'daki platform-owned/unknown alanlar fail-closed reddedilir.
+- `AnimationStructuredOutput` prompt, OpenAI `response_format` ve runtime validator için tek schema source of truth'tür. Root/nested `additionalProperties:false`; required, enum ve numeric limitler ortak spec'lerden gelir. Crop, finite number, scale, translation, duration ve transition semantic invariant'ları korunur.
+- Completion parse öncesinde canonical ayrılır: length → `ANIMATION_RESPONSE_TRUNCATED`, refusal → `ANIMATION_PROVIDER_REFUSAL`, incomplete → `ANIMATION_RESPONSE_INCOMPLETE`; invalid JSON canonical parse error ve parsed schema mismatch `ANIMATION_RESPONSE_SCHEMA_INVALID` üretir.
+- Schema evidence gerçek toplam `issueCount`, en fazla 8 persisted issue ve bounded/sanitize edilmiş path/code/type/expected/received ile scene/provider/model/phase, finish reason, response length/token metadata taşır. Durable kanal count + ilk 3 issue'yu alır. Raw value/response/prompt/refusal text, credential ve stack hiçbir kalıcı kanala girmez.
+- Tüm scene cevapları valid olmadan persistence başlamaz; validation failure'da `animation.json`, registry kaydı ve motion-plan artifact yoktur. Persistence failure yazılmış scene artifact'lerini rollback eder; `visuals.json` ve 6 PNG korunur. Recovery `startStage:"animation"`, `blocked:false`; durable claim/lease/idempotency/replay/reconciliation değişmedi.
+- Review'da bulunan üç P1 kapatıldı: truncation/refusal/incomplete'ın parse'a düşmesi, yanlış bounded `issueCount` ve custom-provider AI usage diagnostic metadata sanitizer eksikliği.
+- Sprint 129.22 21/21, Sprint 129.21 19/19, production animation provider 30/30, animation motion-plan contract 21/21, production worker 55/55, durable worker 18/18, pipeline-state 18/18 ve Sprint 129.9 recovery 42/42 PASS. TypeScript, targeted ESLint `--max-warnings=0`, `git diff --check` PASS; `data/projects/**` 194 → 194, path/byte/SHA-256 farkı 0.
+- Son karar `READY FOR DOCUMENTATION`; açık P0/P1 yok. Non-blocking P2: exported schema shallow-frozen fakat mutation yok; duplicate JSON property genel pre-parse kontrolü yok fakat collapse sonrası yasak alan reddi sürer; future fine-tuned model numeric min/max desteği doğrulanmalıdır; historical raw response olmadığı için eski exact field/path bilinemez.
+- Bu sprintte production retry/provider çağrısı, commit, push veya YouTube publish yapılmadı. Sonraki kontrollü adım: Git kapsam review; kullanıcı tarafından commit/push; yeni proje oluşturmadan aynı slug üzerinde Animation'dan yalnız bir retry. Otomatik ikinci retry ve YouTube publish yoktur. Başarılı retry kalan pipeline aşamalarına ve ilk MP4 üretimine ilerler.
 
 ## Sprint 129.21 — Animation Failure Propagation & Diagnostic Hardening / Completed
 

@@ -62,10 +62,8 @@ function frame(scale: number) {
 }
 
 function plan(input: AnimationGenerationInput) {
+  void input;
   return {
-    sceneId: input.sceneId,
-    sourceImageAssetId: input.sourceImageAssetId,
-    durationSeconds: input.durationSeconds,
     motionType: "zoom-in",
     start: frame(1),
     end: frame(1.2),
@@ -74,7 +72,7 @@ function plan(input: AnimationGenerationInput) {
 }
 
 function openAIResponse(input: AnimationGenerationInput, mutate: (value: ReturnType<typeof plan>) => unknown = (value) => value) {
-  return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(mutate(plan(input))) } }] }), {
+  return new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(mutate(plan(input))) } }] }), {
     status: 200,
     headers: { "content-type": "application/json" },
   });
@@ -246,7 +244,7 @@ async function main() {
         JSON.stringify({ ...plan(input()), start: { ...frame(1), unexpected: { nested: { too: { deep: true } } } } }),
       ];
       for (const content of payloads) {
-        const provider = new OpenAIAnimationProvider(async () => new Response(JSON.stringify({ choices: [{ message: { content } }] })), () => config({ retryCount: 0 }));
+        const provider = new OpenAIAnimationProvider(async () => new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content } }] })), () => config({ retryCount: 0 }));
         const result = await provider.generateAnimation(input());
         assert.equal(result.success, false);
         if (!result.success) assert.equal(result.error, "ANIMATION_RESPONSE_SCHEMA_INVALID");
