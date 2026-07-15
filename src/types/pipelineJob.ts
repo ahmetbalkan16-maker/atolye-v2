@@ -1,4 +1,5 @@
 import type { ProductionStepKey } from "./project";
+import type { AIResponseSchemaEvidence } from "./aiResponse";
 
 export type PipelineJobStatus =
   | "queued"
@@ -26,6 +27,7 @@ export interface PipelineJob {
   completedAt?: string;
   cancelRequestedAt?: string;
   error?: string;
+  errorEvidence?: AIResponseSchemaEvidence;
 }
 
 export interface PipelineJobList {
@@ -45,6 +47,8 @@ export interface PipelineJobHistoryEvent {
   jobCreatedAt: string;
   jobUpdatedAt: string;
   recordedAt: string;
+  errorCode?: string;
+  errorEvidence?: AIResponseSchemaEvidence;
 }
 
 export interface PipelineJobHistory {

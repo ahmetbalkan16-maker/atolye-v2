@@ -39,8 +39,7 @@ JSON Şeması:
   "voiceStyle": "",
   "musicStyle": "",
   "thumbnailIdea": "",
-  "seoKeywords": [],
-  "createdAt": ""
+  "seoKeywords": []
 }
 
 Kurallar:
@@ -62,6 +61,6 @@ Kurallar:
 - musicStyle arka plan müziği stilini tarif etsin.
 - thumbnailIdea etkileyici kapak fikri versin.
 - seoKeywords Türkçe SEO anahtar kelimeleri listesi olsun.
-- createdAt ISO tarih formatında olsun.
+- createdAt alanını üretme; uygulama doğrulamadan sonra trusted timestamp ekler.
 `;
 }

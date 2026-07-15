@@ -32,6 +32,11 @@ export function getProductionRuntimeStatus(): ProductionRuntimeStatus {
   return productionWorkerLifecycle.statusSnapshot();
 }
 
+export async function shutdownProductionProcessRuntime(): Promise<void> {
+  configureProductionPipelineExecution({ enabled: false });
+  await productionWorkerLifecycle.stop();
+}
+
 async function listProjectSlugsReadOnly(): Promise<readonly string[]> {
   try {
     const entries = await fs.readdir(ProjectReader.getProjectsRoot(), { withFileTypes: true });

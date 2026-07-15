@@ -43,6 +43,7 @@ type NormalizedGenerationResult = {
   filePath?: string;
   url?: string;
   mimeType: ImageMimeType | "image/mock";
+  byteLength?: number;
   createdAt: string;
 };
 
@@ -62,6 +63,7 @@ export class VisualAssetPipeline {
       projectSlug,
       projectId,
     );
+    validateNoExistingGeneratedImages(projectAssets, visualData.scenes);
 
     for (const scene of visualData.scenes) {
       let result: ImageGenerationResult;
@@ -120,6 +122,7 @@ export class VisualAssetPipeline {
         filePath: normalizedResult.filePath,
         url: normalizedResult.url,
         mimeType: normalizedResult.mimeType,
+        byteLength: normalizedResult.byteLength,
         createdAt: normalizedResult.createdAt,
       });
 
@@ -132,6 +135,17 @@ export class VisualAssetPipeline {
 
     return projectAssets;
   }
+}
+
+function validateNoExistingGeneratedImages(
+  assets: ProjectAssets,
+  scenes: VisualData["scenes"],
+) {
+  const plannedSceneIds = new Set(scenes.map((scene) => scene.sceneId));
+  if (assets.assets.some((asset) =>
+    asset.type === "image" && asset.status === "generated" &&
+    asset.sceneId !== undefined && plannedSceneIds.has(asset.sceneId)
+  )) throw new VisualAssetGenerationError();
 }
 
 function normalizeGenerationResult(
@@ -191,12 +205,22 @@ function normalizeGenerationResult(
     return null;
   }
 
+  let byteLength: number | undefined;
+  if (url.startsWith("/api/assets/images/")) {
+    try {
+      byteLength = ImageStorage.inspectStoredImage(projectSlug, filePath, mimeType).byteLength;
+    } catch {
+      return null;
+    }
+  }
+
   return {
     provider: "openai",
     model: result.model,
     filePath: filePath ?? undefined,
     url: url ?? undefined,
     mimeType,
+    byteLength,
     createdAt: result.createdAt,
   };
 }

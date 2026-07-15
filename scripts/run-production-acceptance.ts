@@ -1,9 +1,14 @@
 import { runProductionAcceptanceCommand } from "../src/lib/production/ProductionAcceptanceCommand";
+import { shutdownProductionProcessRuntime } from "../src/lib/runtime/ProductionRuntimeCompositionRoot";
 
 async function main() {
-  const result = await runProductionAcceptanceCommand(process.argv.slice(2));
-  process.stdout.write(`${JSON.stringify(result.report, null, 2)}\n`);
-  process.exitCode = result.exitCode;
+  try {
+    const result = await runProductionAcceptanceCommand(process.argv.slice(2));
+    process.stdout.write(`${JSON.stringify(result.report, null, 2)}\n`);
+    process.exitCode = result.exitCode;
+  } finally {
+    await shutdownProductionProcessRuntime();
+  }
 }
 
 void main().catch(() => {

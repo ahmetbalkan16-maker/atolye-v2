@@ -1,0 +1,136 @@
+{
+  "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+  "jobs": [
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-research",
+      "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+      "stage": "research",
+      "title": "Research",
+      "status": "completed",
+      "attempts": 2,
+      "createdAt": "2026-07-15T12:05:09.729Z",
+      "updatedAt": "2026-07-15T13:35:42.062Z",
+      "startedAt": "2026-07-15T13:35:05.124Z",
+      "completedAt": "2026-07-15T13:35:42.062Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-script",
+      "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+      "stage": "script",
+      "title": "Script",
+      "status": "completed",
+      "attempts": 2,
+      "createdAt": "2026-07-15T12:05:09.729Z",
+      "updatedAt": "2026-07-15T14:31:53.974Z",
+      "startedAt": "2026-07-15T14:31:19.987Z",
+      "completedAt": "2026-07-15T14:31:53.974Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-scenes",
+      "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+      "stage": "scenes",
+      "title": "Scene Planning",
+      "status": "completed",
+      "attempts": 1,
+      "createdAt": "2026-07-15T12:05:09.729Z",
+      "updatedAt": "2026-07-15T14:55:58.748Z",
+      "startedAt": "2026-07-15T14:55:38.176Z",
+      "completedAt": "2026-07-15T14:55:58.748Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-visuals",
+      "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+      "stage": "visuals",
+      "title": "Visual Production",
+      "status": "failed",
+      "attempts": 0,
+      "createdAt": "2026-07-15T12:05:09.729Z",
+      "updatedAt": "2026-07-15T14:56:04.684Z",
+      "startedAt": "2026-07-15T14:55:58.843Z",
+      "completedAt": "2026-07-15T14:56:04.684Z",
+      "error": "Production generation failed closed."
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-animation",
+      "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+      "stage": "animation",
+      "title": "Animation",
+      "status": "queued",
+      "attempts": 0,
+      "createdAt": "2026-07-15T12:05:09.729Z",
+      "updatedAt": "2026-07-15T12:05:09.730Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-video",
+      "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+      "stage": "video",
+      "title": "Video",
+      "status": "queued",
+      "attempts": 0,
+      "createdAt": "2026-07-15T12:05:09.729Z",
+      "updatedAt": "2026-07-15T12:05:09.730Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-audio",
+      "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+      "stage": "audio",
+      "title": "Audio",
+      "status": "queued",
+      "attempts": 0,
+      "createdAt": "2026-07-15T12:05:09.729Z",
+      "updatedAt": "2026-07-15T12:05:09.730Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-assembly",
+      "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+      "stage": "assembly",
+      "title": "Video Editing",
+      "status": "queued",
+      "attempts": 0,
+      "createdAt": "2026-07-15T12:05:09.729Z",
+      "updatedAt": "2026-07-15T12:05:09.730Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-thumbnail",
+      "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+      "stage": "thumbnail",
+      "title": "Thumbnail",
+      "status": "queued",
+      "attempts": 0,
+      "createdAt": "2026-07-15T12:05:09.729Z",
+      "updatedAt": "2026-07-15T12:05:09.730Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-seo",
+      "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+      "stage": "seo",
+      "title": "SEO",
+      "status": "queued",
+      "attempts": 0,
+      "createdAt": "2026-07-15T12:05:09.729Z",
+      "updatedAt": "2026-07-15T12:05:09.730Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-youtube",
+      "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+      "stage": "youtube",
+      "title": "Publishing",
+      "status": "queued",
+      "attempts": 0,
+      "createdAt": "2026-07-15T12:05:09.729Z",
+      "updatedAt": "2026-07-15T12:05:09.730Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-export",
+      "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+      "stage": "export",
+      "title": "Export",
+      "status": "queued",
+      "attempts": 0,
+      "createdAt": "2026-07-15T12:05:09.729Z",
+      "updatedAt": "2026-07-15T12:05:09.730Z"
+    }
+  ],
+  "createdAt": "2026-07-15T12:05:09.731Z",
+  "updatedAt": "2026-07-15T14:56:04.684Z"
+}

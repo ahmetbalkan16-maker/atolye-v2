@@ -1,4 +1,10 @@
-export type { AIProvider } from "./AIProvider";
+export type {
+  AIProvider,
+  AIProviderGenerateOptions,
+  AIProviderOutput,
+  AIProviderResult,
+  AIProviderUsage,
+} from "./AIProvider";
 export { MockAIProvider } from "./MockAIProvider";
 export { OpenAIProvider } from "./OpenAIProvider";
 export { GeminiProvider } from "./GeminiProvider";

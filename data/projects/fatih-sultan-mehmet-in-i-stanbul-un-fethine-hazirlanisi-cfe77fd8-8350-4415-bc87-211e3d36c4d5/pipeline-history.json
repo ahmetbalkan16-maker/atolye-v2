@@ -1,0 +1,119 @@
+{
+  "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+  "events": [
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-research-failed-2026-07-15T12:05:48.007Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-research",
+      "stage": "research",
+      "status": "failed",
+      "startedAt": "2026-07-15T12:05:09.782Z",
+      "completedAt": "2026-07-15T12:05:48.007Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-07-15T12:05:48.007Z",
+      "recordedAt": "2026-07-15T12:05:48.007Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-research-failed-2026-07-15T13:12:49.100Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-research",
+      "stage": "research",
+      "status": "failed",
+      "startedAt": "2026-07-15T13:12:02.352Z",
+      "completedAt": "2026-07-15T13:12:49.100Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-07-15T13:12:49.100Z",
+      "recordedAt": "2026-07-15T13:12:49.100Z",
+      "errorCode": "AI_RESPONSE_SCHEMA_INVALID"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-research-completed-2026-07-15T13:35:42.062Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-research",
+      "stage": "research",
+      "status": "completed",
+      "startedAt": "2026-07-15T13:35:05.124Z",
+      "completedAt": "2026-07-15T13:35:42.062Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-07-15T13:35:42.062Z",
+      "recordedAt": "2026-07-15T13:35:42.062Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-script-failed-2026-07-15T13:36:11.749Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-script",
+      "stage": "script",
+      "status": "failed",
+      "startedAt": "2026-07-15T13:35:42.136Z",
+      "completedAt": "2026-07-15T13:36:11.749Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-07-15T13:36:11.749Z",
+      "recordedAt": "2026-07-15T13:36:11.749Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-script-failed-2026-07-15T14:10:36.101Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-script",
+      "stage": "script",
+      "status": "failed",
+      "startedAt": "2026-07-15T14:10:07.900Z",
+      "completedAt": "2026-07-15T14:10:36.101Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-07-15T14:10:36.101Z",
+      "recordedAt": "2026-07-15T14:10:36.101Z",
+      "errorCode": "AI_RESPONSE_SCHEMA_INVALID",
+      "errorEvidence": {
+        "code": "AI_RESPONSE_SCHEMA_INVALID",
+        "issues": [
+          {
+            "path": "$.createdAt",
+            "reason": "WRONG_TYPE",
+            "expected": "canonical UTC timestamp",
+            "observedType": "string"
+          }
+        ]
+      }
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-script-completed-2026-07-15T14:31:53.974Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-script",
+      "stage": "script",
+      "status": "completed",
+      "startedAt": "2026-07-15T14:31:19.987Z",
+      "completedAt": "2026-07-15T14:31:53.974Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-07-15T14:31:53.974Z",
+      "recordedAt": "2026-07-15T14:31:53.974Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-scenes-failed-2026-07-15T14:32:12.474Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-scenes",
+      "stage": "scenes",
+      "status": "failed",
+      "startedAt": "2026-07-15T14:31:54.070Z",
+      "completedAt": "2026-07-15T14:32:12.474Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-07-15T14:32:12.474Z",
+      "recordedAt": "2026-07-15T14:32:12.474Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-scenes-completed-2026-07-15T14:55:58.748Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-scenes",
+      "stage": "scenes",
+      "status": "completed",
+      "startedAt": "2026-07-15T14:55:38.176Z",
+      "completedAt": "2026-07-15T14:55:58.748Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-07-15T14:55:58.748Z",
+      "recordedAt": "2026-07-15T14:55:58.748Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-visuals-failed-2026-07-15T14:56:04.684Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-visuals",
+      "stage": "visuals",
+      "status": "failed",
+      "startedAt": "2026-07-15T14:55:58.843Z",
+      "completedAt": "2026-07-15T14:56:04.684Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-07-15T14:56:04.684Z",
+      "recordedAt": "2026-07-15T14:56:04.684Z"
+    }
+  ],
+  "createdAt": "2026-07-15T12:05:48.020Z",
+  "updatedAt": "2026-07-15T14:56:04.684Z"
+}

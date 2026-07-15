@@ -3,13 +3,18 @@ import {
   ProductionAcceptanceOrchestrator,
 } from "./ProductionAcceptanceOrchestrator";
 import type { ProductionReadinessReport } from "@/types/productionReadiness";
+import {
+  normalizeProductionAcceptanceTopic,
+  ProductionAcceptanceTopicError,
+} from "./ProductionAcceptanceTopic";
 
 const CONFIRM_FLAG = "--confirm-production-acceptance";
 const SAFE_SLUG = /^[a-z0-9](?:[a-z0-9-]{0,198}[a-z0-9])?$/;
+const TOPIC_PREFIX = "--topic=";
 
 export interface ProductionAcceptanceCommandDependencies {
   readiness(): Promise<ProductionReadinessReport>;
-  execute(): Promise<ProductionAcceptanceResult>;
+  execute(request: { readonly topic: string }): Promise<ProductionAcceptanceResult>;
   resume(projectSlug: string): Promise<ProductionAcceptanceResult>;
 }
 
@@ -20,7 +25,7 @@ export interface ProductionAcceptanceCommandResult {
 
 const defaultDependencies: ProductionAcceptanceCommandDependencies = {
   readiness: () => ProductionAcceptanceOrchestrator.evaluateReadiness(),
-  execute: () => ProductionAcceptanceOrchestrator.run(),
+  execute: (request) => ProductionAcceptanceOrchestrator.run(request),
   resume: (projectSlug) => ProductionAcceptanceOrchestrator.resumeAndFinalize(projectSlug),
 };
 
@@ -42,13 +47,15 @@ export async function runProductionAcceptanceCommand(
         },
       };
     }
-    if (mode === "execute" && args.length === 2 && args[1] === CONFIRM_FLAG) {
-      return success(mode, await dependencies.execute());
+    if (mode === "execute") {
+      const parsed = parseExecuteArguments(args.slice(1));
+      if ("errorCode" in parsed) return commandFailure(parsed.errorCode);
+      return success(mode, await dependencies.execute({ topic: parsed.topic }));
     }
-    if (mode === "resume-finalize" && args.includes(CONFIRM_FLAG)) {
-      const slugArgument = args.find((value) => value.startsWith("--project-slug="));
-      const projectSlug = slugArgument?.slice("--project-slug=".length);
-      if (args.length !== 3 || !projectSlug || !SAFE_SLUG.test(projectSlug)) return usageFailure();
+    if (mode === "resume-finalize") {
+      const parsed = parseResumeArguments(args.slice(1));
+      if ("errorCode" in parsed) return commandFailure(parsed.errorCode);
+      const projectSlug = parsed.projectSlug;
       requestedProjectSlug = projectSlug;
       return success(mode, await dependencies.resume(projectSlug));
     }
@@ -80,16 +87,70 @@ function success(mode: string, result: ProductionAcceptanceResult): ProductionAc
 }
 
 function usageFailure(): ProductionAcceptanceCommandResult {
+  return commandFailure("PRODUCTION_ACCEPTANCE_CONFIRMATION_REQUIRED");
+}
+
+function commandFailure(errorCode: string): ProductionAcceptanceCommandResult {
   return {
     exitCode: 2,
     report: {
       success: false,
-      errorCode: "PRODUCTION_ACCEPTANCE_CONFIRMATION_REQUIRED",
+      errorCode,
       usage: [
         "readiness-only",
-        `execute ${CONFIRM_FLAG}`,
+        `execute ${CONFIRM_FLAG} --topic=<topic>`,
         `resume-finalize --project-slug=<slug> ${CONFIRM_FLAG}`,
       ],
     },
   };
+}
+
+function parseExecuteArguments(args: readonly string[]):
+  | { readonly topic: string }
+  | { readonly errorCode: string } {
+  const confirmations = args.filter((value) => value === CONFIRM_FLAG);
+  if (confirmations.length !== 1) {
+    return { errorCode: "PRODUCTION_ACCEPTANCE_CONFIRMATION_REQUIRED" };
+  }
+  const topicArguments = args.filter((value) => value.startsWith(TOPIC_PREFIX));
+  const unknown = args.filter(
+    (value) => value !== CONFIRM_FLAG && !value.startsWith(TOPIC_PREFIX),
+  );
+  if (unknown.length > 0) {
+    return { errorCode: "PRODUCTION_ACCEPTANCE_ARGUMENT_UNKNOWN" };
+  }
+  if (topicArguments.length === 0) {
+    return { errorCode: "PRODUCTION_ACCEPTANCE_TOPIC_MISSING" };
+  }
+  if (topicArguments.length > 1) {
+    return { errorCode: "PRODUCTION_ACCEPTANCE_TOPIC_DUPLICATE" };
+  }
+  try {
+    return { topic: normalizeProductionAcceptanceTopic(topicArguments[0].slice(TOPIC_PREFIX.length)) };
+  } catch (error) {
+    return {
+      errorCode: error instanceof ProductionAcceptanceTopicError
+        ? error.code
+        : "PRODUCTION_ACCEPTANCE_TOPIC_INVALID",
+    };
+  }
+}
+
+function parseResumeArguments(args: readonly string[]):
+  | { readonly projectSlug: string }
+  | { readonly errorCode: string } {
+  if (args.filter((value) => value === CONFIRM_FLAG).length !== 1) {
+    return { errorCode: "PRODUCTION_ACCEPTANCE_CONFIRMATION_REQUIRED" };
+  }
+  const slugArguments = args.filter((value) => value.startsWith("--project-slug="));
+  if (
+    args.some((value) => value !== CONFIRM_FLAG && !value.startsWith("--project-slug=")) ||
+    slugArguments.length !== 1
+  ) {
+    return { errorCode: "PRODUCTION_ACCEPTANCE_ARGUMENT_UNKNOWN" };
+  }
+  const projectSlug = slugArguments[0].slice("--project-slug=".length);
+  return SAFE_SLUG.test(projectSlug)
+    ? { projectSlug }
+    : { errorCode: "PRODUCTION_ACCEPTANCE_ARGUMENT_UNKNOWN" };
 }

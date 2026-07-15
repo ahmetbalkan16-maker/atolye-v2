@@ -31,6 +31,7 @@ export interface PipelineResumeResult {
   completedStages: PipelineRecoveryStageKey[];
   blocked: boolean;
   reason?: string;
+  reasonCode?: string;
   plan: PipelineRecoveryPlan;
 }
 
@@ -42,6 +43,7 @@ export interface PipelineRetryResult {
   completedStages: PipelineRecoveryStageKey[];
   blocked: boolean;
   reason?: string;
+  reasonCode?: string;
   plan: PipelineRecoveryPlan;
 }
 
@@ -54,5 +56,6 @@ export interface PipelineJobRetryExecutionResult {
   completedStages: PipelineRecoveryStageKey[];
   blocked: boolean;
   reason?: string;
+  reasonCode?: string;
   plan?: PipelineRecoveryPlan;
 }

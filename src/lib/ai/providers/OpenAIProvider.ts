@@ -1,9 +1,16 @@
 import { aiProviderConfig } from "../AIProviderConfig";
 import { openai } from "../client";
-import type { AIProvider } from "./AIProvider";
+import type {
+  AIProvider,
+  AIProviderGenerateOptions,
+  AIProviderResult,
+} from "./AIProvider";
 
 export class OpenAIProvider implements AIProvider {
-  async generate(prompt: string): Promise<string> {
+  async generate(
+    prompt: string,
+    options?: AIProviderGenerateOptions,
+  ): Promise<AIProviderResult> {
     if (process.env.AI_PROVIDER !== "openai") {
       throw new Error("OpenAI provider requires AI_PROVIDER=openai.");
     }
@@ -20,10 +27,37 @@ export class OpenAIProvider implements AIProvider {
           content: prompt,
         },
       ],
-      max_tokens: aiProviderConfig.openai.maxTokens,
+      max_tokens: options?.maxTokens ?? aiProviderConfig.openai.maxTokens,
       temperature: aiProviderConfig.openai.temperature,
     });
 
-    return response.choices[0]?.message?.content ?? "";
+    const choice = response.choices[0];
+    const finishReason = normalizeFinishReason(choice?.finish_reason);
+    const refused = Boolean(choice?.message?.refusal);
+    return {
+      content: choice?.message?.content ?? "",
+      finishReason,
+      refused,
+      complete: finishReason === "stop" && !refused,
+      truncated: finishReason === "length",
+      ...(response.usage ? {
+        usage: {
+          promptTokens: safeTokenCount(response.usage.prompt_tokens),
+          completionTokens: safeTokenCount(response.usage.completion_tokens),
+          totalTokens: safeTokenCount(response.usage.total_tokens),
+        },
+      } : {}),
+    };
   }
+}
+
+function normalizeFinishReason(value: string | null | undefined): AIProviderResult["finishReason"] {
+  if (value === "stop" || value === "length") return value;
+  if (value === "content_filter") return "content-filter";
+  if (value === "tool_calls" || value === "function_call") return "tool-calls";
+  return "unknown";
+}
+
+function safeTokenCount(value: number | undefined) {
+  return Number.isSafeInteger(value) && (value as number) >= 0 ? value : undefined;
 }

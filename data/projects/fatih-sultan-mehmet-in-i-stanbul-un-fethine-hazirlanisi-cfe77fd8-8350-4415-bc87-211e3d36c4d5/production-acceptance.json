@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "2",
+  "runId": "cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+  "topic": "Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı",
+  "topicFingerprint": "e49e0c30f84895a7d19fea274306050727f0bc5ae156d47c9ad567be18b0c5ae",
+  "requestFingerprint": "cf2da2fbad1bbec70245504091a0c1c760450e8f268be97d044baa6152d17add",
+  "strictProductionAcceptance": true,
+  "publishMode": "package-only",
+  "configurationFingerprint": "df56acb091c9c1457fa05785f45bc611fd44b315be3f3a495126b311296cbcb2",
+  "createdAt": "2026-07-15T12:05:09.701Z",
+  "acceptanceStatus": "prepared",
+  "productionReady": false,
+  "published": false
+}

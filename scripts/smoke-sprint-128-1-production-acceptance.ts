@@ -20,6 +20,9 @@ import {
 } from "../src/lib/production/ProductionAcceptancePreflight";
 import { runProductionAcceptanceCommand } from "../src/lib/production/ProductionAcceptanceCommand";
 import {
+  createProductionAcceptanceProjectSlug,
+} from "../src/lib/production/ProductionAcceptanceTopic";
+import {
   createProductionAcceptanceMarker,
   markProductionAcceptanceValidated,
   productionAcceptanceConfigurationFingerprint,
@@ -175,7 +178,7 @@ await test("readiness-only performs no execution", async () => {
 });
 await test("execute requires explicit confirmation", async () => {
   let executions = 0;
-  const result = await runProductionAcceptanceCommand(["execute"], { readiness: async () => blockedReadiness, execute: async () => { executions += 1; return fakeCompletion; }, resume: async () => fakeCompletion });
+  const result = await runProductionAcceptanceCommand(["execute", "--topic=Acceptance fixture"], { readiness: async () => blockedReadiness, execute: async () => { executions += 1; return fakeCompletion; }, resume: async () => fakeCompletion });
   assert.equal(result.exitCode, 2); assert.equal(executions, 0);
 });
 await test("resume-finalize preserves project slug", async () => {
@@ -185,10 +188,12 @@ await test("resume-finalize preserves project slug", async () => {
   assert.equal(result.exitCode, 0); assert.equal(resumed, slug);
 });
 
-const markerSlug = `sprint-128-1-marker-${crypto.randomUUID()}`;
+const markerRunId = crypto.randomUUID();
+const markerTopic = "Sprint 128 marker fixture";
+const markerSlug = createProductionAcceptanceProjectSlug(markerTopic, markerRunId);
 try {
   await test("prepared marker is not production-ready and remains package-only unpublished", async () => {
-    await createProductionAcceptanceMarker(markerSlug, crypto.randomUUID(), productionAcceptanceConfigurationFingerprint());
+    await createProductionAcceptanceMarker(markerSlug, markerRunId, productionAcceptanceConfigurationFingerprint(), markerTopic);
     const marker = await readProductionAcceptanceMarker(markerSlug);
     assert.equal(marker.productionReady, false);
     assert.equal(marker.acceptanceStatus, "prepared");
@@ -211,10 +216,12 @@ await test("completed finalize replay skips pipeline resume", async () => {
   assert.equal(requiresProductionAcceptanceResume({ blocked: false, startStage: "assembly" }, "acceptance-fixture"), true);
 });
 
-const strictResumeSlug = `sprint-128-2-strict-resume-${crypto.randomUUID()}`;
+const strictResumeRunId = crypto.randomUUID();
+const strictResumeTopic = "Sprint 128 strict resume fixture";
+const strictResumeSlug = createProductionAcceptanceProjectSlug(strictResumeTopic, strictResumeRunId);
 try {
   await test("strict resume rejects legacy scene identity before provider invocation", async () => {
-    await createProductionAcceptanceMarker(strictResumeSlug, crypto.randomUUID(), productionAcceptanceConfigurationFingerprint());
+    await createProductionAcceptanceMarker(strictResumeSlug, strictResumeRunId, productionAcceptanceConfigurationFingerprint(), strictResumeTopic);
     const policy = await readProductionAcceptancePolicy(strictResumeSlug);
     assert.throws(() => validateStrictProductionResumeState({
       project: { id: "fixture", slug: strictResumeSlug, title: "fixture", status: "draft", createdAt: now, updatedAt: now },
@@ -346,7 +353,6 @@ await test("production strict JSON requires chapter identity", async () => {
       prompt = value;
       return JSON.stringify({
         scenes: [{ id: 1, chapterId: 1, title: "strict", description: "strict", visualPrompt: "strict", duration: 90 }],
-        createdAt: now,
       });
     },
   }, strictGenerationExecutionPolicy);
@@ -356,11 +362,13 @@ await test("production strict JSON requires chapter identity", async () => {
   safeRemoveProject(usageSlug);
 });
 
-const replaySlug = `sprint-128-2-replay-${crypto.randomUUID()}`;
+const replayRunId = crypto.randomUUID();
+const replayTopic = "Sprint 128 finalize replay fixture";
+const replaySlug = createProductionAcceptanceProjectSlug(replayTopic, replayRunId);
 try {
   await test("finalize marker replay is idempotent", async () => {
     const fingerprint = productionAcceptanceConfigurationFingerprint();
-    await createProductionAcceptanceMarker(replaySlug, crypto.randomUUID(), fingerprint);
+    await createProductionAcceptanceMarker(replaySlug, replayRunId, fingerprint, replayTopic);
     await markProductionAcceptanceValidated(replaySlug, fingerprint);
     const first = JSON.parse(fs.readFileSync(path.join(ProjectReader.getProjectFolder(replaySlug), "production-acceptance.json"), "utf8"));
     await markProductionAcceptanceValidated(replaySlug, fingerprint);

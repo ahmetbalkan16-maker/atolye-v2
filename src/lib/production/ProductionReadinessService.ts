@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { AIRouter, type ProviderName } from "@/lib/ai/router/AIRouter";
 import { aiProviderConfig } from "@/lib/ai/AIProviderConfig";
+import { getResearchMaxTokens } from "@/lib/ai/ResearchAIConfig";
+import { getScriptMaxTokens } from "@/lib/ai/ScriptAIConfig";
 import { ImageProviderRouter } from "@/lib/assets/providers/ImageProviderRouter";
 import { requireContainedStorageFile } from "@/lib/assets/storage/StoragePathSecurity";
 import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
@@ -185,6 +187,16 @@ export class ProductionReadinessService {
       }
       if (!validInteger(this.environment.OPENAI_MAX_TOKENS, 1, 100_000)) {
         return check("model-configuration", "INVALID", "AI_MAX_TOKENS_INVALID");
+      }
+      try {
+        getResearchMaxTokens(this.environment);
+      } catch {
+        return check("model-configuration", "INVALID", "AI_RESEARCH_MAX_TOKENS_INVALID");
+      }
+      try {
+        getScriptMaxTokens(this.environment);
+      } catch {
+        return check("model-configuration", "INVALID", "AI_SCRIPT_MAX_TOKENS_INVALID");
       }
       if (!validNumber(this.environment.OPENAI_TEMPERATURE, 0, 2)) {
         return check("model-configuration", "INVALID", "AI_TEMPERATURE_INVALID");

@@ -7,6 +7,8 @@ import {
 } from "./PipelineStateError";
 import { getNextPipelineStage } from "./PipelineRecoveryPlanner";
 import type { PackageStatus, ProductionStepKey } from "@/types/project";
+import { isAIResponseSchemaEvidence } from "@/lib/ai/AIResponseError";
+import type { AIResponseSchemaEvidence } from "@/types/aiResponse";
 import type {
   PipelineJob,
   PipelineJobAction,
@@ -113,6 +115,7 @@ export class PipelineJobManager {
   static async prepareJobRetry(
     projectSlug: string,
     jobId: string,
+    expected?: { readonly updatedAt: string; readonly attempts: number },
   ): Promise<PipelineJobRetryPreparationResult> {
     return this.withProjectLock(projectSlug, async () => {
       const current = await this.listJobs(projectSlug);
@@ -126,11 +129,24 @@ export class PipelineJobManager {
         };
       }
 
+      if (
+        expected &&
+        (job.updatedAt !== expected.updatedAt || job.attempts !== expected.attempts)
+      ) {
+        return {
+          success: false,
+          status: 409,
+          error: "Pipeline retry compare-and-swap conflict.",
+          reasonCode: "PIPELINE_RETRY_CAS_CONFLICT",
+        };
+      }
+
       if (!this.canTransition(job.status, "queued")) {
         return {
           success: false,
           status: 409,
           error: `Retry is not supported for "${job.status}" jobs.`,
+          reasonCode: "PIPELINE_RETRY_PREPARATION_REJECTED",
         };
       }
 
@@ -212,6 +228,7 @@ export class PipelineJobManager {
           updatedAt: now,
           completedAt: now,
           error: undefined,
+          errorEvidence: undefined,
         }),
         true,
       );
@@ -248,6 +265,7 @@ export class PipelineJobManager {
           completedAt: undefined,
           cancelRequestedAt: undefined,
           error: undefined,
+          errorEvidence: undefined,
         }),
       );
 
@@ -260,6 +278,7 @@ export class PipelineJobManager {
     stage: ProductionStepKey,
     persist: () => Promise<void>,
     error: string,
+    errorEvidence?: AIResponseSchemaEvidence,
   ): Promise<boolean> {
     return this.withProjectLock(projectSlug, async () => {
       const current = await this.listJobs(projectSlug);
@@ -282,6 +301,7 @@ export class PipelineJobManager {
           updatedAt: now,
           completedAt: now,
           error,
+          errorEvidence,
         }),
       );
 
@@ -405,6 +425,7 @@ export class PipelineJobManager {
       completedAt: undefined,
       cancelRequestedAt: undefined,
       error: undefined,
+      errorEvidence: undefined,
     };
   }
 
@@ -703,6 +724,7 @@ type PipelineJobActionResult =
       success: false;
       status: 404 | 409;
       error: string;
+      reasonCode?: string;
     };
 
 type PipelineJobRetryPreparationResult =
@@ -716,6 +738,7 @@ type PipelineJobRetryPreparationResult =
       success: false;
       status: 404 | 409;
       error: string;
+      reasonCode?: string;
     };
 
 function getJobId(projectSlug: string, stage: ProductionStepKey) {
@@ -743,7 +766,8 @@ function isPipelineJob(value: unknown): value is PipelineJob {
     isOptionalString(job.startedAt) &&
     isOptionalString(job.completedAt) &&
     isOptionalString(job.cancelRequestedAt) &&
-    isOptionalString(job.error)
+    isOptionalString(job.error) &&
+    (job.errorEvidence === undefined || isAIResponseSchemaEvidence(job.errorEvidence))
   );
 }
 
@@ -774,6 +798,10 @@ function createHistoryEvent(
     jobCreatedAt: job.createdAt,
     jobUpdatedAt: job.updatedAt,
     recordedAt: now,
+    ...(job.error && /^[A-Z0-9_]{1,80}$/.test(job.error)
+      ? { errorCode: job.error }
+      : {}),
+    ...(job.errorEvidence ? { errorEvidence: job.errorEvidence } : {}),
   };
 }
 
@@ -797,7 +825,9 @@ function isPipelineJobHistoryEvent(
     typeof event.jobUpdatedAt === "string" &&
     typeof event.recordedAt === "string" &&
     isOptionalString(event.startedAt) &&
-    isOptionalString(event.completedAt)
+    isOptionalString(event.completedAt) &&
+    isOptionalString(event.errorCode) &&
+    (event.errorEvidence === undefined || isAIResponseSchemaEvidence(event.errorEvidence))
   );
 }
 

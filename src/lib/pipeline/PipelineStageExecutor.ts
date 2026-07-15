@@ -221,6 +221,7 @@ export class PipelineStageExecutor {
           aiProvider: options.aiProvider,
           generationPolicy,
         });
+        await ProjectManager.persistVisualsArtifact(projectSlug, state.visuals);
         await VisualAssetPipeline.generateAssets({
           projectId: state.project.id,
           projectSlug,
@@ -228,7 +229,7 @@ export class PipelineStageExecutor {
           provider: options.visualAssetProvider,
         });
         return this.persistStageResult(projectSlug, stage, () =>
-          ProjectManager.saveVisuals(projectSlug, state.visuals),
+          ProjectManager.updatePackageStatus(projectSlug, "visuals", "completed").then(() => undefined),
         );
       }
 

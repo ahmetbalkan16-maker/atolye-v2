@@ -16,6 +16,19 @@ export class ProjectWriter {
     await fs.writeFile(file, JSON.stringify(data, null, 2), "utf-8");
   }
 
+  static async writeJSONOnce(slug: string, fileName: string, data: unknown) {
+    const folder = await this.ensureSafeProjectFolder(slug);
+    requireSafeJsonFileName(fileName);
+    const file = path.join(folder, fileName);
+    const handle = await fs.open(file, "wx");
+    try {
+      await handle.writeFile(JSON.stringify(data, null, 2), "utf-8");
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+  }
+
   static async writeJSONAtomically(
     slug: string,
     fileName: string,

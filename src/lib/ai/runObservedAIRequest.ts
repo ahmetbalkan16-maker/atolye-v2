@@ -1,7 +1,8 @@
 import { aiProviderConfig } from "./AIProviderConfig";
 import { AIUsageManager } from "./AIUsageManager";
 import { AIRouter } from "./router/AIRouter";
-import type { AIProvider } from "./providers";
+import type { AIProvider, AIProviderOutput, AIProviderResult } from "./providers";
+import type { AIResponseErrorCode } from "./AIResponseError";
 import type {
   AIRequestContext,
   AIUsageProvider,
@@ -12,36 +13,46 @@ export type ObservedAIRequestInput = {
   prompt: string;
   context: AIRequestContext;
   provider?: AIProvider;
+  maxTokens?: number;
 };
 
 export type ObservedAIRequestResult = {
   response: string;
   fallbackUsed: boolean;
-  error?: string;
+  errorCode?: AIResponseErrorCode;
+  finishReason?: AIProviderResult["finishReason"];
+  refused: boolean;
+  responseComplete: boolean;
+  truncated: boolean;
+  usage?: AIProviderResult["usage"];
+  telemetryPersisted: boolean;
 };
 
 export async function runObservedAIRequest({
   prompt,
   context,
   provider,
+  maxTokens,
 }: ObservedAIRequestInput): Promise<ObservedAIRequestResult> {
   const startedAt = Date.now();
   const providerName = context.provider ?? aiProviderConfig.provider;
   const selectedProvider = provider ?? new AIRouter().getProvider(providerName);
   const projectSlug = context.projectSlug?.trim() || "unknown";
   let response = "";
-  let error: string | undefined;
+  let result: AIProviderResult | undefined;
+  let errorCode: AIResponseErrorCode | undefined;
 
   try {
-    response = await selectedProvider.generate(prompt);
-  } catch (caughtError) {
-    error =
-      caughtError instanceof Error
-        ? caughtError.message
-        : "AI provider request failed.";
+    result = normalizeProviderOutput(await selectedProvider.generate(prompt, { maxTokens }));
+    response = result.content;
+    if (result.refused) errorCode = "AI_PROVIDER_REFUSAL";
+    else if (result.truncated || result.finishReason === "length") errorCode = "AI_RESPONSE_TRUNCATED";
+    else if (!result.complete) errorCode = "AI_RESPONSE_INCOMPLETE";
+  } catch {
+    errorCode = "AI_PROVIDER_REQUEST_FAILED";
   }
 
-  const fallbackUsed = Boolean(error) || !response.trim();
+  const fallbackUsed = Boolean(errorCode) || !response.trim();
   const durationMs = Date.now() - startedAt;
   const record: AIUsageRecord = {
     id: crypto.randomUUID(),
@@ -50,26 +61,54 @@ export async function runObservedAIRequest({
     operation: context.operation,
     provider: providerName,
     model: context.model ?? getModelName(providerName),
-    status: error ? "failed" : fallbackUsed ? "fallback" : "success",
+    status: errorCode ? "failed" : fallbackUsed ? "fallback" : "success",
     fallbackUsed,
     durationMs,
     promptLength: prompt.length,
     responseLength: response.length,
-    error,
+    finishReason: result?.finishReason,
+    refused: result?.refused ?? false,
+    responseComplete: result?.complete ?? false,
+    truncated: result?.truncated ?? false,
+    promptTokens: result?.usage?.promptTokens,
+    completionTokens: result?.usage?.completionTokens,
+    totalTokens: result?.usage?.totalTokens,
+    error: errorCode,
+    errorCode,
     createdAt: new Date().toISOString(),
   };
 
+  let telemetryPersisted = true;
   try {
     await AIUsageManager.appendRecord(record);
-  } catch (usageError) {
-    console.error("[AIUsage] Usage record could not be written:", usageError);
+  } catch {
+    telemetryPersisted = false;
   }
 
   return {
     response,
     fallbackUsed,
-    error,
+    errorCode: errorCode ?? (!telemetryPersisted ? "AI_USAGE_PERSISTENCE_FAILED" : undefined),
+    finishReason: result?.finishReason,
+    refused: result?.refused ?? false,
+    responseComplete: result?.complete ?? false,
+    truncated: result?.truncated ?? false,
+    usage: result?.usage,
+    telemetryPersisted,
   };
+}
+
+function normalizeProviderOutput(output: AIProviderOutput): AIProviderResult {
+  if (typeof output === "string") {
+    return {
+      content: output,
+      finishReason: "unknown",
+      refused: false,
+      complete: true,
+      truncated: false,
+    };
+  }
+  return output;
 }
 
 function getModelName(provider: AIUsageProvider): string | undefined {

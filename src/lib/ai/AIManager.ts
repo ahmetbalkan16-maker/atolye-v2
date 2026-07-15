@@ -8,6 +8,16 @@ import {
   type GenerationExecutionPolicy,
 } from "./GenerationExecutionPolicy";
 import { runObservedAIRequest } from "./runObservedAIRequest";
+import { AIResponseError } from "./AIResponseError";
+import { getResearchMaxTokens, ResearchAIConfigError } from "./ResearchAIConfig";
+import { getScriptMaxTokens, ScriptAIConfigError } from "./ScriptAIConfig";
+import { parseStrictScriptResponse } from "./ScriptStructuredOutput";
+import { createScenesPrompt, parseStrictScenesResponse } from "./SceneStructuredOutput";
+import { ApplicationTimestampError } from "./CanonicalTimestamp";
+import {
+  createResearchPrompt,
+  parseStrictResearchResponse,
+} from "./ResearchStructuredOutput";
 import {
   getCreatedAt,
   getNumber,
@@ -46,54 +56,29 @@ export class AIManager {
       createdAt: new Date().toISOString(),
     };
 
-    const prompt = [
-      "You are a documentary research assistant.",
-      "Create structured research data for the given topic.",
-      "Return only valid JSON. Do not include markdown, comments, or extra text.",
-      "The JSON object must match this TypeScript shape:",
-      "{",
-      '  "topic": "string",',
-      '  "summary": "string",',
-      '  "historicalContext": "string",',
-      '  "timeline": ["string"],',
-      '  "characters": ["string"],',
-      '  "locations": ["string"],',
-      '  "keyEvents": ["string"],',
-      '  "strategies": ["string"],',
-      '  "controversies": ["string"],',
-      '  "interestingFacts": ["string"],',
-      '  "documentaryFlow": ["string"],',
-      '  "sceneIdeas": ["string"],',
-      '  "imagePrompts": ["string"],',
-      '  "animationPrompts": ["string"],',
-      '  "musicIdeas": ["string"],',
-      '  "soundEffects": ["string"],',
-      '  "thumbnailIdeas": ["string"],',
-      '  "youtubeTitles": ["string"],',
-      '  "sources": ["string"],',
-      '  "createdAt": "string"',
-      "}",
-      `Topic: ${topic}`,
-    ].join("\n");
+    const prompt = createResearchPrompt(topic);
 
     try {
-      const { response } = await runObservedAIRequest({
+      const observed = await runObservedAIRequest({
         prompt,
         provider,
+        maxTokens: getResearchMaxTokens(),
         context: {
           ...context,
           operation: context?.operation ?? "research",
           stage: context?.stage ?? "research",
         },
       });
+      if (observed.errorCode) throw new AIResponseError(observed.errorCode);
+      const { response } = observed;
 
       if (!response.trim()) {
         console.error("[AIManager.runResearch] Empty provider response.");
         return failClosedOrReturn(fallback, policy);
       }
 
+      if (policy?.failClosed) return parseStrictResearchResponse(response);
       const parsed = parseAIJsonResponse<Partial<ResearchData>>(response);
-      if (policy?.failClosed && !isStrictResearchResponse(parsed)) throw new Error("invalid");
 
       return {
         topic: getStringAllowEmpty(parsed.topic, fallback.topic),
@@ -121,6 +106,10 @@ export class AIManager {
         createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
       };
     } catch (error) {
+      if (
+        policy?.failClosed &&
+        (error instanceof AIResponseError || error instanceof ResearchAIConfigError || error instanceof ApplicationTimestampError)
+      ) throw error;
       if (policy?.failClosed) return failClosedOrReturn(fallback, policy);
       console.error("[AIManager.runResearch] Falling back to mock research:", {
         topic,
@@ -188,10 +177,12 @@ export class AIManager {
       '  "voiceStyle": "string",',
       '  "musicStyle": "string",',
       '  "thumbnailIdea": "string",',
-      '  "seoKeywords": ["string"],',
-      '  "createdAt": "string"',
+      '  "seoKeywords": ["string"]',
       "}",
       "Rules:",
+      "- Use exactly the keys shown above. Every key is required and additional fields are forbidden.",
+      "- Every string must be non-empty.",
+      "- Do not include createdAt; the application adds it after provider validation.",
       "- Write in Turkish.",
       "- Use a cinematic, professional documentary narration style.",
       "- Create 4 to 7 chapters in a logical historical sequence.",
@@ -199,31 +190,38 @@ export class AIManager {
       "- duration and estimatedDuration must be in seconds.",
       "- visualGoal must clearly describe the visual scene for production.",
       "- seoKeywords must be Turkish search keywords.",
+      "- Use 1 to 20 seoKeywords; each keyword must be at most 100 characters.",
+      "- Field limits: topic/title 300, subtitle 500, hook 1500, introduction 2500, conclusion 2000, callToAction 1000 characters.",
+      "- Chapter limits: title 300, narration 1200, visualGoal 1200, emotion 300, transition 500 characters.",
+      "- Chapter id, chapter duration, estimatedDuration, and narrationWordCount must be positive integers; chapter ids must be unique.",
       ...(policy?.failClosed ? [
         "- Production acceptance estimatedDuration must be between 60 and 120 seconds; target 90 seconds.",
         "- The sum of chapter durations must match estimatedDuration within 5 seconds.",
       ] : []),
       `Topic: ${topic}`,
     ].join("\n");
-
     try {
-      const { response } = await runObservedAIRequest({
+      const observed = await runObservedAIRequest({
         prompt,
         provider,
+        maxTokens: getScriptMaxTokens(),
         context: {
           ...context,
           operation: context?.operation ?? "script",
           stage: context?.stage ?? "script",
         },
       });
+      if (observed.errorCode) throw new AIResponseError(observed.errorCode);
+      const { response } = observed;
 
       if (!response.trim()) {
         console.error("[AIManager.runScript] Empty provider response.");
         return failClosedOrReturn(fallback, policy);
       }
 
-      const parsed = parseAIJsonResponse<Partial<ScriptData>>(response);
-      if (policy?.failClosed && !isStrictScriptResponse(parsed)) throw new Error("invalid");
+      const parsed = policy?.failClosed
+        ? parseStrictScriptResponse(response)
+        : parseAIJsonResponse<Partial<ScriptData>>(response);
 
       const chapters: ScriptChapter[] = Array.isArray(parsed.chapters)
         ? parsed.chapters.map((chapter, index) => {
@@ -270,6 +268,10 @@ export class AIManager {
         createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
       };
     } catch (error) {
+      if (
+        policy?.failClosed &&
+        (error instanceof AIResponseError || error instanceof ScriptAIConfigError || error instanceof ApplicationTimestampError)
+      ) throw error;
       if (policy?.failClosed) return failClosedOrReturn(fallback, policy);
       console.error("[AIManager.runScript] Falling back to mock script:", {
         topic,
@@ -312,7 +314,7 @@ export class AIManager {
       musicStyle: script.musicStyle,
     };
 
-    const prompt = [
+    const legacyPrompt = [
       "You are a professional documentary scene planner.",
       "Create production-ready scene data from the given documentary script.",
       "Return only valid JSON. Do not include markdown, comments, or extra text.",
@@ -351,6 +353,7 @@ export class AIManager {
       "Script JSON:",
       JSON.stringify(scriptInput),
     ].join("\n");
+    const prompt = policy?.failClosed ? createScenesPrompt(script) : legacyPrompt;
 
     try {
       const { response } = await runObservedAIRequest({
@@ -368,8 +371,8 @@ export class AIManager {
         return failClosedOrReturn(fallback, policy);
       }
 
+      if (policy?.failClosed) return parseStrictScenesResponse(response, script);
       const parsed = parseAIJsonResponse<Partial<SceneData>>(response);
-      if (policy?.failClosed && !isStrictSceneResponse(parsed, script)) throw new Error("invalid");
 
       const scenes: SceneItem[] = Array.isArray(parsed.scenes)
         ? parsed.scenes.map((scene, index) => {
@@ -398,6 +401,10 @@ export class AIManager {
         createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
       };
     } catch (error) {
+      if (
+        policy?.failClosed &&
+        (error instanceof AIResponseError || error instanceof ApplicationTimestampError)
+      ) throw error;
       if (policy?.failClosed) return failClosedOrReturn(fallback, policy);
       console.error("[AIManager.runScenes] Falling back to mock scenes:", {
         scriptTitle: script.title,
@@ -407,54 +414,4 @@ export class AIManager {
       return failClosedOrReturn(fallback, policy);
     }
   }
-}
-
-function isStrictResearchResponse(value: Partial<ResearchData>) {
-  const arrays = [
-    value.timeline, value.characters, value.locations, value.keyEvents,
-    value.strategies, value.controversies, value.interestingFacts,
-    value.documentaryFlow, value.sceneIdeas, value.imagePrompts,
-    value.animationPrompts, value.musicIdeas, value.soundEffects,
-    value.thumbnailIdeas, value.youtubeTitles, value.sources,
-  ];
-  return typeof value.topic === "string" && typeof value.summary === "string" &&
-    typeof value.historicalContext === "string" && arrays.every(isStringArray) &&
-    validTimestamp(value.createdAt);
-}
-
-function isStrictScriptResponse(value: Partial<ScriptData>) {
-  const strings = [
-    value.topic, value.title, value.subtitle, value.hook, value.introduction,
-    value.conclusion, value.callToAction, value.targetAudience, value.language,
-    value.voiceStyle, value.musicStyle, value.thumbnailIdea,
-  ];
-  return strings.every((item) => typeof item === "string") &&
-    typeof value.estimatedDuration === "number" && Number.isFinite(value.estimatedDuration) &&
-    typeof value.narrationWordCount === "number" && Number.isFinite(value.narrationWordCount) &&
-    isStringArray(value.seoKeywords) && validTimestamp(value.createdAt) &&
-    Array.isArray(value.chapters) && value.chapters.length > 0 && value.chapters.every((chapter) =>
-      typeof chapter?.id === "number" && Number.isFinite(chapter.id) &&
-      [chapter.title, chapter.narration, chapter.visualGoal, chapter.emotion, chapter.transition]
-        .every((item) => typeof item === "string") &&
-      typeof chapter.duration === "number" && Number.isFinite(chapter.duration));
-}
-
-function isStrictSceneResponse(value: Partial<SceneData>, script: ScriptData) {
-  const chapterIds = new Set(script.chapters.map((chapter) => chapter.id));
-  return validTimestamp(value.createdAt) && Array.isArray(value.scenes) &&
-    value.scenes.length > 0 && value.scenes.every((scene) =>
-      typeof scene?.id === "number" && Number.isFinite(scene.id) &&
-      typeof scene.chapterId === "number" && chapterIds.has(scene.chapterId) &&
-      [scene.title, scene.description, scene.visualPrompt].every((item) => typeof item === "string") &&
-      typeof scene.duration === "number" && Number.isFinite(scene.duration));
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
-}
-
-function validTimestamp(value: unknown) {
-  if (typeof value !== "string") return false;
-  const timestamp = Date.parse(value);
-  return Number.isFinite(timestamp) && new Date(timestamp).toISOString() === value;
 }

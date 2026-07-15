@@ -47,17 +47,115 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 128.2**
+**Sprint 129.19**
 
-Production Acceptance P1 Hardening
+Visuals Structured Output and Application-Owned Timestamp Hardening
 
 **Durum**
 
-Completed
+Implementation Validated — Ready for Controlled Visuals Resume
 
-Sprint 128.2 Production Acceptance P1 Hardening tamamlandı. Sonraki adım production environment binding ve readiness-only gerçek makine doğrulamasıdır.
+Sprint 129.18 controlled production resume aynı canonical slug üzerinde research, script ve scenes provider'larını yeniden çalıştırmadan scenes'i başarıyla tamamladı. `scenes.json` 6 scene, toplam 90 saniye, canonical schema ve application-owned timestamp ile write-once persist edildi. Sonraki visuals text planning cevabı provider/transport seviyesinde başarılıydı: `finish_reason:stop`, `refusal:false`, complete/non-truncated, 1135 prompt, 375 completion, 1510 total token ve 1777 karakter. Strict visual artifact validation generic `GENERATION_FALLBACK_BLOCKED` ile durdu; `visuals.json` veya fiziksel image üretilmedi.
 
-Not:
+Sprint 129.19 canonical visual provider sözleşmesini koddan kesinleştirdi: top-level tam olarak `scenes` ve `thumbnail`; her visual item tam olarak `sceneId`, `visualPrompt`, `animationPrompt`, `style`; thumbnail tam olarak `title`, `prompt`, `composition`, `mood`. Extra field, type, length, item count, duplicate/missing/unknown scene reference ve canonical order ihlalleri en fazla 8 exact JSON path/reason issue ile `AI_RESPONSE_SCHEMA_INVALID` üretir. Provider `createdAt`, `projectId`, `prompts` veya `generatedAt` gönderemez; validation sonrasında ortak `CanonicalTimestamp` helper application-owned UTC millisecond timestamp ekler.
+
+Visual plan image generation'dan önce write-once persist edilir. Exact replay write-free, farklı content/timestamp overwrite-blocked; plan validation veya persistence başarısızsa image provider call count sıfırdır. Batch preflight tamamlanmadan ücretli image generation başlamaz. Local production image sonucu canonical scene identity, filename, MIME, contained storage, registry/readback, duplicate yasağı ve pozitif physical byte length kontrollerinden geçmeden stage success olamaz.
+
+Sprint 129.19 doğrulamaları:
+
+- Visual schema, timestamp, bounded telemetry, image boundary, persistence, durable settlement ve disposable recovery smoke PASS — 70 senaryo.
+- Disposable recovery `startStage:visuals`; research/script/scenes provider call count 0, visual planning 1, image generation 6 ve animation admission yalnız successful terminal settlement sonrasında açıldı.
+- Sprint 129.17 55, Sprint 129.15 29, Sprint 129.13 42, Sprint 129.11 27, Sprint 129.9 42, Sprint 129.7 30, Sprint 129.5 24, Sprint 128.2 30 ve visual asset wiring 54 senaryo PASS.
+- Sprint 126 readiness acceptance, production worker ve durable recovery/bootstrap/wiring PASS; TypeScript ve hedefli ESLint PASS; user-scope production environment ile readiness 27/27 READY.
+- Gerçek resume/execute/provider generation/video/YouTube upload/publish yapılmadı. Canonical runtime byte-for-byte korundu; aynı slug, package-only, `productionReady:false`, `published:false` devam eder.
+- Sprint 129 Completed değildir; commit veya push yapılmadı.
+
+Sprint 129.17 kaydı:
+
+Sprint 129.16 canonical resume aynı slug üzerinde research'i yeniden çalıştırmadan script retry'ını başarıyla tamamladı. `script.json` 6 chapter, 90 saniye ve application-owned canonical UTC timestamp ile write-once persist edildi; script durable attempt/record succeeded, claim ve lease released oldu. Ardından scenes provider çağrısı `finish_reason:stop`, `refusal:false`, complete ve non-truncated; 1659 prompt, 1039 completion, 2698 total token ve 3562 karakter response üretti. Strict scenes doğrulaması generic `GENERATION_FALLBACK_BLOCKED` ile kapandı; scenes artifact ve downstream output oluşmadı.
+
+Sprint 129.17 canonical scenes provider sözleşmesini mevcut gerçek alanlarla kesinleştirdi: top-level yalnız `scenes`; her item tam olarak `id`, `chapterId`, `title`, `description`, `visualPrompt`, `duration`. `createdAt` provider alanı değildir ve gönderilirse `$.createdAt / UNKNOWN_FIELD`; başarılı validation sonrası research/script ile aynı merkezi `CanonicalTimestamp` primitive'i trusted RFC 3339 UTC timestamp ekler. Extra field, type, length, item count, ID uniqueness/order, chapter reference/order/coverage ve per-chapter/total duration ihlalleri en fazla 8 adet bounded exact path/reason evidence üretir.
+
+Schema-invalid scenes artık generic fallback'e çevrilmez; `AI_RESPONSE_SCHEMA_INVALID` evidence job, manifest, history ve durable worker serialization katmanlarında korunur. Empty/legacy fallback gerçek `GENERATION_FALLBACK_BLOCKED` olarak kalır. Scenes persistence write-once: exact replay write-free, ilk timestamp korunur ve farklı artifact overwrite edilemez. Gerçek response non-truncated ve 1039 completion token olduğundan scenes-specific token budget eklenmedi; mevcut global budget ve prepared marker fingerprint uyumluluğu korundu.
+
+Sprint 129.17 doğrulamaları:
+
+- Scenes schema, timestamp, telemetry, recovery, persistence, settlement ve runtime immutability smoke PASS — 61.
+- Disposable canonical snapshot recovery `startStage:scenes`; research/script provider call count 0, scenes mock provider call count 1, visuals admission yalnız successful durable settlement sonrasında açıldı.
+- Sprint 129.15 smoke 29, Sprint 129.13 smoke 42, Sprint 129.11 smoke 27, Sprint 129.9 smoke 42, Sprint 129.7 smoke 30, Sprint 129.5 smoke 24 ve Sprint 128.2 smoke 30 PASS.
+- Sprint 126 readiness acceptance, production worker ve durable recovery/bootstrap/wiring PASS; TypeScript ve hedefli ESLint PASS; production readiness 27/27 READY.
+- Gerçek resume/execute/provider generation/video/YouTube upload/publish yapılmadı. Canonical runtime byte-for-byte korundu; aynı slug, package-only, `productionReady:false` ve `published:false` devam eder.
+- Sprint 129 Completed değildir; commit veya push yapılmadı.
+
+Sprint 129.15 kaydı:
+
+Üçüncü kontrollü production resume aynı canonical slug üzerinde research'i yeniden çalıştırmadan script aşamasına ulaştı. Provider cevabı `finish_reason:stop`, `refusal:false`, complete ve non-truncated oldu; 541 prompt, 1893 completion, 2434 total token ve 6639 karakter response telemetrisi kaydedildi. Tek schema uyuşmazlığı `$.createdAt` alanında `WRONG_TYPE` idi. Script artifact oluşmadı, downstream başlamadı ve recovery başlangıcı `script` olarak kaldı.
+
+Önceki script truncation problemi Sprint 129.13 token bütçesiyle kapanmıştır; güncel gerçek provider cevabı terminal olarak complete ve non-truncated olup kalan sorun yalnız timestamp ownership sözleşmesiydi.
+
+Sprint 129.15 ile research ve script için tek merkezi canonical UTC timestamp helper'ı kullanılır. Script provider sözleşmesi artık `createdAt` alanını içermez; provider bu alanı gönderirse `UNKNOWN_FIELD` ile fail-closed reddedilir. Provider cevabı doğrulandıktan sonra uygulama trusted timestamp'i ekler. Geçersiz veya hata atan uygulama saati `AI_APPLICATION_TIMESTAMP_INVALID` olarak schema invalid'den ayrı kapanır. Raw provider fingerprint ve acceptance request fingerprint timestamp enrichment'tan etkilenmez.
+
+Script artifact persistence write-once hale getirildi. İlk başarılı artifact içindeki timestamp korunur; exact replay write-free kalır, aynı içeriği yeniden yazmaz ve farklı timestamp/content mevcut artifact'i overwrite edemez. Disposable OS temp production snapshot üzerinde failed script reconciliation, tek retry/tek mock provider admission, research call count sıfır, script success sonrası scenes progression ve durable claim/record/lease terminal settlement doğrulandı.
+
+Sprint 129.15 doğrulamaları:
+
+- Application-owned timestamp, exact schema evidence, invalid clock, fingerprint, recovery, replay, persistence ve runtime immutability smoke PASS — 29.
+- Sprint 129.13 smoke 42, Sprint 129.11 smoke 27, Sprint 129.9 smoke 42, Sprint 129.7 smoke 30, Sprint 129.5 smoke 24 ve Sprint 128.2 smoke 30 senaryo PASS.
+- Sprint 126 readiness acceptance, production worker ve durable recovery/bootstrap/wiring regresyonları PASS; production environment kullanıcı kapsamından aynı sürece güvenli biçimde bağlanınca readiness 27/27 READY.
+- TypeScript ve hedefli ESLint PASS.
+- Gerçek resume/execute/provider generation/video/YouTube upload/publish yapılmadı. Canonical runtime byte-for-byte korundu; aynı slug, package-only, `productionReady:false` ve `published:false` devam eder.
+- Sprint 129 Completed değildir; commit veya push yapılmadı.
+
+Sprint 129.13 kaydı:
+
+Research production'da canonical schema ile başarıyla tamamlandı. Ardından script provider çağrısı 393 prompt, 1200 completion ve 1593 total token seviyesinde `finish_reason:length`, `truncated:true` ile kapandı; recovery başlangıcı artık aynı slug üzerinde `script` aşamasıdır ve research yeniden çalıştırılmayacaktır.
+
+Sprint 129.13 ile yalnız script aşamasını etkileyen `OPENAI_SCRIPT_MAX_TOKENS` eklendi: default 3200, bounded 2000–4800. Strict integer/range kontrolü readiness'i fail-closed kapatır. Explicit değer acceptance configuration fingerprint'e katılır; unset davranış mevcut prepared marker fingerprint'ini korur. Script prompt ve parser exact top-level/nested keys, 4–7 chapter, bounded string/array alanları, positive integer süre/kimlikler, unique chapter id, canonical timestamp, extra-field yasağı ve JSON-only sözleşmesinde hizalandı.
+
+`AI_RESPONSE_TRUNCATED` artık strict fallback hatasına çevrilmeden job, manifest, history ve durable attempt journal katmanlarında korunur. Başarılı worker attempt sonrasında mevcut durable primitive'ler sırasıyla claim release, canonical `reserved → prepared → queued → running → succeeded` idempotency geçişleri ve lease release uygular. Önceden başarıyla tamamlanmış fakat active/reserved kalmış terminal attempt'ler, sonraki stage admission öncesinde providersız canonical reconciliation ile kapatılır. Settlement tamamlanmadan downstream admission açılmaz; CAS/partial failure fail-closed, exact terminal replay write-free kalır.
+
+Sprint 129.13 doğrulamaları:
+
+- Script budget, schema, truncation propagation, legacy-success reconciliation, terminal settlement, concurrency/CAS ve production snapshot recovery matrisi PASS — 42.
+- Sprint 129.11 smoke 27, Sprint 129.9 smoke 42, Sprint 129.7 smoke 30, Sprint 129.5 smoke 24, Sprint 128.2 smoke 30 ve hedef worker/retry/recovery regresyonları PASS.
+- TypeScript ve hedefli ESLint PASS.
+- Codex shell production environment taşımadığı için readiness komutu `ready:false` / configuration `NOT_CONFIGURED` döndürdü; production resume öncesi aynı bağlı environment'ta 27/27 READY yeniden doğrulanmalıdır.
+- Gerçek resume/execute/provider generation/video/YouTube publish yapılmadı. Acceptance runtime byte-for-byte korundu; `productionReady:false`, `published:false`, package-only ve aynı slug korundu.
+- Sprint 129 Completed değildir; commit veya push yapılmadı.
+
+Sprint 129.11 kaydı:
+
+İkinci ücretli research çağrısı `finish_reason:stop`, `refusal:false`, complete ve non-truncated olmasına rağmen `AI_RESPONSE_SCHEMA_INVALID` ile fail-closed kapandı. Raw provider response kalıcı runtime içinde saklanmadığı için kesin alan farkı geriye dönük olarak çıkarılamadı ve tahmin edilmedi. Sprint 129.11 canonical research sözleşmesini deklaratif field/limit tanımlarıyla prompt ve validator arasında birebir hizaladı; schema invalid sonuçlar artık field value veya raw response taşımadan en fazla 8 adet exact JSON path, reason, expected contract ve observed type issue'su üretir. Aynı bounded evidence error, manifest, job, history ve durable attempt katmanlarında korunur.
+
+Sprint 129.11 doğrulamaları:
+
+- Production-benzeri 1600+ completion-token telemetrili büyük fixture dahil research schema compatibility smoke PASS — 27.
+- Sprint 129.9 smoke 42, Sprint 129.7 smoke 30, Sprint 129.5 smoke 24 ve Sprint 128.2 smoke 30 senaryo PASS.
+- Sprint 126 readiness acceptance, production execution worker, retry/continuation, retry persistence, durable recovery ve recovery bootstrap regresyonları PASS.
+- TypeScript ve hedefli ESLint PASS; production readiness 27/27 READY.
+- Üçüncü ücretli provider çağrısı, resume, execute, video üretimi veya publish yapılmadı.
+- Canonical runtime korundu; `productionReady:false`, `published:false`, package-only ve aynı slug üzerindeki research-only recovery planı devam eder.
+- Sprint 129 Completed değildir.
+
+Sprint 129.9 kaydı:
+
+İlk canonical production resume, provider çağrısı veya runtime mutation oluşturmadan `PRODUCTION_ACCEPTANCE_EXECUTION_FAILED` ile kapandı. Recovery planner `research` seçerken queue scheduler failed job için manual retry istediği için resume merkezi retry preparation yoluna ulaşmıyordu. Sprint 129.9 resume ve manual retry'ı aynı failed-stage preparation primitive'ine bağladı; eski terminal attempt immutable tutulurken active lease release, active claim abandon ve reserved idempotency record forward reconciliation ile kapatılır. Job yalnız reconciliation tamamlandıktan sonra CAS kontrollü `failed → queued` geçer ve artan attempt sayısından yeni deterministik execution kimliği türetilir.
+
+Sprint 129.9 doğrulamaları:
+
+- Failed-stage resume/reconciliation smoke PASS — 42.
+- Sprint 129.5 smoke 24, Sprint 129.7 smoke 30 ve Sprint 128.2 smoke 30 senaryo PASS.
+- Sprint 126 readiness acceptance, production execution worker, retry/continuation, retry persistence, durable recovery ve recovery bootstrap regresyonları PASS.
+- TypeScript ve hedefli ESLint PASS.
+- Testler production acceptance snapshot'ının yalnız OS temp kopyasını değiştirdi; gerçek canonical runtime byte-for-byte aynı kaldı.
+- CLI terminal failure sonrasında explicit worker lifecycle shutdown uygulanır; bounded failure smoke exit code `2` ile doğal kapandı ve watchdog timeout oluşmadı.
+- Aynı slug üzerindeki sonraki gerçek resume henüz çalıştırılmadı. Sprint 129 Completed değildir; `productionReady:false`, `published:false` ve package-only korunur.
+
+Sprint 129.7 kaydı:
+
+- Research prompt/validator sözleşmesi trusted application timestamp ile hizalandı; finish reason/refusal/usage telemetrisi normalize edildi, truncation/parse/schema/provider/persistence hataları stabil kodlarla ayrıldı ve research için bounded 3200 default, 1600–6000 range token bütçesi eklendi.
+
+Sprint 128.2 kaydı:
 
 - Completed acceptance replay artık completed recovery planında `PipelineRunner.resume()` çağırmadan marker, strict state, FFprobe, job ve registry doğrulamalarını yeniden çalıştırır; marker transition idempotent ve `published:false` kalır.
 - Strict marker taşıyan resume, scenes sonrasındaki bir aşamadan devam edecekse script/scene preflight'ini `PipelineRunner.resume()` sınırında yeniden uygular. Assembly çağrısı explicit strict policy taşır; legacy mapping strict acceptance içinde devreye giremez.
@@ -103,11 +201,11 @@ main
 
 Son Commit
 
-7a10970
+f21fc24
 
 Durum
 
-Sprint 128.2 tamamlandı ve dokümantasyon kapanışı hazırlandı; commit/push yapılmayacaktır. Sonraki adım production environment binding ve readiness-only gerçek makine doğrulamasıdır. Readiness tamamen `READY` olmadan ücretli acceptance run ve gerçek YouTube publish yapılmayacaktır.
+Sprint 129.7 Ready for Safe Resume durumundadır. İlk ücretli execute research aşamasında fail-closed durmuş; aynı slug korunarak structured-output reliability hardening tamamlanmış, marker/fingerprint ve research-only resume planı doğrulanmıştır. Gerçek YouTube publish yapılmamış ve Sprint 129 tamamlanmamıştır.
 
 ---
 
@@ -597,19 +695,17 @@ Başarılı.
 
 ---
 
-# Bir Sonraki Görev
+# Aktif Görev
 
-Planning
+Ready for Execution
 
-Production Environment Binding and Readiness-Only Machine Validation.
+Sprint 129.5 — Production Acceptance Topic Input Contract.
 
-- Production environment değerlerini secret'ları repository'ye yazmadan gerçek işletim ortamına bağlamak.
-- FFmpeg/FFprobe yollarını ve AI, image, audio, animation, video, assembly, thumbnail ile publish-package provider seçimlerini doğrulamak.
-- Model, endpoint, API key ve diğer runtime yapılandırmalarını işletim ortamına bağlamak.
-- `NOT_CONFIGURED` ve `BLOCKED` readiness sonuçlarını gerçek `READY` durumuna taşımak.
-- Readiness tamamen geçmeden ücretli acceptance run başlatmamak ve gerçek YouTube publish yapmamak.
-- `npm run production:acceptance:readiness` ile gerçek makinede readiness-only raporunu almak.
-- Yeni provider veya pipeline geliştirmek yerine ilk acceptance run öncesi son production configuration/readiness geçişini tamamlamak.
+- Execute CLI zorunlu `--confirm-production-acceptance` ve `--topic=<topic>` alır; eksik, boş, duplicate, kontrol karakterli, kısa/uzun veya unknown argümanlı istekler stabil kodlarla reddedilir.
+- Marker schema v2 canonical topic, topic fingerprint ve canonical request fingerprint taşır.
+- Slug topic + runId üzerinden deterministik kalır; resume topic'i marker'dan okur ve CLI topic argümanını reddeder.
+- Package-only, strict fail-closed, replay/resume idempotency ve `published:false` korunur.
+- Production readiness 27/27 `READY` durumundadır; ilk ücretli acceptance run henüz başlatılmamıştır.
 
 ---
 

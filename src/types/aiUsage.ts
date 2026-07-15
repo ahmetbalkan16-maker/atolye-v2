@@ -30,11 +30,16 @@ export interface AIUsageRecord {
   durationMs: number;
   promptLength: number;
   responseLength?: number;
+  finishReason?: "stop" | "length" | "content-filter" | "tool-calls" | "unknown";
+  refused?: boolean;
+  responseComplete?: boolean;
+  truncated?: boolean;
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
   estimatedCost?: number;
   error?: string;
+  errorCode?: string;
   createdAt: string;
 }
 

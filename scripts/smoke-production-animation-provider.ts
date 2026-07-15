@@ -681,7 +681,7 @@ async function main() {
       PipelineRunner.run = async (...args: Parameters<typeof PipelineRunner.run>) => { calls += 1; return originalRun(...args); };
       process.env.ANIMATION_PROVIDER = "mock";
       try {
-        await assert.rejects(() => ProductionAcceptanceOrchestrator.run(), (error) => error instanceof ProductionAcceptanceBlockedError);
+        await assert.rejects(() => ProductionAcceptanceOrchestrator.run({ topic: "Animation readiness acceptance" }), (error) => error instanceof ProductionAcceptanceBlockedError);
         assert.equal(calls, 0);
       } finally {
         PipelineRunner.run = originalRun;

@@ -55,6 +55,7 @@ export interface ProjectPackageManifest {
   completedAt?: string;
   durationMs?: number;
   error?: string;
+  errorEvidence?: AIResponseSchemaEvidence;
   attempts?: ProjectPackageAttemptMetadata;
   usage?: ProjectPackageUsage;
 }
@@ -92,3 +93,4 @@ export interface ProjectManifest {
   createdAt: string;
   updatedAt: string;
 }
+import type { AIResponseSchemaEvidence } from "./aiResponse";

@@ -35,9 +35,12 @@ import { VideoStorage } from "@/lib/assets/storage/VideoStorage";
 import { ThumbnailStorage } from "@/lib/thumbnail/ThumbnailStorage";
 import type { Asset } from "@/types/asset";
 import type { ThumbnailMimeType } from "@/types/thumbnail";
+import {
+  createProductionAcceptanceProjectSlug,
+  normalizeProductionAcceptanceTopic,
+} from "./ProductionAcceptanceTopic";
 
 export const productionAcceptanceProject = Object.freeze({
-  topic: "Sprint 126 Production Acceptance: 90 saniyelik deterministik Istanbul silueti belgeseli",
   minimumDurationSeconds: 60,
   targetDurationSeconds: 90,
   maximumDurationSeconds: 120,
@@ -68,6 +71,10 @@ export interface ProductionAcceptanceResult {
   readonly completion: ProductionAcceptanceCompletionReport;
 }
 
+export interface ProductionAcceptanceRequest {
+  readonly topic: string;
+}
+
 export class ProductionAcceptanceBlockedError extends Error {
   readonly code = "PRODUCTION_ACCEPTANCE_READINESS_BLOCKED";
   readonly productionReady = false;
@@ -83,7 +90,10 @@ export class ProductionAcceptanceExecutionError extends Error {
   readonly code = "PRODUCTION_ACCEPTANCE_EXECUTION_FAILED";
   readonly productionReady = false;
 
-  constructor(readonly projectSlug?: string) {
+  constructor(
+    readonly projectSlug?: string,
+    readonly reasonCode?: string,
+  ) {
     super("Production acceptance execution failed.");
     this.name = "ProductionAcceptanceExecutionError";
     this.stack = undefined;
@@ -102,7 +112,8 @@ export class ProductionAcceptanceConfigurationChangedError extends Error {
 }
 
 export class ProductionAcceptanceOrchestrator {
-  static async run(): Promise<ProductionAcceptanceResult> {
+  static async run(request: ProductionAcceptanceRequest): Promise<ProductionAcceptanceResult> {
+    const topic = normalizeProductionAcceptanceTopic(request.topic);
     const runId = crypto.randomUUID();
     const configurationFingerprint = productionAcceptanceConfigurationFingerprint();
     const readiness = await this.evaluateReadiness();
@@ -111,13 +122,13 @@ export class ProductionAcceptanceOrchestrator {
       throw new ProductionAcceptanceConfigurationChangedError();
     }
 
-    const runTopic = `${productionAcceptanceProject.topic} ${runId}`;
-    const runSlug = ProjectManager.createSlug(runTopic);
+    const runTopic = `${topic} ${runId}`;
+    const runSlug = createProductionAcceptanceProjectSlug(topic, runId);
     if (await ProjectManager.getProject(runSlug)) {
       throw new ProductionAcceptanceExecutionError();
     }
     try {
-      await createProductionAcceptanceMarker(runSlug, runId, configurationFingerprint);
+      await createProductionAcceptanceMarker(runSlug, runId, configurationFingerprint, topic);
     } catch {
       throw new ProductionAcceptanceExecutionError();
     }
@@ -159,7 +170,7 @@ export class ProductionAcceptanceOrchestrator {
     const project = await ProjectManager.getProject(projectSlug);
     if (
       !project || project.slug !== projectSlug || marker.published !== false ||
-      ProjectManager.createSlug(`${productionAcceptanceProject.topic} ${marker.runId}`) !== projectSlug
+      createProductionAcceptanceProjectSlug(marker.topic, marker.runId) !== projectSlug
     ) {
       throw new ProductionAcceptanceExecutionError(projectSlug);
     }
@@ -190,7 +201,7 @@ export class ProductionAcceptanceOrchestrator {
     const render = assembly?.render;
     if (
       !project || project.slug !== projectSlug ||
-      ProjectManager.createSlug(`${productionAcceptanceProject.topic} ${marker.runId}`) !== projectSlug ||
+      createProductionAcceptanceProjectSlug(marker.topic, marker.runId) !== projectSlug ||
       render?.status !== "rendered" || !assembly?.outputAssetId ||
       !thumbnail?.outputAssetId || youtube?.status !== "generated" || !render.filePath
     ) throw new ProductionAcceptanceExecutionError(projectSlug);
@@ -281,12 +292,16 @@ export function requiresProductionAcceptanceResume(
 export async function resumeProductionAcceptanceIfNeeded(
   plan: { readonly blocked: boolean; readonly startStage: string | null },
   projectSlug: string,
-  resume: () => Promise<{ readonly success: boolean; readonly blocked: boolean }>,
+  resume: () => Promise<{
+    readonly success: boolean;
+    readonly blocked: boolean;
+    readonly reasonCode?: string;
+  }>,
 ) {
   if (!requiresProductionAcceptanceResume(plan, projectSlug)) return;
   const result = await resume();
   if (!result.success || result.blocked) {
-    throw new ProductionAcceptanceExecutionError(projectSlug);
+    throw new ProductionAcceptanceExecutionError(projectSlug, result.reasonCode);
   }
 }
 

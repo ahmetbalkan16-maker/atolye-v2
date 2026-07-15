@@ -12,10 +12,17 @@ export interface ChatCompletionCreateParams {
 
 export interface ChatCompletionResponse {
   choices: Array<{
+    finish_reason?: string | null;
     message?: {
       content?: string | null;
+      refusal?: string | null;
     };
   }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
 }
 
 async function createChatCompletion(

@@ -45,6 +45,7 @@ const projectsRoot = path.join(process.cwd(), "data", "projects");
 const originalImageProvider = process.env.IMAGE_PROVIDER;
 const originalOpenAIKey = process.env.OPENAI_API_KEY;
 const now = "2026-07-13T12:00:00.000Z";
+const validPngBytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 let scenarioCount = 0;
 
 const visualData: VisualData = {
@@ -90,9 +91,13 @@ type PipelineRunnerInternals = {
 const runner = PipelineRunner as unknown as PipelineRunnerInternals;
 
 async function scenario(name: string, test: () => void | Promise<void>) {
-  await test();
+  try {
+    await test();
+  } catch (error) {
+    console.error(`Visual asset wiring scenario failed: ${name}`);
+    throw error;
+  }
   scenarioCount += 1;
-  void name;
 }
 
 function setImageProvider(value: string | undefined) {
@@ -436,7 +441,7 @@ async function main() {
           JSON.stringify({
             data: [
               {
-                b64_json: Buffer.from("sprint-113-image-bytes").toString("base64"),
+                b64_json: validPngBytes.toString("base64"),
               },
             ],
           }),
@@ -469,10 +474,7 @@ async function main() {
           );
           const absoluteFilePath = path.join(process.cwd(), asset.filePath ?? "");
           writtenFiles.push(absoluteFilePath);
-          assert.equal(
-            await fs.readFile(absoluteFilePath, "utf8"),
-            "sprint-113-image-bytes",
-          );
+          assert.deepEqual(await fs.readFile(absoluteFilePath), validPngBytes);
         }
 
         const persisted = await readAssets(slug);
@@ -531,6 +533,7 @@ async function main() {
         success: true,
         sceneId: input.sceneId,
         provider: "openai",
+        filePath: `data/projects/${input.projectSlug}/assets/images/scene-${input.sceneId}.jpg`,
         url: `https://images.example.test/${input.sceneId}.png`,
         mimeType: "image/jpeg",
         createdAt: now,

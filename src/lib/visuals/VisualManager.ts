@@ -1,4 +1,7 @@
 import { runObservedAIRequest } from "@/lib/ai/runObservedAIRequest";
+import { AIResponseError } from "@/lib/ai/AIResponseError";
+import { ApplicationTimestampError } from "@/lib/ai/CanonicalTimestamp";
+import { createVisualPlanPrompt, parseStrictVisualPlanResponse } from "@/lib/ai/VisualStructuredOutput";
 import { failClosedOrReturn, type GenerationExecutionPolicy } from "@/lib/ai/GenerationExecutionPolicy";
 import type { AIProvider } from "@/lib/ai/providers";
 import {
@@ -40,7 +43,9 @@ export class VisualManager {
     generationPolicy,
   }: VisualManagerInput): Promise<VisualData> {
     const fallback = this.createFallbackVisualData(scenes, style, projectId);
-    const prompt = VisualPromptEngine.createPrompt(scenes, style);
+    const prompt = generationPolicy?.failClosed
+      ? createVisualPlanPrompt(scenes, style)
+      : VisualPromptEngine.createPrompt(scenes, style);
 
     try {
       const { response } = await runObservedAIRequest({
@@ -59,11 +64,16 @@ export class VisualManager {
         return failClosedOrReturn(fallback, generationPolicy);
       }
 
+      if (generationPolicy?.failClosed) {
+        const plan = parseStrictVisualPlanResponse(response, scenes);
+        return {
+          ...plan,
+          projectId: projectId ?? "visual-project",
+          prompts: this.toLegacyPrompts(plan.scenes, scenes.scenes, plan.createdAt),
+          generatedAt: plan.createdAt,
+        };
+      }
       const parsed = parseAIJsonResponse<Partial<VisualData>>(response);
-      if (
-        generationPolicy?.failClosed &&
-        !isStrictVisualResponse(parsed, scenes.scenes.length)
-      ) throw new Error("invalid");
       const visualScenes = this.mapVisualScenes(parsed.scenes, scenes.scenes, style);
       const thumbnail = this.mapThumbnail(parsed.thumbnail, fallback.thumbnail);
       const createdAt = getCreatedAt(parsed.createdAt, fallback.createdAt);
@@ -77,6 +87,10 @@ export class VisualManager {
         generatedAt: createdAt,
       };
     } catch (error) {
+      if (
+        generationPolicy?.failClosed &&
+        (error instanceof AIResponseError || error instanceof ApplicationTimestampError)
+      ) throw error;
       if (generationPolicy?.failClosed) return failClosedOrReturn(fallback, generationPolicy);
       console.error("[VisualManager] Falling back to local visual prompts:", error);
       return failClosedOrReturn(fallback, generationPolicy);
@@ -183,21 +197,4 @@ export class VisualManager {
     }));
   }
 
-}
-
-function isStrictVisualResponse(value: Partial<VisualData>, expectedSceneCount: number) {
-  const thumbnail = value.thumbnail as Partial<ThumbnailConcept> | undefined;
-  return Array.isArray(value.scenes) && value.scenes.length === expectedSceneCount &&
-    value.scenes.every((scene) => typeof scene?.sceneId === "number" &&
-      [scene.visualPrompt, scene.animationPrompt, scene.style].every((item) => typeof item === "string" && item.trim())) &&
-    Boolean(thumbnail) &&
-    [thumbnail?.title, thumbnail?.prompt, thumbnail?.composition, thumbnail?.mood]
-      .every((item) => typeof item === "string" && item.trim()) &&
-    validTimestamp(value.createdAt);
-}
-
-function validTimestamp(value: unknown) {
-  if (typeof value !== "string") return false;
-  const timestamp = Date.parse(value);
-  return Number.isFinite(timestamp) && new Date(timestamp).toISOString() === value;
 }

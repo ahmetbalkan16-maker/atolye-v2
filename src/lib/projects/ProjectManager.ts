@@ -2,6 +2,8 @@ import { ProjectWriter } from "./ProjectWriter";
 import { ProjectReader } from "./ProjectReader";
 import { validateYouTubePublishingPackage } from "@/lib/youtube/YouTubePackageValidation";
 import { validateYouTubePublishRecord } from "@/lib/youtube/publish/YouTubePublishValidation";
+import { isAIResponseSchemaEvidence } from "@/lib/ai/AIResponseError";
+import type { AIResponseSchemaEvidence } from "@/types/aiResponse";
 import type {
   PackageStatus,
   ProductionStepKey,
@@ -16,7 +18,38 @@ import type {
 
 type UpdatePackageStatusOptions = {
   runType?: ProjectPackageRunType;
+  errorEvidence?: AIResponseSchemaEvidence;
 };
+
+export class ScriptArtifactConflictError extends Error {
+  readonly code = "SCRIPT_ARTIFACT_CONFLICT";
+
+  constructor() {
+    super("Persisted script artifact conflicts with the proposed artifact.");
+    this.name = "ScriptArtifactConflictError";
+    this.stack = undefined;
+  }
+}
+
+export class ScenesArtifactConflictError extends Error {
+  readonly code = "SCENES_ARTIFACT_CONFLICT";
+
+  constructor() {
+    super("Persisted scenes artifact conflicts with the proposed artifact.");
+    this.name = "ScenesArtifactConflictError";
+    this.stack = undefined;
+  }
+}
+
+export class VisualsArtifactConflictError extends Error {
+  readonly code = "VISUALS_ARTIFACT_CONFLICT";
+
+  constructor() {
+    super("Persisted visuals artifact conflicts with the proposed artifact.");
+    this.name = "VisualsArtifactConflictError";
+    this.stack = undefined;
+  }
+}
 
 export class ProjectManager {
   private static readonly packageFiles: Record<ProductionStepKey, string> = {
@@ -194,6 +227,7 @@ export class ProjectManager {
               : undefined,
           attempts,
           usage: currentPackage.usage,
+          errorEvidence: options?.errorEvidence,
         },
       },
       updatedAt: now,
@@ -241,18 +275,65 @@ export class ProjectManager {
   }
 
   static async saveScript(slug: string, script: unknown) {
-    await ProjectWriter.writeJSON(slug, "script.json", script);
+    const existing = await ProjectReader.readJSON<unknown>(slug, "script.json");
+    if (existing !== null) {
+      if (JSON.stringify(existing) !== JSON.stringify(script)) {
+        throw new ScriptArtifactConflictError();
+      }
+      return;
+    }
+    try {
+      await ProjectWriter.writeJSONOnce(slug, "script.json", script);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      const raced = await ProjectReader.readJSON<unknown>(slug, "script.json");
+      if (JSON.stringify(raced) !== JSON.stringify(script)) {
+        throw new ScriptArtifactConflictError();
+      }
+      return;
+    }
     await this.updatePackageStatus(slug, "script", "completed");
   }
 
   static async saveScenes(slug: string, scenes: unknown) {
-    await ProjectWriter.writeJSON(slug, "scenes.json", scenes);
+    const existing = await ProjectReader.readJSON<unknown>(slug, "scenes.json");
+    if (existing !== null) {
+      if (JSON.stringify(existing) !== JSON.stringify(scenes)) {
+        throw new ScenesArtifactConflictError();
+      }
+      return;
+    }
+    try {
+      await ProjectWriter.writeJSONOnce(slug, "scenes.json", scenes);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      const raced = await ProjectReader.readJSON<unknown>(slug, "scenes.json");
+      if (JSON.stringify(raced) !== JSON.stringify(scenes)) {
+        throw new ScenesArtifactConflictError();
+      }
+      return;
+    }
     await this.updatePackageStatus(slug, "scenes", "completed");
   }
 
   static async saveVisuals(slug: string, visuals: unknown) {
-    await ProjectWriter.writeJSON(slug, "visuals.json", visuals);
+    await this.persistVisualsArtifact(slug, visuals);
     await this.updatePackageStatus(slug, "visuals", "completed");
+  }
+
+  static async persistVisualsArtifact(slug: string, visuals: unknown) {
+    const existing = await ProjectReader.readJSON<unknown>(slug, "visuals.json");
+    if (existing !== null) {
+      if (JSON.stringify(existing) !== JSON.stringify(visuals)) throw new VisualsArtifactConflictError();
+      return;
+    }
+    try {
+      await ProjectWriter.writeJSONOnce(slug, "visuals.json", visuals);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      const raced = await ProjectReader.readJSON<unknown>(slug, "visuals.json");
+      if (JSON.stringify(raced) !== JSON.stringify(visuals)) throw new VisualsArtifactConflictError();
+    }
   }
 
   static async saveAnimation(slug: string, animation: unknown) {
@@ -555,6 +636,9 @@ export class ProjectManager {
               ? packageValue.durationMs
               : undefined;
           const usage = this.normalizePackageUsage(packageValue.usage);
+          const errorEvidence = isAIResponseSchemaEvidence(packageValue.errorEvidence)
+            ? packageValue.errorEvidence
+            : undefined;
           const attempts = this.normalizeAttemptMetadata(
             packageValue.attempts,
           );
@@ -566,6 +650,7 @@ export class ProjectManager {
             durationMs,
             attempts,
             usage,
+            errorEvidence,
           };
 
           return acc;

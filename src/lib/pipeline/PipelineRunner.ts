@@ -13,7 +13,9 @@ import {
 import { readProductionAcceptancePolicy } from "@/lib/production/ProductionAcceptancePolicy";
 import { validateProductionAcceptancePreflight } from "@/lib/production/ProductionAcceptancePreflight";
 import { isPipelineStateError } from "./PipelineStateError";
+import { getAIResponseSchemaEvidence } from "@/lib/ai/AIResponseError";
 import type { ProductionPipelineExecutionAdapter } from "@/lib/production/ProductionPipelineExecutionAdapter";
+import { prepareFailedStageRetry } from "./PipelineFailedStageRetry";
 import type {
   ProductionStepKey,
   ProjectPackageRunType,
@@ -133,6 +135,26 @@ export class PipelineRunner {
       };
     }
 
+    const startJob = await PipelineJobManager.getJobForStageReadOnly(
+      projectSlug,
+      plan.startStage,
+    );
+    if (startJob?.status === "failed") {
+      const prepared = await prepareFailedStageRetry(projectSlug, startJob.id);
+      if (!prepared.success) {
+        return {
+          success: false,
+          projectSlug,
+          resumedFrom: plan.startStage,
+          completedStages: [],
+          blocked: true,
+          reason: prepared.reason,
+          reasonCode: prepared.reasonCode,
+          plan,
+        };
+      }
+    }
+
     const { completedStages, stopReason } = await this.runScheduledStages(
       projectSlug,
       plan.stagesToRun,
@@ -148,6 +170,7 @@ export class PipelineRunner {
         completedStages,
         blocked: true,
         reason: stopReason,
+        reasonCode: "PIPELINE_RETRY_SCHEDULER_CONFLICT",
         plan,
       };
     }
@@ -199,6 +222,7 @@ export class PipelineRunner {
       completedStages: result.completedStages,
       blocked: result.blocked,
       reason: result.reason,
+      reasonCode: result.reasonCode,
       plan,
     };
   }
@@ -430,10 +454,7 @@ export class PipelineRunner {
       };
     }
 
-    const prepared = await PipelineJobManager.prepareJobRetry(
-      projectSlug,
-      jobId,
-    );
+    const prepared = await prepareFailedStageRetry(projectSlug, jobId);
 
     if (!prepared.success) {
       return {
@@ -444,7 +465,8 @@ export class PipelineRunner {
         retriedStage: stage,
         completedStages: [],
         blocked: true,
-        reason: prepared.error,
+        reason: prepared.reason,
+        reasonCode: prepared.reasonCode,
       };
     }
 
@@ -455,11 +477,12 @@ export class PipelineRunner {
 
     if (scheduled.stage !== stage) {
       try {
-        await PipelineJobManager.compensatePreparedRetry(
+        const compensated = await PipelineJobManager.compensatePreparedRetry(
           projectSlug,
           prepared.previousJob,
           prepared.job,
         );
+        if (!compensated) throw new Error("PIPELINE_RETRY_COMPENSATION_FAILED");
       } catch (error) {
         if (isPipelineStateError(error)) {
           throw error;
@@ -474,6 +497,7 @@ export class PipelineRunner {
           completedStages: [],
           blocked: false,
           reason: "Pipeline retry compensation failed.",
+          reasonCode: "PIPELINE_RETRY_COMPENSATION_FAILED",
           plan,
         };
       }
@@ -487,6 +511,7 @@ export class PipelineRunner {
         completedStages: [],
         blocked: true,
         reason: scheduled.reason || `Stage "${stage}" could not be scheduled.`,
+        reasonCode: "PIPELINE_RETRY_SCHEDULER_CONFLICT",
         plan,
       };
     }
@@ -514,6 +539,7 @@ export class PipelineRunner {
         completedStages: [],
         blocked: false,
         reason: "Pipeline retry execution failed.",
+        reasonCode: retryExecutionReasonCode(error),
         plan,
       };
     }
@@ -528,6 +554,7 @@ export class PipelineRunner {
         completedStages: [],
         blocked: true,
         reason: `Stage "${stage}" was cancelled.`,
+        reasonCode: "PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED",
         plan,
       };
     }
@@ -671,6 +698,7 @@ export class PipelineRunner {
 
       const message =
         error instanceof Error ? error.message : "Pipeline stage failed.";
+      const errorEvidence = getAIResponseSchemaEvidence(error);
 
       await PipelineJobManager.persistStageFailure(
         slug,
@@ -681,9 +709,11 @@ export class PipelineRunner {
             stage,
             "failed",
             message,
+            { errorEvidence },
           );
         },
         message,
+        errorEvidence,
       );
       console.error("[PipelineRunner] Stage failed:", {
         slug,
@@ -741,6 +771,13 @@ export interface PipelineContinuationDispatchResult {
 
 interface PipelineContinuationAdmission {
   execute<T>(operation: () => T | Promise<T>): Promise<T>;
+}
+
+function retryExecutionReasonCode(error: unknown) {
+  const candidate = error as { reasonCode?: unknown };
+  return typeof candidate?.reasonCode === "string" && /^[A-Z0-9_]{1,100}$/.test(candidate.reasonCode)
+    ? candidate.reasonCode
+    : "PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED";
 }
 
 function getRetryStageFromJobId(

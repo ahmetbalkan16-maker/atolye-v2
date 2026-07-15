@@ -1,0 +1,170 @@
+{
+  "project": {
+    "id": "1ba3bebf-abe9-4b3c-9b4a-b9d238b98534",
+    "slug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+    "title": "Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+    "status": "visuals",
+    "createdAt": "2026-07-15T12:05:09.729Z",
+    "updatedAt": "2026-07-15T14:55:58.841Z"
+  },
+  "projectId": "1ba3bebf-abe9-4b3c-9b4a-b9d238b98534",
+  "slug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+  "version": 1,
+  "packages": {
+    "research": {
+      "key": "research",
+      "status": "completed",
+      "fileName": "research.json",
+      "updatedAt": "2026-07-15T13:35:42.059Z",
+      "startedAt": "2026-07-15T13:35:05.121Z",
+      "completedAt": "2026-07-15T13:35:42.059Z",
+      "durationMs": 36938,
+      "attempts": {
+        "total": 3,
+        "retry": 0,
+        "lastAttemptAt": "2026-07-15T13:35:05.121Z",
+        "lastRunType": "resume"
+      },
+      "usage": {
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "operation": "research",
+        "status": "success",
+        "fallbackUsed": false,
+        "requestCount": 3,
+        "durationMs": 36912,
+        "promptTokens": 782,
+        "completionTokens": 2355,
+        "totalTokens": 3137,
+        "updatedAt": "2026-07-15T13:35:42.053Z"
+      }
+    },
+    "script": {
+      "key": "script",
+      "status": "completed",
+      "fileName": "script.json",
+      "updatedAt": "2026-07-15T14:31:53.973Z",
+      "startedAt": "2026-07-15T14:31:19.985Z",
+      "completedAt": "2026-07-15T14:31:53.973Z",
+      "durationMs": 33988,
+      "attempts": {
+        "total": 3,
+        "retry": 0,
+        "lastAttemptAt": "2026-07-15T14:31:19.985Z",
+        "lastRunType": "resume"
+      },
+      "usage": {
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "operation": "script",
+        "status": "success",
+        "fallbackUsed": false,
+        "requestCount": 3,
+        "durationMs": 33952,
+        "promptTokens": 535,
+        "completionTokens": 1842,
+        "totalTokens": 2377,
+        "updatedAt": "2026-07-15T14:31:53.948Z"
+      }
+    },
+    "scenes": {
+      "key": "scenes",
+      "status": "completed",
+      "fileName": "scenes.json",
+      "updatedAt": "2026-07-15T14:55:58.746Z",
+      "startedAt": "2026-07-15T14:55:38.174Z",
+      "completedAt": "2026-07-15T14:55:58.746Z",
+      "durationMs": 20572,
+      "attempts": {
+        "total": 2,
+        "retry": 0,
+        "lastAttemptAt": "2026-07-15T14:55:38.174Z",
+        "lastRunType": "resume"
+      },
+      "usage": {
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "operation": "scenes",
+        "status": "success",
+        "fallbackUsed": false,
+        "requestCount": 2,
+        "durationMs": 20519,
+        "promptTokens": 1737,
+        "completionTokens": 1023,
+        "totalTokens": 2760,
+        "updatedAt": "2026-07-15T14:55:58.720Z"
+      }
+    },
+    "visuals": {
+      "key": "visuals",
+      "status": "failed",
+      "fileName": "visuals.json",
+      "updatedAt": "2026-07-15T14:56:04.683Z",
+      "error": "Production generation failed closed.",
+      "startedAt": "2026-07-15T14:55:58.842Z",
+      "completedAt": "2026-07-15T14:56:04.683Z",
+      "durationMs": 5841,
+      "attempts": {
+        "total": 1,
+        "retry": 0,
+        "lastAttemptAt": "2026-07-15T14:55:58.842Z",
+        "lastRunType": "resume"
+      },
+      "usage": {
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "operation": "visuals",
+        "status": "success",
+        "fallbackUsed": false,
+        "requestCount": 1,
+        "durationMs": 5808,
+        "promptTokens": 1135,
+        "completionTokens": 375,
+        "totalTokens": 1510,
+        "updatedAt": "2026-07-15T14:56:04.679Z"
+      }
+    },
+    "animation": {
+      "key": "animation",
+      "status": "pending",
+      "fileName": "animation.json"
+    },
+    "video": {
+      "key": "video",
+      "status": "pending",
+      "fileName": "video.json"
+    },
+    "audio": {
+      "key": "audio",
+      "status": "pending",
+      "fileName": "audio.json"
+    },
+    "assembly": {
+      "key": "assembly",
+      "status": "pending",
+      "fileName": "assembly.json"
+    },
+    "thumbnail": {
+      "key": "thumbnail",
+      "status": "pending",
+      "fileName": "thumbnail.json"
+    },
+    "seo": {
+      "key": "seo",
+      "status": "pending",
+      "fileName": "seo.json"
+    },
+    "youtube": {
+      "key": "youtube",
+      "status": "pending",
+      "fileName": "youtube.json"
+    },
+    "export": {
+      "key": "export",
+      "status": "pending",
+      "fileName": "export.json"
+    }
+  },
+  "createdAt": "2026-07-15T12:05:09.729Z",
+  "updatedAt": "2026-07-15T14:56:04.683Z"
+}

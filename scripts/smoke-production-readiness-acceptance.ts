@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { GenerationFallbackBlockedError, strictGenerationExecutionPolicy } from "../src/lib/ai/GenerationExecutionPolicy";
+import { AIResponseError } from "../src/lib/ai/AIResponseError";
 import { AIManager } from "../src/lib/ai/AIManager";
 import { AIUsageManager } from "../src/lib/ai/AIUsageManager";
 import { PipelineRunner } from "../src/lib/pipeline/PipelineRunner";
@@ -21,6 +22,9 @@ import type { AssemblyPlanData } from "../src/types/assembly";
 import type { SEOData } from "../src/types/seo";
 import type { ThumbnailData } from "../src/types/thumbnail";
 import type { YouTubePublishingPackage } from "../src/types/youtube";
+import {
+  createProductionAcceptanceProjectSlug,
+} from "../src/lib/production/ProductionAcceptanceTopic";
 import {
   createProductionAcceptanceMarker,
   productionAcceptanceConfigurationFingerprint,
@@ -92,14 +96,23 @@ async function verifyStrictAIProviderFailure() {
         { async generate() { throw new Error("sensitive provider detail"); } },
         strictGenerationExecutionPolicy,
       ),
-      (error) => error instanceof GenerationFallbackBlockedError,
+      (error) => error instanceof AIResponseError && error.code === "AI_PROVIDER_REQUEST_FAILED",
     );
     const fixtures = strictPlanFixtures();
     const invalidProvider = { async generate() { return "{}"; } };
-    const strictCalls = [
+    await assert.rejects(
       () => AIManager.runScript("Acceptance", { projectSlug: "acceptance", operation: "script", stage: "script" }, invalidProvider, strictGenerationExecutionPolicy),
+      (error) => error instanceof AIResponseError && error.code === "AI_RESPONSE_SCHEMA_INVALID",
+    );
+    await assert.rejects(
       () => AIManager.runScenes(fixtures.script, { projectSlug: "acceptance", operation: "scenes", stage: "scenes" }, invalidProvider, strictGenerationExecutionPolicy),
+      (error) => error instanceof AIResponseError && error.code === "AI_RESPONSE_SCHEMA_INVALID",
+    );
+    await assert.rejects(
       () => VisualManager.generateVisualData({ projectSlug: "acceptance", scenes: fixtures.scenes, aiProvider: invalidProvider, generationPolicy: strictGenerationExecutionPolicy }),
+      (error) => error instanceof AIResponseError && error.code === "AI_RESPONSE_SCHEMA_INVALID",
+    );
+    const strictCalls = [
       () => AnimationPromptGenerator.generateAnimationData({ projectId: "acceptance", projectSlug: "acceptance", scenes: fixtures.scenes, visuals: fixtures.visuals, aiProvider: { async generate() { return JSON.stringify({ sceneId: 2, animationPrompt: "invalid scene" }); } }, generationPolicy: strictGenerationExecutionPolicy }),
       () => AudioManager.generateAudioData(fixtures.script, { projectSlug: "acceptance", operation: "audio", stage: "audio" }, { aiProvider: invalidProvider, generationPolicy: strictGenerationExecutionPolicy }),
       () => AssemblyManager.generateAssemblyPlan(fixtures.script, fixtures.scenes, fixtures.visuals, fixtures.audio, {}, { projectSlug: "acceptance", operation: "assembly", stage: "assembly" }, { aiProvider: invalidProvider, generationPolicy: strictGenerationExecutionPolicy }),
@@ -115,7 +128,7 @@ async function verifyStrictAIProviderFailure() {
         { async generate() { return "{}"; } },
         strictGenerationExecutionPolicy,
       ),
-      (error) => error instanceof GenerationFallbackBlockedError,
+      (error) => error instanceof AIResponseError && error.code === "AI_RESPONSE_SCHEMA_INVALID",
     );
     assert(!JSON.stringify(logged).includes("sensitive provider detail"));
     const normalFallback = await AIManager.runResearch(
@@ -234,14 +247,16 @@ async function verifyPackageOnlyPublish() {
   let publishCalls = 0;
   let markCalls = 0;
   const runId = crypto.randomUUID();
-  const acceptanceTopic = `Sprint 126 package only ${runId}`;
-  const acceptanceSlug = ProjectManager.createSlug(acceptanceTopic);
+  const acceptanceTopic = "Sprint 126 package only acceptance";
+  const acceptanceRunTopic = `${acceptanceTopic} ${runId}`;
+  const acceptanceSlug = createProductionAcceptanceProjectSlug(acceptanceTopic, runId);
   await createProductionAcceptanceMarker(
     acceptanceSlug,
     runId,
     productionAcceptanceConfigurationFingerprint(),
+    acceptanceTopic,
   );
-  const acceptanceProject = await ProjectManager.createProject(acceptanceTopic);
+  const acceptanceProject = await ProjectManager.createProject(acceptanceRunTopic);
   const preparedMarker = JSON.parse(fs.readFileSync(
     path.join(projectsRoot, acceptanceProject.slug, "production-acceptance.json"),
     "utf8",
@@ -425,7 +440,7 @@ async function verifyAcceptanceGateStopsPipeline() {
       return originalResearch.apply(AIManager, args);
     };
     await assert.rejects(
-      () => ProductionAcceptanceOrchestrator.run(),
+      () => ProductionAcceptanceOrchestrator.run({ topic: "Readiness gate acceptance" }),
       (error) => {
         assert(error instanceof ProductionAcceptanceBlockedError);
         assert.equal(error.readiness.ready, false);
