@@ -47,13 +47,27 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 129.19**
+**Sprint 129.20**
 
-Visuals Structured Output and Application-Owned Timestamp Hardening
+Visuals Truncation Propagation & Stage Token Budget
 
 **Durum**
 
-Implementation Validated — Ready for Controlled Visuals Resume
+Completed — Ready for Controlled Visuals Resume
+
+## Sprint 129.20 — Visuals Truncation Propagation & Stage Token Budget / Completed
+
+Production resume sırasında Visuals text planning provider cevabı `finish_reason:length` ile tamamlandı ve observed sonuç gerçek `AI_RESPONSE_TRUNCATED` kodunu taşıdı. `VisualManager`, `observed.errorCode` alanını strict parse öncesinde taşımadığı için truncated JSON parse edilerek hata yanlışlıkla `AI_RESPONSE_INVALID_JSON` olarak raporlanıyordu. Artık observed hata kodu varsa strict parser'a girilmeden aynı kodla fail-closed kapanılır; parser, `visuals.json`/canonical visual artifact persistence ve image generation çalışmaz.
+
+Visuals plan metni completion bütçesi için `OPENAI_VISUALS_MAX_TOKENS` sözleşmesi eklendi: unset application default `3200`, explicit minimum `2000`, explicit maximum `6000` ve yalnız safe integer. Geçersiz değer `AI_VISUALS_MAX_TOKENS_INVALID` ile fail-closed kapanır. Global `OPENAI_MAX_TOKENS` değiştirilmedi. `OPENAI_VISUALS_MAX_TOKENS` yalnız environment'ta explicit tanımlıysa production acceptance configuration fingerprint'e katılır; unset `3200` default mevcut prepared marker fingerprint uyumluluğunu korur.
+
+Recovery planner aynı canonical slug için `startStage:"visuals"`, `blocked:false` kalır; Research, Script ve Scenes provider'ları yeniden çağrılmaz. Sprint 129.20 smoke 21/21, Sprint 129.19 70/70, Sprint 129.13 42/42 ve visual asset wiring 54/54 PASS; production readiness acceptance, TypeScript, targeted ESLint ve `git diff --check` PASS. `data/projects/**` production runtime kayıtları path + byte length + SHA-256 snapshot ile byte-level değişmeden korundu.
+
+Açık bulgular: P0 yok, P1 yok. P2 olarak readiness smoke fixture environment izolasyonu ve erken assertion durumunda cleanup'a ulaşamama konusu bu sprint kapsamı dışında bırakıldı. Commit, push ve production resume yapılmadı.
+
+Sonraki operasyonel adım Git kapsamını review etmek, yalnız Sprint 129.20 kaynak/test/dokümantasyon dosyalarını commit ederek `data/projects/**` runtime kayıtlarını commit dışında bırakmak ve ardından aynı slug üzerinde Visuals aşamasından kontrollü production resume çalıştırmaktır.
+
+Sprint 129.19 kaydı:
 
 Sprint 129.18 controlled production resume aynı canonical slug üzerinde research, script ve scenes provider'larını yeniden çalıştırmadan scenes'i başarıyla tamamladı. `scenes.json` 6 scene, toplam 90 saniye, canonical schema ve application-owned timestamp ile write-once persist edildi. Sonraki visuals text planning cevabı provider/transport seviyesinde başarılıydı: `finish_reason:stop`, `refusal:false`, complete/non-truncated, 1135 prompt, 375 completion, 1510 total token ve 1777 karakter. Strict visual artifact validation generic `GENERATION_FALLBACK_BLOCKED` ile durdu; `visuals.json` veya fiziksel image üretilmedi.
 

@@ -4,6 +4,7 @@ import { AIRouter, type ProviderName } from "@/lib/ai/router/AIRouter";
 import { aiProviderConfig } from "@/lib/ai/AIProviderConfig";
 import { getResearchMaxTokens } from "@/lib/ai/ResearchAIConfig";
 import { getScriptMaxTokens } from "@/lib/ai/ScriptAIConfig";
+import { getVisualsMaxTokens } from "@/lib/ai/VisualsAIConfig";
 import { ImageProviderRouter } from "@/lib/assets/providers/ImageProviderRouter";
 import { requireContainedStorageFile } from "@/lib/assets/storage/StoragePathSecurity";
 import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
@@ -197,6 +198,11 @@ export class ProductionReadinessService {
         getScriptMaxTokens(this.environment);
       } catch {
         return check("model-configuration", "INVALID", "AI_SCRIPT_MAX_TOKENS_INVALID");
+      }
+      try {
+        getVisualsMaxTokens(this.environment);
+      } catch {
+        return check("model-configuration", "INVALID", "AI_VISUALS_MAX_TOKENS_INVALID");
       }
       if (!validNumber(this.environment.OPENAI_TEMPERATURE, 0, 2)) {
         return check("model-configuration", "INVALID", "AI_TEMPERATURE_INVALID");

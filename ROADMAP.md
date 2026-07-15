@@ -39,9 +39,20 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 129.19 — Visuals Structured Output and Application-Owned Timestamp Hardening (Implementation Validated — Ready for Controlled Visuals Resume)
+Sprint 129.20 — Visuals Truncation Propagation & Stage Token Budget / Completed
 
 Son Tamamlanan Sprint
+
+## Sprint 129.20 — Visuals Truncation Propagation & Stage Token Budget / Completed
+
+- Production resume Visuals provider sonucu `finish_reason:length` ve `AI_RESPONSE_TRUNCATED` oldu. `VisualManager` observed hata kodunu parse öncesinde taşımadığı için truncated response yanlışlıkla `AI_RESPONSE_INVALID_JSON` olarak sınıflandırılıyordu.
+- `VisualManager` artık `observed.errorCode` varsa strict parser'a girmeden aynı kodla fail-closed kapanır. Truncation halinde parser, visual artifact persistence ve image generation çalışmaz.
+- Visuals plan text completion bütçesi `OPENAI_VISUALS_MAX_TOKENS`: unset default `3200`; explicit değerler yalnız safe integer ve inclusive `2000–6000`; invalid değer `AI_VISUALS_MAX_TOKENS_INVALID`. Global `OPENAI_MAX_TOKENS` değişmedi.
+- Explicit `OPENAI_VISUALS_MAX_TOKENS` yalnız tanımlıysa acceptance fingerprint'e katılır. Unset `3200` application default mevcut prepared marker fingerprint uyumluluğunu korur.
+- Recovery aynı slug üzerinde `startStage:"visuals"`, `blocked:false`; Research, Script ve Scenes yeniden çalıştırılmaz.
+- Sprint 129.20 21/21, Sprint 129.19 70/70, Sprint 129.13 42/42 ve visual asset wiring 54/54 PASS. Production readiness acceptance, TypeScript, targeted ESLint ve `git diff --check` PASS. Production `data/projects/**` snapshot'ı byte-level değişmedi.
+- P0/P1 yok. Readiness smoke fixture izolasyonu/erken assertion cleanup konusu P2 ve sprint dışıdır. Commit, push ve production resume yapılmadı.
+- Sonraki adım: Git kapsam review; yalnız Sprint 129.20 kaynak/test/dokümantasyon dosyalarını commit et, `data/projects/**` runtime kayıtlarını dışarıda bırak, ardından aynı slug üzerinde Visuals'tan controlled production resume çalıştır.
 
 ## Sprint 129.19 — Visuals Structured Output and Application-Owned Timestamp Hardening
 

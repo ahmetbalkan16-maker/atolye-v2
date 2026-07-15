@@ -25,6 +25,17 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 129.20 — Visuals Truncation Propagation & Stage Token Budget / Completed
+
+- Production resume sırasında Visuals provider sonucu `finish_reason:length` ve `AI_RESPONSE_TRUNCATED` oldu. `VisualManager` observed hata kodunu strict parse öncesinde taşımadığı için truncated cevap yanlışlıkla `AI_RESPONSE_INVALID_JSON` olarak raporlandı.
+- `VisualManager` artık `observed.errorCode` varsa parser'a girmeden aynı hata koduyla fail-closed kapanır. Truncation halinde strict parser, `visuals.json`/canonical visual artifact persistence ve image generation çalışmaz.
+- Yalnız Visuals plan metni completion bütçesini yöneten `OPENAI_VISUALS_MAX_TOKENS` eklendi: unset default `3200`, explicit minimum `2000`, explicit maximum `6000`, yalnız safe integer; invalid değer `AI_VISUALS_MAX_TOKENS_INVALID`. Global `OPENAI_MAX_TOKENS` değiştirilmedi.
+- `OPENAI_VISUALS_MAX_TOKENS` yalnız explicit tanımlandığında acceptance configuration fingerprint'e katılır. Unset `3200` default mevcut prepared marker fingerprint uyumluluğunu korur.
+- Recovery planner aynı slug için `startStage:"visuals"`, `blocked:false` kalır; Research, Script ve Scenes provider'ları yeniden çalıştırılmaz.
+- Sprint 129.20 smoke 21/21, Sprint 129.19 70/70, Sprint 129.13 42/42 ve visual asset wiring 54/54 PASS. Production readiness acceptance, TypeScript, targeted ESLint ve `git diff --check` PASS.
+- `data/projects/**` production runtime kayıtları path + byte length + SHA-256 snapshot ile byte-level değişmeden korundu. P0/P1 yok; readiness smoke fixture izolasyonu ve erken assertion cleanup konusu P2 olarak sprint dışında kaldı.
+- Commit, push ve production resume yapılmadı. Sonraki operasyonel adım Git kapsam review; yalnız Sprint 129.20 kaynak/test/dokümantasyon dosyalarını commit etmek, `data/projects/**` runtime kayıtlarını commit dışında bırakmak ve aynı slug üzerinde Visuals aşamasından kontrollü production resume çalıştırmaktır.
+
 ## Sprint 129.19 — Visuals Structured Output and Application-Owned Timestamp Hardening
 
 Implementation Validated — Ready for Controlled Visuals Resume

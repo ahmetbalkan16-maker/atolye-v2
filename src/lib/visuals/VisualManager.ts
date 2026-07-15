@@ -2,6 +2,7 @@ import { runObservedAIRequest } from "@/lib/ai/runObservedAIRequest";
 import { AIResponseError } from "@/lib/ai/AIResponseError";
 import { ApplicationTimestampError } from "@/lib/ai/CanonicalTimestamp";
 import { createVisualPlanPrompt, parseStrictVisualPlanResponse } from "@/lib/ai/VisualStructuredOutput";
+import { getVisualsMaxTokens, VisualsAIConfigError } from "@/lib/ai/VisualsAIConfig";
 import { failClosedOrReturn, type GenerationExecutionPolicy } from "@/lib/ai/GenerationExecutionPolicy";
 import type { AIProvider } from "@/lib/ai/providers";
 import {
@@ -48,9 +49,10 @@ export class VisualManager {
       : VisualPromptEngine.createPrompt(scenes, style);
 
     try {
-      const { response } = await runObservedAIRequest({
+      const observed = await runObservedAIRequest({
         prompt,
         provider: aiProvider,
+        maxTokens: getVisualsMaxTokens(),
         context: {
           ...aiContext,
           projectSlug: aiContext?.projectSlug ?? projectSlug,
@@ -58,6 +60,8 @@ export class VisualManager {
           stage: aiContext?.stage ?? "visuals",
         },
       });
+      if (observed.errorCode) throw new AIResponseError(observed.errorCode);
+      const { response } = observed;
 
       if (!response.trim()) {
         console.error("[VisualManager] Empty provider response.");
@@ -89,7 +93,7 @@ export class VisualManager {
     } catch (error) {
       if (
         generationPolicy?.failClosed &&
-        (error instanceof AIResponseError || error instanceof ApplicationTimestampError)
+        (error instanceof AIResponseError || error instanceof VisualsAIConfigError || error instanceof ApplicationTimestampError)
       ) throw error;
       if (generationPolicy?.failClosed) return failClosedOrReturn(fallback, generationPolicy);
       console.error("[VisualManager] Falling back to local visual prompts:", error);
