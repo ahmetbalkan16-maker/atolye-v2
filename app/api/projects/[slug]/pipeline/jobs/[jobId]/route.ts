@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { PipelineJobManager } from "@/lib/pipeline/PipelineJobManager";
 import { PipelineRunner } from "@/lib/pipeline/PipelineRunner";
-import { configureProductionPipelineExecution } from "@/lib/production/ProductionPipelineExecutionFactory";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import type { PipelineJobAction } from "@/types/pipelineJob";
 import { createPipelineStateErrorResponse } from "@/lib/pipeline/PipelineStateApiError";
-
-configureProductionPipelineExecution();
 
 type RouteContext = {
   params: Promise<{

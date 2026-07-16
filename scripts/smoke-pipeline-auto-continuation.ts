@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { ProjectManager } from "../src/lib/projects/ProjectManager";
+import { ProjectReader } from "../src/lib/projects/ProjectReader";
 import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
 import { PipelineQueueScheduler } from "../src/lib/pipeline/PipelineQueueScheduler";
 import {
@@ -10,6 +13,14 @@ import {
 import { PipelineRunner } from "../src/lib/pipeline/PipelineRunner";
 import { PipelineStageExecutor } from "../src/lib/pipeline/PipelineStageExecutor";
 import { PipelineStateError } from "../src/lib/pipeline/PipelineStateError";
+import { configureProductionPipelineExecution } from "../src/lib/production/ProductionPipelineExecutionConfiguration";
+import { ProductionRuntimeInitializer } from "../src/lib/production/ProductionRuntimeInitializer";
+import { ProductionWorkerLifecycle } from "../src/lib/production/ProductionWorkerLifecycle";
+import {
+  createProductionRuntimeOperationContext,
+  initialRuntimeAuthorityGeneration,
+} from "../src/lib/runtime/ProductionRuntimeOperationContext";
+import { createRuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePaths";
 import type { PipelineJob, PipelineJobList } from "../src/types/pipelineJob";
 import type { ProductionStepKey, ProjectPackageRunType, ProjectStatus } from "../src/types/project";
 
@@ -20,7 +31,7 @@ type PipelineRunnerHarness = {
 };
 
 const slug = `sprint-94-continuation-${process.pid}`;
-const projectFolder = path.join(process.cwd(), "data", "projects", slug);
+const projectFolder = ProjectReader.getProjectFolder(slug);
 const jobsFile = path.join(projectFolder, "pipeline-jobs.json");
 const historyFile = path.join(projectFolder, "pipeline-history.json");
 const now = "2026-07-11T00:00:00.000Z";
@@ -83,6 +94,68 @@ function jobsForStage(list: PipelineJobList, stage: ProductionStepKey) {
 }
 
 async function main() {
+  if (process.env.ATOLYE_AUTO_CONTINUATION_ISOLATED !== "1") {
+    const isolatedRoot = await fs.mkdtemp(path.join(os.tmpdir(), "atolye-auto-continuation-"));
+    try {
+      const child = spawnSync(
+        process.execPath,
+        [...process.execArgv, process.argv[1]],
+        {
+          env: {
+            ...process.env,
+            ATOLYE_AUTO_CONTINUATION_ISOLATED: "1",
+            ATOLYE_RUNTIME_ROOT: path.join(isolatedRoot, "runtime"),
+            TSX_TSCONFIG_PATH: path.resolve(process.cwd(), "tsconfig.json"),
+          },
+          cwd: isolatedRoot,
+          encoding: "utf8",
+          maxBuffer: 10 * 1024 * 1024,
+          timeout: 120_000,
+        },
+      );
+      if (child.stdout) process.stdout.write(child.stdout);
+      if (child.stderr) process.stderr.write(child.stderr);
+      if (child.error) throw child.error;
+      if (child.status !== 0) throw new Error(`Isolated auto-continuation smoke failed with status ${child.status ?? "unknown"}.`);
+      const resultLine = child.stdout
+        .split(/\r?\n/)
+        .find((line) => line.startsWith("AUTO_CONTINUATION_RESULT:"));
+      assert.ok(resultLine, "isolated auto-continuation smoke did not report a structured result");
+      assert.deepEqual(
+        JSON.parse(resultLine.slice("AUTO_CONTINUATION_RESULT:".length)),
+        { status: "pass", scenarios: 18 },
+      );
+    } finally {
+      await fs.rm(isolatedRoot, { recursive: true, force: true });
+    }
+    return;
+  }
+
+  const canonicalLifecycle = new ProductionWorkerLifecycle(() => now);
+  const storageContext = createRuntimeStorageContext({
+    environment: process.env,
+    workspaceRoot: process.cwd(),
+    authorityRoot: path.join(process.cwd(), "authority"),
+  });
+  const runtimeOperationContext = createProductionRuntimeOperationContext({
+    operationId: "auto-continuation-smoke-startup",
+    operationType: "runtime-startup",
+    authorityGeneration: initialRuntimeAuthorityGeneration,
+    storageContext,
+  });
+  canonicalLifecycle.bindRuntimeOperationContext(runtimeOperationContext);
+  const initialization = await new ProductionRuntimeInitializer({
+    now: () => now,
+    listProjectSlugs: async () => [],
+    createRecoveryBootstrap: () => { throw new Error("unreachable"); },
+    workerLifecycle: canonicalLifecycle,
+  }).initialize();
+  assert.equal(initialization.ok, true);
+  configureProductionPipelineExecution({
+    lifecycle: canonicalLifecycle,
+    runtimeOperationContext,
+  });
+
   const scheduler = PipelineQueueScheduler;
   const planner = PipelineRecoveryPlanner;
   const executor = PipelineStageExecutor as unknown as PipelineExecutorHarness;
@@ -469,6 +542,7 @@ async function main() {
     assert.notEqual((await ProjectManager.getProject(slug))?.status, "completed");
 
     console.log("Sprint 94 pipeline auto-continuation smoke: PASS (18 scenarios)");
+    console.log(`AUTO_CONTINUATION_RESULT:${JSON.stringify({ status: "pass", scenarios: 18 })}`);
   } finally {
     scheduler.getNextRunnableStage = originals.getNextRunnableStage;
     planner.createJobRetryPlan = originals.createJobRetryPlan;
@@ -478,6 +552,7 @@ async function main() {
       originals.dispatchProjectContinuation;
     projectManager.updateStatus = originals.updateStatus;
     await fs.rm(projectFolder, { recursive: true, force: true });
+    await canonicalLifecycle.stop();
   }
 }
 

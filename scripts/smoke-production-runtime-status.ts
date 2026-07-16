@@ -259,7 +259,7 @@ async function main() {
     const lifecycle = await fs.readFile("src/lib/production/ProductionWorkerLifecycle.ts", "utf8");
     assert.match(root, /return productionWorkerLifecycle\.statusSnapshot\(\)/);
     assert.match(root, /workerLifecycle:\s*productionWorkerLifecycle/);
-    assert.match(root, /configureProductionPipelineExecution\(\{ lifecycle: productionWorkerLifecycle \}\)/);
+    assert.match(root, /runtimeOperationContext:\s*processRuntimeOperationContext/);
     const statusBody = lifecycle.slice(lifecycle.indexOf("statusSnapshot():"), lifecycle.indexOf("beginInitialization("));
     assert.ok(!/\.write\(|persist|schedule|execute\(|Promise|Error/.test(statusBody));
     assert.deepEqual(counters, { discovery: 1, bootstrap: 1, writes: 0, schedulerActions: 0, executions: 1 });

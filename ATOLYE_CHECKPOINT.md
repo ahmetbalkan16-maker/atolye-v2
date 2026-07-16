@@ -47,13 +47,23 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 129.25 C.2B.2**
+**Sprint 129.25 C.2B.3**
 
-Verified Migration Candidate Creation
+Production Storage Relocation Audit
 
 **Durum**
 
-Completed
+In Review
+
+## Sprint 129.25 C.2B.3 — Production Storage Relocation Audit / In Review
+
+Production runtime read/write/serve/recovery yollarinin fiziksel storage root bagimliliklari mutation-free olarak denetlendi. Kesin audit matrisi `docs/PRODUCTION_STORAGE_RELOCATION_AUDIT.md` dosyasinda 28 entrypoint ailesini owner, logical locator, physical resolver, `RuntimeStorageContext`/frozen context, authority, containment/reparse, durable/Git bagi, external uyum, relocation sinifi, blast radius ve gerekli sonraki sprint ile kaydeder.
+
+Audit dagilimi 11 `READY`, 7 `REQUIRES ADAPTER`, 1 `REQUIRES MIGRATION`, 5 `REQUIRES POLICY DECISION` ve 4 `BLOCKING` entrypoint ailesidir. P0 blocker'lar repository-local image/audio API serving, startup seviyesinde frozen production runtime authority bulunmamasi, durable execution adapter'larinin tek authority generation'a bagli olmamasi ve versioned/no-clobber authority transition protokolunun bulunmamasidir.
+
+P1 gate'leri fail-closed project read semantics, external runtime icin Git/byte evidence ayrimi, acceptance storage-policy semantigi, relocation-target/quarantine protected-root rolleri, rollback modeli, script root ayrimi ve FFmpeg/asset locator regression sinirlaridir. Onerilen karar offline stop-the-world, drain + durable quiescence, verified candidate consume, exclusive empty target, read-only old-root quarantine ve cutover sonrasi ayri Git untracking sprintidir.
+
+C.2B.3 yalniz audit ve mimari karar hazirligidir. Kaynak/test kodu, `data/projects/**`, Git index/`.gitignore`, marker, backup veya candidate degistirilmedi; relocation, copy/move, candidate consume, restore, root/authority switch, cutover, rollback veya production execution yapilmadi. Sprint independent audit review tamamlanmadan `Completed` olmayacaktir.
 
 ## Sprint 129.25 C.2B.2 — Verified Migration Candidate Creation / Completed
 

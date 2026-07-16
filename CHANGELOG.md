@@ -25,6 +25,14 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 129.25 C.2B.3 — Production Storage Relocation Audit / In Review
+
+- Production storage relocation bagimliliklari mutation-free denetlendi; `docs/PRODUCTION_STORAGE_RELOCATION_AUDIT.md` 28 entrypoint ailesi icin owner, locator/resolver, context, authority, containment/reparse, durable/Git bagi, external uyum, relocation sinifi, blast radius ve sonraki sprint kaydini tasir.
+- Audit 11 `READY`, 7 `REQUIRES ADAPTER`, 1 `REQUIRES MIGRATION`, 5 `REQUIRES POLICY DECISION` ve 4 `BLOCKING` sonuc verdi. Image/audio API repository bypass'i, production composition root context/authority eksigi, durable state authority ayrismasi ve authority transition protokolu gercek relocation oncesi P0 blocker'dir.
+- Onerilen mimari offline stop-the-world, admission close + worker drain + durable clean scan, verified candidate consume, exclusive/no-clobber target, read-only old-root quarantine, token-bound rollback ve verified cutover sonrasinda ayri Git untracking sirasidir. Acceptance marker physical path'ten bagimsiz kalir; otomatik marker rewrite onerilmez.
+- Sonraki isler operation-scoped context, serving adapters, composition/durable binding, fail-closed read, external evidence, authority/quiescence, candidate consume, quarantine/rollback, Git untracking ve controlled cutover sprintlerine ayrildi. Bu siralama henuz implementasyon yetkisi vermez.
+- Kaynak/test kodu ve `data/projects/**` degistirilmedi; test calistirilmadi. Copy/move, candidate consume, restore, root/authority switch, cutover, rollback, Git untracking, marker rewrite ve production execution yapilmadi. Sprint independent audit review bekler ve `Completed` degildir.
+
 ## Sprint 129.25 C.2B.2 — Verified Migration Candidate Creation / Completed
 
 - Tek public `RuntimeMigrationCandidateService.createVerifiedMigrationCandidate()` orchestration'i eklendi. C.2B.1 preflight ve explicit backup verification mutation oncesinde calisir; guarded candidate create kaynagi yalniz verified backup payload'idir ve live runtime copy source olarak kullanilmaz.

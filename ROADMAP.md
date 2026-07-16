@@ -39,7 +39,15 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 129.25 C.2B.2 — Verified Migration Candidate Creation / Completed
+Sprint 129.25 C.2B.3 — Production Storage Relocation Audit / In Review
+
+## Sprint 129.25 C.2B.3 — Production Storage Relocation Audit / In Review
+
+- Mutation-free audit `docs/PRODUCTION_STORAGE_RELOCATION_AUDIT.md` dosyasinda 28 production storage entrypoint ailesini logical/physical path, owner, frozen context, authority, containment/reparse, durable/Git bagi, external uyum, relocation sinifi, blast radius ve sonraki sprint ile kaydeder.
+- Dagilim: 11 `READY`, 7 `REQUIRES ADAPTER`, 1 `REQUIRES MIGRATION`, 5 `REQUIRES POLICY DECISION`, 4 `BLOCKING`. Blocker'lar image/audio direct repository serving, production composition root authority binding'i, durable execution authority binding'i ve versioned/no-clobber authority transition eksigidir.
+- P0/P1 gate'leri offline stop-the-world, worker/durable quiescence, verified candidate consume, exclusive empty target, protected relocation/quarantine rolleri, old-root read-only quarantine, fail-closed project reads, external Git evidence modeli ve cutover sonrasi ayri Git untracking kararlarina baglandi.
+- Uygulama on parcalik onerilen siraya ayrildi: operation-scoped context; asset serving adapters; composition/durable authority; fail-closed reads; external evidence; authority/quiescence; candidate consume; quarantine/rollback; Git untracking; controlled cutover/validation. Numaralar mimari onay sonrasi kesinlesecektir.
+- C.2B.3 relocation veya cutover implementasyonu degildir. Source/test/runtime/Git mutation'i, candidate consume, restore, root/authority switch veya production execution yapilmadi. Sprint independent audit review oncesinde `Completed` degildir.
 
 Son Tamamlanan Sprint
 

@@ -1,5 +1,12 @@
 import type { ProductionWorkerLifecycleResult, ProductionWorkerLifecycleSnapshot, ProductionWorkerLifecycleStartRequest, ProductionWorkerLifecycleState } from "@/types/productionWorkerLifecycle";
 import type { ProductionRuntimeInitializationFailureStatus, ProductionRuntimeStatus } from "@/types/productionRuntimeStatus";
+import {
+  assertProductionRuntimeOperationAuthority,
+  assertProductionRuntimeOperationContext,
+  ProductionRuntimeOperationContextError,
+  runWithProductionRuntimeOperationContext,
+  type ProductionRuntimeOperationContext,
+} from "@/lib/runtime/ProductionRuntimeOperationContext";
 
 export class ProductionWorkerLifecycleExecutionRejectedError extends Error {
   readonly reasonCode = "WORKER_LIFECYCLE_NOT_READY";
@@ -23,6 +30,7 @@ export class ProductionWorkerLifecycle {
   private drainPromise?: Promise<ProductionWorkerLifecycleResult>;
   private stopPromise?: Promise<ProductionWorkerLifecycleResult>;
   private resolveDrained?: () => void;
+  private runtimeOperationContext?: ProductionRuntimeOperationContext;
 
   constructor(private readonly now: () => string = () => new Date().toISOString()) {}
 
@@ -86,7 +94,37 @@ export class ProductionWorkerLifecycle {
     return result(false, "failed", "WORKER_LIFECYCLE_FAILED", this.snapshot());
   }
 
+  bindRuntimeOperationContext(context: ProductionRuntimeOperationContext): void {
+    assertProductionRuntimeOperationContext(context);
+    if (this.runtimeOperationContext) {
+      assertProductionRuntimeOperationAuthority(this.runtimeOperationContext, context);
+      return;
+    }
+    this.runtimeOperationContext = context;
+  }
+
   async execute<T>(operation: () => T | Promise<T>): Promise<T> {
+    if (this.runtimeOperationContext) {
+      throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISSING");
+    }
+    return this.executeAccepted(operation);
+  }
+
+  async executeWithRuntimeOperationContext<T>(
+    context: ProductionRuntimeOperationContext,
+    operation: () => T | Promise<T>,
+  ): Promise<T> {
+    if (!this.runtimeOperationContext) {
+      throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISSING");
+    }
+    assertProductionRuntimeOperationAuthority(this.runtimeOperationContext, context);
+    return runWithProductionRuntimeOperationContext(
+      context,
+      () => this.executeAccepted(operation),
+    );
+  }
+
+  private async executeAccepted<T>(operation: () => T | Promise<T>): Promise<T> {
     if (this.state !== "ready") throw new ProductionWorkerLifecycleExecutionRejectedError(this.state);
     this.activeExecutions++;
     try {
@@ -154,6 +192,23 @@ export class ProductionWorkerLifecycle {
     if (this.state !== "failed" || !this.failureReasonCode) return null;
     return Object.freeze({ reasonCode: this.failureReasonCode, ...(this.failedProjectSlug ? { failedProjectSlug: this.failedProjectSlug } : {}) });
   }
+}
+
+const canonicalExecuteWithRuntimeOperationContext =
+  ProductionWorkerLifecycle.prototype.executeWithRuntimeOperationContext;
+
+export function captureCanonicalProductionWorkerLifecycleExecution(
+  lifecycle: ProductionWorkerLifecycle,
+): ProductionWorkerLifecycle["executeWithRuntimeOperationContext"] {
+  if (
+    !(lifecycle instanceof ProductionWorkerLifecycle) ||
+    Object.getPrototypeOf(lifecycle) !== ProductionWorkerLifecycle.prototype ||
+    ProductionWorkerLifecycle.prototype.executeWithRuntimeOperationContext !== canonicalExecuteWithRuntimeOperationContext ||
+    lifecycle.executeWithRuntimeOperationContext !== canonicalExecuteWithRuntimeOperationContext
+  ) {
+    throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_INVALID");
+  }
+  return canonicalExecuteWithRuntimeOperationContext.bind(lifecycle);
 }
 
 function validInitialization(value: ProductionWorkerLifecycleStartRequest["initialization"]): boolean {

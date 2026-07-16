@@ -13,6 +13,10 @@ import type {
   ProductionExecutionRecoveryBootstrapRequest,
   ProductionExecutionRecoveryBootstrapResult,
 } from "@/types/productionExecutionRecoveryBootstrap";
+import {
+  requireExactActiveProductionRuntimeOperationContext,
+  type ProductionRuntimeOperationContext,
+} from "@/lib/runtime/ProductionRuntimeOperationContext";
 
 export interface ProductionExecutionRecoveryPlannerPort {
   createJobRetryPlan(projectSlug: string, stage: PipelineRecoveryStageKey): Promise<PipelineRecoveryPlan>;
@@ -26,12 +30,14 @@ export class ProductionExecutionRecoveryBootstrap {
 
   constructor(
     private readonly adapter: ProductionExecutionPersistenceAdapter,
+    private readonly runtimeOperationContext: ProductionRuntimeOperationContext,
     private readonly planner: ProductionExecutionRecoveryPlannerPort = PipelineRecoveryPlanner,
   ) {
     this.lifecycle = new ProductionExecutionLifecycle(adapter);
   }
 
   async bootstrapRecovery(request: ProductionExecutionRecoveryBootstrapRequest): Promise<ProductionExecutionRecoveryBootstrapResult> {
+    requireExactActiveProductionRuntimeOperationContext(this.runtimeOperationContext);
     const evaluatedAt = normalizeDate(request.evaluatedAt);
     if (!evaluatedAt) return this.result("invalid", "indeterminate", [], []);
 

@@ -21,7 +21,8 @@
     "smoke:sprint-129-25c-1": "tsx scripts/smoke-sprint-129-25c-1-runtime-backup.ts",
     "smoke:sprint-129-25c-2a": "tsx scripts/smoke-sprint-129-25c-2a-guarded-filesystem.ts",
     "smoke:sprint-129-25c-2b-1": "tsx scripts/smoke-sprint-129-25c-2b-1-migration-candidate.ts",
-    "smoke:sprint-129-25c-2b-2": "tsx scripts/smoke-sprint-129-25c-2b-2-migration-candidate-create.ts"
+    "smoke:sprint-129-25c-2b-2": "tsx scripts/smoke-sprint-129-25c-2b-2-migration-candidate-create.ts",
+    "smoke:sprint-129-25c-2b-4": "tsx scripts/smoke-sprint-129-25c-2b-4-runtime-context.ts"
   },
   "dependencies": {
     "next": "16.2.10",

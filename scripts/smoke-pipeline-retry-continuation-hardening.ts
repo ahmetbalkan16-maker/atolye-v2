@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
 import { PipelineQueueScheduler } from "../src/lib/pipeline/PipelineQueueScheduler";
@@ -11,11 +13,16 @@ import {
 import { PipelineStageExecutor } from "../src/lib/pipeline/PipelineStageExecutor";
 import { ProjectManager } from "../src/lib/projects/ProjectManager";
 import { ProductionRuntimeInitializer } from "../src/lib/production/ProductionRuntimeInitializer";
-import { configureProductionPipelineExecution } from "../src/lib/production/ProductionPipelineExecutionFactory";
+import { configureProductionPipelineExecution } from "../src/lib/production/ProductionPipelineExecutionConfiguration";
 import {
   ProductionWorkerLifecycle,
   ProductionWorkerLifecycleExecutionRejectedError,
 } from "../src/lib/production/ProductionWorkerLifecycle";
+import {
+  createProductionRuntimeOperationContext,
+  initialRuntimeAuthorityGeneration,
+} from "../src/lib/runtime/ProductionRuntimeOperationContext";
+import { createRuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePaths";
 import type { PipelineJob, PipelineJobList } from "../src/types/pipelineJob";
 import type {
   ProductionStepKey,
@@ -115,6 +122,58 @@ async function readyLifecycle() {
 }
 
 async function main() {
+  if (process.env.ATOLYE_RETRY_SMOKE_ISOLATED !== "1") {
+    const isolatedRoot = await fs.mkdtemp(path.join(os.tmpdir(), "atolye-retry-continuation-"));
+    try {
+      const scriptPath = path.resolve(process.argv[1]);
+      const child = spawnSync(process.execPath, [...process.execArgv, scriptPath], {
+        cwd: isolatedRoot,
+        env: {
+          ...process.env,
+          ATOLYE_RETRY_SMOKE_ISOLATED: "1",
+          ATOLYE_RUNTIME_ROOT: path.join(isolatedRoot, "data"),
+          TSX_TSCONFIG_PATH: path.resolve("tsconfig.json"),
+        },
+        encoding: "utf8",
+        maxBuffer: 10 * 1024 * 1024,
+        timeout: 120_000,
+      });
+      if (child.stdout) process.stdout.write(child.stdout);
+      if (child.stderr) process.stderr.write(child.stderr);
+      assert.ifError(child.error);
+      assert.equal(child.status, 0, `isolated retry continuation smoke exited with status ${child.status}`);
+      const resultLine = child.stdout
+        .split(/\r?\n/)
+        .find((line) => line.startsWith("RETRY_CONTINUATION_RESULT:"));
+      assert.ok(resultLine, "isolated retry continuation smoke did not report a structured result");
+      assert.deepEqual(
+        JSON.parse(resultLine.slice("RETRY_CONTINUATION_RESULT:".length)),
+        { status: "pass", scenarios: 22 },
+      );
+      return;
+    } finally {
+      await fs.rm(isolatedRoot, { recursive: true, force: true });
+    }
+  }
+
+  const canonicalLifecycle = await readyLifecycle();
+  const storageContext = createRuntimeStorageContext({
+    environment: process.env,
+    workspaceRoot: process.cwd(),
+    authorityRoot: path.join(process.cwd(), "authority"),
+  });
+  const runtimeOperationContext = createProductionRuntimeOperationContext({
+    operationId: "retry-continuation-smoke-startup",
+    operationType: "runtime-startup",
+    authorityGeneration: initialRuntimeAuthorityGeneration,
+    storageContext,
+  });
+  canonicalLifecycle.bindRuntimeOperationContext(runtimeOperationContext);
+  configureProductionPipelineExecution({
+    lifecycle: canonicalLifecycle,
+    runtimeOperationContext,
+  });
+
   const runner = PipelineRunner as unknown as RunnerHarness;
   const executor = PipelineStageExecutor as unknown as ExecutorHarness;
   const scheduler = PipelineQueueScheduler;
@@ -372,10 +431,7 @@ async function main() {
       await reset([job("animation", "queued")]);
       const lifecycle = await readyLifecycle();
       await lifecycle.drain();
-      assert.equal(
-        configureProductionPipelineExecution({ enabled: false, lifecycle }),
-        false,
-      );
+      PipelineRunner.configureContinuationAdmission(lifecycle);
       await assert.rejects(
         PipelineRunner.dispatchProjectContinuation(slug),
         ProductionWorkerLifecycleExecutionRejectedError,
@@ -490,6 +546,7 @@ async function main() {
     console.log(
       `Sprint 119 retry and standalone continuation hardening smoke: PASS (${scenarios} scenarios)`,
     );
+    console.log(`RETRY_CONTINUATION_RESULT:${JSON.stringify({ status: "pass", scenarios })}`);
   } finally {
     PipelineRunner.continueProject = originals.continueProject;
     PipelineRunner.dispatchProjectContinuation =
@@ -500,6 +557,7 @@ async function main() {
     scheduler.getNextRunnableStage = originals.getNextRunnableStage;
     planner.createJobRetryPlan = originals.createJobRetryPlan;
     await fs.rm(projectFolder, { recursive: true, force: true });
+    await canonicalLifecycle.stop();
   }
 }
 

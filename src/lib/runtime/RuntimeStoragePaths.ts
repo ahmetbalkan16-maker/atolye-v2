@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
+import { getActiveRuntimeOperationScope } from "./RuntimeOperationScope";
 
 export const runtimeStorageEnvironmentVariable = "ATOLYE_RUNTIME_ROOT";
 export const runtimeStoragePolicyVersion = "runtime-storage-v1";
@@ -9,6 +10,7 @@ export const runtimeStorageLogicalProjectsRoot = "projects";
 
 const contextKind = "runtime-storage-context-v1";
 const authorityPolicyVersion = "runtime-authority-v1";
+const trustedRuntimeStorageContexts = new WeakSet<object>();
 
 export type RuntimeStorageClassification =
   | "legacy-repository"
@@ -50,7 +52,9 @@ export type RuntimeStorageErrorCode =
   | "RUNTIME_STORAGE_LINK_UNSAFE"
   | "RUNTIME_STORAGE_DUAL_ROOT_DIVERGENCE"
   | "RUNTIME_STORAGE_AUTHORITY_LOCKED"
-  | "RUNTIME_STORAGE_AUTHORITY_CLAIM_INVALID";
+  | "RUNTIME_STORAGE_AUTHORITY_CLAIM_INVALID"
+  | "RUNTIME_STORAGE_CONTEXT_INVALID"
+  | "RUNTIME_STORAGE_OPERATION_CONTEXT_MISMATCH";
 
 export class RuntimeStorageError extends Error {
   constructor(readonly code: RuntimeStorageErrorCode) {
@@ -69,6 +73,14 @@ export interface RuntimeStorageAuthorityLease {
 export function createRuntimeStorageContext(
   options: RuntimeStorageResolutionOptions = {},
 ): RuntimeStorageContext {
+  const activeContext = getActiveRuntimeOperationScope()?.storageContext;
+  if (activeContext) {
+    assertTrustedRuntimeStorageContext(activeContext);
+    if (Object.keys(options).length > 0) {
+      throw new RuntimeStorageError("RUNTIME_STORAGE_OPERATION_CONTEXT_MISMATCH");
+    }
+    return activeContext;
+  }
   const environment = options.environment ?? process.env;
   const workspaceRoot = canonicalAbsolutePath(
     options.workspaceRoot ?? process.cwd(),
@@ -125,7 +137,7 @@ export function createRuntimeStorageContext(
   validateSafeAncestorChain(projectsRoot);
   validateSafeAncestorChain(authorityRoot);
 
-  return Object.freeze({
+  const context = Object.freeze({
     kind: contextKind,
     policyVersion: runtimeStoragePolicyVersion,
     source,
@@ -138,14 +150,33 @@ export function createRuntimeStorageContext(
     machineRoot: containedPath(runtimeRoot, "machine"),
     authorityRoot,
   });
+  trustedRuntimeStorageContexts.add(context);
+  return context;
 }
 
 export function resolveRuntimeStorageContext(
   input: RuntimeStorageInput = {},
 ): RuntimeStorageContext {
-  return isRuntimeStorageContext(input)
-    ? input
-    : createRuntimeStorageContext(input);
+  if (!isRuntimeStorageContext(input)) return createRuntimeStorageContext(input);
+  assertTrustedRuntimeStorageContext(input);
+  const activeContext = getActiveRuntimeOperationScope()?.storageContext;
+  if (activeContext) assertTrustedRuntimeStorageContext(activeContext);
+  if (activeContext && input !== activeContext) {
+    throw new RuntimeStorageError("RUNTIME_STORAGE_OPERATION_CONTEXT_MISMATCH");
+  }
+  return input;
+}
+
+export function assertTrustedRuntimeStorageContext(
+  value: unknown,
+): asserts value is RuntimeStorageContext {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !trustedRuntimeStorageContexts.has(value)
+  ) {
+    throw new RuntimeStorageError("RUNTIME_STORAGE_CONTEXT_INVALID");
+  }
 }
 
 export function resolveRuntimeStorageConfiguration(
@@ -640,6 +671,10 @@ function messageFor(code: RuntimeStorageErrorCode) {
       return "Runtime storage authority is locked.";
     case "RUNTIME_STORAGE_AUTHORITY_CLAIM_INVALID":
       return "Runtime storage authority claim is invalid.";
+    case "RUNTIME_STORAGE_CONTEXT_INVALID":
+      return "Runtime storage context is invalid.";
+    case "RUNTIME_STORAGE_OPERATION_CONTEXT_MISMATCH":
+      return "Runtime storage operation context does not match.";
     default:
       return "Runtime storage path is invalid.";
   }

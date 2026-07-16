@@ -14,7 +14,11 @@ import { readProductionAcceptancePolicy } from "@/lib/production/ProductionAccep
 import { validateProductionAcceptancePreflight } from "@/lib/production/ProductionAcceptancePreflight";
 import { isPipelineStateError } from "./PipelineStateError";
 import { getPipelineErrorEvidence } from "./PipelineErrorEvidence";
-import type { ProductionPipelineExecutionAdapter } from "@/lib/production/ProductionPipelineExecutionAdapter";
+import {
+  ProductionPipelineDurableExecutionError,
+  type ProductionPipelineExecutionAdapter,
+} from "@/lib/production/ProductionPipelineExecutionAdapter";
+import { executeConfiguredProductionPipelineStage } from "@/lib/production/ProductionPipelineExecutionFactory";
 import { prepareFailedStageRetry } from "./PipelineFailedStageRetry";
 import type {
   ProductionStepKey,
@@ -27,14 +31,33 @@ import type {
   PipelineRetryResult,
   PipelineResumeResult,
 } from "@/types/pipelineRecovery";
+import { ProductionRuntimeOperationContextError } from "@/lib/runtime/ProductionRuntimeOperationContext";
+import {
+  executePipelineRunnerProductionRuntimeOperation,
+} from "./PipelineRunnerCanonicalRuntime";
+
+export { installPipelineRunnerProductionRuntime } from "./PipelineRunnerCanonicalRuntime";
 
 export class PipelineRunner {
-  private static durableExecution?: Pick<ProductionPipelineExecutionAdapter, "execute">;
   private static continuationAdmission?: PipelineContinuationAdmission;
 
-  static configureDurableExecution(adapter?: Pick<ProductionPipelineExecutionAdapter, "execute">) { this.durableExecution = adapter; }
+  /** @deprecated Arbitrary durable adapters are rejected; production wiring is canonical. */
+  static configureDurableExecution(_adapter?: Pick<ProductionPipelineExecutionAdapter, "execute">): void {
+    void _adapter;
+    throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_INVALID");
+  }
   static configureContinuationAdmission(admission?: PipelineContinuationAdmission) { this.continuationAdmission = admission; }
   static async run(
+    topic: string,
+    options: { stageExecution?: PipelineStageExecutionOptions } = {},
+  ) {
+    return this.withRuntimeOperation(
+      "pipeline-run",
+      () => this.runOnce(topic, options),
+    );
+  }
+
+  private static async runOnce(
     topic: string,
     options: { stageExecution?: PipelineStageExecutionOptions } = {},
   ) {
@@ -89,6 +112,13 @@ export class PipelineRunner {
   }
 
   static async resume(projectSlug: string): Promise<PipelineResumeResult> {
+    return this.withRuntimeOperation(
+      "pipeline-resume",
+      () => this.resumeOnce(projectSlug),
+    );
+  }
+
+  private static async resumeOnce(projectSlug: string): Promise<PipelineResumeResult> {
     const plan = await PipelineRecoveryPlanner.createResumePlan(projectSlug);
 
     if (plan.blocked || !plan.startStage) {
@@ -202,6 +232,16 @@ export class PipelineRunner {
     projectSlug: string,
     stage: PipelineRecoveryStageKey,
   ): Promise<PipelineRetryResult> {
+    return this.withRuntimeOperation(
+      "pipeline-retry-stage",
+      () => this.retryStageOnce(projectSlug, stage),
+    );
+  }
+
+  private static async retryStageOnce(
+    projectSlug: string,
+    stage: PipelineRecoveryStageKey,
+  ): Promise<PipelineRetryResult> {
     const job = await PipelineJobManager.getJobForStageReadOnly(
       projectSlug,
       stage,
@@ -231,6 +271,16 @@ export class PipelineRunner {
     projectSlug: string,
     stages: readonly PipelineRecoveryStageKey[] = pipelineRecoveryStageOrder,
   ): Promise<PipelineContinuationResult> {
+    return this.withRuntimeOperation(
+      "pipeline-continue",
+      () => this.continueProjectScoped(projectSlug, stages),
+    );
+  }
+
+  private static async continueProjectScoped(
+    projectSlug: string,
+    stages: readonly PipelineRecoveryStageKey[],
+  ): Promise<PipelineContinuationResult> {
     const operation = () => this.continueProjectOnce(projectSlug, stages);
     return this.continuationAdmission
       ? this.continuationAdmission.execute(operation)
@@ -240,6 +290,16 @@ export class PipelineRunner {
   static async dispatchProjectContinuation(
     projectSlug: string,
     stopStage: PipelineRecoveryStageKey = "assembly",
+  ): Promise<PipelineContinuationDispatchResult> {
+    return this.withRuntimeOperation(
+      "pipeline-dispatch-continuation",
+      () => this.dispatchProjectContinuationOnce(projectSlug, stopStage),
+    );
+  }
+
+  private static async dispatchProjectContinuationOnce(
+    projectSlug: string,
+    stopStage: PipelineRecoveryStageKey,
   ): Promise<PipelineContinuationDispatchResult> {
     const completedStages: PipelineRecoveryStageKey[] = [];
     const stopIndex = pipelineRecoveryStageOrder.indexOf(stopStage);
@@ -362,6 +422,16 @@ export class PipelineRunner {
       if (isPipelineStateError(error)) {
         throw error;
       }
+      if (
+        error instanceof ProductionPipelineDurableExecutionError &&
+        (error.reasonCode === "WORKER_EXECUTION_OWNERSHIP_CONFLICT" ||
+          error.reasonCode === "CLAIM_NEXT_VERSION_CONFLICT")
+      ) {
+        return {
+          continued: false,
+          reason: `Stage "${queuedStage}" could not be claimed.`,
+        };
+      }
 
       return {
         continued: true,
@@ -398,6 +468,16 @@ export class PipelineRunner {
   }
 
   static async executeJobRetry(
+    projectSlug: string,
+    jobId: string,
+  ): Promise<PipelineJobRetryExecutionResult> {
+    return this.withRuntimeOperation(
+      "pipeline-execute-job-retry",
+      () => this.executeJobRetryOnce(projectSlug, jobId),
+    );
+  }
+
+  private static async executeJobRetryOnce(
     projectSlug: string,
     jobId: string,
   ): Promise<PipelineJobRetryExecutionResult> {
@@ -586,6 +666,13 @@ export class PipelineRunner {
     };
   }
 
+  private static withRuntimeOperation<T>(
+    operationType: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    return executePipelineRunnerProductionRuntimeOperation(operationType, operation);
+  }
+
   private static async runPipelineStage(
     slug: string,
     stage: ProductionStepKey,
@@ -659,7 +746,7 @@ export class PipelineRunner {
     onClaimConflict?: () => void,
   ): Promise<boolean> {
     const legacy = () => this.runStageLegacy(slug, stage, action, runType, onClaimConflict);
-    return this.durableExecution ? this.durableExecution.execute({ projectSlug: slug, stage, runType }, legacy) : legacy();
+    return executeConfiguredProductionPipelineStage({ projectSlug: slug, stage, runType }, legacy);
   }
 
   private static async runStageLegacy(

@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { PipelineRunner } from "@/lib/pipeline/PipelineRunner";
-import { configureProductionPipelineExecution } from "@/lib/production/ProductionPipelineExecutionFactory";
 import { createPipelineStateErrorResponse } from "@/lib/pipeline/PipelineStateApiError";
-
-configureProductionPipelineExecution();
 
 export async function POST(req: Request) {
   try {
