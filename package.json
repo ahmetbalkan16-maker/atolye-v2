@@ -13,7 +13,12 @@
     "production:acceptance:execute": "tsx scripts/run-production-acceptance.ts execute",
     "production:acceptance:resume": "tsx scripts/run-production-acceptance.ts resume-finalize",
     "smoke:sprint-129-25b": "tsx scripts/smoke-sprint-129-25b-runtime-root.ts",
-    "smoke:sprint-129-25b-1": "tsx scripts/smoke-sprint-129-25b-1-runtime-hardening.ts"
+    "smoke:sprint-129-25b-1": "tsx scripts/smoke-sprint-129-25b-1-runtime-hardening.ts",
+    "runtime:backup:inventory": "tsx scripts/runtime-backup.ts inventory",
+    "runtime:backup:create": "tsx scripts/runtime-backup.ts create",
+    "runtime:backup:verify": "tsx scripts/runtime-backup.ts verify",
+    "runtime:backup:restore-verify": "tsx scripts/runtime-backup.ts restore-verify",
+    "smoke:sprint-129-25c-1": "tsx scripts/smoke-sprint-129-25c-1-runtime-backup.ts"
   },
   "dependencies": {
     "next": "16.2.10",

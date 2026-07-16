@@ -39,9 +39,21 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 129.25B.1 — Targeted Runtime Storage Hardening / Completed
+Sprint 129.25C.1 — Verified Runtime Backup Foundation / Completed
 
 Son Tamamlanan Sprint
+
+## Sprint 129.25C.1 — Verified Runtime Backup Foundation / Completed
+
+- Deterministic, host-path-free `runtime-backup-v1` manifest; file path, size, SHA-256, portable permission class, project/runtime classification ve optional Git index metadata'sını kaydeder. Timestamp aggregate hash'e dahil değildir.
+- Read-only inventory scan sırasında link/junction/special-file, containment ve source mutation risklerini fail-closed reddeder. Canlı inventory `184 tracked / 184 physical / 0 untracked`, 7 proje, 11,023,842 byte ve aggregate SHA-256 `2c14d65c02736848ef3422bee384d69af1b5de248b2f7a4e38b6f51a8ca1feae` olarak doğrulandı.
+- Explicit external root ve confirmation gerektiren backup create; unique `.partial`, exclusive copy, destination hash ve source re-inventory kullanır. Final-directory reservation atomik no-replace'dir; payload ve manifest/digest-last exclusive hard-link commit uygulanır. Same-ID iki-process smoke yalnız tek valid final üretir.
+- C.1 trusted local operator ve single-writer sınırında kabul edildi. Deterministic byte-level inventory/manifest/verification ile missing/extra/modified/tamper rejection sağlanır; aynı kullanıcı yetkili düşmanca concurrent local process'e karşı tam filesystem isolation garanti edilmez. Post-write link-swap detection/cleanup dış transient write'ı kesin engelleyen boundary değildir.
+- Restore-verify canonical OS temp alanıyla sınırlıdır; canlı restore/cutover yetkisi yoktur. Portable-name kontrolleri Windows reserved ad, colon, trailing dot/space, control, non-NFC ve case-fold collision'ı reddeder; cross-platform portability koşulsuz değildir ve path-length policy C.2 öncesinde tamamlanacaktır.
+- Adjudication: C.1 blocker yoktur. C.2/migration öncesi zorunlu gate'ler: tüm mutation noktalarında handle/no-follow veya eşdeğer reparse-aware write; mkdir/lock/manifest/digest/restore write'larının ortak guarded primitive'i; operation-owned cleanup identity; runtime root protected-root kapsamı; conservative Windows segment/toplam path-length policy. Bunlar kapanmadan migration, untracking, live restore, cutover veya production runtime relocation başlayamaz.
+- Gelecek hardening: empty-directory topology/concurrent layout verification, gerçek Windows ACL-denied testi, runtime production-boundary spy ve filesystem fsync crash durability. Git metadata/source classification informational evidence'dır; payload authority veya aggregate verification girdisi değildir.
+- Sprint 129.25C.1 18/18, Sprint 129.25B 16/16 ve Sprint 129.25B.1 13/13 PASS; TypeScript, targeted ESLint ve `git diff --check` PASS. Production boundary call count `0`; marker hash ve `data/projects/**` byte durumu korundu.
+- Canlı backup/restore, migration/untracking, `.gitignore`/index değişikliği, runtime mutation, marker reprepare, production command/provider/worker, commit veya push yapılmadı. Runtime hâlen tracked; Sprint 129.25C.2 başlamadı. Sprint 129.25C.1 `Completed — READY FOR USER COMMIT` durumundadır.
 
 ## Sprint 129.25B.1 — Targeted Runtime Storage Hardening / Completed
 

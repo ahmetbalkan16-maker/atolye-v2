@@ -541,13 +541,23 @@ function requireSafeSegment(segment: string) {
   }
 }
 
+export function isPortableRuntimePathSegment(segment: unknown): segment is string {
+  return typeof segment === "string" &&
+    segment.length > 0 &&
+    segment !== "." &&
+    segment !== ".." &&
+    !segment.includes("/") &&
+    !segment.includes("\\") &&
+    !segment.includes(":") &&
+    !/[\u0000-\u001f\u007f]/.test(segment) &&
+    !/[. ]$/.test(segment) &&
+    segment === segment.normalize("NFC") &&
+    !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(segment);
+}
+
 function requireMachineSegment(segment: string) {
   requireSafeSegment(segment);
-  if (
-    segment.includes(":") ||
-    /[. ]$/.test(segment) ||
-    /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(segment)
-  ) {
+  if (!isPortableRuntimePathSegment(segment)) {
     throw new RuntimeStorageError("RUNTIME_STORAGE_PATH_INVALID");
   }
 }

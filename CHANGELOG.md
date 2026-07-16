@@ -25,6 +25,18 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 129.25C.1 — Verified Runtime Backup Foundation / Completed
+
+- Deterministic `runtime-backup-v1` manifest, canonical serializer/schema validation, per-file SHA-256 ve timestamp/host path'ten bağımsız aggregate tree hash eklendi. Manifest project-relative path, size, portable permission class, project/runtime classification ve optional Git index metadata'sı taşır.
+- Read-only runtime inventory regular-file-only, no-link containment ve scan-during-mutation guard'larıyla eklendi. Canlı inventory 184 dosya, 11,023,842 byte, 7 proje, `184 tracked / 0 untracked` ve aggregate `2c14d65c02736848ef3422bee384d69af1b5de248b2f7a4e38b6f51a8ca1feae` verdi.
+- Explicit confirmation ve repository/source dışındaki absolute target gerektiren verified backup service eklendi. Exclusive `.partial` copy, per-file destination hash ve source re-inventory sonrasında atomic final-directory reservation ile payload ve manifest/digest-last exclusive hard-link commit uygulanır. Aynı ID için iki process yarışında yalnız tek valid final publish edilir.
+- C.1 güvenlik modeli trusted local operator ve single-writer operation olarak kaydedildi. Deterministic byte-level inventory/manifest/verification ile missing/extra/modified/tamper rejection sağlanır; aynı kullanıcı yetkili düşmanca concurrent local process'e karşı tam filesystem isolation garanti edilmez. Post-write link-swap detection/cleanup dış transient write'ı kesin engelleyen boundary olarak sunulmaz.
+- Restore-verify canonical OS temp alanıyla sınırlıdır ve live restore/cutover yetkisi yoktur. Portable-name kontrolleri vardır; platformlar arası portability koşulsuz değildir. Conservative Windows segment/toplam path-length policy C.2 öncesi gate olarak kaydedildi.
+- Bağımsız adjudication C.1 blocker bulmadı. C.2/migration öncesi zorunlu gate'ler: handle/no-follow veya eşdeğer reparse-aware mutation; bütün mkdir/lock/manifest/digest/restore write'larının ortak guarded primitive'i; operation-owned cleanup identity; runtime root protected-root kapsamı; Windows segment/toplam path-length policy. Bunlar kapanmadan migration, untracking, live restore, cutover veya production runtime relocation başlatılamaz.
+- Empty-directory topology/concurrent layout verification, gerçek Windows ACL-denied testi, runtime production-boundary spy ve filesystem fsync crash durability gelecek hardening kapsamına alındı. Git metadata/source classification informational evidence olarak kalır; payload authority veya aggregate verification girdisi değildir.
+- Temp-only smoke 18/18, Sprint 129.25B 16/16, Sprint 129.25B.1 13/13, TypeScript, targeted ESLint ve `git diff --check` PASS. Production orchestration/provider/worker boundary call count `0` kaldı.
+- Canlı backup create/restore, migration/untracking, `.gitignore` veya index değişikliği, runtime/marker mutation, production command, gerçek provider/worker, commit ve push yapılmadı. Marker SHA-256 `478E17627D121C61C6996FAD13470B0C0D8C6404D55EB1ED9173818A04C140CF` ve boş `data/projects/**` diff korundu; runtime hâlen tracked'tir. Sprint 129.25C.1 `Completed — READY FOR USER COMMIT`; Sprint 129.25C.2 başlatılmadı.
+
 ## Sprint 129.25B.1 — Targeted Runtime Storage Hardening / Completed
 
 - Mutation öncesi full ancestor-chain link/junction/reparse doğrulaması, canonical parent altında segment-bazlı safe directory creation ve ortak realpath containment primitive'leri eklendi. Junction ancestor reddi temp-only testte hedef tarafında sıfır side-effect ile doğrulandı; `..foo` containment false positive'i kapatıldı.
