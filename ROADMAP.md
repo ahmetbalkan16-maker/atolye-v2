@@ -39,9 +39,19 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 129.25C.2A — Guarded Filesystem Foundation / Implementation Validated — READY FOR REVIEW
+Sprint 129.25 C.2B.1 — Migration Candidate Schema, Preflight & Verifier / In Review — P1 remediation
 
 Son Tamamlanan Sprint
+
+## Sprint 129.25 C.2B.1 — Migration Candidate Schema, Preflight & Verifier / In Review — P1 remediation
+
+- `runtime-migration-candidate-v1` exact-key manifest, deterministic candidate ID, canonical serialization/digest, full file records, classification totals, acceptance-marker/durable-execution binding ve minimal directory closure sözleşmeleri eklendi. Authority explicit reverified `runtime-backup-v1` paketidir; candidate canlı runtime, restore veya cutover destination değildir.
+- Candidate path plan'i yalnız explicit absolute existing root'ları kabul eder. Canonical backup directory bildirilen backup root altında bağlanır; gerçek package ile candidate root exact/ancestor/descendant overlap edemez ve sibling-prefix ayrık kalır. Candidate root repository/`.git`, runtime/projects/machine/authority, backup ve restore-verification root'larıyla overlap edemez. Network/UNC v1'de unsupported; Windows local-persistent kararı yalnız `DriveInfo.DriveType=Fixed` kanıtıyla verilir, diğer/unknown/query-failure tipleri fail-closed reddedilir. OS temp yalnız explicit test classification'idir.
+- Salt-okunur preflight backup exact verification, her backup file record için candidate payload materialized path validation, live inventory/aggregate freshness, marker/durable equality, Git HEAD ve `data/projects/**` worktree evidence'i üretir. Active write probe, production readiness, provider, worker, dispatch veya filesystem mutation çalıştırmaz; `productionCalls:0` ve `cutoverAuthorized:false` sabittir.
+- Independent verifier exact root/payload layout, partial, schema/digest/ID, portable path/collision/materialized length, missing/extra/modified file, aggregate/classification, marker/durable binding, minimal directory topology, link/reparse/special-file ve backup manifest/aggregate/basename ID binding kontrollerini fail-closed uygular. Path-limit ihlali `PATH_POLICY_VIOLATION` üretir. Git/capability evidence payload authority değildir.
+- Threat model trusted local operator + single writer + accidental concurrency'dir; `hostileConcurrentIsolation:false`. Verifier path-based read/topology checks kullanır. Same-authority hostile process link-swap/TOCTOU izolasyonu, global freeze ve hostile-process protection C.2B.1 garantisi değildir; validity bu tehdit modeli içinde tanımlıdır.
+- C.2B.1 remediation smoke 48 senaryo PASS; Windows fixed-drive/UNC PASS, yetkisiz symlink creation adaptif `SKIP_UNSUPPORTED`. C.2A 16/16, C.1 18/18, B 16/16, B.1 13/13 regression, TypeScript ve targeted ESLint PASS. Tüm writes temp fixture'larla sınırlı; live runtime, candidate/backup create ve production boundary call count sıfır. P1 remediation yeniden bağımsız review bekler; sprint henüz Completed değildir.
+- Candidate create/copy/reservation/publish/cleanup, restore/cutover, runtime/authority switch ve production relocation yoktur. C.2B.2 ve C.2B.3 başlamadı. Production storage relocation audit'i C.2C öncesi zorunlu gate'tir; `cutoverAuthorized:false` korunur.
 
 ## Sprint 129.25C.2A — Guarded Filesystem Foundation / Implementation Validated
 

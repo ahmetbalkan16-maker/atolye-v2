@@ -13,7 +13,8 @@ export type RuntimeProtectedRootRole =
   | "machine"
   | "authority"
   | "backup"
-  | "restore-verification";
+  | "restore-verification"
+  | "candidate";
 
 export interface RuntimeProtectedRootInput {
   readonly role: RuntimeProtectedRootRole;
@@ -83,6 +84,25 @@ export function runtimeProtectedRootsFromContext(input: {
   entries.push({ role: "backup", path: input.backupRoot });
   entries.push({ role: "restore-verification", path: input.restoreVerificationRoot });
   return new RuntimeProtectedRoots(entries);
+}
+
+export function runtimeCandidateProtectedRootsFromContext(input: {
+  readonly context: RuntimeStorageContext;
+  readonly repositoryRoot: string;
+  readonly backupRoot: string;
+  readonly restoreVerificationRoot: string;
+  readonly candidateRoot: string;
+}): RuntimeProtectedRoots {
+  return new RuntimeProtectedRoots([
+    { role: "repository", path: input.repositoryRoot },
+    { role: "runtime", path: input.context.runtimeRoot },
+    { role: "live-projects", path: input.context.projectsRoot },
+    { role: "machine", path: input.context.machineRoot },
+    { role: "authority", path: input.context.authorityRoot },
+    { role: "backup", path: input.backupRoot },
+    { role: "restore-verification", path: input.restoreVerificationRoot },
+    { role: "candidate", path: input.candidateRoot },
+  ]);
 }
 
 export function canonicalRuntimePath(value: string): string {

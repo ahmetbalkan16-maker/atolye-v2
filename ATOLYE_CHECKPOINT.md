@@ -47,13 +47,29 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 129.25C.2A**
+**Sprint 129.25 C.2B.1**
 
-Guarded Filesystem Foundation
+Migration Candidate Schema, Preflight & Verifier
 
 **Durum**
 
-Implementation Validated — READY FOR REVIEW
+In Review — P1 remediation
+
+## Sprint 129.25 C.2B.1 — Migration Candidate Schema, Preflight & Verifier / In Review — P1 remediation
+
+`runtime-migration-candidate-v1` immutable candidate sözleşmesi eklendi. Candidate authority akışı `live runtime -> explicit verified backup -> migration candidate` olarak sabitlendi; project-subset, machine state, authority claim ve ephemeral coordination candidate scope'una alınmadı. Acceptance marker, `production-execution/**`, generated asset ve diğer `projects/**` dosyaları mevcut `runtime-backup-v1` file record/classification authority'siyle bağlandı. Git HEAD/index metadata'sı informational evidence olarak kalır ve candidate identity ya da aggregate girdisi değildir.
+
+Candidate ID; format version, source backup manifest SHA-256, source aggregate, all-projects scope version ve `windows-portable-path-v1` girdilerinden deterministik üretilir. Exact-key manifest canonical serialize edilir; digest canonical `candidate.json` byte'larını bağlar. Standalone verification için tam file record seti, classification totals, marker ve durable-execution binding'leri ile file setinden türetilen minimal directory closure saklanır. Absolute path, host, username, operation ID, timestamp, capability ve Git evidence aggregate'e girmez.
+
+Salt-okunur preflight explicit backup directory ve candidate root ister; backup directory canonical olarak bildirilen backup root altında bağlanır ve gerçek backup package candidate protected-overlap kontrolüne ayrıca katılır. Backup yeniden exact verify edilir; her backup file record candidate `payload/projects` kökü altında materialized path limitinden geçirilir. Live runtime byte inventory/aggregate, acceptance marker, durable records, HEAD ve `data/projects/**` worktree evidence'i karşılaştırılır. Candidate destination repository, `.git`, runtime, projects, machine, authority, backup package/root ve restore-verification root'larıyla overlap edemez. Windows destination yalnız salt-okunur `DriveInfo.DriveType` kanıtı `Fixed` ise local-persistent kabul edilir; mapped/network, removable, CD-ROM, RAM disk, unknown ve parse/query failure unsupported kalır. UNC/network root v1'de unsupported, temp root yalnız explicit test modu olarak raporlanır. Preflight active write probe, candidate/reservation/copy/publish/cleanup veya production readiness probe'u çalıştırmaz ve her zaman `cutoverAuthorized:false` raporlar.
+
+Independent verifier exact `candidate.json`/`candidate.sha256`/`payload/projects` layout, partial rejection, canonical schema/digest, candidate ID, portable path/case-fold/materialized path-length, missing/extra/modified bytes, inventory/aggregate/classification, marker/durable binding, minimal directory topology, link/reparse/special-file rejection ve explicit backup manifest/aggregate/backup-ID binding kontrollerini uygular. Materialized path ihlali stable `PATH_POLICY_VIOLATION` üretir. Capability drift candidate byte validity'sini bozmaz; destination readiness ayrı kalır.
+
+Desteklenen tehdit modeli trusted local operator, single writer ve accidental concurrency'dir; `hostileConcurrentIsolation:false`. Verifier path-based read ve topology kontrolleri kullanır. Aynı yetkili hostile process'in link-swap/TOCTOU saldırısına karşı handle-relative izolasyon, global freeze veya hostile-process protection C.2B.1 garantisi değildir. Candidate validity iddiası yalnız bu mevcut tehdit modeli içinde geçerlidir.
+
+C.2B.1 targeted remediation smoke 48 senaryo PASS; Windows fixed-drive ve UNC gate PASS, symlink oluşturma platform yetkisi bulunmadığı için ilgili adaptif senaryo `SKIP_UNSUPPORTED` olarak ayrı raporlandı. C.2A 16/16, C.1 18/18, B 16/16 ve B.1 13/13 regression PASS; TypeScript ve targeted ESLint PASS. Tüm fixture write'ları OS temp altındadır; production/provider/worker/dispatch çağrısı `0`, live runtime write `0`, candidate create `0`, backup create `0` ve `cutoverAuthorized:false` kaldı. P1 remediation yeniden bağımsız review bekler; sprint henüz Completed değildir.
+
+`RuntimeMigrationCandidateService`, candidate create/copy/reservation/publish/cleanup/orphan mutation, restore, cutover, runtime/authority switch ve production relocation eklenmedi. C.2B.2 başlamadı. C.2B.3 production storage relocation audit'i başlamadı ve C.2C/relocation/cutover öncesi zorunlu gate olarak kalır. Git index/`.gitignore`, `data/projects/**`, acceptance marker ve production runtime değiştirilmedi; commit veya push yapılmadı.
 
 ## Sprint 129.25C.2A — Guarded Filesystem Foundation / Implementation Validated
 

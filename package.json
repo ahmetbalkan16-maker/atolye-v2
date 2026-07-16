@@ -19,7 +19,8 @@
     "runtime:backup:verify": "tsx scripts/runtime-backup.ts verify",
     "runtime:backup:restore-verify": "tsx scripts/runtime-backup.ts restore-verify",
     "smoke:sprint-129-25c-1": "tsx scripts/smoke-sprint-129-25c-1-runtime-backup.ts",
-    "smoke:sprint-129-25c-2a": "tsx scripts/smoke-sprint-129-25c-2a-guarded-filesystem.ts"
+    "smoke:sprint-129-25c-2a": "tsx scripts/smoke-sprint-129-25c-2a-guarded-filesystem.ts",
+    "smoke:sprint-129-25c-2b-1": "tsx scripts/smoke-sprint-129-25c-2b-1-migration-candidate.ts"
   },
   "dependencies": {
     "next": "16.2.10",
