@@ -47,15 +47,31 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 129.25 C.2B.1**
+**Sprint 129.25 C.2B.2**
 
-Migration Candidate Schema, Preflight & Verifier
+Verified Migration Candidate Creation
 
 **Durum**
 
-In Review — P1 remediation
+Completed
 
-## Sprint 129.25 C.2B.1 — Migration Candidate Schema, Preflight & Verifier / In Review — P1 remediation
+## Sprint 129.25 C.2B.2 — Verified Migration Candidate Creation / Completed
+
+Tek public orchestration entrypoint'i `RuntimeMigrationCandidateService.createVerifiedMigrationCandidate()` eklendi. Service C.2B.1 salt-okunur preflight'ini ve explicit backup verifier'i mutation oncesinde yeniden calistirir; candidate kaynagi yalniz verified `runtime-backup-v1` `payload/projects` agacidir. Live runtime hicbir copy source yoluna girmez.
+
+Candidate create guarded candidate root session'i, operation-owned random `.partial`, manifest sirasinda exclusive copy, source/destination size ve SHA-256 readback, canonical candidate manifest/digest ve staging verification kullanir. Deterministik final candidate publish reservation altinda no-clobber file publish ile yapilir; payload sonrasinda manifest ve digest en son yayinlanir. Final readiness oncesinde independent candidate verifier, exact backup binding, backup re-verification ve live runtime freshness preflight'i yeniden calisir.
+
+Existing final candidate strict final verification ve exact backup binding'e ek olarak canonical semantic manifest identity ve versioned policy hash'iyle karsilastirilir. Identity; candidate/backup ID, manifest SHA/aggregate, runtime freshness, canonical inventory/payload binding ve policy version'larini tasir; `createdAt`, Git ve operation publication evidence'i identity disidir. Ayni backup/policy ile farkli `now()` write-free reuse edilir; identity veya policy sapmasi overwrite/delete olmadan `CANDIDATE_RECOVERY_REQUIRED` olur. Stale session/reservation/partial evidence valid final yaninda dahi sessizce yok sayilmaz. Ownership mismatch, orphan-suspect, cleanup/release/close failure ve aciklanamayan reservation conflict stable recovery-required olur. Published final hicbir failure cleanup'inda silinmez; cleanup yalniz identity'si tekrar dogrulanan operation-owned partial ile sinirlidir.
+
+Readiness yalniz published ve yeniden dogrulanmis final candidate icin `candidateReady:true` uretir; `.partial` staging readiness uretemez ve public verifier `.partial` path'i daima reddeder. Staging kontrolu export edilmeyen internal helper'dir. Public create girisinin tamamini kapsayan outer normalization boundary input/preflight/live-Git inventory/backup/protected-root/session/publish/freshness hatalarini stable path-free migration error'a cevirir; inner lifecycle recovery-required sonucunu korur. Public readiness absolute host path yerine yalniz `candidateId` ve `candidates/<candidateId>` logical locator'i tasir. `candidateCreated`/`candidateReused` ayrimi vardir ve candidate ile verifier raporlarinda `cutoverAuthorized:false` sabittir.
+
+C.2B.2 smoke 34/34 PASS; Windows junction rejection PASS, file symlink creation yetkisi bulunmadigi icin `SKIP_UNSUPPORTED` acik evidence gap olarak raporlanir. Happy path gercek instrumentasyonda `candidateRootMutations=50`, `payload-copy=4`, `final-publish=6`, `liveRuntimeWrites=0`, `backupWrites=0` ve `productionBoundaryCalls=0` olctu. Valid reuse'da `candidateRootMutations=0`; session/partial/reservation/publish/cleanup mutation event'lerinin tamami 0, `liveRuntimeWrites=0`, `backupWrites=0` ve `productionBoundaryCalls=0` olarak dogrulandi. C.2B.1 48/48, C.2A 16/16, C.1 18/18, B.1 13/13 ve eski B 21/21 PASS; TypeScript, targeted ESLint ve `git diff --check` PASS. `data/projects/**` diff bos kaldi.
+
+Bagimsiz final review `APPROVED FOR DOCUMENTATION COMPLETION` karari verdi ve Sprint 129.25 C.2B.2 Completed olarak kapatildi. Non-blocking P2'ler: active capability evidence gercek probe sonucunu manifestte yansitmaz; parsed nested manifest deep-freeze edilmez; process-level concurrent same-ID testi yoktur; file symlink testi `SKIP_UNSUPPORTED` kalmistir.
+
+C.2B.3 yalniz production storage relocation audit'idir ve baslamadi. Runtime relocation, candidate/runtime root mutation'i, authority/root switch ve cutover C.2B.2 tarafindan yetkilendirilmez. Commit veya push yapilmadi.
+
+## Sprint 129.25 C.2B.1 — Migration Candidate Schema, Preflight & Verifier / Completed
 
 `runtime-migration-candidate-v1` immutable candidate sözleşmesi eklendi. Candidate authority akışı `live runtime -> explicit verified backup -> migration candidate` olarak sabitlendi; project-subset, machine state, authority claim ve ephemeral coordination candidate scope'una alınmadı. Acceptance marker, `production-execution/**`, generated asset ve diğer `projects/**` dosyaları mevcut `runtime-backup-v1` file record/classification authority'siyle bağlandı. Git HEAD/index metadata'sı informational evidence olarak kalır ve candidate identity ya da aggregate girdisi değildir.
 
@@ -67,9 +83,9 @@ Independent verifier exact `candidate.json`/`candidate.sha256`/`payload/projects
 
 Desteklenen tehdit modeli trusted local operator, single writer ve accidental concurrency'dir; `hostileConcurrentIsolation:false`. Verifier path-based read ve topology kontrolleri kullanır. Aynı yetkili hostile process'in link-swap/TOCTOU saldırısına karşı handle-relative izolasyon, global freeze veya hostile-process protection C.2B.1 garantisi değildir. Candidate validity iddiası yalnız bu mevcut tehdit modeli içinde geçerlidir.
 
-C.2B.1 targeted remediation smoke 48 senaryo PASS; Windows fixed-drive ve UNC gate PASS, symlink oluşturma platform yetkisi bulunmadığı için ilgili adaptif senaryo `SKIP_UNSUPPORTED` olarak ayrı raporlandı. C.2A 16/16, C.1 18/18, B 16/16 ve B.1 13/13 regression PASS; TypeScript ve targeted ESLint PASS. Tüm fixture write'ları OS temp altındadır; production/provider/worker/dispatch çağrısı `0`, live runtime write `0`, candidate create `0`, backup create `0` ve `cutoverAuthorized:false` kaldı. P1 remediation yeniden bağımsız review bekler; sprint henüz Completed değildir.
+C.2B.1 targeted remediation smoke 48 senaryo PASS; Windows fixed-drive ve UNC gate PASS, symlink oluşturma platform yetkisi bulunmadığı için ilgili adaptif senaryo `SKIP_UNSUPPORTED` olarak ayrı raporlandı. C.2A 16/16, C.1 18/18, B 16/16 ve B.1 13/13 regression PASS; TypeScript ve targeted ESLint PASS. Tüm fixture write'ları OS temp altındadır; production/provider/worker/dispatch çağrısı `0`, live runtime write `0`, candidate create `0`, backup create `0` ve `cutoverAuthorized:false` kaldı. Bağımsız review sonucu `APPROVED FOR DOCUMENTATION COMPLETION`; sprint Completed olarak kapatıldı.
 
-`RuntimeMigrationCandidateService`, candidate create/copy/reservation/publish/cleanup/orphan mutation, restore, cutover, runtime/authority switch ve production relocation eklenmedi. C.2B.2 başlamadı. C.2B.3 production storage relocation audit'i başlamadı ve C.2C/relocation/cutover öncesi zorunlu gate olarak kalır. Git index/`.gitignore`, `data/projects/**`, acceptance marker ve production runtime değiştirilmedi; commit veya push yapılmadı.
+C.2B.1 kapanışında `RuntimeMigrationCandidateService`, candidate create/copy/reservation/publish/cleanup/orphan mutation, restore, cutover, runtime/authority switch ve production relocation eklenmemişti. Candidate creation/readiness daha sonra Sprint 129.25 C.2B.2 kapsamında tamamlandı; C.2B.3 production storage relocation audit'i başlamadı ve C.2C/relocation/cutover öncesi zorunlu gate olarak kalır. Git index/`.gitignore`, `data/projects/**`, acceptance marker ve production runtime değiştirilmedi; commit veya push yapılmadı.
 
 ## Sprint 129.25C.2A — Guarded Filesystem Foundation / Implementation Validated
 

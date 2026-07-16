@@ -12,7 +12,10 @@ export type RuntimeMigrationCandidateErrorCode =
   | "AGGREGATE_MISMATCH"
   | "CRITICAL_STATE_MISMATCH"
   | "PATH_POLICY_VIOLATION"
-  | "UNSUPPORTED_FILE_TYPE";
+  | "UNSUPPORTED_FILE_TYPE"
+  | "CANDIDATE_TARGET_EXISTS"
+  | "CANDIDATE_RECOVERY_REQUIRED"
+  | "CANDIDATE_CREATE_FAILED";
 
 const messages: Readonly<Record<RuntimeMigrationCandidateErrorCode, string>> = Object.freeze({
   INVALID_ARGUMENT: "Migration candidate input is invalid.",
@@ -29,6 +32,9 @@ const messages: Readonly<Record<RuntimeMigrationCandidateErrorCode, string>> = O
   CRITICAL_STATE_MISMATCH: "Migration candidate critical state verification failed.",
   PATH_POLICY_VIOLATION: "Migration candidate path policy verification failed.",
   UNSUPPORTED_FILE_TYPE: "Migration candidate contains an unsupported filesystem object.",
+  CANDIDATE_TARGET_EXISTS: "Migration candidate target already exists.",
+  CANDIDATE_RECOVERY_REQUIRED: "Migration candidate target requires operator recovery.",
+  CANDIDATE_CREATE_FAILED: "Migration candidate creation failed.",
 });
 
 export class RuntimeMigrationCandidateError extends Error {

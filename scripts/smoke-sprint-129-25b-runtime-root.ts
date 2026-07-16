@@ -15,7 +15,10 @@ import {
   resolveRuntimeStorageConfiguration,
   runtimeStoragePolicyVersion,
 } from "../src/lib/runtime/RuntimeStoragePaths";
-import { collectRuntimeTrackingInventory } from "./lib/runtime-tracking-inventory";
+import {
+  assertRuntimeTrackingAdmission,
+  collectRuntimeTrackingInventory,
+} from "./lib/runtime-tracking-inventory";
 import { ProjectReader } from "../src/lib/projects/ProjectReader";
 import { ProjectWriter } from "../src/lib/projects/ProjectWriter";
 import { AssetManager } from "../src/lib/assets/AssetManager";
@@ -30,7 +33,6 @@ const markerPath = path.join(
   "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
   "production-acceptance.json",
 );
-const expectedTrackedCount = 184;
 let scenarios = 0;
 
 async function scenario(name: string, run: () => void | Promise<void>) {
@@ -60,11 +62,9 @@ function runtimeDiff() {
 async function main() {
 const beforeMarker = sha256(markerPath);
 const beforeInventory = collectRuntimeTrackingInventory(repositoryRoot);
+const beforeAdmission = assertRuntimeTrackingAdmission(beforeInventory, repositoryRoot);
 const beforeRuntimeDiff = runtimeDiff();
-assert.equal(beforeInventory.trackedPaths.length, expectedTrackedCount);
-assert.equal(beforeInventory.physicalPaths.length, expectedTrackedCount);
-assert.equal(beforeInventory.untrackedPaths.length, 0);
-assert.equal(beforeInventory.trackedMissingPaths.length, 0);
+assert.ok(beforeAdmission.tracked > 0);
 assert.equal(beforeRuntimeDiff, "");
 
 const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-runtime-root-"));
@@ -275,19 +275,77 @@ try {
     assert.doesNotMatch(source, /Orchestrator|Provider|Worker|execute\(|resume\(|finalize\(|dispatch\(/);
     assert.deepEqual(productionBoundaryViolations(), []);
   });
+
+  await scenario("live tracking admission separates allowed ignored durable records", () => {
+    const admission = assertRuntimeTrackingAdmission(beforeInventory, repositoryRoot);
+    assert.equal(admission.tracked, beforeInventory.trackedPaths.length);
+    assert.equal(admission.ignoredDurable, beforeInventory.ignoredPaths.length);
+    assert.equal(admission.unexpectedUntracked, 0);
+    assert.equal(admission.trackedMissing, 0);
+  });
+
+  await scenario("allowed ignored durable records pass admission", () => {
+    const fixture = createTrackingAdmissionFixture(sandbox, "allowed-ignored");
+    const relative = "data/projects/project-a/production-execution/attempts/pipeline-attempt-fixture-v1.json";
+    writeIgnoredFixtureFile(fixture, relative);
+    const inventory = collectRuntimeTrackingInventory(fixture);
+    assert.equal(assertRuntimeTrackingAdmission(inventory, fixture).ignoredDurable, 1);
+  });
+
+  await scenario("ignored source or config records fail admission", () => {
+    const fixture = createTrackingAdmissionFixture(sandbox, "ignored-config");
+    writeIgnoredFixtureFile(fixture, "data/projects/project-a/config.json");
+    assert.throws(() =>
+      assertRuntimeTrackingAdmission(collectRuntimeTrackingInventory(fixture), fixture));
+  });
+
+  await scenario("extra physical files outside durable topology fail admission", () => {
+    const fixture = createTrackingAdmissionFixture(sandbox, "extra-physical");
+    fs.writeFileSync(path.join(fixture, "data", "projects", "project-a", "unexpected.bin"), "x");
+    assert.throws(() =>
+      assertRuntimeTrackingAdmission(collectRuntimeTrackingInventory(fixture), fixture));
+  });
+
+  await scenario("tracked physical inventory deviation fails admission", () => {
+    const fixture = createTrackingAdmissionFixture(sandbox, "tracked-missing");
+    fs.rmSync(path.join(fixture, "data", "projects", "project-a", "project.json"));
+    assert.throws(() =>
+      assertRuntimeTrackingAdmission(collectRuntimeTrackingInventory(fixture), fixture));
+  });
 } finally {
   fs.rmSync(sandbox, { recursive: true, force: true });
 }
 
 const afterMarker = sha256(markerPath);
 const afterInventory = collectRuntimeTrackingInventory(repositoryRoot);
+assertRuntimeTrackingAdmission(afterInventory, repositoryRoot);
 assert.equal(afterMarker, beforeMarker);
 assert.deepEqual(afterInventory, beforeInventory);
 assert.equal(runtimeDiff(), beforeRuntimeDiff);
 
 process.stdout.write(
-  `Sprint 129.25B runtime root smoke: PASS (${scenarios} scenarios; tracked=${afterInventory.trackedPaths.length}; untracked=${afterInventory.untrackedPaths.length}; production-boundary-violations=${productionBoundaryViolations().length})\n`,
+  `Sprint 129.25B runtime root smoke: PASS (${scenarios} scenarios; tracked=${afterInventory.trackedPaths.length}; ignored-durable=${afterInventory.ignoredPaths.length}; unexpected-untracked=${afterInventory.unexpectedUntrackedPaths.length}; production-boundary-violations=${productionBoundaryViolations().length})\n`,
 );
+}
+
+function createTrackingAdmissionFixture(sandbox: string, name: string) {
+  const root = path.join(sandbox, `tracking-${name}`);
+  const projectRoot = path.join(root, "data", "projects", "project-a");
+  fs.mkdirSync(projectRoot, { recursive: true });
+  fs.writeFileSync(path.join(projectRoot, "project.json"), "{}\n");
+  execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
+  execFileSync("git", ["config", "user.email", "fixture@example.invalid"], { cwd: root });
+  execFileSync("git", ["config", "user.name", "Fixture"], { cwd: root });
+  execFileSync("git", ["add", "data/projects"], { cwd: root });
+  execFileSync("git", ["commit", "-m", "fixture"], { cwd: root, stdio: "ignore" });
+  return root;
+}
+
+function writeIgnoredFixtureFile(repository: string, relativePath: string) {
+  const absolutePath = path.join(repository, ...relativePath.split("/"));
+  fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+  fs.writeFileSync(absolutePath, "{}\n");
+  fs.appendFileSync(path.join(repository, ".git", "info", "exclude"), `${relativePath}\n`);
 }
 
 function productionBoundaryViolations() {

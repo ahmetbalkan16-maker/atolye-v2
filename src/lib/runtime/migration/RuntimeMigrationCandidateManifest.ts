@@ -167,6 +167,52 @@ export function runtimeMigrationCandidateManifestSha256(value: string | Buffer) 
   return createHash("sha256").update(value).digest("hex");
 }
 
+export function runtimeMigrationCandidatePolicySha256(
+  manifest: RuntimeMigrationCandidateManifest,
+) {
+  validateRuntimeMigrationCandidateManifest(manifest);
+  return hashCanonical({
+    schemaVersion: manifest.schemaVersion,
+    candidateFormatVersion: manifest.candidateFormatVersion,
+    scopeVersion: manifest.scopeVersion,
+    pathPolicyVersion: manifest.pathPolicyVersion,
+    aggregateAlgorithm: manifest.aggregateAlgorithm,
+    backupFormatVersion: manifest.sourceBackup.formatVersion,
+    backupStoragePolicyVersion: manifest.sourceBackup.storagePolicyVersion,
+    sourceLogicalIdentity: manifest.sourceBackup.sourceLogicalIdentity,
+    sourceClassification: manifest.sourceBackup.sourceClassification,
+    capabilityContractVersion: manifest.capabilitySummary.contractVersion,
+    destinationClass: manifest.capabilitySummary.destinationClass,
+    hostileConcurrentIsolation: manifest.capabilitySummary.hostileConcurrentIsolation,
+  });
+}
+
+export function runtimeMigrationCandidateIdentitySha256(
+  manifest: RuntimeMigrationCandidateManifest,
+) {
+  validateRuntimeMigrationCandidateManifest(manifest);
+  const canonical = canonicalManifest(manifest);
+  return hashCanonical({
+    schemaVersion: canonical.schemaVersion,
+    candidateFormatVersion: canonical.candidateFormatVersion,
+    candidateId: canonical.candidateId,
+    scopeVersion: canonical.scopeVersion,
+    pathPolicyVersion: canonical.pathPolicyVersion,
+    sourceBackup: canonical.sourceBackup,
+    sourceRuntimeEvidence: canonical.sourceRuntimeEvidence,
+    aggregateAlgorithm: canonical.aggregateAlgorithm,
+    candidateAggregate: canonical.candidateAggregate,
+    inventory: canonical.inventory,
+    files: canonical.files,
+    directories: canonical.directories,
+    markerBindings: canonical.markerBindings,
+    durableExecutionBinding: canonical.durableExecutionBinding,
+    classificationTotals: canonical.classificationTotals,
+    policySha256: runtimeMigrationCandidatePolicySha256(manifest),
+    verificationStatus: canonical.verificationStatus,
+  });
+}
+
 export function minimalRuntimeDirectoryClosure(
   files: readonly Pick<RuntimeBackupFileRecord, "relativePath">[],
 ): readonly string[] {
@@ -396,6 +442,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function invalid() { return new RuntimeMigrationCandidateError("CANDIDATE_INVALID"); }
 function containsHostPath(value: string) {
   return /(?:[a-zA-Z]:[\\/]|\\\\[^\\]+\\|\/(?:Users|home|var|tmp)\/)/.test(value);
+}
+function hashCanonical(value: unknown) {
+  return createHash("sha256").update(JSON.stringify(value), "utf8").digest("hex");
 }
 function deepFreeze<T>(value: T): T {
   if (value && typeof value === "object" && !Object.isFrozen(value)) {
