@@ -23,11 +23,11 @@ import {
 import type { ProductionReadinessReport } from "@/types/productionReadiness";
 import { ProductionReadinessService } from "./ProductionReadinessService";
 import {
-  createProductionAcceptanceMarkerV3,
+  createProductionAcceptanceMarkerV3Profile2,
   markProductionAcceptanceValidated,
   readProductionAcceptanceMarker,
 } from "./ProductionAcceptancePolicy";
-import { createProductionAcceptancePortableConfigurationSnapshot } from
+import { createProductionAcceptancePortableConfigurationSnapshotV2 } from
   "./ProductionAcceptanceConfigurationFingerprint";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { validateProductionAcceptanceMedia } from "./ProductionAcceptanceMediaValidation";
@@ -116,10 +116,15 @@ export class ProductionAcceptanceOrchestrator {
   static async run(request: ProductionAcceptanceRequest): Promise<ProductionAcceptanceResult> {
     const topic = normalizeProductionAcceptanceTopic(request.topic);
     const runId = crypto.randomUUID();
-    const configuration = await createProductionAcceptancePortableConfigurationSnapshot();
+    const runSlug = createProductionAcceptanceProjectSlug(topic, runId);
+    const configuration = await createProductionAcceptancePortableConfigurationSnapshotV2(
+      runSlug,
+    );
     const readiness = await this.evaluateReadiness();
     if (!readiness.ready) throw new ProductionAcceptanceBlockedError(readiness);
-    const currentConfiguration = await createProductionAcceptancePortableConfigurationSnapshot();
+    const currentConfiguration = await createProductionAcceptancePortableConfigurationSnapshotV2(
+      runSlug,
+    );
     if (
       configuration.unavailableComponents.length > 0 ||
       currentConfiguration.unavailableComponents.length > 0 ||
@@ -129,12 +134,11 @@ export class ProductionAcceptanceOrchestrator {
     }
 
     const runTopic = `${topic} ${runId}`;
-    const runSlug = createProductionAcceptanceProjectSlug(topic, runId);
     if (await ProjectManager.getProject(runSlug)) {
       throw new ProductionAcceptanceExecutionError();
     }
     try {
-      await createProductionAcceptanceMarkerV3(runSlug, runId, configuration, topic);
+      await createProductionAcceptanceMarkerV3Profile2(runSlug, runId, configuration, topic);
     } catch {
       throw new ProductionAcceptanceExecutionError();
     }

@@ -9,11 +9,17 @@ import {
 } from "./ProductionAcceptanceTopic";
 import {
   createProductionAcceptancePortableConfigurationSnapshot,
+  createProductionAcceptancePortableConfigurationSnapshotV2,
   findProductionAcceptanceConfigurationMismatches,
+  findProductionAcceptanceConfigurationMismatchesV2,
   productionAcceptancePortableConfigurationFingerprint,
+  productionAcceptancePortableConfigurationFingerprintV2,
   validProductionAcceptanceComponentFingerprints,
+  validProductionAcceptanceComponentFingerprintsV2,
   type ProductionAcceptanceComponentFingerprints,
+  type ProductionAcceptanceComponentFingerprintsV2,
   type ProductionAcceptancePortableConfigurationSnapshot,
+  type ProductionAcceptancePortableConfigurationSnapshotV2,
 } from "./ProductionAcceptanceConfigurationFingerprint";
 
 const MARKER_FILE = "production-acceptance.json";
@@ -84,7 +90,27 @@ interface ProductionAcceptanceMarkerV3 {
   readonly validatedAt?: string;
 }
 
-type ProductionAcceptanceMarker = ProductionAcceptanceMarkerV2 | ProductionAcceptanceMarkerV3;
+interface ProductionAcceptanceMarkerV3Profile2 {
+  readonly schemaVersion: "3";
+  readonly componentFingerprintProfile: "2";
+  readonly runId: string;
+  readonly topic: string;
+  readonly topicFingerprint: string;
+  readonly requestFingerprint: string;
+  readonly strictProductionAcceptance: true;
+  readonly publishMode: "package-only";
+  readonly configurationFingerprint: string;
+  readonly componentFingerprints: ProductionAcceptanceComponentFingerprintsV2;
+  readonly createdAt: string;
+  readonly acceptanceStatus: "prepared" | "validated";
+  readonly productionReady: boolean;
+  readonly published: false;
+  readonly validatedAt?: string;
+}
+
+type ProductionAcceptanceMarker = ProductionAcceptanceMarkerV2 |
+  ProductionAcceptanceMarkerV3 |
+  ProductionAcceptanceMarkerV3Profile2;
 
 export interface ProductionAcceptanceMarkerSnapshot {
   readonly runId: string;
@@ -102,6 +128,11 @@ export interface ProductionAcceptanceConfigurationDiagnostic {
   readonly matches: boolean;
   readonly componentDiagnosticsAvailable: boolean;
   readonly mismatchedComponents: readonly string[];
+}
+
+export interface ProductionAcceptanceRepreparePreparation {
+  readonly decision: "reprepare" | "replayed";
+  readonly marker: Readonly<Record<string, unknown>>;
 }
 
 export class ProductionAcceptancePolicyError extends Error {
@@ -228,6 +259,70 @@ export async function createProductionAcceptanceMarkerV3(
   }
 }
 
+export async function createProductionAcceptanceMarkerV3Profile2(
+  projectSlug: string,
+  runId: string,
+  configuration: ProductionAcceptancePortableConfigurationSnapshotV2,
+  topic: string,
+  environment: NodeJS.ProcessEnv = process.env,
+): Promise<void> {
+  let canonicalTopic: string;
+  try {
+    canonicalTopic = normalizeProductionAcceptanceTopic(topic);
+  } catch {
+    throw new ProductionAcceptancePolicyError();
+  }
+  const current = await createProductionAcceptancePortableConfigurationSnapshotV2(
+    projectSlug,
+    environment,
+  );
+  if (
+    !safeSlug(projectSlug) ||
+    !safeRunId(runId) ||
+    createProductionAcceptanceProjectSlug(canonicalTopic, runId) !== projectSlug ||
+    configuration.unavailableComponents.length > 0 ||
+    current.unavailableComponents.length > 0 ||
+    configuration.configurationFingerprint !== current.configurationFingerprint ||
+    findProductionAcceptanceConfigurationMismatchesV2(
+      configuration.componentFingerprints,
+      current.componentFingerprints,
+    ).length > 0
+  ) {
+    throw new ProductionAcceptancePolicyError();
+  }
+  const projectFolder = ProjectReader.getProjectFolder(projectSlug);
+  try {
+    await fs.mkdir(projectFolder);
+  } catch {
+    throw new ProductionAcceptancePolicyError();
+  }
+  const marker: ProductionAcceptanceMarkerV3Profile2 =
+    createProductionAcceptanceMarkerV3Profile2Value({
+      schemaVersion: "2",
+      runId,
+      topic: canonicalTopic,
+      topicFingerprint: productionAcceptanceTopicFingerprint(canonicalTopic),
+      requestFingerprint: productionAcceptanceRequestFingerprint({
+        topic: canonicalTopic,
+        runId,
+        configurationFingerprint: productionAcceptanceConfigurationFingerprint(environment),
+      }),
+      strictProductionAcceptance: true,
+      publishMode: "package-only",
+      configurationFingerprint: productionAcceptanceConfigurationFingerprint(environment),
+      createdAt: new Date().toISOString(),
+      acceptanceStatus: "prepared",
+      productionReady: false,
+      published: false,
+    }, configuration);
+  try {
+    await ProjectWriter.writeJSONAtomically(projectSlug, MARKER_FILE, marker);
+  } catch {
+    try { await fs.rmdir(projectFolder); } catch { /* Reserved directory is retained fail-closed. */ }
+    throw new ProductionAcceptancePolicyError();
+  }
+}
+
 export async function markProductionAcceptanceValidated(
   projectSlug: string,
   configurationFingerprint: string,
@@ -239,7 +334,7 @@ export async function markProductionAcceptanceValidated(
     !validMarker(state.value) ||
     createProductionAcceptanceProjectSlug(state.value.topic, state.value.runId) !== projectSlug ||
     state.value.configurationFingerprint !== configurationFingerprint ||
-    !await markerMatchesCurrentConfiguration(state.value)
+    !await markerMatchesCurrentConfiguration(state.value, projectSlug)
   ) throw new ProductionAcceptancePolicyError();
   if (state.value.acceptanceStatus === "validated" && state.value.productionReady) return;
   const validatedAt = new Date().toISOString();
@@ -266,7 +361,7 @@ export async function readProductionAcceptancePolicy(projectSlug: string): Promi
   if (createProductionAcceptanceProjectSlug(state.value.topic, state.value.runId) !== projectSlug) {
     throw new ProductionAcceptancePolicyError();
   }
-  if (!await markerMatchesCurrentConfiguration(state.value)) {
+  if (!await markerMatchesCurrentConfiguration(state.value, projectSlug)) {
     throw new ProductionAcceptancePolicyError();
   }
   return {
@@ -284,7 +379,7 @@ export async function readProductionAcceptanceMarker(
     state.status !== "parsed" ||
     !validMarker(state.value) ||
     createProductionAcceptanceProjectSlug(state.value.topic, state.value.runId) !== projectSlug ||
-    !await markerMatchesCurrentConfiguration(state.value)
+    !await markerMatchesCurrentConfiguration(state.value, projectSlug)
   ) throw new ProductionAcceptancePolicyError();
   return Object.freeze({
     runId: state.value.runId,
@@ -319,6 +414,24 @@ export async function diagnoseProductionAcceptanceConfiguration(
       mismatchedComponents: Object.freeze([]),
     });
   }
+  if (isMarkerV3Profile2(state.value)) {
+    const current = await createProductionAcceptancePortableConfigurationSnapshotV2(
+      projectSlug,
+      environment,
+    );
+    const mismatchedComponents = findProductionAcceptanceConfigurationMismatchesV2(
+      state.value.componentFingerprints,
+      current.componentFingerprints,
+    );
+    const matches = mismatchedComponents.length === 0 &&
+      state.value.configurationFingerprint === current.configurationFingerprint;
+    return Object.freeze({
+      schemaVersion: "3",
+      matches,
+      componentDiagnosticsAvailable: true,
+      mismatchedComponents,
+    });
+  }
   const current = await createProductionAcceptancePortableConfigurationSnapshot(environment);
   const mismatchedComponents = findProductionAcceptanceConfigurationMismatches(
     state.value.componentFingerprints,
@@ -332,6 +445,76 @@ export async function diagnoseProductionAcceptanceConfiguration(
     componentDiagnosticsAvailable: true,
     mismatchedComponents,
   });
+}
+
+export async function prepareProductionAcceptanceMarkerReprepare(
+  projectSlug: string,
+  value: unknown,
+  environment: NodeJS.ProcessEnv = process.env,
+): Promise<ProductionAcceptanceRepreparePreparation> {
+  if (
+    !safeSlug(projectSlug) ||
+    !validMarker(value) ||
+    createProductionAcceptanceProjectSlug(value.topic, value.runId) !== projectSlug
+  ) throw new ProductionAcceptancePolicyError();
+  if (value.schemaVersion === "2") {
+    if (
+      value.configurationFingerprint !==
+        productionAcceptanceConfigurationFingerprint(environment)
+    ) throw new ProductionAcceptancePolicyError();
+    const configuration =
+      await createProductionAcceptancePortableConfigurationSnapshotV2(projectSlug, environment);
+    if (configuration.unavailableComponents.length > 0) {
+      throw new ProductionAcceptancePolicyError();
+    }
+    return Object.freeze({
+      decision: "reprepare",
+      marker: Object.freeze(
+        createProductionAcceptanceMarkerV3Profile2Value(value, configuration),
+      ) as unknown as Readonly<Record<string, unknown>>,
+    });
+  }
+  if (!isMarkerV3Profile2(value)) {
+    throw new ProductionAcceptancePolicyError();
+  }
+  const current =
+    await createProductionAcceptancePortableConfigurationSnapshotV2(projectSlug, environment);
+  if (
+    current.unavailableComponents.length > 0 ||
+    value.configurationFingerprint !== current.configurationFingerprint ||
+    findProductionAcceptanceConfigurationMismatchesV2(
+      value.componentFingerprints,
+      current.componentFingerprints,
+    ).length > 0
+  ) throw new ProductionAcceptancePolicyError();
+  return Object.freeze({
+    decision: "replayed",
+    marker: value as unknown as Readonly<Record<string, unknown>>,
+  });
+}
+
+export async function validateProductionAcceptanceReprepareReadback(
+  projectSlug: string,
+  value: unknown,
+  expectedMarker: Readonly<Record<string, unknown>>,
+  environment: NodeJS.ProcessEnv = process.env,
+): Promise<void> {
+  if (
+    !safeSlug(projectSlug) ||
+    !validMarkerV3Profile2(value) ||
+    createProductionAcceptanceProjectSlug(value.topic, value.runId) !== projectSlug ||
+    JSON.stringify(value) !== JSON.stringify(expectedMarker)
+  ) throw new ProductionAcceptancePolicyError();
+  const current =
+    await createProductionAcceptancePortableConfigurationSnapshotV2(projectSlug, environment);
+  if (
+    current.unavailableComponents.length > 0 ||
+    value.configurationFingerprint !== current.configurationFingerprint ||
+    findProductionAcceptanceConfigurationMismatchesV2(
+      value.componentFingerprints,
+      current.componentFingerprints,
+    ).length > 0
+  ) throw new ProductionAcceptancePolicyError();
 }
 
 export function productionAcceptanceConfigurationFingerprint(
@@ -389,7 +572,10 @@ function validMarker(value: unknown): value is ProductionAcceptanceMarker {
   const schemaVersion = (value as { schemaVersion?: unknown }).schemaVersion;
   return schemaVersion === "2"
     ? validMarkerV2(value)
-    : schemaVersion === "3" && validMarkerV3(value);
+    : schemaVersion === "3" &&
+      ((value as { componentFingerprintProfile?: unknown }).componentFingerprintProfile === "2"
+        ? validMarkerV3Profile2(value)
+        : validMarkerV3(value));
 }
 
 function validMarkerV2(value: unknown): value is ProductionAcceptanceMarkerV2 {
@@ -433,6 +619,7 @@ function validMarkerV3(value: unknown): value is ProductionAcceptanceMarkerV3 {
   const marker = value as Partial<ProductionAcceptanceMarkerV3>;
   if (
     marker.schemaVersion !== "3" ||
+    "componentFingerprintProfile" in marker ||
     !safeRunId(marker.runId) ||
     typeof marker.topic !== "string" ||
     typeof marker.topicFingerprint !== "string" ||
@@ -448,6 +635,46 @@ function validMarkerV3(value: unknown): value is ProductionAcceptanceMarkerV3 {
   try {
     canonicalTopic = normalizeProductionAcceptanceTopic(marker.topic);
     requestFingerprint = productionAcceptanceRequestFingerprintV3({
+      topic: canonicalTopic,
+      runId: marker.runId,
+      configurationFingerprint: marker.configurationFingerprint,
+    });
+  } catch {
+    return false;
+  }
+  return marker.topic === canonicalTopic &&
+    marker.topicFingerprint === productionAcceptanceTopicFingerprint(canonicalTopic) &&
+    marker.requestFingerprint === requestFingerprint &&
+    marker.strictProductionAcceptance === true &&
+    marker.publishMode === "package-only" &&
+    typeof marker.createdAt === "string" && validTimestamp(marker.createdAt) &&
+    marker.published === false &&
+    ((marker.acceptanceStatus === "prepared" && marker.productionReady === false && marker.validatedAt === undefined) ||
+      (marker.acceptanceStatus === "validated" && marker.productionReady === true &&
+        typeof marker.validatedAt === "string" && validTimestamp(marker.validatedAt)));
+}
+
+function validMarkerV3Profile2(value: unknown): value is ProductionAcceptanceMarkerV3Profile2 {
+  if (!value || typeof value !== "object") return false;
+  const marker = value as Partial<ProductionAcceptanceMarkerV3Profile2>;
+  if (
+    marker.schemaVersion !== "3" ||
+    marker.componentFingerprintProfile !== "2" ||
+    !safeRunId(marker.runId) ||
+    typeof marker.topic !== "string" ||
+    typeof marker.topicFingerprint !== "string" ||
+    typeof marker.requestFingerprint !== "string" ||
+    typeof marker.configurationFingerprint !== "string" ||
+    !/^[a-f0-9]{64}$/.test(marker.configurationFingerprint) ||
+    !validProductionAcceptanceComponentFingerprintsV2(marker.componentFingerprints) ||
+    productionAcceptancePortableConfigurationFingerprintV2(marker.componentFingerprints) !==
+      marker.configurationFingerprint
+  ) return false;
+  let canonicalTopic: string;
+  let requestFingerprint: string;
+  try {
+    canonicalTopic = normalizeProductionAcceptanceTopic(marker.topic);
+    requestFingerprint = productionAcceptanceRequestFingerprintV3Profile2({
       topic: canonicalTopic,
       runId: marker.runId,
       configurationFingerprint: marker.configurationFingerprint,
@@ -490,9 +717,72 @@ function productionAcceptanceRequestFingerprintV3({
   })).digest("hex");
 }
 
-async function markerMatchesCurrentConfiguration(marker: ProductionAcceptanceMarker) {
+export function productionAcceptanceRequestFingerprintV3Profile2({
+  topic,
+  runId,
+  configurationFingerprint,
+}: {
+  topic: string;
+  runId: string;
+  configurationFingerprint: string;
+}): string {
+  const canonicalTopic = normalizeProductionAcceptanceTopic(topic);
+  if (!safeRunId(runId) || !/^[a-f0-9]{64}$/.test(configurationFingerprint)) {
+    throw new ProductionAcceptancePolicyError();
+  }
+  return createHash("sha256").update(JSON.stringify({
+    schemaVersion: "3",
+    componentFingerprintProfile: "2",
+    topic: canonicalTopic,
+    runId,
+    configurationFingerprint,
+    strictProductionAcceptance: true,
+    publishMode: "package-only",
+  })).digest("hex");
+}
+
+function createProductionAcceptanceMarkerV3Profile2Value(
+  source: ProductionAcceptanceMarkerV2,
+  configuration: ProductionAcceptancePortableConfigurationSnapshotV2,
+): ProductionAcceptanceMarkerV3Profile2 {
+  return {
+    schemaVersion: "3",
+    componentFingerprintProfile: "2",
+    runId: source.runId,
+    topic: source.topic,
+    topicFingerprint: source.topicFingerprint,
+    requestFingerprint: productionAcceptanceRequestFingerprintV3Profile2({
+      topic: source.topic,
+      runId: source.runId,
+      configurationFingerprint: configuration.configurationFingerprint,
+    }),
+    strictProductionAcceptance: true,
+    publishMode: "package-only",
+    configurationFingerprint: configuration.configurationFingerprint,
+    componentFingerprints: configuration.componentFingerprints,
+    createdAt: source.createdAt,
+    acceptanceStatus: source.acceptanceStatus,
+    productionReady: source.productionReady,
+    published: false,
+    ...(source.validatedAt ? { validatedAt: source.validatedAt } : {}),
+  };
+}
+
+async function markerMatchesCurrentConfiguration(
+  marker: ProductionAcceptanceMarker,
+  projectSlug: string,
+) {
   if (marker.schemaVersion === "2") {
     return marker.configurationFingerprint === productionAcceptanceConfigurationFingerprint();
+  }
+  if (isMarkerV3Profile2(marker)) {
+    const current = await createProductionAcceptancePortableConfigurationSnapshotV2(projectSlug);
+    return current.unavailableComponents.length === 0 &&
+      marker.configurationFingerprint === current.configurationFingerprint &&
+      findProductionAcceptanceConfigurationMismatchesV2(
+        marker.componentFingerprints,
+        current.componentFingerprints,
+      ).length === 0;
   }
   const current = await createProductionAcceptancePortableConfigurationSnapshot();
   return current.unavailableComponents.length === 0 &&
@@ -505,6 +795,14 @@ function sameComponentFingerprints(
   right: ProductionAcceptanceComponentFingerprints,
 ) {
   return findProductionAcceptanceConfigurationMismatches(left, right).length === 0;
+}
+
+function isMarkerV3Profile2(
+  marker: ProductionAcceptanceMarker,
+): marker is ProductionAcceptanceMarkerV3Profile2 {
+  return marker.schemaVersion === "3" &&
+    "componentFingerprintProfile" in marker &&
+    marker.componentFingerprintProfile === "2";
 }
 
 function safeSlug(value: string) {

@@ -25,6 +25,16 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 129.24 — Existing Acceptance Marker Portability / Completed
+
+- Explicit confirmation gerektiren `production:acceptance:reprepare` operator command'i eklendi. Komut yalnız acceptance marker'ını kontrollü yeniden hazırlar; execute, resume, finalize, retry veya stage dispatch başlatmaz.
+- Schema-2 marker bütün structural/identity/request/policy/status/timestamp ve current legacy configuration kontrollerini geçmeden write başlamaz. Otomatik migration ve schema-2 mismatch bypass yoktur.
+- Schema-3 profile-v2, existing profile-v1 compatibility'sini koruyarak project-relative storage identity ve versioned environment policy component'leri ekledi. Provider, model, token, durable mode, API-key identity ve diğer security-critical configuration component'leri ayrı hashed fingerprints olarak korunur.
+- FFmpeg/FFprobe absolute path değerleri portable kalır; binary content identity aynıysa farklı path eşleşir, FFmpeg veya FFprobe binary değişikliği ayrı component mismatch ile fail-closed olur.
+- Persistence unique temp `wx`, fsync, temp validation, concurrent destination byte guard, atomic replace ve exact readback kullanır. Readback failure original marker byte'larını synced atomic compensation replace ile geri yükler ve restore'u doğrular. Exact replay write-free'dir.
+- Smoke coverage schema-2→3, invalid marker/no-write, temp write/replace failure, readback rollback, FFmpeg/FFprobe path ve binary ayrımı, provider/model/token/API/durable/storage/environment mismatch, runtime/project immutability, zero execution wiring, redaction ve idempotency dahil 22/22 PASS.
+- Sprint 129.23 15/15, Sprint 128.2 30/30, Sprint 129.5 24/24 ve isolated readiness PASS; TypeScript, targeted ESLint ve `git diff --check` PASS. Gerçek Fatih marker/runtime verisi değiştirilmedi; production execution ve Git commit/push yapılmadı.
+
 ## Sprint 129.23 — Production Acceptance Portability & Fingerprint Diagnostics / Completed
 
 - `npm run production:acceptance:diagnose -- --project-slug=<slug>` read-only operator komutu eklendi. Match exit `0`, mismatch exit `1`; rapor yalnız güvenli component adlarını içerir ve hash, path, secret identity veya raw configuration göstermez.

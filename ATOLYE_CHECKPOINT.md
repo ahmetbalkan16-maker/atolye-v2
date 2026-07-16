@@ -47,13 +47,25 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 129.23**
+**Sprint 129.24**
 
-Production Acceptance Portability & Fingerprint Diagnostics
+Existing Acceptance Marker Portability — Controlled Schema-3 Re-prepare
 
 **Durum**
 
-Completed — PORTABLE DIAGNOSTICS READY
+Completed — CONTROLLED RE-PREPARE READY
+
+## Sprint 129.24 — Existing Acceptance Marker Portability / Completed
+
+Existing schema-2 production acceptance marker'larını yalnız explicit operator komutuyla schema-3 portability modeline yeniden hazırlayan `npm run production:acceptance:reprepare -- --project-slug=<slug> --confirm-production-acceptance-reprepare` eklendi. Otomatik migration yoktur. Re-prepare servisi production orchestrator, runner, resume/finalize, retry veya stage dispatch import etmez ve çağırmaz.
+
+Herhangi bir write başlamadan schema-2 marker'ın canonical topic/runId/slug binding'i, topic/request/configuration fingerprint'leri, strict package-only policy'si, timestamp/status/productionReady/published invariant'ları ve current legacy configuration fingerprint'i tamamen doğrulanır. Schema-2 aggregate fingerprint mismatch hiçbir zaman path-only değişiklik varsayımıyla bypass edilmez. Re-prepare anındaki current FFmpeg/FFprobe binary identity schema-3 portability baseline'ı olur.
+
+Schema-3 profile-v2, Sprint 129.23 profile-v1 compatibility'sini koruyarak `STORAGE_IDENTITY` ve `ENVIRONMENT_POLICY` component'lerini ekler. Storage identity absolute machine path yerine canonical `data/projects/<slug>` namespace, asset-layout ve no-links containment policy'sine bağlıdır. Environment policy strict acceptance, package-only ve configuration semantics sürümünü bağlar. Provider, model, token budget, durable mode, API-key identity ve diğer acceptance component'leri fail-closed kalır. FFmpeg/FFprobe absolute path portable'dır; yalnız binary content identity aynıysa eşleşir.
+
+Marker update unique temp file `wx` write, file-handle fsync, temp validation, destination byte compare, atomic replace ve exact readback validation sırasını kullanır. Replace öncesi failure old marker'ı değiştirmez. Replace sonrası readback failure original raw marker byte'larını ikinci synced atomic replace ile geri yükler ve restore readback'i doğrular. Exact profile-v2 replay write-free `replayed` döner.
+
+Sprint 129.24 smoke 22/22, Sprint 129.23 15/15, Sprint 128.2 acceptance 30/30, Sprint 129.5 topic/schema-2 24/24 ve isolated production readiness acceptance PASS. TypeScript, targeted ESLint `--max-warnings=0` ve `git diff --check` PASS. Gerçek Fatih marker reprepare edilmedi; production execute/resume/finalize/retry/stage dispatch, commit veya push yapılmadı.
 
 ## Sprint 129.23 — Production Acceptance Portability & Fingerprint Diagnostics / Completed
 

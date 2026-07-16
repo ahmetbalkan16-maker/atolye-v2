@@ -38,17 +38,37 @@ const CONFIGURATION_COMPONENT_NAMES = [
   "ATOLYE_DURABLE_PIPELINE_EXECUTION",
 ] as const;
 
+const CONFIGURATION_COMPONENT_NAMES_V2 = [
+  ...CONFIGURATION_COMPONENT_NAMES,
+  "STORAGE_IDENTITY",
+  "ENVIRONMENT_POLICY",
+] as const;
+
 type ProductionAcceptanceConfigurationComponent =
   (typeof CONFIGURATION_COMPONENT_NAMES)[number];
 
+type ProductionAcceptanceConfigurationComponentV2 =
+  (typeof CONFIGURATION_COMPONENT_NAMES_V2)[number];
+
 export type ProductionAcceptanceComponentFingerprints = Readonly<
   Record<ProductionAcceptanceConfigurationComponent, string>
+>;
+
+export type ProductionAcceptanceComponentFingerprintsV2 = Readonly<
+  Record<ProductionAcceptanceConfigurationComponentV2, string>
 >;
 
 export interface ProductionAcceptancePortableConfigurationSnapshot {
   readonly configurationFingerprint: string;
   readonly componentFingerprints: ProductionAcceptanceComponentFingerprints;
   readonly unavailableComponents: readonly ProductionAcceptanceConfigurationComponent[];
+}
+
+export interface ProductionAcceptancePortableConfigurationSnapshotV2 {
+  readonly componentFingerprintProfile: "2";
+  readonly configurationFingerprint: string;
+  readonly componentFingerprints: ProductionAcceptanceComponentFingerprintsV2;
+  readonly unavailableComponents: readonly ProductionAcceptanceConfigurationComponentV2[];
 }
 
 type ReadBinary = (filePath: string) => Promise<Buffer>;
@@ -92,6 +112,52 @@ export async function createProductionAcceptancePortableConfigurationSnapshot(
   });
 }
 
+export async function createProductionAcceptancePortableConfigurationSnapshotV2(
+  projectSlug: string,
+  environment: NodeJS.ProcessEnv = process.env,
+  readBinary: ReadBinary = (filePath) => fs.readFile(filePath),
+): Promise<ProductionAcceptancePortableConfigurationSnapshotV2> {
+  if (!/^[a-z0-9](?:[a-z0-9-]{0,198}[a-z0-9])?$/.test(projectSlug)) {
+    throw new Error("Invalid production acceptance configuration identity.");
+  }
+  const legacy = await createProductionAcceptancePortableConfigurationSnapshot(
+    environment,
+    readBinary,
+  );
+  const entries: Array<readonly [ProductionAcceptanceConfigurationComponentV2, string]> =
+    CONFIGURATION_COMPONENT_NAMES.map((name) => [
+      name,
+      legacy.componentFingerprints[name],
+    ] as const);
+  entries.push([
+    "STORAGE_IDENTITY",
+    componentFingerprint("STORAGE_IDENTITY", JSON.stringify({
+      projectRoot: `data/projects/${projectSlug}`,
+      assetLayout: "project-assets-v1",
+      containmentPolicy: "workspace-contained-no-links-v1",
+    })),
+  ]);
+  entries.push([
+    "ENVIRONMENT_POLICY",
+    componentFingerprint("ENVIRONMENT_POLICY", JSON.stringify({
+      policyVersion: "production-acceptance-environment-v2",
+      strictProductionAcceptance: true,
+      publishMode: "package-only",
+      configurationSemantics: "explicit-environment-and-application-defaults-v1",
+    })),
+  ]);
+  const componentFingerprints = Object.freeze(Object.fromEntries(entries)) as
+    ProductionAcceptanceComponentFingerprintsV2;
+  return Object.freeze({
+    componentFingerprintProfile: "2",
+    configurationFingerprint: createHash("sha256")
+      .update(JSON.stringify(entries))
+      .digest("hex"),
+    componentFingerprints,
+    unavailableComponents: Object.freeze([...legacy.unavailableComponents]),
+  });
+}
+
 export function validProductionAcceptanceComponentFingerprints(
   value: unknown,
 ): value is ProductionAcceptanceComponentFingerprints {
@@ -105,10 +171,26 @@ export function validProductionAcceptanceComponentFingerprints(
       typeof record[key] === "string" && /^[a-f0-9]{64}$/.test(record[key]));
 }
 
+export function validProductionAcceptanceComponentFingerprintsV2(
+  value: unknown,
+): value is ProductionAcceptanceComponentFingerprintsV2 {
+  return validComponentFingerprintRecord(value, CONFIGURATION_COMPONENT_NAMES_V2);
+}
+
 export function productionAcceptancePortableConfigurationFingerprint(
   componentFingerprints: ProductionAcceptanceComponentFingerprints,
 ): string {
   const entries = CONFIGURATION_COMPONENT_NAMES.map((name) => [
+    name,
+    componentFingerprints[name],
+  ] as const);
+  return createHash("sha256").update(JSON.stringify(entries)).digest("hex");
+}
+
+export function productionAcceptancePortableConfigurationFingerprintV2(
+  componentFingerprints: ProductionAcceptanceComponentFingerprintsV2,
+): string {
+  const entries = CONFIGURATION_COMPONENT_NAMES_V2.map((name) => [
     name,
     componentFingerprints[name],
   ] as const);
@@ -124,8 +206,31 @@ export function findProductionAcceptanceConfigurationMismatches(
   ));
 }
 
+export function findProductionAcceptanceConfigurationMismatchesV2(
+  expected: ProductionAcceptanceComponentFingerprintsV2,
+  current: ProductionAcceptanceComponentFingerprintsV2,
+): readonly ProductionAcceptanceConfigurationComponentV2[] {
+  return Object.freeze(CONFIGURATION_COMPONENT_NAMES_V2.filter(
+    (name) => expected[name] !== current[name],
+  ));
+}
+
+function validComponentFingerprintRecord(
+  value: unknown,
+  componentNames: readonly string[],
+) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record).sort();
+  const expected = [...componentNames].sort();
+  return keys.length === expected.length &&
+    keys.every((key, index) => key === expected[index]) &&
+    keys.every((key) =>
+      typeof record[key] === "string" && /^[a-f0-9]{64}$/.test(record[key]));
+}
+
 function componentFingerprint(
-  name: ProductionAcceptanceConfigurationComponent,
+  name: ProductionAcceptanceConfigurationComponentV2,
   value: string | null,
 ) {
   return createHash("sha256")

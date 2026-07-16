@@ -321,6 +321,30 @@ Accepted
 
 ---
 
+# ADR-017
+
+## Controlled Existing-Marker Re-prepare and Fingerprint Profiles
+
+### Karar
+
+Existing schema-2 acceptance marker'lari otomatik migrate edilmeyecektir. Schema-3 re-prepare yalniz explicit operator command'i, exact project slug ve ayri high-intent confirmation flag ile calisacaktir.
+
+Schema-2 marker current legacy aggregate fingerprint dahil tamamen dogrulanmadan write baslamayacaktir. Schema-2 FFmpeg/FFprobe binary identity saklamadigi icin historical binary sameness iddia edilmeyecek; re-prepare anindaki validated current binary identity schema-3 portability baseline'i olacaktir. Schema-2 mismatch path-only varsayimiyla bypass edilmeyecektir.
+
+Schema-3 component fingerprint profile'lari versioned olarak desteklenir. Existing profile-v1 valid kalir; profile-v2 canonical relative project storage identity ve strict/package-only environment policy identity ekler. Unknown profile fail-closed reddedilir.
+
+Marker persistence synced unique temp, temp validation, compare-before-replace, atomic replace ve exact readback kullanir. Post-replace validation failure original raw marker byte'larini synced atomic compensation ile restore eder. Exact replay write-free kalir.
+
+### Sebep
+
+Existing prepared acceptance state'ini production execution baslatmadan portable hale getirmek; machine path farklarini binary identity'den ayirmak; marker disindaki runtime ve durable state'i byte-level korumak.
+
+### Durum
+
+Accepted
+
+---
+
 # Yeni ADR Ekleme
 
 Yeni önemli mimari kararlar;

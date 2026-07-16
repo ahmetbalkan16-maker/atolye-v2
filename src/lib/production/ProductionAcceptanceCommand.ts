@@ -11,8 +11,13 @@ import {
   normalizeProductionAcceptanceTopic,
   ProductionAcceptanceTopicError,
 } from "./ProductionAcceptanceTopic";
+import {
+  reprepareProductionAcceptanceMarker,
+  type ProductionAcceptanceReprepareResult,
+} from "./ProductionAcceptanceReprepareService";
 
 const CONFIRM_FLAG = "--confirm-production-acceptance";
+const REPREPARE_CONFIRM_FLAG = "--confirm-production-acceptance-reprepare";
 const SAFE_SLUG = /^[a-z0-9](?:[a-z0-9-]{0,198}[a-z0-9])?$/;
 const TOPIC_PREFIX = "--topic=";
 
@@ -21,6 +26,7 @@ export interface ProductionAcceptanceCommandDependencies {
   execute(request: { readonly topic: string }): Promise<ProductionAcceptanceResult>;
   resume(projectSlug: string): Promise<ProductionAcceptanceResult>;
   diagnose?(projectSlug: string): Promise<ProductionAcceptanceConfigurationDiagnostic>;
+  reprepare?(projectSlug: string): Promise<ProductionAcceptanceReprepareResult>;
 }
 
 export interface ProductionAcceptanceCommandResult {
@@ -33,6 +39,7 @@ const defaultDependencies: ProductionAcceptanceCommandDependencies = {
   execute: (request) => ProductionAcceptanceOrchestrator.run(request),
   resume: (projectSlug) => ProductionAcceptanceOrchestrator.resumeAndFinalize(projectSlug),
   diagnose: (projectSlug) => diagnoseProductionAcceptanceConfiguration(projectSlug),
+  reprepare: (projectSlug) => reprepareProductionAcceptanceMarker(projectSlug),
 };
 
 export async function runProductionAcceptanceCommand(
@@ -85,6 +92,25 @@ export async function runProductionAcceptanceCommand(
         },
       };
     }
+    if (mode === "reprepare") {
+      const parsed = parseReprepareArguments(args.slice(1));
+      if ("errorCode" in parsed) return commandFailure(parsed.errorCode);
+      const projectSlug = parsed.projectSlug;
+      requestedProjectSlug = projectSlug;
+      const reprepare = dependencies.reprepare ?? defaultDependencies.reprepare;
+      const result = await reprepare!(projectSlug);
+      return {
+        exitCode: 0,
+        report: {
+          mode,
+          success: true,
+          projectSlug,
+          schemaVersion: result.schemaVersion,
+          decision: result.decision,
+          writePerformed: result.writePerformed,
+        },
+      };
+    }
     return usageFailure();
   } catch (error) {
     const candidate = error as { code?: unknown; projectSlug?: unknown };
@@ -127,9 +153,30 @@ function commandFailure(errorCode: string): ProductionAcceptanceCommandResult {
         `execute ${CONFIRM_FLAG} --topic=<topic>`,
         `resume-finalize --project-slug=<slug> ${CONFIRM_FLAG}`,
         "diagnose --project-slug=<slug>",
+        `reprepare --project-slug=<slug> ${REPREPARE_CONFIRM_FLAG}`,
       ],
     },
   };
+}
+
+function parseReprepareArguments(args: readonly string[]):
+  | { readonly projectSlug: string }
+  | { readonly errorCode: string } {
+  if (args.filter((value) => value === REPREPARE_CONFIRM_FLAG).length !== 1) {
+    return { errorCode: "PRODUCTION_ACCEPTANCE_REPREPARE_CONFIRMATION_REQUIRED" };
+  }
+  const slugArguments = args.filter((value) => value.startsWith("--project-slug="));
+  if (
+    args.some((value) =>
+      value !== REPREPARE_CONFIRM_FLAG && !value.startsWith("--project-slug=")) ||
+    slugArguments.length !== 1
+  ) {
+    return { errorCode: "PRODUCTION_ACCEPTANCE_ARGUMENT_UNKNOWN" };
+  }
+  const projectSlug = slugArguments[0].slice("--project-slug=".length);
+  return SAFE_SLUG.test(projectSlug)
+    ? { projectSlug }
+    : { errorCode: "PRODUCTION_ACCEPTANCE_ARGUMENT_UNKNOWN" };
 }
 
 function parseDiagnoseArguments(args: readonly string[]):

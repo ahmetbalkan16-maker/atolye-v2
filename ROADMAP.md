@@ -39,9 +39,19 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 129.23 — Production Acceptance Portability & Fingerprint Diagnostics / Completed
+Sprint 129.24 — Existing Acceptance Marker Portability / Completed
 
 Son Tamamlanan Sprint
+
+## Sprint 129.24 — Existing Acceptance Marker Portability / Completed
+
+- Explicit `production:acceptance:reprepare` command'i schema-2 marker'ı tam legacy validation sonrasında schema-3 profile-v2 olarak yeniden hazırlar; ayrı reprepare confirmation flag zorunludur ve otomatik migration yoktur.
+- Schema-2 aggregate mismatch path-only kabul edilmez. Existing schema-2 creator/validator ve schema-3 profile-v1 davranışı korunur. Re-prepare anındaki binary identity yeni portability baseline'ıdır.
+- Profile-v2 provider/model/token/durable/API-key ve bütün mevcut security-critical component'lere canonical relative storage identity ile strict/package-only environment policy identity ekler. Absolute FFmpeg/FFprobe path fingerprint değildir; same binary/different path match, changed binary mismatch olur.
+- Persistence temp `wx` → fsync → temp validation → destination byte compare → atomic replace → exact readback sırasındadır. Pre-replace failure write-free; post-replace readback failure original raw byte restore + restore readback kullanır. Exact replay byte-level write-free'dir.
+- Reprepare service execution/orchestrator/finalize/retry/stage dispatch wiring'i içermez. Marker dışındaki sentetik project inventory smoke boyunca exact korunmuştur.
+- Sprint 129.24 22/22, Sprint 129.23 15/15, Sprint 128.2 30/30, Sprint 129.5 24/24, isolated readiness, TypeScript, targeted ESLint ve `git diff --check` PASS.
+- Gerçek Fatih marker reprepare, production execute/resume/finalize/retry/stage dispatch, commit ve push yapılmadı.
 
 ## Sprint 129.23 — Production Acceptance Portability & Fingerprint Diagnostics / Completed
 
