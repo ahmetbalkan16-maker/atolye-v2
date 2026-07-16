@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: High
 Owner: Atölye V2
-Last Updated: 2026-07-08
+Last Updated: 2026-07-16
 ---
 
 # Atölye V2 — Architecture Decision Records (ADR)
@@ -290,6 +290,30 @@ Atolye uzun vadede kullanicinin kendi sunucusunda calisan, HTTPS ve guvenli logi
 ### Sebep
 
 Proje dosyalari, API key bilgileri, production memory ve yayin paketleri kullanicinin kontrolunde ve gizli kalmalidir.
+
+### Durum
+
+Accepted
+
+---
+
+# ADR-016
+
+## Production Acceptance Marker Portability and Versioned Fingerprints
+
+### Karar
+
+Existing schema-2 production acceptance marker'lari migrate veya rewrite edilmeyecek; legacy aggregate configuration fingerprint ve validation davranisi aynen korunacaktir.
+
+Future acceptance executions component-level hashed fingerprints tasiyan schema-3 marker olusturacaktir. Provider, model, token budget, durable execution mode ve API-key identity dahil acceptance configuration degisiklikleri fail-closed kalacaktir.
+
+Machine-specific FFmpeg/FFprobe absolute path degerleri schema-3 identity olmayacaktir. Absolute executable ve capability admission readiness katmaninda zorunlu kalirken marker portability ayni binary content identity'sine baglanacaktir. Path degisikligi policy bypass saglamaz; missing/unreadable veya changed binary bloklanir.
+
+Diagnostic contract read-only olacak ve yalniz guvenli component adlarini raporlayacaktir. Hash, absolute path, secret identity ve raw configuration output contract'ina dahil edilmeyecektir.
+
+### Sebep
+
+Prepared acceptance marker'larinin ayni guvenilir executable ve production configuration ile farkli machine path layout'larinda guvenli bicimde tasinabilmesi; mismatch nedeninin secret ifsa etmeden belirlenebilmesi; mevcut schema-2 marker'larinin geriye donuk uyumlulugunun korunmasi.
 
 ### Durum
 

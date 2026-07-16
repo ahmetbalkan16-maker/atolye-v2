@@ -23,11 +23,12 @@ import {
 import type { ProductionReadinessReport } from "@/types/productionReadiness";
 import { ProductionReadinessService } from "./ProductionReadinessService";
 import {
-  createProductionAcceptanceMarker,
+  createProductionAcceptanceMarkerV3,
   markProductionAcceptanceValidated,
-  productionAcceptanceConfigurationFingerprint,
   readProductionAcceptanceMarker,
 } from "./ProductionAcceptancePolicy";
+import { createProductionAcceptancePortableConfigurationSnapshot } from
+  "./ProductionAcceptanceConfigurationFingerprint";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { validateProductionAcceptanceMedia } from "./ProductionAcceptanceMediaValidation";
 import { validateProductionAcceptancePreflight } from "./ProductionAcceptancePreflight";
@@ -115,10 +116,15 @@ export class ProductionAcceptanceOrchestrator {
   static async run(request: ProductionAcceptanceRequest): Promise<ProductionAcceptanceResult> {
     const topic = normalizeProductionAcceptanceTopic(request.topic);
     const runId = crypto.randomUUID();
-    const configurationFingerprint = productionAcceptanceConfigurationFingerprint();
+    const configuration = await createProductionAcceptancePortableConfigurationSnapshot();
     const readiness = await this.evaluateReadiness();
     if (!readiness.ready) throw new ProductionAcceptanceBlockedError(readiness);
-    if (configurationFingerprint !== productionAcceptanceConfigurationFingerprint()) {
+    const currentConfiguration = await createProductionAcceptancePortableConfigurationSnapshot();
+    if (
+      configuration.unavailableComponents.length > 0 ||
+      currentConfiguration.unavailableComponents.length > 0 ||
+      configuration.configurationFingerprint !== currentConfiguration.configurationFingerprint
+    ) {
       throw new ProductionAcceptanceConfigurationChangedError();
     }
 
@@ -128,7 +134,7 @@ export class ProductionAcceptanceOrchestrator {
       throw new ProductionAcceptanceExecutionError();
     }
     try {
-      await createProductionAcceptanceMarker(runSlug, runId, configurationFingerprint, topic);
+      await createProductionAcceptanceMarkerV3(runSlug, runId, configuration, topic);
     } catch {
       throw new ProductionAcceptanceExecutionError();
     }
@@ -188,11 +194,7 @@ export class ProductionAcceptanceOrchestrator {
     readiness: ProductionReadinessReport,
     startedAt: number,
   ): Promise<ProductionAcceptanceResult> {
-    const configurationFingerprint = productionAcceptanceConfigurationFingerprint();
     const marker = await readProductionAcceptanceMarker(projectSlug);
-    if (marker.configurationFingerprint !== configurationFingerprint) {
-      throw new ProductionAcceptanceConfigurationChangedError();
-    }
     const state = await PipelineStageExecutor.loadState(projectSlug);
     const project = state?.project;
     const assembly = state?.assembly;
@@ -251,7 +253,7 @@ export class ProductionAcceptanceOrchestrator {
         jobs.jobs.some((job) => job.stage === stage && job.status === "completed"));
     if (!publishReady) throw new ProductionAcceptanceExecutionError(projectSlug);
     try {
-      await markProductionAcceptanceValidated(projectSlug, configurationFingerprint);
+      await markProductionAcceptanceValidated(projectSlug, marker.configurationFingerprint);
     } catch {
       throw new ProductionAcceptanceExecutionError(projectSlug);
     }

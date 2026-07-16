@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Critical
 Owner: Atölye V2
-Last Updated: 2026-07-15
+Last Updated: 2026-07-16
 ---
 
 # ⚠️ AI START HERE
@@ -47,13 +47,25 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 129.22**
+**Sprint 129.23**
 
-Animation Structured Output Diagnosis and Hardening
+Production Acceptance Portability & Fingerprint Diagnostics
 
 **Durum**
 
-Completed — READY FOR CONTROLLED PRODUCTION RETRY
+Completed — PORTABLE DIAGNOSTICS READY
+
+## Sprint 129.23 — Production Acceptance Portability & Fingerprint Diagnostics / Completed
+
+Production acceptance fail-closed policy korunarak read-only `npm run production:acceptance:diagnose -- --project-slug=<slug>` komutu eklendi. Komut mevcut marker'ı okur, güncel configuration fingerprint'i hesaplar, eşleşmede exit `0`, uyuşmazlıkta exit `1` üretir ve yalnız güvenli bileşen adlarını raporlar. Hash, absolute path, secret identity veya ham configuration değeri CLI çıktısına girmez; diagnostic runtime initialization, readiness probe, project/marker/artifact writer veya durable mutation çağırmaz.
+
+Mevcut schema-2 marker oluşturma, fingerprint ve validation yolu değiştirilmedi; schema-2 marker migration veya rewrite yapılmaz. Schema-2 aggregate fingerprint uyuşmazlığında component evidence bulunmadığı için güvenli biçimde yalnız genel mismatch raporlanır. Gelecekteki production acceptance execute marker'ları schema-3 kullanır ve exact component-level hashed fingerprints taşır. Provider, model, token budget, durable execution mode ve API-key identity değişiklikleri fail-closed bloklar.
+
+Schema-3 `FFMPEG_PATH` ve `FFPROBE_PATH` mutlak değerlerini fingerprint'e katmaz. Readiness absolute executable/configuration doğrulamasını korurken acceptance identity FFmpeg ve FFprobe binary içeriğinden domain-separated fingerprint üretir. Böylece aynı binary farklı path altında eşleşir; binary içeriği değişikliği bloklanır. Stored component fingerprints veya aggregate fingerprint marker integrity ile uyuşmazsa marker invalid kabul edilir.
+
+Sprint 129.23 smoke 15/15, Sprint 128.2 acceptance 30/30, Sprint 129.5 topic/schema-2 24/24 ve izole production readiness acceptance PASS. TypeScript, hedefli ESLint `--max-warnings=0` ve `git diff --check` PASS. Başlangıç ve final Fatih marker SHA-256 değeri `478E17627D121C61C6996FAD13470B0C0D8C6404D55EB1ED9173818A04C140CF`; `data/projects/**` 184 → 184 dosya ve aggregate inventory SHA-256 `a96bc1cec048435478b618f853a15a44105b6750f61206f435a0e6d3c7c12d62` olarak değişmeden kaldı.
+
+Bu sprintte production acceptance execute/resume, provider çağrısı, Fatih marker/runtime mutation, commit veya push yapılmadı.
 
 ## Sprint 129.22 — Animation Structured Output Diagnosis and Hardening / Completed
 

@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: High
 Owner: Atölye V2
-Last Updated: 2026-07-15
+Last Updated: 2026-07-16
 ---
 
 # Atölye V2 — Development Roadmap
@@ -39,9 +39,19 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 129.22 — Animation Structured Output Diagnosis and Hardening / Completed
+Sprint 129.23 — Production Acceptance Portability & Fingerprint Diagnostics / Completed
 
 Son Tamamlanan Sprint
+
+## Sprint 129.23 — Production Acceptance Portability & Fingerprint Diagnostics / Completed
+
+- Read-only `production:acceptance:diagnose` CLI mevcut marker ve güncel configuration fingerprint'i karşılaştırır; match exit `0`, mismatch exit `1`, invalid usage exit `2` olur. Çıktı yalnız schema, match durumu, component diagnostics availability ve güvenli mismatch component adlarını taşır; hash/path/secret identity/raw configuration taşımaz.
+- Schema-2 creator, aggregate fingerprint algoritması ve validator ayrı legacy yolunda değişmeden kaldı. Existing schema-2 marker migration/rewrite yoktur; aggregate-only marker mismatch'inde component teşhisi uydurulmaz.
+- Future acceptance execution schema-3 marker oluşturur. Component fingerprints provider, model, token budget, durable mode, API-key identity ve diğer acceptance configuration alanlarını ayrı fail-closed bağlar; marker aggregate/component integrity doğrulanır.
+- Schema-3 absolute FFmpeg/FFprobe path'lerini portable saymaz veya bypass etmez. Readiness absolute executable doğrulamasını sürdürür; marker identity binary content'e bağlanır. Aynı binary farklı path altında eşleşir, changed binary bloklanır.
+- Diagnostic yalnız marker ve configured executable bytes okur; runtime initialization/readiness probe/writer/durable mutation çalıştırmaz. Exact diagnostic replay marker/project inventory açısından write-free doğrulandı.
+- Sprint 129.23 15/15, Sprint 128.2 30/30, Sprint 129.5 24/24 ve izole production readiness acceptance PASS; TypeScript, targeted ESLint ve `git diff --check` PASS. Fatih marker SHA-256 ve 184 dosyalı `data/projects/**` aggregate inventory başlangıç/final değerleri aynıdır.
+- Production acceptance execute/resume, provider generation, Fatih marker/runtime mutation, commit ve push yapılmadı.
 
 ## Sprint 129.22 — Animation Structured Output Diagnosis and Hardening / Completed
 

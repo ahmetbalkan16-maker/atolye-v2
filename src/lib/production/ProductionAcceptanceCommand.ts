@@ -4,6 +4,10 @@ import {
 } from "./ProductionAcceptanceOrchestrator";
 import type { ProductionReadinessReport } from "@/types/productionReadiness";
 import {
+  diagnoseProductionAcceptanceConfiguration,
+  type ProductionAcceptanceConfigurationDiagnostic,
+} from "./ProductionAcceptancePolicy";
+import {
   normalizeProductionAcceptanceTopic,
   ProductionAcceptanceTopicError,
 } from "./ProductionAcceptanceTopic";
@@ -16,6 +20,7 @@ export interface ProductionAcceptanceCommandDependencies {
   readiness(): Promise<ProductionReadinessReport>;
   execute(request: { readonly topic: string }): Promise<ProductionAcceptanceResult>;
   resume(projectSlug: string): Promise<ProductionAcceptanceResult>;
+  diagnose?(projectSlug: string): Promise<ProductionAcceptanceConfigurationDiagnostic>;
 }
 
 export interface ProductionAcceptanceCommandResult {
@@ -27,6 +32,7 @@ const defaultDependencies: ProductionAcceptanceCommandDependencies = {
   readiness: () => ProductionAcceptanceOrchestrator.evaluateReadiness(),
   execute: (request) => ProductionAcceptanceOrchestrator.run(request),
   resume: (projectSlug) => ProductionAcceptanceOrchestrator.resumeAndFinalize(projectSlug),
+  diagnose: (projectSlug) => diagnoseProductionAcceptanceConfiguration(projectSlug),
 };
 
 export async function runProductionAcceptanceCommand(
@@ -58,6 +64,26 @@ export async function runProductionAcceptanceCommand(
       const projectSlug = parsed.projectSlug;
       requestedProjectSlug = projectSlug;
       return success(mode, await dependencies.resume(projectSlug));
+    }
+    if (mode === "diagnose") {
+      const parsed = parseDiagnoseArguments(args.slice(1));
+      if ("errorCode" in parsed) return commandFailure(parsed.errorCode);
+      const projectSlug = parsed.projectSlug;
+      requestedProjectSlug = projectSlug;
+      const diagnose = dependencies.diagnose ?? defaultDependencies.diagnose;
+      const diagnostic = await diagnose!(projectSlug);
+      return {
+        exitCode: diagnostic.matches ? 0 : 1,
+        report: {
+          mode,
+          success: diagnostic.matches,
+          projectSlug,
+          schemaVersion: diagnostic.schemaVersion,
+          matches: diagnostic.matches,
+          componentDiagnosticsAvailable: diagnostic.componentDiagnosticsAvailable,
+          mismatchedComponents: diagnostic.mismatchedComponents,
+        },
+      };
     }
     return usageFailure();
   } catch (error) {
@@ -100,9 +126,26 @@ function commandFailure(errorCode: string): ProductionAcceptanceCommandResult {
         "readiness-only",
         `execute ${CONFIRM_FLAG} --topic=<topic>`,
         `resume-finalize --project-slug=<slug> ${CONFIRM_FLAG}`,
+        "diagnose --project-slug=<slug>",
       ],
     },
   };
+}
+
+function parseDiagnoseArguments(args: readonly string[]):
+  | { readonly projectSlug: string }
+  | { readonly errorCode: string } {
+  const slugArguments = args.filter((value) => value.startsWith("--project-slug="));
+  if (
+    args.some((value) => !value.startsWith("--project-slug=")) ||
+    slugArguments.length !== 1
+  ) {
+    return { errorCode: "PRODUCTION_ACCEPTANCE_ARGUMENT_UNKNOWN" };
+  }
+  const projectSlug = slugArguments[0].slice("--project-slug=".length);
+  return SAFE_SLUG.test(projectSlug)
+    ? { projectSlug }
+    : { errorCode: "PRODUCTION_ACCEPTANCE_ARGUMENT_UNKNOWN" };
 }
 
 function parseExecuteArguments(args: readonly string[]):

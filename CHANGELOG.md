@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Medium
 Owner: Atölye V2
-Last Updated: 2026-07-15
+Last Updated: 2026-07-16
 ---
 
 # Atölye V2 — Changelog
@@ -24,6 +24,16 @@ referans alınmalıdır.
 ---
 
 # Version 1.x
+
+## Sprint 129.23 — Production Acceptance Portability & Fingerprint Diagnostics / Completed
+
+- `npm run production:acceptance:diagnose -- --project-slug=<slug>` read-only operator komutu eklendi. Match exit `0`, mismatch exit `1`; rapor yalnız güvenli component adlarını içerir ve hash, path, secret identity veya raw configuration göstermez.
+- Existing schema-2 marker creator/fingerprint/validation davranışı korunmuştur. Schema-2 marker migration veya mutation yapılmaz; component fingerprints bulunmadığından mismatch aggregate-only raporlanır.
+- Future production acceptance executions schema-3 marker oluşturur. Component-level domain-separated fingerprints provider, model, token budgets, durable execution mode, API-key identity ve diğer configuration alanlarını bağımsız karşılaştırılabilir hale getirir.
+- FFmpeg/FFprobe absolute path değerleri schema-3 fingerprint'ten çıkarılmış, binary content identity ile değiştirilmiştir. Readiness absolute executable/capability gate'i sürer; aynı binary farklı path altında portable, changed binary fail-closed blocked olur.
+- Diagnostic marker/project/artifact/durable state yazmaz; runtime/readiness probe başlatmaz. Exact replay write-free, secret redaction ve schema-3 marker integrity doğrulandı.
+- Doğrulamalar: Sprint 129.23 15/15, Sprint 128.2 30/30, Sprint 129.5 24/24, izole production readiness acceptance, TypeScript, targeted ESLint `--max-warnings=0` ve `git diff --check` PASS.
+- Fatih marker SHA-256 `478E17627D121C61C6996FAD13470B0C0D8C6404D55EB1ED9173818A04C140CF`; `data/projects/**` 184 dosya ve aggregate inventory SHA-256 `a96bc1cec048435478b618f853a15a44105b6750f61206f435a0e6d3c7c12d62` başlangıç/final arasında değişmedi. Production execute/resume, commit ve push yapılmadı.
 
 ## Sprint 129.22 — Animation Structured Output Diagnosis and Hardening / Completed
 
