@@ -13,6 +13,10 @@ import {
   type RuntimeStorageInput,
 } from "@/lib/runtime/RuntimeStoragePaths";
 import {
+  runtimePortableCollisionKey,
+  validateRuntimeLogicalPath,
+} from "@/lib/runtime/security/RuntimePathPolicy";
+import {
   aggregateRuntimeFileRecords,
   emptyClassificationTotals,
   runtimeBackupAggregateVersion,
@@ -169,6 +173,7 @@ function walkRuntimeTree(
       throw new Error("Runtime backup source contains an unsupported path.");
     }
     const relativePath = relativePosix(projectsRoot, absolutePath);
+    validateRuntimeLogicalPath(relativePath);
     const hash = hashStableRuntimeFile(absolutePath, relativePath, hooks);
     const projectSlug = inferProjectSlug(relativePath);
     files.push({
@@ -258,12 +263,12 @@ function assertUniquePortablePaths(files: RuntimeBackupFileRecord[]) {
   const exact = new Set<string>();
   const folded = new Set<string>();
   for (const file of files) {
-    const lower = file.relativePath.toLowerCase();
-    if (exact.has(file.relativePath) || folded.has(lower)) {
+    const portableKey = runtimePortableCollisionKey(file.relativePath);
+    if (exact.has(file.relativePath) || folded.has(portableKey)) {
       throw new Error("Runtime backup path collision detected.");
     }
     exact.add(file.relativePath);
-    folded.add(lower);
+    folded.add(portableKey);
   }
 }
 

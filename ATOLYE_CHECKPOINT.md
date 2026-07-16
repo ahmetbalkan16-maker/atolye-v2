@@ -47,13 +47,29 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 129.25C.1**
+**Sprint 129.25C.2A**
 
-Verified Runtime Backup Foundation
+Guarded Filesystem Foundation
 
 **Durum**
 
-Completed — READY FOR USER COMMIT
+Implementation Validated — READY FOR REVIEW
+
+## Sprint 129.25C.2A — Guarded Filesystem Foundation / Implementation Validated
+
+Runtime migration altyapisi icin merkezi protected-root, portable path policy, capability probe, guarded mutation session ve operation-owned directory katmani eklendi. Repository, runtime, live projects, machine, authority, backup ve restore-verification rollerinin yedisi de her context'te zorunludur; eksik context hem construction hem mutation begin sinirinda fail-closed kalir. Root'lar canonical/reparse-aware olarak siniflandirilir; writable root diger protected root'larla case-insensitive Windows containment, ancestor/child ve prefix-collision kurallariyla karsilastirilir.
+
+`windows-portable-path-v1` Windows reserved adlari, superscript `COM¹/²/³` ve `LPT¹/²/³` bicimleri, colon, trailing dot/space, control karakteri, non-NFC, empty/dot/dot-dot ve case-fold collision'i reddeder. Segment, project-relative logical path, public mutation-relative path, slug, filename, UTF-8/UTF-16 ve materialized absolute path limitleri uygulanir. Mevcut `runtime-backup-v1` manifest schema, serialization ve aggregate fingerprint formati degistirilmedi.
+
+`GuardedRuntimeFilesystem` ayni writable root + operation scope icin deterministik exclusive session reservation kullanir; rastgele UUID yalniz owner token'da kalir. Session construction module-private key ile yalniz guarded entrypoint'ten yapilir; production capability/session override API'si yoktur. Session acik child reservation'lari registry'de izler, identity/token dogrulanmadan release/cleanup yapmaz, replacement nesneyi silmez ve guvenli kaldirilamayan reservation'i `orphan-suspect` raporlar. Public mutation mevcut sibling ve session collision registry'siyle case-fold collision'i reddeder; relative ve materialized limit her mutation root'uyla birlikte uygulanir. Her begin ayni writable root'ta exclusive create, gercek `COPYFILE_EXCL` no-overwrite publish ve cleanup capability'lerini yeniden olcer; hard-link kullanilamazsa exclusive-copy fallback uygulanir. Public mutation hatalari stable code/message'e normalize edilir, absolute path/secret public mesaja veya serialization'a alinmaz; lock open/write/close/cleanup zincirinde ilk cause non-enumerable internal evidence, close ve cleanup sonuclari metadata olarak korunur.
+
+Backup create ile restore-verify icindeki backup root/bootstrap, `.partial`, payload/nested directory, payload copy, manifest/digest, publish reservation/final tree, restore verification root/projects/copy ve cleanup mutation noktalari ortak guarded katmana tasindi. Backup formati ve verifier authority degismedi; canli restore, migration, runtime relocation, untracking, cutover, rollback, production storage veya asset storage refactor'u eklenmedi.
+
+Desteklenen tehdit modeli trusted local operator, single writer ve accidental concurrent process'tir. Capability acikca `hostileConcurrentIsolation:false` raporlar. Standart Node/Windows path API'leri ayni kullanici yetkili dusmanca concurrent process'e karsi tam handle-relative filesystem isolation saglamadigi icin Model C desteklenmez; Administrator/SYSTEM kapsami disidir. Temp-owned capability smoke bu makinede `supportsHardLinks:true`, `supportsExclusiveCreate:true`, `supportsExclusivePublish:true`, `filesystemKind:"windows-unknown"` ve cleanup verified raporladi; hard-link migration onkosulu degildir.
+
+Sprint 129.25C.2A smoke 16/16, Sprint 129.25C.1 regression 18/18, Sprint 129.25B 16/16 ve Sprint 129.25B.1 13/13 PASS. TypeScript ve targeted ESLint `--max-warnings=0` PASS. C.2A smoke direct session-begin ve exclusive publish child-process yarisi, eksik protected rol, public constructor bypass rejection, farkli root/scope bagimsizligi, case-fold existing/registered collision, gercek materialized boundary ve stable lock first-cause/close/cleanup metadata senaryolarini kapsar. Testlerin tum write'lari OS temp fixture'lariyla sinirlidir.
+
+Migration candidate, runtime relocation, Git untracking/index/`.gitignore`, cutover, live restore, `data/projects/**` veya acceptance marker mutation'i ve production execute/resume/retry/finalize/reprepare/diagnose/provider/worker/stage dispatch yapilmadi. C.2B ve C.2C baslatilmadi. Production storage audit'i C.2C veya herhangi bir relocation/cutover oncesi zorunlu gate'tir. Gercek Windows ACL-denied ve gercek unsupported-filesystem integration, empty-directory topology/concurrent layout, native Model C isolation ve filesystem fsync crash durability acik P2/hardening sinirlaridir.
 
 ## Sprint 129.25C.1 — Verified Runtime Backup Foundation / Completed
 

@@ -3,6 +3,10 @@ import {
   isPortableRuntimePathSegment,
   runtimeStoragePolicyVersion,
 } from "@/lib/runtime/RuntimeStoragePaths";
+import {
+  runtimePortableCollisionKey,
+  validateRuntimeLogicalPath,
+} from "@/lib/runtime/security/RuntimePathPolicy";
 
 export const runtimeBackupManifestSchemaVersion = "1" as const;
 export const runtimeBackupFormatVersion = "runtime-backup-v1" as const;
@@ -132,11 +136,12 @@ export function validateRuntimeBackupManifest(
       throw new Error("Runtime backup manifest ordering is invalid.");
     }
     previous = item.relativePath;
-    if (exact.has(item.relativePath) || folded.has(item.relativePath.toLowerCase())) {
+    const portableKey = runtimePortableCollisionKey(item.relativePath);
+    if (exact.has(item.relativePath) || folded.has(portableKey)) {
       throw new Error("Runtime backup manifest path collision detected.");
     }
     exact.add(item.relativePath);
-    folded.add(item.relativePath.toLowerCase());
+    folded.add(portableKey);
   }
   if (aggregateRuntimeFileRecords(files as RuntimeBackupFileRecord[]) !== value.aggregateFingerprint) {
     throw new Error("Runtime backup aggregate fingerprint is invalid.");
@@ -254,15 +259,12 @@ function compareText(left: string, right: string) {
 }
 
 function validRelativePath(value: string) {
-  if (
-    !value ||
-    value.startsWith("/") ||
-    value.includes("\\") ||
-    value !== value.normalize("NFC") ||
-    /[\u0000-\u001f\u007f]/.test(value)
-  ) return false;
-  const segments = value.split("/");
-  return segments.every(isPortableRuntimePathSegment);
+  try {
+    validateRuntimeLogicalPath(value);
+    return value.split("/").every(isPortableRuntimePathSegment);
+  } catch {
+    return false;
+  }
 }
 
 function validSourceLogicalIdentity(value: string) {

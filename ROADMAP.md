@@ -39,9 +39,20 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 129.25C.1 — Verified Runtime Backup Foundation / Completed
+Sprint 129.25C.2A — Guarded Filesystem Foundation / Implementation Validated — READY FOR REVIEW
 
 Son Tamamlanan Sprint
+
+## Sprint 129.25C.2A — Guarded Filesystem Foundation / Implementation Validated
+
+- Merkezi `RuntimeProtectedRoots`, `RuntimePathPolicy`, `RuntimePathCapabilityProbe`, `GuardedRuntimeFilesystem`, `GuardedRuntimeMutationSession`, `OwnedRuntimeDirectory` ve safe `RuntimeMutationError` foundation'i eklendi.
+- Repository/runtime/live-projects/machine/authority/backup/restore-verification rollerinin tamami zorunludur; eksik context construction ve begin sinirinda reddedilir. Root'lar canonical, reparse-aware, Windows case-insensitive containment ve prefix-collision kontrollerine baglandi. Writable backup/restore root'u diger protected root'larla overlap edemez.
+- `windows-portable-path-v1`; superscript `COM¹/²/³` ve `LPT¹/²/³` dahil reserved Windows adlari, colon, trailing dot/space, control, non-NFC, empty/dot/dot-dot, case collision ile versioned segment/logical/mutation-relative/slug/filename/materialized UTF-8/UTF-16 limitlerini fail-closed uygular. `runtime-backup-v1` schema ve aggregate formati degismedi.
+- Guarded session writable root + operation scope icin deterministik exclusive reservation ve relative-only mutation kullanir. Module-private construction key protected-root ve capability probe bypass'ini kapatir; production override API'si yoktur. Child reservation registry'si token/parent/object identity dogrulamasi yapar; replacement silinmez, guvenli kaldirilamayan kayit `orphan-suspect` olur. Public mutation sibling/session case-fold collision kontrolu ile root-aware materialized limit uygular. Her begin gercek exclusive create/publish ve cleanup capability'sini olcer; hard-link desteklenmezse exclusive-copy fallback vardir. Lock open/write/close/cleanup ilk cause'u koruyarak safe stable error'a normalize edilir; cause serialize edilmez, close/cleanup sonuclari metadata'dir.
+- Backup create ve restore-verify mutation'lari ortak katmana tasindi; backup behavior/format ve exact verifier korundu. Canli restore, migration candidate, runtime relocation, untracking, cutover, rollback ve production/asset storage refactor'u yoktur.
+- Desteklenen model trusted local operator, single writer ve accidental concurrency'dir. `hostileConcurrentIsolation:false`; same-user hostile process ve Administrator/SYSTEM desteklenmez. Native handle-relative isolation eklenmedi.
+- C.2A 16/16, C.1 18/18, B 16/16 ve B.1 13/13 PASS; TypeScript ve targeted ESLint PASS. Capability ornegi `supportsHardLinks:true`, `supportsExclusiveCreate:true`, `supportsExclusivePublish:true`, `filesystemKind:"windows-unknown"`, cleanup verified verdi.
+- C.2B/C baslatilmadi. Git index/`.gitignore`, `data/projects/**`, marker, runtime relocation ve production komutlari degistirilmedi/cagirilmadi. Production storage audit'i C.2C/relocation oncesi zorunlu gate'tir. Kalan P2/hardening: gercek ACL-denied ve unsupported-filesystem integration, empty-directory/concurrent layout, native Model C isolation ve fsync crash durability.
 
 ## Sprint 129.25C.1 — Verified Runtime Backup Foundation / Completed
 

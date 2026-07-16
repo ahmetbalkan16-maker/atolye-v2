@@ -1,14 +1,24 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   assertPathContained,
-  ensureSafeContainedDirectory,
-  ensureSafeDirectory,
   resolveRuntimeStorageContext,
   type RuntimeStorageInput,
 } from "@/lib/runtime/RuntimeStoragePaths";
+import { GuardedRuntimeFilesystem } from "@/lib/runtime/security/GuardedRuntimeFilesystem";
+import type { GuardedRuntimeMutationSession } from "@/lib/runtime/security/GuardedRuntimeMutationSession";
+import type { OwnedRuntimeDirectory } from "@/lib/runtime/security/OwnedRuntimeDirectory";
+import { RuntimeMutationError } from "@/lib/runtime/security/RuntimeMutationError";
+import {
+  assertRuntimeMaterializedPath,
+  validateRuntimeLogicalPath,
+} from "@/lib/runtime/security/RuntimePathPolicy";
+import {
+  runtimeProtectedRootsFromContext,
+  sameRuntimePath,
+} from "@/lib/runtime/security/RuntimeProtectedRoots";
 import {
   runtimeBackupManifestSha256,
   serializeRuntimeBackupManifest,
@@ -70,6 +80,7 @@ export interface RuntimeBackupCreateResult {
 }
 
 export interface RuntimeBackupRestoreRequest {
+  readonly context?: RuntimeStorageInput;
   readonly backupDirectory: string;
   readonly restoreRoot?: string;
   readonly repositoryRoot: string;
@@ -101,29 +112,39 @@ export function createVerifiedRuntimeBackup(
   const context = resolveRuntimeStorageContext(request.context ?? {});
   const repositoryRoot = requireExistingAbsoluteDirectory(request.repositoryRoot);
   const backupRoot = validateDestinationRoot(request.backupRoot);
-  assertNoOverlap(backupRoot, repositoryRoot);
-  assertNoOverlap(backupRoot, context.projectsRoot);
+  const restoreVerificationRoot = path.join(
+    requireExistingAbsoluteDirectory(os.tmpdir()),
+    "atolye-runtime-restore-verification-v1",
+  );
+  const protectedRoots = runtimeProtectedRootsFromContext({
+    context,
+    repositoryRoot,
+    backupRoot,
+    restoreVerificationRoot,
+  });
   const createdAt = (dependencies.now ?? (() => new Date().toISOString()))();
   const backupId = dependencies.backupId?.() ??
     `${createdAt.replace(/[:.]/g, "-")}-${randomUUID()}`;
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,199}$/.test(backupId) || backupId.includes(".partial")) {
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/.test(backupId) || backupId.includes(".partial")) {
     throw new RuntimeBackupError("RUNTIME_BACKUP_PATH_INVALID");
   }
 
-  ensureSafeDirectory(backupRoot);
-  const backupsRoot = path.join(backupRoot, "backups");
-  ensureSafeContainedDirectory(backupRoot, backupsRoot);
-  const finalRoot = path.join(backupsRoot, backupId);
-  const partialRoot = path.join(backupsRoot, `.${backupId}.${randomUUID()}.partial`);
-  const publishLock = path.join(backupsRoot, `.${backupId}.publish.lock`);
-  let lockDescriptor: number | undefined;
-  let finalRootOwned = false;
+  const guardedFilesystem = new GuardedRuntimeFilesystem(protectedRoots);
+  let session: GuardedRuntimeMutationSession | undefined;
+  let partial: OwnedRuntimeDirectory | undefined;
+  let final: OwnedRuntimeDirectory | undefined;
+  let publishReservation: ReturnType<GuardedRuntimeMutationSession["acquireExclusiveReservation"]> | undefined;
   try {
-    fs.mkdirSync(partialRoot);
-    const payloadRoot = path.join(partialRoot, "payload");
-    const payloadProjectsRoot = path.join(payloadRoot, "projects");
-    ensureSafeContainedDirectory(partialRoot, payloadRoot);
-    ensureSafeContainedDirectory(payloadRoot, payloadProjectsRoot);
+    session = guardedFilesystem.beginMutation({
+      writableRoot: backupRoot,
+      writableRole: "backup",
+      operation: "runtime-backup-create",
+    });
+    session.ensureDirectory("backups");
+    partial = session.createOwnedDirectory(
+      `backups/.${createHash("sha256").update(backupId).digest("hex").slice(0, 32)}.${randomUUID().slice(0, 8)}.partial`,
+    );
+    const payloadProjectsRoot = partial.ensureDirectory("payload/projects");
     const manifest = collectRuntimeBackupInventory({
       context,
       projectSlug: request.projectSlug,
@@ -131,19 +152,24 @@ export function createVerifiedRuntimeBackup(
       now: () => createdAt,
     });
     for (const file of manifest.files) {
+      validateRuntimeLogicalPath(file.relativePath);
+      assertRuntimeMaterializedPath(payloadProjectsRoot, file.relativePath);
       const source = containedFilePath(context.projectsRoot, file.relativePath);
-      const destination = containedFilePath(payloadProjectsRoot, file.relativePath);
-      ensureSafeContainedDirectory(payloadProjectsRoot, path.dirname(destination));
-      const copied = copyFileExclusiveGuarded({
-        source,
-        destination,
-        containmentRoot: payloadProjectsRoot,
-        relativePath: file.relativePath,
+      const destinationRelative = `payload/projects/${file.relativePath}`;
+      const copied = partial.copyFileExclusive(source, destinationRelative, {
         executable: file.permissionClass === "executable",
-        beforeWrite: dependencies.beforeDestinationWrite,
-        afterCopy: () => dependencies.afterCopyFile?.(source, destination, file.relativePath),
+        beforeWrite: (parentPath, destinationPath) =>
+          dependencies.beforeDestinationWrite?.(
+            parentPath,
+            destinationPath,
+            file.relativePath,
+          ),
+        afterWrite: (destinationPath) => {
+          dependencies.afterCopyFile?.(source, destinationPath, file.relativePath);
+          return hashStableRuntimeFile(destinationPath, file.relativePath);
+        },
       });
-      if (copied.sizeBytes !== file.sizeBytes || copied.sha256 !== file.sha256) {
+      if (!copied || copied.sizeBytes !== file.sizeBytes || copied.sha256 !== file.sha256) {
         throw new RuntimeBackupError("RUNTIME_BACKUP_CREATE_FAILED");
       }
     }
@@ -159,42 +185,59 @@ export function createVerifiedRuntimeBackup(
     ) throw new RuntimeBackupError("RUNTIME_BACKUP_CREATE_FAILED");
 
     const serialized = serializeRuntimeBackupManifest(manifest);
-    fs.writeFileSync(path.join(partialRoot, "manifest.json"), serialized, {
+    partial.writeFileExclusive("manifest.json", serialized, {
       encoding: "utf8",
-      flag: "wx",
       mode: 0o600,
     });
-    fs.writeFileSync(
-      path.join(partialRoot, "manifest.sha256"),
+    partial.writeFileExclusive(
+      "manifest.sha256",
       `${runtimeBackupManifestSha256(serialized)}\n`,
-      { encoding: "ascii", flag: "wx", mode: 0o600 },
+      { encoding: "ascii", mode: 0o600 },
     );
-    verifyRuntimeBackup(partialRoot, { allowPartial: true });
+    verifyRuntimeBackup(partial.absolutePath, { allowPartial: true });
     try {
-      lockDescriptor = fs.openSync(publishLock, "wx", 0o600);
-    } catch {
-      throw new RuntimeBackupError("RUNTIME_BACKUP_TARGET_EXISTS");
+      publishReservation = session.acquireExclusiveReservation(
+        `backups/.${backupId}.publish.lock`,
+      );
+      final = session.createOwnedDirectory(`backups/${backupId}`);
+    } catch (error) {
+      if (
+        error instanceof RuntimeMutationError &&
+        error.code === "RUNTIME_MUTATION_TARGET_EXISTS"
+      ) throw new RuntimeBackupError("RUNTIME_BACKUP_TARGET_EXISTS");
+      throw error;
     }
-    try {
-      createDirectoryExclusiveGuarded(backupsRoot, finalRoot);
-      finalRootOwned = true;
-    } catch {
-      throw new RuntimeBackupError("RUNTIME_BACKUP_TARGET_EXISTS");
-    }
-    publishPartialNoReplace(partialRoot, finalRoot, manifest);
-    const verification = verifyRuntimeBackup(finalRoot);
-    cleanupOwnedPartial(backupsRoot, partialRoot);
-    return Object.freeze({ backupId, backupDirectory: finalRoot, manifest, verification });
+    publishPartialNoReplace(partial, final, manifest);
+    const verification = verifyRuntimeBackup(final.absolutePath);
+    requireCleanupCompleted(partial.cleanup());
+    final.releaseOwnership();
+    requireCleanupCompleted(publishReservation.release());
+    requireCleanupCompleted(session.close());
+    return Object.freeze({
+      backupId,
+      backupDirectory: final.absolutePath,
+      manifest,
+      verification,
+    });
   } catch (error) {
-    cleanupOwnedPartial(backupsRoot, partialRoot);
-    if (finalRootOwned) cleanupOwnedPartial(backupsRoot, finalRoot);
+    partial?.cleanup();
+    final?.cleanup();
+    publishReservation?.release();
+    session?.close();
     if (error instanceof RuntimeBackupError) throw error;
+    if (
+      error instanceof RuntimeMutationError &&
+      error.code === "RUNTIME_MUTATION_PROTECTED_ROOT_OVERLAP"
+    ) throw new RuntimeBackupError("RUNTIME_BACKUP_TARGET_OVERLAP");
+    if (
+      error instanceof RuntimeMutationError &&
+      error.code === "RUNTIME_MUTATION_PATH_INVALID"
+    ) throw new RuntimeBackupError("RUNTIME_BACKUP_PATH_INVALID");
+    if (
+      error instanceof RuntimeMutationError &&
+      error.code === "RUNTIME_MUTATION_TARGET_EXISTS"
+    ) throw new RuntimeBackupError("RUNTIME_BACKUP_TARGET_EXISTS");
     throw new RuntimeBackupError("RUNTIME_BACKUP_CREATE_FAILED");
-  } finally {
-    if (lockDescriptor !== undefined) {
-      try { fs.closeSync(lockDescriptor); } catch { /* best effort */ }
-      try { fs.rmSync(publishLock, { force: true }); } catch { /* stale lock remains fail-closed */ }
-    }
   }
 }
 
@@ -206,44 +249,83 @@ export function restoreAndVerifyRuntimeBackup(
   const repositoryRoot = requireExistingAbsoluteDirectory(request.repositoryRoot);
   const liveProjectsRoot = requireExistingAbsoluteDirectory(request.liveProjectsRoot);
   const backupDirectory = requireExistingAbsoluteDirectory(request.backupDirectory);
+  const protectedBackupRoot = path.basename(path.dirname(backupDirectory)) === "backups"
+    ? path.dirname(path.dirname(backupDirectory))
+    : backupDirectory;
   const systemTempRoot = requireExistingAbsoluteDirectory(os.tmpdir());
+  const inferredRuntimeRoot = path.dirname(liveProjectsRoot);
+  const context = resolveRuntimeStorageContext(request.context ?? {
+    workspaceRoot: repositoryRoot,
+    environment: { ATOLYE_RUNTIME_ROOT: inferredRuntimeRoot },
+  });
+  if (!sameRuntimePath(context.projectsRoot, liveProjectsRoot)) {
+    throw new RuntimeBackupError("RUNTIME_BACKUP_RESTORE_TARGET_INVALID");
+  }
   const ownsRestoreRoot = request.restoreRoot === undefined;
-  const restoreRoot = request.restoreRoot === undefined
-    ? fs.mkdtempSync(path.join(systemTempRoot, "atolye-runtime-restore-verify-"))
-    : requireExistingAbsoluteDirectory(request.restoreRoot);
-  if (!inside(systemTempRoot, restoreRoot)) {
-    if (ownsRestoreRoot) cleanupOwnedPartial(systemTempRoot, restoreRoot);
+  const restoreBase = ownsRestoreRoot
+    ? path.join(systemTempRoot, "atolye-runtime-restore-verification-v1")
+    : requireExistingAbsoluteDirectory(request.restoreRoot as string);
+  if (!inside(systemTempRoot, restoreBase)) {
     throw new RuntimeBackupError("RUNTIME_BACKUP_RESTORE_TARGET_INVALID");
   }
-  if (fs.readdirSync(restoreRoot).length !== 0) {
+  if (!ownsRestoreRoot && fs.readdirSync(restoreBase).length !== 0) {
     throw new RuntimeBackupError("RUNTIME_BACKUP_RESTORE_TARGET_INVALID");
   }
-  assertNoOverlap(restoreRoot, repositoryRoot);
-  assertNoOverlap(restoreRoot, liveProjectsRoot);
-  assertNoOverlap(restoreRoot, backupDirectory);
-  const restoredProjects = path.join(restoreRoot, "projects");
+  const protectedRoots = runtimeProtectedRootsFromContext({
+    context,
+    repositoryRoot,
+    backupRoot: protectedBackupRoot,
+    restoreVerificationRoot: restoreBase,
+  });
+  const guardedFilesystem = new GuardedRuntimeFilesystem(protectedRoots);
+  let session: GuardedRuntimeMutationSession | undefined;
+  let restoreOwned: OwnedRuntimeDirectory | undefined;
+  let projectsOwned: OwnedRuntimeDirectory | undefined;
   try {
-    fs.mkdirSync(restoredProjects);
+    session = guardedFilesystem.beginMutation({
+      writableRoot: restoreBase,
+      writableRole: "restore-verification",
+      operation: "runtime-restore-verify",
+    });
+    if (ownsRestoreRoot) {
+      restoreOwned = session.createOwnedDirectory(`restore-${randomUUID()}`);
+    } else {
+      projectsOwned = session.createOwnedDirectory("projects");
+    }
+    const restoreRoot = restoreOwned?.absolutePath ?? restoreBase;
+    const restoredProjects = restoreOwned
+      ? restoreOwned.ensureDirectory("projects")
+      : projectsOwned?.absolutePath;
+    if (!restoredProjects) throw new RuntimeBackupError("RUNTIME_BACKUP_RESTORE_FAILED");
+    const writeRoot = restoreOwned ?? projectsOwned;
+    if (!writeRoot) throw new RuntimeBackupError("RUNTIME_BACKUP_RESTORE_FAILED");
     const payloadProjects = path.join(backupDirectory, "payload", "projects");
     for (const file of verification.manifest.files) {
+      validateRuntimeLogicalPath(file.relativePath);
+      assertRuntimeMaterializedPath(restoredProjects, file.relativePath);
       const source = containedFilePath(payloadProjects, file.relativePath);
-      const destination = containedFilePath(restoredProjects, file.relativePath);
-      ensureSafeContainedDirectory(restoredProjects, path.dirname(destination));
-      const copied = copyFileExclusiveGuarded({
-        source,
-        destination,
-        containmentRoot: restoredProjects,
-        relativePath: file.relativePath,
+      const destinationRelative = restoreOwned
+        ? `projects/${file.relativePath}`
+        : file.relativePath;
+      const copied = writeRoot.copyFileExclusive(source, destinationRelative, {
         executable: file.permissionClass === "executable",
-        beforeWrite: dependencies.beforeDestinationWrite,
-        afterCopy: () => dependencies.afterCopyFile?.(destination, file.relativePath),
+        beforeWrite: (parentPath, destinationPath) =>
+          dependencies.beforeDestinationWrite?.(
+            parentPath,
+            destinationPath,
+            file.relativePath,
+          ),
+        afterWrite: (destinationPath) => {
+          dependencies.afterCopyFile?.(destinationPath, file.relativePath);
+          return hashStableRuntimeFile(destinationPath, file.relativePath);
+        },
       });
-      if (copied.sizeBytes !== file.sizeBytes || copied.sha256 !== file.sha256) {
+      if (!copied || copied.sizeBytes !== file.sizeBytes || copied.sha256 !== file.sha256) {
         throw new RuntimeBackupError("RUNTIME_BACKUP_RESTORE_FAILED");
       }
     }
     verifyRuntimeTreeAgainstManifest(restoredProjects, verification.manifest);
-    return Object.freeze({
+    const report: RuntimeBackupRestoreReport = Object.freeze({
       valid: true,
       restoreRoot,
       aggregateFingerprint: verification.aggregateFingerprint,
@@ -251,175 +333,54 @@ export function restoreAndVerifyRuntimeBackup(
       bytes: verification.bytes,
       markerFiles: verification.markerFiles,
     });
+    if (ownsRestoreRoot) {
+      requireCleanupCompleted(
+        restoreOwned?.cleanup() ?? "failed",
+        "RUNTIME_BACKUP_RESTORE_FAILED",
+      );
+    } else {
+      projectsOwned?.releaseOwnership();
+    }
+    requireCleanupCompleted(session.close(), "RUNTIME_BACKUP_RESTORE_FAILED");
+    return report;
   } catch (error) {
-    cleanupOwnedPartial(restoreRoot, restoredProjects);
+    restoreOwned?.cleanup();
+    projectsOwned?.cleanup();
+    session?.close();
     if (error instanceof RuntimeBackupError) throw error;
+    if (
+      error instanceof RuntimeMutationError &&
+      error.code === "RUNTIME_MUTATION_PROTECTED_ROOT_OVERLAP"
+    ) {
+      throw new RuntimeBackupError("RUNTIME_BACKUP_RESTORE_TARGET_INVALID");
+    }
     throw new RuntimeBackupError("RUNTIME_BACKUP_RESTORE_FAILED");
-  } finally {
-    if (ownsRestoreRoot) cleanupOwnedPartial(systemTempRoot, restoreRoot);
   }
-}
-
-interface GuardedCopyRequest {
-  readonly source: string;
-  readonly destination: string;
-  readonly containmentRoot: string;
-  readonly relativePath: string;
-  readonly executable: boolean;
-  readonly beforeWrite?: (
-    parentPath: string,
-    destinationPath: string,
-    relativePath: string,
-  ) => void;
-  readonly afterCopy?: () => void;
-}
-
-function copyFileExclusiveGuarded(request: GuardedCopyRequest) {
-  return guardedExclusiveDestination(
-    request.containmentRoot,
-    request.destination,
-    false,
-    () => request.beforeWrite?.(
-      path.dirname(request.destination),
-      request.destination,
-      request.relativePath,
-    ),
-    () => fs.copyFileSync(
-      request.source,
-      request.destination,
-      fs.constants.COPYFILE_EXCL,
-    ),
-    () => {
-      if (request.executable) fs.chmodSync(request.destination, 0o700);
-      request.afterCopy?.();
-      return hashStableRuntimeFile(request.destination, request.relativePath);
-    },
-  );
 }
 
 function publishPartialNoReplace(
-  partialRoot: string,
-  finalRoot: string,
+  partial: OwnedRuntimeDirectory,
+  final: OwnedRuntimeDirectory,
   manifest: RuntimeBackupManifest,
 ) {
-  const payloadRoot = path.join(finalRoot, "payload");
-  const projectsRoot = path.join(payloadRoot, "projects");
-  createDirectoryExclusiveGuarded(finalRoot, payloadRoot);
-  createDirectoryExclusiveGuarded(payloadRoot, projectsRoot);
+  final.ensureDirectory("payload/projects");
   for (const file of manifest.files) {
     const source = containedFilePath(
-      path.join(partialRoot, "payload", "projects"),
+      path.join(partial.absolutePath, "payload", "projects"),
       file.relativePath,
     );
-    const destination = containedFilePath(projectsRoot, file.relativePath);
-    ensureDirectoryTreeExclusive(projectsRoot, path.dirname(destination));
-    linkFileExclusiveGuarded(projectsRoot, source, destination);
+    final.publishFileExclusive(source, `payload/projects/${file.relativePath}`, {
+      executable: file.permissionClass === "executable",
+    });
   }
-  linkFileExclusiveGuarded(
-    finalRoot,
-    path.join(partialRoot, "manifest.json"),
-    path.join(finalRoot, "manifest.json"),
+  final.publishFileExclusive(
+    path.join(partial.absolutePath, "manifest.json"),
+    "manifest.json",
   );
-  linkFileExclusiveGuarded(
-    finalRoot,
-    path.join(partialRoot, "manifest.sha256"),
-    path.join(finalRoot, "manifest.sha256"),
+  final.publishFileExclusive(
+    path.join(partial.absolutePath, "manifest.sha256"),
+    "manifest.sha256",
   );
-}
-
-function ensureDirectoryTreeExclusive(root: string, target: string) {
-  if (samePath(root, target)) return;
-  assertPathContained(root, target);
-  let current = root;
-  for (const segment of path.relative(root, target).split(path.sep)) {
-    const next = path.join(current, segment);
-    if (fs.existsSync(next)) {
-      requireStableDirectory(root, next);
-    } else {
-      createDirectoryExclusiveGuarded(current, next);
-    }
-    current = next;
-  }
-}
-
-function createDirectoryExclusiveGuarded(parentRoot: string, destination: string) {
-  guardedExclusiveDestination(
-    parentRoot,
-    destination,
-    true,
-    undefined,
-    () => fs.mkdirSync(destination),
-    () => undefined,
-  );
-}
-
-function linkFileExclusiveGuarded(root: string, source: string, destination: string) {
-  guardedExclusiveDestination(
-    root,
-    destination,
-    false,
-    undefined,
-    () => fs.linkSync(source, destination),
-    () => undefined,
-  );
-}
-
-function guardedExclusiveDestination<T>(
-  containmentRoot: string,
-  destination: string,
-  recursiveCleanup: boolean,
-  beforeWrite: (() => void) | undefined,
-  operation: () => void,
-  afterWrite: () => T,
-) {
-  const parent = path.dirname(destination);
-  const snapshot = requireStableDirectory(containmentRoot, parent);
-  beforeWrite?.();
-  let created = false;
-  let createdRealPath: string | undefined;
-  try {
-    operation();
-    created = true;
-    createdRealPath = path.join(fs.realpathSync(parent), path.basename(destination));
-    assertStableDirectory(snapshot);
-    const result = afterWrite();
-    assertStableDirectory(snapshot);
-    return result;
-  } catch (error) {
-    if (created && createdRealPath) {
-      try { fs.rmSync(createdRealPath, { recursive: recursiveCleanup, force: true }); } catch { /* best effort */ }
-    }
-    throw error;
-  }
-}
-
-interface StableDirectorySnapshot {
-  readonly path: string;
-  readonly realPath: string;
-  readonly stat: fs.BigIntStats;
-}
-
-function requireStableDirectory(root: string, directory: string): StableDirectorySnapshot {
-  if (!samePath(root, directory)) assertPathContained(root, directory);
-  const stat = fs.lstatSync(directory, { bigint: true });
-  const realPath = fs.realpathSync(directory);
-  if (stat.isSymbolicLink() || !stat.isDirectory() || !samePath(realPath, directory)) {
-    throw new RuntimeBackupError("RUNTIME_BACKUP_PATH_INVALID");
-  }
-  return { path: directory, realPath, stat };
-}
-
-function assertStableDirectory(snapshot: StableDirectorySnapshot) {
-  const current = fs.lstatSync(snapshot.path, { bigint: true });
-  const realPath = fs.realpathSync(snapshot.path);
-  if (
-    current.isSymbolicLink() ||
-    !current.isDirectory() ||
-    !samePath(realPath, snapshot.realPath) ||
-    current.dev !== snapshot.stat.dev ||
-    current.ino !== snapshot.stat.ino ||
-    current.mode !== snapshot.stat.mode
-  ) throw new RuntimeBackupError("RUNTIME_BACKUP_PATH_INVALID");
 }
 
 function validateDestinationRoot(value: string) {
@@ -448,12 +409,6 @@ function requireExistingAbsoluteDirectory(value: string) {
   }
 }
 
-function assertNoOverlap(left: string, right: string) {
-  if (samePath(left, right) || inside(left, right) || inside(right, left)) {
-    throw new RuntimeBackupError("RUNTIME_BACKUP_TARGET_OVERLAP");
-  }
-}
-
 function containedFilePath(root: string, relativePath: string) {
   if (!relativePath || relativePath.includes("\\") || relativePath.startsWith("/")) {
     throw new RuntimeBackupError("RUNTIME_BACKUP_PATH_INVALID");
@@ -461,19 +416,6 @@ function containedFilePath(root: string, relativePath: string) {
   const target = path.resolve(root, ...relativePath.split("/"));
   assertPathContained(root, target);
   return target;
-}
-
-function cleanupOwnedPartial(parent: string, target: string) {
-  try {
-    if (!fs.existsSync(target) || !inside(parent, target)) return;
-    const link = fs.lstatSync(target);
-    if (link.isSymbolicLink() || !link.isDirectory()) return;
-    const real = fs.realpathSync(target);
-    if (!samePath(real, target) || !inside(parent, real)) return;
-    fs.rmSync(target, { recursive: true, force: true });
-  } catch {
-    // Cleanup never broadens beyond the owned bounded partial root.
-  }
 }
 
 function inside(root: string, candidate: string) {
@@ -488,6 +430,15 @@ function samePath(left: string, right: string) {
   const a = path.resolve(left);
   const b = path.resolve(right);
   return process.platform === "win32" ? a.toLowerCase() === b.toLowerCase() : a === b;
+}
+
+function requireCleanupCompleted(
+  status: string,
+  errorCode: RuntimeBackupErrorCode = "RUNTIME_BACKUP_CREATE_FAILED",
+) {
+  if (status !== "completed" && status !== "not-required") {
+    throw new RuntimeBackupError(errorCode);
+  }
 }
 
 function messageFor(code: RuntimeBackupErrorCode) {
