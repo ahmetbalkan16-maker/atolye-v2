@@ -11,7 +11,9 @@
     "production:acceptance:diagnose": "tsx scripts/run-production-acceptance.ts diagnose",
     "production:acceptance:reprepare": "tsx scripts/run-production-acceptance.ts reprepare",
     "production:acceptance:execute": "tsx scripts/run-production-acceptance.ts execute",
-    "production:acceptance:resume": "tsx scripts/run-production-acceptance.ts resume-finalize"
+    "production:acceptance:resume": "tsx scripts/run-production-acceptance.ts resume-finalize",
+    "smoke:sprint-129-25b": "tsx scripts/smoke-sprint-129-25b-runtime-root.ts",
+    "smoke:sprint-129-25b-1": "tsx scripts/smoke-sprint-129-25b-1-runtime-hardening.ts"
   },
   "dependencies": {
     "next": "16.2.10",

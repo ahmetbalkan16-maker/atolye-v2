@@ -3,6 +3,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { ProjectReader } from "@/lib/projects/ProjectReader";
 import {
+  createRuntimeStorageContext,
+  type RuntimeStorageContext,
+} from "@/lib/runtime/RuntimeStoragePaths";
+import {
   prepareProductionAcceptanceMarkerReprepare,
   validateProductionAcceptanceReprepareReadback,
 } from "./ProductionAcceptancePolicy";
@@ -55,7 +59,8 @@ export async function reprepareProductionAcceptanceMarker(
   let paths: Awaited<ReturnType<typeof resolveSafeMarkerPaths>>;
   let originalBytes: Buffer;
   try {
-    paths = await resolveSafeMarkerPaths(projectSlug, operations);
+    const runtimeStorageContext = createRuntimeStorageContext({ environment });
+    paths = await resolveSafeMarkerPaths(projectSlug, operations, runtimeStorageContext);
     originalBytes = await operations.readFile(paths.markerPath);
   } catch {
     throw new ProductionAcceptanceReprepareError();
@@ -162,13 +167,13 @@ async function writeSyncedTemporary(
 async function resolveSafeMarkerPaths(
   projectSlug: string,
   operations: ProductionAcceptanceReprepareFileOperations,
+  context: RuntimeStorageContext,
 ) {
   if (!/^[a-z0-9](?:[a-z0-9-]{0,198}[a-z0-9])?$/.test(projectSlug)) {
     throw new Error("invalid");
   }
-  const workspace = await operations.realpath(process.cwd());
-  const projectsRoot = await operations.realpath(ProjectReader.getProjectsRoot());
-  const projectFolder = await operations.realpath(ProjectReader.getProjectFolder(projectSlug));
+  const projectsRoot = await operations.realpath(ProjectReader.getProjectsRoot(context));
+  const projectFolder = await operations.realpath(ProjectReader.getProjectFolder(projectSlug, context));
   const markerPath = path.join(projectFolder, MARKER_FILE);
   const [projectsLink, projectLink, markerLink] = await Promise.all([
     operations.lstat(projectsRoot),
@@ -179,7 +184,6 @@ async function resolveSafeMarkerPaths(
     projectsLink.isSymbolicLink() || !projectsLink.isDirectory() ||
     projectLink.isSymbolicLink() || !projectLink.isDirectory() ||
     markerLink.isSymbolicLink() || !markerLink.isFile() ||
-    !isInside(workspace, projectsRoot) ||
     !isInside(projectsRoot, projectFolder)
   ) throw new Error("invalid");
   return { projectFolder, markerPath };

@@ -1,7 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { requireContainedStorageFile } from "@/lib/assets/storage/StoragePathSecurity";
+import {
+  requireContainedStorageDirectory,
+  requireContainedStorageFile,
+} from "@/lib/assets/storage/StoragePathSecurity";
 import type { AnimationGenerationSuccess } from "./providers/AnimationProvider";
 import {
   isValidAnimationDuration,
@@ -10,8 +13,16 @@ import {
 import { animationMotionTypes, animationTransitionTypes } from "@/types/animation";
 import type { Asset } from "@/types/asset";
 import type { AnimationMotionPlanScene } from "@/types/animation";
+import {
+  acquireProjectWriteAuthority,
+  ensureSafeContainedDirectory,
+  resolveRuntimeLogicalPath,
+  resolveRuntimeLogicalPathForWrite,
+  resolveRuntimeStorageContext,
+  type RuntimeStorageContext,
+  type RuntimeStorageInput,
+} from "@/lib/runtime/RuntimeStoragePaths";
 
-const ROOT = process.cwd();
 const SENTINEL = ".atolye-animation-storage-v1";
 const SENTINEL_VALUE = "atolye-animation-motion-plan-storage-v1";
 const MIME = "application/vnd.atolye.motion-plan+json";
@@ -53,56 +64,74 @@ export class AnimationStorage {
   static saveMotionPlan(
     projectSlug: string,
     artifact: AnimationMotionPlanArtifact,
+    input: RuntimeStorageInput = {},
   ): StoredAnimationMotionPlan {
-    validateArtifact(artifact);
-    const relativePath = this.getMotionPlanPath(projectSlug, artifact.assetId);
-    const directory = resolve(this.getAnimationDir(projectSlug));
-    const absolutePath = resolve(relativePath);
-    const directoryExisted = fs.existsSync(directory);
-    fs.mkdirSync(directory, { recursive: true });
-    requireStorageSentinel(directory, !directoryExisted);
-    if (fs.existsSync(absolutePath)) throw new Error("Invalid animation storage target.");
-    const temporaryPath = path.join(
-      directory,
-      `.${artifact.assetId}.${process.pid}.${crypto.randomUUID()}.tmp`,
-    );
-    const data = Buffer.from(`${JSON.stringify(artifact, null, 2)}\n`, "utf8");
-    if (data.byteLength <= 0 || data.byteLength > MAXIMUM_BYTES) {
-      throw new Error("Invalid animation artifact.");
-    }
-    let descriptor: number | undefined;
-    let published = false;
+    const context = resolveRuntimeStorageContext(input);
+    const lease = acquireProjectWriteAuthority(projectSlug, context);
     try {
-      descriptor = fs.openSync(temporaryPath, "wx", 0o600);
-      fs.writeFileSync(descriptor, data);
-      fs.fsyncSync(descriptor);
-      fs.closeSync(descriptor);
-      descriptor = undefined;
-      requireStorageSentinel(directory, false);
-      fs.linkSync(temporaryPath, absolutePath);
-      published = true;
-      fs.unlinkSync(temporaryPath);
-      const inspection = this.inspectStoredMotionPlan(projectSlug, relativePath);
-      if (inspection.byteLength !== data.byteLength || !sameArtifact(inspection.artifact, artifact)) {
+      validateArtifact(artifact);
+      const relativePath = this.getMotionPlanPath(projectSlug, artifact.assetId);
+      const directory = resolve(this.getAnimationDir(projectSlug), context, true);
+      const absolutePath = resolve(relativePath, context, true);
+      const directoryExisted = fs.existsSync(directory);
+      ensureSafeContainedDirectory(context.runtimeRoot, context.projectsRoot);
+      ensureSafeContainedDirectory(context.projectsRoot, directory);
+      requireContainedStorageDirectory(directory, context);
+      requireStorageSentinel(directory, !directoryExisted, context);
+      if (fs.existsSync(absolutePath)) throw new Error("Invalid animation storage target.");
+      const temporaryPath = path.join(
+        directory,
+        `.${artifact.assetId}.${process.pid}.${crypto.randomUUID()}.tmp`,
+      );
+      const data = Buffer.from(`${JSON.stringify(artifact, null, 2)}\n`, "utf8");
+      if (data.byteLength <= 0 || data.byteLength > MAXIMUM_BYTES) {
         throw new Error("Invalid animation artifact.");
       }
-      return { filePath: relativePath, mimeType: MIME, byteLength: data.byteLength };
-    } catch (error) {
-      if (descriptor !== undefined) try { fs.closeSync(descriptor); } catch { /* best effort */ }
-      try { fs.rmSync(temporaryPath, { force: true }); } catch { /* best effort */ }
-      if (published) try { fs.rmSync(absolutePath, { force: true }); } catch { /* best effort */ }
-      throw error;
+      let descriptor: number | undefined;
+      let published = false;
+      try {
+        descriptor = fs.openSync(temporaryPath, "wx", 0o600);
+        fs.writeFileSync(descriptor, data);
+        fs.fsyncSync(descriptor);
+        fs.closeSync(descriptor);
+        descriptor = undefined;
+        requireStorageSentinel(directory, false, context);
+        fs.linkSync(temporaryPath, absolutePath);
+        published = true;
+        fs.unlinkSync(temporaryPath);
+        const inspection = this.inspectStoredMotionPlan(projectSlug, relativePath, context);
+        if (inspection.byteLength !== data.byteLength || !sameArtifact(inspection.artifact, artifact)) {
+          throw new Error("Invalid animation artifact.");
+        }
+        return { filePath: relativePath, mimeType: MIME, byteLength: data.byteLength };
+      } catch (error) {
+        if (descriptor !== undefined) try { fs.closeSync(descriptor); } catch { /* best effort */ }
+        try { fs.rmSync(temporaryPath, { force: true }); } catch { /* best effort */ }
+        if (published) try { fs.rmSync(absolutePath, { force: true }); } catch { /* best effort */ }
+        throw error;
+      }
+    } finally {
+      lease.release();
     }
   }
 
-  static inspectStoredMotionPlan(projectSlug: string, filePath: string) {
+  static inspectStoredMotionPlan(
+    projectSlug: string,
+    filePath: string,
+    input: RuntimeStorageInput = {},
+  ) {
+    const context = resolveRuntimeStorageContext(input);
     const expectedPrefix = `${this.getAnimationDir(projectSlug)}/`;
     if (!filePath.startsWith(expectedPrefix) || path.posix.basename(filePath) !== filePath.slice(expectedPrefix.length)) {
       throw new Error("Invalid animation artifact path.");
     }
-    const directory = resolve(this.getAnimationDir(projectSlug));
-    requireStorageSentinel(directory, false);
-    const contained = requireContainedStorageFile(directory, resolve(filePath));
+    const directory = resolve(this.getAnimationDir(projectSlug), context);
+    requireStorageSentinel(directory, false, context);
+    const contained = requireContainedStorageFile(
+      directory,
+      resolve(filePath, context),
+      context,
+    );
     if (contained.stat.size <= 0 || contained.stat.size > MAXIMUM_BYTES) {
       throw new Error("Invalid animation artifact.");
     }
@@ -112,32 +141,51 @@ export class AnimationStorage {
     return { byteLength: contained.stat.size, artifact };
   }
 
-  static motionPlanTargetExists(projectSlug: string, assetId: string) {
-    const directory = resolve(this.getAnimationDir(projectSlug));
+  static motionPlanTargetExists(
+    projectSlug: string,
+    assetId: string,
+    input: RuntimeStorageInput = {},
+  ) {
+    const context = resolveRuntimeStorageContext(input);
+    const directory = resolve(this.getAnimationDir(projectSlug), context);
     if (!fs.existsSync(directory)) return false;
-    requireStorageSentinel(directory, false);
-    return fs.existsSync(resolve(this.getMotionPlanPath(projectSlug, assetId)));
+    requireStorageSentinel(directory, false, context);
+    return fs.existsSync(resolve(this.getMotionPlanPath(projectSlug, assetId), context));
   }
 
-  static removeMotionPlanIfExists(projectSlug: string, filePath: string) {
+  static removeMotionPlanIfExists(
+    projectSlug: string,
+    filePath: string,
+    input: RuntimeStorageInput = {},
+  ) {
+    const context = resolveRuntimeStorageContext(input);
     try {
+      const lease = acquireProjectWriteAuthority(projectSlug, context);
+      try {
       const expectedPrefix = `${this.getAnimationDir(projectSlug)}/`;
       if (!filePath.startsWith(expectedPrefix)) return;
-      const directory = resolve(this.getAnimationDir(projectSlug));
-      requireStorageSentinel(directory, false);
-      const absolutePath = resolve(filePath);
+      const directory = resolve(this.getAnimationDir(projectSlug), context);
+      requireStorageSentinel(directory, false, context);
+      const absolutePath = resolve(filePath, context);
       const relative = path.relative(directory, absolutePath);
-      if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) return;
+      if (!relative || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) return;
       if (!fs.existsSync(absolutePath)) return;
-      const contained = requireContainedStorageFile(directory, absolutePath);
+      const contained = requireContainedStorageFile(directory, absolutePath, context);
       fs.rmSync(contained.realPath, { force: true });
+      } finally {
+        lease.release();
+      }
     } catch {
       // Best-effort compensation must not replace the normalized stage failure.
     }
   }
 }
 
-function requireStorageSentinel(directory: string, allowCreate: boolean) {
+function requireStorageSentinel(
+  directory: string,
+  allowCreate: boolean,
+  context: RuntimeStorageContext,
+) {
   const link = fs.lstatSync(directory);
   if (!link.isDirectory() || link.isSymbolicLink()) throw new Error("Invalid animation storage root.");
   const sentinel = path.join(directory, SENTINEL);
@@ -160,7 +208,7 @@ function requireStorageSentinel(directory: string, allowCreate: boolean) {
     !sentinelLink.isFile() || sentinelLink.isSymbolicLink() ||
     fs.readFileSync(sentinel, "utf8") !== SENTINEL_VALUE
   ) throw new Error("Invalid animation storage sentinel.");
-  requireContainedStorageFile(directory, sentinel);
+  requireContainedStorageFile(directory, sentinel, context);
 }
 
 function validateArtifact(value: unknown): asserts value is AnimationMotionPlanArtifact {
@@ -200,6 +248,7 @@ export function requireStoredProductionMotionPlan(
   projectSlug: string,
   asset: Asset,
   plan: AnimationMotionPlanScene,
+  input: RuntimeStorageInput = {},
 ) {
   if (
     asset.id !== plan.animationAssetId || asset.sceneId !== plan.sceneId ||
@@ -212,7 +261,7 @@ export function requireStoredProductionMotionPlan(
     typeof asset.filePath !== "string" || asset.url !== undefined ||
     !Number.isSafeInteger(asset.byteLength) || (asset.byteLength as number) <= 0
   ) throw new Error("Invalid animation artifact binding.");
-  const inspection = AnimationStorage.inspectStoredMotionPlan(projectSlug, asset.filePath);
+  const inspection = AnimationStorage.inspectStoredMotionPlan(projectSlug, asset.filePath, input);
   const stored = inspection.artifact;
   if (
     inspection.byteLength !== asset.byteLength || stored.assetId !== asset.id ||
@@ -240,6 +289,12 @@ function safeSegment(value: string) {
   return value;
 }
 
-function resolve(relativePath: string) {
-  return path.resolve(ROOT, ...relativePath.split("/"));
+function resolve(
+  relativePath: string,
+  context: RuntimeStorageContext,
+  write = false,
+) {
+  return write
+    ? resolveRuntimeLogicalPathForWrite(relativePath, context)
+    : resolveRuntimeLogicalPath(relativePath, context);
 }

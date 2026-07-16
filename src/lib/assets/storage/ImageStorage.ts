@@ -1,6 +1,18 @@
 import fs from "fs";
 import path from "path";
-import { requireContainedStorageFile } from "./StoragePathSecurity";
+import {
+  requireContainedStorageDirectory,
+  requireContainedStorageFile,
+} from "./StoragePathSecurity";
+import {
+  acquireProjectWriteAuthority,
+  ensureSafeContainedDirectory,
+  resolveRuntimeLogicalPath,
+  resolveRuntimeLogicalPathForWrite,
+  resolveRuntimeStorageContext,
+  type RuntimeStorageContext,
+  type RuntimeStorageInput,
+} from "@/lib/runtime/RuntimeStoragePaths";
 
 type ImageData = string | Buffer;
 
@@ -28,7 +40,6 @@ type ParsedImageData = {
   mimeType: string;
 };
 
-const ROOT_DIR = process.cwd();
 const DEFAULT_MIME_TYPE = "image/png";
 
 export class ImageStorage {
@@ -38,22 +49,29 @@ export class ImageStorage {
     assetId,
     fileName,
     mimeType,
-  }: SaveImageInput): SavedImage {
-    const parsed = parseImageData(data, mimeType);
-    const resolvedFileName =
-      fileName ?? createImageFileName(assetId, parsed.mimeType);
-    const relativePath = this.getImagePath(projectSlug, resolvedFileName);
-    const absolutePath = resolvePath(relativePath);
+  }: SaveImageInput, input: RuntimeStorageInput = {}): SavedImage {
+    const context = resolveRuntimeStorageContext(input);
+    const lease = acquireProjectWriteAuthority(projectSlug, context);
+    try {
+      const parsed = parseImageData(data, mimeType);
+      const resolvedFileName =
+        fileName ?? createImageFileName(assetId, parsed.mimeType);
+      const relativePath = this.getImagePath(projectSlug, resolvedFileName);
+      const absolutePath = resolvePath(relativePath, context, true);
 
-    ensureDir(absolutePath);
-    fs.writeFileSync(absolutePath, parsed.buffer);
+      ensureStorageDirectory(context, path.dirname(absolutePath));
+      requireContainedStorageDirectory(path.dirname(absolutePath), context);
+      fs.writeFileSync(absolutePath, parsed.buffer);
 
-    return {
-      fileName: resolvedFileName,
-      filePath: relativePath,
-      url: this.getImageUrl(projectSlug, resolvedFileName),
-      mimeType: parsed.mimeType,
-    };
+      return {
+        fileName: resolvedFileName,
+        filePath: relativePath,
+        url: this.getImageUrl(projectSlug, resolvedFileName),
+        mimeType: parsed.mimeType,
+      };
+    } finally {
+      lease.release();
+    }
   }
 
   static getImagesDir(projectSlug: string): string {
@@ -75,7 +93,9 @@ export class ImageStorage {
     projectSlug: string,
     filePath: string,
     mimeType: "image/png" | "image/jpeg" | "image/webp",
+    input: RuntimeStorageInput = {},
   ): ImageInspection {
+    const context = resolveRuntimeStorageContext(input);
     if (!/^[a-zA-Z0-9-_]+$/.test(projectSlug) || filePath.includes("\\")) {
       throw new Error("Invalid image path.");
     }
@@ -87,14 +107,12 @@ export class ImageStorage {
       throw new Error("Invalid image path.");
     }
 
-    const absolutePath = path.resolve(ROOT_DIR, ...filePath.split("/"));
-    const storageRoot = path.resolve(
-      ROOT_DIR,
-      ...this.getImagesDir(projectSlug).split("/"),
-    );
+    const absolutePath = resolvePath(filePath, context);
+    const storageRoot = resolvePath(this.getImagesDir(projectSlug), context);
     const { realPath, stat } = requireContainedStorageFile(
       storageRoot,
       absolutePath,
+      context,
     );
 
     if (stat.size <= 0 || stat.size > 64 * 1024 * 1024) {
@@ -171,16 +189,19 @@ function getExtensionFromMimeType(mimeType: string) {
   }
 }
 
-function resolvePath(relativePath: string) {
-  return path.join(ROOT_DIR, relativePath);
+function resolvePath(
+  relativePath: string,
+  context: RuntimeStorageContext,
+  write = false,
+) {
+  return write
+    ? resolveRuntimeLogicalPathForWrite(relativePath, context)
+    : resolveRuntimeLogicalPath(relativePath, context);
 }
 
-function ensureDir(filePath: string) {
-  const dir = path.dirname(filePath);
-
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
+function ensureStorageDirectory(context: RuntimeStorageContext, directory: string) {
+  ensureSafeContainedDirectory(context.runtimeRoot, context.projectsRoot);
+  ensureSafeContainedDirectory(context.projectsRoot, directory);
 }
 
 function sanitizePathSegment(value: string) {

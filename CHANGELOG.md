@@ -25,6 +25,25 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## Sprint 129.25B.1 — Targeted Runtime Storage Hardening / Completed
+
+- Mutation öncesi full ancestor-chain link/junction/reparse doğrulaması, canonical parent altında segment-bazlı safe directory creation ve ortak realpath containment primitive'leri eklendi. Junction ancestor reddi temp-only testte hedef tarafında sıfır side-effect ile doğrulandı; `..foo` containment false positive'i kapatıldı.
+- Immutable `RuntimeStorageContext`, operation boyunca workspace/runtime/projects/legacy/machine/authority root snapshot'ını sabitler. Project/metadata/asset/readiness/FFmpeg katmanları injected context'i yeniden global env/cwd çözmeden kullanır.
+- `ProjectReader.listProjects()` catch sözleşmesi yalnız `ENOENT` için boş liste döndürecek şekilde fail-closed yapıldı; dual-root/configuration/containment/IO/security hataları propagate edilir.
+- Project write authority machine-local Git dışı coordination root'unda atomic no-overwrite lock ve secretsiz/root-path içermeyen authority fingerprint claim ile sertleştirildi. Contention write-free bloklanır, legacy/external root çatışması tek claim altında reddedilir, release success/error yollarında `finally` kullanır ve stale/unknown lock otomatik kırılmaz.
+- Windows reserved host adları, colon, trailing dot/space, filesystem/UNC share root ve host traversal/absolute injection reddedildi. Inventory helper Git top-level root zorunluluğu kazandı; unsupported link testi açık `SKIP`, production boundary kanıtı gerçek guard/process-runner spy kullanır.
+- Sprint 129.25B 16/16 ve Sprint 129.25B.1 13/13, TypeScript, targeted ESLint `--max-warnings=0` ve `git diff --check` PASS. Marker SHA-256 `478E17627D121C61C6996FAD13470B0C0D8C6404D55EB1ED9173818A04C140CF`, boş runtime diff ve `184/184/0` inventory korundu.
+- Migration/untracking, `.gitignore`, runtime data veya acceptance schema/fingerprint değişikliği, production command, gerçek provider/worker, commit ve push yapılmadı. Runtime hâlen tracked; Sprint 129.25C başlamadı.
+
+## Sprint 129.25B — Runtime Root Abstraction & Tracking Policy Foundation / Completed
+
+- Merkezi `RuntimeStoragePaths` modülü, `ATOLYE_RUNTIME_ROOT`, `runtime-storage-v1`, logical `projects/<slug>` identity ve legacy/external/workspace classification contract'leri eklendi. Environment unset legacy root'u exact korur; explicit root absolute olmak zorundadır.
+- Project, asset metadata, generated asset, FFmpeg input, readiness probe ve production durable storage path başlangıçları merkezi çözümlemeye geçirildi. Persist edilen `data/projects/<slug>/...` metadata yolları geriye uyumlu kaldı; absolute host path fingerprint veya logical identity yapılmadı.
+- Lexical containment, traversal/root escape, absolute slug injection ve existing symlink/junction path guard'ları eklendi. Legacy ile configured root aynı slug'ı içerirse byte equality authority seçimi sağlamaz ve `RUNTIME_STORAGE_DUAL_ROOT_DIVERGENCE` fail-closed döner.
+- Read-only Git inventory helper ve Sprint 129.25B smoke eklendi. Baseline 184 tracked, 184 physical, 0 untracked runtime dosyasıdır; helper Sprint 129.25C'de zero-tracked policy'ye yükseltilebilir.
+- Doğrulamalar: Sprint 129.25B 16/16, isolated scene-video 23/23, isolated pipeline-state 18/18, TypeScript, targeted ESLint `--max-warnings=0` ve `git diff --check` PASS. Production orchestration/provider/worker call count sıfırdır.
+- Migration, untracking, `.gitignore` değişikliği, runtime mutation, marker rewrite/reprepare, production command, commit veya push yapılmadı. Marker SHA-256 `478E17627D121C61C6996FAD13470B0C0D8C6404D55EB1ED9173818A04C140CF` ve `data/projects/**` inventory exact korundu. Sprint 129.25C henüz başlamadı.
+
 ## Sprint 129.24 — Existing Acceptance Marker Portability / Completed
 
 - Explicit confirmation gerektiren `production:acceptance:reprepare` operator command'i eklendi. Komut yalnız acceptance marker'ını kontrollü yeniden hazırlar; execute, resume, finalize, retry veya stage dispatch başlatmaz.

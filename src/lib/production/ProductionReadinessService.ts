@@ -48,6 +48,10 @@ import {
   type VideoAssemblyProcessRunner,
 } from "@/lib/assembly/providers/FFmpegVideoAssemblyProvider";
 import { getProductionRuntimeStatus } from "@/lib/runtime/ProductionRuntimeCompositionRoot";
+import {
+  createRuntimeStorageContext,
+  type RuntimeStorageContext,
+} from "@/lib/runtime/RuntimeStoragePaths";
 import type { ProductionRuntimeStatus } from "@/types/productionRuntimeStatus";
 import {
   productionReadinessSchemaVersion,
@@ -71,6 +75,7 @@ export interface ProductionReadinessDependencies {
   readonly runtimeStatus?: () => ProductionRuntimeStatus;
   readonly now?: () => string;
   readonly beforeProbeCleanup?: (probeRoot: string) => void;
+  readonly runtimeStorageContext?: RuntimeStorageContext;
 }
 
 export class ProductionReadinessService {
@@ -80,6 +85,7 @@ export class ProductionReadinessService {
   private readonly runtimeStatus: () => ProductionRuntimeStatus;
   private readonly now: () => string;
   private readonly beforeProbeCleanup?: (probeRoot: string) => void;
+  private readonly runtimeStorageContext?: RuntimeStorageContext;
 
   constructor(dependencies: ProductionReadinessDependencies = {}) {
     this.cwd = path.resolve(dependencies.cwd ?? process.cwd());
@@ -88,6 +94,7 @@ export class ProductionReadinessService {
     this.runtimeStatus = dependencies.runtimeStatus ?? getProductionRuntimeStatus;
     this.now = dependencies.now ?? (() => new Date().toISOString());
     this.beforeProbeCleanup = dependencies.beforeProbeCleanup;
+    this.runtimeStorageContext = dependencies.runtimeStorageContext;
   }
 
   async evaluate(): Promise<ProductionReadinessReport> {
@@ -103,8 +110,12 @@ export class ProductionReadinessService {
 
     let workspace: ProbeWorkspace | undefined;
     try {
-      workspace = createProbeWorkspace(this.cwd);
-      checks.push(...probeStorage(workspace));
+      const context = this.runtimeStorageContext ?? createRuntimeStorageContext({
+        workspaceRoot: this.cwd,
+        environment: this.environment,
+      });
+      workspace = createProbeWorkspace(context);
+      checks.push(...probeStorage(workspace, context));
       checks.push(...await this.probeMedia(workspace));
     } catch {
       checks.push(...missingProbeChecks(checks));
@@ -377,12 +388,11 @@ export class ProductionReadinessService {
 
 interface ProbeWorkspace { projectsRoot: string; root: string; mediaRoot: string; roots: Record<"images-storage" | "audio-storage" | "video-storage" | "thumbnail-storage" | "assembly-storage", string>; }
 
-function createProbeWorkspace(cwd: string): ProbeWorkspace {
-  const projectsRoot = path.join(cwd, "data", "projects");
+function createProbeWorkspace(context: RuntimeStorageContext): ProbeWorkspace {
+  const projectsRoot = context.projectsRoot;
   if (!fs.existsSync(projectsRoot) || !fs.statSync(projectsRoot).isDirectory() || fs.lstatSync(projectsRoot).isSymbolicLink()) throw new Error("unavailable");
-  const realCwd = fs.realpathSync(cwd);
   const realProjects = fs.realpathSync(projectsRoot);
-  if (!isInside(realCwd, realProjects)) throw new Error("invalid");
+  if (comparablePath(realProjects) !== comparablePath(projectsRoot)) throw new Error("invalid");
   const root = path.join(realProjects, `${PROBE_PREFIX}${crypto.randomUUID()}`);
   fs.mkdirSync(root, { recursive: false });
   const sentinel = path.join(root, SENTINEL_FILE);
@@ -412,7 +422,10 @@ function createProbeWorkspace(cwd: string): ProbeWorkspace {
   }
 }
 
-function probeStorage(workspace: ProbeWorkspace): ProductionReadinessCheck[] {
+function probeStorage(
+  workspace: ProbeWorkspace,
+  context: RuntimeStorageContext,
+): ProductionReadinessCheck[] {
   const checks: ProductionReadinessCheck[] = [
     check("projects-root", "READY", "PROJECTS_ROOT_READY"),
     check("assets-root", "READY", "ASSETS_ROOT_READY"),
@@ -424,13 +437,13 @@ function probeStorage(workspace: ProbeWorkspace): ProductionReadinessCheck[] {
       const bytes = Buffer.from("atolye-readiness");
       fs.writeFileSync(file, bytes, { flag: "wx" });
       if (!fs.readFileSync(file).equals(bytes)) throw new Error("invalid");
-      requireContainedStorageFile(directory, file);
+      requireContainedStorageFile(directory, file, context);
       checks.push(check(id, "READY", `${id.replace(/-/g, "_").toUpperCase()}_READY`));
     } catch {
       checks.push(check(id, "UNAVAILABLE", `${id.replace(/-/g, "_").toUpperCase()}_UNAVAILABLE`));
     }
   }
-  const adapterResults = probeStorageAdapters(workspace);
+  const adapterResults = probeStorageAdapters(workspace, context);
   for (const [id, ready] of Object.entries(adapterResults) as Array<[keyof ProbeWorkspace["roots"], boolean]>) {
     if (!ready) replaceCheck(checks, check(id, "UNAVAILABLE", `${id.replace(/-/g, "_").toUpperCase()}_ADAPTER_UNAVAILABLE`));
   }
@@ -446,7 +459,10 @@ function probeStorage(workspace: ProbeWorkspace): ProductionReadinessCheck[] {
   return checks;
 }
 
-function probeStorageAdapters(workspace: ProbeWorkspace): Record<keyof ProbeWorkspace["roots"], boolean> {
+function probeStorageAdapters(
+  workspace: ProbeWorkspace,
+  context: RuntimeStorageContext,
+): Record<keyof ProbeWorkspace["roots"], boolean> {
   const projectSlug = path.basename(workspace.root);
   const results: Record<keyof ProbeWorkspace["roots"], boolean> = {
     "images-storage": false,
@@ -456,31 +472,31 @@ function probeStorageAdapters(workspace: ProbeWorkspace): Record<keyof ProbeWork
     "assembly-storage": false,
   };
   try {
-    const saved = ImageStorage.saveImage({ projectSlug, assetId: "readiness-image", data: readinessPng(), mimeType: "image/png" });
-    ImageStorage.inspectStoredImage(projectSlug, saved.filePath, "image/png");
+    const saved = ImageStorage.saveImage({ projectSlug, assetId: "readiness-image", data: readinessPng(), mimeType: "image/png" }, context);
+    ImageStorage.inspectStoredImage(projectSlug, saved.filePath, "image/png", context);
     results["images-storage"] = true;
   } catch { /* reported by the caller */ }
   try {
-    const saved = AudioStorage.saveAudio({ projectSlug, assetId: "readiness-audio", data: readinessWav() });
-    AudioStorage.inspectStoredWav(projectSlug, saved.filePath);
+    const saved = AudioStorage.saveAudio({ projectSlug, assetId: "readiness-audio", data: readinessWav() }, context);
+    AudioStorage.inspectStoredWav(projectSlug, saved.filePath, context);
     results["audio-storage"] = true;
   } catch { /* reported by the caller */ }
   try {
-    const paths = VideoStorage.createRenderPaths(projectSlug);
+    const paths = VideoStorage.createRenderPaths(projectSlug, context);
     fs.writeFileSync(paths.temporaryAbsolutePath, Buffer.from("readiness-video-storage"), { flag: "wx" });
-    VideoStorage.finalize(paths.temporaryAbsolutePath, paths.absolutePath);
-    requireContainedStorageFile(workspace.roots["video-storage"], paths.absolutePath);
+    VideoStorage.finalize(paths.temporaryAbsolutePath, paths.absolutePath, context);
+    requireContainedStorageFile(workspace.roots["video-storage"], paths.absolutePath, context);
     results["video-storage"] = true;
   } catch { /* reported by the caller */ }
   try {
-    const saved = ThumbnailStorage.saveThumbnail({ projectSlug, assetId: "readiness-thumbnail", data: readinessPng(), mimeType: "image/png" });
-    ThumbnailStorage.inspectStoredThumbnail(projectSlug, saved.filePath, "image/png");
+    const saved = ThumbnailStorage.saveThumbnail({ projectSlug, assetId: "readiness-thumbnail", data: readinessPng(), mimeType: "image/png" }, context);
+    ThumbnailStorage.inspectStoredThumbnail(projectSlug, saved.filePath, "image/png", context);
     results["thumbnail-storage"] = true;
   } catch { /* reported by the caller */ }
   try {
     const relativePath = `data/projects/${projectSlug}/assets/assembly/readiness.json`;
-    FileStorage.saveJsonAtomically(relativePath, { sentinel: SENTINEL_VALUE });
-    const stored = FileStorage.loadJson<{ sentinel?: unknown }>(relativePath);
+    FileStorage.saveJsonAtomically(relativePath, { sentinel: SENTINEL_VALUE }, context);
+    const stored = FileStorage.loadJson<{ sentinel?: unknown }>(relativePath, context);
     results["assembly-storage"] = stored?.sentinel === SENTINEL_VALUE;
   } catch { /* reported by the caller */ }
   return results;

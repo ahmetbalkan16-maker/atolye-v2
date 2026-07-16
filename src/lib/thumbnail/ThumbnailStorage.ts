@@ -1,9 +1,20 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { ThumbnailMimeType } from "@/types/thumbnail";
-import { requireContainedStorageFile } from "@/lib/assets/storage/StoragePathSecurity";
+import {
+  requireContainedStorageDirectory,
+  requireContainedStorageFile,
+} from "@/lib/assets/storage/StoragePathSecurity";
+import {
+  acquireProjectWriteAuthority,
+  ensureSafeContainedDirectory,
+  resolveRuntimeLogicalPath,
+  resolveRuntimeLogicalPathForWrite,
+  resolveRuntimeStorageContext,
+  type RuntimeStorageContext,
+  type RuntimeStorageInput,
+} from "@/lib/runtime/RuntimeStoragePaths";
 
-const ROOT_DIR = process.cwd();
 const MAX_THUMBNAIL_BYTES = 64 * 1024 * 1024;
 const MAX_DIMENSION = 16_384;
 
@@ -33,14 +44,17 @@ export class ThumbnailStorage {
     assetId: string;
     data: Buffer;
     mimeType: ThumbnailMimeType;
-  }): SavedThumbnail {
+  }, storageInput: RuntimeStorageInput = {}): SavedThumbnail {
+    const context = resolveRuntimeStorageContext(storageInput);
+    const lease = acquireProjectWriteAuthority(input.projectSlug, context);
+    try {
     requireSafeSegment(input.projectSlug);
     requireSafeSegment(input.assetId);
     const extension = extensionForMimeType(input.mimeType);
     const fileName = `${input.assetId}.${extension}`;
     const filePath = this.getThumbnailPath(input.projectSlug, fileName);
     const inspection = inspectImageBuffer(input.data, input.mimeType);
-    const storageRoot = ensureSafeStorageDirectory(input.projectSlug);
+    const storageRoot = ensureSafeStorageDirectory(input.projectSlug, context);
     const absolutePath = path.resolve(storageRoot, fileName);
     const temporaryPath = path.resolve(
       storageRoot,
@@ -80,6 +94,7 @@ export class ThumbnailStorage {
         input.projectSlug,
         filePath,
         input.mimeType,
+        context,
       );
     } catch (error) {
       try { fs.rmSync(absolutePath, { force: true }); } catch { /* best effort */ }
@@ -101,6 +116,9 @@ export class ThumbnailStorage {
       mimeType: input.mimeType,
       ...stored,
     };
+    } finally {
+      lease.release();
+    }
   }
 
   static getThumbnailsDir(projectSlug: string): string {
@@ -124,7 +142,9 @@ export class ThumbnailStorage {
     projectSlug: string,
     filePath: string,
     mimeType: ThumbnailMimeType,
+    input: RuntimeStorageInput = {},
   ): StoredThumbnailInspection {
+    const context = resolveRuntimeStorageContext(input);
     requireSafeSegment(projectSlug);
     if (filePath.includes("\\")) throw new Error("Invalid thumbnail path.");
 
@@ -136,14 +156,12 @@ export class ThumbnailStorage {
       throw new Error("Invalid thumbnail path.");
     }
 
-    const storageRoot = path.resolve(
-      ROOT_DIR,
-      ...this.getThumbnailsDir(projectSlug).split("/"),
-    );
-    const absolutePath = path.resolve(ROOT_DIR, ...filePath.split("/"));
+    const storageRoot = resolveRuntimeLogicalPath(this.getThumbnailsDir(projectSlug), context);
+    const absolutePath = resolveRuntimeLogicalPath(filePath, context);
     const { realPath, stat } = requireContainedStorageFile(
       storageRoot,
       absolutePath,
+      context,
     );
 
     if (stat.size <= 0 || stat.size > MAX_THUMBNAIL_BYTES) {
@@ -160,18 +178,17 @@ export class ThumbnailStorage {
   static readThumbnail(
     projectSlug: string,
     fileName: string,
+    input: RuntimeStorageInput = {},
   ): { data: Buffer; mimeType: ThumbnailMimeType } {
+    const context = resolveRuntimeStorageContext(input);
     requireSafeSegment(projectSlug);
     requireSafeFileName(fileName);
     const mimeType = mimeTypeForExtension(fileName);
     const filePath = this.getThumbnailPath(projectSlug, fileName);
-    const expected = this.inspectStoredThumbnail(projectSlug, filePath, mimeType);
-    const storageRoot = path.resolve(
-      ROOT_DIR,
-      ...this.getThumbnailsDir(projectSlug).split("/"),
-    );
-    const absolutePath = path.resolve(ROOT_DIR, ...filePath.split("/"));
-    const { realPath } = requireContainedStorageFile(storageRoot, absolutePath);
+    const expected = this.inspectStoredThumbnail(projectSlug, filePath, mimeType, context);
+    const storageRoot = resolveRuntimeLogicalPath(this.getThumbnailsDir(projectSlug), context);
+    const absolutePath = resolveRuntimeLogicalPath(filePath, context);
+    const { realPath } = requireContainedStorageFile(storageRoot, absolutePath, context);
     const data = fs.readFileSync(realPath);
     const actual = inspectImageBuffer(data, mimeType);
     if (
@@ -182,7 +199,14 @@ export class ThumbnailStorage {
     return { data, mimeType };
   }
 
-  static removeStoredThumbnail(projectSlug: string, filePath: string): void {
+  static removeStoredThumbnail(
+    projectSlug: string,
+    filePath: string,
+    input: RuntimeStorageInput = {},
+  ): void {
+    const context = resolveRuntimeStorageContext(input);
+    const lease = acquireProjectWriteAuthority(projectSlug, context);
+    try {
     requireSafeSegment(projectSlug);
     if (typeof filePath !== "string" || filePath.includes("\\")) {
       throw new Error("Invalid thumbnail path.");
@@ -192,46 +216,28 @@ export class ThumbnailStorage {
     if (filePath !== this.getThumbnailPath(projectSlug, fileName)) {
       throw new Error("Invalid thumbnail path.");
     }
-    const storageRoot = path.resolve(
-      ROOT_DIR,
-      ...this.getThumbnailsDir(projectSlug).split("/"),
-    );
-    const absolutePath = path.resolve(ROOT_DIR, ...filePath.split("/"));
+    const storageRoot = resolveRuntimeLogicalPath(this.getThumbnailsDir(projectSlug), context);
+    const absolutePath = resolveRuntimeLogicalPath(filePath, context);
     if (!fs.existsSync(absolutePath)) return;
-    const { realPath } = requireContainedStorageFile(storageRoot, absolutePath);
+    const { realPath } = requireContainedStorageFile(storageRoot, absolutePath, context);
     fs.rmSync(realPath);
+    } finally {
+      lease.release();
+    }
   }
 }
 
-function ensureSafeStorageDirectory(projectSlug: string) {
-  const workspaceRoot = fs.realpathSync(ROOT_DIR);
-  const dataRoot = path.resolve(ROOT_DIR, "data");
-  const projectsRoot = path.resolve(dataRoot, "projects");
-
-  requireExistingDirectory(workspaceRoot, dataRoot);
-  requireExistingDirectory(dataRoot, projectsRoot);
-
-  const projectRoot = ensureChildDirectory(projectsRoot, projectSlug);
-  const assetsRoot = ensureChildDirectory(projectRoot, "assets");
-  return ensureChildDirectory(assetsRoot, "thumbnails");
-}
-
-function ensureChildDirectory(parent: string, child: string) {
-  const target = path.resolve(parent, child);
-  if (!isInside(parent, target)) throw new Error("Invalid storage path.");
-  if (!fs.existsSync(target)) fs.mkdirSync(target);
-  requireExistingDirectory(parent, target);
-  return target;
-}
-
-function requireExistingDirectory(parent: string, target: string) {
-  const link = fs.lstatSync(target);
-  if (link.isSymbolicLink() || !link.isDirectory()) {
-    throw new Error("Invalid storage path.");
-  }
-  const realParent = fs.realpathSync(parent);
-  const realTarget = fs.realpathSync(target);
-  if (!isInside(realParent, realTarget)) throw new Error("Invalid storage path.");
+function ensureSafeStorageDirectory(
+  projectSlug: string,
+  context: RuntimeStorageContext,
+) {
+  const storageRoot = resolveRuntimeLogicalPathForWrite(
+    ThumbnailStorage.getThumbnailsDir(projectSlug),
+    context,
+  );
+  ensureSafeContainedDirectory(context.runtimeRoot, context.projectsRoot);
+  ensureSafeContainedDirectory(context.projectsRoot, storageRoot);
+  return requireContainedStorageDirectory(storageRoot, context);
 }
 
 function inspectImageBuffer(
@@ -394,5 +400,8 @@ function crc32(data: Buffer) {
 
 function isInside(directory: string, target: string) {
   const relative = path.relative(directory, target);
-  return relative.length > 0 && !relative.startsWith("..") && !path.isAbsolute(relative);
+  return relative.length > 0 &&
+    relative !== ".." &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative);
 }

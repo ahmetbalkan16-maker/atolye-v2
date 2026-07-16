@@ -1,54 +1,89 @@
 import fs from "fs";
 import path from "path";
+import {
+  acquireProjectWriteAuthority,
+  ensureSafeContainedDirectory,
+  resolveRuntimeLogicalPath,
+  resolveRuntimeLogicalPathForWrite,
+  resolveRuntimeStorageContext,
+  type RuntimeStorageContext,
+  type RuntimeStorageInput,
+} from "@/lib/runtime/RuntimeStoragePaths";
 
-const ROOT_DIR = process.cwd();
-
-function resolvePath(relativePath: string) {
-  return path.join(ROOT_DIR, relativePath);
+function resolvePath(
+  relativePath: string,
+  context: RuntimeStorageContext,
+  write = false,
+) {
+  if (relativePath.startsWith("data/projects/")) {
+    return write
+      ? resolveRuntimeLogicalPathForWrite(relativePath, context)
+      : resolveRuntimeLogicalPath(relativePath, context);
+  }
+  return path.join(context.workspaceRoot, relativePath);
 }
 
-function ensureDir(filePath: string) {
-  const dir = path.dirname(filePath);
-
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+function ensureStorageDirectory(
+  relativePath: string,
+  filePath: string,
+  context: RuntimeStorageContext,
+) {
+  if (relativePath.startsWith("data/projects/")) {
+    ensureSafeContainedDirectory(context.runtimeRoot, context.projectsRoot);
+    ensureSafeContainedDirectory(context.projectsRoot, path.dirname(filePath));
+  } else {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
   }
 }
 
 export class FileStorage {
-  static exists(relativePath: string) {
-    return fs.existsSync(resolvePath(relativePath));
+  static exists(relativePath: string, input: RuntimeStorageInput = {}) {
+    const context = resolveRuntimeStorageContext(input);
+    return fs.existsSync(resolvePath(relativePath, context));
   }
 
-  static saveJson(relativePath: string, data: unknown) {
-    const filePath = resolvePath(relativePath);
-    ensureDir(filePath);
-
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
-
-    return data;
-  }
-
-  static saveJsonAtomically(relativePath: string, data: unknown) {
-    const filePath = resolvePath(relativePath);
-    ensureDir(filePath);
-    const temporaryPath = path.join(
-      path.dirname(filePath),
-      `.${path.basename(filePath)}.${process.pid}.${crypto.randomUUID()}.tmp`,
-    );
-
-    try {
-      fs.writeFileSync(temporaryPath, JSON.stringify(data, null, 2), "utf-8");
-      fs.renameSync(temporaryPath, filePath);
+  static saveJson(
+    relativePath: string,
+    data: unknown,
+    input: RuntimeStorageInput = {},
+  ) {
+    const context = resolveRuntimeStorageContext(input);
+    return withWriteAuthority(relativePath, context, () => {
+      const filePath = resolvePath(relativePath, context, true);
+      ensureStorageDirectory(relativePath, filePath, context);
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
       return data;
-    } catch (error) {
-      try { fs.rmSync(temporaryPath, { force: true }); } catch { /* best effort */ }
-      throw error;
-    }
+    });
   }
 
-  static loadJson<T>(relativePath: string): T | null {
-    const filePath = resolvePath(relativePath);
+  static saveJsonAtomically(
+    relativePath: string,
+    data: unknown,
+    input: RuntimeStorageInput = {},
+  ) {
+    const context = resolveRuntimeStorageContext(input);
+    return withWriteAuthority(relativePath, context, () => {
+      const filePath = resolvePath(relativePath, context, true);
+      ensureStorageDirectory(relativePath, filePath, context);
+      const temporaryPath = path.join(
+        path.dirname(filePath),
+        `.${path.basename(filePath)}.${process.pid}.${crypto.randomUUID()}.tmp`,
+      );
+
+      try {
+        fs.writeFileSync(temporaryPath, JSON.stringify(data, null, 2), "utf-8");
+        fs.renameSync(temporaryPath, filePath);
+        return data;
+      } catch (error) {
+        try { fs.rmSync(temporaryPath, { force: true }); } catch { /* best effort */ }
+        throw error;
+      }
+    });
+  }
+
+  static loadJson<T>(relativePath: string, input: RuntimeStorageInput = {}): T | null {
+    const context = resolveRuntimeStorageContext(input);
+    const filePath = resolvePath(relativePath, context);
 
     if (!fs.existsSync(filePath)) {
       return null;
@@ -57,8 +92,9 @@ export class FileStorage {
     return JSON.parse(fs.readFileSync(filePath, "utf-8")) as T;
   }
 
-  static listDirs(relativePath: string) {
-    const dirPath = resolvePath(relativePath);
+  static listDirs(relativePath: string, input: RuntimeStorageInput = {}) {
+    const context = resolveRuntimeStorageContext(input);
+    const dirPath = resolvePath(relativePath, context);
 
     if (!fs.existsSync(dirPath)) {
       return [];
@@ -69,11 +105,28 @@ export class FileStorage {
       .filter((item) => fs.statSync(path.join(dirPath, item)).isDirectory());
   }
 
-  static remove(relativePath: string) {
-    const filePath = resolvePath(relativePath);
+  static remove(relativePath: string, input: RuntimeStorageInput = {}) {
+    const context = resolveRuntimeStorageContext(input);
+    return withWriteAuthority(relativePath, context, () => {
+      const filePath = resolvePath(relativePath, context);
+      if (fs.existsSync(filePath)) {
+        fs.rmSync(filePath, { recursive: true, force: true });
+      }
+    });
+  }
+}
 
-    if (fs.existsSync(filePath)) {
-      fs.rmSync(filePath, { recursive: true, force: true });
-    }
+function withWriteAuthority<T>(
+  relativePath: string,
+  context: RuntimeStorageContext,
+  run: () => T,
+) {
+  if (!relativePath.startsWith("data/projects/")) return run();
+  const slug = relativePath.split("/")[2];
+  const lease = acquireProjectWriteAuthority(slug, context);
+  try {
+    return run();
+  } finally {
+    lease.release();
   }
 }

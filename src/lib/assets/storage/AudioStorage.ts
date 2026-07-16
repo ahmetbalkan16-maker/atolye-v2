@@ -1,6 +1,18 @@
 import fs from "node:fs";
 import path from "node:path";
-import { requireContainedStorageFile } from "./StoragePathSecurity";
+import {
+  requireContainedStorageDirectory,
+  requireContainedStorageFile,
+} from "./StoragePathSecurity";
+import {
+  acquireProjectWriteAuthority,
+  ensureSafeContainedDirectory,
+  resolveRuntimeLogicalPath,
+  resolveRuntimeLogicalPathForWrite,
+  resolveRuntimeStorageContext,
+  type RuntimeStorageContext,
+  type RuntimeStorageInput,
+} from "@/lib/runtime/RuntimeStoragePaths";
 
 export interface SaveAudioInput {
   projectSlug: string;
@@ -21,7 +33,6 @@ export interface SavedAudio extends AudioInspection {
   mimeType: "audio/wav";
 }
 
-const ROOT_DIR = process.cwd();
 export const AUDIO_STORAGE_MAX_BYTES = 256 * 1024 * 1024;
 const MAX_AUDIO_DURATION_SECONDS = 4 * 60 * 60;
 
@@ -31,25 +42,33 @@ export class AudioStorage {
     data,
     assetId,
     fileName,
-  }: SaveAudioInput): SavedAudio {
-    const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
-    const inspection = this.inspectWav(buffer);
-    const resolvedFileName = fileName
-      ? requireSafeWavFileName(fileName)
-      : `${sanitizeFileName(assetId ?? crypto.randomUUID())}.wav`;
-    const relativePath = this.getAudioPath(projectSlug, resolvedFileName);
-    const absolutePath = resolvePath(relativePath);
+  }: SaveAudioInput, input: RuntimeStorageInput = {}): SavedAudio {
+    const context = resolveRuntimeStorageContext(input);
+    const lease = acquireProjectWriteAuthority(projectSlug, context);
+    try {
+      const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
+      const inspection = this.inspectWav(buffer);
+      const resolvedFileName = fileName
+        ? requireSafeWavFileName(fileName)
+        : `${sanitizeFileName(assetId ?? crypto.randomUUID())}.wav`;
+      const relativePath = this.getAudioPath(projectSlug, resolvedFileName);
+      const absolutePath = resolvePath(relativePath, context, true);
 
-    fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
-    fs.writeFileSync(absolutePath, buffer);
+      ensureSafeContainedDirectory(context.runtimeRoot, context.projectsRoot);
+      ensureSafeContainedDirectory(context.projectsRoot, path.dirname(absolutePath));
+      requireContainedStorageDirectory(path.dirname(absolutePath), context);
+      fs.writeFileSync(absolutePath, buffer);
 
-    return {
-      fileName: resolvedFileName,
-      filePath: relativePath,
-      url: this.getAudioUrl(projectSlug, resolvedFileName),
-      mimeType: "audio/wav",
-      ...inspection,
-    };
+      return {
+        fileName: resolvedFileName,
+        filePath: relativePath,
+        url: this.getAudioUrl(projectSlug, resolvedFileName),
+        mimeType: "audio/wav",
+        ...inspection,
+      };
+    } finally {
+      lease.release();
+    }
   }
 
   static getAudioDir(projectSlug: string): string {
@@ -70,7 +89,9 @@ export class AudioStorage {
   static inspectStoredWav(
     projectSlug: string,
     filePath: string,
+    input: RuntimeStorageInput = {},
   ): AudioInspection {
+    const context = resolveRuntimeStorageContext(input);
     const fileName = path.posix.basename(filePath);
     const expectedPath = this.getAudioPath(projectSlug, fileName);
 
@@ -78,11 +99,12 @@ export class AudioStorage {
       throw new Error("Invalid WAV path.");
     }
 
-    const absolutePath = resolvePath(filePath);
-    const storageRoot = resolvePath(this.getAudioDir(projectSlug));
+    const absolutePath = resolvePath(filePath, context);
+    const storageRoot = resolvePath(this.getAudioDir(projectSlug), context);
     const { realPath, stat } = requireContainedStorageFile(
       storageRoot,
       absolutePath,
+      context,
     );
 
     if (stat.size <= 0 || stat.size > AUDIO_STORAGE_MAX_BYTES) {
@@ -190,8 +212,14 @@ export class AudioStorage {
   }
 }
 
-function resolvePath(relativePath: string) {
-  return path.resolve(ROOT_DIR, ...relativePath.split("/"));
+function resolvePath(
+  relativePath: string,
+  context: RuntimeStorageContext,
+  write = false,
+) {
+  return write
+    ? resolveRuntimeLogicalPathForWrite(relativePath, context)
+    : resolveRuntimeLogicalPath(relativePath, context);
 }
 
 function requireSafePathSegment(value: string) {

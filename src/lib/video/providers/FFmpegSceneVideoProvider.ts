@@ -1,7 +1,11 @@
 import fs from "node:fs";
-import path from "node:path";
 import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
 import { VideoStorage } from "@/lib/assets/storage/VideoStorage";
+import {
+  createRuntimeStorageContext,
+  resolveRuntimeLogicalPath,
+  type RuntimeStorageContext,
+} from "@/lib/runtime/RuntimeStoragePaths";
 import {
   SpawnRunner,
   type ProcessRunResult,
@@ -34,13 +38,15 @@ export class FFmpegSceneVideoProvider implements VideoProvider {
     private readonly runner: VideoAssemblyProcessRunner = new SpawnRunner(),
     private readonly loadConfig: () => FFmpegSceneVideoConfig =
       getFFmpegSceneVideoConfig,
+    private readonly runtimeStorageContext?: RuntimeStorageContext,
   ) {}
 
   async generateVideo(input: VideoGenerationInput): Promise<VideoGenerationResult> {
     const paths: Array<ReturnType<typeof VideoStorage.createSceneRenderPaths>> = [];
+    const context = this.runtimeStorageContext ?? createRuntimeStorageContext();
 
     try {
-      validateBatch(input);
+      validateBatch(input, context);
       const config = this.loadConfig();
       validateExecutable(config.ffmpegPath);
       validateExecutable(config.ffprobePath);
@@ -50,11 +56,12 @@ export class FFmpegSceneVideoProvider implements VideoProvider {
         const renderPaths = VideoStorage.createSceneRenderPaths(
           input.projectSlug,
           scene.sceneId,
+          context,
         );
         paths.push(renderPaths);
         const ffmpeg = await this.runner.run(
           config.ffmpegPath,
-          buildSceneFFmpegArgs(scene, renderPaths.temporaryAbsolutePath),
+          buildSceneFFmpegArgs(scene, renderPaths.temporaryAbsolutePath, context),
           { timeoutMs: config.timeoutMs, maxOutputBytes: config.maxStdioBytes },
         );
         requireSuccessfulProcess(ffmpeg);
@@ -75,11 +82,13 @@ export class FFmpegSceneVideoProvider implements VideoProvider {
         VideoStorage.finalize(
           renderPaths.temporaryAbsolutePath,
           renderPaths.absolutePath,
+          context,
         );
         const finalInspection = VideoStorage.inspectStoredMp4(
           input.projectSlug,
           renderPaths.filePath,
           config.maxOutputBytes,
+          context,
         );
         if (finalInspection.byteLength !== temporaryInspection.byteLength) {
           throw new Error(SAFE_ERROR);
@@ -114,15 +123,15 @@ export class FFmpegSceneVideoProvider implements VideoProvider {
       };
     } catch {
       for (const item of paths) {
-        VideoStorage.removeIfExists(item.temporaryAbsolutePath);
-        VideoStorage.removeIfExists(item.absolutePath);
+        VideoStorage.removeIfExists(item.temporaryAbsolutePath, context);
+        VideoStorage.removeIfExists(item.absolutePath, context);
       }
       return { success: false, provider: "ffmpeg", error: SAFE_ERROR };
     }
   }
 }
 
-function validateBatch(input: VideoGenerationInput) {
+function validateBatch(input: VideoGenerationInput, context: RuntimeStorageContext) {
   if (
     !input ||
     typeof input !== "object" ||
@@ -155,6 +164,7 @@ function validateBatch(input: VideoGenerationInput) {
       input.projectSlug,
       scene.imageFilePath,
       scene.imageMimeType,
+      context,
     );
     ids.add(scene.sceneId);
   }
@@ -163,7 +173,9 @@ function validateBatch(input: VideoGenerationInput) {
 export function buildSceneFFmpegArgs(
   scene: VideoProviderSceneInput,
   outputPath: string,
+  input?: RuntimeStorageContext,
 ) {
+  const context = input ?? createRuntimeStorageContext();
   const duration = scene.motionPlan.durationSeconds.toFixed(6);
   const frames = Math.max(1, Math.round(scene.motionPlan.durationSeconds * FRAME_RATE));
   const filter = buildMotionFilter(
@@ -185,7 +197,7 @@ export function buildSceneFFmpegArgs(
     "-t",
     duration,
     "-i",
-    absoluteInput(scene.imageFilePath),
+    absoluteInput(scene.imageFilePath, context),
     "-vf",
     filter,
     "-an",
@@ -317,6 +329,6 @@ function validateExecutable(executable: string) {
   fs.accessSync(executable, fs.constants.X_OK);
 }
 
-function absoluteInput(relativePath: string) {
-  return path.resolve(process.cwd(), ...relativePath.split("/"));
+function absoluteInput(relativePath: string, context: RuntimeStorageContext) {
+  return resolveRuntimeLogicalPath(relativePath, context);
 }

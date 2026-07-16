@@ -1,8 +1,18 @@
 import fs from "node:fs";
 import path from "node:path";
-import { requireContainedStorageFile } from "./StoragePathSecurity";
-
-const ROOT_DIR = process.cwd();
+import {
+  requireContainedStorageDirectory,
+  requireContainedStorageFile,
+} from "./StoragePathSecurity";
+import {
+  acquireProjectWriteAuthority,
+  ensureSafeContainedDirectory,
+  resolveRuntimeLogicalPath,
+  resolveRuntimeLogicalPathForWrite,
+  resolveRuntimeStorageContext,
+  type RuntimeStorageContext,
+  type RuntimeStorageInput,
+} from "@/lib/runtime/RuntimeStoragePaths";
 
 export interface VideoInspection {
   byteLength: number;
@@ -28,35 +38,64 @@ export class VideoStorage {
     )}/${encodeURIComponent(safeMp4FileName(fileName))}`;
   }
 
-  static createRenderPaths(projectSlug: string) {
-    return this.createPaths(projectSlug, crypto.randomUUID());
+  static createRenderPaths(projectSlug: string, input: RuntimeStorageInput = {}) {
+    return this.createPaths(projectSlug, crypto.randomUUID(), input);
   }
 
-  static createSceneRenderPaths(projectSlug: string, sceneId: number) {
+  static createSceneRenderPaths(
+    projectSlug: string,
+    sceneId: number,
+    input: RuntimeStorageInput = {},
+  ) {
     if (!Number.isSafeInteger(sceneId) || sceneId <= 0) {
       throw new Error("Invalid scene id.");
     }
-    return this.createPaths(projectSlug, `scene-${sceneId}-${crypto.randomUUID()}`);
+    return this.createPaths(
+      projectSlug,
+      `scene-${sceneId}-${crypto.randomUUID()}`,
+      input,
+    );
   }
 
-  private static createPaths(projectSlug: string, id: string) {
-    const fileName = `${id}.mp4`;
-    const temporaryFileName = `${id}.partial.mp4`;
-    const directory = resolveRelative(this.getVideoDir(projectSlug));
+  private static createPaths(
+    projectSlug: string,
+    id: string,
+    input: RuntimeStorageInput,
+  ) {
+    const context = resolveRuntimeStorageContext(input);
+    const lease = acquireProjectWriteAuthority(projectSlug, context);
+    try {
+      const fileName = `${id}.mp4`;
+      const temporaryFileName = `${id}.partial.mp4`;
+      const directory = resolveRelative(this.getVideoDir(projectSlug), context, true);
 
-    fs.mkdirSync(directory, { recursive: true });
+      ensureSafeContainedDirectory(context.runtimeRoot, context.projectsRoot);
+      ensureSafeContainedDirectory(context.projectsRoot, directory);
+      requireContainedStorageDirectory(directory, context);
 
-    return {
-      fileName,
-      filePath: this.getVideoPath(projectSlug, fileName),
-      url: this.getVideoUrl(projectSlug, fileName),
-      absolutePath: resolveRelative(this.getVideoPath(projectSlug, fileName)),
-      temporaryAbsolutePath: path.join(directory, temporaryFileName),
-    };
+      return {
+        fileName,
+        filePath: this.getVideoPath(projectSlug, fileName),
+        url: this.getVideoUrl(projectSlug, fileName),
+        absolutePath: resolveRelative(
+          this.getVideoPath(projectSlug, fileName),
+          context,
+          true,
+        ),
+        temporaryAbsolutePath: path.join(directory, temporaryFileName),
+      };
+    } finally {
+      lease.release();
+    }
   }
 
-  static finalize(temporaryAbsolutePath: string, absolutePath: string) {
-    const videoRoot = resolveRelative("data/projects");
+  static finalize(
+    temporaryAbsolutePath: string,
+    absolutePath: string,
+    input: RuntimeStorageInput = {},
+  ) {
+    const context = resolveRuntimeStorageContext(input);
+    const videoRoot = context.projectsRoot;
 
     if (
       !inside(videoRoot, temporaryAbsolutePath) ||
@@ -65,8 +104,13 @@ export class VideoStorage {
     ) {
       throw new Error("Invalid video output path.");
     }
-
-    fs.renameSync(temporaryAbsolutePath, absolutePath);
+    const slug = path.relative(videoRoot, absolutePath).split(path.sep)[0];
+    const lease = acquireProjectWriteAuthority(slug, context);
+    try {
+      fs.renameSync(temporaryAbsolutePath, absolutePath);
+    } finally {
+      lease.release();
+    }
   }
 
   static inspectMp4(filePath: string, maximumBytes: number): VideoInspection {
@@ -157,7 +201,9 @@ export class VideoStorage {
     projectSlug: string,
     filePath: string,
     maximumBytes: number,
+    input: RuntimeStorageInput = {},
   ): StoredVideoInspection {
+    const context = resolveRuntimeStorageContext(input);
     const fileName = path.posix.basename(filePath);
     const expectedPath = this.getVideoPath(projectSlug, fileName);
 
@@ -165,17 +211,25 @@ export class VideoStorage {
       throw new Error("Invalid MP4 path.");
     }
 
-    const storageRoot = resolveRelative(this.getVideoDir(projectSlug));
-    const absolutePath = resolveRelative(filePath);
-    const contained = requireContainedStorageFile(storageRoot, absolutePath);
+    const storageRoot = resolveRelative(this.getVideoDir(projectSlug), context);
+    const absolutePath = resolveRelative(filePath, context);
+    const contained = requireContainedStorageFile(storageRoot, absolutePath, context);
     const inspection = this.inspectMp4(contained.realPath, maximumBytes);
 
     return { ...inspection, realPath: contained.realPath };
   }
 
-  static removeIfExists(filePath: string) {
+  static removeIfExists(filePath: string, input: RuntimeStorageInput = {}) {
     try {
-      fs.rmSync(filePath, { force: true });
+      const context = resolveRuntimeStorageContext(input);
+      if (!inside(context.projectsRoot, filePath)) return;
+      const slug = path.relative(context.projectsRoot, filePath).split(path.sep)[0];
+      const lease = acquireProjectWriteAuthority(slug, context);
+      try {
+        fs.rmSync(filePath, { force: true });
+      } finally {
+        lease.release();
+      }
     } catch {
       // Best-effort cleanup must not replace the normalized render failure.
     }
@@ -221,8 +275,14 @@ function seconds(timescale: number, duration: number) {
   return Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
-function resolveRelative(relativePath: string) {
-  return path.resolve(ROOT_DIR, ...relativePath.split("/"));
+function resolveRelative(
+  relativePath: string,
+  context: RuntimeStorageContext,
+  write = false,
+) {
+  return write
+    ? resolveRuntimeLogicalPathForWrite(relativePath, context)
+    : resolveRuntimeLogicalPath(relativePath, context);
 }
 
 function safeSegment(value: string) {
@@ -246,5 +306,8 @@ function safeMp4FileName(value: string) {
 
 function inside(directory: string, target: string) {
   const relative = path.relative(directory, target);
-  return Boolean(relative) && !relative.startsWith("..") && !path.isAbsolute(relative);
+  return Boolean(relative) &&
+    relative !== ".." &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative);
 }

@@ -1,5 +1,10 @@
 import fs from "node:fs";
-import path from "node:path";
+import {
+  assertPathContained,
+  requireContainedRealDirectory,
+  resolveRuntimeStorageContext,
+  type RuntimeStorageInput,
+} from "@/lib/runtime/RuntimeStoragePaths";
 
 export interface ContainedFile {
   realPath: string;
@@ -9,44 +14,26 @@ export interface ContainedFile {
 export function requireContainedStorageFile(
   storageRoot: string,
   targetPath: string,
+  input: RuntimeStorageInput = {},
 ): ContainedFile {
-  const workspaceRoot = fs.realpathSync(process.cwd());
-  const projectsPath = path.resolve(process.cwd(), "data", "projects");
-  const projectsRootLink = fs.lstatSync(projectsPath);
-
-  if (
-    projectsRootLink.isSymbolicLink() ||
-    !projectsRootLink.isDirectory()
-  ) {
-    throw new Error("Invalid storage root.");
-  }
-
-  const projectsRoot = fs.realpathSync(projectsPath);
-
-  if (!isInside(workspaceRoot, projectsRoot)) {
-    throw new Error("Invalid storage root.");
-  }
-
-  const storageRootLink = fs.lstatSync(storageRoot);
+  const context = resolveRuntimeStorageContext(input);
+  const projectsRoot = requireContainedRealDirectory(
+    context.runtimeRoot,
+    context.projectsRoot,
+  );
+  const resolvedStorageRoot = requireContainedRealDirectory(projectsRoot, storageRoot);
+  assertPathContained(projectsRoot, targetPath);
   const targetLink = fs.lstatSync(targetPath);
 
   if (
-    storageRootLink.isSymbolicLink() ||
-    !storageRootLink.isDirectory() ||
-    targetLink.isSymbolicLink()
+    targetLink.isSymbolicLink() ||
+    !targetLink.isFile()
   ) {
     throw new Error("Invalid storage path.");
   }
 
-  const resolvedStorageRoot = fs.realpathSync(storageRoot);
   const resolvedTarget = fs.realpathSync(targetPath);
-
-  if (
-    !isInside(projectsRoot, resolvedStorageRoot) ||
-    !isInside(resolvedStorageRoot, resolvedTarget)
-  ) {
-    throw new Error("Invalid storage path.");
-  }
+  assertPathContained(resolvedStorageRoot, resolvedTarget);
 
   const stat = fs.statSync(resolvedTarget);
 
@@ -57,11 +44,14 @@ export function requireContainedStorageFile(
   return { realPath: resolvedTarget, stat };
 }
 
-function isInside(directory: string, target: string) {
-  const relative = path.relative(directory, target);
-  return (
-    relative.length > 0 &&
-    !relative.startsWith("..") &&
-    !path.isAbsolute(relative)
+export function requireContainedStorageDirectory(
+  storageRoot: string,
+  input: RuntimeStorageInput = {},
+): string {
+  const context = resolveRuntimeStorageContext(input);
+  const projectsRoot = requireContainedRealDirectory(
+    context.runtimeRoot,
+    context.projectsRoot,
   );
+  return requireContainedRealDirectory(projectsRoot, storageRoot);
 }

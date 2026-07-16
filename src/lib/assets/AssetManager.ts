@@ -1,4 +1,8 @@
 import { FileStorage } from "@/lib/storage/FileStorage";
+import {
+  resolveRuntimeStorageContext,
+  type RuntimeStorageInput,
+} from "@/lib/runtime/RuntimeStoragePaths";
 import type { Asset, ProjectAssets } from "@/types/asset";
 
 type CreateAssetInput = Omit<Asset, "id" | "status" | "createdAt"> & {
@@ -32,9 +36,11 @@ export class AssetManager {
   static getProjectAssets(
     slug: string,
     projectId: string,
+    input: RuntimeStorageInput = {},
   ): ProjectAssets {
+    const context = resolveRuntimeStorageContext(input);
     return (
-      FileStorage.loadJson<ProjectAssets>(this.getAssetsPath(slug)) ??
+      FileStorage.loadJson<ProjectAssets>(this.getAssetsPath(slug), context) ??
       this.createDefaultAssets(projectId, slug)
     );
   }
@@ -42,20 +48,24 @@ export class AssetManager {
   static saveProjectAssets(
     slug: string,
     data: ProjectAssets,
+    input: RuntimeStorageInput = {},
   ): ProjectAssets {
     return FileStorage.saveJson(
       this.getAssetsPath(slug),
       data,
+      input,
     ) as ProjectAssets;
   }
 
   static saveProjectAssetsAtomically(
     slug: string,
     data: ProjectAssets,
+    input: RuntimeStorageInput = {},
   ): ProjectAssets {
     return FileStorage.saveJsonAtomically(
       this.getAssetsPath(slug),
       data,
+      input,
     ) as ProjectAssets;
   }
 
@@ -72,8 +82,10 @@ export class AssetManager {
     slug: string,
     projectId: string,
     asset: Asset,
+    input: RuntimeStorageInput = {},
   ): ProjectAssets {
-    const current = this.getProjectAssets(slug, projectId);
+    const context = resolveRuntimeStorageContext(input);
+    const current = this.getProjectAssets(slug, projectId, context);
     const now = new Date().toISOString();
     const updatedAssets: ProjectAssets = {
       ...current,
@@ -83,15 +95,17 @@ export class AssetManager {
       updatedAt: now,
     };
 
-    return this.saveProjectAssets(slug, updatedAssets);
+    return this.saveProjectAssets(slug, updatedAssets, context);
   }
 
   static addAssetAtomically(
     slug: string,
     projectId: string,
     asset: Asset,
+    input: RuntimeStorageInput = {},
   ): ProjectAssets {
-    const current = this.getProjectAssets(slug, projectId);
+    const context = resolveRuntimeStorageContext(input);
+    const current = this.getProjectAssets(slug, projectId, context);
     const now = new Date().toISOString();
     return this.saveProjectAssetsAtomically(slug, {
       ...current,
@@ -99,7 +113,7 @@ export class AssetManager {
       projectSlug: current.projectSlug ?? slug,
       assets: [...current.assets, asset],
       updatedAt: now,
-    });
+    }, context);
   }
 
   static updateAsset(
@@ -107,8 +121,10 @@ export class AssetManager {
     projectId: string,
     assetId: string,
     patch: AssetPatch,
+    input: RuntimeStorageInput = {},
   ): ProjectAssets {
-    const current = this.getProjectAssets(slug, projectId);
+    const context = resolveRuntimeStorageContext(input);
+    const current = this.getProjectAssets(slug, projectId, context);
     const now = new Date().toISOString();
     const updatedAssets: ProjectAssets = {
       ...current,
@@ -128,6 +144,6 @@ export class AssetManager {
       updatedAt: now,
     };
 
-    return this.saveProjectAssets(slug, updatedAssets);
+    return this.saveProjectAssets(slug, updatedAssets, context);
   }
 }

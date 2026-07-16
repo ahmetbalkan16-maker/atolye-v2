@@ -5,6 +5,11 @@ import type { Readable } from "node:stream";
 import { AudioStorage } from "@/lib/assets/storage/AudioStorage";
 import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
 import { VideoStorage } from "@/lib/assets/storage/VideoStorage";
+import {
+  createRuntimeStorageContext,
+  resolveRuntimeLogicalPath,
+  type RuntimeStorageContext,
+} from "@/lib/runtime/RuntimeStoragePaths";
 import type {
   VideoAssemblyInput,
   VideoAssemblyResult,
@@ -78,15 +83,19 @@ export type VideoAssemblySpawn = (
 export class FFmpegVideoAssemblyProvider implements VideoAssemblyProvider {
   readonly name = "ffmpeg";
 
-  constructor(private readonly runner: VideoAssemblyProcessRunner = new SpawnRunner()) {}
+  constructor(
+    private readonly runner: VideoAssemblyProcessRunner = new SpawnRunner(),
+    private readonly runtimeStorageContext?: RuntimeStorageContext,
+  ) {}
 
   async assemble(input: VideoAssemblyInput): Promise<VideoAssemblyResult> {
     const createdAt = new Date().toISOString();
     let paths: ReturnType<typeof VideoStorage.createRenderPaths> | null = null;
     let concatManifestPath: string | null = null;
+    const context = this.runtimeStorageContext ?? createRuntimeStorageContext();
 
     try {
-      validateInput(input);
+      validateInput(input, context);
       const config = getFFmpegVideoAssemblyConfig();
       validateExecutable(config.ffmpegPath);
       validateExecutable(config.ffprobePath);
@@ -96,7 +105,7 @@ export class FFmpegVideoAssemblyProvider implements VideoAssemblyProvider {
           if (scene.inputType !== "scene-video") throw new Error(SAFE_ERROR);
           const sceneProbe = await this.runner.run(
             config.ffprobePath,
-            buildSceneInputProbeArgs(absoluteInput(scene.filePath)),
+            buildSceneInputProbeArgs(absoluteInput(scene.filePath, context)),
             { timeoutMs: config.timeoutMs, maxOutputBytes: config.maxStdioBytes },
           );
           requireSuccessfulProcess(sceneProbe);
@@ -105,18 +114,18 @@ export class FFmpegVideoAssemblyProvider implements VideoAssemblyProvider {
           );
         }
       }
-      paths = VideoStorage.createRenderPaths(input.projectSlug);
+      paths = VideoStorage.createRenderPaths(input.projectSlug, context);
       if (canCopySceneVideos(input, sceneProbeSignatures)) {
         concatManifestPath = `${paths.temporaryAbsolutePath}.concat.txt`;
         fs.writeFileSync(
           concatManifestPath,
-          buildConcatManifest(input),
+          buildConcatManifest(input, context),
           { encoding: "utf8", flag: "wx" },
         );
       }
       const ffmpegResult = await this.runner.run(
         config.ffmpegPath,
-        buildFFmpegArgs(input, paths.temporaryAbsolutePath, concatManifestPath),
+        buildFFmpegArgs(input, paths.temporaryAbsolutePath, concatManifestPath, context),
         { timeoutMs: config.timeoutMs, maxOutputBytes: config.maxStdioBytes },
       );
 
@@ -125,7 +134,7 @@ export class FFmpegVideoAssemblyProvider implements VideoAssemblyProvider {
         paths.temporaryAbsolutePath,
         config.maxOutputBytes,
       );
-      VideoStorage.finalize(paths.temporaryAbsolutePath, paths.absolutePath);
+      VideoStorage.finalize(paths.temporaryAbsolutePath, paths.absolutePath, context);
       const finalInspection = VideoStorage.inspectMp4(
         paths.absolutePath,
         config.maxOutputBytes,
@@ -145,7 +154,7 @@ export class FFmpegVideoAssemblyProvider implements VideoAssemblyProvider {
         expectedOutputDuration(input),
       );
       if (concatManifestPath) {
-        VideoStorage.removeIfExists(concatManifestPath);
+        VideoStorage.removeIfExists(concatManifestPath, context);
         concatManifestPath = null;
       }
 
@@ -166,10 +175,10 @@ export class FFmpegVideoAssemblyProvider implements VideoAssemblyProvider {
         createdAt,
       };
     } catch {
-      if (concatManifestPath) VideoStorage.removeIfExists(concatManifestPath);
+      if (concatManifestPath) VideoStorage.removeIfExists(concatManifestPath, context);
       if (paths) {
-        VideoStorage.removeIfExists(paths.temporaryAbsolutePath);
-        VideoStorage.removeIfExists(paths.absolutePath);
+        VideoStorage.removeIfExists(paths.temporaryAbsolutePath, context);
+        VideoStorage.removeIfExists(paths.absolutePath, context);
       }
       return {
         success: false,
@@ -320,7 +329,7 @@ export class SpawnRunner implements VideoAssemblyProcessRunner {
   }
 }
 
-function validateInput(input: VideoAssemblyInput) {
+function validateInput(input: VideoAssemblyInput, context: RuntimeStorageContext) {
   if (
     !/^[a-zA-Z0-9-_]+$/.test(input.projectSlug) ||
     !Array.isArray(input.scenes) ||
@@ -379,6 +388,7 @@ function validateInput(input: VideoAssemblyInput) {
         input.projectSlug,
         scene.filePath,
         8 * 1024 * 1024 * 1024,
+        context,
       );
       if (inspection.byteLength !== scene.byteLength) throw new Error(SAFE_ERROR);
     }
@@ -416,11 +426,12 @@ function buildFFmpegArgs(
   input: VideoAssemblyInput,
   outputPath: string,
   concatManifestPath: string | null,
+  context: RuntimeStorageContext,
 ) {
   if (input.scenes[0].inputType === "scene-video") {
     return concatManifestPath
-      ? buildCopyConcatArgs(input, outputPath, concatManifestPath)
-      : buildRetimedConcatArgs(input, outputPath);
+      ? buildCopyConcatArgs(input, outputPath, concatManifestPath, context)
+      : buildRetimedConcatArgs(input, outputPath, context);
   }
 
   const args: string[] = ["-hide_banner", "-loglevel", "error", "-nostdin", "-n"];
@@ -442,9 +453,9 @@ function buildFFmpegArgs(
       "-t",
       duration,
       "-i",
-      absoluteInput(scene.imageFilePath),
+      absoluteInput(scene.imageFilePath, context),
       "-i",
-      absoluteInput(scene.audioFilePath),
+      absoluteInput(scene.audioFilePath, context),
     );
     filters.push(
       `[${imageIndex}:v]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease,pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2,fps=${FPS},format=yuv420p,trim=duration=${duration},setpts=PTS-STARTPTS[v${index}]`,
@@ -514,12 +525,12 @@ function sameProbeSignature(
   );
 }
 
-function buildConcatManifest(input: VideoAssemblyInput) {
+function buildConcatManifest(input: VideoAssemblyInput, context: RuntimeStorageContext) {
   return [
     "ffconcat version 1.0",
     ...input.scenes.map((scene) => {
       if (scene.inputType !== "scene-video") throw new Error(SAFE_ERROR);
-      const absolute = absoluteInput(scene.filePath).replaceAll("\\", "/");
+      const absolute = absoluteInput(scene.filePath, context).replaceAll("\\", "/");
       return `file '${absolute.replaceAll("'", "'\\''")}'`;
     }),
     "",
@@ -530,6 +541,7 @@ function buildCopyConcatArgs(
   input: VideoAssemblyInput,
   outputPath: string,
   concatManifestPath: string,
+  context: RuntimeStorageContext,
 ) {
   const args = [
     "-hide_banner", "-loglevel", "error", "-nostdin", "-n",
@@ -537,7 +549,7 @@ function buildCopyConcatArgs(
   ];
   const audioLabels: string[] = [];
   input.scenes.forEach((scene, index) => {
-    args.push("-i", absoluteInput(scene.audioFilePath));
+    args.push("-i", absoluteInput(scene.audioFilePath, context));
     const duration = narrationDuration(scene).toFixed(6);
     const start = audioStart(scene).toFixed(6);
     const end = (audioStart(scene) + narrationDuration(scene)).toFixed(6);
@@ -557,7 +569,11 @@ function buildCopyConcatArgs(
   return args;
 }
 
-function buildRetimedConcatArgs(input: VideoAssemblyInput, outputPath: string) {
+function buildRetimedConcatArgs(
+  input: VideoAssemblyInput,
+  outputPath: string,
+  context: RuntimeStorageContext,
+) {
   const args: string[] = ["-hide_banner", "-loglevel", "error", "-nostdin", "-n"];
   const filters: string[] = [];
   const concatInputs: string[] = [];
@@ -569,7 +585,12 @@ function buildRetimedConcatArgs(input: VideoAssemblyInput, outputPath: string) {
     const audioStartSeconds = audioStart(scene).toFixed(6);
     const audioEndSeconds = (audioStart(scene) + scene.narrationDurationSeconds).toFixed(6);
     const padding = Math.max(0, scene.narrationDurationSeconds - scene.durationSeconds).toFixed(6);
-    args.push("-i", absoluteInput(scene.filePath), "-i", absoluteInput(scene.audioFilePath));
+    args.push(
+      "-i",
+      absoluteInput(scene.filePath, context),
+      "-i",
+      absoluteInput(scene.audioFilePath, context),
+    );
     filters.push(
       `[${videoIndex}:v]tpad=stop_mode=clone:stop_duration=${padding},trim=duration=${duration},setpts=PTS-STARTPTS,fps=${FPS},format=yuv420p[v${index}]`,
       `[${audioIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,atrim=start=${audioStartSeconds}:end=${audioEndSeconds},atrim=duration=${duration},asetpts=PTS-STARTPTS[a${index}]`,
@@ -629,8 +650,8 @@ function buildSceneInputProbeArgs(inputPath: string) {
   ];
 }
 
-function absoluteInput(relativePath: string) {
-  return path.resolve(process.cwd(), ...relativePath.split("/"));
+function absoluteInput(relativePath: string, context: RuntimeStorageContext) {
+  return resolveRuntimeLogicalPath(relativePath, context);
 }
 
 function requireSuccessfulProcess(result: ProcessRunResult) {
