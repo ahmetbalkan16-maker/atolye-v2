@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Critical
 Owner: Atölye V2
-Last Updated: 2026-07-16
+Last Updated: 2026-07-17
 ---
 
 # ⚠️ AI START HERE
@@ -47,13 +47,25 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 129.25 C.2B.3**
+**Sprint 129.25 C.2B.4**
 
-Production Storage Relocation Audit
+Operation-Scoped Runtime Context Propagation
 
 **Durum**
 
-In Review
+Completed
+
+## Sprint 129.25 C.2B.4 — Operation-Scoped Runtime Context Propagation / Completed
+
+Production operation'lari tek immutable operation-scoped runtime context'e baglandi. Storage context provenance'i trusted construction ve exact operation binding ile dogrulanir; process-wide canonical `PipelineRunner` authority ile process-wide canonical durable executor/adapter authority ayni process icinde duplicate execution surface olusmasini engeller. Repository-local mevcut davranis ve logical locator contract'lari korunur.
+
+Operation completion sonrasinda context revoke edilir; revoked context yeniden kullanilamaz. Parallel operation'lar birbirinin context veya authority binding'ini kullanamaz. Missing, mismatched veya revoked context fail-closed reddedilir. Worker admission durable mutation'dan once, recovery exact-context admission ise recovery persistence'inden once zorunludur.
+
+Public raw scope, executor ve durable adapter bypass yuzeyleri kaldirildi. HMR/module duplication ayni exact canonical pair icin idempotent kalir; farkli authority ile overwrite veya ikinci canonical kayit yerine fail-closed conflict uretir. Bu kapanis relocation, candidate consume, root/authority cutover, serving adapter migration'i veya durable authority generation binding'i yapmaz ve bunlara yetki vermez.
+
+Bagimsiz closure review `APPROVED FOR DOCUMENTATION COMPLETION` karari verdi; P0/P1 yoktur. C.2B.4 runtime context smoke 48/48, worker lifecycle 21/21, recovery bootstrap 15/15, runtime status 15/15, runtime startup/composition 11/11, durable execution 17, durable wiring 19, retry/continuation 22, auto-continuation 18, runtime health API 24/24 ve health API consumer 15 PASS; TypeScript, ESLint ve `git diff --check` PASS. Runtime, acceptance marker ve production data degismedi.
+
+Non-blocking P2'ler: `CLAIM_NEXT_VERSION_CONFLICT` no-op sonucunun semantik/diagnostic siniflandirma hassasiyeti ve retry smoke icindeki continuation-admission reset seam'in test-fidelity riskidir.
 
 ## Sprint 129.25 C.2B.3 — Production Storage Relocation Audit / In Review
 

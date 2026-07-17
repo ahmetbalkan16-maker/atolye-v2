@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Medium
 Owner: Atölye V2
-Last Updated: 2026-07-16
+Last Updated: 2026-07-17
 ---
 
 # Atölye V2 — Changelog
@@ -24,6 +24,16 @@ referans alınmalıdır.
 ---
 
 # Version 1.x
+
+## Sprint 129.25 C.2B.4 — Operation-Scoped Runtime Context Propagation / Completed
+
+- Production operation zinciri tek immutable operation-scoped runtime context'e baglandi. Trusted storage-context provenance ile exact operation binding dogrulanir; process-wide canonical `PipelineRunner` authority ve process-wide canonical durable executor/adapter authority duplicate execution surface'ini engeller. Repository-local mevcut davranis ve logical locator contract'lari korundu.
+- Operation completion context'i revoke eder; parallel operation'lar izole kalir. Missing, mismatched veya revoked context fail-closed reddedilir. Worker admission durable mutation'dan once, recovery exact-context admission recovery persistence'inden once gerceklesir.
+- Public raw scope, executor ve durable adapter bypass yuzeyleri kaldirildi. HMR/module duplication ayni exact canonical pair icin idempotent kalir; farkli authority ile overwrite yerine fail-closed conflict uretir.
+- Relocation, candidate consume, root/authority cutover, serving adapter migration'i ve durable authority generation binding'i yapilmadi veya yetkilendirilmedi. Runtime, acceptance marker ve production data degismedi.
+- Bagimsiz closure review `APPROVED FOR DOCUMENTATION COMPLETION`; P0/P1 yok. C.2B.4 runtime context smoke 48/48, worker lifecycle 21/21, recovery bootstrap 15/15, runtime status 15/15, runtime startup/composition 11/11, durable execution 17, durable wiring 19, retry/continuation 22, auto-continuation 18, runtime health API 24/24 ve health API consumer 15 PASS. TypeScript, ESLint ve `git diff --check` PASS.
+- Non-blocking P2'ler: `CLAIM_NEXT_VERSION_CONFLICT` no-op sonucunun semantik/diagnostic siniflandirma hassasiyeti ve retry smoke continuation-admission reset seam test-fidelity riski.
+- C.2B.3 independent audit sonucu mevcut kayitla tutarli olarak `In Review`, ADR-018 ise `Proposed` kalir. Bu sprint relocation veya cutover yetkisi vermez.
 
 ## Sprint 129.25 C.2B.3 — Production Storage Relocation Audit / In Review
 

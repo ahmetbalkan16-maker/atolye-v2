@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: High
 Owner: Atölye V2
-Last Updated: 2026-07-16
+Last Updated: 2026-07-17
 ---
 
 # Atölye V2 — Development Roadmap
@@ -39,7 +39,17 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 129.25 C.2B.3 — Production Storage Relocation Audit / In Review
+Sprint 129.25 C.2B.4 — Operation-Scoped Runtime Context Propagation / Completed
+
+## Sprint 129.25 C.2B.4 — Operation-Scoped Runtime Context Propagation / Completed
+
+- Tek immutable operation-scoped runtime context, trusted storage-context provenance, process-wide canonical `PipelineRunner` authority ve process-wide canonical durable executor/adapter authority production operation zincirinde sabitlendi. Repository-local mevcut davranis ve logical locator contract'lari korundu.
+- Context operation completion sonrasinda revoke edilir; parallel operation isolation'i korunur. Missing, mismatched veya revoked context fail-closed reddedilir. Worker admission durable mutation'dan, recovery exact-context admission recovery persistence'inden once zorunludur.
+- Public raw scope/executor/durable adapter bypass yuzeyleri kaldirildi. HMR/module duplication ayni exact canonical pair icin idempotenttir; farkli authority kaydi overwrite edilmez ve fail-closed conflict olur.
+- Relocation/candidate consume, root veya authority cutover, serving adapter migration'i ve durable authority generation binding'i yapilmadi veya yetkilendirilmedi. Runtime, acceptance marker ve production data degismedi.
+- Bagimsiz closure review `APPROVED FOR DOCUMENTATION COMPLETION`; P0/P1 yok. C.2B.4 runtime context 48/48, worker lifecycle 21/21, recovery bootstrap 15/15, runtime status 15/15, startup/composition 11/11, durable execution 17, durable wiring 19, retry/continuation 22, auto-continuation 18, runtime health API 24/24 ve health API consumer 15 PASS; TypeScript, ESLint ve `git diff --check` PASS.
+- Non-blocking P2: `CLAIM_NEXT_VERSION_CONFLICT` no-op semantik/diagnostic siniflandirma hassasiyeti; retry smoke continuation-admission reset seam test-fidelity riski.
+- C.2B.3 independent audit kaydi `In Review`, ADR-018 `Proposed` kalir. C.2B.4 bu audit veya ADR'yi accepted saymaz; relocation/cutover yetkisi uretmez.
 
 ## Sprint 129.25 C.2B.3 — Production Storage Relocation Audit / In Review
 
@@ -49,7 +59,7 @@ Sprint 129.25 C.2B.3 — Production Storage Relocation Audit / In Review
 - Uygulama on parcalik onerilen siraya ayrildi: operation-scoped context; asset serving adapters; composition/durable authority; fail-closed reads; external evidence; authority/quiescence; candidate consume; quarantine/rollback; Git untracking; controlled cutover/validation. Numaralar mimari onay sonrasi kesinlesecektir.
 - C.2B.3 relocation veya cutover implementasyonu degildir. Source/test/runtime/Git mutation'i, candidate consume, restore, root/authority switch veya production execution yapilmadi. Sprint independent audit review oncesinde `Completed` degildir.
 
-Son Tamamlanan Sprint
+Onceki Tamamlanan Sprintler
 
 ## Sprint 129.25 C.2B.2 — Verified Migration Candidate Creation / Completed
 
