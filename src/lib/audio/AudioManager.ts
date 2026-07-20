@@ -1,4 +1,6 @@
 import { runObservedAIRequest } from "@/lib/ai/runObservedAIRequest";
+import { AudioAIConfigError, getAudioMaxTokens } from "@/lib/ai/AudioAIConfig";
+import { AIResponseError } from "@/lib/ai/AIResponseError";
 import { failClosedOrReturn, type GenerationExecutionPolicy } from "@/lib/ai/GenerationExecutionPolicy";
 import type { AIProvider } from "@/lib/ai/providers";
 import {
@@ -31,15 +33,18 @@ export class AudioManager {
     const prompt = createAudioPrompt(script);
 
     try {
-      const { response } = await runObservedAIRequest({
+      const observed = await runObservedAIRequest({
         prompt,
         provider: options.aiProvider,
+        maxTokens: getAudioMaxTokens(),
         context: {
           ...context,
           operation: context?.operation ?? "audio-plan",
           stage: context?.stage ?? "audio",
         },
       });
+      if (observed.errorCode) throw new AIResponseError(observed.errorCode);
+      const { response } = observed;
 
       if (!response.trim()) {
         console.error("[AudioManager] Empty provider response.");
@@ -60,6 +65,9 @@ export class AudioManager {
         createdAt: getCreatedAt(parsed.createdAt, fallback.createdAt),
       };
     } catch (error) {
+      if (options.generationPolicy?.failClosed && error instanceof AudioAIConfigError) {
+        throw error;
+      }
       if (options.generationPolicy?.failClosed) return failClosedOrReturn(fallback, options.generationPolicy);
       console.error("[AudioManager] Falling back to local audio plan:", error);
       return failClosedOrReturn(fallback, options.generationPolicy);

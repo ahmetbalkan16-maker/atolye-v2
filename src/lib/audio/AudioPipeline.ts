@@ -15,18 +15,28 @@ import type {
   AudioProvider,
 } from "./providers/AudioProvider";
 import { AudioProviderRouter } from "./providers/AudioProviderRouter";
+import { isSafeAudioIdentifier } from "./AudioIdentifierPolicy";
+import {
+  AudioAssetRootError,
+  AudioCanonicalAdmissionConflictError,
+  createAudioAssetErrorEvidence,
+  getAudioAssetErrorEvidence,
+} from "./AudioAssetError";
+import type { AudioAssetErrorEvidence } from "@/types/audioError";
 
 const SAFE_ASSET_ERROR = "Audio asset generation failed.";
 const SAFE_PIPELINE_ERROR = "Audio asset generation failed.";
 const SAFE_FAILURE_PROMPT = "Audio generation request.";
-const SAFE_MODEL_NAME = /^[a-zA-Z0-9._:-]+$/;
 
 export class AudioAssetGenerationError extends Error {
   readonly code = "AUDIO_ASSET_GENERATION_FAILED";
+  readonly evidence: AudioAssetErrorEvidence;
 
-  constructor() {
+  constructor(evidence?: AudioAssetErrorEvidence) {
     super(SAFE_PIPELINE_ERROR);
     this.name = "AudioAssetGenerationError";
+    this.evidence = evidence ??
+      createAudioAssetErrorEvidence("AUDIO_PROVIDER_RESPONSE_INVALID");
     this.stack = undefined;
   }
 }
@@ -72,7 +82,12 @@ export class AudioPipeline {
     try {
       projectAssets = AssetManager.getProjectAssets(projectSlug, projectId);
     } catch {
-      throw new AudioAssetGenerationError();
+      throw audioFailure("AUDIO_ASSET_REGISTRY_FAILED", {
+        phase: "registry",
+        target: requests[0]?.target,
+        provider: selectedProvider,
+        compensation: "not-required",
+      });
     }
     const updatedSections: AudioSection[] = [];
 
@@ -90,7 +105,7 @@ export class AudioPipeline {
         projectId,
         projectSlug,
         sceneId: section.chapterId,
-        prompt: section.sourceText,
+        prompt: SAFE_FAILURE_PROMPT,
         result: normalized,
       });
 
@@ -172,14 +187,16 @@ async function generateAndNormalize({
 
   try {
     result = await provider.generateAudio(request);
-  } catch {
+  } catch (error) {
     persistFailedAssetSafely({
       projectId,
       projectSlug,
       target: request.target,
       providerName: selectedProvider,
     });
-    throw new AudioAssetGenerationError();
+    throw new AudioAssetGenerationError(
+      contextualEvidence(error, request.target, selectedProvider),
+    );
   }
 
   let normalized: NormalizedAudioResult | null;
@@ -191,18 +208,37 @@ async function generateAndNormalize({
       selectedProvider,
       projectSlug,
     );
-  } catch {
-    normalized = null;
-  }
-
-  if (!normalized) {
+  } catch (error) {
+    if (error instanceof AudioCanonicalAdmissionConflictError) {
+      throw new AudioAssetGenerationError(
+        contextualEvidence(error, request.target, selectedProvider),
+      );
+    }
+    compensateUnregisteredResult(result);
     persistFailedAssetSafely({
       projectId,
       projectSlug,
       target: request.target,
       providerName: selectedProvider,
     });
-    throw new AudioAssetGenerationError();
+    if (error instanceof AudioAssetGenerationError) throw error;
+    const evidence = contextualEvidence(error, request.target, selectedProvider);
+    throw new AudioAssetGenerationError(evidence);
+  }
+
+  if (!normalized) {
+    compensateUnregisteredResult(result);
+    persistFailedAssetSafely({
+      projectId,
+      projectSlug,
+      target: request.target,
+      providerName: selectedProvider,
+    });
+    throw audioFailure("AUDIO_PROVIDER_RESPONSE_INVALID", {
+      phase: "response",
+      target: request.target,
+      provider: selectedProvider,
+    });
   }
 
   return normalized;
@@ -214,9 +250,17 @@ function normalizeGenerationResult(
   providerName: AudioProviderName,
   projectSlug: string,
 ): NormalizedAudioResult | null {
+  if (!result) {
+    return null;
+  }
+
+  if (result.success === false) {
+    throw new AudioAssetGenerationError(
+      contextualEvidence(result, expectedTarget, providerName),
+    );
+  }
+
   if (
-    !result ||
-    result.success !== true ||
     result.provider !== providerName ||
     !isExpectedTarget(result.target, expectedTarget) ||
     !isValidCreatedAt(result.createdAt)
@@ -270,7 +314,23 @@ function normalizeGenerationResult(
     return null;
   }
 
-  const inspection = AudioStorage.inspectStoredWav(projectSlug, filePath);
+  let inspection;
+  try {
+    inspection = AudioStorage.inspectStoredWav(projectSlug, filePath);
+  } catch (error) {
+    if (error instanceof AudioCanonicalAdmissionConflictError) throw error;
+    throw new AudioAssetGenerationError(
+      contextualEvidence(
+        error instanceof AudioAssetRootError
+          ? error
+          : new AudioAssetRootError("AUDIO_STORAGE_WRITE_FAILED", {
+              phase: "storage",
+            }),
+        expectedTarget,
+        providerName,
+      ),
+    );
+  }
 
   if (
     inspection.byteLength !== result.byteLength ||
@@ -279,7 +339,7 @@ function normalizeGenerationResult(
     return null;
   }
 
-  return {
+  const normalized: NormalizedAudioResult = {
     provider: "openai",
     model: result.model,
     filePath,
@@ -289,6 +349,7 @@ function normalizeGenerationResult(
     durationSeconds: inspection.durationSeconds,
     createdAt: result.createdAt,
   };
+  return AudioStorage.transferPublicationOwnership(result, normalized);
 }
 
 function createGeneratedAsset({
@@ -304,7 +365,7 @@ function createGeneratedAsset({
   prompt: string;
   result: NormalizedAudioResult;
 }) {
-  return AssetManager.createAsset({
+  const asset = AssetManager.createAsset({
     projectId,
     projectSlug,
     sceneId,
@@ -320,6 +381,7 @@ function createGeneratedAsset({
     durationSeconds: result.durationSeconds,
     createdAt: result.createdAt,
   });
+  return AudioStorage.transferPublicationOwnership(result, asset);
 }
 
 function persistFailedAssetSafely({
@@ -356,11 +418,64 @@ function addAssetOrFail(
   projectId: string,
   asset: Asset,
 ) {
+  let updated: ProjectAssets;
   try {
-    return AssetManager.addAsset(projectSlug, projectId, asset);
+    updated = AssetManager.addAssetAtomically(projectSlug, projectId, asset);
   } catch {
-    throw new AudioAssetGenerationError();
+    const handoff = AudioStorage.handoffPublishedAudio(asset, projectId);
+    if (
+      handoff.status === "registry-owned-confirmed" ||
+      handoff.status === "registry-ownership-completed"
+    ) {
+      return handoff.projectAssets;
+    }
+    const compensationResult = asset.filePath
+      ? AudioStorage.compensatePublishedAudioResult(asset)
+      : undefined;
+    const compensation = compensationResult
+      ? (compensationResult.compensated
+          ? "completed" as const
+          : "failed" as const)
+      : "not-required" as const;
+    throw audioFailure("AUDIO_ASSET_REGISTRY_FAILED", {
+      phase: "registry",
+      target: Number.isSafeInteger(asset.sceneId)
+        ? { kind: "section", chapterId: asset.sceneId as number }
+        : { kind: "mix" },
+      provider: asset.provider === "mock" ? "mock" : "openai",
+      model: asset.model,
+      compensation,
+      compensationRef: compensationResult?.compensationRef,
+      cleanup: compensationResult?.cleanup,
+    });
   }
+  const compensationRef = AudioStorage.getCompensationRef(asset);
+  if (asset.filePath && compensationRef) {
+    const handoff = AudioStorage.handoffPublishedAudio(asset, projectId);
+    if (
+      handoff.status === "registry-owned-confirmed" ||
+      handoff.status === "registry-ownership-completed"
+    ) {
+      return handoff.projectAssets;
+    }
+    const compensationResult =
+      AudioStorage.compensatePublishedAudioResult(asset);
+    const compensation = compensationResult.compensated
+      ? "completed" as const
+      : "failed" as const;
+    throw audioFailure("AUDIO_STORAGE_WRITE_FAILED", {
+      phase: "storage",
+      target: Number.isSafeInteger(asset.sceneId)
+        ? { kind: "section", chapterId: asset.sceneId as number }
+        : { kind: "mix" },
+      provider: asset.provider === "mock" ? "mock" : "openai",
+      model: asset.model,
+      compensation,
+      compensationRef,
+      cleanup: compensationResult.cleanup,
+    });
+  }
+  return updated;
 }
 
 function buildAndValidateBatch(
@@ -375,7 +490,9 @@ function buildAndValidateBatch(
     !Array.isArray(audio.sections) ||
     audio.sections.length === 0
   ) {
-    throw new AudioAssetGenerationError();
+    throw audioFailure("AUDIO_PROVIDER_CONFIGURATION_INVALID", {
+      phase: "configuration",
+    });
   }
 
   const chapterIds = new Set<number>();
@@ -393,7 +510,12 @@ function buildAndValidateBatch(
       typeof sourceText !== "string" ||
       !sourceText.trim()
     ) {
-      throw new AudioAssetGenerationError();
+      throw audioFailure("AUDIO_PROVIDER_CONFIGURATION_INVALID", {
+        phase: "configuration",
+        target: Number.isSafeInteger(chapterId) && (chapterId as number) > 0
+          ? { kind: "section", chapterId: chapterId as number }
+          : undefined,
+      });
     }
 
     chapterIds.add(chapterId);
@@ -424,8 +546,15 @@ function validateProviderInputs(
     for (const request of requests) {
       provider.validateInput(request);
     }
-  } catch {
-    throw new AudioAssetGenerationError();
+  } catch (error) {
+    throw new AudioAssetGenerationError(
+      contextualEvidence(
+        error,
+        requests[0]?.target,
+        getProviderNameSafely(provider),
+        "configuration",
+      ),
+    );
   }
 }
 
@@ -438,7 +567,57 @@ function getProviderName(provider: AudioProvider): AudioProviderName {
     // Fall through to the safe pipeline error.
   }
 
-  throw new AudioAssetGenerationError();
+  throw audioFailure("AUDIO_PROVIDER_CONFIGURATION_INVALID", {
+    phase: "configuration",
+  });
+}
+
+function compensateUnregisteredResult(result: unknown): void {
+  AudioStorage.compensatePublishedAudio(result);
+}
+
+function contextualEvidence(
+  value: unknown,
+  target: AudioGenerationTarget | undefined,
+  provider: AudioProviderName,
+  fallbackPhase: "configuration" | "request" | "response" = "response",
+): AudioAssetErrorEvidence {
+  const existing = getAudioAssetErrorEvidence(value);
+  return createAudioAssetErrorEvidence(
+    existing?.rootCode ??
+      (fallbackPhase === "configuration"
+        ? "AUDIO_PROVIDER_CONFIGURATION_INVALID"
+        : "AUDIO_PROVIDER_RESPONSE_INVALID"),
+    {
+      phase: existing?.phase ?? fallbackPhase,
+      target,
+      provider: existing?.provider ?? provider,
+      model: existing?.model,
+      httpStatus: existing?.httpStatus,
+      responseBytes: existing?.responseBytes,
+      maximumResponseBytes: existing?.maximumResponseBytes,
+      compensation: existing?.compensation,
+      compensationRef: existing?.compensationRef,
+      cleanup: existing?.cleanup,
+    },
+  );
+}
+
+function audioFailure(
+  rootCode: AudioAssetErrorEvidence["rootCode"],
+  metadata: Parameters<typeof createAudioAssetErrorEvidence>[1] = {},
+): AudioAssetGenerationError {
+  return new AudioAssetGenerationError(
+    createAudioAssetErrorEvidence(rootCode, metadata),
+  );
+}
+
+function getProviderNameSafely(provider: AudioProvider): AudioProviderName {
+  try {
+    return provider.name === "openai" ? "openai" : "mock";
+  } catch {
+    return "mock";
+  }
 }
 
 function isExpectedTarget(
@@ -467,7 +646,7 @@ function isValidCreatedAt(value: unknown): value is string {
 }
 
 function isSafeModelName(value: unknown): value is string {
-  return typeof value === "string" && SAFE_MODEL_NAME.test(value);
+  return isSafeAudioIdentifier(value);
 }
 
 function normalizeSafeAudioPath(value: unknown, projectSlug: string) {

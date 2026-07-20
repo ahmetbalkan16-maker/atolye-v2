@@ -24,6 +24,11 @@ import { ThumbnailStorage } from "../src/lib/thumbnail/ThumbnailStorage";
 import { ProductionReadinessService } from "../src/lib/production/ProductionReadinessService";
 import { buildSceneFFmpegArgs } from "../src/lib/video/providers/FFmpegSceneVideoProvider";
 import { collectRuntimeTrackingInventory } from "./lib/runtime-tracking-inventory";
+import {
+  createProductionRuntimeOperationContext,
+  initialRuntimeAuthorityGeneration,
+  runWithProductionRuntimeOperationContext,
+} from "../src/lib/runtime/ProductionRuntimeOperationContext";
 
 const repositoryRoot = process.cwd();
 const productionSlug = "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5";
@@ -165,31 +170,39 @@ async function main() {
       process.env.ATOLYE_RUNTIME_ROOT = driftRuntime;
       process.chdir(driftWorkspace);
       const slug = "frozen-project";
-      await ProjectWriter.writeJSON(slug, "project.json", { slug }, storage);
-      FileStorage.saveJsonAtomically(`data/projects/${slug}/manifest.json`, { stable: true }, storage);
-      const image = ImageStorage.saveImage({ projectSlug: slug, assetId: "image", data: png(), mimeType: "image/png" }, storage);
-      const audio = AudioStorage.saveAudio({ projectSlug: slug, assetId: "audio", data: wav() }, storage);
-      const thumbnail = ThumbnailStorage.saveThumbnail({ projectSlug: slug, assetId: "thumbnail", data: png(), mimeType: "image/png" }, storage);
-      const animation = AnimationStorage.saveMotionPlan(slug, motionPlan(), storage);
-      const video = VideoStorage.createSceneRenderPaths(slug, 1, storage);
-      fs.writeFileSync(video.temporaryAbsolutePath, "temp-video", { flag: "wx" });
-      VideoStorage.finalize(video.temporaryAbsolutePath, video.absolutePath, storage);
-      assert.equal((await ProjectReader.readJSON<{ slug: string }>(slug, "project.json", storage))?.slug, slug);
-      ImageStorage.inspectStoredImage(slug, image.filePath, "image/png", storage);
-      AudioStorage.inspectStoredWav(slug, audio.filePath, storage);
-      ThumbnailStorage.inspectStoredThumbnail(slug, thumbnail.filePath, "image/png", storage);
-      AnimationStorage.inspectStoredMotionPlan(slug, animation.filePath, storage);
-      const ffmpegArgs = buildSceneFFmpegArgs({
-        sceneId: 1,
-        sourceImageAssetId: "image",
-        animationAssetId: "motion",
-        imageFilePath: image.filePath,
-        imageMimeType: "image/png",
-        motionPlan: scenePlan(),
-      }, video.temporaryAbsolutePath, storage);
-      assert.ok(ffmpegArgs.includes(path.join(runtimeRoot, "projects", slug, "assets", "images", "image.png")));
-      assert.equal(fs.existsSync(path.join(runtimeRoot, "projects", slug, "assets", "videos", path.basename(video.absolutePath))), true);
-      assert.equal(fs.existsSync(driftRuntime), false);
+      const operation = createProductionRuntimeOperationContext({
+        operationId: "runtime-hardening-frozen-context",
+        operationType: "runtime-hardening-test",
+        authorityGeneration: initialRuntimeAuthorityGeneration,
+        storageContext: storage,
+      });
+      await runWithProductionRuntimeOperationContext(operation, async () => {
+        await ProjectWriter.writeJSON(slug, "project.json", { slug }, storage);
+        FileStorage.saveJsonAtomically(`data/projects/${slug}/manifest.json`, { stable: true }, storage);
+        const image = ImageStorage.saveImage({ projectSlug: slug, assetId: "image", data: png(), mimeType: "image/png" }, storage);
+        const audio = AudioStorage.saveAudio({ projectSlug: slug, assetId: "audio", data: wav() }, storage);
+        const thumbnail = ThumbnailStorage.saveThumbnail({ projectSlug: slug, assetId: "thumbnail", data: png(), mimeType: "image/png" }, storage);
+        const animation = AnimationStorage.saveMotionPlan(slug, motionPlan(), storage);
+        const video = VideoStorage.createSceneRenderPaths(slug, 1, storage);
+        fs.writeFileSync(video.temporaryAbsolutePath, "temp-video", { flag: "wx" });
+        VideoStorage.finalize(video.temporaryAbsolutePath, video.absolutePath, storage);
+        assert.equal((await ProjectReader.readJSON<{ slug: string }>(slug, "project.json", storage))?.slug, slug);
+        ImageStorage.inspectStoredImage(slug, image.filePath, "image/png", storage);
+        AudioStorage.inspectStoredWav(slug, audio.filePath, storage);
+        ThumbnailStorage.inspectStoredThumbnail(slug, thumbnail.filePath, "image/png", storage);
+        AnimationStorage.inspectStoredMotionPlan(slug, animation.filePath, storage);
+        const ffmpegArgs = buildSceneFFmpegArgs({
+          sceneId: 1,
+          sourceImageAssetId: "image",
+          animationAssetId: "motion",
+          imageFilePath: image.filePath,
+          imageMimeType: "image/png",
+          motionPlan: scenePlan(),
+        }, video.temporaryAbsolutePath, storage);
+        assert.ok(ffmpegArgs.includes(path.join(runtimeRoot, "projects", slug, "assets", "images", "image.png")));
+        assert.equal(fs.existsSync(path.join(runtimeRoot, "projects", slug, "assets", "videos", path.basename(video.absolutePath))), true);
+        assert.equal(fs.existsSync(driftRuntime), false);
+      });
     });
 
     process.chdir(originalCwd);
@@ -300,7 +313,15 @@ async function main() {
       const storage = context(readinessWorkspace, runtimeRoot, path.join(sandbox, "readiness-authority"));
       ensureSafeContainedDirectory(storage.runtimeRoot, storage.projectsRoot);
       let probeRoot = "";
-      const report = await new ProductionReadinessService({
+      const readinessOperation = createProductionRuntimeOperationContext({
+        operationId: "runtime-hardening-readiness",
+        operationType: "runtime-hardening-test",
+        authorityGeneration: initialRuntimeAuthorityGeneration,
+        storageContext: storage,
+      });
+      const report = await runWithProductionRuntimeOperationContext(
+        readinessOperation,
+        () => new ProductionReadinessService({
         cwd: readinessWorkspace,
         environment: { NODE_ENV: "test", ATOLYE_RUNTIME_ROOT: runtimeRoot },
         runtimeStorageContext: storage,
@@ -321,10 +342,17 @@ async function main() {
           ]) assert.equal(fs.existsSync(path.join(root, relative)), true);
           assert.equal(fs.existsSync(path.join(readinessWorkspace, "data", "projects", path.basename(root))), false);
         },
-      }).evaluate();
+        }).evaluate(),
+      );
       assert.ok(report.checks.length > 0);
       assert.ok(probeRoot);
-      assert.equal(fs.existsSync(probeRoot), false);
+      assert.equal(
+        fs.existsSync(probeRoot),
+        false,
+        fs.existsSync(probeRoot)
+          ? JSON.stringify(fs.readdirSync(probeRoot, { recursive: true }))
+          : undefined,
+      );
       assert.equal(providerProcessCalls, 0);
     });
 

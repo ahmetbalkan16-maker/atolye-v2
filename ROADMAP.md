@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: High
 Owner: Atölye V2
-Last Updated: 2026-07-17
+Last Updated: 2026-07-20
 ---
 
 # Atölye V2 — Development Roadmap
@@ -39,7 +39,23 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 129.25 C.2B.4 — Operation-Scoped Runtime Context Propagation / Completed
+Sprint 129.27 — Audio Asset Generation, Storage Atomicity, Compensation and Durable Recovery Hardening / Completed — READY FOR USER COMMIT
+
+## Sprint 129.27 — Audio Asset Generation, Storage Atomicity, Compensation and Durable Recovery Hardening / Completed — READY FOR USER COMMIT
+
+- Ortak bounded audio identifier policy model/voice değerlerini safe ve path-free durable evidence'a bağladı; unsafe, aşırı uzun ve secret-benzeri identifier'lar fail-closed reddedilir. Provider status/content-type/body/timeout ayrımı bounded public evidence taşır; raw response, path, API key veya secret sızmaz.
+- Strict RIFF/WAVE parser PCM/IEEE float, bit-depth/channel/sample-rate ve whole-frame (`dataByteLength % blockAlign === 0`) contract'larını uygular. Malformed WAV `AUDIO_WAV_INVALID`, storage/readback failure `AUDIO_STORAGE_WRITE_FAILED` kalır.
+- Shared `PortableNoClobberFilePublisher` hard-link-first, desteklenen EXDEV/unsupported durumda exclusive-copy fallback, no-clobber destination, receipt-bound deterministic staging, reservation-before-publish ve canonical binding uygular.
+- Receipt/reservation/publication/state authority exact operation fingerprint, integrity ve device/inode/size/SHA-256 identity ile bağlandı. Missing receipt/reservation/publication, zero device/inode, contradictory authority ve same-content foreign canonical fail-closed reddedilir.
+- Journal write unique partial, complete write, file fsync, descriptor readback, exact byte/identity verification ve no-clobber hard-link finalize kullanır. Mid-write/short-write/fsync failure poison final üretmez; partial authority değildir. EXDEV recovery `publication-staging.wav` identity'sini doğrulayıp canonical ve publication binding'i idempotent finalize eder.
+- Logical tombstone bütün internal/public resolver'larda authoritative'dir. Pending read exact active operation'a, registry-owned read durable publication authority'sine bağlıdır. Route, storage, assembly, pipeline, recovery ve compensation ortak admission authority/descriptor reader kullanır.
+- Descriptor-bound read pre/post fstat, descriptor full-read, exact device/inode/size, buffer length/SHA-256 ve durable identity match uygular. Same-content foreign inode, pathname swap ve mid-read mutation admission alamaz.
+- Typed `AudioCanonicalAdmissionConflictError` security rejection'ını normal failure'dan ayırır. Security conflict compensation, failed asset, registry veya journal mutation'ı üretmez ve foreign dosyayı korur; normal provider, malformed WAV ve containment/storage failure persistence davranışı korunur.
+- Compensation cleanup receipt-bound tombstone/workspace authority, terminal retirement, exact allowlist ve cross-operation retention kullanır. Destructive recursive cleanup yoktur; pending/retryable/conflict korunur ve cleanup evidence bounded/path-free kalır.
+- Final validation: Sprint 129.27 `77/77`, Sprint 129.26 `19/19`, production audio wiring `73/73`, runtime hardening `13/13`, guarded filesystem `16/16`, durable attempt `58/58`, durable execution `17/17`, durable wiring `19/19`, TypeScript, changed-files ESLint (`0` warning) ve `git diff --check` PASS. Timeout yok; kalan helper/child process `0`.
+- Independent review: P0 `0`, P1 `0`, blocking P2 `0`; `APPROVED FOR DOCUMENTATION COMPLETION`. Non-blocking test opportunity: device/size/post-read-hash mismatch dallarının ayrı fault injection'ı; Windows parent-directory fsync capability sınırı platform notudur.
+- Production baseline değişmedi: manifest/jobs/history/acceptance/animation/video/assets registry ve altı scene MP4 hash'i exact korundu; `audio.json`, `assets/audio` ve production compensation workspace yok. Recovery `blocked:false`, `startStage:"audio"`; marker `productionReady:false`, `published:false`, `publishMode:"package-only"`; production execute/resume ve gerçek provider/network çağrısı `0`.
+- Sonraki sıra documentation diff ve production/data scope review, `git diff --check/stat/status`, kullanıcı commit/push ve ancak sonrasında yeniden doğrulanmış acceptance/recovery üzerinden ayrı controlled production audio retry planlamasıdır. Production retry henüz yapılmadı.
 
 ## Sprint 129.25 C.2B.4 — Operation-Scoped Runtime Context Propagation / Completed
 

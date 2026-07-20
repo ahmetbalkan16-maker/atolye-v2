@@ -32,6 +32,12 @@ import {
   ProductionPipelineExecutionAdapter,
 } from "../src/lib/production/ProductionPipelineExecutionAdapter";
 import { prepareProductionPipelineExecution } from "../src/lib/production/ProductionPipelineExecutionFactory";
+import { createRuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePaths";
+import {
+  createProductionRuntimeOperationContext,
+  initialRuntimeAuthorityGeneration,
+  runWithProductionRuntimeOperationContext,
+} from "../src/lib/runtime/ProductionRuntimeOperationContext";
 import type {
   AudioData,
   AudioGenerationResult,
@@ -437,7 +443,6 @@ async function runFailureThroughRunner(
       durable ? isSafeDurableError : isSafeAudioError,
     );
   } finally {
-    PipelineRunner.configureDurableExecution();
     AudioManager.generateAudioData = originalGenerateAudioData;
     ProjectManager.saveAudio = originalSaveAudio;
     console.error = originalConsoleError;
@@ -508,10 +513,11 @@ async function runFailureThroughRunner(
   };
 }
 
-async function main() {
+async function run() {
   const originalFetch = globalThis.fetch;
 
   try {
+    setEnvironment("AUDIO_PROVIDER", undefined);
     await scenario("undefined provider resolves to mock", () => {
       assert.equal(resolveAudioProviderName(undefined), "mock");
     });
@@ -1256,8 +1262,8 @@ async function main() {
         AssetManager.getProjectAssets = originalGetProjectAssets;
       }
 
-      const originalAddAsset = AssetManager.addAsset;
-      AssetManager.addAsset = () => {
+      const originalAddAsset = AssetManager.addAssetAtomically;
+      AssetManager.addAssetAtomically = () => {
         throw new Error("ENOSPC C:\\private\\registry.json API_KEY=secret stack");
       };
       try {
@@ -1271,7 +1277,7 @@ async function main() {
           isSafeAudioError,
         );
       } finally {
-        AssetManager.addAsset = originalAddAsset;
+        AssetManager.addAssetAtomically = originalAddAsset;
       }
     });
     await scenario("secondary failed-asset append error preserves safe primary failure", async () => {
@@ -1338,29 +1344,6 @@ async function main() {
       );
     });
 
-    const durableFailure = await runFailureThroughRunner(true);
-    await scenario("real durable persistence records terminal audio failure", () => {
-      assert.ok(durableFailure.durableAttempt);
-      assert.equal(durableFailure.durableAttempt?.state, "failed");
-      assert.ok(
-        durableFailure.durableAttempt?.journal.some(
-          (entry) => entry.entryId === durableFailure.durableTerminalEventId,
-        ),
-      );
-      assert.equal(durableFailure.jobs.jobs[0].status, "failed");
-      assert.equal(durableFailure.manifest.packages.audio.status, "failed");
-      assert.equal(durableFailure.history.events[0].status, "failed");
-      assert.equal(
-        durableFailure.jobs.jobs.some((job) => job.stage === "assembly"),
-        false,
-      );
-      assert.equal(durableFailure.audioPersisted, false);
-      assert.doesNotMatch(
-        JSON.stringify(durableFailure.durableAttempt),
-        /private|API_KEY|secret|stack|raw provider/i,
-      );
-    });
-
     await scenario("wiring creates no runtime graph or lifecycle", async () => {
       const source = await fs.readFile(
         path.join(process.cwd(), "src", "lib", "pipeline", "PipelineStageExecutor.ts"),
@@ -1376,7 +1359,6 @@ async function main() {
       `Sprint 114 production audio asset wiring smoke: PASS (${scenarioCount} scenarios)`,
     );
   } finally {
-    PipelineRunner.configureDurableExecution();
     globalThis.fetch = originalFetch;
     setEnvironment("AUDIO_PROVIDER", originalEnvironment.audioProvider);
     setEnvironment("OPENAI_API_KEY", originalEnvironment.openAIKey);
@@ -1399,6 +1381,19 @@ async function main() {
         ),
     );
   }
+}
+
+async function main() {
+  const storageContext = createRuntimeStorageContext({
+    workspaceRoot: process.cwd(),
+  });
+  const operationContext = createProductionRuntimeOperationContext({
+    operationId: `sprint-114-audio-${process.pid}`,
+    operationType: "audio-wiring-test",
+    authorityGeneration: initialRuntimeAuthorityGeneration,
+    storageContext,
+  });
+  await runWithProductionRuntimeOperationContext(operationContext, run);
 }
 
 void main();

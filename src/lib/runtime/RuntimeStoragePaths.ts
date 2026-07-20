@@ -11,6 +11,17 @@ export const runtimeStorageLogicalProjectsRoot = "projects";
 const contextKind = "runtime-storage-context-v1";
 const authorityPolicyVersion = "runtime-authority-v1";
 const trustedRuntimeStorageContexts = new WeakSet<object>();
+const authorityLeaseBrand: unique symbol = Symbol("runtime-storage-authority-lease");
+const trustedAuthorityLeases = new WeakMap<
+  object,
+  {
+    readonly context: RuntimeStorageContext;
+    readonly projectSlug: string;
+    readonly lockRoot: string;
+    readonly ownerId: string;
+    active: boolean;
+  }
+>();
 
 export type RuntimeStorageClassification =
   | "legacy-repository"
@@ -67,6 +78,7 @@ export class RuntimeStorageError extends Error {
 export interface RuntimeStorageAuthorityLease {
   readonly context: RuntimeStorageContext;
   readonly projectSlug: string;
+  readonly [authorityLeaseBrand]: true;
   release(): void;
 }
 
@@ -239,15 +251,21 @@ export function acquireProjectWriteAuthority(
     throw new RuntimeStorageError("RUNTIME_STORAGE_AUTHORITY_CLAIM_INVALID");
   }
 
+  const ownerId = randomUUID();
+  let lease: RuntimeStorageAuthorityLease | undefined;
   let released = false;
   const release = () => {
     if (released) return;
     released = true;
+    const state = lease ? trustedAuthorityLeases.get(lease) : undefined;
+    if (state) state.active = false;
     try {
       validateExistingDirectory(lockRoot);
       const ownerPath = path.join(lockRoot, "owner.json");
       const ownerLink = fs.lstatSync(ownerPath);
       if (!ownerLink.isFile() || ownerLink.isSymbolicLink()) return;
+      const owner = readAuthorityOwner(ownerPath);
+      if (owner.ownerId !== ownerId || owner.processId !== process.pid) return;
       fs.unlinkSync(ownerPath);
       fs.rmdirSync(lockRoot);
     } catch {
@@ -260,7 +278,7 @@ export function acquireProjectWriteAuthority(
       path.join(lockRoot, "owner.json"),
       JSON.stringify({
         policyVersion: authorityPolicyVersion,
-        ownerId: randomUUID(),
+        ownerId,
         processId: process.pid,
       }),
       { encoding: "utf8", flag: "wx", mode: 0o600 },
@@ -268,11 +286,91 @@ export function acquireProjectWriteAuthority(
     assertProjectWriteAuthorityWithContext(context, slug);
     establishAuthorityClaim(context, slug, identity);
     assertProjectWriteAuthorityWithContext(context, slug);
-    return Object.freeze({ context, projectSlug: slug, release });
+    lease = Object.freeze({
+      context,
+      projectSlug: slug,
+      [authorityLeaseBrand]: true as const,
+      release,
+    });
+    trustedAuthorityLeases.set(lease, {
+      context,
+      projectSlug: slug,
+      lockRoot,
+      ownerId,
+      active: true,
+    });
+    return lease;
   } catch (error) {
     release();
     throw error;
   }
+}
+
+export function assertProjectWriteAuthorityLease(
+  lease: RuntimeStorageAuthorityLease,
+  projectSlug: string,
+  input: RuntimeStorageInput = lease?.context,
+): void {
+  requireProjectSlug(projectSlug);
+  const context = resolveRuntimeStorageContext(input);
+  const state = lease && typeof lease === "object"
+    ? trustedAuthorityLeases.get(lease)
+    : undefined;
+  if (
+    !state?.active ||
+    lease.context !== context ||
+    lease.projectSlug !== projectSlug ||
+    state.context !== context ||
+    state.projectSlug !== projectSlug ||
+    lease[authorityLeaseBrand] !== true
+  ) {
+    throw new RuntimeStorageError("RUNTIME_STORAGE_AUTHORITY_CLAIM_INVALID");
+  }
+  try {
+    validateExistingDirectory(state.lockRoot);
+    const owner = readAuthorityOwner(path.join(state.lockRoot, "owner.json"));
+    if (
+      owner.policyVersion !== authorityPolicyVersion ||
+      owner.ownerId !== state.ownerId ||
+      owner.processId !== process.pid
+    ) {
+      throw new Error("invalid");
+    }
+    assertProjectWriteAuthorityWithContext(context, projectSlug);
+  } catch {
+    state.active = false;
+    throw new RuntimeStorageError("RUNTIME_STORAGE_AUTHORITY_CLAIM_INVALID");
+  }
+}
+
+function readAuthorityOwner(filePath: string): {
+  readonly policyVersion: string;
+  readonly ownerId: string;
+  readonly processId: number;
+} {
+  const stat = fs.lstatSync(filePath);
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.size <= 0 || stat.size > 1024) {
+    throw new RuntimeStorageError("RUNTIME_STORAGE_AUTHORITY_CLAIM_INVALID");
+  }
+  const value = JSON.parse(fs.readFileSync(filePath, "utf8")) as {
+    policyVersion?: unknown;
+    ownerId?: unknown;
+    processId?: unknown;
+  };
+  if (
+    value.policyVersion !== authorityPolicyVersion ||
+    typeof value.ownerId !== "string" ||
+    !/^[0-9a-f-]{36}$/.test(value.ownerId) ||
+    !Number.isSafeInteger(value.processId) ||
+    (value.processId as number) <= 0
+  ) {
+    throw new RuntimeStorageError("RUNTIME_STORAGE_AUTHORITY_CLAIM_INVALID");
+  }
+  return value as {
+    policyVersion: string;
+    ownerId: string;
+    processId: number;
+  };
 }
 
 export function getMachineRuntimeRoot(

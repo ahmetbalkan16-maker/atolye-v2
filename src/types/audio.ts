@@ -50,6 +50,7 @@ export type AudioGenerationRealSuccess = AudioGenerationResultBase & {
 export type AudioGenerationFailure = AudioGenerationResultBase & {
   success: false;
   error: string;
+  evidence?: import("./audioError").AudioAssetErrorEvidence;
   filePath?: never;
   url?: never;
   mimeType?: never;

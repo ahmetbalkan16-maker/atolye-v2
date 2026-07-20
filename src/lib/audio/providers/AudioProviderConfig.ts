@@ -1,5 +1,9 @@
 import type { AudioProviderName } from "@/types/audio";
 import { AUDIO_STORAGE_MAX_BYTES } from "@/lib/assets/storage/AudioStorage";
+import {
+  AudioIdentifierPolicyError,
+  requireSafeAudioIdentifier,
+} from "@/lib/audio/AudioIdentifierPolicy";
 
 export const AUDIO_PROVIDER_CONFIGURATION_ERROR =
   "Audio provider configuration is invalid.";
@@ -31,8 +35,6 @@ const DEFAULT_OPENAI_TTS_MAX_RESPONSE_BYTES = 64 * 1024 * 1024;
 const MIN_OPENAI_TTS_TIMEOUT_MS = 10;
 const MAX_OPENAI_TTS_TIMEOUT_MS = 300_000;
 const MIN_OPENAI_TTS_MAX_RESPONSE_BYTES = 1_024;
-const SAFE_CONFIG_VALUE = /^[a-zA-Z0-9._:-]+$/;
-
 export function resolveAudioProviderName(
   value: string | undefined = process.env.AUDIO_PROVIDER,
 ): AudioProviderName {
@@ -114,11 +116,12 @@ function resolveIntegerConfigValue(
 }
 
 function resolveSafeConfigValue(value: string | undefined, fallback: string) {
-  const normalized = value?.trim() || fallback;
+  const candidate = value === undefined ? fallback : value;
 
-  if (!SAFE_CONFIG_VALUE.test(normalized)) {
+  try {
+    return requireSafeAudioIdentifier(candidate);
+  } catch (error) {
+    if (!(error instanceof AudioIdentifierPolicyError)) throw error;
     throw new AudioProviderConfigurationError();
   }
-
-  return normalized;
 }

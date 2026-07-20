@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1",
+  "artifactType": "motion-plan",
+  "assetId": "animation-adea8ddd9dd26380078d95c4a798f0d152a1c5343ea088f327ba9bf7f8ed02ea",
+  "sceneId": 3,
+  "sourceImageAssetId": "c79a3e31-da9c-4f74-8b6b-3ded434b9bcf",
+  "durationSeconds": 20,
+  "provider": "openai",
+  "model": "gpt-4.1-mini",
+  "generationMode": "production",
+  "requestIdentity": "adea8ddd9dd26380078d95c4a798f0d152a1c5343ea088f327ba9bf7f8ed02ea",
+  "promptDigest": "d29fc8cd3eb84e4041a2baf2297b6585b1486a9611695545d96d73e0f9c318cc",
+  "motionType": "pan-right",
+  "start": {
+    "crop": {
+      "x": 0,
+      "y": 0,
+      "width": 1,
+      "height": 1
+    },
+    "transform": {
+      "scale": 1,
+      "translateX": 0,
+      "translateY": 0
+    }
+  },
+  "end": {
+    "crop": {
+      "x": 0,
+      "y": 0,
+      "width": 1,
+      "height": 1
+    },
+    "transform": {
+      "scale": 1,
+      "translateX": 0.1,
+      "translateY": 0
+    }
+  },
+  "transition": "cut"
+}

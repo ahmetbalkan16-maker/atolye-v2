@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import { AudioStorage } from "@/lib/assets/storage/AudioStorage";
 
 type RouteContext = {
@@ -9,8 +7,6 @@ type RouteContext = {
   }>;
 };
 
-const ROOT_DIR = process.cwd();
-
 export async function GET(_request: Request, context: RouteContext) {
   const { slug, fileName } = await context.params;
 
@@ -18,22 +14,11 @@ export async function GET(_request: Request, context: RouteContext) {
     return new Response("Not found", { status: 404 });
   }
 
-  const audioDir = path.resolve(
-    ROOT_DIR,
-    "data",
-    "projects",
-    slug,
-    "assets",
-    "audio",
-  );
-  const audioPath = path.resolve(audioDir, fileName);
-
-  if (!isInsideDirectory(audioDir, audioPath) || !fs.existsSync(audioPath)) {
-    return new Response("Not found", { status: 404 });
-  }
-
   try {
-    const file = fs.readFileSync(audioPath);
+    const file = AudioStorage.readStoredWav(
+      slug,
+      AudioStorage.getAudioPath(slug, fileName),
+    );
     AudioStorage.inspectWav(file);
 
     return new Response(new Uint8Array(file), {
@@ -54,14 +39,4 @@ function isSafePathSegment(value: string) {
 
 function isSafeWavFileName(value: string) {
   return /^[a-zA-Z0-9-_.]+\.wav$/i.test(value) && !value.includes("..");
-}
-
-function isInsideDirectory(directory: string, targetPath: string) {
-  const relativePath = path.relative(directory, targetPath);
-
-  return (
-    relativePath.length > 0 &&
-    !relativePath.startsWith("..") &&
-    !path.isAbsolute(relativePath)
-  );
 }

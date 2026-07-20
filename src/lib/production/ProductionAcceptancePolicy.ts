@@ -535,6 +535,9 @@ export function productionAcceptanceConfigurationFingerprint(
   if (environment.OPENAI_VISUALS_MAX_TOKENS !== undefined) {
     snapshot.push(["OPENAI_VISUALS_MAX_TOKENS", environment.OPENAI_VISUALS_MAX_TOKENS]);
   }
+  if (environment.OPENAI_AUDIO_MAX_TOKENS !== undefined) {
+    snapshot.push(["OPENAI_AUDIO_MAX_TOKENS", environment.OPENAI_AUDIO_MAX_TOKENS]);
+  }
   return createHash("sha256").update(JSON.stringify(snapshot)).digest("hex");
 }
 

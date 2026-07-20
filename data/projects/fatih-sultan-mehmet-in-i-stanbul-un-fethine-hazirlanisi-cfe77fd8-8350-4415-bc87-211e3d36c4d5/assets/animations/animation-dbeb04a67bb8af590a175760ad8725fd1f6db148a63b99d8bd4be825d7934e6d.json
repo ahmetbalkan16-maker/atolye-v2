@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1",
+  "artifactType": "motion-plan",
+  "assetId": "animation-dbeb04a67bb8af590a175760ad8725fd1f6db148a63b99d8bd4be825d7934e6d",
+  "sceneId": 1,
+  "sourceImageAssetId": "6ba936e8-1d50-4ebe-9f18-8a190a738b61",
+  "durationSeconds": 15,
+  "provider": "openai",
+  "model": "gpt-4.1-mini",
+  "generationMode": "production",
+  "requestIdentity": "dbeb04a67bb8af590a175760ad8725fd1f6db148a63b99d8bd4be825d7934e6d",
+  "promptDigest": "ff44a3200d3ecebdc788d35b24f68e35b3935262f136fd2277762b664f93f1c6",
+  "motionType": "zoom-in",
+  "start": {
+    "crop": {
+      "x": 0,
+      "y": 0,
+      "width": 1,
+      "height": 1
+    },
+    "transform": {
+      "scale": 1,
+      "translateX": 0,
+      "translateY": 0
+    }
+  },
+  "end": {
+    "crop": {
+      "x": 0.1,
+      "y": 0.1,
+      "width": 0.8,
+      "height": 0.8
+    },
+    "transform": {
+      "scale": 1.2,
+      "translateX": -0.1,
+      "translateY": -0.1
+    }
+  },
+  "transition": "crossfade"
+}

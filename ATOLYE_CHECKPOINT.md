@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Critical
 Owner: Atölye V2
-Last Updated: 2026-07-17
+Last Updated: 2026-07-20
 ---
 
 # ⚠️ AI START HERE
@@ -47,13 +47,47 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 129.25 C.2B.4**
+**Sprint 129.27**
 
-Operation-Scoped Runtime Context Propagation
+Audio Asset Generation, Storage Atomicity, Compensation and Durable Recovery Hardening
 
 **Durum**
 
-Completed
+Completed — READY FOR USER COMMIT
+
+## Sprint 129.27 — Audio Asset Generation, Storage Atomicity, Compensation and Durable Recovery Hardening / Completed — READY FOR USER COMMIT
+
+Sprint 129.27 production audio generation ve canonical storage zincirini bounded identifier/evidence, strict WAV validation, portable no-clobber publication, durable compensation authority, crash-atomic journal persistence, EXDEV recovery, logical tombstone authority ve descriptor-bound reads ile sertleştirdi.
+
+- Ortak audio identifier policy model/voice değerlerini bounded ve safe biçimde doğrular; unsafe, aşırı uzun veya secret-benzeri değerler fail-closed reddedilir. Durable evidence yalnız bounded, path-free identifier taşır.
+- Strict RIFF/WAVE parser PCM ve IEEE float contract'larını, desteklenen bit-depth/channel/sample-rate sınırlarını ve `dataByteLength % blockAlign === 0` whole-frame invariant'ını uygular. Malformed WAV `AUDIO_WAV_INVALID`, storage/readback failure `AUDIO_STORAGE_WRITE_FAILED` olarak ayrı kalır.
+- Provider status, content-type, body-size ve timeout failure'ları bounded canonical evidence ile ayrıştırılır. Public error contract path, API key, secret veya raw provider response sızdırmaz.
+- Ortak `PortableNoClobberFilePublisher` hard-link-first çalışır; yalnız desteklenen EXDEV/unsupported durumda exclusive-copy fallback kullanır. Destination no-clobber'dır; receipt-bound deterministic staging, reservation-before-canonical-publish ve canonical publication binding zorunludur.
+- Durable authority receipt/reservation/publication/state journal modeline, exact operation ID/fingerprint v2 binding'ine, receipt/reservation integrity bağlarına ve device/inode/size/SHA-256 identity'sine dayanır. Publication reservation olmadan, reservation receipt olmadan veya device/inode sıfırken admission verilmez; aynı-content foreign canonical hash eşitliğiyle sahiplenilmez.
+- Journal persistence unique staging partial, complete write, file fsync, descriptor readback, exact byte/identity verification ve no-clobber hard-link finalize kullanır. Mid-write, short-write veya fsync failure poison final journal üretmez; partial journal authority sayılmaz. Parent-directory durability platform capability'si açıkça ele alınır.
+- EXDEV recovery deterministic `publication-staging.wav` locator'ını reservation identity'sine bağlar. Durable reservation + missing canonical restart'ta staging exact doğrulanır, canonical no-clobber finalize edilir, publication binding tamamlanır ve replay idempotent kalır. Foreign staging/canonical mutation-free fail-closed korunur.
+- `completed/compensated` publication bütün resolver'larda tombstone ile reddedilir. Pending publication yalnız exact active operation tarafından, registry-owned publication durable authority ile okunur. Public route, `AudioStorage`, assembly, pipeline ve recovery aynı admission authority'yi kullanır; compensation sonrası canonical yeniden sahiplenilemez.
+- Canonical read pre-fstat, descriptor üzerinden full read, post-fstat, exact device/inode/size, buffer length/SHA-256 ve durable publication identity karşılaştırması yapar. Path swap, same-content foreign inode ve mid-read mutation reddedilir; descriptor kapandıktan sonra pathname'e yeniden güvenilmez.
+- Typed `AudioCanonicalAdmissionConflictError`, public `AUDIO_STORAGE_WRITE_FAILED` + `storage` sözleşmesini string/path matching olmadan korur. Foreign-canonical security conflict'te compensation, failed-asset persistence, registry ve journal/publication mutation'ı çalışmaz; foreign dosya korunur. Normal provider, malformed WAV ve genel storage failure'larında failed-asset persistence devam eder.
+- Destructive recursive compensation cleanup kaldırıldı. Receipt-bound tombstone/workspace authority, foreign replacement korunumu, terminal retirement, exact allowlist cleanup ve cross-operation retention uygulanır; pending/retryable/conflict kayıtları korunur. `completed`/`not-required`/`failed` cleanup evidence bounded ve path-free aktarılır.
+
+Final validation: Sprint 129.27 `77/77`, Sprint 129.26 audio budget `19/19`, production audio wiring `73/73`, runtime hardening `13/13`, guarded filesystem `16/16`, durable production attempt `58/58`, durable pipeline execution `17/17` ve durable pipeline wiring `19/19` PASS. `npx tsc --noEmit --incremental false`, changed-files ESLint (`0` warning) ve `git diff --check` PASS; timeout yok, kalan helper/child process `0`.
+
+Final independent review: P0 `0`, P1 `0`, blocking P2 `0`; karar `APPROVED FOR DOCUMENTATION COMPLETION`. Non-blocking test opportunity olarak device mismatch, size mismatch ve post-read hash mismatch dalları ileride ayrı fault-injection testleriyle genişletilebilir; production primitive bu alanları zaten exact doğrular. Windows parent-directory fsync capability sınırı platform notudur ve blocking değildir.
+
+Production integrity exact korundu:
+
+- Manifest: `BB425A8F8ED2FD30BCC327BA09E7B35BEC0820CAFABAC735637DADE149E527BE`
+- Jobs: `FA887912D164EACEC290E0550D955D5FF5109AE72E74B3E3407C5AE62333D2F4`
+- History: `C165FF9FD07B2E8992AB0BC12F1AFF48348054642D400AAD8B598875F11B0A8C`
+- Acceptance: `92BE5CFD31565117FC1E6C170A12FE8220856D81DC117BA79C5457DEF72F441B`
+- Animation: `92A8952B660B88DE1B1D9123F600DB85F8CBFDCDFC03E701C8D147F62F0E1F8C`
+- Video: `08BF7FB27580873C8E203A70AB5B4285053D51C659173800BB98C709310FFCFC`
+- Assets registry: `E5F70FE8387E47F2F1C0A7BBD661FC529D6BA6B8B52E0AB8D12FA5FFA97CDA54`
+
+Altı scene MP4 hash'i değişmedi; `audio.json`, `assets/audio` ve production compensation workspace yoktur. Recovery `blocked:false`, `startStage:"audio"`; marker `productionReady:false`, `published:false`, `publishMode:"package-only"`. Production execute/resume ve gerçek provider/network çağrısı `0` kaldı.
+
+Bir sonraki aşama: documentation diff review, production/data kapsam güvenlik kontrolü, `git diff --check`, `git diff --stat`, `git status --short`, ardından kullanıcı commit/push işlemi. İlk gerçek provider/audio retry ancak commit/push tamamlanıp working tree güvenle kaydedildikten ve production acceptance/recovery durumu yeniden doğrulandıktan sonra ayrı kontrollü adım olarak planlanacaktır; henüz production retry yapılmadı.
 
 ## Sprint 129.25 C.2B.4 — Operation-Scoped Runtime Context Propagation / Completed
 

@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Medium
 Owner: Atölye V2
-Last Updated: 2026-07-17
+Last Updated: 2026-07-20
 ---
 
 # Atölye V2 — Changelog
@@ -24,6 +24,24 @@ referans alınmalıdır.
 ---
 
 # Version 1.x
+
+## Sprint 129.27 — Audio Asset Generation, Storage Atomicity, Compensation and Durable Recovery Hardening / Completed — READY FOR USER COMMIT
+
+- Model ve voice değerleri ortak bounded safe identifier policy'ye bağlandı. Unsafe, aşırı uzun veya secret-benzeri identifier'lar fail-closed reddedilir; durable audio evidence bounded, path-free ve secret-free kalır. Provider status, content-type, response-size ve timeout failure'ları canonical evidence içinde ayrıştırılır.
+- WAV validation strict RIFF/WAVE parsing, PCM/IEEE float formatları, supported bit-depth/channel/sample-rate sınırları ve `dataByteLength % blockAlign === 0` whole-frame invariant'ıyla sertleştirildi. Malformed WAV `AUDIO_WAV_INVALID`, storage/readback failure `AUDIO_STORAGE_WRITE_FAILED` üretir.
+- Ortak `PortableNoClobberFilePublisher` hard-link-first publish, yalnız desteklenen EXDEV/unsupported durumda exclusive-copy fallback, destination no-clobber, receipt-bound deterministic staging, reservation-before-canonical-publish ve publication binding sağlar.
+- Durable compensation authority receipt, publication reservation, publication ve append-only state journal'ını exact operation ID/fingerprint v2, integrity ve device/inode/size/SHA-256 identity ile bağlar. Reservation/publication/receipt eşleşmesi, non-zero filesystem identity ve exact foreign-file rejection zorunludur; same-content foreign canonical hash eşitliğiyle sahiplenilmez.
+- Journal persistence unique staging partial, complete write, file fsync, descriptor readback, exact byte/identity verification ve no-clobber hard-link finalize kullanır. Mid-write, short-write ve fsync failure poison final journal üretmez; partial authority kabul edilmez. Parent-directory fsync capability sınırı açık platform notudur.
+- EXDEV restart recovery deterministic `publication-staging.wav` locator ve reservation içindeki staging identity üzerinden canonical missing durumunu tamamlar; exact staging verification, no-clobber canonical finalize, publication binding ve idempotent replay uygulanır. Foreign staging/canonical mutation-free fail-closed kalır.
+- Completed/compensated tombstone bütün resolver'larda authoritative hale getirildi. Pending publication yalnız exact active operation, registry-owned publication yalnız durable authority ile okunur. Public route, `AudioStorage`, assembly, pipeline, recovery ve compensation ortak admission authority ve descriptor-bound reader kullanır.
+- Descriptor-bound canonical read pre-fstat, descriptor full-read, post-fstat, exact device/inode/size, buffer length/SHA-256 ve durable publication identity karşılaştırması uygular. Path swap, same-content foreign inode ve mid-read mutation reddedilir; descriptor kapandıktan sonra pathname'e yeniden güvenilmez.
+- Typed `AudioCanonicalAdmissionConflictError` public `AUDIO_STORAGE_WRITE_FAILED`/`storage` contract'ını koruyarak security admission conflict'i normal failure'dan ayırır. Security conflict compensation veya failed asset çalıştırmaz; registry, receipt, reservation, publication ve state byte'ları değişmez, foreign dosya korunur. Normal provider/generation, malformed WAV ve containment/storage failure failed-asset persistence'ı korunur.
+- Compensation cleanup destructive recursive silme yerine receipt-bound tombstone/workspace authority, foreign replacement korunumu, terminal retirement, exact allowlist ve cross-operation retention kullanır. Pending/retryable/conflict kayıtları korunur; cleanup sonucu `completed`/`not-required`/`failed` bounded durable evidence'a aktarılır.
+- Final validation: Sprint 129.27 `77/77`, Sprint 129.26 audio budget `19/19`, production audio wiring `73/73`, runtime hardening `13/13`, guarded filesystem `16/16`, durable production attempt `58/58`, durable pipeline execution `17/17`, durable pipeline wiring `19/19`, TypeScript, changed-files ESLint (`0` warning) ve `git diff --check` PASS. Timeout yok; kalan helper/child process `0`.
+- Final independent review P0 `0`, P1 `0`, blocking P2 `0` ve `APPROVED FOR DOCUMENTATION COMPLETION` kararı verdi. Device mismatch, size mismatch ve post-read hash mismatch dallarının ayrı fault-injection testleri non-blocking fırsattır; production primitive exact kontrolleri zaten uygular.
+- Production baseline değişmedi. Manifest `BB425A8F8ED2FD30BCC327BA09E7B35BEC0820CAFABAC735637DADE149E527BE`, jobs `FA887912D164EACEC290E0550D955D5FF5109AE72E74B3E3407C5AE62333D2F4`, history `C165FF9FD07B2E8992AB0BC12F1AFF48348054642D400AAD8B598875F11B0A8C`, acceptance `92BE5CFD31565117FC1E6C170A12FE8220856D81DC117BA79C5457DEF72F441B`, animation `92A8952B660B88DE1B1D9123F600DB85F8CBFDCDFC03E701C8D147F62F0E1F8C`, video `08BF7FB27580873C8E203A70AB5B4285053D51C659173800BB98C709310FFCFC` ve assets `E5F70FE8387E47F2F1C0A7BBD661FC529D6BA6B8B52E0AB8D12FA5FFA97CDA54`; altı scene MP4 hash'i de exact korundu.
+- `audio.json`, `assets/audio` ve production compensation workspace oluşmadı. Recovery `blocked:false`, `startStage:"audio"`; acceptance `productionReady:false`, `published:false`, `publishMode:"package-only"`. Production execute/resume ve gerçek provider/network çağrısı yapılmadı; commit/push yapılmadı.
+- Sprint `Completed — READY FOR USER COMMIT`. İlk controlled production audio retry ancak documentation/data scope review, kullanıcı commit/push, güvenli working-tree kaydı ve yeniden acceptance/recovery doğrulamasından sonra ayrı adım olarak planlanacaktır; henüz retry yapılmadı.
 
 ## Sprint 129.25 C.2B.4 — Operation-Scoped Runtime Context Propagation / Completed
 

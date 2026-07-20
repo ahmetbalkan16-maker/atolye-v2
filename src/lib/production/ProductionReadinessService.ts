@@ -5,6 +5,7 @@ import { aiProviderConfig } from "@/lib/ai/AIProviderConfig";
 import { getResearchMaxTokens } from "@/lib/ai/ResearchAIConfig";
 import { getScriptMaxTokens } from "@/lib/ai/ScriptAIConfig";
 import { getVisualsMaxTokens } from "@/lib/ai/VisualsAIConfig";
+import { getAudioMaxTokens } from "@/lib/ai/AudioAIConfig";
 import { ImageProviderRouter } from "@/lib/assets/providers/ImageProviderRouter";
 import { requireContainedStorageFile } from "@/lib/assets/storage/StoragePathSecurity";
 import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
@@ -214,6 +215,11 @@ export class ProductionReadinessService {
         getVisualsMaxTokens(this.environment);
       } catch {
         return check("model-configuration", "INVALID", "AI_VISUALS_MAX_TOKENS_INVALID");
+      }
+      try {
+        getAudioMaxTokens(this.environment);
+      } catch {
+        return check("model-configuration", "INVALID", "AI_AUDIO_MAX_TOKENS_INVALID");
       }
       if (!validNumber(this.environment.OPENAI_TEMPERATURE, 0, 2)) {
         return check("model-configuration", "INVALID", "AI_TEMPERATURE_INVALID");
@@ -479,6 +485,7 @@ function probeStorageAdapters(
   try {
     const saved = AudioStorage.saveAudio({ projectSlug, assetId: "readiness-audio", data: readinessWav() }, context);
     AudioStorage.inspectStoredWav(projectSlug, saved.filePath, context);
+    AudioStorage.completePublishedAudio(saved);
     results["audio-storage"] = true;
   } catch { /* reported by the caller */ }
   try {
