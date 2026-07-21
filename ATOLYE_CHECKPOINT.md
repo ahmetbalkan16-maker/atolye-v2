@@ -53,9 +53,9 @@ Audio Asset Generation, Storage Atomicity, Compensation and Durable Recovery Har
 
 **Durum**
 
-Completed — READY FOR USER COMMIT
+Completed
 
-## Sprint 129.27 — Audio Asset Generation, Storage Atomicity, Compensation and Durable Recovery Hardening / Completed — READY FOR USER COMMIT
+## Sprint 129.27 — Audio Atomicity, Compensation & Publication Hardening / Completed
 
 Sprint 129.27 production audio generation ve canonical storage zincirini bounded identifier/evidence, strict WAV validation, portable no-clobber publication, durable compensation authority, crash-atomic journal persistence, EXDEV recovery, logical tombstone authority ve descriptor-bound reads ile sertleştirdi.
 
@@ -70,10 +70,12 @@ Sprint 129.27 production audio generation ve canonical storage zincirini bounded
 - Canonical read pre-fstat, descriptor üzerinden full read, post-fstat, exact device/inode/size, buffer length/SHA-256 ve durable publication identity karşılaştırması yapar. Path swap, same-content foreign inode ve mid-read mutation reddedilir; descriptor kapandıktan sonra pathname'e yeniden güvenilmez.
 - Typed `AudioCanonicalAdmissionConflictError`, public `AUDIO_STORAGE_WRITE_FAILED` + `storage` sözleşmesini string/path matching olmadan korur. Foreign-canonical security conflict'te compensation, failed-asset persistence, registry ve journal/publication mutation'ı çalışmaz; foreign dosya korunur. Normal provider, malformed WAV ve genel storage failure'larında failed-asset persistence devam eder.
 - Destructive recursive compensation cleanup kaldırıldı. Receipt-bound tombstone/workspace authority, foreign replacement korunumu, terminal retirement, exact allowlist cleanup ve cross-operation retention uygulanır; pending/retryable/conflict kayıtları korunur. `completed`/`not-required`/`failed` cleanup evidence bounded ve path-free aktarılır.
+- Final atomicity closure identity-check sonrası pathname unlink/rmdir yarışını ve canonical verification sonrası rename yarışını destructive pathname mutation'ını kaldırarak kapattı. Publish başarısı ile `publication.json` persistence arasındaki crash orphan'ı durable reservation, exact canonical binding ve deterministic/idempotent recovery ile güvenli biçimde yeniden bağlanır veya fail-closed kalır. Physical cleanup yerine logical retirement ve bounded deferred evidence kullanılır; foreign replacement hiçbir cleanup/recovery yolunda silinmez veya taşınmaz.
+- Windows fixture portability düzeltmesi smoke içindeki hassasiyet bağımlı `stat.ino + 1` fault injection'ını kaldırdı; mevcut inode `1` değilse `1`, aksi halde `2` seçen finite, non-zero ve kesin farklı deterministik identity kullanıldı. Production davranışı ve güvenlik sözleşmesi değişmedi.
 
 Final validation: Sprint 129.27 `77/77`, Sprint 129.26 audio budget `19/19`, production audio wiring `73/73`, runtime hardening `13/13`, guarded filesystem `16/16`, durable production attempt `58/58`, durable pipeline execution `17/17` ve durable pipeline wiring `19/19` PASS. `npx tsc --noEmit --incremental false`, changed-files ESLint (`0` warning) ve `git diff --check` PASS; timeout yok, kalan helper/child process `0`.
 
-Final independent review: P0 `0`, P1 `0`, blocking P2 `0`; karar `APPROVED FOR DOCUMENTATION COMPLETION`. Non-blocking test opportunity olarak device mismatch, size mismatch ve post-read hash mismatch dalları ileride ayrı fault-injection testleriyle genişletilebilir; production primitive bu alanları zaten exact doğrular. Windows parent-directory fsync capability sınırı platform notudur ve blocking değildir.
+Final independent review: P0 `0`, P1 `0`, P2 `0`; karar `APPROVED FOR DOCUMENTATION COMPLETION`. P1-A identity check → path unlink/rmdir, P1-B canonical verify → rename ve P1-C publish → `publication.json` crash orphan bulguları `CLOSED` olarak doğrulandı. Windows parent-directory fsync capability sınırı platform notudur ve blocking değildir.
 
 Production integrity exact korundu:
 
@@ -87,7 +89,7 @@ Production integrity exact korundu:
 
 Altı scene MP4 hash'i değişmedi; `audio.json`, `assets/audio` ve production compensation workspace yoktur. Recovery `blocked:false`, `startStage:"audio"`; marker `productionReady:false`, `published:false`, `publishMode:"package-only"`. Production execute/resume ve gerçek provider/network çağrısı `0` kaldı.
 
-Bir sonraki aşama: documentation diff review, production/data kapsam güvenlik kontrolü, `git diff --check`, `git diff --stat`, `git status --short`, ardından kullanıcı commit/push işlemi. İlk gerçek provider/audio retry ancak commit/push tamamlanıp working tree güvenle kaydedildikten ve production acceptance/recovery durumu yeniden doğrulandıktan sonra ayrı kontrollü adım olarak planlanacaktır; henüz production retry yapılmadı.
+Bir sonraki adım: `controlled production retry from audio stage`. Bu adım yalnız documentation commit/push tamamlandıktan, working tree güvenle kaydedildikten ve production acceptance/recovery durumu yeniden doğrulandıktan sonra ayrı kontrollü turda çalıştırılacaktır; henüz production retry yapılmadı.
 
 ## Sprint 129.25 C.2B.4 — Operation-Scoped Runtime Context Propagation / Completed
 

@@ -2290,7 +2290,7 @@ async function run(): Promise<void> {
           const stat = originalFstat(descriptor, options as never);
           if (descriptor !== descriptorReadDuringSwap) return stat;
           return Object.assign(Object.create(Object.getPrototypeOf(stat)), stat, {
-            ino: stat.ino + 1,
+            ino: stat.ino === 1 ? 2 : 1,
           });
         }) as typeof fs.fstatSync;
         try {
