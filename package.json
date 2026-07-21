@@ -10,6 +10,8 @@
     "production:acceptance:readiness": "tsx scripts/run-production-acceptance.ts readiness-only",
     "production:acceptance:diagnose": "tsx scripts/run-production-acceptance.ts diagnose",
     "production:acceptance:reprepare": "tsx scripts/run-production-acceptance.ts reprepare",
+    "production:acceptance:legacy-reauthorization-plan": "tsx scripts/run-production-acceptance.ts legacy-reauthorization-plan",
+    "production:acceptance:reauthorize-legacy": "tsx scripts/run-production-acceptance.ts reauthorize-legacy",
     "production:acceptance:execute": "tsx scripts/run-production-acceptance.ts execute",
     "production:acceptance:resume": "tsx scripts/run-production-acceptance.ts resume-finalize",
     "smoke:sprint-129-25b": "tsx scripts/smoke-sprint-129-25b-runtime-root.ts",
@@ -22,7 +24,8 @@
     "smoke:sprint-129-25c-2a": "tsx scripts/smoke-sprint-129-25c-2a-guarded-filesystem.ts",
     "smoke:sprint-129-25c-2b-1": "tsx scripts/smoke-sprint-129-25c-2b-1-migration-candidate.ts",
     "smoke:sprint-129-25c-2b-2": "tsx scripts/smoke-sprint-129-25c-2b-2-migration-candidate-create.ts",
-    "smoke:sprint-129-25c-2b-4": "tsx scripts/smoke-sprint-129-25c-2b-4-runtime-context.ts"
+    "smoke:sprint-129-25c-2b-4": "tsx scripts/smoke-sprint-129-25c-2b-4-runtime-context.ts",
+    "smoke:sprint-129-28": "tsx scripts/smoke-sprint-129-28-production-acceptance-reauthorization.ts"
   },
   "dependencies": {
     "next": "16.2.10",

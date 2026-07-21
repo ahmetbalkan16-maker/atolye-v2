@@ -15,6 +15,12 @@ import {
   reprepareProductionAcceptanceMarker,
   type ProductionAcceptanceReprepareResult,
 } from "./ProductionAcceptanceReprepareService";
+import {
+  planProductionAcceptanceLegacyReauthorization,
+  reauthorizeProductionAcceptanceLegacyMarker,
+  type LegacyReauthorizationPlan,
+  type LegacyReauthorizationResult,
+} from "./ProductionAcceptanceLegacyReauthorizationService";
 
 const CONFIRM_FLAG = "--confirm-production-acceptance";
 const REPREPARE_CONFIRM_FLAG = "--confirm-production-acceptance-reprepare";
@@ -27,6 +33,17 @@ export interface ProductionAcceptanceCommandDependencies {
   resume(projectSlug: string): Promise<ProductionAcceptanceResult>;
   diagnose?(projectSlug: string): Promise<ProductionAcceptanceConfigurationDiagnostic>;
   reprepare?(projectSlug: string): Promise<ProductionAcceptanceReprepareResult>;
+  legacyReauthorizationPlan?(
+    projectSlug: string,
+    sourceMarkerSha256: string,
+  ): Promise<LegacyReauthorizationPlan>;
+  reauthorizeLegacy?(input: {
+    projectSlug: string;
+    sourceMarkerSha256: string;
+    reason: string;
+    reauthorizationId: string;
+    confirmation: string;
+  }): Promise<LegacyReauthorizationResult>;
 }
 
 export interface ProductionAcceptanceCommandResult {
@@ -40,6 +57,9 @@ const defaultDependencies: ProductionAcceptanceCommandDependencies = {
   resume: (projectSlug) => ProductionAcceptanceOrchestrator.resumeAndFinalize(projectSlug),
   diagnose: (projectSlug) => diagnoseProductionAcceptanceConfiguration(projectSlug),
   reprepare: (projectSlug) => reprepareProductionAcceptanceMarker(projectSlug),
+  legacyReauthorizationPlan: (projectSlug, sourceMarkerSha256) =>
+    planProductionAcceptanceLegacyReauthorization(projectSlug, sourceMarkerSha256),
+  reauthorizeLegacy: (input) => reauthorizeProductionAcceptanceLegacyMarker(input),
 };
 
 export async function runProductionAcceptanceCommand(
@@ -111,9 +131,34 @@ export async function runProductionAcceptanceCommand(
         },
       };
     }
+    if (mode === "legacy-reauthorization-plan") {
+      const parsed = parseLegacyReauthorizationPlanArguments(args.slice(1));
+      if ("errorCode" in parsed) return commandFailure(parsed.errorCode);
+      requestedProjectSlug = parsed.projectSlug;
+      const plan = await (dependencies.legacyReauthorizationPlan ??
+        defaultDependencies.legacyReauthorizationPlan)!(
+          parsed.projectSlug,
+          parsed.sourceMarkerSha256,
+        );
+      return {
+        exitCode: 0,
+        report: { mode, ...plan },
+      };
+    }
+    if (mode === "reauthorize-legacy") {
+      const parsed = parseLegacyReauthorizationArguments(args.slice(1));
+      if ("errorCode" in parsed) return commandFailure(parsed.errorCode);
+      requestedProjectSlug = parsed.projectSlug;
+      const result = await (dependencies.reauthorizeLegacy ??
+        defaultDependencies.reauthorizeLegacy)!(parsed);
+      return {
+        exitCode: 0,
+        report: { mode, success: true, ...result },
+      };
+    }
     return usageFailure();
   } catch (error) {
-    const candidate = error as { code?: unknown; projectSlug?: unknown };
+    const candidate = error as { code?: unknown; projectSlug?: unknown; category?: unknown };
     return {
       exitCode: 1,
       report: {
@@ -121,6 +166,11 @@ export async function runProductionAcceptanceCommand(
         success: false,
         errorCode: typeof candidate.code === "string" ? candidate.code : "PRODUCTION_ACCEPTANCE_COMMAND_FAILED",
         ...safeProjectSlug(candidate.projectSlug, requestedProjectSlug),
+        ...(typeof candidate.category === "string" &&
+          ["marker", "configuration", "storage", "artifacts", "recovery", "concurrency", "persistence"]
+            .includes(candidate.category)
+          ? { category: candidate.category }
+          : {}),
       },
     };
   }
@@ -154,9 +204,64 @@ function commandFailure(errorCode: string): ProductionAcceptanceCommandResult {
         `resume-finalize --project-slug=<slug> ${CONFIRM_FLAG}`,
         "diagnose --project-slug=<slug>",
         `reprepare --project-slug=<slug> ${REPREPARE_CONFIRM_FLAG}`,
+        "legacy-reauthorization-plan --project-slug=<slug> --source-marker-sha256=<64-hex>",
+        "reauthorize-legacy --project-slug=<slug> --source-marker-sha256=<64-hex> --reason=legacy-environment-unrecoverable --reauthorization-id=<64-hex> --confirm-production-acceptance-legacy-reauthorization=<64-hex>",
       ],
     },
   };
+}
+
+function parseLegacyReauthorizationPlanArguments(args: readonly string[]):
+  | { projectSlug: string; sourceMarkerSha256: string }
+  | { errorCode: string } {
+  const slug = exactValue(args, "--project-slug=");
+  const marker = exactValue(args, "--source-marker-sha256=");
+  if (
+    args.length !== 2 || !slug || !marker || !SAFE_SLUG.test(slug) ||
+    !/^[a-f0-9]{64}$/.test(marker)
+  ) return { errorCode: "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ARGUMENT_INVALID" };
+  return { projectSlug: slug, sourceMarkerSha256: marker };
+}
+
+function parseLegacyReauthorizationArguments(args: readonly string[]):
+  | {
+      projectSlug: string;
+      sourceMarkerSha256: string;
+      reason: string;
+      reauthorizationId: string;
+      confirmation: string;
+    }
+  | { errorCode: string } {
+  const slug = exactValue(args, "--project-slug=");
+  const marker = exactValue(args, "--source-marker-sha256=");
+  const reason = exactValue(args, "--reason=");
+  const id = exactValue(args, "--reauthorization-id=");
+  const confirmation = exactValue(
+    args,
+    "--confirm-production-acceptance-legacy-reauthorization=",
+  );
+  if (
+    args.length !== 5 || !slug || !marker || !reason || !id || !confirmation ||
+    !SAFE_SLUG.test(slug) || !/^[a-f0-9]{64}$/.test(marker) ||
+    !/^[a-f0-9]{64}$/.test(id) || !/^[a-f0-9]{64}$/.test(confirmation)
+  ) return { errorCode: "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ARGUMENT_INVALID" };
+  if (id !== confirmation) {
+    return { errorCode: "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_CONFIRMATION_REQUIRED" };
+  }
+  return {
+    projectSlug: slug,
+    sourceMarkerSha256: marker,
+    reason,
+    reauthorizationId: id,
+    confirmation,
+  };
+}
+
+function exactValue(args: readonly string[], prefix: string): string | undefined {
+  const values = args.filter((value) => value.startsWith(prefix));
+  if (values.length !== 1) return undefined;
+  const value = values[0].slice(prefix.length);
+  return value.length > 0 ? value : undefined;
 }
 
 function parseReprepareArguments(args: readonly string[]):
