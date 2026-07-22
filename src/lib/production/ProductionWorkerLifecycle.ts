@@ -16,6 +16,25 @@ export class ProductionWorkerLifecycleExecutionRejectedError extends Error {
   }
 }
 
+export interface ProductionWorkerLifecycleExecutionIdentity {
+  readonly projectSlug: string;
+  readonly stage: string;
+  readonly operation: string;
+  readonly leaseId?: string;
+  readonly executionFingerprint: string;
+}
+
+export interface ProductionWorkerLifecycleAuthoritySnapshot {
+  readonly policyVersion: "production-worker-lifecycle-authority-v1";
+  readonly lifecycleGeneration: number;
+  readonly lifecycleState: ProductionWorkerLifecycleState;
+  readonly activeExecutionCount: number;
+  readonly activeExecutionIdentities: readonly ProductionWorkerLifecycleExecutionIdentity[];
+  readonly conflict: boolean;
+  readonly runtimeAuthorityGeneration: string;
+  readonly runtimeOperationBinding: string;
+}
+
 export class ProductionWorkerLifecycle {
   private state: ProductionWorkerLifecycleState = "created";
   private activeExecutions = 0;
@@ -31,6 +50,9 @@ export class ProductionWorkerLifecycle {
   private stopPromise?: Promise<ProductionWorkerLifecycleResult>;
   private resolveDrained?: () => void;
   private runtimeOperationContext?: ProductionRuntimeOperationContext;
+  private lifecycleGeneration = 0;
+  private readonly activeExecutionIdentities =
+    new Map<string, ProductionWorkerLifecycleExecutionIdentity>();
 
   constructor(private readonly now: () => string = () => new Date().toISOString()) {}
 
@@ -113,29 +135,71 @@ export class ProductionWorkerLifecycle {
   async executeWithRuntimeOperationContext<T>(
     context: ProductionRuntimeOperationContext,
     operation: () => T | Promise<T>,
+    identity?: ProductionWorkerLifecycleExecutionIdentity,
   ): Promise<T> {
     if (!this.runtimeOperationContext) {
       throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISSING");
     }
     assertProductionRuntimeOperationAuthority(this.runtimeOperationContext, context);
-    return runWithProductionRuntimeOperationContext(
-      context,
-      () => this.executeAccepted(operation),
-    );
+    bindActiveLifecycle(context, this);
+    try {
+      return await runWithProductionRuntimeOperationContext(
+        context,
+        () => this.executeAccepted(operation, identity),
+      );
+    } finally { unbindActiveLifecycle(context, this); }
   }
 
-  private async executeAccepted<T>(operation: () => T | Promise<T>): Promise<T> {
+  private async executeAccepted<T>(operation: () => T | Promise<T>,
+    identity?: ProductionWorkerLifecycleExecutionIdentity): Promise<T> {
     if (this.state !== "ready") throw new ProductionWorkerLifecycleExecutionRejectedError(this.state);
     this.activeExecutions++;
+    const key = identity ? `${identity.executionFingerprint}:${this.lifecycleGeneration + 1}` : undefined;
+    if (key && identity) {
+      this.activeExecutionIdentities.set(key, Object.freeze({ ...identity }));
+      this.lifecycleGeneration++;
+    }
     try {
       return await operation();
     } finally {
+      if (key) {
+        this.activeExecutionIdentities.delete(key);
+        this.lifecycleGeneration++;
+      }
       this.activeExecutions--;
       if (this.activeExecutions === 0) {
         this.resolveDrained?.();
         this.resolveDrained = undefined;
       }
     }
+  }
+
+  authoritySnapshot(context: ProductionRuntimeOperationContext,
+    expectedProjectSlug: string, admittedExecutionFingerprint?: string):
+  ProductionWorkerLifecycleAuthoritySnapshot {
+    if (activeLifecycle(context) !== this) {
+      throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISSING");
+    }
+    assertProductionRuntimeOperationAuthority(this.runtimeOperationContext!, context);
+    const identities = [...this.activeExecutionIdentities.values()]
+      .filter((identity) => identity.executionFingerprint !== admittedExecutionFingerprint)
+      .sort((left, right) => left.executionFingerprint < right.executionFingerprint ? -1 : 1);
+    const conflict = identities.some((identity) => identity.projectSlug === expectedProjectSlug);
+    return Object.freeze({ policyVersion: "production-worker-lifecycle-authority-v1",
+      lifecycleGeneration: this.lifecycleGeneration, lifecycleState: this.state,
+      activeExecutionCount: identities.length,
+      activeExecutionIdentities: Object.freeze(identities.map((identity) => Object.freeze({ ...identity }))),
+      conflict, runtimeAuthorityGeneration: context.authority.authorityGeneration,
+      runtimeOperationBinding: context.bindingFingerprint });
+  }
+
+  async withExecutionIdentity<T>(identity: ProductionWorkerLifecycleExecutionIdentity,
+    operation: () => T | Promise<T>): Promise<T> {
+    const key = `${identity.executionFingerprint}:${this.lifecycleGeneration + 1}`;
+    this.activeExecutionIdentities.set(key, Object.freeze({ ...identity }));
+    this.lifecycleGeneration++;
+    try { return await operation(); }
+    finally { this.activeExecutionIdentities.delete(key); this.lifecycleGeneration++; }
   }
 
   private startOnce(request: ProductionWorkerLifecycleStartRequest): Promise<ProductionWorkerLifecycleResult> {
@@ -209,6 +273,52 @@ export function captureCanonicalProductionWorkerLifecycleExecution(
     throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_INVALID");
   }
   return canonicalExecuteWithRuntimeOperationContext.bind(lifecycle);
+}
+
+interface ActiveLifecycleBinding { readonly lifecycle: ProductionWorkerLifecycle; depth: number }
+const activeLifecycles = new WeakMap<ProductionRuntimeOperationContext, ActiveLifecycleBinding>();
+
+function bindActiveLifecycle(context: ProductionRuntimeOperationContext,
+  lifecycle: ProductionWorkerLifecycle): void {
+  const current = activeLifecycles.get(context);
+  if (current) {
+    if (current.lifecycle !== lifecycle) throw new ProductionRuntimeOperationContextError(
+      "RUNTIME_OPERATION_CONTEXT_MISMATCH");
+    current.depth++;
+  } else activeLifecycles.set(context, { lifecycle, depth: 1 });
+}
+
+function unbindActiveLifecycle(context: ProductionRuntimeOperationContext,
+  lifecycle: ProductionWorkerLifecycle): void {
+  const current = activeLifecycles.get(context);
+  if (!current || current.lifecycle !== lifecycle) return;
+  current.depth--;
+  if (current.depth === 0) activeLifecycles.delete(context);
+}
+
+function activeLifecycle(context: ProductionRuntimeOperationContext):
+ProductionWorkerLifecycle | undefined {
+  return activeLifecycles.get(context)?.lifecycle;
+}
+
+export function readProductionWorkerLifecycleAuthority(
+  context: ProductionRuntimeOperationContext,
+  expectedProjectSlug: string,
+  admittedExecutionFingerprint?: string,
+): ProductionWorkerLifecycleAuthoritySnapshot {
+  const lifecycle = activeLifecycle(context);
+  if (!lifecycle) throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISSING");
+  return lifecycle.authoritySnapshot(context, expectedProjectSlug, admittedExecutionFingerprint);
+}
+
+export function runWithProductionWorkerLifecycleIdentity<T>(
+  context: ProductionRuntimeOperationContext,
+  identity: ProductionWorkerLifecycleExecutionIdentity,
+  operation: () => T | Promise<T>,
+): Promise<T> {
+  const lifecycle = activeLifecycle(context);
+  if (!lifecycle) throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISSING");
+  return lifecycle.withExecutionIdentity(identity, operation);
 }
 
 function validInitialization(value: ProductionWorkerLifecycleStartRequest["initialization"]): boolean {

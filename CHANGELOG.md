@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Medium
 Owner: Atölye V2
-Last Updated: 2026-07-20
+Last Updated: 2026-07-22
 ---
 
 # Atölye V2 — Changelog
@@ -24,6 +24,37 @@ referans alınmalıdır.
 ---
 
 # Version 1.x
+
+## 2026-07-22 — Sprint 129.28 — Production Acceptance Reauthorization and Durable Identity Authority Hardening / Completed
+
+Bağımsız final re-review P0 `0`, P1 `0`, P2 `0` ve geçmiş review kararı olarak `READY FOR DOCUMENTATION` verdi.
+
+### Added
+
+- Persisted reservation, idempotency record, lease, claim ve attempt readback'ını completed durable authority altında bağlayan frozen null-prototype token ve module-private `WeakMap` ownership eklendi. Production ordering instrumentation gerçek seam event'lerini ve explicit barrier kanıtını sağlar.
+- Canonical identity'ye completed durable requestId, idempotencyKey, operation, reservationId, claimId, attemptId, executionFingerprint ve yalnız `completed.lease.identity.leaseId` kaynağından leaseId propagation eklendi.
+- Provider gate'e issued/admitted identity ile reservation, idempotency record, lease, claim ve attempt arasında direct exact karşılaştırmalar; requestId, idempotencyKey, operation ve leaseId için ayrı canonical mismatch kodları eklendi.
+- Coordinated durable lease mutation, provenance poisoning, opaque authority/capability negative control, real ordering, consuming/invalidation ve controlled concurrency testleri eklendi.
+
+### Changed
+
+- Capability issuance durable attempt persistence, completed readback verification, canonical identity extraction ve lifecycle binding sonrasına taşındı. Attempt-before-issuance ve exact replay/idempotency sözleşmesi korundu.
+- Provider revalidation issued frozen identity'yi admitted context üzerinden durable snapshot'a taşıyacak ve causal mismatch kodlarını invalidation ile exact koruyacak biçimde sertleştirildi.
+- Recovery store-policy geçerli reservation bulunduğunda idempotency store'u zorunlu tutacak biçimde değiştirildi. `validReservationCount` yalnız non-invalid reservation'ları sayar; expired/released/terminal, empty-present/not-created, corrupt ve claim/attempt gereksinimleri ayrıştırıldı; matrix active conflict'ten önce uygulanır.
+
+### Security / Hardening
+
+- Pre-derived plan/request identity authority kaldırıldı; canonical capability identity yalnız persisted completed durable readback'tan oluşturulur. Plain, spread-cloned, serialized, forged null-prototype ve pre-plan authority nesneleri runtime ownership kazanamaz.
+- Capability issuance sonrasında lease/claim/attempt leaseId değerlerinin birlikte değiştirilip integrity fingerprint'lerinin yenilenmesi, kayıtlar karşılıklı tutarlı olsa bile issued completed leaseId ile exact `LEASE_ID_MISMATCH` üretir; provider çağrılmaz.
+- Identity mismatch, lifecycle failure ve durable revalidation failure capability'yi invalidated yapar; ikinci kullanım `LEGACY_CAPABILITY_INVALIDATED` ile reddedilir ve kalıcı consuming durumu oluşmaz.
+- Testler unique OS temp runtime root, explicit `ATOLYE_RUNTIME_ROOT`, exact environment restore, undefined-key deletion, temp cleanup ve local provider spies ile repository runtime'ından ve gerçek network'ten izole edildi.
+
+### Validation
+
+- Sprint 129.28 `102/102`, Sprint 129.27 isolated `77/77`, portability `15`, topic/run binding `24`, marker reprepare `22`, durable storage `63`, guarded filesystem/storage `16`, durable attempt `58`, durable recovery `29`, recovery bootstrap `18/18`, worker lifecycle `21/21`, runtime context `48` ve production audio wiring `73` PASS.
+- TypeScript, targeted ESLint without autofix ve `git diff --check` PASS.
+- Production baseline exact korundu: `data/projects` tracked/untracked diff `0/0`, inventory `199` dosya; altı scene MP4 ve manifest/jobs/history/acceptance/animation/video/assets hash'leri değişmedi. Marker/sidecar/archive/receipt diff yok; hedef production projesinde `audio.json`, `assets/audio` ve compensation workspace yok.
+- Acceptance durumu `productionReady:false`, `published:false`, `publishMode:"package-only"` kaldı. Production execute/resume/finalize/reauthorize, gerçek provider/network, commit veya push çalıştırılmadı.
 
 ## Sprint 129.27 — Audio Atomicity, Compensation & Publication Hardening / Completed
 

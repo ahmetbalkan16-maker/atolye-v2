@@ -13,7 +13,15 @@ import {
   type ProductionPipelineExecutionContext,
 } from "./ProductionPipelineExecutionAdapter";
 import { ProductionExecutionFilePersistenceAdapter } from "./ProductionExecutionPersistence";
-import { prepareProductionPipelineExecution } from "./ProductionPipelineExecutionFactory";
+import { prepareProductionPipelineExecution, readCompletedProductionPipelinePreparation,
+  type ProductionPipelineCompletedPreparationAuthority } from
+  "./ProductionPipelineExecutionFactory";
+import { emitProductionPipelineExecutionEvent } from
+  "./ProductionPipelineExecutionInstrumentation";
+import {
+  type ProductionAcceptanceStageCapability,
+  type ProductionAcceptanceStageExecutionIdentity,
+} from "./ProductionAcceptancePolicy";
 import {
   settlePendingSuccessfulProductionPipelineExecutions,
   settleSuccessfulProductionPipelineExecution,
@@ -21,6 +29,7 @@ import {
 import {
   captureCanonicalProductionWorkerLifecycleExecution,
   ProductionWorkerLifecycle,
+  runWithProductionWorkerLifecycleIdentity,
 } from "./ProductionWorkerLifecycle";
 
 const processCanonicalLockKey = Symbol.for(
@@ -32,7 +41,9 @@ let canonicalRegistration: CanonicalProductionPipelineExecutionRegistration | un
 
 type ProductionPipelineStageExecutor = (
   context: ProductionPipelineExecutionContext,
-  handler: () => Promise<boolean>,
+  handler: (capability: ProductionAcceptanceStageCapability | undefined,
+    identity: ProductionAcceptanceStageExecutionIdentity,
+    authority: ProductionPipelineCompletedPreparationAuthority) => Promise<boolean>,
 ) => Promise<boolean>;
 
 /** @internal Install-only process-wide durable execution composition. */
@@ -68,7 +79,9 @@ export function installCanonicalProductionPipelineExecutionRuntime(
 /** @internal Execute only through the first canonical factory closure. */
 export async function executeCanonicalProductionPipelineStage(
   context: ProductionPipelineExecutionContext,
-  handler: () => Promise<boolean>,
+  handler: (capability: ProductionAcceptanceStageCapability | undefined,
+    identity: ProductionAcceptanceStageExecutionIdentity,
+    authority: ProductionPipelineCompletedPreparationAuthority) => Promise<boolean>,
 ): Promise<boolean> {
   assertProcessCanonicalLockOwnership();
   const registration = canonicalRegistration;
@@ -106,7 +119,21 @@ function createCanonicalProductionPipelineExecutionExecutor(
 
 async function executeDurableProductionPipelineStage(
   context: ProductionPipelineExecutionContext,
-  handler: () => Promise<boolean>,
+  handler: (capability: ProductionAcceptanceStageCapability | undefined,
+    identity: ProductionAcceptanceStageExecutionIdentity,
+    authority: ProductionPipelineCompletedPreparationAuthority) => Promise<boolean>,
+): Promise<boolean> {
+  const active = getActiveProductionRuntimeOperationContext();
+  if (!active) throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISSING");
+  return executePreparedDurableProductionPipelineStage(context, handler, active);
+}
+
+async function executePreparedDurableProductionPipelineStage(
+  context: ProductionPipelineExecutionContext,
+  handler: (capability: ProductionAcceptanceStageCapability | undefined,
+    identity: ProductionAcceptanceStageExecutionIdentity,
+    authority: ProductionPipelineCompletedPreparationAuthority) => Promise<boolean>,
+  active: ProductionRuntimeOperationContext,
 ): Promise<boolean> {
   const predecessorAdapter = new ProductionExecutionFilePersistenceAdapter({
     trustedRootDirectory: `${ProjectReader.getProjectFolder(context.projectSlug)}/production-execution`,
@@ -121,11 +148,31 @@ async function executeDurableProductionPipelineStage(
   }
 
   const prepared = await prepareProductionPipelineExecution(context);
-  return new ProductionPipelineExecutionAdapter(
-    prepared.adapter,
-    () => prepared.request,
-    (result) => settleSuccessfulProductionPipelineExecution(prepared.settlement, result),
-  ).execute(context, handler);
+  const completion = readCompletedProductionPipelinePreparation(
+    prepared.authority,
+  );
+  const identity = completion.canonicalIdentity;
+  const attempt = prepared.request.coordinator.attempt;
+  if (attempt.attemptId !== identity.attemptId || attempt.recordId !== identity.recordId ||
+    attempt.reservationId !== identity.reservationId || attempt.claimId !== identity.claimId ||
+    attempt.leaseId !== identity.leaseId || completion.leaseId !== identity.leaseId ||
+    attempt.executionFingerprint !== identity.executionFingerprint) {
+    throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISMATCH");
+  }
+  return runWithProductionWorkerLifecycleIdentity(active, {
+    projectSlug: identity.projectSlug,
+    stage: identity.stage,
+    operation: identity.operation,
+    leaseId: identity.leaseId,
+    executionFingerprint: identity.executionFingerprint,
+  }, async () => {
+    await emitProductionPipelineExecutionEvent("lifecycle-bound");
+    return new ProductionPipelineExecutionAdapter(
+      prepared.adapter,
+      () => prepared.request,
+      (result) => settleSuccessfulProductionPipelineExecution(prepared.settlement, result),
+    ).execute(context, () => handler(undefined, identity, prepared.authority));
+  });
 }
 
 function claimProcessCanonicalLock(): boolean {

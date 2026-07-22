@@ -27,6 +27,33 @@ import {
 } from "./ProductionAcceptanceLegacyAuthorityStore";
 import type { ProductionAcceptanceLegacyReauthorizationV1 } from
   "./ProductionAcceptanceLegacyReauthorization";
+import {
+  canonicalJson,
+  deriveLegacyReauthorizationId,
+  legacyReauthorizationReceiptPolicyVersion,
+  legacyReauthorizationReason,
+  legacyReauthorizationSchemaVersion,
+  ProductionAcceptanceLegacyReauthorizationError,
+  sha256Bytes,
+} from "./ProductionAcceptanceLegacyReauthorization";
+import {
+  createLegacyReauthorizationPreflight,
+} from "./ProductionAcceptanceLegacyReauthorizationPreflight";
+import { readCanonicalProductionAcceptanceMarkerDescriptorBound } from
+  "./ProductionAcceptanceMarkerDescriptorReader";
+import { getActiveProductionRuntimeOperationContext, requireProductionRuntimeStorageContext } from
+  "@/lib/runtime/ProductionRuntimeOperationContext";
+import type { ProductionStepKey, ProjectPackageRunType } from "@/types/project";
+import { withProductionAcceptanceLegacyAdmittedExecution } from
+  "./ProductionAcceptanceLegacyAdmissionContext";
+import { readProductionWorkerLifecycleAuthority } from "./ProductionWorkerLifecycle";
+import { createLegacyReauthorizationDurableRecoverySnapshot } from
+  "./ProductionAcceptanceLegacyDurableRecoverySnapshot";
+import { readCompletedProductionPipelinePreparation,
+  type ProductionPipelineCompletedPreparationAuthority } from
+  "./ProductionPipelineExecutionFactory";
+import { emitProductionPipelineExecutionEvent } from
+  "./ProductionPipelineExecutionInstrumentation";
 
 const MARKER_FILE = "production-acceptance.json";
 const CONFIGURATION_NAMES = [
@@ -372,6 +399,226 @@ export async function readProductionAcceptancePolicy(projectSlug: string): Promi
   strictProductionAcceptance: true;
   youtubePublishMode: "package-only";
 } | null> {
+  const admission = await readProductionAcceptanceAdmissionAuthority(projectSlug);
+  return admission === null ? null : {
+    strictProductionAcceptance: true,
+    youtubePublishMode: "package-only",
+  };
+}
+
+const productionAcceptanceStageCapabilityBrand: unique symbol =
+  Symbol("production-acceptance-stage-capability-brand");
+
+export interface ProductionAcceptanceStageExecutionIdentity {
+  readonly projectSlug: string;
+  readonly stage: ProductionStepKey;
+  readonly runType: ProjectPackageRunType;
+  readonly jobId: string;
+  readonly attemptNumber: number;
+  readonly attemptId: string;
+  readonly recordId: string;
+  readonly reservationId: string;
+  readonly claimId: string;
+  readonly leaseId: string;
+  readonly requestId: string;
+  readonly idempotencyKey: string;
+  readonly operation: string;
+  readonly executionFingerprint: string;
+  readonly durableAttemptRequired?: true;
+}
+
+export interface ProductionAcceptanceStageCapability {
+  readonly [productionAcceptanceStageCapabilityBrand]: true;
+}
+
+interface RegisteredLegacyStageCapability {
+  readonly identity: ProductionAcceptanceStageExecutionIdentity;
+  readonly runId: string;
+  readonly markerCreatedAt: string;
+  readonly generationBinding: string;
+  readonly runtimeAuthorityGeneration: string;
+  readonly runtimeAuthorityIdentity: string;
+  readonly runtimeOperationBinding: string;
+  readonly workerLifecycleGeneration: number;
+  readonly workerLifecyclePolicyVersion: "production-worker-lifecycle-authority-v1";
+  state: "issued" | "consuming" | "consumed" | "invalidated";
+}
+
+const legacyStageCapabilities = new WeakMap<object, RegisteredLegacyStageCapability>();
+
+export async function issueProductionAcceptanceStageCapability(
+  authority: ProductionPipelineCompletedPreparationAuthority,
+): Promise<ProductionAcceptanceStageCapability | undefined> {
+  const identity = readCompletedProductionPipelinePreparation(authority).canonicalIdentity;
+  const admission = await withProductionAcceptanceLegacyAdmittedExecution(identity, () =>
+    readProductionAcceptanceAdmissionAuthority(identity.projectSlug));
+  if (admission === null || admission.source !== "legacy-reauthorization") return undefined;
+  const runtime = getActiveProductionRuntimeOperationContext();
+  if (!runtime) throw admissionFailure(
+    "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ADMISSION_GENERATION_MISMATCH",
+    identity.projectSlug,
+    "concurrency",
+  );
+  let worker: ReturnType<typeof readProductionWorkerLifecycleAuthority>;
+  try { worker = readProductionWorkerLifecycleAuthority(
+    runtime, identity.projectSlug, identity.executionFingerprint); }
+  catch { throw admissionFailure(
+    "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_WORKER_LIFECYCLE_UNAVAILABLE",
+    identity.projectSlug, "recovery"); }
+  if (worker.conflict || worker.activeExecutionCount !== 0) throw admissionFailure(
+    "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_WORKER_LIFECYCLE_CONFLICT",
+    identity.projectSlug,
+    "recovery",
+  );
+  const capability = Object.freeze(Object.create(null)) as ProductionAcceptanceStageCapability;
+  legacyStageCapabilities.set(capability as object, {
+    identity: Object.freeze({ ...identity }),
+    runId: admission.marker.runId,
+    markerCreatedAt: admission.marker.createdAt,
+    generationBinding: admission.generationBinding,
+    runtimeAuthorityGeneration: runtime.authority.authorityGeneration,
+    runtimeAuthorityIdentity: runtime.authority.authorityIdentity,
+    runtimeOperationBinding: runtime.bindingFingerprint,
+    workerLifecycleGeneration: worker.lifecycleGeneration,
+    workerLifecyclePolicyVersion: worker.policyVersion,
+    state: "issued",
+  });
+  await emitProductionPipelineExecutionEvent("capability-issued");
+  return capability;
+}
+
+export async function consumeProductionAcceptanceStageCapability(
+  identity: ProductionAcceptanceStageExecutionIdentity,
+  capability?: ProductionAcceptanceStageCapability,
+): Promise<{ strictProductionAcceptance: true; youtubePublishMode: "package-only" } | null> {
+  const registered = capability && legacyStageCapabilities.get(capability as object);
+  if (!registered) {
+    const admission = await withProductionAcceptanceLegacyAdmittedExecution(identity, () =>
+      readProductionAcceptanceAdmissionAuthority(identity.projectSlug));
+    if (admission === null) return null;
+    if (admission.source !== "legacy-reauthorization") {
+      return { strictProductionAcceptance: true, youtubePublishMode: "package-only" };
+    }
+    throw admissionFailure(
+    "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_MISSING",
+    identity.projectSlug,
+    "concurrency",
+    );
+  }
+  if (registered.state !== "issued") throw admissionFailure(
+    registered.state === "consuming"
+      ? "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_CONCURRENT_CONSUMPTION"
+      : registered.state === "invalidated"
+        ? "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_INVALIDATED"
+        : "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_REPLAYED",
+    identity.projectSlug, "concurrency");
+  registered.state = "consuming";
+  await emitProductionPipelineExecutionEvent("revalidation-entered");
+  let runtime: ReturnType<typeof getActiveProductionRuntimeOperationContext>;
+  let worker: ReturnType<typeof readProductionWorkerLifecycleAuthority>;
+  try {
+    runtime = getActiveProductionRuntimeOperationContext();
+    if (!runtime) throw new Error("runtime-unavailable");
+    worker = readProductionWorkerLifecycleAuthority(
+      runtime, identity.projectSlug, identity.executionFingerprint);
+  } catch {
+    registered.state = "invalidated";
+    throw admissionFailure(
+      "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_WORKER_LIFECYCLE_UNAVAILABLE",
+      identity.projectSlug, "recovery");
+  }
+  const identityMismatch = stageExecutionIdentityMismatch(registered.identity, identity);
+  if (identityMismatch) {
+    registered.state = "invalidated";
+    throw admissionFailure(
+      identityMismatch,
+      identity.projectSlug,
+      "concurrency",
+    );
+  }
+  if (!runtime ||
+    registered.runtimeAuthorityGeneration !== runtime.authority.authorityGeneration ||
+    registered.runtimeAuthorityIdentity !== runtime.authority.authorityIdentity ||
+    registered.runtimeOperationBinding !== runtime.bindingFingerprint || !worker ||
+    worker.conflict || worker.activeExecutionCount !== 0 ||
+    registered.workerLifecycleGeneration !== worker.lifecycleGeneration ||
+    registered.workerLifecyclePolicyVersion !== worker.policyVersion) {
+    registered.state = "invalidated";
+    throw admissionFailure(
+      worker?.conflict
+        ? "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_WORKER_LIFECYCLE_CONFLICT"
+        : !worker
+          ? "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_WORKER_LIFECYCLE_UNAVAILABLE"
+          : "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_STALE",
+      identity.projectSlug,
+      "concurrency",
+    );
+  }
+  try {
+    await withProductionAcceptanceLegacyAdmittedExecution(identity, () =>
+      createLegacyReauthorizationDurableRecoverySnapshot({
+        projectFolder: ProjectReader.getProjectFolder(identity.projectSlug),
+        projectSlug: identity.projectSlug, runId: registered.runId,
+        evaluatedAt: registered.markerCreatedAt, markerState: "prepared", startStage: "audio",
+      }));
+  } catch (error) {
+    registered.state = "invalidated";
+    if (error instanceof ProductionAcceptanceLegacyReauthorizationError &&
+      isDurableCausalAdmissionFailure(error.code)) throw error;
+    throw admissionFailure("PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_STALE",
+      identity.projectSlug, "concurrency");
+  }
+  let admission: EffectiveProductionAcceptanceAuthority | null;
+  try {
+    admission = await withProductionAcceptanceLegacyAdmittedExecution(identity, () =>
+      readProductionAcceptanceAdmissionAuthority(identity.projectSlug));
+  } catch (error) {
+    registered.state = "invalidated";
+    if (error instanceof ProductionAcceptanceLegacyReauthorizationError &&
+      isDurableCausalAdmissionFailure(error.code)) throw error;
+    throw admissionFailure(
+      "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_STALE",
+      identity.projectSlug,
+      "concurrency",
+    );
+  }
+  if (admission === null || admission.source !== "legacy-reauthorization" ||
+    registered.runId !== admission.marker.runId ||
+    registered.generationBinding !== admission.generationBinding) {
+    registered.state = "invalidated";
+    throw admissionFailure(
+      "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_STALE",
+      identity.projectSlug,
+      "concurrency",
+    );
+  }
+  registered.state = "consumed";
+  return { strictProductionAcceptance: true, youtubePublishMode: "package-only" };
+}
+
+function isDurableCausalAdmissionFailure(
+  code: ConstructorParameters<typeof ProductionAcceptanceLegacyReauthorizationError>[0],
+): boolean {
+  return code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_REQUIRED_RESERVATION_STORE_MISSING" ||
+    code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ACTIVE_RESERVATION_CONFLICT" ||
+    code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_REQUIRED_IDEMPOTENCY_STORE_MISSING" ||
+    code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_REQUIRED_CLAIM_STORE_MISSING" ||
+    code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_REQUIRED_ATTEMPT_STORE_MISSING" ||
+    code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_RESERVATION_CLAIM_BINDING_MISMATCH" ||
+    code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_RESERVATION_ATTEMPT_BINDING_MISMATCH" ||
+    code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_RESERVATION_IDEMPOTENCY_BINDING_MISMATCH" ||
+    code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_CLAIM_ATTEMPT_BINDING_MISMATCH" ||
+    code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_LEASE_ID_MISMATCH" ||
+    code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_DURABLE_STORE_UNAVAILABLE" ||
+    code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_DURABLE_STORE_CORRUPT" ||
+    code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_DURABLE_STORE_IDENTITY_CHANGED" ||
+    code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_DURABLE_RECORD_IDENTITY_CHANGED" ||
+    code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_DURABLE_RECORD_CORRUPT";
+}
+
+async function readProductionAcceptanceAdmissionAuthority(projectSlug: string): Promise<
+  EffectiveProductionAcceptanceAuthority | null
+> {
   if (!safeSlug(projectSlug)) throw new ProductionAcceptancePolicyError();
   const state = await ProjectReader.readJSONState<unknown>(projectSlug, MARKER_FILE);
   if (state.status === "missing") return null;
@@ -385,10 +632,42 @@ export async function readProductionAcceptancePolicy(projectSlug: string): Promi
   if (!await markerMatchesCurrentConfiguration(resolved.marker, projectSlug)) {
     throw new ProductionAcceptancePolicyError();
   }
-  return {
-    strictProductionAcceptance: true,
-    youtubePublishMode: "package-only",
-  };
+  if (resolved.source === "legacy-reauthorization") {
+    const consumed = await resolveEffectiveProductionAcceptanceAuthority(projectSlug, state.value);
+    if (consumed.source !== "legacy-reauthorization" ||
+      consumed.generationBinding !== resolved.generationBinding) {
+      throw admissionFailure("PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ADMISSION_GENERATION_MISMATCH",
+        projectSlug, "concurrency");
+    }
+  }
+  return resolved;
+}
+
+function stageExecutionIdentityMismatch(
+  left: ProductionAcceptanceStageExecutionIdentity,
+  right: ProductionAcceptanceStageExecutionIdentity,
+): ConstructorParameters<typeof ProductionAcceptanceLegacyReauthorizationError>[0] | undefined {
+  if (left.requestId !== right.requestId) {
+    return "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_REQUEST_ID_MISMATCH";
+  }
+  if (left.idempotencyKey !== right.idempotencyKey) {
+    return "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_IDEMPOTENCY_KEY_MISMATCH";
+  }
+  if (left.operation !== right.operation) {
+    return "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_OPERATION_MISMATCH";
+  }
+  if (left.leaseId !== right.leaseId) {
+    return "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_LEASE_ID_MISMATCH";
+  }
+  return left.projectSlug !== right.projectSlug || left.stage !== right.stage ||
+    left.runType !== right.runType || left.jobId !== right.jobId ||
+    left.attemptNumber !== right.attemptNumber || left.attemptId !== right.attemptId ||
+    left.recordId !== right.recordId || left.reservationId !== right.reservationId ||
+    left.claimId !== right.claimId ||
+    left.executionFingerprint !== right.executionFingerprint ||
+    left.durableAttemptRequired !== right.durableAttemptRequired
+    ? "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_IDENTITY_MISMATCH"
+    : undefined;
 }
 
 export async function readProductionAcceptanceMarker(
@@ -482,6 +761,7 @@ export type EffectiveProductionAcceptanceAuthority =
       readonly source: "legacy-reauthorization";
       readonly marker: ProductionAcceptanceMarkerV3Profile2;
       readonly authority: ProductionAcceptanceLegacyReauthorizationV1;
+      readonly generationBinding: string;
     }
   | { readonly source: "legacy"; readonly marker: ProductionAcceptanceMarkerV2 };
 
@@ -505,18 +785,44 @@ export async function resolveEffectiveProductionAcceptanceAuthority(
   if (marker.schemaVersion === "3") {
     return Object.freeze({ source: "native" as const, marker });
   }
-  const projectFolder = ProjectReader.getProjectFolder(projectSlug, { environment });
-  let markerBytes: Buffer;
+  const activeRuntime = getActiveProductionRuntimeOperationContext();
+  const projectFolder = ProjectReader.getProjectFolder(projectSlug, activeRuntime
+    ? requireProductionRuntimeStorageContext(activeRuntime) : { environment });
+  let markerSnapshot: ReturnType<typeof readCanonicalProductionAcceptanceMarkerDescriptorBound>;
   try {
-    markerBytes = await fs.readFile(`${projectFolder}/${MARKER_FILE}`);
+    markerSnapshot = readCanonicalProductionAcceptanceMarkerDescriptorBound({ projectFolder });
   } catch {
-    throw new ProductionAcceptancePolicyError();
+    throw admissionFailure(
+      "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ADMISSION_CONCURRENT_CHANGE",
+      projectSlug,
+      "concurrency",
+    );
+  }
+  if (!validMarkerV2(markerSnapshot.parsedMarker)) {
+    throw admissionFailure(
+      "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ADMISSION_SOURCE_IDENTITY_MISMATCH",
+      projectSlug,
+      "marker",
+    );
+  }
+  marker = markerSnapshot.parsedMarker;
+  if (
+    canonicalMarker && canonicalJson(canonicalMarker) !== canonicalJson(marker) ||
+    createProductionAcceptanceProjectSlug(marker.topic, marker.runId) !== projectSlug
+  ) {
+    throw admissionFailure(
+      "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ADMISSION_SOURCE_IDENTITY_MISMATCH",
+      projectSlug,
+      "marker",
+    );
   }
   const legacy = readLegacyReauthorizationAuthority({
     projectFolder,
     projectSlug,
-    markerBytes,
+    markerBytes: markerSnapshot.bytes,
     markerValue: marker as unknown as Record<string, unknown>,
+    markerDeviceIdentity: markerSnapshot.deviceIdentity,
+    markerInodeIdentity: markerSnapshot.inodeIdentity,
   });
   if (legacy.status === "absent") {
     return Object.freeze({ source: "legacy" as const, marker });
@@ -524,11 +830,129 @@ export async function resolveEffectiveProductionAcceptanceAuthority(
   if (!validMarkerV3Profile2(legacy.effectiveMarker)) {
     throw new ProductionAcceptancePolicyError();
   }
+  const current = await createLegacyReauthorizationPreflight(
+    projectSlug,
+    markerSnapshot.sha256,
+    { environment },
+  );
+  const authority = legacy.authority;
+  if (
+    authority.sourceMarker.deviceIdentity !== current.markerDeviceIdentity ||
+    authority.sourceMarker.inodeIdentity !== current.markerInodeIdentity ||
+    authority.sourceMarker.byteLength !== current.markerBytes.length ||
+    authority.sourceMarker.sha256 !== current.sourceMarkerSha256
+  ) throw admissionFailure(
+    "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ADMISSION_SOURCE_IDENTITY_MISMATCH",
+    projectSlug,
+    "marker",
+  );
+  if (
+    authority.configurationFingerprint !== current.configuration.configurationFingerprint ||
+    canonicalJson(authority.componentFingerprints) !==
+      canonicalJson(current.configuration.componentFingerprints)
+  ) throw admissionFailure(
+    "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ADMISSION_CONFIGURATION_DRIFT",
+    projectSlug,
+    "configuration",
+  );
+  if (authority.storageAuthorityFingerprint !== current.storageAuthorityFingerprint) {
+    throw admissionFailure(
+      "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ADMISSION_STORAGE_DRIFT",
+      projectSlug,
+      "storage",
+    );
+  }
+  if (authority.artifactInventoryFingerprint !== current.artifactInventoryFingerprint) {
+    throw admissionFailure(
+      "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ADMISSION_ARTIFACT_DRIFT",
+      projectSlug,
+      "artifacts",
+    );
+  }
+  if (authority.recoveryStateFingerprint !== current.recoveryStateFingerprint) {
+    throw admissionFailure(
+      "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ADMISSION_RECOVERY_DRIFT",
+      projectSlug,
+      "recovery",
+    );
+  }
+  const expectedId = deriveLegacyReauthorizationId({
+    protocolVersion: legacyReauthorizationSchemaVersion, projectSlug,
+    sourceMarkerSha256: current.sourceMarkerSha256, sourceMarkerByteLength: current.markerBytes.length,
+    sourceMarkerDeviceIdentity: current.markerDeviceIdentity, sourceMarkerInodeIdentity: current.markerInodeIdentity,
+    sourceLegacyConfigurationFingerprint: current.marker.configurationFingerprint, runId: current.marker.runId,
+    topicFingerprint: current.marker.topicFingerprint,
+    currentProfile2ConfigurationFingerprint: current.configuration.configurationFingerprint,
+    storageAuthorityFingerprint: current.storageAuthorityFingerprint,
+    artifactInventoryFingerprint: current.artifactInventoryFingerprint,
+    recoveryStateFingerprint: current.recoveryStateFingerprint, reason: legacyReauthorizationReason,
+    strictProductionAcceptance: true, publishMode: "package-only",
+    archiveLocator: authority.sourceMarker.archiveLocator, archiveSha256: legacy.archiveSnapshot.sha256,
+    archiveByteLength: legacy.archiveSnapshot.byteLength,
+    archiveDeviceIdentity: legacy.archiveSnapshot.deviceIdentity,
+    archiveInodeIdentity: legacy.archiveSnapshot.inodeIdentity,
+    archiveIdentityPolicyVersion: legacy.archiveSnapshot.identityPolicyVersion,
+    publicationReceiptPolicyVersion: legacyReauthorizationReceiptPolicyVersion,
+    publicationGenerationId: authority.publicationGenerationId,
+  });
+  if (authority.reauthorizationId !== expectedId) {
+    throw admissionFailure(
+      "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ADMISSION_ID_MISMATCH",
+      projectSlug,
+      "concurrency",
+    );
+  }
+  const finalMarker = readCanonicalProductionAcceptanceMarkerDescriptorBound({ projectFolder });
+  const final = await createLegacyReauthorizationPreflight(projectSlug, markerSnapshot.sha256, { environment });
+  const finalLegacy = readLegacyReauthorizationAuthority({ projectFolder, projectSlug,
+    markerBytes: finalMarker.bytes, markerValue: finalMarker.parsedMarker,
+    markerDeviceIdentity: finalMarker.deviceIdentity, markerInodeIdentity: finalMarker.inodeIdentity });
+  if (finalLegacy.status !== "valid" || !sameDescriptor(markerSnapshot, finalMarker) ||
+    !sameDescriptor(legacy.authoritySnapshot, finalLegacy.authoritySnapshot) ||
+    !sameDescriptor(legacy.archiveSnapshot, finalLegacy.archiveSnapshot) ||
+    !sameDescriptor(legacy.receiptSnapshot, finalLegacy.receiptSnapshot) ||
+    current.storageAuthorityFingerprint !== final.storageAuthorityFingerprint ||
+    current.artifactInventoryFingerprint !== final.artifactInventoryFingerprint ||
+    current.recoveryStateFingerprint !== final.recoveryStateFingerprint ||
+    current.configuration.configurationFingerprint !== final.configuration.configurationFingerprint ||
+    canonicalJson(current.configuration.componentFingerprints) !== canonicalJson(final.configuration.componentFingerprints) ||
+    canonicalJson(current.recoverySnapshot) !== canonicalJson(final.recoverySnapshot)) {
+    throw admissionFailure("PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ADMISSION_CONCURRENT_CHANGE",
+      projectSlug, "concurrency");
+  }
+  const generationBinding = sha256Bytes(canonicalJson({
+    policyVersion: "legacy-reauthorization-admission-generation-v1", reauthorizationId: expectedId,
+    marker: descriptorBinding(finalMarker), sidecar: descriptorBinding(finalLegacy.authoritySnapshot),
+    archive: descriptorBinding(finalLegacy.archiveSnapshot), receipt: descriptorBinding(finalLegacy.receiptSnapshot),
+    storageAuthorityFingerprint: final.storageAuthorityFingerprint,
+    artifactInventoryFingerprint: final.artifactInventoryFingerprint,
+    recoveryStateFingerprint: final.recoveryStateFingerprint,
+    configurationFingerprint: final.configuration.configurationFingerprint,
+  }));
   return Object.freeze({
     source: "legacy-reauthorization" as const,
     marker: legacy.effectiveMarker,
     authority: legacy.authority,
+    generationBinding,
   });
+}
+
+function descriptorBinding(value: { sha256: string; byteLength: number; deviceIdentity: string; inodeIdentity: string }) {
+  return { sha256: value.sha256, byteLength: value.byteLength,
+    deviceIdentity: value.deviceIdentity, inodeIdentity: value.inodeIdentity };
+}
+
+function sameDescriptor(left: { sha256: string; byteLength: number; deviceIdentity: string; inodeIdentity: string },
+  right: { sha256: string; byteLength: number; deviceIdentity: string; inodeIdentity: string }) {
+  return canonicalJson(descriptorBinding(left)) === canonicalJson(descriptorBinding(right));
+}
+
+function admissionFailure(
+  code: ConstructorParameters<typeof ProductionAcceptanceLegacyReauthorizationError>[0],
+  projectSlug: string,
+  category: ConstructorParameters<typeof ProductionAcceptanceLegacyReauthorizationError>[2],
+) {
+  return new ProductionAcceptanceLegacyReauthorizationError(code, projectSlug, category);
 }
 
 export async function prepareProductionAcceptanceMarkerReprepare(

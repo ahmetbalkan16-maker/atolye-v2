@@ -4,11 +4,15 @@ import {
 } from "@/lib/runtime/RuntimeStoragePaths";
 import {
   integrityFor,
+  canonicalJson,
+  deriveLegacyReauthorizationId,
   legacyReauthorizationPolicyVersion,
   legacyReauthorizationReason,
   legacyReauthorizationSchemaVersion,
+  legacyReauthorizationReceiptPolicyVersion,
   ProductionAcceptanceLegacyReauthorizationError,
   type ProductionAcceptanceLegacyReauthorizationV1,
+  type ProductionAcceptanceLegacyPublicationReceiptV1,
   type ReauthorizationDecision,
 } from "./ProductionAcceptanceLegacyReauthorization";
 import {
@@ -19,8 +23,12 @@ import {
 import {
   legacyArchiveLocator,
   publishLegacyArchive,
+  publishLegacyPublicationReceipt,
   publishLegacyReauthorizationAuthority,
+  readLegacyArchiveDescriptorBound,
+  readLegacyReauthorizationAuthorityDescriptorBound,
 } from "./ProductionAcceptanceLegacyAuthorityStore";
+import { sha256Bytes } from "./ProductionAcceptanceLegacyReauthorization";
 import { productionAcceptanceRequestFingerprintV3Profile2 } from
   "./ProductionAcceptancePolicy";
 
@@ -93,11 +101,11 @@ export async function reauthorizeProductionAcceptanceLegacyMarker(input: {
   let lease: RuntimeStorageAuthorityLease | undefined;
   try {
     lease = acquireProjectWriteAuthority(input.projectSlug, first.context);
-    const authority = buildAuthority(first);
-    publishLegacyArchive({
+    const archiveIdentity = publishLegacyArchive({
       projectFolder: first.projectFolder,
       markerBytes: first.markerBytes,
-      authority,
+      sourceMarkerSha256: first.sourceMarkerSha256,
+      reauthorizationId: first.reauthorizationId,
     });
     const second = await createLegacyReauthorizationPreflight(
       input.projectSlug,
@@ -106,8 +114,8 @@ export async function reauthorizeProductionAcceptanceLegacyMarker(input: {
     );
     if (
       second.reauthorizationId !== first.reauthorizationId ||
-      second.markerDevice !== first.markerDevice ||
-      second.markerInode !== first.markerInode
+      second.markerDeviceIdentity !== first.markerDeviceIdentity ||
+      second.markerInodeIdentity !== first.markerInodeIdentity
     ) {
       throw new ProductionAcceptanceLegacyReauthorizationError(
         "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_CONCURRENT_CHANGE",
@@ -115,15 +123,43 @@ export async function reauthorizeProductionAcceptanceLegacyMarker(input: {
         "concurrency",
       );
     }
+    const archiveLocator = legacyArchiveLocator(second.sourceMarkerSha256);
+    const archiveSnapshot = readLegacyArchiveDescriptorBound(second.projectFolder, archiveLocator);
+    const publicationGenerationId = sha256Bytes(canonicalJson({
+      policyVersion: "legacy-reauthorization-publication-generation-v1",
+      challengeId: second.reauthorizationId, archiveLocator, archiveSha256: archiveSnapshot.sha256,
+      archiveByteLength: archiveSnapshot.byteLength, archiveDeviceIdentity: archiveSnapshot.deviceIdentity,
+      archiveInodeIdentity: archiveSnapshot.inodeIdentity,
+    }));
+    const finalReauthorizationId = deriveLegacyReauthorizationId({
+      protocolVersion: legacyReauthorizationSchemaVersion, projectSlug: second.projectSlug,
+      sourceMarkerSha256: second.sourceMarkerSha256, sourceMarkerByteLength: second.markerBytes.length,
+      sourceMarkerDeviceIdentity: second.markerDeviceIdentity, sourceMarkerInodeIdentity: second.markerInodeIdentity,
+      sourceLegacyConfigurationFingerprint: second.marker.configurationFingerprint, runId: second.marker.runId,
+      topicFingerprint: second.marker.topicFingerprint,
+      currentProfile2ConfigurationFingerprint: second.configuration.configurationFingerprint,
+      storageAuthorityFingerprint: second.storageAuthorityFingerprint,
+      artifactInventoryFingerprint: second.artifactInventoryFingerprint,
+      recoveryStateFingerprint: second.recoveryStateFingerprint, reason: legacyReauthorizationReason,
+      strictProductionAcceptance: true, publishMode: "package-only", archiveLocator,
+      archiveSha256: archiveSnapshot.sha256, archiveByteLength: archiveSnapshot.byteLength,
+      archiveDeviceIdentity: archiveSnapshot.deviceIdentity, archiveInodeIdentity: archiveSnapshot.inodeIdentity,
+      archiveIdentityPolicyVersion: archiveSnapshot.identityPolicyVersion,
+      publicationReceiptPolicyVersion: legacyReauthorizationReceiptPolicyVersion, publicationGenerationId,
+    });
+    const authority = buildAuthority(second, archiveIdentity, finalReauthorizationId, publicationGenerationId);
     const decision = publishLegacyReauthorizationAuthority({
       projectFolder: second.projectFolder,
       markerBytes: second.markerBytes,
       authority,
     });
+    const sidecarSnapshot = readLegacyReauthorizationAuthorityDescriptorBound(second.projectFolder);
+    const receipt = buildReceipt(second, authority, archiveSnapshot, sidecarSnapshot);
+    publishLegacyPublicationReceipt({ projectFolder: second.projectFolder, receipt });
     return Object.freeze({
       projectSlug: input.projectSlug,
       sourceMarkerSha256: input.sourceMarkerSha256,
-      reauthorizationId: input.reauthorizationId,
+      reauthorizationId: finalReauthorizationId,
       decision,
       writePerformed: decision === "reauthorized",
     });
@@ -140,6 +176,9 @@ export async function reauthorizeProductionAcceptanceLegacyMarker(input: {
 
 function buildAuthority(
   snapshot: ProductionAcceptanceLegacyReauthorizationSnapshot,
+  archiveIdentity: { readonly deviceIdentity: string; readonly inodeIdentity: string },
+  reauthorizationId: string,
+  publicationGenerationId: string,
 ): ProductionAcceptanceLegacyReauthorizationV1 {
   const effectiveMarker = Object.freeze({
     schemaVersion: "3" as const,
@@ -164,7 +203,7 @@ function buildAuthority(
   const body = {
     schemaVersion: legacyReauthorizationSchemaVersion,
     policyVersion: legacyReauthorizationPolicyVersion,
-    reauthorizationId: snapshot.reauthorizationId,
+    reauthorizationId,
     reason: legacyReauthorizationReason,
     projectSlug: snapshot.projectSlug,
     runId: snapshot.marker.runId,
@@ -173,9 +212,15 @@ function buildAuthority(
       schemaVersion: "2" as const,
       sha256: snapshot.sourceMarkerSha256,
       byteLength: snapshot.markerBytes.length,
+      deviceIdentity: snapshot.markerDeviceIdentity,
+      inodeIdentity: snapshot.markerInodeIdentity,
+      identityPolicyVersion: "production-acceptance-marker-identity-v1",
       legacyConfigurationFingerprint: snapshot.marker.configurationFingerprint,
       archiveLocator: legacyArchiveLocator(snapshot.sourceMarkerSha256),
       archiveSha256: snapshot.sourceMarkerSha256,
+      archiveDeviceIdentity: archiveIdentity.deviceIdentity,
+      archiveInodeIdentity: archiveIdentity.inodeIdentity,
+      archiveIdentityPolicyVersion: "production-acceptance-marker-identity-v1",
     },
     effectiveMarker,
     configurationFingerprint: snapshot.configuration.configurationFingerprint,
@@ -186,9 +231,35 @@ function buildAuthority(
     strictProductionAcceptance: true as const,
     publishMode: "package-only" as const,
     productionExecutionAuthorized: false as const,
+    publicationReceiptPolicyVersion: legacyReauthorizationReceiptPolicyVersion,
+    publicationGenerationId,
   };
   return Object.freeze({
     ...body,
     integrity: integrityFor(body as unknown as Record<string, unknown>),
   });
+}
+
+function buildReceipt(snapshot: ProductionAcceptanceLegacyReauthorizationSnapshot,
+  authority: ProductionAcceptanceLegacyReauthorizationV1,
+  archive: ReturnType<typeof readLegacyArchiveDescriptorBound>,
+  sidecar: ReturnType<typeof readLegacyReauthorizationAuthorityDescriptorBound>): ProductionAcceptanceLegacyPublicationReceiptV1 {
+  const body = {
+    receiptSchemaVersion: "production-acceptance-legacy-publication-receipt-v1" as const,
+    receiptPolicyVersion: legacyReauthorizationReceiptPolicyVersion,
+    protocolVersion: legacyReauthorizationSchemaVersion, projectSlug: snapshot.projectSlug,
+    sourceMarker: { sha256: snapshot.sourceMarkerSha256, byteLength: snapshot.markerBytes.length,
+      deviceIdentity: snapshot.markerDeviceIdentity, inodeIdentity: snapshot.markerInodeIdentity },
+    archive: { locator: authority.sourceMarker.archiveLocator, sha256: archive.sha256,
+      byteLength: archive.byteLength, deviceIdentity: archive.deviceIdentity, inodeIdentity: archive.inodeIdentity },
+    authoritySidecar: { locator: "production-acceptance-reauthorization.json" as const, sha256: sidecar.sha256,
+      byteLength: sidecar.byteLength, deviceIdentity: sidecar.deviceIdentity, inodeIdentity: sidecar.inodeIdentity },
+    reauthorizationId: authority.reauthorizationId, publicationGenerationId: authority.publicationGenerationId,
+    storageAuthorityFingerprint: authority.storageAuthorityFingerprint,
+    artifactInventoryFingerprint: authority.artifactInventoryFingerprint,
+    recoveryStateFingerprint: authority.recoveryStateFingerprint,
+    configurationFingerprint: authority.configurationFingerprint,
+    strictProductionAcceptance: true as const, publishMode: "package-only" as const,
+  };
+  return Object.freeze({ ...body, integrity: integrityFor(body as unknown as Record<string, unknown>) });
 }

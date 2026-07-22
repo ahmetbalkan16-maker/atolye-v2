@@ -5,6 +5,8 @@ import {
   integrityFor,
   legacyReauthorizationAuthorityFile,
   legacyReauthorizationPolicyVersion,
+  legacyReauthorizationPublicationReceiptFile,
+  legacyReauthorizationReceiptPolicyVersion,
   legacyReauthorizationReason,
   legacyReauthorizationSchemaVersion,
   ProductionAcceptanceLegacyReauthorizationError,
@@ -12,16 +14,20 @@ import {
   sha256Bytes,
   type ProductionAcceptanceEffectiveMarkerV3Profile2,
   type ProductionAcceptanceLegacyReauthorizationV1,
+  type ProductionAcceptanceLegacyPublicationReceiptV1,
   type ReauthorizationDecision,
 } from "./ProductionAcceptanceLegacyReauthorization";
 import {
   productionAcceptancePortableConfigurationFingerprintV2,
   validProductionAcceptanceComponentFingerprintsV2,
 } from "./ProductionAcceptanceConfigurationFingerprint";
+import { readProductionAcceptanceFileDescriptorBound, type DescriptorBoundFileSnapshot } from
+  "./ProductionAcceptanceMarkerDescriptorReader";
 
 const AUTHORITY_DIRECTORY = "production-acceptance-authority";
 const LEGACY_DIRECTORY = "legacy";
 const VALIDATION_FILE = "production-acceptance-validation.json";
+const MAX_AUTHORITY_BYTES = 1024 * 1024;
 
 export function legacyArchiveLocator(sourceMarkerSha256: string) {
   if (!safeSha256(sourceMarkerSha256)) throw conflict();
@@ -31,17 +37,23 @@ export function legacyArchiveLocator(sourceMarkerSha256: string) {
 export function publishLegacyArchive(input: {
   readonly projectFolder: string;
   readonly markerBytes: Buffer;
-  readonly authority: ProductionAcceptanceLegacyReauthorizationV1;
-}): void {
+  readonly sourceMarkerSha256: string;
+  readonly reauthorizationId: string;
+}): { readonly deviceIdentity: string; readonly inodeIdentity: string } {
   const authorityRoot = ensureDirectory(input.projectFolder, AUTHORITY_DIRECTORY);
   const legacyRoot = ensureDirectory(authorityRoot, LEGACY_DIRECTORY);
-  const archivePath = path.join(legacyRoot, `${input.authority.sourceMarker.sha256}.json`);
+  const archivePath = path.join(legacyRoot, `${input.sourceMarkerSha256}.json`);
   publishExactNoClobber(
     archivePath,
     input.markerBytes,
-    `.archive-${input.authority.reauthorizationId}.partial`,
+    `.archive-${input.reauthorizationId}.partial`,
   );
-  verifyArchive(input.projectFolder, input.authority, input.markerBytes);
+  const snapshot = readExactSnapshot(archivePath);
+  if (!snapshot.bytes.equals(input.markerBytes) || sha256Bytes(snapshot.bytes) !== input.sourceMarkerSha256) {
+    throw conflict();
+  }
+  return Object.freeze({ deviceIdentity: snapshot.deviceIdentity,
+    inodeIdentity: snapshot.inodeIdentity });
 }
 
 export function publishLegacyReauthorizationAuthority(input: {
@@ -70,26 +82,90 @@ export function publishLegacyReauthorizationAuthority(input: {
   return "reauthorized";
 }
 
+export function publishLegacyPublicationReceipt(input: {
+  readonly projectFolder: string;
+  readonly receipt: ProductionAcceptanceLegacyPublicationReceiptV1;
+}): ReauthorizationDecision {
+  const finalPath = path.join(input.projectFolder, legacyReauthorizationPublicationReceiptFile);
+  const bytes = Buffer.from(JSON.stringify(input.receipt, null, 2), "utf8");
+  const existed = fs.existsSync(finalPath);
+  publishExactNoClobber(finalPath, bytes, `.receipt-${input.receipt.publicationGenerationId}.partial`);
+  const readback = readLegacyPublicationReceiptDescriptorBound(input.projectFolder);
+  if (canonicalJson(readback.receipt) !== canonicalJson(input.receipt)) throw persistence();
+  syncDirectory(input.projectFolder);
+  return existed ? "replayed" : "reauthorized";
+}
+
+export function readLegacyReauthorizationAuthorityDescriptorBound(projectFolder: string) {
+  const snapshot = readProductionAcceptanceFileDescriptorBound({ projectFolder,
+    filePath: path.join(projectFolder, legacyReauthorizationAuthorityFile),
+    logicalLocator: legacyReauthorizationAuthorityFile, maxBytes: MAX_AUTHORITY_BYTES });
+  const value = JSON.parse(snapshot.bytes.toString("utf8")) as unknown;
+  if (!validateLegacyAuthority(value)) throw conflict();
+  return Object.freeze({ ...snapshot, authority: value });
+}
+
+export function readLegacyArchiveDescriptorBound(projectFolder: string, locator: string) {
+  return readProductionAcceptanceFileDescriptorBound({ projectFolder,
+    filePath: path.join(projectFolder, ...locator.split("/")), logicalLocator: locator,
+    maxBytes: MAX_AUTHORITY_BYTES });
+}
+
+export function readLegacyPublicationReceiptDescriptorBound(projectFolder: string) {
+  const snapshot = readProductionAcceptanceFileDescriptorBound({ projectFolder,
+    filePath: path.join(projectFolder, legacyReauthorizationPublicationReceiptFile),
+    logicalLocator: legacyReauthorizationPublicationReceiptFile, maxBytes: MAX_AUTHORITY_BYTES });
+  const value = JSON.parse(snapshot.bytes.toString("utf8")) as unknown;
+  if (!validateLegacyPublicationReceipt(value)) throw conflict();
+  const anchorLocator = `.receipt-${value.publicationGenerationId}.partial`;
+  const anchor = readProductionAcceptanceFileDescriptorBound({ projectFolder,
+    filePath: path.join(projectFolder, anchorLocator), logicalLocator: anchorLocator,
+    maxBytes: MAX_AUTHORITY_BYTES });
+  if (anchor.sha256 !== snapshot.sha256 || anchor.byteLength !== snapshot.byteLength ||
+    anchor.deviceIdentity !== snapshot.deviceIdentity || anchor.inodeIdentity !== snapshot.inodeIdentity) {
+    throw conflict();
+  }
+  return Object.freeze({ ...snapshot, receipt: value, immutableAnchorSnapshot: anchor });
+}
+
 export function readLegacyReauthorizationAuthority(input: {
   readonly projectFolder: string;
   readonly projectSlug: string;
   readonly markerBytes: Buffer;
   readonly markerValue: Record<string, unknown>;
+  readonly markerDeviceIdentity?: string;
+  readonly markerInodeIdentity?: string;
 }): { readonly status: "absent" } | {
   readonly status: "valid";
   readonly authority: ProductionAcceptanceLegacyReauthorizationV1;
   readonly effectiveMarker: ProductionAcceptanceEffectiveMarkerV3Profile2;
+  readonly authoritySnapshot: ReturnType<typeof readLegacyReauthorizationAuthorityDescriptorBound>;
+  readonly archiveSnapshot: DescriptorBoundFileSnapshot;
+  readonly receiptSnapshot: ReturnType<typeof readLegacyPublicationReceiptDescriptorBound>;
 } {
   const authorityPath = path.join(input.projectFolder, legacyReauthorizationAuthorityFile);
   if (!fs.existsSync(authorityPath)) return { status: "absent" };
   try {
-    const authority = readAuthorityFile(authorityPath);
+    const authoritySnapshot = readLegacyReauthorizationAuthorityDescriptorBound(input.projectFolder);
+    const authority = authoritySnapshot.authority;
+    if (
+      authority.sourceMarker.sha256 !== sha256Bytes(input.markerBytes) ||
+      authority.sourceMarker.byteLength !== input.markerBytes.length ||
+      (input.markerDeviceIdentity !== undefined &&
+        authority.sourceMarker.deviceIdentity !== input.markerDeviceIdentity) ||
+      (input.markerInodeIdentity !== undefined &&
+        authority.sourceMarker.inodeIdentity !== input.markerInodeIdentity)
+    ) {
+      throw admissionConflict(
+        "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ADMISSION_SOURCE_IDENTITY_MISMATCH",
+        input.projectSlug,
+        "marker",
+      );
+    }
     if (
       authority.projectSlug !== input.projectSlug ||
       authority.runId !== input.markerValue.runId ||
       authority.topicFingerprint !== input.markerValue.topicFingerprint ||
-      authority.sourceMarker.sha256 !== sha256Bytes(input.markerBytes) ||
-      authority.sourceMarker.byteLength !== input.markerBytes.length ||
       authority.sourceMarker.legacyConfigurationFingerprint !== input.markerValue.configurationFingerprint ||
       authority.effectiveMarker.runId !== input.markerValue.runId ||
       authority.effectiveMarker.topic !== input.markerValue.topic ||
@@ -98,7 +174,13 @@ export function readLegacyReauthorizationAuthority(input: {
       authority.configurationFingerprint !== authority.effectiveMarker.configurationFingerprint ||
       canonicalJson(authority.componentFingerprints) !== canonicalJson(authority.effectiveMarker.componentFingerprints)
     ) throw new Error("binding");
-    verifyArchive(input.projectFolder, authority, input.markerBytes);
+    const archiveSnapshot = verifyArchive(input.projectFolder, authority, input.markerBytes, true);
+    let receiptSnapshot: ReturnType<typeof readLegacyPublicationReceiptDescriptorBound>;
+    try { receiptSnapshot = readLegacyPublicationReceiptDescriptorBound(input.projectFolder); }
+    catch { throw admissionConflict(
+      "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ADMISSION_PUBLICATION_RECEIPT_MISMATCH",
+      input.projectSlug, "persistence"); }
+    verifyReceipt(authority, authoritySnapshot, archiveSnapshot, receiptSnapshot, input.projectSlug);
     const validation = readLegacyValidation(input.projectFolder, authority.reauthorizationId);
     const effectiveMarker = validation
       ? Object.freeze({
@@ -108,8 +190,10 @@ export function readLegacyReauthorizationAuthority(input: {
           validatedAt: validation.validatedAt,
         })
       : authority.effectiveMarker;
-    return { status: "valid", authority, effectiveMarker: effectiveMarker as ProductionAcceptanceEffectiveMarkerV3Profile2 };
-  } catch {
+    return { status: "valid", authority, effectiveMarker: effectiveMarker as ProductionAcceptanceEffectiveMarkerV3Profile2,
+      authoritySnapshot, archiveSnapshot, receiptSnapshot };
+  } catch (error) {
+    if (error instanceof ProductionAcceptanceLegacyReauthorizationError) throw error;
     throw conflict();
   }
 }
@@ -153,9 +237,13 @@ export function validateLegacyAuthority(value: unknown): value is ProductionAcce
     typeof candidate.runId !== "string" || !safeSha256(candidate.topicFingerprint) ||
     !source || source.schemaVersion !== "2" || !safeSha256(source.sha256) ||
     !Number.isSafeInteger(source.byteLength) || source.byteLength <= 0 ||
+    !safeSha256(source.deviceIdentity) || !safeSha256(source.inodeIdentity) ||
+    source.identityPolicyVersion !== "production-acceptance-marker-identity-v1" ||
     !safeSha256(source.legacyConfigurationFingerprint) ||
     source.archiveLocator !== legacyArchiveLocator(source.sha256) ||
-    source.archiveSha256 !== source.sha256 || !marker ||
+    source.archiveSha256 !== source.sha256 ||
+    !safeSha256(source.archiveDeviceIdentity) || !safeSha256(source.archiveInodeIdentity) ||
+    source.archiveIdentityPolicyVersion !== "production-acceptance-marker-identity-v1" || !marker ||
     marker.schemaVersion !== "3" || marker.componentFingerprintProfile !== "2" ||
     marker.runId !== candidate.runId || marker.topicFingerprint !== candidate.topicFingerprint ||
     marker.strictProductionAcceptance !== true || marker.publishMode !== "package-only" ||
@@ -169,9 +257,30 @@ export function validateLegacyAuthority(value: unknown): value is ProductionAcce
     !safeSha256(candidate.artifactInventoryFingerprint) ||
     !safeSha256(candidate.recoveryStateFingerprint) ||
     candidate.strictProductionAcceptance !== true || candidate.publishMode !== "package-only" ||
-    candidate.productionExecutionAuthorized !== false || !safeSha256(candidate.integrity)
+    candidate.productionExecutionAuthorized !== false || !safeSha256(candidate.integrity) ||
+    candidate.publicationReceiptPolicyVersion !== legacyReauthorizationReceiptPolicyVersion ||
+    !safeSha256(candidate.publicationGenerationId)
   ) return false;
   const { integrity, ...body } = candidate as ProductionAcceptanceLegacyReauthorizationV1;
+  return integrity === integrityFor(body as unknown as Record<string, unknown>);
+}
+
+export function validateLegacyPublicationReceipt(value: unknown): value is ProductionAcceptanceLegacyPublicationReceiptV1 {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Partial<ProductionAcceptanceLegacyPublicationReceiptV1>;
+  const source = candidate.sourceMarker, archive = candidate.archive, sidecar = candidate.authoritySidecar;
+  if (candidate.receiptSchemaVersion !== "production-acceptance-legacy-publication-receipt-v1" ||
+    candidate.receiptPolicyVersion !== legacyReauthorizationReceiptPolicyVersion ||
+    candidate.protocolVersion !== legacyReauthorizationSchemaVersion || !safeSlug(candidate.projectSlug) ||
+    !source || !archive || !sidecar || !safeSha256(candidate.reauthorizationId) ||
+    !safeSha256(candidate.publicationGenerationId) || !validBoundFile(source) || !validBoundFile(archive) ||
+    !validBoundFile(sidecar) || sidecar.locator !== legacyReauthorizationAuthorityFile ||
+    archive.locator === undefined || typeof archive.locator !== "string" ||
+    candidate.strictProductionAcceptance !== true || candidate.publishMode !== "package-only" ||
+    !safeSha256(candidate.storageAuthorityFingerprint) || !safeSha256(candidate.artifactInventoryFingerprint) ||
+    !safeSha256(candidate.recoveryStateFingerprint) || !safeSha256(candidate.configurationFingerprint) ||
+    !safeSha256(candidate.integrity)) return false;
+  const { integrity, ...body } = candidate as ProductionAcceptanceLegacyPublicationReceiptV1;
   return integrity === integrityFor(body as unknown as Record<string, unknown>);
 }
 
@@ -207,10 +316,51 @@ function verifyArchive(
   projectFolder: string,
   authority: ProductionAcceptanceLegacyReauthorizationV1,
   markerBytes: Buffer,
-) {
-  const archivePath = path.join(projectFolder, ...authority.sourceMarker.archiveLocator.split("/"));
-  const bytes = readExact(archivePath);
-  if (!bytes.equals(markerBytes) || sha256Bytes(bytes) !== authority.sourceMarker.archiveSha256) throw conflict();
+  admission = false,
+): DescriptorBoundFileSnapshot {
+  const snapshot = readLegacyArchiveDescriptorBound(projectFolder, authority.sourceMarker.archiveLocator);
+  if (!snapshot.bytes.equals(markerBytes) ||
+    sha256Bytes(snapshot.bytes) !== authority.sourceMarker.archiveSha256 ||
+    snapshot.deviceIdentity !== authority.sourceMarker.archiveDeviceIdentity ||
+    snapshot.inodeIdentity !== authority.sourceMarker.archiveInodeIdentity) {
+    if (admission) throw admissionConflict(
+      "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ADMISSION_ARCHIVE_MISMATCH",
+      authority.projectSlug,
+      "persistence",
+    );
+    throw conflict();
+  }
+  return snapshot;
+}
+
+function verifyReceipt(authority: ProductionAcceptanceLegacyReauthorizationV1,
+  sidecar: ReturnType<typeof readLegacyReauthorizationAuthorityDescriptorBound>, archive: DescriptorBoundFileSnapshot,
+  receiptSnapshot: ReturnType<typeof readLegacyPublicationReceiptDescriptorBound>, projectSlug: string) {
+  const receipt = receiptSnapshot.receipt;
+  if (receipt.projectSlug !== projectSlug || receipt.reauthorizationId !== authority.reauthorizationId ||
+    receipt.publicationGenerationId !== authority.publicationGenerationId ||
+    receipt.sourceMarker.sha256 !== authority.sourceMarker.sha256 ||
+    receipt.sourceMarker.byteLength !== authority.sourceMarker.byteLength ||
+    receipt.sourceMarker.deviceIdentity !== authority.sourceMarker.deviceIdentity ||
+    receipt.sourceMarker.inodeIdentity !== authority.sourceMarker.inodeIdentity ||
+    receipt.archive.locator !== authority.sourceMarker.archiveLocator || receipt.archive.sha256 !== archive.sha256 ||
+    receipt.archive.byteLength !== archive.byteLength || receipt.archive.deviceIdentity !== archive.deviceIdentity ||
+    receipt.archive.inodeIdentity !== archive.inodeIdentity || receipt.authoritySidecar.sha256 !== sidecar.sha256 ||
+    receipt.authoritySidecar.byteLength !== sidecar.byteLength ||
+    receipt.authoritySidecar.deviceIdentity !== sidecar.deviceIdentity ||
+    receipt.authoritySidecar.inodeIdentity !== sidecar.inodeIdentity ||
+    receipt.configurationFingerprint !== authority.configurationFingerprint ||
+    receipt.storageAuthorityFingerprint !== authority.storageAuthorityFingerprint ||
+    receipt.artifactInventoryFingerprint !== authority.artifactInventoryFingerprint ||
+    receipt.recoveryStateFingerprint !== authority.recoveryStateFingerprint) {
+    throw admissionConflict("PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ADMISSION_PUBLICATION_RECEIPT_MISMATCH",
+      projectSlug, "persistence");
+  }
+}
+
+function validBoundFile(value: { sha256?: unknown; byteLength?: unknown; deviceIdentity?: unknown; inodeIdentity?: unknown }) {
+  return safeSha256(value.sha256) && Number.isSafeInteger(value.byteLength) && (value.byteLength as number) > 0 &&
+    safeSha256(value.deviceIdentity) && safeSha256(value.inodeIdentity);
 }
 
 function publishExactNoClobber(finalPath: string, bytes: Buffer, partialName: string) {
@@ -264,20 +414,28 @@ function writeSynced(filePath: string, bytes: Buffer) {
 }
 
 function readExact(filePath: string) {
-  const link = fs.lstatSync(filePath);
+  return readExactSnapshot(filePath).bytes;
+}
+
+function readExactSnapshot(filePath: string) {
+  const link = fs.lstatSync(filePath, { bigint: true });
   if (!link.isFile() || link.isSymbolicLink()) throw conflict();
   const descriptor = fs.openSync(filePath, "r");
   try {
-    const before = fs.fstatSync(descriptor);
+    const before = fs.fstatSync(descriptor, { bigint: true });
     const bytes = fs.readFileSync(descriptor);
-    const after = fs.fstatSync(descriptor);
-    const final = fs.lstatSync(filePath);
+    const after = fs.fstatSync(descriptor, { bigint: true });
+    const final = fs.lstatSync(filePath, { bigint: true });
     if (!before.isFile() || !reliable(before.dev, before.ino) ||
       before.dev !== link.dev || before.ino !== link.ino || before.size !== link.size ||
       after.dev !== before.dev || after.ino !== before.ino || after.size !== before.size ||
       final.dev !== before.dev || final.ino !== before.ino || final.size !== before.size ||
-      bytes.length !== before.size) throw conflict();
-    return bytes;
+      BigInt(bytes.length) !== before.size) throw conflict();
+    return { bytes,
+      deviceIdentity: sha256Bytes(canonicalJson({ policyVersion: "production-acceptance-marker-identity-v1",
+        kind: "device", unsignedDecimalValue: before.dev.toString(10) })),
+      inodeIdentity: sha256Bytes(canonicalJson({ policyVersion: "production-acceptance-marker-identity-v1",
+        kind: "inode", unsignedDecimalValue: before.ino.toString(10) })) };
   } finally {
     fs.closeSync(descriptor);
   }
@@ -298,8 +456,12 @@ function syncDirectory(directory: string) {
   try { fs.fsyncSync(descriptor); } finally { fs.closeSync(descriptor); }
 }
 
-function reliable(device: number, inode: number) {
-  return Number.isFinite(device) && Number.isInteger(device) && device > 0 &&
+function reliable(device: number | bigint, inode: number | bigint) {
+  if (typeof device === "bigint" && typeof inode === "bigint") {
+    return device > BigInt(0) && inode > BigInt(0);
+  }
+  return typeof device === "number" && typeof inode === "number" &&
+    Number.isFinite(device) && Number.isInteger(device) && device > 0 &&
     Number.isFinite(inode) && Number.isInteger(inode) && inode > 0;
 }
 
@@ -321,4 +483,12 @@ function persistence() {
     undefined,
     "persistence",
   );
+}
+
+function admissionConflict(
+  code: ConstructorParameters<typeof ProductionAcceptanceLegacyReauthorizationError>[0],
+  projectSlug: string,
+  category: ConstructorParameters<typeof ProductionAcceptanceLegacyReauthorizationError>[2],
+) {
+  return new ProductionAcceptanceLegacyReauthorizationError(code, projectSlug, category);
 }

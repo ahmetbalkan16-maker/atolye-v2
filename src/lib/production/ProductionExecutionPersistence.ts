@@ -115,9 +115,9 @@ export class ProductionExecutionFilePersistenceAdapter implements ProductionExec
   async listKeys<K extends ProductionExecutionPersistenceRecordKind>(kind: K): Promise<ProductionExecutionPersistenceListResult<K>> {
     try {
       const names = await this.operations.readdir(this.directory(kind));
-      return { ok: true, status: "listed", kind, keys: names.filter((name) => name.endsWith(".json") && !name.includes(".tmp")).map((name) => name.slice(0, -5)).sort() };
+      return { ok: true, status: "listed", kind, keys: names.filter((name) => name.endsWith(".json") && !name.includes(".tmp")).map((name) => name.slice(0, -5)).sort(), storeState: "present" };
     } catch (error) {
-      if (errorCode(error) === "ENOENT") return { ok: true, status: "listed", kind, keys: [] };
+      if (errorCode(error) === "ENOENT") return { ok: true, status: "listed", kind, keys: [], storeState: "not-created" };
       return { ok: false, status: "failed", kind, errorCode: "PERSISTENCE_READ_FAILED", diagnostics: [diagnostic("read", error, false)] };
     }
   }

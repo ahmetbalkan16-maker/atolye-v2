@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs, { promises as fsp } from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
@@ -918,9 +919,7 @@ console.log(JSON.stringify(output));
 }
 
 async function run(): Promise<void> {
-  const testTempRoot = path.join(process.cwd(), ".next", "test-temp");
-  await fsp.mkdir(testTempRoot, { recursive: true });
-  const root = await fsp.mkdtemp(path.join(testTempRoot, "atolye-129-27-"));
+  const root = await fsp.mkdtemp(path.join(os.tmpdir(), "atolye-129-27-"));
   const runtimeRoot = path.join(root, "runtime");
   const authorityRoot = path.join(root, "authority");
   await fsp.mkdir(runtimeRoot, { recursive: true });

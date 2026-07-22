@@ -29,6 +29,10 @@ async function test(name: string, action: () => void | Promise<void>) {
 
 async function main() {
   const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "atolye-129-23-"));
+  const runtimeRoot = path.join(temporaryRoot, "runtime");
+  const previousRuntimeRoot = process.env.ATOLYE_RUNTIME_ROOT;
+  process.env.ATOLYE_RUNTIME_ROOT = runtimeRoot;
+  await fs.mkdir(path.join(runtimeRoot, "projects"), { recursive: true });
   const firstTools = path.join(temporaryRoot, "tools-a");
   const secondTools = path.join(temporaryRoot, "tools-b");
   await fs.mkdir(firstTools);
@@ -45,6 +49,7 @@ async function main() {
   const environment = configurationEnvironment({
     FFMPEG_PATH: firstFFmpeg,
     FFPROBE_PATH: firstFFprobe,
+    ATOLYE_RUNTIME_ROOT: runtimeRoot,
   });
   const topic = "Portable production acceptance diagnostics";
   const runId = randomUUID();
@@ -214,6 +219,8 @@ async function main() {
         await fs.rm(folder, { recursive: true, force: true });
       }
     }
+    if (previousRuntimeRoot === undefined) delete process.env.ATOLYE_RUNTIME_ROOT;
+    else process.env.ATOLYE_RUNTIME_ROOT = previousRuntimeRoot;
     await fs.rm(temporaryRoot, { recursive: true, force: true });
   }
   assert.equal(await exists(fixtureFolders[0]), false);
@@ -286,7 +293,7 @@ async function createSchema2Marker(
     productionReady: false,
     published: false,
   };
-  await fs.mkdir(ProjectReader.getProjectFolder(projectSlug));
+  await fs.mkdir(ProjectReader.getProjectFolder(projectSlug), { recursive: true });
   await fs.writeFile(
     path.join(ProjectReader.getProjectFolder(projectSlug), "production-acceptance.json"),
     `${JSON.stringify(marker, null, 2)}\n`,

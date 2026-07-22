@@ -18,7 +18,14 @@ import {
   ProductionPipelineDurableExecutionError,
   type ProductionPipelineExecutionAdapter,
 } from "@/lib/production/ProductionPipelineExecutionAdapter";
-import { executeConfiguredProductionPipelineStage } from "@/lib/production/ProductionPipelineExecutionFactory";
+import { executeConfiguredProductionPipelineStage,
+  type ProductionPipelineCompletedPreparationAuthority } from
+  "@/lib/production/ProductionPipelineExecutionFactory";
+import {
+  issueProductionAcceptanceStageCapability,
+  type ProductionAcceptanceStageCapability,
+  type ProductionAcceptanceStageExecutionIdentity,
+} from "@/lib/production/ProductionAcceptancePolicy";
 import { prepareFailedStageRetry } from "./PipelineFailedStageRetry";
 import type {
   ProductionStepKey,
@@ -684,7 +691,9 @@ export class PipelineRunner {
     return this.runStage(
       slug,
       stage,
-      () => PipelineStageExecutor.execute(slug, stage, state, stageExecution),
+      (capability, identity) => PipelineStageExecutor.execute(
+        slug, stage, state, stageExecution, capability, identity,
+      ),
       runType,
       onClaimConflict,
     );
@@ -741,11 +750,16 @@ export class PipelineRunner {
   private static async runStage(
     slug: string,
     stage: ProductionStepKey,
-    action: () => Promise<boolean>,
+    action: (capability: ProductionAcceptanceStageCapability | undefined,
+      identity: ProductionAcceptanceStageExecutionIdentity) => Promise<boolean>,
     runType: ProjectPackageRunType,
     onClaimConflict?: () => void,
   ): Promise<boolean> {
-    const legacy = () => this.runStageLegacy(slug, stage, action, runType, onClaimConflict);
+    const legacy = (_capability: ProductionAcceptanceStageCapability | undefined,
+      identity: ProductionAcceptanceStageExecutionIdentity,
+      authority: ProductionPipelineCompletedPreparationAuthority) =>
+      this.runStageLegacy(slug, stage, async () => action(
+        await issueProductionAcceptanceStageCapability(authority), identity), runType, onClaimConflict);
     return executeConfiguredProductionPipelineStage({ projectSlug: slug, stage, runType }, legacy);
   }
 

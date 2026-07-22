@@ -53,7 +53,11 @@ import type { ThumbnailData } from "@/types/thumbnail";
 import type { VideoData } from "@/types/video";
 import type { VisualData } from "@/types/visual";
 import type { YouTubePublishingPackage } from "@/types/youtube";
-import { readProductionAcceptancePolicy } from "@/lib/production/ProductionAcceptancePolicy";
+import {
+  consumeProductionAcceptanceStageCapability,
+  type ProductionAcceptanceStageCapability,
+  type ProductionAcceptanceStageExecutionIdentity,
+} from "@/lib/production/ProductionAcceptancePolicy";
 import {
   validateProductionAcceptancePreflight,
   validateProductionAcceptanceScriptDuration,
@@ -163,8 +167,17 @@ export class PipelineStageExecutor {
     stage: ProductionStepKey,
     state: PipelineExecutionState,
     options: PipelineStageExecutionOptions = {},
+    acceptanceCapability?: ProductionAcceptanceStageCapability,
+    acceptanceIdentity?: ProductionAcceptanceStageExecutionIdentity,
   ): Promise<boolean> {
-    const persistedPolicy = await readProductionAcceptancePolicy(projectSlug);
+    const persistedPolicy = acceptanceIdentity
+      ? await consumeProductionAcceptanceStageCapability(acceptanceIdentity, acceptanceCapability)
+      : await consumeProductionAcceptanceStageCapability({
+        projectSlug, stage, runType: "initial", jobId: "missing", attemptNumber: -1,
+        attemptId: "missing", recordId: "missing", reservationId: "missing",
+        claimId: "missing", leaseId: "missing", requestId: "missing", idempotencyKey: "missing",
+        operation: "missing", executionFingerprint: "missing",
+      });
     const generationPolicy = persistedPolicy?.strictProductionAcceptance
       ? strictGenerationExecutionPolicy
       : undefined;

@@ -18,6 +18,20 @@ export const defaultProductionExecutionIdempotencyPolicy: ProductionExecutionIde
   allowCompletedReplay: true, allowCancelledRetry: false, allowPartialResume: false, strictBinding: true, strictExecutionFingerprint: true,
 };
 
+export type ProductionExecutionReservationLifecycleState = "active" | "expired" | "invalid";
+
+export function evaluateProductionExecutionReservationLifecycle(
+  request: ProductionExecutionIdempotencyReservationRequest,
+  evaluatedAt: string,
+): ProductionExecutionReservationLifecycleState {
+  const evaluated = canonicalDate(evaluatedAt);
+  const requested = canonicalDate(request.requestedAt);
+  if (!evaluated || !requested || !Number.isInteger(request.reservationTtlSeconds) ||
+    request.reservationTtlSeconds < 1) return "invalid";
+  return Date.parse(evaluated) >= Date.parse(requested) + request.reservationTtlSeconds * 1000
+    ? "expired" : "active";
+}
+
 export function buildProductionExecutionIdempotencyIdentity(input: ProductionExecutionIdempotencyIdentityBuildInput, context: ProductionExecutionIdempotencyIdentityBuildContext): ProductionExecutionIdempotencyIdentityBuildResult {
   try {
     if (!context.policy.enabled) return failure("IDEMPOTENCY_POLICY_DISABLED");

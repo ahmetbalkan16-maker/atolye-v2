@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { promises as fs } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import {
   AudioAssetGenerationError,
@@ -57,7 +59,11 @@ import type { ScriptData } from "../src/types/script";
 import { GET as getAudioAsset } from "../app/api/assets/audio/[slug]/[fileName]/route";
 
 const fixturePrefix = `sprint-114-audio-assets-${process.pid}`;
-const projectsRoot = path.join(process.cwd(), "data", "projects");
+const temporaryWorkspace = mkdtempSync(path.join(os.tmpdir(), "atolye-audio-wiring-"));
+const temporaryRuntimeRoot = path.join(temporaryWorkspace, "runtime");
+const projectsRoot = path.join(temporaryRuntimeRoot, "projects");
+mkdirSync(projectsRoot, { recursive: true });
+const previousRuntimeRoot = process.env.ATOLYE_RUNTIME_ROOT;
 const now = "2026-07-13T12:00:00.000Z";
 const originalEnvironment = {
   audioProvider: process.env.AUDIO_PROVIDER,
@@ -833,7 +839,10 @@ async function run() {
         assert.match(asset.filePath ?? "", /^data\/projects\/.+\/assets\/audio\/[a-zA-Z0-9-_.]+\.wav$/);
         const fileName = path.posix.basename(asset.filePath ?? "");
         assert.equal(asset.url, AudioStorage.getAudioUrl(result.slug, fileName));
-        const stored = await fs.readFile(path.join(process.cwd(), asset.filePath ?? ""));
+        const logicalLocator = asset.filePath ?? "";
+        const stored = await fs.readFile(path.join(
+          projectsRoot, logicalLocator.slice("data/projects/".length),
+        ));
         assert.deepEqual(AudioStorage.inspectWav(stored), {
           byteLength: asset.byteLength,
           durationSeconds: asset.durationSeconds,
@@ -1384,16 +1393,24 @@ async function run() {
 }
 
 async function main() {
-  const storageContext = createRuntimeStorageContext({
-    workspaceRoot: process.cwd(),
-  });
-  const operationContext = createProductionRuntimeOperationContext({
-    operationId: `sprint-114-audio-${process.pid}`,
-    operationType: "audio-wiring-test",
-    authorityGeneration: initialRuntimeAuthorityGeneration,
-    storageContext,
-  });
-  await runWithProductionRuntimeOperationContext(operationContext, run);
+  process.env.ATOLYE_RUNTIME_ROOT = temporaryRuntimeRoot;
+  try {
+    const storageContext = createRuntimeStorageContext({
+      environment: { ...process.env, ATOLYE_RUNTIME_ROOT: temporaryRuntimeRoot },
+      workspaceRoot: process.cwd(), authorityRoot: path.join(temporaryWorkspace, "authority"),
+    });
+    const operationContext = createProductionRuntimeOperationContext({
+      operationId: `sprint-114-audio-${process.pid}`,
+      operationType: "audio-wiring-test",
+      authorityGeneration: initialRuntimeAuthorityGeneration,
+      storageContext,
+    });
+    await runWithProductionRuntimeOperationContext(operationContext, run);
+  } finally {
+    if (previousRuntimeRoot === undefined) delete process.env.ATOLYE_RUNTIME_ROOT;
+    else process.env.ATOLYE_RUNTIME_ROOT = previousRuntimeRoot;
+    rmSync(temporaryWorkspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
+  }
 }
 
 void main();

@@ -37,6 +37,10 @@ async function test(name: string, action: () => void | Promise<void>) {
 
 async function main() {
   const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "atolye-129-24-"));
+  const runtimeRoot = path.join(temporaryRoot, "runtime");
+  const previousRuntimeRoot = process.env.ATOLYE_RUNTIME_ROOT;
+  process.env.ATOLYE_RUNTIME_ROOT = runtimeRoot;
+  await fs.mkdir(path.join(runtimeRoot, "projects"), { recursive: true });
   const toolsA = path.join(temporaryRoot, "tools-a");
   const toolsB = path.join(temporaryRoot, "tools-b");
   const toolsChanged = path.join(temporaryRoot, "tools-changed");
@@ -45,6 +49,7 @@ async function main() {
   const environment = configurationEnvironment({
     FFMPEG_PATH: binaries.ffmpegA,
     FFPROBE_PATH: binaries.ffprobeA,
+    ATOLYE_RUNTIME_ROOT: runtimeRoot,
   });
 
   try {
@@ -324,6 +329,8 @@ async function main() {
     for (const folder of fixtureFolders) {
       if (isDisposableFixture(folder)) await fs.rm(folder, { recursive: true, force: true });
     }
+    if (previousRuntimeRoot === undefined) delete process.env.ATOLYE_RUNTIME_ROOT;
+    else process.env.ATOLYE_RUNTIME_ROOT = previousRuntimeRoot;
     await fs.rm(temporaryRoot, { recursive: true, force: true });
   }
   assert.equal((await Promise.all(fixtureFolders.map(exists))).some(Boolean), false);

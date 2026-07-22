@@ -18,6 +18,7 @@ export interface ProductionExecutionPersistencePayloadByKind {
 export type ProductionExecutionPersistenceErrorCode =
   | "PERSISTENCE_INVALID_INPUT" | "PERSISTENCE_SCHEMA_UNSUPPORTED" | "PERSISTENCE_SERIALIZATION_FAILED"
   | "PERSISTENCE_DIRECTORY_MISSING" | "PERSISTENCE_NOT_FOUND" | "PERSISTENCE_READ_FAILED" | "PERSISTENCE_RECORD_CORRUPT"
+  | "PERSISTENCE_IDENTITY_CHANGED"
   | "PERSISTENCE_TEMP_WRITE_FAILED" | "PERSISTENCE_TEMP_VALIDATION_FAILED" | "PERSISTENCE_COMMIT_FAILED"
   | "PERSISTENCE_EXISTING_RECORD_CONFLICT";
 
@@ -37,8 +38,8 @@ export type ProductionExecutionPersistenceReadResult<K extends ProductionExecuti
   | { ok: false; status: "failed"; kind: K; key: string; errorCode: Exclude<ProductionExecutionPersistenceErrorCode, "PERSISTENCE_NOT_FOUND">; diagnostics?: readonly ProductionExecutionPersistenceDiagnostic[] };
 
 export type ProductionExecutionPersistenceListResult<K extends ProductionExecutionPersistenceRecordKind> =
-  | { ok: true; status: "listed"; kind: K; keys: readonly string[] }
-  | { ok: false; status: "failed"; kind: K; errorCode: "PERSISTENCE_READ_FAILED"; diagnostics?: readonly ProductionExecutionPersistenceDiagnostic[] };
+  | { ok: true; status: "listed"; kind: K; keys: readonly string[]; storeState?: "present" | "not-created" }
+  | { ok: false; status: "failed"; kind: K; errorCode: "PERSISTENCE_READ_FAILED" | "PERSISTENCE_RECORD_CORRUPT" | "PERSISTENCE_IDENTITY_CHANGED"; diagnostics?: readonly ProductionExecutionPersistenceDiagnostic[] };
 
 export interface ProductionExecutionPersistenceAdapter {
   write<K extends ProductionExecutionPersistenceRecordKind>(kind: K, key: string, value: ProductionExecutionPersistencePayloadByKind[K]): Promise<ProductionExecutionPersistenceWriteResult<K>>;

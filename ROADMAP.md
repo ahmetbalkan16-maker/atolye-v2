@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: High
 Owner: Atölye V2
-Last Updated: 2026-07-20
+Last Updated: 2026-07-22
 ---
 
 # Atölye V2 — Development Roadmap
@@ -39,7 +39,20 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 129.27 — Audio Atomicity, Compensation & Publication Hardening / Completed
+Sprint 129.28 — Production Acceptance Reauthorization and Durable Identity Authority Hardening / Completed
+
+## Sprint 129.28 — Production Acceptance Reauthorization and Durable Identity Authority Hardening / Completed
+
+- Durable recovery store-policy, en az bir valid reservation için idempotency store'u zorunlu tutar. Expired/released/terminal reservation gereksinimi korur; corrupt reservation sayılmaz, empty-present/not-created ayrımı ve exact `REQUIRED_IDEMPOTENCY_STORE_MISSING` sonucu korunur. Claim/attempt store gereksinimleri ve store-policy-before-conflict sırası doğrulandı.
+- Durable authority zinciri reservation, idempotency record, lease, claim ve attempt persistence/readback tamamlanmadan canonical identity veya capability üretmez. Attempt-before-issuance, exact readback ve replay/idempotency davranışı doğrulandı; duplicate attempt create yoktur.
+- Canonical identity yalnız completed durable readback'tan kurulur. `leaseId` yalnız `completed.lease.identity.leaseId` kaynağından gelir; pre-plan/request/identity-builder/fallback authority değildir.
+- Completed-preparation token'ı frozen null-prototype ve module-private `WeakMap` owned'dır. Plain, cloned, serialized, forged veya pre-plan nesneleri ownership kazanamaz; ikinci token/registry sistemi yoktur.
+- Canonical identity lifecycle'a, frozen capability registry'ye ve admitted context'e kesintisiz taşınır. Provider gate reservation/idempotency/lease/claim/attempt kayıtlarıyla direct exact binding uygular; requestId, idempotencyKey, operation ve leaseId mismatch'leri provider `0`, invalidation ve ikinci kullanım rejection üretir.
+- Coordinated durable lease mutation, kayıtlar kendi aralarında tutarlı ve integrity fingerprint'leri yenilenmiş olsa da issued completed lease authority tarafından exact `LEASE_ID_MISMATCH` ile yakalanır. Pre-plan provenance poisoning eski pre-derived authority modelini ayırt eder.
+- Gerçek production seam ordering explicit barrier ile `durable-entry → durable-attempt-persisted → durable-readback-verified → canonical-identity-extracted → lifecycle-bound → capability-issued → revalidation-entered → provider-entered` olarak doğrulandı. Capability lifecycle ve success/provider-throw/revalidation concurrency sözleşmeleri korundu.
+- Temp fixture izolasyonu, exact environment restore, local provider spies ve sıfır gerçek network çağrısı doğrulandı. Sprint 129.28 `102/102`; Sprint 129.27 isolated `77/77`; portability `15`, topic/run `24`, marker `22`, durable storage `63`, guarded filesystem `16`, durable attempt `58`, durable recovery `29`, bootstrap `18/18`, lifecycle `21/21`, runtime context `48`, audio wiring `73`, TypeScript, targeted ESLint ve `git diff --check` PASS.
+- Bağımsız final re-review P0 `0`, P1 `0`, P2 `0`; geçmiş review kararı `READY FOR DOCUMENTATION`. Production baseline `199` dosya ve `data/projects` diff `0/0` ile korundu; altı MP4 ve kritik artifact hash'leri değişmedi. `productionReady:false`, `published:false`, `publishMode:"package-only"`; production command/provider/network çağrısı yapılmadı.
+- Sprint `Completed`. Sonraki adım kullanıcı kapsam review ve commit/push işlemidir. Bu kapanış production execute/resume/finalize/reauthorize, controlled retry veya yeni sprint yetkisi vermez; commit/push henüz yapılmadı.
 
 ## Sprint 129.27 — Audio Atomicity, Compensation & Publication Hardening / Completed
 
