@@ -6,7 +6,18 @@ export type ProductionPipelineExecutionEvent =
   | "durable-readback-verified"
   | "canonical-identity-extracted"
   | "lifecycle-bound"
+  | "capability-issuance-entered"
   | "capability-issued"
+  | "physical-store-identity-verified"
+  | "descriptor-root-opened"
+  | "descriptor-parent-opening"
+  | "descriptor-parent-opened"
+  | "descriptor-file-opening"
+  | "descriptor-file-opened"
+  | "descriptor-directory-opening"
+  | "descriptor-directory-opened"
+  | "descriptor-path-verified"
+  | "provider-dispatch-entered"
   | "revalidation-entered";
 
 export interface ProductionPipelineExecutionPlanIdentity {
@@ -16,8 +27,20 @@ export interface ProductionPipelineExecutionPlanIdentity {
   leaseId: string;
 }
 
+export interface ProductionPipelineExecutionEventDetail {
+  readonly locator?: string;
+  readonly capability?: object;
+  readonly identity?: object;
+  readonly executionScope?: object;
+  readonly stage?: string;
+  readonly slot?: string;
+  readonly selectionId?: string;
+  readonly adapterId?: string;
+}
+
 interface ProductionPipelineExecutionInstrumentation {
-  readonly onEvent?: (event: ProductionPipelineExecutionEvent) => void | Promise<void>;
+  readonly onEvent?: (event: ProductionPipelineExecutionEvent,
+    detail?: Readonly<ProductionPipelineExecutionEventDetail>) => void | Promise<void>;
   readonly poisonPlanAfterDurableAttempt?: (
     identity: ProductionPipelineExecutionPlanIdentity,
   ) => void;
@@ -36,8 +59,9 @@ export function runWithProductionPipelineExecutionInstrumentation<T>(
 
 export async function emitProductionPipelineExecutionEvent(
   event: ProductionPipelineExecutionEvent,
+  detail?: Readonly<ProductionPipelineExecutionEventDetail>,
 ): Promise<void> {
-  await instrumentationStorage.getStore()?.onEvent?.(event);
+  await instrumentationStorage.getStore()?.onEvent?.(event, detail);
 }
 
 export function poisonProductionPipelineExecutionPlanAfterDurableAttempt(

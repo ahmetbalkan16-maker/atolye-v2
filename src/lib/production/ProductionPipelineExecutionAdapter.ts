@@ -2,8 +2,9 @@ import { ProductionExecutionWorkerExecutionService } from "./ProductionExecution
 import type { ProductionExecutionPersistenceAdapter } from "@/types/productionExecutionPersistence";
 import type { ProductionExecutionWorkerExecutionRequest, ProductionExecutionWorkerExecutionResult } from "@/types/productionExecutionWorker";
 import type { ProductionStepKey, ProjectPackageRunType } from "@/types/project";
+import type { ProductionAcceptanceProviderSelection } from "./ProductionAcceptanceExecutionScope";
 
-export interface ProductionPipelineExecutionContext { projectSlug:string;stage:ProductionStepKey;runType:ProjectPackageRunType }
+export interface ProductionPipelineExecutionContext { projectSlug:string;stage:ProductionStepKey;runType:ProjectPackageRunType;providerSelection?:ProductionAcceptanceProviderSelection }
 export type ProductionPipelineExecutionRequestFactory = (context:ProductionPipelineExecutionContext) => ProductionExecutionWorkerExecutionRequest | Promise<ProductionExecutionWorkerExecutionRequest>;
 export type ProductionPipelineSuccessSettlement = (result:ProductionExecutionWorkerExecutionResult) => Promise<{ok:boolean;reasonCode:string}>;
 

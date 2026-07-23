@@ -4,7 +4,6 @@ export interface ProductionAcceptanceLegacyAdmittedExecution {
   readonly projectSlug: string;
   readonly stage: string;
   readonly runType: string;
-  readonly jobId: string;
   readonly attemptNumber: number;
   readonly recordId: string;
   readonly reservationId: string;

@@ -1,24 +1,29 @@
 import { AIManager } from "@/lib/ai/AIManager";
 import { strictGenerationExecutionPolicy } from "@/lib/ai/GenerationExecutionPolicy";
 import type { AIProvider } from "@/lib/ai/providers";
+import { AIRouter } from "@/lib/ai/router/AIRouter";
 import { AnimationAssetPipeline } from "@/lib/animation/AnimationAssetPipeline";
 import { isCompatibleAnimationData } from "@/lib/animation/AnimationMotionPlanValidation";
 import { AnimationPromptGenerator } from "@/lib/animation/prompts/AnimationPromptGenerator";
 import type { AnimationProvider } from "@/lib/animation/providers/AnimationProvider";
+import { AnimationProviderRouter } from "@/lib/animation/providers/AnimationProviderRouter";
 import { AssemblyManager } from "@/lib/assembly/AssemblyManager";
 import {
   VideoAssemblyError,
   VideoAssemblyManager,
 } from "@/lib/assembly/VideoAssemblyManager";
 import type { VideoAssemblyProvider } from "@/lib/assembly/providers/VideoAssemblyProvider";
+import { VideoAssemblyProviderRouter } from "@/lib/assembly/providers/VideoAssemblyProviderRouter";
 import { AudioManager } from "@/lib/audio/AudioManager";
 import {
   AudioAssetGenerationError,
   AudioPipeline,
 } from "@/lib/audio/AudioPipeline";
 import type { AudioProvider } from "@/lib/audio/providers/AudioProvider";
+import { AudioProviderRouter } from "@/lib/audio/providers/AudioProviderRouter";
 import { VisualAssetPipeline } from "@/lib/assets/VisualAssetPipeline";
 import type { ImageProvider } from "@/lib/assets/providers/ImageProvider";
+import { ImageProviderRouter } from "@/lib/assets/providers/ImageProviderRouter";
 import { ExportEngine } from "@/lib/export/ExportEngine";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { SEOManager } from "@/lib/seo/SEOManager";
@@ -28,17 +33,21 @@ import {
   ThumbnailAssetPipeline,
 } from "@/lib/thumbnail/ThumbnailAssetPipeline";
 import type { ThumbnailProvider } from "@/lib/thumbnail/providers/ThumbnailProvider";
+import { ThumbnailProviderRouter } from "@/lib/thumbnail/ThumbnailProviderRouter";
 import { VideoPipeline } from "@/lib/video/VideoPipeline";
 import { isCompatibleVideoData } from "@/lib/video/VideoDataValidation";
 import type { VideoProvider } from "@/lib/video/providers/VideoProvider";
+import { VideoProviderRouter } from "@/lib/video/providers/VideoProviderRouter";
 import { VisualManager } from "@/lib/visuals/VisualManager";
 import {
   YouTubePackagePipeline,
 } from "@/lib/youtube/YouTubePackagePipeline";
 import { isYouTubePublishingPackage } from "@/lib/youtube/YouTubePackageValidation";
 import type { YouTubeProvider } from "@/lib/youtube/providers/YouTubeProvider";
+import { YouTubeProviderRouter } from "@/lib/youtube/YouTubeProviderRouter";
 import { YouTubePublishError, YouTubePublishPipeline } from "@/lib/youtube/publish/YouTubePublishPipeline";
 import type { YouTubePublishProvider } from "@/lib/youtube/publish/providers/YouTubePublishProvider";
+import { YouTubePublishProviderRouter } from "@/lib/youtube/publish/YouTubePublishProviderRouter";
 import { PipelineJobManager } from "./PipelineJobManager";
 import type { AnimationData } from "@/types/animation";
 import type { AssemblyPlanData } from "@/types/assembly";
@@ -62,6 +71,13 @@ import {
   validateProductionAcceptancePreflight,
   validateProductionAcceptanceScriptDuration,
 } from "@/lib/production/ProductionAcceptancePreflight";
+import { createProductionAcceptanceProviderSelection,
+  createProductionAcceptanceStageExecutionScope,
+  type ProductionAcceptanceProviderSelection } from
+  "@/lib/production/ProductionAcceptanceExecutionScope";
+import type { ProjectPackageRunType } from "@/types/project";
+import { emitProductionPipelineExecutionEvent } from
+  "@/lib/production/ProductionPipelineExecutionInstrumentation";
 
 export type PipelineExecutionState = {
   project: Project;
@@ -90,6 +106,43 @@ export type PipelineStageExecutionOptions = {
   youtubeProvider?: YouTubeProvider;
   youtubePublishProvider?: YouTubePublishProvider;
 };
+
+export function materializePipelineStageExecutionOptions(
+  stage: ProductionStepKey,
+  source: PipelineStageExecutionOptions = {},
+): { options: Readonly<PipelineStageExecutionOptions>;
+  configuredOptions: readonly (keyof PipelineStageExecutionOptions)[] } {
+  const captured: PipelineStageExecutionOptions = {
+    aiProvider: source.aiProvider, visualAssetProvider: source.visualAssetProvider,
+    animationProvider: source.animationProvider, videoProvider: source.videoProvider,
+    audioProvider: source.audioProvider, videoAssemblyProvider: source.videoAssemblyProvider,
+    thumbnailProvider: source.thumbnailProvider, youtubeProvider: source.youtubeProvider,
+    youtubePublishProvider: source.youtubePublishProvider,
+  };
+  const configured: (keyof PipelineStageExecutionOptions)[] = [];
+  const ensure = <K extends keyof PipelineStageExecutionOptions>(key: K, create: () =>
+    NonNullable<PipelineStageExecutionOptions[K]>) => {
+    if (!captured[key]) {
+      (captured as Record<K, PipelineStageExecutionOptions[K]>)[key] = create();
+      configured.push(key);
+    }
+  };
+  if (["research", "script", "scenes", "visuals", "animation", "audio", "assembly", "seo"]
+    .includes(stage)) ensure("aiProvider", () => new AIRouter().getProvider());
+  if (stage === "visuals") ensure("visualAssetProvider", () => ImageProviderRouter.getProvider());
+  if (stage === "animation") ensure("animationProvider", () => AnimationProviderRouter.getProvider());
+  if (stage === "video") ensure("videoProvider", () => VideoProviderRouter.getProvider());
+  if (stage === "audio") ensure("audioProvider", () => AudioProviderRouter.getProvider());
+  if (stage === "assembly") ensure("videoAssemblyProvider", () =>
+    VideoAssemblyProviderRouter.getProvider());
+  if (stage === "thumbnail") ensure("thumbnailProvider", () =>
+    new ThumbnailProviderRouter().getProvider());
+  if (stage === "youtube") {
+    ensure("youtubeProvider", () => new YouTubeProviderRouter().getProvider());
+    ensure("youtubePublishProvider", () => new YouTubePublishProviderRouter().getProvider());
+  }
+  return { options: Object.freeze(captured), configuredOptions: Object.freeze(configured) };
+}
 
 export class PipelineStageExecutor {
   static createInitialState(project: Project): PipelineExecutionState {
@@ -169,11 +222,30 @@ export class PipelineStageExecutor {
     options: PipelineStageExecutionOptions = {},
     acceptanceCapability?: ProductionAcceptanceStageCapability,
     acceptanceIdentity?: ProductionAcceptanceStageExecutionIdentity,
+    acceptanceRunType?: ProjectPackageRunType,
+    acceptanceProviderSelection?: ProductionAcceptanceProviderSelection,
   ): Promise<boolean> {
+    const actualRunType = acceptanceRunType ?? acceptanceIdentity?.runType;
+    const providerSelection = acceptanceProviderSelection ??
+      createProductionAcceptanceProviderSelection(stage, options);
+    const executionScope = acceptanceIdentity && actualRunType
+      ? createProductionAcceptanceStageExecutionScope({
+        projectSlug,
+        stage,
+        runType: actualRunType,
+        operation: `pipeline.stage.${actualRunType}`,
+        executionFingerprint: acceptanceIdentity.executionFingerprint,
+        providerSelection,
+      })
+      : undefined;
     const persistedPolicy = acceptanceIdentity
-      ? await consumeProductionAcceptanceStageCapability(acceptanceIdentity, acceptanceCapability)
+      ? await consumeProductionAcceptanceStageCapability(
+        acceptanceIdentity,
+        acceptanceCapability,
+        executionScope,
+      )
       : await consumeProductionAcceptanceStageCapability({
-        projectSlug, stage, runType: "initial", jobId: "missing", attemptNumber: -1,
+        projectSlug, stage, runType: "initial", attemptNumber: -1,
         attemptId: "missing", recordId: "missing", reservationId: "missing",
         claimId: "missing", leaseId: "missing", requestId: "missing", idempotencyKey: "missing",
         operation: "missing", executionFingerprint: "missing",
@@ -181,23 +253,33 @@ export class PipelineStageExecutor {
     const generationPolicy = persistedPolicy?.strictProductionAcceptance
       ? strictGenerationExecutionPolicy
       : undefined;
+    const dispatchOptions = (persistedPolicy?.providerOptions ??
+      providerSelection.dispatchOptions) as PipelineStageExecutionOptions;
+    const dispatchBranch = async (slot: keyof PipelineStageExecutionOptions) => {
+      const binding = providerSelection.providers.find((provider) => provider.slot === slot);
+      await emitProductionPipelineExecutionEvent("provider-dispatch-entered", {
+        stage, slot, selectionId: providerSelection.selectionId, adapterId: binding?.adapterId,
+      });
+    };
     switch (stage) {
       case "research":
+        await dispatchBranch("aiProvider");
         state.research = await AIManager.runResearch(state.project.title, {
           projectSlug,
           stage: "research",
           operation: "research",
-        }, options.aiProvider, generationPolicy);
+        }, dispatchOptions.aiProvider, generationPolicy);
         return this.persistStageResult(projectSlug, stage, () =>
           ProjectManager.saveResearch(projectSlug, state.research),
         );
 
       case "script":
+        await dispatchBranch("aiProvider");
         state.script = await AIManager.runScript(state.project.title, {
           projectSlug,
           stage: "script",
           operation: "script",
-        }, options.aiProvider, generationPolicy);
+        }, dispatchOptions.aiProvider, generationPolicy);
         if (persistedPolicy?.strictProductionAcceptance) {
           validateProductionAcceptanceScriptDuration(state.script);
         }
@@ -206,12 +288,13 @@ export class PipelineStageExecutor {
         );
 
       case "scenes": {
+        await dispatchBranch("aiProvider");
         const script = requireStageInput(state.script, "script", stage);
         state.scenes = await AIManager.runScenes(script, {
           projectSlug,
           stage: "scenes",
           operation: "scenes",
-        }, options.aiProvider, generationPolicy);
+        }, dispatchOptions.aiProvider, generationPolicy);
         if (persistedPolicy?.strictProductionAcceptance) {
           validateProductionAcceptancePreflight(script, state.scenes);
         }
@@ -231,15 +314,16 @@ export class PipelineStageExecutor {
             stage: "visuals",
             operation: "visuals",
           },
-          aiProvider: options.aiProvider,
+          aiProvider: dispatchOptions.aiProvider,
           generationPolicy,
         });
+        await dispatchBranch("visualAssetProvider");
         await ProjectManager.persistVisualsArtifact(projectSlug, state.visuals);
         await VisualAssetPipeline.generateAssets({
           projectId: state.project.id,
           projectSlug,
           visualData: state.visuals,
-          provider: options.visualAssetProvider,
+          provider: dispatchOptions.visualAssetProvider,
         });
         return this.persistStageResult(projectSlug, stage, () =>
           ProjectManager.updatePackageStatus(projectSlug, "visuals", "completed").then(() => undefined),
@@ -259,15 +343,16 @@ export class PipelineStageExecutor {
             stage: "animation",
             operation: "animation-prompt",
           },
-          aiProvider: options.aiProvider,
+          aiProvider: dispatchOptions.aiProvider,
           generationPolicy,
         });
+        await dispatchBranch("animationProvider");
         const { updatedScenes } =
           await AnimationAssetPipeline.generateAnimationAssets({
             projectId: state.project.id,
             projectSlug,
             scenes: animationPlan.scenes,
-            provider: options.animationProvider,
+            provider: dispatchOptions.animationProvider,
           });
         state.animation = {
           ...animationPlan,
@@ -281,12 +366,13 @@ export class PipelineStageExecutor {
       }
 
       case "video": {
+        await dispatchBranch("videoProvider");
         const animation = requireStageInput(state.animation, "animation", stage);
         const { video } = await VideoPipeline.generateVideo({
           projectId: state.project.id,
           projectSlug,
           animation,
-          provider: options.videoProvider,
+          provider: dispatchOptions.videoProvider,
         });
         state.video = video;
         return this.persistStageResult(projectSlug, stage, () =>
@@ -301,14 +387,14 @@ export class PipelineStageExecutor {
           stage: "audio",
           operation: "audio-plan",
         }, {
-          aiProvider: options.aiProvider,
+          aiProvider: dispatchOptions.aiProvider,
           generationPolicy,
         });
         const { audio } = await AudioPipeline.generateAudio({
           projectId: state.project.id,
           projectSlug,
           audio: audioPlan,
-          provider: options.audioProvider,
+          provider: dispatchOptions.audioProvider,
         });
         state.audio = audio;
         try {
@@ -343,10 +429,11 @@ export class PipelineStageExecutor {
             operation: "assembly-plan",
           },
           {
-            aiProvider: options.aiProvider,
+            aiProvider: dispatchOptions.aiProvider,
             generationPolicy,
           },
         );
+        await dispatchBranch("videoAssemblyProvider");
         state.assembly = await VideoAssemblyManager.renderExistingAssets({
           projectId: state.project.id,
           projectSlug,
@@ -356,7 +443,7 @@ export class PipelineStageExecutor {
           assembly: assemblyPlan,
           animation,
           video,
-          provider: options.videoAssemblyProvider,
+          provider: dispatchOptions.videoAssemblyProvider,
           strictProductionAcceptance:
             persistedPolicy?.strictProductionAcceptance === true,
         });
@@ -374,6 +461,7 @@ export class PipelineStageExecutor {
         const video = requireStageInput(state.video, "video", stage);
         const audio = requireStageInput(state.audio, "audio", stage);
         const previousThumbnail = state.thumbnail;
+        await dispatchBranch("thumbnailProvider");
         const thumbnailPlan = await new ThumbnailEngine().generateThumbnailPlan({
           projectId: state.project.id,
           projectSlug,
@@ -381,7 +469,7 @@ export class PipelineStageExecutor {
           assembly,
           video,
           audio,
-          provider: options.thumbnailProvider,
+          provider: dispatchOptions.thumbnailProvider,
           generationPolicy,
         });
         state.thumbnail = await ThumbnailAssetPipeline.generateThumbnail({
@@ -391,7 +479,7 @@ export class PipelineStageExecutor {
           assembly,
           thumbnail: thumbnailPlan,
           previousThumbnail,
-          provider: options.thumbnailProvider,
+          provider: dispatchOptions.thumbnailProvider,
         });
         try {
           return await this.persistStageResult(projectSlug, stage, async () => {
@@ -424,7 +512,7 @@ export class PipelineStageExecutor {
             operation: "seo-plan",
           },
           {
-            aiProvider: options.aiProvider,
+            aiProvider: dispatchOptions.aiProvider,
             generationPolicy,
           },
         );
@@ -438,12 +526,13 @@ export class PipelineStageExecutor {
         const thumbnail = requireStageInput(state.thumbnail, "thumbnail", stage);
         const seo = requireStageInput(state.seo, "seo", stage);
         const previousYouTube = state.youtube;
+        await dispatchBranch("youtubeProvider");
         state.youtube = await YouTubePackagePipeline.generatePackage({
           project: state.project,
           assembly,
           thumbnail,
           seo,
-          provider: options.youtubeProvider,
+          provider: dispatchOptions.youtubeProvider,
         });
         try {
           await ProjectManager.saveYouTube(projectSlug, state.youtube, {
@@ -457,7 +546,7 @@ export class PipelineStageExecutor {
           }
           await YouTubePublishPipeline.publishStoredPackage({
             projectSlug,
-            provider: options.youtubePublishProvider,
+            provider: dispatchOptions.youtubePublishProvider,
           });
           return await this.persistStageResult(projectSlug, stage, () =>
             ProjectManager.markYouTubePublished(projectSlug),

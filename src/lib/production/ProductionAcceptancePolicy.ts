@@ -50,10 +50,15 @@ import { readProductionWorkerLifecycleAuthority } from "./ProductionWorkerLifecy
 import { createLegacyReauthorizationDurableRecoverySnapshot } from
   "./ProductionAcceptanceLegacyDurableRecoverySnapshot";
 import { readCompletedProductionPipelinePreparation,
+  readVerifiedCompletedProductionPipelinePreparationFingerprint,
   type ProductionPipelineCompletedPreparationAuthority } from
   "./ProductionPipelineExecutionFactory";
 import { emitProductionPipelineExecutionEvent } from
   "./ProductionPipelineExecutionInstrumentation";
+import { sameProductionAcceptanceExecutionScope,
+  type ProductionAcceptanceProviderOptions,
+  type ProductionAcceptanceStageExecutionScope } from
+  "./ProductionAcceptanceExecutionScope";
 
 const MARKER_FILE = "production-acceptance.json";
 const CONFIGURATION_NAMES = [
@@ -413,7 +418,6 @@ export interface ProductionAcceptanceStageExecutionIdentity {
   readonly projectSlug: string;
   readonly stage: ProductionStepKey;
   readonly runType: ProjectPackageRunType;
-  readonly jobId: string;
   readonly attemptNumber: number;
   readonly attemptId: string;
   readonly recordId: string;
@@ -432,6 +436,9 @@ export interface ProductionAcceptanceStageCapability {
 }
 
 interface RegisteredLegacyStageCapability {
+  readonly completedPreparationAuthority: ProductionPipelineCompletedPreparationAuthority;
+  readonly completedPreparationProvenanceFingerprint: string;
+  readonly executionScope: ProductionAcceptanceStageExecutionScope;
   readonly identity: ProductionAcceptanceStageExecutionIdentity;
   readonly runId: string;
   readonly markerCreatedAt: string;
@@ -448,8 +455,20 @@ const legacyStageCapabilities = new WeakMap<object, RegisteredLegacyStageCapabil
 
 export async function issueProductionAcceptanceStageCapability(
   authority: ProductionPipelineCompletedPreparationAuthority,
+  executionScope: ProductionAcceptanceStageExecutionScope,
 ): Promise<ProductionAcceptanceStageCapability | undefined> {
   const identity = readCompletedProductionPipelinePreparation(authority).canonicalIdentity;
+  let completedPreparationProvenanceFingerprint: string;
+  try {
+    completedPreparationProvenanceFingerprint =
+      await readVerifiedCompletedProductionPipelinePreparationFingerprint(authority, executionScope);
+  } catch {
+    throw admissionFailure(
+      "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_DURABLE_RECORD_IDENTITY_CHANGED",
+      identity.projectSlug,
+      "concurrency",
+    );
+  }
   const admission = await withProductionAcceptanceLegacyAdmittedExecution(identity, () =>
     readProductionAcceptanceAdmissionAuthority(identity.projectSlug));
   if (admission === null || admission.source !== "legacy-reauthorization") return undefined;
@@ -472,6 +491,9 @@ export async function issueProductionAcceptanceStageCapability(
   );
   const capability = Object.freeze(Object.create(null)) as ProductionAcceptanceStageCapability;
   legacyStageCapabilities.set(capability as object, {
+    completedPreparationAuthority: authority,
+    completedPreparationProvenanceFingerprint,
+    executionScope,
     identity: Object.freeze({ ...identity }),
     runId: admission.marker.runId,
     markerCreatedAt: admission.marker.createdAt,
@@ -483,14 +505,20 @@ export async function issueProductionAcceptanceStageCapability(
     workerLifecyclePolicyVersion: worker.policyVersion,
     state: "issued",
   });
-  await emitProductionPipelineExecutionEvent("capability-issued");
+  await emitProductionPipelineExecutionEvent("capability-issued", {
+    capability: capability as object,
+    identity: identity as unknown as object,
+    executionScope: executionScope as unknown as object,
+  });
   return capability;
 }
 
 export async function consumeProductionAcceptanceStageCapability(
   identity: ProductionAcceptanceStageExecutionIdentity,
   capability?: ProductionAcceptanceStageCapability,
-): Promise<{ strictProductionAcceptance: true; youtubePublishMode: "package-only" } | null> {
+  executionScope?: ProductionAcceptanceStageExecutionScope,
+): Promise<{ strictProductionAcceptance: true; youtubePublishMode: "package-only";
+  providerOptions?: Readonly<ProductionAcceptanceProviderOptions> } | null> {
   const registered = capability && legacyStageCapabilities.get(capability as object);
   if (!registered) {
     const admission = await withProductionAcceptanceLegacyAdmittedExecution(identity, () =>
@@ -513,7 +541,29 @@ export async function consumeProductionAcceptanceStageCapability(
         : "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_REPLAYED",
     identity.projectSlug, "concurrency");
   registered.state = "consuming";
-  await emitProductionPipelineExecutionEvent("revalidation-entered");
+  try {
+    await emitProductionPipelineExecutionEvent("revalidation-entered");
+  } catch {
+    registered.state = "invalidated";
+    throw admissionFailure(
+      "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_INVALIDATED",
+      identity.projectSlug, "concurrency",
+    );
+  }
+  const identityMismatch = stageExecutionIdentityMismatch(registered.identity, identity);
+  if (identityMismatch) {
+    registered.state = "invalidated";
+    throw admissionFailure(identityMismatch, identity.projectSlug, "concurrency");
+  }
+  if (!executionScope ||
+    !sameProductionAcceptanceExecutionScope(registered.executionScope, executionScope)) {
+    registered.state = "invalidated";
+    throw admissionFailure(
+      "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_IDENTITY_MISMATCH",
+      identity.projectSlug,
+      "concurrency",
+    );
+  }
   let runtime: ReturnType<typeof getActiveProductionRuntimeOperationContext>;
   let worker: ReturnType<typeof readProductionWorkerLifecycleAuthority>;
   try {
@@ -526,15 +576,6 @@ export async function consumeProductionAcceptanceStageCapability(
     throw admissionFailure(
       "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_WORKER_LIFECYCLE_UNAVAILABLE",
       identity.projectSlug, "recovery");
-  }
-  const identityMismatch = stageExecutionIdentityMismatch(registered.identity, identity);
-  if (identityMismatch) {
-    registered.state = "invalidated";
-    throw admissionFailure(
-      identityMismatch,
-      identity.projectSlug,
-      "concurrency",
-    );
   }
   if (!runtime ||
     registered.runtimeAuthorityGeneration !== runtime.authority.authorityGeneration ||
@@ -568,6 +609,25 @@ export async function consumeProductionAcceptanceStageCapability(
     throw admissionFailure("PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_STALE",
       identity.projectSlug, "concurrency");
   }
+  let completedPreparationProvenanceFingerprint: string;
+  try {
+    completedPreparationProvenanceFingerprint =
+      await readVerifiedCompletedProductionPipelinePreparationFingerprint(
+        registered.completedPreparationAuthority,
+        executionScope,
+      );
+  } catch {
+    completedPreparationProvenanceFingerprint = "";
+  }
+  if (completedPreparationProvenanceFingerprint !==
+    registered.completedPreparationProvenanceFingerprint) {
+    registered.state = "invalidated";
+    throw admissionFailure(
+      "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_DURABLE_RECORD_IDENTITY_CHANGED",
+      identity.projectSlug,
+      "concurrency",
+    );
+  }
   let admission: EffectiveProductionAcceptanceAuthority | null;
   try {
     admission = await withProductionAcceptanceLegacyAdmittedExecution(identity, () =>
@@ -593,7 +653,8 @@ export async function consumeProductionAcceptanceStageCapability(
     );
   }
   registered.state = "consumed";
-  return { strictProductionAcceptance: true, youtubePublishMode: "package-only" };
+  return { strictProductionAcceptance: true, youtubePublishMode: "package-only",
+    providerOptions: registered.executionScope.providerSelection.dispatchOptions };
 }
 
 function isDurableCausalAdmissionFailure(
@@ -660,7 +721,7 @@ function stageExecutionIdentityMismatch(
     return "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_LEASE_ID_MISMATCH";
   }
   return left.projectSlug !== right.projectSlug || left.stage !== right.stage ||
-    left.runType !== right.runType || left.jobId !== right.jobId ||
+    left.runType !== right.runType ||
     left.attemptNumber !== right.attemptNumber || left.attemptId !== right.attemptId ||
     left.recordId !== right.recordId || left.reservationId !== right.reservationId ||
     left.claimId !== right.claimId ||

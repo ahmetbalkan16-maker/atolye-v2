@@ -52,6 +52,7 @@ const EXCLUDED_ROOT_ENTRIES = new Set([
   "manifest.json",
   "pipeline-jobs.json",
   "pipeline-history.json",
+  "ai-usage.json",
   "production-execution",
 ]);
 
@@ -391,7 +392,7 @@ function excludeAdmittedJob(jobs: readonly unknown[], projectSlug: string): read
   const admitted = getProductionAcceptanceLegacyAdmittedExecution();
   if (!admitted || admitted.projectSlug !== projectSlug) return jobs;
   return jobs.filter((entry) => !entry || typeof entry !== "object" || Array.isArray(entry) ||
-    (entry as Record<string, unknown>).id !== admitted.jobId);
+    (entry as Record<string, unknown>).stage !== admitted.stage);
 }
 
 function normalizeRecoveryDependency(entry: unknown, projectSlug: string) {

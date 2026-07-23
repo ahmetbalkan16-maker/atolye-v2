@@ -7,10 +7,10 @@ import {
 } from "./PipelineRecoveryPlanner";
 import {
   PipelineStageExecutor,
+  materializePipelineStageExecutionOptions,
   type PipelineExecutionState,
   type PipelineStageExecutionOptions,
 } from "./PipelineStageExecutor";
-import { readProductionAcceptancePolicy } from "@/lib/production/ProductionAcceptancePolicy";
 import { validateProductionAcceptancePreflight } from "@/lib/production/ProductionAcceptancePreflight";
 import { isPipelineStateError } from "./PipelineStateError";
 import { getPipelineErrorEvidence } from "./PipelineErrorEvidence";
@@ -26,6 +26,12 @@ import {
   type ProductionAcceptanceStageCapability,
   type ProductionAcceptanceStageExecutionIdentity,
 } from "@/lib/production/ProductionAcceptancePolicy";
+import { createProductionAcceptanceProviderSelection,
+  createProductionAcceptanceStageExecutionScope,
+  type ProductionAcceptanceProviderSelection } from
+  "@/lib/production/ProductionAcceptanceExecutionScope";
+import { emitProductionPipelineExecutionEvent } from
+  "@/lib/production/ProductionPipelineExecutionInstrumentation";
 import { prepareFailedStageRetry } from "./PipelineFailedStageRetry";
 import type {
   ProductionStepKey,
@@ -154,11 +160,10 @@ export class PipelineRunner {
       };
     }
     try {
-      const policy = await readProductionAcceptancePolicy(projectSlug);
       validateStrictProductionResumeState(
         state,
         plan.startStage,
-        policy?.strictProductionAcceptance === true,
+        true,
       );
     } catch {
       return {
@@ -688,14 +693,22 @@ export class PipelineRunner {
     onClaimConflict?: () => void,
     stageExecution?: PipelineStageExecutionOptions,
   ) {
+    const materializedProviders = materializePipelineStageExecutionOptions(stage, stageExecution);
+    const providerSelection = createProductionAcceptanceProviderSelection(
+      stage, materializedProviders.options, materializedProviders.configuredOptions,
+    );
     return this.runStage(
       slug,
       stage,
       (capability, identity) => PipelineStageExecutor.execute(
-        slug, stage, state, stageExecution, capability, identity,
+        slug, stage, state, providerSelection.dispatchOptions as PipelineStageExecutionOptions,
+        capability, identity, runType,
+        providerSelection,
       ),
       runType,
       onClaimConflict,
+      stageExecution,
+      providerSelection,
     );
   }
 
@@ -754,13 +767,30 @@ export class PipelineRunner {
       identity: ProductionAcceptanceStageExecutionIdentity) => Promise<boolean>,
     runType: ProjectPackageRunType,
     onClaimConflict?: () => void,
+    stageExecution?: PipelineStageExecutionOptions,
+    providerSelection: ProductionAcceptanceProviderSelection =
+      createProductionAcceptanceProviderSelection(stage, stageExecution),
   ): Promise<boolean> {
     const legacy = (_capability: ProductionAcceptanceStageCapability | undefined,
       identity: ProductionAcceptanceStageExecutionIdentity,
       authority: ProductionPipelineCompletedPreparationAuthority) =>
-      this.runStageLegacy(slug, stage, async () => action(
-        await issueProductionAcceptanceStageCapability(authority), identity), runType, onClaimConflict);
-    return executeConfiguredProductionPipelineStage({ projectSlug: slug, stage, runType }, legacy);
+      this.runStageLegacy(slug, stage, async () => {
+        const executionScope = createProductionAcceptanceStageExecutionScope({
+          projectSlug: slug,
+          stage,
+          runType,
+          operation: identity.operation,
+          executionFingerprint: identity.executionFingerprint,
+          providerSelection,
+        });
+        await emitProductionPipelineExecutionEvent("capability-issuance-entered");
+        return action(
+          await issueProductionAcceptanceStageCapability(authority, executionScope),
+          identity,
+        );
+      }, runType, onClaimConflict);
+    return executeConfiguredProductionPipelineStage({ projectSlug: slug, stage, runType,
+      providerSelection }, legacy);
   }
 
   private static async runStageLegacy(

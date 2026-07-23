@@ -7,6 +7,7 @@ import {
 } from "@/types/audioError";
 import type { AudioGenerationTarget } from "@/types/audio";
 import {
+  containsReservedSafeEvidenceTerm,
   isSafeAudioIdentifier,
   requireSafeAudioIdentifier,
 } from "./AudioIdentifierPolicy";
@@ -192,7 +193,7 @@ export function serializeAudioAssetErrorEvidence(value: unknown): string[] {
     ...(value.maximumResponseBytes !== undefined
       ? [`audio-response-limit:${value.maximumResponseBytes}`]
       : []),
-  ].slice(0, 10);
+  ].filter((item) => !containsReservedSafeEvidenceTerm(item)).slice(0, 10);
 }
 
 function sanitizeTarget(target: AudioGenerationTarget | undefined): {

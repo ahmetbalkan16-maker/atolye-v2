@@ -41,13 +41,14 @@ export async function reconcileFailedPipelineExecution(
     return failure("PIPELINE_RETRY_DURABLE_CONFLICT", "job:not-failed");
   }
 
+  const durableAttemptOrdinal = job.attempts > 0 ? job.attempts - 1 : 0;
   const identity = buildProductionPipelineExecutionIdentity(
     {
       projectSlug: job.projectSlug,
       stage: job.stage,
-      runType: job.attempts === 0 ? "initial" : "retry",
+      runType: durableAttemptOrdinal === 0 ? "initial" : "retry",
     },
-    { id: job.id, attempts: job.attempts },
+    { id: job.id, attempts: durableAttemptOrdinal },
   );
   const adapter = new ProductionExecutionFilePersistenceAdapter({
     trustedRootDirectory: `${ProjectReader.getProjectFolder(job.projectSlug)}/production-execution`,

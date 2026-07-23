@@ -168,7 +168,7 @@ async function executePreparedDurableProductionPipelineStage(
   }, async () => {
     await emitProductionPipelineExecutionEvent("lifecycle-bound");
     return new ProductionPipelineExecutionAdapter(
-      prepared.adapter,
+      prepared.executionAdapter,
       () => prepared.request,
       (result) => settleSuccessfulProductionPipelineExecution(prepared.settlement, result),
     ).execute(context, () => handler(undefined, identity, prepared.authority));

@@ -148,7 +148,7 @@ async function main() {
       assert.ok(resultLine, "isolated retry continuation smoke did not report a structured result");
       assert.deepEqual(
         JSON.parse(resultLine.slice("RETRY_CONTINUATION_RESULT:".length)),
-        { status: "pass", scenarios: 22 },
+        { status: "pass", scenarios: 23 },
       );
       return;
     } finally {
@@ -212,7 +212,21 @@ async function main() {
     executed.length = 0;
     await fs.rm(projectFolder, { recursive: true, force: true });
     await ProjectManager.createProject(slug);
-    await writeJobs(jobs);
+    const failed = jobs.length === 1 && jobs[0]?.status === "failed" ? jobs[0] : undefined;
+    if (failed) {
+      await assert.rejects(runner.runStage(slug, failed.stage, async () => {
+        throw new Error(`Injected durable ${failed.stage} fixture failure.`);
+      }, "initial"));
+      const durableJobs = await readJobs();
+      const durableFailed = stageJob(durableJobs, failed.stage);
+      assert.ok(durableFailed?.status === "failed");
+      await writeJobs([
+        ...order.slice(0, order.indexOf(failed.stage)).map((stage) => job(stage, "completed", 1)),
+        durableFailed,
+      ]);
+    } else {
+      await writeJobs(jobs);
+    }
   }
 
   scheduler.getNextRunnableStage = async (projectSlug, stages) => {
@@ -307,6 +321,18 @@ async function main() {
     await scenario("audio retry continues through assembly", () =>
       expectRetryChain("audio"));
 
+    await scenario("missing durable retry lineage fails closed before stage dispatch", async () => {
+      executed.length = 0;
+      await fs.rm(projectFolder, { recursive: true, force: true });
+      await ProjectManager.createProject(slug);
+      await writeJobs([job("visuals", "failed", 1)]);
+      const result = await PipelineRunner.executeJobRetry(slug, `${slug}-visuals`);
+      assert.equal(result.success, false);
+      assert.equal(result.status, 500);
+      assert.equal(result.reasonCode, "PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED");
+      assert.deepEqual(executed, []);
+    });
+
     await scenario("each continuation invocation executes one stage", async () => {
       await reset([job("animation", "queued")]);
       const deltas: number[] = [];
@@ -329,12 +355,26 @@ async function main() {
 
     await scenario("duplicate dispatchers do not duplicate execution", async () => {
       await reset([job("animation", "queued")]);
-      await Promise.all([
-        PipelineRunner.dispatchProjectContinuation(slug),
-        PipelineRunner.dispatchProjectContinuation(slug),
-      ]);
+      heldStage = "animation";
+      const stageStarted = new Promise<void>((resolve) => { heldStageStarted = resolve; });
+      const first = PipelineRunner.dispatchProjectContinuation(slug);
+      await stageStarted;
+      let secondEntered = false;
+      const second = Promise.resolve().then(() => {
+        secondEntered = true;
+        return PipelineRunner.dispatchProjectContinuation(slug);
+      });
+      await Promise.resolve();
+      assert.equal(secondEntered, true);
+      assert.ok(releaseHeldStage, "held provider dispatch was not installed");
+      releaseHeldStage();
+      const [firstResult, secondResult] = await Promise.all([first, second]);
+      assert.deepEqual(firstResult.completedStages,
+        ["animation", "video", "audio", "assembly"]);
+      assert.deepEqual(secondResult, { completedStages: [], iterations: 0 });
       for (const stage of ["animation", "video", "audio", "assembly"] as const) {
-        assert.equal(executed.filter((item) => item === stage).length, 1);
+        assert.equal(executed.filter((item) => item === stage).length, 1,
+          `${stage}: ${executed.join(",")}`);
       }
     });
 
@@ -542,7 +582,7 @@ async function main() {
       assert.equal(blocked.blocked, true);
     });
 
-    assert.equal(scenarios, 22);
+    assert.equal(scenarios, 23);
     console.log(
       `Sprint 119 retry and standalone continuation hardening smoke: PASS (${scenarios} scenarios)`,
     );
