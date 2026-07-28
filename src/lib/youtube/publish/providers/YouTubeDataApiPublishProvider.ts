@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 import type {
   YouTubePublishProviderResult,
   YouTubePublishReconciliationRequest,
@@ -7,7 +8,7 @@ import type {
 } from "@/types/youtubePublish";
 import { createYouTubeReconciliationMarker } from "../YouTubePublishValidation";
 import { youtubePublishProviderConfig } from "../YouTubePublishProviderConfig";
-import type { YouTubePublishProvider } from "./YouTubePublishProvider";
+import type { ConfiguredYouTubePublishProvider } from "./YouTubePublishProvider";
 import {
   YOUTUBE_PUBLISH_ERROR,
   YOUTUBE_RECONCILIATION_ERROR,
@@ -15,7 +16,7 @@ import {
 
 type Fetcher = (input: string, init?: RequestInit & { duplex?: "half" }) => Promise<Response>;
 
-export class YouTubeDataApiPublishProvider implements YouTubePublishProvider {
+export class YouTubeDataApiPublishProvider implements ConfiguredYouTubePublishProvider {
   readonly name = "youtube-data-api" as const;
   readonly model = youtubePublishProviderConfig.youtubeDataApi.model;
   private readonly fetcher: Fetcher;
@@ -143,6 +144,14 @@ export class YouTubeDataApiPublishProvider implements YouTubePublishProvider {
       request.signal?.removeEventListener("abort", abortFromCaller);
       videoStream?.destroy();
     }
+  }
+
+  createImmutablePublishDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: this.name, model: this.model,
+        reconciliationChannelId: this.reconciliationChannelId },
+      requiredMethods: ["publish"], optionalMethods: ["reconcilePublish"],
+    });
   }
 
   async reconcilePublish(

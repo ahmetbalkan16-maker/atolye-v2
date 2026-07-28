@@ -1,10 +1,21 @@
 import assert from "node:assert/strict";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import fs from "node:fs/promises";
+import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { AssetManager } from "../src/lib/assets/AssetManager";
 import { VideoStorage } from "../src/lib/assets/storage/VideoStorage";
 import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
 import { PipelineRunner } from "../src/lib/pipeline/PipelineRunner";
+import { configureProductionPipelineExecution } from
+  "../src/lib/production/ProductionPipelineExecutionConfiguration";
+import { createProviderDispatchAdapter } from
+  "../src/lib/providers/ProviderDispatchAdapterAuthority";
+import { createRuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePaths";
+import { createProductionRuntimeOperationContext,
+  getActiveProductionRuntimeOperationContext, initialRuntimeAuthorityGeneration,
+  ProductionRuntimeOperationContextError, runWithProductionRuntimeOperationContext } from
+  "../src/lib/runtime/ProductionRuntimeOperationContext";
 import { ProjectManager } from "../src/lib/projects/ProjectManager";
 import {
   ThumbnailAssetGenerationError,
@@ -19,6 +30,7 @@ import { ThumbnailStorage } from "../src/lib/thumbnail/ThumbnailStorage";
 import { MockThumbnailProvider } from "../src/lib/thumbnail/providers/MockThumbnailProvider";
 import { OpenAIThumbnailProvider } from "../src/lib/thumbnail/providers/OpenAIThumbnailProvider";
 import type {
+  ConfiguredThumbnailProvider,
   ThumbnailAssetGenerationResult,
   ThumbnailGenerationInput,
   ThumbnailProvider,
@@ -28,9 +40,12 @@ import type { AudioData } from "../src/types/audio";
 import type { ThumbnailData, ThumbnailProviderName } from "../src/types/thumbnail";
 import type { VideoData } from "../src/types/video";
 import { GET as getThumbnailAsset } from "../app/api/assets/thumbnails/[slug]/[fileName]/route";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 
-const prefix = `sprint-120-thumbnail-${process.pid}`;
-const projectsRoot = path.join(process.cwd(), "data", "projects");
+let prefix: string;
+let temporaryWorkspace: string;
+let temporaryRuntimeRoot: string;
+let projectsRoot: string;
 const originalProvider = process.env.THUMBNAIL_PROVIDER;
 const originalOpenAIKey = process.env.OPENAI_API_KEY;
 const originalRouterGetProvider = ThumbnailProviderRouter.prototype.getProvider;
@@ -41,8 +56,10 @@ const originalUpdatePackageStatus = ProjectManager.updatePackageStatus;
 const originalPersistStageSuccess = PipelineJobManager.persistStageSuccess;
 const originalFetch = globalThis.fetch;
 let scenarios = 0;
+const selectedScenario = process.env.THUMBNAIL_SMOKE_SCENARIO;
 
 async function scenario(name: string, run: () => void | Promise<void>) {
+  if (selectedScenario && selectedScenario !== name) return;
   await run();
   scenarios++;
   if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${scenarios}: ${name}`);
@@ -119,10 +136,16 @@ function thumbnailAssetInput(projectSlug: string) {
 function injectedProvider(
   name: ThumbnailProviderName,
   mutate?: (result: ThumbnailAssetGenerationResult) => unknown,
-): ThumbnailProvider {
+): ConfiguredThumbnailProvider {
   const mock = new MockThumbnailProvider();
   return {
     name,
+    createImmutableThumbnailDispatchAdapter() {
+      return createProviderDispatchAdapter(this, {
+        metadata: { name: this.name },
+        requiredMethods: ["generateThumbnailPlan", "generateThumbnailAsset"],
+      });
+    },
     generateThumbnailPlan(input: ThumbnailGenerationInput) {
       return mock.generateThumbnailPlan(input);
     },
@@ -278,8 +301,9 @@ async function pipelineFixture(suffix: string) {
   return project;
 }
 
-async function main() {
+async function run() {
   try {
+    delete process.env.THUMBNAIL_PROVIDER;
     await scenario("undefined and blank provider default to mock", () => {
       assert.equal(resolveThumbnailProviderName(undefined), "mock");
       assert.equal(resolveThumbnailProviderName("  "), "mock");
@@ -300,8 +324,8 @@ async function main() {
       assert.equal(first.value.generation?.width, 1280);
       assert.equal(first.value.generation?.height, 720);
       assert.equal(first.assets.assets.at(-1)?.type, "thumbnail");
-      const a = await fs.readFile(path.join(process.cwd(), first.value.generation!.filePath!));
-      const b = await fs.readFile(path.join(process.cwd(), second.value.generation!.filePath!));
+      const a = await fs.readFile(resolveRuntimeLogicalPath(first.value.generation!.filePath!));
+      const b = await fs.readFile(resolveRuntimeLogicalPath(second.value.generation!.filePath!));
       assert.deepEqual(a, b);
     });
     await scenario("production provider result uses validated thumbnail storage", async () => {
@@ -375,7 +399,7 @@ async function main() {
       assert.equal(calls, 0);
     });
     await scenario("invalid project slug cannot escape through failure persistence", async () => {
-      const escaped = path.join(process.cwd(), "data", `${prefix}-escaped`);
+      const escaped = path.join(temporaryRuntimeRoot, `${prefix}-escaped`);
       await assert.rejects(ThumbnailAssetPipeline.generateThumbnail({
         projectId: "project-120",
         projectSlug: `../${prefix}-escaped`,
@@ -417,7 +441,7 @@ async function main() {
     await scenario("thumbnail storage rejects junction escape", async () => {
       const slug = `${prefix}-junction`;
       const assets = path.join(projectsRoot, slug, "assets");
-      const outside = path.join(process.cwd(), `${prefix}-outside`);
+      const outside = path.join(temporaryWorkspace, `${prefix}-outside`);
       await fs.mkdir(assets, { recursive: true });
       await fs.mkdir(outside, { recursive: true });
       await fs.symlink(outside, path.join(assets, "thumbnails"), process.platform === "win32" ? "junction" : "dir");
@@ -425,7 +449,7 @@ async function main() {
     });
     await scenario("project storage root junction fails without secondary registry write", async () => {
       const slug = `${prefix}-project-root-junction`;
-      const outside = path.join(process.cwd(), `${prefix}-root-outside`);
+      const outside = path.join(temporaryWorkspace, `${prefix}-root-outside`);
       await fs.mkdir(outside, { recursive: true });
       await fs.symlink(outside, path.join(projectsRoot, slug), process.platform === "win32" ? "junction" : "dir");
       await expectFailure("project-root-junction", new MockThumbnailProvider());
@@ -433,7 +457,7 @@ async function main() {
     });
     await scenario("atomic publish rejects rename collision and cleans temp file", async () => {
       const source = await generate("atomic-source");
-      const data = await fs.readFile(path.join(process.cwd(), source.value.generation!.filePath!));
+      const data = await fs.readFile(resolveRuntimeLogicalPath(source.value.generation!.filePath!));
       const slug = `${prefix}-atomic-collision`;
       ThumbnailStorage.saveThumbnail({ projectSlug: slug, assetId: "collision-id", data, mimeType: "image/png" });
       assert.throws(() => ThumbnailStorage.saveThumbnail({
@@ -453,7 +477,7 @@ async function main() {
     });
     await scenario("extreme raster dimensions are rejected from physical PNG", async () => {
       const source = await generate("dimension-source");
-      const data = await fs.readFile(path.join(process.cwd(), source.value.generation!.filePath!));
+      const data = await fs.readFile(resolveRuntimeLogicalPath(source.value.generation!.filePath!));
       assert.throws(() => ThumbnailStorage.saveThumbnail({
         projectSlug: `${prefix}-extreme-dimension`,
         assetId: "extreme",
@@ -463,7 +487,7 @@ async function main() {
     });
     await scenario("malformed and truncated PNG payloads fail structural validation", async () => {
       const source = await generate("truncated-source");
-      const data = await fs.readFile(path.join(process.cwd(), source.value.generation!.filePath!));
+      const data = await fs.readFile(resolveRuntimeLogicalPath(source.value.generation!.filePath!));
       assert.throws(() => ThumbnailStorage.saveThumbnail({
         projectSlug: `${prefix}-truncated`, assetId: "truncated",
         data: data.subarray(0, data.length - 5), mimeType: "image/png",
@@ -477,7 +501,7 @@ async function main() {
     });
     await scenario("JPEG and WebP MIME cannot accept PNG signatures", async () => {
       const source = await generate("signature-source");
-      const data = await fs.readFile(path.join(process.cwd(), source.value.generation!.filePath!));
+      const data = await fs.readFile(resolveRuntimeLogicalPath(source.value.generation!.filePath!));
       assert.throws(() => ThumbnailStorage.saveThumbnail({
         projectSlug: `${prefix}-fake-jpeg`, assetId: "fake-jpeg", data, mimeType: "image/jpeg",
       }));
@@ -529,17 +553,73 @@ async function main() {
       assert.deepEqual(await thumbnailFiles(slug), []);
     });
     await scenario("thumbnail persistence failure compensates registry and physical file", async () => {
-      const project = await pipelineFixture("thumbnail-persistence-failure");
-      ProjectManager.saveThumbnail = async () => { throw new Error("thumbnail write unavailable"); };
-      const result = await PipelineRunner.continueProject(project.slug, ["thumbnail"]);
-      ProjectManager.saveThumbnail = originalSaveThumbnail;
-      assert.equal(result.continued, true);
-      const assets = AssetManager.getProjectAssets(project.slug, project.id).assets;
-      assert.equal(assets.filter((asset) => asset.type === "thumbnail" && asset.status === "generated").length, 0);
-      assert.deepEqual(await thumbnailFiles(project.slug), []);
-      const manifest = await ProjectManager.getManifest(project.slug);
-      assert.equal(manifest?.packages.thumbnail.status, "failed");
-      assert.equal(manifest?.packages.assembly.status, "completed");
+      const originalPlan = MockThumbnailProvider.prototype.generateThumbnailPlan;
+      const originalAsset = MockThumbnailProvider.prototype.generateThumbnailAsset;
+      const originalFactory =
+        MockThumbnailProvider.prototype.createImmutableThumbnailDispatchAdapter;
+      let planCalls = 0;
+      let assetCalls = 0;
+      let foreignCalls = 0;
+      let factoryCalls = 0;
+      const operationIds: string[] = [];
+      const authorityBindings: string[] = [];
+      MockThumbnailProvider.prototype.generateThumbnailPlan = async function (...args) {
+        planCalls += 1;
+        const context = getActiveProductionRuntimeOperationContext();
+        assert.ok(context);
+        operationIds.push(context.operationId);
+        authorityBindings.push(context.bindingFingerprint);
+        return originalPlan.apply(this, args);
+      };
+      MockThumbnailProvider.prototype.generateThumbnailAsset = async function (...args) {
+        assetCalls += 1;
+        const context = getActiveProductionRuntimeOperationContext();
+        assert.ok(context);
+        operationIds.push(context.operationId);
+        authorityBindings.push(context.bindingFingerprint);
+        return originalAsset.apply(this, args);
+      };
+      MockThumbnailProvider.prototype.createImmutableThumbnailDispatchAdapter =
+        function () {
+          factoryCalls += 1;
+          const adapter = originalFactory.call(this);
+          MockThumbnailProvider.prototype.generateThumbnailPlan = async function () {
+            foreignCalls += 1;
+            throw new Error("foreign thumbnail provider must not run");
+          };
+          MockThumbnailProvider.prototype.generateThumbnailAsset = async function () {
+            foreignCalls += 1;
+            throw new Error("foreign thumbnail provider must not run");
+          };
+          return adapter;
+        };
+      try {
+        const project = await pipelineFixture("thumbnail-persistence-failure");
+        ProjectManager.saveThumbnail = async () => {
+          throw new Error("thumbnail write unavailable");
+        };
+        const result = await PipelineRunner.continueProject(project.slug, ["thumbnail"]);
+        assert.equal(result.continued, true);
+        const assets = AssetManager.getProjectAssets(project.slug, project.id).assets;
+        assert.equal(assets.filter((asset) =>
+          asset.type === "thumbnail" && asset.status === "generated").length, 0);
+        assert.deepEqual(await thumbnailFiles(project.slug), []);
+        const manifest = await ProjectManager.getManifest(project.slug);
+        assert.equal(manifest?.packages.thumbnail.status, "failed");
+        assert.equal(manifest?.packages.assembly.status, "completed");
+        assert.equal(factoryCalls, 1);
+        assert.equal(planCalls, 1);
+        assert.equal(assetCalls, 1);
+        assert.equal(foreignCalls, 0);
+        assert.equal(new Set(operationIds).size, 1);
+        assert.equal(new Set(authorityBindings).size, 1);
+      } finally {
+        ProjectManager.saveThumbnail = originalSaveThumbnail;
+        MockThumbnailProvider.prototype.generateThumbnailPlan = originalPlan;
+        MockThumbnailProvider.prototype.generateThumbnailAsset = originalAsset;
+        MockThumbnailProvider.prototype.createImmutableThumbnailDispatchAdapter =
+          originalFactory;
+      }
     });
     await scenario("manifest failure retries to one canonical thumbnail asset", async () => {
       const project = await pipelineFixture("manifest-persistence-failure");
@@ -594,7 +674,7 @@ async function main() {
         PipelineRunner.continueProject(project.slug, ["thumbnail"]),
       ]);
       ThumbnailProviderRouter.prototype.getProvider = originalRouterGetProvider;
-      assert.equal(results.filter((result) => result.continued).length, 1);
+      assert.equal(results.filter((result) => result.continued && result.completed).length, 1);
       assert.equal(calls, 1);
       const generated = AssetManager.getProjectAssets(project.slug, project.id).assets.filter(
         (asset) => asset.type === "thumbnail" && asset.status === "generated",
@@ -641,8 +721,9 @@ async function main() {
       assert.equal(manifest?.packages.assembly.status, "completed");
     });
 
-    assert.equal(scenarios, 42);
+    assert.equal(scenarios, selectedScenario ? 1 : 42);
     console.log(`Sprint 120 production thumbnail pipeline smoke: PASS (${scenarios} scenarios)`);
+    emitSmokeResult("production-thumbnail-pipeline", scenarios);
   } finally {
     ThumbnailProviderRouter.prototype.getProvider = originalRouterGetProvider;
     AssetManager.addAsset = originalAssetAdd;
@@ -655,11 +736,54 @@ async function main() {
     else process.env.OPENAI_API_KEY = originalOpenAIKey;
     if (originalProvider === undefined) delete process.env.THUMBNAIL_PROVIDER;
     else process.env.THUMBNAIL_PROVIDER = originalProvider;
-    const entries = await fs.readdir(projectsRoot, { withFileTypes: true });
-    await Promise.all(entries.filter((entry) => entry.name.startsWith(prefix)).map((entry) => fs.rm(path.join(projectsRoot, entry.name), { recursive: true, force: true })));
-    await fs.rm(path.join(process.cwd(), `${prefix}-outside`), { recursive: true, force: true });
-    await fs.rm(path.join(process.cwd(), `${prefix}-root-outside`), { recursive: true, force: true });
   }
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime({ name: "thumbnail-pipeline", enterOperationContext: false,
+    configureProductionExecution: false, environment: {
+      THUMBNAIL_PROVIDER: "mock", OPENAI_API_KEY: undefined,
+    } }, async (canonicalRuntime) => {
+    prefix = `sprint-120-thumbnail-${canonicalRuntime.runId}`;
+    temporaryWorkspace = canonicalRuntime.workspaceRoot;
+    temporaryRuntimeRoot = canonicalRuntime.runtimeRoot;
+    projectsRoot = canonicalRuntime.runtimeStorageContext.projectsRoot;
+    mkdirSync(projectsRoot, { recursive: true });
+    await assert.rejects(
+      PipelineRunner.continueProject(`${prefix}-missing-context`, ["thumbnail"]),
+      (error) => error instanceof ProductionRuntimeOperationContextError &&
+        error.code === "RUNTIME_OPERATION_CONTEXT_MISSING",
+    );
+    const operationContext = canonicalRuntime.operationContext;
+    const worker = canonicalRuntime.workerLifecycle;
+    configureProductionPipelineExecution({
+      lifecycle: worker, runtimeOperationContext: operationContext,
+    });
+    const foreignStorage = createRuntimeStorageContext({
+      environment: { ...process.env,
+        ATOLYE_RUNTIME_ROOT: path.join(temporaryWorkspace, "foreign-runtime") },
+      workspaceRoot: process.cwd(),
+      authorityRoot: path.join(temporaryWorkspace, "foreign-authority"),
+    });
+    const foreignContext = createProductionRuntimeOperationContext({
+      operationId: `thumbnail-foreign-${process.pid}`,
+      operationType: "thumbnail-wiring-test",
+      authorityGeneration: initialRuntimeAuthorityGeneration,
+      storageContext: foreignStorage,
+    });
+    await assert.rejects(
+      runWithProductionRuntimeOperationContext(foreignContext, () =>
+        PipelineRunner.continueProject(`${prefix}-foreign-context`, ["thumbnail"])),
+      (error) => error instanceof ProductionRuntimeOperationContextError &&
+        error.code === "RUNTIME_OPERATION_CONTEXT_MISMATCH",
+    );
+    await runWithProductionRuntimeOperationContext(operationContext, run);
+  });
+}
+
+function resolveRuntimeLogicalPath(logicalPath: string) {
+  assert.ok(logicalPath.startsWith("data/"));
+  return path.join(temporaryRuntimeRoot, path.relative("data", logicalPath));
 }
 
 main().catch((error) => {

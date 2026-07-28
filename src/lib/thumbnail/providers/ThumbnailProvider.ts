@@ -8,6 +8,7 @@ import type {
   ThumbnailStatus,
 } from "@/types/thumbnail";
 import type { VideoData } from "@/types/video";
+import type { ProviderDispatchAdapterAuthority } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 
 export interface ThumbnailGenerationInput {
   projectId?: string;
@@ -85,3 +86,6 @@ export interface ThumbnailProvider {
     input: ThumbnailAssetGenerationInput,
   ): Promise<ThumbnailAssetGenerationResult>;
 }
+
+export type ConfiguredThumbnailProvider = ThumbnailProvider &
+  ProviderDispatchAdapterAuthority<"createImmutableThumbnailDispatchAdapter">;

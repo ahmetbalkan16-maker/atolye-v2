@@ -1,10 +1,11 @@
 import type { YouTubePackageDraft } from "@/types/youtube";
+import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 import { createYouTubePackagePrompt } from "../prompts/youtubePackagePrompt";
 import { youtubeProviderConfig } from "../YouTubeProviderConfig";
 import type {
   YouTubeGenerationInput,
   YouTubeGenerationResult,
-  YouTubeProvider,
+  ConfiguredYouTubeProvider,
 } from "./YouTubeProvider";
 import { YOUTUBE_GENERATION_ERROR } from "./YouTubeProvider";
 
@@ -12,7 +13,7 @@ type OpenAIResponse = {
   choices?: Array<{ message?: { content?: string } }>;
 };
 
-export class OpenAIYouTubeProvider implements YouTubeProvider {
+export class OpenAIYouTubeProvider implements ConfiguredYouTubeProvider {
   readonly name = "openai" as const;
   readonly model = youtubeProviderConfig.openai.model;
   private readonly fetcher: typeof fetch;
@@ -29,6 +30,13 @@ export class OpenAIYouTubeProvider implements YouTubeProvider {
     this.maximumResponseBytes =
       options.maximumResponseBytes ??
       youtubeProviderConfig.openai.maximumResponseBytes;
+  }
+
+  createImmutableYoutubeDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: this.name, model: this.model },
+      requiredMethods: ["generatePublishingPackage"],
+    });
   }
 
   async generatePublishingPackage(

@@ -4,6 +4,7 @@ import type {
   VideoGenerationMode,
   VideoProviderName,
 } from "@/types/video";
+import type { ProviderDispatchAdapterAuthority } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 
 export interface VideoProviderSceneInput {
   sceneId: number;
@@ -57,3 +58,6 @@ export interface VideoProvider {
   readonly name: string;
   generateVideo(input: VideoGenerationInput): Promise<VideoGenerationResult>;
 }
+
+export type ConfiguredVideoProvider = VideoProvider &
+  ProviderDispatchAdapterAuthority<"createImmutableVideoDispatchAdapter">;

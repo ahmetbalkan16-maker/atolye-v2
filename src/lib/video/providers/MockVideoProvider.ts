@@ -1,11 +1,18 @@
+import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 import type {
+  ConfiguredVideoProvider,
   VideoGenerationInput,
   VideoGenerationResult,
-  VideoProvider,
 } from "./VideoProvider";
 
-export class MockVideoProvider implements VideoProvider {
+export class MockVideoProvider implements ConfiguredVideoProvider {
   readonly name = "mock";
+
+  createImmutableVideoDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: this.name }, requiredMethods: ["generateVideo"],
+    });
+  }
 
   async generateVideo(
     input: VideoGenerationInput,

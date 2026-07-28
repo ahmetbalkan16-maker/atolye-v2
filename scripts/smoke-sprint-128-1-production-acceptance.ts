@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import fs from "node:fs";
 import path from "node:path";
 import { OpenAIImageProvider } from "../src/lib/assets/providers/OpenAIImageProvider";
@@ -109,7 +111,7 @@ function mp4() {
   ]);
 }
 
-async function main() {
+async function run() {
 await test("one chapter one scene", () => {
   validateProductionAcceptancePreflight(script([{ id: 1, duration: 90 }]), scenes([{ id: 10, chapterId: 1, duration: 90 }]));
 });
@@ -384,6 +386,11 @@ try {
 } finally { safeRemoveProject(replaySlug); }
 
 process.stdout.write(`Sprint 128.2 P1 hardening smoke PASS: ${passed} scenarios.\n`);
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime({ name: "sprint-128-1-production-acceptance" }, async () => run());
+  emitSmokeResult("sprint-128-1-production-acceptance", passed);
 }
 
 void main().catch((error) => {

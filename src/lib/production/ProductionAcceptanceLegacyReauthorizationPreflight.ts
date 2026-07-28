@@ -39,7 +39,8 @@ import {
 } from "./ProductionAcceptanceTopic";
 import { productionAcceptanceConfigurationFingerprint } from
   "./ProductionAcceptancePolicy";
-import { getProductionAcceptanceLegacyAdmittedExecution } from
+import { getProductionAcceptanceLegacyAdmittedExecution,
+  getProductionAcceptanceLegacyPreviousRetryJob } from
   "./ProductionAcceptanceLegacyAdmissionContext";
 
 const MARKER_FILE = "production-acceptance.json";
@@ -391,8 +392,23 @@ function normalizeRecovery(recovery: unknown, jobs: readonly unknown[], projectS
 function excludeAdmittedJob(jobs: readonly unknown[], projectSlug: string): readonly unknown[] {
   const admitted = getProductionAcceptanceLegacyAdmittedExecution();
   if (!admitted || admitted.projectSlug !== projectSlug) return jobs;
-  return jobs.filter((entry) => !entry || typeof entry !== "object" || Array.isArray(entry) ||
-    (entry as Record<string, unknown>).stage !== admitted.stage);
+  const hasAdmittedStageJob = jobs.some((entry) => entry && typeof entry === "object" &&
+    !Array.isArray(entry) && (entry as Record<string, unknown>).stage === admitted.stage);
+  const previous = getProductionAcceptanceLegacyPreviousRetryJob();
+  if (!hasAdmittedStageJob || !previous || previous.projectSlug !== projectSlug ||
+    previous.stage !== admitted.stage) {
+    return jobs.filter((entry) => !entry || typeof entry !== "object" || Array.isArray(entry) ||
+      (entry as Record<string, unknown>).stage !== admitted.stage);
+  }
+  let replaced = false;
+  return jobs.flatMap((entry) => {
+    const isAdmittedStage = entry && typeof entry === "object" && !Array.isArray(entry) &&
+      (entry as Record<string, unknown>).stage === admitted.stage;
+    if (!isAdmittedStage) return [entry];
+    if (replaced) return [];
+    replaced = true;
+    return [previous];
+  });
 }
 
 function normalizeRecoveryDependency(entry: unknown, projectSlug: string) {

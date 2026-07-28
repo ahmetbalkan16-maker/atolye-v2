@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import { promises as fs } from "node:fs";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
@@ -10,8 +11,10 @@ import {
 import { AudioManager } from "../src/lib/audio/AudioManager";
 import type {
   AudioGenerationInput,
-  AudioProvider,
+  AudioProvider, ConfiguredAudioProvider,
 } from "../src/lib/audio/providers/AudioProvider";
+import { createProviderDispatchAdapter } from
+  "../src/lib/providers/ProviderDispatchAdapterAuthority";
 import {
   AUDIO_PROVIDER_CONFIGURATION_ERROR,
   AudioProviderConfigurationError,
@@ -221,14 +224,21 @@ function createProvider(
     input: AudioGenerationInput,
   ) => AudioGenerationResult | Promise<AudioGenerationResult>,
   validate: (input: AudioGenerationInput) => void = () => undefined,
-): AudioProvider {
-  return {
+): ConfiguredAudioProvider {
+  const provider: ConfiguredAudioProvider = {
     name,
     validateInput: validate,
     async generateAudio(input) {
       return generate(input);
     },
+    createImmutableAudioDispatchAdapter() {
+      return createProviderDispatchAdapter(provider, {
+        metadata: { name: provider.name },
+        requiredMethods: ["validateInput", "generateAudio"],
+      });
+    },
   };
+  return provider;
 }
 
 function validMockResult(input: AudioGenerationInput): AudioGenerationResult {
@@ -1367,6 +1377,7 @@ async function run() {
     console.log(
       `Sprint 114 production audio asset wiring smoke: PASS (${scenarioCount} scenarios)`,
     );
+    emitSmokeResult("production-audio-asset-wiring", scenarioCount);
   } finally {
     globalThis.fetch = originalFetch;
     setEnvironment("AUDIO_PROVIDER", originalEnvironment.audioProvider);

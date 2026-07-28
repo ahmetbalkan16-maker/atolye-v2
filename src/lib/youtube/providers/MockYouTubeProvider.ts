@@ -1,14 +1,22 @@
 import type { AssemblyScene } from "@/types/assembly";
+import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 import type { YouTubeChapter, YouTubePackageDraft } from "@/types/youtube";
 import type {
   YouTubeGenerationInput,
   YouTubeGenerationResult,
-  YouTubeProvider,
+  ConfiguredYouTubeProvider,
 } from "./YouTubeProvider";
 
-export class MockYouTubeProvider implements YouTubeProvider {
+export class MockYouTubeProvider implements ConfiguredYouTubeProvider {
   readonly name = "mock" as const;
   readonly model = "mock-youtube-package-v1";
+
+  createImmutableYoutubeDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: this.name, model: this.model },
+      requiredMethods: ["generatePublishingPackage"],
+    });
+  }
 
   async generatePublishingPackage(
     input: YouTubeGenerationInput,

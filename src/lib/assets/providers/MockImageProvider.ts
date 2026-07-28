@@ -1,11 +1,18 @@
 import type { ImageGenerationResult } from "@/types/asset";
+import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 import type {
+  ConfiguredImageProvider,
   ImageGenerationInput,
-  ImageProvider,
 } from "./ImageProvider";
 
-export class MockImageProvider implements ImageProvider {
+export class MockImageProvider implements ConfiguredImageProvider {
   readonly name = "mock";
+
+  createImmutableImageDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: this.name }, requiredMethods: ["generateImage"],
+    });
+  }
 
   async generateImage(
     _input: ImageGenerationInput,

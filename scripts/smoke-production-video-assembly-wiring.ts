@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import { EventEmitter } from "node:events";
 import { promises as fs } from "node:fs";
+import { mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { PassThrough } from "node:stream";
@@ -28,19 +30,41 @@ import {
   resolveVideoAssemblyProviderName,
 } from "../src/lib/assembly/providers/VideoAssemblyProviderConfig";
 import { VideoAssemblyProviderRouter } from "../src/lib/assembly/providers/VideoAssemblyProviderRouter";
-import type { VideoAssemblyProvider } from "../src/lib/assembly/providers/VideoAssemblyProvider";
+import type { ConfiguredVideoAssemblyProvider, VideoAssemblyProvider } from
+  "../src/lib/assembly/providers/VideoAssemblyProvider";
 import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
 import { PipelineRunner } from "../src/lib/pipeline/PipelineRunner";
 import {
+  materializePipelineStageExecutionOptions,
   PipelineStageExecutor,
   type PipelineExecutionState,
 } from "../src/lib/pipeline/PipelineStageExecutor";
 import { ProjectManager } from "../src/lib/projects/ProjectManager";
-import {
-  ProductionPipelineDurableExecutionError,
-  ProductionPipelineExecutionAdapter,
-} from "../src/lib/production/ProductionPipelineExecutionAdapter";
-import { prepareProductionPipelineExecution } from "../src/lib/production/ProductionPipelineExecutionFactory";
+import { ProductionPipelineDurableExecutionError } from
+  "../src/lib/production/ProductionPipelineExecutionAdapter";
+import { configureProductionPipelineExecution } from
+  "../src/lib/production/ProductionPipelineExecutionConfiguration";
+import type {
+  ProductionAcceptanceStageCapability,
+  ProductionAcceptanceStageExecutionIdentity,
+} from "../src/lib/production/ProductionAcceptancePolicy";
+import { createProductionAcceptanceProviderSelection, type ProductionAcceptanceProviderSelection } from
+  "../src/lib/production/ProductionAcceptanceExecutionScope";
+import { createProductionExecutionReadDescriptor,
+  ProductionExecutionDescriptorBoundReadAdapter } from
+  "../src/lib/production/ProductionExecutionDescriptorBoundReadAdapter";
+import { runWithProductionPipelineExecutionInstrumentation } from
+  "../src/lib/production/ProductionPipelineExecutionInstrumentation";
+import { ProductionWorkerLifecycle } from "../src/lib/production/ProductionWorkerLifecycle";
+import { createProviderDispatchAdapter } from
+  "../src/lib/providers/ProviderDispatchAdapterAuthority";
+import { createRuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePaths";
+import { createProductionRuntimeOperationContext, getActiveProductionRuntimeOperationContext,
+  initialRuntimeAuthorityGeneration,
+  ProductionRuntimeOperationContextError,
+  requireActiveProductionRuntimeOperationContext,
+  runWithProductionRuntimeOperationContext } from
+  "../src/lib/runtime/ProductionRuntimeOperationContext";
 import type { AssemblyPlanData } from "../src/types/assembly";
 import type { AudioData } from "../src/types/audio";
 import type { SceneData } from "../src/types/scene";
@@ -54,11 +78,15 @@ import type {
 import type { VideoAssemblyResult } from "../src/types/videoAssembly";
 import type { VisualData } from "../src/types/visual";
 import { GET as getVideo } from "../app/api/assets/videos/[slug]/[fileName]/route";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 
-const prefix = `sprint-115-video-assembly-${process.pid}`;
-const projectsRoot = path.join(process.cwd(), "data", "projects");
+let prefix: string;
+let temporaryWorkspace: string;
+let temporaryRuntimeRoot: string;
+let projectsRoot: string;
 const now = "2026-07-13T12:00:00.000Z";
 const originalEnvironment = {
+  aiProvider: process.env.AI_PROVIDER,
   provider: process.env.VIDEO_ASSEMBLY_PROVIDER,
   ffmpegPath: process.env.FFMPEG_PATH,
   ffprobePath: process.env.FFPROBE_PATH,
@@ -67,7 +95,6 @@ const originalEnvironment = {
   maxStdio: process.env.FFMPEG_MAX_STDIO_BYTES,
 };
 let count = 0;
-const externalFixtureDirectories: string[] = [];
 
 type PipelineRunnerInternals = {
   runStageLegacy(
@@ -79,8 +106,12 @@ type PipelineRunnerInternals = {
   runStage(
     slug: string,
     stage: ProductionStepKey,
-    action: () => Promise<boolean>,
+    action: (capability: ProductionAcceptanceStageCapability | undefined,
+      identity: ProductionAcceptanceStageExecutionIdentity) => Promise<boolean>,
     runType: ProjectPackageRunType,
+    onClaimConflict?: () => void,
+    stageExecution?: Parameters<typeof materializePipelineStageExecutionOptions>[1],
+    providerSelection?: ProductionAcceptanceProviderSelection,
   ): Promise<boolean>;
 };
 
@@ -88,8 +119,8 @@ const pipelineRunner = PipelineRunner as unknown as PipelineRunnerInternals;
 
 const scenes: SceneData = {
   scenes: [
-    { id: 1, title: "One", description: "One" },
-    { id: 2, title: "Two", description: "Two" },
+    { id: 1, chapterId: 1, duration: 1, title: "One", description: "One" },
+    { id: 2, chapterId: 2, duration: 1, title: "Two", description: "Two" },
   ],
   createdAt: now,
 };
@@ -135,6 +166,7 @@ const assembly: AssemblyPlanData = {
   status: "assembled",
   scenes: [1, 2].map((sceneId) => ({
     sceneId,
+    chapterId: sceneId,
     duration: "00:01",
     visualReference: `visual-${sceneId}`,
     audioAssetId: `audio-${sceneId}`,
@@ -160,6 +192,11 @@ async function scenario(name: string, test: () => void | Promise<void>) {
 function env(name: keyof NodeJS.ProcessEnv, value?: string) {
   if (value === undefined) delete process.env[name];
   else process.env[name] = value;
+}
+
+function resolveRuntimeLogicalPath(logicalPath: string) {
+  assert.ok(logicalPath.startsWith("data/"));
+  return path.join(temporaryRuntimeRoot, path.relative("data", logicalPath));
 }
 
 function wav(dataLength = 16000) {
@@ -345,7 +382,6 @@ async function replaceDirectoryWithExternalJunction(
   files: Array<{ fileName: string; data: Buffer }>,
 ) {
   const external = await fs.mkdtemp(path.join(os.tmpdir(), `${prefix}-escape-`));
-  externalFixtureDirectories.push(external);
   await Promise.all(
     files.map(({ fileName, data }) => fs.writeFile(path.join(external, fileName), data)),
   );
@@ -365,7 +401,6 @@ async function withProjectsRootJunction(test: () => Promise<void>) {
   const external = await fs.mkdtemp(
     path.join(os.tmpdir(), `${prefix}-projects-root-`),
   );
-  externalFixtureDirectories.push(external);
   await fs.rename(projectsRoot, backup);
 
   try {
@@ -473,13 +508,21 @@ async function runAssemblyFailureThroughRunner(durable: boolean) {
     durable ? "durable" : "legacy",
   );
   const originalPlan = AssemblyManager.generateAssemblyPlan;
+  const originalSaveAssembly = ProjectManager.saveAssembly;
   const originalConsoleError = console.error;
   const logs: unknown[][] = [];
-  let durableExecution:
-    | Awaited<ReturnType<typeof prepareProductionPipelineExecution>>
-    | null = null;
-  const failedProvider: VideoAssemblyProvider = {
+  const executionEvents: string[] = [];
+  let providerCalls = 0;
+  let foreignProviderCalls = 0;
+  let adapterFactoryCalls = 0;
+  let providerSelection: ProductionAcceptanceProviderSelection | undefined;
+  const failedProvider: ConfiguredVideoAssemblyProvider = {
     name: "ffmpeg",
+    createImmutableAssemblyDispatchAdapter() {
+      return createProviderDispatchAdapter(this, {
+        metadata: { name: this.name }, requiredMethods: ["assemble"],
+      });
+    },
     async assemble() {
       return {
         success: false,
@@ -490,7 +533,7 @@ async function runAssemblyFailureThroughRunner(durable: boolean) {
     },
   };
 
-  const action = () =>
+  const legacyAction = () =>
     PipelineStageExecutor.execute(
       fixtureValue.project.slug,
       "assembly",
@@ -507,68 +550,113 @@ async function runAssemblyFailureThroughRunner(durable: boolean) {
     console.error = (...args: unknown[]) => logs.push(args);
 
     if (durable) {
-      durableExecution = await prepareProductionPipelineExecution({
-        projectSlug: fixtureValue.project.slug,
-        stage: "assembly",
-        runType: "initial",
-      });
-      PipelineRunner.configureDurableExecution(
-        new ProductionPipelineExecutionAdapter(
-          durableExecution.adapter,
-          () => durableExecution!.request,
+      env("AI_PROVIDER", "mock");
+      env("VIDEO_ASSEMBLY_PROVIDER", "mock");
+      const originalAssemble = MockVideoAssemblyProvider.prototype.assemble;
+      const originalFactory =
+        MockVideoAssemblyProvider.prototype.createImmutableAssemblyDispatchAdapter;
+      MockVideoAssemblyProvider.prototype.assemble = async function (...args) {
+        providerCalls += 1;
+        assert.ok(getActiveProductionRuntimeOperationContext());
+        return originalAssemble.apply(this, args);
+      };
+      MockVideoAssemblyProvider.prototype.createImmutableAssemblyDispatchAdapter =
+        function () {
+          adapterFactoryCalls += 1;
+          return originalFactory.call(this);
+        };
+      const materialized = materializePipelineStageExecutionOptions("assembly");
+      providerSelection = createProductionAcceptanceProviderSelection(
+        "assembly", materialized.options, materialized.configuredOptions,
+      );
+      const assemblyBinding = providerSelection.providers.find(
+        (binding) => binding.slot === "videoAssemblyProvider",
+      );
+      assert.equal(assemblyBinding?.injected, false);
+      assert.ok(assemblyBinding?.reference);
+      assert.equal(Object.isFrozen(assemblyBinding?.reference), true);
+      assert.equal(Object.getPrototypeOf(assemblyBinding?.reference ?? {}), null);
+      const secondMaterialized = materializePipelineStageExecutionOptions("assembly");
+      const secondSelection = createProductionAcceptanceProviderSelection(
+        "assembly", secondMaterialized.options, secondMaterialized.configuredOptions,
+      );
+      assert.notStrictEqual(
+        assemblyBinding?.reference,
+        secondSelection.providers.find((binding) =>
+          binding.slot === "videoAssemblyProvider")?.reference,
+      );
+      MockVideoAssemblyProvider.prototype.assemble = async function () {
+        foreignProviderCalls += 1;
+        throw new Error("foreign assembly provider must not run");
+      };
+      ProjectManager.saveAssembly = async () => {
+        throw new Error("fixture persistence failure");
+      };
+      const action = (
+        capability: ProductionAcceptanceStageCapability | undefined,
+        identity: ProductionAcceptanceStageExecutionIdentity,
+      ) => PipelineStageExecutor.execute(
+        fixtureValue.project.slug,
+        "assembly",
+        fixtureValue.state,
+        materialized.options,
+        capability,
+        identity,
+        "initial",
+        providerSelection,
+      );
+      try {
+        await assert.rejects(
+          runWithProductionPipelineExecutionInstrumentation({
+            onEvent: (event) => { executionEvents.push(event); },
+          }, () => pipelineRunner.runStage(
+            fixtureValue.project.slug,
+            "assembly",
+            action,
+            "initial",
+            undefined,
+            materialized.options,
+            providerSelection,
+          )),
+          (error) => error instanceof ProductionPipelineDurableExecutionError &&
+            error.message === "Pipeline stage execution failed.",
+        );
+      } finally {
+        MockVideoAssemblyProvider.prototype.assemble = originalAssemble;
+        MockVideoAssemblyProvider.prototype.createImmutableAssemblyDispatchAdapter =
+          originalFactory;
+      }
+    } else {
+      await assert.rejects(
+        pipelineRunner.runStageLegacy(
+          fixtureValue.project.slug, "assembly", legacyAction, "initial",
         ),
+        (error) => error instanceof VideoAssemblyError &&
+          error.message === "Video assembly failed." && error.stack === undefined,
       );
     }
-
-    await assert.rejects(
-      durable
-        ? pipelineRunner.runStage(
-            fixtureValue.project.slug,
-            "assembly",
-            action,
-            "initial",
-          )
-        : pipelineRunner.runStageLegacy(
-            fixtureValue.project.slug,
-            "assembly",
-            action,
-            "initial",
-          ),
-      (error) =>
-        durable
-          ? error instanceof ProductionPipelineDurableExecutionError &&
-            error.message === "Pipeline stage execution failed."
-          : error instanceof VideoAssemblyError &&
-            error.message === "Video assembly failed." &&
-            error.stack === undefined,
-    );
   } finally {
-    PipelineRunner.configureDurableExecution();
     AssemblyManager.generateAssemblyPlan = originalPlan;
+    ProjectManager.saveAssembly = originalSaveAssembly;
     console.error = originalConsoleError;
   }
 
   let durableAttempt: Record<string, unknown> | null = null;
-
-  if (durableExecution) {
-    const attemptId = durableExecution.request.coordinator.attempt.attemptId;
-    const listed = await durableExecution.adapter.listKeys("attempt");
-    const latestKey = listed.ok
-      ? listed.keys
-          .map((key) => ({
-            key,
-            match: new RegExp(`^${attemptId}-v([1-9][0-9]*)$`).exec(key),
-          }))
-          .filter((item) => item.match)
-          .sort((left, right) => Number(right.match![1]) - Number(left.match![1]))[0]
-          ?.key
-      : undefined;
-    const read = latestKey
-      ? await durableExecution.adapter.read("attempt", latestKey)
-      : null;
-    durableAttempt = read?.status === "found"
-      ? (read.value as unknown as Record<string, unknown>)
-      : null;
+  if (durable) {
+    const adapter = new ProductionExecutionDescriptorBoundReadAdapter(
+      createProductionExecutionReadDescriptor({
+        runtimeOperationContext: requireActiveProductionRuntimeOperationContext(),
+        projectSlug: fixtureValue.project.slug,
+      }),
+    );
+    const listed = await adapter.listKeys("attempt");
+    const reads = listed.ok
+      ? await Promise.all(listed.keys.map((key) => adapter.read("attempt", key)))
+      : [];
+    const failed = reads.find((read) =>
+      read.status === "found" && read.value.state === "failed");
+    durableAttempt = failed?.status === "found"
+      ? (failed.value as unknown as Record<string, unknown>) : null;
   }
 
   const readJson = async <T>(fileName: string) =>
@@ -586,7 +674,13 @@ async function runAssemblyFailureThroughRunner(durable: boolean) {
     project: await readJson<Project>("project.json"),
     logs,
     durableAttempt,
-    durableTerminalEventId: durableExecution?.request.terminalEventId ?? null,
+    durableTerminalEventId: ((durableAttempt?.journal as
+      | Array<{ entryId?: string }> | undefined)?.at(-1)?.entryId) ?? null,
+    executionEvents,
+    providerCalls,
+    foreignProviderCalls,
+    adapterFactoryCalls,
+    providerSelection,
     assemblyPersisted: await fs
       .access(path.join(projectsRoot, fixtureValue.project.slug, "assembly.json"))
       .then(() => true, () => false),
@@ -598,25 +692,16 @@ async function runPublicPipelineAssemblyFailure() {
   const slug = ProjectManager.createSlug(topic);
   const originalExecute = PipelineStageExecutor.execute;
   const originalPlan = AssemblyManager.generateAssemblyPlan;
+  const originalSaveAssembly = ProjectManager.saveAssembly;
   const originalCompletion = PipelineJobManager.persistProjectCompletion;
   const originalConsoleError = console.error;
   const executedStages: ProductionStepKey[] = [];
   let completionCalls = 0;
   let projectId = "";
   let assetsReady = false;
-  const failedProvider: VideoAssemblyProvider = {
-    name: "ffmpeg",
-    async assemble() {
-      return {
-        success: false,
-        provider: "ffmpeg",
-        createdAt: new Date().toISOString(),
-        error: "Video assembly failed.",
-      };
-    },
-  };
-
   try {
+    env("AI_PROVIDER", "mock");
+    env("VIDEO_ASSEMBLY_PROVIDER", "mock");
     console.error = () => {};
     PipelineJobManager.persistProjectCompletion = async (
       projectSlug,
@@ -630,12 +715,8 @@ async function runPublicPipelineAssemblyFailure() {
       projectId,
       slug,
     });
-    PipelineStageExecutor.execute = async (
-      projectSlug,
-      stage,
-      state,
-      options = {},
-    ) => {
+    PipelineStageExecutor.execute = async (...executeArgs) => {
+      const [projectSlug, stage, state] = executeArgs;
       executedStages.push(stage);
       projectId = state.project.id;
       state.script = {
@@ -673,10 +754,10 @@ async function runPublicPipelineAssemblyFailure() {
           await fixture("public-runner", { slug: projectSlug, projectId });
           assetsReady = true;
         }
-        return originalExecute(projectSlug, stage, state, {
-          ...options,
-          videoAssemblyProvider: failedProvider,
-        });
+        ProjectManager.saveAssembly = async () => {
+          throw new Error("fixture persistence failure");
+        };
+        return originalExecute(...executeArgs);
       }
 
       return PipelineJobManager.persistStageSuccess(
@@ -689,13 +770,13 @@ async function runPublicPipelineAssemblyFailure() {
     await assert.rejects(
       PipelineRunner.run(topic),
       (error) =>
-        error instanceof VideoAssemblyError &&
-        error.message === "Video assembly failed." &&
-        error.stack === undefined,
+        error instanceof ProductionPipelineDurableExecutionError &&
+        error.message === "Pipeline stage execution failed.",
     );
   } finally {
     PipelineStageExecutor.execute = originalExecute;
     AssemblyManager.generateAssemblyPlan = originalPlan;
+    ProjectManager.saveAssembly = originalSaveAssembly;
     PipelineJobManager.persistProjectCompletion = originalCompletion;
     console.error = originalConsoleError;
   }
@@ -715,8 +796,9 @@ async function runPublicPipelineAssemblyFailure() {
   };
 }
 
-async function main() {
+async function run() {
   try {
+    env("VIDEO_ASSEMBLY_PROVIDER", undefined);
     await scenario("undefined and blank provider resolve to mock", () => {
       assert.equal(resolveVideoAssemblyProviderName(undefined), "mock");
       assert.equal(resolveVideoAssemblyProviderName("  "), "mock");
@@ -988,7 +1070,7 @@ async function main() {
       await expectFailure("corrupt-image", async ({ slug, projectId }) => {
         const current = AssetManager.getProjectAssets(slug, projectId);
         const image = current.assets.find((asset) => asset.id === "image-1")!;
-        await fs.writeFile(path.resolve(process.cwd(), ...(image.filePath as string).split("/")), "bad");
+        await fs.writeFile(resolveRuntimeLogicalPath(image.filePath as string), "bad");
       });
     });
     await scenario("image storage junction escape fails before process", async () => {
@@ -996,7 +1078,7 @@ async function main() {
       await expectFailure("image-junction", async ({ slug, projectId }) => {
         const current = AssetManager.getProjectAssets(slug, projectId);
         const image = current.assets.find((asset) => asset.id === "image-1")!;
-        const absolutePath = path.resolve(process.cwd(), ...(image.filePath as string).split("/"));
+        const absolutePath = resolveRuntimeLogicalPath(image.filePath as string);
         const data = await fs.readFile(absolutePath);
         await replaceDirectoryWithExternalJunction(path.dirname(absolutePath), [
           { fileName: path.basename(absolutePath), data },
@@ -1009,7 +1091,7 @@ async function main() {
       await expectFailure("audio-junction", async ({ slug, projectId }) => {
         const current = AssetManager.getProjectAssets(slug, projectId);
         const audioAsset = current.assets.find((asset) => asset.id === "audio-1")!;
-        const absolutePath = path.resolve(process.cwd(), ...(audioAsset.filePath as string).split("/"));
+        const absolutePath = resolveRuntimeLogicalPath(audioAsset.filePath as string);
         const data = await fs.readFile(absolutePath);
         await replaceDirectoryWithExternalJunction(path.dirname(absolutePath), [
           { fileName: path.basename(absolutePath), data },
@@ -1097,7 +1179,7 @@ async function main() {
       const value = await fixture("route-junction");
       const result = await VideoAssemblyManager.renderExistingAssets({ projectId: value.projectId, projectSlug: value.slug, scenes, visuals, audio: baseAudio, assembly, provider: new FFmpegVideoAssemblyProvider(new FakeRunner()) });
       const filePath = result.render?.filePath as string;
-      const absolutePath = path.resolve(process.cwd(), ...filePath.split("/"));
+      const absolutePath = resolveRuntimeLogicalPath(filePath);
       const data = await fs.readFile(absolutePath);
       await replaceDirectoryWithExternalJunction(path.dirname(absolutePath), [
         { fileName: path.basename(absolutePath), data },
@@ -1202,6 +1284,15 @@ async function main() {
     });
     const durableFailure = await runAssemblyFailureThroughRunner(true);
     await scenario("durable runner readback records terminal assembly failure", () => {
+      assert.equal(durableFailure.providerCalls, 1);
+      assert.equal(durableFailure.foreignProviderCalls, 0);
+      assert.equal(durableFailure.adapterFactoryCalls, 2);
+      assert.ok(durableFailure.executionEvents.includes("durable-attempt-persisted"));
+      assert.ok(durableFailure.executionEvents.includes("durable-readback-verified"));
+      assert.ok(durableFailure.executionEvents.includes("canonical-identity-extracted"));
+      assert.ok(durableFailure.executionEvents.includes("lifecycle-bound"));
+      assert.ok(durableFailure.executionEvents.includes("capability-issuance-entered"));
+      assert.ok(durableFailure.executionEvents.includes("provider-dispatch-entered"));
       assert.equal(durableFailure.durableAttempt?.state, "failed");
       const journal = durableFailure.durableAttempt?.journal as
         | Array<{ entryId?: string }>
@@ -1234,40 +1325,75 @@ async function main() {
     });
 
     console.log(`Sprint 115 production video assembly wiring smoke: PASS (${count} scenarios)`);
+    emitSmokeResult("production-video-assembly-wiring", count);
   } finally {
+    env("AI_PROVIDER", originalEnvironment.aiProvider);
     env("VIDEO_ASSEMBLY_PROVIDER", originalEnvironment.provider);
     env("FFMPEG_PATH", originalEnvironment.ffmpegPath);
     env("FFPROBE_PATH", originalEnvironment.ffprobePath);
     env("FFMPEG_TIMEOUT_MS", originalEnvironment.timeout);
     env("VIDEO_ASSEMBLY_MAX_OUTPUT_BYTES", originalEnvironment.maxOutput);
     env("FFMPEG_MAX_STDIO_BYTES", originalEnvironment.maxStdio);
-    PipelineRunner.configureDurableExecution();
-    const cleanupResults = await Promise.allSettled([
-      (async () => {
-        const entries = await fs.readdir(projectsRoot, { withFileTypes: true });
-        await Promise.all(
-          entries
-            .filter((entry) => entry.name.startsWith(prefix))
-            .map((entry) =>
-              fs.rm(path.join(projectsRoot, entry.name), {
-                recursive: true,
-                force: true,
-              }),
-            ),
-        );
-      })(),
-      Promise.all(
-        externalFixtureDirectories.map((directory) =>
-          fs.rm(directory, { recursive: true, force: true }),
-        ),
-      ),
-    ]);
-    const cleanupFailure = cleanupResults.find(
-      (result): result is PromiseRejectedResult => result.status === "rejected",
-    );
-
-    if (cleanupFailure) throw cleanupFailure.reason;
   }
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime({ name: "video-assembly", enterOperationContext: false,
+    configureProductionExecution: false, environment: {
+      AI_PROVIDER: "mock", VIDEO_PROVIDER: "mock", VIDEO_ASSEMBLY_PROVIDER: "mock",
+      FFMPEG_PATH: undefined, FFPROBE_PATH: undefined,
+    } }, async (canonicalRuntime) => {
+    prefix = `sprint-115-video-assembly-${canonicalRuntime.runId}`;
+    temporaryWorkspace = canonicalRuntime.workspaceRoot;
+    temporaryRuntimeRoot = canonicalRuntime.runtimeRoot;
+    projectsRoot = canonicalRuntime.runtimeStorageContext.projectsRoot;
+    mkdirSync(projectsRoot, { recursive: true });
+    await assert.rejects(
+      PipelineRunner.continueProject(`${prefix}-missing-context`, ["assembly"]),
+      (error) => error instanceof ProductionRuntimeOperationContextError &&
+        error.code === "RUNTIME_OPERATION_CONTEXT_MISSING",
+    );
+    const storageContext = canonicalRuntime.runtimeStorageContext;
+    const operationContext = createProductionRuntimeOperationContext({
+      operationId: `assembly-wiring-${process.pid}`,
+      operationType: "assembly-wiring-test",
+      authorityGeneration: initialRuntimeAuthorityGeneration,
+      storageContext,
+    });
+    const worker = new ProductionWorkerLifecycle(() => now);
+    worker.bindRuntimeOperationContext(operationContext);
+    const started = await worker.start({ initialization: {
+      schemaVersion: "1", ok: true, decision: "ready",
+      reasonCode: "RUNTIME_INITIALIZED", initializedAt: now,
+      writeFree: true, partialInitialization: false, projects: [],
+      counts: { active: 0, running: 0, terminal: 0, orphaned: 0,
+        "expired-lease": 0, replayable: 0 },
+      worker: worker.snapshot(), evidence: [],
+    } });
+    assert.equal(started.ok, true);
+    configureProductionPipelineExecution({
+      lifecycle: worker, runtimeOperationContext: operationContext,
+    });
+    const foreignStorage = createRuntimeStorageContext({
+      environment: { ...process.env,
+        ATOLYE_RUNTIME_ROOT: path.join(temporaryWorkspace, "foreign-runtime") },
+      workspaceRoot: process.cwd(),
+      authorityRoot: path.join(temporaryWorkspace, "foreign-authority"),
+    });
+    const foreignContext = createProductionRuntimeOperationContext({
+      operationId: `assembly-foreign-${process.pid}`,
+      operationType: "assembly-wiring-test",
+      authorityGeneration: initialRuntimeAuthorityGeneration,
+      storageContext: foreignStorage,
+    });
+    await assert.rejects(
+      runWithProductionRuntimeOperationContext(foreignContext, () =>
+        PipelineRunner.continueProject(`${prefix}-foreign-context`, ["assembly"])),
+      (error) => error instanceof ProductionRuntimeOperationContextError &&
+        error.code === "RUNTIME_OPERATION_CONTEXT_MISMATCH",
+    );
+    await runWithProductionRuntimeOperationContext(operationContext, run);
+  });
 }
 
 void main();

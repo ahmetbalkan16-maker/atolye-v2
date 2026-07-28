@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 import { AnimationAssetPipeline } from "../src/lib/animation/AnimationAssetPipeline";
 import { AnimationStorage } from "../src/lib/animation/AnimationStorage";
 import { AnimationPromptGenerator } from "../src/lib/animation/prompts/AnimationPromptGenerator";
@@ -19,6 +21,7 @@ import type { VideoAssemblyProvider } from "../src/lib/assembly/providers/VideoA
 import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
 import { PipelineRunner } from "../src/lib/pipeline/PipelineRunner";
 import { PipelineStageExecutor } from "../src/lib/pipeline/PipelineStageExecutor";
+import { createProviderDispatchAdapter } from "../src/lib/providers/ProviderDispatchAdapterAuthority";
 import { ProductionAcceptanceBlockedError, ProductionAcceptanceOrchestrator } from "../src/lib/production/ProductionAcceptanceOrchestrator";
 import { productionAcceptanceConfigurationFingerprint } from "../src/lib/production/ProductionAcceptancePolicy";
 import { ProductionReadinessService } from "../src/lib/production/ProductionReadinessService";
@@ -31,11 +34,17 @@ import type { AudioData } from "../src/types/audio";
 import type { SceneData } from "../src/types/scene";
 import type { VisualData } from "../src/types/visual";
 
-const prefix = `sprint-127-animation-${process.pid}`;
-const projectsRoot = path.join(process.cwd(), "data", "projects");
+let prefix: string;
+let temporaryWorkspace: string;
+let temporaryRuntimeRoot: string;
+let projectsRoot: string;
 const endpoint = "https://api.openai.com/v1/chat/completions";
 const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 let scenarios = 0;
+
+function physicalRuntimePath(logicalPath: string): string {
+  return path.join(temporaryRuntimeRoot, path.relative("data", logicalPath));
+}
 
 async function scenario(name: string, action: () => void | Promise<void>) {
   await action();
@@ -83,7 +92,7 @@ function input(): AnimationGenerationInput {
 }
 
 function productionProvider(): AnimationProvider {
-  return {
+  return configuredAnimationProvider({
     name: "openai",
     getRequestIdentity(value) {
       const requestIdentity = createHash("sha256").update(JSON.stringify({
@@ -120,7 +129,18 @@ function productionProvider(): AnimationProvider {
         transition: "fade",
       };
     },
-  };
+  });
+}
+
+function configuredAnimationProvider(provider: AnimationProvider): AnimationProvider {
+  Object.defineProperty(provider, "createImmutableAnimationDispatchAdapter", {
+    enumerable: false, configurable: false, writable: false,
+    value: () => createProviderDispatchAdapter(provider, {
+      metadata: { name: provider.name }, requiredMethods: ["generateAnimation"],
+      optionalMethods: ["getRequestIdentity"],
+    }),
+  });
+  return provider;
 }
 
 async function readiness(environment: Record<string, string | undefined>) {
@@ -190,7 +210,7 @@ async function createProductionAnimation(suffix: string) {
   return { ...value, generated, animation };
 }
 
-async function main() {
+async function run() {
   const originalKey = process.env.OPENAI_API_KEY;
   try {
     process.env.OPENAI_API_KEY = "configured-for-smoke";
@@ -391,8 +411,8 @@ async function main() {
         projectId: replay.project.id, projectSlug: replay.slug, scenes: replay.scenes, provider,
       });
       const firstAsset = first.projectAssets.assets.find((item) => item.type === "animation")!;
-      const registryPath = path.join(process.cwd(), AssetManager.getAssetsPath(replay.slug));
-      const artifactPath = path.join(process.cwd(), firstAsset.filePath as string);
+      const registryPath = physicalRuntimePath(AssetManager.getAssetsPath(replay.slug));
+      const artifactPath = physicalRuntimePath(firstAsset.filePath as string);
       const registryBefore = fs.readFileSync(registryPath);
       const artifactBefore = fs.readFileSync(artifactPath);
       const artifactMtime = fs.statSync(artifactPath).mtimeMs;
@@ -437,7 +457,7 @@ async function main() {
     await scenario("registry persistence failure compensates only the new batch artifact", async () => {
       const isolatedExisting = await createProductionAnimation("compensation-existing");
       const existingAsset = isolatedExisting.generated.projectAssets.assets.find((item) => item.type === "animation")!;
-      const existingPath = path.join(process.cwd(), existingAsset.filePath as string);
+      const existingPath = physicalRuntimePath(existingAsset.filePath as string);
       const failing = await fixture("compensation-failing");
       const identity = productionProvider().getRequestIdentity!({
         sceneId: 1,
@@ -445,7 +465,7 @@ async function main() {
         animationPrompt: failing.scenes[0].animationPrompt,
         durationSeconds: 2,
       });
-      const targetPath = path.join(process.cwd(), AnimationStorage.getMotionPlanPath(failing.slug, identity.assetId));
+      const targetPath = physicalRuntimePath(AnimationStorage.getMotionPlanPath(failing.slug, identity.assetId));
       const originalSave = AssetManager.saveProjectAssetsAtomically;
       AssetManager.saveProjectAssetsAtomically = () => { throw new Error("injected persistence failure"); };
       try {
@@ -461,16 +481,16 @@ async function main() {
 
     await scenario("existing storage target is never overwritten", () => {
       const inspection = AnimationStorage.inspectStoredMotionPlan(value.slug, asset.filePath as string);
-      const before = fs.readFileSync(path.join(process.cwd(), asset.filePath as string));
+      const before = fs.readFileSync(physicalRuntimePath(asset.filePath as string));
       assert.throws(() => AnimationStorage.saveMotionPlan(value.slug, inspection.artifact));
-      assert.deepEqual(fs.readFileSync(path.join(process.cwd(), asset.filePath as string)), before);
+      assert.deepEqual(fs.readFileSync(physicalRuntimePath(asset.filePath as string)), before);
     });
 
     await scenario("atomic publish race preserves a concurrently-created target", async () => {
       const race = await fixture("atomic-race");
       const inspection = AnimationStorage.inspectStoredMotionPlan(value.slug, asset.filePath as string);
       const raceAssetId = `animation-${"a".repeat(64)}`;
-      const target = path.join(process.cwd(), AnimationStorage.getMotionPlanPath(race.slug, raceAssetId));
+      const target = physicalRuntimePath(AnimationStorage.getMotionPlanPath(race.slug, raceAssetId));
       const originalLink = fs.linkSync;
       fs.linkSync = ((source, destination) => {
         fs.writeFileSync(destination, "concurrent-owner", { flag: "wx" });
@@ -525,7 +545,7 @@ async function main() {
 
     await scenario("artifact content mismatch and cross-project locator fail closed", async () => {
       const registry = AssetManager.getProjectAssets(value.slug, value.project.id);
-      const artifactPath = path.join(process.cwd(), asset.filePath as string);
+      const artifactPath = physicalRuntimePath(asset.filePath as string);
       const originalArtifact = fs.readFileSync(artifactPath);
       const parsed = JSON.parse(originalArtifact.toString("utf8"));
       fs.writeFileSync(artifactPath, `${JSON.stringify({ ...parsed, durationSeconds: 3 }, null, 2)}\n`);
@@ -589,7 +609,7 @@ async function main() {
     await scenario("animation storage root junction swap cannot escape project storage", () => {
       const animationDir = path.join(projectsRoot, value.slug, "assets", "animations");
       const backup = `${animationDir}-backup`;
-      const outside = path.join(process.cwd(), "data", `${prefix}-junction-target`);
+      const outside = path.join(temporaryWorkspace, `${prefix}-junction-target`);
       fs.mkdirSync(outside, { recursive: true });
       fs.writeFileSync(path.join(outside, "outside-marker"), "preserve");
       fs.renameSync(animationDir, backup);
@@ -600,7 +620,6 @@ async function main() {
       } finally {
         fs.unlinkSync(animationDir);
         fs.renameSync(backup, animationDir);
-        fs.rmSync(outside, { recursive: true, force: true });
       }
     });
 
@@ -615,8 +634,8 @@ async function main() {
       const original = AnimationPromptGenerator.generateAnimationData;
       AnimationPromptGenerator.generateAnimationData = async () => ({ projectId: pipeline.project.id, scenes: pipeline.scenes, createdAt: new Date().toISOString() });
       try {
-        const runner = PipelineRunner as unknown as { runStage(slug: string, stage: "animation", action: () => Promise<boolean>, runType: "initial"): Promise<boolean> };
-        assert.equal(await runner.runStage(pipeline.slug, "animation", () => PipelineStageExecutor.execute(pipeline.slug, "animation", state, { animationProvider: productionProvider() }), "initial"), true);
+        const runner = PipelineRunner as unknown as { runStageLegacy(slug: string, stage: "animation", action: () => Promise<boolean>, runType: "initial"): Promise<boolean> };
+        assert.equal(await runner.runStageLegacy(pipeline.slug, "animation", () => PipelineStageExecutor.execute(pipeline.slug, "animation", state, { animationProvider: productionProvider() }), "initial"), true);
         assert.equal((await ProjectManager.getManifest(pipeline.slug))?.packages.animation.status, "completed");
         const stored = await ProjectManager.getAnimation(pipeline.slug) as AnimationData;
         assert.equal(stored.scenes[0].sourceImageAssetId, pipeline.imageId);
@@ -636,16 +655,16 @@ async function main() {
       const original = AnimationPromptGenerator.generateAnimationData;
       AnimationPromptGenerator.generateAnimationData = async () => ({ projectId: failed.project.id, scenes: failed.scenes, createdAt: new Date().toISOString() });
       const base = productionProvider();
-      const invalid: AnimationProvider = {
+      const invalid: AnimationProvider = configuredAnimationProvider({
         ...base,
         async generateAnimation(request) {
           const result = await base.generateAnimation(request);
           return result.success ? { ...result, motionType: "spin" as never } : result;
         },
-      };
+      });
       try {
-        const runner = PipelineRunner as unknown as { runStage(slug: string, stage: "animation", action: () => Promise<boolean>, runType: "initial"): Promise<boolean> };
-        await assert.rejects(() => runner.runStage(failed.slug, "animation", () => PipelineStageExecutor.execute(failed.slug, "animation", state, { animationProvider: invalid }), "initial"));
+        const runner = PipelineRunner as unknown as { runStageLegacy(slug: string, stage: "animation", action: () => Promise<boolean>, runType: "initial"): Promise<boolean> };
+        await assert.rejects(() => runner.runStageLegacy(failed.slug, "animation", () => PipelineStageExecutor.execute(failed.slug, "animation", state, { animationProvider: invalid }), "initial"));
         assert.equal((await ProjectManager.getManifest(failed.slug))?.packages.animation.status, "failed");
         assert.equal(AssetManager.getProjectAssets(failed.slug, failed.project.id).assets.some((item) => item.type === "animation"), false);
         assert.equal(await ProjectManager.getAnimation(failed.slug), null);
@@ -672,21 +691,6 @@ async function main() {
       );
     });
 
-    await scenario("acceptance readiness gate blocks mock before pipeline execution", async () => {
-      const originalRun = PipelineRunner.run;
-      const originalProvider = process.env.ANIMATION_PROVIDER;
-      let calls = 0;
-      PipelineRunner.run = async (...args: Parameters<typeof PipelineRunner.run>) => { calls += 1; return originalRun(...args); };
-      process.env.ANIMATION_PROVIDER = "mock";
-      try {
-        await assert.rejects(() => ProductionAcceptanceOrchestrator.run({ topic: "Animation readiness acceptance" }), (error) => error instanceof ProductionAcceptanceBlockedError);
-        assert.equal(calls, 0);
-      } finally {
-        PipelineRunner.run = originalRun;
-        if (originalProvider === undefined) delete process.env.ANIMATION_PROVIDER; else process.env.ANIMATION_PROVIDER = originalProvider;
-      }
-    });
-
     await scenario("normal mock-first animation behavior remains locator-free", async () => {
       const mockInput = input();
       const result = await new MockAnimationProvider().generateAnimation(mockInput);
@@ -695,14 +699,8 @@ async function main() {
       assert.equal((result as { filePath?: unknown }).filePath, undefined);
     });
 
-    console.log(`Sprint 127 production animation provider smoke: PASS (${scenarios} scenarios)`);
   } finally {
     if (originalKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = originalKey;
-    for (const directory of fs.readdirSync(projectsRoot, { withFileTypes: true })) {
-      if (directory.isDirectory() && directory.name.startsWith(prefix)) {
-        fs.rmSync(path.join(projectsRoot, directory.name), { recursive: true, force: true });
-      }
-    }
   }
 }
 
@@ -825,6 +823,47 @@ function wav() {
   buffer.writeUInt16LE(2, 32); buffer.writeUInt16LE(16, 34); buffer.write("data", 36);
   buffer.writeUInt32LE(dataLength, 40);
   return buffer;
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime({
+    name: "animation-provider",
+    operationType: "animation-provider-smoke",
+    configureProductionExecution: false,
+  }, async (runtime) => {
+    prefix = `sprint-127-animation-${runtime.runId}`;
+    temporaryWorkspace = runtime.workspaceRoot;
+    temporaryRuntimeRoot = runtime.runtimeRoot;
+    projectsRoot = runtime.runtimeStorageContext.projectsRoot;
+    const repositoryProjectsRoot = path.resolve(process.cwd(), "data", "projects");
+    assert.notEqual(
+      path.resolve(projectsRoot),
+      repositoryProjectsRoot,
+      "Animation smoke fixture root must not resolve to repository data/projects.",
+    );
+    await run();
+  });
+  await scenario("acceptance readiness gate blocks mock before pipeline execution", async () => {
+    const originalRun = PipelineRunner.run;
+    const originalProvider = process.env.ANIMATION_PROVIDER;
+    let calls = 0;
+    PipelineRunner.run = async (...args: Parameters<typeof PipelineRunner.run>) => {
+      calls += 1; return originalRun(...args);
+    };
+    process.env.ANIMATION_PROVIDER = "mock";
+    try {
+      await assert.rejects(() => ProductionAcceptanceOrchestrator.run({
+        topic: "Animation readiness acceptance",
+      }), (error) => error instanceof ProductionAcceptanceBlockedError);
+      assert.equal(calls, 0);
+    } finally {
+      PipelineRunner.run = originalRun;
+      if (originalProvider === undefined) delete process.env.ANIMATION_PROVIDER;
+      else process.env.ANIMATION_PROVIDER = originalProvider;
+    }
+  });
+  console.log(`Sprint 127 production animation provider smoke: PASS (${scenarios} scenarios)`);
+  emitSmokeResult("production-animation-provider", scenarios);
 }
 
 void main();

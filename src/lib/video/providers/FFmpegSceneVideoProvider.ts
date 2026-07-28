@@ -1,11 +1,13 @@
 import fs from "node:fs";
+import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
 import { VideoStorage } from "@/lib/assets/storage/VideoStorage";
 import {
-  createRuntimeStorageContext,
   resolveRuntimeLogicalPath,
   type RuntimeStorageContext,
 } from "@/lib/runtime/RuntimeStoragePaths";
+import { requireActiveProductionRuntimeOperationContext,
+  requireProductionRuntimeStorageContext } from "@/lib/runtime/ProductionRuntimeOperationContext";
 import {
   SpawnRunner,
   type ProcessRunResult,
@@ -16,7 +18,7 @@ import type { AnimationMotionFrame } from "@/types/animation";
 import type {
   VideoGenerationInput,
   VideoGenerationResult,
-  VideoProvider,
+  ConfiguredVideoProvider,
   VideoProviderSceneInput,
   VideoSceneGenerationSuccess,
 } from "./VideoProvider";
@@ -31,8 +33,14 @@ const HEIGHT = 1080;
 const FRAME_RATE = 30;
 const MAX_ZOOMPAN_ZOOM = 10;
 
-export class FFmpegSceneVideoProvider implements VideoProvider {
+export class FFmpegSceneVideoProvider implements ConfiguredVideoProvider {
   readonly name = "ffmpeg";
+
+  createImmutableVideoDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: this.name }, requiredMethods: ["generateVideo"],
+    });
+  }
 
   constructor(
     private readonly runner: VideoAssemblyProcessRunner = new SpawnRunner(),
@@ -43,7 +51,8 @@ export class FFmpegSceneVideoProvider implements VideoProvider {
 
   async generateVideo(input: VideoGenerationInput): Promise<VideoGenerationResult> {
     const paths: Array<ReturnType<typeof VideoStorage.createSceneRenderPaths>> = [];
-    const context = this.runtimeStorageContext ?? createRuntimeStorageContext();
+    const context = this.runtimeStorageContext ?? requireProductionRuntimeStorageContext(
+      requireActiveProductionRuntimeOperationContext());
 
     try {
       validateBatch(input, context);
@@ -175,7 +184,8 @@ export function buildSceneFFmpegArgs(
   outputPath: string,
   input?: RuntimeStorageContext,
 ) {
-  const context = input ?? createRuntimeStorageContext();
+  const context = input ?? requireProductionRuntimeStorageContext(
+    requireActiveProductionRuntimeOperationContext());
   const duration = scene.motionPlan.durationSeconds.toFixed(6);
   const frames = Math.max(1, Math.round(scene.motionPlan.durationSeconds * FRAME_RATE));
   const filter = buildMotionFilter(

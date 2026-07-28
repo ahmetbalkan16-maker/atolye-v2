@@ -8,6 +8,7 @@ import type {
   AnimationMotionPlanErrorCode,
   AnimationProviderDiagnosticMetadata,
 } from "@/types/animationError";
+import type { ProviderDispatchAdapterAuthority } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 
 export interface AnimationGenerationInput {
   sceneId: number;
@@ -63,3 +64,6 @@ export interface AnimationProvider {
     input: AnimationGenerationInput,
   ): Promise<AnimationGenerationResult>;
 }
+
+export type ConfiguredAnimationProvider = AnimationProvider &
+  ProviderDispatchAdapterAuthority<"createImmutableAnimationDispatchAdapter">;

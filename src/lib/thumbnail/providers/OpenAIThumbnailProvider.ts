@@ -1,4 +1,5 @@
 import { ThumbnailStorage } from "../ThumbnailStorage";
+import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 import { thumbnailProviderConfig } from "../ThumbnailProviderConfig";
 import { createMockThumbnailData } from "./MockThumbnailProvider";
 import type {
@@ -6,7 +7,7 @@ import type {
   ThumbnailAssetGenerationResult,
   ThumbnailGenerationInput,
   ThumbnailGenerationResult,
-  ThumbnailProvider,
+  ConfiguredThumbnailProvider,
 } from "./ThumbnailProvider";
 
 type OpenAIImageResponse = {
@@ -14,7 +15,7 @@ type OpenAIImageResponse = {
   error?: { message?: string };
 };
 
-export class OpenAIThumbnailProvider implements ThumbnailProvider {
+export class OpenAIThumbnailProvider implements ConfiguredThumbnailProvider {
   readonly name = "openai" as const;
   private readonly timeoutMs: number;
   private readonly maximumResponseBytes: number;
@@ -23,6 +24,13 @@ export class OpenAIThumbnailProvider implements ThumbnailProvider {
     this.timeoutMs = options.timeoutMs ?? thumbnailProviderConfig.openai.timeoutMs;
     this.maximumResponseBytes =
       options.maximumResponseBytes ?? thumbnailProviderConfig.openai.maximumResponseBytes;
+  }
+
+  createImmutableThumbnailDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: this.name },
+      requiredMethods: ["generateThumbnailPlan", "generateThumbnailAsset"],
+    });
   }
 
   async generateThumbnailPlan(

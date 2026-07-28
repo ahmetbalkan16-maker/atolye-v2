@@ -5,6 +5,7 @@ import type {
   YouTubePackageDraft,
   YouTubeProviderName,
 } from "@/types/youtube";
+import type { ProviderDispatchAdapterAuthority } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 
 export const YOUTUBE_GENERATION_ERROR =
   "YouTube package generation failed." as const;
@@ -42,3 +43,6 @@ export interface YouTubeProvider {
     input: YouTubeGenerationInput,
   ): Promise<YouTubeGenerationResult>;
 }
+
+export type ConfiguredYouTubeProvider = YouTubeProvider &
+  ProviderDispatchAdapterAuthority<"createImmutableYoutubeDispatchAdapter">;

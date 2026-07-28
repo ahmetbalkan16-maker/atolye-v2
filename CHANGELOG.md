@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Medium
 Owner: Atölye V2
-Last Updated: 2026-07-22
+Last Updated: 2026-07-28
 ---
 
 # Atölye V2 — Changelog
@@ -25,9 +25,9 @@ referans alınmalıdır.
 
 # Version 1.x
 
-## 2026-07-22 — Sprint 129.28 — Production Acceptance Reauthorization and Durable Identity Authority Hardening / Completed
+## 2026-07-28 — Sprint 129.28 — Production Acceptance Reauthorization and Durable Identity Authority Hardening / Completed
 
-Bağımsız final re-review P0 `0`, P1 `0`, P2 `0` ve geçmiş review kararı olarak `READY FOR DOCUMENTATION` verdi.
+Bağımsız final re-review kararı `APPROVED`; P0 `0`, P1 `0`, P2 `0`.
 
 ### Added
 
@@ -35,12 +35,15 @@ Bağımsız final re-review P0 `0`, P1 `0`, P2 `0` ve geçmiş review kararı ol
 - Canonical identity'ye completed durable requestId, idempotencyKey, operation, reservationId, claimId, attemptId, executionFingerprint ve yalnız `completed.lease.identity.leaseId` kaynağından leaseId propagation eklendi.
 - Provider gate'e issued/admitted identity ile reservation, idempotency record, lease, claim ve attempt arasında direct exact karşılaştırmalar; requestId, idempotencyKey, operation ve leaseId için ayrı canonical mismatch kodları eklendi.
 - Coordinated durable lease mutation, provenance poisoning, opaque authority/capability negative control, real ordering, consuming/invalidation ve controlled concurrency testleri eklendi.
+- Canonical smoke runtime foundation, environment/global registration isolation, repository-wide production/durable harness migration ve operation-authority-bound durable read adapter eklendi.
+- Immutable validation evidence, controlled resume provenance ve disk-only semantic aggregator eklendi; final evidence temp audit artefact'ı `canonical-closure-20260728-06` run ID'siyle tutuldu ve repository'ye eklenmedi.
 
 ### Changed
 
 - Capability issuance durable attempt persistence, completed readback verification, canonical identity extraction ve lifecycle binding sonrasına taşındı. Attempt-before-issuance ve exact replay/idempotency sözleşmesi korundu.
 - Provider revalidation issued frozen identity'yi admitted context üzerinden durable snapshot'a taşıyacak ve causal mismatch kodlarını invalidation ile exact koruyacak biçimde sertleştirildi.
 - Recovery store-policy geçerli reservation bulunduğunda idempotency store'u zorunlu tutacak biçimde değiştirildi. `validReservationCount` yalnız non-invalid reservation'ları sayar; expired/released/terminal, empty-present/not-created, corrupt ve claim/attempt gereksinimleri ayrıştırıldı; matrix active conflict'ten önce uygulanır.
+- Positive production/durable harness'ler isolated runtime, authority ve context modeline taşındı. Durable read authority operation-bound hale getirildi; provider adapter factory authority ile retry/recovery stale ve poison isolation bağları fail-closed sıkılaştırıldı.
 
 ### Security / Hardening
 
@@ -48,6 +51,7 @@ Bağımsız final re-review P0 `0`, P1 `0`, P2 `0` ve geçmiş review kararı ol
 - Capability issuance sonrasında lease/claim/attempt leaseId değerlerinin birlikte değiştirilip integrity fingerprint'lerinin yenilenmesi, kayıtlar karşılıklı tutarlı olsa bile issued completed leaseId ile exact `LEASE_ID_MISMATCH` üretir; provider çağrılmaz.
 - Identity mismatch, lifecycle failure ve durable revalidation failure capability'yi invalidated yapar; ikinci kullanım `LEGACY_CAPABILITY_INVALIDATED` ile reddedilir ve kalıcı consuming durumu oluşmaz.
 - Testler unique OS temp runtime root, explicit `ATOLYE_RUNTIME_ROOT`, exact environment restore, undefined-key deletion, temp cleanup ve local provider spies ile repository runtime'ından ve gerçek network'ten izole edildi.
+- Identity-safe cleanup parent/path/device/inode/type/reparse/size/SHA-256 authority'sine bağlandı. Same-inode different-size ve same-size/different-content mutation'ları fail-closed reddedilir; primary ve cleanup hataları bounded `AggregateError` içinde korunur ve foreign temp içeriği silinmez.
 
 ### Validation
 
@@ -55,6 +59,8 @@ Bağımsız final re-review P0 `0`, P1 `0`, P2 `0` ve geçmiş review kararı ol
 - TypeScript, targeted ESLint without autofix ve `git diff --check` PASS.
 - Production baseline exact korundu: `data/projects` tracked/untracked diff `0/0`, inventory `199` dosya; altı scene MP4 ve manifest/jobs/history/acceptance/animation/video/assets hash'leri değişmedi. Marker/sidecar/archive/receipt diff yok; hedef production projesinde `audio.json`, `assets/audio` ve compensation workspace yok.
 - Acceptance durumu `productionReady:false`, `published:false`, `publishMode:"package-only"` kaldı. Production execute/resume/finalize/reauthorize, gerçek provider/network, commit veya push çalıştırılmadı.
+- Final evidence invariants `98/98`; controlled-resume full matrix `41/41` children ve `5/5` partitions PASS. Repository inventory `90/0`; shared/production delta `0`, bütün remainder sınıfları `0`; TypeScript, targeted ESLint, full lint ve `git diff --check` PASS.
+- Shared inventory `10.278` entry / `d01159d16b1841dc9ccd2b3fbc5529fed85f7d0befc9ebd6c482bb81c8ae4064`; production inventory `216` entry / `29ec9f4925f04061b551597f4470d14939230cd244f64ac2d547e71da6e1d5f9` olarak exact korundu.
 
 ## Sprint 129.27 — Audio Atomicity, Compensation & Publication Hardening / Completed
 

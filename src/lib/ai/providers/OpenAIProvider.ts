@@ -1,12 +1,19 @@
 import { aiProviderConfig } from "../AIProviderConfig";
 import { openai } from "../client";
+import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 import type {
-  AIProvider,
+  ConfiguredAIProvider,
   AIProviderGenerateOptions,
   AIProviderResult,
 } from "./AIProvider";
 
-export class OpenAIProvider implements AIProvider {
+export class OpenAIProvider implements ConfiguredAIProvider {
+  createImmutableAiDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: "openai" }, requiredMethods: ["generate"],
+    });
+  }
+
   async generate(
     prompt: string,
     options?: AIProviderGenerateOptions,

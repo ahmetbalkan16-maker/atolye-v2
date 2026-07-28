@@ -32,6 +32,8 @@ import { createProductionAcceptanceProviderSelection,
   "@/lib/production/ProductionAcceptanceExecutionScope";
 import { emitProductionPipelineExecutionEvent } from
   "@/lib/production/ProductionPipelineExecutionInstrumentation";
+import { withProductionAcceptanceLegacyPreviousRetryJob } from
+  "@/lib/production/ProductionAcceptanceLegacyAdmissionContext";
 import { prepareFailedStageRetry } from "./PipelineFailedStageRetry";
 import type {
   ProductionStepKey,
@@ -60,6 +62,20 @@ export class PipelineRunner {
     throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_INVALID");
   }
   static configureContinuationAdmission(admission?: PipelineContinuationAdmission) { this.continuationAdmission = admission; }
+  /** @internal Exact process-state access for scoped canonical composition. */
+  static snapshotContinuationAdmission(): PipelineContinuationAdmission | undefined {
+    return this.continuationAdmission;
+  }
+  /** @internal Restore only when no foreign registration replaced the scoped value. */
+  static restoreContinuationAdmission(
+    previous: PipelineContinuationAdmission | undefined,
+    expectedCurrent: PipelineContinuationAdmission | undefined,
+  ): void {
+    if (this.continuationAdmission !== expectedCurrent) {
+      throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISMATCH");
+    }
+    this.continuationAdmission = previous;
+  }
   static async run(
     topic: string,
     options: { stageExecution?: PipelineStageExecutionOptions } = {},
@@ -482,16 +498,18 @@ export class PipelineRunner {
   static async executeJobRetry(
     projectSlug: string,
     jobId: string,
+    options: { stageExecution?: PipelineStageExecutionOptions } = {},
   ): Promise<PipelineJobRetryExecutionResult> {
     return this.withRuntimeOperation(
       "pipeline-execute-job-retry",
-      () => this.executeJobRetryOnce(projectSlug, jobId),
+      () => this.executeJobRetryOnce(projectSlug, jobId, options),
     );
   }
 
   private static async executeJobRetryOnce(
     projectSlug: string,
     jobId: string,
+    options: { stageExecution?: PipelineStageExecutionOptions },
   ): Promise<PipelineJobRetryExecutionResult> {
     const existingJob = await PipelineJobManager.getJobReadOnly(
       projectSlug,
@@ -611,11 +629,16 @@ export class PipelineRunner {
     let completed: boolean;
 
     try {
-      completed = await this.runPipelineStage(
-        projectSlug,
-        stage,
-        state,
-        "retry",
+      completed = await withProductionAcceptanceLegacyPreviousRetryJob(
+        prepared.previousJob,
+        () => this.runPipelineStage(
+          projectSlug,
+          stage,
+          state,
+          "retry",
+          undefined,
+          options.stageExecution,
+        ),
       );
     } catch (error) {
       if (isPipelineStateError(error)) {
@@ -771,6 +794,11 @@ export class PipelineRunner {
     providerSelection: ProductionAcceptanceProviderSelection =
       createProductionAcceptanceProviderSelection(stage, stageExecution),
   ): Promise<boolean> {
+    const existingJob = await PipelineJobManager.getJobForStageReadOnly(slug, stage);
+    if (existingJob?.status === "completed") {
+      onClaimConflict?.();
+      return false;
+    }
     const legacy = (_capability: ProductionAcceptanceStageCapability | undefined,
       identity: ProductionAcceptanceStageExecutionIdentity,
       authority: ProductionPipelineCompletedPreparationAuthority) =>

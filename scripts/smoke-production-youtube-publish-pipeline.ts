@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import fs from "node:fs";
 import path from "node:path";
 import { deflateSync } from "node:zlib";
@@ -31,17 +32,12 @@ import type { SEOData } from "../src/types/seo";
 import type { ThumbnailData } from "../src/types/thumbnail";
 import type { YouTubePublishingPackage } from "../src/types/youtube";
 import type { YouTubePublishProviderResult, YouTubePublishRequest } from "../src/types/youtubePublish";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 
-const slug = `sprint-122-smoke-${process.pid}`;
-const root = path.resolve(process.cwd(), "data", "projects", slug);
-const project: Project = {
-  id: `project-${process.pid}`,
-  slug,
-  title: "Production YouTube Publish",
-  status: "youtube",
-  createdAt: "2026-07-14T00:00:00.000Z",
-  updatedAt: "2026-07-14T00:00:00.000Z",
-};
+let slug = "";
+let root = "";
+let runtimeRoot = "";
+let project: Project;
 let assembly: AssemblyPlanData;
 let thumbnail: ThumbnailData;
 let seo: SEOData;
@@ -52,18 +48,22 @@ let thumbnailAbsolutePath = "";
 let passed = 0;
 
 async function main() {
-  try {
+  await withCanonicalSmokeRuntime({ name: "youtube-publish",
+    operationType: "youtube-publish-smoke" }, async (runtime) => {
+    slug = runtime.projectSlug;
+    runtimeRoot = runtime.runtimeRoot;
+    root = path.join(runtime.runtimeRoot, "projects", slug);
+    project = { id: `project-${runtime.runId.slice(0, 16)}`, slug,
+      title: "Production YouTube Publish", status: "youtube",
+      createdAt: "2026-07-14T00:00:00.000Z", updatedAt: "2026-07-14T00:00:00.000Z" };
     await setup();
     await successReplayAndConfig();
     await storedStateAndAssetFailures();
     await realProviderFailures();
     await persistenceApiRunnerAndRecovery();
     console.log(`Sprint 122 production YouTube publish smoke: PASS (${passed} scenarios)`);
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-    delete process.env.YOUTUBE_PUBLISH_PROVIDER;
-    delete process.env.YOUTUBE_ACCESS_TOKEN;
-  }
+    emitSmokeResult("production-youtube-publish-pipeline", passed);
+  });
 }
 
 async function setup() {
@@ -84,7 +84,8 @@ async function setup() {
   const storedThumbnail = ThumbnailStorage.saveThumbnail({
     projectSlug: slug, assetId: "thumbnail-final", data: png(1280, 720), mimeType: "image/png",
   });
-  thumbnailAbsolutePath = path.resolve(process.cwd(), ...storedThumbnail.filePath.split("/"));
+  thumbnailAbsolutePath = path.join(runtimeRoot,
+    path.relative("data", storedThumbnail.filePath));
   const thumbnailAsset = AssetManager.createAsset({
     id: "thumbnail-final", projectId: project.id, projectSlug: slug, type: "thumbnail",
     status: "generated", provider: "mock", model: "mock-thumbnail", prompt: "thumbnail",
@@ -174,7 +175,7 @@ async function realProviderFailures() {
     const explicitResult = await explicit.publish(providerRequest());
     assert.equal(explicitResult.success, false); if (!explicitResult.success) assert.equal(explicitResult.outcome, "failed"); pass();
     let call = 0;
-    const timeout = new YouTubeDataApiPublishProvider({ timeoutMs: 1, fetcher: async (_url, init) => {
+    const timeout = new YouTubeDataApiPublishProvider({ timeoutMs: 100, fetcher: async (_url, init) => {
       call++;
       if (call === 1) return new Response(null, { status: 200, headers: { location: "https://www.googleapis.com/upload/youtube/v3/resumable/test" } });
       return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new Error("aborted"))));

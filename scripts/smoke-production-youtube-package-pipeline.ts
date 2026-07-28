@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import fs from "node:fs";
 import path from "node:path";
 import { deflateSync } from "node:zlib";
@@ -36,17 +37,11 @@ import type { SEOData } from "../src/types/seo";
 import type { ThumbnailData } from "../src/types/thumbnail";
 import type { YouTubePackageDraft } from "../src/types/youtube";
 import { POST as youtubePost } from "../app/api/youtube/route";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 
-const slug = `sprint-121-smoke-${process.pid}`;
-const root = path.resolve(process.cwd(), "data", "projects", slug);
-const project: Project = {
-  id: `project-${process.pid}`,
-  slug,
-  title: "Production YouTube Package",
-  status: "youtube",
-  createdAt: "2026-07-14T00:00:00.000Z",
-  updatedAt: "2026-07-14T00:00:00.000Z",
-};
+let slug = "";
+let root = "";
+let project: Project;
 let assembly: AssemblyPlanData;
 let thumbnail: ThumbnailData;
 let seo: SEOData;
@@ -54,7 +49,13 @@ let baselineAssets: ProjectAssets;
 let passed = 0;
 
 async function main() {
-  try {
+  await withCanonicalSmokeRuntime({ name: "youtube-package",
+    operationType: "youtube-package-smoke" }, async (runtime) => {
+    slug = runtime.projectSlug;
+    root = path.join(runtime.runtimeRoot, "projects", slug);
+    project = { id: `project-${runtime.runId.slice(0, 16)}`, slug,
+      title: "Production YouTube Package", status: "youtube",
+      createdAt: "2026-07-14T00:00:00.000Z", updatedAt: "2026-07-14T00:00:00.000Z" };
     setup();
     await successAndReplayTests();
     providerConfigTests();
@@ -63,11 +64,8 @@ async function main() {
     await assetFailureTests();
     await persistenceTests();
     console.log(`Sprint 121 production YouTube package smoke: PASS (${passed} scenarios)`);
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-    delete process.env.YOUTUBE_PROVIDER;
-    delete process.env.OPENAI_API_KEY;
-  }
+    emitSmokeResult("production-youtube-package-pipeline", passed);
+  });
 }
 
 function setup() {

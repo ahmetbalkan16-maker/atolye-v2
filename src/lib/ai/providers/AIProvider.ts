@@ -22,3 +22,7 @@ export type AIProviderOutput = string | AIProviderResult;
 export interface AIProvider {
   generate(prompt: string, options?: AIProviderGenerateOptions): Promise<AIProviderOutput>;
 }
+
+export type ConfiguredAIProvider = AIProvider &
+  ProviderDispatchAdapterAuthority<"createImmutableAiDispatchAdapter">;
+import type { ProviderDispatchAdapterAuthority } from "@/lib/providers/ProviderDispatchAdapterAuthority";

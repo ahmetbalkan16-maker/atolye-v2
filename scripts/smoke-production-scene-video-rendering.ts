@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import { EventEmitter } from "node:events";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { PassThrough } from "node:stream";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 import { ImageStorage } from "../src/lib/assets/storage/ImageStorage";
 import { VideoStorage } from "../src/lib/assets/storage/VideoStorage";
 import { AssetManager } from "../src/lib/assets/AssetManager";
+import { createProviderDispatchAdapter } from "../src/lib/providers/ProviderDispatchAdapterAuthority";
 import {
   SpawnRunner,
   type VideoAssemblyChildProcess,
@@ -41,7 +44,7 @@ import type { Asset } from "../src/types/asset";
 import type { ProductionStepKey, ProjectPackageRunType } from "../src/types/project";
 
 type RunnerHarness = {
-  runStage(
+  runStageLegacy(
     slug: string,
     stage: ProductionStepKey,
     action: () => Promise<boolean>,
@@ -49,8 +52,9 @@ type RunnerHarness = {
   ): Promise<boolean>;
 };
 
-const prefix = `sprint-117-scene-video-${process.pid}`;
-const projectsRoot = path.join(process.cwd(), "data", "projects");
+let prefix: string;
+let temporaryRuntimeRoot: string;
+let projectsRoot: string;
 const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 let scenarios = 0;
 
@@ -170,14 +174,28 @@ async function fixture(
     scenes: plans,
     createdAt: now,
   };
-  return { slug, project, animation, plans, assetsPath: AssetManager.getAssetsPath(slug) };
+  return {
+    slug,
+    project,
+    animation,
+    plans,
+    assetsPath: path.join(temporaryRuntimeRoot,
+      path.relative("data", AssetManager.getAssetsPath(slug))),
+  };
 }
 
 function provider(
   name: string,
   generate: (input: VideoGenerationInput) => VideoGenerationResult | Promise<VideoGenerationResult>,
 ): VideoProvider {
-  return { name, generateVideo: async (input) => generate(input) };
+  const value: VideoProvider = { name, generateVideo: async (input) => generate(input) };
+  Object.defineProperty(value, "createImmutableVideoDispatchAdapter", {
+    enumerable: false, configurable: false, writable: false,
+    value: () => createProviderDispatchAdapter(value, {
+      metadata: { name: value.name }, requiredMethods: ["generateVideo"],
+    }),
+  });
+  return value;
 }
 
 function validMock(input: VideoGenerationInput) {
@@ -240,7 +258,7 @@ class FakeChild extends EventEmitter implements VideoAssemblyChildProcess {
   unref() { this.unrefs += 1; }
 }
 
-async function main() {
+async function run() {
   try {
     await scenario("provider config is mock-first and unknown values fail closed", () => {
       assert.equal(resolveVideoProviderName(undefined), "mock");
@@ -533,7 +551,7 @@ async function main() {
       await PipelineJobManager.listJobs(value.slug);
       const state = { ...PipelineStageExecutor.createInitialState(value.project), animation: value.animation } as PipelineExecutionState;
       const runner = PipelineRunner as unknown as RunnerHarness;
-      assert.equal(await runner.runStage(value.slug, "video", () => PipelineStageExecutor.execute(value.slug, "video", state, { videoProvider: new MockVideoProvider() }), "initial"), true);
+      assert.equal(await runner.runStageLegacy(value.slug, "video", () => PipelineStageExecutor.execute(value.slug, "video", state, { videoProvider: new MockVideoProvider() }), "initial"), true);
       const stored = await ProjectManager.getVideo(value.slug);
       const jobs = await PipelineJobManager.listJobsReadOnly(value.slug);
       const history = await PipelineJobManager.listHistory(value.slug);
@@ -543,7 +561,7 @@ async function main() {
       assert.equal(jobs.jobs.find((job) => job.stage === "audio")?.status, "queued");
       assert.ok(history.events.some((event) => event.stage === "video" && event.status === "completed"));
       const before = await fs.readFile(value.assetsPath, "utf8");
-      assert.equal(await runner.runStage(value.slug, "video", () => PipelineStageExecutor.execute(value.slug, "video", state, { videoProvider: new MockVideoProvider() }), "initial"), false);
+      assert.equal(await runner.runStageLegacy(value.slug, "video", () => PipelineStageExecutor.execute(value.slug, "video", state, { videoProvider: new MockVideoProvider() }), "initial"), false);
       assert.equal(await fs.readFile(value.assetsPath, "utf8"), before);
     });
 
@@ -553,7 +571,7 @@ async function main() {
       await PipelineJobManager.listJobs(value.slug);
       const state = { ...PipelineStageExecutor.createInitialState(value.project), animation: value.animation } as PipelineExecutionState;
       const runner = PipelineRunner as unknown as RunnerHarness;
-      await assert.rejects(runner.runStage(value.slug, "video", () => PipelineStageExecutor.execute(value.slug, "video", state, { videoProvider: provider("mock", async () => ({ success: false, provider: "mock", error: "raw" })) }), "initial"));
+      await assert.rejects(runner.runStageLegacy(value.slug, "video", () => PipelineStageExecutor.execute(value.slug, "video", state, { videoProvider: provider("mock", async () => ({ success: false, provider: "mock", error: "raw" })) }), "initial"));
       const jobs = await PipelineJobManager.listJobsReadOnly(value.slug);
       const scheduled = await PipelineQueueScheduler.getNextRunnableStage(value.slug, ["video", "audio", "assembly"]);
       assert.equal(jobs.jobs.find((job) => job.stage === "video")?.status, "failed");
@@ -563,10 +581,28 @@ async function main() {
     });
 
     console.log(`Sprint 117 production scene video rendering smoke: PASS (${scenarios} scenarios)`);
+    emitSmokeResult("production-scene-video-rendering", scenarios);
   } finally {
-    const entries = await fs.readdir(projectsRoot, { withFileTypes: true });
-    await Promise.all(entries.filter((entry) => entry.isDirectory() && entry.name.startsWith(prefix)).map((entry) => fs.rm(path.join(projectsRoot, entry.name), { recursive: true, force: true })));
+    // The canonical runtime owns and removes every fixture beneath projectsRoot.
   }
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime({
+    name: "scene-video-rendering",
+    operationType: "scene-video-smoke",
+    environment: { VIDEO_PROVIDER: undefined },
+  }, async (runtime) => {
+    prefix = `sprint-117-scene-video-${runtime.runId}`;
+    temporaryRuntimeRoot = runtime.runtimeRoot;
+    projectsRoot = runtime.runtimeStorageContext.projectsRoot;
+    assert.notEqual(
+      path.resolve(projectsRoot),
+      path.resolve(process.cwd(), "data", "projects"),
+      "Scene-video smoke fixture root must not resolve to repository data/projects.",
+    );
+    await run();
+  });
 }
 
 void main();

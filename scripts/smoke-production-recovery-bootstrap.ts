@@ -74,5 +74,6 @@ async function main(){const root=await fs.mkdtemp(path.join(os.tmpdir(),"atolye-
   await scenario("no new persistence format",async()=>{const source=await fs.readFile("src/types/productionExecutionPersistence.ts","utf8");assert.ok(!/bootstrap/.test(source));assert.deepEqual(await snapshot(active.directory),before)});
   await scenario("safe bootstrap output",async()=>{const unsafePlanner:ProductionExecutionRecoveryPlannerPort={async createJobRetryPlan(projectSlug,stage){return{projectSlug,type:"retry",startStage:stage,stagesToRun:[stage],blocked:true,reason:"secret token stack C:\\private",dependencies:[{stage,status:"failed",completed:false,fileReady:false,ready:false,reason:"secret dependency stack"}],createdAt:t0}}};const unsafeRecovery=new ProductionExecutionRecoveryBootstrap(active.adapter,runtimeContext,unsafePlanner),output=await runWithProductionRuntimeOperationContext(runtimeContext,()=>unsafeRecovery.bootstrapRecovery({evaluatedAt:t3}));assert.ok(!/secret|token|stack|C:\\/i.test(JSON.stringify(output))) });
   assert.equal(count,18);console.log(`Sprint 108 durable recovery bootstrap smoke: PASS (${count}/18 scenarios)`);
+  process.stdout.write(`ATOLYE_SMOKE_RESULT ${JSON.stringify({status:"PASS",suite:"production-recovery-bootstrap",scenarios:count})}\n`);
 }finally{await fs.rm(root,{recursive:true,force:true})}}
 void main();

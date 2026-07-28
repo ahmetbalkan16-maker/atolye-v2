@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Critical
 Owner: Atölye V2
-Last Updated: 2026-07-22
+Last Updated: 2026-07-28
 ---
 
 # ⚠️ AI START HERE
@@ -57,7 +57,19 @@ Completed
 
 ## Sprint 129.28 — Production Acceptance Reauthorization and Durable Identity Authority Hardening / Completed
 
-Sprint 129.28 legacy production acceptance reauthorization, durable recovery store-policy ve capability identity authority zincirini fail-closed biçimde tamamladı. Bağımsız final re-review P0 `0`, P1 `0`, P2 `0` ve geçmiş review kararı olarak `READY FOR DOCUMENTATION` verdi.
+Sprint 129.28 legacy production acceptance reauthorization, durable recovery store-policy ve capability identity authority zincirini fail-closed biçimde tamamladı. Bağımsız final re-review kararı `APPROVED`; P0 `0`, P1 `0`, P2 `0`.
+
+### Final Documentation and Handoff — 2026-07-28
+
+- Canonical smoke runtime foundation tamamlandı. Repository inventory `90` harness ve `0` remediation-required olarak doğrulandı; positive production/durable harness'ler isolated runtime/authority/context modeline taşındı.
+- Operation-authority-bound durable read adapter tamamlandı. Provider adapter authority ve retry/recovery bağları fail-closed; exact canonical identity ordering ve strict provider adapter factory authority korunuyor.
+- Shared authority current-run delta `0`, production data delta `0`. Historical shared legacy claim silinmedi veya değiştirilmedi.
+- Immutable evidence, controlled resume provenance ve disk-only semantic aggregate tamamlandı. Same-inode cleanup identity açığı byte-length ve SHA-256 authority kontrolleriyle kapatıldı.
+- Evidence invariant suite `98/98 PASS`. Final temp audit artefact run ID `canonical-closure-20260728-06`; evidence root repository'ye eklenmedi.
+- Full matrix `41/41` child ve `5/5` partition PASS. Missing, duplicate, foreign, failed, skipped, timedOut ve interrupted sayaçları `0`.
+- Shared inventory `10.278` entry, digest `d01159d16b1841dc9ccd2b3fbc5529fed85f7d0befc9ebd6c482bb81c8ae4064`; production inventory `216` entry, digest `29ec9f4925f04061b551597f4470d14939230cd244f64ac2d547e71da6e1d5f9`.
+- Workspace, runtime, authority, temp ve ownership remainder değerleri `0`. TypeScript, targeted ESLint, full lint ve `git diff --check` PASS.
+- Bu sprintte gerçek production execute/resume veya provider/network çağrısı yapılmadı. Aktif production projesi audio aşamasından devam edecektir; ilk gerçek production continuation öncesinde kısa readiness/integrity doğrulaması ve ayrıca açık kullanıcı onayı zorunludur.
 
 - En az bir geçerli reservation bulunduğunda idempotency store zorunludur. `validReservationCount` yalnız `lifecycleState !== "invalid"` kayıtlarını sayar; expired, released ve terminal reservation store gereksinimini korur. Missing store exact `REQUIRED_IDEMPOTENCY_STORE_MISSING` üretir; empty-present/not-created ayrımı, corrupt reservation reddi ve claim/attempt gereksinimleri korunur. Store-policy matrix active-reservation conflict kontrolünden önce uygulanır.
 - Canonical authority sırası `durable reservation → idempotency record → lease → claim → attempt persistence → persisted readback verification → completed durable authority → canonical identity → lifecycle binding → capability issuance → provider-gate exact revalidation` olarak sabitlendi. Durable attempt capability issuance'dan önce persist ve exact readback edilir; duplicate attempt create veya replay/idempotency regresyonu yoktur.

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
@@ -7,45 +8,22 @@ import { PipelineRecoveryPlanner } from "../src/lib/pipeline/PipelineRecoveryPla
 import { PipelineRunner } from "../src/lib/pipeline/PipelineRunner";
 import { PipelineStageExecutor } from "../src/lib/pipeline/PipelineStageExecutor";
 import type { PipelineJob, PipelineJobList } from "../src/types/pipelineJob";
+import type { PipelineRecoveryPlan } from "../src/types/pipelineRecovery";
 import type { ProductionStepKey, ProjectPackageRunType } from "../src/types/project";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 
 type PipelineExecutorHarness = { loadState(projectSlug: string): Promise<unknown> };
 type PipelineRunnerHarness = {
   runPipelineStage(projectSlug: string, stage: ProductionStepKey, state: unknown, runType?: ProjectPackageRunType, onClaimConflict?: () => void): Promise<boolean>;
 };
 
-const slug = `sprint-89-smoke-${process.pid}`;
-const projectFolder = path.join(process.cwd(), "data", "projects", slug);
-const jobsFile = path.join(projectFolder, "pipeline-jobs.json");
+let slug = "";
+let projectFolder = "";
+let jobsFile = "";
 const now = "2026-07-11T00:00:00.000Z";
-const previousJob: PipelineJob = {
-  id: `${slug}-research`,
-  projectSlug: slug,
-  stage: "research",
-  title: "Research",
-  status: "failed",
-  attempts: 1,
-  createdAt: now,
-  updatedAt: now,
-  completedAt: now,
-  error: "failed",
-};
-const preparedJob: PipelineJob = {
-  ...previousJob,
-  status: "queued",
-  attempts: 2,
-  completedAt: undefined,
-  error: undefined,
-};
-const plan = {
-  projectSlug: slug,
-  type: "retry" as const,
-  startStage: "research" as const,
-  stagesToRun: ["research" as const],
-  blocked: false,
-  dependencies: [],
-  createdAt: now,
-};
+let previousJob: PipelineJob;
+let preparedJob: PipelineJob;
+let plan: PipelineRecoveryPlan;
 
 function jobList(job: PipelineJob): PipelineJobList {
   return {
@@ -204,14 +182,24 @@ async function testRunnerContracts() {
 }
 
 async function main() {
-  try {
+  await withCanonicalSmokeRuntime({ name: "retry-persistence",
+    operationType: "pipeline-retry-persistence" }, async (runtime) => {
+    slug = runtime.projectSlug;
+    projectFolder = path.join(runtime.runtimeRoot, "projects", slug);
+    jobsFile = path.join(projectFolder, "pipeline-jobs.json");
+    previousJob = { id: `${slug}-research`, projectSlug: slug, stage: "research",
+      title: "Research", status: "failed", attempts: 1, createdAt: now, updatedAt: now,
+      completedAt: now, error: "failed" };
+    preparedJob = { ...previousJob, status: "queued", attempts: 2,
+      completedAt: undefined, error: undefined };
+    plan = { projectSlug: slug, type: "retry", startStage: "research",
+      stagesToRun: ["research"], blocked: false, dependencies: [], createdAt: now };
     await testPreparationWriteFailure();
     await testRunnerContracts();
     await testCompensationGuards();
     console.log("Sprint 89 retry persistence smoke: PASS (5 scenario groups)");
-  } finally {
-    await fs.rm(projectFolder, { recursive: true, force: true });
-  }
+    emitSmokeResult("retry-persistence", "5 groups");
+  });
 }
 
 void main();

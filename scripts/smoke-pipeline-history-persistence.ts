@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
@@ -9,8 +11,8 @@ import type {
 } from "../src/types/pipelineJob";
 
 const slug = `sprint-90-history-smoke-${process.pid}`;
-const projectFolder = path.join(process.cwd(), "data", "projects", slug);
-const historyFile = path.join(projectFolder, "pipeline-history.json");
+let projectFolder = "";
+let historyFile = "";
 const createdAt = "2026-07-11T00:00:00.000Z";
 
 function historyEvent(
@@ -165,18 +167,19 @@ async function testTempWriteFailurePreservesDestination() {
   ]);
   await writeHistory(previous);
   const previousBytes = await fs.readFile(historyFile, "utf-8");
-  const originalWriteFile = fs.writeFile;
+  const originalOpen = fs.open;
   const originalRm = fs.rm;
   const persistenceError = new Error("injected history temp write failure");
   let cleanupAttempts = 0;
 
-  fs.writeFile = (async (target, data, options) => {
+  fs.open = (async (...args: Parameters<typeof fs.open>) => {
+    const [target] = args;
     if (target.toString().endsWith(".tmp")) {
       throw persistenceError;
     }
 
-    return originalWriteFile(target, data, options);
-  }) as typeof fs.writeFile;
+    return originalOpen(...args);
+  }) as typeof fs.open;
   fs.rm = (async (target, options) => {
     cleanupAttempts += 1;
     return originalRm(target, options);
@@ -191,7 +194,7 @@ async function testTempWriteFailurePreservesDestination() {
       (error) => error === persistenceError,
     );
   } finally {
-    fs.writeFile = originalWriteFile;
+    fs.open = originalOpen;
     fs.rm = originalRm;
   }
 
@@ -205,7 +208,7 @@ async function testTempWriteFailurePreservesDestination() {
   );
 }
 
-async function main() {
+async function run() {
   try {
     await testSuccessfulWrite();
     await testReplacementOrderingAndRetention();
@@ -215,6 +218,16 @@ async function main() {
   } finally {
     await fs.rm(projectFolder, { recursive: true, force: true });
   }
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime({ name: "pipeline-history-persistence",
+    projectSlug: slug }, async (runtime) => {
+    projectFolder = path.join(runtime.runtimeStorageContext.projectsRoot, slug);
+    historyFile = path.join(projectFolder, "pipeline-history.json");
+    await run();
+  });
+  emitSmokeResult("pipeline-history-persistence", 6);
 }
 
 void main();

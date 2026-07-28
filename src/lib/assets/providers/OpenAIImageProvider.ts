@@ -1,4 +1,5 @@
 import type { ImageGenerationResult } from "@/types/asset";
+import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 import { ImageStorage } from "../storage/ImageStorage";
 import {
   getOpenAIImageProviderConfig,
@@ -6,7 +7,7 @@ import {
 } from "./ImageProviderConfig";
 import type {
   ImageGenerationInput,
-  ImageProvider,
+  ConfiguredImageProvider,
 } from "./ImageProvider";
 
 type OpenAIImageResponse = {
@@ -19,12 +20,18 @@ type OpenAIImageResponse = {
   };
 };
 
-export class OpenAIImageProvider implements ImageProvider {
+export class OpenAIImageProvider implements ConfiguredImageProvider {
   readonly name = "openai";
   private readonly fetcher: typeof fetch;
 
   constructor(options: { fetcher?: typeof fetch } = {}) {
     this.fetcher = options.fetcher ?? fetch;
+  }
+
+  createImmutableImageDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: this.name }, requiredMethods: ["generateImage"],
+    });
   }
 
   async generateImage(

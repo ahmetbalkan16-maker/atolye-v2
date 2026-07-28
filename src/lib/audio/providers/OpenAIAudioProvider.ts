@@ -1,4 +1,5 @@
 import { AudioStorage } from "@/lib/assets/storage/AudioStorage";
+import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 import {
   AudioAssetRootError,
   createAudioAssetErrorEvidence,
@@ -7,7 +8,7 @@ import {
 import type { AudioGenerationResult } from "@/types/audio";
 import type {
   AudioGenerationInput,
-  AudioProvider,
+  ConfiguredAudioProvider,
 } from "./AudioProvider";
 import {
   AudioProviderConfigurationError,
@@ -20,8 +21,14 @@ const ACCEPTED_WAV_CONTENT_TYPES = new Set([
   "application/octet-stream",
 ]);
 
-export class OpenAIAudioProvider implements AudioProvider {
+export class OpenAIAudioProvider implements ConfiguredAudioProvider {
   readonly name = "openai";
+
+  createImmutableAudioDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: this.name }, requiredMethods: ["validateInput", "generateAudio"],
+    });
+  }
 
   validateInput(input: AudioGenerationInput): void {
     const config = getOpenAIAudioProviderConfig();

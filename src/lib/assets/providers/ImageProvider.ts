@@ -2,6 +2,7 @@ import type {
   ImageGenerationResult,
   ImageProviderName,
 } from "@/types/asset";
+import type { ProviderDispatchAdapterAuthority } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 
 export interface ImageGenerationInput {
   prompt: string;
@@ -22,3 +23,6 @@ export interface ImageProvider {
     input: ImageGenerationInput,
   ): Promise<ImageGenerationResult>;
 }
+
+export type ConfiguredImageProvider = ImageProvider &
+  ProviderDispatchAdapterAuthority<"createImmutableImageDispatchAdapter">;

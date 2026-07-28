@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { once } from "node:events";
 import { spawn } from "node:child_process";
@@ -34,7 +34,8 @@ import {
   consumeProductionAcceptanceStageCapability,
   type ProductionAcceptanceStageExecutionIdentity,
 } from "../src/lib/production/ProductionAcceptancePolicy";
-import { PipelineStageExecutor } from "../src/lib/pipeline/PipelineStageExecutor";
+import { materializePipelineStageExecutionOptions, PipelineStageExecutor } from
+  "../src/lib/pipeline/PipelineStageExecutor";
 import { ProjectManager } from "../src/lib/projects/ProjectManager";
 import { ProductionWorkerLifecycle, runWithProductionWorkerLifecycleIdentity } from
   "../src/lib/production/ProductionWorkerLifecycle";
@@ -42,6 +43,7 @@ import { installCanonicalProductionPipelineExecutionRuntime } from
   "../src/lib/production/ProductionPipelineExecutionCanonicalRuntime";
 import { createRuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePaths";
 import { createProductionRuntimeOperationContext, initialRuntimeAuthorityGeneration,
+  requireActiveProductionRuntimeOperationContext, requireProductionRuntimeStorageContext,
   runWithProductionRuntimeOperationContext } from
   "../src/lib/runtime/ProductionRuntimeOperationContext";
 import {
@@ -73,7 +75,8 @@ import { runWithProductionPipelineExecutionInstrumentation } from
   "../src/lib/production/ProductionPipelineExecutionInstrumentation";
 import { ProductionPipelineDurableExecutionError } from
   "../src/lib/production/ProductionPipelineExecutionAdapter";
-import { ProductionExecutionDescriptorBoundReadAdapter } from
+import { createProductionExecutionReadDescriptor,
+  ProductionExecutionDescriptorBoundReadAdapter } from
   "../src/lib/production/ProductionExecutionDescriptorBoundReadAdapter";
 import { readProductionExecutionRecoverySemanticAuthority } from
   "../src/lib/production/ProductionExecutionRecoveryBootstrap";
@@ -81,6 +84,8 @@ import { canonicalProductionSecurityValue, stableProductionId } from
   "../src/lib/production/ProductionDeterminism";
 import { createLegacyReauthorizationDurableRecoverySnapshot } from
   "../src/lib/production/ProductionAcceptanceLegacyDurableRecoverySnapshot";
+import { createLegacyReauthorizationPreflight } from
+  "../src/lib/production/ProductionAcceptanceLegacyReauthorizationPreflight";
 import { withProductionAcceptanceLegacyAdmittedExecution } from
   "../src/lib/production/ProductionAcceptanceLegacyAdmissionContext";
 import { createProductionAcceptanceProviderSelection,
@@ -128,47 +133,73 @@ import type { ProductionExecutionIdempotencyRecord, ProductionExecutionIdempoten
   "../src/types/productionExecutionIdempotency";
 import type { ProductionExecutionDurableWorkerIdentity, ProductionExecutionWorkerSessionIdentity } from
   "../src/types/productionExecutionDurableLease";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 
 let scenarios = 0;
-const scenario = async (name: string, run: () => void | Promise<void>) => {
-  await run();
-  scenarios += 1;
-  process.stdout.write(`PASS ${scenarios}: ${name}\n`);
+const scenario = async (name: string, run: () => void | Promise<void>,
+  options: { productionResolvers?: boolean } = {}) => {
+  if (!options.productionResolvers) {
+    PipelineRecoveryPlanner.createResumePlan = ((projectSlug: string) =>
+      admissionRecovery(projectSlug)) as unknown as typeof PipelineRecoveryPlanner.createResumePlan;
+    PipelineJobManager.listJobsReadOnly = ((projectSlug: string) => admissionJobs(projectSlug)) as unknown as
+      typeof PipelineJobManager.listJobsReadOnly;
+  }
+  try {
+    await run();
+    scenarios += 1;
+    process.stdout.write(`PASS ${scenarios}: ${name}\n`);
+  } finally {
+    PipelineRecoveryPlanner.createResumePlan = originalCreateResumePlan;
+    PipelineJobManager.listJobsReadOnly = originalListJobsReadOnly;
+  }
 };
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-sprint-129-28-"));
-const runtimeRoot = path.join(root, "runtime");
-const authorityRoot = path.join(root, "authority");
-fs.mkdirSync(path.join(runtimeRoot, "projects"), { recursive: true });
-const previousRuntimeRoot = process.env.ATOLYE_RUNTIME_ROOT;
-process.env.ATOLYE_RUNTIME_ROOT = runtimeRoot;
+let root = "";
+let runtimeRoot = "";
+let authorityRoot = "";
+let ffmpeg = "";
+let ffprobe = "";
+let environment: NodeJS.ProcessEnv = { ...process.env };
 const configuredEnvironmentKeys = ["AI_PROVIDER", "IMAGE_PROVIDER", "AUDIO_PROVIDER",
   "ANIMATION_PROVIDER", "VIDEO_PROVIDER", "VIDEO_ASSEMBLY_PROVIDER", "THUMBNAIL_PROVIDER",
   "YOUTUBE_PROVIDER", "ATOLYE_DURABLE_PIPELINE_EXECUTION", "OPENAI_API_KEY", "FFMPEG_PATH",
   "FFPROBE_PATH"] as const;
-const previousConfiguredEnvironment = new Map(configuredEnvironmentKeys.map((key) =>
-  [key, process.env[key]] as const));
-const ffmpeg = path.join(root, "ffmpeg.exe");
-const ffprobe = path.join(root, "ffprobe.exe");
-fs.writeFileSync(ffmpeg, "ffmpeg-binary-v1");
-fs.writeFileSync(ffprobe, "ffprobe-binary-v1");
 
-const environment = {
-  ...process.env,
-  ATOLYE_RUNTIME_ROOT: runtimeRoot,
-  AI_PROVIDER: "openai",
-  IMAGE_PROVIDER: "openai",
-  AUDIO_PROVIDER: "openai",
-  ANIMATION_PROVIDER: "openai",
-  VIDEO_PROVIDER: "ffmpeg",
-  VIDEO_ASSEMBLY_PROVIDER: "ffmpeg",
-  THUMBNAIL_PROVIDER: "openai",
-  YOUTUBE_PROVIDER: "openai",
-  ATOLYE_DURABLE_PIPELINE_EXECUTION: "enabled",
-  OPENAI_API_KEY: "sprint-129-28-secret",
-  FFMPEG_PATH: ffmpeg,
-  FFPROBE_PATH: ffprobe,
-} satisfies NodeJS.ProcessEnv;
+function createFixtureRuntimeStorageContext(
+  fixtureEnvironment: NodeJS.ProcessEnv,
+  authoritySuffix: string,
+) {
+  assert.match(authoritySuffix, /^[a-z0-9][a-z0-9-]*$/);
+  const fixtureAuthorityRoot = path.join(root, "runtime-authority", authoritySuffix);
+  const context = createRuntimeStorageContext({
+    environment: fixtureEnvironment,
+    workspaceRoot: process.cwd(),
+    authorityRoot: fixtureAuthorityRoot,
+  });
+  const relativeAuthority = path.relative(root, context.authorityRoot);
+  assert.equal(
+    relativeAuthority !== "" && !relativeAuthority.startsWith("..") && !path.isAbsolute(relativeAuthority),
+    true,
+    "Sprint 129.28 fixture authority must remain inside the run-owned root.",
+  );
+  return context;
+}
+
+function descriptorBoundAdapter(
+  durableRoot: string,
+  barriers: ConstructorParameters<typeof ProductionExecutionDescriptorBoundReadAdapter>[1] = {},
+) {
+  const runtimeOperationContext = requireActiveProductionRuntimeOperationContext();
+  const storage = requireProductionRuntimeStorageContext(runtimeOperationContext);
+  const projectFolder = path.dirname(path.resolve(durableRoot));
+  const projectSlug = path.basename(projectFolder);
+  const expected = path.join(storage.projectsRoot, projectSlug, "production-execution");
+  assert.equal(path.relative(path.resolve(expected), path.resolve(durableRoot)), "",
+    "Descriptor durable root must be derived from the active runtime project.");
+  fs.mkdirSync(durableRoot, { recursive: true });
+  return new ProductionExecutionDescriptorBoundReadAdapter(
+    createProductionExecutionReadDescriptor({ runtimeOperationContext, projectSlug }), barriers);
+}
 
 const recovery = (projectSlug = "fixture") => Promise.resolve({
   projectSlug,
@@ -211,10 +242,7 @@ function fixture(suffix: string) {
   return { slug, folder, marker, markerPath, markerBytes, markerSha256: sha256Bytes(markerBytes) };
 }
 
-const deps = {
-  environment,
-  authorityRoot,
-};
+let deps: { environment: NodeJS.ProcessEnv; authorityRoot: string };
 const originalCreateResumePlan = PipelineRecoveryPlanner.createResumePlan;
 const originalListJobsReadOnly = PipelineJobManager.listJobsReadOnly;
 let admissionRecovery: (projectSlug: string) => Promise<unknown> = recovery;
@@ -222,11 +250,6 @@ let admissionJobs: (projectSlug: string) => Promise<{ projectSlug: string; jobs:
   createdAt: string; updatedAt: string }> = jobs;
 let canonicalEvidenceRuntime: ReturnType<typeof createProductionRuntimeOperationContext> | undefined;
 let canonicalEvidenceWorker: ProductionWorkerLifecycle | undefined;
-PipelineRecoveryPlanner.createResumePlan = ((projectSlug: string) =>
-  admissionRecovery(projectSlug)) as unknown as typeof PipelineRecoveryPlanner.createResumePlan;
-PipelineJobManager.listJobsReadOnly = ((projectSlug: string) => admissionJobs(projectSlug)) as unknown as
-  typeof PipelineJobManager.listJobsReadOnly;
-
 async function publishFixture(item: ReturnType<typeof fixture>) {
   const plan = await planProductionAcceptanceLegacyReauthorization(item.slug, item.markerSha256, deps);
   await reauthorizeProductionAcceptanceLegacyMarker({ projectSlug: item.slug,
@@ -243,6 +266,7 @@ async function publishCapabilityFixture(item: ReturnType<typeof fixture>) {
     sourceMarkerSha256: item.markerSha256, reason: "legacy-environment-unrecoverable",
     reauthorizationId: plan.reauthorizationId, confirmation: plan.reauthorizationId },
   capabilityDependencies);
+  return plan;
 }
 
 function rewriteAuthority(item: ReturnType<typeof fixture>, mutate: (body: Record<string, unknown>) => void) {
@@ -627,16 +651,20 @@ async function withDirectCapabilityEvidence<T = void>(suffix: string, run: (inpu
   setProviderGenerate: (generate: ReturnType<typeof researchProvider>["generate"]) => void;
 }) => Promise<T>) {
   const item = fixture(suffix);
-  await publishCapabilityFixture(item);
-  const runtime = createProductionRuntimeOperationContext({ operationId: suffix,
-    operationType: "pipeline-stage-execution", authorityGeneration: initialRuntimeAuthorityGeneration,
-    storageContext: createRuntimeStorageContext({ environment }) });
+  let activeRuntime: ReturnType<typeof createProductionRuntimeOperationContext> | undefined;
+  try { activeRuntime = requireActiveProductionRuntimeOperationContext(); } catch { /* explicit isolated fixture below */ }
+  const runtime = canonicalEvidenceRuntime ?? activeRuntime ?? createProductionRuntimeOperationContext({
+    operationId: suffix, operationType: "pipeline-stage-execution",
+    authorityGeneration: initialRuntimeAuthorityGeneration,
+    storageContext: createFixtureRuntimeStorageContext(environment, suffix) });
+  await runWithProductionRuntimeOperationContext(runtime, () => publishCapabilityFixture(item));
   const worker = await readyWorker(runtime);
   const state = PipelineStageExecutor.createInitialState({ id: `${suffix}-project`, slug: item.slug,
     title: item.marker.topic, status: "draft", createdAt: item.marker.createdAt,
     updatedAt: item.marker.createdAt });
   fs.writeFileSync(path.join(item.folder, "project.json"), JSON.stringify(state.project));
-  await ProjectManager.createManifest(state.project);
+  await runWithProductionRuntimeOperationContext(runtime, () =>
+    ProjectManager.createManifest(state.project));
   let providerGenerate = researchProvider(item.marker.topic, () => {}).generate;
   const provider = explicitTestAuthority("aiProvider", Object.assign({
     generate: (...args: Parameters<typeof providerGenerate>) => providerGenerate(...args),
@@ -672,9 +700,12 @@ function runCanonicalRunnerResearchStage(projectSlug: string,
     "research", stageExecution,
   );
   if (stageExecution?.aiProvider) testProviderSelections.set(stageExecution.aiProvider, providerSelection);
-  return runner.runStage(projectSlug, "research",
+  const execute = () => runner.runStage(projectSlug, "research",
     (capability, identity) => action(capability, identity, providerSelection), "initial", undefined,
     stageExecution, providerSelection);
+  return canonicalEvidenceRuntime
+    ? runWithProductionRuntimeOperationContext(canonicalEvidenceRuntime, execute)
+    : execute();
 }
 
 async function createFailedPublicResearchFixture(suffix: string) {
@@ -696,14 +727,130 @@ async function createFailedPublicResearchFixture(suffix: string) {
   await ProjectManager.createManifest(state.project);
   await ProjectManager.saveScript(item.slug, state.script);
   await ProjectManager.saveScenes(item.slug, state.scenes);
-  await publishCapabilityFixture(item);
+  const hiddenMarker = path.join(root, `${item.slug}-initial-failure-marker.json`);
+  fs.renameSync(item.markerPath, hiddenMarker);
+  let providerCalls = 0; let factoryCalls = 0;
+  const adapterIdentities: object[] = [];
   const provider = explicitTestAuthority("aiProvider", Object.assign({ generate: async () => {
+    providerCalls += 1;
     throw new Error("controlled public-path preparation failure");
-  } }, { name: "public-path-failing-provider" }));
-  await assert.rejects(runCanonicalRunnerResearchStage(item.slug, (capability, identity, selection) =>
-    PipelineStageExecutor.execute(item.slug, "research", state, { aiProvider: provider },
-      capability, identity, identity.runType, selection), { aiProvider: provider }));
-  return { item, state };
+  } }, { name: "public-path-failing-provider" }), (source) => {
+    factoryCalls += 1;
+    const adapter = Object.freeze({ name: source.name, generate: source.generate });
+    adapterIdentities.push(adapter);
+    return adapter;
+  });
+  try {
+    await assert.rejects(runCanonicalRunnerResearchStage(item.slug, async () => {
+      throw new Error("controlled public retry fixture failure");
+    }, { aiProvider: provider }));
+  } finally { fs.renameSync(hiddenMarker, item.markerPath); }
+  const failedJob = await PipelineJobManager.getJobForStageReadOnly(item.slug, "research");
+  assert.ok(failedJob?.status === "failed");
+  const reconciliation = await reconcileFailedPipelineExecution(failedJob);
+  assert.equal(reconciliation.ok, true, JSON.stringify(reconciliation));
+  const canonicalPlan = await publishCapabilityFixture(item);
+  return { item, state, provider, failedJob, canonicalPlan,
+    providerCalls: () => providerCalls, factoryCalls: () => factoryCalls, adapterIdentities };
+}
+
+async function createFailedProductionAudioRetryFixture(
+  suffix: string,
+  authorityState: "canonical" | "stale" = "canonical",
+) {
+  const item = fixture(suffix);
+  const state = PipelineStageExecutor.createInitialState({ id: `${suffix}-project`, slug: item.slug,
+    title: item.marker.topic, status: "draft", createdAt: item.marker.createdAt,
+    updatedAt: item.marker.createdAt });
+  fs.writeFileSync(path.join(item.folder, "project.json"), JSON.stringify(state.project));
+  await ProjectManager.createManifest(state.project);
+  const options = fixtureProviderOptions(item.marker.topic);
+  let providerCalls = 0; let factoryCalls = 0;
+  const adapterIdentities: object[] = [];
+  const aiProvider = explicitTestAuthority("aiProvider", { name: "canonical-audio-ai",
+    generate: async (prompt: string) => { providerCalls += 1;
+      return fullPipelineAiResponse(prompt, item.marker.topic); } }, (source) => {
+    factoryCalls += 1;
+    const adapter = Object.freeze({ name: source.name, generate: source.generate });
+    adapterIdentities.push(adapter); return adapter;
+  });
+  const audioProvider = explicitTestAuthority("audioProvider", new MockAudioProvider(), (source) => {
+    factoryCalls += 1;
+    const adapter = Object.freeze({ name: source.name,
+      validateInput: source.validateInput.bind(source), generateAudio: async (...args: Parameters<typeof source.generateAudio>) => {
+        providerCalls += 1; return source.generateAudio(...args);
+      } });
+    adapterIdentities.push(adapter); return adapter;
+  });
+  options.aiProvider = aiProvider; options.audioProvider = audioProvider;
+  const runner = PipelineRunner as unknown as {
+    runPipelineStage(slug: string, stage: (typeof pipelineRecoveryStageOrder)[number],
+      state: Parameters<typeof PipelineStageExecutor.execute>[2], runType: "initial",
+      onClaimConflict?: () => void, stageExecution?: PipelineStageExecutionOptions): Promise<boolean>;
+    runStage(slug: string, stage: "audio", action: () => Promise<boolean>, runType: "initial",
+      onClaimConflict?: () => void, stageExecution?: PipelineStageExecutionOptions,
+      providerSelection?: ProductionAcceptanceProviderSelection): Promise<boolean>;
+  };
+  const hiddenMarker = path.join(root, `${item.slug}-production-audio-setup-marker.json`);
+  fs.renameSync(item.markerPath, hiddenMarker);
+  try {
+    for (const stage of pipelineRecoveryStageOrder.slice(0,
+      pipelineRecoveryStageOrder.indexOf("audio"))) {
+      assert.equal(await runner.runPipelineStage(item.slug, stage, state, "initial", undefined, options), true,
+        `failed to complete production prerequisite ${stage}`);
+    }
+    const selection = createProductionAcceptanceProviderSelection("audio", options);
+    await assert.rejects(runner.runStage(item.slug, "audio", async () => {
+      throw new Error("controlled canonical audio retry failure");
+    }, "initial", undefined, options, selection));
+  } finally { fs.renameSync(hiddenMarker, item.markerPath); }
+  const failedJob = await PipelineJobManager.getJobForStageReadOnly(item.slug, "audio");
+  assert.ok(failedJob?.status === "failed");
+  const reconciliation = await reconcileFailedPipelineExecution(failedJob);
+  assert.equal(reconciliation.ok, true, JSON.stringify(reconciliation));
+  const failedPreflight = await createLegacyReauthorizationPreflight(
+    item.slug, item.markerSha256, { environment });
+  const failedSnapshot = failedPreflight.recoverySnapshot as {
+    startStage: string; stagesToRun: string[]; jobs: Array<{ id: string; stage: string; status: string;
+      attempts: number }>; durableRecovery: { attempts: Array<{ attemptId: string; state: string }> } };
+  const failedSnapshotJob = failedSnapshot.jobs.find((job) => job.id === failedJob.id);
+  const failedSnapshotAttempt = failedSnapshot.durableRecovery.attempts.find((attempt) =>
+    attempt.state === "failed");
+  assert.deepEqual({ id: failedSnapshotJob?.id, stage: failedSnapshotJob?.stage,
+    status: failedSnapshotJob?.status, attempts: failedSnapshotJob?.attempts,
+    startStage: failedSnapshot.startStage, stagesToRun: failedSnapshot.stagesToRun },
+  { id: failedJob.id, stage: "audio", status: "failed", attempts: failedJob.attempts,
+    startStage: "audio", stagesToRun: pipelineRecoveryStageOrder.slice(
+      pipelineRecoveryStageOrder.indexOf("audio")) });
+  assert.ok(failedSnapshotAttempt);
+  let authorityFingerprint = failedPreflight.recoveryStateFingerprint;
+  let staleFingerprint: string | undefined;
+  if (authorityState === "stale") {
+    const prepared = await PipelineJobManager.prepareJobRetry(item.slug, failedJob.id,
+      { updatedAt: failedJob.updatedAt, attempts: failedJob.attempts });
+    assert.equal(prepared.success, true);
+    if (!prepared.success) throw new Error("stale retry preparation failed");
+    const stalePreflight = await createLegacyReauthorizationPreflight(
+      item.slug, item.markerSha256, { environment });
+    staleFingerprint = stalePreflight.recoveryStateFingerprint;
+    assert.notEqual(staleFingerprint, failedPreflight.recoveryStateFingerprint);
+    const staleSnapshot = stalePreflight.recoverySnapshot as { jobs: Array<{ id: string; status: string }> };
+    assert.equal(staleSnapshot.jobs.find((job) => job.id === failedJob.id)?.status, "queued");
+    await publishCapabilityFixture(item);
+    assert.equal(await PipelineJobManager.compensatePreparedRetry(
+      item.slug, prepared.previousJob, prepared.job), true);
+    const restored = await createLegacyReauthorizationPreflight(
+      item.slug, item.markerSha256, { environment });
+    assert.equal(restored.recoveryStateFingerprint, failedPreflight.recoveryStateFingerprint);
+    authorityFingerprint = staleFingerprint;
+  } else {
+    await publishCapabilityFixture(item);
+  }
+  return { item, state, options, aiProvider, audioProvider, failedJob,
+    failedAttemptId: failedSnapshotAttempt.attemptId,
+    canonicalFingerprint: failedPreflight.recoveryStateFingerprint,
+    authorityFingerprint, staleFingerprint,
+    providerCalls: () => providerCalls, factoryCalls: () => factoryCalls, adapterIdentities };
 }
 
 async function createPublicResumeFixture(suffix: string) {
@@ -752,12 +899,12 @@ async function createFailedPublicAudioResumeFixture(suffix: string) {
   fs.renameSync(item.markerPath, hiddenMarker);
   const originalAIProvider = AIRouter.prototype.getProvider;
   const originalAudioProvider = AudioProviderRouter.getProvider;
-  const aiProvider = { name: "failed-resume-ai", generate: async () => {
+  const aiProvider = explicitTestAuthority("aiProvider", { name: "failed-resume-ai", generate: async () => {
     throw Object.assign(new Error("controlled canonical audio-plan failure"),
       { code: "AI_PROVIDER_REQUEST_FAILED" });
-  } };
-  const audioProvider = { name: "mock" as const, validateInput: () => {},
-    generateAudio: async () => { throw new Error("controlled canonical audio failure"); } };
+  } });
+  const audioProvider = explicitTestAuthority("audioProvider", { name: "mock" as const,
+    validateInput: () => {}, generateAudio: async () => { throw new Error("controlled canonical audio failure"); } });
   AIRouter.prototype.getProvider = () => aiProvider;
   AudioProviderRouter.getProvider = () => audioProvider;
   try {
@@ -863,6 +1010,16 @@ function poisonLatestRunningAttempt(item: ReturnType<typeof fixture>) {
   }, "durable-attempt-integrity");
 }
 
+function poisonRunningAttempt(item: ReturnType<typeof fixture>, attemptId: string) {
+  return rewriteJsonFile(latestDurablePath(item, "attempts", attemptId), (value) => {
+    const journal = value.journal as Array<Record<string, unknown>>;
+    const entry = journal.at(-1); assert.ok(entry); delete entry.integrity;
+    (entry.payload as Record<string, unknown>).summary = "semantically poisoned running entry";
+    entry.integrity = { algorithm: "stable-production-id-v1",
+      fingerprint: stableProductionId("attempt-journal-entry-integrity", entry) };
+  }, "durable-attempt-integrity");
+}
+
 async function runExecutorScopeDivergence(input: {
   suffix: string;
   execute: (context: {
@@ -906,7 +1063,7 @@ async function runExecutorScopeDivergence(input: {
 
 async function assertReservationCorruptSemantic(item: ReturnType<typeof fixture>) {
   const semantic = await readProductionExecutionRecoverySemanticAuthority(
-    new ProductionExecutionDescriptorBoundReadAdapter(path.join(item.folder, "production-execution")),
+    descriptorBoundAdapter(path.join(item.folder, "production-execution")),
     new Date().toISOString());
   const entry = exactStorePolicyEntry(semantic, "reservation");
   assert.equal(entry.storeFamily, "reservation");
@@ -966,7 +1123,7 @@ async function verifyRecordLevelParity(mutation: RecordReadRace) {
     .map((name) => path.join(adapterRoot, "reservations", name)).find((name) => name.endsWith(".json"))!;
   const adapterKey = path.basename(adapterTarget, ".json");
   const adapterPreserved = path.join(adapterRoot, `${mutation}-adapter-preserved.json`);
-  const descriptor = new ProductionExecutionDescriptorBoundReadAdapter(adapterRoot, {
+  const descriptor = descriptorBoundAdapter(adapterRoot, {
     afterRecordOpen: (kind, key, target) => {
       if (kind !== "reservation" || key !== adapterKey) return;
       if (mutation === "same-byte-replacement") {
@@ -987,7 +1144,7 @@ async function verifyRecordLevelParity(mutation: RecordReadRace) {
   await seedActiveDurableState(semanticItem, "reservation", true);
   const semanticRoot = path.join(semanticItem.folder, "production-execution");
   const baseline = await readProductionExecutionRecoverySemanticAuthority(
-    new ProductionExecutionDescriptorBoundReadAdapter(semanticRoot), evaluatedAt);
+    descriptorBoundAdapter(semanticRoot), evaluatedAt);
   const baselineEntry = exactStorePolicyEntry(baseline, "reservation");
   const semanticTarget = fs.readdirSync(path.join(semanticRoot, "reservations"))
     .map((name) => path.join(semanticRoot, "reservations", name)).find((name) => name.endsWith(".json"))!;
@@ -996,7 +1153,7 @@ async function verifyRecordLevelParity(mutation: RecordReadRace) {
   let semantic;
   try {
     semantic = await readProductionExecutionRecoverySemanticAuthority(
-      new ProductionExecutionDescriptorBoundReadAdapter(semanticRoot), evaluatedAt);
+      descriptorBoundAdapter(semanticRoot), evaluatedAt);
   } finally { semanticRace.restoreReader(); }
   assert.equal(semanticRace.crossed(), true);
   const semanticEntry = exactStorePolicyEntry(semantic, "reservation");
@@ -1041,7 +1198,38 @@ async function verifyRecordLevelParity(mutation: RecordReadRace) {
 }
 
 async function main() {
-try {
+await withCanonicalSmokeRuntime({
+  name: "sprint-129-28",
+  operationId: "canonical-capability-propagation",
+  operationType: "pipeline-stage-execution",
+  enterOperationContext: false,
+  configureProductionExecution: false,
+  environment: {
+    AI_PROVIDER: "openai", IMAGE_PROVIDER: "openai", AUDIO_PROVIDER: "openai",
+    ANIMATION_PROVIDER: "openai", VIDEO_PROVIDER: "ffmpeg",
+    VIDEO_ASSEMBLY_PROVIDER: "ffmpeg", THUMBNAIL_PROVIDER: "openai",
+    YOUTUBE_PROVIDER: "openai", ATOLYE_DURABLE_PIPELINE_EXECUTION: "enabled",
+    OPENAI_API_KEY: "sprint-129-28-secret", FFMPEG_PATH: undefined, FFPROBE_PATH: undefined,
+  },
+}, async (canonicalRuntime) => {
+root = canonicalRuntime.workspaceRoot;
+runtimeRoot = canonicalRuntime.runtimeRoot;
+authorityRoot = canonicalRuntime.authorityRoot;
+ffmpeg = path.join(root, "ffmpeg.exe");
+ffprobe = path.join(root, "ffprobe.exe");
+fs.writeFileSync(ffmpeg, "ffmpeg-binary-v1");
+fs.writeFileSync(ffprobe, "ffprobe-binary-v1");
+process.env.FFMPEG_PATH = ffmpeg;
+process.env.FFPROBE_PATH = ffprobe;
+environment = { ...process.env, ATOLYE_RUNTIME_ROOT: runtimeRoot,
+  FFMPEG_PATH: ffmpeg, FFPROBE_PATH: ffprobe };
+deps = { environment, authorityRoot };
+const mainRuntime = canonicalRuntime.operationContext;
+canonicalRuntime.deferRestore(() => {
+  PipelineRecoveryPlanner.createResumePlan = originalCreateResumePlan;
+  PipelineJobManager.listJobsReadOnly = originalListJobsReadOnly;
+});
+await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
   await scenario("deterministic ID binds every archive identity component", () => {
     const base = { protocolVersion: legacyReauthorizationSchemaVersion, projectSlug: "project-1",
       sourceMarkerSha256: "1".repeat(64), sourceMarkerByteLength: 100,
@@ -1487,7 +1675,7 @@ try {
       if (fs.existsSync(idempotencyDirectory)) fs.renameSync(idempotencyDirectory, preserved);
       try {
         const missing = await readProductionExecutionRecoverySemanticAuthority(
-          new ProductionExecutionDescriptorBoundReadAdapter(durableRoot), evaluatedAt);
+          descriptorBoundAdapter(durableRoot), evaluatedAt);
         assert.deepEqual(exactStorePolicyEntry(missing, "idempotency"), {
           storeFamily: "idempotency",
           lifecycleReason: "reservation-or-descendant-requires-idempotency",
@@ -1504,7 +1692,7 @@ try {
         else fs.mkdirSync(idempotencyDirectory, { recursive: true });
       }
       const present = await readProductionExecutionRecoverySemanticAuthority(
-        new ProductionExecutionDescriptorBoundReadAdapter(durableRoot), evaluatedAt);
+        descriptorBoundAdapter(durableRoot), evaluatedAt);
       assert.deepEqual(exactStorePolicyEntry(present, "idempotency"), {
         storeFamily: "idempotency",
         lifecycleReason: "reservation-or-descendant-requires-idempotency",
@@ -1523,11 +1711,11 @@ try {
     const item = fixture("empty-reservation-store-state");
     const durableRoot = path.join(item.folder, "production-execution");
     const absent = await readProductionExecutionRecoverySemanticAuthority(
-      new ProductionExecutionDescriptorBoundReadAdapter(durableRoot), item.marker.createdAt);
+      descriptorBoundAdapter(durableRoot), item.marker.createdAt);
     assert.equal(exactStorePolicyEntry(absent, "reservation").observedState, "not-created");
     fs.mkdirSync(path.join(durableRoot, "reservations"), { recursive: true });
     const empty = await readProductionExecutionRecoverySemanticAuthority(
-      new ProductionExecutionDescriptorBoundReadAdapter(durableRoot), item.marker.createdAt);
+      descriptorBoundAdapter(durableRoot), item.marker.createdAt);
     assert.equal(exactStorePolicyEntry(empty, "reservation").observedState, "present");
     assert.equal(exactStorePolicyEntry(empty, "reservation").normalizedOutcome, "accepted-present");
   });
@@ -1713,7 +1901,7 @@ try {
     const durableRoot = path.join(item.folder, "production-execution");
     const preserved = path.join(durableRoot, "reservations-preserved");
     let crossed = false;
-    const adapter = new ProductionExecutionDescriptorBoundReadAdapter(durableRoot, {
+    const adapter = descriptorBoundAdapter(durableRoot, {
       afterDirectoryIdentityRead: (kind, directory) => {
         if (kind !== "reservation" || crossed) return;
         crossed = true;
@@ -1739,7 +1927,7 @@ try {
     const durableRoot = path.join(item.folder, "production-execution");
     const preserved = path.join(durableRoot, "reservations-preserved");
     let crossed = false;
-    const adapter = new ProductionExecutionDescriptorBoundReadAdapter(durableRoot, {
+    const adapter = descriptorBoundAdapter(durableRoot, {
       afterDirectoryIdentityRead: (kind, directory) => {
         if (kind !== "reservation" || crossed) return;
         crossed = true;
@@ -1942,9 +2130,7 @@ try {
       process.env[key] = environment[key];
     }
     const item = fixture("canonical-capability-propagation");
-    const runtime = createProductionRuntimeOperationContext({ operationId: "canonical-capability-propagation",
-      operationType: "pipeline-stage-execution", authorityGeneration: initialRuntimeAuthorityGeneration,
-      storageContext: createRuntimeStorageContext({ environment }) });
+    const runtime = mainRuntime;
     const worker = await readyWorker(runtime);
     installCanonicalProductionPipelineExecutionRuntime(worker, runtime);
     installPipelineRunnerProductionRuntime(worker, runtime);
@@ -2045,9 +2231,11 @@ try {
       }
       assert.deepEqual(events, ["durable-entry", "durable-attempt-persisted",
         "durable-readback-verified", "canonical-identity-extracted", "lifecycle-bound",
-        "capability-issuance-entered", "physical-store-identity-verified", "capability-issued",
-        "revalidation-entered", "physical-store-identity-verified", "provider-dispatch-entered",
-        "provider-entered"]);
+        "capability-issuance-entered", "physical-store-identity-verified",
+        "recovery-validation-passed", "recovery-validation-passed", "capability-issued",
+        "revalidation-entered", "physical-store-identity-verified",
+        "recovery-validation-passed", "recovery-validation-passed",
+        "provider-dispatch-entered", "provider-entered"]);
       assert.equal(providerCalls, 1);
     });
 
@@ -2661,6 +2849,8 @@ try {
     });
   });
 
+});
+
   await scenario("runtime authority generation mismatch invalidates before provider", async () => {
     let providerCalls = 0;
     const issued = await withDirectCapabilityEvidence("runtime-generation-mismatch",
@@ -2674,20 +2864,21 @@ try {
       });
     const divergentRuntimeRoot = path.join(root, "runtime-generation-divergent");
     fs.mkdirSync(path.join(divergentRuntimeRoot, "projects"), { recursive: true });
-    const divergentStorage = createRuntimeStorageContext({
-      environment: { ...environment, ATOLYE_RUNTIME_ROOT: divergentRuntimeRoot },
-      workspaceRoot: process.cwd(), authorityRoot: path.join(root, "authority-generation-divergent") });
+    const divergentStorage = createFixtureRuntimeStorageContext(
+      { ...environment, ATOLYE_RUNTIME_ROOT: divergentRuntimeRoot },
+      "authority-generation-divergent",
+    );
     const divergent = createProductionRuntimeOperationContext({ operationId: "runtime-generation-divergent",
       operationType: "pipeline-stage-execution",
       authorityGeneration: "runtime-authority-generation-v2",
       storageContext: divergentStorage });
     const divergentWorker = await readyWorker(divergent);
     await assert.rejects(divergentWorker.executeWithRuntimeOperationContext(divergent, () =>
-      runWithProductionWorkerLifecycleIdentity(divergent, { projectSlug: issued.item.slug, stage: "research",
-        operation: "pipeline.stage.initial", executionFingerprint: issued.identity.executionFingerprint }, () =>
-        PipelineStageExecutor.execute(issued.item.slug, "research", issued.state,
-          { aiProvider: issued.provider },
-          issued.capability, issued.identity, issued.identity.runType, issued.providerSelection))),
+        runWithProductionWorkerLifecycleIdentity(divergent, { projectSlug: issued.item.slug, stage: "research",
+          operation: "pipeline.stage.initial", executionFingerprint: issued.identity.executionFingerprint }, () =>
+          PipelineStageExecutor.execute(issued.item.slug, "research", issued.state,
+            { aiProvider: issued.provider },
+            issued.capability, issued.identity, issued.identity.runType, issued.providerSelection))),
     (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
       error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_STALE");
     assert.equal(providerCalls, 0);
@@ -2695,6 +2886,8 @@ try {
       (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
         error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_INVALIDATED");
   });
+
+await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
 
   await scenario("real lifecycle generation transition invalidates before provider", async () => {
     await withDirectCapabilityEvidence("lifecycle-generation-mismatch",
@@ -2751,10 +2944,7 @@ try {
     try {
       const item = fixture("capability-provider-gate");
       await publishCapabilityFixture(item);
-      const storage = createRuntimeStorageContext({ environment });
-      const runtime = createProductionRuntimeOperationContext({ operationId: "capability-provider-gate",
-        operationType: "pipeline-stage-execution", authorityGeneration: initialRuntimeAuthorityGeneration,
-        storageContext: storage });
+      const runtime = mainRuntime;
       const worker = new ProductionWorkerLifecycle(() => "2026-07-21T00:00:00.000Z");
       worker.bindRuntimeOperationContext(runtime);
       await worker.start({ initialization: { schemaVersion: "1", ok: true, decision: "ready",
@@ -3355,9 +3545,7 @@ try {
           attempts: mutation.attempts, createdAt: now, updatedAt: now,
         }],
       }));
-      const runtime = createProductionRuntimeOperationContext({ operationId: mutation.suffix,
-        operationType: "pipeline-stage-execution", authorityGeneration: initialRuntimeAuthorityGeneration,
-        storageContext: createRuntimeStorageContext({ environment }) });
+      const runtime = mainRuntime;
       const worker = await readyWorker(runtime);
       await assert.rejects(worker.executeWithRuntimeOperationContext(runtime, () =>
         prepareProductionPipelineExecution({ projectSlug: item.slug, stage: "research",
@@ -3394,6 +3582,63 @@ try {
         } finally { fs.rmSync(foreign); }
         assert.equal(providerCalls, 0);
       });
+  });
+
+  await scenario("configured mock routers materialize strict fresh adapters for every slot", async () => {
+    const keys = ["AI_PROVIDER", "IMAGE_PROVIDER", "ANIMATION_PROVIDER", "VIDEO_PROVIDER",
+      "AUDIO_PROVIDER", "VIDEO_ASSEMBLY_PROVIDER", "THUMBNAIL_PROVIDER", "YOUTUBE_PROVIDER",
+      "YOUTUBE_PUBLISH_PROVIDER"] as const;
+    const previous = new Map(keys.map((key) => [key, process.env[key]] as const));
+    keys.forEach((key) => { process.env[key] = "mock"; });
+    const cases = [
+      { stage: "research", slots: ["aiProvider"] },
+      { stage: "visuals", slots: ["aiProvider", "visualAssetProvider"] },
+      { stage: "animation", slots: ["aiProvider", "animationProvider"] },
+      { stage: "video", slots: ["videoProvider"] },
+      { stage: "audio", slots: ["aiProvider", "audioProvider"] },
+      { stage: "assembly", slots: ["aiProvider", "videoAssemblyProvider"] },
+      { stage: "thumbnail", slots: ["thumbnailProvider"] },
+      { stage: "youtube", slots: ["youtubeProvider", "youtubePublishProvider"] },
+    ] as const;
+    try {
+      for (const testCase of cases) {
+        const materialized = materializePipelineStageExecutionOptions(testCase.stage);
+        const factoryCalls = new Map<string, number>();
+        for (const slot of testCase.slots) {
+          const authority = materialized.options[slot] as unknown as Record<string, unknown>;
+          assert.ok(authority);
+          const factoryName = testAdapterContract[slot][0];
+          const factory = authority[factoryName]; assert.equal(typeof factory, "function");
+          Object.defineProperty(authority, factoryName, { configurable: true, enumerable: false,
+            writable: false, value: () => {
+              factoryCalls.set(slot, (factoryCalls.get(slot) ?? 0) + 1);
+              return (factory as () => object).call(authority);
+            } });
+        }
+        const first = createProductionAcceptanceProviderSelection(
+          testCase.stage, materialized.options, materialized.configuredOptions);
+        const second = createProductionAcceptanceProviderSelection(
+          testCase.stage, materialized.options, materialized.configuredOptions);
+        for (const slot of testCase.slots) {
+          const left = first.providers.find((binding) => binding.slot === slot);
+          const right = second.providers.find((binding) => binding.slot === slot);
+          assert.ok(left?.reference && right?.reference);
+          assert.equal(left.injected, false); assert.equal(right.injected, false);
+          assert.equal(factoryCalls.get(slot), 2);
+          assert.notEqual(left.reference, right.reference);
+          assert.equal(Object.isFrozen(left.reference), true);
+          assert.equal(Object.getPrototypeOf(left.reference), null);
+          Reflect.ownKeys(left.reference).forEach((key) => {
+            const descriptor = Object.getOwnPropertyDescriptor(left.reference!, key);
+            assert.ok(descriptor && "value" in descriptor && !descriptor.configurable && !descriptor.writable);
+          });
+        }
+      }
+    } finally {
+      for (const [key, value] of previous) {
+        if (value === undefined) delete process.env[key]; else process.env[key] = value;
+      }
+    }
   });
 
   await scenario("public normal run dispatches the one-read admitted provider snapshot", async () => {
@@ -3647,27 +3892,33 @@ try {
       const originalThumbnail = ThumbnailProviderRouter.prototype.getProvider;
       const originalYoutube = YouTubeProviderRouter.prototype.getProvider;
       const originalPublish = YouTubePublishProviderRouter.prototype.getProvider;
-      AIRouter.prototype.getProvider = (() => ({ generate: async (prompt: string) =>
-        fullPipelineAiResponse(prompt, item.marker.topic) })) as typeof AIRouter.prototype.getProvider;
-      ImageProviderRouter.getProvider = (() => counted("visualAssetProvider", new MockImageProvider())) as
+      AIRouter.prototype.getProvider = (() => explicitTestAuthority("aiProvider", {
+        generate: async (prompt: string) => fullPipelineAiResponse(prompt, item.marker.topic),
+      })) as typeof AIRouter.prototype.getProvider;
+      ImageProviderRouter.getProvider = (() => explicitTestAuthority("visualAssetProvider",
+        counted("visualAssetProvider", new MockImageProvider()))) as
         typeof ImageProviderRouter.getProvider;
-      AnimationProviderRouter.getProvider = (() => counted("animationProvider",
-        new MockAnimationProvider())) as typeof AnimationProviderRouter.getProvider;
-      VideoProviderRouter.getProvider = (() => counted("videoProvider", new MockVideoProvider())) as
+      AnimationProviderRouter.getProvider = (() => explicitTestAuthority("animationProvider", counted(
+        "animationProvider", new MockAnimationProvider()))) as typeof AnimationProviderRouter.getProvider;
+      VideoProviderRouter.getProvider = (() => explicitTestAuthority("videoProvider",
+        counted("videoProvider", new MockVideoProvider()))) as
         typeof VideoProviderRouter.getProvider;
-      AudioProviderRouter.getProvider = (() => new MockAudioProvider()) as
+      AudioProviderRouter.getProvider = (() => explicitTestAuthority("audioProvider",
+        new MockAudioProvider())) as
         typeof AudioProviderRouter.getProvider;
-      VideoAssemblyProviderRouter.getProvider = (() => counted("videoAssemblyProvider",
-        new MockVideoAssemblyProvider())) as typeof VideoAssemblyProviderRouter.getProvider;
+      VideoAssemblyProviderRouter.getProvider = (() => explicitTestAuthority("videoAssemblyProvider",
+        counted("videoAssemblyProvider", new MockVideoAssemblyProvider()))) as typeof VideoAssemblyProviderRouter.getProvider;
       ThumbnailProviderRouter.prototype.getProvider = (() => {
-        return counted("thumbnailProvider", storedFixtureThumbnailProvider());
+        return explicitTestAuthority("thumbnailProvider",
+          counted("thumbnailProvider", storedFixtureThumbnailProvider()));
       }) as typeof ThumbnailProviderRouter.prototype.getProvider;
-      YouTubeProviderRouter.prototype.getProvider = (() => counted("youtubeProvider",
-        new MockYouTubeProvider())) as typeof YouTubeProviderRouter.prototype.getProvider;
-      YouTubePublishProviderRouter.prototype.getProvider = (() => counted("youtubePublishProvider",
-        new MockYouTubePublishProvider())) as typeof YouTubePublishProviderRouter.prototype.getProvider;
+      YouTubeProviderRouter.prototype.getProvider = (() => explicitTestAuthority("youtubeProvider",
+        counted("youtubeProvider", new MockYouTubeProvider()))) as typeof YouTubeProviderRouter.prototype.getProvider;
+      YouTubePublishProviderRouter.prototype.getProvider = (() => explicitTestAuthority("youtubePublishProvider",
+        counted("youtubePublishProvider", new MockYouTubePublishProvider()))) as typeof YouTubePublishProviderRouter.prototype.getProvider;
       const issued = new Map<string, string>(); const branches = new Map<string, number>();
       const observedEvents: string[] = [];
+      let packageOnlyPublishBranches = 0;
       try {
         const result = await runWithProductionPipelineExecutionInstrumentation({ onEvent: (event, detail) => {
           observedEvents.push(event);
@@ -3691,6 +3942,11 @@ try {
             branches.set(detail.slot, (branches.get(detail.slot) ?? 0) + 1);
             assert.equal(detail.selectionId, issued.get(detail.slot));
           }
+          if (event === "youtube-publish-skipped-package-only") {
+            packageOnlyPublishBranches += 1;
+            assert.equal(testCase.stage, "youtube");
+            assert.equal(detail?.slot, "youtubePublishProvider");
+          }
         } }, async () => {
           const failedJob = await PipelineJobManager.getJobForStageReadOnly(item.slug, testCase.stage);
           assert.ok(failedJob);
@@ -3703,10 +3959,13 @@ try {
         const targetJob = await PipelineJobManager.getJobForStageReadOnly(item.slug, testCase.stage);
         assert.equal(targetJob?.status, "completed");
         testCase.slots.forEach((slot, index) => {
-          assert.equal(branches.get(slot), 1, `${testCase.stage}:${slot}:branch`);
+          const expectedDispatches = slot === "youtubePublishProvider" ? 0 : 1;
+          assert.equal(branches.get(slot) ?? 0, expectedDispatches,
+            `${testCase.stage}:${slot}:branch`);
           assert.equal(admitted[slot] ?? 0, testCase.calls[index]);
           assert.equal(foreign[slot] ?? 0, 0);
         });
+        assert.equal(packageOnlyPublishBranches, testCase.stage === "youtube" ? 1 : 0);
       } finally {
         AIRouter.prototype.getProvider = originalAI;
         ImageProviderRouter.getProvider = originalImage; AnimationProviderRouter.getProvider = originalAnimation;
@@ -3720,7 +3979,7 @@ try {
   });
 
   await scenario("public retry rejects malformed durable lineage before provider", async () => {
-    const { item } = await createFailedPublicResearchFixture("public-retry-lineage-gap");
+    const { item, provider } = await createFailedPublicResearchFixture("public-retry-lineage-gap");
     const directory = path.join(item.folder, "production-execution", "idempotency");
     const first = fs.readdirSync(directory).find((name) => name.endsWith("-v1.json"));
     assert.ok(first);
@@ -3731,7 +3990,9 @@ try {
     MockAIProvider.prototype.generate = async () => { providerCalls += 1; return ""; };
     fs.renameSync(source, gap);
     try {
-      const result = await PipelineRunner.executeJobRetry(item.slug, `${item.slug}-research`);
+      const result = await PipelineRunner.executeJobRetry(item.slug, `${item.slug}-research`, {
+        stageExecution: { aiProvider: provider },
+      });
       assert.equal(result.success, false); assert.equal(result.status, 500);
       assert.equal(result.reasonCode, "PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED");
       assert.equal(providerCalls, 0);
@@ -3740,20 +4001,111 @@ try {
     }
   });
 
-  await scenario("public executeJobRetry rejects running-event poison before provider", async () => {
-    const { item } = await createFailedPublicResearchFixture("public-retry-running-poison");
-    let providerCalls = 0; let restore: (() => void) | undefined;
-    const originalGenerate = MockAIProvider.prototype.generate;
-    MockAIProvider.prototype.generate = async () => { providerCalls += 1; return ""; };
+  await scenario("public executeJobRetry rejects stale recovery before capability issuance", async () => {
+    const fixtureResult = await createFailedProductionAudioRetryFixture(
+      "public-retry-stale-recovery", "stale");
+    const { item } = fixtureResult;
+    const providerBaseline = fixtureResult.providerCalls();
+    const observedEvents: string[] = [];
+    const loggedErrors: unknown[][] = [];
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => { loggedErrors.push(args); };
     try {
       const result = await runWithProductionPipelineExecutionInstrumentation({ onEvent: (event) => {
-        if (event === "capability-issued") restore = poisonLatestRunningAttempt(item);
-      } }, () => PipelineRunner.executeJobRetry(item.slug, `${item.slug}-research`));
+        observedEvents.push(event);
+      } }, () => PipelineRunner.executeJobRetry(item.slug, `${item.slug}-audio`, {
+        stageExecution: fixtureResult.options,
+      }));
       assert.equal(result.success, false); assert.equal(result.status, 500);
       assert.equal(result.reasonCode, "WORKER_EXECUTION_RUNNING_FAILED");
-      assert.equal(providerCalls, 0);
-    } finally { restore?.(); MockAIProvider.prototype.generate = originalGenerate; }
-  });
+      assert.ok(loggedErrors.some((args) => {
+        const detail = args[1] as { error?: unknown } | undefined;
+        return detail?.error instanceof ProductionAcceptanceLegacyReauthorizationError &&
+          detail.error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ADMISSION_RECOVERY_DRIFT";
+      }));
+      assert.equal(observedEvents.includes("capability-issued"), false);
+      assert.equal(observedEvents.includes("recovery-validation-passed"), false);
+      assert.equal(observedEvents.includes("provider-dispatch-entered"), false);
+      assert.equal(fixtureResult.providerCalls(), providerBaseline);
+      assert.ok(fixtureResult.staleFingerprint);
+      assert.notEqual(fixtureResult.staleFingerprint, fixtureResult.canonicalFingerprint);
+    } finally {
+      console.error = originalError;
+    }
+  }, { productionResolvers: true });
+
+  await scenario("public executeJobRetry rejects running-event poison before provider", async () => {
+    const fixtureResult = await createFailedProductionAudioRetryFixture("public-retry-running-poison");
+    const { item } = fixtureResult;
+    const providerBaseline = fixtureResult.providerCalls();
+    const factoryBaseline = fixtureResult.factoryCalls();
+    const adapterBaseline = fixtureResult.adapterIdentities.length;
+    let restore: (() => void) | undefined;
+    let issuedCapability: object | undefined;
+    let issuedIdentity: ProductionAcceptanceStageExecutionIdentity | undefined;
+    let issuedSelection: ProductionAcceptanceProviderSelection | undefined;
+    const observedEvents: string[] = [];
+    const loggedErrors: unknown[][] = [];
+    const admissionFingerprints: string[] = [];
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => { loggedErrors.push(args); };
+    try {
+      const result = await runWithProductionPipelineExecutionInstrumentation({ onEvent: (event, detail) => {
+        observedEvents.push(event);
+        if (event === "recovery-validation-passed") {
+          assert.ok(detail?.recoveryStateFingerprint);
+          admissionFingerprints.push(detail.recoveryStateFingerprint);
+        }
+        if (event === "capability-issued") {
+          issuedCapability = detail?.capability;
+          issuedIdentity = detail?.identity as ProductionAcceptanceStageExecutionIdentity | undefined;
+          issuedSelection = (detail?.executionScope as
+            { providerSelection?: ProductionAcceptanceProviderSelection } | undefined)?.providerSelection;
+          assert.ok(issuedIdentity);
+          restore = poisonRunningAttempt(item, issuedIdentity.attemptId);
+        }
+      } }, () => PipelineRunner.executeJobRetry(item.slug, `${item.slug}-audio`, {
+        stageExecution: fixtureResult.options,
+      }));
+      assert.equal(result.success, false); assert.equal(result.status, 500);
+      assert.equal(result.reasonCode, "WORKER_EXECUTION_RUNNING_FAILED");
+      assert.ok(loggedErrors.some((args) => {
+        const detail = args[1] as { error?: unknown } | undefined;
+        return detail?.error instanceof ProductionAcceptanceLegacyReauthorizationError &&
+          detail.error.code ===
+            "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_DURABLE_RECORD_IDENTITY_CHANGED";
+      }));
+      const validationIndex = observedEvents.indexOf("recovery-validation-passed");
+      const issuanceIndex = observedEvents.indexOf("capability-issued");
+      const revalidationIndex = observedEvents.indexOf("revalidation-entered");
+      assert.ok(validationIndex >= 0 && validationIndex < issuanceIndex && issuanceIndex < revalidationIndex,
+        `unexpected poison ordering: ${JSON.stringify(observedEvents)}`);
+      assert.equal(observedEvents.includes("provider-dispatch-entered"), false);
+      assert.equal(fixtureResult.providerCalls(), providerBaseline);
+      assert.ok(admissionFingerprints.length > 0);
+      admissionFingerprints.forEach((fingerprint) =>
+        assert.equal(fingerprint, fixtureResult.canonicalFingerprint));
+      assert.equal(fixtureResult.factoryCalls(), factoryBaseline + 2);
+      assert.equal(fixtureResult.adapterIdentities.length, adapterBaseline + 2);
+      assert.notEqual(fixtureResult.adapterIdentities[adapterBaseline - 2],
+        fixtureResult.adapterIdentities[adapterBaseline]);
+      assert.notEqual(fixtureResult.adapterIdentities[adapterBaseline - 1],
+        fixtureResult.adapterIdentities[adapterBaseline + 1]);
+      assert.ok(issuedCapability && issuedIdentity && issuedSelection);
+      assert.equal(issuedIdentity.stage, "audio");
+      assert.notEqual(issuedIdentity.attemptId, fixtureResult.failedAttemptId);
+      let secondUseDescriptorEvents = 0;
+      await assert.rejects(runWithProductionPipelineExecutionInstrumentation({ onEvent: (event) => {
+        if (event.startsWith("descriptor-")) secondUseDescriptorEvents += 1;
+      } }, () => PipelineStageExecutor.execute(item.slug, "audio", fixtureResult.state,
+        issuedSelection!.dispatchOptions as PipelineStageExecutionOptions,
+        issuedCapability as never, issuedIdentity!, issuedIdentity!.runType, issuedSelection)),
+      (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
+        error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_INVALIDATED");
+      assert.equal(secondUseDescriptorEvents, 0);
+      assert.equal(fixtureResult.providerCalls(), providerBaseline);
+    } finally { console.error = originalError; restore?.(); }
+  }, { productionResolvers: true });
 
   await scenario("public resume reaches provider gate and rejects poisoned durable authority", async () => {
     const previousAdmissionRecovery = admissionRecovery;
@@ -3773,10 +4125,10 @@ try {
     let issuedSelection: ProductionAcceptanceProviderSelection | undefined;
     const originalAIProvider = AIRouter.prototype.getProvider;
     const originalAudioProvider = AudioProviderRouter.getProvider;
-    AIRouter.prototype.getProvider = () => ({ name: "resume-poison-ai", generate: async () => {
+    AIRouter.prototype.getProvider = () => explicitTestAuthority("aiProvider", { name: "resume-poison-ai", generate: async () => {
       providerCalls += 1; return "";
     } });
-    AudioProviderRouter.getProvider = () => ({ name: "mock", validateInput: () => {
+    AudioProviderRouter.getProvider = () => explicitTestAuthority("audioProvider", { name: "mock", validateInput: () => {
       providerCalls += 1;
     }, generateAudio: async () => { providerCalls += 1; throw new Error("unreachable"); } });
     const loggedErrors: unknown[][] = [];
@@ -3847,7 +4199,7 @@ try {
     const originalAIProvider = AIRouter.prototype.getProvider;
     const originalAudioProvider = AudioProviderRouter.getProvider;
     let aiCalls = 0; let audioCalls = 0; let foreignCalls = 0;
-    const aiProvider = { name: "positive-resume-ai", generate: async () => {
+    const aiProvider = explicitTestAuthority("aiProvider", { name: "positive-resume-ai", generate: async () => {
       aiCalls += 1;
       return JSON.stringify({
         narrator: { style: "documentary", tone: "calm", language: "tr" },
@@ -3859,8 +4211,8 @@ try {
           estimatedTotalDuration: "01:30", generationStatus: "planned" },
         createdAt: item.marker.createdAt,
       });
-    } };
-    const audioProvider = { name: "mock" as const, validateInput: () => {},
+    } });
+    const audioProvider = explicitTestAuthority("audioProvider", { name: "mock" as const, validateInput: () => {},
       generateAudio: async (input: Parameters<ReturnType<typeof originalAudioProvider>["generateAudio"]>[0]) => {
         audioCalls += 1;
         return { success: true as const, target: input.target, provider: "mock" as const,
@@ -3868,7 +4220,7 @@ try {
           url: "" as const, filePath: "" as const, mimeType: "audio/mock" as const,
           byteLength: 0 as const, durationSeconds: 0 as const,
           createdAt: item.marker.createdAt };
-      } };
+      } });
     AIRouter.prototype.getProvider = () => aiProvider;
     AudioProviderRouter.getProvider = () => audioProvider;
     try {
@@ -3898,25 +4250,14 @@ try {
     ]);
     const text = JSON.stringify(result.report);
     assert.equal(text.includes(root), false);
-    assert.equal(text.includes(environment.OPENAI_API_KEY), false);
+    assert.equal(text.includes(environment.OPENAI_API_KEY!), false);
     assert.equal(/stack|AppData|ENOENT/.test(text), false);
   });
 
   process.stdout.write(`Sprint 129.28 legacy re-authorization smoke: PASS (${scenarios} scenarios)\n`);
-} finally {
-  PipelineRecoveryPlanner.createResumePlan = originalCreateResumePlan;
-  PipelineJobManager.listJobsReadOnly = originalListJobsReadOnly;
-  for (const [key, value] of previousConfiguredEnvironment) {
-    if (value === undefined) delete process.env[key]; else process.env[key] = value;
-  }
-  if (previousRuntimeRoot === undefined) delete process.env.ATOLYE_RUNTIME_ROOT;
-  else process.env.ATOLYE_RUNTIME_ROOT = previousRuntimeRoot;
-  fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
-}
+  emitSmokeResult("sprint-129-28-production-acceptance-reauthorization", scenarios);
+});
+});
 }
 
-void main().catch((error) => {
-  try { fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }); }
-  catch { /* Preserve failure. */ }
-  throw error;
-});
+void main();

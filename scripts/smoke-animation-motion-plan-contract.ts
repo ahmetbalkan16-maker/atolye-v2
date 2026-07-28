@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { AnimationAssetPipeline } from "../src/lib/animation/AnimationAssetPipeline";
@@ -12,10 +14,12 @@ import type {
 } from "../src/lib/animation/providers/AnimationProvider";
 import { resolveAnimationProviderName } from "../src/lib/animation/providers/AnimationProviderConfig";
 import { MockAnimationProvider } from "../src/lib/animation/providers/MockAnimationProvider";
+import { createProviderDispatchAdapter } from "../src/lib/providers/ProviderDispatchAdapterAuthority";
 import { AssetManager } from "../src/lib/assets/AssetManager";
 import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
 import { PipelineQueueScheduler } from "../src/lib/pipeline/PipelineQueueScheduler";
 import { PipelineRunner } from "../src/lib/pipeline/PipelineRunner";
+import { ProductionPipelineDurableExecutionError } from "../src/lib/production/ProductionPipelineExecutionAdapter";
 import {
   PipelineStageExecutor,
   type PipelineExecutionState,
@@ -35,7 +39,7 @@ type RunnerHarness = {
 };
 
 const prefix = `sprint-116-motion-plan-${process.pid}`;
-const projectsRoot = path.join(process.cwd(), "data", "projects");
+let projectsRoot = "";
 const originalPromptGenerator = AnimationPromptGenerator.generateAnimationData;
 let scenarios = 0;
 
@@ -98,7 +102,7 @@ async function fixture(
     slug,
     project,
     scenes: sceneIds.map((sceneId) => animationScene(sceneId)),
-    assetsPath: AssetManager.getAssetsPath(slug),
+    assetsPath: path.join(projectsRoot, slug, "assets", "assets.json"),
   };
 }
 
@@ -106,7 +110,12 @@ function provider(
   generate: (input: AnimationGenerationInput) => AnimationGenerationResult | Promise<AnimationGenerationResult>,
   name = "mock",
 ): AnimationProvider {
-  return { name, generateAnimation: async (input) => generate(input) };
+  const selected = { name, generateAnimation: async (input: AnimationGenerationInput) => generate(input) };
+  return Object.assign(selected, {
+    createImmutableAnimationDispatchAdapter: () => createProviderDispatchAdapter(selected, {
+      metadata: { name }, requiredMethods: ["generateAnimation"],
+    }),
+  });
 }
 
 async function valid(input: AnimationGenerationInput) {
@@ -160,7 +169,7 @@ async function pipelineFixture(suffix: string) {
   return { ...value, state };
 }
 
-async function main() {
+async function run() {
   try {
     await scenario("provider config is mock-first and unknown values fail closed", () => {
       assert.equal(resolveAnimationProviderName(undefined), "mock");
@@ -451,7 +460,8 @@ async function main() {
           }),
           "initial",
         ),
-        /Animation motion plan generation failed/,
+        (error) => error instanceof ProductionPipelineDurableExecutionError &&
+          error.reasonCode === "WORKER_EXECUTION_FAILED",
       );
       const jobs = await PipelineJobManager.listJobsReadOnly(value.slug);
       const history = await PipelineJobManager.listHistory(value.slug);
@@ -478,6 +488,14 @@ async function main() {
         .map((entry) => fs.rm(path.join(projectsRoot, entry.name), { recursive: true, force: true })),
     );
   }
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime({ name: "animation-motion-plan-contract" }, async (runtime) => {
+    projectsRoot = runtime.runtimeStorageContext.projectsRoot;
+    await run();
+  });
+  emitSmokeResult("animation-motion-plan-contract", scenarios);
 }
 
 void main();

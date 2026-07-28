@@ -1142,6 +1142,7 @@ if (!result.descriptorLocked || result.foreignSlotAdopted || result.unsafeAuthor
 
     assert.equal(scenarios, 48);
     console.log(`Sprint 129.25 C.2B.4 runtime context smoke: PASS (${scenarios} scenarios; 46 retained + 2 final remediation)`);
+    process.stdout.write(`ATOLYE_SMOKE_RESULT ${JSON.stringify({status:"PASS",suite:"sprint-129-25c-runtime-context",scenarios})}\n`);
   } finally {
     await fs.rm(temporaryRoot, { recursive: true, force: true });
   }

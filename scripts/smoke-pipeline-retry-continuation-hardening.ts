@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import { promises as fs } from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
 import { PipelineQueueScheduler } from "../src/lib/pipeline/PipelineQueueScheduler";
@@ -12,22 +11,16 @@ import {
 } from "../src/lib/pipeline/PipelineRunner";
 import { PipelineStageExecutor } from "../src/lib/pipeline/PipelineStageExecutor";
 import { ProjectManager } from "../src/lib/projects/ProjectManager";
-import { ProductionRuntimeInitializer } from "../src/lib/production/ProductionRuntimeInitializer";
-import { configureProductionPipelineExecution } from "../src/lib/production/ProductionPipelineExecutionConfiguration";
 import {
   ProductionWorkerLifecycle,
   ProductionWorkerLifecycleExecutionRejectedError,
 } from "../src/lib/production/ProductionWorkerLifecycle";
-import {
-  createProductionRuntimeOperationContext,
-  initialRuntimeAuthorityGeneration,
-} from "../src/lib/runtime/ProductionRuntimeOperationContext";
-import { createRuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePaths";
 import type { PipelineJob, PipelineJobList } from "../src/types/pipelineJob";
 import type {
   ProductionStepKey,
   ProjectPackageRunType,
 } from "../src/types/project";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 
 type RunnerHarness = {
   runPipelineStage(
@@ -50,10 +43,10 @@ type ExecutorHarness = {
   loadState(projectSlug: string): Promise<unknown>;
 };
 
-const slug = `sprint-119-continuation-${process.pid}`;
-const projectFolder = path.join(process.cwd(), "data", "projects", slug);
-const jobsFile = path.join(projectFolder, "pipeline-jobs.json");
-const historyFile = path.join(projectFolder, "pipeline-history.json");
+let slug = "";
+let projectFolder = "";
+let jobsFile = "";
+let historyFile = "";
 const now = "2026-07-14T18:00:00.000Z";
 const order: ProductionStepKey[] = [
   "research",
@@ -107,72 +100,14 @@ function stageJob(list: PipelineJobList, stage: ProductionStepKey) {
   return list.jobs.find((item) => item.stage === stage);
 }
 
-async function readyLifecycle() {
-  const lifecycle = new ProductionWorkerLifecycle(() => now);
-  const result = await new ProductionRuntimeInitializer({
-    now: () => now,
-    listProjectSlugs: async () => [],
-    createRecoveryBootstrap: () => {
-      throw new Error("unreachable");
-    },
-    workerLifecycle: lifecycle,
-  }).initialize();
-  assert.equal(result.ok, true);
-  return lifecycle;
-}
-
 async function main() {
-  if (process.env.ATOLYE_RETRY_SMOKE_ISOLATED !== "1") {
-    const isolatedRoot = await fs.mkdtemp(path.join(os.tmpdir(), "atolye-retry-continuation-"));
-    try {
-      const scriptPath = path.resolve(process.argv[1]);
-      const child = spawnSync(process.execPath, [...process.execArgv, scriptPath], {
-        cwd: isolatedRoot,
-        env: {
-          ...process.env,
-          ATOLYE_RETRY_SMOKE_ISOLATED: "1",
-          ATOLYE_RUNTIME_ROOT: path.join(isolatedRoot, "data"),
-          TSX_TSCONFIG_PATH: path.resolve("tsconfig.json"),
-        },
-        encoding: "utf8",
-        maxBuffer: 10 * 1024 * 1024,
-        timeout: 120_000,
-      });
-      if (child.stdout) process.stdout.write(child.stdout);
-      if (child.stderr) process.stderr.write(child.stderr);
-      assert.ifError(child.error);
-      assert.equal(child.status, 0, `isolated retry continuation smoke exited with status ${child.status}`);
-      const resultLine = child.stdout
-        .split(/\r?\n/)
-        .find((line) => line.startsWith("RETRY_CONTINUATION_RESULT:"));
-      assert.ok(resultLine, "isolated retry continuation smoke did not report a structured result");
-      assert.deepEqual(
-        JSON.parse(resultLine.slice("RETRY_CONTINUATION_RESULT:".length)),
-        { status: "pass", scenarios: 23 },
-      );
-      return;
-    } finally {
-      await fs.rm(isolatedRoot, { recursive: true, force: true });
-    }
-  }
-
-  const canonicalLifecycle = await readyLifecycle();
-  const storageContext = createRuntimeStorageContext({
-    environment: process.env,
-    workspaceRoot: process.cwd(),
-    authorityRoot: path.join(process.cwd(), "authority"),
-  });
-  const runtimeOperationContext = createProductionRuntimeOperationContext({
-    operationId: "retry-continuation-smoke-startup",
-    operationType: "runtime-startup",
-    authorityGeneration: initialRuntimeAuthorityGeneration,
-    storageContext,
-  });
-  canonicalLifecycle.bindRuntimeOperationContext(runtimeOperationContext);
-  configureProductionPipelineExecution({
-    lifecycle: canonicalLifecycle,
-    runtimeOperationContext,
-  });
+  await withCanonicalSmokeRuntime({ name: "retry-continuation",
+    operationType: "pipeline-retry-continuation" }, async (runtime) => {
+  slug = runtime.projectSlug;
+  projectFolder = path.join(runtime.runtimeRoot, "projects", slug);
+  jobsFile = path.join(projectFolder, "pipeline-jobs.json");
+  historyFile = path.join(projectFolder, "pipeline-history.json");
+  const canonicalContinuationAdmission = PipelineRunner.snapshotContinuationAdmission();
 
   const runner = PipelineRunner as unknown as RunnerHarness;
   const executor = PipelineStageExecutor as unknown as ExecutorHarness;
@@ -202,7 +137,7 @@ async function main() {
   }
 
   async function reset(jobs: PipelineJob[]) {
-    PipelineRunner.configureContinuationAdmission();
+    PipelineRunner.configureContinuationAdmission(canonicalContinuationAdmission);
     failedStage = null;
     dependencyBlocked = false;
     forceClaimConflict = false;
@@ -587,18 +522,30 @@ async function main() {
       `Sprint 119 retry and standalone continuation hardening smoke: PASS (${scenarios} scenarios)`,
     );
     console.log(`RETRY_CONTINUATION_RESULT:${JSON.stringify({ status: "pass", scenarios })}`);
+    emitSmokeResult("pipeline-retry-continuation-hardening", scenarios);
   } finally {
     PipelineRunner.continueProject = originals.continueProject;
     PipelineRunner.dispatchProjectContinuation =
       originals.dispatchProjectContinuation;
-    PipelineRunner.configureContinuationAdmission();
+    PipelineRunner.configureContinuationAdmission(canonicalContinuationAdmission);
     runner.runPipelineStage = originals.runPipelineStage;
     executor.loadState = originals.loadState;
     scheduler.getNextRunnableStage = originals.getNextRunnableStage;
     planner.createJobRetryPlan = originals.createJobRetryPlan;
-    await fs.rm(projectFolder, { recursive: true, force: true });
-    await canonicalLifecycle.stop();
   }
+  });
+}
+
+async function readyLifecycle() {
+  const lifecycle = new ProductionWorkerLifecycle(() => now);
+  const started = await lifecycle.start({ initialization: {
+    schemaVersion: "1", ok: true, decision: "ready", reasonCode: "RUNTIME_INITIALIZED",
+    initializedAt: now, writeFree: true, partialInitialization: false, projects: [],
+    counts: { active: 0, running: 0, terminal: 0, orphaned: 0,
+      "expired-lease": 0, replayable: 0 }, worker: lifecycle.snapshot(), evidence: [],
+  } });
+  assert.equal(started.ok, true);
+  return lifecycle;
 }
 
 void main();

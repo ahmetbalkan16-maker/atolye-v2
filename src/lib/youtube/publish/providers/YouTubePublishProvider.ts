@@ -5,6 +5,7 @@ import type {
   YouTubePublishReconciliationResult,
   YouTubePublishRequest,
 } from "@/types/youtubePublish";
+import type { ProviderDispatchAdapterAuthority } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 
 export const YOUTUBE_PUBLISH_ERROR = "YouTube publish failed." as const;
 export const YOUTUBE_RECONCILIATION_ERROR =
@@ -19,3 +20,6 @@ export interface YouTubePublishProvider {
     request: YouTubePublishReconciliationRequest,
   ): Promise<YouTubePublishReconciliationResult>;
 }
+
+export type ConfiguredYouTubePublishProvider = YouTubePublishProvider &
+  ProviderDispatchAdapterAuthority<"createImmutablePublishDispatchAdapter">;

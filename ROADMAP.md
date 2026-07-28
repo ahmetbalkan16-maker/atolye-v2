@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: High
 Owner: Atölye V2
-Last Updated: 2026-07-22
+Last Updated: 2026-07-28
 ---
 
 # Atölye V2 — Development Roadmap
@@ -51,8 +51,10 @@ Sprint 129.28 — Production Acceptance Reauthorization and Durable Identity Aut
 - Coordinated durable lease mutation, kayıtlar kendi aralarında tutarlı ve integrity fingerprint'leri yenilenmiş olsa da issued completed lease authority tarafından exact `LEASE_ID_MISMATCH` ile yakalanır. Pre-plan provenance poisoning eski pre-derived authority modelini ayırt eder.
 - Gerçek production seam ordering explicit barrier ile `durable-entry → durable-attempt-persisted → durable-readback-verified → canonical-identity-extracted → lifecycle-bound → capability-issued → revalidation-entered → provider-entered` olarak doğrulandı. Capability lifecycle ve success/provider-throw/revalidation concurrency sözleşmeleri korundu.
 - Temp fixture izolasyonu, exact environment restore, local provider spies ve sıfır gerçek network çağrısı doğrulandı. Sprint 129.28 `102/102`; Sprint 129.27 isolated `77/77`; portability `15`, topic/run `24`, marker `22`, durable storage `63`, guarded filesystem `16`, durable attempt `58`, durable recovery `29`, bootstrap `18/18`, lifecycle `21/21`, runtime context `48`, audio wiring `73`, TypeScript, targeted ESLint ve `git diff --check` PASS.
-- Bağımsız final re-review P0 `0`, P1 `0`, P2 `0`; geçmiş review kararı `READY FOR DOCUMENTATION`. Production baseline `199` dosya ve `data/projects` diff `0/0` ile korundu; altı MP4 ve kritik artifact hash'leri değişmedi. `productionReady:false`, `published:false`, `publishMode:"package-only"`; production command/provider/network çağrısı yapılmadı.
-- Sprint `Completed`. Sonraki adım kullanıcı kapsam review ve commit/push işlemidir. Bu kapanış production execute/resume/finalize/reauthorize, controlled retry veya yeni sprint yetkisi vermez; commit/push henüz yapılmadı.
+- Canonical smoke runtime foundation ve repository-wide production/durable harness migration tamamlandı. Inventory `90` harness / `0` remediation-required; operation-authority-bound durable read adapter, immutable evidence, controlled resume provenance, disk-only semantic aggregate ve same-inode size/hash cleanup authority tamamlandı.
+- Bağımsız final re-review kararı `APPROVED`; P0 `0`, P1 `0`, P2 `0`. Evidence invariants `98/98`, final temp audit run `canonical-closure-20260728-06`, full matrix `41/41` child ve `5/5` partition PASS; bütün olumsuz aggregate sayaçları `0`.
+- Shared inventory `10.278` / `d01159d16b1841dc9ccd2b3fbc5529fed85f7d0befc9ebd6c482bb81c8ae4064`; production inventory `216` / `29ec9f4925f04061b551597f4470d14939230cd244f64ac2d547e71da6e1d5f9`. Shared/production delta ve bütün remainder sınıfları `0`; production command/provider/network çağrısı yapılmadı.
+- Sprint `Completed`. Sonraki kontrollü adım, approved production acceptance/runtime foundation üzerinden mevcut gerçek projenin audio aşamasından continuation hazırlığıdır. Gerçek provider çağrısından önce kısa production readiness/integrity doğrulaması yapılmalı; açık kullanıcı onayı olmadan production resume çalıştırılmamalıdır. Yeni büyük mimari sprint açılmamıştır; commit/push henüz yapılmadı.
 
 ## Sprint 129.27 — Audio Atomicity, Compensation & Publication Hardening / Completed
 

@@ -21,7 +21,10 @@ import {
   type ProductionEndToEndValidationCode,
 } from "../src/lib/production/ProductionEndToEndValidation";
 import { MockYouTubePublishProvider } from "../src/lib/youtube/publish/providers/MockYouTubePublishProvider";
-import { getProductionRuntimeStatus, initializeProductionProcessRuntime } from "../src/lib/runtime/ProductionRuntimeCompositionRoot";
+import type { ProductionRuntimeStatus } from "../src/types/productionRuntimeStatus";
+import { createProviderDispatchAdapter } from "../src/lib/providers/ProviderDispatchAdapterAuthority";
+import { withCanonicalSmokeRuntime, type CanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import type { AIProvider } from "../src/lib/ai/providers";
 import type { AudioProvider } from "../src/lib/audio/providers/AudioProvider";
 import type { ImageProvider } from "../src/lib/assets/providers/ImageProvider";
@@ -35,23 +38,20 @@ import type { PipelineJobHistory, PipelineJobList } from "../src/types/pipelineJ
 
 const topic = "Sprint 125 Doğrulama - Fatih Sultan Mehmet'in İstanbul'u Fethi";
 const slug = ProjectManager.createSlug(topic);
-const root = ProjectReader.getProjectFolder(slug);
+let root = ProjectReader.getProjectFolder(slug);
 const sentinel = "sprint-125-validation.json";
 const runToken = crypto.randomUUID();
 const now = "2026-07-14T12:00:00.000Z";
 let passed = 0;
+let runtimeStatus: ProductionRuntimeStatus;
 
-async function main() {
-  const previousDurableFlag = process.env.ATOLYE_DURABLE_PIPELINE_EXECUTION;
+async function run(runtime: CanonicalSmokeRuntime) {
+  runtimeStatus = runtime.workerLifecycle.statusSnapshot();
   try {
-    await removeFixture({ allowStaleOwner: true });
     await fixtureGuardScenarios();
-    process.env.ATOLYE_DURABLE_PIPELINE_EXECUTION = "enabled";
-    const runtime = await initializeProductionProcessRuntime();
-    assert.equal(runtime.ok, true);
+    assert.equal(runtimeStatus.workerReady, true);
     pass();
-    await fs.mkdir(root, { recursive: false });
-    await fs.writeFile(path.join(root, sentinel), JSON.stringify({ owner: "sprint-125", slug, runToken, pid: process.pid }), "utf8");
+    await fs.writeFile(path.join(root, sentinel), JSON.stringify({ owner: "sprint-125", slug, runToken, pid: process.pid }), { encoding: "utf8", flag: "wx" });
 
     const result = await PipelineRunner.run(topic, {
       stageExecution: {
@@ -69,7 +69,6 @@ async function main() {
     assert.equal(result.slug, slug);
     pass();
 
-    const runtimeStatus = getProductionRuntimeStatus();
     const validation = await validateProductionEndToEnd(slug, { runtimeStatus });
     assert.equal(validation.stages.length, 12);
     assert.equal(validation.stages, pipelineRecoveryStageOrder);
@@ -166,15 +165,11 @@ async function main() {
     assert.equal(passed, 20);
     console.log(`Sprint 125 production end-to-end validation: PASS (${passed} scenarios)`);
   } finally {
-    PipelineRunner.configureDurableExecution();
-    PipelineRunner.configureContinuationAdmission();
-    if (previousDurableFlag === undefined) delete process.env.ATOLYE_DURABLE_PIPELINE_EXECUTION;
-    else process.env.ATOLYE_DURABLE_PIPELINE_EXECUTION = previousDurableFlag;
-    await removeFixture();
+    // The canonical foundation owns the project root and restores all global registration.
   }
 }
 
-async function validate() { await validateProductionEndToEnd(slug, { runtimeStatus: getProductionRuntimeStatus() }); }
+async function validate() { await validateProductionEndToEnd(slug, { runtimeStatus }); }
 async function expectFailure(code: ProductionEndToEndValidationCode, action: () => Promise<unknown>) {
   await assert.rejects(action, (error) => error instanceof ProductionEndToEndValidationError && error.code === code && !/[A-Z]:\\|stack|secret/i.test(error.message));
   pass();
@@ -184,25 +179,15 @@ async function mutateAssets(baseline: ProjectAssets, mutate: (assets: ProjectAss
 }
 async function restoreAssets(baseline: ProjectAssets) { AssetManager.saveProjectAssetsAtomically(slug, baseline); }
 async function corruptFile(relativePath: string, action: () => Promise<void>) {
-  const absolutePath = path.resolve(...relativePath.split("/"));
+  const segments = relativePath.split("/");
+  const absolutePath = segments[0] === "data" && segments[1] === "projects"
+    ? path.join(ProjectReader.getProjectsRoot(), ...segments.slice(2))
+    : path.resolve(...segments);
   const baseline = await fs.readFile(absolutePath);
   try { await fs.writeFile(absolutePath, Buffer.from("corrupt")); await action(); }
   finally { await fs.writeFile(absolutePath, baseline); }
 }
 async function readJson<T>(fileName: string) { return JSON.parse(await fs.readFile(path.join(root, fileName), "utf8")) as T; }
-async function removeFixture(options: { allowStaleOwner?: boolean } = {}) {
-  requireFixtureRoot(root, slug);
-  try {
-    const marker = JSON.parse(await fs.readFile(path.join(root, sentinel), "utf8")) as { owner?: unknown; slug?: unknown; runToken?: unknown; pid?: unknown };
-    if (marker.owner !== "sprint-125" || marker.slug !== slug) throw new Error("Sprint 125 fixture ownership check failed.");
-    if (marker.runToken !== runToken) {
-      if (!options.allowStaleOwner || (typeof marker.pid === "number" && processIsAlive(marker.pid))) throw new Error("Sprint 125 fixture is owned by another active run.");
-    }
-    await fs.rm(root, { recursive: true, force: true });
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-  }
-}
 async function fixtureGuardScenarios() {
   const collisionSlug = `${slug}-collision`;
   const collisionRoot = ProjectReader.getProjectFolder(collisionSlug);
@@ -229,10 +214,10 @@ function requireFixtureRoot(target: string, expectedSlug: string) {
   const relative = path.relative(projects, actual);
   if (actual !== expected || !relative || relative.startsWith("..") || path.isAbsolute(relative)) throw new Error("Fixture cleanup target is outside the fixture root.");
 }
-function processIsAlive(pid: number) { try { process.kill(pid, 0); return true; } catch (error) { return (error as NodeJS.ErrnoException).code === "EPERM"; } }
 function pass() { passed += 1; }
 
 class DeterministicAIProvider implements AIProvider {
+  createImmutableAiDispatchAdapter() { return createProviderDispatchAdapter(this, { metadata: { name: "deterministic" }, requiredMethods: ["generate"] }); }
   async generate(prompt: string) {
     if (prompt.includes("documentary research assistant")) return JSON.stringify({ topic, summary: "İstanbul'un fethine ilişkin deterministik araştırma.", historicalContext: "1453", timeline: ["1453: Fetih"], characters: ["Fatih Sultan Mehmet"], locations: ["İstanbul"], keyEvents: ["Fetih"], strategies: ["Kuşatma"], controversies: [], interestingFacts: [], documentaryFlow: ["Hazırlık", "Fetih"], sceneIdeas: ["Surlar"], imagePrompts: ["İstanbul surları"], animationPrompts: ["Yavaş yaklaşma"], musicIdeas: ["Sinematik"], soundEffects: ["Top sesi"], thumbnailIdeas: ["Fatih ve surlar"], youtubeTitles: ["İstanbul'un Fethi"], sources: ["Deterministik fixture"], createdAt: now });
     if (prompt.includes("documentary script writer")) return JSON.stringify({ topic, title: "İstanbul'un Fethi", subtitle: "Bir çağın kapanışı", hook: "1453'te dünya değişti.", introduction: "Fatih'in hazırlıkları başladı.", chapters: [{ id: 1, title: "Fetih", narration: "Osmanlı ordusu İstanbul surlarına ulaştı.", duration: 2, visualGoal: "İstanbul surları", emotion: "kararlı", transition: "fade" }], conclusion: "İstanbul fethedildi.", callToAction: "Takip edin.", estimatedDuration: 2, narrationWordCount: 12, targetAudience: "genel", language: "tr", voiceStyle: "documentary", musicStyle: "cinematic", thumbnailIdea: "Fatih", seoKeywords: ["İstanbul'un fethi"], createdAt: now });
@@ -243,6 +228,7 @@ class DeterministicAIProvider implements AIProvider {
 
 class StoredImageProvider implements ImageProvider {
   readonly name = "openai" as const;
+  createImmutableImageDispatchAdapter() { return createProviderDispatchAdapter(this, { metadata: { name: this.name }, requiredMethods: ["generateImage"] }); }
   async generateImage(input: Parameters<ImageProvider["generateImage"]>[0]) {
     const id = `sprint-125-image-${input.sceneId}`;
     const saved = ImageStorage.saveImage({ projectSlug: input.projectSlug!, assetId: id, data: png(), mimeType: "image/png" });
@@ -255,6 +241,7 @@ class ThrowingImageProvider implements ImageProvider {
 }
 class StoredAudioProvider implements AudioProvider {
   readonly name = "openai" as const;
+  createImmutableAudioDispatchAdapter() { return createProviderDispatchAdapter(this, { metadata: { name: this.name }, requiredMethods: ["validateInput", "generateAudio"] }); }
   validateInput() {}
   async generateAudio(input: Parameters<AudioProvider["generateAudio"]>[0]) {
     const id = input.target.kind === "mix" ? "sprint-125-audio-mix" : `sprint-125-audio-${input.target.chapterId}`;
@@ -263,6 +250,7 @@ class StoredAudioProvider implements AudioProvider {
 }
 class StoredSceneVideoProvider implements VideoProvider {
   readonly name = "ffmpeg";
+  createImmutableVideoDispatchAdapter() { return createProviderDispatchAdapter(this, { metadata: { name: this.name }, requiredMethods: ["generateVideo"] }); }
   async generateVideo(input: Parameters<VideoProvider["generateVideo"]>[0]) {
     return { success: true as const, provider: "ffmpeg" as const, generationMode: "production" as const, scenes: input.scenes.map((scene) => {
       const paths = VideoStorage.createSceneRenderPaths(input.projectSlug, scene.sceneId);
@@ -273,6 +261,7 @@ class StoredSceneVideoProvider implements VideoProvider {
 }
 class StoredAssemblyProvider implements VideoAssemblyProvider {
   readonly name = "ffmpeg" as const;
+  createImmutableAssemblyDispatchAdapter() { return createProviderDispatchAdapter(this, { metadata: { name: this.name }, requiredMethods: ["assemble"] }); }
   async assemble(input: Parameters<VideoAssemblyProvider["assemble"]>[0]) {
     const duration = input.scenes.reduce((sum, scene) => sum + scene.durationSeconds, 0);
     const paths = VideoStorage.createRenderPaths(input.projectSlug); const data = mp4(duration); fsSync.writeFileSync(paths.temporaryAbsolutePath, data); VideoStorage.finalize(paths.temporaryAbsolutePath, paths.absolutePath);
@@ -281,6 +270,7 @@ class StoredAssemblyProvider implements VideoAssemblyProvider {
 }
 class StoredThumbnailProvider implements ThumbnailProvider {
   readonly name = "openai" as const;
+  createImmutableThumbnailDispatchAdapter() { return createProviderDispatchAdapter(this, { metadata: { name: this.name }, requiredMethods: ["generateThumbnailPlan", "generateThumbnailAsset"] }); }
   async generateThumbnailPlan(input: Parameters<ThumbnailProvider["generateThumbnailPlan"]>[0]) {
     const thumbnail = createMockThumbnailData(input);
     return { provider: this.name, model: "deterministic-thumbnail-plan-v1", status: "planned" as const, thumbnail: { ...thumbnail, provider: this.name, model: "deterministic-thumbnail-plan-v1" } };
@@ -293,6 +283,7 @@ class StoredThumbnailProvider implements ThumbnailProvider {
 class DeterministicYouTubeProvider implements YouTubeProvider {
   readonly name = "mock" as const;
   readonly model = "deterministic-youtube-package-v1";
+  createImmutableYoutubeDispatchAdapter() { return createProviderDispatchAdapter(this, { metadata: { name: this.name, model: this.model }, requiredMethods: ["generatePublishingPackage"] }); }
   async generatePublishingPackage() {
     return { success: true as const, provider: this.name, model: this.model, draft: { title: "İstanbul'un Fethi", description: "Fatih Sultan Mehmet ve 1453 fethini anlatan doğrulama paketi.", tags: ["İstanbul", "1453"], hashtags: ["#İstanbul", "#Tarih"], chapters: [{ startSeconds: 0, title: "Fetih" }], pinnedComment: "Fetih hakkındaki görüşünüz nedir?", thumbnailText: "1453" } };
   }
@@ -305,5 +296,18 @@ function box(type: string, body: Buffer) { const out = Buffer.alloc(body.length 
 function png() { const raw = Buffer.from([0, 32, 64, 96]); const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(1, 0); ihdr.writeUInt32BE(1, 4); ihdr[8] = 8; ihdr[9] = 2; return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]), pngChunk("IHDR", ihdr), pngChunk("IDAT", deflateSync(raw)), pngChunk("IEND", Buffer.alloc(0))]); }
 function pngChunk(type: string, data: Buffer) { const t = Buffer.from(type); const out = Buffer.alloc(data.length + 12); out.writeUInt32BE(data.length, 0); t.copy(out, 4); data.copy(out, 8); out.writeUInt32BE(crc32(Buffer.concat([t, data])), data.length + 8); return out; }
 function crc32(data: Buffer) { let crc = 0xffffffff; for (const byte of data) { crc ^= byte; for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1)); } return (crc ^ 0xffffffff) >>> 0; }
+
+async function main() {
+  await withCanonicalSmokeRuntime({
+    name: "production-end-to-end",
+    projectSlug: slug,
+    operationType: "pipeline.run",
+    environment: { ATOLYE_DURABLE_PIPELINE_EXECUTION: "enabled" },
+  }, async (runtime) => {
+    root = path.join(runtime.runtimeStorageContext.projectsRoot, runtime.projectSlug);
+    await run(runtime);
+  });
+  emitSmokeResult("production-end-to-end", passed);
+}
 
 void main();

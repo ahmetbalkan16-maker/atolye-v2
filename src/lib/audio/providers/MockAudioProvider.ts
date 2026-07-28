@@ -1,11 +1,18 @@
 import type {
   AudioGenerationInput,
-  AudioProvider,
+  ConfiguredAudioProvider,
 } from "./AudioProvider";
 import type { AudioGenerationResult } from "@/types/audio";
+import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 
-export class MockAudioProvider implements AudioProvider {
+export class MockAudioProvider implements ConfiguredAudioProvider {
   readonly name = "mock";
+
+  createImmutableAudioDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: this.name }, requiredMethods: ["validateInput", "generateAudio"],
+    });
+  }
 
   validateInput(_input: AudioGenerationInput): void {
     void _input;

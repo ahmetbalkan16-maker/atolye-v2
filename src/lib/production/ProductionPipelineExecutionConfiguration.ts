@@ -14,6 +14,16 @@ import {
   installCanonicalProductionPipelineExecution,
 } from "./ProductionPipelineExecutionFactory";
 import {
+  restoreCanonicalProductionPipelineExecutionRuntime,
+  snapshotCanonicalProductionPipelineExecutionRuntime,
+  type CanonicalProductionPipelineExecutionSnapshot,
+} from "./ProductionPipelineExecutionCanonicalRuntime";
+import {
+  restorePipelineRunnerProductionRuntime,
+  snapshotPipelineRunnerProductionRuntime,
+  type PipelineRunnerProductionRuntimeSnapshot,
+} from "@/lib/pipeline/PipelineRunnerCanonicalRuntime";
+import {
   captureCanonicalProductionWorkerLifecycleExecution,
   ProductionWorkerLifecycle,
 } from "./ProductionWorkerLifecycle";
@@ -21,6 +31,81 @@ import {
 export interface ConfigureProductionPipelineExecutionOptions {
   lifecycle?: ProductionWorkerLifecycle;
   runtimeOperationContext?: ProductionRuntimeOperationContext;
+}
+
+export interface ProductionPipelineExecutionConfigurationSnapshot {
+  readonly runnerRuntime: PipelineRunnerProductionRuntimeSnapshot;
+  readonly continuationAdmission: ReturnType<typeof PipelineRunner.snapshotContinuationAdmission>;
+  readonly pipelineExecution: CanonicalProductionPipelineExecutionSnapshot;
+}
+
+export interface ScopedProductionPipelineExecutionRegistration {
+  readonly fingerprint: string;
+  restore(): void;
+}
+
+export function snapshotProductionPipelineExecutionConfiguration():
+ProductionPipelineExecutionConfigurationSnapshot {
+  return Object.freeze({
+    runnerRuntime: snapshotPipelineRunnerProductionRuntime(),
+    continuationAdmission: PipelineRunner.snapshotContinuationAdmission(),
+    pipelineExecution: snapshotCanonicalProductionPipelineExecutionRuntime(),
+  });
+}
+
+export function configureScopedProductionPipelineExecution(
+  options: ConfigureProductionPipelineExecutionOptions,
+): ScopedProductionPipelineExecutionRegistration {
+  const previous = snapshotProductionPipelineExecutionConfiguration();
+  const empty = Object.freeze({
+    runnerRuntime: Object.freeze({ registration: undefined }),
+    continuationAdmission: undefined,
+    pipelineExecution: Object.freeze({ registration: undefined }),
+  }) satisfies ProductionPipelineExecutionConfigurationSnapshot;
+  restoreProductionPipelineExecutionConfiguration(empty, previous);
+  try {
+    configureProductionPipelineExecution(options);
+  } catch (primaryError) {
+    const partial = snapshotProductionPipelineExecutionConfiguration();
+    try { restoreProductionPipelineExecutionConfiguration(previous, partial); }
+    catch (restoreError) {
+      throw new AggregateError([primaryError, restoreError],
+        "Scoped production pipeline registration failed.");
+    }
+    throw primaryError;
+  }
+  const installed = snapshotProductionPipelineExecutionConfiguration();
+  let restored = false;
+  return Object.freeze({
+    fingerprint: configurationFingerprint(installed),
+    restore() {
+      if (restored) throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISMATCH");
+      restoreProductionPipelineExecutionConfiguration(previous, installed);
+      restored = true;
+    },
+  });
+}
+
+function restoreProductionPipelineExecutionConfiguration(
+  target: ProductionPipelineExecutionConfigurationSnapshot,
+  expectedCurrent: ProductionPipelineExecutionConfigurationSnapshot,
+): void {
+  const current = snapshotProductionPipelineExecutionConfiguration();
+  if (current.runnerRuntime.registration !== expectedCurrent.runnerRuntime.registration ||
+    current.continuationAdmission !== expectedCurrent.continuationAdmission ||
+    current.pipelineExecution.registration !== expectedCurrent.pipelineExecution.registration) {
+    throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISMATCH");
+  }
+  PipelineRunner.restoreContinuationAdmission(target.continuationAdmission,
+    expectedCurrent.continuationAdmission);
+  restoreCanonicalProductionPipelineExecutionRuntime(target.pipelineExecution,
+    expectedCurrent.pipelineExecution);
+  restorePipelineRunnerProductionRuntime(target.runnerRuntime, expectedCurrent.runnerRuntime);
+}
+
+function configurationFingerprint(value: ProductionPipelineExecutionConfigurationSnapshot): string {
+  return [value.runnerRuntime.registration, value.continuationAdmission,
+    value.pipelineExecution.registration].map((item) => item ? "configured" : "empty").join(":");
 }
 
 export function configureProductionPipelineExecution(

@@ -5,16 +5,18 @@ import type { Readable } from "node:stream";
 import { AudioStorage } from "@/lib/assets/storage/AudioStorage";
 import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
 import { VideoStorage } from "@/lib/assets/storage/VideoStorage";
+import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 import {
-  createRuntimeStorageContext,
   resolveRuntimeLogicalPath,
   type RuntimeStorageContext,
 } from "@/lib/runtime/RuntimeStoragePaths";
+import { requireActiveProductionRuntimeOperationContext,
+  requireProductionRuntimeStorageContext } from "@/lib/runtime/ProductionRuntimeOperationContext";
 import type {
   VideoAssemblyInput,
   VideoAssemblyResult,
 } from "@/types/videoAssembly";
-import type { VideoAssemblyProvider } from "./VideoAssemblyProvider";
+import type { ConfiguredVideoAssemblyProvider } from "./VideoAssemblyProvider";
 import { getFFmpegVideoAssemblyConfig } from "./VideoAssemblyProviderConfig";
 
 const SAFE_ERROR = "Video assembly failed.";
@@ -80,8 +82,14 @@ export type VideoAssemblySpawn = (
   },
 ) => VideoAssemblyChildProcess;
 
-export class FFmpegVideoAssemblyProvider implements VideoAssemblyProvider {
+export class FFmpegVideoAssemblyProvider implements ConfiguredVideoAssemblyProvider {
   readonly name = "ffmpeg";
+
+  createImmutableAssemblyDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: this.name }, requiredMethods: ["assemble"],
+    });
+  }
 
   constructor(
     private readonly runner: VideoAssemblyProcessRunner = new SpawnRunner(),
@@ -92,7 +100,8 @@ export class FFmpegVideoAssemblyProvider implements VideoAssemblyProvider {
     const createdAt = new Date().toISOString();
     let paths: ReturnType<typeof VideoStorage.createRenderPaths> | null = null;
     let concatManifestPath: string | null = null;
-    const context = this.runtimeStorageContext ?? createRuntimeStorageContext();
+    const context = this.runtimeStorageContext ?? requireProductionRuntimeStorageContext(
+      requireActiveProductionRuntimeOperationContext());
 
     try {
       validateInput(input, context);

@@ -53,6 +53,9 @@ export interface RuntimeStorageResolutionOptions {
   readonly authorityRoot?: string;
 }
 
+export const runtimeStorageAuthorityEnvironmentVariable =
+  "ATOLYE_RUNTIME_AUTHORITY_ROOT" as const;
+
 export type RuntimeStorageInput =
   | RuntimeStorageContext
   | RuntimeStorageResolutionOptions;
@@ -138,7 +141,8 @@ export function createRuntimeStorageContext(
 
   const projectsRoot = containedPath(runtimeRoot, runtimeStorageLogicalProjectsRoot);
   const authorityRoot = canonicalAbsolutePath(
-    options.authorityRoot ?? path.join(os.tmpdir(), "atolye-runtime-authority-v1"),
+    options.authorityRoot ?? environment[runtimeStorageAuthorityEnvironmentVariable] ??
+      path.join(os.tmpdir(), "atolye-runtime-authority-v1"),
     "RUNTIME_STORAGE_CONFIGURATION_INVALID",
   );
   if (samePath(authorityRoot, path.parse(authorityRoot).root)) {

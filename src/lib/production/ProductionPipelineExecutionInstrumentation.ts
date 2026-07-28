@@ -18,6 +18,8 @@ export type ProductionPipelineExecutionEvent =
   | "descriptor-directory-opened"
   | "descriptor-path-verified"
   | "provider-dispatch-entered"
+  | "youtube-publish-skipped-package-only"
+  | "recovery-validation-passed"
   | "revalidation-entered";
 
 export interface ProductionPipelineExecutionPlanIdentity {
@@ -36,6 +38,7 @@ export interface ProductionPipelineExecutionEventDetail {
   readonly slot?: string;
   readonly selectionId?: string;
   readonly adapterId?: string;
+  readonly recoveryStateFingerprint?: string;
 }
 
 interface ProductionPipelineExecutionInstrumentation {

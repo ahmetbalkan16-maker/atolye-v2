@@ -1,11 +1,19 @@
+import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 import type {
   AnimationGenerationInput,
   AnimationGenerationResult,
-  AnimationProvider,
+  ConfiguredAnimationProvider,
 } from "./AnimationProvider";
 
-export class MockAnimationProvider implements AnimationProvider {
+export class MockAnimationProvider implements ConfiguredAnimationProvider {
   readonly name = "mock";
+
+  createImmutableAnimationDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: this.name }, requiredMethods: ["generateAnimation"],
+      optionalMethods: ["getRequestIdentity"],
+    });
+  }
 
   async generateAnimation(
     input: AnimationGenerationInput,

@@ -71,5 +71,6 @@ async function main(){const root=await fs.mkdtemp(path.join(os.tmpdir(),"atolye-
   await scenario("source of truth preserved",async()=>assert.equal(await fs.readFile(canonical,"utf8"),validBytes));
   await scenario("no orchestration integration",async()=>{const source=await fs.readFile("src/lib/production/ProductionExecutionPersistence.ts","utf8");assert.ok(!/setInterval|setTimeout|NextResponse|POST\(|enqueue\(|worker_threads/i.test(source))});
   assert.ok(count>=27);console.log(`Sprint 99.1 durable storage recovery and index hardening smoke: PASS (${count} scenarios)`);
+  process.stdout.write(`ATOLYE_SMOKE_RESULT ${JSON.stringify({status:"PASS",suite:"production-execution-durable-recovery",scenarios:count})}\n`);
 }finally{await fs.rm(root,{recursive:true,force:true});await assert.rejects(fs.access(root))}}
 void main();

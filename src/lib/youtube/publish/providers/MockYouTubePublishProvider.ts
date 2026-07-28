@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 import type {
   YouTubePublishProviderResult,
   YouTubePublishReconciliationRequest,
@@ -6,7 +7,7 @@ import type {
   YouTubePublishRequest,
 } from "@/types/youtubePublish";
 import { createYouTubeReconciliationMarker } from "../YouTubePublishValidation";
-import type { YouTubePublishProvider } from "./YouTubePublishProvider";
+import type { ConfiguredYouTubePublishProvider } from "./YouTubePublishProvider";
 import {
   YOUTUBE_PUBLISH_ERROR,
   YOUTUBE_RECONCILIATION_ERROR,
@@ -15,7 +16,7 @@ import {
 type MatchedResult = Extract<YouTubePublishReconciliationResult, { outcome: "matched" }>;
 type NonMatchedOutcome = Exclude<YouTubePublishReconciliationResult["outcome"], "matched">;
 
-export class MockYouTubePublishProvider implements YouTubePublishProvider {
+export class MockYouTubePublishProvider implements ConfiguredYouTubePublishProvider {
   readonly name = "mock" as const;
   readonly model = "mock-youtube-publish-v1";
   readonly reconciliationChannelId = "mock-channel";
@@ -23,6 +24,14 @@ export class MockYouTubePublishProvider implements YouTubePublishProvider {
   reconciliationCallCount = 0;
   private readonly remoteRecords: MatchedResult[] = [];
   private reconciliationOutcome?: NonMatchedOutcome;
+
+  createImmutablePublishDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: this.name, model: this.model,
+        reconciliationChannelId: this.reconciliationChannelId },
+      requiredMethods: ["publish"], optionalMethods: ["reconcilePublish"],
+    });
+  }
 
   constructor(options: { reconciliationOutcome?: NonMatchedOutcome } = {}) {
     this.reconciliationOutcome = options.reconciliationOutcome;

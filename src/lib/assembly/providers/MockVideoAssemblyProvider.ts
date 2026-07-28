@@ -1,7 +1,14 @@
-import type { VideoAssemblyProvider } from "./VideoAssemblyProvider";
+import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
+import type { ConfiguredVideoAssemblyProvider } from "./VideoAssemblyProvider";
 
-export class MockVideoAssemblyProvider implements VideoAssemblyProvider {
+export class MockVideoAssemblyProvider implements ConfiguredVideoAssemblyProvider {
   readonly name = "mock";
+
+  createImmutableAssemblyDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: this.name }, requiredMethods: ["assemble"],
+    });
+  }
 
   async assemble() {
     return {

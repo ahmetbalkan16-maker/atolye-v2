@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 import {
   animationMotionTypes,
   animationTransitionTypes,
@@ -13,7 +14,7 @@ import {
 import type {
   AnimationGenerationInput,
   AnimationGenerationResult,
-  AnimationProvider,
+  ConfiguredAnimationProvider,
   AnimationRequestIdentity,
 } from "./AnimationProvider";
 import {
@@ -30,7 +31,7 @@ type Fetcher = typeof fetch;
 type FailureCode = Extract<AnimationGenerationResult, { success: false }>["error"];
 const MAXIMUM_REQUEST_BYTES = 32 * 1024;
 
-export class OpenAIAnimationProvider implements AnimationProvider {
+export class OpenAIAnimationProvider implements ConfiguredAnimationProvider {
   readonly name = "openai";
 
   constructor(
@@ -38,6 +39,13 @@ export class OpenAIAnimationProvider implements AnimationProvider {
     private readonly loadConfig: () => OpenAIAnimationProviderConfig =
       getOpenAIAnimationProviderConfig,
   ) {}
+
+  createImmutableAnimationDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: this.name }, requiredMethods: ["generateAnimation"],
+      optionalMethods: ["getRequestIdentity"],
+    });
+  }
 
   getRequestIdentity(input: AnimationGenerationInput): AnimationRequestIdentity {
     validateInput(input);

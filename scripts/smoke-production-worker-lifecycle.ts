@@ -79,5 +79,6 @@ async function main(){let scenarios=0;const scenario=async(name:string,run:()=>u
   await scenario("composition root shares central lifecycle",async()=>{const root=await fs.readFile("src/lib/runtime/ProductionRuntimeCompositionRoot.ts","utf8"),factory=await fs.readFile("src/lib/production/ProductionPipelineExecutionFactory.ts","utf8");assert.match(root,/workerLifecycle:\s*productionWorkerLifecycle/);assert.match(root,/runtimeOperationContext:\s*processRuntimeOperationContext/);assert.ok(!/PipelineQueueScheduler|SIGTERM|SIGINT|process\.on/.test(root+factory))});
   await fs.rm(temporaryRoot,{recursive:true,force:true});
   assert.equal(scenarios,21);console.log(`Sprint 110 production worker lifecycle smoke: PASS (${scenarios}/21 scenarios)`);
+  process.stdout.write(`ATOLYE_SMOKE_RESULT ${JSON.stringify({status:"PASS",suite:"production-worker-lifecycle",scenarios})}\n`);
 }
 void main();

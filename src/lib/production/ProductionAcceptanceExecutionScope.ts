@@ -184,7 +184,7 @@ export function createProductionAcceptanceProviderSelection(
     const originalReference = options[slot.option];
     const configured = configuredOptions.includes(slot.option) || !originalReference;
     const reference = originalReference
-      ? createExplicitProviderDispatchAdapter(slot.option, originalReference, configured)
+      ? createExplicitProviderDispatchAdapter(slot.option, originalReference)
       : undefined;
     if (reference) copied[slot.option] = reference;
     return Object.freeze({
@@ -193,7 +193,7 @@ export function createProductionAcceptanceProviderSelection(
       adapterId: `${selectionId}:${slot.option}`,
       identifier: configured
         ? `configured:${configuredProvider(slot.environment, slot.fallback)}`
-        : `injected:${providerName(originalReference!)}`,
+        : `injected:${providerName(reference!)}`,
       injected: !configured,
       ...(reference ? { reference: reference as object } : {}),
     });
@@ -211,10 +211,8 @@ export function createProductionAcceptanceProviderSelection(
 function createExplicitProviderDispatchAdapter(
   option: keyof ProductionAcceptanceProviderOptions,
   provider: object,
-  configured: boolean,
 ): object {
   if (utilTypes.isProxy(provider)) throw new ProductionAcceptanceProviderAdapterError(option);
-  if (configured) return immutableProviderDispatchFacade(option, provider);
   const factoryName = adapterFactoryNames[option];
   let owner: object | null = provider;
   let descriptor: PropertyDescriptor | undefined;
@@ -233,105 +231,46 @@ function createExplicitProviderDispatchAdapter(
   if (!adapter || typeof adapter !== "object" || adapter === provider || utilTypes.isProxy(adapter)) {
     throw new ProductionAcceptanceProviderAdapterError(option);
   }
-  try { return immutableProviderDispatchFacade(option, adapter); }
+  try { return normalizeImmutableProviderDispatchAdapter(option, adapter); }
   catch { throw new ProductionAcceptanceProviderAdapterError(option); }
 }
 
-function immutableProviderDispatchFacade(
+function normalizeImmutableProviderDispatchAdapter(
   option: keyof ProductionAcceptanceProviderOptions,
-  provider: object,
+  adapter: object,
 ): object {
-  const source = provider as Record<string, unknown>;
-  const receiver = immutableProviderReceiver(provider);
-  const callable = (name: string) => {
-    const method = source[name];
-    if (typeof method !== "function") throw new TypeError(`Provider method ${name} is unavailable.`);
-    if (Function.prototype.toString.call(method).includes("#")) {
-      throw new TypeError(`Provider method ${name} uses unsupported private receiver state.`);
+  if (utilTypes.isProxy(adapter) || Object.getPrototypeOf(adapter) !== Object.prototype) {
+    throw new TypeError("Provider adapter must be a plain object.");
+  }
+  const facade = Object.create(null) as Record<PropertyKey, unknown>;
+  for (const key of Reflect.ownKeys(adapter)) {
+    const descriptor = Object.getOwnPropertyDescriptor(adapter, key);
+    if (!descriptor || !("value" in descriptor)) {
+      throw new TypeError("Provider adapter accessors are unsupported.");
     }
-    return method.bind(receiver);
-  };
-  const identity = { name: providerName(provider) };
-  let facade: object;
-  switch (option) {
-    case "aiProvider": facade = { ...identity, generate: callable("generate") }; break;
-    case "visualAssetProvider": facade = { ...identity, generateImage: callable("generateImage") }; break;
-    case "animationProvider": {
-      const getRequestIdentity = source.getRequestIdentity;
-      facade = { ...identity, generateAnimation: callable("generateAnimation"),
-        ...(typeof getRequestIdentity === "function"
-          ? { getRequestIdentity: getRequestIdentity.bind(receiver) } : {}) };
-      break;
+    const value = descriptor.value;
+    if (typeof value === "object" && value !== null) {
+      throw new TypeError("Provider adapter configuration must be primitive.");
     }
-    case "videoProvider": facade = { ...identity, generateVideo: callable("generateVideo") }; break;
-    case "audioProvider": facade = { ...identity, validateInput: callable("validateInput"),
-      generateAudio: callable("generateAudio") }; break;
-    case "videoAssemblyProvider": facade = { ...identity, assemble: callable("assemble") }; break;
-    case "thumbnailProvider": facade = { ...identity,
-      generateThumbnailPlan: callable("generateThumbnailPlan"),
-      generateThumbnailAsset: callable("generateThumbnailAsset") }; break;
-    case "youtubeProvider": facade = { ...identity, model: source.model,
-      generatePublishingPackage: callable("generatePublishingPackage") }; break;
-    case "youtubePublishProvider": {
-      const reconcilePublish = source.reconcilePublish;
-      facade = { ...identity, model: source.model,
-        reconciliationChannelId: source.reconciliationChannelId, publish: callable("publish"),
-        ...(typeof reconcilePublish === "function"
-          ? { reconcilePublish: reconcilePublish.bind(receiver) } : {}) };
-      break;
+    Object.defineProperty(facade, key, { configurable: false, enumerable: descriptor.enumerable,
+      writable: false, value });
+  }
+  for (const method of providerAdapterMethods[option]) {
+    if (typeof facade[method] !== "function") {
+      throw new TypeError(`Provider adapter method ${method} is unavailable.`);
     }
   }
   return Object.freeze(facade);
 }
 
-function immutableProviderReceiver(provider: object): object {
-  return immutableProviderObject(provider, new WeakMap());
-}
-
-function immutableProviderObject(value: object, seen: WeakMap<object, object>): object {
-  if (utilTypes.isProxy(value)) throw new TypeError("Provider receiver proxies are unsupported.");
-  const existing = seen.get(value);
-  if (existing) return existing;
-  const receiver: Record<PropertyKey, unknown> | unknown[] = Array.isArray(value)
-    ? [] : Object.create(null);
-  seen.set(value, receiver);
-  const chain: object[] = [];
-  let current: object | null = value;
-  while (current && current !== Object.prototype && current !== Array.prototype) {
-    if (utilTypes.isProxy(current)) throw new TypeError("Provider receiver proxies are unsupported.");
-    chain.unshift(current);
-    current = Object.getPrototypeOf(current);
-  }
-  const descriptors = new Map<PropertyKey, PropertyDescriptor>();
-  for (const owner of chain) {
-    for (const key of Reflect.ownKeys(owner)) {
-      if (key === "constructor") continue;
-      const descriptor = Object.getOwnPropertyDescriptor(owner, key);
-      if (!descriptor || !("value" in descriptor)) {
-        throw new TypeError("Provider receiver accessors are unsupported.");
-      }
-      if (typeof descriptor.value === "function" &&
-        Function.prototype.toString.call(descriptor.value).includes("#")) {
-        throw new TypeError("Provider receiver private state is unsupported.");
-      }
-      descriptors.set(key, descriptor);
-    }
-  }
-  for (const [key, descriptor] of descriptors) {
-      Object.defineProperty(receiver, key, {
-        configurable: false,
-        enumerable: descriptor.enumerable,
-        writable: false,
-        value: immutableProviderState(descriptor.value, seen),
-      });
-  }
-  return Object.freeze(receiver);
-}
-
-function immutableProviderState(value: unknown, seen: WeakMap<object, object>): unknown {
-  if (!value || typeof value !== "object") return value;
-  return immutableProviderObject(value, seen);
-}
+const providerAdapterMethods: Readonly<Record<keyof ProductionAcceptanceProviderOptions,
+  readonly string[]>> = Object.freeze({
+  aiProvider: ["generate"], visualAssetProvider: ["generateImage"],
+  animationProvider: ["generateAnimation"], audioProvider: ["validateInput", "generateAudio"],
+  videoProvider: ["generateVideo"], videoAssemblyProvider: ["assemble"],
+  thumbnailProvider: ["generateThumbnailPlan", "generateThumbnailAsset"],
+  youtubeProvider: ["generatePublishingPackage"], youtubePublishProvider: ["publish"],
+});
 
 export function sameProductionAcceptanceProviderSelection(
   left: ProductionAcceptanceProviderSelection,

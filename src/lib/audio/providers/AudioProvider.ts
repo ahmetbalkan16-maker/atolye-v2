@@ -3,6 +3,7 @@ import type {
   AudioGenerationTarget,
   AudioProviderName,
 } from "@/types/audio";
+import type { ProviderDispatchAdapterAuthority } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 
 export interface AudioGenerationInput {
   target: AudioGenerationTarget;
@@ -19,3 +20,6 @@ export interface AudioProvider {
 
   generateAudio(input: AudioGenerationInput): Promise<AudioGenerationResult>;
 }
+
+export type ConfiguredAudioProvider = AudioProvider &
+  ProviderDispatchAdapterAuthority<"createImmutableAudioDispatchAdapter">;

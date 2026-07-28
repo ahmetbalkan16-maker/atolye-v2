@@ -19,6 +19,26 @@ const moduleProvenance = Object.freeze({});
 const ownsProcessCanonicalLock = claimProcessCanonicalLock();
 let canonicalRegistration: CanonicalPipelineRuntimeRegistration | undefined;
 
+/** @internal Opaque process-state token for scoped test/runtime composition. */
+export interface PipelineRunnerProductionRuntimeSnapshot {
+  readonly registration: CanonicalPipelineRuntimeRegistration | undefined;
+}
+
+export function snapshotPipelineRunnerProductionRuntime(): PipelineRunnerProductionRuntimeSnapshot {
+  return Object.freeze({ registration: canonicalRegistration });
+}
+
+export function restorePipelineRunnerProductionRuntime(
+  snapshot: PipelineRunnerProductionRuntimeSnapshot,
+  expectedCurrent: PipelineRunnerProductionRuntimeSnapshot,
+): void {
+  assertProcessCanonicalLockOwnership();
+  if (canonicalRegistration !== expectedCurrent.registration) {
+    throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISMATCH");
+  }
+  canonicalRegistration = snapshot.registration;
+}
+
 export function installPipelineRunnerProductionRuntime(
   lifecycle: ProductionWorkerLifecycle,
   parent: ProductionRuntimeOperationContext,

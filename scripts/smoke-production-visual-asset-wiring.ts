@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
@@ -7,8 +8,10 @@ import {
 } from "../src/lib/assets/VisualAssetPipeline";
 import type {
   ImageGenerationInput,
-  ImageProvider,
+  ImageProvider, ConfiguredImageProvider,
 } from "../src/lib/assets/providers/ImageProvider";
+import { createProviderDispatchAdapter } from
+  "../src/lib/providers/ProviderDispatchAdapterAuthority";
 import {
   IMAGE_PROVIDER_CONFIGURATION_ERROR,
   ImageProviderConfigurationError,
@@ -19,11 +22,30 @@ import { MockImageProvider } from "../src/lib/assets/providers/MockImageProvider
 import { OpenAIImageProvider } from "../src/lib/assets/providers/OpenAIImageProvider";
 import { PipelineRunner } from "../src/lib/pipeline/PipelineRunner";
 import {
+  materializePipelineStageExecutionOptions,
   PipelineStageExecutor,
   type PipelineExecutionState,
 } from "../src/lib/pipeline/PipelineStageExecutor";
 import { ProjectManager } from "../src/lib/projects/ProjectManager";
+import { createProductionAcceptanceProviderSelection, type ProductionAcceptanceProviderSelection } from
+  "../src/lib/production/ProductionAcceptanceExecutionScope";
+import type { ProductionAcceptanceStageCapability,
+  ProductionAcceptanceStageExecutionIdentity } from
+  "../src/lib/production/ProductionAcceptancePolicy";
+import { createProductionExecutionReadDescriptor,
+  ProductionExecutionDescriptorBoundReadAdapter } from
+  "../src/lib/production/ProductionExecutionDescriptorBoundReadAdapter";
+import { validateProductionExecutionDurableAttempt } from
+  "../src/lib/production/ProductionExecutionDurableAttempt";
+import { ProductionPipelineDurableExecutionError } from
+  "../src/lib/production/ProductionPipelineExecutionAdapter";
+import { runWithProductionPipelineExecutionInstrumentation } from
+  "../src/lib/production/ProductionPipelineExecutionInstrumentation";
 import { VisualManager } from "../src/lib/visuals/VisualManager";
+import { getActiveProductionRuntimeOperationContext,
+  requireActiveProductionRuntimeOperationContext,
+} from
+  "../src/lib/runtime/ProductionRuntimeOperationContext";
 import type {
   ImageGenerationResult,
   ProjectAssets,
@@ -39,11 +61,14 @@ import type {
   ProjectPackageRunType,
 } from "../src/types/project";
 import type { VisualData } from "../src/types/visual";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 
-const fixturePrefix = `sprint-113-visual-assets-${process.pid}`;
-const projectsRoot = path.join(process.cwd(), "data", "projects");
-const originalImageProvider = process.env.IMAGE_PROVIDER;
-const originalOpenAIKey = process.env.OPENAI_API_KEY;
+let fixturePrefix = "";
+let temporaryRuntimeRoot = "";
+let projectsRoot = "";
+let originalAIProvider: string | undefined;
+let originalImageProvider: string | undefined;
+let originalOpenAIKey: string | undefined;
 const now = "2026-07-13T12:00:00.000Z";
 const validPngBytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 let scenarioCount = 0;
@@ -83,8 +108,12 @@ type PipelineRunnerInternals = {
   runStage(
     slug: string,
     stage: ProductionStepKey,
-    action: () => Promise<boolean>,
+    action: (capability: ProductionAcceptanceStageCapability | undefined,
+      identity: ProductionAcceptanceStageExecutionIdentity) => Promise<boolean>,
     runType: ProjectPackageRunType,
+    onClaimConflict?: () => void,
+    stageExecution?: Parameters<typeof materializePipelineStageExecutionOptions>[1],
+    providerSelection?: ProductionAcceptanceProviderSelection,
   ): Promise<boolean>;
 };
 
@@ -109,14 +138,20 @@ function setImageProvider(value: string | undefined) {
   process.env.IMAGE_PROVIDER = value;
 }
 
-function createSuccessProvider(onGenerate?: () => void): ImageProvider {
-  return {
+function createSuccessProvider(onGenerate?: () => void): ConfiguredImageProvider {
+  const provider: ConfiguredImageProvider = {
     name: "openai",
     async generateImage(input) {
       onGenerate?.();
       return createSuccessResult(input);
     },
+    createImmutableImageDispatchAdapter() {
+      return createProviderDispatchAdapter(provider, {
+        metadata: { name: provider.name }, requiredMethods: ["generateImage"],
+      });
+    },
   };
+  return provider;
 }
 
 function createSuccessResult(
@@ -138,26 +173,38 @@ function createProvider(
   generateImage: (
     input: ImageGenerationInput,
   ) => ImageGenerationResult | Promise<ImageGenerationResult>,
-): ImageProvider {
-  return {
+): ConfiguredImageProvider {
+  const provider: ConfiguredImageProvider = {
     name: "openai",
     async generateImage(input) {
       return generateImage(input);
     },
+    createImmutableImageDispatchAdapter() {
+      return createProviderDispatchAdapter(provider, {
+        metadata: { name: provider.name }, requiredMethods: ["generateImage"],
+      });
+    },
   };
+  return provider;
 }
 
 function createMockProvider(
   generateImage: (
     input: ImageGenerationInput,
   ) => ImageGenerationResult | Promise<ImageGenerationResult>,
-): ImageProvider {
-  return {
+): ConfiguredImageProvider {
+  const provider: ConfiguredImageProvider = {
     name: "mock",
     async generateImage(input) {
       return generateImage(input);
     },
+    createImmutableImageDispatchAdapter() {
+      return createProviderDispatchAdapter(provider, {
+        metadata: { name: provider.name }, requiredMethods: ["generateImage"],
+      });
+    },
   };
+  return provider;
 }
 
 function assetsPath(slug: string) {
@@ -290,7 +337,11 @@ async function runVisualFailureThroughRunner(
   const originalGenerateVisualData = VisualManager.generateVisualData;
   const originalConsoleError = console.error;
   const logs: unknown[][] = [];
-  let durableTerminal: "failed" | null = null;
+  const executionEvents: string[] = [];
+  let providerCalls = 0;
+  let foreignProviderCalls = 0;
+  let adapterFactoryCalls = 0;
+  let canonicalIdentity: ProductionAcceptanceStageExecutionIdentity | undefined;
   VisualManager.generateVisualData = async () => ({
     ...visualData,
     projectId: fixture.project.id,
@@ -299,19 +350,6 @@ async function runVisualFailureThroughRunner(
     logs.push(args);
   };
 
-  if (durable) {
-    PipelineRunner.configureDurableExecution({
-      async execute(_context, handler) {
-        try {
-          return await handler();
-        } catch (error) {
-          durableTerminal = "failed";
-          throw error;
-        }
-      },
-    });
-  }
-
   const provider = injectedProvider ?? createProvider(async (input) => ({
       success: false,
       sceneId: input.sceneId,
@@ -319,7 +357,7 @@ async function runVisualFailureThroughRunner(
       createdAt: now,
       error: "raw provider secret C:\\private\\provider.ts API_KEY=secret",
     }));
-  const action = () =>
+  const legacyAction = () =>
     PipelineStageExecutor.execute(
       fixture.project.slug,
       "visuals",
@@ -328,24 +366,99 @@ async function runVisualFailureThroughRunner(
     );
 
   try {
-    await assert.rejects(
-      durable
-        ? runner.runStage(
+    if (durable) {
+      process.env.AI_PROVIDER = "mock";
+      process.env.IMAGE_PROVIDER = "mock";
+      const originalGenerate = MockImageProvider.prototype.generateImage;
+      const originalFactory = MockImageProvider.prototype.createImmutableImageDispatchAdapter;
+      MockImageProvider.prototype.generateImage = async function (input) {
+        providerCalls += 1;
+        assert.ok(getActiveProductionRuntimeOperationContext());
+        return {
+          success: false,
+          sceneId: input.sceneId,
+          provider: "mock",
+          createdAt: now,
+          error: "controlled visual provider failure",
+        };
+      };
+      MockImageProvider.prototype.createImmutableImageDispatchAdapter = function () {
+        adapterFactoryCalls += 1;
+        return originalFactory.call(this);
+      };
+      const materialized = materializePipelineStageExecutionOptions("visuals");
+      const providerSelection = createProductionAcceptanceProviderSelection(
+        "visuals", materialized.options, materialized.configuredOptions,
+      );
+      const imageBinding = providerSelection.providers.find(
+        (binding) => binding.slot === "visualAssetProvider",
+      );
+      assert.equal(imageBinding?.injected, false);
+      assert.ok(imageBinding?.reference);
+      assert.equal(Object.isFrozen(imageBinding?.reference), true);
+      assert.equal(Object.getPrototypeOf(imageBinding?.reference ?? {}), null);
+      const secondMaterialized = materializePipelineStageExecutionOptions("visuals");
+      const secondSelection = createProductionAcceptanceProviderSelection(
+        "visuals", secondMaterialized.options, secondMaterialized.configuredOptions,
+      );
+      assert.notStrictEqual(
+        imageBinding?.reference,
+        secondSelection.providers.find((binding) =>
+          binding.slot === "visualAssetProvider")?.reference,
+      );
+      MockImageProvider.prototype.generateImage = async function () {
+        foreignProviderCalls += 1;
+        throw new Error("foreign visual provider must not run");
+      };
+      const action = (
+        capability: ProductionAcceptanceStageCapability | undefined,
+        identity: ProductionAcceptanceStageExecutionIdentity,
+      ) => {
+        canonicalIdentity = identity;
+        return PipelineStageExecutor.execute(
+          fixture.project.slug,
+          "visuals",
+          fixture.state,
+          materialized.options,
+          capability,
+          identity,
+          "initial",
+          providerSelection,
+        );
+      };
+      try {
+        await assert.rejects(
+          runWithProductionPipelineExecutionInstrumentation({
+            onEvent: (event) => { executionEvents.push(event); },
+          }, () => runner.runStage(
             fixture.project.slug,
             "visuals",
             action,
             "initial",
-          )
-        : runner.runStageLegacy(
-            fixture.project.slug,
-            "visuals",
-            action,
-            "initial",
-          ),
-      isSafeVisualAssetError,
-    );
+            undefined,
+            materialized.options,
+            providerSelection,
+          )),
+          (error) => error instanceof ProductionPipelineDurableExecutionError &&
+            error.message === "Pipeline stage execution failed." &&
+            error.reasonCode === "WORKER_EXECUTION_FAILED",
+        );
+      } finally {
+        MockImageProvider.prototype.generateImage = originalGenerate;
+        MockImageProvider.prototype.createImmutableImageDispatchAdapter = originalFactory;
+      }
+    } else {
+      await assert.rejects(
+        runner.runStageLegacy(
+          fixture.project.slug,
+          "visuals",
+          legacyAction,
+          "initial",
+        ),
+        isSafeVisualAssetError,
+      );
+    }
   } finally {
-    PipelineRunner.configureDurableExecution();
     VisualManager.generateVisualData = originalGenerateVisualData;
     console.error = originalConsoleError;
   }
@@ -376,10 +489,35 @@ async function runVisualFailureThroughRunner(
   ) as Project;
   const assets = await readAssets(fixture.project.slug);
 
-  return { jobs, manifest, history, project, assets, logs, durableTerminal };
+  let durableAttempt: Record<string, unknown> | null = null;
+  if (durable) {
+    assert.ok(canonicalIdentity?.attemptId,
+      "Canonical visual execution did not expose its persisted attempt identity.");
+    const adapter = new ProductionExecutionDescriptorBoundReadAdapter(
+      createProductionExecutionReadDescriptor({
+        runtimeOperationContext: requireActiveProductionRuntimeOperationContext(),
+        projectSlug: fixture.project.slug,
+      }),
+    );
+    const listed = await adapter.listKeys("attempt");
+    assert.equal(listed.ok, true);
+    if (!listed.ok) throw new Error("Canonical visual attempt store is unavailable.");
+    const expectedKeys = listed.keys.filter((key) =>
+      key === canonicalIdentity!.attemptId || key.startsWith(`${canonicalIdentity!.attemptId}-v`));
+    assert.ok(expectedKeys.length > 0, "Canonical visual attempt key is missing.");
+    expectedKeys.sort((left, right) => versionFromKey(left) - versionFromKey(right));
+    const exact = await adapter.read("attempt", expectedKeys.at(-1)!);
+    assert.equal(exact.status, "found");
+    durableAttempt = exact.status === "found"
+      ? (exact.value as unknown as Record<string, unknown>) : null;
+  }
+
+  return { jobs, manifest, history, project, assets, logs, durableAttempt,
+    executionEvents, providerCalls, foreignProviderCalls, adapterFactoryCalls,
+    canonicalIdentity };
 }
 
-async function main() {
+async function run() {
   const originalFetch = globalThis.fetch;
 
   try {
@@ -472,7 +610,8 @@ async function main() {
             asset.url ?? "",
             new RegExp(`^/api/assets/images/${slug}/[a-zA-Z0-9-_.]+$`),
           );
-          const absoluteFilePath = path.join(process.cwd(), asset.filePath ?? "");
+          const absoluteFilePath = path.join(temporaryRuntimeRoot,
+            path.relative("data", asset.filePath ?? ""));
           writtenFiles.push(absoluteFilePath);
           assert.deepEqual(await fs.readFile(absoluteFilePath), validPngBytes);
         }
@@ -755,13 +894,13 @@ async function main() {
     const legacyFailure = await runVisualFailureThroughRunner("legacy", false);
     await scenario("real runner persists visuals job failure", () => {
       assert.equal(legacyFailure.jobs.jobs[0].status, "failed");
-      assert.equal(legacyFailure.jobs.jobs[0].error, "Visual asset generation failed.");
+      assert.equal(legacyFailure.jobs.jobs[0].error, "VISUAL_ASSET_GENERATION_FAILED");
     });
     await scenario("real runner persists manifest failure", () => {
       assert.equal(legacyFailure.manifest.packages.visuals.status, "failed");
       assert.equal(
         legacyFailure.manifest.packages.visuals.error,
-        "Visual asset generation failed.",
+        "VISUAL_ASSET_GENERATION_FAILED",
       );
     });
     await scenario("real runner persists failed history event", () => {
@@ -786,10 +925,37 @@ async function main() {
     });
 
     const durableFailure = await runVisualFailureThroughRunner("durable", true);
-    await scenario("durable boundary observes terminal failure", () => {
-      assert.equal(durableFailure.durableTerminal, "failed");
+    await scenario("canonical durable boundary readback records terminal visual failure", () => {
+      assert.equal(durableFailure.providerCalls, 1);
+      assert.equal(durableFailure.foreignProviderCalls, 0);
+      assert.equal(durableFailure.adapterFactoryCalls, 2);
+      assertOrderedSubsequence(durableFailure.executionEvents, [
+        "durable-attempt-persisted", "durable-readback-verified",
+        "canonical-identity-extracted", "lifecycle-bound", "provider-dispatch-entered",
+      ]);
+      assert.ok(durableFailure.durableAttempt);
+      assert.equal(validateProductionExecutionDurableAttempt(durableFailure.durableAttempt), true);
+      assert.equal(durableFailure.durableAttempt?.state, "failed");
+      const identity = durableFailure.durableAttempt?.identity as
+        | Record<string, unknown> | undefined;
+      const canonical = durableFailure.canonicalIdentity;
+      assert.ok(canonical);
+      for (const field of ["recordId", "reservationId", "claimId", "leaseId", "attemptId",
+        "executionFingerprint", "requestId", "idempotencyKey", "operation"] as const) {
+        assert.equal(identity?.[field], canonical[field], `visual canonical identity mismatch: ${field}`);
+      }
+      assert.equal(canonical.projectSlug, durableFailure.project.slug);
+      assert.equal(canonical.stage, "visuals");
+      const journal = durableFailure.durableAttempt?.journal as
+        | Array<{ entryId?: string; payload?: { code?: string } }> | undefined;
+      assert.ok(journal && journal.length >= 3);
+      assert.equal(journal.at(-1)?.payload?.code, "VISUAL_ASSET_GENERATION_FAILED");
       assert.equal(durableFailure.jobs.jobs[0].status, "failed");
       assert.equal(durableFailure.manifest.packages.visuals.status, "failed");
+      assert.equal(durableFailure.assets.assets.filter((asset) =>
+        asset.type === "image" && asset.status === "generated").length, 0);
+      assert.equal(durableFailure.assets.assets.filter((asset) =>
+        asset.type === "image" && asset.status === "failed").length, 1);
     });
 
     const invalidMockRunnerFailure = await runVisualFailureThroughRunner(
@@ -856,9 +1022,11 @@ async function main() {
     console.log(
       `Sprint 113 production visual asset wiring smoke: PASS (${scenarioCount} scenarios)`,
     );
+    emitSmokeResult("production-visual-asset-wiring", scenarioCount);
   } finally {
-    PipelineRunner.configureDurableExecution();
     globalThis.fetch = originalFetch;
+    if (originalAIProvider === undefined) delete process.env.AI_PROVIDER;
+    else process.env.AI_PROVIDER = originalAIProvider;
     if (originalImageProvider === undefined) {
       delete process.env.IMAGE_PROVIDER;
     } else {
@@ -869,18 +1037,35 @@ async function main() {
     } else {
       process.env.OPENAI_API_KEY = originalOpenAIKey;
     }
-    const entries = await fs.readdir(projectsRoot, { withFileTypes: true });
-    await Promise.all(
-      entries
-        .filter((entry) => entry.isDirectory() && entry.name.startsWith(fixturePrefix))
-        .map((entry) =>
-          fs.rm(path.join(projectsRoot, entry.name), {
-            recursive: true,
-            force: true,
-          }),
-        ),
-    );
   }
+}
+
+function versionFromKey(key: string): number {
+  const match = /-v([1-9][0-9]*)$/.exec(key);
+  return match ? Number(match[1]) : 0;
+}
+
+function assertOrderedSubsequence(actual: readonly string[], expected: readonly string[]): void {
+  let previous = -1;
+  for (const event of expected) {
+    const index = actual.indexOf(event, previous + 1);
+    assert.ok(index > previous,
+      `Missing or out-of-order production event ${event}: ${JSON.stringify(actual)}`);
+    previous = index;
+  }
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime({ name: "visual-wiring",
+    operationType: "visual-wiring-test", now }, async (runtime) => {
+    fixturePrefix = `sprint-113-visual-assets-${runtime.runId.slice(0, 12)}`;
+    temporaryRuntimeRoot = runtime.runtimeRoot;
+    projectsRoot = runtime.runtimeStorageContext.projectsRoot;
+    originalAIProvider = process.env.AI_PROVIDER;
+    originalImageProvider = process.env.IMAGE_PROVIDER;
+    originalOpenAIKey = process.env.OPENAI_API_KEY;
+    await run();
+  });
 }
 
 void main();

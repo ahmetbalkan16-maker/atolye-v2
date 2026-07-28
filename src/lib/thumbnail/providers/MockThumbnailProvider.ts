@@ -3,17 +3,25 @@ import type { AudioSection } from "@/types/audio";
 import type { ThumbnailData, ThumbnailVariant } from "@/types/thumbnail";
 import type { VideoScene } from "@/types/video";
 import { deflateSync } from "node:zlib";
+import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 import { ThumbnailStorage } from "../ThumbnailStorage";
 import type {
   ThumbnailAssetGenerationInput,
   ThumbnailAssetGenerationResult,
+  ConfiguredThumbnailProvider,
   ThumbnailGenerationInput,
   ThumbnailGenerationResult,
-  ThumbnailProvider,
 } from "./ThumbnailProvider";
 
-export class MockThumbnailProvider implements ThumbnailProvider {
+export class MockThumbnailProvider implements ConfiguredThumbnailProvider {
   readonly name = "mock" as const;
+
+  createImmutableThumbnailDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: this.name },
+      requiredMethods: ["generateThumbnailPlan", "generateThumbnailAsset"],
+    });
+  }
 
   async generateThumbnailPlan(
     input: ThumbnailGenerationInput,

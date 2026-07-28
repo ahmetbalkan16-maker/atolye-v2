@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import fs from "node:fs";
 import path from "node:path";
 import { deflateSync } from "node:zlib";
@@ -23,7 +25,7 @@ import type { YouTubePublishingPackage } from "../src/types/youtube";
 import type { YouTubePublishProviderResult, YouTubePublishRecord, YouTubePublishRequest } from "../src/types/youtubePublish";
 
 const slug = `sprint-123-stabilization-${process.pid}`;
-const root = path.resolve(process.cwd(), "data", "projects", slug);
+let root = "";
 const now = "2026-07-14T03:00:00.000Z";
 const project: Project = { id: `project-${process.pid}`, slug, title: "Production End-to-End Stabilization", status: "youtube", createdAt: now, updatedAt: now };
 let assembly: AssemblyPlanData;
@@ -33,7 +35,7 @@ let publishingPackage: YouTubePublishingPackage;
 let baselineAssets: ProjectAssets;
 let passed = 0;
 
-async function main() {
+async function run() {
   try {
     await setup();
     await happyPathAndReplay();
@@ -44,6 +46,15 @@ async function main() {
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime({ name: "production-e2e-stabilization",
+    projectSlug: slug }, async (runtime) => {
+    root = path.join(runtime.runtimeStorageContext.projectsRoot, slug);
+    await run();
+  });
+  emitSmokeResult("production-end-to-end-stabilization", passed);
 }
 
 async function setup() {

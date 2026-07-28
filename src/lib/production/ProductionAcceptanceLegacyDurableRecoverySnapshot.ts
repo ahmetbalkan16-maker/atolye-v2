@@ -1,7 +1,11 @@
 import path from "node:path";
 import { validateProductionExecutionPersistencePayload } from "./ProductionExecutionPersistence";
-import { ProductionExecutionDescriptorBoundReadAdapter } from
+import { createProductionExecutionReadDescriptor,
+  ProductionExecutionDescriptorBoundReadAdapter } from
   "./ProductionExecutionDescriptorBoundReadAdapter";
+import { requireActiveProductionRuntimeOperationContext,
+  requireProductionRuntimeStorageContext } from
+  "@/lib/runtime/ProductionRuntimeOperationContext";
 import { readProductionExecutionRecoverySemanticAuthority } from
   "./ProductionExecutionRecoveryBootstrap";
 import type { ProductionExecutionRecoveryStorePolicyEntry } from
@@ -54,8 +58,15 @@ export async function createLegacyReauthorizationDurableRecoverySnapshot(input: 
   readonly markerState: "prepared";
   readonly startStage: "audio";
 }): Promise<LegacyDurableRecoveryAuthoritySnapshot> {
+  const runtimeOperationContext = requireActiveProductionRuntimeOperationContext();
+  const storage = requireProductionRuntimeStorageContext(runtimeOperationContext);
+  const expectedProjectFolder = path.resolve(storage.projectsRoot, input.projectSlug);
+  if (path.relative(expectedProjectFolder, path.resolve(input.projectFolder)) !== "") {
+    throw invalid(input.projectSlug);
+  }
   const adapter = new ProductionExecutionDescriptorBoundReadAdapter(
-    path.join(input.projectFolder, "production-execution"));
+    createProductionExecutionReadDescriptor({ runtimeOperationContext,
+      projectSlug: input.projectSlug }));
   try {
     const [idempotency, reservations, claims, attempts] = await Promise.all([
       readAll(adapter, "idempotency", input.projectSlug),

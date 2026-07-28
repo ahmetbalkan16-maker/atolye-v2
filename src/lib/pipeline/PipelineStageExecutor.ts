@@ -542,8 +542,12 @@ export class PipelineStageExecutor {
             updatePackageStatus: false,
           });
           if (persistedPolicy?.youtubePublishMode === "package-only") {
+            await emitProductionPipelineExecutionEvent("youtube-publish-skipped-package-only", {
+              stage, slot: "youtubePublishProvider", selectionId: providerSelection.selectionId,
+            });
             return await this.persistStageResult(projectSlug, stage, async () => {});
           }
+          await dispatchBranch("youtubePublishProvider");
           await YouTubePublishPipeline.publishStoredPackage({
             projectSlug,
             provider: dispatchOptions.youtubePublishProvider,

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import fs, { promises as fsp } from "node:fs";
 import path from "node:path";
-import os from "node:os";
 import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
@@ -59,6 +59,7 @@ import type {
   AudioGenerationInput,
   AudioProvider,
 } from "../src/lib/audio/providers/AudioProvider";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 
 const originalEnvironment = {
   provider: process.env.AUDIO_PROVIDER,
@@ -919,16 +920,16 @@ console.log(JSON.stringify(output));
 }
 
 async function run(): Promise<void> {
-  const root = await fsp.mkdtemp(path.join(os.tmpdir(), "atolye-129-27-"));
-  const runtimeRoot = path.join(root, "runtime");
-  const authorityRoot = path.join(root, "authority");
-  await fsp.mkdir(runtimeRoot, { recursive: true });
-  await fsp.mkdir(authorityRoot, { recursive: true });
-  const storageContext = createRuntimeStorageContext({
-    workspaceRoot: process.cwd(),
-    authorityRoot,
-    environment: { ATOLYE_RUNTIME_ROOT: runtimeRoot },
-  });
+  await withCanonicalSmokeRuntime({ name: "sprint-129-27", enterOperationContext: false,
+    configureProductionExecution: false, environment: {
+      AUDIO_PROVIDER: "openai", OPENAI_API_KEY: "mock-key-never-sent",
+      OPENAI_TTS_MODEL: "mock-tts-model", OPENAI_TTS_VOICE: "alloy",
+      OPENAI_TTS_TIMEOUT_MS: "50", OPENAI_TTS_MAX_RESPONSE_BYTES: "4096",
+    } }, async (canonicalRuntime) => {
+  const root = canonicalRuntime.workspaceRoot;
+  const runtimeRoot = canonicalRuntime.runtimeRoot;
+  const authorityRoot = canonicalRuntime.authorityRoot;
+  const storageContext = canonicalRuntime.runtimeStorageContext;
   const mismatchedStorageContext = createRuntimeStorageContext({
     workspaceRoot: process.cwd(),
     authorityRoot,
@@ -941,12 +942,7 @@ async function run(): Promise<void> {
     storageContext,
   });
 
-  process.env.OPENAI_API_KEY = "mock-key-never-sent";
-  process.env.OPENAI_TTS_MODEL = "mock-tts-model";
-  process.env.OPENAI_TTS_VOICE = "alloy";
-  process.env.OPENAI_TTS_TIMEOUT_MS = "50";
-  process.env.OPENAI_TTS_MAX_RESPONSE_BYTES = "4096";
-
+  canonicalRuntime.deferRestore(() => { globalThis.fetch = originalFetch; });
   try {
     await runWithProductionRuntimeOperationContext(operationContext, async () => {
       await scenario("successful WAV generation persists fsynced canonical assets", async () => {
@@ -4355,14 +4351,8 @@ async function run(): Promise<void> {
     });
   } finally {
     globalThis.fetch = originalFetch;
-    restoreEnvironment("AUDIO_PROVIDER", originalEnvironment.provider);
-    restoreEnvironment("OPENAI_API_KEY", originalEnvironment.apiKey);
-    restoreEnvironment("OPENAI_TTS_TIMEOUT_MS", originalEnvironment.timeout);
-    restoreEnvironment("OPENAI_TTS_MAX_RESPONSE_BYTES", originalEnvironment.responseBytes);
-    restoreEnvironment("OPENAI_TTS_MODEL", originalEnvironment.model);
-    restoreEnvironment("OPENAI_TTS_VOICE", originalEnvironment.voice);
-    await fsp.rm(root, { recursive: true, force: true });
   }
+  });
 }
 
 function restoreEnvironment(name: string, value: string | undefined) {
@@ -4372,4 +4362,5 @@ function restoreEnvironment(name: string, value: string | undefined) {
 
 void run().then(() => {
   console.log(`Sprint 129.27 audio remediation smoke: PASS (${scenarios} scenarios)`);
+  emitSmokeResult("sprint-129-27-audio-remediation", scenarios);
 });

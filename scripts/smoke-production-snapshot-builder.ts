@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
@@ -25,7 +27,7 @@ import type {
 const generatedAt = "2026-07-11T12:00:00.000Z";
 const now = "2026-07-11T10:00:00.000Z";
 const slug = `sprint-95-3-snapshot-${process.pid}`;
-const projectFolder = path.join(process.cwd(), "data", "projects", slug);
+let projectFolder = "";
 
 function project(status: Project["status"] = "completed"): Project {
   return {
@@ -180,7 +182,7 @@ function cloneBundle(value: ProductionSnapshotSourceBundle) {
   return structuredClone(value);
 }
 
-async function main() {
+async function run() {
   const complete = buildProductionSnapshot(bundle(), generatedAt);
   assert.equal(complete.pipeline.effectiveStatus, "completed");
   assert.equal(complete.pipeline.isTerminal, true);
@@ -287,6 +289,15 @@ async function main() {
   await verifyFilesystemReadOnly();
 
   console.log("Sprint 95.3 production snapshot builder smoke: PASS (29 scenarios)");
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime({ name: "production-snapshot-builder",
+    projectSlug: slug }, async (runtime) => {
+    projectFolder = path.join(runtime.runtimeStorageContext.projectsRoot, slug);
+    await run();
+  });
+  emitSmokeResult("production-snapshot-builder", 29);
 }
 
 async function verifyFilesystemReadOnly() {

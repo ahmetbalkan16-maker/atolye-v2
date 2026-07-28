@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
@@ -8,9 +10,9 @@ import type { PipelineJob, PipelineJobList } from "../src/types/pipelineJob";
 import type { ProductionStepKey } from "../src/types/project";
 
 const slug = `sprint-93-orchestration-${process.pid}`;
-const projectFolder = path.join(process.cwd(), "data", "projects", slug);
-const jobsFile = path.join(projectFolder, "pipeline-jobs.json");
-const historyFile = path.join(projectFolder, "pipeline-history.json");
+let projectFolder = "";
+let jobsFile = "";
+let historyFile = "";
 const now = "2026-07-11T00:00:00.000Z";
 
 function job(
@@ -307,7 +309,7 @@ async function testConcurrentCompletionIsIdempotent() {
   );
 }
 
-async function main() {
+async function run() {
   try {
     await testNextStageResolver();
     await testCompletedEnqueuesNextStage();
@@ -324,6 +326,17 @@ async function main() {
   } finally {
     await fs.rm(projectFolder, { recursive: true, force: true });
   }
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime({ name: "pipeline-orchestration",
+    projectSlug: slug }, async (runtime) => {
+    projectFolder = path.join(runtime.runtimeStorageContext.projectsRoot, slug);
+    jobsFile = path.join(projectFolder, "pipeline-jobs.json");
+    historyFile = path.join(projectFolder, "pipeline-history.json");
+    await run();
+  });
+  emitSmokeResult("pipeline-orchestration", 10);
 }
 
 void main();

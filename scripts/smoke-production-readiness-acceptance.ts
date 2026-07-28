@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { withCanonicalSmokeRuntime, type CanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import fs from "node:fs";
 import path from "node:path";
 import { GenerationFallbackBlockedError, strictGenerationExecutionPolicy } from "../src/lib/ai/GenerationExecutionPolicy";
@@ -32,7 +34,6 @@ import {
 import type { Project } from "../src/types/project";
 import type { VideoData } from "../src/types/video";
 import type { AudioData } from "../src/types/audio";
-import { initializeProductionProcessRuntime } from "../src/lib/runtime/ProductionRuntimeCompositionRoot";
 import { ProductionAcceptancePolicyError } from "../src/lib/production/ProductionAcceptancePolicy";
 import { SpawnRunner } from "../src/lib/assembly/providers/FFmpegVideoAssemblyProvider";
 import { VisualManager } from "../src/lib/visuals/VisualManager";
@@ -40,16 +41,19 @@ import { AnimationPromptGenerator } from "../src/lib/animation/prompts/Animation
 import { AudioManager } from "../src/lib/audio/AudioManager";
 import { AssemblyManager } from "../src/lib/assembly/AssemblyManager";
 import { SEOManager } from "../src/lib/seo/SEOManager";
+import { createProviderDispatchAdapter } from "../src/lib/providers/ProviderDispatchAdapterAuthority";
 import type { ScriptData } from "../src/types/script";
 import type { SceneData } from "../src/types/scene";
 import type { VisualData } from "../src/types/visual";
 
-const projectsRoot = path.join(process.cwd(), "data", "projects");
+let projectsRoot = "";
+let canonicalRuntime: CanonicalSmokeRuntime;
 const probePrefix = "sprint-126-readiness-";
+const trace = (step: string) => { if (process.env.SMOKE_TRACE === "1") console.error(`TRACE ${step}`); };
 
-async function main() {
+async function run() {
   const beforeProbes = probeDirectories();
-  const readiness = await new ProductionReadinessService().evaluate();
+  const readiness = await readinessService().evaluate();
   assert.equal(readiness.ready, false);
   assert.equal(find(readiness, "animation-provider").status, "NOT_CONFIGURED");
   assert.equal(find(readiness, "animation-provider").reasonCode, "ANIMATION_PROVIDER_MISSING");
@@ -61,20 +65,34 @@ async function main() {
   assert.deepEqual(probeDirectories(), beforeProbes, "Readiness probe workspace was not cleaned.");
   assert(readiness.checks.every((item) => /^[A-Z0-9_]+$/.test(item.reasonCode)));
 
-  await verifyMockAnimationIsBlocked();
+  trace("mock-animation"); await verifyMockAnimationIsBlocked();
   verifyReadinessCheckSetValidation(readiness);
-  await verifyStrictAIProviderFailure();
-  await verifyStrictThumbnailFailure();
-  await verifyPackageOnlyPublish();
-  await verifyProbeCleanupFailsClosed();
-  await verifySpawnRunnerTimeoutCleanup();
-  await verifyRuntimeReevaluation();
-  await verifyAcceptanceGateStopsPipeline();
+  trace("strict-ai"); await verifyStrictAIProviderFailure();
+  trace("strict-thumbnail"); await verifyStrictThumbnailFailure();
+  trace("package-only"); await verifyPackageOnlyPublish();
+  trace("probe-cleanup"); await verifyProbeCleanupFailsClosed();
+  trace("spawn-timeout"); await verifySpawnRunnerTimeoutCleanup();
+  trace("runtime-reevaluation"); await verifyRuntimeReevaluation();
+  trace("acceptance-gate"); await verifyAcceptanceGateStopsPipeline();
 
   console.log("Sprint 126 production readiness acceptance smoke passed.");
   for (const item of readiness.checks) {
     console.log(`${item.id}: ${item.status} (${item.reasonCode})`);
   }
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime({ name: "production-readiness-acceptance",
+    configureProductionExecution: false,
+    environment: { AI_PROVIDER: undefined, IMAGE_PROVIDER: undefined, AUDIO_PROVIDER: undefined,
+      ANIMATION_PROVIDER: undefined, VIDEO_PROVIDER: undefined, VIDEO_ASSEMBLY_PROVIDER: undefined,
+      THUMBNAIL_PROVIDER: undefined, YOUTUBE_PROVIDER: undefined, YOUTUBE_PUBLISH_PROVIDER: undefined,
+      OPENAI_API_KEY: undefined, FFMPEG_PATH: undefined, FFPROBE_PATH: undefined } }, async (runtime) => {
+    projectsRoot = runtime.runtimeStorageContext.projectsRoot;
+    canonicalRuntime = runtime;
+    await run();
+  });
+  emitSmokeResult("production-readiness-acceptance", 24);
 }
 
 async function verifyStrictAIProviderFailure() {
@@ -349,17 +367,23 @@ async function verifyPackageOnlyPublish() {
 }
 
 async function verifyPersistedStrictPolicy(project: Project) {
-  const provider: ThumbnailProvider = {
+  const provider = {
     name: "openai",
     async generateThumbnailPlan() { throw new Error("must be normalized"); },
     async generateThumbnailAsset() { throw new Error("not called"); },
-  };
+  } as const;
+  const configuredProvider: ThumbnailProvider = Object.assign(provider, {
+    createImmutableThumbnailDispatchAdapter: () => createProviderDispatchAdapter(provider, {
+      metadata: { name: provider.name },
+      requiredMethods: ["generateThumbnailPlan", "generateThumbnailAsset"],
+    }),
+  });
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const state = stageState(project);
     state.video = {} as VideoData;
     state.audio = {} as AudioData;
     await assert.rejects(
-      () => PipelineStageExecutor.execute(project.slug, "thumbnail", state, { thumbnailProvider: provider }),
+      () => PipelineStageExecutor.execute(project.slug, "thumbnail", state, { thumbnailProvider: configuredProvider }),
       (error) => error instanceof GenerationFallbackBlockedError,
     );
   }
@@ -367,7 +391,7 @@ async function verifyPersistedStrictPolicy(project: Project) {
 
 async function verifyProbeCleanupFailsClosed() {
   let missingSentinelRoot = "";
-  const sentinelReport = await new ProductionReadinessService({
+  const sentinelReport = await readinessService({
     beforeProbeCleanup: (root) => {
       missingSentinelRoot = root;
       fs.rmSync(path.join(root, ".atolye-readiness-sentinel"));
@@ -383,7 +407,7 @@ async function verifyProbeCleanupFailsClosed() {
   fs.writeFileSync(outsideMarker, "outside");
   let junctionRoot = "";
   let originalRoot = "";
-  const junctionReport = await new ProductionReadinessService({
+  const junctionReport = await readinessService({
     beforeProbeCleanup: (root) => {
       junctionRoot = root;
       originalRoot = `${root}.original`;
@@ -412,8 +436,10 @@ async function verifySpawnRunnerTimeoutCleanup() {
 }
 
 async function verifyRuntimeReevaluation() {
-  await initializeProductionProcessRuntime();
-  const report = await new ProductionReadinessService().evaluate();
+  assert.equal(canonicalRuntime.workerLifecycle.statusSnapshot().workerReady, true);
+  const report = await readinessService({
+    runtimeStatus: () => canonicalRuntime.workerLifecycle.statusSnapshot(),
+  }).evaluate();
   assert.equal(find(report, "runtime").status, "READY");
   assert.equal(find(report, "health").status, "READY");
   assert.equal(report.ready, false);
@@ -423,10 +449,12 @@ async function verifyAcceptanceGateStopsPipeline() {
   const originalRun = PipelineRunner.run;
   const originalCreateProject = ProjectManager.createProject;
   const originalResearch = AIManager.runResearch;
+  const originalEvaluateReadiness = ProductionAcceptanceOrchestrator.evaluateReadiness;
   let pipelineStarted = false;
   let projectCreations = 0;
   let providerCalls = 0;
   try {
+    ProductionAcceptanceOrchestrator.evaluateReadiness = () => readinessService().evaluate();
     PipelineRunner.run = async (...args: Parameters<typeof PipelineRunner.run>) => {
       pipelineStarted = true;
       return originalRun.apply(PipelineRunner, args);
@@ -455,6 +483,7 @@ async function verifyAcceptanceGateStopsPipeline() {
     PipelineRunner.run = originalRun;
     ProjectManager.createProject = originalCreateProject;
     AIManager.runResearch = originalResearch;
+    ProductionAcceptanceOrchestrator.evaluateReadiness = originalEvaluateReadiness;
   }
 }
 
@@ -509,6 +538,15 @@ function find(report: Awaited<ReturnType<ProductionReadinessService["evaluate"]>
   const item = report.checks.find((check) => check.id === id);
   assert(item, `Missing readiness check: ${id}`);
   return item;
+}
+
+function readinessService(
+  dependencies: ConstructorParameters<typeof ProductionReadinessService>[0] = {},
+) {
+  return new ProductionReadinessService({
+    ...dependencies,
+    runtimeStorageContext: canonicalRuntime.runtimeStorageContext,
+  });
 }
 
 function probeDirectories() {

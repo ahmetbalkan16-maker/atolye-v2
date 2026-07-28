@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import { buildProductionExecutionIdempotencyIdentity, defaultProductionExecutionIdempotencyPolicy } from "../src/lib/production/ProductionExecutionIdempotency";
 import { buildProductionExecutionTransactionPlan, defaultProductionExecutionTransactionPolicy } from "../src/lib/production/ProductionExecutionTransaction";
 import { buildProductionOperationJournalEvent, defaultProductionOperationJournalPolicy } from "../src/lib/production/ProductionOperationJournal";
 import { ProductionExecutionFilePersistenceAdapter, type TrustedProductionExecutionPersistenceFileOperations } from "../src/lib/production/ProductionExecutionPersistence";
 import { defaultProductionControlledExecutionGatewayPolicy } from "../src/lib/production/ProductionControlledExecutionGateway";
+import { createProductionExecutionReadDescriptor, ProductionExecutionDescriptorBoundReadAdapter } from "../src/lib/production/ProductionExecutionDescriptorBoundReadAdapter";
+import { withCanonicalSmokeRuntime, type CanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import type { ProductionExecutionAuthorizationResult } from "../src/types/productionExecutionAuthorization";
 import type { ProductionExecutionConfirmationValidationResult } from "../src/types/productionExecutionConfirmation";
 import type { ProductionExecutionIdempotencyPolicy, ProductionExecutionIdempotencyRecord, ProductionExecutionIdempotencyReservationRequest } from "../src/types/productionExecutionIdempotency";
@@ -29,7 +31,7 @@ const journalPolicy={...defaultProductionOperationJournalPolicy,enabled:true};
 const journal:ProductionOperationJournalEvent[]=["operation-reserved","operation-prepared","operation-queued","operation-started","operation-succeeded"].map((eventType,index)=>buildProductionOperationJournalEvent({sequence:index+1,eventType,occurredAt:new Date(Date.parse(now)+index*1000).toISOString(),operationId:transaction.operationId,transactionId:transaction.transactionId,idempotencyRecordId:idempotency.recordId,requestId:identity.requestId,idempotencyKey:identity.idempotencyKey,actorId:identity.actorId,projectSlug:identity.projectSlug,operation:identity.operation,action:identity.action,stage:identity.stage,attempt:1,evidence:["safe"],correlation:{correlationId:"correlation-1",authorizationDecisionId:identity.authorizationDecisionId,confirmationId:identity.confirmationId,executionFingerprint:identity.executionFingerprint,bindingFingerprint:identity.bindingFingerprint,policyVersion:identity.policyVersion}},{policy:journalPolicy}).event!);
 
 let scenarios=0;async function scenario(name:string,run:()=>void|Promise<void>){await run();scenarios++;void name}
-async function main(){const root=await fs.mkdtemp(path.join(os.tmpdir(),"atolye-production-persistence-"));try{
+async function run(root:string,runtime:CanonicalSmokeRuntime){
  const adapter=new ProductionExecutionFilePersistenceAdapter({trustedRootDirectory:root});
  for(const [kind,key,value] of [["transaction","transaction-1",transaction],["journal","journal-1",journal],["idempotency","record-1",idempotency],["reservation","reservation-1",reservation]] as const)await scenario(`create/read ${kind}`,async()=>{const write=await adapter.write(kind,key,value);assert.equal(write.status,"created");const read=await adapter.read(kind,key);assert.equal(read.status,"found");if(read.status==="found")assert.deepEqual(read.value,value)});
  await scenario("idempotent replay",async()=>assert.equal((await adapter.write("idempotency","record-1",structuredClone(idempotency))).status,"idempotent-replay"));
@@ -80,12 +82,14 @@ async function main(){const root=await fs.mkdtemp(path.join(os.tmpdir(),"atolye-
  await scenario("undefined optional",async()=>{const dir=path.join(root,"undefined");const x=new ProductionExecutionFilePersistenceAdapter({trustedRootDirectory:dir});const {stage:unusedStage,...withoutStage}=transaction;void unusedStage;assert.equal((await x.write("transaction","undefined",{...withoutStage,stage:undefined})).status,"created");assert.equal((await x.write("transaction","undefined",withoutStage)).status,"idempotent-replay")});
 
  await scenario("gateway remains closed",()=>{assert.equal(defaultProductionControlledExecutionGatewayPolicy.enabled,false);assert.equal(defaultProductionControlledExecutionGatewayPolicy.mode,"preview-only");assert.equal(defaultProductionControlledExecutionGatewayPolicy.allowDispatch,false);assert.equal(defaultProductionControlledExecutionGatewayPolicy.allowExecution,false)});
- await scenario("defensive direct-write boundary",async()=>{const files=(await fs.readdir("src/lib/production")).filter(f=>f.endsWith(".ts")&&f!=="ProductionExecutionPersistence.ts");for(const file of files){const source=await fs.readFile(path.join("src/lib/production",file),"utf8");assert.ok(!/(?:from\s*["'](?:node:)?fs(?:\/promises)?["']|require\(["'](?:node:)?fs|\b(?:writeFile|writeFileSync|appendFile|appendFileSync|rename|renameSync|mkdir|mkdirSync|unlink|unlinkSync)\s*\(|FileStorage\s*\.\s*(?:saveJson|remove)\s*\()/i.test(source),`defensive direct-write boundary: ${file}`)}const persistence=await fs.readFile("src/lib/production/ProductionExecutionPersistence.ts","utf8");assert.ok(!/fetch\(|axios|enqueue\(|dispatch\(|child_process|worker_threads|NextResponse|POST\(/i.test(persistence));const route=await fs.readFile("app/api/production/health/[slug]/route.ts","utf8");assert.ok(!/POST|execute/i.test(route));const page=await fs.readFile("app/project/[slug]/page.tsx","utf8");assert.ok(!/ProductionControlledExecutionGateway|Execute Production|Start Execution/.test(page))});
+ await scenario("descriptor-bound persistence readback",async()=>{const descriptor=createProductionExecutionReadDescriptor({runtimeOperationContext:runtime.operationContext,projectSlug:runtime.projectSlug});const reader=new ProductionExecutionDescriptorBoundReadAdapter(descriptor);const read=await reader.read("transaction","transaction-1");assert.equal(read.status,"found");if(read.status==="found")assert.deepEqual(read.value,transaction)});
+ await scenario("descriptor-bound direct write rejected",async()=>{const descriptor=createProductionExecutionReadDescriptor({runtimeOperationContext:runtime.operationContext,projectSlug:runtime.projectSlug});const reader=new ProductionExecutionDescriptorBoundReadAdapter(descriptor);const before=await fs.readdir(root);assertFailure(await reader.write("transaction","blocked-direct-write",transaction),"PERSISTENCE_INVALID_INPUT");assert.deepEqual(await fs.readdir(root),before);assert.equal((await reader.read("transaction","blocked-direct-write")).status,"not-found")});
  console.log(`Sprint 98.0 production execution persistence adapter smoke: PASS (${scenarios} scenarios)`);
-}finally{await fs.rm(root,{recursive:true,force:true})}}
+}
 
 function assertFailure(result:{ok:boolean;errorCode?:string},code:string){assert.equal(result.ok,false);if(!result.ok)assert.equal(result.errorCode,code)}
 function assertReadFailure(result:{ok:boolean;status:string;errorCode?:string},code:string){assert.equal(result.status,"failed");if(!result.ok)assert.equal(result.errorCode,code)}
 function codeError(code:string){return Object.assign(new Error("injected"),{code})}
 function operations(overrides:Partial<TrustedProductionExecutionPersistenceFileOperations>):TrustedProductionExecutionPersistenceFileOperations{return{access:fs.access,mkdir:fs.mkdir,readFile:fs.readFile,readdir:fs.readdir,writeFile:fs.writeFile,link:fs.link,unlink:fs.unlink,...overrides} as TrustedProductionExecutionPersistenceFileOperations}
+async function main(){await withCanonicalSmokeRuntime({name:"production-execution-persistence",projectSlug:"production-execution-persistence",operationType:"pipeline.stage.retry"},async(runtime)=>{const root=path.join(runtime.runtimeStorageContext.projectsRoot,runtime.projectSlug,"production-execution");await fs.mkdir(path.dirname(root),{recursive:true});await run(root,runtime)});emitSmokeResult("production-execution-persistence",scenarios)}
 void main();

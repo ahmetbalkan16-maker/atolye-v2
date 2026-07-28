@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { AssetManager } from "../src/lib/assets/AssetManager";
@@ -31,7 +33,7 @@ import type { VideoData } from "../src/types/video";
 import type { VisualData } from "../src/types/visual";
 
 const prefix = `sprint-118-scene-video-assembly-${process.pid}`;
-const projectsRoot = path.join(process.cwd(), "data", "projects");
+let projectsRoot = "";
 const now = "2026-07-14T12:00:00.000Z";
 const originalEnvironment = {
   ffmpegPath: process.env.FFMPEG_PATH,
@@ -285,7 +287,7 @@ async function expectPreflightFailure(
   assert.equal(AssetManager.getProjectAssets(value.slug, value.project.id).assets.length, before);
 }
 
-async function main() {
+async function run() {
   process.env.FFMPEG_PATH = process.execPath;
   process.env.FFPROBE_PATH = process.env.ComSpec ?? "C:\\Windows\\System32\\cmd.exe";
   try {
@@ -401,7 +403,13 @@ async function main() {
     await scenario("structural validation failure occurs before provider", () =>
       expectPreflightFailure("structural", async (value) => {
         const asset = AssetManager.getProjectAssets(value.slug, value.project.id).assets.find((item) => item.id === "video-1")!;
-        await fs.writeFile(path.resolve(process.cwd(), ...(asset.filePath as string).split("/")), "bad");
+        const segments = (asset.filePath as string).split("/");
+        await fs.writeFile(
+          segments[0] === "data" && segments[1] === "projects"
+            ? path.join(projectsRoot, ...segments.slice(2))
+            : path.resolve(process.cwd(), ...segments),
+          "bad",
+        );
       }));
 
     await scenario("provider partial probe failure writes no final generated asset", async () => {
@@ -474,6 +482,14 @@ async function main() {
     const entries = await fs.readdir(projectsRoot, { withFileTypes: true });
     await Promise.all(entries.filter((entry) => entry.isDirectory() && entry.name.startsWith(prefix)).map((entry) => fs.rm(path.join(projectsRoot, entry.name), { recursive: true, force: true })));
   }
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime({ name: "assembly-scene-video-consumption" }, async (runtime) => {
+    projectsRoot = runtime.runtimeStorageContext.projectsRoot;
+    await run();
+  });
+  emitSmokeResult("assembly-scene-video-consumption", count);
 }
 
 void main();

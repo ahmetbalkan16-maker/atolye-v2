@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import type { PipelineJob } from "@/types/pipelineJob";
 
 export interface ProductionAcceptanceLegacyAdmittedExecution {
   readonly projectSlug: string;
@@ -19,6 +20,7 @@ export interface ProductionAcceptanceLegacyAdmittedExecution {
 
 const admittedExecutionStorage =
   new AsyncLocalStorage<ProductionAcceptanceLegacyAdmittedExecution>();
+const previousRetryJobStorage = new AsyncLocalStorage<PipelineJob>();
 
 export function withProductionAcceptanceLegacyAdmittedExecution<T>(
   identity: ProductionAcceptanceLegacyAdmittedExecution,
@@ -30,4 +32,15 @@ export function withProductionAcceptanceLegacyAdmittedExecution<T>(
 export function getProductionAcceptanceLegacyAdmittedExecution():
 ProductionAcceptanceLegacyAdmittedExecution | undefined {
   return admittedExecutionStorage.getStore();
+}
+
+export function withProductionAcceptanceLegacyPreviousRetryJob<T>(
+  job: PipelineJob,
+  operation: () => Promise<T>,
+): Promise<T> {
+  return previousRetryJobStorage.run(Object.freeze({ ...job }), operation);
+}
+
+export function getProductionAcceptanceLegacyPreviousRetryJob(): PipelineJob | undefined {
+  return previousRetryJobStorage.getStore();
 }

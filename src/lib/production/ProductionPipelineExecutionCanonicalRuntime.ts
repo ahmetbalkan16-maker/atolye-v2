@@ -39,6 +39,27 @@ const moduleProvenance = Object.freeze({});
 const ownsProcessCanonicalLock = claimProcessCanonicalLock();
 let canonicalRegistration: CanonicalProductionPipelineExecutionRegistration | undefined;
 
+/** @internal Opaque process-state token for scoped canonical composition. */
+export interface CanonicalProductionPipelineExecutionSnapshot {
+  readonly registration: CanonicalProductionPipelineExecutionRegistration | undefined;
+}
+
+export function snapshotCanonicalProductionPipelineExecutionRuntime():
+CanonicalProductionPipelineExecutionSnapshot {
+  return Object.freeze({ registration: canonicalRegistration });
+}
+
+export function restoreCanonicalProductionPipelineExecutionRuntime(
+  snapshot: CanonicalProductionPipelineExecutionSnapshot,
+  expectedCurrent: CanonicalProductionPipelineExecutionSnapshot,
+): void {
+  assertProcessCanonicalLockOwnership();
+  if (canonicalRegistration !== expectedCurrent.registration) {
+    throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISMATCH");
+  }
+  canonicalRegistration = snapshot.registration;
+}
+
 type ProductionPipelineStageExecutor = (
   context: ProductionPipelineExecutionContext,
   handler: (capability: ProductionAcceptanceStageCapability | undefined,

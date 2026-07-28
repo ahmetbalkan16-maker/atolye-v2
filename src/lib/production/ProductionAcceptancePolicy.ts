@@ -937,6 +937,9 @@ export async function resolveEffectiveProductionAcceptanceAuthority(
       "recovery",
     );
   }
+  await emitProductionPipelineExecutionEvent("recovery-validation-passed", {
+    recoveryStateFingerprint: current.recoveryStateFingerprint,
+  });
   const expectedId = deriveLegacyReauthorizationId({
     protocolVersion: legacyReauthorizationSchemaVersion, projectSlug,
     sourceMarkerSha256: current.sourceMarkerSha256, sourceMarkerByteLength: current.markerBytes.length,

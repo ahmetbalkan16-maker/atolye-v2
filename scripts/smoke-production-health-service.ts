@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
+import { emitSmokeResult } from "./lib/SmokeResult";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { GET } from "../app/api/production/health/[slug]/route";
@@ -23,7 +25,7 @@ import type {
 const evaluatedAt = "2026-07-11T17:00:00.000Z";
 const sourceDetectedAt = "2026-07-11T16:59:00.000Z";
 const slug = `sprint-95-5-health-${process.pid}`;
-const projectFolder = path.join(process.cwd(), "data", "projects", slug);
+let projectFolder = "";
 
 function project(status: Project["status"] = "completed"): Project {
   return {
@@ -110,7 +112,7 @@ function usage(): AIUsageLog {
   };
 }
 
-async function main() {
+async function run() {
   await fs.rm(projectFolder, { recursive: true, force: true });
   await fs.mkdir(projectFolder, { recursive: true });
 
@@ -279,6 +281,15 @@ async function main() {
   } finally {
     await fs.rm(projectFolder, { recursive: true, force: true });
   }
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime({ name: "production-health-service",
+    projectSlug: slug }, async (runtime) => {
+    projectFolder = path.join(runtime.runtimeStorageContext.projectsRoot, slug);
+    await run();
+  });
+  emitSmokeResult("production-health-service", 24);
 }
 
 async function getHealth() {
