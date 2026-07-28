@@ -316,7 +316,9 @@ function normalizeGenerationResult(
 
   let inspection;
   try {
-    inspection = AudioStorage.inspectStoredWav(projectSlug, filePath);
+    inspection = AudioStorage.isPreparedAudio(result)
+      ? AudioStorage.inspectPreparedWav(result)
+      : AudioStorage.inspectStoredWav(projectSlug, filePath);
   } catch (error) {
     if (error instanceof AudioCanonicalAdmissionConflictError) throw error;
     throw new AudioAssetGenerationError(
@@ -418,6 +420,42 @@ function addAssetOrFail(
   projectId: string,
   asset: Asset,
 ) {
+  if (AudioStorage.isPreparedAudio(asset)) {
+    try {
+      return AudioStorage.commitPreparedAudio(asset, projectId);
+    } catch (error) {
+      if (error instanceof AudioCanonicalAdmissionConflictError) {
+        throw new AudioAssetGenerationError(
+          contextualEvidence(
+            error,
+            Number.isSafeInteger(asset.sceneId)
+              ? { kind: "section", chapterId: asset.sceneId as number }
+              : { kind: "mix" },
+            "openai",
+          ),
+        );
+      }
+      if (error instanceof AudioAssetRootError) {
+        throw new AudioAssetGenerationError(
+          contextualEvidence(
+            error,
+            Number.isSafeInteger(asset.sceneId)
+              ? { kind: "section", chapterId: asset.sceneId as number }
+              : { kind: "mix" },
+            "openai",
+          ),
+        );
+      }
+      throw audioFailure("AUDIO_ASSET_REGISTRY_FAILED", {
+        phase: "registry",
+        target: Number.isSafeInteger(asset.sceneId)
+          ? { kind: "section", chapterId: asset.sceneId as number }
+          : { kind: "mix" },
+        provider: "openai",
+        compensation: "not-required",
+      });
+    }
+  }
   let updated: ProjectAssets;
   try {
     updated = AssetManager.addAssetAtomically(projectSlug, projectId, asset);

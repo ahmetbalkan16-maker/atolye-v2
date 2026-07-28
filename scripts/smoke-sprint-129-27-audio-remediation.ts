@@ -16,6 +16,8 @@ import { OpenAIAudioProvider } from "../src/lib/audio/providers/OpenAIAudioProvi
 import { MockAudioProvider } from "../src/lib/audio/providers/MockAudioProvider";
 import { AudioProviderRouter } from "../src/lib/audio/providers/AudioProviderRouter";
 import { getOpenAIAudioProviderConfig } from "../src/lib/audio/providers/AudioProviderConfig";
+import { getAudioPublicationLifecycleState } from
+  "../src/lib/audio/AudioPublicationIntentStore";
 import {
   AUDIO_IDENTIFIER_MAX_LENGTH,
   isSafeAudioIdentifier,
@@ -36,7 +38,11 @@ import {
 } from "../src/lib/assembly/VideoAssemblyManager";
 import type { VideoAssemblyProvider } from "../src/lib/assembly/providers/VideoAssemblyProvider";
 import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
+import { PipelineRunner } from "../src/lib/pipeline/PipelineRunner";
+import { prepareFailedStageRetry } from "../src/lib/pipeline/PipelineFailedStageRetry";
+import { PipelineStageExecutor } from "../src/lib/pipeline/PipelineStageExecutor";
 import { ProjectManager } from "../src/lib/projects/ProjectManager";
+import { MockAIProvider } from "../src/lib/ai/providers/MockAIProvider";
 import {
   createProductionRuntimeOperationContext,
   initialRuntimeAuthorityGeneration,
@@ -50,11 +56,16 @@ import {
 } from "../src/lib/runtime/RuntimeStoragePaths";
 import {
   ProductionPipelineExecutionAdapter,
+  ProductionPipelineDurableExecutionError,
 } from "../src/lib/production/ProductionPipelineExecutionAdapter";
 import { prepareProductionPipelineExecution } from "../src/lib/production/ProductionPipelineExecutionFactory";
 import { validateProductionExecutionWorkerResult } from "../src/lib/production/ProductionExecutionWorker";
 import type { AudioData } from "../src/types/audio";
-import type { AudioAssetRootErrorCode } from "../src/types/audioError";
+import {
+  audioAssetRootErrorCodes,
+  type AudioAssetFailurePhase,
+  type AudioAssetRootErrorCode,
+} from "../src/types/audioError";
 import type {
   AudioGenerationInput,
   AudioProvider,
@@ -390,6 +401,185 @@ function providerForSavedAudio(
       });
     },
   };
+}
+
+type AudioRunnerHarness = {
+  runPipelineStage(
+    projectSlug: string,
+    stage: "audio",
+    state: ReturnType<typeof PipelineStageExecutor.createInitialState>,
+    runType?: "initial" | "retry",
+    onClaimConflict?: () => void,
+    stageExecution?: {
+      aiProvider?: MockAIProvider;
+      audioProvider?: OpenAIAudioProvider;
+    },
+  ): Promise<boolean>;
+};
+
+const audioRunner = PipelineRunner as unknown as AudioRunnerHarness;
+
+function scriptFixture() {
+  return {
+    topic: "fixture",
+    title: "Fixture",
+    subtitle: "Fixture",
+    hook: "Fixture",
+    introduction: "Fixture",
+    chapters: [{
+      id: 1,
+      title: "Fixture",
+      narration: "Bounded narration fixture.",
+      duration: 1,
+      visualGoal: "Fixture",
+      emotion: "calm",
+      transition: "cut",
+    }],
+    conclusion: "Fixture",
+    callToAction: "Fixture",
+    estimatedDuration: 1,
+    narrationWordCount: 3,
+    targetAudience: "test",
+    language: "tr",
+    voiceStyle: "documentary",
+    musicStyle: "none",
+    thumbnailIdea: "fixture",
+    seoKeywords: ["fixture"],
+    createdAt: "2026-07-18T00:00:00.000Z",
+  };
+}
+
+function latestDurableAttempt(projectsRoot: string, projectSlug: string) {
+  const directory = path.join(
+    projectsRoot,
+    projectSlug,
+    "production-execution",
+    "attempts",
+  );
+  const records = fs.readdirSync(directory)
+    .filter((name) => name.endsWith(".json"))
+    .map((name) => JSON.parse(fs.readFileSync(path.join(directory, name), "utf8")) as {
+      state: string;
+      attemptVersion: number;
+      identity: { attemptId: string };
+      journal: Array<{ entryType: string; evidence: string[] }>;
+    });
+  assert(records.length > 0);
+  return records.sort((left, right) => right.attemptVersion - left.attemptVersion)[0];
+}
+
+async function assertFullAudioFailureChain(input: {
+  name: string;
+  projectsRoot: string;
+  rootCode: AudioAssetRootErrorCode;
+  phase: string;
+  cleanup?: ReturnType<typeof createAudioAssetErrorEvidence>["cleanup"];
+  compensation?: ReturnType<typeof createAudioAssetErrorEvidence>["compensation"];
+  configure: (project: Awaited<ReturnType<typeof ProjectManager.createProject>>) =>
+    void | (() => void);
+  afterFailure?: (context: {
+    project: Awaited<ReturnType<typeof ProjectManager.createProject>>;
+    evidence: NonNullable<ReturnType<typeof getAudioAssetErrorEvidence>>;
+  }) => void | Promise<void>;
+}) {
+  const project = await ProjectManager.createProject(`Sprint 129 27 e2e ${input.name}`);
+  await PipelineJobManager.listJobs(project.slug);
+  const state = PipelineStageExecutor.createInitialState(project);
+  state.script = scriptFixture();
+  const restore = input.configure(project);
+  let failure: unknown;
+  let stageFailure: unknown;
+  const originalConsoleError = console.error;
+  console.error = (...values: unknown[]) => {
+    const detail = values[1] as { slug?: unknown; stage?: unknown; error?: unknown } | undefined;
+    if (detail?.slug === project.slug && detail.stage === "audio") {
+      stageFailure = detail.error;
+    }
+  };
+  try {
+    await audioRunner.runPipelineStage(
+      project.slug,
+      "audio",
+      state,
+      "initial",
+      undefined,
+      { aiProvider: new MockAIProvider(), audioProvider: new OpenAIAudioProvider() },
+    );
+    assert.fail("audio stage must fail");
+  } catch (error) {
+    failure = error;
+  } finally {
+    console.error = originalConsoleError;
+    restore?.();
+  }
+
+  assert(
+    failure instanceof ProductionPipelineDurableExecutionError,
+    `unexpected durable failure ${JSON.stringify({
+      name: failure instanceof Error ? failure.name : typeof failure,
+      message: failure instanceof Error ? failure.message : String(failure),
+      code: (failure as { code?: unknown })?.code,
+      reasonCode: (failure as { reasonCode?: unknown })?.reasonCode,
+    })}`,
+  );
+  assert.equal(failure.reasonCode, "WORKER_EXECUTION_FAILED");
+  assert.equal(getAudioAssetErrorEvidence(failure), undefined);
+  assert(stageFailure instanceof AudioAssetGenerationError);
+  assert.equal(stageFailure.code, "AUDIO_ASSET_GENERATION_FAILED");
+  const evidence = getAudioAssetErrorEvidence(stageFailure);
+  assert(evidence);
+  assert.equal(evidence.rootCode, input.rootCode);
+  assert.equal(evidence.phase, input.phase);
+  assert.equal(evidence.cleanup, input.cleanup);
+  assert.equal(evidence.compensation, input.compensation);
+
+  const job = await PipelineJobManager.getJobForStageReadOnly(project.slug, "audio");
+  const manifest = await ProjectManager.getManifest(project.slug);
+  const history = await PipelineJobManager.listHistory(project.slug);
+  assert.equal(job?.error, stageFailure.code);
+  assert.deepEqual(job?.errorEvidence, evidence);
+  assert.equal(manifest?.packages.audio.error, stageFailure.code);
+  assert.deepEqual(manifest?.packages.audio.errorEvidence, evidence);
+  const historyFailure = history.events.at(-1);
+  assert.equal(historyFailure?.errorCode, stageFailure.code);
+  assert.deepEqual(historyFailure?.errorEvidence, evidence);
+
+  const attempt = latestDurableAttempt(input.projectsRoot, project.slug);
+  assert.equal(attempt.state, "failed");
+  const terminal = attempt.journal.at(-1);
+  assert(terminal);
+  assert(
+    terminal.evidence.includes(`audio-root:${input.rootCode}`),
+    `${input.name} terminal evidence ${JSON.stringify(terminal.evidence)}`,
+  );
+  assert(
+    terminal.evidence.includes(`audio-phase:${input.phase}`),
+    `${input.name} terminal evidence ${JSON.stringify(terminal.evidence)}`,
+  );
+  if (input.cleanup) assert(terminal.evidence.includes(`audio-cleanup:${input.cleanup}`));
+  if (input.compensation) {
+    assert(terminal.evidence.includes(`audio-compensation:${input.compensation}`));
+  }
+  const serialized = JSON.stringify({ failure, stageFailure, job, manifest, history, attempt });
+  assert.doesNotMatch(
+    serialized,
+    /Authorization|API_KEY|mock-key-never-sent|[a-zA-Z]:[\\/]|stack|narration|network fixture failure|not-a-wav|aborted fixture/i,
+  );
+
+  const projectRoot = path.join(input.projectsRoot, project.slug);
+  const audioRoot = path.join(projectRoot, "assets", "audio");
+  await input.afterFailure?.({ project, evidence });
+  const assets = AssetManager.getProjectAssets(project.slug, project.id);
+  assert.equal(
+    assets.assets.some((asset) => asset.type === "audio" && asset.status === "generated"),
+    false,
+  );
+  assert.equal(fs.existsSync(path.join(projectRoot, "audio.json")), false);
+  if (fs.existsSync(audioRoot)) {
+    const residue = fs.readdirSync(audioRoot, { recursive: true });
+    assert.deepEqual(residue, []);
+  }
+  return { project, failure, stageFailure, evidence, attempt };
 }
 
 function createRegistryOwnedFixture(
@@ -921,7 +1111,8 @@ console.log(JSON.stringify(output));
 
 async function run(): Promise<void> {
   await withCanonicalSmokeRuntime({ name: "sprint-129-27", enterOperationContext: false,
-    configureProductionExecution: false, environment: {
+    operationType: "audio-remediation-test",
+    environment: {
       AUDIO_PROVIDER: "openai", OPENAI_API_KEY: "mock-key-never-sent",
       OPENAI_TTS_MODEL: "mock-tts-model", OPENAI_TTS_VOICE: "alloy",
       OPENAI_TTS_TIMEOUT_MS: "50", OPENAI_TTS_MAX_RESPONSE_BYTES: "4096",
@@ -935,16 +1126,448 @@ async function run(): Promise<void> {
     authorityRoot,
     environment: { ATOLYE_RUNTIME_ROOT: runtimeRoot },
   });
-  const operationContext = createProductionRuntimeOperationContext({
-    operationId: "sprint-129-27-smoke",
-    operationType: "audio-remediation-test",
-    authorityGeneration: initialRuntimeAuthorityGeneration,
-    storageContext,
-  });
+  const operationContext = canonicalRuntime.operationContext;
 
   canonicalRuntime.deferRestore(() => { globalThis.fetch = originalFetch; });
   try {
     await runWithProductionRuntimeOperationContext(operationContext, async () => {
+      await scenario("every canonical audio root and phase survives bounded serialization", () => {
+        const phases: Record<AudioAssetRootErrorCode, AudioAssetFailurePhase> = {
+          AUDIO_PROVIDER_CONFIGURATION_INVALID: "configuration",
+          AUDIO_PROVIDER_REQUEST_FAILED: "request",
+          AUDIO_PROVIDER_TIMEOUT: "request",
+          AUDIO_PROVIDER_CONTENT_TYPE_INVALID: "response",
+          AUDIO_PROVIDER_RESPONSE_INVALID: "response",
+          AUDIO_PROVIDER_RESPONSE_TOO_LARGE: "response",
+          AUDIO_WAV_INVALID: "validation",
+          AUDIO_STORAGE_WRITE_FAILED: "storage",
+          AUDIO_ASSET_REGISTRY_FAILED: "registry",
+        };
+        for (const rootCode of audioAssetRootErrorCodes) {
+          const evidence = createAudioAssetErrorEvidence(rootCode, {
+            phase: phases[rootCode],
+            target: { kind: "section", chapterId: 1 },
+            provider: "openai",
+            model: "mock-tts-model",
+            cleanup: "completed",
+            compensation: "completed",
+            compensationRef: "audio-comp-00000000-0000-4000-8000-000000000001",
+            httpStatus: 503,
+            responseBytes: 4096,
+            maximumResponseBytes: 4096,
+          });
+          const serialized = serializeAudioAssetErrorEvidence(evidence);
+          assert.equal(serialized[0], `audio-root:${rootCode}`);
+          assert.equal(serialized[1], `audio-phase:${phases[rootCode]}`);
+          assert(serialized.includes("audio-cleanup:completed"));
+          assert(serialized.includes("audio-compensation:completed"));
+          assert(serialized.length <= 10);
+          assert.doesNotMatch(JSON.stringify(serialized), /Authorization|API_KEY|[a-zA-Z]:[\\/]|stack/i);
+        }
+        const valid = createAudioAssetErrorEvidence("AUDIO_WAV_INVALID", {
+          phase: "validation",
+        });
+        assert.deepEqual(serializeAudioAssetErrorEvidence({
+          ...valid,
+          rootCode: "AUDIO_UNKNOWN_ROOT",
+        }), []);
+        assert.deepEqual(serializeAudioAssetErrorEvidence({
+          ...valid,
+          phase: "unknown-provider-phase",
+        }), []);
+        assert.deepEqual(serializeAudioAssetErrorEvidence({
+          ...valid,
+          model: "Authorization-secret-C:\\private",
+        }), []);
+      });
+
+      const providerRootCases: Array<{
+        name: string;
+        rootCode: AudioAssetRootErrorCode;
+        phase: string;
+        configure: () => void | (() => void);
+      }> = [
+        {
+          name: "configuration",
+          rootCode: "AUDIO_PROVIDER_CONFIGURATION_INVALID",
+          phase: "configuration",
+          configure: () => {
+            const previous = process.env.OPENAI_API_KEY;
+            delete process.env.OPENAI_API_KEY;
+            globalThis.fetch = async () => assert.fail("configuration must fail before fetch");
+            return () => restoreEnvironment("OPENAI_API_KEY", previous);
+          },
+        },
+        {
+          name: "network-request",
+          rootCode: "AUDIO_PROVIDER_REQUEST_FAILED",
+          phase: "request",
+          configure: () => {
+            globalThis.fetch = async () => { throw new Error("network fixture failure"); };
+          },
+        },
+        {
+          name: "http-non-success",
+          rootCode: "AUDIO_PROVIDER_REQUEST_FAILED",
+          phase: "response",
+          configure: () => { globalThis.fetch = async () => response(Buffer.alloc(0), { status: 503 }); },
+        },
+        {
+          name: "timeout-abort",
+          rootCode: "AUDIO_PROVIDER_TIMEOUT",
+          phase: "request",
+          configure: () => {
+            const previous = process.env.OPENAI_TTS_TIMEOUT_MS;
+            process.env.OPENAI_TTS_TIMEOUT_MS = "10";
+            globalThis.fetch = async (_input, init) => new Promise<Response>((_resolve, reject) => {
+              init?.signal?.addEventListener("abort", () =>
+                reject(new DOMException("aborted fixture", "AbortError")), { once: true });
+            });
+            return () => restoreEnvironment("OPENAI_TTS_TIMEOUT_MS", previous);
+          },
+        },
+        {
+          name: "content-type",
+          rootCode: "AUDIO_PROVIDER_CONTENT_TYPE_INVALID",
+          phase: "response",
+          configure: () => { globalThis.fetch = async () => response(wav(), { contentType: "text/plain" }); },
+        },
+        {
+          name: "empty-response",
+          rootCode: "AUDIO_PROVIDER_RESPONSE_INVALID",
+          phase: "response",
+          configure: () => { globalThis.fetch = async () => response(Buffer.alloc(0)); },
+        },
+        {
+          name: "oversized-response",
+          rootCode: "AUDIO_PROVIDER_RESPONSE_TOO_LARGE",
+          phase: "response",
+          configure: () => {
+            const previous = process.env.OPENAI_TTS_MAX_RESPONSE_BYTES;
+            process.env.OPENAI_TTS_MAX_RESPONSE_BYTES = "1024";
+            globalThis.fetch = async () => response(Buffer.alloc(1025), { contentLength: "1025" });
+            return () => restoreEnvironment("OPENAI_TTS_MAX_RESPONSE_BYTES", previous);
+          },
+        },
+        {
+          name: "malformed-wav",
+          rootCode: "AUDIO_WAV_INVALID",
+          phase: "validation",
+          configure: () => { globalThis.fetch = async () => response(Buffer.from("not-a-wav")); },
+        },
+        {
+          name: "unsupported-wav",
+          rootCode: "AUDIO_WAV_INVALID",
+          phase: "validation",
+          configure: () => { globalThis.fetch = async () => response(customWav({ format: 6 })); },
+        },
+      ];
+      for (const rootCase of providerRootCases) {
+        await scenario(`full runner evidence ${rootCase.name}`, () =>
+          assertFullAudioFailureChain({
+            ...rootCase,
+            projectsRoot: storageContext.projectsRoot,
+          }));
+      }
+
+      let collisionPath: string | undefined;
+      const storageRootCases: Array<Parameters<typeof assertFullAudioFailureChain>[0]> = [
+        {
+          name: "storage-authority-context",
+          projectsRoot: storageContext.projectsRoot,
+          rootCode: "AUDIO_STORAGE_WRITE_FAILED",
+          phase: "storage",
+          configure: (project) => {
+            fs.writeFileSync(
+              path.join(storageContext.projectsRoot, project.slug, "assets"),
+              "fixture containment collision",
+              { flag: "wx" },
+            );
+          },
+        },
+        {
+          name: "temp-publication",
+          projectsRoot: storageContext.projectsRoot,
+          rootCode: "AUDIO_STORAGE_WRITE_FAILED",
+          phase: "storage",
+          cleanup: "completed",
+          compensation: "not-required",
+          configure: () => {
+            const original = fs.linkSync;
+            let injected = false;
+            fs.linkSync = ((source: fs.PathLike, destination: fs.PathLike) => {
+              if (!injected && path.basename(String(source)) === "temporary.wav") {
+                injected = true;
+                throw new Error("controlled publication failure");
+              }
+              return original(source, destination);
+            }) as typeof fs.linkSync;
+            return () => { fs.linkSync = original; };
+          },
+        },
+        {
+          name: "no-clobber-collision",
+          projectsRoot: storageContext.projectsRoot,
+          rootCode: "AUDIO_STORAGE_WRITE_FAILED",
+          phase: "storage",
+          configure: (project) => {
+            const original = fs.linkSync;
+            let injected = false;
+            collisionPath = undefined;
+            const canonicalAudioRoot = path.join(
+              storageContext.projectsRoot,
+              project.slug,
+              "assets",
+              "audio",
+            );
+            fs.linkSync = ((source: fs.PathLike, destination: fs.PathLike) => {
+              if (
+                !injected &&
+                path.basename(String(source)) === "publication-staging.wav" &&
+                path.resolve(String(destination)).startsWith(`${canonicalAudioRoot}${path.sep}`)
+              ) {
+                injected = true;
+                collisionPath = String(destination);
+                fs.writeFileSync(collisionPath, "foreign no-clobber fixture", { flag: "wx" });
+              }
+              return original(source, destination);
+            }) as typeof fs.linkSync;
+            return () => { fs.linkSync = original; };
+          },
+          afterFailure: ({ project }) => {
+            assert(collisionPath);
+            assert.equal(fs.readFileSync(collisionPath, "utf8"), "foreign no-clobber fixture");
+            const intentRoot = path.join(
+              storageContext.projectsRoot,
+              project.slug,
+              "production-execution",
+              "audio-publication-intents",
+            );
+            const intentFiles = fs.readdirSync(intentRoot);
+            assert.equal(intentFiles.length, 1);
+            const intent = JSON.parse(fs.readFileSync(
+              path.join(intentRoot, intentFiles[0]), "utf8",
+            )) as { compensationRef: string };
+            assert.equal(
+              getAudioPublicationLifecycleState(
+                project.slug, intent.compensationRef, storageContext,
+              ),
+              "conflict",
+            );
+            const recovery = AudioStorage.recoverPublishedAudio(
+              project.slug, intent.compensationRef, storageContext,
+            );
+            assert.equal(recovery.status, "rejected");
+            assert.equal(recovery.compensated, false);
+            const replay = AudioStorage.recoverPublishedAudio(
+              project.slug, intent.compensationRef, storageContext,
+            );
+            assert.deepEqual(replay, recovery);
+            assert.equal(fs.readFileSync(collisionPath, "utf8"), "foreign no-clobber fixture");
+            fs.unlinkSync(collisionPath);
+          },
+        },
+        {
+          name: "readback-verification",
+          projectsRoot: storageContext.projectsRoot,
+          rootCode: "AUDIO_STORAGE_WRITE_FAILED",
+          phase: "storage",
+          cleanup: "completed",
+          compensation: "not-required",
+          configure: () => {
+            const original = fs.readFileSync;
+            let injected = false;
+            fs.readFileSync = ((candidate: fs.PathOrFileDescriptor, ...args: unknown[]) => {
+              if (
+                !injected &&
+                typeof candidate !== "number" &&
+                path.basename(String(candidate)) === "temporary.wav"
+              ) {
+                injected = true;
+                throw new Error("controlled readback failure");
+              }
+              return (original as (...values: unknown[]) => ReturnType<typeof fs.readFileSync>)(
+                candidate,
+                ...args,
+              );
+            }) as typeof fs.readFileSync;
+            return () => { fs.readFileSync = original; };
+          },
+        },
+        {
+          name: "cleanup-compensation",
+          projectsRoot: storageContext.projectsRoot,
+          rootCode: "AUDIO_STORAGE_WRITE_FAILED",
+          phase: "storage",
+          cleanup: "deferred",
+          compensation: "failed",
+          configure: () => {
+            const originalRead = fs.readFileSync;
+            const originalOpen = fs.openSync;
+            let readbackInjected = false;
+            fs.readFileSync = ((candidate: fs.PathOrFileDescriptor, ...args: unknown[]) => {
+              if (!readbackInjected && typeof candidate !== "number" &&
+                path.basename(String(candidate)) === "temporary.wav") {
+                readbackInjected = true;
+                throw new Error("controlled precommit readback failure");
+              }
+              return (originalRead as (...values: unknown[]) => ReturnType<typeof fs.readFileSync>)(
+                candidate, ...args,
+              );
+            }) as typeof fs.readFileSync;
+            fs.openSync = ((candidate: fs.PathLike, flags: fs.OpenMode, mode?: fs.Mode) => {
+              if (readbackInjected && path.basename(String(candidate)).startsWith("state-") &&
+                String(candidate).endsWith(".partial") && String(flags).includes("x")) {
+                throw new Error("controlled workspace retirement failure");
+              }
+              return originalOpen(candidate, flags, mode);
+            }) as typeof fs.openSync;
+            return () => {
+              fs.openSync = originalOpen;
+              fs.readFileSync = originalRead;
+            };
+          },
+        },
+        {
+          name: "registry-persistence",
+          projectsRoot: storageContext.projectsRoot,
+          rootCode: "AUDIO_ASSET_REGISTRY_FAILED",
+          phase: "registry",
+          cleanup: "completed",
+          compensation: "not-required",
+          configure: () => {
+            const original = fs.openSync;
+            fs.openSync = ((candidate: fs.PathLike, flags: fs.OpenMode, mode?: fs.Mode) => {
+              if (String(candidate).includes("audio-publication-intents") &&
+                String(flags).includes("x")) {
+                throw new Error("controlled registry intent failure");
+              }
+              return original(candidate, flags, mode);
+            }) as typeof fs.openSync;
+            return () => { fs.openSync = original; };
+          },
+        },
+      ];
+      for (const rootCase of storageRootCases) {
+        await scenario(`full runner evidence ${rootCase.name}`, async () => {
+          globalThis.fetch = async () => response(wav());
+          await assertFullAudioFailureChain(rootCase);
+        });
+      }
+
+      const runRetryFactoryFixture = async (
+        name: string,
+        secondResponse: () => Response,
+        expectedSuccess: boolean,
+        expectedRoots: readonly AudioAssetRootErrorCode[],
+      ) => {
+        const project = await ProjectManager.createProject(`Sprint 129 27 retry ${name}`);
+        await PipelineJobManager.listJobs(project.slug);
+        await ProjectManager.saveScript(project.slug, scriptFixture());
+        const state = PipelineStageExecutor.createInitialState(project);
+        state.script = scriptFixture();
+        const originalGetProvider = AudioProviderRouter.getProvider;
+        const providerInstances: AudioProvider[] = [];
+        let fetchCalls = 0;
+        AudioProviderRouter.getProvider = (() => {
+          const provider = new OpenAIAudioProvider();
+          providerInstances.push(provider);
+          return provider;
+        }) as typeof AudioProviderRouter.getProvider;
+        globalThis.fetch = async () => {
+          fetchCalls += 1;
+          return fetchCalls === 1 ? response(Buffer.alloc(0)) : secondResponse();
+        };
+        try {
+          await assert.rejects(audioRunner.runPipelineStage(
+            project.slug,
+            "audio",
+            state,
+            "initial",
+            undefined,
+            { aiProvider: new MockAIProvider() },
+          ));
+          const failedJob = await PipelineJobManager.getJobForStageReadOnly(project.slug, "audio");
+          assert(failedJob);
+          const preparedRetry = await prepareFailedStageRetry(project.slug, failedJob.id);
+          assert.equal(preparedRetry.success, true);
+          if (expectedSuccess) {
+            assert.equal(await audioRunner.runPipelineStage(
+              project.slug,
+              "audio",
+              state,
+              "retry",
+              undefined,
+              { aiProvider: new MockAIProvider() },
+            ), true);
+          } else {
+            await assert.rejects(audioRunner.runPipelineStage(
+              project.slug,
+              "audio",
+              state,
+              "retry",
+              undefined,
+              { aiProvider: new MockAIProvider() },
+            ));
+          }
+        } finally {
+          AudioProviderRouter.getProvider = originalGetProvider;
+        }
+        assert.equal(providerInstances.length, 2);
+        assert.notEqual(providerInstances[0], providerInstances[1]);
+        const attemptDirectory = path.join(
+          storageContext.projectsRoot,
+          project.slug,
+          "production-execution",
+          "attempts",
+        );
+        const all = fs.readdirSync(attemptDirectory).filter((entry) => entry.endsWith(".json"))
+          .map((entry) => JSON.parse(fs.readFileSync(path.join(attemptDirectory, entry), "utf8")) as {
+            state: string;
+            attemptVersion: number;
+            openedAt: string;
+            identity: { attemptId: string };
+            journal: Array<{ evidence: string[] }>;
+          });
+        const latest = [...new Set(all.map((entry) => entry.identity.attemptId))]
+          .map((attemptId) => all.filter((entry) => entry.identity.attemptId === attemptId)
+            .sort((left, right) => right.attemptVersion - left.attemptVersion)[0])
+          .sort((left, right) => left.openedAt.localeCompare(right.openedAt));
+        assert.equal(latest.length, 2);
+        assert.equal(latest[0].state, "failed");
+        assert.equal(latest[1].state, expectedSuccess ? "succeeded" : "failed");
+        const observedRoots = latest.map((attempt) => {
+          const terminal = attempt.journal.at(-1);
+          return terminal?.evidence.find((entry) => entry.startsWith("audio-root:"))
+            ?.slice("audio-root:".length);
+        }).filter((value): value is string => Boolean(value));
+        assert.deepEqual(observedRoots, expectedRoots);
+        const generated = AssetManager.getProjectAssets(project.slug, project.id, storageContext)
+          .assets.filter((asset) => asset.type === "audio" && asset.status === "generated");
+        assert.equal(generated.length, expectedSuccess ? 2 : 0);
+        assert.equal(new Set(generated.map((asset) => asset.filePath)).size, generated.length);
+        assert.doesNotMatch(JSON.stringify({ latest, generated }),
+          /Authorization|API_KEY|[a-zA-Z]:[\\/]|stack|Bounded narration fixture/i);
+      };
+
+      await scenario("retry factory failure to success creates a fresh provider and lineage", async () => {
+        await runRetryFactoryFixture(
+          "success",
+          () => response(wav()),
+          true,
+          ["AUDIO_PROVIDER_RESPONSE_INVALID"],
+        );
+      });
+
+      await scenario("retry factory preserves distinct roots across two failed attempts", async () => {
+        await runRetryFactoryFixture(
+          "different-root",
+          () => response(Buffer.from("not-a-wav")),
+          false,
+          ["AUDIO_PROVIDER_RESPONSE_INVALID", "AUDIO_WAV_INVALID"],
+        );
+      });
+
       await scenario("successful WAV generation persists fsynced canonical assets", async () => {
         let calls = 0;
         globalThis.fetch = async () => {
@@ -3111,19 +3734,12 @@ async function run(): Promise<void> {
         );
         globalThis.fetch = async () => response(wav());
         const originalOpen = fs.openSync;
-        const originalRegistry = AssetManager.addAssetAtomically;
         let registryCalls = 0;
         let pipelineFailure: unknown;
-        AssetManager.addAssetAtomically = () => {
-          registryCalls += 1;
-          throw new Error("registry failure");
-        };
         fs.openSync = ((candidate: fs.PathLike, ...args: unknown[]) => {
-          const name = path.basename(String(candidate));
-          if (
-            name.startsWith("state-000003.json.") &&
-            name.endsWith(".partial")
-          ) {
+          if (String(candidate).includes("audio-publication-intents") &&
+            String(args[0]).includes("x")) {
+            registryCalls += 1;
             throw new Error("C:\\private authorization stack");
           }
           return (originalOpen as (...values: unknown[]) => number)(
@@ -3151,37 +3767,21 @@ async function run(): Promise<void> {
           assert(pipelineFailure);
         } finally {
           fs.openSync = originalOpen;
-          AssetManager.addAssetAtomically = originalRegistry;
         }
         const evidence = getAudioAssetErrorEvidence(pipelineFailure);
         assert.equal(evidence?.rootCode, "AUDIO_ASSET_REGISTRY_FAILED");
         assert.equal(evidence?.phase, "registry");
-        assert.equal(evidence?.compensation, "failed");
-        assert.match(
-          evidence?.compensationRef ?? "",
-          /^audio-comp-[0-9a-f-]{36}$/,
-        );
+        assert.equal(evidence?.compensation, "not-required");
+        assert.equal(evidence?.cleanup, "completed");
+        assert.equal(evidence?.compensationRef, undefined);
         assert.equal(registryCalls, 1);
         const attempt = await latestAttemptEvidence(prepared);
         const serializedAttempt = JSON.stringify(attempt);
-        assert(serializedAttempt.includes(
-          `audio-compensation-ref:${evidence?.compensationRef}`,
-        ));
+        assert(serializedAttempt.includes("audio-compensation:not-required"));
+        assert(serializedAttempt.includes("audio-cleanup:completed"));
         assert.doesNotMatch(
           serializedAttempt,
           /API_KEY|Authorization|C:\\|stack|narration|[0-9a-f]{64}/i,
-        );
-        const recovery = AudioStorage.recoverPublishedAudio(
-          project.slug,
-          evidence?.compensationRef ?? "",
-        );
-        assert.equal(recovery.compensated, true);
-        assert.equal(
-          AudioStorage.recoverPublishedAudio(
-            project.slug,
-            evidence?.compensationRef ?? "",
-          ).compensated,
-          true,
         );
       });
 
@@ -3338,14 +3938,18 @@ async function run(): Promise<void> {
         assert(terminal.evidence.includes("audio-phase:storage"));
       });
 
-      let actualDeferredCleanupFailure:
+      let actualRegistryPreparationFailure:
         | AudioAssetGenerationError
         | undefined;
-      await scenario("registry failure logically compensates operation-owned canonical file", async () => {
-        const original = AssetManager.addAssetAtomically;
-        AssetManager.addAssetAtomically = () => {
-          throw new Error("registry C:\\private API_KEY stack");
-        };
+      await scenario("registry preparation failure retires workspace before canonical commit", async () => {
+        const original = fs.openSync;
+        fs.openSync = ((candidate: fs.PathLike, ...args: unknown[]) => {
+          if (String(candidate).includes("audio-publication-intents") &&
+            String(args[0]).includes("x")) {
+            throw new Error("registry C:\\private API_KEY stack");
+          }
+          return (original as (...values: unknown[]) => number)(candidate, ...args);
+        }) as typeof fs.openSync;
         globalThis.fetch = async () => response(wav());
         const slug = "sprint-129-27-registry";
         try {
@@ -3358,35 +3962,35 @@ async function run(): Promise<void> {
             }),
             (error) => {
               assertAudioRoot(error, "AUDIO_ASSET_REGISTRY_FAILED");
-              actualDeferredCleanupFailure =
+              actualRegistryPreparationFailure =
                 error as AudioAssetGenerationError;
               assert.equal(
                 getAudioAssetErrorEvidence(error)?.compensation,
-                "completed",
+                "not-required",
               );
               assert.equal(
                 getAudioAssetErrorEvidence(error)?.cleanup,
-                "deferred",
+                "completed",
               );
               assert(
                 serializeAudioAssetErrorEvidence(
                   getAudioAssetErrorEvidence(error),
-                ).includes("audio-cleanup:deferred"),
+                ).includes("audio-cleanup:completed"),
               );
               return true;
             },
           );
         } finally {
-          AssetManager.addAssetAtomically = original;
+          fs.openSync = original;
         }
         const audioRoot = path.join(storageContext.projectsRoot, slug, "assets", "audio");
-        const entries = await fsp.readdir(audioRoot);
-        assert.equal(entries.filter((entry) => entry.endsWith(".wav")).length, 1);
+        const entries = fs.existsSync(audioRoot) ? await fsp.readdir(audioRoot) : [];
+        assert.equal(entries.filter((entry) => entry.endsWith(".wav")).length, 0);
         assert.equal(entries.filter((entry) => entry.startsWith(".audio-quarantine-")).length, 0);
       });
 
-      await scenario("real deferred cleanup reaches durable job history and manifest evidence", async () => {
-        assert(actualDeferredCleanupFailure);
+      await scenario("real registry cleanup reaches durable job history and manifest evidence", async () => {
+        assert(actualRegistryPreparationFailure);
         const project = await ProjectManager.createProject(
           "Sprint 129 27 real deferred evidence",
         );
@@ -3409,11 +4013,11 @@ async function run(): Promise<void> {
             project.slug,
             "audio",
             "failed",
-            actualDeferredCleanupFailure?.code,
-            { errorEvidence: actualDeferredCleanupFailure?.evidence },
+            actualRegistryPreparationFailure?.code,
+            { errorEvidence: actualRegistryPreparationFailure?.evidence },
           ).then(() => undefined),
-          actualDeferredCleanupFailure.code,
-          actualDeferredCleanupFailure.evidence,
+          actualRegistryPreparationFailure.code,
+          actualRegistryPreparationFailure.evidence,
         );
         const job = await PipelineJobManager.getJobForStageReadOnly(
           project.slug,
@@ -3423,19 +4027,19 @@ async function run(): Promise<void> {
         const history = await PipelineJobManager.listHistory(project.slug);
         assert.equal(
           (job?.errorEvidence as { cleanup?: unknown } | undefined)?.cleanup,
-          "deferred",
+          "completed",
         );
         assert.equal(
           (manifest?.packages.audio.errorEvidence as
             | { cleanup?: unknown }
             | undefined)?.cleanup,
-          "deferred",
+          "completed",
         );
         assert.equal(
           (history.events.at(-1)?.errorEvidence as
             | { cleanup?: unknown }
             | undefined)?.cleanup,
-          "deferred",
+          "completed",
         );
 
         const durableProject = await ProjectManager.createProject(
@@ -3455,20 +4059,20 @@ async function run(): Promise<void> {
           () => prepared.request,
         );
         await assert.rejects(adapter.execute(executionContext, async () => {
-          throw actualDeferredCleanupFailure;
+          throw actualRegistryPreparationFailure;
         }));
         const terminal = (await latestAttemptEvidence(prepared))?.journal.find(
           (entry) => entry.entryId === prepared.request.terminalEventId,
         );
         assert(terminal);
-        assert(terminal.evidence.includes("audio-cleanup:deferred"));
+        assert(terminal.evidence.includes("audio-cleanup:completed"));
         assert.doesNotMatch(
           JSON.stringify({ job, manifest, history, terminal }),
           /Authorization|API_KEY|C:\\|stack|narration|inode|device/i,
         );
       });
 
-      await scenario("foreign cleanup entry remains deferred in pipeline durable evidence", async () => {
+      await scenario("failed precommit workspace retirement remains deferred in durable evidence", async () => {
         const project = await ProjectManager.createProject(
           "Sprint 129 27 real cleanup evidence",
         );
@@ -3485,30 +4089,24 @@ async function run(): Promise<void> {
           prepared.adapter,
           () => prepared.request,
         );
-        const originalAdd = AssetManager.addAssetAtomically;
-        let swapped = false;
+        const originalOpen = fs.openSync;
+        let registryFailed = false;
+        let retirementFailed = false;
         let pipelineFailure: unknown;
-        AssetManager.addAssetAtomically = () => {
-          const cleanupRoot = path.join(
-            storageContext.projectsRoot,
-            project.slug,
-            "production-execution",
-            "audio-compensation-cleanup",
-          );
-          const compensationRef = fs.readdirSync(cleanupRoot)
-            .find((entry) => entry.startsWith("audio-comp-"));
-          assert(compensationRef);
-          fs.writeFileSync(
-            compensationQuarantinePath(
-              storageContext,
-              project.slug,
-              compensationRef,
-            ),
-            "foreign-pipeline-quarantine",
-          );
-          swapped = true;
-          throw new Error("registry Authorization C:\\private stack");
-        };
+        fs.openSync = ((candidate: fs.PathLike, ...args: unknown[]) => {
+          const candidatePath = String(candidate);
+          const flags = String(args[0]);
+          if (candidatePath.includes("audio-publication-intents") && flags.includes("x")) {
+            registryFailed = true;
+            throw new Error("registry Authorization C:\\private stack");
+          }
+          if (registryFailed && path.basename(candidatePath).startsWith("state-") &&
+            candidatePath.endsWith(".partial") && flags.includes("x")) {
+            retirementFailed = true;
+            throw new Error("workspace retirement failure");
+          }
+          return (originalOpen as (...values: unknown[]) => number)(candidate, ...args);
+        }) as typeof fs.openSync;
         globalThis.fetch = async () => response(wav());
         try {
           await assert.rejects(adapter.execute(executionContext, async () => {
@@ -3526,12 +4124,13 @@ async function run(): Promise<void> {
             }
           }));
         } finally {
-          AssetManager.addAssetAtomically = originalAdd;
+          fs.openSync = originalOpen;
         }
-        assert.equal(swapped, true);
+        assert.equal(registryFailed, true);
+        assert.equal(retirementFailed, true);
         const evidence = getAudioAssetErrorEvidence(pipelineFailure);
         assert.equal(evidence?.rootCode, "AUDIO_ASSET_REGISTRY_FAILED");
-        assert.equal(evidence?.compensation, "completed");
+        assert.equal(evidence?.compensation, "failed");
         assert.equal(evidence?.cleanup, "deferred");
         assert.match(
           evidence?.compensationRef ?? "",
@@ -3542,50 +4141,115 @@ async function run(): Promise<void> {
         );
         assert(terminal);
         assert(terminal.evidence.includes("audio-cleanup:deferred"));
-        assert(terminal.evidence.includes("audio-compensation:completed"));
+        assert(terminal.evidence.includes("audio-compensation:failed"));
+        const audioRoot = path.join(
+          storageContext.projectsRoot, project.slug, "assets", "audio",
+        );
+        assert.equal(fs.existsSync(audioRoot) ? fs.readdirSync(audioRoot).length : 0, 0);
         assert.doesNotMatch(
           JSON.stringify({ evidence, terminal }),
-          /Authorization|API_KEY|C:\\|stack|narration|foreign-pipeline/i,
+          /Authorization|API_KEY|C:\\|stack|narration|workspace retirement/i,
         );
       });
 
-      await scenario("persisted registry wins pending receipt recovery and replay", async () => {
-        const originalAdd = AssetManager.addAssetAtomically;
-        const originalHandoff = AudioStorage.handoffPublishedAudio;
-        let persistedThrowInjected = false;
-        const compensationRefs: string[] = [];
-        AssetManager.addAssetAtomically = ((...args: Parameters<
-          typeof AssetManager.addAssetAtomically
-        >) => {
-          const updated = originalAdd.apply(AssetManager, args);
-          if (!persistedThrowInjected) {
-            persistedThrowInjected = true;
-            throw new Error("persisted registry response failure");
+      await scenario("prepared intent recovers crash before canonical publish exactly once", async () => {
+        const originalCommit = AudioStorage.commitPreparedAudio;
+        const originalLink = fs.linkSync;
+        const slug = "sprint-129-27-prepared-recovery";
+        const projectId = "project-prepared-recovery";
+        let compensationRef: string | undefined;
+        let providerCalls = 0;
+        let publishAttempts = 0;
+        AudioStorage.commitPreparedAudio = ((value: unknown, candidateProjectId: string) => {
+          compensationRef = AudioStorage.getCompensationRef(value);
+          return originalCommit.call(AudioStorage, value, candidateProjectId);
+        }) as typeof AudioStorage.commitPreparedAudio;
+        fs.linkSync = ((source: fs.PathLike, destination: fs.PathLike) => {
+          if (path.basename(String(source)) === "publication-staging.wav" &&
+            String(destination).includes(`${path.sep}assets${path.sep}audio${path.sep}`)) {
+            publishAttempts += 1;
+            throw new Error("simulated crash before canonical link");
           }
-          return updated;
-        }) as typeof AssetManager.addAssetAtomically;
-        AudioStorage.handoffPublishedAudio = ((value: unknown, projectId: string) => {
-          const compensationRef = AudioStorage.getCompensationRef(value);
-          if (compensationRef) compensationRefs.push(compensationRef);
-          return originalHandoff.call(AudioStorage, value, projectId);
-        }) as typeof AudioStorage.handoffPublishedAudio;
-        globalThis.fetch = async () => response(wav());
-        const slug = "sprint-129-27-registry-reconcile";
-        let result;
+          return originalLink(source, destination);
+        }) as typeof fs.linkSync;
+        globalThis.fetch = async () => {
+          providerCalls += 1;
+          return response(wav());
+        };
         try {
-          result = await AudioPipeline.generateAudio({
-            projectId: "project-registry-reconcile",
+          await assert.rejects(AudioPipeline.generateAudio({
+            projectId,
             projectSlug: slug,
             audio: audioData(),
             provider: new OpenAIAudioProvider(),
-          });
+          }));
         } finally {
-          AssetManager.addAssetAtomically = originalAdd;
+          fs.linkSync = originalLink;
+          AudioStorage.commitPreparedAudio = originalCommit;
+        }
+        assert.equal(providerCalls, 1);
+        assert.equal(publishAttempts, 1);
+        assert(compensationRef);
+        assert.equal(
+          getAudioPublicationLifecycleState(slug, compensationRef, storageContext),
+          "prepared",
+        );
+        const audioRoot = path.join(storageContext.projectsRoot, slug, "assets", "audio");
+        assert.equal(fs.existsSync(audioRoot) ? fs.readdirSync(audioRoot).length : 0, 0);
+        assert.equal(AssetManager.getProjectAssets(slug, projectId, storageContext).assets.length, 0);
+        const recovery = AudioStorage.recoverPublishedAudio(slug, compensationRef);
+        assert.equal(recovery.status, "completed");
+        assert.equal(recovery.compensated, false);
+        assert.equal(providerCalls, 1);
+        assert.equal(fs.readdirSync(audioRoot).filter((entry) => entry.endsWith(".wav")).length, 1);
+        assert.equal(AssetManager.getProjectAssets(slug, projectId, storageContext).assets.length, 1);
+        assert.equal(
+          getAudioPublicationLifecycleState(slug, compensationRef, storageContext),
+          "committed",
+        );
+        const replay = AudioStorage.recoverPublishedAudio(slug, compensationRef);
+        assert.equal(replay.status, "completed");
+        assert.equal(replay.compensated, false);
+        assert.equal(fs.readdirSync(audioRoot).filter((entry) => entry.endsWith(".wav")).length, 1);
+        assert.equal(AssetManager.getProjectAssets(slug, projectId, storageContext).assets.length, 1);
+      });
+
+      await scenario("prepared intent recovers crash after canonical publish without provider replay", async () => {
+        const originalHandoff = AudioStorage.handoffPublishedAudio;
+        let crashInjected = false;
+        let providerCalls = 0;
+        const compensationRefs: string[] = [];
+        AudioStorage.handoffPublishedAudio = ((value: unknown, projectId: string) => {
+          const compensationRef = AudioStorage.getCompensationRef(value);
+          if (compensationRef) compensationRefs.push(compensationRef);
+          if (!crashInjected) {
+            crashInjected = true;
+            throw new Error("simulated crash after canonical publish");
+          }
+          return originalHandoff.call(AudioStorage, value, projectId);
+        }) as typeof AudioStorage.handoffPublishedAudio;
+        globalThis.fetch = async () => {
+          providerCalls += 1;
+          return response(wav());
+        };
+        const slug = "sprint-129-27-registry-reconcile";
+        try {
+          await assert.rejects(AudioPipeline.generateAudio({
+              projectId: "project-registry-reconcile",
+              projectSlug: slug,
+              audio: audioData(),
+              provider: new OpenAIAudioProvider(),
+            }));
+        } finally {
           AudioStorage.handoffPublishedAudio = originalHandoff;
         }
-        assert.equal(persistedThrowInjected, true);
-        assert.equal(result.projectAssets.assets.length, 2);
-        assert(compensationRefs.length >= 2);
+        assert.equal(crashInjected, true);
+        assert.equal(providerCalls, 1);
+        const committed = AssetManager.getProjectAssets(
+          slug, "project-registry-reconcile", storageContext,
+        );
+        assert.equal(committed.assets.length, 1);
+        assert.equal(compensationRefs.length, 1);
         for (const compensationRef of new Set(compensationRefs)) {
           const recovery = AudioStorage.recoverPublishedAudio(
             slug,
@@ -3600,7 +4264,12 @@ async function run(): Promise<void> {
           assert.equal(replay.status, "completed");
           assert.equal(replay.compensated, false);
         }
-        for (const asset of result.projectAssets.assets) {
+        assert.equal(providerCalls, 1);
+        const replayed = AssetManager.getProjectAssets(
+          slug, "project-registry-reconcile", storageContext,
+        );
+        assert.equal(replayed.assets.length, 1);
+        for (const asset of replayed.assets) {
           assert(asset.filePath);
           assert.equal(
             fs.existsSync(path.join(

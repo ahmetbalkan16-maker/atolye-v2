@@ -168,7 +168,7 @@ export function getAudioAssetErrorEvidence(
 
 export function serializeAudioAssetErrorEvidence(value: unknown): string[] {
   if (!isAudioAssetErrorEvidence(value)) return [];
-  return [
+  const canonical = [
     `audio-root:${value.rootCode}`,
     `audio-phase:${value.phase}`,
     ...(value.cleanup ? [`audio-cleanup:${value.cleanup}`] : []),
@@ -178,12 +178,17 @@ export function serializeAudioAssetErrorEvidence(value: unknown): string[] {
     ...(value.compensationRef
       ? [`audio-compensation-ref:${value.compensationRef}`]
       : []),
+  ];
+  const dynamicIdentifiers = [
+    ...(value.provider ? [`audio-provider:${value.provider}`] : []),
+    ...(value.model ? [`audio-model:${value.model}`] : []),
+  ].filter((item) => !containsReservedSafeEvidenceTerm(item));
+  const bounded = [
     `audio-target:${value.target}`,
     ...(value.chapterId !== undefined
       ? [`audio-chapter:${value.chapterId}`]
       : []),
-    ...(value.provider ? [`audio-provider:${value.provider}`] : []),
-    ...(value.model ? [`audio-model:${value.model}`] : []),
+    ...dynamicIdentifiers,
     ...(value.httpStatus !== undefined
       ? [`audio-http:${value.httpStatus}`]
       : []),
@@ -193,7 +198,8 @@ export function serializeAudioAssetErrorEvidence(value: unknown): string[] {
     ...(value.maximumResponseBytes !== undefined
       ? [`audio-response-limit:${value.maximumResponseBytes}`]
       : []),
-  ].filter((item) => !containsReservedSafeEvidenceTerm(item)).slice(0, 10);
+  ];
+  return [...canonical, ...bounded].slice(0, 10);
 }
 
 function sanitizeTarget(target: AudioGenerationTarget | undefined): {

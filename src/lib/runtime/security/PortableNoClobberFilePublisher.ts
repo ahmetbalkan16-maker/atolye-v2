@@ -23,6 +23,13 @@ export interface PortableNoClobberPublishInput {
   ) => void;
 }
 
+export interface PortableNoClobberReservationInput {
+  readonly sourcePath: string;
+  readonly stagingPath: string;
+  readonly expectedByteLength: number;
+  readonly expectedSha256: string;
+}
+
 const HARD_LINK_UNAVAILABLE_CODES = new Set([
   "EXDEV",
   "ENOSYS",
@@ -74,6 +81,101 @@ export function publishFilePortableNoClobber(
     });
     throw error;
   }
+}
+
+export function reserveFilePortableNoClobber(
+  input: PortableNoClobberReservationInput,
+): PortablePublishedFile {
+  requireExpectedFile(input.expectedByteLength, input.expectedSha256);
+  const source = inspectExactFile(
+    input.sourcePath,
+    input.expectedByteLength,
+    input.expectedSha256,
+  );
+  try {
+    fs.linkSync(input.sourcePath, input.stagingPath);
+    const staged = inspectExactFile(
+      input.stagingPath,
+      input.expectedByteLength,
+      input.expectedSha256,
+    );
+    if (staged.device !== source.device || staged.inode !== source.inode) {
+      throw new Error("Portable hard-link reservation identity mismatch.");
+    }
+    syncDirectory(path.dirname(input.stagingPath));
+    return Object.freeze({ mode: "hard-link" as const, ...staged });
+  } catch (error) {
+    if (!isHardLinkUnavailable(error)) throw error;
+  }
+  return copyFileExclusiveReservation(input, source);
+}
+
+function copyFileExclusiveReservation(
+  input: PortableNoClobberReservationInput,
+  sourceIdentity: Omit<PortablePublishedFile, "mode">,
+): PortablePublishedFile {
+  const sourceDescriptor = fs.openSync(input.sourcePath, "r");
+  let destinationDescriptor: number | undefined;
+  let firstError: unknown;
+  try {
+    const openedSource = fs.fstatSync(sourceDescriptor);
+    if (!matchesIdentity(openedSource, sourceIdentity)) {
+      throw new Error("Portable reservation source identity changed.");
+    }
+    destinationDescriptor = fs.openSync(input.stagingPath, "wx+", 0o600);
+    const hash = createHash("sha256");
+    const buffer = Buffer.allocUnsafe(1024 * 1024);
+    let total = 0;
+    while (true) {
+      const read = fs.readSync(sourceDescriptor, buffer, 0, buffer.length, total);
+      if (read === 0) break;
+      hash.update(buffer.subarray(0, read));
+      let offset = 0;
+      while (offset < read) {
+        const written = fs.writeSync(
+          destinationDescriptor,
+          buffer,
+          offset,
+          read - offset,
+          total + offset,
+        );
+        if (!Number.isSafeInteger(written) || written <= 0) {
+          throw new Error("Portable reservation copy failed.");
+        }
+        offset += written;
+      }
+      total += read;
+      if (total > input.expectedByteLength) {
+        throw new Error("Portable reservation source length changed.");
+      }
+    }
+    const finalSource = fs.fstatSync(sourceDescriptor);
+    const finalDestination = fs.fstatSync(destinationDescriptor);
+    if (
+      !matchesIdentity(finalSource, sourceIdentity) ||
+      !finalDestination.isFile() ||
+      total !== input.expectedByteLength ||
+      finalDestination.size !== input.expectedByteLength ||
+      hash.digest("hex") !== input.expectedSha256
+    ) {
+      throw new Error("Portable reservation verification failed.");
+    }
+    fs.fsyncSync(destinationDescriptor);
+  } catch (error) {
+    firstError = error;
+  }
+  try { fs.closeSync(sourceDescriptor); } catch (error) { firstError ??= error; }
+  if (destinationDescriptor !== undefined) {
+    try { fs.closeSync(destinationDescriptor); } catch (error) { firstError ??= error; }
+  }
+  if (firstError) throw firstError;
+  const staged = inspectExactFile(
+    input.stagingPath,
+    input.expectedByteLength,
+    input.expectedSha256,
+  );
+  syncDirectory(path.dirname(input.stagingPath));
+  return Object.freeze({ mode: "exclusive-copy" as const, ...staged });
 }
 
 function publishFileViaReservedStaging(

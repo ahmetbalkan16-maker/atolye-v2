@@ -144,7 +144,7 @@ export class OpenAIAudioProvider implements ConfiguredAudioProvider {
       }
       let saved;
       try {
-        saved = AudioStorage.saveAudio({
+        saved = AudioStorage.prepareAudio({
           projectSlug: input.projectSlug,
           data: body,
         });

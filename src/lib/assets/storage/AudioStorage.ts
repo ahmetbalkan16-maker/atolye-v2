@@ -30,8 +30,11 @@ import {
   finalizeReservedFilePortableNoClobber,
   publishFilePortableNoClobber,
   removePublishedFileIfOwned,
+  reserveFilePortableNoClobber,
   type PortablePublishedFile,
 } from "@/lib/runtime/security/PortableNoClobberFilePublisher";
+import { getPreparedAudioPublicationIntent, prepareAudioPublicationIntent } from
+  "@/lib/audio/AudioPublicationIntentStore";
 import {
   requireContainedStorageDirectory,
   requireContainedStorageFile,
@@ -122,6 +125,247 @@ export interface AudioCompensationRecoveryResult {
 }
 
 export class AudioStorage {
+  static prepareAudio({
+    projectSlug,
+    data,
+    assetId,
+    fileName,
+  }: SaveAudioInput, input: RuntimeStorageInput = {}): SavedAudio {
+    const context = resolveRuntimeStorageContext(input);
+    const lease = acquireAudioProjectWriteAuthority(projectSlug, context);
+    let receipt: AudioPublicationReceipt | undefined;
+    let workspace: AudioCompensationWorkspace | undefined;
+    try {
+      const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
+      let inspection: AudioInspection;
+      try { inspection = this.inspectWav(buffer); }
+      catch {
+        throw new AudioAssetRootError("AUDIO_WAV_INVALID", { phase: "validation" });
+      }
+      const resolvedFileName = fileName
+        ? requireSafeWavFileName(fileName)
+        : `${sanitizeFileName(assetId ?? crypto.randomUUID())}.wav`;
+      const relativePath = this.getAudioPath(projectSlug, resolvedFileName);
+      const absolutePath = resolvePath(relativePath, context, true);
+      const directory = path.dirname(absolutePath);
+      ensureSafeContainedDirectory(context.runtimeRoot, context.projectsRoot);
+      ensureSafeContainedDirectory(context.projectsRoot, directory);
+      requireContainedStorageDirectory(directory, context);
+      workspace = prepareAudioCompensationWorkspace({
+        authority: lease,
+        context,
+        projectSlug,
+        byteLength: buffer.length,
+      });
+      let temporaryIdentity: FileIdentity | undefined;
+      writeAndSyncOwnedTemporaryFile(workspace.temporaryFilePath, buffer, (identity) => {
+        temporaryIdentity = identity;
+      });
+      if (!temporaryIdentity) throw new Error("Audio temporary identity is unavailable.");
+      const protectedReceipt = createProtectedAudioCompensationReceipt({
+        authority: lease,
+        context,
+        projectSlug,
+        workspace,
+        canonicalFileName: resolvedFileName,
+        byteLength: buffer.length,
+        sha256: sha256(buffer),
+        device: temporaryIdentity.device,
+        inode: temporaryIdentity.inode,
+      });
+      receipt = Object.freeze({
+        context,
+        projectSlug,
+        compensationRef: protectedReceipt.compensationRef,
+      });
+      trustedPublicationReceipts.add(receipt);
+      this.inspectWav(fs.readFileSync(workspace.temporaryFilePath));
+      const publication = reserveFilePortableNoClobber({
+        sourcePath: workspace.temporaryFilePath,
+        stagingPath: path.join(workspace.directory, "publication-staging.wav"),
+        expectedByteLength: protectedReceipt.byteLength,
+        expectedSha256: protectedReceipt.sha256,
+      });
+      reserveProtectedAudioCompensationPublication({
+        authority: lease,
+        context,
+        projectSlug,
+        compensationRef: protectedReceipt.compensationRef,
+        ...publication,
+      });
+      bindProtectedAudioCompensationPublication({
+        authority: lease,
+        context,
+        projectSlug,
+        compensationRef: protectedReceipt.compensationRef,
+        ...publication,
+      });
+      const saved: SavedAudio = {
+        fileName: resolvedFileName,
+        filePath: relativePath,
+        url: this.getAudioUrl(projectSlug, resolvedFileName),
+        mimeType: "audio/wav",
+        ...inspection,
+      };
+      attachPublicationOwnership(saved, receipt);
+      return saved;
+    } catch (error) {
+      let cleanup: "completed" | "deferred" | undefined;
+      let compensation: "not-required" | "failed" | undefined;
+      let compensationRef: string | undefined;
+      if (receipt) {
+        if (completeUnusedReceipt(receipt, lease)) {
+          compensation = "not-required";
+          try {
+            const retention = pruneCompletedAudioCompensationRecords(projectSlug, lease, context);
+            cleanup = retention.failed === 0 ? "completed" : "deferred";
+          } catch { cleanup = "deferred"; }
+        } else {
+          cleanup = "deferred";
+          compensation = "failed";
+          compensationRef = receipt.compensationRef;
+        }
+      } else if (workspace) {
+        cleanup = "deferred";
+      }
+      if (error instanceof AudioAssetRootError) throw error;
+      throw new AudioAssetRootError("AUDIO_STORAGE_WRITE_FAILED", {
+        phase: "storage",
+        ...(cleanup ? { cleanup, compensation, compensationRef } : {}),
+      });
+    } finally {
+      lease.release();
+    }
+  }
+
+  static inspectPreparedWav(value: unknown): AudioInspection {
+    const receipt = getTrustedReceipt(value);
+    if (!receipt) throw new AudioAssetRootError("AUDIO_STORAGE_WRITE_FAILED", { phase: "storage" });
+    const current = readProtectedAudioCompensationReceipt(
+      receipt.projectSlug,
+      receipt.compensationRef,
+      receipt.context,
+    );
+    if (!current.publication || current.state.status !== "pending") {
+      throw new AudioAssetRootError("AUDIO_STORAGE_WRITE_FAILED", { phase: "storage" });
+    }
+    const source = getProtectedAudioCompensationPublicationSourcePath(
+      receipt.projectSlug,
+      receipt.compensationRef,
+      current.publication.stagingFileName,
+      receipt.context,
+    );
+    return this.inspectWav(fs.readFileSync(source));
+  }
+
+  static isPreparedAudio(value: unknown): boolean {
+    const receipt = getTrustedReceipt(value);
+    if (!receipt) return false;
+    try {
+      const current = readProtectedAudioCompensationReceipt(
+        receipt.projectSlug,
+        receipt.compensationRef,
+        receipt.context,
+      );
+      const canonicalPath = resolvePath(
+        this.getAudioPath(receipt.projectSlug, current.receipt.canonicalFileName),
+        receipt.context,
+      );
+      return current.state.status === "pending" && Boolean(current.publication) &&
+        !fs.existsSync(canonicalPath);
+    } catch { return false; }
+  }
+
+  static commitPreparedAudio(value: unknown, projectId: string): ProjectAssets {
+    const receipt = getTrustedReceipt(value);
+    const asset = value as Asset;
+    if (!receipt || !projectId) {
+      throw new AudioAssetRootError("AUDIO_ASSET_REGISTRY_FAILED", {
+        phase: "registry", compensation: "not-required",
+      });
+    }
+    const context = receipt.context;
+    const lease = acquireAudioProjectWriteAuthority(receipt.projectSlug, context);
+    let canonicalCommitted = false;
+    try {
+      const current = readProtectedAudioCompensationReceipt(
+        receipt.projectSlug,
+        receipt.compensationRef,
+        context,
+      );
+      if (!current.publication || current.state.status !== "pending") {
+        throw new AudioAssetRootError("AUDIO_STORAGE_WRITE_FAILED", { phase: "storage" });
+      }
+      try {
+        prepareAudioPublicationIntent({
+          projectSlug: receipt.projectSlug,
+          projectId,
+          compensationRef: receipt.compensationRef,
+          asset,
+          publication: current.publication,
+          authority: lease,
+          context,
+        });
+      } catch {
+        const completed = completeUnusedReceipt(receipt, lease);
+        let cleanup: "completed" | "deferred" = completed ? "completed" : "deferred";
+        if (completed) {
+          try {
+            const retention = pruneCompletedAudioCompensationRecords(
+              receipt.projectSlug, lease, context,
+            );
+            if (retention.failed > 0) cleanup = "deferred";
+          } catch { cleanup = "deferred"; }
+        }
+        throw new AudioAssetRootError("AUDIO_ASSET_REGISTRY_FAILED", {
+          phase: "registry",
+          cleanup,
+          compensation: completed ? "not-required" : "failed",
+          ...(!completed ? { compensationRef: receipt.compensationRef } : {}),
+        });
+      }
+      const sourcePath = getProtectedAudioCompensationPublicationSourcePath(
+        receipt.projectSlug,
+        receipt.compensationRef,
+        current.publication.stagingFileName,
+        context,
+      );
+      const destinationPath = resolvePath(asset.filePath as string, context, true);
+      try {
+        finalizeReservedFilePortableNoClobber({
+          sourcePath,
+          destinationPath,
+          publication: current.publication,
+        });
+        canonicalCommitted = true;
+      } catch {
+        try {
+          const { realPath, stat } = requireContainedStorageFile(
+            path.dirname(destinationPath), destinationPath, context,
+          );
+          canonicalCommitted = stat.isFile() && stat.dev === current.publication.device &&
+            stat.ino === current.publication.inode && stat.size === current.publication.byteLength &&
+            sha256(fs.readFileSync(realPath)) === current.publication.sha256;
+        } catch { canonicalCommitted = false; }
+        if (!canonicalCommitted) {
+          throw new AudioCanonicalAdmissionConflictError();
+        }
+      }
+    } finally {
+      lease.release();
+    }
+    if (!canonicalCommitted) {
+      throw new AudioCanonicalAdmissionConflictError();
+    }
+    const projectAssets = AssetManager.getProjectAssets(receipt.projectSlug, projectId, context);
+    const handoff = this.handoffPublishedAudio(value, projectId);
+    if (
+      handoff.status === "registry-owned-confirmed" ||
+      handoff.status === "registry-ownership-completed"
+    ) return handoff.projectAssets;
+    return projectAssets;
+  }
+
   static saveAudio({
     projectSlug,
     data,
@@ -578,6 +822,11 @@ export class AudioStorage {
     let lease;
     try {
       lease = acquireAudioProjectWriteAuthority(projectSlug, context);
+      recoverPreparedPublicationIfPresent(
+        projectSlug,
+        compensationRef,
+        context,
+      );
       return compensateProtectedPublication(
         projectSlug,
         compensationRef,
@@ -788,6 +1037,43 @@ export class AudioStorage {
   }
 }
 
+function recoverPreparedPublicationIfPresent(
+  projectSlug: string,
+  compensationRef: string,
+  context: RuntimeStorageContext,
+): void {
+  const intent = getPreparedAudioPublicationIntent(projectSlug, compensationRef, context);
+  if (!intent) return;
+  const current = readProtectedAudioCompensationReceipt(projectSlug, compensationRef, context);
+  if (current.state.status === "completed") return;
+  if (!current.publication ||
+    current.receipt.canonicalFileName !== path.posix.basename(intent.canonicalRelativePath) ||
+    current.publication.byteLength !== intent.publication.byteLength ||
+    current.publication.sha256 !== intent.publication.sha256 ||
+    current.publication.device !== intent.publication.device ||
+    current.publication.inode !== intent.publication.inode) {
+    throw new AudioCanonicalAdmissionConflictError();
+  }
+  const destinationPath = resolvePath(intent.canonicalRelativePath, context, true);
+  if (!fs.existsSync(destinationPath)) {
+    const sourcePath = getProtectedAudioCompensationPublicationSourcePath(
+      projectSlug,
+      compensationRef,
+      current.publication.stagingFileName,
+      context,
+    );
+    finalizeReservedFilePortableNoClobber({
+      sourcePath,
+      destinationPath,
+      publication: current.publication,
+    });
+  }
+  const assets = AssetManager.getProjectAssets(projectSlug, intent.projectId, context);
+  if (!assets.assets.some((asset) =>
+    asset.id === intent.asset.id && asset.filePath === intent.asset.filePath
+  )) throw new AudioCanonicalAdmissionConflictError();
+}
+
 function writeAndSyncOwnedTemporaryFile(
   filePath: string,
   buffer: Buffer,
@@ -905,11 +1191,17 @@ function compensateProtectedPublication(
         ),
       );
     }
+    const preparedIntent = getPreparedAudioPublicationIntent(
+      projectSlug,
+      compensationRef,
+      context,
+    );
     const ownership = registryOwnership(
       projectSlug,
       protectedReceipt,
       protectedPublication,
       context,
+      preparedIntent?.asset,
     );
     if (
       current.state.status === "completed" &&
@@ -1259,7 +1551,7 @@ function failCompensation(
 function completeUnusedReceipt(
   receipt: AudioPublicationReceipt,
   authority: RuntimeStorageAuthorityLease,
-): void {
+): boolean {
   try {
     transitionAudioCompensationState(
       receipt.projectSlug,
@@ -1269,8 +1561,10 @@ function completeUnusedReceipt(
       receipt.context,
     );
     trustedPublicationReceipts.delete(receipt);
+    return true;
   } catch {
     // No canonical was published; an unreadable record remains fail-closed.
+    return false;
   }
 }
 

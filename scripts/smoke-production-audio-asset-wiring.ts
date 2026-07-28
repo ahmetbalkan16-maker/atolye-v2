@@ -288,6 +288,16 @@ async function readAssets(slug: string): Promise<ProjectAssets> {
   return JSON.parse(await fs.readFile(assetsPath(slug), "utf8")) as ProjectAssets;
 }
 
+async function listProjectEntries(root: string): Promise<string[]> {
+  const entries = await fs.readdir(root, { withFileTypes: true });
+  const nested = await Promise.all(entries.map(async (entry) => {
+    const entryPath = path.join(root, entry.name);
+    if (!entry.isDirectory()) return [entryPath];
+    return [entryPath, ...await listProjectEntries(entryPath)];
+  }));
+  return nested.flat();
+}
+
 async function generate(
   suffix: string,
   provider?: AudioProvider,
@@ -802,6 +812,24 @@ async function run() {
     });
 
     await scenario("real OpenAI provider stores usable WAV section and mix assets", async () => {
+      const originalPrepareAudio = AudioStorage.prepareAudio;
+      const originalCommitPreparedAudio = AudioStorage.commitPreparedAudio;
+      const originalSaveAudio = AudioStorage.saveAudio;
+      let prepareAudioCalls = 0;
+      let commitPreparedAudioCalls = 0;
+      let legacySaveAudioCalls = 0;
+      AudioStorage.prepareAudio = (...args) => {
+        prepareAudioCalls += 1;
+        return originalPrepareAudio.apply(AudioStorage, args);
+      };
+      AudioStorage.commitPreparedAudio = (...args) => {
+        commitPreparedAudioCalls += 1;
+        return originalCommitPreparedAudio.apply(AudioStorage, args);
+      };
+      AudioStorage.saveAudio = (...args) => {
+        legacySaveAudioCalls += 1;
+        return originalSaveAudio.apply(AudioStorage, args);
+      };
       setEnvironment("AUDIO_PROVIDER", "openai");
       setEnvironment("OPENAI_API_KEY", "test-key-not-real");
       setEnvironment("OPENAI_TTS_MODEL", "configured-tts-model");
@@ -820,7 +848,14 @@ async function run() {
           },
         });
       };
-      const result = await generate("openai-success");
+      let result: Awaited<ReturnType<typeof generate>>;
+      try {
+        result = await generate("openai-success");
+      } finally {
+        AudioStorage.prepareAudio = originalPrepareAudio;
+        AudioStorage.commitPreparedAudio = originalCommitPreparedAudio;
+        AudioStorage.saveAudio = originalSaveAudio;
+      }
       assert.equal(bodies.length, 3);
       assert.ok(requests.every((request) => request.url === "https://api.openai.com/v1/audio/speech"));
       assert.ok(requests.every((request) => request.init?.method === "POST"));
@@ -840,6 +875,17 @@ async function run() {
       );
       assert.equal(result.audio.production.targetFormat, "wav");
       assert.equal(result.projectAssets.assets.length, 3);
+      assert.equal(prepareAudioCalls, result.projectAssets.assets.length);
+      assert.equal(commitPreparedAudioCalls, result.projectAssets.assets.length);
+      assert.equal(legacySaveAudioCalls, 0);
+      assert.equal(
+        new Set(result.projectAssets.assets.map((asset) => asset.id)).size,
+        result.projectAssets.assets.length,
+      );
+      assert.equal(
+        new Set(result.projectAssets.assets.map((asset) => asset.filePath)).size,
+        result.projectAssets.assets.length,
+      );
       for (const asset of result.projectAssets.assets) {
         assert.equal(asset.provider, "openai");
         assert.equal(asset.model, "configured-tts-model");
@@ -1218,28 +1264,87 @@ async function run() {
       globalThis.fetch = originalFetch;
     });
     await scenario("AudioStorage write error is normalized before runner boundaries", async () => {
+      const originalPrepareAudio = AudioStorage.prepareAudio;
+      const originalCommitPreparedAudio = AudioStorage.commitPreparedAudio;
       const originalSaveAudio = AudioStorage.saveAudio;
-      const wav = createWav();
+      let prepareAudioCalls = 0;
+      let commitPreparedAudioCalls = 0;
+      let legacySaveAudioCalls = 0;
+      const baseWav = createWav(2);
+      const wav = createRiff([
+        Buffer.from(baseWav.subarray(12, 36)),
+        createWavChunk("JUNK", Buffer.from("RESPONSE_BODY_SECRET")),
+        Buffer.from(baseWav.subarray(36)),
+      ]);
       setEnvironment("OPENAI_API_KEY", "test-key-not-real");
       globalThis.fetch = async () =>
         new Response(new Uint8Array(wav), {
           status: 200,
           headers: { "Content-Type": "audio/wav" },
         });
-      AudioStorage.saveAudio = () => {
+      AudioStorage.prepareAudio = () => {
+        prepareAudioCalls += 1;
         throw new Error("EACCES C:\\private\\API_KEY=secret\\audio.wav stack");
       };
+      AudioStorage.commitPreparedAudio = (...args) => {
+        commitPreparedAudioCalls += 1;
+        return originalCommitPreparedAudio.apply(AudioStorage, args);
+      };
+      AudioStorage.saveAudio = (...args) => {
+        legacySaveAudioCalls += 1;
+        return originalSaveAudio.apply(AudioStorage, args);
+      };
       try {
-        const failure = await expectSafeFailure(
-          "storage-write-error",
-          new OpenAIAudioProvider(),
+        const slug = `${fixturePrefix}-storage-write-error`;
+        let captured: unknown;
+        await assert.rejects(
+          AudioPipeline.generateAudio({
+            projectId: "project-114",
+            projectSlug: slug,
+            audio: audioData,
+            provider: new OpenAIAudioProvider(),
+          }),
+          (error) => {
+            captured = error;
+            return isSafeAudioError(error);
+          },
         );
+        assert.ok(captured instanceof AudioAssetGenerationError);
+        assert.equal(captured.code, "AUDIO_ASSET_GENERATION_FAILED");
+        assert.equal(captured.evidence.rootCode, "AUDIO_STORAGE_WRITE_FAILED");
+        assert.equal(captured.evidence.phase, "storage");
+        const failure = { slug, assets: await readAssets(slug), error: captured };
         assert.equal(failure.assets.assets[0].prompt, "Audio generation request.");
+        assert.equal(
+          failure.assets.assets.filter((asset) => asset.status === "generated").length,
+          0,
+        );
+        assert.equal(prepareAudioCalls, 1);
+        assert.equal(commitPreparedAudioCalls, 0);
+        assert.equal(legacySaveAudioCalls, 0);
+        const projectRoot = path.join(projectsRoot, slug);
+        const entries = await listProjectEntries(projectRoot);
+        assert.equal(entries.filter((entry) => entry.endsWith(".wav")).length, 0);
+        assert.equal(
+          entries.filter((entry) =>
+            entry.includes("audio-publication-intents") && entry.endsWith(".json")
+          ).length,
+          0,
+        );
+        assert.equal(
+          entries.filter((entry) =>
+            /(?:^|[\\/])(?:[^\\/]*\.(?:partial|lock)|audio-compensations)(?:[\\/]|$)/i
+              .test(entry)
+          ).length,
+          0,
+        );
         assert.doesNotMatch(
           JSON.stringify(failure),
-          /EACCES|private|API_KEY|stack|First narration/i,
+          /EACCES|private|API_KEY|stack|First narration|RESPONSE_BODY_SECRET/i,
         );
       } finally {
+        AudioStorage.prepareAudio = originalPrepareAudio;
+        AudioStorage.commitPreparedAudio = originalCommitPreparedAudio;
         AudioStorage.saveAudio = originalSaveAudio;
         globalThis.fetch = originalFetch;
       }

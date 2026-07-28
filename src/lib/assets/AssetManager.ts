@@ -4,6 +4,8 @@ import {
   type RuntimeStorageInput,
 } from "@/lib/runtime/RuntimeStoragePaths";
 import type { Asset, ProjectAssets } from "@/types/asset";
+import { getCommittedAudioPublicationAssets } from
+  "@/lib/audio/AudioPublicationIntentStore";
 
 type CreateAssetInput = Omit<Asset, "id" | "status" | "createdAt"> & {
   id?: string;
@@ -39,10 +41,17 @@ export class AssetManager {
     input: RuntimeStorageInput = {},
   ): ProjectAssets {
     const context = resolveRuntimeStorageContext(input);
-    return (
+    const stored = (
       FileStorage.loadJson<ProjectAssets>(this.getAssetsPath(slug), context) ??
       this.createDefaultAssets(projectId, slug)
     );
+    const committed = getCommittedAudioPublicationAssets(slug, projectId, context);
+    if (committed.length === 0) return stored;
+    const known = new Set(stored.assets.map((asset) => asset.id));
+    const additions = committed.filter((asset) => !known.has(asset.id));
+    return additions.length === 0
+      ? stored
+      : { ...stored, assets: [...stored.assets, ...additions] };
   }
 
   static saveProjectAssets(
