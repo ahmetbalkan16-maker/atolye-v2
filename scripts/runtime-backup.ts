@@ -2,9 +2,12 @@ import { createRuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePa
 import { collectRuntimeBackupInventory } from "../src/lib/runtime/backup/RuntimeBackupInventory";
 import {
   createVerifiedRuntimeBackup,
+  portableVerifyRuntimeBackup,
   restoreAndVerifyRuntimeBackup,
   RuntimeBackupError,
 } from "../src/lib/runtime/backup/RuntimeBackupService";
+import { bootstrapRuntimeBackupStorageAuthority } from
+  "../src/lib/runtime/backup/RuntimeBackupAuthority";
 import { verifyRuntimeBackup } from "../src/lib/runtime/backup/RuntimeBackupVerifier";
 
 const repositoryRoot = process.cwd();
@@ -21,6 +24,7 @@ function report(value: unknown) {
 async function main() {
   const command = process.argv[2] ?? "inventory";
   const context = createRuntimeStorageContext();
+  const authority = bootstrapRuntimeBackupStorageAuthority(context);
   if (command === "inventory") {
     const manifest = collectRuntimeBackupInventory({
       context,
@@ -43,12 +47,8 @@ async function main() {
     if (!process.argv.includes("--confirm-runtime-backup-create")) {
       throw new RuntimeBackupError("RUNTIME_BACKUP_PATH_INVALID");
     }
-    const backupRoot = argument("backup-root");
-    if (!backupRoot) throw new RuntimeBackupError("RUNTIME_BACKUP_PATH_INVALID");
     const result = createVerifiedRuntimeBackup({
-      context,
-      repositoryRoot,
-      backupRoot,
+      authority,
       projectSlug: argument("project-slug"),
     });
     report({
@@ -75,12 +75,12 @@ async function main() {
     return;
   }
   if (command === "restore-verify") {
-    const backupDirectory = argument("backup-dir");
-    if (!backupDirectory) throw new RuntimeBackupError("RUNTIME_BACKUP_PATH_INVALID");
+    const backupId = argument("backup-id");
+    if (!backupId) throw new RuntimeBackupError("RUNTIME_BACKUP_PATH_INVALID");
     const result = restoreAndVerifyRuntimeBackup({
-      backupDirectory,
-      repositoryRoot,
-      liveProjectsRoot: context.projectsRoot,
+      authority,
+      backupId,
+      projectSlug: argument("project-slug"),
     });
     report({
       status: "restored-and-verified-in-service-temp-root",
@@ -89,6 +89,12 @@ async function main() {
       bytes: result.bytes,
       markerFiles: result.markerFiles,
     });
+    return;
+  }
+  if (command === "portable-verify") {
+    const backupDirectory = argument("backup-dir");
+    if (!backupDirectory) throw new RuntimeBackupError("RUNTIME_BACKUP_PATH_INVALID");
+    report(portableVerifyRuntimeBackup({ authority, backupDirectory }));
     return;
   }
   throw new RuntimeBackupError("RUNTIME_BACKUP_PATH_INVALID");

@@ -3,8 +3,8 @@ import {
   aggregateRuntimeFileRecords,
   runtimeBackupAggregateVersion,
   runtimeBackupClassifications,
-  runtimeBackupFormatVersion,
-  runtimeBackupManifestSchemaVersion,
+  runtimeBackupFormatVersionV2,
+  runtimeBackupManifestSchemaVersionV2,
   validateRuntimeBackupManifest,
   type RuntimeBackupFileClassification,
   type RuntimeBackupFileRecord,
@@ -12,6 +12,7 @@ import {
   type RuntimeBackupManifest,
 } from "@/lib/runtime/backup/RuntimeBackupManifest";
 import type { RuntimeBackupVerificationReport } from "@/lib/runtime/backup/RuntimeBackupVerifier";
+import { runtimeBackupPathPolicyVersion } from "@/lib/runtime/backup/RuntimeBackupPathPolicy";
 import {
   isPortableRuntimeSegment,
   runtimePortableCollisionKey,
@@ -47,7 +48,7 @@ export interface RuntimeMigrationCandidateManifest {
     readonly backupId: string;
     readonly manifestSha256: string;
     readonly aggregateFingerprint: string;
-    readonly formatVersion: typeof runtimeBackupFormatVersion;
+    readonly formatVersion: typeof runtimeBackupFormatVersionV2;
     readonly storagePolicyVersion: string;
     readonly sourceLogicalIdentity: "projects";
     readonly sourceClassification: string;
@@ -133,7 +134,7 @@ export function buildRuntimeMigrationCandidateManifest(input: {
       backupId: input.backupId,
       manifestSha256: input.backup.manifestSha256,
       aggregateFingerprint: backup.aggregateFingerprint,
-      formatVersion: runtimeBackupFormatVersion,
+      formatVersion: runtimeBackupFormatVersionV2,
       storagePolicyVersion: backup.storagePolicyVersion,
       sourceLogicalIdentity: "projects",
       sourceClassification: backup.sourceClassification,
@@ -271,8 +272,9 @@ function validateManifest(value: unknown): asserts value is RuntimeMigrationCand
     throw new RuntimeMigrationCandidateError("CANDIDATE_ID_MISMATCH");
   }
   const backupShape: RuntimeBackupManifest = {
-    schemaVersion: runtimeBackupManifestSchemaVersion,
-    backupFormatVersion: runtimeBackupFormatVersion,
+    schemaVersion: runtimeBackupManifestSchemaVersionV2,
+    backupFormatVersion: runtimeBackupFormatVersionV2,
+    pathPolicyVersion: runtimeBackupPathPolicyVersion,
     aggregateAlgorithm: runtimeBackupAggregateVersion,
     storagePolicyVersion: source.storagePolicyVersion as RuntimeBackupManifest["storagePolicyVersion"],
     createdAt: source.sourceCreatedAt,
@@ -324,7 +326,7 @@ function validateSourceBackup(value: unknown) {
     typeof value.backupId !== "string" || !isPortableRuntimeSegment(value.backupId) ||
     typeof value.manifestSha256 !== "string" || !sha256(value.manifestSha256) ||
     typeof value.aggregateFingerprint !== "string" || !sha256(value.aggregateFingerprint) ||
-    value.formatVersion !== runtimeBackupFormatVersion ||
+    value.formatVersion !== runtimeBackupFormatVersionV2 ||
     typeof value.storagePolicyVersion !== "string" ||
     value.sourceLogicalIdentity !== "projects" ||
     typeof value.sourceClassification !== "string" || !/^[a-z0-9-]+$/.test(value.sourceClassification) ||

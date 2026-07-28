@@ -13,21 +13,27 @@ import {
   type RuntimeStorageInput,
 } from "@/lib/runtime/RuntimeStoragePaths";
 import {
-  runtimePortableCollisionKey,
-  validateRuntimeLogicalPath,
-} from "@/lib/runtime/security/RuntimePathPolicy";
-import {
   aggregateRuntimeFileRecords,
   emptyClassificationTotals,
   runtimeBackupAggregateVersion,
-  runtimeBackupFormatVersion,
-  runtimeBackupManifestSchemaVersion,
+  runtimeBackupFormatVersionV1,
+  runtimeBackupFormatVersionV2,
+  runtimeBackupManifestSchemaVersionV1,
+  runtimeBackupManifestSchemaVersionV2,
+  getRuntimeBackupManifestPathPolicyVersion,
   validateRuntimeBackupManifest,
   type RuntimeBackupFileClassification,
   type RuntimeBackupFileRecord,
   type RuntimeBackupGitMetadata,
   type RuntimeBackupManifest,
 } from "./RuntimeBackupManifest";
+import {
+  runtimeBackupPathPolicyVersion,
+  runtimeBackupPathPolicyVersionV1,
+  runtimeBackupPortableCollisionKey,
+  validateRuntimeBackupRelativePath,
+  type RuntimeBackupPathPolicyVersion,
+} from "./RuntimeBackupPathPolicy";
 
 export interface RuntimeBackupInventoryOptions {
   readonly context?: RuntimeStorageInput;
@@ -43,6 +49,49 @@ export interface RuntimeBackupInventoryOptions {
 export function collectRuntimeBackupInventory(
   options: RuntimeBackupInventoryOptions = {},
 ): RuntimeBackupManifest {
+  return collectRuntimeBackupInventoryWithPolicy(
+    options,
+    runtimeBackupPathPolicyVersion,
+  );
+}
+
+export function assertRuntimeBackupTreeMatchesManifest(options: {
+  readonly context: RuntimeStorageInput;
+  readonly manifest: RuntimeBackupManifest;
+  readonly now?: () => string;
+}) {
+  validateRuntimeBackupManifest(options.manifest);
+  const inventory = collectRuntimeBackupInventoryWithPolicy(
+    { context: options.context, now: options.now },
+    getRuntimeBackupManifestPathPolicyVersion(options.manifest),
+  );
+  const expected = options.manifest.files.map(runtimeBackupTreeIdentity);
+  const actual = inventory.files.map(runtimeBackupTreeIdentity);
+  if (
+    JSON.stringify(actual) !== JSON.stringify(expected) ||
+    inventory.aggregateFingerprint !== options.manifest.aggregateFingerprint ||
+    inventory.inventory.files !== options.manifest.inventory.files ||
+    inventory.inventory.bytes !== options.manifest.inventory.bytes
+  ) {
+    throw new Error("Runtime backup payload verification failed.");
+  }
+}
+
+function runtimeBackupTreeIdentity(file: RuntimeBackupFileRecord) {
+  return {
+    relativePath: file.relativePath,
+    sizeBytes: file.sizeBytes,
+    sha256: file.sha256,
+    permissionClass: file.permissionClass,
+    projectSlug: file.projectSlug,
+    classification: file.classification,
+  };
+}
+
+function collectRuntimeBackupInventoryWithPolicy(
+  options: RuntimeBackupInventoryOptions,
+  pathPolicyVersion: RuntimeBackupPathPolicyVersion,
+): RuntimeBackupManifest {
   const context = resolveRuntimeStorageContext(options.context ?? {});
   const projectsRoot = requireContainedRealDirectory(
     context.runtimeRoot,
@@ -55,16 +104,30 @@ export function collectRuntimeBackupInventory(
     ? collectGitMetadata(options.repositoryRoot, projectsRoot)
     : undefined;
   const files: RuntimeBackupFileRecord[] = [];
-  walkRuntimeTree(projectsRoot, scanRoot, files, git?.entries, options.hooks);
+  walkRuntimeTree(
+    projectsRoot,
+    scanRoot,
+    files,
+    git?.entries,
+    options.hooks,
+    pathPolicyVersion,
+  );
   files.sort(compareRecords);
-  assertUniquePortablePaths(files);
+  assertUniquePortablePaths(files, pathPolicyVersion);
   const classifications = emptyClassificationTotals();
   files.forEach((file) => { classifications[file.classification] += 1; });
   const tracked = files.filter((file) => file.git?.tracked).length;
   const projects = new Set(files.map((file) => file.projectSlug).filter(Boolean));
   const manifest: RuntimeBackupManifest = Object.freeze({
-    schemaVersion: runtimeBackupManifestSchemaVersion,
-    backupFormatVersion: runtimeBackupFormatVersion,
+    schemaVersion: pathPolicyVersion === runtimeBackupPathPolicyVersionV1
+      ? runtimeBackupManifestSchemaVersionV1
+      : runtimeBackupManifestSchemaVersionV2,
+    backupFormatVersion: pathPolicyVersion === runtimeBackupPathPolicyVersionV1
+      ? runtimeBackupFormatVersionV1
+      : runtimeBackupFormatVersionV2,
+    ...(pathPolicyVersion === runtimeBackupPathPolicyVersion
+      ? { pathPolicyVersion: runtimeBackupPathPolicyVersion }
+      : {}),
     aggregateAlgorithm: runtimeBackupAggregateVersion,
     storagePolicyVersion: runtimeStoragePolicyVersion,
     createdAt: (options.now ?? (() => new Date().toISOString()))(),
@@ -153,6 +216,7 @@ function walkRuntimeTree(
   files: RuntimeBackupFileRecord[],
   gitEntries: ReadonlyMap<string, RuntimeBackupGitMetadata> | undefined,
   hooks: RuntimeBackupInventoryOptions["hooks"],
+  pathPolicyVersion: RuntimeBackupPathPolicyVersion,
 ) {
   requireContainedOrEqual(projectsRoot, directory);
   const entries = fs.readdirSync(directory, { withFileTypes: true })
@@ -166,14 +230,21 @@ function walkRuntimeTree(
     }
     if (link.isDirectory()) {
       requireContainedRealDirectory(projectsRoot, absolutePath);
-      walkRuntimeTree(projectsRoot, absolutePath, files, gitEntries, hooks);
+      walkRuntimeTree(
+        projectsRoot,
+        absolutePath,
+        files,
+        gitEntries,
+        hooks,
+        pathPolicyVersion,
+      );
       continue;
     }
     if (!link.isFile()) {
       throw new Error("Runtime backup source contains an unsupported path.");
     }
     const relativePath = relativePosix(projectsRoot, absolutePath);
-    validateRuntimeLogicalPath(relativePath);
+    validateRuntimeBackupRelativePath(relativePath, pathPolicyVersion);
     const hash = hashStableRuntimeFile(absolutePath, relativePath, hooks);
     const projectSlug = inferProjectSlug(relativePath);
     files.push({
@@ -259,11 +330,17 @@ function classifyRuntimeFile(relativePath: string): RuntimeBackupFileClassificat
   return "other-runtime";
 }
 
-function assertUniquePortablePaths(files: RuntimeBackupFileRecord[]) {
+function assertUniquePortablePaths(
+  files: RuntimeBackupFileRecord[],
+  pathPolicyVersion: RuntimeBackupPathPolicyVersion,
+) {
   const exact = new Set<string>();
   const folded = new Set<string>();
   for (const file of files) {
-    const portableKey = runtimePortableCollisionKey(file.relativePath);
+    const portableKey = runtimeBackupPortableCollisionKey(
+      file.relativePath,
+      pathPolicyVersion,
+    );
     if (exact.has(file.relativePath) || folded.has(portableKey)) {
       throw new Error("Runtime backup path collision detected.");
     }

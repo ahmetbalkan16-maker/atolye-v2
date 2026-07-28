@@ -41,6 +41,17 @@ Aktif Sprint
 
 Sprint 129.28 — Production Acceptance Reauthorization and Durable Identity Authority Hardening / Completed
 
+## Runtime Backup Long-Path, V3 Runtime Authority and Trusted Backup Root / Completed
+
+- Runtime backup long-path remediation, versioned backup path-policy, V3 manifest authority ve trusted backup-root çalışması `Completed` olarak işaretlendi. Global runtime path policy ve standart `beginMutation()` sözleşmesi değiştirilmedi.
+- V1 legacy `180/240` logical ve `240 UTF-16` materialization sözleşmesiyle portable compatibility için; V2 `runtime-backup-relative-path-v2`, `220/300` logical ve `259 UTF-16` materialization sözleşmesiyle portable verification için korunur. Authority taşımayan V1/V2 same-authority restore fail-closed olur.
+- Yeni create işlemleri yalnız V3 üretir. V3 canonical source runtime authority, exact project logical identity, `runtime-backup-relative-path-v2` ve değişmeyen `runtime-tree-sha256-v1` aggregate sözleşmesini kullanır.
+- Trusted bootstrap kalıcı, host-path-free authority marker üretir. Restart/relocation identity sürekliliği, bağımsız root ayrımı, malformed marker rejection ve nominal authority ownership doğrulandı.
+- Public create/restore caller-selected backup root veya arbitrary publication path kabul etmez. Same-authority verify/restore exact runtime/project binding uygular; portable verification `currentRuntimeBound:false` kalır ve live restore authority vermez.
+- Strict DTO, atomik publication/cleanup ownership, `CLEANUP_REQUIRED`, foreign identity korunumu, exact `259/260` sınırı, controlled child-process source drift, real two-process same-ID race ve post-publication TOCTOU kanıtları tamamlandı.
+- Final validation: runtime backup `38/38`, runtime storage `21/21`, runtime hardening `13/13`, guarded filesystem `16/16`, unsupported skip `0`, TypeScript, targeted ESLint ve `git diff --check` PASS; production/provider/network mutation `0`.
+- Sonraki kontrollü adım dokümantasyon kapanışının commit/push edilmesidir. Ardından aktif production projesine audio aşamasından devam hazırlığı yapılabilir. Bu dokümantasyon turunda production resume veya gerçek provider çağrısı yetkili değildir; ayrı açık kullanıcı onayı zorunludur.
+
 ## Sprint 129.28 — Production Acceptance Reauthorization and Durable Identity Authority Hardening / Completed
 
 - Durable recovery store-policy, en az bir valid reservation için idempotency store'u zorunlu tutar. Expired/released/terminal reservation gereksinimi korur; corrupt reservation sayılmaz, empty-present/not-created ayrımı ve exact `REQUIRED_IDEMPOTENCY_STORE_MISSING` sonucu korunur. Claim/attempt store gereksinimleri ve store-policy-before-conflict sırası doğrulandı.

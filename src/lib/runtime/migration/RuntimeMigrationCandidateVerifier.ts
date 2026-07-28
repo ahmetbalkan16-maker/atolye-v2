@@ -2,11 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   runtimeBackupAggregateVersion,
-  runtimeBackupFormatVersion,
-  runtimeBackupManifestSchemaVersion,
+  runtimeBackupFormatVersionV2,
+  runtimeBackupManifestSchemaVersionV2,
   type RuntimeBackupManifest,
 } from "@/lib/runtime/backup/RuntimeBackupManifest";
 import { verifyRuntimeBackup, verifyRuntimeTreeAgainstManifest } from "@/lib/runtime/backup/RuntimeBackupVerifier";
+import { runtimeBackupPathPolicyVersion } from "@/lib/runtime/backup/RuntimeBackupPathPolicy";
 import { assertRuntimeMaterializedPath } from "@/lib/runtime/security/RuntimePathPolicy";
 import {
   minimalRuntimeDirectoryClosure,
@@ -137,8 +138,9 @@ export function verifyMigrationCandidateBinding(
 
 function asBackupManifest(candidate: RuntimeMigrationCandidateManifest): RuntimeBackupManifest {
   return {
-    schemaVersion: runtimeBackupManifestSchemaVersion,
-    backupFormatVersion: runtimeBackupFormatVersion,
+    schemaVersion: runtimeBackupManifestSchemaVersionV2,
+    backupFormatVersion: runtimeBackupFormatVersionV2,
+    pathPolicyVersion: runtimeBackupPathPolicyVersion,
     aggregateAlgorithm: runtimeBackupAggregateVersion,
     storagePolicyVersion: candidate.sourceBackup.storagePolicyVersion as RuntimeBackupManifest["storagePolicyVersion"],
     createdAt: candidate.sourceBackup.sourceCreatedAt,

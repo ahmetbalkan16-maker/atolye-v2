@@ -5,12 +5,23 @@ import {
 } from "@/lib/runtime/RuntimeStoragePaths";
 import {
   runtimePortableCollisionKey,
-  validateRuntimeLogicalPath,
 } from "@/lib/runtime/security/RuntimePathPolicy";
+import {
+  runtimeBackupPathPolicyVersion,
+  runtimeBackupPathPolicyVersionV1,
+  runtimeBackupPortableCollisionKey,
+  validateRuntimeBackupRelativePath,
+  type RuntimeBackupPathPolicyVersion,
+} from "./RuntimeBackupPathPolicy";
 
-export const runtimeBackupManifestSchemaVersion = "1" as const;
-export const runtimeBackupFormatVersion = "runtime-backup-v1" as const;
+export const runtimeBackupManifestSchemaVersionV1 = "1" as const;
+export const runtimeBackupFormatVersionV1 = "runtime-backup-v1" as const;
+export const runtimeBackupManifestSchemaVersionV2 = "2" as const;
+export const runtimeBackupFormatVersionV2 = "runtime-backup-v2" as const;
+export const runtimeBackupManifestSchemaVersion = "3" as const;
+export const runtimeBackupFormatVersion = "runtime-backup-v3" as const;
 export const runtimeBackupAggregateVersion = "runtime-tree-sha256-v1" as const;
+export const runtimeBackupAuthoritySchemaVersion = "runtime-authority-v1" as const;
 
 export type RuntimeBackupFileClassification =
   | "project-metadata"
@@ -50,12 +61,24 @@ export interface RuntimeBackupInventoryTotals {
 }
 
 export interface RuntimeBackupManifest {
-  readonly schemaVersion: typeof runtimeBackupManifestSchemaVersion;
-  readonly backupFormatVersion: typeof runtimeBackupFormatVersion;
+  readonly schemaVersion:
+    | typeof runtimeBackupManifestSchemaVersionV1
+    | typeof runtimeBackupManifestSchemaVersionV2
+    | typeof runtimeBackupManifestSchemaVersion;
+  readonly backupFormatVersion:
+    | typeof runtimeBackupFormatVersionV1
+    | typeof runtimeBackupFormatVersionV2
+    | typeof runtimeBackupFormatVersion;
+  readonly pathPolicyVersion?: typeof runtimeBackupPathPolicyVersion;
   readonly aggregateAlgorithm: typeof runtimeBackupAggregateVersion;
   readonly storagePolicyVersion: typeof runtimeStoragePolicyVersion;
   readonly createdAt: string;
   readonly sourceLogicalIdentity: string;
+  readonly sourceRuntimeAuthority?: {
+    readonly schemaVersion: typeof runtimeBackupAuthoritySchemaVersion;
+    readonly runtimeAuthorityId: string;
+    readonly projectIdentity: string;
+  };
   readonly sourceClassification: string;
   readonly sourceProjectsRootLogicalName: "projects";
   readonly sourceHeadCommit?: string;
@@ -92,13 +115,17 @@ export function validateRuntimeBackupManifest(
   value: unknown,
 ): asserts value is RuntimeBackupManifest {
   if (!isRecord(value)) throw new Error("Runtime backup manifest is invalid.");
+  const pathPolicyVersion = manifestPathPolicyVersion(value);
+  const isV3 = value.schemaVersion === runtimeBackupManifestSchemaVersion;
   assertExactKeys(value, [
     "schemaVersion",
     "backupFormatVersion",
+    "pathPolicyVersion",
     "aggregateAlgorithm",
     "storagePolicyVersion",
     "createdAt",
     "sourceLogicalIdentity",
+    ...(isV3 ? ["sourceRuntimeAuthority"] : []),
     "sourceClassification",
     "sourceProjectsRootLogicalName",
     "sourceHeadCommit",
@@ -107,8 +134,6 @@ export function validateRuntimeBackupManifest(
     "files",
   ], "Runtime backup manifest is invalid.");
   if (
-    value.schemaVersion !== runtimeBackupManifestSchemaVersion ||
-    value.backupFormatVersion !== runtimeBackupFormatVersion ||
     value.aggregateAlgorithm !== runtimeBackupAggregateVersion ||
     value.storagePolicyVersion !== runtimeStoragePolicyVersion ||
     typeof value.createdAt !== "string" ||
@@ -126,17 +151,25 @@ export function validateRuntimeBackupManifest(
     !isRecord(value.inventory)
   ) throw new Error("Runtime backup manifest is invalid.");
 
+  if (isV3) {
+    validateSourceRuntimeAuthority(value.sourceRuntimeAuthority, value.sourceLogicalIdentity);
+  } else if (value.sourceRuntimeAuthority !== undefined) {
+    throw new Error("Runtime backup manifest authority is invalid.");
+  }
+
   const files = value.files as unknown[];
   let previous = "";
   const exact = new Set<string>();
   const folded = new Set<string>();
   for (const item of files) {
-    validateFileRecord(item);
+    validateFileRecord(item, pathPolicyVersion);
     if (previous && compareText(previous, item.relativePath) >= 0) {
       throw new Error("Runtime backup manifest ordering is invalid.");
     }
     previous = item.relativePath;
-    const portableKey = runtimePortableCollisionKey(item.relativePath);
+    const portableKey = pathPolicyVersion === runtimeBackupPathPolicyVersionV1
+      ? runtimePortableCollisionKey(item.relativePath)
+      : runtimeBackupPortableCollisionKey(item.relativePath, pathPolicyVersion);
     if (exact.has(item.relativePath) || folded.has(portableKey)) {
       throw new Error("Runtime backup manifest path collision detected.");
     }
@@ -152,7 +185,10 @@ export function validateRuntimeBackupManifest(
   }
 }
 
-function validateFileRecord(value: unknown): asserts value is RuntimeBackupFileRecord {
+function validateFileRecord(
+  value: unknown,
+  pathPolicyVersion: RuntimeBackupPathPolicyVersion,
+): asserts value is RuntimeBackupFileRecord {
   if (!isRecord(value)) throw new Error("Runtime backup file record is invalid.");
   assertExactKeys(value, [
     "relativePath",
@@ -166,7 +202,7 @@ function validateFileRecord(value: unknown): asserts value is RuntimeBackupFileR
   ], "Runtime backup file record is invalid.");
   if (
     typeof value.relativePath !== "string" ||
-    !validRelativePath(value.relativePath) ||
+    !validRelativePath(value.relativePath, pathPolicyVersion) ||
     value.type !== "file" ||
     !Number.isSafeInteger(value.sizeBytes) ||
     (value.sizeBytes as number) < 0 ||
@@ -258,13 +294,55 @@ function compareText(left: string, right: string) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function validRelativePath(value: string) {
+function validRelativePath(
+  value: string,
+  pathPolicyVersion: RuntimeBackupPathPolicyVersion,
+) {
   try {
-    validateRuntimeLogicalPath(value);
+    validateRuntimeBackupRelativePath(value, pathPolicyVersion);
     return value.split("/").every(isPortableRuntimePathSegment);
   } catch {
     return false;
   }
+}
+
+function validateSourceRuntimeAuthority(value: unknown, projectIdentity: string) {
+  if (!isRecord(value)) throw new Error("Runtime backup manifest authority is invalid.");
+  assertExactKeys(value, [
+    "schemaVersion",
+    "runtimeAuthorityId",
+    "projectIdentity",
+  ], "Runtime backup manifest authority is invalid.");
+  if (
+    value.schemaVersion !== runtimeBackupAuthoritySchemaVersion ||
+    typeof value.runtimeAuthorityId !== "string" ||
+    !/^ra-[a-f0-9]{48}$/.test(value.runtimeAuthorityId) ||
+    value.projectIdentity !== projectIdentity
+  ) throw new Error("Runtime backup manifest authority is invalid.");
+}
+
+export function getRuntimeBackupManifestPathPolicyVersion(
+  manifest: Pick<RuntimeBackupManifest, "schemaVersion" | "backupFormatVersion" | "pathPolicyVersion">,
+): RuntimeBackupPathPolicyVersion {
+  return manifestPathPolicyVersion(manifest as Record<string, unknown>);
+}
+
+function manifestPathPolicyVersion(
+  value: Record<string, unknown>,
+): RuntimeBackupPathPolicyVersion {
+  if (
+    value.schemaVersion === runtimeBackupManifestSchemaVersionV1 &&
+    value.backupFormatVersion === runtimeBackupFormatVersionV1 &&
+    value.pathPolicyVersion === undefined
+  ) return runtimeBackupPathPolicyVersionV1;
+  if (
+    ((value.schemaVersion === runtimeBackupManifestSchemaVersionV2 &&
+      value.backupFormatVersion === runtimeBackupFormatVersionV2) ||
+      (value.schemaVersion === runtimeBackupManifestSchemaVersion &&
+        value.backupFormatVersion === runtimeBackupFormatVersion)) &&
+    value.pathPolicyVersion === runtimeBackupPathPolicyVersion
+  ) return runtimeBackupPathPolicyVersion;
+  throw new Error("Runtime backup manifest identity is invalid.");
 }
 
 function validSourceLogicalIdentity(value: string) {

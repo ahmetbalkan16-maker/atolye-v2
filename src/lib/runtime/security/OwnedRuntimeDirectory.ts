@@ -47,6 +47,7 @@ export interface OwnedRuntimeDirectoryAdapter {
     options: OwnedRuntimeWriteOptions<T>,
   ): T | undefined;
   cleanupOwnedDirectory(state: OwnedRuntimeDirectoryState): RuntimeMutationCleanupStatus;
+  closeRetainingOwnedDirectory(state: OwnedRuntimeDirectoryState): RuntimeMutationCleanupStatus;
   releaseOwnedDirectory(state: OwnedRuntimeDirectoryState): void;
 }
 
@@ -97,5 +98,9 @@ export class OwnedRuntimeDirectory {
 
   releaseOwnership(): void {
     this.adapter.releaseOwnedDirectory(this.state);
+  }
+
+  closeSessionRetainingOwnership(): RuntimeMutationCleanupStatus {
+    return this.adapter.closeRetainingOwnedDirectory(this.state);
   }
 }

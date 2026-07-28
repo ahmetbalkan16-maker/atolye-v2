@@ -9,6 +9,8 @@ import {
   createVerifiedRuntimeBackup,
   restoreAndVerifyRuntimeBackup,
 } from "../src/lib/runtime/backup/RuntimeBackupService";
+import { bootstrapTestRuntimeBackupStorageAuthority } from
+  "../src/lib/runtime/backup/RuntimeBackupAuthority";
 import { GuardedRuntimeFilesystem } from "../src/lib/runtime/security/GuardedRuntimeFilesystem";
 import { GuardedRuntimeMutationSession } from "../src/lib/runtime/security/GuardedRuntimeMutationSession";
 import { RuntimeMutationError } from "../src/lib/runtime/security/RuntimeMutationError";
@@ -63,6 +65,7 @@ async function main() {
       environment: { ATOLYE_RUNTIME_ROOT: runtimeRoot },
       authorityRoot,
     });
+    const backupAuthority = bootstrapTestRuntimeBackupStorageAuthority(context, backupRoot);
 
     await scenario("protected roots reject overlap prefix collision and reparse roots", () => {
       const roots = runtimeProtectedRootsFromContext({
@@ -412,29 +415,17 @@ async function main() {
 
     await scenario("backup create and restore verify use the guarded foundation", () => {
       const result = createVerifiedRuntimeBackup({
-        context,
-        backupRoot,
-        repositoryRoot: fixtureRepository,
+        authority: backupAuthority,
       }, {
-        backupId: () => "c2a-backup",
-        now: () => "2026-07-16T12:00:00.000Z",
+        backupId: "c2a-backup",
       });
-      const restoreRoot = path.join(sandbox, "restore-explicit");
-      fs.mkdirSync(restoreRoot);
       const report = restoreAndVerifyRuntimeBackup({
-        context,
-        backupDirectory: result.backupDirectory,
-        restoreRoot,
-        repositoryRoot: fixtureRepository,
-        liveProjectsRoot: projectsRoot,
+        authority: backupAuthority,
+        backupId: "c2a-backup",
       });
       assert.equal(report.valid, true);
       assert.equal(report.aggregateFingerprint, result.manifest.aggregateFingerprint);
-      assert.equal(fs.existsSync(path.join(restoreRoot, "projects", "project-a", "project.json")), true);
-      assert.deepEqual(
-        fs.readdirSync(restoreRoot).filter((name) => name.startsWith(".runtime-mutation-")),
-        [],
-      );
+      assert.equal(fs.existsSync(report.restoreRoot), false);
     });
 
     await scenario("mutation errors normalize platform and hook failures safely", () => {

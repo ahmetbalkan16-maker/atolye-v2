@@ -25,6 +25,39 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## 2026-07-28 — Runtime Backup Long-Path and V3 Authority Remediation / Completed
+
+Bağımsız nihai inceleme kararı `APPROVED`; P0 `0`, P1 `0`, P2 `0`.
+
+### Added
+
+- `RuntimeBackupAuthority` ile host-path-free kalıcı runtime authority marker, restart/relocation sürekliliği, bağımsız-root ayrımı ve malformed-marker fail-closed doğrulaması eklendi.
+- `StrictRuntimeDto` ile `Reflect.ownKeys`, exact `Object.prototype` ve own data-descriptor tabanlı mutation öncesi request boundary eklendi.
+- V3 manifest'e canonical source runtime authority ve exact project logical identity binding'i eklendi; yeni create işlemleri yalnız V3 üretir.
+- Trusted nominal backup-root authority, same-authority/portable verification ayrımı ve versioned backup path-policy eklendi.
+
+### Changed
+
+- Create/restore public API caller-provided backup root, backup directory, manifest, digest, file listesi, relative publication path veya publication yapısı seçemeyecek biçimde trusted authority'ye bağlandı.
+- Guarded atomic backup create/restore işlemleri explicit publication ownership, post-publication verification ve gözlenen reservation/session/publish-lock cleanup sonuçlarıyla sertleştirildi.
+- Manifest, inventory, verifier ve service V1/V2/V3 sözleşmelerini explicit ayıracak biçimde güncellendi. Migration verifier ve candidate manifest V2 sabitlerine açıkça bağlandı.
+- Cleanup ownership state machine operation-created root/container/lock/partial/final kalıntılarını yönetecek, cleanup failure'ı `CLEANUP_REQUIRED` olarak raporlayacak ve foreign identity'yi koruyacak biçimde değiştirildi.
+
+### Fixed
+
+- Global `180 UTF-16` sınırının production-shape backup yollarını reddetmesi backup'a özel versioned policy ile giderildi; global runtime path policy ve standart `beginMutation()` contract'ı korunur.
+- Caller-selected backup-root publication authority, cross-runtime/cross-project restore binding açığı ve proxy/prototype/accessor/symbol/exotic request kabulü kapatıldı.
+- Post-publication cleanup residue, same-ID yarış kanıtı, controlled source-drift zamanlaması ve post-publication root-layout TOCTOU kapsamı giderildi.
+
+### Compatibility and Validation
+
+- V1 schema `1` / `runtime-backup-v1`, `180 UTF-16 / 240 UTF-8` logical ve `240 UTF-16` materialization sınırıyla portable verify/restore compatibility için korunur.
+- V2 schema `2` / `runtime-backup-v2` / `runtime-backup-relative-path-v2`, `220 UTF-16 / 300 UTF-8` logical ve `259 UTF-16` materialization sınırıyla portable verification için korunur; authority bulunmadığından same-authority restore fail-closed olur.
+- V3 schema `3` / `runtime-backup-v3` / `runtime-backup-relative-path-v2`, `runtime-tree-sha256-v1`, canonical runtime authority ve exact project identity kullanır.
+- Production-shape `190`, bağımsız exact `259` public create → verify → restore, exact `260` pre-mutation rejection, real child-process barrier source drift ve real two-process same-ID single-winner/no-clobber/loser-cleanup senaryoları PASS.
+- Runtime backup `38/38`, runtime storage `21/21`, runtime hardening `13/13`, guarded filesystem `16/16`, unsupported skip `0`, TypeScript, targeted ESLint ve `git diff --check` PASS; provider/worker/network çağrısı `0`.
+- Production manifest, jobs, history, acceptance, animation, video ve assets hash'leri başlangıç/kapanışta eşleşti. `data/projects` tracked/untracked diff `0/0`; production create/restore, execute/resume ve mutation `0`. Bu turda commit veya push yapılmadı.
+
 ## 2026-07-28 — Sprint 129.28 — Production Acceptance Reauthorization and Durable Identity Authority Hardening / Completed
 
 Bağımsız final re-review kararı `APPROVED`; P0 `0`, P1 `0`, P2 `0`.

@@ -4,14 +4,21 @@ import {
   createRuntimeStorageContext,
   validateSafeAncestorChain,
 } from "@/lib/runtime/RuntimeStoragePaths";
+import { assertRuntimeMaterializedPath } from "@/lib/runtime/security/RuntimePathPolicy";
 import {
   runtimeBackupManifestSha256,
   serializeRuntimeBackupManifest,
+  getRuntimeBackupManifestPathPolicyVersion,
   validateRuntimeBackupManifest,
-  type RuntimeBackupFileRecord,
   type RuntimeBackupManifest,
 } from "./RuntimeBackupManifest";
-import { collectRuntimeBackupInventory } from "./RuntimeBackupInventory";
+import { assertRuntimeBackupTreeMatchesManifest } from "./RuntimeBackupInventory";
+import {
+  assertRuntimeBackupMaterializedPath,
+  runtimeBackupPathLimits,
+  runtimeBackupPathPolicyVersionV1,
+} from "./RuntimeBackupPathPolicy";
+import { decodeStrictRuntimeDto } from "@/lib/runtime/security/StrictRuntimeDto";
 
 export interface RuntimeBackupVerificationReport {
   readonly valid: true;
@@ -28,8 +35,16 @@ export interface RuntimeBackupVerificationReport {
 
 export function verifyRuntimeBackup(
   backupDirectory: string,
-  options: { readonly allowPartial?: boolean } = {},
+  rawOptions: { readonly allowPartial?: boolean } = {},
 ): RuntimeBackupVerificationReport {
+  const options = decodeStrictRuntimeDto(
+    rawOptions,
+    ["allowPartial"] as const,
+    () => new Error("Runtime backup verification request is invalid."),
+  );
+  if (options.allowPartial !== undefined && typeof options.allowPartial !== "boolean") {
+    throw new Error("Runtime backup verification request is invalid.");
+  }
   const backupRoot = requireAbsoluteDirectory(backupDirectory);
   if (!options.allowPartial && path.basename(backupRoot).includes(".partial")) {
     throw new Error("Partial runtime backup is not valid.");
@@ -63,7 +78,11 @@ export function verifyRuntimeBackup(
   if (serializeRuntimeBackupManifest(manifest) !== serialized) {
     throw new Error("Runtime backup manifest serialization is not canonical.");
   }
+  assertBackupMaterializationBudget(backupRoot, manifest);
   verifyRuntimeTreeAgainstManifest(projectsRoot, manifest);
+  requireExactDirectoryEntries(backupRoot, ["manifest.json", "manifest.sha256", "payload"]);
+  requireExactDirectoryEntries(payloadRoot, ["projects"]);
+  for (const target of [manifestPath, digestPath]) requireRegularFile(target);
   return Object.freeze({
     valid: true,
     manifest,
@@ -90,31 +109,11 @@ export function verifyRuntimeTreeAgainstManifest(
     workspaceRoot: runtimeRoot,
     environment: { ATOLYE_RUNTIME_ROOT: runtimeRoot },
   });
-  const inventory = collectRuntimeBackupInventory({
+  assertRuntimeBackupTreeMatchesManifest({
     context,
+    manifest,
     now: () => manifest.createdAt,
   });
-  const expected = manifest.files.map(treeIdentity);
-  const actual = inventory.files.map(treeIdentity);
-  if (
-    JSON.stringify(actual) !== JSON.stringify(expected) ||
-    inventory.aggregateFingerprint !== manifest.aggregateFingerprint ||
-    inventory.inventory.files !== manifest.inventory.files ||
-    inventory.inventory.bytes !== manifest.inventory.bytes
-  ) {
-    throw new Error("Runtime backup payload verification failed.");
-  }
-}
-
-function treeIdentity(file: RuntimeBackupFileRecord) {
-  return {
-    relativePath: file.relativePath,
-    sizeBytes: file.sizeBytes,
-    sha256: file.sha256,
-    permissionClass: file.permissionClass,
-    projectSlug: file.projectSlug,
-    classification: file.classification,
-  };
 }
 
 function requireAbsoluteDirectory(target: string) {
@@ -122,6 +121,9 @@ function requireAbsoluteDirectory(target: string) {
     throw new Error("Runtime backup path is invalid.");
   }
   const canonical = path.resolve(target);
+  if (canonical.length > runtimeBackupPathLimits.materializedPathUtf16) {
+    throw new Error("Runtime backup path is invalid.");
+  }
   validateSafeAncestorChain(canonical);
   const link = fs.lstatSync(canonical);
   if (link.isSymbolicLink() || !link.isDirectory()) {
@@ -130,6 +132,36 @@ function requireAbsoluteDirectory(target: string) {
   const real = fs.realpathSync(canonical);
   if (!samePath(real, canonical)) throw new Error("Runtime backup path is unsafe.");
   return real;
+}
+
+function assertBackupMaterializationBudget(
+  backupRoot: string,
+  manifest: RuntimeBackupManifest,
+) {
+  const policyVersion = getRuntimeBackupManifestPathPolicyVersion(manifest);
+  const projectsRoot = path.join(backupRoot, "payload", "projects");
+  if (policyVersion === runtimeBackupPathPolicyVersionV1) {
+    for (const absolute of [
+      backupRoot,
+      path.join(backupRoot, "manifest.json"),
+      path.join(backupRoot, "manifest.sha256"),
+      projectsRoot,
+    ]) {
+      if (path.resolve(absolute).length > 240) {
+        throw new Error("Runtime backup path is invalid.");
+      }
+    }
+    for (const file of manifest.files) {
+      assertRuntimeMaterializedPath(projectsRoot, file.relativePath);
+    }
+    return;
+  }
+  for (const relativePath of [
+    "manifest.json",
+    "manifest.sha256",
+    "payload/projects",
+    ...manifest.files.map((file) => `payload/projects/${file.relativePath}`),
+  ]) assertRuntimeBackupMaterializedPath(backupRoot, relativePath);
 }
 
 function requireRegularFile(target: string) {

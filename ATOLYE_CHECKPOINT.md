@@ -55,6 +55,39 @@ Production Acceptance Reauthorization and Durable Identity Authority Hardening
 
 Completed
 
+## Runtime Backup Long-Path and V3 Authority Remediation / Completed
+
+Runtime backup long-path, authority binding ve atomik cleanup remediation çalışması tamamlandı. Bağımsız nihai inceleme kararı `APPROVED`; P0 `0`, P1 `0`, P2 `0`.
+
+### Manifest ve path-policy sözleşmesi
+
+- Global runtime path policy ve standart `beginMutation()` sözleşmesi değiştirilmedi. Production-shape backup yollarını reddeden eski global `180 UTF-16` sınırı yerine yalnız backup alanına ait versioned path-policy eklendi.
+- V1: schema `1`, `runtime-backup-v1`, path-policy alanı yok, `180 UTF-16 / 240 UTF-8` logical-path ve `240 UTF-16` materialization sınırı; yalnız portable verify/restore compatibility için korunur.
+- V2: schema `2`, `runtime-backup-v2`, `runtime-backup-relative-path-v2`, `220 UTF-16 / 300 UTF-8` logical-path ve `259 UTF-16` materialization sınırı; yalnız portable verification compatibility için korunur. Runtime authority taşımadığı için same-authority restore fail-closed olur.
+- V3: schema `3`, `runtime-backup-v3`, `runtime-backup-relative-path-v2`, `runtime-tree-sha256-v1` aggregate, canonical source runtime authority ve exact project logical identity taşır. Yeni create işlemleri yalnız V3 üretir.
+
+### Runtime ve storage authority
+
+- Host-path-free ve kalıcı `runtimeAuthorityId`, trusted bootstrap tarafından oluşturulan authority marker üzerinden kurulur. Restart ve runtime-root relocation aynı kimliği korur; bağımsız runtime root'lar farklı kimlik üretir.
+- Malformed/değiştirilmiş marker fail-closed reddedilir. Structural/fake authority nesnesi nominal ownership kazanamaz.
+- Public create/restore caller-provided `backupRoot` veya `backupDirectory` kabul etmez. Backup root yalnız trusted nominal storage authority'den türetilir; final yol trusted root altında bounded backup ID ile oluşturulur.
+
+### Verification ve request boundary
+
+- Same-authority verify/restore yalnız V3 kabul eder ve exact runtime authority ile exact project identity binding uygular. Cross-runtime ve cross-project restore reddedilir.
+- Portable verification V1/V2/V3 destekler, temp-owned materialization ile sınırlıdır, `currentRuntimeBound:false` üretir ve live runtime restore authority kazandırmaz.
+- Strict DTO boundary mutation öncesinde enumerable/non-enumerable fazla alan, Proxy, getter/setter, inherited property, symbol key, class instance, null-prototype object, array/function, boxed primitive ve structural fake authority girdilerini fail-closed reddeder. Doğrulama `Reflect.ownKeys`, exact `Object.prototype` ve own data descriptor kurallarını kullanır.
+
+### Atomik publication, cleanup ve doğrulama
+
+- Publication ownership post-publication verification ve reservation/session/publish-lock cleanup tamamlanmadan bırakılmaz. Cleanup failure başarıya çevrilmez; canonical `CLEANUP_REQUIRED` davranışı korunur ve foreign identity silinmez.
+- Operation-created root/container/lock/partial/final kalıntıları güvenli biçimde temizlenir. Production-shape `190` karakter yol, bağımsız exact `259` public create → verify → restore zinciri ve exact `260` pre-mutation rejection doğrulandı.
+- Gerçek child-process barrier source drift'i yakaladı. İki gerçek process'in same-backup-ID yarışında tam bir winner oluştu; loser winner verisini değiştirmedi veya temizlemedi. Post-publication root-layout TOCTOU fail-closed sonuçlandı.
+- Final matrix: runtime backup `38/38`, runtime storage `21/21`, runtime hardening `13/13`, guarded filesystem `16/16`, guarded unsupported skip `0`, TypeScript, targeted ESLint ve `git diff --check` PASS; provider/worker/network çağrısı `0`.
+- Production baseline hash'leri manifest/jobs/history/acceptance/animation/video/assets için başlangıç ve kapanışta eşleşti. `data/projects` tracked/untracked diff `0/0`; production create/restore, execute/resume ve mutation `0` kaldı.
+
+Bir sonraki kontrollü adım bu dokümantasyon kapanışının commit/push edilmesi, ardından aktif production projesine audio aşamasından devam hazırlığıdır. Bu dokümantasyon turu production resume veya gerçek provider çağrısı yetkisi vermez; bunlar ayrı ve açık kullanıcı onayı gerektirir. Bu turda commit veya push yapılmadı.
+
 ## Sprint 129.28 — Production Acceptance Reauthorization and Durable Identity Authority Hardening / Completed
 
 Sprint 129.28 legacy production acceptance reauthorization, durable recovery store-policy ve capability identity authority zincirini fail-closed biçimde tamamladı. Bağımsız final re-review kararı `APPROVED`; P0 `0`, P1 `0`, P2 `0`.
