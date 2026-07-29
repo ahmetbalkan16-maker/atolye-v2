@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Critical
 Owner: Atölye V2
-Last Updated: 2026-07-29
+Last Updated: 2026-07-30
 ---
 
 # ⚠️ AI START HERE
@@ -47,13 +47,67 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 129.28**
+**Sprint 129.29**
 
-Production Acceptance Reauthorization and Durable Identity Authority Hardening
+Failed-Terminal Settlement Remediation
 
 **Durum**
 
 Completed
+
+## Sprint 129.29 — Failed-Terminal Settlement Remediation / Completed
+
+Sprint 129.29 kaynak düzeyindeki failed-terminal settlement remediation çalışması bağımsız final re-review sonucunda `APPROVED` olarak kapatıldı. Bulgu sayıları P0 `0`, P1 `0`, P2 `3`.
+
+### Onaylanan mimari sonuç
+
+- Canonical failed lifecycle `failed attempt → released lease → abandoned claim → cancelled record → canonical durable quiescence → original error propagation` sırasını uygular.
+- Gerçek canonical runtime failed-settlement callback'ini kurar. Terminal failed attempt persistence settlement'tan önce tamamlanır; attempt persistence failure settlement olmuş gibi raporlanmaz.
+- Başarılı settlement yolu değişmedi. Failed settlement otomatik retry, job requeue, worker restart, provider continuation veya ikinci handler/provider çağrısı üretmez.
+- Partial settlement durumları append-only no-clobber/CAS publication ve fail-closed reread ile güvenli biçimde forward-complete edilir. Historical stale durum aynı ortak primitive üzerinden tamamlanır; fully settled failure reconciliation write-free replay döndürür.
+- Cross-process doğruluk process-local lock'a değil durable no-clobber/CAS ve winner readback doğrulamasına dayanır. Settlement/settlement, settlement/reconciliation ve distinct active claim içeren gerçek child-process race testleri geçti.
+
+### Extended settlement error contract
+
+Settlement failure error'ları bounded ve serializable `writePerformed`, `writeFree`, `quiescenceProven`, `completedSettlementSteps`, `failedBoundary`, `originalReasonCode`, `settlementReasonCode`, `causeReasonCode` ve sanitized durable attempt evidence alanlarını korur. Bu evidence absolute path, secret, provider payload, request body, raw exception veya stack içermez.
+
+### Güncel production durumu
+
+- Research, script, scenes, visuals, animation ve video `completed`; audio `queued` ve attempts `2`; assembly, thumbnail, seo, youtube ve export `queued`.
+- Physical audio file `0`; `audio.json` ve `assets/audio` yoktur.
+- Durable authority `ready`; latest record v4 `cancelled`, lease v2 `released`, claim v2 `abandoned`, attempt v3 terminal `failed`; terminal code `AUDIO_ASSET_GENERATION_FAILED`.
+- Recovery başlangıcı `audio`; stage zinciri `audio → assembly → thumbnail → seo → youtube → export`.
+- Inventory `229 entry = 220 file + 9 directory`; reparse, temp, lock, compensation ve audio residue `0`.
+
+### Güncel schema marker ve production hash'leri
+
+- Marker schema/profile `3 / 2`; acceptance status `prepared`; `productionReady:false`; `published:false`; publish mode `package-only`.
+- Marker/acceptance SHA-256: `68a206134460acfb875768f5df8ef18af516cafda80964556fa5b842aeabbac4`.
+- Manifest: `bb425a8f8ed2fd30bcc327ba09e7b35bec0820cafabac735637dade149e527be`.
+- Jobs: `343e38b598bbd43e68dc6f68a91598db6d2a5e14c8c6ba874a965a2dc57d63d6`.
+- History: `c165ff9fd07b2e8992ab0bc12f1aff48348054642d400aad8b598875f11b0a8c`.
+- Animation: `92a8952b660b88de1b1d9123f600db85f8cbfdcdfc03e701c8d147f62f0e1f8c`.
+- Video: `08bf7fb27580873c8e203a70ab5b4285053d51c659173800bb98c709310ffcfc`.
+- Assets: `e5f70fe8387e47f2f1c0a7bbd661fc529d6ba6b8b52e0ab8d12fa5ffa97cda54`.
+
+### Validation evidence
+
+- Failed settlement `37`, durable wiring `19`, worker lifecycle `21`, execution-worker command legacy worker `55` + durable worker `18`, recovery bootstrap `18`, attempt `58`, claim `39`, lease `40`, durable storage `63`, audio wiring `73`, readiness/admission `24` senaryo PASS.
+- Actual unique core executions `465`; additional durable execution compatibility `17`. Önceki yanlış `444` toplamı geçerli değildir.
+- TypeScript, narrow ESLint ve `git diff --check` PASS.
+- Sprint 129.13 production-copy ve Sprint 129.9 production-resume nitelikli unsafe suite'ler çalıştırılmadı.
+
+### Kalan bounded P2 hardening kayıtları
+
+1. Child-process harness full parent environment'ı devralır ve stderr'i stdout ile birleştirir.
+2. Persisted-authority adversarial testleri second competing record, different non-terminal competing attempt ve duplicate reservation authority durumlarını ayrı fixture olarak henüz kurmaz.
+3. Retry failure mapping testleri gerçek persistence-boundary failure yerine synthetic settlement result kullanır.
+
+Bu üç kayıt future hardening kapsamındadır ve onaylanan failed-terminal lifecycle remediation'ını bloklamaz.
+
+### Authorization boundary
+
+Kaynak remediation onaylanmıştır. Queued audio execution ve production resume onaylanmamıştır. Provider/network execution ancak clean Git checkpoint, exact provider/configuration preflight, Snapshot A no-drift verification, final execution planning ve yeni açık kullanıcı yetkisinden sonra değerlendirilebilir.
 
 ## Runtime Backup Long-Path and V3 Authority Remediation / Completed
 

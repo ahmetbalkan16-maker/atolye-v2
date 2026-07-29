@@ -24,6 +24,7 @@ import {
 } from "./ProductionAcceptancePolicy";
 import {
   settlePendingSuccessfulProductionPipelineExecutions,
+  settleFailedProductionPipelineExecution,
   settleSuccessfulProductionPipelineExecution,
 } from "./ProductionPipelineTerminalSettlement";
 import {
@@ -192,6 +193,11 @@ async function executePreparedDurableProductionPipelineStage(
       prepared.executionAdapter,
       () => prepared.request,
       (result) => settleSuccessfulProductionPipelineExecution(prepared.settlement, result),
+      (result) => settleFailedProductionPipelineExecution({
+        ...prepared.settlement,
+        expectedProjectSlug: context.projectSlug,
+        expectedStage: context.stage,
+      }, result),
     ).execute(context, () => handler(undefined, identity, prepared.authority));
   });
 }

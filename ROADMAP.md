@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: High
 Owner: Atölye V2
-Last Updated: 2026-07-29
+Last Updated: 2026-07-30
 ---
 
 # Atölye V2 — Development Roadmap
@@ -39,7 +39,19 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 129.28 — Production Acceptance Reauthorization and Durable Identity Authority Hardening / Completed
+Sprint 129.29 — Failed-Terminal Settlement Remediation / Completed
+
+## Sprint 129.29 — Failed-Terminal Settlement Remediation / Completed
+
+- Canonical production failure path terminal failed attempt persistence sonrasında lease release, claim abandon, record cancellation ve canonical recovery/quiescence validation sırasını tamamlar; original provider/stage error korunur.
+- Gerçek canonical runtime failed-settlement callback'ini kurar. Success davranışı değişmedi; otomatik retry, requeue veya ikinci provider/handler çağrısı yoktur.
+- Authority-complete final verification bütün durable reservation, record, lease, claim ve attempt inventory'sini exact binding, integrity, contiguous version, unique authority ve competing-authority kurallarıyla fail-closed doğrular.
+- Settlement failure contract write durumu, quiescence, completed steps, failed boundary, original/settlement/cause code ve bounded sanitized attempt evidence taşır.
+- Historical stale failure forward-complete edilir; fully settled failure write-free replay olur. Cross-process settlement yarışları durable no-clobber/CAS ve reread convergence ile doğrulandı.
+- Bağımsız final re-review `APPROVED`; P0/P1/P2 `0/0/3`. Actual unique core execution sayısı `465`, additional durable execution compatibility `17`; TypeScript, narrow ESLint ve `git diff --check` PASS.
+- Future hardening: child-process environment allowlist + ayrı stderr assertion; second competing record/non-terminal attempt/duplicate reservation persisted fixtures; gerçek persistence-boundary retry mapping tests.
+- Sonraki kontrollü production milestone `Controlled audio execution planning` olarak tanımlıdır; audio execution tamamlanmış veya yetkili değildir.
+- Bu milestone şu kapılar tamamlanana kadar blocked kalır: (1) documentation closure, (2) clean Git checkpoint, (3) explicit production execution authorization, (4) exact provider/configuration preflight, (5) Snapshot A no-drift verification.
 
 ## Runtime Backup Long-Path, V3 Runtime Authority and Trusted Backup Root / Completed
 

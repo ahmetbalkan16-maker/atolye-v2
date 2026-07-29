@@ -1,17 +1,17 @@
 import { ProjectReader } from "@/lib/projects/ProjectReader";
 import type { PipelineJob } from "@/types/pipelineJob";
 import { AdapterBackedProductionExecutionClaimService } from "./ProductionExecutionDurableClaim";
-import { AdapterBackedProductionExecutionAttemptService } from "./ProductionExecutionDurableAttempt";
-import {
-  AdapterBackedProductionExecutionDurableLeaseService,
-  defaultProductionExecutionDurableLeasePolicy,
-} from "./ProductionExecutionDurableLease";
+import { AdapterBackedProductionExecutionAttemptService,
+  defaultProductionExecutionAttemptPolicy } from "./ProductionExecutionDurableAttempt";
+import { defaultProductionExecutionClaimPolicy } from "./ProductionExecutionDurableClaim";
+import { defaultProductionExecutionDurableLeasePolicy } from "./ProductionExecutionDurableLease";
 import {
   AdapterBackedProductionExecutionDurableStorage,
 } from "./ProductionExecutionDurableStorage";
 import { defaultProductionExecutionIdempotencyPolicy } from "./ProductionExecutionIdempotency";
 import { ProductionExecutionFilePersistenceAdapter } from "./ProductionExecutionPersistence";
 import { buildProductionPipelineExecutionIdentity } from "./ProductionPipelineExecutionIdentity";
+import { settleFailedProductionPipelineExecution } from "./ProductionPipelineTerminalSettlement";
 
 const reconciliationTtlSeconds = 31_536_000;
 
@@ -36,6 +36,9 @@ export interface ProductionPipelineRetryReconciliationResult {
 export async function reconcileFailedPipelineExecution(
   job: PipelineJob,
   now: () => string = () => new Date().toISOString(),
+  /** @internal Deterministic isolated-test seam; production callers never provide it. */
+  settleFailure: typeof settleFailedProductionPipelineExecution =
+    settleFailedProductionPipelineExecution,
 ): Promise<ProductionPipelineRetryReconciliationResult> {
   if (job.status !== "failed") {
     return failure("PIPELINE_RETRY_DURABLE_CONFLICT", "job:not-failed");
@@ -57,7 +60,6 @@ export async function reconcileFailedPipelineExecution(
   const storage = new AdapterBackedProductionExecutionDurableStorage(adapter);
   const attempts = new AdapterBackedProductionExecutionAttemptService(adapter);
   const claims = new AdapterBackedProductionExecutionClaimService(adapter);
-  const leases = new AdapterBackedProductionExecutionDurableLeaseService(adapter);
   const evaluatedAt = now();
 
   const [recordRead, attemptAssessment, claimAssessment] = await Promise.all([
@@ -79,129 +81,89 @@ export async function reconcileFailedPipelineExecution(
     return failure("PIPELINE_RETRY_DURABLE_CONFLICT", `attempt:${attemptAssessment.classification}`);
   }
 
-  let wrote = false;
-  let record = recordRead.record;
+  const record = recordRead.record;
+  const attempt = attemptAssessment.attempt;
+  const claim = claimAssessment.claim;
   const lease = record.durableLease;
-  if (!lease) return failure("PIPELINE_RETRY_DURABLE_STATE_MISSING", "lease:missing");
-  if (lease.status === "active") {
-    const released = await leases.release({
-      recordId: record.recordId,
-      expectedVersion: record.recordVersion,
-      evaluatedAt,
-      releasedAt: evaluatedAt,
-      worker: {
-        schemaVersion: "1",
-        workerId: lease.identity.workerId,
-        workerType: "server",
-        operationScope: [record.operation],
-        identitySource: "trusted-server",
+  if (!lease || !attempt.finalizedAt) {
+    return failure("PIPELINE_RETRY_DURABLE_STATE_MISSING", "durable:terminal-binding-missing");
+  }
+  const worker = { schemaVersion: "1" as const, workerId: lease.identity.workerId,
+    workerType: "server" as const, operationScope: [record.operation],
+    identitySource: "trusted-server" as const };
+  const session = { schemaVersion: "1" as const,
+    workerSessionId: lease.identity.workerSessionId, workerId: lease.identity.workerId,
+    startedAt: lease.acquiredAt, identitySource: "trusted-server" as const };
+  const idempotencyPolicy = { ...defaultProductionExecutionIdempotencyPolicy, enabled: true,
+    reservationTtlSeconds: reconciliationTtlSeconds, leaseTtlSeconds: reconciliationTtlSeconds };
+  const request = {
+    coordinator: {
+      claim: {
+        claimId: claim.identity.claimId, recordId: record.recordId,
+        reservationId: attempt.identity.reservationId, requestId: record.requestId,
+        idempotencyKey: record.idempotencyKey, operation: record.operation,
+        executionFingerprint: record.executionFingerprint, workerId: attempt.identity.workerId,
+        workerSessionId: attempt.identity.workerSessionId, leaseId: attempt.identity.leaseId,
+        expectedReservationVersion: attempt.binding.reservationVersion,
+        expectedIdempotencyVersion: claim.binding.idempotencyVersion,
+        expectedLeaseVersion: attempt.binding.leaseVersion,
+        expectedClaimVersion: Math.max(0, claim.claimVersion - 1), evaluatedAt,
       },
-      session: {
-        schemaVersion: "1",
-        workerSessionId: lease.identity.workerSessionId,
-        workerId: lease.identity.workerId,
-        startedAt: lease.acquiredAt,
-        identitySource: "trusted-server",
-      },
-      leaseId: lease.identity.leaseId,
-    }, {
-      policyVersion: defaultProductionExecutionDurableLeasePolicy.policyVersion,
+      attempt: { ...attempt.identity, expectedClaimVersion: attempt.binding.claimVersion,
+        expectedAttemptVersion: attempt.attemptVersion, evaluatedAt },
+    },
+    policy: {
+      claim: { ...defaultProductionExecutionClaimPolicy,
+        reservationTtlSeconds: reconciliationTtlSeconds },
+      attempt: { ...defaultProductionExecutionAttemptPolicy,
+        reservationTtlSeconds: reconciliationTtlSeconds },
+    },
+    runningAt: attempt.openedAt,
+    finishedAt: evaluatedAt,
+    runningEventId: attempt.journal.find((entry) => entry.payload.code === "WORKER_RUNNING")?.entryId ??
+      `${attempt.identity.attemptId}-running`,
+    terminalEventId: attempt.journal.at(-1)?.entryId ?? `${attempt.identity.attemptId}-terminal`,
+  };
+  const settled = await settleFailure({
+    adapter,
+    request,
+    idempotencyPolicy,
+    leasePolicy: { ...defaultProductionExecutionDurableLeasePolicy,
       reservationTtlSeconds: reconciliationTtlSeconds,
       minimumLeaseDurationSeconds: 1,
       maximumLeaseDurationSeconds: reconciliationTtlSeconds,
-      maximumRenewalWindowSeconds: reconciliationTtlSeconds,
-    });
-    if (!released.ok || !released.record) {
-      return failure("PIPELINE_RETRY_LEASE_CLEANUP_FAILED", `lease:${released.reasonCode}`);
-    }
-    record = released.record;
-    wrote = released.decision !== "replayed";
-  } else if (lease.status !== "released") {
-    return failure("PIPELINE_RETRY_DURABLE_CONFLICT", `lease:${lease.status}`);
+      maximumRenewalWindowSeconds: reconciliationTtlSeconds },
+    worker,
+    session,
+    expectedProjectSlug: job.projectSlug,
+    expectedStage: job.stage,
+  }, {
+    schemaVersion: "1", ok: true, decision: "replayed",
+    reasonCode: "WORKER_EXECUTION_REPLAYED", status: "failed", attempt,
+    handlerCalled: false, writeFree: true, evidence: ["reason:WORKER_EXECUTION_REPLAYED"],
+  });
+  if (!settled.ok) {
+    return failure(mapSettlementFailure(settled.reasonCode),
+      `settlement:${settled.reasonCode}:${settled.causeReasonCode ?? "unknown"}`,
+      settled.writeFree);
   }
+  return success(settled.writeFree ? "PIPELINE_RETRY_RECONCILIATION_REPLAYED" :
+    "PIPELINE_RETRY_RECONCILED", settled.writeFree, "attempt:immutable");
+}
 
-  const claim = claimAssessment.claim;
-  if (claim.state === "active") {
-    const abandoned = await claims.abandonExecutionClaim({
-      claimId: claim.identity.claimId,
-      workerId: claim.identity.workerId,
-      workerSessionId: claim.identity.workerSessionId,
-      leaseId: claim.identity.leaseId,
-      expectedClaimVersion: claim.claimVersion,
-      evaluatedAt,
-      reason: "coordination-recovery",
-    });
-    if (!abandoned.ok) {
-      return failure(
-        wrote ? "PIPELINE_RETRY_COMPENSATION_FAILED" : "PIPELINE_RETRY_CLAIM_CLEANUP_FAILED",
-        `claim:${abandoned.reasonCode}`,
-        !wrote,
-      );
-    }
-    wrote ||= abandoned.decision !== "replayed";
-  } else if (claim.state !== "abandoned" && claim.state !== "released") {
-    return failure("PIPELINE_RETRY_DURABLE_CONFLICT", `claim:${claim.state}`);
+function mapSettlementFailure(reasonCode: string): Exclude<
+ProductionPipelineRetryReconciliationReasonCode,
+"PIPELINE_RETRY_RECONCILED" | "PIPELINE_RETRY_RECONCILIATION_REPLAYED"> {
+  if (reasonCode === "PIPELINE_FAILED_SETTLEMENT_LEASE_RELEASE_FAILED") {
+    return "PIPELINE_RETRY_LEASE_CLEANUP_FAILED";
   }
-
-  const latest = await storage.read(record.recordId);
-  if (!latest.record) {
-    return failure("PIPELINE_RETRY_IDEMPOTENCY_CONFLICT", `record:${latest.reasonCode}`);
+  if (reasonCode === "PIPELINE_FAILED_SETTLEMENT_CLAIM_CLOSE_FAILED") {
+    return "PIPELINE_RETRY_CLAIM_CLEANUP_FAILED";
   }
-  record = latest.record;
-  if (record.state === "reserved") {
-    const idempotencyPolicy = {
-      ...defaultProductionExecutionIdempotencyPolicy,
-      enabled: true,
-      reservationTtlSeconds: reconciliationTtlSeconds,
-      leaseTtlSeconds: reconciliationTtlSeconds,
-    };
-    const released = await storage.releaseReservation(record.recordId, {
-      schemaVersion: "1",
-      recordId: record.recordId,
-      idempotencyKey: record.idempotencyKey,
-      fromState: "reserved",
-      toState: "cancelled",
-      expectedVersion: record.recordVersion,
-      attempt: record.attempt,
-      transitionedAt: evaluatedAt,
-      actorId: record.actorId,
-      reasonCode: "PIPELINE_RETRY_RECONCILIATION",
-      recovery: {
-        mode: "reconcile",
-        previousRecordId: record.recordId,
-        confirmationSingleUseConsumed: false,
-      },
-      evidence: ["pipeline-retry:failed-attempt", "reconciliation:forward-only"],
-    }, { evaluatedAt, policy: idempotencyPolicy });
-    if (!released.ok || released.record?.state !== "cancelled") {
-      return failure(
-        wrote ? "PIPELINE_RETRY_COMPENSATION_FAILED" : "PIPELINE_RETRY_IDEMPOTENCY_CONFLICT",
-        `record:${released.reasonCode}`,
-        !wrote,
-      );
-    }
-    wrote = true;
-  } else if (record.state !== "cancelled" && record.state !== "failed") {
-    return failure("PIPELINE_RETRY_IDEMPOTENCY_CONFLICT", `record:${record.state}`);
+  if (reasonCode === "PIPELINE_FAILED_SETTLEMENT_RECORD_TERMINALIZATION_FAILED") {
+    return "PIPELINE_RETRY_IDEMPOTENCY_CONFLICT";
   }
-
-  const finalAttempt = await attempts.evaluateExecutionAttemptRecovery(identity.attemptId, evaluatedAt);
-  const finalClaim = await claims.evaluateExecutionClaimRecovery(identity.claimId, evaluatedAt);
-  const finalRecord = await storage.read(identity.recordId);
-  if (
-    finalAttempt.attempt?.state !== "failed" ||
-    finalClaim.claim?.state === "active" ||
-    finalRecord.record?.durableLease?.status === "active" ||
-    !["cancelled", "failed"].includes(finalRecord.record?.state ?? "")
-  ) {
-    return failure("PIPELINE_RETRY_COMPENSATION_FAILED", "reconciliation:incomplete", !wrote);
-  }
-
-  return success(
-    wrote ? "PIPELINE_RETRY_RECONCILED" : "PIPELINE_RETRY_RECONCILIATION_REPLAYED",
-    !wrote,
-    "attempt:immutable",
-  );
+  return "PIPELINE_RETRY_COMPENSATION_FAILED";
 }
 
 function success(

@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Medium
 Owner: Atölye V2
-Last Updated: 2026-07-29
+Last Updated: 2026-07-30
 ---
 
 # Atölye V2 — Changelog
@@ -24,6 +24,35 @@ referans alınmalıdır.
 ---
 
 # Version 1.x
+
+## 2026-07-30 — Sprint 129.29 — Failed-Terminal Settlement Remediation / Completed
+
+Independent final re-review: `APPROVED`; P0/P1/P2 `0 / 0 / 3`.
+
+### Added
+
+- Canonical immediate failed-terminal settlement lifecycle eklendi.
+- Authority-complete final durable validation ve bounded settlement failure evidence eklendi.
+- Real child-process settlement/concurrency ve persisted-authority poisoning coverage eklendi.
+- Retry reconciliation için stable cleanup-specific public error mapping coverage eklendi.
+
+### Changed
+
+- Canonical runtime terminal failed attempt persistence sonrasında failed-settlement callback'ini çalıştıracak biçimde güncellendi.
+- Retry reconciliation shared failed-settlement semantics'i yeniden kullanacak biçimde değiştirildi.
+
+### Fixed
+
+- Canonical failure path'inde failed attempt sonrasında active claim, active lease ve reserved execution authority bırakılması giderildi.
+- Admission'ın failed execution coordination state'ini temizlemek için daha sonraki bir retry'a bağımlı olması kaldırıldı.
+
+### Validation
+
+- TypeScript, narrow ESLint ve `git diff --check` PASS.
+- Isolated smoke coverage PASS: actual unique core executions `465`; additional durable execution compatibility `17`.
+- Production data remediation ve independent review boyunca değişmedi; seven production hashes, queued audio state ve durable v4/v2/v2/v3 authority korundu.
+- Sprint 129.13 production-copy ve Sprint 129.9 production-resume suite'leri çalıştırılmadı.
+- Production resume, queued audio execution, provider/network çağrısı, staging, commit veya push bu kapanış tarafından yetkilendirilmez.
 
 ## 2026-07-28 — Runtime Backup Long-Path and V3 Authority Remediation / Completed
 
