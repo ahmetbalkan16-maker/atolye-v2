@@ -4,7 +4,7 @@ Version: 1.0.0
 Status: Active
 Priority: Critical
 Owner: Atölye V2
-Last Updated: 2026-07-28
+Last Updated: 2026-07-29
 ---
 
 # ⚠️ AI START HERE
@@ -137,23 +137,26 @@ Sprint 129.27 production audio generation ve canonical storage zincirini bounded
 - Final atomicity closure identity-check sonrası pathname unlink/rmdir yarışını ve canonical verification sonrası rename yarışını destructive pathname mutation'ını kaldırarak kapattı. Publish başarısı ile `publication.json` persistence arasındaki crash orphan'ı durable reservation, exact canonical binding ve deterministic/idempotent recovery ile güvenli biçimde yeniden bağlanır veya fail-closed kalır. Physical cleanup yerine logical retirement ve bounded deferred evidence kullanılır; foreign replacement hiçbir cleanup/recovery yolunda silinmez veya taşınmaz.
 - Windows fixture portability düzeltmesi smoke içindeki hassasiyet bağımlı `stat.ino + 1` fault injection'ını kaldırdı; mevcut inode `1` değilse `1`, aksi halde `2` seçen finite, non-zero ve kesin farklı deterministik identity kullanıldı. Production davranışı ve güvenlik sözleşmesi değişmedi.
 
-Final validation: Sprint 129.27 `77/77`, Sprint 129.26 audio budget `19/19`, production audio wiring `73/73`, runtime hardening `13/13`, guarded filesystem `16/16`, durable production attempt `58/58`, durable pipeline execution `17/17` ve durable pipeline wiring `19/19` PASS. `npx tsc --noEmit --incremental false`, changed-files ESLint (`0` warning) ve `git diff --check` PASS; timeout yok, kalan helper/child process `0`.
+### Final Two-Phase Publication Documentation Closure — 2026-07-29
 
-Final independent review: P0 `0`, P1 `0`, P2 `0`; karar `APPROVED FOR DOCUMENTATION COMPLETION`. P1-A identity check → path unlink/rmdir, P1-B canonical verify → rename ve P1-C publish → `publication.json` crash orphan bulguları `CLOSED` olarak doğrulandı. Windows parent-directory fsync capability sınırı platform notudur ve blocking değildir.
+Production Audio Two-Phase Publication remediation bağımsız targeted re-review ile `APPROVED` olarak kapatıldı. Final bulgu sayıları P0 `0`, P1 `0`, P2 `3`; kod ve test kapanışı tamamlandı.
 
-Production integrity exact korundu:
+- Lifecycle `preparing → prepared → publishing → committed` ile `failed-precommit` ve `conflict` sonuçlarını korur. Canonical publication son fallible commit noktasıdır; WAV validation, descriptor readback, hash/length, metadata ve durable intent hazırlığı publication öncesinde tamamlanır. Crash/restart/replay provider çağrısı olmadan idempotent tamamlanır.
+- Collection load `intentId`, `compensationRef`, `asset.id` ve canonical storage path için exact uniqueness uygular. Her duplicate bütün collection'ı fail-closed yapar; first-wins, silent deduplication veya partial registry görünümü yoktur.
+- Registry ownership, reconciliation ve intent read contained resolution, open, pre/post `fstat`, descriptor read, close, post-path identity ve SHA-256/publication binding ile descriptor-bound'dır. Same-content veya same-size foreign replacement owned sayılmaz ve foreign artifact değiştirilmez.
+- Compensation reference için tek authority `AudioCompensationStore.isSafeAudioCompensationRef()` helper'ıdır. Lookup, prepare/write ve persisted read/schema aynı canonical UUIDv4 policy'sini kullanır. Integrity-valid malformed kayıt store/collection/AssetManager zincirinde fail-closed olur ve partial liste veya registry success üretmez.
+- Dokuz canonical audio root exact allowlist ile korunur; root/phase job, manifest, history ve durable attempt yüzeylerinde exact eşleşir. Unknown root/phase fail-closed, evidence bounded/path-free/secret-free kalır.
+- Retry kanıtı provider factory invocation `2`, farklı provider object identity, durable attempt `2`, doğru failure→success lineage ve farklı-root failure ayrışmasını doğrular; configured-provider fallback yoktur.
+- Final validation: canonical compensation predicate `9/9`, audio remediation `117/117`, production audio wiring `73/73`, audio budget `19/19`, runtime hardening `13/13`, guarded filesystem `16/16`, durable attempt `58/58`, durable execution `17/17`, durable wiring `19/19` ve runtime backup/security `38/38` PASS. TypeScript, targeted ESLint ve `git diff --check` PASS.
+- Production safety: yedi exact local file hash ve deterministic assets aggregate başlangıç/kapanış MATCH; `data/projects` tracked/untracked `0/0`, production audio entry `0`, partial/lock/compensation/intent residue `0`, production mutation `0`, gerçek provider/network çağrısı `0/0`.
 
-- Manifest: `BB425A8F8ED2FD30BCC327BA09E7B35BEC0820CAFABAC735637DADE149E527BE`
-- Jobs: `FA887912D164EACEC290E0550D955D5FF5109AE72E74B3E3407C5AE62333D2F4`
-- History: `C165FF9FD07B2E8992AB0BC12F1AFF48348054642D400AAD8B598875F11B0A8C`
-- Acceptance: `92BE5CFD31565117FC1E6C170A12FE8220856D81DC117BA79C5457DEF72F441B`
-- Animation: `92A8952B660B88DE1B1D9123F600DB85F8CBFDCDFC03E701C8D147F62F0E1F8C`
-- Video: `08BF7FB27580873C8E203A70AB5B4285053D51C659173800BB98C709310FFCFC`
-- Assets registry: `E5F70FE8387E47F2F1C0A7BBD661FC529D6BA6B8B52E0AB8D12FA5FFA97CDA54`
+Non-blocking açık P2 kayıtları: (1) intent strict DTO proxy/prototype/symbol/data-descriptor hardening, (2) legacy `AudioStorage.saveAudio()` pathname verification, (3) ayrı canonical publish ve registry success sayaçları. Bunlar aktif production generation/resume güvenlik sınırını doğrudan bypass etmez.
 
-Altı scene MP4 hash'i değişmedi; `audio.json`, `assets/audio` ve production compensation workspace yoktur. Recovery `blocked:false`, `startStage:"audio"`; marker `productionReady:false`, `published:false`, `publishMode:"package-only"`. Production execute/resume ve gerçek provider/network çağrısı `0` kaldı.
+### Production Resume Authority Blocker
 
-Bir sonraki adım: `controlled production retry from audio stage`. Bu adım yalnız documentation commit/push tamamlandıktan, working tree güvenle kaydedildikten ve production acceptance/recovery durumu yeniden doğrulandıktan sonra ayrı kontrollü turda çalıştırılacaktır; henüz production retry yapılmadı.
+Kod remediation onaylanmıştır; production resume readiness ayrı admission kararıdır. `ATOLYE_RUNTIME_ROOT` unset ve bu checkout legacy-default repository runtime kullanıyor. Farklı cihazlarda farklı local production snapshot hash'leri görülmüştür. Önceki `60af…` assets aggregate değeri mevcut deterministic aggregate sözleşmesiyle yeniden üretilemedi. Mevcut aggregate `0081087b3a9a987a1152e0c689c1ee57f5469d08c3236b23071ece0c8a732300`; `assets/assets.json` SHA-256 değeri `baa7dacc3a92fbba708fc070dd189addc34a9bde77e4a24077ae00aef9b92ddd`.
+
+Remediation production mutation yapmadı; buna rağmen operator canonical runtime snapshot/authority seçimini açıkça yapmadan production resume/reprepare/reauthorize veya provider çağrısı çalıştırılmamalıdır. Sonraki güvenli adım bu documentation closure kapsamının kullanıcı tarafından commit/push edilmesidir.
 
 ## Sprint 129.25 C.2B.4 — Operation-Scoped Runtime Context Propagation / Completed
 

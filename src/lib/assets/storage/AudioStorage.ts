@@ -36,6 +36,11 @@ import {
 import { getPreparedAudioPublicationIntent, prepareAudioPublicationIntent } from
   "@/lib/audio/AudioPublicationIntentStore";
 import {
+  AudioDescriptorVerificationError,
+  readContainedAudioFileDescriptorBound,
+} from
+  "@/lib/audio/AudioDescriptorBoundVerification";
+import {
   requireContainedStorageDirectory,
   requireContainedStorageFile,
 } from "./StoragePathSecurity";
@@ -340,12 +345,13 @@ export class AudioStorage {
         canonicalCommitted = true;
       } catch {
         try {
-          const { realPath, stat } = requireContainedStorageFile(
-            path.dirname(destinationPath), destinationPath, context,
+          readContainedAudioFileDescriptorBound(
+            path.dirname(destinationPath),
+            destinationPath,
+            context,
+            current.publication,
           );
-          canonicalCommitted = stat.isFile() && stat.dev === current.publication.device &&
-            stat.ino === current.publication.inode && stat.size === current.publication.byteLength &&
-            sha256(fs.readFileSync(realPath)) === current.publication.sha256;
+          canonicalCommitted = true;
         } catch { canonicalCommitted = false; }
         if (!canonicalCommitted) {
           throw new AudioCanonicalAdmissionConflictError();
@@ -1382,54 +1388,20 @@ function readCanonicalFileDescriptorBound(
   context: RuntimeStorageContext,
   expectedIdentity?: ProtectedAudioCanonicalReadIdentity,
 ): Buffer {
-  const canonical = requireContainedStorageFile(
-    storageRoot,
-    canonicalPath,
-    context,
-  );
-  const descriptor = fs.openSync(canonical.realPath, "r");
   try {
-    const before = fs.fstatSync(descriptor);
-    if (
-      !before.isFile() ||
-      !reliableFileIdentity(before.dev, before.ino) ||
-      before.dev !== canonical.stat.dev ||
-      before.ino !== canonical.stat.ino ||
-      before.size !== canonical.stat.size
-    ) {
+    if (!expectedIdentity) throw new AudioCompensationStoreError();
+    return readContainedAudioFileDescriptorBound(
+      storageRoot,
+      canonicalPath,
+      context,
+      expectedIdentity,
+    );
+  } catch (error) {
+    if (error instanceof AudioDescriptorVerificationError) {
       throw new AudioCompensationStoreError();
     }
-    const bytes = fs.readFileSync(descriptor);
-    const after = fs.fstatSync(descriptor);
-    const digest = sha256(bytes);
-    if (
-      !after.isFile() ||
-      !reliableFileIdentity(after.dev, after.ino) ||
-      after.dev !== before.dev ||
-      after.ino !== before.ino ||
-      after.size !== before.size ||
-      bytes.length !== before.size ||
-      (expectedIdentity &&
-        (before.dev !== expectedIdentity.device ||
-          before.ino !== expectedIdentity.inode ||
-          before.size !== expectedIdentity.byteLength ||
-          digest !== expectedIdentity.sha256))
-    ) {
-      throw new AudioCompensationStoreError();
-    }
-    return bytes;
-  } finally {
-    fs.closeSync(descriptor);
+    throw error;
   }
-}
-
-function reliableFileIdentity(device: number, inode: number): boolean {
-  return Number.isFinite(device) &&
-    Number.isInteger(device) &&
-    device > 0 &&
-    Number.isFinite(inode) &&
-    Number.isInteger(inode) &&
-    inode > 0;
 }
 
 function registryOwnership(
@@ -1469,24 +1441,13 @@ function registryOwnership(
     }
     const storageRoot = resolvePath(AudioStorage.getAudioDir(projectSlug), context);
     const canonicalPath = path.join(storageRoot, receipt.canonicalFileName);
-    const { realPath, stat } = requireContainedStorageFile(
+    readContainedAudioFileDescriptorBound(
       storageRoot,
       canonicalPath,
       context,
+      publication,
     );
-    if (
-      !stat.isFile() ||
-      stat.size !== receipt.byteLength ||
-      stat.dev !== publication.device ||
-      stat.ino !== publication.inode
-    ) {
-      return { status: "conflict" };
-    }
-    const bytes = fs.readFileSync(realPath);
-    return bytes.length === receipt.byteLength &&
-        sha256(bytes) === receipt.sha256
-      ? { status: "owned", projectAssets }
-      : { status: "conflict" };
+    return { status: "owned", projectAssets };
   } catch {
     return { status: "conflict" };
   }

@@ -3,6 +3,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import type { Asset } from "@/types/asset";
 import { containsReservedSafeEvidenceTerm, isSafeAudioIdentifier } from "./AudioIdentifierPolicy";
+import { isSafeAudioCompensationRef } from "./AudioCompensationStore";
 import { requireActiveProductionRuntimeOperationContext } from
   "@/lib/runtime/ProductionRuntimeOperationContext";
 import {
@@ -17,6 +18,10 @@ import {
 } from "@/lib/runtime/RuntimeStoragePaths";
 import type { PortablePublishedFile } from
   "@/lib/runtime/security/PortableNoClobberFilePublisher";
+import {
+  readAudioFileDescriptorBound,
+  readContainedAudioFileDescriptorBound,
+} from "./AudioDescriptorBoundVerification";
 
 const SCHEMA = "audio-publication-intent-v1";
 const DIRECTORY = "audio-publication-intents";
@@ -72,21 +77,16 @@ export function getPreparedAudioPublicationIntent(
   input: RuntimeStorageInput = {},
 ): AudioPublicationIntent | undefined {
   if (!/^[a-zA-Z0-9-_]+$/.test(projectSlug) ||
-    !/^audio-comp-[0-9a-f-]{36}$/.test(compensationRef)) {
+    !isSafeAudioCompensationRef(compensationRef)) {
     throw new AudioPublicationIntentError();
   }
   const context = resolveRuntimeStorageContext(input);
   const directory = intentDirectory(projectSlug, context, false);
   if (!fs.existsSync(directory)) return undefined;
   const operation = requireActiveProductionRuntimeOperationContext();
-  const entries = fs.readdirSync(directory).sort();
-  if (entries.length > MAX_INTENTS) throw new AudioPublicationIntentError();
+  const intents = readIntentCollection(directory, context);
   let match: AudioPublicationIntent | undefined;
-  for (const entry of entries) {
-    if (!entry.endsWith(".json") || !SAFE_ID.test(entry.slice(0, -5))) {
-      throw new AudioPublicationIntentError();
-    }
-    const intent = readIntent(path.join(directory, entry));
+  for (const intent of intents) {
     if (intent.runtimeAuthorityBinding !== operation.authority.resolverBindingIdentity) {
       throw new AudioPublicationIntentError();
     }
@@ -109,7 +109,9 @@ export function getAudioPublicationLifecycleState(
   if (!intent) return undefined;
   const canonicalPath = resolveRuntimeLogicalPath(intent.canonicalRelativePath, context);
   if (!fs.existsSync(canonicalPath)) return "prepared";
-  return matchesCanonical(canonicalPath, intent.publication) ? "committed" : "conflict";
+  return matchesCanonical(canonicalPath, intent.publication, context)
+    ? "committed"
+    : "conflict";
 }
 
 export function prepareAudioPublicationIntent(input: {
@@ -123,6 +125,9 @@ export function prepareAudioPublicationIntent(input: {
 }): AudioPublicationIntent {
   const context = resolveRuntimeStorageContext(input.context);
   assertProjectWriteAuthorityLease(input.authority, input.projectSlug, context);
+  if (!isSafeAudioCompensationRef(input.compensationRef)) {
+    throw new AudioPublicationIntentError();
+  }
   const operation = requireActiveProductionRuntimeOperationContext();
   const canonicalRelativePath = canonicalAssetPath(input.projectSlug, input.asset);
   validateAsset(input.asset, input.projectSlug, input.projectId, input.publication);
@@ -140,7 +145,13 @@ export function prepareAudioPublicationIntent(input: {
     projectId: input.projectId,
     runtimeAuthorityBinding: operation.authority.resolverBindingIdentity,
     canonicalRelativePath,
-    publication: Object.freeze({ ...input.publication }),
+    publication: Object.freeze({
+      mode: input.publication.mode,
+      device: input.publication.device,
+      inode: input.publication.inode,
+      byteLength: input.publication.byteLength,
+      sha256: input.publication.sha256,
+    }),
     registryPayloadFingerprint: digest(asset),
     asset,
     // The intent must be byte-identical on replay; the validated asset timestamp
@@ -165,14 +176,9 @@ export function getCommittedAudioPublicationAssets(
   const directory = intentDirectory(projectSlug, context, false);
   if (!fs.existsSync(directory)) return [];
   const operation = requireActiveProductionRuntimeOperationContext();
-  const entries = fs.readdirSync(directory).sort();
-  if (entries.length > MAX_INTENTS || entries.some((entry) =>
-    !entry.endsWith(".json") || !SAFE_ID.test(entry.slice(0, -5)))) {
-    throw new AudioPublicationIntentError();
-  }
+  const intents = readIntentCollection(directory, context);
   const committed: Asset[] = [];
-  for (const entry of entries) {
-    const intent = readIntent(path.join(directory, entry));
+  for (const intent of intents) {
     if (
       intent.projectSlug !== projectSlug ||
       intent.projectId !== projectId ||
@@ -182,7 +188,7 @@ export function getCommittedAudioPublicationAssets(
     }
     const canonicalPath = resolveRuntimeLogicalPath(intent.canonicalRelativePath, context);
     if (!fs.existsSync(canonicalPath)) continue;
-    if (!matchesCanonical(canonicalPath, intent.publication)) {
+    if (!matchesCanonical(canonicalPath, intent.publication, context)) {
       throw new AudioPublicationIntentConflictError();
     }
     committed.push(Object.freeze({ ...intent.asset }));
@@ -272,12 +278,19 @@ function writeIntentNoClobber(filePath: string, intent: AudioPublicationIntent) 
 }
 
 function readIntent(filePath: string): AudioPublicationIntent {
-  const stat = fs.lstatSync(filePath);
-  if (!stat.isFile() || stat.isSymbolicLink() || stat.size <= 0 || stat.size > MAX_INTENT_BYTES) {
-    throw new AudioPublicationIntentError();
-  }
   let value: unknown;
-  try { value = JSON.parse(fs.readFileSync(filePath, "utf8")); }
+  try {
+    const link = fs.lstatSync(filePath);
+    if (!link.isFile() || link.isSymbolicLink()) throw new AudioPublicationIntentError();
+    value = JSON.parse(readAudioFileDescriptorBound(filePath, {
+      maximumByteLength: MAX_INTENT_BYTES,
+      openedIdentity: {
+        device: link.dev,
+        inode: link.ino,
+        byteLength: link.size,
+      },
+    }).toString("utf8"));
+  }
   catch { throw new AudioPublicationIntentError(); }
   if (!validIntent(value)) throw new AudioPublicationIntentError();
   return Object.freeze(value);
@@ -288,13 +301,18 @@ function validIntent(value: unknown): value is AudioPublicationIntent {
   const intent = value as AudioPublicationIntent;
   const { integrity, ...body } = intent;
   try {
-    return Object.keys(intent).length === 13 && intent.schemaVersion === SCHEMA &&
+    return hasExactKeys(intent, [
+      "schemaVersion", "state", "intentId", "compensationRef", "projectSlug",
+      "projectId", "runtimeAuthorityBinding", "canonicalRelativePath", "publication",
+      "registryPayloadFingerprint", "asset", "createdAt", "integrity",
+    ]) && intent.schemaVersion === SCHEMA &&
       intent.state === "prepared" && SAFE_ID.test(intent.intentId) &&
-      /^audio-comp-[0-9a-f-]{36}$/.test(intent.compensationRef) &&
+      isSafeAudioCompensationRef(intent.compensationRef) &&
       /^[a-zA-Z0-9-_]+$/.test(intent.projectSlug) && SAFE_ID.test(intent.projectId) &&
       typeof intent.runtimeAuthorityBinding === "string" && intent.runtimeAuthorityBinding.length > 0 &&
       intent.registryPayloadFingerprint === digest(intent.asset) &&
       Number.isFinite(Date.parse(intent.createdAt)) && integrity === digest(body) &&
+      validPublication(intent.publication) &&
       validateIntentAsset(intent);
   } catch { return false; }
 }
@@ -304,26 +322,73 @@ function validateIntentAsset(intent: AudioPublicationIntent) {
   return canonicalAssetPath(intent.projectSlug, intent.asset) === intent.canonicalRelativePath;
 }
 
-function matchesCanonical(filePath: string, expected: PortablePublishedFile) {
+function matchesCanonical(
+  filePath: string,
+  expected: PortablePublishedFile,
+  context: RuntimeStorageContext,
+) {
   try {
-    const link = fs.lstatSync(filePath);
-    if (!link.isFile() || link.isSymbolicLink()) return false;
-    const descriptor = fs.openSync(filePath, "r");
-    try {
-      const before = fs.fstatSync(descriptor);
-      const bytes = fs.readFileSync(descriptor);
-      const after = fs.fstatSync(descriptor);
-      return before.isFile() && before.dev === expected.device && before.ino === expected.inode &&
-        before.size === expected.byteLength && after.dev === before.dev && after.ino === before.ino &&
-        after.size === before.size && digestBytes(bytes) === expected.sha256;
-    } finally { fs.closeSync(descriptor); }
+    readContainedAudioFileDescriptorBound(path.dirname(filePath), filePath, context, expected);
+    return true;
   } catch { return false; }
+}
+
+function readIntentCollection(
+  directory: string,
+  context: RuntimeStorageContext,
+): readonly AudioPublicationIntent[] {
+  const entries = fs.readdirSync(directory).sort();
+  if (entries.length > MAX_INTENTS || entries.some((entry) =>
+    !entry.endsWith(".json") || !SAFE_ID.test(entry.slice(0, -5)))) {
+    throw new AudioPublicationIntentError();
+  }
+  const intents = entries.map((entry) => readIntent(path.join(directory, entry)));
+  const intentIds = new Set<string>();
+  const compensationRefs = new Set<string>();
+  const assetIds = new Set<string>();
+  const canonicalPaths = new Set<string>();
+  for (const intent of intents) {
+    const canonicalPath = canonicalPathIdentity(
+      resolveRuntimeLogicalPath(intent.canonicalRelativePath, context),
+    );
+    if (
+      intentIds.has(intent.intentId) ||
+      compensationRefs.has(intent.compensationRef) ||
+      assetIds.has(intent.asset.id) ||
+      canonicalPaths.has(canonicalPath)
+    ) throw new AudioPublicationIntentConflictError();
+    intentIds.add(intent.intentId);
+    compensationRefs.add(intent.compensationRef);
+    assetIds.add(intent.asset.id);
+    canonicalPaths.add(canonicalPath);
+  }
+  return Object.freeze(intents);
+}
+
+function canonicalPathIdentity(value: string): string {
+  const normalized = path.normalize(path.resolve(value));
+  return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+}
+
+function validPublication(value: unknown): value is PortablePublishedFile {
+  if (!value || typeof value !== "object" || !hasExactKeys(value, [
+    "mode", "device", "inode", "byteLength", "sha256",
+  ])) return false;
+  const publication = value as PortablePublishedFile;
+  return (publication.mode === "hard-link" || publication.mode === "exclusive-copy") &&
+    Number.isFinite(publication.device) && Number.isInteger(publication.device) &&
+    publication.device > 0 &&
+    Number.isFinite(publication.inode) && Number.isInteger(publication.inode) &&
+    publication.inode > 0 &&
+    Number.isSafeInteger(publication.byteLength) && publication.byteLength > 0 &&
+    /^[0-9a-f]{64}$/.test(publication.sha256);
+}
+
+function hasExactKeys(value: object, expected: readonly string[]): boolean {
+  const keys = Object.keys(value);
+  return keys.length === expected.length && expected.every((key) => keys.includes(key));
 }
 
 function digest(value: unknown) {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
-}
-
-function digestBytes(value: Buffer) {
-  return createHash("sha256").update(value).digest("hex");
 }

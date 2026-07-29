@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 import { AudioPipeline, AudioAssetGenerationError } from "../src/lib/audio/AudioPipeline";
 import {
   AudioAssetRootError,
+  AudioCanonicalAdmissionConflictError,
   createAudioAssetErrorEvidence,
   getAudioAssetErrorEvidence,
   serializeAudioAssetErrorEvidence,
@@ -16,7 +17,11 @@ import { OpenAIAudioProvider } from "../src/lib/audio/providers/OpenAIAudioProvi
 import { MockAudioProvider } from "../src/lib/audio/providers/MockAudioProvider";
 import { AudioProviderRouter } from "../src/lib/audio/providers/AudioProviderRouter";
 import { getOpenAIAudioProviderConfig } from "../src/lib/audio/providers/AudioProviderConfig";
-import { getAudioPublicationLifecycleState } from
+import {
+  getAudioPublicationLifecycleState,
+  getCommittedAudioPublicationAssets,
+  getPreparedAudioPublicationIntent,
+} from
   "../src/lib/audio/AudioPublicationIntentStore";
 import {
   AUDIO_IDENTIFIER_MAX_LENGTH,
@@ -29,6 +34,7 @@ import { GET as getAudioAsset } from "../app/api/assets/audio/[slug]/[fileName]/
 import { publishFilePortableNoClobber } from "../src/lib/runtime/security/PortableNoClobberFilePublisher";
 import {
   getDeferredAudioCompensationBacklogStatus,
+  isSafeAudioCompensationRef,
   removeRegistryOwnedAudioCompensationRecord as removeRegistryRecordWithAuthority,
 } from "../src/lib/audio/AudioCompensationStore";
 import { AssetManager } from "../src/lib/assets/AssetManager";
@@ -528,7 +534,7 @@ async function assertFullAudioFailureChain(input: {
   assert.equal(stageFailure.code, "AUDIO_ASSET_GENERATION_FAILED");
   const evidence = getAudioAssetErrorEvidence(stageFailure);
   assert(evidence);
-  assert.equal(evidence.rootCode, input.rootCode);
+  assert.equal(evidence.rootCode, input.rootCode, input.name);
   assert.equal(evidence.phase, input.phase);
   assert.equal(evidence.cleanup, input.cleanup);
   assert.equal(evidence.compensation, input.compensation);
@@ -616,6 +622,64 @@ function createRegistryOwnedFixture(
   const compensationRef = AudioStorage.getCompensationRef(asset);
   assert(compensationRef);
   return { compensationRef, projectId, saved, asset };
+}
+
+function createTwoPhaseRegistryOwnedFixture(
+  projectSlug: string,
+  fileName: string,
+  sceneId?: number,
+) {
+  const projectId = `${projectSlug}-id`;
+  const saved = AudioStorage.prepareAudio({
+    projectSlug,
+    fileName,
+    data: wav(),
+  });
+  const asset = AudioStorage.transferPublicationOwnership(
+    saved,
+    AssetManager.createAsset({
+      projectId,
+      projectSlug,
+      type: "audio",
+      status: "generated",
+      provider: "openai",
+      model: "mock-tts-model",
+      prompt: "audio-generation-request",
+      ...(sceneId === undefined ? {} : { sceneId }),
+      filePath: saved.filePath,
+      url: saved.url,
+      mimeType: saved.mimeType,
+      byteLength: saved.byteLength,
+      durationSeconds: saved.durationSeconds,
+    }),
+  );
+  const committed = AudioStorage.commitPreparedAudio(asset, projectId);
+  const compensationRef = AudioStorage.getCompensationRef(asset);
+  assert(compensationRef);
+  assert.equal(committed.assets.some((candidate) => candidate.id === asset.id), true);
+  return { compensationRef, projectId, saved, asset };
+}
+
+function audioIntentRoot(context: RuntimeStorageContext, projectSlug: string): string {
+  return path.join(
+    context.projectsRoot,
+    projectSlug,
+    "production-execution",
+    "audio-publication-intents",
+  );
+}
+
+function rewriteIntent(
+  filePath: string,
+  mutate: (intent: Record<string, unknown>) => void,
+): void {
+  const intent = JSON.parse(fs.readFileSync(filePath, "utf8")) as Record<string, unknown>;
+  mutate(intent);
+  delete intent.integrity;
+  intent.integrity = createHash("sha256")
+    .update(JSON.stringify(intent))
+    .digest("hex");
+  fs.writeFileSync(filePath, JSON.stringify(intent));
 }
 
 function replaceCanonicalWithForeignCopy(
@@ -2969,6 +3033,135 @@ async function run(): Promise<void> {
         assert.deepEqual(fs.readFileSync(canonicalPath), wav());
       });
 
+      await scenario("registry ownership rejects a same-content pre-open path swap", () => {
+        const slug = "sprint-129-27-registry-pre-open-swap";
+        const fixture = createTwoPhaseRegistryOwnedFixture(slug, "canonical.wav", 1);
+        const canonicalPath = path.join(
+          storageContext.runtimeRoot,
+          fixture.saved.filePath.slice("data/".length),
+        );
+        const ownedPath = `${canonicalPath}.owned`;
+        const bytes = wav();
+        const originalStat = fs.statSync;
+        let foreign: fs.Stats | undefined;
+        (fs as unknown as { statSync: typeof fs.statSync }).statSync = ((
+          candidate: fs.PathLike,
+          ...args: unknown[]
+        ) => {
+          const stat = (originalStat as (...values: unknown[]) => fs.Stats)(candidate, ...args);
+          if (!foreign && path.resolve(String(candidate)) === path.resolve(canonicalPath)) {
+            fs.renameSync(canonicalPath, ownedPath);
+            fs.writeFileSync(canonicalPath, bytes, { flag: "wx" });
+            foreign = originalStat(canonicalPath);
+          }
+          return stat;
+        }) as typeof fs.statSync;
+        try {
+          assert.throws(() => getCommittedAudioPublicationAssets(
+            slug,
+            fixture.projectId,
+            storageContext,
+          ));
+        } finally {
+          (fs as unknown as { statSync: typeof fs.statSync }).statSync = originalStat;
+        }
+        assert(foreign);
+        assert.deepEqual(fs.readFileSync(canonicalPath), bytes);
+        assert.equal(fs.statSync(canonicalPath).ino, foreign.ino);
+      });
+
+      await scenario("canonical reconciliation rejects and preserves a same-content replacement", () => {
+        const slug = "sprint-129-27-reconciliation-swap";
+        const projectId = `${slug}-id`;
+        const saved = AudioStorage.prepareAudio({
+          projectSlug: slug,
+          fileName: "canonical.wav",
+          data: wav(),
+        });
+        const asset = AudioStorage.transferPublicationOwnership(
+          saved,
+          AssetManager.createAsset({
+            projectId,
+            projectSlug: slug,
+            type: "audio",
+            status: "generated",
+            provider: "openai",
+            model: "mock-tts-model",
+            prompt: "audio-generation-request",
+            filePath: saved.filePath,
+            url: saved.url,
+            mimeType: saved.mimeType,
+            byteLength: saved.byteLength,
+            durationSeconds: saved.durationSeconds,
+          }),
+        );
+        const canonicalPath = path.join(
+          storageContext.runtimeRoot,
+          saved.filePath.slice("data/".length),
+        );
+        const originalLink = fs.linkSync;
+        let foreign: fs.Stats | undefined;
+        fs.linkSync = ((source: fs.PathLike, destination: fs.PathLike) => {
+          const result = originalLink(source, destination);
+          if (path.resolve(String(destination)) === path.resolve(canonicalPath)) {
+            const bytes = fs.readFileSync(canonicalPath);
+            fs.renameSync(canonicalPath, `${canonicalPath}.owned`);
+            fs.writeFileSync(canonicalPath, bytes, { flag: "wx" });
+            foreign = fs.statSync(canonicalPath);
+            throw new Error("controlled post-publication replacement");
+          }
+          return result;
+        }) as typeof fs.linkSync;
+        try {
+          assert.throws(
+            () => AudioStorage.commitPreparedAudio(asset, projectId),
+            (error) => error instanceof AudioCanonicalAdmissionConflictError,
+          );
+        } finally {
+          fs.linkSync = originalLink;
+        }
+        assert(foreign);
+        assert.deepEqual(fs.readFileSync(canonicalPath), wav());
+        assert.equal(fs.statSync(canonicalPath).ino, foreign.ino);
+        const compensationRef = AudioStorage.getCompensationRef(asset);
+        assert(compensationRef);
+        assert.equal(
+          getAudioPublicationLifecycleState(slug, compensationRef, storageContext),
+          "conflict",
+        );
+      });
+
+      await scenario("intent read rejects a same-content replacement between lstat and open", () => {
+        const slug = "sprint-129-27-intent-read-swap";
+        const fixture = createTwoPhaseRegistryOwnedFixture(slug, "canonical.wav", 1);
+        const intentRoot = audioIntentRoot(storageContext, slug);
+        const intentPath = path.join(intentRoot, fs.readdirSync(intentRoot)[0]);
+        const bytes = fs.readFileSync(intentPath);
+        const originalLstat = fs.lstatSync;
+        let foreign: fs.Stats | undefined;
+        (fs as unknown as { lstatSync: typeof fs.lstatSync }).lstatSync = ((candidate: fs.PathLike, ...args: unknown[]) => {
+          const stat = (originalLstat as (...values: unknown[]) => fs.Stats)(candidate, ...args);
+          if (!foreign && path.resolve(String(candidate)) === path.resolve(intentPath)) {
+            fs.renameSync(intentPath, `${intentPath}.owned`);
+            fs.writeFileSync(intentPath, bytes, { flag: "wx" });
+            foreign = originalLstat(intentPath);
+          }
+          return stat;
+        }) as typeof fs.lstatSync;
+        try {
+          assert.throws(() => getCommittedAudioPublicationAssets(
+            slug,
+            fixture.projectId,
+            storageContext,
+          ));
+        } finally {
+          (fs as unknown as { lstatSync: typeof fs.lstatSync }).lstatSync = originalLstat;
+        }
+        assert(foreign);
+        assert.deepEqual(fs.readFileSync(intentPath), bytes);
+        assert.equal(fs.statSync(intentPath).ino, foreign.ino);
+      });
+
       await scenario("publication receipts reject mismatch reuse replacement and forgery", () => {
         const contextBound = AudioStorage.saveAudio({
           projectSlug: "sprint-129-27-receipt-context",
@@ -3123,7 +3316,7 @@ async function run(): Promise<void> {
         );
       });
 
-      await scenario("canonical verify-to-mutation swap preserves foreign entry without rename", () => {
+      await scenario("canonical descriptor-close swap fails closed and preserves foreign entry", () => {
         const slug = "sprint-129-27-quarantine-destruction-swap";
         const saved = AudioStorage.saveAudio({
           projectSlug: slug,
@@ -3166,13 +3359,14 @@ async function run(): Promise<void> {
         }
         assert.equal(swapped, true);
         assert.equal(productionRenames, 0);
-        assert.equal(swappedResult.compensated, true);
-        assert.equal(swappedResult.cleanup, "deferred");
+        assert.equal(swappedResult.status, "failed");
+        assert.equal(swappedResult.compensated, false);
+        assert.equal(swappedResult.retryable, true);
         assert.deepEqual(fs.readFileSync(canonicalPath), foreign);
         assert.deepEqual(fs.readFileSync(ownedBackup), wav());
         const replay = AudioStorage.recoverPublishedAudio(slug, compensationRef);
-        assert.equal(replay.compensated, true);
-        assert.equal(replay.cleanup, "deferred");
+        assert.equal(replay.status, "failed");
+        assert.equal(replay.compensated, false);
         assert.deepEqual(fs.readFileSync(canonicalPath), foreign);
       });
 
@@ -3786,10 +3980,10 @@ async function run(): Promise<void> {
       });
 
       let actualReadbackFailure: AudioAssetGenerationError | undefined;
-      for (const [name, method, code] of [
-        ["stat", "statSync", "EACCES"],
-        ["open", "readFileSync", "EACCES"],
-        ["read", "readFileSync", "EIO"],
+      for (const [name, code] of [
+        ["stat", "EACCES"],
+        ["open", "EACCES"],
+        ["read", "EIO"],
       ] as const) {
         await scenario(`stored readback ${name} failure is classified as storage`, async () => {
           const slug = `sprint-129-27-readback-${name}`;
@@ -3802,17 +3996,42 @@ async function run(): Promise<void> {
             storageContext.runtimeRoot,
             saved.filePath.slice("data/".length),
           );
-          const original = fs[method] as (...args: never[]) => unknown;
+          const originalStat = fs.statSync;
+          const originalOpen = fs.openSync;
+          const originalRead = fs.readFileSync;
           let injected = false;
-          (fs as unknown as Record<string, unknown>)[method] = (candidate: fs.PathLike, ...args: never[]) => {
-            if (!injected && path.resolve(String(candidate)) === path.resolve(canonical)) {
-              injected = true;
-              const error = new Error("C:\\private API_KEY stack") as NodeJS.ErrnoException;
-              error.code = code;
-              throw error;
-            }
-            return original(candidate as never, ...args);
+          let canonicalDescriptor: number | undefined;
+          const failure = () => {
+            injected = true;
+            const error = new Error("C:\\private API_KEY stack") as NodeJS.ErrnoException;
+            error.code = code;
+            return error;
           };
+          (fs as unknown as { statSync: typeof fs.statSync }).statSync = ((candidate: fs.PathLike, ...args: unknown[]) => {
+            if (name === "stat" && !injected &&
+              path.resolve(String(candidate)) === path.resolve(canonical)) {
+              throw failure();
+            }
+            return (originalStat as (...values: unknown[]) => fs.Stats)(candidate, ...args);
+          }) as typeof fs.statSync;
+          fs.openSync = ((candidate: fs.PathLike, flags: fs.OpenMode, mode?: fs.Mode) => {
+            if (path.resolve(String(candidate)) === path.resolve(canonical)) {
+              if (name === "open" && !injected) throw failure();
+              const descriptor = originalOpen(candidate, flags, mode);
+              canonicalDescriptor = descriptor;
+              return descriptor;
+            }
+            return originalOpen(candidate, flags, mode);
+          }) as typeof fs.openSync;
+          fs.readFileSync = ((candidate: fs.PathOrFileDescriptor, ...args: unknown[]) => {
+            if (name === "read" && !injected && candidate === canonicalDescriptor) {
+              throw failure();
+            }
+            return (originalRead as (...values: unknown[]) => ReturnType<typeof fs.readFileSync>)(
+              candidate,
+              ...args,
+            );
+          }) as typeof fs.readFileSync;
           try {
             await assert.rejects(
               AudioPipeline.generateAudio({
@@ -3832,7 +4051,9 @@ async function run(): Promise<void> {
               },
             );
           } finally {
-            (fs as unknown as Record<string, unknown>)[method] = original;
+            (fs as unknown as { statSync: typeof fs.statSync }).statSync = originalStat;
+            fs.openSync = originalOpen;
+            fs.readFileSync = originalRead;
           }
           assert.equal(injected, true);
         });
@@ -4132,10 +4353,7 @@ async function run(): Promise<void> {
         assert.equal(evidence?.rootCode, "AUDIO_ASSET_REGISTRY_FAILED");
         assert.equal(evidence?.compensation, "failed");
         assert.equal(evidence?.cleanup, "deferred");
-        assert.match(
-          evidence?.compensationRef ?? "",
-          /^audio-comp-[0-9a-f-]{36}$/,
-        );
+        assert.equal(isSafeAudioCompensationRef(evidence?.compensationRef), true);
         const terminal = (await latestAttemptEvidence(prepared))?.journal.find(
           (entry) => entry.entryId === prepared.request.terminalEventId,
         );
@@ -4150,6 +4368,217 @@ async function run(): Promise<void> {
           JSON.stringify({ evidence, terminal }),
           /Authorization|API_KEY|C:\\|stack|narration|workspace retirement/i,
         );
+      });
+
+      for (const malformedCase of [
+        ["hyphen-only", `audio-comp-${"-".repeat(36)}`],
+        ["non-uuid-hex", `audio-comp-${"0".repeat(36)}`],
+        ["uuid-v1", "audio-comp-123e4567-e89b-12d3-a456-426614174000"],
+        ["invalid-variant", "audio-comp-123e4567-e89b-42d3-7456-426614174000"],
+        ["uppercase-uuid", "audio-comp-123E4567-E89B-42D3-A456-426614174000"],
+        ["missing-character", "audio-comp-123e4567-e89b-42d3-a456-42661417400"],
+        ["extra-character", "audio-comp-123e4567-e89b-42d3-a456-4266141740000"],
+        ["malformed-uuid-shape", "audio-comp-123e4567-e89b-42d3-a456-42661417400-"],
+      ] as const) {
+        await scenario(`publication intent rejects malformed compensation ref ${malformedCase[0]}`, () => {
+          const slug = `sprint-129-27-malformed-ref-${malformedCase[0]}`;
+          const fixture = createTwoPhaseRegistryOwnedFixture(slug, "committed.wav", 1);
+          const root = audioIntentRoot(storageContext, slug);
+          const files = fs.readdirSync(root).map((entry) => path.join(root, entry));
+          assert.equal(files.length, 1);
+          assert.equal(isSafeAudioCompensationRef(fixture.compensationRef), true);
+          assert.equal(isSafeAudioCompensationRef(malformedCase[1]), false);
+          AssetManager.saveProjectAssets(
+            slug,
+            {
+              ...AssetManager.createDefaultAssets(fixture.projectId, slug),
+              assets: [fixture.asset],
+            },
+            storageContext,
+          );
+          rewriteIntent(files[0], (candidate) => {
+            candidate.compensationRef = malformedCase[1];
+          });
+
+          const assertFailClosed = (read: () => unknown) => {
+            let result: unknown;
+            let caught: unknown;
+            try {
+              result = read();
+            } catch (error) {
+              caught = error;
+            }
+            assert.equal(result, undefined);
+            assert(caught instanceof Error);
+            const error = caught;
+            assert.equal(error.name, "AudioPublicationIntentError");
+            assert.equal(error.message, "Audio publication intent is invalid.");
+            assert.equal(error.stack, undefined);
+            const evidence = JSON.stringify({ name: error.name, message: error.message });
+            assert.equal(evidence.includes(malformedCase[1]), false);
+            assert.equal(evidence.includes(storageContext.runtimeRoot), false);
+            assert.doesNotMatch(evidence, /secret|authorization|api[_-]?key|stack/i);
+          };
+
+          assertFailClosed(() => getPreparedAudioPublicationIntent(
+            slug,
+            fixture.compensationRef,
+            storageContext,
+          ));
+          assertFailClosed(() => getCommittedAudioPublicationAssets(
+            slug,
+            fixture.projectId,
+            storageContext,
+          ));
+          let registryAssetCount = 0;
+          assertFailClosed(() => {
+            const assets = AssetManager.getProjectAssets(
+              slug,
+              fixture.projectId,
+              storageContext,
+            );
+            registryAssetCount = assets.assets.length;
+            return assets;
+          });
+          assert.equal(registryAssetCount, 0);
+        });
+      }
+
+      await scenario("canonical UUIDv4 compensation ref remains deterministic", () => {
+        const slug = "sprint-129-27-canonical-compensation-ref";
+        const fixture = createTwoPhaseRegistryOwnedFixture(slug, "committed.wav", 1);
+        assert.equal(isSafeAudioCompensationRef(fixture.compensationRef), true);
+        assert.equal(
+          getPreparedAudioPublicationIntent(slug, fixture.compensationRef, storageContext)
+            ?.compensationRef,
+          fixture.compensationRef,
+        );
+        const first = getCommittedAudioPublicationAssets(
+          slug,
+          fixture.projectId,
+          storageContext,
+        );
+        const registry = AssetManager.getProjectAssets(
+          slug,
+          fixture.projectId,
+          storageContext,
+        );
+        const replay = getCommittedAudioPublicationAssets(
+          slug,
+          fixture.projectId,
+          storageContext,
+        );
+        assert.equal(first.length, 1);
+        assert.equal(registry.assets.length, 1);
+        assert.deepEqual(replay, first);
+      });
+
+      for (const duplicateCase of [
+        "intent-id",
+        "compensation-ref",
+        "asset-id",
+        "canonical-path",
+        "exact-copy",
+        "prepared-committed-asset-id",
+        "distinct-intent-canonical-path",
+        "distinct-path-asset-id",
+      ] as const) {
+        await scenario(`publication intent collection rejects duplicate ${duplicateCase}`, () => {
+          const slug = `sprint-129-27-duplicate-${duplicateCase}`;
+          const first = createTwoPhaseRegistryOwnedFixture(slug, "first.wav", 1);
+          const second = createTwoPhaseRegistryOwnedFixture(slug, "second.wav", 2);
+          const root = audioIntentRoot(storageContext, slug);
+          const files = fs.readdirSync(root).sort().map((entry) => path.join(root, entry));
+          assert.equal(files.length, 2);
+          const firstIntent = JSON.parse(fs.readFileSync(files[0], "utf8")) as {
+            intentId: string;
+            compensationRef: string;
+            canonicalRelativePath: string;
+            asset: { id: string; filePath: string };
+          };
+          if (duplicateCase === "exact-copy") {
+            fs.copyFileSync(files[0], path.join(root, "safe-duplicate-copy.json"));
+          } else {
+            rewriteIntent(files[1], (candidate) => {
+              const asset = candidate.asset as Record<string, unknown>;
+              if (duplicateCase === "intent-id") candidate.intentId = firstIntent.intentId;
+              if (duplicateCase === "compensation-ref") {
+                candidate.compensationRef = firstIntent.compensationRef;
+              }
+              if (duplicateCase === "asset-id" ||
+                duplicateCase === "prepared-committed-asset-id" ||
+                duplicateCase === "distinct-path-asset-id") {
+                asset.id = firstIntent.asset.id;
+                candidate.registryPayloadFingerprint = createHash("sha256")
+                  .update(JSON.stringify(asset))
+                  .digest("hex");
+              }
+              if (duplicateCase === "canonical-path" ||
+                duplicateCase === "distinct-intent-canonical-path") {
+                candidate.canonicalRelativePath = firstIntent.canonicalRelativePath;
+                asset.filePath = firstIntent.asset.filePath;
+                candidate.registryPayloadFingerprint = createHash("sha256")
+                  .update(JSON.stringify(asset))
+                  .digest("hex");
+              }
+            });
+          }
+          if (duplicateCase === "prepared-committed-asset-id") {
+            const canonical = path.join(
+              storageContext.runtimeRoot,
+              second.saved.filePath.slice("data/".length),
+            );
+            fs.renameSync(canonical, `${canonical}.prepared-fixture`);
+          }
+
+          let isolatedCount = 0;
+          assert.throws(() => {
+            isolatedCount = getCommittedAudioPublicationAssets(
+              slug,
+              first.projectId,
+              storageContext,
+            ).length;
+          });
+          assert.equal(isolatedCount, 0);
+          let registryCount = 0;
+          assert.throws(() => {
+            registryCount = AssetManager.getProjectAssets(
+              slug,
+              first.projectId,
+              storageContext,
+            ).assets.length;
+          });
+          assert.equal(registryCount, 0);
+          assert.throws(() => getCommittedAudioPublicationAssets(
+            slug,
+            first.projectId,
+            storageContext,
+          ));
+        });
+      }
+
+      await scenario("two unique committed publication intents remain deterministic", () => {
+        const slug = "sprint-129-27-unique-intents";
+        const first = createTwoPhaseRegistryOwnedFixture(slug, "first.wav", 1);
+        createTwoPhaseRegistryOwnedFixture(slug, "second.wav", 2);
+        const isolated = getCommittedAudioPublicationAssets(
+          slug,
+          first.projectId,
+          storageContext,
+        );
+        const registry = AssetManager.getProjectAssets(
+          slug,
+          first.projectId,
+          storageContext,
+        );
+        const replay = getCommittedAudioPublicationAssets(
+          slug,
+          first.projectId,
+          storageContext,
+        );
+        assert.equal(isolated.length, 2);
+        assert.equal(registry.assets.length, 2);
+        assert.deepEqual(replay, isolated);
       });
 
       await scenario("prepared intent recovers crash before canonical publish exactly once", async () => {
