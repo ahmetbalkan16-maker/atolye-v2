@@ -39,12 +39,18 @@ import { SpawnRunner } from "../src/lib/assembly/providers/FFmpegVideoAssemblyPr
 import { VisualManager } from "../src/lib/visuals/VisualManager";
 import { AnimationPromptGenerator } from "../src/lib/animation/prompts/AnimationPromptGenerator";
 import { AudioManager } from "../src/lib/audio/AudioManager";
+import { AudioAssetRootError } from "../src/lib/audio/AudioAssetError";
+import { AudioStorage } from "../src/lib/assets/storage/AudioStorage";
 import { AssemblyManager } from "../src/lib/assembly/AssemblyManager";
 import { SEOManager } from "../src/lib/seo/SEOManager";
 import { createProviderDispatchAdapter } from "../src/lib/providers/ProviderDispatchAdapterAuthority";
 import type { ScriptData } from "../src/types/script";
 import type { SceneData } from "../src/types/scene";
 import type { VisualData } from "../src/types/visual";
+import {
+  createProductionRuntimeOperationContext,
+  runWithProductionRuntimeOperationContext,
+} from "../src/lib/runtime/ProductionRuntimeOperationContext";
 
 let projectsRoot = "";
 let canonicalRuntime: CanonicalSmokeRuntime;
@@ -53,7 +59,13 @@ const trace = (step: string) => { if (process.env.SMOKE_TRACE === "1") console.e
 
 async function run() {
   const beforeProbes = probeDirectories();
-  const readiness = await readinessService().evaluate();
+  let completedProbeRoot = "";
+  const readiness = await readinessService({
+    beforeProbeCleanup(root) {
+      completedProbeRoot = root;
+      assertCompletedAudioProbe(root);
+    },
+  }).evaluate();
   assert.equal(readiness.ready, false);
   assert.equal(find(readiness, "animation-provider").status, "NOT_CONFIGURED");
   assert.equal(find(readiness, "animation-provider").reasonCode, "ANIMATION_PROVIDER_MISSING");
@@ -61,7 +73,12 @@ async function run() {
   assert.equal(find(readiness, "ffmpeg").status, "NOT_CONFIGURED");
   assert.equal(find(readiness, "ffprobe").status, "NOT_CONFIGURED");
   assert.equal(find(readiness, "filesystem-permission").status, "READY");
+  assert.equal(find(readiness, "filesystem-permission").reasonCode, "FILESYSTEM_READ_WRITE_READY");
+  assert.equal(find(readiness, "audio-storage").status, "READY");
+  assert.equal(find(readiness, "audio-storage").reasonCode, "AUDIO_STORAGE_READY");
   assert.equal(find(readiness, "storage-containment").status, "READY");
+  assert(completedProbeRoot);
+  assert.equal(fs.existsSync(completedProbeRoot), false);
   assert.deepEqual(probeDirectories(), beforeProbes, "Readiness probe workspace was not cleaned.");
   assert(readiness.checks.every((item) => /^[A-Z0-9_]+$/.test(item.reasonCode)));
 
@@ -73,6 +90,7 @@ async function run() {
   trace("probe-cleanup"); await verifyProbeCleanupFailsClosed();
   trace("spawn-timeout"); await verifySpawnRunnerTimeoutCleanup();
   trace("runtime-reevaluation"); await verifyRuntimeReevaluation();
+  trace("audio-operation-scope"); await verifyAudioOperationScope();
   trace("acceptance-gate"); await verifyAcceptanceGateStopsPipeline();
 
   console.log("Sprint 126 production readiness acceptance smoke passed.");
@@ -84,6 +102,7 @@ async function run() {
 async function main() {
   await withCanonicalSmokeRuntime({ name: "production-readiness-acceptance",
     configureProductionExecution: false,
+    enterOperationContext: false,
     environment: { AI_PROVIDER: undefined, IMAGE_PROVIDER: undefined, AUDIO_PROVIDER: undefined,
       ANIMATION_PROVIDER: undefined, VIDEO_PROVIDER: undefined, VIDEO_ASSEMBLY_PROVIDER: undefined,
       THUMBNAIL_PROVIDER: undefined, YOUTUBE_PROVIDER: undefined, YOUTUBE_PUBLISH_PROVIDER: undefined,
@@ -93,6 +112,74 @@ async function main() {
     await run();
   });
   emitSmokeResult("production-readiness-acceptance", 24);
+}
+
+async function verifyAudioOperationScope() {
+  const directSlug = `readiness-direct-audio-${crypto.randomUUID()}`;
+  assert.throws(
+    () => AudioStorage.saveAudio({
+      projectSlug: directSlug,
+      assetId: "scope-required",
+      data: readinessWavFixture(),
+    }, canonicalRuntime.runtimeStorageContext),
+    (error) => error instanceof AudioAssetRootError &&
+      error.evidence.rootCode === "AUDIO_STORAGE_WRITE_FAILED",
+  );
+
+  const beforeProbes = probeDirectories();
+  const mismatched = createProductionRuntimeOperationContext({
+    operationId: `readiness-mismatch-${crypto.randomUUID()}`,
+    operationType: "readiness-mismatch-test",
+    authorityGeneration: "runtime-authority-generation-mismatch",
+    storageContext: canonicalRuntime.runtimeStorageContext,
+  });
+  const report = await runWithProductionRuntimeOperationContext(
+    mismatched,
+    () => readinessService().evaluate(),
+  );
+  assert.equal(find(report, "audio-storage").status, "UNAVAILABLE");
+  assert.equal(find(report, "audio-storage").reasonCode, "AUDIO_STORAGE_ADAPTER_UNAVAILABLE");
+  assert.equal(find(report, "images-storage").status, "READY");
+  assert.equal(find(report, "video-storage").status, "READY");
+  assert.equal(find(report, "thumbnail-storage").status, "READY");
+  assert.equal(find(report, "assembly-storage").status, "READY");
+  assert.deepEqual(probeDirectories(), beforeProbes);
+}
+
+function assertCompletedAudioProbe(root: string) {
+  assert.equal(fs.existsSync(path.join(root, "assets", "audio", "readiness-audio.wav")), true);
+  const cleanupRoot = path.join(root, "production-execution", "audio-compensation-cleanup");
+  const records = fs.readdirSync(cleanupRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith("audio-comp-"));
+  assert.equal(records.length, 1);
+  const recordRoot = path.join(cleanupRoot, records[0].name, "record");
+  const stateFiles = fs.readdirSync(recordRoot)
+    .filter((entry) => /^state-[0-9]{6}\.json$/.test(entry))
+    .sort();
+  assert(stateFiles.length > 0);
+  const terminal = JSON.parse(
+    fs.readFileSync(path.join(recordRoot, stateFiles.at(-1)!), "utf8"),
+  ) as { status?: unknown; outcome?: unknown };
+  assert.equal(terminal.status, "completed");
+  assert.equal(terminal.outcome, "compensated");
+}
+
+function readinessWavFixture() {
+  const samples = 80;
+  const buffer = Buffer.alloc(44 + samples * 2);
+  buffer.write("RIFF", 0, "ascii");
+  buffer.writeUInt32LE(buffer.length - 8, 4);
+  buffer.write("WAVEfmt ", 8, "ascii");
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(1, 22);
+  buffer.writeUInt32LE(8_000, 24);
+  buffer.writeUInt32LE(16_000, 28);
+  buffer.writeUInt16LE(2, 32);
+  buffer.writeUInt16LE(16, 34);
+  buffer.write("data", 36, "ascii");
+  buffer.writeUInt32LE(samples * 2, 40);
+  return buffer;
 }
 
 async function verifyStrictAIProviderFailure() {

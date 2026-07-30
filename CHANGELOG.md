@@ -25,6 +25,36 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## 2026-07-30 — Production Readiness Audio-Storage Probe Regression Closure / Completed
+
+Independent final review: `APPROVED`; P0/P1/P2 `0 / 0 / 2`.
+
+### Changed
+
+- Yalnız production readiness audio adapter probe, trusted `RuntimeStorageContext` üzerinde `initialRuntimeAuthorityGeneration`, bounded unique `readiness-audio-<uuid>` operation ID ve `readiness-audio-storage-probe` operation type ile kendi exact runtime operation scope'unu oluşturacak biçimde değiştirildi.
+- Audio probe lifecycle'ı aynı scope içinde `saveAudio → inspectStoredWav → compensatePublishedAudioResult` sırasına bağlandı. Yalnız `status === "completed"` ve `compensated === true` sonucu READY kabul edilir.
+- Readiness probe için semantik olarak uygun olmayan `completePublishedAudio(saved)` çağrısı kaldırıldı. `AudioStorage` operation-context zorunluluğu değiştirilmedi veya bypass edilmedi.
+
+### Fixed
+
+- Aktif production operation context olmadan çalışan readiness audio probe'un internal `RUNTIME_OPERATION_CONTEXT_MISSING` nedeniyle public `AUDIO_STORAGE_ADAPTER_UNAVAILABLE` üretmesi giderildi.
+- Audio adapter unavailable sonucundan türeyen `FILESYSTEM_READ_WRITE_FAILED` regresyonu giderildi. Başarılı public sonuçlar `AUDIO_STORAGE_READY` ve `FILESYSTEM_READ_WRITE_READY`; lifecycle/context failure public sözleşmesi `AUDIO_STORAGE_ADAPTER_UNAVAILABLE` olarak korundu.
+- Image, video, thumbnail ve assembly readiness davranışları değişmedi. Operation-owned readiness project root mevcut sentinel/containment cleanup sözleşmesiyle WAV, compensation record/journal ve workspace kalıntısı bırakmadan temizlenir.
+
+### Validation and production safety
+
+- TypeScript PASS; production readiness acceptance `24`, runtime hardening `13`, production audio asset wiring `73`, runtime operation context `48`, worker lifecycle `21/21` PASS. Targeted ESLint ve `git diff --check` PASS.
+- `npm run production:acceptance:readiness` sonucu `27/27 READY`; `audio-storage` `AUDIO_STORAGE_READY`, `filesystem-permission` `FILESYSTEM_READ_WRITE_READY`.
+- Production project tree başlangıç/kapanışta exact `220 file / 9 directory`; aggregate SHA-256 `2aeb3544b5501fbfac5b7155b16b364a7ead3222c37c4797986607058e3873ad`. Acceptance, manifest, jobs, history, animation, video ve assets hash'leri değişmedi.
+- `audio.json` ve `assets/audio` başlangıç/kapanışta `MISSING`; readiness/WAV/compensation remainder `0`; `data/projects` tracked/untracked diff `0/0`.
+- Production execute/resume/reprepare/reauthorize, backup create/restore ve gerçek provider/network çağrısı `0`; production mutation/provider/network `0/0/0`. Commit veya push yapılmadı.
+
+### Non-blocking P2
+
+- Scope dışı doğrudan AudioStorage write testi public fail-closed `AUDIO_STORAGE_WRITE_FAILED` sonucunu kanıtlar; internal `RUNTIME_OPERATION_CONTEXT_MISSING` ve fiziksel remainder yokluğunu ayrı exact assertion olarak kanıtlamaz.
+- Sprint 129.27 geniş suite `WORKER_EXECUTION_FAILED` bekler; `b58a350` sonrası canonical terminal propagation `AUDIO_ASSET_GENERATION_FAILED` üretir. Stale expectation readiness değişikliğiyle ilişkili değildir ve production sözleşmesi eski teste uydurulmamalıdır.
+- Schema-3 marker current environment diagnose ile exact match ve readiness `27/27 READY` olsa da production project yalnız audio aşamasından devam hazırlığındadır. Bu documentation closure production resume veya execution yetkisi vermez.
+
 ## 2026-07-30 — Sprint 129.30 — Failed-Terminal Evidence and Retry Boundary Hardening / Completed
 
 Independent re-review: `APPROVED`; P0/P1/P2 `0 / 0 / 2`.

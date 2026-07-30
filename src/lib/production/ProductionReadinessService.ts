@@ -53,6 +53,11 @@ import {
   createRuntimeStorageContext,
   type RuntimeStorageContext,
 } from "@/lib/runtime/RuntimeStoragePaths";
+import {
+  createProductionRuntimeOperationContext,
+  initialRuntimeAuthorityGeneration,
+  runWithProductionRuntimeOperationContext,
+} from "@/lib/runtime/ProductionRuntimeOperationContext";
 import type { ProductionRuntimeStatus } from "@/types/productionRuntimeStatus";
 import {
   productionReadinessSchemaVersion,
@@ -483,9 +488,20 @@ function probeStorageAdapters(
     results["images-storage"] = true;
   } catch { /* reported by the caller */ }
   try {
-    const saved = AudioStorage.saveAudio({ projectSlug, assetId: "readiness-audio", data: readinessWav() }, context);
-    AudioStorage.inspectStoredWav(projectSlug, saved.filePath, context);
-    AudioStorage.completePublishedAudio(saved);
+    const operationContext = createProductionRuntimeOperationContext({
+      operationId: `readiness-audio-${crypto.randomUUID()}`,
+      operationType: "readiness-audio-storage-probe",
+      authorityGeneration: initialRuntimeAuthorityGeneration,
+      storageContext: context,
+    });
+    runWithProductionRuntimeOperationContext(operationContext, () => {
+      const saved = AudioStorage.saveAudio({ projectSlug, assetId: "readiness-audio", data: readinessWav() }, context);
+      AudioStorage.inspectStoredWav(projectSlug, saved.filePath, context);
+      const compensation = AudioStorage.compensatePublishedAudioResult(saved, context);
+      if (compensation.status !== "completed" || !compensation.compensated) {
+        throw new Error("readiness audio compensation failed");
+      }
+    });
     results["audio-storage"] = true;
   } catch { /* reported by the caller */ }
   try {

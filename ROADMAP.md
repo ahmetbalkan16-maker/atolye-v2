@@ -39,7 +39,18 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 129.30 — Failed-Terminal Evidence and Retry Boundary Hardening / Completed
+Production Readiness Audio-Storage Probe Regression Closure / Completed
+
+## Production Readiness Audio-Storage Probe Regression Closure / Completed
+
+- Readiness audio adapter regresyonunun kök nedeni, `AudioStorage.saveAudio()` çağrısının artık zorunlu aktif production operation context olmadan çalıştırılmasıydı. Internal `RUNTIME_OPERATION_CONTEXT_MISSING`, public `AUDIO_STORAGE_ADAPTER_UNAVAILABLE` sonucuna normalize oluyor ve türetilmiş filesystem sonucu `FILESYSTEM_READ_WRITE_FAILED` kalıyordu.
+- Yalnız audio probe aynı trusted runtime storage authority üzerinde `initialRuntimeAuthorityGeneration`, bounded unique `readiness-audio-<uuid>` ID ve `readiness-audio-storage-probe` type ile kendi operation context'ini kurar.
+- Canonical probe lifecycle exact aynı scope içinde `saveAudio → inspectStoredWav → compensatePublishedAudioResult` sırasını izler; yalnız `completed/compensated` sonuç READY kabul edilir. `completePublishedAudio(saved)` kaldırıldı ve `AudioStorage` context zorunluluğu değişmedi.
+- Public sonuç `AUDIO_STORAGE_READY`, türetilmiş filesystem sonucu `FILESYSTEM_READ_WRITE_READY`; lifecycle/context failure sözleşmesi `AUDIO_STORAGE_ADAPTER_UNAVAILABLE` olarak korundu. Image/video/thumbnail/assembly adapter davranışları değişmedi.
+- Independent final review `APPROVED`; P0/P1/P2 `0/0/2`. TypeScript, readiness `24`, runtime hardening `13`, audio wiring `73`, runtime context `48`, worker lifecycle `21/21`, targeted ESLint ve `git diff --check` PASS; production acceptance readiness `27/27 READY`.
+- Production project tree `220 file / 9 directory`, aggregate `2aeb3544b5501fbfac5b7155b16b364a7ead3222c37c4797986607058e3873ad` olarak exact korundu. Production hashes ve `data/projects` tracked/untracked durumu değişmedi; audio ve readiness/compensation residue `0`.
+- Non-blocking P2: scope dışı AudioStorage testi internal missing-context/remainder kanıtını ayrı exact assertion yapmaz; Sprint 129.27 `WORKER_EXECUTION_FAILED` beklentisi `b58a350` sonrası canonical `AUDIO_ASSET_GENERATION_FAILED` propagation karşısında stale kalır. İkisi de readiness düzeltmesini bloklamaz.
+- Schema-3 marker environment diagnose exact match ve readiness `27/27 READY` olsa da production audio execution/resume hâlâ ayrı açık kullanıcı yetkisine bağlıdır. Bu kapanış execute/resume/reprepare/reauthorize, backup, provider/network, commit veya push işlemi gerçekleştirmez.
 
 ## Sprint 129.30 — Failed-Terminal Evidence and Retry Boundary Hardening / Completed
 

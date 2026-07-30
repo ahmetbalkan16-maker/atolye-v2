@@ -47,13 +47,51 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 129.30**
-
-Failed-Terminal Evidence and Retry Boundary Hardening
+**Production Readiness Audio-Storage Probe Regression Closure**
 
 **Durum**
 
 Completed
+
+## Production Readiness Audio-Storage Probe Regression Closure / Completed
+
+Production readiness audio-storage regresyonu dar ve fail-closed biçimde giderildi. Bağımsız final inceleme kararı `APPROVED`; P0/P1/P2 `0/0/2`. Schema-3 production marker mevcut environment ile exact match kalır ve production readiness yeniden `27/27 READY` sonucuna ulaşır. Bu kapanış production resume veya execution yetkisi üretmez.
+
+### Kök neden ve dar düzeltme
+
+- `ProductionReadinessService` audio adapter probe'u doğrudan `AudioStorage.saveAudio()` çağırıyordu. Audio compensation workspace aktif `ProductionRuntimeOperationContext` zorunluluğu taşıdığı için probe `RUNTIME_OPERATION_CONTEXT_MISSING` sınırında fail-closed oluyor; mevcut public catch sonucu `AUDIO_STORAGE_ADAPTER_UNAVAILABLE` olarak normalize ediyordu. `FILESYSTEM_READ_WRITE_FAILED`, storage adapter toplamından türetilen ikincil sonuçtu.
+- Yalnız audio readiness probe, aynı trusted `RuntimeStorageContext` ile `initialRuntimeAuthorityGeneration` kullanan geçerli operation context oluşturur. Operation ID bounded ve unique `readiness-audio-<uuid>`, operation type güvenli literal `readiness-audio-storage-probe` değeridir.
+- Exact aynı operation scope içinde `saveAudio → inspectStoredWav → compensatePublishedAudioResult` lifecycle'ı çalışır. Yalnız compensation sonucu `status === "completed"` ve `compensated === true` olduğunda adapter READY olur.
+- Readiness probe için semantik olarak uygun olmayan `completePublishedAudio(saved)` kaldırıldı. `AudioStorage` production operation-context zorunluluğu gevşetilmedi veya bypass edilmedi.
+- Probe gerçek production slug'ı yerine random, sentinel-bound `sprint-126-readiness-*` project root kullanır. Terminal compensated journal ve canonical WAV mevcut containment/sentinel/rename cleanup sözleşmesiyle project root birlikte kaldırılır; readiness/WAV/compensation remainder `0` kalır.
+
+### Public readiness sonucu
+
+- `audio-storage`: `READY / AUDIO_STORAGE_READY`.
+- `filesystem-permission`: `READY / FILESYSTEM_READ_WRITE_READY`.
+- Lifecycle veya context hatasında public `AUDIO_STORAGE_ADAPTER_UNAVAILABLE` sözleşmesi korunur.
+- Image, video, thumbnail ve assembly readiness adapter davranışları değişmedi.
+- Toplam production readiness `27/27 READY`.
+
+### Validation evidence
+
+- `npx tsc --noEmit --incremental false` PASS.
+- Production readiness acceptance `24`, Sprint 129.25B.1 runtime hardening `13`, production audio asset wiring `73`, runtime operation context `48` ve production worker lifecycle `21/21` PASS.
+- Targeted ESLint ve `git diff --check` PASS.
+- `npm run production:acceptance:readiness` sonucu `27/27 READY`; gerçek provider veya network çağrısı yapılmadı.
+
+### Production bütünlüğü ve authorization boundary
+
+- Production project tree başlangıç/kapanışta exact `220 file / 9 directory`; aggregate SHA-256 `2aeb3544b5501fbfac5b7155b16b364a7ead3222c37c4797986607058e3873ad`.
+- Acceptance, manifest, jobs, history, animation, video ve assets hash'leri değişmedi. `audio.json` ve `assets/audio` başlangıç/kapanışta `MISSING`.
+- Readiness root, canonical WAV, compensation record/journal ve temporary workspace remainder `0`; `data/projects` tracked/untracked diff `0/0`.
+- Production execute/resume/reprepare/reauthorize `0`; backup create/restore `0`; production mutation/provider/network `0/0/0`.
+- Production project audio aşamasından devam etmeye hazırlanıyor. Execution/resume ve gerçek provider çağrısı ayrı, açık kullanıcı yetkisi gerektirir. Bu dokümantasyon kapanışında commit veya push yapılmadı.
+
+### Non-blocking P2 kayıtları
+
+1. Scope dışı doğrudan `AudioStorage` write testi fail-closed public `AUDIO_STORAGE_WRITE_FAILED` sonucunu kanıtlar; internal `RUNTIME_OPERATION_CONTEXT_MISSING` ve fiziksel remainder yokluğunu ayrı exact assertion olarak kanıtlamaz. Production scope enforcement değişmemiştir.
+2. Sprint 129.27 geniş suite'teki `WORKER_EXECUTION_FAILED` beklentisi stale'dir. `b58a350` failed-terminal settlement davranışından sonra güncel canonical terminal sonuç `AUDIO_ASSET_GENERATION_FAILED` olur. Bu uyuşmazlık readiness değişikliğiyle ilişkili değildir ve production sözleşmesi eski teste uydurulmamalıdır.
 
 ## Sprint 129.30 — Failed-Terminal Evidence and Retry Boundary Hardening / Completed
 

@@ -313,15 +313,7 @@ async function main() {
       const storage = context(readinessWorkspace, runtimeRoot, path.join(sandbox, "readiness-authority"));
       ensureSafeContainedDirectory(storage.runtimeRoot, storage.projectsRoot);
       let probeRoot = "";
-      const readinessOperation = createProductionRuntimeOperationContext({
-        operationId: "runtime-hardening-readiness",
-        operationType: "runtime-hardening-test",
-        authorityGeneration: initialRuntimeAuthorityGeneration,
-        storageContext: storage,
-      });
-      const report = await runWithProductionRuntimeOperationContext(
-        readinessOperation,
-        () => new ProductionReadinessService({
+      const report = await new ProductionReadinessService({
         cwd: readinessWorkspace,
         environment: { NODE_ENV: "test", ATOLYE_RUNTIME_ROOT: runtimeRoot },
         runtimeStorageContext: storage,
@@ -340,11 +332,38 @@ async function main() {
             "assets/thumbnails/readiness-thumbnail.png",
             "assets/assembly/readiness.json",
           ]) assert.equal(fs.existsSync(path.join(root, relative)), true);
+          const compensationRoot = path.join(
+            root,
+            "production-execution",
+            "audio-compensation-cleanup",
+          );
+          const record = fs.readdirSync(compensationRoot).find((entry) =>
+            entry.startsWith("audio-comp-"));
+          assert.ok(record);
+          const recordRoot = path.join(compensationRoot, record, "record");
+          const stateFile = fs.readdirSync(recordRoot)
+            .filter((entry) => /^state-[0-9]{6}\.json$/.test(entry))
+            .sort()
+            .at(-1);
+          assert.ok(stateFile);
+          const state = JSON.parse(fs.readFileSync(
+            path.join(recordRoot, stateFile),
+            "utf8",
+          )) as { status?: unknown; outcome?: unknown };
+          assert.equal(state.status, "completed");
+          assert.equal(state.outcome, "compensated");
           assert.equal(fs.existsSync(path.join(readinessWorkspace, "data", "projects", path.basename(root))), false);
         },
-        }).evaluate(),
-      );
+      }).evaluate();
       assert.ok(report.checks.length > 0);
+      assert.deepEqual(
+        report.checks.find((item) => item.id === "audio-storage"),
+        { id: "audio-storage", critical: true, status: "READY", reasonCode: "AUDIO_STORAGE_READY" },
+      );
+      assert.deepEqual(
+        report.checks.find((item) => item.id === "filesystem-permission"),
+        { id: "filesystem-permission", critical: true, status: "READY", reasonCode: "FILESYSTEM_READ_WRITE_READY" },
+      );
       assert.ok(probeRoot);
       assert.equal(
         fs.existsSync(probeRoot),
