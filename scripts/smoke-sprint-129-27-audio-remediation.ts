@@ -481,6 +481,7 @@ async function assertFullAudioFailureChain(input: {
   phase: string;
   cleanup?: ReturnType<typeof createAudioAssetErrorEvidence>["cleanup"];
   compensation?: ReturnType<typeof createAudioAssetErrorEvidence>["compensation"];
+  expectedProviderCalls?: number;
   configure: (project: Awaited<ReturnType<typeof ProjectManager.createProject>>) =>
     void | (() => void);
   afterFailure?: (context: {
@@ -493,6 +494,12 @@ async function assertFullAudioFailureChain(input: {
   const state = PipelineStageExecutor.createInitialState(project);
   state.script = scriptFixture();
   const restore = input.configure(project);
+  const configuredFetch = globalThis.fetch;
+  let providerCalls = 0;
+  globalThis.fetch = async (...arguments_: Parameters<typeof fetch>) => {
+    providerCalls += 1;
+    return configuredFetch(...arguments_);
+  };
   let failure: unknown;
   let stageFailure: unknown;
   const originalConsoleError = console.error;
@@ -528,7 +535,8 @@ async function assertFullAudioFailureChain(input: {
       reasonCode: (failure as { reasonCode?: unknown })?.reasonCode,
     })}`,
   );
-  assert.equal(failure.reasonCode, "WORKER_EXECUTION_FAILED");
+  assert.equal(failure.reasonCode, "AUDIO_ASSET_GENERATION_FAILED");
+  assert.equal(failure.code, "AUDIO_ASSET_GENERATION_FAILED");
   assert.equal(getAudioAssetErrorEvidence(failure), undefined);
   assert(stageFailure instanceof AudioAssetGenerationError);
   assert.equal(stageFailure.code, "AUDIO_ASSET_GENERATION_FAILED");
@@ -554,6 +562,7 @@ async function assertFullAudioFailureChain(input: {
   assert.equal(attempt.state, "failed");
   const terminal = attempt.journal.at(-1);
   assert(terminal);
+  assert(terminal.evidence.includes("failure:AUDIO_ASSET_GENERATION_FAILED"));
   assert(
     terminal.evidence.includes(`audio-root:${input.rootCode}`),
     `${input.name} terminal evidence ${JSON.stringify(terminal.evidence)}`,
@@ -585,6 +594,7 @@ async function assertFullAudioFailureChain(input: {
     const residue = fs.readdirSync(audioRoot, { recursive: true });
     assert.deepEqual(residue, []);
   }
+  assert.equal(providerCalls, input.expectedProviderCalls ?? 1, input.name);
   return { project, failure, stageFailure, evidence, attempt };
 }
 
@@ -1249,12 +1259,14 @@ async function run(): Promise<void> {
         name: string;
         rootCode: AudioAssetRootErrorCode;
         phase: string;
+        expectedProviderCalls?: number;
         configure: () => void | (() => void);
       }> = [
         {
           name: "configuration",
           rootCode: "AUDIO_PROVIDER_CONFIGURATION_INVALID",
           phase: "configuration",
+          expectedProviderCalls: 0,
           configure: () => {
             const previous = process.env.OPENAI_API_KEY;
             delete process.env.OPENAI_API_KEY;

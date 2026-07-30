@@ -93,6 +93,7 @@ const MAX_WAV_SAMPLE_RATE = 192_000;
 const MAX_WAV_CHANNELS = 2;
 const PCM_BITS_PER_SAMPLE = new Set([8, 16, 24, 32]);
 const FLOAT_BITS_PER_SAMPLE = new Set([32, 64]);
+const STREAMING_WAV_SIZE_SENTINEL = 0xffff_ffff;
 const publicationOwnership = Symbol("audio-publication-ownership");
 const trustedPublicationReceipts = new WeakSet<object>();
 const AUDIO_AUTHORITY_ATTEMPTS = 500;
@@ -934,10 +935,13 @@ export class AudioStorage {
       return invalidWav();
     }
 
+    const declaredRiffSize = buffer.readUInt32LE(4);
+    const hasStreamingRiffSentinel =
+      declaredRiffSize === STREAMING_WAV_SIZE_SENTINEL;
     if (
       buffer.toString("ascii", 0, 4) !== "RIFF" ||
       buffer.toString("ascii", 8, 12) !== "WAVE" ||
-      buffer.readUInt32LE(4) + 8 !== buffer.length
+      (!hasStreamingRiffSentinel && declaredRiffSize + 8 !== buffer.length)
     ) {
       return invalidWav();
     }
@@ -948,11 +952,30 @@ export class AudioStorage {
     let dataByteLength = 0;
     let hasFormatChunk = false;
     let hasDataChunk = false;
+    let hasStreamingDataSentinel = false;
 
     while (offset + 8 <= buffer.length) {
       const chunkId = buffer.toString("ascii", offset, offset + 4);
       const chunkSize = buffer.readUInt32LE(offset + 4);
       const chunkStart = offset + 8;
+
+      if (chunkSize === STREAMING_WAV_SIZE_SENTINEL) {
+        if (
+          chunkId !== "data" ||
+          !hasStreamingRiffSentinel ||
+          !hasFormatChunk ||
+          hasDataChunk
+        ) {
+          return invalidWav();
+        }
+
+        dataByteLength = buffer.length - chunkStart;
+        hasDataChunk = true;
+        hasStreamingDataSentinel = true;
+        offset = buffer.length;
+        break;
+      }
+
       const chunkEnd = chunkStart + chunkSize;
 
       if (chunkEnd > buffer.length) {
@@ -1018,6 +1041,7 @@ export class AudioStorage {
       offset !== buffer.length ||
       !hasFormatChunk ||
       !hasDataChunk ||
+      hasStreamingRiffSentinel !== hasStreamingDataSentinel ||
       byteRate === null ||
       blockAlign === null ||
       dataByteLength <= 0 ||

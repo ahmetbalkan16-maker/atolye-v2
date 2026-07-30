@@ -1,4 +1,73 @@
 ---
+
+<!-- SPRINT-129.31-START -->
+## Sprint 129.31 - OpenAI Streaming WAV Compatibility
+
+**Status:** APPROVED
+**Independent review:** P0/P1/P2 = 0/0/0
+**Branch:** `wip/production-audio-resume-prep-v2`
+
+### Result
+
+- OpenAI streaming WAV responses with paired RIFF and `data` size sentinels (`0xffffffff`) are now accepted.
+- Finite-size WAV behavior is unchanged.
+- Existing `fmt `, MIME, size, duration, channel, sample-rate, bit-depth, block-alignment and byte-rate checks remain enforced.
+- RF64 and WAVE_FORMAT_EXTENSIBLE support were not added.
+- Provider bytes are not rewritten or normalized.
+- PCM payload is not scanned heuristically for RIFF-like chunk signatures.
+- The stale Sprint 129.27 expectation was corrected to exact `AUDIO_ASSET_GENERATION_FAILED`.
+
+### Production-sized fixture
+
+- total bytes: 1,163,444
+- header: 44 bytes
+- data: 1,163,400 bytes
+- PCM mono, 24,000 Hz, 16-bit
+- blockAlign: 2
+- byteRate: 48,000
+- duration: 24.2375 seconds
+- exact provider/stored byte equality
+- mocked provider only
+- preparation, publication and registry registration passed
+
+### Validation
+
+- Sprint 129.31: 9/9 PASS
+- Sprint 129.27: 117/117 PASS
+- Production audio wiring: 74/74 PASS
+- Audio truncation: 19/19 PASS
+- Runtime hardening: 13/13 PASS
+- Runtime operation context: 48/48 PASS
+- Durable storage: 63/63 PASS
+- Worker lifecycle: 21/21 PASS
+- Production readiness: 24 PASS
+- Production acceptance/CLI: 30/30 PASS
+- Sprint 129.30: 5/5 PASS
+- TypeScript, targeted ESLint and `git diff --check`: PASS
+
+### Current production state
+
+The real production resume attempted before this remediation failed safely during audio chapter 1:
+
+- public code: `AUDIO_ASSET_GENERATION_FAILED`
+- root code: `AUDIO_WAV_INVALID`
+- provider/model: `openai` / `tts-1`
+- response bytes: 1,163,444
+
+Current state:
+
+- audio job: failed
+- failed audio asset records: 2
+- `audio.json`: missing
+- `assets/audio`: missing
+- compensation/publication remainder: zero
+- assembly through export: not executed
+- the current `assets/assets.json` difference is intentional production evidence and must not be included in the Sprint 129.31 commit
+
+### Next controlled step
+
+Selectively commit and push Sprint 129.31 code, tests and documentation while excluding production evidence. A new production resume requires a separate explicit preflight and command.
+<!-- SPRINT-129.31-END -->
 Document: ATOLYE_CHECKPOINT.md
 Version: 1.0.0
 Status: Active

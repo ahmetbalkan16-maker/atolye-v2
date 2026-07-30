@@ -1,4 +1,28 @@
 ---
+
+<!-- SPRINT-129.31-START -->
+## Active milestone - Sprint 129.31
+
+**Status:** APPROVED - awaiting selective Git closure.
+
+Completed:
+
+- paired OpenAI streaming-WAV sentinel compatibility
+- production-sized 1,163,444-byte mocked fixture
+- strict malformed and mixed-sentinel rejection matrix
+- finite WAV regression preservation
+- canonical `AUDIO_ASSET_GENERATION_FAILED` assertion correction
+- independent review with P0/P1/P2 = 0/0/0
+
+Next:
+
+1. Commit only Sprint 129.31 code, tests and documentation.
+2. Exclude the intentional production `assets/assets.json` difference.
+3. Push the branch.
+4. Re-run readiness and project diagnosis.
+5. Run one separately authorized production resume from audio.
+6. Continue assembly, thumbnail, SEO, YouTube package and export.
+<!-- SPRINT-129.31-END -->
 Document: ROADMAP.md
 Version: 1.0.0
 Status: Active

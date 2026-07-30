@@ -1,4 +1,30 @@
 ---
+
+<!-- SPRINT-129.31-START -->
+## 2026-07-31 - Sprint 129.31
+
+### Fixed
+
+- Added narrow support for paired RIFF and `data` streaming size sentinels (`0xffffffff`).
+- Effective audio length and duration are calculated from the actual remaining bytes.
+- Preserved finite WAV validation and all existing storage/publication safeguards.
+- Corrected the stale Sprint 129.27 public failure expectation to `AUDIO_ASSET_GENERATION_FAILED`.
+
+### Tests
+
+- Sprint 129.31 streaming WAV suite: 9/9 PASS.
+- Sprint 129.27 full audio remediation suite: 117/117 PASS.
+- Production audio wiring: 74/74 PASS.
+- Production-sized 1,163,444-byte mocked OpenAI fixture passed with exact byte equality and 24.2375-second duration.
+- All scoped TypeScript, ESLint, runtime, durable storage, worker, readiness, acceptance and persistence checks passed.
+
+### Review and safety
+
+- Independent review: APPROVED.
+- P0/P1/P2: 0/0/0.
+- No real network/provider/TTS call occurred during remediation or review.
+- Existing failed production-resume evidence remains preserved and excluded from implementation closure.
+<!-- SPRINT-129.31-END -->
 Document: CHANGELOG.md
 Version: 1.0.0
 Status: Active

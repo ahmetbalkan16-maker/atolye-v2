@@ -76,6 +76,10 @@ const originalEnvironment = {
   ttsTimeout: process.env.OPENAI_TTS_TIMEOUT_MS,
   ttsMaxResponseBytes: process.env.OPENAI_TTS_MAX_RESPONSE_BYTES,
 };
+const STREAMING_WAV_SIZE_SENTINEL = 0xffff_ffff;
+const PRODUCTION_SENTINEL_WAV_BYTES = 1_163_444;
+const PRODUCTION_SENTINEL_DATA_BYTES = 1_163_400;
+const PRODUCTION_SENTINEL_DURATION_SECONDS = 24.2375;
 let scenarioCount = 0;
 
 const scriptData: ScriptData = {
@@ -286,6 +290,27 @@ function assetsPath(slug: string) {
 
 async function readAssets(slug: string): Promise<ProjectAssets> {
   return JSON.parse(await fs.readFile(assetsPath(slug), "utf8")) as ProjectAssets;
+}
+
+function createProductionStreamingSentinelWav() {
+  const buffer = Buffer.alloc(PRODUCTION_SENTINEL_WAV_BYTES);
+  buffer.write("RIFF", 0, "ascii");
+  buffer.writeUInt32LE(STREAMING_WAV_SIZE_SENTINEL, 4);
+  buffer.write("WAVE", 8, "ascii");
+  buffer.write("fmt ", 12, "ascii");
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(1, 22);
+  buffer.writeUInt32LE(24_000, 24);
+  buffer.writeUInt32LE(48_000, 28);
+  buffer.writeUInt16LE(2, 32);
+  buffer.writeUInt16LE(16, 34);
+  buffer.write("data", 36, "ascii");
+  buffer.writeUInt32LE(STREAMING_WAV_SIZE_SENTINEL, 40);
+  const chunkLikePcm = createWavChunk("JUNK", Buffer.from("LISTdatafmt "));
+  chunkLikePcm.copy(buffer, buffer.length - chunkLikePcm.length);
+  assert.equal(buffer.length - 44, PRODUCTION_SENTINEL_DATA_BYTES);
+  return buffer;
 }
 
 async function listProjectEntries(root: string): Promise<string[]> {
@@ -911,6 +936,91 @@ async function run() {
       assert.equal(response.status, 200);
       assert.equal(response.headers.get("content-type"), "audio/wav");
       globalThis.fetch = originalFetch;
+    });
+    await scenario("production-sized streaming sentinel WAV completes provider publication", async () => {
+      const wav = createProductionStreamingSentinelWav();
+      const expectedInspection = {
+        byteLength: PRODUCTION_SENTINEL_WAV_BYTES,
+        durationSeconds: PRODUCTION_SENTINEL_DURATION_SECONDS,
+      };
+      assert.deepEqual(AudioStorage.inspectWav(wav), expectedInspection);
+
+      const sentinelAudio: AudioData = {
+        ...audioData,
+        sections: [audioData.sections[0]],
+        production: {
+          ...audioData.production,
+          targetFormat: "wav",
+          sampleRate: 24_000,
+          estimatedTotalDuration: "00:24",
+        },
+      };
+      const originalPrepareAudio = AudioStorage.prepareAudio;
+      const originalCommitPreparedAudio = AudioStorage.commitPreparedAudio;
+      const previousMaximumBytes = process.env.OPENAI_TTS_MAX_RESPONSE_BYTES;
+      let prepareCalls = 0;
+      let commitCalls = 0;
+      let fetchCalls = 0;
+      AudioStorage.prepareAudio = (...args) => {
+        prepareCalls += 1;
+        return originalPrepareAudio.apply(AudioStorage, args);
+      };
+      AudioStorage.commitPreparedAudio = (...args) => {
+        commitCalls += 1;
+        return originalCommitPreparedAudio.apply(AudioStorage, args);
+      };
+      setEnvironment("OPENAI_API_KEY", "test-key-not-real");
+      setEnvironment("OPENAI_TTS_MAX_RESPONSE_BYTES", "2000000");
+      globalThis.fetch = async () => {
+        fetchCalls += 1;
+        return new Response(new Uint8Array(wav), {
+          status: 200,
+          headers: {
+            "Content-Type": "audio/wav",
+            "Content-Length": String(wav.length),
+          },
+        });
+      };
+
+      let result: Awaited<ReturnType<typeof generate>>;
+      try {
+        result = await generate(
+          "openai-production-streaming-sentinel",
+          new OpenAIAudioProvider(),
+          sentinelAudio,
+        );
+      } finally {
+        AudioStorage.prepareAudio = originalPrepareAudio;
+        AudioStorage.commitPreparedAudio = originalCommitPreparedAudio;
+        setEnvironment("OPENAI_TTS_MAX_RESPONSE_BYTES", previousMaximumBytes);
+        globalThis.fetch = originalFetch;
+      }
+
+      assert.equal(fetchCalls, 2);
+      assert.equal(result.projectAssets.assets.length, 2);
+      assert.equal(prepareCalls, 2);
+      assert.equal(commitCalls, 2);
+      for (const asset of result.projectAssets.assets) {
+        assert.equal(asset.status, "generated");
+        assert.equal(asset.byteLength, PRODUCTION_SENTINEL_WAV_BYTES);
+        assert.equal(asset.durationSeconds, PRODUCTION_SENTINEL_DURATION_SECONDS);
+        assert(asset.filePath);
+        const stored = await fs.readFile(path.join(
+          projectsRoot,
+          asset.filePath.slice("data/projects/".length),
+        ));
+        assert.deepEqual(stored, wav);
+        assert.deepEqual(AudioStorage.inspectWav(stored), expectedInspection);
+      }
+      const registered = AssetManager.getProjectAssets(
+        result.slug,
+        "project-114",
+      );
+      assert.equal(registered.assets.length, 2);
+      assert.ok(registered.assets.every((asset) =>
+        asset.byteLength === PRODUCTION_SENTINEL_WAV_BYTES &&
+        asset.durationSeconds === PRODUCTION_SENTINEL_DURATION_SECONDS
+      ));
     });
     await scenario("OpenAI success accepts valid WAV without content-length header", async () => {
       setEnvironment("OPENAI_API_KEY", "test-key-not-real");
