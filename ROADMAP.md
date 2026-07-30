@@ -39,7 +39,17 @@ Phase 2 — Production Engine
 
 Aktif Sprint
 
-Sprint 129.29 — Failed-Terminal Settlement Remediation / Completed
+Sprint 129.30 — Failed-Terminal Evidence and Retry Boundary Hardening / Completed
+
+## Sprint 129.30 — Failed-Terminal Evidence and Retry Boundary Hardening / Completed
+
+- Child-process harness case-insensitive karşılaştırılan explicit portable system allowlist, literal `NODE_ENV:"test"`, payload-bound isolated `ATOLYE_RUNTIME_ROOT`, ayrı stdout/stderr, `close`-event completion ve stdout-only exact `CHILD_RESULT` parsing kullanır. Bounded beş boolean evidence allowlist closure ve sensitive/sentinel non-inheritance'ı kanıtlar; controlled parent environment exact restore edilir.
+- Integrity-valid `second competing record`, `different non-terminal competing attempt` ve canonical builder ile üretilen gerçek `duplicate reservation authority` fixture'ları ayrı kurulur. Duplicate key/fingerprint exact eşleşir; semantic authority alanları canonical reservation ile aynı kalır ve exact cause `PIPELINE_FAILED_SETTLEMENT_COMPETING_AUTHORITY` olur. Initial authority verification fail-closed/write-free kalır, durable tree değişmez ve containment/path/file-identity/size/hash proven cleanup sonrası canonical chain tamamlanır.
+- Retry reconciliation sentetik settlement seam'ini kullanmaz. Gerçek settlement ve durable service zinciri exact lease v3 write, claim v2 write, record v4 write ve final v4 read fault'larıyla sırasıyla lease cleanup, claim cleanup, idempotency conflict ve compensation public mapping'lerini kanıtlar.
+- Fault kaldırıldıktan sonra forward-completion ve byte-identical write-free replay doğrulanır. Handler/provider çağrı sayısı artmaz; otomatik retry, requeue veya continuation oluşmaz. Public reason-code ve canonical lifecycle sözleşmeleri değişmedi.
+- İzole regresyon matrisi toplam `327` senaryo PASS; TypeScript, targeted ESLint ve `git diff --check` PASS. Production/provider/network mutation `0`; production execute/resume/reprepare/reauthorize, backup ve unsafe production-copy/resume suite'leri çalıştırılmadı.
+- İlk independent review P0/P1/P2 `0/2/2` ile remediation istedi; dört bounded bulgu giderildi. Independent re-review `APPROVED`, P0/P1/P2 `0/0/2` kararı verdi. Non-blocking future hardening kayıtları Windows case-insensitive parent environment casing restore garantisi ile cleanup check/unlink arasındaki teorik pathname replacement aralığıdır.
+- Mevcut PC runtime'ı canonical Snapshot A değildir. Production execution yetkisiz/bloklu kalır; Sprint 129.30 onayı production audio execution yetkisi üretmez.
 
 ## Sprint 129.29 — Failed-Terminal Settlement Remediation / Completed
 

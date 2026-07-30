@@ -25,6 +25,33 @@ referans alınmalıdır.
 
 # Version 1.x
 
+## 2026-07-30 — Sprint 129.30 — Failed-Terminal Evidence and Retry Boundary Hardening / Completed
+
+Independent re-review: `APPROVED`; P0/P1/P2 `0 / 0 / 2`.
+
+### Added
+
+- Case-insensitive portable explicit child environment allowlist, literal `NODE_ENV:"test"`, payload-bound isolated runtime root ve beş bounded boolean closure evidence'i eklendi.
+- Integrity-valid second competing record, different non-terminal competing attempt ve canonical identity builder tabanlı gerçek duplicate reservation authority fixture'ları eklendi.
+- Gerçek persistence adapter boundary fault'larıyla lease/claim/record/final-validation retry mapping smoke'u eklendi.
+
+### Changed
+
+- Child `CHILD_RESULT` yalnız stdout'tan anchored exact payload olarak parse edilir; başarılı process için exit `0` ve empty stderr ayrıca doğrulanır. Child result `close` event'inde ve `error`/`close` double-resolution guard'ıyla tamamlanır.
+- Fixture cleanup operation-owned root containment, exact expected key/path ve current file device/inode/birth identity/size/hash doğrulamasına bağlandı; foreign replacement unlink edilmez.
+- Retry reconciliation synthetic `settleFailure` seam'i yerine production'da kullanılmayan dar `@internal createAdapter` test dependency seam'i kullanır. Gerçek `settleFailedProductionPipelineExecution` çağrısı artık test tarafından değiştirilemez.
+- Retry failure evidence settlement reason, bounded cause ve exact failed boundary bilgisini taşır; public reason-code seti değişmedi.
+
+### Validation
+
+- Sprint 129.30 `5`, Sprint 129.29 `40`, durable pipeline wiring `19`, attempt `58`, claim `39`, lease `40`, storage `63`, recovery bootstrap `18`, worker lifecycle `21`, readiness/admission `24`; toplam `327` izole senaryo PASS.
+- TypeScript (`--noEmit --incremental false`), değişen dosyalarda targeted ESLint ve `git diff --check` PASS.
+- Fixture cleanup sonrası runtime/authority remainder `0`; production/provider/network mutation ve gerçek provider çağrısı `0`.
+- Production execute/resume/reprepare/reauthorize, backup create/restore, acceptance marker mutation, unsafe production-copy/resume suite'leri, commit ve push çalıştırılmadı.
+- İlk independent review P0/P1/P2 `0/2/2` ile remediation istedi. Exact duplicate-reservation competing cause, child environment closure, stream completion ve replacement-safe cleanup remediation'ları tamamlandı. Independent re-review bildirilen PASS matrisinin statik incelemesiyle `APPROVED`, P0/P1/P2 `0/0/2` kararı verdi; reviewer ortamında testler yeniden çalıştırılmadı.
+- Non-blocking P2 kayıtları Windows case-insensitive parent environment original casing restore garantisi ve fixture cleanup final pathname check ile unlink arasındaki teorik replacement aralığıdır. İkisi de izole smoke harness alanındadır; production composition davranışını etkilemez.
+- Mevcut PC runtime'ı canonical Snapshot A değildir; production execution yetkisiz ve blokludur. Sprint onayı production audio execution yetkisi üretmez.
+
 ## 2026-07-30 — Sprint 129.29 — Failed-Terminal Settlement Remediation / Completed
 
 Independent final re-review: `APPROVED`; P0/P1/P2 `0 / 0 / 3`.

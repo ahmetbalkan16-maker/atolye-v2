@@ -47,13 +47,46 @@ Türkçe öncelikli AI destekli kişisel içerik üretim stüdyosu.
 
 ## Aktif Sprint
 
-**Sprint 129.29**
+**Sprint 129.30**
 
-Failed-Terminal Settlement Remediation
+Failed-Terminal Evidence and Retry Boundary Hardening
 
 **Durum**
 
 Completed
+
+## Sprint 129.30 — Failed-Terminal Evidence and Retry Boundary Hardening / Completed
+
+Sprint 129.29 bağımsız final incelemesinde kaydedilen üç bounded P2 hardening maddesi kaynak kodu ve operation-owned izole test runtime'ları üzerinde giderildi. İlk Sprint 129.30 independent review sonucu P0/P1/P2 `0/2/2` ile `REMEDIATION REQUIRED` verdi; dört dar bulgu giderildi. Independent re-review kaynak ve test kapsamını `APPROVED` kararı ve P0/P1/P2 `0/0/2` ile kapattı. Production lifecycle sırası, success settlement davranışı ve public reason-code sözleşmesi değiştirilmedi.
+
+### Kapatılan P2 kanıtları
+
+- Child-process harness full parent environment kopyasını kaldırdı. Portable explicit allowlist Windows'un case-insensitive key davranışını normalize eder; gerekli Node/tsx sistem/temp/user-context anahtarları dışında yalnız payload'a exact bağlanan `ATOLYE_RUNTIME_ROOT` taşınır. `NODE_ENV` parent'tan alınmaz ve literal `"test"` olarak kurulur. `OPENAI_*`, credential/token/secret, production acceptance ve ilgisiz `ATOLYE_*` değişkenleri child'a aktarılmaz.
+- Child sonucu `{ code, stdout, stderr }` olarak ayrılır ve stream tamamlama `close` event'inde, `error`/`close` double-resolution guard'ıyla sonuçlanır. Başarılı race'lerde exit `0`, empty stderr ve yalnız stdout'ta anchored exact `CHILD_RESULT` ayrı ayrı doğrulanır. Bounded environment evidence tam olarak `runtimeRootBound:true`, `nodeEnvironmentIsTest:true`, `onlyAllowlistedKeys:true`, `sensitiveEnvironmentVisible:false`, `sentinelVisible:false` verir. Parent kontrollü OPENAI key, unrelated ATOLYE key, generic token/credential ve sentinel değerleri test sonunda exact restore edilir.
+- Ayrı integrity-valid adversarial fixture'lar `second competing record`, `different non-terminal competing attempt` ve gerçek `duplicate reservation authority` sınıflarını kapsar. Duplicate reservation canonical identity builder ile yalnız semantic competing filtresinde bulunmayan controlled `createdAt` girdisi değiştirilerek üretilir; storage key embedded `identityFingerprint` ile exact eşleşir ve payload/key/inventory validation'dan geçer. Canonical project/stage/operation/request/idempotency/execution alanları aynı kalır; red exact `PIPELINE_FAILED_SETTLEMENT_COMPETING_AUTHORITY` cause üretir. Bütün redler `initial-chain-verification` sınırında `writePerformed:false`, `writeFree:true`, `quiescenceProven:false` kalır ve durable tree byte/hash olarak değişmez. Cleanup operation-root containment, exact key/path ve file device/inode/birth identity/size/hash kanıtından sonra yapılır; foreign replacement silinmez ve canonical settlement normal biçimde tamamlanır.
+- Retry mapping synthetic settlement result yerine gerçek `settleFailedProductionPipelineExecution` ve gerçek lease/claim/storage/final-verification servis zincirini kullanır. Eski `settleFailure` seam'i kaldırıldı; yalnız isolated testlerin gerçek adapter'ı wrap etmesine izin veren dar `@internal createAdapter` dependency seam'i kaldı.
+
+### Gerçek persistence-boundary mapping matrisi
+
+- Exact idempotency record v3 write failure / `LEASE_ATOMIC_COMMIT_FAILED` / `lease-release` → `PIPELINE_RETRY_LEASE_CLEANUP_FAILED`; önceki adımlar yalnız terminal failed attempt, `writeFree:true`.
+- Exact claim v2 write failure / `CLAIM_ATOMIC_COMMIT_FAILED` / `claim-close` → `PIPELINE_RETRY_CLAIM_CLEANUP_FAILED`; released lease persist edilmiştir, `writeFree:false`.
+- Exact idempotency record v4 write failure / `DURABLE_STORAGE_ATOMIC_WRITE_FAILED` / `record-terminalization` → `PIPELINE_RETRY_IDEMPOTENCY_CONFLICT`; released lease ve abandoned claim persist edilmiştir, `writeFree:false`.
+- Exact idempotency record v4 ikinci read failure / `IDEMPOTENCY_READ_FAILED` / `final-validation` → `PIPELINE_RETRY_COMPENSATION_FAILED`; terminal record dahil önceki settlement adımları persist edilmiştir, `writeFree:false`.
+- Her fault yalnız exact operation/kind/key/version/occurrence kombinasyonunda bir kez çalışır, hedef dışı çağrıları gerçek file adapter'a delegate eder. Fault kaldırılınca aynı durable chain forward-complete olur ve sonraki replay byte-identical/write-free kalır. Handler/provider çağrı sayısı `1` olarak değişmez; retry/requeue/continuation oluşmaz.
+
+### Validation evidence
+
+- Sprint 129.30 persistence-boundary retry `5`, Sprint 129.29 failed settlement `40`, durable pipeline wiring `19`, durable attempt `58`, durable claim `39`, durable lease `40`, durable storage `63`, recovery bootstrap `18`, worker lifecycle `21`, readiness/admission `24` senaryo PASS; toplam `327`.
+- `npx.cmd tsc --noEmit --incremental false`, değişen dosyalarda targeted ESLint ve `git diff --check` PASS.
+- Bütün fixture'lar `withCanonicalSmokeRuntime` operation-owned temp runtime'ında çalıştı ve runtime/authority remainder `0` kaldı. Production/provider/network mutation ve gerçek provider çağrısı `0`.
+- Production execute/resume/reprepare/reauthorize, backup create/restore, unsafe production-copy/resume suite'leri, acceptance marker mutation, commit ve push çalıştırılmadı.
+- Kullanıcı tarafından bildirilen mevcut PC runtime'ı canonical Snapshot A değildir. Production execution hâlâ yetkisiz ve blokludur; bu sprint production readiness veya execution yetkisi üretmez.
+
+### Non-blocking future hardening
+
+- Windows parent environment restore testi controlled key'leri exact casing ile snapshot eder. Önceden farklı casing ile var olan case-insensitive alias'ın orijinal casing/presence durumunu birebir restore etme garantisi future harness hardening kapsamındadır; production composition etkilenmez.
+- Fixture cleanup containment, exact path, file type, device/inode/birth identity, size ve SHA-256 doğrulasa da son pathname check ile `unlink` arasında teorik replacement aralığı vardır. Descriptor/directory-handle tabanlı cleanup, identity-bound unlink veya canonical runtime finalizer ownership future hardening kapsamındadır; operation-owned izole runtime nedeniyle mevcut sprinti bloklamaz.
+- Independent re-review bildirilen PASS matrisinin statik incelemesine dayanır; reviewer ortamında testler yeniden çalıştırılmadı.
 
 ## Sprint 129.29 — Failed-Terminal Settlement Remediation / Completed
 

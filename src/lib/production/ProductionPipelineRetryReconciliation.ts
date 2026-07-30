@@ -10,6 +10,8 @@ import {
 } from "./ProductionExecutionDurableStorage";
 import { defaultProductionExecutionIdempotencyPolicy } from "./ProductionExecutionIdempotency";
 import { ProductionExecutionFilePersistenceAdapter } from "./ProductionExecutionPersistence";
+import type { ProductionExecutionPersistenceAdapter } from
+  "@/types/productionExecutionPersistence";
 import { buildProductionPipelineExecutionIdentity } from "./ProductionPipelineExecutionIdentity";
 import { settleFailedProductionPipelineExecution } from "./ProductionPipelineTerminalSettlement";
 
@@ -36,9 +38,10 @@ export interface ProductionPipelineRetryReconciliationResult {
 export async function reconcileFailedPipelineExecution(
   job: PipelineJob,
   now: () => string = () => new Date().toISOString(),
-  /** @internal Deterministic isolated-test seam; production callers never provide it. */
-  settleFailure: typeof settleFailedProductionPipelineExecution =
-    settleFailedProductionPipelineExecution,
+  /** @internal Isolated-test dependency seam; production callers never provide it. */
+  dependencies: {
+    createAdapter?: (trustedRootDirectory: string) => ProductionExecutionPersistenceAdapter;
+  } = {},
 ): Promise<ProductionPipelineRetryReconciliationResult> {
   if (job.status !== "failed") {
     return failure("PIPELINE_RETRY_DURABLE_CONFLICT", "job:not-failed");
@@ -53,10 +56,13 @@ export async function reconcileFailedPipelineExecution(
     },
     { id: job.id, attempts: durableAttemptOrdinal },
   );
-  const adapter = new ProductionExecutionFilePersistenceAdapter({
-    trustedRootDirectory: `${ProjectReader.getProjectFolder(job.projectSlug)}/production-execution`,
-    createRootDirectory: false,
-  });
+  const trustedRootDirectory =
+    `${ProjectReader.getProjectFolder(job.projectSlug)}/production-execution`;
+  const adapter = dependencies.createAdapter?.(trustedRootDirectory) ??
+    new ProductionExecutionFilePersistenceAdapter({
+      trustedRootDirectory,
+      createRootDirectory: false,
+    });
   const storage = new AdapterBackedProductionExecutionDurableStorage(adapter);
   const attempts = new AdapterBackedProductionExecutionAttemptService(adapter);
   const claims = new AdapterBackedProductionExecutionClaimService(adapter);
@@ -124,7 +130,7 @@ export async function reconcileFailedPipelineExecution(
       `${attempt.identity.attemptId}-running`,
     terminalEventId: attempt.journal.at(-1)?.entryId ?? `${attempt.identity.attemptId}-terminal`,
   };
-  const settled = await settleFailure({
+  const settled = await settleFailedProductionPipelineExecution({
     adapter,
     request,
     idempotencyPolicy,
@@ -144,7 +150,8 @@ export async function reconcileFailedPipelineExecution(
   });
   if (!settled.ok) {
     return failure(mapSettlementFailure(settled.reasonCode),
-      `settlement:${settled.reasonCode}:${settled.causeReasonCode ?? "unknown"}`,
+      `settlement:${settled.reasonCode}:${settled.causeReasonCode ?? "unknown"}:` +
+      `${settled.failedBoundary ?? "unknown"}`,
       settled.writeFree);
   }
   return success(settled.writeFree ? "PIPELINE_RETRY_RECONCILIATION_REPLAYED" :

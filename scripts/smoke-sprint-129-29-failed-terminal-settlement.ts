@@ -26,6 +26,14 @@ import { readProductionExecutionRecoverySemanticAuthority } from
   "../src/lib/production/ProductionExecutionRecoveryBootstrap";
 import { ProductionExecutionFilePersistenceAdapter } from
   "../src/lib/production/ProductionExecutionPersistence";
+import { AdapterBackedProductionExecutionDurableStorage } from
+  "../src/lib/production/ProductionExecutionDurableStorage";
+import { validateProductionExecutionDurableAttempt } from
+  "../src/lib/production/ProductionExecutionDurableAttempt";
+import { validateProductionExecutionIdempotencyReservation } from
+  "../src/lib/production/ProductionExecutionIdempotency";
+import { buildProductionExecutionIdempotencyIdentity } from
+  "../src/lib/production/ProductionExecutionIdempotency";
 import { stableProductionId } from "../src/lib/production/ProductionDeterminism";
 import type { PipelineJob, PipelineJobList } from "../src/types/pipelineJob";
 import type { ProductionStepKey, ProjectPackageRunType } from "../src/types/project";
@@ -56,6 +64,45 @@ interface ChildPayload {
   readonly settlement?: Omit<Parameters<typeof settleFailedProductionPipelineExecution>[0], "adapter" | "onBoundary">;
   readonly execution?: Parameters<typeof settleFailedProductionPipelineExecution>[1];
   readonly job?: PipelineJob;
+  readonly sentinelEnvironmentKey: string;
+}
+
+const childEnvironmentAllowlist = [
+  "PATH", "PATHEXT", "SystemRoot", "WINDIR", "COMSPEC",
+  "TEMP", "TMP", "TMPDIR", "HOMEDRIVE", "HOMEPATH", "LOGONSERVER",
+  "SYSTEMDRIVE", "USERDOMAIN", "USERNAME", "USERPROFILE",
+] as const;
+const childSentinelEnvironmentKey = "ATOLYE_SPRINT_129_30_SENTINEL_SECRET";
+const childEnvironmentKeys = [
+  ...childEnvironmentAllowlist, "ATOLYE_RUNTIME_ROOT", "NODE_ENV",
+] as const;
+
+function normalizedEnvironmentKey(key: string) {
+  return key.toUpperCase();
+}
+
+function sensitiveEnvironmentKey(key: string) {
+  const normalized = normalizedEnvironmentKey(key);
+  return normalized.startsWith("OPENAI_") ||
+    normalized.startsWith("ATOLYE_") && normalized !== "ATOLYE_RUNTIME_ROOT" ||
+    normalized.includes("TOKEN") || normalized.includes("CREDENTIAL") ||
+    normalized.includes("SECRET");
+}
+
+function childResult(payload: ChildPayload, result: unknown) {
+  const visibleKeys = Object.keys(process.env);
+  const allowlistedKeys = new Set(childEnvironmentKeys.map(normalizedEnvironmentKey));
+  process.stdout.write(`CHILD_RESULT ${JSON.stringify({
+    result,
+    environment: {
+      runtimeRootBound: process.env.ATOLYE_RUNTIME_ROOT === payload.runtimeRoot,
+      nodeEnvironmentIsTest: process.env.NODE_ENV === "test",
+      onlyAllowlistedKeys: visibleKeys.every((key) =>
+        allowlistedKeys.has(normalizedEnvironmentKey(key))),
+      sensitiveEnvironmentVisible: visibleKeys.some(sensitiveEnvironmentKey),
+      sentinelVisible: process.env[payload.sentinelEnvironmentKey] !== undefined,
+    },
+  })}\n`);
 }
 
 function withClaimIntegrity<T extends { integrity: unknown }>(value: T): T {
@@ -99,7 +146,7 @@ async function childMain(payloadPath: string) {
     await fs.writeFile(payload.readyFile, "ready", { encoding: "utf8", flag: "wx" });
     await waitForFile(payload.releaseFile);
     const result = await reconcileFailedPipelineExecution(payload.job!, () => new Date().toISOString());
-    process.stdout.write(`CHILD_RESULT ${JSON.stringify(result)}\n`);
+    childResult(payload, result);
     return;
   }
   if (payload.barrierBeforeCall) {
@@ -117,21 +164,43 @@ async function childMain(payloadPath: string) {
       }
     },
   }, payload.execution!);
-  process.stdout.write(`CHILD_RESULT ${JSON.stringify(result)}\n`);
+  childResult(payload, result);
 }
 
-async function spawnChild(payloadPath: string) {
+function buildChildEnvironment(runtimeRoot: string): NodeJS.ProcessEnv {
+  const environment: NodeJS.ProcessEnv = {
+    ATOLYE_RUNTIME_ROOT: runtimeRoot,
+    NODE_ENV: "test",
+  };
+  for (const key of childEnvironmentAllowlist) {
+    const value = process.env[key];
+    if (value !== undefined) environment[key] = value;
+  }
+  return environment;
+}
+
+async function spawnChild(payloadPath: string, runtimeRoot: string) {
   const cli = path.join(process.cwd(), "node_modules", "tsx", "dist", "cli.mjs");
   const script = path.resolve(process.argv[1]);
-  return new Promise<{ code: number | null; output: string }>((resolve, reject) => {
+  return new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
     const child = spawn(process.execPath, [cli, script, "--settlement-child", payloadPath], {
-      cwd: process.cwd(), env: { ...process.env }, stdio: ["ignore", "pipe", "pipe"],
+      cwd: process.cwd(), env: buildChildEnvironment(runtimeRoot), stdio: ["ignore", "pipe", "pipe"],
     });
-    let output = "";
-    child.stdout.on("data", (chunk) => { output += String(chunk); });
-    child.stderr.on("data", (chunk) => { output += String(chunk); });
-    child.once("error", reject);
-    child.once("exit", (code) => resolve({ code, output }));
+    let stdout = "";
+    let stderr = "";
+    let completed = false;
+    child.stdout.on("data", (chunk) => { stdout += String(chunk); });
+    child.stderr.on("data", (chunk) => { stderr += String(chunk); });
+    child.once("error", (error) => {
+      if (completed) return;
+      completed = true;
+      reject(error);
+    });
+    child.once("close", (code) => {
+      if (completed) return;
+      completed = true;
+      resolve({ code, stdout, stderr });
+    });
   });
 }
 
@@ -189,6 +258,69 @@ async function main() {
       }
       await visit(executionRoot);
       return output;
+    }
+
+    type FixtureArtifactKind = "reservation" | "idempotency" | "attempt";
+    interface OwnedFixtureArtifact {
+      readonly kind: FixtureArtifactKind;
+      readonly key: string;
+      readonly target: string;
+      readonly device: number;
+      readonly inode: number;
+      readonly birthtimeMs: number;
+      readonly size: number;
+      readonly hash: string;
+    }
+
+    function fixtureDirectory(kind: FixtureArtifactKind) {
+      return kind === "reservation" ? "reservations" :
+        kind === "idempotency" ? "idempotency" : "attempts";
+    }
+
+    function exactFixturePath(kind: FixtureArtifactKind, key: string) {
+      assert.match(key, /^[a-z0-9][a-z0-9_-]{0,127}$/);
+      const operationRoot = path.resolve(executionRoot);
+      const runtimeRoot = path.resolve(runtime.runtimeRoot);
+      const operationRelative = path.relative(runtimeRoot, operationRoot);
+      assert.ok(operationRelative && !operationRelative.startsWith("..") &&
+        !path.isAbsolute(operationRelative), "fixture root must remain operation-owned");
+      const target = path.resolve(operationRoot, fixtureDirectory(kind), `${key}.json`);
+      const relative = path.relative(operationRoot, target);
+      assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative),
+        "fixture path must remain inside operation-owned execution root");
+      assert.equal(target, path.join(operationRoot, fixtureDirectory(kind), `${key}.json`));
+      return target;
+    }
+
+    async function captureOwnedFixture(kind: FixtureArtifactKind, key: string) {
+      const target = exactFixturePath(kind, key);
+      const identity = await fs.lstat(target);
+      assert.equal(identity.isFile(), true);
+      assert.equal(identity.isSymbolicLink(), false);
+      return {
+        kind, key, target, device: identity.dev, inode: identity.ino,
+        birthtimeMs: identity.birthtimeMs, size: identity.size,
+        hash: createHash("sha256").update(await fs.readFile(target)).digest("hex"),
+      } satisfies OwnedFixtureArtifact;
+    }
+
+    async function removeOwnedFixture(owned: OwnedFixtureArtifact,
+      expectedKind: FixtureArtifactKind, expectedKey: string) {
+      assert.equal(owned.kind, expectedKind);
+      assert.equal(owned.key, expectedKey);
+      assert.equal(owned.target, exactFixturePath(expectedKind, expectedKey));
+      const current = await fs.lstat(owned.target);
+      assert.equal(current.isFile(), true);
+      assert.equal(current.isSymbolicLink(), false);
+      assert.equal(current.dev, owned.device, "fixture file device identity changed");
+      assert.equal(current.ino, owned.inode, "fixture file inode identity changed");
+      assert.equal(current.birthtimeMs, owned.birthtimeMs,
+        "fixture file birth identity changed");
+      assert.equal(current.size, owned.size, "fixture file size changed");
+      const currentHash = createHash("sha256")
+        .update(await fs.readFile(owned.target)).digest("hex");
+      assert.equal(currentHash, owned.hash, "fixture file hash changed");
+      await fs.unlink(owned.target);
     }
 
     async function latest(kind: "attempt" | "claim" | "idempotency", id: string) {
@@ -404,34 +536,6 @@ async function main() {
       await assertQuiescent(fixture.prepared, "CONTROLLED_STAGE_FAILURE");
     });
 
-    await test("retry reconciliation preserves cleanup-specific public error codes", async () => {
-      const fixture = await failedExecution("video");
-      const failedJob = await job("video", fixture.pipelineAttempts + 1, "failed");
-      const mappings = [
-        ["PIPELINE_FAILED_SETTLEMENT_LEASE_RELEASE_FAILED", "PIPELINE_RETRY_LEASE_CLEANUP_FAILED"],
-        ["PIPELINE_FAILED_SETTLEMENT_CLAIM_CLOSE_FAILED", "PIPELINE_RETRY_CLAIM_CLEANUP_FAILED"],
-        ["PIPELINE_FAILED_SETTLEMENT_RECORD_TERMINALIZATION_FAILED", "PIPELINE_RETRY_IDEMPOTENCY_CONFLICT"],
-        ["PIPELINE_FAILED_SETTLEMENT_VALIDATION_FAILED", "PIPELINE_RETRY_COMPENSATION_FAILED"],
-      ] as const;
-      for (const [settlementCode, retryCode] of mappings) {
-        const result = await reconcileFailedPipelineExecution(failedJob,
-          () => new Date().toISOString(), async () => ({
-            ok: false, reasonCode: settlementCode, settlementReasonCode: settlementCode,
-            originalFailureCode: "CONTROLLED_STAGE_FAILURE", causeReasonCode: "INJECTED_BOUNDARY",
-            completedSteps: ["attempt-failed"], writePerformed: false, writeFree: true,
-            quiescenceProven: false, failedBoundary: "final-validation",
-          }));
-        assert.equal(result.reasonCode, retryCode);
-        assert.equal(result.writeFree, true);
-      }
-      const cleanup = await settleFailedProductionPipelineExecution({
-        ...fixture.prepared.settlement,
-        expectedProjectSlug: projectSlug,
-        expectedStage: fixture.context.stage,
-      }, fixture.result);
-      assert.equal(cleanup.ok, true);
-    });
-
     await test("binding poisoning fails closed without durable mutation", async () => {
       const fixture = await failedExecution("seo");
       const base = structuredClone(fixture.prepared.request);
@@ -549,6 +653,142 @@ async function main() {
     }, persistedPoisonFixture.result);
     assert.equal(persistedPoisonCleanup.ok, true, JSON.stringify(persistedPoisonCleanup));
 
+    await test("integrity-valid second competing record fails closed", async () => {
+      const fixture = await failedExecution("visuals");
+      const identity = fixture.prepared.request.coordinator.attempt;
+      const canonical = await latest("idempotency", identity.recordId);
+      const competingRecordId = `foreign-${identity.recordId}`;
+      const competing = structuredClone(canonical);
+      competing.recordId = competingRecordId;
+      competing.recordVersion = 1;
+      competing.integrity.version = 1;
+      competing.durableLease.identity.recordId = competingRecordId;
+      competing.durableLease = withLeaseIntegrity(competing.durableLease);
+      const storage = new AdapterBackedProductionExecutionDurableStorage(
+        fixture.prepared.settlement.adapter);
+      assert.equal(storage.validateRecord(competing).ok, true);
+      const key = `${competingRecordId}-v1`;
+      const written = await fixture.prepared.settlement.adapter.write("idempotency", key, competing);
+      assert.equal(written.ok && written.status, "created");
+      const owned = await captureOwnedFixture("idempotency", key);
+      const before = await tree();
+      const denied = await settleFailedProductionPipelineExecution({
+        ...fixture.prepared.settlement, expectedProjectSlug: projectSlug,
+        expectedStage: fixture.context.stage,
+      }, fixture.result);
+      assert.equal(denied.reasonCode, "PIPELINE_FAILED_SETTLEMENT_BINDING_CONFLICT");
+      assert.equal(denied.causeReasonCode, "PIPELINE_FAILED_SETTLEMENT_COMPETING_AUTHORITY");
+      assert.equal(denied.failedBoundary, "initial-chain-verification");
+      assert.equal(denied.writePerformed, false);
+      assert.equal(denied.writeFree, true);
+      assert.equal(denied.quiescenceProven, false);
+      assert.equal(fixture.handlerCalls, 1);
+      assert.deepEqual(await tree(), before);
+      await removeOwnedFixture(owned, "idempotency", key);
+      const cleanup = await settleFailedProductionPipelineExecution({
+        ...fixture.prepared.settlement, expectedProjectSlug: projectSlug,
+        expectedStage: fixture.context.stage,
+      }, fixture.result);
+      assert.equal(cleanup.ok, true);
+      await assertQuiescent(fixture.prepared, "CONTROLLED_STAGE_FAILURE");
+    });
+
+    await test("integrity-valid different non-terminal competing attempt fails closed", async () => {
+      const fixture = await failedExecution("animation");
+      const identity = fixture.prepared.request.coordinator.attempt;
+      const openedPath = path.join(executionRoot, "attempts", `${identity.attemptId}-v1.json`);
+      const competing = JSON.parse(await fs.readFile(openedPath, "utf8"));
+      competing.identity.attemptId = `foreign-${identity.attemptId}`;
+      competing.journal = competing.journal.map((entry: { integrity: unknown }) => {
+        const { integrity: unused, ...body } = entry as { integrity: unknown;
+          attemptId: string };
+        void unused;
+        body.attemptId = competing.identity.attemptId;
+        return { ...body, integrity: { algorithm: "stable-production-id-v1",
+          fingerprint: stableProductionId("attempt-journal-entry-integrity", body) } };
+      });
+      const integrityValid = withAttemptIntegrity(competing);
+      assert.equal(validateProductionExecutionDurableAttempt(integrityValid), true);
+      const key = `${integrityValid.identity.attemptId}-v1`;
+      const written = await fixture.prepared.settlement.adapter.write("attempt", key, integrityValid);
+      assert.equal(written.ok && written.status, "created");
+      const owned = await captureOwnedFixture("attempt", key);
+      const before = await tree();
+      const denied = await settleFailedProductionPipelineExecution({
+        ...fixture.prepared.settlement, expectedProjectSlug: projectSlug,
+        expectedStage: fixture.context.stage,
+      }, fixture.result);
+      assert.equal(denied.causeReasonCode, "PIPELINE_FAILED_SETTLEMENT_COMPETING_AUTHORITY");
+      assert.equal(denied.failedBoundary, "initial-chain-verification");
+      assert.equal(denied.writePerformed, false);
+      assert.equal(denied.writeFree, true);
+      assert.equal(denied.quiescenceProven, false);
+      assert.equal(fixture.handlerCalls, 1);
+      assert.deepEqual(await tree(), before);
+      await removeOwnedFixture(owned, "attempt", key);
+      const cleanup = await settleFailedProductionPipelineExecution({
+        ...fixture.prepared.settlement, expectedProjectSlug: projectSlug,
+        expectedStage: fixture.context.stage,
+      }, fixture.result);
+      assert.equal(cleanup.ok, true);
+      await assertQuiescent(fixture.prepared, "CONTROLLED_STAGE_FAILURE");
+    });
+
+    await test("integrity-valid duplicate reservation authority fails closed", async () => {
+      const fixture = await failedExecution("video");
+      const identity = fixture.prepared.request.coordinator.attempt;
+      const reservationPath = path.join(executionRoot, "reservations",
+        `${identity.reservationId}.json`);
+      const canonical = JSON.parse(await fs.readFile(reservationPath, "utf8"));
+      const competing = structuredClone(canonical);
+      const competingCreatedAt = new Date(Date.parse(competing.identity.createdAt) + 1).toISOString();
+      const competingIdentity = buildProductionExecutionIdempotencyIdentity({
+        authorization: competing.authorization,
+        confirmation: competing.confirmation,
+      }, {
+        evaluatedAt: competingCreatedAt,
+        policy: fixture.prepared.settlement.idempotencyPolicy,
+      });
+      assert.equal(competingIdentity.ok, true);
+      if (!competingIdentity.ok) throw new Error("duplicate reservation identity build failed");
+      competing.identity = competingIdentity.identity;
+      for (const field of ["projectSlug", "stage", "operation", "requestId",
+        "idempotencyKey", "executionFingerprint"] as const) {
+        assert.equal(competing.identity[field], canonical.identity[field]);
+      }
+      assert.equal(validateProductionExecutionIdempotencyReservation(
+        competing, fixture.prepared.settlement.idempotencyPolicy).valid, true);
+      const key = competing.identity.identityFingerprint;
+      assert.notEqual(key, identity.reservationId);
+      const written = await fixture.prepared.settlement.adapter.write("reservation", key, competing);
+      assert.equal(written.ok && written.status, "created");
+      const owned = await captureOwnedFixture("reservation", key);
+      const persisted = await fixture.prepared.settlement.adapter.read("reservation", key);
+      assert.equal(persisted.status, "found");
+      assert.equal(persisted.status === "found" &&
+        persisted.value.identity.identityFingerprint, key);
+      const before = await tree();
+      const denied = await settleFailedProductionPipelineExecution({
+        ...fixture.prepared.settlement, expectedProjectSlug: projectSlug,
+        expectedStage: fixture.context.stage,
+      }, fixture.result);
+      assert.equal(denied.reasonCode, "PIPELINE_FAILED_SETTLEMENT_BINDING_CONFLICT");
+      assert.equal(denied.causeReasonCode, "PIPELINE_FAILED_SETTLEMENT_COMPETING_AUTHORITY");
+      assert.equal(denied.failedBoundary, "initial-chain-verification");
+      assert.equal(denied.writePerformed, false);
+      assert.equal(denied.writeFree, true);
+      assert.equal(denied.quiescenceProven, false);
+      assert.equal(fixture.handlerCalls, 1);
+      assert.deepEqual(await tree(), before);
+      await removeOwnedFixture(owned, "reservation", key);
+      const cleanup = await settleFailedProductionPipelineExecution({
+        ...fixture.prepared.settlement, expectedProjectSlug: projectSlug,
+        expectedStage: fixture.context.stage,
+      }, fixture.result);
+      assert.equal(cleanup.ok, true);
+      await assertQuiescent(fixture.prepared, "CONTROLLED_STAGE_FAILURE");
+    });
+
     await test("duplicate concurrent settlement converges to one quiescent authority", async () => {
       const fixture = await failedExecution("youtube");
       const context = { ...fixture.prepared.settlement,
@@ -660,13 +900,13 @@ async function main() {
         const payloadPath = path.join(raceRoot, `payload-${index}.json`);
         const payload: ChildPayload = {
           action, executionRoot, runtimeRoot: runtime.runtimeRoot, readyFile, releaseFile,
-          barrierBeforeCall,
+          barrierBeforeCall, sentinelEnvironmentKey: childSentinelEnvironmentKey,
           ...(action === "settle" ? { settlement: {
             ...settlement, expectedProjectSlug: projectSlug, expectedStage: fixture.context.stage,
           }, execution: fixture.result } : { job: failedJob }),
         };
         await fs.writeFile(payloadPath, JSON.stringify(payload), { encoding: "utf8", flag: "wx" });
-        return { readyFile, running: spawnChild(payloadPath) };
+        return { readyFile, running: spawnChild(payloadPath, runtime.runtimeRoot) };
       });
       const started = await Promise.all(children);
       await Promise.all(started.map((child) => waitForFile(child.readyFile)));
@@ -674,11 +914,54 @@ async function main() {
       const results = await Promise.all(started.map((child) => child.running));
       assert.ok(results.every((result) => result.code === 0), JSON.stringify(results));
       return results.map((result) => {
-        const match = /CHILD_RESULT (\{.*\})/.exec(result.output);
-        assert.ok(match, result.output);
-        return JSON.parse(match[1]);
+        assert.equal(result.stderr, "");
+        const match = /^CHILD_RESULT (\{.*\})\r?\n?$/.exec(result.stdout);
+        assert.ok(match, result.stdout);
+        const parsed = JSON.parse(match[1]);
+        assert.equal(parsed.environment.runtimeRootBound, true);
+        assert.equal(parsed.environment.nodeEnvironmentIsTest, true);
+        assert.equal(parsed.environment.onlyAllowlistedKeys, true);
+        assert.equal(parsed.environment.sensitiveEnvironmentVisible, false);
+        assert.equal(parsed.environment.sentinelVisible, false);
+        return parsed.result;
       });
     }
+
+    await test("child process receives only allowlisted environment and isolated runtime root", async () => {
+      const controlledParentEnvironment = {
+        NODE_ENV: "production-parent-must-not-flow",
+        OPENAI_API_KEY: "controlled-openai-secret",
+        ATOLYE_UNRELATED_SPRINT_VALUE: "controlled-atolye-secret",
+        SPRINT_129_30_GENERIC_TOKEN: "controlled-token",
+        SPRINT_129_30_GENERIC_CREDENTIAL: "controlled-credential",
+        [childSentinelEnvironmentKey]: "controlled-parent-secret-not-for-child",
+      } as const;
+      const previous = Object.keys(controlledParentEnvironment).map((key) => ({
+        key,
+        present: Object.prototype.hasOwnProperty.call(process.env, key),
+        value: process.env[key],
+      }));
+      try {
+        for (const [key, value] of Object.entries(controlledParentEnvironment)) {
+          process.env[key] = value;
+        }
+        assert.equal(process.env[childSentinelEnvironmentKey] !== undefined, true);
+        const fixture = await failedExecution("scenes");
+        const results = await runChildRace(fixture, ["settle"]);
+        assert.equal(results[0].ok, true);
+        assert.equal(fixture.handlerCalls, 1);
+        await assertQuiescent(fixture.prepared, "CONTROLLED_STAGE_FAILURE");
+      } finally {
+        for (const item of previous) {
+          if (item.present) process.env[item.key] = item.value;
+          else delete process.env[item.key];
+        }
+      }
+      for (const item of previous) {
+        assert.equal(Object.prototype.hasOwnProperty.call(process.env, item.key), item.present);
+        assert.equal(process.env[item.key], item.value);
+      }
+    });
 
     await test("child-process settlement versus settlement converges on one canonical chain", async () => {
       const fixture = await failedExecution("assembly");
