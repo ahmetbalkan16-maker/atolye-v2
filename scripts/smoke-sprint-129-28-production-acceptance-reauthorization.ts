@@ -68,7 +68,8 @@ import { ProductionExecutionCoordinator } from
   "../src/lib/production/ProductionExecutionCoordinator";
 import { ProductionExecutionFilePersistenceAdapter } from
   "../src/lib/production/ProductionExecutionPersistence";
-import { prepareProductionPipelineExecution, readCompletedProductionPipelinePreparation,
+import { prepareProductionPipelineExecution, productionDurableAttemptLineageBindingInvalidCode,
+  readCompletedProductionPipelinePreparation,
   type ProductionPipelineCompletedPreparationAuthority } from
   "../src/lib/production/ProductionPipelineExecutionFactory";
 import { runWithProductionPipelineExecutionInstrumentation } from
@@ -2216,6 +2217,8 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
           const record = JSON.parse(fs.readFileSync(recordPath, "utf8")) as Record<string, unknown>;
           assert.equal(attemptIdentity.requestId, identity.requestId);
           assert.equal(attemptIdentity.idempotencyKey, identity.idempotencyKey);
+          assert.equal(attemptIdentity.operation, identity.operation);
+          assert.equal(attemptIdentity.operation, record.operation);
           assert.equal(record.operation, identity.operation);
           assert.ok(capability);
           return PipelineStageExecutor.execute(item.slug, "research", state,
@@ -3988,16 +3991,24 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
     let providerCalls = 0;
     const originalGenerate = MockAIProvider.prototype.generate;
     MockAIProvider.prototype.generate = async () => { providerCalls += 1; return ""; };
-    fs.renameSync(source, gap);
+    let poisoned = false;
     try {
-      const result = await PipelineRunner.executeJobRetry(item.slug, `${item.slug}-research`, {
+      const result = await runWithProductionPipelineExecutionInstrumentation({
+        onEvent: (event) => {
+          if (event === "durable-entry" && !poisoned) {
+            fs.renameSync(source, gap);
+            poisoned = true;
+          }
+        },
+      }, () => PipelineRunner.executeJobRetry(item.slug, `${item.slug}-research`, {
         stageExecution: { aiProvider: provider },
-      });
+      }));
       assert.equal(result.success, false); assert.equal(result.status, 500);
-      assert.equal(result.reasonCode, "PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED");
+      assert.equal(result.reasonCode, productionDurableAttemptLineageBindingInvalidCode);
       assert.equal(providerCalls, 0);
     } finally {
-      fs.renameSync(gap, source); MockAIProvider.prototype.generate = originalGenerate;
+      if (poisoned) fs.renameSync(gap, source);
+      MockAIProvider.prototype.generate = originalGenerate;
     }
   });
 

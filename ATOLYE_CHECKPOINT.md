@@ -116,9 +116,38 @@ Sprint 129.29 bağımsız final incelemesinde kaydedilen üç bounded P2 hardeni
 
 - Sprint 129.30 persistence-boundary retry `5`, Sprint 129.29 failed settlement `40`, durable pipeline wiring `19`, durable attempt `58`, durable claim `39`, durable lease `40`, durable storage `63`, recovery bootstrap `18`, worker lifecycle `21`, readiness/admission `24` senaryo PASS; toplam `327`.
 - `npx.cmd tsc --noEmit --incremental false`, değişen dosyalarda targeted ESLint ve `git diff --check` PASS.
-- Bütün fixture'lar `withCanonicalSmokeRuntime` operation-owned temp runtime'ında çalıştı ve runtime/authority remainder `0` kaldı. Production/provider/network mutation ve gerçek provider çağrısı `0`.
+- Bütün fixture'lar `withCanonicalSmokeRuntime` operation-owned temp runtime'ında çalıştı ve runtime/authority remainder `0` kaldı. Production project tree değişmedi. Provider, network ve TTS doğrudan çağrı sayaçları acceptance command seam'inden yapısal olarak kullanılamaz ve doğrudan instrument edilmiş sıfır sayaçlar olarak sunulmaz.
 - Production execute/resume/reprepare/reauthorize, backup create/restore, unsafe production-copy/resume suite'leri, acceptance marker mutation, commit ve push çalıştırılmadı.
 - Kullanıcı tarafından bildirilen mevcut PC runtime'ı canonical Snapshot A değildir. Production execution hâlâ yetkisiz ve blokludur; bu sprint production readiness veya execution yetkisi üretmez.
+
+### Durable attempt lineage evidence closure / Approved
+
+Sprint 129.30 durable attempt lineage remediation ikinci bağımsız yeniden incelemede `APPROVED`, P0/P1/P2 `0/0/0` kararıyla kapandı. Failed-terminal durable attempt lineage doğrulaması production-owned internal boundary instrumentation ile tamamlandı. Canonical attempt binding, journal, outcome ve durable-attempt integrity hesapları tek internal production implementation'da birleştirildi; production runtime ile compatibility harness aynı builder'ları kullanır. Test-local `stableProductionId`/integrity reconstruction kaldırıldı. Public barrel/API genişlemedi, durable payload şekilleri ve serialized byte çıktıları değişmedi; ortak public hata kodu `PRODUCTION_DURABLE_ATTEMPT_LINEAGE_BINDING_INVALID` olarak korundu.
+
+#### Internal boundary ve observed control flow
+
+- Yeni internal `src/lib/production/ProductionDurableAttemptLineageBoundary.ts` modülü dar production boundary union'ını ve raw error oluşturucu/okuyucusunu taşır. Boundary module-private, non-enumerable `Symbol` ile raw production error'a bağlanır; JSON serialization, durable persistence ve public CLI raporuna girmez.
+- Resolver boundary'yi gerçek production karar noktalarında atar. Compatibility harness `actualObservedBoundary` değerini raw production error'dan okur; historical declared label sonuç kanıtı değildir. Compound predicate sırası ve short-circuit kabul/red semantiği değişmedi.
+- `25/25` negatif invariant PASS. Historical tabloda production control flow ile uyuşmayan 11 etiket düzeltilmiştir: foreign project/stage → `no-applicable-lineage`; empty/malformed attempt operation → `attempt-record-operation-binding`; operation/run-type ve foreign runType → `attempt-reservation-binding`; foreign ordinal ve topology gap → `lineage-cardinality`; canonical attempt ID mismatch → `attempt-lineage-missing`; runtime operation fallback → `terminal-legacy-operation-compatibility`.
+- Bütün negatif vakalarda public code exact `PRODUCTION_DURABLE_ATTEMPT_LINEAGE_BINDING_INVALID` kaldı.
+
+#### Undefined semantic fixture ve CLI propagation
+
+- Enumerable own-property değeri `undefined` JSON'da fiziksel olarak temsil edilemediğinden yalnız tek vaka gerçek physical read sonrasında semantic undefined injection kullanır. Production parser veya persistence adapter'a seam eklenmedi. `semanticFixtureScenarioCount: 1` yalnız bu istisnayı kullanan fixture senaryosu sayısıdır; diğer 24 negatif fixture gerçek fiziksel persistence kullanır.
+- CLI kanıt zinciri `physical malformed lineage → resolver → acceptance command normalization` şeklindedir. Resume dependency ve resolver birer kez çağrılır; exact public code korunur, generic `PRODUCTION_ACCEPTANCE_COMMAND_FAILED` kullanılmaz ve internal boundary/path/payload/fingerprint/stack/secret public rapora sızmaz.
+- Acceptance command seam yalnız `resume(projectSlug)` dependency'sini açar; stage/provider/network transport dependency injection yüzeyi yoktur ve sentetik/hardcoded sayaçlar kaldırılmıştır. Provider, network and TTS direct invocation counters are structurally unavailable from the acceptance command seam and are not claimed as directly instrumented zero counters.
+
+#### Byte-equivalence ve canonical production evidence
+
+- Physical compatibility fixture `4 file / 2 directory` olarak before/after exact kaldı. Relative paths, serialized byte lengths, individual SHA-256 ve metadata eşleşti; temp/partial/quarantine/lock/journal remainder `0`. Canonical aggregate `5f888498f08f9c9337059e4364cd40a4bce38669f4fc9f94ac31f6faabcf4073`.
+- Canonical production aggregate sözleşmesi yalnız files-only, FullName-sorted `relativePath<TAB>length<TAB>sha256` satırlarını kullanır ve `bc2e5482c71ef0553f0f645bde788763d031be900f2cea694c01552f534a6a7b` üretir. Ayrı file-and-directory `type<NUL>path<NUL>length<NUL>hash` serialization'ı `ef639b0ff42dbf66b435c30cb97a893a37ddd8f450ac745bc11d1724b8fc1f2f` üretir; dokuz directory row ve farklı row biçimi nedeniyle değerler farklıdır, fiziksel drift değildir. Gelecek canonical karşılaştırmalar yalnız file-only sözleşmesini kullanmalıdır.
+- Production kapanışı `220 file / 9 directory`; acceptance `68a206134460acfb875768f5df8ef18af516cafda80964556fa5b842aeabbac4`, project `591b3bfb4aa9dc07b4a75485b8af0bf124c2d302b52472fa6d72222b43c26824`, jobs `343e38b598bbd43e68dc6f68a91598db6d2a5e14c8c6ba874a965a2dc57d63d6`, history `c165ff9fd07b2e8992ab0bc12f1aff48348054642d400aad8b598875f11b0a8c`, animation `92a8952b660b88de1b1d9123f600db85f8cbfdcdfc03e701c8d147f62f0e1f8c`, video `08bf7fb27580873c8e203a70ab5b4285053d51c659173800bb98c709310ffcfc`. `audio.json` missing, `assets/audio` `0`, production-tree remainder `0`, `data/projects` tracked/untracked diff `0/0`; log SHA-256 `3c3c2ae59f4a359c4866eb467735454adc4f7ada611b4c0769874ebdaf47fba0`.
+
+#### Final validation
+
+- TypeScript, targeted ESLint ve `git diff --check` PASS. Physical lineage compatibility `27/27`, durable attempt/outcome `58/58`, Sprint 129.30 persistence boundary `5/5`, failed-terminal settlement `40/40`, worker lifecycle `21/21`, runtime operation context `48/48`, audio asset wiring `73/73`, production acceptance/CLI `30/30`; Sprint 129.28 lineage #126 ve #132 PASS.
+- Sprint 129.28 full suite ilk 134 senaryoyu geçirir, ardından stale `WORKER_EXECUTION_FAILED` beklentisinin canonical `AUDIO_ASSET_GENERATION_FAILED` sonucu karşısında durur. Bu scoped remediation için non-blocking'dir; repository validation tamamen green değildir ve stale expectation değiştirilmemiştir.
+- Hiçbir production execute/resume/retry/continue/reprepare/reauthorize veya backup create/restore işlemi yapılmadı. Bu dokümantasyon kapanışı production execution yetkisi üretmez.
 
 ### Non-blocking future hardening
 
