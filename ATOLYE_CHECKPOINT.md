@@ -1,5 +1,70 @@
 ---
 
+<!-- SPRINT-129.32-PAUSE-START -->
+## Sprint 129.32 pause checkpoint - 2026-07-31
+
+**Status:** BLOCKED BEFORE PROVIDER ADMISSION
+
+### Repository authority
+
+- Branch: `wip/production-audio-resume-prep-v2`
+- Sprint 129.31 commit: `09ab1e968d695110be3de0bde5e5a22ba79d19cd`
+- Sprint 129.31 independent review: APPROVED
+- P0/P1/P2: 0/0/0
+
+### Latest production resume
+
+The post-Sprint-129.31 production resume returned:
+
+- exit code: `1`
+- public code: `PRODUCTION_ACCEPTANCE_EXECUTION_FAILED`
+- log SHA-256: `52af49310bd0bba33ba9de205837174d184879afe8222c0a5f7bb98e12a60eb7`
+
+The attempt stopped before provider admission:
+
+- no new OpenAI/TTS request was started
+- no production project file changed
+- no new audio asset was created
+- `audio.json` remains missing
+- `assets/audio` remains missing
+- assembly through export remains unexecuted
+
+### Exact blocker
+
+The audio job is:
+
+- status: `failed`
+- attempts: `2`
+- root production error: `AUDIO_WAV_INVALID`
+- response bytes from the earlier real TTS call: `1,163,444`
+
+Read-only durable diagnosis proved that retry reconciliation derives
+`job.attempts - 1` and therefore selects durable attempt number `1`
+instead of the latest failed durable attempt number `2`.
+
+The selected old durable chain is already released/abandoned. The current
+failed chain remains authoritative, so retry reconciliation cannot prove
+global quiescence and fails before provider admission.
+
+### Required next work
+
+Sprint 129.32 must narrowly correct failed retry durable attempt selection:
+
+- failed job durable ordinal must use exact `job.attempts`
+- initial attempt `0` must remain supported
+- retry attempt values greater than `1` must select the exact latest chain
+- production-shaped two-chain tests must prove the older settled attempt
+  remains unchanged while only the latest failed attempt is reconciled
+- no production resume is authorized until implementation, validation and
+  independent review are complete
+
+### Preserved production evidence
+
+`assets/assets.json` SHA-256:
+
+`00a88f908f371644fb97ebb3442c03760e39ebe8a6b41cc3d5ab415b27a21561`
+<!-- SPRINT-129.32-PAUSE-END -->
+
 <!-- SPRINT-129.31-START -->
 ## Sprint 129.31 - OpenAI Streaming WAV Compatibility
 

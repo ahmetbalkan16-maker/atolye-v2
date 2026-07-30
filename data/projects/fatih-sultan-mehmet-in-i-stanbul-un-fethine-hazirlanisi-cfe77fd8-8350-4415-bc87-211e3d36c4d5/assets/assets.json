@@ -373,8 +373,20 @@
       "error": "Audio asset generation failed.",
       "id": "5a9180bd-9899-4694-bae8-1fb0b5f23c90",
       "createdAt": "2026-07-17T20:15:21.201Z"
+    },
+    {
+      "projectId": "1ba3bebf-abe9-4b3c-9b4a-b9d238b98534",
+      "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+      "sceneId": 1,
+      "type": "audio",
+      "status": "failed",
+      "provider": "openai",
+      "prompt": "Audio generation request.",
+      "error": "Audio asset generation failed.",
+      "id": "e1921b5a-830f-48a2-8834-aace72222e93",
+      "createdAt": "2026-07-30T20:57:23.472Z"
     }
   ],
   "createdAt": "2026-07-15T19:29:03.863Z",
-  "updatedAt": "2026-07-17T20:15:21.204Z"
+  "updatedAt": "2026-07-30T20:57:23.479Z"
 }
