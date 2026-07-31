@@ -14,6 +14,8 @@ import type { ProductionExecutionPersistenceAdapter } from
   "@/types/productionExecutionPersistence";
 import { buildProductionPipelineExecutionIdentity } from "./ProductionPipelineExecutionIdentity";
 import { settleFailedProductionPipelineExecution } from "./ProductionPipelineTerminalSettlement";
+import { classifyProductionDurableAttemptLineage } from
+  "./ProductionDurableAttemptLineageClassifier";
 
 const reconciliationTtlSeconds = 31_536_000;
 
@@ -47,7 +49,7 @@ export async function reconcileFailedPipelineExecution(
     return failure("PIPELINE_RETRY_DURABLE_CONFLICT", "job:not-failed");
   }
 
-  const durableAttemptOrdinal = job.attempts > 0 ? job.attempts - 1 : 0;
+  const durableAttemptOrdinal = job.attempts;
   const identity = buildProductionPipelineExecutionIdentity(
     {
       projectSlug: job.projectSlug,
@@ -68,23 +70,45 @@ export async function reconcileFailedPipelineExecution(
   const claims = new AdapterBackedProductionExecutionClaimService(adapter);
   const evaluatedAt = now();
 
-  const [recordRead, attemptAssessment, claimAssessment] = await Promise.all([
+  const [recordReadResult, attemptAssessmentResult, claimAssessmentResult,
+    lineageAssessmentResult] = await Promise.allSettled([
     storage.read(identity.recordId),
     attempts.evaluateExecutionAttemptRecovery(identity.attemptId, evaluatedAt),
     claims.evaluateExecutionClaimRecovery(identity.claimId, evaluatedAt),
+    classifyProductionDurableAttemptLineage(
+      adapter, job.projectSlug, job.stage, durableAttemptOrdinal, "exact",
+    ),
   ]);
+  if (recordReadResult.status === "rejected" || attemptAssessmentResult.status === "rejected" ||
+    claimAssessmentResult.status === "rejected" || lineageAssessmentResult.status === "rejected" ||
+    lineageAssessmentResult.value.status === "invalid") {
+    if (lineageAssessmentResult.status === "fulfilled" &&
+      lineageAssessmentResult.value.status === "invalid") {
+      return failure("PIPELINE_RETRY_DURABLE_STATE_MISSING",
+        `durable:${lineageAssessmentResult.value.boundary}`);
+    }
+    return failure("PIPELINE_RETRY_DURABLE_STATE_MISSING", "durable:partial");
+  }
+  const lineageResult = lineageAssessmentResult.value;
+  const recordRead = recordReadResult.value;
+  const attemptAssessment = attemptAssessmentResult.value;
+  const claimAssessment = claimAssessmentResult.value;
   const noRecord = !recordRead.record && recordRead.reasonCode === "DURABLE_STORAGE_RECORD_MISSING";
   const noAttempt = attemptAssessment.classification === "no-attempt";
   const noClaim = claimAssessment.classification === "no-claim";
 
   if (noRecord && noAttempt && noClaim) {
-    return success("PIPELINE_RETRY_RECONCILIATION_REPLAYED", true, "durable:none");
+    if (lineageResult.status === "none" && job.attempts === 0) {
+      return success("PIPELINE_RETRY_RECONCILIATION_REPLAYED", true, "durable:none");
+    }
+    return failure("PIPELINE_RETRY_DURABLE_STATE_MISSING", "durable:no-exact-lineage");
   }
   if (!recordRead.record || !attemptAssessment.attempt || !claimAssessment.claim) {
     return failure("PIPELINE_RETRY_DURABLE_STATE_MISSING", "durable:partial");
   }
   if (attemptAssessment.attempt.state !== "failed") {
-    return failure("PIPELINE_RETRY_DURABLE_CONFLICT", `attempt:${attemptAssessment.classification}`);
+    return failure("PIPELINE_RETRY_DURABLE_CONFLICT",
+      `durable:attempt:${attemptAssessment.classification}`);
   }
 
   const record = recordRead.record;

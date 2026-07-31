@@ -59,6 +59,8 @@ import {
   emitProductionPipelineExecutionEvent,
   poisonProductionPipelineExecutionPlanAfterDurableAttempt,
 } from "./ProductionPipelineExecutionInstrumentation";
+import { classifyProductionDurableAttemptLineage } from
+  "./ProductionDurableAttemptLineageClassifier";
 import type { ProductionAcceptanceStageExecutionIdentity } from "./ProductionAcceptancePolicy";
 import { productionAcceptanceProviderCapabilitiesForStage,
   createProductionAcceptanceProviderSelection,
@@ -558,203 +560,17 @@ export async function resolveDurableAttemptOrdinal(
   stage: string,
   expectedJobAttempt: number,
 ): Promise<number> {
-  const listed = await adapter.listKeys("idempotency");
-  if (!listed.ok) throw durableAttemptLineageBindingError("idempotency-list");
-  const durableStorage = new AdapterBackedProductionExecutionDurableStorage(adapter);
-  const records = new Map<string, Array<{ version: number;
-    value: ProductionExecutionIdempotencyRecord }>>();
-  for (const key of listed.keys) {
-    const read = await adapter.read("idempotency", key);
-    if (read.status !== "found") {
-      throw durableAttemptLineageBindingError(
-        read.status === "failed" && read.errorCode === "PERSISTENCE_RECORD_CORRUPT"
-          ? "record-integrity"
-          : "record-read",
-      );
-    }
-    const record = read.value;
-    if (record.projectSlug === projectSlug && record.stage === stage) {
-      if (!durableStorage.validateRecord(record as ProductionExecutionDurableRecord).ok) {
-        throw durableAttemptLineageBindingError("record-integrity");
-      }
-      if (!Number.isSafeInteger(record.attempt) || record.attempt < 1) {
-        throw durableAttemptLineageBindingError("record-ordinal-format");
-      }
-      const parsed = parseVersionedLineageKey(key);
-      if (!parsed || parsed.identity !== record.recordId ||
-        parsed.version !== record.integrity.version) {
-        throw durableAttemptLineageBindingError("record-key-binding");
-      }
-      const versions = records.get(record.recordId) ?? [];
-      versions.push({ version: parsed.version, value: record });
-      records.set(record.recordId, versions);
-    }
-  }
-  if (records.size === 0) {
-    if (expectedJobAttempt !== 0) {
-      throw durableAttemptLineageBindingError("no-applicable-lineage");
-    }
-    return 0;
-  }
-  const latestRecords = [...records.values()].map((versions) =>
-    exactLatestLineageVersion(versions, "version-contiguity"));
-  const maximum = Math.max(...latestRecords.map((record) => record.attempt));
-  if (latestRecords.length !== maximum) {
-    throw durableAttemptLineageBindingError("lineage-cardinality");
-  }
-  latestRecords.sort((left, right) => left.attempt - right.attempt);
-  for (let index = 0; index < latestRecords.length; index += 1) {
-    if (latestRecords[index].attempt !== index + 1) {
-      throw durableAttemptLineageBindingError("record-ordinal-topology");
-    }
-  }
-  const lineagePlans = new Map<string, { record: ProductionExecutionIdempotencyRecord;
-    planned: ReturnType<typeof buildProductionPipelineExecutionIdentity> }>();
-  for (const record of latestRecords) {
-    const runType = durableLineageRunType(record.operation);
-    const planned = buildProductionPipelineExecutionIdentity(
-      { projectSlug, stage: stage as ProductionStepKey, runType },
-      { id: `${projectSlug}-${stage}`, attempts: record.attempt - 1 },
-    );
-    if (record.recordId !== planned.recordId) {
-      throw durableAttemptLineageBindingError("record-canonical-id");
-    }
-    if (record.requestId !== planned.requestId) {
-      throw durableAttemptLineageBindingError("record-request-binding");
-    }
-    if (record.idempotencyKey !== planned.idempotencyKey) {
-      throw durableAttemptLineageBindingError("record-idempotency-binding");
-    }
-    if (record.executionFingerprint !== planned.executionFingerprint) {
-      throw durableAttemptLineageBindingError("record-execution-fingerprint");
-    }
-    if (lineagePlans.has(planned.attemptId)) {
-      throw durableAttemptLineageBindingError("duplicate-attempt-plan");
-    }
-    lineagePlans.set(planned.attemptId, { record, planned });
-  }
-  const listedAttempts = await adapter.listKeys("attempt");
-  if (!listedAttempts.ok) throw durableAttemptLineageBindingError("attempt-list");
-  const attempts = new Map<string, Array<{ version: number;
-    value: ProductionExecutionDurableAttemptRecord }>>();
-  for (const key of listedAttempts.keys) {
-    const read = await adapter.read("attempt", key);
-    if (read.status !== "found") {
-      throw durableAttemptLineageBindingError(
-        read.status === "failed" && read.errorCode === "PERSISTENCE_RECORD_CORRUPT"
-          ? "attempt-integrity"
-          : "attempt-read",
-      );
-    }
-    const candidate = read.value;
-    if (lineagePlans.has(candidate.identity.attemptId)) {
-      const parsed = parseVersionedLineageKey(key);
-      if (!parsed || parsed.identity !== candidate.identity.attemptId ||
-        parsed.version !== candidate.attemptVersion) {
-        throw durableAttemptLineageBindingError("attempt-key-binding");
-      }
-      const versions = attempts.get(candidate.identity.attemptId) ?? [];
-      versions.push({ version: parsed.version, value: candidate });
-      attempts.set(candidate.identity.attemptId, versions);
-    }
-  }
-  let latest: ProductionExecutionDurableAttemptRecord | undefined;
-  for (const { record, planned } of lineagePlans.values()) {
-    const versions = attempts.get(planned.attemptId);
-    if (!versions) throw durableAttemptLineageBindingError("attempt-lineage-missing");
-    const attempt = exactLatestLineageVersion(versions, "version-contiguity");
-    if (!validateProductionExecutionDurableAttempt(attempt)) {
-      throw durableAttemptLineageBindingError("attempt-integrity");
-    }
-    if (attempt.identity.attemptId !== planned.attemptId) {
-      throw durableAttemptLineageBindingError("attempt-canonical-id-topology");
-    }
-    if (attempt.identity.recordId !== planned.recordId) {
-      throw durableAttemptLineageBindingError("attempt-record-binding");
-    }
-    if (attempt.identity.claimId !== planned.claimId) {
-      throw durableAttemptLineageBindingError("attempt-claim-binding");
-    }
-    if (attempt.identity.leaseId !== planned.leaseId) {
-      throw durableAttemptLineageBindingError("attempt-lease-binding");
-    }
-    if (attempt.identity.reservationId !== record.identityFingerprint) {
-      throw durableAttemptLineageBindingError("attempt-reservation-binding");
-    }
-    if (attempt.identity.requestId !== planned.requestId) {
-      throw durableAttemptLineageBindingError("attempt-request-binding");
-    }
-    if (attempt.identity.idempotencyKey !== planned.idempotencyKey) {
-      throw durableAttemptLineageBindingError("attempt-idempotency-binding");
-    }
-    if (attempt.identity.executionFingerprint !== planned.executionFingerprint) {
-      throw durableAttemptLineageBindingError("attempt-execution-fingerprint");
-    }
-    const operationBoundary = durableAttemptOperationBindingBoundary(attempt, record);
-    if (operationBoundary) throw durableAttemptLineageBindingError(operationBoundary);
-    if (record.attempt === maximum) latest = attempt;
-  }
-  if (!latest || attempts.size !== latestRecords.length) {
-    throw durableAttemptLineageBindingError("lineage-inventory");
-  }
-  const nextRequired = latest.state === "failed" || latest.state === "cancelled" ||
-    latest.state === "abandoned";
-  const durableOrdinal = nextRequired ? maximum : maximum - 1;
-  if (expectedJobAttempt !== durableOrdinal) {
-    throw durableAttemptLineageBindingError("expected-attempt-ordinal");
-  }
-  return durableOrdinal;
-}
-
-function durableAttemptOperationBindingBoundary(
-  attempt: ProductionExecutionDurableAttemptRecord,
-  record: ProductionExecutionIdempotencyRecord,
-): ProductionDurableAttemptLineageBoundary | undefined {
-  const operation = attempt.identity.operation;
-  if (Object.prototype.hasOwnProperty.call(attempt.identity, "operation")) {
-    if (typeof operation !== "string") return "attempt-operation-presence";
-    return operation === record.operation ? undefined : "attempt-record-operation-binding";
-  }
-  return isProductionExecutionTerminalAttemptState(attempt.state) &&
-    isProductionExecutionTerminalDurableRecordState(record.state)
-    ? undefined
-    : "terminal-legacy-operation-compatibility";
-}
-
-function durableLineageRunType(
-  operation: string,
-): ProductionAcceptanceStageExecutionIdentity["runType"] {
-  try {
-    return runTypeFromOperation(operation);
-  } catch {
-    throw durableAttemptLineageBindingError("record-operation-format");
-  }
+  const lineage = await classifyProductionDurableAttemptLineage(
+    adapter, projectSlug, stage, expectedJobAttempt,
+  );
+  if (lineage.status === "invalid") throw durableAttemptLineageBindingError(lineage.boundary);
+  return lineage.durableOrdinal;
 }
 
 function durableAttemptLineageBindingError(
   boundary: ProductionDurableAttemptLineageBoundary,
 ): ProductionPipelineDurableExecutionError {
   return createProductionDurableAttemptLineageBindingError(boundary);
-}
-
-function parseVersionedLineageKey(key: string): { identity: string; version: number } | undefined {
-  const match = /^(.*)-v([1-9][0-9]*)$/.exec(key);
-  if (!match) return undefined;
-  const version = Number(match[2]);
-  return Number.isSafeInteger(version) ? { identity: match[1], version } : undefined;
-}
-
-function exactLatestLineageVersion<T>(
-  versions: Array<{ version: number; value: T }>,
-  boundary: ProductionDurableAttemptLineageBoundary,
-): T {
-  versions.sort((left, right) => left.version - right.version);
-  for (let index = 0; index < versions.length; index += 1) {
-    if (versions[index].version !== index + 1) {
-      throw durableAttemptLineageBindingError(boundary);
-    }
-  }
-  return versions[versions.length - 1].value;
 }
 
 function assertCompletedCanonicalIdentityBindings(

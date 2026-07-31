@@ -400,7 +400,7 @@ async function main() {
     });
     await test("immediately settled failure reconciles as a write-free replay", async () => {
       const before = await tree();
-      const failedJob = { ...audioIdentity, status: "failed" as const, attempts: 1,
+      const failedJob = { ...audioIdentity, status: "failed" as const,
         completedAt: anchor, error: "AUDIO_ASSET_GENERATION_FAILED" };
       const replay = await reconcileFailedPipelineExecution(failedJob, () => new Date().toISOString());
       assert.equal(replay.reasonCode, "PIPELINE_RETRY_RECONCILIATION_REPLAYED");
@@ -532,7 +532,7 @@ async function main() {
       assert.equal(stale.durableLease.status, "active");
       const failedJob = await job("assembly", fixture.pipelineAttempts + 1, "failed");
       const result = await reconcileFailedPipelineExecution(failedJob, () => new Date().toISOString());
-      assert.equal(result.reasonCode, "PIPELINE_RETRY_RECONCILED");
+      assert.equal(result.reasonCode, "PIPELINE_RETRY_RECONCILED", JSON.stringify(result));
       await assertQuiescent(fixture.prepared, "CONTROLLED_STAGE_FAILURE");
     });
 

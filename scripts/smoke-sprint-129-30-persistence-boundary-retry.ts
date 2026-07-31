@@ -161,7 +161,7 @@ async function main() {
       const failedJob: PipelineJob = {
         ...queued,
         status: "failed",
-        attempts: attempts + 1,
+        attempts,
         updatedAt: failedAt,
         completedAt: failedAt,
         error: "CONTROLLED_STAGE_FAILURE",
