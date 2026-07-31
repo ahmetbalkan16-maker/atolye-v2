@@ -1,5 +1,25 @@
 ---
 
+<!-- SPRINT-129.32-START -->
+## Active milestone - Sprint 129.32
+
+**Status:** APPROVED
+
+Completed:
+
+- exact `job.attempts` invariant for failed job retry durable attempt selection
+- historical stale failed shape test alignment in `smoke-sprint-129-29-failed-terminal-settlement.ts`
+- mismatched `+ 1` ordinal fail-closed rejection (`PIPELINE_RETRY_DURABLE_STATE_MISSING`, `writeFree: true`)
+- byte-identical production execution tree verification on rejected ordinal
+- independent review with P0/P1/P2 = 0/0/1 (debug log residue cleaned)
+- production code and data unchanged
+
+Next:
+
+1. Commit Sprint 129.32 test alignment and documentation.
+2. Push branch.
+<!-- SPRINT-129.32-END -->
+
 <!-- SPRINT-129.31-START -->
 ## Active milestone - Sprint 129.31
 

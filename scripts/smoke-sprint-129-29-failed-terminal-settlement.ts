@@ -525,16 +525,87 @@ async function main() {
       });
     }
 
-    await test("historical stale failed shape remains forward-recoverable", async () => {
-      const fixture = await failedExecution("assembly");
-      const stale = await latest("idempotency", fixture.prepared.request.coordinator.attempt.recordId);
-      assert.equal(stale.state, "reserved");
-      assert.equal(stale.durableLease.status, "active");
-      const failedJob = await job("assembly", fixture.pipelineAttempts + 1, "failed");
-      const result = await reconcileFailedPipelineExecution(failedJob, () => new Date().toISOString());
-      assert.equal(result.reasonCode, "PIPELINE_RETRY_RECONCILED", JSON.stringify(result));
-      await assertQuiescent(fixture.prepared, "CONTROLLED_STAGE_FAILURE");
-    });
+    await test(
+      "historical stale failed shape remains forward-recoverable with exact ordinal",
+      async () => {
+        const fixture = await failedExecution("assembly");
+
+        const stale = await latest(
+          "idempotency",
+          fixture.prepared.request.coordinator.attempt.recordId,
+        );
+
+        assert.equal(stale.state, "reserved");
+        assert.equal(stale.durableLease.status, "active");
+
+        // Exact ordinal: durable execution hangi attempt ile hazırlandıysa
+        // failed job da aynı attempt değerini taşımalı.
+        const failedJob = await job(
+          "assembly",
+          fixture.pipelineAttempts,
+          "failed",
+        );
+
+        const result = await reconcileFailedPipelineExecution(
+          failedJob,
+          () => new Date().toISOString(),
+        );
+
+        assert.equal(
+          result.reasonCode,
+          "PIPELINE_RETRY_RECONCILED",
+          JSON.stringify(result),
+        );
+
+        await assertQuiescent(
+          fixture.prepared,
+          "CONTROLLED_STAGE_FAILURE",
+        );
+      },
+    );
+
+    await test(
+      "historical stale failed shape rejects mismatched next ordinal write-free",
+      async () => {
+        const fixture = await failedExecution("assembly");
+
+        // Eski +1 davranışını kasıtlı olarak yeniden oluştur.
+        const failedJob = await job(
+          "assembly",
+          fixture.pipelineAttempts + 1,
+          "failed",
+        );
+
+        const before = await tree();
+
+        const result = await reconcileFailedPipelineExecution(
+          failedJob,
+          () => new Date().toISOString(),
+        );
+
+        assert.equal(result.ok, false, JSON.stringify(result));
+        assert.equal(
+          result.reasonCode,
+          "PIPELINE_RETRY_DURABLE_STATE_MISSING",
+          JSON.stringify(result),
+        );
+        assert.equal(result.writeFree, true, JSON.stringify(result));
+
+        assert.ok(
+          result.evidence.includes("durable:expected-attempt-ordinal"),
+          JSON.stringify(result),
+        );
+
+        // Durable record, claim, lease ve attempt dosyalarının tamamı
+        // aynı yollar ve aynı SHA-256 değerleriyle kalmalı.
+        assert.deepEqual(await tree(), before);
+
+        // Settle assembly fixture with exact ordinal so runtime remains quiescent for subsequent tests
+        const validJob = await job("assembly", fixture.pipelineAttempts, "failed");
+        const reconciled = await reconcileFailedPipelineExecution(validJob, () => new Date().toISOString());
+        assert.equal(reconciled.ok, true);
+      },
+    );
 
     await test("binding poisoning fails closed without durable mutation", async () => {
       const fixture = await failedExecution("seo");
@@ -870,7 +941,7 @@ async function main() {
       const observed = await readProductionExecutionRecoverySemanticAuthority(
         fixture.prepared.adapter, new Date().toISOString());
       assert.notEqual(observed.decision, "ready");
-      const failedJob = await job("export", fixture.pipelineAttempts + 1, "failed");
+      const failedJob = await job("export", fixture.pipelineAttempts, "failed");
       let preparationResolved = false;
       const preparation = prepareFailedStageRetry(projectSlug, failedJob.id)
         .finally(() => { preparationResolved = true; });
@@ -979,7 +1050,7 @@ async function main() {
 
     await test("child-process settlement versus retry reconciliation converges", async () => {
       const fixture = await failedExecution("thumbnail");
-      const failedJob = await job("thumbnail", fixture.pipelineAttempts + 1, "failed");
+      const failedJob = await job("thumbnail", fixture.pipelineAttempts, "failed");
       const results = await runChildRace(fixture, ["settle", "reconcile"], failedJob);
       assert.ok(results.every((result) => result.ok), JSON.stringify(results));
       assert.equal(fixture.handlerCalls, 1);

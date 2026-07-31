@@ -1,5 +1,30 @@
 ---
 
+<!-- SPRINT-129.32-START -->
+## 2026-08-01 - Sprint 129.32
+
+### Fixed
+
+- Aligned failed job retry durable attempt selection to exact `job.attempts` invariant.
+- Updated historical stale failed shape test cases in `smoke-sprint-129-29-failed-terminal-settlement.ts` to exact ordinal.
+- Added explicit test verifying mismatched `+ 1` ordinal rejection (`PIPELINE_RETRY_DURABLE_STATE_MISSING`, `writeFree: true`) with byte-identical durable tree preservation.
+- Cleaned single P2 debug log residue from smoke test file.
+
+### Tests
+
+- Sprint 129.29 failed terminal settlement suite: 41/41 PASS.
+- Sprint 129.30 persistence boundary retry suite: 5/5 PASS.
+- Sprint 129.32 retry durable attempt ordinal suite: 18/18 PASS.
+- TypeScript: `npx tsc --noEmit --incremental false` PASS.
+
+### Review and Safety
+
+- Independent review: APPROVED.
+- P0/P1/P2: 0/0/1 (P2 cleaned).
+- Production code was not modified.
+- Production data in `data/projects` remains unchanged (`git diff -- data/projects` empty).
+<!-- SPRINT-129.32-END -->
+
 <!-- SPRINT-129.31-START -->
 ## 2026-07-31 - Sprint 129.31
 
