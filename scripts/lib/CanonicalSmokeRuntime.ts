@@ -23,6 +23,7 @@ const sharedAuthorityDirectoryName = "atolye-runtime-authority-v1";
 const manifestFileName = "canonical-smoke-ownership.json";
 const leaseFileName = "canonical-smoke-active.lock";
 const defaultEnvironment: Readonly<Record<string, string | undefined>> = Object.freeze({
+  NODE_ENV: "test",
   AI_PROVIDER: "mock", IMAGE_PROVIDER: "mock", AUDIO_PROVIDER: "mock",
   ANIMATION_PROVIDER: "mock", VIDEO_PROVIDER: "mock", VIDEO_ASSEMBLY_PROVIDER: "mock",
   THUMBNAIL_PROVIDER: "mock", YOUTUBE_PROVIDER: "mock", YOUTUBE_PUBLISH_PROVIDER: "mock",
@@ -72,6 +73,9 @@ export interface CanonicalSmokeFinalizationResult {
   readonly cleanupCompleted: boolean;
   readonly runtimeRemainder: number;
   readonly authorityRemainder: number;
+  readonly lockGateQuarantineRemainder: number;
+  readonly preExistingGlobalInventory: readonly CanonicalSmokeInventoryEntry[];
+  readonly newlyCreatedGlobalInventory: readonly CanonicalSmokeInventoryEntry[];
 }
 
 export interface CanonicalSmokeRuntime {
@@ -310,15 +314,32 @@ async function setupCanonicalSmokeRuntime(options: CanonicalSmokeRuntimeOptions)
       catch (error) { errors.push(error); }
       await runRestores(restoreStack, errors);
       let sharedUnchanged = false;
+      let sharedAfter: readonly CanonicalSmokeInventoryEntry[] = [];
       try {
-        assert.deepEqual(inventory(sharedAuthorityRoot), sharedBefore,
+        sharedAfter = inventory(sharedAuthorityRoot);
+        assert.deepEqual(sharedAfter, sharedBefore,
           "Canonical smoke runtime touched the shared authority root.");
         sharedUnchanged = true;
       } catch (error) { errors.push(error); }
+      const newlyCreatedGlobalInventory = sharedAfter.filter((entry) =>
+        !sharedBefore.some((before) => JSON.stringify(before) === JSON.stringify(entry)));
+      let lockGateQuarantineRemainder = 0;
+      try {
+        lockGateQuarantineRemainder = fs.existsSync(workspaceRoot)
+          ? inventory(workspaceRoot).filter((entry) =>
+            /pipeline-jobs\.(?:lock|gate|stale|quarantine)/
+              .test(entry.relativePath)).length : 0;
+      } catch (error) {
+        lockGateQuarantineRemainder = 1;
+        errors.push(error);
+      }
       const result = Object.freeze({ runId, environmentRestored,
         sharedAuthorityUnchanged: sharedUnchanged, cleanupCompleted,
         runtimeRemainder: fs.existsSync(runtimeRoot) ? 1 : 0,
-        authorityRemainder: fs.existsSync(authorityRoot) ? 1 : 0 });
+        authorityRemainder: fs.existsSync(authorityRoot) ? 1 : 0,
+        lockGateQuarantineRemainder,
+        preExistingGlobalInventory: Object.freeze([...sharedBefore]),
+        newlyCreatedGlobalInventory: Object.freeze(newlyCreatedGlobalInventory) });
       if (errors.length > 0) {
         throw new AggregateError((primaryError ? [primaryError, ...errors] : errors).slice(0, 8),
           "Canonical smoke runtime finalization failed.");

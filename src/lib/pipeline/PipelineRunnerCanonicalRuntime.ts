@@ -88,6 +88,19 @@ export async function executePipelineRunnerProductionRuntimeOperation<T>(
   return registration.executeWithRuntimeOperationContext(context, operation);
 }
 
+export function assertPipelineRunnerProductionRuntimeOperationActive(): void {
+  assertProcessCanonicalLockOwnership();
+  const registration = canonicalRegistration;
+  if (!registration) {
+    throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISSING");
+  }
+  const active = getActiveProductionRuntimeOperationContext();
+  if (!active) {
+    throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISSING");
+  }
+  assertProductionRuntimeOperationAuthority(registration.parent, active);
+}
+
 function claimProcessCanonicalLock(): boolean {
   const existing = Object.getOwnPropertyDescriptor(
     globalThis,

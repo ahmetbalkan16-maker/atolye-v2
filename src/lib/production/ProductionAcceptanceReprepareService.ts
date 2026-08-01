@@ -45,9 +45,21 @@ export class ProductionAcceptanceReprepareError extends Error {
 
   constructor() {
     super("Production acceptance marker re-prepare failed.");
+    if (new.target === ProductionAcceptanceReprepareError) {
+      authenticProductionAcceptanceReprepareErrors.add(this);
+    }
     this.name = "ProductionAcceptanceReprepareError";
     this.stack = undefined;
   }
+}
+
+const authenticProductionAcceptanceReprepareErrors = new WeakSet<object>();
+export function isAuthenticProductionAcceptanceReprepareError(
+  value: unknown,
+): value is ProductionAcceptanceReprepareError {
+  return typeof value === "object" && value !== null &&
+    authenticProductionAcceptanceReprepareErrors.has(value) &&
+    Object.getPrototypeOf(value) === ProductionAcceptanceReprepareError.prototype;
 }
 
 export async function reprepareProductionAcceptanceMarker(

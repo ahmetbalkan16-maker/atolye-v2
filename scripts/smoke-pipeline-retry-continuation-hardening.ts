@@ -263,8 +263,8 @@ async function main() {
       await writeJobs([job("visuals", "failed", 1)]);
       const result = await PipelineRunner.executeJobRetry(slug, `${slug}-visuals`);
       assert.equal(result.success, false);
-      assert.equal(result.status, 500);
-      assert.equal(result.reasonCode, "PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED");
+      assert.equal(result.status, 409);
+      assert.equal(result.reasonCode, "PIPELINE_RETRY_DURABLE_STATE_MISSING");
       assert.deepEqual(executed, []);
     });
 

@@ -15,7 +15,7 @@ import { validateProductionAcceptancePreflight } from "@/lib/production/Producti
 import { isPipelineStateError } from "./PipelineStateError";
 import { getPipelineErrorEvidence } from "./PipelineErrorEvidence";
 import {
-  ProductionPipelineDurableExecutionError,
+  isAuthenticProductionPipelineDurableExecutionError,
   type ProductionPipelineExecutionAdapter,
 } from "@/lib/production/ProductionPipelineExecutionAdapter";
 import { executeConfiguredProductionPipelineStage,
@@ -32,7 +32,7 @@ import { createProductionAcceptanceProviderSelection,
   "@/lib/production/ProductionAcceptanceExecutionScope";
 import { emitProductionPipelineExecutionEvent } from
   "@/lib/production/ProductionPipelineExecutionInstrumentation";
-import { withProductionAcceptanceLegacyPreviousRetryJob } from
+import { withProductionAcceptanceRetryAdmission } from
   "@/lib/production/ProductionAcceptanceLegacyAdmissionContext";
 import { prepareFailedStageRetry } from "./PipelineFailedStageRetry";
 import type {
@@ -46,8 +46,17 @@ import type {
   PipelineRetryResult,
   PipelineResumeResult,
 } from "@/types/pipelineRecovery";
+import type { PipelineRetryAdmission } from "./PipelineRetryAdmission";
+import type { PipelineJob } from "@/types/pipelineJob";
 import { ProductionRuntimeOperationContextError } from "@/lib/runtime/ProductionRuntimeOperationContext";
+import { ProjectReader } from "@/lib/projects/ProjectReader";
+import { ProductionExecutionFilePersistenceAdapter } from
+  "@/lib/production/ProductionExecutionPersistence";
+import { classifyQueuedExhaustedPipelineJobDrift,
+  queuedExhaustedDriftReasonCode } from
+  "@/lib/production/ProductionQueuedExhaustedDriftClassifier";
 import {
+  assertPipelineRunnerProductionRuntimeOperationActive,
   executePipelineRunnerProductionRuntimeOperation,
 } from "./PipelineRunnerCanonicalRuntime";
 
@@ -197,8 +206,41 @@ export class PipelineRunner {
       projectSlug,
       plan.startStage,
     );
+    if (startJob?.status === "queued") {
+      const [manifest, jobs, history] = await Promise.all([
+        ProjectManager.getManifest(projectSlug),
+        PipelineJobManager.listJobsReadOnly(projectSlug),
+        PipelineJobManager.listHistory(projectSlug),
+      ]);
+      if (manifest?.packages[plan.startStage]?.status === "failed") {
+        const drift = await classifyQueuedExhaustedPipelineJobDrift({
+          projectSlug, stage: plan.startStage, jobs, history, manifest,
+          adapter: new ProductionExecutionFilePersistenceAdapter({
+            trustedRootDirectory:
+              `${ProjectReader.getProjectFolder(projectSlug)}/production-execution`,
+            createRootDirectory: false,
+          }),
+        });
+        return {
+          success: false,
+          projectSlug,
+          resumedFrom: plan.startStage,
+          completedStages: [],
+          blocked: true,
+          reason: drift.status === "exact-drift"
+            ? "Queued job is in exhausted drift state."
+            : "Queued retry state failed exact durable classification.",
+          reasonCode: drift.status === "exact-drift"
+            ? queuedExhaustedDriftReasonCode
+            : "PIPELINE_RETRY_DURABLE_CONFLICT",
+          plan,
+        };
+      }
+    }
+    let resumeRetry: { admission: PipelineRetryAdmission;
+      previousJob: NonNullable<typeof startJob> } | undefined;
     if (startJob?.status === "failed") {
-      const prepared = await prepareFailedStageRetry(projectSlug, startJob.id);
+      const prepared = await prepareFailedStageRetry(projectSlug, startJob.id, "resume");
       if (!prepared.success) {
         return {
           success: false,
@@ -211,13 +253,11 @@ export class PipelineRunner {
           plan,
         };
       }
+      resumeRetry = { admission: prepared.admission, previousJob: prepared.previousJob };
     }
 
     const { completedStages, stopReason } = await this.runScheduledStages(
-      projectSlug,
-      plan.stagesToRun,
-      state,
-      "resume",
+      projectSlug, plan.stagesToRun, state, "resume", undefined, resumeRetry,
     );
 
     if (stopReason) {
@@ -450,11 +490,11 @@ export class PipelineRunner {
       if (isPipelineStateError(error)) {
         throw error;
       }
-      if (
-        error instanceof ProductionPipelineDurableExecutionError &&
-        (error.reasonCode === "WORKER_EXECUTION_OWNERSHIP_CONFLICT" ||
-          error.reasonCode === "CLAIM_NEXT_VERSION_CONFLICT")
-      ) {
+      if (await isProvenContinuationContenderLoss(
+        error,
+        projectSlug,
+        queuedStage,
+      )) {
         return {
           continued: false,
           reason: `Stage "${queuedStage}" could not be claimed.`,
@@ -629,7 +669,8 @@ export class PipelineRunner {
     let completed: boolean;
 
     try {
-      completed = await withProductionAcceptanceLegacyPreviousRetryJob(
+      completed = await withProductionAcceptanceRetryAdmission(
+        prepared.admission,
         prepared.previousJob,
         () => this.runPipelineStage(
           projectSlug,
@@ -741,6 +782,7 @@ export class PipelineRunner {
     state: Parameters<typeof PipelineStageExecutor.execute>[2],
     runType: ProjectPackageRunType = "initial",
     stageExecution?: PipelineStageExecutionOptions,
+    retryAdmission?: { admission: PipelineRetryAdmission; previousJob: PipelineJob },
   ): Promise<{
     completedStages: PipelineRecoveryStageKey[];
     stopReason?: string;
@@ -762,24 +804,25 @@ export class PipelineRunner {
               : next.reason,
         };
       }
+      const nextStage = next.stage;
 
-      const completed = await this.runPipelineStage(
-        slug,
-        next.stage,
-        state,
-        runType,
-        undefined,
-        stageExecution,
+      const execute = () => this.runPipelineStage(
+        slug, nextStage, state, runType, undefined, stageExecution,
       );
+      const completed = retryAdmission?.admission.stage === nextStage
+        ? await withProductionAcceptanceRetryAdmission(
+          retryAdmission.admission, retryAdmission.previousJob, execute,
+        )
+        : await execute();
 
       if (!completed) {
         return {
           completedStages,
-          stopReason: `Stage "${next.stage}" was cancelled.`,
+          stopReason: `Stage "${nextStage}" was cancelled.`,
         };
       }
 
-      completedStages.push(next.stage);
+      completedStages.push(nextStage);
     }
   }
 
@@ -794,31 +837,34 @@ export class PipelineRunner {
     providerSelection: ProductionAcceptanceProviderSelection =
       createProductionAcceptanceProviderSelection(stage, stageExecution),
   ): Promise<boolean> {
-    const existingJob = await PipelineJobManager.getJobForStageReadOnly(slug, stage);
-    if (existingJob?.status === "completed") {
-      onClaimConflict?.();
-      return false;
-    }
-    const legacy = (_capability: ProductionAcceptanceStageCapability | undefined,
-      identity: ProductionAcceptanceStageExecutionIdentity,
-      authority: ProductionPipelineCompletedPreparationAuthority) =>
-      this.runStageLegacy(slug, stage, async () => {
-        const executionScope = createProductionAcceptanceStageExecutionScope({
-          projectSlug: slug,
-          stage,
-          runType,
-          operation: identity.operation,
-          executionFingerprint: identity.executionFingerprint,
-          providerSelection,
-        });
-        await emitProductionPipelineExecutionEvent("capability-issuance-entered");
-        return action(
-          await issueProductionAcceptanceStageCapability(authority, executionScope),
-          identity,
-        );
-      }, runType, onClaimConflict);
-    return executeConfiguredProductionPipelineStage({ projectSlug: slug, stage, runType,
-      providerSelection }, legacy);
+    assertPipelineRunnerProductionRuntimeOperationActive();
+    return PipelineJobManager.withProjectLock(slug, async () => {
+      const existingJob = await PipelineJobManager.getJobForStageReadOnly(slug, stage);
+      if (existingJob?.status === "completed") {
+        onClaimConflict?.();
+        return false;
+      }
+      const legacy = (_capability: ProductionAcceptanceStageCapability | undefined,
+        identity: ProductionAcceptanceStageExecutionIdentity,
+        authority: ProductionPipelineCompletedPreparationAuthority) =>
+        this.runStageLegacy(slug, stage, async () => {
+          const executionScope = createProductionAcceptanceStageExecutionScope({
+            projectSlug: slug,
+            stage,
+            runType,
+            operation: identity.operation,
+            executionFingerprint: identity.executionFingerprint,
+            providerSelection,
+          });
+          await emitProductionPipelineExecutionEvent("capability-issuance-entered");
+          return action(
+            await issueProductionAcceptanceStageCapability(authority, executionScope),
+            identity,
+          );
+        }, runType, onClaimConflict);
+      return executeConfiguredProductionPipelineStage({ projectSlug: slug, stage, runType,
+        providerSelection }, legacy);
+    }, `${slug}-${stage}`);
   }
 
   private static async runStageLegacy(
@@ -893,6 +939,35 @@ export class PipelineRunner {
 
     return manifest?.packages[stage].status === "completed";
   }
+}
+
+const continuationContenderLossCodes = new Set([
+  "WORKER_EXECUTION_OWNERSHIP_CONFLICT",
+  "CLAIM_NEXT_VERSION_CONFLICT",
+  "CLAIM_VERSION_CONFLICT",
+  "CLAIM_OWNER_MISMATCH",
+  "LEASE_OWNERSHIP_CONFLICT",
+  "LEASE_NEXT_VERSION_CONFLICT",
+  "DURABLE_STORAGE_VERSION_CONFLICT",
+  "DURABLE_STORAGE_STALE_WRITE",
+  "DURABLE_STORAGE_ATOMIC_WRITE_FAILED",
+]);
+
+async function isProvenContinuationContenderLoss(
+  error: unknown,
+  projectSlug: string,
+  stage: ProductionStepKey,
+): Promise<boolean> {
+  if (!isAuthenticProductionPipelineDurableExecutionError(error) ||
+    !continuationContenderLossCodes.has(error.reasonCode)) return false;
+  const jobId = `${projectSlug}-${stage}`;
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const job = await PipelineJobManager.getJobReadOnly(projectSlug, jobId);
+    if (job?.status === "running" || job?.status === "completed") return true;
+    if (job?.status !== "queued") return false;
+    await new Promise<void>((resolve) => setTimeout(resolve, 10));
+  }
+  return false;
 }
 
 export function validateStrictProductionResumeState(

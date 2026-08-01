@@ -4,6 +4,8 @@ import type { BigIntStats } from "node:fs";
 import path from "node:path";
 import { ProjectReader } from "@/lib/projects/ProjectReader";
 import { PipelineJobManager } from "@/lib/pipeline/PipelineJobManager";
+import { assertCanonicalPipelineRetryAdmission } from
+  "@/lib/pipeline/PipelineRetryAdmission";
 import type { ProductionRuntimeOperationContext } from "@/lib/runtime/ProductionRuntimeOperationContext";
 import { getActiveProductionRuntimeOperationContext,
   requireProductionRuntimeStorageContext } from "@/lib/runtime/ProductionRuntimeOperationContext";
@@ -18,7 +20,6 @@ import type {
 import type { ProductionExecutionAuthorizationResult } from "@/types/productionExecutionAuthorization";
 import type { ProductionExecutionConfirmationValidationResult } from "@/types/productionExecutionConfirmation";
 import type { ProductionExecutionWorkerExecutionRequest } from "@/types/productionExecutionWorker";
-import type { ProductionStepKey } from "@/types/project";
 import {
   ProductionPipelineDurableExecutionError,
   type ProductionPipelineExecutionContext,
@@ -35,7 +36,6 @@ import {
   validateProductionExecutionDurableClaim,
 } from "./ProductionExecutionDurableClaim";
 import { defaultProductionExecutionAttemptPolicy,
-  isProductionExecutionTerminalAttemptState,
   validateProductionExecutionDurableAttempt } from "./ProductionExecutionDurableAttempt";
 import {
   AdapterBackedProductionExecutionDurableLeaseService,
@@ -45,7 +45,6 @@ import {
 import {
   AdapterBackedProductionExecutionDurableStorage,
   defaultProductionExecutionDurableStoragePolicy,
-  isProductionExecutionTerminalDurableRecordState,
 } from "./ProductionExecutionDurableStorage";
 import {
   buildProductionExecutionIdempotencyIdentity,
@@ -55,6 +54,11 @@ import { ProductionExecutionCoordinator } from "./ProductionExecutionCoordinator
 import { ProductionExecutionFilePersistenceAdapter } from "./ProductionExecutionPersistence";
 import { ProductionExecutionLifecycle } from "./ProductionExecutionLifecycle";
 import { buildProductionPipelineExecutionIdentity } from "./ProductionPipelineExecutionIdentity";
+import { readProductionCanonicalTerminalDurableLineage } from
+  "./ProductionCanonicalDurableLineage";
+import { getProductionAcceptanceLegacyPreviousRetryJob,
+  getProductionAcceptanceRetryAdmission } from
+  "./ProductionAcceptanceLegacyAdmissionContext";
 import {
   emitProductionPipelineExecutionEvent,
   poisonProductionPipelineExecutionPlanAfterDurableAttempt,
@@ -234,8 +238,6 @@ export async function prepareProductionPipelineExecution(
   context: ProductionPipelineExecutionContext,
 ) {
   await emitProductionPipelineExecutionEvent("durable-entry");
-  const providerSelection = context.providerSelection ??
-    createProductionAcceptanceProviderSelection(context.stage);
   const resolvedStoreRoot = canonicalStoreRoot(
     `${ProjectReader.getProjectFolder(context.projectSlug)}/production-execution`,
   );
@@ -245,15 +247,40 @@ export async function prepareProductionPipelineExecution(
   if (job && (job.id !== jobId || !Number.isSafeInteger(job.attempts) || job.attempts < 0)) {
     throw new Error("Pipeline durable preparation job identity is invalid.");
   }
-  const attemptNumber = await resolveDurableAttemptOrdinal(
-    adapter, context.projectSlug, context.stage, job?.attempts ?? 0,
-  );
+  const retryAdmission = getProductionAcceptanceRetryAdmission();
+  if (retryAdmission) {
+    try {
+      assertCanonicalPipelineRetryAdmission({ admission: retryAdmission,
+        previousJob: getProductionAcceptanceLegacyPreviousRetryJob(),
+        currentJob: job ?? undefined,
+        projectSlug: context.projectSlug, stage: context.stage, runType: context.runType });
+      await assertReconciledRetryLineageBinding(adapter, retryAdmission);
+    } catch {
+      throw new ProductionPipelineDurableExecutionError(
+        "Pipeline retry immutable admission binding is invalid.",
+        "PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED",
+      );
+    }
+  }
+  const providerSelection = context.providerSelection ??
+    createProductionAcceptanceProviderSelection(context.stage);
+  const attemptNumber = retryAdmission?.admittedJobAttemptIndex ??
+    await resolveDurableAttemptOrdinal(
+      adapter, context.projectSlug, context.stage, job?.attempts ?? 0,
+    );
   const anchor = job?.updatedAt ?? job?.createdAt ?? new Date().toISOString();
   const now = new Date().toISOString();
   const planned = buildProductionPipelineExecutionIdentity(context, {
     id: jobId,
     attempts: attemptNumber,
   });
+  if (retryAdmission && stableProductionValue(planned) !==
+    stableProductionValue(retryAdmission.admittedDurableLineageIdentity)) {
+    throw new ProductionPipelineDurableExecutionError(
+      "Pipeline retry admitted durable identity changed.",
+      "PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED",
+    );
+  }
   const planIdentity = {
     requestId: planned.requestId,
     idempotencyKey: planned.idempotencyKey,
@@ -313,6 +340,26 @@ export async function prepareProductionPipelineExecution(
   const idempotencyIdentity = buildProductionExecutionIdempotencyIdentity(
     { authorization, confirmation }, { evaluatedAt: anchor, policy: idempotencyPolicy },
   ).identity!;
+  if (retryAdmission) {
+    const binding = retryAdmission.admittedExecutionBinding;
+    const actualBinding = {
+      identity: planned, operation: planIdentity.operation,
+      durableOrdinal: attemptNumber + 1, maxAttempts: 3,
+      reservationId: idempotencyIdentity.identityFingerprint,
+      workerId, workerSessionId: sessionId,
+      recordVersion: 1, reservationVersion: 1, claimVersion: 1,
+      attemptVersion: 1, leaseVersion: 1,
+      reservationIdentityFingerprint: idempotencyIdentity.identityFingerprint,
+      recordIntegrityFingerprint: idempotencyIdentity.identityFingerprint,
+      recordIntegrityVersion: 1,
+    };
+    if (stableProductionValue(actualBinding) !== stableProductionValue(binding)) {
+      throw new ProductionPipelineDurableExecutionError(
+        "Pipeline retry admitted execution binding changed.",
+        "PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED",
+      );
+    }
+  }
   const storage = new AdapterBackedProductionExecutionDurableStorage(adapter);
   const leases = new AdapterBackedProductionExecutionDurableLeaseService(adapter);
   const claims = new AdapterBackedProductionExecutionClaimService(adapter);
@@ -345,14 +392,33 @@ export async function prepareProductionPipelineExecution(
       evaluatedAt: anchor, policy: storagePolicy,
     });
     if (!created.ok || !created.reservation) {
-      throw new Error("Pipeline durable reservation preparation failed.");
+      const raced = await adapter.read(
+        "reservation",
+        idempotencyIdentity.identityFingerprint,
+      );
+      if (raced.status !== "found" ||
+        stableProductionValue(raced.value) !== stableProductionValue(reservation)) {
+        throw new ProductionPipelineDurableExecutionError(
+          "Pipeline durable reservation preparation failed.",
+          created.reasonCode,
+        );
+      }
     }
   }
   let existingRecord = await storage.read(record.recordId);
   if (!existingRecord.record) {
     const created = await storage.createRecord(record, { evaluatedAt: anchor, policy: storagePolicy });
     if (!created.ok || !created.record) {
-      throw new Error("Pipeline durable record preparation failed.");
+      const raced = await storage.read(record.recordId);
+      if (!raced.record ||
+        raced.record.identityFingerprint !== record.identityFingerprint ||
+        raced.record.attempt !== record.attempt ||
+        raced.record.maxAttempts !== record.maxAttempts) {
+        throw new ProductionPipelineDurableExecutionError(
+          "Pipeline durable record preparation failed.",
+          created.reasonCode,
+        );
+      }
     }
     existingRecord = await storage.read(record.recordId);
   }
@@ -368,7 +434,10 @@ export async function prepareProductionPipelineExecution(
       heartbeatAt: anchor, expiresAt: new Date(Date.parse(anchor) + ttlSeconds * 1000).toISOString() },
     leasePolicy);
     if (!acquired.ok && acquired.reasonCode !== "LEASE_REPLAYED") {
-      throw new Error(`Pipeline durable lease preparation failed: ${acquired.reasonCode}`);
+      throw new ProductionPipelineDurableExecutionError(
+        "Pipeline durable lease preparation failed.",
+        acquired.reasonCode,
+      );
     }
   }
   const claimRequest = {
@@ -491,6 +560,48 @@ export async function prepareProductionPipelineExecution(
   return { adapter: callerVisibleAdapter, executionAdapter: adapter,
     request: completedRequest, authority,
     settlement: { adapter, request: completedRequest, idempotencyPolicy, leasePolicy, worker, session } };
+}
+
+async function assertReconciledRetryLineageBinding(
+  adapter: ProductionExecutionFilePersistenceAdapter,
+  admission: NonNullable<ReturnType<typeof getProductionAcceptanceRetryAdmission>>,
+): Promise<void> {
+  const expected = admission.exactReconciledLineageBinding;
+  const identity = admission.exactReconciledDurableLineageIdentity;
+  if (expected.state === "none") {
+    const [record, claim, attempt] = await Promise.all([
+      readLatestVersionedBinding(adapter, "idempotency", identity.recordId),
+      readLatestVersionedBinding(adapter, "claim", identity.claimId),
+      readLatestVersionedBinding(adapter, "attempt", identity.attemptId),
+    ]);
+    if (record || claim || attempt) throw new Error("retry lineage unexpectedly exists");
+    return;
+  }
+  await readProductionCanonicalTerminalDurableLineage(
+    adapter, identity, expected.reservationId, expected,
+  );
+}
+
+async function readLatestVersionedBinding(
+  adapter: ProductionExecutionFilePersistenceAdapter,
+  kind: "idempotency" | "claim" | "attempt",
+  identity: string,
+): Promise<unknown | undefined> {
+  const listed = await adapter.listKeys(kind);
+  if (!listed.ok) throw new Error("retry lineage list failed");
+  const latest = listed.keys.map((key) => ({ key,
+    version: Number(new RegExp(`^${escapeRegularExpression(identity)}-v([1-9][0-9]*)$`)
+      .exec(key)?.[1]) }))
+    .filter((item) => Number.isSafeInteger(item.version))
+    .sort((left, right) => left.version - right.version).at(-1);
+  if (!latest) return undefined;
+  const read = await adapter.read(kind, latest.key);
+  if (read.status !== "found") throw new Error("retry lineage read failed");
+  return read.value;
+}
+
+function escapeRegularExpression(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 async function readCompletedDurableRecords(

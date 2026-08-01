@@ -1,5 +1,100 @@
 ---
 
+<!-- SPRINT-129.33-FINAL-TOCTOU-REMEDIATION-START -->
+## 2026-08-02 — Sprint 129.33 Final TOCTOU Remediation
+
+### Fixed
+
+- Removed canonical lock/gate check-then-delete cleanup and the quarantine-to-canonical
+  replace-capable restore path.
+- Unified lock release, gate release, stale cleanup, publication-failure cleanup, and quarantine
+  cleanup behind an exclusive nonce-owned quarantine primitive with post-move exact identity,
+  type, owner-byte, containment, and manifest verification.
+- Added typed cleanup outcomes and typed fail-closed residue errors. Identity-unverified foreign
+  leaves are not deleted or restored; they remain byte-identical in quarantine for inspection.
+- Strengthened the race suite to eight real two-child barriers. Every case asserts the exact
+  fail-closed reason, final leaf type, exact bytes, SHA-256, and recursive inventory.
+- Replaced inferred race zeros with a production-wrapper event observer. Every race now directly
+  asserts numeric foreign mutation/delete/overwrite, canonical overwrite,
+  quarantine-to-canonical restore, and unexpected canonical mutation counters at zero.
+- Replaced the synthetic combined lock/gate evidence with separate counters attached to actual
+  lock, gate, and quarantine mutation entry points. All 14 hostile global-quiescence cases assert
+  each counter directly at zero.
+- Added a distinct network counter spanning fetch and HTTP/HTTPS request/get. Each hostile case
+  asserts a fresh counter and suite-boundary delta at zero; the suite-global assertion remains.
+
+### Validation
+
+- Sprint 129.33: `54/54`; persisted lineage `59/59`; two-child races, byte/hash equality, and exact
+  fail-closed reasons `8/8`; global quiescence and separate lock/gate/quarantine assertions `14/14`.
+- Acceptance topic `24/24`; Sprint 129.32 `18/18`; Sprint 129.31 `9/9`; Sprint 129.30 `5/5`;
+  Sprint 129.29 `41/41`; all requested durable/runtime/audio/coordinator/retry/lineage/acceptance
+  regression suites pass.
+<!-- SPRINT-129.33-FINAL-TOCTOU-REMEDIATION-END -->
+
+<!-- PRODUCTION-BASELINE-CLOSURE-2026-08-01-START -->
+## 2026-08-01 — Controlled Canonical Production Baseline Correction
+
+### Documentation
+
+- Recorded Phase A as `B. STRONGLY CORRELATED BUT NOT FULLY ATTESTED`. The exact PowerShell-history resume invocation and project slug, historical HEAD control flow, `pipeline-jobs.json` update at `2026-07-31T22:34:03.305Z`, `queued / attempts 3`, unchanged failed manifest/history, terminal durable ordinal `3`, and absence of an ordinal-4 write form one consistent causal chain. The original timestamped command stdout/stderr and immediately adjacent pre-command file-hash output are not retained, so the mutation is not called fully proven or authorized.
+- Recorded physical `pipeline-jobs.json` SHA-256 transition `4a74c326088f9c51f6565f3f50e868dfac8425418191db972a9d67261b3d5b48` -> `7fc3c6a6de022faeffc3829dec9ff7c59f49f3236e82deefc51ed5a9158e66d4`. The file is `skip-worktree`; physical hashing, not ordinary Git status/diff alone, is required.
+- Established the deterministic physical `data/projects` contract: recursive regular files, root-inclusive directory count, reparse/special rejection, absolute-FullName ordinal order, root-relative `/` paths, `path<TAB>length<TAB>lowercase-sha256` rows, UTF-8 without BOM, LF without a trailing LF, and no directory/metadata/timestamp rows.
+- Independently reproducible baseline: `268` physical files, `18` directories, `199` tracked, `69` ignored physical, `0` non-ignored untracked, `55,785` serialized bytes, aggregate `e83ab3e2284e90a1fd6e13949daa59f7ede85c591e9c54c860d43eb6bdf7fe08`.
+- Preserved `9e91a1fa4fdd04053b2e09dffab6f8de147f5595ccb79d6452ce4cc15e59a301` as an obsolete/unattested historical value: no executable algorithm, matching Git blob/commit, or calculation transcript was found, and it must not be used as an execution safety gate.
+- Future safety evidence must report tracked diff, non-ignored untracked files, ignored physical files, physical inventory, deterministic physical aggregate, skip-worktree/assume-unchanged entries, and canonical state-file physical hashes separately.
+
+### Safety
+
+- Documentation-only correction; no `data/projects`, source, runtime, or test implementation file was changed by this closure.
+- `queued/3 -> failed/2` recovery was not run. Production resume/recovery and Sprint 129.33 remediation remain blocked pending independent baseline review.
+<!-- PRODUCTION-BASELINE-CLOSURE-2026-08-01-END -->
+
+<!-- SPRINT-129.33-START -->
+## 2026-08-01 - Sprint 129.33
+
+### Fixed
+
+- Preserved the Sprint 129.32 zero-based attempt-index contract: job indices `0/1/2` correspond to durable ordinals `1/2/3`.
+- Failed indices `0` and `1` may retry to ordinals `2` and `3`; failed index `2+` is exhausted for `maxAttempts=3`; ordinal `4` is forbidden.
+- Reject exhausted retry attempts fail-closed with safe, stable reason code `PIPELINE_RETRY_MAX_ATTEMPTS_EXCEEDED` (`writeFree: true`).
+- Preserved byte-identical failure state across `PipelineJob`, manifest, history, and durable execution tree during retry exhaustion rejection.
+- Zero provider, worker handler, or stage dispatch calls on exhausted retry rejection.
+- Implemented one exact, read-only ordinary-resume/recovery classifier and a provider-free recovery changing only `PipelineJob` from `queued/3` to `failed/2` while retaining the exact historical failure code.
+- Added one downstream retry-admission validator for exact canonical max/ordinal equations, persisted prior/admitted job fingerprints and revisions, and complete reconciled/admitted execution identities before any durable or dispatch construction.
+- Hardened the shared PipelineJob lock with an exclusive acquisition gate, atomic/fsynced owner publication, exact owner and filesystem identity verification, gated stale takeover, OS PID/start identity, and under-lock manifest seeding. Child fixtures now perform genuine competing canonical writes.
+- Added module-private `WeakSet` authentication and fixed per-mode public-code maps for every typed CLI branch; forged prototypes, subclasses, mutated prototypes and unknown codes are generic and sanitized.
+- Made project-global drift quiescence accept six safe terminal non-audio stages while rejecting active, non-terminal, corrupt, ambiguous or unbound authority.
+- Added truthful recovery mutation accounting (`none`, `committed-verified`, `committed-unverified`) so post-commit failure is never described as write-free.
+- Added validated manifest execution-count to zero-based job-attempt conversion with history and present durable-lineage evidence.
+- Serialized auto-continuation admission before durable preparation; concurrent contenders now produce one execution and one safe no-op.
+- Rebuilt reconciled reservation/record/lease/claim/attempt authority through canonical readers and bound reservation, record, lease, claim, and attempt proofs separately and exactly before storage/provider construction; missing claim or attempt proofs fail closed.
+- Replaced lock/gate/stale shared-path check-then-delete with exclusive nonce-owned atomic quarantine rename and post-rename filesystem identity, owner-byte, containment, and manifest verification. Six real two-child post-check races preserve same-byte and different-owner foreign replacements.
+- Isolated the acceptance-topic smoke in canonical operation-owned runtime/authority roots; all eight authority markers are owned and cleaned, shared authority receives zero new entries.
+- Added exact result assertions for all 14 named hostile global-quiescence cases: quiescence false, no write, write-free pre-mutation rejection, no recovery attempt, and zero writer/lock-gate/provider/network calls.
+- Made writer/readback and lock/gate release uncertainty fail-closed and non-write-free, without automatic rollback, requeue, continuation, or execution; deterministic read-only forward completion remains possible.
+- Canonically validate every non-target terminal authority chain and reject orphan, corrupt, wrongly linked, duplicate, conflicting, active, or non-terminal authority before mutation.
+
+### Tests
+
+- Sprint 129.33 second-remediation suite: 54/54 PASS, including 59 persisted material-field poisoning cases, 6 real post-check two-child races, 14 exact global-quiescence authority cases, admission poisoning, manifest seeding, uncertain commit/readback/release states, PID reuse, publication cleanup, genuine lock writers, and actual CLI processes.
+- Acceptance-topic isolation suite: 24/24 PASS; 8 operation-owned authority markers, 0 shared additions, and 0 runtime/authority remainder.
+- Sprint 129.32 retry durable attempt ordinal suite: 18/18 PASS.
+- Sprint 129.31 streaming WAV suite: 9/9 PASS.
+- Sprint 129.30 persistence boundary retry suite: 5/5 PASS.
+- Sprint 129.29 failed terminal settlement suite: 41/41 PASS.
+- Pipeline auto-continuation 18/18 and retry persistence 5/5 groups PASS.
+- TypeScript: `npx tsc --noEmit --incremental false` PASS.
+- Admission storage-construction/provider/worker/stage/fetch/http/https/network counters are `0/0/0/0/0/0/0/0`. Operation-owned runtime/authority/lock-gate-quarantine remainder is `0/0/0`; pre-existing shared inventory is `81`, newly created shared inventory is `0`.
+
+### Review and Safety
+
+- Production data in `data/projects` remains 100% unchanged (`git diff -- data/projects` empty).
+- `git diff --check` passed cleanly.
+- No commit or push performed per rules.
+- Real production recovery was not run; production resume remains blocked.
+<!-- SPRINT-129.33-END -->
+
 <!-- SPRINT-129.32-START -->
 ## 2026-08-01 - Sprint 129.32
 

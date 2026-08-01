@@ -15,9 +15,22 @@ export type ProductionAcceptanceTopicErrorCode =
 export class ProductionAcceptanceTopicError extends Error {
   constructor(readonly code: ProductionAcceptanceTopicErrorCode) {
     super("Production acceptance topic validation failed.");
+    if (new.target === ProductionAcceptanceTopicError) {
+      authenticProductionAcceptanceTopicErrors.add(this);
+    }
     this.name = "ProductionAcceptanceTopicError";
     this.stack = undefined;
   }
+}
+
+const authenticProductionAcceptanceTopicErrors = new WeakSet<object>();
+
+export function isAuthenticProductionAcceptanceTopicError(
+  value: unknown,
+): value is ProductionAcceptanceTopicError {
+  return typeof value === "object" && value !== null &&
+    authenticProductionAcceptanceTopicErrors.has(value) &&
+    Object.getPrototypeOf(value) === ProductionAcceptanceTopicError.prototype;
 }
 
 export function normalizeProductionAcceptanceTopic(value: string): string {

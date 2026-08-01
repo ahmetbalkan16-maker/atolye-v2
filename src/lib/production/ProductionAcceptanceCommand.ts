@@ -1,5 +1,8 @@
 import type { ProductionAcceptanceResult } from "./ProductionAcceptanceOrchestrator";
 import {
+  isAuthenticProductionAcceptanceBlockedError,
+  isAuthenticProductionAcceptanceConfigurationChangedError,
+  isAuthenticProductionAcceptanceExecutionError,
   ProductionAcceptanceOrchestrator,
 } from "./ProductionAcceptanceOrchestrator";
 import type { ProductionReadinessReport } from "@/types/productionReadiness";
@@ -8,10 +11,11 @@ import {
   type ProductionAcceptanceConfigurationDiagnostic,
 } from "./ProductionAcceptancePolicy";
 import {
+  isAuthenticProductionAcceptanceTopicError,
   normalizeProductionAcceptanceTopic,
-  ProductionAcceptanceTopicError,
 } from "./ProductionAcceptanceTopic";
 import {
+  isAuthenticProductionAcceptanceReprepareError,
   reprepareProductionAcceptanceMarker,
   type ProductionAcceptanceReprepareResult,
 } from "./ProductionAcceptanceReprepareService";
@@ -21,6 +25,16 @@ import {
   type LegacyReauthorizationPlan,
   type LegacyReauthorizationResult,
 } from "./ProductionAcceptanceLegacyReauthorizationService";
+import { isAuthenticProductionAcceptancePolicyError } from "./ProductionAcceptancePolicy";
+import { isAuthenticProductionAcceptanceLegacyReauthorizationError } from
+  "./ProductionAcceptanceLegacyReauthorization";
+import { legacyReauthorizationErrorCodes } from
+  "./ProductionAcceptanceLegacyReauthorization";
+import { isAuthenticProductionPipelineDurableExecutionError,
+} from
+  "./ProductionPipelineExecutionAdapter";
+import { productionDurableAttemptLineageBindingInvalidCode } from
+  "./ProductionDurableAttemptLineageBoundary";
 
 const CONFIRM_FLAG = "--confirm-production-acceptance";
 const REPREPARE_CONFIRM_FLAG = "--confirm-production-acceptance-reprepare";
@@ -158,27 +172,57 @@ export async function runProductionAcceptanceCommand(
     }
     return usageFailure();
   } catch (error) {
-    const candidate = error as { code?: unknown; projectSlug?: unknown; category?: unknown };
+    const trustedErrorCode = trustedCommandErrorCode(mode, error);
     return {
       exitCode: 1,
       report: {
         mode: typeof mode === "string" ? mode : "invalid",
         success: false,
-        errorCode: typeof candidate.code === "string" ? candidate.code : "PRODUCTION_ACCEPTANCE_COMMAND_FAILED",
-        ...safeProjectSlug(candidate.projectSlug, requestedProjectSlug),
-        ...(typeof candidate.category === "string" &&
-          ["marker", "configuration", "storage", "artifacts", "recovery", "concurrency", "persistence"]
-            .includes(candidate.category)
-          ? { category: candidate.category }
-          : {}),
+        errorCode: trustedErrorCode ?? "PRODUCTION_ACCEPTANCE_COMMAND_FAILED",
+        ...safeProjectSlug(requestedProjectSlug),
       },
     };
   }
 }
 
-function safeProjectSlug(value: unknown, fallback?: string) {
-  if (typeof value === "string" && SAFE_SLUG.test(value)) return { projectSlug: value };
-  return fallback && SAFE_SLUG.test(fallback) ? { projectSlug: fallback } : {};
+const resumePublicErrorCodes = new Set<string>([
+  "PRODUCTION_ACCEPTANCE_EXECUTION_FAILED",
+  "PIPELINE_RETRY_MAX_ATTEMPTS_EXCEEDED",
+  "PIPELINE_RETRY_QUEUED_EXHAUSTED_DRIFT_DETECTED",
+  productionDurableAttemptLineageBindingInvalidCode,
+]);
+
+function trustedCommandErrorCode(mode: unknown, error: unknown): string | undefined {
+  if (mode === "resume-finalize" && isAuthenticProductionAcceptanceExecutionError(error)) {
+    const code = error.reasonCode ?? error.code;
+    return resumePublicErrorCodes.has(code) ? code : undefined;
+  }
+  if (mode === "resume-finalize" && isAuthenticProductionPipelineDurableExecutionError(error)) {
+    return resumePublicErrorCodes.has(error.reasonCode) ? error.reasonCode : undefined;
+  }
+  if ((mode === "execute" || mode === "resume-finalize") &&
+    isAuthenticProductionAcceptanceBlockedError(error)) {
+    return "PRODUCTION_ACCEPTANCE_READINESS_BLOCKED";
+  }
+  if ((mode === "execute" || mode === "resume-finalize") &&
+    isAuthenticProductionAcceptanceConfigurationChangedError(error)) {
+    return "PRODUCTION_ACCEPTANCE_CONFIGURATION_CHANGED";
+  }
+  if ((mode === "execute" || mode === "resume-finalize" || mode === "diagnose") &&
+    isAuthenticProductionAcceptancePolicyError(error)) {
+    return "PRODUCTION_ACCEPTANCE_POLICY_INVALID";
+  }
+  if (mode === "reprepare" && isAuthenticProductionAcceptanceReprepareError(error)) {
+    return "PRODUCTION_ACCEPTANCE_REPREPARE_FAILED";
+  }
+  if ((mode === "legacy-reauthorization-plan" || mode === "reauthorize-legacy") &&
+    isAuthenticProductionAcceptanceLegacyReauthorizationError(error) &&
+    legacyReauthorizationErrorCodes.includes(error.code)) return error.code;
+  return undefined;
+}
+
+function safeProjectSlug(value: unknown) {
+  return typeof value === "string" && SAFE_SLUG.test(value) ? { projectSlug: value } : {};
 }
 
 function success(mode: string, result: ProductionAcceptanceResult): ProductionAcceptanceCommandResult {
@@ -324,7 +368,7 @@ function parseExecuteArguments(args: readonly string[]):
     return { topic: normalizeProductionAcceptanceTopic(topicArguments[0].slice(TOPIC_PREFIX.length)) };
   } catch (error) {
     return {
-      errorCode: error instanceof ProductionAcceptanceTopicError
+      errorCode: isAuthenticProductionAcceptanceTopicError(error)
         ? error.code
         : "PRODUCTION_ACCEPTANCE_TOPIC_INVALID",
     };

@@ -57,7 +57,7 @@ export class ProductionPipelineDurableExecutionError extends Error {
   readonly failedBoundary?:ProductionPipelineFailedSettlementFailureBoundary;
   readonly attemptEvidence?:ProductionPipelineFailedSettlementAttemptEvidence;
   constructor(message:string,readonly reasonCode:string,details:{originalReasonCode?:string;settlementReasonCode?:string;causeReasonCode?:string;completedSettlementSteps?:readonly string[];writePerformed?:boolean;writeFree?:boolean;quiescenceProven?:boolean;failedBoundary?:ProductionPipelineFailedSettlementFailureBoundary;attemptEvidence?:ProductionPipelineFailedSettlementAttemptEvidence}={}){
-    super(message);this.name="ProductionPipelineDurableExecutionError";
+    super(message);if(new.target===ProductionPipelineDurableExecutionError){authenticProductionPipelineDurableExecutionErrors.add(this)}this.name="ProductionPipelineDurableExecutionError";
     this.code=reasonCode;
     this.originalReasonCode=details.originalReasonCode;
     this.settlementReasonCode=details.settlementReasonCode;
@@ -69,4 +69,11 @@ export class ProductionPipelineDurableExecutionError extends Error {
     this.failedBoundary=details.failedBoundary;
     this.attemptEvidence=details.attemptEvidence;
   }
+}
+const authenticProductionPipelineDurableExecutionErrors = new WeakSet<object>();
+export function isAuthenticProductionPipelineDurableExecutionError(value:unknown):
+value is ProductionPipelineDurableExecutionError {
+  return typeof value === "object" && value !== null &&
+    authenticProductionPipelineDurableExecutionErrors.has(value) &&
+    Object.getPrototypeOf(value) === ProductionPipelineDurableExecutionError.prototype;
 }

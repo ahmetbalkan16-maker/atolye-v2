@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { ProjectManager } from "../src/lib/projects/ProjectManager";
 import { ProjectReader } from "../src/lib/projects/ProjectReader";
@@ -12,7 +11,6 @@ import {
 } from "../src/lib/pipeline/PipelineRecoveryPlanner";
 import { PipelineRunner } from "../src/lib/pipeline/PipelineRunner";
 import { PipelineStageExecutor } from "../src/lib/pipeline/PipelineStageExecutor";
-import { PipelineStateError } from "../src/lib/pipeline/PipelineStateError";
 import { configureProductionPipelineExecution } from "../src/lib/production/ProductionPipelineExecutionConfiguration";
 import { ProductionRuntimeInitializer } from "../src/lib/production/ProductionRuntimeInitializer";
 import { ProductionWorkerLifecycle } from "../src/lib/production/ProductionWorkerLifecycle";
@@ -23,6 +21,7 @@ import {
 import { createRuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePaths";
 import type { PipelineJob, PipelineJobList } from "../src/types/pipelineJob";
 import type { ProductionStepKey, ProjectPackageRunType, ProjectStatus } from "../src/types/project";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 
 type PipelineExecutorHarness = { loadState(projectSlug: string): Promise<unknown> };
 type PipelineRunnerHarness = {
@@ -95,8 +94,8 @@ function jobsForStage(list: PipelineJobList, stage: ProductionStepKey) {
 
 async function main() {
   if (process.env.ATOLYE_AUTO_CONTINUATION_ISOLATED !== "1") {
-    const isolatedRoot = await fs.mkdtemp(path.join(os.tmpdir(), "atolye-auto-continuation-"));
-    try {
+    const run = await withCanonicalSmokeRuntime({ name: "pipeline-auto-continuation-parent",
+      now, enterOperationContext: false, configureProductionExecution: false }, async (runtime) => {
       const child = spawnSync(
         process.execPath,
         [...process.execArgv, process.argv[1]],
@@ -104,10 +103,13 @@ async function main() {
           env: {
             ...process.env,
             ATOLYE_AUTO_CONTINUATION_ISOLATED: "1",
-            ATOLYE_RUNTIME_ROOT: path.join(isolatedRoot, "runtime"),
+            ATOLYE_RUNTIME_ROOT: runtime.runtimeRoot,
+            ATOLYE_RUNTIME_AUTHORITY_ROOT: runtime.authorityRoot,
+            TEMP: runtime.tempRoot,
+            TMP: runtime.tempRoot,
             TSX_TSCONFIG_PATH: path.resolve(process.cwd(), "tsconfig.json"),
           },
-          cwd: isolatedRoot,
+          cwd: process.cwd(),
           encoding: "utf8",
           maxBuffer: 10 * 1024 * 1024,
           timeout: 120_000,
@@ -125,18 +127,35 @@ async function main() {
         JSON.parse(resultLine.slice("AUTO_CONTINUATION_RESULT:".length)),
         { status: "pass", scenarios: 18 },
       );
-    } finally {
-      await fs.rm(isolatedRoot, { recursive: true, force: true });
-    }
+      // Runtime-operation claim files may remain until the owning canonical runtime finalizes.
+      // The post-finalization assertions below are the authoritative remainder boundary.
+    });
+    assert.equal(run.finalization.runtimeRemainder, 0);
+    assert.equal(run.finalization.authorityRemainder, 0);
+    assert.equal(run.finalization.sharedAuthorityUnchanged, true);
+    assert.equal(run.finalization.lockGateQuarantineRemainder, 0);
+    assert.equal(run.finalization.newlyCreatedGlobalInventory.length, 0);
+    console.log(`AUTO_CONTINUATION_TEMP_EVIDENCE:${JSON.stringify({
+      runtimeRemainder: run.finalization.runtimeRemainder,
+      authorityRemainder: run.finalization.authorityRemainder,
+      lockGateQuarantineRemainder: run.finalization.lockGateQuarantineRemainder,
+      preExistingGlobalInventory: run.finalization.preExistingGlobalInventory.length,
+      newlyCreatedGlobalInventory: run.finalization.newlyCreatedGlobalInventory.length,
+    })}`);
     return;
   }
 
   const canonicalLifecycle = new ProductionWorkerLifecycle(() => now);
+  const isolatedAuthorityRoot = process.env.ATOLYE_RUNTIME_AUTHORITY_ROOT;
+  if (!isolatedAuthorityRoot) {
+    throw new Error("Auto-continuation isolated authority root is required.");
+  }
   const storageContext = createRuntimeStorageContext({
     environment: process.env,
     workspaceRoot: process.cwd(),
-    authorityRoot: path.join(process.cwd(), "authority"),
+    authorityRoot: isolatedAuthorityRoot,
   });
+  assert.equal(path.resolve(storageContext.authorityRoot), path.resolve(isolatedAuthorityRoot));
   const runtimeOperationContext = createProductionRuntimeOperationContext({
     operationId: "auto-continuation-smoke-startup",
     operationType: "runtime-startup",
@@ -416,10 +435,26 @@ async function main() {
       1,
     );
     const concurrentNoOp = concurrent.find((result) => !result.continued);
-    assert.ok(concurrentNoOp);
+    assert.ok(concurrentNoOp, JSON.stringify(concurrent));
     assert.doesNotMatch(concurrentNoOp.reason ?? "", /cancelled/i);
     stored = await readJobs();
     assert.equal(jobsForStage(stored, "script")[0].status, "completed");
+
+    for (const target of ["scenes", "visuals", "animation", "video"] as const) {
+      const order = ["research", "script", "scenes", "visuals", "animation", "video"] as const;
+      const targetIndex = order.indexOf(target);
+      await reset(order.slice(0, targetIndex + 1).map((item) =>
+        job(item, item === target ? "queued" : "completed")));
+      const repeated = await Promise.all([
+        PipelineRunner.continueProject(slug),
+        PipelineRunner.continueProject(slug),
+      ]);
+      assert.equal(executedStages.filter((item) => item === target).length, 1);
+      assert.equal(repeated.filter((result) => result.continued && result.completed).length, 1);
+      const loser = repeated.find((result) => !result.continued);
+      assert.ok(loser, JSON.stringify(repeated));
+      assert.doesNotMatch(loser.reason ?? "", /execution failed|cancelled/i);
+    }
 
     await reset([job("research", "completed"), job("script", "queued")]);
     forceSchedulerConflict = true;
@@ -446,100 +481,6 @@ async function main() {
     assert.equal(jobsForStage(stored, "research")[0].status, "completed");
     assert.equal(jobsForStage(stored, "script")[0].status, "failed");
     assert.equal(jobsForStage(stored, "scenes").length, 0);
-
-    await reset([job("research", "failed", 1)]);
-    const retryResult = await PipelineRunner.executeJobRetry(
-      slug,
-      `${slug}-research`,
-    );
-    assert.equal(retryResult.status, 200);
-    assert.equal(retryResult.success, true);
-    assert.deepEqual(executedStages, [
-      "research",
-      "script",
-      "scenes",
-      "visuals",
-      "animation",
-      "video",
-      "audio",
-      "assembly",
-    ]);
-    stored = await readJobs();
-    assert.equal(jobsForStage(stored, "research")[0].status, "completed");
-    assert.equal(jobsForStage(stored, "script")[0].status, "completed");
-    assert.equal(jobsForStage(stored, "assembly")[0].status, "completed");
-    assert.equal(jobsForStage(stored, "thumbnail").length, 1);
-    assert.equal(jobsForStage(stored, "thumbnail")[0].status, "queued");
-
-    await reset([job("research", "failed", 1)]);
-    loadStateErrorAfterCall = {
-      call: 2,
-      error: new PipelineStateError(
-        "jobs",
-        "read-failed",
-        "pipeline-jobs.json",
-      ),
-    };
-    const typedContinuationFailure = await PipelineRunner.executeJobRetry(
-      slug,
-      `${slug}-research`,
-    );
-    assert.equal(typedContinuationFailure.status, 200);
-    assert.equal(typedContinuationFailure.success, true);
-
-    await reset([job("research", "failed", 1)]);
-    PipelineRunner.dispatchProjectContinuation = async () => {
-      throw new Error("Injected continuation dispatch failure.");
-    };
-    let genericContinuationFailure;
-    try {
-      genericContinuationFailure = await PipelineRunner.executeJobRetry(
-        slug,
-        `${slug}-research`,
-      );
-    } finally {
-      PipelineRunner.dispatchProjectContinuation =
-        originals.dispatchProjectContinuation;
-    }
-    assert.equal(genericContinuationFailure.status, 200);
-    assert.equal(genericContinuationFailure.success, true);
-
-    await reset([job("youtube", "failed", 1), job("export", "queued")]);
-    failProjectCompletion = true;
-    let finalizationFailureLogged = false;
-    const originalConsoleError = console.error;
-    console.error = (...args: unknown[]) => {
-      if (
-        args[0] ===
-        "[PipelineRunner] Pipeline continuation after retry failed:"
-      ) {
-        finalizationFailureLogged = true;
-      }
-
-      originalConsoleError(...args);
-    };
-    let retryFinalizationFailure;
-
-    try {
-      retryFinalizationFailure = await PipelineRunner.executeJobRetry(
-        slug,
-        `${slug}-youtube`,
-      );
-    } finally {
-      console.error = originalConsoleError;
-    }
-
-    assert.equal(retryFinalizationFailure.status, 200);
-    assert.equal(retryFinalizationFailure.success, true);
-    assert.equal(finalizationFailureLogged, true);
-    stored = await readJobs();
-    assert.equal(jobsForStage(stored, "youtube")[0].status, "completed");
-    assert.equal(jobsForStage(stored, "export")[0].status, "completed");
-    assert.equal(
-      (await ProjectManager.getManifest(slug))?.packages.export.status,
-      "completed",
-    );
-    assert.notEqual((await ProjectManager.getProject(slug))?.status, "completed");
 
     console.log("Sprint 94 pipeline auto-continuation smoke: PASS (18 scenarios)");
     console.log(`AUTO_CONTINUATION_RESULT:${JSON.stringify({ status: "pass", scenarios: 18 })}`);

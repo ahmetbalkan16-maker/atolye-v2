@@ -10,12 +10,16 @@ import {
 } from "./ProductionExecutionDurableStorage";
 import { defaultProductionExecutionIdempotencyPolicy } from "./ProductionExecutionIdempotency";
 import { ProductionExecutionFilePersistenceAdapter } from "./ProductionExecutionPersistence";
+import { validateProductionExecutionPersistencePayload } from
+  "./ProductionExecutionPersistence";
 import type { ProductionExecutionPersistenceAdapter } from
   "@/types/productionExecutionPersistence";
 import { buildProductionPipelineExecutionIdentity } from "./ProductionPipelineExecutionIdentity";
 import { settleFailedProductionPipelineExecution } from "./ProductionPipelineTerminalSettlement";
 import { classifyProductionDurableAttemptLineage } from
   "./ProductionDurableAttemptLineageClassifier";
+import type { PipelineRetryReconciledLineageBinding } from
+  "@/lib/pipeline/PipelineRetryAdmission";
 
 const reconciliationTtlSeconds = 31_536_000;
 
@@ -24,6 +28,8 @@ export type ProductionPipelineRetryReconciliationReasonCode =
   | "PIPELINE_RETRY_RECONCILIATION_REPLAYED"
   | "PIPELINE_RETRY_DURABLE_STATE_MISSING"
   | "PIPELINE_RETRY_DURABLE_CONFLICT"
+  | "PIPELINE_RETRY_MAX_ATTEMPTS_EXCEEDED"
+  | "PIPELINE_RETRY_QUEUED_EXHAUSTED_DRIFT_DETECTED"
   | "PIPELINE_RETRY_LEASE_CLEANUP_FAILED"
   | "PIPELINE_RETRY_CLAIM_CLEANUP_FAILED"
   | "PIPELINE_RETRY_IDEMPOTENCY_CONFLICT"
@@ -34,6 +40,8 @@ export interface ProductionPipelineRetryReconciliationResult {
   readonly reasonCode: ProductionPipelineRetryReconciliationReasonCode;
   readonly writeFree: boolean;
   readonly evidence: readonly string[];
+  readonly lineageIdentity?: ReturnType<typeof buildProductionPipelineExecutionIdentity>;
+  readonly lineageBinding?: PipelineRetryReconciledLineageBinding;
 }
 
 /** Close the previous durable execution before a failed job is queued again. */
@@ -99,7 +107,15 @@ export async function reconcileFailedPipelineExecution(
 
   if (noRecord && noAttempt && noClaim) {
     if (lineageResult.status === "none" && job.attempts === 0) {
-      return success("PIPELINE_RETRY_RECONCILIATION_REPLAYED", true, "durable:none");
+      return success("PIPELINE_RETRY_RECONCILIATION_REPLAYED", true, "durable:none", identity,
+        { state: "none", operation: identity.core.attemptNumber === 0
+          ? "pipeline.stage.initial" : "pipeline.stage.retry",
+        durableOrdinal: job.attempts + 1, maxAttempts: 3, reservationId: "none",
+        workerId: "none", workerSessionId: "none", recordVersion: 0,
+        reservationVersion: 0, claimVersion: 0, attemptVersion: 0, leaseVersion: 0,
+        reservationIdentityFingerprint: "none", recordIntegrityFingerprint: "none",
+        recordIntegrityVersion: 0, leaseIntegrityFingerprint: "none",
+        claimIntegrityFingerprint: "none", attemptIntegrityFingerprint: "none" });
     }
     return failure("PIPELINE_RETRY_DURABLE_STATE_MISSING", "durable:no-exact-lineage");
   }
@@ -178,8 +194,38 @@ export async function reconcileFailedPipelineExecution(
       `${settled.failedBoundary ?? "unknown"}`,
       settled.writeFree);
   }
+  const [finalRecord, finalAttempt, finalClaim, finalReservationRead] = await Promise.all([
+    storage.read(identity.recordId),
+    attempts.evaluateExecutionAttemptRecovery(identity.attemptId, evaluatedAt),
+    claims.evaluateExecutionClaimRecovery(identity.claimId, evaluatedAt),
+    adapter.read("reservation", attempt.identity.reservationId),
+  ]);
+  if (!finalRecord.record || !finalAttempt.attempt || !finalClaim.claim ||
+    !finalRecord.record.durableLease || finalReservationRead.status !== "found" ||
+    !validateProductionExecutionPersistencePayload("reservation", finalReservationRead.value)) {
+    return failure("PIPELINE_RETRY_DURABLE_STATE_MISSING", "durable:final-binding-missing");
+  }
+  const finalLease = finalRecord.record.durableLease;
+  const finalReservation = finalReservationRead.value;
   return success(settled.writeFree ? "PIPELINE_RETRY_RECONCILIATION_REPLAYED" :
-    "PIPELINE_RETRY_RECONCILED", settled.writeFree, "attempt:immutable");
+    "PIPELINE_RETRY_RECONCILED", settled.writeFree, "attempt:immutable", identity, {
+      state: "terminal", operation: finalRecord.record.operation,
+      durableOrdinal: finalRecord.record.attempt, maxAttempts: finalRecord.record.maxAttempts,
+      reservationId: finalAttempt.attempt.identity.reservationId,
+      workerId: finalAttempt.attempt.identity.workerId,
+      workerSessionId: finalAttempt.attempt.identity.workerSessionId,
+      recordVersion: finalRecord.record.recordVersion,
+      reservationVersion: finalAttempt.attempt.binding.reservationVersion,
+      claimVersion: finalClaim.claim.claimVersion,
+      attemptVersion: finalAttempt.attempt.attemptVersion,
+      leaseVersion: finalLease.version,
+      reservationIdentityFingerprint: finalReservation.identity.identityFingerprint,
+      recordIntegrityFingerprint: finalRecord.record.integrity.fingerprint,
+      recordIntegrityVersion: finalRecord.record.integrity.version,
+      leaseIntegrityFingerprint: finalLease.integrity.fingerprint,
+      claimIntegrityFingerprint: finalClaim.claim.integrity.fingerprint,
+      attemptIntegrityFingerprint: finalAttempt.attempt.integrity.fingerprint,
+    });
 }
 
 function mapSettlementFailure(reasonCode: string): Exclude<
@@ -201,8 +247,11 @@ function success(
   reasonCode: "PIPELINE_RETRY_RECONCILED" | "PIPELINE_RETRY_RECONCILIATION_REPLAYED",
   writeFree: boolean,
   evidence: string,
+  lineageIdentity: ReturnType<typeof buildProductionPipelineExecutionIdentity>,
+  lineageBinding: PipelineRetryReconciledLineageBinding,
 ): ProductionPipelineRetryReconciliationResult {
-  return { ok: true, reasonCode, writeFree, evidence: [`reason:${reasonCode}`, evidence] };
+  return { ok: true, reasonCode, writeFree, evidence: [`reason:${reasonCode}`, evidence],
+    lineageIdentity, lineageBinding };
 }
 
 function failure(

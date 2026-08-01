@@ -88,9 +88,21 @@ export class ProductionAcceptanceLegacyReauthorizationError extends Error {
       "recovery" | "concurrency" | "persistence",
   ) {
     super("Production acceptance legacy re-authorization failed.");
+    if (new.target === ProductionAcceptanceLegacyReauthorizationError) {
+      authenticProductionAcceptanceLegacyReauthorizationErrors.add(this);
+    }
     this.name = "ProductionAcceptanceLegacyReauthorizationError";
     this.stack = undefined;
   }
+}
+
+const authenticProductionAcceptanceLegacyReauthorizationErrors = new WeakSet<object>();
+export function isAuthenticProductionAcceptanceLegacyReauthorizationError(
+  value: unknown,
+): value is ProductionAcceptanceLegacyReauthorizationError {
+  return typeof value === "object" && value !== null &&
+    authenticProductionAcceptanceLegacyReauthorizationErrors.has(value) &&
+    Object.getPrototypeOf(value) === ProductionAcceptanceLegacyReauthorizationError.prototype;
 }
 
 export interface ProductionAcceptanceEffectiveMarkerV3Profile2 {

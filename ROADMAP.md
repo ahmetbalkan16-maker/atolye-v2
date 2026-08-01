@@ -1,5 +1,78 @@
 ---
 
+<!-- SPRINT-129.33-FINAL-TOCTOU-REMEDIATION-START -->
+## Sprint 129.33 final TOCTOU remediation
+
+**Status:** READY FOR INDEPENDENT RE-REVIEW
+
+- [x] Remove canonical shared-path check-then-delete cleanup.
+- [x] Route publication-failure cleanup through the operation-owned quarantine primitive.
+- [x] Remove replace-capable foreign-quarantine restore to canonical pathnames.
+- [x] Preserve identity-unverified leaves byte-identically as explicit fail-closed residue.
+- [x] Prove exact bytes, SHA-256, type, and recursive inventory across eight two-child races.
+- [x] Directly assert six event-derived foreign/delete/overwrite/canonical-overwrite/restore/
+  unexpected-canonical-mutation counters at zero in every two-child race, without literal zeros.
+- [x] Directly assert separate real lock, gate, and quarantine mutation counters for all 14
+  hostile global-quiescence cases.
+- [x] Assert the combined fetch and HTTP/HTTPS request/get network boundary from an independent
+  per-hostile-case snapshot/delta at zero; retain the suite-global assertion.
+- [x] Preserve acceptance-topic isolation and the Sprint 129.32 zero-based attempt contract.
+<!-- SPRINT-129.33-FINAL-TOCTOU-REMEDIATION-END -->
+
+<!-- PRODUCTION-BASELINE-CLOSURE-2026-08-01-START -->
+## Controlled production baseline closure — independent review pending
+
+**Status:** READY FOR INDEPENDENT BASELINE REVIEW
+
+Completed as a documentation-only correction:
+
+- Classified the physical `pipeline-jobs.json` transition as `B. STRONGLY CORRELATED BUT NOT FULLY ATTESTED`: the exact resume command, slug, HEAD mutation order, `queued / attempts 3` state at `2026-07-31T22:34:03.305Z`, unchanged failed manifest/history, terminal durable ordinal `3`, and absence of ordinal `4` agree; the original timestamped stdout/stderr transcript and immediately adjacent pre-command file-hash capture are missing.
+- Recorded previous/current physical job hashes: `4a74c326088f9c51f6565f3f50e868dfac8425418191db972a9d67261b3d5b48` -> `7fc3c6a6de022faeffc3829dec9ff7c59f49f3236e82deefc51ed5a9158e66d4`.
+- Recorded that `pipeline-jobs.json` is `skip-worktree`; ordinary Git status/diff does not attest its physical bytes.
+- Established the files-only, absolute-FullName ordinal, root-relative `/`, `path<TAB>length<TAB>sha256`, UTF-8/LF/no-final-LF physical contract. Current result: `268` files, `18` directories, `55,785` serialized bytes, aggregate `e83ab3e2284e90a1fd6e13949daa59f7ede85c591e9c54c860d43eb6bdf7fe08`; inventory is `199` tracked, `69` ignored physical, `0` non-ignored untracked.
+- Preserved `9e91a1fa4fdd04053b2e09dffab6f8de147f5595ccb79d6452ce4cc15e59a301` as an obsolete/unattested historical value with no executable algorithm, matching Git blob/commit, or calculation transcript. It must not be an execution safety gate.
+- Required future gates to separate Git diff, non-ignored untracked, ignored physical, physical inventory, deterministic aggregate, skip-worktree/assume-unchanged inventory, and canonical state-file hashes.
+
+Blocked:
+
+- Provider-free `queued/3 -> failed/2` recovery has not run.
+- Production resume/recovery and Sprint 129.33 remediation remain blocked until independent read-only baseline review.
+<!-- PRODUCTION-BASELINE-CLOSURE-2026-08-01-END -->
+
+<!-- SPRINT-129.33-START -->
+## Active milestone - Sprint 129.33
+
+**Status:** READY FOR INDEPENDENT RE-REVIEW
+
+Completed:
+
+- Sprint 129.32-compatible zero-based `PipelineJob.attempts` model: `0/1/2` maps to durable ordinal `1/2/3`
+- failed indices `0` and `1` admit ordinals `2` and `3`; failed index `2+` is exhausted for `maxAttempts=3`; ordinal `4` is forbidden
+- fail-closed rejection of exhausted retry attempts (`PIPELINE_RETRY_MAX_ATTEMPTS_EXCEEDED`, `writeFree: true`)
+- byte-identical failure state preservation across `PipelineJob`, manifest, history, and durable execution tree
+- shared exact ordinary-resume/recovery drift classifier and provider-free `queued/3 -> failed/2` recovery preserving the exact failure code
+- complete downstream retry-admission validation of canonical configuration, persisted job revisions/fingerprints, and reconciled/admitted execution identities before durable construction
+- gated cross-process lock with atomic owner publication, exact stale revalidation, PID/start identity, under-lock seeding, and genuine competing child writes
+- authentic-instance CLI proof plus exact per-mode public-code allowlists for every typed error branch
+- seven-stage terminal/quiescent durable-store semantics with active/non-terminal global authority rejected
+- truthful recovery mutation states after commit and no automatic rollback of uncertain replacement
+- validated manifest execution-count to zero-based job-index conversion with history and present durable-lineage checks
+- auto-continuation dual-contender closure: one execution, one safe no-op, no duplicate durable/provider work
+- canonical prior-lineage reconstruction with separate, exact reservation, record, lease, claim, and attempt admission proofs before provider/storage construction; missing proof fields fail closed
+- lock/gate/stale cleanup uses exclusive nonce-owned atomic quarantine rename plus post-rename filesystem identity and owner-byte verification, never shared-path check-then-delete; six real two-child post-check replacement races preserve foreign leaves
+- acceptance-topic smoke creates its eight authority markers only under operation-owned canonical runtime/authority roots and leaves the shared authority inventory byte-identical
+- all 14 hostile global-quiescence cases assert exact false/false/true/false quiescence/write-performed/write-free/recovery-attempted output plus zero writer, lock-gate, provider, and network calls
+- fail-closed non-write-free uncertain commit semantics for writer/readback and lock/gate release failures, with deterministic forward completion and no automatic rollback/requeue/continuation
+- complete canonical validation of every non-target terminal authority chain, including orphan/corrupt/wrong-link/duplicate/conflicting authority rejection
+- dedicated final smoke suite `scripts/smoke-sprint-129-33-exhausted-retry-admission.ts` (54/54 PASS), including 59 adapter-backed persisted-lineage mutations, 6 post-check two-child races, 14 named non-target authority mutations, real CLI, PID-reuse/publication-failure evidence, concurrent seeding, post-commit readback failure, and genuine lock-writer child processes
+- admission storage-construction/provider/worker/stage/fetch/http/https/network counters `0/0/0/0/0/0/0/0`; operation-owned runtime/authority/lock remainder `0/0/0`; pre-existing shared inventory `81`, newly created shared inventory `0`
+- production data in `data/projects` untouched
+
+Blocked:
+
+- real production recovery and resume were not run and remain separately authorized operations
+<!-- SPRINT-129.33-END -->
+
 <!-- SPRINT-129.32-START -->
 ## Active milestone - Sprint 129.32
 

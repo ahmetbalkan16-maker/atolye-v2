@@ -178,9 +178,21 @@ export class ProductionAcceptancePolicyError extends Error {
 
   constructor() {
     super("Production acceptance policy validation failed.");
+    if (new.target === ProductionAcceptancePolicyError) {
+      authenticProductionAcceptancePolicyErrors.add(this);
+    }
     this.name = "ProductionAcceptancePolicyError";
     this.stack = undefined;
   }
+}
+
+const authenticProductionAcceptancePolicyErrors = new WeakSet<object>();
+export function isAuthenticProductionAcceptancePolicyError(
+  value: unknown,
+): value is ProductionAcceptancePolicyError {
+  return typeof value === "object" && value !== null &&
+    authenticProductionAcceptancePolicyErrors.has(value) &&
+    Object.getPrototypeOf(value) === ProductionAcceptancePolicyError.prototype;
 }
 
 export async function createProductionAcceptanceMarker(

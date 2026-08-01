@@ -82,6 +82,9 @@ export class ProductionAcceptanceBlockedError extends Error {
 
   constructor(readonly readiness: ProductionReadinessReport) {
     super("Production acceptance was blocked by readiness validation.");
+    if (new.target === ProductionAcceptanceBlockedError) {
+      authenticProductionAcceptanceBlockedErrors.add(this);
+    }
     this.name = "ProductionAcceptanceBlockedError";
     this.stack = undefined;
   }
@@ -96,9 +99,31 @@ export class ProductionAcceptanceExecutionError extends Error {
     readonly reasonCode?: string,
   ) {
     super("Production acceptance execution failed.");
+    if (new.target === ProductionAcceptanceExecutionError) {
+      authenticProductionAcceptanceExecutionErrors.add(this);
+    }
     this.name = "ProductionAcceptanceExecutionError";
     this.stack = undefined;
   }
+}
+
+const authenticProductionAcceptanceBlockedErrors = new WeakSet<object>();
+export function isAuthenticProductionAcceptanceBlockedError(
+  value: unknown,
+): value is ProductionAcceptanceBlockedError {
+  return typeof value === "object" && value !== null &&
+    authenticProductionAcceptanceBlockedErrors.has(value) &&
+    Object.getPrototypeOf(value) === ProductionAcceptanceBlockedError.prototype;
+}
+
+const authenticProductionAcceptanceExecutionErrors = new WeakSet<object>();
+
+export function isAuthenticProductionAcceptanceExecutionError(
+  value: unknown,
+): value is ProductionAcceptanceExecutionError {
+  return typeof value === "object" && value !== null &&
+    authenticProductionAcceptanceExecutionErrors.has(value) &&
+    Object.getPrototypeOf(value) === ProductionAcceptanceExecutionError.prototype;
 }
 
 export class ProductionAcceptanceConfigurationChangedError extends Error {
@@ -107,9 +132,21 @@ export class ProductionAcceptanceConfigurationChangedError extends Error {
 
   constructor() {
     super("Production acceptance configuration changed after readiness validation.");
+    if (new.target === ProductionAcceptanceConfigurationChangedError) {
+      authenticProductionAcceptanceConfigurationChangedErrors.add(this);
+    }
     this.name = "ProductionAcceptanceConfigurationChangedError";
     this.stack = undefined;
   }
+}
+
+const authenticProductionAcceptanceConfigurationChangedErrors = new WeakSet<object>();
+export function isAuthenticProductionAcceptanceConfigurationChangedError(
+  value: unknown,
+): value is ProductionAcceptanceConfigurationChangedError {
+  return typeof value === "object" && value !== null &&
+    authenticProductionAcceptanceConfigurationChangedErrors.has(value) &&
+    Object.getPrototypeOf(value) === ProductionAcceptanceConfigurationChangedError.prototype;
 }
 
 export class ProductionAcceptanceOrchestrator {

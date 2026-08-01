@@ -30,6 +30,10 @@ type PipelineExecutorHarness = {
   createInitialState(project: Project): unknown;
 };
 type PipelineRunnerHarness = {
+  run(topic: string): Promise<unknown>;
+  retryStage(projectSlug: string, stage: PipelineRecoveryStageKey): Promise<unknown>;
+  executeJobRetryOnce(projectSlug: string, jobId: string, options: object): Promise<{
+    status: number; blocked: boolean; reason?: string }>;
   runPipelineStage(projectSlug: string, stage: ProductionStepKey, state: unknown, runType?: ProjectPackageRunType, onClaimConflict?: () => void): Promise<boolean>;
   runStage(projectSlug: string, stage: ProductionStepKey, action: () => Promise<boolean>, runType: ProjectPackageRunType, onClaimConflict?: () => void): Promise<boolean>;
   runScheduledStages(projectSlug: string, stages: readonly PipelineRecoveryStageKey[], state: unknown, runType?: ProjectPackageRunType): Promise<{ completedStages: PipelineRecoveryStageKey[]; stopReason?: string }>;
@@ -457,10 +461,12 @@ async function testRetryStatePropagationAndGenericFailures() {
     getNextRunnableStage: scheduler.getNextRunnableStage,
     loadState: executor.loadState,
     runPipelineStage: runner.runPipelineStage,
+    retryStage: runner.retryStage,
   };
   const failedJob: PipelineJob = {
     ...job,
     status: "failed",
+    attempts: 0,
     error: "failed",
   };
   const preparedJob: PipelineJob = {
@@ -504,15 +510,7 @@ async function testRetryStatePropagationAndGenericFailures() {
       failurePersistenceCalls += 1;
       return true;
     };
-    runner.runPipelineStage = async () =>
-      runner.runStage(
-        slug,
-        "research",
-        async () => {
-          throw historyError;
-        },
-        "retry",
-      );
+    runner.retryStage = async () => { throw historyError; };
 
     const logs: unknown[][] = [];
     const currentConsoleError = console.error;
@@ -544,6 +542,7 @@ async function testRetryStatePropagationAndGenericFailures() {
     );
     assert.equal(logs.length, 1);
     assert.equal(failurePersistenceCalls, 0);
+    runner.retryStage = originals.retryStage;
 
     const compensationStateError = new PipelineStateError(
       "jobs",
@@ -558,7 +557,7 @@ async function testRetryStatePropagationAndGenericFailures() {
       throw compensationStateError;
     };
     await assert.rejects(
-      PipelineRunner.executeJobRetry(slug, failedJob.id),
+      runner.executeJobRetryOnce(slug, failedJob.id, {}),
       (error) => error === compensationStateError,
     );
 
@@ -566,10 +565,7 @@ async function testRetryStatePropagationAndGenericFailures() {
     manager.compensatePreparedRetry = async () => {
       throw compensationFailure;
     };
-    const genericCompensation = await PipelineRunner.executeJobRetry(
-      slug,
-      failedJob.id,
-    );
+    const genericCompensation = await runner.executeJobRetryOnce(slug, failedJob.id, {});
     assert.equal(genericCompensation.status, 500);
     assert.equal(genericCompensation.blocked, false);
     assert.equal(
@@ -581,10 +577,7 @@ async function testRetryStatePropagationAndGenericFailures() {
     runner.runPipelineStage = async () => {
       throw new Error("non-state execution failure");
     };
-    const genericExecution = await PipelineRunner.executeJobRetry(
-      slug,
-      failedJob.id,
-    );
+    const genericExecution = await runner.executeJobRetryOnce(slug, failedJob.id, {});
     assert.equal(genericExecution.status, 500);
     assert.equal(genericExecution.blocked, false);
     assert.equal(genericExecution.reason, "Pipeline retry execution failed.");
@@ -602,6 +595,7 @@ async function testRetryStatePropagationAndGenericFailures() {
     scheduler.getNextRunnableStage = originals.getNextRunnableStage;
     executor.loadState = originals.loadState;
     runner.runPipelineStage = originals.runPipelineStage;
+    runner.retryStage = originals.retryStage;
   }
 }
 
@@ -614,6 +608,7 @@ async function testMainPipelineSingleTypedLog() {
     createProject: projectManager.createProject,
     createInitialState: executor.createInitialState,
     runScheduledStages: runner.runScheduledStages,
+    run: runner.run,
   };
   const stateError = new PipelineStateError(
     "jobs",
@@ -633,6 +628,7 @@ async function testMainPipelineSingleTypedLog() {
   runner.runScheduledStages = async () => {
     throw stateError;
   };
+  runner.run = async () => { throw stateError; };
 
   const logs: unknown[][] = [];
   const currentConsoleError = console.error;
@@ -663,6 +659,7 @@ async function testMainPipelineSingleTypedLog() {
     projectManager.createProject = originals.createProject;
     executor.createInitialState = originals.createInitialState;
     runner.runScheduledStages = originals.runScheduledStages;
+    runner.run = originals.run;
   }
 }
 

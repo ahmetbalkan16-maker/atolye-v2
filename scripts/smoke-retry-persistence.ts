@@ -44,7 +44,10 @@ async function testPreparationWriteFailure() {
   const original = await fs.readFile(jobsFile, "utf-8");
   const originalRename = fs.rename;
 
-  fs.rename = (async () => {
+  fs.rename = (async (oldPath, newPath) => {
+    if (String(oldPath).includes(".pipeline-jobs.lock")) {
+      return originalRename(oldPath, newPath);
+    }
     throw new Error("injected rename failure");
   }) as typeof fs.rename;
 
@@ -188,9 +191,9 @@ async function main() {
     projectFolder = path.join(runtime.runtimeRoot, "projects", slug);
     jobsFile = path.join(projectFolder, "pipeline-jobs.json");
     previousJob = { id: `${slug}-research`, projectSlug: slug, stage: "research",
-      title: "Research", status: "failed", attempts: 1, createdAt: now, updatedAt: now,
+      title: "Research", status: "failed", attempts: 0, createdAt: now, updatedAt: now,
       completedAt: now, error: "failed" };
-    preparedJob = { ...previousJob, status: "queued", attempts: 2,
+    preparedJob = { ...previousJob, status: "queued", attempts: 1,
       completedAt: undefined, error: undefined };
     plan = { projectSlug: slug, type: "retry", startStage: "research",
       stagesToRun: ["research"], blocked: false, dependencies: [], createdAt: now };

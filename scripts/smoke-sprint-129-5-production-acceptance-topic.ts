@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { runProductionAcceptanceCommand } from "../src/lib/production/ProductionAcceptanceCommand";
 import type { ProductionAcceptanceResult } from "../src/lib/production/ProductionAcceptanceOrchestrator";
@@ -20,6 +19,7 @@ import {
 } from "../src/lib/production/ProductionAcceptanceTopic";
 import { ProjectReader } from "../src/lib/projects/ProjectReader";
 import type { ProductionReadinessReport } from "../src/types/productionReadiness";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 
 const confirmation = "--confirm-production-acceptance";
 const canonicalTopic = "Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı";
@@ -76,10 +76,10 @@ async function createMarker(topic = canonicalTopic, runId = crypto.randomUUID())
 
 async function main() {
   const originalCwd = process.cwd();
-  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-sprint-129-5-"));
-  fs.mkdirSync(path.join(workspace, "data", "projects"), { recursive: true });
-  process.chdir(workspace);
-  try {
+  const run = await withCanonicalSmokeRuntime({ name: "sprint-129-5-acceptance-topic",
+    now, enterOperationContext: false, configureProductionExecution: false }, async (runtime) => {
+    process.chdir(runtime.workspaceRoot);
+    try {
     await test("valid topic is accepted and trimmed", async () => {
       let received = "";
       const result = await runProductionAcceptanceCommand(
@@ -239,11 +239,34 @@ async function main() {
       assert.equal(stored.productionReady, false);
     });
 
-    process.stdout.write(`Sprint 129.5 production acceptance topic smoke PASS: ${passed} scenarios.\n`);
-  } finally {
-    process.chdir(originalCwd);
-    fs.rmSync(workspace, { recursive: true, force: true });
-  }
+      const markerFiles = recursiveFiles(runtime.runtimeRoot)
+        .filter((file) => path.basename(file) === "production-acceptance.json");
+      const authorityClaims = recursiveFiles(runtime.authorityRoot)
+        .filter((file) => file.endsWith(".claim.json"));
+      assert.equal(markerFiles.length, 9);
+      assert.equal(authorityClaims.length, 8);
+      return { projectArtifactCount: markerFiles.length,
+        markerCount: authorityClaims.length, authorityClaimCount: authorityClaims.length };
+    } finally { process.chdir(originalCwd); }
+  });
+  assert.equal(run.finalization.sharedAuthorityUnchanged, true);
+  assert.equal(run.finalization.newlyCreatedGlobalInventory.length, 0);
+  assert.equal(run.finalization.runtimeRemainder, 0);
+  assert.equal(run.finalization.authorityRemainder, 0);
+  assert.equal(run.finalization.cleanupCompleted, true);
+  process.stdout.write(`ACCEPTANCE_TOPIC_ISOLATION markers=${run.value.markerCount} ` +
+    `projectArtifacts=${run.value.projectArtifactCount} ` +
+    `authorityClaims=${run.value.authorityClaimCount} sharedNew=0 runtimeRemainder=0 ` +
+    `authorityRemainder=0\n`);
+  process.stdout.write(`Sprint 129.5 production acceptance topic smoke PASS: ${passed} scenarios.\n`);
+}
+
+function recursiveFiles(root: string): string[] {
+  if (!fs.existsSync(root)) return [];
+  return fs.readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+    const child = path.join(root, entry.name);
+    return entry.isDirectory() ? recursiveFiles(child) : [child];
+  });
 }
 
 void main().catch((error) => {

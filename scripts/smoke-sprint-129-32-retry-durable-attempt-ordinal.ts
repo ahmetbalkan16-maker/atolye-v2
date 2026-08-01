@@ -550,14 +550,14 @@ async function main() {
       assert.equal(fixture.handlerCalls(), beforeCalls);
     });
 
-    await test("public retry preparation does not admit provider when latest evidence is missing", async () => {
+    await test("public retry preparation rejects exhausted attempt index before provider admission", async () => {
       const fixture = await failedFixture("export", 2);
       await removeLatest("idempotency", fixture.expectedIdentity.recordId);
       const beforeCalls = fixture.handlerCalls();
       const { prepareFailedStageRetry } = await import("../src/lib/pipeline/PipelineFailedStageRetry");
       const prepared = await prepareFailedStageRetry(projectSlug, fixture.failedJob.id);
       assert.equal(prepared.success, false, JSON.stringify(prepared));
-      assert.equal(prepared.reasonCode, "PIPELINE_RETRY_DURABLE_STATE_MISSING");
+      assert.equal(prepared.reasonCode, "PIPELINE_RETRY_MAX_ATTEMPTS_EXCEEDED");
       assert.equal(fixture.handlerCalls(), beforeCalls);
     });
 

@@ -18,6 +18,14 @@ import type {
   PipelineJobList,
   PipelineJobStatus,
 } from "@/types/pipelineJob";
+import { assertCanonicalPipelineJobMutationLock,
+  hasCanonicalPipelineJobMutationLock,
+  withCanonicalPipelineJobMutationLock } from "./PipelineJobMutationLock";
+import { fingerprintPipelineJob } from "./PipelineRetryAdmission";
+import { ProductionExecutionFilePersistenceAdapter } from
+  "@/lib/production/ProductionExecutionPersistence";
+import { classifyProductionDurableAttemptLineage } from
+  "@/lib/production/ProductionDurableAttemptLineageClassifier";
 
 const pipelineJobsFileName = "pipeline-jobs.json";
 const pipelineHistoryFileName = "pipeline-history.json";
@@ -59,6 +67,10 @@ export class PipelineJobManager {
   private static projectLocks = new Map<string, Promise<void>>();
 
   static async listJobs(projectSlug: string): Promise<PipelineJobList> {
+    if (!hasCanonicalPipelineJobMutationLock(projectSlug)) {
+      return this.withProjectLock(projectSlug, () =>
+        this.listJobs(projectSlug));
+    }
     const current = await this.readJobList(projectSlug);
 
     if (current.jobs.length > 0) {
@@ -115,7 +127,8 @@ export class PipelineJobManager {
   static async prepareJobRetry(
     projectSlug: string,
     jobId: string,
-    expected?: { readonly updatedAt: string; readonly attempts: number },
+    expected?: { readonly updatedAt: string; readonly attempts: number;
+      readonly fingerprint?: string },
   ): Promise<PipelineJobRetryPreparationResult> {
     return this.withProjectLock(projectSlug, async () => {
       const current = await this.listJobs(projectSlug);
@@ -131,7 +144,9 @@ export class PipelineJobManager {
 
       if (
         expected &&
-        (job.updatedAt !== expected.updatedAt || job.attempts !== expected.attempts)
+        (job.updatedAt !== expected.updatedAt || job.attempts !== expected.attempts ||
+          (expected.fingerprint !== undefined &&
+            fingerprintPipelineJob(job) !== expected.fingerprint))
       ) {
         return {
           success: false,
@@ -487,7 +502,11 @@ export class PipelineJobManager {
   static async withProjectLock<T>(
     projectSlug: string,
     operation: () => Promise<T>,
+    jobId = "*",
   ): Promise<T> {
+    if (hasCanonicalPipelineJobMutationLock(projectSlug)) {
+      return withCanonicalPipelineJobMutationLock(projectSlug, jobId, operation);
+    }
     let releaseCurrentLock: (() => void) | undefined;
     const currentLock = new Promise<void>((resolve) => {
       releaseCurrentLock = resolve;
@@ -498,7 +517,7 @@ export class PipelineJobManager {
     await previousLock;
 
     try {
-      return await operation();
+      return await withCanonicalPipelineJobMutationLock(projectSlug, jobId, operation);
     } finally {
       releaseCurrentLock?.();
 
@@ -529,6 +548,7 @@ export class PipelineJobManager {
     projectSlug: string,
     current: PipelineJobList,
   ): Promise<PipelineJobList> {
+    assertCanonicalPipelineJobMutationLock(projectSlug);
     const manifest = await ProjectManager.ensureManifest(projectSlug);
     const now = new Date().toISOString();
 
@@ -536,23 +556,51 @@ export class PipelineJobManager {
       return current;
     }
 
-    const jobs: PipelineJob[] = Object.values(manifest.packages).map(
-      (packageManifest) => ({
+    const history = await this.readHistory(projectSlug);
+    const rawManifest = await ProjectReader.readJSON<Record<string, unknown>>(
+      projectSlug,
+      "manifest.json",
+    );
+    const rawPackages = rawManifest?.packages as Record<string, {
+      attempts?: { total?: unknown };
+    }> | undefined;
+    const durableAdapter = new ProductionExecutionFilePersistenceAdapter({
+      trustedRootDirectory: `${ProjectReader.getProjectFolder(projectSlug)}/production-execution`,
+      createRootDirectory: false,
+    });
+    const durableKeys = await durableAdapter.listKeys("idempotency");
+    const hasDurableEvidence = durableKeys.ok && durableKeys.keys.length > 0;
+    const jobs: PipelineJob[] = await Promise.all(Object.values(manifest.packages).map(
+      async (packageManifest) => ({
         id: getJobId(projectSlug, packageManifest.key),
         projectSlug,
         stage: packageManifest.key,
         title: stageLabels[packageManifest.key],
         status: toJobStatus(packageManifest.status),
-        attempts: packageManifest.attempts?.total ?? 0,
+        attempts: await manifestExecutionTotalToAttemptIndex(
+          projectSlug,
+          packageManifest.key,
+          packageManifest.status,
+          rawPackages?.[packageManifest.key]?.attempts &&
+            Object.prototype.hasOwnProperty.call(
+              rawPackages[packageManifest.key].attempts,
+              "total",
+            )
+            ? rawPackages[packageManifest.key].attempts?.total
+            : packageManifest.attempts?.total,
+          history,
+          durableAdapter,
+          hasDurableEvidence,
+        ),
         createdAt: packageManifest.updatedAt ?? manifest.createdAt,
         updatedAt: packageManifest.updatedAt ?? manifest.updatedAt,
         startedAt: packageManifest.startedAt,
         completedAt: packageManifest.completedAt,
         error: packageManifest.error,
-      }),
+      })),
     );
 
-    return this.writeJobList(projectSlug, {
+    return this.writeJobListUnderLock(projectSlug, {
       ...current,
       jobs,
       updatedAt: now,
@@ -585,6 +633,26 @@ export class PipelineJobManager {
     projectSlug: string,
     jobList: PipelineJobList,
   ) {
+    if (!hasCanonicalPipelineJobMutationLock(projectSlug)) {
+      return this.withProjectLock(projectSlug, () =>
+        this.writeJobListUnlocked(projectSlug, jobList));
+    }
+    return this.writeJobListUnlocked(projectSlug, jobList);
+  }
+
+  static async writeJobListUnderLock(
+    projectSlug: string,
+    jobList: PipelineJobList,
+  ) {
+    assertCanonicalPipelineJobMutationLock(projectSlug);
+    return this.writeJobListUnlocked(projectSlug, jobList);
+  }
+
+  private static async writeJobListUnlocked(
+    projectSlug: string,
+    jobList: PipelineJobList,
+  ) {
+    assertCanonicalPipelineJobMutationLock(projectSlug);
     await ProjectWriter.writeJSONAtomically(
       projectSlug,
       pipelineJobsFileName,
@@ -740,6 +808,64 @@ type PipelineJobRetryPreparationResult =
       error: string;
       reasonCode?: string;
     };
+
+async function manifestExecutionTotalToAttemptIndex(
+  projectSlug: string,
+  stage: ProductionStepKey,
+  status: PackageStatus,
+  total: unknown,
+  history: PipelineJobHistory,
+  adapter: ProductionExecutionFilePersistenceAdapter,
+  hasDurableEvidence: boolean,
+): Promise<number> {
+  const executionTotal = total === undefined ? 0 : total;
+  if (typeof executionTotal !== "number" ||
+    !Number.isSafeInteger(executionTotal) || executionTotal < 0) {
+    throw new Error("PIPELINE_MANIFEST_ATTEMPT_TOTAL_INVALID");
+  }
+
+  if (status === "pending" || status === "missing") {
+    if (executionTotal !== 0) {
+      throw new Error("PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH");
+    }
+    return 0;
+  }
+
+  if (executionTotal === 0) {
+    throw new Error("PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH");
+  }
+
+  const jobId = getJobId(projectSlug, stage);
+  const terminalEvents = history.events.filter((event) =>
+    event.jobId === jobId && event.stage === stage);
+  const expectedTerminalCount = status === "running"
+    ? executionTotal - 1
+    : executionTotal;
+  if (terminalEvents.length !== expectedTerminalCount) {
+    throw new Error("PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH");
+  }
+  if (status === "completed" || status === "failed") {
+    const latest = terminalEvents.at(-1);
+    if (latest?.status !== status) {
+      throw new Error("PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH");
+    }
+  }
+
+  const attemptIndex = executionTotal - 1;
+  if (!hasDurableEvidence) return attemptIndex;
+  const lineage = await classifyProductionDurableAttemptLineage(
+    adapter,
+    projectSlug,
+    stage,
+    attemptIndex,
+    "exact",
+  );
+  if (lineage.status !== "none" &&
+    (lineage.status !== "valid" || lineage.maximumRecordAttempt !== executionTotal)) {
+    throw new Error("PIPELINE_MANIFEST_DURABLE_ATTEMPT_EVIDENCE_MISMATCH");
+  }
+  return attemptIndex;
+}
 
 function getJobId(projectSlug: string, stage: ProductionStepKey) {
   return `${projectSlug}-${stage}`;

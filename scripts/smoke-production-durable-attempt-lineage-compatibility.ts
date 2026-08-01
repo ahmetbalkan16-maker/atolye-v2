@@ -43,10 +43,13 @@ import {
 import { createRuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePaths";
 import type { ProductionExecutionDurableAttemptRecord } from
   "../src/types/productionExecutionDurableAttempt";
+import type { ProductionExecutionDurableClaimRecord } from
+  "../src/types/productionExecutionDurableClaim";
 import type { ProductionExecutionIdempotencyRecord } from
   "../src/types/productionExecutionIdempotency";
 import type { ProductionExecutionDurableRecord } from
   "../src/types/productionExecutionDurableStorage";
+import { stableProductionId } from "../src/lib/production/ProductionDeterminism";
 
 const projectSlug = "legacy-lineage-project";
 const stage = "audio" as const;
@@ -54,7 +57,7 @@ const resumeOperation = "pipeline.stage.resume";
 const timestamp = "2026-07-30T18:00:00.000Z";
 const expectedCode = productionDurableAttemptLineageBindingInvalidCode;
 const preRefactorPhysicalAggregateSha256 =
-  "5f888498f08f9c9337059e4364cd40a4bce38669f4fc9f94ac31f6faabcf4073";
+  "29408d2d24283bb0f56c3fae22f2218638ad4bca01b0f6da5408f1c561c4f1d5";
 let scenarios = 0;
 
 type DeclaredBoundary =
@@ -86,7 +89,34 @@ interface Fixture {
   readonly durableRoot: string;
   readonly adapter: ProductionExecutionFilePersistenceAdapter;
   readonly records: ProductionExecutionDurableRecord[];
+  readonly claims: ProductionExecutionDurableClaimRecord[];
   readonly attempts: ProductionExecutionDurableAttemptRecord[];
+}
+
+function canonicalClaim(
+  record: ProductionExecutionDurableRecord,
+  attempt: ProductionExecutionDurableAttemptRecord,
+): ProductionExecutionDurableClaimRecord {
+  const body = {
+    schemaVersion: "1" as const, storageVersion: "1" as const,
+    identity: {
+      claimId: attempt.identity.claimId, recordId: record.recordId,
+      reservationId: record.identityFingerprint, requestId: record.requestId,
+      idempotencyKey: record.idempotencyKey, operation: record.operation,
+      executionFingerprint: record.executionFingerprint, workerId: attempt.identity.workerId,
+      workerSessionId: attempt.identity.workerSessionId, leaseId: attempt.identity.leaseId,
+    },
+    binding: { reservationVersion: 1, idempotencyVersion: record.recordVersion,
+      leaseVersion: 1, bindingFingerprint: `claim-binding-${record.recordId}` },
+    ownership: { ownerFingerprint: `owner-${record.recordId}`,
+      reservationEvidence: `reservation-${record.recordId}`,
+      idempotencyEvidence: `idempotency-${record.recordId}`,
+      leaseEvidence: `lease-${record.recordId}` },
+    state: "abandoned" as const, claimVersion: 1, acquiredAt: timestamp,
+    updatedAt: timestamp, abandonedAt: timestamp, evidence: ["fixture:terminal-claim"],
+  };
+  return { ...body, integrity: { algorithm: "stable-production-id-v1",
+    fingerprint: stableProductionId("durable-claim-integrity", body) } };
 }
 
 interface TreeEntry {
@@ -229,15 +259,18 @@ async function createFixture(ordinals: readonly number[] = [1]): Promise<Fixture
     trustedRootDirectory: durableRoot, trustedAttemptIdFactory: () => "lineage-fixture",
   });
   const records: ProductionExecutionDurableRecord[] = [];
+  const claims: ProductionExecutionDurableClaimRecord[] = [];
   const attempts: ProductionExecutionDurableAttemptRecord[] = [];
   for (const ordinal of ordinals) {
     const record = canonicalRecord(ordinal);
     const attempt = canonicalAttempt(ordinal, record);
+    const claim = canonicalClaim(record, attempt);
     assert.equal((await adapter.write("idempotency", `${record.recordId}-v1`, record)).ok, true);
+    assert.equal((await adapter.write("claim", `${claim.identity.claimId}-v1`, claim)).ok, true);
     assert.equal((await adapter.write("attempt", `${attempt.identity.attemptId}-v1`, attempt)).ok, true);
-    records.push(record); attempts.push(attempt);
+    records.push(record); claims.push(claim); attempts.push(attempt);
   }
-  return { root, durableRoot, adapter, records, attempts };
+  return { root, durableRoot, adapter, records, claims, attempts };
 }
 
 async function replaceRecord(item: Fixture, record: ProductionExecutionDurableRecord,
@@ -457,20 +490,20 @@ async function main() {
     await replaceRecord(item, canonicalRecord(1, { operation: "resume" }));
   });
   await expectRejected("record operation safe but incompatible with bound run type",
-    "record-run-type-execution-binding", "attempt-reservation-binding", async (item) => {
+    "record-run-type-execution-binding", "claim-reservation-binding", async (item) => {
       await replaceRecord(item, canonicalRecord(1, { operation: "pipeline.stage.initial",
         runType: "initial" }));
     });
-  await expectRejected("foreign project", "record-project-binding", "no-applicable-lineage",
+  await expectRejected("foreign project", "record-project-binding", "orphan-lineage",
     async (item) => {
     await replaceRecord(item, canonicalRecord(1, { project: "foreign-project" }));
   });
-  await expectRejected("foreign stage", "record-stage-binding", "no-applicable-lineage",
+  await expectRejected("foreign stage", "record-stage-binding", "orphan-lineage",
     async (item) => {
     await replaceRecord(item, canonicalRecord(1, { recordStage: "video" }));
   });
   await expectRejected("foreign run type", "record-run-type-execution-binding",
-    "attempt-reservation-binding", async (item) => {
+    "claim-reservation-binding", async (item) => {
     await replaceRecord(item, canonicalRecord(1, { runType: "retry" }));
   });
   await expectRejected("foreign ordinal", "record-ordinal-topology", "lineage-cardinality",

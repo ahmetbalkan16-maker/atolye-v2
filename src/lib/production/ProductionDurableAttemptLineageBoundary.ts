@@ -1,4 +1,5 @@
-import { ProductionPipelineDurableExecutionError } from
+import { isAuthenticProductionPipelineDurableExecutionError,
+  ProductionPipelineDurableExecutionError } from
   "./ProductionPipelineExecutionAdapter";
 
 export const productionDurableAttemptLineageBindingInvalidCode =
@@ -81,7 +82,7 @@ export function createProductionDurableAttemptLineageBindingError(
 export function readProductionDurableAttemptLineageBoundary(
   error: unknown,
 ): ProductionDurableAttemptLineageBoundary | undefined {
-  if (!(error instanceof ProductionPipelineDurableExecutionError)) return undefined;
+  if (!isAuthenticProductionPipelineDurableExecutionError(error)) return undefined;
   return (error as ProductionPipelineDurableExecutionError & BoundaryCarrier)[
     durableAttemptLineageBoundary
   ];

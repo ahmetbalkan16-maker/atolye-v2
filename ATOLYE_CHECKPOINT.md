@@ -1,5 +1,220 @@
 ---
 
+<!-- SPRINT-129.33-FINAL-TOCTOU-REMEDIATION-START -->
+## Sprint 129.33 Final TOCTOU Remediation — 2026-08-02
+
+**Status:** READY FOR INDEPENDENT RE-REVIEW
+**Production execution status:** BLOCKED
+
+- Canonical shared pathnames have no check-then-delete cleanup. Lock release, gate release,
+  stale lock/gate removal, publication-failure cleanup, and quarantine cleanup use the same
+  exclusive, nonce-owned quarantine primitive.
+- Publication-failure cleanup atomically moves the exact-created leaf into an operation-owned
+  quarantine container and only deletes it after post-move filesystem identity, type, owner-byte,
+  containment, and ownership-manifest verification.
+- Foreign quarantine leaves are never restored to a canonical pathname with replace-capable
+  rename. An unverified leaf is not deleted; it remains byte-identical as an explicit quarantine
+  residue and the operation fails closed with a typed reason and residue path.
+- Eight real two-child races prove exact final bytes, SHA-256, leaf type, and recursive inventory,
+  not mere existence. Exact fail-closed reasons and foreign preservation pass `8/8`.
+- All eight races directly assert event-derived foreign mutation, foreign delete, foreign
+  overwrite, canonical overwrite, quarantine-to-canonical restore, and unexpected canonical
+  mutation attempt counters at zero. No literal or unmeasured zero is reported.
+- All 14 hostile global-quiescence cases directly assert distinct real lock, gate, and quarantine
+  mutation counters at zero, with writer/provider/worker/dispatch/network counts also zero and
+  durable bytes unchanged. The network boundary combines fetch plus HTTP/HTTPS request/get and is
+  asserted from a fresh per-case snapshot/delta as well as at suite completion.
+- Sprint 129.32 zero-based attempt indexing remains unchanged. No production recovery, resume,
+  provider, or network operation was run.
+<!-- SPRINT-129.33-FINAL-TOCTOU-REMEDIATION-END -->
+
+<!-- PRODUCTION-BASELINE-CLOSURE-2026-08-01-START -->
+## Controlled Canonical Production Baseline Closure — 2026-08-01
+
+**Status:** READY FOR INDEPENDENT BASELINE REVIEW
+**Production execution status:** BLOCKED
+
+### `pipeline-jobs.json` provenance conclusion
+
+`B. STRONGLY CORRELATED BUT NOT FULLY ATTESTED`
+
+- The PowerShell history contains the exact production command and project binding:
+  `npm run production:acceptance:resume -- --project-slug="fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5" --confirm-production-acceptance`.
+- At `2026-07-31T22:34:03.305Z`, the physical audio job was written as `queued / attempts 3`; the physical file mtime is `2026-07-31T22:34:03.3348018Z`.
+- The previously recorded physical `pipeline-jobs.json` SHA-256 is `4a74c326088f9c51f6565f3f50e868dfac8425418191db972a9d67261b3d5b48`; the current physical SHA-256 is `7fc3c6a6de022faeffc3829dec9ff7c59f49f3236e82deefc51ed5a9158e66d4`.
+- The HEAD control flow first reconciles the failed audio lineage, then `prepareJobRetry` publishes the single `failed / attempts 2 -> queued / attempts 3` job-list mutation, and only afterwards enters scheduled durable preparation. The prepared previous-job admission was not propagated by that historical resume path, so the current queued job implied forbidden durable ordinal `4` and the command failed.
+- Manifest and history retain the terminal audio failure `AUDIO_ASSET_GENERATION_FAILED`; their physical mtimes remain `2026-07-30T20:57:23.5543269Z` and `2026-07-30T20:57:23.6429670Z`. The latest history event remains the ordinal-3 audio failure completed at `2026-07-30T20:57:23.563Z`.
+- No durable production-execution file has a timestamp after the job-list write, no fourth audio attempt identity was opened, and the latest audio durable lineage remains terminal ordinal `3`.
+- This is classified as known queued/exhausted drift. The provider-free `queued/3 -> failed/2` recovery has not been run.
+- Full attestation is unavailable because the timestamped stdout/stderr transcript for this exact invocation and an immediately adjacent, independently captured pre-command `pipeline-jobs.json` hash are not retained. The generic `PRODUCTION_ACCEPTANCE_COMMAND_FAILED` result and prior hash exist as recorded evidence, not as one continuous original command transcript. The physical change therefore must not be described as fully proven or authorized.
+
+`pipeline-jobs.json` is one of five production files marked `skip-worktree`. Ordinary `git status` and `git diff` do not attest its physical bytes. Physical hashing is mandatory. Production resume and recovery remain blocked.
+
+### Canonical physical `data/projects` aggregate
+
+The canonical contract is:
+
+1. Use `data/projects` as the root and recursively enumerate physical entries.
+2. Count directories including the root; exclude directories from serialized hash rows.
+3. Reject symlink, reparse, and non-regular/special entries.
+4. Sort physical regular-file absolute `FullName` values with ordinal comparison.
+5. Convert each path to root-relative form and normalize separators to `/`.
+6. Serialize each row as `relativePath<TAB>byteLength<TAB>lowercaseFileSha256`.
+7. Encode rows as UTF-8 without BOM, join with LF, and add no trailing LF.
+8. Exclude directory rows, timestamps, attributes, and other metadata.
+9. SHA-256 the serialized row bytes.
+
+Current independently reproducible result:
+
+- Physical regular files: `268`
+- Directories including root: `18`
+- Tracked files: `199`
+- Ignored physical files: `69`
+- Non-ignored untracked files: `0`
+- Serialized bytes: `55,785`
+- Canonical aggregate: `e83ab3e2284e90a1fd6e13949daa59f7ede85c591e9c54c860d43eb6bdf7fe08`
+
+Read-only PowerShell reference implementation:
+
+```powershell
+$root = (Resolve-Path -LiteralPath "data/projects").Path
+$entries = @(Get-ChildItem -LiteralPath $root -Force -Recurse)
+$rootItem = Get-Item -LiteralPath $root -Force
+if (($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+    @($entries | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }).Count) {
+  throw "Reparse entry rejected"
+}
+$files = @($entries | Where-Object { -not $_.PSIsContainer -and $_ -is [IO.FileInfo] })
+$special = @($entries | Where-Object { -not $_.PSIsContainer -and $_ -isnot [IO.FileInfo] })
+if ($special.Count) { throw "Special entry rejected" }
+$directories = 1 + @($entries | Where-Object { $_.PSIsContainer }).Count
+$fullNames = [string[]]@($files | ForEach-Object { $_.FullName })
+[Array]::Sort($fullNames, [StringComparer]::Ordinal)
+$rows = foreach ($fullName in $fullNames) {
+  $file = [IO.FileInfo]::new($fullName)
+  $relative = $fullName.Substring($root.Length + 1).Replace("\", "/")
+  $fileHash = (Get-FileHash -LiteralPath $fullName -Algorithm SHA256).Hash.ToLowerInvariant()
+  "$relative`t$($file.Length)`t$fileHash"
+}
+$utf8 = New-Object Text.UTF8Encoding($false)
+$material = $utf8.GetBytes(($rows -join "`n"))
+$sha = [Security.Cryptography.SHA256]::Create()
+try { $aggregate = ([BitConverter]::ToString($sha.ComputeHash($material))).Replace("-", "").ToLowerInvariant() }
+finally { $sha.Dispose() }
+[pscustomobject]@{ files=$rows.Count; directories=$directories; serializedBytes=$material.Length; aggregate=$aggregate }
+```
+
+Read-only Node.js reference implementation:
+
+```javascript
+const fs = require("node:fs");
+const path = require("node:path");
+const crypto = require("node:crypto");
+const root = path.resolve("data/projects");
+let directories = 1;
+const files = [];
+function walk(directory) {
+  for (const name of fs.readdirSync(directory)) {
+    const fullName = path.join(directory, name);
+    const stat = fs.lstatSync(fullName);
+    if (stat.isSymbolicLink()) throw new Error("Reparse entry rejected");
+    if (stat.isDirectory()) { directories += 1; walk(fullName); }
+    else if (stat.isFile()) files.push(fullName);
+    else throw new Error("Special entry rejected");
+  }
+}
+walk(root);
+files.sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+const rows = files.map((fullName) => {
+  const bytes = fs.readFileSync(fullName);
+  const relative = path.relative(root, fullName).split(path.sep).join("/");
+  const fileHash = crypto.createHash("sha256").update(bytes).digest("hex");
+  return `${relative}\t${bytes.length}\t${fileHash}`;
+});
+const material = Buffer.from(rows.join("\n"), "utf8");
+console.log({ files: rows.length, directories, serializedBytes: material.length,
+  aggregate: crypto.createHash("sha256").update(material).digest("hex") });
+```
+
+### Historical aggregate disposition
+
+`9e91a1fa4fdd04053b2e09dffab6f8de147f5595ccb79d6452ce4cc15e59a301` is preserved as:
+
+- obsolete/unattested historical value
+- no executable algorithm found
+- no matching Git blob or commit found
+- no calculation transcript found
+- must not be used as an execution safety gate
+
+The difference between `9e91...` and `e83...` does not itself prove that either value was wrong or that production content changed; equivalent contracts for the two values were never attested.
+
+### Mandatory production baseline policy
+
+Every future production safety gate must report separately:
+
+1. Tracked Git diff under `data/projects`.
+2. Non-ignored untracked files.
+3. Ignored physical files.
+4. Physical regular-file inventory.
+5. Deterministic physical aggregate under the contract above.
+6. `skip-worktree` and `assume-unchanged` inventory.
+7. Canonical state-file physical hashes.
+
+`git diff -- data/projects` alone is not full physical immutability proof. This baseline closure does not authorize Sprint 129.33 remediation, production resume, or drift recovery; it requires an independent read-only review first.
+<!-- PRODUCTION-BASELINE-CLOSURE-2026-08-01-END -->
+
+<!-- SPRINT-129.33-START -->
+## Sprint 129.33 — Exhausted Retry Admission and Job-State Atomicity
+
+**Status:** READY FOR INDEPENDENT RE-REVIEW
+**Branch:** `wip/production-audio-resume-prep-v2`
+
+### Result
+
+- Preserved the Sprint 129.32 compatibility model: `PipelineJob.attempts` is a zero-based durable attempt index, never a completed-attempt count. The mapping is index `0/1/2` to durable ordinal `1/2/3`.
+- Enforced read-only pre-mutation retry budget proof: failed indices `0` and `1` may advance to durable ordinals `2` and `3`; failed index `2` or greater is exhausted for `maxAttempts=3`. Durable ordinal `4` is never admitted or reused.
+- Reject exhausted retry attempts with safe, stable reason code `PIPELINE_RETRY_MAX_ATTEMPTS_EXCEEDED` (`writeFree: true`).
+- Preserved byte-identical failed state on `PipelineJob`, manifest, history, and durable execution tree during retry exhaustion rejection.
+- Zero provider, worker handler, or stage dispatch calls on exhausted retry rejection.
+- Implemented provider-free, exact-bound recovery mechanism (`recoverQueuedExhaustedPipelineJobDrift`) for `queued, attempts 3` vs failed manifest/history drift:
+  - Requires explicit confirmation (`confirm: true`).
+  - Proves exact project/stage/job identity, attempt count (3), manifest/history failure, terminal durable execution chain, global quiescence, and absence of newer authority.
+  - Uses one shared exact, write-free classifier for ordinary resume and explicit recovery. It requires queued/index `3`, matching manifest/latest-history failure codes, exact terminal durable ordinal `3`, cancelled record, released lease, abandoned claim, failed attempt, no ordinal `4`, no competing authority, and global quiescence.
+  - Restores only `PipelineJob` from `queued / attempts 3` to canonical `failed / attempts 2`, preserving the exact historical failure code.
+  - Idempotent, replay-safe, and write-free on replay (`writeFree: true`).
+  - Fails closed on any drift or ambiguous/non-terminal chains.
+- Added one consumer-side immutable admission validator. It independently binds canonical max/ordinal equations, both persisted job revisions/fingerprints, and every reconciled/admitted execution identity field before reservation, claim, attempt, worker, provider, or stage dispatch construction. Field-by-field poisoning remains byte-identical and produces zero boundary calls.
+- Replaced process-local-only PipelineJob mutation protection with one project-scoped filesystem protocol: exclusive acquisition gate, exclusive directory creation, temp-owner fsync plus atomic publication, exact owner-byte/nonce/filesystem verification, PID plus OS process-start identity, gated stale revalidation/quarantine, and exact identity-bound release. All production `pipeline-jobs.json` writes and manifest seeding re-read under this lock.
+- Added authentic nominal identity (module-private `WeakSet`) and fixed command/mode allowlists for every typed CLI error branch. Crafted prototypes, subclasses, changed prototypes, unknown codes, exception slugs/categories/messages and raw errors normalize to `PRODUCTION_ACCEPTANCE_COMMAND_FAILED`.
+- Global drift authority now permits integrity-valid, terminal, released histories for the six other production stages while rejecting any active lease/claim, non-terminal attempt, corrupt/ambiguous/unbound authority, or newer competing audio authority.
+- Recovery now reports `mutationState: none | committed-verified | committed-unverified`; no post-replacement failure can claim `writeFree:true`, and uncertain commits are never rolled back automatically.
+- Manifest `attempts.total` is validated as an execution count and converted once to zero-based `PipelineJob.attempts` (`1/2/3 -> 0/1/2`) with status, history, identity, and present durable-lineage cross-checks.
+- Auto-continuation admission is serialized through the shared project lock before durable preparation. Controlled dual contenders now yield one completed execution and one `continued:false` no-op without duplicate durable/provider/worker work.
+- Dedicated Sprint 129.33 suite includes genuine canonical child-process writes in both lock orderings, copied-owner-byte foreign replacement preservation, a real two-child stale-remover/live-owner race, and actual CLI-entrypoint processes.
+- Reconciled prior durable authority is reconstructed only through canonical schema/integrity readers. Reservation identity proof plus record, lease, claim, and attempt integrity fingerprints are stored as separate admission proofs and compared exactly before storage/provider construction; missing legacy proof fields fail closed.
+- Destructive lock, gate, stale-lock, and stale-gate release no longer uses pathname check-then-delete. Every leaf is atomically renamed into an exclusive nonce-owned quarantine container, then device/inode, owner bytes, containment, and quarantine ownership are revalidated before cleanup; post-check foreign replacements are preserved.
+- The acceptance-topic smoke runs under canonical operation-owned runtime and authority roots. Its eight authority markers never reach the shared authority root, and owned runtime/authority cleanup is identity-proven with zero remainder.
+- All 14 hostile global-quiescence cases directly assert `globallyQuiescent:false`, `writePerformed:false`, `writeFree:true`, `recoveryAttempted:false`, zero writer/lock-gate/provider/network boundaries, and byte-identical durable trees.
+- Recovery writer/readback and lock/gate release uncertainty is fail-closed and non-write-free. A later deterministic read-only classification can establish forward completion; no automatic rollback, requeue, continuation, or provider execution is attempted.
+- Every non-target terminal reservation/record/lease/claim/attempt chain is globally validated. The adapter-backed hostile matrix covers 53 persisted material-field mutations and 14 non-target authority mutations, including orphan, corrupt, wrong-link, duplicate, and conflicting authority.
+- Production data in `data/projects` remains 100% untouched.
+
+### Validation
+
+- Sprint 129.33 final suite: 54/54 PASS; persisted-lineage mutation cases: 59; two-child post-check replacement races: 6; non-target authority mutation cases: 14
+- Sprint 129.32: 18/18 PASS
+- Sprint 129.31: 9/9 PASS
+- Sprint 129.30: 5/5 PASS
+- Sprint 129.29: 41/41 PASS
+- Pipeline auto-continuation: 18/18 PASS; retry persistence: 5/5 groups PASS; acceptance topic: 24/24 PASS. Operation-owned runtime/authority/lock-gate-quarantine remainder `0/0/0`; pre-existing shared inventory `81`, newly created shared inventory `0`.
+- Worker lifecycle 21, durable attempt 58, claim 39, lease 40, storage 63, runtime context 48, production audio wiring 74, coordinator 9, retry continuation 23, state error 18, lineage compatibility 27 PASS
+- TypeScript: `npx tsc --noEmit --incremental false` PASS
+- `git diff --check`: PASS
+- `git diff -- data/projects`: Empty
+- Admission storage-construction/provider/worker/stage/fetch/http/https/network boundary counters: `0/0/0/0/0/0/0/0`.
+- Real production recovery was not run; production resume remains blocked pending separate explicit authorization.
+<!-- SPRINT-129.33-END -->
+
 <!-- SPRINT-129.32-START -->
 ## Sprint 129.32 — Retry Durable Attempt Ordinal Alignment
 
