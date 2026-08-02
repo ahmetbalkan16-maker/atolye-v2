@@ -1,5 +1,37 @@
 ---
 
+<!-- SPRINT-129.34-START -->
+## 2026-08-02 — Sprint 129.34 Queued-Exhausted Canonical Run-Type Remediation
+
+### Fixed
+
+- Removed the queued-exhausted classifier's hard-coded retry identity and retry operation override.
+- Derived the final canonical identity from the latest record's exact strict persisted run type and
+  passed its exact operation to the canonical terminal lineage reader.
+- Preserved all existing fail-closed identity, fingerprint, binding, version, terminal-state,
+  three-attempt, exact-failure, and global-quiescence validation.
+
+### Tests
+
+- New Sprint 129.34 isolated-runtime focused regression: `7/7` PASS, including integrity-valid
+  exact `record-execution-fingerprint` and `record-operation-format` boundaries, a complete
+  canonical active competing lineage rejected at `durable:global-authority`, and exact physical
+  durable path/byte-length/per-file-SHA-256/aggregate-SHA-256 equality.
+- Synthetic negative lineages include a readable canonical replacement reservation and validate
+  complete mapped-v1 reservation/record/lease/claim/attempt identity and version bindings before
+  asserting their exact record boundary.
+- Sprint 129.33 queued-exhausted/retry admission: `54/54` PASS.
+- Sprint 129.32 retry ordinal: `18/18` PASS; canonical durable lineage: `27/27` PASS.
+- Sprint 129.29 failed-terminal settlement: `41/41` PASS; recovery planner: `5/5` PASS.
+- TypeScript: `npx tsc --noEmit --incremental false` PASS.
+
+### Safety
+
+- Code/test/documentation remediation only. Production remained unchanged.
+- No production execute, resume, reprepare, reauthorization, recovery, provider, or network command
+  was run. Real production audio resume remains pending independent review.
+<!-- SPRINT-129.34-END -->
+
 <!-- SPRINT-129.33-FINAL-TOCTOU-REMEDIATION-START -->
 ## 2026-08-02 — Sprint 129.33 Final TOCTOU Remediation
 

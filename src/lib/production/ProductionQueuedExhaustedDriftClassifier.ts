@@ -70,16 +70,19 @@ export async function classifyQueuedExhaustedPipelineJobDrift(input: {
     lineage.latestAttempt.state !== "failed") {
     return reject(`durable:lineage-${lineage.status}`);
   }
-  const identity = buildProductionPipelineExecutionIdentity(
-    { projectSlug, stage, runType: "retry" }, { id: job.id, attempts: 2 },
-  );
   let canonical;
+  let identity: ReturnType<typeof buildProductionPipelineExecutionIdentity>;
   try {
     const record = await new AdapterBackedProductionExecutionDurableStorage(adapter)
-      .read(identity.recordId);
+      .read(lineage.latestAttempt.identity.recordId);
     if (!record.record) throw new Error("target record missing");
+    const runType = parsePipelineStageRunType(record.record.operation);
+    if (!runType) throw new Error("target record operation invalid");
+    identity = buildProductionPipelineExecutionIdentity(
+      { projectSlug, stage, runType }, { id: job.id, attempts: 2 },
+    );
     canonical = await readProductionCanonicalTerminalDurableLineage(
-      adapter, identity, record.record.identityFingerprint, undefined, "pipeline.stage.retry",
+      adapter, identity, record.record.identityFingerprint, undefined, record.record.operation,
     );
   } catch {
     return reject("durable:record-or-lease");
@@ -102,4 +105,9 @@ async function globallyQuiescent(
   projectSlug: string,
 ): Promise<boolean> {
   return validateProductionCanonicalTerminalAuthority(adapter, projectSlug);
+}
+
+function parsePipelineStageRunType(operation: string): "initial" | "resume" | "retry" | undefined {
+  const match = /^pipeline\.stage\.(initial|resume|retry)$/.exec(operation);
+  return match?.[1] as "initial" | "resume" | "retry" | undefined;
 }

@@ -1,5 +1,34 @@
 ---
 
+<!-- SPRINT-129.34-START -->
+## Sprint 129.34 — Queued-Exhausted Canonical Run-Type Remediation — 2026-08-02
+
+**Status:** READY FOR INDEPENDENT REVIEW
+**Production execution status:** BLOCKED
+
+- The queued-exhausted classifier now derives the latest canonical run type from the persisted
+  strict `pipeline.stage.(initial|resume|retry)` operation instead of forcing `retry`.
+- Canonical terminal reading receives the exact persisted operation. Resume-origin terminal
+  lineage is admitted without fallback; retry-origin behavior remains compatible.
+- Canonical identity, execution fingerprint, binding, version, terminal-state, exact failure,
+  three-attempt topology, and global-quiescence checks remain fail-closed and unchanged.
+- A focused isolated-runtime real-classifier/real-canonical-reader regression covers resume and
+  retry exact drift, record/claim operation disagreement, integrity-valid retry-fingerprint
+  substitution at `record-execution-fingerprint`, and integrity-valid unsupported operation at
+  `record-operation-format`.
+- Both synthetic negative lineages expose an exact replacement reservation under the rebuilt
+  fingerprint and validate the complete reservation/record/lease/claim/attempt identity plus
+  mapped-v1 reservation, idempotency, lease, and claim version bindings before boundary assertion.
+- A complete canonical competing authority produced through the real preparation/worker path
+  proves exact `durable:global-authority` rejection. Raw physical durable inventory comparison
+  proves identical paths, byte lengths, per-file SHA-256 values, and aggregate SHA-256 (`7/7`).
+- TypeScript and the relevant Sprint 129.33, Sprint 129.32, canonical lineage, failed-terminal, and
+  recovery-planner suites pass.
+- This sprint changed code, tests, and documentation only. Production data and authority were not
+  mutated; no production execute/resume/reprepare/reauthorize/recovery or provider/network command
+  was run. Real production audio resume remains pending independent review.
+<!-- SPRINT-129.34-END -->
+
 <!-- SPRINT-129.33-FINAL-TOCTOU-REMEDIATION-START -->
 ## Sprint 129.33 Final TOCTOU Remediation — 2026-08-02
 

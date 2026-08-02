@@ -1,5 +1,32 @@
 ---
 
+<!-- SPRINT-129.34-START -->
+## Sprint 129.34 — queued-exhausted canonical run-type remediation
+
+**Status:** READY FOR INDEPENDENT REVIEW
+
+- [x] Parse the latest durable record operation with the existing strict
+  `pipeline.stage.(initial|resume|retry)` grammar.
+- [x] Build the final canonical identity with the exact persisted run type and pass the exact
+  operation to the canonical terminal reader.
+- [x] Preserve retry-origin exact drift and admit resume-origin exact drift without fallback.
+- [x] Preserve all exact identity/fingerprint/binding/version/terminal/quiescence gates.
+- [x] Add a focused seven-case isolated-runtime regression using real durable preparation,
+  classifier, and readers; assert exact `record-execution-fingerprint`,
+  `record-operation-format`, and `durable:global-authority` boundaries.
+- [x] Rebuild and enumerate the replacement reservation and prove complete mapped-v1
+  reservation/record/lease/claim/attempt identity and version bindings before negative gates.
+- [x] Prove durable physical immutability with normalized path, byte length, per-file raw SHA-256,
+  and deterministic aggregate SHA-256 equality.
+- [x] Run TypeScript plus queued-exhausted, ordinal, admission, lineage, failed-terminal, and
+  recovery-planner regressions.
+- [x] Keep `data/projects` and production authority unchanged.
+
+Blocked:
+
+- Real production audio resume remains pending independent review and separate authorization.
+<!-- SPRINT-129.34-END -->
+
 <!-- SPRINT-129.33-FINAL-TOCTOU-REMEDIATION-START -->
 ## Sprint 129.33 final TOCTOU remediation
 
