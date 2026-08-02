@@ -1,5 +1,39 @@
 ---
 
+<!-- SPRINT-129.35-START -->
+## Sprint 129.35 — Legacy Terminal Lineage Global-Quiescence Compatibility Remediation
+
+**Status:** READY FOR INDEPENDENT REVIEW
+
+- [x] Implement `ProductionLegacyPipelineExecutionIdentity` with `production-pipeline-identity-v1`
+  scheme: `executionFingerprint` derived from `{ projectSlug, stage, jobId, attemptNumber }` only
+  (no `runType`). All sibling IDs (`requestId`, `idempotencyKey`, `recordId`, `leaseId`, `claimId`,
+  `attemptId`, `reservationFingerprint`) are independently reproducible. `claim.identity.operation`
+  and `attempt.identity.operation` are provably absent in v1.
+- [x] Implement `ProductionGlobalTerminalQuiescence` with `validateProductionGlobalTerminalQuiescence`:
+  full closed-world proof that no active, reserved, consuming, orphan, ambiguous, malformed,
+  corrupt, or foreign durable authorities remain.
+- [x] Enforce strict v2-only reader for current `targetIdentity` lineage (v1 fallback forbidden
+  for target; proven by isolated negative test PASS 2).
+- [x] Implement versioned legacy verifier (`verifyTerminalLineageVersioned`): v2 path first,
+  then exact v1 field-by-field validation (51 checks across reservation/record/lease/claim/attempt).
+  Unknown/unsupported schemas always rejected (PASS 23).
+- [x] Enforce stage-gate boundary: target must not precede any already-settled historical stage.
+- [x] Enforce closed-world claim/attempt accounting: every durable `claim-*` and `attempt-*` key
+  must map to a consumed and verified lineage.
+- [x] Fix `ProductionPipelineExecutionFactory` to write `operation` on new v2 claim/attempt.
+- [x] Fix `ProductionAcceptanceCommand` public allowlist to include `PIPELINE_RETRY_DURABLE_CONFLICT`.
+- [x] Clean up `ProductionCanonicalDurableLineage` by removing 106-line inline duplicate reader.
+- [x] 32/32 smoke scenarios including 24 negative matrix entries, physical immutability proof,
+  acceptance CLI contract, and mixed v1/v2/target topology validation.
+- [x] TypeScript `--noEmit` PASS; ESLint 0 errors 0 warnings.
+- [x] `data/projects` byte immutability preserved; aggregate SHA-256 and file inventory unchanged.
+
+Blocked:
+
+- Real production audio resume remains pending independent review and separate authorization.
+<!-- SPRINT-129.35-END -->
+
 <!-- SPRINT-129.34-START -->
 ## Sprint 129.34 — queued-exhausted canonical run-type remediation
 

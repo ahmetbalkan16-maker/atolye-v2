@@ -11,7 +11,6 @@ import type { ProductionExecutionPersistenceAdapter,
   "@/types/productionExecutionPersistence";
 import type { ProductionExecutionDurableRecord } from
   "@/types/productionExecutionDurableStorage";
-import type { ProductionStepKey } from "@/types/project";
 import { validateProductionExecutionDurableAttempt,
   isProductionExecutionTerminalAttemptState } from "./ProductionExecutionDurableAttempt";
 import { validateProductionExecutionDurableClaim } from
@@ -25,6 +24,8 @@ import { validateProductionExecutionPersistencePayload } from
   "./ProductionExecutionPersistence";
 import { buildProductionPipelineExecutionIdentity } from
   "./ProductionPipelineExecutionIdentity";
+import { validateProductionGlobalTerminalQuiescence } from
+  "./ProductionGlobalTerminalQuiescence";
 
 export interface ProductionCanonicalDurableLineage {
   readonly reservation: ProductionExecutionIdempotencyReservationRequest;
@@ -97,72 +98,15 @@ export async function readProductionCanonicalTerminalDurableLineage(
   return { reservation, record, lease, claim, attempt };
 }
 
-/** Validates the complete project store and rejects every orphan or ambiguous terminal object. */
+/**
+ * Validates the complete project store and rejects every orphan or ambiguous terminal object.
+ * Legacy compatibility is strictly terminal-only and used solely to prove global quiescence.
+ */
 export async function validateProductionCanonicalTerminalAuthority(
   adapter: ProductionExecutionPersistenceAdapter,
   projectSlug: string,
 ): Promise<boolean> {
-  try {
-    const kinds = ["reservation", "idempotency", "claim", "attempt"] as const;
-    const keys = new Map<(typeof kinds)[number], readonly string[]>();
-    for (const kind of kinds) {
-      const listed = await adapter.listKeys(kind);
-      if (!listed.ok) return false;
-      keys.set(kind, listed.keys);
-    }
-    const reservations = new Set<string>();
-    for (const key of keys.get("reservation") ?? []) {
-      const read = await adapter.read("reservation", key);
-      if (read.status !== "found" ||
-        !validateProductionExecutionPersistencePayload("reservation", read.value) ||
-        key !== read.value.identity.identityFingerprint ||
-        read.value.identity.projectSlug !== projectSlug) return false;
-      reservations.add(key);
-    }
-    const latestRecords = new Map<string, ProductionExecutionDurableRecord>();
-    const recordVersions = new Map<string, number[]>();
-    for (const key of keys.get("idempotency") ?? []) {
-      const read = await adapter.read("idempotency", key);
-      if (read.status !== "found" ||
-        !validateProductionExecutionPersistencePayload("idempotency", read.value)) return false;
-      const record = read.value as ProductionExecutionDurableRecord;
-      const parsed = parseVersionedKey(key);
-      if (!parsed || parsed.identity !== record.recordId ||
-        parsed.version !== record.recordVersion || record.projectSlug !== projectSlug) {
-        return false;
-      }
-      recordVersions.set(parsed.identity,
-        [...(recordVersions.get(parsed.identity) ?? []), parsed.version]);
-      const existing = latestRecords.get(parsed.identity);
-      if (!existing || existing.recordVersion < parsed.version) {
-        latestRecords.set(parsed.identity, record);
-      }
-    }
-    if ([...recordVersions.values()].some((versions) => !contiguous(versions))) return false;
-    const consumedReservations = new Set<string>();
-    const consumedClaims = new Set<string>();
-    const consumedAttempts = new Set<string>();
-    for (const record of latestRecords.values()) {
-      const runType = /^pipeline\.stage\.(initial|resume|retry)$/.exec(record.operation)?.[1];
-      if (!runType || !isProductionStepKey(record.stage) ||
-        !Number.isSafeInteger(record.attempt) || record.attempt < 1) return false;
-      const identity = buildProductionPipelineExecutionIdentity(
-        { projectSlug, stage: record.stage, runType: runType as "initial" | "resume" | "retry" },
-        { id: `${projectSlug}-${record.stage}`, attempts: record.attempt - 1 },
-      );
-      await readProductionCanonicalTerminalDurableLineage(
-        adapter, identity, record.identityFingerprint, undefined, record.operation,
-      );
-      consumedReservations.add(record.identityFingerprint);
-      consumedClaims.add(identity.claimId);
-      consumedAttempts.add(identity.attemptId);
-    }
-    if (!sameSet(reservations, consumedReservations)) return false;
-    return allVersionedKeysConsumed(keys.get("claim") ?? [], consumedClaims) &&
-      allVersionedKeysConsumed(keys.get("attempt") ?? [], consumedAttempts);
-  } catch {
-    return false;
-  }
+  return validateProductionGlobalTerminalQuiescence(adapter, projectSlug);
 }
 
 async function readLatestVersioned<T>(
@@ -332,40 +276,4 @@ function assertExpected(
 
 function escapeRegularExpression(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function parseVersionedKey(key: string) {
-  const match = /^(.*)-v([1-9][0-9]*)$/.exec(key);
-  if (!match) return undefined;
-  const version = Number(match[2]);
-  return Number.isSafeInteger(version) ? { identity: match[1], version } : undefined;
-}
-
-function contiguous(versions: number[]): boolean {
-  versions.sort((left, right) => left - right);
-  return versions.every((version, index) => version === index + 1);
-}
-
-function allVersionedKeysConsumed(keys: readonly string[], consumed: ReadonlySet<string>): boolean {
-  const versions = new Map<string, number[]>();
-  for (const key of keys) {
-    const parsed = parseVersionedKey(key);
-    if (!parsed || !consumed.has(parsed.identity)) return false;
-    versions.set(parsed.identity, [...(versions.get(parsed.identity) ?? []), parsed.version]);
-  }
-  return [...versions.values()].every(contiguous) &&
-    sameSet(new Set(versions.keys()), consumed);
-}
-
-function sameSet(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
-  return left.size === right.size && [...left].every((value) => right.has(value));
-}
-
-const productionStepKeys = new Set<string>([
-  "research", "script", "scenes", "visuals", "animation", "video", "audio",
-  "assembly", "thumbnail", "seo", "youtube", "export",
-]);
-
-function isProductionStepKey(value: unknown): value is ProductionStepKey {
-  return typeof value === "string" && productionStepKeys.has(value);
 }

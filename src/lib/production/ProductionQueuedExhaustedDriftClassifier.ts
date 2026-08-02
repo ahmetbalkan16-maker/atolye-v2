@@ -8,9 +8,10 @@ import { classifyProductionDurableAttemptLineage } from
   "./ProductionDurableAttemptLineageClassifier";
 import { AdapterBackedProductionExecutionDurableStorage } from
   "./ProductionExecutionDurableStorage";
-import { readProductionCanonicalTerminalDurableLineage,
-  validateProductionCanonicalTerminalAuthority } from
+import { readProductionCanonicalTerminalDurableLineage } from
   "./ProductionCanonicalDurableLineage";
+import { validateProductionGlobalTerminalQuiescence } from
+  "./ProductionGlobalTerminalQuiescence";
 
 export const queuedExhaustedDriftReasonCode =
   "PIPELINE_RETRY_QUEUED_EXHAUSTED_DRIFT_DETECTED" as const;
@@ -93,7 +94,7 @@ export async function classifyQueuedExhaustedPipelineJobDrift(input: {
   }
   if (canonical.claim.state !== "abandoned") return reject("durable:claim");
   if (canonical.attempt.state !== "failed") return reject("durable:attempt");
-  if (!await globallyQuiescent(adapter, projectSlug)) {
+  if (!await globallyQuiescent(adapter, projectSlug, identity)) {
     return reject("durable:global-authority");
   }
   if (recoveredReplay) return { status: "recovered-replay", job, failureCode };
@@ -103,8 +104,9 @@ export async function classifyQueuedExhaustedPipelineJobDrift(input: {
 async function globallyQuiescent(
   adapter: ProductionExecutionPersistenceAdapter,
   projectSlug: string,
+  targetIdentity?: ReturnType<typeof buildProductionPipelineExecutionIdentity>,
 ): Promise<boolean> {
-  return validateProductionCanonicalTerminalAuthority(adapter, projectSlug);
+  return validateProductionGlobalTerminalQuiescence(adapter, projectSlug, targetIdentity);
 }
 
 function parsePipelineStageRunType(operation: string): "initial" | "resume" | "retry" | undefined {

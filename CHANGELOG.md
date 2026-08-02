@@ -1,5 +1,76 @@
 ---
 
+<!-- SPRINT-129.35-START -->
+## 2026-08-02 — Sprint 129.35 Legacy Terminal Lineage Global-Quiescence Compatibility Remediation
+
+### Added
+
+- **`ProductionLegacyPipelineExecutionIdentity`** (`src/lib/production/ProductionLegacyPipelineExecutionIdentity.ts`):
+  New dedicated module for versioned execution identity derivation.
+  - `production-pipeline-identity-v1`: Deterministic identity where `executionFingerprint` is
+    derived from `{ projectSlug, stage, jobId, attemptNumber }` only (no `runType`), exactly
+    matching the fingerprint scheme used by all historical production lineages persisted before the
+    current v2 scheme.  `requestId`, `idempotencyKey`, `recordId`, `leaseId`, `claimId`,
+    `attemptId`, and `reservationFingerprint` are independently reproducible from the same core
+    fields. `claim.identity.operation` and `attempt.identity.operation` are provably absent in v1.
+  - `buildVersionedProductionPipelineExecutionIdentity`: Public factory that dispatches on the
+    `version` discriminant; unknown versions throw a fail-closed error.
+
+- **`ProductionGlobalTerminalQuiescence`** (`src/lib/production/ProductionGlobalTerminalQuiescence.ts`):
+  New module for project-wide terminal-authority proof.
+  - `validateProductionGlobalTerminalQuiescence(adapter, projectSlug, targetIdentity?)`:
+    Validates the complete durable store and proves global quiescence — no active/reserved/consuming,
+    orphan, ambiguous, malformed, corrupt, or foreign authorities remain.
+  - **Gated v2-only target reader**: Current `targetIdentity` lineage is read exclusively through
+    the strict `readProductionCanonicalTerminalDurableLineage` (v2) path. v1 fallback is forbidden
+    for the target, proven by an isolated negative test (PASS 2).
+  - **Versioned legacy verifier** (`verifyTerminalLineageVersioned`): Historical lineages attempt
+    strict current v2 first; on failure, an exact v1 identity is reconstructed and validated
+    field-by-field (reservation, record, lease, claim, attempt) against 51 deterministic checks.
+    Unknown/unsupported schemas are rejected (PASS 23). The v1 path requires `claim.identity.operation`
+    and `attempt.identity.operation` to be **absent** (`undefined`).
+  - **Stage-gate boundary**: Target must not precede any already-settled historical stage
+    (`PRODUCTION_STEP_ORDER` index gate).
+  - **Closed-world claim/attempt accounting**: Every durable `claim-*` and `attempt-*` key must
+    map to a consumed and verified lineage; unconsumed durable objects are rejected (PASS 26, 28).
+
+### Fixed
+
+- **`ProductionPipelineExecutionFactory`**: New v2 `claim.identity.operation` and
+  `attempt.identity.operation` fields (`pipeline.stage.initial|resume|retry`) are now written
+  deterministically on every fresh claim/attempt creation.
+- **`ProductionAcceptanceCommand`**: `PIPELINE_RETRY_DURABLE_CONFLICT` added to the
+  authenticated public error allowlist, ensuring deterministic conflict errors propagate to callers
+  without generic masking.
+- **`ProductionCanonicalDurableLineage`**: Removed 106-line inline canonical terminal lineage
+  reader that was partially duplicating `readProductionCanonicalTerminalDurableLineage`; unified
+  through the single canonical entry point.
+
+### Tests
+
+- **`scripts/smoke-sprint-129-35-legacy-global-quiescence.ts`** — 32/32 PASS:
+  - PASS 1: Mixed topology (v1 + v2 legacy + v2 target) exact counts and verifier separation.
+  - PASS 2: Target matching v1 format only is strictly rejected for target admission.
+  - PASS 3–26: Negative matrix — 24 isolated production-hostile scenarios:
+    active/reserved records, active leases, active claims, opened/active attempts, fingerprint
+    mutation, operation mutation, run-type mutation, record/reservation mismatch, record/lease
+    mismatch, claim/attempt cross-binding mismatch, version gap, duplicate version key, immutable
+    identity change, orphan reservation/claim/attempt, missing reservation, foreign project,
+    foreign stage, unsupported legacy schema, malformed payload, corrupt attempt integrity,
+    success/failed state mismatch, failed/released success mismatch, extra unconsumed durable object.
+  - PASS 27: v2 target with wrong `recordId` is rejected.
+  - PASS 30: Physical `data/projects` byte immutability: aggregate SHA-256 and full file inventory
+    remain 100% byte-identical (no production data mutated).
+  - PASS 31: `PIPELINE_RETRY_DURABLE_CONFLICT` present in acceptance CLI public error allowlist.
+  - PASS 32: Unauthenticated/unknown errors are masked as `PRODUCTION_ACCEPTANCE_COMMAND_FAILED`.
+
+### Safety
+
+- Code/test/documentation remediation only. Production data (`data/projects`) remained unchanged.
+- No production execute, resume, reprepare, reauthorization, recovery, provider, or network command
+  was run. Real production audio resume remains pending independent review.
+<!-- SPRINT-129.35-END -->
+
 <!-- SPRINT-129.34-START -->
 ## 2026-08-02 — Sprint 129.34 Queued-Exhausted Canonical Run-Type Remediation
 

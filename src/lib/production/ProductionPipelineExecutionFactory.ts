@@ -444,7 +444,7 @@ export async function prepareProductionPipelineExecution(
     claimId: planned.claimId, recordId: record.recordId,
     reservationId: idempotencyIdentity.identityFingerprint,
     requestId: planIdentity.requestId, idempotencyKey: planIdentity.idempotencyKey,
-    operation: planIdentity.operation, executionFingerprint: planned.executionFingerprint,
+    operation: record.operation, executionFingerprint: planned.executionFingerprint,
     workerId, workerSessionId: sessionId, leaseId: planned.leaseId,
     expectedReservationVersion: 1, expectedIdempotencyVersion: 2,
     expectedLeaseVersion: 1, expectedClaimVersion: 0, evaluatedAt: now,
@@ -461,7 +461,7 @@ export async function prepareProductionPipelineExecution(
     attemptId: planned.attemptId, claimId: planned.claimId,
     reservationId: idempotencyIdentity.identityFingerprint, recordId: record.recordId,
     requestId: planIdentity.requestId, idempotencyKey: planIdentity.idempotencyKey,
-    operation: planIdentity.operation, executionFingerprint: planned.executionFingerprint,
+    operation: record.operation, executionFingerprint: planned.executionFingerprint,
     workerId, workerSessionId: sessionId, leaseId: planned.leaseId,
     expectedClaimVersion: 1, expectedAttemptVersion: 0, evaluatedAt: now,
   };

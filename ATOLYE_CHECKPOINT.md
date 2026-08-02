@@ -1,5 +1,34 @@
 ---
 
+<!-- SPRINT-129.35-START -->
+## Sprint 129.35 — Legacy Terminal Lineage Global-Quiescence Compatibility Remediation — 2026-08-02
+
+**Status:** READY FOR INDEPENDENT REVIEW
+**Production execution status:** BLOCKED
+
+- Implemented `ProductionLegacyPipelineExecutionIdentity` with exact `production-pipeline-identity-v1`
+  scheme: `executionFingerprint` from `{ projectSlug, stage, jobId, attemptNumber }` only (no `runType`).
+  All sibling IDs (`requestId`, `idempotencyKey`, `recordId`, `leaseId`, `claimId`, `attemptId`,
+  `reservationFingerprint`) are independently reproducible. `claim.identity.operation` and
+  `attempt.identity.operation` are provably absent in v1.
+- Implemented `ProductionGlobalTerminalQuiescence.validateProductionGlobalTerminalQuiescence`:
+  closed-world proof that no active/reserved/consuming/orphan/ambiguous/malformed/corrupt/foreign
+  durable authorities remain.
+- Current `targetIdentity` lineage is gated to strict v2 reader only; v1 fallback is forbidden
+  for target (enforced and proven by isolated negative test PASS 2).
+- Historical lineages use `verifyTerminalLineageVersioned`: v2 path first, exact v1 field-by-field
+  validation (51 checks) on fallback. Unknown/unsupported schemas always rejected (PASS 23).
+- Stage-gate boundary enforced: target may not precede any already-settled historical stage.
+- Closed-world accounting: every `claim-*` and `attempt-*` key must map to a verified lineage.
+- `ProductionPipelineExecutionFactory` updated to write `operation` on new v2 claim/attempt.
+- `ProductionAcceptanceCommand` allowlist expanded to include `PIPELINE_RETRY_DURABLE_CONFLICT`.
+- `ProductionCanonicalDurableLineage` refactored to remove 106-line inline duplicate reader.
+- 32/32 smoke scenarios; TypeScript `--noEmit` PASS; ESLint 0 errors 0 warnings.
+- `data/projects` byte immutability preserved; aggregate SHA-256 and file inventory unchanged.
+- Code, tests, and documentation only. No production execute/resume/reprepare/recovery/provider/
+  network command was run. Real production audio resume remains pending independent review.
+<!-- SPRINT-129.35-END -->
+
 <!-- SPRINT-129.34-START -->
 ## Sprint 129.34 — Queued-Exhausted Canonical Run-Type Remediation — 2026-08-02
 
