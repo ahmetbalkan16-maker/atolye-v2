@@ -501,9 +501,6 @@ ProductionExecutionRecoverySemanticAuthority {
   const storePolicyFingerprint = stableProductionId("production-recovery-store-policy", {
     entries: storePolicyMatrix,
   });
-  if (decision !== "ready") {
-    console.error("semanticResult decision not ready:", decision, { active, reservationLifecycleState, storeStates });
-  }
   return Object.freeze({ schemaVersion: "1",
     policyVersion: "production-execution-recovery-semantic-authority-v1", decision,
     attempts: Object.freeze([...attempts]), counts: Object.freeze(counts(attempts)),
