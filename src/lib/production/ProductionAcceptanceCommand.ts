@@ -5,6 +5,7 @@ import {
   isAuthenticProductionAcceptanceExecutionError,
   ProductionAcceptanceOrchestrator,
 } from "./ProductionAcceptanceOrchestrator";
+import type { ProductionStepKey } from "@/types/project";
 import type { ProductionReadinessReport } from "@/types/productionReadiness";
 import {
   diagnoseProductionAcceptanceConfiguration,
@@ -35,6 +36,10 @@ import { isAuthenticProductionPipelineDurableExecutionError,
   "./ProductionPipelineExecutionAdapter";
 import { productionDurableAttemptLineageBindingInvalidCode } from
   "./ProductionDurableAttemptLineageBoundary";
+import {
+  planRetryBudgetExtension,
+  applyRetryBudgetExtension,
+} from "./ProductionPipelineRetryBudgetExtensionService";
 
 const CONFIRM_FLAG = "--confirm-production-acceptance";
 const REPREPARE_CONFIRM_FLAG = "--confirm-production-acceptance-reprepare";
@@ -168,6 +173,38 @@ export async function runProductionAcceptanceCommand(
       return {
         exitCode: 0,
         report: { mode, success: true, ...result },
+      };
+    }
+    if (mode === "retry-budget-extension-plan") {
+      const parsed = parseRetryBudgetExtensionPlanArguments(args.slice(1));
+      if ("errorCode" in parsed) return commandFailure(parsed.errorCode);
+      requestedProjectSlug = parsed.projectSlug;
+      const plan = await planRetryBudgetExtension(
+        parsed.projectSlug,
+        parsed.stage,
+        parsed.jobId,
+        parsed.reason,
+      );
+      return {
+        exitCode: plan.eligible ? 0 : 1,
+        report: { ...plan },
+      };
+    }
+    if (mode === "extend-retry-budget") {
+      const parsed = parseExtendRetryBudgetArguments(args.slice(1));
+      if ("errorCode" in parsed) return commandFailure(parsed.errorCode);
+      requestedProjectSlug = parsed.projectSlug;
+      const result = await applyRetryBudgetExtension(
+        parsed.projectSlug,
+        parsed.stage,
+        parsed.jobId,
+        parsed.reason,
+        parsed.authorityId,
+        parsed.confirmation,
+      );
+      return {
+        exitCode: result.success ? 0 : 1,
+        report: { ...result },
       };
     }
     return usageFailure();
@@ -393,4 +430,35 @@ function parseResumeArguments(args: readonly string[]):
   return SAFE_SLUG.test(projectSlug)
     ? { projectSlug }
     : { errorCode: "PRODUCTION_ACCEPTANCE_ARGUMENT_UNKNOWN" };
+}
+
+function parseRetryBudgetExtensionPlanArguments(args: readonly string[]):
+  | { readonly projectSlug: string; readonly stage: ProductionStepKey; readonly jobId: string; readonly reason: string }
+  | { readonly errorCode: string } {
+  const slug = exactValue(args, "--project-slug=");
+  const stage = exactValue(args, "--stage=") as ProductionStepKey | undefined;
+  const jobId = exactValue(args, "--job-id=");
+  const reason = exactValue(args, "--reason=");
+  if (!slug || !stage || !jobId || !reason || !SAFE_SLUG.test(slug) || args.length !== 4) {
+    return { errorCode: "PIPELINE_RETRY_BUDGET_EXTENSION_ARGUMENT_INVALID" };
+  }
+  return { projectSlug: slug, stage, jobId, reason };
+}
+
+function parseExtendRetryBudgetArguments(args: readonly string[]):
+  | { readonly projectSlug: string; readonly stage: ProductionStepKey; readonly jobId: string; readonly reason: string; readonly authorityId: string; readonly confirmation: string }
+  | { readonly errorCode: string } {
+  const slug = exactValue(args, "--project-slug=");
+  const stage = exactValue(args, "--stage=") as ProductionStepKey | undefined;
+  const jobId = exactValue(args, "--job-id=");
+  const reason = exactValue(args, "--reason=");
+  const authorityId = exactValue(args, "--authority-id=");
+  const confirmation = exactValue(args, "--confirm-production-retry-budget-extension=");
+  if (!slug || !stage || !jobId || !reason || !authorityId || !confirmation || !SAFE_SLUG.test(slug) || args.length !== 6) {
+    return { errorCode: "PIPELINE_RETRY_BUDGET_EXTENSION_ARGUMENT_INVALID" };
+  }
+  if (authorityId !== confirmation) {
+    return { errorCode: "PIPELINE_RETRY_BUDGET_EXTENSION_CONFIRMATION_REQUIRED" };
+  }
+  return { projectSlug: slug, stage, jobId, reason, authorityId, confirmation };
 }

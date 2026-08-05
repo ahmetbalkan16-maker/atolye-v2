@@ -1,5 +1,14 @@
+import fs from "node:fs";
 import { stableProductionId } from "./ProductionDeterminism";
 import { AdapterBackedProductionExecutionDurableStorage } from "./ProductionExecutionDurableStorage";
+import {
+  buildProductionPipelineRetryBudgetExtensionReceipt,
+} from "./ProductionPipelineRetryBudgetExtensionSchema";
+import {
+  getRetryBudgetExtensionDirectory,
+  readRetryBudgetExtensionReceipt,
+  writeRetryBudgetExtensionReceipt,
+} from "./ProductionPipelineRetryBudgetExtensionStore";
 import { AdapterBackedProductionExecutionDurableLeaseService } from "./ProductionExecutionDurableLease";
 import { AdapterBackedProductionExecutionClaimService } from "./ProductionExecutionDurableClaim";
 import { defaultProductionExecutionIdempotencyPolicy } from "./ProductionExecutionIdempotency";
@@ -49,7 +58,8 @@ export type ProductionPipelineFailedSettlementStep =
   | "lease-released"
   | "claim-closed"
   | "record-terminal"
-  | "quiescence-verified";
+  | "quiescence-verified"
+  | "settled-receipt-finalized";
 
 export type ProductionPipelineFailedSettlementBoundary =
   | "before-lease-release"
@@ -429,6 +439,36 @@ async function settleFailedProductionPipelineExecutionUnlocked(
       final.reasonCode);
   }
   completed.push("quiescence-verified");
+  if (context.expectedProjectSlug && context.expectedStage) {
+    const dir = getRetryBudgetExtensionDirectory(context.expectedProjectSlug);
+    if (fs.existsSync(dir)) {
+      try {
+        const files = fs.readdirSync(dir);
+        for (const file of files) {
+          if (file.startsWith("receipt-") && file.endsWith("-consumed.json")) {
+            const authId = file.slice("receipt-".length, "-consumed.json".length);
+            const consumedRead = readRetryBudgetExtensionReceipt(context.expectedProjectSlug, authId, "consumed");
+            if (consumedRead.ok && consumedRead.value) {
+              const settledReceipt = buildProductionPipelineRetryBudgetExtensionReceipt(
+                authId,
+                "settled",
+                new Date().toISOString(),
+                consumedRead.value.jobVersion,
+                ["terminal-settlement:settled-receipt-finalized"],
+              );
+              const writeResult = writeRetryBudgetExtensionReceipt(context.expectedProjectSlug, settledReceipt);
+              if (!writeResult.ok && writeResult.status !== "replayed") {
+                return deny("PIPELINE_FAILED_SETTLEMENT_RECEIPT_WRITE_FAILED", "final-validation", "SETTLED_RECEIPT_WRITE_FAILED");
+              }
+              wrote ||= !writeResult.writeFree;
+              completed.push("settled-receipt-finalized");
+              break;
+            }
+          }
+        }
+      } catch { /* ignore */ }
+    }
+  }
   return {
     ok: true,
     writeFree: !wrote,

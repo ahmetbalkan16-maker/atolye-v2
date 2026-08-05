@@ -131,58 +131,67 @@ export class PipelineJobManager {
       readonly fingerprint?: string },
   ): Promise<PipelineJobRetryPreparationResult> {
     return this.withProjectLock(projectSlug, async () => {
-      const current = await this.listJobs(projectSlug);
-      const job = current.jobs.find((item) => item.id === jobId);
-
-      if (!job) {
-        return {
-          success: false,
-          status: 404,
-          error: "Pipeline job not found.",
-        };
-      }
-
-      if (
-        expected &&
-        (job.updatedAt !== expected.updatedAt || job.attempts !== expected.attempts ||
-          (expected.fingerprint !== undefined &&
-            fingerprintPipelineJob(job) !== expected.fingerprint))
-      ) {
-        return {
-          success: false,
-          status: 409,
-          error: "Pipeline retry compare-and-swap conflict.",
-          reasonCode: "PIPELINE_RETRY_CAS_CONFLICT",
-        };
-      }
-
-      if (!this.canTransition(job.status, "queued")) {
-        return {
-          success: false,
-          status: 409,
-          error: `Retry is not supported for "${job.status}" jobs.`,
-          reasonCode: "PIPELINE_RETRY_PREPARATION_REJECTED",
-        };
-      }
-
-      const now = new Date().toISOString();
-      const nextJob = this.retryJob(job, now);
-      const jobs = current.jobs.map((item) =>
-        item.id === jobId ? nextJob : item,
-      );
-      const nextJobs = await this.writeJobList(projectSlug, {
-        ...current,
-        jobs,
-        updatedAt: now,
-      });
-
-      return {
-        success: true,
-        job: nextJob,
-        previousJob: job,
-        jobs: nextJobs,
-      };
+      return this.prepareJobRetryUnderLock(projectSlug, jobId, expected);
     });
+  }
+
+  static async prepareJobRetryUnderLock(
+    projectSlug: string,
+    jobId: string,
+    expected?: { readonly updatedAt: string; readonly attempts: number;
+      readonly fingerprint?: string },
+  ): Promise<PipelineJobRetryPreparationResult> {
+    const current = await this.listJobs(projectSlug);
+    const job = current.jobs.find((item) => item.id === jobId);
+
+    if (!job) {
+      return {
+        success: false,
+        status: 404,
+        error: "Pipeline job not found.",
+      };
+    }
+
+    if (
+      expected &&
+      (job.updatedAt !== expected.updatedAt || job.attempts !== expected.attempts ||
+        (expected.fingerprint !== undefined &&
+          fingerprintPipelineJob(job) !== expected.fingerprint))
+    ) {
+      return {
+        success: false,
+        status: 409,
+        error: "Pipeline retry compare-and-swap conflict.",
+        reasonCode: "PIPELINE_RETRY_CAS_CONFLICT",
+      };
+    }
+
+    if (!this.canTransition(job.status, "queued")) {
+      return {
+        success: false,
+        status: 409,
+        error: `Retry is not supported for "${job.status}" jobs.`,
+        reasonCode: "PIPELINE_RETRY_PREPARATION_REJECTED",
+      };
+    }
+
+    const now = new Date().toISOString();
+    const nextJob = this.retryJob(job, now);
+    const jobs = current.jobs.map((item) =>
+      item.id === jobId ? nextJob : item,
+    );
+    const nextJobs = await this.writeJobList(projectSlug, {
+      ...current,
+      jobs,
+      updatedAt: now,
+    });
+
+    return {
+      success: true,
+      job: nextJob,
+      previousJob: job,
+      jobs: nextJobs,
+    };
   }
 
   static async compensatePreparedRetry(

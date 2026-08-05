@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { reconcileFailedPipelineExecution } from "@/lib/production/ProductionPipelineRetryReconciliation";
 import type { PipelineJob, PipelineJobList } from "@/types/pipelineJob";
 import { PipelineJobManager } from "./PipelineJobManager";
@@ -8,6 +10,9 @@ import { fingerprintPipelineJob, freezePipelineRetryAdmission, pipelineRetryMaxA
 import type { ProjectPackageRunType } from "@/types/project";
 import { buildProductionPipelineRetryAdmissionBinding } from
   "@/lib/production/ProductionPipelineRetryAdmissionBinding";
+import { createRuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
+import { readRetryBudgetExtensionAuthority } from "@/lib/production/ProductionPipelineRetryBudgetExtensionStore";
+import { consumeRetryBudgetExtensionAndPrepareRetry } from "@/lib/production/ProductionPipelineRetryBudgetExtensionTransaction";
 
 export type PipelineFailedStageRetryPreparationResult =
   | { success: true; job: PipelineJob; previousJob: PipelineJob; jobs: PipelineJobList;
@@ -33,13 +38,65 @@ export async function prepareFailedStageRetry(
   const currentDurableOrdinal = job.attempts + 1;
   const admittedJobAttemptIndex = job.attempts + 1;
   const admittedDurableOrdinal = admittedJobAttemptIndex + 1;
-  if (!Number.isSafeInteger(job.attempts) || job.attempts < 0 ||
-    admittedDurableOrdinal > maxAttempts) {
+
+  let extensionAuthorityId: string | undefined;
+  if (admittedDurableOrdinal === 4 && runType === "resume") {
+    const context = createRuntimeStorageContext();
+    const dir = path.join(context.runtimeRoot, projectSlug, "production-execution", "retry-budget-extensions");
+    if (fs.existsSync(dir)) {
+      try {
+        const files = fs.readdirSync(dir);
+        for (const file of files) {
+          if (file.startsWith("authority-") && file.endsWith(".json")) {
+            const authId = file.slice("authority-".length, -".json".length);
+            const authRead = readRetryBudgetExtensionAuthority(projectSlug, authId);
+            if (
+              authRead.ok &&
+              authRead.value &&
+              authRead.value.stage === job.stage &&
+              authRead.value.jobId === job.id &&
+              authRead.value.priorJob.attempts === job.attempts
+            ) {
+              extensionAuthorityId = authId;
+              break;
+            }
+          }
+        }
+      } catch { /* ignore */ }
+    }
+  }
+
+  if (!Number.isSafeInteger(job.attempts) || job.attempts < 0 || admittedDurableOrdinal > (extensionAuthorityId ? 4 : maxAttempts)) {
     return {
       success: false,
       status: 409,
       reason: "Pipeline retry attempt budget exceeded.",
       reasonCode: "PIPELINE_RETRY_MAX_ATTEMPTS_EXCEEDED",
+    };
+  }
+
+  if (admittedDurableOrdinal === 4 && extensionAuthorityId) {
+    const extResult = await consumeRetryBudgetExtensionAndPrepareRetry(
+      projectSlug,
+      job.stage,
+      jobId,
+      runType,
+      extensionAuthorityId,
+    );
+    if (!extResult.success || !extResult.admission || !extResult.job || !extResult.previousJob || !extResult.jobs) {
+      return {
+        success: false,
+        status: (extResult.status === 404 ? 404 : 409),
+        reason: extResult.reason,
+        reasonCode: extResult.reasonCode,
+      };
+    }
+    return {
+      success: true,
+      job: extResult.job,
+      previousJob: extResult.previousJob,
+      jobs: extResult.jobs,
+      admission: extResult.admission,
     };
   }
 

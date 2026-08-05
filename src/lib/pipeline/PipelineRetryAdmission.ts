@@ -45,6 +45,15 @@ export interface PipelineRetryAdmission {
   readonly admittedJobAttemptIndex: number;
   readonly admittedDurableOrdinal: number;
   readonly maxAttempts: number;
+  readonly baseMaxAttempts?: number;
+  readonly effectiveMaxAttempts?: number;
+  readonly authorizedDurableOrdinal?: number;
+  readonly retryBudgetAuthorityProof?: {
+    readonly authorityId: string;
+    readonly authorityIntegrityFingerprint: string;
+    readonly consumptionReceiptFingerprint: string;
+    readonly authoritySchemaVersion: string;
+  };
   readonly exactReconciledDurableLineageIdentity: ProductionPipelineExecutionIdentity;
   readonly exactReconciledLineageBinding: PipelineRetryReconciledLineageBinding;
   readonly admittedDurableLineageIdentity: ProductionPipelineExecutionIdentity;
@@ -75,6 +84,9 @@ export function freezePipelineRetryAdmission(
   Object.freeze(admission.admittedExecutionBinding.identity.core);
   Object.freeze(admission.admittedExecutionBinding.identity);
   Object.freeze(admission.admittedExecutionBinding);
+  if (admission.retryBudgetAuthorityProof) {
+    Object.freeze(admission.retryBudgetAuthorityProof);
+  }
   return Object.freeze(admission);
 }
 
@@ -97,12 +109,23 @@ export function assertCanonicalPipelineRetryAdmission(input: {
       { projectSlug, stage, runType },
       currentJob,
     );
-  const invalid = admission.maxAttempts !== pipelineRetryMaxAttempts ||
+
+  const isOrdinal4Extension = admission.effectiveMaxAttempts === 4 &&
+    admission.authorizedDurableOrdinal === 4 &&
+    admission.admittedDurableOrdinal === 4 &&
+    Boolean(admission.retryBudgetAuthorityProof?.authorityId) &&
+    Boolean(admission.retryBudgetAuthorityProof?.authorityIntegrityFingerprint) &&
+    Boolean(admission.retryBudgetAuthorityProof?.consumptionReceiptFingerprint);
+
+  const expectedMaxAttempts = isOrdinal4Extension ? 4 : pipelineRetryMaxAttempts;
+
+  const invalid = admission.maxAttempts !== expectedMaxAttempts ||
     admission.currentDurableOrdinal !== admission.priorJobAttemptIndex + 1 ||
     admission.admittedJobAttemptIndex !== admission.priorJobAttemptIndex + 1 ||
     admission.admittedDurableOrdinal !== admission.admittedJobAttemptIndex + 1 ||
-    admission.admittedDurableOrdinal > admission.maxAttempts ||
-    admission.admittedDurableOrdinal === 4 ||
+    admission.admittedDurableOrdinal > expectedMaxAttempts ||
+    (admission.admittedDurableOrdinal === 4 && !isOrdinal4Extension) ||
+    admission.admittedDurableOrdinal >= 5 ||
     admission.projectSlug !== projectSlug || admission.stage !== stage ||
     admission.runType !== runType || !previousJob || !currentJob ||
     admission.jobId !== `${projectSlug}-${stage}` ||

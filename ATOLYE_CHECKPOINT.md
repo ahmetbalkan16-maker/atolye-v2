@@ -1,5 +1,26 @@
 ---
 
+<!-- SPRINT-129.36-START -->
+## Sprint 129.36 — Explicit One-Time Retry Budget Extension Authority — 2026-08-05
+
+**Status:** REMEDIATION COMPLETED — READY FOR INDEPENDENT RE-REVIEW
+**Production execution status:** BLOCKED — awaiting independent re-review and separate operator authorization before production audio resume
+
+- **Remediated all 7 independent review findings (P0×1, P1×2, P2×4):**
+  - **P0 Fix:** Implemented fail-closed module-private `parseConsumedRetryBudgetAuthorityId()` filename parser in `PipelineRunner.ts`. Fixed the broken inline slice (`file.slice(8, 14)` which produced truncated 6-character IDs). Full prefix/suffix validation, anchored `[a-z0-9-]{16,128}` regex, path traversal/separator rejection, empty/short/long/uppercase ID rejection verified with unit test suite.
+  - **P1 Fix (Test isolation):** Rewrote `smoke-sprint-129-36-retry-budget-extension.ts` with complete `mkdtemp`-based isolation under `runtimeExtDir`. Zero files written to `process.cwd()/data/projects` during tests. Every path is containment-asserted.
+  - **P1 Fix (Cross-process race test — Scenario 36):** Implemented real two-process OS-level race using `child_process.fork()` with `smoke-sprint-129-36-race-worker.ts`. Deterministic ready/start barrier, 30s bounded timeout, exit-code/signal check, and child cleanup. Proves exactly 1 successful consumption, 1 canonical consuming/consumed publication, and expected conflict in competing process.
+  - **P1 Fix (Before-execution gate durable sibling verification):** Updated `ProductionPipelineRetryBudgetExtensionGate.ts` to read reservation, record, lease, claim, and attempt records from canonical durable storage before execution. Verifies exact projectSlug, stage, jobId, runType, authority/extension binding, identity fingerprint, reservation, and attempt ordinal (4). Fails closed on missing, plural, stale, or mismatched sibling before any execution mutation starts.
+  - **P2 Fix (Settlement write-failure + recovery — Scenario 39):** Added fault injection test for settled receipt write-failure on terminal ordinal-4 execution. Verifies recovery path recovers terminal sibling state, reads consumed receipt, publishes settled receipt, and exhibits write-free idempotent behavior on replay.
+  - **P2 Fix (Scenario 23 path fix):** Corrected path usage in smoke test scenario 23 to use temp `runtimeExtDir` instead of repository `data/projects`.
+  - **P2 Fix (ESLint warnings):** Implemented `authorityChallengePayloadFromPublished()` projection helper in `ProductionPipelineRetryBudgetExtensionService.ts` replacing destructuring-based omission patterns. Zero ESLint errors, zero warnings across all modified files.
+- **74/74 smoke scenarios pass** (2 consecutive runs pass 100%).
+- **Sprint 129.32–129.35 regression pass**: 18/18 + 54/54 + 7/7 + 32/32 = 111 scenarios pass cleanly.
+- **TypeScript `--noEmit` PASS; ESLint 0 errors, 0 warnings.**
+- `data/projects` byte immutability preserved; aggregate SHA-256 and file inventory 100% byte-identical before and after test runs.
+- Code, tests, and documentation only. No production execute/resume/reprepare/recovery/provider/network command was run. Default `pipelineRetryMaxAttempts` remains 3.
+<!-- SPRINT-129.36-END -->
+
 <!-- SPRINT-129.35-START -->
 ## Sprint 129.35 — Legacy Terminal Lineage Global-Quiescence Compatibility Remediation — 2026-08-02
 

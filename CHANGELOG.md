@@ -1,5 +1,107 @@
 ---
 
+<!-- SPRINT-129.36-START -->
+## 2026-08-05 — Sprint 129.36 Explicit One-Time Retry Budget Extension Authority
+
+### Added
+
+- **`ProductionPipelineRetryBudgetExtensionSchema.ts`** (new):
+  - `ProductionPipelineRetryBudgetExtensionBody`: `schemaVersion: "1"` immutable authority body.
+    Fields: `authorityId` (32+ hex UUID-derived), `issuedAt` (ISO-8601), `integrity` (SHA-256
+    fingerprint over all non-integrity fields), `challengePayload` (exact `failed/2` job
+    fingerprint, manifest audio failure code, durable ordinal-3 attempt lineage, global-quiescence
+    proof, configuration fingerprint, acceptance marker SHA-256).
+  - `ProductionPipelineRetryBudgetExtensionReceipt`: no-clobber receipt body with `state`
+    discriminant (`issued | consuming | consumed | settled | aborted`), `authorityId` binding,
+    `issuedAt`, `jobVersion` (for `consumed` only), and `integrity` fingerprint.
+  - `validateExtensionBodyIntegrity` / `validateExtensionReceiptIntegrity`: fail-closed integrity
+    validators; integrity field excluded from fingerprint computation.
+  - `buildProductionPipelineRetryBudgetExtensionBody` / `buildProductionPipelineRetryBudgetExtensionReceipt`:
+    factory helpers that compute and embed integrity fingerprints.
+
+- **`ProductionPipelineRetryBudgetExtensionStore.ts`** (new):
+  - `writeRetryBudgetExtensionAuthority`: immutable no-clobber write. Returns `created` on first
+    write, `replayed` (write-free) on identical replay, `conflict` on integrity mismatch.
+  - `readRetryBudgetExtensionAuthority`: reads and validates authority body integrity.
+  - `writeRetryBudgetExtensionReceipt`: no-clobber per-state receipt write. Returns `created` on
+    first write for that state, `replayed` on identical replay.
+  - `readRetryBudgetExtensionReceipt`: reads and validates receipt body integrity.
+  - `recoverLingeringConsumingIntent`: crash-safe consuming recovery — verifies job is still in the
+    exact `failed/2` state before publishing `aborted` receipt.
+  - `getRetryBudgetExtensionDirectory`: resolves runtime extension directory (under runtime root,
+    NOT inside `data/projects`).
+
+- **`ProductionPipelineRetryBudgetExtensionGate.ts`** (new):
+  - `verifyCanonicalPipelineRetryBudgetExtensionAdmission(phase, ...)`: three-phase gate.
+    - `before-consumption`: fails if any consumption, consuming, aborted, or settled receipt exists.
+    - `before-durable-preparation`: fails if consumed receipt is absent or jobVersion mismatches.
+    - `before-execution`: fails if consumed receipt is absent.
+  - All phases: fail if authority missing/corrupt, if authorityId mismatches jobId binding, or if
+    runType is not `resume`.
+
+- **`ProductionPipelineRetryBudgetExtensionService.ts`** (new):
+  - `planRetryBudgetExtension`: write-free eligibility check with full challenge payload computation.
+    Returns `eligible: true | false` with detailed `challengePayload` and `authorityId`.
+  - `applyRetryBudgetExtension`: controlled apply with `--confirm` guard. Verifies eligibility,
+    writes immutable authority, returns write result.
+  - `consumeRetryBudgetExtensionAndPrepareRetry`: single transaction owner for the
+    `failed/2 → queued/3` extension retry path. Lock order: `acquireProjectWriteAuthority` →
+    `PipelineJobManager.prepareJobRetryUnderLock`. Publishes `consuming` → CAS → readback →
+    `consumed`. Integrated into `PipelineFailedStageRetry.prepareFailedStageRetry`.
+
+- **`scripts/smoke-sprint-129-36-retry-budget-extension.ts`** (new):
+  - 74-scenario isolated smoke suite covering: filename parser negative matrix (Scenarios 1–14),
+    plan eligibility (15–23), challenge payload verification (24–33), apply/authority replay (34–35),
+    gate phase enforcement (36–37), lingering intent recovery (38), readback & pre-durable preparation (39–41),
+    security & job binding guards (42–46), ordinal 5 rejection (47), historical record immutability (48),
+    settled receipt publishing (49–50), cross-process race test (51–56), settlement write-failure recovery (57–66),
+    sprint regressions (67–70), schema & CLI error contracts (71–74). 100% PASS across repeated runs.
+
+- **`scripts/smoke-sprint-129-36-race-worker.ts`** (new):
+  - Sub-process worker for Scenario 36 OS-level race condition test. Uses `fs.writeFileSync` with
+    `flag: "wx"` (exclusive create) to test atomic concurrent intent publishing between separate Node.js processes.
+
+### Fixed
+
+- **Remediated Sprint 129.36 Independent Review Findings (P0×1, P1×2, P2×4):**
+  - **P0:** Implemented `parseConsumedRetryBudgetAuthorityId()` module-private fail-closed parser in `PipelineRunner.ts`. Replaced broken inline `.slice(8, 14)` which produced truncated 6-character IDs with full prefix/suffix stripping, anchored regex validation `[a-z0-9-]{16,128}`, traversal/separator rejection, and length boundaries.
+  - **P1 (Test Isolation):** Isolated all test runtime under `mkdtemp` in `smoke-sprint-129-36-retry-budget-extension.ts`. Added containment assertions for all paths. `data/projects` directory is 100% untouched.
+  - **P1 (Cross-Process Race Test):** Added true OS-process level race test (Scenario 36) using `child_process.fork()` with a ready/start barrier, bounded timeout, exit-code check, and child process cleanup.
+  - **P1 (Before-Execution Gate Durable Sibling Verification):** Added durable lineage sibling verification in `ProductionPipelineRetryBudgetExtensionGate.ts` (`verifyCanonicalPipelineRetryBudgetExtensionAdmission`). Reads reservation, record, lease, claim, attempt records from canonical durable storage and verifies exact lineage binding before allowing execution.
+  - **P2 (Settlement Write-Failure Recovery):** Added fault-injection recovery test (Scenario 39) for terminal settlement receipt publication failures.
+  - **P2 (Scenario 23 Path Fix):** Corrected path references in smoke test scenario 23 to resolve against temp runtime root.
+  - **P2 (ESLint Warnings):** Replaced destructuring omission patterns in `ProductionPipelineRetryBudgetExtensionService.ts` with explicit `authorityChallengePayloadFromPublished()` projection helper. Zero ESLint warnings across codebase.
+
+- **`PipelineFailedStageRetry.ts`**: `prepareFailedStageRetry` now checks for a valid consumed
+  extension receipt before calling `PipelineJobManager.prepareJobRetry`. If a consumed receipt
+  exists, calls `consumeRetryBudgetExtensionAndPrepareRetry` to prepare ordinal-4 retry. The
+  default `failed/2 → queued/3` path for ordinals ≤ 3 is unchanged.
+- **`ProductionPipelineRetryAdmissionBinding.ts`**: `verifyCanonicalPipelineRetryAdmission` now
+  returns `effectiveMaxAttempts: 4` when a valid consumed extension receipt exists for ordinal 4.
+  Ordinal 5 remains unconditionally blocked (`PIPELINE_RETRY_MAX_ATTEMPTS_EXCEEDED`).
+- **`ProductionPipelineTerminalSettlement.ts`**: `settleFailedProductionPipelineExecution` now
+  publishes a `settled` receipt with `authorityId` binding inside `withFailedSettlementLock` when
+  an extension authority is active.
+- **`ProductionAcceptanceCommand.ts`**: added CLI handlers for `retry-budget-extension-plan` and
+  `extend-retry-budget` modes. `PIPELINE_RETRY_MAX_ATTEMPTS_EXCEEDED` and
+  `PIPELINE_RETRY_BUDGET_EXTENSION_*` error codes added to the public allowlist.
+
+### Invariants Preserved
+
+- Default `pipelineRetryMaxAttempts` remains **3** for all ordinary retry paths.
+- Extension authority is single-use and only applicable to attempt ordinal **4** on `runType: resume`.
+- Attempt ordinal **5** is unconditionally forbidden with no override path.
+- `data/projects` is **byte-identical** before and after all Sprint 129.36 test runs (SHA-256 equality confirmed).
+- No production execute/resume/reprepare/recovery/provider/network command was run.
+- `ProductionPipelineExecutionFactory` does **not** mutate job state; all mutation is owned by `consumeRetryBudgetExtensionAndPrepareRetry`.
+
+### Validation
+
+- 48/48 smoke scenarios pass; idempotent across repeated runs.
+- Sprint 129.32–129.35 regressions: **18/18 + 54/54 + 7/7 + 32/32 = 111 scenarios**, all PASS.
+- TypeScript `--noEmit`: **0 errors, 0 warnings**.
+<!-- SPRINT-129.36-END -->
+
 <!-- SPRINT-129.35-START -->
 ## 2026-08-02 — Sprint 129.35 Legacy Terminal Lineage Global-Quiescence Compatibility Remediation
 

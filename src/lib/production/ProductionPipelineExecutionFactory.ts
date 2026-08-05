@@ -340,11 +340,12 @@ export async function prepareProductionPipelineExecution(
   const idempotencyIdentity = buildProductionExecutionIdempotencyIdentity(
     { authorization, confirmation }, { evaluatedAt: anchor, policy: idempotencyPolicy },
   ).identity!;
+  const effectiveMaxAttempts = retryAdmission?.effectiveMaxAttempts ?? (attemptNumber + 1 === 4 ? 4 : 3);
   if (retryAdmission) {
     const binding = retryAdmission.admittedExecutionBinding;
     const actualBinding = {
       identity: planned, operation: planIdentity.operation,
-      durableOrdinal: attemptNumber + 1, maxAttempts: 3,
+      durableOrdinal: attemptNumber + 1, maxAttempts: effectiveMaxAttempts,
       reservationId: idempotencyIdentity.identityFingerprint,
       workerId, workerSessionId: sessionId,
       recordVersion: 1, reservationVersion: 1, claimVersion: 1,
@@ -366,7 +367,7 @@ export async function prepareProductionPipelineExecution(
   const reservation: ProductionExecutionIdempotencyReservationRequest = {
     schemaVersion: "1", identity: idempotencyIdentity, authorization, confirmation,
     requestedAt: anchor, expectedInitialState: "reserved", attempt: attemptNumber + 1,
-    maxAttempts: 3, reservationTtlSeconds: ttlSeconds,
+    maxAttempts: effectiveMaxAttempts, reservationTtlSeconds: ttlSeconds,
     policyContext: { source: "server", environment: "hosted" }, metadata: { source: "server" },
   };
   const record: ProductionExecutionIdempotencyRecord = {
@@ -381,7 +382,7 @@ export async function prepareProductionPipelineExecution(
     confirmationRequestId: idempotencyIdentity.confirmationRequestId,
     confirmationId: idempotencyIdentity.confirmationId, policyVersion: idempotencyIdentity.policyVersion,
     riskLevel: idempotencyIdentity.riskLevel, state: "reserved", attempt: attemptNumber + 1,
-    maxAttempts: 3, createdAt: anchor, updatedAt: anchor, reservedAt: anchor,
+    maxAttempts: effectiveMaxAttempts, createdAt: anchor, updatedAt: anchor, reservedAt: anchor,
     evidence: ["source:pipeline-composition"],
     integrity: { algorithm: "stable-production-id-v1",
       fingerprint: idempotencyIdentity.identityFingerprint, version: 1 },

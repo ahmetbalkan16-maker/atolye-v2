@@ -18,7 +18,7 @@ export interface ProductionPipelineRetryAdmissionBinding {
   readonly identity: ReturnType<typeof buildProductionPipelineExecutionIdentity>;
   readonly operation: string;
   readonly durableOrdinal: number;
-  readonly maxAttempts: 3;
+  readonly maxAttempts: number;
   readonly reservationId: string;
   readonly workerId: string;
   readonly workerSessionId: string;
@@ -40,6 +40,7 @@ export function buildProductionPipelineRetryAdmissionBinding(
   const identity = buildProductionPipelineExecutionIdentity(context, job);
   const anchor = job.updatedAt ?? job.createdAt;
   const operation = `pipeline.stage.${context.runType}`;
+  const maxAttempts = job.attempts + 1 === 4 ? 4 : 3;
   const authorization: ProductionExecutionAuthorizationResult = {
     schemaVersion: "1", decisionId: stableProductionId("pipeline-authorization", identity.core),
     decision: "allow", authorized: true, reasonCode: "AUTHORIZED",
@@ -75,7 +76,7 @@ export function buildProductionPipelineRetryAdmissionBinding(
     throw new Error("PIPELINE_RETRY_ADMISSION_BINDING_CONSTRUCTION_FAILED");
   }
   return Object.freeze({ identity, operation, durableOrdinal: job.attempts + 1,
-    maxAttempts: 3, reservationId: idempotencyIdentity.identityFingerprint,
+    maxAttempts, reservationId: idempotencyIdentity.identityFingerprint,
     workerId: "pipeline-worker",
     workerSessionId: "pipeline-session-v1",
     recordVersion: 1, reservationVersion: 1, claimVersion: 1, attemptVersion: 1,

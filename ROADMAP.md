@@ -1,5 +1,50 @@
 ---
 
+<!-- SPRINT-129.36-START -->
+## Sprint 129.36 — Explicit One-Time Retry Budget Extension Authority
+
+**Status:** REMEDIATION COMPLETED — READY FOR INDEPENDENT RE-REVIEW
+
+- [x] Implement `ProductionPipelineRetryBudgetExtensionSchema.ts`: `schemaVersion: "1"` authority
+  body with `authorityId` (32+ hex), `issuedAt`, `challengePayload` (exact `failed/2` fingerprint,
+  manifest audio failure code, durable ordinal-3 lineage, global-quiescence proof, configuration
+  fingerprint, acceptance marker SHA-256). Body integrity fingerprint excludes integrity fields only.
+- [x] Implement `ProductionPipelineRetryBudgetExtensionStore.ts`: immutable no-clobber authority
+  file. Replay is write-free. Receipt state machine with separate no-clobber files per state
+  (`issued`, `consuming`, `consumed`, `settled`, `aborted`). Crash-safe consuming-intent recovery
+  (aborted when job untouched). Receipt integrity fingerprinting.
+- [x] Implement `ProductionPipelineRetryBudgetExtensionGate.ts`: three admission phases —
+  `before-consumption` (no prior consumption), `before-durable-preparation` (consumed receipt
+  required), `before-execution` (consumed receipt + durable sibling verification). Ordinal 5 unconditionally rejected.
+  `runType: initial` and `runType: retry` forbidden. Cross-job authority rejected.
+- [x] Implement `consumeRetryBudgetExtensionAndPrepareRetry` (in `PipelineFailedStageRetry.ts`):
+  single transaction owner — validates exact `failed/2` state → verifies authority → publishes
+  `consuming` no-clobber → `job failed/2 → queued/3` CAS → readback → publishes `consumed`.
+- [x] Update `ProductionPipelineTerminalSettlement.ts`: publish `settled` receipt with authority ID
+  binding inside `withFailedSettlementLock` after successful terminal settlement.
+- [x] Update `ProductionPipelineRetryAdmissionBinding.ts`: allow `effectiveMaxAttempts` 4 only for
+  ordinal 4 with verified extension authority. Ordinal 5 unconditionally blocked.
+- [x] Add CLI commands to `ProductionAcceptanceCommand.ts`: `retry-budget-extension-plan`
+  (write-free eligibility check) and `extend-retry-budget` (controlled apply with `--confirm` flag).
+- [x] **Remediated all 7 independent review findings (P0×1, P1×2, P2×4):**
+  - P0: Added module-private fail-closed `parseConsumedRetryBudgetAuthorityId()` filename parser in `PipelineRunner.ts`.
+  - P1: Full `mkdtemp` test runtime isolation in `smoke-sprint-129-36-retry-budget-extension.ts`. Zero files written to `data/projects`.
+  - P1: Implemented real OS-level cross-process race test (Scenario 36) using `child_process.fork()` with `smoke-sprint-129-36-race-worker.ts`.
+  - P1: Added `before-execution` phase durable sibling verification in `ProductionPipelineRetryBudgetExtensionGate.ts`.
+  - P2: Added fault-injection settlement write-failure + recovery test (Scenario 39).
+  - P2: Corrected scenario 23 temp path usage in smoke test.
+  - P2: Replaced destructuring with `authorityChallengePayloadFromPublished()` projection helper to eliminate all ESLint warnings.
+- [x] 74/74 smoke scenarios pass (2 consecutive runs pass 100%).
+- [x] Sprint 129.32–129.35 regressions: 18/18 + 54/54 + 7/7 + 32/32 = 111 scenarios pass.
+- [x] TypeScript `--noEmit` PASS; ESLint 0 errors 0 warnings.
+- [x] `data/projects` byte immutability preserved; aggregate SHA-256 and file inventory 100% byte-identical.
+
+Blocked:
+
+- Real production audio resume (attempt ordinal 4) remains pending independent re-review and explicit
+  `extend-retry-budget` authorization before execution.
+<!-- SPRINT-129.36-END -->
+
 <!-- SPRINT-129.35-START -->
 ## Sprint 129.35 — Legacy Terminal Lineage Global-Quiescence Compatibility Remediation
 

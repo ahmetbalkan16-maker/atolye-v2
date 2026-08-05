@@ -1,5 +1,9 @@
+import fs from "node:fs";
+import path from "node:path";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { PipelineJobManager } from "./PipelineJobManager";
+import { createRuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
+import { verifyCanonicalPipelineRetryBudgetExtensionAdmission } from "@/lib/production/ProductionPipelineRetryBudgetExtensionGate";
 import { PipelineQueueScheduler } from "./PipelineQueueScheduler";
 import {
   PipelineRecoveryPlanner,
@@ -61,6 +65,50 @@ import {
 } from "./PipelineRunnerCanonicalRuntime";
 
 export { installPipelineRunnerProductionRuntime } from "./PipelineRunnerCanonicalRuntime";
+
+/**
+ * Module-private, fail-closed parser for consumed retry-budget-extension receipt filenames.
+ *
+ * Expected format: `receipt-<authority-id>-consumed.json`
+ * - Authority ID must match `[a-z0-9-]{16,128}` (lowercase alphanum + dash only).
+ * - Rejects files with path separators, uppercase letters, empty IDs, wrong prefix/suffix,
+ *   extra suffixes, and traversal-style names.
+ *
+ * Returns `undefined` for any invalid input (fail-closed).
+ */
+function parseConsumedRetryBudgetAuthorityId(
+  fileName: string,
+): string | undefined {
+  const prefix = "receipt-";
+  const suffix = "-consumed.json";
+
+  // Reject path separators (traversal defence)
+  if (fileName.includes("/") || fileName.includes("\\") || fileName.includes("\0")) {
+    return undefined;
+  }
+
+  // Exact prefix + suffix check
+  if (!fileName.startsWith(prefix) || !fileName.endsWith(suffix)) {
+    return undefined;
+  }
+
+  // Ensure prefix and suffix don't overlap
+  if (fileName.length <= prefix.length + suffix.length) {
+    return undefined;
+  }
+
+  const authorityId = fileName.slice(
+    prefix.length,
+    fileName.length - suffix.length,
+  );
+
+  // Must be non-empty, lowercase alphanumeric + dash, length 16–128
+  if (!/^[a-z0-9-]{16,128}$/.test(authorityId)) {
+    return undefined;
+  }
+
+  return authorityId;
+}
 
 export class PipelineRunner {
   private static continuationAdmission?: PipelineContinuationAdmission;
@@ -213,28 +261,59 @@ export class PipelineRunner {
         PipelineJobManager.listHistory(projectSlug),
       ]);
       if (manifest?.packages[plan.startStage]?.status === "failed") {
-        const drift = await classifyQueuedExhaustedPipelineJobDrift({
-          projectSlug, stage: plan.startStage, jobs, history, manifest,
-          adapter: new ProductionExecutionFilePersistenceAdapter({
-            trustedRootDirectory:
-              `${ProjectReader.getProjectFolder(projectSlug)}/production-execution`,
-            createRootDirectory: false,
-          }),
-        });
-        return {
-          success: false,
-          projectSlug,
-          resumedFrom: plan.startStage,
-          completedStages: [],
-          blocked: true,
-          reason: drift.status === "exact-drift"
-            ? "Queued job is in exhausted drift state."
-            : "Queued retry state failed exact durable classification.",
-          reasonCode: drift.status === "exact-drift"
-            ? queuedExhaustedDriftReasonCode
-            : "PIPELINE_RETRY_DURABLE_CONFLICT",
-          plan,
-        };
+        let isConsumedExtensionResume = false;
+        if (startJob.attempts === 3) {
+          const context = createRuntimeStorageContext();
+          const dir = path.join(context.runtimeRoot, projectSlug, "production-execution", "retry-budget-extensions");
+          if (fs.existsSync(dir)) {
+            try {
+              const files = fs.readdirSync(dir);
+              for (const file of files) {
+                const authId = parseConsumedRetryBudgetAuthorityId(file);
+                if (!authId) continue;
+                const gateCheck = await verifyCanonicalPipelineRetryBudgetExtensionAdmission({
+                  phase: "before-durable-preparation",
+                  projectSlug,
+                  stage: plan.startStage,
+                  jobId: startJob.id,
+                  runType: "resume",
+                  authorityId: authId,
+                  jobVersion: startJob.updatedAt,
+                });
+                if (gateCheck.ok) {
+                  isConsumedExtensionResume = true;
+                  break;
+                }
+              }
+
+            } catch { /* ignore */ }
+          }
+        }
+
+        if (!isConsumedExtensionResume) {
+          const drift = await classifyQueuedExhaustedPipelineJobDrift({
+            projectSlug, stage: plan.startStage, jobs, history, manifest,
+            adapter: new ProductionExecutionFilePersistenceAdapter({
+              trustedRootDirectory:
+                `${ProjectReader.getProjectFolder(projectSlug)}/production-execution`,
+              createRootDirectory: false,
+            }),
+          });
+          return {
+            success: false,
+            projectSlug,
+            resumedFrom: plan.startStage,
+            completedStages: [],
+            blocked: true,
+            reason: drift.status === "exact-drift"
+              ? "Queued job is in exhausted drift state."
+              : "Queued retry state failed exact durable classification.",
+            reasonCode: drift.status === "exact-drift"
+              ? queuedExhaustedDriftReasonCode
+              : "PIPELINE_RETRY_DURABLE_CONFLICT",
+            plan,
+          };
+        }
       }
     }
     let resumeRetry: { admission: PipelineRetryAdmission;
