@@ -1,4 +1,5 @@
 import { runObservedAIRequest } from "@/lib/ai/runObservedAIRequest";
+import { AIResponseError } from "@/lib/ai/AIResponseError";
 import { failClosedOrReturn, type GenerationExecutionPolicy } from "@/lib/ai/GenerationExecutionPolicy";
 import type { AIProvider } from "@/lib/ai/providers";
 import {
@@ -19,6 +20,7 @@ import type { ScriptChapter, ScriptData } from "@/types/script";
 import type { VideoData, VideoScene } from "@/types/video";
 import type { VisualData, VisualScene } from "@/types/visual";
 import { createAssemblyPrompt } from "./prompts/assemblyPrompt";
+import { AssemblyAIConfigError, getAssemblyMaxTokens } from "./AssemblyAIConfig";
 
 export type AssemblySourceData = {
   project?: Project | null;
@@ -46,9 +48,10 @@ export class AssemblyManager {
     const prompt = createAssemblyPrompt(script, scenes, visuals, audio, sources);
 
     try {
-      const { response } = await runObservedAIRequest({
+      const observed = await runObservedAIRequest({
         prompt,
         provider: options.aiProvider,
+        maxTokens: getAssemblyMaxTokens(),
         context: {
           ...context,
           projectSlug: context?.projectSlug ?? sources.project?.slug,
@@ -56,6 +59,8 @@ export class AssemblyManager {
           stage: context?.stage ?? "assembly",
         },
       });
+      if (observed.errorCode) throw new AIResponseError(observed.errorCode);
+      const { response } = observed;
 
       if (!response.trim()) {
         console.error("[AssemblyManager] Empty provider response.");
@@ -87,6 +92,10 @@ export class AssemblyManager {
         updatedAt: new Date().toISOString(),
       };
     } catch (error) {
+      if (
+        options.generationPolicy?.failClosed &&
+        (error instanceof AIResponseError || error instanceof AssemblyAIConfigError)
+      ) throw error;
       if (options.generationPolicy?.failClosed) return failClosedOrReturn(fallback, options.generationPolicy);
       console.error(
         "[AssemblyManager] Falling back to local assembly plan:",

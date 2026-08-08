@@ -147,6 +147,9 @@ export async function createProductionAcceptancePortableConfigurationSnapshotV2(
       ...(environment.OPENAI_AUDIO_MAX_TOKENS !== undefined
         ? { audioMaxTokens: environment.OPENAI_AUDIO_MAX_TOKENS }
         : {}),
+      ...(environment.OPENAI_ASSEMBLY_MAX_TOKENS !== undefined
+        ? { assemblyMaxTokens: environment.OPENAI_ASSEMBLY_MAX_TOKENS }
+        : {}),
     })),
   ]);
   const componentFingerprints = Object.freeze(Object.fromEntries(entries)) as

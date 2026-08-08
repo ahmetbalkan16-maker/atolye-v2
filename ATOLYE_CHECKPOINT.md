@@ -1,5 +1,34 @@
 ---
 
+<!-- SPRINT-129.37-START -->
+## Sprint 129.37 — Assembly AI Token Budget and Truncation Remediation — 2026-08-08
+
+**Status:** REMEDIATION COMPLETED — READY FOR INDEPENDENT RE-REVIEW
+**Production execution status:** BLOCKED — assembly resume has not been re-run
+
+- The controlled production audio operation completed successfully on ordinal 4. Canonical
+  `audio.json` and all 7 physical WAV outputs remain present and byte-identical.
+- The first real assembly planning attempt inherited the global OpenAI 1200-token default because
+  `AssemblyManager` supplied no stage-specific budget. It ended at exactly 1200 completion tokens
+  and the strict catch path masked the observed failure as `GENERATION_FALLBACK_BLOCKED`.
+- Assembly planning now uses validated `OPENAI_ASSEMBLY_MAX_TOKENS`: default 3200, inclusive range
+  1600–6000, decimal-integer-only, safe-integer, fail-closed validation with stable
+  `AI_ASSEMBLY_MAX_TOKENS_INVALID`; invalid values are never clamped.
+- Strict assembly now rethrows authentic `AIResponseError` and `AssemblyAIConfigError` instances.
+  Truncation remains `AI_RESPONSE_TRUNCATED`; complete but structurally invalid assembly JSON still
+  fails strict validation as `GENERATION_FALLBACK_BLOCKED`. Production local fallback stays closed.
+- `OPENAI_ASSEMBLY_MAX_TOKENS` is optional inside profile-2 `ENVIRONMENT_POLICY`. Unset serialization
+  retains the existing production marker identity; an explicit value changes the component and
+  aggregate fingerprints deterministically. No marker rewrite or reprepare was performed.
+- Validation: Sprint 129.37 `23/23`, Sprint 129.26 `19/19`, Sprint 129.24 `22/22`, production
+  readiness acceptance `24/24`, TypeScript, and targeted ESLint all PASS. Protected production
+  state (5 canonical JSON files, 7 WAV files, and 4 retry-budget authority/receipt files) remained
+  byte-identical.
+- No production resume/execute, provider/network call, audio regeneration, reprepare, Git add,
+  commit, or push was performed. After independent review, the next separately authorized action
+  is controlled production resume from `assembly`.
+<!-- SPRINT-129.37-END -->
+
 <!-- SPRINT-129.36-START -->
 ### 2026-08-08 independent re-review remediation
 

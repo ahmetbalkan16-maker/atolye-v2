@@ -1,5 +1,32 @@
 ---
 
+<!-- SPRINT-129.37-START -->
+## 2026-08-08 — Sprint 129.37 Assembly AI Token Budget and Truncation Remediation
+
+- Recorded the successful ordinal-4 production audio result and preserved canonical `audio.json`
+  plus all 7 physical WAV files without regeneration or mutation.
+- Confirmed the assembly root cause: no stage-specific budget was passed, so the request inherited
+  the global 1200-token OpenAI default and stopped at exactly 1200 completion tokens; the strict
+  assembly catch path then masked the observed root error as `GENERATION_FALLBACK_BLOCKED`.
+- Added `AssemblyAIConfig` with `OPENAI_ASSEMBLY_MAX_TOKENS`, default 3200, inclusive 1600–6000
+  bounds, decimal safe-integer validation, no clamping, and stable
+  `AI_ASSEMBLY_MAX_TOKENS_INVALID` failure.
+- Wired the effective budget into the existing assembly AI request. Strict assembly now rethrows
+  authentic observed AI response errors, including `AI_RESPONSE_TRUNCATED`, incomplete, refusal,
+  request, and usage-persistence failures. The strict schema contract is unchanged; complete but
+  invalid assembly JSON remains `GENERATION_FALLBACK_BLOCKED` with no production local fallback.
+- Added assembly configuration only as an optional profile-2 `ENVIRONMENT_POLICY` field. The unset
+  environment retains the existing production `ENVIRONMENT_POLICY` fingerprint; explicit values
+  change the environment-policy and aggregate configuration fingerprints deterministically.
+- Added a 23-scenario isolated fake-provider smoke suite. TypeScript, targeted ESLint, Sprint 129.26
+  `19/19`, Sprint 129.24 `22/22`, and production readiness acceptance `24/24` pass. Pre/post hashes
+  for 5 canonical production JSON files, 7 WAV files, and 4 retry-budget authority/receipt files
+  are identical.
+- Production resume/execute, provider/network access, audio regeneration, reprepare, Git add,
+  commit, and push were not performed. The next controlled step, only after independent review and
+  separate authorization, is production resume from `assembly`.
+<!-- SPRINT-129.37-END -->
+
 <!-- SPRINT-129.36-START -->
 ### 2026-08-08 - Independent re-review remediation
 

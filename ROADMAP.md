@@ -1,5 +1,28 @@
 ---
 
+<!-- SPRINT-129.37-START -->
+## Sprint 129.37 — Assembly AI Token Budget and Truncation Remediation
+
+**Status:** REMEDIATION COMPLETED — READY FOR INDEPENDENT RE-REVIEW
+**Production execution status:** BLOCKED
+
+- [x] Preserve the successful ordinal-4 production audio result: canonical `audio.json` and 7 WAV
+  files remain unchanged.
+- [x] Add bounded assembly-specific `OPENAI_ASSEMBLY_MAX_TOKENS` configuration with default 3200,
+  inclusive 1600–6000 limits, strict decimal safe-integer parsing, and stable fail-closed error.
+- [x] Pass the effective assembly budget to the existing provider call without changing provider
+  selection, prompt semantics, or strict response validation.
+- [x] Preserve observed AI failure codes in strict assembly; truncation is
+  `AI_RESPONSE_TRUNCATED`, while complete malformed assembly JSON remains fallback-blocked.
+- [x] Bind only explicit assembly token configuration into profile-2 `ENVIRONMENT_POLICY`; keep the
+  current unset production marker identity byte-for-byte compatible without reprepare.
+- [x] Validate with isolated fake-provider coverage (`23/23`), audio budget regression (`19/19`),
+  profile-2 marker regression (`22/22`), strict production readiness (`24/24`), TypeScript, targeted
+  ESLint, and protected production pre/post hashes.
+- [ ] After independent review and separate operator authorization, resume controlled production
+  from `assembly`; do not repeat audio.
+<!-- SPRINT-129.37-END -->
+
 <!-- SPRINT-129.36-START -->
 - [x] 2026-08-08 independent re-review remediation: integrated the canonical ordinal-4 extension
   binding into the real reservation/record/lease/claim/attempt production writer and proved a real
