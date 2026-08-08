@@ -1,5 +1,39 @@
 ---
 
+<!-- SPRINT-129.40-START -->
+## Sprint 129.40 - Production Scene-Video Full-Frame Framing Remediation - 2026-08-08
+
+**Status:** READY FOR INDEPENDENT RE-REVIEW
+**Production execution status:** BLOCKED - no production rerender, assembly, or downstream stage ran
+
+- Root cause was the production provider's authoritative `cover -> crop -> zoompan` chain. A
+  `1024x1024` source became approximately `1920x1920`, then a `1920x1080` center crop discarded
+  `43.75%` of source height before motion; crop-derived zoom could remove still more content.
+- Rendering now splits the source into two independent layers. The decorative background retains
+  validated cover/crop/zoompan motion and adds deterministic blur. The authoritative foreground is
+  aspect-preserving `contain`, centered, and never receives crop or zoompan.
+- Existing finite/focus/zoom validation, maximum zoom, static/non-static semantics, fail-closed
+  admission, H.264/yuv420p/1920x1080/30 FPS/duration, provider authority, storage, no-clobber,
+  cleanup, retry/resume identity, and lineage contracts remain unchanged.
+- Owned-temp real-FFmpeg pixel evidence covers square, native 16:9, and portrait inputs; all four
+  source edges and corners survive static, zoom-in, zoom-out, translated pan/focus, and extreme
+  valid motion. Invalid focus and NaN/Infinity fail before FFmpeg admission (`26/26 PASS`).
+- Assembly scene-video consumption is `19/19 PASS`, production assembly wiring remains `46/46
+  PASS`, and runtime hardening remains `13/13 PASS` with production-provider-worker-spy `0`.
+  TypeScript and targeted ESLint pass.
+- The optional future upstream 16:9 source-generation improvement remains separate. Production
+  image-provider configuration and its current `1024x1024` default were not changed.
+- The unrelated, pre-existing animation-motion smoke passes 19 scenarios, then scenario 20 fails
+  during fixture construction with `PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH`: the fixture
+  persists scene/visual manifest evidence before canonical job/attempt seeding through
+  `PipelineJobManager.listJobs()`. It fails before Sprint 129.40 scene-video code is entered, and
+  `smoke-animation-motion-plan-contract.ts` has no semantic/content modification in this Sprint.
+  Its seed-before-stage-persistence fixture repair remains separately tracked.
+- The existing production-generated working-tree artifacts were preserved. No provider/network
+  call, production mutation, resume, rerender, assembly, thumbnail, SEO, YouTube, export, Git add,
+  commit, or push occurred.
+<!-- SPRINT-129.40-END -->
+
 <!-- SPRINT-129.39-START -->
 ## Sprint 129.39 - Canonical Stage-Bounded Production Resume - 2026-08-08
 

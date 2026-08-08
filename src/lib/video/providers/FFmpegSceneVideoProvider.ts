@@ -208,8 +208,10 @@ export function buildSceneFFmpegArgs(
     duration,
     "-i",
     absoluteInput(scene.imageFilePath, context),
-    "-vf",
+    "-filter_complex",
     filter,
+    "-map",
+    "[scene]",
     "-an",
     "-c:v",
     "libx264",
@@ -248,11 +250,24 @@ function buildMotionFilter(
   const x = interpolate(startX, endX, progress);
   const y = interpolate(startY, endY, progress);
   return [
-    `scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase`,
-    `crop=${WIDTH}:${HEIGHT}`,
-    `zoompan=z='${zoom}':x='(iw-iw/zoom)*(${x})':y='(ih-ih/zoom)*(${y})':d=1:s=${WIDTH}x${HEIGHT}:fps=${FRAME_RATE}`,
-    "format=yuv420p",
-  ].join(",");
+    "[0:v]split=2[backgroundSource][foregroundSource]",
+    [
+      `[backgroundSource]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase`,
+      `crop=${WIDTH}:${HEIGHT}`,
+      `zoompan=z='${zoom}':x='(iw-iw/zoom)*(${x})':y='(ih-ih/zoom)*(${y})':d=1:s=${WIDTH}x${HEIGHT}:fps=${FRAME_RATE}`,
+      "boxblur=20:2",
+      "setsar=1[backgroundMotion]",
+    ].join(","),
+    [
+      `[foregroundSource]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease:force_divisible_by=2`,
+      `fps=${FRAME_RATE}`,
+      "setsar=1[foregroundFit]",
+    ].join(","),
+    [
+      "[backgroundMotion][foregroundFit]overlay=x='(W-w)/2':y='(H-h)/2':shortest=1:repeatlast=1",
+      "format=yuv420p[scene]",
+    ].join(","),
+  ].join(";");
 }
 
 function zoomFor(frame: AnimationMotionFrame) {

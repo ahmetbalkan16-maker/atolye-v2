@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { emitSmokeResult } from "./lib/SmokeResult";
 import { EventEmitter } from "node:events";
+import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { PassThrough } from "node:stream";
+import { deflateSync } from "node:zlib";
 import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 import { ImageStorage } from "../src/lib/assets/storage/ImageStorage";
 import { VideoStorage } from "../src/lib/assets/storage/VideoStorage";
@@ -20,6 +22,7 @@ import {
   buildSceneFFmpegArgs,
 } from "../src/lib/video/providers/FFmpegSceneVideoProvider";
 import {
+  getFFmpegSceneVideoConfig,
   resolveVideoProviderName,
   type FFmpegSceneVideoConfig,
 } from "../src/lib/video/providers/VideoProviderConfig";
@@ -28,6 +31,7 @@ import type {
   VideoGenerationInput,
   VideoGenerationResult,
   VideoProvider,
+  VideoSceneGenerationSuccess,
 } from "../src/lib/video/providers/VideoProvider";
 import { isCompatibleVideoData } from "../src/lib/video/VideoDataValidation";
 import { VideoPipeline } from "../src/lib/video/VideoPipeline";
@@ -212,6 +216,166 @@ function mp4() {
   return Buffer.concat([box("ftyp", Buffer.from("isom0000")), box("moov"), box("mdat", Buffer.from([1]))]);
 }
 
+const edgeColors = {
+  top: [230, 30, 30],
+  bottom: [30, 230, 30],
+  left: [30, 30, 230],
+  right: [230, 230, 30],
+  topLeft: [230, 30, 230],
+  topRight: [30, 230, 230],
+  bottomLeft: [230, 120, 30],
+  bottomRight: [230, 230, 230],
+} as const;
+
+function markedPng(width: number, height: number) {
+  const pixels = Buffer.alloc((width * 3 + 1) * height);
+  const edge = Math.max(8, Math.floor(Math.min(width, height) * 0.06));
+  const corner = edge * 2;
+  for (let y = 0; y < height; y += 1) {
+    const row = y * (width * 3 + 1);
+    for (let x = 0; x < width; x += 1) {
+      let color: readonly number[] = [70, 70, 70];
+      if (y < edge) color = edgeColors.top;
+      else if (y >= height - edge) color = edgeColors.bottom;
+      else if (x < edge) color = edgeColors.left;
+      else if (x >= width - edge) color = edgeColors.right;
+      if (x < corner && y < corner) color = edgeColors.topLeft;
+      else if (x >= width - corner && y < corner) color = edgeColors.topRight;
+      else if (x < corner && y >= height - corner) color = edgeColors.bottomLeft;
+      else if (x >= width - corner && y >= height - corner) color = edgeColors.bottomRight;
+      const offset = row + 1 + x * 3;
+      pixels[offset] = color[0];
+      pixels[offset + 1] = color[1];
+      pixels[offset + 2] = color[2];
+    }
+  }
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8;
+  header[9] = 2;
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    pngChunk("IHDR", header),
+    pngChunk("IDAT", deflateSync(pixels)),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+function pngChunk(type: string, data: Buffer) {
+  const name = Buffer.from(type, "ascii");
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length);
+  const checksum = Buffer.alloc(4);
+  checksum.writeUInt32BE(crc32(Buffer.concat([name, data])));
+  return Buffer.concat([length, name, data, checksum]);
+}
+
+function crc32(value: Buffer) {
+  let crc = 0xffffffff;
+  for (const byte of value) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function filterGraph(args: readonly string[]) {
+  const index = args.indexOf("-filter_complex");
+  assert.ok(index >= 0);
+  return args[index + 1];
+}
+
+async function readFirstFrame(
+  runner: VideoAssemblyProcessRunner,
+  selectedConfig: FFmpegSceneVideoConfig,
+  videoPath: string,
+  suffix: string,
+) {
+  const rawPath = path.join(temporaryRuntimeRoot, `scene-video-frame-${suffix}.rgb`);
+  const result = await runner.run(selectedConfig.ffmpegPath, [
+    "-hide_banner", "-loglevel", "error", "-nostdin", "-n",
+    "-i", videoPath, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", rawPath,
+  ], { timeoutMs: selectedConfig.timeoutMs, maxOutputBytes: selectedConfig.maxStdioBytes });
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.signal, null);
+  assert.equal(result.timedOut, false);
+  const frame = await fs.readFile(rawPath);
+  assert.equal(frame.byteLength, 1920 * 1080 * 3);
+  return frame;
+}
+
+class ActualProcessRunner implements VideoAssemblyProcessRunner {
+  readonly diagnostics: string[] = [];
+
+  async run(executable: string, args: readonly string[], options: { timeoutMs: number;
+    maxOutputBytes: number }) {
+    const result = spawnSync(executable, [...args], {
+      encoding: "utf8",
+      maxBuffer: options.maxOutputBytes,
+      shell: false,
+      timeout: options.timeoutMs,
+      windowsHide: true,
+    });
+    this.diagnostics.push(result.stderr ?? "");
+    return {
+      exitCode: result.status,
+      signal: result.signal as NodeJS.Signals | null,
+      stdout: result.stdout ?? "",
+      timedOut: Boolean(result.error && "code" in result.error && result.error.code === "ETIMEDOUT"),
+      failed: Boolean(result.error),
+    };
+  }
+}
+
+function assertFullFrameMarkers(
+  frame: Buffer,
+  sourceWidth: number,
+  sourceHeight: number,
+) {
+  const fit = Math.min(1920 / sourceWidth, 1080 / sourceHeight);
+  const width = Math.floor(sourceWidth * fit / 2) * 2;
+  const height = Math.floor(sourceHeight * fit / 2) * 2;
+  const left = Math.floor((1920 - width) / 2);
+  const top = Math.floor((1080 - height) / 2);
+  const right = left + width - 1;
+  const bottom = top + height - 1;
+  const inset = Math.max(8, Math.floor(Math.min(width, height) * 0.015));
+  const centerX = Math.floor((left + right) / 2);
+  const centerY = Math.floor((top + bottom) / 2);
+  assertColor(pixel(frame, centerX, top + inset), "red");
+  assertColor(pixel(frame, centerX, bottom - inset), "green");
+  assertColor(pixel(frame, left + inset, centerY), "blue");
+  assertColor(pixel(frame, right - inset, centerY), "yellow");
+  assertColor(pixel(frame, left + inset, top + inset), "magenta");
+  assertColor(pixel(frame, right - inset, top + inset), "cyan");
+  assertColor(pixel(frame, left + inset, bottom - inset), "orange");
+  assertColor(pixel(frame, right - inset, bottom - inset), "white");
+}
+
+function pixel(frame: Buffer, x: number, y: number) {
+  const offset = (y * 1920 + x) * 3;
+  return [frame[offset], frame[offset + 1], frame[offset + 2]] as const;
+}
+
+function assertColor(
+  [red, green, blue]: readonly [number, number, number],
+  expected: "red" | "green" | "blue" | "yellow" | "magenta" | "cyan" | "orange" | "white",
+) {
+  const dominant = 35;
+  const bright = 135;
+  if (expected === "red") assert.ok(red > bright && red > green + dominant && red > blue + dominant);
+  if (expected === "green") assert.ok(green > bright && green > red + dominant && green > blue + dominant);
+  if (expected === "blue") assert.ok(blue > bright && blue > red + dominant && blue > green + dominant);
+  if (expected === "yellow") assert.ok(red > bright && green > bright && blue < 120);
+  if (expected === "magenta") assert.ok(red > bright && blue > bright && green < 120);
+  if (expected === "cyan") assert.ok(green > bright && blue > bright && red < 120);
+  if (expected === "orange") assert.ok(red > bright && green > 55 && green < 190 && blue < 120);
+  if (expected === "white") assert.ok(red > bright && green > bright && blue > bright);
+}
+
 function config(): FFmpegSceneVideoConfig {
   const second = process.env.ComSpec ?? path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "cmd.exe");
   return {
@@ -300,24 +464,119 @@ async function run() {
     await scenario("motion filters use start/end plans and keep transition as metadata", () => {
       const motionPlan = plan(1, "image", "animation", "pan-right");
       const args = buildSceneFFmpegArgs({ sceneId: 1, sourceImageAssetId: "image", animationAssetId: "animation", imageFilePath: "data/projects/x/assets/images/x.png", imageMimeType: "image/png", motionPlan }, "out.mp4");
-      const filter = args[args.indexOf("-vf") + 1];
+      const filter = filterGraph(args);
       assert.match(filter, /zoompan/);
       assert.match(filter, /ot\/1\.966666667/);
       assert.match(filter, /:d=1:/);
+      assert.ok(args.includes("[scene]"));
       assert.equal(args.includes("fade"), false);
+    });
+
+    await scenario("authoritative foreground is contained while motion remains background-only", () => {
+      const motionPlan = plan(1, "image", "animation", "zoom-in");
+      const args = buildSceneFFmpegArgs({ sceneId: 1, sourceImageAssetId: "image", animationAssetId: "animation", imageFilePath: "data/projects/x/assets/images/x.png", imageMimeType: "image/png", motionPlan }, "out.mp4");
+      const filter = filterGraph(args);
+      const chains = filter.split(";");
+      const background = chains.find((chain) => chain.startsWith("[backgroundSource]"));
+      const foreground = chains.find((chain) => chain.startsWith("[foregroundSource]"));
+      const composite = chains.find((chain) => chain.startsWith("[backgroundMotion]"));
+      assert.ok(background && foreground && composite);
+      assert.match(background, /force_original_aspect_ratio=increase/);
+      assert.match(background, /crop=1920:1080/);
+      assert.match(background, /zoompan=/);
+      assert.match(background, /boxblur=20:2/);
+      assert.match(foreground, /scale=1920:1080:force_original_aspect_ratio=decrease:force_divisible_by=2/);
+      assert.doesNotMatch(foreground, /crop|zoompan/);
+      assert.match(composite, /overlay=x='\(W-w\)\/2':y='\(H-h\)\/2'/);
+      assert.match(composite, /format=yuv420p\[scene\]/);
+    });
+
+    await scenario("real square landscape portrait and motion renders retain every source edge", async () => {
+      const selectedConfig = getFFmpegSceneVideoConfig();
+      const runner = new ActualProcessRunner();
+      const slug = `${prefix}-full-frame-pixels`;
+      const project = await ProjectManager.createProject(slug);
+      const specs = [
+        { width: 256, height: 256, motion: "static" as const },
+        { width: 320, height: 180, motion: "zoom-in" as const },
+        { width: 192, height: 320, motion: "zoom-out" as const },
+        { width: 256, height: 256, motion: "pan-left" as const },
+        { width: 256, height: 256, motion: "pan-right" as const, extreme: true },
+      ];
+      const scenes = specs.map((spec, index) => {
+        const sceneId = index + 1;
+        const imageId = `edge-image-${sceneId}`;
+        const animationId = `edge-animation-${sceneId}`;
+        const image = ImageStorage.saveImage({
+          projectSlug: slug,
+          assetId: imageId,
+          data: markedPng(spec.width, spec.height),
+          mimeType: "image/png",
+        });
+        const motionPlan = plan(sceneId, imageId, animationId, spec.motion);
+        motionPlan.durationSeconds = 1;
+        if (spec.motion === "pan-left") {
+          motionPlan.start.transform.translateX = -1;
+          motionPlan.start.transform.translateY = 1;
+          motionPlan.end.transform.translateX = 1;
+          motionPlan.end.transform.translateY = -1;
+        }
+        if (spec.extreme) {
+          motionPlan.start = {
+            crop: { x: 0, y: 0, width: 0.2, height: 0.2 },
+            transform: { scale: 2, translateX: -1, translateY: -1 },
+          };
+          motionPlan.end = {
+            crop: { x: 0.8, y: 0.8, width: 0.2, height: 0.2 },
+            transform: { scale: 2, translateX: 1, translateY: 1 },
+          };
+          const graph = filterGraph(buildSceneFFmpegArgs({
+            sceneId, sourceImageAssetId: imageId, animationAssetId: animationId,
+            imageFilePath: image.filePath, imageMimeType: "image/png", motionPlan,
+          }, "extreme.mp4"));
+          assert.match(graph, /10\.000000000/);
+          assert.doesNotMatch(graph, /NaN|Infinity/);
+        }
+        return {
+          sceneId,
+          sourceImageAssetId: imageId,
+          animationAssetId: animationId,
+          imageFilePath: image.filePath,
+          imageMimeType: "image/png" as const,
+          motionPlan,
+        };
+      });
+      const result = await new FFmpegSceneVideoProvider(runner, () => selectedConfig).generateVideo({
+        projectId: project.id,
+        projectSlug: slug,
+        scenes,
+      });
+      assert.equal(result.success, true, runner.diagnostics.filter(Boolean).join("\n"));
+      if (!result.success) return;
+      assert.equal(result.scenes.length, specs.length);
+      for (let index = 0; index < result.scenes.length; index += 1) {
+        const rendered: VideoSceneGenerationSuccess = result.scenes[index];
+        assert.equal(rendered.width, 1920);
+        assert.equal(rendered.height, 1080);
+        assert.equal(rendered.frameRate, 30);
+        assert.equal(rendered.durationSeconds, 1);
+        const absoluteVideo = path.join(temporaryRuntimeRoot, path.relative("data", rendered.filePath));
+        const frame = await readFirstFrame(runner, selectedConfig, absoluteVideo, String(index + 1));
+        assertFullFrameMarkers(frame, specs[index].width, specs[index].height);
+      }
     });
 
     await scenario("minimum and maximum durations produce bounded non-zero frame spans", () => {
       const minimum = plan(1, "image", "animation", "zoom-in");
       minimum.durationSeconds = 1;
       const minimumArgs = buildSceneFFmpegArgs({ sceneId: 1, sourceImageAssetId: "image", animationAssetId: "animation", imageFilePath: "data/projects/x/assets/images/x.png", imageMimeType: "image/png", motionPlan: minimum }, "minimum.mp4");
-      assert.match(minimumArgs[minimumArgs.indexOf("-vf") + 1], /ot\/0\.966666667/);
+      assert.match(filterGraph(minimumArgs), /ot\/0\.966666667/);
       assert.equal(minimumArgs[minimumArgs.indexOf("-t") + 1], "1.000000");
 
       const maximum = plan(1, "image", "animation", "zoom-in");
       maximum.durationSeconds = 300;
       const maximumArgs = buildSceneFFmpegArgs({ sceneId: 1, sourceImageAssetId: "image", animationAssetId: "animation", imageFilePath: "data/projects/x/assets/images/x.png", imageMimeType: "image/png", motionPlan: maximum }, "maximum.mp4");
-      assert.match(maximumArgs[maximumArgs.indexOf("-vf") + 1], /ot\/299\.966666667/);
+      assert.match(filterGraph(maximumArgs), /ot\/299\.966666667/);
       assert.equal(maximumArgs[maximumArgs.indexOf("-t") + 1], "300.000000");
     });
 
@@ -336,6 +595,34 @@ async function run() {
       });
       assert.equal(result.success, false);
       assert.equal(runner.ffmpegArgs.length, 0);
+    });
+
+    await scenario("invalid focus and non-finite motion fail before FFmpeg admission", async () => {
+      const mutations = [
+        (motion: AnimationMotionPlanScene) => { motion.start.crop.x = 0.9; },
+        (motion: AnimationMotionPlanScene) => { motion.start.transform.translateX = Number.NaN; },
+        (motion: AnimationMotionPlanScene) => { motion.end.transform.translateY = Number.POSITIVE_INFINITY; },
+      ];
+      for (let index = 0; index < mutations.length; index += 1) {
+        const value = await fixture(`invalid-motion-${index}`, ["pan-right"], "production");
+        mutations[index](value.plans[0]);
+        const runner = new RenderingRunner();
+        const image = AssetManager.getProjectAssets(value.slug, value.project.id).assets[0];
+        const result = await new FFmpegSceneVideoProvider(runner, config).generateVideo({
+          projectId: value.project.id,
+          projectSlug: value.slug,
+          scenes: [{
+            sceneId: 1,
+            sourceImageAssetId: value.plans[0].sourceImageAssetId,
+            animationAssetId: value.plans[0].animationAssetId,
+            imageFilePath: image.filePath as string,
+            imageMimeType: "image/png",
+            motionPlan: value.plans[0],
+          }],
+        });
+        assert.equal(result.success, false);
+        assert.equal(runner.ffmpegArgs.length, 0);
+      }
     });
 
     for (const [name, mutate] of [
@@ -547,8 +834,8 @@ async function run() {
 
     await scenario("pipeline success persists video registry manifest job history and queues audio", async () => {
       const value = await fixture("pipeline-success");
-      await ProjectManager.saveAnimation(value.slug, value.animation);
       await PipelineJobManager.listJobs(value.slug);
+      await ProjectManager.saveAnimation(value.slug, value.animation);
       const state = { ...PipelineStageExecutor.createInitialState(value.project), animation: value.animation } as PipelineExecutionState;
       const runner = PipelineRunner as unknown as RunnerHarness;
       assert.equal(await runner.runStageLegacy(value.slug, "video", () => PipelineStageExecutor.execute(value.slug, "video", state, { videoProvider: new MockVideoProvider() }), "initial"), true);
@@ -567,8 +854,8 @@ async function run() {
 
     await scenario("pipeline failure blocks audio and assembly", async () => {
       const value = await fixture("pipeline-failure");
-      await ProjectManager.saveAnimation(value.slug, value.animation);
       await PipelineJobManager.listJobs(value.slug);
+      await ProjectManager.saveAnimation(value.slug, value.animation);
       const state = { ...PipelineStageExecutor.createInitialState(value.project), animation: value.animation } as PipelineExecutionState;
       const runner = PipelineRunner as unknown as RunnerHarness;
       await assert.rejects(runner.runStageLegacy(value.slug, "video", () => PipelineStageExecutor.execute(value.slug, "video", state, { videoProvider: provider("mock", async () => ({ success: false, provider: "mock", error: "raw" })) }), "initial"));
@@ -588,10 +875,12 @@ async function run() {
 }
 
 async function main() {
+  const ffmpegPath = process.env.FFMPEG_PATH;
+  const ffprobePath = process.env.FFPROBE_PATH;
   await withCanonicalSmokeRuntime({
     name: "scene-video-rendering",
     operationType: "scene-video-smoke",
-    environment: { VIDEO_PROVIDER: undefined },
+    environment: { VIDEO_PROVIDER: undefined, FFMPEG_PATH: ffmpegPath, FFPROBE_PATH: ffprobePath },
   }, async (runtime) => {
     prefix = `sprint-117-scene-video-${runtime.runId}`;
     temporaryRuntimeRoot = runtime.runtimeRoot;

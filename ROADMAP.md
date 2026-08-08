@@ -1,5 +1,34 @@
 ---
 
+<!-- SPRINT-129.40-START -->
+## Sprint 129.40 - Production Scene-Video Full-Frame Framing Remediation
+
+**Status:** READY FOR INDEPENDENT RE-REVIEW
+**Production execution status:** BLOCKED
+
+- [x] Replace authoritative cover/crop rendering with a centered, aspect-preserving contained
+  foreground that keeps the complete source composition visible throughout every scene.
+- [x] Preserve cover/crop/zoompan motion only in an independent decorative background and apply
+  deterministic blur before composition.
+- [x] Preserve finite/focus/zoom validation, `MAX_ZOOMPAN_ZOOM`, static and non-static semantics,
+  invalid-motion fail-closed behavior, and all production media/lifecycle contracts.
+- [x] Add owned-temp real-FFmpeg evidence for square, 16:9, portrait, four-edge/four-corner
+  retention, static, zoom-in, zoom-out, translated pan/focus, and extreme valid motion.
+- [x] Prove invalid focus and NaN/Infinity rejection before FFmpeg admission.
+- [x] Pass scene-video `26/26`, assembly scene-video consumption `19/19`, production assembly
+  wiring `46/46`, runtime hardening `13/13`, TypeScript, and targeted ESLint.
+- [x] Leave production image generation at `1024x1024`; track native 16:9 generation only as an
+  optional future upstream improvement.
+- [x] Preserve all pre-existing production-generated modified/untracked files without mutation.
+- [ ] Resolve separately the pre-existing animation-motion fixture incompatibility: after 19 PASS,
+  scenario 20 persists scene/visual manifest evidence before canonical job/attempt seeding and
+  fails during fixture construction with `PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH`. Align its
+  setup with seed-before-stage-persistence ordering; the test file has no Sprint 129.40 semantic
+  modification and the failure precedes scene-video code.
+- [ ] Obtain independent approval and separate execution authorization before any production video
+  or assembly rerender.
+<!-- SPRINT-129.40-END -->
+
 <!-- SPRINT-129.39-START -->
 ## Sprint 129.39 - Canonical Stage-Bounded Production Resume
 

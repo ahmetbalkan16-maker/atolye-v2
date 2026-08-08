@@ -424,10 +424,10 @@ async function run() {
 
     await scenario("completed assembly replay is write-free", async () => {
       const value = await fixture("replay");
+      await PipelineJobManager.listJobs(value.slug);
       await ProjectManager.saveAnimation(value.slug, value.animation);
       await ProjectManager.saveVideo(value.slug, value.video);
       await ProjectManager.saveAudio(value.slug, value.audio);
-      await PipelineJobManager.listJobs(value.slug);
       const state = {
         ...PipelineStageExecutor.createInitialState(value.project), script, scenes,
         visuals: { ...visuals, projectId: value.project.id }, animation: value.animation,

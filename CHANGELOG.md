@@ -1,5 +1,30 @@
 ---
 
+<!-- SPRINT-129.40-START -->
+## 2026-08-08 - Sprint 129.40 Production Scene-Video Full-Frame Framing Remediation
+
+- Replaced the scene-video provider's single authoritative cover/crop/zoompan chain with a
+  two-layer filter graph: blurred motion background plus centered contained foreground.
+- Kept the foreground free of crop and zoompan so square, landscape, and portrait source
+  compositions remain fully visible without distortion; native 16:9 sources fill the canvas.
+- Kept motion-plan interpolation and validation on the decorative background, including bounded
+  maximum zoom, focus/translation handling, static behavior, and non-finite fail-closed checks.
+- Added owned-temp synthetic marker images and real FFmpeg frame extraction to prove all four edges
+  and corners remain visible across static, zoom-in, zoom-out, pan/focus, and extreme valid motion.
+- Preserved 1920x1080 H.264, yuv420p, 30 FPS, duration, provider/storage/no-clobber/cleanup,
+  retry/resume, lineage, and assembly contracts.
+- Validation passed for scene-video `26/26`, assembly scene-video consumption `19/19`, production
+  assembly wiring `46/46`, runtime hardening `13/13`, TypeScript, and targeted ESLint. The unrelated,
+  pre-existing animation-motion smoke passes 19 scenarios, then scenario 20 fails during fixture
+  construction with `PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH` because scene/visual manifest
+  evidence precedes canonical job/attempt seeding. It fails before scene-video code; its test file
+  has no Sprint 129.40 semantic diff, and fixture repair remains separately scoped.
+- Production image generation remains unchanged at `1024x1024`; native landscape generation is an
+  optional future upstream improvement, not a dependency of this remediation.
+- No production execution or mutation and no Git add, commit, or push occurred. Status is
+  `READY FOR INDEPENDENT RE-REVIEW`.
+<!-- SPRINT-129.40-END -->
+
 <!-- SPRINT-129.39-START -->
 ## 2026-08-08 - Sprint 129.39 Canonical Stage-Bounded Production Resume
 
