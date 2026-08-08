@@ -1,5 +1,6 @@
 import type { ProductionExecutionAuthorizationResult, ProductionExecutionAuthorizationRisk } from "./productionExecutionAuthorization";
 import type { ProductionExecutionConfirmationValidationResult } from "./productionExecutionConfirmation";
+import type { RetryBudgetExtensionDurableBinding } from "./productionPipelineRetryBudgetExtension";
 
 export const productionExecutionIdempotencySchemaVersion = "1" as const;
 export type ProductionExecutionIdempotencyState = "reserved" | "prepared" | "queued" | "running" | "succeeded" | "failed" | "cancelled" | "partially-succeeded";
@@ -35,12 +36,14 @@ export interface ProductionExecutionIdempotencyRecord extends Omit<ProductionExe
   reservedAt?: string; preparedAt?: string; queuedAt?: string; startedAt?: string; finishedAt?: string;
   lease?: ProductionExecutionIdempotencyLease; result?: ProductionExecutionIdempotencyResultMetadata; failure?: ProductionExecutionIdempotencyFailureMetadata;
   recovery?: ProductionExecutionIdempotencyRecoveryMetadata; evidence: readonly string[]; integrity: { algorithm: "stable-production-id-v1"; fingerprint: string; version: number };
+  retryBudgetExtension?: RetryBudgetExtensionDurableBinding;
 }
 export interface ProductionExecutionIdempotencyReservationRequest {
   schemaVersion: typeof productionExecutionIdempotencySchemaVersion; identity: ProductionExecutionIdempotencyIdentity;
   authorization: ProductionExecutionAuthorizationResult; confirmation: ProductionExecutionConfirmationValidationResult;
   requestedAt: string; expectedInitialState: "reserved"; attempt: number; maxAttempts: number; reservationTtlSeconds: number;
   policyContext: { source: "server"; environment: "local" | "hosted" | "test" }; metadata: { source: "server" };
+  retryBudgetExtension?: RetryBudgetExtensionDurableBinding;
 }
 export interface ProductionExecutionIdempotencyReservationValidationResult { valid: boolean; reasonCode: ProductionExecutionIdempotencyReasonCode; reason: string; evidence: string[] }
 export interface ProductionExecutionIdempotencyTransitionRequest {

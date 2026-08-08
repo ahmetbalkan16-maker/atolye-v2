@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import path from "node:path";
 import { reconcileFailedPipelineExecution } from "@/lib/production/ProductionPipelineRetryReconciliation";
 import type { PipelineJob, PipelineJobList } from "@/types/pipelineJob";
 import { PipelineJobManager } from "./PipelineJobManager";
@@ -10,8 +9,14 @@ import { fingerprintPipelineJob, freezePipelineRetryAdmission, pipelineRetryMaxA
 import type { ProjectPackageRunType } from "@/types/project";
 import { buildProductionPipelineRetryAdmissionBinding } from
   "@/lib/production/ProductionPipelineRetryAdmissionBinding";
-import { createRuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
-import { readRetryBudgetExtensionAuthority } from "@/lib/production/ProductionPipelineRetryBudgetExtensionStore";
+import {
+  type RuntimeStorageInput,
+  resolveRuntimeStorageContext,
+} from "@/lib/runtime/RuntimeStoragePaths";
+import {
+  getRetryBudgetExtensionDirectory,
+  readRetryBudgetExtensionAuthority,
+} from "@/lib/production/ProductionPipelineRetryBudgetExtensionStore";
 import { consumeRetryBudgetExtensionAndPrepareRetry } from "@/lib/production/ProductionPipelineRetryBudgetExtensionTransaction";
 
 export type PipelineFailedStageRetryPreparationResult =
@@ -23,7 +28,9 @@ export async function prepareFailedStageRetry(
   projectSlug: string,
   jobId: string,
   runType: Extract<ProjectPackageRunType, "retry" | "resume"> = "retry",
+  input: RuntimeStorageInput = {},
 ): Promise<PipelineFailedStageRetryPreparationResult> {
+  const context = resolveRuntimeStorageContext(input);
   const job = await PipelineJobManager.getJob(projectSlug, jobId);
   if (!job || job.status !== "failed") {
     return {
@@ -41,15 +48,14 @@ export async function prepareFailedStageRetry(
 
   let extensionAuthorityId: string | undefined;
   if (admittedDurableOrdinal === 4 && runType === "resume") {
-    const context = createRuntimeStorageContext();
-    const dir = path.join(context.runtimeRoot, projectSlug, "production-execution", "retry-budget-extensions");
+    const dir = getRetryBudgetExtensionDirectory(projectSlug, context);
     if (fs.existsSync(dir)) {
       try {
         const files = fs.readdirSync(dir);
         for (const file of files) {
           if (file.startsWith("authority-") && file.endsWith(".json")) {
             const authId = file.slice("authority-".length, -".json".length);
-            const authRead = readRetryBudgetExtensionAuthority(projectSlug, authId);
+            const authRead = readRetryBudgetExtensionAuthority(projectSlug, authId, context);
             if (
               authRead.ok &&
               authRead.value &&
@@ -82,6 +88,7 @@ export async function prepareFailedStageRetry(
       jobId,
       runType,
       extensionAuthorityId,
+      context,
     );
     if (!extResult.success || !extResult.admission || !extResult.job || !extResult.previousJob || !extResult.jobs) {
       return {
@@ -100,7 +107,9 @@ export async function prepareFailedStageRetry(
     };
   }
 
-  const reconciliation = await reconcileFailedPipelineExecution(job);
+  const reconciliation = await reconcileFailedPipelineExecution(job, undefined, {
+    storageContext: context,
+  });
   if (!reconciliation.ok) {
     return {
       success: false,

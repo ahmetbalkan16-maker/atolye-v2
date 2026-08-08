@@ -5,6 +5,7 @@ import {
   assertProductionRuntimeOperationContext,
   deriveProductionRuntimeOperationContext,
   getActiveProductionRuntimeOperationContext,
+  requireProductionRuntimeStorageContext,
   ProductionRuntimeOperationContextError,
   type ProductionRuntimeOperationContext,
 } from "@/lib/runtime/ProductionRuntimeOperationContext";
@@ -197,6 +198,7 @@ async function executePreparedDurableProductionPipelineStage(
         ...prepared.settlement,
         expectedProjectSlug: context.projectSlug,
         expectedStage: context.stage,
+        storageContext: requireProductionRuntimeStorageContext(active),
       }, result),
     ).execute(context, () => handler(undefined, identity, prepared.authority));
   });

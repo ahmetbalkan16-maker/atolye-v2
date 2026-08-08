@@ -12,6 +12,12 @@ import { ProductionExecutionFilePersistenceAdapter } from "./ProductionExecution
 import { AdapterBackedProductionExecutionDurableStorage } from "./ProductionExecutionDurableStorage";
 import { buildProductionPipelineExecutionIdentity } from "./ProductionPipelineExecutionIdentity";
 import { readProductionCanonicalTerminalDurableLineage } from "./ProductionCanonicalDurableLineage";
+import {
+  type RuntimeStorageInput,
+  getProjectRoot,
+} from "@/lib/runtime/RuntimeStoragePaths";
+import type { RetryBudgetExtensionDurableBinding } from
+  "@/types/productionPipelineRetryBudgetExtension";
 
 export type RetryBudgetExtensionGatePhase =
   | "before-consumption"
@@ -26,6 +32,7 @@ export interface RetryBudgetExtensionGateInput {
   readonly runType: ProjectPackageRunType;
   readonly authorityId: string;
   readonly jobVersion?: string;
+  readonly input?: RuntimeStorageInput;
 }
 
 export interface RetryBudgetExtensionGateResult {
@@ -39,9 +46,9 @@ export interface RetryBudgetExtensionGateResult {
 }
 
 export async function verifyCanonicalPipelineRetryBudgetExtensionAdmission(
-  input: RetryBudgetExtensionGateInput,
+  gateInput: RetryBudgetExtensionGateInput,
 ): Promise<RetryBudgetExtensionGateResult> {
-  const { phase, projectSlug, stage, jobId, runType, authorityId, jobVersion } = input;
+  const { phase, projectSlug, stage, jobId, runType, authorityId, jobVersion, input = {} } = gateInput;
 
   if (runType !== "resume") {
     return {
@@ -63,7 +70,7 @@ export async function verifyCanonicalPipelineRetryBudgetExtensionAdmission(
     };
   }
 
-  const authorityRead = readRetryBudgetExtensionAuthority(projectSlug, authorityId);
+  const authorityRead = readRetryBudgetExtensionAuthority(projectSlug, authorityId, input);
   if (!authorityRead.ok || !authorityRead.value) {
     return {
       ok: false,
@@ -90,10 +97,10 @@ export async function verifyCanonicalPipelineRetryBudgetExtensionAdmission(
     };
   }
 
-  const consumingRead = readRetryBudgetExtensionReceipt(projectSlug, authorityId, "consuming");
-  const consumedRead = readRetryBudgetExtensionReceipt(projectSlug, authorityId, "consumed");
-  const abortedRead = readRetryBudgetExtensionReceipt(projectSlug, authorityId, "aborted");
-  const settledRead = readRetryBudgetExtensionReceipt(projectSlug, authorityId, "settled");
+  const consumingRead = readRetryBudgetExtensionReceipt(projectSlug, authorityId, "consuming", input);
+  const consumedRead = readRetryBudgetExtensionReceipt(projectSlug, authorityId, "consumed", input);
+  const abortedRead = readRetryBudgetExtensionReceipt(projectSlug, authorityId, "aborted", input);
+  const settledRead = readRetryBudgetExtensionReceipt(projectSlug, authorityId, "settled", input);
 
   if (phase === "before-consumption") {
     if (consumedRead.ok || consumingRead.ok || abortedRead.ok || settledRead.ok) {
@@ -171,6 +178,7 @@ export async function verifyCanonicalPipelineRetryBudgetExtensionAdmission(
       stage,
       authority,
       consumedReceipt,
+      input,
     );
 
     if (!durableVerification.ok) {
@@ -211,15 +219,8 @@ export async function verifyCanonicalPipelineRetryBudgetExtensionAdmission(
 
 /**
  * Reads canonical durable storage siblings for the ordinal-4 extension execution
- * and verifies that all of them carry the exact expected extension binding.
- *
- * Checks: reservation, record, lease, claim, attempt — each must:
- *   - Exist in canonical durable storage
- *   - Have authorityId, authorityIntegrityFingerprint, consumptionReceiptFingerprint,
- *     authorizedDurableOrdinal (4), effectiveMaxAttempts (4), authorizedRunType ("resume"),
- *     authorizedOperation ("pipeline.stage.resume") matching the authority
- *   - Ordinal must be 4, not 3 or 5
- *   - projectSlug, stage, jobId, runType must match
+ * and verifies that ALL 5 of them (reservation, record, lease, claim, attempt)
+ * carry the exact expected extension binding.
  *
  * Fail-closed: any missing, mismatched, stale, or unexpected sibling rejects.
  */
@@ -228,15 +229,11 @@ async function verifyDurableSiblingBindingForExecution(
   stage: ProductionStepKey,
   authority: ProductionPipelineRetryBudgetExtensionBody,
   consumedReceipt: ProductionPipelineRetryBudgetExtensionReceipt,
+  input: RuntimeStorageInput = {},
 ): Promise<{ ok: boolean; reasonCode: string; evidence: readonly string[] }> {
   const jobId = `${projectSlug}-${stage}`;
-  const trustedRootDirectory = path.join(
-    process.cwd(),
-    "data",
-    "projects",
-    projectSlug,
-    "production-execution",
-  );
+  const projectPath = getProjectRoot(projectSlug, input);
+  const trustedRootDirectory = path.join(projectPath, "production-execution");
 
   let adapter: ProductionExecutionFilePersistenceAdapter;
   try {
@@ -245,8 +242,6 @@ async function verifyDurableSiblingBindingForExecution(
       createRootDirectory: false,
     });
   } catch {
-    // If the production-execution directory doesn't exist yet, durable binding
-    // cannot be verified — fail closed.
     return {
       ok: false,
       reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_MISSING",
@@ -256,19 +251,15 @@ async function verifyDurableSiblingBindingForExecution(
 
   const storage = new AdapterBackedProductionExecutionDurableStorage(adapter);
 
-  // Build ordinal-4 identity (the admitted/new execution identity)
   const identity = buildProductionPipelineExecutionIdentity(
     { projectSlug, stage, runType: "resume" },
-    { id: jobId, attempts: 3 }, // ordinal 4 = attempts-3 state in the job
+    { id: jobId, attempts: 3 }, // ordinal 4
   );
 
-  // Read the ordinal-4 record directly
   let lineage: Awaited<ReturnType<typeof readProductionCanonicalTerminalDurableLineage>> | undefined;
   try {
     const recordResult = await storage.read(identity.recordId);
     if (!recordResult.record) {
-      // Ordinal 4 record not yet created — this is expected when called before durable preparation
-      // but for before-execution it must already exist
       return {
         ok: false,
         reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_MISSING",
@@ -282,9 +273,9 @@ async function verifyDurableSiblingBindingForExecution(
       recordResult.record.identityFingerprint,
       undefined,
       recordResult.record.operation,
+      { requireTerminal: false },
     );
   } catch {
-    // Any read failure is fail-closed
     return {
       ok: false,
       reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_MISSING",
@@ -292,7 +283,17 @@ async function verifyDurableSiblingBindingForExecution(
     };
   }
 
-  // Verify the record belongs to ordinal 4 (attempt === 4)
+  // Enforce that ALL 5 siblings MUST exist in canonical durable storage for ordinal 4
+  if (!lineage.reservation || !lineage.record || !lineage.lease || !lineage.claim || !lineage.attempt) {
+    return {
+      ok: false,
+      reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_MISSING",
+      evidence: [
+        `gate:siblings-presence-check:reservation=${Boolean(lineage.reservation)},record=${Boolean(lineage.record)},lease=${Boolean(lineage.lease)},claim=${Boolean(lineage.claim)},attempt=${Boolean(lineage.attempt)}`,
+      ],
+    };
+  }
+
   if (lineage.record.attempt !== 4) {
     return {
       ok: false,
@@ -301,7 +302,6 @@ async function verifyDurableSiblingBindingForExecution(
     };
   }
 
-  // Verify record maxAttempts === 4
   if (lineage.record.maxAttempts !== 4) {
     return {
       ok: false,
@@ -310,113 +310,72 @@ async function verifyDurableSiblingBindingForExecution(
     };
   }
 
-  // Verify the extension binding on each sibling
-  // The binding is stored in the record's retryBudgetExtension field (if supported)
-  // We verify the authority fields match what we have
   const expectedAuthorityId = authority.authorityId;
   const expectedAuthorityFingerprint = authority.integrity.fingerprint;
   const expectedReceiptFingerprint = consumedReceipt.integrity.fingerprint;
+  const expectedIdentityFingerprint = lineage.record.identityFingerprint;
+  const expectedReservationId = lineage.reservation.identity.identityFingerprint;
 
-  // Verify reservation identity matches projectSlug/stage/jobId
-  if (lineage.reservation) {
-    const reservationIdentity = lineage.reservation.identity as {
-      projectSlug?: string;
-      stage?: string;
-      jobId?: string;
-    } | undefined;
-    if (reservationIdentity) {
-      if (
-        reservationIdentity.projectSlug !== undefined &&
-        reservationIdentity.projectSlug !== projectSlug
-      ) {
-        return {
-          ok: false,
-          reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_BINDING_MISMATCH",
-          evidence: ["gate:reservation-project-slug-mismatch"],
-        };
-      }
-    }
+  if (!expectedReservationId) {
+    return {
+      ok: false,
+      reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_MISSING",
+      evidence: ["gate:reservation-id-missing"],
+    };
   }
 
-  // Verify the record's retryBudgetExtension binding (if present in the record)
-  const recordWithBinding = lineage.record as {
-    retryBudgetExtension?: {
-      schemaVersion?: string;
-      authorityId?: string;
-      authorityIntegrityFingerprint?: string;
-      consumptionReceiptFingerprint?: string;
-      authorizedDurableOrdinal?: number;
-      effectiveMaxAttempts?: number;
-      authorizedRunType?: string;
-      authorizedOperation?: string;
-    };
+  const checkSiblingBinding = (
+    siblingName: string,
+    obj: { retryBudgetExtension?: RetryBudgetExtensionDurableBinding },
+  ): { ok: boolean; reasonCode?: string; evidence?: string } => {
+    const binding = obj.retryBudgetExtension;
+    if (!binding || typeof binding !== "object") {
+      return {
+        ok: false,
+        reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_MISSING",
+        evidence: `gate:${siblingName}-extension-binding-missing`,
+      };
+    }
+    if (
+      binding.schemaVersion !== "1" ||
+      binding.authorityId !== expectedAuthorityId ||
+      binding.authorityIntegrityFingerprint !== expectedAuthorityFingerprint ||
+      binding.consumptionReceiptFingerprint !== expectedReceiptFingerprint ||
+      binding.authorizedDurableOrdinal !== 4 ||
+      binding.effectiveMaxAttempts !== 4 ||
+      binding.authorizedRunType !== "resume" ||
+      binding.authorizedOperation !== "pipeline.stage.resume" ||
+      binding.projectSlug !== projectSlug ||
+      binding.stage !== stage ||
+      binding.jobId !== jobId ||
+      binding.identityFingerprint !== expectedIdentityFingerprint ||
+      binding.reservationBinding !== expectedReservationId ||
+      binding.durableAttemptOrdinal !== 4
+    ) {
+      return {
+        ok: false,
+        reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_BINDING_MISMATCH",
+        evidence: `gate:${siblingName}-extension-binding-mismatch`,
+      };
+    }
+    return { ok: true };
   };
 
-  if (recordWithBinding.retryBudgetExtension) {
-    const binding = recordWithBinding.retryBudgetExtension;
+  const siblings = [
+    { name: "reservation", obj: lineage.reservation },
+    { name: "record", obj: lineage.record },
+    { name: "lease", obj: lineage.lease },
+    { name: "claim", obj: lineage.claim },
+    { name: "attempt", obj: lineage.attempt },
+  ];
 
-    if (binding.authorityId !== undefined && binding.authorityId !== expectedAuthorityId) {
+  for (const s of siblings) {
+    const check = checkSiblingBinding(s.name, s.obj);
+    if (!check.ok) {
       return {
         ok: false,
-        reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_BINDING_MISMATCH",
-        evidence: ["gate:record-authority-id-mismatch"],
-      };
-    }
-
-    if (
-      binding.authorityIntegrityFingerprint !== undefined &&
-      binding.authorityIntegrityFingerprint !== expectedAuthorityFingerprint
-    ) {
-      return {
-        ok: false,
-        reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_BINDING_MISMATCH",
-        evidence: ["gate:record-authority-fingerprint-mismatch"],
-      };
-    }
-
-    if (
-      binding.consumptionReceiptFingerprint !== undefined &&
-      binding.consumptionReceiptFingerprint !== expectedReceiptFingerprint
-    ) {
-      return {
-        ok: false,
-        reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_BINDING_MISMATCH",
-        evidence: ["gate:record-receipt-fingerprint-mismatch"],
-      };
-    }
-
-    if (binding.authorizedDurableOrdinal !== undefined && binding.authorizedDurableOrdinal !== 4) {
-      return {
-        ok: false,
-        reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_BINDING_MISMATCH",
-        evidence: [`gate:record-authorized-ordinal-${binding.authorizedDurableOrdinal}-expected-4`],
-      };
-    }
-
-    if (binding.effectiveMaxAttempts !== undefined && binding.effectiveMaxAttempts !== 4) {
-      return {
-        ok: false,
-        reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_BINDING_MISMATCH",
-        evidence: [`gate:record-effective-max-${binding.effectiveMaxAttempts}-expected-4`],
-      };
-    }
-
-    if (binding.authorizedRunType !== undefined && binding.authorizedRunType !== "resume") {
-      return {
-        ok: false,
-        reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_BINDING_MISMATCH",
-        evidence: [`gate:record-run-type-${binding.authorizedRunType}-expected-resume`],
-      };
-    }
-
-    if (
-      binding.authorizedOperation !== undefined &&
-      binding.authorizedOperation !== "pipeline.stage.resume"
-    ) {
-      return {
-        ok: false,
-        reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_BINDING_MISMATCH",
-        evidence: ["gate:record-operation-mismatch"],
+        reasonCode: check.reasonCode ?? "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_BINDING_MISMATCH",
+        evidence: [check.evidence!],
       };
     }
   }
@@ -427,6 +386,7 @@ async function verifyDurableSiblingBindingForExecution(
     evidence: [
       `gate:ordinal-4-record-verified:attempt=${lineage.record.attempt}`,
       `gate:max-attempts-verified:${lineage.record.maxAttempts}`,
+      "gate:all-5-siblings-extension-binding-verified",
     ],
   };
 }

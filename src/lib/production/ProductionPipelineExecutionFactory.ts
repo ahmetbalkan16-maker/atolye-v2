@@ -54,6 +54,8 @@ import { ProductionExecutionCoordinator } from "./ProductionExecutionCoordinator
 import { ProductionExecutionFilePersistenceAdapter } from "./ProductionExecutionPersistence";
 import { ProductionExecutionLifecycle } from "./ProductionExecutionLifecycle";
 import { buildProductionPipelineExecutionIdentity } from "./ProductionPipelineExecutionIdentity";
+import { buildRetryBudgetExtensionDurableBinding } from
+  "./ProductionPipelineRetryBudgetExtensionSchema";
 import { readProductionCanonicalTerminalDurableLineage } from
   "./ProductionCanonicalDurableLineage";
 import { getProductionAcceptanceLegacyPreviousRetryJob,
@@ -313,10 +315,15 @@ export async function prepareProductionPipelineExecution(
     expired: false, singleUse: true, consumed: false, policyVersion: "pipeline-durable-v1",
     evidence: ["source:pipeline-composition"],
   };
+  const effectiveMaxAttempts = retryAdmission?.effectiveMaxAttempts ?? 3;
   const idempotencyPolicy = {
     ...defaultProductionExecutionIdempotencyPolicy,
     enabled: true,
     reservationTtlSeconds: ttlSeconds,
+    maximumAttemptsByAction: {
+      ...defaultProductionExecutionIdempotencyPolicy.maximumAttemptsByAction,
+      "retry-stage": effectiveMaxAttempts,
+    },
   };
   const storagePolicy = {
     ...defaultProductionExecutionDurableStoragePolicy,
@@ -340,7 +347,20 @@ export async function prepareProductionPipelineExecution(
   const idempotencyIdentity = buildProductionExecutionIdempotencyIdentity(
     { authorization, confirmation }, { evaluatedAt: anchor, policy: idempotencyPolicy },
   ).identity!;
-  const effectiveMaxAttempts = retryAdmission?.effectiveMaxAttempts ?? (attemptNumber + 1 === 4 ? 4 : 3);
+  const retryBudgetExtension = retryAdmission?.retryBudgetAuthorityProof
+    ? buildRetryBudgetExtensionDurableBinding({
+        authorityId: retryAdmission.retryBudgetAuthorityProof.authorityId,
+        authorityIntegrityFingerprint:
+          retryAdmission.retryBudgetAuthorityProof.authorityIntegrityFingerprint,
+        consumptionReceiptFingerprint:
+          retryAdmission.retryBudgetAuthorityProof.consumptionReceiptFingerprint,
+        projectSlug: context.projectSlug,
+        stage: context.stage,
+        jobId: `${context.projectSlug}-${context.stage}`,
+        identityFingerprint: idempotencyIdentity.identityFingerprint,
+        reservationBinding: idempotencyIdentity.identityFingerprint,
+      })
+    : undefined;
   if (retryAdmission) {
     const binding = retryAdmission.admittedExecutionBinding;
     const actualBinding = {
@@ -369,6 +389,7 @@ export async function prepareProductionPipelineExecution(
     requestedAt: anchor, expectedInitialState: "reserved", attempt: attemptNumber + 1,
     maxAttempts: effectiveMaxAttempts, reservationTtlSeconds: ttlSeconds,
     policyContext: { source: "server", environment: "hosted" }, metadata: { source: "server" },
+    ...(retryBudgetExtension ? { retryBudgetExtension } : {}),
   };
   const record: ProductionExecutionIdempotencyRecord = {
     schemaVersion: "1", recordId: planned.recordId,
@@ -386,6 +407,7 @@ export async function prepareProductionPipelineExecution(
     evidence: ["source:pipeline-composition"],
     integrity: { algorithm: "stable-production-id-v1",
       fingerprint: idempotencyIdentity.identityFingerprint, version: 1 },
+    ...(retryBudgetExtension ? { retryBudgetExtension } : {}),
   };
   const reservationRead = await adapter.read("reservation", idempotencyIdentity.identityFingerprint);
   if (reservationRead.status !== "found") {
@@ -432,7 +454,8 @@ export async function prepareProductionPipelineExecution(
   if (!terminalReplay) {
     const acquired = await leases.acquire({ recordId: record.recordId, expectedVersion: 1,
       evaluatedAt: anchor, worker, session, leaseId: planned.leaseId, acquiredAt: anchor,
-      heartbeatAt: anchor, expiresAt: new Date(Date.parse(anchor) + ttlSeconds * 1000).toISOString() },
+      heartbeatAt: anchor, expiresAt: new Date(Date.parse(anchor) + ttlSeconds * 1000).toISOString(),
+      ...(retryBudgetExtension ? { retryBudgetExtension } : {}) },
     leasePolicy);
     if (!acquired.ok && acquired.reasonCode !== "LEASE_REPLAYED") {
       throw new ProductionPipelineDurableExecutionError(
@@ -449,6 +472,7 @@ export async function prepareProductionPipelineExecution(
     workerId, workerSessionId: sessionId, leaseId: planned.leaseId,
     expectedReservationVersion: 1, expectedIdempotencyVersion: 2,
     expectedLeaseVersion: 1, expectedClaimVersion: 0, evaluatedAt: now,
+    ...(retryBudgetExtension ? { retryBudgetExtension } : {}),
   };
   if (!terminalReplay) {
     const claimed = await claims.acquireExecutionClaim(claimRequest, claimPolicy);
@@ -465,6 +489,7 @@ export async function prepareProductionPipelineExecution(
     operation: record.operation, executionFingerprint: planned.executionFingerprint,
     workerId, workerSessionId: sessionId, leaseId: planned.leaseId,
     expectedClaimVersion: 1, expectedAttemptVersion: 0, evaluatedAt: now,
+    ...(retryBudgetExtension ? { retryBudgetExtension } : {}),
   };
   const plannedRequest: ProductionExecutionWorkerExecutionRequest = {
     coordinator: { claim: claimRequest, attempt: attemptRequest },

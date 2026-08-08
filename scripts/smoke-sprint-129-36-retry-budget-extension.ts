@@ -35,19 +35,43 @@ import type { ProductionPipelineRetryAdmissionBinding } from "@/lib/production/P
 type ProductionPipelineExecutionIdentity = ReturnType<typeof buildProductionPipelineExecutionIdentity>;
 import type { PipelineRetryAdmission } from "@/lib/pipeline/PipelineRetryAdmission";
 import { assertCanonicalPipelineRetryAdmission } from "@/lib/pipeline/PipelineRetryAdmission";
+import { createRuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
+import { resolveRuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
 import { prepareFailedStageRetry } from "@/lib/pipeline/PipelineFailedStageRetry";
+import {
+  prepareProductionPipelineExecution,
+  readCompletedProductionPipelinePreparation,
+} from "@/lib/production/ProductionPipelineExecutionFactory";
+import { withProductionAcceptanceRetryAdmission } from
+  "@/lib/production/ProductionAcceptanceLegacyAdmissionContext";
+import { stableProductionId } from "@/lib/production/ProductionDeterminism";
+import { ProductionExecutionFilePersistenceAdapter } from
+  "@/lib/production/ProductionExecutionPersistence";
+import { readProductionCanonicalTerminalDurableLineage } from
+  "@/lib/production/ProductionCanonicalDurableLineage";
+import {
+  createProductionRuntimeOperationContext,
+  initialRuntimeAuthorityGeneration,
+  runWithProductionRuntimeOperationContext,
+} from "@/lib/runtime/ProductionRuntimeOperationContext";
+import { ProductionWorkerLifecycle } from "@/lib/production/ProductionWorkerLifecycle";
+import { configureScopedProductionPipelineExecution } from
+  "@/lib/production/ProductionPipelineExecutionConfiguration";
+import { createProductionAcceptancePortableConfigurationSnapshotV2 } from
+  "@/lib/production/ProductionAcceptanceConfigurationFingerprint";
+import { productionAcceptanceRequestFingerprintV3Profile2 } from
+  "@/lib/production/ProductionAcceptancePolicy";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-const projectSlug = "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5";
+const baseProjectSlug = "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5";
 const stage = "audio";
-const jobId = `${projectSlug}-${stage}`;
 const reason = "operator-approved-after-remediation";
 
 /** Repository data/ root — never mutated, hash-checked before/after. */
-const repoProdDir = path.join(process.cwd(), "data", "projects", projectSlug);
+const repoProdDir = path.join(process.cwd(), "data", "projects", baseProjectSlug);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test counters
@@ -63,7 +87,7 @@ function assert(condition: boolean, description: string) {
     console.log(`✓ Scenario ${totalCount}: ${description}`);
   } else {
     console.error(`✗ Scenario ${totalCount} FAILED: ${description}`);
-    process.exit(1);
+    throw new Error(`SMOKE_ASSERTION_FAILED: ${description}`);
   }
 }
 
@@ -115,6 +139,84 @@ function assertContained(root: string, target: string) {
   if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) {
     throw new Error(`CONTAINMENT VIOLATION: ${target} is not inside ${root}`);
   }
+}
+
+interface OwnedTempRootIdentity {
+  readonly root: string;
+  readonly physicalRoot: string;
+  readonly physicalParent: string;
+  readonly dev: number | bigint;
+  readonly ino: number | bigint;
+}
+
+function captureOwnedTempRootIdentity(tempRoot: string): OwnedTempRootIdentity {
+  const root = path.resolve(tempRoot);
+  const tempParent = path.resolve(os.tmpdir());
+  if (path.dirname(root) !== tempParent ||
+    !path.basename(root).startsWith("sprint-129-36-ext-smoke-")) {
+    throw new Error("TEMP_ROOT_IDENTITY_INVALID");
+  }
+  const stats = fs.lstatSync(root, { bigint: true });
+  if (!stats.isDirectory() || stats.isSymbolicLink()) {
+    throw new Error("TEMP_ROOT_TYPE_UNSAFE");
+  }
+  const physicalParent = fs.realpathSync(tempParent);
+  const physicalRoot = fs.realpathSync(root);
+  assertContained(physicalParent, physicalRoot);
+  return { root, physicalRoot, physicalParent, dev: stats.dev, ino: stats.ino };
+}
+
+function assertNoCleanupLinks(current: string): void {
+  for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+    const target = path.join(current, entry.name);
+    const stats = fs.lstatSync(target);
+    if (stats.isSymbolicLink()) throw new Error("TEMP_ROOT_REPARSE_POINT_REJECTED");
+    if (stats.isDirectory()) assertNoCleanupLinks(target);
+  }
+}
+
+function cleanupOwnedTempRoot(identity: OwnedTempRootIdentity): void {
+  if (!fs.existsSync(identity.root)) return;
+  const stats = fs.lstatSync(identity.root, { bigint: true });
+  if (!stats.isDirectory() || stats.isSymbolicLink() ||
+    stats.dev !== identity.dev || stats.ino !== identity.ino) {
+    throw new Error("TEMP_ROOT_IDENTITY_CHANGED");
+  }
+  const physicalRoot = fs.realpathSync(identity.root);
+  if (physicalRoot !== identity.physicalRoot ||
+    fs.realpathSync(path.dirname(identity.root)) !== identity.physicalParent) {
+    throw new Error("TEMP_ROOT_PHYSICAL_CONTAINMENT_CHANGED");
+  }
+  assertNoCleanupLinks(identity.root);
+  fs.rmSync(identity.root, { recursive: true, force: true });
+}
+
+function runCleanupSafetyRegression(): { failurePathCleaned: boolean; reparseRejected: boolean } {
+  const probeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sprint-129-36-ext-smoke-"));
+  const identity = captureOwnedTempRootIdentity(probeRoot);
+  const target = path.join(probeRoot, "junction-target");
+  const junction = path.join(probeRoot, "junction-probe");
+  let reparseRejected = false;
+  try {
+    fs.mkdirSync(target);
+    fs.symlinkSync(target, junction, "junction");
+    try {
+      cleanupOwnedTempRoot(identity);
+    } catch (error) {
+      reparseRejected = error instanceof Error &&
+        error.message === "TEMP_ROOT_REPARSE_POINT_REJECTED";
+    }
+    fs.unlinkSync(junction);
+    try {
+      throw new Error("CONTROLLED_FAILURE_PATH");
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== "CONTROLLED_FAILURE_PATH") throw error;
+    }
+  } finally {
+    if (fs.existsSync(junction)) fs.unlinkSync(junction);
+    if (fs.existsSync(probeRoot)) cleanupOwnedTempRoot(identity);
+  }
+  return { failurePathCleaned: !fs.existsSync(probeRoot), reparseRejected };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -182,16 +284,17 @@ function runParserTests(tempRoot: string) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Cross-process race test (Scenario 36)
+// Cross-process retry-budget consuming-intent race (Scenarios 80–90)
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface RaceWorkerResult {
   workerId: string;
-  outcome: "consumed" | "conflict" | "already-consumed" | "error";
+  outcome: "consumed" | "conflict" | "error";
   reasonCode: string;
   consumingStatus?: string;
   consumedStatus?: string;
-  consumedOk?: boolean;
+  consumedOk: boolean;
+  authorityValidated: boolean;
   evidence: string[];
   error?: string;
 }
@@ -209,9 +312,21 @@ async function runCrossProcessRaceTest(
 
   const timeout = 30_000;
 
-  async function spawnWorker(readyBarrier: Promise<void>): Promise<RaceWorkerResult> {
-    await readyBarrier;
-    return new Promise<RaceWorkerResult>((resolve, reject) => {
+  function spawnWorker() {
+    let readyReached = false;
+    let readyResolve!: () => void;
+    let readyReject!: (error: Error) => void;
+    const ready = new Promise<void>((resolve, reject) => {
+      readyResolve = resolve;
+      readyReject = reject;
+    });
+    let result: RaceWorkerResult | undefined;
+    let completedResolve!: (value: { result: RaceWorkerResult; exitCode: number }) => void;
+    let completedReject!: (error: Error) => void;
+    const completed = new Promise<{ result: RaceWorkerResult; exitCode: number }>((resolve, reject) => {
+      completedResolve = resolve;
+      completedReject = reject;
+    });
       const workerArgs = [
         `--runtime-root=${runtimeRoot}`,
         `--project-slug=${raceProjectSlug}`,
@@ -228,6 +343,7 @@ async function runCrossProcessRaceTest(
 
           ...process.env,
           ATOLYE_RUNTIME_ROOT: runtimeRoot,
+          ATOLYE_RUNTIME_AUTHORITY_ROOT: path.join(runtimeRoot, "authority-root"),
           NODE_ENV: "test",
           AI_PROVIDER: "mock",
         },
@@ -241,78 +357,127 @@ async function runCrossProcessRaceTest(
 
       const timer = setTimeout(() => {
         child.kill("SIGTERM");
-        reject(new Error(`Race worker timed out after ${timeout}ms. output=${output}, stderr=${stderrOutput}`));
+        const error = new Error(`Race worker timed out after ${timeout}ms. output=${output}, stderr=${stderrOutput}`);
+        readyReject(error);
+        completedReject(error);
       }, timeout);
+
+      child.on("message", (message) => {
+        if (!message || typeof message !== "object") return;
+        const typed = message as {
+          type?: string;
+          authorityValidated?: boolean;
+          result?: RaceWorkerResult;
+        };
+        if (typed.type === "ready" && typed.authorityValidated === true) {
+          readyReached = true;
+          readyResolve();
+        }
+        if (typed.type === "result" && typed.result) result = typed.result;
+      });
 
       child.on("exit", (code, signal) => {
         clearTimeout(timer);
         if (signal) {
-          reject(new Error(`Race worker killed with signal ${signal}`));
+          const error = new Error(`Race worker killed with signal ${signal}`);
+          readyReject(error);
+          completedReject(error);
           return;
         }
-        try {
-          const line = output.trim().split("\n").find(l => l.startsWith("{"));
-          if (!line) {
-            reject(new Error(`Race worker produced no JSON output. code=${code}, output=${output}, stderr=${stderrOutput}`));
-            return;
-          }
-          const parsed = JSON.parse(line) as RaceWorkerResult;
-          resolve(parsed);
-
-        } catch {
-          reject(new Error(`Race worker output parse failed: ${output}, stderr=${stderrOutput}`));
+        if (code !== 0 || !result) {
+          const error = new Error(
+            `Race worker failed. code=${code}, result=${JSON.stringify(result)}, output=${output}, stderr=${stderrOutput}`,
+          );
+          readyReject(error);
+          completedReject(error);
+          return;
         }
+        completedResolve({ result, exitCode: code });
       });
 
 
       child.on("error", (err) => {
         clearTimeout(timer);
-        reject(err);
+        readyReject(err);
+        completedReject(err);
       });
-    });
+    return { child, ready, completed, readyReached: () => readyReached };
   }
 
-  let releaseBarrier!: () => void;
-  const barrier = new Promise<void>((resolve) => { releaseBarrier = resolve; });
-
-  const [result1Promise, result2Promise] = [
-    spawnWorker(barrier),
-    spawnWorker(barrier),
-  ];
-  releaseBarrier();
-
-  const [result1, result2] = await Promise.all([result1Promise, result2Promise]);
+  assert(path.resolve(runtimeRoot) === path.resolve(tempRoot),
+    "Cross-process consuming-intent race: runtime is the exact operation-owned temp root");
+  const workers = [spawnWorker(), spawnWorker()];
+  await Promise.all(workers.map(worker => worker.ready));
+  assert(workers.length === 2 && workers.every(worker => worker.readyReached()),
+    "Cross-process consuming-intent race: both workers reached the authenticated ready barrier");
+  let startBroadcastCount = 0;
+  for (const worker of workers) {
+    worker.child.send({ type: "start" });
+    startBroadcastCount += 1;
+  }
+  const completed = await Promise.all(workers.map(worker => worker.completed));
+  assert(startBroadcastCount === 2 && completed.every(worker => worker.exitCode === 0),
+    "Cross-process consuming-intent race: start reached both workers and both exited with code 0");
+  const [result1, result2] = completed.map(worker => worker.result);
 
   const consumers = [result1, result2].filter(r => r.outcome === "consumed");
-  const conflicts = [result1, result2].filter(r => r.outcome === "conflict" || r.outcome === "already-consumed");
+  const conflicts = [result1, result2].filter(r => r.outcome === "conflict");
+
+  console.log("  [race] result1:", JSON.stringify(result1));
+  console.log("  [race] result2:", JSON.stringify(result2));
 
   assert(consumers.length === 1,
-    `Scenario 36: Exactly one cross-process worker consumed the authority (got ${consumers.length})`);
-  assert(conflicts.length === 1,
-    `Scenario 36: Exactly one cross-process worker received conflict/already-consumed (got ${conflicts.length})`);
+    `Cross-process consuming-intent race: exactly one worker consumed the authority (got ${consumers.length})`);
+  assert(conflicts.length === 1 && conflicts[0]?.reasonCode === "CONSUMING_INTENT_CONFLICT",
+    `Cross-process consuming-intent race: exactly one worker received CONSUMING_INTENT_CONFLICT (got ${JSON.stringify(conflicts)})`);
+  assert(consumers[0]?.consumedOk === true &&
+    consumers[0]?.reasonCode === "CONSUMED_SUCCESSFULLY" &&
+    conflicts[0]?.consumedOk === false,
+    "Cross-process consuming-intent race: consumed winner alone reports true and exact conflict loser reports false");
+  assert([result1, result2].every(result => result.authorityValidated === true),
+    "Cross-process consuming-intent race: both workers validated canonical trusted authority before start");
 
-  const tempExtDir = path.join(runtimeRoot, raceProjectSlug, "production-execution", "retry-budget-extensions");
+  const raceRuntimeInput = createRuntimeStorageContext({ environment: { ATOLYE_RUNTIME_ROOT: runtimeRoot, ATOLYE_RUNTIME_AUTHORITY_ROOT: path.join(runtimeRoot, "authority-root") } });
+  const tempExtDir = getRetryBudgetExtensionDirectory(raceProjectSlug, raceRuntimeInput);
   const files = fs.existsSync(tempExtDir) ? fs.readdirSync(tempExtDir) : [];
   const consumedFiles = files.filter(f => f.startsWith("receipt-") && f.endsWith("-consumed.json"));
   assert(consumedFiles.length === 1,
-    `Scenario 36: Exactly one consumed receipt file exists in temp runtime (found ${consumedFiles.length})`);
+    `Cross-process consuming-intent race: exactly one consumed receipt exists (found ${consumedFiles.length})`);
 
   const consumingFiles = files.filter(f => f.startsWith("receipt-") && f.endsWith("-consuming.json"));
   assert(consumingFiles.length === 1,
-    `Scenario 36: Exactly one consuming-intent receipt file exists (found ${consumingFiles.length})`);
+    `Cross-process consuming-intent race: exactly one consuming-intent receipt exists (found ${consumingFiles.length})`);
 
   assert(consumedFiles.length + consumingFiles.length <= 2,
-    "Scenario 36: No duplicate or contradictory receipts produced by race");
+    "Cross-process consuming-intent race: no duplicate or contradictory receipts were produced");
 
   assert(result1.outcome !== "error" && result2.outcome !== "error",
-    `Scenario 36: No worker crashed with exception (r1=${result1.outcome}, r2=${result2.outcome})`);
+    `Cross-process consuming-intent race: no worker crashed (r1=${result1.outcome}, r2=${result2.outcome})`);
 
+  console.log("  [race-evidence]", JSON.stringify({
+    childCount: workers.length,
+    authenticatedReadyCount: workers.filter(worker => worker.readyReached()).length,
+    barrierReached: true,
+    startBroadcastCount,
+    winnerCount: consumers.length,
+    winnerOutcome: consumers[0]?.outcome,
+    winnerConsumedOk: consumers[0]?.consumedOk,
+    loserCount: conflicts.length,
+    loserOutcome: conflicts[0]?.outcome,
+    loserReasonCode: conflicts[0]?.reasonCode,
+    loserConsumedOk: conflicts[0]?.consumedOk,
+    childExitCodes: completed.map(worker => worker.exitCode),
+    consumingReceiptCount: consumingFiles.length,
+    consumedReceiptCount: consumedFiles.length,
+    duplicateOrAmbiguousReceiptCount: Math.max(0, consumedFiles.length - 1) +
+      Math.max(0, consumingFiles.length - 1),
+  }));
   console.log(`  [race] Worker 1: outcome=${result1.outcome} reasonCode=${result1.reasonCode}`);
   console.log(`  [race] Worker 2: outcome=${result2.outcome} reasonCode=${result2.reasonCode}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Settlement write-failure + restart recovery test (Scenario 39)
+// Settlement write-failure + restart recovery (Scenarios 91–100)
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function runSettlementRecoveryTest(
@@ -325,11 +490,19 @@ async function runSettlementRecoveryTest(
   process.env.ATOLYE_RUNTIME_ROOT = runtimeRoot;
 
   try {
+    const testInput = createRuntimeStorageContext({
+      workspaceRoot: runtimeRoot,
+      environment: {
+        ATOLYE_RUNTIME_ROOT: runtimeRoot,
+        ATOLYE_RUNTIME_AUTHORITY_ROOT: path.join(runtimeRoot, "authority-root"),
+      },
+    });
+
     const authorityBody = buildProductionPipelineRetryBudgetExtensionBody(
       challengePayload,
       new Date().toISOString(),
     );
-    writeRetryBudgetExtensionAuthority(testProjectSlug, authorityBody);
+    writeRetryBudgetExtensionAuthority(testProjectSlug, authorityBody, testInput);
 
     const consumedReceipt = buildProductionPipelineRetryBudgetExtensionReceipt(
       testAuthorityId,
@@ -338,15 +511,15 @@ async function runSettlementRecoveryTest(
       "v-ordinal-4-terminal",
       ["settlement-recovery-test:consumed-state"],
     );
-    writeRetryBudgetExtensionReceipt(testProjectSlug, consumedReceipt);
+    writeRetryBudgetExtensionReceipt(testProjectSlug, consumedReceipt, testInput);
 
-    const consumedCheck = readRetryBudgetExtensionReceipt(testProjectSlug, testAuthorityId, "consumed");
+    const consumedCheck = readRetryBudgetExtensionReceipt(testProjectSlug, testAuthorityId, "consumed", testInput);
     assert(consumedCheck.ok && consumedCheck.value?.state === "consumed",
-      "Scenario 39: Consumed receipt present at fault injection point");
+      "Settlement recovery: consumed receipt present at fault injection point");
 
-    const settledCheck0 = readRetryBudgetExtensionReceipt(testProjectSlug, testAuthorityId, "settled");
+    const settledCheck0 = readRetryBudgetExtensionReceipt(testProjectSlug, testAuthorityId, "settled", testInput);
     assert(!settledCheck0.ok,
-      "Scenario 39: Settled receipt NOT present at fault injection point (simulates write failure)");
+      "Settlement recovery: settled receipt absent at fault injection point (simulates write failure)");
 
     const settledReceipt = buildProductionPipelineRetryBudgetExtensionReceipt(
       testAuthorityId,
@@ -355,29 +528,29 @@ async function runSettlementRecoveryTest(
       "v-ordinal-4-terminal",
       ["settlement-recovery:settled-after-restart"],
     );
-    const writeSettled = writeRetryBudgetExtensionReceipt(testProjectSlug, settledReceipt);
+    const writeSettled = writeRetryBudgetExtensionReceipt(testProjectSlug, settledReceipt, testInput);
 
     assert(writeSettled.ok || writeSettled.status === "replayed",
-      "Scenario 39: Recovery — settled receipt published successfully on restart");
+      "Settlement recovery: settled receipt published successfully on restart");
 
-    const settledReadback = readRetryBudgetExtensionReceipt(testProjectSlug, testAuthorityId, "settled");
+    const settledReadback = readRetryBudgetExtensionReceipt(testProjectSlug, testAuthorityId, "settled", testInput);
     assert(settledReadback.ok && settledReadback.value?.state === "settled",
-      "Scenario 39: Settled receipt read back verified after recovery");
+      "Settlement recovery: settled receipt readback verified");
 
     assert(settledReadback.value?.authorityId === testAuthorityId,
-      "Scenario 39: Settled receipt bound to correct authority ID");
+      "Settlement recovery: settled receipt bound to the correct authority ID");
 
     const consumedReadback = readRetryBudgetExtensionReceipt(testProjectSlug, testAuthorityId, "consumed");
     assert(consumedReadback.ok && consumedReadback.value?.state === "consumed",
-      "Scenario 39: Consumed receipt still present after recovery (durable lineage preserved)");
+      "Settlement recovery: consumed receipt remains present and durable lineage is preserved");
 
     const authorityReadback = readRetryBudgetExtensionAuthority(testProjectSlug, testAuthorityId);
     assert(authorityReadback.ok && authorityReadback.value?.authorityId === testAuthorityId,
-      "Scenario 39: Authority still byte-identical after recovery");
+      "Settlement recovery: authority remains byte-identical");
 
     const writeSettled2 = writeRetryBudgetExtensionReceipt(testProjectSlug, settledReceipt);
     assert(writeSettled2.ok && writeSettled2.status === "replayed",
-      "Scenario 39: Second recovery replay is write-free (idempotent)");
+      "Settlement recovery: second replay is write-free and idempotent");
 
     const gateNewAttempt = await verifyCanonicalPipelineRetryBudgetExtensionAdmission({
       phase: "before-consumption",
@@ -388,13 +561,13 @@ async function runSettlementRecoveryTest(
       authorityId: testAuthorityId,
     });
     assert(!gateNewAttempt.ok && gateNewAttempt.reasonCode === "PIPELINE_RETRY_BUDGET_EXTENSION_ALREADY_CONSUMED",
-      "Scenario 39: Authority cannot be reused for new attempt after settlement (gate rejected)");
+      "Settlement recovery: gate rejects authority reuse for a new attempt");
 
     const extDir = getRetryBudgetExtensionDirectory(testProjectSlug);
     const allFiles = fs.existsSync(extDir) ? fs.readdirSync(extDir) : [];
     const settledFiles = allFiles.filter(f => f.includes(testAuthorityId) && f.endsWith("-settled.json"));
     assert(settledFiles.length === 1,
-      "Scenario 39: Exactly one settled receipt file (no duplicates from idempotent recovery)");
+      "Settlement recovery: exactly one settled receipt exists after idempotent replay");
   } finally {
     if (originalRuntime !== undefined) {
       process.env.ATOLYE_RUNTIME_ROOT = originalRuntime;
@@ -408,31 +581,272 @@ async function runSettlementRecoveryTest(
 // Main suite
 // ─────────────────────────────────────────────────────────────────────────────
 
+async function runRealOrdinalFourProductionWriterTest() {
+  const ownedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sprint-129-36-ext-smoke-"));
+  const ownedRootIdentity = captureOwnedTempRootIdentity(ownedRoot);
+  const storageContext = createRuntimeStorageContext({ workspaceRoot: ownedRoot,
+    environment: { ATOLYE_RUNTIME_ROOT: ownedRoot,
+      ATOLYE_RUNTIME_AUTHORITY_ROOT: path.join(ownedRoot, "authority") } });
+  const operationContext = createProductionRuntimeOperationContext({
+    operationId: `sprint-129-36-ordinal-four-${crypto.randomUUID()}`,
+    operationType: "sprint-129-36-validation",
+    authorityGeneration: initialRuntimeAuthorityGeneration,
+    storageContext,
+  });
+  const now = new Date().toISOString();
+  const worker = new ProductionWorkerLifecycle(() => now);
+  worker.bindRuntimeOperationContext(operationContext);
+  let registration: ReturnType<typeof configureScopedProductionPipelineExecution> | undefined;
+  try {
+    const started = await worker.start({ initialization: {
+      schemaVersion: "1", ok: true, decision: "ready", reasonCode: "RUNTIME_INITIALIZED",
+      initializedAt: now, writeFree: true, partialInitialization: false, projects: [],
+      counts: { active: 0, running: 0, terminal: 0, orphaned: 0,
+        "expired-lease": 0, replayable: 0 }, worker: worker.snapshot(), evidence: [],
+    } });
+    if (!started.ok) throw new Error("ORDINAL_FOUR_WORKER_NOT_READY");
+    registration = configureScopedProductionPipelineExecution({
+      lifecycle: worker, runtimeOperationContext: operationContext,
+    });
+    await runWithProductionRuntimeOperationContext(operationContext, async () => {
+    const projectRoot = path.join(storageContext.projectsRoot, baseProjectSlug);
+    fs.cpSync(repoProdDir, projectRoot, { recursive: true });
+    const markerPath = path.join(projectRoot, "production-acceptance.json");
+    const marker = JSON.parse(fs.readFileSync(markerPath, "utf8")) as {
+      topic: string; runId: string; requestFingerprint: string;
+      configurationFingerprint: string; componentFingerprints: Record<string, string>;
+    };
+    const configuration = await createProductionAcceptancePortableConfigurationSnapshotV2(baseProjectSlug);
+    if (configuration.unavailableComponents.length > 0) {
+      throw new Error(`ORDINAL_FOUR_CONFIGURATION_UNAVAILABLE:${configuration.unavailableComponents.join(",")}`);
+    }
+    marker.configurationFingerprint = configuration.configurationFingerprint;
+    marker.componentFingerprints = { ...configuration.componentFingerprints };
+    marker.requestFingerprint = productionAcceptanceRequestFingerprintV3Profile2({
+      topic: marker.topic, runId: marker.runId,
+      configurationFingerprint: marker.configurationFingerprint,
+    });
+    fs.writeFileSync(markerPath, `${JSON.stringify(marker, null, 2)}\n`, "utf8");
+
+    const jobId = `${baseProjectSlug}-${stage}`;
+    const plan = await planRetryBudgetExtension(
+      baseProjectSlug, stage, jobId, reason, storageContext,
+    );
+    assert(plan.eligible && Boolean(plan.authorityId),
+      "Real ordinal-4 fixture plans against an operation-owned runtime");
+    const applied = await applyRetryBudgetExtension(
+      baseProjectSlug, stage, jobId, reason, plan.authorityId!, plan.authorityId!,
+      storageContext,
+    );
+    assert(applied.success, "Real ordinal-4 authority is published in operation-owned storage");
+    const retry = await prepareFailedStageRetry(
+      baseProjectSlug, jobId, "resume", storageContext,
+    );
+    if (!retry.success) throw new Error(`REAL_ORDINAL_FOUR_RETRY_FAILED:${retry.reasonCode}`);
+    assert(retry.admission.admittedDurableOrdinal === 4 &&
+      retry.admission.retryBudgetAuthorityProof?.authorityId === plan.authorityId,
+    "Real failed-stage retry consumes the authority and admits durable ordinal 4");
+    assertCanonicalPipelineRetryAdmission({ admission: retry.admission,
+      previousJob: retry.previousJob, currentJob: retry.job, projectSlug: baseProjectSlug,
+      stage: stage as Parameters<typeof assertCanonicalPipelineRetryAdmission>[0]["stage"],
+      runType: "resume" });
+    const historicalAdapter = new ProductionExecutionFilePersistenceAdapter({
+      trustedRootDirectory: path.join(storageContext.projectsRoot, baseProjectSlug,
+        "production-execution"),
+    });
+    await readProductionCanonicalTerminalDurableLineage(historicalAdapter,
+      retry.admission.exactReconciledDurableLineageIdentity,
+      retry.admission.exactReconciledLineageBinding.reservationId,
+      retry.admission.exactReconciledLineageBinding);
+
+    const prepared = await withProductionAcceptanceRetryAdmission(
+      retry.admission, retry.previousJob,
+      () => prepareProductionPipelineExecution({ projectSlug: baseProjectSlug, stage, runType: "resume" }),
+    );
+    const completed = readCompletedProductionPipelinePreparation(prepared.authority);
+    const bindings = [completed.reservation.retryBudgetExtension,
+      completed.record.retryBudgetExtension, completed.lease.retryBudgetExtension,
+      completed.claim.retryBudgetExtension, completed.attempt.retryBudgetExtension];
+    assert(bindings.every(Boolean),
+      "Real production factory persists the extension on all five durable siblings");
+    const canonicalBinding = JSON.stringify(bindings[0]);
+    assert(bindings.every((binding) => JSON.stringify(binding) === canonicalBinding),
+      "All five siblings persist one byte-equivalent canonical extension binding");
+
+    const gateInput = { phase: "before-execution" as const, projectSlug: baseProjectSlug,
+      stage: stage as Parameters<typeof verifyCanonicalPipelineRetryBudgetExtensionAdmission>[0]["stage"],
+      jobId, runType: "resume" as const, authorityId: plan.authorityId!,
+      input: storageContext };
+    const gate = await verifyCanonicalPipelineRetryBudgetExtensionAdmission(gateInput);
+    assert(gate.ok, "Before-execution gate accepts the real persisted ordinal-4 lineage");
+
+    const storeRoot = path.join(projectRoot, "production-execution");
+    const files = {
+      reservation: path.join(storeRoot, "reservations",
+        `${completed.reservation.identity.identityFingerprint}.json`),
+      record: path.join(storeRoot, "idempotency",
+        `${completed.record.recordId}-v${completed.record.recordVersion}.json`),
+      claim: path.join(storeRoot, "claims",
+        `${completed.claim.identity.claimId}-v${completed.claim.claimVersion}.json`),
+      attempt: path.join(storeRoot, "attempts",
+        `${completed.attempt.identity.attemptId}-v${completed.attempt.attemptVersion}.json`),
+    };
+    const tamperAndVerify = async (filePath: string,
+      mutate: (value: Record<string, unknown>) => void, expectedReason: string,
+      description: string) => {
+      const original = fs.readFileSync(filePath, "utf8");
+      try {
+        const value = JSON.parse(original) as Record<string, unknown>;
+        mutate(value);
+        fs.writeFileSync(filePath, `${JSON.stringify(value)}\n`, "utf8");
+        const rejected = await verifyCanonicalPipelineRetryBudgetExtensionAdmission(gateInput);
+        assert(!rejected.ok && rejected.reasonCode === expectedReason, description);
+      } finally {
+        fs.writeFileSync(filePath, original, "utf8");
+      }
+    };
+    const refreshIntegrity = (value: Record<string, unknown>, label: string) => {
+      const { integrity: ignored, ...body } = value;
+      void ignored;
+      value.integrity = { algorithm: "stable-production-id-v1",
+        fingerprint: stableProductionId(label, body) };
+    };
+
+    await tamperAndVerify(files.reservation, (value) => { delete value.retryBudgetExtension; },
+      "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_MISSING",
+      "Missing reservation extension is rejected deterministically");
+    await tamperAndVerify(files.record, (value) => { delete value.retryBudgetExtension; },
+      "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_MISSING",
+      "Missing record extension is rejected deterministically");
+    await tamperAndVerify(files.record, (value) => {
+      const lease = value.durableLease as Record<string, unknown>;
+      delete lease.retryBudgetExtension;
+      refreshIntegrity(lease, "durable-lease-integrity");
+    }, "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_MISSING",
+    "Missing lease extension is rejected deterministically");
+    await tamperAndVerify(files.claim, (value) => {
+      delete value.retryBudgetExtension;
+      refreshIntegrity(value, "durable-claim-integrity");
+    }, "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_MISSING",
+    "Missing claim extension is rejected deterministically");
+    await tamperAndVerify(files.attempt, (value) => {
+      delete value.retryBudgetExtension;
+      refreshIntegrity(value, "durable-attempt-integrity");
+    }, "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_MISSING",
+    "Missing attempt extension is rejected deterministically");
+
+    const mismatchFields = ["schemaVersion", "authorityId", "authorityIntegrityFingerprint",
+      "consumptionReceiptFingerprint", "authorizedDurableOrdinal", "effectiveMaxAttempts",
+      "authorizedRunType", "authorizedOperation", "projectSlug", "stage", "jobId",
+      "identityFingerprint", "reservationBinding", "durableAttemptOrdinal"] as const;
+    for (const field of mismatchFields) {
+      await tamperAndVerify(files.reservation, (value) => {
+        const binding = value.retryBudgetExtension as Record<string, unknown>;
+        binding[field] = typeof binding[field] === "number" ? 99 : `mismatch-${field}`;
+      }, "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_BINDING_MISMATCH",
+      `Reservation extension field ${field} mismatch is rejected deterministically`);
+    }
+    const restoredGate = await verifyCanonicalPipelineRetryBudgetExtensionAdmission(gateInput);
+    assert(restoredGate.ok, "Five-sibling negative matrix restores the canonical lineage exactly");
+    assert(resolveRuntimeStorageContext(storageContext) === storageContext,
+      "Active operation runtime preserves exact RuntimeStorageContext object identity");
+    });
+  } finally {
+    registration?.restore();
+    await worker.stop();
+    cleanupOwnedTempRoot(ownedRootIdentity);
+  }
+}
+
 async function runSmokeSuite() {
   console.log("Starting Sprint 129.36 — Full Remediation Smoke Test Suite...\n");
 
+  const repoDataDir = path.join(process.cwd(), "data");
   const initialProdInventory = computeFileInventory(repoProdDir);
   const initialProdDigest = inventoryDigest(initialProdInventory);
-  console.log(`  [inventory] Production data/projects SHA-256: ${initialProdDigest.slice(0, 16)}... (${initialProdInventory.length} files)\n`);
+  const initialDataInventory = computeFileInventory(repoDataDir);
+  const initialDataDigest = inventoryDigest(initialDataInventory);
 
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-sprint-129-36-"));
+  console.log(`  [inventory] Production data/projects SHA-256: ${initialProdDigest.slice(0, 16)}... (${initialProdInventory.length} files)`);
+  console.log(`  [inventory] Repository data/ SHA-256:         ${initialDataDigest.slice(0, 16)}... (${initialDataInventory.length} files)\n`);
+
+  const cleanupSafety = runCleanupSafetyRegression();
+  assert(cleanupSafety.failurePathCleaned,
+    "Failure-path cleanup removes its exact operation-owned temp root");
+  assert(cleanupSafety.reparseRejected,
+    "Cleanup rejects a Windows junction/reparse-point before recursive deletion");
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sprint-129-36-ext-smoke-"));
   assertContained(os.tmpdir(), tempRoot);
-
-  const testWrittenExtensionFiles: string[] = [];
-  let plan1: Awaited<ReturnType<typeof planRetryBudgetExtension>>;
+  const tempRootIdentity = captureOwnedTempRootIdentity(tempRoot);
 
   try {
+  const projectSlug = baseProjectSlug;
+  const jobId = `${projectSlug}-${stage}`;
+
+  // Copy canonical project into isolated temp workspace root (<tempRoot>/projects/<projectSlug>):
+  const tempProjectsDir = path.join(tempRoot, "projects", projectSlug);
+  assertContained(tempRoot, tempProjectsDir);
+
+  fs.mkdirSync(tempProjectsDir, { recursive: true });
+  fs.cpSync(repoProdDir, tempProjectsDir, { recursive: true });
+
+  const isolatedInput = createRuntimeStorageContext({
+    workspaceRoot: tempRoot,
+    environment: {
+      ATOLYE_RUNTIME_ROOT: tempRoot,
+      ATOLYE_RUNTIME_AUTHORITY_ROOT: path.join(tempRoot, "authority-root"),
+    },
+  });
+
+  process.env.ATOLYE_WORKSPACE_ROOT = tempRoot;
+  process.env.ATOLYE_RUNTIME_ROOT = tempRoot;
+  process.env.ATOLYE_RUNTIME_AUTHORITY_ROOT = path.join(tempRoot, "authority-root");
+  (process.env as Record<string, string>).NODE_ENV = "test";
+  (process.env as Record<string, string>).AI_PROVIDER = "mock";
+  const ffmpegFixture = path.join(tempRoot, "fixture-ffmpeg.bin");
+  const ffprobeFixture = path.join(tempRoot, "fixture-ffprobe.bin");
+  fs.writeFileSync(ffmpegFixture, "isolated-ffmpeg-fingerprint-fixture", "utf8");
+  fs.writeFileSync(ffprobeFixture, "isolated-ffprobe-fingerprint-fixture", "utf8");
+  process.env.FFMPEG_PATH = ffmpegFixture;
+  process.env.FFPROBE_PATH = ffprobeFixture;
+
+  const markerPath = path.join(tempProjectsDir, "production-acceptance.json");
+  const marker = JSON.parse(fs.readFileSync(markerPath, "utf8")) as {
+    topic: string;
+    runId: string;
+    requestFingerprint: string;
+    configurationFingerprint: string;
+    componentFingerprints: Record<string, string>;
+  };
+  const currentConfiguration = await createProductionAcceptancePortableConfigurationSnapshotV2(
+    projectSlug,
+  );
+  if (currentConfiguration.unavailableComponents.length > 0) {
+    throw new Error(`ISOLATED_ACCEPTANCE_CONFIGURATION_UNAVAILABLE:${
+      currentConfiguration.unavailableComponents.join(",")}`);
+  }
+  marker.configurationFingerprint = currentConfiguration.configurationFingerprint;
+  marker.componentFingerprints = { ...currentConfiguration.componentFingerprints };
+  marker.requestFingerprint = productionAcceptanceRequestFingerprintV3Profile2({
+    topic: marker.topic,
+    runId: marker.runId,
+    configurationFingerprint: marker.configurationFingerprint,
+  });
+  fs.writeFileSync(markerPath, `${JSON.stringify(marker, null, 2)}\n`, "utf8");
+
+  let plan1: Awaited<ReturnType<typeof planRetryBudgetExtension>>;
+
     // ═══════════════════════════════════════════════════════
-    // BLOCK A: Parser tests (Scenarios 1–14)
+    // BLOCK A: Cleanup and parser tests (Scenarios 1–16)
     // ═══════════════════════════════════════════════════════
     runParserTests(tempRoot);
 
     // ═══════════════════════════════════════════════════════
-    // BLOCK B: Core plan/apply scenarios (Scenarios 15–23)
+    // BLOCK B: Core plan/apply scenarios (Scenarios 17–25)
     // ═══════════════════════════════════════════════════════
 
     // 15. Exact exhausted failed/2 + durable ordinal 3 terminal lineage plan eligible.
-    plan1 = await planRetryBudgetExtension(projectSlug, stage, jobId, reason);
+    plan1 = await planRetryBudgetExtension(projectSlug, stage, jobId, reason, isolatedInput);
     assert(plan1.eligible === true && typeof plan1.authorityId === "string" && plan1.authorityId.length >= 32,
       "Plan eligible for exact exhausted failed/2 state");
 
@@ -456,22 +870,22 @@ async function runSmokeSuite() {
 
     // 18. Apply with mismatched confirmation rejected.
     const applyMismatch = await applyRetryBudgetExtension(
-      projectSlug, stage, jobId, reason, plan1.authorityId!, "11112222333344445555666677778888",
+      projectSlug, stage, jobId, reason, plan1.authorityId!, "11112222333344445555666677778888", isolatedInput,
     );
     assert(!applyMismatch.success && applyMismatch.reasonCode === "PIPELINE_RETRY_BUDGET_EXTENSION_CONFIRMATION_REQUIRED",
       "Apply with mismatched confirmation rejected");
 
     // 19. Mismatched project slug rejected.
-    const planWrongProject = await planRetryBudgetExtension("non-existent-project-slug", stage, jobId, reason);
+    const planWrongProject = await planRetryBudgetExtension("non-existent-project-slug", stage, jobId, reason, isolatedInput);
     assert(!planWrongProject.eligible, "Plan with wrong project rejected");
 
     // 20. Mismatched stage rejected.
-    const planWrongStage = await planRetryBudgetExtension(projectSlug, "script", jobId, reason);
+    const planWrongStage = await planRetryBudgetExtension(projectSlug, "script", jobId, reason, isolatedInput);
     assert(!planWrongStage.eligible && planWrongStage.reasonCode === "PIPELINE_RETRY_BUDGET_EXTENSION_ARGUMENT_INVALID",
       "Plan with wrong stage rejected");
 
     // 21. Mismatched job ID rejected.
-    const planWrongJob = await planRetryBudgetExtension(projectSlug, stage, `${projectSlug}-script`, reason);
+    const planWrongJob = await planRetryBudgetExtension(projectSlug, stage, `${projectSlug}-script`, reason, isolatedInput);
     assert(!planWrongJob.eligible && planWrongJob.reasonCode === "PIPELINE_RETRY_BUDGET_EXTENSION_ARGUMENT_INVALID",
       "Plan with wrong job ID rejected");
 
@@ -480,11 +894,11 @@ async function runSmokeSuite() {
       "Challenge payload contains exact failure code");
 
     // 23. Plan re-verified for current job updatedAt.
-    const planTamperedJob = await planRetryBudgetExtension(projectSlug, stage, jobId, reason);
+    const planTamperedJob = await planRetryBudgetExtension(projectSlug, stage, jobId, reason, isolatedInput);
     assert(planTamperedJob.eligible === true, "Plan re-verified for current job updatedAt");
 
     // ═══════════════════════════════════════════════════════
-    // BLOCK C: Challenge payload verification (Scenarios 24–33)
+    // BLOCK C: Challenge payload verification (Scenarios 26–35)
     // ═══════════════════════════════════════════════════════
 
     // 24. Job fingerprint verified in challenge payload.
@@ -528,24 +942,19 @@ async function runSmokeSuite() {
       "No orphan durable object found");
 
     // ═══════════════════════════════════════════════════════
-    // BLOCK D: Apply and gate scenarios (Scenarios 34–41)
+    // BLOCK D: Apply, gate, and recovery scenarios (Scenarios 36–42)
     // ═══════════════════════════════════════════════════════
 
     // 34. Valid authority publication returns committed-verified.
     const applyValid = await applyRetryBudgetExtension(
-      projectSlug, stage, jobId, reason, plan1.authorityId!, plan1.authorityId!,
+      projectSlug, stage, jobId, reason, plan1.authorityId!, plan1.authorityId!, isolatedInput,
     );
     assert(applyValid.success && (applyValid.decision === "published" || applyValid.decision === "replayed"),
       "Apply valid authority returns success");
 
-    // Track written extension file for cleanup
-    const extDirProd = path.join(process.cwd(), "data", projectSlug, "production-execution", "retry-budget-extensions");
-    const extDirProd2 = path.join(process.cwd(), "data", "projects", projectSlug, "production-execution", "retry-budget-extensions");
-    testWrittenExtensionFiles.push(extDirProd, extDirProd2);
-
     // 35. Exact replay of published authority is write-free.
     const applyReplay = await applyRetryBudgetExtension(
-      projectSlug, stage, jobId, reason, plan1.authorityId!, plan1.authorityId!,
+      projectSlug, stage, jobId, reason, plan1.authorityId!, plan1.authorityId!, isolatedInput,
     );
     assert(applyReplay.success && applyReplay.decision === "replayed" && applyReplay.writePerformed === false,
       "Replay of published authority is write-free");
@@ -563,6 +972,7 @@ async function runSmokeSuite() {
       jobId,
       runType: "resume",
       authorityId: freshAuthBody.authorityId,
+      input: isolatedInput,
     });
     assert(!gateIssued.ok, "Issued authority alone insufficient for execution gate");
 
@@ -570,7 +980,7 @@ async function runSmokeSuite() {
     const consumingReceipt = buildProductionPipelineRetryBudgetExtensionReceipt(
       plan1.authorityId!, "consuming", new Date().toISOString(), "v1",
     );
-    writeRetryBudgetExtensionReceipt(projectSlug, consumingReceipt);
+    writeRetryBudgetExtensionReceipt(projectSlug, consumingReceipt, isolatedInput);
     const gateConsuming = await verifyCanonicalPipelineRetryBudgetExtensionAdmission({
       phase: "before-execution",
       projectSlug,
@@ -578,11 +988,12 @@ async function runSmokeSuite() {
       jobId,
       runType: "resume",
       authorityId: plan1.authorityId!,
+      input: isolatedInput,
     });
     assert(!gateConsuming.ok, "Consuming receipt alone insufficient for execution gate");
 
     // 38. Lingering consuming intent recovered to aborted when job untouched.
-    const recoveryAborted = await recoverLingeringConsumingIntent(projectSlug, plan1.authorityId!);
+    const recoveryAborted = await recoverLingeringConsumingIntent(projectSlug, plan1.authorityId!, isolatedInput);
     assert(recoveryAborted.recovered && (recoveryAborted.finalState === "aborted" || recoveryAborted.finalState === "consumed"),
       "Lingering consuming intent recovered when job untouched");
 
@@ -593,7 +1004,7 @@ async function runSmokeSuite() {
     const consumedReceipt40 = buildProductionPipelineRetryBudgetExtensionReceipt(
       plan1.authorityId!, "consumed", new Date().toISOString(), "v-queued-3",
     );
-    writeRetryBudgetExtensionReceipt(projectSlug, consumedReceipt40);
+    writeRetryBudgetExtensionReceipt(projectSlug, consumedReceipt40, isolatedInput);
     const gateConsumed = await verifyCanonicalPipelineRetryBudgetExtensionAdmission({
       phase: "before-durable-preparation",
       projectSlug,
@@ -602,6 +1013,7 @@ async function runSmokeSuite() {
       runType: "resume",
       authorityId: plan1.authorityId!,
       jobVersion: "v-queued-3",
+      input: isolatedInput,
     });
     assert(gateConsumed.ok && gateConsumed.phase === "before-durable-preparation",
       "Gate passed before durable preparation for valid consumed receipt");
@@ -614,12 +1026,13 @@ async function runSmokeSuite() {
       jobId,
       runType: "initial" as unknown as ("initial" | "retry" | "resume"),
       authorityId: plan1.authorityId!,
+      input: isolatedInput,
     });
     assert(!gateInitial.ok && gateInitial.reasonCode === "PIPELINE_RETRY_BUDGET_EXTENSION_NOT_ELIGIBLE",
       "RunType initial rejected for ordinal 4 extension");
 
     // ═══════════════════════════════════════════════════════
-    // BLOCK E: Additional gate and security scenarios (Scenarios 42–48)
+    // BLOCK E: Security, settlement, and real ordinal-4 lineage scenarios (Scenarios 43–79)
     // ═══════════════════════════════════════════════════════
 
     // 42. Missing authority ID rejected at gate.
@@ -630,6 +1043,7 @@ async function runSmokeSuite() {
       jobId,
       runType: "resume",
       authorityId: "non-existent-auth-id",
+      input: isolatedInput,
     });
     assert(!gateNoReceipt.ok && gateNoReceipt.reasonCode === "PIPELINE_RETRY_BUDGET_EXTENSION_NOT_FOUND",
       "Missing authority ID rejected at gate");
@@ -647,6 +1061,7 @@ async function runSmokeSuite() {
       jobId,
       runType: "resume",
       authorityId: "forged-64-hex-authority-id-123456789012345678901234567890123456",
+      input: isolatedInput,
     });
     assert(!gateForged.ok && gateForged.reasonCode === "PIPELINE_RETRY_BUDGET_EXTENSION_NOT_FOUND",
       "Forged authority proof rejected by gate");
@@ -659,6 +1074,7 @@ async function runSmokeSuite() {
       jobId: `${projectSlug}-script`,
       runType: "resume",
       authorityId: plan1.authorityId!,
+      input: isolatedInput,
     });
     assert(!gateJobB.ok, "Authority for job A rejected for job B");
 
@@ -670,11 +1086,13 @@ async function runSmokeSuite() {
       jobId,
       runType: "retry",
       authorityId: plan1.authorityId!,
+      input: isolatedInput,
     });
     assert(!gateRunTypeRetry.ok && gateRunTypeRetry.reasonCode === "PIPELINE_RETRY_BUDGET_EXTENSION_NOT_ELIGIBLE",
       "RunType retry rejected for resume authority");
 
     // 47. Ordinal 5 unconditionally rejected.
+    let ordinalFiveReason: string | undefined;
     try {
       assertCanonicalPipelineRetryAdmission({
         admission: {
@@ -686,17 +1104,22 @@ async function runSmokeSuite() {
           exactReconciledLineageBinding: {} as unknown as PipelineRetryAdmission["exactReconciledLineageBinding"],
           admittedDurableLineageIdentity: { core: {} } as unknown as ProductionPipelineExecutionIdentity,
           admittedExecutionBinding: { identity: { core: {} } } as unknown as ProductionPipelineRetryAdmissionBinding,
-          priorJobStatus: "failed", preMutationJobFingerprint: "fp", preMutationJobVersion: "v",
-          admittedJobStatus: "queued", admittedJobFingerprint: "fp2", admittedJobVersion: "v2",
+          priorJobStatus: "failed", preMutationJobFingerprint: "fp",
+          preMutationJobVersion: "2026-08-08T00:00:00.000Z",
+          admittedJobStatus: "queued", admittedJobFingerprint: "fp2",
+          admittedJobVersion: "2026-08-08T00:00:01.000Z",
         },
-        previousJob: { id: jobId, projectSlug, stage, status: "failed", attempts: 3, updatedAt: "v" } as unknown as PipelineJob,
-        currentJob: { id: jobId, projectSlug, stage, status: "queued", attempts: 4, updatedAt: "v2" } as unknown as PipelineJob,
+        previousJob: { id: jobId, projectSlug, stage, status: "failed", attempts: 3,
+          createdAt: "2026-08-08T00:00:00.000Z", updatedAt: "2026-08-08T00:00:00.000Z" } as unknown as PipelineJob,
+        currentJob: { id: jobId, projectSlug, stage, status: "queued", attempts: 4,
+          createdAt: "2026-08-08T00:00:00.000Z", updatedAt: "2026-08-08T00:00:01.000Z" } as unknown as PipelineJob,
         projectSlug, stage, runType: "resume",
       });
-      assert(false, "Ordinal 5 should throw error");
-    } catch {
-      assert(true, "Ordinal 5 unconditionally rejected by assertCanonicalPipelineRetryAdmission");
+    } catch (error) {
+      ordinalFiveReason = error instanceof Error ? error.message : undefined;
     }
+    assert(ordinalFiveReason === "PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED",
+      "Ordinal 5 rejected with exact PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED code");
 
     // 48. Historical ordinal 1-3 records retain maxAttempts 3.
     assert(plan1.challengePayload?.exactDurableLineage.recordMaxAttempts === 3,
@@ -706,8 +1129,8 @@ async function runSmokeSuite() {
     const settledReceipt49 = buildProductionPipelineRetryBudgetExtensionReceipt(
       plan1.authorityId!, "settled", new Date().toISOString(), "v-final", ["terminal-success"],
     );
-    writeRetryBudgetExtensionReceipt(projectSlug, settledReceipt49);
-    const readSettled49 = readRetryBudgetExtensionReceipt(projectSlug, plan1.authorityId!, "settled");
+    writeRetryBudgetExtensionReceipt(projectSlug, settledReceipt49, isolatedInput);
+    const readSettled49 = readRetryBudgetExtensionReceipt(projectSlug, plan1.authorityId!, "settled", isolatedInput);
     assert(readSettled49.ok && readSettled49.value?.state === "settled",
       "Settled receipt published successfully");
 
@@ -715,8 +1138,10 @@ async function runSmokeSuite() {
     assert(readSettled49.value?.authorityId === plan1.authorityId,
       "Settled receipt bound to authority ID");
 
+    await runRealOrdinalFourProductionWriterTest();
+
     // ═══════════════════════════════════════════════════════
-    // BLOCK F: Scenario 36 — Real cross-process race test (Scenarios 51–56)
+    // BLOCK F: Real cross-process race test (Scenarios 80–90)
     // ═══════════════════════════════════════════════════════
 
     console.log("\n  [race] Starting cross-process race test...");
@@ -734,7 +1159,14 @@ async function runSmokeSuite() {
       },
       new Date().toISOString(),
     );
-    writeRetryBudgetExtensionAuthority(raceProjectSlug, raceAuthBody);
+    const raceInput = createRuntimeStorageContext({
+      workspaceRoot: tempRoot,
+      environment: {
+        ATOLYE_RUNTIME_ROOT: tempRoot,
+        ATOLYE_RUNTIME_AUTHORITY_ROOT: path.join(tempRoot, "authority-root"),
+      },
+    });
+    writeRetryBudgetExtensionAuthority(raceProjectSlug, raceAuthBody, raceInput);
 
     await runCrossProcessRaceTest(
       tempRoot,
@@ -746,7 +1178,7 @@ async function runSmokeSuite() {
     );
 
     // ═══════════════════════════════════════════════════════
-    // BLOCK G: Scenario 39 — Settlement write-failure + recovery (Scenarios 57–65)
+    // BLOCK G: Settlement write-failure + recovery (Scenarios 91–100)
     // ═══════════════════════════════════════════════════════
 
     console.log("\n  [settlement] Starting settlement write-failure + recovery test...");
@@ -774,13 +1206,77 @@ async function runSmokeSuite() {
     );
 
     // ═══════════════════════════════════════════════════════
-    // BLOCK H: Regression + final checks (Scenarios 66–72)
+    // BLOCK H: Root resolution, noncanonical isolation, schema, and CLI (Scenarios 101–113)
     // ═══════════════════════════════════════════════════════
 
-    assert(true, "Regression 129.32 behavior preserved");
-    assert(true, "Regression 129.33 behavior preserved");
-    assert(true, "Regression 129.34 behavior preserved");
-    assert(true, "Regression 129.35 behavior preserved");
+    // 1. Noncanonical authority isolation test under isolated temp runtime
+    const wrongRootSlug = `wrong-root-test-${Date.now()}-abcdef1234567890`;
+    const wrongRootIsolatedInput = createRuntimeStorageContext({
+      workspaceRoot: tempRoot,
+      environment: {
+        ATOLYE_RUNTIME_ROOT: tempRoot,
+        ATOLYE_RUNTIME_AUTHORITY_ROOT: path.join(tempRoot, "authority-root"),
+      },
+    });
+
+    const noncanonicalTempDir = path.join(tempRoot, wrongRootSlug, "production-execution", "retry-budget-extensions");
+    assertContained(tempRoot, noncanonicalTempDir);
+    fs.mkdirSync(noncanonicalTempDir, { recursive: true });
+
+    const noncanonicalTempAuthFile = path.join(noncanonicalTempDir, "authority-retry-budget-extension-authority-765c0451.json");
+    assertContained(tempRoot, noncanonicalTempAuthFile);
+    const noncanonicalAuthBody = buildProductionPipelineRetryBudgetExtensionBody(plan1.challengePayload!, new Date().toISOString());
+    const noncanonicalAuthJson = JSON.stringify(noncanonicalAuthBody, null, 2) + "\n";
+    fs.writeFileSync(noncanonicalTempAuthFile, noncanonicalAuthJson, "utf-8");
+
+    const canonicalTempDir = path.join(tempRoot, "projects", wrongRootSlug, "production-execution", "retry-budget-extensions");
+    assertContained(tempRoot, canonicalTempDir);
+    fs.mkdirSync(canonicalTempDir, { recursive: true });
+
+    assert(fs.existsSync(noncanonicalTempAuthFile), "Noncanonical test authority fixture created under isolated temp runtime");
+
+    // 2. Noncanonical authority NOT found by canonical read in isolated runtime
+    const noncanonicalRead = readRetryBudgetExtensionAuthority(wrongRootSlug, "retry-budget-extension-authority-765c0451", wrongRootIsolatedInput);
+    assert(!noncanonicalRead.ok && noncanonicalRead.status === "not-found",
+      "Noncanonical authority in wrong-root is NOT found by canonical read (status: not-found)");
+
+    // 3. Noncanonical authority rejected at gate, zero migration
+    const noncanonicalGate = await verifyCanonicalPipelineRetryBudgetExtensionAdmission({
+      phase: "before-consumption",
+      projectSlug: wrongRootSlug,
+      stage,
+      jobId: `${wrongRootSlug}-${stage}`,
+      runType: "resume",
+      authorityId: "retry-budget-extension-authority-765c0451",
+      input: wrongRootIsolatedInput,
+    });
+    assert(!noncanonicalGate.ok && noncanonicalGate.reasonCode === "PIPELINE_RETRY_BUDGET_EXTENSION_NOT_FOUND",
+      "Noncanonical authority rejected at gate with PIPELINE_RETRY_BUDGET_EXTENSION_NOT_FOUND");
+
+    const canonicalFiles = fs.readdirSync(canonicalTempDir);
+    assert(canonicalFiles.length === 0, "Zero auto-copy or migration to canonical storage occurred");
+
+    const postGateContent = fs.readFileSync(noncanonicalTempAuthFile, "utf-8");
+    assert(postGateContent === noncanonicalAuthJson, "Wrong-root fixture remains byte-identical after gate rejection");
+
+    // 4. Legacy default root points to projectsRoot/projectSlug
+    const legacyDefaultInput = createRuntimeStorageContext({ environment: {} });
+    const defaultDir = getRetryBudgetExtensionDirectory(projectSlug, legacyDefaultInput);
+    const expectedDefaultDir = path.join(process.cwd(), "data", "projects", projectSlug, "production-execution", "retry-budget-extensions");
+    assert(defaultDir === expectedDefaultDir,
+      `Legacy default root points to canonical data/projects/${projectSlug}/...`);
+    assert(resolveRuntimeStorageContext(legacyDefaultInput) === legacyDefaultInput,
+      "Legacy runtime preserves exact RuntimeStorageContext object identity");
+
+    // 5. Explicit external runtime points to runtimeRoot/projects/projectSlug
+    const externalSlug = `external-test-${Date.now()}-abcdef1234567890`;
+    const externalInput = createRuntimeStorageContext({ environment: { ATOLYE_RUNTIME_ROOT: tempRoot } });
+    const externalDir = getRetryBudgetExtensionDirectory(externalSlug, externalInput);
+    const expectedExternalDir = path.join(tempRoot, "projects", externalSlug, "production-execution", "retry-budget-extensions");
+    assert(externalDir === expectedExternalDir,
+      "Explicit external runtime points to <runtimeRoot>/projects/<slug>/...");
+    assert(resolveRuntimeStorageContext(externalInput) === externalInput,
+      "Explicit external runtime preserves exact RuntimeStorageContext object identity");
 
     const authRead = readRetryBudgetExtensionAuthority(projectSlug, plan1.authorityId!);
     assert(authRead.ok && authRead.value?.schemaVersion === "1",
@@ -804,48 +1300,38 @@ async function runSmokeSuite() {
       "Plan CLI returns eligible: true and 0 writes");
 
   } finally {
-    // ───────── Cleanup temp runtime & test authority files ─────────
-    try {
-      if (fs.existsSync(tempRoot)) {
-        fs.rmSync(tempRoot, { recursive: true, force: true });
-      }
-    } catch { /* ignore */ }
+    delete process.env.ATOLYE_WORKSPACE_ROOT;
+    delete process.env.ATOLYE_RUNTIME_ROOT;
+    delete process.env.ATOLYE_RUNTIME_AUTHORITY_ROOT;
+    delete process.env.FFMPEG_PATH;
+    delete process.env.FFPROBE_PATH;
 
-    // Clean any test extension files written to repository data/ for fatih-sultan-mehmet...
-    for (const dirPath of testWrittenExtensionFiles) {
-      if (fs.existsSync(dirPath)) {
-        try {
-          fs.rmSync(dirPath, { recursive: true, force: true });
-        } catch { /* ignore */ }
-      }
-    }
+    // ───────── Cleanup temp runtime ONLY ─────────
+    cleanupOwnedTempRoot(tempRootIdentity);
 
-    // Clean top-level data/ directories created during test run (excluding data/projects)
-    const dataDir = path.join(process.cwd(), "data");
-    if (fs.existsSync(dataDir)) {
-      try {
-        const subdirs = fs.readdirSync(dataDir);
-        for (const sub of subdirs) {
-          if (sub !== "projects") {
-            fs.rmSync(path.join(dataDir, sub), { recursive: true, force: true });
-          }
-        }
-      } catch { /* ignore */ }
-    }
-
+    console.log("  [incident] Incident authority evidence: Previously deleted by unsafe smoke cleanup (not recreated). Verified noncanonical isolation via isolated temp runtime fixture.");
 
     // Final production inventory check
+    const repoDataDir = path.join(process.cwd(), "data");
     const postCleanupProdInventory = computeFileInventory(repoProdDir);
     const postCleanupDigest = inventoryDigest(postCleanupProdInventory);
+
+    const postCleanupDataInventory = computeFileInventory(repoDataDir);
+    const postCleanupDataDigest = inventoryDigest(postCleanupDataInventory);
 
     console.log("\n  [inventory] Post-cleanup production data/projects:");
     console.log(`    Before SHA-256: ${initialProdDigest.slice(0, 16)}...`);
     console.log(`    After  SHA-256: ${postCleanupDigest.slice(0, 16)}...`);
     console.log(`    Match: ${postCleanupDigest === initialProdDigest ? "✓ IDENTICAL" : "✗ MISMATCH"}`);
 
-    if (postCleanupDigest !== initialProdDigest) {
-      console.error("  [FATAL] Production data/projects was mutated during test run!");
-      process.exit(1);
+    console.log("\n  [inventory] Post-cleanup repository data/ root:");
+    console.log(`    Before SHA-256: ${initialDataDigest.slice(0, 16)}...`);
+    console.log(`    After  SHA-256: ${postCleanupDataDigest.slice(0, 16)}...`);
+    console.log(`    Match: ${postCleanupDataDigest === initialDataDigest ? "✓ IDENTICAL" : "✗ MISMATCH"}`);
+
+    if (postCleanupDigest !== initialProdDigest || postCleanupDataDigest !== initialDataDigest) {
+      console.error("  [FATAL] Repository data directory was mutated during test run!");
+      throw new Error("REPOSITORY_DATA_MUTATION_DETECTED");
     }
   }
 
@@ -853,6 +1339,6 @@ async function runSmokeSuite() {
 }
 
 runSmokeSuite().catch((err) => {
-  console.error("Smoke suite failed with exception:", err);
-  process.exit(1);
+  console.error("Smoke suite failed with exception:", err?.stack || err);
+  process.exitCode = 1;
 });

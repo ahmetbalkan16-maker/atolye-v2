@@ -40,6 +40,7 @@ import {
   planRetryBudgetExtension,
   applyRetryBudgetExtension,
 } from "./ProductionPipelineRetryBudgetExtensionService";
+import { createRuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
 
 const CONFIRM_FLAG = "--confirm-production-acceptance";
 const REPREPARE_CONFIRM_FLAG = "--confirm-production-acceptance-reprepare";
@@ -179,11 +180,13 @@ export async function runProductionAcceptanceCommand(
       const parsed = parseRetryBudgetExtensionPlanArguments(args.slice(1));
       if ("errorCode" in parsed) return commandFailure(parsed.errorCode);
       requestedProjectSlug = parsed.projectSlug;
+      const storageContext = createRuntimeStorageContext();
       const plan = await planRetryBudgetExtension(
         parsed.projectSlug,
         parsed.stage,
         parsed.jobId,
         parsed.reason,
+        storageContext,
       );
       return {
         exitCode: plan.eligible ? 0 : 1,
@@ -194,6 +197,7 @@ export async function runProductionAcceptanceCommand(
       const parsed = parseExtendRetryBudgetArguments(args.slice(1));
       if ("errorCode" in parsed) return commandFailure(parsed.errorCode);
       requestedProjectSlug = parsed.projectSlug;
+      const storageContext = createRuntimeStorageContext();
       const result = await applyRetryBudgetExtension(
         parsed.projectSlug,
         parsed.stage,
@@ -201,6 +205,7 @@ export async function runProductionAcceptanceCommand(
         parsed.reason,
         parsed.authorityId,
         parsed.confirmation,
+        storageContext,
       );
       return {
         exitCode: result.success ? 0 : 1,
@@ -288,6 +293,8 @@ function commandFailure(errorCode: string): ProductionAcceptanceCommandResult {
         `reprepare --project-slug=<slug> ${REPREPARE_CONFIRM_FLAG}`,
         "legacy-reauthorization-plan --project-slug=<slug> --source-marker-sha256=<64-hex>",
         "reauthorize-legacy --project-slug=<slug> --source-marker-sha256=<64-hex> --reason=legacy-environment-unrecoverable --reauthorization-id=<64-hex> --confirm-production-acceptance-legacy-reauthorization=<64-hex>",
+        "retry-budget-extension-plan --project-slug=<slug> --stage=<stage> --job-id=<jobId> --reason=<reason>",
+        "extend-retry-budget --project-slug=<slug> --stage=<stage> --job-id=<jobId> --reason=<reason> --authority-id=<id> --confirm-production-retry-budget-extension=<id>",
       ],
     },
   };

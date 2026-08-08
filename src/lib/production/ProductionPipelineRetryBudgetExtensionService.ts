@@ -88,12 +88,20 @@ export interface RetryBudgetExtensionApplyResult {
   readonly evidence: readonly string[];
 }
 
+import {
+  type RuntimeStorageInput,
+  getProjectRoot,
+  resolveRuntimeStorageContext,
+} from "@/lib/runtime/RuntimeStoragePaths";
+
 export async function planRetryBudgetExtension(
   projectSlug: string,
   stage: ProductionStepKey,
   jobId: string,
   reason: string,
+  input: RuntimeStorageInput = {},
 ): Promise<RetryBudgetExtensionPlanResult> {
+  const context = resolveRuntimeStorageContext(input);
   const targetJobId = `${projectSlug}-${stage}`;
   if (jobId !== targetJobId) {
     return {
@@ -107,7 +115,7 @@ export async function planRetryBudgetExtension(
     };
   }
 
-  const projectPath = path.join(process.cwd(), "data", "projects", projectSlug);
+  const projectPath = getProjectRoot(projectSlug, context);
   if (!fs.existsSync(projectPath)) {
     return {
       eligible: false,
@@ -181,7 +189,7 @@ export async function planRetryBudgetExtension(
   }
 
   const adapter = new ProductionExecutionFilePersistenceAdapter({
-    trustedRootDirectory: path.join(process.cwd(), "data", "projects", projectSlug, "production-execution"),
+    trustedRootDirectory: path.join(projectPath, "production-execution"),
     createRootDirectory: false,
   });
 
@@ -276,7 +284,7 @@ export async function planRetryBudgetExtension(
   const configurationFingerprint = marker.configurationFingerprint;
   const authorityFingerprint = stableProductionId("runtime-authority-fingerprint", {
     projectSlug,
-    runtimeRoot: path.join(process.cwd(), "data", "projects", projectSlug, "production-execution"),
+    runtimeRoot: path.join(projectPath, "production-execution"),
   });
 
   const preMutationJobFingerprint = stableProductionId(
@@ -352,7 +360,9 @@ export async function applyRetryBudgetExtension(
   reason: string,
   authorityId: string,
   confirmation: string,
+  input: RuntimeStorageInput = {},
 ): Promise<RetryBudgetExtensionApplyResult> {
+  const context = resolveRuntimeStorageContext(input);
   if (!authorityId || !confirmation || authorityId !== confirmation || !/^[a-z0-9-]{16,128}$/i.test(authorityId)) {
     return {
       mode: "extend-retry-budget",
@@ -373,7 +383,7 @@ export async function applyRetryBudgetExtension(
   }
 
   return PipelineJobManager.withProjectLock(projectSlug, async () => {
-    const plan = await planRetryBudgetExtension(projectSlug, stage, jobId, reason);
+    const plan = await planRetryBudgetExtension(projectSlug, stage, jobId, reason, context);
     if (!plan.eligible || !plan.authorityId || !plan.challengePayload) {
       return {
         mode: "extend-retry-budget",
@@ -412,7 +422,7 @@ export async function applyRetryBudgetExtension(
       };
     }
 
-    const existing = readRetryBudgetExtensionAuthority(projectSlug, authorityId);
+    const existing = readRetryBudgetExtensionAuthority(projectSlug, authorityId, context);
     if (existing.ok && existing.value) {
       const existingPayload = authorityChallengePayloadFromPublished(existing.value);
       const computedId = computeRetryBudgetExtensionAuthorityId(existingPayload);
@@ -459,7 +469,7 @@ export async function applyRetryBudgetExtension(
       issuedAt,
     );
 
-    const writeResult = writeRetryBudgetExtensionAuthority(projectSlug, body);
+    const writeResult = writeRetryBudgetExtensionAuthority(projectSlug, body, context);
     if (!writeResult.ok) {
       return {
         mode: "extend-retry-budget",
@@ -474,12 +484,12 @@ export async function applyRetryBudgetExtension(
         projectSlug,
         stage,
         jobId,
-        reasonCode: writeResult.reasonCode,
+        reasonCode: writeResult.reasonCode || "PIPELINE_RETRY_BUDGET_EXTENSION_PUBLICATION_FAILED",
         evidence: [...writeResult.evidence],
       };
     }
 
-    const readback = readRetryBudgetExtensionAuthority(projectSlug, authorityId);
+    const readback = readRetryBudgetExtensionAuthority(projectSlug, authorityId, context);
     if (!readback.ok || !readback.value) {
       return {
         mode: "extend-retry-budget",

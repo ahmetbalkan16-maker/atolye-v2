@@ -1,5 +1,6 @@
 import type { ProductionExecutionDurableRecord } from "./productionExecutionDurableStorage";
 import type { ProductionExecutionPersistenceDiagnostic } from "./productionExecutionPersistence";
+import type { RetryBudgetExtensionDurableBinding } from "./productionPipelineRetryBudgetExtension";
 
 export const productionExecutionDurableLeaseSchemaVersion = "1" as const;
 export type ProductionExecutionDurableLeaseReasonCode =
@@ -19,9 +20,10 @@ export interface ProductionExecutionDurableLease {
   schemaVersion: typeof productionExecutionDurableLeaseSchemaVersion; identity: ProductionExecutionDurableLeaseIdentity;
   status: "active" | "released" | "cancelled"; acquiredAt: string; heartbeatAt: string; expiresAt: string; releasedAt?: string; cancelledAt?: string;
   version: number; ownership: ProductionExecutionLeaseOwnershipEvidence; integrity: { algorithm: "stable-production-id-v1"; fingerprint: string };
+  retryBudgetExtension?: RetryBudgetExtensionDurableBinding;
 }
 export interface ProductionExecutionDurableLeasePolicy { policyVersion: string; reservationTtlSeconds: number; minimumLeaseDurationSeconds: number; maximumLeaseDurationSeconds: number; maximumRenewalWindowSeconds: number }
-interface LeaseMutationBase { recordId: string; expectedVersion: number; evaluatedAt: string; worker: ProductionExecutionDurableWorkerIdentity; session: ProductionExecutionWorkerSessionIdentity; leaseId: string }
+interface LeaseMutationBase { recordId: string; expectedVersion: number; evaluatedAt: string; worker: ProductionExecutionDurableWorkerIdentity; session: ProductionExecutionWorkerSessionIdentity; leaseId: string; retryBudgetExtension?: RetryBudgetExtensionDurableBinding }
 export interface ProductionExecutionLeaseAcquisitionRequest extends LeaseMutationBase { acquiredAt: string; heartbeatAt: string; expiresAt: string }
 export interface ProductionExecutionLeaseHeartbeatRequest extends LeaseMutationBase { heartbeatAt: string; expiresAt: string }
 export interface ProductionExecutionLeaseReleaseRequest extends LeaseMutationBase { releasedAt: string }

@@ -1,5 +1,9 @@
-import { ProjectReader } from "@/lib/projects/ProjectReader";
 import type { PipelineJob } from "@/types/pipelineJob";
+import {
+  type RuntimeStorageContext,
+  getProjectRoot,
+  resolveRuntimeStorageContext,
+} from "@/lib/runtime/RuntimeStoragePaths";
 import { AdapterBackedProductionExecutionClaimService } from "./ProductionExecutionDurableClaim";
 import { AdapterBackedProductionExecutionAttemptService,
   defaultProductionExecutionAttemptPolicy } from "./ProductionExecutionDurableAttempt";
@@ -51,8 +55,10 @@ export async function reconcileFailedPipelineExecution(
   /** @internal Isolated-test dependency seam; production callers never provide it. */
   dependencies: {
     createAdapter?: (trustedRootDirectory: string) => ProductionExecutionPersistenceAdapter;
+    storageContext?: RuntimeStorageContext;
   } = {},
 ): Promise<ProductionPipelineRetryReconciliationResult> {
+  const storageContext = dependencies.storageContext ?? resolveRuntimeStorageContext();
   if (job.status !== "failed") {
     return failure("PIPELINE_RETRY_DURABLE_CONFLICT", "job:not-failed");
   }
@@ -67,7 +73,7 @@ export async function reconcileFailedPipelineExecution(
     { id: job.id, attempts: durableAttemptOrdinal },
   );
   const trustedRootDirectory =
-    `${ProjectReader.getProjectFolder(job.projectSlug)}/production-execution`;
+    `${getProjectRoot(job.projectSlug, storageContext)}/production-execution`;
   const adapter = dependencies.createAdapter?.(trustedRootDirectory) ??
     new ProductionExecutionFilePersistenceAdapter({
       trustedRootDirectory,
@@ -183,6 +189,7 @@ export async function reconcileFailedPipelineExecution(
     session,
     expectedProjectSlug: job.projectSlug,
     expectedStage: job.stage,
+    storageContext,
   }, {
     schemaVersion: "1", ok: true, decision: "replayed",
     reasonCode: "WORKER_EXECUTION_REPLAYED", status: "failed", attempt,
@@ -207,8 +214,17 @@ export async function reconcileFailedPipelineExecution(
   }
   const finalLease = finalRecord.record.durableLease;
   const finalReservation = finalReservationRead.value;
+  const historicalRunType = runTypeFromOperation(finalRecord.record.operation);
+  if (!historicalRunType) {
+    return failure("PIPELINE_RETRY_DURABLE_CONFLICT", "durable:operation-invalid");
+  }
+  const finalIdentity = buildProductionPipelineExecutionIdentity({
+    projectSlug: job.projectSlug,
+    stage: job.stage,
+    runType: historicalRunType,
+  }, { id: job.id, attempts: durableAttemptOrdinal });
   return success(settled.writeFree ? "PIPELINE_RETRY_RECONCILIATION_REPLAYED" :
-    "PIPELINE_RETRY_RECONCILED", settled.writeFree, "attempt:immutable", identity, {
+    "PIPELINE_RETRY_RECONCILED", settled.writeFree, "attempt:immutable", finalIdentity, {
       state: "terminal", operation: finalRecord.record.operation,
       durableOrdinal: finalRecord.record.attempt, maxAttempts: finalRecord.record.maxAttempts,
       reservationId: finalAttempt.attempt.identity.reservationId,
@@ -226,6 +242,13 @@ export async function reconcileFailedPipelineExecution(
       claimIntegrityFingerprint: finalClaim.claim.integrity.fingerprint,
       attemptIntegrityFingerprint: finalAttempt.attempt.integrity.fingerprint,
     });
+}
+
+function runTypeFromOperation(operation: string): "initial" | "retry" | "resume" | undefined {
+  if (operation === "pipeline.stage.initial") return "initial";
+  if (operation === "pipeline.stage.retry") return "retry";
+  if (operation === "pipeline.stage.resume") return "resume";
+  return undefined;
 }
 
 function mapSettlementFailure(reasonCode: string): Exclude<

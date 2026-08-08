@@ -1,6 +1,18 @@
 ---
 
 <!-- SPRINT-129.36-START -->
+- [x] 2026-08-08 independent re-review remediation: integrated the canonical ordinal-4 extension
+  binding into the real reservation/record/lease/claim/attempt production writer and proved a real
+  operation-owned `before-execution` PASS plus deterministic negative matrices.
+- [x] Propagated one exact trusted runtime context object from CLI/service through retry transaction,
+  reconciliation, durable creation/gate, runner, and settlement; retained canonical
+  `<runtime>/projects/<slug>/production-execution/retry-budget-extensions` resolution.
+- [x] Authenticated the two-child ready/start race barrier, enforced exit codes and winner-only
+  `consumedOk`, and hardened failure cleanup against symlinks and reparse points.
+- [x] Final evidence: TypeScript PASS; 129.32 `18/18`, 129.33 `54/54`, 129.34 `7/7`,
+  129.35 `32/32`, and 129.36 `113/113` twice. The 129.33 CAS-race fixture no longer waits on its
+  own mutation lock; production lock semantics are unchanged.
+
 ## Sprint 129.36 — Explicit One-Time Retry Budget Extension Authority
 
 **Status:** REMEDIATION COMPLETED — READY FOR INDEPENDENT RE-REVIEW
@@ -29,12 +41,12 @@
 - [x] **Remediated all 7 independent review findings (P0×1, P1×2, P2×4):**
   - P0: Added module-private fail-closed `parseConsumedRetryBudgetAuthorityId()` filename parser in `PipelineRunner.ts`.
   - P1: Full `mkdtemp` test runtime isolation in `smoke-sprint-129-36-retry-budget-extension.ts`. Zero files written to `data/projects`.
-  - P1: Implemented real OS-level cross-process race test (Scenario 36) using `child_process.fork()` with `smoke-sprint-129-36-race-worker.ts`.
+  - P1: Implemented real OS-level cross-process consuming-intent race coverage (scenarios 80–90) using `child_process.fork()` with `smoke-sprint-129-36-race-worker.ts`.
   - P1: Added `before-execution` phase durable sibling verification in `ProductionPipelineRetryBudgetExtensionGate.ts`.
-  - P2: Added fault-injection settlement write-failure + recovery test (Scenario 39).
+  - P2: Added fault-injection settlement write-failure recovery coverage (scenarios 91–100).
   - P2: Corrected scenario 23 temp path usage in smoke test.
   - P2: Replaced destructuring with `authorityChallengePayloadFromPublished()` projection helper to eliminate all ESLint warnings.
-- [x] 74/74 smoke scenarios pass (2 consecutive runs pass 100%).
+- [x] 113/113 smoke scenarios pass (2 consecutive runs pass 100%).
 - [x] Sprint 129.32–129.35 regressions: 18/18 + 54/54 + 7/7 + 32/32 = 111 scenarios pass.
 - [x] TypeScript `--noEmit` PASS; ESLint 0 errors 0 warnings.
 - [x] `data/projects` byte immutability preserved; aggregate SHA-256 and file inventory 100% byte-identical.
@@ -170,7 +182,7 @@ Completed:
 - all 14 hostile global-quiescence cases assert exact false/false/true/false quiescence/write-performed/write-free/recovery-attempted output plus zero writer, lock-gate, provider, and network calls
 - fail-closed non-write-free uncertain commit semantics for writer/readback and lock/gate release failures, with deterministic forward completion and no automatic rollback/requeue/continuation
 - complete canonical validation of every non-target terminal authority chain, including orphan/corrupt/wrong-link/duplicate/conflicting authority rejection
-- dedicated final smoke suite `scripts/smoke-sprint-129-33-exhausted-retry-admission.ts` (54/54 PASS), including 59 adapter-backed persisted-lineage mutations, 6 post-check two-child races, 14 named non-target authority mutations, real CLI, PID-reuse/publication-failure evidence, concurrent seeding, post-commit readback failure, and genuine lock-writer child processes
+- dedicated final smoke suite `scripts/smoke-sprint-129-33-exhausted-retry-admission.ts` (54/54 PASS), including 59 adapter-backed persisted-lineage mutations, 8 post-check two-child races, 14 named non-target authority mutations, real CLI, PID-reuse/publication-failure evidence, concurrent seeding, post-commit readback failure, and genuine lock-writer child processes
 - admission storage-construction/provider/worker/stage/fetch/http/https/network counters `0/0/0/0/0/0/0/0`; operation-owned runtime/authority/lock remainder `0/0/0`; pre-existing shared inventory `81`, newly created shared inventory `0`
 - production data in `data/projects` untouched
 

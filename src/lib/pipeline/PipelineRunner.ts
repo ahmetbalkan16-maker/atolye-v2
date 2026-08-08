@@ -1,8 +1,8 @@
 import fs from "node:fs";
-import path from "node:path";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { PipelineJobManager } from "./PipelineJobManager";
 import { createRuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
+import { getRetryBudgetExtensionDirectory } from "@/lib/production/ProductionPipelineRetryBudgetExtensionStore";
 import { verifyCanonicalPipelineRetryBudgetExtensionAdmission } from "@/lib/production/ProductionPipelineRetryBudgetExtensionGate";
 import { PipelineQueueScheduler } from "./PipelineQueueScheduler";
 import {
@@ -264,7 +264,7 @@ export class PipelineRunner {
         let isConsumedExtensionResume = false;
         if (startJob.attempts === 3) {
           const context = createRuntimeStorageContext();
-          const dir = path.join(context.runtimeRoot, projectSlug, "production-execution", "retry-budget-extensions");
+          const dir = getRetryBudgetExtensionDirectory(projectSlug, context);
           if (fs.existsSync(dir)) {
             try {
               const files = fs.readdirSync(dir);
@@ -279,13 +279,13 @@ export class PipelineRunner {
                   runType: "resume",
                   authorityId: authId,
                   jobVersion: startJob.updatedAt,
+                  input: context,
                 });
                 if (gateCheck.ok) {
                   isConsumedExtensionResume = true;
                   break;
                 }
               }
-
             } catch { /* ignore */ }
           }
         }

@@ -7,7 +7,10 @@ import {
   validateExtensionBodyIntegrity,
   validateExtensionReceiptIntegrity,
 } from "./ProductionPipelineRetryBudgetExtensionSchema";
-import { createRuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
+import {
+  type RuntimeStorageInput,
+  getProjectRoot,
+} from "@/lib/runtime/RuntimeStoragePaths";
 
 export interface RetryBudgetExtensionStoreResult<T> {
   readonly ok: boolean;
@@ -18,13 +21,32 @@ export interface RetryBudgetExtensionStoreResult<T> {
   readonly evidence: readonly string[];
 }
 
-export function getRetryBudgetExtensionDirectory(projectSlug: string): string {
-  const context = createRuntimeStorageContext();
-  return path.join(context.runtimeRoot, projectSlug, "production-execution", "retry-budget-extensions");
+export function getRetryBudgetExtensionDirectory(
+  projectSlug: string,
+  input: RuntimeStorageInput = {},
+): string {
+  const projectRoot = getProjectRoot(projectSlug, input);
+  return path.join(projectRoot, "production-execution", "retry-budget-extensions");
 }
 
-function ensureExtensionDirectory(projectSlug: string): string {
-  const dir = getRetryBudgetExtensionDirectory(projectSlug);
+function assertCanonicalProjectContainment(
+  projectSlug: string,
+  targetPath: string,
+  input: RuntimeStorageInput = {},
+): void {
+  const projectRoot = getProjectRoot(projectSlug, input);
+  const rel = path.relative(projectRoot, targetPath);
+  if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) {
+    throw new Error(`CANONICAL_CONTAINMENT_VIOLATION: ${targetPath} is outside project root ${projectRoot}`);
+  }
+}
+
+function ensureExtensionDirectory(
+  projectSlug: string,
+  input: RuntimeStorageInput = {},
+): string {
+  const dir = getRetryBudgetExtensionDirectory(projectSlug, input);
+  assertCanonicalProjectContainment(projectSlug, dir, input);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -34,6 +56,7 @@ function ensureExtensionDirectory(projectSlug: string): string {
 export function writeRetryBudgetExtensionAuthority(
   projectSlug: string,
   body: ProductionPipelineRetryBudgetExtensionBody,
+  input: RuntimeStorageInput = {},
 ): RetryBudgetExtensionStoreResult<ProductionPipelineRetryBudgetExtensionBody> {
   if (!validateExtensionBodyIntegrity(body)) {
     return {
@@ -45,8 +68,9 @@ export function writeRetryBudgetExtensionAuthority(
     };
   }
 
-  const dir = ensureExtensionDirectory(projectSlug);
+  const dir = ensureExtensionDirectory(projectSlug, input);
   const authorityPath = path.join(dir, `authority-${body.authorityId}.json`);
+  assertCanonicalProjectContainment(projectSlug, authorityPath, input);
 
   if (fs.existsSync(authorityPath)) {
     try {
@@ -128,9 +152,11 @@ export function writeRetryBudgetExtensionAuthority(
 export function readRetryBudgetExtensionAuthority(
   projectSlug: string,
   authorityId: string,
+  input: RuntimeStorageInput = {},
 ): RetryBudgetExtensionStoreResult<ProductionPipelineRetryBudgetExtensionBody> {
-  const dir = getRetryBudgetExtensionDirectory(projectSlug);
+  const dir = getRetryBudgetExtensionDirectory(projectSlug, input);
   const authorityPath = path.join(dir, `authority-${authorityId}.json`);
+  assertCanonicalProjectContainment(projectSlug, authorityPath, input);
   if (!fs.existsSync(authorityPath)) {
     return {
       ok: false,
@@ -174,6 +200,7 @@ export function readRetryBudgetExtensionAuthority(
 export function writeRetryBudgetExtensionReceipt(
   projectSlug: string,
   receipt: ProductionPipelineRetryBudgetExtensionReceipt,
+  input: RuntimeStorageInput = {},
 ): RetryBudgetExtensionStoreResult<ProductionPipelineRetryBudgetExtensionReceipt> {
   if (!validateExtensionReceiptIntegrity(receipt)) {
     return {
@@ -185,8 +212,9 @@ export function writeRetryBudgetExtensionReceipt(
     };
   }
 
-  const dir = ensureExtensionDirectory(projectSlug);
+  const dir = ensureExtensionDirectory(projectSlug, input);
   const receiptPath = path.join(dir, `receipt-${receipt.authorityId}-${receipt.state}.json`);
+  assertCanonicalProjectContainment(projectSlug, receiptPath, input);
 
   if (fs.existsSync(receiptPath)) {
     try {
@@ -274,9 +302,11 @@ export function readRetryBudgetExtensionReceipt(
   projectSlug: string,
   authorityId: string,
   state: RetryBudgetExtensionReceiptState,
+  input: RuntimeStorageInput = {},
 ): RetryBudgetExtensionStoreResult<ProductionPipelineRetryBudgetExtensionReceipt> {
-  const dir = getRetryBudgetExtensionDirectory(projectSlug);
+  const dir = getRetryBudgetExtensionDirectory(projectSlug, input);
   const receiptPath = path.join(dir, `receipt-${authorityId}-${state}.json`);
+  assertCanonicalProjectContainment(projectSlug, receiptPath, input);
   if (!fs.existsSync(receiptPath)) {
     return {
       ok: false,

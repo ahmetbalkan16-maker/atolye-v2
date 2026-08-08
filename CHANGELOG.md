@@ -1,6 +1,25 @@
 ---
 
 <!-- SPRINT-129.36-START -->
+### 2026-08-08 - Independent re-review remediation
+
+- Added the single canonical durable extension-binding producer to the real production factory;
+  reservation, record, lease, claim, and attempt persist the same ordinal-4 authority binding.
+- Added a real operation-owned ordinal-4 preparation that passes `before-execution`, plus
+  deterministic missing-sibling and mandatory-field mismatch matrices.
+- Preserved exact trusted runtime context object identity across CLI, plan/apply, failed retry,
+  transaction, reconciliation, durable gate/creation, runner, and settlement.
+- Replaced the race harness with authenticated child `ready` IPC and one parent `start` barrier;
+  both children enter the canonical store race after start. Exactly one `consumed` winner and one
+  `conflict` loser with `CONSUMING_INTENT_CONFLICT`, exit code 0, trusted authority validation, and
+  winner-only `consumedOk` are mandatory; `already-consumed` is not accepted.
+- Made assertion cleanup failure-safe and exact-root, physical-identity, symlink/junction, and
+  reparse guarded. Ordinal 5 now passes only for its exact rejection code.
+- Fixed Sprint 129.33's fixture-only CAS self-deadlock without changing production lock semantics.
+- Final evidence: TypeScript PASS; 129.32 `18/18`, 129.33 `54/54`, 129.34 `7/7`,
+  129.35 `32/32`, and 129.36 `113/113` twice. Repository `data/` and `data/projects/`
+  inventories remained byte-identical.
+
 ## 2026-08-05 — Sprint 129.36 Explicit One-Time Retry Budget Extension Authority
 
 ### Added
@@ -28,8 +47,12 @@
   - `readRetryBudgetExtensionReceipt`: reads and validates receipt body integrity.
   - `recoverLingeringConsumingIntent`: crash-safe consuming recovery — verifies job is still in the
     exact `failed/2` state before publishing `aborted` receipt.
-  - `getRetryBudgetExtensionDirectory`: resolves runtime extension directory (under runtime root,
-    NOT inside `data/projects`).
+  - `getRetryBudgetExtensionDirectory`: derives the canonical extension directory from
+    `context.projectsRoot`: legacy default resolves to
+    `<workspace>/data/projects/<slug>/production-execution/retry-budget-extensions`, while an
+    explicit runtime resolves to
+    `<runtime>/projects/<slug>/production-execution/retry-budget-extensions`. Noncanonical
+    `<runtime>/<slug>/...` is rejected, with no migration or copy fallback.
 
 - **`ProductionPipelineRetryBudgetExtensionGate.ts`** (new):
   - `verifyCanonicalPipelineRetryBudgetExtensionAdmission(phase, ...)`: three-phase gate.
@@ -50,25 +73,27 @@
     `consumed`. Integrated into `PipelineFailedStageRetry.prepareFailedStageRetry`.
 
 - **`scripts/smoke-sprint-129-36-retry-budget-extension.ts`** (new):
-  - 74-scenario isolated smoke suite covering: filename parser negative matrix (Scenarios 1–14),
-    plan eligibility (15–23), challenge payload verification (24–33), apply/authority replay (34–35),
-    gate phase enforcement (36–37), lingering intent recovery (38), readback & pre-durable preparation (39–41),
-    security & job binding guards (42–46), ordinal 5 rejection (47), historical record immutability (48),
-    settled receipt publishing (49–50), cross-process race test (51–56), settlement write-failure recovery (57–66),
-    sprint regressions (67–70), schema & CLI error contracts (71–74). 100% PASS across repeated runs.
+  - 113-scenario isolated smoke suite covering the executable section map: cleanup and parser guards
+    (1–16), plan/apply eligibility (17–25), challenge payload verification (26–35), apply/gate/recovery
+    (36–42), security, settlement, and real ordinal-4 five-sibling lineage matrices (43–79), exact
+    two-child cross-process race contract (80–90), settlement write-failure recovery (91–100), and
+    root isolation, exact runtime-context identity, schema, and CLI contracts (101–113). 100% PASS
+    across repeated runs.
 
 - **`scripts/smoke-sprint-129-36-race-worker.ts`** (new):
-  - Sub-process worker for Scenario 36 OS-level race condition test. Uses `fs.writeFileSync` with
-    `flag: "wx"` (exclusive create) to test atomic concurrent intent publishing between separate Node.js processes.
+  - Sub-process worker for the OS-level race condition test. It authenticates the trusted authority
+    through the canonical runtime context, then competes through the canonical retry-budget extension
+    store writer. The store primitive, rather than a worker-level direct filesystem write, owns the
+    no-clobber consuming-intent race.
 
 ### Fixed
 
 - **Remediated Sprint 129.36 Independent Review Findings (P0×1, P1×2, P2×4):**
   - **P0:** Implemented `parseConsumedRetryBudgetAuthorityId()` module-private fail-closed parser in `PipelineRunner.ts`. Replaced broken inline `.slice(8, 14)` which produced truncated 6-character IDs with full prefix/suffix stripping, anchored regex validation `[a-z0-9-]{16,128}`, traversal/separator rejection, and length boundaries.
   - **P1 (Test Isolation):** Isolated all test runtime under `mkdtemp` in `smoke-sprint-129-36-retry-budget-extension.ts`. Added containment assertions for all paths. `data/projects` directory is 100% untouched.
-  - **P1 (Cross-Process Race Test):** Added true OS-process level race test (Scenario 36) using `child_process.fork()` with a ready/start barrier, bounded timeout, exit-code check, and child process cleanup.
+  - **P1 (Cross-Process Race Test, scenarios 80–90):** Added a true OS-process-level consuming-intent race using `child_process.fork()` with a ready/start barrier, bounded timeout, exit-code check, and child process cleanup.
   - **P1 (Before-Execution Gate Durable Sibling Verification):** Added durable lineage sibling verification in `ProductionPipelineRetryBudgetExtensionGate.ts` (`verifyCanonicalPipelineRetryBudgetExtensionAdmission`). Reads reservation, record, lease, claim, attempt records from canonical durable storage and verifies exact lineage binding before allowing execution.
-  - **P2 (Settlement Write-Failure Recovery):** Added fault-injection recovery test (Scenario 39) for terminal settlement receipt publication failures.
+  - **P2 (Settlement Write-Failure Recovery, scenarios 91–100):** Added fault-injection recovery coverage for terminal settlement receipt publication failures.
   - **P2 (Scenario 23 Path Fix):** Corrected path references in smoke test scenario 23 to resolve against temp runtime root.
   - **P2 (ESLint Warnings):** Replaced destructuring omission patterns in `ProductionPipelineRetryBudgetExtensionService.ts` with explicit `authorityChallengePayloadFromPublished()` projection helper. Zero ESLint warnings across codebase.
 
@@ -97,7 +122,7 @@
 
 ### Validation
 
-- 48/48 smoke scenarios pass; idempotent across repeated runs.
+- 113/113 smoke scenarios pass in two consecutive runs.
 - Sprint 129.32–129.35 regressions: **18/18 + 54/54 + 7/7 + 32/32 = 111 scenarios**, all PASS.
 - TypeScript `--noEmit`: **0 errors, 0 warnings**.
 <!-- SPRINT-129.36-END -->
@@ -274,7 +299,7 @@
 - Added validated manifest execution-count to zero-based job-attempt conversion with history and present durable-lineage evidence.
 - Serialized auto-continuation admission before durable preparation; concurrent contenders now produce one execution and one safe no-op.
 - Rebuilt reconciled reservation/record/lease/claim/attempt authority through canonical readers and bound reservation, record, lease, claim, and attempt proofs separately and exactly before storage/provider construction; missing claim or attempt proofs fail closed.
-- Replaced lock/gate/stale shared-path check-then-delete with exclusive nonce-owned atomic quarantine rename and post-rename filesystem identity, owner-byte, containment, and manifest verification. Six real two-child post-check races preserve same-byte and different-owner foreign replacements.
+- Replaced lock/gate/stale shared-path check-then-delete with exclusive nonce-owned atomic quarantine rename and post-rename filesystem identity, owner-byte, containment, and manifest verification. Eight real two-child post-check races preserve same-byte and different-owner foreign replacements.
 - Isolated the acceptance-topic smoke in canonical operation-owned runtime/authority roots; all eight authority markers are owned and cleaned, shared authority receives zero new entries.
 - Added exact result assertions for all 14 named hostile global-quiescence cases: quiescence false, no write, write-free pre-mutation rejection, no recovery attempt, and zero writer/lock-gate/provider/network calls.
 - Made writer/readback and lock/gate release uncertainty fail-closed and non-write-free, without automatic rollback, requeue, continuation, or execution; deterministic read-only forward completion remains possible.
@@ -282,7 +307,7 @@
 
 ### Tests
 
-- Sprint 129.33 second-remediation suite: 54/54 PASS, including 59 persisted material-field poisoning cases, 6 real post-check two-child races, 14 exact global-quiescence authority cases, admission poisoning, manifest seeding, uncertain commit/readback/release states, PID reuse, publication cleanup, genuine lock writers, and actual CLI processes.
+- Sprint 129.33 second-remediation suite: 54/54 PASS, including 59 persisted material-field poisoning cases, 8 real post-check two-child races, 14 exact global-quiescence authority cases, admission poisoning, manifest seeding, uncertain commit/readback/release states, PID reuse, publication cleanup, genuine lock writers, and actual CLI processes.
 - Acceptance-topic isolation suite: 24/24 PASS; 8 operation-owned authority markers, 0 shared additions, and 0 runtime/authority remainder.
 - Sprint 129.32 retry durable attempt ordinal suite: 18/18 PASS.
 - Sprint 129.31 streaming WAV suite: 9/9 PASS.

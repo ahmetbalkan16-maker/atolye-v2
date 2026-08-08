@@ -280,6 +280,18 @@ async function createFixture(runtimeRoot: string, projectSlug: string) {
     return list;
   }
 
+  async function replaceJobBytesWithoutLockForRace(job: PipelineJob) {
+    const list: PipelineJobList = {
+      projectSlug,
+      jobs: [job],
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+    };
+    const target = path.join(projectFolder, "pipeline-jobs.json");
+    await fs.writeFile(target, `${JSON.stringify(list, null, 2)}\n`, "utf8");
+    return fs.readFile(target, "utf8");
+  }
+
   async function writeHistory(events: PipelineJobHistory["events"]) {
     const history: PipelineJobHistory = {
       projectSlug,
@@ -469,6 +481,7 @@ async function createFixture(runtimeRoot: string, projectSlug: string) {
     projectFolder,
     executionRoot,
     writeJob,
+    replaceJobBytesWithoutLockForRace,
     writeHistory,
     writeFailedManifest,
     executionFixture,
@@ -1118,8 +1131,9 @@ async function hostileMatrix() {
       await assertRejected(fixture, () => recoverQueuedExhaustedPipelineJobDrift(
         fixture.projectSlug, stage, { confirm: true }, {
           beforeCompareAndWrite: async () => {
-            await fixture.writeJob({ ...drift, updatedAt: "2026-07-02T01:00:00.000Z" });
-            competingRaw = (await fixture.snapshot()).jobs;
+            competingRaw = await fixture.replaceJobBytesWithoutLockForRace({
+              ...drift, updatedAt: "2026-07-02T01:00:00.000Z",
+            });
           },
         },
       ), { expectedJobs: () => competingRaw });

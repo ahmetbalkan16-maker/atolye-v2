@@ -60,6 +60,7 @@ export async function readProductionCanonicalTerminalDurableLineage(
   reservationId: string,
   expected?: ProductionCanonicalDurableLineageExpectedVersions,
   operationOverride?: string,
+  options: { readonly requireTerminal?: boolean } = {},
 ): Promise<ProductionCanonicalDurableLineage> {
   const reservationRead = await adapter.read("reservation", reservationId);
   if (reservationRead.status !== "found" ||
@@ -93,7 +94,9 @@ export async function readProductionCanonicalTerminalDurableLineage(
   assertIdentity(identity, reservationId, operationOverride ?? expected?.operation ??
     `pipeline.stage.${identity.core.attemptNumber === 0 ? "initial" : "retry"}`,
   reservation, record, lease, claim, attempt);
-  assertTerminalConsistency(record, lease, claim, attempt);
+  if (options.requireTerminal !== false) {
+    assertTerminalConsistency(record, lease, claim, attempt);
+  }
   if (expected) assertExpected(expected, reservation, record, lease, claim, attempt);
   return { reservation, record, lease, claim, attempt };
 }

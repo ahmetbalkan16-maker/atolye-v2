@@ -98,7 +98,7 @@ export function createRuntimeStorageContext(
   }
   const environment = options.environment ?? process.env;
   const workspaceRoot = canonicalAbsolutePath(
-    options.workspaceRoot ?? process.cwd(),
+    options.workspaceRoot ?? environment.ATOLYE_WORKSPACE_ROOT ?? process.cwd(),
     "RUNTIME_STORAGE_CONFIGURATION_INVALID",
   );
   const legacyProjectsRoot = getLegacyProjectsRoot(workspaceRoot);

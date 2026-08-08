@@ -1,5 +1,5 @@
 /**
- * Cross-process race worker for Sprint 129.36 Scenario 36.
+ * Cross-process retry-budget consuming-intent race worker for Sprint 129.36.
  *
  * This script is spawned as a child process by the smoke test to attempt
  * consuming a retry budget extension authority concurrently.
@@ -13,6 +13,7 @@
  *   --authority-id=<authId>
  */
 import { randomUUID } from "node:crypto";
+import path from "node:path";
 
 // Parse CLI args
 const args = Object.fromEntries(
@@ -36,25 +37,50 @@ async function run() {
   (process.env as Record<string, string>).AI_PROVIDER = "mock";
 
   try {
-    // Dynamically import after env is set
-    const { writeRetryBudgetExtensionReceipt, readRetryBudgetExtensionReceipt } =
+    const {
+      writeRetryBudgetExtensionReceipt,
+      readRetryBudgetExtensionReceipt,
+      readRetryBudgetExtensionAuthority,
+    } =
       await import("../src/lib/production/ProductionPipelineRetryBudgetExtensionStore.js");
     const { buildProductionPipelineRetryBudgetExtensionReceipt } =
       await import("../src/lib/production/ProductionPipelineRetryBudgetExtensionSchema.js");
+    const { createRuntimeStorageContext } = await import("../src/lib/runtime/RuntimeStoragePaths.js");
+    const input = createRuntimeStorageContext({
+      workspaceRoot: runtimeRoot,
+      environment: {
+        ATOLYE_RUNTIME_ROOT: runtimeRoot,
+        ATOLYE_RUNTIME_AUTHORITY_ROOT: process.env.ATOLYE_RUNTIME_AUTHORITY_ROOT || path.join(runtimeRoot, "authority-root"),
+      },
+    });
 
-    // Check pre-conditions
-    const alreadyConsumed = readRetryBudgetExtensionReceipt(projectSlug, authorityId, "consumed");
-    if (alreadyConsumed.ok) {
-      process.stdout.write(
-        JSON.stringify({
-          workerId,
-          outcome: "already-consumed",
-          reasonCode: "ALREADY_CONSUMED_BEFORE_ATTEMPT",
-          evidence: ["pre-check:already-consumed"],
-        }) + "\n",
-      );
-      return;
+    const authorityRead = readRetryBudgetExtensionAuthority(projectSlug, authorityId, input);
+    if (
+      !authorityRead.ok ||
+      !authorityRead.value ||
+      authorityRead.value.authorityId !== authorityId ||
+      authorityRead.value.projectSlug !== projectSlug ||
+      authorityRead.value.stage !== stage ||
+      authorityRead.value.jobId !== jobId ||
+      authorityRead.value.authorizedRunType !== "resume" ||
+      authorityRead.value.authorizedOperation !== "pipeline.stage.resume"
+    ) {
+      throw new Error("RACE_WORKER_AUTHORITY_VALIDATION_FAILED");
     }
+
+    process.send?.({ type: "ready", workerId, authorityValidated: true });
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("RACE_WORKER_START_TIMEOUT")), 30_000);
+      process.once("message", (message) => {
+        clearTimeout(timer);
+        if (!message || typeof message !== "object" ||
+          (message as { type?: string }).type !== "start") {
+          reject(new Error("RACE_WORKER_START_INVALID"));
+          return;
+        }
+        resolve();
+      });
+    });
 
     const now = new Date().toISOString();
 
@@ -67,31 +93,32 @@ async function run() {
       [`race:worker-${workerId}-consuming-intent`],
     );
 
-    const writeConsuming = writeRetryBudgetExtensionReceipt(projectSlug, consumingReceipt);
+    const writeConsuming = writeRetryBudgetExtensionReceipt(projectSlug, consumingReceipt, input);
 
     if (!writeConsuming.ok && writeConsuming.status !== "replayed") {
-      process.stdout.write(
-        JSON.stringify({
+      emitResult({
           workerId,
           outcome: "conflict",
           reasonCode: "CONSUMING_INTENT_CONFLICT",
+          authorityValidated: true,
+          consumedOk: false,
           evidence: [...writeConsuming.evidence],
-        }) + "\n",
-      );
+        });
       return;
     }
 
     // Consuming intent published — now verify we won the race by checking ownership
-    const readBack = readRetryBudgetExtensionReceipt(projectSlug, authorityId, "consuming");
-    if (!readBack.ok || !readBack.value) {
-      process.stdout.write(
-        JSON.stringify({
+    const readBack = readRetryBudgetExtensionReceipt(projectSlug, authorityId, "consuming", input);
+    if (!readBack.ok || !readBack.value ||
+      readBack.value.integrity.fingerprint !== consumingReceipt.integrity.fingerprint) {
+      emitResult({
           workerId,
           outcome: "conflict",
           reasonCode: "CONSUMING_INTENT_LOST_AFTER_WRITE",
+          authorityValidated: true,
+          consumedOk: false,
           evidence: ["readback:failed"],
-        }) + "\n",
-      );
+        });
       return;
     }
 
@@ -103,16 +130,19 @@ async function run() {
       `race-consumed-${workerId}`,
       [`race:worker-${workerId}-consumed`],
     );
-    const writeConsumed = writeRetryBudgetExtensionReceipt(projectSlug, consumedReceipt);
+    const writeConsumed = writeRetryBudgetExtensionReceipt(projectSlug, consumedReceipt, input);
+    if (!writeConsumed.ok && writeConsumed.status !== "replayed") {
+      throw new Error(`RACE_WORKER_CONSUMED_WRITE_FAILED:${writeConsumed.reasonCode}`);
+    }
 
-    process.stdout.write(
-      JSON.stringify({
+    emitResult({
         workerId,
         outcome: "consumed",
         reasonCode: "CONSUMED_SUCCESSFULLY",
+        authorityValidated: true,
         consumingStatus: writeConsuming.status,
         consumedStatus: writeConsumed.status,
-        consumedOk: writeConsumed.ok || writeConsumed.status === "replayed",
+        consumedOk: true,
         jobId,
         stage,
         projectSlug,
@@ -120,19 +150,26 @@ async function run() {
           `race:worker-${workerId}-consumed`,
           `consuming-status:${writeConsuming.status}`,
         ],
-      }) + "\n",
-    );
+      });
   } catch (err) {
-    process.stdout.write(
-      JSON.stringify({
+    emitResult({
         workerId,
         outcome: "error",
         reasonCode: "WORKER_EXCEPTION",
+        authorityValidated: false,
+        consumedOk: false,
         error: String(err),
+        stack: err instanceof Error ? err.stack : undefined,
         evidence: ["exception"],
-      }) + "\n",
-    );
+      });
+    process.exitCode = 1;
   }
+}
+
+function emitResult(result: Record<string, unknown>) {
+  process.send?.({ type: "result", result });
+  process.stdout.write(`${JSON.stringify(result)}\n`);
+  process.disconnect?.();
 }
 
 void run();

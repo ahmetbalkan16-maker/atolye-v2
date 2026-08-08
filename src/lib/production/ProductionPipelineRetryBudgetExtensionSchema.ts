@@ -1,5 +1,10 @@
 import { stableProductionId } from "./ProductionDeterminism";
 import type { ProductionStepKey } from "@/types/project";
+import type { RetryBudgetExtensionDurableBinding } from
+  "@/types/productionPipelineRetryBudgetExtension";
+
+export type { RetryBudgetExtensionDurableBinding } from
+  "@/types/productionPipelineRetryBudgetExtension";
 
 export const retryBudgetExtensionSchemaVersion = "1" as const;
 export const retryBudgetExtensionPolicyVersion = "retry-budget-extension-v1" as const;
@@ -81,15 +86,20 @@ export interface ProductionPipelineRetryBudgetExtensionReceipt {
   };
 }
 
-export interface RetryBudgetExtensionDurableBinding {
-  readonly schemaVersion: typeof retryBudgetExtensionSchemaVersion;
-  readonly authorityId: string;
-  readonly authorityIntegrityFingerprint: string;
-  readonly consumptionReceiptFingerprint: string;
-  readonly authorizedDurableOrdinal: 4;
-  readonly effectiveMaxAttempts: 4;
-  readonly authorizedRunType: "resume";
-  readonly authorizedOperation: "pipeline.stage.resume";
+export function buildRetryBudgetExtensionDurableBinding(
+  input: Omit<RetryBudgetExtensionDurableBinding,
+    "schemaVersion" | "authorizedDurableOrdinal" | "effectiveMaxAttempts" |
+    "authorizedRunType" | "authorizedOperation" | "durableAttemptOrdinal">,
+): RetryBudgetExtensionDurableBinding {
+  return Object.freeze({
+    schemaVersion: retryBudgetExtensionSchemaVersion,
+    authorizedDurableOrdinal: 4,
+    effectiveMaxAttempts: 4,
+    authorizedRunType: "resume",
+    authorizedOperation: "pipeline.stage.resume",
+    durableAttemptOrdinal: 4,
+    ...input,
+  });
 }
 
 export function computeRetryBudgetExtensionChallengePayload(

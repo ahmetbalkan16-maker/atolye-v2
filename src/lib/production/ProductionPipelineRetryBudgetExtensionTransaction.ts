@@ -7,6 +7,7 @@ import { buildProductionPipelineRetryAdmissionBinding } from "./ProductionPipeli
 import { reconcileFailedPipelineExecution } from "./ProductionPipelineRetryReconciliation";
 import { verifyCanonicalPipelineRetryBudgetExtensionAdmission } from "./ProductionPipelineRetryBudgetExtensionGate";
 import {
+  buildRetryBudgetExtensionDurableBinding,
   buildProductionPipelineRetryBudgetExtensionReceipt,
   type RetryBudgetExtensionDurableBinding,
 } from "./ProductionPipelineRetryBudgetExtensionSchema";
@@ -29,13 +30,20 @@ export interface ExtensionTransactionResult {
   readonly evidence: readonly string[];
 }
 
+import {
+  type RuntimeStorageInput,
+  resolveRuntimeStorageContext,
+} from "@/lib/runtime/RuntimeStoragePaths";
+
 export async function consumeRetryBudgetExtensionAndPrepareRetry(
   projectSlug: string,
   stage: ProductionStepKey,
   jobId: string,
   runType: Extract<ProjectPackageRunType, "retry" | "resume">,
   authorityId: string,
+  input: RuntimeStorageInput = {},
 ): Promise<ExtensionTransactionResult> {
+  const context = resolveRuntimeStorageContext(input);
   const gateCheck = await verifyCanonicalPipelineRetryBudgetExtensionAdmission({
     phase: "before-consumption",
     projectSlug,
@@ -43,6 +51,7 @@ export async function consumeRetryBudgetExtensionAndPrepareRetry(
     jobId,
     runType,
     authorityId,
+    input: context,
   });
 
   if (!gateCheck.ok || !gateCheck.authority) {
@@ -80,7 +89,9 @@ export async function consumeRetryBudgetExtensionAndPrepareRetry(
       };
     }
 
-    const reconciliation = await reconcileFailedPipelineExecution(job);
+    const reconciliation = await reconcileFailedPipelineExecution(job, undefined, {
+      storageContext: context,
+    });
     if (!reconciliation.ok || !reconciliation.lineageIdentity || !reconciliation.lineageBinding) {
       return {
         success: false,
@@ -100,7 +111,7 @@ export async function consumeRetryBudgetExtensionAndPrepareRetry(
       ["transaction:consuming-intent-published"],
     );
 
-    const writeConsuming = writeRetryBudgetExtensionReceipt(projectSlug, consumingReceipt);
+    const writeConsuming = writeRetryBudgetExtensionReceipt(projectSlug, consumingReceipt, context);
     if (!writeConsuming.ok && writeConsuming.status !== "replayed") {
       return {
         success: false,
@@ -125,7 +136,7 @@ export async function consumeRetryBudgetExtensionAndPrepareRetry(
         job.updatedAt,
         ["transaction:job-cas-failed-aborted"],
       );
-      writeRetryBudgetExtensionReceipt(projectSlug, abortReceipt);
+      writeRetryBudgetExtensionReceipt(projectSlug, abortReceipt, context);
       return {
         success: false,
         status: prepared.status,
@@ -144,7 +155,7 @@ export async function consumeRetryBudgetExtensionAndPrepareRetry(
         job.updatedAt,
         ["transaction:admitted-attempt-mismatch-aborted"],
       );
-      writeRetryBudgetExtensionReceipt(projectSlug, abortReceipt);
+      writeRetryBudgetExtensionReceipt(projectSlug, abortReceipt, context);
       return {
         success: false,
         status: 409,
@@ -162,7 +173,7 @@ export async function consumeRetryBudgetExtensionAndPrepareRetry(
       ["transaction:consumed-receipt-finalized"],
     );
 
-    const writeConsumed = writeRetryBudgetExtensionReceipt(projectSlug, consumedReceipt);
+    const writeConsumed = writeRetryBudgetExtensionReceipt(projectSlug, consumedReceipt, context);
     if (!writeConsumed.ok && writeConsumed.status !== "replayed") {
       return {
         success: false,
@@ -173,16 +184,21 @@ export async function consumeRetryBudgetExtensionAndPrepareRetry(
       };
     }
 
-    const durableBinding: RetryBudgetExtensionDurableBinding = {
-      schemaVersion: "1",
+    const admittedExecutionBinding = buildProductionPipelineRetryAdmissionBinding(
+      { projectSlug, stage, runType },
+      prepared.job,
+    );
+    const durableBinding: RetryBudgetExtensionDurableBinding =
+      buildRetryBudgetExtensionDurableBinding({
       authorityId,
       authorityIntegrityFingerprint: authority.integrity.fingerprint,
       consumptionReceiptFingerprint: consumedReceipt.integrity.fingerprint,
-      authorizedDurableOrdinal: 4,
-      effectiveMaxAttempts: 4,
-      authorizedRunType: "resume",
-      authorizedOperation: "pipeline.stage.resume",
-    };
+      projectSlug,
+      stage,
+      jobId: job.id,
+      identityFingerprint: admittedExecutionBinding.reservationIdentityFingerprint,
+      reservationBinding: admittedExecutionBinding.reservationId,
+    });
 
     const admission: PipelineRetryAdmission = freezePipelineRetryAdmission({
       projectSlug,
@@ -209,10 +225,7 @@ export async function consumeRetryBudgetExtensionAndPrepareRetry(
         { projectSlug, stage, runType },
         prepared.job,
       ),
-      admittedExecutionBinding: buildProductionPipelineRetryAdmissionBinding(
-        { projectSlug, stage, runType },
-        prepared.job,
-      ),
+      admittedExecutionBinding,
       priorJobStatus: "failed",
       preMutationJobFingerprint,
       preMutationJobVersion: job.updatedAt,
@@ -239,17 +252,19 @@ export async function consumeRetryBudgetExtensionAndPrepareRetry(
 export async function recoverLingeringConsumingIntent(
   projectSlug: string,
   authorityId: string,
+  input: RuntimeStorageInput = {},
 ): Promise<{ recovered: boolean; finalState: string }> {
-  const authorityRead = readRetryBudgetExtensionAuthority(projectSlug, authorityId);
+  const context = resolveRuntimeStorageContext(input);
+  const authorityRead = readRetryBudgetExtensionAuthority(projectSlug, authorityId, context);
   if (!authorityRead.ok || !authorityRead.value) {
     return { recovered: false, finalState: "not-found" };
   }
   const authority = authorityRead.value;
-  const consumedRead = readRetryBudgetExtensionReceipt(projectSlug, authorityId, "consumed");
+  const consumedRead = readRetryBudgetExtensionReceipt(projectSlug, authorityId, "consumed", context);
   if (consumedRead.ok) {
     return { recovered: true, finalState: "consumed" };
   }
-  const abortedRead = readRetryBudgetExtensionReceipt(projectSlug, authorityId, "aborted");
+  const abortedRead = readRetryBudgetExtensionReceipt(projectSlug, authorityId, "aborted", context);
   if (abortedRead.ok) {
     return { recovered: true, finalState: "aborted" };
   }
@@ -263,7 +278,7 @@ export async function recoverLingeringConsumingIntent(
       job.updatedAt,
       ["recovery:consumed-receipt-finalized"],
     );
-    writeRetryBudgetExtensionReceipt(projectSlug, consumedReceipt);
+    writeRetryBudgetExtensionReceipt(projectSlug, consumedReceipt, context);
     return { recovered: true, finalState: "consumed" };
   } else {
     const abortReceipt = buildProductionPipelineRetryBudgetExtensionReceipt(
@@ -273,7 +288,7 @@ export async function recoverLingeringConsumingIntent(
       job?.updatedAt ?? authority.priorJob.updatedAt,
       ["recovery:job-untouched-aborted"],
     );
-    writeRetryBudgetExtensionReceipt(projectSlug, abortReceipt);
+    writeRetryBudgetExtensionReceipt(projectSlug, abortReceipt, context);
     return { recovered: true, finalState: "aborted" };
   }
 }

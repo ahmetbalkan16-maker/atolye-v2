@@ -1,4 +1,8 @@
 import fs from "node:fs";
+import {
+  type RuntimeStorageContext,
+  resolveRuntimeStorageContext,
+} from "@/lib/runtime/RuntimeStoragePaths";
 import { stableProductionId } from "./ProductionDeterminism";
 import { AdapterBackedProductionExecutionDurableStorage } from "./ProductionExecutionDurableStorage";
 import {
@@ -98,6 +102,7 @@ export interface ProductionPipelineFailedSettlementContext
   extends ProductionPipelineTerminalSettlementContext {
   expectedProjectSlug?: string;
   expectedStage?: string;
+  storageContext?: RuntimeStorageContext;
   /** Deterministic fault seam for isolated lifecycle tests. Never configured by production composition. */
   onBoundary?: (boundary: ProductionPipelineFailedSettlementBoundary) => void | Promise<void>;
 }
@@ -240,12 +245,16 @@ export async function settleFailedProductionPipelineExecution(
   context: ProductionPipelineFailedSettlementContext,
   execution: ProductionExecutionWorkerExecutionResult,
 ): Promise<ProductionPipelineTerminalSettlementResult> {
+  const resolvedContext = {
+    ...context,
+    storageContext: context.storageContext ?? resolveRuntimeStorageContext(),
+  };
   return withFailedSettlementLock(context.request.coordinator.attempt.recordId,
-    () => settleFailedProductionPipelineExecutionUnlocked(context, execution));
+    () => settleFailedProductionPipelineExecutionUnlocked(resolvedContext, execution));
 }
 
 async function settleFailedProductionPipelineExecutionUnlocked(
-  context: ProductionPipelineFailedSettlementContext,
+  context: ProductionPipelineFailedSettlementContext & { storageContext: RuntimeStorageContext },
   execution: ProductionExecutionWorkerExecutionResult,
 ): Promise<ProductionPipelineTerminalSettlementResult> {
   const originalFailureCode = terminalFailureCode(execution.attempt);
@@ -440,14 +449,15 @@ async function settleFailedProductionPipelineExecutionUnlocked(
   }
   completed.push("quiescence-verified");
   if (context.expectedProjectSlug && context.expectedStage) {
-    const dir = getRetryBudgetExtensionDirectory(context.expectedProjectSlug);
+    const dir = getRetryBudgetExtensionDirectory(context.expectedProjectSlug, context.storageContext);
     if (fs.existsSync(dir)) {
       try {
         const files = fs.readdirSync(dir);
         for (const file of files) {
           if (file.startsWith("receipt-") && file.endsWith("-consumed.json")) {
-            const authId = file.slice("receipt-".length, "-consumed.json".length);
-            const consumedRead = readRetryBudgetExtensionReceipt(context.expectedProjectSlug, authId, "consumed");
+            const authId = file.slice("receipt-".length, file.length - "-consumed.json".length);
+            if (!authId || !/^[a-z0-9-]{16,128}$/.test(authId)) continue;
+            const consumedRead = readRetryBudgetExtensionReceipt(context.expectedProjectSlug, authId, "consumed", context.storageContext);
             if (consumedRead.ok && consumedRead.value) {
               const settledReceipt = buildProductionPipelineRetryBudgetExtensionReceipt(
                 authId,
@@ -456,7 +466,7 @@ async function settleFailedProductionPipelineExecutionUnlocked(
                 consumedRead.value.jobVersion,
                 ["terminal-settlement:settled-receipt-finalized"],
               );
-              const writeResult = writeRetryBudgetExtensionReceipt(context.expectedProjectSlug, settledReceipt);
+              const writeResult = writeRetryBudgetExtensionReceipt(context.expectedProjectSlug, settledReceipt, context.storageContext);
               if (!writeResult.ok && writeResult.status !== "replayed") {
                 return deny("PIPELINE_FAILED_SETTLEMENT_RECEIPT_WRITE_FAILED", "final-validation", "SETTLED_RECEIPT_WRITE_FAILED");
               }

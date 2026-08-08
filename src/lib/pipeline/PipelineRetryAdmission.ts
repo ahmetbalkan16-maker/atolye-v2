@@ -99,8 +99,10 @@ export function assertCanonicalPipelineRetryAdmission(input: {
   readonly runType: ProjectPackageRunType;
 }): void {
   const { admission, previousJob, currentJob, projectSlug, stage, runType } = input;
-  const priorRunType = admission.priorJobAttemptIndex === 0 ? "initial" : "retry";
-  const canonicalPrior = previousJob && buildIdentity(
+  const priorRunType = runTypeFromOperation(
+    admission.exactReconciledLineageBinding.operation,
+  );
+  const canonicalPrior = previousJob && priorRunType && buildIdentity(
     previousJob, priorRunType,
   );
   const canonicalAdmitted = currentJob && buildIdentity(currentJob, admission.runType);
@@ -146,6 +148,13 @@ export function assertCanonicalPipelineRetryAdmission(input: {
     fingerprintIdentity(canonicalAdmittedBinding) !==
       fingerprintIdentity(admission.admittedExecutionBinding);
   if (invalid) throw new Error("PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED");
+}
+
+function runTypeFromOperation(operation: string): ProjectPackageRunType | undefined {
+  if (operation === "pipeline.stage.initial") return "initial";
+  if (operation === "pipeline.stage.retry") return "retry";
+  if (operation === "pipeline.stage.resume") return "resume";
+  return undefined;
 }
 
 function buildIdentity(job: PipelineJob, runType: ProjectPackageRunType) {
