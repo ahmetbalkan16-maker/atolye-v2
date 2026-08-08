@@ -48,6 +48,7 @@ import type {
   PipelineJobRetryExecutionResult,
   PipelineRecoveryStageKey,
   PipelineRetryResult,
+  PipelineResumeOptions,
   PipelineResumeResult,
 } from "@/types/pipelineRecovery";
 import type { PipelineRetryAdmission } from "./PipelineRetryAdmission";
@@ -65,6 +66,8 @@ import {
 } from "./PipelineRunnerCanonicalRuntime";
 
 export { installPipelineRunnerProductionRuntime } from "./PipelineRunnerCanonicalRuntime";
+
+export const pipelineResumeBoundaryInvalidCode = "PIPELINE_RESUME_BOUNDARY_INVALID";
 
 /**
  * Module-private, fail-closed parser for consumed retry-budget-extension receipt filenames.
@@ -197,14 +200,20 @@ export class PipelineRunner {
     }
   }
 
-  static async resume(projectSlug: string): Promise<PipelineResumeResult> {
+  static async resume(
+    projectSlug: string,
+    options: PipelineResumeOptions = {},
+  ): Promise<PipelineResumeResult> {
     return this.withRuntimeOperation(
       "pipeline-resume",
-      () => this.resumeOnce(projectSlug),
+      () => this.resumeOnce(projectSlug, options),
     );
   }
 
-  private static async resumeOnce(projectSlug: string): Promise<PipelineResumeResult> {
+  private static async resumeOnce(
+    projectSlug: string,
+    options: PipelineResumeOptions,
+  ): Promise<PipelineResumeResult> {
     const plan = await PipelineRecoveryPlanner.createResumePlan(projectSlug);
 
     if (plan.blocked || !plan.startStage) {
@@ -215,6 +224,19 @@ export class PipelineRunner {
         completedStages: [],
         blocked: plan.blocked,
         reason: plan.reason,
+        plan,
+      };
+    }
+
+    if (!validResumeBoundary(plan, options.stopAfterStage)) {
+      return {
+        success: false,
+        projectSlug,
+        resumedFrom: plan.startStage,
+        completedStages: [],
+        blocked: true,
+        reason: "Requested resume boundary is outside the recovery plan.",
+        reasonCode: pipelineResumeBoundaryInvalidCode,
         plan,
       };
     }
@@ -335,8 +357,9 @@ export class PipelineRunner {
       resumeRetry = { admission: prepared.admission, previousJob: prepared.previousJob };
     }
 
-    const { completedStages, stopReason } = await this.runScheduledStages(
+    const { completedStages, stopReason, stoppedAfterStage } = await this.runScheduledStages(
       projectSlug, plan.stagesToRun, state, "resume", undefined, resumeRetry,
+      options.stopAfterStage,
     );
 
     if (stopReason) {
@@ -352,7 +375,20 @@ export class PipelineRunner {
       };
     }
 
-    if (plan.stagesToRun.length > 0) {
+    if (options.stopAfterStage && stoppedAfterStage !== options.stopAfterStage) {
+      return {
+        success: false,
+        projectSlug,
+        resumedFrom: plan.startStage,
+        completedStages,
+        blocked: true,
+        reason: "Requested resume boundary was not reached.",
+        reasonCode: "PIPELINE_RETRY_SCHEDULER_CONFLICT",
+        plan,
+      };
+    }
+
+    if (!stoppedAfterStage && plan.stagesToRun.length > 0) {
       const exportCompleted = await this.isStageCompleted(projectSlug, "export");
 
       if (exportCompleted) {
@@ -371,6 +407,7 @@ export class PipelineRunner {
       resumedFrom: plan.startStage,
       completedStages,
       blocked: false,
+      ...(stoppedAfterStage ? { stoppedAfterStage } : {}),
       plan,
     };
   }
@@ -862,9 +899,11 @@ export class PipelineRunner {
     runType: ProjectPackageRunType = "initial",
     stageExecution?: PipelineStageExecutionOptions,
     retryAdmission?: { admission: PipelineRetryAdmission; previousJob: PipelineJob },
+    stopAfterStage?: PipelineRecoveryStageKey,
   ): Promise<{
     completedStages: PipelineRecoveryStageKey[];
     stopReason?: string;
+    stoppedAfterStage?: PipelineRecoveryStageKey;
   }> {
     const completedStages: PipelineRecoveryStageKey[] = [];
 
@@ -902,6 +941,9 @@ export class PipelineRunner {
       }
 
       completedStages.push(nextStage);
+      if (nextStage === stopAfterStage) {
+        return { completedStages, stoppedAfterStage: nextStage };
+      }
     }
   }
 
@@ -1018,6 +1060,18 @@ export class PipelineRunner {
 
     return manifest?.packages[stage].status === "completed";
   }
+}
+
+function validResumeBoundary(
+  plan: { readonly startStage: PipelineRecoveryStageKey | null;
+    readonly stagesToRun: readonly PipelineRecoveryStageKey[] },
+  stopAfterStage: PipelineRecoveryStageKey | undefined,
+): boolean {
+  if (stopAfterStage === undefined) return true;
+  if (!pipelineRecoveryStageOrder.includes(stopAfterStage) || !plan.startStage) return false;
+  const startIndex = pipelineRecoveryStageOrder.indexOf(plan.startStage);
+  const stopIndex = pipelineRecoveryStageOrder.indexOf(stopAfterStage);
+  return stopIndex >= startIndex && plan.stagesToRun.includes(stopAfterStage);
 }
 
 const continuationContenderLossCodes = new Set([

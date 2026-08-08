@@ -1,5 +1,44 @@
 ---
 
+<!-- SPRINT-129.39-START -->
+## Sprint 129.39 - Canonical Stage-Bounded Production Resume - 2026-08-08
+
+**Status:** READY FOR INDEPENDENT RE-REVIEW
+**Production execution status:** BLOCKED - no real production execute or resume was run
+
+- Added the optional, nominal `stopAfterStage` boundary to the authenticated production acceptance
+  command, orchestrator, `PipelineRunner.resume()`, and canonical scheduler loop. Unknown stages,
+  stages outside the recovery plan, and stages before `startStage` fail closed before mutation.
+- The canonical recovery plan remains complete. In bounded mode, the selected stage is admitted with
+  `runType=resume` and operation `pipeline.stage.resume`; the scheduler exits only after that stage's
+  normal terminal success lifecycle settles. This is not mapped to retry semantics.
+- A successful assembly boundary returns an explicit non-final bounded result with
+  `productionReady=false` and `published=false`. Thumbnail, SEO, YouTube, and export are not
+  admitted. With no boundary, legacy full-resume scheduling and finalization remain unchanged.
+- Independent re-review remediation removed the `PipelineStageExecutor.execute` replacement and
+  manual success persistence. Owned-temp success/failure now traverse the real executor, immutable
+  fake-provider adapters, capability consumption, provider dispatch instrumentation, canonical
+  durable preparation, and terminal settlement. The no-op-in-production `capability-consumed`
+  instrumentation event exposes the exact consumed identity and provider selection to the smoke.
+- The smoke also proves a reusable `stopAfterStage=seo` boundary: exact
+  `assembly -> thumbnail -> seo` resume execution, full untruncated recovery plan, terminal SEO
+  settlement, recovery restart at YouTube, and zero YouTube/export durable or provider admission.
+  Reservation, record/embedded lease, claim, and attempt families are inspected directly.
+- The expanded owned-temp Sprint 129.39 matrix preserves bounded assembly success/failure,
+  invalid-boundary zero mutation, exact identity, malformed/empty/duplicate command rejection, and
+  options-omitted legacy downstream admission (`54/54 PASS`).
+- Regression validation PASS: Sprint 129.38 `18/18`, 129.37 `23/23`, 129.36 `124/124`, 129.29
+  `41/41`, production video assembly `46/46`, pipeline orchestration `10/10`, durable recovery
+  `29/29`, recovery bootstrap `18/18`, runtime startup `11/11`, runtime context `48/48`, and
+  production acceptance `30/30`; TypeScript and targeted ESLint also pass (`452/452` executable
+  scenarios).
+- Production safety remains exact: records `252`, WAV `7`, scene MP4 `6`, durable files `232`, and
+  cleanup entries `7`; all ten protected SHA-256 values match the approved baseline. Production
+  data, `audio.json`, audio assets, providers, network, reprepare, execute, and resume were untouched.
+- No Git add, commit, or push was performed. Independent re-review is required before any controlled
+  production use of the new boundary.
+<!-- SPRINT-129.39-END -->
+
 <!-- SPRINT-129.38-START -->
 ## Sprint 129.38 — Retry-Budget Settled-Receipt Cross-Stage Replay Remediation — 2026-08-08
 

@@ -8,6 +8,7 @@ export type ProductionPipelineExecutionEvent =
   | "lifecycle-bound"
   | "capability-issuance-entered"
   | "capability-issued"
+  | "capability-consumed"
   | "physical-store-identity-verified"
   | "descriptor-root-opened"
   | "descriptor-parent-opening"

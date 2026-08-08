@@ -1,4 +1,7 @@
-import type { ProductionAcceptanceResult } from "./ProductionAcceptanceOrchestrator";
+import type {
+  ProductionAcceptanceResult,
+  ProductionAcceptanceResumeResult,
+} from "./ProductionAcceptanceOrchestrator";
 import {
   isAuthenticProductionAcceptanceBlockedError,
   isAuthenticProductionAcceptanceConfigurationChangedError,
@@ -41,16 +44,26 @@ import {
   applyRetryBudgetExtension,
 } from "./ProductionPipelineRetryBudgetExtensionService";
 import { createRuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
+import { pipelineRecoveryStageOrder } from "@/lib/pipeline/PipelineRecoveryPlanner";
+import { pipelineResumeBoundaryInvalidCode } from "@/lib/pipeline/PipelineRunner";
+import type {
+  PipelineRecoveryStageKey,
+  PipelineResumeOptions,
+} from "@/types/pipelineRecovery";
 
 const CONFIRM_FLAG = "--confirm-production-acceptance";
 const REPREPARE_CONFIRM_FLAG = "--confirm-production-acceptance-reprepare";
 const SAFE_SLUG = /^[a-z0-9](?:[a-z0-9-]{0,198}[a-z0-9])?$/;
 const TOPIC_PREFIX = "--topic=";
+const STOP_AFTER_STAGE_PREFIX = "--stop-after-stage=";
 
 export interface ProductionAcceptanceCommandDependencies {
   readiness(): Promise<ProductionReadinessReport>;
   execute(request: { readonly topic: string }): Promise<ProductionAcceptanceResult>;
-  resume(projectSlug: string): Promise<ProductionAcceptanceResult>;
+  resume(
+    projectSlug: string,
+    options?: PipelineResumeOptions,
+  ): Promise<ProductionAcceptanceResumeResult>;
   diagnose?(projectSlug: string): Promise<ProductionAcceptanceConfigurationDiagnostic>;
   reprepare?(projectSlug: string): Promise<ProductionAcceptanceReprepareResult>;
   legacyReauthorizationPlan?(
@@ -74,7 +87,8 @@ export interface ProductionAcceptanceCommandResult {
 const defaultDependencies: ProductionAcceptanceCommandDependencies = {
   readiness: () => ProductionAcceptanceOrchestrator.evaluateReadiness(),
   execute: (request) => ProductionAcceptanceOrchestrator.run(request),
-  resume: (projectSlug) => ProductionAcceptanceOrchestrator.resumeAndFinalize(projectSlug),
+  resume: (projectSlug, options) =>
+    ProductionAcceptanceOrchestrator.resumeAndFinalize(projectSlug, options),
   diagnose: (projectSlug) => diagnoseProductionAcceptanceConfiguration(projectSlug),
   reprepare: (projectSlug) => reprepareProductionAcceptanceMarker(projectSlug),
   legacyReauthorizationPlan: (projectSlug, sourceMarkerSha256) =>
@@ -110,7 +124,10 @@ export async function runProductionAcceptanceCommand(
       if ("errorCode" in parsed) return commandFailure(parsed.errorCode);
       const projectSlug = parsed.projectSlug;
       requestedProjectSlug = projectSlug;
-      return success(mode, await dependencies.resume(projectSlug));
+      const result = await dependencies.resume(projectSlug, parsed.options);
+      return "boundedResume" in result
+        ? { exitCode: 0, report: { mode, success: true, boundedResume: result.boundedResume } }
+        : success(mode, result);
     }
     if (mode === "diagnose") {
       const parsed = parseDiagnoseArguments(args.slice(1));
@@ -234,6 +251,7 @@ const resumePublicErrorCodes = new Set<string>([
   "PIPELINE_RETRY_DURABLE_CONFLICT",
   "PIPELINE_RETRY_COMPENSATION_FAILED",
   productionDurableAttemptLineageBindingInvalidCode,
+  pipelineResumeBoundaryInvalidCode,
 ]);
 
 function trustedCommandErrorCode(mode: unknown, error: unknown): string | undefined {
@@ -289,7 +307,7 @@ function commandFailure(errorCode: string): ProductionAcceptanceCommandResult {
       usage: [
         "readiness-only",
         `execute ${CONFIRM_FLAG} --topic=<topic>`,
-        `resume-finalize --project-slug=<slug> ${CONFIRM_FLAG}`,
+        `resume-finalize --project-slug=<slug> [--stop-after-stage=<stage>] ${CONFIRM_FLAG}`,
         "diagnose --project-slug=<slug>",
         `reprepare --project-slug=<slug> ${REPREPARE_CONFIRM_FLAG}`,
         "legacy-reauthorization-plan --project-slug=<slug> --source-marker-sha256=<64-hex>",
@@ -422,22 +440,38 @@ function parseExecuteArguments(args: readonly string[]):
 }
 
 function parseResumeArguments(args: readonly string[]):
-  | { readonly projectSlug: string }
+  | { readonly projectSlug: string; readonly options: PipelineResumeOptions }
   | { readonly errorCode: string } {
   if (args.filter((value) => value === CONFIRM_FLAG).length !== 1) {
     return { errorCode: "PRODUCTION_ACCEPTANCE_CONFIRMATION_REQUIRED" };
   }
   const slugArguments = args.filter((value) => value.startsWith("--project-slug="));
+  const stopArguments = args.filter((value) => value.startsWith(STOP_AFTER_STAGE_PREFIX));
   if (
-    args.some((value) => value !== CONFIRM_FLAG && !value.startsWith("--project-slug=")) ||
-    slugArguments.length !== 1
+    args.some((value) => value !== CONFIRM_FLAG &&
+      !value.startsWith("--project-slug=") &&
+      !value.startsWith(STOP_AFTER_STAGE_PREFIX)) ||
+    slugArguments.length !== 1 || stopArguments.length > 1
   ) {
     return { errorCode: "PRODUCTION_ACCEPTANCE_ARGUMENT_UNKNOWN" };
   }
   const projectSlug = slugArguments[0].slice("--project-slug=".length);
-  return SAFE_SLUG.test(projectSlug)
-    ? { projectSlug }
-    : { errorCode: "PRODUCTION_ACCEPTANCE_ARGUMENT_UNKNOWN" };
+  if (!SAFE_SLUG.test(projectSlug)) {
+    return { errorCode: "PRODUCTION_ACCEPTANCE_ARGUMENT_UNKNOWN" };
+  }
+  if (stopArguments.length === 0) return { projectSlug, options: {} };
+  const stopAfterStage = stopArguments[0].slice(STOP_AFTER_STAGE_PREFIX.length);
+  if (!isPipelineRecoveryStageKey(stopAfterStage)) {
+    return { errorCode: pipelineResumeBoundaryInvalidCode };
+  }
+  return {
+    projectSlug,
+    options: { stopAfterStage },
+  };
+}
+
+function isPipelineRecoveryStageKey(value: string): value is PipelineRecoveryStageKey {
+  return pipelineRecoveryStageOrder.some((stage) => stage === value);
 }
 
 function parseRetryBudgetExtensionPlanArguments(args: readonly string[]):

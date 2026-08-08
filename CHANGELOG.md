@@ -1,5 +1,35 @@
 ---
 
+<!-- SPRINT-129.39-START -->
+## 2026-08-08 - Sprint 129.39 Canonical Stage-Bounded Production Resume
+
+- Added an optional canonical `stopAfterStage` resume boundary from the authenticated production
+  command through the orchestrator and runner to the scheduler.
+- A bounded stage still uses the normal resume admission identity (`runType=resume`, operation
+  `pipeline.stage.resume`) and full durable lifecycle. The scheduler stops only after terminal stage
+  success and creates no downstream reservation, claim, attempt, or provider dispatch.
+- Added an explicit bounded result that cannot be mistaken for full pipeline finalization. Existing
+  options-omitted resume behavior remains unbounded and continues through normal finalization.
+- Added fail-closed command and recovery-plan validation for unknown, out-of-plan, duplicate, and
+  before-start boundaries, including sanitized public errors and zero-mutation evidence.
+- Closed independent re-review P1 by removing the executor replacement and manual success
+  persistence. Bounded success/failure now run through the real executor with immutable isolated
+  fake-provider adapters, explicit `capability-consumed` instrumentation, real dispatch events,
+  canonical durable preparation, and terminal settlement.
+- Closed independent re-review P2 with a real `stopAfterStage=seo` fixture proving exact
+  assembly/thumbnail/SEO execution, the full untruncated plan, post-boundary recovery at YouTube,
+  terminal quiescence, and direct absence checks across downstream reservation, record/embedded
+  lease, claim, attempt, and provider dispatch surfaces.
+- Expanded the owned-temp Sprint 129.39 smoke to `54/54` and passed the requested 129.38/37/36/29,
+  assembly, orchestration, runtime, recovery, and acceptance regressions (`452/452` total), plus
+  TypeScript and zero-warning targeted ESLint.
+- Real production state remains unchanged at records `252`, WAV `7`, scene MP4 `6`, durable files
+  `232`, and cleanup entries `7`; all ten protected SHA-256 values remain exact. No production
+  execute/resume, provider/network call, reprepare, Git add, commit, or push ran.
+- Status is `READY FOR INDEPENDENT RE-REVIEW`; this is not an approval or production execution
+  authorization.
+<!-- SPRINT-129.39-END -->
+
 <!-- SPRINT-129.38-START -->
 ## 2026-08-08 — Sprint 129.38 Retry-Budget Settled-Receipt Cross-Stage Replay Remediation
 

@@ -250,6 +250,11 @@ export class PipelineStageExecutor {
         claimId: "missing", leaseId: "missing", requestId: "missing", idempotencyKey: "missing",
         operation: "missing", executionFingerprint: "missing",
       });
+    await emitProductionPipelineExecutionEvent("capability-consumed", {
+      stage,
+      identity: acceptanceIdentity as unknown as object | undefined,
+      executionScope: executionScope as unknown as object | undefined,
+    });
     const generationPolicy = persistedPolicy?.strictProductionAcceptance
       ? strictGenerationExecutionPolicy
       : undefined;

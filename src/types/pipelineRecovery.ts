@@ -32,7 +32,12 @@ export interface PipelineResumeResult {
   blocked: boolean;
   reason?: string;
   reasonCode?: string;
+  stoppedAfterStage?: PipelineRecoveryStageKey;
   plan: PipelineRecoveryPlan;
+}
+
+export interface PipelineResumeOptions {
+  stopAfterStage?: PipelineRecoveryStageKey;
 }
 
 export interface PipelineRetryResult {

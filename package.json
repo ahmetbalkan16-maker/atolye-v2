@@ -31,7 +31,8 @@
     "smoke:sprint-129-30": "tsx scripts/smoke-sprint-129-30-persistence-boundary-retry.ts",
     "smoke:sprint-129-32": "tsx scripts/smoke-sprint-129-32-retry-durable-attempt-ordinal.ts",
     "smoke:sprint-129-33": "tsx scripts/smoke-sprint-129-33-exhausted-retry-admission.ts",
-    "smoke:sprint-129-36": "tsx scripts/smoke-sprint-129-36-retry-budget-extension.ts"
+    "smoke:sprint-129-36": "tsx scripts/smoke-sprint-129-36-retry-budget-extension.ts",
+    "smoke:sprint-129-39": "tsx scripts/smoke-sprint-129-39-stage-bounded-resume.ts"
   },
   "dependencies": {
     "next": "16.2.10",

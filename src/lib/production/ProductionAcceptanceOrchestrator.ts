@@ -40,6 +40,10 @@ import {
   createProductionAcceptanceProjectSlug,
   normalizeProductionAcceptanceTopic,
 } from "./ProductionAcceptanceTopic";
+import type {
+  PipelineRecoveryStageKey,
+  PipelineResumeOptions,
+} from "@/types/pipelineRecovery";
 
 export const productionAcceptanceProject = Object.freeze({
   minimumDurationSeconds: 60,
@@ -71,6 +75,24 @@ export interface ProductionAcceptanceResult {
   readonly readiness: ProductionReadinessReport;
   readonly completion: ProductionAcceptanceCompletionReport;
 }
+
+export interface ProductionAcceptanceBoundedResumeResult {
+  readonly readiness: ProductionReadinessReport;
+  readonly boundedResume: Readonly<{
+    projectSlug: string;
+    type: "resume";
+    startStage: PipelineRecoveryStageKey;
+    completedStages: readonly PipelineRecoveryStageKey[];
+    stoppedAfterStage: PipelineRecoveryStageKey;
+    blocked: false;
+    productionReady: false;
+    published: false;
+  }>;
+}
+
+export type ProductionAcceptanceResumeResult =
+  | ProductionAcceptanceResult
+  | ProductionAcceptanceBoundedResumeResult;
 
 export interface ProductionAcceptanceRequest {
   readonly topic: string;
@@ -209,7 +231,10 @@ export class ProductionAcceptanceOrchestrator {
     return new ProductionReadinessService().evaluate();
   }
 
-  static async resumeAndFinalize(projectSlug: string): Promise<ProductionAcceptanceResult> {
+  static async resumeAndFinalize(
+    projectSlug: string,
+    options: PipelineResumeOptions = {},
+  ): Promise<ProductionAcceptanceResumeResult> {
     const startedAt = Date.now();
     const readiness = await this.evaluateReadiness();
     if (!readiness.ready) throw new ProductionAcceptanceBlockedError(readiness);
@@ -222,11 +247,30 @@ export class ProductionAcceptanceOrchestrator {
       throw new ProductionAcceptanceExecutionError(projectSlug);
     }
     const plan = await PipelineRecoveryPlanner.createResumePlan(projectSlug);
-    await resumeProductionAcceptanceIfNeeded(
+    const resumed = await resumeProductionAcceptanceIfNeeded(
       plan,
       projectSlug,
-      () => PipelineRunner.resume(projectSlug),
+      () => PipelineRunner.resume(projectSlug, options),
     );
+    if (options.stopAfterStage) {
+      if (
+        !resumed || resumed.stoppedAfterStage !== options.stopAfterStage ||
+        resumed.completedStages.at(-1) !== options.stopAfterStage || !plan.startStage
+      ) throw new ProductionAcceptanceExecutionError(projectSlug);
+      return {
+        readiness,
+        boundedResume: Object.freeze({
+          projectSlug,
+          type: "resume" as const,
+          startStage: plan.startStage,
+          completedStages: Object.freeze([...resumed.completedStages]),
+          stoppedAfterStage: resumed.stoppedAfterStage,
+          blocked: false as const,
+          productionReady: false as const,
+          published: false as const,
+        }),
+      };
+    }
     return this.finalize(projectSlug, readiness, startedAt);
   }
 
@@ -332,20 +376,19 @@ export function requiresProductionAcceptanceResume(
   return plan.startStage !== null;
 }
 
-export async function resumeProductionAcceptanceIfNeeded(
+export async function resumeProductionAcceptanceIfNeeded<
+  T extends { readonly success: boolean; readonly blocked: boolean; readonly reasonCode?: string },
+>(
   plan: { readonly blocked: boolean; readonly startStage: string | null },
   projectSlug: string,
-  resume: () => Promise<{
-    readonly success: boolean;
-    readonly blocked: boolean;
-    readonly reasonCode?: string;
-  }>,
+  resume: () => Promise<T>,
 ) {
-  if (!requiresProductionAcceptanceResume(plan, projectSlug)) return;
+  if (!requiresProductionAcceptanceResume(plan, projectSlug)) return undefined;
   const result = await resume();
   if (!result.success || result.blocked) {
     throw new ProductionAcceptanceExecutionError(projectSlug, result.reasonCode);
   }
+  return result;
 }
 
 export function validateProductionAcceptanceRegistryAssets({

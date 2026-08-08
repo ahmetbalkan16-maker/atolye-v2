@@ -1,5 +1,34 @@
 ---
 
+<!-- SPRINT-129.39-START -->
+## Sprint 129.39 - Canonical Stage-Bounded Production Resume
+
+**Status:** READY FOR INDEPENDENT RE-REVIEW
+**Production execution status:** BLOCKED
+
+- [x] Add a type-safe optional `stopAfterStage` parameter to the public production resume command.
+- [x] Propagate the boundary through the orchestrator and `PipelineRunner.resume()` to the canonical
+  scheduling loop without introducing a retry-based execution path.
+- [x] Preserve the complete recovery plan while stopping only after the requested stage reaches
+  terminal success with `runType=resume` and operation `pipeline.stage.resume`.
+- [x] Return a bounded, explicitly non-final result; do not force publication/export finalization.
+- [x] Reject unknown, out-of-plan, or before-start boundaries before production mutation.
+- [x] Preserve options-omitted legacy full-resume behavior.
+- [x] Remove the executor monkey-patch and manual success persistence; prove bounded success/failure
+  through the real executor, immutable fake-provider authority, capability consumption,
+  production instrumentation, and canonical terminal settlement.
+- [x] Prove generic `stopAfterStage=seo`: exact assembly/thumbnail/SEO order, untruncated plan,
+  recovery restart at YouTube, and zero YouTube/export reservation, record/lease, claim, attempt,
+  or provider dispatch.
+- [x] Preserve invalid-boundary zero mutation, exact resume identity, malformed/empty/duplicate
+  command rejection, and options-omitted legacy downstream scheduling in an owned-temp `54/54` smoke.
+- [x] Pass the requested regression matrix (`452/452`), TypeScript, and targeted ESLint.
+- [x] Preserve production records `252`, WAV `7`, scene MP4 `6`, durable files `232`, cleanup entries
+  `7`, and all ten protected hashes exactly.
+- [ ] Obtain independent approval and separate execution authorization before using bounded resume
+  against the real production project.
+<!-- SPRINT-129.39-END -->
+
 <!-- SPRINT-129.38-START -->
 ## Sprint 129.38 — Retry-Budget Settled-Receipt Cross-Stage Replay Remediation
 
