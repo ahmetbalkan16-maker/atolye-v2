@@ -1,5 +1,79 @@
 ---
 
+<!-- SPRINT-129.38-START -->
+## Sprint 129.38 — Retry-Budget Settled-Receipt Cross-Stage Replay Remediation — 2026-08-08
+
+**Status:** APPROVED
+**Production execution status:** BLOCKED — production assembly resume is not re-authorized
+
+- Sprint 129.37 assembly token remediation was approved and committed as `a2830bc`; the following
+  controlled production resume stopped before the provider with
+  `PRODUCTION_ACCEPTANCE_COMMAND_FAILED`.
+- Root cause was project-wide consumed-receipt enumeration in
+  `ProductionPipelineTerminalSettlement.ts`: assembly reconciliation selected the prior audio
+  ordinal-4 receipt and rebuilt `settled` with replay wall-clock time, causing an integrity conflict.
+- Failed settlement now derives authority only from the canonical extension binding shared by the
+  current reservation, record, lease, claim, and attempt. Executions without that binding ignore
+  every unrelated authority and receipt. Partial, mismatched, or corrupt matching bindings fail
+  closed.
+- A valid existing matching `settled` receipt is accepted write-free. If only `consumed` exists,
+  the receipt is created once using immutable attempt `finalizedAt`; later wall-clock replay cannot
+  change its identity.
+- Isolated reproduction proves assembly `failed/attempts=0` reconciliation succeeds in the
+  presence of old audio consumed+settled receipts and `prepareFailedStageRetry(..., "resume")`
+  produces `queued/attempts=1` with no provider call.
+- Safe command observability now permits only the stable
+  `PIPELINE_RETRY_COMPENSATION_FAILED` code; internal messages, paths, and stacks remain masked.
+- Independent re-review remediation made the receipt finalizer module-private. B/C/F now construct
+  a real ordinal-4 five-sibling failed lineage and enter the public settlement path; no synthetic
+  direct finalizer caller remains. Existing execution instrumentation proves provider dispatch `0`.
+- Historical 129.36 rewind now preflights the exact audio ordinal-4 authority, consumed receipt,
+  identity, reservation and all five sibling bindings before deletion. Unrelated authorities remain
+  byte-identical; corrupt matching state rejects before any fixture mutation.
+- Final remediation derives the expected settled receipt from the verified authority/consumed
+  lineage and immutable terminal attempt `finalizedAt`; existing settled state is replayed only on
+  full canonical fingerprint equality. Integrity-valid stale receipts fail closed without clobber.
+- Both historical rewind helpers now complete ownership, history/job/manifest eligibility,
+  five-sibling lineage and exact `consuming`/`consumed`/`settled` receipt inventory preflight before
+  the first mutation. Unknown same-authority artifacts and missing historical failure evidence reject
+  with byte-identical fixture inventories.
+- Remaining P2 canonical-identity remediation now builds ordinal-4 audio IDs through
+  `buildProductionPipelineExecutionIdentity` from project/stage/job, resume semantics, and
+  zero-based attempt number 3. The consumed receipt's immutable `jobVersion` is the production
+  anchor for `buildProductionExecutionIdempotencyIdentity`; reservation, record, claim, attempt,
+  and lease IDs are fixed before any durable enumeration.
+- One reservation, record versions 1-7, claim versions 1-2, attempt versions 1-3, and every embedded
+  lease are each passed through the production persistence validator and then checked against the
+  exact deterministic ID, parent, operation, ordinal, owner, and extension binding. Broad scan is
+  detection-only for unexpected same-binding artifacts; deletion targets contain only the 13
+  independently derived and validated canonical paths.
+- Per-version closure now also requires exact claim binding and ownership evidence, exact attempt
+  binding, and exact embedded-lease presence, version, lifecycle, ownership evidence, extension
+  binding, and integrity. Record v1 must have no lease; v2-v6 must carry the canonical active v1
+  lease; v7 must carry the canonical released v2 lease.
+- Detection now inspects every supported durable retry-binding location: top-level bindings on
+  reservation/record/claim/attempt payloads and the record's embedded lease binding. Any partial,
+  mismatched, embedded-only, duplicate, or alternative-path current-authority artifact fails before
+  mutation; scan results never supply canonical IDs or deletion targets.
+- An internally coherent persistence-valid alternative full chain, persistence-valid poisoned
+  non-terminal claim-v1, and persistence-valid poisoned non-terminal attempt-v1 each fail closed
+  with their exact preflight reason and full-tree before/after digest equality. Positive coverage
+  separately preserves unrelated authority, stage, ordinal, and receipt bytes.
+- Persistence-valid claim binding, attempt binding, lease ownership, lease version, and embedded-only
+  unexpected-record poisons also fail with exact semantic reasons and full-tree digest equality.
+- Validation PASS: TypeScript, targeted ESLint with zero warnings/errors, Sprint 129.38 `18/18`,
+  Sprint 129.29 `41/41`, Sprint 129.36 `124/124`, Sprint 129.37 `23/23`, Sprint 129.32 `18/18`,
+  Sprint 129.33 `54/54` (`278/278` total), and `git diff --check`. Production safety stayed at records `252`, WAV
+  `7`, durable files `232`, cleanup entries `7`; all ten protected hashes remained exact.
+- Production audio, seven WAV files, assembly state, durable stores, and all four ordinal-4 audio
+  authority/receipt files remained unchanged. No production resume, execute, reconciliation,
+  settlement, retry preparation, provider/network call, reprepare, Git add, commit, or push ran.
+- Independent final review: `APPROVED`; P0/P1/P2 = `0/0/0`. Cross-stage settled-receipt replay
+  authority remediation and historical ordinal-4 canonical identity/binding/ownership closure are
+  complete. Final safe executable matrix: `278/278 PASS`.
+- Production resume remains separately gated and unauthorized.
+<!-- SPRINT-129.38-END -->
+
 <!-- SPRINT-129.37-START -->
 ## Sprint 129.37 — Assembly AI Token Budget and Truncation Remediation — 2026-08-08
 

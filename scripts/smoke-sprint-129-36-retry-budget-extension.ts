@@ -21,7 +21,11 @@ import { verifyCanonicalPipelineRetryBudgetExtensionAdmission } from "@/lib/prod
 import {
   buildProductionPipelineRetryBudgetExtensionBody,
   buildProductionPipelineRetryBudgetExtensionReceipt,
+  validateExtensionBodyIntegrity,
+  validateExtensionReceiptIntegrity,
 } from "@/lib/production/ProductionPipelineRetryBudgetExtensionSchema";
+import type { RetryBudgetExtensionDurableBinding } from
+  "@/types/productionPipelineRetryBudgetExtension";
 import {
   writeRetryBudgetExtensionAuthority,
   writeRetryBudgetExtensionReceipt,
@@ -61,6 +65,11 @@ import { createProductionAcceptancePortableConfigurationSnapshotV2 } from
   "@/lib/production/ProductionAcceptanceConfigurationFingerprint";
 import { productionAcceptanceRequestFingerprintV3Profile2 } from
   "@/lib/production/ProductionAcceptancePolicy";
+import { createAlternativeHistoricalAudioOrdinalFourChain,
+  poisonHistoricalAudioOrdinalFourAttemptV1,
+  poisonHistoricalAudioOrdinalFourClaimV1,
+  preflightHistoricalAudioOrdinalFour } from
+  "./lib/HistoricalAudioOrdinalFourPreflight";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -581,6 +590,345 @@ async function runSettlementRecoveryTest(
 // Main suite
 // ─────────────────────────────────────────────────────────────────────────────
 
+interface RewindDurableArtifact {
+  readonly retryBudgetExtension?: RetryBudgetExtensionDurableBinding;
+  readonly identity?: { readonly identityFingerprint?: string; readonly operation?: string;
+    readonly reservationId?: string; readonly recordId?: string; readonly claimId?: string;
+    readonly attemptId?: string; readonly leaseId?: string; readonly stage?: string };
+  readonly durableLease?: { readonly retryBudgetExtension?: RetryBudgetExtensionDurableBinding;
+    readonly identity?: { readonly recordId?: string; readonly leaseId?: string } };
+  readonly recordId?: string;
+  readonly identityFingerprint?: string;
+  readonly operation?: string;
+  readonly stage?: string;
+  readonly attempt?: number;
+  readonly maxAttempts?: number;
+  readonly recordVersion?: number;
+  readonly claimVersion?: number;
+  readonly attemptVersion?: number;
+  readonly [key: string]: unknown;
+}
+
+function rewindOwnedProjectToExhaustedAudioFixture(projectRoot: string, ownedRoot: string) {
+  assertContained(ownedRoot, projectRoot);
+  if (path.basename(projectRoot) !== baseProjectSlug ||
+    fs.realpathSync(projectRoot) === fs.realpathSync(repoProdDir)) {
+    throw new Error("ISOLATED_AUDIO_PROJECT_OWNERSHIP_INVALID");
+  }
+  const historyPath = path.join(projectRoot, "pipeline-history.json");
+  const history = JSON.parse(fs.readFileSync(historyPath, "utf8"));
+  const failure = history.events.filter((event: {
+    stage?: string; status?: string; errorCode?: string;
+  }) => event.stage === stage && event.status === "failed" && event.errorCode).at(-1);
+  if (!failure) throw new Error("ISOLATED_AUDIO_FAILURE_FIXTURE_MISSING");
+  if (failure.jobId !== `${baseProjectSlug}-${stage}` ||
+    typeof failure.recordedAt !== "string" || typeof failure.jobUpdatedAt !== "string") {
+    throw new Error("ISOLATED_AUDIO_FAILURE_FIXTURE_INVALID");
+  }
+  const jobsPath = path.join(projectRoot, "pipeline-jobs.json");
+  const jobs = JSON.parse(fs.readFileSync(jobsPath, "utf8"));
+  const currentAudioJob = jobs.jobs.find((job: { stage?: string }) => job.stage === stage);
+  if (currentAudioJob?.id !== `${baseProjectSlug}-${stage}` ||
+    currentAudioJob.status !== "completed" || currentAudioJob.attempts !== 3) {
+    throw new Error("ISOLATED_AUDIO_CURRENT_JOB_STATE_INVALID");
+  }
+  const manifestPath = path.join(projectRoot, "manifest.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  if (manifest.packages?.[stage]?.status !== "completed" ||
+    manifest.packages?.[stage]?.attempts?.total !== 4 ||
+    manifest.packages?.[stage]?.attempts?.lastRunType !== "resume") {
+    throw new Error("ISOLATED_AUDIO_CURRENT_MANIFEST_STATE_INVALID");
+  }
+
+  const executionRoot = path.join(projectRoot, "production-execution");
+  const extensionDirectory = path.join(executionRoot, "retry-budget-extensions");
+  const authorityCandidates = fs.readdirSync(extensionDirectory)
+    .filter((name) => name.startsWith("authority-") && name.endsWith(".json"))
+    .map((name) => ({ name, target: path.join(extensionDirectory, name) }))
+    .filter(({ target }) => {
+      const body = JSON.parse(fs.readFileSync(target, "utf8"));
+      return validateExtensionBodyIntegrity(body) && body.projectSlug === baseProjectSlug &&
+        body.stage === stage && body.jobId === `${baseProjectSlug}-${stage}` &&
+        body.authorizedOperation === "pipeline.stage.resume" &&
+        body.authorizedDurableOrdinal === 4;
+    });
+  if (authorityCandidates.length !== 1) {
+    throw new Error("ISOLATED_AUDIO_ORDINAL_FOUR_AUTHORITY_AMBIGUOUS");
+  }
+  const authorityTarget = authorityCandidates[0].target;
+  const authority = JSON.parse(fs.readFileSync(authorityTarget, "utf8"));
+  const consumedTarget = path.join(extensionDirectory,
+    `receipt-${authority.authorityId}-consumed.json`);
+  const consumed = JSON.parse(fs.readFileSync(consumedTarget, "utf8"));
+  if (!validateExtensionReceiptIntegrity(consumed) || consumed.state !== "consumed" ||
+    consumed.authorityId !== authority.authorityId) {
+    throw new Error("ISOLATED_AUDIO_ORDINAL_FOUR_CONSUMED_RECEIPT_INVALID");
+  }
+
+  const canonical = preflightHistoricalAudioOrdinalFour({
+    executionRoot, ownedRoot, authority, consumed,
+  });
+  const verifiedBinding = canonical.binding;
+  const deletionTargets = canonical.deletionTargets;
+  const allowedReceiptStates = ["consuming", "consumed", "settled"] as const;
+  const allowedReceiptNames = allowedReceiptStates.map((receiptState) =>
+    `receipt-${authority.authorityId}-${receiptState}.json`);
+  const matchingReceiptNames = fs.readdirSync(extensionDirectory)
+    .filter((name) => name.startsWith(`receipt-${authority.authorityId}-`));
+  if (matchingReceiptNames.length !== allowedReceiptNames.length ||
+    matchingReceiptNames.some((name) => !allowedReceiptNames.includes(name))) {
+    throw new Error("ISOLATED_AUDIO_ORDINAL_FOUR_RECEIPT_INVENTORY_INVALID");
+  }
+  const receiptTargets = allowedReceiptNames.map((name) => path.join(extensionDirectory, name));
+  for (const [index, target] of receiptTargets.entries()) {
+    const receipt = JSON.parse(fs.readFileSync(target, "utf8"));
+    if (!validateExtensionReceiptIntegrity(receipt) ||
+      receipt.authorityId !== authority.authorityId ||
+      receipt.state !== allowedReceiptStates[index] ||
+      receipt.state === "consumed" &&
+        receipt.integrity.fingerprint !== verifiedBinding.consumptionReceiptFingerprint ||
+      receipt.state === "settled" &&
+        (receipt.jobVersion !== consumed.jobVersion ||
+          JSON.stringify(receipt.evidence) !==
+            JSON.stringify(["terminal-settlement:settled-receipt-finalized"]))) {
+      throw new Error("ISOLATED_AUDIO_ORDINAL_FOUR_RECEIPT_INVALID");
+    }
+  }
+  // Mutation phase starts only after ownership, history, job, manifest, lineage and receipt preflight.
+  for (const target of [...deletionTargets, authorityTarget, ...receiptTargets]) {
+    assertContained(ownedRoot, target);
+    fs.unlinkSync(target);
+  }
+  history.events = history.events.filter((event: { stage?: string; recordedAt?: string }) =>
+    event.stage !== stage || String(event.recordedAt ?? "") <= failure.recordedAt);
+  history.updatedAt = failure.recordedAt;
+  fs.writeFileSync(historyPath, `${JSON.stringify(history, null, 2)}\n`, "utf8");
+  Object.assign(jobs.jobs.find((job: { stage?: string }) => job.stage === stage), {
+    status: "failed", attempts: 2, updatedAt: failure.jobUpdatedAt,
+    startedAt: failure.startedAt, completedAt: failure.completedAt,
+    error: failure.errorCode,
+  });
+  jobs.updatedAt = failure.jobUpdatedAt;
+  fs.writeFileSync(jobsPath, `${JSON.stringify(jobs, null, 2)}\n`, "utf8");
+  Object.assign(manifest.packages[stage], { status: "failed",
+    updatedAt: failure.completedAt, startedAt: failure.startedAt,
+    completedAt: failure.completedAt, error: failure.errorCode });
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+}
+
+function findDurableArtifact(executionRoot: string,
+  predicate: (value: RewindDurableArtifact) => boolean): string {
+  for (const directory of ["reservations", "idempotency", "claims", "attempts"]) {
+    const root = path.join(executionRoot, directory);
+    for (const name of fs.readdirSync(root)) {
+      const target = path.join(root, name);
+      const value = JSON.parse(fs.readFileSync(target, "utf8")) as RewindDurableArtifact;
+      if (predicate(value)) return target;
+    }
+  }
+  throw new Error("ISOLATED_UNRELATED_DURABLE_ARTIFACT_MISSING");
+}
+
+function runCanonicalRewindPoisonRegression(
+  kind: "alternative-chain" | "claim-v1-poison" | "attempt-v1-poison",
+) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "sprint-129-36-ext-smoke-"));
+  const identity = captureOwnedTempRootIdentity(root);
+  try {
+    const projectRoot = path.join(root, "projects", baseProjectSlug);
+    fs.cpSync(repoProdDir, projectRoot, { recursive: true });
+    const executionRoot = path.join(projectRoot, "production-execution");
+    const extensionRoot = path.join(executionRoot, "retry-budget-extensions");
+    const authority = JSON.parse(fs.readFileSync(path.join(extensionRoot,
+      fs.readdirSync(extensionRoot).find((name) => name.startsWith("authority-"))!), "utf8"));
+    const consumed = JSON.parse(fs.readFileSync(path.join(extensionRoot,
+      `receipt-${authority.authorityId}-consumed.json`), "utf8"));
+    const canonical = preflightHistoricalAudioOrdinalFour({
+      executionRoot, ownedRoot: root, authority, consumed,
+    });
+    if (kind === "alternative-chain") createAlternativeHistoricalAudioOrdinalFourChain(canonical);
+    else if (kind === "claim-v1-poison") poisonHistoricalAudioOrdinalFourClaimV1(canonical);
+    else poisonHistoricalAudioOrdinalFourAttemptV1(canonical);
+    const before = inventoryDigest(computeFileInventory(projectRoot));
+    const expected = kind === "alternative-chain"
+      ? "CANONICAL_AUDIO_ORDINAL_FOUR_UNEXPECTED_SAME_BINDING_ARTIFACT"
+      : kind === "claim-v1-poison" ? "CANONICAL_AUDIO_ORDINAL_FOUR_CLAIM_LINEAGE_INVALID"
+        : "CANONICAL_AUDIO_ORDINAL_FOUR_ATTEMPT_LINEAGE_INVALID";
+    let actual = "";
+    try { rewindOwnedProjectToExhaustedAudioFixture(projectRoot, root); }
+    catch (error) { actual = error instanceof Error ? error.message : ""; }
+    return actual === expected && inventoryDigest(computeFileInventory(projectRoot)) === before;
+  } finally {
+    cleanupOwnedTempRoot(identity);
+  }
+}
+
+function runExactRewindOwnershipRegression(): {
+  unrelatedAuthorityPreserved: boolean; unrelatedStagePreserved: boolean;
+  unrelatedOrdinalPreserved: boolean; unrelatedReceiptPreserved: boolean;
+  duplicateSiblingWriteFree: boolean; corruptMatchingWriteFree: boolean;
+  unknownMatchingWriteFree: boolean; missingHistoryWriteFree: boolean;
+  alternativeChainWriteFree: boolean; claimV1PoisonWriteFree: boolean;
+  attemptV1PoisonWriteFree: boolean;
+} {
+  const preservedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sprint-129-36-ext-smoke-"));
+  const preservedIdentity = captureOwnedTempRootIdentity(preservedRoot);
+  let unrelatedAuthorityPreserved = false;
+  let unrelatedStagePreserved = false;
+  let unrelatedOrdinalPreserved = false;
+  let unrelatedReceiptPreserved = false;
+  try {
+    const projectRoot = path.join(preservedRoot, "projects", baseProjectSlug);
+    fs.cpSync(repoProdDir, projectRoot, { recursive: true });
+    const executionRoot = path.join(projectRoot, "production-execution");
+    const extensionRoot = path.join(executionRoot, "retry-budget-extensions");
+    const sourceAuthority = JSON.parse(fs.readFileSync(path.join(extensionRoot,
+      fs.readdirSync(extensionRoot).find((name) => name.startsWith("authority-"))!), "utf8"));
+    const challengePayload = { ...sourceAuthority };
+    delete challengePayload.authorityId;
+    delete challengePayload.issuedAt;
+    delete challengePayload.integrity;
+    const unrelatedAuthority = buildProductionPipelineRetryBudgetExtensionBody({
+      ...challengePayload, stage: "assembly", jobId: `${baseProjectSlug}-assembly`,
+      reason: "sprint-129-38-unrelated-authority-preservation",
+    }, new Date().toISOString());
+    const unrelatedAuthorityPath = path.join(extensionRoot,
+      `authority-${unrelatedAuthority.authorityId}.json`);
+    fs.writeFileSync(unrelatedAuthorityPath,
+      `${JSON.stringify(unrelatedAuthority, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+    const unrelatedReceipt = buildProductionPipelineRetryBudgetExtensionReceipt(
+      unrelatedAuthority.authorityId, "consumed", new Date().toISOString(),
+      "unrelated-job-version", ["transaction:consumed"]);
+    const unrelatedReceiptPath = path.join(extensionRoot,
+      `receipt-${unrelatedAuthority.authorityId}-consumed.json`);
+    fs.writeFileSync(unrelatedReceiptPath,
+      `${JSON.stringify(unrelatedReceipt, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+    const unrelatedStagePath = findDurableArtifact(executionRoot, (value) =>
+      typeof value.identity?.stage === "string" && value.identity.stage !== stage);
+    const unrelatedOrdinalPath = findDurableArtifact(executionRoot, (value) =>
+      value.stage === stage && Number.isSafeInteger(value.attempt) && value.attempt !== 4);
+    const protectedFiles = new Map([
+      ["authority", unrelatedAuthorityPath], ["stage", unrelatedStagePath],
+      ["ordinal", unrelatedOrdinalPath], ["receipt", unrelatedReceiptPath],
+    ].map(([name, target]) => [name, { target, bytes: fs.readFileSync(target) }]));
+    rewindOwnedProjectToExhaustedAudioFixture(projectRoot, preservedRoot);
+    const preserved = (name: string) => {
+      const item = protectedFiles.get(name)!;
+      return fs.existsSync(item.target) && fs.readFileSync(item.target).equals(item.bytes);
+    };
+    unrelatedAuthorityPreserved = preserved("authority");
+    unrelatedStagePreserved = preserved("stage");
+    unrelatedOrdinalPreserved = preserved("ordinal");
+    unrelatedReceiptPreserved = preserved("receipt");
+  } finally {
+    cleanupOwnedTempRoot(preservedIdentity);
+  }
+
+  const duplicateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sprint-129-36-ext-smoke-"));
+  const duplicateIdentity = captureOwnedTempRootIdentity(duplicateRoot);
+  let duplicateSiblingWriteFree = false;
+  try {
+    const projectRoot = path.join(duplicateRoot, "projects", baseProjectSlug);
+    fs.cpSync(repoProdDir, projectRoot, { recursive: true });
+    const recordRoot = path.join(projectRoot, "production-execution", "idempotency");
+    const canonical = fs.readdirSync(recordRoot).find((name) => {
+      const value = JSON.parse(fs.readFileSync(path.join(recordRoot, name), "utf8"));
+      return value.retryBudgetExtension?.authorizedDurableOrdinal === 4;
+    })!;
+    const duplicatePath = path.join(recordRoot, "duplicate-exact-binding-sibling.json");
+    fs.copyFileSync(path.join(recordRoot, canonical), duplicatePath,
+      fs.constants.COPYFILE_EXCL);
+    const before = inventoryDigest(computeFileInventory(projectRoot));
+    let rejected = false;
+    try { rewindOwnedProjectToExhaustedAudioFixture(projectRoot, duplicateRoot); }
+    catch { rejected = true; }
+    duplicateSiblingWriteFree = rejected &&
+      inventoryDigest(computeFileInventory(projectRoot)) === before;
+  } finally {
+    cleanupOwnedTempRoot(duplicateIdentity);
+  }
+
+  const corruptRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sprint-129-36-ext-smoke-"));
+  const corruptIdentity = captureOwnedTempRootIdentity(corruptRoot);
+  let corruptMatchingWriteFree = false;
+  try {
+    const projectRoot = path.join(corruptRoot, "projects", baseProjectSlug);
+    fs.cpSync(repoProdDir, projectRoot, { recursive: true });
+    const extensionRoot = path.join(projectRoot, "production-execution",
+      "retry-budget-extensions");
+    const consumedPath = path.join(extensionRoot, fs.readdirSync(extensionRoot)
+      .find((name) => name.endsWith("-consumed.json"))!);
+    const consumed = JSON.parse(fs.readFileSync(consumedPath, "utf8"));
+    consumed.jobVersion = "corrupt-rewind-candidate";
+    fs.writeFileSync(consumedPath, `${JSON.stringify(consumed, null, 2)}\n`, "utf8");
+    const before = inventoryDigest(computeFileInventory(projectRoot));
+    let rejected = false;
+    try { rewindOwnedProjectToExhaustedAudioFixture(projectRoot, corruptRoot); }
+    catch { rejected = true; }
+    const after = inventoryDigest(computeFileInventory(projectRoot));
+    corruptMatchingWriteFree = rejected && after === before;
+  } finally {
+    cleanupOwnedTempRoot(corruptIdentity);
+  }
+
+  const unknownRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sprint-129-36-ext-smoke-"));
+  const unknownIdentity = captureOwnedTempRootIdentity(unknownRoot);
+  let unknownMatchingWriteFree = false;
+  try {
+    const projectRoot = path.join(unknownRoot, "projects", baseProjectSlug);
+    fs.cpSync(repoProdDir, projectRoot, { recursive: true });
+    const extensionRoot = path.join(projectRoot, "production-execution",
+      "retry-budget-extensions");
+    const authority = JSON.parse(fs.readFileSync(path.join(extensionRoot,
+      fs.readdirSync(extensionRoot).find((name) => name.startsWith("authority-"))!), "utf8"));
+    const consumedReceipt = JSON.parse(fs.readFileSync(path.join(extensionRoot,
+      `receipt-${authority.authorityId}-consumed.json`), "utf8"));
+    const unknownReceipt = buildProductionPipelineRetryBudgetExtensionReceipt(
+      authority.authorityId, "future" as never, new Date().toISOString(),
+      consumedReceipt.jobVersion, ["future:unsupported"]);
+    const unknownPath = path.join(extensionRoot,
+      `receipt-${authority.authorityId}-future.json`);
+    fs.writeFileSync(unknownPath, `${JSON.stringify(unknownReceipt, null, 2)}\n`, "utf8");
+    const before = inventoryDigest(computeFileInventory(projectRoot));
+    let rejected = false;
+    try { rewindOwnedProjectToExhaustedAudioFixture(projectRoot, unknownRoot); }
+    catch { rejected = true; }
+    unknownMatchingWriteFree = rejected &&
+      inventoryDigest(computeFileInventory(projectRoot)) === before;
+  } finally {
+    cleanupOwnedTempRoot(unknownIdentity);
+  }
+
+  const missingRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sprint-129-36-ext-smoke-"));
+  const missingIdentity = captureOwnedTempRootIdentity(missingRoot);
+  let missingHistoryWriteFree = false;
+  try {
+    const projectRoot = path.join(missingRoot, "projects", baseProjectSlug);
+    fs.cpSync(repoProdDir, projectRoot, { recursive: true });
+    const historyPath = path.join(projectRoot, "pipeline-history.json");
+    const history = JSON.parse(fs.readFileSync(historyPath, "utf8"));
+    history.events = history.events.filter((event: { stage?: string; status?: string }) =>
+      event.stage !== stage || event.status !== "failed");
+    fs.writeFileSync(historyPath, `${JSON.stringify(history, null, 2)}\n`, "utf8");
+    const before = inventoryDigest(computeFileInventory(projectRoot));
+    let rejected = false;
+    try { rewindOwnedProjectToExhaustedAudioFixture(projectRoot, missingRoot); }
+    catch { rejected = true; }
+    missingHistoryWriteFree = rejected &&
+      inventoryDigest(computeFileInventory(projectRoot)) === before;
+  } finally {
+    cleanupOwnedTempRoot(missingIdentity);
+  }
+  const alternativeChainWriteFree = runCanonicalRewindPoisonRegression("alternative-chain");
+  const claimV1PoisonWriteFree = runCanonicalRewindPoisonRegression("claim-v1-poison");
+  const attemptV1PoisonWriteFree = runCanonicalRewindPoisonRegression("attempt-v1-poison");
+  return { unrelatedAuthorityPreserved, unrelatedStagePreserved,
+    unrelatedOrdinalPreserved, unrelatedReceiptPreserved, duplicateSiblingWriteFree,
+    corruptMatchingWriteFree,
+    unknownMatchingWriteFree, missingHistoryWriteFree, alternativeChainWriteFree,
+    claimV1PoisonWriteFree, attemptV1PoisonWriteFree };
+}
+
 async function runRealOrdinalFourProductionWriterTest() {
   const ownedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sprint-129-36-ext-smoke-"));
   const ownedRootIdentity = captureOwnedTempRootIdentity(ownedRoot);
@@ -611,6 +959,7 @@ async function runRealOrdinalFourProductionWriterTest() {
     await runWithProductionRuntimeOperationContext(operationContext, async () => {
     const projectRoot = path.join(storageContext.projectsRoot, baseProjectSlug);
     fs.cpSync(repoProdDir, projectRoot, { recursive: true });
+    rewindOwnedProjectToExhaustedAudioFixture(projectRoot, ownedRoot);
     const markerPath = path.join(projectRoot, "production-acceptance.json");
     const marker = JSON.parse(fs.readFileSync(markerPath, "utf8")) as {
       topic: string; runId: string; requestFingerprint: string;
@@ -775,6 +1124,29 @@ async function runSmokeSuite() {
     "Failure-path cleanup removes its exact operation-owned temp root");
   assert(cleanupSafety.reparseRejected,
     "Cleanup rejects a Windows junction/reparse-point before recursive deletion");
+  const rewindSafety = runExactRewindOwnershipRegression();
+  assert(rewindSafety.unrelatedAuthorityPreserved,
+    "Historical rewind preserves integrity-valid unrelated authority bytes");
+  assert(rewindSafety.unrelatedStagePreserved,
+    "Historical rewind preserves unrelated stage durable bytes");
+  assert(rewindSafety.unrelatedOrdinalPreserved,
+    "Historical rewind preserves unrelated ordinal durable bytes");
+  assert(rewindSafety.unrelatedReceiptPreserved,
+    "Historical rewind preserves unrelated receipt bytes");
+  assert(rewindSafety.duplicateSiblingWriteFree,
+    "Historical rewind rejects duplicate exact-binding sibling before any fixture mutation");
+  assert(rewindSafety.corruptMatchingWriteFree,
+    "Historical rewind rejects corrupt matching receipt before any fixture mutation");
+  assert(rewindSafety.unknownMatchingWriteFree,
+    "Historical rewind rejects unknown same-authority receipt before any fixture mutation");
+  assert(rewindSafety.missingHistoryWriteFree,
+    "Historical rewind rejects missing failure eligibility before any fixture mutation");
+  assert(rewindSafety.alternativeChainWriteFree,
+    "Historical rewind rejects persistence-valid alternative full chain with zero mutation");
+  assert(rewindSafety.claimV1PoisonWriteFree,
+    "Historical rewind rejects persistence-valid non-terminal claim-v1 poison with zero mutation");
+  assert(rewindSafety.attemptV1PoisonWriteFree,
+    "Historical rewind rejects persistence-valid non-terminal attempt-v1 poison with zero mutation");
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sprint-129-36-ext-smoke-"));
   assertContained(os.tmpdir(), tempRoot);
   const tempRootIdentity = captureOwnedTempRootIdentity(tempRoot);
@@ -789,6 +1161,10 @@ async function runSmokeSuite() {
 
   fs.mkdirSync(tempProjectsDir, { recursive: true });
   fs.cpSync(repoProdDir, tempProjectsDir, { recursive: true });
+
+  // The production project legitimately advanced through ordinal 4 after this sprint.
+  // Reconstruct the original exhausted failed/2 boundary only inside the owned temp copy.
+  rewindOwnedProjectToExhaustedAudioFixture(tempProjectsDir, tempRoot);
 
   const isolatedInput = createRuntimeStorageContext({
     workspaceRoot: tempRoot,
@@ -834,8 +1210,6 @@ async function runSmokeSuite() {
   });
   fs.writeFileSync(markerPath, `${JSON.stringify(marker, null, 2)}\n`, "utf8");
 
-  let plan1: Awaited<ReturnType<typeof planRetryBudgetExtension>>;
-
     // ═══════════════════════════════════════════════════════
     // BLOCK A: Cleanup and parser tests (Scenarios 1–16)
     // ═══════════════════════════════════════════════════════
@@ -846,7 +1220,7 @@ async function runSmokeSuite() {
     // ═══════════════════════════════════════════════════════
 
     // 15. Exact exhausted failed/2 + durable ordinal 3 terminal lineage plan eligible.
-    plan1 = await planRetryBudgetExtension(projectSlug, stage, jobId, reason, isolatedInput);
+    const plan1 = await planRetryBudgetExtension(projectSlug, stage, jobId, reason, isolatedInput);
     assert(plan1.eligible === true && typeof plan1.authorityId === "string" && plan1.authorityId.length >= 32,
       "Plan eligible for exact exhausted failed/2 state");
 

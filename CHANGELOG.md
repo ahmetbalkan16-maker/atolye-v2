@@ -1,5 +1,73 @@
 ---
 
+<!-- SPRINT-129.38-START -->
+## 2026-08-08 — Sprint 129.38 Retry-Budget Settled-Receipt Cross-Stage Replay Remediation
+
+- Replaced project-directory consumed-receipt scanning in failed terminal settlement with exact
+  current-lineage retry-budget binding validation across reservation, record, lease, claim, and
+  attempt.
+- Added write-free replay for an existing valid matching settled receipt and deterministic
+  first-write identity based on terminal attempt `finalizedAt` when settled is absent.
+- Preserved fail-closed authority, receipt, project/stage/job, ordinal-4, durable-lineage, and
+  no-clobber constraints; unrelated authorities no longer block another stage.
+- Added the Sprint 129.38 executable smoke, including the exact isolated assembly
+  failed/0 reconciliation and resume preparation to queued/1 without provider execution.
+- Added sanitized public command reporting for `PIPELINE_RETRY_COMPENSATION_FAILED` while keeping
+  arbitrary internal errors generic.
+- Closed independent re-review P1: receipt finalization is module-private and can only run after the
+  internal canonical five-sibling chain verification.
+- Replaced synthetic B/C/F helper calls with a real ordinal-4 failed durable lineage and public
+  settlement calls. Deterministic consumed-to-settled, write-free replay, matching corruption, and
+  actual `provider-dispatch-entered = 0` instrumentation now execute end-to-end.
+- Updated Sprint 129.36's historical fixture to preflight and remove only the exact validated audio
+  ordinal-4 lineage inside owned temp roots. Unrelated authority bytes survive and corrupt matching
+  receipts reject before any mutation.
+- Existing settled replay now constructs the canonical expected receipt from immutable terminal
+  `finalizedAt` and requires full fingerprint equality. Stale integrity-valid receipts fail closed
+  with `PIPELINE_FAILED_SETTLEMENT_RECEIPT_BINDING_FAILED` and remain byte-identical.
+- Historical rewind receipt deletion is an exact `consuming`/`consumed`/`settled` path-state
+  allowlist. Ownership, history/jobs/manifest, five-sibling lineage and complete receipt inventory
+  validation all precede mutation; unknown same-authority and missing-history cases prove zero writes.
+- Historical rewind deletion now uses only derived canonical physical paths with exact logical
+  identity and version cardinality (reservation 1, records 1-7, claims 1-2, attempts 1-3). A
+  duplicate integrity-valid exact-binding sibling rejects with zero mutation; unrelated authority,
+  stage, ordinal, and receipt artifacts are each proven byte-identical.
+- Closed the remaining P2 by deriving ordinal-4 execution IDs directly through
+  `buildProductionPipelineExecutionIdentity` and deriving the reservation identity through
+  `buildProductionExecutionIdempotencyIdentity` with consumed `jobVersion` as the canonical
+  production anchor. No canonical ID or pathname is learned from durable enumeration.
+- Added a shared historical preflight that validates the reservation, every record v1-7, claim
+  v1-2, attempt v1-3, and embedded lease through the production persistence validator and exact
+  deterministic ID, parent, operation, ordinal, owner, and retry-budget binding checks. Broad scan
+  now runs only after derivation to reject unexpected same-binding artifacts.
+- Added persistence-valid alternative-full-chain, non-terminal claim-v1 poison, and non-terminal
+  attempt-v1 poison regressions. Each rejects with its exact preflight reason before mutation and
+  proves full fixture-tree digest equality; successful rewind still preserves unrelated authority,
+  stage, ordinal, and receipt bytes.
+- Closed the final two P2 boundaries with exact per-version claim binding/ownership, attempt binding,
+  and embedded lease presence/version/lifecycle/ownership/integrity checks. The detection-only scan
+  now covers top-level and embedded-lease bindings and rejects partial, mismatched, embedded-only,
+  duplicate, and alternative-path current-authority evidence without deriving deletion targets.
+- Added persistence-valid claim-binding, attempt-binding, lease-ownership, lease-version, and
+  embedded-only unexpected-record regressions. Each fails before mutation with full fixture-tree
+  digest equality; unrelated authority, stage, ordinal, and receipt preservation remains exact.
+- Validation PASS: TypeScript, targeted ESLint with zero warnings/errors, 129.38 `18/18`,
+  129.29 `41/41`, 129.36 `124/124`, 129.37 `23/23`, 129.32 `18/18`, 129.33 `54/54`, and
+  `git diff --check` (`278/278` scenarios). Production records `252`, WAV `7`, durable files `232`, cleanup entries `7`,
+  and all ten protected SHA-256 values remained exact.
+- Independent final review result: `APPROVED`, P0/P1/P2 `0/0/0`. The cross-stage settled-receipt
+  replay authority fix, module-private canonical five-sibling finalizer path, deterministic settled
+  replay identity, historical ordinal-4 production-derived identities, per-version persistence and
+  binding/ownership closure, embedded lease closure, and detection-only broad scan are complete.
+  Zero-mutation poison/alternative/duplicate/embedded-only evidence and unrelated
+  authority/stage/ordinal/receipt byte preservation were accepted. Assembly reproduction remains
+  `failed/0 -> reconciliation success -> queued/1`, `runType=resume`, prior `0`, admitted `1`, and
+  provider dispatch `0`.
+- Sprint 129.37 remains approved at `a2830bc`. The later production resume was blocked before the
+  provider; production audio and assembly state remain preserved. Production resume is not
+  re-authorized; the next step is independent re-review.
+<!-- SPRINT-129.38-END -->
+
 <!-- SPRINT-129.37-START -->
 ## 2026-08-08 — Sprint 129.37 Assembly AI Token Budget and Truncation Remediation
 

@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import {
   type RuntimeStorageContext,
   resolveRuntimeStorageContext,
@@ -9,7 +8,7 @@ import {
   buildProductionPipelineRetryBudgetExtensionReceipt,
 } from "./ProductionPipelineRetryBudgetExtensionSchema";
 import {
-  getRetryBudgetExtensionDirectory,
+  readRetryBudgetExtensionAuthority,
   readRetryBudgetExtensionReceipt,
   writeRetryBudgetExtensionReceipt,
 } from "./ProductionPipelineRetryBudgetExtensionStore";
@@ -33,6 +32,8 @@ import type { ProductionExecutionDurableLeasePolicy, ProductionExecutionDurableW
 import type { ProductionExecutionWorkerExecutionRequest, ProductionExecutionWorkerExecutionResult } from "@/types/productionExecutionWorker";
 import type { ProductionExecutionDurableClaimRecord } from "@/types/productionExecutionDurableClaim";
 import type { ProductionExecutionIdempotencyReservationRequest } from "@/types/productionExecutionIdempotency";
+import type { RetryBudgetExtensionDurableBinding } from
+  "@/types/productionPipelineRetryBudgetExtension";
 
 export interface ProductionPipelineTerminalSettlementContext {
   adapter: ProductionExecutionPersistenceAdapter;
@@ -448,36 +449,17 @@ async function settleFailedProductionPipelineExecutionUnlocked(
       final.reasonCode);
   }
   completed.push("quiescence-verified");
-  if (context.expectedProjectSlug && context.expectedStage) {
-    const dir = getRetryBudgetExtensionDirectory(context.expectedProjectSlug, context.storageContext);
-    if (fs.existsSync(dir)) {
-      try {
-        const files = fs.readdirSync(dir);
-        for (const file of files) {
-          if (file.startsWith("receipt-") && file.endsWith("-consumed.json")) {
-            const authId = file.slice("receipt-".length, file.length - "-consumed.json".length);
-            if (!authId || !/^[a-z0-9-]{16,128}$/.test(authId)) continue;
-            const consumedRead = readRetryBudgetExtensionReceipt(context.expectedProjectSlug, authId, "consumed", context.storageContext);
-            if (consumedRead.ok && consumedRead.value) {
-              const settledReceipt = buildProductionPipelineRetryBudgetExtensionReceipt(
-                authId,
-                "settled",
-                new Date().toISOString(),
-                consumedRead.value.jobVersion,
-                ["terminal-settlement:settled-receipt-finalized"],
-              );
-              const writeResult = writeRetryBudgetExtensionReceipt(context.expectedProjectSlug, settledReceipt, context.storageContext);
-              if (!writeResult.ok && writeResult.status !== "replayed") {
-                return deny("PIPELINE_FAILED_SETTLEMENT_RECEIPT_WRITE_FAILED", "final-validation", "SETTLED_RECEIPT_WRITE_FAILED");
-              }
-              wrote ||= !writeResult.writeFree;
-              completed.push("settled-receipt-finalized");
-              break;
-            }
-          }
-        }
-      } catch { /* ignore */ }
+  if (final.retryBudgetExtension) {
+    const receipt = finalizeProductionPipelineRetryBudgetExtensionSettlement({
+      storageContext: context.storageContext,
+      terminalAttemptFinalizedAt: execution.attempt.finalizedAt,
+      binding: final.retryBudgetExtension,
+    });
+    if (!receipt.ok) {
+      return deny(receipt.reasonCode, "final-validation", receipt.causeReasonCode);
     }
+    wrote ||= !receipt.writeFree;
+    completed.push("settled-receipt-finalized");
   }
   return {
     ok: true,
@@ -635,7 +617,8 @@ async function readAndVerifyFailedChain(
   context: ProductionPipelineFailedSettlementContext,
   attempt: ProductionExecutionDurableAttemptRecord,
   requireQuiescence = false,
-): Promise<{ ok: true } | { ok: false; reasonCode: string }> {
+): Promise<{ ok: true; retryBudgetExtension?: RetryBudgetExtensionDurableBinding } |
+  { ok: false; reasonCode: string }> {
   const expected = context.request.coordinator.attempt;
   const inventory = await readFailedSettlementAuthorityInventory(context.adapter);
   if (!inventory.ok) return inventory;
@@ -774,7 +757,121 @@ async function readAndVerifyFailedChain(
       return { ok: false, reasonCode: "PIPELINE_FAILED_SETTLEMENT_RECOVERY_AUTHORITY_NOT_READY" };
     }
   }
-  return { ok: true };
+  const retryBudgetExtension = verifyRetryBudgetExtensionSiblingBinding({
+    reservation, record, claim, attempt: durableAttempt,
+    projectSlug: expectedProjectSlug, stage: expectedStage,
+  });
+  if (!retryBudgetExtension.ok) return retryBudgetExtension;
+  return { ok: true, ...(retryBudgetExtension.binding
+    ? { retryBudgetExtension: retryBudgetExtension.binding } : {}) };
+}
+
+function verifyRetryBudgetExtensionSiblingBinding(input: {
+  readonly reservation: ProductionExecutionIdempotencyReservationRequest;
+  readonly record: ProductionExecutionDurableRecord;
+  readonly claim: ProductionExecutionDurableClaimRecord;
+  readonly attempt: ProductionExecutionDurableAttemptRecord;
+  readonly projectSlug?: string;
+  readonly stage?: string;
+}): { ok: true; binding?: RetryBudgetExtensionDurableBinding } |
+  { ok: false; reasonCode: string } {
+  const siblings = [input.reservation.retryBudgetExtension,
+    input.record.retryBudgetExtension, input.record.durableLease?.retryBudgetExtension,
+    input.claim.retryBudgetExtension, input.attempt.retryBudgetExtension];
+  if (siblings.every((binding) => binding === undefined)) return { ok: true };
+  if (siblings.some((binding) => binding === undefined)) {
+    return { ok: false, reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_MISSING" };
+  }
+  const binding = siblings[0]!;
+  if (siblings.some((candidate) => !sameRetryBudgetExtensionBinding(binding, candidate!)) ||
+    !input.projectSlug || !input.stage || binding.schemaVersion !== "1" ||
+    binding.authorizedDurableOrdinal !== 4 || binding.effectiveMaxAttempts !== 4 ||
+    binding.authorizedRunType !== "resume" ||
+    binding.authorizedOperation !== "pipeline.stage.resume" ||
+    binding.durableAttemptOrdinal !== 4 || binding.projectSlug !== input.projectSlug ||
+    binding.stage !== input.stage || binding.jobId !== `${input.projectSlug}-${input.stage}` ||
+    binding.identityFingerprint !== input.record.identityFingerprint ||
+    binding.reservationBinding !== input.reservation.identity.identityFingerprint ||
+    input.record.operation !== "pipeline.stage.resume" ||
+    input.attempt.identity.operation !== "pipeline.stage.resume" ||
+    input.record.attempt !== 4 || input.record.maxAttempts !== 4) {
+    return { ok: false,
+      reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_SIBLING_BINDING_MISMATCH" };
+  }
+  return { ok: true, binding };
+}
+
+function sameRetryBudgetExtensionBinding(left: RetryBudgetExtensionDurableBinding,
+  right: RetryBudgetExtensionDurableBinding): boolean {
+  return left.schemaVersion === right.schemaVersion &&
+    left.authorityId === right.authorityId &&
+    left.authorityIntegrityFingerprint === right.authorityIntegrityFingerprint &&
+    left.consumptionReceiptFingerprint === right.consumptionReceiptFingerprint &&
+    left.authorizedDurableOrdinal === right.authorizedDurableOrdinal &&
+    left.effectiveMaxAttempts === right.effectiveMaxAttempts &&
+    left.authorizedRunType === right.authorizedRunType &&
+    left.authorizedOperation === right.authorizedOperation &&
+    left.projectSlug === right.projectSlug && left.stage === right.stage &&
+    left.jobId === right.jobId &&
+    left.identityFingerprint === right.identityFingerprint &&
+    left.reservationBinding === right.reservationBinding &&
+    left.durableAttemptOrdinal === right.durableAttemptOrdinal;
+}
+
+function finalizeProductionPipelineRetryBudgetExtensionSettlement(input: {
+  readonly storageContext: RuntimeStorageContext;
+  readonly terminalAttemptFinalizedAt?: string;
+  readonly binding: RetryBudgetExtensionDurableBinding;
+}): { ok: true; writeFree: boolean } |
+  { ok: false; reasonCode: string; causeReasonCode: string } {
+  const { binding } = input;
+  const authorityRead = readRetryBudgetExtensionAuthority(
+    binding.projectSlug, binding.authorityId, input.storageContext);
+  if (!authorityRead.ok || !authorityRead.value) return receiptBindingFailure(authorityRead.reasonCode);
+  const authority = authorityRead.value;
+  if (authority.integrity.fingerprint !== binding.authorityIntegrityFingerprint ||
+    authority.projectSlug !== binding.projectSlug || authority.stage !== binding.stage ||
+    authority.jobId !== binding.jobId ||
+    authority.authorizedRunType !== binding.authorizedRunType ||
+    authority.authorizedOperation !== binding.authorizedOperation ||
+    authority.authorizedDurableOrdinal !== binding.authorizedDurableOrdinal ||
+    authority.effectiveMaxAttempts !== binding.effectiveMaxAttempts) {
+    return receiptBindingFailure("PIPELINE_RETRY_BUDGET_EXTENSION_AUTHORITY_BINDING_MISMATCH");
+  }
+  const consumedRead = readRetryBudgetExtensionReceipt(
+    binding.projectSlug, binding.authorityId, "consumed", input.storageContext);
+  if (!consumedRead.ok || !consumedRead.value ||
+    consumedRead.value.integrity.fingerprint !== binding.consumptionReceiptFingerprint) {
+    return receiptBindingFailure(consumedRead.ok
+      ? "PIPELINE_RETRY_BUDGET_EXTENSION_CONSUMPTION_BINDING_MISMATCH"
+      : consumedRead.reasonCode);
+  }
+  if (!input.terminalAttemptFinalizedAt) {
+    return receiptBindingFailure("PIPELINE_RETRY_BUDGET_EXTENSION_TERMINAL_TIME_MISSING");
+  }
+  const expectedReceipt = buildProductionPipelineRetryBudgetExtensionReceipt(binding.authorityId,
+    "settled", input.terminalAttemptFinalizedAt, consumedRead.value.jobVersion,
+    ["terminal-settlement:settled-receipt-finalized"]);
+  const settledRead = readRetryBudgetExtensionReceipt(
+    binding.projectSlug, binding.authorityId, "settled", input.storageContext);
+  if (settledRead.ok && settledRead.value) {
+    return settledRead.value.integrity.fingerprint === expectedReceipt.integrity.fingerprint
+      ? { ok: true, writeFree: true }
+      : receiptBindingFailure("PIPELINE_RETRY_BUDGET_EXTENSION_SETTLED_BINDING_MISMATCH");
+  }
+  if (settledRead.status !== "not-found") return receiptBindingFailure(settledRead.reasonCode);
+  const written = writeRetryBudgetExtensionReceipt(
+    binding.projectSlug, expectedReceipt, input.storageContext);
+  if (!written.ok) return { ok: false,
+    reasonCode: "PIPELINE_FAILED_SETTLEMENT_RECEIPT_WRITE_FAILED",
+    causeReasonCode: written.reasonCode };
+  return { ok: true, writeFree: written.writeFree };
+}
+
+function receiptBindingFailure(causeReasonCode: string): {
+  ok: false; reasonCode: string; causeReasonCode: string } {
+  return { ok: false, reasonCode: "PIPELINE_FAILED_SETTLEMENT_RECEIPT_BINDING_FAILED",
+    causeReasonCode };
 }
 
 interface FailedSettlementAuthorityInventory {

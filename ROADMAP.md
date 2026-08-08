@@ -1,5 +1,53 @@
 ---
 
+<!-- SPRINT-129.38-START -->
+## Sprint 129.38 — Retry-Budget Settled-Receipt Cross-Stage Replay Remediation
+
+**Status:** APPROVED
+**Production execution status:** BLOCKED
+
+- [x] Remove project-wide consumed-receipt selection from failed terminal settlement.
+- [x] Bind receipt finalization to the current attempt's exact reservation/record/lease/claim/attempt
+  retry-budget extension authority.
+- [x] Treat an existing valid matching settled receipt as a write-free replay.
+- [x] Create a missing matching settled receipt once from immutable terminal `finalizedAt` evidence.
+- [x] Ignore unrelated/foreign stage and job receipts; fail closed on matching corruption.
+- [x] Reproduce temp assembly `failed/0 → reconciled → queued/1` with zero provider calls.
+- [x] Expose only stable `PIPELINE_RETRY_COMPENSATION_FAILED` through the authenticated resume
+  command error contract.
+- [x] Close independent re-review findings: make receipt finalization module-private, exercise
+  B/C/F through a real five-sibling public settlement path, and instrument provider dispatch.
+- [x] Restrict historical rewind to the exact validated audio ordinal-4 lineage; preserve unrelated
+  authority bytes and reject corrupt matching candidates before mutation.
+- [x] Require full deterministic settled-receipt fingerprint equality against terminal `finalizedAt`;
+  reject stale integrity-valid receipts without overwrite.
+- [x] Replace same-authority receipt prefix cleanup with exact `consuming`/`consumed`/`settled`
+  allowlists and finish ownership/state/inventory preflight before the first fixture mutation.
+- [x] Derive rewind deletion targets from exact canonical physical paths and cardinality; reject an
+  extra integrity-valid exact-binding sibling with zero mutation, while preserving unrelated
+  authority, stage, ordinal, and receipt bytes independently.
+- [x] Derive ordinal-4 record, claim, attempt, and lease IDs from
+  `buildProductionPipelineExecutionIdentity`; derive reservation identity independently through
+  `buildProductionExecutionIdempotencyIdentity` using consumed `jobVersion` as the anchor.
+- [x] Validate the reservation, record v1-7, claim v1-2, attempt v1-3, and embedded leases through
+  the production persistence boundary plus exact deterministic parent/owner/binding checks.
+- [x] Restrict broad scan to post-derivation unexpected/duplicate detection; deletion targets are
+  only the 13 production-derived, persistence-valid canonical physical paths.
+- [x] Prove exact fail-closed, full-tree zero-mutation behavior for a persistence-valid alternative
+  full chain, poisoned non-terminal claim-v1, and poisoned non-terminal attempt-v1.
+- [x] Close every physical version over exact claim binding/ownership, attempt binding, and embedded
+  lease presence/version/lifecycle/ownership/integrity; reject persistence-valid binding and lease
+  ownership/version poisons before mutation.
+- [x] Scan top-level and embedded-lease retry bindings for partial, mismatched, embedded-only,
+  duplicate, and alternative-path current-authority artifacts without learning canonical IDs.
+- [x] Validate TypeScript, zero-warning targeted ESLint, 129.38 `18/18`, 129.36 `124/124`,
+  129.29 `41/41`, 129.37 `23/23`, 129.32 `18/18`, 129.33 `54/54`, and `git diff --check`.
+- [x] Preserve production audio, seven WAVs, assembly state, durable lineage, and retry receipts.
+- [x] Complete independent final review: `APPROVED`, P0/P1/P2 `0/0/0`, safe executable matrix
+  `278/278 PASS`.
+- [ ] Obtain separate authorization before any production assembly resume.
+<!-- SPRINT-129.38-END -->
+
 <!-- SPRINT-129.37-START -->
 ## Sprint 129.37 — Assembly AI Token Budget and Truncation Remediation
 

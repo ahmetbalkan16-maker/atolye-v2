@@ -232,6 +232,7 @@ const resumePublicErrorCodes = new Set<string>([
   "PIPELINE_RETRY_MAX_ATTEMPTS_EXCEEDED",
   "PIPELINE_RETRY_QUEUED_EXHAUSTED_DRIFT_DETECTED",
   "PIPELINE_RETRY_DURABLE_CONFLICT",
+  "PIPELINE_RETRY_COMPENSATION_FAILED",
   productionDurableAttemptLineageBindingInvalidCode,
 ]);
 
