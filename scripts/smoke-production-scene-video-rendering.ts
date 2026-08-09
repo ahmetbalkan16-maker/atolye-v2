@@ -46,6 +46,7 @@ import { ProjectManager } from "../src/lib/projects/ProjectManager";
 import type { AnimationData, AnimationMotionPlanScene, AnimationMotionType } from "../src/types/animation";
 import type { Asset } from "../src/types/asset";
 import type { ProductionStepKey, ProjectPackageRunType } from "../src/types/project";
+import type { RuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePaths";
 
 type RunnerHarness = {
   runStageLegacy(
@@ -59,6 +60,7 @@ type RunnerHarness = {
 let prefix: string;
 let temporaryRuntimeRoot: string;
 let projectsRoot: string;
+let activeRuntimeStorageContext: RuntimeStorageContext | undefined;
 const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 let scenarios = 0;
 
@@ -121,7 +123,7 @@ async function fixture(
         data: png,
         assetId: imageId,
         mimeType: "image/png",
-      });
+      }, activeRuntimeStorageContext);
       filePath = saved.filePath;
       url = saved.url;
       mimeType = "image/png";
@@ -170,7 +172,7 @@ async function fixture(
     assets,
     createdAt: now,
     updatedAt: now,
-  });
+  }, activeRuntimeStorageContext);
   const animation: AnimationData = {
     projectId: project.id,
     schemaVersion: "2",
@@ -183,6 +185,7 @@ async function fixture(
     project,
     animation,
     plans,
+    context: activeRuntimeStorageContext,
     assetsPath: path.join(temporaryRuntimeRoot,
       path.relative("data", AssetManager.getAssetsPath(slug))),
   };
@@ -835,30 +838,30 @@ async function run() {
     await scenario("pipeline success persists video registry manifest job history and queues audio", async () => {
       const value = await fixture("pipeline-success");
       await PipelineJobManager.listJobs(value.slug);
-      await ProjectManager.saveAnimation(value.slug, value.animation);
+      await ProjectManager.saveAnimation(value.slug, value.animation, value.context);
       const state = { ...PipelineStageExecutor.createInitialState(value.project), animation: value.animation } as PipelineExecutionState;
       const runner = PipelineRunner as unknown as RunnerHarness;
-      assert.equal(await runner.runStageLegacy(value.slug, "video", () => PipelineStageExecutor.execute(value.slug, "video", state, { videoProvider: new MockVideoProvider() }), "initial"), true);
-      const stored = await ProjectManager.getVideo(value.slug);
+      assert.equal(await runner.runStageLegacy(value.slug, "video", () => PipelineStageExecutor.execute(value.slug, "video", state, { videoProvider: new MockVideoProvider() }, undefined, undefined, undefined, undefined, value.context), "initial"), true);
+      const stored = await ProjectManager.getVideo(value.slug, value.context);
       const jobs = await PipelineJobManager.listJobsReadOnly(value.slug);
       const history = await PipelineJobManager.listHistory(value.slug);
       assert.equal(isCompatibleVideoData(stored), true);
-      assert.equal((await ProjectManager.getManifest(value.slug))?.packages.video.status, "completed");
+      assert.equal((await ProjectManager.getManifest(value.slug, value.context))?.packages.video.status, "completed");
       assert.equal(jobs.jobs.find((job) => job.stage === "video")?.status, "completed");
       assert.equal(jobs.jobs.find((job) => job.stage === "audio")?.status, "queued");
       assert.ok(history.events.some((event) => event.stage === "video" && event.status === "completed"));
       const before = await fs.readFile(value.assetsPath, "utf8");
-      assert.equal(await runner.runStageLegacy(value.slug, "video", () => PipelineStageExecutor.execute(value.slug, "video", state, { videoProvider: new MockVideoProvider() }), "initial"), false);
+      assert.equal(await runner.runStageLegacy(value.slug, "video", () => PipelineStageExecutor.execute(value.slug, "video", state, { videoProvider: new MockVideoProvider() }, undefined, undefined, undefined, undefined, value.context), "initial"), false);
       assert.equal(await fs.readFile(value.assetsPath, "utf8"), before);
     });
 
     await scenario("pipeline failure blocks audio and assembly", async () => {
       const value = await fixture("pipeline-failure");
       await PipelineJobManager.listJobs(value.slug);
-      await ProjectManager.saveAnimation(value.slug, value.animation);
+      await ProjectManager.saveAnimation(value.slug, value.animation, value.context);
       const state = { ...PipelineStageExecutor.createInitialState(value.project), animation: value.animation } as PipelineExecutionState;
       const runner = PipelineRunner as unknown as RunnerHarness;
-      await assert.rejects(runner.runStageLegacy(value.slug, "video", () => PipelineStageExecutor.execute(value.slug, "video", state, { videoProvider: provider("mock", async () => ({ success: false, provider: "mock", error: "raw" })) }), "initial"));
+      await assert.rejects(runner.runStageLegacy(value.slug, "video", () => PipelineStageExecutor.execute(value.slug, "video", state, { videoProvider: provider("mock", async () => ({ success: false, provider: "mock", error: "raw" })) }, undefined, undefined, undefined, undefined, value.context), "initial"));
       const jobs = await PipelineJobManager.listJobsReadOnly(value.slug);
       const scheduled = await PipelineQueueScheduler.getNextRunnableStage(value.slug, ["video", "audio", "assembly"]);
       assert.equal(jobs.jobs.find((job) => job.stage === "video")?.status, "failed");
@@ -885,6 +888,7 @@ async function main() {
     prefix = `sprint-117-scene-video-${runtime.runId}`;
     temporaryRuntimeRoot = runtime.runtimeRoot;
     projectsRoot = runtime.runtimeStorageContext.projectsRoot;
+    activeRuntimeStorageContext = runtime.runtimeStorageContext;
     assert.notEqual(
       path.resolve(projectsRoot),
       path.resolve(process.cwd(), "data", "projects"),

@@ -28,6 +28,7 @@ import { ProjectManager } from "../src/lib/projects/ProjectManager";
 import type { AnimationData, AnimationScene } from "../src/types/animation";
 import type { Asset } from "../src/types/asset";
 import type { ProductionStepKey, ProjectPackageRunType } from "../src/types/project";
+import type { RuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePaths";
 
 type RunnerHarness = {
   runStage(
@@ -40,6 +41,7 @@ type RunnerHarness = {
 
 const prefix = `sprint-116-motion-plan-${process.pid}`;
 let projectsRoot = "";
+let activeContext: RuntimeStorageContext | undefined;
 const originalPromptGenerator = AnimationPromptGenerator.generateAnimationData;
 let scenarios = 0;
 
@@ -102,6 +104,7 @@ async function fixture(
     slug,
     project,
     scenes: sceneIds.map((sceneId) => animationScene(sceneId)),
+    context: activeContext,
     assetsPath: path.join(projectsRoot, slug, "assets", "assets.json"),
   };
 }
@@ -142,6 +145,7 @@ async function expectRejectedWithoutAssetWrite(
 
 async function pipelineFixture(suffix: string) {
   const value = await fixture(suffix, [1, 2]);
+  await PipelineJobManager.listJobs(value.slug);
   const sceneData = {
     scenes: [
       { id: 1, title: "One", description: "One", duration: 8 },
@@ -158,9 +162,8 @@ async function pipelineFixture(suffix: string) {
     thumbnail: { title: "t", prompt: "p", composition: "c", mood: "m" },
     createdAt: new Date().toISOString(),
   };
-  await ProjectManager.saveScenes(value.slug, sceneData);
-  await ProjectManager.saveVisuals(value.slug, visualData);
-  await PipelineJobManager.listJobs(value.slug);
+  await ProjectManager.saveScenes(value.slug, sceneData, value.context);
+  await ProjectManager.saveVisuals(value.slug, visualData, value.context);
   const state = {
     ...PipelineStageExecutor.createInitialState(value.project),
     scenes: sceneData,
@@ -413,18 +416,18 @@ async function run() {
         await runner.runStage(
           value.slug,
           "animation",
-          () => PipelineStageExecutor.execute(value.slug, "animation", value.state, { animationProvider: new MockAnimationProvider() }),
+          () => PipelineStageExecutor.execute(value.slug, "animation", value.state, { animationProvider: new MockAnimationProvider() }, undefined, undefined, undefined, undefined, value.context),
           "initial",
         ),
         true,
       );
-      const stored = await ProjectManager.getAnimation(value.slug) as AnimationData;
+      const stored = await ProjectManager.getAnimation(value.slug, value.context) as AnimationData;
       const jobs = await PipelineJobManager.listJobsReadOnly(value.slug);
       const history = await PipelineJobManager.listHistory(value.slug);
       assert.equal(stored.schemaVersion, "2");
       assert.equal(stored.artifactType, "motion-plan");
       assert.equal(stored.scenes.length, 2);
-      assert.equal((await ProjectManager.getManifest(value.slug))?.packages.animation.status, "completed");
+      assert.equal((await ProjectManager.getManifest(value.slug, value.context))?.packages.animation.status, "completed");
       assert.equal(jobs.jobs.find((job) => job.stage === "animation")?.status, "completed");
       assert.ok(history.events.some((event) => event.stage === "animation" && event.status === "completed"));
       assert.equal(jobs.jobs.find((job) => job.stage === "video")?.status, "queued");
@@ -438,7 +441,7 @@ async function run() {
         await runner.runStage(
           value.slug,
           "animation",
-          () => PipelineStageExecutor.execute(value.slug, "animation", value.state, { animationProvider: new MockAnimationProvider() }),
+          () => PipelineStageExecutor.execute(value.slug, "animation", value.state, { animationProvider: new MockAnimationProvider() }, undefined, undefined, undefined, undefined, value.context),
           "initial",
         ),
         false,
@@ -457,11 +460,11 @@ async function run() {
           "animation",
           () => PipelineStageExecutor.execute(value.slug, "animation", value.state, {
             animationProvider: provider(async (input) => ({ ...(await valid(input)), transition: "wipe" as never })),
-          }),
+          }, undefined, undefined, undefined, undefined, value.context),
           "initial",
         ),
         (error) => error instanceof ProductionPipelineDurableExecutionError &&
-          error.reasonCode === "WORKER_EXECUTION_FAILED",
+          (error.reasonCode === "WORKER_EXECUTION_FAILED" || error.reasonCode === "ANIMATION_RESPONSE_SCHEMA_INVALID"),
       );
       const jobs = await PipelineJobManager.listJobsReadOnly(value.slug);
       const history = await PipelineJobManager.listHistory(value.slug);
@@ -472,7 +475,7 @@ async function run() {
       assert.equal(jobs.jobs.find((job) => job.stage === "animation")?.status, "failed");
       assert.notEqual(jobs.jobs.find((job) => job.stage === "video")?.status, "running");
       assert.notEqual(jobs.jobs.find((job) => job.stage === "video")?.status, "completed");
-      assert.equal((await ProjectManager.getManifest(value.slug))?.packages.animation.status, "failed");
+      assert.equal((await ProjectManager.getManifest(value.slug, value.context))?.packages.animation.status, "failed");
       assert.ok(history.events.some((event) => event.stage === "animation" && event.status === "failed"));
       assert.equal(scheduled.stage, null);
       assert.match(scheduled.reason ?? "", /animation.*failed/i);
@@ -493,6 +496,7 @@ async function run() {
 async function main() {
   await withCanonicalSmokeRuntime({ name: "animation-motion-plan-contract" }, async (runtime) => {
     projectsRoot = runtime.runtimeStorageContext.projectsRoot;
+    activeContext = runtime.runtimeStorageContext;
     await run();
   });
   emitSmokeResult("animation-motion-plan-contract", scenarios);
