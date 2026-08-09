@@ -26,6 +26,7 @@ import type { ImageProvider } from "@/lib/assets/providers/ImageProvider";
 import { ImageProviderRouter } from "@/lib/assets/providers/ImageProviderRouter";
 import { ExportEngine } from "@/lib/export/ExportEngine";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
+import type { RuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
 import { SEOManager } from "@/lib/seo/SEOManager";
 import { ThumbnailEngine } from "@/lib/thumbnail/ThumbnailEngine";
 import {
@@ -163,8 +164,11 @@ export class PipelineStageExecutor {
     };
   }
 
-  static async loadState(projectSlug: string): Promise<PipelineExecutionState | null> {
-    const project = await ProjectManager.getProject(projectSlug);
+  static async loadState(
+    projectSlug: string,
+    storageContext?: RuntimeStorageContext,
+  ): Promise<PipelineExecutionState | null> {
+    const project = await ProjectManager.getProject(projectSlug, storageContext);
 
     if (!project) {
       return null;
@@ -184,18 +188,18 @@ export class PipelineStageExecutor {
       youtube,
       exportPackage,
     ] = await Promise.all([
-      ProjectManager.getResearch(projectSlug) as Promise<ResearchData | null>,
-      ProjectManager.getScript(projectSlug) as Promise<ScriptData | null>,
-      ProjectManager.getScenes(projectSlug) as Promise<SceneData | null>,
-      ProjectManager.getVisuals(projectSlug) as Promise<VisualData | null>,
-      ProjectManager.getAnimation(projectSlug),
-      ProjectManager.getVideo(projectSlug),
-      ProjectManager.getAudio(projectSlug) as Promise<AudioData | null>,
-      ProjectManager.getAssembly(projectSlug) as Promise<AssemblyPlanData | null>,
-      ProjectManager.getThumbnail(projectSlug) as Promise<ThumbnailData | null>,
-      ProjectManager.getSEO(projectSlug) as Promise<SEOData | null>,
-      ProjectManager.getYouTube(projectSlug) as Promise<YouTubePublishingPackage | null>,
-      ProjectManager.getExport(projectSlug) as Promise<ExportPackageData | null>,
+      ProjectManager.getResearch(projectSlug, storageContext) as Promise<ResearchData | null>,
+      ProjectManager.getScript(projectSlug, storageContext) as Promise<ScriptData | null>,
+      ProjectManager.getScenes(projectSlug, storageContext) as Promise<SceneData | null>,
+      ProjectManager.getVisuals(projectSlug, storageContext) as Promise<VisualData | null>,
+      ProjectManager.getAnimation(projectSlug, storageContext),
+      ProjectManager.getVideo(projectSlug, storageContext),
+      ProjectManager.getAudio(projectSlug, storageContext) as Promise<AudioData | null>,
+      ProjectManager.getAssembly(projectSlug, storageContext) as Promise<AssemblyPlanData | null>,
+      ProjectManager.getThumbnail(projectSlug, storageContext) as Promise<ThumbnailData | null>,
+      ProjectManager.getSEO(projectSlug, storageContext) as Promise<SEOData | null>,
+      ProjectManager.getYouTube(projectSlug, storageContext) as Promise<YouTubePublishingPackage | null>,
+      ProjectManager.getExport(projectSlug, storageContext) as Promise<ExportPackageData | null>,
     ]);
 
     return {
@@ -224,6 +228,7 @@ export class PipelineStageExecutor {
     acceptanceIdentity?: ProductionAcceptanceStageExecutionIdentity,
     acceptanceRunType?: ProjectPackageRunType,
     acceptanceProviderSelection?: ProductionAcceptanceProviderSelection,
+    storageContext?: RuntimeStorageContext,
   ): Promise<boolean> {
     const actualRunType = acceptanceRunType ?? acceptanceIdentity?.runType;
     const providerSelection = acceptanceProviderSelection ??
@@ -236,6 +241,7 @@ export class PipelineStageExecutor {
         operation: `pipeline.stage.${actualRunType}`,
         executionFingerprint: acceptanceIdentity.executionFingerprint,
         providerSelection,
+        regeneration: acceptanceIdentity.regeneration,
       })
       : undefined;
     const persistedPolicy = acceptanceIdentity
@@ -275,7 +281,7 @@ export class PipelineStageExecutor {
           operation: "research",
         }, dispatchOptions.aiProvider, generationPolicy);
         return this.persistStageResult(projectSlug, stage, () =>
-          ProjectManager.saveResearch(projectSlug, state.research),
+          ProjectManager.saveResearch(projectSlug, state.research, requireStorageContext(storageContext)),
         );
 
       case "script":
@@ -289,7 +295,7 @@ export class PipelineStageExecutor {
           validateProductionAcceptanceScriptDuration(state.script);
         }
         return this.persistStageResult(projectSlug, stage, () =>
-          ProjectManager.saveScript(projectSlug, state.script),
+          ProjectManager.saveScript(projectSlug, state.script, requireStorageContext(storageContext)),
         );
 
       case "scenes": {
@@ -304,7 +310,7 @@ export class PipelineStageExecutor {
           validateProductionAcceptancePreflight(script, state.scenes);
         }
         return this.persistStageResult(projectSlug, stage, () =>
-          ProjectManager.saveScenes(projectSlug, state.scenes),
+          ProjectManager.saveScenes(projectSlug, state.scenes, requireStorageContext(storageContext)),
         );
       }
 
@@ -323,7 +329,7 @@ export class PipelineStageExecutor {
           generationPolicy,
         });
         await dispatchBranch("visualAssetProvider");
-        await ProjectManager.persistVisualsArtifact(projectSlug, state.visuals);
+        await ProjectManager.persistVisualsArtifact(projectSlug, state.visuals, requireStorageContext(storageContext));
         await VisualAssetPipeline.generateAssets({
           projectId: state.project.id,
           projectSlug,
@@ -331,7 +337,7 @@ export class PipelineStageExecutor {
           provider: dispatchOptions.visualAssetProvider,
         });
         return this.persistStageResult(projectSlug, stage, () =>
-          ProjectManager.updatePackageStatus(projectSlug, "visuals", "completed").then(() => undefined),
+          ProjectManager.updatePackageStatus(projectSlug, "visuals", "completed", undefined, undefined, requireStorageContext(storageContext)).then(() => undefined),
         );
       }
 
@@ -366,7 +372,7 @@ export class PipelineStageExecutor {
           scenes: updatedScenes,
         };
         return this.persistStageResult(projectSlug, stage, () =>
-          ProjectManager.saveAnimation(projectSlug, state.animation),
+          ProjectManager.saveAnimation(projectSlug, state.animation, requireStorageContext(storageContext)),
         );
       }
 
@@ -381,7 +387,7 @@ export class PipelineStageExecutor {
         });
         state.video = video;
         return this.persistStageResult(projectSlug, stage, () =>
-          ProjectManager.saveVideo(projectSlug, state.video),
+          ProjectManager.saveVideo(projectSlug, state.video, requireStorageContext(storageContext)),
         );
       }
 
@@ -404,7 +410,7 @@ export class PipelineStageExecutor {
         state.audio = audio;
         try {
           return await this.persistStageResult(projectSlug, stage, () =>
-            ProjectManager.saveAudio(projectSlug, state.audio),
+            ProjectManager.saveAudio(projectSlug, state.audio, requireStorageContext(storageContext)),
           );
         } catch {
           throw new AudioAssetGenerationError();
@@ -454,7 +460,7 @@ export class PipelineStageExecutor {
         });
         try {
           return await this.persistStageResult(projectSlug, stage, () =>
-            ProjectManager.saveAssembly(projectSlug, state.assembly),
+            ProjectManager.saveAssembly(projectSlug, state.assembly, requireStorageContext(storageContext)),
           );
         } catch {
           throw new VideoAssemblyError();
@@ -489,7 +495,7 @@ export class PipelineStageExecutor {
         try {
           return await this.persistStageResult(projectSlug, stage, async () => {
             try {
-              await ProjectManager.saveThumbnail(projectSlug, state.thumbnail);
+              await ProjectManager.saveThumbnail(projectSlug, state.thumbnail, requireStorageContext(storageContext));
             } catch {
               await ThumbnailAssetPipeline.compensatePersistenceFailure(
                 state.project.id,
@@ -522,7 +528,7 @@ export class PipelineStageExecutor {
           },
         );
         return this.persistStageResult(projectSlug, stage, () =>
-          ProjectManager.saveSEO(projectSlug, state.seo),
+          ProjectManager.saveSEO(projectSlug, state.seo, requireStorageContext(storageContext)),
         );
       }
 
@@ -545,7 +551,7 @@ export class PipelineStageExecutor {
               isYouTubePublishingPackage(previousYouTube) &&
               JSON.stringify(previousYouTube) === JSON.stringify(state.youtube),
             updatePackageStatus: false,
-          });
+          }, requireStorageContext(storageContext));
           if (persistedPolicy?.youtubePublishMode === "package-only") {
             await emitProductionPipelineExecutionEvent("youtube-publish-skipped-package-only", {
               stage, slot: "youtubePublishProvider", selectionId: providerSelection.selectionId,
@@ -558,7 +564,7 @@ export class PipelineStageExecutor {
             provider: dispatchOptions.youtubePublishProvider,
           });
           return await this.persistStageResult(projectSlug, stage, () =>
-            ProjectManager.markYouTubePublished(projectSlug),
+            ProjectManager.markYouTubePublished(projectSlug, requireStorageContext(storageContext)),
           );
         } catch {
           throw new YouTubePublishError();
@@ -585,7 +591,7 @@ export class PipelineStageExecutor {
           seo,
         });
         return this.persistStageResult(projectSlug, stage, () =>
-          ProjectManager.saveExport(projectSlug, state.exportPackage),
+          ProjectManager.saveExport(projectSlug, state.exportPackage, requireStorageContext(storageContext)),
         );
       }
     }
@@ -598,6 +604,13 @@ export class PipelineStageExecutor {
   ) {
     return PipelineJobManager.persistStageSuccess(projectSlug, stage, persist);
   }
+}
+
+function requireStorageContext(
+  context: RuntimeStorageContext | undefined,
+): RuntimeStorageContext {
+  if (!context) throw new Error("RUNTIME_STORAGE_CONTEXT_REQUIRED");
+  return context;
 }
 
 function requireStageInput<T>(

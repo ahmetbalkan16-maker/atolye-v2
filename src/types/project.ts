@@ -60,6 +60,8 @@ export interface ProjectPackageManifest {
   errorEvidence?: PipelineErrorEvidence;
   attempts?: ProjectPackageAttemptMetadata;
   usage?: ProjectPackageUsage;
+  generationOrdinal?: number;
+  regenerationId?: string;
 }
 
 export type ProjectPackageRunType = "initial" | "resume" | "retry";

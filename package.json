@@ -16,6 +16,8 @@
     "production:acceptance:extend-retry-budget": "tsx scripts/run-production-acceptance.ts extend-retry-budget",
     "production:acceptance:execute": "tsx scripts/run-production-acceptance.ts execute",
     "production:acceptance:resume": "tsx scripts/run-production-acceptance.ts resume-finalize",
+    "production:acceptance:regeneration-plan": "tsx scripts/run-production-regeneration.ts plan",
+    "production:acceptance:prepare-regeneration": "tsx scripts/run-production-regeneration.ts prepare",
     "smoke:sprint-129-25b": "tsx scripts/smoke-sprint-129-25b-runtime-root.ts",
     "smoke:sprint-129-25b-1": "tsx scripts/smoke-sprint-129-25b-1-runtime-hardening.ts",
     "runtime:backup:inventory": "tsx scripts/runtime-backup.ts inventory",
@@ -32,7 +34,8 @@
     "smoke:sprint-129-32": "tsx scripts/smoke-sprint-129-32-retry-durable-attempt-ordinal.ts",
     "smoke:sprint-129-33": "tsx scripts/smoke-sprint-129-33-exhausted-retry-admission.ts",
     "smoke:sprint-129-36": "tsx scripts/smoke-sprint-129-36-retry-budget-extension.ts",
-    "smoke:sprint-129-39": "tsx scripts/smoke-sprint-129-39-stage-bounded-resume.ts"
+    "smoke:sprint-129-39": "tsx scripts/smoke-sprint-129-39-stage-bounded-resume.ts",
+    "smoke:sprint-129-41": "tsx scripts/smoke-sprint-129-41-completed-stage-regeneration.ts"
   },
   "dependencies": {
     "next": "16.2.10",

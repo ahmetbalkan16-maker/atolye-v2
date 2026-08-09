@@ -3,11 +3,12 @@ import type { ProductionExecutionPersistenceAdapter } from "@/types/productionEx
 import type { ProductionExecutionWorkerExecutionRequest, ProductionExecutionWorkerExecutionResult } from "@/types/productionExecutionWorker";
 import type { ProductionStepKey, ProjectPackageRunType } from "@/types/project";
 import type { ProductionAcceptanceProviderSelection } from "./ProductionAcceptanceExecutionScope";
+import type { ProductionRegenerationBinding } from "@/types/productionRegeneration";
 import type { ProductionPipelineFailedSettlementAttemptEvidence,
   ProductionPipelineFailedSettlementFailureBoundary } from
   "./ProductionPipelineTerminalSettlement";
 
-export interface ProductionPipelineExecutionContext { projectSlug:string;stage:ProductionStepKey;runType:ProjectPackageRunType;providerSelection?:ProductionAcceptanceProviderSelection }
+export interface ProductionPipelineExecutionContext { projectSlug:string;stage:ProductionStepKey;runType:ProjectPackageRunType;providerSelection?:ProductionAcceptanceProviderSelection;regeneration?:ProductionRegenerationBinding }
 export type ProductionPipelineExecutionRequestFactory = (context:ProductionPipelineExecutionContext) => ProductionExecutionWorkerExecutionRequest | Promise<ProductionExecutionWorkerExecutionRequest>;
 export interface ProductionPipelineSettlementResult { ok:boolean;reasonCode:string;settlementReasonCode?:string;originalFailureCode?:string;causeReasonCode?:string;completedSteps?:readonly string[];writePerformed?:boolean;writeFree?:boolean;quiescenceProven?:boolean;failedBoundary?:ProductionPipelineFailedSettlementFailureBoundary;attemptEvidence?:ProductionPipelineFailedSettlementAttemptEvidence }
 export type ProductionPipelineSuccessSettlement = (result:ProductionExecutionWorkerExecutionResult) => Promise<ProductionPipelineSettlementResult>;

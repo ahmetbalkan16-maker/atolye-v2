@@ -23,6 +23,8 @@ import { buildProductionPipelineExecutionIdentity } from "./ProductionPipelineEx
 import {
   buildVersionedProductionPipelineExecutionIdentity,
 } from "./ProductionLegacyPipelineExecutionIdentity";
+import { regenerationBindingForExecution } from
+  "./ProductionCompletedStageRegenerationStore";
 
 export type QuiescenceLineageIdentityVersion =
   | "strict-target-v2"
@@ -193,7 +195,9 @@ async function verifyTerminalLineageVersioned(
 ): Promise<{ ok: boolean; claimId: string; attemptId: string; version: QuiescenceLineageIdentityVersion }> {
   // Try strict v2 first
   const currentIdentity = buildProductionPipelineExecutionIdentity(
-    { projectSlug, stage: record.stage as ProductionStepKey, runType },
+    { projectSlug, stage: record.stage as ProductionStepKey, runType,
+      regeneration: regenerationBindingForExecution(
+        projectSlug, record.stage as ProductionStepKey, record.attempt - 1) },
     { id: `${projectSlug}-${record.stage}`, attempts: record.attempt - 1 },
   );
 

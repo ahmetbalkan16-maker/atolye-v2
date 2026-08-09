@@ -1,5 +1,47 @@
 ---
 
+<!-- SPRINT-129.41-START -->
+## Sprint 129.41 - Canonical Completed-Stage Regeneration - 2026-08-09
+
+**Status:** READY FOR INDEPENDENT RE-REVIEW
+**Production execution status:** BLOCKED - implementation/evidence only; no real regeneration ran
+
+- Public completed-stage regeneration is implemented only for `fromStage=video`; every other stage
+  and malformed/unknown stage is rejected by planner, CLI, and preparation. Arbitrary-stage
+  regeneration remains future work; the internal dependency graph stays generic.
+- Preserved stages require exactly one canonical completed job. While a prepared regeneration is
+  active, every stage outside its affected set fails closed before execution authority/admission.
+- Primary and recovery YouTube publication records use the same canonical validator; published,
+  in-flight, malformed, recovery-only, and conflicting evidence all block regeneration.
+- Planning, validation, preparation, package reads, job reads, asset/publication/regeneration reads,
+  durable authority, and the project mutation lock bind to one explicit `RuntimeStorageContext`.
+  Two-root/same-slug tests prove A-pass/B-fail and B-pass/A-fail without cross-root influence.
+- Supersession intent is mandatory for active video/assembly regeneration and is fully validated
+  before canonical package or manifest mutation. Missing/corrupt intent, generation mismatch,
+  predecessor loss, and asset-set drift fail with zero completion writes; successful completion then
+  records exact new package hash/asset IDs.
+- Owned-temp `134/134` evidence uses real `PipelineRunner.resume()`, scheduler,
+  `PipelineStageExecutor`, capability consumption, and configured provider dispatch for bounded
+  video then bounded assembly. Video and assembly dispatch exactly once; audio/TTS and all
+  downstream dispatch/admission are zero. Seven WAVs are published through canonical audio storage,
+  inspected descriptor-bound without monkey-patching, and consumed unchanged by assembly.
+- Two independent processes prove same-request single-generation replay and conflicting-request
+  single-winner rejection. The production guard binds physical realpath/device/inode identity and
+  rejects direct, equivalent, case-equivalent, junction, and nested-junction targets before any
+  mutation, provider use, intent creation, or cleanup.
+- PASS: Sprint 129.39 `54/54`, assembly scene-video `19/19`, assembly wiring `46/46`, runtime
+  hardening `13/13`, retry durable ordinal `18/18`, global quiescence `32/32`, retry-budget
+  extension `124/124`, TypeScript, and zero-warning targeted ESLint.
+- Scene-video rendering repeatedly fails at line 554 (`expected true`, `actual false`) because this
+  host has no `ffmpeg`/`ffprobe` executable; the runner reports spawn failure with empty stderr.
+  `FFmpegSceneVideoProvider.ts` is byte-identical to HEAD, so no Sprint 129.41 causality exists and
+  Sprint 129.40 framing code was not changed. Sprint 129.38 separately repeats its known fixture
+  failure after 11 PASS at line 387; animation-motion separately fails during fixture construction
+  with `PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH`.
+- All protected production hashes and the seven-WAV inventory match the pre-validation baseline.
+  No real prepare/resume/provider/network/cleanup, Git add, commit, or push occurred.
+<!-- SPRINT-129.41-END -->
+
 <!-- SPRINT-129.40-START -->
 ## Sprint 129.40 - Production Scene-Video Full-Frame Framing Remediation - 2026-08-08
 

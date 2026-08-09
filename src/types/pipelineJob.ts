@@ -28,6 +28,10 @@ export interface PipelineJob {
   cancelRequestedAt?: string;
   error?: string;
   errorEvidence?: PipelineErrorEvidence;
+  globalExecutionOrdinal?: number;
+  generationOrdinal?: number;
+  attemptWithinGeneration?: number;
+  regenerationId?: string;
 }
 
 export interface PipelineJobList {
@@ -49,6 +53,10 @@ export interface PipelineJobHistoryEvent {
   recordedAt: string;
   errorCode?: string;
   errorEvidence?: PipelineErrorEvidence;
+  globalExecutionOrdinal?: number;
+  generationOrdinal?: number;
+  attemptWithinGeneration?: number;
+  regenerationId?: string;
 }
 
 export interface PipelineJobHistory {

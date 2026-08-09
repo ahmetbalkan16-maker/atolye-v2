@@ -26,6 +26,7 @@ import { ProductionExecutionFilePersistenceAdapter } from
   "@/lib/production/ProductionExecutionPersistence";
 import { classifyProductionDurableAttemptLineage } from
   "@/lib/production/ProductionDurableAttemptLineageClassifier";
+import type { RuntimeStorageInput } from "@/lib/runtime/RuntimeStoragePaths";
 
 const pipelineJobsFileName = "pipeline-jobs.json";
 const pipelineHistoryFileName = "pipeline-history.json";
@@ -84,8 +85,11 @@ export class PipelineJobManager {
     return this.readHistory(projectSlug);
   }
 
-  static async listJobsReadOnly(projectSlug: string): Promise<PipelineJobList> {
-    return this.readJobList(projectSlug);
+  static async listJobsReadOnly(
+    projectSlug: string,
+    storageInput: RuntimeStorageInput = {},
+  ): Promise<PipelineJobList> {
+    return this.readJobList(projectSlug, storageInput);
   }
 
   static async getJob(
@@ -450,6 +454,10 @@ export class PipelineJobManager {
       cancelRequestedAt: undefined,
       error: undefined,
       errorEvidence: undefined,
+      ...(job.regenerationId ? {
+        globalExecutionOrdinal: job.attempts + 1,
+        attemptWithinGeneration: (job.attemptWithinGeneration ?? 0) + 1,
+      } : {}),
     };
   }
 
@@ -512,26 +520,31 @@ export class PipelineJobManager {
     projectSlug: string,
     operation: () => Promise<T>,
     jobId = "*",
+    storageInput: RuntimeStorageInput = {},
   ): Promise<T> {
+    const projectFolder = ProjectReader.getProjectFolder(projectSlug, storageInput);
+    const lockKey = `${projectFolder}\0${projectSlug}`;
     if (hasCanonicalPipelineJobMutationLock(projectSlug)) {
-      return withCanonicalPipelineJobMutationLock(projectSlug, jobId, operation);
+      return withCanonicalPipelineJobMutationLock(
+        projectSlug, jobId, operation, storageInput);
     }
     let releaseCurrentLock: (() => void) | undefined;
     const currentLock = new Promise<void>((resolve) => {
       releaseCurrentLock = resolve;
     });
-    const previousLock = this.projectLocks.get(projectSlug);
+    const previousLock = this.projectLocks.get(lockKey);
 
-    this.projectLocks.set(projectSlug, currentLock);
+    this.projectLocks.set(lockKey, currentLock);
     await previousLock;
 
     try {
-      return await withCanonicalPipelineJobMutationLock(projectSlug, jobId, operation);
+      return await withCanonicalPipelineJobMutationLock(
+        projectSlug, jobId, operation, storageInput);
     } finally {
       releaseCurrentLock?.();
 
-      if (this.projectLocks.get(projectSlug) === currentLock) {
-        this.projectLocks.delete(projectSlug);
+      if (this.projectLocks.get(lockKey) === currentLock) {
+        this.projectLocks.delete(lockKey);
       }
     }
   }
@@ -618,12 +631,14 @@ export class PipelineJobManager {
 
   private static async readJobList(
     projectSlug: string,
+    storageInput: RuntimeStorageInput = {},
   ): Promise<PipelineJobList> {
     const now = new Date().toISOString();
     const stored = await this.readPipelineStateFile(
       projectSlug,
       pipelineJobsFileName,
       (value): value is PipelineJobList => this.isJobList(value, projectSlug),
+      storageInput,
     );
 
     if (!stored) {
@@ -721,6 +736,7 @@ export class PipelineJobManager {
     projectSlug: string,
     fileName: string,
     validate: (value: unknown) => value is T,
+    storageInput: RuntimeStorageInput = {},
   ): Promise<T | null> {
     const state = getPipelineStateKind(fileName);
     let result: Awaited<
@@ -731,6 +747,7 @@ export class PipelineJobManager {
       result = await ProjectReader.readJSONState<unknown>(
         projectSlug,
         fileName,
+        storageInput,
       );
     } catch (cause) {
       throw new PipelineStateError(state, "read-failed", fileName, { cause });
@@ -903,7 +920,16 @@ function isPipelineJob(value: unknown): value is PipelineJob {
     isOptionalString(job.cancelRequestedAt) &&
     isOptionalString(job.error) &&
     (job.errorEvidence === undefined || isPipelineErrorEvidence(job.errorEvidence))
+    && isOptionalNonNegativeInteger(job.globalExecutionOrdinal)
+    && isOptionalNonNegativeInteger(job.generationOrdinal)
+    && isOptionalNonNegativeInteger(job.attemptWithinGeneration)
+    && isOptionalString(job.regenerationId)
   );
+}
+
+function isOptionalNonNegativeInteger(value: unknown) {
+  return value === undefined ||
+    (typeof value === "number" && Number.isSafeInteger(value) && value >= 0);
 }
 
 function isPipelineJobStatus(value: unknown): value is PipelineJobStatus {
@@ -937,6 +963,12 @@ function createHistoryEvent(
       ? { errorCode: job.error }
       : {}),
     ...(job.errorEvidence ? { errorEvidence: job.errorEvidence } : {}),
+    ...(job.regenerationId ? {
+      globalExecutionOrdinal: job.globalExecutionOrdinal,
+      generationOrdinal: job.generationOrdinal,
+      attemptWithinGeneration: job.attemptWithinGeneration,
+      regenerationId: job.regenerationId,
+    } : {}),
   };
 }
 
@@ -963,6 +995,10 @@ function isPipelineJobHistoryEvent(
     isOptionalString(event.completedAt) &&
     isOptionalString(event.errorCode) &&
     (event.errorEvidence === undefined || isPipelineErrorEvidence(event.errorEvidence))
+    && isOptionalNonNegativeInteger(event.globalExecutionOrdinal)
+    && isOptionalNonNegativeInteger(event.generationOrdinal)
+    && isOptionalNonNegativeInteger(event.attemptWithinGeneration)
+    && isOptionalString(event.regenerationId)
   );
 }
 

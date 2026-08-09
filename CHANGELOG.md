@@ -1,5 +1,40 @@
 ---
 
+<!-- SPRINT-129.41-START -->
+## 2026-08-09 - Sprint 129.41 Canonical Completed-Stage Regeneration
+
+- Restricted public completed-stage regeneration to `fromStage=video`; all other and malformed
+  stages now fail closed in planner, CLI, and preparation while the internal graph stays generic.
+- Required a single canonical completed job for source/preserved stages and blocked all execution
+  admission outside an active regeneration's affected set.
+- Unified canonical validation of primary and recovery YouTube publication records.
+- Closed runtime-context mixing: planning, validation, preparation, relevant package/job/asset and
+  authority reads, plus mutation locking now bind to one explicit runtime storage identity. Added
+  two-root/same-slug A-pass/B-fail and reverse executable evidence.
+- Made video/assembly supersession intent mandatory and prevalidated before canonical package or
+  manifest writes. Nine missing/corrupt/drift/generation/predecessor cases prove zero completion
+  mutation; completion evidence remains post-save only.
+- Hardened `already-prepared` replay with exact request, reason, backup ID/manifest/prestate,
+  project, generation, runtime authority, storage identity, receipt, and fingerprint comparisons.
+- Replaced fabricated post-preparation success evidence with real bounded `PipelineRunner.resume()`
+  video and assembly runs through scheduler, executor, capability, immutable provider selection, and
+  exact-count dispatch instrumentation. Seven WAVs are canonically published and descriptor-bound
+  inspected without monkey-patching; assembly consumes them unchanged while audio/TTS and downstream
+  admission remain zero.
+- Upgraded the forbidden-production guard to physical realpath/device/inode containment, including
+  direct, equivalent, case-equivalent, junction, and nested-junction rejection tests.
+- Validation PASS: Sprint 129.41 `134/134`, bounded resume `54/54`, assembly scene-video `19/19`,
+  assembly wiring `46/46`, runtime hardening `13/13`, durable ordinal `18/18`, global quiescence
+  `32/32`, retry extension `124/124`, TypeScript, and targeted ESLint with zero warnings.
+- Scene-video rendering reproducibly fails at line 554 (`true` expected, `false` actual) because the
+  host lacks `ffmpeg`/`ffprobe`; its provider is byte-identical to HEAD and was not changed. Sprint
+  129.38 separately fails its known fixture assertion after 11 PASS, and animation-motion separately
+  fails with `PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH` during fixture setup.
+- Protected production hashes and seven-WAV inventory remain exact. No real production regeneration,
+  provider/network call, cleanup, Git add, commit, or push occurred. Status remains
+  `READY FOR INDEPENDENT RE-REVIEW` with production execution blocked.
+<!-- SPRINT-129.41-END -->
+
 <!-- SPRINT-129.40-START -->
 ## 2026-08-08 - Sprint 129.40 Production Scene-Video Full-Frame Framing Remediation
 

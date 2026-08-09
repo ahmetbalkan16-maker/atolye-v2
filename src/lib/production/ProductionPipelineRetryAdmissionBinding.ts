@@ -7,6 +7,8 @@ import { defaultProductionExecutionIdempotencyPolicy,
 import { stableProductionId } from "./ProductionDeterminism";
 import { buildProductionPipelineExecutionIdentity } from
   "./ProductionPipelineExecutionIdentity";
+import { productionPipelineExecutionAuthorizationAction } from
+  "./ProductionPipelineExecutionSemantics";
 import type { ProductionExecutionAuthorizationResult } from
   "@/types/productionExecutionAuthorization";
 import type { ProductionExecutionConfirmationValidationResult } from
@@ -35,12 +37,16 @@ export interface ProductionPipelineRetryAdmissionBinding {
 /** Pure canonical plan used independently by retry admission and its consumer. */
 export function buildProductionPipelineRetryAdmissionBinding(
   context: ProductionPipelineExecutionContext,
-  job: Pick<PipelineJob, "id" | "attempts" | "updatedAt" | "createdAt">,
+  job: Pick<PipelineJob, "id" | "attempts" | "updatedAt" | "createdAt" |
+    "attemptWithinGeneration">,
 ): ProductionPipelineRetryAdmissionBinding {
   const identity = buildProductionPipelineExecutionIdentity(context, job);
   const anchor = job.updatedAt ?? job.createdAt;
   const operation = `pipeline.stage.${context.runType}`;
-  const maxAttempts = job.attempts + 1 === 4 ? 4 : 3;
+  const maxAttempts = context.regeneration
+    ? job.attempts - (job.attemptWithinGeneration ?? 0) + 3
+    : job.attempts + 1 === 4 ? 4 : 3;
+  const action = productionPipelineExecutionAuthorizationAction(context);
   const authorization: ProductionExecutionAuthorizationResult = {
     schemaVersion: "1", decisionId: stableProductionId("pipeline-authorization", identity.core),
     decision: "allow", authorized: true, reasonCode: "AUTHORIZED",
@@ -48,7 +54,7 @@ export function buildProductionPipelineRetryAdmissionBinding(
     requestId: identity.requestId, idempotencyKey: identity.idempotencyKey,
     executionFingerprint: identity.executionFingerprint, actorId: "pipeline-system",
     actorType: "system", projectSlug: context.projectSlug, operation,
-    action: "retry-stage", stage: context.stage, requiredCapabilities: [],
+    action, stage: context.stage, requiredCapabilities: [],
     grantedCapabilities: [], missingCapabilities: [], policyVersion: "pipeline-durable-v1",
     risk: "high", requiresConfirmation: true, requiredConfirmationLevel: "high",
     evidence: ["source:pipeline-composition"],
@@ -60,7 +66,7 @@ export function buildProductionPipelineRetryAdmissionBinding(
     confirmationRequestId: stableProductionId("pipeline-confirmation-request", identity.core),
     authorizationDecisionId: authorization.decisionId, requestId: identity.requestId,
     idempotencyKey: identity.idempotencyKey, actorId: "pipeline-system",
-    projectSlug: context.projectSlug, operation, action: "retry-stage", stage: context.stage,
+    projectSlug: context.projectSlug, operation, action, stage: context.stage,
     riskLevel: "high", requiredConfirmationLevel: "high", providedConfirmationLevel: "high",
     bindingMatches: true,
     bindingFingerprint: stableProductionId("pipeline-confirmation-binding", identity.core),
@@ -70,7 +76,11 @@ export function buildProductionPipelineRetryAdmissionBinding(
   const idempotencyIdentity = buildProductionExecutionIdempotencyIdentity(
     { authorization, confirmation },
     { evaluatedAt: anchor, policy: { ...defaultProductionExecutionIdempotencyPolicy,
-      enabled: true, reservationTtlSeconds: ttlSeconds } },
+      enabled: true, reservationTtlSeconds: ttlSeconds,
+      maximumAttemptsByAction: {
+        ...defaultProductionExecutionIdempotencyPolicy.maximumAttemptsByAction,
+        [action]: maxAttempts,
+      } } },
   ).identity;
   if (!idempotencyIdentity) {
     throw new Error("PIPELINE_RETRY_ADMISSION_BINDING_CONSTRUCTION_FAILED");

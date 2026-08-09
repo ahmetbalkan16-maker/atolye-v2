@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { ProjectReader } from "@/lib/projects/ProjectReader";
+import type { RuntimeStorageInput } from "@/lib/runtime/RuntimeStoragePaths";
 
 interface LockOwner {
   readonly schemaVersion: "2";
@@ -135,14 +136,18 @@ export async function withCanonicalPipelineJobMutationLock<T>(
   projectSlug: string,
   jobId: string,
   operation: () => Promise<T>,
+  storageInput: RuntimeStorageInput = {},
 ): Promise<T> {
+  const requestedProjectFolder = path.resolve(
+    ProjectReader.getProjectFolder(projectSlug, storageInput),
+  );
   const inherited = activeLock.getStore();
   if (inherited) {
-    assertNestedScope(inherited, projectSlug, jobId);
+    assertNestedScope(inherited, projectSlug, jobId, requestedProjectFolder);
     return operation();
   }
 
-  const projectFolder = await canonicalProjectFolder(projectSlug);
+  const projectFolder = await canonicalProjectFolder(projectSlug, storageInput);
   const lockDirectory = path.join(projectFolder, ".pipeline-jobs.lock");
   const gateFile = path.join(projectFolder, ".pipeline-jobs.lock-gate");
   const owner: LockOwner = Object.freeze({
@@ -428,8 +433,13 @@ function parseOwner(bytes: string, projectFolder: string): LockOwner {
   return value;
 }
 
+const processStartCache = new Map<number, Promise<number>>();
+
 async function sameLiveProcess(owner: LockOwner): Promise<boolean> {
-  if (!processIsAlive(owner.pid)) return false;
+  if (!processIsAlive(owner.pid)) {
+    processStartCache.delete(owner.pid);
+    return false;
+  }
   const currentStart = owner.pid === process.pid ? await ownProcessStart :
     await readCanonicalProcessStartEpochMs(owner.pid);
   if (currentStart === null) throw new Error("PIPELINE_JOB_MUTATION_LOCK_PROCESS_IDENTITY_UNKNOWN");
@@ -438,31 +448,51 @@ async function sameLiveProcess(owner: LockOwner): Promise<boolean> {
 
 async function readOsProcessStartEpochMs(pid: number): Promise<number> {
   if (!Number.isSafeInteger(pid) || pid <= 0) throw new Error("invalid pid");
-  if (process.platform === "win32") {
-    const script = `$p=Get-Process -Id ${pid} -ErrorAction Stop;` +
-      `([DateTimeOffset]$p.StartTime).ToUnixTimeMilliseconds()`;
-    const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive",
-      "-Command", script], { timeout: 3_000, windowsHide: true });
-    const value = Number(stdout.trim());
-    if (!Number.isSafeInteger(value)) throw new Error("process start unavailable");
-    return value;
+  if (!processIsAlive(pid)) {
+    processStartCache.delete(pid);
+    throw new Error("process not alive");
   }
-  const [stat, system, ticksResult] = await Promise.all([
-    fs.readFile(`/proc/${pid}/stat`, "utf8"), fs.readFile("/proc/stat", "utf8"),
-    execFileAsync("getconf", ["CLK_TCK"], { timeout: 3_000 }),
-  ]);
-  const end = stat.lastIndexOf(")");
-  const fields = stat.slice(end + 2).split(" ");
-  const startTicks = Number(fields[19]);
-  const boot = Number(/^btime\s+(\d+)$/m.exec(system)?.[1]);
-  const ticks = Number(ticksResult.stdout.trim());
-  const value = Math.round((boot + startTicks / ticks) * 1_000);
-  if (![startTicks, boot, ticks, value].every(Number.isFinite)) throw new Error("process start unavailable");
-  return value;
+  const cached = processStartCache.get(pid);
+  if (cached) return cached;
+
+  const promise = (async () => {
+    if (process.platform === "win32") {
+      const script = `$p=Get-Process -Id ${pid} -ErrorAction Stop;` +
+        `([DateTimeOffset]$p.StartTime).ToUnixTimeMilliseconds()`;
+      const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive",
+        "-Command", script], { timeout: 3_000, windowsHide: true });
+      const value = Number(stdout.trim());
+      if (!Number.isSafeInteger(value)) throw new Error("process start unavailable");
+      return value;
+    }
+    const [stat, system, ticksResult] = await Promise.all([
+      fs.readFile(`/proc/${pid}/stat`, "utf8"), fs.readFile("/proc/stat", "utf8"),
+      execFileAsync("getconf", ["CLK_TCK"], { timeout: 3_000 }),
+    ]);
+    const end = stat.lastIndexOf(")");
+    const fields = stat.slice(end + 2).split(" ");
+    const startTicks = Number(fields[19]);
+    const boot = Number(/^btime\s+(\d+)$/m.exec(system)?.[1]);
+    const ticks = Number(ticksResult.stdout.trim());
+    const value = Math.round((boot + startTicks / ticks) * 1_000);
+    if (![startTicks, boot, ticks, value].every(Number.isFinite)) throw new Error("process start unavailable");
+    return value;
+  })();
+
+  processStartCache.set(pid, promise);
+  promise.catch(() => {
+    if (processStartCache.get(pid) === promise) {
+      processStartCache.delete(pid);
+    }
+  });
+  return promise;
 }
 
-async function canonicalProjectFolder(projectSlug: string): Promise<string> {
-  const resolved = path.resolve(ProjectReader.getProjectFolder(projectSlug));
+async function canonicalProjectFolder(
+  projectSlug: string,
+  storageInput: RuntimeStorageInput = {},
+): Promise<string> {
+  const resolved = path.resolve(ProjectReader.getProjectFolder(projectSlug, storageInput));
   const stat = await fs.lstat(resolved);
   if (!stat.isDirectory() || stat.isSymbolicLink() || await fs.realpath(resolved) !== resolved) {
     throw new Error("PIPELINE_JOB_MUTATION_LOCK_PROJECT_IDENTITY_INVALID");
@@ -506,8 +536,13 @@ async function syncDirectory(directory: string) {
   catch { if (process.platform !== "win32") throw new Error("PIPELINE_JOB_MUTATION_LOCK_SYNC_FAILED"); }
 }
 
-function assertNestedScope(owner: LockOwner, projectSlug: string, jobId: string) {
-  if (owner.projectSlug !== projectSlug ||
+function assertNestedScope(
+  owner: LockOwner,
+  projectSlug: string,
+  jobId: string,
+  projectFolder: string,
+) {
+  if (owner.projectSlug !== projectSlug || owner.projectFolder !== projectFolder ||
     (owner.jobId !== "*" && jobId !== "*" && owner.jobId !== jobId)) {
     throw new Error("PIPELINE_JOB_MUTATION_LOCK_SCOPE_MISMATCH");
   }

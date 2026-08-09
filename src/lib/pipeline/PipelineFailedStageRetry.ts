@@ -18,6 +18,8 @@ import {
   readRetryBudgetExtensionAuthority,
 } from "@/lib/production/ProductionPipelineRetryBudgetExtensionStore";
 import { consumeRetryBudgetExtensionAndPrepareRetry } from "@/lib/production/ProductionPipelineRetryBudgetExtensionTransaction";
+import { regenerationBindingForExecution } from
+  "@/lib/production/ProductionCompletedStageRegenerationStore";
 
 export type PipelineFailedStageRetryPreparationResult =
   | { success: true; job: PipelineJob; previousJob: PipelineJob; jobs: PipelineJobList;
@@ -41,13 +43,20 @@ export async function prepareFailedStageRetry(
     };
   }
 
-  const maxAttempts = pipelineRetryMaxAttempts;
+  const regeneration = regenerationBindingForExecution(
+    projectSlug, job.stage, job.attempts, context);
+  const generationStartAttempt = regeneration
+    ? job.attempts - (job.attemptWithinGeneration ?? 0)
+    : 0;
+  const maxAttempts = regeneration
+    ? generationStartAttempt + pipelineRetryMaxAttempts
+    : pipelineRetryMaxAttempts;
   const currentDurableOrdinal = job.attempts + 1;
   const admittedJobAttemptIndex = job.attempts + 1;
   const admittedDurableOrdinal = admittedJobAttemptIndex + 1;
 
   let extensionAuthorityId: string | undefined;
-  if (admittedDurableOrdinal === 4 && runType === "resume") {
+  if (!regeneration && admittedDurableOrdinal === 4 && runType === "resume") {
     const dir = getRetryBudgetExtensionDirectory(projectSlug, context);
     if (fs.existsSync(dir)) {
       try {
@@ -158,10 +167,10 @@ export async function prepareFailedStageRetry(
     exactReconciledDurableLineageIdentity: reconciliation.lineageIdentity,
     exactReconciledLineageBinding: reconciliation.lineageBinding,
     admittedDurableLineageIdentity: buildProductionPipelineExecutionIdentity(
-      { projectSlug, stage: job.stage, runType }, prepared.job,
+      { projectSlug, stage: job.stage, runType, regeneration }, prepared.job,
     ),
     admittedExecutionBinding: buildProductionPipelineRetryAdmissionBinding(
-      { projectSlug, stage: job.stage, runType },
+      { projectSlug, stage: job.stage, runType, regeneration },
       prepared.job,
     ),
     priorJobStatus: "failed",

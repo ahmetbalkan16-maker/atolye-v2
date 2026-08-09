@@ -1,6 +1,7 @@
 import { types as utilTypes } from "node:util";
 import { randomUUID } from "node:crypto";
 import type { ProductionStepKey, ProjectPackageRunType } from "@/types/project";
+import type { ProductionRegenerationBinding } from "@/types/productionRegeneration";
 
 export interface ProductionAcceptanceProviderOptions {
   readonly aiProvider?: object;
@@ -99,6 +100,7 @@ export interface ProductionAcceptanceStageExecutionScope {
   readonly providerCapabilityScope: readonly string[];
   readonly providers: readonly ProductionAcceptanceProviderBinding[];
   readonly providerSelection: ProductionAcceptanceProviderSelection;
+  readonly regeneration?: ProductionRegenerationBinding;
 }
 
 const providerSlots: Readonly<Record<ProductionStepKey, readonly {
@@ -156,6 +158,7 @@ export function createProductionAcceptanceStageExecutionScope(input: {
   executionFingerprint: string;
   options?: ProductionAcceptanceProviderOptions;
   providerSelection?: ProductionAcceptanceProviderSelection;
+  regeneration?: ProductionRegenerationBinding;
 }): ProductionAcceptanceStageExecutionScope {
   const selection = input.providerSelection ??
     createProductionAcceptanceProviderSelection(input.stage, input.options);
@@ -170,6 +173,7 @@ export function createProductionAcceptanceStageExecutionScope(input: {
     providerCapabilityScope: selection.providerCapabilityScope,
     providers: selection.providers,
     providerSelection: selection,
+    ...(input.regeneration ? { regeneration: Object.freeze({ ...input.regeneration }) } : {}),
   });
 }
 
@@ -309,6 +313,7 @@ export function serializableProductionAcceptanceExecutionScope(
     runType: scope.runType,
     operation: scope.operation,
     executionFingerprint: scope.executionFingerprint,
+    regeneration: scope.regeneration,
     providerCapabilityScope: [...scope.providerCapabilityScope],
     providers: scope.providers.map(({ capability, slot, adapterId, identifier, injected }) =>
       ({ capability, slot, adapterId, identifier, injected })),

@@ -1,5 +1,40 @@
 ---
 
+<!-- SPRINT-129.41-START -->
+## Sprint 129.41 - Canonical Completed-Stage Regeneration
+
+**Status:** READY FOR INDEPENDENT RE-REVIEW
+**Production execution status:** BLOCKED
+
+- [x] Restrict the public planner, CLI, and preparation authority to `fromStage=video`; retain
+  arbitrary-stage regeneration as explicit future work.
+- [x] Require exactly one canonical completed job for the source and every preserved stage, and
+  deny active-regeneration execution outside the affected set.
+- [x] Canonically validate both primary and recovery YouTube publication state and fail closed on
+  published, in-flight, malformed, recovery-only, or conflicting evidence.
+- [x] Bind every planning/preparation read, durable authority decision, and project lock to one
+  explicit runtime context; prove both directions with two roots sharing one slug.
+- [x] Require and fully validate video/assembly supersession intent and predecessor evidence before
+  canonical package/manifest mutation; prove nine invalid cases produce zero completion writes.
+- [x] Verify every immutable plan, request, backup, prestate, runtime-authority, and storage field
+  before an `already-prepared` replay; reject missing, different, stale, or foreign backups.
+- [x] Prove bounded video and assembly through the real runner/scheduler/executor/capability/provider
+  path with exact event cardinality and seven canonical descriptor-bound WAV reads, without storage
+  validator monkey-patching or audio mutation.
+- [x] Prove same and conflicting preparation races with two independent processes and one durable
+  generation owner; add a physical realpath/device/inode guard with junction/nested-junction tests.
+- [x] Pass owned-temp Sprint 129.41 `134/134` plus bounded resume `54/54`, assembly `19/19`, wiring
+  `46/46`, runtime `13/13`, durable ordinal `18/18`, quiescence `32/32`, retry authority `124/124`,
+  TypeScript, and zero-warning targeted ESLint.
+- [x] Diagnose scene-video line 554 as a repeatable host dependency failure: expected success, got
+  false because `ffmpeg`/`ffprobe` are absent. No Sprint 129.41 shared-code causality was found and
+  the Sprint 129.40 framing provider remains byte-identical to HEAD.
+- [ ] Repair separately the known Sprint 129.38 line-387 fixture-state failure and animation-motion
+  manifest-attempt fixture ordering failure; neither is part of this remediation.
+- [ ] Obtain independent read-only approval, fresh production quiescence/backup verification, and
+  explicit production execution authorization before touching the real production project.
+<!-- SPRINT-129.41-END -->
+
 <!-- SPRINT-129.40-START -->
 ## Sprint 129.40 - Production Scene-Video Full-Frame Framing Remediation
 

@@ -44,6 +44,7 @@ import { readCanonicalProductionAcceptanceMarkerDescriptorBound } from
 import { getActiveProductionRuntimeOperationContext, requireProductionRuntimeStorageContext } from
   "@/lib/runtime/ProductionRuntimeOperationContext";
 import type { ProductionStepKey, ProjectPackageRunType } from "@/types/project";
+import type { ProductionRegenerationBinding } from "@/types/productionRegeneration";
 import { withProductionAcceptanceLegacyAdmittedExecution } from
   "./ProductionAcceptanceLegacyAdmissionContext";
 import { readProductionWorkerLifecycleAuthority } from "./ProductionWorkerLifecycle";
@@ -441,6 +442,7 @@ export interface ProductionAcceptanceStageExecutionIdentity {
   readonly operation: string;
   readonly executionFingerprint: string;
   readonly durableAttemptRequired?: true;
+  readonly regeneration?: ProductionRegenerationBinding;
 }
 
 export interface ProductionAcceptanceStageCapability {
@@ -738,6 +740,7 @@ function stageExecutionIdentityMismatch(
     left.recordId !== right.recordId || left.reservationId !== right.reservationId ||
     left.claimId !== right.claimId ||
     left.executionFingerprint !== right.executionFingerprint ||
+    canonicalJson(left.regeneration) !== canonicalJson(right.regeneration) ||
     left.durableAttemptRequired !== right.durableAttemptRequired
     ? "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_IDENTITY_MISMATCH"
     : undefined;

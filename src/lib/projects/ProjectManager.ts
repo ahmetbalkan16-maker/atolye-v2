@@ -15,6 +15,10 @@ import type {
   ProjectPackageUsage,
   ProjectStatus,
 } from "@/types/project";
+import { isRegenerationPackageCanonical, recordRegeneratedPackageCompletion,
+  validateRegeneratedPackageCompletionPrecommit } from
+  "@/lib/production/ProductionCompletedStageRegenerationStore";
+import type { RuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
 
 type UpdatePackageStatusOptions = {
   runType?: ProjectPackageRunType;
@@ -110,10 +114,10 @@ export class ProjectManager {
     return manifest;
   }
 
-  static async getManifest(slug: string) {
+  static async getManifest(slug: string, context?: RuntimeStorageContext) {
     const storedManifest = await ProjectReader.readJSON<unknown>(
       slug,
-      "manifest.json",
+      "manifest.json", context,
     );
 
     if (!storedManifest) {
@@ -121,7 +125,7 @@ export class ProjectManager {
     }
 
     const project =
-      (await this.getProject(slug)) ??
+      (await this.getProject(slug, context)) ??
       this.getProjectFromManifest(storedManifest);
 
     if (!project) {
@@ -131,18 +135,18 @@ export class ProjectManager {
     return this.normalizeManifest(storedManifest, project);
   }
 
-  static async ensureManifest(slug: string) {
-    const manifest = await this.getManifest(slug);
+  static async ensureManifest(slug: string, context?: RuntimeStorageContext) {
+    const manifest = await this.getManifest(slug, context);
 
     if (manifest) {
       return manifest;
     }
 
-    return this.syncManifestFromFiles(slug);
+    return this.syncManifestFromFiles(slug, context);
   }
 
-  static async syncManifestFromFiles(slug: string) {
-    const project = await this.getProject(slug);
+  static async syncManifestFromFiles(slug: string, context?: RuntimeStorageContext) {
+    const project = await this.getProject(slug, context);
 
     if (!project) {
       return null;
@@ -155,7 +159,7 @@ export class ProjectManager {
       this.getProductionStepKeys().map(async (key) => {
         const data = await ProjectReader.readJSON<unknown>(
           slug,
-          this.packageFiles[key],
+          this.packageFiles[key], context,
         );
 
         const isCompleted = data !== null;
@@ -170,7 +174,7 @@ export class ProjectManager {
 
     manifest.updatedAt = now;
 
-    await ProjectWriter.writeJSON(slug, "manifest.json", manifest);
+    await ProjectWriter.writeJSON(slug, "manifest.json", manifest, context);
 
     return manifest;
   }
@@ -181,8 +185,9 @@ export class ProjectManager {
     status: PackageStatus,
     error?: string,
     options?: UpdatePackageStatusOptions,
+    context?: RuntimeStorageContext,
   ) {
-    const manifest = await this.ensureManifest(slug);
+    const manifest = await this.ensureManifest(slug, context);
 
     if (!manifest) {
       return null;
@@ -228,12 +233,14 @@ export class ProjectManager {
           attempts,
           usage: currentPackage.usage,
           errorEvidence: options?.errorEvidence,
+          generationOrdinal: currentPackage.generationOrdinal,
+          regenerationId: currentPackage.regenerationId,
         },
       },
       updatedAt: now,
     };
 
-    await ProjectWriter.writeJSON(slug, "manifest.json", updatedManifest);
+    await ProjectWriter.writeJSON(slug, "manifest.json", updatedManifest, context);
 
     return updatedManifest;
   }
@@ -242,8 +249,9 @@ export class ProjectManager {
     slug: string,
     packageKey: ProductionStepKey,
     usage: ProjectPackageUsage,
+    context?: RuntimeStorageContext,
   ) {
-    const manifest = await this.ensureManifest(slug);
+    const manifest = await this.ensureManifest(slug, context);
 
     if (!manifest) {
       return null;
@@ -264,18 +272,18 @@ export class ProjectManager {
       updatedAt: now,
     };
 
-    await ProjectWriter.writeJSON(slug, "manifest.json", updatedManifest);
+    await ProjectWriter.writeJSON(slug, "manifest.json", updatedManifest, context);
 
     return updatedManifest;
   }
 
-  static async saveResearch(slug: string, research: unknown) {
-    await ProjectWriter.writeJSON(slug, "research.json", research);
-    await this.updatePackageStatus(slug, "research", "completed");
+  static async saveResearch(slug: string, research: unknown, context?: RuntimeStorageContext) {
+    await ProjectWriter.writeJSON(slug, "research.json", research, context);
+    await this.updatePackageStatus(slug, "research", "completed", undefined, undefined, context);
   }
 
-  static async saveScript(slug: string, script: unknown) {
-    const existing = await ProjectReader.readJSON<unknown>(slug, "script.json");
+  static async saveScript(slug: string, script: unknown, context?: RuntimeStorageContext) {
+    const existing = await ProjectReader.readJSON<unknown>(slug, "script.json", context);
     if (existing !== null) {
       if (JSON.stringify(existing) !== JSON.stringify(script)) {
         throw new ScriptArtifactConflictError();
@@ -283,20 +291,20 @@ export class ProjectManager {
       return;
     }
     try {
-      await ProjectWriter.writeJSONOnce(slug, "script.json", script);
+      await ProjectWriter.writeJSONOnce(slug, "script.json", script, context);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      const raced = await ProjectReader.readJSON<unknown>(slug, "script.json");
+      const raced = await ProjectReader.readJSON<unknown>(slug, "script.json", context);
       if (JSON.stringify(raced) !== JSON.stringify(script)) {
         throw new ScriptArtifactConflictError();
       }
       return;
     }
-    await this.updatePackageStatus(slug, "script", "completed");
+    await this.updatePackageStatus(slug, "script", "completed", undefined, undefined, context);
   }
 
-  static async saveScenes(slug: string, scenes: unknown) {
-    const existing = await ProjectReader.readJSON<unknown>(slug, "scenes.json");
+  static async saveScenes(slug: string, scenes: unknown, context?: RuntimeStorageContext) {
+    const existing = await ProjectReader.readJSON<unknown>(slug, "scenes.json", context);
     if (existing !== null) {
       if (JSON.stringify(existing) !== JSON.stringify(scenes)) {
         throw new ScenesArtifactConflictError();
@@ -304,93 +312,103 @@ export class ProjectManager {
       return;
     }
     try {
-      await ProjectWriter.writeJSONOnce(slug, "scenes.json", scenes);
+      await ProjectWriter.writeJSONOnce(slug, "scenes.json", scenes, context);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      const raced = await ProjectReader.readJSON<unknown>(slug, "scenes.json");
+      const raced = await ProjectReader.readJSON<unknown>(slug, "scenes.json", context);
       if (JSON.stringify(raced) !== JSON.stringify(scenes)) {
         throw new ScenesArtifactConflictError();
       }
       return;
     }
-    await this.updatePackageStatus(slug, "scenes", "completed");
+    await this.updatePackageStatus(slug, "scenes", "completed", undefined, undefined, context);
   }
 
-  static async saveVisuals(slug: string, visuals: unknown) {
-    await this.persistVisualsArtifact(slug, visuals);
-    await this.updatePackageStatus(slug, "visuals", "completed");
+  static async saveVisuals(slug: string, visuals: unknown, context?: RuntimeStorageContext) {
+    await this.persistVisualsArtifact(slug, visuals, context);
+    await this.updatePackageStatus(slug, "visuals", "completed", undefined, undefined, context);
   }
 
-  static async persistVisualsArtifact(slug: string, visuals: unknown) {
-    const existing = await ProjectReader.readJSON<unknown>(slug, "visuals.json");
+  static async persistVisualsArtifact(slug: string, visuals: unknown, context?: RuntimeStorageContext) {
+    const existing = await ProjectReader.readJSON<unknown>(slug, "visuals.json", context);
     if (existing !== null) {
       if (JSON.stringify(existing) !== JSON.stringify(visuals)) throw new VisualsArtifactConflictError();
       return;
     }
     try {
-      await ProjectWriter.writeJSONOnce(slug, "visuals.json", visuals);
+      await ProjectWriter.writeJSONOnce(slug, "visuals.json", visuals, context);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      const raced = await ProjectReader.readJSON<unknown>(slug, "visuals.json");
+      const raced = await ProjectReader.readJSON<unknown>(slug, "visuals.json", context);
       if (JSON.stringify(raced) !== JSON.stringify(visuals)) throw new VisualsArtifactConflictError();
     }
   }
 
-  static async saveAnimation(slug: string, animation: unknown) {
-    await ProjectWriter.writeJSON(slug, "animation.json", animation);
-    await this.updatePackageStatus(slug, "animation", "completed");
+  static async saveAnimation(slug: string, animation: unknown, context?: RuntimeStorageContext) {
+    await ProjectWriter.writeJSON(slug, "animation.json", animation, context);
+    await this.updatePackageStatus(slug, "animation", "completed", undefined, undefined, context);
   }
 
-  static async saveVideo(slug: string, video: unknown) {
-    await ProjectWriter.writeJSON(slug, "video.json", video);
-    await this.updatePackageStatus(slug, "video", "completed");
+  static async saveVideo(slug: string, video: unknown, context?: RuntimeStorageContext) {
+    validateRegeneratedPackageCompletionPrecommit(slug, "video", context);
+    await ProjectWriter.writeJSON(slug, "video.json", video, context);
+    await this.updatePackageStatus(slug, "video", "completed", undefined, undefined, context);
+    recordRegeneratedPackageCompletion(
+      slug, "video", `${ProjectReader.getProjectFolder(slug, context)}/video.json`, context);
   }
 
-  static async saveAudio(slug: string, audio: unknown) {
-    await ProjectWriter.writeJSON(slug, "audio.json", audio);
-    await this.updatePackageStatus(slug, "audio", "completed");
+  static async saveAudio(slug: string, audio: unknown, context?: RuntimeStorageContext) {
+    await ProjectWriter.writeJSON(slug, "audio.json", audio, context);
+    await this.updatePackageStatus(slug, "audio", "completed", undefined, undefined, context);
   }
 
-  static async saveThumbnail(slug: string, thumbnail: unknown) {
-    await ProjectWriter.writeJSONAtomically(slug, "thumbnail.json", thumbnail);
-    await this.updatePackageStatus(slug, "thumbnail", "completed");
+  static async saveThumbnail(slug: string, thumbnail: unknown, context?: RuntimeStorageContext) {
+    await ProjectWriter.writeJSONAtomically(slug, "thumbnail.json", thumbnail, context);
+    await this.updatePackageStatus(slug, "thumbnail", "completed", undefined, undefined, context);
+    recordRegeneratedPackageCompletion(
+      slug, "thumbnail", `${ProjectReader.getProjectFolder(slug, context)}/thumbnail.json`, context);
   }
 
-  static async saveSEO(slug: string, seo: unknown) {
-    await ProjectWriter.writeJSON(slug, "seo.json", seo);
-    await this.updatePackageStatus(slug, "seo", "completed");
+  static async saveSEO(slug: string, seo: unknown, context?: RuntimeStorageContext) {
+    await ProjectWriter.writeJSON(slug, "seo.json", seo, context);
+    await this.updatePackageStatus(slug, "seo", "completed", undefined, undefined, context);
+    recordRegeneratedPackageCompletion(
+      slug, "seo", `${ProjectReader.getProjectFolder(slug, context)}/seo.json`, context);
   }
 
   static async saveYouTube(
     slug: string,
     youtube: unknown,
     options?: { reuseExisting?: boolean; updatePackageStatus?: boolean },
+    context?: RuntimeStorageContext,
   ) {
     validateYouTubePublishingPackage(youtube, { slug });
     if (!options?.reuseExisting) {
-      await ProjectWriter.writeJSONAtomically(slug, "youtube.json", youtube);
+      await ProjectWriter.writeJSONAtomically(slug, "youtube.json", youtube, context);
     }
-    const readback = await ProjectReader.readJSON<unknown>(slug, "youtube.json");
+    const readback = await ProjectReader.readJSON<unknown>(slug, "youtube.json", context);
     validateYouTubePublishingPackage(readback, { slug });
     if (JSON.stringify(readback) !== JSON.stringify(youtube)) {
       throw new Error("YouTube package persistence failed.");
     }
     if (options?.updatePackageStatus !== false) {
-      await this.updatePackageStatus(slug, "youtube", "completed");
+      await this.updatePackageStatus(slug, "youtube", "completed", undefined, undefined, context);
+      recordRegeneratedPackageCompletion(
+        slug, "youtube", `${ProjectReader.getProjectFolder(slug, context)}/youtube.json`, context);
     }
   }
 
-  static async saveYouTubePublish(slug: string, publish: unknown) {
+  static async saveYouTubePublish(slug: string, publish: unknown, context?: RuntimeStorageContext) {
     validateYouTubePublishRecord(publish, { slug });
-    await ProjectWriter.writeJSONAtomically(slug, "youtube-publish.json", publish);
-    const readback = await ProjectReader.readJSON<unknown>(slug, "youtube-publish.json");
+    await ProjectWriter.writeJSONAtomically(slug, "youtube-publish.json", publish, context);
+    const readback = await ProjectReader.readJSON<unknown>(slug, "youtube-publish.json", context);
     validateYouTubePublishRecord(readback, { slug });
     if (JSON.stringify(readback) !== JSON.stringify(publish)) {
       throw new Error("YouTube publish persistence failed.");
     }
   }
 
-  static async saveYouTubePublishRecovery(slug: string, publish: unknown) {
+  static async saveYouTubePublishRecovery(slug: string, publish: unknown, context?: RuntimeStorageContext) {
     validateYouTubePublishRecord(publish, { slug });
     if ((publish as { status?: unknown }).status !== "published") {
       throw new Error("YouTube publish recovery record is invalid.");
@@ -399,10 +417,12 @@ export class ProjectManager {
       slug,
       "youtube-publish-recovery.json",
       publish,
+      context,
     );
     const readback = await ProjectReader.readJSON<unknown>(
       slug,
       "youtube-publish-recovery.json",
+      context,
     );
     validateYouTubePublishRecord(readback, { slug });
     if (
@@ -413,106 +433,124 @@ export class ProjectManager {
     }
   }
 
-  static getYouTubePublishState(slug: string) {
-    return ProjectReader.readJSONState<unknown>(slug, "youtube-publish.json");
+  static getYouTubePublishState(slug: string, context?: RuntimeStorageContext) {
+    return ProjectReader.readJSONState<unknown>(slug, "youtube-publish.json", context);
   }
 
-  static getYouTubePublishRecoveryState(slug: string) {
+  static getYouTubePublishRecoveryState(slug: string, context?: RuntimeStorageContext) {
     return ProjectReader.readJSONState<unknown>(
       slug,
       "youtube-publish-recovery.json",
+      context,
     );
   }
 
-  static async getYouTubePublish(slug: string) {
-    return ProjectReader.readJSON(slug, "youtube-publish.json");
+  static async getYouTubePublish(slug: string, context?: RuntimeStorageContext) {
+    return ProjectReader.readJSON(slug, "youtube-publish.json", context);
   }
 
-  static async removeYouTubePublish(slug: string) {
-    await ProjectWriter.removeJSON(slug, "youtube-publish.json");
+  static async removeYouTubePublish(slug: string, context?: RuntimeStorageContext) {
+    await ProjectWriter.removeJSON(slug, "youtube-publish.json", context);
   }
 
-  static async removeYouTubePublishRecovery(slug: string) {
-    await ProjectWriter.removeJSON(slug, "youtube-publish-recovery.json");
+  static async removeYouTubePublishRecovery(slug: string, context?: RuntimeStorageContext) {
+    await ProjectWriter.removeJSON(slug, "youtube-publish-recovery.json", context);
   }
 
-  static async markYouTubePublished(slug: string) {
-    await this.updatePackageStatus(slug, "youtube", "completed");
+  static async markYouTubePublished(slug: string, context?: RuntimeStorageContext) {
+    await this.updatePackageStatus(slug, "youtube", "completed", undefined, undefined, context);
   }
 
-  static async removeYouTube(slug: string) {
-    await ProjectWriter.removeJSON(slug, "youtube.json");
+  static async removeYouTube(slug: string, context?: RuntimeStorageContext) {
+    await ProjectWriter.removeJSON(slug, "youtube.json", context);
   }
 
-  static async restoreYouTube(slug: string, youtube: unknown) {
+  static async restoreYouTube(slug: string, youtube: unknown, context?: RuntimeStorageContext) {
     validateYouTubePublishingPackage(youtube, { slug });
-    await ProjectWriter.writeJSONAtomically(slug, "youtube.json", youtube);
+    await ProjectWriter.writeJSONAtomically(slug, "youtube.json", youtube, context);
   }
 
-  static async saveExport(slug: string, exportPackage: unknown) {
-    await ProjectWriter.writeJSON(slug, "export.json", exportPackage);
-    await this.updatePackageStatus(slug, "export", "completed");
+  static async saveExport(slug: string, exportPackage: unknown, context?: RuntimeStorageContext) {
+    await ProjectWriter.writeJSON(slug, "export.json", exportPackage, context);
+    await this.updatePackageStatus(slug, "export", "completed", undefined, undefined, context);
+    recordRegeneratedPackageCompletion(
+      slug, "export", `${ProjectReader.getProjectFolder(slug, context)}/export.json`, context);
   }
 
-  static async saveAssembly(slug: string, assembly: unknown) {
-    await ProjectWriter.writeJSON(slug, "assembly.json", assembly);
-    await this.updatePackageStatus(slug, "assembly", "completed");
+  static async saveAssembly(slug: string, assembly: unknown, context?: RuntimeStorageContext) {
+    validateRegeneratedPackageCompletionPrecommit(slug, "assembly", context);
+    await ProjectWriter.writeJSON(slug, "assembly.json", assembly, context);
+    await this.updatePackageStatus(slug, "assembly", "completed", undefined, undefined, context);
+    recordRegeneratedPackageCompletion(
+      slug, "assembly", `${ProjectReader.getProjectFolder(slug, context)}/assembly.json`, context);
   }
 
-  static async getProject(slug: string) {
-    return ProjectReader.readJSON<Project>(slug, "project.json");
+  static async getProject(slug: string, context?: RuntimeStorageContext) {
+    return ProjectReader.readJSON<Project>(slug, "project.json", context);
   }
 
-  static async getResearch(slug: string) {
-    return ProjectReader.readJSON(slug, "research.json");
+  static async getResearch(slug: string, context?: RuntimeStorageContext) {
+    return ProjectReader.readJSON(slug, "research.json", context);
   }
 
-  static async getScript(slug: string) {
-    return ProjectReader.readJSON(slug, "script.json");
+  static async getScript(slug: string, context?: RuntimeStorageContext) {
+    return ProjectReader.readJSON(slug, "script.json", context);
   }
 
-  static async getScenes(slug: string) {
-    return ProjectReader.readJSON(slug, "scenes.json");
+  static async getScenes(slug: string, context?: RuntimeStorageContext) {
+    return ProjectReader.readJSON(slug, "scenes.json", context);
   }
 
-  static async getVisuals(slug: string) {
-    return ProjectReader.readJSON(slug, "visuals.json");
+  static async getVisuals(slug: string, context?: RuntimeStorageContext) {
+    return ProjectReader.readJSON(slug, "visuals.json", context);
   }
 
-  static async getAnimation(slug: string) {
-    return ProjectReader.readJSON(slug, "animation.json");
+  static async getAnimation(slug: string, context?: RuntimeStorageContext) {
+    return ProjectReader.readJSON(slug, "animation.json", context);
   }
 
-  static async getVideo(slug: string) {
-    return ProjectReader.readJSON(slug, "video.json");
+  static async getVideo(slug: string, context?: RuntimeStorageContext) {
+    return this.readGenerationAwarePackage(slug, "video", "video.json", context);
   }
 
-  static async getAudio(slug: string) {
-    return ProjectReader.readJSON(slug, "audio.json");
+  static async getAudio(slug: string, context?: RuntimeStorageContext) {
+    return ProjectReader.readJSON(slug, "audio.json", context);
   }
 
-  static async getThumbnail(slug: string) {
-    return ProjectReader.readJSON(slug, "thumbnail.json");
+  static async getThumbnail(slug: string, context?: RuntimeStorageContext) {
+    return this.readGenerationAwarePackage(slug, "thumbnail", "thumbnail.json", context);
   }
 
-  static async getSEO(slug: string) {
-    return ProjectReader.readJSON(slug, "seo.json");
+  static async getSEO(slug: string, context?: RuntimeStorageContext) {
+    return this.readGenerationAwarePackage(slug, "seo", "seo.json", context);
   }
 
-  static async getYouTube(slug: string) {
-    return ProjectReader.readJSON(slug, "youtube.json");
+  static async getYouTube(slug: string, context?: RuntimeStorageContext) {
+    return this.readGenerationAwarePackage(slug, "youtube", "youtube.json", context);
   }
 
-  static async getExport(slug: string) {
-    return ProjectReader.readJSON(slug, "export.json");
+  static async getExport(slug: string, context?: RuntimeStorageContext) {
+    return this.readGenerationAwarePackage(slug, "export", "export.json", context);
   }
 
-  static async getAssembly(slug: string) {
-    return ProjectReader.readJSON(slug, "assembly.json");
+  static async getAssembly(slug: string, context?: RuntimeStorageContext) {
+    return this.readGenerationAwarePackage(slug, "assembly", "assembly.json", context);
   }
 
-  static async updateStatus(slug: string, status: ProjectStatus) {
-    const project = await this.getProject(slug);
+  private static async readGenerationAwarePackage(
+    slug: string,
+    stage: Extract<ProductionStepKey, "video" | "assembly" | "thumbnail" | "seo" | "youtube" | "export">,
+    fileName: string,
+    context?: RuntimeStorageContext,
+  ) {
+    const data = await ProjectReader.readJSON(slug, fileName, context);
+    if (data === null) return null;
+    const packagePath = `${ProjectReader.getProjectFolder(slug, context)}/${fileName}`;
+    return isRegenerationPackageCanonical(slug, stage, packagePath, context) ? data : null;
+  }
+
+  static async updateStatus(slug: string, status: ProjectStatus, context?: RuntimeStorageContext) {
+    const project = await this.getProject(slug, context);
 
     if (!project) {
       return null;
@@ -524,7 +562,7 @@ export class ProjectManager {
       updatedAt: new Date().toISOString(),
     };
 
-    await ProjectWriter.writeJSON(slug, "project.json", updatedProject);
+    await ProjectWriter.writeJSON(slug, "project.json", updatedProject, context);
 
     return updatedProject;
   }
@@ -651,6 +689,16 @@ export class ProjectManager {
             attempts,
             usage,
             errorEvidence,
+            generationOrdinal:
+              typeof packageValue.generationOrdinal === "number" &&
+                Number.isSafeInteger(packageValue.generationOrdinal) &&
+                packageValue.generationOrdinal >= 0
+                ? packageValue.generationOrdinal
+                : undefined,
+            regenerationId:
+              typeof packageValue.regenerationId === "string"
+                ? packageValue.regenerationId
+                : undefined,
           };
 
           return acc;

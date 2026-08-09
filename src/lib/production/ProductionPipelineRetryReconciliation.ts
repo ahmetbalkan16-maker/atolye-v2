@@ -19,6 +19,8 @@ import { validateProductionExecutionPersistencePayload } from
 import type { ProductionExecutionPersistenceAdapter } from
   "@/types/productionExecutionPersistence";
 import { buildProductionPipelineExecutionIdentity } from "./ProductionPipelineExecutionIdentity";
+import { regenerationBindingForExecution } from
+  "./ProductionCompletedStageRegenerationStore";
 import { settleFailedProductionPipelineExecution } from "./ProductionPipelineTerminalSettlement";
 import { classifyProductionDurableAttemptLineage } from
   "./ProductionDurableAttemptLineageClassifier";
@@ -64,11 +66,17 @@ export async function reconcileFailedPipelineExecution(
   }
 
   const durableAttemptOrdinal = job.attempts;
+  const regeneration = regenerationBindingForExecution(
+    job.projectSlug, job.stage, durableAttemptOrdinal, storageContext);
+  const historicalRunType = regeneration
+    ? (job.attemptWithinGeneration === 0 ? "resume" as const : "retry" as const)
+    : durableAttemptOrdinal === 0 ? "initial" as const : "retry" as const;
   const identity = buildProductionPipelineExecutionIdentity(
     {
       projectSlug: job.projectSlug,
       stage: job.stage,
-      runType: durableAttemptOrdinal === 0 ? "initial" : "retry",
+      runType: historicalRunType,
+      regeneration,
     },
     { id: job.id, attempts: durableAttemptOrdinal },
   );
@@ -214,14 +222,15 @@ export async function reconcileFailedPipelineExecution(
   }
   const finalLease = finalRecord.record.durableLease;
   const finalReservation = finalReservationRead.value;
-  const historicalRunType = runTypeFromOperation(finalRecord.record.operation);
-  if (!historicalRunType) {
+  const finalRunType = runTypeFromOperation(finalRecord.record.operation);
+  if (!finalRunType) {
     return failure("PIPELINE_RETRY_DURABLE_CONFLICT", "durable:operation-invalid");
   }
   const finalIdentity = buildProductionPipelineExecutionIdentity({
     projectSlug: job.projectSlug,
     stage: job.stage,
-    runType: historicalRunType,
+    runType: finalRunType,
+    regeneration,
   }, { id: job.id, attempts: durableAttemptOrdinal });
   return success(settled.writeFree ? "PIPELINE_RETRY_RECONCILIATION_REPLAYED" :
     "PIPELINE_RETRY_RECONCILED", settled.writeFree, "attempt:immutable", finalIdentity, {

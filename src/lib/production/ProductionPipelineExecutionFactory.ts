@@ -67,6 +67,8 @@ import {
 } from "./ProductionPipelineExecutionInstrumentation";
 import { classifyProductionDurableAttemptLineage } from
   "./ProductionDurableAttemptLineageClassifier";
+import { productionPipelineExecutionAuthorizationAction } from
+  "./ProductionPipelineExecutionSemantics";
 import type { ProductionAcceptanceStageExecutionIdentity } from "./ProductionAcceptancePolicy";
 import { productionAcceptanceProviderCapabilitiesForStage,
   createProductionAcceptanceProviderSelection,
@@ -239,7 +241,7 @@ export async function readVerifiedCompletedProductionPipelinePreparationFingerpr
 export async function prepareProductionPipelineExecution(
   context: ProductionPipelineExecutionContext,
 ) {
-  await emitProductionPipelineExecutionEvent("durable-entry");
+  await emitProductionPipelineExecutionEvent("durable-entry", { stage: context.stage });
   const resolvedStoreRoot = canonicalStoreRoot(
     `${ProjectReader.getProjectFolder(context.projectSlug)}/production-execution`,
   );
@@ -267,9 +269,11 @@ export async function prepareProductionPipelineExecution(
   const providerSelection = context.providerSelection ??
     createProductionAcceptanceProviderSelection(context.stage);
   const attemptNumber = retryAdmission?.admittedJobAttemptIndex ??
-    await resolveDurableAttemptOrdinal(
-      adapter, context.projectSlug, context.stage, job?.attempts ?? 0,
-    );
+    (context.regeneration
+      ? job?.attempts ?? 0
+      : await resolveDurableAttemptOrdinal(
+        adapter, context.projectSlug, context.stage, job?.attempts ?? 0,
+      ));
   const anchor = job?.updatedAt ?? job?.createdAt ?? new Date().toISOString();
   const now = new Date().toISOString();
   const planned = buildProductionPipelineExecutionIdentity(context, {
@@ -289,6 +293,7 @@ export async function prepareProductionPipelineExecution(
     operation: `pipeline.stage.${context.runType}`,
     leaseId: planned.leaseId,
   };
+  const authorizationAction = productionPipelineExecutionAuthorizationAction(context);
   const authorization: ProductionExecutionAuthorizationResult = {
     schemaVersion: "1", decisionId: stableProductionId("pipeline-authorization", planned.core),
     decision: "allow", authorized: true, reasonCode: "AUTHORIZED",
@@ -296,7 +301,7 @@ export async function prepareProductionPipelineExecution(
     requestId: planIdentity.requestId, idempotencyKey: planIdentity.idempotencyKey,
     executionFingerprint: planned.executionFingerprint, actorId: "pipeline-system",
     actorType: "system", projectSlug: context.projectSlug, operation: planIdentity.operation,
-    action: "retry-stage", stage: context.stage, requiredCapabilities: [], grantedCapabilities: [],
+    action: authorizationAction, stage: context.stage, requiredCapabilities: [], grantedCapabilities: [],
     missingCapabilities: [], policyVersion: "pipeline-durable-v1", risk: "high",
     requiresConfirmation: true, requiredConfirmationLevel: "high",
     evidence: ["source:pipeline-composition"],
@@ -309,13 +314,16 @@ export async function prepareProductionPipelineExecution(
     authorizationDecisionId: stableProductionId("pipeline-authorization", planned.core),
     requestId: planIdentity.requestId, idempotencyKey: planIdentity.idempotencyKey,
     actorId: "pipeline-system", projectSlug: context.projectSlug, operation: planIdentity.operation,
-    action: "retry-stage", stage: context.stage, riskLevel: "high",
+    action: authorizationAction, stage: context.stage, riskLevel: "high",
     requiredConfirmationLevel: "high", providedConfirmationLevel: "high", bindingMatches: true,
     bindingFingerprint: stableProductionId("pipeline-confirmation-binding", planned.core),
     expired: false, singleUse: true, consumed: false, policyVersion: "pipeline-durable-v1",
     evidence: ["source:pipeline-composition"],
   };
-  const effectiveMaxAttempts = retryAdmission?.effectiveMaxAttempts ?? 3;
+  const effectiveMaxAttempts = context.regeneration
+    ? retryAdmission?.maxAttempts ??
+      attemptNumber - (job?.attemptWithinGeneration ?? 0) + 3
+    : retryAdmission?.effectiveMaxAttempts ?? 3;
   const idempotencyPolicy = {
     ...defaultProductionExecutionIdempotencyPolicy,
     enabled: true,
@@ -323,6 +331,7 @@ export async function prepareProductionPipelineExecution(
     maximumAttemptsByAction: {
       ...defaultProductionExecutionIdempotencyPolicy.maximumAttemptsByAction,
       "retry-stage": effectiveMaxAttempts,
+      [authorizationAction]: effectiveMaxAttempts,
     },
   };
   const storagePolicy = {
@@ -533,6 +542,7 @@ export async function prepareProductionPipelineExecution(
     operation: completed.record.operation,
     executionFingerprint: completed.attempt.identity.executionFingerprint,
     durableAttemptRequired: true as const,
+    ...(context.regeneration ? { regeneration: Object.freeze({ ...context.regeneration }) } : {}),
   });
   assertCompletedBindings(completed);
   assertCompletedCanonicalIdentityBindings(completed, canonicalIdentity);
@@ -870,6 +880,7 @@ function assertExecutionScopeMatchesIdentity(
   if (scope.projectSlug !== identity.projectSlug || scope.stage !== identity.stage ||
     scope.runType !== identity.runType || scope.operation !== identity.operation ||
     scope.executionFingerprint !== identity.executionFingerprint ||
+    stableProductionValue(scope.regeneration) !== stableProductionValue(identity.regeneration) ||
     stableProductionValue(scope.providerCapabilityScope) !== stableProductionValue(
       productionAcceptanceProviderCapabilitiesForStage(identity.stage),
     )) {

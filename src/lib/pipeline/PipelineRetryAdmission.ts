@@ -1,11 +1,13 @@
 import type { PipelineJob } from "@/types/pipelineJob";
 import type { ProductionStepKey, ProjectPackageRunType } from "@/types/project";
-import type { buildProductionPipelineExecutionIdentity } from
+import { buildProductionPipelineExecutionIdentity } from
   "@/lib/production/ProductionPipelineExecutionIdentity";
 import { stableProductionId } from "@/lib/production/ProductionDeterminism";
 import { buildProductionPipelineRetryAdmissionBinding,
   type ProductionPipelineRetryAdmissionBinding } from
   "@/lib/production/ProductionPipelineRetryAdmissionBinding";
+import { regenerationBindingForExecution } from
+  "@/lib/production/ProductionCompletedStageRegenerationStore";
 
 export const pipelineRetryMaxAttempts = 3;
 
@@ -102,32 +104,45 @@ export function assertCanonicalPipelineRetryAdmission(input: {
   const priorRunType = runTypeFromOperation(
     admission.exactReconciledLineageBinding.operation,
   );
+  const regeneration = previousJob?.regenerationId
+    ? regenerationBindingForExecution(projectSlug, stage, previousJob.attempts)
+    : undefined;
   const canonicalPrior = previousJob && priorRunType && buildIdentity(
     previousJob, priorRunType,
   );
   const canonicalAdmitted = currentJob && buildIdentity(currentJob, admission.runType);
   const canonicalAdmittedBinding = currentJob &&
     buildProductionPipelineRetryAdmissionBinding(
-      { projectSlug, stage, runType },
+      { projectSlug, stage, runType, regeneration },
       currentJob,
     );
-
-  const isOrdinal4Extension = admission.effectiveMaxAttempts === 4 &&
+  const generationStartAttempt = previousJob && regeneration
+    ? previousJob.attempts - (previousJob.attemptWithinGeneration ?? 0)
+    : 0;
+  const generationMaxAttempts = generationStartAttempt + pipelineRetryMaxAttempts;
+  const isOrdinal4Extension = !regeneration && admission.effectiveMaxAttempts === 4 &&
     admission.authorizedDurableOrdinal === 4 &&
     admission.admittedDurableOrdinal === 4 &&
     Boolean(admission.retryBudgetAuthorityProof?.authorityId) &&
     Boolean(admission.retryBudgetAuthorityProof?.authorityIntegrityFingerprint) &&
     Boolean(admission.retryBudgetAuthorityProof?.consumptionReceiptFingerprint);
 
-  const expectedMaxAttempts = isOrdinal4Extension ? 4 : pipelineRetryMaxAttempts;
+  const expectedMaxAttempts = regeneration
+    ? generationMaxAttempts
+    : isOrdinal4Extension ? 4 : pipelineRetryMaxAttempts;
 
   const invalid = admission.maxAttempts !== expectedMaxAttempts ||
     admission.currentDurableOrdinal !== admission.priorJobAttemptIndex + 1 ||
     admission.admittedJobAttemptIndex !== admission.priorJobAttemptIndex + 1 ||
     admission.admittedDurableOrdinal !== admission.admittedJobAttemptIndex + 1 ||
     admission.admittedDurableOrdinal > expectedMaxAttempts ||
-    (admission.admittedDurableOrdinal === 4 && !isOrdinal4Extension) ||
-    admission.admittedDurableOrdinal >= 5 ||
+    (!regeneration && admission.admittedDurableOrdinal === 4 && !isOrdinal4Extension) ||
+    (!regeneration && admission.admittedDurableOrdinal >= 5) ||
+    (regeneration && (!previousJob || !currentJob ||
+      (currentJob.attemptWithinGeneration ?? -1) !==
+        (previousJob.attemptWithinGeneration ?? -1) + 1 ||
+      currentJob.generationOrdinal !== previousJob.generationOrdinal ||
+      currentJob.regenerationId !== previousJob.regenerationId)) ||
     admission.projectSlug !== projectSlug || admission.stage !== stage ||
     admission.runType !== runType || !previousJob || !currentJob ||
     admission.jobId !== `${projectSlug}-${stage}` ||
@@ -158,22 +173,14 @@ function runTypeFromOperation(operation: string): ProjectPackageRunType | undefi
 }
 
 function buildIdentity(job: PipelineJob, runType: ProjectPackageRunType) {
-  // Imported as a type above to avoid a runtime cycle; the exact identity is
-  // reconstructed through the same deterministic primitives here.
-  const core = { projectSlug: job.projectSlug, stage: job.stage, jobId: job.id,
-    attemptNumber: job.attempts };
-  return {
-    core,
-    requestId: stableProductionId("pipeline-request", core),
-    idempotencyKey: stableProductionId("pipeline-idempotency", core),
-    executionFingerprint: stableProductionId("pipeline-execution", { ...core, runType }),
-    claimId: stableProductionId("pipeline-claim", core),
-    leaseId: stableProductionId("pipeline-lease", core),
-    attemptId: stableProductionId("pipeline-attempt", core),
-    recordId: stableProductionId("pipeline-record", core),
-    runningEventId: stableProductionId("pipeline-running", core),
-    terminalEventId: stableProductionId("pipeline-terminal", core),
-  };
+  return buildProductionPipelineExecutionIdentity({
+    projectSlug: job.projectSlug,
+    stage: job.stage,
+    runType,
+    regeneration: job.regenerationId
+      ? regenerationBindingForExecution(job.projectSlug, job.stage, job.attempts)
+      : undefined,
+  }, job);
 }
 
 function sameExecutionIdentity(

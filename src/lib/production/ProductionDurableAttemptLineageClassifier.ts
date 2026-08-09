@@ -21,6 +21,8 @@ import { buildProductionPipelineExecutionIdentity } from
 import type { ProductionDurableAttemptLineageBoundary } from
   "./ProductionDurableAttemptLineageBoundary";
 import { isProductionExecutionTerminalAttemptState } from "./ProductionExecutionDurableAttempt";
+import { listRegenerationExecutionBindings, regenerationBindingForExecution } from
+  "./ProductionCompletedStageRegenerationStore";
 
 export type ProductionDurableAttemptLineageClassification =
   | { readonly status: "none"; readonly durableOrdinal: 0 }
@@ -82,10 +84,17 @@ export async function classifyProductionDurableAttemptLineage(
     recordValues.push(latest.value);
   }
   const maximum = Math.max(...recordValues.map((record) => record.attempt));
-  if (recordValues.length !== maximum) return invalid("lineage-cardinality");
   recordValues.sort((left, right) => left.attempt - right.attempt);
+  const minimum = recordValues[0].attempt;
+  const regenerationGap = minimum > 1 &&
+    listRegenerationExecutionBindings(projectSlug, stage as ProductionStepKey)
+      .some((item) => item.firstGlobalExecutionOrdinal === minimum - 1);
+  if ((!regenerationGap && recordValues.length !== maximum) ||
+    (regenerationGap && recordValues.length !== maximum - minimum + 1)) {
+    return invalid("lineage-cardinality");
+  }
   for (let index = 0; index < recordValues.length; index += 1) {
-    if (recordValues[index].attempt !== index + 1) return invalid("record-ordinal-topology");
+    if (recordValues[index].attempt !== minimum + index) return invalid("record-ordinal-topology");
   }
 
   const lineagePlans = new Map<string, { record: ProductionExecutionIdempotencyRecord;
@@ -94,7 +103,9 @@ export async function classifyProductionDurableAttemptLineage(
     const runType = durableLineageRunType(record.operation);
     if (!runType) return invalid("record-operation-format");
     const planned = buildProductionPipelineExecutionIdentity(
-      { projectSlug, stage: stage as ProductionStepKey, runType },
+      { projectSlug, stage: stage as ProductionStepKey, runType,
+        regeneration: regenerationBindingForExecution(
+          projectSlug, stage as ProductionStepKey, record.attempt - 1) },
       { id: `${projectSlug}-${stage}`, attempts: record.attempt - 1 },
     );
     const recordBoundary = recordBindingBoundary(record, planned);
@@ -239,7 +250,9 @@ function buildLineagePlans(projectSlug: string, stage: string, maximumOrdinal: n
   for (let ordinal = 0; ordinal <= maximumOrdinal; ordinal += 1) {
     const runType = ordinal === 0 ? "initial" : "retry";
     const planned = buildProductionPipelineExecutionIdentity(
-      { projectSlug, stage: stage as ProductionStepKey, runType },
+      { projectSlug, stage: stage as ProductionStepKey, runType,
+        regeneration: regenerationBindingForExecution(
+          projectSlug, stage as ProductionStepKey, ordinal) },
       { id: `${projectSlug}-${stage}`, attempts: ordinal },
     );
     claimIds.add(planned.claimId);

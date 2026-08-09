@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { PipelineJobManager } from "./PipelineJobManager";
-import { createRuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
 import { getRetryBudgetExtensionDirectory } from "@/lib/production/ProductionPipelineRetryBudgetExtensionStore";
 import { verifyCanonicalPipelineRetryBudgetExtensionAdmission } from "@/lib/production/ProductionPipelineRetryBudgetExtensionGate";
 import { PipelineQueueScheduler } from "./PipelineQueueScheduler";
@@ -34,6 +33,8 @@ import { createProductionAcceptanceProviderSelection,
   createProductionAcceptanceStageExecutionScope,
   type ProductionAcceptanceProviderSelection } from
   "@/lib/production/ProductionAcceptanceExecutionScope";
+import { requireRegenerationExecutionAdmission } from
+  "@/lib/production/ProductionCompletedStageRegenerationStore";
 import { emitProductionPipelineExecutionEvent } from
   "@/lib/production/ProductionPipelineExecutionInstrumentation";
 import { withProductionAcceptanceRetryAdmission } from
@@ -53,7 +54,8 @@ import type {
 } from "@/types/pipelineRecovery";
 import type { PipelineRetryAdmission } from "./PipelineRetryAdmission";
 import type { PipelineJob } from "@/types/pipelineJob";
-import { ProductionRuntimeOperationContextError } from "@/lib/runtime/ProductionRuntimeOperationContext";
+import { ProductionRuntimeOperationContextError, getActiveProductionRuntimeOperationContext,
+  requireProductionRuntimeStorageContext } from "@/lib/runtime/ProductionRuntimeOperationContext";
 import { ProjectReader } from "@/lib/projects/ProjectReader";
 import { ProductionExecutionFilePersistenceAdapter } from
   "@/lib/production/ProductionExecutionPersistence";
@@ -241,7 +243,8 @@ export class PipelineRunner {
       };
     }
 
-    const state = await PipelineStageExecutor.loadState(projectSlug);
+    const storageContext = this.requireRuntimeStorageContext();
+    const state = await PipelineStageExecutor.loadState(projectSlug, storageContext);
 
     if (!state) {
       return {
@@ -278,14 +281,14 @@ export class PipelineRunner {
     );
     if (startJob?.status === "queued") {
       const [manifest, jobs, history] = await Promise.all([
-        ProjectManager.getManifest(projectSlug),
-        PipelineJobManager.listJobsReadOnly(projectSlug),
+        ProjectManager.getManifest(projectSlug, storageContext),
+        PipelineJobManager.listJobsReadOnly(projectSlug, storageContext),
         PipelineJobManager.listHistory(projectSlug),
       ]);
       if (manifest?.packages[plan.startStage]?.status === "failed") {
         let isConsumedExtensionResume = false;
         if (startJob.attempts === 3) {
-          const context = createRuntimeStorageContext();
+          const context = storageContext;
           const dir = getRetryBudgetExtensionDirectory(projectSlug, context);
           if (fs.existsSync(dir)) {
             try {
@@ -580,7 +583,8 @@ export class PipelineRunner {
       };
     }
 
-    const state = await PipelineStageExecutor.loadState(projectSlug);
+    const state = await PipelineStageExecutor.loadState(
+      projectSlug, this.requireRuntimeStorageContext());
 
     if (!state) {
       return {
@@ -704,7 +708,8 @@ export class PipelineRunner {
       };
     }
 
-    const state = await PipelineStageExecutor.loadState(projectSlug);
+    const state = await PipelineStageExecutor.loadState(
+      projectSlug, this.requireRuntimeStorageContext());
 
     if (!state) {
       return {
@@ -865,6 +870,12 @@ export class PipelineRunner {
     return executePipelineRunnerProductionRuntimeOperation(operationType, operation);
   }
 
+  private static requireRuntimeStorageContext() {
+    const context = getActiveProductionRuntimeOperationContext();
+    if (!context) throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISSING");
+    return requireProductionRuntimeStorageContext(context);
+  }
+
   private static async runPipelineStage(
     slug: string,
     stage: ProductionStepKey,
@@ -884,6 +895,7 @@ export class PipelineRunner {
         slug, stage, state, providerSelection.dispatchOptions as PipelineStageExecutionOptions,
         capability, identity, runType,
         providerSelection,
+        this.requireRuntimeStorageContext(),
       ),
       runType,
       onClaimConflict,
@@ -965,6 +977,7 @@ export class PipelineRunner {
         onClaimConflict?.();
         return false;
       }
+      const regeneration = requireRegenerationExecutionAdmission(slug, stage, existingJob);
       const legacy = (_capability: ProductionAcceptanceStageCapability | undefined,
         identity: ProductionAcceptanceStageExecutionIdentity,
         authority: ProductionPipelineCompletedPreparationAuthority) =>
@@ -976,15 +989,16 @@ export class PipelineRunner {
             operation: identity.operation,
             executionFingerprint: identity.executionFingerprint,
             providerSelection,
+            regeneration,
           });
-          await emitProductionPipelineExecutionEvent("capability-issuance-entered");
+          await emitProductionPipelineExecutionEvent("capability-issuance-entered", { stage });
           return action(
             await issueProductionAcceptanceStageCapability(authority, executionScope),
             identity,
           );
         }, runType, onClaimConflict);
       return executeConfiguredProductionPipelineStage({ projectSlug: slug, stage, runType,
-        providerSelection }, legacy);
+        providerSelection, regeneration }, legacy);
     }, `${slug}-${stage}`);
   }
 
