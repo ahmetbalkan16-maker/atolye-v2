@@ -1,0 +1,130 @@
+{
+  "projectId": "1ba3bebf-abe9-4b3c-9b4a-b9d238b98534",
+  "slug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+  "title": "Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+  "status": "assembled",
+  "sourceAudioAssetId": "cdd5d362-5cd4-4e17-8983-306ca4c846a5",
+  "outputAssetId": "150551e8-8bd5-4447-9650-48775779e5ba",
+  "scenes": [
+    {
+      "sceneId": 1,
+      "chapterId": 1,
+      "duration": "00:15",
+      "visualReference": "visual-1",
+      "animationAssetId": "animation-dbeb04a67bb8af590a175760ad8725fd1f6db148a63b99d8bd4be825d7934e6d",
+      "videoAssetId": "653f7796-6f00-4bbb-8fe3-237364f2a9cc",
+      "audioAssetId": "faa095f4-0bcb-4565-94b9-33573762ca7a",
+      "audioReference": "section-1",
+      "transition": "fade in from black, dissolve to next scene",
+      "cameraMovement": "slow dolly-in to Fatih on throne, pan to glowing map marker",
+      "effects": [
+        "candlelight flicker",
+        "subtle dust particles"
+      ],
+      "notes": "Emphasize youthful determination and vision; use warm, dramatic lighting to highlight historical atmosphere."
+    },
+    {
+      "sceneId": 2,
+      "chapterId": 2,
+      "duration": "00:20",
+      "visualReference": "visual-2",
+      "animationAssetId": "animation-6ab60cc63dc940ce2343c3c10393e4e1a9629523166940990afdb584fb5d4a49",
+      "videoAssetId": "f9fe8e6d-615b-4f8f-aeee-a9b66d40e67b",
+      "audioAssetId": "895dd791-d4af-4b87-a213-39966554e8cb",
+      "audioReference": "section-2",
+      "transition": "crossfade from previous scene",
+      "cameraMovement": "tracking shots following soldiers, slow-motion close-ups on weapons and drills",
+      "effects": [
+        "sparks from forge",
+        "ambient hammering sounds"
+      ],
+      "notes": "Highlight discipline and military readiness; maintain intense, rhythmic pacing with focused visuals on training and craftsmanship."
+    },
+    {
+      "sceneId": 3,
+      "chapterId": 3,
+      "duration": "00:20",
+      "visualReference": "visual-3",
+      "animationAssetId": "animation-adea8ddd9dd26380078d95c4a798f0d152a1c5343ea088f327ba9bf7f8ed02ea",
+      "videoAssetId": "f35ab8b5-acaf-447d-8128-df6f68ee0db7",
+      "audioAssetId": "09a44902-2fea-47c0-95b8-b425a0d02e11",
+      "audioReference": "section-3",
+      "transition": "fade through black with sound bridge",
+      "cameraMovement": "crane and sweeping shots over foundry and siege towers, close-ups on Urban and blueprints",
+      "effects": [
+        "glowing embers",
+        "dramatic sky lighting"
+      ],
+      "notes": "Convey technological innovation and strategic superiority; use dramatic lighting and slow reveals to evoke awe."
+    },
+    {
+      "sceneId": 4,
+      "chapterId": 4,
+      "duration": "00:15",
+      "visualReference": "visual-4",
+      "animationAssetId": "animation-14a4d43ea60d274f5de8e66e5c871a936279c983f19f5be57b8f5eb8225e3854",
+      "videoAssetId": "8ca709cc-9357-4e39-88d2-3dcec830a7ab",
+      "audioAssetId": "47c41dd9-9367-4631-9f35-8e9dbea9e7d1",
+      "audioReference": "section-4",
+      "transition": "smooth crossfade with subtle sound effects",
+      "cameraMovement": "steady panoramic shots of storerooms and harbor, gentle movement of workers",
+      "effects": [
+        "soft ambient light",
+        "quiet waves sound"
+      ],
+      "notes": "Emphasize meticulous planning and logistical strength; maintain calm but intense atmosphere."
+    },
+    {
+      "sceneId": 5,
+      "chapterId": 5,
+      "duration": "00:10",
+      "visualReference": "visual-5",
+      "animationAssetId": "animation-5e8652c49999b4ab6e7113454ff0c1a23d395edcf255f5fbc6670d6a2aad8bae",
+      "videoAssetId": "3daa3b7e-fe6d-4ab6-8f9e-013742dcbb55",
+      "audioAssetId": "1b03ebfb-6b62-4b7c-b502-d1839755d959",
+      "audioReference": "section-5",
+      "transition": "fade with gentle dissolve",
+      "cameraMovement": "slow zoom on diplomats’ faces, subtle shifts emphasizing tension",
+      "effects": [
+        "warm candlelight shadows",
+        "soft murmurs"
+      ],
+      "notes": "Highlight strategic diplomacy and internal stability; tone is calm, balanced, and thoughtful."
+    },
+    {
+      "sceneId": 6,
+      "chapterId": 6,
+      "duration": "00:10",
+      "visualReference": "visual-6",
+      "animationAssetId": "animation-a3523073730ccefe7d8400de9da2814bfdcbcbaa4b84f3182352d1fc07f9dd82",
+      "videoAssetId": "2faab42d-17b2-4870-9372-b02ab8773060",
+      "audioAssetId": "4b1c8d30-7353-4090-814d-511a4d717089",
+      "audioReference": "section-6",
+      "transition": "epic crescendo with fade to black",
+      "cameraMovement": "wide aerial sweeping shot, crane rising to reveal siege scale",
+      "effects": [
+        "dust particles",
+        "wind moving banners",
+        "dramatic sky lighting"
+      ],
+      "notes": "Capture epic scale and historic significance; pacing accelerates to build excitement and grandeur."
+    }
+  ],
+  "totalDuration": "01:30",
+  "style": "documentary cinematic",
+  "render": {
+    "status": "rendered",
+    "format": "mp4",
+    "outputUrl": "/api/assets/videos/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/8c57c980-f4f3-4942-9e76-90fbdc4edb01.mp4",
+    "filePath": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/videos/8c57c980-f4f3-4942-9e76-90fbdc4edb01.mp4",
+    "mimeType": "video/mp4",
+    "byteLength": 9452948,
+    "durationSeconds": 116.971,
+    "width": 1920,
+    "height": 1080,
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+  },
+  "createdAt": "2026-07-15T19:30:00.000Z",
+  "updatedAt": "2026-08-08T19:19:39.272Z"
+}

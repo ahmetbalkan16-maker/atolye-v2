@@ -1,0 +1,168 @@
+{
+  "narrator": {
+    "style": "Cinematic, profesyonel ve etkileyici",
+    "tone": "Kararlı ve etkileyici",
+    "language": "tr",
+    "voiceProvider": "Google Cloud Text-to-Speech",
+    "voiceId": "tr-TR-Wavenet-B"
+  },
+  "sections": [
+    {
+      "chapterId": 1,
+      "title": "Genç Padişahın Tahta Çıkışı ve Hedef Belirlemesi",
+      "duration": "00:15",
+      "emotion": "Kararlılık ve gençliğin getirdiği heyecan",
+      "emphasis": [
+        "Fatih Sultan Mehmet",
+        "1451",
+        "19 yaş",
+        "Osmanlı tahtı",
+        "İstanbul’u fethetmek",
+        "ticaret yolları"
+      ],
+      "narrationNotes": "Anlatımda genç Fatih’in enerjisi ve kararlılığı vurgulanmalı, hedef belirleme süreci net ve etkileyici olmalı.",
+      "pacing": "Orta tempo, net ve vurucu cümlelerle ilerleyen anlatım.",
+      "sourceText": "Fatih Sultan Mehmet, 1451 yılında henüz 19 yaşındayken Osmanlı tahtına geçti. Genç yaşına rağmen büyük bir vizyona sahipti. İlk hedefi, İstanbul’u fethederek Osmanlı topraklarını tamamlamak ve Doğu ile Batı arasındaki ticaret yollarını kontrol altına almaktı. Tahta çıkışından hemen sonra, bu büyük hedef için hazırlıklara başladı.",
+      "audioFileUrl": "/api/assets/audio/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/9b935d3b-65d2-4f12-bb6b-c08fe1db6870.wav",
+      "outputAssetId": "faa095f4-0bcb-4565-94b9-33573762ca7a",
+      "status": "generated",
+      "provider": "openai",
+      "model": "tts-1",
+      "byteLength": 1174244,
+      "durationSeconds": 24.4625
+    },
+    {
+      "chapterId": 2,
+      "title": "Askeri Reformlar ve Orduyu Güçlendirme",
+      "duration": "00:20",
+      "emotion": "Hazırlık ve disiplin duygusu",
+      "emphasis": [
+        "Yeniçeri Ocağı",
+        "topçuluk",
+        "kuşatma teknikleri",
+        "farklı milletler",
+        "savaş gücü"
+      ],
+      "narrationNotes": "Disiplin ve güçlendirme vurgusu öne çıkarılmalı, ordunun gelişimi detaylı ve kararlı bir tonda aktarılmalı.",
+      "pacing": "Dengeli, biraz daha ritmik ve güçlü vurgularla ilerleyen anlatım.",
+      "sourceText": "Fatih, İstanbul’un surlarını aşmak için güçlü ve disiplinli bir orduya ihtiyaç duyuyordu. Yeniçeri Ocağı’nı güçlendirdi, topçuluk ve kuşatma tekniklerine önem verdi. Ordunun eğitimini artırdı ve farklı milletlerden uzmanları bir araya getirerek savaş gücünü üst seviyeye çıkardı.",
+      "audioFileUrl": "/api/assets/audio/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/438f9cbf-fc9d-47c6-8893-b2a3446f7fad.wav",
+      "outputAssetId": "895dd791-d4af-4b87-a213-39966554e8cb",
+      "status": "generated",
+      "provider": "openai",
+      "model": "tts-1",
+      "byteLength": 924044,
+      "durationSeconds": 19.25
+    },
+    {
+      "chapterId": 3,
+      "title": "Top Teknolojisi ve Mühendislik Yenilikleri",
+      "duration": "00:20",
+      "emotion": "Yenilik ve stratejik üstünlük hissi",
+      "emphasis": [
+        "büyük toplar",
+        "Urban",
+        "Bizans surları",
+        "kuşatma kuleleri",
+        "mühendislik araçları"
+      ],
+      "narrationNotes": "Teknolojik gelişmeler ve yenilikler vurgulanmalı, anlatımda stratejik üstünlük hissi öne çıkarılmalı.",
+      "pacing": "Orta tempo, etkileyici ve detaylı açıklamalarla ilerleyen anlatım.",
+      "sourceText": "Fatih Sultan Mehmet, kuşatma savaşlarında devrim yaratacak büyük topların dökümünü sağladı. Ünlü top dökümcüsü Urban’ı İstanbul’a getirtti. Bu dev toplar, Bizans surlarını yıkmada kritik rol oynadı. Ayrıca kuşatma kuleleri ve diğer mühendislik araçları da geliştirildi.",
+      "audioFileUrl": "/api/assets/audio/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/214ff993-9f05-484c-bc3e-0bafec892fdf.wav",
+      "outputAssetId": "09a44902-2fea-47c0-95b8-b425a0d02e11",
+      "status": "generated",
+      "provider": "openai",
+      "model": "tts-1",
+      "byteLength": 891044,
+      "durationSeconds": 18.5625
+    },
+    {
+      "chapterId": 4,
+      "title": "Lojistik Hazırlıklar ve İkmal Hatlarının Güçlendirilmesi",
+      "duration": "00:15",
+      "emotion": "Planlama ve hazırlıkta titizlik duygusu",
+      "emphasis": [
+        "lojistik",
+        "ikmal hatları",
+        "yiyecek ve mühimmat stokları",
+        "donanma",
+        "Haliç zinciri"
+      ],
+      "narrationNotes": "Lojistik detaylar ve hazırlıkların önemi sakin ve titiz bir anlatımla aktarılmalı, planlama hissi verilmelidir.",
+      "pacing": "Orta-yavaş tempo, net ve açıklayıcı bir anlatım.",
+      "sourceText": "Kuşatma uzun süreceği için lojistik büyük önem taşıyordu. Fatih, ordunun ihtiyaçlarını karşılamak için ikmal hatlarını güçlendirdi, yiyecek ve mühimmat stoklarını artırdı. Ayrıca donanmayı hazırlayarak Haliç’e girecek yolları kapatan zinciri aşmak için özel planlar yaptı.",
+      "audioFileUrl": "/api/assets/audio/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/25bc15cd-324d-4ecf-a94b-0b9fab10b449.wav",
+      "outputAssetId": "47c41dd9-9367-4631-9f35-8e9dbea9e7d1",
+      "status": "generated",
+      "provider": "openai",
+      "model": "tts-1",
+      "byteLength": 915044,
+      "durationSeconds": 19.0625
+    },
+    {
+      "chapterId": 5,
+      "title": "Diplomasi ve İç İstikrarın Sağlanması",
+      "duration": "00:10",
+      "emotion": "Sükunet ve stratejik denge hissi",
+      "emphasis": [
+        "diplomasi",
+        "komşu devletler",
+        "tarafsızlık",
+        "istikrar"
+      ],
+      "narrationNotes": "Diplomatik başarı ve iç istikrar sakin, dengeli ve stratejik bir tonda aktarılmalı.",
+      "pacing": "Yavaş ve sakin tempo, net vurgu ve sakinleştirici anlatım.",
+      "sourceText": "Fatih, kuşatma öncesi iç karışıklıkları önlemek ve dış tehditleri engellemek için diplomasiye önem verdi. Komşu devletlerle ilişkileri düzenledi, bazılarını tarafsız bırakmayı başardı. Bu sayede ordusunun arkasında tam bir istikrar sağlandı.",
+      "audioFileUrl": "/api/assets/audio/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/618db963-b754-49b9-860f-7cae537975d3.wav",
+      "outputAssetId": "1b03ebfb-6b62-4b7c-b502-d1839755d959",
+      "status": "generated",
+      "provider": "openai",
+      "model": "tts-1",
+      "byteLength": 814244,
+      "durationSeconds": 16.9625
+    },
+    {
+      "chapterId": 6,
+      "title": "Son Hazırlıklar ve Kuşatma Başlangıcı",
+      "duration": "00:10",
+      "emotion": "Heyecan ve tarihi anın büyüklüğü",
+      "emphasis": [
+        "1453 bahar",
+        "kuşatma",
+        "tarihin akışı",
+        "büyük zafer",
+        "Fatih’in liderliği"
+      ],
+      "narrationNotes": "Anlatımda tarihi anın büyüklüğü ve heyecan hissi ön planda olmalı, final vurgusu güçlü ve etkileyici olmalı.",
+      "pacing": "Hızlanan tempo, heyecanlı ve vurucu cümlelerle sonlandırma.",
+      "sourceText": "Tüm hazırlıklar tamamlandığında, 1453 baharında Fatih Sultan Mehmet ordusunu İstanbul önlerine getirdi. Kuşatma başladı ve tarihin akışı değişti. Bu büyük zaferin arkasındaki hazırlık süreci, Osmanlı’nın gücünü ve Fatih’in liderliğini gözler önüne serdi.",
+      "audioFileUrl": "/api/assets/audio/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/b64c1ece-c695-4cd9-b4fb-07b888ae812c.wav",
+      "outputAssetId": "4b1c8d30-7353-4090-814d-511a4d717089",
+      "status": "generated",
+      "provider": "openai",
+      "model": "tts-1",
+      "byteLength": 894644,
+      "durationSeconds": 18.6375
+    }
+  ],
+  "music": {
+    "mood": "Epik, tarihi ve atmosferik",
+    "suggestion": "Orkestral yaylılar, davullar ve nefesli çalgılarla desteklenen dramatik ve atmosferik bir müzik",
+    "intensity": "Orta-yüksek, dramatik anlarda yükselen dinamik"
+  },
+  "production": {
+    "targetFormat": "wav",
+    "sampleRate": 44100,
+    "estimatedTotalDuration": "01:30",
+    "generationStatus": "generated",
+    "audioFileUrl": "/api/assets/audio/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/5bf6ecd2-73e5-494a-ba4f-fc85d850cd47.wav",
+    "byteLength": 5598644,
+    "durationSeconds": 116.6375
+  },
+  "createdAt": "2026-07-15T14:31:53.950Z",
+  "outputAssetId": "cdd5d362-5cd4-4e17-8983-306ca4c846a5",
+  "status": "generated",
+  "provider": "openai",
+  "model": "tts-1"
+}
