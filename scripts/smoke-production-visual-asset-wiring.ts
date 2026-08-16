@@ -44,6 +44,7 @@ import { runWithProductionPipelineExecutionInstrumentation } from
 import { VisualManager } from "../src/lib/visuals/VisualManager";
 import { getActiveProductionRuntimeOperationContext,
   requireActiveProductionRuntimeOperationContext,
+  requireProductionRuntimeStorageContext,
 } from
   "../src/lib/runtime/ProductionRuntimeOperationContext";
 import type {
@@ -363,6 +364,11 @@ async function runVisualFailureThroughRunner(
       "visuals",
       fixture.state,
       { visualAssetProvider: provider },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      requireProductionRuntimeStorageContext(requireActiveProductionRuntimeOperationContext()),
     );
 
   try {
@@ -424,6 +430,7 @@ async function runVisualFailureThroughRunner(
           identity,
           "initial",
           providerSelection,
+          requireProductionRuntimeStorageContext(requireActiveProductionRuntimeOperationContext()),
         );
       };
       try {
@@ -441,7 +448,7 @@ async function runVisualFailureThroughRunner(
           )),
           (error) => error instanceof ProductionPipelineDurableExecutionError &&
             error.message === "Pipeline stage execution failed." &&
-            error.reasonCode === "WORKER_EXECUTION_FAILED",
+            error.reasonCode === "VISUAL_ASSET_GENERATION_FAILED",
         );
       } finally {
         MockImageProvider.prototype.generateImage = originalGenerate;
