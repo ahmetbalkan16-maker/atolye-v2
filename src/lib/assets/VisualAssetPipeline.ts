@@ -55,6 +55,11 @@ type NormalizedGenerationResult = {
   sourceUrl?: string;
   license?: string;
   attribution?: string;
+  selectionScore?: number;
+  selectionRank?: number;
+  candidateCount?: number;
+  width?: number;
+  height?: number;
   createdAt: string;
 };
 
@@ -172,6 +177,11 @@ export class VisualAssetPipeline {
         sourceUrl: normalizedResult.sourceUrl,
         license: normalizedResult.license,
         attribution: normalizedResult.attribution,
+        selectionScore: normalizedResult.selectionScore,
+        selectionRank: normalizedResult.selectionRank,
+        candidateCount: normalizedResult.candidateCount,
+        width: normalizedResult.width,
+        height: normalizedResult.height,
         createdAt: normalizedResult.createdAt,
       });
 
@@ -246,6 +256,11 @@ function normalizeGenerationResult(
     const attribution = result.attribution === undefined
       ? undefined
       : normalizeNonEmptyString(result.attribution, 300);
+    const selectionScore = normalizeUnitScore(result.selectionScore);
+    const selectionRank = normalizePositiveInteger(result.selectionRank);
+    const candidateCount = normalizePositiveInteger(result.candidateCount);
+    const width = normalizePositiveInteger(result.width);
+    const height = normalizePositiveInteger(result.height);
 
     if (
       !mimeType ||
@@ -254,7 +269,10 @@ function normalizeGenerationResult(
       !filePath || !url ||
       !hasFilePath || !hasUrl ||
       !sourceName || !sourceUrl || !license ||
-      (result.attribution !== undefined && !attribution)
+      (result.attribution !== undefined && !attribution) ||
+      selectionScore === null || selectionRank === null || candidateCount === null ||
+      width === null || height === null ||
+      selectionRank > candidateCount
     ) {
       return null;
     }
@@ -279,6 +297,11 @@ function normalizeGenerationResult(
       sourceUrl,
       license,
       attribution: attribution ?? undefined,
+      selectionScore,
+      selectionRank,
+      candidateCount,
+      width,
+      height,
       createdAt: result.createdAt,
     };
   }
@@ -339,6 +362,18 @@ function normalizeSourceUrl(value: unknown): string | null {
   } catch {
     return null;
   }
+}
+
+function normalizeUnitScore(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1
+    ? value
+    : null;
+}
+
+function normalizePositiveInteger(value: unknown): number | null {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0
+    ? value
+    : null;
 }
 
 function persistFailedAsset({

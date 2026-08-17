@@ -30,6 +30,11 @@ export interface ImageProviderConfig {
     searchResultLimit: number;
     minimumWidth: number;
     minimumHeight: number;
+    retryDelayMs: number;
+    candidateAttemptLimit: number;
+    targetDownloadWidth: number;
+    sceneBudgetMs: number;
+    minRequestIntervalMs: number;
   };
 }
 
@@ -48,6 +53,13 @@ export const imageProviderConfig: ImageProviderConfig = {
     searchResultLimit: 10,
     minimumWidth: 640,
     minimumHeight: 360,
+    retryDelayMs: 750,
+    candidateAttemptLimit: 3,
+    // 1920 matches the production video pipeline's 1920x1080 output (Sprint 129.40) — a larger
+    // original only slows the download down for no downstream benefit.
+    targetDownloadWidth: 1920,
+    sceneBudgetMs: 60_000,
+    minRequestIntervalMs: 1_000,
   },
 };
 
@@ -118,6 +130,36 @@ export function getRealImageProviderConfig(
       imageProviderConfig.real.minimumHeight,
       1,
       16_384,
+    ),
+    retryDelayMs: integerValue(
+      environment.IMAGE_REAL_RETRY_DELAY_MS,
+      imageProviderConfig.real.retryDelayMs,
+      0,
+      30_000,
+    ),
+    candidateAttemptLimit: integerValue(
+      environment.IMAGE_REAL_CANDIDATE_ATTEMPT_LIMIT,
+      imageProviderConfig.real.candidateAttemptLimit,
+      1,
+      10,
+    ),
+    targetDownloadWidth: integerValue(
+      environment.IMAGE_REAL_TARGET_DOWNLOAD_WIDTH,
+      imageProviderConfig.real.targetDownloadWidth,
+      16,
+      16_384,
+    ),
+    sceneBudgetMs: integerValue(
+      environment.IMAGE_REAL_SCENE_BUDGET_MS,
+      imageProviderConfig.real.sceneBudgetMs,
+      1_000,
+      300_000,
+    ),
+    minRequestIntervalMs: integerValue(
+      environment.IMAGE_REAL_MIN_REQUEST_INTERVAL_MS,
+      imageProviderConfig.real.minRequestIntervalMs,
+      0,
+      30_000,
     ),
   });
 }

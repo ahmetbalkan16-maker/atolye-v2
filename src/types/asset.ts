@@ -68,6 +68,16 @@ export interface Asset {
   /** Real-photo sourcing only: required attribution/credit line, when the license demands one. */
   attribution?: string;
 
+  /** Real-photo sourcing only: 0-1 title/query word-overlap score of the chosen candidate. */
+  selectionScore?: number;
+
+  /** Real-photo sourcing only: 1-based rank of the chosen candidate among eligible candidates
+   *  (2+ means earlier-ranked candidates failed download and this one was used instead). */
+  selectionRank?: number;
+
+  /** Real-photo sourcing only: how many eligible candidates were considered in total. */
+  candidateCount?: number;
+
   error?: string;
 
   createdAt: string;
@@ -137,6 +147,11 @@ export type ImageGenerationRealPhotoSuccess = ImageGenerationResultBase &
     sourceUrl: string;
     license: string;
     attribution?: string;
+    selectionScore: number;
+    selectionRank: number;
+    candidateCount: number;
+    width: number;
+    height: number;
     error?: never;
   };
 
