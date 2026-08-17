@@ -24,6 +24,40 @@ Her AI aşağıdaki sırayla hareket etmelidir.
 
 ---
 
+## Çoklu Bilgisayar Oturum Kuralları
+
+Kullanıcı iki farklı bilgisayarda dönüşümlü çalışıyor. Bu yüzden aşağıdaki kurallar her oturumda
+uygulanmalıdır.
+
+### Oturum Başlangıcı
+
+Her oturuma başlarken, herhangi bir dosya okumadan veya geliştirmeye başlamadan önce:
+
+1. `git pull` çalıştırılmalı.
+2. `git status` ile uzak dalla (`origin`) senkron olunduğu doğrulanmalı.
+3. Çakışma veya senkron dışı bir durum varsa, devam etmeden önce kullanıcıya bildirilmelidir.
+
+### Oturum Sonu
+
+Her oturumun sonunda — geliştirme tamamlanmış olsun ya da olmasın — değişiklikler commit edilip
+push edilmelidir. Bu, projenin genel "kullanıcı onayı olmadan commit/push yapılmaz" kuralına
+istisnadır: oturum sonu kaydı için kullanıcı onayı zaten bu belgeyle önceden verilmiştir, tekrar
+sorulmasına gerek yoktur.
+
+- İş tamamlanmışsa normal commit kuralları (`ATOLYE_AI_RULES.md`) geçerlidir.
+- İş yarım kalmışsa commit mesajı `wip:` öneki taşımalı ve mesaj gövdesinde tam olarak nerede
+  kalındığı (hangi dosya/adım, sıradaki iş) açıkça yazılmalıdır.
+- Bu adım atlanmamalı; oturum yarım kalan bir iş nedeniyle commit'siz/push'suz bitirilmemelidir.
+
+### Checkpoint Güncelliği
+
+`ATOLYE_CHECKPOINT.md` her oturum sonunda güncel tutulmalıdır. Diğer bilgisayarda oturuma
+başlandığında yalnızca bu dosya okunarak nerede kalındığı anlaşılabilmelidir — bu yüzden yarım
+kalan işler de (tamamlanmış sprintler gibi) checkpoint'e durumu net şekilde yansıtacak bir kayıtla
+eklenmelidir.
+
+---
+
 ## Çalışma Akışı
 
 Her geliştirme aşağıdaki sırayla yapılmalıdır.
