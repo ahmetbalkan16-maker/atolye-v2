@@ -170,8 +170,10 @@ provider/source-router architecture (ADR-019) — none require changing `ImagePr
 - [x] Diagnose scene-video line 554 as a repeatable host dependency failure: expected success, got
   false because `ffmpeg`/`ffprobe` are absent. No Sprint 129.41 shared-code causality was found and
   the Sprint 129.40 framing provider remains byte-identical to HEAD.
-- [ ] Repair separately the known Sprint 129.38 line-387 fixture-state failure and animation-motion
-  manifest-attempt fixture ordering failure; neither is part of this remediation.
+- [x] Repair the Sprint 129.38 line-387 fixture-state failure in owned-temp setup: Scenario A now
+  rewinds assembly to `failed/0` and removes its completed durable lineage before reconciliation.
+  The smoke is `18/18 PASS` on 2026-08-16 with provider dispatch `0`; animation-motion's separate
+  manifest-attempt fixture ordering failure remains out of scope.
 - [ ] Obtain independent read-only approval, fresh production quiescence/backup verification, and
   explicit production execution authorization before touching the real production project.
 <!-- SPRINT-129.41-END -->
@@ -277,6 +279,10 @@ provider/source-router architecture (ADR-019) — none require changing `ImagePr
 - [x] Validate TypeScript, zero-warning targeted ESLint, 129.38 `18/18`, 129.36 `124/124`,
   129.29 `41/41`, 129.37 `23/23`, 129.32 `18/18`, 129.33 `54/54`, and `git diff --check`.
 - [x] Preserve production audio, seven WAVs, assembly state, durable lineage, and retry receipts.
+- [x] Revalidated on 2026-08-16: the known line-387 fixture-state failure was fixture-only (the
+  copied assembly job was `completed/1` despite Scenario A requiring `failed/0`). The owned-temp
+  rewind now removes only that stage's completed record/claim/attempt/reservation lineage; Sprint
+  129.38 is `18/18 PASS` with Scenario A provider dispatch `0`.
 - [x] Complete independent final review: `APPROVED`, P0/P1/P2 `0/0/0`, safe executable matrix
   `278/278 PASS`.
 - [ ] Obtain separate authorization before any production assembly resume.

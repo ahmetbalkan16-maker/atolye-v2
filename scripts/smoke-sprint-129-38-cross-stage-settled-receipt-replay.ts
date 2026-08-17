@@ -183,6 +183,59 @@ function rewindExactAudioOrdinalFour(projectRoot: string, ownedRoot: string) {
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 }
 
+/** Seeds Scenario A as a pre-dispatch assembly failure with no exact durable lineage. */
+function rewindAssemblyFixtureToFailedZero(projectRoot: string) {
+  const jobsPath = path.join(projectRoot, "pipeline-jobs.json");
+  const jobs = JSON.parse(fs.readFileSync(jobsPath, "utf8")) as PipelineJobList;
+  const assembly = jobs.jobs.find((job) => job.stage === "assembly");
+  assert.ok(assembly);
+  assert.equal(assembly.status, "completed");
+  assert.equal(assembly.attempts, 1);
+
+  const executionRoot = path.join(projectRoot, "production-execution");
+  const recordsRoot = path.join(executionRoot, "idempotency");
+  const claimsRoot = path.join(executionRoot, "claims");
+  const attemptsRoot = path.join(executionRoot, "attempts");
+  const reservationsRoot = path.join(executionRoot, "reservations");
+  const records = fs.readdirSync(recordsRoot).flatMap((name) => {
+    const target = path.join(recordsRoot, name);
+    const value = JSON.parse(fs.readFileSync(target, "utf8")) as Record<string, unknown>;
+    return value.projectSlug === projectSlug && value.stage === "assembly"
+      ? [{ target, recordId: value.recordId, reservationId: value.identityFingerprint }] : [];
+  });
+  assert.ok(records.length > 0);
+  const recordIds = new Set(records.map(({ recordId }) => recordId));
+  const reservationIds = new Set(records.map(({ reservationId }) => reservationId));
+  for (const target of records.map(({ target }) => target)) fs.unlinkSync(target);
+  for (const directory of [claimsRoot, attemptsRoot]) {
+    for (const name of fs.readdirSync(directory)) {
+      const target = path.join(directory, name);
+      const value = JSON.parse(fs.readFileSync(target, "utf8")) as {
+        identity?: { recordId?: unknown };
+      };
+      if (recordIds.has(value.identity?.recordId)) fs.unlinkSync(target);
+    }
+  }
+  for (const reservationId of reservationIds) {
+    assert.equal(typeof reservationId, "string");
+    const target = path.join(reservationsRoot, `${reservationId}.json`);
+    assert.equal(fs.existsSync(target), true);
+    fs.unlinkSync(target);
+  }
+
+  Object.assign(assembly, { status: "failed", attempts: 0, updatedAt: anchor,
+    startedAt: anchor, completedAt: anchor, error: "ASSEMBLY_FIXTURE_FAILED" });
+  jobs.updatedAt = anchor;
+  fs.writeFileSync(jobsPath, `${JSON.stringify(jobs, null, 2)}\n`, "utf8");
+
+  const manifestPath = path.join(projectRoot, "manifest.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  Object.assign(manifest.packages.assembly, { status: "failed", updatedAt: anchor,
+    startedAt: anchor, completedAt: anchor, error: "ASSEMBLY_FIXTURE_FAILED",
+    attempts: { total: 0, retry: 0, lastAttemptAt: anchor, lastRunType: "initial" } });
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+}
+
 function runRewindPreflightRegression(
   kind: "unknown-receipt" | "missing-history" | "duplicate-sibling" |
     "alternative-chain" | "claim-v1-poison" | "attempt-v1-poison" |
@@ -354,6 +407,7 @@ async function main() {
     fs.mkdirSync(path.dirname(projectRoot), { recursive: true });
     fs.cpSync(productionProjectRoot, projectRoot, { recursive: true });
     rewindExactAudioOrdinalFour(projectRoot, ownedRoot);
+    rewindAssemblyFixtureToFailedZero(projectRoot);
     await refreshMarker(projectRoot);
     const receiptRoot = getRetryBudgetExtensionDirectory(projectSlug,
       storageContext);

@@ -178,8 +178,10 @@
   `32/32`, retry extension `124/124`, TypeScript, and targeted ESLint with zero warnings.
 - Scene-video rendering reproducibly fails at line 554 (`true` expected, `false` actual) because the
   host lacks `ffmpeg`/`ffprobe`; its provider is byte-identical to HEAD and was not changed. Sprint
-  129.38 separately fails its known fixture assertion after 11 PASS, and animation-motion separately
-  fails with `PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH` during fixture setup.
+  129.38's former post-11-PASS fixture assertion was fixed on 2026-08-16 by rewinding Scenario A's
+  copied assembly job from `completed/1` to `failed/0` and removing only its completed owned-temp
+  durable lineage. The smoke now passes `18/18` with provider dispatch `0`; animation-motion
+  separately fails with `PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH` during fixture setup.
 - Protected production hashes and seven-WAV inventory remain exact. No real production regeneration,
   provider/network call, cleanup, Git add, commit, or push occurred. Status remains
   `READY FOR INDEPENDENT RE-REVIEW` with production execution blocked.
@@ -295,6 +297,11 @@
   129.29 `41/41`, 129.36 `124/124`, 129.37 `23/23`, 129.32 `18/18`, 129.33 `54/54`, and
   `git diff --check` (`278/278` scenarios). Production records `252`, WAV `7`, durable files `232`, cleanup entries `7`,
   and all ten protected SHA-256 values remained exact.
+- 2026-08-16 follow-up: repaired the known line-387 fixture-state failure without production runtime
+  changes. Scenario A now seeds the documented assembly `failed/0` state and removes its copied
+  completed record/claim/attempt/reservation lineage before reconciliation. Sprint 129.38 passes
+  `18/18`; TypeScript and targeted zero-warning ESLint pass, provider dispatch remains `0`, and no
+  production execution or production data was touched.
 - Independent final review result: `APPROVED`, P0/P1/P2 `0/0/0`. The cross-stage settled-receipt
   replay authority fix, module-private canonical five-sibling finalizer path, deterministic settled
   replay identity, historical ordinal-4 production-derived identities, per-version persistence and

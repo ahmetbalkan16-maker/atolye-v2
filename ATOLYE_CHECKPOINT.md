@@ -270,9 +270,12 @@
 - Scene-video rendering repeatedly fails at line 554 (`expected true`, `actual false`) because this
   host has no `ffmpeg`/`ffprobe` executable; the runner reports spawn failure with empty stderr.
   `FFmpegSceneVideoProvider.ts` is byte-identical to HEAD, so no Sprint 129.41 causality exists and
-  Sprint 129.40 framing code was not changed. Sprint 129.38 separately repeats its known fixture
-  failure after 11 PASS at line 387; animation-motion separately fails during fixture construction
-  with `PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH`.
+  Sprint 129.40 framing code was not changed. On 2026-08-16, Sprint 129.38's former line-387
+  failure was confirmed fixture-only: Scenario A copied assembly as `completed/1` although it
+  asserted `failed/0`. Its owned-temp setup now rewinds the completed assembly durable
+  record/claim/attempt/reservation lineage, and the smoke is `18/18 PASS` with provider dispatch
+  `0`. Animation-motion separately fails during fixture construction with
+  `PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH`.
 - All protected production hashes and the seven-WAV inventory match the pre-validation baseline.
   No real prepare/resume/provider/network/cleanup, Git add, commit, or push occurred.
 <!-- SPRINT-129.41-END -->
@@ -418,6 +421,10 @@
 - Production audio, seven WAV files, assembly state, durable stores, and all four ordinal-4 audio
   authority/receipt files remained unchanged. No production resume, execute, reconciliation,
   settlement, retry preparation, provider/network call, reprepare, Git add, commit, or push ran.
+- 2026-08-16 fixture-only follow-up: the known line-387 failure was repaired by seeding Scenario A
+  as assembly `failed/0` and deleting only its copied completed durable lineage in the owned-temp
+  fixture. Sprint 129.38 is again `18/18 PASS`; TypeScript and targeted zero-warning ESLint pass.
+  No production execution status or production data changed.
 - Independent final review: `APPROVED`; P0/P1/P2 = `0/0/0`. Cross-stage settled-receipt replay
   authority remediation and historical ordinal-4 canonical identity/binding/ownership closure are
   complete. Final safe executable matrix: `278/278 PASS`.
