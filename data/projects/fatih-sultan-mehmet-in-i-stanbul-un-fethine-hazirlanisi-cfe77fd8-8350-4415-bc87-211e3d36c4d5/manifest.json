@@ -3,9 +3,9 @@
     "id": "1ba3bebf-abe9-4b3c-9b4a-b9d238b98534",
     "slug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
     "title": "Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5",
-    "status": "animation",
+    "status": "assembly",
     "createdAt": "2026-07-15T12:05:09.729Z",
-    "updatedAt": "2026-07-15T19:32:45.125Z"
+    "updatedAt": "2026-08-17T04:55:33.750Z"
   },
   "projectId": "1ba3bebf-abe9-4b3c-9b4a-b9d238b98534",
   "slug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
@@ -125,17 +125,16 @@
     },
     "animation": {
       "key": "animation",
-      "status": "failed",
+      "status": "completed",
       "fileName": "animation.json",
-      "updatedAt": "2026-07-15T19:33:11.613Z",
-      "error": "Animation motion plan generation failed.",
-      "startedAt": "2026-07-15T19:32:45.126Z",
-      "completedAt": "2026-07-15T19:33:11.613Z",
-      "durationMs": 26487,
+      "updatedAt": "2026-08-17T04:55:33.318Z",
+      "startedAt": "2026-08-17T04:55:33.246Z",
+      "completedAt": "2026-08-17T04:55:33.318Z",
+      "durationMs": 72,
       "attempts": {
-        "total": 1,
+        "total": 2,
         "retry": 0,
-        "lastAttemptAt": "2026-07-15T19:32:45.126Z",
+        "lastAttemptAt": "2026-08-17T04:55:33.246Z",
         "lastRunType": "resume"
       },
       "usage": {
@@ -154,18 +153,48 @@
     },
     "video": {
       "key": "video",
-      "status": "pending",
-      "fileName": "video.json"
+      "status": "completed",
+      "fileName": "video.json",
+      "updatedAt": "2026-08-17T04:55:33.472Z",
+      "startedAt": "2026-08-17T04:55:33.412Z",
+      "completedAt": "2026-08-17T04:55:33.472Z",
+      "durationMs": 60,
+      "attempts": {
+        "total": 1,
+        "retry": 0,
+        "lastAttemptAt": "2026-08-17T04:55:33.412Z",
+        "lastRunType": "resume"
+      }
     },
     "audio": {
       "key": "audio",
-      "status": "pending",
-      "fileName": "audio.json"
+      "status": "completed",
+      "fileName": "audio.json",
+      "updatedAt": "2026-08-17T04:55:33.635Z",
+      "startedAt": "2026-08-17T04:55:33.564Z",
+      "completedAt": "2026-08-17T04:55:33.635Z",
+      "durationMs": 71,
+      "attempts": {
+        "total": 1,
+        "retry": 0,
+        "lastAttemptAt": "2026-08-17T04:55:33.564Z",
+        "lastRunType": "resume"
+      }
     },
     "assembly": {
       "key": "assembly",
-      "status": "pending",
-      "fileName": "assembly.json"
+      "status": "completed",
+      "fileName": "assembly.json",
+      "updatedAt": "2026-08-17T04:55:33.837Z",
+      "startedAt": "2026-08-17T04:55:33.764Z",
+      "completedAt": "2026-08-17T04:55:33.837Z",
+      "durationMs": 73,
+      "attempts": {
+        "total": 1,
+        "retry": 0,
+        "lastAttemptAt": "2026-08-17T04:55:33.764Z",
+        "lastRunType": "resume"
+      }
     },
     "thumbnail": {
       "key": "thumbnail",
@@ -189,5 +218,5 @@
     }
   },
   "createdAt": "2026-07-15T12:05:09.729Z",
-  "updatedAt": "2026-07-15T19:33:11.613Z"
+  "updatedAt": "2026-08-17T04:55:33.837Z"
 }

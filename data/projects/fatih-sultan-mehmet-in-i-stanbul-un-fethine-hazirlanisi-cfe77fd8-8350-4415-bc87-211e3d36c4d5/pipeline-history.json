@@ -146,8 +146,52 @@
       "jobCreatedAt": "2026-07-15T12:05:09.729Z",
       "jobUpdatedAt": "2026-07-15T19:33:11.618Z",
       "recordedAt": "2026-07-15T19:33:11.618Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-animation-completed-2026-08-17T04:55:33.329Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-animation",
+      "stage": "animation",
+      "status": "completed",
+      "startedAt": "2026-08-17T04:55:33.258Z",
+      "completedAt": "2026-08-17T04:55:33.329Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-08-17T04:55:33.329Z",
+      "recordedAt": "2026-08-17T04:55:33.329Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-video-completed-2026-08-17T04:55:33.486Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-video",
+      "stage": "video",
+      "status": "completed",
+      "startedAt": "2026-08-17T04:55:33.424Z",
+      "completedAt": "2026-08-17T04:55:33.486Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-08-17T04:55:33.486Z",
+      "recordedAt": "2026-08-17T04:55:33.486Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-audio-completed-2026-08-17T04:55:33.645Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-audio",
+      "stage": "audio",
+      "status": "completed",
+      "startedAt": "2026-08-17T04:55:33.576Z",
+      "completedAt": "2026-08-17T04:55:33.645Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-08-17T04:55:33.645Z",
+      "recordedAt": "2026-08-17T04:55:33.645Z"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-assembly-completed-2026-08-17T04:55:33.850Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-assembly",
+      "stage": "assembly",
+      "status": "completed",
+      "startedAt": "2026-08-17T04:55:33.776Z",
+      "completedAt": "2026-08-17T04:55:33.850Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-08-17T04:55:33.850Z",
+      "recordedAt": "2026-08-17T04:55:33.850Z"
     }
   ],
   "createdAt": "2026-07-15T12:05:48.020Z",
-  "updatedAt": "2026-07-15T19:33:11.618Z"
+  "updatedAt": "2026-08-17T04:55:33.850Z"
 }

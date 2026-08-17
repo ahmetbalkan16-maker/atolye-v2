@@ -63,6 +63,7 @@ import { createProductionRuntimeOperationContext, getActiveProductionRuntimeOper
   initialRuntimeAuthorityGeneration,
   ProductionRuntimeOperationContextError,
   requireActiveProductionRuntimeOperationContext,
+  requireProductionRuntimeStorageContext,
   runWithProductionRuntimeOperationContext } from
   "../src/lib/runtime/ProductionRuntimeOperationContext";
 import type { AssemblyPlanData } from "../src/types/assembly";
@@ -1234,7 +1235,7 @@ async function run() {
         audio: baseAudio,
       } as PipelineExecutionState;
       try {
-        assert.equal(await PipelineStageExecutor.execute(state.project.slug, "assembly", state, { videoAssemblyProvider: new MockVideoAssemblyProvider() }), true);
+        assert.equal(await PipelineStageExecutor.execute(state.project.slug, "assembly", state, { videoAssemblyProvider: new MockVideoAssemblyProvider() }, undefined, undefined, undefined, undefined, requireProductionRuntimeStorageContext(requireActiveProductionRuntimeOperationContext())), true);
         assert.deepEqual(order, ["plan", "persist", "success"]);
         assert.equal(state.assembly?.render?.status, "planned");
       } finally {

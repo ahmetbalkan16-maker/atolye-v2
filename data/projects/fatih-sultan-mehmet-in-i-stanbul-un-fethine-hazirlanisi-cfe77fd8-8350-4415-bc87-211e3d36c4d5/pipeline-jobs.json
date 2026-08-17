@@ -54,43 +54,48 @@
       "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
       "stage": "animation",
       "title": "Animation",
-      "status": "failed",
-      "attempts": 0,
+      "status": "completed",
+      "attempts": 1,
       "createdAt": "2026-07-15T12:05:09.729Z",
-      "updatedAt": "2026-07-15T19:33:11.618Z",
-      "startedAt": "2026-07-15T19:32:45.128Z",
-      "completedAt": "2026-07-15T19:33:11.618Z",
-      "error": "Animation motion plan generation failed."
+      "updatedAt": "2026-08-17T04:55:33.329Z",
+      "startedAt": "2026-08-17T04:55:33.258Z",
+      "completedAt": "2026-08-17T04:55:33.329Z"
     },
     {
       "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-video",
       "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
       "stage": "video",
       "title": "Video",
-      "status": "queued",
+      "status": "completed",
       "attempts": 0,
       "createdAt": "2026-07-15T12:05:09.729Z",
-      "updatedAt": "2026-07-15T12:05:09.730Z"
+      "updatedAt": "2026-08-17T04:55:33.486Z",
+      "startedAt": "2026-08-17T04:55:33.424Z",
+      "completedAt": "2026-08-17T04:55:33.486Z"
     },
     {
       "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-audio",
       "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
       "stage": "audio",
       "title": "Audio",
-      "status": "queued",
+      "status": "completed",
       "attempts": 0,
       "createdAt": "2026-07-15T12:05:09.729Z",
-      "updatedAt": "2026-07-15T12:05:09.730Z"
+      "updatedAt": "2026-08-17T04:55:33.645Z",
+      "startedAt": "2026-08-17T04:55:33.576Z",
+      "completedAt": "2026-08-17T04:55:33.645Z"
     },
     {
       "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-assembly",
       "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
       "stage": "assembly",
       "title": "Video Editing",
-      "status": "queued",
+      "status": "completed",
       "attempts": 0,
       "createdAt": "2026-07-15T12:05:09.729Z",
-      "updatedAt": "2026-07-15T12:05:09.730Z"
+      "updatedAt": "2026-08-17T04:55:33.850Z",
+      "startedAt": "2026-08-17T04:55:33.776Z",
+      "completedAt": "2026-08-17T04:55:33.850Z"
     },
     {
       "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-thumbnail",
@@ -134,5 +139,5 @@
     }
   ],
   "createdAt": "2026-07-15T12:05:09.731Z",
-  "updatedAt": "2026-07-15T19:33:11.618Z"
+  "updatedAt": "2026-08-17T04:55:33.850Z"
 }

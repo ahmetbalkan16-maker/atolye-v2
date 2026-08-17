@@ -24,6 +24,7 @@ import {
   type PipelineExecutionState,
 } from "../src/lib/pipeline/PipelineStageExecutor";
 import { ProjectManager } from "../src/lib/projects/ProjectManager";
+import type { RuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePaths";
 import type { AnimationData, AnimationMotionPlanScene } from "../src/types/animation";
 import type { AssemblyPlanData } from "../src/types/assembly";
 import type { AudioData } from "../src/types/audio";
@@ -34,6 +35,7 @@ import type { VisualData } from "../src/types/visual";
 
 const prefix = `sprint-118-scene-video-assembly-${process.pid}`;
 let projectsRoot = "";
+let activeContext: RuntimeStorageContext | undefined;
 const now = "2026-07-14T12:00:00.000Z";
 const originalEnvironment = {
   ffmpegPath: process.env.FFMPEG_PATH,
@@ -425,9 +427,9 @@ async function run() {
     await scenario("completed assembly replay is write-free", async () => {
       const value = await fixture("replay");
       await PipelineJobManager.listJobs(value.slug);
-      await ProjectManager.saveAnimation(value.slug, value.animation);
-      await ProjectManager.saveVideo(value.slug, value.video);
-      await ProjectManager.saveAudio(value.slug, value.audio);
+      await ProjectManager.saveAnimation(value.slug, value.animation, activeContext);
+      await ProjectManager.saveVideo(value.slug, value.video, activeContext);
+      await ProjectManager.saveAudio(value.slug, value.audio, activeContext);
       const state = {
         ...PipelineStageExecutor.createInitialState(value.project), script, scenes,
         visuals: { ...visuals, projectId: value.project.id }, animation: value.animation,
@@ -438,10 +440,10 @@ async function run() {
       const runner = new Runner();
       const internal = PipelineRunner as unknown as { runStage(slug: string, stage: "assembly", action: () => Promise<boolean>, runType: "initial"): Promise<boolean> };
       try {
-        assert.equal(await internal.runStage(value.slug, "assembly", () => PipelineStageExecutor.execute(value.slug, "assembly", state, { videoAssemblyProvider: new FFmpegVideoAssemblyProvider(runner) }), "initial"), true);
+        assert.equal(await internal.runStage(value.slug, "assembly", () => PipelineStageExecutor.execute(value.slug, "assembly", state, { videoAssemblyProvider: new FFmpegVideoAssemblyProvider(runner) }, undefined, undefined, undefined, undefined, activeContext), "initial"), true);
         const calls = runner.calls.length;
         const assets = JSON.stringify(AssetManager.getProjectAssets(value.slug, value.project.id));
-        assert.equal(await internal.runStage(value.slug, "assembly", () => PipelineStageExecutor.execute(value.slug, "assembly", state, { videoAssemblyProvider: new FFmpegVideoAssemblyProvider(runner) }), "initial"), false);
+        assert.equal(await internal.runStage(value.slug, "assembly", () => PipelineStageExecutor.execute(value.slug, "assembly", state, { videoAssemblyProvider: new FFmpegVideoAssemblyProvider(runner) }, undefined, undefined, undefined, undefined, activeContext), "initial"), false);
         assert.equal(runner.calls.length, calls);
         assert.equal(JSON.stringify(AssetManager.getProjectAssets(value.slug, value.project.id)), assets);
       } finally {
@@ -461,13 +463,13 @@ async function run() {
       AssemblyManager.generateAssemblyPlan = async () => value.assembly;
       const internal = PipelineRunner as unknown as { runStage(slug: string, stage: "assembly", action: () => Promise<boolean>, runType: "initial"): Promise<boolean> };
       try {
-        await assert.rejects(internal.runStage(value.slug, "assembly", () => PipelineStageExecutor.execute(value.slug, "assembly", state, { videoAssemblyProvider: new FFmpegVideoAssemblyProvider(new Runner({}, 1)) }), "initial"));
+        await assert.rejects(internal.runStage(value.slug, "assembly", () => PipelineStageExecutor.execute(value.slug, "assembly", state, { videoAssemblyProvider: new FFmpegVideoAssemblyProvider(new Runner({}, 1)) }, undefined, undefined, undefined, undefined, activeContext), "initial"));
         const jobs = await PipelineJobManager.listJobsReadOnly(value.slug);
-        const manifest = await ProjectManager.getManifest(value.slug);
+        const manifest = await ProjectManager.getManifest(value.slug, activeContext);
         assert.equal(jobs.jobs.find((job) => job.stage === "assembly")?.status, "failed");
         assert.notEqual(jobs.jobs.find((job) => job.stage === "thumbnail")?.status, "completed");
         assert.equal(manifest?.packages.assembly.status, "failed");
-        assert.notEqual((await ProjectManager.getProject(value.slug))?.status, "completed");
+        assert.notEqual((await ProjectManager.getProject(value.slug, activeContext))?.status, "completed");
       } finally {
         AssemblyManager.generateAssemblyPlan = original;
       }
@@ -487,6 +489,7 @@ async function run() {
 async function main() {
   await withCanonicalSmokeRuntime({ name: "assembly-scene-video-consumption" }, async (runtime) => {
     projectsRoot = runtime.runtimeStorageContext.projectsRoot;
+    activeContext = runtime.runtimeStorageContext;
     await run();
   });
   emitSmokeResult("assembly-scene-video-consumption", count);

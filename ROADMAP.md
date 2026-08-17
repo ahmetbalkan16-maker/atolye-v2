@@ -1,5 +1,102 @@
 ---
 
+<!-- SPRINT-129.47-START -->
+## Sprint 129.47 - Three Undocumented Smoke Fixture Regressions Closed
+
+**Status:** Completed
+**Production execution status:** N/A (test-only)
+
+- [x] Fix `smoke-production-animation-provider.ts` (`PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH`
+  seed-ordering bug + missing `RuntimeStorageContext`).
+- [x] Fix `smoke-assembly-scene-video-consumption.ts` (`VIDEO_ASSEMBLY_FAILED` masking a missing
+  `RuntimeStorageContext`).
+- [x] Fix `smoke-production-video-assembly-wiring.ts` (same root cause).
+- [x] Re-run the full standard regression suite and confirm all PASS.
+- [x] Re-confirm Sprint 129.38 remains the one deliberately-out-of-scope, structurally unfixable gap.
+<!-- SPRINT-129.47-END -->
+
+<!-- SPRINT-129.46-START -->
+## Sprint 129.46 - FFmpeg/FFprobe Host Dependency Restored
+
+**Status:** Completed
+**Production execution status:** N/A (local environment/config fix)
+
+- [x] Diagnose why `smoke-production-scene-video-rendering` fails on this host.
+- [x] Install FFmpeg (user-approved) and point `.env.local`'s `FFMPEG_PATH`/`FFPROBE_PATH` at the
+  real binaries.
+- [x] Re-verify `smoke-production-scene-video-rendering` (26/26 PASS) and `npx tsc --noEmit`.
+- [ ] Fix `smoke-assembly-scene-video-consumption.ts` (`VIDEO_ASSEMBLY_FAILED`, "replay" scenario).
+- [ ] Fix `smoke-production-video-assembly-wiring.ts` (`VIDEO_ASSEMBLY_FAILED`).
+- [ ] Fix `smoke-production-animation-provider.ts` (`PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH`,
+  same seed-ordering fixture bug already fixed once in `smoke-animation-motion-plan-contract.ts`
+  by Sprint 129.42 — apply the same fix here).
+<!-- SPRINT-129.46-END -->
+
+<!-- SPRINT-129.45-START -->
+## Sprint 129.45 - Fatih Manifest/Job/Project Bookkeeping Backfill
+
+**Status:** Completed
+**Production execution status:** REAL PROJECT BOOKKEEPING MUTATED (no new content generated)
+
+- [x] Confirm with the project owner that animation/video/audio/assembly output on disk for the
+  Fatih project is genuine production output.
+- [x] Diagnose why manifest/job/history/project bookkeeping never advanced past the animation
+  stage's earlier failed attempt.
+- [x] Back up `manifest.json`, `pipeline-jobs.json`, `pipeline-history.json`, `project.json` before
+  any mutation.
+- [x] Backfill all four stages' status through existing public `PipelineJobManager`/`ProjectManager`
+  APIs only (no raw JSON edits, no new provider calls, no content changes).
+- [x] Verify zero content diff on the four stage JSON files and re-verify `npx tsc --noEmit` / lint.
+- [ ] Decide whether `thumbnail → seo → youtube → export` should now be resumed for this project
+  (out of scope for this sprint; bookkeeping only).
+<!-- SPRINT-129.45-END -->
+
+<!-- SPRINT-129.44-START -->
+## Sprint 129.44 - Production Visual Asset Wiring Runtime Context Enforcement
+
+**Status:** Completed
+**Production execution status:** N/A (test-only)
+
+- [x] Pass an explicit `RuntimeStorageContext` into `PipelineStageExecutor.execute` and durable
+  claim/lease helpers in `smoke-production-visual-asset-wiring.ts` failure-path scenarios.
+- [x] Tighten the failure assertion to the specific `VISUAL_ASSET_GENERATION_FAILED` reason code.
+- [x] Re-verify `npx tsc --noEmit` and the smoke suite (`54/54`).
+<!-- SPRINT-129.44-END -->
+
+<!-- SPRINT-129.43-START -->
+## Sprint 129.43 - Fatih Documentary Live Audio & Assembly Production Run
+
+**Status:** Completed
+**Production execution status:** REAL PRODUCTION DATA WRITTEN
+
+- [x] Run real audio (TTS) generation for the live Fatih documentary project and publish all
+  resulting WAVs through canonical audio storage.
+- [x] Run real assembly against the published audio and persist the final MP4 with a canonical
+  `assembly.json` record.
+- [x] Append new entries to `assets/assets.json` without disturbing prior asset history.
+- [ ] Reconcile `manifest.json`, `pipeline-jobs.json`, and `project.json` for this project so their
+  stage status reflects the completed audio/assembly output now on disk.
+- [ ] Document which command/path (production acceptance execute vs. manual script) performed this
+  run.
+<!-- SPRINT-129.43-END -->
+
+<!-- SPRINT-129.42-START -->
+## Sprint 129.42 - Completed-Stage Regeneration Smoke Realignment
+
+**Status:** Completed
+**Production execution status:** N/A (test-only)
+
+- [x] Thread the Sprint 129.41 `RuntimeStorageContext` parameter through every
+  `ProjectManager`/`PipelineStageExecutor.execute` call site in
+  `smoke-animation-motion-plan-contract.ts` and `smoke-production-scene-video-rendering.ts`.
+- [x] Accept the pre-existing, specific `ANIMATION_RESPONSE_SCHEMA_INVALID` reason code in the
+  animation-motion failure assertion.
+- [x] Re-verify `npx tsc --noEmit` and both smoke suites.
+- [ ] Separately repair the still-open Sprint 129.38 fixture failure and the FFmpeg/FFprobe
+  host-dependency gap in `smoke-production-scene-video-rendering.ts` (unrelated to this sprint;
+  carried over from 129.40/129.41).
+<!-- SPRINT-129.42-END -->
+
 <!-- SPRINT-129.41-START -->
 ## Sprint 129.41 - Canonical Completed-Stage Regeneration
 

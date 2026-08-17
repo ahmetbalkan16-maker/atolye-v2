@@ -1,5 +1,186 @@
 ---
 
+<!-- SPRINT-129.47-START -->
+## Sprint 129.47 - Three Undocumented Smoke Fixture Regressions Closed - 2026-08-17
+
+**Status:** Completed
+**Production execution status:** N/A (test-only, no production data touched)
+
+- Sprint 129.46'nın taramasında bulunan üç önceden var olan, belgelenmemiş smoke başarısızlığının
+  tamamı kapatıldı. Üçü de gerçek uygulama davranışıyla değil, Sprint 129.41'in eklediği zorunlu
+  `RuntimeStorageContext`/manifest-seed-sırası sözleşmesiyle senkron olmayan test fixture'larıyla
+  ilgiliydi; `src/lib` altında hiçbir üretim kodu değişmedi.
+- `smoke-production-animation-provider.ts`: iki senaryoda `saveScenes`/`saveVisuals` çağrıları
+  `PipelineJobManager.listJobs` seed'inden önce yapılıyordu (Sprint 129.42'de bir kardeş dosyada
+  düzeltilen aynı `PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH` sıralama hatası); sıra düzeltildi ve
+  `PipelineStageExecutor.execute`/`ProjectManager.save*`/`getManifest`/`getAnimation` çağrılarına
+  açık `RuntimeStorageContext` eklendi. PASS 30/30.
+- `smoke-assembly-scene-video-consumption.ts` ve `smoke-production-video-assembly-wiring.ts`: her
+  ikisi de context'siz `PipelineStageExecutor.execute` çağrısı yapıyordu; `requireStorageContext`
+  içeride fırlattığı hata `PipelineStageExecutor.ts:461-467`'deki genel `catch { throw new
+  VideoAssemblyError(); }` bloğu tarafından ayrım yapılamayan bir `VIDEO_ASSEMBLY_FAILED`'a
+  maskeleniyordu — kök neden, `VideoAssemblyError` constructor'ına geçici bir `console.trace` (yalnız
+  `ATOLYE_DEBUG_TRACE_VIDEO_ASSEMBLY_ERROR=1` ile aktif, düzeltme sonrası tamamen geri alındı) ile
+  teşhis edildi. Birinci dosyada context zaten mevcuttu (`activeContext` eklendi, çağrılara
+  geçirildi); ikinci dosyada aktif production runtime operation context zaten vardı, yalnız
+  `requireProductionRuntimeStorageContext(requireActiveProductionRuntimeOperationContext())`
+  ile tek başarı-bekleyen senaryoya bağlanması gerekiyordu. PASS 19/19 ve PASS 46/46.
+- Regresyon: `smoke-production-scene-video-rendering` 26/26, `smoke-animation-motion-plan-contract`
+  21/21, `smoke-production-visual-asset-wiring` 54/54, `smoke-pipeline-orchestration` 10/10,
+  `smoke-pipeline-auto-continuation` 18/18, `smoke-production-pipeline-durable-execution` 17/17,
+  `smoke-production-pipeline-durable-wiring` 19/19, `smoke-production-worker-lifecycle` 21/21 —
+  hepsi PASS. `npx tsc --noEmit` PASS; full repository `npm run lint` — bu sprintte dokunulan
+  dosyalarda 0 hata/uyarı (aynı önceden var olan, ilgisiz dosyadaki 4 sorun HEAD'de zaten mevcut).
+- Sprint 129.38 (`smoke-sprint-129-38-cross-stage-settled-receipt-replay.ts`) kapsam dışı bırakıldı
+  ve son kez yeniden doğrulandı: aynı `retry-budget-extensions` dizini eksikliği devam ediyor —
+  Sprint 129.46'da belgelenen, gerçek tarihsel denetim izi gerektiren, kodla düzeltilemeyen yapısal
+  gap.
+- Git add/commit/push bu sprintte yapılmadı; kullanıcı onayı bekleniyor.
+<!-- SPRINT-129.47-END -->
+
+<!-- SPRINT-129.46-START -->
+## Sprint 129.46 - FFmpeg/FFprobe Host Dependency Restored - 2026-08-17
+
+**Status:** Completed
+**Production execution status:** N/A (local environment/config fix)
+
+- Kök neden bulundu: `.env.local`'daki `FFMPEG_PATH`/`FFPROBE_PATH` bu makinede daha önce kurulu
+  olan bir `ffmpeg-8.1.2-full_build` klasörünü işaret ediyordu; o klasör diskte artık yok. Bu yalnız
+  smoke testlerini değil, **gerçek uygulamanın video/assembly aşamalarını da** etkileyen canlı bir
+  yapılandırma kopukluğuydu (`VideoProviderConfig`/`VideoAssemblyProviderConfig` `requireExecutablePath`
+  ile fail-closed reddediyordu).
+- `winget install --id Gyan.FFmpeg` ile FFmpeg 9.0 (full build) kuruldu; kurulum kullanıcı onayıyla
+  yapıldı. `.env.local`'daki iki değişken yeni `ffmpeg-9.0-full_build\bin\{ffmpeg,ffprobe}.exe`
+  yollarına güncellendi. `.env.local` `.gitignore` kapsamında, repoya commit edilmedi.
+- `tsx` ile çalıştırılan script'ler Next.js'in aksine `.env.local`'ı otomatik yüklemiyor; bu yüzden
+  smoke doğrulamaları için `FFMPEG_PATH`/`FFPROBE_PATH` shell'de ayrıca export edildi. Gerçek
+  `next dev`/`next build` çalışması `.env.local`'ı otomatik okur, ek işlem gerekmez.
+- Doğrulama: `smoke-production-scene-video-rendering` artık **PASS (26/26)** — önceden host'ta
+  ffmpeg eksikliğinden dolayı satır ~557'de başarısız oluyordu (bkz. Sprint 129.40/129.41/129.42).
+  Aynı ortamda `npx tsc --noEmit` PASS.
+- Bu sprint kapsamında ffmpeg'e bağımlı geniş regresyon taraması sırasında **üç önceden var olan,
+  daha önce belgelenmemiş** başarısız smoke script'i keşfedildi; hem `FFMPEG_PATH`/`FFPROBE_PATH`
+  ayarlıyken hem de ayarsızken aynı şekilde başarısız oldukları doğrulanarak bu sprintle
+  ilgisiz oldukları kanıtlandı:
+  - `smoke-assembly-scene-video-consumption.ts` — "replay" senaryosunda `VIDEO_ASSEMBLY_FAILED`
+    (sahte `Runner` test double'ı ile, gerçek ffmpeg çağrısı yok).
+  - `smoke-production-video-assembly-wiring.ts` — aynı `VIDEO_ASSEMBLY_FAILED`.
+  - `smoke-production-animation-provider.ts` — `PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH`;
+    Sprint 129.42'de `smoke-animation-motion-plan-contract.ts` içinde düzeltilen "fixture, job/attempt
+    seed'inden önce scene/visual manifest kanıtı yazıyor" hatasının aynısı, bu dosyada hâlâ düzeltilmemiş.
+  Bu üçü ayrı takip gerektirir; bu sprintin kapsamına dahil edilmedi.
+- Git add/commit/push bu sprintte yapılmadı; kullanıcı onayı bekleniyor.
+<!-- SPRINT-129.46-END -->
+
+<!-- SPRINT-129.45-START -->
+## Sprint 129.45 - Fatih Manifest/Job/Project Bookkeeping Backfill - 2026-08-17
+
+**Status:** Completed
+**Production execution status:** REAL PROJECT BOOKKEEPING MUTATED (no new content generated)
+
+- Sprint 129.43'ün bıraktığı bilinen boşluk kapatıldı: `animation`, `video`, `audio`, `assembly`
+  aşamalarının `manifest.json`, `pipeline-jobs.json`, `pipeline-history.json` ve `project.json`
+  kayıtları, diskte zaten var olan gerçek çıktıyla (proje sahibi tarafından gerçek üretim çıktısı
+  olarak doğrulandı) uyumlu hale getirildi.
+- Kapanmadan önce yapılan analiz iki resmi kayıt sisteminin de (legacy job/manifest ve durable
+  `production-execution/`) bu dört aşama için hiçbir tamamlanma kaydı taşımadığını, buna karşın
+  `animation.json`/`video.json`/`audio.json`/`assembly.json` içeriğinin 6 sahnelik, iç tutarlı ve
+  gerçek (OpenAI `tts-1`, FFmpeg) üretim verisi olduğunu gösterdi; `animation` job kaydı `failed`
+  (2026-07-15 tarihli, önceki bir deneme), `video`/`audio`/`assembly` ise hiç başlamamış (`queued`)
+  durumdaydı.
+- Reconciliation, ham JSON elle düzenlenmeden, yalnızca mevcut public API'ler üzerinden yapıldı:
+  `PipelineJobManager.prepareJobRetry` (failed→queued), `PipelineJobManager.startStage` (queued→
+  running, `ProjectManager.updateStatus`/`updatePackageStatus` ile aynı `PipelineRunner.runStageLegacy`
+  side effect'lerini tekrarlayarak), ardından `PipelineJobManager.persistStageSuccess` (running→
+  completed) — persist callback'i olarak her aşamanın **diskteki mevcut verisini** okuyup aynı
+  `ProjectManager.save<Stage>` metoduyla geri yazdı. Yeni bir AI/FFmpeg çağrısı yapılmadı; hiçbir
+  stage JSON içeriği değişmedi (yazım sonrası `git diff` dört içerik dosyası için de boş çıktı verdi,
+  yalnız CRLF/LF normalize farkı vardı).
+- Sonuç: `manifest.json` packages `animation/video/audio/assembly` artık `completed`; `project.json`
+  ve `manifest.project.status` artık `"assembly"` (önceki `"animation"`); `pipeline-jobs.json` bu
+  dört stage için `completed`; `pipeline-history.json`'a dört yeni `completed` event eklendi.
+  `thumbnail/seo/youtube/export` bilerek `pending`/`queued` bırakıldı — bu aşamalar gerçekten hiç
+  çalışmadı.
+- Değişiklikten önce dört dosyanın (`manifest.json`, `pipeline-jobs.json`, `pipeline-history.json`,
+  `project.json`) yedeği alındı. Script tek seferlik, proje-özel bir backfill'dir:
+  `scripts/reconcile-fatih-129-45-backfill.ts`.
+- Doğrulama: `npx tsc --noEmit` PASS; full repository `npm run lint` — bu sprintte dokunulan
+  dosyalarda 0 hata/uyarı (repoda önceden var olan, bu değişiklikle ilgisiz 1 dosyadaki 2
+  hata/2 uyarı `git stash` ile doğrulanarak HEAD'de zaten mevcut olduğu teyit edildi, bu sprintin
+  kapsamı dışıdır).
+- Git add/commit/push bu sprintte yapılmadı; kullanıcı onayı bekleniyor.
+<!-- SPRINT-129.45-END -->
+
+<!-- SPRINT-129.44-START -->
+## Sprint 129.44 - Production Visual Asset Wiring Runtime Context Enforcement - 2026-08-16
+
+**Status:** Completed (test-only)
+
+- `scripts/smoke-production-visual-asset-wiring.ts` içindeki failure-path senaryoları artık
+  `PipelineStageExecutor.execute` çağrısına ve durable claim/lease yardımcılarına açık bir
+  `RuntimeStorageContext` (`requireProductionRuntimeStorageContext(requireActiveProductionRuntimeOperationContext())`)
+  geçiriyor; örtük/varsayılan runtime storage çözümlemesine güvenilmiyor.
+- Bir assertion, runner'ın gerçekte ürettiği önceden var olan spesifik hata koduna
+  (`VISUAL_ASSET_GENERATION_FAILED`) sıkılaştırıldı; genel `WORKER_EXECUTION_FAILED` tek başına
+  yeterli değildi.
+- Kapsam yalnız bu smoke script ile sınırlı; `src/lib` altında üretim kodu değişmedi.
+- Doğrulama (bu belgeleme turunda yeniden çalıştırıldı — 2026-08-17): `smoke-production-visual-asset-wiring`
+  PASS (54/54). `npx tsc --noEmit` PASS.
+- Git add/commit/push bu sprintte yapılmadı; değişiklik daha sonra `8803c39` ile commit edildi.
+<!-- SPRINT-129.44-END -->
+
+<!-- SPRINT-129.43-START -->
+## Sprint 129.43 - Fatih Belgeseli Canlı Audio & Assembly Üretim Koşusu - 2026-08-15
+
+**Status:** Completed
+**Production execution status:** REAL PRODUCTION DATA WRITTEN —
+`fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5` projesi
+
+- Sprint 129.41'in "gerçek üretim projesine dokunmadan önce ayrı yetkilendirme gerekir" diyerek
+  bloklu bıraktığı adım burada fiilen gerçekleştirildi: canlı Fatih Sultan Mehmet belgesel projesi
+  için audio ve assembly aşamaları gerçek pipeline üzerinden çalıştırıldı ve çıktı kalıcı olarak
+  diske yazıldı.
+- Yedi (7) TTS ses dosyası (`audio/*.wav`, toplam ~11 MB) canonical audio storage üzerinden
+  yayımlandı; anlatıcı/bölüm metadata'sını içeren `audio.json` yazıldı.
+- Assembly aşaması bu yedi WAV'ı `sourceAudioAssetId` üzerinden tüketen ~9.4 MB montaj videosunu
+  üretti; `assembly.json` `status: "assembled"` ve canonical `outputAssetId` ile kaydedildi.
+- Yeni asset kayıtları proje `assets/assets.json` registry'sine append-only eklendi; önceki asset
+  kayıtları silinmedi veya değiştirilmedi.
+- **Bilinen eksik/risk:** Bu commit yalnız `assembly.json`, `assets/assets.json`, `audio.json` ve
+  fiziksel medya dosyalarını içeriyor. Aynı projenin `manifest.json`, `pipeline-jobs.json` ve
+  `project.json` (`status` hâlâ `"animation"`) dosyaları bu koşuda güncellenmedi; son commit'leri
+  hâlâ Sprint 129.21'e ait. Yani manifest/job/proje durumu, diskte artık var olan gerçek
+  audio+assembly çıktısını henüz yansıtmıyor — bu bir sonraki sprintte manifest/job reconciliation
+  ile kapatılmalıdır.
+- Bu koşunun hangi komut/yol üzerinden (`production:acceptance:execute`, `resume-finalize` veya
+  manuel script) tetiklendiği commit mesajından anlaşılamıyor; sonraki sprintte netleştirilip
+  belgelenmelidir.
+- Bu, veri-only bir commit'tir; commit anında ayrıca özel bir smoke suite çalıştırılmadı. Bu
+  belgeleme turunda (2026-08-17) repo genelinde `npx tsc --noEmit` yeniden doğrulandı, PASS.
+- Git add/commit/push kullanıcı tarafından `91b37ec` ile yapıldı.
+<!-- SPRINT-129.43-END -->
+
+<!-- SPRINT-129.42-START -->
+## Sprint 129.42 - Completed-Stage Regeneration Smoke Realignment - 2026-08-09
+
+**Status:** Completed (test-only)
+
+- `scripts/smoke-animation-motion-plan-contract.ts` ve `scripts/smoke-production-scene-video-rendering.ts`,
+  Sprint 129.41'de `ProjectManager.saveScenes/saveVisuals/saveAnimation/getAnimation/getVideo/getManifest`
+  ve `PipelineStageExecutor.execute` imzalarına eklenen açık `RuntimeStorageContext` parametresini
+  artık her çağrıda geçiyor; örtük/varsayılan bağlam varsayımına dayanan çağrılar kalmadı.
+- Animation motion-plan senaryosu artık runner'ın gerçekte ürettiği önceden var olan spesifik hata
+  kodunu (`ANIMATION_RESPONSE_SCHEMA_INVALID`) da kabul ediyor; yalnız genel `WORKER_EXECUTION_FAILED`
+  beklentisi yeterli değildi.
+- Kapsam yalnız iki smoke script ile sınırlı; `src/lib` altında üretim kodu değişmedi.
+- Doğrulama (bu belgeleme turunda yeniden çalıştırıldı — 2026-08-17): `smoke-animation-motion-plan-contract`
+  PASS (21/21); `smoke-production-scene-video-rendering` bu host'ta `ffmpeg`/`ffprobe` yokluğu
+  nedeniyle Sprint 129.40/129.41'de belgelenen bilinen host-bağımlılığı hatasıyla duruyor (satır
+  ~557, `FFmpegSceneVideoProvider` render sonucu `success:false`) — bu, 129.42 değişikliğinin neden
+  olduğu bir regresyon değildir. `npx tsc --noEmit` PASS.
+- Git add/commit/push bu sprintte yapılmadı; değişiklik daha sonra `06fc5b7` ile commit edildi.
+<!-- SPRINT-129.42-END -->
+
 <!-- SPRINT-129.41-START -->
 ## Sprint 129.41 - Canonical Completed-Stage Regeneration - 2026-08-09
 

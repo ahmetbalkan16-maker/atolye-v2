@@ -289,6 +289,49 @@ Korunacak uzun vadeli sistemler: AI Director, Historical Documentary Engine, Kno
 
 ---
 
+# AI MEMORY-017
+
+## Gercek Proje Bookkeeping Reconciliation
+
+### Ogrenilen Ders
+
+Gercek bir uretim projesinde manifest/job/history gibi bookkeeping dosyalari, fiziksel asset'lerin
+gercekte ulastigi durumla senkron olmayabilir (orn. bir stage bookkeeping'de "failed"/"pending"
+gorunurken diskte gecerli, tutarli bir cikti zaten var olabilir). Bu durumda ham JSON elle
+duzenlenmemeli; ayni sonuca resmi, zaten var olan public API'ler (orn. `PipelineJobManager`'in
+durum gecis metotlari + `ProjectManager.save<Stage>`) ile, mevcut diskteki veriyi degistirmeden
+geri yazarak ulasilmalidir. Boylece bookkeeping gercek calisma zamaninin izledigi ayni kod yolundan
+gecer ve sahte kanit uretilmez. Degisiklikten once ilgili dosyalarin yedegi alinmalidir.
+
+### Sonuc
+
+Boyle bir reconciliation ihtiyaci varsa: (1) once fiziksel veri ile bookkeeping arasindaki
+celiskiyi net olarak raporla, (2) kullaniciya bunun gercek uretim ciktisi olup olmadigini
+dogrulat, (3) yalniz mevcut public API'ler uzerinden, tek seferlik ve iyi belgelenmis bir script
+ile uygula, (4) icerik dosyalarinda sifir diff oldugunu kanitla.
+
+---
+
+# AI MEMORY-018
+
+## Maskelenmis Hata Ayiklama
+
+### Ogrenilen Ders
+
+Genis bir `catch { throw new GenericError(); }` bloğu, alttaki gercek hatayi (orn. eksik
+`RuntimeStorageContext`) ayirt edilemeyen tek bir genel hata koduna donusturebilir. Boyle
+durumlarda hatanin stack'i guvenlik amaciyla temizlenmis olabilir (`this.stack = undefined`).
+
+### Sonuc
+
+Kok nedeni bulmak icin ilgili error class'inin constructor'ina, yalniz acik bir debug env
+degiskeniyle (orn. `ATOLYE_DEBUG_TRACE_X=1`) aktif olan gecici bir `console.trace()` eklenebilir;
+bu, atilan hatanin kendisini degistirmez, yalniz ayri bir tanilama ciktisi verir. Kok neden
+bulunduktan sonra bu enstrumantasyon eksiksiz geri alinmali ve `git diff` ile sifir kaldigi
+dogrulanmalidir.
+
+---
+
 # Yeni Memory Ekleme
 
 Yeni önemli deneyimler bu belgeye sıradaki AI MEMORY numarası ile eklenmelidir.

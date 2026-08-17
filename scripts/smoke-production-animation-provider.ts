@@ -26,6 +26,7 @@ import { ProductionAcceptanceBlockedError, ProductionAcceptanceOrchestrator } fr
 import { productionAcceptanceConfigurationFingerprint } from "../src/lib/production/ProductionAcceptancePolicy";
 import { ProductionReadinessService } from "../src/lib/production/ProductionReadinessService";
 import { ProjectManager } from "../src/lib/projects/ProjectManager";
+import type { RuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePaths";
 import { VideoPipeline } from "../src/lib/video/VideoPipeline";
 import type { VideoProvider } from "../src/lib/video/providers/VideoProvider";
 import type { AnimationData, AnimationScene } from "../src/types/animation";
@@ -38,6 +39,7 @@ let prefix: string;
 let temporaryWorkspace: string;
 let temporaryRuntimeRoot: string;
 let projectsRoot: string;
+let activeContext: RuntimeStorageContext | undefined;
 const endpoint = "https://api.openai.com/v1/chat/completions";
 const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 let scenarios = 0;
@@ -627,17 +629,17 @@ async function run() {
       const pipeline = await fixture("manifest");
       const sceneData: SceneData = { scenes: [{ id: 1, title: "One", description: "One", duration: 2 }], createdAt: new Date().toISOString() };
       const visualData: VisualData = { projectId: pipeline.project.id, scenes: [{ sceneId: 1, visualPrompt: "One", animationPrompt: "Slow zoom", style: "cinematic" }], thumbnail: { title: "T", prompt: "P", composition: "C", mood: "M" }, createdAt: new Date().toISOString() };
-      await ProjectManager.saveScenes(pipeline.slug, sceneData);
-      await ProjectManager.saveVisuals(pipeline.slug, visualData);
       await PipelineJobManager.listJobs(pipeline.slug);
+      await ProjectManager.saveScenes(pipeline.slug, sceneData, activeContext);
+      await ProjectManager.saveVisuals(pipeline.slug, visualData, activeContext);
       const state = { ...PipelineStageExecutor.createInitialState(pipeline.project), scenes: sceneData, visuals: visualData };
       const original = AnimationPromptGenerator.generateAnimationData;
       AnimationPromptGenerator.generateAnimationData = async () => ({ projectId: pipeline.project.id, scenes: pipeline.scenes, createdAt: new Date().toISOString() });
       try {
         const runner = PipelineRunner as unknown as { runStageLegacy(slug: string, stage: "animation", action: () => Promise<boolean>, runType: "initial"): Promise<boolean> };
-        assert.equal(await runner.runStageLegacy(pipeline.slug, "animation", () => PipelineStageExecutor.execute(pipeline.slug, "animation", state, { animationProvider: productionProvider() }), "initial"), true);
-        assert.equal((await ProjectManager.getManifest(pipeline.slug))?.packages.animation.status, "completed");
-        const stored = await ProjectManager.getAnimation(pipeline.slug) as AnimationData;
+        assert.equal(await runner.runStageLegacy(pipeline.slug, "animation", () => PipelineStageExecutor.execute(pipeline.slug, "animation", state, { animationProvider: productionProvider() }, undefined, undefined, undefined, undefined, activeContext), "initial"), true);
+        assert.equal((await ProjectManager.getManifest(pipeline.slug, activeContext))?.packages.animation.status, "completed");
+        const stored = await ProjectManager.getAnimation(pipeline.slug, activeContext) as AnimationData;
         assert.equal(stored.scenes[0].sourceImageAssetId, pipeline.imageId);
       } finally {
         AnimationPromptGenerator.generateAnimationData = original;
@@ -648,9 +650,9 @@ async function run() {
       const failed = await fixture("manifest-failure");
       const sceneData: SceneData = { scenes: [{ id: 1, title: "One", description: "One", duration: 2 }], createdAt: new Date().toISOString() };
       const visualData: VisualData = { projectId: failed.project.id, scenes: [{ sceneId: 1, visualPrompt: "One", animationPrompt: "Slow zoom", style: "cinematic" }], thumbnail: { title: "T", prompt: "P", composition: "C", mood: "M" }, createdAt: new Date().toISOString() };
-      await ProjectManager.saveScenes(failed.slug, sceneData);
-      await ProjectManager.saveVisuals(failed.slug, visualData);
       await PipelineJobManager.listJobs(failed.slug);
+      await ProjectManager.saveScenes(failed.slug, sceneData, activeContext);
+      await ProjectManager.saveVisuals(failed.slug, visualData, activeContext);
       const state = { ...PipelineStageExecutor.createInitialState(failed.project), scenes: sceneData, visuals: visualData };
       const original = AnimationPromptGenerator.generateAnimationData;
       AnimationPromptGenerator.generateAnimationData = async () => ({ projectId: failed.project.id, scenes: failed.scenes, createdAt: new Date().toISOString() });
@@ -664,10 +666,10 @@ async function run() {
       });
       try {
         const runner = PipelineRunner as unknown as { runStageLegacy(slug: string, stage: "animation", action: () => Promise<boolean>, runType: "initial"): Promise<boolean> };
-        await assert.rejects(() => runner.runStageLegacy(failed.slug, "animation", () => PipelineStageExecutor.execute(failed.slug, "animation", state, { animationProvider: invalid }), "initial"));
-        assert.equal((await ProjectManager.getManifest(failed.slug))?.packages.animation.status, "failed");
+        await assert.rejects(() => runner.runStageLegacy(failed.slug, "animation", () => PipelineStageExecutor.execute(failed.slug, "animation", state, { animationProvider: invalid }, undefined, undefined, undefined, undefined, activeContext), "initial"));
+        assert.equal((await ProjectManager.getManifest(failed.slug, activeContext))?.packages.animation.status, "failed");
         assert.equal(AssetManager.getProjectAssets(failed.slug, failed.project.id).assets.some((item) => item.type === "animation"), false);
-        assert.equal(await ProjectManager.getAnimation(failed.slug), null);
+        assert.equal(await ProjectManager.getAnimation(failed.slug, activeContext), null);
       } finally {
         AnimationPromptGenerator.generateAnimationData = original;
       }
@@ -835,6 +837,7 @@ async function main() {
     temporaryWorkspace = runtime.workspaceRoot;
     temporaryRuntimeRoot = runtime.runtimeRoot;
     projectsRoot = runtime.runtimeStorageContext.projectsRoot;
+    activeContext = runtime.runtimeStorageContext;
     const repositoryProjectsRoot = path.resolve(process.cwd(), "data", "projects");
     assert.notEqual(
       path.resolve(projectsRoot),
