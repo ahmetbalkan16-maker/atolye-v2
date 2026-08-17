@@ -8,11 +8,17 @@ export const visualSchemaIssueLimit = 8;
 
 const topLevelFields = ["scenes", "thumbnail"] as const;
 const visualFields = ["sceneId", "visualPrompt", "animationPrompt", "style"] as const;
+const visualOptionalFields = ["searchKeywords"] as const;
 const thumbnailFields = ["title", "prompt", "composition", "mood"] as const;
 const visualStringFields = Object.freeze({
   visualPrompt: { minimumLength: 1, maximumLength: 2_000 },
   animationPrompt: { minimumLength: 1, maximumLength: 2_000 },
   style: { minimumLength: 1, maximumLength: 100, format: "plain-style-label" },
+} as const);
+const searchKeywordsSpec = Object.freeze({
+  maximumItems: 12,
+  minimumLength: 1,
+  maximumLength: 100,
 } as const);
 const thumbnailStringFields = Object.freeze({
   title: { minimumLength: 1, maximumLength: 300 },
@@ -26,9 +32,11 @@ export const canonicalVisualProviderSchema = Object.freeze({
   applicationOwnedFields: ["createdAt", "projectId", "prompts", "generatedAt"] as const,
   topLevelFields,
   visualFields,
+  visualOptionalFields,
   thumbnailFields,
   sceneCount: { minimum: 1, maximum: 30, exact: "canonical scene count" },
   visualStringFields,
+  searchKeywordsSpec,
   thumbnailStringFields,
 });
 
@@ -44,7 +52,8 @@ export function createVisualPlanPrompt(
     "Return exactly one JSON object and nothing else: no markdown, code fence, comments, or trailing text.",
     "Use exactly these top-level keys: scenes, thumbnail. Additional top-level or nested keys are forbidden.",
     "Do not include createdAt, projectId, prompts, or generatedAt; the application owns those fields.",
-    "Each scenes item must use exactly: sceneId, visualPrompt, animationPrompt, style.",
+    "Each scenes item must use exactly: sceneId, visualPrompt, animationPrompt, style, and the " +
+      "optional searchKeywords.",
     "thumbnail must use exactly: title, prompt, composition, mood.",
     "Return exactly one visual item for every canonical scene, in canonical scene array order.",
     "sceneId must be the matching positive canonical scene id. Duplicate, missing, unknown, or reordered ids are forbidden.",
@@ -52,6 +61,10 @@ export function createVisualPlanPrompt(
     "Limits: visualPrompt 1-2000, animationPrompt 1-2000, style 1-100 characters.",
     "Thumbnail limits: title 1-300, prompt 1-2000, composition 1-1000, mood 1-300 characters.",
     "style must be a plain style label containing only letters, numbers, spaces, underscore, or hyphen.",
+    "searchKeywords, when present, must be an array of 0-12 plain strings (1-100 characters each) " +
+      "naming concrete real-world entities (people, places, buildings, artifacts, events) suitable " +
+      "for a photo archive search. Use an empty array for imagined/abstract scenes with no real " +
+      "photograph that could represent them. Omitting the field entirely is also valid.",
     "Do not produce paths, URLs, filenames, storage locators, physical asset ids, metadata, or unknown fields.",
     "Visual prompts must be realistic, historically grounded, detailed, and suitable for image generation.",
     "Animation prompts describe camera motion, atmosphere, particles, and documentary movement.",
@@ -64,7 +77,8 @@ export function createVisualPlanPrompt(
     '      "sceneId": 1,',
     '      "visualPrompt": "string",',
     '      "animationPrompt": "string",',
-    '      "style": "cinematic"',
+    '      "style": "cinematic",',
+    '      "searchKeywords": ["string"]',
     "    }",
     "  ],",
     '  "thumbnail": {',
@@ -130,7 +144,7 @@ function validateVisualScenes(value: unknown, source: SceneData, add: (issue: AI
       add({ path, reason: "WRONG_TYPE", expected: "object", observedType: observedType(visual) });
       return;
     }
-    exactFields(visual, visualFields, path, add);
+    exactFields(visual, visualFields, path, add, visualOptionalFields);
     const sceneId = visual.sceneId;
     if (sceneId !== undefined && (typeof sceneId !== "number" || !Number.isSafeInteger(sceneId) || sceneId < 1)) {
       add({ path: `${path}.sceneId`, reason: "INVALID_ID", expected: "positive integer", observedType: observedType(sceneId) });
@@ -141,6 +155,7 @@ function validateVisualScenes(value: unknown, source: SceneData, add: (issue: AI
       if (sceneId !== source.scenes[index]?.id) add({ path: `${path}.sceneId`, reason: "INVALID_ORDER", expected: `canonical scene id ${source.scenes[index]?.id ?? "at index"}`, observedType: "number" });
     }
     for (const [field, spec] of Object.entries(visualStringFields)) validateString(visual[field], `${path}.${field}`, spec, add);
+    validateSearchKeywords(visual.searchKeywords, `${path}.searchKeywords`, add);
   });
   for (const scene of source.scenes) if (!ids.has(scene.id)) add({ path: "$.scenes", reason: "INVALID_REFERENCE", expected: `scene ${scene.id} plan coverage` });
 }
@@ -154,9 +169,23 @@ function validateThumbnail(value: unknown, add: (issue: AIResponseSchemaIssue) =
   for (const [field, spec] of Object.entries(thumbnailStringFields)) validateString(value[field], `$.thumbnail.${field}`, spec, add);
 }
 
-function exactFields(value: Record<string, unknown>, expected: readonly string[], path: string, add: (issue: AIResponseSchemaIssue) => void) {
+function exactFields(value: Record<string, unknown>, expected: readonly string[], path: string, add: (issue: AIResponseSchemaIssue) => void, optional: readonly string[] = []) {
   for (const field of expected) if (!Object.prototype.hasOwnProperty.call(value, field)) add({ path: `${path}.${field}`, reason: "MISSING_REQUIRED_FIELD", observedType: "missing" });
-  for (const field of Object.keys(value)) if (!expected.includes(field)) add({ path: `${path}.${field}`, reason: "UNKNOWN_FIELD" });
+  for (const field of Object.keys(value)) if (!expected.includes(field) && !optional.includes(field)) add({ path: `${path}.${field}`, reason: "UNKNOWN_FIELD" });
+}
+
+function validateSearchKeywords(value: unknown, path: string, add: (issue: AIResponseSchemaIssue) => void) {
+  if (value === undefined) return;
+  if (!Array.isArray(value)) {
+    add({ path, reason: "WRONG_TYPE", expected: "array", observedType: observedType(value) });
+    return;
+  }
+  if (value.length > searchKeywordsSpec.maximumItems) {
+    add({ path, reason: "MAX_ITEMS", expected: `<=${searchKeywordsSpec.maximumItems}` });
+  }
+  value.forEach((item, index) => {
+    validateString(item, `${path}[${index}]`, searchKeywordsSpec, add);
+  });
 }
 
 function validateString(value: unknown, path: string, spec: { minimumLength: number; maximumLength: number; format?: string }, add: (issue: AIResponseSchemaIssue) => void) {

@@ -167,8 +167,18 @@ export class VisualManager {
           style,
         ),
         style: getStringAllowEmpty(scene.style, style),
+        searchKeywords: this.normalizeSearchKeywords(scene.searchKeywords),
       };
     });
+  }
+
+  private static normalizeSearchKeywords(value: unknown): string[] | undefined {
+    if (!Array.isArray(value)) return undefined;
+    const keywords = value
+      .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      .map((item) => item.trim().slice(0, 100))
+      .slice(0, 12);
+    return keywords.length > 0 ? keywords : undefined;
   }
 
   private static mapThumbnail(

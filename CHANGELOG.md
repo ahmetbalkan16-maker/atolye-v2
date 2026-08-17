@@ -1,5 +1,41 @@
 ---
 
+<!-- SPRINT-130-START -->
+## 2026-08-17 - Sprint 130 Wikimedia Commons Real Photo Source for Visuals
+
+- Added a new `"real"` image provider (`RealPhotoImageProvider`) that searches Wikimedia Commons
+  for a freely-licensed real photo per scene before falling back to AI generation — scoped to
+  Wikimedia only per ADR-019; Openverse, Library of Congress/Archive.org, NASA, and
+  Pexels/Pixabay/Unsplash are tracked as separate follow-up sprints on the same internal source
+  router, with no further changes to `ImageProviderName` or `VisualAssetPipeline`'s validation
+  branches required.
+- License is fail-closed validated against a public-domain/CC0/CC-BY/CC-BY-SA allowlist; only
+  png/jpeg/webp are accepted. New optional `sourceName`/`sourceUrl`/`license`/`attribution` fields
+  were added to `Asset` (additive, backward compatible).
+- The AI-fallback decision lives in `VisualAssetPipeline`, not inside the provider: a not-found or
+  failed real-photo attempt is explicitly redispatched to the existing `openai` provider, so every
+  asset's `provider`/`model` fields stay an honest record of what actually produced it.
+- Added a per-scene override (`PipelineStageExecutor`'s new `visualSourceOverrides` →
+  `VisualAssetPipeline.generateAssets`'s `overrides`): `"ai"` skips the real-photo attempt,
+  `"real"` disables the AI fallback (a not-found real search fails the scene). Overrides only take
+  effect when the batch provider is `"real"` — inert (and safe) under `"mock"`/`"openai"`. No new
+  UI this sprint; the override is a service-layer capability only.
+- `VisualScene`/the visuals AI JSON contract gained an optional `searchKeywords: string[]` field,
+  updated consistently in both the loose (`VisualPromptEngine`/`VisualManager`) and strict/canonical
+  (`VisualStructuredOutput`, used by real `production:acceptance:execute` runs) prompt/validation
+  paths. Missing/old `visuals.json` stays valid; empty/absent keywords route straight to the AI
+  fallback.
+- New mock-first smoke suite `scripts/smoke-production-real-photo-source.ts` (27 scenarios, no real
+  network calls). Final review caught and fixed two real regressions during this sprint: a crash in
+  the new fallback check when a provider result was `undefined` (Sprint 113's fail-closed scenario)
+  and an incorrect runtime-root assumption in the new smoke test's own asset verification.
+- Full regression sweep PASS across visual-asset-wiring (54/54), animation-provider (30/30),
+  animation-motion-plan-contract (21/21), assembly-scene-video-consumption (19/19),
+  video-assembly-wiring (46/46), pipeline-orchestration, auto-continuation, durable execution,
+  durable wiring, worker-lifecycle, and scene-video-rendering. `npx tsc --noEmit` and full-repo
+  `npm run lint` PASS for everything touched.
+<!-- SPRINT-130-END -->
+
 <!-- SPRINT-129.47-START -->
 ## 2026-08-17 - Sprint 129.47 Three Undocumented Smoke Fixture Regressions Closed
 

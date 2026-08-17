@@ -56,6 +56,18 @@ export interface Asset {
 
   transition?: string;
 
+  /** Real-photo sourcing only: which external archive/library provided the image. */
+  sourceName?: string;
+
+  /** Real-photo sourcing only: the source's page URL for the image (provenance/attribution). */
+  sourceUrl?: string;
+
+  /** Real-photo sourcing only: the license identifier reported by the source. */
+  license?: string;
+
+  /** Real-photo sourcing only: required attribution/credit line, when the license demands one. */
+  attribution?: string;
+
   error?: string;
 
   createdAt: string;
@@ -75,7 +87,7 @@ export interface ProjectAssets {
   updatedAt: string;
 }
 
-export type ImageProviderName = "mock" | "openai";
+export type ImageProviderName = "mock" | "openai" | "real";
 
 export type ImageMimeType = "image/png" | "image/jpeg" | "image/webp";
 
@@ -116,6 +128,18 @@ export type ImageGenerationRealSuccess = ImageGenerationResultBase &
     error?: never;
   };
 
+export type ImageGenerationRealPhotoSuccess = ImageGenerationResultBase &
+  (ImageGenerationFileLocator | ImageGenerationUrlLocator) & {
+    success: true;
+    provider: "real";
+    mimeType: ImageMimeType;
+    sourceName: string;
+    sourceUrl: string;
+    license: string;
+    attribution?: string;
+    error?: never;
+  };
+
 export type ImageGenerationFailure = ImageGenerationResultBase & {
   success: false;
   error: string;
@@ -127,4 +151,5 @@ export type ImageGenerationFailure = ImageGenerationResultBase & {
 export type ImageGenerationResult =
   | ImageGenerationMockSuccess
   | ImageGenerationRealSuccess
+  | ImageGenerationRealPhotoSuccess
   | ImageGenerationFailure;

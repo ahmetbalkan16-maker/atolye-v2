@@ -14,6 +14,9 @@ export interface ImageGenerationInput {
   sceneId: number;
 
   projectSlug?: string;
+
+  /** Concrete named entities for a real-photo archive search; see VisualScene.searchKeywords. */
+  searchKeywords?: string[];
 }
 
 export interface ImageProvider {

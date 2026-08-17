@@ -2,6 +2,7 @@ import { resolveImageProviderName } from "./ImageProviderConfig";
 import type { ImageProvider } from "./ImageProvider";
 import { MockImageProvider } from "./MockImageProvider";
 import { OpenAIImageProvider } from "./OpenAIImageProvider";
+import { RealPhotoImageProvider } from "./RealPhotoImageProvider";
 
 export class ImageProviderRouter {
   static getProvider(name?: string): ImageProvider {
@@ -12,6 +13,8 @@ export class ImageProviderRouter {
         return new MockImageProvider();
       case "openai":
         return new OpenAIImageProvider();
+      case "real":
+        return new RealPhotoImageProvider();
     }
   }
 }

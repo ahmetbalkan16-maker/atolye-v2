@@ -24,6 +24,13 @@ export interface ImageProviderConfig {
     timeoutMs: number;
     maximumResponseBytes: number;
   };
+  real: {
+    timeoutMs: number;
+    maximumResponseBytes: number;
+    searchResultLimit: number;
+    minimumWidth: number;
+    minimumHeight: number;
+  };
 }
 
 export const imageProviderConfig: ImageProviderConfig = {
@@ -34,6 +41,13 @@ export const imageProviderConfig: ImageProviderConfig = {
     mimeType: "image/png",
     timeoutMs: 60_000,
     maximumResponseBytes: 96 * 1024 * 1024,
+  },
+  real: {
+    timeoutMs: 15_000,
+    maximumResponseBytes: 32 * 1024 * 1024,
+    searchResultLimit: 10,
+    minimumWidth: 640,
+    minimumHeight: 360,
   },
 };
 
@@ -49,6 +63,7 @@ export function resolveImageProviderName(
   switch (normalized) {
     case "mock":
     case "openai":
+    case "real":
       return normalized;
     default:
       throw new ImageProviderConfigurationError();
@@ -71,6 +86,38 @@ export function getOpenAIImageProviderConfig(
       imageProviderConfig.openai.maximumResponseBytes,
       1_024,
       128 * 1024 * 1024,
+    ),
+  });
+}
+
+export function getRealImageProviderConfig(
+  environment: NodeJS.ProcessEnv = process.env,
+) {
+  return Object.freeze({
+    ...imageProviderConfig.real,
+    timeoutMs: integerValue(
+      environment.IMAGE_REAL_SOURCE_TIMEOUT_MS,
+      imageProviderConfig.real.timeoutMs,
+      100,
+      120_000,
+    ),
+    maximumResponseBytes: integerValue(
+      environment.IMAGE_REAL_MAX_RESPONSE_BYTES,
+      imageProviderConfig.real.maximumResponseBytes,
+      1_024,
+      64 * 1024 * 1024,
+    ),
+    minimumWidth: integerValue(
+      environment.IMAGE_REAL_MIN_WIDTH,
+      imageProviderConfig.real.minimumWidth,
+      1,
+      16_384,
+    ),
+    minimumHeight: integerValue(
+      environment.IMAGE_REAL_MIN_HEIGHT,
+      imageProviderConfig.real.minimumHeight,
+      1,
+      16_384,
     ),
   });
 }

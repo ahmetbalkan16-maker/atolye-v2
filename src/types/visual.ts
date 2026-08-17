@@ -42,6 +42,14 @@ export interface VisualScene {
   animationPrompt: string;
 
   style: string;
+
+  /**
+   * Concrete named entities (people, places, buildings, events) suitable for a real-photo
+   * archive search. Empty or omitted for purely abstract/imagined scenes with no real-world
+   * visual match (e.g. imagined battle moments) — real photo sourcing treats that as
+   * "no search possible" and goes straight to the AI fallback.
+   */
+  searchKeywords?: string[];
 }
 
 export interface ThumbnailConcept {

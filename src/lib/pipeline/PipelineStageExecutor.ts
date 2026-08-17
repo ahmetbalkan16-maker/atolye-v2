@@ -229,6 +229,7 @@ export class PipelineStageExecutor {
     acceptanceRunType?: ProjectPackageRunType,
     acceptanceProviderSelection?: ProductionAcceptanceProviderSelection,
     storageContext?: RuntimeStorageContext,
+    visualSourceOverrides?: Readonly<Record<number, "ai" | "real">>,
   ): Promise<boolean> {
     const actualRunType = acceptanceRunType ?? acceptanceIdentity?.runType;
     const providerSelection = acceptanceProviderSelection ??
@@ -335,6 +336,7 @@ export class PipelineStageExecutor {
           projectSlug,
           visualData: state.visuals,
           provider: dispatchOptions.visualAssetProvider,
+          overrides: visualSourceOverrides,
         });
         return this.persistStageResult(projectSlug, stage, () =>
           ProjectManager.updatePackageStatus(projectSlug, "visuals", "completed", undefined, undefined, requireStorageContext(storageContext)).then(() => undefined),

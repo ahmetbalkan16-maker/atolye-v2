@@ -35,6 +35,13 @@ type GenerateAssetsInput = {
   projectSlug: string;
   visualData: VisualData;
   provider?: ImageProvider;
+  /**
+   * Per-scene source override, only meaningful when the resolved provider is "real":
+   * "ai" skips the real-photo attempt and generates directly with OpenAI; "real" disables the
+   * AI fallback for that scene (a not-found real search fails the scene rather than falling
+   * back). Ignored when the batch provider is "mock"/"openai" — there is nothing to override.
+   */
+  overrides?: Readonly<Record<number, "ai" | "real">>;
 };
 
 type NormalizedGenerationResult = {
@@ -44,6 +51,10 @@ type NormalizedGenerationResult = {
   url?: string;
   mimeType: ImageMimeType | "image/mock";
   byteLength?: number;
+  sourceName?: string;
+  sourceUrl?: string;
+  license?: string;
+  attribution?: string;
   createdAt: string;
 };
 
@@ -53,11 +64,11 @@ export class VisualAssetPipeline {
     projectSlug,
     visualData,
     provider,
+    overrides,
   }: GenerateAssetsInput): Promise<ProjectAssets> {
     validateSceneBatch(visualData.scenes);
 
     const imageProvider = provider ?? ImageProviderRouter.getProvider();
-    const selectedProvider = imageProvider.name;
 
     let projectAssets = AssetManager.getProjectAssets(
       projectSlug,
@@ -65,25 +76,59 @@ export class VisualAssetPipeline {
     );
     validateNoExistingGeneratedImages(projectAssets, visualData.scenes);
 
+    let aiFallbackProvider: ImageProvider | undefined;
+    const getAiFallbackProvider = () =>
+      aiFallbackProvider ?? (aiFallbackProvider = ImageProviderRouter.getProvider("openai"));
+
     for (const scene of visualData.scenes) {
+      // Overrides only apply when the batch provider is "real" — otherwise there is no
+      // real-photo attempt to skip or force, and honoring them would risk an unexpected
+      // real API dispatch in a mock/openai-configured environment.
+      const override = imageProvider.name === "real" ? overrides?.[scene.sceneId] : undefined;
+      let effectiveProvider = override === "ai" ? getAiFallbackProvider() : imageProvider;
+
       let result: ImageGenerationResult;
 
       try {
-        result = await imageProvider.generateImage({
+        result = await effectiveProvider.generateImage({
           prompt: scene.visualPrompt,
           style: scene.style,
           sceneId: scene.sceneId,
           projectSlug,
+          searchKeywords: scene.searchKeywords,
         });
       } catch {
         persistFailedAsset({
           projectId,
           projectSlug,
           sceneId: scene.sceneId,
-          providerName: selectedProvider,
+          providerName: effectiveProvider.name,
           prompt: scene.visualPrompt,
         });
         throw new VisualAssetGenerationError();
+      }
+
+      // A "real" attempt that found nothing (and wasn't force-real) falls back to AI so a
+      // missing archival photo never blocks the whole production run.
+      if (result?.success !== true && effectiveProvider.name === "real" && override !== "real") {
+        effectiveProvider = getAiFallbackProvider();
+        try {
+          result = await effectiveProvider.generateImage({
+            prompt: scene.visualPrompt,
+            style: scene.style,
+            sceneId: scene.sceneId,
+            projectSlug,
+          });
+        } catch {
+          persistFailedAsset({
+            projectId,
+            projectSlug,
+            sceneId: scene.sceneId,
+            providerName: effectiveProvider.name,
+            prompt: scene.visualPrompt,
+          });
+          throw new VisualAssetGenerationError();
+        }
       }
 
       let normalizedResult: NormalizedGenerationResult | null;
@@ -92,7 +137,7 @@ export class VisualAssetPipeline {
         normalizedResult = normalizeGenerationResult(
           result,
           scene.sceneId,
-          selectedProvider,
+          effectiveProvider.name,
           projectSlug,
         );
       } catch {
@@ -104,7 +149,7 @@ export class VisualAssetPipeline {
           projectId,
           projectSlug,
           sceneId: scene.sceneId,
-          providerName: selectedProvider,
+          providerName: effectiveProvider.name,
           prompt: scene.visualPrompt,
         });
         throw new VisualAssetGenerationError();
@@ -123,6 +168,10 @@ export class VisualAssetPipeline {
         url: normalizedResult.url,
         mimeType: normalizedResult.mimeType,
         byteLength: normalizedResult.byteLength,
+        sourceName: normalizedResult.sourceName,
+        sourceUrl: normalizedResult.sourceUrl,
+        license: normalizedResult.license,
+        attribution: normalizedResult.attribution,
         createdAt: normalizedResult.createdAt,
       });
 
@@ -185,6 +234,55 @@ function normalizeGenerationResult(
     };
   }
 
+  if (result.provider === "real") {
+    const mimeType = normalizeImageMimeType(result.mimeType);
+    const filePath = normalizeSafeImagePath(result.filePath, projectSlug);
+    const url = normalizeSafeImageUrl(result.url, projectSlug, filePath);
+    const hasFilePath = result.filePath !== undefined;
+    const hasUrl = result.url !== undefined;
+    const sourceName = normalizeNonEmptyString(result.sourceName, 200);
+    const sourceUrl = normalizeSourceUrl(result.sourceUrl);
+    const license = normalizeNonEmptyString(result.license, 200);
+    const attribution = result.attribution === undefined
+      ? undefined
+      : normalizeNonEmptyString(result.attribution, 300);
+
+    if (
+      !mimeType ||
+      (hasFilePath && !filePath) ||
+      (hasUrl && !url) ||
+      !filePath || !url ||
+      !hasFilePath || !hasUrl ||
+      !sourceName || !sourceUrl || !license ||
+      (result.attribution !== undefined && !attribution)
+    ) {
+      return null;
+    }
+
+    let byteLength: number | undefined;
+    if (url.startsWith("/api/assets/images/")) {
+      try {
+        byteLength = ImageStorage.inspectStoredImage(projectSlug, filePath, mimeType).byteLength;
+      } catch {
+        return null;
+      }
+    }
+
+    return {
+      provider: "real",
+      model: result.model,
+      filePath,
+      url,
+      mimeType,
+      byteLength,
+      sourceName,
+      sourceUrl,
+      license,
+      attribution: attribution ?? undefined,
+      createdAt: result.createdAt,
+    };
+  }
+
   if (result.provider !== "openai") {
     return null;
   }
@@ -223,6 +321,24 @@ function normalizeGenerationResult(
     byteLength,
     createdAt: result.createdAt,
   };
+}
+
+function normalizeNonEmptyString(value: unknown, maximumLength: number): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= maximumLength ? trimmed : null;
+}
+
+function normalizeSourceUrl(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    const parsed = new URL(value.trim());
+    return parsed.protocol === "https:" || parsed.protocol === "http:"
+      ? parsed.toString()
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function persistFailedAsset({

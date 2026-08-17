@@ -1,5 +1,59 @@
 ---
 
+<!-- SPRINT-130-START -->
+## Sprint 130 - Wikimedia Commons Real Photo Source for Visuals - 2026-08-17
+
+**Status:** Completed
+
+- Visuals aşaması artık, konuya uygun olduğunda AI görsel üretimi yerine gerçek, telifsiz/açık
+  lisanslı fotoğraf kullanabiliyor. Kapsam bilinçli olarak Wikimedia Commons ile sınırlı tutuldu
+  (ADR-019); Openverse, LOC/Archive.org, NASA, Pexels/Pixabay/Unsplash ayrı, bağımsız sprintler
+  olarak ROADMAP'e eklendi.
+- Yeni `ImageProviderName` değeri `"real"`, tek bir `RealPhotoImageProvider`
+  (`src/lib/assets/providers/RealPhotoImageProvider.ts`) tarafından implemente edildi; içeride
+  `WikimediaCommonsClient` (`src/lib/assets/providers/sources/WikimediaCommonsClient.ts`) — API key
+  gerektirmeyen, Wikimedia MediaWiki API'sine (`action=query`, `generator=search`,
+  `prop=imageinfo`) diğer tüm gerçek provider'larla aynı fetch disiplinini (injectable fetcher,
+  AbortController+timeout, streamed byte-cap okuma, güvenli hata mesajları) kullanan ince bir
+  istemci.
+- Lisans fail-closed doğrulanıyor: yalnız public domain/CC0/CC-BY/CC-BY-SA allowlist'i kabul
+  ediliyor; eksik/bilinmeyen lisans veya desteklenmeyen MIME (png/jpeg/webp dışı, örn. SVG) "eşleşme
+  yok" sayılıyor. Asset kaydına yeni `sourceName`/`sourceUrl`/`license`/`attribution` alanları
+  eklendi (additive, geriye dönük uyumlu).
+- Fallback kararı `VisualAssetPipeline` seviyesinde açıkça veriliyor: real arama eşleşme bulamazsa
+  (veya teknik olarak başarısız olursa) sahne otomatik olarak mevcut `openai` provider'a
+  yönlendiriliyor; asset'in `provider`/`model` alanı hangi kaynağın gerçekte kullanıldığını dürüstçe
+  yansıtıyor.
+- Sahne bazlı override eklendi (`PipelineStageExecutor.execute`'ün yeni `visualSourceOverrides`
+  parametresi → `VisualAssetPipeline.generateAssets`'in `overrides` parametresi): `"ai"` real
+  aramayı atlar, `"real"` AI fallback'ini kapatır (bulunamazsa sahne `failed` olur). Override yalnız
+  batch provider `"real"` iken devreye giriyor; `"mock"`/`"openai"` modunda sessizce yok sayılıyor —
+  beklenmedik gerçek API çağrısı riski yok. Bu sürümde yeni bir UI eklenmedi (Visuals'in henüz stüdyo
+  paneli yok); override API/servis katmanında kaldı.
+- Görsel prompt AI sözleşmesine opsiyonel `searchKeywords: string[]` alanı eklendi
+  (`VisualPromptEngine.ts` gevşek yol, `VisualStructuredOutput.ts` katı/canonical yol — production
+  acceptance strict mode için de tutarlı şekilde güncellendi, `exactFields` artık required/optional
+  alan ayrımını destekliyor). Eski `visuals.json` kayıtları (alan olmadan) geçerli kalıyor;
+  `RealPhotoImageProvider` eksik/boş keywords'ü "arama yapılamaz" olarak ele alıp doğrudan AI'ya
+  düşüyor.
+- Yeni smoke: `scripts/smoke-production-real-photo-source.ts` — 27 senaryo (client parsing/hata
+  yolları, provider lisans/çözünürlük/MIME filtreleri ve sıralama, pipeline fallback/override/
+  keywords geçişi, katı şema doğrulama, gevşek `VisualManager` yolu). Mock-first; gerçek ağ çağrısı
+  yok.
+- Final review sırasında iki gerçek regresyon bulundu ve düzeltildi: (1) `VisualAssetPipeline`'ın
+  yeni fallback kontrolü `result` `undefined` olduğunda (Sprint 113'ün "missing provider result
+  fails closed" senaryosu) çöküyordu — `result?.success` ile düzeltildi, Sprint 113 testi tekrar
+  54/54 PASS. (2) Smoke testindeki bir asset doğrulaması yanlış varsayılan runtime kökünü
+  (`process.cwd()`) kullanıyordu — `ImageStorage.inspectStoredImage` ile düzeltildi.
+- Doğrulama: yeni suite 27/27 PASS; Sprint 113 visual-asset-wiring 54/54 PASS; Sprint 127
+  animation-provider 30/30 PASS; Sprint 116 animation-motion-plan-contract 21/21 PASS; Sprint 118
+  assembly-scene-video-consumption 19/19 PASS; Sprint 115 video-assembly-wiring 46/46 PASS;
+  pipeline-orchestration 10/10, auto-continuation, durable execution 17/17, durable wiring 19/19,
+  worker-lifecycle 21/21, scene-video-rendering 26/26 — hepsi PASS. `npx tsc --noEmit` PASS; full
+  repository `npm run lint` — bu sprintte dokunulan dosyalarda 0 hata/uyarı.
+- Git add/commit/push bu sprintte yapılmadı; kullanıcı onayı bekleniyor.
+<!-- SPRINT-130-END -->
+
 <!-- SPRINT-129.47-START -->
 ## Sprint 129.47 - Three Undocumented Smoke Fixture Regressions Closed - 2026-08-17
 

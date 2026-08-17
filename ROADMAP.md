@@ -1,5 +1,49 @@
 ---
 
+<!-- SPRINT-130-START -->
+## Sprint 130 - Wikimedia Commons Real Photo Source for Visuals
+
+**Status:** Completed
+
+- [x] Record ADR-019: single `"real"` `ImageProviderName` with an internal, extensible source
+  router (Wikimedia Commons first), instead of one provider name per source.
+- [x] Implement `RealPhotoImageProvider` + `WikimediaCommonsClient` (no API key, license
+  allowlist, MIME allowlist, resolution ranking, same fetch/timeout/byte-cap conventions as every
+  other real provider).
+- [x] Add optional `searchKeywords` to the visuals AI contract (loose + strict/canonical paths) and
+  optional `sourceName`/`sourceUrl`/`license`/`attribution` to `Asset` — additive, backward
+  compatible.
+- [x] Implement pipeline-level AI fallback (not-found/failed real attempt → explicit `openai`
+  redispatch) and per-scene `overrides` (`"ai"` | `"real"`), gated to only apply when the batch
+  provider is `"real"`.
+- [x] New mock-first smoke suite (27 scenarios); fix the two regressions final review found (a
+  fallback-check crash on an `undefined` result, and an incorrect runtime-root assumption in the
+  new test's own verification).
+- [x] Full regression sweep + `npx tsc --noEmit` + full-repo `npm run lint` PASS.
+- [ ] Optional live check (needs outbound network access): point `IMAGE_PROVIDER=real` at a real
+  project seeded with Byzantine/Istanbul scene keywords and confirm real Wikimedia photos land for
+  landmark scenes while abstract scenes fall back to AI.
+<!-- SPRINT-130-END -->
+
+<!-- SPRINT-130-FUTURE-SOURCES-START -->
+## Sprint 131+ - Additional Real Photo Sources (Planned, not started)
+
+**Status:** Planned
+
+Each of the following is its own small, independent sprint on top of Sprint 130's `"real"`
+provider/source-router architecture (ADR-019) — none require changing `ImageProviderName` or
+`VisualAssetPipeline`'s validation branches again:
+
+- [ ] Openverse (multi-source CC aggregator — extends coverage beyond Wikimedia in one API).
+- [ ] Library of Congress / Archive.org (historical photos, maps, documents).
+- [ ] NASA Image and Video Library (science/space topics).
+- [ ] Pexels / Pixabay / Unsplash (general-purpose stock photo, each requires an API key the user
+  must obtain and add to `.env.local`, following the existing `OPENAI_API_KEY` pattern).
+- [ ] Real stock **video** sourcing — separate architectural decision; the current Visuals stage
+  only ever produces still images, so this would mean redesigning the downstream video/animation
+  stages, not extending this one.
+<!-- SPRINT-130-FUTURE-SOURCES-END -->
+
 <!-- SPRINT-129.47-START -->
 ## Sprint 129.47 - Three Undocumented Smoke Fixture Regressions Closed
 

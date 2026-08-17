@@ -382,6 +382,55 @@ Tek-authority, fail-closed ve no-clobber bir relocation tasarlamak; stale reposi
 
 ---
 
+# ADR-019
+
+## Real Photo Sourcing for Visuals (Wikimedia Commons)
+
+### Karar
+
+Gerçek, telifsiz/ücretsiz-kullanım fotoğraf kaynağı, tek yeni bir `ImageProviderName` değeri olan
+`"real"` üzerinden sunulur; bunu tek bir `RealPhotoImageProvider` implemente eder. Provider içeride
+küçük, değiştirilebilir bir "source client" listesine (önce yalnız Wikimedia Commons) devreder.
+Hangi kaynağın kullanıldığı asset'in `model` alanında saklanır (örn. `"wikimedia-commons"`); yeni
+kaynak eklemek `ImageProviderName`'i, `ImageGenerationResult` union'ını veya
+`VisualAssetPipeline.normalizeGenerationResult`'ı tekrar değiştirmeyi gerektirmez — yalnız provider
+içindeki source router genişler.
+
+Real-photo aramasının hiçbir eşleşme bulamadığı (veya teknik olarak başarısız olduğu) durumlarda,
+provider kendi içinde sessizce AI görseli üretmez; `success:false` döner. AI'ya düşme kararı
+`VisualAssetPipeline`'da açıkça verilir (mevcut `openai` provider'a yeniden dispatch edilerek) —
+böylece her asset'in `provider`/`model` alanı, o görseli gerçekte neyin ürettiğinin dürüst bir
+kaydı olarak kalır.
+
+Sahne bazlı override (`overrides?: Record<sceneId, "ai" | "real">`) yalnız batch provider `"real"`
+iken devreye girer; `"ai"` real aramayı tamamen atlar, `"real"` ise o sahne için AI fallback'ini
+kapatır (bulunamazsa sahne `failed` olur, sessizce AI'ya düşmez). Bu sürümde herhangi bir yeni UI
+eklenmedi — override yalnız pipeline-stage/servis katmanında (`PipelineStageExecutor.execute`'ün
+yeni `visualSourceOverrides` parametresi → `VisualAssetPipeline.generateAssets`) sunulur.
+
+### Sebep
+
+`ImageGenerationResult` ve `normalizeGenerationResult` bu projede kasıtlı olarak provider başına
+elle yazılmış, exhaustive doğrulama dalları kullanır (her provider'ın sonuç şekli ayrı ayrı
+doğrulanır, generic değil). Her kaynak için ayrı bir `ImageProviderName` açmak, gelecekteki her yeni
+kaynak (Openverse, LOC/Archive.org, NASA, Pexels/Pixabay/Unsplash) için bu iki dosyayı tekrar
+değiştirmek anlamına gelirdi. Tek `"real"` provider + içeride genişleyen source listesi, mevcut
+mimariye en az invaziv yoldur.
+
+Fallback kararının provider içinde değil pipeline seviyesinde verilmesi, bu projenin zaten her
+asset için sıkı tuttuğu provenance (provider, model, generationMode) takibini korur; lisans/atıf
+bilgisi eklendiğinde bu doğruluk daha da önem kazanır.
+
+### Durum
+
+Accepted — Sprint 130 (Wikimedia Commons). Openverse, Library of Congress/Archive.org, NASA Image
+Library ve Pexels/Pixabay/Unsplash ayrı, bağımsız sprintler olarak planlanır; hiçbiri bu ADR'yi
+değiştirmeden aynı source-router'a eklenmelidir. Gerçek stok **video** kaynağı bu ADR kapsamı
+dışıdır — mevcut Visuals aşaması yalnız durağan görsel üretir; video kaynağı ayrı bir mimari karar
+gerektirir.
+
+---
+
 # Yeni ADR Ekleme
 
 Yeni önemli mimari kararlar;
