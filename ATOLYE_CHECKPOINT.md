@@ -18,6 +18,10 @@ Atölye V2 Production Execution katmanında "claim persist → worker crash → 
   - `scripts/smoke-sprint-129-39-claim-orphan-concurrency-recovery.ts` oluşturuldu ve 13/13 senaryo %100 PASS verdi.
   - `npx tsc --noEmit` 0 hata ile tamamlandı.
   - `smoke-sprint-129-28-production-acceptance-reauthorization.ts` 137/137 PASS sonucunu korudu.
+- **YouTube Package-Only Bounded Resume Manifest Fix:**
+  - **Kök Neden:** `PipelineStageExecutor.ts` YouTube stage yürütmesinde `ProjectManager.saveYouTube()` çağrısına `updatePackageStatus: false` bayrağı geçiliyordu. `youtubePublishMode === "package-only"` modunda publish aşamasına geçilmediği için `manifest.packages.youtube.status` değeri `"running"` durumunda takılı kalıyordu.
+  - **Dar Çözüm:** `PipelineStageExecutor.ts` içinde `saveYouTube()` çağrısındaki `updatePackageStatus` değeri `persistedPolicy?.youtubePublishMode === "package-only"` koşuluna bağlandı. Package-only modunda `saveYouTube()` `manifest.packages.youtube.status` değerini `"completed"` yaparken, normal publish modunda mevcut yayınlama ve `markYouTubePublished()` davranışları aynen korundu.
+  - **Doğrulama:** `scripts/smoke-sprint-129-39-stage-bounded-resume.ts` dosyasına `boundedYouTube` senaryosu eklendi, bounded YouTube package-only çalışmasında `manifest.packages.youtube.status === "completed"`, `youtube.json` geçerli, `youtube-publish.json` yok, `published=false`, `productionReady=false` olduğu ve 55/55 senaryonun PASS geçtiği doğrulandı. `smoke-sprint-129-28` (137/137 PASS) ve `npx tsc --noEmit` (0 hata) başarıyla tamamlandı.
 <!-- SPRINT-129.39-END -->
 
 <!-- SPRINT-130.2-START -->

@@ -168,6 +168,7 @@ async function main() {
       await boundedSuccess(`${runtime.projectSlug}-success`);
       await boundedFailure(`${runtime.projectSlug}-failure`);
       await laterBoundary(`${runtime.projectSlug}-seo`);
+      await boundedYouTube(`${runtime.projectSlug}-youtube`);
       await legacyUnbounded(`${runtime.projectSlug}-legacy`);
       await invalidBoundary(`${runtime.projectSlug}-invalid`);
       await commandContract();
@@ -278,6 +279,26 @@ async function laterBoundary(slug: string) {
     "post-seo recovery starts at youtube");
   await assertQuiescent(slug, 4);
   await assertNoDownstreamDurable(slug, ["youtube", "export"]);
+}
+
+async function boundedYouTube(slug: string) {
+  await seedFailedAssembly(slug);
+  const observed = await observeResume(slug, { stopAfterStage: "youtube" });
+  pass(observed.result.success && observed.result.stoppedAfterStage === "youtube" &&
+    observed.result.completedStages.join(",") === "assembly,thumbnail,seo,youtube",
+  "bounded youtube package-only resume completes stages up to youtube");
+  const jobs = await PipelineJobManager.listJobsReadOnly(slug);
+  pass(job(jobs, "youtube")?.status === "completed" && job(jobs, "export")?.status === "queued",
+  "youtube job is completed while export remains queued");
+  const manifest = await ProjectManager.getManifest(slug);
+  pass(manifest?.packages.youtube?.status === "completed",
+  "packages.youtube.status in manifest is completed after package-only youtube execution");
+  const youtubePackage = await ProjectReader.readJSON<unknown>(slug, "youtube.json");
+  pass(Boolean(youtubePackage), "youtube.json is persisted and valid");
+  const youtubePublish = await ProjectReader.readJSON<unknown>(slug, "youtube-publish.json");
+  pass(youtubePublish === null, "youtube-publish.json is absent in package-only execution");
+  await assertQuiescent(slug, 5);
+  await assertNoDownstreamDurable(slug, ["export"]);
 }
 
 async function legacyUnbounded(slug: string) {

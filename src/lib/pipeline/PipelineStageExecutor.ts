@@ -552,7 +552,7 @@ export class PipelineStageExecutor {
             reuseExisting:
               isYouTubePublishingPackage(previousYouTube) &&
               JSON.stringify(previousYouTube) === JSON.stringify(state.youtube),
-            updatePackageStatus: false,
+            updatePackageStatus: persistedPolicy?.youtubePublishMode === "package-only",
           }, requireStorageContext(storageContext));
           if (persistedPolicy?.youtubePublishMode === "package-only") {
             await emitProductionPipelineExecutionEvent("youtube-publish-skipped-package-only", {
