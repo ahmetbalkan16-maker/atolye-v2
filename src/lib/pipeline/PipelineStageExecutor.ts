@@ -317,18 +317,20 @@ export class PipelineStageExecutor {
 
       case "visuals": {
         const scenes = requireStageInput(state.scenes, "scenes", stage);
-        state.visuals = await VisualManager.generateVisualData({
-          projectId: state.project.id,
-          projectSlug,
-          scenes,
-          aiContext: {
+        if (!state.visuals) {
+          state.visuals = await VisualManager.generateVisualData({
+            projectId: state.project.id,
             projectSlug,
-            stage: "visuals",
-            operation: "visuals",
-          },
-          aiProvider: dispatchOptions.aiProvider,
-          generationPolicy,
-        });
+            scenes,
+            aiContext: {
+              projectSlug,
+              stage: "visuals",
+              operation: "visuals",
+            },
+            aiProvider: dispatchOptions.aiProvider,
+            generationPolicy,
+          });
+        }
         await dispatchBranch("visualAssetProvider");
         await ProjectManager.persistVisualsArtifact(projectSlug, state.visuals, requireStorageContext(storageContext));
         await VisualAssetPipeline.generateAssets({
