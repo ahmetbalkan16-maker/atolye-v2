@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ExportEngine } from "@/lib/export/ExportEngine";
+import { packageExport } from "@/lib/export/ExportPackager";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { isCompatibleVideoData } from "@/lib/video/VideoDataValidation";
 import type { AssemblyPlanData } from "@/types/assembly";
@@ -64,8 +64,7 @@ export async function POST(req: Request) {
     const thumbnail = directThumbnail ?? projectData.thumbnail;
     const youtube = directYouTube ?? projectData.youtube;
     const seo = directSEO ?? projectData.seo;
-    const engine = new ExportEngine();
-    const exportPackage = await engine.generateExportPackage({
+    const exportPackage = await packageExport({
       projectId: projectData.project?.id,
       projectSlug: projectSlug ?? undefined,
       title:

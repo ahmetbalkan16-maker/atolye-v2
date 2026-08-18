@@ -24,7 +24,7 @@ import { AudioProviderRouter } from "@/lib/audio/providers/AudioProviderRouter";
 import { VisualAssetPipeline } from "@/lib/assets/VisualAssetPipeline";
 import type { ImageProvider } from "@/lib/assets/providers/ImageProvider";
 import { ImageProviderRouter } from "@/lib/assets/providers/ImageProviderRouter";
-import { ExportEngine } from "@/lib/export/ExportEngine";
+import { packageExport } from "@/lib/export/ExportPackager";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import type { RuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
 import { SEOManager } from "@/lib/seo/SEOManager";
@@ -582,7 +582,7 @@ export class PipelineStageExecutor {
         const thumbnail = requireStageInput(state.thumbnail, "thumbnail", stage);
         const youtube = requireStageInput(state.youtube, "youtube", stage);
         const seo = requireStageInput(state.seo, "seo", stage);
-        state.exportPackage = await new ExportEngine().generateExportPackage({
+        state.exportPackage = await packageExport({
           projectId: state.project.id,
           projectSlug,
           title: state.project.title,
@@ -593,6 +593,7 @@ export class PipelineStageExecutor {
           thumbnail,
           youtube,
           seo,
+          storageContext,
         });
         return this.persistStageResult(projectSlug, stage, () =>
           ProjectManager.saveExport(projectSlug, state.exportPackage, requireStorageContext(storageContext)),
