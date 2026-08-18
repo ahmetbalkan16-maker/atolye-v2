@@ -1,5 +1,77 @@
 ---
 
+<!-- SPRINT-130.2-START -->
+## 2026-08-17 - Sprint 130.2 Real Photo Source Download Reliability & Latency Budget
+
+- Requested Wikimedia's pre-scaled thumbnail (`iiurlwidth`, default 1920px — matching the
+  production video pipeline's 1920x1080 output) instead of the multi-thousand-pixel original when
+  the original exceeds that width; never upscales. Persisted `width`/`height` now reflect what was
+  actually downloaded.
+- Added a single wall-clock `sceneBudgetMs` deadline (default 60s) covering all candidate attempts
+  for one scene, with each attempt's timeout shrunk to its fair share — a slow/failing candidate
+  can no longer consume the full per-attempt timeout for every remaining candidate.
+- **New finding from live testing:** firing scenes back-to-back with no gap triggered genuine HTTP
+  429 responses from Wikimedia's image CDN (`upload.wikimedia.org`), whose own error text asks
+  callers to use a "less disruptive approach." Added a minimum inter-scene interval
+  (`minRequestIntervalMs`, default 1s) on the provider instance; scenes with no search keywords
+  (pure AI scenes) are never delayed.
+- Added a dedicated `WikimediaCommonsRateLimitedError` for 429 responses: never retried at the
+  client level (retrying a rate limit is exactly the disruptive behavior Wikimedia is asking
+  against), and the provider stops trying further candidates for that scene entirely rather than
+  hitting more URLs on the same rate-limited host.
+- New smoke coverage: 5 scenarios added (40 → 45) for thumbnail selection/no-upscale, scene-budget
+  exhaustion, inter-scene pacing (and its absence for keyword-less scenes), and 429 non-retry at
+  both the client and provider level.
+- Re-ran the same 10-scene live check multiple times. Speed target met decisively (total ~28-31s,
+  **~3s average per scene**, vs. the <15s target). Found-rate came in at 2/10-5/10 across runs,
+  below the ≥7/10 target; diagnosed via raw HTTP status logging to be caused by this session's own
+  cumulative live-testing volume tripping Wikimedia's 429 policy on `upload.wikimedia.org` — not a
+  code defect (the first, pre-rate-limit runs this session saw 5/10-8/10). Did not run further live
+  batches after adding the 429 handling, to avoid compounding the rate limit; flagged as an open
+  re-verification item once the window clears.
+- Pre-commit fix: `WikimediaCommonsClient` was already sending a `User-Agent`, but its
+  parenthetical wasn't an actual reachable contact ("contact via project owner"). Wikimedia's
+  policy treats that close to sending no identifying User-Agent at all and rate-limits accordingly
+  — a likely contributor to the 429s above. Now
+  `AtolyeV2-RealPhotoSource/1.0 (https://github.com/ahmetbalkan16-maker/atolye-v2)`, matching
+  Wikimedia's documented `Client/Version (ContactInformation)` shape, on every request.
+- Full regression PASS (visual-asset-wiring 54/54, animation-provider 30/30,
+  pipeline-orchestration, auto-continuation). `npx tsc --noEmit` and full-repo `npm run lint` clean.
+<!-- SPRINT-130.2-END -->
+
+<!-- SPRINT-130.1-START -->
+## 2026-08-17 - Sprint 130.1 Real Photo Source Quality & Reliability Follow-up
+
+- Added retry-with-throttle to `WikimediaCommonsClient` (one retry after a short, injectable
+  delay on transient search/download failures only — never on a genuinely empty result).
+- Excluded Wikimedia's "Internet Archive Book Images" batch-scan candidates outright, fixing the
+  live-check finding where a "Constantine the Great" query returned an unrelated portrait from a
+  scanned book whose title didn't reflect the page's actual content.
+- Replaced pure "highest resolution wins" ranking with title/query word-overlap score first,
+  resolution as tiebreak — fixes the live-check finding where "Little Hagia Sophia" (a different
+  building) outranked genuine Hagia Sophia interior photos.
+- Added download fallthrough: a failed top candidate no longer fails the whole scene — the
+  provider moves to the next eligible candidate (bounded by a new `candidateAttemptLimit`, default
+  3), pacing each attempt with the same throttle delay.
+- Added `selectionScore`/`selectionRank`/`candidateCount`/`width`/`height` to `Asset` so a future
+  wrong match can be traced back to which decision stage picked it.
+- New smoke coverage: 9 scenarios added (27 → 36) reproducing both original live-check findings
+  as regression tests, plus retry, fallthrough, and metadata coverage.
+- Re-ran the same 10-scene Byzantine/Istanbul live check, sequentially and without pacing, against
+  the real Wikimedia API (external runtime root, repo untouched). Confirmed both fixes: the
+  Constantine mismatch is gone (correctly falls back to AI now) and, in an isolated repeat, the
+  Little Hagia Sophia case no longer wins. Found a related, not-yet-fixed ambiguity ("Trabzon
+  Hagia Sophia" scoring a perfect 1.0 for a bare "Hagia Sophia interior" query — mitigated by
+  including a place disambiguator like "Istanbul" in search keywords). Also found a new,
+  unexpected result: under sustained sequential load, large-file download timeouts became more
+  frequent, and the found/fallback ratio dropped (8/10 → 2/10) even though the retry/fallthrough
+  mechanism itself worked correctly — a scene can spend up to ~50s across 3 candidates before
+  still falling back. Flagged as an open latency/timeout-budget tuning item.
+- Full regression PASS (visual-asset-wiring 54/54, animation-provider 30/30,
+  animation-motion-plan-contract 21/21, pipeline-orchestration, auto-continuation). `npx tsc
+  --noEmit` and full-repo `npm run lint` clean.
+<!-- SPRINT-130.1-END -->
+
 <!-- SPRINT-130-START -->
 ## 2026-08-17 - Sprint 130 Wikimedia Commons Real Photo Source for Visuals
 

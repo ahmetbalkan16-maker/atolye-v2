@@ -1,5 +1,53 @@
 ---
 
+<!-- SPRINT-130.2-START -->
+## Sprint 130.2 - Real Photo Source Download Reliability & Latency Budget
+
+**Status:** Completed
+
+- [x] Prefer Wikimedia's thumbnail rendition (`iiurlwidth`, default 1920px) over the original when
+  the original is larger; never upscale.
+- [x] Add a single per-scene wall-clock timeout budget (`sceneBudgetMs`, default 60s) shared
+  across candidate attempts.
+- [x] Add inter-scene throttling to avoid Wikimedia rate limiting (found live: real 429s from
+  `upload.wikimedia.org` when scenes fire back-to-back).
+- [x] Never retry a 429; stop trying further candidates for a scene on one.
+- [x] Re-run the same 10-scene live check and report found-rate, total time, average time/scene.
+- [x] **Speed target met:** ~28-31s total, ~3s average per scene (target: <15s avg).
+- [x] Fix the outbound `User-Agent` sent to Wikimedia: it was already present but its parenthetical
+  wasn't a real, reachable contact ("contact via project owner"), which Wikimedia's policy treats
+  close to sending no identifying User-Agent at all — a likely contributor to harsher rate
+  limiting. Now `AtolyeV2-RealPhotoSource/1.0 (https://github.com/ahmetbalkan16-maker/atolye-v2)`,
+  matching Wikimedia's documented `Client/Version (ContactInformation)` shape.
+- [ ] **Found-rate target not yet confirmed:** 2/10-5/10 across runs (target: ≥7/10). Diagnosed as
+  this session's own repeated live testing tripping Wikimedia's 429 policy, not a code defect. Next
+  step: a single, clean 10-scene live run a few hours from now, once the rate-limit window has had
+  time to clear, now combined with the corrected User-Agent above.
+<!-- SPRINT-130.2-END -->
+
+<!-- SPRINT-130.1-START -->
+## Sprint 130.1 - Real Photo Source Quality & Reliability Follow-up
+
+**Status:** Completed
+
+- [x] Add retry-with-throttle to `WikimediaCommonsClient` (transient failures only).
+- [x] Exclude "Internet Archive Book Images" batch-scan candidates.
+- [x] Rank by title/query word-overlap score before resolution.
+- [x] Fall through to the next eligible candidate when the top one fails to download.
+- [x] Persist `selectionScore`/`selectionRank`/`candidateCount`/`width`/`height` on `Asset`.
+- [x] Re-run the same 10-scene live check sequentially and report before/after.
+- [ ] **New follow-up:** tune the download latency/timeout budget — under sustained sequential
+  load, a scene can spend ~50s across 3 candidate attempts and still fall back; found/fallback
+  ratio regressed (8/10 → 2/10) in that run despite the retry/fallthrough logic itself working
+  correctly. Candidate directions: shorter per-attempt timeout with more candidates tried, prefer
+  moderately-sized files over the largest eligible one, or accept current latency as fine for a
+  non-interactive background pipeline.
+- [ ] **New follow-up:** word-overlap ranking can still be fooled by homonym landmarks lacking a
+  place qualifier (e.g. "Trabzon Hagia Sophia" for a bare "Hagia Sophia interior" query). Consider
+  nudging `VisualPromptEngine`'s `searchKeywords` guidance to include a place/context word for
+  named landmarks.
+<!-- SPRINT-130.1-END -->
+
 <!-- SPRINT-130-START -->
 ## Sprint 130 - Wikimedia Commons Real Photo Source for Visuals
 

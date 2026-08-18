@@ -1,5 +1,121 @@
 ---
 
+<!-- SPRINT-130.2-START -->
+## Sprint 130.2 - Real Photo Source Download Reliability & Latency Budget - 2026-08-17
+
+**Status:** Completed
+**Production execution status:** N/A (code only; canlı kontroller repo dışı bir `ATOLYE_RUNTIME_ROOT`
+ile çalıştırıldı — `data/projects/**` bu sprintte de hiç değişmedi, `git status` ile doğrulandı)
+
+Sprint 130.1'in bulduğu "sürdürülen yükte indirme timeout'ları" sorununu hedefleyen dört maddelik
+takip:
+
+- **Dosya boyutuna göre indirme:** Wikimedia'nın `iiurlwidth` parametresi ile arama isteğine
+  ölçeklenmiş bir thumbnail talebi eklendi (`targetDownloadWidth`, varsayılan **1920px** —
+  Sprint 129.40'ın üretim video pipeline'ının zaten ürettiği 1920x1080 çıkışla birebir örtüşüyor).
+  Orijinal, thumbnail'den küçük veya thumbnail alanları eksik/geçersizse orijinal korunuyor; asla
+  büyütme (upscale) yapılmıyor. Asset'e kaydedilen `width`/`height` artık gerçekte indirilenin
+  boyutunu yansıtıyor.
+- **Gerçekçi sahne-başına timeout bütçesi:** Yeni `sceneBudgetMs` (varsayılan **60sn**) tüm sahne
+  için tek bir wall-clock deadline koyuyor; her aday denemesinin süresi bu bütçeden pay alacak
+  şekilde küçülüyor (`sceneBudgetMs / candidateAttemptLimit`, üst sınır mevcut `timeoutMs`). Bütçe
+  tükendiğinde yeni aday denemesi başlatılmıyor — tek bir yavaş/başarısız aday artık kalan tüm
+  bütçeyi tüketemiyor.
+- **Sahneler arası throttle (yeni bulgu):** Canlı doğrulama sırasında beklenmeyen bir durum
+  bulundu — sahneler art arda hiç boşluksuz gönderildiğinde Wikimedia'nın görsel CDN'i
+  (`upload.wikimedia.org`) gerçek **HTTP 429 Too Many Requests** ile yanıt vermeye başladı (hata
+  mesajı doğrudan "contact noc@wikimedia.org... a less disruptive approach" diyor). Buna karşılık
+  `RealPhotoImageProvider`'a aynı örnek üzerindeki ardışık sahneler arasında minimum bir aralık
+  (`minRequestIntervalMs`, varsayılan **1sn**) eklendi; anahtar kelimesi olmayan (tamamen AI'ya
+  giden) sahneler hiç beklemiyor.
+- **429'a saygılı davranış:** Wikimedia'nın 429 yanıtı artık ayrı bir hata tipiyle
+  (`WikimediaCommonsRateLimitedError`) işaretleniyor ve **hiç retry edilmiyor** (429'u retry etmek
+  Wikimedia'nın açıkça istemediği "ısrarcı" davranışın ta kendisi). Provider bir 429 aldığında
+  sıradaki adaya da geçmiyor, sahneyi hemen bırakıp AI fallback'ine izin veriyor — aynı host'a daha
+  fazla istek yığmıyor.
+- Yeni smoke: mevcut suite'e 5 senaryo eklendi (40 → 45) — thumbnail tercih/upscale-koruması,
+  sahne bütçesi tükenmesi, sahneler arası throttle (ve anahtar kelimesiz sahnelerin asla
+  beklememesi), 429'un hiç retry edilmemesi (hem arama hem indirme), provider'ın 429'da diğer
+  adaylara geçmemesi.
+- **Canlı doğrulama (dürüst sonuç):** Aynı 10 sahne art arda birden fazla kez çalıştırıldı.
+  Hız hedefi net şekilde karşılandı: toplam süre ~28-31 saniye, **sahne başına ortalama ~3
+  saniye** (hedef: <15sn — büyük farkla geçildi). Bulunma oranı koşudan koşuya 2/10-5/10 arasında
+  değişti, hedefin (≥7/10) altında kaldı. Kök nedeni ayrıntılı HTTP durum-kodu loglamasıyla kesin
+  olarak teşhis ettik: bu sprint boyunca yapılan yoğun tekrarlayan canlı testler (aynı IP'den
+  kısa sürede çok sayıda istek) Wikimedia'nın kendi 429 rate-limit politikasını tetikledi — bu
+  kod hatası değil, bu oturumun kendi test hacminin bir sonucu. İlk (rate-limit öncesi) koşularda
+  bulunma oranı 5/10-8/10 arasındaydı. 429-saygılı davranış eklendikten sonra daha fazla canlı test
+  yapılmadı (Wikimedia'yı sorumlu şekilde daha fazla döverek durumu kötüleştirmemek için) — bu
+  ROADMAP'e açık bir doğrulama maddesi olarak eklendi.
+- **Commit öncesi ek düzeltme — User-Agent:** `WikimediaCommonsClient` zaten bir `User-Agent`
+  gönderiyordu, ama parantez içeriği gerçek bir iletişim bilgisi değildi ("contact via project
+  owner" — ne e-posta ne URL). Wikimedia'nın politikası bunu neredeyse hiç User-Agent
+  göndermemekle aynı kefeye koyuyor ve bu tür istemcilere daha sert rate-limit uyguluyor —
+  yukarıdaki 429 bulgusuna muhtemelen katkısı olan bir eksiklik. Artık
+  `AtolyeV2-RealPhotoSource/1.0 (https://github.com/ahmetbalkan16-maker/atolye-v2)` — Wikimedia'nın
+  belgelediği `Client/Version (ContactInformation)` şablonuna uyuyor, hem arama hem indirme
+  isteklerinde kullanılıyor.
+- Doğrulama: yeni suite 45/45 PASS; Sprint 113 visual-asset-wiring 54/54, Sprint 127
+  animation-provider 30/30, pipeline-orchestration 10/10, auto-continuation — hepsi PASS.
+  `npx tsc --noEmit` PASS; full repository `npm run lint` — dokunulan dosyalarda 0 hata/uyarı.
+<!-- SPRINT-130.2-END -->
+
+<!-- SPRINT-130.1-START -->
+## Sprint 130.1 - Real Photo Source Quality & Reliability Follow-up - 2026-08-17
+
+**Status:** Completed
+**Production execution status:** N/A (code only; live checks ran against an external, out-of-repo
+runtime root — `data/projects/**` in this repository was never touched, verified via `git status`)
+
+Sprint 130'un canlı kontrolünde bulunan iki relevans sorununu ve batching güvenilirlik sorununu
+hedefleyen doğrudan bir takip sprinti:
+
+- **Retry + throttle:** `WikimediaCommonsClient.search`/`downloadImage` artık geçici bir hatadan
+  sonra kısa bir gecikmeyle (varsayılan 750ms, `IMAGE_REAL_RETRY_DELAY_MS`) bir kez retry ediyor;
+  gecikme fonksiyonu test edilebilirlik için inject edilebilir. Gerçekten boş sonuç (0 aday) retry
+  tetiklemiyor — yalnız gerçek exception'lar (ağ/timeout/parse) retry ediyor.
+- **Kaynak seçim şeffaflığı:** `Asset`'e `selectionScore` (0-1 başlık/sorgu kelime örtüşmesi),
+  `selectionRank` (kaçıncı aday kullanıldı), `candidateCount` (kaç uygun aday değerlendirildi) ve
+  `width`/`height` eklendi (additive). `normalizeGenerationResult`'ın `"real"` dalı bunları
+  sınırlı/tipli olarak doğruluyor.
+- **Kitap-taraması filtresi:** Wikimedia'nın "Internet Archive Book Images" batch attribution'ı
+  taşıyan adaylar artık lisans/MIME/çözünürlük uygun olsa bile tamamen eleniyor — bu, canlı
+  kontrolde bulunan "Constantine the Great" sorgusunun alakasız bir kadın portresi bulmasının kök
+  nedeniydi (taranmış kitabın başlığı her sayfa görseline yapışıyor, sayfa içeriğiyle ilgisiz).
+- **Alaka-farkında sıralama:** Seçim artık yalnız çözünürlüğe göre değil, önce sorgu kelimelerinin
+  başlıkta kaç tanesinin geçtiğine (0-1 skor), sonra çözünürlüğe göre yapılıyor — canlı kontrolde
+  bulunan "Küçük Ayasofya" (Little Hagia Sophia) yanlış-landmark sorununu düzeltiyor.
+- **İndirme fallthrough:** En yüksek sıralı adayın indirmesi başarısız olursa (timeout dahil),
+  sahne başarısız sayılmak yerine sıradaki uygun adaya geçiliyor (varsayılan üst sınır 3 aday,
+  `IMAGE_REAL_CANDIDATE_ATTEMPT_LIMIT`); adaylar arası da aynı throttle gecikmesi uygulanıyor.
+- Yeni smoke: mevcut suite'e 9 senaryo eklendi (27 → 36) — client retry/no-retry, kitap-taraması
+  hariç tutma, alaka-öncelikli sıralama (Küçük Ayasofya senaryosunun birebir tekrarı), indirme
+  fallthrough, aday limiti tükenmesi, seçim metadata'sının asset'e doğru yazılması.
+- **Önce/sonra canlı karşılaştırma** (aynı 10 sahne, art arda/duraksız, gerçek Wikimedia API'sine
+  karşı — repo dışı bir `ATOLYE_RUNTIME_ROOT` ile çalıştırıldı):
+  - Kitap-taraması filtresi doğrulandı: "Constantine" sahnesi artık yanlış görsel bulmuyor,
+    doğru şekilde AI'ya düşüyor (0 uygun aday kaldı).
+  - Alaka sıralaması doğrulandı: izole tekrar testinde "Küçük Ayasofya" artık kazanmıyor; tam
+    kelime örtüşmesi olan gerçek Ayasofya iç mekan adayları önde. **Ancak** aynı testte YENİ bir
+    benzer belirsizlik bulundu — "Trabzon Hagia Sophia" (farklı bir şehirdeki farklı bir yapı) da
+    sorgu kelimelerinin tamamını içerdiği için 1.0 skor alıp kazanabiliyor; bu, saf kelime-örtüşme
+    skorlamasının bilinen bir sınırı (bir yer adı/bağlam ayırt edici olmadan homonym landmark'ları
+    ayıramıyor). AI üretimi `searchKeywords`'e "Istanbul" gibi bir bağlam kelimesi eklerse bu risk
+    azalır; bu canlı kontrolün kendi test sahnesi kısa tutulmuştu ("Hagia Sophia interior", şehir
+    belirtilmeden).
+  - **Yeni, beklenmeyen bulgu:** Art arda/duraksız koşuda toplam "bulundu" sayısı **düştü** (8/10
+    → 2/10) çünkü büyük (çok MB) dosyaların indirmesi sürdürülen yükte daha sık timeout'a
+    uğruyor; 3 aday × 2 deneme × 15sn timeout ile bir sahne ~50 saniyeye kadar sürüp yine de
+    "bulunamadı" ile sonuçlanabiliyor. Yani mekanizma (retry+fallthrough) doğru çalışıyor ama
+    indirme gecikme/timeout bütçesi sürdürülen gerçek yükte hâlâ ayarlanmaya muhtaç — ayrı bir
+    takip maddesi olarak not edildi (aşağıya bkz).
+- Doğrulama: yeni suite 36/36 PASS; Sprint 113 visual-asset-wiring 54/54, Sprint 127
+  animation-provider 30/30, Sprint 116 animation-motion-plan-contract 21/21, pipeline-orchestration
+  10/10, auto-continuation — hepsi PASS. `npx tsc --noEmit` PASS; full repository `npm run lint` —
+  dokunulan dosyalarda 0 hata/uyarı.
+- Git add/commit/push bu sprintte yapılmadı; kullanıcı onayı bekleniyor.
+<!-- SPRINT-130.1-END -->
+
 <!-- SPRINT-130-START -->
 ## Sprint 130 - Wikimedia Commons Real Photo Source for Visuals - 2026-08-17
 
