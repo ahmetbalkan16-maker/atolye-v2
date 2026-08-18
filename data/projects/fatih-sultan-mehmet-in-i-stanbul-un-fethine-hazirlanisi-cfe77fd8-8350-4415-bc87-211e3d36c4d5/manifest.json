@@ -5,7 +5,7 @@
     "title": "Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5",
     "status": "assembly",
     "createdAt": "2026-07-15T12:05:09.729Z",
-    "updatedAt": "2026-08-17T04:55:33.750Z"
+    "updatedAt": "2026-08-08T19:18:56.398Z"
   },
   "projectId": "1ba3bebf-abe9-4b3c-9b4a-b9d238b98534",
   "slug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
@@ -127,42 +127,42 @@
       "key": "animation",
       "status": "completed",
       "fileName": "animation.json",
-      "updatedAt": "2026-08-17T04:55:33.318Z",
-      "startedAt": "2026-08-17T04:55:33.246Z",
-      "completedAt": "2026-08-17T04:55:33.318Z",
-      "durationMs": 72,
+      "updatedAt": "2026-07-17T19:59:47.163Z",
+      "startedAt": "2026-07-17T19:59:16.157Z",
+      "completedAt": "2026-07-17T19:59:47.163Z",
+      "durationMs": 31006,
       "attempts": {
-        "total": 2,
+        "total": 3,
         "retry": 0,
-        "lastAttemptAt": "2026-08-17T04:55:33.246Z",
+        "lastAttemptAt": "2026-07-17T19:59:16.157Z",
         "lastRunType": "resume"
       },
       "usage": {
         "provider": "openai",
         "model": "gpt-4.1-mini",
-        "operation": "animation-prompt",
+        "operation": "animation-motion-plan-scene-6",
         "status": "success",
         "fallbackUsed": false,
-        "requestCount": 6,
-        "durationMs": 3087,
-        "promptTokens": 420,
-        "completionTokens": 219,
-        "totalTokens": 639,
-        "updatedAt": "2026-07-15T19:33:08.316Z"
+        "requestCount": 25,
+        "durationMs": 1445,
+        "promptTokens": 588,
+        "completionTokens": 87,
+        "totalTokens": 675,
+        "updatedAt": "2026-07-17T19:59:46.698Z"
       }
     },
     "video": {
       "key": "video",
       "status": "completed",
       "fileName": "video.json",
-      "updatedAt": "2026-08-17T04:55:33.472Z",
-      "startedAt": "2026-08-17T04:55:33.412Z",
-      "completedAt": "2026-08-17T04:55:33.472Z",
-      "durationMs": 60,
+      "updatedAt": "2026-07-17T20:00:09.653Z",
+      "startedAt": "2026-07-17T19:59:47.396Z",
+      "completedAt": "2026-07-17T20:00:09.653Z",
+      "durationMs": 22257,
       "attempts": {
         "total": 1,
         "retry": 0,
-        "lastAttemptAt": "2026-08-17T04:55:33.412Z",
+        "lastAttemptAt": "2026-07-17T19:59:47.396Z",
         "lastRunType": "resume"
       }
     },
@@ -170,30 +170,56 @@
       "key": "audio",
       "status": "completed",
       "fileName": "audio.json",
-      "updatedAt": "2026-08-17T04:55:33.635Z",
-      "startedAt": "2026-08-17T04:55:33.564Z",
-      "completedAt": "2026-08-17T04:55:33.635Z",
-      "durationMs": 71,
+      "updatedAt": "2026-08-08T12:49:56.372Z",
+      "startedAt": "2026-08-08T12:48:56.768Z",
+      "completedAt": "2026-08-08T12:49:56.372Z",
+      "durationMs": 59604,
       "attempts": {
-        "total": 1,
+        "total": 4,
         "retry": 0,
-        "lastAttemptAt": "2026-08-17T04:55:33.564Z",
+        "lastAttemptAt": "2026-08-08T12:48:56.768Z",
         "lastRunType": "resume"
+      },
+      "usage": {
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "operation": "audio-plan",
+        "status": "success",
+        "fallbackUsed": false,
+        "requestCount": 4,
+        "durationMs": 22799,
+        "promptTokens": 1983,
+        "completionTokens": 1642,
+        "totalTokens": 3625,
+        "updatedAt": "2026-08-08T12:49:22.658Z"
       }
     },
     "assembly": {
       "key": "assembly",
       "status": "completed",
       "fileName": "assembly.json",
-      "updatedAt": "2026-08-17T04:55:33.837Z",
-      "startedAt": "2026-08-17T04:55:33.764Z",
-      "completedAt": "2026-08-17T04:55:33.837Z",
-      "durationMs": 73,
+      "updatedAt": "2026-08-08T19:19:39.330Z",
+      "startedAt": "2026-08-08T19:18:56.447Z",
+      "completedAt": "2026-08-08T19:19:39.330Z",
+      "durationMs": 42883,
       "attempts": {
-        "total": 1,
+        "total": 2,
         "retry": 0,
-        "lastAttemptAt": "2026-08-17T04:55:33.764Z",
+        "lastAttemptAt": "2026-08-08T19:18:56.447Z",
         "lastRunType": "resume"
+      },
+      "usage": {
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "operation": "assembly-plan",
+        "status": "success",
+        "fallbackUsed": false,
+        "requestCount": 2,
+        "durationMs": 18354,
+        "promptTokens": 8198,
+        "completionTokens": 1447,
+        "totalTokens": 9645,
+        "updatedAt": "2026-08-08T19:19:17.143Z"
       }
     },
     "thumbnail": {
@@ -218,5 +244,5 @@
     }
   },
   "createdAt": "2026-07-15T12:05:09.729Z",
-  "updatedAt": "2026-08-17T04:55:33.837Z"
+  "updatedAt": "2026-08-08T19:19:39.330Z"
 }

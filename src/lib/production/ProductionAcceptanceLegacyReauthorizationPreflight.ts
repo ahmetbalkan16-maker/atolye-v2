@@ -55,6 +55,8 @@ const EXCLUDED_ROOT_ENTRIES = new Set([
   "pipeline-history.json",
   "ai-usage.json",
   "production-execution",
+  ".pipeline-jobs.lock",
+  ".pipeline-jobs.lock-gate",
 ]);
 
 export interface LegacyMarkerV2Value {

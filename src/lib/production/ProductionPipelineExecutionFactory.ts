@@ -81,6 +81,7 @@ import { productionAcceptanceProviderCapabilitiesForStage,
 import type { ProductionWorkerLifecycle } from "./ProductionWorkerLifecycle";
 import {
   createProductionDurableAttemptLineageBindingError,
+  productionDurableAttemptLineageBindingInvalidCode,
   type ProductionDurableAttemptLineageBoundary,
 } from "./ProductionDurableAttemptLineageBoundary";
 
@@ -259,7 +260,13 @@ export async function prepareProductionPipelineExecution(
         currentJob: job ?? undefined,
         projectSlug: context.projectSlug, stage: context.stage, runType: context.runType });
       await assertReconciledRetryLineageBinding(adapter, retryAdmission);
-    } catch {
+    } catch (error) {
+      if (
+        error instanceof ProductionPipelineDurableExecutionError &&
+        error.code === productionDurableAttemptLineageBindingInvalidCode
+      ) {
+        throw error;
+      }
       throw new ProductionPipelineDurableExecutionError(
         "Pipeline retry immutable admission binding is invalid.",
         "PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED",
@@ -613,9 +620,14 @@ async function assertReconciledRetryLineageBinding(
     if (record || claim || attempt) throw new Error("retry lineage unexpectedly exists");
     return;
   }
-  await readProductionCanonicalTerminalDurableLineage(
-    adapter, identity, expected.reservationId, expected,
-  );
+  try {
+    await readProductionCanonicalTerminalDurableLineage(
+      adapter, identity, expected.reservationId, expected,
+    );
+  } catch (error) {
+    if (error instanceof ProductionPipelineDurableExecutionError) throw error;
+    throw createProductionDurableAttemptLineageBindingError("version-contiguity");
+  }
 }
 
 async function readLatestVersionedBinding(

@@ -148,50 +148,138 @@
       "recordedAt": "2026-07-15T19:33:11.618Z"
     },
     {
-      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-animation-completed-2026-08-17T04:55:33.329Z",
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-animation-failed-2026-07-15T20:20:16.682Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-animation",
+      "stage": "animation",
+      "status": "failed",
+      "startedAt": "2026-07-15T20:19:55.661Z",
+      "completedAt": "2026-07-15T20:20:16.682Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-07-15T20:20:16.682Z",
+      "recordedAt": "2026-07-15T20:20:16.682Z",
+      "errorCode": "ANIMATION_RESPONSE_SCHEMA_INVALID",
+      "errorEvidence": {
+        "kind": "animation-motion-plan-error",
+        "code": "ANIMATION_RESPONSE_SCHEMA_INVALID",
+        "sceneId": 1,
+        "phase": "provider-response",
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "reason": "ANIMATION_RESPONSE_SCHEMA_INVALID",
+        "finishReason": "stop",
+        "responseLength": 360,
+        "promptTokens": 282,
+        "completionTokens": 129,
+        "totalTokens": 411,
+        "durationMs": 2333,
+        "retryCount": 0
+      }
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-animation-completed-2026-07-17T19:59:47.197Z",
       "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-animation",
       "stage": "animation",
       "status": "completed",
-      "startedAt": "2026-08-17T04:55:33.258Z",
-      "completedAt": "2026-08-17T04:55:33.329Z",
+      "startedAt": "2026-07-17T19:59:16.195Z",
+      "completedAt": "2026-07-17T19:59:47.197Z",
       "jobCreatedAt": "2026-07-15T12:05:09.729Z",
-      "jobUpdatedAt": "2026-08-17T04:55:33.329Z",
-      "recordedAt": "2026-08-17T04:55:33.329Z"
+      "jobUpdatedAt": "2026-07-17T19:59:47.197Z",
+      "recordedAt": "2026-07-17T19:59:47.197Z"
     },
     {
-      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-video-completed-2026-08-17T04:55:33.486Z",
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-video-completed-2026-07-17T20:00:09.691Z",
       "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-video",
       "stage": "video",
       "status": "completed",
-      "startedAt": "2026-08-17T04:55:33.424Z",
-      "completedAt": "2026-08-17T04:55:33.486Z",
+      "startedAt": "2026-07-17T19:59:47.430Z",
+      "completedAt": "2026-07-17T20:00:09.691Z",
       "jobCreatedAt": "2026-07-15T12:05:09.729Z",
-      "jobUpdatedAt": "2026-08-17T04:55:33.486Z",
-      "recordedAt": "2026-08-17T04:55:33.486Z"
+      "jobUpdatedAt": "2026-07-17T20:00:09.691Z",
+      "recordedAt": "2026-07-17T20:00:09.691Z"
     },
     {
-      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-audio-completed-2026-08-17T04:55:33.645Z",
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-audio-failed-2026-07-17T20:00:23.326Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-audio",
+      "stage": "audio",
+      "status": "failed",
+      "startedAt": "2026-07-17T20:00:09.948Z",
+      "completedAt": "2026-07-17T20:00:23.326Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-07-17T20:00:23.326Z",
+      "recordedAt": "2026-07-17T20:00:23.326Z",
+      "errorCode": "GENERATION_FALLBACK_BLOCKED"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-audio-failed-2026-07-17T20:15:21.287Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-audio",
+      "stage": "audio",
+      "status": "failed",
+      "startedAt": "2026-07-17T20:14:58.305Z",
+      "completedAt": "2026-07-17T20:15:21.287Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-07-17T20:15:21.287Z",
+      "recordedAt": "2026-07-17T20:15:21.287Z",
+      "errorCode": "AUDIO_ASSET_GENERATION_FAILED"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-audio-failed-2026-07-30T20:57:23.563Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-audio",
+      "stage": "audio",
+      "status": "failed",
+      "startedAt": "2026-07-30T20:57:04.697Z",
+      "completedAt": "2026-07-30T20:57:23.563Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-07-30T20:57:23.563Z",
+      "recordedAt": "2026-07-30T20:57:23.563Z",
+      "errorCode": "AUDIO_ASSET_GENERATION_FAILED",
+      "errorEvidence": {
+        "kind": "audio-asset-error",
+        "code": "AUDIO_ASSET_GENERATION_FAILED",
+        "rootCode": "AUDIO_WAV_INVALID",
+        "phase": "validation",
+        "target": "section",
+        "chapterId": 1,
+        "provider": "openai",
+        "model": "tts-1",
+        "responseBytes": 1163444,
+        "maximumResponseBytes": 67108864
+      }
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-audio-completed-2026-08-08T12:49:56.436Z",
       "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-audio",
       "stage": "audio",
       "status": "completed",
-      "startedAt": "2026-08-17T04:55:33.576Z",
-      "completedAt": "2026-08-17T04:55:33.645Z",
+      "startedAt": "2026-08-08T12:48:56.826Z",
+      "completedAt": "2026-08-08T12:49:56.436Z",
       "jobCreatedAt": "2026-07-15T12:05:09.729Z",
-      "jobUpdatedAt": "2026-08-17T04:55:33.645Z",
-      "recordedAt": "2026-08-17T04:55:33.645Z"
+      "jobUpdatedAt": "2026-08-08T12:49:56.436Z",
+      "recordedAt": "2026-08-08T12:49:56.436Z"
     },
     {
-      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-assembly-completed-2026-08-17T04:55:33.850Z",
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-assembly-failed-2026-08-08T12:50:17.499Z",
+      "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-assembly",
+      "stage": "assembly",
+      "status": "failed",
+      "startedAt": "2026-08-08T12:49:57.700Z",
+      "completedAt": "2026-08-08T12:50:17.499Z",
+      "jobCreatedAt": "2026-07-15T12:05:09.729Z",
+      "jobUpdatedAt": "2026-08-08T12:50:17.499Z",
+      "recordedAt": "2026-08-08T12:50:17.499Z",
+      "errorCode": "GENERATION_FALLBACK_BLOCKED"
+    },
+    {
+      "id": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-assembly-completed-2026-08-08T19:19:39.377Z",
       "jobId": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5-assembly",
       "stage": "assembly",
       "status": "completed",
-      "startedAt": "2026-08-17T04:55:33.776Z",
-      "completedAt": "2026-08-17T04:55:33.850Z",
+      "startedAt": "2026-08-08T19:18:56.485Z",
+      "completedAt": "2026-08-08T19:19:39.377Z",
       "jobCreatedAt": "2026-07-15T12:05:09.729Z",
-      "jobUpdatedAt": "2026-08-17T04:55:33.850Z",
-      "recordedAt": "2026-08-17T04:55:33.850Z"
+      "jobUpdatedAt": "2026-08-08T19:19:39.377Z",
+      "recordedAt": "2026-08-08T19:19:39.377Z"
     }
   ],
   "createdAt": "2026-07-15T12:05:48.020Z",
-  "updatedAt": "2026-08-17T04:55:33.850Z"
+  "updatedAt": "2026-08-08T19:19:39.377Z"
 }

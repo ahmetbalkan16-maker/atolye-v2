@@ -726,6 +726,7 @@ async function createFailedPublicResearchFixture(suffix: string) {
     duration: 90 }], createdAt: item.marker.createdAt };
   fs.writeFileSync(path.join(item.folder, "project.json"), JSON.stringify(state.project));
   await ProjectManager.createManifest(state.project);
+  await PipelineJobManager.listJobs(item.slug);
   await ProjectManager.saveScript(item.slug, state.script);
   await ProjectManager.saveScenes(item.slug, state.scenes);
   const hiddenMarker = path.join(root, `${item.slug}-initial-failure-marker.json`);
@@ -871,8 +872,22 @@ async function createPublicResumeFixture(suffix: string) {
     duration: 90 }], createdAt: item.marker.createdAt };
   fs.writeFileSync(path.join(item.folder, "project.json"), JSON.stringify(state.project));
   await ProjectManager.createManifest(state.project);
-  await ProjectManager.saveScript(item.slug, state.script);
-  await ProjectManager.saveScenes(item.slug, state.scenes);
+  assert.equal(await PipelineJobManager.startStage(item.slug, "script", async () => {
+    await ProjectManager.updateStatus(item.slug, "script");
+    await ProjectManager.updatePackageStatus(item.slug, "script", "running", undefined,
+      { runType: "initial" });
+  }), true);
+  assert.equal(await PipelineJobManager.persistStageSuccess(item.slug, "script", async () => {
+    await ProjectManager.saveScript(item.slug, state.script);
+  }), true);
+  assert.equal(await PipelineJobManager.startStage(item.slug, "scenes", async () => {
+    await ProjectManager.updateStatus(item.slug, "scenes");
+    await ProjectManager.updatePackageStatus(item.slug, "scenes", "running", undefined,
+      { runType: "initial" });
+  }), true);
+  assert.equal(await PipelineJobManager.persistStageSuccess(item.slug, "scenes", async () => {
+    await ProjectManager.saveScenes(item.slug, state.scenes);
+  }), true);
   await publishCapabilityFixture(item);
   return { item, state };
 }
@@ -894,8 +909,32 @@ async function createFailedPublicAudioResumeFixture(suffix: string) {
     duration: 90 }], createdAt: item.marker.createdAt };
   fs.writeFileSync(path.join(item.folder, "project.json"), JSON.stringify(state.project));
   await ProjectManager.createManifest(state.project);
-  await ProjectManager.saveScript(item.slug, state.script);
-  await ProjectManager.saveScenes(item.slug, state.scenes);
+  // Çıplak updatePackageStatus(..., "running", ...) yetersiz: yalnızca manifest.json'a yazar,
+  // pipeline-jobs.json / pipeline-history.json'a dokunmaz — sonuçta attempts.total ilerlerken
+  // terminalEvents boş kalır ve manifestExecutionTotalToAttemptIndex'teki expectedTerminalCount
+  // invariantı (PipelineJobManager.ts) çöker. Gerçek akışta runStageLegacy (PipelineRunner.ts)
+  // bu "running" yazımını PipelineJobManager.startStage'in persist callback'i olarak verir —
+  // manifest yazımı ve iş kaydının "running"e geçişi TEK atomik çağrıda birlikte olur. Aynı
+  // şekilde başarı tarafında da PipelineStageExecutor.persistStageResult, saveScript/saveScenes'i
+  // PipelineJobManager.persistStageSuccess'in persist callback'i olarak verir; manifest'e
+  // "completed" yazımı ve iş kaydının completed'a geçip terminal history event üretmesi de tek
+  // atomik çağrıda birlikte olur. Aşağıda bu iki gerçek-akış çağrısını birebir aynalıyoruz.
+  assert.equal(await PipelineJobManager.startStage(item.slug, "script", async () => {
+    await ProjectManager.updateStatus(item.slug, "script");
+    await ProjectManager.updatePackageStatus(item.slug, "script", "running", undefined,
+      { runType: "initial" });
+  }), true);
+  assert.equal(await PipelineJobManager.persistStageSuccess(item.slug, "script", async () => {
+    await ProjectManager.saveScript(item.slug, state.script);
+  }), true);
+  assert.equal(await PipelineJobManager.startStage(item.slug, "scenes", async () => {
+    await ProjectManager.updateStatus(item.slug, "scenes");
+    await ProjectManager.updatePackageStatus(item.slug, "scenes", "running", undefined,
+      { runType: "initial" });
+  }), true);
+  assert.equal(await PipelineJobManager.persistStageSuccess(item.slug, "scenes", async () => {
+    await ProjectManager.saveScenes(item.slug, state.scenes);
+  }), true);
   const hiddenMarker = path.join(root, `${item.slug}-disabled-marker.json`);
   fs.renameSync(item.markerPath, hiddenMarker);
   const originalAIProvider = AIRouter.prototype.getProvider;
@@ -911,7 +950,7 @@ async function createFailedPublicAudioResumeFixture(suffix: string) {
   try {
     await assert.rejects(PipelineRunner.resume(item.slug),
       (error) => error instanceof ProductionPipelineDurableExecutionError &&
-        error.reasonCode === "WORKER_EXECUTION_FAILED");
+        error.reasonCode === "AUDIO_ASSET_GENERATION_FAILED");
   } finally {
     AIRouter.prototype.getProvider = originalAIProvider;
     AudioProviderRouter.getProvider = originalAudioProvider;
@@ -2147,7 +2186,8 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
     const provider = researchProvider(item.marker.topic, () => { providerCalls += 1; });
     await runCanonicalRunnerResearchStage(item.slug, (capability, identity, selection) =>
         PipelineStageExecutor.execute(item.slug, "research", state,
-          { aiProvider: provider }, capability, identity, identity.runType, selection),
+          { aiProvider: provider }, capability, identity, identity.runType, selection,
+          canonicalRuntime.runtimeStorageContext),
     { aiProvider: provider });
     assert.equal(providerCalls, 1);
   });
@@ -2222,7 +2262,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
           assert.equal(record.operation, identity.operation);
           assert.ok(capability);
           return PipelineStageExecutor.execute(item.slug, "research", state,
-            { aiProvider: provider }, capability, identity, identity.runType, selection);
+            { aiProvider: provider }, capability, identity, identity.runType, selection, canonicalRuntime.runtimeStorageContext);
         }, { aiProvider: provider }));
         await attemptPersisted;
         assert.deepEqual(events, ["durable-entry", "durable-attempt-persisted"]);
@@ -2238,7 +2278,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
         "recovery-validation-passed", "recovery-validation-passed", "capability-issued",
         "revalidation-entered", "physical-store-identity-verified",
         "recovery-validation-passed", "recovery-validation-passed",
-        "provider-dispatch-entered", "provider-entered"]);
+        "capability-consumed", "provider-dispatch-entered", "provider-entered"]);
       assert.equal(providerCalls, 1);
     });
 
@@ -2263,7 +2303,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
     }, () => runCanonicalRunnerResearchStage(item.slug, (capability, identity, selection) => {
       admittedIdentity = identity;
       return PipelineStageExecutor.execute(item.slug, "research", state,
-        { aiProvider: provider }, capability, identity, identity.runType, selection);
+        { aiProvider: provider }, capability, identity, identity.runType, selection, canonicalRuntime.runtimeStorageContext);
     }, { aiProvider: provider }));
     assert.ok(admittedIdentity);
     assert.notEqual(admittedIdentity.requestId, "poison-request");
@@ -2300,7 +2340,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
     await assert.rejects(runCanonicalRunnerResearchStage(item.slug, (_capability, identity, selection) =>
         PipelineStageExecutor.execute(item.slug, "research", state,
           { aiProvider: researchProvider(item.marker.topic, () => { providerCalls += 1; }) },
-          undefined, identity, identity.runType, selection)
+          undefined, identity, identity.runType, selection, canonicalRuntime.runtimeStorageContext)
           .catch((error) => { gateError = error; throw error; })));
     assert.ok(gateError instanceof ProductionAcceptanceLegacyReauthorizationError);
     assert.equal(gateError.code, "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_MISSING");
@@ -2331,7 +2371,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
         const mismatchedIdentity = Object.freeze({ ...identity, [mismatch.field]: mismatch.value });
         await assert.rejects(PipelineStageExecutor.execute(item.slug, "research", state,
           { aiProvider: researchProvider(item.marker.topic, () => { providerCalls += 1; }) },
-          capability, mismatchedIdentity, mismatchedIdentity.runType, selection),
+          capability, mismatchedIdentity, mismatchedIdentity.runType, selection, canonicalRuntime.runtimeStorageContext),
         (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
           error.code === mismatch.code);
         await assert.rejects(consumeProductionAcceptanceStageCapability(identity, capability),
@@ -2347,31 +2387,31 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
     runExecutorScopeDivergence({ suffix: "executor-project-divergence",
       execute: ({ item, state, capability, identity, trustedProvider }) =>
         PipelineStageExecutor.execute(`${item.slug}-foreign`, "research", state,
-          { aiProvider: trustedProvider }, capability, identity, identity.runType) }));
+          { aiProvider: trustedProvider }, capability, identity, identity.runType, undefined, canonicalRuntime.runtimeStorageContext) }));
 
   await scenario("original identity rejects a divergent executor stage", () =>
     runExecutorScopeDivergence({ suffix: "executor-stage-divergence",
       execute: ({ item, state, capability, identity, trustedProvider }) =>
         PipelineStageExecutor.execute(item.slug, "script", state,
-          { aiProvider: trustedProvider }, capability, identity, identity.runType) }));
+          { aiProvider: trustedProvider }, capability, identity, identity.runType, undefined, canonicalRuntime.runtimeStorageContext) }));
 
   await scenario("original identity rejects a different injected provider reference", () =>
     runExecutorScopeDivergence({ suffix: "executor-provider-reference-divergence",
       execute: ({ item, state, capability, identity, foreignProvider }) =>
         PipelineStageExecutor.execute(item.slug, "research", state,
-          { aiProvider: foreignProvider }, capability, identity, identity.runType) }));
+          { aiProvider: foreignProvider }, capability, identity, identity.runType, undefined, canonicalRuntime.runtimeStorageContext) }));
 
   await scenario("original identity rejects a divergent executor run type", () =>
     runExecutorScopeDivergence({ suffix: "executor-run-type-divergence",
       execute: ({ item, state, capability, identity, trustedProvider }) =>
         PipelineStageExecutor.execute(item.slug, "research", state,
-          { aiProvider: trustedProvider }, capability, identity, "retry") }));
+          { aiProvider: trustedProvider }, capability, identity, "retry", undefined, canonicalRuntime.runtimeStorageContext) }));
 
   await scenario("original identity rejects a divergent provider capability identifier", () =>
     runExecutorScopeDivergence({ suffix: "executor-provider-identifier-divergence",
       execute: ({ item, state, capability, identity, foreignProvider }) =>
         PipelineStageExecutor.execute(item.slug, "research", state,
-          { aiProvider: foreignProvider }, capability, identity, identity.runType) }));
+          { aiProvider: foreignProvider }, capability, identity, identity.runType, undefined, canonicalRuntime.runtimeStorageContext) }));
 
   await scenario("issued completed lease rejects coordinated durable lease mutation", () =>
     runCanonicalProviderGateFailure({
@@ -2438,7 +2478,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
       fs.renameSync(attempts, preserved);
       await assert.rejects(PipelineStageExecutor.execute(item.slug, "research", state,
         { aiProvider: provider },
-        capability, identity, identity.runType, selection),
+        capability, identity, identity.runType, selection, canonicalRuntime.runtimeStorageContext),
       (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
         error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_REQUIRED_ATTEMPT_STORE_MISSING");
       assert.equal(fs.statSync(preserved).isDirectory(), true);
@@ -2638,7 +2678,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
         mutable.read = async () => { throw new Error("caller read override"); };
         mutable.listKeys = async () => { throw new Error("caller list override"); };
         await PipelineStageExecutor.execute(item.slug, "research", state,
-          { aiProvider: provider }, capability, identity, identity.runType, providerSelection);
+          { aiProvider: provider }, capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext);
         assert.equal(providerCalls, 1);
       });
   });
@@ -2698,7 +2738,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
         executionFingerprint: "foreign-lifecycle-execution" }, async () => {});
       return PipelineStageExecutor.execute(item.slug, "research", state,
         { aiProvider: provider },
-        capability, identity, identity.runType, selection);
+        capability, identity, identity.runType, selection, canonicalRuntime.runtimeStorageContext);
     }, { aiProvider: provider }));
     assert.equal(providerCalls, 0);
   });
@@ -2717,7 +2757,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
     await assert.rejects(runWithProductionRuntimeOperationContext(issued.runtime, () =>
       PipelineStageExecutor.execute(issued.item.slug, "research", issued.state,
         { aiProvider: issued.provider },
-        issued.capability, issued.identity, issued.identity.runType, issued.providerSelection)),
+        issued.capability, issued.identity, issued.identity.runType, issued.providerSelection, canonicalRuntime.runtimeStorageContext)),
     (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
       error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_WORKER_LIFECYCLE_UNAVAILABLE");
     assert.equal(providerCalls, 0);
@@ -2740,7 +2780,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
         fs.writeFileSync(item.markerPath, JSON.stringify(marker));
         await assert.rejects(PipelineStageExecutor.execute(item.slug, "research", state,
           { aiProvider: provider },
-          capability, identity, identity.runType, providerSelection),
+          capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext),
         (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
           error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_STALE");
         await assert.rejects(consumeProductionAcceptanceStageCapability(identity, capability),
@@ -2760,7 +2800,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
         authority, researchExecutionScope(identity, { aiProvider: provider }));
       assert.ok(capability);
       await assert.rejects(PipelineStageExecutor.execute(item.slug, "research", state,
-        { aiProvider: provider }, capability, identity, identity.runType, providerSelection));
+        { aiProvider: provider }, capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext));
       assert.equal(providerCalls, 1);
       await assert.rejects(consumeProductionAcceptanceStageCapability(identity, capability),
         (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
@@ -2787,9 +2827,9 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
         authority, researchExecutionScope(identity, { aiProvider: provider }));
       assert.ok(capability);
       const first = PipelineStageExecutor.execute(item.slug, "research", state,
-        { aiProvider: provider }, capability, identity, identity.runType, providerSelection);
+        { aiProvider: provider }, capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext);
       const second = PipelineStageExecutor.execute(item.slug, "research", state,
-        { aiProvider: provider }, capability, identity, identity.runType, providerSelection);
+        { aiProvider: provider }, capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext);
       const settledPromise = Promise.allSettled([first, second]);
       await providerEntered;
       releaseProvider();
@@ -2830,10 +2870,10 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
         },
       }, async () => {
         const first = PipelineStageExecutor.execute(item.slug, "research", state,
-          { aiProvider: provider }, capability, identity, identity.runType, providerSelection);
+          { aiProvider: provider }, capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext);
         await revalidationEntered;
         const second = PipelineStageExecutor.execute(item.slug, "research", state,
-          { aiProvider: provider }, capability, identity, identity.runType, providerSelection);
+          { aiProvider: provider }, capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext);
         const outcomes = Promise.allSettled([first, second]);
         releaseRevalidation();
         return outcomes;
@@ -2881,7 +2921,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
           operation: "pipeline.stage.initial", executionFingerprint: issued.identity.executionFingerprint }, () =>
           PipelineStageExecutor.execute(issued.item.slug, "research", issued.state,
             { aiProvider: issued.provider },
-            issued.capability, issued.identity, issued.identity.runType, issued.providerSelection))),
+            issued.capability, issued.identity, issued.identity.runType, issued.providerSelection, canonicalRuntime.runtimeStorageContext))),
     (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
       error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_STALE");
     assert.equal(providerCalls, 0);
@@ -2905,7 +2945,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
           operation: "pipeline.stage.initial", executionFingerprint: "cross-execution" }, async () => {});
         await assert.rejects(PipelineStageExecutor.execute(item.slug, "research", state,
           { aiProvider: provider },
-          capability, identity, identity.runType, providerSelection),
+          capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext),
         (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
           error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_STALE");
         assert.equal(providerCalls, 0);
@@ -2928,7 +2968,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
       fs.writeFileSync(item.markerPath, JSON.stringify(marker));
       await assert.rejects(PipelineStageExecutor.execute(item.slug, "research", state,
         { aiProvider: provider },
-        capability, identity, identity.runType, providerSelection),
+        capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext),
       (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
         error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_STALE");
       assert.equal(providerCalls, 0);
@@ -2997,7 +3037,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
             candidateCapability: unknown) => assert.rejects(
             PipelineStageExecutor.execute(candidateIdentity.projectSlug, candidateIdentity.stage,
               state, { aiProvider: provider }, candidateCapability as never, candidateIdentity,
-              candidateIdentity.runType, providerSelection));
+              candidateIdentity.runType, providerSelection, canonicalRuntime.runtimeStorageContext));
           await rejected(identity, undefined);
           await rejected(identity, Object.freeze({}));
           const rejectedIdentity = async (candidateIdentity: ProductionAcceptanceStageExecutionIdentity) => {
@@ -3011,7 +3051,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
             await assert.rejects(PipelineStageExecutor.execute(
               candidateIdentity.projectSlug, candidateIdentity.stage, state,
               { aiProvider: provider }, probe, candidateIdentity, candidateIdentity.runType,
-              candidateSelection),
+              candidateSelection, canonicalRuntime.runtimeStorageContext),
             (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
               error.code ===
                 "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_IDENTITY_MISMATCH");
@@ -3036,10 +3076,10 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
             },
           }, async () => {
             const owner = PipelineStageExecutor.execute(item.slug, "research", state,
-              { aiProvider: provider }, capability, identity, identity.runType, providerSelection);
+              { aiProvider: provider }, capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext);
             await revalidationEntered;
             const loser = PipelineStageExecutor.execute(item.slug, "research", state,
-              { aiProvider: provider }, capability, identity, identity.runType, providerSelection);
+              { aiProvider: provider }, capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext);
             const concurrentPromise = Promise.allSettled([owner, loser]);
             await providerEntered;
             releaseProvider();
@@ -3054,7 +3094,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
           const restorePoison = poisonLatestRunningAttempt(item);
           try {
             await assert.rejects(PipelineStageExecutor.execute(item.slug, "research", state,
-              { aiProvider: provider }, staleCapability, identity, identity.runType, providerSelection),
+              { aiProvider: provider }, staleCapability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext),
             (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
               error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_DURABLE_RECORD_IDENTITY_CHANGED");
             assert.equal(providerCalls, 1);
@@ -3305,7 +3345,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
             Object.defineProperty(options, "aiProvider", { value: foreign, configurable: true });
           }
         } }, () => PipelineStageExecutor.execute(item.slug, "research", state,
-          options, capability, identity, identity.runType, providerSelection));
+          options, capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext));
         assert.equal(reads, 0);
         assert.equal(admittedCalls, 1);
         assert.equal(foreignCalls, 0);
@@ -3344,7 +3384,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
         prototype.listKeys = async () => { throw new Error("prototype list poisoned"); };
         try {
           await PipelineStageExecutor.execute(item.slug, "research", state,
-            { aiProvider: provider }, capability, identity, identity.runType, providerSelection);
+            { aiProvider: provider }, capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext);
         } finally { prototype.read = read; prototype.listKeys = listKeys; }
         assert.equal(providerCalls, 1);
       });
@@ -3364,7 +3404,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
         fs.renameSync(store, backup); fs.cpSync(backup, store, { recursive: true });
         try {
           await assert.rejects(PipelineStageExecutor.execute(item.slug, "research", state,
-            { aiProvider: provider }, capability, identity, identity.runType, providerSelection),
+            { aiProvider: provider }, capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext),
           (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
             error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_DURABLE_RECORD_IDENTITY_CHANGED");
           await assert.rejects(consumeProductionAcceptanceStageCapability(identity, capability),
@@ -3392,7 +3432,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
               authority, researchExecutionScope(identity, { aiProvider: provider }));
             assert.ok(capability);
             await assert.rejects(PipelineStageExecutor.execute(item.slug, "research", state,
-              { aiProvider: provider }, capability, identity, identity.runType, providerSelection),
+              { aiProvider: provider }, capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext),
             (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
               error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_DURABLE_RECORD_IDENTITY_CHANGED");
             await assert.rejects(consumeProductionAcceptanceStageCapability(identity, capability),
@@ -3428,7 +3468,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
               fs.renameSync(store, foreign); fs.renameSync(original, store); swappedBack = true;
             }
           } }, () => PipelineStageExecutor.execute(item.slug, "research", state,
-            { aiProvider: provider }, capability, identity, identity.runType, providerSelection)),
+            { aiProvider: provider }, capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext)),
           (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
             error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_DURABLE_RECORD_IDENTITY_CHANGED");
           await assert.rejects(consumeProductionAcceptanceStageCapability(identity, capability),
@@ -3489,7 +3529,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
                 }
               },
             }, () => PipelineStageExecutor.execute(item.slug, "research", state,
-              { aiProvider: provider }, capability, identity, identity.runType, providerSelection)),
+              { aiProvider: provider }, capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext)),
             (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
               error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_DURABLE_RECORD_IDENTITY_CHANGED");
             await assert.rejects(consumeProductionAcceptanceStageCapability(identity, capability),
@@ -3521,7 +3561,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
         await assert.rejects(runWithProductionPipelineExecutionInstrumentation({ onEvent: (event) => {
           if (event === "revalidation-entered") throw new Error("controlled instrumentation failure");
         } }, () => PipelineStageExecutor.execute(item.slug, "research", state,
-          { aiProvider: provider }, capability, identity, identity.runType, providerSelection)),
+          { aiProvider: provider }, capability, identity, identity.runType, providerSelection, canonicalRuntime.runtimeStorageContext)),
         (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
           error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_INVALIDATED");
         await assert.rejects(consumeProductionAcceptanceStageCapability(identity, capability),
@@ -4110,7 +4150,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
         if (event.startsWith("descriptor-")) secondUseDescriptorEvents += 1;
       } }, () => PipelineStageExecutor.execute(item.slug, "audio", fixtureResult.state,
         issuedSelection!.dispatchOptions as PipelineStageExecutionOptions,
-        issuedCapability as never, issuedIdentity!, issuedIdentity!.runType, issuedSelection)),
+        issuedCapability as never, issuedIdentity!, issuedIdentity!.runType, issuedSelection, canonicalRuntime.runtimeStorageContext)),
       (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
         error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_INVALIDATED");
       assert.equal(secondUseDescriptorEvents, 0);
@@ -4187,7 +4227,7 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
         if (event.startsWith("descriptor-")) secondUseDescriptorEvents += 1;
       } }, () => PipelineStageExecutor.execute(item.slug, "audio", publicResumeState,
         replaySelection.dispatchOptions as PipelineStageExecutionOptions,
-        replayCapability as never, replayIdentity, replayIdentity.runType, replaySelection)),
+        replayCapability as never, replayIdentity, replayIdentity.runType, replaySelection, canonicalRuntime.runtimeStorageContext)),
       (error) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
         error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_INVALIDATED");
       assert.equal(secondUseDescriptorEvents, 0); assert.equal(providerCalls, 0);

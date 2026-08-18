@@ -590,7 +590,9 @@ export class PipelineJobManager {
       trustedRootDirectory: `${ProjectReader.getProjectFolder(projectSlug)}/production-execution`,
       createRootDirectory: false,
     });
-    const durableKeys = await durableAdapter.listKeys("idempotency");
+    const durableKeys = await durableAdapter.listKeys("idempotency").catch(
+      () => ({ ok: false as const }),
+    );
     const hasDurableEvidence = durableKeys.ok && durableKeys.keys.length > 0;
     const jobs: PipelineJob[] = await Promise.all(Object.values(manifest.packages).map(
       async (packageManifest) => ({

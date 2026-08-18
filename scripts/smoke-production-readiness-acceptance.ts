@@ -405,6 +405,12 @@ async function verifyPackageOnlyPublish() {
       state.project.slug,
       "youtube",
       state,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      canonicalRuntime.runtimeStorageContext,
     );
     assert.equal(packageOnly, true);
     assert.equal(saveCalls, 1);
@@ -417,7 +423,7 @@ async function verifyPackageOnlyPublish() {
     assert.equal((await ProjectManager.getYouTubePublishRecoveryState(acceptanceProject.slug)).status, "missing");
 
     const resumedState = stageState(acceptanceProject);
-    await PipelineStageExecutor.execute(resumedState.project.slug, "youtube", resumedState);
+    await PipelineStageExecutor.execute(resumedState.project.slug, "youtube", resumedState, undefined, undefined, undefined, undefined, undefined, canonicalRuntime.runtimeStorageContext);
     assert.equal(saveCalls, 2);
     assert.equal(publishCalls, 0);
     assert.equal(markCalls, 0);
@@ -429,7 +435,7 @@ async function verifyPackageOnlyPublish() {
     const callsBeforeConfigurationChange = generateCalls;
     try {
       await assert.rejects(
-        () => PipelineStageExecutor.execute(resumedState.project.slug, "youtube", resumedState),
+        () => PipelineStageExecutor.execute(resumedState.project.slug, "youtube", resumedState, undefined, undefined, undefined, undefined, undefined, canonicalRuntime.runtimeStorageContext),
         (error) => error instanceof ProductionAcceptancePolicyError,
       );
       assert.equal(generateCalls, callsBeforeConfigurationChange);
@@ -439,7 +445,7 @@ async function verifyPackageOnlyPublish() {
     }
 
     const normalState = stageState();
-    await PipelineStageExecutor.execute(normalState.project.slug, "youtube", normalState);
+    await PipelineStageExecutor.execute(normalState.project.slug, "youtube", normalState, undefined, undefined, undefined, undefined, undefined, canonicalRuntime.runtimeStorageContext);
     assert.equal(saveCalls, 3);
     assert.equal(publishCalls, 1);
     assert.equal(markCalls, 1);

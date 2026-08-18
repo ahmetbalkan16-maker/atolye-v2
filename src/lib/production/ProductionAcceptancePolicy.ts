@@ -740,7 +740,7 @@ function stageExecutionIdentityMismatch(
     left.recordId !== right.recordId || left.reservationId !== right.reservationId ||
     left.claimId !== right.claimId ||
     left.executionFingerprint !== right.executionFingerprint ||
-    canonicalJson(left.regeneration) !== canonicalJson(right.regeneration) ||
+    canonicalJson(left.regeneration ?? null) !== canonicalJson(right.regeneration ?? null) ||
     left.durableAttemptRequired !== right.durableAttemptRequired
     ? "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_LEGACY_CAPABILITY_IDENTITY_MISMATCH"
     : undefined;
