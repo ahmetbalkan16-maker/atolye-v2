@@ -133,6 +133,41 @@ export async function reconcileFailedPipelineExecution(
     }
     return failure("PIPELINE_RETRY_DURABLE_STATE_MISSING", "durable:no-exact-lineage");
   }
+  if (!attemptAssessment.attempt && claimAssessment.claim && claimAssessment.claim.state === "active") {
+    if (claimAssessment.classification === "unbound-orphaned-claim" || claimAssessment.classification === "missing-linked-record") {
+      const abandon = await claims.abandonExecutionClaim({
+        claimId: claimAssessment.claim.identity.claimId,
+        workerId: claimAssessment.claim.identity.workerId,
+        workerSessionId: claimAssessment.claim.identity.workerSessionId,
+        leaseId: claimAssessment.claim.identity.leaseId,
+        expectedClaimVersion: claimAssessment.claim.claimVersion,
+        evaluatedAt,
+        reason: "coordination-recovery",
+      });
+      if (abandon.ok && abandon.claim) {
+        return success("PIPELINE_RETRY_RECONCILED", false, "claim:orphaned-abandoned", identity, {
+          state: "terminal",
+          operation: identity.core.attemptNumber === 0 ? "pipeline.stage.initial" : "pipeline.stage.retry",
+          durableOrdinal: job.attempts,
+          maxAttempts: 3,
+          reservationId: claimAssessment.claim.identity.reservationId,
+          workerId: claimAssessment.claim.identity.workerId,
+          workerSessionId: claimAssessment.claim.identity.workerSessionId,
+          recordVersion: recordRead.record?.recordVersion ?? 1,
+          reservationVersion: 1,
+          claimVersion: abandon.claim.claimVersion,
+          attemptVersion: 0,
+          leaseVersion: 0,
+          reservationIdentityFingerprint: claimAssessment.claim.identity.reservationId,
+          recordIntegrityFingerprint: recordRead.record?.integrity.fingerprint ?? "none",
+          recordIntegrityVersion: 1,
+          leaseIntegrityFingerprint: "none",
+          claimIntegrityFingerprint: abandon.claim.integrity.fingerprint,
+          attemptIntegrityFingerprint: "none",
+        });
+      }
+    }
+  }
   if (!recordRead.record || !attemptAssessment.attempt || !claimAssessment.claim) {
     return failure("PIPELINE_RETRY_DURABLE_STATE_MISSING", "durable:partial");
   }

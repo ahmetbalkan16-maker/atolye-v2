@@ -1,5 +1,25 @@
 ---
 
+<!-- SPRINT-129.39-START -->
+## Sprint 129.39 - Production Execution Claim Orphan Concurrency & Deadlock Remediation - 2026-08-18
+
+**Status:** Completed & Verified (137/137 PASS across suite + 13/13 PASS in claim orphan regression suite)
+**Production execution status:** N/A (Code and test remediation only; `npx tsc --noEmit` 0 errors)
+
+Atölye V2 Production Execution katmanında "claim persist → worker crash → permanent deadlock" zafiyeti çözüldü ve doğrulandı:
+
+- **Kök Neden:** `ProductionExecutionDurableClaim` katmanında active claim'ler için TTL/takeover değerlendirmesi eksikti; `activeClaimForRecord` expire olmuş reservation'a bağlı active claim'leri temizlemeden `CLAIM_ID_CONFLICT` veriyordu. Worker crash durumunda reservation TTL ve lease olmadan diske `active` olarak yazılmış claim permanent deadlock yaratabiliyordu.
+- **Güvenli Çözüm:**
+  1. `ProductionExecutionClaimRecoveryClassification` tip grubuna `"unbound-orphaned-claim"` eklendi.
+  2. `ProductionExecutionDurableClaim`: `evaluateExecutionClaimRecovery` metodu missing lease + expired reservation TTL olan active claim'leri `"unbound-orphaned-claim"` olarak sınıflandıracak şekilde güncellendi. `activeClaimForRecord` preflight kontrolünde `evaluatedAt` zaman damgası alarak `unbound-orphaned-claim` durumundaki claim'leri yok saydı; böylece Worker B `CLAIM_ID_CONFLICT` ile takılmadan preflight'ı geçip yeni claim alabilir hale getirildi.
+  3. `ProductionPipelineRetryReconciliation`: `reconcileFailedPipelineExecution` fonksiyonuna `noAttempt === true` durumunda `claims.abandonExecutionClaim({ reason: "coordination-recovery", ... })` çağrısı eklendi. `RecoveryBootstrap`'in `writeFree: true` kuralı korunarak yalnız retry reconciliation aşamasında yetkili abandoning yapılması sağlandı.
+  4. Fencing ve Tek-Aktif-Sahip Invariant Güvencesi: Abandoned olan eski claim (`v1 -> v2`, `state: "abandoned"`), eski Worker A'nın sonradan uyanıp `attempts.openExecutionAttempt()` yapmasını `ATTEMPT_CLAIM_NOT_ACTIVE` ve `ATTEMPT_STALE_WRITE` ile %100 engeller (split-brain/çifte provider execution imkansız).
+- **Test ve Doğrulama:**
+  - `scripts/smoke-sprint-129-39-claim-orphan-concurrency-recovery.ts` oluşturuldu ve 13/13 senaryo %100 PASS verdi.
+  - `npx tsc --noEmit` 0 hata ile tamamlandı.
+  - `smoke-sprint-129-28-production-acceptance-reauthorization.ts` 137/137 PASS sonucunu korudu.
+<!-- SPRINT-129.39-END -->
+
 <!-- SPRINT-130.2-START -->
 ## Sprint 130.2 - Real Photo Source Download Reliability & Latency Budget - 2026-08-17
 
