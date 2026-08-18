@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { AssetManager } from "@/lib/assets/AssetManager";
 import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
@@ -79,13 +80,24 @@ export class VisualAssetPipeline {
       projectSlug,
       projectId,
     );
-    validateNoExistingGeneratedImages(projectAssets, visualData.scenes);
+    validateNoExistingGeneratedImages(projectAssets, visualData.scenes, projectSlug);
 
     let aiFallbackProvider: ImageProvider | undefined;
     const getAiFallbackProvider = () =>
       aiFallbackProvider ?? (aiFallbackProvider = ImageProviderRouter.getProvider("openai"));
 
     for (const scene of visualData.scenes) {
+      const existingAsset = findValidGeneratedSceneAsset(
+        projectAssets,
+        scene.sceneId,
+        projectSlug,
+      );
+
+      if (existingAsset) {
+        // Reuse existing valid generated asset (0 provider calls)
+        continue;
+      }
+
       // Overrides only apply when the batch provider is "real" — otherwise there is no
       // real-photo attempt to skip or force, and honoring them would risk an unexpected
       // real API dispatch in a mock/openai-configured environment.
@@ -196,15 +208,48 @@ export class VisualAssetPipeline {
   }
 }
 
+function findValidGeneratedSceneAsset(
+  assets: ProjectAssets,
+  sceneId: number,
+  projectSlug: string,
+): Asset | null {
+  const matchingAsset = assets.assets.find(
+    (asset) =>
+      asset.type === "image" &&
+      asset.status === "generated" &&
+      asset.sceneId === sceneId,
+  );
+
+  if (!matchingAsset) {
+    return null;
+  }
+
+  if (matchingAsset.provider === "mock") {
+    return matchingAsset;
+  }
+
+  if (matchingAsset.filePath && fs.existsSync(matchingAsset.filePath)) {
+    return matchingAsset;
+  }
+
+  return null;
+}
+
 function validateNoExistingGeneratedImages(
   assets: ProjectAssets,
   scenes: VisualData["scenes"],
+  projectSlug: string,
 ) {
-  const plannedSceneIds = new Set(scenes.map((scene) => scene.sceneId));
-  if (assets.assets.some((asset) =>
-    asset.type === "image" && asset.status === "generated" &&
-    asset.sceneId !== undefined && plannedSceneIds.has(asset.sceneId)
-  )) throw new VisualAssetGenerationError();
+  const plannedSceneIds = scenes.map((scene) => scene.sceneId);
+  const allScenesGenerated =
+    plannedSceneIds.length > 0 &&
+    plannedSceneIds.every((sceneId) =>
+      Boolean(findValidGeneratedSceneAsset(assets, sceneId, projectSlug)),
+    );
+
+  if (allScenesGenerated) {
+    throw new VisualAssetGenerationError();
+  }
 }
 
 function normalizeGenerationResult(
