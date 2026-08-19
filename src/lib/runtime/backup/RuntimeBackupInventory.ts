@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { isAudioCompensationJournalStagingPartialAtProjectPath } from "@/lib/audio/AudioCompensationStore";
 import {
   assertPathContained,
   getLogicalProjectIdentity,
@@ -244,6 +245,9 @@ function walkRuntimeTree(
       throw new Error("Runtime backup source contains an unsupported path.");
     }
     const relativePath = relativePosix(projectsRoot, absolutePath);
+    if (isAudioCompensationJournalStagingPartialAtProjectPath(relativePath)) {
+      continue;
+    }
     validateRuntimeBackupRelativePath(relativePath, pathPolicyVersion);
     const hash = hashStableRuntimeFile(absolutePath, relativePath, hooks);
     const projectSlug = inferProjectSlug(relativePath);

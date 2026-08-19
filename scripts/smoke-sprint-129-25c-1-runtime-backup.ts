@@ -43,6 +43,7 @@ import {
 import {
   bootstrapTestRuntimeBackupStorageAuthority,
 } from "../src/lib/runtime/backup/RuntimeBackupAuthority";
+import { isAudioCompensationJournalStagingPartialAtProjectPath } from "../src/lib/audio/AudioCompensationStore";
 import { verifyRuntimeBackup } from "../src/lib/runtime/backup/RuntimeBackupVerifier";
 import { collectRuntimeTrackingInventory } from "./lib/runtime-tracking-inventory";
 
@@ -1204,6 +1205,161 @@ async function main() {
       } finally {
         fs.rmSync(projectRoot, { recursive: true, force: true });
         fs.rmSync(shortRoot, { recursive: true, force: true });
+      }
+    });
+
+    await scenario("audio-compensation journal-staging partial files are excluded from backup while permanent records and the general length ceiling stay enforced", () => {
+      // A synthetic-but-realistic slug, shorter than the real production slug
+      // specifically so the *permanent* compensation records stay under the
+      // 220-char ceiling while the transient .audio-journal-staging/*.partial
+      // files this fix excludes comfortably exceed it. This isolates the
+      // exclusion's effect from the real project's own separate, unrelated
+      // over-length permanent-record path (record/publication-reservation.json
+      // is 224 chars under the real 92-char production slug — a distinct,
+      // out-of-scope finding, not something this fix touches).
+      const slug = "p".repeat(50);
+      const ref = "audio-comp-11111111-2222-4333-8444-555555555555";
+      const partialSuffix = "11111111-2222-4333-8444-555555555555";
+      const workspaceRoot = path.join(
+        fixtureProjects, slug, "production-execution", "audio-compensation-cleanup", ref,
+      );
+      const permanentFiles = {
+        publicationStaging: path.join(workspaceRoot, "publication-staging.wav"),
+        receipt: path.join(workspaceRoot, "record", "receipt.json"),
+        publication: path.join(workspaceRoot, "record", "publication.json"),
+        publicationReservation: path.join(workspaceRoot, "record", "publication-reservation.json"),
+      };
+      const transientFiles = {
+        workspaceStaging: path.join(
+          workspaceRoot, ".audio-journal-staging", `workspace.json.${partialSuffix}.partial`,
+        ),
+        recordStaging: path.join(
+          workspaceRoot, "record", ".audio-journal-staging",
+          `publication-reservation.json.${partialSuffix}.partial`,
+        ),
+      };
+      // Negative control: a similarly long path that does NOT match the
+      // .audio-journal-staging/*.partial shape — proves the exclusion is
+      // narrowly scoped, not a general "skip long files" relaxation.
+      const unrelatedLongFile = path.join(
+        fixtureProjects, slug, "assets", "animations", `animation-${"a".repeat(150)}.json`,
+      );
+      const relativeToProjects = (value: string) =>
+        path.relative(fixtureProjects, value).split(path.sep).join("/");
+
+      assert.ok(
+        relativeToProjects(permanentFiles.publicationReservation).length <=
+          runtimeBackupPathLimits.relativePathUtf16,
+      );
+      assert.ok(
+        relativeToProjects(transientFiles.workspaceStaging).length >
+          runtimeBackupPathLimits.relativePathUtf16,
+      );
+      assert.ok(
+        relativeToProjects(transientFiles.recordStaging).length >
+          runtimeBackupPathLimits.relativePathUtf16,
+      );
+      assert.ok(
+        relativeToProjects(unrelatedLongFile).length > runtimeBackupPathLimits.relativePathUtf16,
+      );
+
+      assert.equal(
+        isAudioCompensationJournalStagingPartialAtProjectPath(
+          relativeToProjects(transientFiles.workspaceStaging)),
+        true,
+      );
+      assert.equal(
+        isAudioCompensationJournalStagingPartialAtProjectPath(
+          relativeToProjects(transientFiles.recordStaging)),
+        true,
+      );
+      assert.equal(
+        isAudioCompensationJournalStagingPartialAtProjectPath(
+          relativeToProjects(permanentFiles.publicationReservation)),
+        false,
+      );
+      // Directory-only or suffix-only matches must not be treated as staging.
+      assert.equal(
+        isAudioCompensationJournalStagingPartialAtProjectPath(
+          `${slug}/production-execution/audio-compensation-cleanup/${ref}/.audio-journal-staging/receipt.json`,
+        ),
+        false,
+      );
+      assert.equal(
+        isAudioCompensationJournalStagingPartialAtProjectPath(
+          `${slug}/production-execution/some-other-directory/${ref}/.audio-journal-staging/x.partial`,
+        ),
+        false,
+      );
+
+      // The general ceiling is untouched: an unrelated over-length path still
+      // fails the standalone validator.
+      assert.throws(() => validateRuntimeBackupRelativePath(relativeToProjects(unrelatedLongFile)));
+
+      for (const target of [
+        permanentFiles.publicationStaging, permanentFiles.receipt,
+        permanentFiles.publication, permanentFiles.publicationReservation,
+        transientFiles.workspaceStaging, transientFiles.recordStaging,
+      ]) {
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.writeFileSync(target, "{}");
+      }
+
+      try {
+        const inventory = collectRuntimeBackupInventory({
+          context: fixtureContext,
+          projectSlug: slug,
+          repositoryRoot: fixtureRepository,
+          now: () => fixedNow,
+        });
+        const inventoryRelativePaths = inventory.files.map((file) => file.relativePath);
+        assert.ok(inventoryRelativePaths.includes(relativeToProjects(permanentFiles.publicationStaging)));
+        assert.ok(inventoryRelativePaths.includes(relativeToProjects(permanentFiles.receipt)));
+        assert.ok(inventoryRelativePaths.includes(relativeToProjects(permanentFiles.publication)));
+        assert.ok(inventoryRelativePaths.includes(relativeToProjects(permanentFiles.publicationReservation)));
+        assert.equal(
+          inventoryRelativePaths.includes(relativeToProjects(transientFiles.workspaceStaging)), false,
+        );
+        assert.equal(
+          inventoryRelativePaths.includes(relativeToProjects(transientFiles.recordStaging)), false,
+        );
+
+        // The backup root itself must leave enough budget that the longest
+        // *materialized* (backupRoot + backups/<id>/payload/projects/...
+        // prefix) path for a permanent record stays comfortably under the
+        // 259-char materialization ceiling — independent of, and not looser
+        // than, the 220-char raw relativePath ceiling this scenario is
+        // about. A short backupId keeps that materialized-path budget
+        // predictable (it is not accounted for by the boundary-length helper
+        // below, which only budgets the shared payload/projects/... suffix).
+        const backupRoot = allocateBackupRootForPartialLength(
+          relativeToProjects(permanentFiles.publicationReservation), 250,
+        );
+        const backupAuthority = bootstrapTestRuntimeBackupStorageAuthority(fixtureContext, backupRoot);
+        try {
+          const created = createVerifiedRuntimeBackup({
+            authority: backupAuthority,
+            projectSlug: slug,
+          }, { backupId: "b" });
+          assert.equal(created.manifest.aggregateFingerprint, inventory.aggregateFingerprint);
+          const payloadRoot = path.join(created.backupDirectory, "payload", "projects");
+          assert.equal(
+            fs.existsSync(path.join(payloadRoot, ...relativeToProjects(permanentFiles.publicationReservation).split("/"))),
+            true,
+          );
+          assert.equal(
+            fs.existsSync(path.join(payloadRoot, ...relativeToProjects(transientFiles.workspaceStaging).split("/"))),
+            false,
+          );
+          assert.equal(
+            fs.existsSync(path.join(payloadRoot, ...relativeToProjects(transientFiles.recordStaging).split("/"))),
+            false,
+          );
+        } finally {
+          fs.rmSync(backupRoot, { recursive: true, force: true });
+        }
+      } finally {
+        fs.rmSync(path.join(fixtureProjects, slug), { recursive: true, force: true });
       }
     });
 

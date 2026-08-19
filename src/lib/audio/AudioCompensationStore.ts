@@ -1317,6 +1317,41 @@ function readRetirementPlan(
   return plan;
 }
 
+/**
+ * True when `compensationRelativePath` (a path relative to one compensation
+ * workspace, e.g. `.audio-journal-staging/workspace.json.<uuid>.partial` or
+ * `record/.audio-journal-staging/publication.json.<uuid>.partial`) is a
+ * crash-atomic journal staging file. These are always retirement-eligible/
+ * ephemeral by this store's own classification (see below); durable
+ * compensation records (receipt.json, publication.json, tombstone,
+ * publication-staging.wav, ...) never match this pattern.
+ */
+function isJournalStagingPartial(compensationRelativePath: string): boolean {
+  return new RegExp(`^${JOURNAL_STAGING_DIRECTORY.replace(".", "\\.")}[\\\\/][a-zA-Z0-9._-]+\\.partial$`)
+    .test(compensationRelativePath) ||
+    new RegExp(`^record[\\\\/]${JOURNAL_STAGING_DIRECTORY.replace(".", "\\.")}[\\\\/][a-zA-Z0-9._-]+\\.partial$`)
+      .test(compensationRelativePath);
+}
+
+/**
+ * Project-relative variant of `isJournalStagingPartial`, for callers (e.g. the
+ * runtime backup inventory walker) that only have a path relative to the
+ * project root, not to a specific compensation workspace. Matches
+ * `production-execution/audio-compensation-cleanup/<ref>/.audio-journal-staging/<name>.partial`
+ * and its `record/.audio-journal-staging/` variant.
+ */
+export function isAudioCompensationJournalStagingPartialAtProjectPath(
+  projectRelativePath: string,
+): boolean {
+  const segments = projectRelativePath.split("/");
+  const cleanupIndex = segments.findIndex(
+    (segment, index) =>
+      segment === CLEANUP_DIRECTORY && segments[index - 1] === "production-execution",
+  );
+  if (cleanupIndex === -1 || segments.length <= cleanupIndex + 2) return false;
+  return isJournalStagingPartial(segments.slice(cleanupIndex + 2).join("/"));
+}
+
 function safeRetirementRelativeFile(value: string): boolean {
   return value === WORKSPACE_FILE ||
     value === "temporary.wav" ||
@@ -1326,8 +1361,7 @@ function safeRetirementRelativeFile(value: string): boolean {
     value === path.join("record", PUBLICATION_RESERVATION_FILE) ||
     value === path.join("record", PUBLICATION_FILE) ||
     value === path.join("record", "tombstone") ||
-    new RegExp(`^${JOURNAL_STAGING_DIRECTORY.replace(".", "\\.")}[\\\\/][a-zA-Z0-9._-]+\\.partial$`).test(value) ||
-    new RegExp(`^record[\\\\/]${JOURNAL_STAGING_DIRECTORY.replace(".", "\\.")}[\\\\/][a-zA-Z0-9._-]+\\.partial$`).test(value) ||
+    isJournalStagingPartial(value) ||
     /^record[\\/]state-[0-9]{6}\.json$/.test(value) ||
     value === path.join("quarantine", "owned.wav");
 }
