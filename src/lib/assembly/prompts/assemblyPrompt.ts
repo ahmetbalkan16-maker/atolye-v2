@@ -49,6 +49,16 @@ export function createAssemblyPrompt(
     "- audioReference should use section-{chapterId}.",
     "- Preserve provided animationAssetId, videoAssetId, and audioAssetId references when available.",
     "- Use documentary cinematic editing language.",
+    "- Deliberately vary transitions between scenes; do not repeat the same transition type or " +
+      "phrasing back-to-back.",
+    '- Prefer "cut" for continuing the same visual flow, fast pacing, and battle/action or ' +
+      "rapid-succession moments.",
+    '- Prefer "fade"/"crossfade" for time skips, chapter or mood changes, and calm or reflective ' +
+      "moments.",
+    "- Do not use only cut or only fade/crossfade for the whole video; produce a realistic, " +
+      "context-appropriate mix.",
+    "- Use each chapter's transition field from the Script JSON as context, but make the final " +
+      "call at the assembly level.",
     "- render.status must be planned.",
     "Script JSON:",
     JSON.stringify(script),
