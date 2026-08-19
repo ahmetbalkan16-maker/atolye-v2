@@ -332,6 +332,24 @@ dogrulanmalidir.
 
 ---
 
+# AI MEMORY-019
+
+## Izole Ortam Kopyalamalarinda Guvenlik ve Inode/Dev Bagimliligi
+
+### Ogrenilen Ders
+
+`AudioCompensationStore` ve `AudioPublicationIntentStore` gibi anti-tamper güvenlik katmanları, ses dosyalarının fiziki disk kimliklerini (`inode`, `device`), SHA-256 hash'lerini ve aktif `ProductionRuntimeOperationContext` (`resolverBindingIdentity`, `operationId`, `bindingFingerprint`) imzalarını denetler.
+
+Dosyalar test veya POC amacıyla başka bir dizine kopyalandığında veya slug değiştirildiğinde, işletim sistemi seviyesinde yeni `dev`/`inode` değerleri oluşur ve kriptografik imzalar geçersiz kalır. Bu durum bir production pipeline hatası değil, güvenlik mekanizmasının doğal ve doğru bir koruma davranışıdır.
+
+Canlı production pipeline akışı (`PipelineRunner.run`) zaten tüm adımları yetkili bir `runWithProductionRuntimeOperationContext` altında yürütür ve dosyaları yerinde üreterek fiziki `dev`/`inode`/`sha256` kayıtlarıyla %100 uyumlu olarak mühürler.
+
+### Sonuc
+
+İzole scratch kopyalamalarında görülen `AudioPublicationIntentError` / `AudioCompensationStoreError` hataları için production kodlarında (`VideoAssemblyManager`, `AssemblyManager`, `AudioStorage` veya güvenlik katmanları) gereksiz refactor veya güvenlik gevşetmesi yapılmamalıdır. Canlı üretim akışı zaten doğru bağlam ve doğru fiziki kimlikle çalışmaktadır.
+
+---
+
 # Yeni Memory Ekleme
 
 Yeni önemli deneyimler bu belgeye sıradaki AI MEMORY numarası ile eklenmelidir.
@@ -339,3 +357,4 @@ Yeni önemli deneyimler bu belgeye sıradaki AI MEMORY numarası ile eklenmelidi
 Eski kayıtlar silinmemelidir.
 
 Bu belge Atölye V2'nin kurumsal hafızasıdır.
+

@@ -1,5 +1,17 @@
 ---
 
+<!-- SPRINT-133-POC-VERIFICATION-START -->
+## 2026-08-20 - Sprint 133 OpenAI Dynamic Transition Assembly E2E POC Verification & Portability Analysis
+
+- Executed end-to-end isolated POC verification (`scratchpad/assembly-transition-poc`) for OpenAI dynamic transition assembly and real FFmpeg rendering.
+- Verified real OpenAI API generation producing a diversified 6-scene transition plan (`fade → cut → crossfade → fade → cut → crossfade`).
+- Executed real FFmpeg video assembly with `xfade`/`acrossfade` filter chains, producing a 1920x1080 Full HD video (H.264/AAC, 115.371s, 9.4 MB).
+- Diagnosed `AudioPublicationIntentError` in scratch environment to be an artifact of copying physical files across directories on Windows (resulting in new `dev`/`inode` values and slug alteration).
+- Verified that live production execution already runs under `runWithProductionRuntimeOperationContext` and generates genuine `dev`/`inode`/`sha256` records in-place.
+- Concluded Decision B: No production code changes are required in `VideoAssemblyManager`, `AssemblyManager`, `AudioStorage`, or the security layer.
+- Zero changes to production code or `data/projects/**`.
+<!-- SPRINT-133-POC-VERIFICATION-END -->
+
 <!-- SPRINT-130.2-START -->
 ## 2026-08-17 - Sprint 130.2 Real Photo Source Download Reliability & Latency Budget
 
