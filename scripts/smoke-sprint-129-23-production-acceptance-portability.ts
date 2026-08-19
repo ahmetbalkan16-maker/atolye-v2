@@ -8,6 +8,7 @@ import { runProductionAcceptanceCommand } from
 import {
   createProductionAcceptanceMarkerV3,
   diagnoseProductionAcceptanceConfiguration,
+  isAuthenticProductionAcceptanceMarkerNotFoundError,
   productionAcceptanceConfigurationFingerprint,
   productionAcceptanceRequestFingerprint,
 } from "../src/lib/production/ProductionAcceptancePolicy";
@@ -212,6 +213,22 @@ async function main() {
         "--confirm-production-acceptance",
       ], dependencies);
       assert.equal(result.exitCode, 2);
+    });
+
+    await test("diagnose reports a distinct not-found code when no marker exists", async () => {
+      const missingTopic = "Never executed production acceptance diagnostics";
+      const missingRunId = randomUUID();
+      const missingSlug = createProductionAcceptanceProjectSlug(missingTopic, missingRunId);
+      assert.equal(await exists(ProjectReader.getProjectFolder(missingSlug)), false);
+      await assert.rejects(
+        diagnoseProductionAcceptanceConfiguration(missingSlug, environment),
+        (error) => isAuthenticProductionAcceptanceMarkerNotFoundError(error),
+      );
+      const result = await command(missingSlug, environment);
+      assert.equal(result.exitCode, 1);
+      assert.equal(result.report.success, false);
+      assert.equal(result.report.errorCode, "PRODUCTION_ACCEPTANCE_MARKER_NOT_FOUND");
+      assert.equal(await exists(ProjectReader.getProjectFolder(missingSlug)), false);
     });
   } finally {
     for (const folder of fixtureFolders) {

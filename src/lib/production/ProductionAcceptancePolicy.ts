@@ -196,6 +196,28 @@ export function isAuthenticProductionAcceptancePolicyError(
     Object.getPrototypeOf(value) === ProductionAcceptancePolicyError.prototype;
 }
 
+export class ProductionAcceptanceMarkerNotFoundError extends Error {
+  readonly code = "PRODUCTION_ACCEPTANCE_MARKER_NOT_FOUND";
+
+  constructor() {
+    super("Production acceptance marker not found.");
+    if (new.target === ProductionAcceptanceMarkerNotFoundError) {
+      authenticProductionAcceptanceMarkerNotFoundErrors.add(this);
+    }
+    this.name = "ProductionAcceptanceMarkerNotFoundError";
+    this.stack = undefined;
+  }
+}
+
+const authenticProductionAcceptanceMarkerNotFoundErrors = new WeakSet<object>();
+export function isAuthenticProductionAcceptanceMarkerNotFoundError(
+  value: unknown,
+): value is ProductionAcceptanceMarkerNotFoundError {
+  return typeof value === "object" && value !== null &&
+    authenticProductionAcceptanceMarkerNotFoundErrors.has(value) &&
+    Object.getPrototypeOf(value) === ProductionAcceptanceMarkerNotFoundError.prototype;
+}
+
 export async function createProductionAcceptanceMarker(
   projectSlug: string,
   runId: string,
@@ -778,6 +800,7 @@ export async function diagnoseProductionAcceptanceConfiguration(
 ): Promise<ProductionAcceptanceConfigurationDiagnostic> {
   if (!safeSlug(projectSlug)) throw new ProductionAcceptancePolicyError();
   const state = await ProjectReader.readJSONState<unknown>(projectSlug, MARKER_FILE);
+  if (state.status === "missing") throw new ProductionAcceptanceMarkerNotFoundError();
   if (
     state.status !== "parsed" ||
     !validMarker(state.value) ||

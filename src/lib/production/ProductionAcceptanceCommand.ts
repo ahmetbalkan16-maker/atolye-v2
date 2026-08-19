@@ -29,7 +29,10 @@ import {
   type LegacyReauthorizationPlan,
   type LegacyReauthorizationResult,
 } from "./ProductionAcceptanceLegacyReauthorizationService";
-import { isAuthenticProductionAcceptancePolicyError } from "./ProductionAcceptancePolicy";
+import {
+  isAuthenticProductionAcceptanceMarkerNotFoundError,
+  isAuthenticProductionAcceptancePolicyError,
+} from "./ProductionAcceptancePolicy";
 import { isAuthenticProductionAcceptanceLegacyReauthorizationError } from
   "./ProductionAcceptanceLegacyReauthorization";
 import { legacyReauthorizationErrorCodes } from
@@ -269,6 +272,9 @@ function trustedCommandErrorCode(mode: unknown, error: unknown): string | undefi
   if ((mode === "execute" || mode === "resume-finalize") &&
     isAuthenticProductionAcceptanceConfigurationChangedError(error)) {
     return "PRODUCTION_ACCEPTANCE_CONFIGURATION_CHANGED";
+  }
+  if (mode === "diagnose" && isAuthenticProductionAcceptanceMarkerNotFoundError(error)) {
+    return "PRODUCTION_ACCEPTANCE_MARKER_NOT_FOUND";
   }
   if ((mode === "execute" || mode === "resume-finalize" || mode === "diagnose") &&
     isAuthenticProductionAcceptancePolicyError(error)) {
