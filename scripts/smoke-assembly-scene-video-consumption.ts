@@ -169,7 +169,7 @@ class Runner implements VideoAssemblyProcessRunner {
   }
 }
 
-async function fixture(suffix: string) {
+async function fixture(suffix: string, transitions: readonly [string, string] = ["cut", "cut"]) {
   const slug = `${prefix}-${suffix}`;
   const project = await ProjectManager.createProject(slug);
   const animation: AnimationData = {
@@ -259,7 +259,7 @@ async function fixture(suffix: string) {
       sceneId, duration: "00:01", visualReference: `visual-${sceneId}`,
       animationAssetId: `animation-${sceneId}`, videoAssetId: `video-${sceneId}`,
       audioAssetId: `audio-${sceneId}`, audioReference: `section-${sceneId}`,
-      transition: "fade", cameraMovement: "none", effects: [],
+      transition: transitions[sceneId - 1], cameraMovement: "none", effects: [],
     })),
     totalDuration: "00:02", style: "documentary",
     render: { status: "planned", format: "mp4" }, createdAt: now,
@@ -304,6 +304,81 @@ async function run() {
       assert.ok(ffmpeg.args.includes("concat"));
       assert.ok(ffmpeg.args.includes("copy"));
       assert.equal(ffmpeg.args.some((arg) => arg.includes("assets/images")), false);
+    });
+
+    await scenario("fade transition renders a real xfade/acrossfade and drops the copy path", async () => {
+      const value = await fixture("fade-transition", ["cut", "fade"]);
+      // Real ffmpeg output is 2s - 0.4s blend = 1.6s (see the duration-check
+      // scenario below); the fake ffprobe response must match that.
+      const runner = new Runner({}, undefined, "1.6");
+      const result = await render(value, runner);
+      assert.equal(result.render?.status, "rendered");
+      const ffmpeg = runner.calls.find((call) => call.executable === process.env.FFMPEG_PATH)!;
+      const filterComplex = ffmpeg.args[ffmpeg.args.indexOf("-filter_complex") + 1];
+      assert.match(filterComplex, /xfade=transition=fadeblack:duration=/);
+      assert.match(filterComplex, /acrossfade=d=/);
+      assert.equal(ffmpeg.args.includes("copy"), false);
+      assert.ok(ffmpeg.args.includes("libx264"));
+    });
+
+    await scenario("fade transition duration check matches real xfade-shortened output, not the naive scene-duration sum", async () => {
+      const value = await fixture("fade-transition-duration", ["cut", "fade"]);
+      // Two 1s scenes with one fade junction blend to
+      // clamp(MAX_BLEND_SECONDS=0.5, 0.4*1, 0.4*1) = 0.4s of real ffmpeg
+      // xfade/acrossfade overlap (see blendSecondsFor), so a genuine ffmpeg
+      // run produces 2 - 0.4 = 1.6s, not the naive 1s+1s=2s scene-duration
+      // sum. The fake ffprobe response below stands in for that real,
+      // shortened output; before the expectedRenderedDuration fix this
+      // would have failed validateProbe's tolerance check against the
+      // naive 2s expectation.
+      const runner = new Runner({}, undefined, "1.6");
+      const result = await render(value, runner);
+      assert.equal(result.render?.status, "rendered");
+      const durationSeconds = result.render?.durationSeconds;
+      assert.equal(typeof durationSeconds, "number");
+      assert.ok(
+        Math.abs((durationSeconds as number) - 1.6) < 1e-6,
+        `expected durationSeconds ~1.6, got ${durationSeconds}`,
+      );
+    });
+
+    await scenario("crossfade transition renders a real dissolve, distinct from fade", async () => {
+      const value = await fixture("crossfade-transition", ["cut", "crossfade"]);
+      // Same 2s - 0.4s blend = 1.6s real output as the fade scenario above.
+      const runner = new Runner({}, undefined, "1.6");
+      await render(value, runner);
+      const ffmpeg = runner.calls.find((call) => call.executable === process.env.FFMPEG_PATH)!;
+      const filterComplex = ffmpeg.args[ffmpeg.args.indexOf("-filter_complex") + 1];
+      assert.match(filterComplex, /xfade=transition=fade:duration=/);
+      assert.doesNotMatch(filterComplex, /xfade=transition=fadeblack/);
+      assert.equal(ffmpeg.args.includes("copy"), false);
+    });
+
+    await scenario("free-text assembly transition with a cut cue classifies deterministically to cut", async () => {
+      const value = await fixture("free-text-cut", ["cut", "Sinema tarzı kesme geçiş"]);
+      const runner = new Runner();
+      await render(value, runner);
+      const ffmpeg = runner.calls.find((call) => call.executable === process.env.FFMPEG_PATH)!;
+      assert.ok(ffmpeg.args.includes("copy"));
+      assert.equal(ffmpeg.args.join(" ").includes("xfade"), false);
+    });
+
+    await scenario("free-text assembly transition with a fade cue classifies deterministically to fade", async () => {
+      const value = await fixture("free-text-fade", ["cut", "Siyaha yumuşak geçiş"]);
+      // Classifies to "fade", so the same 2s - 0.4s blend = 1.6s applies.
+      const runner = new Runner({}, undefined, "1.6");
+      await render(value, runner);
+      const ffmpeg = runner.calls.find((call) => call.executable === process.env.FFMPEG_PATH)!;
+      const filterComplex = ffmpeg.args[ffmpeg.args.indexOf("-filter_complex") + 1];
+      assert.match(filterComplex, /xfade=transition=fadeblack:duration=/);
+    });
+
+    await scenario("unrecognized assembly transition text fails safely closed to cut", async () => {
+      const value = await fixture("free-text-unknown", ["cut", "###unparseable###"]);
+      const runner = new Runner();
+      await render(value, runner);
+      const ffmpeg = runner.calls.find((call) => call.executable === process.env.FFMPEG_PATH)!;
+      assert.ok(ffmpeg.args.includes("copy"));
     });
 
     await scenario("duration mismatch uses safe retime and re-encode path", async () => {

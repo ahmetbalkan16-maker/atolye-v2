@@ -223,6 +223,25 @@ async function run() {
       }
     });
 
+    await scenario("mock plans cycle through all five motion types with renderable zoom bounds", async () => {
+      const mock = new MockAnimationProvider();
+      const seen = new Set<string>();
+      for (const sceneId of [1, 2, 3, 4, 5]) {
+        const input = { sceneId, animationPrompt: "x", sourceImageAssetId: `image-${sceneId}`, durationSeconds: 8 };
+        const result = await mock.generateAnimation(input);
+        assert.equal(result.success, true);
+        if (!result.success) continue;
+        seen.add(result.motionType);
+        for (const frame of [result.start, result.end]) {
+          const zoom = frame.transform.scale / Math.min(frame.crop.width, frame.crop.height);
+          assert.ok(zoom >= 1 && zoom <= 10, `zoom ${zoom} out of renderable bounds`);
+          assert.ok(frame.crop.x >= 0 && frame.crop.x + frame.crop.width <= 1);
+          assert.ok(frame.crop.y >= 0 && frame.crop.y + frame.crop.height <= 1);
+        }
+      }
+      assert.equal(seen.size, 5, "expected all five motion types to appear across five scenes");
+    });
+
     await scenario("duplicate scene ids fail before provider calls and writes", async () => {
       const value = await fixture("duplicate-scene", [1]);
       let calls = 0;

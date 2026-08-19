@@ -1,3 +1,5 @@
+import type { AnimationTransitionType } from "./animation";
+
 export type VideoAssemblyProviderName = "mock" | "ffmpeg";
 
 export interface VideoAssemblyLegacySceneInput {
@@ -27,6 +29,13 @@ export interface VideoAssemblySceneVideoInput {
   generationMode: "production";
   status: "generated";
   audioFilePath: string;
+  /**
+   * Assembly-plan transition preceding this scene (i.e. the cut from the
+   * previous scene into this one). Undefined/missing and scene index 0 are
+   * both treated as "cut" by the renderer. Optional to stay backward
+   * compatible with call sites built before Sprint 133.
+   */
+  transition?: AnimationTransitionType;
 }
 
 export type VideoAssemblySceneInput =

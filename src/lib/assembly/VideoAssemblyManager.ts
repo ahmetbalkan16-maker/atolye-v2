@@ -10,7 +10,12 @@ import {
   isSceneVideoData,
   isSceneVideoScene,
 } from "@/lib/video/VideoDataValidation";
-import type { AnimationData, AnimationMotionPlanScene } from "@/types/animation";
+import {
+  animationTransitionTypes,
+  type AnimationData,
+  type AnimationMotionPlanScene,
+  type AnimationTransitionType,
+} from "@/types/animation";
 import type { AssemblyPlanData } from "@/types/assembly";
 import type { Asset, ImageMimeType } from "@/types/asset";
 import type { AudioData, AudioSection } from "@/types/audio";
@@ -608,7 +613,28 @@ function requireSceneVideoInput({
     generationMode: "production",
     status: "generated",
     audioFilePath,
+    transition: classifyAssemblyTransition(assemblyScene.transition),
   };
+}
+
+/**
+ * The assembly plan's transition field is free-form AI/editor text (see
+ * assemblyPrompt.ts), not the animation layer's constrained enum. This
+ * deterministically normalizes it to a renderable transition, favoring an
+ * exact/keyword match and falling back to "cut" (today's existing behavior)
+ * for anything unrecognized, so ambiguous plan text never surprises the
+ * render step.
+ */
+function classifyAssemblyTransition(value: unknown): AnimationTransitionType {
+  if (typeof value !== "string") return "cut";
+  const normalized = value.trim().toLowerCase();
+  if ((animationTransitionTypes as readonly string[]).includes(normalized)) {
+    return normalized as AnimationTransitionType;
+  }
+  if (/crossfade|çapraz/.test(normalized)) return "crossfade";
+  if (/\bcut\b|\bkes/.test(normalized)) return "cut";
+  if (/fade|kararma|karart|soldur|dissolve|geçiş/.test(normalized)) return "fade";
+  return "cut";
 }
 
 function requireImageAsset(

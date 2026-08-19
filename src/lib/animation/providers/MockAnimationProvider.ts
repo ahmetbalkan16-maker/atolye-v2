@@ -1,4 +1,5 @@
 import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
+import { animationMotionTypes, type AnimationMotionType } from "@/types/animation";
 import type {
   AnimationGenerationInput,
   AnimationGenerationResult,
@@ -18,7 +19,15 @@ export class MockAnimationProvider implements ConfiguredAnimationProvider {
   async generateAnimation(
     input: AnimationGenerationInput,
   ): Promise<AnimationGenerationResult> {
-    const zoomIn = input.sceneId % 2 === 1;
+    // Deterministic round-robin over every motion type (visual pacing
+    // variety), keyed purely on sceneId so repeated calls for the same
+    // scene stay identical (see "mock plans are deterministic" smoke test).
+    const motionType =
+      animationMotionTypes[
+        ((input.sceneId % animationMotionTypes.length) + animationMotionTypes.length) %
+          animationMotionTypes.length
+      ];
+    const { start, end } = framesFor(motionType);
 
     return {
       success: true,
@@ -30,15 +39,29 @@ export class MockAnimationProvider implements ConfiguredAnimationProvider {
       artifactType: "motion-plan",
       status: "generated",
       durationSeconds: input.durationSeconds,
-      motionType: zoomIn ? "zoom-in" : "zoom-out",
-      start: zoomIn
-        ? frame(0, 0, 1, 1, 1)
-        : frame(0.05, 0.05, 0.9, 0.9, 1.1),
-      end: zoomIn
-        ? frame(0.05, 0.05, 0.9, 0.9, 1.1)
-        : frame(0, 0, 1, 1, 1),
+      motionType,
+      start,
+      end,
       transition: "fade",
     };
+  }
+}
+
+function framesFor(motionType: AnimationMotionType) {
+  switch (motionType) {
+    case "zoom-in":
+      return { start: frame(0, 0, 1, 1, 1), end: frame(0.05, 0.05, 0.9, 0.9, 1.1) };
+    case "zoom-out":
+      return { start: frame(0.05, 0.05, 0.9, 0.9, 1.1), end: frame(0, 0, 1, 1, 1) };
+    case "pan-left":
+      return { start: frame(0.15, 0.05, 0.8, 0.9, 1), end: frame(0, 0.05, 0.8, 0.9, 1) };
+    case "pan-right":
+      return { start: frame(0, 0.05, 0.8, 0.9, 1), end: frame(0.15, 0.05, 0.8, 0.9, 1) };
+    case "static":
+    default: {
+      const still = frame(0.05, 0.05, 0.9, 0.9, 1);
+      return { start: still, end: still };
+    }
   }
 }
 
