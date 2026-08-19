@@ -80,7 +80,7 @@ export class VisualAssetPipeline {
       projectSlug,
       projectId,
     );
-    validateNoExistingGeneratedImages(projectAssets, visualData.scenes, projectSlug);
+    validateNoExistingGeneratedImages(projectAssets, visualData.scenes);
 
     let aiFallbackProvider: ImageProvider | undefined;
     const getAiFallbackProvider = () =>
@@ -90,7 +90,6 @@ export class VisualAssetPipeline {
       const existingAsset = findValidGeneratedSceneAsset(
         projectAssets,
         scene.sceneId,
-        projectSlug,
       );
 
       if (existingAsset) {
@@ -211,7 +210,6 @@ export class VisualAssetPipeline {
 function findValidGeneratedSceneAsset(
   assets: ProjectAssets,
   sceneId: number,
-  projectSlug: string,
 ): Asset | null {
   const matchingAsset = assets.assets.find(
     (asset) =>
@@ -238,13 +236,12 @@ function findValidGeneratedSceneAsset(
 function validateNoExistingGeneratedImages(
   assets: ProjectAssets,
   scenes: VisualData["scenes"],
-  projectSlug: string,
 ) {
   const plannedSceneIds = scenes.map((scene) => scene.sceneId);
   const allScenesGenerated =
     plannedSceneIds.length > 0 &&
     plannedSceneIds.every((sceneId) =>
-      Boolean(findValidGeneratedSceneAsset(assets, sceneId, projectSlug)),
+      Boolean(findValidGeneratedSceneAsset(assets, sceneId)),
     );
 
   if (allScenesGenerated) {

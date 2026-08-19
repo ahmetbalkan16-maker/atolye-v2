@@ -1,5 +1,135 @@
 ---
 
+<!-- SPRINT-134-START -->
+## Sprint 134 - Production Acceptance Diagnose Missing-Marker Error Code Distinction - 2026-08-19
+
+**Status:** Completed & Verified (commit `933de06`)
+**Production execution status:** N/A (code + smoke test only; `npx tsc --noEmit` 0 errors; no `data/projects/**` mutation)
+
+`npm run production:acceptance:diagnose` çağrısı, marker dosyası hiç yoksa (proje hiç `execute`
+edilmemişse) genel ve yanıltıcı `PRODUCTION_ACCEPTANCE_POLICY_INVALID` hatası döndürüyordu — sanki
+mevcut bir marker bozulmuş/kurcalanmış gibi.
+
+- **Kök Neden:** `ProductionAcceptancePolicy.diagnoseProductionAcceptanceConfiguration()`, `readJSONState`'in
+  `"missing"` (dosya yok), `"malformed"` (JSON parse hatası) ve `!validMarker(...)`/slug-identity-mismatch
+  durumlarının tamamını tek bir `if` bloğunda aynı jenerik `ProductionAcceptancePolicyError`'a
+  toplaştırıyordu; hiçbiri için ayırt edici bir detay yoktu.
+- **Güvenli Çözüm:**
+  1. `ProductionAcceptancePolicy.ts`'e, mevcut `ProductionAcceptancePolicyError`'ın WeakSet-tabanlı
+     authenticity pattern'i birebir takip edilerek `ProductionAcceptanceMarkerNotFoundError` +
+     `isAuthenticProductionAcceptanceMarkerNotFoundError` eklendi.
+  2. `diagnoseProductionAcceptanceConfiguration` içine `state.status === "missing"` için tek satırlık
+     erken bir dal eklendi; `"malformed"` ve `!validMarker(...)`/slug-mismatch durumları mevcut
+     `ProductionAcceptancePolicyError` davranışında değişmeden kaldı. Gerçek fingerprint mismatch
+     (`matches:false` + `mismatchedComponents`) akışına hiç dokunulmadı.
+  3. `ProductionAcceptanceCommand.ts`'teki `trustedCommandErrorCode`'a `mode === "diagnose"` için yeni
+     bir dal eklendi → CLI artık `PRODUCTION_ACCEPTANCE_MARKER_NOT_FOUND` döndürüyor.
+- **Test ve Doğrulama:**
+  - `smoke-sprint-129-23-production-acceptance-portability.ts`'e yeni senaryo eklendi (marker'sız
+    proje için hem düşük seviye fonksiyon hem CLI çıktısı doğrulanıyor); suite 15/15 → 16/16 PASS.
+  - Regresyon: `smoke-sprint-129-24-acceptance-marker-reprepare.ts` 22/22, `smoke-sprint-129-28-production-acceptance-reauthorization.ts`
+    137/137, `smoke-sprint-128-1-production-acceptance.ts` 30/30, `smoke-sprint-129-5-production-acceptance-topic.ts`
+    24/24, `smoke-production-readiness-acceptance.ts` 24/24 — hepsi PASS.
+  - Canlı doğrulama: gerçek `osmanlinin-kurulusu` (marker yok) → `PRODUCTION_ACCEPTANCE_MARKER_NOT_FOUND`;
+    gerçek `fatih-sultan-mehmet-...-cfe77fd8` (geçerli marker) → değişmeden `success:true`. `npx tsc --noEmit`
+    temiz, `git diff --check` temiz.
+<!-- SPRINT-134-END -->
+
+<!-- SPRINT-133-START -->
+## Sprint 133 - Assembly Cut/Fade/Crossfade Transition Rendering, Duration Validation Fix & Animation Motion Variety - 2026-08-19
+
+**Status:** Completed & Verified (commit `09207a5`)
+**Production execution status:** N/A (code + smoke test only; `npx tsc --noEmit` 0 errors; no `data/projects/**` mutation)
+
+Kullanıcı talebiyle tek commit'te birleşen üç ayrı iş parçası:
+
+- **Assembly transition rendering (yeni özellik):** `VideoAssemblyManager.classifyAssemblyTransition()`
+  assembly planının serbest metin `transition` alanını (`"fade in from black, slow cross dissolve"` gibi)
+  deterministik olarak `"cut" | "fade" | "crossfade"` enum'una indirgiyor (bilinmeyen metin → güvenli
+  `"cut"` varsayılanı). `FFmpegVideoAssemblyProvider.buildTransitionedConcatArgs()` en az bir "blended"
+  (cut olmayan) geçiş varsa gerçek `xfade`/`acrossfade` filtre zinciri kuruyor; sahne 0 ve saf cut
+  dizileri mevcut sıfır-yeniden-kodlama (`copy`)/`retimed concat` yollarını koruyor.
+- **Kritik bug fix — duration validation:** `expectedOutputDuration()` xfade/acrossfade örtüşme
+  (`blend`) sürelerini düşmediği için, gerçek bir fade/crossfade geçişi içeren her assembly, render
+  sonrası kendi `validateProbe` süre toleransını aşıp `SAFE_ERROR` ile başarısız oluyordu — özellik
+  pratikte hiç çalışmıyordu. Kök neden ve kanıt: bu review sırasında bulundu (bkz. commit'ten önceki
+  code-review turu). Çözüm: `expectedRenderedDuration()` + `totalBlendSeconds()` eklendi; ikincisi
+  `buildTransitionedConcatArgs`'ın filtre grafiği inşasına hiç dokunmadan aynı `blendSecondsFor`/
+  `sceneTransitionAt` çağrılarını kullanıyor, böylece ikisi asla birbirinden sapamaz. `cut`-only ve
+  ilk sahne davranışı değişmedi.
+  - `scripts/smoke-assembly-scene-video-consumption.ts`'e gerçek blend-sonrası süre kısalmasını
+    doğrulayan regresyon senaryosu eklendi (fix'siz haliyle önce fail ettiği doğrulanıp geri alındı);
+    suite 24 → 25 senaryo, hepsi PASS.
+- **MockAnimationProvider:** motion tipi 2'den (`zoom-in`/`zoom-out`) 5'e (+`static`, `pan-left`,
+  `pan-right`) çıkarıldı, `sceneId` üzerinden deterministik round-robin seçim. `smoke-sprint-116`
+  (animation motion plan contract) suite'ine 5 tipin hepsinin göründüğünü doğrulayan senaryo eklendi;
+  22/22 PASS.
+- **CLAUDE.md:** ilgisiz, tek satırlık `graphify affected` tooling hatırlatması eklendi.
+- **Doğrulama:** `npx tsc --noEmit` temiz; `smoke-assembly-scene-video-consumption.ts` 25/25,
+  `smoke-animation-motion-plan-contract.ts` 22/22 PASS.
+<!-- SPRINT-133-END -->
+
+<!-- SPRINT-132-START -->
+## Sprint 132 - Physical YouTube Delivery Bundle Materialization (Export Stage) - 2026-08-19
+
+**Status:** Completed & Verified (commit `1776173`)
+**Production execution status:** N/A (code + smoke test only; `npx tsc --noEmit` 0 errors; no `data/projects/**` mutation)
+
+Stage 12 (export) artık metadata-only bir plan yerine `data/projects/<slug>/export/bundle/` altında
+fiziksel, checksum-doğrulanmış bir dağıtım paketi (`video.mp4`, `thumbnail.<ext>`,
+`youtube_metadata.json`, `subtitles.srt`, `subtitles.vtt`, `export_manifest.json`) üretiyor:
+
+- `ExportPackager.packageExport()`: mevcut, değiştirilmemiş `ExportEngine` planını sarmalıyor ve
+  yalnızca gerçek, kalıcı bir proje (çözülebilir `projectSlug` + `projectId`) mevcutsa fiziksel
+  materialize ediyor; ad-hoc inline-body export istekleri plan-only kalıyor.
+- `ExportBundleMaterializer`: kanonik video'yu (`assembly.outputAssetId` → `Asset` → `VideoStorage`)
+  ve thumbnail'i (`thumbnail.outputAssetId` → `Asset` → `ThumbnailStorage`) çözüyor, streaming EXDEV
+  fallback'li hardlink kuruyor, byte length + SHA-256 doğruluyor, deterministik detached-checksum
+  manifest yazıyor, promotion başarısız olursa compensating rollback ile staged bundle'ı atomik
+  olarak terfi ettiriyor.
+- `SubtitleGenerator`: chapter-seviyeli SRT/VTT gerçek, ölçülmüş narration sürelerinden üretiliyor
+  (asla sahne/cümle seviyesinde tahmin/uydurma yok).
+- `PipelineStageExecutor` / `app/api/export/route.ts`: `ExportEngine`'den `packageExport`'a minimal
+  call-site swap; `ExportEngine`'in kendisi, `export.json` şeması ve production/pipeline
+  orchestration katmanları değişmedi.
+- `types/export.ts`: sadece-ekleyici `ExportBundleInfo`/`Manifest`/`FileEntry` tipleri + opsiyonel
+  `ExportPackageData.bundle` alanı.
+- **Doğrulama:** `scripts/smoke-sprint-132-export-packaging.ts` — 15 deterministik senaryo (fiziksel
+  bundle oluşturma, video/thumbnail authority, subtitle formatlama, checksum, idempotency, corruption
+  recovery, promotion-failure rollback, EXDEV streaming, missing-source fail-closed, inline API
+  backward compatibility). Commit öncesi bağımsız review (kapsam, Graphify bağımlılık yüzeyi,
+  kaynak-seviyesi audit, 15/15 + 18/18 regresyon suite, tsc, eslint) ile onaylandı.
+<!-- SPRINT-132-END -->
+
+<!-- SPRINT-131-START -->
+## Sprint 131 - Visual Asset Scene-Level Recovery & Resume Planning Artifact Reuse - 2026-08-18
+
+**Status:** Completed & Verified (commits `72644c2`, `8634e71`)
+**Production execution status:** N/A (code only; `npx tsc --noEmit` 0 errors; no `data/projects/**` mutation)
+
+Visuals aşamasının resume/retry davranışındaki iki ayrı "tümünü ya da hiçbirini yeniden üret"
+sorunu giderildi:
+
+- **Scene-level asset recovery (`72644c2`):** `VisualAssetPipeline.validateNoExistingGeneratedImages`
+  önceden planlanan sahnelerden **herhangi biri** zaten üretilmiş görsel asset'e sahipse tüm batch'i
+  `VisualAssetGenerationError` ile reddediyordu — kısmi bir resume'u imkansız kılıyordu. Yeni
+  `findValidGeneratedSceneAsset()` her sahne için ayrı ayrı geçerli (mock veya diskte gerçekten var
+  olan) üretilmiş asset arıyor; ana döngü halihazırda geçerli bir asset'i olan sahneleri 0 provider
+  çağrısıyla atlıyor, guard ise yalnızca **tüm** planlanan sahneler zaten üretilmişse devreye giriyor.
+  - `scripts/smoke-sprint-131-visual-asset-recovery.ts`: TEST A (kısmi kurtarma — sahne 1/2 reuse,
+    sahne 3 üretim), TEST B (tüm sahneler üretilmişse guard), TEST C (sahne 3 hatasında 1/2'nin
+    korunması) — 3/3 PASS.
+- **Persisted visual planning artifact reuse on resume (`8634e71`):** `PipelineStageExecutor`'ın
+  `visuals` case'i, `state.visuals` zaten persisted iken bile her resume/retry'da
+  `VisualManager.generateVisualData()`'yı koşulsuz çağırıp AI planını sıfırdan yeniden üretiyordu —
+  gereksiz AI çağrısı ve önceki asset üretiminde kullanılan planla tutarsız olma riski. Çağrı artık
+  `if (!state.visuals)` ile korunuyor; persisted plan varsa aynen yeniden kullanılıyor, yalnız asset
+  üretimi (`VisualAssetPipeline.generateAssets`) o plana göre devam ediyor.
+  - `scripts/smoke-sprint-131-visuals-artifact-reuse.ts`: TEST A (resume'da mevcut artifact reuse),
+    TEST B (fresh initial execution), TEST C (resume + kısmi image recovery), TEST D (conflict
+    protection korunuyor) — 4/4 PASS.
+<!-- SPRINT-131-END -->
+
 <!-- SPRINT-129.39-START -->
 ## Sprint 129.39 - Production Execution Claim Orphan Concurrency & Deadlock Remediation - 2026-08-18
 

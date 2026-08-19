@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import path from "node:path";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { ProjectReader } from "@/lib/projects/ProjectReader";
 import { PipelineJobManager } from "@/lib/pipeline/PipelineJobManager";
@@ -11,9 +10,7 @@ import { AdapterBackedProductionExecutionDurableLeaseService, defaultProductionE
 import { AdapterBackedProductionExecutionDurableStorage } from "@/lib/production/ProductionExecutionDurableStorage";
 import { buildProductionExecutionIdempotencyIdentity, defaultProductionExecutionIdempotencyPolicy } from "@/lib/production/ProductionExecutionIdempotency";
 import { stableProductionId } from "@/lib/production/ProductionDeterminism";
-import { reconcileFailedPipelineExecution } from "@/lib/production/ProductionPipelineRetryReconciliation";
 import { resolveRuntimeStorageContext, getProjectRoot } from "@/lib/runtime/RuntimeStoragePaths";
-import type { PipelineJob } from "@/types/pipelineJob";
 import type { ProductionExecutionAuthorizationResult } from "@/types/productionExecutionAuthorization";
 import type { ProductionExecutionConfirmationValidationResult } from "@/types/productionExecutionConfirmation";
 import type { ProductionExecutionIdempotencyReservationRequest } from "@/types/productionExecutionIdempotency";
@@ -22,7 +19,7 @@ async function runClaimOrphanConcurrencySuite() {
   console.log("=== STARTING SPRINT 129.39 CLAIM ORPHAN ADVERSARIAL CONCURRENCY & RECOVERY SUITE ===");
 
   const slug = `test-claim-orphan-${Date.now()}`;
-  const project = await ProjectManager.createProject(slug);
+  await ProjectManager.createProject(slug);
   await PipelineJobManager.listJobs(slug);
 
   const storageContext = resolveRuntimeStorageContext();
@@ -37,7 +34,7 @@ async function runClaimOrphanConcurrencySuite() {
     const claims = new AdapterBackedProductionExecutionClaimService(adapter);
     const leases = new AdapterBackedProductionExecutionDurableLeaseService(adapter);
     const attempts = new AdapterBackedProductionExecutionAttemptService(adapter);
-    const storage = new AdapterBackedProductionExecutionDurableStorage(adapter);
+    new AdapterBackedProductionExecutionDurableStorage(adapter);
 
     const evaluatedAt = new Date().toISOString();
     const requestId = `req-${slug}`;

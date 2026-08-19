@@ -13,9 +13,6 @@ import { classifyQueuedExhaustedPipelineJobDrift } from
   "../src/lib/production/ProductionQueuedExhaustedDriftClassifier";
 import { ProductionExecutionFilePersistenceAdapter } from
   "../src/lib/production/ProductionExecutionPersistence";
-import { AdapterBackedProductionExecutionDurableStorage,
-  defaultProductionExecutionDurableStoragePolicy } from
-  "../src/lib/production/ProductionExecutionDurableStorage";
 import { buildProductionPipelineExecutionIdentity } from
   "../src/lib/production/ProductionPipelineExecutionIdentity";
 import { buildVersionedProductionPipelineExecutionIdentity } from
@@ -174,6 +171,37 @@ async function createMixedProductionTopologyFixture(
   };
 }
 
+/**
+ * Loosely-typed shape of the durable idempotency/reservation/claim/attempt JSON
+ * records this migration reads and rewrites in place. It spans both the legacy
+ * flat (v1) and current nested (v2, `identity`/`durableLease`) schema generations,
+ * and every field is optional/unioned by design — that heterogeneity is exactly
+ * what this conversion is testing, not a gap to be typed away.
+ */
+interface LegacyDurableRecordContent {
+  recordId?: string;
+  stage?: ProductionStepKey;
+  attempt?: number;
+  operation?: string;
+  identityFingerprint?: string;
+  executionFingerprint?: string;
+  identity?: {
+    recordId?: string;
+    identityFingerprint?: string;
+    executionFingerprint?: string;
+    operation?: string;
+  };
+  durableLease?: {
+    identity?: {
+      executionFingerprint?: string;
+    };
+  };
+  integrity?: {
+    algorithm?: string;
+    fingerprint?: string;
+  };
+}
+
 async function convertHistoricalLineagesToV1Legacy(executionRoot: string, projectSlug: string) {
   // Target audio attempt-3 recordId
   const targetId = buildProductionPipelineExecutionIdentity(
@@ -190,7 +218,7 @@ async function convertHistoricalLineagesToV1Legacy(executionRoot: string, projec
     const files = await fs.readdir(idemDir);
     for (const file of files) {
       if (!file.endsWith(".json")) continue;
-      const content = JSON.parse(await fs.readFile(path.join(idemDir, file), "utf8")) as Record<string, any>;
+      const content = JSON.parse(await fs.readFile(path.join(idemDir, file), "utf8")) as LegacyDurableRecordContent;
       if (content.recordId && content.stage && content.attempt && content.operation) {
         recordInfoMap.set(content.recordId, {
           stage: content.stage,
@@ -213,7 +241,7 @@ async function convertHistoricalLineagesToV1Legacy(executionRoot: string, projec
     for (const file of files) {
       if (!file.endsWith(".json")) continue;
       const filePath = path.join(dir, file);
-      const content = JSON.parse(await fs.readFile(filePath, "utf8")) as Record<string, any>;
+      const content = JSON.parse(await fs.readFile(filePath, "utf8")) as LegacyDurableRecordContent;
 
       // If file belongs to target audio attempt 3, keep current v2 format
       let recId = content.recordId ?? content.identity?.recordId;

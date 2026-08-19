@@ -4,7 +4,6 @@ import path from "node:path";
 import { AssetManager } from "../src/lib/assets/AssetManager";
 import { ProjectManager, VisualsArtifactConflictError } from "../src/lib/projects/ProjectManager";
 import { PipelineStageExecutor } from "../src/lib/pipeline/PipelineStageExecutor";
-import { VisualManager } from "../src/lib/visuals/VisualManager";
 import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
 import { createRuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePaths";
 import { createProviderDispatchAdapter } from "../src/lib/providers/ProviderDispatchAdapterAuthority";
@@ -12,7 +11,6 @@ import type { ImageProvider, ImageGenerationInput } from "../src/lib/assets/prov
 import type { ImageGenerationResult } from "../src/types/asset";
 import type { SceneData } from "../src/types/scene";
 import type { VisualData } from "../src/types/visual";
-import type { ScriptData } from "../src/types/script";
 
 class MockCountedImageProvider implements ImageProvider {
   readonly name = "mock" as const;
