@@ -1133,6 +1133,74 @@ async function run() {
       assert.equal(args.filter((value) => value === "-i").length, 4);
       assert.doesNotMatch(args.join(" "), /Narration 1|Narration 2/);
     });
+    // Sprint 141: VideoAssemblyManager's "image" scene branch previously never forwarded
+    // assembly.scenes[].transition into VideoAssemblyInput, so Sprint 140's static-image
+    // xfade renderer was unreachable from a real AssemblyManager plan — only from smoke
+    // fixtures that hand-built VideoAssemblyInput with `transition` set directly. These
+    // three scenarios prove real assembly-plan transition values (including AssemblyManager's
+    // own default of "fade" — see AssemblyManager.ts's `transition: chapter?.transition ||
+    // "fade"` fallback) now reach the FFmpeg filter graph for image-input scenes, and that
+    // "cut" still takes the original zero-blend concat path unchanged.
+    await scenario("image path forwards assembly-plan 'fade' transition into xfade filter graph", async () => {
+      const value = await fixture("image-fade-transition");
+      // Two ~1.0s scene audio tracks (fixture()'s default wav()) => naive sum 2.0s;
+      // a "fade"/"crossfade" junction blends min(MAX_BLEND_SECONDS=0.5, 1.0*0.4, 1.0*0.4)
+      // = 0.4s, so the real renderer's self-check expects ~1.6s. FakeRunner's default
+      // probe stub is fixed at "2" (matched to the unblended "cut" scenarios elsewhere
+      // in this file), so it must be overridden here or validateProbe() rejects the
+      // (correctly blended) result as a duration mismatch.
+      const runner = new FakeRunner(null, JSON.stringify({
+        format: { format_name: "mov,mp4,m4a,3gp,3g2,mj2", duration: "1.6" },
+        streams: [
+          { codec_type: "video", codec_name: "h264", width: 1920, height: 1080, pix_fmt: "yuv420p", avg_frame_rate: "30/1", duration: "1.6", disposition: { attached_pic: 0 } },
+          { codec_type: "audio", codec_name: "aac", duration: "1.6" },
+        ],
+      }));
+      const fadeAssembly: AssemblyPlanData = {
+        ...assembly,
+        scenes: assembly.scenes.map((scene) =>
+          scene.sceneId === 2 ? { ...scene, transition: "fade" } : scene,
+        ),
+      };
+      await VideoAssemblyManager.renderExistingAssets({ projectId: value.projectId, projectSlug: value.slug, scenes, visuals, audio: baseAudio, assembly: fadeAssembly, provider: new FFmpegVideoAssemblyProvider(runner) });
+      const args = runner.calls[0].args.join(" ");
+      // AnimationTransitionType "fade" renders as ffmpeg xfade mode "fadeblack" (see
+      // xfadeModeFor in FFmpegVideoAssemblyProvider.ts). This is also AssemblyManager's
+      // own default transition value, so this scenario doubles as proof that the
+      // default now activates real blended rendering instead of silently no-op'ing.
+      assert.match(args, /xfade=transition=fadeblack:duration=/);
+      assert.match(args, /acrossfade=d=/);
+    });
+    await scenario("image path forwards assembly-plan 'crossfade' transition into xfade filter graph", async () => {
+      const value = await fixture("image-crossfade-transition");
+      // Same blended-duration self-check override as the "fade" scenario above.
+      const runner = new FakeRunner(null, JSON.stringify({
+        format: { format_name: "mov,mp4,m4a,3gp,3g2,mj2", duration: "1.6" },
+        streams: [
+          { codec_type: "video", codec_name: "h264", width: 1920, height: 1080, pix_fmt: "yuv420p", avg_frame_rate: "30/1", duration: "1.6", disposition: { attached_pic: 0 } },
+          { codec_type: "audio", codec_name: "aac", duration: "1.6" },
+        ],
+      }));
+      const crossfadeAssembly: AssemblyPlanData = {
+        ...assembly,
+        scenes: assembly.scenes.map((scene) =>
+          scene.sceneId === 2 ? { ...scene, transition: "crossfade" } : scene,
+        ),
+      };
+      await VideoAssemblyManager.renderExistingAssets({ projectId: value.projectId, projectSlug: value.slug, scenes, visuals, audio: baseAudio, assembly: crossfadeAssembly, provider: new FFmpegVideoAssemblyProvider(runner) });
+      const args = runner.calls[0].args.join(" ");
+      // AnimationTransitionType "crossfade" renders as ffmpeg xfade mode "fade" (dissolve).
+      assert.match(args, /xfade=transition=fade:duration=/);
+      assert.match(args, /acrossfade=d=/);
+    });
+    await scenario("image path keeps zero-blend concat for unmodified 'cut' assembly transition", async () => {
+      const value = await fixture("image-cut-transition-regression");
+      const runner = new FakeRunner();
+      await VideoAssemblyManager.renderExistingAssets({ projectId: value.projectId, projectSlug: value.slug, scenes, visuals, audio: baseAudio, assembly, provider: new FFmpegVideoAssemblyProvider(runner) });
+      const args = runner.calls[0].args.join(" ");
+      assert.ok(!args.includes("xfade="), "cut transitions must not engage the xfade path");
+      assert.ok(!args.includes("acrossfade="), "cut transitions must not engage the acrossfade path");
+    });
     await scenario("timeout and nonzero process results fail safely", async () => {
       const timeout = new FFmpegVideoAssemblyProvider(new FakeRunner({ timedOut: true }));
       const assets = await expectFailure("timeout", () => undefined, timeout);

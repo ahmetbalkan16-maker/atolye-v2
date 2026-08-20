@@ -209,6 +209,7 @@ export class VideoAssemblyManager {
           audioFilePath: audioAsset.filePath as string,
           audioStartSeconds: segment.startSeconds,
           durationSeconds: segment.durationSeconds,
+          transition: classifyAssemblyTransition(assemblyScene.transition),
         };
       });
 

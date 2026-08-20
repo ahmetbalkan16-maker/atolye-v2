@@ -1,5 +1,52 @@
 ---
 
+<!-- SPRINT-141-START -->
+## Sprint 141 - VideoAssemblyManager Image Scene Transition Wiring Fix - 2026-08-20
+
+**Status:** Completed & Committed (bu commit ile) — push yapılmadı, onay bekleniyor
+**Production execution status:** Verified — doğrulama gerçek FFmpeg binary'si + `FakeRunner`/`fixture()` tabanlı izole smoke fixture'larıyla yapıldı; canlı `data/projects/<slug>/` yapısında sıfır mutasyon.
+
+Sprint 140'ın FFmpeg renderer seviyesinde eklediği statik-görsel `xfade`/`acrossfade` geçiş desteği, `VideoAssemblyManager.ts`'nin gerçek prodüksiyon akışında hiçbir zaman tetiklenemiyordu: `image` dalı (inline scene object literal), `scene-video` dalının (`requireSceneVideoInput`) aksine, `assembly.scenes[].transition` alanını `VideoAssemblyInput`'a hiç aktarmıyordu. Sonuç olarak her statik-görsel sahne `sceneTransitionAt()`'te `undefined ?? "cut"` olarak çözülüyor, `hasAnyBlendedJunction()` hep `false` dönüyor ve render her zaman eski düz `concat` (blend yok) yoluna gidiyordu — bu, read-only Sprint 141 preflight incelemesinde doğrulanan, mevcut hiçbir smoke testinin yakalamadığı sessiz bir wiring boşluğuydu.
+
+- **Kök Neden ve Düzeltme:**
+  - `src/lib/assembly/VideoAssemblyManager.ts`: `image` dalına, `scene-video` dalıyla simetrik olarak tek satır eklendi: `transition: classifyAssemblyTransition(assemblyScene.transition)`. `classifyAssemblyTransition` zaten dosyada mevcut, `inputType`'tan bağımsız saf bir normalizasyon fonksiyonu; yeni import/yeni fonksiyon gerekmedi.
+  - `scripts/smoke-production-video-assembly-wiring.ts`: gerçek `VideoAssemblyManager.renderExistingAssets()` → `FFmpegVideoAssemblyProvider` → `FakeRunner` zincirini kullanan 3 yeni senaryo eklendi ("fade" ve "crossfade" assembly-plan transition'larının gerçek `xfade=`/`acrossfade=` filtre grafiğine ulaştığını, "cut"un ise eski zero-blend concat yolunu koruduğunu doğrular). `FakeRunner`'ın sabit `duration: "2"` probe stub'ı yalnızca "cut" (blend'siz, naive 2.0s toplam) senaryolarına kalibreliydi; fade/crossfade senaryolarında gerçek blend (~0.4s, iki ~1.0s sahne için `MAX_BLEND_SECONDS=0.5` ve `*0.4` sınırı) devreye girdiğinde renderer'ın kendi `validateProbe()` süre-toleransını (±0.25s) karşılamak için `probeOverride` (duration "1.6") eklendi.
+
+- **Davranış Değişikliği Riski (kullanıcı tarafından açıkça ONAYLANDI):**
+  - `AssemblyManager.ts`'nin uzun süredir var olan varsayılan `transition: chapter?.transition || "fade"` değeri, bugüne kadar statik-görsel sahnelerde renderer'a hiç ulaşmıyordu (her zaman `"cut"`'a düşüyordu). Bu düzeltmeyle **artık gerçekten ulaşıyor.**
+  - Somut etki: sahne-video üretimi olmayan (yalnızca statik görsel + Ken Burns ile giden) her **yeni/regenerate edilen** proje artık varsayılan olarak sahneler arası gerçek fade-through-black geçişiyle render edilecek — önceden hepsi sert kesimdi (`cut`, blend yok).
+  - Render süresi/CPU maliyeti bir miktar artar (concat yerine re-encode xfade zinciri); toplam video süresi her blend edilen junction için ~0.4-0.5s kısalır (`expectedRenderedDuration()`'ın zaten hesapladığı, beklenen bir etki).
+  - Geçmiş/tamamlanmış projelerin mevcut render'ları etkilenmez (append-only asset modeli); yalnızca bundan sonraki yeni/regenerate render'lar "cut" yerine "fade" ile üretilir.
+
+- **Test Sonuçları (%100 PASS):**
+  1. `npx tsc --noEmit`: **0 hata**.
+  2. `scripts/smoke-production-video-assembly-wiring.ts`: **49/49 PASS** (46 mevcut + 3 yeni image-transition senaryosu).
+  3. `scripts/smoke-ffmpeg-bgm-kenburns-assembly.ts`: **19/19 PASS** — değişmedi, regresyon yok.
+  4. `scripts/smoke-sprint-129-41-completed-stage-regeneration.ts`: **181/181 PASS (%100)**.
+<!-- SPRINT-141-END -->
+
+<!-- SPRINT-140-START -->
+## Sprint 140 - FFmpeg Static-Image Scene xfade/acrossfade Transitions (Retroactive Kayıt) - 2026-08-20
+
+**Status:** Completed & Committed (Commit `5feb39a`) — push edildi (`origin/wip/production-audio-resume-prep-v2` ile senkron doğrulandı)
+**Production execution status:** Verified — tüm doğrulama izole `os.tmpdir()` runtime alanında gerçek FFmpeg/FFprobe binary'leriyle yapıldı. Canlı `data/projects/<slug>/` yapısında sıfır mutasyon.
+
+Bu sprint, geliştirildiği oturumda checkpoint'e işlenmeden commit edilmişti (`5feb39a`, "feat(assembly): add xfade transitions for static image scenes"). Sprint 141 READ-ONLY preflight incelemesi sırasında tespit edilip burada geriye dönük olarak kayıt altına alınıyor.
+
+Sprint 138/139'da statik-görsel (`image` girdili) sahneler arası geçiş her zaman sert kesimdi (`cut`, blend yok). Sprint 140 ile FFmpeg renderer seviyesinde gerçek `xfade` (fade/fadeblack) + `acrossfade` geçiş desteği eklendi.
+
+- **Kapsam:**
+  - `src/lib/assembly/providers/FFmpegVideoAssemblyProvider.ts`: yeni `buildTransitionedImageConcatArgs()` — her sahne için Ken Burns + scale/pad + `setsar=1`, ardından `xfade`/`acrossfade` ile ikili zincirleme (Sprint 133/139'daki scene-video eşleniği `buildTransitionedConcatArgs()`'ın aynısı). BGM ducking bu yeni yolda da destekleniyor (`appendBgmFilterGraph()` çağrısı). `hasAnyBlendedJunction()`/`sceneTransitionAt()` artık `scene.inputType === "scene-video"` kısıtı olmadan her iki tipte de `scene.transition`'a bakıyor. `expectedRenderedDuration()`/`totalBlendSeconds()` süre-doğrulama muhasebesi her iki xfade yoluna ortaklaştırıldı.
+  - `src/types/videoAssembly.ts`: `VideoAssemblyLegacySceneInput` (`inputType: "image"`) tipine, `VideoAssemblySceneVideoInput`'ta zaten var olan `transition?: AnimationTransitionType` alanının eşleniği eklendi.
+  - `scripts/smoke-ffmpeg-bgm-kenburns-assembly.ts`: 14 senaryodan 19 senaryoya çıkarıldı (image+cut regresyon, image+crossfade, image+fadeblack, image+fade+BGM ducking, asimetrik süreli xfade offset/blend matematiği).
+
+- **O Zaman Açık Bırakılan (Sprint 141'de kapatıldı):** Bu sprint yalnızca FFmpeg renderer + tip seviyesine odaklandı; `src/lib/assembly/VideoAssemblyManager.ts`'nin `image` dalı `assembly.scenes[].transition`'ı hiç forward etmiyordu, bu yüzden yeni xfade yolu gerçek prodüksiyon akışından tetiklenemiyordu — bkz. yukarıdaki Sprint 141 kaydı.
+
+- **Test Sonuçları (%100 PASS, o zamanki commit'te):**
+  1. `npx tsc --noEmit`: **0 hata**.
+  2. `scripts/smoke-ffmpeg-bgm-kenburns-assembly.ts`: **19/19 PASS**.
+<!-- SPRINT-140-END -->
+
 <!-- SPRINT-139-START -->
 ## Sprint 139 - Universal BGM Ducking for Retimed and Transitioned Video Scenes - 2026-08-20
 
