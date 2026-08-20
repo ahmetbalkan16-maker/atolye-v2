@@ -1,9 +1,104 @@
 ---
 
+<!-- FIX-ASSEMBLY-CANONICAL-ASSET-ID-START -->
+## Fix: AssemblyManager Canonical Asset-ID Enforcement - 2026-08-20
+
+**Status:** Completed & Committed (Commit `94178bb`) — push yapılmadı
+**Production execution status:** N/A — yalnızca unit/smoke seviyesinde doğrulandı; production pipeline'a dokunulmadı.
+
+AI tarafından döndürülen `animationAssetId`, `videoAssetId`, `audioAssetId` değerlerinin downstream assembly'de yanlış kimliğe yol açabileceği keşfedildi. Bu değerler artık her zaman canonical fallback (animation/video/audio kayıtlarından gelen deterministik sistem kimliği) ile override ediliyor.
+
+- **Kapsam:**
+  - `src/lib/assembly/AssemblyManager.ts`: `mapScenes()`'te bu 3 alan AI çıktısından değil, her zaman `fallbackScene` üzerinden alınıyor. `isStrictAssemblyResponse()` + `matchesExpectedAssetId()` yardımcı fonksiyonu ile strict policy'de AI yanlış id döndürürse `GENERATION_FALLBACK_BLOCKED` fırlatılıyor; `undefined` (omit) durumu ise kabul ediliyor.
+  - `scripts/smoke-sprint-129-37-assembly-truncation-budget.ts`: 5 regression senaryosu eklendi (23 → 28 toplam).
+
+- **Test Sonuçları (%100 PASS):**
+  1. `npx tsc --noEmit`: **0 hata**.
+  2. `smoke-sprint-129-37-assembly-truncation-budget.ts`: **28/28 PASS** — hallucinated id override, boş string override, strict policy reject, strict policy omit kabul, strict policy doğru echo kabul.
+<!-- FIX-ASSEMBLY-CANONICAL-ASSET-ID-END -->
+
+<!-- SPRINT-138-START -->
+## Sprint 138 - FFmpeg Assembly Audio Ducking + Ken Burns Motion - 2026-08-20
+
+**Status:** Completed & Committed (Commit `4773802`) — push yapılmadı
+**Production execution status:** Verified — tüm doğrulama izole `os.tmpdir()` runtime alanında gerçek FFmpeg/FFprobe binary'leriyle yapıldı. Canlı `data/projects/<slug>/` yapısında sıfır mutasyon.
+
+Video üretim pipeline'ındaki görsel dinamizm ve atmosfer eksikliğini gidermek için iki temel özellik eklendi: opsiyonel arka plan müziği (BGM) ve statik görsellere deterministik Ken Burns hareketi.
+
+- **Kapsam:**
+  - `src/types/videoAssembly.ts`: `VideoAssemblyInput`'a opsiyonel `backgroundMusic?: { filePath: string; volume?: number; ducking?: boolean; }` alanı eklendi.
+  - `src/lib/assembly/providers/FFmpegVideoAssemblyProvider.ts`:
+    - Deterministik `selectKenBurnsMotion(sceneId)` — `sceneId` mod 4 ile `zoom-in`, `zoom-out`, `pan-left`, `pan-right` seçimi; aynı sahne her render'da aynı hareketi alır.
+    - Optimize `buildKenBurnsFilter()` — FFmpeg `zoompan` filtresi `on` (frame index) bazlı expression ile ~0.1 saniyede render ediyor.
+    - BGM sidechain audio ducking filtre zinciri: `-stream_loop -1 -i bgm`, `asplit=2`, `sidechaincompress=threshold=0.03:ratio=5:attack=100:release=800`, `amix=inputs=2:weights=1 1:normalize=0`.
+    - BGM yoksa baseline assembly davranışı %100 korunuyor (geriye dönük uyumluluk).
+    - Windows `X_OK` platform guard ve `-nostats` performans iyileştirmesi.
+  - `src/lib/assembly/VideoAssemblyManager.ts`: `resolveBackgroundMusic()` — proje audio varlıkları arasında BGM tespiti ve montaj girdisine aktarımı.
+  - `scripts/smoke-ffmpeg-bgm-kenburns-assembly.ts`: 12 senaryolu smoke test (yeni dosya).
+  - `scripts/isolated-e2e-bgm-kenburns.ts`: `os.tmpdir()` altında gerçek FFmpeg ile izole E2E test (yeni dosya).
+
+- **Test Sonuçları (%100 PASS):**
+  1. `npx tsc --noEmit`: **0 hata**.
+  2. `scripts/smoke-ffmpeg-bgm-kenburns-assembly.ts`: **12/12 PASS** — BGM var/yok, loop, ducking, zoom-in/out/pan-left/pan-right, determinizm, kısa sahne, MP4 container doğrulama.
+  3. 4 Regression Suite: **PASS** (smoke-sprint-129-25c-1, 25c-2b-1, 25c-2b-2, 129-41 — 181/181 senaryo).
+  4. İzole E2E (`scripts/isolated-e2e-bgm-kenburns.ts`): **PASS** — 460 KB MP4, H.264 video + AAC audio, ~2s süre, ffprobe doğrulaması geçti.
+<!-- SPRINT-138-END -->
+
+<!-- SPRINT-137-START -->
+## Sprint 137 - Audio Publication & Canonical Descriptor Rebind Ledger - 2026-08-20
+
+**Status:** Completed & Committed (Commit `06bffe9`) — **kullanıcı talimatı gereği PUSH YAPILMADI**
+**Production execution status:** Verified — Tüm doğrulama izole runtime alanında yapıldı. Canlı `data/projects/<slug>/` yapısında sıfır mutasyon.
+
+Filesystem materialization drift durumlarında ("file exists but with a new inode/device") Audio Publication Intent ve Audio Canonical Store katmanlarında append-only descriptor rebind altyapısı uygulandı.
+
+- **Mimari Kararlar ve Sınır Korumaları:**
+  - Orijinal publication intent ve compensation kaydı kesinlikle değiştirilmez (immutable audit trail).
+  - Retention-retired kayıtlar için `isLogicallyRetired()` fail-closed kontrolü eklendi (otomatik rebind engellendi).
+  - `REBIND_DIRECTORY` (`audio-canonical-rebinds`) altyapısı cleanup-root tarayıcılarında (`activeRecordCount`, `resumeDetachedCompletedRecords`, `inspectDeferredBacklog`) atlandı.
+  - `AudioPublicationIntentStore.ts` kesinlikle değiştirilmedi kuralına uyuldu.
+
+- **Test Sonuçları (%100 PASS):**
+  1. `npx tsc --noEmit`: **0 hata**.
+  2. `scripts/smoke-audio-compensation-descriptor-rebind.ts`: **11 PASS, 1 SKIPPED**.
+  3. `scripts/smoke-audio-publication-rebind.ts`: **11 PASS, 1 SKIPPED**.
+  4. 4 Regression Suite: **302/302 PASS (100%)**.
+  5. İzole Gerçek-Proje E2E (`scripts/smoke-isolated-e2e-audio-rebind-assembly.ts`): **PASS** (`provider.assemble()` ulaşıldı, FFmpeg/FFprobe spawn edildi).
+<!-- SPRINT-137-END -->
+
+<!-- SPRINT-136-START -->
+## Sprint 136 - Runtime Backup Path Architecture Fix & V4 Schema - 2026-08-20
+
+**Status:** Completed & Committed (Commit `5ae502c`) — push yapılmadı
+**Production execution status:** Real V4 Backup Executed & Verified — `ATOLYE_RUNTIME_BACKUP_ROOT=C:\tmp\ar-backups` ile `b-dcf8aa2247d9` backup'ı başarıyla oluşturuldu ve `runtime:backup:verify` ile doğrulandı. Canlı `data/projects/<slug>/` yapısında sıfır mutasyon.
+
+Windows 240/260 UTF-16 yol sınırı ve uzun slug'lı projelerden kaynaklanan runtime backup failure riski için Runtime Backup Path Mimari Düzeltmesi (V4 Schema) uygulandı.
+
+- **Mimari Kararlar ve Sınır Korumaları:**
+  - 220 UTF-16 relativePath / 240 materializedPath canlı çalışma sınırları **AYNEN KORUNDU**.
+  - 237 UTF-16 relativePath / 259 materializedPath backup sınırları **AYNEN KORUNDU**.
+  - 7 adet `publication-reservation.json` backup envanterinden çıkarılmadı.
+  - Canlı `data/projects/<slug>/` yapısı ve slug-tabanlı klasörleme değiştirilmedi.
+  - Assembly-only özel bypass yapılmadı; V1/V2/V3 eski backup geriye dönük uyumluluk %100 korundu.
+
+- **V4 Backup Path & Manifest Değişiklikleri:**
+  - `schemaVersion: "4"`, `backupFormatVersion: "runtime-backup-v4"`, `pathPolicyVersion: "runtime-backup-relative-path-v3"`.
+  - Backup envanterinde relativePath artık `<projectId>/...` formatını kullanır (`<projectSlug>/...` yerine).
+  - Manifest içinde `sourceProjectIdentities: readonly { projectId: string; projectSlug: string }[]` eklenerek `projectId` ↔ `projectSlug` eşleştirmesi donduruldu.
+  - Candidate ve Restore katmanlarında backup yolları için 259 karakterlik `assertRuntimeBackupMaterializedPath` ve `validateRuntimeBackupMutationRelativePath` kullanıldı.
+
+- **Test Sonuçları (Smoke Test Suite %100 PASS):**
+  1. `scripts/smoke-sprint-129-25c-1-runtime-backup.ts`: **PASS (39/39 senaryo)**
+  2. `scripts/smoke-sprint-129-25c-2b-1-migration-candidate.ts`: **PASS (48/48 senaryo)**
+  3. `scripts/smoke-sprint-129-25c-2b-2-migration-candidate-create.ts`: **PASS (34/34 senaryo)**
+  4. `scripts/smoke-sprint-129-41-completed-stage-regeneration.ts`: **PASS (181/181 senaryo)**
+  5. `npx tsc --noEmit`: **0 hata**.
+<!-- SPRINT-136-END -->
+
 <!-- SPRINT-135-START -->
 ## Sprint 135 - Assembly-Only Completed-Stage Regeneration Extension (Isolated E2E Verified) - 2026-08-20
 
-**Status:** Implemented & Isolated E2E Verified — kod değişikliği hazır, **henüz commit edilmedi**
+**Status:** Completed & Committed (Commit `9aff865`)
 **Production execution status:** N/A — gerçek production regeneration bu sprint'te hiç çalıştırılmadı; tüm doğrulama izole `os.tmpdir()` temp fixture'larında yapıldı, `data/projects/**` içinde hiçbir mutasyon yok, gerçek production projesine hiç dokunulmadı.
 
 Sprint 129.41/129.42'de kurulan completed-stage regeneration mekanizması bugüne kadar sadece
