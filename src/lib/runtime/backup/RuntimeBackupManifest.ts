@@ -9,6 +9,8 @@ import {
 import {
   runtimeBackupPathPolicyVersion,
   runtimeBackupPathPolicyVersionV1,
+  runtimeBackupPathPolicyVersionV2,
+  runtimeBackupPathPolicyVersionV3,
   runtimeBackupPortableCollisionKey,
   validateRuntimeBackupRelativePath,
   type RuntimeBackupPathPolicyVersion,
@@ -18,8 +20,10 @@ export const runtimeBackupManifestSchemaVersionV1 = "1" as const;
 export const runtimeBackupFormatVersionV1 = "runtime-backup-v1" as const;
 export const runtimeBackupManifestSchemaVersionV2 = "2" as const;
 export const runtimeBackupFormatVersionV2 = "runtime-backup-v2" as const;
-export const runtimeBackupManifestSchemaVersion = "3" as const;
-export const runtimeBackupFormatVersion = "runtime-backup-v3" as const;
+export const runtimeBackupManifestSchemaVersionV3 = "3" as const;
+export const runtimeBackupFormatVersionV3 = "runtime-backup-v3" as const;
+export const runtimeBackupManifestSchemaVersion = "4" as const;
+export const runtimeBackupFormatVersion = "runtime-backup-v4" as const;
 export const runtimeBackupAggregateVersion = "runtime-tree-sha256-v1" as const;
 export const runtimeBackupAuthoritySchemaVersion = "runtime-authority-v1" as const;
 
@@ -60,16 +64,33 @@ export interface RuntimeBackupInventoryTotals {
   readonly classifications: Readonly<Record<RuntimeBackupFileClassification, number>>;
 }
 
+/**
+ * A stable, immutable, filesystem-safe project identity (`project.id`, a
+ * `crypto.randomUUID()`) paired with the human-readable slug it currently
+ * resolves to on the live runtime. In schema v4+, backup-relative paths use
+ * `projectId` (not `projectSlug`) as their first segment, to keep paths
+ * short regardless of how long a topic-derived slug is; this mapping is the
+ * only place that translation is recorded, so it must travel with the
+ * manifest itself (never re-derived from live filesystem state, which may
+ * not exist at restore/disaster-recovery time).
+ */
+export interface RuntimeBackupProjectIdentity {
+  readonly projectId: string;
+  readonly projectSlug: string;
+}
+
 export interface RuntimeBackupManifest {
   readonly schemaVersion:
     | typeof runtimeBackupManifestSchemaVersionV1
     | typeof runtimeBackupManifestSchemaVersionV2
+    | typeof runtimeBackupManifestSchemaVersionV3
     | typeof runtimeBackupManifestSchemaVersion;
   readonly backupFormatVersion:
     | typeof runtimeBackupFormatVersionV1
     | typeof runtimeBackupFormatVersionV2
+    | typeof runtimeBackupFormatVersionV3
     | typeof runtimeBackupFormatVersion;
-  readonly pathPolicyVersion?: typeof runtimeBackupPathPolicyVersion;
+  readonly pathPolicyVersion?: typeof runtimeBackupPathPolicyVersionV2 | typeof runtimeBackupPathPolicyVersion;
   readonly aggregateAlgorithm: typeof runtimeBackupAggregateVersion;
   readonly storagePolicyVersion: typeof runtimeStoragePolicyVersion;
   readonly createdAt: string;
@@ -79,6 +100,7 @@ export interface RuntimeBackupManifest {
     readonly runtimeAuthorityId: string;
     readonly projectIdentity: string;
   };
+  readonly sourceProjectIdentities?: readonly RuntimeBackupProjectIdentity[];
   readonly sourceClassification: string;
   readonly sourceProjectsRootLogicalName: "projects";
   readonly sourceHeadCommit?: string;
@@ -116,7 +138,14 @@ export function validateRuntimeBackupManifest(
 ): asserts value is RuntimeBackupManifest {
   if (!isRecord(value)) throw new Error("Runtime backup manifest is invalid.");
   const pathPolicyVersion = manifestPathPolicyVersion(value);
-  const isV3 = value.schemaVersion === runtimeBackupManifestSchemaVersion;
+  const requiresAuthority =
+    (value.schemaVersion === runtimeBackupManifestSchemaVersionV3 &&
+      value.backupFormatVersion === runtimeBackupFormatVersionV3 &&
+      value.pathPolicyVersion === runtimeBackupPathPolicyVersionV2) ||
+    (value.schemaVersion === runtimeBackupManifestSchemaVersion &&
+      value.backupFormatVersion === runtimeBackupFormatVersion);
+  const requiresProjectIdentities =
+    value.pathPolicyVersion === runtimeBackupPathPolicyVersionV3;
   assertExactKeys(value, [
     "schemaVersion",
     "backupFormatVersion",
@@ -125,7 +154,8 @@ export function validateRuntimeBackupManifest(
     "storagePolicyVersion",
     "createdAt",
     "sourceLogicalIdentity",
-    ...(isV3 ? ["sourceRuntimeAuthority"] : []),
+    ...(requiresAuthority ? ["sourceRuntimeAuthority"] : []),
+    ...(requiresProjectIdentities ? ["sourceProjectIdentities"] : []),
     "sourceClassification",
     "sourceProjectsRootLogicalName",
     "sourceHeadCommit",
@@ -151,7 +181,7 @@ export function validateRuntimeBackupManifest(
     !isRecord(value.inventory)
   ) throw new Error("Runtime backup manifest is invalid.");
 
-  if (isV3) {
+  if (requiresAuthority) {
     validateSourceRuntimeAuthority(value.sourceRuntimeAuthority, value.sourceLogicalIdentity);
   } else if (value.sourceRuntimeAuthority !== undefined) {
     throw new Error("Runtime backup manifest authority is invalid.");
@@ -175,6 +205,11 @@ export function validateRuntimeBackupManifest(
     }
     exact.add(item.relativePath);
     folded.add(portableKey);
+  }
+  if (requiresProjectIdentities) {
+    validateSourceProjectIdentities(value.sourceProjectIdentities, files as RuntimeBackupFileRecord[]);
+  } else if (value.sourceProjectIdentities !== undefined) {
+    throw new Error("Runtime backup manifest project identity is invalid.");
   }
   if (aggregateRuntimeFileRecords(files as RuntimeBackupFileRecord[]) !== value.aggregateFingerprint) {
     throw new Error("Runtime backup aggregate fingerprint is invalid.");
@@ -306,6 +341,87 @@ function validRelativePath(
   }
 }
 
+const projectIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const projectSlugPattern = /^[a-zA-Z0-9-_]+$/;
+
+export function validateSourceProjectIdentities(
+  value: unknown,
+  files: readonly RuntimeBackupFileRecord[],
+) {
+  if (!Array.isArray(value)) {
+    throw new Error("Runtime backup manifest project identity is invalid.");
+  }
+  const seenIds = new Set<string>();
+  const seenSlugs = new Set<string>();
+  const slugById = new Map<string, string>();
+  let previousId = "";
+  for (const entry of value) {
+    if (!isRecord(entry)) throw new Error("Runtime backup manifest project identity is invalid.");
+    assertExactKeys(
+      entry,
+      ["projectId", "projectSlug"],
+      "Runtime backup manifest project identity is invalid.",
+    );
+    if (
+      typeof entry.projectId !== "string" || !projectIdPattern.test(entry.projectId) ||
+      typeof entry.projectSlug !== "string" || !projectSlugPattern.test(entry.projectSlug)
+    ) throw new Error("Runtime backup manifest project identity is invalid.");
+    if (previousId && compareText(previousId, entry.projectId) >= 0) {
+      throw new Error("Runtime backup manifest project identity ordering is invalid.");
+    }
+    previousId = entry.projectId;
+    if (seenIds.has(entry.projectId) || seenSlugs.has(entry.projectSlug)) {
+      throw new Error("Runtime backup manifest project identity is duplicated.");
+    }
+    seenIds.add(entry.projectId);
+    seenSlugs.add(entry.projectSlug);
+    slugById.set(entry.projectId, entry.projectSlug);
+  }
+  if (files.length === 0) return;
+  const referencedIds = new Set(
+    files
+      .filter((file) => file.relativePath.includes("/"))
+      .map((file) => file.relativePath.split("/")[0]),
+  );
+  if ([...referencedIds].some((id) => !seenIds.has(id))) {
+    throw new Error("Runtime backup manifest project identity mapping is incomplete.");
+  }
+  for (const file of files) {
+    if (!file.relativePath.includes("/")) continue;
+    const id = file.relativePath.split("/")[0];
+    if (file.projectSlug === undefined || file.projectSlug !== slugById.get(id)) {
+      throw new Error("Runtime backup manifest file project identity mismatch.");
+    }
+  }
+}
+
+/**
+ * Looks up the human-readable slug a v4+ backup's project id resolved to at
+ * backup-creation time. The mapping is self-contained in the manifest, so
+ * this works even when the live project no longer exists (disaster
+ * recovery). Returns `undefined` for pre-v4 manifests (no mapping recorded)
+ * or an unknown id.
+ */
+export function resolveRuntimeBackupProjectSlug(
+  manifest: Pick<RuntimeBackupManifest, "sourceProjectIdentities">,
+  projectId: string,
+): string | undefined {
+  return manifest.sourceProjectIdentities?.find((entry) => entry.projectId === projectId)
+    ?.projectSlug;
+}
+
+/**
+ * Reverse of {@link resolveRuntimeBackupProjectSlug}: looks up the immutable
+ * project id a v4+ backup recorded for a given human-readable slug.
+ */
+export function resolveRuntimeBackupProjectId(
+  manifest: Pick<RuntimeBackupManifest, "sourceProjectIdentities">,
+  projectSlug: string,
+): string | undefined {
+  return manifest.sourceProjectIdentities?.find((entry) => entry.projectSlug === projectSlug)
+    ?.projectId;
+}
+
 function validateSourceRuntimeAuthority(value: unknown, projectIdentity: string) {
   if (!isRecord(value)) throw new Error("Runtime backup manifest authority is invalid.");
   assertExactKeys(value, [
@@ -338,10 +454,17 @@ function manifestPathPolicyVersion(
   if (
     ((value.schemaVersion === runtimeBackupManifestSchemaVersionV2 &&
       value.backupFormatVersion === runtimeBackupFormatVersionV2) ||
+      (value.schemaVersion === runtimeBackupManifestSchemaVersionV3 &&
+        value.backupFormatVersion === runtimeBackupFormatVersionV3)) &&
+    value.pathPolicyVersion === runtimeBackupPathPolicyVersionV2
+  ) return runtimeBackupPathPolicyVersionV2;
+  if (
+    ((value.schemaVersion === runtimeBackupManifestSchemaVersionV3 &&
+      value.backupFormatVersion === runtimeBackupFormatVersionV3) ||
       (value.schemaVersion === runtimeBackupManifestSchemaVersion &&
         value.backupFormatVersion === runtimeBackupFormatVersion)) &&
-    value.pathPolicyVersion === runtimeBackupPathPolicyVersion
-  ) return runtimeBackupPathPolicyVersion;
+    value.pathPolicyVersion === runtimeBackupPathPolicyVersionV3
+  ) return runtimeBackupPathPolicyVersionV3;
   throw new Error("Runtime backup manifest identity is invalid.");
 }
 

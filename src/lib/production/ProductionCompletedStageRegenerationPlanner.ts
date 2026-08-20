@@ -4,12 +4,13 @@ import { ProjectReader } from "@/lib/projects/ProjectReader";
 import { PipelineJobManager } from "@/lib/pipeline/PipelineJobManager";
 import { isCompatibleVideoData } from "@/lib/video/VideoDataValidation";
 import { validateYouTubePublishRecord } from "@/lib/youtube/publish/YouTubePublishValidation";
+import { isAudioCompensationJournalStagingPartialAtProjectPath } from "@/lib/audio/AudioCompensationStore";
 import { ProductionExecutionFilePersistenceAdapter } from "./ProductionExecutionPersistence";
 import { validateProductionGlobalTerminalQuiescence } from
   "./ProductionGlobalTerminalQuiescence";
 import { readCanonicalProductionAcceptanceMarkerDescriptorBound } from
   "./ProductionAcceptanceMarkerDescriptorReader";
-import type { RuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
+import { getLogicalProjectIdentity, type RuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
 import type { PipelineRecoveryStageKey } from "@/types/pipelineRecovery";
 import type { Project, ProjectManifest } from "@/types/project";
 import {
@@ -22,6 +23,7 @@ import { getProductionRegenerationClosure } from
 import { assertProductionRegenerationPhysicalProject } from
   "./ProductionRegenerationPhysicalGuard";
 import { aggregateRuntimeFileRecords } from "@/lib/runtime/backup/RuntimeBackupManifest";
+import { resolveProjectIdentity } from "@/lib/runtime/backup/RuntimeBackupInventory";
 import {
   canonicalRegenerationJson,
   buildAudioPreservationFingerprint,
@@ -127,7 +129,10 @@ export async function createCompletedStageRegenerationPlan(input: {
     regeneratedStages: closure.regeneratedStages,
     invalidatedStages: closure.invalidatedStages,
     effectiveSequence: closure.effectiveSequence,
-    projectAggregateFingerprint: treeAggregate(input.projectSlug, files),
+    projectAggregateFingerprint: treeAggregate(
+      resolveProjectIdentity(input.context.projectsRoot, input.projectSlug).projectId,
+      files,
+    ),
     fileFingerprints: files,
     manifestFingerprint: requiredFileHash(files, "manifest.json"),
     jobsFingerprint: optionalFileHash(files, "pipeline-jobs.json"),
@@ -199,9 +204,11 @@ function fingerprintTree(root: string): ProductionRegenerationFileFingerprint[] 
         if (!entry.name.startsWith(".pipeline-jobs.")) visit(absolute);
       } else if (entry.isFile()) {
         if (entry.name.startsWith(".pipeline-jobs.")) continue;
+        const relativePath = path.relative(root, absolute).replaceAll("\\", "/");
+        if (isAudioCompensationJournalStagingPartialAtProjectPath(relativePath)) continue;
         const bytes = fs.readFileSync(absolute);
         result.push(Object.freeze({
-          relativePath: path.relative(root, absolute).replaceAll("\\", "/"),
+          relativePath,
           sizeBytes: bytes.length,
           sha256: sha256(bytes),
         }));
@@ -212,10 +219,18 @@ function fingerprintTree(root: string): ProductionRegenerationFileFingerprint[] 
   return result.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
 }
 
-function treeAggregate(projectSlug: string, files: readonly ProductionRegenerationFileFingerprint[]) {
+/**
+ * Prefixes each file's project-root-relative path with the project's
+ * immutable id (not its slug) before hashing, to stay byte-for-byte in sync
+ * with `RuntimeBackupInventory`'s v4+ backup-relative path scheme
+ * (`RuntimeBackupPathPolicy`'s `runtime-backup-relative-path-v3`), which
+ * `ProductionCompletedStageRegenerationService.verifyBoundBackup` compares
+ * this fingerprint against.
+ */
+function treeAggregate(projectId: string, files: readonly ProductionRegenerationFileFingerprint[]) {
   return aggregateRuntimeFileRecords(files.map((file) => ({
     ...file,
-    relativePath: `${projectSlug}/${file.relativePath}`,
+    relativePath: `${projectId}/${file.relativePath}`,
   })));
 }
 

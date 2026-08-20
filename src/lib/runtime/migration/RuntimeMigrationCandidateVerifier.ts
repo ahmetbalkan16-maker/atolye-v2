@@ -2,13 +2,20 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   runtimeBackupAggregateVersion,
+  runtimeBackupFormatVersion,
   runtimeBackupFormatVersionV2,
+  runtimeBackupFormatVersionV3,
+  runtimeBackupManifestSchemaVersion,
   runtimeBackupManifestSchemaVersionV2,
+  runtimeBackupManifestSchemaVersionV3,
   type RuntimeBackupManifest,
 } from "@/lib/runtime/backup/RuntimeBackupManifest";
 import { verifyRuntimeBackup, verifyRuntimeTreeAgainstManifest } from "@/lib/runtime/backup/RuntimeBackupVerifier";
-import { runtimeBackupPathPolicyVersion } from "@/lib/runtime/backup/RuntimeBackupPathPolicy";
-import { assertRuntimeMaterializedPath } from "@/lib/runtime/security/RuntimePathPolicy";
+import {
+  assertRuntimeBackupMaterializedPath,
+  runtimeBackupPathPolicyVersionV2,
+  runtimeBackupPathPolicyVersionV3,
+} from "@/lib/runtime/backup/RuntimeBackupPathPolicy";
 import {
   minimalRuntimeDirectoryClosure,
   runtimeMigrationCandidateManifestSha256,
@@ -83,7 +90,7 @@ export function verifyMigrationCandidate(
     }
     try {
       for (const file of manifest.files) {
-        assertRuntimeMaterializedPath(projectsRoot, file.relativePath);
+        assertRuntimeBackupMaterializedPath(projectsRoot, file.relativePath);
       }
     } catch {
       throw new RuntimeMigrationCandidateError("PATH_POLICY_VIOLATION");
@@ -137,10 +144,30 @@ export function verifyMigrationCandidateBinding(
 }
 
 function asBackupManifest(candidate: RuntimeMigrationCandidateManifest): RuntimeBackupManifest {
+  const isV4 = candidate.sourceBackup.formatVersion === runtimeBackupFormatVersion;
+  const isV3 = candidate.sourceBackup.formatVersion === runtimeBackupFormatVersionV3;
   return {
-    schemaVersion: runtimeBackupManifestSchemaVersionV2,
-    backupFormatVersion: runtimeBackupFormatVersionV2,
-    pathPolicyVersion: runtimeBackupPathPolicyVersion,
+    schemaVersion: isV4
+      ? runtimeBackupManifestSchemaVersion
+      : isV3
+        ? runtimeBackupManifestSchemaVersionV3
+        : runtimeBackupManifestSchemaVersionV2,
+    backupFormatVersion: isV4
+      ? runtimeBackupFormatVersion
+      : isV3
+        ? runtimeBackupFormatVersionV3
+        : runtimeBackupFormatVersionV2,
+    ...(isV4
+      ? {
+          pathPolicyVersion: runtimeBackupPathPolicyVersionV3,
+          sourceProjectIdentities: candidate.sourceBackup.sourceProjectIdentities ?? [],
+        }
+      : isV3
+        ? {
+            pathPolicyVersion: runtimeBackupPathPolicyVersionV3,
+            sourceProjectIdentities: candidate.sourceBackup.sourceProjectIdentities ?? [],
+          }
+        : { pathPolicyVersion: runtimeBackupPathPolicyVersionV2 }),
     aggregateAlgorithm: runtimeBackupAggregateVersion,
     storagePolicyVersion: candidate.sourceBackup.storagePolicyVersion as RuntimeBackupManifest["storagePolicyVersion"],
     createdAt: candidate.sourceBackup.sourceCreatedAt,

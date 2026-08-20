@@ -6,7 +6,7 @@ import type { RuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
 import { collectRuntimeBackupInventory } from "@/lib/runtime/backup/RuntimeBackupInventory";
 import { aggregateRuntimeFileRecords, type RuntimeBackupFileRecord } from "@/lib/runtime/backup/RuntimeBackupManifest";
 import { verifyRuntimeBackup } from "@/lib/runtime/backup/RuntimeBackupVerifier";
-import { assertRuntimeMaterializedPath } from "@/lib/runtime/security/RuntimePathPolicy";
+import { assertRuntimeBackupMaterializedPath } from "@/lib/runtime/backup/RuntimeBackupPathPolicy";
 import {
   canonicalRuntimePath,
   runtimePathInside,
@@ -99,7 +99,7 @@ export function preflightRuntimeMigrationCandidate(input: {
   });
   try {
     for (const file of backup.manifest.files) {
-      assertRuntimeMaterializedPath(pathPlan.projectsRoot, file.relativePath);
+      assertRuntimeBackupMaterializedPath(pathPlan.projectsRoot, file.relativePath);
     }
   } catch {
     throw new RuntimeMigrationCandidateError("PATH_POLICY_VIOLATION");

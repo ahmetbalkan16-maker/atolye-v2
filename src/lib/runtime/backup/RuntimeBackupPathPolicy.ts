@@ -7,11 +7,14 @@ import {
 import { RuntimeMutationError } from "@/lib/runtime/security/RuntimeMutationError";
 
 export const runtimeBackupPathPolicyVersionV1 = "runtime-backup-relative-path-v1" as const;
-export const runtimeBackupPathPolicyVersion = "runtime-backup-relative-path-v2" as const;
+export const runtimeBackupPathPolicyVersionV2 = "runtime-backup-relative-path-v2" as const;
+export const runtimeBackupPathPolicyVersionV3 = "runtime-backup-relative-path-v3" as const;
+export const runtimeBackupPathPolicyVersion = runtimeBackupPathPolicyVersionV3;
 
 export type RuntimeBackupPathPolicyVersion =
   | typeof runtimeBackupPathPolicyVersionV1
-  | typeof runtimeBackupPathPolicyVersion;
+  | typeof runtimeBackupPathPolicyVersionV2
+  | typeof runtimeBackupPathPolicyVersionV3;
 
 export const runtimeBackupPathLimits = Object.freeze({
   relativePathUtf16: 220,
@@ -30,7 +33,10 @@ export function validateRuntimeBackupRelativePath(
   if (policyVersion === runtimeBackupPathPolicyVersionV1) {
     return validateRuntimeLogicalPath(value);
   }
-  if (policyVersion !== runtimeBackupPathPolicyVersion) throw invalidPath();
+  if (
+    policyVersion !== runtimeBackupPathPolicyVersionV2 &&
+    policyVersion !== runtimeBackupPathPolicyVersionV3
+  ) throw invalidPath();
   const segments = validateV2Segments(value);
   const slug = segments[0] ?? "";
   const fileName = segments.at(-1) ?? "";

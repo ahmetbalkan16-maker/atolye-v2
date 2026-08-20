@@ -12,7 +12,9 @@ import {
 } from "./RuntimeBackupAuthority";
 import {
   runtimeBackupFormatVersion,
+  runtimeBackupFormatVersionV3,
   runtimeBackupManifestSchemaVersion,
+  runtimeBackupManifestSchemaVersionV3,
   type RuntimeBackupManifest,
 } from "./RuntimeBackupManifest";
 import {
@@ -124,9 +126,11 @@ export function restoreAndVerifyRuntimeBackup(
     ? `projects/${request.projectSlug}`
     : "projects";
   const verification = verifyRuntimeBackup(backupDirectory);
+  const isV3OrV4 =
+    verification.manifest.schemaVersion === runtimeBackupManifestSchemaVersionV3 ||
+    verification.manifest.schemaVersion === runtimeBackupManifestSchemaVersion;
   if (
-    verification.manifest.schemaVersion !== runtimeBackupManifestSchemaVersion ||
-    verification.manifest.backupFormatVersion !== runtimeBackupFormatVersion ||
+    !isV3OrV4 ||
     !verification.manifest.sourceRuntimeAuthority
   ) throw new RuntimeBackupError("RUNTIME_BACKUP_AUTHORITY_UNAVAILABLE");
   if (

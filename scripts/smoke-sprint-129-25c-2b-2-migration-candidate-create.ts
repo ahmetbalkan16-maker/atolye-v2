@@ -36,6 +36,7 @@ interface Fixture {
   readonly sandbox: string;
   readonly repositoryRoot: string;
   readonly projectRoot: string;
+  readonly projectAId: string;
   readonly backupRoot: string;
   readonly backupDirectory: string;
   readonly candidateRoot: string;
@@ -125,8 +126,9 @@ function createFixture(): Fixture {
   const backupManifest = collectRuntimeBackupInventory({
     context, repositoryRoot, now: () => stamp,
   });
-  fs.mkdirSync(path.join(backupDirectory, "payload"), { recursive: true });
-  fs.cpSync(projectsRoot, path.join(backupDirectory, "payload", "projects"), { recursive: true });
+  const projectAId = backupManifest.files.find((f) => f.relativePath.endsWith("/project.json"))?.relativePath.split("/")[0] ?? "project-a";
+  fs.mkdirSync(path.join(backupDirectory, "payload", "projects", projectAId), { recursive: true });
+  fs.cpSync(projectRoot, path.join(backupDirectory, "payload", "projects", projectAId), { recursive: true });
   const serialized = serializeRuntimeBackupManifest(backupManifest);
   fs.writeFileSync(path.join(backupDirectory, "manifest.json"), serialized, { flag: "wx" });
   fs.writeFileSync(path.join(backupDirectory, "manifest.sha256"),
@@ -150,6 +152,7 @@ function createFixture(): Fixture {
     sandbox,
     repositoryRoot,
     projectRoot,
+    projectAId,
     backupRoot,
     backupDirectory,
     candidateRoot,
@@ -831,7 +834,7 @@ scenario("final candidate tamper requires recovery and is preserved", () => {
 
 scenario("source symlink tamper is rejected", () => {
   const fixture = current();
-  const source = path.join(fixture.backupDirectory, "payload", "projects", "project-a", "project.json");
+  const source = path.join(fixture.backupDirectory, "payload", "projects", fixture.projectAId, "project.json");
   const target = path.join(fixture.sandbox, "outside.json");
   fs.writeFileSync(target, fs.readFileSync(source));
   fs.unlinkSync(source);
@@ -847,7 +850,7 @@ scenario("source symlink tamper is rejected", () => {
 
 scenario("junction tamper is rejected where supported", () => {
   const fixture = current();
-  const project = path.join(fixture.backupDirectory, "payload", "projects", "project-a");
+  const project = path.join(fixture.backupDirectory, "payload", "projects", fixture.projectAId);
   const target = path.join(fixture.sandbox, "junction-target");
   const link = path.join(project, "junction");
   fs.mkdirSync(target);

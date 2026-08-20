@@ -13,7 +13,9 @@ import {
 } from "@/lib/runtime/backup/RuntimeBackupAuthority";
 import {
   runtimeBackupFormatVersion,
+  runtimeBackupFormatVersionV3,
   runtimeBackupManifestSchemaVersion,
+  runtimeBackupManifestSchemaVersionV3,
 } from "@/lib/runtime/backup/RuntimeBackupManifest";
 import { verifyRuntimeBackup } from "@/lib/runtime/backup/RuntimeBackupVerifier";
 import type { PipelineJobList } from "@/types/pipelineJob";
@@ -399,12 +401,26 @@ function verifyBoundBackup(
     throw new ProductionRegenerationPreparationError("PRODUCTION_REGENERATION_BACKUP_INVALID");
   }
   const manifest = verification.manifest;
-  if (manifest.schemaVersion !== runtimeBackupManifestSchemaVersion ||
-    manifest.backupFormatVersion !== runtimeBackupFormatVersion ||
-    manifest.sourceLogicalIdentity !== `projects/${plan.projectSlug}` ||
-    manifest.sourceRuntimeAuthority?.runtimeAuthorityId !== input.backupAuthority.runtimeAuthorityId ||
-    manifest.sourceRuntimeAuthority.projectIdentity !== `projects/${plan.projectSlug}`) {
+  const isV4 = manifest.schemaVersion === runtimeBackupManifestSchemaVersion;
+  const isV3 = manifest.schemaVersion === runtimeBackupManifestSchemaVersionV3;
+  if (!isV4 && !isV3) {
     throw new ProductionRegenerationPreparationError("PRODUCTION_REGENERATION_BACKUP_INVALID");
+  }
+  if (manifest.sourceRuntimeAuthority?.runtimeAuthorityId !== input.backupAuthority.runtimeAuthorityId) {
+    throw new ProductionRegenerationPreparationError("PRODUCTION_REGENERATION_BACKUP_INVALID");
+  }
+  if (isV4) {
+    const hasProject = manifest.sourceProjectIdentities?.some((entry) => entry.projectSlug === plan.projectSlug);
+    if (!hasProject) {
+      throw new ProductionRegenerationPreparationError("PRODUCTION_REGENERATION_BACKUP_INVALID");
+    }
+  } else {
+    if (
+      manifest.sourceLogicalIdentity !== `projects/${plan.projectSlug}` ||
+      manifest.sourceRuntimeAuthority?.projectIdentity !== `projects/${plan.projectSlug}`
+    ) {
+      throw new ProductionRegenerationPreparationError("PRODUCTION_REGENERATION_BACKUP_INVALID");
+    }
   }
   if (manifest.aggregateFingerprint !== plan.projectAggregateFingerprint) {
     throw new ProductionRegenerationPreparationError("PRODUCTION_REGENERATION_BACKUP_STALE");

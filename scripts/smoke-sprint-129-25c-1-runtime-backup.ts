@@ -11,10 +11,14 @@ import {
   aggregateRuntimeFileRecords,
   emptyClassificationTotals,
   runtimeBackupManifestSha256,
+  runtimeBackupFormatVersion,
   runtimeBackupFormatVersionV1,
   runtimeBackupFormatVersionV2,
+  runtimeBackupFormatVersionV3,
+  runtimeBackupManifestSchemaVersion,
   runtimeBackupManifestSchemaVersionV1,
   runtimeBackupManifestSchemaVersionV2,
+  runtimeBackupManifestSchemaVersionV3,
   serializeRuntimeBackupManifest,
   validateRuntimeBackupManifest,
   type RuntimeBackupManifest,
@@ -23,6 +27,7 @@ import {
   assertRuntimeBackupMaterializedPath,
   runtimeBackupPathLimits,
   runtimeBackupPathPolicyVersion,
+  runtimeBackupPathPolicyVersionV2,
   runtimeBackupPortableCollisionKey,
   validateRuntimeBackupMutationRelativePath,
   validateRuntimeBackupRelativePath,
@@ -231,8 +236,8 @@ async function main() {
       );
     });
 
-    await scenario("v2 backup path policy enforces exact UTF-16 UTF-8 and portable boundaries", () => {
-      assert.equal(runtimeBackupPathPolicyVersion, "runtime-backup-relative-path-v2");
+    await scenario("v3 backup path policy enforces exact UTF-16 UTF-8 and portable boundaries", () => {
+      assert.equal(runtimeBackupPathPolicyVersion, "runtime-backup-relative-path-v3");
       assert.equal(runtimeBackupPathLimits.relativePathUtf16, 220);
       assert.equal(runtimeBackupPathLimits.relativePathUtf8, 300);
       const exactUtf16 = `${"s".repeat(100)}/${"m".repeat(22)}/${"f".repeat(96)}`;
@@ -280,21 +285,22 @@ async function main() {
         runtimeBackupPortableCollisionKey("slug/STRASSE.json"),
       );
       const first = inventory.files[0];
+      const firstId = first.relativePath.split("/")[0];
       assert.throws(() => validateRuntimeBackupManifest(manifestWithFiles(inventory, [
-        { ...first, relativePath: "project-a/straße.json" },
-        { ...first, relativePath: "project-a/STRASSE.json" },
+        { ...first, relativePath: `${firstId}/straße.json` },
+        { ...first, relativePath: `${firstId}/STRASSE.json` },
       ])), /collision/);
     });
 
-    await scenario("manifest v1 remains old-policy-bound and v2 identity is explicit", () => {
+    await scenario("manifest v1 remains old-policy-bound and v3 identity is explicit", () => {
       const v1 = asV1Manifest(inventory);
       const v1Bytes = serializeRuntimeBackupManifest(v1);
       validateRuntimeBackupManifest(v1);
       assert.equal(serializeRuntimeBackupManifest(v1), v1Bytes);
       assert.equal("pathPolicyVersion" in v1, false);
       assert.equal(serializeRuntimeBackupManifest(v1).includes("pathPolicyVersion"), false);
-      assert.equal(inventory.schemaVersion, runtimeBackupManifestSchemaVersionV2);
-      assert.equal(inventory.backupFormatVersion, runtimeBackupFormatVersionV2);
+      assert.equal(inventory.schemaVersion, runtimeBackupManifestSchemaVersionV3);
+      assert.equal(inventory.backupFormatVersion, runtimeBackupFormatVersionV3);
       assert.equal(inventory.pathPolicyVersion, runtimeBackupPathPolicyVersion);
       const legacyOverLimit = `slug/${"a".repeat(120)}/${"b".repeat(55)}`;
       assert.equal(legacyOverLimit.length, 181);
@@ -305,7 +311,7 @@ async function main() {
       validateRuntimeBackupRelativePath(legacyOverLimit);
       assert.throws(() => validateRuntimeBackupManifest({
         ...inventory,
-        pathPolicyVersion: "runtime-backup-relative-path-v3",
+        pathPolicyVersion: "runtime-backup-relative-path-v4",
       }));
       assert.throws(() => validateRuntimeBackupManifest({
         ...inventory,
@@ -332,8 +338,8 @@ async function main() {
         now: () => fixedNow,
         pathPolicyVersion: "runtime-backup-relative-path-v1",
       } as RuntimeBackupInventoryOptions & { readonly pathPolicyVersion: string });
-      assert.equal(attemptedDowngrade.schemaVersion, runtimeBackupManifestSchemaVersionV2);
-      assert.equal(attemptedDowngrade.backupFormatVersion, runtimeBackupFormatVersionV2);
+      assert.equal(attemptedDowngrade.schemaVersion, runtimeBackupManifestSchemaVersionV3);
+      assert.equal(attemptedDowngrade.backupFormatVersion, runtimeBackupFormatVersionV3);
       assert.equal(attemptedDowngrade.pathPolicyVersion, runtimeBackupPathPolicyVersion);
       const inventoryExports = await import(
         "../src/lib/runtime/backup/RuntimeBackupInventory"
@@ -551,8 +557,8 @@ async function main() {
         "verification",
       ]);
       assert.equal(result.verification.valid, true);
-      assert.equal(result.manifest.schemaVersion, "3");
-      assert.equal(result.manifest.backupFormatVersion, "runtime-backup-v3");
+      assert.equal(result.manifest.schemaVersion, "4");
+      assert.equal(result.manifest.backupFormatVersion, "runtime-backup-v4");
       assert.equal(
         result.manifest.sourceRuntimeAuthority?.runtimeAuthorityId,
         fixtureAuthority.runtimeAuthorityId,
@@ -625,7 +631,7 @@ async function main() {
 
     await scenario("existing v1 backup verifies and restores under the legacy 180/240 contract", () => {
       const legacyBackup = path.join(sandbox, "legacy-v1-backup");
-      fs.cpSync(backupDirectory, legacyBackup, { recursive: true });
+      createLegacyBackupFixture(backupDirectory, legacyBackup, inventory);
       const legacyManifest = asV1Manifest(inventory);
       const serialized = serializeRuntimeBackupManifest(legacyManifest);
       fs.writeFileSync(path.join(legacyBackup, "manifest.json"), serialized);
@@ -641,7 +647,7 @@ async function main() {
         authority: fixtureAuthority,
         backupDirectory: legacyBackup,
       });
-      assert.equal(restored.aggregateFingerprint, inventory.aggregateFingerprint);
+      assert.equal(restored.aggregateFingerprint, legacyManifest.aggregateFingerprint);
       assert.equal(fs.readFileSync(path.join(legacyBackup, "manifest.json"), "utf8"), serialized);
       const trustedLegacy = path.join(backupRoot, "backups", "legacy-v1-authority");
       fs.cpSync(legacyBackup, trustedLegacy, { recursive: true });
@@ -652,8 +658,9 @@ async function main() {
         error.code === "RUNTIME_BACKUP_AUTHORITY_UNAVAILABLE");
 
       const v2Backup = path.join(backupRoot, "backups", "legacy-v2-authority");
-      fs.cpSync(backupDirectory, v2Backup, { recursive: true });
-      const v2Serialized = serializeRuntimeBackupManifest(inventory);
+      createLegacyBackupFixture(backupDirectory, v2Backup, inventory);
+      const v2Manifest = asV2Manifest(inventory);
+      const v2Serialized = serializeRuntimeBackupManifest(v2Manifest);
       fs.writeFileSync(path.join(v2Backup, "manifest.json"), v2Serialized);
       fs.writeFileSync(
         path.join(v2Backup, "manifest.sha256"),
@@ -714,10 +721,12 @@ async function main() {
       assert.equal([first, second].filter((value) => value.startsWith("SUCCESS:")).length, 1);
       assert.equal([first, second].filter((value) => value.startsWith("CONTENDED:")).length, 1);
       const final = path.join(concurrentRoot, "backups", "concurrent-backup");
-      assert.equal(verifyRuntimeBackup(final).valid, true);
+      const finalVerification = verifyRuntimeBackup(final);
+      assert.equal(finalVerification.valid, true);
       const winner = [first, second].find((value) => value.startsWith("SUCCESS:"))?.slice(-1);
+      const raceProjectId = finalVerification.manifest.sourceProjectIdentities?.find((item) => item.projectSlug === "race")?.projectId ?? "race";
       assert.equal(
-        fs.readFileSync(path.join(final, "payload", "projects", "race", "marker.txt"), "utf8"),
+        fs.readFileSync(path.join(final, "payload", "projects", raceProjectId, "marker.txt"), "utf8"),
         winner === "A" ? "MARKER-A" : "MARKER-B",
       );
       assert.deepEqual(
@@ -1097,24 +1106,27 @@ async function main() {
       const sourceFile = path.join(projectRoot, "assets", "animations", fileName);
       const bytes = Buffer.from("legacy-production-shape-byte-exact\u0000\u00ff", "latin1");
       const expectedSha256 = createHash("sha256").update(bytes).digest("hex");
-      const shortRoot = allocateBackupRootForPartialLength(relativePath, 259);
+      fs.mkdirSync(path.dirname(sourceFile), { recursive: true });
+      fs.writeFileSync(sourceFile, bytes);
+      const before = collectRuntimeBackupInventory({
+        context: fixtureContext,
+        projectSlug: productionShapeSlug,
+        repositoryRoot: fixtureRepository,
+        now: () => fixedNow,
+      });
+      assert.equal(before.inventory.files, 1);
+      const expectedProjectId = before.files[0].relativePath.split("/")[0];
+      const backupFileRelativePath = `${expectedProjectId}/assets/animations/${fileName}`;
+      assert.equal(before.files[0].relativePath, backupFileRelativePath);
+      assert.equal(before.files[0].projectSlug, productionShapeSlug);
+      assert.equal(before.files[0].sizeBytes, bytes.length);
+      assert.equal(before.files[0].sha256, expectedSha256);
+      const shortRoot = allocateBackupRootForPartialLength(backupFileRelativePath, 259);
       const shortAuthority = bootstrapTestRuntimeBackupStorageAuthority(
         fixtureContext,
         shortRoot,
       );
       try {
-        fs.mkdirSync(path.dirname(sourceFile), { recursive: true });
-        fs.writeFileSync(sourceFile, bytes);
-        const before = collectRuntimeBackupInventory({
-          context: fixtureContext,
-          projectSlug: productionShapeSlug,
-          repositoryRoot: fixtureRepository,
-          now: () => fixedNow,
-        });
-        assert.equal(before.inventory.files, 1);
-        assert.equal(before.files[0].relativePath, relativePath);
-        assert.equal(before.files[0].sizeBytes, bytes.length);
-        assert.equal(before.files[0].sha256, expectedSha256);
         let exactBoundaryWriteObserved = false;
         const created = withCopyFileInterceptor((original, source, destination, mode) => {
           if (String(source) === sourceFile) {
@@ -1137,7 +1149,7 @@ async function main() {
           created.backupDirectory,
           "payload",
           "projects",
-          ...relativePath.split("/"),
+          ...backupFileRelativePath.split("/"),
         );
         assert.equal(fs.statSync(copiedFile).size, bytes.length);
         assert.equal(sha256(copiedFile), expectedSha256);
@@ -1158,7 +1170,7 @@ async function main() {
         assert.equal(restored.aggregateFingerprint, before.aggregateFingerprint);
         assert.equal(fs.existsSync(restored.restoreRoot), false);
         assert.deepEqual(runtimeMutationResidues(shortRoot), []);
-        const boundaryPlusOneRoot = allocateBackupRootForPartialLength(relativePath, 260);
+        const boundaryPlusOneRoot = allocateBackupRootForPartialLength(backupFileRelativePath, 260);
         const boundaryPlusOneAuthority = bootstrapTestRuntimeBackupStorageAuthority(
           fixtureContext,
           boundaryPlusOneRoot,
@@ -1178,16 +1190,23 @@ async function main() {
 
         const legacyLongBackup = allocateBackupRootForPartialLength(relativePath, 259);
         try {
-          fs.cpSync(created.backupDirectory, legacyLongBackup, { recursive: true });
-          const manifestPath = path.join(legacyLongBackup, "manifest.json");
-          const legacyManifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as
-            Record<string, unknown>;
-          legacyManifest.schemaVersion = runtimeBackupManifestSchemaVersionV1;
-          legacyManifest.backupFormatVersion = runtimeBackupFormatVersionV1;
+          createLegacyBackupFixture(created.backupDirectory, legacyLongBackup, created.manifest);
+          const files = created.manifest.files.map((file) => ({
+            ...file,
+            relativePath: file.projectSlug ? file.relativePath.replace(/^[^/]+/, file.projectSlug) : file.relativePath,
+          }));
+          const legacyManifest = {
+            ...created.manifest,
+            schemaVersion: runtimeBackupManifestSchemaVersionV1,
+            backupFormatVersion: runtimeBackupFormatVersionV1,
+            aggregateFingerprint: aggregateRuntimeFileRecords(files),
+            files,
+          } as Record<string, unknown>;
           delete legacyManifest.pathPolicyVersion;
           delete legacyManifest.sourceRuntimeAuthority;
+          delete legacyManifest.sourceProjectIdentities;
           const legacySerialized = `${JSON.stringify(legacyManifest, null, 2)}\n`;
-          fs.writeFileSync(manifestPath, legacySerialized);
+          fs.writeFileSync(path.join(legacyLongBackup, "manifest.json"), legacySerialized);
           fs.writeFileSync(
             path.join(legacyLongBackup, "manifest.sha256"),
             `${runtimeBackupManifestSha256(legacySerialized)}\n`,
@@ -1312,16 +1331,21 @@ async function main() {
           repositoryRoot: fixtureRepository,
           now: () => fixedNow,
         });
+        const projectId = inventory.sourceProjectIdentities?.[0]?.projectId ?? slug;
+        const toPayloadPath = (absPath: string) => {
+          const rel = relativeToProjects(absPath);
+          return rel.replace(/^[^/]+/, projectId);
+        };
         const inventoryRelativePaths = inventory.files.map((file) => file.relativePath);
-        assert.ok(inventoryRelativePaths.includes(relativeToProjects(permanentFiles.publicationStaging)));
-        assert.ok(inventoryRelativePaths.includes(relativeToProjects(permanentFiles.receipt)));
-        assert.ok(inventoryRelativePaths.includes(relativeToProjects(permanentFiles.publication)));
-        assert.ok(inventoryRelativePaths.includes(relativeToProjects(permanentFiles.publicationReservation)));
+        assert.ok(inventoryRelativePaths.includes(toPayloadPath(permanentFiles.publicationStaging)));
+        assert.ok(inventoryRelativePaths.includes(toPayloadPath(permanentFiles.receipt)));
+        assert.ok(inventoryRelativePaths.includes(toPayloadPath(permanentFiles.publication)));
+        assert.ok(inventoryRelativePaths.includes(toPayloadPath(permanentFiles.publicationReservation)));
         assert.equal(
-          inventoryRelativePaths.includes(relativeToProjects(transientFiles.workspaceStaging)), false,
+          inventoryRelativePaths.includes(toPayloadPath(transientFiles.workspaceStaging)), false,
         );
         assert.equal(
-          inventoryRelativePaths.includes(relativeToProjects(transientFiles.recordStaging)), false,
+          inventoryRelativePaths.includes(toPayloadPath(transientFiles.recordStaging)), false,
         );
 
         // The backup root itself must leave enough budget that the longest
@@ -1333,7 +1357,7 @@ async function main() {
         // predictable (it is not accounted for by the boundary-length helper
         // below, which only budgets the shared payload/projects/... suffix).
         const backupRoot = allocateBackupRootForPartialLength(
-          relativeToProjects(permanentFiles.publicationReservation), 250,
+          toPayloadPath(permanentFiles.publicationReservation), 250,
         );
         const backupAuthority = bootstrapTestRuntimeBackupStorageAuthority(fixtureContext, backupRoot);
         try {
@@ -1344,15 +1368,15 @@ async function main() {
           assert.equal(created.manifest.aggregateFingerprint, inventory.aggregateFingerprint);
           const payloadRoot = path.join(created.backupDirectory, "payload", "projects");
           assert.equal(
-            fs.existsSync(path.join(payloadRoot, ...relativeToProjects(permanentFiles.publicationReservation).split("/"))),
+            fs.existsSync(path.join(payloadRoot, ...toPayloadPath(permanentFiles.publicationReservation).split("/"))),
             true,
           );
           assert.equal(
-            fs.existsSync(path.join(payloadRoot, ...relativeToProjects(transientFiles.workspaceStaging).split("/"))),
+            fs.existsSync(path.join(payloadRoot, ...toPayloadPath(transientFiles.workspaceStaging).split("/"))),
             false,
           );
           assert.equal(
-            fs.existsSync(path.join(payloadRoot, ...relativeToProjects(transientFiles.recordStaging).split("/"))),
+            fs.existsSync(path.join(payloadRoot, ...toPayloadPath(transientFiles.recordStaging).split("/"))),
             false,
           );
         } finally {
@@ -1369,7 +1393,7 @@ async function main() {
         projectSlug: "project-b",
       }, { backupId: "project-b-only" });
       assert.equal(result.manifest.sourceLogicalIdentity, "projects/project-b");
-      assert.ok(result.manifest.files.every((file) => file.relativePath.startsWith("project-b/")));
+      assert.ok(result.manifest.files.every((file) => file.projectSlug === "project-b"));
     });
 
     await scenario("independent exact 259 public chain passes and 260 rejects before mutation", () => {
@@ -1379,8 +1403,16 @@ async function main() {
       const bytes = Buffer.from([0, 1, 2, 253, 254, 255]);
       fs.mkdirSync(path.dirname(source), { recursive: true });
       fs.writeFileSync(source, bytes);
-      const root259 = allocateNestedBackupRootForPartialLength(relativePath, 259);
-      const root260 = allocateNestedBackupRootForPartialLength(relativePath, 260);
+      const inventory = collectRuntimeBackupInventory({
+        context: fixtureContext,
+        projectSlug: slug,
+        repositoryRoot: fixtureRepository,
+        now: () => fixedNow,
+      });
+      const projectId = inventory.files[0]?.relativePath.split("/")[0] ?? slug;
+      const backupFileRelativePath = `${projectId}/x.bin`;
+      const root259 = allocateNestedBackupRootForPartialLength(backupFileRelativePath, 259);
+      const root260 = allocateNestedBackupRootForPartialLength(backupFileRelativePath, 260);
       try {
         const authority259 = bootstrapTestRuntimeBackupStorageAuthority(fixtureContext, root259);
         let observed = false;
@@ -1402,7 +1434,7 @@ async function main() {
           created.backupDirectory,
           "payload",
           "projects",
-          slug,
+          projectId,
           "x.bin",
         )), createHash("sha256").update(bytes).digest("hex"));
         assert.equal(restoreAndVerifyRuntimeBackup({
@@ -1745,11 +1777,55 @@ function insidePath(root: string, candidate: string) {
     !path.isAbsolute(relative);
 }
 
+function createLegacyBackupFixture(
+  sourceBackupDir: string,
+  targetBackupDir: string,
+  manifest: RuntimeBackupManifest,
+) {
+  fs.cpSync(sourceBackupDir, targetBackupDir, { recursive: true });
+  const projectsDir = path.join(targetBackupDir, "payload", "projects");
+  for (const identity of manifest.sourceProjectIdentities ?? []) {
+    const idPath = path.join(projectsDir, identity.projectId);
+    const slugPath = path.join(projectsDir, identity.projectSlug);
+    if (fs.existsSync(idPath) && idPath !== slugPath) {
+      fs.renameSync(idPath, slugPath);
+    }
+  }
+}
+
 function asV1Manifest(manifest: RuntimeBackupManifest): RuntimeBackupManifest {
-  const legacy = { ...manifest } as Record<string, unknown>;
+  const files = manifest.files.map((file) => ({
+    ...file,
+    relativePath: file.projectSlug ? file.relativePath.replace(/^[^/]+/, file.projectSlug) : file.relativePath,
+  }));
+  const legacy = {
+    ...manifest,
+    schemaVersion: runtimeBackupManifestSchemaVersionV1,
+    backupFormatVersion: runtimeBackupFormatVersionV1,
+    aggregateFingerprint: aggregateRuntimeFileRecords(files),
+    files,
+  } as Record<string, unknown>;
   delete legacy.pathPolicyVersion;
-  legacy.schemaVersion = runtimeBackupManifestSchemaVersionV1;
-  legacy.backupFormatVersion = runtimeBackupFormatVersionV1;
+  delete legacy.sourceRuntimeAuthority;
+  delete legacy.sourceProjectIdentities;
+  return legacy as unknown as RuntimeBackupManifest;
+}
+
+function asV2Manifest(manifest: RuntimeBackupManifest): RuntimeBackupManifest {
+  const files = manifest.files.map((file) => ({
+    ...file,
+    relativePath: file.projectSlug ? file.relativePath.replace(/^[^/]+/, file.projectSlug) : file.relativePath,
+  }));
+  const legacy = {
+    ...manifest,
+    schemaVersion: runtimeBackupManifestSchemaVersionV2,
+    backupFormatVersion: runtimeBackupFormatVersionV2,
+    pathPolicyVersion: runtimeBackupPathPolicyVersionV2,
+    aggregateFingerprint: aggregateRuntimeFileRecords(files),
+    files,
+  } as Record<string, unknown>;
+  delete legacy.sourceRuntimeAuthority;
+  delete legacy.sourceProjectIdentities;
   return legacy as unknown as RuntimeBackupManifest;
 }
 

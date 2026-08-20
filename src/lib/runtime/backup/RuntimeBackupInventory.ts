@@ -17,20 +17,27 @@ import {
   aggregateRuntimeFileRecords,
   emptyClassificationTotals,
   runtimeBackupAggregateVersion,
+  runtimeBackupFormatVersion,
   runtimeBackupFormatVersionV1,
   runtimeBackupFormatVersionV2,
+  runtimeBackupFormatVersionV3,
+  runtimeBackupManifestSchemaVersion,
   runtimeBackupManifestSchemaVersionV1,
   runtimeBackupManifestSchemaVersionV2,
+  runtimeBackupManifestSchemaVersionV3,
   getRuntimeBackupManifestPathPolicyVersion,
   validateRuntimeBackupManifest,
   type RuntimeBackupFileClassification,
   type RuntimeBackupFileRecord,
   type RuntimeBackupGitMetadata,
   type RuntimeBackupManifest,
+  type RuntimeBackupProjectIdentity,
 } from "./RuntimeBackupManifest";
 import {
   runtimeBackupPathPolicyVersion,
   runtimeBackupPathPolicyVersionV1,
+  runtimeBackupPathPolicyVersionV2,
+  runtimeBackupPathPolicyVersionV3,
   runtimeBackupPortableCollisionKey,
   validateRuntimeBackupRelativePath,
   type RuntimeBackupPathPolicyVersion,
@@ -40,6 +47,7 @@ export interface RuntimeBackupInventoryOptions {
   readonly context?: RuntimeStorageInput;
   readonly projectSlug?: string;
   readonly repositoryRoot?: string;
+  readonly knownProjectIdentities?: ReadonlyMap<string, string>;
   readonly now?: () => string;
   readonly hooks?: {
     readonly beforeHashFile?: (absolutePath: string, relativePath: string) => void;
@@ -62,8 +70,11 @@ export function assertRuntimeBackupTreeMatchesManifest(options: {
   readonly now?: () => string;
 }) {
   validateRuntimeBackupManifest(options.manifest);
+  const knownProjectIdentities = options.manifest.sourceProjectIdentities
+    ? new Map(options.manifest.sourceProjectIdentities.map((id) => [id.projectId, id.projectSlug]))
+    : undefined;
   const inventory = collectRuntimeBackupInventoryWithPolicy(
-    { context: options.context, now: options.now },
+    { context: options.context, now: options.now, knownProjectIdentities },
     getRuntimeBackupManifestPathPolicyVersion(options.manifest),
   );
   const expected = options.manifest.files.map(runtimeBackupTreeIdentity);
@@ -105,10 +116,13 @@ function collectRuntimeBackupInventoryWithPolicy(
     ? collectGitMetadata(options.repositoryRoot, projectsRoot)
     : undefined;
   const files: RuntimeBackupFileRecord[] = [];
+  const projectIdentitiesMap = new Map<string, string>();
   walkRuntimeTree(
     projectsRoot,
     scanRoot,
     files,
+    projectIdentitiesMap,
+    options.knownProjectIdentities,
     git?.entries,
     options.hooks,
     pathPolicyVersion,
@@ -119,35 +133,49 @@ function collectRuntimeBackupInventoryWithPolicy(
   files.forEach((file) => { classifications[file.classification] += 1; });
   const tracked = files.filter((file) => file.git?.tracked).length;
   const projects = new Set(files.map((file) => file.projectSlug).filter(Boolean));
+
+  const sourceProjectIdentities: RuntimeBackupProjectIdentity[] = [...projectIdentitiesMap.entries()]
+    .map(([projectId, projectSlug]) => Object.freeze({ projectId, projectSlug }))
+    .sort((a, b) => compareText(a.projectId, b.projectId));
+
   const manifest: RuntimeBackupManifest = Object.freeze({
     schemaVersion: pathPolicyVersion === runtimeBackupPathPolicyVersionV1
       ? runtimeBackupManifestSchemaVersionV1
-      : runtimeBackupManifestSchemaVersionV2,
+      : pathPolicyVersion === runtimeBackupPathPolicyVersionV2
+        ? runtimeBackupManifestSchemaVersionV2
+        : runtimeBackupManifestSchemaVersionV3,
     backupFormatVersion: pathPolicyVersion === runtimeBackupPathPolicyVersionV1
       ? runtimeBackupFormatVersionV1
-      : runtimeBackupFormatVersionV2,
-    ...(pathPolicyVersion === runtimeBackupPathPolicyVersion
-      ? { pathPolicyVersion: runtimeBackupPathPolicyVersion }
+      : pathPolicyVersion === runtimeBackupPathPolicyVersionV2
+        ? runtimeBackupFormatVersionV2
+        : runtimeBackupFormatVersionV3,
+    ...(pathPolicyVersion === runtimeBackupPathPolicyVersionV2
+      ? { pathPolicyVersion: runtimeBackupPathPolicyVersionV2 }
+      : pathPolicyVersion === runtimeBackupPathPolicyVersionV3
+        ? { pathPolicyVersion: runtimeBackupPathPolicyVersionV3 }
+        : {}),
+    ...(pathPolicyVersion === runtimeBackupPathPolicyVersionV3
+      ? { sourceProjectIdentities: Object.freeze(sourceProjectIdentities) }
       : {}),
     aggregateAlgorithm: runtimeBackupAggregateVersion,
     storagePolicyVersion: runtimeStoragePolicyVersion,
     createdAt: (options.now ?? (() => new Date().toISOString()))(),
     sourceLogicalIdentity: options.projectSlug
-      ? getLogicalProjectIdentity(options.projectSlug)
+      ? `projects/${options.projectSlug}`
       : "projects",
-    sourceClassification: context.classification,
+    sourceClassification: options.projectSlug ? "single-project" : "multi-project",
     sourceProjectsRootLogicalName: "projects",
     ...(git?.headCommit ? { sourceHeadCommit: git.headCommit } : {}),
     aggregateFingerprint: aggregateRuntimeFileRecords(files),
     inventory: Object.freeze({
       files: files.length,
-      bytes: files.reduce((sum, file) => sum + file.sizeBytes, 0),
+      bytes: files.reduce((accumulator, file) => accumulator + file.sizeBytes, 0),
       projects: projects.size,
       tracked,
       untracked: files.length - tracked,
       classifications: Object.freeze(classifications),
     }),
-    files: Object.freeze(files.map((file) => Object.freeze(file))),
+    files: Object.freeze(files),
   });
   validateRuntimeBackupManifest(manifest);
   return manifest;
@@ -211,10 +239,59 @@ export function hashStableRuntimeFile(
   }
 }
 
+const projectIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function deterministicProjectId(slug: string): string {
+  const hex = createHash("sha256").update(`atolye-v2-project:${slug}`).digest("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
+export function resolveProjectIdentity(
+  projectsRoot: string,
+  firstSegment: string,
+  knownIdentities?: ReadonlyMap<string, string>,
+): { projectId: string; projectSlug: string } {
+  if (projectIdPattern.test(firstSegment)) {
+    const projectId = firstSegment.toLowerCase();
+    let projectSlug = knownIdentities?.get(projectId) ?? projectId;
+    if (projectSlug === projectId) {
+      const projectJsonPath = path.join(projectsRoot, firstSegment, "project.json");
+      try {
+        if (fs.existsSync(projectJsonPath)) {
+          const parsed = JSON.parse(fs.readFileSync(projectJsonPath, "utf8"));
+          if (typeof parsed.slug === "string" && /^[a-zA-Z0-9-_]+$/.test(parsed.slug)) {
+            projectSlug = parsed.slug;
+          }
+        }
+      } catch {
+        // fallback to folder name if unparseable
+      }
+    }
+    return { projectId, projectSlug };
+  } else {
+    const projectSlug = firstSegment;
+    let projectId = deterministicProjectId(projectSlug);
+    const projectJsonPath = path.join(projectsRoot, projectSlug, "project.json");
+    try {
+      if (fs.existsSync(projectJsonPath)) {
+        const parsed = JSON.parse(fs.readFileSync(projectJsonPath, "utf8"));
+        if (typeof parsed.id === "string" && projectIdPattern.test(parsed.id)) {
+          projectId = parsed.id.toLowerCase();
+        }
+      }
+    } catch {
+      // fallback to deterministic id if unparseable
+    }
+    return { projectId, projectSlug };
+  }
+}
+
 function walkRuntimeTree(
   projectsRoot: string,
   directory: string,
   files: RuntimeBackupFileRecord[],
+  projectIdentitiesMap: Map<string, string>,
+  knownIdentities: ReadonlyMap<string, string> | undefined,
   gitEntries: ReadonlyMap<string, RuntimeBackupGitMetadata> | undefined,
   hooks: RuntimeBackupInventoryOptions["hooks"],
   pathPolicyVersion: RuntimeBackupPathPolicyVersion,
@@ -235,6 +312,8 @@ function walkRuntimeTree(
         projectsRoot,
         absolutePath,
         files,
+        projectIdentitiesMap,
+        knownIdentities,
         gitEntries,
         hooks,
         pathPolicyVersion,
@@ -244,20 +323,33 @@ function walkRuntimeTree(
     if (!link.isFile()) {
       throw new Error("Runtime backup source contains an unsupported path.");
     }
-    const relativePath = relativePosix(projectsRoot, absolutePath);
-    if (isAudioCompensationJournalStagingPartialAtProjectPath(relativePath)) {
+    const diskRelativePath = relativePosix(projectsRoot, absolutePath);
+    if (isAudioCompensationJournalStagingPartialAtProjectPath(diskRelativePath)) {
       continue;
     }
-    validateRuntimeBackupRelativePath(relativePath, pathPolicyVersion);
-    const hash = hashStableRuntimeFile(absolutePath, relativePath, hooks);
-    const projectSlug = inferProjectSlug(relativePath);
+    const firstSegment = diskRelativePath.split("/")[0];
+    const hasSubdirectory = diskRelativePath.includes("/");
+    let backupRelativePath = diskRelativePath;
+    let projectSlug: string | undefined;
+
+    if (hasSubdirectory && firstSegment) {
+      const identity = resolveProjectIdentity(projectsRoot, firstSegment, knownIdentities);
+      projectSlug = identity.projectSlug;
+      projectIdentitiesMap.set(identity.projectId, identity.projectSlug);
+      if (pathPolicyVersion === runtimeBackupPathPolicyVersionV3) {
+        backupRelativePath = `${identity.projectId}/${diskRelativePath.substring(firstSegment.length + 1)}`;
+      }
+    }
+
+    validateRuntimeBackupRelativePath(backupRelativePath, pathPolicyVersion);
+    const hash = hashStableRuntimeFile(absolutePath, diskRelativePath, hooks);
     files.push({
-      relativePath,
+      relativePath: backupRelativePath,
       type: "file",
       ...hash,
       ...(projectSlug ? { projectSlug } : {}),
-      classification: classifyRuntimeFile(relativePath),
-      ...(gitEntries ? { git: gitEntries.get(relativePath) ?? { tracked: false } } : {}),
+      classification: classifyRuntimeFile(diskRelativePath),
+      ...(gitEntries ? { git: gitEntries.get(diskRelativePath) ?? { tracked: false } } : {}),
     });
   }
 }

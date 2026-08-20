@@ -38,6 +38,7 @@ import {
   runtimeBackupPathLimits,
   runtimeBackupPathPolicyVersion,
   runtimeBackupPathPolicyVersionV1,
+  runtimeBackupPathPolicyVersionV3,
   validateRuntimeBackupMutationRelativePath,
   validateRuntimeBackupRelativePath,
   type RuntimeBackupPathPolicyVersion,
@@ -46,7 +47,9 @@ import {
   getRuntimeBackupManifestPathPolicyVersion,
   runtimeBackupAuthoritySchemaVersion,
   runtimeBackupFormatVersion,
+  runtimeBackupFormatVersionV3,
   runtimeBackupManifestSchemaVersion,
+  runtimeBackupManifestSchemaVersionV3,
   runtimeBackupManifestSha256,
   serializeRuntimeBackupManifest,
   type RuntimeBackupManifest,
@@ -126,7 +129,13 @@ export class GuardedRuntimeFilesystem {
   constructor(private readonly protectedRoots: RuntimeProtectedRoots) {}
 
   beginMutation(request: BeginRuntimeMutationRequest): GuardedRuntimeMutationSession {
-    return this.beginMutationWithValidator(request, validateMutationRelativePath);
+    const validator =
+      request.writableRole === "candidate" ||
+      request.writableRole === "backup" ||
+      request.writableRole === "restore-verification"
+        ? validateRuntimeBackupMutationRelativePath
+        : validateMutationRelativePath;
+    return this.beginMutationWithValidator(request, validator);
   }
 
   createVerifiedRuntimeBackup(
@@ -190,16 +199,19 @@ export class GuardedRuntimeFilesystem {
       for (const file of manifest.files) {
         validateRuntimeBackupRelativePath(file.relativePath);
         assertRuntimeBackupMaterializedPath(payloadProjectsRoot, file.relativePath);
+        const diskRelativePath = file.projectSlug
+          ? file.relativePath.replace(/^[^/]+/, file.projectSlug)
+          : file.relativePath;
         const source = atomicContainedFilePath(
           decodedRequest.context.projectsRoot,
-          file.relativePath,
+          diskRelativePath,
         );
         const destination = activeOperation.materializeInventoryFile(
           source,
           file.relativePath,
           file.permissionClass === "executable",
         );
-        const copied = hashStableRuntimeFile(destination, file.relativePath);
+        const copied = hashStableRuntimeFile(destination, diskRelativePath);
         if (copied.sizeBytes !== file.sizeBytes || copied.sha256 !== file.sha256) {
           throw new Error("Runtime backup payload copy verification failed.");
         }
@@ -241,9 +253,11 @@ export class GuardedRuntimeFilesystem {
     const verification = verifyRuntimeBackup(decodedRequest.backupDirectory);
     if (!decodedRequest.portable) {
       const sourceAuthority = verification.manifest.sourceRuntimeAuthority;
+      const isV3OrLater =
+        verification.manifest.schemaVersion === runtimeBackupManifestSchemaVersionV3 ||
+        verification.manifest.schemaVersion === runtimeBackupManifestSchemaVersion;
       if (
-        verification.manifest.schemaVersion !== runtimeBackupManifestSchemaVersion ||
-        verification.manifest.backupFormatVersion !== runtimeBackupFormatVersion ||
+        !isV3OrLater ||
         !sourceAuthority ||
         sourceAuthority.runtimeAuthorityId !== decodedRequest.expectedRuntimeAuthorityId ||
         sourceAuthority.projectIdentity !== decodedRequest.expectedProjectIdentity
@@ -1188,10 +1202,15 @@ function createV3Manifest(
   inventory: RuntimeBackupManifest,
   runtimeAuthorityId: string,
 ): RuntimeBackupManifest {
+  const isV4PathPolicy = inventory.pathPolicyVersion === runtimeBackupPathPolicyVersionV3;
   const manifest: RuntimeBackupManifest = Object.freeze({
     ...inventory,
-    schemaVersion: runtimeBackupManifestSchemaVersion,
-    backupFormatVersion: runtimeBackupFormatVersion,
+    schemaVersion: isV4PathPolicy
+      ? runtimeBackupManifestSchemaVersion
+      : runtimeBackupManifestSchemaVersionV3,
+    backupFormatVersion: isV4PathPolicy
+      ? runtimeBackupFormatVersion
+      : runtimeBackupFormatVersionV3,
     sourceRuntimeAuthority: Object.freeze({
       schemaVersion: runtimeBackupAuthoritySchemaVersion,
       runtimeAuthorityId,

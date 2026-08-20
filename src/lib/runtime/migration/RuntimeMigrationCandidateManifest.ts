@@ -3,16 +3,25 @@ import {
   aggregateRuntimeFileRecords,
   runtimeBackupAggregateVersion,
   runtimeBackupClassifications,
+  runtimeBackupFormatVersion,
   runtimeBackupFormatVersionV2,
+  runtimeBackupFormatVersionV3,
+  runtimeBackupManifestSchemaVersion,
   runtimeBackupManifestSchemaVersionV2,
+  runtimeBackupManifestSchemaVersionV3,
   validateRuntimeBackupManifest,
+  validateSourceProjectIdentities,
   type RuntimeBackupFileClassification,
   type RuntimeBackupFileRecord,
   type RuntimeBackupInventoryTotals,
   type RuntimeBackupManifest,
+  type RuntimeBackupProjectIdentity,
 } from "@/lib/runtime/backup/RuntimeBackupManifest";
 import type { RuntimeBackupVerificationReport } from "@/lib/runtime/backup/RuntimeBackupVerifier";
-import { runtimeBackupPathPolicyVersion } from "@/lib/runtime/backup/RuntimeBackupPathPolicy";
+import {
+  runtimeBackupPathPolicyVersionV2,
+  runtimeBackupPathPolicyVersionV3,
+} from "@/lib/runtime/backup/RuntimeBackupPathPolicy";
 import {
   isPortableRuntimeSegment,
   runtimePortableCollisionKey,
@@ -48,12 +57,13 @@ export interface RuntimeMigrationCandidateManifest {
     readonly backupId: string;
     readonly manifestSha256: string;
     readonly aggregateFingerprint: string;
-    readonly formatVersion: typeof runtimeBackupFormatVersionV2;
+    readonly formatVersion: string;
     readonly storagePolicyVersion: string;
     readonly sourceLogicalIdentity: "projects";
     readonly sourceClassification: string;
     readonly sourceCreatedAt: string;
     readonly sourceHeadCommit?: string;
+    readonly sourceProjectIdentities?: readonly RuntimeBackupProjectIdentity[];
   };
   readonly sourceRuntimeEvidence: {
     readonly aggregateFingerprint: string;
@@ -134,12 +144,13 @@ export function buildRuntimeMigrationCandidateManifest(input: {
       backupId: input.backupId,
       manifestSha256: input.backup.manifestSha256,
       aggregateFingerprint: backup.aggregateFingerprint,
-      formatVersion: runtimeBackupFormatVersionV2,
+      formatVersion: backup.backupFormatVersion,
       storagePolicyVersion: backup.storagePolicyVersion,
       sourceLogicalIdentity: "projects",
       sourceClassification: backup.sourceClassification,
       sourceCreatedAt: backup.createdAt,
       ...(backup.sourceHeadCommit ? { sourceHeadCommit: backup.sourceHeadCommit } : {}),
+      ...(backup.sourceProjectIdentities ? { sourceProjectIdentities: backup.sourceProjectIdentities } : {}),
     },
     sourceRuntimeEvidence: input.sourceRuntimeEvidence,
     aggregateAlgorithm: runtimeBackupAggregateVersion,
@@ -271,10 +282,30 @@ function validateManifest(value: unknown): asserts value is RuntimeMigrationCand
   if (value.candidateId !== expectedId) {
     throw new RuntimeMigrationCandidateError("CANDIDATE_ID_MISMATCH");
   }
+  const isV4 = source.formatVersion === runtimeBackupFormatVersion;
+  const isV3 = source.formatVersion === runtimeBackupFormatVersionV3;
   const backupShape: RuntimeBackupManifest = {
-    schemaVersion: runtimeBackupManifestSchemaVersionV2,
-    backupFormatVersion: runtimeBackupFormatVersionV2,
-    pathPolicyVersion: runtimeBackupPathPolicyVersion,
+    schemaVersion: isV4
+      ? runtimeBackupManifestSchemaVersion
+      : isV3
+        ? runtimeBackupManifestSchemaVersionV3
+        : runtimeBackupManifestSchemaVersionV2,
+    backupFormatVersion: isV4
+      ? runtimeBackupFormatVersion
+      : isV3
+        ? runtimeBackupFormatVersionV3
+        : runtimeBackupFormatVersionV2,
+    ...(isV4
+      ? {
+          pathPolicyVersion: runtimeBackupPathPolicyVersionV3,
+          sourceProjectIdentities: source.sourceProjectIdentities ?? [],
+        }
+      : isV3
+        ? {
+            pathPolicyVersion: runtimeBackupPathPolicyVersionV3,
+            sourceProjectIdentities: source.sourceProjectIdentities ?? [],
+          }
+        : { pathPolicyVersion: runtimeBackupPathPolicyVersionV2 }),
     aggregateAlgorithm: runtimeBackupAggregateVersion,
     storagePolicyVersion: source.storagePolicyVersion as RuntimeBackupManifest["storagePolicyVersion"],
     createdAt: source.sourceCreatedAt,
@@ -319,14 +350,21 @@ function validateManifest(value: unknown): asserts value is RuntimeMigrationCand
 
 function validateSourceBackup(value: unknown) {
   if (!isRecord(value)) throw invalid();
-  exact(value, ["backupId", "manifestSha256", "aggregateFingerprint", "formatVersion",
+  const hasProjectIdentities = "sourceProjectIdentities" in value && value.sourceProjectIdentities !== undefined;
+  exact(value, [
+    "backupId", "manifestSha256", "aggregateFingerprint", "formatVersion",
     "storagePolicyVersion", "sourceLogicalIdentity", "sourceClassification", "sourceCreatedAt",
-    "sourceHeadCommit"]);
+    "sourceHeadCommit", ...(hasProjectIdentities ? ["sourceProjectIdentities"] : []),
+  ]);
+  const isV2OrLater =
+    value.formatVersion === runtimeBackupFormatVersionV2 ||
+    value.formatVersion === runtimeBackupFormatVersionV3 ||
+    value.formatVersion === runtimeBackupFormatVersion;
   if (
     typeof value.backupId !== "string" || !isPortableRuntimeSegment(value.backupId) ||
     typeof value.manifestSha256 !== "string" || !sha256(value.manifestSha256) ||
     typeof value.aggregateFingerprint !== "string" || !sha256(value.aggregateFingerprint) ||
-    value.formatVersion !== runtimeBackupFormatVersionV2 ||
+    !isV2OrLater ||
     typeof value.storagePolicyVersion !== "string" ||
     value.sourceLogicalIdentity !== "projects" ||
     typeof value.sourceClassification !== "string" || !/^[a-z0-9-]+$/.test(value.sourceClassification) ||
@@ -334,6 +372,9 @@ function validateSourceBackup(value: unknown) {
     (value.sourceHeadCommit !== undefined &&
       (typeof value.sourceHeadCommit !== "string" || !/^[a-f0-9]{40,64}$/.test(value.sourceHeadCommit)))
   ) throw invalid();
+  if (hasProjectIdentities) {
+    validateSourceProjectIdentities(value.sourceProjectIdentities, []);
+  }
 }
 
 function validateCapability(value: unknown) {
@@ -494,6 +535,9 @@ function canonicalManifest(value: RuntimeMigrationCandidateManifest): RuntimeMig
       sourceCreatedAt: value.sourceBackup.sourceCreatedAt,
       ...(value.sourceBackup.sourceHeadCommit
         ? { sourceHeadCommit: value.sourceBackup.sourceHeadCommit }
+        : {}),
+      ...(value.sourceBackup.sourceProjectIdentities
+        ? { sourceProjectIdentities: value.sourceBackup.sourceProjectIdentities }
         : {}),
     },
     sourceRuntimeEvidence: {

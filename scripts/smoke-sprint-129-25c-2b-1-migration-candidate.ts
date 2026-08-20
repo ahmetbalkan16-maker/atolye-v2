@@ -26,7 +26,7 @@ import {
   readWindowsDriveTypeEvidence,
 } from "../src/lib/runtime/migration/RuntimeMigrationCandidatePreflight";
 import { verifyMigrationCandidate, verifyMigrationCandidateBinding } from "../src/lib/runtime/migration/RuntimeMigrationCandidateVerifier";
-import { runtimePortablePathLimits } from "../src/lib/runtime/security/RuntimePathPolicy";
+import { runtimeBackupPathLimits } from "../src/lib/runtime/backup/RuntimeBackupPathPolicy";
 
 const stamp = "2026-07-16T12:00:00.000Z";
 let scenarios = 0;
@@ -46,9 +46,13 @@ type MutableCandidate = {
 };
 
 function scenario(name: string, run: () => void) {
-  run();
-  scenarios += 1;
-  void name;
+  try {
+    run();
+    scenarios += 1;
+  } catch (err) {
+    console.error(`SCENARIO FAILED [${name}]:`, err);
+    throw err;
+  }
 }
 
 function expectCode(code: string, run: () => unknown) {
@@ -115,8 +119,9 @@ function main() {
       authorityRoot,
     });
     const backupManifest = collectRuntimeBackupInventory({ context, repositoryRoot, now: () => stamp });
-    fs.mkdirSync(path.join(backupDirectory, "payload"), { recursive: true });
-    fs.cpSync(projectsRoot, path.join(backupDirectory, "payload", "projects"), { recursive: true });
+    const projectAId = backupManifest.sourceProjectIdentities?.find((i) => i.projectSlug === "project-a")?.projectId ?? "project-a";
+    fs.mkdirSync(path.join(backupDirectory, "payload", "projects", projectAId), { recursive: true });
+    fs.cpSync(projectRoot, path.join(backupDirectory, "payload", "projects", projectAId), { recursive: true });
     const backupSerialized = serializeRuntimeBackupManifest(backupManifest);
     fs.writeFileSync(path.join(backupDirectory, "manifest.json"), backupSerialized, { flag: "wx" });
     fs.writeFileSync(path.join(backupDirectory, "manifest.sha256"), `${runtimeBackupManifestSha256(backupSerialized)}\n`, { flag: "wx" });
@@ -250,11 +255,11 @@ function main() {
     scenario("preflight rejects payload materialization beyond the path limit", () => {
       const base = path.join(sandbox, "long-root");
       const baseCandidateLength = path.resolve(base, "candidates", manifest.candidateId).length;
-      const padding = Math.max(0, runtimePortablePathLimits.materializedPathUtf16 - 5 - baseCandidateLength);
+      const padding = Math.max(0, runtimeBackupPathLimits.materializedPathUtf16 - 5 - baseCandidateLength);
       const longRoot = path.join(sandbox, `long-root${"x".repeat(padding)}`);
       fs.mkdirSync(longRoot);
       assert.ok(path.resolve(longRoot, "candidates", manifest.candidateId).length <=
-        runtimePortablePathLimits.materializedPathUtf16);
+        runtimeBackupPathLimits.materializedPathUtf16);
       expectCode("PATH_POLICY_VIOLATION", () => preflightRuntimeMigrationCandidate({
         context, repositoryRoot, backupRoot, backupDirectory, candidateRoot: longRoot,
         restoreVerificationRoot: restoreRoot, allowTestTempRoot: true, now: () => stamp,
@@ -268,7 +273,7 @@ function main() {
       const baseCandidate = path.join(baseParent, manifest.candidateId);
       const baseMaximum = Math.max(...manifest.files.map((file) =>
         path.resolve(baseCandidate, "payload", "projects", ...file.relativePath.split("/")).length));
-      const padding = runtimePortablePathLimits.materializedPathUtf16 - baseMaximum;
+      const padding = runtimeBackupPathLimits.materializedPathUtf16 - baseMaximum;
       assert.ok(padding >= 0);
       const boundaryParent = path.join(sandbox, `b${"x".repeat(padding)}`);
       const boundaryCandidate = path.join(boundaryParent, manifest.candidateId);
@@ -276,7 +281,7 @@ function main() {
       fs.cpSync(candidateDirectory, boundaryCandidate, { recursive: true });
       const boundaryMaximum = Math.max(...manifest.files.map((file) =>
         path.resolve(boundaryCandidate, "payload", "projects", ...file.relativePath.split("/")).length));
-      assert.equal(boundaryMaximum, runtimePortablePathLimits.materializedPathUtf16);
+      assert.equal(boundaryMaximum, runtimeBackupPathLimits.materializedPathUtf16);
       assert.equal(verifyMigrationCandidate(boundaryCandidate).valid, true);
 
       const overParent = path.join(sandbox, `b${"x".repeat(padding + 1)}`);
@@ -304,17 +309,17 @@ function main() {
       fs.writeFileSync(manifestPath, noncanonical);
       fs.writeFileSync(path.join(directory, "candidate.sha256"), `${runtimeMigrationCandidateManifestSha256(noncanonical)}\n`);
     }, "CANDIDATE_INVALID");
-    negative("missing-file", (directory) => fs.unlinkSync(path.join(directory, "payload", "projects", "project-a", "project.json")), "INVENTORY_MISMATCH");
-    negative("extra-file", (directory) => fs.writeFileSync(path.join(directory, "payload", "projects", "project-a", "extra.json"), "{}"), "INVENTORY_MISMATCH");
-    negative("modified-file", (directory) => fs.appendFileSync(path.join(directory, "payload", "projects", "project-a", "project.json"), "x"), "INVENTORY_MISMATCH");
+    negative("missing-file", (directory) => fs.unlinkSync(path.join(directory, "payload", "projects", projectAId, "project.json")), "INVENTORY_MISMATCH");
+    negative("extra-file", (directory) => fs.writeFileSync(path.join(directory, "payload", "projects", projectAId, "extra.json"), "{}"), "INVENTORY_MISMATCH");
+    negative("modified-file", (directory) => fs.appendFileSync(path.join(directory, "payload", "projects", projectAId, "project.json"), "x"), "INVENTORY_MISMATCH");
     negative("same-size-byte-mutation", (directory) => {
-      const file = path.join(directory, "payload", "projects", "project-a", "project.json");
+      const file = path.join(directory, "payload", "projects", projectAId, "project.json");
       const bytes = fs.readFileSync(file);
       bytes[0] = bytes[0] === 0x7b ? 0x5b : 0x7b;
       fs.writeFileSync(file, bytes);
     }, "INVENTORY_MISMATCH");
     negative("explicit-size-mismatch", (directory) => {
-      const file = path.join(directory, "payload", "projects", "project-a", "project.json");
+      const file = path.join(directory, "payload", "projects", projectAId, "project.json");
       const bytes = fs.readFileSync(file);
       fs.writeFileSync(file, bytes.subarray(0, bytes.length - 1));
     }, "INVENTORY_MISMATCH");
@@ -328,7 +333,7 @@ function main() {
     negative("marker-missing", (directory) => mutateManifest(directory, (value) => { value.markerBindings = []; }), "CRITICAL_STATE_MISMATCH");
     negative("marker-extra", (directory) => mutateManifest(directory, (value) => {
       value.markerBindings.push({
-        relativePath: "project-a/production-acceptance-extra.json",
+        relativePath: `${projectAId}/production-acceptance-extra.json`,
         sha256: "0".repeat(64),
       });
       value.markerBindings.sort((left, right) =>
@@ -347,10 +352,10 @@ function main() {
     });
     scenario("non-portable path", () => {
       const value = JSON.parse(serialized) as MutableCandidate;
-      value.files[0].relativePath = "project-a/con:file.json";
+      value.files[0].relativePath = `${projectAId}/con:file.json`;
       expectCode("CANDIDATE_INVALID", () => validateRuntimeMigrationCandidateManifest(value));
     });
-    negative("extra-empty-directory", (directory) => fs.mkdirSync(path.join(directory, "payload", "projects", "project-a", "empty")), "INVENTORY_MISMATCH");
+    negative("extra-empty-directory", (directory) => fs.mkdirSync(path.join(directory, "payload", "projects", projectAId, "empty")), "INVENTORY_MISMATCH");
     scenario("partial candidate rejected", () => {
       const partial = path.join(sandbox, "partial", `${manifest.candidateId}.partial`);
       fs.mkdirSync(path.dirname(partial), { recursive: true });
@@ -415,9 +420,9 @@ function main() {
       const directory = path.join(sandbox, "negative", "symlink", manifest.candidateId);
       fs.mkdirSync(path.dirname(directory), { recursive: true });
       fs.cpSync(candidateDirectory, directory, { recursive: true });
-      const link = path.join(directory, "payload", "projects", "project-a", "link");
+      const link = path.join(directory, "payload", "projects", projectAId, "link");
       try {
-        fs.symlinkSync(path.join(directory, "payload", "projects", "project-a", "project.json"), link, "file");
+        fs.symlinkSync(path.join(directory, "payload", "projects", projectAId, "project.json"), link, "file");
         expectCode("UNSUPPORTED_FILE_TYPE", () => verifyMigrationCandidate(directory));
         platformResults.push({ name: "symlink", result: "PASS" });
       } catch (error) {

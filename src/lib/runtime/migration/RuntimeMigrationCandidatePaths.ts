@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { RuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
-import { validateMutationRelativePath } from "@/lib/runtime/security/RuntimePathPolicy";
+import { validateRuntimeBackupMutationRelativePath } from "@/lib/runtime/backup/RuntimeBackupPathPolicy";
 import {
   canonicalRuntimePath,
   runtimeCandidateProtectedRootsFromContext,
@@ -76,7 +76,7 @@ export function planMigrationCandidatePaths(input: {
   }
   const relative = `candidates/${candidateId}`;
   try {
-    validateMutationRelativePath(relative, candidateRoot);
+    validateRuntimeBackupMutationRelativePath(relative, candidateRoot);
   } catch {
     throw new RuntimeMigrationCandidateError("PATH_POLICY_VIOLATION");
   }
