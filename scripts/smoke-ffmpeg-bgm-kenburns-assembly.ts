@@ -12,7 +12,7 @@ import {
   buildKenBurnsFilter,
 } from "../src/lib/assembly/providers/FFmpegVideoAssemblyProvider";
 import type { AnimationTransitionType } from "../src/types/animation";
-import type { VideoAssemblyInput } from "../src/types/videoAssembly";
+import type { VideoAssemblyInput, VideoAssemblyResult } from "../src/types/videoAssembly";
 
 function getSystemBinaryPath(name: string): string {
   try {
@@ -816,7 +816,168 @@ async function runSmokeTests() {
       assert.ok(res22b.byteLength > 0);
       console.log(`[Scenario 22] PASS: transition:undefined still accepted for image (${res22a.byteLength}b) and scene-video (${res22b.byteLength}b).`);
 
-      console.log("=== SMOKE TEST: ALL 22 SCENARIOS PASSED ===");
+      // --- Sprint 144: FFmpegVideoAssemblyProvider.validateInput()'s backgroundMusic
+      // validation block - a sibling fail-closed guard to Sprint 143's transition-enum
+      // guard, in the same function, same "resolves { success:false, error:SAFE_ERROR },
+      // never rejects" contract, tested the same way (call-counting runner proving
+      // FFmpeg/FFprobe never ran, rather than trusting the resolved shape alone, which
+      // looks identical whether validateInput rejected the input or a real process
+      // call itself failed afterward).
+      //
+      // Reachability differs per sub-check: `volume` is always a hardcoded 0.15 via
+      // VideoAssemblyManager's resolveBackgroundMusic(), so the volume-bounds checks
+      // are defense-in-depth only reachable via a direct provider call (like Sprint
+      // 143's transition guard) - but `backgroundMusic.filePath` is a real, dynamic
+      // asset-registry path, so its traversal check protects the exact same real
+      // threat model already covered for imageFilePath/audioFilePath/scene-video
+      // filePath elsewhere in this suite and in smoke-production-video-assembly-
+      // wiring.ts's "audio storage junction escape fails before process", just never
+      // extended to BGM until now. isSafeInputPath() is a pure string check (no
+      // filesystem I/O), so a real filesystem junction (that other file's heavier
+      // AssetManager-based fixture) isn't needed to prove rejection here - this file
+      // has no AssetManager/junction-replacement fixtures of its own, and a malformed
+      // path string alone is sufficient to trigger the same lexical guard.
+
+      function makeRejectingProvider() {
+        let calls = 0;
+        const rejectingProvider = new FFmpegVideoAssemblyProvider(
+          { async run() { calls += 1; throw new Error("must not run"); } },
+          runtime.runtimeStorageContext,
+        );
+        return { rejectingProvider, callCount: () => calls };
+      }
+
+      function assertBgmRejected(result: VideoAssemblyResult, callCount: number, label: string) {
+        assert.equal(result.success, false, `${label} must be rejected`);
+        if (result.success) throw new Error("unreachable");
+        assert.equal(result.error, "Video assembly failed.");
+        assert.doesNotMatch(result.error, /private|stack/i);
+        assert.equal(callCount, 0, `FFmpeg/FFprobe process must not run for ${label}`);
+      }
+
+      // Scenario 23: BGM volume=0 fails closed (lower bound, exclusive: `<= 0`)
+      console.log("[Scenario 23] BGM volume=0 fails closed...");
+      const { rejectingProvider: volZeroProvider, callCount: volZeroCalls } = makeRejectingProvider();
+      const inputBgmVolumeZero: VideoAssemblyInput = {
+        projectSlug: runtime.projectSlug,
+        scenes: [
+          { inputType: "image", sceneId: 1, imageFilePath: relImg1, audioFilePath: relAudio1, durationSeconds: 0.5 },
+        ],
+        backgroundMusic: { filePath: relBgm, volume: 0, ducking: true },
+      };
+      const res23 = await volZeroProvider.assemble(inputBgmVolumeZero);
+      assertBgmRejected(res23, volZeroCalls(), "BGM volume=0");
+      console.log("[Scenario 23] PASS: BGM volume=0 rejected before any FFmpeg process ran.");
+
+      // Scenario 24: BGM volume=2.5 fails closed (upper bound, exclusive: `> 2.0`)
+      console.log("[Scenario 24] BGM volume=2.5 fails closed...");
+      const { rejectingProvider: volTooHighProvider, callCount: volTooHighCalls } = makeRejectingProvider();
+      const inputBgmVolumeTooHigh: VideoAssemblyInput = {
+        projectSlug: runtime.projectSlug,
+        scenes: [
+          { inputType: "image", sceneId: 1, imageFilePath: relImg1, audioFilePath: relAudio1, durationSeconds: 0.5 },
+        ],
+        backgroundMusic: { filePath: relBgm, volume: 2.5, ducking: true },
+      };
+      const res24 = await volTooHighProvider.assemble(inputBgmVolumeTooHigh);
+      assertBgmRejected(res24, volTooHighCalls(), "BGM volume=2.5");
+      console.log("[Scenario 24] PASS: BGM volume=2.5 rejected before any FFmpeg process ran.");
+
+      // Scenario 25: BGM volume=NaN fails closed (Number.isFinite guard)
+      console.log("[Scenario 25] BGM volume=NaN fails closed...");
+      const { rejectingProvider: volNaNProvider, callCount: volNaNCalls } = makeRejectingProvider();
+      const inputBgmVolumeNaN: VideoAssemblyInput = {
+        projectSlug: runtime.projectSlug,
+        scenes: [
+          { inputType: "image", sceneId: 1, imageFilePath: relImg1, audioFilePath: relAudio1, durationSeconds: 0.5 },
+        ],
+        backgroundMusic: { filePath: relBgm, volume: NaN, ducking: true },
+      };
+      const res25 = await volNaNProvider.assemble(inputBgmVolumeNaN);
+      assertBgmRejected(res25, volNaNCalls(), "BGM volume=NaN");
+      console.log("[Scenario 25] PASS: BGM volume=NaN rejected before any FFmpeg process ran.");
+
+      // Scenario 26: BGM volume=Infinity fails closed (Number.isFinite guard)
+      console.log("[Scenario 26] BGM volume=Infinity fails closed...");
+      const { rejectingProvider: volInfinityProvider, callCount: volInfinityCalls } = makeRejectingProvider();
+      const inputBgmVolumeInfinity: VideoAssemblyInput = {
+        projectSlug: runtime.projectSlug,
+        scenes: [
+          { inputType: "image", sceneId: 1, imageFilePath: relImg1, audioFilePath: relAudio1, durationSeconds: 0.5 },
+        ],
+        backgroundMusic: { filePath: relBgm, volume: Infinity, ducking: true },
+      };
+      const res26 = await volInfinityProvider.assemble(inputBgmVolumeInfinity);
+      assertBgmRejected(res26, volInfinityCalls(), "BGM volume=Infinity");
+      console.log("[Scenario 26] PASS: BGM volume=Infinity rejected before any FFmpeg process ran.");
+
+      // Scenario 27: unsafe BGM filePath (traversal) fails closed
+      console.log("[Scenario 27] unsafe BGM filePath (traversal) fails closed...");
+      const { rejectingProvider: unsafePathProvider, callCount: unsafePathCalls } = makeRejectingProvider();
+      const unsafeBgmPath = `data/projects/${runtime.projectSlug}/assets/audio/../../../etc/unsafe-bgm.wav`;
+      const inputBgmUnsafePath: VideoAssemblyInput = {
+        projectSlug: runtime.projectSlug,
+        scenes: [
+          { inputType: "image", sceneId: 1, imageFilePath: relImg1, audioFilePath: relAudio1, durationSeconds: 0.5 },
+        ],
+        backgroundMusic: { filePath: unsafeBgmPath, volume: 0.15, ducking: true },
+      };
+      const res27 = await unsafePathProvider.assemble(inputBgmUnsafePath);
+      assertBgmRejected(res27, unsafePathCalls(), "unsafe BGM filePath");
+      console.log("[Scenario 27] PASS: unsafe BGM filePath rejected before any FFmpeg process ran.");
+
+      // Scenario 28: malformed backgroundMusic (null) fails closed
+      console.log("[Scenario 28] malformed backgroundMusic (null) fails closed...");
+      const { rejectingProvider: malformedBgmProvider, callCount: malformedBgmCalls } = makeRejectingProvider();
+      const inputBgmMalformed: VideoAssemblyInput = {
+        projectSlug: runtime.projectSlug,
+        scenes: [
+          { inputType: "image", sceneId: 1, imageFilePath: relImg1, audioFilePath: relAudio1, durationSeconds: 0.5 },
+        ],
+        backgroundMusic: null as unknown as VideoAssemblyInput["backgroundMusic"],
+      };
+      const res28 = await malformedBgmProvider.assemble(inputBgmMalformed);
+      assertBgmRejected(res28, malformedBgmCalls(), "malformed (null) backgroundMusic");
+      console.log("[Scenario 28] PASS: malformed backgroundMusic rejected before any FFmpeg process ran.");
+
+      // Scenario 29: BGM volume=2.0 remains accepted (upper bound, inclusive) - the
+      // guard is `volume > 2.0`, so 2.0 itself is the valid maximum. Real render,
+      // using the file's real ffmpeg-backed `provider`, same as every happy-path
+      // scenario above.
+      console.log("[Scenario 29] BGM volume=2.0 (inclusive upper bound) remains accepted...");
+      const inputBgmVolumeUpperBound: VideoAssemblyInput = {
+        projectSlug: runtime.projectSlug,
+        scenes: [
+          { inputType: "image", sceneId: 1, imageFilePath: relImg1, audioFilePath: relAudio1, durationSeconds: 0.5 },
+        ],
+        backgroundMusic: { filePath: relBgm, volume: 2.0, ducking: true },
+      };
+      const res29 = await provider.assemble(inputBgmVolumeUpperBound);
+      assert.equal(res29.success, true);
+      assert.ok(res29.byteLength > 0);
+      console.log(`[Scenario 29] PASS: BGM volume=2.0 rendered successfully (${res29.byteLength} bytes).`);
+
+      // Scenario 30: BGM volume=undefined (only filePath given) remains accepted -
+      // the default 0.15 (appendBgmFilterGraph's `bgmConfig.volume ?? 0.15`) still
+      // applies. This file uses the real ffmpeg binary (no arg-capturing FakeRunner),
+      // so a successful real render is this suite's available proof that the default
+      // path still renders, same as every other happy-path scenario above; no
+      // existing scenario in this file previously omitted `volume` entirely (all 7
+      // prior backgroundMusic fixtures set it explicitly to 0.15/0.2/0.20).
+      console.log("[Scenario 30] BGM volume=undefined (default) remains accepted...");
+      const inputBgmVolumeUndefined: VideoAssemblyInput = {
+        projectSlug: runtime.projectSlug,
+        scenes: [
+          { inputType: "image", sceneId: 1, imageFilePath: relImg1, audioFilePath: relAudio1, durationSeconds: 0.5 },
+        ],
+        backgroundMusic: { filePath: relBgm, ducking: true },
+      };
+      const res30 = await provider.assemble(inputBgmVolumeUndefined);
+      assert.equal(res30.success, true);
+      assert.ok(res30.byteLength > 0);
+      console.log(`[Scenario 30] PASS: BGM volume=undefined (default 0.15) rendered successfully (${res30.byteLength} bytes).`);
+
+      console.log("=== SMOKE TEST: ALL 30 SCENARIOS PASSED ===");
     },
   );
 }

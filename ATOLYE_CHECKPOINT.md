@@ -1,5 +1,28 @@
 ---
 
+<!-- SPRINT-144-START -->
+## Sprint 144 - FFmpegVideoAssemblyProvider validateInput BGM Validation Guard Test Coverage - 2026-08-20
+
+**Status:** Completed & Committed (bu commit ile) — push yapılmadı, onay bekleniyor
+**Production execution status:** N/A — saf test-kapsamı genişletmesi, üretim davranışı değiştirilmedi. `src/lib/assembly/providers/FFmpegVideoAssemblyProvider.ts`, `src/lib/assembly/VideoAssemblyManager.ts` veya başka hiçbir `src/` üretim dosyası dokunulmadı.
+
+Sprint 143 preflight incelemesi, `FFmpegVideoAssemblyProvider.validateInput()`'ın `backgroundMusic` doğrulama bloğunun (malformed obje, unsafe `filePath`/traversal, `volume` sınır kontrolleri) hiçbir testte hiç tetiklenmediğini tespit etmişti. `rg "volume:\s*-?[\d.]+"` taraması repodaki tüm BGM `volume` değerlerinin yalnızca `0.15`/`0.2`/`0.20` olduğunu doğruladı — sınır/geçersiz değerler hiç denenmemişti. Sprint 144 bu boşluğu, Sprint 143'ün aynı kalıbıyla (`VideoAssemblyManager`'ı bypass eden doğrudan provider çağrısı, çağrı-sayan runner), üretim kodunda hiçbir değişiklik yapmadan kapatıyor.
+
+- **Kapsam (yalnızca test dosyası, `scripts/smoke-ffmpeg-bgm-kenburns-assembly.ts`, 19 senaryo → 30 senaryo):**
+  - **Scenario 23-26 (negatif, reddedilmeli):** `volume=0` (alt sınır, `<=0`), `volume=2.5` (üst sınır, `>2.0`), `volume=NaN`, `volume=Infinity` (`Number.isFinite` guard'ı) — hepsi çağrı-sayan runner ile `success:false`, `error:"Video assembly failed."`, ve FFmpeg/FFprobe process'inin hiç çalışmadığı (`callCount===0`) doğrulanarak.
+  - **Scenario 27 (negatif):** unsafe/traversal BGM `filePath` (`../../../etc/...`) reddediliyor. `isSafeInputPath()` saf string kontrolü olduğundan, `smoke-production-video-assembly-wiring.ts`'nin gerçek dosya-sistemi junction fixture'ı yerine (bu dosyada `AssetManager`/junction altyapısı yok) doğrudan bozuk bir path string'i kullanıldı — reddin aynı sözleşmeyle gerçekleştiği doğrulandı.
+  - **Scenario 28 (negatif):** `backgroundMusic: null` (tip bypass ile) reddediliyor — malformed-obje dalı.
+  - **Scenario 29 (pozitif regresyon):** `volume=2.0` (üst sınır **dahil** — guard `> 2.0`, yani `2.0` geçerli) gerçek ffmpeg ile başarıyla render ediliyor.
+  - **Scenario 30 (pozitif regresyon):** `volume` tamamen atlanmış (`undefined`) — `appendBgmFilterGraph`'ın varsayılan `?? 0.15`'i hâlâ uygulanıp gerçek render'ın başarılı olduğu doğrulanıyor. Repodaki 7 önceki BGM fixture'ının hiçbiri `volume`'u atlamamıştı; bu ilk kez test ediliyor.
+  - Mevcut 22 senaryo (19 orijinal + Sprint 143'ün 3'ü) değiştirilmedi.
+- **Reachability notu:** `VideoAssemblyManager.resolveBackgroundMusic()` her zaman sabit `volume: 0.15` üretiyor (Sprint 143'teki `classifyAssemblyTransition` gibi) — bu yüzden `volume` sınır kontrolleri savunma-derinliği, gerçek üretim akışından asla geçersiz değerle tetiklenemez. Ama `backgroundMusic.filePath` gerçek, dinamik bir asset-registry yolu — bu yüzden traversal guard'ı, `imageFilePath`/`audioFilePath`/scene-video `filePath` için zaten test edilen aynı gerçek tehdit modelini (registry bozulması/junction escape) BGM'e de genişletiyor.
+- **Test Sonuçları (%100 PASS):**
+  1. `npx tsc --noEmit`: **0 hata**.
+  2. `scripts/smoke-ffmpeg-bgm-kenburns-assembly.ts`: **30/30 PASS** (22 mevcut + 8 yeni).
+  3. `scripts/smoke-production-video-assembly-wiring.ts`: **59/59 PASS** — değişmedi, regresyon yok.
+  4. `scripts/smoke-sprint-129-41-completed-stage-regeneration.ts`: **181/181 PASS (%100)**.
+<!-- SPRINT-144-END -->
+
 <!-- SPRINT-143-START -->
 ## Sprint 143 - FFmpegVideoAssemblyProvider validateInput Transition-Enum Guard Test Coverage - 2026-08-20
 
