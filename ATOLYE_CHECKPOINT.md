@@ -1,5 +1,24 @@
 ---
 
+<!-- SPRINT-145-START -->
+## Sprint 145 - VideoAssemblyManager isValidRealResult Output Validation Guard Test Coverage - 2026-08-21
+
+**Status:** Completed & Committed (bu commit ile) — push yapılmadı, onay bekleniyor
+**Production execution status:** N/A — saf test-kapsamı genişletmesi, üretim davranışı değiştirilmedi. `src/lib/assembly/VideoAssemblyManager.ts`, `src/lib/assembly/providers/FFmpegVideoAssemblyProvider.ts` veya başka hiçbir `src/` üretim dosyası dokunulmadı.
+
+Sprint 143/144, `FFmpegVideoAssemblyProvider.validateInput()`'ın (provider'a giden GİRDİYİ koruyan) fail-closed dallarını kapattı. Sprint 145 READ-ONLY preflight incelemesi, bu korumanın tersi yönünü — `VideoAssemblyManager.isValidRealResult()`'ın (provider'dan dönen ÇIKTIYI koruyan, `provider:"ffmpeg", success:true` iddiasındaki sahte/bozuk sonuçları reddeden guard) hiçbir testte hiç tetiklenmediğini tespit etti. `rg "isValidRealResult|malformed.*(ffmpeg|real)"` taraması sıfır eşleşme verdi — bu fonksiyonun mock-branch eşdeğeri (`isExactMockResult`) zaten "malformed mock result fails safely" ile test edilirken, ffmpeg/real-branch eşdeğeri hiç dokunulmamıştı. Sprint 145 bu boşluğu, üretim kodunda hiçbir değişiklik yapmadan kapatıyor.
+
+- **Kapsam (yalnızca test dosyası, `scripts/smoke-production-video-assembly-wiring.ts`, 59 senaryo → 64 senaryo):**
+  - "malformed mock result fails safely" kalıbına paralel, `name:"ffmpeg"` custom `VideoAssemblyProvider` ile `isValidRealResult()`'ın büyük OR-koşulunun her bir dalını izole eden 5 senaryo (9 farklı sahte alan kombinasyonu): yanlış `width`/`height`, yanlış `videoCodec`/`audioCodec`, geçersiz `byteLength<=0`/`durationSeconds:NaN`, `filePath`/`url` canonical `VideoStorage.getVideoPath/getVideoUrl` değerleriyle uyuşmuyor, `success:true` yanında sızan bir `error` alanı.
+  - Her senaryo `fixture()` ile gerçek kayıtlı asset'ler kuruyor (mock-branch testinin aksine, ffmpeg/real dalı `AssetManager.getProjectAssets()`'e kadar ilerliyor), ardından `assert.rejects(..., (error) => error instanceof VideoAssemblyError && error.message === "Video assembly failed." && error.stack === undefined)` ile hem doğru hata tipinin hem de hassas bilgi sızıntısı olmadığının (sabit mesaj, `stack` yok) doğrulandığı — dosyanın zaten kullandığı "throwing identity getter is normalized" kalıbıyla aynı.
+  - Mevcut "valid fake FFmpeg render creates verified registry asset" senaryosu (geçerli sonuç regresyonu) değiştirilmedi, bozulmadan geçmeye devam ediyor.
+- **Test Sonuçları (%100 PASS):**
+  1. `npx tsc --noEmit`: **0 hata**.
+  2. `scripts/smoke-production-video-assembly-wiring.ts`: **64/64 PASS** (59 mevcut + 5 yeni).
+  3. `scripts/smoke-ffmpeg-bgm-kenburns-assembly.ts`: **30/30 PASS** — değişmedi, regresyon yok.
+  4. `scripts/smoke-sprint-129-41-completed-stage-regeneration.ts`: **181/181 PASS (%100)**.
+<!-- SPRINT-145-END -->
+
 <!-- SPRINT-144-START -->
 ## Sprint 144 - FFmpegVideoAssemblyProvider validateInput BGM Validation Guard Test Coverage - 2026-08-20
 

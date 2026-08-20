@@ -993,6 +993,74 @@ async function run() {
         (error) => error instanceof VideoAssemblyError,
       );
     });
+    // Sprint 145: VideoAssemblyManager.isValidRealResult() - the output-side sibling
+    // of the input-side validateInput() guards Sprint 143/144 already covered inside
+    // FFmpegVideoAssemblyProvider.ts. Where validateInput() protects the provider
+    // from a malformed VideoAssemblyInput, isValidRealResult() protects
+    // renderExistingAssets() from trusting a malformed VideoAssemblyResult claiming
+    // `provider:"ffmpeg", success:true` - whether from a buggy/rogue custom
+    // VideoAssemblyProvider (exactly what these scenarios construct, same pattern as
+    // "malformed mock result fails safely" above but for the ffmpeg/real-result
+    // branch instead of the mock branch) or a future regression in
+    // FFmpegVideoAssemblyProvider itself. Unlike the mock-branch test above, the
+    // ffmpeg/real branch of renderExistingAssets only reaches safeAssemble() after
+    // AssetManager.getProjectAssets() and the renderScenes construction succeed, so
+    // each scenario needs a real fixture() project (matching "FFmpeg arguments use
+    // canonical inputs and safe codecs" above), not just a bare project slug.
+    function malformedFfmpegResult(
+      slug: string,
+      fileName: string,
+      overrides: Record<string, unknown>,
+    ): VideoAssemblyResult {
+      return {
+        success: true,
+        provider: "ffmpeg",
+        status: "rendered",
+        model: "ffmpeg-h264-aac",
+        filePath: VideoStorage.getVideoPath(slug, fileName),
+        url: VideoStorage.getVideoUrl(slug, fileName),
+        mimeType: "video/mp4",
+        byteLength: 12_345,
+        durationSeconds: 1,
+        width: 1920,
+        height: 1080,
+        videoCodec: "h264",
+        audioCodec: "aac",
+        createdAt: new Date().toISOString(),
+        ...overrides,
+      } as unknown as VideoAssemblyResult;
+    }
+    async function assertMalformedFfmpegResultRejected(suffix: string, overrides: Record<string, unknown>) {
+      const value = await fixture(suffix);
+      const result = malformedFfmpegResult(value.slug, `${suffix}.mp4`, overrides);
+      const provider: VideoAssemblyProvider = { name: "ffmpeg", async assemble() { return result; } };
+      await assert.rejects(
+        VideoAssemblyManager.renderExistingAssets({ projectId: value.projectId, projectSlug: value.slug, scenes, visuals, audio: baseAudio, assembly, provider }),
+        (error) =>
+          error instanceof VideoAssemblyError &&
+          error.message === "Video assembly failed." &&
+          error.stack === undefined,
+      );
+    }
+    await scenario("malformed ffmpeg result (wrong width/height) fails safely", async () => {
+      await assertMalformedFfmpegResultRejected("bad-ffmpeg-width", { width: 1280 });
+      await assertMalformedFfmpegResultRejected("bad-ffmpeg-height", { height: 720 });
+    });
+    await scenario("malformed ffmpeg result (wrong videoCodec/audioCodec) fails safely", async () => {
+      await assertMalformedFfmpegResultRejected("bad-ffmpeg-vcodec", { videoCodec: "vp9" });
+      await assertMalformedFfmpegResultRejected("bad-ffmpeg-acodec", { audioCodec: "mp3" });
+    });
+    await scenario("malformed ffmpeg result (invalid byteLength/durationSeconds) fails safely", async () => {
+      await assertMalformedFfmpegResultRejected("bad-ffmpeg-bytelength", { byteLength: 0 });
+      await assertMalformedFfmpegResultRejected("bad-ffmpeg-duration", { durationSeconds: NaN });
+    });
+    await scenario("malformed ffmpeg result (filePath/url mismatch) fails safely", async () => {
+      await assertMalformedFfmpegResultRejected("bad-ffmpeg-filepath", { filePath: "data/projects/other-project/assets/videos/other.mp4" });
+      await assertMalformedFfmpegResultRejected("bad-ffmpeg-url", { url: "https://example.test/raw.mp4" });
+    });
+    await scenario("malformed ffmpeg result (success:true with stray error field) fails safely", async () => {
+      await assertMalformedFfmpegResultRejected("bad-ffmpeg-error-field", { error: "Video assembly failed." });
+    });
     await scenario("scene identity mismatch fails before provider call", async () => {
       let calls = 0;
       const provider: VideoAssemblyProvider = { name: "mock", async assemble() { calls += 1; return new MockVideoAssemblyProvider().assemble(); } };
