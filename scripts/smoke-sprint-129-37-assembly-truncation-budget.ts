@@ -14,6 +14,7 @@ import {
   GenerationFallbackBlockedError,
   strictGenerationExecutionPolicy,
 } from "../src/lib/ai/GenerationExecutionPolicy";
+import type { GenerationExecutionPolicy } from "../src/lib/ai/GenerationExecutionPolicy";
 import type {
   AIProvider,
   AIProviderGenerateOptions,
@@ -21,10 +22,12 @@ import type {
 } from "../src/lib/ai/providers";
 import { runObservedAIRequest } from "../src/lib/ai/runObservedAIRequest";
 import { createProductionAcceptancePortableConfigurationSnapshotV2 } from "../src/lib/production/ProductionAcceptanceConfigurationFingerprint";
+import type { AnimationData } from "../src/types/animation";
 import type { AssemblyPlanData } from "../src/types/assembly";
 import type { AudioData } from "../src/types/audio";
 import type { SceneData } from "../src/types/scene";
 import type { ScriptData } from "../src/types/script";
+import type { VideoData } from "../src/types/video";
 import type { VisualData } from "../src/types/visual";
 
 const productionSlug = "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5";
@@ -184,6 +187,91 @@ async function generateWith(
     { projectSlug: "assembly-budget", operation: "assembly-plan", stage: "assembly" },
     { aiProvider, generationPolicy: strictGenerationExecutionPolicy },
   );
+}
+
+// Sprint 136 root-cause regression fixtures: a scene 1 with a known, deterministic
+// animationAssetId/videoAssetId/audioAssetId, so tests can prove the AI's own copy of those
+// fields is ignored and the ground-truth value from animation/video/audio wins instead.
+const KNOWN_ANIMATION_ASSET_ID = "animation-truth-1";
+const KNOWN_VIDEO_ASSET_ID = "video-truth-1";
+const KNOWN_AUDIO_ASSET_ID = "audio-truth-1";
+
+function identitySources(): { animation: AnimationData; video: VideoData; audio: AudioData } {
+  const base = fixtures();
+  const animation: AnimationData = {
+    projectId: "assembly-budget",
+    scenes: [{
+      sceneId: 1,
+      animationPrompt: "Slow zoom.",
+      status: "generated",
+      outputAssetId: KNOWN_ANIMATION_ASSET_ID,
+    }],
+    createdAt: timestamp,
+  };
+  const video: VideoData = {
+    projectId: "assembly-budget",
+    status: "generated",
+    scenes: [{
+      sceneId: 1,
+      sourceAnimationAssetId: KNOWN_ANIMATION_ASSET_ID,
+      status: "generated",
+      outputAssetId: KNOWN_VIDEO_ASSET_ID,
+    }],
+    createdAt: timestamp,
+  };
+  const audio: AudioData = {
+    ...base.audio,
+    sections: [{ ...base.audio.sections[0], outputAssetId: KNOWN_AUDIO_ASSET_ID }],
+  };
+  return { animation, video, audio };
+}
+
+async function generateWithIdentitySources(
+  aiProvider: AIProvider,
+  generationPolicy?: GenerationExecutionPolicy,
+): Promise<AssemblyPlanData> {
+  const base = fixtures();
+  const { animation, video, audio } = identitySources();
+  return AssemblyManager.generateAssemblyPlan(
+    base.script,
+    base.scenes,
+    base.visuals,
+    audio,
+    { animation, video },
+    { projectSlug: "assembly-budget", operation: "assembly-plan", stage: "assembly" },
+    { aiProvider, generationPolicy },
+  );
+}
+
+// A well-formed (isStrictAssemblyResponse-passing) AI response that hallucinates asset ids for
+// the three system-known identifier fields, unless overridden per-field. Passing `undefined` for
+// a field omits it from the JSON entirely (simulating the AI not echoing it back at all).
+function identityAssemblyResponse(overrides: Record<string, unknown> = {}): string {
+  const scene: Record<string, unknown> = {
+    sceneId: 1,
+    chapterId: 1,
+    duration: "00:30",
+    visualReference: "visual-1",
+    animationAssetId: "hallucinated-animation-id",
+    videoAssetId: "hallucinated-video-id",
+    audioAssetId: "hallucinated-audio-id",
+    audioReference: "section-1",
+    transition: "cut",
+    cameraMovement: "slow zoom",
+    effects: ["cinematic grade"],
+    notes: "AI notes",
+    ...overrides,
+  };
+  for (const key of Object.keys(scene)) {
+    if (scene[key] === undefined) delete scene[key];
+  }
+  return JSON.stringify({
+    scenes: [scene],
+    totalDuration: "00:30",
+    style: "documentary cinematic",
+    render: { status: "planned", format: "mp4" },
+    createdAt: timestamp,
+  });
 }
 
 async function main() {
@@ -348,6 +436,62 @@ async function main() {
       );
     });
 
+    await test("assembly identity: hallucinated asset ids are overridden by the deterministic fallback", async () => {
+      const plan = await generateWithIdentitySources(provider(result(identityAssemblyResponse())));
+      assert.equal(plan.scenes[0].animationAssetId, KNOWN_ANIMATION_ASSET_ID);
+      assert.equal(plan.scenes[0].videoAssetId, KNOWN_VIDEO_ASSET_ID);
+      assert.equal(plan.scenes[0].audioAssetId, KNOWN_AUDIO_ASSET_ID);
+      // The AI still controls the fields it's actually meant to author.
+      assert.equal(plan.scenes[0].transition, "cut");
+      assert.equal(plan.scenes[0].notes, "AI notes");
+    });
+
+    await test('assembly identity: an emptied asset id ("") is overridden, not propagated', async () => {
+      const plan = await generateWithIdentitySources(
+        provider(result(identityAssemblyResponse({ videoAssetId: "" }))),
+      );
+      assert.equal(plan.scenes[0].videoAssetId, KNOWN_VIDEO_ASSET_ID);
+    });
+
+    await test("assembly identity: strict policy fails closed on a mismatched asset id", async () => {
+      await assert.rejects(
+        () => generateWithIdentitySources(
+          provider(result(identityAssemblyResponse())),
+          strictGenerationExecutionPolicy,
+        ),
+        (error) => error instanceof GenerationFallbackBlockedError &&
+          error.code === "GENERATION_FALLBACK_BLOCKED",
+      );
+    });
+
+    await test("assembly identity: strict policy accepts an omitted asset id and falls back", async () => {
+      const plan = await generateWithIdentitySources(
+        provider(result(identityAssemblyResponse({
+          animationAssetId: undefined,
+          videoAssetId: undefined,
+          audioAssetId: undefined,
+        }))),
+        strictGenerationExecutionPolicy,
+      );
+      assert.equal(plan.scenes[0].animationAssetId, KNOWN_ANIMATION_ASSET_ID);
+      assert.equal(plan.scenes[0].videoAssetId, KNOWN_VIDEO_ASSET_ID);
+      assert.equal(plan.scenes[0].audioAssetId, KNOWN_AUDIO_ASSET_ID);
+    });
+
+    await test("assembly identity: strict policy accepts a correctly echoed asset id", async () => {
+      const plan = await generateWithIdentitySources(
+        provider(result(identityAssemblyResponse({
+          animationAssetId: KNOWN_ANIMATION_ASSET_ID,
+          videoAssetId: KNOWN_VIDEO_ASSET_ID,
+          audioAssetId: KNOWN_AUDIO_ASSET_ID,
+        }))),
+        strictGenerationExecutionPolicy,
+      );
+      assert.equal(plan.scenes[0].animationAssetId, KNOWN_ANIMATION_ASSET_ID);
+      assert.equal(plan.scenes[0].videoAssetId, KNOWN_VIDEO_ASSET_ID);
+      assert.equal(plan.scenes[0].audioAssetId, KNOWN_AUDIO_ASSET_ID);
+    });
+
     await test("unset assembly budget preserves the existing profile-2 identity", async () => {
       const base = await createProductionAcceptancePortableConfigurationSnapshotV2(
         productionSlug,
@@ -387,7 +531,7 @@ async function main() {
       );
     });
 
-    assert.equal(passed, 23);
+    assert.equal(passed, 28);
     process.stdout.write(`Sprint 129.37 assembly truncation budget smoke PASS: ${passed} scenarios.\n`);
   } finally {
     AIUsageManager.appendRecord = originalAppend;

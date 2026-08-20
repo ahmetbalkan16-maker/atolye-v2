@@ -70,7 +70,7 @@ export class AssemblyManager {
       const parsed = parseAIJsonResponse<Partial<AssemblyPlanData>>(response);
       if (
         options.generationPolicy?.failClosed &&
-        !isStrictAssemblyResponse(parsed, scenes)
+        !isStrictAssemblyResponse(parsed, scenes, fallback.scenes)
       ) throw new Error("invalid");
 
       return {
@@ -217,13 +217,15 @@ export class AssemblyManager {
           scene.visualReference,
           fallbackScene.visualReference,
         ),
-        animationAssetId:
-          getOptionalString(scene.animationAssetId) ??
-          fallbackScene.animationAssetId,
-        videoAssetId:
-          getOptionalString(scene.videoAssetId) ?? fallbackScene.videoAssetId,
-        audioAssetId:
-          getOptionalString(scene.audioAssetId) ?? fallbackScene.audioAssetId,
+        // animationAssetId/videoAssetId/audioAssetId are system-known identifiers, never
+        // AI-authored content: always take the deterministic value computed from the actual
+        // animation/video/audio records, regardless of what the AI echoed. The AI is asked to
+        // "preserve" these long opaque ids verbatim, but a transcription slip (typo, truncation,
+        // or an empty string) here silently breaks VideoAssemblyManager's identity contract and
+        // fails the whole stage far downstream. Never trust the model to retype an id correctly.
+        animationAssetId: fallbackScene.animationAssetId,
+        videoAssetId: fallbackScene.videoAssetId,
+        audioAssetId: fallbackScene.audioAssetId,
         audioReference: getString(
           scene.audioReference,
           fallbackScene.audioReference,
@@ -334,7 +336,11 @@ export class AssemblyManager {
 
 }
 
-function isStrictAssemblyResponse(value: Partial<AssemblyPlanData>, source: SceneData) {
+function isStrictAssemblyResponse(
+  value: Partial<AssemblyPlanData>,
+  source: SceneData,
+  fallbackScenes: AssemblyScene[],
+) {
   const render = value.render as Partial<AssemblyRenderInfo> | undefined;
   return Array.isArray(value.scenes) && value.scenes.length === source.scenes.length &&
     value.scenes.every((scene, index) => typeof scene?.sceneId === "number" &&
@@ -344,10 +350,27 @@ function isStrictAssemblyResponse(value: Partial<AssemblyPlanData>, source: Scen
       [scene.duration, scene.visualReference, scene.audioReference, scene.transition, scene.cameraMovement]
         .every(nonEmptyString) &&
       Array.isArray(scene.effects) && scene.effects.every((item) => typeof item === "string") &&
-      (scene.notes === undefined || typeof scene.notes === "string")) &&
+      (scene.notes === undefined || typeof scene.notes === "string") &&
+      matchesExpectedAssetId(scene.animationAssetId, fallbackScenes[index]?.animationAssetId) &&
+      matchesExpectedAssetId(scene.videoAssetId, fallbackScenes[index]?.videoAssetId) &&
+      matchesExpectedAssetId(scene.audioAssetId, fallbackScenes[index]?.audioAssetId)) &&
     nonEmptyString(value.totalDuration) && nonEmptyString(value.style) &&
     render?.status === "planned" && render.format === "mp4" &&
     validTimestamp(value.createdAt);
+}
+
+/**
+ * animationAssetId/videoAssetId/audioAssetId are always overridden with the deterministic
+ * fallback value before the plan is used (see mapScenes), so a mismatch here can no longer
+ * corrupt the assembly plan. It is still treated as a strict-response violation: an AI response
+ * that echoes back a wrong id for a system-known identifier is a signal the response itself is
+ * unreliable, and under fail-closed policy that should be rejected loudly rather than silently
+ * patched over. Omitting the field entirely is not a violation — the AI is only asked to
+ * "preserve... when available", and the fallback fills it in either way.
+ */
+function matchesExpectedAssetId(value: unknown, expected: string | undefined): boolean {
+  if (value === undefined) return true;
+  return typeof value === "string" && value === expected;
 }
 
 function nonEmptyString(value: unknown): value is string { return typeof value === "string" && Boolean(value.trim()); }
