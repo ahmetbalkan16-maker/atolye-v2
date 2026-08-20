@@ -80,7 +80,7 @@ let passed = 0;
 function check(value: unknown, message: string) {
   assert.ok(value, message);
   passed += 1;
-  console.log(`[smoke-129.41] (${passed}/134) ${message}`);
+  console.log(`[smoke-129.41] (${passed}/181) ${message}`);
 }
 
 function assertOwnedTempMutationTarget(projectSlug: string, projectRoot: string, ownedRoot: string) {
@@ -620,18 +620,133 @@ async function main() {
     const f = fixture("primary"); roots.push(f.root);
     check(f.slug !== forbiddenProductionSlug && f.projectRoot.startsWith(os.tmpdir()), "owned temp only");
     for (const rejectedStage of ["research", "script", "scenes", "visuals", "animation",
-      "audio", "assembly", "thumbnail", "seo", "youtube", "export", "unknown-stage"]) {
+      "audio", "thumbnail", "seo", "youtube", "export", "unknown-stage"]) {
       await assert.rejects(() => createCompletedStageRegenerationPlan({ projectSlug: f.slug,
         fromStage: rejectedStage as never, context: f.context,
         runtimeAuthorityId: f.authority.runtimeAuthorityId }),
       /PRODUCTION_REGENERATION_STAGE_INVALID/);
     }
-    check(true, "public planner admits video only");
+    check(true, "public planner admits video and assembly only");
     assert.throws(() => execFileSync(process.execPath, [path.join(process.cwd(), "node_modules",
       "tsx", "dist", "cli.mjs"), path.join(process.cwd(), "scripts",
       "run-production-regeneration.ts"), "plan", "--project-slug=owned-temp-cli",
-      "--from-stage=assembly"], { cwd: process.cwd(), stdio: "pipe" }));
-    check(true, "public CLI rejects non-video stage before project access");
+      "--from-stage=thumbnail"], { cwd: process.cwd(), stdio: "pipe" }));
+    check(true, "public CLI still rejects a non-video/non-assembly stage before project access");
+    let assemblyCliError: { stderr?: Buffer } | null = null;
+    try {
+      execFileSync(process.execPath, [path.join(process.cwd(), "node_modules", "tsx", "dist",
+        "cli.mjs"), path.join(process.cwd(), "scripts", "run-production-regeneration.ts"), "plan",
+        "--project-slug=owned-temp-cli-assembly", "--from-stage=assembly"],
+        { cwd: process.cwd(), stdio: "pipe" });
+    } catch (error) {
+      assemblyCliError = error as { stderr?: Buffer };
+    }
+    check(assemblyCliError !== null,
+      "public CLI still rejects a nonexistent project even with a valid --from-stage=assembly");
+    check(!(assemblyCliError?.stderr?.toString("utf8") ?? "").includes("INVALID_ARGUMENTS"),
+      "public CLI now accepts --from-stage=assembly at the argument-parsing stage");
+
+    // ── B extension: assembly-only regeneration (--from-stage=assembly) ──
+    {
+    const closureAssemblyOnly = getProductionRegenerationClosure("assembly");
+    check(JSON.stringify(closureAssemblyOnly.preservedStages) === JSON.stringify(
+      ["research", "script", "scenes", "visuals", "animation", "video", "audio"]),
+      "assembly closure preserves research..audio, including video");
+    check(JSON.stringify(closureAssemblyOnly.regeneratedStages) === JSON.stringify(["assembly"]),
+      "assembly closure regenerates assembly alone");
+    check(JSON.stringify(closureAssemblyOnly.invalidatedStages) === JSON.stringify(
+      ["thumbnail", "seo", "youtube", "export"]),
+      "assembly closure invalidates only downstream stages");
+    check(!closureAssemblyOnly.effectiveSequence.includes("video") &&
+      !closureAssemblyOnly.effectiveSequence.includes("audio"),
+      "assembly closure never touches video or audio");
+
+    const g = fixture("assembly-only"); roots.push(g.root);
+    process.env.ATOLYE_RUNTIME_ROOT = g.context.runtimeRoot;
+    process.env.ATOLYE_RUNTIME_AUTHORITY_ROOT = g.context.authorityRoot;
+    process.env.ATOLYE_WORKSPACE_ROOT = g.context.workspaceRoot;
+    const videoJsonBefore = fs.readFileSync(path.join(g.projectRoot, "video.json"));
+    const videoAssetBefore = fs.readFileSync(
+      path.join(g.projectRoot, "assets", "videos", "scene-old-1.mp4"));
+    const audioJsonBefore = fs.readFileSync(path.join(g.projectRoot, "audio.json"));
+    const audioAssetBefore = fs.readFileSync(
+      path.join(g.projectRoot, "assets", "audio", "audio-1.wav"));
+
+    const assemblyPlan = await createCompletedStageRegenerationPlan({ projectSlug: g.slug,
+      fromStage: "assembly", context: g.context, runtimeAuthorityId: g.authority.runtimeAuthorityId });
+    check(JSON.stringify(assemblyPlan.regeneratedStages) === JSON.stringify(["assembly"]),
+      "assembly-only plan targets assembly alone");
+    check(assemblyPlan.preservedStages.includes("video") &&
+      assemblyPlan.preservedStages.includes("audio"),
+      "assembly-only plan preserves video and audio");
+    check(JSON.stringify(assemblyPlan.invalidatedStages) === JSON.stringify(
+      ["thumbnail", "seo", "youtube", "export"]),
+      "assembly-only plan invalidates only downstream stages");
+    check(assemblyPlan.audioFiles.length === 7,
+      "assembly-only plan still fingerprints all 7 audio files for preservation");
+
+    const assemblyBackup = createVerifiedRuntimeBackup({ authority: g.authority,
+      projectSlug: g.slug });
+    await assert.rejects(() => prepareCompletedStageRegeneration({ plan: assemblyPlan,
+      backupId: assemblyBackup.backupId, reasonCode: "TRANSITION_QUALITY_REMEDIATION",
+      confirmation: "not-the-plan-fingerprint", context: g.context, backupAuthority: g.authority }),
+    /PRODUCTION_REGENERATION_REQUEST_INVALID/);
+    check(true, "assembly-only prepare still enforces confirmation === planFingerprint");
+    await assert.rejects(() => prepareCompletedStageRegeneration({ plan: assemblyPlan,
+      backupId: "missing", reasonCode: "TRANSITION_QUALITY_REMEDIATION",
+      confirmation: assemblyPlan.planFingerprint, context: g.context, backupAuthority: g.authority }),
+    /PRODUCTION_REGENERATION_BACKUP_INVALID/);
+    check(true, "assembly-only prepare still enforces a verified backup binding");
+
+    const assemblyPrepared = await prepareCompletedStageRegeneration({ plan: assemblyPlan,
+      backupId: assemblyBackup.backupId, reasonCode: "TRANSITION_QUALITY_REMEDIATION",
+      confirmation: assemblyPlan.planFingerprint, context: g.context, backupAuthority: g.authority });
+    check(assemblyPrepared.status === "prepared", "assembly-only prepare succeeds");
+    check(assemblyPrepared.intent.affectedStages.length === 5 &&
+      !assemblyPrepared.intent.affectedStages.includes("video") &&
+      !assemblyPrepared.intent.affectedStages.includes("audio"),
+      "assembly-only intent's affected stages exclude video and audio");
+
+    check(fs.readFileSync(path.join(g.projectRoot, "video.json")).equals(videoJsonBefore),
+      "video.json byte-identical after assembly-only prepare");
+    check(fs.readFileSync(path.join(g.projectRoot, "assets", "videos", "scene-old-1.mp4"))
+      .equals(videoAssetBefore), "video scene asset byte-identical after assembly-only prepare");
+    check(fs.readFileSync(path.join(g.projectRoot, "audio.json")).equals(audioJsonBefore),
+      "audio.json byte-identical after assembly-only prepare");
+    check(fs.readFileSync(path.join(g.projectRoot, "assets", "audio", "audio-1.wav"))
+      .equals(audioAssetBefore), "audio asset byte-identical after assembly-only prepare");
+
+    const assemblyRegenDir = path.join(g.projectRoot, "production-regeneration", "regenerations",
+      assemblyPrepared.intent.regenerationId);
+    check(!fs.existsSync(path.join(assemblyRegenDir, "snapshots",
+      `generation-${assemblyPlan.currentGeneration}`, "video.json")),
+      "no video snapshot recorded for an assembly-only regeneration");
+    check(!fs.existsSync(path.join(assemblyRegenDir, "supersession", "video-intended.json")),
+      "no video supersession intent recorded for an assembly-only regeneration");
+    check(fs.existsSync(path.join(assemblyRegenDir, "snapshots",
+      `generation-${assemblyPlan.currentGeneration}`, "assembly.json")) &&
+      fs.existsSync(path.join(assemblyRegenDir, "supersession", "assembly-intended.json")),
+      "assembly snapshot and supersession intent recorded for the regenerated stage");
+
+    const manifestAfterAssembly = JSON.parse(fs.readFileSync(
+      path.join(g.projectRoot, "manifest.json"), "utf8"));
+    check(manifestAfterAssembly.packages.video.status === "completed" &&
+      manifestAfterAssembly.packages.audio.status === "completed",
+      "manifest keeps video and audio completed after assembly-only prepare");
+    check(manifestAfterAssembly.packages.assembly.status === "pending" &&
+      manifestAfterAssembly.packages.thumbnail.status === "pending" &&
+      manifestAfterAssembly.packages.seo.status === "pending" &&
+      manifestAfterAssembly.packages.youtube.status === "pending" &&
+      manifestAfterAssembly.packages.export.status === "pending",
+      "manifest resets assembly and every downstream stage to pending");
+
+    const assemblyReplay = await prepareCompletedStageRegeneration({ plan: assemblyPlan,
+      backupId: assemblyBackup.backupId, reasonCode: "TRANSITION_QUALITY_REMEDIATION",
+      confirmation: assemblyPlan.planFingerprint, context: g.context, backupAuthority: g.authority });
+    check(assemblyReplay.status === "already-prepared" &&
+      assemblyReplay.intent.regenerationId === assemblyPrepared.intent.regenerationId,
+      "assembly-only prepare replay is idempotent");
+    }
 
     const contextSlug = "owned-temp-context-isolation";
     const contextA = fixture("context-a", contextSlug); roots.push(contextA.root);
@@ -1065,6 +1180,174 @@ async function main() {
         "queued", `${downstream} queued`);
     }
 
+    {
+      // ── B extension E2E: assembly-only regeneration through real resume/execute ──
+      process.env.AI_PROVIDER = "mock";
+      process.env.VIDEO_PROVIDER = "ffmpeg";
+      process.env.VIDEO_ASSEMBLY_PROVIDER = "ffmpeg";
+      const aoFixture = fixture("real-runner");
+      roots.push(aoFixture.root);
+      process.env.ATOLYE_RUNTIME_ROOT = aoFixture.context.runtimeRoot;
+      process.env.ATOLYE_RUNTIME_AUTHORITY_ROOT = aoFixture.context.authorityRoot;
+      process.env.ATOLYE_WORKSPACE_ROOT = aoFixture.context.workspaceRoot;
+      const aoPlan = await createCompletedStageRegenerationPlan({ projectSlug: aoFixture.slug,
+        fromStage: "assembly", context: aoFixture.context,
+        runtimeAuthorityId: aoFixture.authority.runtimeAuthorityId });
+      const aoBackup = createVerifiedRuntimeBackup({ authority: aoFixture.authority,
+        projectSlug: aoFixture.slug });
+      const aoPrepared = await prepareCompletedStageRegeneration({ plan: aoPlan,
+        backupId: aoBackup.backupId, reasonCode: "TRANSITION_QUALITY_REMEDIATION",
+        confirmation: aoPlan.planFingerprint, context: aoFixture.context,
+        backupAuthority: aoFixture.authority });
+      republishCanonicalAudioFixture(aoFixture);
+      const aoAudioBefore = fs.readFileSync(path.join(aoFixture.projectRoot, "audio.json"));
+      const aoVideoJsonBefore = fs.readFileSync(path.join(aoFixture.projectRoot, "video.json"));
+      const aoVideoAssetsBefore = Array.from({ length: 6 }, (_, index) => sha256(fs.readFileSync(
+        path.join(aoFixture.projectRoot, "assets", "videos", `scene-old-${index + 1}.mp4`))));
+      const aoAssemblyOldHash = sha256(fs.readFileSync(path.join(aoFixture.projectRoot,
+        "assets", "videos", "assembly-old.mp4")));
+      const aoVideosDirBefore = fs.readdirSync(path.join(aoFixture.projectRoot, "assets", "videos"));
+
+      const aoFixtureAssembly = new FixtureAssemblyProvider();
+      const aoParent = createProductionRuntimeOperationContext({
+        operationId: "sprint-129-41-assembly-only-bounded-resume",
+        operationType: "canonical-smoke-runtime",
+        authorityGeneration: initialRuntimeAuthorityGeneration,
+        storageContext: aoFixture.context,
+      });
+      const aoWorker = await readyWorker(aoParent);
+      const aoScoped = configureScopedProductionPipelineExecution({
+        lifecycle: aoWorker, runtimeOperationContext: aoParent,
+      });
+      const originalAoVideoProvider = VideoProviderRouter.getProvider;
+      const originalAoAssemblyProvider = VideoAssemblyProviderRouter.getProvider;
+      const originalAoAssemblyPlan = AssemblyManager.generateAssemblyPlan;
+      VideoProviderRouter.getProvider = (() => {
+        throw new Error("assembly-only regeneration must never dispatch the video provider");
+      }) as typeof originalAoVideoProvider;
+      VideoAssemblyProviderRouter.getProvider =
+        (() => aoFixtureAssembly) as typeof originalAoAssemblyProvider;
+      AssemblyManager.generateAssemblyPlan = (async (_script, _scenes, _visuals, _audio,
+        options) => {
+        const currentVideo = options?.video;
+        const videoAssetId = currentVideo?.scenes?.[0]?.videoAssetId;
+        if (!videoAssetId) throw new Error("fixture video identity missing");
+        return { projectId: `project-real-runner`, slug: aoFixture.slug,
+          status: "planned" as const, sourceVideoAssetId: videoAssetId,
+          sourceAudioAssetId: "audio-old",
+          scenes: [{ sceneId: 1, chapterId: 1, duration: "01:00", visualReference: "One",
+            animationAssetId: "animation-1", videoAssetId, audioAssetId: "audio-1",
+            audioReference: "One", transition: "fade", cameraMovement: "static", effects: [] }],
+          totalDuration: "01:00", style: "documentary", render: { status: "planned" as const,
+            format: "mp4" as const }, createdAt: new Date().toISOString() };
+      }) as typeof originalAoAssemblyPlan;
+
+      let aoObserved: Awaited<ReturnType<typeof observeBoundedResume>>;
+      try {
+        aoObserved = await observeBoundedResume(aoFixture.slug, "assembly");
+        check(aoObserved.result.success && aoObserved.result.stoppedAfterStage === "assembly" &&
+          aoObserved.result.completedStages.join(",") === "assembly",
+        "assembly-only E2E: real scheduler resumes and completes assembly alone");
+        check(observedCount(aoObserved, "durable-entry", "assembly") === 1 &&
+          observedCount(aoObserved, "provider-dispatch-entered", "assembly",
+            "videoAssemblyProvider") === 1 && aoFixtureAssembly.calls.length === 1 &&
+          observedCount(aoObserved, "durable-entry", "video") === 0 &&
+          observedCount(aoObserved, "capability-issuance-entered", "video") === 0 &&
+          observedCount(aoObserved, "provider-dispatch-entered", "video") === 0 &&
+          observedCount(aoObserved, "durable-entry", "audio") === 0 &&
+          observedCount(aoObserved, "capability-issuance-entered", "audio") === 0,
+        "assembly-only E2E: video and audio stages are never entered or dispatched");
+      } finally {
+        VideoProviderRouter.getProvider = originalAoVideoProvider;
+        VideoAssemblyProviderRouter.getProvider = originalAoAssemblyProvider;
+        AssemblyManager.generateAssemblyPlan = originalAoAssemblyPlan;
+        aoScoped.restore();
+        await aoWorker.stop();
+      }
+
+      // ── Assembly output actually regenerated (real render, real asset registry) ──
+      const aoNewAssembly = await ProjectManager.getAssembly(
+        aoFixture.slug, aoFixture.context) as AssemblyPlanData | null;
+      check(aoNewAssembly !== null && aoNewAssembly.outputAssetId !== "assembly-old",
+        "assembly-only E2E: a new assembly output asset id was produced");
+      const aoVideosDirAfter = fs.readdirSync(path.join(aoFixture.projectRoot, "assets", "videos"));
+      const aoNewPhysicalFiles = aoVideosDirAfter.filter((name) => !aoVideosDirBefore.includes(name));
+      check(aoNewPhysicalFiles.length >= 1 && aoNewPhysicalFiles.every((name) =>
+        fs.statSync(path.join(aoFixture.projectRoot, "assets", "videos", name)).size > 0),
+        "assembly-only E2E: a new, non-empty physical assembly video file was written to disk");
+      const aoRegistryAfter = JSON.parse(fs.readFileSync(
+        path.join(aoFixture.projectRoot, "assets", "assets.json"), "utf8")) as
+        { assets: Array<{ id?: string; type?: string }> };
+      const aoNewAssetEntry = aoRegistryAfter.assets.find((asset) =>
+        asset.id === aoNewAssembly?.outputAssetId);
+      check(Boolean(aoNewAssetEntry) && aoNewAssetEntry?.type === "video",
+        "assembly-only E2E: asset registry records the new assembly output");
+      check(readCanonicalPackageBinding(aoFixture.slug, "assembly",
+        aoFixture.context)?.generationOrdinal === aoPlan.proposedGeneration,
+        "assembly-only E2E: assembly package binding advanced to the proposed generation");
+
+      // ── Video preserved byte-for-byte, never regenerated ──
+      const aoVideoAfter = await ProjectManager.getVideo(
+        aoFixture.slug, aoFixture.context) as VideoData | null;
+      check(aoVideoAfter?.scenes?.[0]?.videoAssetId === "video-old-1",
+        "assembly-only E2E: video's canonical output asset id is unchanged");
+      check(fs.readFileSync(path.join(aoFixture.projectRoot, "video.json")).equals(aoVideoJsonBefore),
+        "assembly-only E2E: video.json byte-identical after real resume/execute");
+      check(aoVideoAssetsBefore.every((hash, index) => hash === sha256(fs.readFileSync(
+        path.join(aoFixture.projectRoot, "assets", "videos", `scene-old-${index + 1}.mp4`)))),
+        "assembly-only E2E: every scene video asset byte-identical after real resume/execute");
+      check(aoNewAssembly?.sourceVideoAssetId === "video-old-1",
+        "assembly-only E2E: regenerated assembly still references the preserved (untouched) video");
+
+      // ── Audio preserved byte-for-byte, never regenerated ──
+      check(fs.readFileSync(path.join(aoFixture.projectRoot, "audio.json")).equals(aoAudioBefore),
+        "assembly-only E2E: audio.json byte-identical after real resume/execute");
+      const aoAudioAssetsIntact = Array.from({ length: 7 }, (_, index) =>
+        fs.readFileSync(path.join(aoFixture.projectRoot, "assets", "audio", `audio-${index + 1}.wav`)));
+      check(aoAudioAssetsIntact.every((buffer) => buffer.length === wav().length),
+        "assembly-only E2E: every audio asset remains present and correctly sized");
+
+      // ── No video supersession; assembly supersession recorded ──
+      const aoRegenDir = path.join(aoFixture.projectRoot, "production-regeneration", "regenerations",
+        aoPrepared.intent.regenerationId);
+      check(!fs.existsSync(path.join(aoRegenDir, "supersession", "video-intended.json")) &&
+        !fs.existsSync(path.join(aoRegenDir, "supersession", "video-completed.json")),
+        "assembly-only E2E: no video supersession record exists, before or after execution");
+      const aoAssemblySupersession = JSON.parse(fs.readFileSync(
+        path.join(aoRegenDir, "supersession", "assembly-completed.json"), "utf8"));
+      check(aoAssemblySupersession.state === "completed" &&
+        aoAssemblySupersession.previousAssetIds.includes("assembly-old") &&
+        aoAssemblySupersession.newAssetIds.includes(aoNewAssembly?.outputAssetId),
+        "assembly-only E2E: assembly supersession preserves old and replacement asset continuity");
+      check(sha256(fs.readFileSync(path.join(aoFixture.projectRoot, "assets", "videos",
+        "assembly-old.mp4"))) === aoAssemblyOldHash,
+        "assembly-only E2E: superseded assembly-old.mp4 retained byte-for-byte (append-only)");
+
+      // ── Manifest / downstream state ──
+      const aoManifestAfter = JSON.parse(fs.readFileSync(
+        path.join(aoFixture.projectRoot, "manifest.json"), "utf8"));
+      check(aoManifestAfter.packages.video.status === "completed" &&
+        aoManifestAfter.packages.audio.status === "completed",
+        "assembly-only E2E: manifest keeps video and audio completed after real execution");
+      check(aoManifestAfter.packages.assembly.status === "completed",
+        "assembly-only E2E: manifest marks assembly completed after real execution");
+      for (const downstream of ["thumbnail", "seo", "youtube", "export"]) {
+        check(aoManifestAfter.packages[downstream].status === "pending",
+          `assembly-only E2E: ${downstream} remains pending after assembly-only execution`);
+      }
+      check((await PipelineRecoveryPlanner.createResumePlan(aoFixture.slug)).startStage === "thumbnail",
+        "assembly-only E2E: next recovery stage is thumbnail");
+
+      // ── Idempotency / generation rules still hold after real execution ──
+      const aoReplay = await prepareCompletedStageRegeneration({ plan: aoPlan,
+        backupId: aoBackup.backupId, reasonCode: "TRANSITION_QUALITY_REMEDIATION",
+        confirmation: aoPlan.planFingerprint, context: aoFixture.context,
+        backupAuthority: aoFixture.authority });
+      check(aoReplay.status === "already-prepared" &&
+        aoReplay.intent.regenerationId === aoPrepared.intent.regenerationId,
+        "assembly-only E2E: prepare replay after real execution remains idempotent");
+    }
+
     const crash = fixture("crash"); roots.push(crash.root);
     const crashPlan = await plan(crash);
     const crashBackup = createVerifiedRuntimeBackup({ authority: crash.authority,
@@ -1369,8 +1652,8 @@ async function main() {
       fs.readdirSync(conflictRegenerationRoot).length === 1,
     "two-process conflicting preparation has one winner and fail-closed loser");
 
-    assert.equal(passed, 134, `expected 134 scenarios, received ${passed}`);
-    process.stdout.write(`Sprint 129.41 completed-stage regeneration smoke: PASS (${passed}/134)\n`);
+    assert.equal(passed, 181, `expected 181 scenarios, received ${passed}`);
+    process.stdout.write(`Sprint 129.41 completed-stage regeneration smoke: PASS (${passed}/181)\n`);
   } finally {
     delete process.env.ATOLYE_RUNTIME_ROOT;
     delete process.env.ATOLYE_RUNTIME_AUTHORITY_ROOT;

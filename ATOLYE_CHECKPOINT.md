@@ -1,5 +1,67 @@
 ---
 
+<!-- SPRINT-135-START -->
+## Sprint 135 - Assembly-Only Completed-Stage Regeneration Extension (Isolated E2E Verified) - 2026-08-20
+
+**Status:** Implemented & Isolated E2E Verified — kod değişikliği hazır, **henüz commit edilmedi**
+**Production execution status:** N/A — gerçek production regeneration bu sprint'te hiç çalıştırılmadı; tüm doğrulama izole `os.tmpdir()` temp fixture'larında yapıldı, `data/projects/**` içinde hiçbir mutasyon yok, gerçek production projesine hiç dokunulmadı.
+
+Sprint 129.41/129.42'de kurulan completed-stage regeneration mekanizması bugüne kadar sadece
+`--from-stage=video` destekliyordu; bu yol `assembly`'yi de her seferinde video ile birlikte
+(video'yu da baştan üreterek) regenerate ediyordu. Sprint 133'ün assembly transition/duration
+düzeltmesi gibi sadece assembly'yi ilgilendiren iyileştirmeleri video ve audio'ya hiç dokunmadan
+gerçek projeye uygulayabilmek için mekanizmaya **`--from-stage=assembly`** desteği eklendi.
+
+- **Kapsam (mimariye küçük, izole bir extension — yeni orkestratör/mekanizma yok):**
+  - `ProductionCompletedStageRegenerationPlanner.ts`: `fromStage` kabulü `"video"`'dan
+    `"video" | "assembly"`'ye genişletildi; 7-WAV audio bütünlük kontrolü artık `assembly` için de
+    çalışıyor. Bağımlılık kapanışı (`ProductionCompletedStageRegenerationGraph.ts`) zaten
+    stage-agnostic olduğu için hiç değişmedi — `fromStage="assembly"` için
+    `preserved=[research..audio, video]`, `regenerated=[assembly]`,
+    `invalidated=[thumbnail,seo,youtube,export]` doğru hesaplanıyor.
+  - `ProductionCompletedStageRegenerationService.ts`: `validateRequest()` ve
+    `assertPreparedReplay()`'deki `fromStage` kilitleri aynı şekilde genişletildi. Kritik düzeltme:
+    `buildMutations()`'daki hardcoded `["video","assembly"]` supersession/snapshot döngüsü,
+    `plan.effectiveSequence`'e göre filtrelenen dinamik bir listeye çevrildi — assembly-only
+    planında `video`'nun asla snapshot/supersede edilmediğini garanti ediyor.
+  - `scripts/run-production-regeneration.ts`: CLI `--from-stage` artık `assembly`'yi de kabul
+    ediyor; diğer tüm argüman/confirmation kuralları değişmedi.
+  - Backup/drift/fingerprint/physical-guard/generation/idempotency mekanizmalarının hiçbiri
+    gevşetilmedi; sadece hangi stage'lerin bu mekanizmalara dahil olduğu genişletildi.
+
+- **Doğrulama — `scripts/smoke-sprint-129-41-completed-stage-regeneration.ts` (134 → 181
+  senaryo, tamamı izole temp fixture üzerinde):**
+  - Plan/prepare seviyesi: assembly-only closure, 7-WAV bütünlük kontrolü, prepare sonrası
+    `video.json`/`audio.json`/asset dosyalarının byte-for-byte değişmediği, video için hiçbir
+    supersession/snapshot kaydının oluşmadığı, manifest'in video/audio'yu `completed` bırakırken
+    assembly + downstream'i `pending`e döndürdüğü, idempotent replay.
+  - **Tam E2E (gerçek `PipelineRunner.resume()`, `fixture("real-runner")` ile aynı
+    acceptance-doğrulamalı izole temp proje):** plan → backup (`createVerifiedRuntimeBackup`) →
+    prepare → `PipelineRunner.resume(slug, {stopAfterStage:"assembly"})` → gerçek assembly
+    execution. Kanıtlanan: assembly gerçekten çalıştı ve yeni, fiziksel, sıfır-olmayan boyutlu bir
+    output dosyası + yeni asset-registry kaydı üretti; video provider'ı çağrılırsa throw eden bir
+    stub'la video/audio provider dispatch'inin hiç gerçekleşmediği garanti altına alındı;
+    `video.json` + 6 sahne video dosyası + `audio.json` + 7 WAV dosyası **byte-for-byte** değişmedi;
+    video/audio için hiçbir supersession/snapshot kaydı oluşmadı; assembly generation 0→1 ilerledi;
+    thumbnail/seo/youtube/export `pending` kaldı; prepare replay gerçek execution sonrası da
+    idempotent kaldı. Mevcut `video`-fromStage E2E senaryosu (orijinal 134 check) hiç regresyon
+    vermeden PASS etmeye devam etti.
+  - `npx tsc --noEmit`: 0 hata. `git diff --check`: temiz. Smoke: **PASS (181/181)**.
+
+- **Production'a geçmeden önce hâlâ eksik olanlar (bu sprint'te bilinçli olarak yapılmadı):**
+  1. **Gerçek production regeneration hiç çalıştırılmadı** — doğrulamanın tamamı izole temp
+     fixture'larda; `fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-...`
+     projesine bu sprint boyunca hiç dokunulmadı (fiziksel guard testleriyle ayrıca doğrulandı).
+  2. **Gerçek OpenAI/FFmpeg production doğrulaması yapılmadı** — E2E testi, dosyanın mevcut
+     `FixtureVideoProvider`/`FixtureAssemblyProvider` sahte provider'larını kullandı (aynı dosyadaki
+     orijinal `video`-fromStage E2E senaryosunun kullandığı yöntemin aynısı); gerçek `ffmpeg`/OpenAI
+     entegrasyonu ayrı bir doğrulama gerektirir.
+  3. Gerçek projede kullanmadan önce: `runtime:backup:create` → `production:acceptance:
+     regeneration-plan --from-stage=assembly` → plan-fingerprint eşleşmesiyle
+     `prepare-regeneration` → kontrollü, tek-adımlı bir execution zinciri hâlâ gerekiyor — hiçbiri
+     bu sprint'te çalıştırılmadı.
+<!-- SPRINT-135-END -->
+
 <!-- SPRINT-133-POC-VERIFICATION-START -->
 ## Sprint 133 POC Verification - OpenAI Dynamic Transition Assembly E2E POC Verified - 2026-08-20
 

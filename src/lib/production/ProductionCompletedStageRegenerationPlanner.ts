@@ -57,7 +57,7 @@ export async function createCompletedStageRegenerationPlan(input: {
   readonly context: RuntimeStorageContext;
   readonly runtimeAuthorityId: string;
 }): Promise<ProductionRegenerationPlan> {
-  if (input.fromStage !== "video") {
+  if (input.fromStage !== "video" && input.fromStage !== "assembly") {
     throw new ProductionRegenerationPlanError("PRODUCTION_REGENERATION_STAGE_INVALID");
   }
   const projectFolder = ProjectReader.getProjectFolder(input.projectSlug, input.context);
@@ -111,7 +111,8 @@ export async function createCompletedStageRegenerationPlan(input: {
   const audioFiles = files.filter((file) =>
     file.relativePath.startsWith("assets/audio/") && file.relativePath.toLowerCase().endsWith(".wav"));
   const audioJson = files.find((file) => file.relativePath === "audio.json");
-  if (input.fromStage === "video" && (!audioJson || audioFiles.length !== 7)) {
+  if ((input.fromStage === "video" || input.fromStage === "assembly") &&
+    (!audioJson || audioFiles.length !== 7)) {
     throw new ProductionRegenerationPlanError("PRODUCTION_REGENERATION_AUDIO_INVALID");
   }
   const currentGeneration = latestGeneration(input.projectSlug, input.context);

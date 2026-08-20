@@ -30,7 +30,8 @@ async function main() {
   const args = parseExactArguments(command);
   const projectSlug = args.get("project-slug")!;
   const fromStage = args.get("from-stage")!;
-  if (!/^[a-zA-Z0-9-_]+$/.test(projectSlug) || fromStage !== "video") {
+  if (!/^[a-zA-Z0-9-_]+$/.test(projectSlug) ||
+    (fromStage !== "video" && fromStage !== "assembly")) {
     throw new Error("INVALID_ARGUMENTS");
   }
   const context = createRuntimeStorageContext();

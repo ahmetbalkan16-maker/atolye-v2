@@ -204,7 +204,8 @@ function assertPreparedReplay(
   };
   if (intent.schemaVersion !== productionRegenerationSchemaVersion ||
     intent.regenerationId !== regenerationId || intent.projectSlug !== input.plan.projectSlug ||
-    intent.projectId !== input.plan.projectId || intent.fromStage !== "video" ||
+    intent.projectId !== input.plan.projectId ||
+    (intent.fromStage !== "video" && intent.fromStage !== "assembly") ||
     intent.generationOrdinal !== input.plan.proposedGeneration ||
     intent.planFingerprint !== input.plan.planFingerprint || intent.reasonCode !== input.reasonCode ||
     intent.backupId !== input.backupId ||
@@ -292,7 +293,15 @@ function buildMutations(
   jobs.updatedAt = createdAt;
   const directory = `production-regeneration/regenerations/${regenerationId}`;
   const historicalMutations: Mutation[] = [];
-  for (const stage of ["video", "assembly"] as const) {
+  // Supersession bookkeeping is only implemented for stages that produce a
+  // physical, asset-carrying package (`video.json` / `assembly.json`). Only
+  // supersede one when it actually appears in this plan's effective sequence
+  // (regenerated, or invalidated and due to be redone) — a preserved stage
+  // (e.g. `video` on an assembly-only regeneration) must never be snapshotted
+  // or superseded: its output stays canonical and untouched.
+  const supersedableStages = (["video", "assembly"] as const)
+    .filter((stage) => plan.effectiveSequence.includes(stage));
+  for (const stage of supersedableStages) {
     const packagePath = path.join(projectFolder, `${stage}.json`);
     if (!fs.existsSync(packagePath)) continue;
     const bytes = fs.readFileSync(packagePath);
@@ -404,7 +413,8 @@ function verifyBoundBackup(
 }
 
 function validateRequest(input: Parameters<typeof prepareCompletedStageRegeneration>[0]) {
-  if (input.plan.fromStage !== "video" || input.confirmation !== input.plan.planFingerprint ||
+  if ((input.plan.fromStage !== "video" && input.plan.fromStage !== "assembly") ||
+    input.confirmation !== input.plan.planFingerprint ||
     !/^[a-f0-9]{64}$/.test(input.plan.planFingerprint) ||
     !/^[A-Z][A-Z0-9_]{2,63}$/.test(input.reasonCode)) {
     throw new ProductionRegenerationPreparationError("PRODUCTION_REGENERATION_REQUEST_INVALID");
