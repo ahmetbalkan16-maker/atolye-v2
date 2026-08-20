@@ -1,5 +1,25 @@
 ---
 
+<!-- SPRINT-142-START -->
+## Sprint 142 - classifyAssemblyTransition Free-Text Fallback Test Coverage - 2026-08-20
+
+**Status:** Completed & Committed (bu commit ile) — push yapılmadı, onay bekleniyor
+**Production execution status:** N/A — saf test-kapsamı genişletmesi, üretim davranışı değiştirilmedi. `src/lib/assembly/VideoAssemblyManager.ts`, `src/lib/assembly/providers/FFmpegVideoAssemblyProvider.ts` veya başka hiçbir `src/` üretim dosyası dokunulmadı.
+
+Sprint 141 preflight incelemesi, `VideoAssemblyManager.ts`'nin `classifyAssemblyTransition()` fonksiyonunun (assembly planının serbest-metin `transition` alanını `cut`/`fade`/`crossfade`'e indirgeyen regex-fallback mantığı) hiçbir smoke testinde doğrudan egzersiz edilmediğini tespit etmişti. Sprint 141 image-path wiring düzeltmesinden sonra bu fallback artık hem `scene-video` hem `image` sahnelerinde gerçek üretim davranışını belirliyor, bu yüzden kapsam boşluğunun etkisi iki katına çıkmıştı. Sprint 142 bu boşluğu, üretim kodunda hiçbir değişiklik yapmadan, `scripts/smoke-production-video-assembly-wiring.ts`'e eklenen testlerle kapatıyor.
+
+- **Kapsam (yalnızca test dosyası):**
+  - **Serbest-metin fallback tablosu (8 senaryo, image yolu):** `"Yavaşça karart"` → fade/fadeblack, `"quick dissolve into next scene"` → fade/fadeblack (not: "dissolve" regex'i crossfade değil fade koluna düşüyor — bu mevcut, kasıtlı davranış; bug olarak "düzeltilmedi", olduğu gibi regresyona karşı kilitlendi), `"çapraz geçiş"` → crossfade/fade, `"hızlı kesme"` → cut, `"quick cut"` → cut, boş string → cut, `undefined` → cut, alakasız metin → cut. Her senaryo gerçek `VideoAssemblyManager.renderExistingAssets()` → `FFmpegVideoAssemblyProvider` zincirinden geçip üretilen ffmpeg argümanları üzerinde doğrulanıyor (yalnızca fonksiyonun izole çıktısı değil, wiring'e bağlı gerçek sonuç).
+  - **4 sahneli mixed-transition regresyonu (`cut → fade → crossfade → cut`):** `buildTransitionedImageConcatArgs`'ın cumulative offset/blend birikimini (scene-video eşleniği `buildTransitionedConcatArgs` ile aynı `blendSecondsFor`/`xfadeModeFor` matematiği) doğruluyor. Önemli bulgu: liste içinde herhangi bir junction blend'liyse (`hasAnyBlendedJunction`), o listedeki **"cut" junction'lar da** `CUT_BLEND_SECONDS` (1/FPS, tek-kare blend) ile xfade yoluna giriyor — yalnızca TÜM junction'lar "cut" olduğunda ayrı, gerçek sıfır-blend `buildImageConcatArgs` yoluna gidiliyor. Test bu nüansı açıkça doğruluyor (junction 3 "cut" olmasına rağmen ~0.033s blend + doğru offset).
+  - **image/scene-video simetri doğrulaması (yapısal):** `classifyAssemblyTransition` export edilmediği ve tek implementasyon olduğu için, bu dosyada zaten var olan "source contains no new runner or lifecycle" kalıbına paralel bir kaynak-metni doğrulaması eklendi — `VideoAssemblyManager.ts` kaynağında tam olarak 1 tanım ve tam olarak 2 çağrı sitesi (`classifyAssemblyTransition(assemblyScene.transition)`, image ve scene-video dallarında) olduğunu doğruluyor. Tam bir scene-video FFmpeg render fixture'ı (motion plan + stored production video asset + `requireSceneVideoInput`'ın tüm identity kontrolleri) bu dosyada mevcut olmadığından ve `scripts/smoke-assembly-scene-video-consumption.ts`'nin kapsamını bu sprint'in test-only alanı dışında tekrarlayacağından, simetri tam bir ikinci render zinciriyle değil bu yapısal garantiyle kanıtlandı — serbest-metin tablosuyla birlikte, sınıflandırmanın `inputType`'lar arasında sapamayacağını gösteriyor.
+
+- **Test Sonuçları (%100 PASS):**
+  1. `npx tsc --noEmit`: **0 hata**.
+  2. `scripts/smoke-production-video-assembly-wiring.ts`: **59/59 PASS** (49 mevcut + 10 yeni: 8 serbest-metin + 1 mixed-transition + 1 simetri).
+  3. `scripts/smoke-ffmpeg-bgm-kenburns-assembly.ts`: **19/19 PASS** — değişmedi, regresyon yok.
+  4. `scripts/smoke-sprint-129-41-completed-stage-regeneration.ts`: **181/181 PASS (%100)**.
+<!-- SPRINT-142-END -->
+
 <!-- SPRINT-141-START -->
 ## Sprint 141 - VideoAssemblyManager Image Scene Transition Wiring Fix - 2026-08-20
 

@@ -1201,6 +1201,159 @@ async function run() {
       assert.ok(!args.includes("xfade="), "cut transitions must not engage the xfade path");
       assert.ok(!args.includes("acrossfade="), "cut transitions must not engage the acrossfade path");
     });
+    // Sprint 142: classifyAssemblyTransition() (VideoAssemblyManager.ts) normalizes the
+    // assembly plan's free-form AI/editor transition text down to "cut"/"fade"/"crossfade".
+    // It is not exported (module-private, single implementation, called from exactly the
+    // image and scene-video branches of renderExistingAssets), so it is exercised here the
+    // same way the Sprint 141 scenarios above do: through the real render pipeline, reading
+    // the classification result off the resulting FFmpeg filter graph. Table covers every
+    // regex branch and the no-match default.
+    const BLENDED_IMAGE_PROBE = JSON.stringify({
+      format: { format_name: "mov,mp4,m4a,3gp,3g2,mj2", duration: "1.6" },
+      streams: [
+        { codec_type: "video", codec_name: "h264", width: 1920, height: 1080, pix_fmt: "yuv420p", avg_frame_rate: "30/1", duration: "1.6", disposition: { attached_pic: 0 } },
+        { codec_type: "audio", codec_name: "aac", duration: "1.6" },
+      ],
+    });
+    const freeTextTransitionCases: Array<{
+      suffix: string;
+      label: string;
+      input: string | undefined;
+      expected: "fade" | "crossfade" | "cut";
+      xfadeMode?: "fadeblack" | "fade";
+    }> = [
+      { suffix: "karart", label: "'Yavaşça karart'", input: "Yavaşça karart", expected: "fade", xfadeMode: "fadeblack" },
+      // Regex note: classifyAssemblyTransition tests the crossfade branch (/crossfade|çapraz/)
+      // before the fade branch (/fade|.../dissolve/.../), but "dissolve" only appears in the
+      // fade branch's pattern, so it can never match crossfade first. This is the function's
+      // actual, intentional behavior (not a bug) - locking it in as a regression, not "fixing" it.
+      { suffix: "dissolve", label: "'quick dissolve into next scene'", input: "quick dissolve into next scene", expected: "fade", xfadeMode: "fadeblack" },
+      { suffix: "capraz", label: "'çapraz geçiş'", input: "çapraz geçiş", expected: "crossfade", xfadeMode: "fade" },
+      { suffix: "kesme", label: "'hızlı kesme'", input: "hızlı kesme", expected: "cut" },
+      { suffix: "quickcut", label: "'quick cut'", input: "quick cut", expected: "cut" },
+      { suffix: "empty", label: "empty string", input: "", expected: "cut" },
+      { suffix: "undef", label: "undefined", input: undefined, expected: "cut" },
+      { suffix: "unrelated", label: "unrelated text", input: "mavi gökyüzü ve deniz manzarası", expected: "cut" },
+    ];
+    for (const testCase of freeTextTransitionCases) {
+      await scenario(
+        `classifyAssemblyTransition free-text fallback (image path): ${testCase.label} -> ${testCase.expected}`,
+        async () => {
+          const value = await fixture(`image-freetext-${testCase.suffix}`);
+          const runner = testCase.expected === "cut"
+            ? new FakeRunner()
+            : new FakeRunner(null, BLENDED_IMAGE_PROBE);
+          const testAssembly: AssemblyPlanData = {
+            ...assembly,
+            scenes: assembly.scenes.map((scene) =>
+              scene.sceneId === 2
+                ? { ...scene, transition: testCase.input as unknown as string }
+                : scene,
+            ),
+          };
+          await VideoAssemblyManager.renderExistingAssets({ projectId: value.projectId, projectSlug: value.slug, scenes, visuals, audio: baseAudio, assembly: testAssembly, provider: new FFmpegVideoAssemblyProvider(runner) });
+          const args = runner.calls[0].args.join(" ");
+          if (testCase.expected === "cut") {
+            assert.ok(!args.includes("xfade="), `${testCase.label} must classify as cut (no blend)`);
+            assert.ok(!args.includes("acrossfade="), `${testCase.label} must classify as cut (no blend)`);
+          } else {
+            assert.match(args, new RegExp(`xfade=transition=${testCase.xfadeMode}:duration=`));
+            assert.match(args, /acrossfade=d=/);
+          }
+        },
+      );
+    }
+    // Sprint 142: 4-scene mixed-transition regression (cut -> fade -> crossfade -> cut),
+    // proving the cumulative offset/blend accumulation in buildTransitionedImageConcatArgs
+    // matches the same per-junction math (blendSecondsFor/xfadeModeFor, cumulative offset
+    // tracking) as its scene-video sibling buildTransitionedConcatArgs. Notably, junction
+    // 3 ("cut") is NOT zero-blend here: once ANY junction in the scene list is blended
+    // (hasAnyBlendedJunction), every junction - including "cut" ones - goes through the
+    // xfade builder with CUT_BLEND_SECONDS (1/FPS, a single-frame blend), unlike the
+    // "image path keeps zero-blend concat for unmodified 'cut'" scenario above where
+    // ALL junctions are "cut" and the whole scene list takes the separate, real
+    // zero-blend buildImageConcatArgs path instead.
+    await scenario("4-scene mixed-transition regression accumulates xfade offsets correctly (cut->fade->crossfade->cut)", async () => {
+      const slug = `${prefix}-mixed-junction-regression`;
+      const projectId = "project-115";
+      const png = Buffer.concat([
+        Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+        Buffer.from([0, 0, 0, 0]),
+      ]);
+      for (const sceneId of [1, 2, 3, 4]) {
+        const image = ImageStorage.saveImage({ projectSlug: slug, data: png, mimeType: "image/png" });
+        const audio = AudioStorage.saveAudio({ projectSlug: slug, data: wav() });
+        AssetManager.addAsset(slug, projectId, AssetManager.createAsset({
+          id: `image-${sceneId}`, projectId, projectSlug: slug, sceneId, type: "image",
+          status: "generated", provider: "openai", prompt: "safe",
+          filePath: image.filePath, url: image.url, mimeType: "image/png",
+        }));
+        AssetManager.addAsset(slug, projectId, AssetManager.createAsset({
+          id: `audio-${sceneId}`, projectId, projectSlug: slug, sceneId, type: "audio",
+          status: "generated", provider: "openai", prompt: "safe",
+          filePath: audio.filePath, url: audio.url, mimeType: "audio/wav",
+          byteLength: audio.byteLength, durationSeconds: audio.durationSeconds,
+        }));
+      }
+      const mix = AudioStorage.saveAudio({ projectSlug: slug, data: wav(32000) });
+      AssetManager.addAsset(slug, projectId, AssetManager.createAsset({
+        id: "mix-audio", projectId, projectSlug: slug, type: "audio",
+        status: "generated", provider: "openai", prompt: "safe",
+        filePath: mix.filePath, url: mix.url, mimeType: "audio/wav",
+        byteLength: mix.byteLength, durationSeconds: mix.durationSeconds,
+      }));
+
+      const fourScenes: SceneData = {
+        scenes: [1, 2, 3, 4].map((id) => ({ id, chapterId: id, duration: 1, title: `Scene ${id}`, description: `Scene ${id}` })),
+        createdAt: now,
+      };
+      const fourVisuals: VisualData = {
+        projectId,
+        scenes: [1, 2, 3, 4].map((sceneId) => ({ sceneId, visualPrompt: `V${sceneId}`, animationPrompt: "", style: "cinematic" })),
+        thumbnail: { title: "T", prompt: "P", composition: "C", mood: "M" },
+        createdAt: now,
+      };
+      const fourAudio: AudioData = {
+        ...baseAudio,
+        sections: [1, 2, 3, 4].map((chapterId) => ({
+          chapterId, title: `Section ${chapterId}`, duration: "00:01", emotion: "calm",
+          emphasis: [], narrationNotes: "", pacing: "medium", sourceText: `Narration ${chapterId}`,
+          outputAssetId: `audio-${chapterId}`, status: "generated", provider: "openai",
+        })),
+      };
+      const junctionTransitions = ["cut", "fade", "crossfade", "cut"] as const; // index 0: no predecessor, ignored
+      const fourAssembly: AssemblyPlanData = {
+        ...assembly,
+        scenes: [1, 2, 3, 4].map((sceneId) => ({
+          sceneId, chapterId: sceneId, duration: "00:01", visualReference: `visual-${sceneId}`,
+          audioAssetId: `audio-${sceneId}`, audioReference: `section-${sceneId}`,
+          transition: junctionTransitions[sceneId - 1], cameraMovement: "none", effects: [],
+        })),
+      };
+
+      // durations = [1.0, 1.0, 1.0, 1.0]s (fixture()'s default wav() length); naive sum = 4.0s.
+      // junction 1 (fade):      blend = min(0.5, 0.4, 0.4)              = 0.400000, offset = 0.600000
+      // junction 2 (crossfade): blend = min(0.5, 0.4, 0.4)              = 0.400000, offset = 1.200000
+      // junction 3 (cut):       blend = max(0.01, min(1/30, 0.4, 0.4))  = 0.033333, offset = 2.166667
+      // total blend = 0.833333s -> expected final duration = 4.0 - 0.833333 = 3.166667s.
+      const runner = new FakeRunner(null, JSON.stringify({
+        format: { format_name: "mov,mp4,m4a,3gp,3g2,mj2", duration: "3.166667" },
+        streams: [
+          { codec_type: "video", codec_name: "h264", width: 1920, height: 1080, pix_fmt: "yuv420p", avg_frame_rate: "30/1", duration: "3.166667", disposition: { attached_pic: 0 } },
+          { codec_type: "audio", codec_name: "aac", duration: "3.166667" },
+        ],
+      }));
+      await VideoAssemblyManager.renderExistingAssets({ projectId, projectSlug: slug, scenes: fourScenes, visuals: fourVisuals, audio: fourAudio, assembly: fourAssembly, provider: new FFmpegVideoAssemblyProvider(runner) });
+      const args = runner.calls[0].args.join(" ");
+
+      // 4 scenes -> 3 junctions -> exactly 3 xfade + 3 acrossfade calls, none skipped
+      // even though junction 3 is "cut" (see comment above the scenario).
+      assert.equal((args.match(/xfade=transition=/g) ?? []).length, 3);
+      assert.equal((args.match(/acrossfade=d=/g) ?? []).length, 3);
+      assert.match(args, /xfade=transition=fadeblack:duration=0\.400000:offset=0\.600000/);
+      assert.match(args, /xfade=transition=fade:duration=0\.400000:offset=1\.200000/);
+      assert.match(args, /xfade=transition=fade:duration=0\.033333:offset=2\.166667/);
+    });
     await scenario("timeout and nonzero process results fail safely", async () => {
       const timeout = new FFmpegVideoAssemblyProvider(new FakeRunner({ timedOut: true }));
       const assets = await expectFailure("timeout", () => undefined, timeout);
@@ -1391,6 +1544,25 @@ async function run() {
     await scenario("source contains no new runner or lifecycle", async () => {
       const source = await fs.readFile(path.join(process.cwd(), "src", "lib", "assembly", "VideoAssemblyManager.ts"), "utf8");
       assert.doesNotMatch(source, /PipelineRunner|ProductionRuntimeCompositionRoot|ProductionWorkerLifecycle/);
+    });
+    // Sprint 142: image/scene-video transition-classification symmetry. classifyAssemblyTransition()
+    // is private (not exported) and has a single implementation, called identically from both the
+    // "image" branch (renderExistingAssets) and the "scene-video" branch (requireSceneVideoInput) -
+    // both passing the exact same assemblyScene.transition value. Building a full scene-video
+    // render fixture in this file (motion plan + stored production video asset + all of
+    // requireSceneVideoInput's identity checks) would duplicate scripts/smoke-assembly-scene-video-
+    // consumption.ts's dedicated fixtures well beyond this sprint's test-only scope, so this asserts
+    // the structural guarantee directly: exactly one classifier implementation, called with the
+    // identical argument expression from both branches. Combined with the free-text fallback table
+    // above (which exercises that one implementation end-to-end via the image branch), this proves
+    // the fallback classification cannot diverge between inputTypes - there is no second, divergent
+    // implementation for scene-video to drift out of sync with.
+    await scenario("classifyAssemblyTransition is a single implementation called identically from both image and scene-video branches", async () => {
+      const source = await fs.readFile(path.join(process.cwd(), "src", "lib", "assembly", "VideoAssemblyManager.ts"), "utf8");
+      const definitionCount = (source.match(/function classifyAssemblyTransition\(/g) ?? []).length;
+      const callSiteCount = (source.match(/classifyAssemblyTransition\(assemblyScene\.transition\)/g) ?? []).length;
+      assert.equal(definitionCount, 1, "must stay a single classifier implementation, not diverge per inputType");
+      assert.equal(callSiteCount, 2, "must be called identically from both the image and scene-video branches");
     });
 
     console.log(`Sprint 115 production video assembly wiring smoke: PASS (${count} scenarios)`);
