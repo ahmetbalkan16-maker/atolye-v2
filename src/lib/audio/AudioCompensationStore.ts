@@ -16,6 +16,7 @@ import {
   requireActiveProductionRuntimeOperationContext,
   type ProductionRuntimeOperationContext,
 } from "@/lib/runtime/ProductionRuntimeOperationContext";
+import { readAudioFileDescriptorBound } from "./AudioDescriptorBoundVerification";
 
 const RECEIPT_SCHEMA_VERSION = "audio-compensation-receipt-v1";
 const STATE_SCHEMA_VERSION = "audio-compensation-state-v1";
@@ -53,6 +54,15 @@ const MAX_RETIREMENT_BYTES = 32 * 1024;
 const RETIREMENT_FILE_PREFIX = "retirement-";
 const JOURNAL_STAGING_DIRECTORY = ".audio-journal-staging";
 const PUBLICATION_STAGING_FILE = "publication-staging.wav";
+const REBIND_DIRECTORY = "audio-canonical-rebinds";
+const REBIND_SCHEMA_VERSION = "audio-canonical-descriptor-rebind-v1";
+const MAX_REBIND_BYTES = 4096;
+const MAX_REBIND_RECORDS_PER_REF = 32;
+const audioCanonicalRebindReasonCodes = Object.freeze([
+  "FILESYSTEM_MATERIALIZATION_DRIFT",
+] as const);
+export type AudioCanonicalRebindReasonCode =
+  (typeof audioCanonicalRebindReasonCodes)[number];
 
 export type AudioCompensationLifecycleStatus =
   | "pending"
@@ -102,6 +112,34 @@ export interface ProtectedAudioCanonicalReadIdentity {
   readonly sha256: string;
 }
 
+export interface AudioCanonicalDescriptorRebindRecordReference {
+  readonly kind: "publication" | "rebind";
+  readonly id: string;
+  readonly integrity: string;
+}
+
+export interface AudioCanonicalDescriptorRebind {
+  readonly schemaVersion: typeof REBIND_SCHEMA_VERSION;
+  readonly rebindId: string;
+  readonly compensationRef: string;
+  readonly canonicalFileName: string;
+  readonly projectSlug: string;
+  readonly sequence: number;
+  readonly previousRecord: AudioCanonicalDescriptorRebindRecordReference;
+  readonly originalPublicationIntegrity: string;
+  readonly rebindOperationId: string;
+  readonly rebindOperationBindingFingerprint: string;
+  readonly previousDevice: number;
+  readonly previousInode: number;
+  readonly newDevice: number;
+  readonly newInode: number;
+  readonly verifiedSha256: string;
+  readonly verifiedByteLength: number;
+  readonly reasonCode: AudioCanonicalRebindReasonCode;
+  readonly rebindAt: string;
+  readonly integrity: string;
+}
+
 export interface ProtectedAudioCompensationPublicationReservation {
   readonly schemaVersion: typeof PUBLICATION_RESERVATION_SCHEMA_VERSION;
   readonly compensationRef: string;
@@ -148,6 +186,26 @@ export class AudioCompensationBacklogSaturatedError
   constructor() {
     super();
     this.name = "AudioCompensationBacklogSaturatedError";
+  }
+}
+
+/**
+ * publication.json (ProtectedAudioCompensationPublication) is write-once and is never edited by
+ * this mechanism. A rebind is a separate, additive, itself-immutable ledger entry: it re-anchors
+ * the expected device/inode to the currently-observed physical file, but only after independently
+ * re-verifying that the canonical file's content (sha256 + byteLength) still matches what the
+ * original publication (or the prior rebind in the chain) recorded. See ATOLYE_CHECKPOINT.md
+ * Sprint 136 for the incident (git checkout/pull re-materializing tracked canonical audio files
+ * with a fresh inode, identical bytes) this exists to recover from without weakening the
+ * content-integrity guarantee. Mirrors AudioPublicationIntentStore's rebind design (same six
+ * acceptance conditions, same idempotency-before-no-op ordering, same append-only lineage model)
+ * but is a separate, parallel mechanism -- AudioPublicationIntentStore.ts is not touched by this.
+ */
+export class AudioCanonicalDescriptorRebindConflictError
+  extends AudioCompensationStoreError {
+  constructor() {
+    super();
+    this.name = "AudioCanonicalDescriptorRebindConflictError";
   }
 }
 
@@ -331,6 +389,7 @@ export function assertProtectedAudioCanonicalResolutionAllowed(
   for (const entry of fs.readdirSync(cleanup).sort()) {
     if (
       entry === JOURNAL_STAGING_DIRECTORY ||
+      entry === REBIND_DIRECTORY ||
       parseRetirementFileName(entry)
     ) continue;
     if (!isSafeAudioCompensationRef(entry)) {
@@ -347,9 +406,15 @@ export function assertProtectedAudioCanonicalResolutionAllowed(
       current.state.outcome === "registry-owned"
     ) {
       if (!current.publication) throw new AudioCompensationStoreError();
+      const effective = resolveEffectiveCanonicalReadIdentity(
+        context,
+        projectSlug,
+        entry,
+        current.publication,
+      );
       expectedIdentity = mergeCanonicalReadIdentity(
         expectedIdentity,
-        current.publication,
+        effective,
       );
       continue;
     }
@@ -408,6 +473,333 @@ function mergeCanonicalReadIdentity(
     byteLength: candidate.byteLength,
     sha256: candidate.sha256,
   });
+}
+
+/**
+ * Creates a new, immutable descriptor-rebind ledger entry for a "registry-owned" (terminal)
+ * compensation record. `publication.json` is never opened for writing here. Accepted only when
+ * ALL hold: a current registry-owned publication actually exists for `compensationRef` (a missing
+ * record, a still-pending record, or a retention-retired record all fail closed -- this function
+ * never fabricates a recovery for those); a fresh, TOCTOU-safe read of the canonical file (open ->
+ * fstat -> read -> fstat -> path-lstat, via readAudioFileDescriptorBound) succeeds; the freshly
+ * computed sha256 and observed byteLength are byte-for-byte identical to what the publication (or
+ * the current rebind chain tip) already recorded; and the observed device/inode genuinely differ
+ * from the currently-expected device/inode (a no-op rebind is rejected, not silently accepted).
+ */
+export function createAudioCanonicalDescriptorRebind(input: {
+  readonly projectSlug: string;
+  readonly compensationRef: string;
+  readonly reasonCode: AudioCanonicalRebindReasonCode;
+  readonly authority: RuntimeStorageAuthorityLease;
+  readonly context: RuntimeStorageContext;
+}): AudioCanonicalDescriptorRebind {
+  const context = resolveRuntimeStorageContext(input.context);
+  assertProjectWriteAuthorityLease(input.authority, input.projectSlug, context);
+  requireProjectSlug(input.projectSlug);
+  if (!isSafeAudioCompensationRef(input.compensationRef)) {
+    throw new AudioCompensationStoreError();
+  }
+  if (!(audioCanonicalRebindReasonCodes as readonly string[]).includes(input.reasonCode)) {
+    throw new AudioCompensationStoreError();
+  }
+  const operation = requireActiveProductionRuntimeOperationContext();
+
+  let current: ReturnType<typeof readAudioCompensationReceiptForRetention>;
+  try {
+    current = readAudioCompensationReceiptForRetention(
+      context,
+      input.projectSlug,
+      input.compensationRef,
+    );
+  } catch {
+    // No record, or the record's directory has already been retired by retention -- fail
+    // closed. Auto-rebind is never safe here; this requires a separate, human-authorized
+    // reauthorization flow, not this mechanism.
+    throw new AudioCompensationStoreError();
+  }
+  const cleanup = cleanupRootIfPresent(context, input.projectSlug);
+  if (!cleanup || isLogicallyRetired(cleanup, input.projectSlug, input.compensationRef)) {
+    throw new AudioCompensationStoreError();
+  }
+  if (
+    current.state.status !== "completed" ||
+    current.state.outcome !== "registry-owned" ||
+    !current.publication
+  ) {
+    throw new AudioCompensationStoreError();
+  }
+  const publication = current.publication;
+  if (
+    publication.compensationRef !== input.compensationRef ||
+    publication.projectSlug !== input.projectSlug
+  ) {
+    throw new AudioCompensationStoreError();
+  }
+
+  const previous = resolveCurrentAudioCanonicalDescriptorRebindRecord(
+    context,
+    input.projectSlug,
+    input.compensationRef,
+    publication,
+  );
+  const expectedDevice = previous ? previous.newDevice : publication.device;
+  const expectedInode = previous ? previous.newInode : publication.inode;
+
+  const canonicalRelativePath =
+    `data/projects/${input.projectSlug}/assets/audio/${publication.canonicalFileName}`;
+  const canonicalPath = resolveRuntimeLogicalPath(canonicalRelativePath, context);
+  let link: fs.Stats;
+  let bytes: Buffer;
+  try {
+    link = fs.lstatSync(canonicalPath);
+    if (!link.isFile() || link.isSymbolicLink()) throw new Error("not a regular file");
+    bytes = readAudioFileDescriptorBound(canonicalPath, {
+      maximumByteLength: publication.byteLength,
+      openedIdentity: { device: link.dev, inode: link.ino, byteLength: link.size },
+    });
+  } catch {
+    throw new AudioCompensationStoreError();
+  }
+  const verifiedSha256 = createHash("sha256").update(bytes).digest("hex");
+  const observedDevice = link.dev;
+  const observedInode = link.ino;
+  const observedByteLength = link.size;
+
+  // Idempotency, checked before the no-op rejection below: a repeat call that observes exactly
+  // what the current chain tip already recorded is a safe replay of an already-completed rebind,
+  // not a request with nothing to do.
+  if (
+    previous &&
+    previous.compensationRef === input.compensationRef &&
+    previous.canonicalFileName === publication.canonicalFileName &&
+    previous.newDevice === observedDevice &&
+    previous.newInode === observedInode &&
+    previous.verifiedSha256 === verifiedSha256 &&
+    previous.verifiedByteLength === observedByteLength
+  ) {
+    return previous;
+  }
+
+  if (
+    verifiedSha256 !== publication.sha256 ||
+    observedByteLength !== publication.byteLength ||
+    (observedDevice === expectedDevice && observedInode === expectedInode)
+  ) {
+    throw new AudioCompensationStoreError();
+  }
+
+  const previousRecord: AudioCanonicalDescriptorRebindRecordReference = previous
+    ? { kind: "rebind", id: previous.rebindId, integrity: previous.integrity }
+    : { kind: "publication", id: publication.compensationRef, integrity: publication.integrity };
+  const sequence = previous ? previous.sequence + 1 : 1;
+  // rebindId is derived and embedded into body *before* hashing -- mirroring
+  // AudioPublicationIntentStore's rebindId pattern exactly -- so digest(body) at write time and
+  // digest(body) reconstructed from {integrity, ...body} at read time hash the identical shape.
+  const body = {
+    schemaVersion: REBIND_SCHEMA_VERSION as typeof REBIND_SCHEMA_VERSION,
+    rebindId: `audio-canonical-rebind-${digest({
+      compensationRef: input.compensationRef,
+      sequence,
+      newDevice: observedDevice,
+      newInode: observedInode,
+    }).slice(0, 32)}`,
+    compensationRef: input.compensationRef,
+    canonicalFileName: publication.canonicalFileName,
+    projectSlug: input.projectSlug,
+    sequence,
+    previousRecord,
+    originalPublicationIntegrity: publication.integrity,
+    rebindOperationId: operation.operationId,
+    rebindOperationBindingFingerprint: operation.bindingFingerprint,
+    previousDevice: expectedDevice,
+    previousInode: expectedInode,
+    newDevice: observedDevice,
+    newInode: observedInode,
+    verifiedSha256,
+    verifiedByteLength: observedByteLength,
+    reasonCode: input.reasonCode,
+    rebindAt: new Date().toISOString(),
+  };
+  const record: AudioCanonicalDescriptorRebind = Object.freeze({
+    ...body,
+    integrity: digest(body),
+  });
+  const rebindDir = audioCanonicalRebindDirectory(context, input.projectSlug, true);
+  if (!rebindDir) throw new AudioCompensationStoreError();
+  const fileName = `${input.compensationRef}.${sequence}.json`;
+  const finalPath = path.join(rebindDir, fileName);
+  try {
+    writeDurableJsonNoClobber(rebindDir, fileName, record, MAX_REBIND_BYTES);
+  } catch {
+    if (!fs.existsSync(finalPath)) throw new AudioCompensationStoreError();
+    const existing = readAudioCanonicalDescriptorRebindFile(finalPath);
+    if (existing.integrity !== record.integrity) {
+      throw new AudioCanonicalDescriptorRebindConflictError();
+    }
+    return existing;
+  }
+  const readback = readAudioCanonicalDescriptorRebindFile(finalPath);
+  if (readback.integrity !== record.integrity) throw new AudioCompensationStoreError();
+  return readback;
+}
+
+/** Testable, read-only chain resolution: the current rebind ledger entry for `compensationRef`. */
+export function resolveCurrentAudioCanonicalDescriptorRebindRecord(
+  context: RuntimeStorageContext,
+  projectSlug: string,
+  compensationRef: string,
+  publication: ProtectedAudioCompensationPublication,
+): AudioCanonicalDescriptorRebind | undefined {
+  const directory = audioCanonicalRebindDirectory(context, projectSlug, false);
+  if (!directory || !fs.existsSync(directory)) return undefined;
+  const prefix = `${compensationRef}.`;
+  const entries = fs.readdirSync(directory).sort()
+    .filter((entry) => entry.startsWith(prefix) && entry.endsWith(".json"));
+  if (entries.length === 0) return undefined;
+  if (entries.length > MAX_REBIND_RECORDS_PER_REF) {
+    throw new AudioCanonicalDescriptorRebindConflictError();
+  }
+  const bySequence = new Map<number, AudioCanonicalDescriptorRebind[]>();
+  for (const entry of entries) {
+    const rec = readAudioCanonicalDescriptorRebindFile(path.join(directory, entry));
+    if (
+      rec.compensationRef !== compensationRef ||
+      rec.projectSlug !== projectSlug ||
+      `${rec.compensationRef}.${rec.sequence}.json` !== entry
+    ) throw new AudioCanonicalDescriptorRebindConflictError();
+    const bucket = bySequence.get(rec.sequence) ?? [];
+    bucket.push(rec);
+    bySequence.set(rec.sequence, bucket);
+  }
+  const maxSequence = Math.max(...bySequence.keys());
+  let expected: AudioCanonicalDescriptorRebindRecordReference = {
+    kind: "publication",
+    id: publication.compensationRef,
+    integrity: publication.integrity,
+  };
+  let currentRecord: AudioCanonicalDescriptorRebind | undefined;
+  for (let sequence = 1; sequence <= maxSequence; sequence += 1) {
+    const bucket = bySequence.get(sequence) ?? [];
+    if (bucket.length !== 1) throw new AudioCanonicalDescriptorRebindConflictError();
+    const rec = bucket[0];
+    if (
+      rec.previousRecord.kind !== expected.kind ||
+      rec.previousRecord.id !== expected.id ||
+      rec.previousRecord.integrity !== expected.integrity ||
+      rec.originalPublicationIntegrity !== publication.integrity ||
+      rec.canonicalFileName !== publication.canonicalFileName ||
+      rec.verifiedSha256 !== publication.sha256 ||
+      rec.verifiedByteLength !== publication.byteLength
+    ) throw new AudioCanonicalDescriptorRebindConflictError();
+    currentRecord = rec;
+    expected = { kind: "rebind", id: rec.rebindId, integrity: rec.integrity };
+  }
+  return currentRecord;
+}
+
+/**
+ * The expected descriptor `assertProtectedAudioCanonicalResolutionAllowed` should verify the
+ * canonical file against, for a registry-owned `compensationRef` -- the re-verified values
+ * already carried by the rebind chain tip if one exists, otherwise `publication` itself unchanged.
+ * sha256/byteLength are never re-derived here, never looser than what `publication` (or the chain)
+ * already proved.
+ */
+export function resolveEffectiveCanonicalReadIdentity(
+  context: RuntimeStorageContext,
+  projectSlug: string,
+  compensationRef: string,
+  publication: ProtectedAudioCompensationPublication,
+): ProtectedAudioCanonicalReadIdentity {
+  const rebind = resolveCurrentAudioCanonicalDescriptorRebindRecord(
+    context,
+    projectSlug,
+    compensationRef,
+    publication,
+  );
+  if (!rebind) return publication;
+  return Object.freeze({
+    device: rebind.newDevice,
+    inode: rebind.newInode,
+    byteLength: rebind.verifiedByteLength,
+    sha256: rebind.verifiedSha256,
+  });
+}
+
+function audioCanonicalRebindDirectory(
+  context: RuntimeStorageContext,
+  projectSlug: string,
+  write: boolean,
+): string | undefined {
+  requireProjectSlug(projectSlug);
+  if (write) {
+    const cleanup = ensureCleanupRoot(context, projectSlug);
+    const directory = path.join(cleanup, REBIND_DIRECTORY);
+    try {
+      return ensureSafeContainedDirectory(cleanup, directory);
+    } catch {
+      throw new AudioCompensationStoreError();
+    }
+  }
+  const cleanup = cleanupRootIfPresent(context, projectSlug);
+  if (!cleanup) return undefined;
+  const directory = path.join(cleanup, REBIND_DIRECTORY);
+  try {
+    return requireContainedRealDirectory(cleanup, directory);
+  } catch {
+    return undefined;
+  }
+}
+
+function readAudioCanonicalDescriptorRebindFile(
+  filePath: string,
+): AudioCanonicalDescriptorRebind {
+  const value = readJsonFile(filePath, MAX_REBIND_BYTES);
+  if (!validAudioCanonicalDescriptorRebind(value)) {
+    throw new AudioCanonicalDescriptorRebindConflictError();
+  }
+  return Object.freeze(value);
+}
+
+function validAudioCanonicalDescriptorRebind(
+  value: unknown,
+): value is AudioCanonicalDescriptorRebind {
+  if (!record(value)) return false;
+  const { integrity, ...body } = value;
+  return Object.keys(value).length === 19 &&
+    value.schemaVersion === REBIND_SCHEMA_VERSION &&
+    SAFE_FILE_NAME.test(String(value.rebindId)) &&
+    isSafeAudioCompensationRef(value.compensationRef) &&
+    SAFE_FILE_NAME.test(String(value.canonicalFileName)) &&
+    /^[a-zA-Z0-9-_]+$/.test(String(value.projectSlug)) &&
+    safeInteger(value.sequence, 1) &&
+    validAudioCanonicalRebindRecordReference(value.previousRecord) &&
+    typeof value.originalPublicationIntegrity === "string" &&
+    /^[0-9a-f]{64}$/.test(value.originalPublicationIntegrity) &&
+    typeof value.rebindOperationId === "string" && value.rebindOperationId.length > 0 &&
+    typeof value.rebindOperationBindingFingerprint === "string" &&
+    value.rebindOperationBindingFingerprint.length > 0 &&
+    identityInteger(value.previousDevice) &&
+    identityInteger(value.previousInode) &&
+    identityInteger(value.newDevice) &&
+    identityInteger(value.newInode) &&
+    (value.previousDevice !== value.newDevice || value.previousInode !== value.newInode) &&
+    typeof value.verifiedSha256 === "string" && /^[0-9a-f]{64}$/.test(value.verifiedSha256) &&
+    safeInteger(value.verifiedByteLength, 1, MAX_AUDIO_BYTES) &&
+    (audioCanonicalRebindReasonCodes as readonly string[]).includes(
+      value.reasonCode as string,
+    ) &&
+    validDate(value.rebindAt) &&
+    typeof integrity === "string" &&
+    integrity === digest(body);
+}
+
+function validAudioCanonicalRebindRecordReference(
+  value: unknown,
+): value is AudioCanonicalDescriptorRebindRecordReference {
+  if (!record(value)) return false;
+  return (value.kind === "publication" || value.kind === "rebind") &&
+    typeof value.id === "string" && value.id.length > 0 &&
+    typeof value.integrity === "string" && /^[0-9a-f]{64}$/.test(value.integrity);
 }
 
 export function createProtectedAudioCompensationReceipt(input: {
@@ -944,7 +1336,7 @@ function activeRecordCount(
       const entry = directory.readSync();
       if (!entry) break;
       if (parseRetirementFileName(entry.name)) continue;
-      if (entry.name === JOURNAL_STAGING_DIRECTORY) continue;
+      if (entry.name === JOURNAL_STAGING_DIRECTORY || entry.name === REBIND_DIRECTORY) continue;
       if (
         isSafeAudioCompensationRef(entry.name) &&
         isLogicallyRetired(cleanup, projectSlug, entry.name)
@@ -1405,7 +1797,7 @@ function resumeDetachedCompletedRecords(
       const entry = directory.readSync();
       if (!entry) break;
       if (parseRetirementFileName(entry.name)) continue;
-      if (entry.name === JOURNAL_STAGING_DIRECTORY) continue;
+      if (entry.name === JOURNAL_STAGING_DIRECTORY || entry.name === REBIND_DIRECTORY) continue;
       if (
         isSafeAudioCompensationRef(entry.name) &&
         isLogicallyRetired(cleanup, projectSlug, entry.name)
@@ -2336,7 +2728,7 @@ function inspectDeferredBacklog(
       const entry = directory.readSync();
       if (!entry) break;
       if (parseRetirementFileName(entry.name)) continue;
-      if (entry.name === JOURNAL_STAGING_DIRECTORY) continue;
+      if (entry.name === JOURNAL_STAGING_DIRECTORY || entry.name === REBIND_DIRECTORY) continue;
       if (
         isSafeAudioCompensationRef(entry.name) &&
         isLogicallyRetired(cleanup, projectSlug, entry.name)
