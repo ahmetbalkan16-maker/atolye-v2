@@ -10,6 +10,13 @@ export interface VideoAssemblyLegacySceneInput {
   audioFilePath: string;
   audioStartSeconds?: number;
   durationSeconds: number;
+  /**
+   * Assembly-plan transition preceding this scene (i.e. the cut from the
+   * previous scene into this one). Undefined/missing and scene index 0 are
+   * both treated as "cut" by the renderer. Optional to stay backward
+   * compatible with call sites built before Sprint 140.
+   */
+  transition?: AnimationTransitionType;
 }
 
 export interface VideoAssemblySceneVideoInput {

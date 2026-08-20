@@ -376,7 +376,9 @@ function validateInput(input: VideoAssemblyInput, context: RuntimeStorageContext
         !isSafeInputPath(
           scene.imageFilePath,
           ImageStorage.getImagesDir(input.projectSlug),
-        )
+        ) ||
+        (scene.transition !== undefined &&
+          !(animationTransitionTypes as readonly string[]).includes(scene.transition))
       ) {
         throw new Error(SAFE_ERROR);
       }
@@ -522,6 +524,23 @@ function buildFFmpegArgs(
       : buildRetimedConcatArgs(input, outputPath, context);
   }
 
+  return hasAnyBlendedJunction(input.scenes)
+    ? buildTransitionedImageConcatArgs(input, outputPath, context)
+    : buildImageConcatArgs(input, outputPath, context);
+}
+
+/**
+ * Static-image assembly path used whenever every junction resolves to "cut"
+ * (see hasAnyBlendedJunction) — i.e. the original Sprint 138/139 behavior,
+ * untouched by Sprint 140's fade/fadeblack xfade support. Each scene gets
+ * its own Ken Burns + scale/pad filter chain and scenes are joined with a
+ * plain concat filter (zero blend overlap).
+ */
+function buildImageConcatArgs(
+  input: VideoAssemblyInput,
+  outputPath: string,
+  context: RuntimeStorageContext,
+) {
   const args: string[] = ["-hide_banner", "-loglevel", "error", "-nostats", "-nostdin", "-n"];
   const filters: string[] = [];
   const concatInputs: string[] = [];
@@ -592,6 +611,106 @@ function buildFFmpegArgs(
   return args;
 }
 
+/**
+ * Real fade/fadeblack xfade + acrossfade transitions between static image
+ * scenes, applied whenever at least one junction resolves to something other
+ * than "cut" (see hasAnyBlendedJunction). Mirrors buildTransitionedConcatArgs
+ * (Sprint 133/139's scene-video equivalent): each scene gets its own Ken
+ * Burns + scale/pad per-scene filter chain (the same filter buildImageConcatArgs
+ * uses, plus an explicit setsar=1 so xfade never rejects mismatched SAR
+ * metadata), then scenes are chained pairwise with xfade/acrossfade instead
+ * of the plain concat filter buildImageConcatArgs uses. A fully "cut"
+ * sequence never reaches this function (hasAnyBlendedJunction routes it to
+ * buildImageConcatArgs instead), so the pre-Sprint-140 image path is never
+ * touched by this code.
+ */
+function buildTransitionedImageConcatArgs(
+  input: VideoAssemblyInput,
+  outputPath: string,
+  context: RuntimeStorageContext,
+) {
+  const args: string[] = ["-hide_banner", "-loglevel", "error", "-nostats", "-nostdin", "-n"];
+  const filters: string[] = [];
+  const durations: number[] = [];
+
+  input.scenes.forEach((scene, index) => {
+    if (scene.inputType !== "image") throw new Error(SAFE_ERROR);
+    const duration = scene.durationSeconds;
+    durations.push(duration);
+    const audioStartSeconds = audioStart(scene).toFixed(6);
+    const audioEndSeconds = (audioStart(scene) + duration).toFixed(6);
+    const imageIndex = index * 2;
+    const audioIndex = imageIndex + 1;
+    const motion = selectKenBurnsMotion(scene.sceneId);
+    const zoompanFilter = buildKenBurnsFilter(motion, duration);
+
+    args.push(
+      "-i",
+      absoluteInput(scene.imageFilePath, context),
+      "-i",
+      absoluteInput(scene.audioFilePath, context),
+    );
+    filters.push(
+      `[${imageIndex}:v]${zoompanFilter},scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease,pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2,format=yuv420p,setsar=1,trim=duration=${duration.toFixed(6)},setpts=PTS-STARTPTS[v${index}]`,
+      `[${audioIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,atrim=start=${audioStartSeconds}:end=${audioEndSeconds},atrim=duration=${duration.toFixed(6)},asetpts=PTS-STARTPTS[a${index}]`,
+    );
+  });
+
+  let videoLabel = "v0";
+  let audioLabel = "a0";
+  let cumulative = durations[0];
+
+  for (let index = 1; index < input.scenes.length; index += 1) {
+    const transition = sceneTransitionAt(input.scenes[index]);
+    const blend = blendSecondsFor(transition, durations[index - 1], durations[index]);
+    const offset = Math.max(0, cumulative - blend).toFixed(6);
+    const nextVideoLabel = `vx${index}`;
+    const nextAudioLabel = `ax${index}`;
+    filters.push(
+      `[${videoLabel}][v${index}]xfade=transition=${xfadeModeFor(transition)}:duration=${blend.toFixed(6)}:offset=${offset}[${nextVideoLabel}]`,
+      `[${audioLabel}][a${index}]acrossfade=d=${blend.toFixed(6)}[${nextAudioLabel}]`,
+    );
+    videoLabel = nextVideoLabel;
+    audioLabel = nextAudioLabel;
+    cumulative = cumulative + durations[index] - blend;
+  }
+
+  let finalAudioLabel = audioLabel;
+
+  if (input.backgroundMusic) {
+    const bgmIndex = input.scenes.length * 2;
+    appendBgmFilterGraph(args, filters, audioLabel, bgmIndex, input.backgroundMusic, context);
+    finalAudioLabel = "a";
+  }
+
+  args.push(
+    "-filter_complex",
+    filters.join(";"),
+    "-map",
+    `[${videoLabel}]`,
+    "-map",
+    `[${finalAudioLabel}]`,
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "23",
+    "-pix_fmt",
+    "yuv420p",
+    "-c:a",
+    "aac",
+    "-ar",
+    "48000",
+    "-ac",
+    "2",
+    "-movflags",
+    "+faststart",
+    outputPath,
+  );
+  return args;
+}
+
 function canCopySceneVideos(
   input: VideoAssemblyInput,
   signatures: SceneVideoProbeSignature[],
@@ -618,15 +737,14 @@ function canCopySceneVideos(
  */
 function hasAnyBlendedJunction(scenes: VideoAssemblyInput["scenes"]) {
   return scenes.some(
-    (scene, index) =>
-      index > 0 && scene.inputType === "scene-video" && sceneTransitionAt(scene) !== "cut",
+    (scene, index) => index > 0 && sceneTransitionAt(scene) !== "cut",
   );
 }
 
 function sceneTransitionAt(
   scene: VideoAssemblyInput["scenes"][number],
 ): AnimationTransitionType {
-  return scene.inputType === "scene-video" ? scene.transition ?? "cut" : "cut";
+  return scene.transition ?? "cut";
 }
 
 function sameProbeSignature(
@@ -871,24 +989,23 @@ function expectedOutputDuration(input: VideoAssemblyInput) {
 /**
  * The self-check duration passed to validateProbe after render. Equal to
  * expectedOutputDuration() (the naive per-scene sum) on every path except
- * the xfade/acrossfade transitioned-concat path built by
- * buildTransitionedConcatArgs: there, each blended junction overlaps two
+ * the xfade/acrossfade transitioned-concat paths built by
+ * buildTransitionedConcatArgs (scene-video) and buildTransitionedImageConcatArgs
+ * (static image, Sprint 140): there, each blended junction overlaps two
  * scenes by `blend` seconds, so ffmpeg's real output is shorter than the
- * naive sum by the total overlap. totalBlendSeconds() mirrors that
- * function's per-junction blend math (via the same blendSecondsFor/
- * sceneTransitionAt calls) without touching its filter-graph construction,
- * so the two can never drift apart.
+ * naive sum by the total overlap. totalBlendSeconds() mirrors those
+ * functions' shared per-junction blend math (via the same blendSecondsFor/
+ * sceneTransitionAt calls) without touching filter-graph construction, so
+ * they can never drift apart. concatManifestPath is only ever non-null on
+ * the scene-video copy-concat path (buildCopyConcatArgs), which never blends
+ * junctions, so that branch keeps returning the naive sum unchanged.
  */
 function expectedRenderedDuration(
   input: VideoAssemblyInput,
   concatManifestPath: string | null,
 ) {
   const naive = expectedOutputDuration(input);
-  if (
-    input.scenes[0].inputType !== "scene-video" ||
-    concatManifestPath ||
-    !hasAnyBlendedJunction(input.scenes)
-  ) {
+  if (concatManifestPath || !hasAnyBlendedJunction(input.scenes)) {
     return naive;
   }
   return naive - totalBlendSeconds(input.scenes);
@@ -896,9 +1013,10 @@ function expectedRenderedDuration(
 
 /**
  * Sum of per-junction xfade/acrossfade overlap seconds that
- * buildTransitionedConcatArgs will apply for this scene list. See
- * expectedRenderedDuration() for why this must stay in lockstep with that
- * function's blend loop.
+ * buildTransitionedConcatArgs (scene-video) or buildTransitionedImageConcatArgs
+ * (static image) will apply for this scene list. See
+ * expectedRenderedDuration() for why this must stay in lockstep with those
+ * functions' blend loops.
  */
 function totalBlendSeconds(scenes: VideoAssemblyInput["scenes"]) {
   let total = 0;
