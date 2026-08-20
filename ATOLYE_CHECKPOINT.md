@@ -1,5 +1,25 @@
 ---
 
+<!-- SPRINT-143-START -->
+## Sprint 143 - FFmpegVideoAssemblyProvider validateInput Transition-Enum Guard Test Coverage - 2026-08-20
+
+**Status:** Completed & Committed (bu commit ile) — push yapılmadı, onay bekleniyor
+**Production execution status:** N/A — saf test-kapsamı genişletmesi, üretim davranışı değiştirilmedi. `src/lib/assembly/providers/FFmpegVideoAssemblyProvider.ts`, `src/lib/assembly/VideoAssemblyManager.ts` veya başka hiçbir `src/` üretim dosyası dokunulmadı.
+
+Sprint 142 preflight incelemesi, `FFmpegVideoAssemblyProvider.validateInput()`'ın transition-enum fail-closed guard'ının (hem `image` hem `scene-video` dalında, `scene.transition !== undefined && !animationTransitionTypes.includes(scene.transition)` kontrolü) hiçbir testte hiç tetiklenmediğini tespit etmişti. Bu guard `VideoAssemblyManager` üzerinden asla ulaşılamaz (çünkü `classifyAssemblyTransition()` her zaman geçerli bir enum üretir); yalnızca provider'ı doğrudan, `VideoAssemblyManager`'ı bypass ederek çağıran testlerle egzersiz edilebilir. Sprint 143 bu boşluğu, üretim kodunda hiçbir değişiklik yapmadan, `scripts/smoke-ffmpeg-bgm-kenburns-assembly.ts`'e eklenen 3 yeni senaryoyla kapatıyor.
+
+- **Önemli bulgu (test tasarımını değiştirdi, üretim davranışı değil):** `FFmpegVideoAssemblyProvider.assemble()` hiçbir zaman reject/throw etmiyor — her hata durumunda (validateInput reddi dahil) `{ success: false, error: "Video assembly failed." }` şeklinde **resolve olan** bir sonuç döndürüyor (dosyanın kendi `try/catch`'i). Bu yüzden negatif senaryolar `assert.rejects` yerine resolve olan sonucun `success`/`error` alanlarını doğruluyor. Ayrıca, bu resolve şekli validateInput reddi ile gerçek bir process çağrısının başarısızlığını dıştan ayırt edilemez kıldığından ("hangisi olursa olsun aynı `{success:false, error:...}` görünür), FFmpeg/FFprobe process'inin hiç çalışmadığını kanıtlamak için çağrı-sayan (call-counting) özel bir runner kullanıldı — yalnızca sonuç şekline bakmak yeterli değildi.
+- **Kapsam (yalnızca test dosyası):**
+  - **Scenario 20 — invalid image transition fails closed:** `transition: "wipe"` ile tek-sahne `image` girdisi, çağrı-sayan runner'lı ayrı bir provider örneğiyle doğrudan çağrılıyor; `success: false`, `error === "Video assembly failed."` (hassas bilgi sızdırmıyor — mesaj "wipe" veya path içermiyor), ve runner'ın **hiç çağrılmadığı** (`imageRunnerCalls === 0`) doğrulanıyor.
+  - **Scenario 21 — invalid scene-video transition fails closed:** aynısı, mevcut `makeSceneVideoProps`/`relSv1` scene-video fixture kalıbıyla, `sceneVideoRunnerCalls === 0` doğrulanıyor.
+  - **Scenario 22 — undefined transition remains accepted (regression, image + scene-video):** guard'ın yalnızca `transition !== undefined` VE geçersiz enum olduğunda tetiklendiğini, `transition` alanı tamamen atlandığında (bugüne kadarki tüm projelerin varsayılan şekli) her iki `inputType`'ın da gerçek `provider` (gerçek ffmpeg binary) ile başarıyla render edilmeye devam ettiğini doğruluyor — davranış değiştirilmedi.
+- **Test Sonuçları (%100 PASS):**
+  1. `npx tsc --noEmit`: **0 hata**.
+  2. `scripts/smoke-ffmpeg-bgm-kenburns-assembly.ts`: **22/22 PASS** (19 mevcut + 3 yeni).
+  3. `scripts/smoke-production-video-assembly-wiring.ts`: **59/59 PASS** — değişmedi, regresyon yok.
+  4. `scripts/smoke-sprint-129-41-completed-stage-regeneration.ts`: **181/181 PASS (%100)**.
+<!-- SPRINT-143-END -->
+
 <!-- SPRINT-142-START -->
 ## Sprint 142 - classifyAssemblyTransition Free-Text Fallback Test Coverage - 2026-08-20
 

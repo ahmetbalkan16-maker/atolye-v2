@@ -11,6 +11,7 @@ import {
   selectKenBurnsMotion,
   buildKenBurnsFilter,
 } from "../src/lib/assembly/providers/FFmpegVideoAssemblyProvider";
+import type { AnimationTransitionType } from "../src/types/animation";
 import type { VideoAssemblyInput } from "../src/types/videoAssembly";
 
 function getSystemBinaryPath(name: string): string {
@@ -702,7 +703,120 @@ async function runSmokeTests() {
       );
       console.log(`[Scenario 19] PASS: custom duration + xfade final=${res19.durationSeconds}s video=${probe19.videoDuration}s audio=${probe19.audioDuration}s (expected=${expectedCustomDuration.toFixed(3)}s).`);
 
-      console.log("=== SMOKE TEST: ALL 19 SCENARIOS PASSED ===");
+      // --- Sprint 143: FFmpegVideoAssemblyProvider.validateInput() transition-enum
+      // fail-closed guard, tested directly at the provider level (bypassing
+      // VideoAssemblyManager, whose classifyAssemblyTransition() always produces a
+      // valid enum value and so can never actually reach this guard with an invalid
+      // string in real production use). assemble() never rejects/throws - on any
+      // failure, including a validateInput rejection, it resolves
+      // { success: false, error: SAFE_ERROR } (see the outer try/catch wrapping
+      // FFmpegVideoAssemblyProvider.ts's assemble()), so these scenarios assert on
+      // that resolved shape rather than assert.rejects. A call-counting runner is
+      // used (rather than relying on the resolved error shape alone, which looks
+      // identical whether validateInput rejected the input before any process call
+      // or a real process call itself failed afterward) to directly prove the
+      // FFmpeg/FFprobe process was never invoked.
+
+      // Scenario 20: invalid image transition fails closed
+      console.log("[Scenario 20] invalid image transition fails closed...");
+      let imageRunnerCalls = 0;
+      const imageRejectingProvider = new FFmpegVideoAssemblyProvider(
+        { async run() { imageRunnerCalls += 1; throw new Error("must not run"); } },
+        runtime.runtimeStorageContext,
+      );
+      const inputInvalidImageTransition: VideoAssemblyInput = {
+        projectSlug: runtime.projectSlug,
+        scenes: [
+          {
+            inputType: "image",
+            sceneId: 1,
+            imageFilePath: relImg1,
+            audioFilePath: relAudio1,
+            durationSeconds: 0.5,
+            transition: "wipe" as unknown as AnimationTransitionType,
+          },
+        ],
+      };
+      const res20 = await imageRejectingProvider.assemble(inputInvalidImageTransition);
+      assert.equal(res20.success, false);
+      if (res20.success) throw new Error("unreachable");
+      assert.equal(res20.error, "Video assembly failed.");
+      assert.doesNotMatch(res20.error, /wipe|private|stack/i);
+      assert.equal(imageRunnerCalls, 0, "FFmpeg/FFprobe process must not run for a rejected image transition");
+      console.log("[Scenario 20] PASS: invalid image transition rejected before any FFmpeg process ran.");
+
+      // Scenario 21: invalid scene-video transition fails closed
+      console.log("[Scenario 21] invalid scene-video transition fails closed...");
+      let sceneVideoRunnerCalls = 0;
+      const sceneVideoRejectingProvider = new FFmpegVideoAssemblyProvider(
+        { async run() { sceneVideoRunnerCalls += 1; throw new Error("must not run"); } },
+        runtime.runtimeStorageContext,
+      );
+      const inputInvalidSceneVideoTransition: VideoAssemblyInput = {
+        projectSlug: runtime.projectSlug,
+        scenes: [
+          {
+            ...makeSceneVideoProps(relSv1, sv1Size),
+            inputType: "scene-video",
+            sceneId: 1,
+            filePath: relSv1,
+            audioFilePath: relAudio1,
+            durationSeconds: 0.5,
+            narrationDurationSeconds: 0.5,
+            transition: "wipe" as unknown as AnimationTransitionType,
+          },
+        ],
+      };
+      const res21 = await sceneVideoRejectingProvider.assemble(inputInvalidSceneVideoTransition);
+      assert.equal(res21.success, false);
+      if (res21.success) throw new Error("unreachable");
+      assert.equal(res21.error, "Video assembly failed.");
+      assert.doesNotMatch(res21.error, /wipe|private|stack/i);
+      assert.equal(sceneVideoRunnerCalls, 0, "FFmpeg/FFprobe process must not run for a rejected scene-video transition");
+      console.log("[Scenario 21] PASS: invalid scene-video transition rejected before any FFmpeg process ran.");
+
+      // Scenario 22: undefined transition remains accepted (regression, both
+      // inputTypes) - the guard only rejects scene.transition !== undefined &&
+      // not-a-valid-enum-value; undefined (transition omitted entirely, the
+      // pre-Sprint-140/141 default shape for every existing project) must keep
+      // rendering successfully, completely unchanged.
+      console.log("[Scenario 22] undefined transition remains accepted (image + scene-video)...");
+      const inputUndefinedImageTransition: VideoAssemblyInput = {
+        projectSlug: runtime.projectSlug,
+        scenes: [
+          {
+            inputType: "image",
+            sceneId: 1,
+            imageFilePath: relImg1,
+            audioFilePath: relAudio1,
+            durationSeconds: 0.5,
+          },
+        ],
+      };
+      const res22a = await provider.assemble(inputUndefinedImageTransition);
+      assert.equal(res22a.success, true);
+      assert.ok(res22a.byteLength > 0);
+
+      const inputUndefinedSceneVideoTransition: VideoAssemblyInput = {
+        projectSlug: runtime.projectSlug,
+        scenes: [
+          {
+            ...makeSceneVideoProps(relSv1, sv1Size),
+            inputType: "scene-video",
+            sceneId: 1,
+            filePath: relSv1,
+            audioFilePath: relAudio1,
+            durationSeconds: 0.5,
+            narrationDurationSeconds: 0.5,
+          },
+        ],
+      };
+      const res22b = await provider.assemble(inputUndefinedSceneVideoTransition);
+      assert.equal(res22b.success, true);
+      assert.ok(res22b.byteLength > 0);
+      console.log(`[Scenario 22] PASS: transition:undefined still accepted for image (${res22a.byteLength}b) and scene-video (${res22b.byteLength}b).`);
+
+      console.log("=== SMOKE TEST: ALL 22 SCENARIOS PASSED ===");
     },
   );
 }
