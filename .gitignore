@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 .graphify/
+graphify-out/
+
+# claude code — personal/machine-specific overrides, never shared
+.claude/settings.local.json
