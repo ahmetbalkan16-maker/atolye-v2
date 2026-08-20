@@ -1,5 +1,25 @@
 ---
 
+<!-- SPRINT-139-START -->
+## Sprint 139 - Universal BGM Ducking for Retimed and Transitioned Video Scenes - 2026-08-20
+
+**Status:** Completed & Committed (Commit `46551f5`) — push yapılmadı
+**Production execution status:** Verified — tüm doğrulama izole `os.tmpdir()` runtime alanında gerçek FFmpeg/FFprobe binary'leriyle yapıldı. Canlı `data/projects/<slug>/` yapısında sıfır mutasyon.
+
+Sprint 138'de eklenen Arka Plan Müziği (BGM) sidechain ducking entegrasyonu yalnızca statik `image` girdili sahnelerde çalışıyordu. Sprint 139 ile BGM ducking altyapısı `scene-video` girdili Retimed Concat (`buildRetimedConcatArgs`) ve Transitioned Concat (`buildTransitionedConcatArgs`) montaj kod yollarına da bağlanarak evrensel hale getirildi.
+
+- **Mimari Kararlar ve Sınır Korumaları:**
+  - Tekrarlayan BGM loop, resampling, sidechain compression ve amix filtre zinciri `appendBgmFilterGraph()` fonksiyonunda modüler hale getirildi.
+  - BGM yokken (`!input.backgroundMusic`) baseline `concat` / `acrossfade` audio mix davranışları ve zero re-encode (`copy-concat`) yolları %100 aynen korundu.
+  - BGM girdiğinde `canCopySceneVideos` bypass edilerek audio re-encode Retimed/Transitioned yollarına güvenli yönlendirme sağlandı.
+
+- **Test Sonuçları (%100 PASS):**
+  1. `npx tsc --noEmit`: **0 hata**.
+  2. `scripts/smoke-ffmpeg-bgm-kenburns-assembly.ts`: **14/14 PASS** — Retimed `scene-video` + BGM ve Transitioned (fade) `scene-video` + BGM senaryoları dahil 14/14 senaryo geçti.
+  3. `scripts/isolated-e2e-bgm-kenburns.ts`: **PASS** — Gerçek FFmpeg ile izole MP4 çıktısı doğrulandı.
+  4. Completed-Stage Regeneration Smoke (`scripts/smoke-sprint-129-41-completed-stage-regeneration.ts`): **181/181 PASS (100%)**.
+<!-- SPRINT-139-END -->
+
 <!-- FIX-ASSEMBLY-CANONICAL-ASSET-ID-START -->
 ## Fix: AssemblyManager Canonical Asset-ID Enforcement - 2026-08-20
 
