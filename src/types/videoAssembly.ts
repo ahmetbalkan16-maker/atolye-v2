@@ -45,6 +45,11 @@ export type VideoAssemblySceneInput =
 export interface VideoAssemblyInput {
   projectSlug: string;
   scenes: VideoAssemblySceneInput[];
+  backgroundMusic?: {
+    filePath: string;
+    volume?: number;
+    ducking?: boolean;
+  };
 }
 
 type VideoAssemblyResultBase = {

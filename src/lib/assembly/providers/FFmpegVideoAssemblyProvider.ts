@@ -43,6 +43,7 @@ export interface ProcessRunResult {
   exitCode: number | null;
   signal: NodeJS.Signals | null;
   stdout: string;
+  stderr?: string;
   timedOut: boolean;
   failed?: boolean;
 }
@@ -227,6 +228,7 @@ export class SpawnRunner implements VideoAssemblyProcessRunner {
       }
 
       const stdout: Buffer[] = [];
+      const stderr: Buffer[] = [];
       let outputBytes = 0;
       let timedOut = false;
       let settled = false;
@@ -323,6 +325,7 @@ export class SpawnRunner implements VideoAssemblyProcessRunner {
           exitCode,
           signal,
           stdout: Buffer.concat(stdout).toString("utf8"),
+          stderr: Buffer.concat(stderr).toString("utf8"),
           timedOut,
           failed: terminating,
         });
@@ -406,6 +409,23 @@ function validateInput(input: VideoAssemblyInput, context: RuntimeStorageContext
     }
     ids.add(scene.sceneId);
   }
+
+  if (input.backgroundMusic !== undefined) {
+    if (
+      !input.backgroundMusic ||
+      typeof input.backgroundMusic !== "object" ||
+      !isSafeInputPath(
+        input.backgroundMusic.filePath,
+        AudioStorage.getAudioDir(input.projectSlug),
+      ) ||
+      (input.backgroundMusic.volume !== undefined &&
+        (!Number.isFinite(input.backgroundMusic.volume) ||
+          input.backgroundMusic.volume <= 0 ||
+          input.backgroundMusic.volume > 2.0))
+    ) {
+      throw new Error(SAFE_ERROR);
+    }
+  }
 }
 
 function nonEmpty(value: unknown): value is string {
@@ -431,7 +451,31 @@ function validateExecutable(executable: string) {
   if (!stat.isFile()) {
     throw new Error(SAFE_ERROR);
   }
-  fs.accessSync(executable, fs.constants.X_OK);
+  if (process.platform !== "win32") {
+    fs.accessSync(executable, fs.constants.X_OK);
+  }
+}
+
+export type KenBurnsMotionType = "zoom-in" | "zoom-out" | "pan-left" | "pan-right";
+
+export function selectKenBurnsMotion(sceneId: number): KenBurnsMotionType {
+  const motions: KenBurnsMotionType[] = ["zoom-in", "zoom-out", "pan-left", "pan-right"];
+  const index = (Math.abs(sceneId) - 1) % motions.length;
+  return motions[index];
+}
+
+export function buildKenBurnsFilter(motion: KenBurnsMotionType, durationSeconds: number): string {
+  const totalFrames = Math.max(1, Math.round(durationSeconds * FPS));
+  switch (motion) {
+    case "zoom-in":
+      return `zoompan=z='min(1+0.0015*on,1.15)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${totalFrames}:fps=${FPS}:s=${WIDTH}x${HEIGHT}`;
+    case "zoom-out":
+      return `zoompan=z='max(1.15-0.0015*on,1.0)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${totalFrames}:fps=${FPS}:s=${WIDTH}x${HEIGHT}`;
+    case "pan-left":
+      return `zoompan=z=1.15:x='(on/${totalFrames})*(iw-iw/zoom)':y='ih/2-(ih/zoom/2)':d=${totalFrames}:fps=${FPS}:s=${WIDTH}x${HEIGHT}`;
+    case "pan-right":
+      return `zoompan=z=1.15:x='(1-on/${totalFrames})*(iw-iw/zoom)':y='ih/2-(ih/zoom/2)':d=${totalFrames}:fps=${FPS}:s=${WIDTH}x${HEIGHT}`;
+  }
 }
 
 function buildFFmpegArgs(
@@ -449,7 +493,7 @@ function buildFFmpegArgs(
       : buildRetimedConcatArgs(input, outputPath, context);
   }
 
-  const args: string[] = ["-hide_banner", "-loglevel", "error", "-nostdin", "-n"];
+  const args: string[] = ["-hide_banner", "-loglevel", "error", "-nostats", "-nostdin", "-n"];
   const filters: string[] = [];
   const concatInputs: string[] = [];
 
@@ -460,28 +504,51 @@ function buildFFmpegArgs(
     const audioEndSeconds = (audioStart(scene) + scene.durationSeconds).toFixed(6);
     const imageIndex = index * 2;
     const audioIndex = imageIndex + 1;
+    const motion = selectKenBurnsMotion(scene.sceneId);
+    const zoompanFilter = buildKenBurnsFilter(motion, scene.durationSeconds);
+
     args.push(
-      "-loop",
-      "1",
-      "-framerate",
-      String(FPS),
-      "-t",
-      duration,
       "-i",
       absoluteInput(scene.imageFilePath, context),
       "-i",
       absoluteInput(scene.audioFilePath, context),
     );
     filters.push(
-      `[${imageIndex}:v]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease,pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2,fps=${FPS},format=yuv420p,trim=duration=${duration},setpts=PTS-STARTPTS[v${index}]`,
+      `[${imageIndex}:v]${zoompanFilter},scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease,pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2,format=yuv420p,trim=duration=${duration},setpts=PTS-STARTPTS[v${index}]`,
       `[${audioIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,atrim=start=${audioStartSeconds}:end=${audioEndSeconds},atrim=duration=${duration},asetpts=PTS-STARTPTS[a${index}]`,
     );
     concatInputs.push(`[v${index}][a${index}]`);
   });
 
-  filters.push(
-    `${concatInputs.join("")}concat=n=${input.scenes.length}:v=1:a=1[v][a]`,
-  );
+  if (!input.backgroundMusic) {
+    filters.push(
+      `${concatInputs.join("")}concat=n=${input.scenes.length}:v=1:a=1[v][a]`,
+    );
+  } else {
+    const bgmIndex = input.scenes.length * 2;
+    const bgmVol = (input.backgroundMusic.volume ?? 0.15).toFixed(2);
+    const useDucking = input.backgroundMusic.ducking !== false;
+
+    args.push("-stream_loop", "-1", "-i", absoluteInput(input.backgroundMusic.filePath, context));
+
+    filters.push(
+      `${concatInputs.map((_, i) => `[v${i}]`).join("")}concat=n=${input.scenes.length}:v=1:a=0[v]`,
+      `${concatInputs.map((_, i) => `[a${i}]`).join("")}concat=n=${input.scenes.length}:v=0:a=1[a_narration_full]`,
+      `[a_narration_full]asplit=2[a_narration_sc][a_narration_main]`,
+      `[${bgmIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=${bgmVol}[bgm_raw]`,
+    );
+    if (useDucking) {
+      filters.push(
+        `[bgm_raw][a_narration_sc]sidechaincompress=threshold=0.03:ratio=5:attack=100:release=800[bgm_ducked]`,
+        `[a_narration_main][bgm_ducked]amix=inputs=2:weights=1 1:normalize=0[a]`,
+      );
+    } else {
+      filters.push(
+        `[a_narration_main][bgm_raw]amix=inputs=2:weights=1 1:normalize=0[a]`,
+      );
+    }
+  }
+
   args.push(
     "-filter_complex",
     filters.join(";"),
@@ -515,13 +582,14 @@ function canCopySceneVideos(
   signatures: SceneVideoProbeSignature[],
 ) {
   return (
+    !input.backgroundMusic &&
     signatures.length === input.scenes.length &&
     signatures.every((signature) => sameProbeSignature(signature, signatures[0])) &&
     input.scenes.every(
-    (scene) =>
-      scene.inputType === "scene-video" &&
-      Math.abs(scene.durationSeconds - scene.narrationDurationSeconds) <=
-        1 / FPS,
+      (scene) =>
+        scene.inputType === "scene-video" &&
+        Math.abs(scene.durationSeconds - scene.narrationDurationSeconds) <=
+          1 / FPS,
     ) &&
     !hasAnyBlendedJunction(input.scenes)
   );

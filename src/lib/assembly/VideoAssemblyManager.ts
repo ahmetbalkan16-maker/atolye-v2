@@ -219,9 +219,11 @@ export class VideoAssemblyManager {
     let result: VideoAssemblyResult;
 
     try {
+      const backgroundMusic = resolveBackgroundMusic(projectSlug, assets.assets);
       result = await safeAssemble(selected, {
         projectSlug,
         scenes: renderScenes,
+        ...(backgroundMusic ? { backgroundMusic } : {}),
       });
     } catch {
       persistFailedAssetSafely(projectId, projectSlug, providerName);
@@ -839,4 +841,28 @@ function persistFailedAssetSafely(
   } catch {
     // Secondary registry failure must not replace the normalized stage failure.
   }
+}
+
+function resolveBackgroundMusic(
+  projectSlug: string,
+  assets: Asset[],
+): VideoAssemblyInput["backgroundMusic"] | undefined {
+  const bgmAsset = assets.find(
+    (a) =>
+      a.type === "audio" &&
+      a.status === "generated" &&
+      typeof a.filePath === "string" &&
+      (a.id === "bgm" ||
+        a.id.includes("bgm") ||
+        a.filePath.endsWith("/bgm.wav") ||
+        a.filePath.endsWith("/bgm.mp3")),
+  );
+  if (bgmAsset && typeof bgmAsset.filePath === "string") {
+    return {
+      filePath: bgmAsset.filePath,
+      volume: 0.15,
+      ducking: true,
+    };
+  }
+  return undefined;
 }
