@@ -1,5 +1,26 @@
 ---
 
+<!-- SPRINT-146-START -->
+## Sprint 146 - VideoAssemblyManager resolveBackgroundMusic Asset-Registry Discovery Test Coverage - 2026-08-21
+
+**Status:** Completed & Committed (bu commit ile) — push yapılmadı, onay bekleniyor
+**Production execution status:** N/A — saf test-kapsamı genişletmesi, üretim davranışı değiştirilmedi. `src/lib/assembly/VideoAssemblyManager.ts`, `src/lib/assembly/providers/FFmpegVideoAssemblyProvider.ts` veya başka hiçbir `src/` üretim dosyası dokunulmadı.
+
+Sprint 143-145, `FFmpegVideoAssemblyProvider.validateInput()` ve `VideoAssemblyManager.isValidRealResult()`'ı — provider'a giden GİRDİ ve provider'dan dönen ÇIKTI doğrulamasını — kapattı. Sprint 146 READ-ONLY preflight incelemesi, `VideoAssemblyManager.resolveBackgroundMusic()`'in (asset registry'de BGM'e benzeyen bir kayıt olup olmadığını kendi başına keşfeden heuristik) hiçbir testte hiç tetiklenmediğini tespit etti. Sprint 138-145'in tüm BGM testleri (`smoke-ffmpeg-bgm-kenburns-assembly.ts`'nin 30 senaryosu) `VideoAssemblyInput.backgroundMusic`'i elle set edip provider'ı doğrudan çağırıyor, `VideoAssemblyManager`'ı ve dolayısıyla bu keşif fonksiyonunu tamamen bypass ediyor. `rg "resolveBackgroundMusic|\"bgm\"" src/` taraması, bu string'in repoda yalnızca `VideoAssemblyManager.ts`'nin kendisinde geçtiğini doğruladı — gerçek ses üretim pipeline'ında şu an "bgm" id'li/dosya adlı bir asset üreten hiçbir kod yok, yani bu bir savunma-derinliği kilidi (Sprint 143/144'teki `classifyAssemblyTransition`/BGM `volume` ile aynı reachability profili).
+
+- **Ev sahibi dosya seçimi:** `scripts/smoke-assembly-scene-video-consumption.ts` ile `scripts/smoke-production-video-assembly-wiring.ts` karşılaştırıldı. `resolveBackgroundMusic()` tamamen `inputType`'tan bağımsız, saf asset-registry mantığı olduğundan, daha ağır scene-video/motion-plan/animation fixture altyapısına ihtiyaç duymayan `smoke-production-video-assembly-wiring.ts`'nin `fixture()`/`FakeRunner` kalıbı (zaten Sprint 143/144/145'in ev sahibi) seçildi.
+- **Kapsam (yalnızca test dosyası, 64 senaryo → 68 senaryo):** BGM'i asla elle vermeden, `fixture()`'ın kaydettiği registry'ye ek asset'ler ekleyip gerçek `renderExistingAssets()` zincirini çağıran 4 senaryo:
+  1. `id:"bgm"` (audio + generated) → otomatik keşfedilip forward ediliyor (ffmpeg argümanlarında `-stream_loop` + `sidechaincompress` varlığıyla doğrulandı).
+  2. `filePath` `bgm.wav` **veya** `bgm.mp3` ile bitiyor, id "bgm" içermiyor → yine keşfediliyor (iki alt-vaka).
+  3. BGM'e benzeyen hiçbir asset yokken → forward edilmiyor (regresyon).
+  4. `id` "bgm" içeriyor ama `type !== "audio"` **veya** `status !== "generated"` → görmezden geliniyor (iki alt-vaka).
+- **Test Sonuçları (%100 PASS):**
+  1. `npx tsc --noEmit`: **0 hata**.
+  2. `scripts/smoke-production-video-assembly-wiring.ts`: **68/68 PASS** (64 mevcut + 4 yeni).
+  3. `scripts/smoke-ffmpeg-bgm-kenburns-assembly.ts`: **30/30 PASS** — değişmedi, regresyon yok.
+  4. `scripts/smoke-sprint-129-41-completed-stage-regeneration.ts`: **181/181 PASS (%100)**.
+<!-- SPRINT-146-END -->
+
 <!-- SPRINT-145-START -->
 ## Sprint 145 - VideoAssemblyManager isValidRealResult Output Validation Guard Test Coverage - 2026-08-21
 

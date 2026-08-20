@@ -1201,6 +1201,91 @@ async function run() {
       assert.equal(args.filter((value) => value === "-i").length, 4);
       assert.doesNotMatch(args.join(" "), /Narration 1|Narration 2/);
     });
+    // Sprint 146: VideoAssemblyManager.resolveBackgroundMusic()'s asset-registry BGM
+    // discovery heuristic (a.id === "bgm" || a.id.includes("bgm") ||
+    // a.filePath.endsWith("/bgm.wav") || a.filePath.endsWith("/bgm.mp3")) runs on
+    // every non-mock render, but every existing BGM test in
+    // scripts/smoke-ffmpeg-bgm-kenburns-assembly.ts hand-sets
+    // VideoAssemblyInput.backgroundMusic directly and calls the provider without
+    // ever going through VideoAssemblyManager - so this discovery function's own
+    // matching logic (as opposed to what happens once BGM data is already
+    // constructed) has never been exercised. These scenarios register assets
+    // directly into the same registry fixture() already populates and call the
+    // real renderExistingAssets() chain WITHOUT ever setting backgroundMusic by
+    // hand, so the only way BGM reaches the FFmpeg args is if
+    // resolveBackgroundMusic() itself found and forwarded it. Assets are synthetic
+    // (no real underlying audio file) since resolveBackgroundMusic() and
+    // validateInput()'s backgroundMusic.filePath check are both pure string
+    // matching over the registry/path - no filesystem access - and FakeRunner
+    // never reads file contents either.
+    //
+    // Chosen host file: this file's fixture()/FakeRunner pair (image-only, no
+    // motion plan/animation/video-scene setup needed) is the more natural fit
+    // than scripts/smoke-assembly-scene-video-consumption.ts's fixture(), because
+    // resolveBackgroundMusic() operates purely on the asset registry array and is
+    // completely inputType-agnostic - it needs the simplest possible successful
+    // render to isolate BGM discovery as the only variable, not scene-video's
+    // heavier motion-plan/animation machinery.
+    function registerBgmLikeAsset(
+      slug: string,
+      projectId: string,
+      fileName: string,
+      fieldOverrides: { id?: string; type?: string; status?: string } = {},
+    ) {
+      const filePath = `${AudioStorage.getAudioDir(slug)}/${fileName}`;
+      const url = `/api/assets/audio/${encodeURIComponent(slug)}/${encodeURIComponent(fileName)}`;
+      return AssetManager.addAsset(slug, projectId, AssetManager.createAsset({
+        id: fieldOverrides.id ?? "bgm",
+        projectId,
+        projectSlug: slug,
+        type: (fieldOverrides.type ?? "audio") as "audio",
+        status: (fieldOverrides.status ?? "generated") as "generated",
+        provider: "openai",
+        prompt: "bgm",
+        filePath,
+        url,
+        mimeType: fieldOverrides.type === "video" ? "video/mp4" : "audio/wav",
+        byteLength: 24_044,
+        durationSeconds: 0.5,
+      }));
+    }
+    function bgmEngaged(args: readonly string[]) {
+      return args.includes("-stream_loop") && args.join(" ").includes("sidechaincompress");
+    }
+    await scenario("BGM discovery: exact id 'bgm' (audio + generated) is auto-discovered and forwarded", async () => {
+      const value = await fixture("bgm-discovery-exact-id");
+      registerBgmLikeAsset(value.slug, value.projectId, "music-track.wav", { id: "bgm" });
+      const runner = new FakeRunner();
+      await VideoAssemblyManager.renderExistingAssets({ projectId: value.projectId, projectSlug: value.slug, scenes, visuals, audio: baseAudio, assembly, provider: new FFmpegVideoAssemblyProvider(runner) });
+      assert.ok(bgmEngaged(runner.calls[0].args), "BGM must be auto-discovered and forwarded via id==='bgm'");
+    });
+    await scenario("BGM discovery: filePath ending in bgm.wav/bgm.mp3 is auto-discovered even without a 'bgm' id", async () => {
+      const value = await fixture("bgm-discovery-filename-wav");
+      registerBgmLikeAsset(value.slug, value.projectId, "bgm.wav", { id: "audio-99" });
+      const runner = new FakeRunner();
+      await VideoAssemblyManager.renderExistingAssets({ projectId: value.projectId, projectSlug: value.slug, scenes, visuals, audio: baseAudio, assembly, provider: new FFmpegVideoAssemblyProvider(runner) });
+      assert.ok(bgmEngaged(runner.calls[0].args), "BGM must be auto-discovered via filePath ending in bgm.wav");
+
+      const valueMp3 = await fixture("bgm-discovery-filename-mp3");
+      registerBgmLikeAsset(valueMp3.slug, valueMp3.projectId, "bgm.mp3", { id: "audio-99" });
+      const runnerMp3 = new FakeRunner();
+      await VideoAssemblyManager.renderExistingAssets({ projectId: valueMp3.projectId, projectSlug: valueMp3.slug, scenes, visuals, audio: baseAudio, assembly, provider: new FFmpegVideoAssemblyProvider(runnerMp3) });
+      assert.ok(bgmEngaged(runnerMp3.calls[0].args), "BGM must be auto-discovered via filePath ending in bgm.mp3");
+    });
+    await scenario("BGM discovery: no bgm-like asset means backgroundMusic is never forwarded", async () => {
+      const value = await fixture("bgm-discovery-none");
+      const runner = new FakeRunner();
+      await VideoAssemblyManager.renderExistingAssets({ projectId: value.projectId, projectSlug: value.slug, scenes, visuals, audio: baseAudio, assembly, provider: new FFmpegVideoAssemblyProvider(runner) });
+      assert.equal(bgmEngaged(runner.calls[0].args), false, "no BGM-like asset registered, backgroundMusic must not be forwarded");
+    });
+    await scenario("BGM discovery: near-miss assets (wrong type or not generated) are ignored", async () => {
+      const value = await fixture("bgm-discovery-near-miss");
+      registerBgmLikeAsset(value.slug, value.projectId, "bgm-video-scene.wav", { id: "bgm-video-scene", type: "video" });
+      registerBgmLikeAsset(value.slug, value.projectId, "bgm-draft.wav", { id: "bgm-draft", status: "queued" });
+      const runner = new FakeRunner();
+      await VideoAssemblyManager.renderExistingAssets({ projectId: value.projectId, projectSlug: value.slug, scenes, visuals, audio: baseAudio, assembly, provider: new FFmpegVideoAssemblyProvider(runner) });
+      assert.equal(bgmEngaged(runner.calls[0].args), false, "near-miss assets (wrong type / not generated) must be ignored by resolveBackgroundMusic()");
+    });
     // Sprint 141: VideoAssemblyManager's "image" scene branch previously never forwarded
     // assembly.scenes[].transition into VideoAssemblyInput, so Sprint 140's static-image
     // xfade renderer was unreachable from a real AssemblyManager plan — only from smoke
