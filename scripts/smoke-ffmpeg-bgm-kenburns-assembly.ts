@@ -322,7 +322,106 @@ async function runSmokeTests() {
       assert.ok(probeStdout.includes("format_name=mov,mp4,m4a,3gp,3g2,mj2"), `Output must be valid MP4 container. Got: ${probeStdout}`);
       console.log(`[Scenario 12] PASS: FFprobe verified MP4 output:\n${probeStdout.trim()}`);
 
-      console.log("=== SMOKE TEST: ALL 12 SCENARIOS PASSED ===");
+      // Scenario 13: scene-video + BGM (retimed assembly yolunun BGM mikslemesi)
+      console.log("[Scenario 13] scene-video + BGM (retimed path)...");
+      const videoDir = path.join(projDir, "assets", "videos");
+      fs.mkdirSync(videoDir, { recursive: true });
+      const sv1Path = path.join(videoDir, "sv1.mp4");
+      const sv2Path = path.join(videoDir, "sv2.mp4");
+      execFileSync(ffmpegPath, ["-hide_banner", "-loglevel", "error", "-y", "-i", absMp4Path, "-an", "-c:v", "copy", sv1Path]);
+      execFileSync(ffmpegPath, ["-hide_banner", "-loglevel", "error", "-y", "-i", absMp4Path, "-an", "-c:v", "copy", sv2Path]);
+      const relSv1 = `data/projects/${runtime.projectSlug}/assets/videos/sv1.mp4`;
+      const relSv2 = `data/projects/${runtime.projectSlug}/assets/videos/sv2.mp4`;
+      const sv1Size = fs.statSync(sv1Path).size;
+      const sv2Size = fs.statSync(sv2Path).size;
+
+      const makeSceneVideoProps = (filePath: string, byteLength: number) => ({
+        videoAssetId: "vid_1",
+        sourceImageAssetId: "img_1",
+        animationAssetId: "anim_1",
+        url: `/api/assets/videos/${runtime.projectSlug}/${path.basename(filePath)}`,
+        byteLength,
+        provider: "ffmpeg" as const,
+        generationMode: "production" as const,
+        status: "generated" as const,
+      });
+
+      const inputSceneVideoRetimedBgm: VideoAssemblyInput = {
+        projectSlug: runtime.projectSlug,
+        scenes: [
+          {
+            ...makeSceneVideoProps(relSv1, sv1Size),
+            inputType: "scene-video",
+            sceneId: 1,
+            filePath: relSv1,
+            audioFilePath: relAudio1,
+            durationSeconds: 0.5,
+            narrationDurationSeconds: 0.5,
+            transition: "cut",
+          },
+          {
+            ...makeSceneVideoProps(relSv2, sv2Size),
+            inputType: "scene-video",
+            sceneId: 2,
+            filePath: relSv2,
+            audioFilePath: relAudio2,
+            durationSeconds: 0.5,
+            narrationDurationSeconds: 0.5,
+            transition: "cut",
+          },
+        ],
+        backgroundMusic: {
+          filePath: relBgm,
+          volume: 0.2,
+          ducking: true,
+        },
+      };
+
+      const res13 = await provider.assemble(inputSceneVideoRetimedBgm);
+      assert.equal(res13.success, true);
+      assert.ok(res13.byteLength > 0);
+      console.log(`[Scenario 13] PASS: scene-video + BGM (retimed) rendered successfully (${res13.byteLength} bytes).`);
+
+      // Scenario 14: scene-video + BGM (transitioned path with fade)
+      console.log("[Scenario 14] scene-video + BGM (transitioned path with fade)...");
+      const inputSceneVideoTransitionedBgm: VideoAssemblyInput = {
+        projectSlug: runtime.projectSlug,
+        scenes: [
+          {
+            ...makeSceneVideoProps(relSv1, sv1Size),
+            inputType: "scene-video",
+            sceneId: 1,
+            filePath: relSv1,
+            audioFilePath: relAudio1,
+            durationSeconds: 0.5,
+            narrationDurationSeconds: 0.5,
+            transition: "cut",
+          },
+          {
+            ...makeSceneVideoProps(relSv2, sv2Size),
+            inputType: "scene-video",
+            sceneId: 2,
+            filePath: relSv2,
+            audioFilePath: relAudio2,
+            durationSeconds: 0.5,
+            narrationDurationSeconds: 0.5,
+            transition: "fade",
+          },
+        ],
+        backgroundMusic: {
+          filePath: relBgm,
+          volume: 0.15,
+          ducking: true,
+        },
+      };
+
+
+      const res14 = await provider.assemble(inputSceneVideoTransitionedBgm);
+      assert.equal(res14.success, true);
+      assert.ok(res14.byteLength > 0);
+      console.log(`[Scenario 14] PASS: scene-video + BGM (transitioned fade) rendered successfully (${res14.byteLength} bytes).`);
+
+      console.log("=== SMOKE TEST: ALL 14 SCENARIOS PASSED ===");
     },
   );
 }

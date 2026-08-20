@@ -478,6 +478,35 @@ export function buildKenBurnsFilter(motion: KenBurnsMotionType, durationSeconds:
   }
 }
 
+function appendBgmFilterGraph(
+  args: string[],
+  filters: string[],
+  narrationLabel: string,
+  bgmInputIndex: number,
+  bgmConfig: NonNullable<VideoAssemblyInput["backgroundMusic"]>,
+  context: RuntimeStorageContext,
+): void {
+  const bgmVol = (bgmConfig.volume ?? 0.15).toFixed(2);
+  const useDucking = bgmConfig.ducking !== false;
+
+  args.push("-stream_loop", "-1", "-i", absoluteInput(bgmConfig.filePath, context));
+
+  filters.push(
+    `[${narrationLabel}]asplit=2[a_narration_sc][a_narration_main]`,
+    `[${bgmInputIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=${bgmVol}[bgm_raw]`,
+  );
+  if (useDucking) {
+    filters.push(
+      `[bgm_raw][a_narration_sc]sidechaincompress=threshold=0.03:ratio=5:attack=100:release=800[bgm_ducked]`,
+      `[a_narration_main][bgm_ducked]amix=inputs=2:weights=1 1:normalize=0[a]`,
+    );
+  } else {
+    filters.push(
+      `[a_narration_main][bgm_raw]amix=inputs=2:weights=1 1:normalize=0[a]`,
+    );
+  }
+}
+
 function buildFFmpegArgs(
   input: VideoAssemblyInput,
   outputPath: string,
@@ -520,33 +549,19 @@ function buildFFmpegArgs(
     concatInputs.push(`[v${index}][a${index}]`);
   });
 
+  let audioMapLabel = "[a]";
+
   if (!input.backgroundMusic) {
     filters.push(
       `${concatInputs.join("")}concat=n=${input.scenes.length}:v=1:a=1[v][a]`,
     );
   } else {
     const bgmIndex = input.scenes.length * 2;
-    const bgmVol = (input.backgroundMusic.volume ?? 0.15).toFixed(2);
-    const useDucking = input.backgroundMusic.ducking !== false;
-
-    args.push("-stream_loop", "-1", "-i", absoluteInput(input.backgroundMusic.filePath, context));
-
     filters.push(
       `${concatInputs.map((_, i) => `[v${i}]`).join("")}concat=n=${input.scenes.length}:v=1:a=0[v]`,
       `${concatInputs.map((_, i) => `[a${i}]`).join("")}concat=n=${input.scenes.length}:v=0:a=1[a_narration_full]`,
-      `[a_narration_full]asplit=2[a_narration_sc][a_narration_main]`,
-      `[${bgmIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=${bgmVol}[bgm_raw]`,
     );
-    if (useDucking) {
-      filters.push(
-        `[bgm_raw][a_narration_sc]sidechaincompress=threshold=0.03:ratio=5:attack=100:release=800[bgm_ducked]`,
-        `[a_narration_main][bgm_ducked]amix=inputs=2:weights=1 1:normalize=0[a]`,
-      );
-    } else {
-      filters.push(
-        `[a_narration_main][bgm_raw]amix=inputs=2:weights=1 1:normalize=0[a]`,
-      );
-    }
+    appendBgmFilterGraph(args, filters, "a_narration_full", bgmIndex, input.backgroundMusic, context);
   }
 
   args.push(
@@ -555,7 +570,7 @@ function buildFFmpegArgs(
     "-map",
     "[v]",
     "-map",
-    "[a]",
+    audioMapLabel,
     "-c:v",
     "libx264",
     "-preset",
@@ -700,9 +715,22 @@ function buildRetimedConcatArgs(
     );
     concatInputs.push(`[v${index}][a${index}]`);
   });
-  filters.push(`${concatInputs.join("")}concat=n=${input.scenes.length}:v=1:a=1[v][a]`);
+
+  let audioMapLabel = "[a]";
+
+  if (!input.backgroundMusic) {
+    filters.push(`${concatInputs.join("")}concat=n=${input.scenes.length}:v=1:a=1[v][a]`);
+  } else {
+    const bgmIndex = input.scenes.length * 2;
+    filters.push(
+      `${concatInputs.map((_, i) => `[v${i}]`).join("")}concat=n=${input.scenes.length}:v=1:a=0[v]`,
+      `${concatInputs.map((_, i) => `[a${i}]`).join("")}concat=n=${input.scenes.length}:v=0:a=1[a_narration_full]`,
+    );
+    appendBgmFilterGraph(args, filters, "a_narration_full", bgmIndex, input.backgroundMusic, context);
+  }
+
   args.push(
-    "-filter_complex", filters.join(";"), "-map", "[v]", "-map", "[a]",
+    "-filter_complex", filters.join(";"), "-map", "[v]", "-map", audioMapLabel,
     "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
     "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", "48000", "-ac", "2",
     "-movflags", "+faststart", outputPath,
@@ -774,13 +802,21 @@ function buildTransitionedConcatArgs(
     cumulative = cumulative + durations[index] - blend;
   }
 
+  let finalAudioLabel = audioLabel;
+
+  if (input.backgroundMusic) {
+    const bgmIndex = input.scenes.length * 2;
+    appendBgmFilterGraph(args, filters, audioLabel, bgmIndex, input.backgroundMusic, context);
+    finalAudioLabel = "a";
+  }
+
   args.push(
     "-filter_complex",
     filters.join(";"),
     "-map",
     `[${videoLabel}]`,
     "-map",
-    `[${audioLabel}]`,
+    `[${finalAudioLabel}]`,
     "-c:v",
     "libx264",
     "-preset",
