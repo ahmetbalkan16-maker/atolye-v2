@@ -1,5 +1,25 @@
 ---
 
+<!-- SPRINT-147-START -->
+## Sprint 147 - VideoAssemblyManager resolveBackgroundMusic Multi-Candidate .find() Insertion-Order Lock - 2026-08-21
+
+**Status:** Completed — commit/push yapılmadı, onay bekleniyor
+**Production execution status:** N/A — saf test-kapsamı genişletmesi, üretim davranışı değiştirilmedi. `src/lib/assembly/VideoAssemblyManager.ts`, `src/lib/assembly/providers/FFmpegVideoAssemblyProvider.ts` veya başka hiçbir `src/` üretim dosyası dokunulmadı.
+
+Sprint 146, `resolveBackgroundMusic()`'in her bir eşleşme dalını (id==="bgm" / id.includes("bgm") / filePath bgm.wav|bgm.mp3 ile bitiyor) gerçek `renderExistingAssets()` zinciri üzerinden kilitledi, ama her senaryoda registry'de aynı anda en fazla BİR eşleşen aday vardı. Sprint 147 READ-ONLY preflight incelemesi, `resolveBackgroundMusic()`'in seçimi `assets.find(...)` ile yaptığını (`VideoAssemblyManager.ts:851`) ve `AssetManager.addAsset()`'in her zaman diziye ekleme yaptığını (`assets: [...current.assets, asset]`, sort/dedup yok — `AssetManager.ts:103`) doğruladı — yani registry'de birden fazla eşleşen aday varsa, seçim saf bir insertion-order fonksiyonudur ve bu davranış hiç testle kilitlenmemişti.
+
+- **Kapsam (yalnızca test dosyası, 68 senaryo → 70 senaryo):** Sprint 146'nın 4 mevcut BGM discovery senaryosu değişmeden korundu; `registerBgmLikeAsset`/`bgmEngaged` yardımcıları aynen yeniden kullanıldı, `backgroundMusic` hiçbir senaryoda elle set edilmedi. Eklenen 2 senaryo:
+  1. **İki geçerli aday (`bgm` sonra `bgm-v2`, ikisi de `audio` + `generated`)** → `.find()`'ın registry'ye ilk eklenen adayı (`bgm`) seçtiği, ffmpeg'e `-i` argümanı olarak push edilen çözümlenmiş mutlak dosya yolu (`FFmpegVideoAssemblyProvider.ts`'nin `appendBgmFilterGraph()`: `args.push("-stream_loop", "-1", "-i", absoluteInput(bgmConfig.filePath, context))`) üzerinden doğrulandı; ikinci adayın (`bgm-v2`) yolunun `args` içinde hiç yer almadığı ayrıca ispatlandı.
+  2. **Bir near-miss/geçersiz aday (`status:"queued"`, Sprint 146'nın near-miss kalıbıyla aynı) + bir geçerli aday** → yalnızca geçerli adayın dosya yolunun forward edildiği doğrulandı; near-miss `.find()`'ın predicate'ini hiç geçmediği için sıralamayı etkilemiyor.
+- **Bulgu / DUR durumu:** Yok. `.find()` beklenen (insertion-order, ilk eşleşen kazanır) davranışı sergiledi; gizli sort/dedup bulunmadı. Üretim kodu değişikliği gerekmedi.
+- **Test Sonuçları (%100 PASS):**
+  1. `npx tsc --noEmit`: **0 hata**.
+  2. `scripts/smoke-production-video-assembly-wiring.ts`: **70/70 PASS** (68 mevcut + 2 yeni).
+  3. `scripts/smoke-ffmpeg-bgm-kenburns-assembly.ts`: **30/30 PASS** — değişmedi, regresyon yok.
+  4. `scripts/smoke-sprint-129-41-completed-stage-regeneration.ts`: **181/181 PASS (%100)** — değişmedi, regresyon yok.
+- **Değişen dosyalar:** yalnızca `scripts/smoke-production-video-assembly-wiring.ts` (+41 satır) ve bu `ATOLYE_CHECKPOINT.md` kaydı. `src/**` altında sıfır değişiklik (`git diff --stat -- src/` boş).
+<!-- SPRINT-147-END -->
+
 <!-- SPRINT-146-START -->
 ## Sprint 146 - VideoAssemblyManager resolveBackgroundMusic Asset-Registry Discovery Test Coverage - 2026-08-21
 

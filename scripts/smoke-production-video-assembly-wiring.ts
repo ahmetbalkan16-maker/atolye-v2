@@ -1286,6 +1286,47 @@ async function run() {
       await VideoAssemblyManager.renderExistingAssets({ projectId: value.projectId, projectSlug: value.slug, scenes, visuals, audio: baseAudio, assembly, provider: new FFmpegVideoAssemblyProvider(runner) });
       assert.equal(bgmEngaged(runner.calls[0].args), false, "near-miss assets (wrong type / not generated) must be ignored by resolveBackgroundMusic()");
     });
+    // Sprint 147: Sprint 146 proved each individual matching branch of
+    // resolveBackgroundMusic()'s predicate (id==="bgm" / id.includes("bgm") / filePath
+    // ending in bgm.wav|bgm.mp3) fires through the real registry -> renderExistingAssets()
+    // chain, but every one of those scenarios registered at most one asset that could ever
+    // match - so what resolveBackgroundMusic() does when MORE THAN ONE registry asset
+    // simultaneously satisfies the predicate was never exercised. resolveBackgroundMusic()
+    // selects via `assets.find(...)` (VideoAssemblyManager.ts), which returns the first
+    // array element satisfying the predicate and never looks at the rest; AssetManager.addAsset()
+    // always appends (`assets: [...current.assets, asset]`, no sort/dedup - see AssetManager.ts).
+    // So with multiple matches present, selection is a pure function of registry insertion
+    // order. These two scenarios lock in that existing, deterministic .find() behavior (not a
+    // judgment on whether it is the "right" heuristic) using the same registerBgmLikeAsset()/
+    // bgmEngaged() real-render pattern as Sprint 146, still never hand-setting backgroundMusic.
+    // To prove WHICH candidate's filePath was actually forwarded (not just that "a" BGM was
+    // engaged), they assert on the resolved absolute path FFmpegVideoAssemblyProvider's
+    // appendBgmFilterGraph() pushes as the literal "-i" argument element:
+    // `args.push("-stream_loop", "-1", "-i", absoluteInput(bgmConfig.filePath, context))`.
+    await scenario("BGM discovery: two valid candidates ('bgm' then 'bgm-v2') resolve to the first-registered one; the second is never forwarded", async () => {
+      const value = await fixture("bgm-discovery-multi-candidate-order");
+      const firstFilePath = `${AudioStorage.getAudioDir(value.slug)}/music-track-1.wav`;
+      const secondFilePath = `${AudioStorage.getAudioDir(value.slug)}/music-track-2.wav`;
+      registerBgmLikeAsset(value.slug, value.projectId, "music-track-1.wav", { id: "bgm" });
+      registerBgmLikeAsset(value.slug, value.projectId, "music-track-2.wav", { id: "bgm-v2" });
+      const runner = new FakeRunner();
+      await VideoAssemblyManager.renderExistingAssets({ projectId: value.projectId, projectSlug: value.slug, scenes, visuals, audio: baseAudio, assembly, provider: new FFmpegVideoAssemblyProvider(runner) });
+      const args = runner.calls[0].args;
+      assert.ok(bgmEngaged(args), "BGM must be auto-discovered and forwarded");
+      assert.ok(args.includes(resolveRuntimeLogicalPath(firstFilePath)), "first-registered candidate ('bgm') must be the one forwarded to ffmpeg -i");
+      assert.ok(!args.includes(resolveRuntimeLogicalPath(secondFilePath)), "second-registered candidate ('bgm-v2') must NOT be forwarded to ffmpeg -i");
+    });
+    await scenario("BGM discovery: a near-miss/invalid candidate registered ahead of a valid candidate still resolves to the valid one", async () => {
+      const value = await fixture("bgm-discovery-near-miss-then-valid");
+      registerBgmLikeAsset(value.slug, value.projectId, "bgm-draft.wav", { id: "bgm-draft", status: "queued" });
+      const validFilePath = `${AudioStorage.getAudioDir(value.slug)}/bgm-final.wav`;
+      registerBgmLikeAsset(value.slug, value.projectId, "bgm-final.wav", { id: "bgm-final" });
+      const runner = new FakeRunner();
+      await VideoAssemblyManager.renderExistingAssets({ projectId: value.projectId, projectSlug: value.slug, scenes, visuals, audio: baseAudio, assembly, provider: new FFmpegVideoAssemblyProvider(runner) });
+      const args = runner.calls[0].args;
+      assert.ok(bgmEngaged(args), "BGM must be auto-discovered and forwarded despite a preceding near-miss candidate");
+      assert.ok(args.includes(resolveRuntimeLogicalPath(validFilePath)), "the only valid candidate's filePath must be the one forwarded to ffmpeg -i");
+    });
     // Sprint 141: VideoAssemblyManager's "image" scene branch previously never forwarded
     // assembly.scenes[].transition into VideoAssemblyInput, so Sprint 140's static-image
     // xfade renderer was unreachable from a real AssemblyManager plan — only from smoke
