@@ -17,7 +17,23 @@ const processCanonicalLockKey = Symbol.for(
 );
 const moduleProvenance = Object.freeze({});
 const ownsProcessCanonicalLock = claimProcessCanonicalLock();
-let canonicalRegistration: CanonicalPipelineRuntimeRegistration | undefined;
+
+/**
+ * Process-global mutable registration slot, shared (via globalThis + Symbol.for) across every module
+ * instance of this file that may be loaded in the same OS process — e.g. one instance reached through
+ * instrumentation.ts's boot-time registration, another reached independently through a Next.js route
+ * handler's own module graph, when a bundler compiles shared `src/lib` code separately per entry/layer
+ * instead of deduplicating it into one shared chunk. Write access here still requires
+ * `ownsProcessCanonicalLock` (below, unchanged), so only the one module instance that first claimed the
+ * process lock may install or restore a registration. Reads must not depend on that per-instance
+ * ownership flag, though: a non-owning instance still needs to observe the one true registration the
+ * owning instance installed — otherwise it wrongly concludes no registration exists at all, which is
+ * the exact false-positive RUNTIME_OPERATION_CONTEXT_MISMATCH this slot exists to eliminate.
+ */
+const processCanonicalRegistrationBoxKey = Symbol.for(
+  "@atolye/pipeline-runner-canonical-runtime-registration-box/v1",
+);
+const processCanonicalRegistrationBox = claimProcessCanonicalRegistrationBox();
 
 /** @internal Opaque process-state token for scoped test/runtime composition. */
 export interface PipelineRunnerProductionRuntimeSnapshot {
@@ -25,7 +41,7 @@ export interface PipelineRunnerProductionRuntimeSnapshot {
 }
 
 export function snapshotPipelineRunnerProductionRuntime(): PipelineRunnerProductionRuntimeSnapshot {
-  return Object.freeze({ registration: canonicalRegistration });
+  return Object.freeze({ registration: processCanonicalRegistrationBox.value });
 }
 
 export function restorePipelineRunnerProductionRuntime(
@@ -33,10 +49,10 @@ export function restorePipelineRunnerProductionRuntime(
   expectedCurrent: PipelineRunnerProductionRuntimeSnapshot,
 ): void {
   assertProcessCanonicalLockOwnership();
-  if (canonicalRegistration !== expectedCurrent.registration) {
+  if (processCanonicalRegistrationBox.value !== expectedCurrent.registration) {
     throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISMATCH");
   }
-  canonicalRegistration = snapshot.registration;
+  processCanonicalRegistrationBox.value = snapshot.registration;
 }
 
 export function installPipelineRunnerProductionRuntime(
@@ -44,10 +60,11 @@ export function installPipelineRunnerProductionRuntime(
   parent: ProductionRuntimeOperationContext,
 ): void {
   assertProcessCanonicalLockOwnership();
-  if (canonicalRegistration) {
+  const existing = processCanonicalRegistrationBox.value;
+  if (existing) {
     if (
-      canonicalRegistration.lifecycle === lifecycle &&
-      canonicalRegistration.parent === parent
+      existing.lifecycle === lifecycle &&
+      existing.parent === parent
     ) {
       return;
     }
@@ -58,7 +75,7 @@ export function installPipelineRunnerProductionRuntime(
     captureCanonicalProductionWorkerLifecycleExecution(lifecycle);
   assertProductionRuntimeOperationContext(parent);
   lifecycle.bindRuntimeOperationContext(parent);
-  canonicalRegistration = Object.freeze({
+  processCanonicalRegistrationBox.value = Object.freeze({
     lifecycle,
     parent,
     executeWithRuntimeOperationContext,
@@ -69,8 +86,7 @@ export async function executePipelineRunnerProductionRuntimeOperation<T>(
   operationType: string,
   operation: () => Promise<T>,
 ): Promise<T> {
-  assertProcessCanonicalLockOwnership();
-  const registration = canonicalRegistration;
+  const registration = processCanonicalRegistrationBox.value;
   if (!registration) {
     throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISSING");
   }
@@ -89,8 +105,7 @@ export async function executePipelineRunnerProductionRuntimeOperation<T>(
 }
 
 export function assertPipelineRunnerProductionRuntimeOperationActive(): void {
-  assertProcessCanonicalLockOwnership();
-  const registration = canonicalRegistration;
+  const registration = processCanonicalRegistrationBox.value;
   if (!registration) {
     throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISSING");
   }
@@ -124,6 +139,36 @@ function assertProcessCanonicalLockOwnership(): void {
       "RUNTIME_OPERATION_CONTEXT_MISMATCH",
     );
   }
+}
+
+interface CanonicalRegistrationBox {
+  value: CanonicalPipelineRuntimeRegistration | undefined;
+}
+
+function claimProcessCanonicalRegistrationBox(): CanonicalRegistrationBox {
+  const existing = Object.getOwnPropertyDescriptor(
+    globalThis,
+    processCanonicalRegistrationBoxKey,
+  );
+  if (existing) {
+    // Adopt the real, already-claimed shared box if a prior module instance created it; never adopt a
+    // foreign, non-Atölye value that happens to occupy this exact process-global slot.
+    return isCanonicalRegistrationBox(existing.value) ? existing.value : { value: undefined };
+  }
+
+  const box: CanonicalRegistrationBox = { value: undefined };
+  Object.defineProperty(globalThis, processCanonicalRegistrationBoxKey, {
+    configurable: false,
+    enumerable: false,
+    value: box,
+    writable: false,
+  });
+  const claimed = Object.getOwnPropertyDescriptor(globalThis, processCanonicalRegistrationBoxKey)?.value;
+  return claimed === box ? box : { value: undefined };
+}
+
+function isCanonicalRegistrationBox(value: unknown): value is CanonicalRegistrationBox {
+  return typeof value === "object" && value !== null && "value" in value;
 }
 
 interface CanonicalPipelineRuntimeRegistration {

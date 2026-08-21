@@ -10,18 +10,36 @@ export const runtimeStorageLogicalProjectsRoot = "projects";
 
 const contextKind = "runtime-storage-context-v1";
 const authorityPolicyVersion = "runtime-authority-v1";
-const trustedRuntimeStorageContexts = new WeakSet<object>();
-const authorityLeaseBrand: unique symbol = Symbol("runtime-storage-authority-lease");
-const trustedAuthorityLeases = new WeakMap<
-  object,
-  {
-    readonly context: RuntimeStorageContext;
-    readonly projectSlug: string;
-    readonly lockRoot: string;
-    readonly ownerId: string;
-    active: boolean;
-  }
->();
+
+/**
+ * Process-global trust registries, shared (via globalThis + Symbol.for) across every module instance
+ * of this file that may be loaded in the same OS process — e.g. one instance reached through
+ * instrumentation.ts's boot-time registration, another reached independently through a Next.js route
+ * handler's own module graph, when a bundler compiles shared `src/lib` code separately per
+ * entry/layer instead of deduplicating it into one shared chunk. Plain module-scoped WeakSet/WeakMap
+ * (and a non-registry `Symbol()` brand) here made a context or lease created by one module instance
+ * unrecognizable to `assertTrustedRuntimeStorageContext`/`assertProjectWriteAuthorityLease` when
+ * called from any other instance — each instance's own registry, and own brand symbol, started out
+ * empty/distinct — throwing RUNTIME_STORAGE_CONTEXT_INVALID / RUNTIME_STORAGE_AUTHORITY_CLAIM_INVALID
+ * for an otherwise valid, correctly-created context or lease.
+ */
+const processTrustedRuntimeStorageContextsKey = Symbol.for(
+  "@atolye/runtime-storage-paths-trusted-contexts/v1",
+);
+const trustedRuntimeStorageContexts = claimProcessTrustedRuntimeStorageContexts();
+const authorityLeaseBrand: unique symbol = Symbol.for("@atolye/runtime-storage-authority-lease/v1");
+const processTrustedAuthorityLeasesKey = Symbol.for(
+  "@atolye/runtime-storage-paths-trusted-authority-leases/v1",
+);
+const trustedAuthorityLeases = claimProcessTrustedAuthorityLeases();
+
+interface TrustedAuthorityLeaseState {
+  readonly context: RuntimeStorageContext;
+  readonly projectSlug: string;
+  readonly lockRoot: string;
+  readonly ownerId: string;
+  active: boolean;
+}
 
 export type RuntimeStorageClassification =
   | "legacy-repository"
@@ -759,6 +777,56 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error;
+}
+
+function claimProcessTrustedRuntimeStorageContexts(): WeakSet<object> {
+  const existing = Object.getOwnPropertyDescriptor(
+    globalThis,
+    processTrustedRuntimeStorageContextsKey,
+  );
+  if (existing) {
+    // Adopt the real, already-claimed shared set if a prior module instance created it; never adopt a
+    // foreign, non-WeakSet value that happens to occupy this exact process-global slot.
+    return existing.value instanceof WeakSet ? existing.value : new WeakSet<object>();
+  }
+
+  const contexts = new WeakSet<object>();
+  Object.defineProperty(globalThis, processTrustedRuntimeStorageContextsKey, {
+    configurable: false,
+    enumerable: false,
+    value: contexts,
+    writable: false,
+  });
+  const claimed = Object.getOwnPropertyDescriptor(
+    globalThis,
+    processTrustedRuntimeStorageContextsKey,
+  )?.value;
+  return claimed === contexts ? contexts : new WeakSet<object>();
+}
+
+function claimProcessTrustedAuthorityLeases(): WeakMap<object, TrustedAuthorityLeaseState> {
+  const existing = Object.getOwnPropertyDescriptor(
+    globalThis,
+    processTrustedAuthorityLeasesKey,
+  );
+  if (existing) {
+    // Adopt the real, already-claimed shared map if a prior module instance created it; never adopt a
+    // foreign, non-WeakMap value that happens to occupy this exact process-global slot.
+    return existing.value instanceof WeakMap ? existing.value : new WeakMap<object, TrustedAuthorityLeaseState>();
+  }
+
+  const leases = new WeakMap<object, TrustedAuthorityLeaseState>();
+  Object.defineProperty(globalThis, processTrustedAuthorityLeasesKey, {
+    configurable: false,
+    enumerable: false,
+    value: leases,
+    writable: false,
+  });
+  const claimed = Object.getOwnPropertyDescriptor(
+    globalThis,
+    processTrustedAuthorityLeasesKey,
+  )?.value;
+  return claimed === leases ? leases : new WeakMap<object, TrustedAuthorityLeaseState>();
 }
 
 function messageFor(code: RuntimeStorageErrorCode) {

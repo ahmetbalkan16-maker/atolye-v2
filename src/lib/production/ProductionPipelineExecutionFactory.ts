@@ -118,16 +118,33 @@ export interface CompletedProductionPipelinePreparation {
   readonly providerSelection: ProductionAcceptanceProviderSelection;
 }
 
-const completedPreparations =
-  new WeakMap<object, CompletedProductionPipelinePreparation & {
-    readonly storeRoot: string;
-    readonly storeIdentity: string;
-    readonly storeEntries: Readonly<Record<string, string>>;
-    readonly runtimeAuthorityIdentity: string;
-    readonly runtimeOperationBinding: string;
-    readonly providerSelection: ProductionAcceptanceProviderSelection;
-    readonly provenanceFingerprint: string;
-  }>();
+type CompletedProductionPipelinePreparationRecord = CompletedProductionPipelinePreparation & {
+  readonly storeRoot: string;
+  readonly storeIdentity: string;
+  readonly storeEntries: Readonly<Record<string, string>>;
+  readonly runtimeAuthorityIdentity: string;
+  readonly runtimeOperationBinding: string;
+  readonly providerSelection: ProductionAcceptanceProviderSelection;
+  readonly provenanceFingerprint: string;
+};
+
+/**
+ * Process-global WeakMap, shared (via globalThis + Symbol.for) across every module instance of this
+ * file that may be loaded in the same OS process — e.g. one instance reached through the durable
+ * execution flow started by instrumentation.ts's boot-time registration
+ * (ProductionPipelineExecutionCanonicalRuntime.ts), another reached independently through
+ * ProductionAcceptancePolicy.ts's own import of this file within a Next.js route handler's module
+ * graph, when a bundler compiles shared `src/lib` code separately per entry/layer instead of
+ * deduplicating it into one shared chunk. A plain module-scoped WeakMap here made a preparation
+ * recorded by `prepareProductionPipelineExecution` (running through one module instance) invisible to
+ * `readCompletedProductionPipelinePreparation`/`readVerifiedCompletedProductionPipelinePreparationFingerprint`
+ * when called through any other instance — even for the exact same `authority` object reference —
+ * throwing "Pipeline durable preparation authority is invalid." (WORKER_EXECUTION_COORDINATION_FAILED).
+ */
+const processCompletedPreparationsKey = Symbol.for(
+  "@atolye/production-pipeline-execution-completed-preparations/v1",
+);
+const completedPreparations = claimProcessCompletedPreparations();
 
 /** @internal Install-only canonical composition; no production reset or adapter seam exists. */
 export function installCanonicalProductionPipelineExecution(
@@ -1165,4 +1182,26 @@ function deepFreeze<T>(value: T): T {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
   for (const nested of Object.values(value as Record<string, unknown>)) deepFreeze(nested);
   return Object.freeze(value);
+}
+
+function claimProcessCompletedPreparations():
+WeakMap<object, CompletedProductionPipelinePreparationRecord> {
+  const existing = Object.getOwnPropertyDescriptor(globalThis, processCompletedPreparationsKey);
+  if (existing) {
+    // Adopt the real, already-claimed shared map if a prior module instance created it; never adopt a
+    // foreign, non-WeakMap value that happens to occupy this exact process-global slot.
+    return existing.value instanceof WeakMap
+      ? existing.value
+      : new WeakMap<object, CompletedProductionPipelinePreparationRecord>();
+  }
+
+  const map = new WeakMap<object, CompletedProductionPipelinePreparationRecord>();
+  Object.defineProperty(globalThis, processCompletedPreparationsKey, {
+    configurable: false,
+    enumerable: false,
+    value: map,
+    writable: false,
+  });
+  const claimed = Object.getOwnPropertyDescriptor(globalThis, processCompletedPreparationsKey)?.value;
+  return claimed === map ? map : new WeakMap<object, CompletedProductionPipelinePreparationRecord>();
 }

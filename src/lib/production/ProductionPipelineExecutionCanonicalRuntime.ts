@@ -39,7 +39,21 @@ const processCanonicalLockKey = Symbol.for(
 );
 const moduleProvenance = Object.freeze({});
 const ownsProcessCanonicalLock = claimProcessCanonicalLock();
-let canonicalRegistration: CanonicalProductionPipelineExecutionRegistration | undefined;
+
+/**
+ * Process-global mutable registration slot, shared (via globalThis + Symbol.for) across every module
+ * instance of this file that may be loaded in the same OS process — e.g. one instance reached through
+ * instrumentation.ts's boot-time registration, another reached independently through a Next.js route
+ * handler's own module graph. Write access still requires `ownsProcessCanonicalLock` (below,
+ * unchanged), so only the one module instance that first claimed the process lock may install or
+ * restore a registration. Reads must not depend on that per-instance ownership flag: a non-owning
+ * instance still needs to observe the one true registration the owning instance installed, or it
+ * wrongly concludes no registration exists at all.
+ */
+const processCanonicalRegistrationBoxKey = Symbol.for(
+  "@atolye/production-pipeline-execution-canonical-runtime-registration-box/v1",
+);
+const processCanonicalRegistrationBox = claimProcessCanonicalRegistrationBox();
 
 /** @internal Opaque process-state token for scoped canonical composition. */
 export interface CanonicalProductionPipelineExecutionSnapshot {
@@ -48,7 +62,7 @@ export interface CanonicalProductionPipelineExecutionSnapshot {
 
 export function snapshotCanonicalProductionPipelineExecutionRuntime():
 CanonicalProductionPipelineExecutionSnapshot {
-  return Object.freeze({ registration: canonicalRegistration });
+  return Object.freeze({ registration: processCanonicalRegistrationBox.value });
 }
 
 export function restoreCanonicalProductionPipelineExecutionRuntime(
@@ -56,10 +70,10 @@ export function restoreCanonicalProductionPipelineExecutionRuntime(
   expectedCurrent: CanonicalProductionPipelineExecutionSnapshot,
 ): void {
   assertProcessCanonicalLockOwnership();
-  if (canonicalRegistration !== expectedCurrent.registration) {
+  if (processCanonicalRegistrationBox.value !== expectedCurrent.registration) {
     throw new ProductionRuntimeOperationContextError("RUNTIME_OPERATION_CONTEXT_MISMATCH");
   }
-  canonicalRegistration = snapshot.registration;
+  processCanonicalRegistrationBox.value = snapshot.registration;
 }
 
 type ProductionPipelineStageExecutor = (
@@ -75,10 +89,11 @@ export function installCanonicalProductionPipelineExecutionRuntime(
   parent: ProductionRuntimeOperationContext,
 ): void {
   assertProcessCanonicalLockOwnership();
-  if (canonicalRegistration) {
+  const existing = processCanonicalRegistrationBox.value;
+  if (existing) {
     if (
-      canonicalRegistration.lifecycle === lifecycle &&
-      canonicalRegistration.parent === parent
+      existing.lifecycle === lifecycle &&
+      existing.parent === parent
     ) {
       return;
     }
@@ -92,7 +107,7 @@ export function installCanonicalProductionPipelineExecutionRuntime(
     lifecycle,
     parent,
   );
-  canonicalRegistration = Object.freeze({
+  processCanonicalRegistrationBox.value = Object.freeze({
     executor,
     lifecycle,
     parent,
@@ -106,8 +121,7 @@ export async function executeCanonicalProductionPipelineStage(
     identity: ProductionAcceptanceStageExecutionIdentity,
     authority: ProductionPipelineCompletedPreparationAuthority) => Promise<boolean>,
 ): Promise<boolean> {
-  assertProcessCanonicalLockOwnership();
-  const registration = canonicalRegistration;
+  const registration = processCanonicalRegistrationBox.value;
   if (!registration) {
     throw new ProductionRuntimeOperationContextError(
       "RUNTIME_OPERATION_CONTEXT_MISSING",
@@ -227,6 +241,38 @@ function assertProcessCanonicalLockOwnership(): void {
       "RUNTIME_OPERATION_CONTEXT_MISMATCH",
     );
   }
+}
+
+interface CanonicalProductionPipelineExecutionRegistrationBox {
+  value: CanonicalProductionPipelineExecutionRegistration | undefined;
+}
+
+function claimProcessCanonicalRegistrationBox(): CanonicalProductionPipelineExecutionRegistrationBox {
+  const existing = Object.getOwnPropertyDescriptor(
+    globalThis,
+    processCanonicalRegistrationBoxKey,
+  );
+  if (existing) {
+    // Adopt the real, already-claimed shared box if a prior module instance created it; never adopt a
+    // foreign, non-Atölye value that happens to occupy this exact process-global slot.
+    return isCanonicalRegistrationBox(existing.value) ? existing.value : { value: undefined };
+  }
+
+  const box: CanonicalProductionPipelineExecutionRegistrationBox = { value: undefined };
+  Object.defineProperty(globalThis, processCanonicalRegistrationBoxKey, {
+    configurable: false,
+    enumerable: false,
+    value: box,
+    writable: false,
+  });
+  const claimed = Object.getOwnPropertyDescriptor(globalThis, processCanonicalRegistrationBoxKey)?.value;
+  return claimed === box ? box : { value: undefined };
+}
+
+function isCanonicalRegistrationBox(
+  value: unknown,
+): value is CanonicalProductionPipelineExecutionRegistrationBox {
+  return typeof value === "object" && value !== null && "value" in value;
 }
 
 interface CanonicalProductionPipelineExecutionRegistration {

@@ -21,7 +21,20 @@ interface RuntimeOperationScopeStore extends RuntimeOperationScopeBinding {
   readonly token: RuntimeOperationScopeToken;
 }
 
-const operationScope = new AsyncLocalStorage<RuntimeOperationScopeStore>();
+/**
+ * Process-global AsyncLocalStorage, shared (via globalThis + Symbol.for) across every module instance
+ * of this file that may be loaded in the same OS process — e.g. one instance reached through
+ * instrumentation.ts's boot-time registration (which binds the active context via its own captured
+ * `ProductionWorkerLifecycle.executeWithRuntimeOperationContext` closure), another reached
+ * independently through a Next.js route handler's own module graph, when a bundler compiles shared
+ * `src/lib` code separately per entry/layer instead of deduplicating it into one shared chunk. Two
+ * separate AsyncLocalStorage instances never share stores, even within the very same synchronous call
+ * chain — a plain module-scoped `operationScope` here made a context bound via one module instance's
+ * `.run()` invisible to `.getStore()` calls made from any other instance, throwing
+ * RUNTIME_OPERATION_CONTEXT_MISSING for an otherwise correctly-bound, active context.
+ */
+const processOperationScopeKey = Symbol.for("@atolye/runtime-operation-scope/v1");
+const operationScope = claimProcessOperationScope();
 
 export function runWithProductionRuntimeOperationContext<T>(
   context: ProductionRuntimeOperationContext,
@@ -111,4 +124,26 @@ function activeStore(): RuntimeOperationScopeStore | undefined {
 
 function isPromiseLike<T>(value: T): value is T & PromiseLike<unknown> {
   return typeof value === "object" && value !== null && "then" in value;
+}
+
+function claimProcessOperationScope(): AsyncLocalStorage<RuntimeOperationScopeStore> {
+  const existing = Object.getOwnPropertyDescriptor(globalThis, processOperationScopeKey);
+  if (existing) {
+    // Adopt the real, already-claimed shared storage if a prior module instance created it; never
+    // adopt a foreign, non-AsyncLocalStorage value that happens to occupy this exact process-global
+    // slot.
+    return existing.value instanceof AsyncLocalStorage
+      ? existing.value
+      : new AsyncLocalStorage<RuntimeOperationScopeStore>();
+  }
+
+  const scope = new AsyncLocalStorage<RuntimeOperationScopeStore>();
+  Object.defineProperty(globalThis, processOperationScopeKey, {
+    configurable: false,
+    enumerable: false,
+    value: scope,
+    writable: false,
+  });
+  const claimed = Object.getOwnPropertyDescriptor(globalThis, processOperationScopeKey)?.value;
+  return claimed === scope ? scope : new AsyncLocalStorage<RuntimeOperationScopeStore>();
 }

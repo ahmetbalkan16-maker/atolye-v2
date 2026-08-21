@@ -53,7 +53,20 @@ export interface DeriveProductionRuntimeOperationContextOptions {
   readonly operationType: string;
 }
 
-const storageBindings = new WeakMap<ProductionRuntimeOperationContext, RuntimeStorageContext>();
+/**
+ * Process-global WeakMap, shared (via globalThis + Symbol.for) across every module instance of this
+ * file that may be loaded in the same OS process — e.g. one instance reached through
+ * instrumentation.ts's boot-time registration, another reached independently through a Next.js route
+ * handler's own module graph, when a bundler compiles shared `src/lib` code separately per
+ * entry/layer instead of deduplicating it into one shared chunk. A plain module-scoped WeakMap here
+ * made every context created by one module instance invisible to `assertProductionRuntimeOperationContext`
+ * when called from any other instance (each instance's own WeakMap started out empty), throwing
+ * RUNTIME_OPERATION_CONTEXT_INVALID for an otherwise valid, correctly-created context.
+ */
+const processStorageBindingsKey = Symbol.for(
+  "@atolye/production-runtime-operation-context-storage-bindings/v1",
+);
+const storageBindings = claimProcessStorageBindings();
 
 export function createProductionRuntimeOperationContext(
   options: CreateProductionRuntimeOperationContextOptions,
@@ -140,6 +153,26 @@ export function requireProductionRuntimeStorageContext(
 ): RuntimeStorageContext {
   assertProductionRuntimeOperationContext(context);
   return storageBindings.get(context)!;
+}
+
+function claimProcessStorageBindings():
+WeakMap<ProductionRuntimeOperationContext, RuntimeStorageContext> {
+  const existing = Object.getOwnPropertyDescriptor(globalThis, processStorageBindingsKey);
+  if (existing) {
+    // Adopt the real, already-claimed shared map if a prior module instance created it; never adopt a
+    // foreign, non-WeakMap value that happens to occupy this exact process-global slot.
+    return existing.value instanceof WeakMap ? existing.value : new WeakMap();
+  }
+
+  const bindings = new WeakMap<ProductionRuntimeOperationContext, RuntimeStorageContext>();
+  Object.defineProperty(globalThis, processStorageBindingsKey, {
+    configurable: false,
+    enumerable: false,
+    value: bindings,
+    writable: false,
+  });
+  const claimed = Object.getOwnPropertyDescriptor(globalThis, processStorageBindingsKey)?.value;
+  return claimed === bindings ? bindings : new WeakMap();
 }
 
 function createAuthorityIdentity(
