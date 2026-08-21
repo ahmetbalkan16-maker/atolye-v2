@@ -92,8 +92,10 @@ async function main() {
   const manifest = await ProjectManager.getManifest(PROJECT_SLUG);
   const project = await ProjectManager.getProject(PROJECT_SLUG);
   console.log("\nFinal package statuses:");
-  for (const stage of Object.keys(manifest?.packages ?? {})) {
-    console.log(`  ${stage}: ${manifest?.packages[stage as ProductionStepKey].status}`);
+  if (!manifest) throw new Error("manifest.json missing.");
+
+  for (const [stage, pkg] of Object.entries(manifest.packages)) {
+    console.log(`  ${stage}: ${pkg.status}`);
   }
   console.log(`project.json status: ${project?.status}`);
 }
