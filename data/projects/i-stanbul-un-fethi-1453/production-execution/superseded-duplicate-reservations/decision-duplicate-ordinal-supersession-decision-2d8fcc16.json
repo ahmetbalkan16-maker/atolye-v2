@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1",
+  "policyVersion": "superseded-duplicate-reservation-v1",
+  "projectSlug": "i-stanbul-un-fethi-1453",
+  "stage": "assembly",
+  "jobId": "i-stanbul-un-fethi-1453-assembly",
+  "attempt": 7,
+  "candidateRecordId": "pipeline-record-ca987045bc8dc5fa60a86406342051cbd03eec7aa534fd2b713ea3b36c9828c2",
+  "canonicalRecordId": "pipeline-record-1ab478279f9a4b508f5187ee6f822c996972d548d8b56e816f3f8d1e25b3206f",
+  "reason": "later-regeneration-duplicate-ordinal",
+  "proof": {
+    "candidateReservationId": "idempotency-identity-40b371b3",
+    "canonicalReservationId": "idempotency-identity-732a2390",
+    "candidateReservationContentFingerprint": "superseded-duplicate-reservation-content-b41b0d40",
+    "canonicalReservationContentFingerprint": "superseded-duplicate-reservation-content-1eb95745",
+    "candidateRegenerationId": "pipeline-regen-9474575560c5cd3bb373d77feafc2a08c4abd52be2bc304c",
+    "candidateGenerationOrdinal": 2,
+    "canonicalRegenerationId": "pipeline-regen-fa313d09e9154ba3ef54928e9ba23dabd71259b7e6508d89",
+    "canonicalGenerationOrdinal": 3,
+    "toleranceAuthorityId": "orphan-tol-40b371b3-i-stanbul-un-fethi-1453"
+  },
+  "decisionId": "duplicate-ordinal-supersession-decision-2d8fcc16",
+  "integrity": {
+    "algorithm": "stable-production-id-v1",
+    "fingerprint": "superseded-duplicate-reservation-authority-f83e29c6"
+  }
+}
