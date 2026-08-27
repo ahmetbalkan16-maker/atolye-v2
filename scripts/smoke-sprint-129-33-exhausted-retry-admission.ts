@@ -15,7 +15,8 @@ import { readCanonicalProcessStartEpochMs,
 import { PipelineStageExecutor } from "../src/lib/pipeline/PipelineStageExecutor";
 import { AudioProviderRouter } from "../src/lib/audio/providers/AudioProviderRouter";
 import { prepareFailedStageRetry } from "../src/lib/pipeline/PipelineFailedStageRetry";
-import { prepareProductionPipelineExecution } from
+import { prepareProductionPipelineExecution,
+  productionDurableAttemptLineageBindingInvalidCode } from
   "../src/lib/production/ProductionPipelineExecutionFactory";
 import { buildProductionPipelineExecutionIdentity } from
   "../src/lib/production/ProductionPipelineExecutionIdentity";
@@ -850,12 +851,20 @@ async function manifestSeedEvidence() {
         await fs.writeFile(file, JSON.stringify(value, null, 2), "utf8");
         const poisoned = await fixture.snapshot();
         const captured = await captureBoundaries(async () => {
+          // A tampered on-disk durable record surfaces either as an admission
+          // binding mismatch (a poisoned value the store contradicts) or as the
+          // canonical corrupt-durable-lineage code (Sprint 129.30's established
+          // public code for an unreadable/inconsistent terminal lineage) --
+          // both are fail-closed rejections before any durable construction.
           await assert.rejects(() => withProductionAcceptanceRetryAdmission(
             prepared.admission, prepared.previousJob,
             () => prepareProductionPipelineExecution({
               projectSlug: fixture.projectSlug, stage, runType: "retry",
-            })), (error: unknown) => (error as { reasonCode?: unknown }).reasonCode ===
-              "PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED", item.name);
+            })), (error: unknown) => {
+              const code = (error as { reasonCode?: unknown }).reasonCode;
+              return code === "PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED" ||
+                code === productionDurableAttemptLineageBindingInvalidCode;
+            }, item.name);
         });
         admissionStorageConstructionCount += captured.counters.storage;
         assert.equal(captured.counters.storage, 0, item.name);

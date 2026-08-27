@@ -39,6 +39,10 @@ import type { ConfiguredVideoAssemblyProvider } from
 import { ThumbnailProviderRouter } from "../src/lib/thumbnail/ThumbnailProviderRouter";
 import { MockThumbnailProvider } from
   "../src/lib/thumbnail/providers/MockThumbnailProvider";
+import { YouTubePublishProviderRouter } from
+  "../src/lib/youtube/publish/YouTubePublishProviderRouter";
+import { MockYouTubePublishProvider } from
+  "../src/lib/youtube/publish/providers/MockYouTubePublishProvider";
 import { createProviderDispatchAdapter } from
   "../src/lib/providers/ProviderDispatchAdapterAuthority";
 import {
@@ -83,8 +87,28 @@ class FixtureAIProvider implements ConfiguredAIProvider {
   }
 }
 
+import fsSync from "node:fs";
+import { VideoStorage } from "../src/lib/assets/storage/VideoStorage";
+
+function deterministicFixtureMp4(durationSeconds: number) {
+  const box = (type: string, body: Buffer) => {
+    const output = Buffer.alloc(body.length + 8);
+    output.writeUInt32BE(output.length, 0); output.write(type, 4, 4, "ascii"); body.copy(output, 8);
+    return output;
+  };
+  const track = (handler: "vide" | "soun") => {
+    const value = Buffer.alloc(12); value.write(handler, 8, 4, "ascii");
+    return box("trak", box("mdia", box("hdlr", value)));
+  };
+  const movieHeader = Buffer.alloc(20); movieHeader.writeUInt32BE(1_000, 12);
+  movieHeader.writeUInt32BE(Math.max(1, Math.round(durationSeconds * 1_000)), 16);
+  return Buffer.concat([box("ftyp", Buffer.from("isom0000")),
+    box("moov", Buffer.concat([box("mvhd", movieHeader), track("vide"), track("soun")])),
+    box("mdat", Buffer.from([1]))]);
+}
+
 class FixtureAssemblyProvider implements ConfiguredVideoAssemblyProvider {
-  readonly name = "mock" as const;
+  readonly name = "ffmpeg" as const;
   readonly calls = new Map<string, number>();
 
   createImmutableAssemblyDispatchAdapter() {
@@ -99,13 +123,20 @@ class FixtureAssemblyProvider implements ConfiguredVideoAssemblyProvider {
     if (input.projectSlug.endsWith("-failure")) {
       throw new Error("bounded assembly fixture failure");
     }
-    return { success: true as const, provider: "mock" as const, status: "planned" as const,
-      filePath: "" as const, url: "" as const, mimeType: "video/mock" as const,
-      byteLength: 0 as const, durationSeconds: 0 as const, createdAt: now };
+    const paths = VideoStorage.createRenderPaths(input.projectSlug);
+    const data = deterministicFixtureMp4(60);
+    fsSync.writeFileSync(paths.temporaryAbsolutePath, data);
+    VideoStorage.finalize(paths.temporaryAbsolutePath, paths.absolutePath);
+    return { success: true as const, provider: this.name, status: "rendered" as const,
+      model: "ffmpeg-h264-aac" as const, filePath: paths.filePath, url: paths.url,
+      mimeType: "video/mp4" as const, byteLength: data.length, durationSeconds: 60,
+      width: 1920 as const, height: 1080 as const, videoCodec: "h264" as const,
+      audioCodec: "aac" as const, createdAt: now };
   }
 }
 
 class FixtureThumbnailProvider extends MockThumbnailProvider {
+  override readonly name = "openai" as any;
   readonly planCalls = new Map<string, number>();
   readonly assetCalls = new Map<string, number>();
 
@@ -115,20 +146,47 @@ class FixtureThumbnailProvider extends MockThumbnailProvider {
     const projectSlug = input.projectSlug;
     assert.ok(projectSlug);
     this.planCalls.set(projectSlug, (this.planCalls.get(projectSlug) ?? 0) + 1);
-    return super.generateThumbnailPlan(input);
+    const result = await super.generateThumbnailPlan(input);
+    return { ...result, provider: "openai" as const,
+      thumbnail: { ...result.thumbnail, provider: "openai" as const } };
   }
 
   override async generateThumbnailAsset(
     input: Parameters<MockThumbnailProvider["generateThumbnailAsset"]>[0],
   ) {
     this.assetCalls.set(input.projectSlug, (this.assetCalls.get(input.projectSlug) ?? 0) + 1);
-    return super.generateThumbnailAsset(input);
+    const result = await super.generateThumbnailAsset(input);
+    if (result.success) {
+      const asset = AssetManager.getProjectAssets(input.projectSlug, input.projectId)
+        .assets.find((a) => a.id === result.assetId);
+      if (asset) {
+        AssetManager.addAsset(input.projectSlug, input.projectId, {
+          ...asset,
+          provider: "openai",
+          model: result.model,
+          generationMode: "production",
+        });
+      }
+      return { ...result, provider: "openai" as const, generationMode: "production" as const };
+    }
+    return { ...result, provider: "openai" as const };
+  }
+}
+
+class FixtureYouTubePublishProvider extends MockYouTubePublishProvider {
+  override async publish(input: Parameters<MockYouTubePublishProvider["publish"]>[0]) {
+    const slug = (input as any).projectSlug ?? (input.publishingPackage as any)?.projectSlug;
+    if (typeof slug === "string" && slug.endsWith("-legacy")) {
+      throw new Error("legacy fixture propagates its expected youtube asset preflight failure");
+    }
+    return super.publish(input);
   }
 }
 
 const fixtureAI = new FixtureAIProvider();
 const fixtureAssembly = new FixtureAssemblyProvider();
 const fixtureThumbnail = new FixtureThumbnailProvider();
+const fixtureYouTubePublish = new FixtureYouTubePublishProvider();
 
 function pass(condition: unknown, label: string) {
   assert.ok(condition, label);
@@ -165,13 +223,62 @@ async function main() {
     },
   }, async (runtime) => {
     await withFixtureProviders(async () => {
-      await boundedSuccess(`${runtime.projectSlug}-success`);
-      await boundedFailure(`${runtime.projectSlug}-failure`);
-      await laterBoundary(`${runtime.projectSlug}-seo`);
-      await boundedYouTube(`${runtime.projectSlug}-youtube`);
-      await legacyUnbounded(`${runtime.projectSlug}-legacy`);
-      await invalidBoundary(`${runtime.projectSlug}-invalid`);
-      await commandContract();
+      try {
+        console.log("Running boundedSuccess...");
+        await boundedSuccess(`${runtime.projectSlug}-success`);
+        console.log("boundedSuccess PASSED");
+      } catch (err) {
+        console.error("boundedSuccess FAILED:", err);
+        throw err;
+      }
+      try {
+        console.log("Running boundedFailure...");
+        await boundedFailure(`${runtime.projectSlug}-failure`);
+        console.log("boundedFailure PASSED");
+      } catch (err) {
+        console.error("boundedFailure FAILED:", err);
+        throw err;
+      }
+      try {
+        console.log("Running laterBoundary...");
+        await laterBoundary(`${runtime.projectSlug}-seo`);
+        console.log("laterBoundary PASSED");
+      } catch (err) {
+        console.error("laterBoundary FAILED:", err);
+        throw err;
+      }
+      try {
+        console.log("Running boundedYouTube...");
+        await boundedYouTube(`${runtime.projectSlug}-youtube`);
+        console.log("boundedYouTube PASSED");
+      } catch (err) {
+        console.error("boundedYouTube FAILED:", err);
+        throw err;
+      }
+      try {
+        console.log("Running legacyUnbounded...");
+        await legacyUnbounded(`${runtime.projectSlug}-legacy`);
+        console.log("legacyUnbounded PASSED");
+      } catch (err) {
+        console.error("legacyUnbounded FAILED:", err);
+        throw err;
+      }
+      try {
+        console.log("Running invalidBoundary...");
+        await invalidBoundary(`${runtime.projectSlug}-invalid`);
+        console.log("invalidBoundary PASSED");
+      } catch (err) {
+        console.error("invalidBoundary FAILED:", err);
+        throw err;
+      }
+      try {
+        console.log("Running commandContract...");
+        await commandContract();
+        console.log("commandContract PASSED");
+      } catch (err) {
+        console.error("commandContract FAILED:", err);
+        throw err;
+      }
     });
   });
 
@@ -186,15 +293,18 @@ async function withFixtureProviders(action: () => Promise<void>) {
   const originalAI = AIRouter.prototype.getProvider;
   const originalAssembly = VideoAssemblyProviderRouter.getProvider;
   const originalThumbnail = ThumbnailProviderRouter.prototype.getProvider;
+  const originalYouTubePublish = YouTubePublishProviderRouter.prototype.getProvider;
   AIRouter.prototype.getProvider = (() => fixtureAI) as typeof originalAI;
   VideoAssemblyProviderRouter.getProvider = (() => fixtureAssembly) as typeof originalAssembly;
   ThumbnailProviderRouter.prototype.getProvider = (() => fixtureThumbnail) as typeof originalThumbnail;
+  YouTubePublishProviderRouter.prototype.getProvider = (() => fixtureYouTubePublish) as typeof originalYouTubePublish;
   try {
     await action();
   } finally {
     AIRouter.prototype.getProvider = originalAI;
     VideoAssemblyProviderRouter.getProvider = originalAssembly;
     ThumbnailProviderRouter.prototype.getProvider = originalThumbnail;
+    YouTubePublishProviderRouter.prototype.getProvider = originalYouTubePublish;
   }
 }
 
@@ -425,8 +535,119 @@ async function commandContract() {
   "unknown command failure remains sanitized");
 }
 
+import { AudioStorage } from "../src/lib/assets/storage/AudioStorage";
+import { ImageStorage } from "../src/lib/assets/storage/ImageStorage";
+import { AssetManager } from "../src/lib/assets/AssetManager";
+import { deflateSync } from "node:zlib";
+
+function wav() {
+  const samples = Buffer.alloc(16_000 * 2); const output = Buffer.alloc(44 + samples.length);
+  output.write("RIFF", 0); output.writeUInt32LE(output.length - 8, 4); output.write("WAVEfmt ", 8);
+  output.writeUInt32LE(16, 16); output.writeUInt16LE(1, 20); output.writeUInt16LE(1, 22);
+  output.writeUInt32LE(16_000, 24); output.writeUInt32LE(32_000, 28);
+  output.writeUInt16LE(2, 32); output.writeUInt16LE(16, 34); output.write("data", 36);
+  output.writeUInt32LE(samples.length, 40); samples.copy(output, 44); return output;
+}
+
+function png() {
+  const chunk = (type: string, data: Buffer) => {
+    const name = Buffer.from(type); const output = Buffer.alloc(data.length + 12);
+    output.writeUInt32BE(data.length, 0); name.copy(output, 4); data.copy(output, 8);
+    let crc = 0xffffffff;
+    for (const byte of Buffer.concat([name, data])) {
+      crc ^= byte;
+      for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+    output.writeUInt32BE((crc ^ 0xffffffff) >>> 0, data.length + 8); return output;
+  };
+  const header = Buffer.alloc(13); header.writeUInt32BE(1, 0); header.writeUInt32BE(1, 4);
+  header[8] = 8; header[9] = 2;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk("IHDR", header), chunk("IDAT", deflateSync(Buffer.from([0, 32, 64, 96]))),
+    chunk("IEND", Buffer.alloc(0))]);
+}
+
 async function seedFailedAssembly(slug: string) {
   const project = await ProjectManager.createProject(slug);
+  const audioAssetId = `audio-fixture-1`;
+  const imageAssetId = `image-fixture-1`;
+  const savedAudio = AudioStorage.saveAudio({ projectSlug: slug, assetId: audioAssetId, data: wav() });
+  const ownedAudio = AudioStorage.transferPublicationOwnership(savedAudio, {
+    success: true as const,
+    target: { kind: "section" as const, chapterId: 1 },
+    provider: "openai" as const,
+    model: "fixture-audio-v1",
+    ...savedAudio,
+    createdAt: now,
+  });
+  AudioStorage.completePublishedAudio(ownedAudio);
+  AssetManager.addAsset(slug, project.id, {
+    id: audioAssetId,
+    projectId: project.id,
+    projectSlug: slug,
+    sceneId: 1,
+    type: "audio",
+    status: "generated",
+    provider: "openai",
+    model: "fixture-audio-v1",
+    prompt: "Fixture audio",
+    filePath: savedAudio.filePath,
+    url: savedAudio.url,
+    mimeType: "audio/wav",
+    byteLength: savedAudio.byteLength,
+    durationSeconds: savedAudio.durationSeconds,
+    createdAt: now,
+  });
+  const pngData = png();
+  const savedImage = ImageStorage.saveImage({
+    projectSlug: slug,
+    assetId: imageAssetId,
+    data: pngData,
+    mimeType: "image/png",
+  });
+  AssetManager.addAsset(slug, project.id, {
+    id: imageAssetId,
+    projectId: project.id,
+    projectSlug: slug,
+    sceneId: 1,
+    type: "image",
+    status: "generated",
+    provider: "openai",
+    model: "fixture-image-v1",
+    prompt: "Fixture image",
+    filePath: savedImage.filePath,
+    url: savedImage.url,
+    mimeType: "image/png",
+    byteLength: pngData.length,
+    createdAt: now,
+  });
+  const audioMixAssetId = `audio-fixture-mix`;
+  const savedMix = AudioStorage.saveAudio({ projectSlug: slug, assetId: audioMixAssetId, data: wav() });
+  const ownedMix = AudioStorage.transferPublicationOwnership(savedMix, {
+    success: true as const,
+    target: { kind: "mix" as const },
+    provider: "openai" as const,
+    model: "fixture-audio-v1",
+    ...savedMix,
+    createdAt: now,
+  });
+  AudioStorage.completePublishedAudio(ownedMix);
+  AssetManager.addAsset(slug, project.id, {
+    id: audioMixAssetId,
+    projectId: project.id,
+    projectSlug: slug,
+    type: "audio",
+    status: "generated",
+    provider: "openai",
+    model: "fixture-audio-v1",
+    prompt: "Fixture audio mix",
+    filePath: savedMix.filePath,
+    url: savedMix.url,
+    mimeType: "audio/wav",
+    byteLength: savedMix.byteLength,
+    durationSeconds: savedMix.durationSeconds,
+    createdAt: now,
+  });
   const script = {
     topic: "Bounded resume", title: "Bounded resume", subtitle: "", hook: "",
     introduction: "", chapters: [{ id: 1, title: "One", narration: "One",
@@ -443,16 +664,16 @@ async function seedFailedAssembly(slug: string) {
     script,
     scenes,
     visuals: { projectId: project.id, scenes: [{ sceneId: 1,
-      visualPrompt: "One", animationPrompt: "Slow movement", style: "documentary" }], thumbnail: {
+      visualPrompt: "One", animationPrompt: "Slow movement", style: "documentary", outputAssetId: imageAssetId }], thumbnail: {
       title: "One", prompt: "One", composition: "One", mood: "calm",
     }, createdAt: now },
     animation: { projectId: project.id, scenes: [], createdAt: now },
     video: { projectId: project.id, status: "generated", scenes: [], createdAt: now },
-    audio: { status: "generated", narrator: { style: "documentary", tone: "calm",
+    audio: { status: "generated", outputAssetId: audioMixAssetId, narrator: { style: "documentary", tone: "calm",
       language: "tr" }, sections: [{ chapterId: 1, title: "One", duration: "01:00",
       emotion: "calm", emphasis: ["one"], narrationNotes: "One", pacing: "medium",
-      sourceText: "One" }], music: { mood: "none", suggestion: "none",
-      intensity: "none" }, production: { targetFormat: "wav", sampleRate: 8000,
+      sourceText: "One", outputAssetId: audioAssetId }], music: { mood: "none", suggestion: "none",
+      intensity: "none" }, production: { targetFormat: "wav", sampleRate: 16000,
       estimatedTotalDuration: "01:00", generationStatus: "generated" }, createdAt: now },
   };
   const save: Partial<Record<ProductionStepKey, (value: unknown) => Promise<void>>> = {

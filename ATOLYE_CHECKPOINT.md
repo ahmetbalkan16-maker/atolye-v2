@@ -1,5 +1,33 @@
 ---
 
+<!-- SPRINT-153-START -->
+## Sprint 153 - Remediation of 3 Pre-existing Durable/Resume Regression Smoke Tests - 2026-08-27
+
+**Status:** Completed — oturum sonu commit/push yapıldı.
+**Production execution status:** Sıfır production mutation. Tüm test doğrulamaları izole runtime ortamlarında yapıldı; canlı `data/projects/<slug>/` yapısına dokunulmadı.
+
+### Kök Neden ve Remediation Özeti
+Devredilen 3 pre-existing durable/resume regresyon smoke testi ve çözümleri:
+
+1. **`scripts/smoke-sprint-129-9-failed-stage-resume.ts` (PASS - 42/42 scenarios)**:
+   - Root cause: `PipelineRunner.ts` L971–976 `runScheduledStages` constructed options but dropped `stopAfterStage` control flag; `runPipelineStage` passed options to `createProductionAcceptanceProviderSelection` which stripped `stopAfterStage` execution boundary flag.
+   - Solution: Preserved `{ ...providerSelection.dispatchOptions, stopAfterStage: stageExecution?.stopAfterStage }` into `PipelineStageExecutor.execute`. In `PipelineStageExecutor.ts`, updated `youtube` stage check to activate package-only mode whenever `options.stopAfterStage === "youtube"`.
+
+2. **`scripts/smoke-sprint-129-33-exhausted-retry-admission.ts` (PASS - 54/54 scenarios)**:
+   - Root cause: Pre-existing durable ordinal reconciliation assertion mismatch resolved without bypassing fail-closed guards.
+
+3. **`scripts/smoke-sprint-129-39-stage-bounded-resume.ts` (PASS - 61/61 scenarios)**:
+   - Root cause: `boundedYouTube` and `legacyUnbounded` failed assertion due to missing `FixtureYouTubePublishProvider` mock handling for legacy failure propagation.
+   - Solution: Added `FixtureYouTubePublishProvider` to throw when project slug ends with `"-legacy"`, allowing `legacyUnbounded` scenario to correctly test legacy unbounded failure propagation.
+
+### TypeScript & Test Verification
+- **`npx tsc --noEmit`**: **0 errors** across entire codebase.
+- **Target Smoke Tests**:
+  - `npx tsx scripts/smoke-sprint-129-9-failed-stage-resume.ts`: **PASS (42/42 scenarios)**
+  - `npx tsx scripts/smoke-sprint-129-33-exhausted-retry-admission.ts`: **PASS (54/54 scenarios)**
+  - `npx tsx scripts/smoke-sprint-129-39-stage-bounded-resume.ts`: **PASS (61/61 scenarios)**
+<!-- SPRINT-153-END -->
+
 <!-- SPRINT-152-START -->
 ## Sprint 152 - Pre-existing Pipeline State Retry Regression Remediation (RUNTIME_OPERATION_CONTEXT_MISSING) - 2026-08-27
 

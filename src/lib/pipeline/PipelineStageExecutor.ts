@@ -74,11 +74,27 @@ import {
 } from "@/lib/production/ProductionAcceptancePreflight";
 import { createProductionAcceptanceProviderSelection,
   createProductionAcceptanceStageExecutionScope,
+  type ProductionAcceptanceProviderOptions,
   type ProductionAcceptanceProviderSelection } from
   "@/lib/production/ProductionAcceptanceExecutionScope";
 import type { ProjectPackageRunType } from "@/types/project";
 import { emitProductionPipelineExecutionEvent } from
   "@/lib/production/ProductionPipelineExecutionInstrumentation";
+import type { PipelineRecoveryStageKey } from "@/types/pipelineRecovery";
+
+export type PipelineStageExecutionResultMap = {
+  research: ResearchData;
+  script: ScriptData;
+  scenes: SceneData;
+  visuals: VisualData;
+  animation: AnimationData;
+  audio: AudioData;
+  assembly: AssemblyPlanData;
+  seo: SEOData;
+  thumbnail: ThumbnailData;
+  youtube: YouTubePublishingPackage | null;
+  exportPackage: ExportPackageData | null;
+};
 
 export type PipelineExecutionState = {
   project: Project;
@@ -106,22 +122,24 @@ export type PipelineStageExecutionOptions = {
   thumbnailProvider?: ThumbnailProvider;
   youtubeProvider?: YouTubeProvider;
   youtubePublishProvider?: YouTubePublishProvider;
+  stopAfterStage?: PipelineRecoveryStageKey;
 };
 
 export function materializePipelineStageExecutionOptions(
   stage: ProductionStepKey,
   source: PipelineStageExecutionOptions = {},
 ): { options: Readonly<PipelineStageExecutionOptions>;
-  configuredOptions: readonly (keyof PipelineStageExecutionOptions)[] } {
+  configuredOptions: readonly (keyof ProductionAcceptanceProviderOptions)[] } {
   const captured: PipelineStageExecutionOptions = {
     aiProvider: source.aiProvider, visualAssetProvider: source.visualAssetProvider,
     animationProvider: source.animationProvider, videoProvider: source.videoProvider,
     audioProvider: source.audioProvider, videoAssemblyProvider: source.videoAssemblyProvider,
     thumbnailProvider: source.thumbnailProvider, youtubeProvider: source.youtubeProvider,
     youtubePublishProvider: source.youtubePublishProvider,
+    stopAfterStage: source.stopAfterStage,
   };
-  const configured: (keyof PipelineStageExecutionOptions)[] = [];
-  const ensure = <K extends keyof PipelineStageExecutionOptions>(key: K, create: () =>
+  const configured: (keyof ProductionAcceptanceProviderOptions)[] = [];
+  const ensure = <K extends keyof ProductionAcceptanceProviderOptions>(key: K, create: () =>
     NonNullable<PipelineStageExecutionOptions[K]>) => {
     if (!captured[key]) {
       (captured as Record<K, PipelineStageExecutionOptions[K]>)[key] = create();
@@ -550,13 +568,16 @@ export class PipelineStageExecutor {
           provider: dispatchOptions.youtubeProvider,
         });
         try {
+          const isPackageOnly =
+            persistedPolicy?.youtubePublishMode === "package-only" ||
+            options.stopAfterStage === "youtube";
           await ProjectManager.saveYouTube(projectSlug, state.youtube, {
             reuseExisting:
               isYouTubePublishingPackage(previousYouTube) &&
               JSON.stringify(previousYouTube) === JSON.stringify(state.youtube),
-            updatePackageStatus: persistedPolicy?.youtubePublishMode === "package-only",
+            updatePackageStatus: isPackageOnly,
           }, requireStorageContext(storageContext));
-          if (persistedPolicy?.youtubePublishMode === "package-only") {
+          if (isPackageOnly) {
             await emitProductionPipelineExecutionEvent("youtube-publish-skipped-package-only", {
               stage, slot: "youtubePublishProvider", selectionId: providerSelection.selectionId,
             });

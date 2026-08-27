@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 import { prepareFailedStageRetry } from "../src/lib/pipeline/PipelineFailedStageRetry";
 import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
 import { PipelineQueueScheduler } from "../src/lib/pipeline/PipelineQueueScheduler";
@@ -41,25 +41,30 @@ async function digestDirectory(root: string) {
   return createHash("sha256").update(entries.join("\n")).digest("hex");
 }
 
-async function createFixture(label: string) {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), `atolye-1299-${label}-`));
-  const target = path.join(root, "data", "projects", slug);
-  process.chdir(root);
-  try {
-    await seedVisualsFailureFixture(target);
-  } finally {
-    process.chdir(sourceRoot);
-  }
-  return { root, target };
+async function createFixture(runtimeRoot: string) {
+  const target = path.join(runtimeRoot, "projects", slug);
+  await fs.rm(target, { recursive: true, force: true });
+  await seedVisualsFailureFixture(target);
+  return { root: runtimeRoot, target };
 }
 
 async function seedVisualsFailureFixture(target: string) {
   await ProjectManager.createProject(slug);
+  // Seed the job list while the manifest is still all-pending, then drive each
+  // upstream stage through the real running -> completed transition. This keeps
+  // manifest attempts.total and the pipeline-history terminal events consistent
+  // with the package status -- the invariant manifestExecutionTotalToAttemptIndex
+  // enforces on every listJobs()/seedJobsFromManifest. Writing "completed"
+  // straight onto the manifest (bypassing startStage) leaves attempts.total at 0
+  // and no history event, which the real pipeline never produces.
+  await PipelineJobManager.listJobs(slug);
   for (const stage of ["research", "script", "scenes"] as const) {
     await fs.writeFile(path.join(target, `${stage}.json`), JSON.stringify({ fixture: stage }), "utf8");
-    await ProjectManager.updatePackageStatus(slug, stage, "completed");
+    await PipelineJobManager.startStage(slug, stage, () =>
+      ProjectManager.updatePackageStatus(slug, stage, "running").then(() => undefined));
+    await PipelineJobManager.persistStageSuccess(slug, stage, () =>
+      ProjectManager.updatePackageStatus(slug, stage, "completed").then(() => undefined));
   }
-  await PipelineJobManager.listJobs(slug);
   const context = { projectSlug: slug, stage: "visuals" as const, runType: "initial" as const };
   const prepared = await prepareProductionPipelineExecution(context);
   const adapter = new ProductionPipelineExecutionAdapter(prepared.adapter, () => prepared.request);
@@ -82,14 +87,15 @@ async function seedVisualsFailureFixture(target: string) {
   }, null, 2), "utf8");
 }
 
-async function withFixture<T>(label: string, operation: (fixture: Awaited<ReturnType<typeof createFixture>>) => Promise<T>) {
-  const fixture = await createFixture(label);
+async function withFixture<T>(
+  runtimeRoot: string,
+  operation: (fixture: Awaited<ReturnType<typeof createFixture>>) => Promise<T>,
+) {
+  const fixture = await createFixture(runtimeRoot);
   try {
-    process.chdir(fixture.root);
     return await operation(fixture);
   } finally {
-    process.chdir(sourceRoot);
-    await fs.rm(fixture.root, { recursive: true, force: true });
+    await fs.rm(fixture.target, { recursive: true, force: true });
   }
 }
 
@@ -121,7 +127,12 @@ async function runBoundedCliFailure() {
 async function main() {
   const runnerSource = await fs.readFile(path.join(sourceRoot, "src/lib/pipeline/PipelineRunner.ts"), "utf8");
 
-  await withFixture("canonical", async ({ target }) => {
+  await withCanonicalSmokeRuntime({
+    name: "sprint-129-9-failed-stage-resume",
+    projectSlug: slug,
+    operationType: "sprint-129-9-failed-stage-resume",
+  }, async (runtime) => {
+  await withFixture(runtime.runtimeRoot, async ({ target }) => {
     const job = await currentFailedJob(target);
     const allJobsBefore = (await readJson<PipelineJobList>(path.join(target, "pipeline-jobs.json"))).jobs;
     const downstreamBefore = allJobsBefore.slice(allJobsBefore.findIndex((item) => item.id === job.id) + 1);
@@ -135,7 +146,7 @@ async function main() {
     pass(recovery.startStage === "visuals" && recovery.blocked === false, "deterministic fixture recovery starts unblocked at visuals");
     const planSource = await fs.readFile(path.join(sourceRoot, "src/lib/pipeline/PipelineRecoveryPlanner.ts"), "utf8");
     pass(planSource.includes("getNextIncompleteOrUnreadyStage"), "recovery planner selects the first incomplete stage");
-    pass(runnerSource.includes("prepareFailedStageRetry(projectSlug, startJob.id)"), "resume prepares the failed start stage before scheduling");
+    pass(runnerSource.includes("prepareFailedStageRetry(projectSlug, startJob.id, \"resume\")"), "resume prepares the failed start stage before scheduling");
 
     const reconciliationAt = new Date(Date.parse(job.updatedAt) + 1_000).toISOString();
     const replayAt = new Date(Date.parse(job.updatedAt) + 2_000).toISOString();
@@ -192,7 +203,7 @@ async function main() {
     pass((await fs.readdir(path.join(target, "production-execution", "attempts"))).filter((name) => name.startsWith(newIdentityA.attemptId)).length === 0, "preparation alone does not open a provider attempt");
   });
 
-  await withFixture("cas", async ({ target }) => {
+  await withFixture(runtime.runtimeRoot, async ({ target }) => {
     const job = await currentFailedJob(target);
     const before = await digestDirectory(target);
     const rejected = await PipelineJobManager.prepareJobRetry(slug, job.id, { updatedAt: "2000-01-01T00:00:00.000Z", attempts: job.attempts });
@@ -200,7 +211,7 @@ async function main() {
     pass(await digestDirectory(target) === before, "CAS conflict is write-free and starts no provider");
   });
 
-  await withFixture("concurrent", async ({ target }) => {
+  await withFixture(runtime.runtimeRoot, async ({ target }) => {
     const job = await currentFailedJob(target);
     const results = await Promise.all([prepareFailedStageRetry(slug, job.id), prepareFailedStageRetry(slug, job.id)]);
     pass(results.filter((result) => result.success).length === 1, "only one concurrent retry preparation wins execution rights");
@@ -209,7 +220,7 @@ async function main() {
     pass(results.some((result) => !result.success && /PIPELINE_RETRY_/.test(result.reasonCode)), "losing concurrent preparation returns a stable reason code");
   });
 
-  await withFixture("compensation", async ({ target }) => {
+  await withFixture(runtime.runtimeRoot, async ({ target }) => {
     const job = await currentFailedJob(target);
     const prepared = await prepareFailedStageRetry(slug, job.id);
     if (!prepared.success) throw new Error(prepared.reasonCode);
@@ -217,6 +228,7 @@ async function main() {
     pass(compensated && (await currentFailedJob(target)).status === "failed", "prepared job compensation restores the failed state");
     const duplicateCompensation = await PipelineJobManager.compensatePreparedRetry(slug, prepared.previousJob, prepared.job);
     pass(!duplicateCompensation, "duplicate compensation is rejected without rewriting state");
+  });
   });
 
   pass((runnerSource.match(/prepareFailedStageRetry\(/g) ?? []).length >= 2, "manual retry and resume share the central preparation primitive");

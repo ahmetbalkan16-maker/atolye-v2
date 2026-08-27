@@ -709,12 +709,35 @@ async function assertReconciledRetryLineageBinding(
     if (record || claim || attempt) throw new Error("retry lineage unexpectedly exists");
     return;
   }
+  // A reconciled terminal binding's reservationId is, by construction, the
+  // reservation's own identity fingerprint (reconcileFailedPipelineExecution +
+  // readProductionCanonicalTerminalDurableLineage/assertIdentity). A divergence
+  // means the admission's binding proof was tampered with or has drifted -- an
+  // admission-integrity failure, not durable-store corruption -- so surface it
+  // the same way assertExpected's mismatch below is (PIPELINE_RETRY_EXECUTION_
+  // ADMISSION_FAILED), rather than as a durable-lineage-binding error.
+  if (expected.reservationId !== expected.reservationIdentityFingerprint) {
+    throw new ProductionPipelineDurableExecutionError(
+      "Pipeline retry reconciled lineage binding is inconsistent.",
+      "PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED",
+    );
+  }
   try {
     await readProductionCanonicalTerminalDurableLineage(
       adapter, identity, expected.reservationId, expected,
     );
   } catch (error) {
     if (error instanceof ProductionPipelineDurableExecutionError) throw error;
+    // assertExpected() throws CANONICAL_DURABLE_ADMISSION_BINDING_MISMATCH
+    // exactly when the admission-supplied `expected` binding does not match an
+    // otherwise-readable, consistent durable store: an admission-integrity
+    // failure (poisoned or stale proof), which the caller classifies as
+    // PIPELINE_RETRY_EXECUTION_ADMISSION_FAILED. Every other throw here means
+    // the durable store itself is missing or inconsistent.
+    if (error instanceof Error &&
+      error.message === "CANONICAL_DURABLE_ADMISSION_BINDING_MISMATCH") {
+      throw error;
+    }
     throw createProductionDurableAttemptLineageBindingError("version-contiguity");
   }
 }

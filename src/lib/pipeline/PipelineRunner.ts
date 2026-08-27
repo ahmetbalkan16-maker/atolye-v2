@@ -927,7 +927,8 @@ export class PipelineRunner {
       slug,
       stage,
       (capability, identity) => PipelineStageExecutor.execute(
-        slug, stage, state, providerSelection.dispatchOptions as PipelineStageExecutionOptions,
+        slug, stage, state,
+        { ...providerSelection.dispatchOptions, stopAfterStage: stageExecution?.stopAfterStage } as PipelineStageExecutionOptions,
         capability, identity, runType,
         providerSelection,
         this.requireRuntimeStorageContext(),
@@ -971,8 +972,12 @@ export class PipelineRunner {
       }
       const nextStage = next.stage;
 
+      const stageOptions: PipelineStageExecutionOptions = {
+        ...stageExecution,
+        ...(stopAfterStage ? { stopAfterStage } : {}),
+      };
       const execute = () => this.runPipelineStage(
-        slug, nextStage, state, runType, undefined, stageExecution,
+        slug, nextStage, state, runType, undefined, stageOptions,
       );
       const completed = retryAdmission?.admission.stage === nextStage
         ? await withProductionAcceptanceRetryAdmission(
