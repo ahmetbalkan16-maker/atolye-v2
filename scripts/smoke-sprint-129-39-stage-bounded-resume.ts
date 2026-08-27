@@ -136,7 +136,6 @@ class FixtureAssemblyProvider implements ConfiguredVideoAssemblyProvider {
 }
 
 class FixtureThumbnailProvider extends MockThumbnailProvider {
-  override readonly name = "openai" as any;
   readonly planCalls = new Map<string, number>();
   readonly assetCalls = new Map<string, number>();
 
@@ -175,7 +174,8 @@ class FixtureThumbnailProvider extends MockThumbnailProvider {
 
 class FixtureYouTubePublishProvider extends MockYouTubePublishProvider {
   override async publish(input: Parameters<MockYouTubePublishProvider["publish"]>[0]) {
-    const slug = (input as any).projectSlug ?? (input.publishingPackage as any)?.projectSlug;
+    const candidate = input as unknown as { projectSlug?: string };
+    const slug = candidate.projectSlug ?? input.publishingPackage?.slug;
     if (typeof slug === "string" && slug.endsWith("-legacy")) {
       throw new Error("legacy fixture propagates its expected youtube asset preflight failure");
     }
