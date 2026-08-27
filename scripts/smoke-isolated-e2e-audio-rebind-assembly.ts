@@ -26,7 +26,6 @@ import {
 } from "../src/lib/audio/AudioPublicationIntentStore";
 import { AudioStorage } from "../src/lib/assets/storage/AudioStorage";
 import { VideoAssemblyManager } from "../src/lib/assembly/VideoAssemblyManager";
-import { AssetManager } from "../src/lib/assets/AssetManager";
 import { FFmpegVideoAssemblyProvider } from "../src/lib/assembly/providers/FFmpegVideoAssemblyProvider";
 import type { PortablePublishedFile } from "../src/lib/runtime/security/PortableNoClobberFilePublisher";
 
@@ -100,7 +99,9 @@ async function runIsolatedE2E() {
       const assetCompRefMap = new Map<string, string>();
 
       const itemsToSeed = [
-        ...audioData.sections.map((sec: any, idx: number) => ({
+        ...audioData.sections.map((sec: {
+          outputAssetId?: string; audioFileUrl?: string; durationSeconds?: number;
+        }, idx: number) => ({
           sceneId: idx + 1,
           outputAssetId: sec.outputAssetId,
           audioFileUrl: sec.audioFileUrl,
@@ -244,7 +245,7 @@ async function runIsolatedE2E() {
       console.log(`[E2E] Step 3: Verifying AudioStorage.inspectStoredWav() fails before rebind...`);
       assert.throws(
         () => AudioStorage.inspectStoredWav(runtime.projectSlug, audioRelativePath, runtime.runtimeStorageContext),
-        (err: any) => err instanceof Error,
+        (err: unknown) => err instanceof Error,
         "Inspection must fail-closed on inode drift before rebind",
       );
       console.log(`[E2E] Inspection fail-closed PASS.`);
@@ -298,10 +299,10 @@ async function runIsolatedE2E() {
         try {
           const result = await originalAssemble(input);
           realFFmpegSpawned = true;
-          console.log(`[E2E] FFmpeg assembly render output: ${(result as any).outputPath}`);
+          console.log(`[E2E] FFmpeg assembly render output: ${(result as { outputPath?: unknown }).outputPath}`);
           return result;
-        } catch (err: any) {
-          console.log(`[E2E] FFmpeg assembly throw/completed with message: ${err?.message || err}`);
+        } catch (err) {
+          console.log(`[E2E] FFmpeg assembly throw/completed with message: ${(err as Error)?.message || String(err)}`);
           throw err;
         }
       };
@@ -318,7 +319,7 @@ async function runIsolatedE2E() {
           video: null,
           provider: ffmpegProvider,
         });
-      } catch (e: any) {
+      } catch (e) {
         console.log(`[E2E] renderExistingAssets Exception Details:`, e);
       }
 

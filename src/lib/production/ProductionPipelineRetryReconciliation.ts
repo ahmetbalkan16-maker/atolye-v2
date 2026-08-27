@@ -8,18 +8,22 @@ import { AdapterBackedProductionExecutionClaimService } from "./ProductionExecut
 import { AdapterBackedProductionExecutionAttemptService,
   defaultProductionExecutionAttemptPolicy } from "./ProductionExecutionDurableAttempt";
 import { defaultProductionExecutionClaimPolicy } from "./ProductionExecutionDurableClaim";
-import { defaultProductionExecutionDurableLeasePolicy } from "./ProductionExecutionDurableLease";
+import {
+  AdapterBackedProductionExecutionDurableLeaseService,
+  defaultProductionExecutionDurableLeasePolicy,
+} from "./ProductionExecutionDurableLease";
 import {
   AdapterBackedProductionExecutionDurableStorage,
 } from "./ProductionExecutionDurableStorage";
 import { defaultProductionExecutionIdempotencyPolicy } from "./ProductionExecutionIdempotency";
+import type { ProductionExecutionDurableRecord } from "@/types/productionExecutionDurableStorage";
 import { ProductionExecutionFilePersistenceAdapter } from "./ProductionExecutionPersistence";
 import { validateProductionExecutionPersistencePayload } from
   "./ProductionExecutionPersistence";
 import type { ProductionExecutionPersistenceAdapter } from
   "@/types/productionExecutionPersistence";
 import { buildProductionPipelineExecutionIdentity } from "./ProductionPipelineExecutionIdentity";
-import { regenerationBindingForExecution } from
+import { regenerationBindingById } from
   "./ProductionCompletedStageRegenerationStore";
 import { settleFailedProductionPipelineExecution } from "./ProductionPipelineTerminalSettlement";
 import { classifyProductionDurableAttemptLineage } from
@@ -66,8 +70,15 @@ export async function reconcileFailedPipelineExecution(
   }
 
   const durableAttemptOrdinal = job.attempts;
-  const regeneration = regenerationBindingForExecution(
-    job.projectSlug, job.stage, durableAttemptOrdinal, storageContext);
+  // Resolved directly from the job's own persisted regenerationId (a fixed,
+  // already-decided fact) rather than re-derived from durableAttemptOrdinal
+  // against the current regeneration roster -- see
+  // ProductionDurableIdentityDerivation.ts and this session's forensic
+  // report on pipeline-record-1ab478279f9a.../ca987045... for why the latter
+  // is unsound once a later regeneration is registered for this stage.
+  const regeneration = job.regenerationId
+    ? regenerationBindingById(job.projectSlug, job.regenerationId, storageContext)
+    : undefined;
   const historicalRunType = regeneration
     ? (job.attemptWithinGeneration === 0 ? "resume" as const : "retry" as const)
     : durableAttemptOrdinal === 0 ? "initial" as const : "retry" as const;
@@ -327,4 +338,221 @@ function failure(
   writeFree = true,
 ): ProductionPipelineRetryReconciliationResult {
   return { ok: false, reasonCode, writeFree, evidence: [`reason:${reasonCode}`, evidence] };
+}
+
+export type ProductionOrphanReservationRecoveryReasonCode =
+  | "ORPHAN_RESERVATION_RECONCILED"
+  | "ORPHAN_RESERVATION_RECONCILIATION_REPLAYED"
+  | "ORPHAN_RESERVATION_NOT_FOUND"
+  | "ORPHAN_RESERVATION_NOT_RESERVED"
+  | "ORPHAN_RESERVATION_CLAIM_EXISTS"
+  | "ORPHAN_RESERVATION_ATTEMPT_EXISTS"
+  | "ORPHAN_RESERVATION_LEASE_RELEASE_FAILED"
+  | "ORPHAN_RESERVATION_CANCEL_FAILED"
+  | "ORPHAN_RESERVATION_LIST_FAILED";
+
+export interface ProductionOrphanReservationRecoveryResult {
+  readonly ok: boolean;
+  readonly reasonCode: ProductionOrphanReservationRecoveryReasonCode;
+  readonly writeFree: boolean;
+  readonly evidence: readonly string[];
+  readonly record?: ProductionExecutionDurableRecord;
+}
+
+/**
+ * Recovers a durable idempotency record that reached "reserved" (a lease may have
+ * been acquired) but NEVER reached claim acquisition — i.e. no real execution work
+ * was ever attempted under it. This is a distinct scenario from
+ * `reconcileFailedPipelineExecution` above, which requires a full
+ * record+lease+claim+attempt chain to already exist and targets the identity
+ * `job.attempts` currently computes — not an arbitrary, already-orphaned recordId.
+ *
+ * Deliberately NOT wired into ProductionExecutionRecoveryBootstrap, ProductionRuntimeInitializer,
+ * or any other automatic startup/recovery path. Every invocation is expected to be an
+ * explicit, operator-approved, one-off call against a specific, already-identified
+ * recordId — never a scan-and-fix-everything sweep.
+ *
+ * Safety, in order:
+ *  1. Reads the record fresh. Already-"cancelled" is a replay-safe no-op (safe to
+ *     call twice). Anything other than "reserved" is refused — this function only
+ *     ever acts on a record still sitting in its initial reservation state.
+ *  2. Refuses if ANY claim or attempt record references this recordId (scanned via
+ *     `identity.recordId`, mirroring the lookup `AdapterBackedProductionExecutionClaimService`'s
+ *     own private `activeClaimForRecord` uses), regardless of that claim/attempt's own
+ *     state — a record with real claim/attempt activity is not "orphaned before claim
+ *     acquisition" and belongs to the existing `abandonExecutionClaim`/
+ *     `reconcileFailedPipelineExecution` recovery paths instead.
+ *  3. If a lease exists and is still "active", releases it via the existing
+ *     `AdapterBackedProductionExecutionDurableLeaseService.release()` (CAS-protected via
+ *     the record's own `recordVersion`, using the lease's own recorded owner identity —
+ *     this never asserts a different worker/session). Already-"released" is treated as a
+ *     previously-completed step and skipped, not repeated — supports resuming after a
+ *     partial prior run.
+ *  4. Transitions the record itself from "reserved" to "cancelled" via the existing
+ *     `AdapterBackedProductionExecutionDurableStorage.transition()` (`canonicalTransitions`
+ *     already permits reserved -> cancelled unconditionally), CAS-protected via a
+ *     freshly re-read version. "cancelled" is the terminal state
+ *     `ProductionPipelineExecutionFactory`'s existing "cancelled -> reserved" reopening
+ *     logic already recognizes and can reopen from — nothing new is required there.
+ *
+ * Every mutation re-reads state immediately beforehand and passes the version it just
+ * read as `expectedVersion` — a concurrent mutation by another process fails the
+ * underlying, unmodified CAS check (`validateMutation` / `evaluateProductionExecutionIdempotencyTransition`)
+ * rather than being silently overwritten.
+ */
+export async function reconcileOrphanedReservationWithoutClaim(
+  adapter: ProductionExecutionPersistenceAdapter,
+  recordId: string,
+  now: () => string = () => new Date().toISOString(),
+): Promise<ProductionOrphanReservationRecoveryResult> {
+  const storage = new AdapterBackedProductionExecutionDurableStorage(adapter);
+  const leases = new AdapterBackedProductionExecutionDurableLeaseService(adapter);
+
+  const initialRead = await storage.read(recordId);
+  if (!initialRead.record) {
+    return orphanFailure("ORPHAN_RESERVATION_NOT_FOUND", "record:missing");
+  }
+  if (initialRead.record.state === "cancelled") {
+    return {
+      ok: true,
+      reasonCode: "ORPHAN_RESERVATION_RECONCILIATION_REPLAYED",
+      writeFree: true,
+      evidence: ["record:already-cancelled"],
+      record: initialRead.record,
+    };
+  }
+  if (initialRead.record.state !== "reserved") {
+    return orphanFailure(
+      "ORPHAN_RESERVATION_NOT_RESERVED",
+      `record:state-${initialRead.record.state}`,
+    );
+  }
+
+  const claimExists = await anyDurableRecordReferencesRecordId(adapter, "claim", recordId);
+  if (claimExists === "list-failed") {
+    return orphanFailure("ORPHAN_RESERVATION_LIST_FAILED", "claim:list-failed");
+  }
+  if (claimExists) {
+    return orphanFailure("ORPHAN_RESERVATION_CLAIM_EXISTS", "claim:exists");
+  }
+  const attemptExists = await anyDurableRecordReferencesRecordId(adapter, "attempt", recordId);
+  if (attemptExists === "list-failed") {
+    return orphanFailure("ORPHAN_RESERVATION_LIST_FAILED", "attempt:list-failed");
+  }
+  if (attemptExists) {
+    return orphanFailure("ORPHAN_RESERVATION_ATTEMPT_EXISTS", "attempt:exists");
+  }
+
+  let writePerformed = false;
+  const preLeaseRead = await storage.read(recordId);
+  if (!preLeaseRead.record || preLeaseRead.record.state !== "reserved") {
+    return orphanFailure(
+      "ORPHAN_RESERVATION_NOT_RESERVED",
+      `record:state-changed-${preLeaseRead.record?.state ?? "missing"}`,
+    );
+  }
+  const lease = preLeaseRead.record.durableLease;
+  if (lease && lease.status === "active") {
+    const evaluatedAt = now();
+    const released = await leases.release({
+      recordId,
+      expectedVersion: preLeaseRead.actualVersion ?? preLeaseRead.record.recordVersion,
+      evaluatedAt,
+      releasedAt: evaluatedAt,
+      worker: {
+        schemaVersion: "1", workerId: lease.identity.workerId, workerType: "server",
+        operationScope: [preLeaseRead.record.operation], identitySource: "trusted-server",
+      },
+      session: {
+        schemaVersion: "1", workerSessionId: lease.identity.workerSessionId,
+        workerId: lease.identity.workerId, startedAt: lease.acquiredAt,
+        identitySource: "trusted-server",
+      },
+      leaseId: lease.identity.leaseId,
+    }, defaultProductionExecutionDurableLeasePolicy);
+    if (!released.ok && released.reasonCode !== "LEASE_REPLAYED") {
+      return orphanFailure(
+        "ORPHAN_RESERVATION_LEASE_RELEASE_FAILED",
+        `lease:${released.reasonCode}`,
+      );
+    }
+    if (released.ok && released.decision !== "replayed") writePerformed = true;
+  }
+
+  const preCancelRead = await storage.read(recordId);
+  if (!preCancelRead.record) {
+    return orphanFailure("ORPHAN_RESERVATION_NOT_FOUND", "record:missing-before-cancel");
+  }
+  if (preCancelRead.record.state === "cancelled") {
+    return {
+      ok: true,
+      reasonCode: "ORPHAN_RESERVATION_RECONCILIATION_REPLAYED",
+      writeFree: !writePerformed,
+      evidence: ["record:cancelled-by-concurrent-call"],
+      record: preCancelRead.record,
+    };
+  }
+  if (preCancelRead.record.state !== "reserved") {
+    return orphanFailure(
+      "ORPHAN_RESERVATION_NOT_RESERVED",
+      `record:state-changed-${preCancelRead.record.state}`,
+    );
+  }
+  const cancelEvaluatedAt = now();
+  const transitioned = await storage.transition(recordId, {
+    schemaVersion: "1",
+    recordId,
+    idempotencyKey: preCancelRead.record.idempotencyKey,
+    fromState: "reserved",
+    toState: "cancelled",
+    expectedVersion: preCancelRead.actualVersion ?? preCancelRead.record.recordVersion,
+    attempt: preCancelRead.record.attempt,
+    transitionedAt: cancelEvaluatedAt,
+    actorId: "pipeline-system",
+    reasonCode: "ORPHAN_RESERVATION_MANUAL_RECOVERY",
+    evidence: ["source:orphan-reservation-recovery"],
+  }, {
+    evaluatedAt: cancelEvaluatedAt,
+    policy: { ...defaultProductionExecutionIdempotencyPolicy, enabled: true },
+  });
+  if (!transitioned.ok || !transitioned.record) {
+    return orphanFailure(
+      "ORPHAN_RESERVATION_CANCEL_FAILED",
+      `record:${transitioned.reasonCode}`,
+    );
+  }
+
+  return {
+    ok: true,
+    reasonCode: "ORPHAN_RESERVATION_RECONCILED",
+    writeFree: false,
+    evidence: ["record:cancelled", "lease:released-or-already-released"],
+    record: transitioned.record,
+  };
+}
+
+/** @internal Shared with resolveDurableAttemptOrdinal's trailing-orphan scan (P2). */
+export async function anyDurableRecordReferencesRecordId(
+  adapter: ProductionExecutionPersistenceAdapter,
+  kind: "claim" | "attempt",
+  recordId: string,
+): Promise<boolean | "list-failed"> {
+  const listed = await adapter.listKeys(kind);
+  if (!listed.ok) return "list-failed";
+  for (const key of listed.keys) {
+    const read = await adapter.read(kind, key);
+    if (read.status === "found") {
+      const value = read.value as { identity?: { recordId?: string } };
+      if (value.identity?.recordId === recordId) return true;
+    }
+  }
+  return false;
+}
+
+function orphanFailure(
+  reasonCode: Exclude<ProductionOrphanReservationRecoveryReasonCode,
+    "ORPHAN_RESERVATION_RECONCILED" | "ORPHAN_RESERVATION_RECONCILIATION_REPLAYED">,
+  evidence: string,
+): ProductionOrphanReservationRecoveryResult {
+  return { ok: false, reasonCode, writeFree: true, evidence: [`reason:${reasonCode}`, evidence] };
 }

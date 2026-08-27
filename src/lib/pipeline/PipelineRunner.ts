@@ -62,6 +62,10 @@ import { ProductionExecutionFilePersistenceAdapter } from
 import { classifyQueuedExhaustedPipelineJobDrift,
   queuedExhaustedDriftReasonCode } from
   "@/lib/production/ProductionQueuedExhaustedDriftClassifier";
+import { classifyProductionDurableAttemptLineage } from
+  "@/lib/production/ProductionDurableAttemptLineageClassifier";
+import { findConsumedRegenerationRetryBudgetExtension } from
+  "@/lib/production/ProductionPipelineRegenerationRetryBudgetExtension";
 import {
   assertPipelineRunnerProductionRuntimeOperationActive,
   executePipelineRunnerProductionRuntimeOperation,
@@ -312,6 +316,37 @@ export class PipelineRunner {
                 }
               }
             } catch { /* ignore */ }
+          }
+        }
+
+        // Sibling of the block above, for a generation-2+ (regeneration) retry
+        // admitted via the P3 ProductionPipelineRegenerationRetryBudgetExtension
+        // mechanism instead of the P1/P2 ordinal-4 one. Deliberately gated on
+        // startJob.regenerationId being present, so it can never engage for a
+        // non-regeneration job -- the attempts===3 branch above is untouched
+        // and still runs first/independently for that case. attempts===6 (or
+        // any other value) is never, by itself, treated as sufficient --
+        // findConsumedRegenerationRetryBudgetExtension requires an actual
+        // matching, consumed, jobVersion-bound authority, and the durable
+        // lineage is independently re-verified against the exact prior
+        // attempt ordinal the matched authority itself recorded.
+        if (!isConsumedExtensionResume && startJob.regenerationId &&
+          Number.isSafeInteger(startJob.generationOrdinal)) {
+          const regenMatch = findConsumedRegenerationRetryBudgetExtension(
+            projectSlug, plan.startStage, startJob, storageContext,
+          );
+          if (regenMatch) {
+            const lineage = await classifyProductionDurableAttemptLineage(
+              new ProductionExecutionFilePersistenceAdapter({
+                trustedRootDirectory:
+                  `${ProjectReader.getProjectFolder(projectSlug)}/production-execution`,
+                createRootDirectory: false,
+              }),
+              projectSlug, plan.startStage, regenMatch.body.priorJob.attempts, "exact",
+            );
+            if (lineage.status === "valid") {
+              isConsumedExtensionResume = true;
+            }
           }
         }
 

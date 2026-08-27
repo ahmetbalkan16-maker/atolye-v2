@@ -119,7 +119,7 @@ export class FFmpegVideoAssemblyProvider implements ConfiguredVideoAssemblyProvi
             buildSceneInputProbeArgs(absoluteInput(scene.filePath, context)),
             { timeoutMs: config.timeoutMs, maxOutputBytes: config.maxStdioBytes },
           );
-          requireSuccessfulProcess(sceneProbe);
+          requireSuccessfulProcess(sceneProbe, "ffprobe(scene-input)");
           sceneProbeSignatures.push(
             validateSceneInputProbe(sceneProbe.stdout, scene.durationSeconds),
           );
@@ -140,7 +140,7 @@ export class FFmpegVideoAssemblyProvider implements ConfiguredVideoAssemblyProvi
         { timeoutMs: config.timeoutMs, maxOutputBytes: config.maxStdioBytes },
       );
 
-      requireSuccessfulProcess(ffmpegResult);
+      requireSuccessfulProcess(ffmpegResult, "ffmpeg(assemble)");
       const structural = VideoStorage.inspectMp4(
         paths.temporaryAbsolutePath,
         config.maxOutputBytes,
@@ -159,10 +159,11 @@ export class FFmpegVideoAssemblyProvider implements ConfiguredVideoAssemblyProvi
         buildFFprobeArgs(paths.absolutePath),
         { timeoutMs: config.timeoutMs, maxOutputBytes: config.maxStdioBytes },
       );
-      requireSuccessfulProcess(probeResult);
+      requireSuccessfulProcess(probeResult, "ffprobe(output)");
       const durationSeconds = validateProbe(
         probeResult.stdout,
         expectedRenderedDuration(input, concatManifestPath),
+        frameRoundingAllowance(input.scenes, concatManifestPath),
       );
       if (concatManifestPath) {
         VideoStorage.removeIfExists(concatManifestPath, context);
@@ -185,7 +186,8 @@ export class FFmpegVideoAssemblyProvider implements ConfiguredVideoAssemblyProvi
         audioCodec: "aac",
         createdAt,
       };
-    } catch {
+    } catch (err) {
+      console.error("[FFmpegVideoAssemblyProvider] assembly failed:", err);
       if (concatManifestPath) VideoStorage.removeIfExists(concatManifestPath, context);
       if (paths) {
         VideoStorage.removeIfExists(paths.temporaryAbsolutePath, context);
@@ -568,7 +570,7 @@ function buildImageConcatArgs(
     concatInputs.push(`[v${index}][a${index}]`);
   });
 
-  let audioMapLabel = "[a]";
+  const audioMapLabel = "[a]";
 
   if (!input.backgroundMusic) {
     filters.push(
@@ -834,7 +836,7 @@ function buildRetimedConcatArgs(
     concatInputs.push(`[v${index}][a${index}]`);
   });
 
-  let audioMapLabel = "[a]";
+  const audioMapLabel = "[a]";
 
   if (!input.backgroundMusic) {
     filters.push(`${concatInputs.join("")}concat=n=${input.scenes.length}:v=1:a=1[v][a]`);
@@ -1030,6 +1032,58 @@ function totalBlendSeconds(scenes: VideoAssemblyInput["scenes"]) {
   return total;
 }
 
+/**
+ * Sprint 149: additional post-render duration tolerance (seconds), beyond
+ * validateProbe()'s base percentage-of-duration allowance, to accept the
+ * real, bounded frame-quantization every rendered assembly goes through —
+ * not an arbitrary widening. Two concrete, filter-graph-verified sources of
+ * drift exist, and this function counts exactly how many of each apply to
+ * `scenes`, so the allowance scales with how much frame-quantizing work the
+ * render actually does instead of being a flat constant:
+ *
+ *  1. Every per-scene retiming filter — zoompan+trim for "image" scenes
+ *     (buildKenBurnsFilter: `d=Math.round(durationSeconds * FPS)`) or
+ *     tpad+fps for "scene-video" scenes (buildRetimedConcatArgs /
+ *     buildTransitionedConcatArgs: the `fps=${FPS}` filter) — resamples
+ *     that scene onto the fixed FPS grid. `trim=duration=<exact seconds>`
+ *     can only cut, never manufacture frames, so whenever the scene's exact
+ *     target duration isn't itself frame-aligned (essentially always true
+ *     for narration-derived durations), that scene's real contributed
+ *     length can fall up to one frame short. This never happens on the
+ *     canCopySceneVideos zero-re-encode path (`concatManifestPath` set):
+ *     video is stream-copied untouched, so there is no per-scene retiming
+ *     filter to quantize anything.
+ *  2. Every blended junction's xfade `offset`/`duration` (built in
+ *     buildTransitionedConcatArgs / buildTransitionedImageConcatArgs from
+ *     the same non-frame-aligned scene durations via the `cumulative`
+ *     running-offset loop) is itself a timestamp on the same fixed-FPS
+ *     grid, so it can independently snap by up to one more frame. This
+ *     only applies when hasAnyBlendedJunction() is true; a fully "cut"
+ *     sequence takes the plain-concat path with no per-junction offset math
+ *     at all.
+ *
+ * Both bounds are exactly one frame (1/FPS) each — never more, since
+ * quantization error against a fixed sampling grid is bounded by
+ * definition — so the total allowance is provably capped at
+ * `(scenes.length + junctionCount) / FPS`. A one-scene, transition-free
+ * assembly keeps validateProbe()'s original tight tolerance; a real
+ * multi-scene, multi-transition assembly gets exactly the slack its own
+ * filter graph can legitimately need. A genuinely broken render (wrong
+ * audio track, truncated output, mismatched asset) drifts by whole seconds,
+ * far outside even this widened bound, and still fails closed.
+ */
+function frameRoundingAllowance(
+  scenes: VideoAssemblyInput["scenes"],
+  concatManifestPath: string | null,
+): number {
+  if (concatManifestPath) return 0;
+  const perSceneRetimingPoints = scenes.length;
+  const junctionOffsetPoints = hasAnyBlendedJunction(scenes)
+    ? Math.max(0, scenes.length - 1)
+    : 0;
+  return (perSceneRetimingPoints + junctionOffsetPoints) / FPS;
+}
+
 function durationTolerance(duration: number) {
   return Math.max(0.25, Math.min(1, duration * 0.001));
 }
@@ -1063,18 +1117,34 @@ function absoluteInput(relativePath: string, context: RuntimeStorageContext) {
   return resolveRuntimeLogicalPath(relativePath, context);
 }
 
-function requireSuccessfulProcess(result: ProcessRunResult) {
+function requireSuccessfulProcess(result: ProcessRunResult, label = "ffmpeg") {
   if (
     result.exitCode !== 0 ||
     result.signal !== null ||
     result.timedOut ||
     result.failed
   ) {
-    throw new Error(SAFE_ERROR);
+    // Detailed cause for the server log only (the assemble() catch logs the
+    // thrown error, then returns the opaque SAFE_ERROR to callers). stderr is
+    // where ffmpeg/ffprobe explain themselves; keep only its tail so a
+    // runaway log can't blow past maxStdioBytes here.
+    const stderrTail =
+      typeof result.stderr === "string" && result.stderr.trim().length > 0
+        ? `; stderr=${result.stderr.slice(-2000)}`
+        : "";
+    throw new Error(
+      `${label} process failed: exitCode=${String(result.exitCode)} ` +
+        `signal=${String(result.signal)} timedOut=${result.timedOut} ` +
+        `failed=${result.failed ?? false}${stderrTail}`,
+    );
   }
 }
 
-function validateProbe(value: string, expectedDuration: number) {
+function validateProbe(
+  value: string,
+  expectedDuration: number,
+  extraTolerance = 0,
+) {
   const parsed = JSON.parse(value) as {
     format?: { format_name?: unknown; duration?: unknown };
     streams?: Array<Record<string, unknown>>;
@@ -1084,33 +1154,74 @@ function validateProbe(value: string, expectedDuration: number) {
   const streams = Array.isArray(parsed.streams) ? parsed.streams : [];
   const videos = streams.filter((stream) => stream.codec_type === "video");
   const audios = streams.filter((stream) => stream.codec_type === "audio");
-  const tolerance = Math.max(0.25, Math.min(1, expectedDuration * 0.001));
+  const tolerance =
+    Math.max(0.25, Math.min(1, expectedDuration * 0.001)) + extraTolerance;
   const videoDuration = Number(videos[0]?.duration);
   const audioDuration = Number(audios[0]?.duration);
 
+  // Each failed check is named individually so the server log (see assemble()'s
+  // catch) records exactly *why* an otherwise-successful render was rejected —
+  // the single most common real cause is a duration just outside `tolerance`,
+  // which was previously indistinguishable from a codec/dimension mismatch.
+  // Behaviour is unchanged: any non-empty reason list still throws.
+  const reasons: string[] = [];
+  if (typeof formatName !== "string" || !formatName.split(",").includes("mp4")) {
+    reasons.push(`format_name=${JSON.stringify(formatName)} (expected to include "mp4")`);
+  }
+  if (!Number.isFinite(duration) || duration <= 0) {
+    reasons.push(`container duration=${parsed.format?.duration} (not a positive number)`);
+  } else if (Math.abs(duration - expectedDuration) > tolerance) {
+    reasons.push(
+      `container duration=${duration}s vs expected≈${expectedDuration.toFixed(3)}s ` +
+        `(Δ${Math.abs(duration - expectedDuration).toFixed(3)}s > tolerance ${tolerance.toFixed(3)}s)`,
+    );
+  }
+  if (videos.length !== 1) reasons.push(`video stream count=${videos.length} (expected 1)`);
+  if (audios.length !== 1) reasons.push(`audio stream count=${audios.length} (expected 1)`);
+  if (videos[0] && videos[0].codec_name !== "h264") {
+    reasons.push(`video codec=${String(videos[0].codec_name)} (expected h264)`);
+  }
+  if (videos[0] && (videos[0].width !== WIDTH || videos[0].height !== HEIGHT)) {
+    reasons.push(`video dimensions=${String(videos[0].width)}x${String(videos[0].height)} (expected ${WIDTH}x${HEIGHT})`);
+  }
+  if (videos[0] && videos[0].pix_fmt !== "yuv420p") {
+    reasons.push(`video pix_fmt=${String(videos[0].pix_fmt)} (expected yuv420p)`);
+  }
+  if (videos[0] && !isFrameRate(videos[0].avg_frame_rate, FPS)) {
+    reasons.push(`video avg_frame_rate=${String(videos[0].avg_frame_rate)} (expected ${FPS} fps)`);
+  }
   if (
-    typeof formatName !== "string" ||
-    !formatName.split(",").includes("mp4") ||
-    !Number.isFinite(duration) ||
-    duration <= 0 ||
-    Math.abs(duration - expectedDuration) > tolerance ||
-    videos.length !== 1 ||
-    audios.length !== 1 ||
-    videos[0].codec_name !== "h264" ||
-    videos[0].width !== WIDTH ||
-    videos[0].height !== HEIGHT ||
-    videos[0].pix_fmt !== "yuv420p" ||
-    !isFrameRate(videos[0].avg_frame_rate, FPS) ||
-    (videos[0].disposition !== undefined &&
-      (videos[0].disposition as Record<string, unknown>).attached_pic !== 0) ||
-    audios[0].codec_name !== "aac" ||
-    !Number.isFinite(videoDuration) ||
-    !Number.isFinite(audioDuration) ||
-    Math.abs(videoDuration - expectedDuration) > tolerance ||
-    Math.abs(audioDuration - expectedDuration) > tolerance ||
+    videos[0] && videos[0].disposition !== undefined &&
+    (videos[0].disposition as Record<string, unknown>).attached_pic !== 0
+  ) {
+    reasons.push("video disposition.attached_pic != 0 (cover-art stream, not a real video track)");
+  }
+  if (audios[0] && audios[0].codec_name !== "aac") {
+    reasons.push(`audio codec=${String(audios[0].codec_name)} (expected aac)`);
+  }
+  if (!Number.isFinite(videoDuration) || Math.abs(videoDuration - expectedDuration) > tolerance) {
+    reasons.push(
+      `video stream duration=${videos[0]?.duration} vs expected≈${expectedDuration.toFixed(3)}s ` +
+        `(tolerance ${tolerance.toFixed(3)}s)`,
+    );
+  }
+  if (!Number.isFinite(audioDuration) || Math.abs(audioDuration - expectedDuration) > tolerance) {
+    reasons.push(
+      `audio stream duration=${audios[0]?.duration} vs expected≈${expectedDuration.toFixed(3)}s ` +
+        `(tolerance ${tolerance.toFixed(3)}s)`,
+    );
+  }
+  if (
+    Number.isFinite(videoDuration) && Number.isFinite(audioDuration) &&
     Math.abs(videoDuration - audioDuration) > 1 / FPS
   ) {
-    throw new Error(SAFE_ERROR);
+    reasons.push(
+      `audio/video skew=${Math.abs(videoDuration - audioDuration).toFixed(4)}s > ${(1 / FPS).toFixed(4)}s`,
+    );
+  }
+
+  if (reasons.length > 0) {
+    throw new Error(`video assembly output probe rejected: ${reasons.join("; ")}`);
   }
 
   return duration;

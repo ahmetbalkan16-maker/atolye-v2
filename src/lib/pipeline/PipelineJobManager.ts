@@ -6,7 +6,7 @@ import {
   type PipelineStateKind,
 } from "./PipelineStateError";
 import { getNextPipelineStage } from "./PipelineRecoveryPlanner";
-import type { PackageStatus, ProductionStepKey } from "@/types/project";
+import type { PackageStatus, ProductionStepKey, ProjectPackageManifest } from "@/types/project";
 import { isPipelineErrorEvidence } from "./PipelineErrorEvidence";
 import type { PipelineErrorEvidence } from "@/types/errorEvidence";
 import type {
@@ -22,11 +22,17 @@ import { assertCanonicalPipelineJobMutationLock,
   hasCanonicalPipelineJobMutationLock,
   withCanonicalPipelineJobMutationLock } from "./PipelineJobMutationLock";
 import { fingerprintPipelineJob } from "./PipelineRetryAdmission";
+import { stableProductionId } from "@/lib/production/ProductionDeterminism";
 import { ProductionExecutionFilePersistenceAdapter } from
   "@/lib/production/ProductionExecutionPersistence";
 import { classifyProductionDurableAttemptLineage } from
   "@/lib/production/ProductionDurableAttemptLineageClassifier";
-import type { RuntimeStorageInput } from "@/lib/runtime/RuntimeStoragePaths";
+import {
+  type RuntimeStorageInput,
+  resolveRuntimeStorageContext,
+} from "@/lib/runtime/RuntimeStoragePaths";
+import { listRegenerationExecutionBindings } from
+  "@/lib/production/ProductionCompletedStageRegenerationStore";
 
 const pipelineJobsFileName = "pipeline-jobs.json";
 const pipelineHistoryFileName = "pipeline-history.json";
@@ -217,6 +223,28 @@ export class PipelineJobManager {
         return false;
       }
 
+      // Monotonic guard: previousJob must still be a valid return point.
+      // The CAS check above only proves "the disk still holds exactly what
+      // I just wrote" — it says nothing about whether previousJob itself is
+      // stale. If a real execution has since terminaled (recorded in
+      // pipeline-history.json) beyond what previousJob.attempts accounts
+      // for, writing previousJob back would silently erase that
+      // execution's evidence from job.attempts, even though durable/
+      // manifest state (which this function never touches, and never
+      // should) still reflects it. This mirrors
+      // manifestExecutionTotalToAttemptIndex's own canonical formula
+      // (executionTotal - 1), using the terminal history event count for
+      // this exact (jobId, stage) — already available in this same file —
+      // as the same proxy for "how many real executions are on record."
+      const history = await this.readHistory(projectSlug);
+      const terminalEventCount = history.events.filter((event) =>
+        event.jobId === previousJob.id && event.stage === previousJob.stage,
+      ).length;
+      const canonicalMinimumAttempts = terminalEventCount - 1;
+      if (previousJob.attempts < canonicalMinimumAttempts) {
+        return false;
+      }
+
       const now = new Date().toISOString();
       await this.writeJobList(projectSlug, {
         ...current,
@@ -227,6 +255,383 @@ export class PipelineJobManager {
       });
 
       return true;
+    });
+  }
+
+  // Reconciles a job whose `attempts` / `attemptWithinGeneration` / `status`
+  // have drifted BEHIND the canonical state recoverable from
+  // pipeline-history.json + manifest.json + the durable execution store +
+  // the active regeneration's own frozen preparation-time snapshot. This is
+  // a data-integrity REPAIR of a corrupted record, not a normal lifecycle
+  // transition — it deliberately bypasses `canTransition`'s queued->failed
+  // restriction, because the "queued" status being repaired is itself the
+  // corrupted artifact, not a legitimate state to transition from. It is
+  // read-mostly and fail-closed: any missing/ambiguous/conflicting evidence,
+  // or a current job already at or ahead of canonical, results in a no-op.
+  // It NEVER touches the durable store, NEVER touches manifest.json, and
+  // NEVER runs a retry/authority/FFmpeg/resume/cancel — the only write this
+  // function can ever perform is a single CAS-protected update to this one
+  // job record inside pipeline-jobs.json.
+  static async reconcilePipelineJobAttemptDriftFromHistory(
+    projectSlug: string,
+    jobId: string,
+    expected: { readonly updatedAt: string; readonly attempts: number;
+      readonly fingerprint?: string },
+    storageInput: RuntimeStorageInput = {},
+  ): Promise<PipelineJobAttemptDriftReconciliationResult> {
+    return this.withProjectLock(projectSlug, async () => {
+      const current = await this.readJobList(projectSlug);
+      const job = current.jobs.find((item) => item.id === jobId);
+      if (!job) {
+        return driftReconciliationFailure("PIPELINE_JOB_ATTEMPT_DRIFT_NOT_FOUND",
+          ["job:missing"]);
+      }
+
+      if (
+        job.updatedAt !== expected.updatedAt ||
+        job.attempts !== expected.attempts ||
+        (expected.fingerprint !== undefined &&
+          fingerprintPipelineJob(job) !== expected.fingerprint)
+      ) {
+        return driftReconciliationFailure("PIPELINE_JOB_ATTEMPT_DRIFT_CAS_CONFLICT",
+          ["job:cas-mismatch"]);
+      }
+
+      // Only a job stuck "queued" (the drift pattern) or already "failed"
+      // (idempotent replay / genuinely-failed-with-stale-counters) is ever
+      // in scope. running/completed/cancelled are never touched.
+      if ((job.status !== "queued" && job.status !== "failed") || job.cancelRequestedAt) {
+        return driftReconciliationFailure("PIPELINE_JOB_ATTEMPT_DRIFT_STATUS_INELIGIBLE",
+          [`job:status-${job.status}`]);
+      }
+
+      const manifest = await ProjectManager.ensureManifest(projectSlug);
+      const packageManifest = manifest?.packages?.[job.stage];
+      if (!manifest || !packageManifest) {
+        return driftReconciliationFailure("PIPELINE_JOB_ATTEMPT_DRIFT_HISTORY_MANIFEST_MISMATCH",
+          ["manifest:missing"]);
+      }
+
+      const history = await this.readHistory(projectSlug);
+      const rawManifest = await ProjectReader.readJSON<Record<string, unknown>>(
+        projectSlug, "manifest.json");
+      const rawPackages = rawManifest?.packages as Record<string, {
+        attempts?: { total?: unknown };
+      }> | undefined;
+      const durableAdapter = new ProductionExecutionFilePersistenceAdapter({
+        trustedRootDirectory: `${ProjectReader.getProjectFolder(projectSlug)}/production-execution`,
+        createRootDirectory: false,
+      });
+      const durableKeys = await durableAdapter.listKeys("idempotency").catch(
+        () => ({ ok: false as const }),
+      );
+      const hasDurableEvidence = durableKeys.ok && durableKeys.keys.length > 0;
+
+      // (A) Canonical `attempts`, via the exact same official formula and
+      // cross-validation (history terminal-count + durable lineage) used by
+      // seedJobsFromManifest — reused rather than reimplemented.
+      let canonicalAttempts: number;
+      try {
+        canonicalAttempts = await manifestExecutionTotalToAttemptIndex(
+          projectSlug,
+          job.stage,
+          packageManifest.status,
+          rawPackages?.[job.stage]?.attempts &&
+            Object.prototype.hasOwnProperty.call(rawPackages[job.stage].attempts, "total")
+            ? rawPackages[job.stage].attempts?.total
+            : packageManifest.attempts?.total,
+          history,
+          durableAdapter,
+          hasDurableEvidence,
+        );
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : "unknown";
+        return driftReconciliationFailure(
+          message === "PIPELINE_MANIFEST_DURABLE_ATTEMPT_EVIDENCE_MISMATCH"
+            ? "PIPELINE_JOB_ATTEMPT_DRIFT_DURABLE_LINEAGE_MISMATCH"
+            : "PIPELINE_JOB_ATTEMPT_DRIFT_HISTORY_MANIFEST_MISMATCH",
+          [`formula:${message}`],
+        );
+      }
+
+      // (D) Never pull an ahead-of-canonical job back down.
+      if (job.attempts > canonicalAttempts) {
+        return driftReconciliationFailure("PIPELINE_JOB_ATTEMPT_DRIFT_AHEAD_OF_CANONICAL",
+          [`job:${job.attempts}-ahead-of-canonical:${canonicalAttempts}`]);
+      }
+
+      // (B) Canonical `attemptWithinGeneration`, via the active
+      // regeneration's own frozen preparation-time snapshot
+      // (firstGlobalExecutionOrdinal === generationStartAttempt).
+      let canonicalAttemptWithinGeneration: number | undefined;
+      if (job.regenerationId) {
+        const context = resolveRuntimeStorageContext(storageInput);
+        const bindings = listRegenerationExecutionBindings(projectSlug, job.stage, context);
+        const activeBinding = bindings.find((item) =>
+          item.binding.regenerationId === job.regenerationId);
+        if (!activeBinding) {
+          return driftReconciliationFailure(
+            "PIPELINE_JOB_ATTEMPT_DRIFT_REGENERATION_BINDING_MISSING",
+            ["regeneration:binding-not-found"]);
+        }
+        if (job.generationOrdinal !== undefined &&
+          activeBinding.binding.generationOrdinal !== job.generationOrdinal) {
+          return driftReconciliationFailure(
+            "PIPELINE_JOB_ATTEMPT_DRIFT_REGENERATION_BINDING_MISMATCH",
+            [`generation:${activeBinding.binding.generationOrdinal}-vs-job:${job.generationOrdinal}`]);
+        }
+        const generationStartAttempt = activeBinding.firstGlobalExecutionOrdinal;
+        if (canonicalAttempts < generationStartAttempt) {
+          return driftReconciliationFailure(
+            "PIPELINE_JOB_ATTEMPT_DRIFT_REGENERATION_BINDING_MISMATCH",
+            [`canonical:${canonicalAttempts}-below-generationStart:${generationStartAttempt}`]);
+        }
+        canonicalAttemptWithinGeneration = canonicalAttempts - generationStartAttempt;
+      }
+
+      // (C) Already canonical: explicit write-free no-op.
+      const alreadyReconciled = job.attempts === canonicalAttempts &&
+        job.attemptWithinGeneration === canonicalAttemptWithinGeneration &&
+        job.status === "failed";
+      if (alreadyReconciled) {
+        return {
+          ok: true,
+          reasonCode: "PIPELINE_JOB_ATTEMPT_DRIFT_ALREADY_RECONCILED",
+          writeFree: true,
+          evidence: ["job:already-canonical"],
+          canonical: { attempts: canonicalAttempts,
+            attemptWithinGeneration: canonicalAttemptWithinGeneration },
+          job,
+        };
+      }
+
+      // (E) Behind canonical and all evidence agrees: apply the
+      // CAS-protected write. Status moves to "failed" alongside the
+      // counters — see the reconciliation preflight report for the proof
+      // that leaving status "queued" would defeat the purpose of the
+      // repair (prepareFailedStageRetry's own entry guard requires
+      // status==="failed" to ever admit a further retry).
+      const jobHistoryEvents = history.events.filter((event) =>
+        event.jobId === jobId && event.stage === job.stage);
+      const latestTerminalEvent = jobHistoryEvents.at(-1);
+      const now = new Date().toISOString();
+      const reconciledJob: PipelineJob = {
+        ...job,
+        status: "failed",
+        attempts: canonicalAttempts,
+        attemptWithinGeneration: canonicalAttemptWithinGeneration,
+        updatedAt: now,
+        startedAt: latestTerminalEvent?.startedAt ?? job.startedAt,
+        completedAt: latestTerminalEvent?.completedAt ?? job.completedAt ?? now,
+        cancelRequestedAt: undefined,
+        error: latestTerminalEvent?.errorCode ?? job.error,
+        errorEvidence: latestTerminalEvent?.errorEvidence ?? job.errorEvidence,
+        globalExecutionOrdinal: job.regenerationId
+          ? canonicalAttempts
+          : job.globalExecutionOrdinal,
+      };
+
+      await this.writeJobList(projectSlug, {
+        ...current,
+        jobs: current.jobs.map((item) => item.id === jobId ? reconciledJob : item),
+        updatedAt: now,
+      });
+
+      return {
+        ok: true,
+        reasonCode: "PIPELINE_JOB_ATTEMPT_DRIFT_RECONCILED",
+        writeFree: false,
+        evidence: ["history:cross-checked", "manifest:cross-checked",
+          ...(hasDurableEvidence ? ["durable:cross-checked"] : []),
+          ...(job.regenerationId ? ["regeneration:binding-verified"] : [])],
+        canonical: { attempts: canonicalAttempts,
+          attemptWithinGeneration: canonicalAttemptWithinGeneration },
+        job: reconciledJob,
+      };
+    });
+  }
+
+  // Sibling of reconcilePipelineJobAttemptDriftFromHistory, for the
+  // *manifest*-side counterpart of the same class of data-integrity repair:
+  // manifest.json's packages[stage].status can be found "pending" while
+  // completedAt/attempts.total/history all prove the package's last real
+  // execution actually failed. This happens because
+  // ProjectManager.updatePackageUsage() performs an unlocked
+  // read-modify-write of the *entire* manifest (see AIUsageManager ->
+  // runObservedAIRequest.ts, called after PipelineJobManager.startStage's
+  // own lock has already been released) — a lost-update race can clobber a
+  // legitimate "failed" write with an earlier, stale snapshot. Notably,
+  // updatePackageUsage never touches packages[stage].updatedAt (only
+  // `usage`), so a single-field CAS on that alone cannot detect it — see
+  // the multi-field CAS below.
+  //
+  // Like its job-side sibling: never touches pipeline-jobs.json, never
+  // touches the durable store, never runs a retry/authority/FFmpeg, and
+  // reuses manifestExecutionTotalToAttemptIndex's official formula (and
+  // classifyProductionDurableAttemptLineage through it) unchanged rather
+  // than reimplementing it. This first version only ever repairs
+  // pending -> failed; a pending -> completed repair is a materially
+  // different, higher-risk claim and is deliberately out of scope.
+  static async reconcileManifestPackageStatusFromHistory(
+    projectSlug: string,
+    stage: ProductionStepKey,
+    expected: {
+      readonly manifestUpdatedAt: string;
+      readonly packageSnapshot: ManifestPackageStatusSnapshot;
+      readonly packageFingerprint?: string;
+    },
+  ): Promise<ManifestPackageStatusReconciliationResult> {
+    return this.withProjectLock(projectSlug, async () => {
+      const manifest = await ProjectManager.ensureManifest(projectSlug);
+      const packageManifest = manifest?.packages?.[stage];
+      if (!manifest || !packageManifest) {
+        return manifestReconciliationFailure(
+          "MANIFEST_PACKAGE_STATUS_DRIFT_NOT_FOUND", ["manifest:missing"]);
+      }
+
+      const currentSnapshot = snapshotOfPackage(packageManifest);
+
+      // (1) Multi-field CAS. Deliberately not just packages[stage].updatedAt
+      // — updatePackageUsage never changes that field, so a single-field
+      // check on it alone cannot detect exactly the race this function
+      // exists to be safe against.
+      if (
+        manifest.updatedAt !== expected.manifestUpdatedAt ||
+        !manifestPackageSnapshotsEqual(currentSnapshot, expected.packageSnapshot) ||
+        (expected.packageFingerprint !== undefined &&
+          fingerprintManifestPackage(packageManifest) !== expected.packageFingerprint)
+      ) {
+        return manifestReconciliationFailure(
+          "MANIFEST_PACKAGE_STATUS_DRIFT_CAS_CONFLICT", ["manifest:cas-mismatch"]);
+      }
+
+      // (2) Only "pending" (the corruption pattern) or already "failed"
+      // (idempotent replay) are ever in scope. "completed" is NEVER
+      // touched — a positive terminal result must never be silently
+      // downgraded. "running"/"missing" are also out of scope.
+      if (packageManifest.status !== "pending" && packageManifest.status !== "failed") {
+        return manifestReconciliationFailure(
+          "MANIFEST_PACKAGE_STATUS_DRIFT_STATUS_INELIGIBLE",
+          [`package:status-${packageManifest.status}`]);
+      }
+
+      // (3) "pending" with no completedAt is the ordinary, legitimate
+      // post-regeneration-prep state (buildMutations always clears
+      // completedAt when it sets pending) — nothing to repair here.
+      if (packageManifest.status === "pending" && packageManifest.completedAt === undefined) {
+        return manifestReconciliationFailure(
+          "MANIFEST_PACKAGE_STATUS_DRIFT_PENDING_WITHOUT_COMPLETION_EVIDENCE",
+          ["package:pending-no-completedAt"]);
+      }
+
+      // (4) The latest terminal history event for this exact (jobId,
+      // stage) must itself say "failed" — checked explicitly (not just
+      // via the formula's own throw) so this specific ambiguity gets its
+      // own, more diagnosable reason code.
+      const history = await this.readHistory(projectSlug);
+      const jobId = getJobId(projectSlug, stage);
+      const terminalEvents = history.events.filter((event) =>
+        event.jobId === jobId && event.stage === stage);
+      const latestEvent = terminalEvents.at(-1);
+      if (!latestEvent || latestEvent.status !== "failed") {
+        return manifestReconciliationFailure(
+          "MANIFEST_PACKAGE_STATUS_DRIFT_AMBIGUOUS_EVIDENCE",
+          [`history:latest-status-${latestEvent?.status ?? "none"}`]);
+      }
+
+      // (5) Full official cross-validation, reused unchanged:
+      // manifestExecutionTotalToAttemptIndex hypothesizes "failed" as the
+      // target status and proves it against history's terminal count and
+      // (when present) durable lineage — exactly the same formula
+      // seedJobsFromManifest and the job-side reconciliation both use.
+      const rawManifest = await ProjectReader.readJSON<Record<string, unknown>>(
+        projectSlug, "manifest.json");
+      const rawPackages = rawManifest?.packages as Record<string, {
+        attempts?: { total?: unknown };
+      }> | undefined;
+      const durableAdapter = new ProductionExecutionFilePersistenceAdapter({
+        trustedRootDirectory: `${ProjectReader.getProjectFolder(projectSlug)}/production-execution`,
+        createRootDirectory: false,
+      });
+      const durableKeys = await durableAdapter.listKeys("idempotency").catch(
+        () => ({ ok: false as const }),
+      );
+      const hasDurableEvidence = durableKeys.ok && durableKeys.keys.length > 0;
+
+      try {
+        await manifestExecutionTotalToAttemptIndex(
+          projectSlug,
+          stage,
+          "failed",
+          rawPackages?.[stage]?.attempts &&
+            Object.prototype.hasOwnProperty.call(rawPackages[stage].attempts, "total")
+            ? rawPackages[stage].attempts?.total
+            : packageManifest.attempts?.total,
+          history,
+          durableAdapter,
+          hasDurableEvidence,
+        );
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : "unknown";
+        return manifestReconciliationFailure(
+          message === "PIPELINE_MANIFEST_DURABLE_ATTEMPT_EVIDENCE_MISMATCH"
+            ? "MANIFEST_PACKAGE_STATUS_DRIFT_DURABLE_LINEAGE_MISMATCH"
+            : "MANIFEST_PACKAGE_STATUS_DRIFT_HISTORY_MANIFEST_MISMATCH",
+          [`formula:${message}`],
+        );
+      }
+
+      // (6) Already "failed" and every check above passed: the record is
+      // already canonical. Write-free no-op.
+      if (packageManifest.status === "failed") {
+        return {
+          ok: true,
+          reasonCode: "MANIFEST_PACKAGE_STATUS_DRIFT_ALREADY_RECONCILED",
+          writeFree: true,
+          evidence: ["package:already-canonical"],
+          canonicalStatus: "failed",
+          packageManifest,
+        };
+      }
+
+      // (7) Second CAS, immediately before the write, under the same lock
+      // acquisition. Everything above already ran inside this same
+      // withProjectLock call, so no *cooperating* writer could have
+      // changed anything since — but updatePackageUsage does not
+      // cooperate with this lock at all, so re-reading and re-comparing
+      // right before the write is the only way to catch it landing in
+      // this exact window.
+      const recheckManifest = await ProjectManager.ensureManifest(projectSlug);
+      const recheckPackage = recheckManifest?.packages?.[stage];
+      if (!recheckManifest || !recheckPackage ||
+        recheckManifest.updatedAt !== manifest.updatedAt ||
+        !manifestPackageSnapshotsEqual(snapshotOfPackage(recheckPackage), currentSnapshot)
+      ) {
+        return manifestReconciliationFailure(
+          "MANIFEST_PACKAGE_STATUS_DRIFT_CAS_CONFLICT",
+          ["manifest:concurrent-update-detected"]);
+      }
+
+      const now = new Date().toISOString();
+      const updatedManifest = {
+        ...recheckManifest,
+        packages: {
+          ...recheckManifest.packages,
+          [stage]: { ...recheckPackage, status: "failed" as const, updatedAt: now },
+        },
+        updatedAt: now,
+      };
+      await ProjectWriter.writeJSON(projectSlug, "manifest.json", updatedManifest);
+
+      return {
+        ok: true,
+        reasonCode: "MANIFEST_PACKAGE_STATUS_DRIFT_RECONCILED",
+        writeFree: false,
+        evidence: ["history:cross-checked", "manifest:cross-checked",
+          ...(hasDurableEvidence ? ["durable:cross-checked"] : [])],
+        canonicalStatus: "failed",
+        packageManifest: updatedManifest.packages[stage],
+      };
     });
   }
 
@@ -809,6 +1214,105 @@ export class PipelineJobManager {
       record.events.every(isPipelineJobHistoryEvent)
     );
   }
+}
+
+export type PipelineJobAttemptDriftReconciliationReasonCode =
+  | "PIPELINE_JOB_ATTEMPT_DRIFT_RECONCILED"
+  | "PIPELINE_JOB_ATTEMPT_DRIFT_ALREADY_RECONCILED"
+  | "PIPELINE_JOB_ATTEMPT_DRIFT_NOT_FOUND"
+  | "PIPELINE_JOB_ATTEMPT_DRIFT_CAS_CONFLICT"
+  | "PIPELINE_JOB_ATTEMPT_DRIFT_STATUS_INELIGIBLE"
+  | "PIPELINE_JOB_ATTEMPT_DRIFT_AHEAD_OF_CANONICAL"
+  | "PIPELINE_JOB_ATTEMPT_DRIFT_HISTORY_MANIFEST_MISMATCH"
+  | "PIPELINE_JOB_ATTEMPT_DRIFT_DURABLE_LINEAGE_MISMATCH"
+  | "PIPELINE_JOB_ATTEMPT_DRIFT_REGENERATION_BINDING_MISSING"
+  | "PIPELINE_JOB_ATTEMPT_DRIFT_REGENERATION_BINDING_MISMATCH";
+
+export interface PipelineJobAttemptDriftReconciliationResult {
+  readonly ok: boolean;
+  readonly reasonCode: PipelineJobAttemptDriftReconciliationReasonCode;
+  // true whenever this call performed zero writes (every fail-closed path,
+  // plus the explicit "already reconciled" no-op path).
+  readonly writeFree: boolean;
+  readonly evidence: readonly string[];
+  readonly canonical?: { readonly attempts: number;
+    readonly attemptWithinGeneration?: number };
+  readonly job?: PipelineJob;
+}
+
+function driftReconciliationFailure(
+  reasonCode: PipelineJobAttemptDriftReconciliationReasonCode,
+  evidence: readonly string[],
+): PipelineJobAttemptDriftReconciliationResult {
+  return { ok: false, reasonCode, writeFree: true, evidence };
+}
+
+export interface ManifestPackageStatusSnapshot {
+  readonly status: PackageStatus;
+  readonly completedAt: string | undefined;
+  readonly startedAt: string | undefined;
+  readonly attemptsTotal: number | undefined;
+  readonly generationOrdinal: number | undefined;
+  readonly regenerationId: string | undefined;
+}
+
+export type ManifestPackageStatusReconciliationReasonCode =
+  | "MANIFEST_PACKAGE_STATUS_DRIFT_RECONCILED"
+  | "MANIFEST_PACKAGE_STATUS_DRIFT_ALREADY_RECONCILED"
+  | "MANIFEST_PACKAGE_STATUS_DRIFT_NOT_FOUND"
+  | "MANIFEST_PACKAGE_STATUS_DRIFT_CAS_CONFLICT"
+  | "MANIFEST_PACKAGE_STATUS_DRIFT_STATUS_INELIGIBLE"
+  | "MANIFEST_PACKAGE_STATUS_DRIFT_PENDING_WITHOUT_COMPLETION_EVIDENCE"
+  | "MANIFEST_PACKAGE_STATUS_DRIFT_AMBIGUOUS_EVIDENCE"
+  | "MANIFEST_PACKAGE_STATUS_DRIFT_HISTORY_MANIFEST_MISMATCH"
+  | "MANIFEST_PACKAGE_STATUS_DRIFT_DURABLE_LINEAGE_MISMATCH";
+
+export interface ManifestPackageStatusReconciliationResult {
+  readonly ok: boolean;
+  readonly reasonCode: ManifestPackageStatusReconciliationReasonCode;
+  // true whenever this call performed zero writes (every fail-closed path,
+  // plus the explicit "already reconciled" no-op path).
+  readonly writeFree: boolean;
+  readonly evidence: readonly string[];
+  readonly canonicalStatus?: "failed";
+  readonly packageManifest?: ProjectPackageManifest;
+}
+
+function manifestReconciliationFailure(
+  reasonCode: ManifestPackageStatusReconciliationReasonCode,
+  evidence: readonly string[],
+): ManifestPackageStatusReconciliationResult {
+  return { ok: false, reasonCode, writeFree: true, evidence };
+}
+
+function snapshotOfPackage(packageManifest: ProjectPackageManifest): ManifestPackageStatusSnapshot {
+  return {
+    status: packageManifest.status,
+    completedAt: packageManifest.completedAt,
+    startedAt: packageManifest.startedAt,
+    attemptsTotal: packageManifest.attempts?.total,
+    generationOrdinal: packageManifest.generationOrdinal,
+    regenerationId: packageManifest.regenerationId,
+  };
+}
+
+function manifestPackageSnapshotsEqual(
+  left: ManifestPackageStatusSnapshot,
+  right: ManifestPackageStatusSnapshot,
+): boolean {
+  return left.status === right.status &&
+    left.completedAt === right.completedAt &&
+    left.startedAt === right.startedAt &&
+    left.attemptsTotal === right.attemptsTotal &&
+    left.generationOrdinal === right.generationOrdinal &&
+    left.regenerationId === right.regenerationId;
+}
+
+function fingerprintManifestPackage(packageManifest: ProjectPackageManifest): string {
+  return stableProductionId(
+    "manifest-package-pre-mutation",
+    JSON.parse(JSON.stringify(packageManifest)) as ProjectPackageManifest,
+  );
 }
 
 type PipelineJobActionResult =

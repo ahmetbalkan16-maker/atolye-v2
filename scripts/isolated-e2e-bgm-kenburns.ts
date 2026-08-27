@@ -7,7 +7,6 @@ import {
   type CanonicalSmokeRuntime,
 } from "./lib/CanonicalSmokeRuntime";
 import { FFmpegVideoAssemblyProvider } from "../src/lib/assembly/providers/FFmpegVideoAssemblyProvider";
-import { VideoAssemblyManager } from "../src/lib/assembly/VideoAssemblyManager";
 import type { VideoAssemblyInput } from "../src/types/videoAssembly";
 
 function getSystemBinaryPath(name: string): string {
@@ -146,12 +145,15 @@ async function runIsolatedE2E() {
         absMp4Path,
       ], { encoding: "utf8" });
 
-      const parsed = JSON.parse(probeOut);
+      const parsed = JSON.parse(probeOut) as {
+        streams: Array<{ codec_type?: string; codec_name?: string }>;
+        format: { duration?: string };
+      };
       assert.equal(parsed.streams.length, 2, "Must contain exactly 1 video stream and 1 audio stream");
-      const videoStream = parsed.streams.find((s: any) => s.codec_type === "video");
-      const audioStream = parsed.streams.find((s: any) => s.codec_type === "audio");
-      assert.equal(videoStream.codec_name, "h264", "Video codec must be h264");
-      assert.equal(audioStream.codec_name, "aac", "Audio codec must be aac");
+      const videoStream = parsed.streams.find((s) => s.codec_type === "video");
+      const audioStream = parsed.streams.find((s) => s.codec_type === "audio");
+      assert.equal(videoStream?.codec_name, "h264", "Video codec must be h264");
+      assert.equal(audioStream?.codec_name, "aac", "Audio codec must be aac");
       assert.ok(Math.abs(Number(parsed.format.duration) - 2.0) <= 0.25, `Duration must be ~2.0s. Got: ${parsed.format.duration}`);
 
       console.log("=== ISOLATED REAL-RUNTIME E2E TEST: ALL ASSERTIONS PASSED ===");

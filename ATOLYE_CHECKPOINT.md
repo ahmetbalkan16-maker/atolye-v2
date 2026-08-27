@@ -1,5 +1,75 @@
 ---
 
+<!-- SPRINT-149-START -->
+## Sprint 149 - Video/Audio Pipeline Reliability Audit + Render-Failure Diagnosability - 2026-08-27
+
+**Status:** Completed — oturum sonu commit/push yapıldı (AGENTS.md oturum kuralı). `data/projects/` altındaki gerçek proje verisi commit'e DAHİL EDİLMEDİ (bkz. "Kapsam dışı bırakılanlar").
+**Production execution status:** Sıfır production mutation. Hiçbir `apply-*` / resume / render / API çağrısı çalıştırılmadı. Tüm doğrulama izole smoke fixture'ları + gerçek FFmpeg binary'siyle yapıldı; canlı `data/projects/<slug>/` yapısında sıfır değişiklik.
+
+### Başlangıç durumu
+`wip/production-audio-resume-prep-v2` dalında büyük, commit edilmemiş bir WIP vardı: 28 değiştirilmiş kaynak dosya + ~67 yeni dosya (10 `src/lib` modülü, 1 tip dosyası, 56 script). `tsc --noEmit` temizdi ama full smoke + lint + build hiç doğrulanmamış, checkpoint'e işlenmemişti. İçerik: (a) "Sprint 149" video assembly frame-rounding tolerance düzeltmesi, (b) audio canonical rebind / mix rebuild / assembly invalidation primitifleri, (c) pipeline & production reconciliation ailesi (job/manifest drift repair, orphan reservation tolerance authority, regeneration retry-budget extension, cancelled durable record reopen), (d) plain-pipeline (marker-less) completed-stage regeneration yolu, (e) runtime backup isolated-context ayrımı.
+
+### Bu oturumda doğrulanan (mevcut WIP)
+- `npx tsc --noEmit`: **0 hata**
+- `npm run build`: **başarılı (exit 0)**
+- `npm run lint`: **0 error** (önceden 18 error), 22 uyarı (hepsi önceden var olan `no-unused-vars`; çoğu tek-seferlik operatör scriptlerinde)
+- Smoke regresyon — iki parti (`run-smokes.sh` 28/28 + `run-smokes-2.sh` 20/20 = **48/48 süit PASS**, ~1500 senaryo). Öne çıkanlar: assembly wiring (73), ffmpeg-bgm-kenburns (30, gerçek FFmpeg), scene-video-consumption (25), isolated-e2e-audio-rebind (gerçek FFmpeg + gerçek proje kopyası, SUCCESS), sprint-129-41 completed-stage regeneration (181/181), pipeline completed-stage regeneration (9), audio canonical/compensation/publication rebind, orphan reservation recovery (11) + tolerance authority (11), quiescence orphan tolerance (8), durable attempt lineage compatibility (27) + orphan tolerance (13), regeneration retry-budget extension (12) + e2e (13), pipeline job attempt drift (13) + manifest package status (13) reconciliation, p3-disconnected-admission (9), attempt7 lineage reopen (5), superseded duplicate reservation authority (15), runtime backup (129-25c-1) + hardening (129-25b-1), production acceptance (128-1), production audio asset wiring (74).
+
+### Bu oturumda yapılan kod değişiklikleri (kapsam: hata teşhis edilebilirliği + delivery hijyeni)
+1. **Render hata bilgisi kaybının kapatılması** — önceki oturum(lar)ın araştırma sırasında bıraktığı 5 debug `console.error` çağrısı üretim seviyesine çekildi ve gerçek hata bilgisi kalıcı hale getirildi:
+   - `FFmpegVideoAssemblyProvider.validateProbe()` artık tek opak `SAFE_ERROR` yerine **hangi kontrolün** hangi değerle başarısız olduğunu adlandırıyor (özellikle: `container duration=X vs expected≈Y (ΔZ > tolerance T)` — istanbul-1453 olayının kök nedeni tam da buydu ve önceden 20 farklı koşuldan ayırt edilemiyordu).
+   - `requireSuccessfulProcess()` artık `exitCode`/`signal`/`timedOut` + ffmpeg/ffprobe `stderr` kuyruğunu içeriyor; çağrı yerlerine etiket eklendi (`ffmpeg(assemble)` / `ffprobe(output)` / `ffprobe(scene-input)`).
+   - `VideoAssemblyManager`: `RENDER SCENES INNER CATCH:` / `SAFE ASSEMBLE INNER CATCH:` debug print'leri, tutarlı `[VideoAssemblyManager] <faz> failed:` yazan `logAssemblyFailure()` yardımcısıyla değiştirildi; ayrıca **önceden tamamen sessiz** olan iki reddediş noktasına (`isValidRealResult` false, saklanan MP4 byte doğrulaması) diagnostic eklendi. `internalDiagnosticStack` sözleşmesi ve dışa dönük `VideoAssemblyError` (sabit mesaj, `stack` yok) hiç değişmedi.
+   - `FFmpegVideoAssemblyProvider` catch: `FFmpeg assemble catch error:` → `[FFmpegVideoAssemblyProvider] assembly failed:`
+   - `ProductionPipelineExecutionAdapter`: `WORKER EXECUTE HANDLER THREW STACK:` → `[ProductionPipelineExecutionAdapter] <stage> stage handler threw:` (handler'ın gerçek fırlattığı hata durable katman onu sarmadan önce loglanıyor).
+   - `ProductionPipelineExecutionFactory`: `createReservation failed detail: <JSON.stringify>` → yapılandırılmış `[ProductionPipelineExecutionFactory] durable reservation creation failed: <reasonCode>`, ayrıca **benign concurrent-creation race** durumunda değil yalnızca gerçek başarısızlıkta loglanacak şekilde `if` bloğunun içine taşındı (davranış-nötr).
+2. **`VideoAssemblyManager` sahne-video tutarsızlığı** — scene-video kaydının sahne sayısı canonical sahne listesiyle uyuşmadığında statik-görsel yoluna düşen mevcut davranış korundu ama artık **sessizce değil**, `logAssemblyFailure` ile loglanıyor (kısmi/eski artefakt tanısı için).
+3. **Sprint 149 video assembly frame-rounding toleransı (önceki oturum, bu oturumda regresyon testiyle kilitlendi):** `FFmpegVideoAssemblyProvider.frameRoundingAllowance(scenes, concatManifestPath)` — `validateProbe`'un taban `±max(0.25, duration*0.001)` toleransına `(scene sayısı + blended junction sayısı)/FPS` ekliyor. Ken Burns `zoompan`/`tpad` ve xfade `offset`'lerinin sabit-FPS ızgarasına kuantalanmasından doğan, kare başına ≤1 frame'lik gerçek ve sınırlı sapmayı kabul ediyor; `canCopySceneVideos` sıfır-re-encode yolunda (`concatManifestPath` set) 0 döndürüyor. Gerçekten bozuk bir render (yanlış ses, kırpılmış çıktı) hâlâ saniyeler mertebesinde sapıp fail-closed kalıyor.
+4. **Regresyon testi:** `scripts/smoke-production-video-assembly-wiring.ts` (+1 senaryo, 72→73) — gerçek 5-sahne/4-junction istanbul-1453 süre profilinde bir render reddinde: (a) dışa dönük `VideoAssemblyError` sözleşmesinin değişmediği, (b) sunucu logunda `[VideoAssemblyManager]` diagnostic satırının çıktığı ve **hangi** probe kontrolünün (`container duration=152...`) başarısız olduğunun yazıldığı doğrulanıyor.
+5. **Lint hijyeni:** `eslint.config.mjs` — git-ignore edilmiş `.graphify/**` + `graphify-out/**` (yerel araç çıktısı/bundle) `globalIgnores`'a eklendi (18 error'ın 8'i buradan, ~970 uyarı da). `let`→`const` (FFmpegVideoAssemblyProvider `audioMapLabel` ×2, ProductionPipelineExecutionFactory `lineage`), kullanılmayan import/değişken temizliği (RuntimeBackupVerifier, dokunulan isolated-e2e scriptleri, 2 yeni smoke). Kalan 22 uyarı önceden var olan `no-unused-vars` (RuntimeBackupInventory/Service, ProductionCompletedStageRegenerationPlanner/Service, birkaç tek-seferlik operatör scripti) — kapsam dışı bırakıldı.
+
+### Kapsam dışı bırakılanlar (KULLANICI KARARI GEREKİR)
+- **`data/projects/i-stanbul-un-fethi-1453/` (~163 MB)** + `data/projects/identity-hardening/` + değiştirilmiş `data/projects/unknown/ai-usage.json` bu commit'e **dahil edilmedi**. Bunlar Sprint 148 operatör çalıştırmalarının ürettiği gerçek production verisi (77 MB durable execution kaydı, 63 MB asset, WAV/MP4/PNG). Sprint 148 de kullanıcı talebiyle commit etmemişti. Repo'da başka projelerin (`fatih-sultan-mehmet-...`) tam asset ağacı izleniyor, yani commit etmek mümkün ama geri döndürmesi zor (git history şişmesi) ve 163 MB. Kullanıcı isterse tek komutla eklenebilir.
+- **`src/lib/ai/prompts/script.ts` prompt değişikliği (önceki oturum, korundu):** toplam `estimatedDuration` artık 60-120 sn (hedef ~90), her chapter 15-20 sn olacak şekilde kısıtlanıyor. Bu bir **ürün/kreatif** karar; bundan sonra üretilen/regenerate edilen her yeni projenin süresini etkiler. Kullanıcı bu kısıtı istemiyorsa geri alınmalı.
+
+### Kalan gerçek eksikler
+- Yeni audio-compensation / plain-pipeline-regeneration primitifleri (`AudioCanonicalSectionBinding`, `AudioCanonicalMixRebuilder`, `AudioCompensationAssemblyInvalidation`, `PipelineCompletedStageRegeneration*`) hâlâ **hiçbir canlı orkestratöre bağlı değil** — yalnızca kendi smoke testleriyle doğrulanıyor. Bağlama işi ayrı bir sprint.
+- 22 pre-existing lint uyarısı (0 error).
+- `ProductionPipelineExecutionFactory`'deki `coordinated.ok`/`coordinated.attempt` guard'ı (cancelled durable record reopen için) çalışıyor ve testli ama okunması zor; dokunulmadı (en çok audit edilen fail-closed kod).
+<!-- SPRINT-149-END -->
+
+<!-- SPRINT-148-START -->
+## Sprint 148 - i-stanbul-un-fethi-1453 Controlled Audio Mutation & Assembly Regeneration Preparation - 2026-08-22
+
+**Status:** Completed — commit/push yapılmadı, kullanıcı talebi doğrultusunda tamamlandı
+**Production execution status:** Aşama 1 (Backup), Aşama 2 (Reconcile & Quarantine), Aşama 3 (Regeneration Prepare) sırasıyla başarıyla tamamlandı. Hiçbir video render / FFmpeg / MP4 oluşturma, resume veya API yayını çalıştırılmadı.
+
+Gerçek `i-stanbul-un-fethi-1453` projesinde kontrollü ses rebind, mix rebuild, yetim WAV karantinası ve completed-stage regeneration hazırlık işlemleri gerçekleştirildi.
+
+- **Aşama 1 — Backup:** Doğrulanmış runtime backup oluşturuldu ve doğrulandı.
+  - `backupId`: `b-7e0089cae8fa`
+  - `aggregateFingerprint`: `d3231bc961b47b991efb23ef5bd949f1b37bf749be1ea5d8b2f62caa56f48025`
+  - `manifestSha256`: `1f5d423098701187e91afc982a2abc7b8ca2e5d275f818161dda14ebd70c55eb`
+  - Inventory: 328 dosya, 223,512,614 bayt (`verified`).
+- **Aşama 2 — Reconcile:** `audio.json` ve `assembly.json` 5 bölüm bağı authoritative TTS ses asset'lerine (`audio-narration-chapter-1..5`) tam senkronize edildi.
+  - Bölüm 1: `audio-narration-chapter-1` (37.7375s, URL: `/api/assets/audio/i-stanbul-un-fethi-1453/section-1.wav`)
+  - Bölüm 2: `audio-narration-chapter-2` (31.0625s, URL: `/api/assets/audio/i-stanbul-un-fethi-1453/section-2.wav`)
+  - Bölüm 3: `audio-narration-chapter-3` (26.8125s, URL: `/api/assets/audio/i-stanbul-un-fethi-1453/section-3.wav`)
+  - Bölüm 4: `audio-narration-chapter-4` (31.1500s, URL: `/api/assets/audio/i-stanbul-un-fethi-1453/section-4.wav`)
+  - Bölüm 5: `audio-narration-chapter-5` (28.6500s, URL: `/api/assets/audio/i-stanbul-un-fethi-1453/section-5.wav`)
+  - Canonical Mix Asset: `2ed16c9c-e3fe-4c64-8c9d-e964361e6f62` (model: `audio-mix-canonical-concat-v1`, provider: `openai`, süre: `155.4125s`, `7,459,844` bayt). `audio.json.outputAssetId` ve `assembly.json.sourceAudioAssetId` ikisi de bu ID'ye bağlandı.
+  - 6 Yetim WAV dosyası silinmeden `.audio-quarantine-orphaned-pre-reconcile/` klasöründe korundu.
+- **Aşama 3 — Regeneration Prepare:** Completed-stage regeneration prepare başarıyla çalıştırıldı ve doğrulanmış receipt kaydedildi.
+  - Package Durumları: `assembly`, `thumbnail`, `seo`, `youtube`, `export` hepsi `pending`.
+  - Job Durumları: `assembly` (`queued`, generationOrdinal: 2, attemptWithinGeneration: 0), `thumbnail` (`queued`, gen: 2, att: 0), `seo` (`queued`, gen: 2, att: 0), `youtube` (`queued`, gen: 2, att: 0), `export` (`queued`, gen: 2, att: 0).
+  - Regeneration ID: `pipeline-regen-9474575560c5cd3bb373d77feafc2a08c4abd52be2bc304c`
+  - Plan Fingerprint: `5c0a2d56045fe4760156eb28575bc6ea74aa456371b80de87df56d6b6f57e691`
+- **Sınır doğrulamaları:**
+  - `0` video render / FFmpeg MP4 assembly çalıştırıldı.
+  - `0` API / resume / YouTube çağrısı yapıldı.
+  - `0` WAV dosyası silindi.
+<!-- SPRINT-148-END -->
+
 <!-- SPRINT-147-START -->
 ## Sprint 147 - VideoAssemblyManager resolveBackgroundMusic Multi-Candidate .find() Insertion-Order Lock - 2026-08-21
 

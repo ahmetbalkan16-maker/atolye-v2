@@ -1548,6 +1548,178 @@ async function run() {
       assert.match(args, /xfade=transition=fade:duration=0\.400000:offset=1\.200000/);
       assert.match(args, /xfade=transition=fade:duration=0\.033333:offset=2\.166667/);
     });
+    // Sprint 149: root-cause regression for the real i-stanbul-un-fethi-1453
+    // VIDEO_ASSEMBLY_FAILED incident. A real 5-scene, 4-junction
+    // (crossfade/cut/fade/crossfade) assembly with real reconciled narration
+    // durations (37.7375/31.0625/26.8125/31.15/28.65 -> naive sum
+    // 155.4125s) computes expectedRenderedDuration() = 155.4125 -
+    // totalBlendSeconds(0.5+1/30+0.5+0.5=1.533333) = 153.879167s. The actual
+    // orphaned render this project produced (recovered via a read-only
+    // ffprobe pass, never linked into project state) measured
+    // video=153.433333s, audio=153.412000s - a real ~0.4458s shortfall from
+    // Ken Burns zoompan/tpad frame-quantization across 5 scenes + 4
+    // junctions, which the pre-fix ±0.25s validateProbe() tolerance
+    // rejected outright. frameRoundingAllowance() for this exact shape is
+    // (5 scenes + 4 junctions)/FPS(30) = 0.3s, so the new tolerance is
+    // 0.25+0.3=0.55s - comfortably covering the real, measured gap while
+    // staying tightly bounded.
+    const realWorldDurations = [37.7375, 31.0625, 26.8125, 31.15, 28.65];
+    const realWorldTransitions = ["cut", "crossfade", "cut", "fade", "crossfade"] as const;
+    async function buildRealWorldFiveSceneFixture(suffix: string) {
+      const slug = `${prefix}-${suffix}`;
+      const projectId = "project-115";
+      const png = Buffer.concat([
+        Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+        Buffer.from([0, 0, 0, 0]),
+      ]);
+      for (const sceneId of [1, 2, 3, 4, 5]) {
+        const image = ImageStorage.saveImage({ projectSlug: slug, data: png, mimeType: "image/png" });
+        // wav()'s header is fixed at byteRate=16000 (8000Hz, 16-bit, mono), so
+        // dataLength = durationSeconds * 16000 reproduces the exact target
+        // duration via AudioStorage.saveAudio()'s own dataByteLength/byteRate
+        // computation - every value below is an exact integer.
+        const audio = AudioStorage.saveAudio({
+          projectSlug: slug, data: wav(Math.round(realWorldDurations[sceneId - 1] * 16000)),
+        });
+        AssetManager.addAsset(slug, projectId, AssetManager.createAsset({
+          id: `image-${sceneId}`, projectId, projectSlug: slug, sceneId, type: "image",
+          status: "generated", provider: "openai", prompt: "safe",
+          filePath: image.filePath, url: image.url, mimeType: "image/png",
+        }));
+        AssetManager.addAsset(slug, projectId, AssetManager.createAsset({
+          id: `audio-${sceneId}`, projectId, projectSlug: slug, sceneId, type: "audio",
+          status: "generated", provider: "openai", prompt: "safe",
+          filePath: audio.filePath, url: audio.url, mimeType: "audio/wav",
+          byteLength: audio.byteLength, durationSeconds: audio.durationSeconds,
+        }));
+      }
+      const mix = AudioStorage.saveAudio({ projectSlug: slug, data: wav(32000) });
+      AssetManager.addAsset(slug, projectId, AssetManager.createAsset({
+        id: "mix-audio", projectId, projectSlug: slug, type: "audio",
+        status: "generated", provider: "openai", prompt: "safe",
+        filePath: mix.filePath, url: mix.url, mimeType: "audio/wav",
+        byteLength: mix.byteLength, durationSeconds: mix.durationSeconds,
+      }));
+
+      const fiveScenes: SceneData = {
+        scenes: [1, 2, 3, 4, 5].map((id) => ({ id, chapterId: id, duration: 1, title: `Scene ${id}`, description: `Scene ${id}` })),
+        createdAt: now,
+      };
+      const fiveVisuals: VisualData = {
+        projectId,
+        scenes: [1, 2, 3, 4, 5].map((sceneId) => ({ sceneId, visualPrompt: `V${sceneId}`, animationPrompt: "", style: "cinematic" })),
+        thumbnail: { title: "T", prompt: "P", composition: "C", mood: "M" },
+        createdAt: now,
+      };
+      const fiveAudio: AudioData = {
+        ...baseAudio,
+        sections: [1, 2, 3, 4, 5].map((chapterId) => ({
+          chapterId, title: `Section ${chapterId}`, duration: "00:01", emotion: "calm",
+          emphasis: [], narrationNotes: "", pacing: "medium", sourceText: `Narration ${chapterId}`,
+          outputAssetId: `audio-${chapterId}`, status: "generated", provider: "openai",
+        })),
+      };
+      const fiveAssembly: AssemblyPlanData = {
+        ...assembly,
+        scenes: [1, 2, 3, 4, 5].map((sceneId) => ({
+          sceneId, chapterId: sceneId, duration: "00:01", visualReference: `visual-${sceneId}`,
+          audioAssetId: `audio-${sceneId}`, audioReference: `section-${sceneId}`,
+          transition: realWorldTransitions[sceneId - 1], cameraMovement: "none", effects: [],
+        })),
+      };
+      return { slug, projectId, scenes: fiveScenes, visuals: fiveVisuals, audio: fiveAudio, assembly: fiveAssembly };
+    }
+    await scenario("Sprint 149 regression: real measured Ken Burns/transition frame-rounding drift (~0.4458s) now passes validateProbe()", async () => {
+      const value = await buildRealWorldFiveSceneFixture("duration-tolerance-real-world-pass");
+      const runner = new FakeRunner(null, JSON.stringify({
+        format: { format_name: "mov,mp4,m4a,3gp,3g2,mj2", duration: "153.433333" },
+        streams: [
+          { codec_type: "video", codec_name: "h264", width: 1920, height: 1080, pix_fmt: "yuv420p", avg_frame_rate: "30/1", duration: "153.433333", disposition: { attached_pic: 0 } },
+          { codec_type: "audio", codec_name: "aac", duration: "153.412000" },
+        ],
+      }));
+      await VideoAssemblyManager.renderExistingAssets({
+        projectId: value.projectId, projectSlug: value.slug, scenes: value.scenes,
+        visuals: value.visuals, audio: value.audio, assembly: value.assembly,
+        provider: new FFmpegVideoAssemblyProvider(runner),
+      });
+    });
+    await scenario("Sprint 149 regression: a genuinely large duration mismatch on the same real-world assembly still fails closed", async () => {
+      // Same 5-scene/4-junction shape (frameRoundingAllowance=0.3s, base
+      // tolerance ~0.154s -> total 0.454s(~0.55s rounded)), but the probed
+      // output is off by ~1.9s (matching the naive-sum-vs-reconciled-audio
+      // scale of mismatch a truly broken render/asset binding would produce)
+      // - far outside even the widened bound.
+      const value = await buildRealWorldFiveSceneFixture("duration-tolerance-real-world-fail");
+      const runner = new FakeRunner(null, JSON.stringify({
+        format: { format_name: "mov,mp4,m4a,3gp,3g2,mj2", duration: "152.0" },
+        streams: [
+          { codec_type: "video", codec_name: "h264", width: 1920, height: 1080, pix_fmt: "yuv420p", avg_frame_rate: "30/1", duration: "152.0", disposition: { attached_pic: 0 } },
+          { codec_type: "audio", codec_name: "aac", duration: "152.0" },
+        ],
+      }));
+      await assert.rejects(
+        VideoAssemblyManager.renderExistingAssets({
+          projectId: value.projectId, projectSlug: value.slug, scenes: value.scenes,
+          visuals: value.visuals, audio: value.audio, assembly: value.assembly,
+          provider: new FFmpegVideoAssemblyProvider(runner),
+        }),
+        (error: unknown) =>
+          error instanceof VideoAssemblyError &&
+          error.message === "Video assembly failed." &&
+          error.stack === undefined,
+      );
+    });
+    await scenario("render rejection is diagnosable: server log names the exact failed probe check while the outward error stays opaque", async () => {
+      // Regression for the "hata bilgi kaybı" gap: a rejected render used to
+      // surface only the opaque VideoAssemblyError. validateProbe() now throws
+      // a reason string ("...output probe rejected: container duration=... > tolerance ...")
+      // that FFmpegVideoAssemblyProvider + VideoAssemblyManager write to the
+      // process log (console.error) -- without changing the outward contract.
+      const value = await buildRealWorldFiveSceneFixture("duration-tolerance-diagnostic");
+      const runner = new FakeRunner(null, JSON.stringify({
+        format: { format_name: "mov,mp4,m4a,3gp,3g2,mj2", duration: "152.0" },
+        streams: [
+          { codec_type: "video", codec_name: "h264", width: 1920, height: 1080, pix_fmt: "yuv420p", avg_frame_rate: "30/1", duration: "152.0", disposition: { attached_pic: 0 } },
+          { codec_type: "audio", codec_name: "aac", duration: "152.0" },
+        ],
+      }));
+      const originalConsoleError = console.error;
+      const logged: string[] = [];
+      console.error = (...args: unknown[]) => {
+        logged.push(args.map((a) => (a instanceof Error ? a.message : String(a))).join(" "));
+      };
+      try {
+        await assert.rejects(
+          VideoAssemblyManager.renderExistingAssets({
+            projectId: value.projectId, projectSlug: value.slug, scenes: value.scenes,
+            visuals: value.visuals, audio: value.audio, assembly: value.assembly,
+            provider: new FFmpegVideoAssemblyProvider(runner),
+          }),
+          (error: unknown) =>
+            error instanceof VideoAssemblyError &&
+            error.message === "Video assembly failed." &&
+            error.stack === undefined,
+        );
+      } finally {
+        console.error = originalConsoleError;
+      }
+      const combined = logged.join("\n");
+      assert.ok(
+        combined.includes("[VideoAssemblyManager]"),
+        `expected a [VideoAssemblyManager] diagnostic line, got: ${combined}`,
+      );
+      assert.ok(
+        combined.includes("output probe rejected") && combined.includes("container duration=152"),
+        `expected the diagnostic to name the failed duration check, got: ${combined}`,
+      );
+      // The opaque, caller-facing constants must never leak into the log as the
+      // *only* signal -- the detail string is the point.
+      assert.ok(
+        !combined.split("\n").every((line) => line.trim() === "Video assembly failed."),
+        "diagnostic log must carry more than the opaque SAFE_ERROR string",
+      );
+    });
     await scenario("timeout and nonzero process results fail safely", async () => {
       const timeout = new FFmpegVideoAssemblyProvider(new FakeRunner({ timedOut: true }));
       const assets = await expectFailure("timeout", () => undefined, timeout);

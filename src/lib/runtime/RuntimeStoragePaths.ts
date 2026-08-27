@@ -62,6 +62,7 @@ export interface RuntimeStorageContext extends RuntimeStorageConfiguration {
   readonly kind: typeof contextKind;
   readonly machineRoot: string;
   readonly authorityRoot: string;
+  readonly isolated?: boolean;
 }
 
 export interface RuntimeStorageResolutionOptions {
@@ -103,17 +104,9 @@ export interface RuntimeStorageAuthorityLease {
   release(): void;
 }
 
-export function createRuntimeStorageContext(
+export function createIsolatedRuntimeStorageContext(
   options: RuntimeStorageResolutionOptions = {},
 ): RuntimeStorageContext {
-  const activeContext = getActiveRuntimeOperationScope()?.storageContext;
-  if (activeContext) {
-    assertTrustedRuntimeStorageContext(activeContext);
-    if (Object.keys(options).length > 0) {
-      throw new RuntimeStorageError("RUNTIME_STORAGE_OPERATION_CONTEXT_MISMATCH");
-    }
-    return activeContext;
-  }
   const environment = options.environment ?? process.env;
   const workspaceRoot = canonicalAbsolutePath(
     options.workspaceRoot ?? environment.ATOLYE_WORKSPACE_ROOT ?? process.cwd(),
@@ -183,9 +176,24 @@ export function createRuntimeStorageContext(
     logicalProjectsRoot: runtimeStorageLogicalProjectsRoot,
     machineRoot: containedPath(runtimeRoot, "machine"),
     authorityRoot,
+    isolated: true,
   });
   trustedRuntimeStorageContexts.add(context);
   return context;
+}
+
+export function createRuntimeStorageContext(
+  options: RuntimeStorageResolutionOptions = {},
+): RuntimeStorageContext {
+  const activeContext = getActiveRuntimeOperationScope()?.storageContext;
+  if (activeContext) {
+    assertTrustedRuntimeStorageContext(activeContext);
+    if (Object.keys(options).length > 0) {
+      throw new RuntimeStorageError("RUNTIME_STORAGE_OPERATION_CONTEXT_MISMATCH");
+    }
+    return activeContext;
+  }
+  return createIsolatedRuntimeStorageContext(options);
 }
 
 export function resolveRuntimeStorageContext(
@@ -195,7 +203,7 @@ export function resolveRuntimeStorageContext(
   assertTrustedRuntimeStorageContext(input);
   const activeContext = getActiveRuntimeOperationScope()?.storageContext;
   if (activeContext) assertTrustedRuntimeStorageContext(activeContext);
-  if (activeContext && input !== activeContext) {
+  if (activeContext && input !== activeContext && !input.isolated) {
     throw new RuntimeStorageError("RUNTIME_STORAGE_OPERATION_CONTEXT_MISMATCH");
   }
   return input;

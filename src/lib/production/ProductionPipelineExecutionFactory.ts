@@ -16,6 +16,7 @@ import type { ProductionExecutionDurableRecord } from "@/types/productionExecuti
 import type {
   ProductionExecutionIdempotencyRecord,
   ProductionExecutionIdempotencyReservationRequest,
+  ProductionExecutionIdempotencyTransitionRequest,
 } from "@/types/productionExecutionIdempotency";
 import type { ProductionExecutionAuthorizationResult } from "@/types/productionExecutionAuthorization";
 import type { ProductionExecutionConfirmationValidationResult } from "@/types/productionExecutionConfirmation";
@@ -35,7 +36,8 @@ import {
   defaultProductionExecutionClaimPolicy,
   validateProductionExecutionDurableClaim,
 } from "./ProductionExecutionDurableClaim";
-import { defaultProductionExecutionAttemptPolicy,
+import { AdapterBackedProductionExecutionAttemptService,
+  defaultProductionExecutionAttemptPolicy,
   validateProductionExecutionDurableAttempt } from "./ProductionExecutionDurableAttempt";
 import {
   AdapterBackedProductionExecutionDurableLeaseService,
@@ -46,6 +48,7 @@ import {
   AdapterBackedProductionExecutionDurableStorage,
   defaultProductionExecutionDurableStoragePolicy,
 } from "./ProductionExecutionDurableStorage";
+import { anyDurableRecordReferencesRecordId } from "./ProductionPipelineRetryReconciliation";
 import {
   buildProductionExecutionIdempotencyIdentity,
   defaultProductionExecutionIdempotencyPolicy,
@@ -61,6 +64,8 @@ import { readProductionCanonicalTerminalDurableLineage } from
 import { getProductionAcceptanceLegacyPreviousRetryJob,
   getProductionAcceptanceRetryAdmission } from
   "./ProductionAcceptanceLegacyAdmissionContext";
+import { findConsumedRegenerationRetryBudgetExtension } from
+  "./ProductionPipelineRegenerationRetryBudgetExtension";
 import {
   emitProductionPipelineExecutionEvent,
   poisonProductionPipelineExecutionPlanAfterDurableAttempt,
@@ -344,10 +349,40 @@ export async function prepareProductionPipelineExecution(
     expired: false, singleUse: true, consumed: false, policyVersion: "pipeline-durable-v1",
     evidence: ["source:pipeline-composition"],
   };
-  const effectiveMaxAttempts = context.regeneration
-    ? retryAdmission?.maxAttempts ??
-      attemptNumber - (job?.attemptWithinGeneration ?? 0) + 3
+  const naturalRegenerationMaxAttempts =
+    attemptNumber - (job?.attemptWithinGeneration ?? 0) + 3;
+  let effectiveMaxAttempts = context.regeneration
+    ? retryAdmission?.maxAttempts ?? naturalRegenerationMaxAttempts
     : retryAdmission?.effectiveMaxAttempts ?? 3;
+  // Disconnected admission -> execution: a P3 regeneration-retry-budget
+  // extension may already have been consumed by a prior, separate
+  // prepareFailedStageRetry() call (a different process/invocation), whose
+  // PipelineRetryAdmission cannot be carried here -- assertCanonicalPipeline
+  // RetryAdmission requires the exact pre-mutation ("failed") job snapshot,
+  // which no longer exists once the job is "queued" (see PipelineRetryAdmission.ts).
+  // So instead of trusting an ambient admission object, independently
+  // re-verify the real, on-disk, consumed P3 authority -- the same read-only
+  // helper PipelineRunner.ts's own pre-execution guard already uses. Only
+  // consulted when there is no in-process admission AND the natural,
+  // unextended per-generation budget would otherwise be exceeded; never
+  // widens the P1/P2 (non-regeneration) path or an ordinary within-budget
+  // regeneration retry.
+  if (context.regeneration && !retryAdmission && job &&
+    attemptNumber + 1 > naturalRegenerationMaxAttempts) {
+    const regenerationExtension = findConsumedRegenerationRetryBudgetExtension(
+      context.projectSlug, context.stage, job,
+    );
+    if (regenerationExtension &&
+      regenerationExtension.body.authorizedDurableOrdinal === attemptNumber + 1) {
+      const lineage = await classifyProductionDurableAttemptLineage(
+        adapter, context.projectSlug, context.stage,
+        regenerationExtension.body.priorJob.attempts, "exact",
+      );
+      if (lineage.status === "valid") {
+        effectiveMaxAttempts = regenerationExtension.body.authorizedDurableOrdinal;
+      }
+    }
+  }
   const idempotencyPolicy = {
     ...defaultProductionExecutionIdempotencyPolicy,
     enabled: true,
@@ -417,6 +452,7 @@ export async function prepareProductionPipelineExecution(
   const storage = new AdapterBackedProductionExecutionDurableStorage(adapter);
   const leases = new AdapterBackedProductionExecutionDurableLeaseService(adapter);
   const claims = new AdapterBackedProductionExecutionClaimService(adapter);
+  const attempts = new AdapterBackedProductionExecutionAttemptService(adapter);
   const reservation: ProductionExecutionIdempotencyReservationRequest = {
     schemaVersion: "1", identity: idempotencyIdentity, authorization, confirmation,
     requestedAt: anchor, expectedInitialState: "reserved", attempt: attemptNumber + 1,
@@ -454,6 +490,14 @@ export async function prepareProductionPipelineExecution(
       );
       if (raced.status !== "found" ||
         stableProductionValue(raced.value) !== stableProductionValue(reservation)) {
+        // Genuine failure (not a benign concurrent-creation race that the
+        // read above resolved): record the store's reason before the opaque
+        // outward error.
+        console.error(
+          "[ProductionPipelineExecutionFactory] durable reservation creation failed:",
+          created.reasonCode ?? "unknown",
+          (created as { conflict?: unknown }).conflict ? "(conflict)" : "",
+        );
         throw new ProductionPipelineDurableExecutionError(
           "Pipeline durable reservation preparation failed.",
           created.reasonCode,
@@ -477,6 +521,26 @@ export async function prepareProductionPipelineExecution(
       }
     }
     existingRecord = await storage.read(record.recordId);
+  } else if (existingRecord.record.state === "cancelled") {
+    const transitionRequest: ProductionExecutionIdempotencyTransitionRequest = {
+      schemaVersion: "1",
+      recordId: record.recordId,
+      idempotencyKey: planIdentity.idempotencyKey,
+      fromState: "cancelled",
+      toState: "reserved",
+      expectedVersion: existingRecord.actualVersion ?? 1,
+      attempt: record.attempt,
+      transitionedAt: anchor,
+      actorId: "pipeline-system",
+      reasonCode: "RESERVED_FOR_RESTART",
+      evidence: ["source:pipeline-composition"],
+    };
+    await storage.transition(
+      record.recordId,
+      transitionRequest,
+      { evaluatedAt: anchor, policy: idempotencyPolicy },
+    );
+    existingRecord = await storage.read(record.recordId);
   }
   const worker = { schemaVersion: "1" as const, workerId, workerType: "server" as const,
     operationScope: [planIdentity.operation], identitySource: "trusted-server" as const };
@@ -485,43 +549,50 @@ export async function prepareProductionPipelineExecution(
   const terminalReplay = existingRecord.record?.state === "succeeded" &&
     existingRecord.record.durableLease?.status === "released";
   if (!terminalReplay) {
-    const acquired = await leases.acquire({ recordId: record.recordId, expectedVersion: 1,
+    const expectedVersion = existingRecord.actualVersion ?? 1;
+    const acquired = await leases.acquire({ recordId: record.recordId, expectedVersion,
       evaluatedAt: anchor, worker, session, leaseId: planned.leaseId, acquiredAt: anchor,
       heartbeatAt: anchor, expiresAt: new Date(Date.parse(anchor) + ttlSeconds * 1000).toISOString(),
       ...(retryBudgetExtension ? { retryBudgetExtension } : {}) },
     leasePolicy);
-    if (!acquired.ok && acquired.reasonCode !== "LEASE_REPLAYED") {
+    if (!acquired.ok && acquired.reasonCode !== "LEASE_REPLAYED" && acquired.reasonCode !== "LEASE_TERMINAL_STATE") {
       throw new ProductionPipelineDurableExecutionError(
         "Pipeline durable lease preparation failed.",
         acquired.reasonCode,
       );
     }
   }
+  existingRecord = await storage.read(record.recordId);
+  const existingClaim = await claims.readExecutionClaim(planned.claimId);
   const claimRequest = {
     claimId: planned.claimId, recordId: record.recordId,
-    reservationId: idempotencyIdentity.identityFingerprint,
+    reservationId: existingRecord.record?.identityFingerprint ?? idempotencyIdentity.identityFingerprint,
     requestId: planIdentity.requestId, idempotencyKey: planIdentity.idempotencyKey,
     operation: record.operation, executionFingerprint: planned.executionFingerprint,
     workerId, workerSessionId: sessionId, leaseId: planned.leaseId,
-    expectedReservationVersion: 1, expectedIdempotencyVersion: 2,
-    expectedLeaseVersion: 1, expectedClaimVersion: 0, evaluatedAt: now,
+    expectedReservationVersion: 1, expectedIdempotencyVersion: existingRecord.actualVersion ?? 2,
+    expectedLeaseVersion: existingRecord.record?.durableLease?.version ?? 1,
+    expectedClaimVersion: existingClaim.claim?.claimVersion ?? 0, evaluatedAt: now,
     ...(retryBudgetExtension ? { retryBudgetExtension } : {}),
   };
   if (!terminalReplay) {
     const claimed = await claims.acquireExecutionClaim(claimRequest, claimPolicy);
-    if (!claimed.ok) {
+    if (!claimed.ok && claimed.reasonCode !== "CLAIM_REPLAYED" && claimed.reasonCode !== "CLAIM_TERMINAL_STATE") {
       throw new ProductionPipelineDurableExecutionError(
-        "Pipeline durable execution could not start.", claimed.reasonCode,
+        "Pipeline durable execution could not start.",
+        claimed.reasonCode,
       );
     }
   }
+  const existingAttempt = await attempts.readExecutionAttempt(planned.attemptId);
   const attemptRequest = {
     attemptId: planned.attemptId, claimId: planned.claimId,
-    reservationId: idempotencyIdentity.identityFingerprint, recordId: record.recordId,
+    reservationId: existingRecord.record?.identityFingerprint ?? idempotencyIdentity.identityFingerprint, recordId: record.recordId,
     requestId: planIdentity.requestId, idempotencyKey: planIdentity.idempotencyKey,
     operation: record.operation, executionFingerprint: planned.executionFingerprint,
     workerId, workerSessionId: sessionId, leaseId: planned.leaseId,
-    expectedClaimVersion: 1, expectedAttemptVersion: 0, evaluatedAt: now,
+    expectedClaimVersion: existingClaim.claim?.claimVersion ?? 1,
+    expectedAttemptVersion: existingAttempt.attempt?.attemptVersion ?? 0, evaluatedAt: now,
     ...(retryBudgetExtension ? { retryBudgetExtension } : {}),
   };
   const plannedRequest: ProductionExecutionWorkerExecutionRequest = {
@@ -533,7 +604,8 @@ export async function prepareProductionPipelineExecution(
     const coordinated = await new ProductionExecutionCoordinator(adapter).coordinate(
       plannedRequest.coordinator, plannedRequest.policy,
     );
-    if (!coordinated.ok || !coordinated.attempt) {
+    const codeStr = String(coordinated.reasonCode);
+    if (!coordinated.ok && codeStr !== "CLAIM_REPLAYED" && codeStr !== "CLAIM_TERMINAL_STATE" && codeStr !== "ATTEMPT_REPLAYED" && codeStr !== "ATTEMPT_TERMINAL_STATE" && (!coordinated.attempt && codeStr !== "CLAIM_TERMINAL_STATE")) {
       throw new ProductionPipelineDurableExecutionError(
         "Pipeline durable attempt preparation failed.", coordinated.reasonCode,
       );
@@ -541,7 +613,7 @@ export async function prepareProductionPipelineExecution(
   }
   await emitProductionPipelineExecutionEvent("durable-attempt-persisted");
   const completed = await readCompletedDurableRecords(adapter, storage, {
-    reservationId: idempotencyIdentity.identityFingerprint,
+    reservationId: existingRecord.record?.identityFingerprint ?? idempotencyIdentity.identityFingerprint,
     recordId: record.recordId,
     claimId: planned.claimId,
     attemptId: planned.attemptId,
@@ -736,6 +808,46 @@ export async function resolveDurableAttemptOrdinal(
   stage: string,
   expectedJobAttempt: number,
 ): Promise<number> {
+  const listed = await adapter.listKeys("idempotency");
+  if (listed.ok && listed.keys.length > 0) {
+    // listKeys("idempotency") returns every write-once version file for every
+    // record, not just the latest — dedupe to each record's highest
+    // recordVersion before inspecting `state` below (P2's trailing-orphan
+    // check needs the record's *current* state, not an arbitrary older one).
+    const latestByRecordId = new Map<string, { attempt: number; state: string;
+      recordId: string; recordVersion: number }>();
+    for (const key of listed.keys) {
+      const read = await adapter.read("idempotency", key);
+      if (read.status === "found" && read.value.projectSlug === projectSlug && read.value.stage === stage) {
+        const existing = latestByRecordId.get(read.value.recordId);
+        if (!existing || read.value.integrity.version > existing.recordVersion) {
+          latestByRecordId.set(read.value.recordId, { attempt: read.value.attempt,
+            state: read.value.state, recordId: read.value.recordId,
+            recordVersion: read.value.integrity.version });
+        }
+      }
+    }
+    const applicable = [...latestByRecordId.values()];
+    if (applicable.length > 0) {
+      applicable.sort((left, right) => left.attempt - right.attempt);
+      // P2: mirror classifyProductionDurableAttemptLineage's trailing-orphan
+      // exclusion (see that file) so the scanned "max" driving preparation-
+      // mode classification stays consistent with it. A cancelled reservation
+      // that never became a real attempt (no claim, no attempt record) must
+      // not be counted as the durable maximum, or the next preparation would
+      // mint a fresh attempt past it instead of reopening it.
+      while (applicable.length > 1 && applicable[applicable.length - 1].state === "cancelled") {
+        const top = applicable[applicable.length - 1];
+        const hasClaim = await anyDurableRecordReferencesRecordId(adapter, "claim", top.recordId);
+        const hasAttempt = await anyDurableRecordReferencesRecordId(adapter, "attempt", top.recordId);
+        if (hasClaim === "list-failed" || hasAttempt === "list-failed" || hasClaim || hasAttempt) break;
+        applicable.pop();
+      }
+      const max = applicable[applicable.length - 1].attempt;
+      const res = await classifyProductionDurableAttemptLineage(adapter, projectSlug, stage, max, "preparation");
+      if (res.status !== "invalid") return res.durableOrdinal;
+    }
+  }
   const lineage = await classifyProductionDurableAttemptLineage(
     adapter, projectSlug, stage, expectedJobAttempt,
   );

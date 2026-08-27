@@ -6,7 +6,7 @@ import { stableProductionId } from "@/lib/production/ProductionDeterminism";
 import { buildProductionPipelineRetryAdmissionBinding,
   type ProductionPipelineRetryAdmissionBinding } from
   "@/lib/production/ProductionPipelineRetryAdmissionBinding";
-import { regenerationBindingForExecution } from
+import { regenerationBindingById } from
   "@/lib/production/ProductionCompletedStageRegenerationStore";
 
 export const pipelineRetryMaxAttempts = 3;
@@ -104,8 +104,12 @@ export function assertCanonicalPipelineRetryAdmission(input: {
   const priorRunType = runTypeFromOperation(
     admission.exactReconciledLineageBinding.operation,
   );
+  // Resolved from previousJob's own persisted regenerationId, not re-derived
+  // from previousJob.attempts against the current regeneration roster --
+  // see ProductionDurableIdentityDerivation.ts for why the latter drifts
+  // once a later regeneration is registered for this stage.
   const regeneration = previousJob?.regenerationId
-    ? regenerationBindingForExecution(projectSlug, stage, previousJob.attempts)
+    ? regenerationBindingById(projectSlug, previousJob.regenerationId)
     : undefined;
   const canonicalPrior = previousJob && priorRunType && buildIdentity(
     previousJob, priorRunType,
@@ -127,8 +131,22 @@ export function assertCanonicalPipelineRetryAdmission(input: {
     Boolean(admission.retryBudgetAuthorityProof?.authorityIntegrityFingerprint) &&
     Boolean(admission.retryBudgetAuthorityProof?.consumptionReceiptFingerprint);
 
+  // Sibling of isOrdinal4Extension above, for a regeneration whose durable
+  // history has already advanced past generationMaxAttempts (e.g. reopening
+  // an orphan-recovered attempt) under a one-time, narrowly-bound
+  // ProductionPipelineRegenerationRetryBudgetExtension authority. Guarded by
+  // `regeneration` so it can never apply to (and never widens) the
+  // non-regeneration ordinal-4 case above, or any ordinary regeneration
+  // retry that stays within generationMaxAttempts.
+  const isRegenerationOrdinalExtension = Boolean(regeneration) &&
+    admission.authorizedDurableOrdinal === admission.admittedDurableOrdinal &&
+    admission.effectiveMaxAttempts === admission.admittedDurableOrdinal &&
+    Boolean(admission.retryBudgetAuthorityProof?.authorityId) &&
+    Boolean(admission.retryBudgetAuthorityProof?.authorityIntegrityFingerprint) &&
+    Boolean(admission.retryBudgetAuthorityProof?.consumptionReceiptFingerprint);
+
   const expectedMaxAttempts = regeneration
-    ? generationMaxAttempts
+    ? (isRegenerationOrdinalExtension ? admission.admittedDurableOrdinal : generationMaxAttempts)
     : isOrdinal4Extension ? 4 : pipelineRetryMaxAttempts;
 
   const invalid = admission.maxAttempts !== expectedMaxAttempts ||
@@ -177,8 +195,10 @@ function buildIdentity(job: PipelineJob, runType: ProjectPackageRunType) {
     projectSlug: job.projectSlug,
     stage: job.stage,
     runType,
+    // Resolved from job's own persisted regenerationId -- see
+    // ProductionDurableIdentityDerivation.ts.
     regeneration: job.regenerationId
-      ? regenerationBindingForExecution(job.projectSlug, job.stage, job.attempts)
+      ? regenerationBindingById(job.projectSlug, job.regenerationId)
       : undefined,
   }, job);
 }

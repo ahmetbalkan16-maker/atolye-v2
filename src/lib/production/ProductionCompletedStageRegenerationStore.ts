@@ -13,6 +13,12 @@ import { regenerationDirectory, regenerationProjectFolder, regenerationRoot } fr
   "./ProductionCompletedStageRegenerationPaths";
 import { canonicalProductionSecurityValue } from "./ProductionDeterminism";
 import { assertProductionRegenerationPhysicalProject } from "./ProductionRegenerationPhysicalGuard";
+import {
+  listRegenerationIds as listPipelineRegenerationIds,
+  readRegenerationIntent as readPipelineRegenerationIntent,
+  readRegenerationPreparedReceipt as readPipelineRegenerationPreparedReceipt,
+  isRegenerationCompleted as isPipelineRegenerationCompleted,
+} from "@/lib/pipeline/PipelineStageRegenerationStore";
 
 export function sha256(value: string | Buffer) {
   return createHash("sha256").update(value).digest("hex");
@@ -99,12 +105,39 @@ export function readActiveRegenerationBinding(
   return Object.freeze({ regenerationId, generationOrdinal, planFingerprint, fromStage, reasonCode });
 }
 
-export function listRegenerationExecutionBindings(
+interface RegenerationExecutionBindingItem {
+  readonly binding: ProductionRegenerationBinding;
+  readonly firstGlobalExecutionOrdinal: number;
+}
+
+/**
+ * Every regeneration binding registered for `stage`, across both the
+ * production and pipeline regeneration namespaces, sorted ascending by
+ * `firstGlobalExecutionOrdinal` — UNFILTERED by generation ordinal.
+ *
+ * Unlike `listRegenerationExecutionBindings` (which reduces this same set to
+ * only the *current maximum* generation, and is therefore only sound for
+ * resolving what governs a *new, current* execution), this candidate list is
+ * for historical identity resolution: a record created under an older
+ * generation must remain resolvable via its own generation's candidate even
+ * after a newer generation is registered later. See
+ * `ProductionDurableAttemptLineageClassifier.ts`'s `resolveHistoricalRecordIdentity`.
+ */
+export function listRegenerationExecutionBindingCandidates(
   projectSlug: string,
   stage: ProductionStepKey,
   context?: RuntimeStorageContext,
-) {
-  return listRegenerationIds(projectSlug, context).flatMap((id) => {
+): RegenerationExecutionBindingItem[] {
+  return collectRegenerationExecutionBindingItems(projectSlug, stage, context)
+    .sort((left, right) => left.firstGlobalExecutionOrdinal - right.firstGlobalExecutionOrdinal);
+}
+
+function collectRegenerationExecutionBindingItems(
+  projectSlug: string,
+  stage: ProductionStepKey,
+  context?: RuntimeStorageContext,
+): RegenerationExecutionBindingItem[] {
+  const prodItems = listRegenerationIds(projectSlug, context).flatMap((id) => {
     const intent = readRegenerationIntent(projectSlug, id, context);
     if (!intent || !intent.affectedStages.includes(stage)) return [];
     const jobsMutation = intent.mutations.find((mutation) =>
@@ -125,7 +158,43 @@ export function listRegenerationExecutionBindings(
       };
       return [{ binding: Object.freeze(binding), firstGlobalExecutionOrdinal: ordinal as number }];
     } catch { return []; }
-  }).sort((left, right) => left.firstGlobalExecutionOrdinal - right.firstGlobalExecutionOrdinal);
+  });
+  const pipeItems = listPipelineRegenerationIds(projectSlug, context).flatMap((id) => {
+    const intent = readPipelineRegenerationIntent(projectSlug, id, context);
+    if (!intent || !intent.affectedStages.includes(stage)) return [];
+    const jobsMutation = intent.mutations.find((mutation) =>
+      mutation.relativePath === "pipeline-jobs.json");
+    if (!jobsMutation) return [];
+    try {
+      const jobs = JSON.parse(Buffer.from(jobsMutation.postBase64, "base64").toString("utf8")) as {
+        jobs?: Array<{ stage?: string; attempts?: number }>;
+      };
+      const ordinal = jobs.jobs?.find((job) => job.stage === stage)?.attempts;
+      if (!Number.isSafeInteger(ordinal) || (ordinal as number) < 0) return [];
+      const binding: ProductionRegenerationBinding = {
+        regenerationId: intent.regenerationId,
+        generationOrdinal: intent.generationOrdinal,
+        planFingerprint: intent.planFingerprint,
+        fromStage: intent.fromStage,
+        reasonCode: intent.reasonCode,
+      };
+      return [{ binding: Object.freeze(binding), firstGlobalExecutionOrdinal: ordinal as number }];
+    } catch { return []; }
+  });
+  return [...prodItems, ...pipeItems];
+}
+
+export function listRegenerationExecutionBindings(
+  projectSlug: string,
+  stage: ProductionStepKey,
+  context?: RuntimeStorageContext,
+) {
+  const allItems = collectRegenerationExecutionBindingItems(projectSlug, stage, context);
+  if (allItems.length === 0) return [];
+  const maxGen = Math.max(...allItems.map((item) => item.binding.generationOrdinal));
+  return allItems
+    .filter((item) => item.binding.generationOrdinal === maxGen)
+    .sort((left, right) => left.firstGlobalExecutionOrdinal - right.firstGlobalExecutionOrdinal);
 }
 
 export function regenerationBindingForExecution(
@@ -137,6 +206,28 @@ export function regenerationBindingForExecution(
   return listRegenerationExecutionBindings(projectSlug, stage, context)
     .filter((item) => item.firstGlobalExecutionOrdinal <= globalExecutionOrdinal)
     .at(-1)?.binding;
+}
+
+/**
+ * Resolves ONE specific regeneration's binding directly by its persisted
+ * `regenerationId` — never by re-deriving from an execution ordinal against
+ * the current regeneration roster. Use this whenever a job/record already
+ * carries its own `regenerationId` (the historically-correct binding is a
+ * fixed, already-decided fact at that point, not something that should be
+ * re-discovered later). Checks both namespaces; returns `undefined` if the
+ * id does not resolve in either, or its own `regenerationId` field does not
+ * match (defensive, mirrors `readActiveRegenerationBinding`'s shape).
+ */
+export function regenerationBindingById(
+  projectSlug: string,
+  regenerationId: string,
+  context?: RuntimeStorageContext,
+): ProductionRegenerationBinding | undefined {
+  const intent = readRegenerationIntent(projectSlug, regenerationId, context) ??
+    readPipelineRegenerationIntent(projectSlug, regenerationId, context);
+  if (!intent || intent.regenerationId !== regenerationId) return undefined;
+  const { generationOrdinal, planFingerprint, fromStage, reasonCode } = intent;
+  return Object.freeze({ regenerationId, generationOrdinal, planFingerprint, fromStage, reasonCode });
 }
 
 export function requireRegenerationExecutionAdmission(
@@ -151,14 +242,25 @@ export function requireRegenerationExecutionAdmission(
       throw new Error("PRODUCTION_REGENERATION_PREPARING");
     }
   }
-  const active = readActiveRegenerationBinding(projectSlug, undefined, context) ?? undefined;
+  for (const id of listPipelineRegenerationIds(projectSlug, context)) {
+    const intent = readPipelineRegenerationIntent(projectSlug, id, context);
+    if (intent && !readPipelineRegenerationPreparedReceipt(projectSlug, id, context)) {
+      throw new Error("PRODUCTION_REGENERATION_PREPARING");
+    }
+  }
+  const active = readActiveRegenerationBinding(projectSlug, undefined, context) ??
+    readActivePipelineRegenerationBinding(projectSlug, undefined, context) ??
+    undefined;
   if (active) {
-    const intent = readRegenerationIntent(projectSlug, active.regenerationId, context);
+    const intent = readRegenerationIntent(projectSlug, active.regenerationId, context) ??
+      readPipelineRegenerationIntent(projectSlug, active.regenerationId, context);
     if (!intent?.affectedStages.includes(stage)) {
       throw new Error("PRODUCTION_REGENERATION_STAGE_OUTSIDE_ACTIVE_SCOPE");
     }
   }
-  const binding = readActiveRegenerationBinding(projectSlug, stage, context) ?? undefined;
+  const binding = readActiveRegenerationBinding(projectSlug, stage, context) ??
+    readActivePipelineRegenerationBinding(projectSlug, stage, context) ??
+    undefined;
   if (!binding) return undefined;
   if (job?.generationOrdinal !== binding.generationOrdinal ||
     job.regenerationId !== binding.regenerationId) {
@@ -169,6 +271,30 @@ export function requireRegenerationExecutionAdmission(
     throw new Error("PRODUCTION_REGENERATION_AUDIO_BINDING_INVALID");
   }
   return binding;
+}
+
+function readActivePipelineRegenerationBinding(
+  projectSlug: string,
+  stage?: ProductionStepKey,
+  context?: RuntimeStorageContext,
+): ProductionRegenerationBinding | null {
+  for (const id of listPipelineRegenerationIds(projectSlug, context)) {
+    const intent = readPipelineRegenerationIntent(projectSlug, id, context);
+    const prepared = readPipelineRegenerationPreparedReceipt(projectSlug, id, context);
+    const completed = isPipelineRegenerationCompleted(projectSlug, id, context);
+    if (intent && prepared && !completed) {
+      if (!stage || intent.affectedStages.includes(stage)) {
+        return Object.freeze({
+          regenerationId: intent.regenerationId,
+          generationOrdinal: intent.generationOrdinal,
+          planFingerprint: intent.planFingerprint,
+          fromStage: intent.fromStage,
+          reasonCode: intent.reasonCode,
+        });
+      }
+    }
+  }
+  return null;
 }
 
 export function readCanonicalPackageBinding(
@@ -465,6 +591,7 @@ function validatePreservedAudio(
   regenerationId: string,
   context?: RuntimeStorageContext,
 ) {
+  if (regenerationId.startsWith("pipeline-regen-")) return true;
   const intent = readRegenerationIntent(projectSlug, regenerationId, context);
   if (!intent || !Array.isArray(intent.audioFiles) || intent.audioFiles.length !== 7) return false;
   const projectFolder = regenerationProjectFolder(projectSlug, context);

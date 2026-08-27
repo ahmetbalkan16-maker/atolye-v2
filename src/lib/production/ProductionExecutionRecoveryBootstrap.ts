@@ -3,7 +3,10 @@ import { stableProductionId } from "./ProductionDeterminism";
 import { ProductionExecutionLifecycle } from "./ProductionExecutionLifecycle";
 import { validateProductionExecutionDurableAttempt } from "./ProductionExecutionDurableAttempt";
 import { evaluateProductionExecutionReservationLifecycle } from "./ProductionExecutionIdempotency";
+import { resolveOrphanReservationTolerance } from "./ProductionOrphanReservationToleranceAuthority";
+import type { RuntimeStorageInput } from "@/lib/runtime/RuntimeStoragePaths";
 import type { PipelineRecoveryPlan, PipelineRecoveryStageKey } from "@/types/pipelineRecovery";
+import type { ProductionStepKey } from "@/types/project";
 import type { ProductionExecutionDurableAttemptRecord } from "@/types/productionExecutionDurableAttempt";
 import type { ProductionExecutionIdempotencyRecord,
   ProductionExecutionIdempotencyReservationRequest } from "@/types/productionExecutionIdempotency";
@@ -24,6 +27,21 @@ import {
 
 export interface ProductionExecutionRecoveryPlannerPort {
   createJobRetryPlan(projectSlug: string, stage: PipelineRecoveryStageKey): Promise<PipelineRecoveryPlan>;
+}
+
+/**
+ * Opt-in only: when omitted, readProductionExecutionRecoverySemanticAuthority
+ * and loadReservationAuthority behave exactly as before this mechanism
+ * existed — no reservation is ever tolerated. Pass this only from the one
+ * call site (readAndVerifyFailedChain's requireQuiescence branch, via
+ * ProductionPipelineTerminalSettlement.ts) that has a concrete
+ * (projectSlug, stage, jobId) to scope the tolerance-authority lookup to.
+ */
+export interface ProductionOrphanReservationToleranceLookupContext {
+  readonly projectSlug: string;
+  readonly stage: ProductionStepKey;
+  readonly jobId: string;
+  readonly runtimeInput?: RuntimeStorageInput;
 }
 
 export interface ProductionExecutionRecoverySemanticAuthority {
@@ -126,6 +144,7 @@ export async function readProductionExecutionRecoverySemanticAuthority(
   adapter: ProductionExecutionPersistenceAdapter,
   evaluatedAt: string,
   lifecycle: ProductionExecutionLifecycle = new ProductionExecutionLifecycle(adapter),
+  toleranceContext?: ProductionOrphanReservationToleranceLookupContext,
 ): Promise<ProductionExecutionRecoverySemanticAuthority> {
   const normalized = normalizeDate(evaluatedAt);
   if (!normalized) {
@@ -154,7 +173,7 @@ export async function readProductionExecutionRecoverySemanticAuthority(
   const chains = await loadAttemptChains(observedAdapter, attemptList.keys);
   const idempotency = await loadLatestIdempotencyRecords(observedAdapter, idempotencyList.keys);
   const reservations = await loadReservationAuthority(observedAdapter, reservationList.keys, normalized,
-    idempotency);
+    idempotency, toleranceContext);
   if (reservations.some((item) => item.lifecycleState === "invalid") &&
     !readFailures.has("reservation")) readFailures.set("reservation", "corrupt");
   if (readFailures.size > 0) {
@@ -373,7 +392,8 @@ type ReservationAuthorityEntry = ProductionExecutionReservationSemanticIdentity 
 
 async function loadReservationAuthority(adapter: ProductionExecutionPersistenceAdapter,
   keys: readonly string[], evaluatedAt: string,
-  idempotency: ReadonlyMap<string, ProductionExecutionIdempotencyRecord>):
+  idempotency: ReadonlyMap<string, ProductionExecutionIdempotencyRecord>,
+  toleranceContext?: ProductionOrphanReservationToleranceLookupContext):
 Promise<readonly ReservationAuthorityEntry[]> {
   const output: ReservationAuthorityEntry[] = [];
   for (const key of [...keys].sort(codeUnitCompare)) {
@@ -399,8 +419,20 @@ Promise<readonly ReservationAuthorityEntry[]> {
       output.push({ reservationId: safeIdentifier(key), lifecycleState: "invalid" });
       continue;
     }
-    const lifecycleState = linked && terminalExecutionState(linked.state)
+    let lifecycleState = linked && terminalExecutionState(linked.state)
       ? "terminal" as const : lifecycle;
+    // Narrow, opt-in-only tolerance: only ever reachable when there is NO
+    // linked idempotency record at all (candidates.length === 0 — never for
+    // >1, which is a different, already-"invalid" or coincidental shape
+    // this must not paper over) and the reservation would otherwise be
+    // counted "active". A matching, integrity-valid, content-fingerprint-
+    // pinned tolerance authority (see
+    // ProductionOrphanReservationToleranceAuthority.ts) is required; its
+    // absence leaves this reservation classified exactly as it always was.
+    if (toleranceContext && candidates.length === 0 && lifecycleState === "active") {
+      const tolerated = await resolveOrphanReservationTolerance(adapter, reservation, toleranceContext);
+      if (tolerated) lifecycleState = "terminal";
+    }
     output.push(Object.freeze({ reservationId: key, projectSlug: reservation.identity.projectSlug,
       operation: reservation.identity.operation, stage: reservation.identity.stage ?? null,
       executionFingerprint: reservation.identity.executionFingerprint, lifecycleState }));

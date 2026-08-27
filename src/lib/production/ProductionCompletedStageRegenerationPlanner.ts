@@ -99,7 +99,15 @@ export async function createCompletedStageRegenerationPlan(input: {
     trustedRootDirectory: path.join(projectFolder, "production-execution"),
     createRootDirectory: false,
   });
-  if (!await validateProductionGlobalTerminalQuiescence(durable, input.projectSlug)) {
+  // Passing input.context (this planner's own RuntimeStorageInput) as the 4th arg
+  // narrowly permits reservations with an existing, CAS-pinned
+  // ProductionOrphanReservationToleranceAuthority (see that file's docstring and
+  // ProductionGlobalTerminalQuiescence.ts's toleranceRuntimeInput docstring) to count
+  // as consumed -- resolved through this exact context, never an ambient default.
+  // Creates nothing; a reservation with no matching authority is refused exactly as
+  // before.
+  if (!await validateProductionGlobalTerminalQuiescence(
+    durable, input.projectSlug, undefined, input.context)) {
     throw new ProductionRegenerationPlanError("PRODUCTION_REGENERATION_NOT_QUIESCENT");
   }
   await validateNoExternalPublication(input.projectSlug, project.id, input.context);

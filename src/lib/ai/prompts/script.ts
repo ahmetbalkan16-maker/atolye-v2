@@ -54,7 +54,9 @@ Kurallar:
 - visualGoal sahne/görsel üretimi için net tarif versin.
 - emotion bölümün duygusunu söylesin.
 - transition bir sonraki bölüme geçiş cümlesi olsun.
-- estimatedDuration tüm chapter sürelerinin toplamına yakın olsun.
+- Toplam estimatedDuration kesinlikle 60 ile 120 saniye aralığında (hedef yaklaşık 90 saniye) olsun.
+- Her chapter süresi (duration) 15 ile 20 saniye aralığında olsun.
+- estimatedDuration tüm chapter sürelerinin toplamına tam olarak eşit olsun.
 - narrationWordCount yaklaşık kelime sayısı olsun.
 - targetAudience YouTube tarih/belgesel izleyicisi olsun.
 - voiceStyle ElevenLabs benzeri seslendirme stilini tarif etsin.

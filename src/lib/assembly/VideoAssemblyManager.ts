@@ -45,8 +45,54 @@ export class VideoAssemblyError extends Error {
   constructor() {
     super(SAFE_ERROR);
     this.name = "VideoAssemblyError";
+    // Server-side-only diagnostic: captures exactly which throw site raised
+    // this instance, before the public `stack` is cleared below. Never
+    // exposed outside this process -- non-enumerable (excluded from
+    // Object.keys/JSON.stringify/spread), read-only, and read only by the
+    // logAssemblyFailure() helper below, which writes it to the process log
+    // when renderExistingAssets collapses a failure into this opaque error.
+    // The outward contract (message/name/code/stack) is unchanged.
+    const diagnosticStack = new Error().stack;
+    Object.defineProperty(this, "internalDiagnosticStack", {
+      value: diagnosticStack,
+      enumerable: false,
+      configurable: false,
+      writable: false,
+    });
     this.stack = undefined;
   }
+}
+
+/**
+ * Server-side-only failure diagnostic. `renderExistingAssets` deliberately
+ * collapses every internal failure into an opaque `VideoAssemblyError`
+ * (stable message, no stack) for its callers; this is the single place the
+ * underlying cause is written to the process log so an operator can see
+ * *why* a render was rejected. It never affects the outward error contract
+ * and never throws itself. Logs the error's name + message (our own
+ * diagnostic errors -- validateProbe / requireSuccessfulProcess -- put every
+ * useful value in the message) plus `internalDiagnosticStack` when present
+ * (that stack is captured by VideoAssemblyError itself and only ever points
+ * at this module's own throw sites); the raw multi-line `.stack` of an
+ * arbitrary caught error is deliberately not forwarded.
+ */
+function logAssemblyFailure(phase: string, cause: unknown): void {
+  const internalStack =
+    (cause as { internalDiagnosticStack?: unknown } | null)?.internalDiagnosticStack;
+  let detail: string;
+  if (cause instanceof Error) {
+    const message = cause.message.length > 2000
+      ? `${cause.message.slice(0, 2000)}…`
+      : cause.message;
+    detail = `${cause.name}: ${message}`;
+  } else {
+    detail = String(cause);
+  }
+  console.error(
+    `[VideoAssemblyManager] ${phase} failed:`,
+    detail,
+    typeof internalStack === "string" ? internalStack : "",
+  );
 }
 
 export interface RenderExistingAssetsInput {
@@ -121,7 +167,26 @@ export class VideoAssemblyManager {
     let renderScenes: VideoAssemblyInput["scenes"];
 
     try {
-      const sceneVideo = resolveSceneVideoData(video);
+      const rawSceneVideo = resolveSceneVideoData(video);
+      // A structurally-valid scene-video record whose scene count no longer
+      // matches the canonical scene list is a partial/stale artifact (e.g.
+      // scene-video generation never finished, or scenes were regenerated
+      // afterwards). Rendering via the static-image + Ken Burns path still
+      // produces a correct video, so we fall back to it rather than
+      // hard-failing -- but the mismatch is logged, never silently ignored.
+      const sceneVideo =
+        rawSceneVideo && rawSceneVideo.scenes.length === scenes.scenes.length
+          ? rawSceneVideo
+          : null;
+      if (rawSceneVideo && !sceneVideo) {
+        logAssemblyFailure(
+          "scene-video consistency",
+          new Error(
+            `scene-video record has ${rawSceneVideo.scenes.length} scene(s) but the ` +
+              `project has ${scenes.scenes.length}; rendering via static-image path`,
+          ),
+        );
+      }
       const audioSegments = buildAudioSegments(
         scenes,
         audio,
@@ -214,7 +279,8 @@ export class VideoAssemblyManager {
       });
 
       requireMixAsset(assets.assets, projectId, projectSlug, audio);
-    } catch {
+    } catch (err) {
+      logAssemblyFailure("scene input preparation", err);
       throw new VideoAssemblyError();
     }
     let result: VideoAssemblyResult;
@@ -226,12 +292,21 @@ export class VideoAssemblyManager {
         scenes: renderScenes,
         ...(backgroundMusic ? { backgroundMusic } : {}),
       });
-    } catch {
+    } catch (err) {
+      logAssemblyFailure("provider assembly", err);
       persistFailedAssetSafely(projectId, projectSlug, providerName);
       throw new VideoAssemblyError();
     }
 
     if (!isValidRealResult(result, projectSlug)) {
+      const shape = result as { success?: unknown; provider?: unknown; error?: unknown };
+      logAssemblyFailure(
+        "provider result validation",
+        new Error(
+          `provider returned an invalid result (success=${String(shape.success)}, ` +
+            `provider=${String(shape.provider)}, error=${String(shape.error)})`,
+        ),
+      );
       persistFailedAssetSafely(projectId, projectSlug, providerName);
       throw new VideoAssemblyError();
     }
@@ -244,9 +319,12 @@ export class VideoAssemblyManager {
       );
 
       if (inspection.byteLength !== result.byteLength) {
-        throw new Error(SAFE_ERROR);
+        throw new Error(
+          `stored mp4 byteLength ${inspection.byteLength} != reported ${result.byteLength}`,
+        );
       }
-    } catch {
+    } catch (err) {
+      logAssemblyFailure("stored mp4 verification", err);
       persistFailedAssetSafely(projectId, projectSlug, providerName);
       throw new VideoAssemblyError();
     }
@@ -709,6 +787,7 @@ function requireAudioAsset(
     asset.type !== "audio" ||
     asset.status !== "generated" ||
     asset.provider === "mock" ||
+    asset.model === "mock" ||
     asset.sceneId !== sceneId ||
     asset.mimeType !== "audio/wav" ||
     typeof asset.filePath !== "string" ||

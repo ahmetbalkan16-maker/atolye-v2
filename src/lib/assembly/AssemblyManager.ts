@@ -204,14 +204,19 @@ export class AssemblyManager {
       };
 
       return {
-        sceneId:
-          typeof scene.sceneId === "number"
-            ? scene.sceneId
-            : fallbackScene.sceneId,
-        chapterId:
-          typeof scene.chapterId === "number"
-            ? scene.chapterId
-            : fallbackScene.chapterId,
+        // sceneId/chapterId are canonical project identity, never AI-authored
+        // content: always take the deterministic value computed from scenes[]
+        // at this position (via fallbackScene, built by createFallbackScene
+        // straight from the canonical SceneItem), regardless of what the AI
+        // echoed. Same rationale as animationAssetId/videoAssetId/audioAssetId
+        // below: the AI is asked to "preserve" these numeric ids verbatim, but
+        // an out-of-order, duplicated, or mistyped echo here silently breaks
+        // VideoAssemblyManager's ordered-identity contract (requireOrderedIds /
+        // validateProductionSceneAudioMapping's positional check) and fails
+        // the whole stage far downstream. The AI's own sceneId/chapterId are
+        // decorative/metadata only and never consulted for identity.
+        sceneId: fallbackScene.sceneId,
+        chapterId: fallbackScene.chapterId,
         duration: getString(scene.duration, fallbackScene.duration),
         visualReference: getString(
           scene.visualReference,

@@ -49,6 +49,17 @@ const SAFE_QUARANTINE_DIRECTORY = /^\.audio-quarantine-audio-comp-[0-9a-f-]{36}$
 const PUBLICATION_SCHEMA_VERSION = "audio-compensation-publication-v2";
 const PUBLICATION_RESERVATION_SCHEMA_VERSION =
   "audio-compensation-publication-reservation-v2";
+/**
+ * Legacy `publication-reservation.json` schemaVersion tag, never the value of
+ * `PUBLICATION_RESERVATION_SCHEMA_VERSION` in any commit of this file --
+ * real, digest-self-check-verified reservation records were nonetheless
+ * found written under this exact string (predating this file's first
+ * commit), with every other field and the fingerprint/digest chain intact.
+ * Accepted here, and ONLY here, as an explicit, closed compatibility
+ * allowance -- not a general "unknown schema" fallback.
+ */
+const LEGACY_PUBLICATION_RESERVATION_SCHEMA_VERSION_V1 =
+  "audio-publication-reservation-v1";
 const RETIREMENT_SCHEMA_VERSION = "audio-compensation-retirement-v1";
 const MAX_RETIREMENT_BYTES = 32 * 1024;
 const RETIREMENT_FILE_PREFIX = "retirement-";
@@ -141,7 +152,8 @@ export interface AudioCanonicalDescriptorRebind {
 }
 
 export interface ProtectedAudioCompensationPublicationReservation {
-  readonly schemaVersion: typeof PUBLICATION_RESERVATION_SCHEMA_VERSION;
+  readonly schemaVersion: typeof PUBLICATION_RESERVATION_SCHEMA_VERSION |
+    typeof LEGACY_PUBLICATION_RESERVATION_SCHEMA_VERSION_V1;
   readonly compensationRef: string;
   readonly projectSlug: string;
   readonly operationId: string;
@@ -383,65 +395,105 @@ export function assertProtectedAudioCanonicalResolutionAllowed(
   if (!SAFE_FILE_NAME.test(canonicalFileName)) {
     throw new AudioCompensationStoreError();
   }
+  // Discovery spans both logical sources of a compensation record for this
+  // canonical file: the cleanup/retention root (detached, in-flight, or
+  // stale workspaces still awaiting resolution) and the permanent receipt
+  // root (already-settled, registry-owned publications -- see
+  // ProductionSupersededDuplicateReservationAuthority.ts's forensic report
+  // on section-1..5.wav for why a completed, fingerprint-verified receipt
+  // sitting only in the receipt root was previously invisible here). Either
+  // root may be absent; only an absent cleanup root changes the historical
+  // "nothing to check" empty-result contract described in this function's
+  // own callers, so that case is preserved exactly. A `kind: "receipt"`
+  // entry is deliberately never routed through the cleanup-side pending/
+  // active-operation branch below -- the permanent ledger is expected to
+  // hold only terminal, registry-owned records, so any other state found
+  // there is treated as a data-integrity anomaly, not a resumable
+  // in-flight compensation.
   const cleanup = cleanupRootIfPresent(context, projectSlug);
-  if (!cleanup) return undefined;
+  const receipt = receiptRootIfPresent(context, projectSlug);
+  if (!cleanup && !receipt) return undefined;
+  const sources: Array<{ readonly root: string; readonly kind: "cleanup" | "receipt" }> = [];
+  if (cleanup) sources.push({ root: cleanup, kind: "cleanup" });
+  if (receipt) sources.push({ root: receipt, kind: "receipt" });
   let expectedIdentity: ProtectedAudioCanonicalReadIdentity | undefined;
-  for (const entry of fs.readdirSync(cleanup).sort()) {
-    if (
-      entry === JOURNAL_STAGING_DIRECTORY ||
-      entry === REBIND_DIRECTORY ||
-      parseRetirementFileName(entry)
-    ) continue;
-    if (!isSafeAudioCompensationRef(entry)) {
-      throw new AudioCompensationStoreError();
-    }
-    const current = readAudioCompensationReceiptForRetention(
-      context,
-      projectSlug,
-      entry,
-    );
-    if (current.receipt.canonicalFileName !== canonicalFileName) continue;
-    if (
-      current.state.status === "completed" &&
-      current.state.outcome === "registry-owned"
-    ) {
-      if (!current.publication) throw new AudioCompensationStoreError();
-      const effective = resolveEffectiveCanonicalReadIdentity(
+  for (const { kind, root } of sources) {
+    for (const entry of fs.readdirSync(root).sort()) {
+      if (
+        entry === JOURNAL_STAGING_DIRECTORY ||
+        entry === REBIND_DIRECTORY ||
+        parseRetirementFileName(entry)
+      ) continue;
+      if (!isSafeAudioCompensationRef(entry)) {
+        throw new AudioCompensationStoreError();
+      }
+      // A logically-retired cleanup workspace (retireTerminalWorkspace's
+      // durable, idempotent plan marker -- physical directory removal is
+      // never guaranteed, see executeRetirementPlan) is excluded here using
+      // the exact same canonical `isLogicallyRetired` check activeRecordCount
+      // already relies on for the identical purpose: never by the mere
+      // presence of a plan-shaped filename, never by state alone, and never
+      // by the workspace's physical absence. `isLogicallyRetired` itself
+      // throws (fail-closed, propagated below, never swallowed) if a plan
+      // exists but the live workspace directory's device/inode no longer
+      // matches what the plan pinned -- a foreign/reused/tampered workspace
+      // is therefore never mistaken for a retired one. Only ever meaningful
+      // for the cleanup root: retirement plans are never written against the
+      // permanent receipt root.
+      if (kind === "cleanup" && isLogicallyRetired(root, projectSlug, entry)) {
+        continue;
+      }
+      const current = readAudioCompensationReceiptForRetention(
         context,
         projectSlug,
         entry,
-        current.publication,
       );
+      if (current.receipt.canonicalFileName !== canonicalFileName) continue;
+      if (
+        current.state.status === "completed" &&
+        current.state.outcome === "registry-owned"
+      ) {
+        if (!current.publication) throw new AudioCompensationStoreError();
+        const effective = resolveEffectiveCanonicalReadIdentity(
+          context,
+          projectSlug,
+          entry,
+          current.publication,
+        );
+        expectedIdentity = mergeCanonicalReadIdentity(
+          expectedIdentity,
+          effective,
+        );
+        continue;
+      }
+      if (kind === "receipt") {
+        throw new AudioCompensationStoreError();
+      }
+      if (
+        current.state.status === "completed" &&
+        current.state.outcome === "compensated"
+      ) {
+        throw new AudioCompensationStoreError();
+      }
+      let operation: ProductionRuntimeOperationContext;
+      try {
+        operation = requireActiveProductionRuntimeOperationContext();
+      } catch {
+        throw new AudioCompensationStoreError();
+      }
+      if (
+        current.receipt.operationId !== operation.operationId ||
+        current.receipt.operationBindingFingerprint !== operation.bindingFingerprint
+      ) {
+        throw new AudioCompensationStoreError();
+      }
+      const pendingAuthority = current.publication ?? current.publicationReservation;
+      if (!pendingAuthority) throw new AudioCompensationStoreError();
       expectedIdentity = mergeCanonicalReadIdentity(
         expectedIdentity,
-        effective,
+        pendingAuthority,
       );
-      continue;
     }
-    if (
-      current.state.status === "completed" &&
-      current.state.outcome === "compensated"
-    ) {
-      throw new AudioCompensationStoreError();
-    }
-    let operation: ProductionRuntimeOperationContext;
-    try {
-      operation = requireActiveProductionRuntimeOperationContext();
-    } catch {
-      throw new AudioCompensationStoreError();
-    }
-    if (
-      current.receipt.operationId !== operation.operationId ||
-      current.receipt.operationBindingFingerprint !== operation.bindingFingerprint
-    ) {
-      throw new AudioCompensationStoreError();
-    }
-    const pendingAuthority = current.publication ?? current.publicationReservation;
-    if (!pendingAuthority) throw new AudioCompensationStoreError();
-    expectedIdentity = mergeCanonicalReadIdentity(
-      expectedIdentity,
-      pendingAuthority,
-    );
   }
   return expectedIdentity;
 }
@@ -1192,6 +1244,57 @@ export function removeRegistryOwnedAudioCompensationRecord(
   if (
     current.state.status !== "completed" ||
     current.state.outcome !== "registry-owned"
+  ) {
+    throw new AudioCompensationStoreError();
+  }
+  removeCompletedRecord(context, projectSlug, compensationRef, authority);
+}
+
+/**
+ * Narrow sibling of `removeRegistryOwnedAudioCompensationRecord` -- identical
+ * authority chain, identical idempotent-replay/already-retired handling,
+ * identical underlying `removeCompletedRecord` -> `retireTerminalWorkspace` ->
+ * `buildRetirementPlan`/`executeRetirementPlan` engine (none of which are
+ * touched here). The only difference is the terminal outcome this accepts:
+ * `"compensated"` (a formally abandoned/rolled-back record) instead of
+ * `"registry-owned"`. `buildRetirementPlan` already accepts either outcome
+ * unconditionally -- this function exists only because no existing public
+ * entry point could reach that path for a single, targeted `"compensated"`
+ * record without also being subject to `pruneCompletedAudioCompensationRecords`'s
+ * unrelated `RETAIN_TERMINAL_RECORDS` retention-count gate, which this
+ * function never consults.
+ */
+export function removeCompensatedAudioCompensationRecord(
+  projectSlug: string,
+  compensationRef: string,
+  authority: RuntimeStorageAuthorityLease,
+  input: RuntimeStorageInput = {},
+): void {
+  const context = resolveRuntimeStorageContext(input);
+  assertProjectWriteAuthorityLease(authority, projectSlug, context);
+  requireActiveProductionRuntimeOperationContext();
+  requireProjectSlug(projectSlug);
+  if (!isSafeAudioCompensationRef(compensationRef)) {
+    throw new AudioCompensationStoreError();
+  }
+  const cleanup = cleanupRootIfPresent(context, projectSlug);
+  if (cleanup) {
+    const planPath = path.join(cleanup, retirementFileName(compensationRef));
+    if (fs.existsSync(planPath)) {
+      const plan = readRetirementPlan(planPath, projectSlug, compensationRef);
+      executeRetirementPlan(cleanup, planPath, plan);
+      return;
+    }
+    if (!fs.existsSync(path.join(cleanup, compensationRef))) return;
+  }
+  const current = readProtectedAudioCompensationReceipt(
+    projectSlug,
+    compensationRef,
+    context,
+  );
+  if (
+    current.state.status !== "completed" ||
+    current.state.outcome !== "compensated"
   ) {
     throw new AudioCompensationStoreError();
   }
@@ -2333,7 +2436,8 @@ function validatePublicationReservation(
   if (!record(value)) return false;
   const { integrity, ...body } = value;
   return Object.keys(value).length === 14 &&
-    value.schemaVersion === PUBLICATION_RESERVATION_SCHEMA_VERSION &&
+    (value.schemaVersion === PUBLICATION_RESERVATION_SCHEMA_VERSION ||
+      value.schemaVersion === LEGACY_PUBLICATION_RESERVATION_SCHEMA_VERSION_V1) &&
     value.compensationRef === receipt.compensationRef &&
     value.projectSlug === receipt.projectSlug &&
     value.operationId === receipt.operationId &&

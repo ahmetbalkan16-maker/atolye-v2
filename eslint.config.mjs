@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local graphify tool output/bundle (already git-ignored — not project source).
+    ".graphify/**",
+    "graphify-out/**",
   ]),
   { files: ["scripts/smoke-production-execution-durable-attempt.ts"], rules: { "@typescript-eslint/no-explicit-any": "off" } },
   { files: ["src/types/productionExecutionDurableAttempt.ts"], rules: { "@typescript-eslint/no-empty-object-type": "off" } },

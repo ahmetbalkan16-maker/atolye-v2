@@ -19,7 +19,7 @@ export class ProductionPipelineExecutionAdapter {
   constructor(adapter:ProductionExecutionPersistenceAdapter,private readonly requestFactory:ProductionPipelineExecutionRequestFactory,private readonly settleSuccess?:ProductionPipelineSuccessSettlement,private readonly settleFailure?:ProductionPipelineFailureSettlement){this.worker=new ProductionExecutionWorkerExecutionService(adapter)}
   async execute(context:ProductionPipelineExecutionContext,handler:()=>Promise<boolean>):Promise<boolean>{
     const request=await this.requestFactory(context);let completed:boolean|undefined;
-    const result=await this.worker.execute(request,async()=>{completed=await handler();return{summary:completed?`Pipeline stage ${context.stage} completed.`:`Pipeline stage ${context.stage} cancelled.`,evidence:[`pipeline-stage:${context.stage}`,`run-type:${context.runType}`]}},{isCancellationRequested:()=>completed===false});
+    const result=await this.worker.execute(request,async()=>{try { completed=await handler(); return{summary:completed?`Pipeline stage ${context.stage} completed.`:`Pipeline stage ${context.stage} cancelled.`,evidence:[`pipeline-stage:${context.stage}`,`run-type:${context.runType}`]} } catch (err) { console.error(`[ProductionPipelineExecutionAdapter] ${context.stage} stage handler threw:`, err); throw err; }},{isCancellationRequested:()=>completed===false});
     if(result.status==="completed"){
       if(this.settleSuccess){const settlement=await this.settleSuccess(result);if(!settlement.ok)throw new ProductionPipelineDurableExecutionError("Pipeline terminal settlement failed.",settlement.reasonCode)}
       return true

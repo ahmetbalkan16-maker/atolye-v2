@@ -21,8 +21,10 @@ import { defaultProductionExecutionAttemptPolicy } from "./ProductionExecutionDu
 import { validateProductionExecutionDurableAttempt } from "./ProductionExecutionDurableAttempt";
 import { validateProductionExecutionDurableClaim } from "./ProductionExecutionDurableClaim";
 import { validateProductionExecutionDurableLease } from "./ProductionExecutionDurableLease";
-import { readProductionExecutionRecoverySemanticAuthority } from
+import { readProductionExecutionRecoverySemanticAuthority,
+  type ProductionOrphanReservationToleranceLookupContext } from
   "./ProductionExecutionRecoveryBootstrap";
+import { ProductionExecutionLifecycle } from "./ProductionExecutionLifecycle";
 import type { ProductionExecutionPersistenceAdapter,
   ProductionExecutionPersistenceRecordKind } from "@/types/productionExecutionPersistence";
 import type { ProductionExecutionDurableRecord } from "@/types/productionExecutionDurableStorage";
@@ -32,6 +34,7 @@ import type { ProductionExecutionDurableLeasePolicy, ProductionExecutionDurableW
 import type { ProductionExecutionWorkerExecutionRequest, ProductionExecutionWorkerExecutionResult } from "@/types/productionExecutionWorker";
 import type { ProductionExecutionDurableClaimRecord } from "@/types/productionExecutionDurableClaim";
 import type { ProductionExecutionIdempotencyReservationRequest } from "@/types/productionExecutionIdempotency";
+import type { ProductionStepKey } from "@/types/project";
 import type { RetryBudgetExtensionDurableBinding } from
   "@/types/productionPipelineRetryBudgetExtension";
 
@@ -750,8 +753,20 @@ async function readAndVerifyFailedChain(
     return { ok: false, reasonCode: "PIPELINE_FAILED_SETTLEMENT_NOT_QUIESCENT" };
   }
   if (requireQuiescence) {
+    // Opt-in only: without a concrete (projectSlug, stage) pair to scope the
+    // tolerance-authority lookup to, this is omitted and behavior is
+    // unchanged from before ProductionOrphanReservationToleranceAuthority.ts
+    // existed. jobId mirrors PipelineJobManager's own getJobId convention.
+    const toleranceContext: ProductionOrphanReservationToleranceLookupContext | undefined =
+      context.expectedProjectSlug && context.expectedStage
+        ? { projectSlug: context.expectedProjectSlug,
+            stage: context.expectedStage as ProductionStepKey,
+            jobId: `${context.expectedProjectSlug}-${context.expectedStage}`,
+            runtimeInput: context.storageContext }
+        : undefined;
     const semantic = await readProductionExecutionRecoverySemanticAuthority(
-      context.adapter, context.request.finishedAt);
+      context.adapter, context.request.finishedAt,
+      new ProductionExecutionLifecycle(context.adapter), toleranceContext);
     if (semantic.decision !== "ready" || semantic.activeReservationCount !== 0 ||
       semantic.counts.active !== 0 || semantic.counts.running !== 0) {
       return { ok: false, reasonCode: "PIPELINE_FAILED_SETTLEMENT_RECOVERY_AUTHORITY_NOT_READY" };

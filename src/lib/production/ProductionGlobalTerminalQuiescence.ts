@@ -23,8 +23,9 @@ import { buildProductionPipelineExecutionIdentity } from "./ProductionPipelineEx
 import {
   buildVersionedProductionPipelineExecutionIdentity,
 } from "./ProductionLegacyPipelineExecutionIdentity";
-import { regenerationBindingForExecution } from
-  "./ProductionCompletedStageRegenerationStore";
+import { resolveOrphanReservationTolerance } from "./ProductionOrphanReservationToleranceAuthority";
+import { deriveCanonicalIdentityFromRecord } from "./ProductionDurableIdentityDerivation";
+import type { RuntimeStorageInput } from "@/lib/runtime/RuntimeStoragePaths";
 
 export type QuiescenceLineageIdentityVersion =
   | "strict-target-v2"
@@ -35,11 +36,47 @@ export type QuiescenceLineageIdentityVersion =
  * Validates complete project durable store and proves global quiescence:
  * Proves there are no active, open, reserved, consuming, running, orphan,
  * ambiguous, malformed, corrupt, or foreign durable authorities.
+ *
+ * `toleranceRuntimeInput` (omitted by default, so every existing call site is
+ * byte-for-byte unaffected unless it opts in) narrowly widens two things,
+ * both gated on it being provided at all:
+ *
+ * 1. Per-record cancelled-orphan tolerance (inside the main per-record loop,
+ *    the *only* code path that actually runs for every idempotency record —
+ *    see the historic-record forensic report this session produced for
+ *    pipeline-record-ca987045...): when `verifyTerminalLineageVersioned`
+ *    fails for a record, it gets one narrow, read-only second chance if and
+ *    only if ALL of: (a) the record's own *latest* persisted `state` is
+ *    exactly `"cancelled"`; (b) none of the record's persisted versions ever
+ *    show `state` of `"running"`, `"succeeded"`, or `"partially-succeeded"`
+ *    (proving it never actually started executing — `"failed"` is reachable
+ *    only from `"running"` per `canonicalTransitions`, so a record that ever
+ *    ran is never eligible, only one that went straight
+ *    `reserved`→`cancelled`); (c) `resolveOrphanReservationTolerance()`
+ *    independently confirms a matching, CAS-pinned tolerance authority AND
+ *    zero claim/attempt records anywhere reference it. `"succeeded"` is
+ *    never eligible under any condition. This never widens what counts as a
+ *    *valid* lineage — it only lets an *unconsumed, provably-never-run*
+ *    reservation's absence of claim/attempt evidence be explicitly,
+ *    individually tolerated, exactly as the execute-path readiness gate
+ *    (`ProductionExecutionRecoveryBootstrap.ts`'s `loadReservationAuthority`)
+ *    already does for the same reservation.
+ * 2. The final `sameSet(reservations, consumedReservations)` proof: a
+ *    reservation with no matching idempotency record at all (so it never
+ *    even reached the per-record loop) gets the same tolerance check.
+ *
+ * Both paths resolve the tolerance-authority store through this exact
+ * `RuntimeStorageInput` (the caller's own context — never an ambient
+ * default). No new tolerance authority is ever created here, and no durable
+ * record of any kind is written. A reservation/record with no matching
+ * authority, or failing any of the above conditions, is refused exactly as
+ * before this parameter existed.
  */
 export async function validateProductionGlobalTerminalQuiescence(
   adapter: ProductionExecutionPersistenceAdapter,
   projectSlug: string,
   targetIdentity?: ReturnType<typeof buildProductionPipelineExecutionIdentity>,
+  toleranceRuntimeInput?: RuntimeStorageInput,
 ): Promise<boolean> {
   try {
     const kinds = ["reservation", "idempotency", "claim", "attempt"] as const;
@@ -51,6 +88,7 @@ export async function validateProductionGlobalTerminalQuiescence(
     }
 
     const reservations = new Set<string>();
+    const reservationValues = new Map<string, ProductionExecutionIdempotencyReservationRequest>();
     for (const key of keys.get("reservation") ?? []) {
       const read = await adapter.read("reservation", key);
       if (
@@ -62,10 +100,12 @@ export async function validateProductionGlobalTerminalQuiescence(
         return false;
       }
       reservations.add(key);
+      reservationValues.set(key, read.value);
     }
 
     const latestRecords = new Map<string, ProductionExecutionDurableRecord>();
     const recordVersions = new Map<string, number[]>();
+    const recordStatesSeen = new Map<string, Set<string>>();
     for (const key of keys.get("idempotency") ?? []) {
       const read = await adapter.read("idempotency", key);
       if (
@@ -88,6 +128,9 @@ export async function validateProductionGlobalTerminalQuiescence(
         ...(recordVersions.get(parsed.identity) ?? []),
         parsed.version,
       ]);
+      const states = recordStatesSeen.get(parsed.identity) ?? new Set<string>();
+      states.add(record.state);
+      recordStatesSeen.set(parsed.identity, states);
       const existing = latestRecords.get(parsed.identity);
       if (!existing || existing.recordVersion < parsed.version) {
         latestRecords.set(parsed.identity, record);
@@ -153,7 +196,21 @@ export async function validateProductionGlobalTerminalQuiescence(
           record,
           runType as "initial" | "resume" | "retry",
         );
-        if (!verified.ok) return false;
+        if (!verified.ok) {
+          const tolerated = toleranceRuntimeInput && await tolerateCancelledOrphanRecord(
+            adapter, projectSlug, record, recordStatesSeen.get(record.recordId) ?? new Set(),
+            reservationValues.get(record.identityFingerprint), toleranceRuntimeInput,
+          );
+          if (!tolerated) return false;
+          // No claim/attempt exist for this record (that is exactly what made
+          // verifyTerminalLineageVersioned fail) -- only the reservation is
+          // marked consumed; consumedClaims/consumedAttempts intentionally
+          // stay untouched, since the later unconsumedClaim/unconsumedAttempt
+          // checks only look for *existing* claim/attempt keys, of which this
+          // record has none.
+          consumedReservations.add(record.identityFingerprint);
+          continue;
+        }
         consumedReservations.add(record.identityFingerprint);
         consumedClaims.add(verified.claimId);
         consumedAttempts.add(verified.attemptId);
@@ -165,7 +222,20 @@ export async function validateProductionGlobalTerminalQuiescence(
     }
 
     if (!sameSet(reservations, consumedReservations)) {
-      return false;
+      if (!toleranceRuntimeInput) return false;
+      for (const key of reservations) {
+        if (consumedReservations.has(key)) continue;
+        const reservation = reservationValues.get(key);
+        if (!reservation) return false;
+        const stage = reservation.identity.stage;
+        if (!isProductionStepKey(stage)) return false;
+        const jobId = `${projectSlug}-${stage}`;
+        const tolerated = await resolveOrphanReservationTolerance(adapter, reservation, {
+          projectSlug, stage, jobId, runtimeInput: toleranceRuntimeInput,
+        });
+        if (tolerated) consumedReservations.add(key);
+      }
+      if (!sameSet(reservations, consumedReservations)) return false;
     }
 
     const unconsumedClaim = (keys.get("claim") ?? []).find(k => {
@@ -187,36 +257,74 @@ export async function validateProductionGlobalTerminalQuiescence(
   }
 }
 
+/**
+ * The narrow, per-record counterpart to `resolveOrphanReservationTolerance`
+ * consulted only when `verifyTerminalLineageVersioned` has already failed for
+ * a record. Fail-closed: any missing reservation, any non-"cancelled" latest
+ * state, any "running"/"succeeded"/"partially-succeeded" anywhere in the
+ * record's persisted version history, or a failed
+ * `resolveOrphanReservationTolerance` call results in `false` — the record
+ * keeps failing exactly as if this mechanism did not exist. "succeeded" is
+ * never reachable here regardless of history, since it can only be the
+ * record's *current* state, and this function's own first check excludes
+ * every state except "cancelled".
+ */
+async function tolerateCancelledOrphanRecord(
+  adapter: ProductionExecutionPersistenceAdapter,
+  projectSlug: string,
+  record: ProductionExecutionDurableRecord,
+  statesSeen: ReadonlySet<string>,
+  reservation: ProductionExecutionIdempotencyReservationRequest | undefined,
+  toleranceRuntimeInput: RuntimeStorageInput,
+): Promise<boolean> {
+  if (record.state !== "cancelled") return false;
+  if (statesSeen.has("running") || statesSeen.has("succeeded") ||
+    statesSeen.has("partially-succeeded")) return false;
+  if (!reservation) return false;
+  const stage = reservation.identity.stage;
+  if (!isProductionStepKey(stage)) return false;
+  const jobId = `${projectSlug}-${stage}`;
+  return resolveOrphanReservationTolerance(adapter, reservation, {
+    projectSlug, stage, jobId, runtimeInput: toleranceRuntimeInput,
+  });
+}
+
 async function verifyTerminalLineageVersioned(
   adapter: ProductionExecutionPersistenceAdapter,
   projectSlug: string,
   record: ProductionExecutionDurableRecord,
   runType: "initial" | "resume" | "retry",
 ): Promise<{ ok: boolean; claimId: string; attemptId: string; version: QuiescenceLineageIdentityVersion }> {
-  // Try strict v2 first
-  const currentIdentity = buildProductionPipelineExecutionIdentity(
-    { projectSlug, stage: record.stage as ProductionStepKey, runType,
-      regeneration: regenerationBindingForExecution(
-        projectSlug, record.stage as ProductionStepKey, record.attempt - 1) },
-    { id: `${projectSlug}-${record.stage}`, attempts: record.attempt - 1 },
-  );
+  // Try strict v2 first, using an identity DERIVED from this record's own
+  // already-persisted, already-integrity-validated fields -- never
+  // recomputed from current ambient/mutable state. A record's `recordId` is
+  // stable forever once created; recomputing "the expected identity" via
+  // buildProductionPipelineExecutionIdentity() at verification time is not,
+  // because it depends on regenerationBindingForExecution()'s *current*
+  // roster of regeneration records, which can gain entries *after* this
+  // record was created -- silently breaking re-verification of records that
+  // predate a later regeneration touching the same stage (see this session's
+  // forensic report on pipeline-record-507fb8ec for the exact mechanism).
+  const currentIdentity = deriveCanonicalIdentityFromRecord(record, projectSlug);
 
-  try {
-    await readProductionCanonicalTerminalDurableLineage(
-      adapter,
-      currentIdentity,
-      record.identityFingerprint,
-      undefined,
-      record.operation,
-    );
-    return {
-      ok: true,
-      claimId: currentIdentity.claimId,
-      attemptId: currentIdentity.attemptId,
-      version: "legacy-terminal-v2",
-    };
-  } catch {
-    // Fall through to v1 validation if strict v2 fails
+  if (currentIdentity) {
+    try {
+      await readProductionCanonicalTerminalDurableLineage(
+        adapter,
+        currentIdentity,
+        record.identityFingerprint,
+        undefined,
+        record.operation,
+      );
+      return {
+        ok: true,
+        claimId: currentIdentity.claimId,
+        attemptId: currentIdentity.attemptId,
+        version: "legacy-terminal-v2",
+      };
+    } catch {
+      // Fall through to v1 validation if strict v2 fails
+    }
   }
 
   // Exact versioned legacy v1 validation

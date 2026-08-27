@@ -96,11 +96,15 @@ export class AssetManager {
     const context = resolveRuntimeStorageContext(input);
     const current = this.getProjectAssets(slug, projectId, context);
     const now = new Date().toISOString();
+    const existingIndex = current.assets.findIndex((a) => a.id === asset.id);
+    const nextAssets = existingIndex >= 0
+      ? current.assets.map((a, i) => i === existingIndex ? asset : a)
+      : [...current.assets, asset];
     const updatedAssets: ProjectAssets = {
       ...current,
       projectId,
       projectSlug: current.projectSlug ?? slug,
-      assets: [...current.assets, asset],
+      assets: nextAssets,
       updatedAt: now,
     };
 
@@ -116,11 +120,15 @@ export class AssetManager {
     const context = resolveRuntimeStorageContext(input);
     const current = this.getProjectAssets(slug, projectId, context);
     const now = new Date().toISOString();
+    const existingIndex = current.assets.findIndex((a) => a.id === asset.id);
+    const nextAssets = existingIndex >= 0
+      ? current.assets.map((a, i) => i === existingIndex ? asset : a)
+      : [...current.assets, asset];
     return this.saveProjectAssetsAtomically(slug, {
       ...current,
       projectId,
       projectSlug: current.projectSlug ?? slug,
-      assets: [...current.assets, asset],
+      assets: nextAssets,
       updatedAt: now,
     }, context);
   }

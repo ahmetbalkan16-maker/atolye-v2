@@ -324,7 +324,11 @@ function walkRuntimeTree(
       throw new Error("Runtime backup source contains an unsupported path.");
     }
     const diskRelativePath = relativePosix(projectsRoot, absolutePath);
-    if (isAudioCompensationJournalStagingPartialAtProjectPath(diskRelativePath)) {
+    if (
+      isAudioCompensationJournalStagingPartialAtProjectPath(diskRelativePath) ||
+      diskRelativePath.includes("/.pipeline-jobs.") ||
+      diskRelativePath.startsWith(".pipeline-jobs.")
+    ) {
       continue;
     }
     const firstSegment = diskRelativePath.split("/")[0];

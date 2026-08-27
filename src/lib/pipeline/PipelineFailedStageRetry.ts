@@ -20,6 +20,11 @@ import {
 import { consumeRetryBudgetExtensionAndPrepareRetry } from "@/lib/production/ProductionPipelineRetryBudgetExtensionTransaction";
 import { regenerationBindingForExecution } from
   "@/lib/production/ProductionCompletedStageRegenerationStore";
+import {
+  findMatchingRegenerationRetryBudgetExtension,
+  buildProductionPipelineRegenerationRetryBudgetExtensionReceipt,
+  writeRegenerationRetryBudgetExtensionReceipt,
+} from "@/lib/production/ProductionPipelineRegenerationRetryBudgetExtension";
 
 export type PipelineFailedStageRetryPreparationResult =
   | { success: true; job: PipelineJob; previousJob: PipelineJob; jobs: PipelineJobList;
@@ -81,7 +86,24 @@ export async function prepareFailedStageRetry(
     }
   }
 
-  if (!Number.isSafeInteger(job.attempts) || job.attempts < 0 || admittedDurableOrdinal > (extensionAuthorityId ? 4 : maxAttempts)) {
+  // Sibling of the ordinal-4 lookup above, for a regeneration whose durable
+  // history has already advanced past generationMaxAttempts (e.g. reopening
+  // an orphan-recovered attempt via reconcileOrphanedReservationWithoutClaim).
+  // Guarded by `regeneration` so it can never match — and never widens the
+  // budget for — a non-regeneration job, or an ordinary regeneration retry
+  // that's still within generationMaxAttempts (the lookup itself also
+  // requires an authority file whose authorizedDurableOrdinal exactly equals
+  // this admittedDurableOrdinal, and that hasn't already been consumed).
+  const regenerationExtension = regeneration
+    ? findMatchingRegenerationRetryBudgetExtension(
+      projectSlug, job.stage, job, admittedDurableOrdinal, context,
+    )
+    : undefined;
+
+  const budgetCeiling = extensionAuthorityId ? 4
+    : regenerationExtension ? admittedDurableOrdinal
+    : maxAttempts;
+  if (!Number.isSafeInteger(job.attempts) || job.attempts < 0 || admittedDurableOrdinal > budgetCeiling) {
     return {
       success: false,
       status: 409,
@@ -156,14 +178,56 @@ export async function prepareFailedStageRetry(
   }
   if (prepared.job.attempts !== admittedJobAttemptIndex) {
     await PipelineJobManager.compensatePreparedRetry(projectSlug, prepared.previousJob, prepared.job);
+    if (regenerationExtension) {
+      const abortReceipt = buildProductionPipelineRegenerationRetryBudgetExtensionReceipt(
+        regenerationExtension.authorityId, "aborted", new Date().toISOString(),
+        job.updatedAt, ["transaction:admitted-attempt-mismatch-aborted"],
+      );
+      writeRegenerationRetryBudgetExtensionReceipt(projectSlug, abortReceipt, context);
+    }
     return { success: false, status: 409,
       reason: "Pipeline retry admitted attempt changed.",
       reasonCode: "PIPELINE_RETRY_CAS_CONFLICT" };
   }
+  // The regen-extension authority (if any) is single-use: mark it consumed
+  // only once the CAS-protected retry preparation above has genuinely gone
+  // through with the exact admitted attempt it authorized. Write-once and
+  // idempotent — a replayed call after a crash between here and the return
+  // below just re-reads the same "consumed" receipt.
+  let regenerationExtensionConsumedReceipt:
+    ReturnType<typeof buildProductionPipelineRegenerationRetryBudgetExtensionReceipt> | undefined;
+  if (regenerationExtension) {
+    regenerationExtensionConsumedReceipt = buildProductionPipelineRegenerationRetryBudgetExtensionReceipt(
+      regenerationExtension.authorityId, "consumed", new Date().toISOString(),
+      prepared.job.updatedAt, ["transaction:consumed-receipt-finalized"],
+    );
+    const writeConsumed = writeRegenerationRetryBudgetExtensionReceipt(
+      projectSlug, regenerationExtensionConsumedReceipt, context,
+    );
+    if (!writeConsumed.ok && writeConsumed.status !== "replayed") {
+      await PipelineJobManager.compensatePreparedRetry(projectSlug, prepared.previousJob, prepared.job);
+      return { success: false, status: 409,
+        reason: "Failed to record regeneration retry budget extension consumption.",
+        reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_COMMIT_UNVERIFIED" };
+    }
+    if (writeConsumed.value) regenerationExtensionConsumedReceipt = writeConsumed.value;
+  }
+  const admittedMaxAttempts = regenerationExtension ? admittedDurableOrdinal : maxAttempts;
   const admission: PipelineRetryAdmission = freezePipelineRetryAdmission({
     projectSlug, stage: job.stage, jobId: job.id, runType,
     priorJobAttemptIndex: job.attempts, currentDurableOrdinal,
-    admittedJobAttemptIndex, admittedDurableOrdinal, maxAttempts,
+    admittedJobAttemptIndex, admittedDurableOrdinal, maxAttempts: admittedMaxAttempts,
+    ...(regenerationExtension ? {
+      baseMaxAttempts: maxAttempts,
+      effectiveMaxAttempts: admittedDurableOrdinal,
+      authorizedDurableOrdinal: admittedDurableOrdinal,
+      retryBudgetAuthorityProof: {
+        authorityId: regenerationExtension.authorityId,
+        authorityIntegrityFingerprint: regenerationExtension.body.integrity.fingerprint,
+        consumptionReceiptFingerprint: regenerationExtensionConsumedReceipt!.integrity.fingerprint,
+        authoritySchemaVersion: "1",
+      },
+    } : {}),
     exactReconciledDurableLineageIdentity: reconciliation.lineageIdentity,
     exactReconciledLineageBinding: reconciliation.lineageBinding,
     admittedDurableLineageIdentity: buildProductionPipelineExecutionIdentity(

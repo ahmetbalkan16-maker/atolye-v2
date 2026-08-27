@@ -18,6 +18,8 @@
     "production:acceptance:resume": "tsx scripts/run-production-acceptance.ts resume-finalize",
     "production:acceptance:regeneration-plan": "tsx scripts/run-production-regeneration.ts plan",
     "production:acceptance:prepare-regeneration": "tsx scripts/run-production-regeneration.ts prepare",
+    "pipeline:regenerate-stage:plan": "tsx scripts/run-pipeline-stage-regeneration.ts plan",
+    "pipeline:regenerate-stage:prepare": "tsx scripts/run-pipeline-stage-regeneration.ts prepare",
     "smoke:sprint-129-25b": "tsx scripts/smoke-sprint-129-25b-runtime-root.ts",
     "smoke:sprint-129-25b-1": "tsx scripts/smoke-sprint-129-25b-1-runtime-hardening.ts",
     "runtime:backup:inventory": "tsx scripts/runtime-backup.ts inventory",

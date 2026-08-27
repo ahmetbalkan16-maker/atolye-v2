@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  createRuntimeStorageContext,
+  createIsolatedRuntimeStorageContext,
   validateSafeAncestorChain,
 } from "@/lib/runtime/RuntimeStoragePaths";
 import { assertRuntimeMaterializedPath } from "@/lib/runtime/security/RuntimePathPolicy";
@@ -105,7 +105,7 @@ export function verifyRuntimeTreeAgainstManifest(
   if (path.basename(canonicalProjects) !== "projects") {
     throw new Error("Runtime backup payload layout is invalid.");
   }
-  const context = createRuntimeStorageContext({
+  const context = createIsolatedRuntimeStorageContext({
     workspaceRoot: runtimeRoot,
     environment: { ATOLYE_RUNTIME_ROOT: runtimeRoot },
   });
