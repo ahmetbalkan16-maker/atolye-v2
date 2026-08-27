@@ -32,8 +32,15 @@ export function resolveVideoProviderName(
 }
 
 export function getFFmpegSceneVideoConfig(): FFmpegSceneVideoConfig {
-  const ffmpegPath = requireExecutablePath(process.env.FFMPEG_PATH);
-  const ffprobePath = requireExecutablePath(process.env.FFPROBE_PATH);
+  // FFMPEG_EXECUTABLE / FFPROBE_EXECUTABLE: optional per-machine override for
+  // FFMPEG_PATH / FFPROBE_PATH — wins when set, otherwise identical to the old
+  // FFMPEG_PATH-only resolution. See getFFmpegVideoAssemblyConfig for rationale.
+  const ffmpegPath = requireExecutablePath(
+    process.env.FFMPEG_EXECUTABLE?.trim() || process.env.FFMPEG_PATH,
+  );
+  const ffprobePath = requireExecutablePath(
+    process.env.FFPROBE_EXECUTABLE?.trim() || process.env.FFPROBE_PATH,
+  );
   if (comparablePath(ffmpegPath) === comparablePath(ffprobePath)) {
     throw new VideoProviderConfigurationError();
   }

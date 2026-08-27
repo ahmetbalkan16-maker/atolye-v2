@@ -43,8 +43,19 @@ export function resolveVideoAssemblyProviderName(
 }
 
 export function getFFmpegVideoAssemblyConfig(): FFmpegVideoAssemblyConfig {
-  const ffmpegPath = requireExecutablePath(process.env.FFMPEG_PATH);
-  const ffprobePath = requireExecutablePath(process.env.FFPROBE_PATH);
+  // FFMPEG_EXECUTABLE / FFPROBE_EXECUTABLE are an optional, per-machine override
+  // for FFMPEG_PATH / FFPROBE_PATH: the same repo `.env.local` can carry a shared
+  // FFMPEG_PATH default plus a machine-specific *_EXECUTABLE that wins when set.
+  // When *_EXECUTABLE is unset the behaviour is byte-for-byte the old FFMPEG_PATH
+  // resolution. (FFMPEG_EXECUTABLE was already a first-class component name in
+  // ProductionAcceptanceConfigurationFingerprint since Sprint 129.23; this wires
+  // it into the runtime path resolution the live pipeline actually uses.)
+  const ffmpegPath = requireExecutablePath(
+    process.env.FFMPEG_EXECUTABLE?.trim() || process.env.FFMPEG_PATH,
+  );
+  const ffprobePath = requireExecutablePath(
+    process.env.FFPROBE_EXECUTABLE?.trim() || process.env.FFPROBE_PATH,
+  );
 
   if (comparablePath(ffmpegPath) === comparablePath(ffprobePath)) {
     throw new VideoAssemblyConfigurationError();

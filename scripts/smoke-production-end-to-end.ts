@@ -152,17 +152,45 @@ async function run(runtime: CanonicalSmokeRuntime) {
 
     const previousFFmpegPath = process.env.FFMPEG_PATH;
     const previousFFprobePath = process.env.FFPROBE_PATH;
+    const previousFFmpegExe = process.env.FFMPEG_EXECUTABLE;
+    const previousFFprobeExe = process.env.FFPROBE_EXECUTABLE;
     try {
       process.env.FFMPEG_PATH = path.resolve("ffmpeg-test.exe");
       delete process.env.FFPROBE_PATH;
+      delete process.env.FFMPEG_EXECUTABLE;
+      delete process.env.FFPROBE_EXECUTABLE;
       assert.throws(() => getFFmpegVideoAssemblyConfig(), (error) => error instanceof Error && error.name === "VideoAssemblyConfigurationError" && error.stack === undefined);
+      pass();
+
+      // FFMPEG_EXECUTABLE / FFPROBE_EXECUTABLE are a per-machine override for
+      // FFMPEG_PATH / FFPROBE_PATH: when set they win, when unset behaviour is
+      // identical to FFMPEG_PATH-only resolution. (requireExecutablePath only
+      // checks absolute + no NUL/CR/LF, not existence — so this is a pure
+      // resolution assertion.)
+      process.env.FFMPEG_PATH = "relative-ignored";
+      process.env.FFPROBE_PATH = "relative-ignored";
+      process.env.FFMPEG_EXECUTABLE = path.resolve("machine-a-ffmpeg.exe");
+      process.env.FFPROBE_EXECUTABLE = path.resolve("machine-a-ffprobe.exe");
+      const overridden = getFFmpegVideoAssemblyConfig();
+      assert.equal(overridden.ffmpegPath, path.normalize(path.resolve("machine-a-ffmpeg.exe")));
+      assert.equal(overridden.ffprobePath, path.normalize(path.resolve("machine-a-ffprobe.exe")));
+      // Whitespace-only *_EXECUTABLE falls back to *_PATH.
+      process.env.FFMPEG_EXECUTABLE = "   ";
+      process.env.FFPROBE_EXECUTABLE = "   ";
+      process.env.FFMPEG_PATH = path.resolve("machine-b-ffmpeg.exe");
+      process.env.FFPROBE_PATH = path.resolve("machine-b-ffprobe.exe");
+      const fellBack = getFFmpegVideoAssemblyConfig();
+      assert.equal(fellBack.ffmpegPath, path.normalize(path.resolve("machine-b-ffmpeg.exe")));
+      assert.equal(fellBack.ffprobePath, path.normalize(path.resolve("machine-b-ffprobe.exe")));
       pass();
     } finally {
       if (previousFFmpegPath === undefined) delete process.env.FFMPEG_PATH; else process.env.FFMPEG_PATH = previousFFmpegPath;
       if (previousFFprobePath === undefined) delete process.env.FFPROBE_PATH; else process.env.FFPROBE_PATH = previousFFprobePath;
+      if (previousFFmpegExe === undefined) delete process.env.FFMPEG_EXECUTABLE; else process.env.FFMPEG_EXECUTABLE = previousFFmpegExe;
+      if (previousFFprobeExe === undefined) delete process.env.FFPROBE_EXECUTABLE; else process.env.FFPROBE_EXECUTABLE = previousFFprobeExe;
     }
 
-    assert.equal(passed, 20);
+    assert.equal(passed, 21);
     console.log(`Sprint 125 production end-to-end validation: PASS (${passed} scenarios)`);
   } finally {
     // The canonical foundation owns the project root and restores all global registration.

@@ -1,5 +1,43 @@
 ---
 
+<!-- SPRINT-150-START -->
+## Sprint 150 - Canlı Akış Uçtan Uca Doğrulama + FFmpeg Yürütülebilir Yolu Taşınabilirliği - 2026-08-27
+
+**Status:** Completed — oturum sonu commit/push yapıldı.
+**Production execution status:** Sıfır production mutation. Tüm doğrulama izole `withCanonicalSmokeRuntime` alanında + gerçek FFmpeg binary'siyle yapıldı; canlı `data/projects/<slug>/` yapısına dokunulmadı.
+
+### Canlı akış incelemesi (uçtan uca)
+Kullanıcının gerçek "proje oluştur" akışı: `POST /api/pipeline {topic}` → `PipelineRunner.run(topic)` → **durable production execution yolu** (canonical runtime `instrumentation.ts` startup'ta kuruluyor; `ATOLYE_DURABLE_PIPELINE_EXECUTION` yalnızca readiness/acceptance fingerprint'te okunuyor, dispatch'i gate etmiyor — durable yol her stage için tek yol) → 12 stage (`research…export`) → gerçek OpenAI (text/image/audio/animation/thumbnail/seo/youtube-package) + gerçek FFmpeg (`video` sahne render + `assembly`). Kısmi başarısızlık sonrası kurtarma: `/project/[slug]` sayfasındaki `PipelineResumeAction` / `PipelineJobsPanel` (retry) → `/api/projects/[slug]/pipeline/{resume,retry}` → `PipelineRunner.resume` / `PipelineFailedStageRetry` (bu `reconcileFailedPipelineExecution`'ı çağırıyor — kurtarma reconciliation'ı **bağlı**).
+
+### İzole gerçek-akış doğrulaması (KOD ÇALIŞIYOR)
+Yeni kalıcı test **`scripts/smoke-isolated-e2e-live-pipeline-ffmpeg.ts`** — tam `PipelineRunner.run` (durable yol) + gerçek FFmpeg ile `video`+`assembly`, diğer stage'ler geçerli PNG/WAV yazan deterministik-ama-gerçek fixture provider'lar. `FFMPEG_PATH`/`FFPROBE_PATH` yoksa `SKIP` (host bağımlılığı, `smoke-production-scene-video-rendering` ile aynı kalıp).
+- Sonuç: taze bir proje **12 stage'in hepsini `completed`** yaptı (~55 sn), gerçek `1,437,138` baytlık MP4 üretti. `ffprobe`: **h264 + aac, 1920×1080, 47.0 sn** (3×16 sn − ~1 sn blend). 4 senaryo PASS.
+- Pipeline orkestrasyonu + durable execution + gerçek per-scene render + gerçek transitioned assembly + ffprobe doğrulaması ilk kez tek testte zincirlendi.
+
+### Bulunan ve düzeltilen blocker: FFmpeg yürütülebilir yolu (iki makina)
+Kullanıcı iki makinada çalışıyor ("Metod" / "alper"). Bu makinada `.env.local` `FFMPEG_PATH`/`FFPROBE_PATH` → **`C:\Users\Metod\...ffmpeg-8.1.2-full_build\...` (bu makinada YOK)**. Kullanıcının `.env.local`'ında `FFMPEG_EXECUTABLE`/`FFPROBE_EXECUTABLE` → `C:\Users\alper\...` (bu makinada VAR) **ama kod bunları hiç okumuyordu** → canlı app'in `video`+`assembly` aşamaları bu makinada `ENOENT` ile fail-closed. (Aynı sınıf sorun Sprint 129.46'da yaşanmış; o zaman elle `.env.local` güncellenmiş.)
+- **Düzeltme:** `getFFmpegVideoAssemblyConfig()` ve `getFFmpegSceneVideoConfig()` artık `process.env.FFMPEG_EXECUTABLE?.trim() || process.env.FFMPEG_PATH` (ve ffprobe eşleniği) çözüyor. `_EXECUTABLE` set değilse davranış **birebir eski** `FFMPEG_PATH` çözümü. `FFMPEG_EXECUTABLE` zaten Sprint 129.23'ten beri `ProductionAcceptanceConfigurationFingerprint`'te first-class component adı — bu onu canlı pipeline'ın kullandığı runtime path çözümüne de bağlıyor.
+- `scripts/lib/CanonicalSmokeRuntime.ts` `defaultEnvironment`'a `FFMPEG_EXECUTABLE: undefined, FFPROBE_EXECUTABLE: undefined` eklendi → smoke testleri hermetik kalıyor (ambient shell'den sızmıyor).
+- `scripts/smoke-production-end-to-end.ts` (+1 senaryo, 20→21): `_EXECUTABLE` override'ının set olduğunda `_PATH`'i yendiği, boş/whitespace olduğunda `_PATH`'e düştüğü kilitlendi.
+- **Bilinçli kapsam dışı:** `ProductionReadinessService` ve `ProductionAcceptanceConfigurationFingerprint` hâlâ `FFMPEG_PATH`-only. Bunlar yalnızca `npm run production:acceptance:*` operatör CLI'sinde kullanılıyor (canlı pipeline'da veya `/api/runtime/health`'te değil); fingerprint'i değiştirmek `fatih-sultan-mehmet` projesinin mevcut `production-acceptance.json` marker'ını riske atardı. Operatör acceptance CLI'sini çalıştırırken `FFMPEG_PATH`'i geçerli tutmalı.
+
+### "Bağlanacak primitive" değerlendirmesi
+Checkpoint'in "hâlâ bağlı değil" dediği primitifler (`AudioCanonicalSectionBinding`, `AudioCanonicalMixRebuilder`, `AudioCompensationAssemblyInvalidation`, `PipelineCompletedStageRegeneration*`) **ve** yeni reconciliation araçları (`reconcilePipelineJobAttemptDriftFromHistory`, `reconcileManifestPackageStatusFromHistory`, `reconcileOrphanedReservationWithoutClaim`) incelendi:
+- Hepsi **başarısızlık-onarımı / regeneration tooling** — mutlu-yol ("proje oluştur → video al") için gerekli DEĞİL.
+- Her birinin docstring'i açıkça "**Deliberately NOT wired into any automatic startup/recovery path. Every invocation is expected to be an explicit, operator-approved, one-off call**" diyor. Otomatik startup'a bağlamak = her sunucu açılışında otomatik geri-döndürülemez production mutation → önceki oturumun bilinçli fail-closed tasarımına aykırı, DUR-1 ihlali.
+- `reconcileFailedPipelineExecution` (asıl kurtarma) zaten retry yoluna bağlı.
+- **Sonuç:** hedef davranış için **hiçbir primitif bağlanması gerekmiyor.** Regeneration/compensation CLI-only kalıyor (`npm run pipeline:regenerate-stage:*`, `production:acceptance:regeneration-*`, `apply-*` operatör scriptleri).
+
+### Test / doğrulama
+- `npx tsc --noEmit`: **0 hata** · `npm run lint`: **0 error** · `npm run build`: **exit 0**
+- Regresyon (FFmpeg config'e dokunan / gerçek FFmpeg kullanan 9 süit): `smoke-isolated-e2e-live-pipeline-ffmpeg` (4, YENİ), `smoke-production-scene-video-rendering` (26, gerçek FFmpeg), `smoke-ffmpeg-bgm-kenburns-assembly` (30, gerçek FFmpeg), `smoke-production-video-assembly-wiring` (73), `smoke-production-end-to-end` (21, +1 override senaryosu), `smoke-production-end-to-end-stabilization` (26), `smoke-assembly-scene-video-consumption` (25), `smoke-production-readiness-acceptance` (24), `smoke-sprint-129-23-production-acceptance-portability` (16) — **9/9 PASS**. Ek olarak Sprint 149'un 48-süitlik regresyon bataryası tekrar çalıştırıldı.
+- Yeni smoke'un SKIP yolu (FFmpeg yoksa) doğrulandı: exit 0, PASS 0.
+
+### Ürün kararı gereken / kullanıcıya bırakılan konular
+1. **Kısmi başarısızlık UX'i:** `/api/pipeline` senkron ve tüm pipeline'ı bloke ediyor. Bir stage OpenAI/FFmpeg hatasıyla throw ederse route **500 + slug'sız** dönüyor (`{error:"Uretim akisi tamamlanamadi."}`) → kullanıcı ana sayfada mahsur; kısmi proje `/api/projects` listesinde görünüyor (yani veri kaybı yok) ama akıştan linklenmiyor. **Öneri:** hata yollarında da `slug`/`projectUrl` döndür + `HomeClient` bir projectUrl varsa `/project/[slug]`'e yönlendirsin. Akış/UX kararı olduğu için yapılmadı.
+2. **FFmpeg config düzeltmesi (yukarıda):** kullanıcı `FFMPEG_EXECUTABLE` override yaklaşımını istemiyorsa (alternatif: PATH lookup, varlık-kontrolü fallback, ya da `.env.local`'ı elle yönetmeye devam) geri alınabilir.
+<!-- SPRINT-150-END -->
+
 <!-- SPRINT-149-START -->
 ## Sprint 149 - Video/Audio Pipeline Reliability Audit + Render-Failure Diagnosability - 2026-08-27
 

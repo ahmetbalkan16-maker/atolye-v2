@@ -30,6 +30,7 @@ const defaultEnvironment: Readonly<Record<string, string | undefined>> = Object.
   OPENAI_API_KEY: undefined, YOUTUBE_ACCESS_TOKEN: undefined,
   ATOLYE_DURABLE_PIPELINE_EXECUTION: undefined,
   FFMPEG_PATH: undefined, FFPROBE_PATH: undefined,
+  FFMPEG_EXECUTABLE: undefined, FFPROBE_EXECUTABLE: undefined,
   OPENAI_TTS_TIMEOUT_MS: undefined, OPENAI_TTS_MAX_RESPONSE_BYTES: undefined,
   OPENAI_TTS_MODEL: undefined, OPENAI_TTS_VOICE: undefined,
   OPENAI_MODEL: undefined, OPENAI_MAX_TOKENS: undefined, OPENAI_TEMPERATURE: undefined,
