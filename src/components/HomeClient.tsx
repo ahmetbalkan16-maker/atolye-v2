@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import Dashboard from "@/components/Dashboard";
 import Sidebar from "@/components/Sidebar";
 import TopicInput from "@/components/TopicInput";
+import {
+  resolvePipelineStartOutcome,
+  type PipelineStartResponseBody,
+} from "@/lib/pipeline/pipelineStartOutcome";
 
 const loadingMessages = [
   "Araştırma yapılıyor...",
@@ -12,13 +16,6 @@ const loadingMessages = [
   "Sahneler oluşturuluyor...",
   "Görsel plan hazırlanıyor...",
 ];
-
-type PipelineResponse = {
-  success?: boolean;
-  slug?: string;
-  projectUrl?: string;
-  error?: string;
-};
 
 export default function HomeClient() {
   const router = useRouter();
@@ -57,14 +54,19 @@ export default function HomeClient() {
         body: JSON.stringify({ topic }),
       });
 
-      const data = (await res.json()) as PipelineResponse;
+      const data = (await res.json()) as PipelineStartResponseBody;
 
-      if (!res.ok || !data.success || !data.projectUrl) {
-        setError(data.error || "Üretim akışı tamamlanamadı.");
+      // The route attaches `projectUrl` whenever a project exists the user can
+      // act on — full success, a `stopReason` stop, or a mid-pipeline failure
+      // that still created the project. In all of those, send the user to the
+      // project page (progress + resume/retry). Only a response with no usable
+      // project reference stays here as an inline error.
+      const outcome = resolvePipelineStartOutcome(data);
+      if (outcome.kind === "navigate") {
+        router.push(outcome.to);
         return;
       }
-
-      router.push(data.projectUrl);
+      setError(outcome.message);
     } catch (err) {
       console.error("[HomeClient] Pipeline request failed:", err);
       setError("Sunucuya bağlanırken hata oluştu.");

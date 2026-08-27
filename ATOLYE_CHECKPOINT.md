@@ -1,5 +1,35 @@
 ---
 
+<!-- SPRINT-151-START -->
+## Sprint 151 - Kısmi Pipeline Başarısızlığı UX Remediation - 2026-08-27
+
+**Status:** Completed — oturum sonu commit/push yapıldı.
+**Production execution status:** Sıfır production mutation. Yalnızca route + component + saf yardımcı; hiçbir gerçek pipeline / FFmpeg / runtime-operation-context çalıştırılmadı.
+
+### Kök neden
+`POST /api/pipeline {topic}` senkron; `PipelineRunner.run` bir stage'de gerçek bir hatayla throw ettiğinde `catch` → `PipelineStateError` değilse **500 `{ success:false, error:"Uretim akisi tamamlanamadi." }`** dönüyordu — slug/projectUrl YOK. `HomeClient.startPipeline` yalnızca `res.ok && data.success && data.projectUrl` olduğunda `router.push` ediyor, aksi halde `data.error`'ı ana sayfada gösteriyordu. Sonuç: kullanıcı kısmi başarısızlıkta ana sayfada mahsur; proje `/api/projects` listesinde var (veri kaybı yok) ama akıştan linklenmiyor. `stopReason` (409) yolu slug/projectUrl döndürüyordu ama `HomeClient` onu da göstermeye çeviriyordu.
+
+### Yapılan minimum remediation
+1. **`app/api/pipeline/route.ts`:** route en başta `slug = ProjectManager.createSlug(topic.trim())` hesaplıyor (deterministik — `runOnce`'ın kullandığı aynı fn). Yeni `attachProjectReference(body, slug)`: `await ProjectManager.getProject(slug)` **diskte varsa** `{ ...body, slug, projectUrl:\`/project/${slug}\` }`, yoksa `body` — `try/catch` ile sarılı, enrichment hatası asla 500'ü fault'a çevirmiyor, uydurma link üretmiyor. **Yalnızca generic 500** enrich ediliyor; `PipelineStateError` yolu dokunulmadı (o durumda `pipeline-jobs.json`/`pipeline-history.json` bozuk → `/project/[slug]` + resume/retry aynı bozuk dosyaları okur, yönlendirme yardımcı olmaz; ayrıca paylaşımlı `createPipelineStateErrorResponse`'un `["code","error","success"]` contract'ı korunuyor). Başarı / `stopReason` 409 / boş topic 400 **birebir korundu**.
+2. **`src/lib/pipeline/pipelineStartOutcome.ts` (YENİ, saf):** `resolvePipelineStartOutcome(body)` → `{ kind:"navigate", to } | { kind:"error", message }`. `projectUrl` varsa VE `/^\/project\/[a-z0-9]+(?:-[a-z0-9]+)*$/` (createSlug'ın üretebileceği tek şekil) ile eşleşiyorsa navigate; aksi halde `body.error` (yoksa generic mesaj). Open-redirect / traversal / şema-dışı URL'ler savunma amaçlı reddediliyor.
+3. **`src/components/HomeClient.tsx`:** inline dallanma `resolvePipelineStartOutcome` ile değiştirildi. `projectUrl` mevcutsa (başarı / `stopReason` / proje-oluşmuş-başarısızlık) → `/project/[slug]` yönlendirme. Yalnızca kullanılabilir proje referansı olmayan response ana sayfada error. Ağ hatası `catch`'i değişmedi. Yeni recovery mekanizması eklenmedi — mevcut `PipelineResumeAction` / `PipelineJobsPanel` retry kullanılıyor. (Küçük davranış değişikliği: `stopReason` string'i artık ana sayfada değil, proje sayfasının `PipelineStatus` + `PipelineJobsPanel`'inde — job bazında `error`/`errorEvidence` ile daha ayrıntılı — görünüyor.)
+
+### Testler
+- **`scripts/smoke-pipeline-start-outcome.ts` (YENİ, 8 case):** navigate/error dalları + open-redirect/unsafe-URL reddi.
+- **`scripts/smoke-pipeline-start-recovery.ts` (YENİ, 7 case):** route'u `POST as runPipeline` ile doğrudan çağırıp mock `PipelineRunner.run`/`ProjectManager` ile: generic failure + proje var → slug/projectUrl + sızıntı yok + tek log; generic failure + proje yok → uydurma slug yok; `getProject` throw → güvenli body; `PipelineStateError` → 3-anahtar body değişmedi; `stopReason` 409 değişmedi; success değişmedi; boş/geçersiz topic → 400, `run()` çağrılmadı.
+- `npx tsc --noEmit`: **0 hata** · `npm run lint`: **0 error** (22 pre-existing warning) · `npm run build`: **exit 0**
+- Pipeline regresyonu: `smoke-pipeline-start-outcome` (8), `smoke-pipeline-start-recovery` (7), `smoke-pipeline-auto-continuation`, `smoke-production-end-to-end` (21), `smoke-isolated-e2e-live-pipeline-ffmpeg` (4, gerçek FFmpeg), `smoke-pipeline-state-corruption` (8) — **6/6 PASS**.
+
+### Regresyon senaryo doğrulaması
+- **Başarılı pipeline:** 200 `{ success:true, slug, projectUrl }` → `router.push(projectUrl)`. Değişmedi. ✓
+- **Failure + proje oluşmuş:** 500 `{ success:false, error, slug, projectUrl }` → `/project/[slug]` yönlendirme → `PipelineStatus` + `PipelineResumeAction` + `PipelineJobsPanel` (retry). ✓
+- **Failure + proje yok:** 500 `{ success:false, error }` → ana sayfa error, uydurma slug yok. ✓
+- **Resume/retry:** `/api/projects/[slug]/pipeline/{resume,retry}`, `PipelineRunner.resume`, `PipelineFailedStageRetry` dokunulmadı. ✓
+
+### Kalan gerçek eksik
+- **Pre-existing (bu görevle ilgisiz):** `scripts/smoke-pipeline-state-error-contract.ts` `testRetryStatePropagationAndGenericFailures`'ta `RUNTIME_OPERATION_CONTEXT_MISSING` ile başarısız — `executeJobRetryOnce` (private) runtime operation context gerektiriyor ama bu eski "Sprint 92" testi sağlamıyor. `637e406`'da (bu oturumdaki tüm çalışmalardan önce) de aynı şekilde başarısız; `/api/pipeline` start akışıyla ilgisi yok (retry yolu testi). Kapsam dışı bırakıldı; bu dosyaya yapılan geçici değişiklikler geri alındı.
+<!-- SPRINT-151-END -->
+
 <!-- SPRINT-150-START -->
 ## Sprint 150 - Canlı Akış Uçtan Uca Doğrulama + FFmpeg Yürütülebilir Yolu Taşınabilirliği - 2026-08-27
 
