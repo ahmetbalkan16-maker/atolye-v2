@@ -136,6 +136,7 @@ class FixtureAssemblyProvider implements ConfiguredVideoAssemblyProvider {
 }
 
 class FixtureThumbnailProvider extends MockThumbnailProvider {
+  override readonly name = "openai" as const;
   readonly planCalls = new Map<string, number>();
   readonly assetCalls = new Map<string, number>();
 

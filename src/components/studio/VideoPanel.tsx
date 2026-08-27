@@ -2,14 +2,28 @@
 
 import { useState } from "react";
 import { VideoService } from "@/lib/video/VideoService";
-import type { VideoData } from "@/types/video";
+import type { VideoData, VideoScene } from "@/types/video";
 import StudioCard from "./StudioCard";
+import VideoPreview from "./VideoPreview";
 
 type VideoPanelProps = {
   slug: string;
   video: VideoData | null;
   canGenerate: boolean;
 };
+
+function getSceneVideoUrl(slug: string, scene: VideoScene): string | null {
+  if (scene.url) {
+    return scene.url;
+  }
+  if (scene.filePath) {
+    const fileName = scene.filePath.split(/[/\\]/).pop();
+    if (fileName && fileName.endsWith(".mp4")) {
+      return `/api/assets/videos/${encodeURIComponent(slug)}/${encodeURIComponent(fileName)}`;
+    }
+  }
+  return null;
+}
 
 export default function VideoPanel({
   slug,
@@ -47,7 +61,7 @@ export default function VideoPanel({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm text-zinc-400">
-            Aktif animasyon assetlerinden mock video çıktısı oluşturur.
+            Animasyon ve görsel içeriklerinden FFmpeg video sahneleri ve MP4 klip çıktıları oluşturur.
           </p>
         </div>
 
@@ -84,30 +98,49 @@ export default function VideoPanel({
             />
           </div>
 
-          <div className="space-y-3">
-            {localVideo.scenes.map((scene) => (
-              <div
-                key={scene.sceneId}
-                className="rounded-xl border border-zinc-800 bg-zinc-950 p-4"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="font-semibold text-yellow-400">
-                    Video Sahnesi {scene.sceneId}
-                  </h3>
-                  <span className="text-sm text-zinc-400">{scene.status}</span>
+          <div className="space-y-4">
+            {localVideo.scenes.map((scene) => {
+              const sceneVideoUrl = getSceneVideoUrl(slug, scene);
+
+              return (
+                <div
+                  key={scene.sceneId}
+                  className="rounded-xl border border-zinc-800 bg-zinc-950 p-4 space-y-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="font-semibold text-yellow-400">
+                      Video Sahnesi {scene.sceneId}
+                    </h3>
+                    <span className="text-sm text-zinc-400">{scene.status}</span>
+                  </div>
+
+                  <div className="grid gap-3 text-sm text-zinc-300 md:grid-cols-2">
+                    <Info
+                      label="Kaynak Animasyon"
+                      value={scene.sourceAnimationAssetId}
+                    />
+                    <Info
+                      label="Çıktı Asset"
+                      value={scene.outputAssetId ?? "Olusturulmadi"}
+                    />
+                  </div>
+
+                  {sceneVideoUrl ? (
+                    <div className="mt-3">
+                      <VideoPreview
+                        compact
+                        src={sceneVideoUrl}
+                        durationSeconds={scene.durationSeconds}
+                        width={scene.width ?? 1920}
+                        height={scene.height ?? 1080}
+                        byteLength={scene.byteLength}
+                        downloadFileName={`${slug}-scene-${scene.sceneId}.mp4`}
+                      />
+                    </div>
+                  ) : null}
                 </div>
-                <div className="mt-3 grid gap-3 text-sm text-zinc-300 md:grid-cols-2">
-                  <Info
-                    label="Kaynak Animasyon"
-                    value={scene.sourceAnimationAssetId}
-                  />
-                  <Info
-                    label="Çıktı Asset"
-                    value={scene.outputAssetId ?? "Olusturulmadi"}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : null}

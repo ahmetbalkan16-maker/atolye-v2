@@ -16,3 +16,4 @@ export { default as ThumbnailPanel } from "./ThumbnailPanel";
 export { default as SEOPanel } from "./SEOPanel";
 export { default as ProductionPackageSummary } from "./ProductionPackageSummary";
 export { default as AssemblyPanel } from "./AssemblyPanel";
+export { default as VideoPreview } from "./VideoPreview";

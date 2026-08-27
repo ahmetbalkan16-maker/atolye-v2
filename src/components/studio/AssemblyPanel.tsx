@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { AssemblyPlanData } from "@/types/assembly";
 import StudioCard from "./StudioCard";
+import VideoPreview from "./VideoPreview";
 
 type AssemblyPanelProps = {
   slug: string;
@@ -15,6 +16,22 @@ type AssemblyResponse = {
   assembly?: AssemblyPlanData | null;
   error?: string;
 };
+
+function getAssemblyVideoUrl(slug: string, assembly: AssemblyPlanData): string | null {
+  if (assembly.render?.outputUrl) {
+    return assembly.render.outputUrl;
+  }
+  if (assembly.render?.filePath) {
+    const fileName = assembly.render.filePath.split(/[/\\]/).pop();
+    if (fileName && fileName.endsWith(".mp4")) {
+      return `/api/assets/videos/${encodeURIComponent(slug)}/${encodeURIComponent(fileName)}`;
+    }
+  }
+  if (assembly.render?.status === "rendered") {
+    return `/api/assets/videos/${encodeURIComponent(slug)}/output.mp4`;
+  }
+  return null;
+}
 
 export default function AssemblyPanel({
   slug,
@@ -60,12 +77,15 @@ export default function AssemblyPanel({
     }
   }
 
+  const assemblyVideoUrl = localAssembly
+    ? getAssemblyVideoUrl(slug, localAssembly)
+    : null;
+
   return (
     <StudioCard title="Kurgu Paneli">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-zinc-400">
-          Video ve ses çıktılarından render&apos;a hazır kurgu paketi oluşturur.
-          Gerçek render yapılmaz.
+          Sahne video ve ses kaynaklarını birleştirerek alt yazılı, müzikli ve geçişli nihai MP4 kurgu videosunu üretir.
         </p>
         <button
           type="button"
@@ -95,6 +115,23 @@ export default function AssemblyPanel({
         </p>
       ) : (
         <div className="mt-5 space-y-6">
+          {assemblyVideoUrl ? (
+            <VideoPreview
+              src={assemblyVideoUrl}
+              title="Nihai MP4 Kurgu Videosu"
+              durationSeconds={localAssembly.render?.durationSeconds}
+              width={localAssembly.render?.width ?? 1920}
+              height={localAssembly.render?.height ?? 1080}
+              byteLength={localAssembly.render?.byteLength}
+              badgeText={
+                localAssembly.render?.status === "rendered"
+                  ? "Render Tamamlandı (MP4)"
+                  : "Kurgu Hazır (MP4)"
+              }
+              downloadFileName={`${slug}-assembly-output.mp4`}
+            />
+          ) : null}
+
           <div className="grid gap-4 text-sm text-zinc-300 md:grid-cols-3">
             <Info label="Durum" value={localAssembly.status ?? "planned"} />
             <Info label="Toplam Süre" value={localAssembly.totalDuration} />
@@ -112,11 +149,6 @@ export default function AssemblyPanel({
               value={localAssembly.render?.status ?? "planned"}
             />
           </div>
-
-          <p className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-200">
-            Bu aşama yalnızca render&apos;a hazır assembly.json üretir; MP4 render
-            yapılmaz.
-          </p>
 
           <div className="space-y-4">
             {localAssembly.scenes.map((scene) => (
