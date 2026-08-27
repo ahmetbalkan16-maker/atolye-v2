@@ -1,5 +1,42 @@
 ---
 
+<!-- SPRINT-152-START -->
+## Sprint 152 - Pre-existing Pipeline State Retry Regression Remediation (RUNTIME_OPERATION_CONTEXT_MISSING) - 2026-08-27
+
+**Status:** Completed — oturum sonu commit/push yapıldı.
+**Production execution status:** Sıfır production mutation. Yalnızca bir smoke test dosyası değişti; hiçbir `src/**` dosyası değişmedi. Değişen testin retry çağrıları izole `withCanonicalSmokeRuntime` alanında çalışıyor — canlı `data/projects/<slug>/` yapısına dokunulmadı.
+
+### Kök neden (GRAPHIFY + git blame ile)
+`scripts/smoke-pipeline-state-error-contract.ts` → `testRetryStatePropagationAndGenericFailures`, private `PipelineRunner.executeJobRetryOnce`'ı `PipelineRunnerHarness` cast'i ile **doğrudan** çağırıyordu. Bu fonksiyon `PipelineStageExecutor.loadState(projectSlug, this.requireRuntimeStorageContext())` çağırıyor; `requireRuntimeStorageContext()` (`PipelineRunner.ts` L908) aktif bir `ProductionRuntimeOperationContext` yoksa `RUNTIME_OPERATION_CONTEXT_MISSING` fırlatıyor.
+- Üretimde `executeJobRetryOnce` **sadece** public `executeJobRetry` içinden çağrılıyor; o da `withRuntimeOperation()` → `executePipelineRunnerProductionRuntimeOperation()` ile context'i kuruyor/deriving yapıyor. Retry route yolu: `/api/projects/[slug]/pipeline/retry` → `PipelineRunner.retryStage` → `retryStageOnce` → `executeJobRetry` (public). Yani üretim wiring'i **doğru**.
+- Kırılma commit'i **`8f7a37b`** (Sprint 129.41): `loadState(projectSlug)` → `loadState(projectSlug, this.requireRuntimeStorageContext())` değişikliği `executeJobRetryOnce`'a sert bir aktif-context şartı ekledi ama bu eski "Sprint 92" testini (son dokunuş `a029553`, Sprint 129.33) güncellemedi. `637e406`'da da, temiz ağaçta da aynı şekilde başarısız.
+- **Seçim: Seçenek A — test altyapısı eksikliği.** `requireRuntimeStorageContext()` tam consume noktasında (loadState argümanı) duruyor — doğru yer; kontrat üretim tarafında doğru. Test, gerçek çağrı yolunun dışından private metoda ulaşıp context sağlamıyordu.
+
+### Yapılan minimum remediation (yalnızca test)
+**`scripts/smoke-pipeline-state-error-contract.ts`:**
+- `testRetryStatePropagationAndGenericFailures`'taki 3 doğrudan `runner.executeJobRetryOnce(slug, failedJob.id, {})` çağrısı → public **`runner.executeJobRetry(...)`** oldu ve `withCanonicalSmokeRuntime({ name: "state-error-contract-retry", operationType: "pipeline-state-error-contract-retry" }, ...)` bloğuna sarıldı. Böylece çağrılar tam olarak üretimdeki gibi `withRuntimeOperation()` → canonical runtime → `runWithProductionRuntimeOperationContext` altında koşuyor; `requireRuntimeStorageContext()` izole storage context'i çözüyor.
+- `PipelineRunnerHarness` tipinde `executeJobRetryOnce` → `executeJobRetry` (imza aynı alt-küme dönüş tipi).
+- `import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime"` eklendi.
+- Testin ilk yarısı (retry route + mock `runner.retryStage` throw → `PIPELINE_HISTORY_STATE_INVALID` 3-anahtar contract) **dokunulmadı**. Case sayısı 18 değişmedi — aynı 3 assertion, sadece gerçek public giriş noktasından.
+
+### Runtime sözleşmesi (korundu)
+- `executeJobRetryOnce` private kaldı; `requireRuntimeStorageContext()` fail-closed davranışı kaldırılmadı/gevşetilmedi.
+- `prepareFailedStageRetry` → `reconcileFailedPipelineExecution` gerçekten çalışıyor: `failedJob.attempts === 0` + izole kökte durable kayıt yok → `ProductionPipelineRetryReconciliation.ts` L133-144 sentetik "none" lineage ile **success** dönüyor; retry compensation/execution dalları gerçek admission ile deneniyor. Yani test artık "retry sırasında runtime operation context sözleşmesi doğru sağlanıyor + state/generic failure propagation korunuyor" davranışını **gerçekten** doğruluyor.
+- Error identity korunuyor: `ProductionWorkerLifecycle.executeAccepted` L163 `return await operation()` — re-wrap yok; `assert.rejects(..., error => error === compensationStateError)` geçiyor.
+
+### Testler
+- **`scripts/smoke-pipeline-state-error-contract.ts`: PASS (18 cases)** (önce `RUNTIME_OPERATION_CONTEXT_MISSING` ile FAIL).
+- `npx tsc --noEmit`: **0 hata** · `npm run lint`: **0 error** (22 pre-existing warning, hepsi `RuntimeBackup*`) · `npm run build`: **exit 0**.
+- Regresyon (my change = tek leaf test dosyası, `src/**` değişmedi): `smoke-pipeline-retry-continuation-hardening` (23), `smoke-pipeline-auto-continuation` (18), `smoke-pipeline-state-corruption` (8), `smoke-pipeline-start-recovery` (7), `smoke-compensate-prepared-retry-monotonic-guard` (10), `smoke-retry-persistence` (5 grup), `smoke-pipeline-runner-regeneration-guard` (26), `smoke-pipeline-job-attempt-drift-reconciliation` (13), `smoke-pipeline-orchestration` (10) — **9/9 PASS**.
+- Graphify: `graphify update .` çalıştırıldı; `smoke-pipeline-state-error-contract.ts` için affected node = 0 (leaf test, üretim koduna fan-in yok). `executeJobRetry`/`executeJobRetryOnce` üretim çağrı grafiği değişmedi.
+
+### Kalan gerçek eksik (bu görevin kapsamı DIŞINDA — pre-existing, benim değişikliğimle ilgisiz, temiz ağaçta da FAIL)
+- `scripts/smoke-sprint-129-9-failed-stage-resume.ts` — EXIT 1 (durable lineage).
+- `scripts/smoke-sprint-129-33-exhausted-retry-admission.ts` — EXIT 1 (`AssertionError: exactReconciledLineageBinding.durableOrdinal`).
+- `scripts/smoke-sprint-129-39-stage-bounded-resume.ts` — EXIT 1 (`VIDEO_ASSEMBLY_FAILED` / `YOUTUBE_PACKAGE_GENERATION_FAILED` seed failure).
+  Üçü de `ed12445` temiz ağaçta (bu değişiklik stash'lenerek) aynı şekilde başarısız. Ayrı bir pre-existing durable-layer regresyonu; Sprint 152 kapsamı (`smoke-pipeline-state-error-contract.ts` / `testRetryStatePropagationAndGenericFailures` / `executeJobRetryOnce` / runtime operation context / doğrudan retry-error-propagation zinciri) dışında.
+<!-- SPRINT-152-END -->
+
 <!-- SPRINT-151-START -->
 ## Sprint 151 - Kısmi Pipeline Başarısızlığı UX Remediation - 2026-08-27
 

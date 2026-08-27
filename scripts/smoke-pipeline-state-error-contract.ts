@@ -24,6 +24,7 @@ import type {
 } from "../src/types/pipelineJob";
 import type { Project, ProductionStepKey, ProjectPackageRunType } from "../src/types/project";
 import type { PipelineRecoveryStageKey } from "../src/types/pipelineRecovery";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 
 type PipelineExecutorHarness = {
   loadState(projectSlug: string): Promise<unknown>;
@@ -32,7 +33,7 @@ type PipelineExecutorHarness = {
 type PipelineRunnerHarness = {
   run(topic: string): Promise<unknown>;
   retryStage(projectSlug: string, stage: PipelineRecoveryStageKey): Promise<unknown>;
-  executeJobRetryOnce(projectSlug: string, jobId: string, options: object): Promise<{
+  executeJobRetry(projectSlug: string, jobId: string, options: object): Promise<{
     status: number; blocked: boolean; reason?: string }>;
   runPipelineStage(projectSlug: string, stage: ProductionStepKey, state: unknown, runType?: ProjectPackageRunType, onClaimConflict?: () => void): Promise<boolean>;
   runStage(projectSlug: string, stage: ProductionStepKey, action: () => Promise<boolean>, runType: ProjectPackageRunType, onClaimConflict?: () => void): Promise<boolean>;
@@ -556,31 +557,47 @@ async function testRetryStatePropagationAndGenericFailures() {
     manager.compensatePreparedRetry = async () => {
       throw compensationStateError;
     };
-    await assert.rejects(
-      runner.executeJobRetryOnce(slug, failedJob.id, {}),
-      (error) => error === compensationStateError,
-    );
 
-    const compensationFailure = new Error("non-state compensation failure");
-    manager.compensatePreparedRetry = async () => {
-      throw compensationFailure;
-    };
-    const genericCompensation = await runner.executeJobRetryOnce(slug, failedJob.id, {});
-    assert.equal(genericCompensation.status, 500);
-    assert.equal(genericCompensation.blocked, false);
-    assert.equal(
-      genericCompensation.reason,
-      "Pipeline retry compensation failed.",
-    );
+    // The retry internals reach storage state through the runtime operation
+    // context that PipelineRunner.executeJobRetry establishes via
+    // withRuntimeOperation -- the same context every production retry entry
+    // point (retry route -> retryStage -> executeJobRetry) runs inside. Drive
+    // that real public entry point within a canonical runtime so the state /
+    // generic-failure propagation below is exercised exactly as it is in
+    // production, instead of reaching past the context contract.
+    await withCanonicalSmokeRuntime(
+      {
+        name: "state-error-contract-retry",
+        operationType: "pipeline-state-error-contract-retry",
+      },
+      async () => {
+        await assert.rejects(
+          runner.executeJobRetry(slug, failedJob.id, {}),
+          (error) => error === compensationStateError,
+        );
 
-    scheduler.getNextRunnableStage = async () => ({ stage: "research" });
-    runner.runPipelineStage = async () => {
-      throw new Error("non-state execution failure");
-    };
-    const genericExecution = await runner.executeJobRetryOnce(slug, failedJob.id, {});
-    assert.equal(genericExecution.status, 500);
-    assert.equal(genericExecution.blocked, false);
-    assert.equal(genericExecution.reason, "Pipeline retry execution failed.");
+        const compensationFailure = new Error("non-state compensation failure");
+        manager.compensatePreparedRetry = async () => {
+          throw compensationFailure;
+        };
+        const genericCompensation = await runner.executeJobRetry(slug, failedJob.id, {});
+        assert.equal(genericCompensation.status, 500);
+        assert.equal(genericCompensation.blocked, false);
+        assert.equal(
+          genericCompensation.reason,
+          "Pipeline retry compensation failed.",
+        );
+
+        scheduler.getNextRunnableStage = async () => ({ stage: "research" });
+        runner.runPipelineStage = async () => {
+          throw new Error("non-state execution failure");
+        };
+        const genericExecution = await runner.executeJobRetry(slug, failedJob.id, {});
+        assert.equal(genericExecution.status, 500);
+        assert.equal(genericExecution.blocked, false);
+        assert.equal(genericExecution.reason, "Pipeline retry execution failed.");
+      },
+    );
   } finally {
     Object.assign(manager, {
       getJob: originals.getJob,

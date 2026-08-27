@@ -1,5 +1,26 @@
 ---
 
+<!-- SPRINT-152-START -->
+## 2026-08-27 - Sprint 152 Pre-existing Pipeline State Retry Regression Remediation
+
+- Fixed the pre-existing `RUNTIME_OPERATION_CONTEXT_MISSING` failure in
+  `scripts/smoke-pipeline-state-error-contract.ts` (`testRetryStatePropagationAndGenericFailures`),
+  broken since Sprint 129.41 (`8f7a37b`) when `executeJobRetryOnce` gained a hard active-runtime-context
+  requirement via `requireRuntimeStorageContext()` but this old "Sprint 92" test kept calling the
+  private method directly, outside the runtime operation context that every production retry entry
+  point establishes.
+- Test-only remediation (Seçenek A — test infrastructure gap): the three direct
+  `executeJobRetryOnce` calls now drive the real public `PipelineRunner.executeJobRetry` inside a
+  `withCanonicalSmokeRuntime` scope, so `withRuntimeOperation` establishes the context exactly as in
+  production. `prepareFailedStageRetry` / `reconcileFailedPipelineExecution` now genuinely run
+  (synthetic "none" lineage for `attempts === 0`), so the state / generic-failure propagation
+  assertions verify the real retry contract instead of reaching past it.
+- No `src/**` changes. The private `executeJobRetryOnce` and the fail-closed
+  `requireRuntimeStorageContext()` contract are unchanged. Zero production mutation.
+- `smoke-pipeline-state-error-contract.ts` PASS (18 cases); `tsc` 0 errors; `lint` 0 errors;
+  `build` OK; 9 retry/resume/state regression smokes PASS.
+<!-- SPRINT-152-END -->
+
 <!-- SPRINT-133-POC-VERIFICATION-START -->
 ## 2026-08-20 - Sprint 133 OpenAI Dynamic Transition Assembly E2E POC Verification & Portability Analysis
 
