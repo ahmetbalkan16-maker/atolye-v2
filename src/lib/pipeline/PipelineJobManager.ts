@@ -1363,13 +1363,32 @@ async function manifestExecutionTotalToAttemptIndex(
     return 0;
   }
 
-  if (executionTotal === 0) {
-    throw new Error("PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH");
-  }
-
   const jobId = getJobId(projectSlug, stage);
   const terminalEvents = history.events.filter((event) =>
     event.jobId === jobId && event.stage === stage);
+
+  if (executionTotal === 0) {
+    // A completed/failed package can legitimately carry no execution total
+    // when it was settled by a bootstrap path that never went through
+    // PipelineJobManager.startStage -- notably `research` completed via
+    // ProjectManager.saveResearch on the initial pipeline run, which marks
+    // the package pending -> completed directly, so
+    // ProjectManager.updateAttemptMetadata (it only counts `running`
+    // transitions) never records a total. Treat that as attempt index 0,
+    // but ONLY when nothing else attests to an execution: no pipeline
+    // history terminal event for this stage AND no durable execution
+    // evidence for the project. If either exists, a zero total is real
+    // drift and still fails closed (Sprint 129.33).
+    if (
+      (status === "completed" || status === "failed") &&
+      terminalEvents.length === 0 &&
+      !hasDurableEvidence
+    ) {
+      return 0;
+    }
+    throw new Error("PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH");
+  }
+
   const expectedTerminalCount = status === "running"
     ? executionTotal - 1
     : executionTotal;

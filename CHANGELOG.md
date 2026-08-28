@@ -1,5 +1,42 @@
 ---
 
+<!-- SPRINT-154-START -->
+## 2026-08-28 - Sprint 154 i-stanbul-un-fethi-1453 Video Completion + Detached-Pending Audio Compensation Recovery
+
+- Fixed `GET /api/projects/[slug]/pipeline/jobs` returning 500 for any project whose `research`
+  package is `completed` without recorded attempt metadata and has no `pipeline-jobs.json` yet (the
+  `/api/pipeline` start flow marks research completed via `saveResearch`, bypassing the executor's
+  `running` transition). `manifestExecutionTotalToAttemptIndex` now treats a `completed`/`failed`
+  package with `executionTotal === 0`, no pipeline history event and no durable evidence as a
+  bootstrap completion (attempt index 0) instead of throwing `PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH`.
+  Sprint 129.33's drift detection is unchanged when any history/durable evidence exists.
+- Added `recoverDetachedPendingAudioCompensationRecord` + `listDetachedPendingAudioCompensationRecords`
+  to `AudioCompensationStore` — the audio-store counterpart to `ProductionOrphanReservationToleranceAuthority`.
+  Recovers a `pending`/`awaiting-registry`/sequence-1 compensation record whose creating operation is
+  no longer active (unreachable by `transitionAudioCompensationState` / the remove/prune functions,
+  which all require the record's own operation). Fail-closed: cleanup-root only, no-ownership read,
+  operation-detachment proof, and a fresh descriptor-bound classification check against the live
+  canonical file — `superseded` → `compensated` + logical retirement, `authoritative` → `registry-owned`
+  (bound publication must be byte-for-byte identical to the live file). Every recovery writes an
+  integrity-pinned audit entry under `production-execution/audio-compensation-recovery/`.
+- Added HTTP `Range` support to `GET /api/assets/videos/[slug]/[fileName]` — `bytes=start-end`
+  (open-ended and suffix forms), `206 Partial Content` with `Content-Range`, `416` for unsatisfiable
+  ranges, and `Accept-Ranges: bytes` on every response. HTML5 `<video>` seeking previously did not work.
+- Fixed a pre-existing repo-wide `tsc` error in `scripts/smoke-sprint-129-39-stage-bounded-resume.ts`
+  (`FixtureThumbnailProvider` overriding `name` to an incompatible literal; now `implements
+  ConfiguredThumbnailProvider` with a delegate). `npx tsc --noEmit` is 0 errors across the repo.
+- Operator applies (real `i-stanbul-un-fethi-1453` production execution, full backup taken first):
+  recovered 13 superseded + 1 authoritative detached-pending `mix.wav` compensation records; ran a
+  bounded assembly retry (gen-3 attemptWithinGeneration 2, real FFmpeg) → assembly `completed`; ran
+  bounded resumes thumbnail → seo → youtube → export → all `completed`; finalized `project.status`
+  to `completed`. Live `mix.wav` / section WAVs / receipt-root records byte-for-byte preserved.
+- Result: `i-stanbul-un-fethi-1453` is 12/12 `completed`; the final MP4
+  (`assets/videos/6e7f08de-…mp4`, 9,083,345 bytes, h264 + aac, 1920×1080, 153.9 s) loads, plays,
+  seeks and completes in a real headless Chrome HTML5 `<video>` element with no media error.
+- `smoke-audio-compensation-detached-pending-recovery.ts` PASS (11); `tsc` 0 errors; `lint` 0 errors
+  (22 pre-existing `RuntimeBackup*` warnings); audio/assembly/pipeline regression battery PASS.
+<!-- SPRINT-154-END -->
+
 <!-- SPRINT-152-START -->
 ## 2026-08-27 - Sprint 152 Pre-existing Pipeline State Retry Regression Remediation
 

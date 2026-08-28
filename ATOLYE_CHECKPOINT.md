@@ -1,5 +1,73 @@
 ---
 
+<!-- SPRINT-154-START -->
+## Sprint 154 - `i-stanbul-un-fethi-1453` Videosunu Tamamlama: `/pipeline/jobs` 500 + Detached-Pending Audio Compensation Recovery + Bounded Assembly→Export + Tarayıcı Oynatılabilirlik - 2026-08-28
+
+**Status:** Completed — oturum sonu commit/push yapıldı.
+**Production execution status:** `i-stanbul-un-fethi-1453` üzerinde **kontrollü, resmi authority üzerinden** production mutation yapıldı (detached-pending compensation recovery + bounded assembly→export resume + completion finalize). Tam proje yedeği alındı (`scratchpad/rollback/`, 252 MB). Canlı `mix.wav` / section WAV'ları / receipt-root kayıtları **byte-for-byte korundu**.
+
+### Ana sonuç
+`i-stanbul-un-fethi-1453` projesi **12/12 stage `completed`**, `project.status: "completed"`. Gerçek final MP4 (`assets/videos/6e7f08de-13f1-4c66-8d85-9e4288e6a60f.mp4`, 9,083,345 bayt, h264+aac, 1920×1080, **153.9 sn**) tarayıcıda gerçek Chrome HTML5 `<video>` ile **yüklendi, oynatıldı, sonuna kadar gitti, seek edildi, media error yok** (headless CDP + ekran görüntüsü ile doğrulandı).
+
+### FAZ 1 — `/api/projects/[slug]/pipeline/jobs` 500
+
+- **Kök neden:** `PipelineJobManager.seedJobsFromManifest` → `manifestExecutionTotalToAttemptIndex` ([PipelineJobManager.ts:1366](src/lib/pipeline/PipelineJobManager.ts)), `research` paketi `completed` ama `attempts.total` yok (`/api/pipeline` başlangıç akışı research'ü executor'dan geçirmeden `saveResearch` ile completed yapıyor) + `pipeline-jobs.json` henüz yok → `throw PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH` → route generic 500. Regresyon: `a029553` (Sprint 129.33).
+- **Düzeltme:** `executionTotal === 0` + `completed`/`failed` + **hiçbir history event yok VE durable evidence yok** → `throw` yerine `return 0` (bootstrap tamamlanması). Gerçek evidence varken Sprint 129.33'ün mismatch yakalama davranışı korunuyor.
+- **Doğrulama:** `fatih-sultan-mehmet-ve-i-stanbul-un-fethi`, `hunlarin-dogusu` (ikinci kurban) jobs endpoint'i 500 → 200. `smoke-sprint-129-33` (+4 case, PASS 58).
+- **Bonus:** Dalın pre-existing `tsc` hatası ([smoke-sprint-129-39-stage-bounded-resume.ts](scripts/smoke-sprint-129-39-stage-bounded-resume.ts) `FixtureThumbnailProvider` `name` override çakışması, `aeb6258`'den beri kırık) da düzeltildi (fixture `implements ConfiguredThumbnailProvider` + delegate). `tsc --noEmit` artık **repoda 0 hata**.
+
+### FAZ 2 — Assembly blocker kök nedeni (runtime kanıtıyla)
+
+- Read-only diagnostic ([scripts/diagnose-istanbul-1453-assembly-render-readonly.ts](scripts/diagnose-istanbul-1453-assembly-render-readonly.ts)) — temp proje kopyası + gerçek FFmpeg + HEAD — **render'ın kendisinin çalıştığını kanıtladı** (155.4 sn geçerli MP4). 90s/155s "uyuşmazlığı" kök neden DEĞİL (assembler her sahne videosunu narration süresine `tpad` ile uzatır).
+- Gerçek proje probe'u: `assertProtectedAudioCanonicalResolutionAllowed("mix.wav")` **`AudioCompensationStoreError` fırlatıyor**; `section-1..5.wav` temiz çözülüyor.
+- **Kök neden:** Sprint 148'in ~10 `reconcile-istanbul-1453-audio-*` + 2 `test-audio-save-*` koşusu, her biri terminal `transitionAudioCompensationState(-> registry-owned)`'a ulaşmadan öldü. Geriye `production-execution/audio-compensation-cleanup/` içinde **14 `pending/awaiting-registry` `mix.wav` compensation workspace** kaldı — 1'i authoritative (`bea459fd`, bound publication'ı canlı `mix.wav` ile device/inode/sha256/byteLength bire bir eşleşiyor), 13'ü superseded. Hepsi **detached**: oluşturan operation gitti, `readProtectedAudioCompensationReceipt` (transition/remove/prune fonksiyonlarının hepsinin geçtiği yol) `validateReceipt`'in aktif-operation kontratı nedeniyle reddediyor. `assertProtectedAudioCanonicalResolutionAllowed` her değerlendirmede fail-closed → `requireMixAsset` + assembly kalıcı bloke. Mevcut `apply-mix-wav-stale-workspace-retirement-*` scripti de aynı duvara çarpıyordu.
+
+### FAZ 3 — Yeni yetki: `recoverDetachedPendingAudioCompensationRecord`
+
+`src/lib/audio/AudioCompensationStore.ts` — pipeline katmanının `ProductionOrphanReservationToleranceAuthority` / `tolerateCancelledOrphanRecord` pattern'inin audio karşılığı. Dar, fail-closed, yalnızca-operatör. Kayıt **no-ownership retention reader** ile okunur; recovery **yalnızca** şunların hepsi kanıtlanınca:
+- aktif production runtime operation context var (bu recovery operation'ı; audit trail'e yazılır),
+- project write-authority lease tutuluyor,
+- kayıt cleanup (deferred-workspace) kökünde, receipt kökünde değil,
+- integrity-valid receipt + monoton state chain ile temiz okunuyor,
+- son state tam olarak `pending` / `awaiting-registry` / sequence 1,
+- oluşturan operation aktif operation DEĞİL (kendi in-flight kaydını recover edemezsin),
+- logically retired değil,
+- `classification`, canlı canonical dosyanın **taze, descriptor-bound** okumasına karşı doğrulanmış:
+  - `superseded`: receipt device+inode (varsa publication da) canlı dosyayla **eşleşmiyor** → `completed`/`compensated` + logical retirement (fiziksel bayt asla silinmez, foreign içerik korunur),
+  - `authoritative`: bound publication'ın device+inode+byteLength+sha256'sı canlı dosyayla **bire bir aynı** VE aynı dosya için farklı identity'li registry-owned kayıt yok → `completed`/`registry-owned`, workspace retire edilmez.
+Her recovery `production-execution/audio-compensation-recovery/<ref>.json` altında integrity-pinned audit entry yazar (recovery operation, classification, gözlenen identity). Ek: `listDetachedPendingAudioCompensationRecords` (READ-ONLY enumeration).
+
+**Testler:** [scripts/smoke-audio-compensation-detached-pending-recovery.ts](scripts/smoke-audio-compensation-detached-pending-recovery.ts) — **11 senaryo PASS** (superseded positive, authoritative positive + resolution restore, aktif-operation negative, live-identity collision, authoritative-mismatch, missing-evidence, `transitionAudioCompensationState` cross-operation kontratı korundu, ikinci-authoritative conflict, idempotent replay, e2e 1+13, read-only list). Regresyon: `smoke-audio-compensation-descriptor-rebind` (11/12), `smoke-audio-canonical-rebind-and-invalidation` (6), `smoke-sprint-129-27-audio-remediation` (117), `smoke-production-audio-asset-wiring` (74), `smoke-isolated-e2e-audio-rebind-assembly` (SUCCESS), `smoke-production-video-assembly-wiring` (73), `smoke-assembly-scene-video-consumption` (25), `smoke-ffmpeg-bgm-kenburns-assembly` (30), `smoke-isolated-e2e-live-pipeline-ffmpeg` (4), `smoke-production-readiness-acceptance` (24), `smoke-sprint-129-{9,30,29,33,39}`, `smoke-pipeline-{orchestration,retry-continuation-hardening,state-corruption,history-persistence}` — **hepsi PASS**.
+
+### FAZ 3 apply — production mutation ([scripts/apply-mix-wav-detached-pending-recovery-istanbul-1453.ts](scripts/apply-mix-wav-detached-pending-recovery-istanbul-1453.ts))
+
+Fresh on-disk sweep (`listDetachedPendingAudioCompensationRecords` — eski scriptin elle listesine güvenilmedi) → 14 kayıt bulundu: 13 SUPERSEDED + 1 AUTHORITATIVE (`bea459fd`). `--commit`:
+- 13 superseded → `completed`/`compensated` + logical retirement (13 `retirement-*.json` planı yazıldı),
+- `bea459fd` → `completed`/`registry-owned` (canlı `mix.wav`'a karşı descriptor-bound doğrulandı),
+- 14 recovery audit entry yazıldı.
+Post-audit: `assertProtectedAudioCanonicalResolutionAllowed("mix.wav")` → çözülüyor (identity = canlı dosya); `section-1..5.wav` bozulmadı; receipt-root (`audio-comp-00000000-...0001..0005`) `state-000002.json` timestamp'leri **2026-08-21** (dokunulmadı); canlı `mix.wav` byte-for-byte aynı.
+
+### FAZ 4/5 — Assembly → export + tarayıcı
+
+- `apply-execute-assembly-istanbul-1453-gen3-retry.ts` (gen-3 attemptWithinGeneration 2, bounded `stopAfterStage: assembly`, gerçek FFmpeg) → **SUCCEEDED**, assembly job `completed` (attempts 8). Output: `6e7f08de-...mp4`, 153.9 sn, h264+aac, asset registry'de `de4999cd-...`, assembly.json + manifest doğru asset'e işaret ediyor.
+- `run-pipeline-bounded-resume` ile stage-by-stage: **thumbnail → seo → youtube (package) → export** hepsi `completed`. Export bundle materialize oldu (`export/bundle/`: video.mp4, thumbnail.png, subtitles.srt/vtt, youtube_metadata.json, export_manifest.json).
+- [scripts/apply-finalize-project-completion-istanbul-1453.ts](scripts/apply-finalize-project-completion-istanbul-1453.ts) → `PipelineJobManager.persistProjectCompletion` (guarded: tüm job'lar completed olmadan çalışmaz) → `project.status: "completed"`. (Bounded `stopAfterStage` yolu `resumeOnce`'ın trailing completion bloğunu atlıyor.)
+- **Video serving Range desteği** ([app/api/assets/videos/[slug]/[fileName]/route.ts](app/api/assets/videos/[slug]/[fileName]/route.ts)): route sadece 200 + full-body dönüyordu (`Accept-Ranges` yok, 206 yok) → HTML5 `<video>` seek bozuk. `Range: bytes=start-end` (open-ended + suffix formları), 206 `Content-Range`, 416 unsatisfiable, `Accept-Ranges: bytes` eklendi. Byte-correctness (206 gövdesi = dosya dilimi sha256), full-download sha256 = dosya sha256 doğrulandı.
+- **Tarayıcı doğrulaması:** headless Chrome + CDP → `readyState 4`, decoded `1920×1080`, `playedPast: true`, `seekOk: true` (duration-5s'e seek → Range gerektiriyor), `ended`, `error: null`. Ekran görüntüsü gerçek belgesel karesini gösteriyor (Fatih + Osmanlı askerleri, Konstantinopolis surları). Proje sayfası yalnızca `6e7f08de` (yeni asset) referansı içeriyor — eski 88s/153s çıktılara sıfır referans.
+
+### Değişen kaynak dosyalar
+- `src/lib/pipeline/PipelineJobManager.ts` — bootstrap-completion seed toleransı (FAZ 1).
+- `src/lib/audio/AudioCompensationStore.ts` — `recoverDetachedPendingAudioCompensationRecord` + `listDetachedPendingAudioCompensationRecords` + audit ledger (FAZ 3).
+- `app/api/assets/videos/[slug]/[fileName]/route.ts` — HTTP Range desteği (FAZ 5).
+- `scripts/smoke-sprint-129-39-stage-bounded-resume.ts` — pre-existing `tsc` hatası fix.
+- Yeni: `scripts/smoke-audio-compensation-detached-pending-recovery.ts`, `scripts/apply-mix-wav-detached-pending-recovery-istanbul-1453.ts`, `scripts/apply-finalize-project-completion-istanbul-1453.ts`, `scripts/diagnose-istanbul-1453-assembly-render-readonly.ts`, `scripts/smoke-sprint-129-33`'e +4 case.
+
+### Kalan / kapsam dışı
+- `data/projects/i-stanbul-un-fethi-1453/` (~250 MB gerçek production verisi + yeni MP4 + export bundle + recovery ledger) — Sprint 148/149 gibi commit'e **dahil edilmedi** (kullanıcı isterse tek komutla eklenebilir).
+- `fatih-sultan-mehmet-ve-i-stanbul-un-fethi` (proje B): `/pipeline/jobs` 500 giderildi (FAZ 1). Pipeline'ı `script` stage'inde düşmüştü (arşiv server konsolu erişilemez); taze bir draft, kullanıcı istediğinde resume/yeniden başlatabilir. Tam pipeline'ını koşmak bu görevin kapsamı değildi.
+- 22 pre-existing lint uyarısı (0 error, hepsi `RuntimeBackup*`).
+<!-- SPRINT-154-END -->
+
 <!-- SPRINT-153-START -->
 ## Sprint 153 - Remediation of 3 Pre-existing Durable/Resume Regression Smoke Tests - 2026-08-27
 

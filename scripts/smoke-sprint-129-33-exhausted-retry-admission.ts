@@ -655,6 +655,13 @@ async function manifestSeedEvidence() {
     ["first", "completed", 1, 0],
     ["second", "completed", 2, 1],
     ["third", "failed", 3, 2],
+    // Bootstrap completion: a stage marked completed/failed straight on the
+    // manifest (never through startStage, e.g. research via saveResearch on
+    // the initial pipeline run) carries no attempt total and no history.
+    // With no durable evidence either, this must seed as attempt index 0
+    // rather than 500-ing the whole pipeline/jobs endpoint.
+    ["bootstrap-completed", "completed", 0, 0],
+    ["bootstrap-failed", "failed", 0, 0],
   ] as const) {
     await test(`Manifest seed ${name}: total ${total} maps to index ${expected}`, async () => {
       await withFixture(`manifest-seed-${name}`, async (fixture) => {
@@ -664,6 +671,21 @@ async function manifestSeedEvidence() {
       });
     });
   }
+  await test("Manifest seed rejects zero total when pipeline history attests an execution", async () => {
+    await withFixture("manifest-seed-zero-total-history", async (fixture) => {
+      await writeSeedEvidence(fixture, "completed", 0, 1);
+      await assert.rejects(() => PipelineJobManager.listJobs(fixture.projectSlug),
+        /PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH/);
+    });
+  });
+  await test("Manifest seed rejects zero total when durable evidence exists", async () => {
+    await withFixture("manifest-seed-zero-total-durable", async (fixture) => {
+      await fixture.createChain(1);
+      await writeSeedEvidence(fixture, "completed", 0, 0);
+      await assert.rejects(() => PipelineJobManager.listJobs(fixture.projectSlug),
+        /PIPELINE_MANIFEST_ATTEMPT_EVIDENCE_MISMATCH/);
+    });
+  });
   await test("Manifest seed rejects malformed total and history mismatch", async () => {
     await withFixture("manifest-seed-invalid", async (fixture) => {
       await writeSeedEvidence(fixture, "failed", 2, 1);

@@ -39,6 +39,8 @@ import type { ConfiguredVideoAssemblyProvider } from
 import { ThumbnailProviderRouter } from "../src/lib/thumbnail/ThumbnailProviderRouter";
 import { MockThumbnailProvider } from
   "../src/lib/thumbnail/providers/MockThumbnailProvider";
+import type { ConfiguredThumbnailProvider } from
+  "../src/lib/thumbnail/providers/ThumbnailProvider";
 import { YouTubePublishProviderRouter } from
   "../src/lib/youtube/publish/YouTubePublishProviderRouter";
 import { MockYouTubePublishProvider } from
@@ -135,27 +137,35 @@ class FixtureAssemblyProvider implements ConfiguredVideoAssemblyProvider {
   }
 }
 
-class FixtureThumbnailProvider extends MockThumbnailProvider {
-  override readonly name = "openai" as const;
+class FixtureThumbnailProvider implements ConfiguredThumbnailProvider {
+  readonly name = "openai" as const;
+  private readonly delegate = new MockThumbnailProvider();
   readonly planCalls = new Map<string, number>();
   readonly assetCalls = new Map<string, number>();
 
-  override async generateThumbnailPlan(
+  createImmutableThumbnailDispatchAdapter() {
+    return createProviderDispatchAdapter(this, {
+      metadata: { name: this.name },
+      requiredMethods: ["generateThumbnailPlan", "generateThumbnailAsset"],
+    });
+  }
+
+  async generateThumbnailPlan(
     input: Parameters<MockThumbnailProvider["generateThumbnailPlan"]>[0],
   ) {
     const projectSlug = input.projectSlug;
     assert.ok(projectSlug);
     this.planCalls.set(projectSlug, (this.planCalls.get(projectSlug) ?? 0) + 1);
-    const result = await super.generateThumbnailPlan(input);
+    const result = await this.delegate.generateThumbnailPlan(input);
     return { ...result, provider: "openai" as const,
       thumbnail: { ...result.thumbnail, provider: "openai" as const } };
   }
 
-  override async generateThumbnailAsset(
+  async generateThumbnailAsset(
     input: Parameters<MockThumbnailProvider["generateThumbnailAsset"]>[0],
   ) {
     this.assetCalls.set(input.projectSlug, (this.assetCalls.get(input.projectSlug) ?? 0) + 1);
-    const result = await super.generateThumbnailAsset(input);
+    const result = await this.delegate.generateThumbnailAsset(input);
     if (result.success) {
       const asset = AssetManager.getProjectAssets(input.projectSlug, input.projectId)
         .assets.find((a) => a.id === result.assetId);

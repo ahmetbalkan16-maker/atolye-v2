@@ -1301,6 +1301,586 @@ export function removeCompensatedAudioCompensationRecord(
   removeCompletedRecord(context, projectSlug, compensationRef, authority);
 }
 
+// ---------------------------------------------------------------------------
+// Detached-pending compensation record recovery
+//
+// The one class of record that NONE of `transitionAudioCompensationState`,
+// `removeCompensatedAudioCompensationRecord`,
+// `removeRegistryOwnedAudioCompensationRecord` or
+// `pruneCompletedAudioCompensationRecords` can reach: a `pending` /
+// `awaiting-registry` / sequence-1 record whose creating operation is no
+// longer active. Every one of those entry points funnels through
+// `readProtectedAudioCompensationReceipt`, and `validateReceipt` there pins
+// the receipt to the *currently active* operation. A crash between
+// `createProtectedAudioCompensationReceipt` and the terminal
+// `transitionAudioCompensationState(-> registry-owned)` therefore strands the
+// record permanently; once one exists for a `canonicalFileName`,
+// `assertProtectedAudioCanonicalResolutionAllowed` fails closed on it on every
+// subsequent evaluation (it is neither the active operation's record nor a
+// terminal one), which permanently blocks `requireMixAsset` and the assembly
+// stage for that project.
+//
+// This is the audio-store counterpart to the pipeline layer's
+// `ProductionOrphanReservationToleranceAuthority` / `tolerateCancelledOrphanRecord`:
+// a narrow, fail-closed, explicit-operator-only path -- never a
+// scan-and-tolerate-everything sweep, never wired into any automatic
+// startup/recovery. It reads the stranded record through the no-ownership
+// retention reader and drives it to the correct terminal state using this
+// store's own `writeState` / `retireTerminalWorkspace` engine. No new receipt
+// is fabricated, no JSON is hand-edited, no physical bytes are deleted (the
+// retirement stays logical and foreign-preserving). Every invocation writes a
+// dedicated, integrity-pinned audit entry under
+// `production-execution/audio-compensation-recovery/` recording the recovery
+// operation, the classification and the observed identities.
+// ---------------------------------------------------------------------------
+
+const RECOVERY_DIRECTORY = "audio-compensation-recovery";
+const RECOVERY_SCHEMA_VERSION = "audio-compensation-detached-pending-recovery-v1";
+const RECOVERY_POLICY_VERSION = "detached-pending-recovery-v1";
+const MAX_RECOVERY_BYTES = 4096;
+
+export type DetachedPendingAudioCompensationClassification =
+  | "superseded"
+  | "authoritative";
+
+export interface DetachedPendingAudioCompensationRecoveryResult {
+  readonly ok: true;
+  readonly status: "recovered" | "replayed";
+  readonly writeFree: boolean;
+  readonly compensationRef: string;
+  readonly canonicalFileName: string;
+  readonly classification: DetachedPendingAudioCompensationClassification;
+  readonly detachedOperationId: string;
+  readonly recoveryOperationId: string;
+  readonly priorState: {
+    readonly status: AudioCompensationLifecycleStatus;
+    readonly outcome: AudioCompensationState["outcome"];
+    readonly sequence: number;
+  };
+  readonly finalOutcome: "compensated" | "registry-owned";
+  readonly logicallyRetired: boolean;
+  readonly verifiedCanonicalIdentity?: ProtectedAudioCanonicalReadIdentity;
+}
+
+interface DetachedPendingRecoveryAuditEntry {
+  readonly schemaVersion: typeof RECOVERY_SCHEMA_VERSION;
+  readonly policyVersion: typeof RECOVERY_POLICY_VERSION;
+  readonly projectSlug: string;
+  readonly compensationRef: string;
+  readonly canonicalFileName: string;
+  readonly classification: DetachedPendingAudioCompensationClassification;
+  readonly detachedOperationId: string;
+  readonly detachedOperationBindingFingerprint: string;
+  readonly recoveryOperationId: string;
+  readonly recoveryOperationBindingFingerprint: string;
+  readonly finalOutcome: "compensated" | "registry-owned";
+  readonly observedCanonicalDevice: number;
+  readonly observedCanonicalInode: number;
+  readonly observedCanonicalByteLength: number;
+  readonly observedCanonicalSha256: string;
+  readonly recoveredAt: string;
+  readonly integrity: string;
+}
+
+function recoveryLogicalRoot(projectSlug: string): string {
+  return `data/projects/${projectSlug}/production-execution/${RECOVERY_DIRECTORY}`;
+}
+
+function ensureRecoveryRoot(
+  context: RuntimeStorageContext,
+  projectSlug: string,
+): string {
+  requireProjectSlug(projectSlug);
+  try {
+    return ensureSafeContainedDirectory(
+      context.projectsRoot,
+      resolveRuntimeLogicalPathForWrite(recoveryLogicalRoot(projectSlug), context),
+    );
+  } catch {
+    throw new AudioCompensationStoreError();
+  }
+}
+
+function recoveryAuditFilePath(recoveryRoot: string, compensationRef: string): string {
+  const fileName = `${compensationRef}.json`;
+  if (!SAFE_FILE_NAME.test(fileName)) throw new AudioCompensationStoreError();
+  return path.join(recoveryRoot, fileName);
+}
+
+function readDetachedPendingRecoveryAuditEntry(
+  context: RuntimeStorageContext,
+  projectSlug: string,
+  compensationRef: string,
+): DetachedPendingRecoveryAuditEntry | undefined {
+  let root: string;
+  try {
+    root = requireContainedRealDirectory(
+      context.projectsRoot,
+      resolveRuntimeLogicalPath(recoveryLogicalRoot(projectSlug), context),
+    );
+  } catch {
+    return undefined;
+  }
+  const filePath = recoveryAuditFilePath(root, compensationRef);
+  if (!fs.existsSync(filePath)) return undefined;
+  const value = readJsonFile(filePath, MAX_RECOVERY_BYTES);
+  if (!validDetachedPendingRecoveryAuditEntry(value, projectSlug, compensationRef)) {
+    throw new AudioCompensationStoreError();
+  }
+  return value;
+}
+
+function validDetachedPendingRecoveryAuditEntry(
+  value: unknown,
+  projectSlug: string,
+  compensationRef: string,
+): value is DetachedPendingRecoveryAuditEntry {
+  if (!record(value)) return false;
+  const { integrity, ...body } = value;
+  return Object.keys(value).length === 17 &&
+    value.schemaVersion === RECOVERY_SCHEMA_VERSION &&
+    value.policyVersion === RECOVERY_POLICY_VERSION &&
+    value.projectSlug === projectSlug &&
+    value.compensationRef === compensationRef &&
+    typeof value.canonicalFileName === "string" &&
+    SAFE_FILE_NAME.test(value.canonicalFileName) &&
+    (value.classification === "superseded" || value.classification === "authoritative") &&
+    typeof value.detachedOperationId === "string" && value.detachedOperationId.length > 0 &&
+    typeof value.detachedOperationBindingFingerprint === "string" &&
+    /^[0-9a-f]{64}$/.test(value.detachedOperationBindingFingerprint) &&
+    typeof value.recoveryOperationId === "string" && value.recoveryOperationId.length > 0 &&
+    typeof value.recoveryOperationBindingFingerprint === "string" &&
+    /^[0-9a-f]{64}$/.test(value.recoveryOperationBindingFingerprint) &&
+    (value.finalOutcome === "compensated" || value.finalOutcome === "registry-owned") &&
+    identityInteger(value.observedCanonicalDevice) &&
+    identityInteger(value.observedCanonicalInode) &&
+    safeInteger(value.observedCanonicalByteLength, 1, MAX_AUDIO_BYTES) &&
+    typeof value.observedCanonicalSha256 === "string" &&
+    /^[0-9a-f]{64}$/.test(value.observedCanonicalSha256) &&
+    validDate(value.recoveredAt) &&
+    typeof integrity === "string" &&
+    integrity === digest(body);
+}
+
+function readLiveCanonicalAudioIdentity(
+  context: RuntimeStorageContext,
+  projectSlug: string,
+  canonicalFileName: string,
+): ProtectedAudioCanonicalReadIdentity {
+  const canonicalPath = resolveRuntimeLogicalPath(
+    `data/projects/${projectSlug}/assets/audio/${canonicalFileName}`,
+    context,
+  );
+  let link: fs.Stats;
+  let bytes: Buffer;
+  try {
+    link = fs.lstatSync(canonicalPath);
+    if (!link.isFile() || link.isSymbolicLink()) {
+      throw new Error("canonical audio file is not a regular file");
+    }
+    bytes = readAudioFileDescriptorBound(canonicalPath, {
+      maximumByteLength: MAX_AUDIO_BYTES,
+      openedIdentity: { device: link.dev, inode: link.ino, byteLength: link.size },
+    });
+  } catch {
+    throw new AudioCompensationStoreError();
+  }
+  const identity: ProtectedAudioCanonicalReadIdentity = {
+    device: link.dev,
+    inode: link.ino,
+    byteLength: link.size,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+  };
+  if (
+    !identityInteger(identity.device) ||
+    !identityInteger(identity.inode) ||
+    !safeInteger(identity.byteLength, 1, MAX_AUDIO_BYTES)
+  ) {
+    throw new AudioCompensationStoreError();
+  }
+  return Object.freeze(identity);
+}
+
+/**
+ * True when some OTHER compensation record (either root) is already
+ * `completed` / `registry-owned` for `canonicalFileName`. Used to keep the
+ * "at most one authoritative record per canonical file" invariant that
+ * `mergeCanonicalReadIdentity` would otherwise only catch at read time.
+ * `sameIdentity` distinguishes a real conflict (different device/inode) from
+ * an idempotent replay (an equal registry-owned record already exists).
+ */
+function findExistingRegistryOwnedCanonicalIdentity(
+  context: RuntimeStorageContext,
+  projectSlug: string,
+  canonicalFileName: string,
+  excludeCompensationRef: string,
+): ProtectedAudioCanonicalReadIdentity | undefined {
+  let found: ProtectedAudioCanonicalReadIdentity | undefined;
+  for (const root of [
+    receiptRootIfPresent(context, projectSlug),
+    cleanupRootIfPresent(context, projectSlug),
+  ]) {
+    if (!root) continue;
+    for (const entry of fs.readdirSync(root).sort()) {
+      if (
+        entry === JOURNAL_STAGING_DIRECTORY ||
+        entry === REBIND_DIRECTORY ||
+        parseRetirementFileName(entry) ||
+        entry === excludeCompensationRef ||
+        !isSafeAudioCompensationRef(entry)
+      ) continue;
+      if (root === cleanupRootIfPresent(context, projectSlug) &&
+        isLogicallyRetired(root, projectSlug, entry)) continue;
+      let current: ReturnType<typeof readAudioCompensationReceiptForRetention>;
+      try {
+        current = readAudioCompensationReceiptForRetention(context, projectSlug, entry);
+      } catch {
+        continue;
+      }
+      if (
+        current.receipt.canonicalFileName !== canonicalFileName ||
+        current.state.status !== "completed" ||
+        current.state.outcome !== "registry-owned" ||
+        !current.publication
+      ) continue;
+      const identity = resolveEffectiveCanonicalReadIdentity(
+        context, projectSlug, entry, current.publication,
+      );
+      found = mergeCanonicalReadIdentity(found, identity);
+    }
+  }
+  return found;
+}
+
+function sameCanonicalIdentity(
+  left: ProtectedAudioCanonicalReadIdentity,
+  right: ProtectedAudioCanonicalReadIdentity,
+): boolean {
+  return left.device === right.device &&
+    left.inode === right.inode &&
+    left.byteLength === right.byteLength &&
+    left.sha256 === right.sha256;
+}
+
+export interface DetachedPendingAudioCompensationRecordSummary {
+  readonly compensationRef: string;
+  readonly canonicalFileName: string;
+  readonly detachedOperationId: string;
+  readonly state: {
+    readonly status: AudioCompensationLifecycleStatus;
+    readonly outcome: AudioCompensationState["outcome"];
+    readonly sequence: number;
+  };
+  readonly receiptDevice: number;
+  readonly receiptInode: number;
+  readonly receiptByteLength: number;
+  readonly receiptSha256: string;
+  readonly hasBoundPublication: boolean;
+  readonly publicationDevice?: number;
+  readonly publicationInode?: number;
+  readonly logicallyRetired: boolean;
+  readonly recovered: boolean;
+}
+
+/**
+ * READ-ONLY. Enumerates every compensation record in the deferred-workspace
+ * (cleanup) root that names `canonicalFileName`, so an operator can review the
+ * exact set before driving one explicit
+ * `recoverDetachedPendingAudioCompensationRecord` call per record. Performs
+ * zero writes and never itself recovers anything. The permanent receipt root
+ * is intentionally NOT walked -- those records are never recovery candidates.
+ */
+export function listDetachedPendingAudioCompensationRecords(
+  projectSlug: string,
+  canonicalFileName: string,
+  input?: RuntimeStorageContext,
+): readonly DetachedPendingAudioCompensationRecordSummary[] {
+  const context = resolveRuntimeStorageContext(input);
+  requireActiveProductionRuntimeOperationContext();
+  requireProjectSlug(projectSlug);
+  if (!SAFE_FILE_NAME.test(canonicalFileName)) {
+    throw new AudioCompensationStoreError();
+  }
+  const cleanup = cleanupRootIfPresent(context, projectSlug);
+  if (!cleanup) return [];
+  const summaries: DetachedPendingAudioCompensationRecordSummary[] = [];
+  for (const entry of fs.readdirSync(cleanup).sort()) {
+    if (
+      entry === JOURNAL_STAGING_DIRECTORY ||
+      entry === REBIND_DIRECTORY ||
+      parseRetirementFileName(entry) ||
+      !isSafeAudioCompensationRef(entry)
+    ) continue;
+    if (!fs.existsSync(path.join(cleanup, entry, "record"))) continue;
+    let current: ReturnType<typeof readAudioCompensationReceiptForRetention>;
+    try {
+      current = readAudioCompensationReceiptForRetention(context, projectSlug, entry);
+    } catch {
+      continue;
+    }
+    if (current.receipt.canonicalFileName !== canonicalFileName) continue;
+    summaries.push(Object.freeze({
+      compensationRef: entry,
+      canonicalFileName: current.receipt.canonicalFileName,
+      detachedOperationId: current.receipt.operationId,
+      state: {
+        status: current.state.status,
+        outcome: current.state.outcome,
+        sequence: current.state.sequence,
+      },
+      receiptDevice: current.receipt.device,
+      receiptInode: current.receipt.inode,
+      receiptByteLength: current.receipt.byteLength,
+      receiptSha256: current.receipt.sha256,
+      hasBoundPublication: current.publication !== undefined,
+      ...(current.publication
+        ? {
+            publicationDevice: current.publication.device,
+            publicationInode: current.publication.inode,
+          }
+        : {}),
+      logicallyRetired: isLogicallyRetired(cleanup, projectSlug, entry),
+      recovered: readDetachedPendingRecoveryAuditEntry(context, projectSlug, entry) !== undefined,
+    }));
+  }
+  return summaries;
+}
+
+export function recoverDetachedPendingAudioCompensationRecord(input: {
+  readonly projectSlug: string;
+  readonly compensationRef: string;
+  readonly canonicalFileName: string;
+  readonly classification: DetachedPendingAudioCompensationClassification;
+  readonly authority: RuntimeStorageAuthorityLease;
+  readonly context?: RuntimeStorageContext;
+}): DetachedPendingAudioCompensationRecoveryResult {
+  const context = resolveRuntimeStorageContext(input.context);
+  assertProjectWriteAuthorityLease(input.authority, input.projectSlug, context);
+  const recoveryOperation = requireActiveProductionRuntimeOperationContext();
+  requireProjectSlug(input.projectSlug);
+  if (
+    !isSafeAudioCompensationRef(input.compensationRef) ||
+    !SAFE_FILE_NAME.test(input.canonicalFileName) ||
+    (input.classification !== "superseded" && input.classification !== "authoritative")
+  ) {
+    throw new AudioCompensationStoreError();
+  }
+
+  const cleanup = cleanupRootIfPresent(context, input.projectSlug);
+  if (!cleanup) throw new AudioCompensationStoreError();
+
+  // Must be a deferred-workspace record, never a permanent receipt-root one.
+  const receiptRootPresent = receiptRootIfPresent(context, input.projectSlug);
+  if (
+    receiptRootPresent &&
+    fs.existsSync(path.join(receiptRootPresent, input.compensationRef))
+  ) {
+    throw new AudioCompensationStoreError();
+  }
+  if (!fs.existsSync(path.join(cleanup, input.compensationRef))) {
+    throw new AudioCompensationStoreError();
+  }
+
+  const current = readAudioCompensationReceiptForRetention(
+    context, input.projectSlug, input.compensationRef,
+  );
+  if (
+    current.receipt.canonicalFileName !== input.canonicalFileName ||
+    current.receipt.compensationRef !== input.compensationRef ||
+    current.receipt.projectSlug !== input.projectSlug
+  ) {
+    throw new AudioCompensationStoreError();
+  }
+
+  // The record's creating operation must NOT be the active recovery operation.
+  // You can never "recover" your own in-flight record through this path.
+  if (
+    current.receipt.operationId === recoveryOperation.operationId ||
+    current.receipt.operationBindingFingerprint === recoveryOperation.bindingFingerprint
+  ) {
+    throw new AudioCompensationStoreError();
+  }
+
+  const priorAudit = readDetachedPendingRecoveryAuditEntry(
+    context, input.projectSlug, input.compensationRef,
+  );
+  const expectedFinalOutcome: "compensated" | "registry-owned" =
+    input.classification === "superseded" ? "compensated" : "registry-owned";
+  const liveIdentity = readLiveCanonicalAudioIdentity(
+    context, input.projectSlug, input.canonicalFileName,
+  );
+
+  // ---- Idempotent replay ----------------------------------------------------
+  if (current.state.status === "completed") {
+    if (
+      !priorAudit ||
+      priorAudit.classification !== input.classification ||
+      priorAudit.finalOutcome !== expectedFinalOutcome ||
+      current.state.outcome !== expectedFinalOutcome
+    ) {
+      throw new AudioCompensationStoreError();
+    }
+    let logicallyRetired = false;
+    if (input.classification === "superseded") {
+      if (!isLogicallyRetired(cleanup, input.projectSlug, input.compensationRef)) {
+        retireTerminalWorkspace(context, input.projectSlug, input.compensationRef, input.authority);
+      }
+      logicallyRetired = isLogicallyRetired(cleanup, input.projectSlug, input.compensationRef);
+      if (!logicallyRetired) throw new AudioCompensationStoreError();
+    } else {
+      if (!current.publication) throw new AudioCompensationStoreError();
+      const effective = resolveEffectiveCanonicalReadIdentity(
+        context, input.projectSlug, input.compensationRef, current.publication,
+      );
+      if (!sameCanonicalIdentity(effective, liveIdentity)) {
+        throw new AudioCompensationStoreError();
+      }
+    }
+    return Object.freeze({
+      ok: true, status: "replayed" as const, writeFree: true,
+      compensationRef: input.compensationRef,
+      canonicalFileName: input.canonicalFileName,
+      classification: input.classification,
+      detachedOperationId: current.receipt.operationId,
+      recoveryOperationId: priorAudit.recoveryOperationId,
+      priorState: {
+        status: current.state.status, outcome: current.state.outcome,
+        sequence: current.state.sequence,
+      },
+      finalOutcome: expectedFinalOutcome,
+      logicallyRetired,
+      ...(input.classification === "authoritative"
+        ? { verifiedCanonicalIdentity: liveIdentity } : {}),
+    });
+  }
+
+  // ---- Fresh recovery -- fail closed on any deviation ----------------------
+  if (
+    current.state.status !== "pending" ||
+    current.state.outcome !== "awaiting-registry" ||
+    current.state.sequence !== 1 ||
+    priorAudit !== undefined ||
+    isLogicallyRetired(cleanup, input.projectSlug, input.compensationRef)
+  ) {
+    throw new AudioCompensationStoreError();
+  }
+
+  if (input.classification === "superseded") {
+    // A stale/superseded workspace: neither the receipt nor (if present) the
+    // bound publication may match the live canonical file. That match would
+    // mean this is the record that actually owns the file -- it must then be
+    // recovered as "authoritative", never abandoned.
+    if (
+      (current.receipt.device === liveIdentity.device &&
+        current.receipt.inode === liveIdentity.inode) ||
+      (current.publication !== undefined &&
+        current.publication.device === liveIdentity.device &&
+        current.publication.inode === liveIdentity.inode)
+    ) {
+      throw new AudioCompensationStoreError();
+    }
+  } else {
+    // Authoritative: a bound publication whose device+inode+byteLength+sha256
+    // are all byte-for-byte identical to a fresh descriptor-bound read of the
+    // live canonical file, and no other record already owns this file with a
+    // different identity.
+    const publication = current.publication;
+    if (
+      !publication ||
+      publication.canonicalFileName !== input.canonicalFileName ||
+      publication.device !== liveIdentity.device ||
+      publication.inode !== liveIdentity.inode ||
+      publication.byteLength !== liveIdentity.byteLength ||
+      publication.sha256 !== liveIdentity.sha256
+    ) {
+      throw new AudioCompensationStoreError();
+    }
+    const existing = findExistingRegistryOwnedCanonicalIdentity(
+      context, input.projectSlug, input.canonicalFileName, input.compensationRef,
+    );
+    if (existing && !sameCanonicalIdentity(existing, liveIdentity)) {
+      throw new AudioCompensationStoreError();
+    }
+  }
+
+  const priorState = {
+    status: current.state.status,
+    outcome: current.state.outcome,
+    sequence: current.state.sequence,
+  } as const;
+
+  const finalState = writeState(
+    context, input.projectSlug, current.receipt,
+    { status: "completed", outcome: expectedFinalOutcome },
+    input.authority,
+  );
+  if (finalState.status !== "completed" || finalState.outcome !== expectedFinalOutcome) {
+    throw new AudioCompensationStoreError();
+  }
+
+  let logicallyRetired = false;
+  if (input.classification === "superseded") {
+    retireTerminalWorkspace(context, input.projectSlug, input.compensationRef, input.authority);
+    logicallyRetired = isLogicallyRetired(cleanup, input.projectSlug, input.compensationRef);
+    if (!logicallyRetired) throw new AudioCompensationStoreError();
+  }
+
+  const auditBody = {
+    schemaVersion: RECOVERY_SCHEMA_VERSION,
+    policyVersion: RECOVERY_POLICY_VERSION,
+    projectSlug: input.projectSlug,
+    compensationRef: input.compensationRef,
+    canonicalFileName: input.canonicalFileName,
+    classification: input.classification,
+    detachedOperationId: current.receipt.operationId,
+    detachedOperationBindingFingerprint: current.receipt.operationBindingFingerprint,
+    recoveryOperationId: recoveryOperation.operationId,
+    recoveryOperationBindingFingerprint: recoveryOperation.bindingFingerprint,
+    finalOutcome: expectedFinalOutcome,
+    observedCanonicalDevice: liveIdentity.device,
+    observedCanonicalInode: liveIdentity.inode,
+    observedCanonicalByteLength: liveIdentity.byteLength,
+    observedCanonicalSha256: liveIdentity.sha256,
+    recoveredAt: new Date().toISOString(),
+  } as const;
+  const auditEntry: DetachedPendingRecoveryAuditEntry = Object.freeze({
+    ...auditBody,
+    integrity: digest(auditBody),
+  });
+  const recoveryRoot = ensureRecoveryRoot(context, input.projectSlug);
+  const auditFileName = `${input.compensationRef}.json`;
+  try {
+    writeDurableJsonNoClobber(recoveryRoot, auditFileName, auditEntry, MAX_RECOVERY_BYTES);
+  } catch {
+    const existing = readDetachedPendingRecoveryAuditEntry(
+      context, input.projectSlug, input.compensationRef,
+    );
+    if (!existing || existing.integrity !== auditEntry.integrity) {
+      throw new AudioCompensationStoreError();
+    }
+  }
+  const readback = readDetachedPendingRecoveryAuditEntry(
+    context, input.projectSlug, input.compensationRef,
+  );
+  if (!readback || readback.integrity !== auditEntry.integrity) {
+    throw new AudioCompensationStoreError();
+  }
+
+  return Object.freeze({
+    ok: true, status: "recovered" as const, writeFree: false,
+    compensationRef: input.compensationRef,
+    canonicalFileName: input.canonicalFileName,
+    classification: input.classification,
+    detachedOperationId: current.receipt.operationId,
+    recoveryOperationId: recoveryOperation.operationId,
+    priorState,
+    finalOutcome: expectedFinalOutcome,
+    logicallyRetired,
+    ...(input.classification === "authoritative"
+      ? { verifiedCanonicalIdentity: liveIdentity } : {}),
+  });
+}
+
 export function pruneCompletedAudioCompensationRecords(
   projectSlug: string,
   authority: RuntimeStorageAuthorityLease,
