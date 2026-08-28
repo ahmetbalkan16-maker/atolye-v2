@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1",
+  "projectId": "1ba3bebf-abe9-4b3c-9b4a-b9d238b98534",
+  "slug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+  "createdAt": "2026-08-28T19:23:05.249Z",
+  "files": [
+    {
+      "fileName": "video.mp4",
+      "sourceAssetId": "150551e8-8bd5-4447-9650-48775779e5ba",
+      "sourcePackage": "assembly",
+      "byteLength": 9452948,
+      "sha256": "b03323fa3bd06283e2b1c1acf8a8b38750d5f07e7fcc5153cc686608d812892b",
+      "status": "packaged"
+    },
+    {
+      "fileName": "thumbnail.png",
+      "sourceAssetId": "fa60aec0-1cc3-4a66-ad8c-731d1142b46d",
+      "sourcePackage": "thumbnail",
+      "byteLength": 2531685,
+      "sha256": "409511498a13d154931ea588a87fa195305c55595cafb823f29bf2247a828c04",
+      "status": "packaged"
+    },
+    {
+      "fileName": "youtube_metadata.json",
+      "sourcePackage": "youtube",
+      "byteLength": 2679,
+      "sha256": "c71ca544cfe88360ea04b3bbe0cd0056a51f8c6e86309f0b2de6aa52f06a4e9b",
+      "status": "packaged"
+    },
+    {
+      "fileName": "subtitles.srt",
+      "sourcePackage": "audio",
+      "byteLength": 2080,
+      "sha256": "04d91cde6503aa086d4dc93103e5738dec7e86d389c0b080b9b9df5ec3f4b4b1",
+      "status": "packaged"
+    },
+    {
+      "fileName": "subtitles.vtt",
+      "sourcePackage": "audio",
+      "byteLength": 2065,
+      "sha256": "c1f919a8ab3643b1919772785e94a4fad4b01c37d6633aa0b1e8739ea6174812",
+      "status": "packaged"
+    }
+  ],
+  "checksum": "6721ce71f252b080f8a262611a7fa6cd006f2d5b2636d069afe11d01f9651e10"
+}

@@ -2,6 +2,8 @@ import { ThumbnailStorage } from "../ThumbnailStorage";
 import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
 import { thumbnailProviderConfig } from "../ThumbnailProviderConfig";
 import { createMockThumbnailData } from "./MockThumbnailProvider";
+import { sanitizeProviderErrorCode } from "../ThumbnailAssetError";
+import type { ThumbnailAssetProviderFailureDiagnostics } from "@/types/thumbnailError";
 import type {
   ThumbnailAssetGenerationInput,
   ThumbnailAssetGenerationResult,
@@ -88,7 +90,13 @@ export class OpenAIThumbnailProvider implements ConfiguredThumbnailProvider {
       const encoded = payload.data?.[0]?.b64_json;
 
       if (!response.ok || typeof encoded !== "string" || !encoded) {
-        return failure(assetId, createdAt);
+        // Preserve the real HTTP status + a sanitized provider error code so a
+        // credential / auth / rate-limit rejection is diagnosable downstream
+        // instead of being flattened to a bare THUMBNAIL_ASSET_GENERATION_FAILED.
+        return failure(assetId, createdAt, {
+          httpStatus: response.status,
+          providerErrorCode: sanitizeProviderErrorCode(payload.error?.message),
+        });
       }
 
       const data = decodeStrictBase64(encoded);
@@ -167,7 +175,21 @@ function decodeStrictBase64(value: string) {
   return data;
 }
 
-function failure(assetId: string, createdAt: string): ThumbnailAssetGenerationResult {
+function failure(
+  assetId: string,
+  createdAt: string,
+  diagnostics?: ThumbnailAssetProviderFailureDiagnostics,
+): ThumbnailAssetGenerationResult {
+  const sanitized: ThumbnailAssetProviderFailureDiagnostics = {
+    ...(Number.isSafeInteger(diagnostics?.httpStatus) &&
+      (diagnostics!.httpStatus as number) >= 100 &&
+      (diagnostics!.httpStatus as number) <= 599
+      ? { httpStatus: diagnostics!.httpStatus }
+      : {}),
+    ...(typeof diagnostics?.providerErrorCode === "string" && diagnostics.providerErrorCode
+      ? { providerErrorCode: diagnostics.providerErrorCode }
+      : {}),
+  };
   return {
     success: false,
     assetId,
@@ -176,5 +198,8 @@ function failure(assetId: string, createdAt: string): ThumbnailAssetGenerationRe
     status: "failed",
     createdAt,
     error: "Thumbnail provider request failed.",
+    ...(sanitized.httpStatus !== undefined || sanitized.providerErrorCode !== undefined
+      ? { diagnostics: sanitized }
+      : {}),
   };
 }

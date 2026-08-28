@@ -66,6 +66,8 @@ import { getProductionAcceptanceLegacyPreviousRetryJob,
   "./ProductionAcceptanceLegacyAdmissionContext";
 import { findConsumedRegenerationRetryBudgetExtension } from
   "./ProductionPipelineRegenerationRetryBudgetExtension";
+import { findConsumedEnvironmentalFailureRetryExtension } from
+  "./ProductionPipelineEnvironmentalFailureRetryExtension";
 import {
   emitProductionPipelineExecutionEvent,
   poisonProductionPipelineExecutionPlanAfterDurableAttempt,
@@ -95,6 +97,14 @@ export { buildProductionPipelineExecutionIdentity } from "./ProductionPipelineEx
 const ttlSeconds = 31_536_000;
 const workerId = "pipeline-worker";
 const sessionId = "pipeline-session-v1";
+/**
+ * Reason code for the crash-consistency guard in prepareProductionPipelineExecution:
+ * a durable record already reached "succeeded" for a stage the project-level job has
+ * never actually attempted (job.attempts === 0, not completed). See the guard's own
+ * comment there for the full mechanism this detects and PipelineRunner.runStage's
+ * catch site (matched against this exact code) for how the failure gets persisted.
+ */
+export const durableReplayManifestDesyncCode = "PIPELINE_DURABLE_REPLAY_MANIFEST_DESYNC";
 export { productionDurableAttemptLineageBindingInvalidCode } from
   "./ProductionDurableAttemptLineageBoundary";
 const trustedFileOperations = Object.freeze({
@@ -383,6 +393,27 @@ export async function prepareProductionPipelineExecution(
       }
     }
   }
+  // Non-regeneration sibling of the block above: an environmental-failure retry
+  // extension (ordinal 5) already consumed by a prior, separate
+  // prepareFailedStageRetry() call whose in-process admission cannot be carried
+  // here. Bounded to `attemptNumber + 1 === 5` (never 6+); requires a real,
+  // on-disk, consumed `envfail-authority-*` bound to this exact job version and
+  // ordinal, and independently re-verified durable lineage.
+  if (!context.regeneration && !retryAdmission && job && attemptNumber + 1 === 5) {
+    const environmentalExtension = findConsumedEnvironmentalFailureRetryExtension(
+      context.projectSlug, context.stage, job,
+    );
+    if (environmentalExtension &&
+      environmentalExtension.body.authorizedDurableOrdinal === attemptNumber + 1) {
+      const lineage = await classifyProductionDurableAttemptLineage(
+        adapter, context.projectSlug, context.stage,
+        environmentalExtension.body.priorJob.attempts, "exact",
+      );
+      if (lineage.status === "valid") {
+        effectiveMaxAttempts = environmentalExtension.body.authorizedDurableOrdinal;
+      }
+    }
+  }
   const idempotencyPolicy = {
     ...defaultProductionExecutionIdempotencyPolicy,
     enabled: true,
@@ -548,6 +579,33 @@ export async function prepareProductionPipelineExecution(
     startedAt: anchor, identitySource: "trusted-server" as const };
   const terminalReplay = existingRecord.record?.state === "succeeded" &&
     existingRecord.record.durableLease?.status === "released";
+  // Crash-consistency guard: a durable record can reach "succeeded" (worker handler
+  // ran to completion and the attempt was finalized) while the process crashes before
+  // the separate project-level manifest/job commit that PipelineRunner.runStageLegacy
+  // performs on success. If that happens, every later resume recomputes the exact same
+  // deterministic (projectSlug, stage, attemptNumber) identity, finds the same already-
+  // "succeeded" durable record, and ProductionExecutionWorkerExecutionService.execute()
+  // (see ProductionExecutionWorker.ts) correctly replays it as already-done -- WITHOUT
+  // ever invoking the real stage handler, since replay is supposed to skip repeating
+  // side effects. Because the handler is what calls PipelineJobManager.startStage /
+  // persistStageFailure and ProjectManager.updatePackageStatus, the project-level job
+  // never leaves "queued", so the pipeline scheduler's next-runnable-stage lookup
+  // keeps re-selecting this exact stage forever -- a CPU-bound, network-free, write-free
+  // infinite loop (no real progress, no persisted failure). Detect the specific,
+  // narrow signature of this gap -- a terminal, already-succeeded durable record for a
+  // stage the project has NEVER even attempted (job.attempts === 0, not completed, not
+  // an explicit regeneration/retry-admission request) -- and fail closed with a clear,
+  // diagnosable reason instead of silently spinning. See docs/DURABLE_REPLAY_MANIFEST_DESYNC.md.
+  if (terminalReplay && !context.regeneration && !retryAdmission &&
+    job && job.attempts === 0 && job.status !== "completed") {
+    throw new ProductionPipelineDurableExecutionError(
+      "Pipeline durable execution already succeeded for this stage in a prior process, " +
+      "but the project-level job was never marked completed (crash-consistency gap " +
+      "between the durable execution store and the project manifest). Manual " +
+      "reconciliation is required before this stage can safely re-run.",
+      durableReplayManifestDesyncCode,
+    );
+  }
   if (!terminalReplay) {
     const expectedVersion = existingRecord.actualVersion ?? 1;
     const acquired = await leases.acquire({ recordId: record.recordId, expectedVersion,

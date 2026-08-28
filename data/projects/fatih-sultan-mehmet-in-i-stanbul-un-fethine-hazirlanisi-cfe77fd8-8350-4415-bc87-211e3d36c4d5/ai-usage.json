@@ -885,8 +885,29 @@
       "completionTokens": 1447,
       "totalTokens": 9645,
       "createdAt": "2026-08-08T19:19:17.089Z"
+    },
+    {
+      "id": "bdbe4ddf-26b1-45c8-8b2b-4e59d2615054",
+      "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+      "stage": "seo",
+      "operation": "seo-plan",
+      "provider": "openai",
+      "model": "gpt-4.1-mini",
+      "status": "success",
+      "fallbackUsed": false,
+      "durationMs": 10221,
+      "promptLength": 12097,
+      "responseLength": 2434,
+      "finishReason": "stop",
+      "refused": false,
+      "responseComplete": true,
+      "truncated": false,
+      "promptTokens": 3537,
+      "completionTokens": 713,
+      "totalTokens": 4250,
+      "createdAt": "2026-08-28T18:41:38.057Z"
     }
   ],
   "createdAt": "2026-07-15T12:05:47.997Z",
-  "updatedAt": "2026-08-08T19:19:17.093Z"
+  "updatedAt": "2026-08-28T18:41:38.062Z"
 }

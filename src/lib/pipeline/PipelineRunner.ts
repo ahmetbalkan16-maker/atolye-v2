@@ -22,6 +22,7 @@ import {
   type ProductionPipelineExecutionAdapter,
 } from "@/lib/production/ProductionPipelineExecutionAdapter";
 import { executeConfiguredProductionPipelineStage,
+  durableReplayManifestDesyncCode,
   type ProductionPipelineCompletedPreparationAuthority } from
   "@/lib/production/ProductionPipelineExecutionFactory";
 import {
@@ -66,6 +67,8 @@ import { classifyProductionDurableAttemptLineage } from
   "@/lib/production/ProductionDurableAttemptLineageClassifier";
 import { findConsumedRegenerationRetryBudgetExtension } from
   "@/lib/production/ProductionPipelineRegenerationRetryBudgetExtension";
+import { findConsumedEnvironmentalFailureRetryExtension } from
+  "@/lib/production/ProductionPipelineEnvironmentalFailureRetryExtension";
 import {
   assertPipelineRunnerProductionRuntimeOperationActive,
   executePipelineRunnerProductionRuntimeOperation,
@@ -343,6 +346,32 @@ export class PipelineRunner {
                 createRootDirectory: false,
               }),
               projectSlug, plan.startStage, regenMatch.body.priorJob.attempts, "exact",
+            );
+            if (lineage.status === "valid") {
+              isConsumedExtensionResume = true;
+            }
+          }
+        }
+
+        // Non-regeneration sibling: a crash-recovered resume of the ordinal-5
+        // attempt admitted via a consumed environmental-failure retry extension.
+        // Deliberately gated on startJob.attempts === 4 (the post-admission
+        // counter for an ordinal-5 retry) and on an actual matching, consumed,
+        // jobVersion-bound `envfail-authority-*`; the durable lineage is
+        // independently re-verified. Never engages for a non-environmental job.
+        if (!isConsumedExtensionResume && !startJob.regenerationId &&
+          startJob.attempts === 4) {
+          const envMatch = findConsumedEnvironmentalFailureRetryExtension(
+            projectSlug, plan.startStage, startJob, storageContext,
+          );
+          if (envMatch) {
+            const lineage = await classifyProductionDurableAttemptLineage(
+              new ProductionExecutionFilePersistenceAdapter({
+                trustedRootDirectory:
+                  `${ProjectReader.getProjectFolder(projectSlug)}/production-execution`,
+                createRootDirectory: false,
+              }),
+              projectSlug, plan.startStage, envMatch.body.priorJob.attempts, "exact",
             );
             if (lineage.status === "valid") {
               isConsumedExtensionResume = true;
@@ -1037,8 +1066,41 @@ export class PipelineRunner {
             identity,
           );
         }, runType, onClaimConflict);
-      return executeConfiguredProductionPipelineStage({ projectSlug: slug, stage, runType,
-        providerSelection, regeneration }, legacy);
+      try {
+        return await executeConfiguredProductionPipelineStage({ projectSlug: slug, stage, runType,
+          providerSelection, regeneration }, legacy);
+      } catch (error) {
+        // This specific reason code is thrown by prepareProductionPipelineExecution
+        // BEFORE `legacy` (runStageLegacy) is ever reached -- see the crash-consistency
+        // guard comment there -- so runStageLegacy's own persistStageFailure never runs
+        // for it. Persist the failure here, the same way runStageLegacy would, so the
+        // job leaves "queued" instead of being silently re-selected by
+        // PipelineQueueScheduler.getNextRunnableStage on every subsequent resume.
+        if (isAuthenticProductionPipelineDurableExecutionError(error) &&
+          error.code === durableReplayManifestDesyncCode) {
+          await PipelineJobManager.startStage(slug, stage, async () => {
+            await ProjectManager.updateStatus(slug, stage as ProjectStatus);
+            await ProjectManager.updatePackageStatus(
+              slug, stage, "running", undefined, { runType },
+            );
+          });
+          const errorEvidence = getPipelineErrorEvidence(error);
+          await PipelineJobManager.persistStageFailure(
+            slug, stage,
+            async () => {
+              await ProjectManager.updatePackageStatus(
+                slug, stage, "failed", error.reasonCode, { errorEvidence },
+              );
+            },
+            error.reasonCode,
+            errorEvidence,
+          );
+          console.error("[PipelineRunner] Stage failed (durable replay / manifest desync):", {
+            slug, stage, error,
+          });
+        }
+        throw error;
+      }
     }, `${slug}-${stage}`);
   }
 

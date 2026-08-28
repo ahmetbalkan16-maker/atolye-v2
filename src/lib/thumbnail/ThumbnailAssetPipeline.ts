@@ -11,6 +11,11 @@ import type {
 } from "./providers/ThumbnailProvider";
 import { ThumbnailProviderRouter } from "./ThumbnailProviderRouter";
 import { ThumbnailStorage } from "./ThumbnailStorage";
+import {
+  createThumbnailAssetErrorEvidence,
+  type ThumbnailAssetErrorMetadata,
+} from "./ThumbnailAssetError";
+import type { ThumbnailAssetErrorEvidence } from "@/types/thumbnailError";
 
 const SAFE_ERROR = "Thumbnail asset generation failed.";
 const MIME_TYPES = new Set<ThumbnailMimeType>([
@@ -21,10 +26,12 @@ const MIME_TYPES = new Set<ThumbnailMimeType>([
 
 export class ThumbnailAssetGenerationError extends Error {
   readonly code = "THUMBNAIL_ASSET_GENERATION_FAILED";
+  readonly evidence: ThumbnailAssetErrorEvidence;
 
-  constructor() {
+  constructor(metadata: ThumbnailAssetErrorMetadata = {}) {
     super(SAFE_ERROR);
     this.name = "ThumbnailAssetGenerationError";
+    this.evidence = createThumbnailAssetErrorEvidence(metadata);
     this.stack = undefined;
   }
 }
@@ -55,7 +62,7 @@ export class ThumbnailAssetPipeline {
     try {
       const candidateProviderName = selected.name;
       if (candidateProviderName !== "mock" && candidateProviderName !== "openai") {
-        throw new ThumbnailAssetGenerationError();
+        throw new ThumbnailAssetGenerationError({ phase: "input-validation" });
       }
       providerName = candidateProviderName;
       validateInputs(projectId, projectSlug, title, assembly, thumbnail);
@@ -72,7 +79,7 @@ export class ThumbnailAssetPipeline {
         previousThumbnail,
       );
     } catch {
-      throw new ThumbnailAssetGenerationError();
+      throw new ThumbnailAssetGenerationError({ phase: "input-validation" });
     }
 
     let result: ThumbnailAssetGenerationResult;
@@ -86,7 +93,20 @@ export class ThumbnailAssetPipeline {
         assembly,
       });
     } catch {
-      throw new ThumbnailAssetGenerationError();
+      throw new ThumbnailAssetGenerationError({ phase: "provider-request", provider: providerName });
+    }
+
+    // A provider that returned a structured failure (rather than throwing)
+    // carries the real HTTP status / sanitized error code -- surface it in the
+    // evidence so a credential / auth / rate-limit failure is diagnosable.
+    if (result.success === false) {
+      throw new ThumbnailAssetGenerationError({
+        phase: "provider-response",
+        provider: providerName,
+        model: result.model,
+        httpStatus: result.diagnostics?.httpStatus,
+        providerErrorCode: result.diagnostics?.providerErrorCode,
+      });
     }
 
     let assets: ReturnType<typeof AssetManager.getProjectAssets>;
@@ -95,7 +115,10 @@ export class ThumbnailAssetPipeline {
       validateProviderResult(result, providerName, projectSlug, assets.assets);
     } catch {
       cleanupUnregisteredResult(result, projectSlug, projectId);
-      throw new ThumbnailAssetGenerationError();
+      throw new ThumbnailAssetGenerationError({
+        phase: "provider-result-validation",
+        provider: providerName,
+      });
     }
 
     const success = result as Extract<ThumbnailAssetGenerationResult, { success: true }>;
@@ -123,7 +146,10 @@ export class ThumbnailAssetPipeline {
       AssetManager.addAssetAtomically(projectSlug, projectId, asset);
     } catch {
       cleanupUnregisteredResult(result, projectSlug, projectId);
-      throw new ThumbnailAssetGenerationError();
+      throw new ThumbnailAssetGenerationError({
+        phase: "asset-registration",
+        provider: providerName,
+      });
     }
 
     return {

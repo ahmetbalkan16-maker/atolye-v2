@@ -519,8 +519,27 @@
       "durationSeconds": 116.971,
       "createdAt": "2026-08-08T19:19:18.897Z",
       "id": "150551e8-8bd5-4447-9650-48775779e5ba"
+    },
+    {
+      "id": "fa60aec0-1cc3-4a66-ad8c-731d1142b46d",
+      "projectId": "1ba3bebf-abe9-4b3c-9b4a-b9d238b98534",
+      "projectSlug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+      "type": "thumbnail",
+      "status": "generated",
+      "provider": "openai",
+      "model": "gpt-image-1",
+      "prompt": "YouTube documentary thumbnail for \"Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5\" about Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5. Strong central subject, cinematic realistic lighting, high contrast, 16:9. Use production cues from video asset 653f7796-6f00-4bbb-8fe3-237364f2a9cc, animation source animation-dbeb04a67bb8af590a175760ad8725fd1f6db148a63b99d8bd4be825d7934e6d, audio emotion Kararlılık ve gençliğin getirdiği heyecan.",
+      "filePath": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/thumbnails/fa60aec0-1cc3-4a66-ad8c-731d1142b46d.png",
+      "url": "/api/assets/thumbnails/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/fa60aec0-1cc3-4a66-ad8c-731d1142b46d.png",
+      "mimeType": "image/png",
+      "byteLength": 2531685,
+      "sourceAssetId": "150551e8-8bd5-4447-9650-48775779e5ba",
+      "generationMode": "production",
+      "width": 1536,
+      "height": 1024,
+      "createdAt": "2026-08-28T16:41:10.335Z"
     }
   ],
   "createdAt": "2026-07-15T19:29:03.863Z",
-  "updatedAt": "2026-08-08T19:19:39.232Z"
+  "updatedAt": "2026-08-28T16:42:02.213Z"
 }

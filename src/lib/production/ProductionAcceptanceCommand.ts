@@ -46,6 +46,14 @@ import {
   planRetryBudgetExtension,
   applyRetryBudgetExtension,
 } from "./ProductionPipelineRetryBudgetExtensionService";
+import {
+  planEnvironmentalFailureRetryExtension,
+  applyEnvironmentalFailureRetryExtension,
+} from "./ProductionEnvironmentalFailureRetryPlan";
+import {
+  environmentalFailureHttpStatuses,
+  type EnvironmentalFailureRetryOperatorEvidence,
+} from "./ProductionPipelineEnvironmentalFailureRetryExtension";
 import { createRuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
 import { pipelineRecoveryStageOrder } from "@/lib/pipeline/PipelineRecoveryPlanner";
 import { pipelineResumeBoundaryInvalidCode } from "@/lib/pipeline/PipelineRunner";
@@ -232,6 +240,34 @@ export async function runProductionAcceptanceCommand(
         report: { ...result },
       };
     }
+    if (mode === "environmental-failure-retry-plan") {
+      const parsed = parseEnvironmentalFailureRetryPlanArguments(args.slice(1));
+      if ("errorCode" in parsed) return commandFailure(parsed.errorCode);
+      requestedProjectSlug = parsed.projectSlug;
+      const storageContext = createRuntimeStorageContext();
+      const plan = await planEnvironmentalFailureRetryExtension(
+        parsed.projectSlug, parsed.stage, parsed.jobId, parsed.reason,
+        parsed.operatorEvidence, storageContext,
+      );
+      return {
+        exitCode: plan.eligible ? 0 : 1,
+        report: { ...plan },
+      };
+    }
+    if (mode === "apply-environmental-failure-retry") {
+      const parsed = parseApplyEnvironmentalFailureRetryArguments(args.slice(1));
+      if ("errorCode" in parsed) return commandFailure(parsed.errorCode);
+      requestedProjectSlug = parsed.projectSlug;
+      const storageContext = createRuntimeStorageContext();
+      const result = await applyEnvironmentalFailureRetryExtension(
+        parsed.projectSlug, parsed.stage, parsed.jobId, parsed.reason,
+        parsed.operatorEvidence, parsed.authorityId, parsed.confirmation, storageContext,
+      );
+      return {
+        exitCode: result.success ? 0 : 1,
+        report: { ...result },
+      };
+    }
     return usageFailure();
   } catch (error) {
     const trustedErrorCode = trustedCommandErrorCode(mode, error);
@@ -320,6 +356,8 @@ function commandFailure(errorCode: string): ProductionAcceptanceCommandResult {
         "reauthorize-legacy --project-slug=<slug> --source-marker-sha256=<64-hex> --reason=legacy-environment-unrecoverable --reauthorization-id=<64-hex> --confirm-production-acceptance-legacy-reauthorization=<64-hex>",
         "retry-budget-extension-plan --project-slug=<slug> --stage=<stage> --job-id=<jobId> --reason=<reason>",
         "extend-retry-budget --project-slug=<slug> --stage=<stage> --job-id=<jobId> --reason=<reason> --authority-id=<id> --confirm-production-retry-budget-extension=<id>",
+        "environmental-failure-retry-plan --project-slug=<slug> --stage=<stage> --job-id=<jobId> --reason=<reason> --observed-http-status=<401|403|429> --observed-provider-error-code=<code> --remediation-verified=<note>",
+        "apply-environmental-failure-retry --project-slug=<slug> --stage=<stage> --job-id=<jobId> --reason=<reason> --observed-http-status=<401|403|429> --observed-provider-error-code=<code> --remediation-verified=<note> --authority-id=<id> --confirm-environmental-failure-retry=<id>",
       ],
     },
   };
@@ -509,4 +547,76 @@ function parseExtendRetryBudgetArguments(args: readonly string[]):
     return { errorCode: "PIPELINE_RETRY_BUDGET_EXTENSION_CONFIRMATION_REQUIRED" };
   }
   return { projectSlug: slug, stage, jobId, reason, authorityId, confirmation };
+}
+
+const SANITIZED_PROVIDER_ERROR_CODE = /^[a-z0-9_.-]{1,64}$/;
+const SANITIZED_REMEDIATION_NOTE = /^[\x20-\x7E]{1,240}$/;
+
+function parseEnvironmentalFailureRetryOperatorEvidence(args: readonly string[]):
+  | { readonly operatorEvidence: EnvironmentalFailureRetryOperatorEvidence }
+  | { readonly errorCode: string } {
+  const httpStatusRaw = exactValue(args, "--observed-http-status=");
+  const providerErrorCode = exactValue(args, "--observed-provider-error-code=");
+  const remediationVerified = exactValue(args, "--remediation-verified=");
+  const httpStatus = httpStatusRaw !== undefined && /^\d{3}$/.test(httpStatusRaw)
+    ? Number(httpStatusRaw) : undefined;
+  if (
+    httpStatus === undefined ||
+    !(environmentalFailureHttpStatuses as readonly number[]).includes(httpStatus) ||
+    !providerErrorCode || !SANITIZED_PROVIDER_ERROR_CODE.test(providerErrorCode) ||
+    !remediationVerified || !SANITIZED_REMEDIATION_NOTE.test(remediationVerified)
+  ) {
+    return { errorCode: "ENVIRONMENTAL_FAILURE_RETRY_ARGUMENT_INVALID" };
+  }
+  return {
+    operatorEvidence: {
+      observedHttpStatus: httpStatus as EnvironmentalFailureRetryOperatorEvidence["observedHttpStatus"],
+      observedProviderErrorCode: providerErrorCode,
+      remediationVerified,
+    },
+  };
+}
+
+function parseEnvironmentalFailureRetryPlanArguments(args: readonly string[]):
+  | { readonly projectSlug: string; readonly stage: ProductionStepKey; readonly jobId: string;
+      readonly reason: string;
+      readonly operatorEvidence: EnvironmentalFailureRetryOperatorEvidence }
+  | { readonly errorCode: string } {
+  const slug = exactValue(args, "--project-slug=");
+  const stage = exactValue(args, "--stage=") as ProductionStepKey | undefined;
+  const jobId = exactValue(args, "--job-id=");
+  const reason = exactValue(args, "--reason=");
+  if (!slug || !stage || !jobId || !reason || !SAFE_SLUG.test(slug) || args.length !== 7) {
+    return { errorCode: "ENVIRONMENTAL_FAILURE_RETRY_ARGUMENT_INVALID" };
+  }
+  const evidence = parseEnvironmentalFailureRetryOperatorEvidence(args);
+  if ("errorCode" in evidence) return evidence;
+  return { projectSlug: slug, stage, jobId, reason, operatorEvidence: evidence.operatorEvidence };
+}
+
+function parseApplyEnvironmentalFailureRetryArguments(args: readonly string[]):
+  | { readonly projectSlug: string; readonly stage: ProductionStepKey; readonly jobId: string;
+      readonly reason: string;
+      readonly operatorEvidence: EnvironmentalFailureRetryOperatorEvidence;
+      readonly authorityId: string; readonly confirmation: string }
+  | { readonly errorCode: string } {
+  const slug = exactValue(args, "--project-slug=");
+  const stage = exactValue(args, "--stage=") as ProductionStepKey | undefined;
+  const jobId = exactValue(args, "--job-id=");
+  const reason = exactValue(args, "--reason=");
+  const authorityId = exactValue(args, "--authority-id=");
+  const confirmation = exactValue(args, "--confirm-environmental-failure-retry=");
+  if (!slug || !stage || !jobId || !reason || !authorityId || !confirmation ||
+    !SAFE_SLUG.test(slug) || args.length !== 9) {
+    return { errorCode: "ENVIRONMENTAL_FAILURE_RETRY_ARGUMENT_INVALID" };
+  }
+  if (authorityId !== confirmation) {
+    return { errorCode: "ENVIRONMENTAL_FAILURE_RETRY_CONFIRMATION_REQUIRED" };
+  }
+  const evidence = parseEnvironmentalFailureRetryOperatorEvidence(args);
+  if ("errorCode" in evidence) return evidence;
+  return {
+    projectSlug: slug, stage, jobId, reason,
+    operatorEvidence: evidence.operatorEvidence, authorityId, confirmation,
+  };
 }

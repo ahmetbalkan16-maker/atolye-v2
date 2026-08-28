@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "1",
+  "projectId": "1ba3bebf-abe9-4b3c-9b4a-b9d238b98534",
+  "slug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+  "provider": "openai",
+  "model": "gpt-4.1-mini",
+  "status": "generated",
+  "title": "Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı",
+  "description": "1453 yılında Fatih Sultan Mehmet’in İstanbul’un fethine hazırlık sürecini detaylarıyla keşfedin. Genç padişahın tahta çıkışından başlayarak askeri reformlar, top teknolojisi, lojistik planlamalar ve diplomasi gibi önemli adımları bu belgeselde bulacaksınız. Osmanlı tarihinin en kritik dönemi olan İstanbul kuşatmasının arkasındaki stratejik ve teknolojik yenilikleri öğrenmek isteyenler için ideal bir içerik. Fatih Sultan Mehmet’in liderliği ve dehası ile Osmanlı’nın dünya tarihindeki yerini nasıl sağlamlaştırdığına dair kapsamlı bir anlatım.",
+  "tags": [
+    "Fatih Sultan Mehmet",
+    "İstanbul’un fethi",
+    "Osmanlı tarihi",
+    "1453 İstanbul kuşatması",
+    "Fatih Sultan Mehmet hazırlık süreci",
+    "Bizans ve Osmanlı",
+    "İstanbul surları",
+    "Top teknolojisi Osmanlı",
+    "Yeniçeri Ocağı",
+    "Osmanlı kuşatma taktikleri",
+    "Fatih Sultan Mehmet stratejileri",
+    "İstanbul’un fethinin önemi",
+    "Osmanlı lojistik hazırlıkları",
+    "Fatih Sultan Mehmet diplomasi",
+    "İstanbul’un fethi belgeseli"
+  ],
+  "hashtags": [
+    "#FatihSultanMehmet",
+    "#İstanbulFethi",
+    "#OsmanlıTarihi",
+    "#1453",
+    "#TarihBelgeseli",
+    "#Kuşatma",
+    "#TopTeknolojisi",
+    "#Yeniçeri",
+    "#Diplomasi",
+    "#LojistikHazırlık"
+  ],
+  "chapters": [
+    {
+      "startSeconds": 0,
+      "title": "Genç Padişahın Kararlılığı"
+    },
+    {
+      "startSeconds": 15,
+      "title": "Askeri Disiplin ve Hazırlık"
+    },
+    {
+      "startSeconds": 35,
+      "title": "Teknolojik Yenilikler"
+    },
+    {
+      "startSeconds": 55,
+      "title": "Planlama ve Lojistik"
+    },
+    {
+      "startSeconds": 70,
+      "title": "Diplomasi ve İç İstikrar"
+    },
+    {
+      "startSeconds": 80,
+      "title": "Kuşatmanın Epik Anları"
+    }
+  ],
+  "pinnedComment": "Fatih Sultan Mehmet’in İstanbul’un fethine hazırlık sürecini detaylıca anlattığımız bu belgeseli izleyerek Osmanlı tarihinin en önemli dönüm noktalarından birini keşfedin. Strateji, teknoloji ve liderlik bir arada!",
+  "thumbnailText": "FATIH SULTAN",
+  "videoAssetId": "150551e8-8bd5-4447-9650-48775779e5ba",
+  "thumbnailAssetId": "fa60aec0-1cc3-4a66-ad8c-731d1142b46d",
+  "generatedAt": "2026-08-28T18:44:13.633Z"
+}

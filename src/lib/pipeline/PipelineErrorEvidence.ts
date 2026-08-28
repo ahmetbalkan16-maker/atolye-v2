@@ -10,6 +10,10 @@ import {
   getAudioAssetErrorEvidence,
   isAudioAssetErrorEvidence,
 } from "@/lib/audio/AudioAssetError";
+import {
+  getThumbnailAssetErrorEvidence,
+  isThumbnailAssetErrorEvidence,
+} from "@/lib/thumbnail/ThumbnailAssetError";
 import type { PipelineErrorEvidence } from "@/types/errorEvidence";
 
 export function getPipelineErrorEvidence(
@@ -17,7 +21,8 @@ export function getPipelineErrorEvidence(
 ): PipelineErrorEvidence | undefined {
   return getAIResponseSchemaEvidence(value) ??
     getAnimationMotionPlanErrorEvidence(value) ??
-    getAudioAssetErrorEvidence(value);
+    getAudioAssetErrorEvidence(value) ??
+    getThumbnailAssetErrorEvidence(value);
 }
 
 export function isPipelineErrorEvidence(
@@ -25,5 +30,6 @@ export function isPipelineErrorEvidence(
 ): value is PipelineErrorEvidence {
   return isAIResponseSchemaEvidence(value) ||
     isAnimationMotionPlanErrorEvidence(value) ||
-    isAudioAssetErrorEvidence(value);
+    isAudioAssetErrorEvidence(value) ||
+    isThumbnailAssetErrorEvidence(value);
 }

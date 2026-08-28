@@ -524,11 +524,12 @@ export class PipelineStageExecutor {
                 projectSlug,
                 state.thumbnail as ThumbnailData,
               );
-              throw new ThumbnailAssetGenerationError();
+              throw new ThumbnailAssetGenerationError({ phase: "persistence" });
             }
           });
-        } catch {
-          throw new ThumbnailAssetGenerationError();
+        } catch (error) {
+          if (error instanceof ThumbnailAssetGenerationError) throw error;
+          throw new ThumbnailAssetGenerationError({ phase: "persistence" });
         }
       }
 

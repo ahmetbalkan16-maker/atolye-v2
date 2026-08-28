@@ -61,6 +61,12 @@ type ThumbnailAssetFailure = ThumbnailAssetResultBase & {
   success: false;
   status: "failed";
   error: string;
+  /**
+   * Optional sanitized failure diagnostics (provider HTTP status / error code).
+   * Never carries an API key or secret. Consumed by `ThumbnailAssetPipeline`
+   * to populate `ThumbnailAssetErrorEvidence` for the history/job channel.
+   */
+  diagnostics?: import("@/types/thumbnailError").ThumbnailAssetProviderFailureDiagnostics;
   generationMode?: never;
   fileName?: never;
   filePath?: never;

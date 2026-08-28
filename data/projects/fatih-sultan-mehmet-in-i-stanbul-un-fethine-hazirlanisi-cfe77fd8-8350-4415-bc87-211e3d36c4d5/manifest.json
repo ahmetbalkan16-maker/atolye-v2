@@ -3,9 +3,9 @@
     "id": "1ba3bebf-abe9-4b3c-9b4a-b9d238b98534",
     "slug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
     "title": "Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5",
-    "status": "assembly",
+    "status": "export",
     "createdAt": "2026-07-15T12:05:09.729Z",
-    "updatedAt": "2026-08-08T19:18:56.398Z"
+    "updatedAt": "2026-08-28T19:22:59.462Z"
   },
   "projectId": "1ba3bebf-abe9-4b3c-9b4a-b9d238b98534",
   "slug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
@@ -224,25 +224,78 @@
     },
     "thumbnail": {
       "key": "thumbnail",
-      "status": "pending",
-      "fileName": "thumbnail.json"
+      "status": "completed",
+      "fileName": "thumbnail.json",
+      "updatedAt": "2026-08-28T16:42:02.328Z",
+      "startedAt": "2026-08-28T16:41:07.574Z",
+      "completedAt": "2026-08-28T16:42:02.328Z",
+      "durationMs": 54754,
+      "attempts": {
+        "total": 5,
+        "retry": 0,
+        "lastAttemptAt": "2026-08-28T16:41:07.574Z",
+        "lastRunType": "resume"
+      }
     },
     "seo": {
       "key": "seo",
-      "status": "pending",
-      "fileName": "seo.json"
+      "status": "completed",
+      "fileName": "seo.json",
+      "updatedAt": "2026-08-28T18:41:38.241Z",
+      "startedAt": "2026-08-28T18:41:25.381Z",
+      "completedAt": "2026-08-28T18:41:38.241Z",
+      "durationMs": 12860,
+      "attempts": {
+        "total": 2,
+        "retry": 0,
+        "lastAttemptAt": "2026-08-28T18:41:25.381Z",
+        "lastRunType": "resume"
+      },
+      "usage": {
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "operation": "seo-plan",
+        "status": "success",
+        "fallbackUsed": false,
+        "requestCount": 1,
+        "durationMs": 10221,
+        "promptTokens": 3537,
+        "completionTokens": 713,
+        "totalTokens": 4250,
+        "updatedAt": "2026-08-28T18:41:38.132Z"
+      }
     },
     "youtube": {
       "key": "youtube",
-      "status": "pending",
-      "fileName": "youtube.json"
+      "status": "completed",
+      "fileName": "youtube.json",
+      "updatedAt": "2026-08-28T18:44:22.396Z",
+      "startedAt": "2026-08-28T18:44:11.229Z",
+      "completedAt": "2026-08-28T18:44:22.396Z",
+      "durationMs": 11167,
+      "attempts": {
+        "total": 2,
+        "retry": 0,
+        "lastAttemptAt": "2026-08-28T18:44:11.229Z",
+        "lastRunType": "resume"
+      }
     },
     "export": {
       "key": "export",
-      "status": "pending",
-      "fileName": "export.json"
+      "status": "completed",
+      "fileName": "export.json",
+      "updatedAt": "2026-08-28T19:23:05.357Z",
+      "startedAt": "2026-08-28T19:22:59.541Z",
+      "completedAt": "2026-08-28T19:23:05.357Z",
+      "durationMs": 5816,
+      "attempts": {
+        "total": 2,
+        "retry": 0,
+        "lastAttemptAt": "2026-08-28T19:22:59.541Z",
+        "lastRunType": "resume"
+      }
     }
   },
   "createdAt": "2026-07-15T12:05:09.729Z",
-  "updatedAt": "2026-08-08T19:19:39.330Z"
+  "updatedAt": "2026-08-28T19:23:05.357Z"
 }

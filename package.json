@@ -14,6 +14,8 @@
     "production:acceptance:reauthorize-legacy": "tsx scripts/run-production-acceptance.ts reauthorize-legacy",
     "production:acceptance:retry-budget-extension-plan": "tsx scripts/run-production-acceptance.ts retry-budget-extension-plan",
     "production:acceptance:extend-retry-budget": "tsx scripts/run-production-acceptance.ts extend-retry-budget",
+    "production:acceptance:environmental-failure-retry-plan": "tsx scripts/run-production-acceptance.ts environmental-failure-retry-plan",
+    "production:acceptance:apply-environmental-failure-retry": "tsx scripts/run-production-acceptance.ts apply-environmental-failure-retry",
     "production:acceptance:execute": "tsx scripts/run-production-acceptance.ts execute",
     "production:acceptance:resume": "tsx scripts/run-production-acceptance.ts resume-finalize",
     "production:acceptance:regeneration-plan": "tsx scripts/run-production-regeneration.ts plan",

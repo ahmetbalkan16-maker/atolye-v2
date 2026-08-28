@@ -56,6 +56,20 @@ export interface PipelineRetryAdmission {
     readonly consumptionReceiptFingerprint: string;
     readonly authoritySchemaVersion: string;
   };
+  /**
+   * Proof of a consumed `ProductionPipelineEnvironmentalFailureRetryExtension`
+   * authority. Present only for the single non-regeneration ordinal-5 retry
+   * authorized after the ordinal-4 retry-budget-extension slot was itself
+   * consumed by a proven external provider credential failure. Never combined
+   * with `retryBudgetAuthorityProof` (that is the ordinal-4 mechanism).
+   */
+  readonly environmentalFailureRetryAuthorityProof?: {
+    readonly authorityId: string;
+    readonly authorityIntegrityFingerprint: string;
+    readonly consumptionReceiptFingerprint: string;
+    readonly authoritySchemaVersion: string;
+    readonly failureClass: "external-provider-credential-invalid";
+  };
   readonly exactReconciledDurableLineageIdentity: ProductionPipelineExecutionIdentity;
   readonly exactReconciledLineageBinding: PipelineRetryReconciledLineageBinding;
   readonly admittedDurableLineageIdentity: ProductionPipelineExecutionIdentity;
@@ -88,6 +102,9 @@ export function freezePipelineRetryAdmission(
   Object.freeze(admission.admittedExecutionBinding);
   if (admission.retryBudgetAuthorityProof) {
     Object.freeze(admission.retryBudgetAuthorityProof);
+  }
+  if (admission.environmentalFailureRetryAuthorityProof) {
+    Object.freeze(admission.environmentalFailureRetryAuthorityProof);
   }
   return Object.freeze(admission);
 }
@@ -145,9 +162,30 @@ export function assertCanonicalPipelineRetryAdmission(input: {
     Boolean(admission.retryBudgetAuthorityProof?.authorityIntegrityFingerprint) &&
     Boolean(admission.retryBudgetAuthorityProof?.consumptionReceiptFingerprint);
 
+  // Non-regeneration sibling of isOrdinal4Extension, for exactly ONE durable
+  // ordinal (5) past the ordinal-4 retry-budget-extension slot -- and only when
+  // that slot was itself consumed by a proven external provider credential
+  // failure (see ProductionPipelineEnvironmentalFailureRetryExtension.ts). Base
+  // budget 3 + ordinal-4 extension + this one = 5; the `invalid` checks below
+  // independently reject ordinal >= 6 for any non-regeneration retry. Guarded by
+  // `!regeneration` so it can never apply to (or widen) a regeneration retry,
+  // and requires the dedicated proof field -- `retryBudgetAuthorityProof` (the
+  // ordinal-4 mechanism) is never sufficient here.
+  const isEnvironmentalFailureOrdinal5Extension = !regeneration &&
+    admission.admittedDurableOrdinal === 5 &&
+    admission.authorizedDurableOrdinal === 5 &&
+    admission.effectiveMaxAttempts === 5 &&
+    admission.maxAttempts === 5 &&
+    admission.environmentalFailureRetryAuthorityProof?.failureClass ===
+      "external-provider-credential-invalid" &&
+    Boolean(admission.environmentalFailureRetryAuthorityProof?.authorityId) &&
+    Boolean(admission.environmentalFailureRetryAuthorityProof?.authorityIntegrityFingerprint) &&
+    Boolean(admission.environmentalFailureRetryAuthorityProof?.consumptionReceiptFingerprint);
+
   const expectedMaxAttempts = regeneration
     ? (isRegenerationOrdinalExtension ? admission.admittedDurableOrdinal : generationMaxAttempts)
-    : isOrdinal4Extension ? 4 : pipelineRetryMaxAttempts;
+    : isEnvironmentalFailureOrdinal5Extension ? 5
+      : isOrdinal4Extension ? 4 : pipelineRetryMaxAttempts;
 
   const invalid = admission.maxAttempts !== expectedMaxAttempts ||
     admission.currentDurableOrdinal !== admission.priorJobAttemptIndex + 1 ||
@@ -155,7 +193,9 @@ export function assertCanonicalPipelineRetryAdmission(input: {
     admission.admittedDurableOrdinal !== admission.admittedJobAttemptIndex + 1 ||
     admission.admittedDurableOrdinal > expectedMaxAttempts ||
     (!regeneration && admission.admittedDurableOrdinal === 4 && !isOrdinal4Extension) ||
-    (!regeneration && admission.admittedDurableOrdinal >= 5) ||
+    (!regeneration && admission.admittedDurableOrdinal === 5 &&
+      !isEnvironmentalFailureOrdinal5Extension) ||
+    (!regeneration && admission.admittedDurableOrdinal >= 6) ||
     (regeneration && (!previousJob || !currentJob ||
       (currentJob.attemptWithinGeneration ?? -1) !==
         (previousJob.attemptWithinGeneration ?? -1) + 1 ||

@@ -1,0 +1,72 @@
+{
+  "projectId": "1ba3bebf-abe9-4b3c-9b4a-b9d238b98534",
+  "slug": "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+  "provider": "openai",
+  "model": "gpt-image-1",
+  "status": "generated",
+  "sourceAssemblyAssetId": "150551e8-8bd5-4447-9650-48775779e5ba",
+  "sourceAudioAssetId": "cdd5d362-5cd4-4e17-8983-306ca4c846a5",
+  "variants": [
+    {
+      "id": "mock-variant-hero",
+      "title": "Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5 Gercegi",
+      "concept": "Ana karakter ya da konu merkezde, arka planda final videonun en dramatik sahne hissi.",
+      "prompt": "YouTube documentary thumbnail for \"Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5\" about Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5. Strong central subject, cinematic realistic lighting, high contrast, 16:9. Use production cues from video asset 653f7796-6f00-4bbb-8fe3-237364f2a9cc, animation source animation-dbeb04a67bb8af590a175760ad8725fd1f6db148a63b99d8bd4be825d7934e6d, audio emotion Kararlılık ve gençliğin getirdiği heyecan.",
+      "negativePrompt": "low quality, blurry, distorted face, extra fingers, unreadable text, cluttered layout, misleading imagery",
+      "style": "documentary",
+      "composition": "visual-1",
+      "textOverlaySuggestion": "FATIH SULTAN",
+      "priority": 1,
+      "status": "planned"
+    },
+    {
+      "id": "mock-variant-conflict",
+      "title": "Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5 Donum Noktasi",
+      "concept": "Sol tarafta ana konu, sag tarafta karsi guc veya dramatik sonuc; net bir gerilim kurar.",
+      "prompt": "Split-composition cinematic thumbnail about Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5. Dramatic before-after tension, sharp rim light, documentary realism, bold negative space for Turkish text. Emphasize youthful determination and vision; use warm, dramatic lighting to highlight historical atmosphere.",
+      "negativePrompt": "flat lighting, generic stock photo, crowded background, tiny subject, fake UI, watermark",
+      "style": "dramatic",
+      "composition": "Iki bolgeli kompozisyon, ana konu solda buyuk, sagda dramatik arka plan ve metin alani",
+      "textOverlaySuggestion": "NE OLDU?",
+      "priority": 2,
+      "status": "planned"
+    },
+    {
+      "id": "mock-variant-mystery",
+      "title": "Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5 Sirri",
+      "concept": "Yakindan bakis, golge ve tek sembolik detay ile merak odakli kapak alternatifi.",
+      "prompt": "Mystery-focused historical documentary thumbnail about Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5. Close-up subject detail, dark cinematic shadows, warm highlight, clean layout, 16:9. Narration emotion: Kararlılık ve gençliğin getirdiği heyecan.",
+      "negativePrompt": "overexposed, noisy, cartoonish, messy typography, unrelated objects, duplicate faces",
+      "style": "mystery",
+      "composition": "Yakin plan ana detay, arka planda karanlik doku, sag ustte kisa metin icin temiz alan",
+      "textOverlaySuggestion": "GIZLI GERCEK",
+      "priority": 3,
+      "status": "planned"
+    }
+  ],
+  "titleIdea": "Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5 Gercegi",
+  "concept": "Ana karakter ya da konu merkezde, arka planda final videonun en dramatik sahne hissi.",
+  "mainSubject": "Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5",
+  "composition": "visual-1",
+  "colorStyle": "Kararlılık ve gençliğin getirdiği heyecan duygu, yuksek kontrast belgesel renkleri",
+  "textSuggestion": "FATIH SULTAN",
+  "imagePrompt": "YouTube documentary thumbnail for \"Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5\" about Fatih Sultan Mehmet’in İstanbul’un fethine hazırlanışı cfe77fd8-8350-4415-bc87-211e3d36c4d5. Strong central subject, cinematic realistic lighting, high contrast, 16:9. Use production cues from video asset 653f7796-6f00-4bbb-8fe3-237364f2a9cc, animation source animation-dbeb04a67bb8af590a175760ad8725fd1f6db148a63b99d8bd4be825d7934e6d, audio emotion Kararlılık ve gençliğin getirdiği heyecan.",
+  "clickReason": "Assembly, video ve audio planindan gelen ana gerilim tek karede toplandigi icin konu hizli anlasilir ve merak uyandirir.",
+  "generation": {
+    "provider": "openai",
+    "model": "gpt-image-1",
+    "assetId": "fa60aec0-1cc3-4a66-ad8c-731d1142b46d",
+    "fileName": "fa60aec0-1cc3-4a66-ad8c-731d1142b46d.png",
+    "filePath": "data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/assets/thumbnails/fa60aec0-1cc3-4a66-ad8c-731d1142b46d.png",
+    "imageUrl": "/api/assets/thumbnails/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/fa60aec0-1cc3-4a66-ad8c-731d1142b46d.png",
+    "mimeType": "image/png",
+    "width": 1536,
+    "height": 1024,
+    "byteLength": 2531685,
+    "generationMode": "production",
+    "status": "generated"
+  },
+  "createdAt": "2026-08-28T16:41:10.002Z",
+  "updatedAt": "2026-08-28T16:42:02.248Z",
+  "outputAssetId": "fa60aec0-1cc3-4a66-ad8c-731d1142b46d"
+}

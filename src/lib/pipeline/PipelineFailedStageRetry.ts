@@ -25,6 +25,11 @@ import {
   buildProductionPipelineRegenerationRetryBudgetExtensionReceipt,
   writeRegenerationRetryBudgetExtensionReceipt,
 } from "@/lib/production/ProductionPipelineRegenerationRetryBudgetExtension";
+import {
+  findMatchingEnvironmentalFailureRetryExtension,
+  buildProductionPipelineEnvironmentalFailureRetryExtensionReceipt,
+  writeEnvironmentalFailureRetryExtensionReceipt,
+} from "@/lib/production/ProductionPipelineEnvironmentalFailureRetryExtension";
 
 export type PipelineFailedStageRetryPreparationResult =
   | { success: true; job: PipelineJob; previousJob: PipelineJob; jobs: PipelineJobList;
@@ -100,8 +105,25 @@ export async function prepareFailedStageRetry(
     )
     : undefined;
 
+  // Non-regeneration sibling: exactly one durable ordinal (5) past the ordinal-4
+  // retry-budget-extension slot, when THAT slot was consumed by a proven external
+  // provider credential failure. Guarded by `!regeneration && !extensionAuthorityId`
+  // and by `admittedDurableOrdinal === 5`, and the lookup itself requires a
+  // matching, not-yet-consumed `envfail-authority-*` whose priorJob.attempts
+  // equals this job's attempts and whose authorizedDurableOrdinal equals this
+  // admittedDurableOrdinal — so it can never widen the ordinary or ordinal-4
+  // budget, and can never fire twice (a consumed extension advances job.attempts
+  // past 3, and `planEnvironmentalFailureRetryExtension` refuses attempts !== 3).
+  const environmentalFailureExtension = !regeneration && !extensionAuthorityId &&
+    admittedDurableOrdinal === 5 && runType === "resume"
+    ? findMatchingEnvironmentalFailureRetryExtension(
+      projectSlug, job.stage, job, admittedDurableOrdinal, context,
+    )
+    : undefined;
+
   const budgetCeiling = extensionAuthorityId ? 4
     : regenerationExtension ? admittedDurableOrdinal
+    : environmentalFailureExtension ? admittedDurableOrdinal
     : maxAttempts;
   if (!Number.isSafeInteger(job.attempts) || job.attempts < 0 || admittedDurableOrdinal > budgetCeiling) {
     return {
@@ -185,6 +207,13 @@ export async function prepareFailedStageRetry(
       );
       writeRegenerationRetryBudgetExtensionReceipt(projectSlug, abortReceipt, context);
     }
+    if (environmentalFailureExtension) {
+      const abortReceipt = buildProductionPipelineEnvironmentalFailureRetryExtensionReceipt(
+        environmentalFailureExtension.authorityId, "aborted", new Date().toISOString(),
+        job.updatedAt, ["transaction:admitted-attempt-mismatch-aborted"],
+      );
+      writeEnvironmentalFailureRetryExtensionReceipt(projectSlug, abortReceipt, context);
+    }
     return { success: false, status: 409,
       reason: "Pipeline retry admitted attempt changed.",
       reasonCode: "PIPELINE_RETRY_CAS_CONFLICT" };
@@ -212,7 +241,29 @@ export async function prepareFailedStageRetry(
     }
     if (writeConsumed.value) regenerationExtensionConsumedReceipt = writeConsumed.value;
   }
-  const admittedMaxAttempts = regenerationExtension ? admittedDurableOrdinal : maxAttempts;
+  // Environmental-failure extension consumption — same single-use, write-once,
+  // CAS-gated discipline as the regeneration extension above.
+  let environmentalFailureExtensionConsumedReceipt:
+    ReturnType<typeof buildProductionPipelineEnvironmentalFailureRetryExtensionReceipt> | undefined;
+  if (environmentalFailureExtension) {
+    environmentalFailureExtensionConsumedReceipt =
+      buildProductionPipelineEnvironmentalFailureRetryExtensionReceipt(
+        environmentalFailureExtension.authorityId, "consumed", new Date().toISOString(),
+        prepared.job.updatedAt, ["transaction:consumed-receipt-finalized"],
+      );
+    const writeConsumed = writeEnvironmentalFailureRetryExtensionReceipt(
+      projectSlug, environmentalFailureExtensionConsumedReceipt, context,
+    );
+    if (!writeConsumed.ok && writeConsumed.status !== "replayed") {
+      await PipelineJobManager.compensatePreparedRetry(projectSlug, prepared.previousJob, prepared.job);
+      return { success: false, status: 409,
+        reason: "Failed to record environmental-failure retry extension consumption.",
+        reasonCode: "PIPELINE_RETRY_BUDGET_EXTENSION_COMMIT_UNVERIFIED" };
+    }
+    if (writeConsumed.value) environmentalFailureExtensionConsumedReceipt = writeConsumed.value;
+  }
+  const admittedMaxAttempts = regenerationExtension || environmentalFailureExtension
+    ? admittedDurableOrdinal : maxAttempts;
   const admission: PipelineRetryAdmission = freezePipelineRetryAdmission({
     projectSlug, stage: job.stage, jobId: job.id, runType,
     priorJobAttemptIndex: job.attempts, currentDurableOrdinal,
@@ -226,6 +277,19 @@ export async function prepareFailedStageRetry(
         authorityIntegrityFingerprint: regenerationExtension.body.integrity.fingerprint,
         consumptionReceiptFingerprint: regenerationExtensionConsumedReceipt!.integrity.fingerprint,
         authoritySchemaVersion: "1",
+      },
+    } : {}),
+    ...(environmentalFailureExtension ? {
+      baseMaxAttempts: maxAttempts,
+      effectiveMaxAttempts: admittedDurableOrdinal,
+      authorizedDurableOrdinal: admittedDurableOrdinal,
+      environmentalFailureRetryAuthorityProof: {
+        authorityId: environmentalFailureExtension.authorityId,
+        authorityIntegrityFingerprint: environmentalFailureExtension.body.integrity.fingerprint,
+        consumptionReceiptFingerprint:
+          environmentalFailureExtensionConsumedReceipt!.integrity.fingerprint,
+        authoritySchemaVersion: "1",
+        failureClass: "external-provider-credential-invalid",
       },
     } : {}),
     exactReconciledDurableLineageIdentity: reconciliation.lineageIdentity,
