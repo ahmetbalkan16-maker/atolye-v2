@@ -29,6 +29,25 @@ export interface AssemblyScene {
   notes?: string;
 }
 
+/**
+ * F-08/F-02 quality metrics reported by the video duration coverage gate
+ * (see src/lib/assembly/VideoDurationCoverageGuard.ts). Present only for a
+ * real ("scene-video" input) render; absent for a mock/planned render.
+ */
+export interface AssemblyRenderQuality {
+  narrationDurationSeconds: number;
+
+  videoDurationSeconds: number;
+
+  coverageRatio: number;
+
+  paddingDurationSeconds: number;
+
+  paddingRatio: number;
+
+  legitimatePaddingRatio: number;
+}
+
 export interface AssemblyRenderInfo {
   status: "planned" | "rendered" | "failed";
 
@@ -51,6 +70,8 @@ export interface AssemblyRenderInfo {
   videoCodec?: string;
 
   audioCodec?: string;
+
+  quality?: AssemblyRenderQuality;
 }
 
 export interface AssemblyPlanData {

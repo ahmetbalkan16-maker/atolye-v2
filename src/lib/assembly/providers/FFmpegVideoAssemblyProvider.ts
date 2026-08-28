@@ -23,7 +23,7 @@ import { getFFmpegVideoAssemblyConfig } from "./VideoAssemblyProviderConfig";
 const SAFE_ERROR = "Video assembly failed.";
 const WIDTH = 1920;
 const HEIGHT = 1080;
-const FPS = 30;
+export const FPS = 30;
 
 interface SceneVideoProbeSignature {
   profile: string;
@@ -164,6 +164,7 @@ export class FFmpegVideoAssemblyProvider implements ConfiguredVideoAssemblyProvi
         probeResult.stdout,
         expectedRenderedDuration(input, concatManifestPath),
         frameRoundingAllowance(input.scenes, concatManifestPath),
+        input.scenes.length,
       );
       if (concatManifestPath) {
         VideoStorage.removeIfExists(concatManifestPath, context);
@@ -737,7 +738,7 @@ function canCopySceneVideos(
  * predecessor, so its own transition value is never a junction and is
  * ignored here regardless of what it holds.
  */
-function hasAnyBlendedJunction(scenes: VideoAssemblyInput["scenes"]) {
+export function hasAnyBlendedJunction(scenes: VideoAssemblyInput["scenes"]) {
   return scenes.some(
     (scene, index) => index > 0 && sceneTransitionAt(scene) !== "cut",
   );
@@ -974,7 +975,7 @@ function xfadeModeFor(transition: AnimationTransitionType) {
   return transition === "fade" ? "fadeblack" : "fade";
 }
 
-function narrationDuration(scene: VideoAssemblyInput["scenes"][number]) {
+export function narrationDuration(scene: VideoAssemblyInput["scenes"][number]) {
   return scene.inputType === "scene-video"
     ? scene.narrationDurationSeconds
     : scene.durationSeconds;
@@ -1072,7 +1073,7 @@ function totalBlendSeconds(scenes: VideoAssemblyInput["scenes"]) {
  * audio track, truncated output, mismatched asset) drifts by whole seconds,
  * far outside even this widened bound, and still fails closed.
  */
-function frameRoundingAllowance(
+export function frameRoundingAllowance(
   scenes: VideoAssemblyInput["scenes"],
   concatManifestPath: string | null,
 ): number {
@@ -1084,7 +1085,7 @@ function frameRoundingAllowance(
   return (perSceneRetimingPoints + junctionOffsetPoints) / FPS;
 }
 
-function durationTolerance(duration: number) {
+export function durationTolerance(duration: number) {
   return Math.max(0.25, Math.min(1, duration * 0.001));
 }
 
@@ -1144,6 +1145,7 @@ function validateProbe(
   value: string,
   expectedDuration: number,
   extraTolerance = 0,
+  sceneCount = 0,
 ) {
   const parsed = JSON.parse(value) as {
     format?: { format_name?: unknown; duration?: unknown };
@@ -1211,13 +1213,27 @@ function validateProbe(
         `(tolerance ${tolerance.toFixed(3)}s)`,
     );
   }
-  if (
-    Number.isFinite(videoDuration) && Number.isFinite(audioDuration) &&
-    Math.abs(videoDuration - audioDuration) > 1 / FPS
-  ) {
-    reasons.push(
-      `audio/video skew=${Math.abs(videoDuration - audioDuration).toFixed(4)}s > ${(1 / FPS).toFixed(4)}s`,
-    );
+  if (Number.isFinite(videoDuration) && Number.isFinite(audioDuration)) {
+    // On the retimed/transitioned paths this reuses extraTolerance
+    // (frameRoundingAllowance()), for the same reason the other checks
+    // above do: both streams are built by the same per-scene/per-junction
+    // retiming and blend filters. On the zero-re-encode copy-concat path
+    // (concatManifestPath set, extraTolerance passed in as 0 -- no retiming
+    // filter runs there) that alone under-counts: canCopySceneVideos()'s own
+    // precondition only guarantees each scene's pre-existing clip is within
+    // 1/FPS of ITS OWN narration target individually, not that those
+    // per-scene roundings cancel out -- copied straight through with no
+    // retiming, they can accumulate across all sceneCount clips in the
+    // concatenated video track, while the audio track is independently
+    // atrim-cut to the precise (generally non-frame-aligned) segment
+    // boundaries. sceneCount/FPS is that same already-audited per-scene
+    // bound, summed -- not a new number.
+    const skewTolerance = Math.max(1 / FPS + extraTolerance, sceneCount / FPS);
+    if (Math.abs(videoDuration - audioDuration) > skewTolerance) {
+      reasons.push(
+        `audio/video skew=${Math.abs(videoDuration - audioDuration).toFixed(4)}s > ${skewTolerance.toFixed(4)}s`,
+      );
+    }
   }
 
   if (reasons.length > 0) {

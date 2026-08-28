@@ -79,7 +79,7 @@ export class ProjectWriter {
       } finally {
         await handle.close();
       }
-      await fs.rename(temporaryFile, file);
+      await renameWithTransientRetry(temporaryFile, file);
     } catch (error) {
       if (temporaryFile) {
         try {
@@ -128,5 +128,35 @@ export class ProjectWriter {
 function requireSafeJsonFileName(fileName: string) {
   if (!/^[a-zA-Z0-9_-]+\.json$/.test(fileName)) {
     throw new Error("Invalid project storage path.");
+  }
+}
+
+const RENAME_RETRY_ATTEMPTS = 5;
+const RENAME_RETRY_BASE_DELAY_MS = 25;
+
+/**
+ * `fs.rename` onto an existing destination is atomic on every platform this
+ * app runs on, but on Windows it can transiently fail with EPERM/EBUSY when
+ * another process (most commonly antivirus/Windows Search real-time
+ * scanning of a just-written file) briefly holds the destination or source
+ * path open -- a well-known OS-level race, not a data-integrity issue: the
+ * temp file's content is already fsynced before this ever runs, so a retry
+ * either succeeds with the exact same bytes or the loop exhausts and the
+ * original error propagates exactly as before. Only EPERM/EBUSY are
+ * retried; every other error (including ENOENT, EACCES, EXDEV) still fails
+ * immediately on the first attempt, unchanged from prior behavior.
+ */
+async function renameWithTransientRetry(from: string, to: string): Promise<void> {
+  for (let attempt = 1; attempt <= RENAME_RETRY_ATTEMPTS; attempt += 1) {
+    try {
+      await fs.rename(from, to);
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if ((code !== "EPERM" && code !== "EBUSY") || attempt === RENAME_RETRY_ATTEMPTS) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, RENAME_RETRY_BASE_DELAY_MS * attempt));
+    }
   }
 }

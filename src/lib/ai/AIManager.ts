@@ -13,6 +13,11 @@ import { getResearchMaxTokens, ResearchAIConfigError } from "./ResearchAIConfig"
 import { getScriptMaxTokens, ScriptAIConfigError } from "./ScriptAIConfig";
 import { parseStrictScriptResponse } from "./ScriptStructuredOutput";
 import { createScenesPrompt, parseStrictScenesResponse } from "./SceneStructuredOutput";
+import {
+  countNarrationWords,
+  DEFAULT_CHARACTERS_PER_SECOND,
+  reconcileChapterDurations,
+} from "./NarrationDurationEstimator";
 import { ApplicationTimestampError } from "./CanonicalTimestamp";
 import {
   createResearchPrompt,
@@ -194,6 +199,7 @@ export class AIManager {
       "- Field limits: topic/title 300, subtitle 500, hook 1500, introduction 2500, conclusion 2000, callToAction 1000 characters.",
       "- Chapter limits: title 300, narration 1200, visualGoal 1200, emotion 300, transition 500 characters.",
       "- Chapter id, chapter duration, estimatedDuration, and narrationWordCount must be positive integers; chapter ids must be unique.",
+      `- As a pacing guide, narration text is spoken at roughly ${DEFAULT_CHARACTERS_PER_SECOND.toFixed(1)} characters per second: size each chapter's narration so its character count is roughly its duration multiplied by that rate (the application also recomputes and corrects chapter durations from your narration text afterward, so this guide only needs to be approximate).`,
       ...(policy?.failClosed ? [
         "- Production acceptance estimatedDuration must be between 60 and 120 seconds; target 90 seconds.",
         "- The sum of chapter durations must match estimatedDuration within 5 seconds.",
@@ -223,7 +229,7 @@ export class AIManager {
         ? parseStrictScriptResponse(response)
         : parseAIJsonResponse<Partial<ScriptData>>(response);
 
-      const chapters: ScriptChapter[] = Array.isArray(parsed.chapters)
+      const rawChapters: ScriptChapter[] = Array.isArray(parsed.chapters)
         ? parsed.chapters.map((chapter, index) => {
             const item = chapter as Partial<ScriptChapter>;
 
@@ -239,6 +245,44 @@ export class AIManager {
           })
         : fallback.chapters;
 
+      const estimatedDuration = getNumber(
+        parsed.estimatedDuration,
+        fallback.estimatedDuration,
+      );
+
+      // F-08 fix: `duration`/`estimatedDuration` above are the model's own
+      // free-form picks, structurally disconnected from the narration text
+      // it wrote in the very same response (see NarrationDurationEstimator.ts
+      // for the root-cause evidence). This redistributes the already-accepted
+      // total across chapters by actual narration length instead, without
+      // changing the total itself -- the [60,120]s acceptance range is a
+      // content-length product policy enforced later
+      // (ProductionAcceptancePreflight), not something this correction should
+      // touch. Real TTS-measured duration (audio stage) remains the only
+      // authoritative duration downstream; this only makes the a-priori
+      // *estimate* honest relative to the narration it accompanies.
+      const reconciledDurations = rawChapters.length > 0
+        ? new Map(
+            reconcileChapterDurations(rawChapters, estimatedDuration).map(
+              (entry) => [entry.id, entry.duration] as const,
+            ),
+          )
+        : new Map<number, number>();
+      const chapters: ScriptChapter[] = rawChapters.map((chapter) => ({
+        ...chapter,
+        duration: reconciledDurations.get(chapter.id) ?? chapter.duration,
+      }));
+
+      // Same family of bug as estimatedDuration: the model's own
+      // narrationWordCount is an independent free-form guess with no
+      // structural link to the narration text (observed 1200 vs an actual
+      // 284 on the real i-stanbul-un-fethi-1453 script). Recomputed here from
+      // the same chapters actually returned, so it is always honest.
+      const narrationWordCount = chapters.reduce(
+        (sum, chapter) => sum + countNarrationWords(chapter.narration),
+        0,
+      );
+
       return {
         topic: getStringAllowEmpty(parsed.topic, fallback.topic),
         title: getStringAllowEmpty(parsed.title, fallback.title),
@@ -248,14 +292,10 @@ export class AIManager {
         chapters,
         conclusion: getStringAllowEmpty(parsed.conclusion, fallback.conclusion),
         callToAction: getStringAllowEmpty(parsed.callToAction, fallback.callToAction),
-        estimatedDuration: getNumber(
-          parsed.estimatedDuration,
-          fallback.estimatedDuration,
-        ),
-        narrationWordCount: getNumber(
-          parsed.narrationWordCount,
-          fallback.narrationWordCount,
-        ),
+        estimatedDuration,
+        narrationWordCount: chapters.length > 0
+          ? narrationWordCount
+          : getNumber(parsed.narrationWordCount, fallback.narrationWordCount),
         targetAudience: getStringAllowEmpty(
           parsed.targetAudience,
           fallback.targetAudience,

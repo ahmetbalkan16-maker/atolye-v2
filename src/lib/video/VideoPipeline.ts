@@ -345,7 +345,7 @@ function validateResult(
     item.provider !== provider ||
     item.generationMode !== mode ||
     item.status !== "generated" ||
-    item.durationSeconds !== input.motionPlan.durationSeconds ||
+    !matchesRequestedDuration(item.durationSeconds, input.motionPlan.durationSeconds) ||
     item.transition !== input.motionPlan.transition ||
     item.frameRate !== 30 ||
     !validDate(item.createdAt)
@@ -389,6 +389,27 @@ function validateResult(
   if (inspection.byteLength !== item.byteLength) {
     throw new SceneVideoGenerationError();
   }
+}
+
+/**
+ * F-08 fix follow-on: mock-path durations are exact integers, but real
+ * per-scene target durations reconciled to actual narration length
+ * (NarrationDurationEstimator.ts) or to real TTS measurement (downstream
+ * regeneration -- see docs/DURATION_AUTHORITY.md) are not generally
+ * frame-aligned to the scene-video provider's fixed 30fps grid, so the
+ * provider's own real output can legitimately differ from the exact
+ * requested target by a small, bounded amount (sub-frame rounding) even on
+ * a fully successful render. This mirrors -- not reinvents -- the exact
+ * tolerance the provider itself already used to accept that same render
+ * (FFmpegSceneVideoProvider.ts's own `validateProbe`), so a target this
+ * function accepts was always already provider-accepted; this only avoids
+ * re-rejecting it here with stricter float equality. A genuinely wrong
+ * duration (wrong scene, stale asset, corrupt result) still differs by far
+ * more than this and is still rejected.
+ */
+function matchesRequestedDuration(actual: number, requested: number): boolean {
+  const tolerance = Math.max(0.25, Math.min(1, requested * 0.001));
+  return Math.abs(actual - requested) <= tolerance;
 }
 
 function validDate(value: unknown) {

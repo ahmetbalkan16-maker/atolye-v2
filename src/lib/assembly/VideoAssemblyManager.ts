@@ -29,6 +29,11 @@ import {
   validateProductionSceneAudioMapping,
 } from "@/lib/production/ProductionAcceptancePreflight";
 import { VideoAssemblyProviderRouter } from "./providers/VideoAssemblyProviderRouter";
+import {
+  assertVideoDurationCoverage,
+  VideoDurationCoverageError,
+  type VideoDurationCoverageReport,
+} from "./VideoDurationCoverageGuard";
 
 const SAFE_ERROR = "Video assembly failed.";
 const SAFE_ASSET_ERROR = "Video assembly failed.";
@@ -165,6 +170,7 @@ export class VideoAssemblyManager {
     }
 
     let renderScenes: VideoAssemblyInput["scenes"];
+    let coverageReport: VideoDurationCoverageReport | undefined;
 
     try {
       const rawSceneVideo = resolveSceneVideoData(video);
@@ -279,7 +285,18 @@ export class VideoAssemblyManager {
       });
 
       requireMixAsset(assets.assets, projectId, projectSlug, audio);
+
+      // F-02 fail-closed quality gate: reject before rendering when the
+      // pre-existing scene-video clips would need more frozen-frame tpad
+      // padding than the render pipeline's own tolerance architecture
+      // treats as legitimate to cover the real, TTS-measured narration
+      // length. See VideoDurationCoverageGuard.ts for the full rationale.
+      coverageReport = assertVideoDurationCoverage(renderScenes, null);
     } catch (err) {
+      if (err instanceof VideoDurationCoverageError) {
+        logAssemblyFailure("video duration coverage gate", err);
+        throw err;
+      }
       logAssemblyFailure("scene input preparation", err);
       throw new VideoAssemblyError();
     }
@@ -366,6 +383,18 @@ export class VideoAssemblyManager {
         height: result.height,
         videoCodec: result.videoCodec,
         audioCodec: result.audioCodec,
+        ...(coverageReport
+          ? {
+              quality: {
+                narrationDurationSeconds: coverageReport.narrationDurationSeconds,
+                videoDurationSeconds: coverageReport.videoDurationSeconds,
+                coverageRatio: coverageReport.coverageRatio,
+                paddingDurationSeconds: coverageReport.paddingDurationSeconds,
+                paddingRatio: coverageReport.paddingRatio,
+                legitimatePaddingRatio: coverageReport.legitimatePaddingRatio,
+              },
+            }
+          : {}),
       },
       updatedAt: new Date().toISOString(),
     };

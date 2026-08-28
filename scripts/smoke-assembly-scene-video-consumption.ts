@@ -382,17 +382,25 @@ async function run() {
     });
 
     await scenario("duration mismatch uses safe retime and re-encode path", async () => {
+      // Scene 1's video clip stays at the fixture's default 1s while its
+      // narration becomes 1.1s -- more than the 1/FPS copy-path tolerance
+      // (forces the tpad/retime + re-encode path this scenario exercises)
+      // but a small, legitimate rounding-scale gap (well within
+      // VideoDurationCoverageGuard's tolerance), not the large
+      // estimate/reality mismatch that guard exists to reject. See
+      // smoke-video-duration-coverage-guard.ts for the guard's own
+      // large-mismatch-rejection coverage.
       const value = await fixture("retime");
       const current = AssetManager.getProjectAssets(value.slug, value.project.id);
       const audio = current.assets.find((asset) => asset.id === "audio-1")!;
-      const replacement = AudioStorage.saveAudio({ projectSlug: value.slug, data: wav(32000) });
+      const replacement = AudioStorage.saveAudio({ projectSlug: value.slug, data: wav(17600) });
       audio.filePath = replacement.filePath;
       audio.url = replacement.url;
       audio.byteLength = replacement.byteLength;
       audio.durationSeconds = replacement.durationSeconds;
-      value.audio.sections[0].duration = "00:02";
+      value.audio.sections[0].duration = "00:01.1";
       AssetManager.saveProjectAssets(value.slug, { ...current, assets: current.assets });
-      const runner = new Runner({}, undefined, "3");
+      const runner = new Runner({}, undefined, "2.1");
       await render(value, runner);
       const ffmpeg = runner.calls.find((call) => call.executable === process.env.FFMPEG_PATH)!;
       assert.ok(ffmpeg.args.includes("libx264"));
