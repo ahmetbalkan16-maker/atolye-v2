@@ -75,6 +75,10 @@ import {
 } from "./PipelineRunnerCanonicalRuntime";
 
 export { installPipelineRunnerProductionRuntime } from "./PipelineRunnerCanonicalRuntime";
+// Re-exported so the production-acceptance orchestrator can run its post-pipeline
+// finalize() inside the same canonical runtime operation the pipeline stages use,
+// instead of outside any ProductionRuntimeOperationContext.
+export { executePipelineRunnerProductionRuntimeOperation };
 
 export const pipelineResumeBoundaryInvalidCode = "PIPELINE_RESUME_BOUNDARY_INVALID";
 

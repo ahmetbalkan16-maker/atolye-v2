@@ -1,5 +1,41 @@
 ---
 
+<!-- SPRINT-156-START -->
+## Sprint 156 - `production:acceptance:execute` finalize() → RUNTIME_OPERATION_CONTEXT_MISSING kök neden + dar düzeltme - 2026-08-29
+
+**Status:** Completed. Salt-okunur teşhis + en dar kalıcı kod düzeltmesi + yeni regresyon smoke'u. `src/**` iki dosya (biri sadece re-export satırı), bir yeni smoke dosyası. **Sıfır production mutation** — hiçbir gerçek proje/asset/marker/export'a dokunulmadı; tüm doğrulama izole `withCanonicalSmokeRuntime` alanında + bir salt-okunur repro (silindi) ile. Commit/push kullanıcı onayına bırakıldı (ağaçta ilgisiz önceki-oturum WIP'i var).
+
+### Belirti
+`npm run production:acceptance:execute` (ve `resume-finalize`) pipeline'ı 12/12 `completed` yaptıktan, `project.json.status="completed"` olduktan **sonra** `ProductionAcceptanceOrchestrator.finalize()` içinde `ProductionRuntimeOperationContextError` / `RUNTIME_OPERATION_CONTEXT_MISSING` fırlıyordu. Sonuç: `production-acceptance.json` marker'ı `acceptanceStatus:"prepared"` / `productionReady:false`'ta takılı kalıyor (`markProductionAcceptanceValidated` throw'un altında). Canlı kanıt: `osmanli-nin-yukselisi-...-c8888f58` — 12/12 completed + export bundle var, marker hâlâ `prepared`; ayrıca 5 `audio-publication-intents/*.json`.
+
+### Kök neden (GRAPHIFY + salt-okunur repro ile doğrulandı)
+- `ProductionAcceptanceOrchestrator.run()` / `resumeAndFinalize()` → `PipelineRunner.run()`/`resume()` kendi `executePipelineRunnerProductionRuntimeOperation(...)` scope'unda çalışır; audio aşaması `AudioStorage.commitPreparedAudio` → `prepareAudioPublicationIntent` ile `production-execution/audio-publication-intents/*.json` yazar (`runtimeAuthorityBinding` = o context'in `authority.resolverBindingIdentity`). `PipelineRunner.run` dönünce bu scope **yıkılır**.
+- Ardından orchestrator `this.finalize(...)`'i **aktif `ProductionRuntimeOperationContext` olmadan** çağırıyordu. `finalize()` → `AssetManager.getProjectAssets(slug, id)` (`ProductionAcceptanceOrchestrator.ts:311`) → `getCommittedAudioPublicationAssets(...)` (`AssetManager.ts:48`): `audio-publication-intents/` klasörü artık var olduğundan `requireActiveProductionRuntimeOperationContext()` (`RuntimeOperationScope.ts:81`) → **throw**.
+- Hiçbir smoke yakalamamıştı çünkü `withCanonicalSmokeRuntime` tüm senaryoyu `runWithProductionRuntimeOperationContext(...)` içine sarıyor (finalize hep aktif context'te koşuyor). Çıplak CLI süreci (`scripts/run-production-acceptance.ts`) ve `scripts/e2e-real-pipeline-duration-fix-proof.ts` sarmıyor — gerçek olay tam buydu. Salt-okunur repro (`initializeProductionProcessRuntime()` + `AssetManager.getProjectAssets` çıplak): **THREW RUNTIME_OPERATION_CONTEXT_MISSING**; aynı çağrı `executePipelineRunnerProductionRuntimeOperation` ile sarıldığında: **OK, 19 asset (5 audio)**.
+
+### Düzeltme (en dar, kontrat-koruyan)
+- **`src/lib/pipeline/PipelineRunner.ts`:** zaten import edilmiş olan `executePipelineRunnerProductionRuntimeOperation` re-export edildi (`installPipelineRunnerProductionRuntime` desenini izler).
+- **`src/lib/production/ProductionAcceptanceOrchestrator.ts`:** yeni `private static finalizeWithinCanonicalRuntimeOperation(...)` — `finalize()`'i `executePipelineRunnerProductionRuntimeOperation("production-acceptance-finalize", () => this.finalize(...))` ile sarar. `run()` ve `resumeAndFinalize()`'daki iki `this.finalize(...)` çağrısı buna yönlendirildi. `finalize()` gövdesi **değişmedi**.
+- Neden doğru: zaten kayıtlı canonical parent authority'den (`initializeProductionProcessRuntime` kurar) türetir → yeni ambient fallback yok, kayıt yoksa hâlâ `RUNTIME_OPERATION_CONTEXT_MISSING` ile fail-closed. Türetilen finalize context'i pipeline'ın storage authority'sini paylaşır → `getCommittedAudioPublicationAssets`'in `intent.runtimeAuthorityBinding` kontrolü bu run'ın kendi intent'leri için geçer, yabancıları hâlâ reddeder. finalize zaten aktif bir context içinde çağrıldığında (her mevcut acceptance smoke'u) o context yeniden kullanılır, nested edilmez (`RUNTIME_OPERATION_CONTEXT_MISMATCH` yok).
+- `run()`/`resumeAndFinalize()` bütün olarak sarılamaz: `evaluateReadiness()` → `initializeProductionProcessRuntime()` `runWithProductionRuntimeOperationContext(processRuntimeOperationContext, …)`'i parent context'in **kendisiyle** çalıştırır; önceden türetilmiş bir dış context orada `active.operationContext !== context` mismatch guard'ını tetiklerdi. Yalnızca finalize (hep readiness'ten sonra) sarılıyor.
+
+### Yeni regresyon testi — `scripts/smoke-production-acceptance-finalize-runtime-context.ts` (6 senaryo, PASS)
+`enterOperationContext:false` (çıplak CLI'yi taklit): (A) committed audio intent seed'liyken çıplak `AssetManager.getProjectAssets` → `RUNTIME_OPERATION_CONTEXT_MISSING` (ham tehlike hâlâ üretiliyor); (B) aynı çağrı `executePipelineRunnerProductionRuntimeOperation("production-acceptance-finalize", …)` ile → registry + 5 audio döner; (C) authority binding kontrolü finalize operasyonu altında geçer; (D) aynı sarma bir dış aktif context içinde nested → yeniden kullanılır, MISMATCH yok; (E)+(F) `ProductionAcceptanceOrchestrator.resumeAndFinalize` (evaluateReadiness + createResumePlan stub, `PipelineStageExecutor.loadState` casus): finalize `ProductionAcceptanceExecutionError` ile reddeder (RUNTIME_OPERATION_CONTEXT_* **değil**) ve media/registry re-verification'ı **aktif** context'te koşar — hem çıplak hem dış-context. Düzeltme geri alınınca (E) `false !== true` ile FAIL eder (gerçek guard).
+
+### Testler
+- `npx tsc --noEmit`: **0 hata** · `npm run lint`: **0 error** (22 pre-existing warning, sayı değişmedi) · `graphify update .` çalıştırıldı.
+- Regresyon (değişen alan): `smoke-production-acceptance-finalize-runtime-context` (6, YENİ), `smoke-sprint-128-1-production-acceptance` (30), `smoke-production-readiness-acceptance` (24), `smoke-sprint-129-23-production-acceptance-portability` (16), `smoke-durable-replay-manifest-desync-guard` (11), `smoke-pipeline-state-error-contract` (18), `smoke-audio-publication-rebind` (11/12, 1 skip), `smoke-production-worker-lifecycle` (21), `smoke-production-end-to-end` (21), `smoke-production-animation-provider` (30), `smoke-pipeline-orchestration` (10), `smoke-pipeline-auto-continuation` (18), `smoke-environmental-failure-retry-extension` (37), `smoke-production-audio-asset-wiring` (74), `smoke-production-video-assembly-wiring` (73), `smoke-production-thumbnail-pipeline` (42), `smoke-isolated-e2e-audio-rebind-assembly` (gerçek FFmpeg, SUCCESS) — **17/17 PASS**.
+
+### Kalan gerçek eksik (bu görevin DIŞINDA — pre-existing, temiz ağaçta da FAIL, benim değişikliğimle ilgisiz)
+- `smoke-sprint-129-25c-2b-4-runtime-context` — EXIT 1 (`Missing expected exception (RuntimeStorageError)`).
+- `smoke-sprint-129-36-retry-budget-extension` — EXIT 1 (`CANONICAL_AUDIO_ORDINAL_FOUR_RESERVATION_PERSISTENCE_INVALID`).
+- `smoke-sprint-129-28-production-acceptance-reauthorization` — EXIT 1 (kırılgan kaynak-regex assertion: `/const completedPreparations\s*=\s*new WeakMap/` artık eşleşmiyor).
+- Üçü de `src/**` değişikliğim stash'lenmiş temiz ağaçta aynı şekilde FAIL. Sprint 152'nin işaret ettiği durable-layer regresyon borcuyla aynı aile (`smoke-sprint-129-9/33/39` ile birlikte).
+
+### Not — mevcut takılı Osmanlı marker'ı
+`osmanli-...-c8888f58` (ve diğer `prepared`'ta takılı acceptance marker'ları) artık düzeltilmiş kodla standart `npm run production:acceptance:resume-finalize --project-slug=<slug> --confirm-production-acceptance` ile finalize edilebilir (yeniden render YOK, yalnızca `production-acceptance.json` yazımı). Bu bir operatör kararı — bu oturumda çalıştırılmadı (kullanıcı "Osmanlı projesini değiştirme" dedi; export bundle zaten dokunulmuyor, yalnızca marker).
+<!-- SPRINT-156-END -->
+
 <!-- SPRINT-155-START -->
 ## Sprint 155 - Environmental-Failure Retry Admission (non-regeneration durable ordinal 5) + Thumbnail Observability + Audio Canonical Descriptor Rebind → `fatih-...-cfe77fd8` 12/12 - 2026-08-28
 

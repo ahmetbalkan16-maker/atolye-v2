@@ -11,7 +11,10 @@ import {
   PipelineRecoveryPlanner,
   pipelineRecoveryStageOrder,
 } from "@/lib/pipeline/PipelineRecoveryPlanner";
-import { PipelineRunner } from "@/lib/pipeline/PipelineRunner";
+import {
+  executePipelineRunnerProductionRuntimeOperation,
+  PipelineRunner,
+} from "@/lib/pipeline/PipelineRunner";
 import { PipelineStageExecutor } from "@/lib/pipeline/PipelineStageExecutor";
 import { ThumbnailProviderRouter } from "@/lib/thumbnail/ThumbnailProviderRouter";
 import { VideoProviderRouter } from "@/lib/video/providers/VideoProviderRouter";
@@ -223,7 +226,7 @@ export class ProductionAcceptanceOrchestrator {
     if (!result.success || !result.assembly || !result.thumbnail || !result.youtube) {
       throw new ProductionAcceptanceExecutionError(runSlug);
     }
-    return this.finalize(result.slug, readiness, startedAt);
+    return this.finalizeWithinCanonicalRuntimeOperation(result.slug, readiness, startedAt);
   }
 
   static async evaluateReadiness(): Promise<ProductionReadinessReport> {
@@ -271,7 +274,32 @@ export class ProductionAcceptanceOrchestrator {
         }),
       };
     }
-    return this.finalize(projectSlug, readiness, startedAt);
+    return this.finalizeWithinCanonicalRuntimeOperation(projectSlug, readiness, startedAt);
+  }
+
+  /**
+   * finalize() re-verifies media + the asset registry and writes the acceptance
+   * marker. Its registry read (AssetManager.getProjectAssets ->
+   * getCommittedAudioPublicationAssets) requires the active
+   * ProductionRuntimeOperationContext that authored this run's audio publication
+   * intents during the pipeline. PipelineRunner.run/resume establish that context
+   * only for their own scope and tear it down before returning here, so finalize()
+   * must re-enter the same canonical runtime operation explicitly. This derives a
+   * fresh operation from the already-registered canonical parent authority
+   * (installed by initializeProductionProcessRuntime); it adds no ambient fallback
+   * and still fails closed with RUNTIME_OPERATION_CONTEXT_MISSING when no runtime
+   * is registered. When finalize() is already reached inside an active context
+   * (e.g. smoke runtimes), that context is reused, not nested.
+   */
+  private static finalizeWithinCanonicalRuntimeOperation(
+    projectSlug: string,
+    readiness: ProductionReadinessReport,
+    startedAt: number,
+  ): Promise<ProductionAcceptanceResult> {
+    return executePipelineRunnerProductionRuntimeOperation(
+      "production-acceptance-finalize",
+      () => this.finalize(projectSlug, readiness, startedAt),
+    );
   }
 
   private static async finalize(
