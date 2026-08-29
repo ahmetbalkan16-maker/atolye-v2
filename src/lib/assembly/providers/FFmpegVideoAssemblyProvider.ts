@@ -859,7 +859,7 @@ function buildRetimedConcatArgs(
   return args;
 }
 
-const MAX_BLEND_SECONDS = 0.5;
+export const MAX_BLEND_SECONDS = 0.5;
 const CUT_BLEND_SECONDS = 1 / FPS;
 const MIN_BLEND_SECONDS = 0.01;
 

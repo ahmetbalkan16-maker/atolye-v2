@@ -25,6 +25,7 @@ import type {
 import type { ThumbnailData, ThumbnailMimeType } from "@/types/thumbnail";
 import type { YouTubePublishingPackage } from "@/types/youtube";
 import { buildChapterSubtitles, SubtitleGenerationError } from "./SubtitleGenerator";
+import { MAX_BLEND_SECONDS } from "@/lib/assembly/providers/FFmpegVideoAssemblyProvider";
 
 /**
  * Physical export bundle materializer (Sprint 132).
@@ -98,7 +99,17 @@ export async function materializeExportBundle(
 
     const renderedDuration = input.assembly.render?.durationSeconds;
     if (typeof renderedDuration === "number" && Number.isFinite(renderedDuration)) {
-      const tolerance = Math.max(1, renderedDuration * 0.01);
+      // Subtitles span the full narration timeline; a crossfaded final video is
+      // shorter than that narration sum by the transition-blend overlap (up to
+      // MAX_BLEND_SECONDS per inter-scene junction). Allow for that on top of
+      // the 1%/1s base tolerance so a legitimately blended render is not
+      // rejected, while a genuinely wrong subtitle set (off by many seconds)
+      // still fails.
+      const sceneCount = Array.isArray(input.assembly.scenes)
+        ? input.assembly.scenes.length
+        : 0;
+      const blendAllowanceSeconds = Math.max(0, sceneCount - 1) * MAX_BLEND_SECONDS;
+      const tolerance = Math.max(1, renderedDuration * 0.01) + blendAllowanceSeconds;
       if (Math.abs(subtitles.totalDurationSeconds - renderedDuration) > tolerance) {
         throw new ExportBundleMaterializationError(
           "subtitle total duration diverges from the canonical rendered video duration",

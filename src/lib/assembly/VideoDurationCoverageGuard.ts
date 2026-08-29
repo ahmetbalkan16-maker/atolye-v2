@@ -42,6 +42,7 @@ import {
   narrationDuration,
 } from "./providers/FFmpegVideoAssemblyProvider";
 import { productionAcceptanceDuration } from "@/lib/production/ProductionAcceptancePreflight";
+import { ESTIMATOR_PER_CHAPTER_VARIANCE_RATIO } from "@/lib/ai/NarrationDurationEstimator";
 import type { VideoAssemblyInput } from "@/types/videoAssembly";
 
 export const VIDEO_DURATION_COVERAGE_FAILED = "VIDEO_DURATION_COVERAGE_FAILED";
@@ -121,7 +122,14 @@ function perSceneLegitimatePaddingSeconds(narrationSeconds: number): number {
   return (
     1 / FPS +
     durationTolerance(narrationSeconds) +
-    narrationSeconds * ACCEPTANCE_POLICY_PADDING_RATIO
+    narrationSeconds * ACCEPTANCE_POLICY_PADDING_RATIO +
+    // A single scene's clip is rendered at the per-chapter char-rate estimate
+    // before any TTS exists; calibrated per-chapter variance alone (see
+    // ESTIMATOR_PER_CHAPTER_VARIANCE_RATIO) lets the real per-chapter narration
+    // run up to ~5.3% longer than that estimate with no estimate/reality bug.
+    // Only the per-scene tolerance gets this term -- per-chapter variances
+    // cancel over the whole script, so the aggregate check below is unchanged.
+    narrationSeconds * ESTIMATOR_PER_CHAPTER_VARIANCE_RATIO
   );
 }
 

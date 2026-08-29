@@ -47,6 +47,22 @@
 /** Empirically-calibrated default narration rate (characters per second). */
 export const DEFAULT_CHARACTERS_PER_SECOND = 14.12;
 
+/**
+ * How much a single chapter's real TTS duration can legitimately exceed this
+ * module's char-rate estimate of that same chapter, as a fraction. Derived
+ * directly from the calibration table above: the slowest observed chapter ran
+ * at 13.42 chars/sec against the 14.12 mean, i.e. 14.12 / 13.42 - 1 ~= 0.052,
+ * so its real duration was ~5.2% longer than the char-rate estimate would
+ * predict. The *aggregate* over a whole script is far tighter (coefficient of
+ * variation ~3%), but any one scene-video clip -- rendered at the per-chapter
+ * char-rate estimate, before any TTS exists -- can be this much shorter than
+ * the real per-chapter narration purely from calibrated per-chapter variance,
+ * with no estimate/reality bug involved. Consumed by
+ * VideoDurationCoverageGuard's per-scene tolerance so that variance alone does
+ * not trip the frozen-frame-padding gate.
+ */
+export const ESTIMATOR_PER_CHAPTER_VARIANCE_RATIO = 0.053;
+
 /** A narration this short (or shorter) is almost certainly a data error, not legitimate content. */
 export const MINIMUM_NARRATION_SECONDS = 1;
 
