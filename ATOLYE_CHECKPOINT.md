@@ -1,5 +1,39 @@
 ---
 
+<!-- SPRINT-157-START -->
+## Sprint 157 - Fatih Sultan Mehmet projesi gerçek üretim pipeline'ından geçirildi → 12/12 + productionReady - 2026-08-29
+
+**Status:** Completed. `fatih-sultan-mehmet-ve-i-stanbul-un-fethi-c0261ddc-d2d1-460b-bf6c-5be4bdc1b02b` **12/12 completed**, `project.json.status="completed"`, `production-acceptance.json` `acceptanceStatus:"validated"` / `productionReady:true` / `published:false`. `production:acceptance:execute` + `resume-finalize` yolu uçtan uca çalışır durumda — Sprint 156'nın `9ba24c8` runtime-context düzeltmesi gerçek CLI'de doğrulandı. Commit/push kullanıcı onayına bırakıldı.
+**Production execution status:** Yeni proje (topic'ten uniquify edilmiş taze slug). Korunan üç proje (`osmanli-...-c8888f58`, `i-stanbul-un-fethi-1453`, `fatih-sultan-mehmet-ve-i-stanbul-un-fethi` draft) **hiç dokunulmadı** (0 dosya değişikliği). Başarısız ilk deneme `fatih-...-0cb2dc0d` (assembly failed, export yok, 0 tracked) temizlendi.
+
+### Final video
+- `data/projects/fatih-...-c0261ddc/assets/videos/948f9776-6b35-4d7d-bc4b-098d5cc806e5.mp4` = `export/bundle/video.mp4` — **6.902.742 bayt**, sha256 `ef192ea59c946f5b2199d8cc7f22f01e3084a39a13293812d2e54e5c26c408e9`, **h264 1920×1080 @ 30fps + aac 48kHz stereo, 96.841 s, mov/mp4**.
+- Export bundle `packaged`: video.mp4 + thumbnail.png (2.968.412) + youtube_metadata.json + subtitles.srt/.vtt — hepsi `export.json` checksum'larıyla birebir.
+
+### Kök nedenler + düzeltmeler (F-08/F-02 tamamlama + 3 latent bug)
+Model 5 chapter için ~2000+ karakter narration yazıyor (~145 s) ama `estimatedDuration`'ı ~90-105 seçiyor → scene/video 105 s'de, TTS 146 s'de → assembly `VideoDurationCoverageGuard` fail-closed. Zincir:
+
+1. **`src/lib/ai/AIManager.ts` — script prompt (failClosed) + honest estimatedDuration.** Prompt: "tam 5 chapter", her chapter narration'ı 260-340 karakter, birleşik ~1300-1450 (hard). Kod: failClosed'da `estimatedDuration` = `round(sum estimateNarrationSeconds(chapter.narration))` — modelin sayısı yerine narration'ın kalibre char-rate tahmini; `reconcileChapterDurations` bu dürüst toplamı dağıtır. Legacy yol değişmedi.
+2. **`src/lib/production/ProductionAcceptancePreflight.ts` — script-stage fail-closed narration tutarlılık kapısı.** `measuredNarrationSeconds >= 30` ise (mock fixture'lar muaf): narration [55,125] s içinde olmalı VE `|measured - estimatedDuration|` coverage-guard toleransı içinde. Kötü scriptler ucuz script aşamasında reddedilir (görüntü/ses üretilmeden).
+3. **`src/lib/ai/NarrationDurationEstimator.ts` + `src/lib/assembly/VideoDurationCoverageGuard.ts` — per-scene kalibre varyans terimi.** Yeni `ESTIMATOR_PER_CHAPTER_VARIANCE_RATIO = 0.053` (kendi kalibrasyon tablosundan: en yavaş chapter 13.42 ch/s vs 14.12 ortalama). `perSceneLegitimatePaddingSeconds`'e eklendi — tek sahne TTS'i char-rate tahmininden ~%5 uzun çıkabilir (agregada iptal olur, agrega kontrol değişmedi). Marjinal per-scene fail (scene 1: 1.56 s pad vs 1.48 s tol, 0.08 s aşım) çözüldü.
+4. **`src/lib/youtube/prompts/youtubePackagePrompt.ts` + `YouTubePackagePipeline.ts`.** (a) Prompt: chapter startSeconds tam saniye, `< durationSeconds`; scene sürelerinden değil authoritative `durationSeconds`'ten hesapla. (b) `requireFinalVideoAsset`: `inspectStoredMp4` (mvhd atom parse) süresi ile depolanan `asset.durationSeconds` (ffprobe) sub-frame yuvarlama farkı (96.841 vs 96.842) — `1e-3` toleransı `MAX_STORED_DURATION_PROBE_DRIFT_SECONDS = 0.1`'e genişletildi.
+5. **`src/lib/export/ExportBundleMaterializer.ts`.** Altyazılar tam narration timeline'ını kaplar; crossfade'li video narration toplamından blend-overlap kadar kısa (junction başına ≤ `MAX_BLEND_SECONDS`). Divergence toleransı `+ (sceneCount-1) * MAX_BLEND_SECONDS`. (`MAX_BLEND_SECONDS` `FFmpegVideoAssemblyProvider`'dan export edildi.)
+
+### Maliyet / döngü kontrolü (kullanıcı talebi)
+- Diagnostik: ~9 script + ~2 youtube üretim çağrısı (prompt kalibrasyonu; sonra silindi).
+- `c0261ddc` `providerCalls: 47` (completion raporu). research→video→audio bir kez üretildi; `resume-finalize` başarısız aşamalardan devam etti, tamamlanan aşamalar **hiç** yeniden üretilmedi.
+- Retry'ler: audio (1× transient `AUDIO_PROVIDER_TIMEOUT`), assembly (1× guard — sonra kod düzeltmesiyle geçti), youtube (2× — kök neden bulunup düzeltildikten sonra geçti), export (1× — düzeltmeyle geçti). Her tekrar öncesi kök neden bulundu; körlemesine retry yapılmadı.
+- İlk deneme `0cb2dc0d` silindi (assets yeniden kullanılamazdı — yanlış süreler gömülüydü).
+
+### Testler
+- `npx tsc --noEmit`: **0 hata** · `npm run lint`: **0 error** (22 pre-existing warning) · `graphify update .`
+- Regresyon (değişen alan): `smoke-video-duration-coverage-guard` (20), `smoke-script-duration-reconciliation-wiring` (3, fixture güncellendi), `smoke-narration-duration-estimator` (12), `smoke-production-youtube-package-pipeline` (58), `smoke-production-youtube-publish-pipeline` (31), `smoke-sprint-132-export-packaging` (15), `smoke-ffmpeg-bgm-kenburns-assembly` (30, gerçek FFmpeg), `smoke-production-video-assembly-wiring` (73), `smoke-assembly-scene-video-consumption` (25), `smoke-production-end-to-end` (21), `smoke-isolated-e2e-live-pipeline-ffmpeg` (gerçek FFmpeg, 47 s MP4), `smoke-sprint-128-1-production-acceptance` (30), `smoke-production-readiness-acceptance` (24), `smoke-production-acceptance-finalize-runtime-context` (6, Sprint 156) — **hepsi PASS**.
+- Pre-existing FAIL (benimle ilgisiz, temiz ağaçta da): `smoke-sprint-129-13/15/19/25c-2b-4/28/33/36/39` (durable/isolated-smoke regresyon borcu).
+
+### Gerçek çalışma kanıtı
+`resume-finalize` → `{"success": true, "completion": {"durationSeconds": 96.841, "resolution": "1920x1080", "videoCodec": "h264", "audioCodec": "aac", "sceneCount": 5, "imageCount": 5, "providerCalls": 47, "publishReady": true, "published": false, "productionReady": true}}`
+<!-- SPRINT-157-END -->
+
 <!-- SPRINT-156-START -->
 ## Sprint 156 - `production:acceptance:execute` finalize() → RUNTIME_OPERATION_CONTEXT_MISSING kök neden + dar düzeltme - 2026-08-29
 

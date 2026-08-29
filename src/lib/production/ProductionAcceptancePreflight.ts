@@ -2,6 +2,7 @@ import type { SceneData, SceneItem } from "@/types/scene";
 import type { ScriptData } from "@/types/script";
 import type { AudioData } from "@/types/audio";
 import type { AssemblyPlanData } from "@/types/assembly";
+import { estimateNarrationSeconds } from "@/lib/ai/NarrationDurationEstimator";
 
 export const productionAcceptanceDuration = Object.freeze({
   minimumSeconds: 60,
@@ -9,6 +10,17 @@ export const productionAcceptanceDuration = Object.freeze({
   maximumSeconds: 120,
   toleranceSeconds: 5,
 });
+
+/**
+ * Below this much a-priori-estimated narration (see NarrationDurationEstimator),
+ * the narration/estimatedDuration consistency check in
+ * validateProductionAcceptanceScriptDuration is skipped: a handful of placeholder
+ * words in a fixture/test script cannot meaningfully diverge from a 60-120s
+ * target, and that divergence is not the estimate/reality gap the check guards.
+ * A single real narrated chapter already runs ~25-30s, so any genuine
+ * multi-chapter script clears this floor.
+ */
+export const MIN_MEASURED_NARRATION_SECONDS = 30;
 
 export class ProductionSceneMappingError extends Error {
   readonly code = "PRODUCTION_SCENE_MAPPING_INVALID";
@@ -116,6 +128,41 @@ export function validateProductionAcceptanceScriptDuration(script: ScriptData) {
   }
   requireAcceptanceRange(chapterTotal);
   requireClose(chapterTotal, script.estimatedDuration);
+
+  // F-08/F-02 completion: estimatedDuration and the per-chapter durations above
+  // are only planning numbers. The scene-video clips built from them (before any
+  // TTS exists) must still be consistent with how long the narration actually
+  // takes to speak -- otherwise every generation stage runs and assembly's
+  // VideoDurationCoverageGuard then fails closed because covering the real
+  // narration would need too much frozen-frame padding. AIManager.runScript
+  // already sets estimatedDuration to the calibrated char-rate estimate of the
+  // narration for strict scripts; this is the fail-closed backstop that also
+  // covers regenerated / externally-supplied scripts, at the cheap script stage
+  // rather than after every generation stage has run. The tolerance is the same
+  // fraction of the narration length VideoDurationCoverageGuard itself treats as
+  // legitimate padding (toleranceSeconds / targetSeconds), plus ~1s for the
+  // frame-rounding / duration-tolerance terms it also allows.
+  const measuredNarrationSeconds = script.chapters.reduce(
+    (total, chapter) => total + estimateNarrationSeconds(chapter.narration),
+    0,
+  );
+  if (measuredNarrationSeconds >= MIN_MEASURED_NARRATION_SECONDS) {
+    if (
+      measuredNarrationSeconds <
+        productionAcceptanceDuration.minimumSeconds - productionAcceptanceDuration.toleranceSeconds ||
+      measuredNarrationSeconds >
+        productionAcceptanceDuration.maximumSeconds + productionAcceptanceDuration.toleranceSeconds
+    ) {
+      throw new ProductionDurationPreflightError();
+    }
+    const legitimateGapSeconds =
+      1 +
+      measuredNarrationSeconds *
+        (productionAcceptanceDuration.toleranceSeconds / productionAcceptanceDuration.targetSeconds);
+    if (Math.abs(measuredNarrationSeconds - script.estimatedDuration) > legitimateGapSeconds) {
+      throw new ProductionDurationPreflightError();
+    }
+  }
 }
 
 export function validateProductionSceneAudioMapping(

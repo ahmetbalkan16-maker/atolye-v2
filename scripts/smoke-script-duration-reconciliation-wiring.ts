@@ -40,9 +40,13 @@ function provider(value: AIProviderResult): AIProvider {
  * exactly the disconnect this fix targets.
  */
 function mismatchedScriptResponse(): string {
+  // ch2 narration is sized so the whole script's real char-rate estimate lands
+  // at ~90s (5 + 1169 + 51 + 46 = 1271 chars / 14.12 ~= 90.0), while the model's
+  // own per-chapter `duration` picks are the OPPOSITE of the real per-chapter
+  // narration lengths and its `estimatedDuration` (88) is a disconnected guess.
   const chapters = [
     { id: 1, title: "C1", narration: "Kısa.", duration: 40, visualGoal: "g", emotion: "e", transition: "t" },
-    { id: 2, title: "C2", narration: "x ".repeat(300).trim(), duration: 10, visualGoal: "g", emotion: "e", transition: "t" },
+    { id: 2, title: "C2", narration: "x ".repeat(585).trim(), duration: 10, visualGoal: "g", emotion: "e", transition: "t" },
     { id: 3, title: "C3", narration: "Orta uzunlukta bir anlatım metni burada yer alıyor.", duration: 20, visualGoal: "g", emotion: "e", transition: "t" },
     { id: 4, title: "C4", narration: "Başka bir orta uzunlukta anlatım metni burada.", duration: 20, visualGoal: "g", emotion: "e", transition: "t" },
   ];
@@ -50,24 +54,26 @@ function mismatchedScriptResponse(): string {
     topic: "T", title: "T", subtitle: "S", hook: "H", introduction: "I",
     chapters,
     conclusion: "C", callToAction: "CTA",
-    estimatedDuration: 90, narrationWordCount: 999999, // hallucinated, same bug family as the real 1200-vs-284 case
+    estimatedDuration: 88, narrationWordCount: 999999, // hallucinated, same bug family as the real 1200-vs-284 case
     targetAudience: "genel", language: "tr", voiceStyle: "documentary", musicStyle: "cinematic",
     thumbnailIdea: "idea", seoKeywords: ["k"],
   });
 }
 
 async function run() {
-  await scenario("runScript (strict/production) redistributes chapter durations by real narration length, preserving the total", async () => {
+  await scenario("runScript (strict/production) sets estimatedDuration + chapter durations from the real narration length, not the model's picks", async () => {
     const script = await AIManager.runScript(
       "T",
       undefined,
       provider(result(mismatchedScriptResponse())),
       strictGenerationExecutionPolicy,
     );
-    // Total preserved exactly (content-length policy untouched).
+    // Strict path: estimatedDuration is the calibrated char-rate estimate of the
+    // narration the model actually wrote (~90s), NOT its disconnected pick (88),
+    // and the chapter durations sum to it exactly.
     const total = script.chapters.reduce((sum, c) => sum + c.duration, 0);
-    assert.equal(total, 90);
     assert.equal(script.estimatedDuration, 90);
+    assert.equal(total, 90);
 
     const byId = new Map(script.chapters.map((c) => [c.id, c.duration]));
     // Chapter 2 (huge real narration, tiny original LLM guess) must now

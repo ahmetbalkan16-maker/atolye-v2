@@ -19,6 +19,16 @@ import { YouTubeProviderRouter } from "./YouTubeProviderRouter";
 
 const SAFE_ERROR = "YouTube package generation failed.";
 const MAX_VIDEO_BYTES = 8 * 1024 * 1024 * 1024;
+/**
+ * `inspectStoredMp4`'s duration comes from parsing the file's `mvhd` atom
+ * directly; `asset.durationSeconds` was recorded by the assembly provider's own
+ * ffprobe of the same file. The two routinely disagree by sub-frame rounding
+ * (e.g. 96.841 vs 96.842 for the same MP4). This is a cross-check that the
+ * stored asset points at a real, non-truncated video -- a genuinely wrong file
+ * is off by whole seconds -- so the tolerance only needs to absorb that
+ * measurement drift, well under one 30fps frame.
+ */
+const MAX_STORED_DURATION_PROBE_DRIFT_SECONDS = 0.1;
 
 export class YouTubePackageGenerationError extends Error {
   readonly code = "YOUTUBE_PACKAGE_GENERATION_FAILED";
@@ -184,7 +194,8 @@ function requireFinalVideoAsset(
   if (
     inspection.byteLength !== asset.byteLength ||
     !Number.isFinite(inspection.durationSeconds) ||
-    Math.abs((inspection.durationSeconds as number) - (asset.durationSeconds as number)) > 1e-3
+    Math.abs((inspection.durationSeconds as number) - (asset.durationSeconds as number)) >
+      MAX_STORED_DURATION_PROBE_DRIFT_SECONDS
   ) throw new Error("invalid");
   return asset;
 }

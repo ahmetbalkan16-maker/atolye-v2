@@ -16,6 +16,7 @@ import { createScenesPrompt, parseStrictScenesResponse } from "./SceneStructured
 import {
   countNarrationWords,
   DEFAULT_CHARACTERS_PER_SECOND,
+  estimateNarrationSeconds,
   reconcileChapterDurations,
 } from "./NarrationDurationEstimator";
 import { ApplicationTimestampError } from "./CanonicalTimestamp";
@@ -199,10 +200,12 @@ export class AIManager {
       "- Field limits: topic/title 300, subtitle 500, hook 1500, introduction 2500, conclusion 2000, callToAction 1000 characters.",
       "- Chapter limits: title 300, narration 1200, visualGoal 1200, emotion 300, transition 500 characters.",
       "- Chapter id, chapter duration, estimatedDuration, and narrationWordCount must be positive integers; chapter ids must be unique.",
-      `- As a pacing guide, narration text is spoken at roughly ${DEFAULT_CHARACTERS_PER_SECOND.toFixed(1)} characters per second: size each chapter's narration so its character count is roughly its duration multiplied by that rate (the application also recomputes and corrects chapter durations from your narration text afterward, so this guide only needs to be approximate).`,
+      `- Narration length is what sets the final video length: the application measures each chapter's narration at about ${DEFAULT_CHARACTERS_PER_SECOND.toFixed(1)} characters per second and derives that chapter's duration (and estimatedDuration) from it. Size each chapter's narration so its character count is close to its intended duration in seconds multiplied by ${DEFAULT_CHARACTERS_PER_SECOND.toFixed(1)}; the per-chapter duration you write is only honoured to the extent your narration text supports it.`,
       ...(policy?.failClosed ? [
+        "- Override the chapter-count range above: create exactly 5 chapters (this is a short, ~90 second documentary).",
         "- Production acceptance estimatedDuration must be between 60 and 120 seconds; target 90 seconds.",
         "- The sum of chapter durations must match estimatedDuration within 5 seconds.",
+        `- Narration budget (strict - it directly sets the final video length, and a script whose narration does not fit 60-120 seconds at ${DEFAULT_CHARACTERS_PER_SECOND.toFixed(1)} chars/sec is rejected): every chapter's narration must be at least 260 characters (this is a hard minimum - shorter narration produces a video that is too short and is rejected) and at most 340 characters; the five chapters' narration combined should total roughly 1300 to 1450 characters (about 92-103 seconds). Write full, detailed documentary paragraphs, not one-liners.`,
       ] : []),
       `Topic: ${topic}`,
     ].join("\n");
@@ -251,19 +254,34 @@ export class AIManager {
       );
 
       // F-08 fix: `duration`/`estimatedDuration` above are the model's own
-      // free-form picks, structurally disconnected from the narration text
-      // it wrote in the very same response (see NarrationDurationEstimator.ts
-      // for the root-cause evidence). This redistributes the already-accepted
-      // total across chapters by actual narration length instead, without
-      // changing the total itself -- the [60,120]s acceptance range is a
-      // content-length product policy enforced later
-      // (ProductionAcceptancePreflight), not something this correction should
-      // touch. Real TTS-measured duration (audio stage) remains the only
-      // authoritative duration downstream; this only makes the a-priori
-      // *estimate* honest relative to the narration it accompanies.
+      // free-form picks, structurally disconnected from the narration text it
+      // wrote in the very same response (see NarrationDurationEstimator.ts for
+      // the root-cause evidence). Two corrections:
+      //  - legacy path: redistribute the model's own total across chapters by
+      //    actual narration length, leaving the total untouched.
+      //  - strict/production-acceptance path: the model reliably picks an
+      //    `estimatedDuration` ~30-60% longer than the narration it actually
+      //    wrote takes to speak (empirically confirmed again on the Fatih runs
+      //    2026-08-29: narration ~60-82s vs picked 95-110). Downstream
+      //    scene/video clips are then built at that inflated a-priori number
+      //    while assembly targets the real, much shorter TTS narration, and
+      //    VideoDurationCoverageGuard fails closed. So here the *estimate* is
+      //    made honest -- set to the calibrated char-rate estimate of the real
+      //    narration and redistributed across chapters accordingly. The
+      //    [60,120]s acceptance policy still applies unchanged
+      //    (ProductionAcceptancePreflight), and real TTS-measured duration
+      //    (audio stage) remains the only authoritative duration downstream.
+      const measuredNarrationSeconds = rawChapters.reduce(
+        (sum, chapter) => sum + estimateNarrationSeconds(chapter.narration),
+        0,
+      );
+      const effectiveEstimatedDuration =
+        policy?.failClosed && rawChapters.length > 0 && measuredNarrationSeconds > 0
+          ? Math.round(measuredNarrationSeconds)
+          : estimatedDuration;
       const reconciledDurations = rawChapters.length > 0
         ? new Map(
-            reconcileChapterDurations(rawChapters, estimatedDuration).map(
+            reconcileChapterDurations(rawChapters, effectiveEstimatedDuration).map(
               (entry) => [entry.id, entry.duration] as const,
             ),
           )
@@ -292,7 +310,7 @@ export class AIManager {
         chapters,
         conclusion: getStringAllowEmpty(parsed.conclusion, fallback.conclusion),
         callToAction: getStringAllowEmpty(parsed.callToAction, fallback.callToAction),
-        estimatedDuration,
+        estimatedDuration: chapters.length > 0 ? effectiveEstimatedDuration : estimatedDuration,
         narrationWordCount: chapters.length > 0
           ? narrationWordCount
           : getNumber(parsed.narrationWordCount, fallback.narrationWordCount),
