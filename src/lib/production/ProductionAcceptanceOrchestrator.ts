@@ -225,7 +225,11 @@ export class ProductionAcceptanceOrchestrator {
       result = await PipelineRunner.run(runTopic, {
       stageExecution: {
         aiProvider: new AIRouter().getProvider("openai"),
-        visualAssetProvider: ImageProviderRouter.getProvider("openai"),
+        // Resolve from IMAGE_PROVIDER (mock | openai | real) exactly like the
+        // resume path (`materializePipelineStageExecutionOptions`). Hard-coding
+        // "openai" here silently defeated `IMAGE_PROVIDER=real`, so a fresh
+        // `execute` could never use archival photos even when configured to.
+        visualAssetProvider: ImageProviderRouter.getProvider(),
         animationProvider: AnimationProviderRouter.getProvider(),
         videoProvider: VideoProviderRouter.getProvider("ffmpeg"),
         audioProvider: AudioProviderRouter.getProvider("openai"),

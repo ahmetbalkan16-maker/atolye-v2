@@ -151,8 +151,7 @@ export class ProductionReadinessService {
 
   private providerChecks(): ProductionReadinessCheck[] {
     return [
-      providerCheck("image-provider", this.environment.IMAGE_PROVIDER, "openai", () =>
-        ImageProviderRouter.getProvider(resolveImageProviderName(this.environment.IMAGE_PROVIDER))),
+      imageProviderCheck(this.environment),
       providerCheck("audio-provider", this.environment.AUDIO_PROVIDER, "openai", () =>
         AudioProviderRouter.getProvider(resolveAudioProviderName(this.environment.AUDIO_PROVIDER))),
       animationProviderCheck(this.environment),
@@ -619,6 +618,33 @@ function providerCheck(id: ProductionReadinessCheckId, raw: string | undefined, 
       : check(id, "INVALID", `${id.replace(/-/g, "_").toUpperCase()}_ROUTER_INVALID`);
   } catch {
     return check(id, "INVALID", `${id.replace(/-/g, "_").toUpperCase()}_CONFIGURATION_INVALID`);
+  }
+}
+
+/**
+ * The image provider is production-admissible as either `openai` (AI image) or
+ * `real` (archival photo from a licence-cleared source — Wikimedia Commons,
+ * public-domain / open-licence only; Faz 1-6). `real` still needs the OpenAI
+ * key + image config for the bounded per-scene AI fallback, so the OpenAI image
+ * configuration is validated in both cases. `mock` stays blocked.
+ */
+function imageProviderCheck(environment: NodeJS.ProcessEnv): ProductionReadinessCheck {
+  const selected = normalize(environment.IMAGE_PROVIDER);
+  if (!selected) return check("image-provider", "NOT_CONFIGURED", "IMAGE_PROVIDER_MISSING");
+  if (selected === "mock") return check("image-provider", "BLOCKED", "IMAGE_PROVIDER_MOCK_BLOCKED");
+  if (selected !== "openai" && selected !== "real") {
+    return check("image-provider", "INVALID", "IMAGE_PROVIDER_INVALID");
+  }
+  try {
+    getOpenAIImageProviderConfig(environment);
+    const resolved = ImageProviderRouter.getProvider(
+      resolveImageProviderName(environment.IMAGE_PROVIDER),
+    ).name;
+    return resolved === selected
+      ? check("image-provider", "READY", "IMAGE_PROVIDER_READY")
+      : check("image-provider", "INVALID", "IMAGE_PROVIDER_ROUTER_INVALID");
+  } catch {
+    return check("image-provider", "INVALID", "IMAGE_PROVIDER_CONFIGURATION_INVALID");
   }
 }
 

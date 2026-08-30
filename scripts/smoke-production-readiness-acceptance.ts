@@ -82,6 +82,7 @@ async function run() {
   assert.deepEqual(probeDirectories(), beforeProbes, "Readiness probe workspace was not cleaned.");
   assert(readiness.checks.every((item) => /^[A-Z0-9_]+$/.test(item.reasonCode)));
 
+  trace("image-provider-real"); await verifyImageProviderRealIsAdmissible();
   trace("mock-animation"); await verifyMockAnimationIsBlocked();
   verifyReadinessCheckSetValidation(readiness);
   trace("strict-ai"); await verifyStrictAIProviderFailure();
@@ -111,7 +112,7 @@ async function main() {
     canonicalRuntime = runtime;
     await run();
   });
-  emitSmokeResult("production-readiness-acceptance", 24);
+  emitSmokeResult("production-readiness-acceptance", 25);
 }
 
 async function verifyAudioOperationScope() {
@@ -264,6 +265,29 @@ function strictPlanFixtures() {
   const audio = { narrator: { style: "documentary", tone: "calm", language: "tr" }, sections: [{ chapterId: 1, title: "Scene", duration: "01:30", emotion: "calm", emphasis: [], narrationNotes: "Notes", pacing: "medium", sourceText: "Narration" }], music: { mood: "calm", suggestion: "music", intensity: "low" }, production: { targetFormat: "mp3", sampleRate: 44_100, estimatedTotalDuration: "01:30", generationStatus: "planned" }, createdAt: now } as AudioData;
   const thumbnail = { variants: [], titleIdea: "Acceptance", concept: "Acceptance", mainSubject: "Acceptance", composition: "Acceptance", colorStyle: "Acceptance", textSuggestion: "Acceptance", imagePrompt: "Acceptance", clickReason: "Acceptance", createdAt: now } as ThumbnailData;
   return { script, scenes, visuals, audio, thumbnail };
+}
+
+async function verifyImageProviderRealIsAdmissible() {
+  const realReport = await new ProductionReadinessService({
+    environment: { ...process.env, IMAGE_PROVIDER: "real" },
+  }).evaluate();
+  const real = find(realReport, "image-provider");
+  assert.equal(real.status, "READY", "IMAGE_PROVIDER=real must be production-admissible");
+  assert.equal(real.reasonCode, "IMAGE_PROVIDER_READY");
+
+  const mockReport = await new ProductionReadinessService({
+    environment: { ...process.env, IMAGE_PROVIDER: "mock" },
+  }).evaluate();
+  const mock = find(mockReport, "image-provider");
+  assert.equal(mock.status, "BLOCKED");
+  assert.equal(mock.reasonCode, "IMAGE_PROVIDER_MOCK_BLOCKED");
+
+  const bogusReport = await new ProductionReadinessService({
+    environment: { ...process.env, IMAGE_PROVIDER: "bogus" },
+  }).evaluate();
+  const bogus = find(bogusReport, "image-provider");
+  assert.equal(bogus.status, "INVALID");
+  assert.equal(bogus.reasonCode, "IMAGE_PROVIDER_INVALID");
 }
 
 async function verifyMockAnimationIsBlocked() {
