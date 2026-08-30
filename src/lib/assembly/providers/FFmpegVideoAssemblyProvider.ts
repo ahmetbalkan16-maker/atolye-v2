@@ -565,7 +565,7 @@ function buildImageConcatArgs(
       absoluteInput(scene.audioFilePath, context),
     );
     filters.push(
-      `[${imageIndex}:v]${zoompanFilter},scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease,pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2,format=yuv420p,trim=duration=${duration},setpts=PTS-STARTPTS[v${index}]`,
+      `[${imageIndex}:v]${zoompanFilter},scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease:out_range=tv,pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2,format=yuv420p,trim=duration=${duration},setpts=PTS-STARTPTS[v${index}]`,
       `[${audioIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,atrim=start=${audioStartSeconds}:end=${audioEndSeconds},atrim=duration=${duration},asetpts=PTS-STARTPTS[a${index}]`,
     );
     concatInputs.push(`[v${index}][a${index}]`);
@@ -654,7 +654,7 @@ function buildTransitionedImageConcatArgs(
       absoluteInput(scene.audioFilePath, context),
     );
     filters.push(
-      `[${imageIndex}:v]${zoompanFilter},scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease,pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2,format=yuv420p,setsar=1,trim=duration=${duration.toFixed(6)},setpts=PTS-STARTPTS[v${index}]`,
+      `[${imageIndex}:v]${zoompanFilter},scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease:out_range=tv,pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2,format=yuv420p,setsar=1,trim=duration=${duration.toFixed(6)},setpts=PTS-STARTPTS[v${index}]`,
       `[${audioIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,atrim=start=${audioStartSeconds}:end=${audioEndSeconds},atrim=duration=${duration.toFixed(6)},asetpts=PTS-STARTPTS[a${index}]`,
     );
   });

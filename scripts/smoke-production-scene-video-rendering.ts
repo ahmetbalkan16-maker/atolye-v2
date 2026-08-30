@@ -569,6 +569,61 @@ async function run() {
       }
     });
 
+    await scenario("full-range JPEG source (real archival photo) renders to limited-range yuv420p and passes validateProbe", async () => {
+      const selectedConfig = getFFmpegSceneVideoConfig();
+      const runner = new ActualProcessRunner();
+      const slug = `${prefix}-jpeg-full-range`;
+      const project = await ProjectManager.createProject(slug);
+
+      // Real archival photos arrive as full-range JPEG (yuvj420p). Synthesise one
+      // by transcoding a marked PNG through the real ffmpeg with -pix_fmt yuvj420p.
+      const pngPath = path.join(temporaryRuntimeRoot, `${slug}-source.png`);
+      const jpegPath = path.join(temporaryRuntimeRoot, `${slug}-source.jpg`);
+      await fs.writeFile(pngPath, markedPng(640, 480));
+      const transcode = spawnSync(selectedConfig.ffmpegPath, [
+        "-hide_banner", "-loglevel", "error", "-y", "-i", pngPath,
+        "-pix_fmt", "yuvj420p", "-q:v", "3", jpegPath,
+      ], { encoding: "utf8", timeout: selectedConfig.timeoutMs });
+      assert.equal(transcode.status, 0, transcode.stderr ?? "jpeg transcode failed");
+      const sourceProbe = spawnSync(selectedConfig.ffprobePath, [
+        "-v", "error", "-select_streams", "v", "-show_entries", "stream=pix_fmt",
+        "-of", "csv=p=0", jpegPath,
+      ], { encoding: "utf8" });
+      assert.equal((sourceProbe.stdout ?? "").trim(), "yuvj420p", "fixture must be a full-range JPEG");
+
+      const imageId = "jpeg-image-1";
+      const animationId = "jpeg-animation-1";
+      const image = ImageStorage.saveImage({
+        projectSlug: slug, assetId: imageId, data: await fs.readFile(jpegPath), mimeType: "image/jpeg",
+      });
+      const motionPlan = plan(1, imageId, animationId, "zoom-in");
+      motionPlan.durationSeconds = 1;
+
+      const result = await new FFmpegSceneVideoProvider(runner, () => selectedConfig).generateVideo({
+        projectId: project.id,
+        projectSlug: slug,
+        scenes: [{
+          sceneId: 1, sourceImageAssetId: imageId, animationAssetId: animationId,
+          imageFilePath: image.filePath, imageMimeType: "image/jpeg", motionPlan,
+        }],
+      });
+      assert.equal(result.success, true, runner.diagnostics.filter(Boolean).join("\n"));
+      if (!result.success) return;
+
+      const absoluteVideo = path.join(temporaryRuntimeRoot, path.relative("data", result.scenes[0].filePath));
+      const outProbe = spawnSync(selectedConfig.ffprobePath, [
+        "-v", "error", "-select_streams", "v",
+        "-show_entries", "stream=pix_fmt,codec_name,width,height,color_range",
+        "-of", "json", absoluteVideo,
+      ], { encoding: "utf8" });
+      const stream = JSON.parse(outProbe.stdout ?? "{}").streams?.[0] ?? {};
+      assert.equal(stream.pix_fmt, "yuv420p", `real conversion required, got ${stream.pix_fmt}`);
+      assert.equal(stream.color_range, "tv");
+      assert.equal(stream.codec_name, "h264");
+      assert.equal(stream.width, 1920);
+      assert.equal(stream.height, 1080);
+    });
+
     await scenario("minimum and maximum durations produce bounded non-zero frame spans", () => {
       const minimum = plan(1, "image", "animation", "zoom-in");
       minimum.durationSeconds = 1;

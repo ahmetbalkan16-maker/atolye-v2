@@ -250,7 +250,13 @@ function buildMotionFilter(
   const x = interpolate(startX, endX, progress);
   const y = interpolate(startY, endY, progress);
   return [
-    "[0:v]split=2[backgroundSource][foregroundSource]",
+    // A real archival photo is usually a full-range JPEG (`yuvj420p`); a bare
+    // `format=yuv420p` downstream only relabels it, so ffprobe still reports
+    // `yuvj420p` and `validateProbe` rejects the scene. Convert the source to
+    // limited-range (`out_range=tv`) once, here, before it is split — `scale`
+    // auto-detects the input range, so a PNG that is already limited-range is a
+    // no-op. Everything downstream then operates in, and outputs, real `yuv420p`.
+    "[0:v]scale=out_range=tv,format=yuv420p,split=2[backgroundSource][foregroundSource]",
     [
       `[backgroundSource]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase`,
       `crop=${WIDTH}:${HEIGHT}`,
