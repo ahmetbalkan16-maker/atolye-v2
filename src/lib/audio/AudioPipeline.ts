@@ -15,6 +15,9 @@ import type {
   AudioProvider,
 } from "./providers/AudioProvider";
 import { AudioProviderRouter } from "./providers/AudioProviderRouter";
+import { getOpenAIAudioProviderConfig } from "./providers/AudioProviderConfig";
+import { AiCostBudgetExceededError } from "@/lib/ai/AiCostBudget";
+import { assertTtsBudget, recordTtsUsage } from "@/lib/ai/MediaGenerationCostGuard";
 import { isSafeAudioIdentifier } from "./AudioIdentifierPolicy";
 import {
   AudioAssetRootError,
@@ -185,6 +188,26 @@ async function generateAndNormalize({
 }): Promise<NormalizedAudioResult> {
   let result: AudioGenerationResult;
 
+  // Faz 5: fail closed before a paid TTS request when the $1 budget would be
+  // exceeded. No-op without a real API key (mock runs) or for a mock provider.
+  if (selectedProvider === "openai") {
+    try {
+      await assertTtsBudget({
+        projectSlug,
+        provider: "openai",
+        model: getOpenAIAudioProviderConfig().model,
+        characters: request.sourceText.length,
+      });
+    } catch (error) {
+      if (error instanceof AiCostBudgetExceededError) {
+        persistFailedAssetSafely({
+          projectId, projectSlug, target: request.target, providerName: selectedProvider,
+        });
+      }
+      throw error;
+    }
+  }
+
   try {
     result = await provider.generateAudio(request);
   } catch (error) {
@@ -238,6 +261,17 @@ async function generateAndNormalize({
       phase: "response",
       target: request.target,
       provider: selectedProvider,
+    });
+  }
+
+  if (selectedProvider === "openai") {
+    await recordTtsUsage({
+      projectSlug,
+      chapterId: request.target.kind === "section" ? request.target.chapterId : undefined,
+      provider: "openai",
+      model: normalized.model ?? getOpenAIAudioProviderConfig().model,
+      characters: request.sourceText.length,
+      status: "success",
     });
   }
 

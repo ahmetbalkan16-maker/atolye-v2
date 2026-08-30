@@ -431,6 +431,113 @@ gerektirir.
 
 ---
 
+# ADR-020
+
+## Real Video Ingestion & Segment Rendering for the Documentary Pipeline (Faz 3)
+
+### Karar
+
+Gerçek arşiv/stok video, belgesel görsel diline **fotoğraf ve AI görselinin yanında** üçüncü bir
+sahne-görsel kaynağı olarak girer. Video, `ImageProviderName`'i, `VideoProviderName`'i veya mevcut
+`FFmpegSceneVideoProvider`/`VideoPipeline`/assembly sözleşmelerini yeniden yazmadan, **additive** bir
+"video media ingestion" katmanı üzerinden pipeline'a alınır:
+
+1. **Aday keşfi** ADR-019 + Faz 2'nin (`ResearchMediaDiscovery`) aynı `MediaSearchClient`
+   arayüzünden gelir. `ResearchMediaCandidate.mediaType` zaten `"video"` değerini destekliyordu;
+   Faz 3 buna yalnız `durationSeconds?`, `segmentStartSeconds?`, `segmentEndSeconds?` ekler. Yeni
+   bir candidate modeli veya ikinci bir discovery yolu **oluşturulmaz**.
+
+2. **Ingestion** yeni, tek amaçlı `VideoMediaIngestion` modülüdür. Enjekte edilebilir bağımlılıklar
+   (`download`, ffmpeg/ffprobe `runner`, storage) alır; hiçbir yerden ambient network veya binary
+   çağırmaz. İndirmeden **önce** ve **sonra** fail-closed doğrulama yapar.
+
+3. **Segment**: gerçek video bütün halinde kullanılmak zorunda değildir. `segmentStartSeconds` /
+   `segmentEndSeconds` verildiğinde FFmpeg ile yalnız o aralık üretilir. Segment kuralları bir
+   `videoIngestionPolicy` sabitinden gelir (magic number dağıtımı yok).
+
+4. **Sahne seçimi** yeni `SceneMediaSelection` modülüdür: sahne başına deterministik olarak
+   **admissible gerçek video > admissible gerçek fotoğraf > AI görsel** önceliğiyle bir kaynak seçer.
+   Bir aday birden çok sahnede kullanılamaz (cross-scene reuse yasak). Seçim, Faz 1'in
+   `visualMediaAdmissionPolicy.maxAiImages = 4` guard'ını **hiçbir şekilde gevşetmez** — seçim
+   yalnızca hangi sahnelerin AI'ya düşeceğini belirler; cap'i `VisualAssetPipeline` uygular.
+
+5. **Ortak scene-video sözleşmesi**: ingest edilmiş bir video segmenti, `FFmpegSceneVideoProvider`'ın
+   ürettiğiyle aynı `VideoSceneGenerationSuccess` şekline normalize edilir (`filePath`, `url`,
+   `mimeType: "video/mp4"`, `durationSeconds`, `width/height/frameRate`, `transition`). Assembly
+   katmanı kaynağın gerçek klip mi Ken Burns mü olduğunu bilmek zorunda değildir; final videoda
+   ikisi ve narration serbestçe karışır.
+
+### Zorunlu alanlar ve kurallar
+
+Her gerçek video asset'i için (additive, `Asset` üzerinde):
+`mediaOrigin = "real"`, `mediaType = "video"`, `sourceName`, `sourceUrl` (**zorunlu**, doğrulanabilir
+https), `mediaUrl` (**zorunlu**, https + izinli host), `license`, `attribution`,
+`rightsStatus` (deterministik, `MediaRightsPolicy` ile), `durationSeconds`,
+`segmentStartSeconds?`, `segmentEndSeconds?`, `checksum` (indirilen ham dosyanın SHA-256'sı),
+`selectionReason`, `discoveredAt`, `width`, `height`, deterministic asset id.
+
+**Download integrity / güvenlik:**
+- Yalnız `https:` ; yalnız `videoIngestionPolicy.allowedMediaHosts` (Wikimedia `upload.wikimedia.org`
+  ve gelecekte ADR ile eklenecek doğrulanabilir açık-lisans host'ları). Redirect izlenmez
+  (`redirect: "error"`).
+- İndirilen boyut `videoIngestionPolicy.maxDownloadBytes` sınırında; aşan indirme iptal + reject.
+- İndirmeden sonra **ffprobe** ile gerçek container + video codec + süre doğrulanır. Beklenen
+  container/codec dışındaysa reject.
+- Bildirilen MIME `video/*` değilse reject.
+- Partial / corrupt / probe-edilemeyen dosya production asset olarak **kabul edilmez** —
+  quarantine edilir veya silinir.
+- `checksum` deterministiktir; aynı kaynak + aynı segment → aynı asset identity.
+
+**Rights gate (fail-closed):**
+- `rightsStatus ∈ {public-domain, open-license, verified}` **değilse** ingest reddedilir.
+- `sourceUrl` veya `mediaUrl` yoksa reddedilir.
+- Lisansı bilinmeyen (`unknown`) veya `restricted`/NC/ND/all-rights-reserved medya production'a
+  **alınmaz**. `verified` asla otomatik atanmaz.
+
+**Segment kuralları (fail-closed):**
+- `start >= 0`, `end > start`, `end <= sourceDuration` (küçük ffprobe toleransı ile).
+- `videoIngestionPolicy.minSegmentSeconds <= (end - start) <= maxSegmentSeconds`.
+- Geçersiz segment → reject (deterministik).
+- Geçerli segment → deterministik MP4 çıktısı.
+
+**Cross-scene reuse:** bir video (veya foto) aday'ı yalnız bir sahneye atanır. Kalan sahneler için
+başka admissible aday yoksa o sahne AI'ya düşer (cap dahilinde) veya `override: "real"` ise sahne
+`failed` olur.
+
+**AI fallback ile ilişki:** gerçek video bulunan sahne → 0 AI görsel. Gerçek foto bulunan sahne →
+0 AI görsel. Hiç admissible gerçek medya yoksa → Faz 1 AI fallback (en fazla `maxAiImages`).
+16 sahnelik hedef: mümkün olduğunca gerçek medya, en fazla 4 AI; cap aşılırsa
+`VISUAL_AI_IMAGE_BUDGET_EXCEEDED` ile fail-closed.
+
+### Sebep
+
+Video download/segment/probe/checksum mantığı, mevcut `FFmpegSceneVideoProvider` ve
+`FFmpegVideoAssemblyProvider`'ın FFmpeg altyapısıyla (aynı `VideoAssemblyProcessRunner`,
+`VideoStorage`) tamamen uyumlu ama ayrı bir sorumluluktur; onları değiştirmek en çok denetlenen
+render/durable yolunu riske atardı. Ingestion'ı ayrı, enjekte edilebilir bir katman yapmak
+fixture + local ffmpeg ile test edilebilir kılar, gerçek network'ü testlerin dışında tutar ve
+provenance/rights doğruluğunu (ADR-019'un ısrar ettiği) korur.
+
+Seçimin (`SceneMediaSelection`) provider içinde değil pipeline seviyesinde deterministik yapılması,
+Faz 1 cap'inin ve Faz 2 dedup/determinism garantilerinin bozulmamasını sağlar.
+
+### Kapsam dışı (bu ADR'de karar verilmez)
+
+- Google/Bing veya kontrolsüz web scraping ile video indirme — **yasak**.
+- LLM'in uydurduğu URL'lerin kaynak kabul edilmesi — **yasak** (Faz 2 kuralı).
+- `mediaSearchClient` / ingestion'ın production pipeline'da default açılması — Faz 6.
+- Music / SFX / ambience — Faz 4.
+- `$1` cost guard — Faz 5.
+- Whisper/altyazı transkripsiyonu, video stabilizasyon, renk düzeltme.
+
+### Durum
+
+Accepted — Sprint 169 (foundation: types + `VideoMediaIngestion` + `SceneMediaSelection` +
+fixture/local-ffmpeg smoke). Production wiring (opt-in → default), acceptance rights/cost gate ve
+music/SFX ayrı fazlardır.
+
+---
+
 # Yeni ADR Ekleme
 
 Yeni önemli mimari kararlar;

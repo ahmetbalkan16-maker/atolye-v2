@@ -119,8 +119,27 @@ async function main() {
     await test("scene count maximum is enforced", () => issue({ scenes: Array.from({ length: 31 }, (_, index) => ({ ...scenes().scenes[index % 6], id: index + 1 })) }, "$.scenes", "MAX_ITEMS"));
     await test("zero duration is rejected", () => issue({ scenes: [{ ...scenes().scenes[0], duration: 0 }, ...scenes().scenes.slice(1)] }, "$.scenes[0].duration", "INVALID_DURATION"));
     await test("duration above maximum is rejected", () => issue({ scenes: [{ ...scenes().scenes[0], duration: 121 }, ...scenes().scenes.slice(1)] }, "$.scenes[0].duration", "INVALID_DURATION"));
-    await test("total duration mismatch is rejected", () => issue({ scenes: scenes().scenes.map((item) => ({ ...item, duration: 5 })) }, "$.scenes", "INVALID_DURATION"));
-    await test("missing chapter coverage is rejected", () => issue({ scenes: scenes().scenes.slice(0, 5) }, "$.scenes", "INVALID_REFERENCE"));
+    // Faz 2a: the model's per-scene duration numbers are NOT authoritative any
+    // more - reconcileSceneDurations redistributes each chapter's real
+    // duration across its scenes deterministically. A response whose per-scene
+    // durations do not add up (all 5s here) is corrected, not rejected.
+    await test("model total-duration mismatch is reconciled, not rejected", () => {
+      const out = parseStrictScenesResponse(
+        JSON.stringify({ scenes: scenes().scenes.map((item) => ({ ...item, duration: 5 })) }),
+        script(),
+        () => stamp,
+      );
+      assert.equal(out.scenes.reduce((sum, item) => sum + (item.duration ?? 0), 0), 90);
+      for (const chapter of script().chapters) {
+        const chapterTotal = out.scenes
+          .filter((scene) => scene.chapterId === chapter.id)
+          .reduce((sum, scene) => sum + (scene.duration ?? 0), 0);
+        assert.equal(chapterTotal, chapter.duration);
+      }
+    });
+    // A genuine coverage gap (chapter 6 has no scene) is still rejected - the
+    // authoritative-duration pass reports it after reconciliation bails out.
+    await test("missing chapter coverage is rejected", () => issue({ scenes: [...scenes().scenes.slice(0, 5), { ...scenes().scenes[0], id: 6, chapterId: 5 }] }, "$.scenes", "INVALID_REFERENCE"));
     await test("markdown fence is rejected", () => assert.throws(() => parseStrictScenesResponse(`\`\`\`json\n${JSON.stringify(scenes())}\n\`\`\``, script()), (error) => error instanceof AIResponseError && error.code === "AI_RESPONSE_INVALID_JSON"));
     await test("trailing commentary is rejected", () => assert.throws(() => parseStrictScenesResponse(`${JSON.stringify(scenes())}\ncommentary`, script()), (error) => error instanceof AIResponseError && error.code === "AI_RESPONSE_INVALID_JSON"));
     await test("provider response without createdAt succeeds", () => assert.equal(parseStrictScenesResponse(JSON.stringify(scenes()), script(), () => stamp).createdAt, stamp));

@@ -18,6 +18,7 @@
     "production:acceptance:apply-environmental-failure-retry": "tsx scripts/run-production-acceptance.ts apply-environmental-failure-retry",
     "production:acceptance:execute": "tsx scripts/run-production-acceptance.ts execute",
     "production:acceptance:resume": "tsx scripts/run-production-acceptance.ts resume-finalize",
+    "production:cost-preflight": "tsx scripts/run-production-cost-preflight.ts",
     "production:acceptance:regeneration-plan": "tsx scripts/run-production-regeneration.ts plan",
     "production:acceptance:prepare-regeneration": "tsx scripts/run-production-regeneration.ts prepare",
     "pipeline:regenerate-stage:plan": "tsx scripts/run-pipeline-stage-regeneration.ts plan",

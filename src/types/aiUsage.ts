@@ -38,7 +38,16 @@ export interface AIUsageRecord {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+  /**
+   * Deterministic USD cost estimate for this call, from `AiPricing` (Faz 5).
+   * Present only when `pricingStatus === "known"` or `"free"`; a `"free"` call
+   * (mock provider) is `0`. `undefined` + `pricingStatus === "unknown"` means the
+   * model has no price row — the cost guard treats that as fail-closed, never 0.
+   */
   estimatedCost?: number;
+  pricingStatus?: "known" | "unknown" | "free";
+  costUnitKind?: "tokens" | "characters" | "images";
+  costUnitCount?: number;
   error?: string;
   errorCode?: string;
   sceneId?: number;

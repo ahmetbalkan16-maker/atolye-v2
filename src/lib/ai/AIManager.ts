@@ -11,8 +11,10 @@ import { runObservedAIRequest } from "./runObservedAIRequest";
 import { AIResponseError } from "./AIResponseError";
 import { getResearchMaxTokens, ResearchAIConfigError } from "./ResearchAIConfig";
 import { getScriptMaxTokens, ScriptAIConfigError } from "./ScriptAIConfig";
+import { getSceneMaxTokens, SceneAIConfigError } from "./SceneAIConfig";
 import { parseStrictScriptResponse } from "./ScriptStructuredOutput";
 import { createScenesPrompt, parseStrictScenesResponse } from "./SceneStructuredOutput";
+import { formatResearchForPrompt } from "./ResearchPromptContext";
 import {
   countNarrationWords,
   DEFAULT_CHARACTERS_PER_SECOND,
@@ -131,6 +133,7 @@ export class AIManager {
     context?: Partial<AIRequestContext>,
     provider?: AIProvider,
     policy?: GenerationExecutionPolicy,
+    research?: ResearchData | null,
   ): Promise<ScriptData> {
     const fallback: ScriptData = {
       topic,
@@ -201,6 +204,21 @@ export class AIManager {
       "- Chapter limits: title 300, narration 1200, visualGoal 1200, emotion 300, transition 500 characters.",
       "- Chapter id, chapter duration, estimatedDuration, and narrationWordCount must be positive integers; chapter ids must be unique.",
       `- Narration length is what sets the final video length: the application measures each chapter's narration at about ${DEFAULT_CHARACTERS_PER_SECOND.toFixed(1)} characters per second and derives that chapter's duration (and estimatedDuration) from it. Size each chapter's narration so its character count is close to its intended duration in seconds multiplied by ${DEFAULT_CHARACTERS_PER_SECOND.toFixed(1)}; the per-chapter duration you write is only honoured to the extent your narration text supports it.`,
+      "Documentary storytelling (shape the script like a short film, not an encyclopedia entry):",
+      "- hook: open on the single most striking concrete image or the highest-stakes moment - a specific scene, not a thesis statement. Make the viewer need to know what happens next in the first sentence.",
+      "- introduction: one or two sentences of context only - who, when, why it matters.",
+      "- Order the chapters as rising action: context -> build-up / preparation -> the central confrontation -> the climax (the decisive turning point, told with the most vivid detail and shortest sentences) -> consequences -> legacy.",
+      "- Narration craft: concrete sensory detail over abstract summary; prefer active voice over passive constructions; vary sentence length; name the key people and places explicitly; build cause and effect between chapters. Avoid vague filler ('with great vision', 'will be examined in detail', 'played an important role').",
+      "- transition: end each chapter on a forward pull into the next, not a summary.",
+      "- conclusion: land the meaning in one or two lines. callToAction: one short, natural line.",
+      "Historical accuracy (non-negotiable):",
+      "- Never invent or approximate ages, dates, names, or numbers. If the research block below states a fact, use it exactly and do not contradict it.",
+      "- Prefer the specific, well-attested, visually rich beats of this topic over generic ones. Do not omit the events the topic is famous for.",
+      "- Do not present uncertain or disputed claims as settled fact.",
+      ...(research ? [
+        "Research findings to ground this script in (authoritative - do not contradict; draw the concrete facts, names, dates, places and events from here):",
+        formatResearchForPrompt(research),
+      ] : []),
       ...(policy?.failClosed ? [
         "- Override the chapter-count range above: create exactly 5 chapters (this is a short, ~90 second documentary).",
         "- Production acceptance estimatedDuration must be between 60 and 120 seconds; target 90 seconds.",
@@ -345,6 +363,7 @@ export class AIManager {
     context?: Partial<AIRequestContext>,
     provider?: AIProvider,
     policy?: GenerationExecutionPolicy,
+    research?: ResearchData | null,
   ): Promise<SceneData> {
     const fallback: SceneData = {
       scenes: [
@@ -411,12 +430,15 @@ export class AIManager {
       "Script JSON:",
       JSON.stringify(scriptInput),
     ].join("\n");
-    const prompt = policy?.failClosed ? createScenesPrompt(script) : legacyPrompt;
+    const prompt = policy?.failClosed
+      ? createScenesPrompt(script, research ?? undefined)
+      : legacyPrompt;
 
     try {
       const { response } = await runObservedAIRequest({
         prompt,
         provider,
+        maxTokens: getSceneMaxTokens(),
         context: {
           ...context,
           operation: context?.operation ?? "scenes",
@@ -461,7 +483,9 @@ export class AIManager {
     } catch (error) {
       if (
         policy?.failClosed &&
-        (error instanceof AIResponseError || error instanceof ApplicationTimestampError)
+        (error instanceof AIResponseError ||
+          error instanceof ApplicationTimestampError ||
+          error instanceof SceneAIConfigError)
       ) throw error;
       if (policy?.failClosed) return failClosedOrReturn(fallback, policy);
       console.error("[AIManager.runScenes] Falling back to mock scenes:", {

@@ -12,6 +12,25 @@ import type {
 import type { VisualData } from "@/types/visual";
 import type { ImageProvider } from "./providers/ImageProvider";
 import { ImageProviderRouter } from "./providers/ImageProviderRouter";
+import {
+  UNBOUNDED_AI_IMAGES,
+  VisualMediaAiBudgetExceededError,
+  isRealMediaAdmissible,
+  resolveMediaProvenance,
+  type VisualMediaSelectionReason,
+} from "./VisualMediaAdmissionPolicy";
+import { imageProviderConfig } from "./providers/ImageProviderConfig";
+import { AiCostBudgetExceededError } from "@/lib/ai/AiCostBudget";
+import { assertImageBudget, recordImageUsage } from "@/lib/ai/MediaGenerationCostGuard";
+
+/**
+ * Re-exported for backward compatibility — the class moved to
+ * `VisualMediaAdmissionPolicy` (Faz 3) so `SceneMediaSelection` can throw it
+ * without importing this pipeline. Existing
+ * `import { VisualMediaAiBudgetExceededError } from ".../VisualAssetPipeline"`
+ * call sites keep working unchanged.
+ */
+export { VisualMediaAiBudgetExceededError };
 
 const SAFE_ASSET_ERROR = "Image asset generation failed.";
 const SAFE_PIPELINE_ERROR = "Visual asset generation failed.";
@@ -43,7 +62,56 @@ type GenerateAssetsInput = {
    * back). Ignored when the batch provider is "mock"/"openai" — there is nothing to override.
    */
   overrides?: Readonly<Record<number, "ai" | "real">>;
+  /**
+   * Hard cap on how many scenes in this batch may be covered by an AI-generated
+   * image (deterministic, fail-closed — see `VisualMediaAiBudgetExceededError`).
+   * Defaults to `UNBOUNDED_AI_IMAGES` for the studio single-scene path and the
+   * smoke fixtures; `PipelineStageExecutor` passes
+   * `visualMediaAdmissionPolicy.maxAiImages` for every production render.
+   * Existing AI assets reused from a prior run count against the cap.
+   */
+  maxAiImages?: number;
+  /**
+   * Controls the single per-scene retry for a *retryable* image failure
+   * (429 / 5xx / timeout — see ImageGenerationErrorEvidence.retryable).
+   * `delayFn` is injectable for deterministic tests.
+   */
+  resilience?: {
+    retryDelayMs?: number;
+    delayFn?: (ms: number) => Promise<void>;
+  };
 };
+
+/** Hard cap: at most this many retries per scene. Not configurable by design. */
+const MAX_IMAGE_RETRIES_PER_SCENE = 1;
+const DEFAULT_IMAGE_RETRY_DELAY_MS = 1_500;
+
+/**
+ * One image generation attempt, plus at most ONE controlled retry when the
+ * failure result is explicitly marked retryable. A non-retryable failure
+ * (4xx / content policy / invalid request) is returned immediately with no
+ * retry. There is no loop and no exponential backoff - the retry count is a
+ * hard-coded constant.
+ */
+async function generateImageWithSingleRetry(
+  provider: ImageProvider,
+  input: Parameters<ImageProvider["generateImage"]>[0],
+  retryDelayMs: number,
+  delayFn: (ms: number) => Promise<void>,
+): Promise<ImageGenerationResult> {
+  let result = await provider.generateImage(input);
+  let retries = 0;
+  while (
+    retries < MAX_IMAGE_RETRIES_PER_SCENE &&
+    result.success !== true &&
+    result.errorEvidence?.retryable === true
+  ) {
+    retries += 1;
+    if (retryDelayMs > 0) await delayFn(retryDelayMs);
+    result = await provider.generateImage(input);
+  }
+  return result;
+}
 
 type NormalizedGenerationResult = {
   provider: ImageProviderName;
@@ -71,10 +139,16 @@ export class VisualAssetPipeline {
     visualData,
     provider,
     overrides,
+    maxAiImages,
+    resilience,
   }: GenerateAssetsInput): Promise<ProjectAssets> {
     validateSceneBatch(visualData.scenes);
 
     const imageProvider = provider ?? ImageProviderRouter.getProvider();
+    const retryDelayMs = resilience?.retryDelayMs ?? DEFAULT_IMAGE_RETRY_DELAY_MS;
+    const delayFn =
+      resilience?.delayFn ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+    const aiImageBudget = maxAiImages ?? UNBOUNDED_AI_IMAGES;
 
     let projectAssets = AssetManager.getProjectAssets(
       projectSlug,
@@ -82,9 +156,49 @@ export class VisualAssetPipeline {
     );
     validateNoExistingGeneratedImages(projectAssets, visualData.scenes);
 
+    // AI images reused from a prior run count against the budget so a resume can
+    // never end up with more AI images than a single fresh run would allow.
+    let aiImagesUsed = countExistingAiImages(projectAssets, visualData.scenes);
+
     let aiFallbackProvider: ImageProvider | undefined;
     const getAiFallbackProvider = () =>
       aiFallbackProvider ?? (aiFallbackProvider = ImageProviderRouter.getProvider("openai"));
+
+    /** Fail closed before dispatching an AI image request that is over budget. */
+    const requireAiBudget = (sceneId: number) => {
+      if (aiImagesUsed >= aiImageBudget) {
+        persistFailedAsset({
+          projectId, projectSlug, sceneId,
+          providerName: "openai", prompt: sceneOf(visualData, sceneId),
+        });
+        throw new VisualMediaAiBudgetExceededError(aiImageBudget, sceneId);
+      }
+    };
+
+    /**
+     * Faz 5: fail closed before a paid image request when the $1 per-video AI
+     * budget would be exceeded. No-op without a real API key (mock/stub runs).
+     */
+    const requireImageCostBudget = async (sceneId: number) => {
+      try {
+        await assertImageBudget({
+          projectSlug,
+          provider: "openai",
+          model: imageProviderConfig.openai.model,
+          size: imageProviderConfig.openai.size,
+          quality: imageProviderConfig.openai.quality,
+          count: 1,
+        });
+      } catch (error) {
+        if (error instanceof AiCostBudgetExceededError) {
+          persistFailedAsset({
+            projectId, projectSlug, sceneId,
+            providerName: "openai", prompt: sceneOf(visualData, sceneId),
+          });
+        }
+        throw error;
+      }
+    };
 
     for (const scene of visualData.scenes) {
       const existingAsset = findValidGeneratedSceneAsset(
@@ -101,18 +215,33 @@ export class VisualAssetPipeline {
       // real-photo attempt to skip or force, and honoring them would risk an unexpected
       // real API dispatch in a mock/openai-configured environment.
       const override = imageProvider.name === "real" ? overrides?.[scene.sceneId] : undefined;
-      let effectiveProvider = override === "ai" ? getAiFallbackProvider() : imageProvider;
+      const forcedAi = override === "ai";
+      let effectiveProvider = forcedAi ? getAiFallbackProvider() : imageProvider;
+      let selectionReason: VisualMediaSelectionReason = "archive-photo-match";
+
+      // A direct AI dispatch (batch provider "openai", or an operator "ai" override)
+      // is budget-checked before the request is made.
+      if (effectiveProvider.name === "openai") {
+        requireAiBudget(scene.sceneId);
+        await requireImageCostBudget(scene.sceneId);
+        selectionReason = forcedAi ? "operator-forced-ai" : "no-suitable-real-media-found";
+      }
 
       let result: ImageGenerationResult;
 
       try {
-        result = await effectiveProvider.generateImage({
-          prompt: scene.visualPrompt,
-          style: scene.style,
-          sceneId: scene.sceneId,
-          projectSlug,
-          searchKeywords: scene.searchKeywords,
-        });
+        result = await generateImageWithSingleRetry(
+          effectiveProvider,
+          {
+            prompt: scene.visualPrompt,
+            style: scene.style,
+            sceneId: scene.sceneId,
+            projectSlug,
+            searchKeywords: scene.searchKeywords,
+          },
+          retryDelayMs,
+          delayFn,
+        );
       } catch {
         persistFailedAsset({
           projectId,
@@ -124,17 +253,32 @@ export class VisualAssetPipeline {
         throw new VisualAssetGenerationError();
       }
 
-      // A "real" attempt that found nothing (and wasn't force-real) falls back to AI so a
-      // missing archival photo never blocks the whole production run.
-      if (result?.success !== true && effectiveProvider.name === "real" && override !== "real") {
+      // Fall back to AI when a "real" attempt (not force-real) either found nothing
+      // or returned media whose rights do not classify as production-admissible —
+      // an inadmissible real photo is never silently pulled into the render.
+      const realUnusable =
+        effectiveProvider.name === "real" &&
+        override !== "real" &&
+        (result?.success !== true ||
+          (result.provider === "real" && !isRealMediaAdmissible(result.license)));
+
+      if (realUnusable) {
+        requireAiBudget(scene.sceneId);
+        await requireImageCostBudget(scene.sceneId);
         effectiveProvider = getAiFallbackProvider();
+        selectionReason = "no-suitable-real-media-found";
         try {
-          result = await effectiveProvider.generateImage({
-            prompt: scene.visualPrompt,
-            style: scene.style,
-            sceneId: scene.sceneId,
-            projectSlug,
-          });
+          result = await generateImageWithSingleRetry(
+            effectiveProvider,
+            {
+              prompt: scene.visualPrompt,
+              style: scene.style,
+              sceneId: scene.sceneId,
+              projectSlug,
+            },
+            retryDelayMs,
+            delayFn,
+          );
         } catch {
           persistFailedAsset({
             projectId,
@@ -171,6 +315,16 @@ export class VisualAssetPipeline {
         throw new VisualAssetGenerationError();
       }
 
+      const provenance = resolveMediaProvenance({
+        provider: normalizedResult.provider,
+        license: normalizedResult.license,
+        reason: normalizedResult.provider === "real"
+          ? "archive-photo-match"
+          : normalizedResult.provider === "mock"
+            ? "mock"
+            : selectionReason,
+      });
+
       const asset = AssetManager.createAsset({
         projectId,
         projectSlug,
@@ -193,8 +347,27 @@ export class VisualAssetPipeline {
         candidateCount: normalizedResult.candidateCount,
         width: normalizedResult.width,
         height: normalizedResult.height,
+        mediaOrigin: provenance.mediaOrigin,
+        mediaType: provenance.mediaType,
+        rightsStatus: provenance.rightsStatus,
+        selectionReason: provenance.selectionReason,
+        discoveredAt: normalizedResult.createdAt,
         createdAt: normalizedResult.createdAt,
       });
+
+      if (normalizedResult.provider === "openai") {
+        aiImagesUsed += 1;
+        await recordImageUsage({
+          projectSlug,
+          sceneId: scene.sceneId,
+          provider: "openai",
+          model: normalizedResult.model ?? imageProviderConfig.openai.model,
+          size: imageProviderConfig.openai.size,
+          quality: imageProviderConfig.openai.quality,
+          count: 1,
+          status: "success",
+        });
+      }
 
       projectAssets = AssetManager.addAsset(
         projectSlug,
@@ -231,6 +404,26 @@ function findValidGeneratedSceneAsset(
   }
 
   return null;
+}
+
+/** How many of this batch's scenes are already covered by an AI image. */
+function countExistingAiImages(
+  assets: ProjectAssets,
+  scenes: VisualData["scenes"],
+): number {
+  const plannedSceneIds = new Set(scenes.map((scene) => scene.sceneId));
+  return assets.assets.filter(
+    (asset) =>
+      asset.type === "image" &&
+      asset.status === "generated" &&
+      typeof asset.sceneId === "number" &&
+      plannedSceneIds.has(asset.sceneId) &&
+      (asset.provider === "openai" || asset.mediaOrigin === "ai"),
+  ).length;
+}
+
+function sceneOf(visualData: VisualData, sceneId: number): string {
+  return visualData.scenes.find((scene) => scene.sceneId === sceneId)?.visualPrompt ?? "";
 }
 
 function validateNoExistingGeneratedImages(

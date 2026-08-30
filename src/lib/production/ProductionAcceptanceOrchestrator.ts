@@ -35,6 +35,20 @@ import { createProductionAcceptancePortableConfigurationSnapshotV2 } from
 import { ProjectManager } from "@/lib/projects/ProjectManager";
 import { validateProductionAcceptanceMedia } from "./ProductionAcceptanceMediaValidation";
 import { validateProductionAcceptancePreflight } from "./ProductionAcceptancePreflight";
+import {
+  assertProductionMediaRights,
+  ProductionMediaRightsError,
+} from "./ProductionMediaRightsAudit";
+import {
+  buildProductionCostReceipt,
+  persistProductionCostReceipt,
+  ProductionCostBudgetExceededAtAcceptanceError,
+} from "./ProductionCostReceipt";
+import { buildProductionCostPreflight } from "./ProductionCostPreflight";
+import { isCostBudgetGuardEnabled } from "@/lib/assets/RealMediaProductionFlags";
+import { ProjectReader } from "@/lib/projects/ProjectReader";
+import type { ScriptData } from "@/types/script";
+import type { SceneData } from "@/types/scene";
 import { VideoStorage } from "@/lib/assets/storage/VideoStorage";
 import { ThumbnailStorage } from "@/lib/thumbnail/ThumbnailStorage";
 import type { Asset } from "@/types/asset";
@@ -249,6 +263,23 @@ export class ProductionAcceptanceOrchestrator {
     ) {
       throw new ProductionAcceptanceExecutionError(projectSlug);
     }
+    // Faz 5/6: fail closed BEFORE any paid resume work when the deterministic
+    // pre-run cost estimate would blow the $1 budget (or a model has no price).
+    // Opt-in: `execute` / `resume-finalize` enable `ATOLYE_AI_COST_GUARD`.
+    if (isCostBudgetGuardEnabled()) {
+      const script = await ProjectReader.readJSON<ScriptData>(projectSlug, "script.json");
+      const scenes = await ProjectReader.readJSON<SceneData>(projectSlug, "scenes.json");
+      const preflight = await buildProductionCostPreflight({ projectSlug, script, scenes });
+      if (preflight.decision === "block") {
+        throw new ProductionAcceptanceExecutionError(
+          projectSlug,
+          preflight.blockReason === "unknown-pricing"
+            ? "PRODUCTION_AI_COST_PRICING_UNKNOWN"
+            : "PRODUCTION_AI_COST_BUDGET_EXCEEDED",
+        );
+      }
+    }
+
     const plan = await PipelineRecoveryPlanner.createResumePlan(projectSlug);
     const resumed = await resumeProductionAcceptanceIfNeeded(
       plan,
@@ -357,6 +388,35 @@ export class ProductionAcceptanceOrchestrator {
     } catch {
       throw new ProductionAcceptanceExecutionError(projectSlug);
     }
+    // Faz 6.7: every real-media production asset must be rights-admissible
+    // (public-domain / open-license / verified, with provenance and no drift).
+    // AI/mock assets are exempt; a run with no real media passes trivially.
+    try {
+      assertProductionMediaRights(assets);
+    } catch (error) {
+      if (error instanceof ProductionMediaRightsError) {
+        throw new ProductionAcceptanceExecutionError(
+          projectSlug,
+          "PRODUCTION_MEDIA_RIGHTS_INADMISSIBLE",
+        );
+      }
+      throw error;
+    }
+
+    // Faz 5.6: deterministic, auditable post-run cost receipt. When the cost
+    // guard is enabled it is also a hard gate — an over-budget or unknown-priced
+    // run does not become `validated`.
+    const costReceipt = buildProductionCostReceipt({ projectSlug, usage });
+    try {
+      persistProductionCostReceipt(costReceipt);
+    } catch {
+      // A receipt-persistence failure must not mask a validated render, but a
+      // guarded run still enforces the budget below.
+    }
+    if (isCostBudgetGuardEnabled() && costReceipt.status !== "within-budget") {
+      throw new ProductionCostBudgetExceededAtAcceptanceError(costReceipt);
+    }
+
     const generatedProviderAssets = assets.filter(
       (asset) => asset.status === "generated" && asset.provider !== "mock",
     ).length;

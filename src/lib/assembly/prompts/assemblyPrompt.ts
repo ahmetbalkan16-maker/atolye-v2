@@ -51,12 +51,16 @@ export function createAssemblyPrompt(
     "- Use documentary cinematic editing language.",
     "- Deliberately vary transitions between scenes; do not repeat the same transition type or " +
       "phrasing back-to-back.",
+    "- The scenes are short shots. Between two consecutive scenes that share the same chapterId " +
+      'use "cut" (the shots are one continuous moment). Reserve "fade" or "crossfade" for the ' +
+      "junction where chapterId changes, or for a deliberate time skip inside a chapter. This " +
+      "keeps the cut clean and stops slow dissolves from eating the narration.",
     '- Prefer "cut" for continuing the same visual flow, fast pacing, and battle/action or ' +
       "rapid-succession moments.",
     '- Prefer "fade"/"crossfade" for time skips, chapter or mood changes, and calm or reflective ' +
       "moments.",
     "- Do not use only cut or only fade/crossfade for the whole video; produce a realistic, " +
-      "context-appropriate mix.",
+      "context-appropriate mix (in practice: mostly cuts, with a fade/crossfade at each chapter change).",
     "- Use each chapter's transition field from the Script JSON as context, but make the final " +
       "call at the assembly level.",
     "- render.status must be planned.",

@@ -66,9 +66,17 @@ export function createVisualPlanPrompt(
       "for a photo archive search. Use an empty array for imagined/abstract scenes with no real " +
       "photograph that could represent them. Omitting the field entirely is also valid.",
     "Do not produce paths, URLs, filenames, storage locators, physical asset ids, metadata, or unknown fields.",
-    "Visual prompts must be realistic, historically grounded, detailed, and suitable for image generation.",
-    "Animation prompts describe camera motion, atmosphere, particles, and documentary movement.",
-    "Do not include text, logos, watermarks, or modern objects unless the canonical scene requires them.",
+    "visualPrompt must describe ONE single cinematic frame: one subject, one clear composition, one moment - " +
+      "realistic, historically grounded, and richly detailed for image generation. " +
+      "NEVER describe a collage, grid, 2x2 layout, split screen, multiple panels, before/after comparison, or " +
+      "several separate scenes in one image. Use era-accurate clothing, architecture, weapons, and objects.",
+    "Each canonical scene is one shot in the final cut. When several consecutive scenes belong to the same " +
+      "chapter, give each a visibly different frame - change the shot size (wide / medium / close-up), the " +
+      "angle, or the moment - so the sequence reads as real editing, not the same picture repeated.",
+    "animationPrompt must be a short, concrete camera-move instruction for a slow Ken Burns style pass over the still " +
+      "image - name one primary move (slow push in, slow pull out, pan left, pan right, or gentle drift) and the focal " +
+      "point it moves toward or from. One or two sentences, no shot lists.",
+    "Do not include readable text, inscriptions, logos, watermarks, or modern objects unless the canonical scene truly requires them.",
     `Preferred style: ${style}`,
     "Canonical JSON skeleton:",
     "{",

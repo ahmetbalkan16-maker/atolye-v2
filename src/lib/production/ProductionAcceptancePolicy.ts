@@ -1148,6 +1148,12 @@ export function productionAcceptanceConfigurationFingerprint(
   if (environment.OPENAI_AUDIO_MAX_TOKENS !== undefined) {
     snapshot.push(["OPENAI_AUDIO_MAX_TOKENS", environment.OPENAI_AUDIO_MAX_TOKENS]);
   }
+  if (environment.OPENAI_SCENES_MAX_TOKENS !== undefined) {
+    snapshot.push(["OPENAI_SCENES_MAX_TOKENS", environment.OPENAI_SCENES_MAX_TOKENS]);
+  }
+  if (environment.IMAGE_OPENAI_REQUEST_INTERVAL_MS !== undefined) {
+    snapshot.push(["IMAGE_OPENAI_REQUEST_INTERVAL_MS", environment.IMAGE_OPENAI_REQUEST_INTERVAL_MS]);
+  }
   return createHash("sha256").update(JSON.stringify(snapshot)).digest("hex");
 }
 

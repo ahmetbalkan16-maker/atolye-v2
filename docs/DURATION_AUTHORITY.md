@@ -99,6 +99,34 @@ for the full derivation. On success, the same metrics
 `paddingDurationSeconds`, `paddingRatio`) are persisted into
 `assembly.json`'s `render.quality`.
 
+**Layer 4 -- multi-shot scene-duration reconciliation**
+(`src/lib/ai/SceneStructuredOutput.ts`: `reconcileSceneDurations` +
+`validateScriptDurationAuthority`, wired into `parseStrictScenesResponse`,
+which `AIManager.runScenes` calls). When a chapter is broken into several
+short shots (documentary pacing, one scene = one shot), the model cannot
+reliably make ~15 per-shot durations sum to *both* every chapter's
+`duration` *and* the grand `estimatedDuration`. Same principle as Layer 1's
+`reconcileChapterDurations`: the model's per-scene `duration` numbers are
+treated as **relative weights only**, and each chapter's authoritative
+`script.chapters[].duration` (already narration-reconciled by Layer 1) is
+redistributed deterministically across its scenes -- integer seconds,
+per-chapter sum exact (rounding remainder absorbed by the chapter's largest
+scene), a final pass aligns the grand total with `estimatedDuration`, never
+`<1s`. Order inside `parseStrictScenesResponse` is deliberate and mirrors
+F-08: (1) structural/schema validation (shape, ids, ordering, string
+limits, per-scene duration RANGE) gates first so reconciliation can never
+mask a real defect; (2) `validateScriptDurationAuthority` -- **fail-closed**
+`AI_RESPONSE_SCHEMA_INVALID` if the authoritative input itself is unusable
+(no chapters, non-integer/non-positive chapter id, or a chapter
+`duration`/`estimatedDuration` that is missing, non-finite (NaN/Infinity),
+or `<= 0`); (3) deterministic reconciliation; (4) authoritative
+per-chapter-sum + grand-total validation against the reconciled values.
+`reconcileSceneDurations` is itself **fail-SAFE** (returns the input
+unchanged when it cannot reconcile safely) so step 4 still fails closed on
+the real defect. This does not touch `ProductionAcceptancePreflight`,
+`VideoDurationCoverageGuard`, `NarrationDurationEstimator`, or any
+persistence contract.
+
 ## What did not change
 
 - The pipeline stage order (still `... -> video -> audio -> assembly -> ...`).
@@ -111,6 +139,10 @@ for the full derivation. On success, the same metrics
 ## Tests
 
 - `scripts/smoke-narration-duration-estimator.ts` -- Layer 1, pure functions.
+- `scripts/smoke-multi-shot-duration-reconciliation.ts` -- Layer 4, pure
+  functions + `parseStrictScenesResponse` (reconciliation never masks a
+  structural defect; fail-closed on a non-finite/negative/missing
+  authoritative duration; model durations are not the authority).
 - `scripts/smoke-script-duration-reconciliation-wiring.ts` -- Layer 1, wired
   through `AIManager.runScript`'s real strict/legacy response parsing.
 - `scripts/smoke-video-duration-coverage-guard.ts` -- Layer 3, pure

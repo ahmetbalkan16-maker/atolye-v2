@@ -113,6 +113,24 @@ export interface AudioMusicPlan {
   suggestion: string;
 
   intensity: string;
+
+  /**
+   * The licence-cleared background track actually selected + staged for this
+   * project (Faz 4). Additive: absent when the music library has no admissible
+   * track for the resolved mood, in which case the assembly stage renders
+   * narration-only exactly as before. `assetId` points at the staged `bgm`
+   * audio asset that carries the full provenance.
+   */
+  selected?: {
+    assetId: string;
+    mood: string;
+    title: string;
+    source: string | null;
+    sourceUrl: string | null;
+    license: string | null;
+    rightsStatus: import("./asset").MediaRightsStatus;
+    attribution: string | null;
+  };
 }
 
 export interface AudioProductionInfo {

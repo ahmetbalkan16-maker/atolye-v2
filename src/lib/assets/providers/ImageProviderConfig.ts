@@ -20,9 +20,17 @@ export interface ImageProviderConfig {
   openai: {
     model: string;
     size: string;
+    quality: string;
     mimeType: ImageMimeType;
     timeoutMs: number;
     maximumResponseBytes: number;
+    /**
+     * Minimum wall-clock gap enforced between two consecutive image API calls
+     * from the same provider instance. Multi-shot fires ~15 calls in a row;
+     * without pacing that bunches against the account's images-per-minute
+     * limit. Consistent with the "real" provider's minRequestIntervalMs.
+     */
+    requestIntervalMs: number;
   };
   real: {
     timeoutMs: number;
@@ -38,14 +46,38 @@ export interface ImageProviderConfig {
   };
 }
 
+/**
+ * gpt-image-1 accepts these `size` values. Landscape 1536x1024 (3:2) is the
+ * documentary default: the production video is 1920x1080 (16:9), so a landscape
+ * source only loses ~11% width to the scene compositor's aspect fit instead of
+ * the ~44% a 1024x1024 square loses vertically. Override with IMAGE_OPENAI_SIZE
+ * (e.g. back to "1024x1024") if a provider account does not support it.
+ */
+export const OPENAI_IMAGE_SIZES = Object.freeze([
+  "1024x1024",
+  "1536x1024",
+  "1024x1536",
+  "auto",
+] as const);
+
+/** gpt-image-1 rendering quality; "auto" lets the model pick (current behaviour). */
+export const OPENAI_IMAGE_QUALITIES = Object.freeze([
+  "auto",
+  "low",
+  "medium",
+  "high",
+] as const);
+
 export const imageProviderConfig: ImageProviderConfig = {
   defaultProvider: "mock",
   openai: {
     model: "gpt-image-1",
-    size: "1024x1024",
+    size: "1536x1024",
+    quality: "auto",
     mimeType: "image/png",
     timeoutMs: 60_000,
     maximumResponseBytes: 96 * 1024 * 1024,
+    requestIntervalMs: 1_200,
   },
   real: {
     timeoutMs: 15_000,
@@ -87,6 +119,16 @@ export function getOpenAIImageProviderConfig(
 ) {
   return Object.freeze({
     ...imageProviderConfig.openai,
+    size: enumValue(
+      environment.IMAGE_OPENAI_SIZE,
+      imageProviderConfig.openai.size,
+      OPENAI_IMAGE_SIZES,
+    ),
+    quality: enumValue(
+      environment.IMAGE_OPENAI_QUALITY,
+      imageProviderConfig.openai.quality,
+      OPENAI_IMAGE_QUALITIES,
+    ),
     timeoutMs: integerValue(
       environment.IMAGE_OPENAI_TIMEOUT_MS,
       imageProviderConfig.openai.timeoutMs,
@@ -99,7 +141,26 @@ export function getOpenAIImageProviderConfig(
       1_024,
       128 * 1024 * 1024,
     ),
+    requestIntervalMs: integerValue(
+      environment.IMAGE_OPENAI_REQUEST_INTERVAL_MS,
+      imageProviderConfig.openai.requestIntervalMs,
+      0,
+      30_000,
+    ),
   });
+}
+
+function enumValue<T extends string>(
+  value: string | undefined,
+  fallback: T,
+  allowed: readonly T[],
+): T {
+  if (value === undefined) return fallback;
+  const normalized = value.trim();
+  if (!(allowed as readonly string[]).includes(normalized)) {
+    throw new ImageProviderConfigurationError();
+  }
+  return normalized as T;
 }
 
 export function getRealImageProviderConfig(

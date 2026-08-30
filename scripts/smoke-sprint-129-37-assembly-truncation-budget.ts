@@ -309,15 +309,21 @@ async function main() {
   delete process.env.OPENAI_ASSEMBLY_MAX_TOKENS;
 
   try {
-    await test("unset assembly budget uses 3200", () => {
-      assert.equal(getAssemblyMaxTokens(environment({ OPENAI_MAX_TOKENS: "1200" })), 3200);
+    await test("unset assembly budget uses 5200", () => {
+      assert.equal(getAssemblyMaxTokens(environment({ OPENAI_MAX_TOKENS: "1200" })), 5200);
     });
-    for (const value of [1600, 3200, 6000]) {
+    await test("default budget leaves headroom for a 16-scene multi-shot assembly plan", () => {
+      // A 16-scene multi-shot plan (each scene echoes long opaque asset ids +
+      // Turkish notes) needs ~3700+ output tokens; 3200 truncated the real
+      // 5be83a84 run at finish_reason=length. Keep the default comfortably above.
+      assert.ok(getAssemblyMaxTokens(environment({})) >= 4800);
+    });
+    for (const value of [1600, 5200, 8000]) {
       await test(`assembly budget accepts ${value}`, () => {
         assert.equal(getAssemblyMaxTokens(environment({ OPENAI_ASSEMBLY_MAX_TOKENS: String(value) })), value);
       });
     }
-    for (const value of ["1599", "6001", "", "   ", "1.5", "alphabetic", "9007199254740992"]) {
+    for (const value of ["1599", "8001", "", "   ", "1.5", "alphabetic", "9007199254740992"]) {
       await test(`assembly budget rejects ${JSON.stringify(value)}`, () => {
         assert.throws(
           () => getAssemblyMaxTokens(environment({ OPENAI_ASSEMBLY_MAX_TOKENS: value })),
@@ -333,7 +339,7 @@ async function main() {
       await generateWith(provider(result(JSON.stringify(value.assembly)), (options) => {
         actual = options?.maxTokens;
       }));
-      assert.equal(actual, 3200);
+      assert.equal(actual, 5200);
     });
 
     await test("AssemblyManager propagates an explicit valid override", async () => {
@@ -531,7 +537,7 @@ async function main() {
       );
     });
 
-    assert.equal(passed, 28);
+    assert.equal(passed, 29);
     process.stdout.write(`Sprint 129.37 assembly truncation budget smoke PASS: ${passed} scenarios.\n`);
   } finally {
     AIUsageManager.appendRecord = originalAppend;

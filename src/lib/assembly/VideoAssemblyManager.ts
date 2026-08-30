@@ -952,7 +952,12 @@ function persistFailedAssetSafely(
   }
 }
 
-function resolveBackgroundMusic(
+/**
+ * Deterministically resolve the staged background-music bed for a project from
+ * its asset registry. Exported (additive, pure) so the Faz 4 music-staging smoke
+ * can assert the handshake without rendering. Behaviour is unchanged.
+ */
+export function resolveBackgroundMusic(
   projectSlug: string,
   assets: Asset[],
 ): VideoAssemblyInput["backgroundMusic"] | undefined {

@@ -21,7 +21,23 @@ import {
 } from "@/lib/audio/AudioPipeline";
 import type { AudioProvider } from "@/lib/audio/providers/AudioProvider";
 import { AudioProviderRouter } from "@/lib/audio/providers/AudioProviderRouter";
+import { stageProjectBackgroundMusic } from "@/lib/audio/music/AudioMusicSelection";
 import { VisualAssetPipeline } from "@/lib/assets/VisualAssetPipeline";
+import { resolveMaxAiImages } from "@/lib/assets/VisualMediaAdmissionPolicy";
+import {
+  selectSceneMedia,
+  sceneMediaSelectionOverrides,
+} from "@/lib/assets/SceneMediaSelection";
+import {
+  isRealMediaDiscoveryEnabled,
+  isRealMediaSelectionEnabled,
+} from "@/lib/assets/RealMediaProductionFlags";
+import {
+  applyResearchMediaCandidatesToVisualData,
+  createWikimediaSearchClient,
+  enrichResearchWithMediaDiscovery,
+  type MediaSearchClient,
+} from "@/lib/assets/ResearchMediaDiscovery";
 import type { ImageProvider } from "@/lib/assets/providers/ImageProvider";
 import { ImageProviderRouter } from "@/lib/assets/providers/ImageProviderRouter";
 import { packageExport } from "@/lib/export/ExportPackager";
@@ -122,6 +138,13 @@ export type PipelineStageExecutionOptions = {
   thumbnailProvider?: ThumbnailProvider;
   youtubeProvider?: YouTubeProvider;
   youtubePublishProvider?: YouTubePublishProvider;
+  /**
+   * Real-media source client for the research-stage discovery step (Faz 2).
+   * Opt-in: `materializePipelineStageExecutionOptions` never auto-creates one,
+   * so discovery only runs when a caller wires a client in. Not serializable and
+   * not part of the acceptance fingerprint.
+   */
+  mediaSearchClient?: MediaSearchClient;
   stopAfterStage?: PipelineRecoveryStageKey;
 };
 
@@ -136,6 +159,7 @@ export function materializePipelineStageExecutionOptions(
     audioProvider: source.audioProvider, videoAssemblyProvider: source.videoAssemblyProvider,
     thumbnailProvider: source.thumbnailProvider, youtubeProvider: source.youtubeProvider,
     youtubePublishProvider: source.youtubePublishProvider,
+    mediaSearchClient: source.mediaSearchClient,
     stopAfterStage: source.stopAfterStage,
   };
   const configured: (keyof ProductionAcceptanceProviderOptions)[] = [];
@@ -148,6 +172,13 @@ export function materializePipelineStageExecutionOptions(
   };
   if (["research", "script", "scenes", "visuals", "animation", "audio", "assembly", "seo"]
     .includes(stage)) ensure("aiProvider", () => new AIRouter().getProvider());
+  // Faz 6 (opt-in, off by default): auto-wire the real-media discovery client for
+  // the research stage. Best-effort — discovery never fails the research stage.
+  // Not tracked as a configured provider option, so the acceptance fingerprint
+  // is unchanged.
+  if (stage === "research" && !captured.mediaSearchClient && isRealMediaDiscoveryEnabled()) {
+    captured.mediaSearchClient = createWikimediaSearchClient();
+  }
   if (stage === "visuals") ensure("visualAssetProvider", () => ImageProviderRouter.getProvider());
   if (stage === "animation") ensure("animationProvider", () => AnimationProviderRouter.getProvider());
   if (stage === "video") ensure("videoProvider", () => VideoProviderRouter.getProvider());
@@ -292,16 +323,25 @@ export class PipelineStageExecutor {
       });
     };
     switch (stage) {
-      case "research":
+      case "research": {
         await dispatchBranch("aiProvider");
         state.research = await AIManager.runResearch(state.project.title, {
           projectSlug,
           stage: "research",
           operation: "research",
         }, dispatchOptions.aiProvider, generationPolicy);
+        // Faz 2: enrich with real media discovered from a source client. Opt-in
+        // for now (runs only when a client is wired in); best-effort — a
+        // discovery failure never fails the research stage.
+        if (dispatchOptions.mediaSearchClient) {
+          state.research = await enrichResearchWithMediaDiscovery(state.research, {
+            client: dispatchOptions.mediaSearchClient,
+          });
+        }
         return this.persistStageResult(projectSlug, stage, () =>
           ProjectManager.saveResearch(projectSlug, state.research, requireStorageContext(storageContext)),
         );
+      }
 
       case "script":
         await dispatchBranch("aiProvider");
@@ -309,7 +349,7 @@ export class PipelineStageExecutor {
           projectSlug,
           stage: "script",
           operation: "script",
-        }, dispatchOptions.aiProvider, generationPolicy);
+        }, dispatchOptions.aiProvider, generationPolicy, state.research);
         if (persistedPolicy?.strictProductionAcceptance) {
           validateProductionAcceptanceScriptDuration(state.script);
         }
@@ -324,7 +364,7 @@ export class PipelineStageExecutor {
           projectSlug,
           stage: "scenes",
           operation: "scenes",
-        }, dispatchOptions.aiProvider, generationPolicy);
+        }, dispatchOptions.aiProvider, generationPolicy, state.research);
         if (persistedPolicy?.strictProductionAcceptance) {
           validateProductionAcceptancePreflight(script, state.scenes);
         }
@@ -349,6 +389,25 @@ export class PipelineStageExecutor {
             generationPolicy,
           });
         }
+        // Faz 2: attach research-discovered real-media candidates to scenes and
+        // prepend their known-good query terms to searchKeywords (additive,
+        // deterministic; a no-op when research carries no mediaCandidates).
+        state.visuals = applyResearchMediaCandidatesToVisualData(state.visuals, state.research);
+        // Faz 6 (opt-in): compute the deterministic per-scene media ladder
+        // (admissible real video > real photo > AI) and turn it into per-scene
+        // overrides so the AI-image cap is spent predictably. Throws
+        // `VisualMediaAiBudgetExceededError` BEFORE any dispatch when the plan
+        // would need more than `maxAiImages` AI images.
+        const maxAiImages = resolveMaxAiImages();
+        let effectiveVisualOverrides = visualSourceOverrides;
+        if (isRealMediaSelectionEnabled()) {
+          const plan = selectSceneMedia({
+            scenes: state.visuals.scenes,
+            candidates: state.research?.mediaCandidates ?? [],
+            maxAiImages,
+          });
+          effectiveVisualOverrides = sceneMediaSelectionOverrides(plan, visualSourceOverrides);
+        }
         await dispatchBranch("visualAssetProvider");
         await ProjectManager.persistVisualsArtifact(projectSlug, state.visuals, requireStorageContext(storageContext));
         await VisualAssetPipeline.generateAssets({
@@ -356,7 +415,12 @@ export class PipelineStageExecutor {
           projectSlug,
           visualData: state.visuals,
           provider: dispatchOptions.visualAssetProvider,
-          overrides: visualSourceOverrides,
+          overrides: effectiveVisualOverrides,
+          // Documentary media policy: a production render may contain at most
+          // this many AI-generated images (default 4, overridable per render via
+          // `ATOLYE_MAX_AI_IMAGES`); every other scene must be admissible real
+          // media or the visuals stage fails closed.
+          maxAiImages,
         });
         return this.persistStageResult(projectSlug, stage, () =>
           ProjectManager.updatePackageStatus(projectSlug, "visuals", "completed", undefined, undefined, requireStorageContext(storageContext)).then(() => undefined),
@@ -430,6 +494,27 @@ export class PipelineStageExecutor {
           provider: dispatchOptions.audioProvider,
         });
         state.audio = audio;
+        // Faz 4 (additive, best-effort): stage a licence-cleared background-music
+        // bed from the local library. Rights fail-closed; any failure leaves the
+        // render narration-only. Never fails the audio stage.
+        try {
+          const music = await stageProjectBackgroundMusic({
+            projectId: state.project.id,
+            projectSlug,
+            audio: state.audio,
+            musicStyleHint: script.musicStyle,
+            // Faz 4: deterministic ambience bed from research sound-effect ideas +
+            // dominant scene emotions/visual styles. Best-effort, rights-gated.
+            ambienceHints: deriveAmbienceHints(state.research, script),
+            storageContext: requireStorageContext(storageContext),
+          });
+          state.audio = music.audio;
+        } catch (error) {
+          console.error(
+            "[PipelineStageExecutor] background music staging skipped (best-effort):",
+            error,
+          );
+        }
         try {
           return await this.persistStageResult(projectSlug, stage, () =>
             ProjectManager.saveAudio(projectSlug, state.audio, requireStorageContext(storageContext)),
@@ -548,6 +633,7 @@ export class PipelineStageExecutor {
           {
             aiProvider: dispatchOptions.aiProvider,
             generationPolicy,
+            research: state.research,
           },
         );
         return this.persistStageResult(projectSlug, stage, () =>
@@ -652,4 +738,34 @@ function requireStageInput<T>(
   }
 
   return value;
+}
+
+/**
+ * Faz 4: free-text hints for the ambience-bed selector, drawn from the research
+ * sound-effect / music ideas and the script's per-chapter emotions and visual
+ * styles. Pure; a `SfxLibrary` lookup maps these onto a category. Bounded.
+ */
+function deriveAmbienceHints(
+  research: PipelineExecutionState["research"],
+  script: PipelineExecutionState["script"],
+): string[] {
+  const out: string[] = [];
+  const push = (value: unknown) => {
+    if (typeof value === "string" && value.trim() && out.length < 24) out.push(value.trim());
+  };
+  if (research) {
+    for (const idea of asStringArray(research.soundEffects)) push(idea);
+    for (const idea of asStringArray(research.musicIdeas)) push(idea);
+  }
+  if (script && Array.isArray(script.chapters)) {
+    for (const chapter of script.chapters) {
+      push((chapter as { emotion?: unknown }).emotion);
+      push((chapter as { visualStyle?: unknown }).visualStyle);
+    }
+  }
+  return out;
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }

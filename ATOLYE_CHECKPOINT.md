@@ -1,5 +1,344 @@
 ---
 
+<!-- SPRINT-172-START -->
+## Sprint 172 - Belgesel real-media Faz 4/5/6 production wiring (opt-in kalktı, logic-default aktif) - 2026-08-30
+
+**Status:** Kod + testler PASS. **0 gerçek network/paid API, $0, production render/resume/execute ÇALIŞTIRILMADI, commit yok, `5be83a84` DOKUNULMADI** (16-PNG sha `cc204e21…6ab49` doğrulandı; `git diff HEAD -- data/projects` boş; 5be83a84 dizini tamamen untracked, hiçbir smoke yazmıyor). Faz 4/5 **TAMAM**; Faz 6 **büyük ölçüde TAMAM** — real-photo + music/SFX + cost guard + rights gate production'da aktif; **real-video per-scene substitution wiring TAMAMLANMADI** (Faz 3 foundation hazır, image→animation→video zincirinin media-type-aware olması gereken ayrı büyük iş).
+
+### Amaç
+Faz 1-3 foundation + Faz 4/5 mekanizmalarını **gerçek production pipeline'a bağla** — "yalnızca smoke'ta çalışan foundation" değil. Real media discovery + selection + cost guard production'da **opt-in olmaktan çıkıp** logic-default aktif olsun (gerçek render'da açık, testlerde kapalı).
+
+### Aktivasyon modeli — `src/lib/runtime/ProductionModeDetection.ts` (YENİ)
+`isRealProductionEnvironment(env)` = `OPENAI_API_KEY` var **VE** `NODE_ENV !== "test"` **VE** `ATOLYE_RUNTIME_ROOT` bir OS-temp-dir altında değil (her smoke `mkdtempSync(os.tmpdir())` kullanır → güvenilir "test" sinyali). `RealMediaProductionFlags` (`isRealMediaDiscoveryEnabled` / `isRealMediaSelectionEnabled` / `isCostBudgetGuardEnabled`) ve `AiCostBudget.isAiCostGuardEnabled` hepsi: **explicit env (`on`/`off`) kazanır, yoksa `isRealProductionEnvironment`**. → gerçek render'da hepsi AÇIK, tüm mock/e2e smoke'larda KAPALI (davranış + $0 network korunur). Explicit env fingerprint'e girer (conditional); logic-default GİRMEZ → `5be83a84` marker fingerprint'i değişmez.
+
+### Değişen/yeni dosyalar (bu tur — Sprint 170/171'e ek)
+1. **`src/lib/runtime/ProductionModeDetection.ts` (YENİ)** — yukarıdaki aktivasyon sinyali.
+2. **`src/lib/assets/RealMediaProductionFlags.ts` (değişti)** — logic-default `isRealProductionEnvironment`.
+3. **`src/lib/ai/AiCostBudget.ts` (değişti)** — `isAiCostGuardEnabled` logic-default.
+4. **`src/lib/pipeline/PipelineStageExecutor.ts` (+~130):**
+   - research case: `materializePipelineStageExecutionOptions` — `isRealMediaDiscoveryEnabled()` iken `createWikimediaSearchClient()` auto-wire (fingerprint'e girmez, `ensure()` bypass). **`enrichResearchWithMediaDiscovery` artık gerçek production research'te çağrılır.**
+   - visuals case: `isRealMediaSelectionEnabled()` iken `selectSceneMedia({scenes, candidates: research.mediaCandidates, maxAiImages:4})` → `sceneMediaSelectionOverrides(plan)` → `VisualAssetPipeline.generateAssets({overrides})`. Deterministik ladder (real > AI), cap dispatch ÖNCESİ `VisualMediaAiBudgetExceededError`.
+   - audio case: `stageProjectBackgroundMusic(..., ambienceHints: deriveAmbienceHints(research, script))` — `research.soundEffects`/`musicIdeas` + chapter emotion/visualStyle'dan ambience hint'leri.
+5. **`src/lib/assets/SceneMediaSelection.ts` (+~25):** `sceneMediaSelectionOverrides(plan, existing?)` — plan → per-scene `"ai"|"real"` override (explicit operator override kazanır).
+6. **`src/lib/audio/music/AudioMusicSelection.ts` (+~130/-40):** `stageProjectBackgroundMusic` artık **music + ambience** işler. `ambienceHints` → `SfxLibrary.selectAmbienceBed` (rights-gated). Music + admissible ambience → ffmpeg `amix` (music 1.0, ambience 0.25) ile tek `bgm.wav`. Ambience-only → ambience bed. ffmpeg yoksa graceful music-only. Asset `mediaType: "music"|"ambience"`, `selectionReason: "library-mood-match+ambience"`, combined attribution.
+7. **`src/types/audio.ts` (değişti):** `AudioMusicPlan.selected` genişledi.
+8. **`src/lib/production/ProductionCostEstimate.ts` (YENİ, Sprint 171):** conservative pre-run tahmin (7 planning LLM + N animation LLM; 2× narration char TTS; capped AI image; unknown model → tüm estimate unknown).
+9. **`src/lib/production/ProductionCostPreflight.ts` (YENİ, Sprint 171):** `buildProductionCostPreflight` — observed (`ai-usage.json`) + estimate → `pass`/`block` (unknown-pricing / observed-exceeds / projected-exceeds).
+10. **`src/lib/production/ProductionCostReceipt.ts` (YENİ):** `buildProductionCostReceipt` (byCategory/byOperation, retryUsd, duplicateUsd, unknownCostCount) + `persistProductionCostReceipt` (`production-cost-receipt.json`). Guard açıkken over-budget/unknown → `ProductionCostBudgetExceededAtAcceptanceError`.
+11. **`src/lib/production/ProductionMediaRightsAudit.ts` (YENİ):** `auditProductionMediaRights(assets)` — her `mediaOrigin:"real"` asset admissible olmalı (`{public-domain,open-license,verified}` + `sourceUrl` + drift yok). `verified` drift check'i bypass eder. `assertProductionMediaRights` → `ProductionMediaRightsError`.
+12. **`src/lib/production/ProductionAcceptanceOrchestrator.ts` (+~60):**
+    - `resumeAndFinalize`: resume ÖNCESİ `isCostBudgetGuardEnabled()` iken `buildProductionCostPreflight` — `block` → `ProductionAcceptanceExecutionError("PRODUCTION_AI_COST_BUDGET_EXCEEDED" | "PRODUCTION_AI_COST_PRICING_UNKNOWN")`. **Pahalı iş başlamadan fail-closed.**
+    - `finalize`: `assertProductionMediaRights(assets)` (→ `PRODUCTION_MEDIA_RIGHTS_INADMISSIBLE`) + `buildProductionCostReceipt`/`persistProductionCostReceipt` + guard açıksa `status !== "within-budget"` → throw.
+13. **`src/lib/production/ProductionAcceptanceConfigurationFingerprint.ts` (+~20):** `ENVIRONMENT_POLICY` component'ine **conditional** `ATOLYE_REAL_MEDIA_DISCOVERY` / `ATOLYE_REAL_MEDIA_SELECTION` / `ATOLYE_AI_COST_BUDGET_USD` (yalnız env EXPLICIT set ise fingerprint'e girer). `ATOLYE_AI_COST_GUARD` **dahil DEĞİL** (runtime safety toggle, üretimi değiştirmez). Logic-default → env undefined → fingerprint HEAD ile aynı → `5be83a84` marker geçerli.
+14. **`scripts/run-production-cost-preflight.ts` (YENİ) + `package.json` alias `production:cost-preflight`.**
+15. **Smoke'lar (YENİ):** `smoke-phase4-audio` (9), `smoke-phase5-cost` (9), `smoke-phase6-production-real-media` (8). `smoke-faz4` +3 senaryo (ambience mixing), `smoke-faz5`/`smoke-faz6` güncellendi.
+16. **`src/lib/animation/AnimationAssetPipeline.ts` / `src/lib/assets/VisualAssetPipeline.ts` / `src/lib/audio/AudioPipeline.ts` (Sprint 171):** her paid çağrı sonrası `estimatedCost`/`pricingStatus` kaydeder; paid çağrı ÖNCESİ `assertImageBudget`/`assertTtsBudget` (guard açıkken fail-closed).
+
+### Production call-chain kanıtı (graphify)
+- `PipelineStageExecutor.execute()` **[calls]** `stageProjectBackgroundMusic()` (audio stage) ✓
+- `PipelineStageExecutor.execute()` **[calls]** `selectSceneMedia()` (visuals stage) ✓
+- `materializePipelineStageExecutionOptions` **[calls]** `createWikimediaSearchClient()` (research, flag-gated) ✓
+- `VisualAssetPipeline.generateAssets()` **[calls]** `assertImageBudget()` ✓
+- `AudioPipeline.generateAndNormalize()` **[calls]** `assertTtsBudget()` ✓
+- `ProductionAcceptanceOrchestrator.resumeAndFinalize()` **[calls]** `buildProductionCostPreflight()` (pre-resume gate) ✓
+- `ProductionAcceptanceOrchestrator.finalize()` **[calls]** `assertProductionMediaRights()` + `buildProductionCostReceipt()` ✓
+
+### Testler ($0, gerçek network/API YOK)
+Yeni: `smoke-phase4-audio` (9), `smoke-phase5-cost` (9), `smoke-phase6-production-real-media` (8), `smoke-faz4-audio-music-sfx` (11), `smoke-faz5-ai-cost-budget` (11), `smoke-faz6-real-media-production-wiring` (6), `smoke-faz3-video-media-ingestion` (18).
+Regresyon PASS: `smoke-media-rights-policy` (8), `smoke-phase1-visual-media-admission` (10), `smoke-faz2` (14), `smoke-production-visual-asset-wiring` (54), `smoke-production-real-photo-source` (45), `smoke-visual-asset-pipeline-per-scene-retry` (8), `smoke-production-scene-video-rendering` (26), `smoke-production-video-assembly-wiring` (73), `smoke-production-audio-asset-wiring` (74), `smoke-sprint-129-27-audio-remediation` (117), `smoke-ffmpeg-bgm-kenburns-assembly` (30), `smoke-production-end-to-end` (21), `smoke-isolated-e2e-live-pipeline-ffmpeg` (4 — tam mock pipeline + acceptance), `smoke-pipeline-orchestration` (10), `smoke-production-youtube-package-pipeline` (58), `smoke-sprint-129-39-stage-bounded-resume` (61), `smoke-sprint-129-41-completed-stage-regeneration` (181), `smoke-sprint-129-23-portability` (16), `smoke-sprint-129-24-reprepare` (22), `smoke-sprint-129-37` (29), `smoke-sprint-129-26` (19), `smoke-multi-shot-duration-reconciliation` (15).
+`npx tsc --noEmit` PASS · `git diff --check` exit 0 · `npm run lint` 0 error / 22 pre-existing warning (yeni/değişen dosyalarda 0) · `graphify update` çalıştırıldı.
+
+**Pre-existing FAIL (HEAD/revert ile bağımsızlığı KANITLANDI):**
+- `smoke-sprint-129-7` (`null !== 'visuals'`), `smoke-sprint-129-13` ("Pipeline durable preparation runtime authority is missing").
+- `smoke-production-snapshot-builder` (`project.json` race → `source_malformed`).
+- `smoke-sprint-129-28` (source-drift assertion: `/new WeakMap/` bekliyor, `ProductionPipelineExecutionFactory.ts` HEAD'de `claimProcessCompletedPreparations()` kullanıyor).
+- `smoke-sprint-129-36` (`CANONICAL_AUDIO_ORDINAL_FOUR_RESERVATION_PERSISTENCE_INVALID` — gerçek `data/projects` durable reservation state'e bağlı; orchestrator/fingerprint/CLI değişikliklerim revert edilip aynı fail doğrulandı).
+
+### TAMAMLANMADI
+- **Real video per-scene substitution:** `selectSceneMedia` real-video sahneyi `"real"` (foto denemesi) override'ına eşler; `VideoMediaIngestion` (Faz 3, tested) per-scene video stage'e wire EDİLMEDİ. Sebep: `VideoPipeline.prepareInputs` her sahne için image + motion plan 1:1:1 varsayıyor; gerçek klibin bu zincire girmesi image→animation→video'nun media-type-aware olmasını gerektirir — ADR + ayrı büyük additive iş.
+- **Per-scene SFX timeline placement:** ambience bed documentary-geneli mixleniyor; sahne-anına özel SFX assembly timeline cerrahisi gerektirir.
+
+### Production render için güvenlik durumu
+`.env.local`'de `IMAGE_PROVIDER=real` + gerçek key varken: research discovery + real-photo ladder + music/ambience + $1 cost preflight/guard + rights gate **hepsi otomatik aktif**. Preflight ($0): `npm run production:cost-preflight -- --project-slug=<slug>` (5be83a84 demo: projected $0.43 < $1, pass). Kontrollü paid render için gate'ler hazır; kullanıcı komutu bekleniyor.
+
+<!-- SPRINT-172-END -->
+
+<!-- SPRINT-171-START -->
+## Sprint 171 - Belgesel real-media Faz 5 ($1 AI cost guard) + Faz 6 kısmi (production wiring aktivasyon katmanı) - 2026-08-30
+
+**Status:** Kod + testler PASS. **0 gerçek network/paid API, $0, production çalıştırılmadı, commit yok, `5be83a84` DOKUNULMADI** (16-PNG sha `cc204e21…6ab49` doğrulandı; `git diff HEAD -- data/projects` boş; export/video/production-acceptance 2026-08-29 tarihli, değişmemiş). Faz 6'nın YÜKSEK RİSKLİ parçaları (visuals selection ladder wiring, acceptance rights gate, fingerprint) ve kontrollü paid production render **YAPILMADI** — kullanıcı onayı + odaklı oturum gerektiriyor.
+
+### FAZ 5 — $1 AI Cost Guard
+
+**Değişen/yeni dosyalar:**
+1. **`src/lib/ai/AiPricing.ts` (YENİ):** Deterministik `AI_PRICE_TABLE` (gpt-4.1/4.1-mini/4.1-nano/4o/4o-mini/o1/o1-mini/o3-mini token $/1M; gpt-image-1 + dall-e-3 per-image (size|quality); tts-1/tts-1-hd/gpt-4o-mini-tts $/1M char). `estimateTokenCost` / `estimateImageCost` / `estimateTtsCost` / `estimateTokenCallCeiling` — **bilinmeyen model → `{status:"unknown", costUsd:NaN}` (asla 0)**; `mock`/`local`/`music-library` → `{status:"free", costUsd:0}`. `toUsageCostFields` mapper.
+2. **`src/lib/ai/AiCostBudget.ts` (YENİ):** `DEFAULT_AI_COST_BUDGET_USD = 1.0` (`ATOLYE_AI_COST_BUDGET_USD` override). `summarizeObservedCost(records)` → knownUsd + per-stage/per-operation + **retryUsd** + **duplicateUsd** (aynı stage:operation 2.+ billable çağrı). `evaluateAiCostBudget({records, pendingUsd, pendingPricingUnknown})` → `{allowed, reason}` (within / observed-exceeds / projected-exceeds / **unknown-pricing → fail-closed**). `AiCostBudgetExceededError`. **`isAiCostGuardEnabled(env)` = opt-in `ATOLYE_AI_COST_GUARD ∈ {on,true,1}`, DEFAULT OFF** (mock-only smoke'lar etkilenmez). Backward-compat: `pricingStatus`'suz legacy record → provider mock→free, `estimatedCost` varsa→known, token varsa→`AiPricing` ile türet, yoksa→unknown.
+3. **`src/lib/ai/MediaGenerationCostGuard.ts` (YENİ):** `assertImageBudget` / `assertTtsBudget` (paid image/TTS öncesi fail-closed block) + `recordImageUsage` / `recordTtsUsage` (priced `AIUsageRecord` append). Hepsi `isAiCostGuardEnabled` + `unknown` slug gate'li → guard kapalıyken no-op.
+4. **`src/lib/production/ProductionCostEstimate.ts` (YENİ):** `estimateProductionCost({chapterCount, sceneCount, narrationCharacters, plannedAiImageCount, textModel, ttsModel, imageModel, imageSize, imageQuality})` — konservatif (over-estimate): 7 planning LLM + sceneCount animation LLM, 2× narration char TTS (mix re-synth), capped AI image. Herhangi bir komponent unknown → tüm estimate `status:"unknown"`.
+5. **`src/types/aiUsage.ts` (+9):** `AIUsageRecord` + `pricingStatus?`, `costUnitKind?`, `costUnitCount?` (additive optional). `estimatedCost` JSDoc.
+6. **`src/lib/ai/AIResponseError.ts` (+1):** `AIResponseErrorCode` + `"AI_COST_BUDGET_EXCEEDED"`.
+7. **`src/lib/ai/runObservedAIRequest.ts`:** her token çağrısı sonrası `estimatedCost`/`pricingStatus`/`costUnitKind`/`costUnitCount` kaydeder. Guard ON iken **dispatch ÖNCESİ** `estimateTokenCallCeiling` (prompt chars/4 + maxTokens) ile `evaluateAiCostBudget` → block olursa provider **çağrılmaz**, `errorCode: AI_COST_BUDGET_EXCEEDED`, `estimatedCost: 0`.
+8. **`src/lib/animation/AnimationAssetPipeline.ts`:** `persistProviderUsage` artık `estimatedCost` + `pricingStatus` yazar.
+9. **`src/lib/assets/VisualAssetPipeline.ts`:** openai image dispatch öncesi `requireImageCostBudget` (fail-closed, failed-asset persist + rethrow); başarılı persist sonrası `recordImageUsage`.
+10. **`src/lib/audio/AudioPipeline.ts`:** openai TTS dispatch öncesi `assertTtsBudget`; başarı sonrası `recordTtsUsage`.
+11. **`scripts/smoke-faz5-ai-cost-budget.ts` (YENİ):** 11 senaryo.
+
+**Testler:** `smoke-faz5-ai-cost-budget` **PASS (11)**: A deterministik pricing · B unknown→fail-closed · C free provider→0 · D summarize (totals/per-stage/retry/duplicate) · E backward-compat (legacy record token'dan fiyatlanır) · F evaluateAiCostBudget (within/observed/projected/unknown, $1 boundary) · G isAiCostGuardEnabled opt-in default-off · H estimateProductionCost (under/boundary/over/unknown) · I `runObservedAIRequest` guard: budget dolunca dispatch YOK, `AI_COST_BUDGET_EXCEEDED` · J `MediaGenerationCostGuard` block + record · K ceiling konservatif.
+
+### FAZ 6 (kısmi — aktivasyon katmanı)
+
+**Değişen/yeni dosyalar:**
+1. **`src/lib/assets/RealMediaProductionFlags.ts` (YENİ):** Tek auditable opt-in flag noktası. `isRealMediaDiscoveryEnabled` (`ATOLYE_REAL_MEDIA_DISCOVERY`), `isRealMediaSelectionEnabled` (`ATOLYE_REAL_MEDIA_SELECTION`), `isCostBudgetGuardEnabled` (`ATOLYE_AI_COST_GUARD`). Hepsi **default off** → mevcut e2e/production smoke'ları + `5be83a84` reproducibility korunur.
+2. **`src/lib/pipeline/PipelineStageExecutor.ts` (+8):** `materializePipelineStageExecutionOptions` — research stage'de `isRealMediaDiscoveryEnabled()` iken `createWikimediaSearchClient()` auto-wire. **`ensure()` kullanmaz** → `configuredOptions`'a girmez → **acceptance fingerprint DEĞİŞMEZ**. Best-effort (discovery research stage'i fail etmez). Diğer stage'ler dokunulmaz.
+3. **`src/lib/production/ProductionCostPreflight.ts` (YENİ):** `buildProductionCostPreflight({projectSlug, script?, scenes?, plannedAiImageCount?, budgetUsd?})` — $0, read-only. Observed spend (`ai-usage.json` özeti) + `estimateProductionCost` (script/scenes yoksa konservatif default 6ch/16sc/9000char/4AI) → `{decision: "pass"|"block", blockReason, budgetUsd, observedUsd, remainingEstimate, projectedTotalUsd, models, inputs}`. Block: unknown-pricing / observed-exceeds / projected-exceeds.
+4. **`scripts/run-production-cost-preflight.ts` (YENİ) + `package.json` alias `production:cost-preflight`:** operator CLI. `npm run production:cost-preflight -- --project-slug=<slug>`. exit 0 = pass, 2 = block.
+5. **`scripts/run-production-acceptance.ts` (+13):** `execute` / `resume-finalize` komutları operatör `ATOLYE_AI_COST_GUARD`'ı set etmemişse `"on"` yapar → **gerçek production render her zaman $1 guard'lı**. Read-only subkomutlar dokunulmaz.
+6. **`scripts/smoke-faz6-real-media-production-wiring.ts` (YENİ):** 6 senaryo (A flags default-off · B mediaSearchClient opt-in + research-only + fingerprint'e girmez · C preflight pass/unknown/projected · C2 observed-exceeds · D fresh-project defaults · E deterministik).
+
+**Gerçek preflight çıktısı (`5be83a84`, $0 demo):** `decision: pass`, observedUsd $0.067 (legacy token'lardan türetildi — backward-compat kanıtı), remainingEstimate $0.364 (llm $0.070 + tts $0.042 + image $0.252 (4×$0.063)), projectedTotal **$0.43** < $1.
+
+### Regresyon (hepsi PASS)
+`smoke-faz3` (18), `smoke-faz4` (8), `smoke-faz5` (11), `smoke-faz6` (6), `smoke-phase1` (10), `smoke-faz2` (14), `smoke-media-rights-policy` (8), `smoke-music-library` (5), `smoke-production-visual-asset-wiring` (54), `smoke-production-audio-asset-wiring` (74), `smoke-production-animation-provider` (30), `smoke-sprint-129-26-audio-truncation-budget` (19), `smoke-production-readiness-acceptance` (24), `smoke-production-end-to-end` (21), `smoke-isolated-e2e-live-pipeline-ffmpeg` (4, tam mock pipeline — audio music hook + tüm cost recording dahil), `smoke-pipeline-orchestration` (10), `smoke-sprint-129-27-audio-remediation` (117), `smoke-ffmpeg-bgm-kenburns-assembly` (30), `smoke-multi-shot-assembly-render` (2), `smoke-production-video-assembly-wiring` (73), `smoke-sprint-129-39-stage-bounded-resume` (61).
+`npx tsc --noEmit` PASS · `git diff --check` exit 0 · `npm run lint` **0 error / 22 pre-existing warning** (yeni/değişen dosyalarda 0) · `graphify update` çalıştırıldı.
+
+**Pre-existing FAIL (BENİM DEĞİŞİKLİKLERİMDEN BAĞIMSIZ — HEAD'de de fail):**
+- `smoke-sprint-129-7` (`null !== 'visuals'` recovery-planner), `smoke-sprint-129-13` ("Pipeline durable preparation runtime authority is missing") — bilinen küme.
+- `smoke-production-snapshot-builder` — `project.json` race-condition assertion (`state: source_malformed`). Faz 5 öncesi HEAD'e revert edilip doğrulandı: aynı fail.
+- `smoke-sprint-129-28-production-acceptance-reauthorization` — kaynak-drift assertion: `/const completedPreparations\s*=\s*new WeakMap/` bekliyor ama `ProductionPipelineExecutionFactory.ts` **HEAD'de zaten** `claimProcessCompletedPreparations()` kullanıyor (`git diff HEAD` boş). Test güncellenmemiş; benim dosyalarım değil.
+
+### KAPSAM DIŞI / YAPILMADI (Faz 6 kalan + son aşama)
+- **Visuals selection ladder wiring:** `SceneMediaSelection` + `VideoMediaIngestion`'ın `VisualAssetPipeline`/visuals stage'e bağlanması (`isRealMediaSelectionEnabled` gate'li). Videonun görsel kaynağını değiştirir → yüksek risk, ayrı odaklı iş.
+- **Acceptance rights gate:** `ProductionAcceptance*`'a public-domain/open-license/verified dışı medyayı reddeden gate.
+- **Fingerprint additions:** media policy version / cost budget / rights policy'nin `ProductionAcceptanceConfigurationFingerprint`'e eklenmesi — durable resume determinism riski, en denetimli kod.
+- **Kontrollü paid production render:** gerçek para harcar, geri alınamaz. Faz 6 tam bitmeden + kullanıcı açık onayı olmadan çalıştırılmaz. Preflight ($0) hazır: `npm run production:cost-preflight -- --project-slug=<slug>`.
+
+<!-- SPRINT-171-END -->
+
+<!-- SPRINT-170-START -->
+## Sprint 170 - Belgesel real-media Faz 4: lisanslı arka plan müziği + SFX/ambience abstraction - 2026-08-29
+
+**Status:** Kod + testler PASS. **0 gerçek network/paid API, $0, production çalıştırılmadı, commit yok, `5be83a84` DOKUNULMADI** (16-PNG combined sha256 `cc204e21…6ab49` doğrulandı; `git diff HEAD -- data/projects` boş). Faz 5'e geçilmedi.
+
+### Amaç (kullanıcı Faz 4 talimatı)
+`MusicLibrary`'yi production pipeline'a additive bağla: konu/mood üzerinden lisanslı müzik seçimi, source/license/rightsStatus/provenance, lisansı belirsiz müzik fail-closed, müzik yoksa güvenli devam, narration ducking, SFX/ambience abstraction.
+
+### Mevcut altyapı (Graphify ile incelendi — YENİDEN YAZILMADI)
+`VideoAssemblyInput.backgroundMusic?: {filePath, volume?, ducking?}` zaten var. `VideoAssemblyManager.resolveBackgroundMusic(slug, assets)` `id` "bgm" içeren audio asset'i bulup `{filePath, volume:0.15, ducking:true}` döndürüyor. `FFmpegVideoAssemblyProvider.appendBgmFilterGraph` `sidechaincompress` (threshold 0.03, ratio 5) ile narration-altı ducking + `amix` yapıyor. **Eksik olan tek şey: `bgm` asset'ini üreten adım.**
+
+### Değişen/yeni dosyalar (bu tur)
+1. **`src/types/asset.ts` (+2):** `MediaType` `| "music" | "ambience"` (additive; exhaustive switch yok).
+2. **`src/types/audio.ts` (+16):** `AudioMusicPlan.selected?: {assetId, mood, title, source, sourceUrl, license, rightsStatus, attribution}` (additive optional).
+3. **`src/lib/audio/music/AudioMusicSelection.ts` (YENİ):** `stageProjectBackgroundMusic({projectId, projectSlug, audio, musicStyleHint?, storageContext, now?, env?, runner?, loadFFmpegConfig?, musicSelector?})`:
+   - `moodText` = `audio.music.mood` + `audio.music.suggestion` + `script.musicStyle` → `selectMusicTrack(moodText, seed=projectSlug)` (deterministik).
+   - **Rights gate fail-closed:** `classifyMediaRightsStatus(track.license)` ∉ {public-domain, open-license, verified} → `{staged:false, reason:"rights-not-admissible"}`. Narration-only kalır.
+   - **Idempotent:** geçerli `bgm` asset + diskte geçerli WAV varsa → yeniden yazmadan reuse (resume/retry güvenli, no-clobber writer'a çarpmaz).
+   - `.wav` track → doğrudan; sıkıştırılmış track → ffmpeg varsa `pcm_s16le/44100/2` WAV'a transcode, yoksa `{staged:false, reason:"transcode-unavailable"}` (fail-safe).
+   - Staging: `AudioStorage.saveAudio({fileName:"bgm.wav"})` + `AssetManager.addAssetAtomically` (**`AudioCanonicalMixRebuilder` ile birebir aynı audited pattern** → publication-intent tutarlı).
+   - Asset: `id:"bgm"`, `type:"audio"`, `provider:"music-library"`, `mediaOrigin:"real"`, `mediaType:"music"`, `rightsStatus`, `sourceName`, `sourceUrl`, `license`, `attribution`, `selectionReason:"library-mood-match"`, `checksum` (sha256), `durationSeconds` (WAV'dan). `audio.music.selected` doldurulur.
+   - **Best-effort:** her hata dalı `{staged:false, reason}` + değişmemiş `AudioData` döner — audio stage'i ASLA fail etmez.
+4. **`src/lib/audio/sfx/SfxLibrary.ts` (YENİ):** `MusicLibrary` ile yapısal ikiz. `public/sfx/<category>/` (`SFX_CATEGORIES` = ambience/battle/crowd/nature/interior/transition), `.license.json` sidecar. `normalizeSfxCategory`, `listSfxForCategory` (her clip `rightsStatus` + `admissible` taşır — inadmissible seçilmez), `selectSfxClip` (deterministik, seed'li), `selectAmbienceBed(hints[], seed)`. **Boş kütüphane → null/[] (güvenli no-op).** Assembly filter-graph'a wiring Faz 6'ya bırakıldı (assembly tek `backgroundMusic` mixliyor; ambience/SFX mix eklemek assembly-touching).
+5. **`src/lib/pipeline/PipelineStageExecutor.ts` (+16):** audio case, `state.audio = audio` sonrası **best-effort** `stageProjectBackgroundMusic` çağrısı (try/catch → log + devam). `state.audio = music.audio`. Persist öncesi.
+6. **`src/lib/assembly/VideoAssemblyManager.ts` (+5):** `resolveBackgroundMusic` **export edildi** (additive, pure, davranış aynı) — Faz 4 smoke'un render etmeden handshake doğrulaması için.
+7. **`scripts/smoke-faz4-audio-music-sfx.ts` (YENİ):** 8 senaryo (A-H).
+
+### Rights / provenance / determinism
+Lisans yok/tanınmıyor → `unknown` → **admissible değil, staged edilmez.** `restricted`/NC/ND/all-rights-reserved → staged edilmez. `public-domain`/`open-license`/`verified` → staged. Seçim `selectMusicTrack` seed=projectSlug ile deterministik. Aynı proje + aynı kütüphane → aynı track. Idempotent (resume'da duplicate yok). Provenance asset'te tam korunur (Faz 1-3 ile aynı alan seti + `checksum`).
+
+### Narration ducking
+Değişmedi — mevcut `appendBgmFilterGraph` (`sidechaincompress` + `amix`). `resolveBackgroundMusic` staged `bgm` asset'i deterministik bulur, `ducking:true`, `volume:0.15` (assembly'nin `(0, 2.0]` aralığında). `smoke-ffmpeg-bgm-kenburns-assembly` (30) render'ın doğruluğunu kanıtlıyor.
+
+### Testler ($0, gerçek network/API YOK)
+`smoke-faz4-audio-music-sfx` **PASS (8)**: A boş kütüphane→skip deterministik · B unknown-lisans→rights-not-admissible, bgm asset yok · C restricted→rights-not-admissible · D admissible WAV→staged asset + tam provenance + `music.selected` · E deterministik + idempotent (duplicate yok) · F `resolveBackgroundMusic` handshake (ducking on, volume in range, deterministik) · G `SfxLibrary` optional path (boş→null, admissible ambience→seçilir, unknown→admissible değil) · H sıkıştırılmış track ffmpeg varsa WAV'a transcode.
+Regresyon PASS: `smoke-music-library` (5), `smoke-production-audio-asset-wiring` (74), `smoke-sprint-129-27-audio-remediation` (117), `smoke-ffmpeg-bgm-kenburns-assembly` (30), `smoke-multi-shot-assembly-render` (2), `smoke-production-video-assembly-wiring` (73), `smoke-pipeline-orchestration` (10), Faz 1/2/3 smokes (10/14/18/8).
+Pre-existing FAIL (bağımsız): `smoke-sprint-129-7`, `smoke-sprint-129-13` (recovery-planner kümesi).
+`npx tsc --noEmit` PASS · `git diff --check` exit 0 · `npm run lint` 0 error / 22 pre-existing warning (yeni/değişen dosyalarda 0) · `graphify update` çalıştırıldı.
+
+### KAPSAM DIŞI / DOKUNULMADI
+`FFmpegVideoAssemblyProvider` filter graph, `AudioPipeline` TTS narration sözleşmesi, `AudioManager` plan, `AudioStorage` (public API reuse), durable/recovery/scheduler/acceptance/fingerprint, `.env.local`, `5be83a84`. Ambience/SFX assembly mix + `research.soundEffects[]` → asset dönüşümü Faz 6'da.
+
+### Sıradaki (Faz 5 — DUR)
+Faz 5: `estimatedCost` gerçek hesap (deterministic pricing table, unknown pricing fail-closed) + `$1.00` hard budget guard. Faz 6: Faz 1-5'in production pipeline'a + acceptance/fingerprint'e wire edilmesi. Sonra kontrollü production preflight + tek render.
+
+<!-- SPRINT-170-END -->
+
+<!-- SPRINT-169-START -->
+## Sprint 169 - Belgesel real-media Faz 3: gerçek video ingestion + segment render + sahne medya merdiveni - 2026-08-29
+
+**Status:** Kod + testler PASS. **0 gerçek API/network çağrısı, $0, production çalıştırılmadı, commit yok, `5be83a84` DOKUNULMADI** (16-PNG combined sha256 `cc204e21ad110f0d6f145b2e6eb2318e77647aa30ef0eaa81ef789475686ab49` doğrulandı; `git diff HEAD -- data/projects` boş; export/video/production-acceptance değişmedi). Faz 4/5/6'ya kendiliğinden geçilmedi. **Bu bir FOUNDATION — production pipeline'a wire EDİLMEDİ.**
+
+### Amaç (kullanıcı Faz 3 talimatı)
+Belgesel videoda gerçek fotoğraf + gerçek arşiv/stok video + az AI görseli kullanabilecek **güvenli, fail-closed, additive** altyapı. Google/Bing scraping YOK, LLM URL kabul YOK, telifi bilinmeyen medya production'a alınmaz.
+
+### Değişen/yeni dosyalar (bu tur)
+1. **`ARCHITECTURE_DECISIONS.md` — ADR-020 (YENİ):** "Real Video Ingestion & Segment Rendering for the Documentary Pipeline (Faz 3)". Aday keşfi Faz 2 `MediaSearchClient`'tan; ayrı `VideoMediaIngestion` katmanı (enjekte edilebilir download/ffmpeg/storage); `videoIngestionPolicy` sabiti; `SceneMediaSelection` deterministik seçim; ortak `VideoSceneGenerationSuccess` normalizasyonu; zorunlu Asset alanları; download integrity (https-only, host allow-list, `redirect:"error"`, byte cap, ffprobe container/codec/duration, MIME `video/*`, checksum); rights gate fail-closed; segment kuralları. Durum: Accepted — Sprint 169 (foundation).
+2. **`src/types/research.ts` (+9):** `ResearchMediaCandidate`'a `durationSeconds?`, `segmentStartSeconds?`, `segmentEndSeconds?` (additive optional; `mediaType:"video"` adayları için). Yeni candidate modeli YOK.
+3. **`src/types/asset.ts` (+8):** `Asset`'e `mediaUrl?`, `checksum?`, `segmentStartSeconds?`, `segmentEndSeconds?` (additive optional; ADR-020 JSDoc). Eski asset'ler geçerli kalır.
+4. **`src/lib/assets/VideoMediaIngestion.ts` (YENİ):**
+   - `videoIngestionPolicy` (frozen): `minSegmentSeconds:1`, `maxSegmentSeconds:40`, `maxDownloadBytes:192MiB`, `allowedContainers`, `allowedVideoCodecs`, `allowedMediaHostSuffixes:["upload.wikimedia.org"]`, `sourceDurationToleranceSeconds:0.75`.
+   - `validateVideoCandidateForIngestion(candidate)` — SAF, pre-download fail-closed: `mediaType==="video"` · `admissible===true` **VE** `isProductionAdmissibleRightsStatus(reclassify(license))` **VE** `isProductionAdmissibleRightsStatus(candidate.rightsStatus)` (üçlü kontrol; stored flag'e tek başına güvenilmez) · `sourceUrl` https/http · `mediaUrl` https · host allow-list.
+   - `validateSegment(candidate, sourceDurationSeconds?)` — SAF: iki sınır birlikte set; `start>=0`, `end>start`; `minSegment<=len<=maxSegment`; `end<=sourceDuration+tolerance`; segmentsiz aday tüm klip (policy süre aralığında olmalı).
+   - `deriveVideoAssetIdentity(candidate)` — deterministik `real-video:sha256({sourceUrl,mediaUrl,segStart,segEnd})[:40]`.
+   - `ingestVideoCandidate({candidate, projectSlug, runtimeStorageContext, sceneId?, downloader, runner, loadConfig?, now?})` — preflight → segment şekli → config+executable → **bounded download** (`downloader` enjekte) → MIME `video/*` kontrol → `checksum = sha256(indirilen ham baytlar)` → `VideoStorage.createRenderPaths` + ham dosyayı `.source.partial.mp4` sibling'a yaz → **source ffprobe** (container ∈ allowed, video codec ∈ allowed, duration>0) → segment'i gerçek süreyle yeniden doğrula → **ffmpeg render** (scale+pad → 1920×1080, `-an`, h264, yuv420p, 30fps; segment varsa `-ss`/`-t`) → `inspectMp4` → **output ffprobe** (mp4, 1 video/0 audio, h264/1920/1080/yuv420p/`30/1`, süre ≈ beklenen) → `VideoStorage.finalize` + `inspectStoredMp4` → `IngestedVideoAsset`. **Her adımda hata → tüm temp/final path cleanup + `{success:false, reason, detail}` (asla fail-open).**
+   - `ingestedVideoToSceneVideoSuccess(asset, scene)` — `FFmpegSceneVideoProvider`'ın ürettiğiyle birebir aynı `VideoSceneGenerationSuccess` şekli (`provider:"video-media-ingestion"`, `model:"ffmpeg-real-video-segment"`).
+   - `createHttpsVideoDownloader(fetcher?)` — gerçek https downloader (`redirect:"error"`, bounded chunk read, byte cap). **Yalnız Faz 6 wiring'de kullanılır, testlerde ASLA.**
+   - `VideoIngestionRejectionReason` union (18 değer) — her fail-closed dalı isimli.
+5. **`src/lib/assets/SceneMediaSelection.ts` (YENİ):**
+   - `selectSceneMedia({scenes, candidates, maxAiImages?})` — SAF, deterministik. Sahne başına sırayla: **admissible gerçek video > admissible gerçek foto/arşiv > AI image**. Cross-scene reuse YOK (`used` Set). `maxAiImages` default `visualMediaAdmissionPolicy.maxAiImages` (4). AI sayısı cap'i aşarsa → **`VisualMediaAiBudgetExceededError`** (Faz 1 ile birebir aynı hata; ilk over-budget sahne id'si).
+   - `summarizeSceneMediaPlan(plan)` — cost/AI-count özeti (real media = 0 AI call).
+6. **`src/lib/assets/VisualMediaAdmissionPolicy.ts` (değişti):** `VisualMediaAiBudgetExceededError` **buraya taşındı** (policy modülü doğal ev; `SceneMediaSelection` tüm pipeline'ı import etmeden aynı hatayı fırlatabilsin diye). `VisualAssetPipeline` onu **re-export** eder → mevcut `import {...} from ".../VisualAssetPipeline"` call site'ları (2 smoke dahil) değişmeden çalışır.
+7. **`src/lib/assets/ResearchMediaDiscovery.ts` (değişti):** `scoreSceneMediaOverlap(scene, candidate)` + `compareResearchMediaCandidates(a,b)` **export edildi** (extract + reuse — `matchResearchMediaToScenes` ve `SceneMediaSelection` birebir aynı sıralar). Davranış değişmedi.
+8. **`scripts/smoke-faz3-video-media-ingestion.ts` (YENİ):** 18 senaryo (A-Q + policy sanity). Fixture `VideoDownloader` + `testsrc` ile üretilen fixture MP4 + gerçek local ffmpeg/ffprobe (`ActualProcessRunner`, `spawnSync`). `withCanonicalSmokeRuntime` (izole runtime root; `OPENAI_API_KEY` nuke'lanır, tüm provider `mock`).
+
+### Gerçek video ingestion akışı (özet)
+`candidate → validateVideoCandidateForIngestion (fail-closed) → validateSegment şekli → bounded download (enjekte) → MIME video/* → checksum(ham) → source ffprobe (container/codec/duration) → validateSegment(gerçek süre) → ffmpeg segment/full render (1920×1080 h264 yuv420p 30fps, -an) → inspectMp4 → output ffprobe (scene-video sözleşmesi) → VideoStorage.finalize → IngestedVideoAsset`. Belirsizlik/partial/corrupt → **reject + cleanup**.
+
+### Foto/video/AI önceliği + AI cap
+`selectSceneMedia`: sahne 1..N sırayla, her sahne için en iyi keyword-overlap'li kullanılmamış admissible video → yoksa admissible foto → yoksa AI. Bir aday **tek sahneye** atanır. Seçim yalnız hangi sahnenin AI'ya düşeceğini belirler; **`maxAiImages=4` guard'ını GEVŞETMEZ** — cap aşılırsa `VisualMediaAiBudgetExceededError` (16 sahne: mümkün olduğunca gerçek medya, en fazla 4 AI).
+
+### Rights gate (fail-closed)
+`rightsStatus ∈ {public-domain, open-license, verified}` değilse ingest reddedilir. `sourceUrl` / `mediaUrl` yoksa reddedilir. `unknown` / `restricted` / NC / ND / all-rights-reserved → alınmaz. `verified` asla otomatik. `candidate.admissible` flag'ine tek başına güvenilmez — lisans yeniden sınıflandırılır.
+
+### Testler ($0, gerçek network/API YOK)
+`smoke-faz3-video-media-ingestion` **PASS (18)**: A admissible video→ingest PASS · B restricted→FAIL-CLOSED (download yok) · C unknown (admissible:true olsa bile)→FAIL-CLOSED · D sourceUrl yok→reject · E mediaUrl yok/http/yasak host→reject · F non-video MIME→reject · G corrupt bytes→source-probe reject · H invalid segment (ters + kaynağı aşan)→reject · I geçerli segment→deterministik MP4 diskte · J checksum = sha256(kaynak), run'lar arası stabil · K provenance korunur · L 16 sahne (2 video + 10 foto + 4 AI)→PASS · M 16 sahne (12 real + 4 AI)→PASS · N 16 sahne (11 real + 5 AI)→`VISUAL_AI_IMAGE_BUDGET_EXCEEDED` (`maxAiImages=4`, `sceneId=16`) · O aynı girdi 2×→birebir aynı plan + asset identity · P tek video aday, 16 aç sahne→tek sahneye atanır (reuse yok) · Q `5be83a84` 16-PNG combined sha256 değişmedi + `data/projects` tracked drift yok.
+Regresyon PASS: `smoke-media-rights-policy` (8), `smoke-phase1-visual-media-admission` (10), `smoke-faz2-research-media-discovery` (14), `smoke-production-visual-asset-wiring` (54), `smoke-production-real-photo-source` (45), `smoke-visual-asset-pipeline-per-scene-retry` (8), `smoke-sprint-131-visual-asset-recovery`, `smoke-production-scene-video-rendering` (26), `smoke-production-video-assembly-wiring` (73), `smoke-multi-shot-duration-reconciliation` (15), `smoke-multi-shot-assembly-render` (2), `smoke-pipeline-orchestration` (10), `smoke-assembly-scene-video-consumption` (25).
+Pre-existing FAIL (bağımsız, benim değişikliklerimden değil — birebir aynı assertion): `smoke-sprint-129-7` (`null !== 'visuals'`), `smoke-sprint-129-13` ("Pipeline durable preparation runtime authority is missing") — `sprint-129-7/…/-20` recovery-planner kümesi.
+`npx tsc --noEmit` PASS · `git diff --check` exit 0 · `npm run lint` 0 error / 22 pre-existing warning (yeni/değişen dosyalarda 0) · `graphify update` çalıştırıldı.
+
+### KAPSAM DIŞI / DOKUNULMADI
+`FFmpegSceneVideoProvider`, `VideoPipeline`, assembly production flow, `PipelineStageExecutor` (Faz 3'te dokunulmadı), durable/recovery/scheduler/acceptance/fingerprint sözleşmeleri, `.env.local`, `IMAGE_PROVIDER`, `WikimediaCommonsClient`. `5be83a84` asset/export/artifact. Gerçek network/paid API. Music/SFX (Faz 4), $1 cost guard (Faz 5), production wiring (Faz 6).
+
+### Sıradaki (DUR — Faz 4/5/6 kendiliğinden başlatılmayacak)
+Faz 4: `MusicLibrary`/SFX wiring + ducking. Faz 5: cost guard ($1). Faz 6: `mediaSearchClient` + `VideoMediaIngestion` + `SceneMediaSelection`'ın production pipeline'da wire edilmesi (opt-in → default) + acceptance rights/cost gate.
+
+<!-- SPRINT-169-END -->
+
+<!-- SPRINT-168-START -->
+## Sprint 168 - Belgesel real-media Faz 2: research-stage gerçek medya discovery - 2026-08-29
+
+**Status:** Kod + testler PASS. **0 gerçek API/network çağrısı, $0, production çalıştırılmadı, commit yok, `5be83a84` dokunulmadı (16-PNG sha `cc204e21…`, `research.json` mediaCandidates YOK, productionReady:true korundu).** Faz 3'e geçilmedi.
+
+### Amaç
+Research aşamasında LLM'in uydurduğu `sources[]` string'leri yerine gerçek source client'tan (Wikimedia Commons) kullanılabilir medya adayları keşfet. LLM yalnız "ne aranmalı" planlar; adayları network client üretir.
+
+### Değişen dosyalar (bu tur)
+1. **`src/types/research.ts` (+64):** `ResearchMediaCandidate` type (`id, mediaType, title, provider, sourceUrl, mediaUrl?, thumbnailUrl?, license?, attribution?, rightsStatus, admissible, width?, height?, queryTerms[], association, confidence, discoveredAt`) + `ResearchData.mediaCandidates?` (opsiyonel → eski research.json geçerli kalır).
+2. **`src/types/visual.ts` (+14):** `VisualScene.mediaCandidate?: ResearchMediaCandidate` + `VisualData.mediaCandidates?` (opsiyonel, additive).
+3. **`src/lib/assets/ResearchMediaDiscovery.ts` (YENİ):**
+   - `MediaSearchClient` iface (`WikimediaCommonsClient` structural olarak karşılar — duplicate client mantığı YOK).
+   - `createWikimediaSearchClient()` → mevcut `getRealImageProviderConfig` ile client kurar (reuse).
+   - `deriveDiscoveryQueries(research)` — SAF. topic + locations + characters + keyEvents → bounded (≤12), deduped, `{term, association}`.
+   - `discoverResearchMediaCandidates({research, client, perQueryLimit?, maxCandidates?, existing?, now?})` — her query için `client.search`, her `WikimediaCommonsCandidate` → `ResearchMediaCandidate`: `rightsStatus = classifyMediaRightsStatus(license)` (MediaRightsPolicy **reuse**), `admissible = isRealMediaAdmissible(license) && Boolean(sourceUrl)`. **sourceUrl yoksa aday DÜŞER.** Normalize edilmiş sourceUrl ile **deterministik dedup** (queryTerms merge, best confidence). Query hatası → o query atlanır. Deterministik sıralama + `maxCandidates` cap.
+   - `enrichResearchWithMediaDiscovery(research, {client?, now?})` — best-effort wrapper: HERHANGİ bir hata → research DEĞİŞMEDEN döner (discovery research stage'i asla fail etmez).
+   - `matchResearchMediaToScenes(candidates, scenes)` — SAF. admissible adayları en iyi keyword/title overlap ile sahnelere ata; **cross-scene reuse YOK** (bir aday tek sahne). Deterministik.
+   - `applyResearchMediaCandidatesToVisualData(visualData, research)` — SAF, idempotent. matched sahnelere `mediaCandidate` ekle + `queryTerms`'ü `searchKeywords`'e prepend (dedup) → mevcut `RealPhotoImageProvider` known-good term arar. `visualData.mediaCandidates` = tüm adaylar (audit). Match yoksa no-op.
+4. **`src/lib/pipeline/PipelineStageExecutor.ts` (+38):**
+   - `PipelineStageExecutionOptions.mediaSearchClient?: MediaSearchClient` (serialize edilmez, fingerprint'e girmez, `materialize` **auto-create ETMEZ** → discovery yalnız client wire edildiğinde çalışır → e2e smoke'lar / production run'lar etkilenmez).
+   - research case: `if (dispatchOptions.mediaSearchClient) state.research = await enrichResearchWithMediaDiscovery(...)`.
+   - visuals case: `state.visuals = applyResearchMediaCandidatesToVisualData(state.visuals, state.research)` — `VisualManager` sonrası, persist öncesi (idempotent → write-once conflict yok).
+5. **`scripts/smoke-faz2-research-media-discovery.ts` (YENİ):** 14 senaryo.
+
+**Faz 1 `maxAiImages=4` guard'ı DEĞİŞMEDİ. `VisualAssetPipeline` / `RealPhotoImageProvider` / `WikimediaCommonsClient` / durable / acceptance / fingerprint / `.env.local` / `IMAGE_PROVIDER` — DOKUNULMADI.** Gerçek video ingestion/render YOK (`mediaType:"video"` aday modelinde saklanır, Faz 3'te render edilir).
+
+### Rights/admission kuralları
+Lisans yok/tanınmıyor → `unknown`. `unknown` / restricted / NC / ND / all-rights-reserved → `admissible:false` (retained, audit için; asla seçilmez). `public-domain` / `open-license` → `admissible:true`. `verified` asla otomatik. **sourceUrl'siz aday hiç oluşturulmaz.** Provenance (sourceUrl/license/attribution/width/height) keşiften sonuna kadar korunur.
+
+### Duplicate/determinism
+Normalize edilmiş `sourceUrl` ile dedup (SHA-256(sourceUrl)[:24] → id). Aynı aday birden çok query'de çıkarsa → 1 kayıt, queryTerms birleşir. `existing` ile merge (research tekrarında birikmez). Aynı girdi → birebir aynı çıktı (test 9). Matcher: cross-scene reuse yok, deterministik sıralama.
+
+### Testler ($0, network YOK)
+`smoke-faz2-research-media-discovery` **PASS (14)**: structured mediaCandidates · wikimedia parse · sourceUrl/provenance korunur · public-domain/open-license admissible · unknown/restricted retained-not-admissible · **uydurma LLM URL'si asla production candidate olmaz** · deterministik dedup · scene matching (no reuse) · **her sahne real aday → 0 AI call** · aday yok → Faz 1 AI fallback · **16 sahne AI cap=4 hâlâ** · `mediaType:"video"` metadata korunur (render edilmez).
+Regresyon PASS: `smoke-media-rights-policy` (8), `smoke-phase1-visual-media-admission` (10), `smoke-production-visual-asset-wiring` (54), `smoke-production-real-photo-source` (45), `smoke-visual-asset-pipeline-per-scene-retry` (8), `smoke-sprint-131-visual-asset-recovery`, `smoke-production-end-to-end` (21), `smoke-isolated-e2e-live-pipeline-ffmpeg` (4), `smoke-pipeline-orchestration` (10). `smoke-sprint-129-7/-11` — 24 research schema assertion PASS (`mediaCandidates` additive, PASS 16 "additional provider field forbidden" + PASS 24 fingerprint dahil), sonra pre-existing recovery-planner FAIL (`null !== 'visuals'`, `sprint-129-7/…/-20` kümesi, bağımsız).
+`npx tsc --noEmit` PASS · `git diff --check` exit 0 · `npm run lint` 0 error / 22 pre-existing warning (yeni/değişen dosyalarda 0).
+
+### Sıradaki (DUR — Faz 3 kendiliğinden başlatılmayacak)
+Faz 3 (yeni ADR): gerçek video klip download + segment + FFmpeg assembly entegrasyonu. Faz 4: MusicLibrary/SFX. Faz 5: cost guard. Faz 6: acceptance rights+cost gate + `mediaSearchClient`'ın production'da wire edilmesi (opt-in → default).
+
+<!-- SPRINT-168-END -->
+
+<!-- SPRINT-167-START -->
+## Sprint 167 - Belgesel real-media Faz 1: VisualAssetPipeline gerçek-medya önceliği + AI-image bütçesi - 2026-08-29
+
+**Status:** Kod + testler PASS. **0 gerçek API çağrısı, $0, production çalıştırılmadı, commit yok, `5be83a84` dokunulmadı (16-PNG sha `cc204e21…`, productionReady:true korundu).** Faz 2'ye kendiliğinden geçilmedi.
+
+### Amaç (kullanıcı Faz 1 talimatı)
+`VisualAssetPipeline` seviyesinde gerçek medya önceliğini deterministik + ölçülebilir yap: gerçek foto varsa AI üretme; provenance metadata'sını dürüst persist et; AI fallback yalnız admissible gerçek medya yoksa; 16-sahne için MAKS 4 AI görsel, fail-open değil.
+
+### Değişen dosyalar (bu tur)
+1. **`src/lib/assets/VisualMediaAdmissionPolicy.ts` (YENİ):** tek açık policy noktası. `visualMediaAdmissionPolicy = { maxAiImages: 4 }` (frozen, scene-count'tan bağımsız). `UNBOUNDED_AI_IMAGES` sentinel. `isRealMediaAdmissible(license)` → `MediaRightsPolicy` reuse (duplicate lisans mantığı YOK). `resolveMediaProvenance({provider, license, reason})` → dürüst `mediaOrigin/mediaType/rightsStatus/selectionReason` (real → `photo` + classified rights; openai/mock → `ai`/`ai-image` + rightsStatus undefined).
+2. **`src/lib/assets/VisualAssetPipeline.ts` (+197/-19):**
+   - `GenerateAssetsInput.maxAiImages?` (default `UNBOUNDED_AI_IMAGES` → mevcut ~20 smoke call site'ı ve studio UI single-scene path'i etkilenmez).
+   - `VisualMediaAiBudgetExceededError` (YENİ, export, `code`/`reasonCode` = `VISUAL_AI_IMAGE_BUDGET_EXCEEDED`) — cap aşılırsa failed-asset persist + **deterministik throw** (fail-open değil).
+   - `countExistingAiImages` — resume'da önceki AI asset'leri bütçeye sayar (`provider==="openai" || mediaOrigin==="ai"`).
+   - AI dispatch (batch `openai` VEYA override `"ai"` VEYA real-fallback) **öncesi** `requireAiBudget(sceneId)`.
+   - Fallback koşulu genişledi: real success + `provider==="real"` + `!isRealMediaAdmissible(result.license)` → NOT admitted → AI fallback (cap-checked), `override!=="real"` iken.
+   - `createAsset`'e `mediaOrigin/mediaType/rightsStatus/selectionReason/discoveredAt` eklendi; AI persist sonrası `aiImagesUsed++` (yalnız `provider==="openai"`; mock sayılmaz → mock kullanan production acceptance smoke'ları kırılmaz).
+   - Mevcut Sprint 130 alanları (`sourceName/sourceUrl/license/attribution/selectionScore/selectionRank/candidateCount`) **korundu**. `RealPhotoImageProvider`/Wikimedia/`isFreeLicense` dokunulmadı.
+3. **`src/lib/pipeline/PipelineStageExecutor.ts` (+10/-2):** visuals case `generateAssets` çağrısına `maxAiImages: visualMediaAdmissionPolicy.maxAiImages` eklendi. Production render'da cap her zaman devrede. (`.env.local` / `IMAGE_PROVIDER` switch DOKUNULMADI.)
+4. **`scripts/smoke-phase1-visual-media-admission.ts` (YENİ):** 10 senaryo.
+
+Faz 1'in bağlı olduğu Sprint 166 temeli (bu oturumdan, uncommitted): `src/types/asset.ts` (+83 additive), `src/lib/assets/MediaRightsPolicy.ts`, `scripts/smoke-media-rights-policy.ts`.
+
+### AI-image cap davranışı
+- Herhangi bir sahne sayısı için EN FAZLA `maxAiImages` sahne AI görsel olabilir; diğerleri admissible gerçek medya OLMAK ZORUNDA.
+- Cap dolduğunda bir sonraki AI-gerektiren sahne: failed-asset persist + `VisualMediaAiBudgetExceededError` (`sceneId`, `maxAiImages` taşır). AI request **hiç yapılmaz**. Sonsuz AI YOK.
+- Resume: mevcut AI asset'ler bütçeye sayılır → resume tek fresh run'dan fazla AI üretemez.
+- `maxAiImages` geçilmeyen çağrılar (UI, testler) → `UNBOUNDED_AI_IMAGES` → cap yok.
+
+### Real→AI fallback davranışı
+`IMAGE_PROVIDER=real` (veya provider name `"real"`) + `override !== "real"` iken: (a) real `success:false` VEYA (b) real success ama `classifyMediaRightsStatus(license)` ∉ {public-domain, open-license, verified} → real KABUL EDİLMEZ → cap-check → AI fallback. `override === "real"` iken fallback yok (sahne `failed`). `override === "ai"` → real hiç denenmez, doğrudan AI (cap-check).
+
+### Rights/provenance metadata
+real match → `mediaOrigin:"real"`, `mediaType:"photo"`, `rightsStatus`= lisanstan sınıflandırılmış, `selectionReason:"archive-photo-match"`, `discoveredAt`. AI → `mediaOrigin:"ai"`, `mediaType:"ai-image"`, `rightsStatus:undefined`, `selectionReason:"no-suitable-real-media-found"` (fallback) / `"operator-forced-ai"` (override). Lisans metadata'sı yoksa → `rightsStatus:"unknown"` (asla otomatik `verified`). Provider gerçekte ne ürettiyse `asset.provider` odur.
+
+### Testler ($0, gerçek API yok)
+`smoke-phase1-visual-media-admission` **PASS (10)**: admissible real→0 AI · real-not-found→AI · restricted licence→AI · unknown licence→AI · AI metadata dürüst · **16/4 AI→PASS** · **16/5 AI→VisualMediaAiBudgetExceededError (sceneId 16, 4 AI üretildi, 5.'si hiç dispatch edilmedi, sahne 16 failed persist)** · 8/2 + 3/3-fail deterministik · Sprint 130 provenance korunuyor · policy tek nokta.
+Regresyon PASS: `smoke-media-rights-policy` (8), `smoke-production-visual-asset-wiring` (54), `smoke-production-real-photo-source` (45), `smoke-visual-asset-pipeline-per-scene-retry` (8), `smoke-sprint-131-visual-asset-recovery`, `smoke-production-end-to-end` (21), `smoke-isolated-e2e-live-pipeline-ffmpeg` (4), `smoke-production-video-assembly-wiring` (73), `smoke-production-youtube-package-pipeline` (58), `smoke-production-scene-video-rendering` (26), `smoke-multi-shot-duration-reconciliation` (15), `smoke-pipeline-orchestration` (10). `smoke-sprint-129-19` — 48 visuals/asset assertion'ı PASS (`VisualAssetPipeline` dahil), sonra pre-existing recovery-planner FAIL (`sprint-129-7/…/-20` kümesi, değişikliğimden bağımsız).
+`npx tsc --noEmit` PASS · `git diff --check` exit 0 · `npm run lint` 0 error / 22 pre-existing warning (değişen dosyalarda 0).
+
+### Sıradaki (DUR — Faz 2 kendiliğinden başlatılmayacak)
+Faz 2: research-stage medya keşif adımı (structured media candidate registry). Faz 3: gerçek video klip (yeni ADR). Faz 4: MusicLibrary/SFX wiring. Faz 5: cost estimator + $1 guard. Faz 6: acceptance'a rights+cost gate.
+
+<!-- SPRINT-167-END -->
+
+<!-- SPRINT-166-START -->
+## Sprint 166 - Belgesel real-media effort: mimari inceleme (Graphify) + rights-metadata temeli (additive) - 2026-08-29
+
+> **NOT:** Sprint 158-165 checkpoint kayıtları bu oturumda working-copy'de tutuluyordu; Sprint 165'te "sadece 2 dosya" talimatı gereği `git checkout -- ATOLYE_CHECKPOINT.md` yapılınca 158-165 kayıtları da geri alındı. O sprintlerin KODU sağlam ve uncommitted; kayıtlar `memory/documentary-pipeline-v2-multishot-status.md`'den + `git diff` ile oturum sonunda yeniden yazılmalı. Özetleri: **158-162** multi-shot + scene-duration reconciliation + `validateScriptDurationAuthority`; **163** 5be83a84 animation worker-crash scoped recovery (`scripts/apply-animation-crash-recovery-fatih-5be83a84.ts`); **164** animation scene-6 `crop-bounds` prompt fix (`AnimationStructuredOutput.createAnimationMotionPlanSystemPrompt`); **165** assembly `AI_RESPONSE_TRUNCATED` → `AssemblyAIConfig` 3200→5200 / 6000→8000. **5be83a84 artık TAM video** (3. gerçek video: 12/12 completed, `acceptanceStatus: validated`, `productionReady: true`, `published: false`).
+
+**Status:** READ-ONLY mimari inceleme tamam + additive rights-metadata temeli uygulandı. **0 gerçek API çağrısı, $0, production çalıştırılmadı, commit yok, 5be83a84 dokunulmadı (16-PNG sha `cc204e21…`).** Kalan işler faz faz onay bekliyor.
+
+### Kök neden — neden gerçek medya yerine hep AI görsel?
+`.env.local`'de **`IMAGE_PROVIDER=openai`**. Gerçek-fotoğraf-önce + AI-fallback + rights-metadata yolu **zaten var** (ADR-019, Sprint 130): `ImageProviderRouter` (`mock`|`openai`|**`real`**) → `RealPhotoImageProvider` (Wikimedia Commons) → eşleşme yoksa `success:false` → `VisualAssetPipeline` açıkça `openai`'ye düşer; `Asset.sourceName/sourceUrl/license/attribution/selectionScore/selectionRank/candidateCount` alanları + per-scene `overrides:{sceneId:"ai"|"real"}` mevcut. **Tek `IMAGE_PROVIDER` switch'i** olduğu için `openai` seçiliyken her sahne AI. "Prefer real, fallback AI" sadece `IMAGE_PROVIDER=real` iken devrede.
+
+### Eksikler (faz faz sprint)
+- Research'te medya keşfi YOK (`ResearchData.sources` = LLM tahmini string dizi; `imagePrompts/musicIdeas/soundEffects` de LLM string).
+- Gerçek **VIDEO** klip ingestion YOK (`FFmpegSceneVideoProvider` = görselden Ken Burns; ADR-019 kapsamı dışı → **yeni ADR gerekir**).
+- `MusicLibrary.ts` (Sprint 158) var ama pipeline'a **bağlı değil**; SFX/ambience yok.
+- Cost estimator/guard YOK (`AIUsageRecord.estimatedCost?` alanı var, hiçbir şey hesaplamıyor).
+- `rightsStatus` sınıflandırması + `mediaType`/`mediaOrigin`/`selectionReason` alanları yoktu.
+- Per-scene AI-image cap (16 sahne için 0-4 hedefi) YOK.
+
+### Bu turda uygulanan — SADECE güvenli additive temel
+1. **`src/types/asset.ts` (+83, tümü opsiyonel):** `MediaOrigin` (`real`|`ai`), `MediaType` (`photo`|`video`|`map`|`document`|`archive`|`ai-image`), `MediaRightsStatus` (`verified`|`open-license`|`public-domain`|`unknown`|`restricted`) + `Asset.mediaOrigin?/mediaType?/rightsStatus?/selectionReason?/discoveredAt?`. Hepsi opsiyonel → mevcut her asset/fixture/test geçerli kalır.
+2. **`src/lib/assets/MediaRightsPolicy.ts` (YENİ, saf, network/model yok):** `classifyMediaRightsStatus(license)` — Wikimedia `LicenseShortName`/`UsageTerms` string'lerini deterministik 5-yol sınıfa map'ler; **boş/tanınmayan → `unknown`** (asla sessizce "safe"), NC/ND/all-rights-reserved → `restricted`, PD/CC0 → `public-domain`, CC-BY[-SA]/GFDL/OGL → `open-license`; `verified` ASLA otomatik üretilmez. `isProductionAdmissibleRightsStatus(status)` — yalnız `public-domain`/`open-license`/`verified` geçer, `unknown`/`restricted`/undefined **fail-closed**. `RealPhotoImageProvider`'ın private `isFreeLicense`'ının reusable superset'i.
+3. **`scripts/smoke-media-rights-policy.ts` (YENİ):** 8 senaryo PASS.
+
+**Pipeline / durable / acceptance / VisualAssetPipeline / RealPhotoImageProvider / prompt / provider — DOKUNULMADI.** Wiring yok (bilinçli — bir sonraki faz).
+
+### Testler ($0)
+`npx tsc --noEmit` PASS · `git diff --check` temiz (exit 0) · `npm run lint` 0 error / 22 pre-existing warning (değişen dosyalarda 0).
+`smoke-media-rights-policy` **PASS (8)** · `smoke-production-visual-asset-wiring` **PASS (54)** · `smoke-production-real-photo-source` **PASS (45)** · `smoke-visual-asset-pipeline-per-scene-retry` **PASS (8)** · `smoke-production-video-assembly-wiring` **PASS (73)** · `smoke-production-youtube-package-pipeline` **PASS (58)** · `smoke-multi-shot-duration-reconciliation` **PASS (15)**.
+
+### Faz planı (her biri ayrı onaylı sprint)
+- **Faz 1 (küçük):** `IMAGE_PROVIDER=real` etkinleştir + `VisualAssetPipeline`'ı `mediaOrigin`/`mediaType`/`rightsStatus`/`selectionReason`/`discoveredAt` yazacak şekilde genişlet (real branch → `classifyMediaRightsStatus`; openai branch → `ai`/`ai-image`). Per-scene AI-image cap + deterministic admission.
+- **Faz 2:** research-stage medya keşif adımı — `sources`'u structured media candidate registry'ye çevir (Wikimedia + eklenebilir source client'lar); scene media kararı `visuals.json`'a yaz.
+- **Faz 3 (yeni ADR):** gerçek video klip ingestion — source URL + segment start/end + rights + asset registry + assembly entegrasyonu (yalnız PD/açık-lisans/doğrulanabilir).
+- **Faz 4:** `MusicLibrary` wiring + SFX/ambience seçimi (scene semantiğine göre, narration ducking).
+- **Faz 5:** cost estimator (`estimatedCost` hesaplama) + `$1` pre-acceptance guard (deterministik block; AI image / token / duplicate / retry israfı tespiti).
+- **Faz 6:** production acceptance'a rights gate (`isProductionAdmissibleRightsStatus`) + cost gate bağlama.
+
+<!-- SPRINT-166-END -->
+
 <!-- SPRINT-157-START -->
 ## Sprint 157 - Fatih Sultan Mehmet projesi gerçek üretim pipeline'ından geçirildi → 12/12 + productionReady - 2026-08-29
 

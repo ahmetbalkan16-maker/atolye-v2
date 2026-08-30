@@ -1,8 +1,13 @@
 export const assemblyTokenBudget = Object.freeze({
   environmentName: "OPENAI_ASSEMBLY_MAX_TOKENS",
-  defaultTokens: 3200,
+  // 3200 was calibrated for pre-multi-shot scripts (~5-8 scenes). A 16-scene
+  // multi-shot assembly plan (each scene echoes long opaque asset ids + Turkish
+  // notes) needs ~3700+ output tokens, so gpt-4.1-mini hit finish_reason=length
+  // at exactly 3200 -> AI_RESPONSE_TRUNCATED. Same remediation shape as Sprint
+  // 129.37 (1200 -> 3200) and Sprint 159's SceneAIConfig (1200 -> 4200).
+  defaultTokens: 5200,
   minimumTokens: 1600,
-  maximumTokens: 6000,
+  maximumTokens: 8000,
 });
 
 export class AssemblyAIConfigError extends Error {

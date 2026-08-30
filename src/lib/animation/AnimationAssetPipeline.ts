@@ -1,5 +1,6 @@
 import path from "node:path";
 import { AIUsageManager } from "@/lib/ai/AIUsageManager";
+import { estimateTokenCost, toUsageCostFields } from "@/lib/ai/AiPricing";
 import { AssetManager } from "@/lib/assets/AssetManager";
 import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
 import type { Asset, ImageMimeType, ProjectAssets } from "@/types/asset";
@@ -589,6 +590,14 @@ async function persistProviderUsage(
     ...(result.model ? { model: result.model } : {}),
     ...(result.diagnostic ?? {}),
   });
+  const cost = toUsageCostFields(
+    estimateTokenCost({
+      provider: "openai",
+      model: metadata.model,
+      promptTokens: metadata?.promptTokens,
+      completionTokens: metadata?.completionTokens,
+    }),
+  );
   await AIUsageManager.appendRecord({
     id: crypto.randomUUID(),
     projectSlug,
@@ -605,6 +614,10 @@ async function persistProviderUsage(
     promptTokens: metadata?.promptTokens,
     completionTokens: metadata?.completionTokens,
     totalTokens: metadata?.totalTokens,
+    estimatedCost: cost.estimatedCost,
+    pricingStatus: cost.pricingStatus,
+    costUnitKind: cost.costUnitKind,
+    costUnitCount: cost.costUnitCount,
     error: result.success ? undefined : result.error,
     errorCode: result.success ? undefined : result.error,
     sceneId: scene.sceneId,

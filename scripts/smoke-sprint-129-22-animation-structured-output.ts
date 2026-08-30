@@ -176,6 +176,25 @@ async function main() {
     if (!result.success) assert(result.issues.some((item) => item.path === "$.sceneId" && item.code === "UNKNOWN_FIELD"));
   });
 
+  // Regression: the exact failure hit by 5be83a84 animation scene 6 -- a pan whose
+  // end crop overflows the right edge (each field in range, but x + width > 1).
+  // Stays fail-closed (validator unchanged); the prompt now steers the model away
+  // from producing it.
+  await test("crop that overflows the frame (x + width > 1) is rejected as crop-bounds", () => {
+    const overflow = { ...plan(), end: { ...frame(1.2), crop: { x: 0.4, y: 0, width: 0.8, height: 1 } } };
+    const result = validateAnimationProviderPlan(overflow);
+    assert.equal(result.success, false);
+    if (result.success) assert.fail("Expected schema failure.");
+    assert(result.issues.some((item) => item.path === "$.end.crop.width" && item.code === "OUT_OF_RANGE" && item.expected === "crop-bounds"));
+  });
+
+  await test("motion-plan system prompt states the crop containment constraint", () => {
+    const prompt = createAnimationMotionPlanSystemPrompt();
+    assert(prompt.includes("crop.x + crop.width must not exceed 1"), "prompt must state the x+width containment rule");
+    assert(prompt.includes("crop.y + crop.height must not exceed 1"), "prompt must state the y+height containment rule");
+    assert(/reduce crop\.width and\/or crop\.height/.test(prompt), "prompt must tell the model to shrink the crop when panning");
+  });
+
   await test("issue telemetry is bounded and contains categories, not values", () => {
     const invalid = Object.fromEntries(Array.from({ length: 20 }, (_, index) => [`unsafeField${index}`, `secret-value-${index}`]));
     const result = validateAnimationProviderPlan(invalid);

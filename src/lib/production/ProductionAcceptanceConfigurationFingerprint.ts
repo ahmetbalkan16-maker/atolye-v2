@@ -150,6 +150,32 @@ export async function createProductionAcceptancePortableConfigurationSnapshotV2(
       ...(environment.OPENAI_ASSEMBLY_MAX_TOKENS !== undefined
         ? { assemblyMaxTokens: environment.OPENAI_ASSEMBLY_MAX_TOKENS }
         : {}),
+      ...(environment.OPENAI_SCENES_MAX_TOKENS !== undefined
+        ? { scenesMaxTokens: environment.OPENAI_SCENES_MAX_TOKENS }
+        : {}),
+      ...(environment.IMAGE_OPENAI_REQUEST_INTERVAL_MS !== undefined
+        ? { imageRequestIntervalMs: environment.IMAGE_OPENAI_REQUEST_INTERVAL_MS }
+        : {}),
+      // Documentary real-media + cost policy (Faz 5/6). Conditional: a component
+      // enters the fingerprint only when the operator has EXPLICITLY set the env
+      // var. The logic default (on for a real render, off in tests — see
+      // `RealMediaProductionFlags`) leaves the var undefined and therefore does
+      // NOT alter the fingerprint, so every already-prepared marker — including
+      // `5be83a84` — keeps its existing fingerprint. `ATOLYE_AI_COST_GUARD` is
+      // deliberately excluded: it is a runtime safety toggle that only blocks
+      // over-budget dispatch and never changes what is generated.
+      ...(environment.ATOLYE_REAL_MEDIA_DISCOVERY !== undefined
+        ? { realMediaDiscovery: environment.ATOLYE_REAL_MEDIA_DISCOVERY }
+        : {}),
+      ...(environment.ATOLYE_REAL_MEDIA_SELECTION !== undefined
+        ? { realMediaSelection: environment.ATOLYE_REAL_MEDIA_SELECTION }
+        : {}),
+      ...(environment.ATOLYE_MAX_AI_IMAGES !== undefined
+        ? { maxAiImages: environment.ATOLYE_MAX_AI_IMAGES }
+        : {}),
+      ...(environment.ATOLYE_AI_COST_BUDGET_USD !== undefined
+        ? { aiCostBudgetUsd: environment.ATOLYE_AI_COST_BUDGET_USD }
+        : {}),
     })),
   ]);
   const componentFingerprints = Object.freeze(Object.fromEntries(entries)) as

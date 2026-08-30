@@ -8,6 +8,7 @@ import {
   parseAIJsonResponse,
 } from "@/lib/ai/utils";
 import type { AIRequestContext } from "@/types/aiUsage";
+import type { ResearchData } from "@/types/research";
 import type { ScriptData } from "@/types/script";
 import type { SEOData } from "@/types/seo";
 import type { ThumbnailData } from "@/types/thumbnail";
@@ -19,10 +20,14 @@ export class SEOManager {
     script: ScriptData,
     thumbnail: ThumbnailData,
     context?: Partial<AIRequestContext>,
-    options: { aiProvider?: AIProvider; generationPolicy?: GenerationExecutionPolicy } = {},
+    options: {
+      aiProvider?: AIProvider;
+      generationPolicy?: GenerationExecutionPolicy;
+      research?: ResearchData | null;
+    } = {},
   ): Promise<SEOData> {
     const fallback = this.createFallbackSEOData(topic, script, thumbnail);
-    const prompt = createSEOPrompt(topic, script, thumbnail);
+    const prompt = createSEOPrompt(topic, script, thumbnail, options.research);
 
     try {
       const { response } = await runObservedAIRequest({

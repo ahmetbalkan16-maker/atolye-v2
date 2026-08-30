@@ -1,3 +1,5 @@
+import type { ResearchMediaCandidate } from "./research";
+
 export type VisualStyle =
   | "cinematic"
   | "realistic"
@@ -50,6 +52,15 @@ export interface VisualScene {
    * "no search possible" and goes straight to the AI fallback.
    */
   searchKeywords?: string[];
+
+  /**
+   * The research-stage real-media candidate deterministically matched to this
+   * scene (Sprint 168 / Faz 2), when one is available. Additive: its
+   * `queryTerms` are also prepended to `searchKeywords` so the existing "real"
+   * image provider searches a known-good term. Faz 2 does not download or render
+   * it — that is Faz 3.
+   */
+  mediaCandidate?: ResearchMediaCandidate;
 }
 
 export interface ThumbnailConcept {
@@ -74,4 +85,7 @@ export interface VisualData {
   prompts?: VisualPrompt[];
 
   generatedAt?: string;
+
+  /** All real-media candidates carried over from research discovery (Faz 2, additive). */
+  mediaCandidates?: ResearchMediaCandidate[];
 }

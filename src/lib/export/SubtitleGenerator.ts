@@ -1,21 +1,27 @@
 import type { AudioData } from "@/types/audio";
 
 /**
- * Chapter/section-level SRT + VTT generation.
+ * Chapter/section-level SRT + VTT generation, with best-effort sentence-level
+ * cue splitting inside each chapter.
  *
- * Scope (Sprint 132, deliberate): this repository has no word- or scene-level
- * speech timing or per-scene narration text anywhere in its data model (see
- * Sprint 132 architectural review). The only real, non-estimated timing +
- * text pairing available is at chapter (AudioSection) granularity: each
- * chapter's real narration duration (measured from its stored WAV file) and
- * that chapter's full narration text (AudioSection.sourceText). This module
- * therefore produces exactly one cue per chapter, never a finer grain.
+ * Scope: this repository has no word- or scene-level speech timing anywhere in
+ * its data model. The only real, non-estimated timing + text pairing available
+ * is at chapter (AudioSection) granularity: each chapter's real narration
+ * duration (measured from its stored WAV file) and that chapter's full
+ * narration text (AudioSection.sourceText).
  *
- * Cue boundaries are the cumulative sum of prior chapters' real durations, in
- * `audio.sections` array order - the same order FFmpegVideoAssemblyProvider
- * concatenates scenes/chapters into the final rendered video, so a chapter's
- * cue window matches where that chapter's narration actually sits in the
- * physical output.
+ * Within a chapter, when the narration text splits cleanly into multiple
+ * sentences AND the chapter is long enough that every resulting cue clears a
+ * readable minimum, the chapter's measured duration is distributed across the
+ * sentences in proportion to their character length. Otherwise the chapter
+ * falls back to exactly one cue for the whole chapter (the historical
+ * behaviour) - so short chapters and single-sentence chapters are unchanged.
+ *
+ * Chapter cue windows are the cumulative sum of prior chapters' real
+ * durations, in `audio.sections` array order - the same order
+ * FFmpegVideoAssemblyProvider concatenates scenes/chapters into the final
+ * rendered video. `totalDurationSeconds` is always the sum of the chapters'
+ * measured durations, independent of how many cues each chapter produced.
  */
 
 export class SubtitleGenerationError extends Error {
@@ -45,6 +51,24 @@ export interface ChapterSubtitleResult {
 
 /** Cues shorter than this are rejected rather than silently rounded to zero width. */
 const MIN_CUE_DURATION_SECONDS = 0.05;
+
+/**
+ * A chapter is only split into per-sentence cues when every resulting cue is at
+ * least this long. Below this, a cue flashes by too fast to read, so the
+ * chapter stays as a single cue instead.
+ */
+const MIN_READABLE_CUE_SECONDS = 1.5;
+
+/**
+ * Tokens that end with "." but are not sentence terminators. Matched against
+ * the final whitespace-delimited token before the punctuation, lower-cased and
+ * stripped of the trailing dot.
+ */
+const NON_TERMINAL_ABBREVIATIONS = new Set([
+  "vb", "vs", "dr", "prof", "doc", "doç", "bkz", "hz", "no", "yy",
+  "ogr", "öğr", "gor", "gör", "sf", "cev", "çev", "ed", "haz", "op", "ör",
+  "mö", "ms", "st", "bl", "c", "s",
+]);
 
 /**
  * Builds chapter-level cues from real audio data. `chapterDurationSeconds`
@@ -88,10 +112,18 @@ export function buildChapterSubtitles(
       throw new SubtitleGenerationError(`chapter ${chapterId} has no narration text`);
     }
 
-    const start = cursor;
-    const end = cursor + (duration as number);
-    cues.push({ index: index + 1, chapterId, startSeconds: start, endSeconds: end, text });
-    cursor = end;
+    const chapterStart = cursor;
+    const chapterEnd = cursor + (duration as number);
+    for (const piece of splitChapterIntoCues(text, chapterStart, chapterEnd)) {
+      cues.push({
+        index: cues.length + 1,
+        chapterId,
+        startSeconds: piece.startSeconds,
+        endSeconds: piece.endSeconds,
+        text: piece.text,
+      });
+    }
+    cursor = chapterEnd;
   });
 
   if (chapterDurationSeconds.size !== seenChapterIds.size) {
@@ -106,6 +138,122 @@ export function buildChapterSubtitles(
     srt: renderSrt(cues),
     vtt: renderVtt(cues),
   };
+}
+
+interface CuePiece {
+  startSeconds: number;
+  endSeconds: number;
+  text: string;
+}
+
+/**
+ * Splits one chapter's [chapterStart, chapterEnd] window into cue pieces. When
+ * the narration is a single sentence, or splitting it would produce any cue
+ * below MIN_READABLE_CUE_SECONDS, the whole chapter is returned as one piece
+ * (historical behaviour). Otherwise the chapter duration is distributed across
+ * the sentences in proportion to their character length. Piece boundaries are
+ * contiguous and the last piece ends exactly on chapterEnd.
+ */
+function splitChapterIntoCues(
+  text: string,
+  chapterStart: number,
+  chapterEnd: number,
+): CuePiece[] {
+  const whole: CuePiece[] = [
+    { startSeconds: chapterStart, endSeconds: chapterEnd, text },
+  ];
+
+  const sentences = splitTurkishSentences(text);
+  if (sentences.length < 2) return whole;
+
+  const totalDuration = chapterEnd - chapterStart;
+  const totalChars = sentences.reduce((sum, sentence) => sum + sentence.length, 0);
+  if (totalChars <= 0) return whole;
+
+  // Reject the split up front if any sentence's proportional slice is too short
+  // to read; a single sub-readable cue makes the whole chapter worse.
+  for (const sentence of sentences) {
+    if ((sentence.length / totalChars) * totalDuration < MIN_READABLE_CUE_SECONDS) {
+      return whole;
+    }
+  }
+
+  const pieces: CuePiece[] = [];
+  let consumedChars = 0;
+  let boundary = chapterStart;
+  for (let i = 0; i < sentences.length; i += 1) {
+    const start = boundary;
+    consumedChars += sentences[i].length;
+    const end =
+      i === sentences.length - 1
+        ? chapterEnd
+        : chapterStart + (consumedChars / totalChars) * totalDuration;
+    pieces.push({ startSeconds: start, endSeconds: end, text: sentences[i] });
+    boundary = end;
+  }
+  return pieces;
+}
+
+/**
+ * Best-effort Turkish sentence segmentation. Splits on ., !, ? or . . . when
+ * followed by whitespace and an opening quote / bracket / digit / uppercase
+ * letter, unless the token right before the punctuation is a known
+ * abbreviation, a Roman numeral, a single letter, or a 1-2 digit ordinal
+ * (e.g. "II. Murad", "2. Mehmed", "vb."). Returns trimmed, non-empty sentences
+ * with their terminal punctuation preserved; returns a single-element array
+ * when no safe split point is found.
+ */
+export function splitTurkishSentences(text: string): string[] {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return [];
+
+  const sentences: string[] = [];
+  let current = "";
+  for (let i = 0; i < normalized.length; i += 1) {
+    const char = normalized[i];
+    current += char;
+    if (char !== "." && char !== "!" && char !== "?") continue;
+
+    // Consume any run of terminal punctuation (e.g. "?!", "...").
+    while (
+      i + 1 < normalized.length &&
+      (normalized[i + 1] === "." || normalized[i + 1] === "!" || normalized[i + 1] === "?")
+    ) {
+      i += 1;
+      current += normalized[i];
+    }
+
+    const next = normalized[i + 1];
+    const afterSpace = normalized[i + 2];
+    if (next !== " " || afterSpace === undefined) continue;
+    if (!/[«"'([\p{Lu}\d]/u.test(afterSpace)) continue;
+
+    const lastToken = current.trimEnd().replace(/[.!?]+$/, "").split(" ").pop() ?? "";
+    if (isNonTerminalToken(lastToken)) continue;
+
+    sentences.push(current.trim());
+    current = "";
+    i += 1; // skip the space
+  }
+  if (current.trim()) sentences.push(current.trim());
+  return sentences.length ? sentences : [normalized];
+}
+
+/**
+ * Uppercase Roman numeral (1-39 covers every realistic monarch/pope/volume
+ * ordinal). Kept uppercase-only on purpose: Turkish lowercase question
+ * particles ("mi", "mu") and words like "dim" would otherwise be misread as
+ * numerals.
+ */
+const ROMAN_NUMERAL = /^(?=[IVXLM])M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/;
+
+function isNonTerminalToken(token: string): boolean {
+  if (!token) return false;
+  if (NON_TERMINAL_ABBREVIATIONS.has(token.toLowerCase())) return true;
+  if (ROMAN_NUMERAL.test(token)) return true;
+  if (/^\p{Lu}$/u.test(token)) return true; // single uppercase initial ("J. Kennedy")
+  if (/^\d{1,2}$/.test(token)) return true; // short ordinal ("2. Mehmed", "19. yüzyıl")
+  return false;
 }
 
 /**

@@ -11,7 +11,8 @@ export type AIResponseErrorCode =
   | "AI_RESPONSE_INCOMPLETE"
   | "AI_RESPONSE_INVALID_JSON"
   | "AI_RESPONSE_SCHEMA_INVALID"
-  | "AI_USAGE_PERSISTENCE_FAILED";
+  | "AI_USAGE_PERSISTENCE_FAILED"
+  | "AI_COST_BUDGET_EXCEEDED";
 
 export class AIResponseError extends Error {
   constructor(
