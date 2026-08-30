@@ -62,7 +62,12 @@ export function deriveDiscoveryQueries(research: ResearchData): DiscoveryQuery[]
   const out: DiscoveryQuery[] = [];
   const add = (raw: unknown, association: DiscoveryQuery["association"]) => {
     if (typeof raw !== "string") return;
-    const term = raw.trim().replace(/\s+/g, " ");
+    // An LLM entity string is often `"Name: descriptive clause."` or
+    // `"Name — clause"`; only the leading name is a useful archive query. A
+    // whole clause becomes a scattered low-relevance Wikimedia full-text search.
+    const cleaned = raw.trim().replace(/\s+/g, " ");
+    const head = (cleaned.split(/\s*[:—–]\s*|\.\s+/)[0] ?? "").trim();
+    const term = (head.length >= MIN_TERM_LENGTH ? head : cleaned).replace(/[.,;:]+$/, "").trim();
     const key = term.toLowerCase();
     if (term.length < MIN_TERM_LENGTH || term.length > 120 || seen.has(key)) return;
     seen.add(key);

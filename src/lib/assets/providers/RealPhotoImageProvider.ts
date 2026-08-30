@@ -44,6 +44,13 @@ export class RealPhotoImageProvider implements ConfiguredImageProvider {
   private readonly now: () => number;
   /** Wall-clock time of the last dispatched scene, for inter-scene pacing (Sprint 130.2). */
   private lastRequestAt: number | null = null;
+  /**
+   * Source pages already used by an earlier scene in this batch. The pipeline
+   * reuses one provider instance across every scene, so this stops the same
+   * archival image being pulled into two or more scenes (a documentary reading
+   * as broken).
+   */
+  private readonly usedSourceUrls = new Set<string>();
 
   constructor(options: {
     fetcher?: typeof fetch;
@@ -83,35 +90,57 @@ export class RealPhotoImageProvider implements ConfiguredImageProvider {
     input: ImageGenerationInput,
   ): Promise<ImageGenerationResult> {
     const createdAt = new Date().toISOString();
-    const query = buildSearchQuery(input.searchKeywords);
+    const queries = buildSearchQueries(input.searchKeywords);
 
-    if (!query || !input.projectSlug) {
+    if (queries.length === 0 || !input.projectSlug) {
       return notFoundResult(input.sceneId, createdAt);
     }
 
     const config = getRealImageProviderConfig();
+    // Sprint 130.2: the whole scene (every query variant + every candidate
+    // attempt combined) is bounded by a single wall-clock deadline.
+    const deadline = this.now() + config.sceneBudgetMs;
+
+    // Wikimedia full-text search collapses a long multi-concept query into
+    // scattered low-relevance hits (old book scans etc.), so a single scene
+    // often needs each keyword tried as its own focused query. First query that
+    // yields a downloadable, eligible candidate wins.
+    for (const query of queries) {
+      if (this.now() >= deadline) break;
+      const outcome = await this.tryQuery(
+        query, input.projectSlug, input.sceneId, config, deadline, createdAt,
+      );
+      if (outcome === "rate-limited") break;
+      if (outcome) return outcome;
+    }
+
+    return notFoundResult(input.sceneId, createdAt);
+  }
+
+  private async tryQuery(
+    query: string,
+    projectSlug: string,
+    sceneId: number,
+    config: ReturnType<typeof getRealImageProviderConfig>,
+    deadline: number,
+    createdAt: string,
+  ): Promise<ImageGenerationResult | "rate-limited" | null> {
     // A batch of scenes fired back-to-back with no gap can trip Wikimedia's burst rate limiting
-    // even though each request individually is well inside quota — space consecutive scenes on
-    // this provider instance apart by a minimum interval (Sprint 130.2). Scenes with no keywords
-    // never reach this point, so purely-AI scenes are never delayed.
+    // even though each request individually is well inside quota — space consecutive requests on
+    // this provider instance apart by a minimum interval (Sprint 130.2).
     await this.paceRequest(config.minRequestIntervalMs);
 
     let candidates: WikimediaCommonsCandidate[];
     try {
       candidates = await this.client.search(query, config.searchResultLimit, config.targetDownloadWidth);
     } catch {
-      return notFoundResult(input.sceneId, createdAt);
+      return null;
     }
 
-    const ranked = rankEligibleCandidates(candidates, query, config);
-    if (ranked.length === 0) {
-      return notFoundResult(input.sceneId, createdAt);
-    }
+    const ranked = rankEligibleCandidates(candidates, query, config)
+      .filter((candidate) => !this.usedSourceUrls.has(candidate.pageUrl));
+    if (ranked.length === 0) return null;
 
-    // Sprint 130.2: the whole scene (all candidate attempts combined) is bounded by a single
-    // wall-clock deadline, so a slow/failing candidate can never eat the entire per-attempt
-    // timeout for every remaining candidate — it eats only its fair share of what's left.
-    const deadline = this.now() + config.sceneBudgetMs;
     const attemptLimit = Math.min(ranked.length, config.candidateAttemptLimit);
     const perCandidateTimeoutMs = Math.max(
       1_000,
@@ -137,16 +166,17 @@ export class RealPhotoImageProvider implements ConfiguredImageProvider {
       } catch (error) {
         // A rate limit applies to the whole host, not this one file — trying more candidates
         // would just collect more 429s. Stop the scene here rather than compound it.
-        if (error instanceof WikimediaCommonsRateLimitedError) break;
+        if (error instanceof WikimediaCommonsRateLimitedError) return "rate-limited";
         continue;
       }
 
-      const saved = trySaveCandidate(input.projectSlug, bytes, candidate.mimeType);
+      const saved = trySaveCandidate(projectSlug, bytes, candidate.mimeType);
       if (!saved) continue;
 
+      this.usedSourceUrls.add(candidate.pageUrl);
       return {
         success: true,
-        sceneId: input.sceneId,
+        sceneId,
         provider: "real",
         model: candidate.sourceName,
         filePath: saved.filePath,
@@ -165,7 +195,7 @@ export class RealPhotoImageProvider implements ConfiguredImageProvider {
       };
     }
 
-    return notFoundResult(input.sceneId, createdAt);
+    return null;
   }
 }
 
@@ -210,8 +240,44 @@ function rankEligibleCandidates(
       candidate.width >= config.minimumWidth &&
       candidate.height >= config.minimumHeight &&
       isFreeLicense(candidate.license))
-    .map((candidate) => ({ ...candidate, score: titleMatchScore(queryWords, candidate.title) }))
+    .map((candidate) => ({
+      ...candidate,
+      score: titleMatchScore(queryWords, candidate.title) - modernInfraPenalty(queryWords, candidate.title),
+    }))
     .sort((a, b) => b.score - a.score || b.width * b.height - a.width * a.height);
+}
+
+/**
+ * An entity name like "Fatih Sultan Mehmet" or "Golden Horn" also names a modern
+ * bridge / metro line / stadium, and those contemporary photos win a naive title
+ * match against a historical query. Down-rank a candidate whose title calls out
+ * modern infrastructure — unless the query itself asked for it (still selectable,
+ * just no longer the default pick).
+ */
+const MODERN_INFRA_WORDS = new Set([
+  "bridge", "metro", "metrosu", "tram", "tramway", "tramvay", "subway",
+  "underground", "airport", "havalimani", "stadium", "stadyum", "stadyumu",
+  "arena", "motorway", "highway", "freeway", "otoyol", "skyscraper", "tower",
+  "shopping", "mall", "station", "railway", "tunnel", "tuneli", "expressway",
+  "hotel", "oteli", "university", "universitesi", "hospital", "hastanesi",
+  "helicopter", "aircraft", "airplane", "kopru", "koprusu",
+]);
+
+/** Fold Turkish diacritics so `tokenize`'s ASCII-only regex still yields words. */
+function foldTurkish(value: string): string {
+  return value
+    .replace(/İ/g, "i").replace(/I/g, "i").replace(/ı/g, "i")
+    .replace(/ş/g, "s").replace(/Ş/g, "s").replace(/ç/g, "c").replace(/Ç/g, "c")
+    .replace(/ö/g, "o").replace(/Ö/g, "o").replace(/ü/g, "u").replace(/Ü/g, "u")
+    .replace(/ğ/g, "g").replace(/Ğ/g, "g");
+}
+
+function modernInfraPenalty(queryWords: string[], title: string): number {
+  const querySet = new Set(queryWords.map(foldTurkish));
+  const hit = tokenize(foldTurkish(title)).some(
+    (word) => MODERN_INFRA_WORDS.has(word) && !querySet.has(word),
+  );
+  return hit ? 1 : 0;
 }
 
 function isBookScanArtifact(candidate: WikimediaCommonsCandidate): boolean {
@@ -231,11 +297,52 @@ function titleMatchScore(queryWords: string[], title: string): number {
   return matched / distinctQueryWords.length;
 }
 
-function buildSearchQuery(keywords: string[] | undefined): string | null {
-  if (!keywords || keywords.length === 0) return null;
-  const cleaned = keywords.map((keyword) => keyword.trim()).filter(Boolean);
-  if (cleaned.length === 0) return null;
-  return cleaned.join(" ").slice(0, 300);
+/**
+ * Turn a scene's keyword list into a prioritised list of Wikimedia search
+ * queries. Each keyword becomes its own focused query (Wikimedia full-text
+ * search returns scattered low-relevance hits for a long multi-concept string),
+ * a `"Name: description"` keyword is reduced to just the entity name, and the
+ * two most specific keywords joined are appended as a broader last resort.
+ * Deduped; bounded to `MAX_SEARCH_QUERIES` so the per-scene budget still holds.
+ */
+function buildSearchQueries(keywords: string[] | undefined): string[] {
+  if (!keywords || keywords.length === 0) return [];
+  const cleaned = keywords
+    .map(normaliseKeyword)
+    .filter((keyword): keyword is string => Boolean(keyword));
+  if (cleaned.length === 0) return [];
+
+  const queries: string[] = [];
+  const seen = new Set<string>();
+  const add = (value: string | undefined) => {
+    const query = value?.trim().slice(0, 200);
+    if (!query) return;
+    const key = query.toLowerCase();
+    if (seen.has(key) || queries.length >= MAX_SEARCH_QUERIES) return;
+    seen.add(key);
+    queries.push(query);
+  };
+
+  for (const keyword of cleaned) add(keyword);
+  if (cleaned.length > 1) add(cleaned.slice(0, 2).join(" "));
+  return queries;
+}
+
+const MAX_SEARCH_QUERIES = 4;
+
+/**
+ * `"Fatih Sultan Mehmet: Osmanlı padişahı ve İstanbul'un fatihi."` ->
+ * `"Fatih Sultan Mehmet"`. An LLM research/scene keyword is often an entity name
+ * followed by a `:` / `—` / `.` and a descriptive clause; only the name is a
+ * useful archive query. A keyword with no such separator is passed through
+ * (trimmed, trailing punctuation removed).
+ */
+function normaliseKeyword(raw: string): string | undefined {
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  const head = (trimmed.split(/\s*[:—–]\s*|\.\s+/)[0] ?? "").trim();
+  const value = (head.length >= 3 ? head : trimmed).replace(/[.,;:]+$/, "").trim();
+  return value.length >= 2 ? value : undefined;
 }
 
 function toSafeImageMimeType(value: string): ImageMimeType | null {

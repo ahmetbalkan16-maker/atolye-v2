@@ -330,12 +330,18 @@ export class PipelineStageExecutor {
           stage: "research",
           operation: "research",
         }, dispatchOptions.aiProvider, generationPolicy);
-        // Faz 2: enrich with real media discovered from a source client. Opt-in
-        // for now (runs only when a client is wired in); best-effort — a
-        // discovery failure never fails the research stage.
-        if (dispatchOptions.mediaSearchClient) {
+        // Faz 2/6: enrich with real media discovered from a source client.
+        // Runs when a client was wired in OR when real-media discovery is
+        // enabled for this render (the production-acceptance provider-selection
+        // machinery does not forward the non-provider `mediaSearchClient`, so
+        // the flag is the reliable signal). `enrichResearchWithMediaDiscovery`
+        // creates its own Wikimedia client when none is passed and is fully
+        // best-effort — a discovery failure never fails the research stage.
+        if (dispatchOptions.mediaSearchClient || isRealMediaDiscoveryEnabled()) {
           state.research = await enrichResearchWithMediaDiscovery(state.research, {
-            client: dispatchOptions.mediaSearchClient,
+            ...(dispatchOptions.mediaSearchClient
+              ? { client: dispatchOptions.mediaSearchClient }
+              : {}),
           });
         }
         return this.persistStageResult(projectSlug, stage, () =>
