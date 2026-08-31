@@ -151,7 +151,16 @@ export class PipelineRunner {
   }
   static async run(
     topic: string,
-    options: { stageExecution?: PipelineStageExecutionOptions } = {},
+    options: {
+      stageExecution?: PipelineStageExecutionOptions;
+      /**
+       * Stop the fresh run cleanly the moment this stage completes — the same
+       * bounded semantics as `resume(projectSlug, { stopAfterStage })`. The
+       * remaining stages are never scheduled and the project is NOT marked
+       * "completed". Undefined runs the full pipeline unchanged.
+       */
+      stopAfterStage?: PipelineRecoveryStageKey;
+    } = {},
   ) {
     return this.withRuntimeOperation(
       "pipeline-run",
@@ -161,22 +170,30 @@ export class PipelineRunner {
 
   private static async runOnce(
     topic: string,
-    options: { stageExecution?: PipelineStageExecutionOptions } = {},
+    options: {
+      stageExecution?: PipelineStageExecutionOptions;
+      stopAfterStage?: PipelineRecoveryStageKey;
+    } = {},
   ) {
     const slug = ProjectManager.createSlug(topic);
     const project = await ProjectManager.createProject(topic);
     const state = PipelineStageExecutor.createInitialState(project);
 
     try {
-      const { stopReason } = await this.runScheduledStages(
-        slug,
-        pipelineRecoveryStageOrder,
-        state,
-        "initial",
-        options.stageExecution,
-      );
+      const { completedStages, stopReason, stoppedAfterStage } =
+        await this.runScheduledStages(
+          slug,
+          pipelineRecoveryStageOrder,
+          state,
+          "initial",
+          options.stageExecution,
+          undefined,
+          options.stopAfterStage,
+        );
 
-      if (!stopReason) {
+      // A clean bounded stop (`stoppedAfterStage`) is a success, but the project
+      // is only "completed" when the whole pipeline actually ran through.
+      if (!stopReason && !stoppedAfterStage) {
         await PipelineJobManager.persistProjectCompletion(slug, async () => {
           await ProjectManager.updateStatus(slug, "completed");
         });
@@ -186,6 +203,8 @@ export class PipelineRunner {
         success: !stopReason,
         slug,
         stopReason,
+        completedStages,
+        ...(stoppedAfterStage ? { stoppedAfterStage } : {}),
         project,
         research: state.research,
         script: state.script,

@@ -111,8 +111,37 @@ export type ProductionAcceptanceResumeResult =
   | ProductionAcceptanceResult
   | ProductionAcceptanceBoundedResumeResult;
 
+/**
+ * A fresh `execute` that was asked (via `--stop-after-stage`) to stop the
+ * moment a stage completed. The run's own acceptance marker is created and
+ * stays `acceptanceStatus: "prepared"` (never finalized), the remaining
+ * pipeline stages — thumbnail / seo / youtube / export — are never scheduled,
+ * and `finalize()` is not called. Complete it later with
+ * `resume-finalize --project-slug=<the-new-run-slug>`.
+ */
+export interface ProductionAcceptanceBoundedRunResult {
+  readonly readiness: ProductionReadinessReport;
+  readonly boundedRun: Readonly<{
+    projectSlug: string;
+    type: "run";
+    completedStages: readonly PipelineRecoveryStageKey[];
+    stoppedAfterStage: PipelineRecoveryStageKey;
+    blocked: false;
+    productionReady: false;
+    published: false;
+  }>;
+}
+
+export type ProductionAcceptanceRunResult =
+  | ProductionAcceptanceResult
+  | ProductionAcceptanceBoundedRunResult;
+
 export interface ProductionAcceptanceRequest {
   readonly topic: string;
+}
+
+export interface ProductionAcceptanceRunOptions {
+  readonly stopAfterStage?: PipelineRecoveryStageKey;
 }
 
 export class ProductionAcceptanceBlockedError extends Error {
@@ -189,7 +218,15 @@ export function isAuthenticProductionAcceptanceConfigurationChangedError(
 }
 
 export class ProductionAcceptanceOrchestrator {
-  static async run(request: ProductionAcceptanceRequest): Promise<ProductionAcceptanceResult> {
+  static async run(request: ProductionAcceptanceRequest): Promise<ProductionAcceptanceResult>;
+  static async run(
+    request: ProductionAcceptanceRequest,
+    options: ProductionAcceptanceRunOptions,
+  ): Promise<ProductionAcceptanceRunResult>;
+  static async run(
+    request: ProductionAcceptanceRequest,
+    options: ProductionAcceptanceRunOptions = {},
+  ): Promise<ProductionAcceptanceRunResult> {
     const topic = normalizeProductionAcceptanceTopic(request.topic);
     const runId = crypto.randomUUID();
     const runSlug = createProductionAcceptanceProjectSlug(topic, runId);
@@ -237,10 +274,37 @@ export class ProductionAcceptanceOrchestrator {
         thumbnailProvider: new ThumbnailProviderRouter().getProvider("openai"),
         youtubeProvider: new YouTubeProviderRouter().getProvider("openai"),
       },
+      ...(options.stopAfterStage ? { stopAfterStage: options.stopAfterStage } : {}),
       });
     } catch {
       throw new ProductionAcceptanceExecutionError(runSlug);
     }
+
+    // Bounded fresh run: stop cleanly after the requested stage. No thumbnail /
+    // seo / youtube / export, no finalize() — the run's marker stays "prepared".
+    if (options.stopAfterStage) {
+      if (
+        !result.success ||
+        result.stoppedAfterStage !== options.stopAfterStage ||
+        result.completedStages.at(-1) !== options.stopAfterStage ||
+        (options.stopAfterStage === "assembly" && !result.assembly)
+      ) {
+        throw new ProductionAcceptanceExecutionError(runSlug);
+      }
+      return {
+        readiness,
+        boundedRun: Object.freeze({
+          projectSlug: result.slug,
+          type: "run" as const,
+          completedStages: Object.freeze([...result.completedStages]),
+          stoppedAfterStage: options.stopAfterStage,
+          blocked: false as const,
+          productionReady: false as const,
+          published: false as const,
+        }),
+      };
+    }
+
     if (!result.success || !result.assembly || !result.thumbnail || !result.youtube) {
       throw new ProductionAcceptanceExecutionError(runSlug);
     }

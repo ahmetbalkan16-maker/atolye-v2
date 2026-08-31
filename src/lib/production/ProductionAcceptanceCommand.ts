@@ -1,6 +1,7 @@
 import type {
   ProductionAcceptanceResult,
   ProductionAcceptanceResumeResult,
+  ProductionAcceptanceRunResult,
 } from "./ProductionAcceptanceOrchestrator";
 import {
   isAuthenticProductionAcceptanceBlockedError,
@@ -70,7 +71,10 @@ const STOP_AFTER_STAGE_PREFIX = "--stop-after-stage=";
 
 export interface ProductionAcceptanceCommandDependencies {
   readiness(): Promise<ProductionReadinessReport>;
-  execute(request: { readonly topic: string }): Promise<ProductionAcceptanceResult>;
+  execute(
+    request: { readonly topic: string },
+    options?: PipelineResumeOptions,
+  ): Promise<ProductionAcceptanceRunResult>;
   resume(
     projectSlug: string,
     options?: PipelineResumeOptions,
@@ -97,7 +101,7 @@ export interface ProductionAcceptanceCommandResult {
 
 const defaultDependencies: ProductionAcceptanceCommandDependencies = {
   readiness: () => ProductionAcceptanceOrchestrator.evaluateReadiness(),
-  execute: (request) => ProductionAcceptanceOrchestrator.run(request),
+  execute: (request, options) => ProductionAcceptanceOrchestrator.run(request, options ?? {}),
   resume: (projectSlug, options) =>
     ProductionAcceptanceOrchestrator.resumeAndFinalize(projectSlug, options),
   diagnose: (projectSlug) => diagnoseProductionAcceptanceConfiguration(projectSlug),
@@ -128,7 +132,10 @@ export async function runProductionAcceptanceCommand(
     if (mode === "execute") {
       const parsed = parseExecuteArguments(args.slice(1));
       if ("errorCode" in parsed) return commandFailure(parsed.errorCode);
-      return success(mode, await dependencies.execute({ topic: parsed.topic }));
+      const result = await dependencies.execute({ topic: parsed.topic }, parsed.options);
+      return "boundedRun" in result
+        ? { exitCode: 0, report: { mode, success: true, boundedRun: result.boundedRun } }
+        : success(mode, result);
     }
     if (mode === "resume-finalize") {
       const parsed = parseResumeArguments(args.slice(1));
@@ -348,7 +355,7 @@ function commandFailure(errorCode: string): ProductionAcceptanceCommandResult {
       errorCode,
       usage: [
         "readiness-only",
-        `execute ${CONFIRM_FLAG} --topic=<topic>`,
+        `execute ${CONFIRM_FLAG} --topic=<topic> [--stop-after-stage=<stage>]`,
         `resume-finalize --project-slug=<slug> [--stop-after-stage=<stage>] ${CONFIRM_FLAG}`,
         "diagnose --project-slug=<slug>",
         `reprepare --project-slug=<slug> ${REPREPARE_CONFIRM_FLAG}`,
@@ -453,17 +460,20 @@ function parseDiagnoseArguments(args: readonly string[]):
 }
 
 function parseExecuteArguments(args: readonly string[]):
-  | { readonly topic: string }
+  | { readonly topic: string; readonly options: PipelineResumeOptions }
   | { readonly errorCode: string } {
   const confirmations = args.filter((value) => value === CONFIRM_FLAG);
   if (confirmations.length !== 1) {
     return { errorCode: "PRODUCTION_ACCEPTANCE_CONFIRMATION_REQUIRED" };
   }
   const topicArguments = args.filter((value) => value.startsWith(TOPIC_PREFIX));
+  const stopArguments = args.filter((value) => value.startsWith(STOP_AFTER_STAGE_PREFIX));
   const unknown = args.filter(
-    (value) => value !== CONFIRM_FLAG && !value.startsWith(TOPIC_PREFIX),
+    (value) => value !== CONFIRM_FLAG &&
+      !value.startsWith(TOPIC_PREFIX) &&
+      !value.startsWith(STOP_AFTER_STAGE_PREFIX),
   );
-  if (unknown.length > 0) {
+  if (unknown.length > 0 || stopArguments.length > 1) {
     return { errorCode: "PRODUCTION_ACCEPTANCE_ARGUMENT_UNKNOWN" };
   }
   if (topicArguments.length === 0) {
@@ -472,8 +482,19 @@ function parseExecuteArguments(args: readonly string[]):
   if (topicArguments.length > 1) {
     return { errorCode: "PRODUCTION_ACCEPTANCE_TOPIC_DUPLICATE" };
   }
+  let options: PipelineResumeOptions = {};
+  if (stopArguments.length === 1) {
+    const stopAfterStage = stopArguments[0].slice(STOP_AFTER_STAGE_PREFIX.length);
+    if (!isPipelineRecoveryStageKey(stopAfterStage)) {
+      return { errorCode: pipelineResumeBoundaryInvalidCode };
+    }
+    options = { stopAfterStage };
+  }
   try {
-    return { topic: normalizeProductionAcceptanceTopic(topicArguments[0].slice(TOPIC_PREFIX.length)) };
+    return {
+      topic: normalizeProductionAcceptanceTopic(topicArguments[0].slice(TOPIC_PREFIX.length)),
+      options,
+    };
   } catch (error) {
     return {
       errorCode: isAuthenticProductionAcceptanceTopicError(error)
