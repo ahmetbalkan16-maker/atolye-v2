@@ -16,6 +16,7 @@ import {
 } from "./YouTubePackageValidation";
 import type { YouTubeProvider } from "./providers/YouTubeProvider";
 import { YouTubeProviderRouter } from "./YouTubeProviderRouter";
+import { isAdmissibleProductionProvider } from "@/lib/production/ProductionProviderResolution";
 
 const SAFE_ERROR = "YouTube package generation failed.";
 const MAX_VIDEO_BYTES = 8 * 1024 * 1024 * 1024;
@@ -61,7 +62,10 @@ export class YouTubePackagePipeline {
     try {
       validateProject(project);
       const selected = provider ?? new YouTubeProviderRouter().getProvider();
-      if (selected.name !== "mock" && selected.name !== "openai") {
+      if (
+        selected.name !== "mock" &&
+        !isAdmissibleProductionProvider(selected.name, "youtube")
+      ) {
         throw new Error("invalid");
       }
       const assets = AssetManager.getProjectAssets(project.slug, project.id).assets;

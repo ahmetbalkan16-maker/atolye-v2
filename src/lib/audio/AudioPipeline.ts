@@ -1,6 +1,7 @@
 import path from "node:path";
 import { AssetManager } from "@/lib/assets/AssetManager";
 import { AudioStorage } from "@/lib/assets/storage/AudioStorage";
+import { isAdmissibleProductionProvider } from "@/lib/production/ProductionProviderResolution";
 import type {
   AudioData,
   AudioGenerationResult,
@@ -154,7 +155,7 @@ export class AudioPipeline {
         production: {
           ...audio.production,
           targetFormat:
-            selectedProvider === "openai"
+            selectedProvider !== "mock"
               ? "wav"
               : audio.production.targetFormat,
           generationStatus: "generated",
@@ -264,12 +265,13 @@ async function generateAndNormalize({
     });
   }
 
-  if (selectedProvider === "openai") {
+  if (selectedProvider !== "mock") {
     await recordTtsUsage({
       projectSlug,
       chapterId: request.target.kind === "section" ? request.target.chapterId : undefined,
-      provider: "openai",
-      model: normalized.model ?? getOpenAIAudioProviderConfig().model,
+      provider: selectedProvider,
+      model: normalized.model ??
+        (selectedProvider === "openai" ? getOpenAIAudioProviderConfig().model : selectedProvider),
       characters: request.sourceText.length,
       status: "success",
     });
@@ -329,7 +331,7 @@ function normalizeGenerationResult(
   }
 
   if (
-    result.provider !== "openai" ||
+    !isAdmissibleProductionProvider(result.provider, "tts") ||
     result.mimeType !== "audio/wav" ||
     !isSafeModelName(result.model) ||
     !Number.isSafeInteger(result.byteLength) ||
@@ -514,7 +516,7 @@ function addAssetOrFail(
       target: Number.isSafeInteger(asset.sceneId)
         ? { kind: "section", chapterId: asset.sceneId as number }
         : { kind: "mix" },
-      provider: asset.provider === "mock" ? "mock" : "openai",
+      provider: normalizeErrProvider(asset.provider),
       model: asset.model,
       compensation,
       compensationRef: compensationResult?.compensationRef,
@@ -540,7 +542,7 @@ function addAssetOrFail(
       target: Number.isSafeInteger(asset.sceneId)
         ? { kind: "section", chapterId: asset.sceneId as number }
         : { kind: "mix" },
-      provider: asset.provider === "mock" ? "mock" : "openai",
+      provider: normalizeErrProvider(asset.provider),
       model: asset.model,
       compensation,
       compensationRef,
@@ -632,7 +634,7 @@ function validateProviderInputs(
 
 function getProviderName(provider: AudioProvider): AudioProviderName {
   try {
-    if (provider.name === "mock" || provider.name === "openai") {
+    if (provider.name === "mock" || isAdmissibleProductionProvider(provider.name, "tts")) {
       return provider.name;
     }
   } catch {
@@ -684,9 +686,15 @@ function audioFailure(
   );
 }
 
+/** The audio error-evidence `provider` field only accepts mock/openai/piper. */
+function normalizeErrProvider(value: unknown): "mock" | "openai" | "piper" {
+  return value === "mock" ? "mock" : value === "piper" ? "piper" : "openai";
+}
+
 function getProviderNameSafely(provider: AudioProvider): AudioProviderName {
   try {
-    return provider.name === "openai" ? "openai" : "mock";
+    if (provider.name === "openai" || provider.name === "piper") return provider.name;
+    return "mock";
   } catch {
     return "mock";
   }

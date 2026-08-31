@@ -22,6 +22,7 @@ import type {
 } from "./providers/AnimationProvider";
 import { AnimationProviderRouter } from "./providers/AnimationProviderRouter";
 import { AnimationStorage } from "./AnimationStorage";
+import { isAdmissibleProductionProvider } from "@/lib/production/ProductionProviderResolution";
 import {
   AnimationMotionPlanError,
   sanitizeAnimationProviderDiagnosticMetadata,
@@ -132,8 +133,8 @@ export class AnimationAssetPipeline {
           });
         }
         const result = await selectedProvider.generateAnimation(input);
-        if (providerName === "openai") {
-          await persistProviderUsage(projectSlug, prepared.scene, result);
+        if (providerName !== "mock") {
+          await persistProviderUsage(projectSlug, prepared.scene, result, providerName);
         }
         activePhase = "plan-validation";
         plans.push(
@@ -185,7 +186,7 @@ export class AnimationAssetPipeline {
             sceneId: prepared.scene.sceneId,
             sourceImageAssetId: plan.sourceImageAssetId,
             durationSeconds: plan.durationSeconds,
-            provider: "openai",
+            provider: plan.provider,
             model: plan.model as string,
             generationMode: "production",
             requestIdentity: identity?.requestIdentity as string,
@@ -282,7 +283,7 @@ function requireReplayPlan(
     asset.artifactType !== "motion-plan" || asset.mimeType !== MOTION_PLAN_MIME_TYPE ||
     asset.sourceAssetId !== prepared.sourceImageAssetId ||
     asset.prompt !== prepared.scene.animationPrompt || asset.durationSeconds !== prepared.durationSeconds ||
-    asset.provider !== "openai" || asset.model !== identity.model ||
+    !isAdmissibleProductionProvider(asset.provider, "animation") || asset.model !== identity.model ||
     asset.generationMode !== "production" || typeof asset.filePath !== "string" ||
     asset.url !== undefined || !Number.isSafeInteger(asset.byteLength) || (asset.byteLength as number) <= 0
   ) throw new AnimationMotionPlanError("ANIMATION_MOTION_PLAN_FAILED", {
@@ -322,7 +323,7 @@ function requireReplayPlan(
     success: true,
     sceneId: stored.sceneId,
     sourceImageAssetId: stored.sourceImageAssetId,
-    provider: "openai",
+    provider: stored.provider,
     model: stored.model,
     generationMode: "production",
     requestIdentity: stored.requestIdentity,
@@ -494,7 +495,7 @@ function validateSourceImage(asset: Asset, projectSlug: string, providerName: st
 function requireProviderName(provider: AnimationProvider) {
   const name = provider.name;
 
-  if (name !== "mock" && name !== "openai") {
+  if (name !== "mock" && !isAdmissibleProductionProvider(name, "animation")) {
     throw new AnimationMotionPlanError("ANIMATION_MOTION_PLAN_FAILED", {
       sceneId: 0,
       phase: "input-validation",
@@ -582,17 +583,19 @@ async function persistProviderUsage(
   projectSlug: string,
   scene: AnimationScene,
   result: AnimationGenerationResult,
+  providerName: string,
 ) {
+  const usageProvider = providerName === "ollama" ? "ollama" : "openai";
   const metadata = sanitizeAnimationProviderDiagnosticMetadata({
     sceneId: scene.sceneId,
     phase: result.diagnostic?.phase ?? (result.success ? "provider-response" : "unknown"),
-    provider: "openai",
+    provider: usageProvider,
     ...(result.model ? { model: result.model } : {}),
     ...(result.diagnostic ?? {}),
   });
   const cost = toUsageCostFields(
     estimateTokenCost({
-      provider: "openai",
+      provider: usageProvider,
       model: metadata.model,
       promptTokens: metadata?.promptTokens,
       completionTokens: metadata?.completionTokens,
@@ -603,7 +606,7 @@ async function persistProviderUsage(
     projectSlug,
     stage: "animation",
     operation: `animation-motion-plan-scene-${scene.sceneId}`,
-    provider: "openai",
+    provider: usageProvider,
     model: metadata.model,
     status: result.success ? "success" : "failed",
     fallbackUsed: false,

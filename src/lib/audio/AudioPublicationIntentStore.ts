@@ -22,6 +22,7 @@ import {
   readAudioFileDescriptorBound,
   readContainedAudioFileDescriptorBound,
 } from "./AudioDescriptorBoundVerification";
+import { isAdmissibleProductionProvider } from "@/lib/production/ProductionProviderResolution";
 
 const SCHEMA = "audio-publication-intent-v1";
 const DIRECTORY = "audio-publication-intents";
@@ -613,7 +614,8 @@ function validateAsset(
     !asset || typeof asset !== "object" ||
     !Object.keys(asset).every((key) => keys.has(key)) ||
     !SAFE_ID.test(asset.id) || asset.projectId !== projectId || asset.projectSlug !== slug ||
-    asset.type !== "audio" || asset.status !== "generated" || asset.provider !== "openai" ||
+    asset.type !== "audio" || asset.status !== "generated" ||
+    !isAdmissibleProductionProvider(asset.provider, "tts") ||
     (asset.model !== undefined && !isSafeAudioIdentifier(asset.model)) ||
     typeof asset.prompt !== "string" || asset.prompt.length < 1 || asset.prompt.length > 160 ||
     containsReservedSafeEvidenceTerm(asset.prompt) ||

@@ -13,6 +13,7 @@ import {
 import { animationMotionTypes, animationTransitionTypes } from "@/types/animation";
 import type { Asset } from "@/types/asset";
 import type { AnimationMotionPlanScene } from "@/types/animation";
+import { isAdmissibleProductionProvider } from "@/lib/production/ProductionProviderResolution";
 import {
   acquireProjectWriteAuthority,
   ensureSafeContainedDirectory,
@@ -41,7 +42,7 @@ export interface AnimationMotionPlanArtifact {
   readonly sceneId: number;
   readonly sourceImageAssetId: string;
   readonly durationSeconds: number;
-  readonly provider: "openai";
+  readonly provider: string;
   readonly model: string;
   readonly generationMode: "production";
   readonly requestIdentity: string;
@@ -219,7 +220,7 @@ function validateArtifact(value: unknown): asserts value is AnimationMotionPlanA
     artifact.schemaVersion !== "1" || artifact.artifactType !== "motion-plan" ||
     !safeValue(artifact.assetId) || !Number.isSafeInteger(artifact.sceneId) || artifact.sceneId <= 0 ||
     !safeValue(artifact.sourceImageAssetId) || !isValidAnimationDuration(artifact.durationSeconds) ||
-    artifact.provider !== "openai" || !safeValue(artifact.model) || artifact.generationMode !== "production" ||
+    !isAdmissibleProductionProvider(artifact.provider, "animation") || !safeValue(artifact.model) || artifact.generationMode !== "production" ||
     !/^[a-f0-9]{64}$/.test(artifact.requestIdentity) ||
     !/^[a-f0-9]{64}$/.test(artifact.promptDigest) ||
     !animationMotionTypes.includes(artifact.motionType) ||
@@ -255,8 +256,9 @@ export function requireStoredProductionMotionPlan(
     asset.type !== "animation" || asset.status !== "generated" ||
     asset.artifactType !== "motion-plan" || asset.mimeType !== MIME ||
     asset.sourceAssetId !== plan.sourceImageAssetId || asset.prompt !== plan.animationPrompt ||
-    asset.durationSeconds !== plan.durationSeconds || asset.provider !== "openai" ||
-    plan.provider !== "openai" || asset.model !== plan.model ||
+    asset.durationSeconds !== plan.durationSeconds ||
+    !isAdmissibleProductionProvider(asset.provider, "animation") ||
+    !isAdmissibleProductionProvider(plan.provider, "animation") || asset.model !== plan.model ||
     asset.generationMode !== "production" || plan.generationMode !== "production" ||
     typeof asset.filePath !== "string" || asset.url !== undefined ||
     !Number.isSafeInteger(asset.byteLength) || (asset.byteLength as number) <= 0
