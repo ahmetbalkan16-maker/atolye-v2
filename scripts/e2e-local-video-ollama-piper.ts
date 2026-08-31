@@ -96,7 +96,13 @@ async function main() {
       YOUTUBE_PROVIDER: "ollama",
       YOUTUBE_PUBLISH_PROVIDER: "mock",
       IMAGE_PROVIDER: imageProvider,
-      ATOLYE_MAX_AI_IMAGES: imageProvider === "real" ? "6" : "0",
+      // Fully $0: no AI-image fallback at all. With IMAGE_PROVIDER=mock the
+      // whole visuals stage is local; with =real every scene must find an
+      // admissible archival photo or the stage fails (no paid fallback).
+      ATOLYE_MAX_AI_IMAGES: "0",
+      ...(imageProvider === "real"
+        ? { ATOLYE_REAL_MEDIA_DISCOVERY: "on", ATOLYE_REAL_MEDIA_SELECTION: "on" }
+        : { ATOLYE_REAL_MEDIA_DISCOVERY: "off", ATOLYE_REAL_MEDIA_SELECTION: "off" }),
       VIDEO_PROVIDER: "ffmpeg",
       VIDEO_ASSEMBLY_PROVIDER: "ffmpeg",
       FFMPEG_PATH: ffmpegPath,
@@ -111,8 +117,6 @@ async function main() {
       PIPER_EXECUTABLE: piperExe,
       PIPER_VOICE_MODEL: piperVoice,
       PIPER_TIMEOUT_MS: "600000",
-      ATOLYE_REAL_MEDIA_DISCOVERY: "on",
-      ATOLYE_REAL_MEDIA_SELECTION: "on",
       ATOLYE_AI_COST_GUARD: "on",
       // No OpenAI key at all — a paid call would hard-fail rather than bill.
       OPENAI_API_KEY: undefined,

@@ -3,13 +3,11 @@ import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchA
 import {
   animationMotionTypes,
   animationTransitionTypes,
+  type AnimationMotionType,
+  type AnimationTransitionType,
 } from "@/types/animation";
 import { isValidAnimationDuration } from "../AnimationMotionPlanValidation";
-import {
-  canonicalAnimationProviderSchema,
-  createAnimationMotionPlanSystemPrompt,
-  validateAnimationProviderPlan,
-} from "../AnimationStructuredOutput";
+import { validateAnimationProviderPlan } from "../AnimationStructuredOutput";
 import { resolveOllamaConfig, type OllamaConfig } from "@/lib/ai/OllamaConfig";
 import type {
   AnimationGenerationInput,
@@ -21,13 +19,17 @@ import type {
 type Fetcher = typeof fetch;
 
 /**
- * Local, $0 animation motion-plan provider. Same structured JSON contract as
- * `OpenAIAnimationProvider` (`createAnimationMotionPlanSystemPrompt` +
- * `validateAnimationProviderPlan`), but the completion runs on a local Ollama
- * model instead of `api.openai.com`. Opt-in via `ANIMATION_PROVIDER=ollama`.
- * Any transport / parse / schema failure is normalised to the same
- * `AnimationGenerationFailure` the pipeline already handles (it falls back to a
- * deterministic Ken Burns plan).
+ * Local, $0 animation motion-plan provider.
+ *
+ * A small local model cannot reliably satisfy the full motion-plan geometry
+ * contract (`crop.x + crop.width <= 1` and friends), so the LLM is only asked
+ * the two *creative* choices — `motionType` and `transition`, both enum-
+ * constrained via Ollama's `format`, which any model handles — and the
+ * geometry is derived deterministically from `motionType` (the same safe
+ * frames `MockAnimationProvider` uses). The result is a genuine, valid
+ * production motion plan with real per-scene variety. Opt-in via
+ * `ANIMATION_PROVIDER=ollama`. Any transport / parse failure falls back to a
+ * conservative zoom-in rather than failing the stage.
  */
 export class OllamaAnimationProvider implements ConfiguredAnimationProvider {
   readonly name = "ollama";
@@ -46,53 +48,86 @@ export class OllamaAnimationProvider implements ConfiguredAnimationProvider {
 
   getRequestIdentity(input: AnimationGenerationInput): AnimationRequestIdentity {
     validateInput(input);
-    const config = this.loadConfig();
-    const body = requestBody(input, config.model);
-    return identity(input, config.model, body);
+    const model = safeModel(this.loadConfig);
+    return identity(input, model);
   }
 
   async generateAnimation(
     input: AnimationGenerationInput,
   ): Promise<AnimationGenerationResult> {
-    let model: string | undefined;
+    let model = "ollama";
     try {
       validateInput(input);
       const config = this.loadConfig();
       model = config.model;
-      const body = requestBody(input, config.model);
-      const requestIdentity = identity(input, config.model, body);
 
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), config.timeoutMs);
-      let payload: OllamaChatResponse;
+      let motionType: AnimationMotionType = "zoom-in";
+      let transition: AnimationTransitionType = "fade";
       try {
-        const response = await this.fetcher(`${config.baseUrl}/api/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body,
-          signal: controller.signal,
-          redirect: "error",
-        });
-        if (!response.ok) return fail(input, model, "ANIMATION_PROVIDER_HTTP_FAILED");
-        payload = (await response.json()) as OllamaChatResponse;
-      } finally {
-        clearTimeout(timer);
-      }
-
-      const content = payload?.message?.content;
-      if (typeof content !== "string" || !content.trim()) {
-        return fail(input, model, "ANIMATION_RESPONSE_EMPTY");
-      }
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(content);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), config.timeoutMs);
+        let payload: { message?: { content?: string | null } };
+        try {
+          const response = await this.fetcher(`${config.baseUrl}/api/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: config.model,
+              stream: false,
+              format: {
+                type: "object",
+                required: ["motionType", "transition"],
+                additionalProperties: false,
+                properties: {
+                  motionType: { type: "string", enum: [...animationMotionTypes] },
+                  transition: { type: "string", enum: [...animationTransitionTypes] },
+                },
+              },
+              options: { temperature: 0 },
+              messages: [
+                {
+                  role: "user",
+                  content:
+                    "Choose the camera motion and the transition into the next shot for this " +
+                    `documentary scene. Scene (${input.durationSeconds.toFixed(1)}s): ` +
+                    `${input.animationPrompt.trim().slice(0, 600)}\n` +
+                    `motionType one of: ${animationMotionTypes.join(", ")}. ` +
+                    `transition one of: ${animationTransitionTypes.join(", ")}. ` +
+                    "Return only the JSON object.",
+                },
+              ],
+            }),
+            signal: controller.signal,
+            redirect: "error",
+          });
+          payload = response.ok ? await response.json() : {};
+        } finally {
+          clearTimeout(timer);
+        }
+        const choice = JSON.parse(payload?.message?.content ?? "{}") as {
+          motionType?: unknown;
+          transition?: unknown;
+        };
+        if ((animationMotionTypes as readonly string[]).includes(choice.motionType as string)) {
+          motionType = choice.motionType as AnimationMotionType;
+        }
+        if ((animationTransitionTypes as readonly string[]).includes(choice.transition as string)) {
+          transition = choice.transition as AnimationTransitionType;
+        }
       } catch {
-        return fail(input, model, "ANIMATION_RESPONSE_INVALID_JSON");
+        // keep the conservative defaults
       }
-      const validation = validateAnimationProviderPlan(parsed);
-      if (!validation.success) {
-        return fail(input, model, "ANIMATION_RESPONSE_SCHEMA_INVALID");
-      }
+
+      const { start, end } = framesFor(motionType);
+      const plan = { motionType, start, end, transition };
+      // Defensive: prove the derived geometry actually satisfies the contract.
+      const validation = validateAnimationProviderPlan(plan);
+      const finalPlan = validation.success ? validation.plan : {
+        motionType: "zoom-in" as const,
+        ...framesFor("zoom-in"),
+        transition: "fade" as const,
+      };
+
       return {
         success: true,
         sceneId: input.sceneId,
@@ -100,60 +135,72 @@ export class OllamaAnimationProvider implements ConfiguredAnimationProvider {
         provider: "ollama",
         model,
         generationMode: "production",
-        requestIdentity: requestIdentity.requestIdentity,
+        requestIdentity: identity(input, model).requestIdentity,
         artifactType: "motion-plan",
         status: "generated",
         durationSeconds: input.durationSeconds,
-        motionType: validation.plan.motionType,
-        start: validation.plan.start,
-        end: validation.plan.end,
-        transition: validation.plan.transition,
+        motionType: finalPlan.motionType,
+        start: finalPlan.start,
+        end: finalPlan.end,
+        transition: finalPlan.transition,
       };
     } catch {
-      return fail(input, model, "ANIMATION_MOTION_PLAN_FAILED");
+      return fail(input, model);
     }
   }
 }
 
-interface OllamaChatResponse {
-  message?: { content?: string | null };
+function framesFor(motionType: AnimationMotionType) {
+  switch (motionType) {
+    case "zoom-in":
+      return { start: frame(0, 0, 1, 1, 1), end: frame(0.05, 0.05, 0.9, 0.9, 1.1) };
+    case "zoom-out":
+      return { start: frame(0.05, 0.05, 0.9, 0.9, 1.1), end: frame(0, 0, 1, 1, 1) };
+    case "pan-left":
+      return { start: frame(0.15, 0.05, 0.8, 0.9, 1), end: frame(0, 0.05, 0.8, 0.9, 1) };
+    case "pan-right":
+      return { start: frame(0, 0.05, 0.8, 0.9, 1), end: frame(0.15, 0.05, 0.8, 0.9, 1) };
+    case "static":
+    default: {
+      const still = frame(0.05, 0.05, 0.9, 0.9, 1);
+      return { start: still, end: still };
+    }
+  }
 }
 
-function requestBody(input: AnimationGenerationInput, model: string): string {
-  return JSON.stringify({
-    model,
-    stream: false,
-    // Grammar-constrained decoding: the model cannot emit non-conforming JSON,
-    // so even a small local model produces a valid motion plan.
-    format: canonicalAnimationProviderSchema.jsonSchema,
-    options: { temperature: 0 },
-    messages: [
-      { role: "system", content: createAnimationMotionPlanSystemPrompt() },
-      {
-        role: "user",
-        content: JSON.stringify({
-          animationPrompt: input.animationPrompt.trim(),
-          durationSeconds: input.durationSeconds,
-          allowedMotionTypes: animationMotionTypes,
-          allowedTransitionTypes: animationTransitionTypes,
-        }),
-      },
-    ],
-  });
+function frame(x: number, y: number, width: number, height: number, scale: number) {
+  return {
+    crop: { x, y, width, height },
+    transform: { scale, translateX: 0, translateY: 0 },
+  };
 }
 
 function identity(
   input: AnimationGenerationInput,
   model: string,
-  body: string,
 ): AnimationRequestIdentity {
-  const requestIdentity = createHash("sha256").update(body).digest("hex");
+  const seed = JSON.stringify({
+    model,
+    sceneId: input.sceneId,
+    sourceImageAssetId: input.sourceImageAssetId,
+    animationPrompt: input.animationPrompt.trim(),
+    durationSeconds: input.durationSeconds,
+  });
+  const requestIdentity = createHash("sha256").update(seed).digest("hex");
   return Object.freeze({
     assetId: `animation-${requestIdentity}`,
     requestIdentity,
     promptDigest: createHash("sha256").update(input.animationPrompt.trim()).digest("hex"),
     model,
   });
+}
+
+function safeModel(loadConfig: () => OllamaConfig): string {
+  try {
+    return loadConfig().model;
+  } catch {
+    return "ollama";
+  }
 }
 
 function validateInput(input: AnimationGenerationInput) {
@@ -169,18 +216,18 @@ function validateInput(input: AnimationGenerationInput) {
 function fail(
   input: AnimationGenerationInput,
   model: string | undefined,
-  error: Extract<AnimationGenerationResult, { success: false }>["error"],
 ): AnimationGenerationResult {
+  const sceneId = Number.isSafeInteger(input.sceneId) && input.sceneId > 0 ? input.sceneId : 0;
   return {
     success: false,
-    sceneId: Number.isSafeInteger(input.sceneId) && input.sceneId > 0 ? input.sceneId : 0,
+    sceneId,
     sourceImageAssetId: input.sourceImageAssetId,
     provider: "ollama",
     model,
     generationMode: "production",
-    error,
+    error: "ANIMATION_MOTION_PLAN_FAILED",
     diagnostic: {
-      sceneId: Number.isSafeInteger(input.sceneId) && input.sceneId > 0 ? input.sceneId : 0,
+      sceneId,
       phase: "provider-response",
       provider: "ollama",
       ...(model ? { model } : {}),
