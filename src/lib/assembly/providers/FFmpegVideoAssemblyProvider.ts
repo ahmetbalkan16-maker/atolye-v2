@@ -483,6 +483,10 @@ export function buildKenBurnsFilter(motion: KenBurnsMotionType, durationSeconds:
   }
 }
 
+/** Music bed fades (seconds), clamped to a third of the render on short cuts. */
+const BGM_FADE_IN_SECONDS = 1.5;
+const BGM_FADE_OUT_SECONDS = 3;
+
 function appendBgmFilterGraph(
   args: string[],
   filters: string[],
@@ -490,24 +494,38 @@ function appendBgmFilterGraph(
   bgmInputIndex: number,
   bgmConfig: NonNullable<VideoAssemblyInput["backgroundMusic"]>,
   context: RuntimeStorageContext,
+  totalSeconds: number,
 ): void {
   const bgmVol = (bgmConfig.volume ?? 0.15).toFixed(2);
   const useDucking = bgmConfig.ducking !== false;
+  // `-stream_loop -1` makes the bed input infinite; `atrim` bounds it to the
+  // exact render length so `afade=out` lands on the real end and the mux
+  // terminates cleanly. Fade in from silence at the start, fade out to silence
+  // at the end — never a hard cut on the music.
+  const total = Number.isFinite(totalSeconds) && totalSeconds > 0 ? totalSeconds : 1;
+  const fadeIn = Math.min(BGM_FADE_IN_SECONDS, total / 3);
+  const fadeOut = Math.min(BGM_FADE_OUT_SECONDS, total / 3);
+  const fadeOutStart = Math.max(0, total - fadeOut);
 
   args.push("-stream_loop", "-1", "-i", absoluteInput(bgmConfig.filePath, context));
 
   filters.push(
-    `[${narrationLabel}]asplit=2[a_narration_sc][a_narration_main]`,
-    `[${bgmInputIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=${bgmVol}[bgm_raw]`,
+    `[${bgmInputIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,` +
+      `atrim=duration=${total.toFixed(6)},asetpts=PTS-STARTPTS,volume=${bgmVol},` +
+      `afade=t=in:st=0:d=${fadeIn.toFixed(3)},` +
+      `afade=t=out:st=${fadeOutStart.toFixed(3)}:d=${fadeOut.toFixed(3)}[bgm_raw]`,
   );
   if (useDucking) {
+    // Split the narration: one copy is the sidechain key that pulls the music
+    // down while the narrator speaks, the other is mixed at full level.
     filters.push(
+      `[${narrationLabel}]asplit=2[a_narration_sc][a_narration_main]`,
       `[bgm_raw][a_narration_sc]sidechaincompress=threshold=0.03:ratio=5:attack=100:release=800[bgm_ducked]`,
       `[a_narration_main][bgm_ducked]amix=inputs=2:weights=1 1:normalize=0[a]`,
     );
   } else {
     filters.push(
-      `[a_narration_main][bgm_raw]amix=inputs=2:weights=1 1:normalize=0[a]`,
+      `[${narrationLabel}][bgm_raw]amix=inputs=2:weights=1 1:normalize=0[a]`,
     );
   }
 }
@@ -583,7 +601,7 @@ function buildImageConcatArgs(
       `${concatInputs.map((_, i) => `[v${i}]`).join("")}concat=n=${input.scenes.length}:v=1:a=0[v]`,
       `${concatInputs.map((_, i) => `[a${i}]`).join("")}concat=n=${input.scenes.length}:v=0:a=1[a_narration_full]`,
     );
-    appendBgmFilterGraph(args, filters, "a_narration_full", bgmIndex, input.backgroundMusic, context);
+    appendBgmFilterGraph(args, filters, "a_narration_full", bgmIndex, input.backgroundMusic, context, expectedRenderedDuration(input, null));
   }
 
   args.push(
@@ -634,12 +652,12 @@ function buildTransitionedImageConcatArgs(
 ) {
   const args: string[] = ["-hide_banner", "-loglevel", "error", "-nostats", "-nostdin", "-n"];
   const filters: string[] = [];
-  const durations: number[] = [];
+  const timeline = planTransitionedTimeline(input.scenes);
 
   input.scenes.forEach((scene, index) => {
     if (scene.inputType !== "image") throw new Error(SAFE_ERROR);
     const duration = scene.durationSeconds;
-    durations.push(duration);
+    const frames = timeline.sceneFrames[index];
     const audioStartSeconds = audioStart(scene).toFixed(6);
     const audioEndSeconds = (audioStart(scene) + duration).toFixed(6);
     const imageIndex = index * 2;
@@ -654,35 +672,36 @@ function buildTransitionedImageConcatArgs(
       absoluteInput(scene.audioFilePath, context),
     );
     filters.push(
-      `[${imageIndex}:v]${zoompanFilter},scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease:out_range=tv,pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2,format=yuv420p,setsar=1,trim=duration=${duration.toFixed(6)},setpts=PTS-STARTPTS[v${index}]`,
+      // buildKenBurnsFilter already emits exactly `round(duration * FPS)`
+      // frames at fps=FPS, so `trim=end_frame` here is an exact clamp to the
+      // same integer count planTransitionedTimeline() offsets the xfade chain
+      // against — never a `trim=duration=<seconds>` sub-frame snap.
+      `[${imageIndex}:v]${zoompanFilter},scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease:out_range=tv,pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2,format=yuv420p,setsar=1,trim=end_frame=${frames},setpts=PTS-STARTPTS[v${index}]`,
       `[${audioIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,atrim=start=${audioStartSeconds}:end=${audioEndSeconds},atrim=duration=${duration.toFixed(6)},asetpts=PTS-STARTPTS[a${index}]`,
     );
   });
 
   let videoLabel = "v0";
   let audioLabel = "a0";
-  let cumulative = durations[0];
 
-  for (let index = 1; index < input.scenes.length; index += 1) {
+  timeline.junctions.forEach((junction, junctionIndex) => {
+    const index = junctionIndex + 1;
     const transition = sceneTransitionAt(input.scenes[index]);
-    const blend = blendSecondsFor(transition, durations[index - 1], durations[index]);
-    const offset = Math.max(0, cumulative - blend).toFixed(6);
     const nextVideoLabel = `vx${index}`;
     const nextAudioLabel = `ax${index}`;
     filters.push(
-      `[${videoLabel}][v${index}]xfade=transition=${xfadeModeFor(transition)}:duration=${blend.toFixed(6)}:offset=${offset}[${nextVideoLabel}]`,
-      `[${audioLabel}][a${index}]acrossfade=d=${blend.toFixed(6)}[${nextAudioLabel}]`,
+      `[${videoLabel}][v${index}]xfade=transition=${xfadeModeFor(transition)}:duration=${frameSeconds(junction.videoBlendFrames)}:offset=${frameSeconds(junction.offsetFrames)}[${nextVideoLabel}]`,
+      `[${audioLabel}][a${index}]acrossfade=d=${frameSeconds(junction.audioBlendFrames)}[${nextAudioLabel}]`,
     );
     videoLabel = nextVideoLabel;
     audioLabel = nextAudioLabel;
-    cumulative = cumulative + durations[index] - blend;
-  }
+  });
 
   let finalAudioLabel = audioLabel;
 
   if (input.backgroundMusic) {
     const bgmIndex = input.scenes.length * 2;
-    appendBgmFilterGraph(args, filters, audioLabel, bgmIndex, input.backgroundMusic, context);
+    appendBgmFilterGraph(args, filters, audioLabel, bgmIndex, input.backgroundMusic, context, expectedRenderedDuration(input, null));
     finalAudioLabel = "a";
   }
 
@@ -847,7 +866,7 @@ function buildRetimedConcatArgs(
       `${concatInputs.map((_, i) => `[v${i}]`).join("")}concat=n=${input.scenes.length}:v=1:a=0[v]`,
       `${concatInputs.map((_, i) => `[a${i}]`).join("")}concat=n=${input.scenes.length}:v=0:a=1[a_narration_full]`,
     );
-    appendBgmFilterGraph(args, filters, "a_narration_full", bgmIndex, input.backgroundMusic, context);
+    appendBgmFilterGraph(args, filters, "a_narration_full", bgmIndex, input.backgroundMusic, context, expectedRenderedDuration(input, null));
   }
 
   args.push(
@@ -881,17 +900,25 @@ function buildTransitionedConcatArgs(
 ) {
   const args: string[] = ["-hide_banner", "-loglevel", "error", "-nostdin", "-n"];
   const filters: string[] = [];
-  const durations: number[] = [];
+  const timeline = planTransitionedTimeline(input.scenes);
 
   input.scenes.forEach((scene, index) => {
     if (scene.inputType !== "scene-video") throw new Error(SAFE_ERROR);
     const videoIndex = index * 2;
     const audioIndex = videoIndex + 1;
-    const duration = scene.narrationDurationSeconds;
-    durations.push(duration);
+    const narrationSeconds = scene.narrationDurationSeconds;
+    const frames = timeline.sceneFrames[index];
     const audioStartSeconds = audioStart(scene).toFixed(6);
-    const audioEndSeconds = (audioStart(scene) + duration).toFixed(6);
-    const padding = Math.max(0, duration - scene.durationSeconds).toFixed(6);
+    const audioEndSeconds = (audioStart(scene) + narrationSeconds).toFixed(6);
+    // tpad clones the final frame well past the target, `fps` puts the stream
+    // on the fixed frame grid, and `trim=end_frame` then cuts to an exact
+    // integer frame count — deterministic, unlike `trim=duration=<seconds>`
+    // which snaps to whichever frame boundary happens to fall under the raw
+    // narration seconds and can leave the stream up to a frame short. The +1s
+    // of clone headroom swamps any tpad/fps rounding; trim removes the excess.
+    const padSeconds = (
+      Math.max(0, frames / FPS - scene.durationSeconds) + 1
+    ).toFixed(6);
     args.push(
       "-i",
       absoluteInput(scene.filePath, context),
@@ -899,35 +926,32 @@ function buildTransitionedConcatArgs(
       absoluteInput(scene.audioFilePath, context),
     );
     filters.push(
-      `[${videoIndex}:v]tpad=stop_mode=clone:stop_duration=${padding},trim=duration=${duration.toFixed(6)},setpts=PTS-STARTPTS,fps=${FPS},format=yuv420p,setsar=1[v${index}]`,
-      `[${audioIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,atrim=start=${audioStartSeconds}:end=${audioEndSeconds},atrim=duration=${duration.toFixed(6)},asetpts=PTS-STARTPTS[a${index}]`,
+      `[${videoIndex}:v]tpad=stop_mode=clone:stop_duration=${padSeconds},fps=${FPS},trim=end_frame=${frames},setpts=PTS-STARTPTS,format=yuv420p,setsar=1[v${index}]`,
+      `[${audioIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,atrim=start=${audioStartSeconds}:end=${audioEndSeconds},atrim=duration=${narrationSeconds.toFixed(6)},asetpts=PTS-STARTPTS[a${index}]`,
     );
   });
 
   let videoLabel = "v0";
   let audioLabel = "a0";
-  let cumulative = durations[0];
 
-  for (let index = 1; index < input.scenes.length; index += 1) {
+  timeline.junctions.forEach((junction, junctionIndex) => {
+    const index = junctionIndex + 1;
     const transition = sceneTransitionAt(input.scenes[index]);
-    const blend = blendSecondsFor(transition, durations[index - 1], durations[index]);
-    const offset = Math.max(0, cumulative - blend).toFixed(6);
     const nextVideoLabel = `vx${index}`;
     const nextAudioLabel = `ax${index}`;
     filters.push(
-      `[${videoLabel}][v${index}]xfade=transition=${xfadeModeFor(transition)}:duration=${blend.toFixed(6)}:offset=${offset}[${nextVideoLabel}]`,
-      `[${audioLabel}][a${index}]acrossfade=d=${blend.toFixed(6)}[${nextAudioLabel}]`,
+      `[${videoLabel}][v${index}]xfade=transition=${xfadeModeFor(transition)}:duration=${frameSeconds(junction.videoBlendFrames)}:offset=${frameSeconds(junction.offsetFrames)}[${nextVideoLabel}]`,
+      `[${audioLabel}][a${index}]acrossfade=d=${frameSeconds(junction.audioBlendFrames)}[${nextAudioLabel}]`,
     );
     videoLabel = nextVideoLabel;
     audioLabel = nextAudioLabel;
-    cumulative = cumulative + durations[index] - blend;
-  }
+  });
 
   let finalAudioLabel = audioLabel;
 
   if (input.backgroundMusic) {
     const bgmIndex = input.scenes.length * 2;
-    appendBgmFilterGraph(args, filters, audioLabel, bgmIndex, input.backgroundMusic, context);
+    appendBgmFilterGraph(args, filters, audioLabel, bgmIndex, input.backgroundMusic, context, expectedRenderedDuration(input, null));
     finalAudioLabel = "a";
   }
 
@@ -985,52 +1009,135 @@ function audioStart(scene: VideoAssemblyInput["scenes"][number]) {
   return scene.audioStartSeconds ?? 0;
 }
 
+/**
+ * Deterministic frame-boundary safety margin between the end of a chained
+ * xfade's transition window and the real end of its (accumulated) first
+ * input. FFmpeg's xfade terminates the ENTIRE filter output the instant the
+ * first input reaches EOF before `offset + duration` is reached — silently
+ * dropping the second input and every downstream scene still in the chain.
+ * The pre-fix offset math (`offset = cumulative - blend`, with `cumulative`
+ * summed from exact, non-frame-aligned narration seconds) placed that window
+ * flush against the nominal timeline end with ZERO margin, so once the
+ * accumulated frame-quantization drift pushed the real accumulated stream a
+ * fraction of a frame short of `cumulative`, the chain collapsed: the real
+ * 302ce03f incident rendered a ~15-scene / ~99s assembly as 37.6s (expected
+ * ~96s) and failed validateProbe(). Reserving one whole frame of headroom —
+ * with every per-scene stream forced to an exact integer frame count
+ * (`trim=end_frame`) and the running offset tracked in integer frames — makes
+ * `offset + duration <= realFirstInputFrames - 1` hold at every junction.
+ */
+const XFADE_SAFETY_MARGIN_FRAMES = 1;
+
+/**
+ * blendSecondsFor() re-expressed on the integer-frame grid the transitioned
+ * concat paths actually render on. Keeps blendSecondsFor()'s exact clamp
+ * (target vs 40%-of-either-neighbour) so "cut" junctions still collapse to a
+ * single-frame xfade and fade/crossfade junctions still cap at
+ * MAX_BLEND_SECONDS, then snaps to whole frames — never below 1, since xfade
+ * rejects a zero-length transition.
+ */
+function blendFramesFor(
+  transition: AnimationTransitionType,
+  framesA: number,
+  framesB: number,
+) {
+  return Math.max(
+    1,
+    Math.round(blendSecondsFor(transition, framesA / FPS, framesB / FPS) * FPS),
+  );
+}
+
+interface TransitionedJunction {
+  readonly offsetFrames: number;
+  readonly videoBlendFrames: number;
+  readonly audioBlendFrames: number;
+}
+
+interface TransitionedTimeline {
+  /** Exact integer frame count each scene's per-scene filter is forced to. */
+  readonly sceneFrames: readonly number[];
+  /** One entry per inter-scene junction (scene index 1..n-1). */
+  readonly junctions: readonly TransitionedJunction[];
+  /** Exact frame count of the fully chained xfade output. */
+  readonly totalFrames: number;
+}
+
+/**
+ * Single source of truth for the xfade/acrossfade chain geometry shared by
+ * buildTransitionedConcatArgs (scene-video), buildTransitionedImageConcatArgs
+ * (static image) and expectedRenderedDuration(). Everything is in integer
+ * frames:
+ *
+ *  - each scene contributes exactly `round(narrationDuration * FPS)` frames —
+ *    its per-scene filter ends in `trim=end_frame=<thatCount>`, so this is the
+ *    real stream length, not an estimate of it;
+ *  - `offsetFrames` for junction k sits `videoBlendFrames + margin` frames
+ *    before the real end of the accumulated first input, so the transition
+ *    window always closes at least one frame early;
+ *  - `accumulated` advances by xfade's real output law
+ *    (`out = offset + len(secondInput)`), never by `cumulative - blend`, so it
+ *    can never run ahead of what ffmpeg actually produces;
+ *  - the audio acrossfade overlaps by `videoBlendFrames + margin` (not just
+ *    `videoBlendFrames`) so the narration track loses the same total length
+ *    the video track does and the two stay within a few frames end to end.
+ */
+function planTransitionedTimeline(
+  scenes: VideoAssemblyInput["scenes"],
+): TransitionedTimeline {
+  const sceneFrames = scenes.map((scene) =>
+    Math.max(1, Math.round(narrationDuration(scene) * FPS)),
+  );
+  const junctions: TransitionedJunction[] = [];
+  let accumulated = sceneFrames[0];
+  for (let index = 1; index < scenes.length; index += 1) {
+    const videoBlendFrames = blendFramesFor(
+      sceneTransitionAt(scenes[index]),
+      sceneFrames[index - 1],
+      sceneFrames[index],
+    );
+    const offsetFrames = Math.max(
+      0,
+      accumulated - videoBlendFrames - XFADE_SAFETY_MARGIN_FRAMES,
+    );
+    junctions.push({
+      offsetFrames,
+      videoBlendFrames,
+      audioBlendFrames: videoBlendFrames + XFADE_SAFETY_MARGIN_FRAMES,
+    });
+    accumulated = offsetFrames + sceneFrames[index];
+  }
+  return { sceneFrames, junctions, totalFrames: accumulated };
+}
+
+/** Seconds string for a whole-frame count at the fixed assembly FPS. */
+function frameSeconds(frames: number) {
+  return (frames / FPS).toFixed(6);
+}
+
 function expectedOutputDuration(input: VideoAssemblyInput) {
   return input.scenes.reduce((sum, scene) => sum + narrationDuration(scene), 0);
 }
 
 /**
  * The self-check duration passed to validateProbe after render. Equal to
- * expectedOutputDuration() (the naive per-scene sum) on every path except
- * the xfade/acrossfade transitioned-concat paths built by
- * buildTransitionedConcatArgs (scene-video) and buildTransitionedImageConcatArgs
- * (static image, Sprint 140): there, each blended junction overlaps two
- * scenes by `blend` seconds, so ffmpeg's real output is shorter than the
- * naive sum by the total overlap. totalBlendSeconds() mirrors those
- * functions' shared per-junction blend math (via the same blendSecondsFor/
- * sceneTransitionAt calls) without touching filter-graph construction, so
- * they can never drift apart. concatManifestPath is only ever non-null on
- * the scene-video copy-concat path (buildCopyConcatArgs), which never blends
- * junctions, so that branch keeps returning the naive sum unchanged.
+ * expectedOutputDuration() (the naive per-scene sum) on the copy-concat path
+ * (concatManifestPath set, stream-copied, no retiming) and the all-"cut"
+ * plain-concat paths. On the xfade/acrossfade transitioned-concat paths
+ * (buildTransitionedConcatArgs / buildTransitionedImageConcatArgs) the render
+ * is fully frame-quantized, so this returns planTransitionedTimeline()'s
+ * exact total-frame count — the SAME geometry those builders emit their
+ * filter graph from — converted to seconds. Sharing planTransitionedTimeline()
+ * (rather than mirroring a blend-sum in a second function) is what keeps the
+ * self-check and the filter graph from ever drifting apart.
  */
 function expectedRenderedDuration(
   input: VideoAssemblyInput,
   concatManifestPath: string | null,
 ) {
-  const naive = expectedOutputDuration(input);
   if (concatManifestPath || !hasAnyBlendedJunction(input.scenes)) {
-    return naive;
+    return expectedOutputDuration(input);
   }
-  return naive - totalBlendSeconds(input.scenes);
-}
-
-/**
- * Sum of per-junction xfade/acrossfade overlap seconds that
- * buildTransitionedConcatArgs (scene-video) or buildTransitionedImageConcatArgs
- * (static image) will apply for this scene list. See
- * expectedRenderedDuration() for why this must stay in lockstep with those
- * functions' blend loops.
- */
-function totalBlendSeconds(scenes: VideoAssemblyInput["scenes"]) {
-  let total = 0;
-  for (let index = 1; index < scenes.length; index += 1) {
-    total += blendSecondsFor(
-      sceneTransitionAt(scenes[index]),
-      narrationDuration(scenes[index - 1]),
-      narrationDuration(scenes[index]),
-    );
-  }
-  return total;
+  return planTransitionedTimeline(input.scenes).totalFrames / FPS;
 }
 
 /**
@@ -1042,36 +1149,28 @@ function totalBlendSeconds(scenes: VideoAssemblyInput["scenes"]) {
  * `scenes`, so the allowance scales with how much frame-quantizing work the
  * render actually does instead of being a flat constant:
  *
- *  1. Every per-scene retiming filter — zoompan+trim for "image" scenes
- *     (buildKenBurnsFilter: `d=Math.round(durationSeconds * FPS)`) or
- *     tpad+fps for "scene-video" scenes (buildRetimedConcatArgs /
- *     buildTransitionedConcatArgs: the `fps=${FPS}` filter) — resamples
- *     that scene onto the fixed FPS grid. `trim=duration=<exact seconds>`
- *     can only cut, never manufacture frames, so whenever the scene's exact
- *     target duration isn't itself frame-aligned (essentially always true
- *     for narration-derived durations), that scene's real contributed
- *     length can fall up to one frame short. This never happens on the
- *     canCopySceneVideos zero-re-encode path (`concatManifestPath` set):
- *     video is stream-copied untouched, so there is no per-scene retiming
- *     filter to quantize anything.
- *  2. Every blended junction's xfade `offset`/`duration` (built in
- *     buildTransitionedConcatArgs / buildTransitionedImageConcatArgs from
- *     the same non-frame-aligned scene durations via the `cumulative`
- *     running-offset loop) is itself a timestamp on the same fixed-FPS
- *     grid, so it can independently snap by up to one more frame. This
- *     only applies when hasAnyBlendedJunction() is true; a fully "cut"
- *     sequence takes the plain-concat path with no per-junction offset math
- *     at all.
+ *  1. Every per-scene retiming filter resamples that scene onto the fixed
+ *     FPS grid: `round(durationSeconds * FPS)` frames for "image" scenes
+ *     (buildKenBurnsFilter) and buildRetimedConcatArgs' `trim=duration` for
+ *     the all-"cut" scene-video path can each land up to one frame off the
+ *     exact narration seconds. This never happens on the canCopySceneVideos
+ *     zero-re-encode path (`concatManifestPath` set): video is stream-copied
+ *     untouched, so there is no per-scene retiming filter to quantize.
+ *  2. On the xfade/acrossfade transitioned paths every per-scene video
+ *     stream is forced to an exact integer frame count
+ *     (planTransitionedTimeline / `trim=end_frame`), but its narration audio
+ *     is atrim-cut to the precise, generally non-frame-aligned segment
+ *     seconds, so video and audio can differ by up to half a frame per
+ *     scene. This only applies when hasAnyBlendedJunction() is true.
  *
- * Both bounds are exactly one frame (1/FPS) each — never more, since
- * quantization error against a fixed sampling grid is bounded by
- * definition — so the total allowance is provably capped at
- * `(scenes.length + junctionCount) / FPS`. A one-scene, transition-free
- * assembly keeps validateProbe()'s original tight tolerance; a real
- * multi-scene, multi-transition assembly gets exactly the slack its own
- * filter graph can legitimately need. A genuinely broken render (wrong
- * audio track, truncated output, mismatched asset) drifts by whole seconds,
- * far outside even this widened bound, and still fails closed.
+ * Either way the per-point bound is one frame (1/FPS), so the total
+ * allowance is capped at `(scenes.length + junctionCount) / FPS`. A
+ * one-scene, transition-free assembly keeps validateProbe()'s original tight
+ * tolerance; a real multi-scene, multi-transition assembly gets exactly the
+ * slack its own filter graph can legitimately need. A genuinely broken
+ * render (wrong audio track, truncated/collapsed output, mismatched asset)
+ * drifts by whole seconds, far outside even this widened bound, and still
+ * fails closed.
  */
 export function frameRoundingAllowance(
   scenes: VideoAssemblyInput["scenes"],

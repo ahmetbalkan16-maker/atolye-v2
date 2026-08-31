@@ -534,9 +534,38 @@ export class PipelineStageExecutor {
         const script = requireStageInput(state.script, "script", stage);
         const scenes = requireStageInput(state.scenes, "scenes", stage);
         const visuals = requireStageInput(state.visuals, "visuals", stage);
-        const audio = requireStageInput(state.audio, "audio", stage);
+        let audio = requireStageInput(state.audio, "audio", stage);
         const animation = requireStageInput(state.animation, "animation", stage);
         const video = requireStageInput(state.video, "video", stage);
+        // Faz 4 (additive, best-effort, $0): ensure the licence-cleared
+        // background-music bed is staged before the render. The audio stage
+        // already does this, but runs whose audio stage predates music staging
+        // (or where staging was skipped) would otherwise render narration-only
+        // forever. Idempotent (reuses an existing `bgm` asset), rights
+        // fail-closed, local-library + ffmpeg-transcode only — no provider,
+        // LLM or TTS call — and never fails the assembly stage.
+        try {
+          const music = await stageProjectBackgroundMusic({
+            projectId: state.project.id,
+            projectSlug,
+            audio,
+            musicStyleHint: script.musicStyle,
+            ambienceHints: deriveAmbienceHints(state.research, script),
+            storageContext: requireStorageContext(storageContext),
+          });
+          if (music.staged && music.audio !== audio) {
+            audio = music.audio;
+            state.audio = music.audio;
+            await ProjectManager.saveAudio(
+              projectSlug, state.audio, requireStorageContext(storageContext),
+            );
+          }
+        } catch (error) {
+          console.error(
+            "[PipelineStageExecutor] assembly-stage background music staging skipped (best-effort):",
+            error,
+          );
+        }
         const assemblyPlan = await AssemblyManager.generateAssemblyPlan(
           script,
           scenes,

@@ -460,8 +460,16 @@ async function run() {
   });
 
   await scenario("provider selects the highest-resolution eligible candidate", async () => {
-    const small = wikimediaPage({ title: "File:Small.jpg", width: 700, height: 400 });
-    const large = wikimediaPage({ title: "File:Large.jpg", width: 3000, height: 2000 });
+    // Both titles must cover the query so the relevance gate keeps them; the
+    // scenario is about the resolution tiebreak between two equally-relevant hits.
+    const small = wikimediaPage({
+      title: "File:Hagia Sophia Small.jpg", width: 700, height: 400,
+      descriptionurl: "https://commons.wikimedia.org/wiki/File:Hagia_Sophia_Small.jpg",
+    });
+    const large = wikimediaPage({
+      title: "File:Hagia Sophia Large.jpg", width: 3000, height: 2000,
+      descriptionurl: "https://commons.wikimedia.org/wiki/File:Hagia_Sophia_Large.jpg",
+    });
     const provider = new RealPhotoImageProvider({
       delayFn: noDelay,
       fetcher: fakeFetcher({

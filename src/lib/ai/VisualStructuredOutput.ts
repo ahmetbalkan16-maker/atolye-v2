@@ -62,9 +62,13 @@ export function createVisualPlanPrompt(
     "Thumbnail limits: title 1-300, prompt 1-2000, composition 1-1000, mood 1-300 characters.",
     "style must be a plain style label containing only letters, numbers, spaces, underscore, or hyphen.",
     "searchKeywords, when present, must be an array of 0-12 plain strings (1-100 characters each) " +
-      "naming concrete real-world entities (people, places, buildings, artifacts, events) suitable " +
-      "for a photo archive search. Use an empty array for imagined/abstract scenes with no real " +
-      "photograph that could represent them. Omitting the field entirely is also valid.",
+      "for a historical photo/artwork archive search. Each keyword must be a SPECIFIC multi-word " +
+      "phrase that combines the scene's concrete subject with its historical context and era - " +
+      "e.g. \"Ottoman siege cannon 1453\", \"Mehmed II sultan portrait\", \"Byzantine walls of " +
+      "Constantinople\" - NOT a bare place name (\"Edirne\", \"Bosphorus\") or a bare surname " +
+      "(\"Urban\", \"Giustiniani\"), which match modern streets, bridges and unrelated namesakes. " +
+      "Put the most specific phrase first. Use an empty array for imagined/abstract scenes with no " +
+      "real photograph that could represent them. Omitting the field entirely is also valid.",
     "Do not produce paths, URLs, filenames, storage locators, physical asset ids, metadata, or unknown fields.",
     "visualPrompt must describe ONE single cinematic frame: one subject, one clear composition, one moment - " +
       "realistic, historically grounded, and richly detailed for image generation. " +
@@ -118,6 +122,27 @@ export function parseStrictVisualPlanResponse(
     ...(parsed as { scenes: VisualScene[]; thumbnail: ThumbnailConcept }),
     createdAt: createCanonicalApplicationTimestamp(now),
   };
+}
+
+/**
+ * A `searchKeywords` list is "low specificity" when it carries no usable
+ * multi-word phrase — i.e. every entry is a single bare token (a place name or
+ * a surname). Those match modern streets, bridges and namesakes in a photo
+ * archive far more readily than the historical subject (the real 302ce03f
+ * failure). Advisory only: consumed by a keyword-quality repair / prompt
+ * feedback loop, never a hard schema rejection here (that would brick the
+ * visuals stage whenever the model under-specifies).
+ */
+export function isLowSpecificityKeywordSet(
+  keywords: readonly unknown[] | undefined,
+): boolean {
+  if (!Array.isArray(keywords) || keywords.length === 0) return false;
+  const cleaned = keywords
+    .filter((keyword): keyword is string => typeof keyword === "string")
+    .map((keyword) => keyword.trim())
+    .filter((keyword) => keyword.length > 0);
+  if (cleaned.length === 0) return false;
+  return cleaned.every((keyword) => keyword.split(/\s+/).length < 2);
 }
 
 export function validateProviderVisualPlan(

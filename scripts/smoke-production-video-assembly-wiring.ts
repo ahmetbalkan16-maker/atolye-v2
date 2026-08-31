@@ -1525,16 +1525,20 @@ async function run() {
         })),
       };
 
-      // durations = [1.0, 1.0, 1.0, 1.0]s (fixture()'s default wav() length); naive sum = 4.0s.
-      // junction 1 (fade):      blend = min(0.5, 0.4, 0.4)              = 0.400000, offset = 0.600000
-      // junction 2 (crossfade): blend = min(0.5, 0.4, 0.4)              = 0.400000, offset = 1.200000
-      // junction 3 (cut):       blend = max(0.01, min(1/30, 0.4, 0.4))  = 0.033333, offset = 2.166667
-      // total blend = 0.833333s -> expected final duration = 4.0 - 0.833333 = 3.166667s.
+      // durations = [1.0, 1.0, 1.0, 1.0]s (fixture()'s default wav() length) ->
+      // each scene is round(1.0 * 30) = 30 frames. The xfade chain is now
+      // planned entirely on the integer-frame grid (planTransitionedTimeline),
+      // with a 1-frame safety margin so `offset + duration` closes one frame
+      // before the accumulated first input's real end:
+      //   junction 1 (fade):      blend 12f=0.400000, offset (30-12-1)=17f       = 0.566667, acc -> 47f
+      //   junction 2 (crossfade): blend 12f=0.400000, offset (47-12-1)=34f       = 1.133333, acc -> 64f
+      //   junction 3 (cut):       blend  1f=0.033333, offset (64-1-1)=62f        = 2.066667, acc -> 92f
+      // total = 92 frames -> expectedRenderedDuration = 92/30 = 3.066667s.
       const runner = new FakeRunner(null, JSON.stringify({
-        format: { format_name: "mov,mp4,m4a,3gp,3g2,mj2", duration: "3.166667" },
+        format: { format_name: "mov,mp4,m4a,3gp,3g2,mj2", duration: "3.066667" },
         streams: [
-          { codec_type: "video", codec_name: "h264", width: 1920, height: 1080, pix_fmt: "yuv420p", avg_frame_rate: "30/1", duration: "3.166667", disposition: { attached_pic: 0 } },
-          { codec_type: "audio", codec_name: "aac", duration: "3.166667" },
+          { codec_type: "video", codec_name: "h264", width: 1920, height: 1080, pix_fmt: "yuv420p", avg_frame_rate: "30/1", duration: "3.066667", disposition: { attached_pic: 0 } },
+          { codec_type: "audio", codec_name: "aac", duration: "3.066667" },
         ],
       }));
       await VideoAssemblyManager.renderExistingAssets({ projectId, projectSlug: slug, scenes: fourScenes, visuals: fourVisuals, audio: fourAudio, assembly: fourAssembly, provider: new FFmpegVideoAssemblyProvider(runner) });
@@ -1544,25 +1548,26 @@ async function run() {
       // even though junction 3 is "cut" (see comment above the scenario).
       assert.equal((args.match(/xfade=transition=/g) ?? []).length, 3);
       assert.equal((args.match(/acrossfade=d=/g) ?? []).length, 3);
-      assert.match(args, /xfade=transition=fadeblack:duration=0\.400000:offset=0\.600000/);
-      assert.match(args, /xfade=transition=fade:duration=0\.400000:offset=1\.200000/);
-      assert.match(args, /xfade=transition=fade:duration=0\.033333:offset=2\.166667/);
+      assert.match(args, /xfade=transition=fadeblack:duration=0\.400000:offset=0\.566667/);
+      assert.match(args, /xfade=transition=fade:duration=0\.400000:offset=1\.133333/);
+      assert.match(args, /xfade=transition=fade:duration=0\.033333:offset=2\.066667/);
     });
     // Sprint 149: root-cause regression for the real i-stanbul-un-fethi-1453
     // VIDEO_ASSEMBLY_FAILED incident. A real 5-scene, 4-junction
     // (crossfade/cut/fade/crossfade) assembly with real reconciled narration
-    // durations (37.7375/31.0625/26.8125/31.15/28.65 -> naive sum
-    // 155.4125s) computes expectedRenderedDuration() = 155.4125 -
-    // totalBlendSeconds(0.5+1/30+0.5+0.5=1.533333) = 153.879167s. The actual
-    // orphaned render this project produced (recovered via a read-only
-    // ffprobe pass, never linked into project state) measured
-    // video=153.433333s, audio=153.412000s - a real ~0.4458s shortfall from
-    // Ken Burns zoompan/tpad frame-quantization across 5 scenes + 4
-    // junctions, which the pre-fix ±0.25s validateProbe() tolerance
-    // rejected outright. frameRoundingAllowance() for this exact shape is
-    // (5 scenes + 4 junctions)/FPS(30) = 0.3s, so the new tolerance is
-    // 0.25+0.3=0.55s - comfortably covering the real, measured gap while
-    // staying tightly bounded.
+    // durations (37.7375/31.0625/26.8125/31.15/28.65). The xfade chain is now
+    // planned on the integer-frame grid (planTransitionedTimeline): scene
+    // frames round(d*30) = 1132/932/804/935/860, blend+margin per junction is
+    // 16/2/16/16 frames, so expectedRenderedDuration() = 4613/30 =
+    // 153.766667s. The actual orphaned render this project produced (recovered
+    // via a read-only ffprobe pass, never linked into project state) measured
+    // video=153.433333s, audio=153.412000s - a ~0.33s shortfall from Ken
+    // Burns zoompan/tpad frame-quantization plus the narration audio being
+    // atrim-cut to exact (non-frame) seconds, which the pre-fix ±0.25s
+    // validateProbe() tolerance rejected outright. frameRoundingAllowance()
+    // for this exact shape is (5 scenes + 4 junctions)/FPS(30) = 0.3s, so the
+    // tolerance is 0.25+0.3=0.55s - comfortably covering the real, measured
+    // gap while staying tightly bounded.
     const realWorldDurations = [37.7375, 31.0625, 26.8125, 31.15, 28.65];
     const realWorldTransitions = ["cut", "crossfade", "cut", "fade", "crossfade"] as const;
     async function buildRealWorldFiveSceneFixture(suffix: string) {
