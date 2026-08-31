@@ -176,6 +176,14 @@ export async function createProductionAcceptancePortableConfigurationSnapshotV2(
       ...(environment.ATOLYE_AI_COST_BUDGET_USD !== undefined
         ? { aiCostBudgetUsd: environment.ATOLYE_AI_COST_BUDGET_USD }
         : {}),
+      // Documentary pipeline revision (P0): the render quality preset. Same
+      // conditional rule — the `documentary` default leaves the var undefined
+      // and does NOT alter the fingerprint, so already-prepared markers stay
+      // valid; an operator who explicitly pins `ATOLYE_QUALITY_PRESET` for a
+      // render folds that choice into the marker.
+      ...(environment.ATOLYE_QUALITY_PRESET !== undefined
+        ? { qualityPreset: environment.ATOLYE_QUALITY_PRESET }
+        : {}),
     })),
   ]);
   const componentFingerprints = Object.freeze(Object.fromEntries(entries)) as
