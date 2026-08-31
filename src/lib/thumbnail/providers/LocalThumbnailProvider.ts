@@ -5,6 +5,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { ThumbnailStorage } from "../ThumbnailStorage";
 import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
+import { resolveRuntimeLogicalPath } from "@/lib/runtime/RuntimeStoragePaths";
 import { createMockThumbnailData } from "./MockThumbnailProvider";
 import type {
   ThumbnailAssetGenerationInput,
@@ -59,8 +60,19 @@ export class LocalThumbnailProvider implements ConfiguredThumbnailProvider {
     const assetId = randomUUID();
     const createdAt = new Date().toISOString();
     const ffmpeg = process.env.FFMPEG_EXECUTABLE?.trim() || process.env.FFMPEG_PATH?.trim() || "ffmpeg";
-    const source = input.assembly?.render?.filePath;
-    if (!source || !fs.existsSync(source)) return failure(assetId, createdAt);
+    const logicalSource = input.assembly?.render?.filePath;
+    if (!logicalSource) return failure(assetId, createdAt);
+    // `render.filePath` is a runtime-logical path — resolve it to an absolute
+    // filesystem path the same way the FFmpeg assembly/scene providers do.
+    let source: string;
+    try {
+      source = fs.existsSync(logicalSource)
+        ? logicalSource
+        : resolveRuntimeLogicalPath(logicalSource);
+    } catch {
+      return failure(assetId, createdAt);
+    }
+    if (!fs.existsSync(source)) return failure(assetId, createdAt);
 
     const durationSeconds =
       typeof input.assembly?.render?.durationSeconds === "number" &&
@@ -74,18 +86,32 @@ export class LocalThumbnailProvider implements ConfiguredThumbnailProvider {
       workdir = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-thumb-"));
       const outputPath = path.join(workdir, "thumbnail.png");
       const title = sanitizeTitle(input.title || "");
+      // drawtext needs an explicit font on Windows (no fontconfig). Copy a
+      // system font into the workdir and reference it by bare filename — that
+      // sidesteps all filtergraph path escaping (drive-letter colon, backslash).
+      // No usable font -> skip the text overlay; a darkened key still is a valid
+      // thumbnail and YouTube shows the title anyway.
+      let fontFile = "";
+      const systemFont = resolveSystemFontPath();
+      if (systemFont) {
+        try {
+          fs.copyFileSync(systemFont, path.join(workdir, "font.ttf"));
+          fontFile = "font.ttf";
+        } catch { /* fall through to no-text */ }
+      }
+      const withText = Boolean(title) && Boolean(fontFile);
       const filters = [
         `scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase`,
         `crop=${WIDTH}:${HEIGHT}`,
         "eq=contrast=1.06:brightness=-0.02:saturation=1.08",
-        `drawbox=x=0:y=${HEIGHT - 210}:w=${WIDTH}:h=210:color=black@0.55:t=fill`,
-        ...(title
+        ...(withText
           ? [
-              `drawtext=text='${title}':fontcolor=white:fontsize=64:` +
+              `drawbox=x=0:y=${HEIGHT - 210}:w=${WIDTH}:h=210:color=black@0.55:t=fill`,
+              `drawtext=fontfile=${fontFile}:text='${title}':fontcolor=white:fontsize=64:` +
                 `x=(w-text_w)/2:y=${HEIGHT - 150}:box=1:boxcolor=black@0.35:boxborderw=18:` +
                 "line_spacing=10",
             ]
-          : []),
+          : ["drawbox=x=0:y=0:w=iw:h=ih:color=black@0.12:t=fill"]),
       ].join(",");
 
       const args = [
@@ -93,7 +119,10 @@ export class LocalThumbnailProvider implements ConfiguredThumbnailProvider {
         "-ss", seek.toFixed(3), "-i", source,
         "-frames:v", "1", "-vf", filters, "-f", "image2", outputPath,
       ];
-      const result = spawnSync(ffmpeg, args, { timeout: 60_000, windowsHide: true });
+      // cwd = workdir so the bare `font.ttf` filter reference resolves.
+      const result = spawnSync(ffmpeg, args, {
+        timeout: 60_000, windowsHide: true, cwd: workdir,
+      });
       if (result.status !== 0 || !fs.existsSync(outputPath)) {
         return failure(assetId, createdAt);
       }
@@ -125,6 +154,27 @@ export class LocalThumbnailProvider implements ConfiguredThumbnailProvider {
       }
     }
   }
+}
+
+/** Absolute path to a usable bold TTF, or "" if none is found. */
+function resolveSystemFontPath(): string {
+  const candidates = [
+    process.env.ATOLYE_THUMBNAIL_FONT?.trim(),
+    ...(process.platform === "win32"
+      ? [
+          `${process.env.WINDIR ?? "C:/Windows"}/Fonts/arialbd.ttf`,
+          `${process.env.WINDIR ?? "C:/Windows"}/Fonts/segoeuib.ttf`,
+          `${process.env.WINDIR ?? "C:/Windows"}/Fonts/arial.ttf`,
+        ]
+      : [
+          "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+          "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+          "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+        ]),
+  ].filter((value): value is string => Boolean(value));
+  return candidates.find((candidate) => {
+    try { return fs.existsSync(candidate); } catch { return false; }
+  }) ?? "";
 }
 
 /** FFmpeg drawtext: escape the characters that terminate / reinterpret the arg. */

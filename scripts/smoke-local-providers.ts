@@ -37,6 +37,14 @@ import { resolveYouTubeProviderName } from "../src/lib/youtube/YouTubeProviderCo
 import { OllamaAnimationProvider } from "../src/lib/animation/providers/OllamaAnimationProvider";
 import { OllamaYouTubeProvider } from "../src/lib/youtube/providers/OllamaYouTubeProvider";
 import { LocalThumbnailProvider } from "../src/lib/thumbnail/providers/LocalThumbnailProvider";
+import { resolveRuntimeLogicalPath } from "../src/lib/runtime/RuntimeStoragePaths";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
+import { AssetManager } from "../src/lib/assets/AssetManager";
+import { VideoStorage } from "../src/lib/assets/storage/VideoStorage";
+import { ProjectManager } from "../src/lib/projects/ProjectManager";
+import { createMockThumbnailData } from "../src/lib/thumbnail/providers/MockThumbnailProvider";
+import { spawnSync } from "node:child_process";
+import type { AssemblyPlanData } from "../src/types/assembly";
 import { estimateTokenCost, estimateTtsCost } from "../src/lib/ai/AiPricing";
 import {
   isFullyLocalProduction,
@@ -68,7 +76,7 @@ function ollamaConfig() {
   const d = resolveOllamaConfig(env({}));
   pass(
     d.baseUrl === OLLAMA_DEFAULTS.baseUrl && d.model === "qwen2.5:3b" &&
-      d.format === "json" && d.timeoutMs === 180_000,
+      d.format === "json" && d.timeoutMs === OLLAMA_DEFAULTS.timeoutMs && d.timeoutMs >= 180_000,
     "OllamaConfig defaults",
   );
   pass(resolveOllamaBaseUrl(env({ OLLAMA_HOST: "localhost:11434" })) === "http://localhost:11434", "host without scheme -> http://");
@@ -212,6 +220,91 @@ async function live() {
   }
 }
 
+// H — LocalThumbnailProvider end-to-end through ThumbnailAssetPipeline --------
+async function localThumbnailEndToEnd() {
+  const ffmpeg = process.env.FFMPEG_PATH || process.env.FFMPEG_EXECUTABLE;
+  const ffprobe = process.env.FFPROBE_PATH || process.env.FFPROBE_EXECUTABLE;
+  if (!ffmpeg || !fs.existsSync(ffmpeg) || !ffprobe || !fs.existsSync(ffprobe)) {
+    console.log("LIVE LocalThumbnail: skipped (FFMPEG_PATH unset)");
+    return;
+  }
+  await withCanonicalSmokeRuntime(
+    {
+      name: "local-thumbnail",
+      operationType: "pipeline.run",
+      environment: {
+        THUMBNAIL_PROVIDER: "local",
+        FFMPEG_PATH: ffmpeg, FFPROBE_PATH: ffprobe,
+        FFMPEG_EXECUTABLE: ffmpeg, FFPROBE_EXECUTABLE: ffprobe,
+      },
+    },
+    async (runtime) => {
+      const slug = runtime.projectSlug;
+      const project = await ProjectManager.getProject(slug) ??
+        (await ProjectManager.createProject(`local thumbnail ${Date.now()}`));
+      const projectId = project.id;
+
+      // A real, playable MP4 to grab a frame from.
+      const paths = VideoStorage.createRenderPaths(slug);
+      const gen = spawnSync(ffmpeg, [
+        "-hide_banner", "-loglevel", "error", "-y",
+        "-f", "lavfi", "-i", "color=c=navy:s=1280x720:d=2:r=30",
+        "-f", "lavfi", "-i", "sine=frequency=220:duration=2",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest",
+        paths.temporaryAbsolutePath ?? paths.absolutePath,
+      ], { timeout: 60_000, windowsHide: true });
+      if (gen.status !== 0) { console.log("LIVE LocalThumbnail: skipped (fixture mp4 render failed)"); return; }
+      if (paths.temporaryAbsolutePath) VideoStorage.finalize(paths.temporaryAbsolutePath, paths.absolutePath);
+      const data = fs.readFileSync(paths.absolutePath);
+      const videoAssetId = `local-thumb-video-${Date.now().toString(36)}`;
+      AssetManager.addAsset(slug, projectId, AssetManager.createAsset({
+        id: videoAssetId, projectId, projectSlug: slug, type: "video", status: "generated",
+        provider: "ffmpeg", prompt: "assembly", filePath: paths.filePath, url: paths.url,
+        mimeType: "video/mp4", byteLength: data.length,
+      }));
+
+      const assembly: AssemblyPlanData = {
+        projectId,
+        scenes: [],
+        totalDuration: "00:02",
+        style: "documentary",
+        outputAssetId: videoAssetId,
+        render: {
+          status: "rendered", format: "mp4", mimeType: "video/mp4",
+          filePath: paths.filePath, outputUrl: paths.url, byteLength: data.length,
+          durationSeconds: 2, width: 1280, height: 720, videoCodec: "h264", audioCodec: "aac",
+        },
+        createdAt: new Date().toISOString(),
+      } as unknown as AssemblyPlanData;
+
+      void createMockThumbnailData;
+      const provider = new LocalThumbnailProvider();
+      const planResult = await provider.generateThumbnailPlan({ projectId, projectSlug: slug, title: project.title, assembly });
+      pass(
+        planResult.provider === "local" && planResult.status === "planned",
+        "LocalThumbnailProvider plan carries provider=local",
+      );
+
+      // The pipeline's provider allow-list now admits "local" (verified by the
+      // ThumbnailAssetPipeline regression); here we prove the provider itself
+      // renders a real PNG from the finished video via FFmpeg drawtext.
+      const asset = await provider.generateThumbnailAsset({
+        projectId, projectSlug: slug, title: project.title,
+        prompt: "x", thumbnail: planResult.thumbnail, assembly,
+      });
+      pass(
+        asset.success === true && asset.provider === "local" &&
+          asset.generationMode === "production" &&
+          asset.mimeType === "image/png" &&
+          (asset.width as number) === 1280 && (asset.height as number) === 720 &&
+          (asset.byteLength as number) > 5_000 &&
+          fs.existsSync(resolveRuntimeLogicalPath(String(asset.filePath))),
+        `LIVE: LocalThumbnailProvider rendered a ${asset.success ? asset.width + "x" + asset.height : "?"} PNG (${asset.success ? asset.byteLength : 0} bytes) with a burned title`,
+      );
+    },
+  );
+}
+
 async function main() {
   ollamaConfig();
   await ollamaProvider();
@@ -220,6 +313,7 @@ async function main() {
   productionResolution();
   await fingerprint();
   await live();
+  await localThumbnailEndToEnd();
   console.log(`local providers smoke: PASS (${scenarios} scenarios)`);
   emitSmokeResult("local-providers", scenarios);
 }

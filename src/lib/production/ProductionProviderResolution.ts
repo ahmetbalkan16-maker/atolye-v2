@@ -46,6 +46,33 @@ export function resolveProductionProviderName(
   return LEGACY_DEFAULT;
 }
 
+/**
+ * Which provider names a *production* asset / result may legitimately carry,
+ * per domain. `mock` is NEVER admissible — the "no mock output in a production
+ * render" guard is preserved. `openai` stays admissible everywhere; the local
+ * backends are added for the domains they serve.
+ *
+ * The pipeline provenance validators historically hard-coded
+ * `provider === "openai"`; they call this instead so an Ollama / Piper / local
+ * asset is accepted as a real production asset.
+ */
+export type ProductionAssetDomain = "llm" | "tts" | "animation" | "thumbnail" | "youtube";
+
+const ADMISSIBLE: Record<ProductionAssetDomain, readonly string[]> = {
+  llm: ["openai", "ollama"],
+  tts: ["openai", "piper"],
+  animation: ["openai", "ollama"],
+  thumbnail: ["openai", "local"],
+  youtube: ["openai", "ollama"],
+};
+
+export function isAdmissibleProductionProvider(
+  name: string | null | undefined,
+  domain: ProductionAssetDomain,
+): boolean {
+  return typeof name === "string" && ADMISSIBLE[domain].includes(name.trim().toLowerCase());
+}
+
 /** True when every production AI domain resolves to a $0 local backend. */
 export function isFullyLocalProduction(env: NodeJS.ProcessEnv = process.env): boolean {
   const local = new Set(["ollama", "piper", "local"]);

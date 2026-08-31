@@ -4,7 +4,8 @@ import { VideoStorage } from "@/lib/assets/storage/VideoStorage";
 import { ProjectWriter } from "@/lib/projects/ProjectWriter";
 import type { Asset } from "@/types/asset";
 import type { AssemblyPlanData } from "@/types/assembly";
-import type { ThumbnailData, ThumbnailMimeType } from "@/types/thumbnail";
+import type { ThumbnailData, ThumbnailMimeType, ThumbnailProviderName } from "@/types/thumbnail";
+import { isAdmissibleProductionProvider } from "@/lib/production/ProductionProviderResolution";
 import type {
   ThumbnailAssetGenerationResult,
   ThumbnailProvider,
@@ -57,11 +58,14 @@ export class ThumbnailAssetPipeline {
     provider,
   }: GenerateThumbnailAssetInput): Promise<ThumbnailData> {
     const selected = provider ?? new ThumbnailProviderRouter().getProvider();
-    let providerName: "mock" | "openai";
+    let providerName: ThumbnailProviderName;
 
     try {
       const candidateProviderName = selected.name;
-      if (candidateProviderName !== "mock" && candidateProviderName !== "openai") {
+      if (
+        candidateProviderName !== "mock" &&
+        !isAdmissibleProductionProvider(candidateProviderName, "thumbnail")
+      ) {
         throw new ThumbnailAssetGenerationError({ phase: "input-validation" });
       }
       providerName = candidateProviderName;
@@ -334,7 +338,7 @@ function validateAssemblyDependency(
   projectId: string,
   projectSlug: string,
   assembly: AssemblyPlanData,
-  providerName: "mock" | "openai",
+  providerName: ThumbnailProviderName,
 ) {
   if (providerName === "mock") {
     if (
@@ -393,7 +397,7 @@ function validateAssemblyDependency(
 
 function validateProviderResult(
   result: ThumbnailAssetGenerationResult,
-  providerName: "mock" | "openai",
+  providerName: ThumbnailProviderName,
   projectSlug: string,
   assets: Asset[],
 ) {

@@ -19,7 +19,7 @@ const SAFE_MODEL = /^[a-zA-Z0-9_.:-]{1,64}$/;
 
 export interface ThumbnailAssetErrorMetadata {
   phase?: ThumbnailAssetFailurePhase;
-  provider?: "mock" | "openai";
+  provider?: "mock" | "openai" | "local";
   model?: string;
   httpStatus?: number;
   providerErrorCode?: string;
@@ -34,7 +34,7 @@ export function createThumbnailAssetErrorEvidence(
     phase: metadata.phase && thumbnailAssetFailurePhases.includes(metadata.phase)
       ? metadata.phase
       : "unknown",
-    ...(metadata.provider === "mock" || metadata.provider === "openai"
+    ...(metadata.provider === "mock" || metadata.provider === "openai" || metadata.provider === "local"
       ? { provider: metadata.provider }
       : {}),
     ...(typeof metadata.model === "string" && SAFE_MODEL.test(metadata.model)
@@ -60,7 +60,7 @@ export function isThumbnailAssetErrorEvidence(
     evidence.code === "THUMBNAIL_ASSET_GENERATION_FAILED" &&
     thumbnailAssetFailurePhases.includes(evidence.phase) &&
     (evidence.provider === undefined ||
-      evidence.provider === "mock" || evidence.provider === "openai") &&
+      evidence.provider === "mock" || evidence.provider === "openai" || evidence.provider === "local") &&
     (evidence.model === undefined ||
       (typeof evidence.model === "string" && SAFE_MODEL.test(evidence.model))) &&
     (evidence.providerHttpStatus === undefined ||

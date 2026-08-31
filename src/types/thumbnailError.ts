@@ -23,7 +23,7 @@ export interface ThumbnailAssetErrorEvidence {
   kind: "thumbnail-asset-error";
   code: "THUMBNAIL_ASSET_GENERATION_FAILED";
   phase: ThumbnailAssetFailurePhase;
-  provider?: "mock" | "openai";
+  provider?: "mock" | "openai" | "local";
   model?: string;
   /** Provider response HTTP status (100..599). */
   providerHttpStatus?: number;
