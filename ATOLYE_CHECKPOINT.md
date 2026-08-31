@@ -1,5 +1,43 @@
 ---
 
+## Sprint 173 - Documentary Pipeline Revision: forensic analiz + P0 quality preset + P1 cost report - 2026-08-31
+
+**Status:** DEVAM EDİYOR. P0 + P1 **KOD + TEST PASS + COMMIT**. **0 gerçek network/paid API, $0, production render/execute/resume ÇALIŞTIRILMADI.** Kullanıcı onayı: P0→P5 (T2V hariç) sonra P7 bounded run; **P2 (uzun-form invariant) ÖNCE kısa videoda preset+cost kanıtlanınca** açılacak; P7 paralı run kod+testler bitince ayrı onayla.
+
+### Bağlam
+Kullanıcı hedefi: atolye-v2'yi "foto slayt" değil sinematik 10-15 dk belgesel (ref: "Tüm Dünyayı Korkutan 7 Osmanlı Padişahı") üreten pipeline'a çevir, DOCUMENTARY presetinde <$1. Forensic analiz sonucu: research/script/multi-shot scene/real-photo>AI/Ken Burns motion/TTS+müzik+ambience/xfade assembly/production acceptance/deterministik `$1` cost guard **zaten var**. 7 boşluk (G-1..G-7) — en kritiği **G-1: pipeline 120 s'ye hard-cap'li** (`script.ts:57` prompt, `SceneStructuredOutput.ts:32-33` validator `totalDuration 60-120 ±5`, `validateProductionAcceptanceScriptDuration`, F-08 duration authority). Mevcut tamamlanmış videolar ~95-110 s / 4-16 scene. G-7 (gerçek T2V) sağlayıcı YOK, fiyat tablosunda video satırı yok.
+
+### Graphify pipeline doğrulaması (bu tur)
+`graphify update .` (10309 node). Yapısal `pipelineStageDependencies` grafiği: **orphan/dead-end/broken-dep/duplicate-dep/cycle YOK**; research'ten 12/12 stage erişilebilir → giriş→final MP4 bağlı (MP4'ü assembly üretir, export paketler). Graphify runtime bağımlılığı DEĞİL, yalnız kod analizi.
+
+### P0 - Quality Preset Registry (commit `72000c0`)
+- **`src/lib/production/QualityPreset.ts` (YENİ):** `QUALITY_PRESETS` = `economy|balanced|documentary|cinematic`. Her preset: textModel/imageModel+size+quality/maxAiImages/ttsModel/video WxH+fps+crf+x264preset/motionStyle/targetDurationSeconds{min,ideal,max}/sceneDensityPerMinute/allowAiVideo/costCeilingUsd. `resolveQualityPreset(env)` — `ATOLYE_QUALITY_PRESET` (trim+lowercase); unset → `documentary`; bilinmeyen → `QualityPresetError` (fail-closed). **`documentary` preset değerleri = bugünkü application default'ları birebir** (gpt-4.1-mini, gpt-image-1 1536x1024 auto, maxAiImages 4, tts-1, 1920x1080@30 crf23 veryfast) → hiçbir consumer'a bağlanmadığı + default olduğu için davranış değişmez. `documentary.targetDurationSeconds` = {600,780,900} (tasarım niyeti; P2'de wire).
+- **Fingerprint:** `ATOLYE_QUALITY_PRESET` V2 `ENVIRONMENT_POLICY` component'ine **conditional** (Faz 5/6 knob'ları gibi) — default unset → fingerprint değişmez → prepared marker'lar geçerli.
+- Wire: **hiçbir stage'e bağlı değil**; ilk consumer P1.
+- **`scripts/smoke-quality-preset-registry.ts` (YENİ, 46 senaryo):** resolution + fail-closed, registry invariant, drift guard (documentary == bugünkü config default'ları — gerçek modülleri import edip karşılaştırır), her preset modeli AI_PRICE_TABLE'da fiyatlanabilir, fingerprint conditionality.
+
+### P1 - Production Cost Report + preset projeksiyonu (commit `ffde7b0`)
+- **`src/lib/production/ProductionCostReport.ts` (YENİ):** `categorizeUsageRecord` (costUnitKind öncelikli → visuals-stage plan çağrısı `llm`, image çağrısı `image`), `buildProductionCostReport` (kategori roll-up LLM/IMAGE/VIDEO/TTS/MUSIC-SFX/OTHER + retry USD + estimated cache savings + $/dk + $/scene + within-budget verdict + 4-preset projeksiyon), `renderProductionCostReportText` (istenen `=== ATÖLYE DOCUMENTARY PRODUCTION COST ===` bloğu), `persistProductionCostReport`. `pricingStatus:"unknown"` olan herhangi kayıt → status `unknown-pricing` (asla sessiz sayı).
+- **`ProductionCostEstimate.ts`:** `estimateProductionCostForPreset(preset, render)` — aynı konservatif pre-run estimate, model paramları preset'ten, AI-image preset tavanına clamp. Karşılaştırma tablosunu besler.
+- **`AiCostBudget.ts`:** `resolveRecordCost` export edildi (rapor + receipt + guard aynı fiyatlamayı paylaşsın).
+- **`ProductionAcceptanceOrchestrator.finalize`:** receipt'ten sonra best-effort `production-cost-report.json` yazar (rapor, gate DEĞİL — bütçe otoritesi receipt).
+- **`scripts/run-production-cost-report.ts` (YENİ) + `npm run production:cost-report -- --project-slug=<slug> [--json] [--no-write]`:** $0 read-only. Gerçek tamamlanmış run `c0261ddc`'de doğrulandı: **LLM $0.0375 (actual)**, ham ledger token'larıyla uyumlu. Preset projeksiyonu (o kısa script için): ECONOMY $0.078 / BALANCED $0.147 / DOCUMENTARY $0.351 / CINEMATIC $1.62.
+- **`scripts/smoke-production-cost-report.ts` (YENİ, 58 senaryo):** kategori, roll-up (kategori toplamı = total), unknown/over-budget status flip, renderer'ın her satırı taşıması, preset projeksiyon sıralaması, preset clamp, **gerçek `runObservedAIRequest` çağrısı** → canlı `ai-usage.json` kaydının `estimatedCost`/`pricingStatus:"known"`/`costUnitKind:"tokens"` taşıdığı kanıtı.
+
+### Testler (bu tur)
+- `npx tsc --noEmit` temiz. `npm run lint` — değişen/yeni dosyalarda 0 problem (repo'da 22 pre-existing uyarı, hepsi `src/lib/runtime/backup/*`). `git diff --check` temiz.
+- P0 regresyon 7/7 + P1 regresyon 11/11 PASS: quality-preset(46), cost-report(58), faz5(11), phase5(9), faz6(6), phase6(8), 128-1(30), 129-23 portability(16), 129-37(29), readiness-acceptance(25), production-end-to-end(21), 129-19 skip.
+- **Pre-existing FAIL (bu tur DEĞİL):** `smoke-sprint-129-38` — `rewindExactAudioOrdinalFour` poison testi, değişiklik stash'liyken de aynı hata (makine durumu bağımlı).
+
+### Bu turda ayrıca commit edildi (önceki oturumların doğrulanmış işi)
+- `df30976` feat(documentary): xfade chain timeline frame-quantization fix + RealPhotoImageProvider D1-D3 relevance gate + assembly-stage background music bed + latent asplit EINVAL fix (+ 3 yeni smoke).
+- `24839cf` feat(production): `execute --stop-after-stage` bounded (PipelineRunner/Orchestrator/Command + smoke-execute-stage-bounded 32 senaryo).
+
+### Sıradaki
+1. **P2 için kullanıcı onayı bekle** — kısa (120 s) DOCUMENTARY preset + gerçek cost report davranışı gösterildikten sonra uzun-form invariant genişletme (`script.ts` promptu + `SceneStructuredOutput` bantları + `ProductionAcceptancePreflight` toleransı preset'ten; default preset yoksa 60-120 KORUNUR).
+2. P3 scene director model genişletme → P4 FFmpeg motion++ → P5 title/date/emphasis kartları.
+3. P7 gerçek bounded production ("Tüm Dünyayı Korkutan 7 Osmanlı Padişahı") — kod+testler bitince ayrı onay + $ tavanı.
+
 <!-- SPRINT-172-START -->
 ## Sprint 172 - Belgesel real-media Faz 4/5/6 production wiring (opt-in kalktı, logic-default aktif) - 2026-08-30
 
