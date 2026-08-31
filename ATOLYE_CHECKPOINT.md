@@ -33,10 +33,26 @@ Kullanıcı hedefi: atolye-v2'yi "foto slayt" değil sinematik 10-15 dk belgesel
 - `df30976` feat(documentary): xfade chain timeline frame-quantization fix + RealPhotoImageProvider D1-D3 relevance gate + assembly-stage background music bed + latent asplit EINVAL fix (+ 3 yeni smoke).
 - `24839cf` feat(production): `execute --stop-after-stage` bounded (PipelineRunner/Orchestrator/Command + smoke-execute-stage-bounded 32 senaryo).
 
+### P2 - Preset-parametric duration band — 120 s cap kaldırıldı (commit `43791d5`)
+Kullanıcı "P2'ye geç" dedi. **Tam geriye uyumlu:** EXPLICIT `ATOLYE_QUALITY_PRESET` yoksa her resolver frozen legacy `{60,90,120,5}` / 30-scene nesnesini döndürür (referential identity korunur) → yapılandırılmamış render + tüm mevcut testler birebir aynı. `ATOLYE_QUALITY_PRESET=documentary` artık 10-15 dk belgesel üretir.
+- **`QualityPreset.ts`:** `LEGACY_TARGET_DURATION_BAND` + `resolveTargetDurationBand` / `resolveMaxSceneCount` / `resolveScriptChapterCount` (yalnız explicit preset genişletir).
+- **`ProductionAcceptancePreflight.ts`:** `resolveProductionAcceptanceDuration(env)` — band'den min/target/max ölçekler, `tolerance/target` oranını (~%5.6) korur → `VideoDurationCoverageGuard`'ın oransal kontrolü değişmez. `requireAcceptanceRange`/`requireClose`/`validateProductionAcceptance*` bunu threadler. `productionAcceptanceDuration` frozen export korundu (guard hâlâ oranı için kullanıyor).
+- **`SceneStructuredOutput.ts`:** `resolveCanonicalSceneProviderSchema` + `validateScenes` çözülmüş band + scene tavanını okur; `createScenesPrompt` default'ta tarihsel string'leri **birebir** korur (multi-shot smoke'ları assert ediyor), explicit preset'te ölçekler. Per-scene `duration` tavanı 120 s kaldı.
+- **`AIManager.ts`:** strict script promptunun chapter sayısı / acceptance band / chapter-başı narration karakter bütçesi preset-parametrik (`strictScriptDurationPromptLines`; explicit preset yoksa "exactly 5 chapters, ~90s" birebir).
+- **`scripts/smoke-longform-duration-preset.ts` (YENİ, 24 senaryo):** default'ta identity/byte-compat, documentary → 600-900 s, 13 dk script default'ta reddedilir + preset'te kabul, 63 scene default'ta `MAX_ITEMS` + preset'te kabul, scenes prompt ölçeklenir.
+
+### P2 regresyon
+- `npx tsc --noEmit` temiz. `npm run lint` — P2 dosyalarında 0 problem. `git diff --check` temiz. `graphify update .`.
+- PASS: longform-duration-preset(24), quality-preset-registry(46), production-cost-report(58), multi-shot-scene-planning(10, legacy string'leri assert), script-duration-reconciliation-wiring(3), narration-duration-estimator(12), video-duration-coverage-guard(20), youtube-package-pipeline(58), assembly-scene-video-consumption(25), production-end-to-end(21), sprint-128-1(30), readiness-acceptance(25), multi-shot-assembly-render(2). İzole çalıştırıldığında: sprint-132-export-packaging(15), production-video-assembly-wiring(73).
+- **Pre-existing FAIL (P2 stash'liyken de birebir aynı):** `smoke-sprint-129-13` ("durable preparation runtime authority missing", senaryo 1-14 PASS), `smoke-sprint-129-17` ("progressed snapshot resumes from visuals" fixture-state, senaryo 1-38 PASS). `132` + `video-assembly-wiring` batch fail'i = bu crash'lerin `%TEMP%/atolye-runtime-authority-v1/` altına bıraktığı `.claim.json` kirlenmesi (Aug 23'ten beri yüzlerce dosya birikmiş); ikisi de tek başına çalıştırılınca PASS.
+
+### Commit'ler (bu oturum, `wip/production-audio-resume-prep-v2` → push `cf5678e`, P2 `43791d5` unpushed)
+`df30976` xfade+relevance+music · `24839cf` bounded execute · `72000c0` P0 preset · `ffde7b0` P1 cost report · `cf5678e` Sprint 173 checkpoint · `43791d5` P2 duration band.
+
 ### Sıradaki
-1. **P2 için kullanıcı onayı bekle** — kısa (120 s) DOCUMENTARY preset + gerçek cost report davranışı gösterildikten sonra uzun-form invariant genişletme (`script.ts` promptu + `SceneStructuredOutput` bantları + `ProductionAcceptancePreflight` toleransı preset'ten; default preset yoksa 60-120 KORUNUR).
-2. P3 scene director model genişletme → P4 FFmpeg motion++ → P5 title/date/emphasis kartları.
-3. P7 gerçek bounded production ("Tüm Dünyayı Korkutan 7 Osmanlı Padişahı") — kod+testler bitince ayrı onay + $ tavanı.
+1. **P2'yi kısa + uzun-form davranışıyla göster, kullanıcı onayı** — sonra P3.
+2. P3 scene director model genişletme (additive scene alanları: narration/cameraMovement/transition/onScreenText/sfx/musicCue/needsAiVideo) → P4 FFmpeg motion++ (grain/vignette/light/fog/parallax) → P5 title/date/emphasis kartları.
+3. P7 gerçek bounded production ("Tüm Dünyayı Korkutan 7 Osmanlı Padişahı") — P0-P5 + smoke'lar bitince ayrı onay + $ tavanı. Önce ECONOMY/720p/~3dk uçtan uca kanıt, sonra DOCUMENTARY tam.
 
 <!-- SPRINT-172-START -->
 ## Sprint 172 - Belgesel real-media Faz 4/5/6 production wiring (opt-in kalktı, logic-default aktif) - 2026-08-30
