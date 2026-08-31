@@ -47,10 +47,56 @@ export function resolveAudioProviderName(
   switch (normalized) {
     case "mock":
     case "openai":
+    case "piper":
       return normalized;
     default:
       throw new AudioProviderConfigurationError();
   }
+}
+
+/**
+ * Local, $0 TTS — Piper (CPU, ONNX). `AUDIO_PROVIDER=piper` runs narration
+ * through a local `piper` binary + a voice model instead of `api.openai.com`.
+ * Turkish voice: `tr_TR-dfki-medium`.
+ *
+ * Env:
+ *  - `PIPER_EXECUTABLE`  path to the piper binary (default `bin/piper/piper.exe`
+ *                        on win32, else `bin/piper/piper`)
+ *  - `PIPER_VOICE_MODEL` path to the `.onnx` voice (default
+ *                        `bin/piper/tr_TR-dfki-medium.onnx`)
+ *  - `PIPER_TIMEOUT_MS`  per-section synthesis timeout (default 120 000)
+ *  - `PIPER_SPEAKER`     multi-speaker voice index (optional integer)
+ */
+export interface PiperAudioProviderConfig {
+  readonly executablePath: string;
+  readonly voiceModelPath: string;
+  readonly mimeType: "audio/wav";
+  readonly maxInputCharacters: number;
+  readonly timeoutMs: number;
+  readonly speaker?: number;
+}
+
+export function getPiperAudioProviderConfig(
+  env: NodeJS.ProcessEnv = process.env,
+): PiperAudioProviderConfig {
+  const isWindows = process.platform === "win32";
+  const executablePath = env.PIPER_EXECUTABLE?.trim() ||
+    (isWindows ? "bin/piper/piper.exe" : "bin/piper/piper");
+  const voiceModelPath = env.PIPER_VOICE_MODEL?.trim() ||
+    "bin/piper/tr_TR-dfki-medium.onnx";
+  const timeoutMs = resolveIntegerConfigValue(
+    env.PIPER_TIMEOUT_MS, 120_000, 1_000, 900_000,
+  );
+  const speakerRaw = env.PIPER_SPEAKER?.trim();
+  const speaker = speakerRaw && /^[0-9]+$/.test(speakerRaw) ? Number(speakerRaw) : undefined;
+  return Object.freeze({
+    executablePath,
+    voiceModelPath,
+    mimeType: "audio/wav",
+    maxInputCharacters: 20_000,
+    timeoutMs,
+    ...(speaker !== undefined ? { speaker } : {}),
+  });
 }
 
 export function getOpenAIAudioProviderConfig(): OpenAIAudioProviderConfig {

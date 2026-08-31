@@ -32,7 +32,7 @@ export interface AudioAssetErrorEvidence {
   phase: AudioAssetFailurePhase;
   target: "section" | "mix" | "unknown";
   chapterId?: number;
-  provider?: "mock" | "openai";
+  provider?: "mock" | "openai" | "piper";
   model?: string;
   httpStatus?: number;
   responseBytes?: number;

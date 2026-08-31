@@ -223,7 +223,7 @@ function createRiff(chunks: Buffer[]) {
 }
 
 function createProvider(
-  name: "mock" | "openai",
+  name: import("../src/types/audio").AudioProviderName,
   generate: (
     input: AudioGenerationInput,
   ) => AudioGenerationResult | Promise<AudioGenerationResult>,

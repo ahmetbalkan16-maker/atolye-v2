@@ -6,7 +6,8 @@ export type ThumbnailStatus =
 
 export type ThumbnailProviderName =
   | "mock"
-  | "openai";
+  | "openai"
+  | "local";
 
 export type ThumbnailMimeType =
   | "image/png"

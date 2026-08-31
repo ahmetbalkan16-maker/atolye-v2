@@ -46,3 +46,6 @@ graphify-out/
 .claude/
 
 .agents/
+
+# Local AI runtime binaries + models (installed per-machine, not committed)
+/bin/piper/

@@ -53,7 +53,14 @@ interface TtsPrice {
 type ModelPrice = TokenPrice | ImagePrice | TtsPrice;
 
 /** Providers whose calls are always free (no external billing). */
-const FREE_PROVIDERS = new Set(["mock", "local", "music-library"]);
+const FREE_PROVIDERS = new Set([
+  "mock",
+  "local",
+  "music-library",
+  // Local / self-hosted backends — no per-call cost.
+  "ollama",
+  "piper",
+]);
 
 /**
  * Explicit price table. Keys are the exact model identifiers the providers

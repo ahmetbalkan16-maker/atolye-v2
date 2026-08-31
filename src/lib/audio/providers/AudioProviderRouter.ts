@@ -2,6 +2,7 @@ import type { AudioProvider } from "./AudioProvider";
 import { resolveAudioProviderName } from "./AudioProviderConfig";
 import { MockAudioProvider } from "./MockAudioProvider";
 import { OpenAIAudioProvider } from "./OpenAIAudioProvider";
+import { PiperAudioProvider } from "./PiperAudioProvider";
 
 export class AudioProviderRouter {
   static getProvider(name?: string): AudioProvider {
@@ -10,6 +11,8 @@ export class AudioProviderRouter {
         return new MockAudioProvider();
       case "openai":
         return new OpenAIAudioProvider();
+      case "piper":
+        return new PiperAudioProvider();
     }
   }
 }

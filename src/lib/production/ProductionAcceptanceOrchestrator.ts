@@ -30,6 +30,7 @@ import {
   markProductionAcceptanceValidated,
   readProductionAcceptanceMarker,
 } from "./ProductionAcceptancePolicy";
+import { resolveProductionProviderName } from "./ProductionProviderResolution";
 import { createProductionAcceptancePortableConfigurationSnapshotV2 } from
   "./ProductionAcceptanceConfigurationFingerprint";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
@@ -265,7 +266,15 @@ export class ProductionAcceptanceOrchestrator {
     try {
       result = await PipelineRunner.run(runTopic, {
       stageExecution: {
-        aiProvider: new AIRouter().getProvider("openai"),
+        // Backward compatible: `resolveProductionProviderName` returns "openai"
+        // unless the domain's env var (AI_PROVIDER / AUDIO_PROVIDER /
+        // THUMBNAIL_PROVIDER / YOUTUBE_PROVIDER) is set to a recognised
+        // provider, so an unchanged `.env.local` renders exactly as before.
+        // Setting them to a local backend (ollama / piper / local) switches
+        // that stage to the $0 local provider.
+        aiProvider: new AIRouter().getProvider(
+          resolveProductionProviderName("ai") as never,
+        ),
         // Resolve from IMAGE_PROVIDER (mock | openai | real) exactly like the
         // resume path (`materializePipelineStageExecutionOptions`). Hard-coding
         // "openai" here silently defeated `IMAGE_PROVIDER=real`, so a fresh
@@ -273,10 +282,16 @@ export class ProductionAcceptanceOrchestrator {
         visualAssetProvider: ImageProviderRouter.getProvider(),
         animationProvider: AnimationProviderRouter.getProvider(),
         videoProvider: VideoProviderRouter.getProvider("ffmpeg"),
-        audioProvider: AudioProviderRouter.getProvider("openai"),
+        audioProvider: AudioProviderRouter.getProvider(
+          resolveProductionProviderName("audio"),
+        ),
         videoAssemblyProvider: VideoAssemblyProviderRouter.getProvider("ffmpeg"),
-        thumbnailProvider: new ThumbnailProviderRouter().getProvider("openai"),
-        youtubeProvider: new YouTubeProviderRouter().getProvider("openai"),
+        thumbnailProvider: new ThumbnailProviderRouter().getProvider(
+          resolveProductionProviderName("thumbnail"),
+        ),
+        youtubeProvider: new YouTubeProviderRouter().getProvider(
+          resolveProductionProviderName("youtube"),
+        ),
       },
       ...(options.stopAfterStage ? { stopAfterStage: options.stopAfterStage } : {}),
       });

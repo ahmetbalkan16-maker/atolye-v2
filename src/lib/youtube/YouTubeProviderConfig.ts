@@ -38,6 +38,6 @@ export function resolveYouTubeProviderName(
 ): YouTubeProviderName {
   const normalized = value?.trim().toLowerCase();
   if (!normalized) return youtubeProviderConfig.defaultProvider;
-  if (normalized === "mock" || normalized === "openai") return normalized;
+  if (normalized === "mock" || normalized === "openai" || normalized === "ollama") return normalized;
   throw new YouTubeProviderConfigurationError();
 }

@@ -29,6 +29,7 @@ export function resolveAnimationProviderName(
 
   if (!normalized || normalized === "mock") return "mock" as const;
   if (normalized === "openai") return "openai" as const;
+  if (normalized === "ollama") return "ollama" as const;
   throw new AnimationProviderConfigurationError();
 }
 

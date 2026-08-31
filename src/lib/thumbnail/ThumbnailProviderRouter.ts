@@ -1,6 +1,7 @@
 import type { ThumbnailProviderName } from "@/types/thumbnail";
 import { MockThumbnailProvider } from "./providers/MockThumbnailProvider";
 import { OpenAIThumbnailProvider } from "./providers/OpenAIThumbnailProvider";
+import { LocalThumbnailProvider } from "./providers/LocalThumbnailProvider";
 import type { ThumbnailProvider } from "./providers/ThumbnailProvider";
 import {
   resolveThumbnailProviderName,
@@ -14,6 +15,7 @@ export class ThumbnailProviderRouter {
     this.providers = {
       mock: providers?.mock ?? new MockThumbnailProvider(),
       openai: providers?.openai ?? new OpenAIThumbnailProvider(),
+      local: providers?.local ?? new LocalThumbnailProvider(),
     };
   }
 

@@ -34,7 +34,7 @@ const EVIDENCE_KEYS = new Set([
 export type AudioAssetErrorMetadata = {
   phase?: AudioAssetFailurePhase;
   target?: AudioGenerationTarget;
-  provider?: "mock" | "openai";
+  provider?: "mock" | "openai" | "piper";
   model?: string;
   httpStatus?: number;
   responseBytes?: number;
@@ -84,7 +84,7 @@ export function createAudioAssetErrorEvidence(
       : "unknown",
     target: target.kind,
     ...(target.chapterId !== undefined ? { chapterId: target.chapterId } : {}),
-    ...(metadata.provider === "mock" || metadata.provider === "openai"
+    ...(metadata.provider === "mock" || metadata.provider === "openai" || metadata.provider === "piper"
       ? { provider: metadata.provider }
       : {}),
     ...(model ? { model } : {}),

@@ -184,6 +184,20 @@ export async function createProductionAcceptancePortableConfigurationSnapshotV2(
       ...(environment.ATOLYE_QUALITY_PRESET !== undefined
         ? { qualityPreset: environment.ATOLYE_QUALITY_PRESET }
         : {}),
+      // Local-provider revision: which local model / voice a $0 render uses.
+      // `AI_PROVIDER` / `AUDIO_PROVIDER` / `ANIMATION_PROVIDER` etc. are already
+      // fingerprint components above; these pin the concrete local model so a
+      // marker prepared against `qwen2.5:3b` is not silently "matched" by a
+      // later `qwen2.5:7b` config. Conditional — unset changes nothing.
+      ...(environment.OLLAMA_MODEL !== undefined
+        ? { ollamaModel: environment.OLLAMA_MODEL }
+        : {}),
+      ...(environment.OLLAMA_HOST !== undefined
+        ? { ollamaHost: environment.OLLAMA_HOST }
+        : {}),
+      ...(environment.PIPER_VOICE_MODEL !== undefined
+        ? { piperVoice: environment.PIPER_VOICE_MODEL }
+        : {}),
     })),
   ]);
   const componentFingerprints = Object.freeze(Object.fromEntries(entries)) as

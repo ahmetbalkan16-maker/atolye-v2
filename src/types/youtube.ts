@@ -1,4 +1,4 @@
-export type YouTubeProviderName = "mock" | "openai";
+export type YouTubeProviderName = "mock" | "openai" | "ollama";
 
 export interface YouTubeChapter {
   startSeconds: number;

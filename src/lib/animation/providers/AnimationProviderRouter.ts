@@ -2,6 +2,7 @@ import type { AnimationProvider } from "./AnimationProvider";
 import { resolveAnimationProviderName } from "./AnimationProviderConfig";
 import { MockAnimationProvider } from "./MockAnimationProvider";
 import { OpenAIAnimationProvider } from "./OpenAIAnimationProvider";
+import { OllamaAnimationProvider } from "./OllamaAnimationProvider";
 
 export class AnimationProviderRouter {
   static getProvider(name?: string): AnimationProvider {
@@ -10,6 +11,8 @@ export class AnimationProviderRouter {
         return new MockAnimationProvider();
       case "openai":
         return new OpenAIAnimationProvider();
+      case "ollama":
+        return new OllamaAnimationProvider();
     }
   }
 }

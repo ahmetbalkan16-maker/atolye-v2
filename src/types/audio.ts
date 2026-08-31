@@ -4,7 +4,7 @@ export type AudioStatus =
   | "generated"
   | "failed";
 
-export type AudioProviderName = "mock" | "openai";
+export type AudioProviderName = "mock" | "openai" | "piper";
 
 export type AudioMimeType = "audio/wav";
 
@@ -37,7 +37,7 @@ export type AudioGenerationMockSuccess = AudioGenerationResultBase & {
 
 export type AudioGenerationRealSuccess = AudioGenerationResultBase & {
   success: true;
-  provider: "openai";
+  provider: "openai" | "piper";
   model: string;
   filePath: string;
   url: string;

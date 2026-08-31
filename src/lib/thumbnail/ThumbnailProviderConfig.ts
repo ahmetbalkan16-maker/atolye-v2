@@ -40,6 +40,6 @@ export function resolveThumbnailProviderName(
 ): ThumbnailProviderName {
   const normalized = value?.trim().toLowerCase();
   if (!normalized) return thumbnailProviderConfig.defaultProvider;
-  if (normalized === "mock" || normalized === "openai") return normalized;
+  if (normalized === "mock" || normalized === "openai" || normalized === "local") return normalized;
   throw new ThumbnailProviderConfigurationError();
 }

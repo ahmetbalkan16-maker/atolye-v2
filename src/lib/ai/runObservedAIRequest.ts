@@ -7,6 +7,7 @@ import {
   toUsageCostFields,
 } from "./AiPricing";
 import { evaluateAiCostBudget, isAiCostGuardEnabled } from "./AiCostBudget";
+import { resolveOllamaConfig } from "./OllamaConfig";
 import type { AIProvider, AIProviderOutput, AIProviderResult } from "./providers";
 import type { AIResponseErrorCode } from "./AIResponseError";
 import type {
@@ -191,6 +192,14 @@ function getModelName(provider: AIUsageProvider): string | undefined {
 
   if (provider === "mock") {
     return "mock-ai-provider";
+  }
+
+  if (provider === "ollama") {
+    try {
+      return resolveOllamaConfig().model;
+    } catch {
+      return "ollama";
+    }
   }
 
   return undefined;
