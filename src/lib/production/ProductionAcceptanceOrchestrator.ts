@@ -44,6 +44,10 @@ import {
   persistProductionCostReceipt,
   ProductionCostBudgetExceededAtAcceptanceError,
 } from "./ProductionCostReceipt";
+import {
+  buildProductionCostReport,
+  persistProductionCostReport,
+} from "./ProductionCostReport";
 import { buildProductionCostPreflight } from "./ProductionCostPreflight";
 import { isCostBudgetGuardEnabled } from "@/lib/assets/RealMediaProductionFlags";
 import { ProjectReader } from "@/lib/projects/ProjectReader";
@@ -483,6 +487,43 @@ export class ProductionAcceptanceOrchestrator {
     }
     if (isCostBudgetGuardEnabled() && costReceipt.status !== "within-budget") {
       throw new ProductionCostBudgetExceededAtAcceptanceError(costReceipt);
+    }
+
+    // P1: the human-readable production cost report (per-category spend, cost
+    // per minute / scene, per-preset comparison). Best-effort — it is a report,
+    // never a gate; the receipt above is the budget authority.
+    try {
+      const chapters = state?.script?.chapters ?? [];
+      const generatedImages = assets.filter(
+        (asset) => asset.type === "image" && asset.status === "generated",
+      );
+      const aiImageCount = generatedImages.some((asset) => asset.mediaOrigin !== undefined)
+        ? generatedImages.filter((asset) => asset.mediaOrigin === "ai").length
+        : generatedImages.filter((asset) => asset.provider === "openai").length;
+      const report = buildProductionCostReport({
+        projectSlug,
+        usage,
+        facts: {
+          durationSeconds: media.durationSeconds,
+          sceneCount: state?.scenes?.scenes.length ?? 0,
+          chapterCount: chapters.length,
+          narrationCharacters: chapters.reduce(
+            (total, chapter) =>
+              total + (typeof chapter.narration === "string" ? chapter.narration.length : 0),
+            0,
+          ),
+          aiImageCount,
+          aiVideoCount: 0,
+          cachedAssetCount: 0,
+          retryCount: jobs.jobs.reduce(
+            (total, job) => total + Math.max(0, job.attempts - 1),
+            0,
+          ),
+        },
+      });
+      persistProductionCostReport(report);
+    } catch {
+      // A cost-report failure must never mask a validated render.
     }
 
     const generatedProviderAssets = assets.filter(

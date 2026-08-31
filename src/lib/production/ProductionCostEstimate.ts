@@ -4,6 +4,7 @@ import {
   estimateTtsCost,
 } from "@/lib/ai/AiPricing";
 import { resolveAiCostBudgetUsd } from "@/lib/ai/AiCostBudget";
+import { QUALITY_PRESETS, type QualityPresetName } from "./QualityPreset";
 
 /**
  * Documentary media effort — Faz 5: deterministic *pre-run* cost estimate for a
@@ -138,6 +139,48 @@ export function estimateProductionCost(
       aiImages,
     },
   };
+}
+
+/**
+ * P1: the same conservative pre-run estimate, but with the model / image / TTS
+ * parameters taken from a {@link QualityPresetName} instead of passed in. The
+ * planned AI-image count is clamped to the preset's `maxAiImages` ceiling (and
+ * to `sceneCount`). Used by the cost report's per-preset comparison table.
+ */
+export function estimateProductionCostForPreset(
+  preset: QualityPresetName,
+  render: {
+    readonly chapterCount: number;
+    readonly sceneCount: number;
+    readonly narrationCharacters: number;
+    /** Defaults to the preset's `maxAiImages` ceiling (clamped to `sceneCount`). */
+    readonly plannedAiImageCount?: number;
+  },
+  options: { budgetUsd?: number; env?: NodeJS.ProcessEnv } = {},
+): ProductionCostEstimate {
+  const spec = QUALITY_PRESETS[preset];
+  const cappedAiImages = Math.max(
+    0,
+    Math.min(
+      render.sceneCount,
+      render.plannedAiImageCount ?? spec.maxAiImages,
+      spec.maxAiImages,
+    ),
+  );
+  return estimateProductionCost(
+    {
+      chapterCount: render.chapterCount,
+      sceneCount: render.sceneCount,
+      narrationCharacters: render.narrationCharacters,
+      plannedAiImageCount: cappedAiImages,
+      textModel: spec.textModel,
+      ttsModel: spec.ttsModel,
+      imageModel: spec.imageModel,
+      imageSize: spec.imageSize,
+      imageQuality: spec.imageQuality,
+    },
+    options,
+  );
 }
 
 function safeCost(estimate: { status: string; costUsd: number }): number {

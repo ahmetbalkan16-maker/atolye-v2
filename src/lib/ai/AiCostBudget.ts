@@ -206,7 +206,14 @@ export class AiCostBudgetExceededError extends Error {
  *    re-derived deterministically from `AiPricing`.
  *  - anything else billable → unknown (fail-closed).
  */
-function resolveRecordCost(
+/**
+ * The single, deterministic "what did this one record cost" resolver, shared by
+ * `summarizeObservedCost`, the acceptance cost receipt and the P1 cost report so
+ * every rollup agrees to the cent. `pricingStatus` wins when present; a legacy
+ * record (no `pricingStatus`) is re-priced from its token counts, exactly as
+ * before; a `mock`/`local` provider is free.
+ */
+export function resolveRecordCost(
   record: AIUsageRecord,
 ): { status: "known" | "unknown" | "free"; costUsd: number } {
   const stored = numeric(record.estimatedCost);
