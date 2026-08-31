@@ -1,5 +1,56 @@
 ---
 
+## Sprint 174 - OpenAI → Lokal ($0) Provider Geçişi - 2026-08-31
+
+**Status:** DEVAM EDİYOR. Provider altyapısı **KOD + TEST + COMMIT + PUSH** (6 commit `46bbc65..f422ef5`). **Piper TTS + lokal FFmpeg thumbnail + Ollama LLM endpoint CANLI doğrulandı ($0).** Tam uçtan uca lokal MP4 **HENÜZ ÜRETİLMEDİ** — bkz. "Kalan blocker".
+
+### Amaç
+Kullanıcının GTX 1650 4GB makinesinde OpenAI API maliyetini mümkün olduğunca $0'a indirmek. `.env.local` OpenAI bağımlılıkları: metin LLM (orkestratör hard-coded), `AUDIO_PROVIDER=openai` (TTS), `ANIMATION_PROVIDER=openai` (motion-plan LLM), `THUMBNAIL_PROVIDER=openai`, `YOUTUBE_PROVIDER=openai`. `IMAGE_PROVIDER=real` zaten $0.
+
+### Kurulum (bu makinede yapıldı)
+- **Ollama 0.33.2** (`winget install Ollama.Ollama`) + `qwen2.5:3b` (1.9GB), `qwen2.5:1.5b`, `qwen2.5:0.5b`, (`qwen2.5:7b-instruct-q4_K_M` pull ediliyor)
+- **Piper** → `bin/piper/piper.exe` + bağımlılıklar + `tr_TR-dfki-medium.onnx` (60MB). `bin/piper/` gitignore'landı.
+
+### Eklenen lokal provider'lar (hepsi additive; mock default, openai mevcut)
+| Dosya (YENİ) | Env | |
+|---|---|---|
+| `src/lib/ai/OllamaConfig.ts` + `providers/OllamaProvider.ts` | `AI_PROVIDER=ollama` | Ollama native `/api/chat`, `format:"json"` veya `options.jsonSchema` (grammar-constrained). research…assembly-plan + seo |
+| `src/lib/animation/providers/OllamaAnimationProvider.ts` | `ANIMATION_PROVIDER=ollama` | LLM'e sadece `motionType`+`transition` (enum-constrained) sorulur, crop/transform geometri **deterministik türetilir** (Mock ile aynı güvenli frame'ler). Küçük model geometri contract'ını sağlayamadığı için. |
+| `src/lib/youtube/providers/OllamaYouTubeProvider.ts` | `YOUTUBE_PROVIDER=ollama` | YouTube paketi |
+| `src/lib/audio/providers/PiperAudioProvider.ts` | `AUDIO_PROVIDER=piper` | `piper` binary spawn → 22kHz mono WAV. **RTF 0.148 (CPU-only, GPU gerekmez)** |
+| `src/lib/thumbnail/providers/LocalThumbnailProvider.ts` | `THUMBNAIL_PROVIDER=local` | final videodan FFmpeg kare + `drawtext` başlık (sistem fontu workdir'e kopyalanır — Windows fontconfig yok). Model yok. |
+| `src/lib/production/ProductionProviderResolution.ts` | — | `resolveProductionProviderName(domain)` (orkestratör hard-coded `getProvider("openai")` yerine, yoksa "openai") + `isAdmissibleProductionProvider(name, domain)` |
+
+### Provenance gate genişletmeleri (`isAdmissibleProductionProvider` — mock ASLA admissible değil)
+Pipeline validator'ları hard-coded `provider === "openai"` yerine domain-set kontrolü: `llm/animation/youtube → {openai, ollama}`, `tts → {openai, piper}`, `thumbnail → {openai, local}`. Değişen: `AudioPipeline` (getProviderName/getProviderNameSafely/normalize/recordTtsUsage/targetFormat/err-meta), `AudioPublicationIntentStore`, `AnimationAssetPipeline` (requireProviderName/persistProviderUsage honest ledger/artifact `plan.provider`/replay), `AnimationStorage` (2 validator + type `string`), `YouTubePackagePipeline` (allow-list), `ThumbnailAssetPipeline` (allow-list + 3 tip). **`ProductionReadinessService` YAPILMADI** (`production:acceptance:execute` yolu; `PipelineRunner.run` yolu readiness'e bakmaz).
+
+### Diğer
+- `AIProviderConfig.provider` artık **canlı getter** (`resolveAiProviderName`) — import anında değil kullanım anında `AI_PROVIDER` okunur (CLI/test'te provider gerçekten değişsin).
+- `AiPricing.FREE_PROVIDERS` += `ollama`, `piper` ($0).
+- Fingerprint: `OLLAMA_MODEL`/`OLLAMA_HOST`/`PIPER_VOICE_MODEL` conditional.
+- Tipler: `AudioProviderName +piper`, `YouTubeProviderName +ollama`, `ThumbnailProviderName +local`, `ProviderName +ollama/local/piper`.
+- `scripts/e2e-local-video-ollama-piper.ts` (YENİ) — gerçek $0 e2e harness.
+
+### Testler
+- `npx tsc --noEmit` temiz. lint: değişen dosyalarda 0.
+- **`smoke-local-providers` (37 senaryo)**: config, mapping, routing, $0 pricing, production resolution, fingerprint, **CANLI Piper synthesis** + **CANLI Ollama** + **CANLI LocalThumbnail** (gerçek 1280×720 PNG).
+- Regresyon PASS: production-audio-asset-wiring (74), production-animation-provider (30), animation-motion-plan-contract (22), production-youtube-package-pipeline (58), production-thumbnail-pipeline (42), production-end-to-end (21), sprint-128-1 (30), audio-canonical-rebind-and-invalidation (6), multi-shot-assembly-render (2), readiness-acceptance (25), quality-preset-registry (46), production-cost-report (58).
+
+### ✅ $0 kanıtlanan
+research (Ollama) · animation motion-plan (Ollama, türetilmiş geometri) · **TTS (Piper, CANLI)** · **thumbnail (lokal FFmpeg, CANLI)** · video render + assembly (FFmpeg) · müzik (yerel kütüphane). script + scenes: **capable model ile** çalışır (Ollama /api/chat native json).
+
+### ⚠️ Kalan blocker — tam lokal MP4
+1. **`qwen2.5:3b` (4GB GPU'ya sığan tek model) `script`/`scenes` katı JSON şemasını güvenilir üretemiyor** — truncate/loop (`AI_RESPONSE_TRUNCATED` `done_reason:"length"`, `num_predict=16384` bile). `qwen2.5:7b-instruct` gerekir (GPU'ya tam sığmaz → kısmen CPU, yavaş; veya oyun kapalıyken VRAM headroom).
+2. **`IMAGE_PROVIDER=mock` dosya üretmiyor** (test stub, `filePath:""`) → video stage `SCENE_VIDEO_GENERATION_FAILED`. `IMAGE_PROVIDER=real` (Wikimedia arşiv, $0) çalışır ama iyi scene prompt + arşiv kapsamı gerekir; `ATOLYE_MAX_AI_IMAGES=0` iken foto bulunamayan sahne stage'i fail eder. **Lokal SD image provider YOK** (4GB marjinal, ayrı büyük iş).
+3. **GPU**: `FarmingSimulator2025Game.exe` çalışırken Ollama %95 CPU (~40-60s/çağrı). Oyun kapalı → 3b tam GPU (~4s/çağrı).
+
+### Sıradaki
+1. `qwen2.5:7b-instruct-q4_K_M` ile script/scenes güvenilir mi test et → tam e2e MP4 dene.
+2. Gerekirse minimal `LocalImageProvider` (FFmpeg gradient + drawtext, her zaman başarılı, $0).
+3. `ProductionReadinessService` lokal-provider genişletmesi (`production:acceptance:execute` yolu için).
+
+<!-- SPRINT-174-END -->
+
 ## Sprint 173 - Documentary Pipeline Revision: forensic analiz + P0 quality preset + P1 cost report - 2026-08-31
 
 **Status:** DEVAM EDİYOR. P0 + P1 **KOD + TEST PASS + COMMIT**. **0 gerçek network/paid API, $0, production render/execute/resume ÇALIŞTIRILMADI.** Kullanıcı onayı: P0→P5 (T2V hariç) sonra P7 bounded run; **P2 (uzun-form invariant) ÖNCE kısa videoda preset+cost kanıtlanınca** açılacak; P7 paralı run kod+testler bitince ayrı onayla.
