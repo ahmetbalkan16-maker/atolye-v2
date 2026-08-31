@@ -31,7 +31,9 @@ export interface OllamaConfig {
 export const OLLAMA_DEFAULTS = Object.freeze({
   baseUrl: "http://127.0.0.1:11434",
   model: "qwen2.5:3b",
-  timeoutMs: 180_000,
+  // Generous: a small model on a GPU-starved / CPU-only box can take minutes per
+  // call. Lower it with OLLAMA_TIMEOUT_MS when the model runs fully on the GPU.
+  timeoutMs: 600_000,
   maxTokens: 4_096,
   temperature: 0.4,
   format: "json" as const,
