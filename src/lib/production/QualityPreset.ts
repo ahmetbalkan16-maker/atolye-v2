@@ -270,3 +270,55 @@ export function resolveQualityPreset(
 ): QualityPresetSpec {
   return QUALITY_PRESETS[resolveQualityPresetName(env)];
 }
+
+/**
+ * The legacy finished-video duration band — the frozen `[60, 120] s, target
+ * 90 s` product policy that every render used before P2. This exact object is
+ * what {@link resolveTargetDurationBand} returns when no preset is *explicitly*
+ * pinned, so the un-configured pipeline (and every existing test) is
+ * byte-identical.
+ */
+export const LEGACY_TARGET_DURATION_BAND: QualityPresetDurationBand = Object.freeze({
+  minSeconds: 60,
+  idealSeconds: 90,
+  maxSeconds: 120,
+});
+
+/**
+ * The active finished-video duration band. **Backward compatible:** only an
+ * EXPLICIT `ATOLYE_QUALITY_PRESET` widens the band — the implicit `documentary`
+ * default resolves to {@link LEGACY_TARGET_DURATION_BAND}, so a render / test
+ * without the env var keeps the historical 60–120 s policy. This is the P2
+ * cutover point: pin `ATOLYE_QUALITY_PRESET=documentary` to render 10–15 min.
+ */
+export function resolveTargetDurationBand(
+  env: NodeJS.ProcessEnv = process.env,
+): QualityPresetDurationBand {
+  return isExplicitQualityPreset(env)
+    ? resolveQualityPreset(env).targetDurationSeconds
+    : LEGACY_TARGET_DURATION_BAND;
+}
+
+/**
+ * Schema ceiling for how many scenes a render may contain. Legacy (no explicit
+ * preset) → `30`, unchanged. An explicit preset scales it from the band and the
+ * preset's `sceneDensityPerMinute` with generous head-room.
+ */
+export function resolveMaxSceneCount(env: NodeJS.ProcessEnv = process.env): number {
+  if (!isExplicitQualityPreset(env)) return 30;
+  const band = resolveTargetDurationBand(env);
+  const density = resolveQualityPreset(env).sceneDensityPerMinute;
+  return Math.max(30, Math.ceil((band.maxSeconds / 60) * density * 1.5));
+}
+
+/**
+ * How many chapters the strict (production-acceptance) script prompt asks for.
+ * Legacy → `5` (the historical "short ~90 s documentary" prompt). An explicit
+ * preset derives it from the target length (~85 s of narration per chapter),
+ * clamped to a sane 5–18.
+ */
+export function resolveScriptChapterCount(env: NodeJS.ProcessEnv = process.env): number {
+  if (!isExplicitQualityPreset(env)) return 5;
+  const band = resolveTargetDurationBand(env);
+  return Math.min(18, Math.max(5, Math.round(band.idealSeconds / 85)));
+}

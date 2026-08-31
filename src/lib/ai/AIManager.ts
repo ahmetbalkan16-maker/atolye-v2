@@ -15,6 +15,11 @@ import { getSceneMaxTokens, SceneAIConfigError } from "./SceneAIConfig";
 import { parseStrictScriptResponse } from "./ScriptStructuredOutput";
 import { createScenesPrompt, parseStrictScenesResponse } from "./SceneStructuredOutput";
 import { formatResearchForPrompt } from "./ResearchPromptContext";
+import { resolveProductionAcceptanceDuration } from "@/lib/production/ProductionAcceptancePreflight";
+import {
+  isExplicitQualityPreset,
+  resolveScriptChapterCount,
+} from "@/lib/production/QualityPreset";
 import {
   countNarrationWords,
   DEFAULT_CHARACTERS_PER_SECOND,
@@ -33,6 +38,39 @@ import {
   getStringArray,
   parseAIJsonResponse,
 } from "./utils";
+
+/**
+ * P2: the strict (production-acceptance) script prompt's duration / chapter /
+ * narration-budget lines. With no EXPLICIT `ATOLYE_QUALITY_PRESET` these are the
+ * historical "exactly 5 chapters, ~90 s" lines verbatim; an explicit preset
+ * scales the chapter count, the acceptance band and the per-chapter narration
+ * character budget from the resolved band.
+ */
+function strictScriptDurationPromptLines(env: NodeJS.ProcessEnv = process.env): string[] {
+  const cps = DEFAULT_CHARACTERS_PER_SECOND;
+  if (!isExplicitQualityPreset(env)) {
+    return [
+      "- Override the chapter-count range above: create exactly 5 chapters (this is a short, ~90 second documentary).",
+      "- Production acceptance estimatedDuration must be between 60 and 120 seconds; target 90 seconds.",
+      "- The sum of chapter durations must match estimatedDuration within 5 seconds.",
+      `- Narration budget (strict - it directly sets the final video length, and a script whose narration does not fit 60-120 seconds at ${cps.toFixed(1)} chars/sec is rejected): every chapter's narration must be at least 260 characters (this is a hard minimum - shorter narration produces a video that is too short and is rejected) and at most 340 characters; the five chapters' narration combined should total roughly 1300 to 1450 characters (about 92-103 seconds). Write full, detailed documentary paragraphs, not one-liners.`,
+    ];
+  }
+  const band = resolveProductionAcceptanceDuration(env);
+  const chapters = resolveScriptChapterCount(env);
+  const perChapterSeconds = band.targetSeconds / chapters;
+  const perChapterChars = Math.round(perChapterSeconds * cps);
+  const minChars = Math.round(perChapterChars * 0.82);
+  const maxChars = Math.round(perChapterChars * 1.2);
+  const totalLow = Math.round(band.minimumSeconds * cps);
+  const totalHigh = Math.round(band.maximumSeconds * cps);
+  return [
+    `- Override the chapter-count range above: create exactly ${chapters} chapters (this is an ~${Math.round(band.targetSeconds / 60)} minute documentary).`,
+    `- Production acceptance estimatedDuration must be between ${band.minimumSeconds} and ${band.maximumSeconds} seconds; target ${band.targetSeconds} seconds.`,
+    `- The sum of chapter durations must match estimatedDuration within ${band.toleranceSeconds} seconds.`,
+    `- Narration budget (strict - it directly sets the final video length, and a script whose narration does not fit ${band.minimumSeconds}-${band.maximumSeconds} seconds at ${cps.toFixed(1)} chars/sec is rejected): every chapter's narration must be between about ${minChars} and ${maxChars} characters; the ${chapters} chapters' narration combined should total roughly ${totalLow} to ${totalHigh} characters. Write full, detailed documentary paragraphs, not one-liners.`,
+  ];
+}
 
 export class AIManager {
   static async runResearch(
@@ -219,12 +257,7 @@ export class AIManager {
         "Research findings to ground this script in (authoritative - do not contradict; draw the concrete facts, names, dates, places and events from here):",
         formatResearchForPrompt(research),
       ] : []),
-      ...(policy?.failClosed ? [
-        "- Override the chapter-count range above: create exactly 5 chapters (this is a short, ~90 second documentary).",
-        "- Production acceptance estimatedDuration must be between 60 and 120 seconds; target 90 seconds.",
-        "- The sum of chapter durations must match estimatedDuration within 5 seconds.",
-        `- Narration budget (strict - it directly sets the final video length, and a script whose narration does not fit 60-120 seconds at ${DEFAULT_CHARACTERS_PER_SECOND.toFixed(1)} chars/sec is rejected): every chapter's narration must be at least 260 characters (this is a hard minimum - shorter narration produces a video that is too short and is rejected) and at most 340 characters; the five chapters' narration combined should total roughly 1300 to 1450 characters (about 92-103 seconds). Write full, detailed documentary paragraphs, not one-liners.`,
-      ] : []),
+      ...(policy?.failClosed ? strictScriptDurationPromptLines() : []),
       `Topic: ${topic}`,
     ].join("\n");
     try {

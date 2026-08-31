@@ -9,6 +9,12 @@ import type {
 } from "@/types/aiResponse";
 import { AIResponseError } from "./AIResponseError";
 import { createCanonicalApplicationTimestamp } from "./CanonicalTimestamp";
+import { resolveProductionAcceptanceDuration } from "@/lib/production/ProductionAcceptancePreflight";
+import {
+  isExplicitQualityPreset,
+  resolveMaxSceneCount,
+  resolveQualityPreset,
+} from "@/lib/production/QualityPreset";
 
 export const sceneSchemaIssueLimit = 8;
 
@@ -22,6 +28,7 @@ const stringFields = Object.freeze({
   visualPrompt: { minimumLength: 1, maximumLength: 2_000 },
 } as const);
 
+/** The legacy 60–120 s / 30-scene canonical schema (P2: still the default). */
 export const canonicalSceneProviderSchema = Object.freeze({
   additionalProperties: false,
   applicationOwnedFields: ["createdAt"] as const,
@@ -33,11 +40,80 @@ export const canonicalSceneProviderSchema = Object.freeze({
   totalDuration: { minimum: 60, maximum: 120, tolerance: 5 },
 });
 
+/**
+ * P2: the canonical scene schema for the active quality preset. With no
+ * EXPLICIT `ATOLYE_QUALITY_PRESET` this is byte-identical to
+ * {@link canonicalSceneProviderSchema}; an explicit preset widens
+ * `sceneCount.maximum` and the `totalDuration` band (per-scene `duration` cap
+ * stays 120 s — a single shot is never that long).
+ */
+export function resolveCanonicalSceneProviderSchema(env: NodeJS.ProcessEnv = process.env) {
+  const duration = resolveProductionAcceptanceDuration(env);
+  return Object.freeze({
+    additionalProperties: false,
+    applicationOwnedFields: ["createdAt"] as const,
+    topLevelFields,
+    sceneFields,
+    sceneCount: { minimum: "script chapter count", maximum: resolveMaxSceneCount(env) },
+    stringFields,
+    duration: { minimumExclusive: 0, maximumInclusive: 120 },
+    totalDuration: {
+      minimum: duration.minimumSeconds,
+      maximum: duration.maximumSeconds,
+      tolerance: duration.toleranceSeconds,
+    },
+  });
+}
+
+/**
+ * P2: the scene-count / total-duration guidance lines. With no EXPLICIT
+ * `ATOLYE_QUALITY_PRESET` these are the historical strings verbatim (the
+ * multi-shot smokes assert them); an explicit preset scales them from the band
+ * and `sceneDensityPerMinute`.
+ */
+function scenePacingGuidance(env: NodeJS.ProcessEnv = process.env): {
+  compactLine: string;
+  aimLine: string;
+  totalLine: string;
+} {
+  const band = resolveProductionAcceptanceDuration(env);
+  if (!isExplicitQualityPreset(env)) {
+    return {
+      compactLine:
+        "Keep every scene tight so the whole response stays compact with 10-18 scenes: " +
+        "title around 40-70 characters, description one sentence around 120-200 characters, " +
+        "visualPrompt around 200-360 characters. Do not pad.",
+      aimLine:
+        "- Aim for roughly 10 to 18 scenes in total across the whole script. Never exceed 30 scenes.",
+      totalLine:
+        "Total scene duration must be 60-120 seconds and match script estimatedDuration within 5 seconds.",
+    };
+  }
+  const minutes = band.targetSeconds / 60;
+  const density = resolveQualityPreset(env).sceneDensityPerMinute;
+  const ideal = Math.round(minutes * density);
+  const low = Math.max(4, Math.round(ideal * 0.75));
+  const high = Math.round(ideal * 1.15);
+  const maxScenes = resolveMaxSceneCount(env);
+  return {
+    compactLine:
+      `Keep every scene tight so the whole response stays compact with about ${low}-${high} scenes: ` +
+      "title around 40-70 characters, description one sentence around 120-200 characters, " +
+      "visualPrompt around 200-360 characters. Do not pad.",
+    aimLine:
+      `- Aim for roughly ${low} to ${high} scenes in total across the whole script. Never exceed ${maxScenes} scenes.`,
+    totalLine:
+      `Total scene duration must be ${band.minimumSeconds}-${band.maximumSeconds} seconds and match ` +
+      `script estimatedDuration within ${band.toleranceSeconds} seconds.`,
+  };
+}
+
 export function createScenesPrompt(
   script: ScriptData,
   research?: ResearchData,
 ): string {
   const researchBlock = research ? formatResearchForScenePrompt(research) : "";
+  const pacing = scenePacingGuidance();
   return [
     "You are a professional documentary scene planner.",
     "Create production-ready scene data from the documentary script below.",
@@ -50,17 +126,15 @@ export function createScenesPrompt(
     "Every script chapter must own at least one scene; never create an ownerless scene or a scene for a chapter id that does not exist.",
     "title, description, and visualPrompt must be non-empty strings.",
     "Hard limits: title 1-300 characters; description 1-2000; visualPrompt 1-2000.",
-    "Keep every scene tight so the whole response stays compact with 10-18 scenes: " +
-      "title around 40-70 characters, description one sentence around 120-200 characters, " +
-      "visualPrompt around 200-360 characters. Do not pad.",
+    pacing.compactLine,
     "duration must be a finite positive number no greater than 120 seconds.",
-    "Each chapter's scene duration sum must match its script chapter duration within 5 seconds.",
-    "Total scene duration must be 60-120 seconds and match script estimatedDuration within 5 seconds.",
+    `Each chapter's scene duration sum must match its script chapter duration within ${resolveProductionAcceptanceDuration().toleranceSeconds} seconds.`,
+    pacing.totalLine,
     "Do not invent fields for unknown information; use the required strings only.",
     "Write title and description in Turkish. Keep visualPrompt cinematic and historically grounded.",
     "Shot rhythm (documentary pacing - one scene here = one shot in the final cut):",
     "- Break every chapter into 2 to 4 shots, each 4 to 8 seconds long. Use more shots for a chapter whose narration moves through several distinct moments (a march, a bombardment, a council, an entry), fewer for a single reflective idea.",
-    "- Aim for roughly 10 to 18 scenes in total across the whole script. Never exceed 30 scenes.",
+    pacing.aimLine,
     "- The shots inside one chapter must be genuinely different images: change the subject, the framing (wide / medium / close), the angle, or the moment in time. Do not restate the same picture with reworded text.",
     "- Order a chapter's shots as a mini-sequence that follows its narration in time.",
     "visualPrompt rules: describe ONE single cinematic frame - one subject, one clear composition, one moment in time. " +
@@ -348,12 +422,14 @@ function validateScenes(
 ) {
   const structural = mode !== "duration";
   const durationAuthority = mode !== "structure";
+  const band = resolveProductionAcceptanceDuration();
+  const maxScenes = resolveMaxSceneCount();
   if (!Array.isArray(value)) {
     if (value !== undefined) add({ path: "$.scenes", reason: "WRONG_TYPE", expected: "array", observedType: observedType(value) });
     return;
   }
   if (structural && value.length < script.chapters.length) add({ path: "$.scenes", reason: "MIN_ITEMS", expected: `>=${script.chapters.length}` });
-  if (structural && value.length > 30) add({ path: "$.scenes", reason: "MAX_ITEMS", expected: "<=30" });
+  if (structural && value.length > maxScenes) add({ path: "$.scenes", reason: "MAX_ITEMS", expected: `<=${maxScenes}` });
   const chapterIndex = new Map(script.chapters.map((chapter, index) => [chapter.id, index]));
   const ids = new Set<number>();
   const durationByChapter = new Map<number, number>();
@@ -398,10 +474,20 @@ function validateScenes(
     for (const chapter of script.chapters) {
       const duration = durationByChapter.get(chapter.id);
       if (duration === undefined) add({ path: "$.scenes", reason: "INVALID_REFERENCE", expected: `chapter ${chapter.id} coverage` });
-      else if (Math.abs(duration - chapter.duration) > 5) add({ path: "$.scenes", reason: "INVALID_DURATION", expected: `chapter ${chapter.id} duration within 5 seconds` });
+      else if (Math.abs(duration - chapter.duration) > band.toleranceSeconds) {
+        add({ path: "$.scenes", reason: "INVALID_DURATION", expected: `chapter ${chapter.id} duration within ${band.toleranceSeconds} seconds` });
+      }
     }
-    if (totalDuration < 60 || totalDuration > 120 || Math.abs(totalDuration - script.estimatedDuration) > 5) {
-      add({ path: "$.scenes", reason: "INVALID_DURATION", expected: "total 60-120 seconds and within 5 seconds of script" });
+    if (
+      totalDuration < band.minimumSeconds ||
+      totalDuration > band.maximumSeconds ||
+      Math.abs(totalDuration - script.estimatedDuration) > band.toleranceSeconds
+    ) {
+      add({
+        path: "$.scenes",
+        reason: "INVALID_DURATION",
+        expected: `total ${band.minimumSeconds}-${band.maximumSeconds} seconds and within ${band.toleranceSeconds} seconds of script`,
+      });
     }
   }
 }

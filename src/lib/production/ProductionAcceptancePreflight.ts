@@ -3,6 +3,10 @@ import type { ScriptData } from "@/types/script";
 import type { AudioData } from "@/types/audio";
 import type { AssemblyPlanData } from "@/types/assembly";
 import { estimateNarrationSeconds } from "@/lib/ai/NarrationDurationEstimator";
+import {
+  LEGACY_TARGET_DURATION_BAND,
+  resolveTargetDurationBand,
+} from "@/lib/production/QualityPreset";
 
 export const productionAcceptanceDuration = Object.freeze({
   minimumSeconds: 60,
@@ -10,6 +14,39 @@ export const productionAcceptanceDuration = Object.freeze({
   maximumSeconds: 120,
   toleranceSeconds: 5,
 });
+
+export interface ProductionAcceptanceDuration {
+  readonly minimumSeconds: number;
+  readonly targetSeconds: number;
+  readonly maximumSeconds: number;
+  readonly toleranceSeconds: number;
+}
+
+/**
+ * P2: the active content-length product policy. Backward compatible — with no
+ * EXPLICIT `ATOLYE_QUALITY_PRESET` this is the frozen legacy `{60, 90, 120, 5}`
+ * object (referential identity preserved). An explicit preset takes the band
+ * from `QualityPreset` and scales `toleranceSeconds` to keep the historical
+ * `tolerance / target` ratio (~5.6 %), so every downstream proportional check
+ * (`VideoDurationCoverageGuard`) is unchanged.
+ */
+export function resolveProductionAcceptanceDuration(
+  env: NodeJS.ProcessEnv = process.env,
+): ProductionAcceptanceDuration {
+  const band = resolveTargetDurationBand(env);
+  if (band === LEGACY_TARGET_DURATION_BAND) return productionAcceptanceDuration;
+  const ratio =
+    productionAcceptanceDuration.toleranceSeconds / productionAcceptanceDuration.targetSeconds;
+  return Object.freeze({
+    minimumSeconds: band.minSeconds,
+    targetSeconds: band.idealSeconds,
+    maximumSeconds: band.maxSeconds,
+    toleranceSeconds: Math.max(
+      productionAcceptanceDuration.toleranceSeconds,
+      Math.round(band.idealSeconds * ratio),
+    ),
+  });
+}
 
 /**
  * Below this much a-priori-estimated narration (see NarrationDurationEstimator),
@@ -95,6 +132,7 @@ export function validateProductionAcceptancePreflight(
     grouped.set(scene.chapterId, [...(grouped.get(scene.chapterId) ?? []), scene]);
   }
 
+  const duration = resolveProductionAcceptanceDuration();
   const groups = chapters.map((chapter) => {
     const chapterScenes = grouped.get(chapter.id);
     if (!chapterScenes?.length) throw new ProductionSceneMappingError();
@@ -102,7 +140,7 @@ export function validateProductionAcceptancePreflight(
       (sum, scene) => sum + (scene.duration as number),
       0,
     );
-    requireClose(durationSeconds, chapter.duration);
+    requireClose(durationSeconds, chapter.duration, duration);
     return Object.freeze({
       chapterId: chapter.id,
       sceneIds: Object.freeze(chapterScenes.map((scene) => scene.id)),
@@ -110,8 +148,8 @@ export function validateProductionAcceptancePreflight(
     });
   });
   const sceneTotal = groups.reduce((sum, group) => sum + group.durationSeconds, 0);
-  requireAcceptanceRange(sceneTotal);
-  requireClose(sceneTotal, script.estimatedDuration);
+  requireAcceptanceRange(sceneTotal, duration);
+  requireClose(sceneTotal, script.estimatedDuration, duration);
   return Object.freeze(groups);
 }
 
@@ -119,15 +157,16 @@ export function validateProductionAcceptanceScriptDuration(script: ScriptData) {
   if (!Array.isArray(script.chapters) || script.chapters.length === 0) {
     throw new ProductionDurationPreflightError();
   }
+  const duration = resolveProductionAcceptanceDuration();
   requireDuration(script.estimatedDuration);
-  requireAcceptanceRange(script.estimatedDuration);
+  requireAcceptanceRange(script.estimatedDuration, duration);
   let chapterTotal = 0;
   for (const chapter of script.chapters) {
     requireDuration(chapter.duration);
     chapterTotal += chapter.duration;
   }
-  requireAcceptanceRange(chapterTotal);
-  requireClose(chapterTotal, script.estimatedDuration);
+  requireAcceptanceRange(chapterTotal, duration);
+  requireClose(chapterTotal, script.estimatedDuration, duration);
 
   // F-08/F-02 completion: estimatedDuration and the per-chapter durations above
   // are only planning numbers. The scene-video clips built from them (before any
@@ -148,17 +187,14 @@ export function validateProductionAcceptanceScriptDuration(script: ScriptData) {
   );
   if (measuredNarrationSeconds >= MIN_MEASURED_NARRATION_SECONDS) {
     if (
-      measuredNarrationSeconds <
-        productionAcceptanceDuration.minimumSeconds - productionAcceptanceDuration.toleranceSeconds ||
-      measuredNarrationSeconds >
-        productionAcceptanceDuration.maximumSeconds + productionAcceptanceDuration.toleranceSeconds
+      measuredNarrationSeconds < duration.minimumSeconds - duration.toleranceSeconds ||
+      measuredNarrationSeconds > duration.maximumSeconds + duration.toleranceSeconds
     ) {
       throw new ProductionDurationPreflightError();
     }
     const legitimateGapSeconds =
       1 +
-      measuredNarrationSeconds *
-        (productionAcceptanceDuration.toleranceSeconds / productionAcceptanceDuration.targetSeconds);
+      measuredNarrationSeconds * (duration.toleranceSeconds / duration.targetSeconds);
     if (Math.abs(measuredNarrationSeconds - script.estimatedDuration) > legitimateGapSeconds) {
       throw new ProductionDurationPreflightError();
     }
@@ -250,17 +286,21 @@ function requireDuration(value: unknown): asserts value is number {
   }
 }
 
-function requireAcceptanceRange(value: number) {
-  if (
-    value < productionAcceptanceDuration.minimumSeconds ||
-    value > productionAcceptanceDuration.maximumSeconds
-  ) {
+function requireAcceptanceRange(
+  value: number,
+  duration: ProductionAcceptanceDuration = productionAcceptanceDuration,
+) {
+  if (value < duration.minimumSeconds || value > duration.maximumSeconds) {
     throw new ProductionDurationPreflightError();
   }
 }
 
-function requireClose(left: number, right: number) {
-  if (Math.abs(left - right) > productionAcceptanceDuration.toleranceSeconds) {
+function requireClose(
+  left: number,
+  right: number,
+  duration: ProductionAcceptanceDuration = productionAcceptanceDuration,
+) {
+  if (Math.abs(left - right) > duration.toleranceSeconds) {
     throw new ProductionDurationPreflightError();
   }
 }
