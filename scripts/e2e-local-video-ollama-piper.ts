@@ -107,7 +107,7 @@ async function main() {
       OLLAMA_HOST: ollamaHost,
       OLLAMA_MODEL: ollamaModel,
       OLLAMA_TIMEOUT_MS: process.env.OLLAMA_TIMEOUT_MS || "1800000",
-      OLLAMA_MAX_TOKENS: process.env.OLLAMA_MAX_TOKENS || "2048",
+      OLLAMA_MAX_TOKENS: process.env.OLLAMA_MAX_TOKENS || "8192",
       PIPER_EXECUTABLE: piperExe,
       PIPER_VOICE_MODEL: piperVoice,
       PIPER_TIMEOUT_MS: "600000",

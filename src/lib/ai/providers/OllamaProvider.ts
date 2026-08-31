@@ -9,11 +9,12 @@ import type {
 type Fetcher = typeof fetch;
 
 /**
- * Local LLM provider. Talks to Ollama's OpenAI-compatible
- * `POST {OLLAMA_HOST}/v1/chat/completions` — no API key, no per-call cost.
- * Opt-in via `AI_PROVIDER=ollama`. The response is normalised to the exact same
- * `AIProviderResult` shape as `OpenAIProvider`, so every downstream strict
- * parser / validator is unchanged.
+ * Local LLM provider. Talks to Ollama's native `POST {OLLAMA_HOST}/api/chat`
+ * (no API key, no per-call cost) with `format: "json"` — or, when the caller
+ * passes a JSON Schema, `format: <schema>` for grammar-constrained decoding so
+ * even a small model produces schema-conforming output. Opt-in via
+ * `AI_PROVIDER=ollama`. The response is normalised to the same
+ * `AIProviderResult` shape as `OpenAIProvider`.
  */
 export class OllamaProvider implements ConfiguredAIProvider {
   constructor(
@@ -35,18 +36,23 @@ export class OllamaProvider implements ConfiguredAIProvider {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
     try {
-      const response = await this.fetcher(`${config.baseUrl}/v1/chat/completions`, {
+      const format = options?.jsonSchema
+        ? options.jsonSchema
+        : config.format === "json"
+          ? "json"
+          : undefined;
+      const response = await this.fetcher(`${config.baseUrl}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: config.model,
           messages: [{ role: "user", content: prompt }],
-          max_tokens: options?.maxTokens ?? config.maxTokens,
-          temperature: config.temperature,
           stream: false,
-          ...(config.format === "json"
-            ? { response_format: { type: "json_object" } }
-            : {}),
+          ...(format !== undefined ? { format } : {}),
+          options: {
+            temperature: config.temperature,
+            num_predict: options?.maxTokens ?? config.maxTokens,
+          },
         }),
         signal: controller.signal,
         redirect: "error",
@@ -57,24 +63,24 @@ export class OllamaProvider implements ConfiguredAIProvider {
       }
 
       const payload = (await response.json()) as OllamaChatResponse;
-      const choice = payload?.choices?.[0];
-      const content = typeof choice?.message?.content === "string"
-        ? choice.message.content
+      const content = typeof payload?.message?.content === "string"
+        ? payload.message.content
         : "";
-      const finishReason = normalizeFinishReason(choice?.finish_reason);
-      const refused = Boolean(choice?.message?.refusal);
+      const finishReason = normalizeFinishReason(payload?.done_reason, payload?.done);
       return {
         content,
         finishReason,
-        refused,
-        complete: finishReason === "stop" && !refused && content.trim().length > 0,
+        refused: false,
+        complete: finishReason === "stop" && content.trim().length > 0,
         truncated: finishReason === "length",
-        ...(payload?.usage
+        ...(hasUsage(payload)
           ? {
               usage: {
-                promptTokens: safeTokenCount(payload.usage.prompt_tokens),
-                completionTokens: safeTokenCount(payload.usage.completion_tokens),
-                totalTokens: safeTokenCount(payload.usage.total_tokens),
+                promptTokens: safeTokenCount(payload.prompt_eval_count),
+                completionTokens: safeTokenCount(payload.eval_count),
+                totalTokens: safeTokenCount(
+                  (payload.prompt_eval_count ?? 0) + (payload.eval_count ?? 0),
+                ),
               },
             }
           : {}),
@@ -86,25 +92,27 @@ export class OllamaProvider implements ConfiguredAIProvider {
 }
 
 interface OllamaChatResponse {
-  choices?: Array<{
-    finish_reason?: string | null;
-    message?: { content?: string | null; refusal?: string | null };
-  }>;
-  usage?: {
-    prompt_tokens?: number;
-    completion_tokens?: number;
-    total_tokens?: number;
-  };
+  message?: { content?: string | null };
+  done?: boolean;
+  done_reason?: string | null;
+  prompt_eval_count?: number;
+  eval_count?: number;
+}
+
+function hasUsage(payload: OllamaChatResponse): boolean {
+  return typeof payload?.prompt_eval_count === "number" ||
+    typeof payload?.eval_count === "number";
 }
 
 function normalizeFinishReason(
-  value: string | null | undefined,
+  doneReason: string | null | undefined,
+  done: boolean | undefined,
 ): AIProviderResult["finishReason"] {
-  if (value === "stop" || value === "length") return value;
-  if (value === "content_filter") return "content-filter";
-  if (value === "tool_calls" || value === "function_call") return "tool-calls";
-  // Ollama commonly omits finish_reason on a clean completion.
-  if (value === null || value === undefined || value === "") return "stop";
+  if (doneReason === "stop") return "stop";
+  if (doneReason === "length") return "length";
+  // Ollama emits done_reason: "stop" on a clean finish; older builds only set done.
+  if (done === true && (doneReason === undefined || doneReason === null)) return "stop";
+  if (doneReason === undefined || doneReason === null || doneReason === "") return "stop";
   return "unknown";
 }
 

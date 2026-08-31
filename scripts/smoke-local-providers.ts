@@ -97,8 +97,11 @@ function ollamaConfig() {
 async function ollamaProvider() {
   const provider = new OllamaProvider(
     stubFetch({
-      choices: [{ finish_reason: "stop", message: { content: '{"ok":true}' } }],
-      usage: { prompt_tokens: 12, completion_tokens: 8, total_tokens: 20 },
+      message: { content: '{"ok":true}' },
+      done: true,
+      done_reason: "stop",
+      prompt_eval_count: 12,
+      eval_count: 8,
     }),
     () => resolveOllamaConfig(env({})),
   );
@@ -106,13 +109,13 @@ async function ollamaProvider() {
   pass(
     out.content === '{"ok":true}' && out.finishReason === "stop" && out.complete === true &&
       out.usage?.promptTokens === 12 && out.usage.completionTokens === 8,
-    "OllamaProvider maps a normal completion",
+    "OllamaProvider maps a normal /api/chat completion",
   );
   const noReason = new OllamaProvider(
-    stubFetch({ choices: [{ message: { content: "{}" } }] }),
+    stubFetch({ message: { content: "{}" }, done: true }),
     () => resolveOllamaConfig(env({})),
   );
-  pass(((await noReason.generate("x")) as AIProviderResult).finishReason === "stop", "missing finish_reason -> stop");
+  pass(((await noReason.generate("x")) as AIProviderResult).finishReason === "stop", "missing done_reason -> stop");
   const bad = new OllamaProvider(stubFetch({}, false), () => resolveOllamaConfig(env({})));
   await assert.rejects(() => bad.generate("x"));
   scenarios += 1;

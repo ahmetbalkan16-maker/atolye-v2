@@ -66,7 +66,7 @@ export class OllamaAnimationProvider implements ConfiguredAnimationProvider {
       const timer = setTimeout(() => controller.abort(), config.timeoutMs);
       let payload: OllamaChatResponse;
       try {
-        const response = await this.fetcher(`${config.baseUrl}/v1/chat/completions`, {
+        const response = await this.fetcher(`${config.baseUrl}/api/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body,
@@ -79,7 +79,7 @@ export class OllamaAnimationProvider implements ConfiguredAnimationProvider {
         clearTimeout(timer);
       }
 
-      const content = payload?.choices?.[0]?.message?.content;
+      const content = payload?.message?.content;
       if (typeof content !== "string" || !content.trim()) {
         return fail(input, model, "ANIMATION_RESPONSE_EMPTY");
       }
@@ -116,15 +116,17 @@ export class OllamaAnimationProvider implements ConfiguredAnimationProvider {
 }
 
 interface OllamaChatResponse {
-  choices?: Array<{ message?: { content?: string | null } }>;
+  message?: { content?: string | null };
 }
 
 function requestBody(input: AnimationGenerationInput, model: string): string {
   return JSON.stringify({
     model,
     stream: false,
-    temperature: 0,
-    response_format: { type: "json_object" },
+    // Grammar-constrained decoding: the model cannot emit non-conforming JSON,
+    // so even a small local model produces a valid motion plan.
+    format: canonicalAnimationProviderSchema.jsonSchema,
+    options: { temperature: 0 },
     messages: [
       { role: "system", content: createAnimationMotionPlanSystemPrompt() },
       {
@@ -134,7 +136,6 @@ function requestBody(input: AnimationGenerationInput, model: string): string {
           durationSeconds: input.durationSeconds,
           allowedMotionTypes: animationMotionTypes,
           allowedTransitionTypes: animationTransitionTypes,
-          jsonSchema: canonicalAnimationProviderSchema.jsonSchema,
         }),
       },
     ],

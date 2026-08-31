@@ -1,5 +1,11 @@
 export interface AIProviderGenerateOptions {
   readonly maxTokens?: number;
+  /**
+   * Optional JSON Schema for the expected response. Providers that support
+   * grammar-constrained / structured decoding (Ollama's `format`) use it to
+   * force schema-conforming output; providers that don't simply ignore it.
+   */
+  readonly jsonSchema?: Record<string, unknown>;
 }
 
 export interface AIProviderUsage {
