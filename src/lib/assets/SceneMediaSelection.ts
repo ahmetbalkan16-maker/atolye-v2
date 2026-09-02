@@ -130,11 +130,20 @@ export function selectSceneMedia(input: SelectSceneMediaInput): SceneMediaPlan {
 export function sceneMediaSelectionOverrides(
   plan: SceneMediaPlan,
   existing?: Readonly<Record<number, "ai" | "real">>,
+  options?: { readonly skipAiImageScenes?: boolean },
 ): Record<number, "ai" | "real"> {
   const overrides: Record<number, "ai" | "real"> = { ...(existing ?? {}) };
   for (const entry of plan.assignments) {
     if (entry.sceneId in overrides) continue;
-    overrides[entry.sceneId] = entry.kind === "ai-image" ? "ai" : "real";
+    if (entry.kind === "ai-image") {
+      // With the local $0 placeholder enabled, an unmatched scene is left
+      // un-forced so it still tries a live per-scene archival search before the
+      // placeholder stands in — only ladder-matched real scenes are forced.
+      if (options?.skipAiImageScenes) continue;
+      overrides[entry.sceneId] = "ai";
+    } else {
+      overrides[entry.sceneId] = "real";
+    }
   }
   return overrides;
 }

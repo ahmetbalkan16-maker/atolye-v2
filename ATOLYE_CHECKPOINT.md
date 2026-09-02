@@ -36,18 +36,38 @@ Pipeline validator'ları hard-coded `provider === "openai"` yerine domain-set ko
 - **`smoke-local-providers` (37 senaryo)**: config, mapping, routing, $0 pricing, production resolution, fingerprint, **CANLI Piper synthesis** + **CANLI Ollama** + **CANLI LocalThumbnail** (gerçek 1280×720 PNG).
 - Regresyon PASS: production-audio-asset-wiring (74), production-animation-provider (30), animation-motion-plan-contract (22), production-youtube-package-pipeline (58), production-thumbnail-pipeline (42), production-end-to-end (21), sprint-128-1 (30), audio-canonical-rebind-and-invalidation (6), multi-shot-assembly-render (2), readiness-acceptance (25), quality-preset-registry (46), production-cost-report (58).
 
-### ✅ $0 kanıtlanan
-research (Ollama) · animation motion-plan (Ollama, türetilmiş geometri) · **TTS (Piper, CANLI)** · **thumbnail (lokal FFmpeg, CANLI)** · video render + assembly (FFmpeg) · müzik (yerel kütüphane). script + scenes: **capable model ile** çalışır (Ollama /api/chat native json).
+### Sprint 174 devamı (2. oturum) — LocalImageProvider + Ollama dayanıklılık + e2e MP4 koruması
 
-### ⚠️ Kalan blocker — tam lokal MP4
-1. **`qwen2.5:3b` (4GB GPU'ya sığan tek model) `script`/`scenes` katı JSON şemasını güvenilir üretemiyor** — truncate/loop (`AI_RESPONSE_TRUNCATED` `done_reason:"length"`, `num_predict=16384` bile). `qwen2.5:7b-instruct` gerekir (GPU'ya tam sığmaz → kısmen CPU, yavaş; veya oyun kapalıyken VRAM headroom).
-2. **`IMAGE_PROVIDER=mock` dosya üretmiyor** (test stub, `filePath:""`) → video stage `SCENE_VIDEO_GENERATION_FAILED`. `IMAGE_PROVIDER=real` (Wikimedia arşiv, $0) çalışır ama iyi scene prompt + arşiv kapsamı gerekir; `ATOLYE_MAX_AI_IMAGES=0` iken foto bulunamayan sahne stage'i fail eder. **Lokal SD image provider YOK** (4GB marjinal, ayrı büyük iş).
-3. **GPU**: `FarmingSimulator2025Game.exe` çalışırken Ollama %95 CPU (~40-60s/çağrı). Oyun kapalı → 3b tam GPU (~4s/çağrı).
+**`AI_PROVIDER_REQUEST_FAILED` teşhisi (kesinleşti):** `qwen2.5:7b-instruct-q4_K_M` (5.1 GB) 4 GB VRAM'e sığmıyor → 55%/45% CPU/GPU → Ollama runner isteği ~305 sn'de düşürüyor → `TypeError: fetch failed` → [runObservedAIRequest.ts:71](src/lib/ai/runObservedAIRequest.ts#L71) ham hatayı **bilinçli yutuyor** (güvenlik invariant'ı, [smoke-sprint-129-7:130](scripts/smoke-sprint-129-7-research-structured-output.ts#L130)) → mock fallback. 7b runtime'da yalnızca CLI override ile kullanılmıştı; `.env.local`/e2e default'u `qwen2.5:3b`. **7b bu donanımda kullanılamaz; 3b kullanılıyor.**
 
-### Sıradaki
-1. `qwen2.5:7b-instruct-q4_K_M` ile script/scenes güvenilir mi test et → tam e2e MP4 dene.
-2. Gerekirse minimal `LocalImageProvider` (FFmpeg gradient + drawtext, her zaman başarılı, $0).
-3. `ProductionReadinessService` lokal-provider genişletmesi (`production:acceptance:execute` yolu için).
+**YENİ: `src/lib/assets/providers/LocalImageProvider.ts`** — FFmpeg renk + vignette + `drawtext` ($0, model yok, ağ yok) → gerçek 1920×1080 PNG. **Son çare fallback**: gerçek arşiv fotoğrafı bulunan sahne HER ZAMAN gerçek fotoğrafı kullanır; yalnızca foto bulunamayan / lisansı uygun olmayan sahneye devreye girer. Opt-in: `ATOLYE_LOCAL_IMAGE_FALLBACK=on` (default OFF, davranış değişmez) veya standalone `IMAGE_PROVIDER=local`.
+- `VisualAssetPipeline`: `realUnusable` artık `override==="real"` sahnesini de kapsar (fallback açıkken) → hard-fail yerine placeholder. $0 → `requireAiBudget`/`requireImageCostBudget` atlanır. Provenance dürüst: `mediaOrigin:"ai"` + `mediaType:"ai-image"` + `selectionReason:"local-generated-placeholder"`, kaynak lisansı yok. `countExistingAiImages` `provider==="local"` hariç tutar (AI-image cap'ini yemez).
+- `SceneMediaSelection.sceneMediaSelectionOverrides({skipAiImageScenes})` + `PipelineStageExecutor`: fallback açıkken merdiven `maxAiImages` sınırsız planlanır (ladder'da fail-closed olmaz) ve eşleşmeyen sahneler zorlanmaz (önce canlı arşiv araması denenir).
+- Fingerprint: `+ATOLYE_LOCAL_IMAGE_FALLBACK` (conditional).
+
+**Ollama dayanıklılık:**
+- `OllamaProvider` — truncate/boş yanıtta **re-roll döngüsü** (`OLLAMA_MAX_RETRIES`, default 1; her denemede temperature düşer). Küçük model deterministik değil; retry per-stage başarı oranını belirgin yükseltiyor.
+- `OllamaConfig` — `OLLAMA_NUM_CTX` (opt-in, default unset — sunucu karar verir; oturum-içi resize yavaş model reload'a yol açar) + `maxRetries`.
+- `OllamaYouTubeProvider` — `/v1/chat/completions` yerine native `/api/chat` + `format:"json"` + aynı retry döngüsü.
+- `OllamaAnimationProvider` — `num_ctx` opt-in.
+
+**e2e harness (`scripts/e2e-local-video-ollama-piper.ts`):** MP4 `assembly` (8/12) biter bitmez var; geç ve video-dışı bir aşamanın (thumbnail/seo/youtube/export) hatası onu geçersiz kılmaz. Harness artık MP4'ü `data/e2e-output/<slug>.mp4`'e **kopyalıyor + ffprobe doğruluyor** (`result.success` ne olursa olsun), sahne başına gerçek-foto vs local-placeholder sayısını raporluyor, per-attempt Ollama timeout 6 dk. `/data/e2e-output/` gitignore.
+
+**YENİ: `scripts/smoke-local-image-provider.ts`** — 7 senaryo (4'ü CANLI FFmpeg): config/routing, canlı 1920×1080 PNG render, `flag ON` → bulunan sahnede gerçek foto korunur + eksik sahnede placeholder, uygunsuz lisans → placeholder, `maxAiImages:0` iken placeholder cap'i yemez, `flag OFF` → force-`real` miss hâlâ fail-closed.
+
+### Testler (2. oturum)
+- `npx tsc --noEmit` temiz. lint: 15 değişen + 3 yeni dosyada 0 (repo-geneli 22 uyarı hepsi dokunulmamış `RuntimeBackup*` — önceden var).
+- **`smoke-local-image-provider` (7)** + **`smoke-local-providers` (43, +6: num_ctx/maxRetries/retry-reroll/youtube-reroll)** PASS.
+- Regresyon PASS: visual-asset-pipeline-per-scene-retry, production-visual-asset-wiring, phase1-visual-media-admission, faz2/3/6-*, sprint-131-visual-asset-recovery, production-animation-provider, animation-motion-plan-contract, production-audio-asset-wiring, sprint-129-26, quality-preset-registry, sprint-128-1, production-readiness-acceptance, production-end-to-end, execute-stage-bounded, faz5-ai-cost-budget, production-cost-report, multi-shot-assembly-render, assembly-xfade-chain-timeline, production-youtube-package/publish-pipeline, production-scene-video-rendering, real-photo-relevance-gate, assembly-background-music-mix.
+- **Önceden başarısız (stash-baseline ile doğrulandı, benim değişikliklerimden BAĞIMSIZ):** sprint-129-{7,11,13,15,17,19,20,28,36,41}.
+
+### $0 e2e — tam render zinciri kanıtlandı
+e2e (retries + local image fallback, num_ctx yok) `research→script→scenes→visuals(local fallback)→animation→audio(Piper)→video→assembly→thumbnail→seo` **hepsini tamamladı → MP4 render edildi** (yalnız youtube metadata aşaması başarısızdı; sonra retry + native `/api/chat` ile düzeltildi). 3b flakey olduğu için tam 12/12 pipeline her koşuda tamamlanmıyor; retry oranı yükseltti. <!-- E2E-MP4-STATUS -->
+
+### Kalan / not
+- `qwen2.5:3b` research/script/scenes katı JSON'da ~%50-70/stage; retry ile birleşik başarı belirgin arttı ama %100 değil. Daha iyi = donanım (8 GB+ VRAM → 7b tam hızda) veya JSON'a tuned küçük model.
+- `ProductionReadinessService` lokal-provider genişletmesi hâlâ YAPILMADI (`production:acceptance:execute` yolu; `PipelineRunner.run` e2e readiness'e bakmaz).
+- Çok sayıda e2e/smoke koşusu `%TEMP%\atolye-runtime-authority-v1\`'e yüzlerce `*.claim.json` bırakıyor (2 gün öncesi 413 tanesi temizlendi; kalan 185). `withCanonicalSmokeRuntime` her koşuda bu dizini envanterliyor — birikince yavaşlatır.
 
 <!-- SPRINT-174-END -->
 

@@ -19,7 +19,10 @@ import {
   resolveMediaProvenance,
   type VisualMediaSelectionReason,
 } from "./VisualMediaAdmissionPolicy";
-import { imageProviderConfig } from "./providers/ImageProviderConfig";
+import {
+  imageProviderConfig,
+  isLocalImageFallbackEnabled,
+} from "./providers/ImageProviderConfig";
 import { AiCostBudgetExceededError } from "@/lib/ai/AiCostBudget";
 import { assertImageBudget, recordImageUsage } from "@/lib/ai/MediaGenerationCostGuard";
 
@@ -149,6 +152,12 @@ export class VisualAssetPipeline {
     const delayFn =
       resilience?.delayFn ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
     const aiImageBudget = maxAiImages ?? UNBOUNDED_AI_IMAGES;
+    // Opt-in ($0): a scene with no admissible real archival photo is covered by
+    // a locally-rendered FFmpeg placeholder instead of an AI image or a hard
+    // failure. Scenes that DO find an admissible real photo always keep it. The
+    // placeholder makes no API call, so it is exempt from the AI-image cap and
+    // the $1 cost guard.
+    const localFallbackEnabled = isLocalImageFallbackEnabled();
 
     let projectAssets = AssetManager.getProjectAssets(
       projectSlug,
@@ -160,9 +169,15 @@ export class VisualAssetPipeline {
     // never end up with more AI images than a single fresh run would allow.
     let aiImagesUsed = countExistingAiImages(projectAssets, visualData.scenes);
 
-    let aiFallbackProvider: ImageProvider | undefined;
-    const getAiFallbackProvider = () =>
-      aiFallbackProvider ?? (aiFallbackProvider = ImageProviderRouter.getProvider("openai"));
+    // The provider a scene falls back to when the real-photo attempt fails: the
+    // local $0 placeholder when `ATOLYE_LOCAL_IMAGE_FALLBACK` is on, otherwise
+    // the AI image provider (bounded by `maxAiImages` + the $1 cost guard).
+    let fallbackProvider: ImageProvider | undefined;
+    const getFallbackProvider = () =>
+      fallbackProvider ??
+      (fallbackProvider = ImageProviderRouter.getProvider(
+        localFallbackEnabled ? "local" : "openai",
+      ));
 
     /** Fail closed before dispatching an AI image request that is over budget. */
     const requireAiBudget = (sceneId: number) => {
@@ -216,15 +231,18 @@ export class VisualAssetPipeline {
       // real API dispatch in a mock/openai-configured environment.
       const override = imageProvider.name === "real" ? overrides?.[scene.sceneId] : undefined;
       const forcedAi = override === "ai";
-      let effectiveProvider = forcedAi ? getAiFallbackProvider() : imageProvider;
+      let effectiveProvider = forcedAi ? getFallbackProvider() : imageProvider;
       let selectionReason: VisualMediaSelectionReason = "archive-photo-match";
 
       // A direct AI dispatch (batch provider "openai", or an operator "ai" override)
-      // is budget-checked before the request is made.
+      // is budget-checked before the request is made. A forced fallback that
+      // resolves to the local $0 placeholder makes no request and is not capped.
       if (effectiveProvider.name === "openai") {
         requireAiBudget(scene.sceneId);
         await requireImageCostBudget(scene.sceneId);
         selectionReason = forcedAi ? "operator-forced-ai" : "no-suitable-real-media-found";
+      } else if (effectiveProvider.name === "local") {
+        selectionReason = "local-generated-placeholder";
       }
 
       let result: ImageGenerationResult;
@@ -253,20 +271,28 @@ export class VisualAssetPipeline {
         throw new VisualAssetGenerationError();
       }
 
-      // Fall back to AI when a "real" attempt (not force-real) either found nothing
-      // or returned media whose rights do not classify as production-admissible —
-      // an inadmissible real photo is never silently pulled into the render.
+      // Fall back when a "real" attempt either found nothing or returned media
+      // whose rights do not classify as production-admissible — an inadmissible
+      // real photo is never silently pulled into the render. Normally a
+      // force-real scene (`override === "real"`) has no fallback and fails; when
+      // the local $0 placeholder is enabled it becomes the fallback for every
+      // real miss, so a fully-local render still completes every scene.
       const realUnusable =
         effectiveProvider.name === "real" &&
-        override !== "real" &&
+        (override !== "real" || localFallbackEnabled) &&
         (result?.success !== true ||
           (result.provider === "real" && !isRealMediaAdmissible(result.license)));
 
       if (realUnusable) {
-        requireAiBudget(scene.sceneId);
-        await requireImageCostBudget(scene.sceneId);
-        effectiveProvider = getAiFallbackProvider();
-        selectionReason = "no-suitable-real-media-found";
+        if (localFallbackEnabled) {
+          effectiveProvider = getFallbackProvider();
+          selectionReason = "local-generated-placeholder";
+        } else {
+          requireAiBudget(scene.sceneId);
+          await requireImageCostBudget(scene.sceneId);
+          effectiveProvider = getFallbackProvider();
+          selectionReason = "no-suitable-real-media-found";
+        }
         try {
           result = await generateImageWithSingleRetry(
             effectiveProvider,
@@ -275,6 +301,7 @@ export class VisualAssetPipeline {
               style: scene.style,
               sceneId: scene.sceneId,
               projectSlug,
+              searchKeywords: scene.searchKeywords,
             },
             retryDelayMs,
             delayFn,
@@ -322,7 +349,9 @@ export class VisualAssetPipeline {
           ? "archive-photo-match"
           : normalizedResult.provider === "mock"
             ? "mock"
-            : selectionReason,
+            : normalizedResult.provider === "local"
+              ? "local-generated-placeholder"
+              : selectionReason,
       });
 
       const asset = AssetManager.createAsset({
@@ -406,7 +435,11 @@ function findValidGeneratedSceneAsset(
   return null;
 }
 
-/** How many of this batch's scenes are already covered by an AI image. */
+/**
+ * How many of this batch's scenes are already covered by an AI image. Local
+ * placeholders (`provider === "local"`) share the `mediaOrigin: "ai"` bucket for
+ * rights purposes but make no API call, so they never consume the AI-image cap.
+ */
 function countExistingAiImages(
   assets: ProjectAssets,
   scenes: VisualData["scenes"],
@@ -418,6 +451,7 @@ function countExistingAiImages(
       asset.status === "generated" &&
       typeof asset.sceneId === "number" &&
       plannedSceneIds.has(asset.sceneId) &&
+      asset.provider !== "local" &&
       (asset.provider === "openai" || asset.mediaOrigin === "ai"),
   ).length;
 }
@@ -535,6 +569,48 @@ function normalizeGenerationResult(
       selectionScore,
       selectionRank,
       candidateCount,
+      width,
+      height,
+      createdAt: result.createdAt,
+    };
+  }
+
+  if (result.provider === "local") {
+    const mimeType = normalizeImageMimeType(result.mimeType);
+    const filePath = normalizeSafeImagePath(result.filePath, projectSlug);
+    const url = normalizeSafeImageUrl(result.url, projectSlug, filePath);
+    const hasFilePath = result.filePath !== undefined;
+    const hasUrl = result.url !== undefined;
+    const width = normalizePositiveInteger(result.width);
+    const height = normalizePositiveInteger(result.height);
+
+    if (
+      !mimeType ||
+      (hasFilePath && !filePath) ||
+      (hasUrl && !url) ||
+      !filePath || !url ||
+      !hasFilePath || !hasUrl ||
+      width === null || height === null
+    ) {
+      return null;
+    }
+
+    let byteLength: number | undefined;
+    if (url.startsWith("/api/assets/images/")) {
+      try {
+        byteLength = ImageStorage.inspectStoredImage(projectSlug, filePath, mimeType).byteLength;
+      } catch {
+        return null;
+      }
+    }
+
+    return {
+      provider: "local",
+      model: result.model,
+      filePath,
+      url,
+      mimeType,
+      byteLength,
       width,
       height,
       createdAt: result.createdAt,

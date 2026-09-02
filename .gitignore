@@ -49,3 +49,4 @@ graphify-out/
 
 # Local AI runtime binaries + models (installed per-machine, not committed)
 /bin/piper/
+/data/e2e-output/

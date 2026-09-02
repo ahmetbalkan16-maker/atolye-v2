@@ -1,5 +1,6 @@
 import { resolveImageProviderName } from "./ImageProviderConfig";
 import type { ImageProvider } from "./ImageProvider";
+import { LocalImageProvider } from "./LocalImageProvider";
 import { MockImageProvider } from "./MockImageProvider";
 import { OpenAIImageProvider } from "./OpenAIImageProvider";
 import { RealPhotoImageProvider } from "./RealPhotoImageProvider";
@@ -15,6 +16,8 @@ export class ImageProviderRouter {
         return new OpenAIImageProvider();
       case "real":
         return new RealPhotoImageProvider();
+      case "local":
+        return new LocalImageProvider();
     }
   }
 }

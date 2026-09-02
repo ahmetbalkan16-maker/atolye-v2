@@ -173,6 +173,9 @@ export async function createProductionAcceptancePortableConfigurationSnapshotV2(
       ...(environment.ATOLYE_MAX_AI_IMAGES !== undefined
         ? { maxAiImages: environment.ATOLYE_MAX_AI_IMAGES }
         : {}),
+      ...(environment.ATOLYE_LOCAL_IMAGE_FALLBACK !== undefined
+        ? { localImageFallback: environment.ATOLYE_LOCAL_IMAGE_FALLBACK }
+        : {}),
       ...(environment.ATOLYE_AI_COST_BUDGET_USD !== undefined
         ? { aiCostBudgetUsd: environment.ATOLYE_AI_COST_BUDGET_USD }
         : {}),

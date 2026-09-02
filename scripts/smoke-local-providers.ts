@@ -76,9 +76,16 @@ function ollamaConfig() {
   const d = resolveOllamaConfig(env({}));
   pass(
     d.baseUrl === OLLAMA_DEFAULTS.baseUrl && d.model === "qwen2.5:3b" &&
-      d.format === "json" && d.timeoutMs === OLLAMA_DEFAULTS.timeoutMs && d.timeoutMs >= 180_000,
-    "OllamaConfig defaults",
+      d.format === "json" && d.timeoutMs === OLLAMA_DEFAULTS.timeoutMs && d.timeoutMs >= 180_000 &&
+      d.numCtx === undefined && d.maxRetries === OLLAMA_DEFAULTS.maxRetries,
+    "OllamaConfig defaults (num_ctx left to the server)",
   );
+  pass(
+    resolveOllamaConfig(env({ OLLAMA_NUM_CTX: "16384" })).numCtx === 16_384,
+    "OLLAMA_NUM_CTX override accepted",
+  );
+  assert.throws(() => resolveOllamaConfig(env({ OLLAMA_NUM_CTX: "999" })), OllamaConfigurationError);
+  scenarios += 2;
   pass(resolveOllamaBaseUrl(env({ OLLAMA_HOST: "localhost:11434" })) === "http://localhost:11434", "host without scheme -> http://");
   pass(resolveOllamaBaseUrl(env({ OLLAMA_HOST: "http://box:1234/" })) === "http://box:1234", "trailing slash stripped");
   pass(
@@ -119,6 +126,72 @@ async function ollamaProvider() {
   const bad = new OllamaProvider(stubFetch({}, false), () => resolveOllamaConfig(env({})));
   await assert.rejects(() => bad.generate("x"));
   scenarios += 1;
+
+  // A truncated reply is re-rolled; the first complete one wins.
+  let calls = 0;
+  const flaky = new OllamaProvider(
+    (async () => {
+      calls += 1;
+      const truncated = calls < 3;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          message: { content: truncated ? '{"partial' : '{"ok":true}' },
+          done: true,
+          done_reason: truncated ? "length" : "stop",
+          prompt_eval_count: 5,
+          eval_count: 5,
+        }),
+      } as unknown as Response;
+    }) as unknown as typeof fetch,
+    () => resolveOllamaConfig(env({ OLLAMA_MAX_RETRIES: "4" })),
+  );
+  const rolled = (await flaky.generate("x")) as AIProviderResult;
+  pass(
+    rolled.content === '{"ok":true}' && rolled.complete === true && calls === 3,
+    "OllamaProvider re-rolls a truncated reply until one completes",
+  );
+
+  // Every attempt truncated -> the last (still-truncated) result is returned, not an error.
+  const alwaysTrunc = new OllamaProvider(
+    stubFetch({ message: { content: "{" }, done: true, done_reason: "length" }),
+    () => resolveOllamaConfig(env({ OLLAMA_MAX_RETRIES: "2" })),
+  );
+  const exhausted = (await alwaysTrunc.generate("x")) as AIProviderResult;
+  pass(exhausted.truncated === true && exhausted.complete === false, "exhausted retries -> truncated result surfaced");
+
+  // OllamaYouTubeProvider: native /api/chat, JSON format, re-rolls a bad reply.
+  process.env.YOUTUBE_PROVIDER = "ollama";
+  try {
+    let ytCalls = 0;
+    const ytFetch = (async (url: string, init?: { body?: string }) => {
+      ytCalls += 1;
+      assert.ok(String(url).endsWith("/api/chat"), "OllamaYouTubeProvider must use native /api/chat");
+      const body = JSON.parse(String(init?.body ?? "{}"));
+      assert.equal(body.format, "json");
+      const bad = ytCalls < 2;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          message: { content: bad ? "{oops" : '{"title":"T","description":"D","tags":["a"],"chapters":[]}' },
+          done_reason: bad ? "length" : "stop",
+        }),
+      } as unknown as Response;
+    }) as unknown as typeof fetch;
+    const yt = new OllamaYouTubeProvider({ fetcher: ytFetch });
+    const pkg = await yt.generatePublishingPackage({
+      title: "Kanuni Sultan Süleyman",
+      videoDurationSeconds: 120,
+      assembly: { scenes: [{ sceneId: 1, duration: 10, notes: "" }] },
+      thumbnail: { textSuggestion: "Kanuni" },
+      seo: { titleSuggestions: ["Kanuni"], description: "d", tags: ["t"], hashtags: ["#k"] },
+    } as unknown as Parameters<OllamaYouTubeProvider["generatePublishingPackage"]>[0]);
+    pass(pkg.success === true && ytCalls === 2, "OllamaYouTubeProvider re-rolls a malformed package reply");
+  } finally {
+    delete process.env.YOUTUBE_PROVIDER;
+  }
 }
 
 // C ------------------------------------------------------------------------

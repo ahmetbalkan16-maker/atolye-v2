@@ -108,10 +108,46 @@ export function resolveImageProviderName(
     case "mock":
     case "openai":
     case "real":
+    case "local":
       return normalized;
     default:
       throw new ImageProviderConfigurationError();
   }
+}
+
+/**
+ * `LocalImageProvider` — the $0 FFmpeg gradient/color + drawtext placeholder.
+ * Used as a last-resort per-scene fallback (opt-in via
+ * `ATOLYE_LOCAL_IMAGE_FALLBACK`) and, standalone, as `IMAGE_PROVIDER=local`.
+ * Output is 1920x1080 to match the production video pipeline.
+ */
+export function getLocalImageProviderConfig(
+  environment: NodeJS.ProcessEnv = process.env,
+) {
+  return Object.freeze({
+    ffmpegPath:
+      environment.FFMPEG_EXECUTABLE?.trim() ||
+      environment.FFMPEG_PATH?.trim() ||
+      "ffmpeg",
+    width: 1920,
+    height: 1080,
+    mimeType: "image/png" as ImageMimeType,
+    timeoutMs: integerValue(
+      environment.IMAGE_LOCAL_TIMEOUT_MS,
+      30_000,
+      1_000,
+      120_000,
+    ),
+    fontPath: environment.ATOLYE_THUMBNAIL_FONT?.trim() || undefined,
+  });
+}
+
+/** Whether the local placeholder may stand in for a scene with no admissible real photo. */
+export function isLocalImageFallbackEnabled(
+  environment: NodeJS.ProcessEnv = process.env,
+): boolean {
+  const normalized = environment.ATOLYE_LOCAL_IMAGE_FALLBACK?.trim().toLowerCase();
+  return normalized === "on" || normalized === "true" || normalized === "1";
 }
 
 export function getOpenAIImageProviderConfig(

@@ -10,8 +10,9 @@ import type {
 } from "./YouTubeProvider";
 import { YOUTUBE_GENERATION_ERROR } from "./YouTubeProvider";
 
-type OllamaResponse = {
-  choices?: Array<{ message?: { content?: string } }>;
+type OllamaChatResponse = {
+  message?: { content?: string | null };
+  done_reason?: string | null;
 };
 
 /**
@@ -59,10 +60,26 @@ export class OllamaYouTubeProvider implements ConfiguredYouTubeProvider {
       return failure(this.model);
     }
 
+    // A small local model sometimes truncates or mangles the package JSON;
+    // re-roll a few times (lowering the temperature each attempt) before failing.
+    const attempts = 1 + Math.max(0, config.maxRetries);
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const temperature = attempt === 0 ? 0.3 : Math.max(0, 0.3 * (1 - attempt / attempts));
+      const draft = await this.callOnce(prompt, config, temperature);
+      if (draft) return { success: true, provider: "ollama", model: config.model, draft };
+    }
+    return failure(config.model);
+  }
+
+  private async callOnce(
+    prompt: string,
+    config: ReturnType<typeof resolveOllamaConfig>,
+    temperature: number,
+  ): Promise<YouTubePackageDraft | null> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
     try {
-      const response = await this.fetcher(`${config.baseUrl}/v1/chat/completions`, {
+      const response = await this.fetcher(`${config.baseUrl}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
@@ -70,19 +87,24 @@ export class OllamaYouTubeProvider implements ConfiguredYouTubeProvider {
         body: JSON.stringify({
           model: config.model,
           stream: false,
-          temperature: 0.3,
-          response_format: { type: "json_object" },
+          format: "json",
           messages: [{ role: "user", content: prompt }],
+          options: {
+            temperature,
+            num_predict: config.maxTokens,
+            ...(config.numCtx !== undefined ? { num_ctx: config.numCtx } : {}),
+          },
         }),
       });
-      if (!response.ok) return failure(config.model);
-      const payload = (await response.json()) as OllamaResponse;
-      const content = payload.choices?.[0]?.message?.content;
-      if (typeof content !== "string" || !content.trim()) return failure(config.model);
-      const draft = JSON.parse(content) as YouTubePackageDraft;
-      return { success: true, provider: "ollama", model: config.model, draft };
+      if (!response.ok) return null;
+      const payload = (await response.json()) as OllamaChatResponse;
+      const content = payload.message?.content;
+      if (typeof content !== "string" || !content.trim() || payload.done_reason === "length") {
+        return null;
+      }
+      return JSON.parse(content) as YouTubePackageDraft;
     } catch {
-      return failure(config.model);
+      return null;
     } finally {
       clearTimeout(timeout);
     }

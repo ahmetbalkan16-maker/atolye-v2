@@ -33,6 +33,36 @@ export class OllamaProvider implements ConfiguredAIProvider {
     options?: AIProviderGenerateOptions,
   ): Promise<AIProviderResult> {
     const config = this.loadConfig();
+    const attempts = 1 + Math.max(0, config.maxRetries);
+
+    let last: AIProviderResult | undefined;
+    let lastError: unknown;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      // A small local model sometimes runs long and Ollama cuts it mid-JSON
+      // (`done_reason: "length"`), or returns an empty message. Re-roll a few
+      // times — and ease the temperature down each retry so the reply gets more
+      // concise / deterministic and is more likely to close its JSON.
+      const temperature = attempt === 0
+        ? config.temperature
+        : Math.max(0, config.temperature * (1 - attempt / attempts));
+      try {
+        last = await this.callOnce(prompt, options, config, temperature);
+      } catch (error) {
+        lastError = error;
+        continue;
+      }
+      if (last.complete && !last.truncated) return last;
+    }
+    if (last) return last;
+    throw lastError ?? new Error("Ollama request failed.");
+  }
+
+  private async callOnce(
+    prompt: string,
+    options: AIProviderGenerateOptions | undefined,
+    config: OllamaConfig,
+    temperature: number,
+  ): Promise<AIProviderResult> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
     try {
@@ -50,8 +80,9 @@ export class OllamaProvider implements ConfiguredAIProvider {
           stream: false,
           ...(format !== undefined ? { format } : {}),
           options: {
-            temperature: config.temperature,
+            temperature,
             num_predict: options?.maxTokens ?? config.maxTokens,
+            ...(config.numCtx !== undefined ? { num_ctx: config.numCtx } : {}),
           },
         }),
         signal: controller.signal,

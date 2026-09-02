@@ -105,6 +105,7 @@ export type VisualMediaSelectionReason =
   | "archive-photo-match"
   | "no-suitable-real-media-found"
   | "operator-forced-ai"
+  | "local-generated-placeholder"
   | "mock";
 
 /**
@@ -115,12 +116,14 @@ export type VisualMediaSelectionReason =
  *    `rightsStatus` classified from the source licence (so a candidate that
  *    arrived without usable licence metadata is honestly `unknown`, never
  *    auto-`verified`).
- *  - openai / mock  -> `mediaOrigin: "ai"`, `mediaType: "ai-image"`,
- *    `rightsStatus` left undefined (an AI image has no real-media source
- *    licence to classify).
+ *  - openai / mock / local -> `mediaOrigin: "ai"`, `mediaType: "ai-image"`,
+ *    `rightsStatus` left undefined. A `local` placeholder is a synthesised
+ *    (non-photographic, self-generated) image with no real-media source licence,
+ *    so it shares the "not real media" bucket; its `selectionReason` records that
+ *    it is specifically a local placeholder.
  */
 export function resolveMediaProvenance(input: {
-  readonly provider: "real" | "openai" | "mock";
+  readonly provider: "real" | "openai" | "mock" | "local";
   readonly license?: string | null;
   readonly reason: VisualMediaSelectionReason;
 }): ResolvedMediaProvenance {

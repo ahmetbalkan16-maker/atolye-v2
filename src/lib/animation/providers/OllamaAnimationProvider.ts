@@ -83,7 +83,10 @@ export class OllamaAnimationProvider implements ConfiguredAnimationProvider {
                   transition: { type: "string", enum: [...animationTransitionTypes] },
                 },
               },
-              options: { temperature: 0 },
+              options: {
+                temperature: 0,
+                ...(config.numCtx !== undefined ? { num_ctx: config.numCtx } : {}),
+              },
               messages: [
                 {
                   role: "user",

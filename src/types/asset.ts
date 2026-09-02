@@ -175,7 +175,7 @@ export interface ProjectAssets {
   updatedAt: string;
 }
 
-export type ImageProviderName = "mock" | "openai" | "real";
+export type ImageProviderName = "mock" | "openai" | "real" | "local";
 
 export type ImageMimeType = "image/png" | "image/jpeg" | "image/webp";
 
@@ -234,6 +234,24 @@ export type ImageGenerationRealPhotoSuccess = ImageGenerationResultBase &
   };
 
 /**
+ * Local, $0 last-resort placeholder image (FFmpeg gradient/color + drawtext).
+ * Only produced by `LocalImageProvider` when a scene has no admissible real
+ * archival photo AND `ATOLYE_LOCAL_IMAGE_FALLBACK` is on — it is never a real
+ * photo and never an API call, so it carries no source licence. Classified as a
+ * synthesised image (`mediaOrigin: "ai"`) downstream, with an honest
+ * `selectionReason` of `local-generated-placeholder`.
+ */
+export type ImageGenerationLocalSuccess = ImageGenerationResultBase &
+  (ImageGenerationFileLocator | ImageGenerationUrlLocator) & {
+    success: true;
+    provider: "local";
+    mimeType: ImageMimeType;
+    width: number;
+    height: number;
+    error?: never;
+  };
+
+/**
  * Safe, bounded diagnostic detail for a failed image generation. Never carries
  * secrets (no API key, no Authorization header, no raw request body); the body
  * summary is a short, sanitized excerpt of the provider's own error object.
@@ -268,4 +286,5 @@ export type ImageGenerationResult =
   | ImageGenerationMockSuccess
   | ImageGenerationRealSuccess
   | ImageGenerationRealPhotoSuccess
+  | ImageGenerationLocalSuccess
   | ImageGenerationFailure;

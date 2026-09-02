@@ -24,6 +24,7 @@ import { AudioProviderRouter } from "@/lib/audio/providers/AudioProviderRouter";
 import { stageProjectBackgroundMusic } from "@/lib/audio/music/AudioMusicSelection";
 import { VisualAssetPipeline } from "@/lib/assets/VisualAssetPipeline";
 import { resolveMaxAiImages } from "@/lib/assets/VisualMediaAdmissionPolicy";
+import { isLocalImageFallbackEnabled } from "@/lib/assets/providers/ImageProviderConfig";
 import {
   selectSceneMedia,
   sceneMediaSelectionOverrides,
@@ -405,14 +406,23 @@ export class PipelineStageExecutor {
         // `VisualMediaAiBudgetExceededError` BEFORE any dispatch when the plan
         // would need more than `maxAiImages` AI images.
         const maxAiImages = resolveMaxAiImages();
+        // $0 opt-in: when the local placeholder covers every real miss, an
+        // unmatched scene is not an AI-budget overflow — plan without the cap so
+        // the ladder never fails closed here, and leave those scenes un-forced so
+        // `VisualAssetPipeline` still tries a live archival search first.
+        const localImageFallback = isLocalImageFallbackEnabled();
         let effectiveVisualOverrides = visualSourceOverrides;
         if (isRealMediaSelectionEnabled()) {
           const plan = selectSceneMedia({
             scenes: state.visuals.scenes,
             candidates: state.research?.mediaCandidates ?? [],
-            maxAiImages,
+            maxAiImages: localImageFallback ? Number.POSITIVE_INFINITY : maxAiImages,
           });
-          effectiveVisualOverrides = sceneMediaSelectionOverrides(plan, visualSourceOverrides);
+          effectiveVisualOverrides = sceneMediaSelectionOverrides(
+            plan,
+            visualSourceOverrides,
+            { skipAiImageScenes: localImageFallback },
+          );
         }
         await dispatchBranch("visualAssetProvider");
         await ProjectManager.persistVisualsArtifact(projectSlug, state.visuals, requireStorageContext(storageContext));

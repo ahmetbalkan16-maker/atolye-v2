@@ -40,6 +40,48 @@ import {
 } from "./utils";
 
 /**
+ * Downstream stages (animation, video, assembly) accept a per-scene duration of
+ * 1–300 s and fail closed outside it. Keep a parsed non-strict scene duration
+ * inside that window: 0 / negative / NaN -> 1 s, absurd -> 300 s. Never widens a
+ * valid value.
+ */
+const SCENE_DURATION_MIN_SECONDS = 1;
+const SCENE_DURATION_MAX_SECONDS = 300;
+function clampSceneDurationSeconds(seconds: number): number {
+  if (!Number.isFinite(seconds) || seconds < SCENE_DURATION_MIN_SECONDS) {
+    return SCENE_DURATION_MIN_SECONDS;
+  }
+  return Math.min(SCENE_DURATION_MAX_SECONDS, seconds);
+}
+
+/**
+ * Non-strict scenes carry no `chapterId`, so the proper strict-path
+ * `reconcileSceneDurations` cannot run. This is the lightweight equivalent: when
+ * the parsed scene durations sum to something wildly off from the script's own
+ * (already F-08-reconciled) `estimatedDuration` — a weaker model routinely
+ * writes near-zero or wildly inflated per-scene durations — rescale them to that
+ * total so the downstream video / assembly coverage guard is not handed a
+ * per-scene clip budget that cannot cover the narration. A sane set of durations
+ * is left untouched.
+ */
+function normalizeNonStrictSceneDurations(
+  scenes: SceneItem[],
+  script: ScriptData,
+): SceneItem[] {
+  if (scenes.length === 0) return scenes;
+  const target = getNumber(script.estimatedDuration, 0);
+  if (!Number.isFinite(target) || target < scenes.length) return scenes;
+
+  const total = scenes.reduce((sum, scene) => sum + getNumber(scene.duration, 0), 0);
+  if (total > 0 && total >= target * 0.6 && total <= target * 1.6) return scenes;
+
+  // The parsed durations are untrustworthy as a whole — spread the script's
+  // narration-derived total evenly across the scenes.
+  const perScene = clampSceneDurationSeconds(Math.round(target / scenes.length));
+  return scenes.map((scene) => ({ ...scene, duration: perScene }));
+}
+
+/**
  * P2: the strict (production-acceptance) script prompt's duration / chapter /
  * narration-budget lines. With no EXPLICIT `ATOLYE_QUALITY_PRESET` these are the
  * historical "exactly 5 chapters, ~90 s" lines verbatim; an explicit preset
@@ -488,25 +530,32 @@ export class AIManager {
       const parsed = parseAIJsonResponse<Partial<SceneData>>(response);
 
       const scenes: SceneItem[] = Array.isArray(parsed.scenes)
-        ? parsed.scenes.map((scene, index) => {
-            const item = scene as Partial<SceneItem>;
+        ? normalizeNonStrictSceneDurations(
+            parsed.scenes.map((scene, index) => {
+              const item = scene as Partial<SceneItem>;
 
-            return {
-              id: getNumber(item.id, index + 1),
-              ...(policy?.failClosed
-                ? {
-                    chapterId: getNumber(
-                      item.chapterId,
-                      script.chapters[0]?.id ?? index + 1,
-                    ),
-                  }
-                : {}),
-              title: getStringAllowEmpty(item.title, `Scene ${index + 1}`),
-              description: getStringAllowEmpty(item.description, ""),
-              visualPrompt: getStringAllowEmpty(item.visualPrompt, ""),
-              duration: getNumber(item.duration, 0),
-            };
-          })
+              return {
+                id: getNumber(item.id, index + 1),
+                ...(policy?.failClosed
+                  ? {
+                      chapterId: getNumber(
+                        item.chapterId,
+                        script.chapters[0]?.id ?? index + 1,
+                      ),
+                    }
+                  : {}),
+                title: getStringAllowEmpty(item.title, `Scene ${index + 1}`),
+                description: getStringAllowEmpty(item.description, ""),
+                visualPrompt: getStringAllowEmpty(item.visualPrompt, ""),
+                // Clamp into the downstream-valid window [1, 300]s. A weaker
+                // model occasionally emits a 0 / negative / absurd scene
+                // duration, which would otherwise fail the animation stage
+                // closed (`SCENE_DURATION_INVALID`) and sink the whole render.
+                duration: clampSceneDurationSeconds(getNumber(item.duration, 0)),
+              };
+            }),
+            script,
+          )
         : fallback.scenes;
 
       return {
