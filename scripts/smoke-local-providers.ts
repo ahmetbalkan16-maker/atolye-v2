@@ -46,6 +46,7 @@ import { createMockThumbnailData } from "../src/lib/thumbnail/providers/MockThum
 import { spawnSync } from "node:child_process";
 import type { AssemblyPlanData } from "../src/types/assembly";
 import { estimateTokenCost, estimateTtsCost } from "../src/lib/ai/AiPricing";
+import { estimateProductionCost } from "../src/lib/production/ProductionCostEstimate";
 import {
   isFullyLocalProduction,
   resolveProductionProviderName,
@@ -213,6 +214,39 @@ function pricing() {
   pass(t.status === "free" && t.costUsd === 0, "ollama token call prices as free");
   const s = estimateTtsCost({ provider: "piper", model: "tr_TR-dfki-medium", characters: 50_000 });
   pass(s.status === "free" && s.costUsd === 0, "piper tts prices as free");
+
+  // Provider-aware production cost estimate: the target chain (ollama LLM/anim/
+  // youtube + real photos + OpenAI TTS + OpenAI thumbnail).
+  const base = {
+    chapterCount: 6, sceneCount: 16, narrationCharacters: 9000, plannedAiImageCount: 6,
+    textModel: "gpt-4.1-mini", ttsModel: "tts-1",
+    imageModel: "gpt-image-1", imageSize: "1536x1024", imageQuality: "auto",
+  };
+  const chain = estimateProductionCost({
+    ...base,
+    textProvider: "ollama", animationProvider: "ollama", youtubeProvider: "ollama",
+    ttsProvider: "openai", imageProvider: "real", thumbnailProvider: "openai",
+  }, { budgetUsd: 1 });
+  pass(chain.status === "known", "provider-aware estimate resolves to known");
+  pass(chain.breakdown.llmUsd === 0, "AI_PROVIDER=ollama -> LLM $0");
+  pass(chain.breakdown.animationUsd === 0, "ANIMATION_PROVIDER=ollama -> animation $0");
+  pass(chain.breakdown.youtubeUsd === 0, "YOUTUBE_PROVIDER=ollama -> youtube $0");
+  pass(chain.breakdown.imageUsd === 0, "IMAGE_PROVIDER=real -> AI image $0");
+  pass(chain.breakdown.ttsUsd > 0, "AUDIO_PROVIDER=openai -> TTS billed");
+  pass(chain.breakdown.thumbnailUsd > 0, "THUMBNAIL_PROVIDER=openai -> thumbnail billed (not hidden)");
+  pass(
+    Math.abs(chain.totalUsd - (chain.breakdown.ttsUsd + chain.breakdown.thumbnailUsd)) < 1e-9,
+    "total = TTS + thumbnail only",
+  );
+  // All-OpenAI (defaults) is unchanged: everything bills.
+  const allOpenAi = estimateProductionCost(base, { budgetUsd: 1 });
+  pass(
+    allOpenAi.breakdown.llmUsd > 0 && allOpenAi.breakdown.imageUsd === 0.063 * 6,
+    "default providers still price as OpenAI",
+  );
+  // Local thumbnail zeroes that line.
+  const localThumb = estimateProductionCost({ ...base, thumbnailProvider: "local" }, { budgetUsd: 1 });
+  pass(localThumb.breakdown.thumbnailUsd === 0, "THUMBNAIL_PROVIDER=local -> thumbnail $0");
 }
 
 // E ------------------------------------------------------------------------

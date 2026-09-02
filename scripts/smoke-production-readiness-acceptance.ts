@@ -84,6 +84,7 @@ async function run() {
 
   trace("image-provider-real"); await verifyImageProviderRealIsAdmissible();
   trace("mock-animation"); await verifyMockAnimationIsBlocked();
+  trace("ollama-ai-chain"); await verifyOllamaAiChainIsAdmissible();
   verifyReadinessCheckSetValidation(readiness);
   trace("strict-ai"); await verifyStrictAIProviderFailure();
   trace("strict-thumbnail"); await verifyStrictThumbnailFailure();
@@ -288,6 +289,58 @@ async function verifyImageProviderRealIsAdmissible() {
   const bogus = find(bogusReport, "image-provider");
   assert.equal(bogus.status, "INVALID");
   assert.equal(bogus.reasonCode, "IMAGE_PROVIDER_INVALID");
+}
+
+async function verifyOllamaAiChainIsAdmissible() {
+  // AI_PROVIDER / ANIMATION_PROVIDER / YOUTUBE_PROVIDER = ollama must be
+  // production-admissible ($0 local text/animation/youtube). OpenAI stays valid.
+  // `provider-selection` compares against the global aiProviderConfig snapshot,
+  // so drive that through the real process env for this check.
+  const restore = { AI_PROVIDER: process.env.AI_PROVIDER, ANIMATION_PROVIDER: process.env.ANIMATION_PROVIDER, YOUTUBE_PROVIDER: process.env.YOUTUBE_PROVIDER };
+  process.env.AI_PROVIDER = "ollama";
+  process.env.ANIMATION_PROVIDER = "ollama";
+  process.env.YOUTUBE_PROVIDER = "ollama";
+  process.env.OLLAMA_HOST = "http://127.0.0.1:11434";
+  process.env.OLLAMA_MODEL = "qwen2.5:3b";
+  try {
+    const report = await new ProductionReadinessService().evaluate();
+    // The three checks that hardcoded "openai" — now admit ollama.
+    assert.equal(find(report, "model-configuration").status, "READY",
+      "AI_PROVIDER=ollama -> model-configuration READY");
+    assert.equal(find(report, "model-configuration").reasonCode, "MODELS_CONFIGURED");
+    assert.equal(find(report, "animation-provider").status, "READY",
+      "ANIMATION_PROVIDER=ollama -> animation-provider READY");
+    assert.equal(find(report, "animation-provider").reasonCode, "ANIMATION_PROVIDER_READY");
+    assert.equal(find(report, "publish-package-provider").status, "READY",
+      "YOUTUBE_PROVIDER=ollama -> publish-package-provider READY");
+    // provider-selection may still be BLOCKED by the other mock providers in the
+    // smoke env, but never for an ollama-specific reason.
+    const sel = find(report, "provider-selection");
+    assert.ok(
+      sel.reasonCode !== "AI_PROVIDER_INVALID" && sel.reasonCode !== "AI_PROVIDER_SNAPSHOT_MISMATCH",
+      `provider-selection must not reject ollama (got ${sel.reasonCode})`,
+    );
+
+    // A bad Ollama host still fails closed.
+    process.env.OLLAMA_HOST = "ftp://nope";
+    const badReport = await new ProductionReadinessService().evaluate();
+    assert.equal(find(badReport, "model-configuration").status, "INVALID",
+      "invalid OLLAMA_HOST -> model-configuration INVALID");
+    assert.equal(find(badReport, "model-configuration").reasonCode, "AI_MODEL_OLLAMA_CONFIG_INVALID");
+    process.env.OLLAMA_HOST = "http://127.0.0.1:11434";
+
+    // OpenAI still works.
+    process.env.AI_PROVIDER = "openai";
+    const openaiReport = await new ProductionReadinessService().evaluate();
+    assert.equal(find(openaiReport, "model-configuration").status, "READY",
+      "AI_PROVIDER=openai still model-configuration READY");
+  } finally {
+    for (const [k, v] of Object.entries(restore)) {
+      if (v === undefined) delete process.env[k]; else process.env[k] = v;
+    }
+    delete process.env.OLLAMA_HOST;
+    delete process.env.OLLAMA_MODEL;
+  }
 }
 
 async function verifyMockAnimationIsBlocked() {

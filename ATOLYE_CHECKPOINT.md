@@ -1,8 +1,44 @@
 ---
 
+## Sprint 175 - Production readiness + cost preflight provider-aware (~$0.27/video hedef) - 2026-09-01
+
+**Status:** KOD + TEST TAMAM (henüz commit edilmedi). Hedef zincir: `AI/ANIMATION/YOUTUBE=ollama` ($0) + `IMAGE=real` ($0) + `AUDIO=openai` (TTS ~$0.27) + `VIDEO/ASSEMBLY=ffmpeg` ($0) + `THUMBNAIL=openai` (~$0.063, ayrı raporlanır).
+
+### Değişen dosyalar
+| Dosya | Değişiklik |
+|---|---|
+| `src/lib/production/ProductionReadinessService.ts` | `modelConfigurationCheck`: `AI_PROVIDER=ollama` → `resolveOllamaConfig` doğrula, OpenAI metin-model bloğu `else`'e alındı (OpenAI hâlâ geçerli). `animationProviderCheck`: `ANIMATION_PROVIDER=ollama` dalı (Ollama config + router). `providerCheck` imzası `string \| readonly string[]` + `create().name === selected`. `publish-package-provider` `["openai","ollama"]` kabul eder. Yeni reason: `AI_MODEL_OLLAMA_CONFIG_INVALID`. |
+| `src/lib/production/ProductionCostEstimate.ts` | **Provider-aware.** `ProductionCostInputs` += `textProvider/animationProvider/youtubeProvider/ttsProvider/imageProvider/thumbnailProvider` (hepsi opsiyonel, default `openai`; `mock`/unset → `openai` konservatif). Planlama çağrıları 6 metin + 1 youtube olarak ayrıldı. `breakdown` += `animationUsd`, `youtubeUsd`, `thumbnailUsd` (thumbnail satırı YENİ — önceden hiç hesaplanmıyordu). `estimate.providers` bloğu. `ollama`/`piper` → `estimateTokenCost/TtsCost` zaten `free` döner; `IMAGE_PROVIDER=real/local` → `imageUsd=0` (billing yok). |
+| `src/lib/production/ProductionCostPreflight.ts` | 6 provider'ı env'den okur (`providerOf`: unset/`mock` → `openai`), estimate'e geçirir. Rapor += `providers` (video/assembly dahil) + `otherOpenAiCostsUsd` (şu an: openai thumbnail — gizlenmez). |
+| `src/lib/audio/AudioPipeline.ts` | `addAssetOrFail` hata-evidence `provider` alanı `"openai"` yerine `normalizeErrProvider(asset.provider)` (gerçek provider: openai/piper). Başarı metadata satırı (`normalizeGenerationResult:381`) zaten 1. oturumda `provider: providerName` düzeltilmişti. Çalışan TTS davranışı değişmedi. |
+| `package.json` | Tüm `production:acceptance:*` + `production:cost-preflight` + `production:cost-report` + `production:acceptance:*regeneration*` scriptleri `tsx --env-file-if-exists=.env.local ...` (CLI artık `.env.local` okur; dosya yoksa uyarı verip devam). |
+| `.env.local` (gitignore) | `AI_PROVIDER=ollama` + `OLLAMA_HOST`/`OLLAMA_MODEL=qwen2.5:3b`/`OLLAMA_MAX_RETRIES=3` eklendi; `ANIMATION_PROVIDER`/`YOUTUBE_PROVIDER` → `ollama`. |
+| **Windows USER env** (repo dışı) | `AI_PROVIDER`/`ANIMATION_PROVIDER`/`YOUTUBE_PROVIDER` → `ollama`, `IMAGE_PROVIDER` `openai`→`real` (eski değer `.env.local`'in `real`'ini gölgeliyordu — sessiz config bug), + `OLLAMA_*`. Node `--env-file` mevcut process env'i EZMEZ; bu yüzden `.env.local` ile Windows USER env artık aynı. Geri alma: `[Environment]::SetEnvironmentVariable('AI_PROVIDER','openai','User')`. |
+
+### Testler
+- `npx tsc --noEmit` temiz. `npm run lint` **0 error**, 22 warning (hepsi dokunulmamış `RuntimeBackup*`/`*Regeneration*` — önceden var).
+- `smoke-production-readiness-acceptance` (+ yeni `verifyOllamaAiChainIsAdmissible`): PASS.
+- `smoke-local-providers` (53, +10 provider-aware cost senaryosu): PASS.
+- Regresyon PASS: faz5-ai-cost-budget, faz6-real-media-production-wiring, phase5-cost, production-cost-report, phase6-production-real-media, production-audio-asset-wiring, production-thumbnail-pipeline, production-animation-provider, production-youtube-package-pipeline, sprint-128-1, sprint-129-5, execute-stage-bounded (32), production-end-to-end, local-image-provider, scene-duration-clamp.
+- Önceden başarısız (değişikliklerimden bağımsız, stash-baseline ile doğrulandı): sprint-129-{7,11,13,15,17,19,20,28,36,41}.
+
+### Gerçek CLI çıktıları (target config)
+- `npm run production:acceptance:readiness` → **`ready: true`**, 27/27 check READY (`model-configuration/provider-selection/animation-provider/publish-package-provider` hepsi ollama ile READY; broken `OLLAMA_HOST` → `AI_MODEL_OLLAMA_CONFIG_INVALID` fail-closed).
+- `npm run production:cost-preflight -- --project-slug=fatih-sultan-mehmet-ve-i-stanbul-un-fethi` (script/scenes yok → conservative defaults 6ch/16sc/9000 char):
+  - **NEW: $0.333** = TTS $0.27 + thumbnail $0.063. llm/animation/youtube/image = **$0**.
+  - Eski (kod-öncesi, thumbnail satırı yoktu): $0.59236. Yeni "hepsi-openai" apples-to-apples: $0.65536 ( = $0.59236 + yeni $0.063 thumbnail satırı).
+  - `THUMBNAIL_PROVIDER=local` → thumbnail $0 → toplam tam **$0.27**.
+
+### Kalan blocker (production'a geçmeden)
+1. `qwen2.5:3b` script/scenes katı JSON'da flakey (~%50-70/stage; `OLLAMA_MAX_RETRIES=3` yardımcı olur ama %100 değil). 1. oturumda tam $0 e2e MP4 bu yüzden tamamlanamadı (assembly/animation'a kadar gitti). Belgesel kalitesi için `qwen2.5:7b` gerekir ama 4 GB GPU'ya sığmaz.
+2. Thumbnail hâlâ OpenAI (~$0.063/video). `THUMBNAIL_PROVIDER=local` (1. oturumda eklendi, test edildi) → $0.
+3. `IMAGE_PROVIDER=real` + `ATOLYE_MAX_AI_IMAGES=6`: real-photo discovery bozulursa sahne başına ~$0.063 AI-image fallback (fail-closed tavan ~$0.38). Preflight bunu "expected $0" gösterir (real-first çalıştığında doğru); tavan `ATOLYE_MAX_AI_IMAGES` ile sınırlı.
+
+<!-- SPRINT-175-END -->
+
 ## Sprint 174 - OpenAI → Lokal ($0) Provider Geçişi - 2026-08-31
 
-**Status:** DEVAM EDİYOR. Provider altyapısı **KOD + TEST + COMMIT + PUSH** (6 commit `46bbc65..f422ef5`). **Piper TTS + lokal FFmpeg thumbnail + Ollama LLM endpoint CANLI doğrulandı ($0).** Tam uçtan uca lokal MP4 **HENÜZ ÜRETİLMEDİ** — bkz. "Kalan blocker".
+**Status:** DEVAM EDİYOR (2. oturum). 1. oturum: provider altyapısı 6 commit `46bbc65..1d7e4ee` (push'lu). 2. oturum (henüz commit edilmedi): `AI_PROVIDER_REQUEST_FAILED` teşhisi + **`LocalImageProvider`** ($0 son-çare görsel fallback) + Ollama retry/num_ctx dayanıklılık + `OllamaYouTubeProvider` native+retry + e2e MP4 koruması. **$0 render zinciri (research→…→assembly→thumbnail→seo) e2e'de uçtan uca tamamlandı — MP4 render edildi.** Ayrıntı aşağıda.
 
 ### Amaç
 Kullanıcının GTX 1650 4GB makinesinde OpenAI API maliyetini mümkün olduğunca $0'a indirmek. `.env.local` OpenAI bağımlılıkları: metin LLM (orkestratör hard-coded), `AUDIO_PROVIDER=openai` (TTS), `ANIMATION_PROVIDER=openai` (motion-plan LLM), `THUMBNAIL_PROVIDER=openai`, `YOUTUBE_PROVIDER=openai`. `IMAGE_PROVIDER=real` zaten $0.

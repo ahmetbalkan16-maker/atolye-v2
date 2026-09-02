@@ -64,6 +64,29 @@ export interface ProductionCostPreflightReport {
     readonly imageSize: string;
     readonly imageQuality: string;
   };
+  /**
+   * The provider each cost component was priced against, read from the
+   * environment (`AI_PROVIDER`, `ANIMATION_PROVIDER`, `YOUTUBE_PROVIDER`,
+   * `AUDIO_PROVIDER`, `IMAGE_PROVIDER`, `THUMBNAIL_PROVIDER`, plus the always-$0
+   * `VIDEO_PROVIDER` / `VIDEO_ASSEMBLY_PROVIDER`). An unset value is reported as
+   * `openai` (the conservative default that was priced).
+   */
+  readonly providers: {
+    readonly text: string;
+    readonly animation: string;
+    readonly youtube: string;
+    readonly tts: string;
+    readonly image: string;
+    readonly thumbnail: string;
+    readonly video: string;
+    readonly assembly: string;
+  };
+  /**
+   * OpenAI-billed components that are NOT part of the core provider chain the
+   * operator asked to zero out — surfaced here so a remaining real cost is never
+   * hidden. Empty when nothing extra bills.
+   */
+  readonly otherOpenAiCostsUsd: number;
   readonly inputs: {
     readonly chapterCount: number;
     readonly sceneCount: number;
@@ -100,6 +123,24 @@ export async function buildProductionCostPreflight(
     imageQuality: imageProviderConfig.openai.quality,
   };
 
+  // Provider selections drive which lines actually bill. Unset / `mock` is
+  // priced as `openai` (conservative) — the same behaviour as before the
+  // provider-aware change.
+  const providerOf = (raw: string | undefined): string => {
+    const value = raw?.trim().toLowerCase();
+    return value && value !== "mock" ? value : "openai";
+  };
+  const providers = {
+    text: providerOf(env.AI_PROVIDER),
+    animation: providerOf(env.ANIMATION_PROVIDER),
+    youtube: providerOf(env.YOUTUBE_PROVIDER),
+    tts: providerOf(env.AUDIO_PROVIDER),
+    image: providerOf(env.IMAGE_PROVIDER),
+    thumbnail: providerOf(env.THUMBNAIL_PROVIDER),
+    video: providerOf(env.VIDEO_PROVIDER),
+    assembly: providerOf(env.VIDEO_ASSEMBLY_PROVIDER),
+  };
+
   const remainingEstimate = estimateProductionCost(
     {
       chapterCount,
@@ -111,8 +152,20 @@ export async function buildProductionCostPreflight(
       imageModel: models.image,
       imageSize: models.imageSize,
       imageQuality: models.imageQuality,
+      textProvider: providers.text,
+      animationProvider: providers.animation,
+      youtubeProvider: providers.youtube,
+      ttsProvider: providers.tts,
+      imageProvider: providers.image,
+      thumbnailProvider: providers.thumbnail,
     },
     { budgetUsd, env },
+  );
+
+  // A remaining OpenAI cost outside the "$0" chain (currently: the AI thumbnail
+  // when THUMBNAIL_PROVIDER=openai) — reported, never hidden.
+  const otherOpenAiCostsUsd = round(
+    remainingEstimate.status === "known" ? remainingEstimate.breakdown.thumbnailUsd : 0,
   );
 
   let observedUsd = 0;
@@ -154,6 +207,8 @@ export async function buildProductionCostPreflight(
     projectedTotalUsd,
     withinBudget: decision === "pass",
     models,
+    providers,
+    otherOpenAiCostsUsd,
     inputs: { chapterCount, sceneCount, narrationCharacters, plannedAiImageCount, source },
   };
 }

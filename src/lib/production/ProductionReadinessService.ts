@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { AIRouter, type ProviderName } from "@/lib/ai/router/AIRouter";
 import { aiProviderConfig } from "@/lib/ai/AIProviderConfig";
+import { resolveOllamaConfig } from "@/lib/ai/OllamaConfig";
 import { getResearchMaxTokens } from "@/lib/ai/ResearchAIConfig";
 import { getScriptMaxTokens } from "@/lib/ai/ScriptAIConfig";
 import { getVisualsMaxTokens } from "@/lib/ai/VisualsAIConfig";
@@ -161,7 +162,7 @@ export class ProductionReadinessService {
         VideoAssemblyProviderRouter.getProvider(resolveVideoAssemblyProviderName(this.environment.VIDEO_ASSEMBLY_PROVIDER))),
       providerCheck("thumbnail-provider", this.environment.THUMBNAIL_PROVIDER, "openai", () =>
         new ThumbnailProviderRouter().getProvider(resolveThumbnailProviderName(this.environment.THUMBNAIL_PROVIDER))),
-      providerCheck("publish-package-provider", this.environment.YOUTUBE_PROVIDER, "openai", () =>
+      providerCheck("publish-package-provider", this.environment.YOUTUBE_PROVIDER, ["openai", "ollama"], () =>
         new YouTubeProviderRouter().getProvider(resolveYouTubeProviderName(this.environment.YOUTUBE_PROVIDER))),
       check("publish-provider", "READY", "PUBLISH_PACKAGE_ONLY_ENFORCED"),
     ];
@@ -187,54 +188,67 @@ export class ProductionReadinessService {
   private modelConfigurationCheck() {
     try {
       const provider = normalize(this.environment.AI_PROVIDER);
-      if (provider !== "openai") {
+      if (provider !== "openai" && provider !== "ollama") {
         return check(
           "model-configuration",
           provider === "mock" ? "BLOCKED" : provider ? "INVALID" : "NOT_CONFIGURED",
           provider === "mock" ? "AI_MODEL_MOCK_BLOCKED" : provider ? "AI_MODEL_PROVIDER_INVALID" : "AI_MODEL_NOT_CONFIGURED",
         );
       }
-      const model = readValue(this.environment.OPENAI_MODEL) ?? aiProviderConfig.openai.model;
-      if (!safeConfig(model)) return check("model-configuration", "INVALID", "AI_MODEL_INVALID");
-      if (
-        aiProviderConfig.provider !== "openai" ||
-        aiProviderConfig.openai.model !== model
-      ) {
-        return check("model-configuration", "INVALID", "AI_CONFIG_SNAPSHOT_MISMATCH");
-      }
-      if (!validInteger(this.environment.OPENAI_MAX_TOKENS, 1, 100_000)) {
-        return check("model-configuration", "INVALID", "AI_MAX_TOKENS_INVALID");
-      }
-      try {
-        getResearchMaxTokens(this.environment);
-      } catch {
-        return check("model-configuration", "INVALID", "AI_RESEARCH_MAX_TOKENS_INVALID");
-      }
-      try {
-        getScriptMaxTokens(this.environment);
-      } catch {
-        return check("model-configuration", "INVALID", "AI_SCRIPT_MAX_TOKENS_INVALID");
-      }
-      try {
-        getVisualsMaxTokens(this.environment);
-      } catch {
-        return check("model-configuration", "INVALID", "AI_VISUALS_MAX_TOKENS_INVALID");
-      }
-      try {
-        getAudioMaxTokens(this.environment);
-      } catch {
-        return check("model-configuration", "INVALID", "AI_AUDIO_MAX_TOKENS_INVALID");
-      }
-      if (!validNumber(this.environment.OPENAI_TEMPERATURE, 0, 2)) {
-        return check("model-configuration", "INVALID", "AI_TEMPERATURE_INVALID");
-      }
-      const expectedMaxTokens = Number(this.environment.OPENAI_MAX_TOKENS ?? "1200");
-      const expectedTemperature = Number(this.environment.OPENAI_TEMPERATURE ?? "0.4");
-      if (
-        aiProviderConfig.openai.maxTokens !== expectedMaxTokens ||
-        aiProviderConfig.openai.temperature !== expectedTemperature
-      ) {
-        return check("model-configuration", "INVALID", "AI_CONFIG_SNAPSHOT_MISMATCH");
+      if (provider === "ollama") {
+        // Local text AI ($0): validate the Ollama server/model config instead of
+        // an OpenAI model. The stages that stay OpenAI-backed (TTS, thumbnail,
+        // per-scene image fallback, YouTube package when still `openai`) keep
+        // their own provider/model checks — the OpenAI aux config below still
+        // runs so those remain covered.
+        try {
+          resolveOllamaConfig(this.environment);
+        } catch {
+          return check("model-configuration", "INVALID", "AI_MODEL_OLLAMA_CONFIG_INVALID");
+        }
+      } else {
+        const model = readValue(this.environment.OPENAI_MODEL) ?? aiProviderConfig.openai.model;
+        if (!safeConfig(model)) return check("model-configuration", "INVALID", "AI_MODEL_INVALID");
+        if (
+          aiProviderConfig.provider !== "openai" ||
+          aiProviderConfig.openai.model !== model
+        ) {
+          return check("model-configuration", "INVALID", "AI_CONFIG_SNAPSHOT_MISMATCH");
+        }
+        if (!validInteger(this.environment.OPENAI_MAX_TOKENS, 1, 100_000)) {
+          return check("model-configuration", "INVALID", "AI_MAX_TOKENS_INVALID");
+        }
+        try {
+          getResearchMaxTokens(this.environment);
+        } catch {
+          return check("model-configuration", "INVALID", "AI_RESEARCH_MAX_TOKENS_INVALID");
+        }
+        try {
+          getScriptMaxTokens(this.environment);
+        } catch {
+          return check("model-configuration", "INVALID", "AI_SCRIPT_MAX_TOKENS_INVALID");
+        }
+        try {
+          getVisualsMaxTokens(this.environment);
+        } catch {
+          return check("model-configuration", "INVALID", "AI_VISUALS_MAX_TOKENS_INVALID");
+        }
+        try {
+          getAudioMaxTokens(this.environment);
+        } catch {
+          return check("model-configuration", "INVALID", "AI_AUDIO_MAX_TOKENS_INVALID");
+        }
+        if (!validNumber(this.environment.OPENAI_TEMPERATURE, 0, 2)) {
+          return check("model-configuration", "INVALID", "AI_TEMPERATURE_INVALID");
+        }
+        const expectedMaxTokens = Number(this.environment.OPENAI_MAX_TOKENS ?? "1200");
+        const expectedTemperature = Number(this.environment.OPENAI_TEMPERATURE ?? "0.4");
+        if (
+          aiProviderConfig.openai.maxTokens !== expectedMaxTokens ||
+          aiProviderConfig.openai.temperature !== expectedTemperature
+        ) {
+          return check("model-configuration", "INVALID", "AI_CONFIG_SNAPSHOT_MISMATCH");
+        }
       }
       getOpenAIAudioProviderConfig();
       getOpenAIImageProviderConfig(this.environment);
@@ -264,7 +278,10 @@ export class ProductionReadinessService {
     const ai = normalize(this.environment.AI_PROVIDER);
     if (!ai) return check("provider-selection", "NOT_CONFIGURED", "AI_PROVIDER_MISSING");
     if (ai === "mock") return check("provider-selection", "BLOCKED", "AI_PROVIDER_MOCK_BLOCKED");
-    if (ai !== "openai") return check("provider-selection", "INVALID", "AI_PROVIDER_INVALID");
+    // Local-provider revision: accept any provider recognised by the production
+    // resolution layer (openai, ollama, openrouter) instead of hardcoding "openai".
+    const admissibleAiProviders = new Set(["openai", "ollama", "openrouter"]);
+    if (!admissibleAiProviders.has(ai)) return check("provider-selection", "INVALID", "AI_PROVIDER_INVALID");
     if (aiProviderConfig.provider !== ai) {
       return check("provider-selection", "INVALID", "AI_PROVIDER_SNAPSHOT_MISMATCH");
     }
@@ -607,13 +624,14 @@ function mediaChecksWithoutWorkspace(environment: NodeJS.ProcessEnv): Production
   ];
 }
 
-function providerCheck(id: ProductionReadinessCheckId, raw: string | undefined, expected: string, create: () => { name: string }): ProductionReadinessCheck {
+function providerCheck(id: ProductionReadinessCheckId, raw: string | undefined, expected: string | readonly string[], create: () => { name: string }): ProductionReadinessCheck {
   const selected = normalize(raw);
+  const accepted = typeof expected === "string" ? [expected] : expected;
   if (!selected) return check(id, "NOT_CONFIGURED", `${id.replace(/-/g, "_").toUpperCase()}_MISSING`);
   if (selected === "mock") return check(id, "BLOCKED", `${id.replace(/-/g, "_").toUpperCase()}_MOCK_BLOCKED`);
-  if (selected !== expected) return check(id, "INVALID", `${id.replace(/-/g, "_").toUpperCase()}_INVALID`);
+  if (!accepted.includes(selected)) return check(id, "INVALID", `${id.replace(/-/g, "_").toUpperCase()}_INVALID`);
   try {
-    return create().name === expected
+    return create().name === selected
       ? check(id, "READY", `${id.replace(/-/g, "_").toUpperCase()}_READY`)
       : check(id, "INVALID", `${id.replace(/-/g, "_").toUpperCase()}_ROUTER_INVALID`);
   } catch {
@@ -653,6 +671,19 @@ function animationProviderCheck(environment: NodeJS.ProcessEnv): ProductionReadi
   if (!readValue(raw)) return check("animation-provider", "NOT_CONFIGURED", "ANIMATION_PROVIDER_MISSING");
   const selected = normalize(raw);
   if (selected === "mock") return check("animation-provider", "BLOCKED", "ANIMATION_PROVIDER_MOCK_ONLY");
+  if (selected === "ollama") {
+    // Local motion-plan LLM ($0): validate the Ollama config + router instead of
+    // the OpenAI animation model/endpoint.
+    try {
+      resolveAnimationProviderName(raw);
+      resolveOllamaConfig(environment);
+      return AnimationProviderRouter.getProvider("ollama").name === "ollama"
+        ? check("animation-provider", "READY", "ANIMATION_PROVIDER_READY")
+        : check("animation-provider", "INVALID", "ANIMATION_PROVIDER_ROUTER_INVALID");
+    } catch {
+      return check("animation-provider", "INVALID", "ANIMATION_PROVIDER_CONFIGURATION_INVALID");
+    }
+  }
   if (selected !== "openai") return check("animation-provider", "INVALID", "ANIMATION_PROVIDER_INVALID");
   if (!readValue(environment.OPENAI_API_KEY)) {
     return check("animation-provider", "NOT_CONFIGURED", "ANIMATION_PROVIDER_API_KEY_MISSING");

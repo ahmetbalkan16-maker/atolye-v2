@@ -378,7 +378,7 @@ function normalizeGenerationResult(
   }
 
   const normalized: NormalizedAudioResult = {
-    provider: "openai",
+    provider: providerName,
     model: result.model,
     filePath,
     url,
@@ -457,6 +457,9 @@ function addAssetOrFail(
   asset: Asset,
 ) {
   if (AudioStorage.isPreparedAudio(asset)) {
+    // Error-evidence provider must reflect what actually produced the asset
+    // (openai / piper), not a hardcoded "openai".
+    const errProvider = normalizeErrProvider(asset.provider);
     try {
       return AudioStorage.commitPreparedAudio(asset, projectId);
     } catch (error) {
@@ -467,7 +470,7 @@ function addAssetOrFail(
             Number.isSafeInteger(asset.sceneId)
               ? { kind: "section", chapterId: asset.sceneId as number }
               : { kind: "mix" },
-            "openai",
+            errProvider,
           ),
         );
       }
@@ -478,7 +481,7 @@ function addAssetOrFail(
             Number.isSafeInteger(asset.sceneId)
               ? { kind: "section", chapterId: asset.sceneId as number }
               : { kind: "mix" },
-            "openai",
+            errProvider,
           ),
         );
       }
@@ -487,7 +490,7 @@ function addAssetOrFail(
         target: Number.isSafeInteger(asset.sceneId)
           ? { kind: "section", chapterId: asset.sceneId as number }
           : { kind: "mix" },
-        provider: "openai",
+        provider: errProvider,
         compensation: "not-required",
       });
     }
