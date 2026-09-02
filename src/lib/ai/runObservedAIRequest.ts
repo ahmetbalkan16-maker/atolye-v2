@@ -21,6 +21,13 @@ export type ObservedAIRequestInput = {
   context: AIRequestContext;
   provider?: AIProvider;
   maxTokens?: number;
+  /**
+   * Optional JSON Schema for the expected response. Only providers with
+   * grammar-constrained decoding (Ollama's `format`) act on it; OpenAI and mock
+   * ignore it. Callers pass this only on the fail-closed (strict) path so a
+   * small local model is held to the response shape.
+   */
+  jsonSchema?: Record<string, unknown>;
 };
 
 export type ObservedAIRequestResult = {
@@ -40,6 +47,7 @@ export async function runObservedAIRequest({
   context,
   provider,
   maxTokens,
+  jsonSchema,
 }: ObservedAIRequestInput): Promise<ObservedAIRequestResult> {
   const startedAt = Date.now();
   const providerName = context.provider ?? aiProviderConfig.provider;
@@ -63,7 +71,7 @@ export async function runObservedAIRequest({
     errorCode = "AI_COST_BUDGET_EXCEEDED";
   } else {
     try {
-      result = normalizeProviderOutput(await selectedProvider.generate(prompt, { maxTokens }));
+      result = normalizeProviderOutput(await selectedProvider.generate(prompt, { maxTokens, jsonSchema }));
       response = result.content;
       if (result.refused) errorCode = "AI_PROVIDER_REFUSAL";
       else if (result.truncated || result.finishReason === "length") errorCode = "AI_RESPONSE_TRUNCATED";

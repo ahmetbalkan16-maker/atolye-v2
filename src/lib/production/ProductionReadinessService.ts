@@ -160,7 +160,7 @@ export class ProductionReadinessService {
         VideoProviderRouter.getProvider(resolveVideoProviderName(this.environment.VIDEO_PROVIDER))),
       providerCheck("assembly-provider", this.environment.VIDEO_ASSEMBLY_PROVIDER, "ffmpeg", () =>
         VideoAssemblyProviderRouter.getProvider(resolveVideoAssemblyProviderName(this.environment.VIDEO_ASSEMBLY_PROVIDER))),
-      providerCheck("thumbnail-provider", this.environment.THUMBNAIL_PROVIDER, "openai", () =>
+      providerCheck("thumbnail-provider", this.environment.THUMBNAIL_PROVIDER, ["openai", "local"], () =>
         new ThumbnailProviderRouter().getProvider(resolveThumbnailProviderName(this.environment.THUMBNAIL_PROVIDER))),
       providerCheck("publish-package-provider", this.environment.YOUTUBE_PROVIDER, ["openai", "ollama"], () =>
         new YouTubeProviderRouter().getProvider(resolveYouTubeProviderName(this.environment.YOUTUBE_PROVIDER))),

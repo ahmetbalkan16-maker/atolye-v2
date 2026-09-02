@@ -1,5 +1,51 @@
 ---
 
+## Sprint 176 - Faz B teşhis + Faz C: qwen2.5:3b strict pipeline'ı üretime hazır - 2026-09-02
+
+**Status:** KOD + TEST TAMAM (henüz commit edilmedi — bu oturum sonu commit'i). Strict `production:acceptance:execute` yolu qwen2.5:3b ile artık uçtan uca çalışıyor. Sprint 175'in "Kalan blocker #1 + #2" kapatıldı.
+
+### Faz B — teşhis (yalnızca ölçüm, kod değişikliği yok)
+`scripts/diag-ollama-context-probe.ts` + `diag-ollama-stage-matrix.ts` ile ölçüldü. qwen2.5:3b strict yolu `scenes`'te fail-closed sabit duruyordu; kök nedenler:
+- **script + assembly-plan = context açlığı.** Ollama server default `num_ctx` = 4096 (`ollama ps` CONTEXT sütunu). script prompt ~1530 tok + istenen ~2200+ çıktı → 4096 tavanına dayanınca model tekrarlama döngüsüne giriyor (`seoKeywords` ×8 → `MAX_ITEMS`). assembly prompt ~2900 tok + num_predict 5200 → context-shift → yapı çöküyor.
+- **scenes + seo = model yeteneği** (context DEĞİL — `ctx_used ~1500-2000/8192). Yumuşak `format:"json"` altında 3b: 5-6 sahne, yanlış chapterId eşleme, kapsanmayan bölümler; SEO `keywords`'ü string + `tags` yok.
+- **qwen2.5:7b-instruct-q4_K_M 4GB GTX 1650'de VIABLE DEĞİL** — 4.7GB sığmıyor → %58/%42 CPU/GPU → 4-20 dk/çağrı, script ~305s×4 boş döner, seo JSON ortasında Çince'ye sapıyor.
+- **Sürekli çıkarım GTX 1650'yi termal throttle ediyor** (82°C, 50W güç sınırı → ~3 tok/s vs ~35 soğuk).
+- `THUMBNAIL_PROVIDER=local` → `ProductionReadinessService` thumbnail kapısı hâlâ `"openai"` sabit → tek INVALID `environment`/`provider-selection`/`provider-endpoint`'e cascade → `PRODUCTION_ACCEPTANCE_READINESS_BLOCKED`. Commit `e5d315b` pipeline admission kapısını genişletmiş, readiness ön-kontrolünü atlamış.
+
+### Faz C — düzeltme
+| Dosya | Değişiklik |
+|---|---|
+| `.env.local` + Windows USER env | `OLLAMA_NUM_CTX=8192` (script+assembly context açlığı; %100 GPU, 2.3GB, +0.1GB — bu makinede bedava). `OLLAMA_TEMPERATURE` **DOKUNULMADI** (0.4 default; `0.15` denendi → serbest-formlu `research` strict'i bozdu). `OLLAMA_DEFAULTS.numCtx` kod varsayılanı değişmedi. |
+| `src/lib/ai/runObservedAIRequest.ts` | `ObservedAIRequestInput` += `jsonSchema?` → `provider.generate(prompt, {maxTokens, jsonSchema})`. OpenAI/mock yok sayar (geriye dönük uyumlu). |
+| `src/lib/ai/SceneStructuredOutput.ts` | YENİ `buildScenesResponseJsonSchema(script, env)`: JSON Schema **`prefixItems` + per-position `const`** ile shot→bölüm eşlemesini deterministik sabitler (uniform ~2 shot/bölüm). Model sadece title/description/visualPrompt/duration doldurur. Sıralı id + non-decreasing bölüm sırası + tam kapsama garanti; `reconcileSceneDurations` süreleri dağıtır. **llama.cpp/Ollama 0.33 `prefixItems`+`const` DESTEKLİYOR** (doğrulandı). `validateProviderScenes` değişmedi. |
+| `src/lib/seo/SeoStructuredOutput.ts` | YENİ — `canonicalSeoProviderSchema.jsonSchema`: 8 alan `required`, `additionalProperties:false`, `titleSuggestions/tags/hashtags/keywords` = `{type:array,items:string,minItems:1}`. |
+| `src/lib/assembly/AssemblyStructuredOutput.ts` | YENİ — `buildAssemblyResponseJsonSchema(scenes)`: `scenes` `minItems=maxItems=source.scenes.length`; AI-authored id alanları şemadan ÇIKARILDI + `additionalProperties:false` → model uydurma id emit edemez. `render.status`/`render.format` enum. |
+| `AIManager.ts` `runScenes` / `SEOManager.ts` / `AssemblyManager.ts` | `jsonSchema` yalnızca `policy?.failClosed` iken geçilir → non-strict yol **bit-identical**. `isStrict*Response` validator'ları değişmedi. |
+| `src/lib/production/ProductionReadinessService.ts` | satır ~163: thumbnail-provider kapısı `"openai"` → `["openai","local"]` (Sprint 175'in youtube/animation kapı genişletmesiyle aynı 1-satır desen — Faz B eksiği buldu). |
+| `scripts/smoke-local-providers.ts` | Section I — 3 canonical şema yapısı + `OllamaProvider.generate({jsonSchema})` → request `format` + `AIManager.runScenes` strict→şema geçer / non-strict→geçmez. |
+| `scripts/smoke-production-readiness-acceptance.ts` | `verifyLocalThumbnailIsAdmissible` — `THUMBNAIL_PROVIDER=local` → READY + cascade INVALID değil. |
+| `scripts/diag-ollama-context-probe.ts` / `diag-ollama-stage-matrix.ts` / `diag-ollama-llm-chain.ts` | YENİ tanı harness'ları (Faz B). Fixture ~99s (gerçek videolar 99s; 280s fixture legacy 60-120 bandını sağlayamıyordu). |
+
+### Testler
+- `npx tsc --noEmit` temiz. `npm run lint` **0 error**, 22 warning (hepsi önceden var — stash-baseline).
+- `smoke-local-providers` (+Section I), `smoke-production-readiness-acceptance` (+local thumbnail): PASS.
+- Regresyon PASS: `smoke-sprint-129-37` (29), `smoke-multi-shot-scene-planning` (10), `smoke-multi-shot-duration-reconciliation` (15), `smoke-production-video-assembly-wiring` (73), `smoke-assembly-scene-identity-canonicalization` (6), `smoke-sprint-128-1-production-acceptance` (30), `smoke-production-end-to-end` (21).
+- Önceden başarısız (stash-baseline aynı): `smoke-sprint-129-17` (claim kirliliği — izole PASS), `smoke-sprint-129-22` (`ANIMATION_MOTION_PLAN_FAILED`, env-bağımsız — ayrı inceleme).
+
+### Gerçek CLI çıktıları (`OLLAMA_NUM_CTX=8192`, default temp)
+- `npm run production:acceptance:readiness` (`THUMBNAIL_PROVIDER=local`) → **`ready: true`, 27/27 READY**.
+- `npm run production:cost-preflight -- --project-slug=fatih-sultan-mehmet-ve-i-stanbul-un-fethi` → `decision: pass`, **`projectedTotalUsd: 0.27`**, thumbnailUsd 0, otherOpenAiCostsUsd 0.
+- **Grammar-impact probe (`diag-ollama-context-probe.ts qwen2.5:3b 8192`): 5/5 strict PASS** — research + script + scenes + seo + assembly. (Faz B'de scenes 0/13, seo 0/5, assembly 0/6.)
+- **Tam stage matrix (`both`, num_ctx=8192):** strict 7/8 (yalnız `research` flake), non-strict 7/8, provider-direct 2/2.
+
+### Kalan
+1. **Gerçek ücretli `production:acceptance:execute` YAPILMADI** — kullanıcının açık "başlat" komutu bekleniyor. Gate'ler yeşil.
+2. `research` strict serbest-formlu → nadiren şema-invalid. Grammar şeması eklenebilir, şart değil.
+3. GPU termal throttle — batch üretimde video başına soğuma molası.
+4. `smoke-sprint-129-22` pre-existing fail — ayrı kök-neden incelemesi.
+
+<!-- SPRINT-176-END -->
+
 ## Sprint 175 - Production readiness + cost preflight provider-aware (~$0.27/video hedef) - 2026-09-01
 
 **Status:** KOD + TEST TAMAM (henüz commit edilmedi). Hedef zincir: `AI/ANIMATION/YOUTUBE=ollama` ($0) + `IMAGE=real` ($0) + `AUDIO=openai` (TTS ~$0.27) + `VIDEO/ASSEMBLY=ffmpeg` ($0) + `THUMBNAIL=openai` (~$0.063, ayrı raporlanır).

@@ -21,6 +21,7 @@ import type { VideoData, VideoScene } from "@/types/video";
 import type { VisualData, VisualScene } from "@/types/visual";
 import { createAssemblyPrompt } from "./prompts/assemblyPrompt";
 import { AssemblyAIConfigError, getAssemblyMaxTokens } from "./AssemblyAIConfig";
+import { buildAssemblyResponseJsonSchema } from "./AssemblyStructuredOutput";
 
 export type AssemblySourceData = {
   project?: Project | null;
@@ -52,6 +53,11 @@ export class AssemblyManager {
         prompt,
         provider: options.aiProvider,
         maxTokens: getAssemblyMaxTokens(),
+        // Grammar-constrain the response shape for a small local model on the
+        // fail-closed path; isStrictAssemblyResponse below still runs unchanged.
+        jsonSchema: options.generationPolicy?.failClosed
+          ? buildAssemblyResponseJsonSchema(scenes)
+          : undefined,
         context: {
           ...context,
           projectSlug: context?.projectSlug ?? sources.project?.slug,

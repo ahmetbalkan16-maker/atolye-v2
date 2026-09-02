@@ -66,6 +66,99 @@ export function resolveCanonicalSceneProviderSchema(env: NodeJS.ProcessEnv = pro
 }
 
 /**
+ * Grammar-constraint JSON Schema for the scenes response, passed to a
+ * structured-decoding provider (Ollama's `format`) on the fail-closed path.
+ *
+ * A small local model reliably produces valid JSON but cannot do the *semantic*
+ * planning — how many shots, which chapter each belongs to, covering every
+ * chapter in order. So the schema does that planning deterministically: it lays
+ * out one array slot per shot with `id` and `chapterId` pinned as per-position
+ * `const`s (JSON Schema `prefixItems`), leaving the model only the creative
+ * fields (`title`, `description`, `visualPrompt`) and a rough `duration`. This
+ * guarantees sequential unique ids, non-decreasing chapter order and full
+ * per-chapter coverage; `reconcileSceneDurations` then redistributes each
+ * chapter's authoritative duration across its slots. {@link validateProviderScenes}
+ * still runs unchanged and still fails closed on anything the grammar cannot
+ * express (empty strings, the reconciled duration bands).
+ */
+export function buildScenesResponseJsonSchema(
+  script: ScriptData,
+  env: NodeJS.ProcessEnv = process.env,
+): Record<string, unknown> {
+  const chapterIds = script.chapters
+    .map((chapter) => chapter.id)
+    .filter((id): id is number => typeof id === "number" && Number.isSafeInteger(id));
+  const maxScenes = Math.max(chapterIds.length || 1, resolveMaxSceneCount(env));
+
+  if (chapterIds.length === 0) {
+    // No usable chapter ids — fall back to a shape-only constraint.
+    return {
+      type: "object",
+      additionalProperties: false,
+      required: [...topLevelFields],
+      properties: {
+        scenes: {
+          type: "array",
+          minItems: 1,
+          maxItems: maxScenes,
+          items: sceneItemJsonSchema({ type: "integer", minimum: 1 }, { type: "integer", minimum: 1 }),
+        },
+      },
+    };
+  }
+
+  // One deterministic slot per shot: a uniform shots-per-chapter count chosen so
+  // the total lands in the pacing window and never exceeds the schema ceiling.
+  const idealTotal = isExplicitQualityPreset(env)
+    ? Math.round(
+        (resolveProductionAcceptanceDuration(env).targetSeconds / 60) *
+          resolveQualityPreset(env).sceneDensityPerMinute,
+      )
+    : 12;
+  const perChapter = Math.min(
+    4,
+    Math.max(2, Math.round(idealTotal / chapterIds.length) || 2),
+    Math.max(1, Math.floor(maxScenes / chapterIds.length)),
+  );
+  const prefixItems: Record<string, unknown>[] = [];
+  for (const chapterId of chapterIds) {
+    for (let shot = 0; shot < perChapter; shot += 1) {
+      prefixItems.push(
+        sceneItemJsonSchema({ const: prefixItems.length + 1 }, { const: chapterId }),
+      );
+    }
+  }
+  const total = prefixItems.length;
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: [...topLevelFields],
+    properties: {
+      scenes: { type: "array", minItems: total, maxItems: total, prefixItems },
+    },
+  };
+}
+
+function sceneItemJsonSchema(
+  id: Record<string, unknown>,
+  chapterId: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: [...sceneFields],
+    properties: {
+      id,
+      chapterId,
+      title: { type: "string", minLength: 1 },
+      description: { type: "string", minLength: 1 },
+      visualPrompt: { type: "string", minLength: 1 },
+      duration: { type: "number", minimum: 1, maximum: 120 },
+    },
+  };
+}
+
+/**
  * P2: the scene-count / total-duration guidance lines. With no EXPLICIT
  * `ATOLYE_QUALITY_PRESET` these are the historical strings verbatim (the
  * multi-shot smokes assert them); an explicit preset scales them from the band

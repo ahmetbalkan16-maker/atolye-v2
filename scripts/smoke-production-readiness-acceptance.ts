@@ -83,6 +83,7 @@ async function run() {
   assert(readiness.checks.every((item) => /^[A-Z0-9_]+$/.test(item.reasonCode)));
 
   trace("image-provider-real"); await verifyImageProviderRealIsAdmissible();
+  trace("thumbnail-provider-local"); await verifyLocalThumbnailIsAdmissible();
   trace("mock-animation"); await verifyMockAnimationIsBlocked();
   trace("ollama-ai-chain"); await verifyOllamaAiChainIsAdmissible();
   verifyReadinessCheckSetValidation(readiness);
@@ -113,7 +114,7 @@ async function main() {
     canonicalRuntime = runtime;
     await run();
   });
-  emitSmokeResult("production-readiness-acceptance", 25);
+  emitSmokeResult("production-readiness-acceptance", 26);
 }
 
 async function verifyAudioOperationScope() {
@@ -289,6 +290,38 @@ async function verifyImageProviderRealIsAdmissible() {
   const bogus = find(bogusReport, "image-provider");
   assert.equal(bogus.status, "INVALID");
   assert.equal(bogus.reasonCode, "IMAGE_PROVIDER_INVALID");
+}
+
+async function verifyLocalThumbnailIsAdmissible() {
+  // THUMBNAIL_PROVIDER=local ($0 FFmpeg key-frame thumbnail) must be
+  // production-admissible; the pipeline admission gate already accepts it
+  // (commit e5d315b) and the readiness pre-flight gate now matches.
+  const localReport = await new ProductionReadinessService({
+    environment: { ...process.env, THUMBNAIL_PROVIDER: "local" },
+  }).evaluate();
+  const local = find(localReport, "thumbnail-provider");
+  assert.equal(local.status, "READY", "THUMBNAIL_PROVIDER=local must be production-admissible");
+  assert.equal(local.reasonCode, "THUMBNAIL_PROVIDER_READY");
+  // A stale "openai"-only thumbnail gate used to cascade an INVALID into the
+  // environment / provider-selection / provider-endpoint checks.
+  for (const id of ["environment", "provider-selection", "provider-endpoint"] as const) {
+    assert.notEqual(find(localReport, id).status, "INVALID",
+      `${id} must not be INVALID solely because THUMBNAIL_PROVIDER=local`);
+  }
+
+  const mockReport = await new ProductionReadinessService({
+    environment: { ...process.env, THUMBNAIL_PROVIDER: "mock" },
+  }).evaluate();
+  const mock = find(mockReport, "thumbnail-provider");
+  assert.equal(mock.status, "BLOCKED");
+  assert.equal(mock.reasonCode, "THUMBNAIL_PROVIDER_MOCK_BLOCKED");
+
+  const bogusReport = await new ProductionReadinessService({
+    environment: { ...process.env, THUMBNAIL_PROVIDER: "bogus" },
+  }).evaluate();
+  const bogus = find(bogusReport, "thumbnail-provider");
+  assert.equal(bogus.status, "INVALID");
+  assert.equal(bogus.reasonCode, "THUMBNAIL_PROVIDER_INVALID");
 }
 
 async function verifyOllamaAiChainIsAdmissible() {

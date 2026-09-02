@@ -13,6 +13,7 @@ import type { ScriptData } from "@/types/script";
 import type { SEOData } from "@/types/seo";
 import type { ThumbnailData } from "@/types/thumbnail";
 import { createSEOPrompt } from "./prompts/seoPrompt";
+import { canonicalSeoProviderSchema } from "./SeoStructuredOutput";
 
 export class SEOManager {
   static async generateSEOData(
@@ -33,6 +34,11 @@ export class SEOManager {
       const { response } = await runObservedAIRequest({
         prompt,
         provider: options.aiProvider,
+        // Grammar-constrain the response shape for a small local model on the
+        // fail-closed path; isStrictSEOResponse below still runs unchanged.
+        jsonSchema: options.generationPolicy?.failClosed
+          ? canonicalSeoProviderSchema.jsonSchema
+          : undefined,
         context: {
           ...context,
           operation: context?.operation ?? "seo-plan",

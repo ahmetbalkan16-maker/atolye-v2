@@ -53,7 +53,14 @@ import {
 } from "../src/lib/production/ProductionProviderResolution";
 import { createProductionAcceptancePortableConfigurationSnapshotV2 } from
   "../src/lib/production/ProductionAcceptanceConfigurationFingerprint";
-import type { AIProviderResult } from "../src/lib/ai/providers/AIProvider";
+import type { AIProvider, AIProviderGenerateOptions, AIProviderResult } from "../src/lib/ai/providers/AIProvider";
+import { AIManager } from "../src/lib/ai/AIManager";
+import { strictGenerationExecutionPolicy } from "../src/lib/ai/GenerationExecutionPolicy";
+import { buildScenesResponseJsonSchema } from "../src/lib/ai/SceneStructuredOutput";
+import { canonicalSeoProviderSchema } from "../src/lib/seo/SeoStructuredOutput";
+import { buildAssemblyResponseJsonSchema } from "../src/lib/assembly/AssemblyStructuredOutput";
+import type { ScriptData } from "../src/types/script";
+import type { SceneData } from "../src/types/scene";
 
 let scenarios = 0;
 function pass(c: unknown, label: string) {
@@ -415,6 +422,119 @@ async function localThumbnailEndToEnd() {
   );
 }
 
+// I — strict-path grammar (JSON Schema) contract + forwarding ----------------
+function strictScript(): ScriptData {
+  return {
+    topic: "Kanuni Sultan Süleyman", title: "Kanuni", subtitle: "Zirve",
+    hook: "1526, Mohaç.", introduction: "1520'de tahta çıktı.",
+    chapters: Array.from({ length: 5 }, (_, i) => ({
+      id: i + 1, title: `Bölüm ${i + 1}`, narration: "Tarihsel anlatım paragrafı.",
+      duration: 20, visualGoal: "Sinematik sahne", emotion: "epik", transition: "kesme",
+    })),
+    conclusion: "Zirve geride kaldı.", callToAction: "Abone olun.",
+    estimatedDuration: 100, narrationWordCount: 90, targetAudience: "genel", language: "tr",
+    voiceStyle: "belgesel", musicStyle: "sinematik", thumbnailIdea: "Portre",
+    seoKeywords: ["Kanuni"], createdAt: "2026-09-01T12:00:00.000Z",
+  };
+}
+
+function strictScenes(): SceneData {
+  return {
+    scenes: Array.from({ length: 10 }, (_, i) => ({
+      id: i + 1, chapterId: Math.floor(i / 2) + 1, title: `Sahne ${i + 1}`,
+      description: "Sinematik açıklama.", visualPrompt: "Tarihi sahne, sinematik.", duration: 10,
+    })),
+    createdAt: "2026-09-01T12:00:00.000Z",
+  } as SceneData;
+}
+
+async function strictGrammarForwarding() {
+  // --- schema shape -------------------------------------------------------
+  const sceneSchema = buildScenesResponseJsonSchema(strictScript(), env({}));
+  const scenesProp = (sceneSchema.properties as Record<string, { type?: string; minItems?: number; maxItems?: number; prefixItems?: Array<{ additionalProperties?: boolean; required?: string[]; properties?: Record<string, { const?: number; minLength?: number }> }> }>).scenes;
+  const prefix = scenesProp.prefixItems ?? [];
+  pass(
+    sceneSchema.type === "object" && sceneSchema.additionalProperties === false &&
+      (sceneSchema.required as string[]).includes("scenes") &&
+      scenesProp.type === "array" &&
+      scenesProp.minItems === prefix.length && scenesProp.maxItems === prefix.length &&
+      prefix.length >= 5 && prefix.length % 5 === 0 &&
+      prefix.every((it, i) => it.additionalProperties === false &&
+        ["id", "chapterId", "title", "description", "visualPrompt", "duration"].every((f) => it.required!.includes(f)) &&
+        it.properties!.id.const === i + 1 &&
+        it.properties!.title.minLength === 1),
+    "buildScenesResponseJsonSchema: prefixItems pins id per position, closed scene items, count fixed",
+  );
+  // Every chapter gets ≥1 pinned slot, in non-decreasing order.
+  const pinnedChapters = prefix.map((it) => it.properties!.chapterId.const);
+  assert.deepEqual([...new Set(pinnedChapters)].sort((a, b) => (a ?? 0) - (b ?? 0)), [1, 2, 3, 4, 5],
+    "scenes schema: every script chapter is covered by a pinned slot");
+  assert.ok(pinnedChapters.every((c, i) => i === 0 || (c ?? 0) >= (pinnedChapters[i - 1] ?? 0)),
+    "scenes schema: pinned chapterIds are non-decreasing");
+  scenarios += 2;
+
+  const seoSchema = canonicalSeoProviderSchema.jsonSchema;
+  const seoProps = seoSchema.properties as Record<string, { type?: string }>;
+  pass(
+    seoSchema.additionalProperties === false &&
+      (seoSchema.required as string[]).length === 8 &&
+      ["titleSuggestions", "tags", "hashtags", "keywords"].every((f) => (seoProps[f] as { type?: string }).type === "array") &&
+      ["description", "targetAudience", "searchIntent", "createdAt"].every((f) => seoProps[f].type === "string"),
+    "canonicalSeoProviderSchema: 8 required, tags/keywords are arrays (not strings)",
+  );
+
+  const asmSchema = buildAssemblyResponseJsonSchema(strictScenes());
+  const asmScene = ((asmSchema.properties as Record<string, { minItems?: number; maxItems?: number; items?: { properties?: Record<string, unknown>; required?: string[] } }>).scenes);
+  pass(
+    asmScene.minItems === 10 && asmScene.maxItems === 10 &&
+      !("animationAssetId" in asmScene.items!.properties!) &&
+      !("videoAssetId" in asmScene.items!.properties!) &&
+      !("audioAssetId" in asmScene.items!.properties!) &&
+      ((asmSchema.properties as Record<string, { properties?: Record<string, { enum?: string[] }> }>).render.properties!.status.enum?.[0]) === "planned",
+    "buildAssemblyResponseJsonSchema: scenes pinned to source count, no AI-authored asset id fields, render.status=planned",
+  );
+
+  // --- OllamaProvider forwards jsonSchema as the request `format` --------
+  let capturedFormat: unknown;
+  const capturingFetch = (async (_url: string, init?: { body?: string }) => {
+    capturedFormat = JSON.parse(String(init?.body ?? "{}")).format;
+    return { ok: true, status: 200, json: async () => ({ message: { content: "{}" }, done: true, done_reason: "stop" }) } as unknown as Response;
+  }) as unknown as typeof fetch;
+  const schemaProvider = new OllamaProvider(capturingFetch, () => resolveOllamaConfig(env({})));
+  await schemaProvider.generate("x", { jsonSchema: { type: "object", additionalProperties: false } });
+  pass(
+    JSON.stringify(capturedFormat) === JSON.stringify({ type: "object", additionalProperties: false }),
+    "OllamaProvider.generate({jsonSchema}) -> request format is the schema",
+  );
+  await schemaProvider.generate("x");
+  pass(capturedFormat === "json", "OllamaProvider.generate() with no schema -> request format stays \"json\"");
+
+  // --- managers forward jsonSchema only on the fail-closed path ----------
+  await withCanonicalSmokeRuntime(
+    { name: "strict-grammar-forwarding", environment: { AI_PROVIDER: "ollama" } },
+    async () => {
+      const seen: Array<AIProviderGenerateOptions | undefined> = [];
+      const captureProvider: AIProvider = {
+        generate: async (_prompt: string, options?: AIProviderGenerateOptions) => {
+          seen.push(options);
+          return JSON.stringify({ scenes: [] });
+        },
+      };
+      const sc = strictScript();
+      await AIManager.runScenes(sc, { projectSlug: "unknown" }, captureProvider, strictGenerationExecutionPolicy, null).catch(() => undefined);
+      await AIManager.runScenes(sc, { projectSlug: "unknown" }, captureProvider, undefined, null).catch(() => undefined);
+      pass(
+        seen[0]?.jsonSchema !== undefined && (seen[0]?.jsonSchema as { properties?: Record<string, unknown> })?.properties?.scenes !== undefined,
+        "AIManager.runScenes(strict) forwards the scenes JSON Schema to the provider",
+      );
+      pass(
+        seen[1]?.jsonSchema === undefined,
+        "AIManager.runScenes(non-strict) forwards NO jsonSchema (bit-identical legacy path)",
+      );
+    },
+  );
+}
+
 async function main() {
   ollamaConfig();
   await ollamaProvider();
@@ -422,6 +542,7 @@ async function main() {
   pricing();
   productionResolution();
   await fingerprint();
+  await strictGrammarForwarding();
   await live();
   await localThumbnailEndToEnd();
   console.log(`local providers smoke: PASS (${scenarios} scenarios)`);

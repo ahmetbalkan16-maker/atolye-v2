@@ -13,7 +13,11 @@ import { getResearchMaxTokens, ResearchAIConfigError } from "./ResearchAIConfig"
 import { getScriptMaxTokens, ScriptAIConfigError } from "./ScriptAIConfig";
 import { getSceneMaxTokens, SceneAIConfigError } from "./SceneAIConfig";
 import { parseStrictScriptResponse } from "./ScriptStructuredOutput";
-import { createScenesPrompt, parseStrictScenesResponse } from "./SceneStructuredOutput";
+import {
+  buildScenesResponseJsonSchema,
+  createScenesPrompt,
+  parseStrictScenesResponse,
+} from "./SceneStructuredOutput";
 import { formatResearchForPrompt } from "./ResearchPromptContext";
 import { resolveProductionAcceptanceDuration } from "@/lib/production/ProductionAcceptancePreflight";
 import {
@@ -514,6 +518,11 @@ export class AIManager {
         prompt,
         provider,
         maxTokens: getSceneMaxTokens(),
+        // Grammar-constrain the response shape for a small local model on the
+        // fail-closed path; the strict validator below still runs unchanged.
+        jsonSchema: policy?.failClosed
+          ? buildScenesResponseJsonSchema(script)
+          : undefined,
         context: {
           ...context,
           operation: context?.operation ?? "scenes",
