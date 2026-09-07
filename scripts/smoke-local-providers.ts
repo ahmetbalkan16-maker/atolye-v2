@@ -708,7 +708,8 @@ async function strictGrammarForwarding() {
   await schemaProvider.generate("x");
   pass(capturedFormat === "json", "OllamaProvider.generate() with no schema -> request format stays \"json\"");
 
-  // --- managers forward jsonSchema only on the fail-closed path ----------
+  // --- managers forward the scenes JSON Schema on BOTH paths -------------
+  // (fail-closed: full layout pin; non-strict: shape-only, no prefixItems).
   await withCanonicalSmokeRuntime(
     { name: "strict-grammar-forwarding", environment: { AI_PROVIDER: "ollama" } },
     async () => {
@@ -722,13 +723,44 @@ async function strictGrammarForwarding() {
       const sc = strictScript();
       await AIManager.runScenes(sc, { projectSlug: "unknown" }, captureProvider, strictGenerationExecutionPolicy, null).catch(() => undefined);
       await AIManager.runScenes(sc, { projectSlug: "unknown" }, captureProvider, undefined, null).catch(() => undefined);
+      const strictScenes = (seen[0]?.jsonSchema as { properties?: { scenes?: { prefixItems?: unknown[]; items?: unknown } } })?.properties?.scenes;
+      const nonStrictScenes = (seen[1]?.jsonSchema as { properties?: { scenes?: { prefixItems?: unknown[]; items?: unknown } } })?.properties?.scenes;
       pass(
-        seen[0]?.jsonSchema !== undefined && (seen[0]?.jsonSchema as { properties?: Record<string, unknown> })?.properties?.scenes !== undefined,
-        "AIManager.runScenes(strict) forwards the scenes JSON Schema to the provider",
+        Boolean(strictScenes) && Array.isArray(strictScenes?.prefixItems) && (strictScenes?.prefixItems?.length ?? 0) > 0,
+        "AIManager.runScenes(strict) forwards the layout-pinned scenes JSON Schema (prefixItems)",
       );
       pass(
-        seen[1]?.jsonSchema === undefined,
-        "AIManager.runScenes(non-strict) forwards NO jsonSchema (bit-identical legacy path)",
+        Boolean(nonStrictScenes) && nonStrictScenes?.prefixItems === undefined && Boolean(nonStrictScenes?.items),
+        "AIManager.runScenes(non-strict) forwards the shape-only scenes JSON Schema (items, no prefixItems)",
+      );
+    },
+  );
+
+  // --- non-strict scenes: the production-point id contract --------------
+  // A weak local model that emits an id gap / duplicate / out-of-order set is
+  // renumbered to 1..N so `assembly` can always map scenes; the non-strict path
+  // stays chapterId-free by design (see smoke-sprint-128-1).
+  await withCanonicalSmokeRuntime(
+    { name: "non-strict-scene-contract", environment: { AI_PROVIDER: "ollama" } },
+    async () => {
+      const sc = strictScript(); // 5 chapters, ids 1..5
+      const gapProvider: AIProvider = {
+        generate: async () => JSON.stringify({
+          scenes: [
+            { id: 1, title: "a", description: "d", visualPrompt: "v", duration: 12 },
+            { id: 2, title: "b", description: "d", visualPrompt: "v", duration: 12 },
+            { id: 5, title: "c", description: "d", visualPrompt: "v", duration: 12 },
+            { id: 5, title: "d", description: "d", visualPrompt: "v", duration: 12 },
+            { id: 8, title: "e", description: "d", visualPrompt: "v", duration: 12 },
+          ],
+        }),
+      };
+      const out = await AIManager.runScenes(sc, { projectSlug: "unknown" }, gapProvider, undefined, null);
+      const ids = out.scenes.map((s) => s.id);
+      pass(
+        JSON.stringify(ids) === JSON.stringify([1, 2, 3, 4, 5]) &&
+          out.scenes.every((s) => s.chapterId === undefined),
+        `non-strict runScenes renumbers id gaps/dupes to 1..N, stays chapterId-free (ids=${JSON.stringify(ids)})`,
       );
     },
   );

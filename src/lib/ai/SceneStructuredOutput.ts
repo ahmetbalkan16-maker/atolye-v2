@@ -84,14 +84,20 @@ export function resolveCanonicalSceneProviderSchema(env: NodeJS.ProcessEnv = pro
 export function buildScenesResponseJsonSchema(
   script: ScriptData,
   env: NodeJS.ProcessEnv = process.env,
+  options: { pinLayout?: boolean } = {},
 ): Record<string, unknown> {
   const chapterIds = script.chapters
     .map((chapter) => chapter.id)
     .filter((id): id is number => typeof id === "number" && Number.isSafeInteger(id));
   const maxScenes = Math.max(chapterIds.length || 1, resolveMaxSceneCount(env));
 
-  if (chapterIds.length === 0) {
-    // No usable chapter ids — fall back to a shape-only constraint.
+  if (chapterIds.length === 0 || options.pinLayout === false) {
+    // Shape-only constraint: every scene is a well-formed 6-field object
+    // (positive-integer id/chapterId, non-empty strings, a 1-120 s duration),
+    // but the count and the exact id/chapterId sequence stay open. Used when
+    // the script carries no usable chapter ids, and on the non-strict
+    // `PipelineRunner.run` path — which renumbers ids to 1..N after parsing,
+    // so the layout need not be pinned here.
     return {
       type: "object",
       additionalProperties: false,

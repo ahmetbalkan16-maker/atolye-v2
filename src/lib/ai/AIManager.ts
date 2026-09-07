@@ -520,11 +520,15 @@ export class AIManager {
         prompt,
         provider,
         maxTokens: getSceneMaxTokens(),
-        // Grammar-constrain the response shape for a small local model on the
-        // fail-closed path; the strict validator below still runs unchanged.
+        // Grammar-constrain the response shape for a small local model. The
+        // fail-closed path pins the full layout (id / chapterId / count as
+        // per-position consts); the non-strict `PipelineRunner.run` path takes
+        // a shape-only schema — well-formed 6-field scene objects — and the
+        // parse below renumbers ids to 1..N, so a weak model can never emit an
+        // id gap / duplicate id / malformed scene that would sink `assembly`.
         jsonSchema: policy?.failClosed
           ? buildScenesResponseJsonSchema(script)
-          : undefined,
+          : buildScenesResponseJsonSchema(script, process.env, { pinLayout: false }),
         context: {
           ...context,
           operation: context?.operation ?? "scenes",
@@ -546,7 +550,12 @@ export class AIManager {
               const item = scene as Partial<SceneItem>;
 
               return {
-                id: getNumber(item.id, index + 1),
+                // Scene contract guaranteed at the production point: ids are
+                // sequential and unique from 1, never the model's own numbers
+                // (a weak local model emits gaps / duplicates that sink
+                // `assembly`). The non-strict path stays chapterId-free by
+                // design — see "non-strict legacy JSON preserves ... contract".
+                id: index + 1,
                 ...(policy?.failClosed
                   ? {
                       chapterId: getNumber(
