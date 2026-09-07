@@ -38,6 +38,7 @@ import { YouTubeProviderRouter } from "../src/lib/youtube/YouTubeProviderRouter"
 import { resolveYouTubeProviderName } from "../src/lib/youtube/YouTubeProviderConfig";
 import { OllamaAnimationProvider } from "../src/lib/animation/providers/OllamaAnimationProvider";
 import { OllamaYouTubeProvider } from "../src/lib/youtube/providers/OllamaYouTubeProvider";
+import { normalizeYouTubePackageDraft } from "../src/lib/youtube/YouTubePackageValidation";
 import { LocalThumbnailProvider } from "../src/lib/thumbnail/providers/LocalThumbnailProvider";
 import { resolveRuntimeLogicalPath } from "../src/lib/runtime/RuntimeStoragePaths";
 import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
@@ -61,6 +62,7 @@ import { strictGenerationExecutionPolicy } from "../src/lib/ai/GenerationExecuti
 import { buildScenesResponseJsonSchema } from "../src/lib/ai/SceneStructuredOutput";
 import { canonicalSeoProviderSchema } from "../src/lib/seo/SeoStructuredOutput";
 import { buildAssemblyResponseJsonSchema } from "../src/lib/assembly/AssemblyStructuredOutput";
+import { buildYouTubePackageResponseSchema } from "../src/lib/youtube/YouTubePackageStructuredOutput";
 import type { ScriptData } from "../src/types/script";
 import type { SceneData } from "../src/types/scene";
 
@@ -171,36 +173,70 @@ async function ollamaProvider() {
   const exhausted = (await alwaysTrunc.generate("x")) as AIProviderResult;
   pass(exhausted.truncated === true && exhausted.complete === false, "exhausted retries -> truncated result surfaced");
 
-  // OllamaYouTubeProvider: native /api/chat, JSON format, re-rolls a bad reply.
+  // OllamaYouTubeProvider: native /api/chat, grammar-constrained `format`,
+  // re-rolls a reply that would not survive the pipeline's draft normaliser.
   process.env.YOUTUBE_PROVIDER = "ollama";
+  const ytPrevRetries = process.env.OLLAMA_MAX_RETRIES;
+  process.env.OLLAMA_MAX_RETRIES = "4";
   try {
+    const validDraft = JSON.stringify({
+      title: "Malazgirt 1071: Bir İmparatorluğun Kırıldığı Gün",
+      description: "Sultan Alparslan ve Malazgirt Meydan Muharebesi.",
+      tags: ["Malazgirt", "Alparslan", "Selçuklu", "1071", "Bizans"],
+      hashtags: ["#Malazgirt", "#Alparslan", "#Tarih"],
+      chapters: [
+        { startSeconds: 0, title: "Giriş" },
+        { startSeconds: 30, title: "Sefer" },
+        { startSeconds: 70, title: "Muharebe" },
+      ],
+      pinnedComment: "Sizce savaşın kaderini ne belirledi?",
+      thumbnailText: "MALAZGIRT",
+    });
+    // A draft the grammar can emit but the pipeline normaliser rejects
+    // (chapters not starting at 0, hashtag with a space) — must be re-rolled.
+    const rejectableDraft = JSON.stringify({
+      title: "T", description: "D", tags: ["a"], hashtags: ["#a b"],
+      chapters: [{ startSeconds: 5, title: "x" }],
+      pinnedComment: "c", thumbnailText: "t",
+    });
     let ytCalls = 0;
     const ytFetch = (async (url: string, init?: { body?: string }) => {
       ytCalls += 1;
       assert.ok(String(url).endsWith("/api/chat"), "OllamaYouTubeProvider must use native /api/chat");
       const body = JSON.parse(String(init?.body ?? "{}"));
-      assert.equal(body.format, "json");
-      const bad = ytCalls < 2;
+      assert.ok(
+        body.format && typeof body.format === "object" &&
+          body.format.type === "object" && body.format.additionalProperties === false &&
+          Array.isArray(body.format.required) && body.format.required.includes("chapters"),
+        "OllamaYouTubeProvider sends the grammar-constrained package schema as `format`",
+      );
+      const content = ytCalls === 1 ? "{oops" : ytCalls === 2 ? rejectableDraft : validDraft;
       return {
         ok: true,
         status: 200,
         json: async () => ({
-          message: { content: bad ? "{oops" : '{"title":"T","description":"D","tags":["a"],"chapters":[]}' },
-          done_reason: bad ? "length" : "stop",
+          message: { content },
+          done_reason: ytCalls === 1 ? "length" : "stop",
         }),
       } as unknown as Response;
     }) as unknown as typeof fetch;
     const yt = new OllamaYouTubeProvider({ fetcher: ytFetch });
     const pkg = await yt.generatePublishingPackage({
-      title: "Kanuni Sultan Süleyman",
+      title: "Sultan Alparslan ve Malazgirt",
       videoDurationSeconds: 120,
       assembly: { scenes: [{ sceneId: 1, duration: 10, notes: "" }] },
-      thumbnail: { textSuggestion: "Kanuni" },
-      seo: { titleSuggestions: ["Kanuni"], description: "d", tags: ["t"], hashtags: ["#k"] },
+      thumbnail: { textSuggestion: "Malazgirt" },
+      seo: { titleSuggestions: ["Malazgirt"], description: "d", tags: ["t"], hashtags: ["#k"] },
     } as unknown as Parameters<OllamaYouTubeProvider["generatePublishingPackage"]>[0]);
-    pass(pkg.success === true && ytCalls === 2, "OllamaYouTubeProvider re-rolls a malformed package reply");
+    pass(
+      pkg.success === true && ytCalls === 3 &&
+        pkg.draft?.chapters[0]?.startSeconds === 0 && pkg.draft?.hashtags.length === 3,
+      "OllamaYouTubeProvider re-rolls unparseable + normaliser-rejectable replies, accepts a valid draft",
+    );
   } finally {
     delete process.env.YOUTUBE_PROVIDER;
+    if (ytPrevRetries === undefined) delete process.env.OLLAMA_MAX_RETRIES;
+    else process.env.OLLAMA_MAX_RETRIES = ytPrevRetries;
   }
 }
 
@@ -433,6 +469,52 @@ async function live() {
       out.finishReason !== "unknown" && parsed !== null && typeof parsed === "object",
       "LIVE: Ollama returned a parseable JSON object",
     );
+
+    // LIVE: OllamaYouTubeProvider must emit a package the real pipeline gate
+    // (normalizeYouTubePackageDraft) accepts — the Sprint 179 e2e failed here.
+    const ytPrev = process.env.YOUTUBE_PROVIDER;
+    const ytPrevRetries = process.env.OLLAMA_MAX_RETRIES;
+    process.env.YOUTUBE_PROVIDER = "ollama";
+    process.env.OLLAMA_MAX_RETRIES = "4";
+    try {
+      const durationSeconds = 90;
+      const ytResult = await new OllamaYouTubeProvider().generatePublishingPackage({
+        projectId: "live-yt-project",
+        projectSlug: "live-yt-project",
+        title: "Sultan Alparslan ve Malazgirt Meydan Muharebesi (1071)",
+        videoDurationSeconds: durationSeconds,
+        assembly: {
+          scenes: Array.from({ length: 6 }, (_, i) => ({
+            sceneId: i + 1, duration: 15, notes: `Sahne ${i + 1}`,
+          })),
+        },
+        thumbnail: { textSuggestion: "MALAZGIRT" },
+        seo: {
+          titleSuggestions: ["Malazgirt 1071", "Alparslan ve Romen Diyojen"],
+          description: "Sultan Alparslan ve Malazgirt Meydan Muharebesi.",
+          tags: ["Malazgirt", "Alparslan", "Selçuklu", "1071", "Bizans"],
+          hashtags: ["#Malazgirt", "#Alparslan", "#Tarih"],
+        },
+      } as unknown as Parameters<OllamaYouTubeProvider["generatePublishingPackage"]>[0]);
+      let gateOk = false;
+      let detail = "provider returned failure";
+      if (ytResult.success === true) {
+        try {
+          const d = normalizeYouTubePackageDraft(ytResult.draft, durationSeconds);
+          gateOk = true;
+          detail = `tags=${d.tags.length} hashtags=${d.hashtags.length} chapters=${d.chapters.length} [${d.chapters.map((c) => c.startSeconds).join(",")}]`;
+        } catch (error) {
+          detail = `pipeline gate rejected: ${error instanceof Error ? error.message : String(error)}`;
+        }
+      }
+      console.log(`LIVE OllamaYouTube: ${gateOk ? "gate OK" : "gate FAIL"} — ${detail}`);
+      pass(gateOk, `LIVE: OllamaYouTubeProvider (qwen2.5:3b) package passes the pipeline gate — ${detail}`);
+    } finally {
+      if (ytPrev === undefined) delete process.env.YOUTUBE_PROVIDER;
+      else process.env.YOUTUBE_PROVIDER = ytPrev;
+      if (ytPrevRetries === undefined) delete process.env.OLLAMA_MAX_RETRIES;
+      else process.env.OLLAMA_MAX_RETRIES = ytPrevRetries;
+    }
   } else {
     console.log("LIVE Ollama: skipped (server not reachable at 127.0.0.1:11434)");
   }
@@ -593,6 +675,22 @@ async function strictGrammarForwarding() {
       !("audioAssetId" in asmScene.items!.properties!) &&
       ((asmSchema.properties as Record<string, { properties?: Record<string, { enum?: string[] }> }>).render.properties!.status.enum?.[0]) === "planned",
     "buildAssemblyResponseJsonSchema: scenes pinned to source count, no AI-authored asset id fields, render.status=planned",
+  );
+
+  const ytSchema = buildYouTubePackageResponseSchema(90);
+  const ytProps = ytSchema.properties as Record<string, {
+    type?: string; minItems?: number; maxItems?: number;
+    items?: { properties?: Record<string, { maximum?: number }> };
+  }>;
+  pass(
+    ytSchema.additionalProperties === false &&
+      (ytSchema.required as string[]).length === 7 &&
+      ["title", "description", "tags", "hashtags", "chapters", "pinnedComment", "thumbnailText"]
+        .every((f) => (ytSchema.required as string[]).includes(f)) &&
+      ytProps.tags.type === "array" && ytProps.hashtags.type === "array" &&
+      ytProps.chapters.minItems === 3 && ytProps.chapters.maxItems === 6 &&
+      ytProps.chapters.items!.properties!.startSeconds.maximum === 89,
+    "buildYouTubePackageResponseSchema: 7 required fields, 3-6 chapters, startSeconds bounded by duration-1",
   );
 
   // --- OllamaProvider forwards jsonSchema as the request `format` --------

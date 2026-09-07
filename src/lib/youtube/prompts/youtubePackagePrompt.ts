@@ -9,6 +9,7 @@ export function createYouTubePackagePrompt(input: YouTubeGenerationInput) {
       "Front-load the most searchable term. Avoid clickbait punctuation spam and ALL CAPS.",
     "thumbnailText (Turkish): 1 to 3 short words that read instantly at small size; never a truncated phrase. " +
       "Keep it a complete idea (e.g. a name or a single loaded word), not the first half of a sentence.",
+    "tags: 5 to 15 short Turkish search phrases. hashtags: 3 to 6 single tokens, each one word with no spaces and no leading '#' (e.g. \"Malazgirt\"). pinnedComment: one Turkish sentence inviting discussion.",
     "chapters must be an array of {startSeconds,title} with 3 to 6 entries.",
     `startSeconds must be whole integers (seconds), strictly increasing; the first entry's startSeconds is exactly 0, and every startSeconds must be between 0 and ${maxChapterStart} inclusive. durationSeconds below is the authoritative final video length - never place a chapter at or after it, and ignore any scene duration that would push past it.`,
     "Do not include schema, provider, model, project identity, asset identity, status, timestamps, Markdown or code fences.",
