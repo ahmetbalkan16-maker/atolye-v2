@@ -1,5 +1,69 @@
 ---
 
+## Sprint 179 - Piper non-ASCII Windows path düzeltmesi + $0 e2e uçtan uca MP4 kanıtı - 2026-09-07
+
+**Status:** KOD + TEST TAMAM (henüz commit edilmedi — oturum sonu commit'i). `npx tsc --noEmit` temiz, değişen 4 dosyada `eslint` 0 problem, `git diff --check` temiz. `smoke-local-providers` 71/71 PASS (yeni `piperPathHardening` bölümü + CANLI Piper sentezi non-ASCII checkout'ta). 14 regresyon smoke yeşil (audio/readiness/e2e/acceptance/visuals). **Gerçek `PipelineRunner.run` ile $0 e2e: 10/12 stage PASS, `assembly` final MP4 üretti, `ffprobe` doğruladı. OpenAI çağrısı 0, toplam maliyet $0.0000.**
+
+### Bağlam
+Sprint 174/176'nın $0 local ($0) + Piper zincirini bu makinede (`…\Program\Atölye\atolye-v2`, GTX 1650 4GB) gerçek pipeline ile uçtan uca doğrulama. Vasıta: `scripts/e2e-local-video-ollama-piper.ts` — `PipelineRunner.run`'ı sürer (= `POST /api/pipeline` giriş noktası), `withCanonicalSmokeRuntime` içinde tüm provider'ları local'e sabitler, `OPENAI_API_KEY`'i siler, `%TEMP%` altında izole runtime kullanır (`data/projects`'e yazamaz — `assertRunOwnedContext`). `production:acceptance:execute` yolu $0 local için hâlâ readiness'te bloklu (`ProductionReadinessService` image gate `{openai,real}`, audio gate `openai` — Sprint 174 "Kalan" #2, yapılmadı).
+
+### Sorun 1 — Piper non-ASCII kurulum yolunda çöküyor
+2. e2e koşusu `audio` aşamasında sabit düştü: `AUDIO_ASSET_GENERATION_FAILED` / `AUDIO_PROVIDER_RESPONSE_INVALID`, provider `piper`. Doğrudan çağrıda piper'ın kendi hata satırı: `Error processing file '...\bin\piper\espeak-ng-data\phontab': Illegal byte sequence` — `espeak-ng-data` yolundaki `ö` bozuk kodlanmış (mojibake `At?lye`).
+**Kök neden:** `piper.exe` (bu Windows build) argv yolundaki non-ASCII karakteri dar `fopen()` ile bozuyor. Repo `Atölye` klasörü altında olduğu için her `bin/piper/...` mutlak yolunda `ö` var. Canlı test matrisi (`bin/piper/piper.exe` ö'lü mutlak yol):
+| exe | `--model` | `--espeak_data` | sonuç |
+|---|---|---|---|
+| abs (ö) | **abs (ö)** | abs ASCII kopya | ❌ `0xC0000409` (STATUS_STACK_BUFFER_OVERRUN) crash |
+| abs (ö) | rel ASCII (`bin/piper/x.onnx`) | (yok → auto ö) | ❌ status 1, espeak "Illegal byte sequence" |
+| abs (ö) | rel ASCII | rel ASCII (`bin/piper/espeak-ng-data`) | ✅ geçerli WAV |
+| abs (ö) | abs ASCII kopya | abs ASCII kopya | ✅ geçerli WAV |
+→ `piper.exe`'in kendi yolu ö olsa da sorun yok; **argv'deki** ö bozuyor. piper relative arg'ı kendi cwd'sine göre doğru çözüyor.
+
+### Sorun 2 — E2E harness geç-aşama throw'unda MP4'ü kaybediyor
+3. koşu `youtube`'a kadar ilerledi (`assembly` MP4'ü render etti) ama `youtube` throw edince (`ProductionPipelineDurableExecutionError`) harness'in MP4-koruma + `ffprobe` bloğu atlandı (o kod `PipelineRunner.run` **döndüğü** varsayımıyla yazılmış), izole workspace finalize'da silindi → MP4 kayboldu. Harness kusuru: yorumda *"a failure in a later, non-video stage does not un-render it"* diyor ama yalnız `result.success===false` (throw'suz) yolu için.
+
+### Düzeltme (minimal, additive, production pipeline'a DOKUNULMADI)
+- **`src/lib/audio/providers/AudioProviderConfig.ts`** — `PiperAudioProviderConfig`'e `espeakDataDir?`; YENİ `resolvePiperEspeakDataDir(env, exe)` — `PIPER_ESPEAK_DATA` override, yoksa binary yanı `espeak-ng-data`; **yalnız yol non-ASCII ise** yüzeye çıkar → ASCII kurulumda `undefined` = eski davranış birebir.
+- **`src/lib/audio/providers/PiperAudioProvider.ts`** — YENİ `asciiPiperPath(abs, stage)`: (1) zaten ASCII → aynen, (2) cwd'ye göre relative ASCII ise → relative form (kopya yok — bu makinede kullanılan yol), (3) yoksa `stage()` ile ASCII `os.tmpdir()`'a atomik kopya (`.staging-<pid>` → rename). `stageEspeakData` (18 MB dizin) / `stageVoiceModel` (`.onnx` + `.json` sidecar). Export `resolveSpawnableEspeakDataDir` / `resolveSpawnableVoiceModelPath`. `synthesize()` artık `--model <ascii-safe>` + koşullu `--espeak_data <ascii-safe>` geçiriyor. ASCII kurulumda spawn arg'ları birebir eski.
+- **`scripts/smoke-local-providers.ts`** — YENİ `piperPathHardening()` bölümü (config yüzeye çıkarma, espeak/model relocation, ASCII pass-through, phontab fail-safe); LIVE Piper bloğu artık `resolveSpawnableVoiceModelPath` + `resolveSpawnableEspeakDataDir` ile spawn (ö'lü checkout'ta da sentez ediyor).
+- **`scripts/e2e-local-video-ollama-piper.ts`** — `PipelineRunner.run` `try/catch` ile sarıldı: `result: T | undefined`, `pipelineThrew` yakalanır; `result?.success`, `result?.stopReason`; `projectId = result?.project.id ?? manifest.projectId` (manifest tipine `projectId?` eklendi). Geç-aşama (`youtube`/`export`) throw'unda bile `assembly` MP4'ü korunur + `ffprobe` edilir.
+
+### $0 e2e sonucu (4. koşu, düzeltmeler sonrası) — `Sultan Alparslan ve Malazgirt Meydan Muharebesi`
+`env -u OPENAI_API_KEY`, `AI_PROVIDER=ollama` `OLLAMA_MODEL=qwen2.5:3b` `OLLAMA_NUM_CTX=8192`, `IMAGE_PROVIDER=local` `AUDIO_PROVIDER=piper` `ANIMATION_PROVIDER=ollama` `THUMBNAIL_PROVIDER=local` `YOUTUBE_PROVIDER=ollama`, FFmpeg 9.0 invocation path. `.env.local` DEĞİŞTİRİLMEDİ.
+
+| Stage | Sonuç | | Stage | Sonuç |
+|---|---|---|---|---|
+| research | ✅ ollama | | video (render) | ✅ ffmpeg ×7 sahne |
+| script | ✅ ollama | | **audio** | ✅ **piper** ×8 bölüm |
+| scenes | ✅ ollama | | **assembly** | ✅ **final MP4** |
+| visuals | ✅ local ×7 | | thumbnail | ✅ local |
+| animation | ✅ ollama ×7 | | seo | ✅ ollama |
+| | | | youtube | ❌ `YOUTUBE_PACKAGE_GENERATION_FAILED` (qwen2.5:3b JSON flakiness — Sprint 174'te de aynı, dokümante) |
+| | | | export | ⏹️ çalışmadı (`youtube` throw'u pipeline'ı kesti) |
+
+**10/12 stage PASS. Final MP4 `youtube` başarısızlığına RAĞMEN korundu** (harness fix'i sayesinde) → `data/e2e-output/<slug>.mp4` (`.gitignore`'da).
+
+**`ffprobe` (bağımsız doğrulama):** container `mov,mp4,m4a,…`; **video h264 1920×1080 @ 30 fps**; **audio aac 48000 Hz stereo (2 ch)**; **duration 89.733 s**; size **6.970.219 B (~7.0 MB)**; bit_rate 621 kbps. Video + audio stream'i mevcut.
+
+**Maliyet / OpenAI:** `ai-usage.json` 29 kayıt = 21 `ollama` + 8 `piper`, HEPSİ `estimatedCost: 0`. Debug proje kopyasının tamamında `openai`/`api.openai`/`gpt-`/`sk-` araması: sıfır eşleşme. `audio.json` 8 bölüm hepsi `provider: piper`, `model: tr_TR-dfki-medium.onnx`. Harness cost report: **`TOTAL: $0.0000 (actual)`, `WITHIN BUDGET`, `Paid (non-$0) AI calls: 0`**.
+
+### Testler
+- `npx tsc --noEmit` temiz. `eslint` (4 değişen dosya) 0 problem. `git diff --check` temiz.
+- `smoke-local-providers` **71** (+`piperPathHardening`, +LIVE Piper ASCII-staged spawn).
+- Regresyon PASS: `production-audio-asset-wiring`(74), `audio-canonical-rebind-and-invalidation`(6), `audio-publication-rebind`(11/12), `phase4-audio`(9), `faz4-audio-music-sfx`(11), `sprint-129-26-audio-truncation-budget`(19), `sprint-129-27-audio-remediation`(117), `audio-compensation-descriptor-rebind`(11/12), `production-readiness-acceptance`(26), `production-end-to-end`(21), `sprint-128-1-production-acceptance`(30), `local-image-provider`(7), `production-acceptance-finalize-runtime-context`(6), `isolated-e2e-audio-rebind-assembly`(SUCCESS, gerçek FFmpeg).
+- **Gerçek $0 e2e** (yukarıda) — `PipelineRunner.run` yolu, unit/smoke değil.
+
+### Değişen dosyalar
+`src/lib/audio/providers/AudioProviderConfig.ts`, `src/lib/audio/providers/PiperAudioProvider.ts`, `scripts/smoke-local-providers.ts`, `scripts/e2e-local-video-ollama-piper.ts`. (4 dosya, +287 / −16. `data/e2e-output/` `.gitignore`'da — çalışma ağacına girmez.) `.env.local` DEĞİŞMEDİ. `data/projects/` altında 0 yazma (izole runtime). Commit/push yapılmadı.
+
+### Not / kalan
+- **`youtube` (+`export`) — qwen2.5:3b JSON yeteneği.** `OllamaYouTubeProvider` grammar-constrained schema almıyor (Sprint 176'daki `scenes`/`seo`/`assembly` deseni uygulanabilir → tam 12/12). $0, yerel. MP4 nihai çıktısını etkilemiyor (assembly 8/12'de üretiyor).
+- **Sahne süresi planı ≠ render süresi.** `scenes.json` sahne başına 206–295 s öngörmüş (3b abartısı); assembly ses-otoriteli timing ile 89.7 s'ye indirmiş — DOCUMENTARY legacy bandında (60–120 s), MP4 geçerli.
+- **Görsel:** 7/7 sahne `local` FFmpeg placeholder (`IMAGE_PROVIDER=local`). Gerçek arşiv fotoğrafı için `IMAGE_PROVIDER=real` + `ATOLYE_LOCAL_IMAGE_FALLBACK=on` + `ATOLYE_MAX_AI_IMAGES=0` (hâlâ $0, yalnız ağ).
+- **Makine ortam kirliliği (bilgi):** Windows kullanıcı env'inde `AI_PROVIDER=openai`, `IMAGE_PROVIDER=openai`, `AUDIO_PROVIDER=openai`, `THUMBNAIL/YOUTUBE_PROVIDER=openai`, `.env.local`'dekinden FARKLI ikinci canlı `OPENAI_API_KEY`, ve ölü `FFMPEG_PATH` (8.1.2) global set. `withCanonicalSmokeRuntime` DIŞINDA çalışan her şey (ör. `npm run dev`) bunu kullanır. E2e için harness + `env -u` nötrledi.
+- `ProductionReadinessService` local-provider genişletmesi (image `local`, audio `piper`) hâlâ YAPILMADI — `production:acceptance:execute` $0 yolu bloklu (Sprint 174 "Kalan" #2).
+
+<!-- SPRINT-179-END -->
+
 ## Sprint 177 - Visual Relevance Hardening: real-photo alaka kapısı fail-closed - 2026-09-02
 
 **Status:** KOD + TEST TAMAM (henüz commit edilmedi — oturum sonu commit'i). `npx tsc --noEmit` temiz, `npm run lint` 0 error (22 pre-existing warning, değişmedi), yeni `smoke-visual-relevance-hardening` 18/18 PASS, `smoke-real-photo-relevance-gate` 18/18, `smoke-production-real-photo-source` 45/45, `smoke-faz2-research-media-discovery` 14/14, tüm ilgili visual/asset/assembly regression yeşil. Gerçek ücretli API / execute YOK — hepsi stub Wikimedia + mock/deterministic.

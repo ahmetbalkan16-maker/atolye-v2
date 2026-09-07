@@ -9,6 +9,8 @@
  * E. resolveProductionProviderName — unset/mock/unknown -> "openai" (legacy),
  *    recognised local value -> that; never "mock".
  * F. acceptance fingerprint — OLLAMA_MODEL / PIPER_VOICE_MODEL are conditional.
+ * G0. Piper + non-ASCII install path — voice model / espeak-ng data are handed
+ *     to piper as ASCII paths (cwd-relative, or a staged ASCII copy).
  * G. LIVE (skipped if the tool is absent): a real Piper synthesis produces a
  *    valid WAV; a real Ollama call returns a JSON object.
  */
@@ -28,8 +30,8 @@ import { AIRouter } from "../src/lib/ai/router/AIRouter";
 import { AnimationProviderRouter } from "../src/lib/animation/providers/AnimationProviderRouter";
 import { resolveAnimationProviderName } from "../src/lib/animation/providers/AnimationProviderConfig";
 import { AudioProviderRouter } from "../src/lib/audio/providers/AudioProviderRouter";
-import { resolveAudioProviderName, getPiperAudioProviderConfig } from "../src/lib/audio/providers/AudioProviderConfig";
-import { PiperAudioProvider } from "../src/lib/audio/providers/PiperAudioProvider";
+import { resolveAudioProviderName, getPiperAudioProviderConfig, resolvePiperEspeakDataDir } from "../src/lib/audio/providers/AudioProviderConfig";
+import { PiperAudioProvider, resolveSpawnableEspeakDataDir, resolveSpawnableVoiceModelPath } from "../src/lib/audio/providers/PiperAudioProvider";
 import { ThumbnailProviderRouter } from "../src/lib/thumbnail/ThumbnailProviderRouter";
 import { resolveThumbnailProviderName } from "../src/lib/thumbnail/ThumbnailProviderConfig";
 import { YouTubeProviderRouter } from "../src/lib/youtube/YouTubeProviderRouter";
@@ -290,6 +292,96 @@ async function fingerprint() {
   pass(c.configurationFingerprint !== a.configurationFingerprint, "explicit OLLAMA_MODEL folds into the fingerprint");
 }
 
+// G0 — Piper + non-ASCII install path. This piper build corrupts non-ASCII
+//      characters in an argv path: the voice model crashes it (0xC0000409),
+//      espeak-ng data throws "Illegal byte sequence". The provider must feed
+//      piper ASCII paths (cwd-relative form, or a staged ASCII copy).
+function piperPathHardening() {
+  const stageRoot = path.join(os.tmpdir(), "atolye-piper");
+
+  // --- config: when does --espeak_data get surfaced at all? -------------
+  pass(
+    resolvePiperEspeakDataDir(env({}), "C:/tools/piper/piper.exe") === undefined,
+    "espeak: ASCII binary path -> no --espeak_data (legacy auto-discovery)",
+  );
+  pass(
+    resolvePiperEspeakDataDir(env({}), "C:/Atölye/piper/piper.exe") ===
+      path.join(path.resolve("C:/Atölye/piper"), "espeak-ng-data"),
+    "espeak: non-ASCII binary path -> espeak-ng-data dir surfaced for --espeak_data",
+  );
+  pass(
+    resolvePiperEspeakDataDir(env({ PIPER_ESPEAK_DATA: "D:/espeak-data" }), "C:/x/piper.exe") ===
+      "D:/espeak-data",
+    "espeak: PIPER_ESPEAK_DATA override honoured verbatim",
+  );
+
+  // --- espeak data dir resolution -------------------------------------
+  pass(resolveSpawnableEspeakDataDir(undefined) === undefined, "espeak: no dir -> no --espeak_data");
+  pass(
+    resolveSpawnableEspeakDataDir(path.join(os.tmpdir(), `atolye-espeak-absent-${Date.now().toString(36)}`)) === undefined,
+    "espeak: dir without a phontab sentinel -> no --espeak_data (fail-safe)",
+  );
+  const asciiSrc = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-espeak-ascii-"));
+  try {
+    fs.writeFileSync(path.join(asciiSrc, "phontab"), "x");
+    pass(
+      resolveSpawnableEspeakDataDir(asciiSrc) === path.resolve(asciiSrc),
+      "espeak: ASCII data dir is used in place (no needless copy)",
+    );
+  } finally {
+    fs.rmSync(asciiSrc, { recursive: true, force: true });
+  }
+
+  // --- non-ASCII source -> staged ASCII copy (dir + model+sidecar) ----
+  if (isAsciiPath(os.tmpdir())) {
+    const nonAsciiSrc = fs.mkdtempSync(path.join(os.tmpdir(), "atölye-piper-src-"));
+    try {
+      fs.rmSync(stageRoot, { recursive: true, force: true });
+      fs.writeFileSync(path.join(nonAsciiSrc, "phontab"), "x");
+      fs.writeFileSync(path.join(nonAsciiSrc, "intonations"), "y");
+      const relocated = resolveSpawnableEspeakDataDir(nonAsciiSrc);
+      pass(
+        typeof relocated === "string" && isAsciiPath(relocated) &&
+          fs.existsSync(path.join(relocated, "phontab")) &&
+          fs.existsSync(path.join(relocated, "intonations")),
+        "espeak: non-ASCII data dir is relocated to an ASCII copy with its contents",
+      );
+
+      const modelSrc = path.join(nonAsciiSrc, "voice.onnx");
+      fs.writeFileSync(modelSrc, "onnx-bytes");
+      fs.writeFileSync(`${modelSrc}.json`, "{}");
+      const stagedModel = resolveSpawnableVoiceModelPath(modelSrc);
+      pass(
+        isAsciiPath(stagedModel) && fs.existsSync(stagedModel) &&
+          fs.existsSync(`${stagedModel}.json`) &&
+          fs.readFileSync(stagedModel, "utf8") === "onnx-bytes",
+        "voice model: non-ASCII path is staged to an ASCII copy with its .json sidecar",
+      );
+    } finally {
+      fs.rmSync(nonAsciiSrc, { recursive: true, force: true });
+      fs.rmSync(stageRoot, { recursive: true, force: true });
+    }
+  } else {
+    console.log("piper staging: skipped (os.tmpdir() is itself non-ASCII)");
+  }
+
+  // --- an ASCII model path is passed through untouched (no copy) ------
+  const asciiModel = path.join(os.tmpdir(), `atolye-voice-${Date.now().toString(36)}.onnx`);
+  try {
+    fs.writeFileSync(asciiModel, "x");
+    pass(
+      resolveSpawnableVoiceModelPath(asciiModel) === path.resolve(asciiModel),
+      "voice model: ASCII path is used as-is",
+    );
+  } finally {
+    fs.rmSync(asciiModel, { force: true });
+  }
+}
+
+function isAsciiPath(value: string): boolean {
+  return !/[^ -~]/.test(value);
+}
+
 // G ------------------------------------------------------------------------
 async function live() {
   const piperExe = path.resolve("bin/piper", process.platform === "win32" ? "piper.exe" : "piper");
@@ -304,7 +396,16 @@ async function live() {
   if (fs.existsSync(piperExe) && fs.existsSync(voice)) {
     const { spawnSync } = await import("node:child_process");
     const out = path.join(os.tmpdir(), `atolye-piper-live-${Date.now().toString(36)}.wav`);
-    const r = spawnSync(piperExe, ["--model", voice, "--output_file", out], {
+    // Match the provider's spawn exactly: ASCII-safe --model + --espeak_data so
+    // a checkout on a non-ASCII path (".../Atölye/...") still synthesises
+    // instead of crashing / "Illegal byte sequence".
+    const modelArg = resolveSpawnableVoiceModelPath(voice);
+    const espeakDataDir = resolveSpawnableEspeakDataDir(cfg.espeakDataDir);
+    const staged = modelArg !== voice || Boolean(espeakDataDir);
+    const r = spawnSync(piperExe, [
+      "--model", modelArg, "--output_file", out,
+      ...(espeakDataDir ? ["--espeak_data", espeakDataDir] : []),
+    ], {
       input: "Bu, yerel Piper seslendirme sağlayıcısının canlı testidir.",
       timeout: 60_000,
       windowsHide: true,
@@ -313,7 +414,7 @@ async function live() {
     const validWav = wav.length > 44 &&
       wav.toString("ascii", 0, 4) === "RIFF" && wav.toString("ascii", 8, 12) === "WAVE" &&
       wav.readUInt16LE(22) === 1 && wav.readUInt32LE(24) >= 8_000;
-    pass(validWav, `LIVE: Piper synthesised a valid ${wav.readUInt32LE(24)}Hz mono WAV (${wav.length} bytes)`);
+    pass(validWav, `LIVE: Piper synthesised a valid ${validWav ? wav.readUInt32LE(24) : "?"}Hz mono WAV (${wav.length} bytes)${staged ? " [ASCII-staged paths]" : ""}`);
     try { fs.rmSync(out, { force: true }); } catch { /* best-effort */ }
   } else {
     console.log("LIVE Piper: skipped (bin/piper not installed)");
@@ -542,6 +643,7 @@ async function main() {
   pricing();
   productionResolution();
   await fingerprint();
+  piperPathHardening();
   await strictGrammarForwarding();
   await live();
   await localThumbnailEndToEnd();

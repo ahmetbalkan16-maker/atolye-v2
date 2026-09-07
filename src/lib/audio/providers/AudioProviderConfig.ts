@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { AudioProviderName } from "@/types/audio";
 import { AUDIO_STORAGE_MAX_BYTES } from "@/lib/assets/storage/AudioStorage";
 import {
@@ -66,10 +67,23 @@ export function resolveAudioProviderName(
  *                        `bin/piper/tr_TR-dfki-medium.onnx`)
  *  - `PIPER_TIMEOUT_MS`  per-section synthesis timeout (default 120 000)
  *  - `PIPER_SPEAKER`     multi-speaker voice index (optional integer)
+ *  - `PIPER_ESPEAK_DATA` explicit espeak-ng data directory. Default: the
+ *                        `espeak-ng-data` folder next to the binary. Piper
+ *                        auto-discovers it there, but espeak-ng's narrow
+ *                        `fopen()` fails ("Illegal byte sequence") when that
+ *                        absolute path holds a non-ASCII character (e.g. a
+ *                        checkout under `.../Atölye/...`); in that case the
+ *                        provider passes an explicit ASCII `--espeak_data`.
  */
 export interface PiperAudioProviderConfig {
   readonly executablePath: string;
   readonly voiceModelPath: string;
+  /**
+   * espeak-ng data directory to hand piper as `--espeak_data`, or `undefined`
+   * to keep piper's zero-arg auto-discovery (the historical behaviour, still
+   * used on ASCII install paths).
+   */
+  readonly espeakDataDir?: string;
   readonly mimeType: "audio/wav";
   readonly maxInputCharacters: number;
   readonly timeoutMs: number;
@@ -84,6 +98,7 @@ export function getPiperAudioProviderConfig(
     (isWindows ? "bin/piper/piper.exe" : "bin/piper/piper");
   const voiceModelPath = env.PIPER_VOICE_MODEL?.trim() ||
     "bin/piper/tr_TR-dfki-medium.onnx";
+  const espeakDataDir = resolvePiperEspeakDataDir(env, executablePath);
   const timeoutMs = resolveIntegerConfigValue(
     env.PIPER_TIMEOUT_MS, 120_000, 1_000, 900_000,
   );
@@ -92,11 +107,36 @@ export function getPiperAudioProviderConfig(
   return Object.freeze({
     executablePath,
     voiceModelPath,
+    ...(espeakDataDir !== undefined ? { espeakDataDir } : {}),
     mimeType: "audio/wav",
     maxInputCharacters: 20_000,
     timeoutMs,
     ...(speaker !== undefined ? { speaker } : {}),
   });
+}
+
+/**
+ * The espeak-ng data directory piper should be told to use, or `undefined` to
+ * keep piper's own zero-arg discovery (byte-identical to the legacy call on
+ * ASCII install paths).
+ *
+ * espeak-ng — bundled inside `piper` — opens its data files with a narrow
+ * `fopen()`. On Windows that fails with "Illegal byte sequence" when the
+ * absolute path contains a non-ASCII character (e.g. a checkout under
+ * `.../Atölye/...`). Only then (or when `PIPER_ESPEAK_DATA` is set explicitly)
+ * do we surface the directory so the provider can pass an ASCII `--espeak_data`.
+ */
+export function resolvePiperEspeakDataDir(
+  env: NodeJS.ProcessEnv,
+  executablePath: string,
+): string | undefined {
+  const override = env.PIPER_ESPEAK_DATA?.trim();
+  if (override) return override;
+  const auto = path.join(
+    path.dirname(path.resolve(executablePath)),
+    "espeak-ng-data",
+  );
+  return /[^ -~]/.test(auto) ? auto : undefined;
 }
 
 export function getOpenAIAudioProviderConfig(): OpenAIAudioProviderConfig {

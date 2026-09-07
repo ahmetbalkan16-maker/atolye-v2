@@ -142,14 +142,25 @@ async function main() {
   }, async (runtime) => {
     const root = path.join(runtime.runtimeStorageContext.projectsRoot, runtime.projectSlug);
 
-    const result = await PipelineRunner.run(topic, {
-      stageExecution: {
-        // Nothing injected — every provider resolves from the env above.
-        youtubePublishProvider: new MockYouTubePublishProvider(),
-      },
-    });
+    // A throw from a late, non-video stage (youtube / export) must NOT lose the
+    // MP4 that `assembly` already rendered: capture it and fall through to the
+    // same preserve + ffprobe path used for a non-throwing `result.success===false`.
+    let result: Awaited<ReturnType<typeof PipelineRunner.run>> | undefined;
+    let pipelineThrew: unknown;
+    try {
+      result = await PipelineRunner.run(topic, {
+        stageExecution: {
+          // Nothing injected — every provider resolves from the env above.
+          youtubePublishProvider: new MockYouTubePublishProvider(),
+        },
+      });
+    } catch (error) {
+      pipelineThrew = error;
+      console.log(`\nPIPELINE THREW: ${error instanceof Error ? error.message : String(error)}`);
+    }
 
     const manifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "utf8")) as {
+      projectId?: string;
       packages?: Record<string, { status?: string; error?: string }>;
     };
     console.log("\n--- stage status ---");
@@ -158,9 +169,9 @@ async function main() {
       console.log(`  ${stage.padEnd(10)} ${pkg?.status ?? "?"}${pkg?.error ? " (" + pkg.error + ")" : ""}`);
     }
 
-    const pipelineComplete = result.success === true;
+    const pipelineComplete = result?.success === true;
     if (!pipelineComplete) {
-      console.log(`\nPIPELINE INCOMPLETE: ${result.stopReason ?? "unknown"} — checking for a rendered MP4 anyway…`);
+      console.log(`\nPIPELINE INCOMPLETE: ${pipelineThrew ? "stage threw" : (result?.stopReason ?? "unknown")} — checking for a rendered MP4 anyway…`);
       // Dump what's still on disk for the failed stage so the run is debuggable
       // (the temp runtime is wiped on exit).
       const readJson = (name: string): unknown => {
@@ -192,9 +203,11 @@ async function main() {
     }
 
     // The final MP4 exists once `assembly` completes (stage 8 of 12) — a failure
-    // in a later, non-video stage (thumbnail / seo / youtube / export) does not
-    // un-render it. Verify + preserve it regardless of `result.success`.
-    const assets = AssetManager.getProjectAssets(slug, result.project.id);
+    // in a later, non-video stage (thumbnail / seo / youtube / export), whether it
+    // returns `success:false` or throws, does not un-render it. Verify + preserve.
+    const projectId = result?.project.id ?? manifest.projectId;
+    assert.ok(projectId, "no project id (manifest.projectId missing)");
+    const assets = AssetManager.getProjectAssets(slug, projectId);
     const video = [...assets.assets].reverse().find((a) => a.type === "video" && a.status === "generated");
     assert.ok(video, "no generated video asset (assembly did not complete)");
     const renderedPath = resolveRuntimeLogicalPath(String(video.filePath), runtime.runtimeStorageContext);
