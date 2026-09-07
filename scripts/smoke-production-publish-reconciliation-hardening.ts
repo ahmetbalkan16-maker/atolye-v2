@@ -54,6 +54,18 @@ let baselineAssets: ProjectAssets;
 let passed = 0;
 
 async function main() {
+  // The /api/youtube route resolves the package provider from YOUTUBE_PROVIDER
+  // (and, transitively, the AI provider). This suite drives it with mock
+  // fixtures and expects the deterministic mock package path, so pin the
+  // provider selection instead of inheriting an ambient AI_PROVIDER=ollama etc.
+  const providerEnv = {
+    YOUTUBE_PROVIDER: process.env.YOUTUBE_PROVIDER,
+    AI_PROVIDER: process.env.AI_PROVIDER,
+    ANIMATION_PROVIDER: process.env.ANIMATION_PROVIDER,
+  };
+  delete process.env.YOUTUBE_PROVIDER;
+  delete process.env.AI_PROVIDER;
+  delete process.env.ANIMATION_PROVIDER;
   try {
     await setup();
     await canonicalAndReceiptPaths();
@@ -68,6 +80,9 @@ async function main() {
     delete process.env.YOUTUBE_PUBLISH_PROVIDER;
     delete process.env.YOUTUBE_ACCESS_TOKEN;
     delete process.env.YOUTUBE_CHANNEL_ID;
+    for (const [k, v] of Object.entries(providerEnv)) {
+      if (v === undefined) delete process.env[k]; else process.env[k] = v;
+    }
   }
 }
 
