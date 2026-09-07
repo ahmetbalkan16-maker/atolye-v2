@@ -86,6 +86,7 @@ async function run() {
   trace("thumbnail-provider-local"); await verifyLocalThumbnailIsAdmissible();
   trace("mock-animation"); await verifyMockAnimationIsBlocked();
   trace("ollama-ai-chain"); await verifyOllamaAiChainIsAdmissible();
+  trace("fully-local-no-key"); await verifyFullyLocalProductionNeedsNoOpenAiKey();
   verifyReadinessCheckSetValidation(readiness);
   trace("strict-ai"); await verifyStrictAIProviderFailure();
   trace("strict-thumbnail"); await verifyStrictThumbnailFailure();
@@ -322,6 +323,72 @@ async function verifyLocalThumbnailIsAdmissible() {
   const bogus = find(bogusReport, "thumbnail-provider");
   assert.equal(bogus.status, "INVALID");
   assert.equal(bogus.reasonCode, "THUMBNAIL_PROVIDER_INVALID");
+}
+
+async function verifyFullyLocalProductionNeedsNoOpenAiKey() {
+  // The $0 combo (Ollama text/animation/youtube, Piper TTS, local thumbnail,
+  // `real` images with the paid AI fallback pinned OFF) makes no OpenAI request,
+  // so `production:acceptance` must not be blocked on a missing OPENAI_API_KEY.
+  // `provider-selection` compares AI_PROVIDER against the global aiProviderConfig
+  // snapshot, so — as in verifyOllamaAiChainIsAdmissible — drive it through the
+  // real process env.
+  const keys = [
+    "AI_PROVIDER", "ANIMATION_PROVIDER", "YOUTUBE_PROVIDER", "AUDIO_PROVIDER",
+    "THUMBNAIL_PROVIDER", "IMAGE_PROVIDER", "VIDEO_PROVIDER", "VIDEO_ASSEMBLY_PROVIDER",
+    "ATOLYE_LOCAL_IMAGE_FALLBACK", "ATOLYE_MAX_AI_IMAGES", "OLLAMA_HOST", "OLLAMA_MODEL",
+    "OPENAI_API_KEY",
+  ] as const;
+  const restore = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
+  const applyEnv = (values: Partial<Record<(typeof keys)[number], string | undefined>>) => {
+    for (const k of keys) {
+      const v = values[k];
+      if (v === undefined) delete process.env[k]; else process.env[k] = v;
+    }
+  };
+  const localCombo: Partial<Record<(typeof keys)[number], string | undefined>> = {
+    AI_PROVIDER: "ollama", ANIMATION_PROVIDER: "ollama", YOUTUBE_PROVIDER: "ollama",
+    AUDIO_PROVIDER: "piper", THUMBNAIL_PROVIDER: "local", IMAGE_PROVIDER: "real",
+    VIDEO_PROVIDER: "ffmpeg", VIDEO_ASSEMBLY_PROVIDER: "ffmpeg",
+    ATOLYE_LOCAL_IMAGE_FALLBACK: "on", ATOLYE_MAX_AI_IMAGES: "0",
+    OLLAMA_HOST: "http://127.0.0.1:11434", OLLAMA_MODEL: "qwen2.5:3b",
+    OPENAI_API_KEY: undefined,
+  };
+  try {
+    applyEnv(localCombo);
+    const local = await new ProductionReadinessService().evaluate();
+    assert.equal(find(local, "api-key").status, "READY",
+      "fully-local $0 production -> api-key READY without an OpenAI key");
+    assert.equal(find(local, "api-key").reasonCode, "API_KEY_NOT_REQUIRED_LOCAL");
+    assert.equal(find(local, "audio-provider").status, "READY",
+      "AUDIO_PROVIDER=piper -> audio-provider READY");
+    assert.equal(find(local, "audio-provider").reasonCode, "AUDIO_PROVIDER_READY");
+    for (const id of ["environment", "provider-selection", "provider-endpoint"] as const) {
+      assert.notEqual(find(local, id).status, "INVALID",
+        `${id} must not be INVALID for the fully-local $0 combo (got ${find(local, id).reasonCode})`);
+    }
+
+    // `real` images with a live AI fallback (budget > 0) still need the key.
+    applyEnv({ ...localCombo, ATOLYE_MAX_AI_IMAGES: "6" });
+    const budgeted = await new ProductionReadinessService().evaluate();
+    assert.equal(find(budgeted, "api-key").status, "NOT_CONFIGURED",
+      "real images with ATOLYE_MAX_AI_IMAGES>0 still require the OpenAI key");
+    assert.equal(find(budgeted, "api-key").reasonCode, "API_KEY_MISSING");
+
+    // A single OpenAI-backed stage still requires the key.
+    applyEnv({ ...localCombo, AUDIO_PROVIDER: "openai" });
+    const openaiAudio = await new ProductionReadinessService().evaluate();
+    assert.equal(find(openaiAudio, "api-key").status, "NOT_CONFIGURED",
+      "AUDIO_PROVIDER=openai (not fully local) still requires the OpenAI key");
+
+    // The key, when present, is honoured unchanged.
+    applyEnv({ ...localCombo, OPENAI_API_KEY: "sk-test-fixture" });
+    const withKey = await new ProductionReadinessService().evaluate();
+    assert.equal(find(withKey, "api-key").reasonCode, "API_KEY_CONFIGURED");
+  } finally {
+    for (const [k, v] of Object.entries(restore)) {
+      if (v === undefined) delete process.env[k]; else process.env[k] = v;
+    }
+  }
 }
 
 async function verifyOllamaAiChainIsAdmissible() {

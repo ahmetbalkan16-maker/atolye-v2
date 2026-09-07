@@ -16,8 +16,11 @@ import { ThumbnailStorage } from "@/lib/thumbnail/ThumbnailStorage";
 import { FileStorage } from "@/lib/storage/FileStorage";
 import {
   getOpenAIImageProviderConfig,
+  isLocalImageFallbackEnabled,
   resolveImageProviderName,
 } from "@/lib/assets/providers/ImageProviderConfig";
+import { resolveMaxAiImages } from "@/lib/assets/VisualMediaAdmissionPolicy";
+import { isFullyLocalProduction } from "@/lib/production/ProductionProviderResolution";
 import { AudioProviderRouter } from "@/lib/audio/providers/AudioProviderRouter";
 import {
   getOpenAIAudioProviderConfig,
@@ -153,7 +156,7 @@ export class ProductionReadinessService {
   private providerChecks(): ProductionReadinessCheck[] {
     return [
       imageProviderCheck(this.environment),
-      providerCheck("audio-provider", this.environment.AUDIO_PROVIDER, "openai", () =>
+      providerCheck("audio-provider", this.environment.AUDIO_PROVIDER, ["openai", "piper"], () =>
         AudioProviderRouter.getProvider(resolveAudioProviderName(this.environment.AUDIO_PROVIDER))),
       animationProviderCheck(this.environment),
       providerCheck("video-provider", this.environment.VIDEO_PROVIDER, "ffmpeg", () =>
@@ -180,9 +183,16 @@ export class ProductionReadinessService {
   }
 
   private apiKeyCheck() {
-    return readValue(this.environment.OPENAI_API_KEY)
-      ? check("api-key", "READY", "API_KEY_CONFIGURED")
-      : check("api-key", "NOT_CONFIGURED", "API_KEY_MISSING");
+    if (readValue(this.environment.OPENAI_API_KEY)) {
+      return check("api-key", "READY", "API_KEY_CONFIGURED");
+    }
+    // A fully-local ($0) production makes no OpenAI request, so the key is not
+    // required. `real` images are only key-free when the per-scene AI fallback
+    // cannot fire — local placeholder on AND the AI-image budget pinned to 0.
+    if (productionNeedsNoOpenAiKey(this.environment)) {
+      return check("api-key", "READY", "API_KEY_NOT_REQUIRED_LOCAL");
+    }
+    return check("api-key", "NOT_CONFIGURED", "API_KEY_MISSING");
   }
 
   private modelConfigurationCheck() {
@@ -622,6 +632,20 @@ function mediaChecksWithoutWorkspace(environment: NodeJS.ProcessEnv): Production
     check("ffmpeg", "BLOCKED", "FFMPEG_BLOCKED_BY_STORAGE"),
     check("ffprobe", "BLOCKED", "FFPROBE_BLOCKED_BY_STORAGE"),
   ];
+}
+
+/**
+ * `true` when no pipeline stage will call OpenAI, so `production:acceptance`
+ * needs no `OPENAI_API_KEY`. Every domain must resolve to a local ($0) provider
+ * (`isFullyLocalProduction`), and — because `IMAGE_PROVIDER=real` can still fall
+ * back to a paid AI image — a `real` image provider only qualifies when that
+ * fallback is provably disabled: the local placeholder is on AND the per-render
+ * AI-image budget is exactly 0.
+ */
+function productionNeedsNoOpenAiKey(environment: NodeJS.ProcessEnv): boolean {
+  if (!isFullyLocalProduction(environment)) return false;
+  if (normalize(environment.IMAGE_PROVIDER) !== "real") return true;
+  return isLocalImageFallbackEnabled(environment) && resolveMaxAiImages(environment) === 0;
 }
 
 function providerCheck(id: ProductionReadinessCheckId, raw: string | undefined, expected: string | readonly string[], create: () => { name: string }): ProductionReadinessCheck {
