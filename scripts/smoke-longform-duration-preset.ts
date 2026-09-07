@@ -32,6 +32,13 @@ import {
   resolveCanonicalSceneProviderSchema,
   validateProviderScenes,
 } from "../src/lib/ai/SceneStructuredOutput";
+import {
+  canonicalScriptProviderSchema,
+  resolveCanonicalScriptProviderSchema,
+  resolveScriptContentBudget,
+  validateProviderScript,
+} from "../src/lib/ai/ScriptStructuredOutput";
+import { getScriptMaxTokens, scriptTokenBudget } from "../src/lib/ai/ScriptAIConfig";
 import type { ScriptData, ScriptChapter } from "../src/types/script";
 import type { SceneData } from "../src/types/scene";
 
@@ -199,11 +206,97 @@ function scenePromptScales() {
   pass(/Never exceed \d{2,} scenes/.test(prompt), "documentary scenes prompt raises the hard scene cap");
 }
 
+// E — Sprint 178C: the strict SCRIPT schema/config honor the preset band too, so
+// a preset that asks the model for 9 chapters is not then rejected at 7.
+function providerScript(chapterCount: number, narrationChars: number): Record<string, unknown> {
+  return {
+    topic: "t", title: "T", subtitle: "S", hook: "H", introduction: "I",
+    chapters: Array.from({ length: chapterCount }, (_, i) => ({
+      id: i + 1, title: `B${i + 1}`, narration: "a".repeat(narrationChars),
+      duration: 60, visualGoal: "g", emotion: "e", transition: "x",
+    })),
+    conclusion: "C", callToAction: "K", estimatedDuration: 60 * chapterCount,
+    narrationWordCount: chapterCount, targetAudience: "genel", language: "tr",
+    voiceStyle: "documentary", musicStyle: "cinematic", thumbnailIdea: "T",
+    seoKeywords: ["k"],
+  };
+}
+function scriptContractHonorsBand() {
+  const legacyEnv = env({});
+  const docEnv = env({ ATOLYE_QUALITY_PRESET: "documentary" });
+
+  // A' — no preset: byte-identical legacy contract.
+  const legacyBudget = resolveScriptContentBudget(legacyEnv);
+  pass(
+    legacyBudget.chapterCount === 5 && legacyBudget.schemaChapterMin === 4 &&
+      legacyBudget.schemaChapterMax === 7 && legacyBudget.schemaNarrationMaxLength === 1200 &&
+      legacyBudget.perChapterMinChars === 260 && legacyBudget.perChapterMaxChars === 340 &&
+      legacyBudget.totalLowChars === 1300 && legacyBudget.totalHighChars === 1450,
+    "no preset -> script content budget is the frozen legacy contract",
+  );
+  assert.deepEqual(
+    resolveCanonicalScriptProviderSchema(legacyEnv),
+    canonicalScriptProviderSchema,
+    "no preset -> canonical script schema is deep-equal to the legacy frozen schema",
+  );
+  scenarios += 1;
+  pass(getScriptMaxTokens(legacyEnv) === 3200, "no preset -> script maxTokens is the legacy 3200 default");
+  pass(
+    validateProviderScript(providerScript(5, 300), legacyEnv) === undefined,
+    "no preset -> a legal 5-chapter script validates",
+  );
+
+  // B' — documentary: chapter count + narration ceiling scale with the prompt.
+  const docChapters = resolveScriptChapterCount(docEnv); // 9
+  const docBudget = resolveScriptContentBudget(docEnv);
+  pass(docBudget.chapterCount === docChapters, "documentary -> budget chapter count == resolveScriptChapterCount");
+  pass(
+    docBudget.schemaChapterMin <= docChapters && docChapters <= docBudget.schemaChapterMax,
+    "documentary -> validator chapter band contains the requested chapter count",
+  );
+  pass(
+    docBudget.schemaNarrationMaxLength >= docBudget.perChapterMaxChars,
+    "documentary -> validator narration ceiling >= prompt per-chapter max (no prompt/validator conflict)",
+  );
+  pass(docBudget.schemaNarrationMaxLength >= 1200, "documentary -> narration ceiling never drops below legacy 1200");
+
+  // C' — validateProviderScript honors the band.
+  pass(
+    validateProviderScript(providerScript(docChapters, docBudget.perChapterMaxChars), docEnv) === undefined,
+    `documentary -> a ${docChapters}-chapter script at the prompt's per-chapter max validates`,
+  );
+  const legacyRejects = validateProviderScript(providerScript(docChapters, 300), legacyEnv);
+  pass(
+    !!legacyRejects && legacyRejects.issues.some((i) => i.reason === "MAX_ITEMS"),
+    `no preset -> the same ${docChapters}-chapter script is rejected (MAX_ITEMS)`,
+  );
+  const docRejectsHuge = validateProviderScript(
+    providerScript(docChapters, docBudget.schemaNarrationMaxLength + 500),
+    docEnv,
+  );
+  pass(
+    !!docRejectsHuge && docRejectsHuge.issues.some((i) => i.reason === "MAX_LENGTH"),
+    "documentary -> pathological over-length narration is still rejected (validator not loosened to accept-anything)",
+  );
+
+  // D' — token budget stays inside a single Ollama num_ctx=8192 window.
+  pass(
+    getScriptMaxTokens(docEnv) === scriptTokenBudget.presetDefaultTokens,
+    "documentary -> script maxTokens uses the preset default",
+  );
+  const PROMPT_TOKENS_GENEROUS = 2300; // measured ~1555 on the real qwen probe; margin for a fuller research block
+  pass(
+    scriptTokenBudget.presetMaximumTokens + PROMPT_TOKENS_GENEROUS <= 8192,
+    "documentary -> preset script maxTokens ceiling + a generous prompt estimate fits num_ctx=8192",
+  );
+}
+
 function main() {
   backwardCompat();
   explicitWidens();
   validatorsHonorBand();
   scenePromptScales();
+  scriptContractHonorsBand();
   console.log(`longform duration preset smoke: PASS (${scenarios} scenarios)`);
   emitSmokeResult("longform-duration-preset", scenarios);
 }

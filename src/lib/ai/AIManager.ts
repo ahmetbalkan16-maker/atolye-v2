@@ -12,7 +12,10 @@ import { AIResponseError } from "./AIResponseError";
 import { getResearchMaxTokens, ResearchAIConfigError } from "./ResearchAIConfig";
 import { getScriptMaxTokens, ScriptAIConfigError } from "./ScriptAIConfig";
 import { getSceneMaxTokens, SceneAIConfigError } from "./SceneAIConfig";
-import { parseStrictScriptResponse } from "./ScriptStructuredOutput";
+import {
+  parseStrictScriptResponse,
+  resolveScriptContentBudget,
+} from "./ScriptStructuredOutput";
 import {
   buildScenesResponseJsonSchema,
   createScenesPrompt,
@@ -20,10 +23,7 @@ import {
 } from "./SceneStructuredOutput";
 import { formatResearchForPrompt } from "./ResearchPromptContext";
 import { resolveProductionAcceptanceDuration } from "@/lib/production/ProductionAcceptancePreflight";
-import {
-  isExplicitQualityPreset,
-  resolveScriptChapterCount,
-} from "@/lib/production/QualityPreset";
+import { isExplicitQualityPreset } from "@/lib/production/QualityPreset";
 import {
   countNarrationWords,
   DEFAULT_CHARACTERS_PER_SECOND,
@@ -102,19 +102,18 @@ function strictScriptDurationPromptLines(env: NodeJS.ProcessEnv = process.env): 
       `- Narration budget (strict - it directly sets the final video length, and a script whose narration does not fit 60-120 seconds at ${cps.toFixed(1)} chars/sec is rejected): every chapter's narration must be at least 260 characters (this is a hard minimum - shorter narration produces a video that is too short and is rejected) and at most 340 characters; the five chapters' narration combined should total roughly 1300 to 1450 characters (about 92-103 seconds). Write full, detailed documentary paragraphs, not one-liners.`,
     ];
   }
+  // Single source of truth with the strict SCHEMA VALIDATOR
+  // (`validateProviderScript` / `resolveScriptContentBudget`): the chapter count
+  // and per-chapter character budget the prompt asks for are exactly what the
+  // validator then enforces (with a small tolerance), so a preset can never ask
+  // for 9 chapters while the validator caps at 7 (the Sprint 178 probe).
+  const budget = resolveScriptContentBudget(env);
   const band = resolveProductionAcceptanceDuration(env);
-  const chapters = resolveScriptChapterCount(env);
-  const perChapterSeconds = band.targetSeconds / chapters;
-  const perChapterChars = Math.round(perChapterSeconds * cps);
-  const minChars = Math.round(perChapterChars * 0.82);
-  const maxChars = Math.round(perChapterChars * 1.2);
-  const totalLow = Math.round(band.minimumSeconds * cps);
-  const totalHigh = Math.round(band.maximumSeconds * cps);
   return [
-    `- Override the chapter-count range above: create exactly ${chapters} chapters (this is an ~${Math.round(band.targetSeconds / 60)} minute documentary).`,
+    `- Override the chapter-count range above: create exactly ${budget.chapterCount} chapters (this is an ~${Math.round(band.targetSeconds / 60)} minute documentary).`,
     `- Production acceptance estimatedDuration must be between ${band.minimumSeconds} and ${band.maximumSeconds} seconds; target ${band.targetSeconds} seconds.`,
     `- The sum of chapter durations must match estimatedDuration within ${band.toleranceSeconds} seconds.`,
-    `- Narration budget (strict - it directly sets the final video length, and a script whose narration does not fit ${band.minimumSeconds}-${band.maximumSeconds} seconds at ${cps.toFixed(1)} chars/sec is rejected): every chapter's narration must be between about ${minChars} and ${maxChars} characters; the ${chapters} chapters' narration combined should total roughly ${totalLow} to ${totalHigh} characters. Write full, detailed documentary paragraphs, not one-liners.`,
+    `- Narration budget (strict - it directly sets the final video length, and a script whose narration does not fit ${band.minimumSeconds}-${band.maximumSeconds} seconds at ${cps.toFixed(1)} chars/sec is rejected): every chapter's narration must be between about ${budget.perChapterMinChars} and ${budget.perChapterMaxChars} characters; the ${budget.chapterCount} chapters' narration combined should total roughly ${budget.totalLowChars} to ${budget.totalHighChars} characters. Write full, detailed documentary paragraphs, not one-liners.`,
   ];
 }
 
@@ -326,7 +325,10 @@ export class AIManager {
       }
 
       const parsed = policy?.failClosed
-        ? parseStrictScriptResponse(response)
+        // Pass the active env explicitly so the strict schema validator resolves
+        // the same quality-preset chapter/narration contract the prompt above was
+        // built from (`strictScriptDurationPromptLines`).
+        ? parseStrictScriptResponse(response, undefined, process.env)
         : parseAIJsonResponse<Partial<ScriptData>>(response);
 
       const rawChapters: ScriptChapter[] = Array.isArray(parsed.chapters)
