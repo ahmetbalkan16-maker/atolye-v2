@@ -1,5 +1,31 @@
 ---
 
+## Sprint 177 - Visual Relevance Hardening: real-photo alaka kapısı fail-closed - 2026-09-02
+
+**Status:** KOD + TEST TAMAM (henüz commit edilmedi — oturum sonu commit'i). `npx tsc --noEmit` temiz, `npm run lint` 0 error (22 pre-existing warning, değişmedi), yeni `smoke-visual-relevance-hardening` 18/18 PASS, `smoke-real-photo-relevance-gate` 18/18, `smoke-production-real-photo-source` 45/45, `smoke-faz2-research-media-discovery` 14/14, tüm ilgili visual/asset/assembly regression yeşil. Gerçek ücretli API / execute YOK — hepsi stub Wikimedia + mock/deterministic.
+
+### Sorun (kullanıcı raporu)
+Son gerçek videoda (`302ce03f`, 2026-08-30, `IMAGE_PROVIDER=real`) sahne görselleri konuyla alakasızdı: `assets.json` kanıtı — modern Edirne sokakları (Saraçlar Caddesi ×3), **Papa Urban I ahşap heykeli** (top dökümcüsü "Urban" sahnesi için), FSM Köprüsü, Haliç Tersanesi 2015, "İstanbul Çingeneleri ve Oranları" demografik grafik, "Blessed Giovanni Giustiniani and Saints" (yanlış namesake), Boğaz Şehitliği anıtı. `scenes.json` scene 4 `searchKeywords[0] = "Urban"` (çıplak namesake).
+
+### Kök neden (kod kanıtıyla)
+`RealPhotoImageProvider.rankEligibleCandidates` (relevance gate) alakayı YALNIZCA **arama query'si ↔ aday dosya BAŞLIĞI** sözlüksel örtüşmesinden (`titleMatchScore >= 0.34`) türetiyordu + elle tutulan blocklist (`MODERN_INFRA_WORDS`, `WRONG_CONTEXT_WORDS`). Sahnenin kendi konusu/dönemi hakkında pozitif kanıt aramıyordu. `df30976` (Sprint 173, 302ce03f'den SONRA) blocklist'leri + `MIN_SELECTION_SCORE` ekleyerek 302ce03f'nin *spesifik* vakalarını kapattı ama yapısal delikler kaldı: (1) jenerik/namesake query + jenerik başlık → geçer; (2) dönem kısıtı yok (reenactment / 2015 tarihli foto geçer); (3) `matchResearchMediaToScenes` tek ortak token'la (`score > 0`) aday↔sahne bağlıyor ve çıplak entity term'ünü `searchKeywords`'e prepend ediyor; (4) `isLowSpecificityKeywordSet` (302ce03f için yazılmış guard) yalnızca smoke'a bağlıydı, production'a değil (graphify `affected` ile doğrulandı).
+
+### Düzeltme (minimal, deterministik, production path)
+- **`RealPhotoImageProvider.ts`** — gate artık fail-closed scene-subject support istiyor: `subjectSupported = historicalArt || sceneSubjectSupported(promptWords, title, queryWords) || (score>=STRONG_TITLE_MATCH(0.6) && specificQuery && !lowSpecificityKeywords)`. Yeni hard disqualifier'lar: `modernEraSignal` (query'nin istemediği 1900+ yıl / 19th-21st century), `modernRestagingSignal` (reenactment/waxwork/diorama/...). `isLowSpecificityKeywordSet(input.searchKeywords)` `generateImage` → `tryQuery` → `rankEligibleCandidates` boyunca thread'lendi — **production'a bağlandı**. `HISTORICAL_ART_WORDS`'e mosaic/icon/relief/tapestry/codex/chronicle eklendi.
+- **`ResearchMediaDiscovery.ts`** — `MIN_SCENE_MEDIA_OVERLAP = 2` (was `score > 0` = 1 token). `applyResearchMediaCandidatesToVisualData` artık yalnızca çok-kelimeli (spesifik) discovery term'ünü prepend ediyor — çıplak "Urban"/"Edirne" enjekte edilmiyor.
+- **`SceneMediaSelection.ts`** — `bestUnusedMatch` aynı `MIN_SCENE_MEDIA_OVERLAP` eşiğini kullanıyor (iki seçici aynı sıralamayı korusun diye).
+- **`VisualStructuredOutput.ts`** — `isLowSpecificityKeywordSet` docstring'i gerçek consumer'ı (gate) yansıtacak şekilde güncellendi.
+- **YENİ `scripts/smoke-visual-relevance-hardening.ts`** — 18 senaryo: exact-person ACCEPT, generic-soldiers REJECT, wrong-sultan REJECT, exact-event ACCEPT, generic-battle REJECT, no-relevant→success:false, modern-year REJECT + self-adjusting, restaging REJECT, low-specificity set (namesake REJECT / period-art ACCEPT), production-path enforcement (VisualAssetPipeline AI fallback), force-real fail-closed, scene isolation, asset-identity wrong-sceneId reject, research→scene bind eşiği, bare-term injection guard.
+
+### Enforcement / bypass
+Gate production path'te: `PipelineStageExecutor` visuals stage → `VisualAssetPipeline.generateAssets` (provider=real) → `RealPhotoImageProvider.generateImage` → `tryQuery` → `rankEligibleCandidates`. `IMAGE_PROVIDER=openai`/`mock`/`local`'da real gate çalışmaz (tasarım) — ama openai bespoke üretim sahne visualPrompt'undan; mock production'da acceptance gate'i geçemez. Assembly (`VideoAssemblyManager`) asset'i sahneye YALNIZCA `sceneId` ile bağlıyor (echo-check `normalizeGenerationResult`), yani yanlış-sahne binding imkânsız; assembly'de alaka re-check YOK — visuals stage tek alaka otoritesi. AI fallback = "no relevant candidate → REJECT → safe fallback (sahne prompt'undan bespoke frame)", yasak "generic image → use anyway" DEĞİL. `override:"real"` + fallback yok → sahne fail-closed.
+
+### Değişen dosyalar
+`src/lib/assets/providers/RealPhotoImageProvider.ts`, `src/lib/assets/ResearchMediaDiscovery.ts`, `src/lib/assets/SceneMediaSelection.ts`, `src/lib/ai/VisualStructuredOutput.ts`, YENİ `scripts/smoke-visual-relevance-hardening.ts`. (Ayrıca health-check'ten devreden `scripts/smoke-production-publish-reconciliation-hardening.ts` env-pinning F1 — ayrı konu.)
+
+### Not / kalan
+- cfe77fd8 fixture-drift smoke cluster (`smoke-sprint-129-17/-19/-20/...`) HÂLÂ pre-existing fail — `1d7e4ee`'de ve temiz ağaçta birebir aynı; bu sprint'in regresyonu DEĞİL (`data/projects` yazma yasağı içinde çözülemez). Bkz [[cfe77fd8-fixture-drift-smoke-cluster]].
+
 ## Sprint 176 - Faz B teşhis + Faz C: qwen2.5:3b strict pipeline'ı üretime hazır - 2026-09-02
 
 **Status:** KOD + TEST TAMAM (henüz commit edilmedi — bu oturum sonu commit'i). Strict `production:acceptance:execute` yolu qwen2.5:3b ile artık uçtan uca çalışıyor. Sprint 175'in "Kalan blocker #1 + #2" kapatıldı.
