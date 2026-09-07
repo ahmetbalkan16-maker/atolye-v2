@@ -3,6 +3,7 @@ import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchA
 import { ImageStorage } from "../storage/ImageStorage";
 import { getRealImageProviderConfig } from "./ImageProviderConfig";
 import type { ImageGenerationInput, ConfiguredImageProvider } from "./ImageProvider";
+import { isLowSpecificityKeywordSet } from "@/lib/ai/VisualStructuredOutput";
 import {
   WikimediaCommonsClient,
   WikimediaCommonsRateLimitedError,
@@ -92,6 +93,11 @@ export class RealPhotoImageProvider implements ConfiguredImageProvider {
     const createdAt = new Date().toISOString();
     const queries = buildSearchQueries(input.searchKeywords);
     const promptText = typeof input.prompt === "string" ? input.prompt : undefined;
+    // The 302ce03f trigger: a keyword plan that carries no specific multi-word
+    // phrase (every entry is a bare place name / surname). A bare-namesake query
+    // is not allowed to justify a candidate on title-word coverage alone — it
+    // must still positively depict the scene's subject or be period art.
+    const lowSpecificityKeywords = isLowSpecificityKeywordSet(input.searchKeywords);
 
     if (queries.length === 0 || !input.projectSlug) {
       return notFoundResult(input.sceneId, createdAt);
@@ -110,6 +116,7 @@ export class RealPhotoImageProvider implements ConfiguredImageProvider {
       if (this.now() >= deadline) break;
       const outcome = await this.tryQuery(
         query, promptText, input.projectSlug, input.sceneId, config, deadline, createdAt,
+        lowSpecificityKeywords,
       );
       if (outcome === "rate-limited") break;
       if (outcome) return outcome;
@@ -126,6 +133,7 @@ export class RealPhotoImageProvider implements ConfiguredImageProvider {
     config: ReturnType<typeof getRealImageProviderConfig>,
     deadline: number,
     createdAt: string,
+    lowSpecificityKeywords: boolean,
   ): Promise<ImageGenerationResult | "rate-limited" | null> {
     // A batch of scenes fired back-to-back with no gap can trip Wikimedia's burst rate limiting
     // even though each request individually is well inside quota — space consecutive requests on
@@ -139,7 +147,7 @@ export class RealPhotoImageProvider implements ConfiguredImageProvider {
       return null;
     }
 
-    const ranked = rankEligibleCandidates(candidates, query, promptText, config)
+    const ranked = rankEligibleCandidates(candidates, query, promptText, config, lowSpecificityKeywords)
       .filter((candidate) => !this.usedSourceUrls.has(candidate.pageUrl));
     // When the relevance gate or the cross-scene dedup leaves nothing, this
     // query yields no usable photo. The provider moves to the next query and,
@@ -238,6 +246,15 @@ function trySaveCandidate(
  */
 export const MIN_SELECTION_SCORE = 0.34;
 
+/**
+ * A near-complete title match (this fraction of the query's distinct words name
+ * the file) is strong enough evidence on its own that a candidate depicts the
+ * scene's subject — but only when the query was already specific. A bare-namesake
+ * keyword plan (`isLowSpecificityKeywordSet`) can hit 1.0 against a modern
+ * namesake, so it does not get this shortcut.
+ */
+export const STRONG_TITLE_MATCH = 0.6;
+
 /** Sort-only weights — never folded into the persisted `selectionScore`. */
 const PROMPT_RELEVANCE_SORT_WEIGHT = 0.5;
 const HISTORICAL_ART_SORT_BONUS = 0.35;
@@ -250,15 +267,38 @@ const HISTORICAL_ART_SORT_BONUS = 0.35;
  * modern-infrastructure / wrong-context penalty and a scene-description overlap / historical-art
  * bias (Sprint 173) prefer the candidate whose title actually depicts the scene's subject in the
  * right era.
+ *
+ * Sprint 177 made the gate fail-closed on scene-subject support: a candidate must
+ * clear the query-title floor AND carry positive evidence it depicts *this*
+ * scene's subject (period-art signal, a distinctive scene-prompt word in the
+ * title, or a strong specific-query match — the last withheld when the whole
+ * keyword plan is a bare-namesake set), AND not be a modern-era photo / restaging
+ * / wrong-kind subject. When nothing clears it the query returns nothing and the
+ * scene falls through to the AI fallback (a bespoke frame from the scene's own
+ * visual prompt) — it never ships an off-topic archive image just to return
+ * "something".
  */
 function rankEligibleCandidates(
   candidates: WikimediaCommonsCandidate[],
   query: string,
   promptText: string | undefined,
   config: ReturnType<typeof getRealImageProviderConfig>,
+  lowSpecificityKeywords: boolean,
 ): RankedCandidate[] {
   const queryWords = tokenize(query);
   const promptWords = significantWords(promptText ?? "");
+  // A query is "specific" when it names a concrete subject — a bare year, or at
+  // least two content words of which one is not a generic descriptor. The
+  // strong-title-match shortcut is only trusted for a specific query: a purely
+  // generic query ("medieval battle", "historical scene") can perfectly match an
+  // equally generic title, which is exactly the wrong pick.
+  const querySignificant = queryWords.filter(
+    (word) => word.length >= 3 && !STOP_WORDS.has(word),
+  );
+  const specificQuery =
+    queryWords.some((word) => /^\d{3,4}$/.test(word)) ||
+    (querySignificant.length >= 2 &&
+      querySignificant.some((word) => !GENERIC_DESCRIPTOR_WORDS.has(foldTurkish(word))));
   return candidates
     .filter((candidate) => !isBookScanArtifact(candidate))
     .filter((candidate): candidate is WikimediaCommonsCandidate & { license: string; mimeType: ImageMimeType } =>
@@ -275,14 +315,40 @@ function rankEligibleCandidates(
       const wrongContext = wrongContextSignal(candidate.title);
       const historicalArt = historicalArtSignal(candidate.title);
       const promptRelevance = titleOverlapFraction(promptWords, candidate.title);
+      // Positive scene-subject evidence: period art, a distinctive word from the
+      // scene's own visual prompt appearing in the title, or a strong match to an
+      // already-specific query. Without at least one, a candidate that merely
+      // echoes the (possibly generic) search term is dropped.
+      const subjectSupported =
+        historicalArt ||
+        sceneSubjectSupported(promptWords, candidate.title, queryWords) ||
+        (score >= STRONG_TITLE_MATCH && specificQuery && !lowSpecificityKeywords);
+      // Hard disqualifiers: a modern-era photo (a 20th/21st-century year or
+      // century the scene did not ask for) or a modern restaging (reenactment,
+      // festival, waxwork...) is never a documentary frame of a historical event.
+      const modernEra = modernEraSignal(queryWords, candidate.title);
+      const restaging = modernRestagingSignal(candidate.title);
       const rankKey =
         score +
         PROMPT_RELEVANCE_SORT_WEIGHT * promptRelevance +
         (historicalArt ? HISTORICAL_ART_SORT_BONUS : 0) -
         (wrongContext ? 2 : 0);
-      return { candidate: { ...candidate, score }, score, rankKey, wrongContext };
+      return {
+        candidate: { ...candidate, score },
+        score,
+        rankKey,
+        wrongContext,
+        subjectSupported,
+        modernEra,
+        restaging,
+      };
     })
-    .filter((entry) => entry.score >= MIN_SELECTION_SCORE && !entry.wrongContext)
+    .filter((entry) =>
+      entry.score >= MIN_SELECTION_SCORE &&
+      !entry.wrongContext &&
+      !entry.modernEra &&
+      !entry.restaging &&
+      entry.subjectSupported)
     .sort(
       (a, b) =>
         b.rankKey - a.rankKey ||
@@ -291,6 +357,83 @@ function rankEligibleCandidates(
     )
     .map((entry) => entry.candidate);
 }
+
+/**
+ * Does the candidate title carry a *distinctive* word from the scene's own visual
+ * prompt — i.e. a content word that is not itself part of the search query? This
+ * is the "connects to THIS scene, not just the search term" test: a generic
+ * "Ottoman soldiers" hit for a query "Ottoman army" shares only the query words,
+ * so it fails; "Walls of Constantinople" for the same query shares "walls" /
+ * "constantinople" from the prompt, so it passes.
+ */
+function sceneSubjectSupported(
+  promptWords: string[],
+  title: string,
+  queryWords: string[],
+): boolean {
+  const querySet = new Set(queryWords.map(foldTurkish));
+  const distinctivePromptWords = promptWords.filter(
+    (word) => !querySet.has(foldTurkish(word)),
+  );
+  // The query already carried every content word the prompt has — nothing more
+  // to require of the title.
+  if (distinctivePromptWords.length === 0) return true;
+  const titleWords = new Set(tokenize(foldTurkish(title)));
+  return distinctivePromptWords.some((word) => titleWords.has(foldTurkish(word)));
+}
+
+/**
+ * A title that dates the image to the 20th/21st century (a bare year >= 1900, a
+ * `19xx`/`20xx` decade, or a `19th`/`20th`/`21st`-century mention) the scene did
+ * not itself ask for. `historicalArtSignal` already treats 1000-1899 dates as a
+ * positive signal; this is the mirror image — a hard disqualifier for a
+ * pre-modern documentary frame.
+ */
+function modernEraSignal(queryWords: string[], title: string): boolean {
+  const querySet = new Set(queryWords.map(foldTurkish));
+  return tokenize(foldTurkish(title)).some(
+    (word) =>
+      !querySet.has(word) &&
+      (/^(19|20)\d{2}s?$/.test(word) || /^(19|20|21)(st|nd|rd|th)$/.test(word)),
+  );
+}
+
+/**
+ * Titles that name a modern restaging or replica of a historical subject rather
+ * than a period depiction of it — a battle reenactment, a costume festival, a
+ * waxwork, a scale model. A single hit disqualifies the candidate.
+ */
+const MODERN_RESTAGING_WORDS = new Set([
+  "reenactment", "reenact", "reenactors", "reenacting", "reenacted",
+  "reconstitution", "cosplay", "cosplayer", "larp", "carnival", "pageant",
+  "waxwork", "waxworks", "tussauds", "diorama", "lego", "playmobil",
+  "themepark", "disneyland",
+]);
+
+function modernRestagingSignal(title: string): boolean {
+  const words = new Set(tokenize(foldTurkish(title)));
+  return [...MODERN_RESTAGING_WORDS].some((word) => words.has(word));
+}
+
+/**
+ * Words that describe a *category* of image rather than a concrete subject. A
+ * query made only of these ("medieval battle", "historical army scene") is not
+ * specific enough for the strong-title-match shortcut — it would wave through an
+ * equally generic stock title. A query with at least one non-generic content
+ * word ("Constantinople", "Mehmed", "Bosphorus") is treated as specific.
+ */
+const GENERIC_DESCRIPTOR_WORDS = new Set([
+  "medieval", "ancient", "antique", "historic", "historical", "history",
+  "classical", "vintage", "traditional", "old", "early", "late", "period",
+  "battle", "war", "warfare", "siege", "conflict", "fight", "combat", "army",
+  "soldier", "soldiers", "warrior", "warriors", "troops", "cavalry", "infantry",
+  "scene", "view", "landscape", "illustration", "picture", "image", "artwork",
+  "depiction", "drawing", "painting", "photo", "photograph", "people", "men",
+  "king", "queen", "emperor", "empire", "kingdom", "castle", "fortress",
+  "palace", "city", "town", "village", "general", "great", "grand",
+  "savas", "muharebe", "kusatma", "ordu", "asker", "askerler", "sehir",
+  "tarihi", "eski", "ortacag",
+]);
 
 /**
  * An entity name like "Fatih Sultan Mehmet" or "Golden Horn" also names a modern
@@ -376,7 +519,8 @@ const HISTORICAL_ART_WORDS = new Set([
   "etching", "lithograph", "litografi", "woodcut", "mezzotint", "drawing",
   "sketch", "watercolour", "watercolor", "fresco", "fresk", "mural",
   "manuscript", "yazma", "elyazmasi", "illumination", "tezhip", "tasvir",
-  "tablo", "map", "harita",
+  "tablo", "map", "harita", "mosaic", "mosaics", "mozaik", "icon", "ikona",
+  "relief", "kabartma", "tapestry", "goblen", "codex", "chronicle", "vakayiname",
 ]);
 
 function historicalArtSignal(title: string): boolean {

@@ -1,6 +1,7 @@
 import type { ResearchMediaCandidate } from "@/types/research";
 import type { VisualScene } from "@/types/visual";
 import {
+  MIN_SCENE_MEDIA_OVERLAP,
   compareResearchMediaCandidates,
   scoreSceneMediaOverlap,
 } from "./ResearchMediaDiscovery";
@@ -190,7 +191,7 @@ function bestUnusedMatch(
   for (const candidate of pool) {
     if (used.has(candidate.id)) continue;
     const score = scoreSceneMediaOverlap(scene, candidate);
-    if (score <= 0) continue;
+    if (score < MIN_SCENE_MEDIA_OVERLAP) continue;
     if (!best || score > best.score) best = { candidate, score };
   }
   return best?.candidate;

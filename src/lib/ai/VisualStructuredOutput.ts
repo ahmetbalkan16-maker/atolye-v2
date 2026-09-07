@@ -129,9 +129,14 @@ export function parseStrictVisualPlanResponse(
  * multi-word phrase — i.e. every entry is a single bare token (a place name or
  * a surname). Those match modern streets, bridges and namesakes in a photo
  * archive far more readily than the historical subject (the real 302ce03f
- * failure). Advisory only: consumed by a keyword-quality repair / prompt
- * feedback loop, never a hard schema rejection here (that would brick the
- * visuals stage whenever the model under-specifies).
+ * failure).
+ *
+ * Never a hard schema rejection here (that would brick the visuals stage
+ * whenever the model under-specifies). Instead it is consumed by
+ * `RealPhotoImageProvider`'s relevance gate: when the whole keyword set is low
+ * specificity, a candidate may not clear the gate on query-title word coverage
+ * alone — it must positively depict the scene's subject (period art, or a
+ * distinctive scene-prompt word in its title).
  */
 export function isLowSpecificityKeywordSet(
   keywords: readonly unknown[] | undefined,

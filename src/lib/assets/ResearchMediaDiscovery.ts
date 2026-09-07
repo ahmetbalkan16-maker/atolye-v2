@@ -39,6 +39,17 @@ const DEFAULT_PER_QUERY_LIMIT = 4;
 const DEFAULT_MAX_CANDIDATES = 40;
 const MIN_TERM_LENGTH = 3;
 
+/**
+ * Minimum `scoreSceneMediaOverlap` (count of shared normalised terms) for a
+ * research candidate to be bound to a scene. A single incidental shared token
+ * ("ottoman", "istanbul") is not enough to say a candidate *is about* the scene —
+ * binding on that pulled a modern-namesake photo in and prepended a bare entity
+ * term to the scene's search keywords (the 302ce03f failure mode). Two shared
+ * terms is the floor. Exported so the Faz 3 `SceneMediaSelection` ladder applies
+ * the same threshold.
+ */
+export const MIN_SCENE_MEDIA_OVERLAP = 2;
+
 /** Reuse the existing "real" image provider configuration for the search client. */
 export function createWikimediaSearchClient(
   fetcher?: typeof fetch,
@@ -181,7 +192,7 @@ export function matchResearchMediaToScenes(
     for (const candidate of pool) {
       if (used.has(candidate.id)) continue;
       const score = scoreSceneMediaOverlap(scene, candidate);
-      if (score <= 0) continue;
+      if (score < MIN_SCENE_MEDIA_OVERLAP) continue;
       if (!best || score > best.score) best = { candidate, score };
     }
     if (best) {
@@ -229,13 +240,25 @@ export function applyResearchMediaCandidatesToVisualData(
     if (!candidate) return scene;
     const merged: string[] = [];
     const seen = new Set<string>();
-    for (const term of [...candidate.queryTerms, ...(scene.searchKeywords ?? [])]) {
+    // Only prepend a *specific* (multi-word) discovery term. A bare single token
+    // ("Edirne", "Urban") matches a modern street / namesake in the archive far
+    // more readily than the historical subject, so injecting it as a search
+    // keyword is what let the wrong photo in — the scene keeps its own,
+    // model-authored phrases in that case.
+    const discoveryTerms = candidate.queryTerms.filter(
+      (term) => term.trim().split(/\s+/).length >= 2,
+    );
+    for (const term of [...discoveryTerms, ...(scene.searchKeywords ?? [])]) {
       const key = term.trim().toLowerCase();
       if (!key || seen.has(key)) continue;
       seen.add(key);
       merged.push(term.trim());
     }
-    return { ...scene, searchKeywords: merged, mediaCandidate: candidate };
+    return {
+      ...scene,
+      searchKeywords: merged.length > 0 ? merged : scene.searchKeywords,
+      mediaCandidate: candidate,
+    };
   });
 
   return { ...visualData, scenes, mediaCandidates: candidates };
