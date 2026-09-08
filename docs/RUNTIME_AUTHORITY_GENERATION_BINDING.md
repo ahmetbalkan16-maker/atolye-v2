@@ -327,6 +327,34 @@ Coverage: `scripts/smoke-c2b11-old-root-quarantine.ts` (15 scenarios).
   quarantine mark is append-once, no un-quarantine) — recovery always goes to a
   fresh root.
 
+## 9. F13 — candidate materialized-path budget (OPEN, P0 for the real migration)
+
+Sprint 201's real execution run got a verified 611 MB backup
+(`D:\AtolyeBackup\backups\b-fee58282da89`, aggregate `361b47af…`), then
+**`runtime:migration:candidate:create` failed with `PATH_POLICY_VIOLATION`**:
+`assertRuntimeBackupMaterializedPath` (limit `materializedPathUtf16 = 259`)
+rejects **329 of the 2360 files** — 321 `durable-execution` records + 8
+`other-runtime` — when materialised under
+`<candidateRoot>\candidates\candidate-<64hex>\payload\projects\<projectId>\…`.
+
+- The blocker is the **`candidate-<64hex>` directory (74 chars)** + the
+  `payload/projects/` nesting on top of `production-execution/{attempts,claims,
+  idempotency,…}/pipeline-{attempt,record,claim}-<64hex-sha256>-vN.json`
+  (the durable-record filenames carry a 64-hex hash).
+- Worst candidate path = **290 chars**; even the theoretically-shortest root
+  `D:\C` still fails on **241 files** (worst 276).
+- The **final runtime target** path (`D:\AtolyeRuntime\projects\<projectId>\…`)
+  is only **194 chars — 0 failures**. The destination is fine; only the
+  intermediate immutable candidate artifact is too long.
+- This machine has Windows `LongPathsEnabled = 1`, but `assertRuntimeBackupMaterializedPath`
+  enforces 259 unconditionally (the "portable candidate" guarantee).
+
+**Fix requires its own reviewed sprint** — a change to the verified candidate
+contract: shorten the candidate directory name (`candidate-<64hex>` →
+e.g. `c-<24hex>`) and/or drop the `payload/` level, keeping the id / manifest /
+digest binding consistent, plus all `129-25c-2b-*` / `c2b10a` candidate tests.
+Real migration is **NO-GO** until F13 is closed.
+
 ### Next → re-run the migration readiness audit
 
 C.2B.9b closes every P1 from the last audit. The next step is a **re-run of the

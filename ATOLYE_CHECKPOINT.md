@@ -1,5 +1,78 @@
 ---
 
+## Sprint 201 - C.2B.13 REAL MIGRATION EXECUTION — HALTED AT PHASE 7 (blocker F13) - 2026-09-08
+
+**Status:** Kontrollü gerçek migration execution başlatıldı (publish gate'e kadar). **PHASE 7'de
+BLOKE OLDU — F13.** `authority:begin-genesis` bile çalıştırılMADI. **`authority:publish` /
+`publishRollback` YAPILMADI. `active-authority.json` YOK. `.env.local` DEĞİŞMEDİ. legacy
+`data/projects` rename/move/delete YOK.** Execution Gate CLOSED. `cutoverAuthorized = false`.
+Commit `<feat>` (candidate-create CLI) + `<docs>`. Push yok.
+
+### Yapılanlar (PHASE 0-6)
+
+- Phase 0-2: git clean HEAD `016b9ee`, tracked data/projects = 0, source digest
+  `94d09cbbb8efbc964f6fd1f24f720448ee339682ec65c02dd341508994a6ecd2` (2388/207/611005467) exact,
+  `.env.local` sha256 `bf52c74dd8e0a9b1f2e0cd3c007ead3242113ce9e2ca46a1db63578bb694367e` exact.
+- **Phase 3 — 4 Atölye `next dev` process (PID 30084/11328/18932/16424) KONTROLLÜ DURDURULDU**
+  (her PID komut satırı `atolye-v2` doğrulandı; başka process yok). `no node.exe processes running`.
+  **Yeniden başlatılMADI** (kullanıcının kararı: `npm run dev`).
+- Phase 4 — `D:\AtolyeRuntime`, `D:\AtolyeAuthority`, `D:\AtolyeBackup`, `D:\AtolyeCandidate`,
+  `D:\AtolyeRestoreVerify` boş oluşturuldu. `assertMigrationConsumeRootsDisjoint` (live/candidate/
+  backup/target/quarantine/authority) → OK; hepsi repo/data/brain dışında.
+- Phase 6 — `runtime:backup:inventory` OK (2360 / 610943674 bytes / aggregate
+  `361b47afcf3bcfa68390e8ac723fa31e465d9bc2ad8b8980504f2508a1812fcd`). **`runtime:backup:create`
+  (real, 611 MB) OK** → `D:\AtolyeBackup\backups\b-fee58282da89` (backupId `b-fee58282da89`,
+  manifestSha256 `822764fdd429eaebc05944adffb8f863e2af1668c5613deec8f81717001c3b93`,
+  `created-and-verified`). `runtime:backup:verify` → verified, aggregate eşleşiyor.
+  Source `runtime:backup:create` sonrası hâlâ byte-identical.
+
+### BLOCKER — F13: candidate materialized-path budget
+
+Yeni `npm run runtime:migration:candidate:create` (bu sprintte eklenen CLI) →
+**`PATH_POLICY_VIOLATION`**. `assertRuntimeBackupMaterializedPath` (limit `materializedPathUtf16 =
+259`) 2360 dosyanın **329'unu** reddediyor (321 `durable-execution` + 8 `other-runtime`) —
+`<candidateRoot>\candidates\candidate-<64hex>\payload\projects\<projectId>\production-execution\
+{attempts,claims,idempotency}\pipeline-{attempt,record,claim}-<64hex-sha256>-vN.json` yolu 290
+karaktere ulaşıyor. `candidate-<64hex>` dizini (74 char) + `payload/projects/` nesting + 64-hex
+hash'li durable-record dosya adları budget'ı aşıyor. En kısa mümkün root (`D:\C`) ile bile 241 dosya
+fail (worst 276). **CONSUME hedefi** (`D:\AtolyeRuntime\projects\<projectId>\…`) yalnız **194 char —
+0 failure**; hedef sorunsuz, sadece ara immutable candidate artifact'ı çok uzun. Windows
+`LongPathsEnabled = 1` ama policy 259'u koşulsuz zorluyor (portable candidate garantisi).
+
+**F13 kendi review'lı sprint'ini gerektiriyor** — verified candidate contract değişikliği:
+candidate dizin adını kısalt (`candidate-<64hex>` → `c-<24hex>` gibi) ve/veya `payload/` seviyesini
+kaldır, id/manifest/digest binding'i tutarlı tut + tüm `129-25c-2b-*` / `c2b10a` candidate testleri.
+**Gerçek migration F13 kapanana kadar NO-GO.**
+
+### Bu sprintte eklenen kod
+
+`scripts/run-migration-candidate-create.ts` + `src/lib/runtime/migration/RuntimeMigrationCandidateCreateCommand.ts`
++ `npm run runtime:migration:candidate:create` (candidate creation için eksik olan operator entrypoint;
+`RuntimeMigrationCandidateService.createVerifiedMigrationCandidate` sarmalayıcısı; strict arg;
+data/projects'e yazmaz, publish etmez, `.env.local` değiştirmez). tsc temiz, eslint 0/22.
+
+### Safety proof
+
+`data/projects` = 2388 / 207 / 611005467 / `94d09cbbb8…` DEĞİŞMEDİ. `.env.local` byte-for-byte aynı.
+`data/brain` değişmedi (1 dosya). tracked data/projects = 0. `authority-transition-v1/` HİÇBİR yerde
+YOK (`%TEMP%` ve `D:\AtolyeAuthority`) → `active-authority.json` yok, transition record yok.
+Regression: c2b8/9/9b/10a/11/12 + f12 + runtime-backup + migration-candidate + durable +
+storage-hygiene + external-runtime-root PASS. tsc/eslint/build OK. Pre-existing `129-25c-2a`/`-2b-4`
+aynı imza.
+
+### D: artifacts (bırakıldı)
+
+`D:\AtolyeBackup\backups\b-fee58282da89` — **verified 611 MB backup**, F13-fix retry'ında yeniden
+kullanılabilir. Diğer 4 root boş. İstenirse `Remove-Item D:\Atolye* -Recurse` ile silinir.
+
+### Sıradaki adım
+
+**F13 fix sprint** (candidate materialized-path budget) → sonra bu sprint (real migration execution
+to publish gate) tekrar. `PUBLISH ONAY` hâlâ gerekli ve `authority:publish` bu noktaya kadar
+çalıştırılMAYACAK.
+
+<!-- SPRINT-201-END -->
+
 ## Sprint 200 - C.2B.13: PRE-CUTOVER READINESS (+ C.2B.8 evidence model closure) - 2026-09-08
 
 **Status:** **C.2B.13 = PRE-CUTOVER READY** (CUTOVER DONE DEĞİL). **`PUBLISH ONAY` VERİLMEDİ.**
