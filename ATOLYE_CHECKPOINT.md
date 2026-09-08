@@ -1,5 +1,98 @@
 ---
 
+## Sprint 180 - Atölye Brain: deterministik zekâ katmanı temeli (PHASE 6) - 2026-09-08
+
+**Status:** KOD + TEST TAMAM. `npx tsc --noEmit` temiz (tüm repo). `npx eslint .` = 0 error / 22
+warning (hepsi önceden var — stash-baseline, yeni Brain dosyaları 0 katkı). 3 yeni smoke suite
+**50/50 PASS** (`smoke-brain-foundation` 25, `smoke-brain-worker` 14, `smoke-brain-security` 11) —
+hepsi GPU'suz, $0, deterministik. `graphify update .` çalıştırıldı (AST-only, LLM yok, $0):
+8593 node / 27190 edge / ~217 topluluk (önce 6638/20668, commit 52fca36 → HEAD). **Hiçbir mevcut
+dosya değiştirilmedi** — tamamı yeni dosya, `src/lib/pipeline` / `src/lib/production` hiçbir yerden
+Brain'i import etmiyor. Ücretli API çağrısı 0. `.env.local` değişmedi. Production verisi değişmedi.
+
+### Bağlam
+
+`ATOLYE_MASTER_ROADMAP.md` PHASE 6 (AI Director + Production Memory + Knowledge Engine) — kullanıcının
+"Atölye Beyni" emri. Hedef: konuyu anlayan → araştıran → doğrulayan → planlayan → medya seçen →
+senaryo/sahne kuran → üretimi yöneten → kaliteyi denetleyen → sadece bozuk parçayı düzelten →
+deneyimi hafızaya alan → geçmişten strateji öğrenen → gerektiğinde kod geliştirme önerisi sunan (ama
+kritik değişikliği **kullanıcı onayı olmadan yapmayan**) bir üretim zekâsı. Ek olarak: PC kapalıyken
+çalışacak server-side "Brain Worker" mimarisi + kod seviyesinde güvenlik yönetişimi tasarımı.
+
+### Ne yapıldı — hepsi saf / deterministik / eklemeli / geri alınabilir
+
+**Domain model (`src/types/`):** `brain.ts` (request / hardware profile / resource snapshot / safety
+verdict / computation plan / decision / quality verdict + `BrainFinalRenderReport` / experience
+record / improvement proposal), `brainMemory.ts`, `brainWorker.ts`, `brainSecurity.ts`.
+
+**`src/lib/brain/` (17 modül):**
+| Modül | İş |
+|---|---|
+| `BrainContracts.ts` | Port arayüzleri — her biri mevcut bir Atölye servisine delege eder |
+| `BrainRoles.ts` | 7 mantıksal rol + varsayılan tek-model ataması (security-guard/memory/approval = deterministik) |
+| `BrainDecisionJournal.ts` | Açıklanabilir karar günlüğü (emir §12 bloğu) — build/validate/render, fail-closed |
+| `BrainSafetyGovernor.ts` | HW profili + resource snapshot → proceed/hold/abort + kısıtlar. GTX 1650 + RTX A2000 profilleri. "80°C bekleme", abort sinyalleri, `unavailable`→muhafazakâr paket |
+| `BrainComputationPlanner.ts` | Ağır LLM çağrısını **kaliteyi bozmadan** ardışık küçük birimlere böl (Sprint 176 context-açlığı temelli) |
+| `BrainQualityModel.ts` | Biten videoyu 16 boyutta yargıla → release/repair/reject + **en küçük** onarım hedefleri (sahne bazlı) |
+| `BrainExperienceModel.ts` | Geçmiş üretimlerden deterministik içgörü + sonraki koşu strateji ipucu |
+| `BrainImprovementProposal.ts` | `# USER APPROVAL REQUIRED` önerisi + onay durum makinesi |
+| `BrainSelfImprovementLoop.ts` | OBSERVE→…→AUDIT; `apply` `user-approve` olmadan erişilemez |
+| `BrainMemoryModel.ts` | Memory kaydı build/validate/recall; redaction sonrası secret varsa **reddet** |
+| `BrainRedaction.ts` | Deterministik secret/hassas-string temizleyici (11 sınıf) |
+| `BrainOrchestrator.ts` | **Çalıştırmayan** run-planner: 14-fazlık sıralı, güvenlik-kapılı plan |
+| `worker/BrainAutonomyPolicy.ts` | Sabit tablo: hangi görev türü onaysız çalışabilir (`forbidden` payload'ları BIOS/power/HVCI/model-pull/stress) |
+| `worker/BrainTaskQueue.ts` | Bağımlılık-sıralı kuyruk; onay-park; döngü reddi; deterministik |
+| `worker/BrainWorkerReport.ts` | "Gece şunları yaptım…" sabah raporu builder + renderer (her satır redakte) |
+| `security/BrainSecurityPolicy.ts` | Shell allowlist, path containment, request-risk sınıflama |
+| `security/BrainSecurityCatalog.ts` | 18 kontrollük sabit rubrik (auth…intrusion detection) |
+| `security/BrainSecurityAuditModel.ts` | Yapısal repo gerçekleri → güvenlik duruşu + öncelikli backlog |
+
+**Testler:** `scripts/smoke-brain-foundation.ts` (25), `smoke-brain-worker.ts` (14),
+`smoke-brain-security.ts` (11). Redaction'da bir hata bulunup düzeltildi (module-level global regex
+`lastIndex` sızıntısı → çağrı-başına taze regex; anthropic-key openai-key'den önce, `(?!ant-)`).
+
+**Docs:** `docs/brain/ATOLYE_BRAIN.md` (tam mimari + faz planı), `ARCHITECTURE_DECISIONS.md` ADR-021,
+`data/brain/README.md`.
+
+### Brain şu an gerçekten ne yapabiliyor (saf/deterministik)
+
+- Tek komuttan 14-fazlık güvenlik-kapılı üretim planı çıkarır (`planBrainRun`).
+- HW + anlık kaynak durumundan güvenli çalışma kararı + kısıt üretir (asla 80°C beklemez).
+- Bir stage'i tek çağrı mı yoksa kaliteyi koruyan bölünmüş birimler mi olarak koşacağına karar verir.
+- Biten bir videoyu (ffprobe+manifest raporu verilince) 16 boyutta yargılar, sadece bozuk sahneyi/
+  stage'i işaret eder — "video başarısız" demez.
+- Geçmiş üretim kayıtlarından deterministik içgörü + strateji ipucu çıkarır.
+- Karar günlüğü tutar, insan-okunur rapora dönüştürür.
+- Görev kuyruğu + otonomi kapısı + sabah raporu modeller (PC-kapalı worker'ın çekirdeği).
+- 18 güvenlik kontrolüne karşı repo duruşunu derecelendirir, internet-öncesi backlog çıkarır.
+- Kod seviyesinde: shell allowlist, path traversal reddi, 11 sınıf secret redaction, request-risk.
+- İyileştirme önerisi hazırlar + `user-approve` olmadan `apply`'a geçemez.
+
+### Henüz yapamadıkları (ayrı, onaylı fazlar)
+
+- `planBrainRun`'ı gerçek `PipelineRunner`'a bağlamak (production davranışı → onay).
+- Rol implementasyonları (model çağrıları).
+- Memory / experience / task-queue için durable JSON-file store (`data/brain/`).
+- Read-only host resource probe (`nvidia-smi` vb.) → `BrainResourceSnapshot`.
+- `ffprobe` + manifest adaptörü → `BrainFinalRenderReport`.
+- Güvenlik-gerçek toplayıcı → `BrainSecurityPostureInput`.
+- Brain Worker runner + deployment (kendi kutumuzda, ücretsiz, ücretli bulut YOK).
+- `/api/brain/*` route'ları (PHASE 7 auth arkasında).
+
+### Kullanıcı onayı bekleyen
+
+Yukarıdaki "henüz yapamadıkları" listesindeki her madde. En yakın tek adım: `planBrainRun` çıktısını
+**read-only bir dry-run** olarak gösteren küçük bir arayüz/endpoint — hâlâ çalıştırma yok.
+
+### Test / güvenlik durumu
+
+`tsc` temiz, `eslint .` 0 error. 50/50 Brain smoke PASS. Regresyon: mevcut hiçbir dosya
+değişmediğinden mevcut smoke seti etkilenmez; `tsc --noEmit` tüm repoda temiz bunu doğrular. GPU
+kullanılmadı. Ücretli API 0. `git diff` yalnızca yeni dosyalar + bu 3 doküman + ADR (CRLF gürültüsü
+hariç — bkz Sprint 179 notu, önceden var).
+
+<!-- SPRINT-180-END -->
+
 ## Sprint 179 - Piper non-ASCII Windows path düzeltmesi + $0 e2e uçtan uca MP4 kanıtı - 2026-09-07
 
 **Status:** KOD + TEST TAMAM (henüz commit edilmedi — oturum sonu commit'i). `npx tsc --noEmit` temiz, değişen 4 dosyada `eslint` 0 problem, `git diff --check` temiz. `smoke-local-providers` 71/71 PASS (yeni `piperPathHardening` bölümü + CANLI Piper sentezi non-ASCII checkout'ta). 14 regresyon smoke yeşil (audio/readiness/e2e/acceptance/visuals). **Gerçek `PipelineRunner.run` ile $0 e2e: 10/12 stage PASS, `assembly` final MP4 üretti, `ffprobe` doğruladı. OpenAI çağrısı 0, toplam maliyet $0.0000.**

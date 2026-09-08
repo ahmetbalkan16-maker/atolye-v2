@@ -538,6 +538,65 @@ music/SFX ayrı fazlardır.
 
 ---
 
+# ADR-021
+
+## Atölye Brain — Deterministic-First Intelligence Layer (PHASE 6)
+
+### Karar
+
+`ATOLYE_MASTER_ROADMAP.md` PHASE 6 (AI Director + Production Memory + Knowledge Engine) tek bir
+`src/lib/brain/` modülü olarak, mevcut mimariye **eklemeli** (additive) biçimde uygulanır. Brain
+ikinci bir orkestratör, tek bir dev LLM prompt'u veya paralel bir state store **değildir**; mevcut
+`src/lib/pipeline` ve `src/lib/production` katmanlarının *üstünde* duran, çoğunlukla **deterministik**
+bir karar katmanıdır. Ne ve ne zaman yapılacağına Brain karar verir; işi hâlâ mevcut servisler yapar.
+
+Bağlayıcı kurallar (koda gömülü):
+
+1. **Sınırsız self-modification yok.** Brain analiz / araştırma / plan / temp-workspace testi /
+   teşhis / öneri taslağı yapabilir. Production davranışını, güvenlik politikasını, kritik kodu veya
+   veri silme/değiştirmeyi **kullanıcı onayı olmadan** yapamaz. `BrainAutonomyPolicy` (sabit tablo,
+   yorum değil) + `BrainImprovementProposal` / `BrainSelfImprovementLoop` onay durum makineleri
+   uygular. `apply` durumu, kayıtlı bir `user-approve` olayı olmadan erişilemez (fail-closed).
+2. **Güvenlik kod seviyesinde, model seviyesinde değil.** Allowlist/denylist/sandbox/path-containment/
+   secret-redaction deterministik fonksiyonlardır (`BrainSecurityPolicy`, `BrainRedaction`).
+3. **Memory/log/rapor'da secret yok.** Brain'in yazdığı her string `redactBrainText`'ten geçer;
+   redaction sonrası hâlâ secret içeren memory kaydı reddedilir (`BRAIN_MEMORY_SECRET_LEAK`).
+4. **Varsayılan $0.** Yerel modeller (Ollama `qwen2.5:3b`), ücretsiz kaynaklar, mevcut asset'ler.
+   Ücretli provider koşu-başına açık kullanıcı onayı ister; `OPENAI_API_KEY`'in varlığı onay değildir.
+5. **Muhafazakâr donanım.** `BrainSafetyGovernor` termal tavandan *önce* davranır (asla "80 °C'yi
+   bekle" değil). `thermal-slowdown`/`driver-reset`/`tdr`/`bsod`/`fatal-whea`/`display-loss` →
+   anında abort. ≤ 5 GB VRAM kartta 7B yasak. Snapshot `unavailable` ise "her şey yolunda" değil —
+   muhafazakâr kısıt paketi uygulanır.
+6. **İzole & geri alınabilir.** Brain tamamen `src/lib/brain/` + `src/types/brain*.ts` içindedir.
+   `src/lib/pipeline` / `src/lib/production` hiçbir dosyası Brain'i import etmez. Bu fazda Brain
+   hiçbir model / binary / ağ çağrısı yapmaz.
+
+Rol mimarisi: planner / researcher / critic / executor **/ security-guard / memory /
+approval-manager**. Son üçü **deterministik** (modelsiz); diğerleri varsayılan olarak tek yerel
+model (`qwen2.5:3b`) + sabit sistem-prompt "şapkası". Ayrı fiziksel model zorunlu değildir.
+
+Server-side "Brain Worker" (PC kapalıyken çalışan görev kuyruğu) mimarisi **tasarlandı**: kuyruk
+modeli (`BrainTaskQueue`), otonomi kapısı (`BrainAutonomyPolicy`), sabah raporu
+(`BrainWorkerReport`). Çalışan runner + durable store + deployment ayrı, onaylı fazlardır — ücretli
+bulut servisi **kullanılmayacak**.
+
+### Sebep
+
+`ProductionOperationJournal`, `RealPhotoImageProvider` fail-closed gate, `QualityPreset`, grammar-
+constrained structured output ve `PipelineRecoveryPlanner` gibi mevcut desenler zaten "deterministik,
+şema-versiyonlu, fail-closed, sanitize edilmiş kanıt" prensibiyle çalışıyor. Brain aynı prensibi
+karar katmanına taşır: zekâ = daha küçük model değil, mevcut kaynaklarla en iyi sonucu kontrollü
+biçimde üretmek. Kritik kararların son sözü her zaman kullanıcıda.
+
+### Durum
+
+Accepted — Sprint 180 (foundation: `src/types/brain*.ts` + tüm saf karar/güvenlik/kalite/deneyim/
+memory/worker/self-improvement modülleri + 50 smoke senaryosu, GPU'suz, $0). Pipeline'a bağlama,
+rol implementasyonları, durable store'lar, host resource probe, `ffprobe` adaptörü, Brain Worker
+runner ve `/api/brain/*` route'ları ayrı, kullanıcı-onaylı fazlardır. Bkz `docs/brain/ATOLYE_BRAIN.md`.
+
+---
+
 # Yeni ADR Ekleme
 
 Yeni önemli mimari kararlar;
