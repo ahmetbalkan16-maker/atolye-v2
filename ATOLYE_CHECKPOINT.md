@@ -1,5 +1,131 @@
 ---
 
+## Sprint 190 - C.2B.6b: runtime authority generation enforcement (startup + recovery) - 2026-09-08
+
+**Status:** **C.2B.6b = READY.** C.2B.6'nın primitive olarak kalan cross-restart authority-generation
+kontrolü canlı production startup + recovery bootstrap akışlarına bağlandı. 1 commit (`3ef3dc9`),
+**PUSH YAPILMADI**. `npx tsc --noEmit` temiz. `npx eslint .` = **0 error / 22 warning (baseline)**.
+`npx next build` başarılı. `git status --short` boş. HEAD `3ef3dc9` (branch
+`wip/production-audio-resume-prep-v2`, origin'den 9 commit ileride — push emirle yasak).
+
+### Kapsam
+
+Yalnız C.2B.6b. **DEĞİL:** gerçek proje migrasyonu, `data/projects/**` taşıma, `git rm --cached`,
+C.2B.9, iPhone PWA, offline client, voice, Execution Gate açılması, durable-record schema migration.
+
+### INSPECT
+
+`initializeProductionProcessRuntime()` → `runWithProductionRuntimeOperationContext(processRuntimeOperationContext,
+() => processRuntimeInitializer.initialize())` → `initialize()`: `now` → `beginInitialization` →
+`listProjectSlugs` (readdir, read-only) → her proje için `createRecoveryBootstrap(slug).bootstrapRecovery()`
+→ `workerLifecycle.start()` → sonra `configureProductionPipelineExecution`. Tüm durable production
+girişleri buradan geçer: `instrumentation.ts` `register()`, `ProductionAcceptanceOrchestrator`
+(`evaluateReadiness` L334 → `resumeAndFinalize` L343, `prepare/execute` L241 hepsi `evaluateReadiness`
+üzerinden). `ProductionReadinessService` yalnız `getProductionRuntimeStatus` (read-only) alır. D1
+(`ProductionPipelineExecutionFactory`) preparation'da kendi runtime authority + physical store digest'ini
+yakalayıp execution öncesi doğrular — dokunulmadı.
+
+### DESIGN + IMPLEMENT — `3ef3dc9`
+
+**YENİ `src/lib/runtime/security/ProductionRuntimeAuthorityGenerationEnforcement.ts`** — tek
+authoritative validation primitive:
+- `enforceProductionRuntimeAuthorityGeneration(context, generation, {env})`:
+  1. `NODE_ENV === "production"` + `context.source === "legacy-default"` (unset `ATOLYE_RUNTIME_ROOT`)
+     → `ProductionRuntimeAuthorityEnforcementError("PRODUCTION_RUNTIME_ROOT_REQUIRED")` — **FAIL CLOSED**
+     (§5/§6).
+  2. `assertRuntimeAuthorityGenerationMarkerCompatible({context, authorityGeneration: generation})` →
+     `MISMATCH` fırlatır (**FAIL CLOSED**, marker overwrite YOK, legacy root fallback YOK); `match` →
+     devam; `absent` + `classification === "explicit-external"` + `projects/` dizini zaten varsa →
+     `writeRuntimeAuthorityGenerationMarker(...)` (ilk boot'ta damgala); `absent` + aksi (legacy
+     default / in-workspace / `projects/` yok) → damgasız devam (korunacak bir şey yok, legacy default
+     bozulmaz).
+- `assertProductionRuntimeAuthorityGenerationCompatible(context, generation)` — recovery için
+  **read-only** varyant: asla yazmaz, mismatch'i asla "repair" etmez.
+
+**`ProductionRuntimeCompositionRoot.ts` (28 satır diff):**
+- `enforceProductionRuntimeAuthorityGeneration(processRuntimeStorageContext, initialRuntimeAuthorityGeneration)`
+  → `initializeProductionProcessRuntime()`'ın ilk satırı, `runWithProductionRuntimeOperationContext`'ten
+  **ÖNCE**. Authority module-load'da zaten frozen; kontrol runtime kullanıma açılmadan çalışır.
+- `assertProductionRuntimeAuthorityGenerationCompatible(...)` → `createRecoveryBootstrap` closure'ının
+  içinde, adapter kurulmadan önce (aynı contract, read-only).
+
+**Şema migration YOK.** `production-execution` record'larına alan eklenmedi; ~130 tracked milestone
+kaydı dokunulmadı. Yeni dependency yok. Execution Gate dokunulmadı. `globalThis`/`setInterval`/
+`setTimeout`/`process.on` eklenmedi (startup/worker-lifecycle smoke assertion'ları korundu).
+
+### Hedef davranış — doğrulandı
+
+```text
+startup → enforce (production-root + marker) → runWithProductionRuntimeOperationContext → initialize → recovery → worker
+                     │
+          MISMATCH / prod+unset → FAIL CLOSED (runtime açılmaz, recovery koşmaz, durable authority tüketilmez)
+recovery bootstrap  → assert (read-only, aynı marker contract, yazmaz)
+```
+
+### Testler — `smoke-c2b6b-authority-generation-enforcement` (19 senaryo)
+
+**Unit:** first-init external+projects/ → stamp · same-gen → match, marker değişmez · different-gen →
+MISMATCH FAIL CLOSED, marker değişmez · recovery variant mismatch → throws + **asla yazmaz** · recovery
+variant match → sessiz · recovery variant damgasız external root'u **asla damgalamaz** · production+unset
+→ `PRODUCTION_RUNTIME_ROOT_REQUIRED` · dev+unset → legacy default devam, yazım yok · external ama
+`projects/` yok → absent-unstamped, yazım yok · static: composition root startup+recovery'de enforcement
+çağırıyor, enforcement `runWith...`'ten önce · static: enforcement modülü execution primitive
+import etmiyor.
+**Child-process (gerçek composition root boot):** temiz external root → başarılı + marker damgalandı ·
+ikinci process → başarılı (match) · proje mevcut → recovery bootstrap gate arkasında koşuyor, marker
+değişmiyor · **foreign-generation marker → startup FAILS CLOSED** (`RUNTIME_AUTHORITY_GENERATION_MISMATCH`,
+worker yok, marker overwrite edilmedi, temp workspace `data/projects` yazılmadı) · production+unset →
+startup FAILS CLOSED (`PRODUCTION_RUNTIME_ROOT_REQUIRED`) · dev+unset → startup başarılı · mevcut C.2B.6
+marker smoke PASS · git working tree değişmedi.
+
+### Regression
+
+tsc temiz · eslint 0/22 · `next build` OK · `smoke-production-runtime-startup` / `-runtime-status` /
+`-worker-lifecycle` / `-runtime-health-api` / `smoke-orphan-reservation-recovery` /
+`smoke-production-execution-durable-storage` / `smoke-canonical-smoke-runtime-foundation` (29) /
+`smoke-sprint-129-25b-runtime-root` (21) / `smoke-sprint-129-25c-1-runtime-backup` (39) /
+`smoke-c2b5-image-serving-adapter` (12) / `smoke-c2b6-authority-generation-marker` (14) /
+`smoke-external-runtime-root-project-lifecycle` (7) / `smoke-ayas-intent-intake` (13) /
+`smoke-ayas-access-gate` (14) / brain-security / ayas-autonomous / brain-worker-cycle / storage-hygiene
+(10) **PASS**.
+
+**Pre-existing FAIL (bu sprint dışı):** `smoke-sprint-129-25c-2b-4-runtime-context` line 138 ("spread
+storage and operation clones are rejected" — module-duplication registry env hassasiyeti). `ProductionRuntimeCompositionRoot.ts`
+stash edilip revert edilince **aynı satır 138'de aynı** "Missing expected exception (RuntimeStorageError)"
+ile başarısız → C.2B.6b bağımsız. `smoke-sprint-129-25c-2a-guarded-filesystem` de Sprint 188/189'da
+kayıtlı pre-existing.
+
+### Independent closure review (§19)
+
+**Soru:** "Bir production restart sonrasında projectsRoot veya authority generation değişirse, sistem
+durable execution/recovery'ye ulaşmadan kesin olarak duruyor mu?"
+
+**EVET** — şu sınır belirtilerek:
+- Aynı root, generation değişir (kod bump `initialRuntimeAuthorityGeneration`'ı değiştirir) → marker
+  `authorityGeneration` alanı mismatch → **FAIL CLOSED**. ✓
+- Durable state + marker'ı başka root'a taşınır/kopyalanır → `resolverBindingIdentity` mismatch →
+  **FAIL CLOSED**. ✓ (her gerçek relocation yolu — `runtime:backup`, migration candidate materialization
+  — tüm `projectsRoot` alt ağacını kopyalar, marker dahil.)
+- Production + explicit root yok → **FAIL CLOSED**. ✓
+- Tüm durable production girişleri `initializeProductionProcessRuntime()` → gate → `runWith...`'ten
+  önce. ✓
+- **Sınır (→ C.2B.9):** yepyeni boş external root taze damgalanır, SONRA marker OLMADAN durable state
+  kopyalanırsa C.2B.6b yakalamaz — bu old-root quarantine + versioned transition (C.2B.9) işi.
+  `ProductionExecutionDurableRecoveryService` tam standalone operatör aracı olarak çağrılırsa (orchestrator
+  üzerinden değil) gate'lenmez — zaten explicit trusted root + operation context gerektirir.
+
+### DOKUNULMADI
+
+`ProductionExecutionPersistence.ts`, `RuntimeStoragePaths.ts`, `RuntimeAuthorityGenerationMarker.ts`
+(primitive), `ProductionPipelineExecutionFactory.ts` (D1), pipeline stage kodu, AYAS/Brain,
+`.env.local`, `.gitattributes`, Git index, `data/projects/**` fiziksel, ~130 durable milestone kaydı.
+
+### Sıradaki tek adım
+
+**C.2B.9** — versioned authority transition + quiescence + old-root read-only quarantine.
+
+<!-- SPRINT-190-END -->
+
 ## Sprint 189 - Master Sprint: C.2B.5 kapandı + C.2B.6 (partial) + AYAS access gate + queued-intent authorization pipeline - 2026-09-08
 
 **Status:** STORAGE AUTHORITY (C.2B.5 DONE, C.2B.6 PARTIAL) + AYAS GÜVENLİK KATMANI TAMAM.

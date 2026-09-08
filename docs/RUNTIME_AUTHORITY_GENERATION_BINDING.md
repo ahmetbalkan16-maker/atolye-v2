@@ -1,7 +1,10 @@
-# Runtime Authority-Generation Binding — C.2B.6 / C.2B.9
+# Runtime Authority-Generation Binding — C.2B.6 / C.2B.6b / C.2B.9
 
-Status: **primitive built, wiring NOT READY** (needs a dedicated, independently
-reviewed sprint). Master-sprint session 2026-09-08.
+Status: **C.2B.6b DONE** — the marker is wired into production startup + recovery
+bootstrap and fails closed on a generation / resolver-binding mismatch or a
+production runtime root that is unset. Master-sprint sessions 2026-09-08.
+C.2B.9 (versioned authority transition + quiescence + old-root quarantine) is
+still a separate later sprint.
 
 This is the design + threat model for closing the durable half of the storage
 relocation audit's P0 items 2 and 3
@@ -135,47 +138,48 @@ record schema.
   marker throws `MISMATCH` (in-place replacement is a C.2B.9 versioned
   transition, not this primitive).
 
-**Not wired anywhere.** Same posture as the migration-candidate primitives
-(C.2B.1/C.2B.2): build + verify the primitive in one sprint, wire it in a later
-reviewed one.
-
 ---
 
-## 5. Wiring plan — the NOT READY item
+## 5. Wiring — DONE (C.2B.6b)
 
-A dedicated sprint (proposed **C.2B.6b**, ordered before C.2B.9) does:
+`src/lib/runtime/security/ProductionRuntimeAuthorityGenerationEnforcement.ts` is
+the single authoritative validation primitive.
+`ProductionRuntimeCompositionRoot.ts` calls it in two places:
 
-1. **Composition root** (`ProductionRuntimeCompositionRoot.ts`): after freezing
-   `processRuntimeStorageContext`, call
-   `assertRuntimeAuthorityGenerationMarkerCompatible(processRuntimeStorageContext,
-   initialRuntimeAuthorityGeneration)`.
-   - `absent` → for an **explicit external** root (`classification ===
-     "explicit-external"`), `writeRuntimeAuthorityGenerationMarker(...)` to stamp
-     it on first boot. For the legacy in-repo default, do **nothing** (never
-     write into `<repo>/data/projects`).
-   - `mismatch` → throw before any recovery bootstrap or worker start. Startup
-     fails closed with a diagnosable `RUNTIME_AUTHORITY_GENERATION_MISMATCH`.
-2. **Recovery bootstrap / durable adapter construction**: before the first read
-   of a `production-execution/` store, assert the same marker (defence in depth
-   for a store whose parent root's marker was bypassed).
-3. **`production:acceptance:*` operator CLI**: same assert at the top of the
-   gated durable entrypoints.
-4. **Regression smoke**: boot against root `R1` (marker stamped), then boot the
-   same composition against `R2` with `R1`'s marker present → startup throws;
-   `R2` with its own marker → ok; legacy default → no marker, no write, ok.
+1. **Startup** — `enforceProductionRuntimeAuthorityGeneration(processRuntimeStorageContext,
+   initialRuntimeAuthorityGeneration)` at the top of
+   `initializeProductionProcessRuntime()`, **before**
+   `runWithProductionRuntimeOperationContext` (so before any recovery scan,
+   worker start or pipeline-execution wiring). Every durable production entry
+   point routes through here — `instrumentation.ts`'s `register()`, and every
+   `ProductionAcceptanceOrchestrator` path via `evaluateReadiness()`.
+   - `NODE_ENV === "production"` + `source === "legacy-default"` (unset
+     `ATOLYE_RUNTIME_ROOT`) → `PRODUCTION_RUNTIME_ROOT_REQUIRED`, fail closed.
+   - marker `MISMATCH` → propagates, fail closed. The marker is never
+     overwritten / repaired, the legacy root is never used as a fallback.
+   - marker `absent` on an `explicit-external` root whose `projects/` dir
+     already exists → stamped once. `absent` on the legacy default / an
+     in-workspace root / a brand-new external root with no `projects/` yet →
+     continue unstamped (nothing to protect; legacy default untouched).
+2. **Recovery bootstrap** — `assertProductionRuntimeAuthorityGenerationCompatible(...)`
+   inside the `createRecoveryBootstrap` factory: the same marker contract,
+   **read-only** — it never writes and never repairs a mismatch.
 
-### Entry criteria (why it is NOT READY now)
+No `production-execution` record schema change; the ~130 tracked milestone
+records are untouched. Coverage: `scripts/smoke-c2b6b-authority-generation-enforcement.ts`
+(19 scenarios, incl. child-process boots of the real composition root).
 
-- `src/lib/production/**` + `ProductionRuntimeCompositionRoot.ts` changes need
-  the corresponding `ATOLYE_CHECKPOINT.md` sprint entry **and** an independent
-  closure review (project rule for the production execution layer — ADR-016/017/
-  018).
-- The "stamp on first boot" behaviour changes what a fresh external root does on
-  startup; it must be validated against the real `production:acceptance:*` flow,
-  not just smokes.
-- It should land together with, or immediately before, the C.2B.9 quiescence
-  protocol so the marker and the "drain durable state before relocation" rule
-  ship as one coherent guarantee.
+### Residual boundary (→ C.2B.9)
 
-Until then: **do not relocate the runtime root.** The legacy in-repo default is
-unaffected and fully supported.
+C.2B.6b blocks the case where the durable state **and its marker** are moved to
+a different root (the marker's `resolverBindingIdentity` no longer matches →
+`MISMATCH`) — which is every real relocation path, since `runtime:backup` /
+migration-candidate materialization all copy the whole `projectsRoot` subtree.
+It does **not** block a brand-new empty external root that is stamped fresh and
+then has durable state copied in *without* the marker, nor
+`ProductionExecutionDurableRecoveryService` invoked as truly standalone operator
+tooling. Those are the old-root-quarantine + versioned-transition concerns of
+**C.2B.9**.
+
+Until C.2B.9: **do not relocate the runtime root.** The legacy in-repo default
+is unaffected and fully supported.

@@ -169,12 +169,15 @@ REQUIRES MIGRATION, 5 REQUIRES POLICY DECISION, 4 BLOCKING**. Status of the 4
    `runWithProductionRuntimeOperationContext` rejects a divergent nested context).
    See `docs/RUNTIME_AUTHORITY_GENERATION_BINDING.md` §1.
 3. **durable execution adapters** cross-restart authority-generation binding —
-   **PARTIAL**: the in-flight preparation→execution window is already bound
-   (`ProductionPipelineExecutionFactory`); the cross-restart backstop primitive
-   is built (`RuntimeAuthorityGenerationMarker` + `smoke-c2b6-authority-generation-marker`,
-   14 scenarios) but **NOT wired** — needs a reviewed C.2B.6b sprint
-   (`docs/RUNTIME_AUTHORITY_GENERATION_BINDING.md` §5)
-4. no **versioned / no-clobber authority transition** protocol (C.2B.9)
+   **closed (C.2B.6b)**: `enforceProductionRuntimeAuthorityGeneration` runs at
+   the top of `initializeProductionProcessRuntime()` and read-only in the
+   recovery bootstrap. A boot against a root whose marker names a different
+   authority generation, or whose marker's resolver binding no longer matches
+   (state + marker moved), fails closed before any recovery scan / worker start.
+   `NODE_ENV=production` + unset `ATOLYE_RUNTIME_ROOT` also fails closed.
+   `smoke-c2b6b-authority-generation-enforcement` (19 scenarios). The in-flight
+   preparation→execution window was already bound (`ProductionPipelineExecutionFactory`).
+4. no **versioned / no-clobber authority transition** protocol (C.2B.9) — still open
 
 Plus `REQUIRES POLICY DECISION` items (protected-root roles for
 relocation-target / quarantine, portable-fingerprint semantics, Git-vs-byte
