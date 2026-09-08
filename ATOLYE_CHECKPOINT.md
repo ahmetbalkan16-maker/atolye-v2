@@ -1,5 +1,71 @@
 ---
 
+## Sprint 194 - C.2B.10 REAL MIGRATION — HALTED AT PHASE 0 (NO-GO, blocker F12) - 2026-09-08
+
+**Status:** Kullanıcı `cutoverAuthorized = true` verdi ve 18-fazlı gerçek migration runbook'unu
+başlattı. **PHASE 0 — FINAL PRECHECK** çalıştırıldı (yalnız read-only). Precheck bir **BLOCKER**
+ortaya çıkardı → protokol gereği (`KRİTİK KURAL`: "backup verification failure → hemen DUR") **PHASE 0'da
+DURULDU. GERÇEK MIGRATION YAPILMADI. CUTOVER YAPILMADI.** `data/projects/**` byte-identical
+(2388 / 207 / 220 / 611005467 / digest `e95681751674ca0d2e67c9bdb415889fdc851124`). `.env.local`
+değişmedi. `active-authority.json` hâlâ absent. HEAD `b215e97` (+ bu checkpoint commit'i). Push yok.
+
+### Phase 0 precheck — sonuçlar
+
+Baseline (git, data fingerprint, `.env.local`, active-authority absent, Execution Gate CLOSED) **hepsi
+beklenen değerlerde**. Ek durum: `ATOLYE_RUNTIME_ROOT` **hiçbir yerde set değil** (hedef seçilmemiş);
+`ATOLYE_RUNTIME_AUTHORITY_ROOT` **set değil** → volatile `%TEMP%\atolye-runtime-authority-v1`'e
+düşüyor (kalıcı migration için tehlikeli — kalıcı bir yol seçilmeli); `next dev` sunucusu **çalışıyor**
+(Phase 1 için durdurulması gerekli).
+
+### BLOCKER — F12: backup inventory gerçek ağaçta patlıyor
+
+`npm run runtime:backup:inventory` (ve dolayısıyla `runtime:backup:create` = Phase 2 BACKUP) gerçek
+`data/projects` üzerinde **`RuntimeMutationError: "Runtime mutation path is invalid"`** fırlatıyor.
+
+**Kök neden:** Sprint 192/193 audit'inin "EXCLUDE-SAFE — `RuntimeBackupInventory` zaten hariç tutuyor"
+dediği **27 `.partial` dosyası aslında hariç tutulMUYOR** ve isimleri portable limiti aşıyor:
+
+| Konum | Adet | İsim uzunluğu | Limit (`fileNameUtf16`) |
+|---|---|---|---|
+| `…/audio-compensation-cleanup/.audio-journal-staging/retirement-audio-comp-*.partial` | 13 | **108** | 96 |
+| `…/audio-compensation-recovery/.audio-journal-staging/audio-comp-*.partial` | 14 | **97** | 96 |
+
+- `isAudioCompensationJournalStagingPartialAtProjectPath()` (`src/lib/audio/AudioCompensationStore.ts`)
+  gerçek disk layout'u için **`false`** dönüyor:
+  1. **Ara `<ref>` dizini bekliyor** (`…/audio-compensation-cleanup/<ref>/.audio-journal-staging/<file>`)
+     ama diskte `<ref>` yok (`.audio-journal-staging` doğrudan `audio-compensation-cleanup/` altında).
+     `segments.slice(cleanupIndex + 2)` `.audio-journal-staging` prefix'ini atlıyor, `isJournalStagingPartial`
+     ise o prefix'i bekliyor → eşleşme yok.
+  2. **`RECOVERY_DIRECTORY`'yi hiç kontrol etmiyor** — yalnız `CLEANUP_DIRECTORY`. 27'nin 14'ü recovery
+     ağacında.
+- Consumer: `src/lib/runtime/backup/RuntimeBackupInventory.ts:~328` (walk exclusion). Helper false
+  dönünce `.partial` dosyası `validateRuntimeBackupRelativePath` (satır ~349) → 97/108 > 96 →
+  `RuntimeMutationError` (`src/lib/runtime/security/RuntimePathPolicy.ts:12` `fileNameUtf16: 96`).
+- 2388 dosyanın tamamı elle yürütülerek doğrulandı: **28 path-policy failure / 1 exclusion**. (28'in
+  içindeki "1 uzun durable `.json`" benim ham-path taramamın false-positive'i — gerçek v3 projectId
+  remap ile 168 karakterde geçiyor; **gerçek blocker'lar 27 `.partial`**.)
+- 27'sinin hepsi `data/projects/i-stanbul-un-fethi-1453/` (tamamen gitignored, `.gitignore:95`)
+  altında — tracked digest'i etkilemiyor ama `find` / backup / `runtimeAuthorityProjectsContentDigest`
+  hepsi görüyor.
+
+**Sprint 192/193 audit'i bu sonuca kod okuyarak vardı, `collectRuntimeBackupInventory`'i gerçek ağaçta
+ÇALIŞTIRMADAN.** Phase 0 tam da bunun için var — point-of-no-return'den önce yakaladı.
+
+### Sonuç + sıradaki adım (kullanıcı kararı: "ayrı fix sprint")
+
+C.2B.10 **F12 çözülene kadar çalıştırılamaz.** Sıradaki: **ayrı, review'lı fix sprint'i** —
+`isAudioCompensationJournalStagingPartialAtProjectPath` + inventory walk'ı gerçek layout'a göre
+düzelt (hem `cleanup` hem `recovery` ağacı, `<ref>` dizini opsiyonel), fixture'lı bir smoke ekle
+(`collectRuntimeBackupInventory`'i `…/audio-compensation-{cleanup,recovery}/.audio-journal-staging/<108-char>.partial`
+layout'unda GERÇEKTEN çalıştıran), **readiness audit'i RE-RUN et** (bu sefer inventory'i execute
+ederek), sonra C.2B.10'a dön. Ayrıca C.2B.10 dönüşünde gereken kararlar: kalıcı `ATOLYE_RUNTIME_ROOT`
+(D: 931 GB boş) + kalıcı `ATOLYE_RUNTIME_AUTHORITY_ROOT` (temp DEĞİL).
+
+`cutoverAuthorized = true` verilmişti ama **hiçbir cutover yapılmadı**; F12 çözülene kadar migration
+yetkisi beklemede.
+
+<!-- SPRINT-194-END -->
+
 ## Sprint 193 - C.2B.9b COMMITTED + MIGRATION READINESS AUDIT RE-RUN (GO) - 2026-09-08
 
 **Status:** Sprint 192'nin C.2B.9b değişiklikleri **COMMIT EDİLDİ** (2 commit, repo convention'ına
