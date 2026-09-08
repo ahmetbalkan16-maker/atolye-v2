@@ -14,9 +14,14 @@
  * bypasses containment, the write-authority lease and — once the store is
  * relocated — every read/write from that consumer keeps hitting the old
  * in-repo tree. This guard fails the build the moment a NEW such bypass
- * appears, and locks the one already-documented exception
- * (the image GET route, owned by sub-sprint C.2B.5 — see
- * docs/PROJECT_STORAGE.md and docs/PRODUCTION_STORAGE_RELOCATION_AUDIT.md).
+ * appears.
+ *
+ * As of sub-sprint C.2B.5 there is NO pending exception: the image GET route
+ * now reads through `ImageStorage` (canonical runtime storage context), the
+ * same as the audio/video/thumbnail routes. The allow-list below is the
+ * abstraction itself plus its migration/backup tooling — adding to it is a
+ * deliberate policy act (see docs/PROJECT_STORAGE.md and
+ * docs/PRODUCTION_STORAGE_RELOCATION_AUDIT.md).
  */
 
 import assert from "node:assert/strict";
@@ -68,16 +73,12 @@ const PHYSICAL_BASE_PATTERNS: readonly RegExp[] = [
 
 /**
  * Files allowed to resolve the physical project root: the abstraction itself,
- * plus its migration / backup tooling, plus the ONE documented pending
- * exception. Adding to this list is a deliberate policy act.
+ * plus its migration / backup tooling. No pending asset-serving exception
+ * remains (C.2B.5). Adding to this list is a deliberate policy act.
  */
 const ALLOWLIST: readonly string[] = [
   "src/lib/runtime/RuntimeStoragePaths.ts",
   "src/lib/storage/FileStorage.ts",
-  // C.2B.5 — the image GET route still reads `process.cwd()/data/projects/...`
-  // directly (gif/svg have no storage-service inspector yet). Documented,
-  // tracked, and NOT allowed to multiply.
-  "app/api/assets/images/[slug]/[fileName]/route.ts",
 ];
 
 const ALLOWLIST_PREFIXES: readonly string[] = [
@@ -121,13 +122,50 @@ function run() {
     );
   });
 
-  scenario("the one documented pending exception (image GET route) is still the only one", () => {
-    // Lock the baseline: exactly the image route, nothing else.
+  scenario("no physical-root asset-serving exception remains (C.2B.5 closed)", () => {
+    // The abstraction + its migration/backup tooling never join a NON-context
+    // root with `data/projects`, so nothing should land in `allowlistedHits`.
     assert.deepEqual(
       allowlistedHits.sort(),
-      ["app/api/assets/images/[slug]/[fileName]/route.ts"],
-      "the set of allow-listed physical-root files changed — update ALLOWLIST + docs/PROJECT_STORAGE.md deliberately",
+      [],
+      "an allow-listed file now builds a physical data/projects path — route it through the abstraction or record the exception deliberately",
     );
+  });
+
+  scenario("image GET route serves through ImageStorage, not a physical root", () => {
+    const route = fs.readFileSync(
+      path.join(
+        REPO_ROOT,
+        "app/api/assets/images/[slug]/[fileName]/route.ts",
+      ),
+      "utf8",
+    );
+    assert.match(
+      route,
+      /@\/lib\/assets\/storage\/ImageStorage/,
+      "the image route must read through ImageStorage",
+    );
+    assert.match(route, /ImageStorage\.readImage\(/, "must call ImageStorage.readImage");
+    const code = stripComments(route);
+    assert.ok(!/process\.cwd\(\)/.test(code), "the image route must not touch process.cwd()");
+    assert.ok(
+      !/["'`]data["'`]\s*,\s*["'`]projects["'`]/.test(code) &&
+        !/["'`]data\/projects/.test(code),
+      "the image route must not build a physical data/projects path",
+    );
+  });
+
+  scenario("audio GET route serves through AudioStorage, not a physical root", () => {
+    const route = fs.readFileSync(
+      path.join(
+        REPO_ROOT,
+        "app/api/assets/audio/[slug]/[fileName]/route.ts",
+      ),
+      "utf8",
+    );
+    assert.match(route, /@\/lib\/assets\/storage\/AudioStorage/, "must read through AudioStorage");
+    const code = stripComments(route);
+    assert.ok(!/process\.cwd\(\)/.test(code), "the audio route must not touch process.cwd()");
   });
 
   /* --------------------------- abstraction intact -------------------------- */

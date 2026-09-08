@@ -72,12 +72,18 @@ appears.
 
 ### Known exception (tracked)
 
-| File | Why | Owner |
-|---|---|---|
-| `app/api/assets/images/[slug]/[fileName]/route.ts` | reads `process.cwd()/data/projects/<slug>/assets/images/…` directly; `gif` / `svg` have no storage-service inspector yet (`ImageStorage.inspectStoredImage` only covers png/jpeg/webp) | sub-sprint **C.2B.5** |
+**None.** As of sub-sprint **C.2B.5** every asset-serving route reads through its
+storage service:
 
-The audio route was already migrated to `AudioStorage`; the image route is the
-last `app/` bypass. Listed in the guard's `ALLOWLIST`; it must not multiply.
+| Route | Storage service | Method |
+|---|---|---|
+| `app/api/assets/images/[slug]/[fileName]/route.ts` | `ImageStorage` | `readImage` — png / jpg / jpeg / webp / gif / svg, containment + link rejection, 64 MB ceiling |
+| `app/api/assets/audio/[slug]/[fileName]/route.ts` | `AudioStorage` | `readStoredWav` + `inspectWav` |
+| `app/api/assets/videos/[slug]/[fileName]/route.ts` | `VideoStorage` | `inspectStoredMp4` |
+| `app/api/assets/thumbnails/[slug]/[fileName]/route.ts` | `ThumbnailStorage` | `readThumbnail` |
+
+The guard's `ALLOWLIST` is now just `RuntimeStoragePaths.ts` + `FileStorage.ts`
+(the abstraction) plus the `migration/` + `backup/` tooling.
 
 ---
 
@@ -150,13 +156,14 @@ Sprint Protokolü).
 | Verified migration candidate creation | ✅ done | 129.25C.2B.2 |
 | Operation-scoped context propagation | ✅ done | 129.25C.2B.4 |
 | Storage relocation audit (`docs/PRODUCTION_STORAGE_RELOCATION_AUDIT.md`) | ✅ done | 129.25C.2B.3 |
-| **The actual copy / cutover / Git-untracking** | ⛔ **NOT STARTED** | C.2B.5 → C.2B.12 |
+| Asset-serving adapters (image route → `ImageStorage`) | ✅ done | **C.2B.5** |
+| **The actual copy / cutover / Git-untracking** | ⛔ **NOT STARTED** | C.2B.6 → C.2B.12 |
 
 The audit graded 28 entrypoint families: **11 READY, 7 REQUIRES ADAPTER, 1
-REQUIRES MIGRATION, 5 REQUIRES POLICY DECISION, 4 BLOCKING**. The 4 **P0
-BLOCKING** items that must be closed _before_ any relocation:
+REQUIRES MIGRATION, 5 REQUIRES POLICY DECISION, 4 BLOCKING**. Status of the 4
+**P0 BLOCKING** items that must be closed _before_ any relocation:
 
-1. repository-local **image** API serving reads the old root directly (C.2B.5)
+1. ~~repository-local **image** API serving reads the old root directly~~ — **closed (C.2B.5)**: `ImageStorage.readImage` + `smoke-c2b5-image-serving-adapter` (12 scenarios)
 2. no startup-level **frozen production runtime authority** — recovery and the
    worker can resolve different roots → split-brain (C.2B.6)
 3. **durable execution adapters** (`production-execution/**`) aren't bound to one

@@ -1,5 +1,4 @@
-import fs from "fs";
-import path from "path";
+import { ImageStorage } from "@/lib/assets/storage/ImageStorage";
 
 type RouteContext = {
   params: Promise<{
@@ -8,77 +7,35 @@ type RouteContext = {
   }>;
 };
 
-const ROOT_DIR = process.cwd();
-
+/**
+ * Serves a stored project image.
+ *
+ * Reads exclusively through `ImageStorage`, which resolves the logical
+ * `data/projects/<slug>/assets/images/<file>` path against the canonical
+ * runtime storage context (`ATOLYE_RUNTIME_ROOT`, else the legacy in-repo
+ * default) with containment + symlink/junction rejection. There is no
+ * `process.cwd()` / physical `data/projects` access here — this route is no
+ * longer a storage-relocation bypass (sub-sprint C.2B.5).
+ */
 export async function GET(_req: Request, context: RouteContext) {
-  const { slug, fileName } = await context.params;
+  try {
+    const { slug, fileName } = await context.params;
+    const image = ImageStorage.readImage(slug, fileName);
 
-  if (!isSafePathSegment(slug) || !isSafeFileName(fileName)) {
-    return new Response("Not found", { status: 404 });
-  }
-
-  const imagesDir = path.resolve(
-    ROOT_DIR,
-    "data",
-    "projects",
-    slug,
-    "assets",
-    "images",
-  );
-  const imagePath = path.resolve(imagesDir, fileName);
-
-  if (!isInsideDirectory(imagesDir, imagePath) || !fs.existsSync(imagePath)) {
-    return new Response("Not found", { status: 404 });
-  }
-
-  const stat = fs.statSync(imagePath);
-
-  if (!stat.isFile()) {
-    return new Response("Not found", { status: 404 });
-  }
-
-  const file = fs.readFileSync(imagePath);
-
-  return new Response(new Uint8Array(file), {
-    headers: {
-      "Content-Type": getContentType(fileName),
-      "Content-Length": String(file.length),
+    const headers: Record<string, string> = {
+      "Content-Type": image.mimeType,
+      "Content-Length": String(image.data.length),
       "Cache-Control": "public, max-age=31536000, immutable",
-    },
-  });
-}
+      "X-Content-Type-Options": "nosniff",
+    };
+    if (image.mimeType === "image/svg+xml") {
+      // Same-origin SVG can carry inline script; serve it inert.
+      headers["Content-Security-Policy"] =
+        "default-src 'none'; style-src 'unsafe-inline'; sandbox";
+    }
 
-function isSafePathSegment(value: string) {
-  return /^[a-zA-Z0-9-_]+$/.test(value);
-}
-
-function isSafeFileName(value: string) {
-  return /^[a-zA-Z0-9-_.]+$/.test(value) && !value.includes("..");
-}
-
-function isInsideDirectory(directory: string, targetPath: string) {
-  const relativePath = path.relative(directory, targetPath);
-
-  return (
-    relativePath.length > 0 &&
-    !relativePath.startsWith("..") &&
-    !path.isAbsolute(relativePath)
-  );
-}
-
-function getContentType(fileName: string) {
-  switch (path.extname(fileName).toLowerCase()) {
-    case ".jpg":
-    case ".jpeg":
-      return "image/jpeg";
-    case ".webp":
-      return "image/webp";
-    case ".gif":
-      return "image/gif";
-    case ".svg":
-      return "image/svg+xml";
-    case ".png":
-    default:
-      return "image/png";
+    return new Response(new Uint8Array(image.data), { headers });
+  } catch {
+    return new Response("Not found", { status: 404 });
   }
 }

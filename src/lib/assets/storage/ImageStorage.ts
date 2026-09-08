@@ -35,6 +35,21 @@ export interface ImageInspection {
   byteLength: number;
 }
 
+export type ServableImageMimeType =
+  | "image/png"
+  | "image/jpeg"
+  | "image/webp"
+  | "image/gif"
+  | "image/svg+xml";
+
+export interface ServedImage {
+  data: Buffer;
+  mimeType: ServableImageMimeType;
+}
+
+const MAX_SERVABLE_IMAGE_BYTES = 64 * 1024 * 1024;
+const MAX_SERVABLE_SVG_BYTES = 4 * 1024 * 1024;
+
 type ParsedImageData = {
   buffer: Buffer;
   mimeType: string;
@@ -143,6 +158,134 @@ export class ImageStorage {
 
     return { byteLength: buffer.length };
   }
+
+  /**
+   * Read a stored image for serving, resolved through the canonical runtime
+   * storage context — never a physical `process.cwd()/data/projects` root. This
+   * is what removes the last direct-filesystem asset-serving bypass (the image
+   * GET route, sub-sprint C.2B.5). Containment, symlink / junction rejection and
+   * the 64 MB ceiling mirror `inspectStoredImage`; GIF and SVG are additionally
+   * supported for serving with a light structural sanity check.
+   */
+  static readImage(
+    projectSlug: string,
+    fileName: string,
+    input: RuntimeStorageInput = {},
+  ): ServedImage {
+    const context = resolveRuntimeStorageContext(input);
+    requireServableImageSlug(projectSlug);
+    requireServableImageFileName(fileName);
+
+    const mimeType = servableImageMimeTypeForFileName(fileName);
+    const relativePath = `${this.getImagesDir(projectSlug)}/${fileName}`;
+    if (relativePath !== this.getImagePath(projectSlug, fileName)) {
+      throw new Error("Invalid image path.");
+    }
+
+    const storageRoot = resolveRuntimeLogicalPath(
+      this.getImagesDir(projectSlug),
+      context,
+    );
+    const absolutePath = resolveRuntimeLogicalPath(relativePath, context);
+    const { realPath, stat } = requireContainedStorageFile(
+      storageRoot,
+      absolutePath,
+      context,
+    );
+
+    if (stat.size <= 0 || stat.size > MAX_SERVABLE_IMAGE_BYTES) {
+      throw new Error("Invalid image file.");
+    }
+
+    const data = fs.readFileSync(realPath);
+    assertServableImageBytes(data, mimeType);
+    return { data, mimeType };
+  }
+}
+
+function requireServableImageSlug(value: string): void {
+  if (typeof value !== "string" || !/^[a-zA-Z0-9-_]+$/.test(value)) {
+    throw new Error("Invalid image path.");
+  }
+}
+
+function requireServableImageFileName(value: string): void {
+  if (
+    typeof value !== "string" ||
+    !/^[a-zA-Z0-9-_.]+$/.test(value) ||
+    value.includes("..") ||
+    value.startsWith(".") ||
+    value.endsWith(".")
+  ) {
+    throw new Error("Invalid image path.");
+  }
+}
+
+function servableImageMimeTypeForFileName(fileName: string): ServableImageMimeType {
+  switch (path.extname(fileName).toLowerCase()) {
+    case ".png":
+      return "image/png";
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".webp":
+      return "image/webp";
+    case ".gif":
+      return "image/gif";
+    case ".svg":
+      return "image/svg+xml";
+    default:
+      throw new Error("Unsupported image type.");
+  }
+}
+
+function assertServableImageBytes(
+  data: Buffer,
+  mimeType: ServableImageMimeType,
+): void {
+  const ok =
+    mimeType === "image/png"
+      ? data.length >= 8 &&
+        data
+          .subarray(0, 8)
+          .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+      : mimeType === "image/jpeg"
+        ? data.length >= 4 &&
+          data[0] === 0xff &&
+          data[1] === 0xd8 &&
+          data.at(-2) === 0xff &&
+          data.at(-1) === 0xd9
+        : mimeType === "image/webp"
+          ? data.length >= 12 &&
+            data.toString("ascii", 0, 4) === "RIFF" &&
+            data.toString("ascii", 8, 12) === "WEBP" &&
+            data.readUInt32LE(4) + 8 === data.length
+          : mimeType === "image/gif"
+            ? data.length >= 6 &&
+              (data.toString("ascii", 0, 6) === "GIF87a" ||
+                data.toString("ascii", 0, 6) === "GIF89a")
+            : isStructurallySvg(data);
+  if (!ok) {
+    throw new Error("Invalid image file.");
+  }
+}
+
+function isStructurallySvg(data: Buffer): boolean {
+  if (data.length === 0 || data.length > MAX_SERVABLE_SVG_BYTES) return false;
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(data);
+  } catch {
+    return false;
+  }
+  const withoutBom =
+    text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+  const head = withoutBom.trimStart().slice(0, 512).toLowerCase();
+  return (
+    head.startsWith("<?xml") ||
+    head.startsWith("<!doctype svg") ||
+    head.startsWith("<svg")
+  );
 }
 
 function parseImageData(data: ImageData, mimeType?: string): ParsedImageData {
