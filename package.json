@@ -17,6 +17,7 @@
     "authority:publish": "tsx --env-file-if-exists=.env.local scripts/run-authority-transition.ts publish",
     "authority:quarantine": "tsx --env-file-if-exists=.env.local scripts/run-authority-transition.ts quarantine",
     "authority:fail": "tsx --env-file-if-exists=.env.local scripts/run-authority-transition.ts fail",
+    "runtime:migration:candidate:consume": "tsx --env-file-if-exists=.env.local scripts/run-migration-candidate-consume.ts",
     "production:acceptance:readiness": "tsx --env-file-if-exists=.env.local scripts/run-production-acceptance.ts readiness-only",
     "production:acceptance:diagnose": "tsx --env-file-if-exists=.env.local scripts/run-production-acceptance.ts diagnose",
     "production:acceptance:reprepare": "tsx --env-file-if-exists=.env.local scripts/run-production-acceptance.ts reprepare",
@@ -59,6 +60,7 @@
     "smoke:c2b9-authority-transition": "tsx scripts/smoke-c2b9-authority-transition.ts",
     "smoke:c2b9b-genesis-transition": "tsx scripts/smoke-c2b9b-genesis-transition.ts",
     "smoke:f12-audio-journal-partial-classification": "tsx scripts/smoke-f12-audio-journal-partial-classification.ts",
+    "smoke:c2b10a-candidate-consume": "tsx scripts/smoke-c2b10a-candidate-consume.ts",
     "smoke:ayas-access-gate": "tsx scripts/smoke-ayas-access-gate.ts",
     "smoke:ayas-intent-intake": "tsx scripts/smoke-ayas-intent-intake.ts",
     "smoke:external-runtime-root-lifecycle": "tsx scripts/smoke-external-runtime-root-project-lifecycle.ts"

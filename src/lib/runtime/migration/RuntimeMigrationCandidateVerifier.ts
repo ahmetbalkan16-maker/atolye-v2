@@ -143,6 +143,17 @@ export function verifyMigrationCandidateBinding(
   });
 }
 
+/**
+ * Project a verified `RuntimeMigrationCandidateManifest` onto the
+ * `RuntimeBackupManifest` shape so a materialized tree can be checked with
+ * `verifyRuntimeTreeAgainstManifest` (C.2B.10a consume post-copy verification).
+ */
+export function runtimeBackupManifestFromCandidateManifest(
+  candidate: RuntimeMigrationCandidateManifest,
+): RuntimeBackupManifest {
+  return asBackupManifest(candidate);
+}
+
 function asBackupManifest(candidate: RuntimeMigrationCandidateManifest): RuntimeBackupManifest {
   const isV4 = candidate.sourceBackup.formatVersion === runtimeBackupFormatVersion;
   const isV3 = candidate.sourceBackup.formatVersion === runtimeBackupFormatVersionV3;
