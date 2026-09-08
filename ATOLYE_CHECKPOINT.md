@@ -1,5 +1,108 @@
 ---
 
+## Sprint 192 - MIGRATION READINESS AUDIT (NO-GO) + C.2B.9b: genesis transition + operator layer - 2026-09-08
+
+**Status:** Audit → **NO-GO** (6 P1). C.2B.9b implemented those 6 P1 → **C.2B.9b = READY** (kendi
+review'ı aşağıda). **COMMIT YAPILMADI, PUSH YAPILMADI** (C.2B.9b emri: "commit OLUŞTURULMAYACAK").
+Değişiklikler working-tree'de bekliyor. `npx tsc --noEmit` temiz. `npx eslint .` = **0 error / 22
+warning (baseline)**. `npx next build` başarılı. `data/projects/**` = **2388 dosya / 611005467 byte /
+220 tracked / digest e95681751674ca0d2e67c9bdb415889fdc851124 — DEĞİŞMEDİ**. `.env.local` mtime
+değişmedi. HEAD hâlâ `97a420b` (commit yok).
+
+### BÖLÜM 1 — MIGRATION READINESS AUDIT (read-only, GO/NO-GO)
+
+**Karar: NO-GO.** Authority machinery (C.2B.5/6/6b/9) sağlam ve kanıtlı; migration OPERASYON katmanında
+6 P1 bulundu.
+
+| ID | Sev | Bulgu |
+|---|---|---|
+| F10 | P1 | Genesis (repo/legacy → ilk external) transition implement edilmemiş — `beginTransition` unmarked legacy source'u `TRANSITION_SOURCE_UNMARKED` ile reddediyor. 590 MB taşıması TAM OLARAK genesis. |
+| F11 | P1 | `classification !== "legacy-repository"` carve-out: genesis sonrası hâlâ diskteki repo `data/projects`, dev modda ikinci authority olarak boot edebiliyor. |
+| F4 | P1 | Post-publish rollback yok; backup↔marker↔`active-authority.json` etkileşimi analiz edilmemiş. |
+| F1 | P1 | `docs/PROJECT_STORAGE.md` §6 runbook C.2B.9 öncesi — hâlâ "`.env.local` düzenle + chmod" modeli. |
+| F2 | P1 | Coordinator için operator CLI yok — sadece library API. |
+| F3 | P1 | Byte-exact copy zorlanmıyor — `validateTarget` yalnız slug listesi kontrol ediyor; malformed durable record → target boot `RUNTIME_BOOTSTRAP_INVALID` (ephemeral rehearsal ile kanıtlandı). |
+| F5 | P2 | 27 `.partial` dosyası (hepsi `i-stanbul-un-fethi-1453` altında, `AudioCompensationStore` journal-staging orphan). |
+| F6 | P2 | `ProductionReadinessService` probe context'i frozen context değil (ama temp-isolated, gerçek veriye dokunmuyor). |
+| F7 | INFO | `src/lib/projects/VisualManager.ts` ölü kod (`data/visuals`, 0 importer). |
+| F8 | INFO | `data/brain/` tasarım gereği ayrı machine-local root — migrate EDİLMEZ. |
+| F9 | INFO | ~1742 untracked `production-execution` kaydı fs ağacıyla taşınır; C.2B.12 yalnız 130 tracked'e dokunur. |
+
+Ephemeral rehearsal (`os.tmpdir()`, synthetic durable record): byte-exact copy → durable record
+bit-bit aynı; target boot OK; quarantined source → `RUNTIME_AUTHORITY_ROOT_QUARANTINED`; marker-less
+stray → `RUNTIME_AUTHORITY_NOT_ACTIVE`. Path bypass taraması: yeni bypass YOK. Security boundary
+(`AYAS_ACCESS_KEY` + HMAC + `data/brain`) migration'dan bağımsız. Git working tree audit boyunca temiz.
+
+### BÖLÜM 2 — C.2B.9b IMPLEMENTATION
+
+**`RuntimeAuthorityTransition.ts`** — `kind: "relocation" | "genesis" | "recovery"` (opsiyonel, absent
+→ relocation); `runtimeAuthorityProjectsContentDigest(projectsRoot)` (F3 — tüm ağacın per-file SHA-256
+digest'i, marker hariç, symlink → `TRANSITION_CONTENT_UNSAFE`); yeni error kodları.
+
+**`RuntimeAuthorityTransitionCoordinator.ts`:**
+- **F10** `beginGenesisTransition({legacySourceContext, targetContext})` — ön koşul: source
+  `legacy-default` + marker YOK + `active-authority.json` YOK + target `explicit-external` + quarantined
+  değil. Aynı publish akışı (target marker damgala + CAS sequence 1). `quarantineSource` genesis için
+  `quarantine/<binding>.json` YAZMAZ (backup repo path'e restore edilebilsin).
+- **F4** `beginRecoveryTransition({targetContext, reason})` — source `active-authority.json`'dan okunur
+  (canlı source gerekmez); `confirmQuiescence` recovery için source durable scan'i GATE ETMEZ (worker
+  down şart); `quarantineSource` terk edilen root'u quarantine EDER. Quarantined target / stale foreign
+  marker → fail-closed.
+- **F3** `prepareTransition({sourceProjectsRoot?})` → `sourceFreeze.contentDigest`; `validateTarget
+  ({targetProjectsRoot?})` → tam eşitlik yoksa `TRANSITION_TARGET_CONTENT_MISMATCH`.
+- `confirmQuiescence` kind-aware (recovery `NOT_CLEAN` gate'ini atlar).
+
+**`ProductionRuntimeAuthorityGenerationEnforcement.ts`** — **F11**: `active-authority.json` varsa ve
+farklı bir root ise → `RUNTIME_AUTHORITY_NOT_ACTIVE` artık `legacy-repository` dahil TÜM
+classification'lara uygulanıyor (carve-out kaldırıldı). Transition olmadan `active` null → check no-op
+→ dev değişmedi.
+
+**F2** — `scripts/run-authority-transition.ts` + `src/lib/runtime/security/RuntimeAuthorityTransitionCommand.ts`
++ `npm run authority:{status,begin-genesis,begin-relocation,begin-recovery,quiesce,prepare,validate,
+publish,quarantine,fail}`. Strict arg validation (absolute path, `..` reddi, chain'de symlink reddi,
+transition-id / generation pattern). `quiesce` → `--assert-worker-stopped` zorunlu + durable scan
+`ProductionExecutionDurableRecoveryService.scan()`. CLI proje verisi KOPYALAMAZ.
+
+**F1** — `docs/PROJECT_STORAGE.md` §6 runbook CLI + verified-candidate etrafında 11 adım olarak
+yeniden yazıldı. **F5** — `.partial` sınıflandırması (EXCLUDE-SAFE) eklendi.
+
+### C.2B.9b independent closure review
+
+| Soru | Cevap |
+|---|---|
+| Genesis repo→external artık mümkün mü? | **EVET** — `beginGenesisTransition`, 16-senaryo smoke |
+| Genesis sonrası repo tree ikinci authority olabilir mi? | **HAYIR** — F11 carve-out kaldırıldı; gerçek child boot `RUNTIME_AUTHORITY_NOT_ACTIVE` |
+| Backup restore otomatik authority olur mu? | **HAYIR** — restored root `NOT_ACTIVE`; yeniden establish için explicit recovery transition |
+| Post-publish rollback var mı? | **VAR ama forward-only** — `beginRecoveryTransition` → fresh root; quarantined root'a recovery yok |
+| Byte-exact zorlanıyor mu? | **EVET** — `contentDigest`; mutated/missing/extra 1 byte → `TRANSITION_TARGET_CONTENT_MISMATCH` |
+| Operator CLI var mı? | **VAR** — 10 subcommand, strict validation, veri kopyalamaz |
+| Execution Gate açılıyor mu? | **HAYIR** — `ayasExecutionGate = "CLOSED"` sabit, static smoke |
+| Gerçek `data/projects/**` / `.env.local` değişti mi? | **HAYIR** — digest + byte count + mtime bit-bit aynı |
+
+### Testler
+
+tsc temiz · eslint 0/22 · `next build` OK · **YENİ `smoke-c2b9b-genesis-transition` (16 senaryo)** ·
+regression: c2b5 (12) / c2b6 (14) / c2b6b (19) / **c2b9 (21)** / execution-durable-storage /
+project-storage-hygiene (10) / external-runtime-root-lifecycle (7) / ayas-access-gate (14) /
+ayas-intent-intake (13) / production-runtime-startup / canonical-runtime-foundation (29) / 129-25b (21)
+/ 129-25c-1 (39) / brain-security / brain-worker-cycle / ayas-autonomous **PASS**.
+**Pre-existing FAIL:** `129-25c-2a` + `129-25c-2b-4` (line 138) — bu sprint `RuntimeStoragePaths.ts` /
+`ProductionRuntimeCompositionRoot.ts`'e dokunmadı.
+
+### DOKUNULMADI
+
+`ProductionExecutionPersistence.ts`, `RuntimeStoragePaths.ts`, `ProductionRuntimeCompositionRoot.ts`,
+pipeline, AYAS/Brain runtime, `.env.local`, `.gitattributes`, Git index, `data/projects/**` fiziksel,
+~130 durable milestone kaydı, 27 `.partial` dosyası.
+
+### Sıradaki tek adım
+
+**MIGRATION READINESS AUDIT — RE-RUN.** C.2B.9b 6 P1'i kapattı. GO çıkarsa + ayrı migration sprint
+emri gelirse gerçek ~611 MB taşınabilir. `cutoverAuthorized = false`. **Bu sprintin değişiklikleri
+henüz commit edilmedi** (emir gereği).
+
+<!-- SPRINT-192-END -->
+
 ## Sprint 191 - C.2B.9: versioned authority transition + quiescence + old-root quarantine - 2026-09-08
 
 **Status:** **C.2B.9 = READY.** Kontrollü, versioned, quiesced authority relocation makinesi

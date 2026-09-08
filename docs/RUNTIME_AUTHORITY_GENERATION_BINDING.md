@@ -1,11 +1,14 @@
-# Runtime Authority-Generation Binding — C.2B.6 / C.2B.6b / C.2B.9
+# Runtime Authority-Generation Binding — C.2B.6 / C.2B.6b / C.2B.9 / C.2B.9b
 
-Status: **C.2B.6b + C.2B.9 DONE.** The marker is wired into production startup +
-recovery bootstrap (C.2B.6b, §5), and the versioned authority transition
+Status: **C.2B.6b + C.2B.9 + C.2B.9b DONE.** The marker is wired into production
+startup + recovery bootstrap (C.2B.6b, §5); the versioned authority transition
 protocol — quiescence, atomic publish, old-root quarantine, split-brain
-prevention, crash recovery — is implemented and enforced (C.2B.9, §6).
-Master-sprint sessions 2026-09-08. A real project migration is still gated on a
-separate migration readiness audit; `cutoverAuthorized` stays false.
+prevention, crash recovery — is implemented and enforced (C.2B.9, §6); and the
+genesis transition (repo → first external), the operator CLI, byte-exact
+materialization enforcement, the split-brain fix, and backup-recovery are done
+(C.2B.9b, §7). Master-sprint sessions 2026-09-08. A real project migration is
+still gated on a **re-run of the migration readiness audit** + its own approved
+sprint; `cutoverAuthorized` stays false.
 
 This is the design + threat model for closing the durable half of the storage
 relocation audit's P0 items 2 and 3
@@ -245,21 +248,60 @@ conflict, enforcement integration, child-process crash-and-resume across every
 step, real composition-root boots denied on the quarantined source + mid-flight
 and allowed on the target).
 
+### Enforcement integration — F11 update (C.2B.9b)
+
+The `RUNTIME_AUTHORITY_NOT_ACTIVE` check now applies to **every** classification,
+including the legacy in-repo default: once `active-authority.json` exists, a
+still-present repo `data/projects` booted with `ATOLYE_RUNTIME_ROOT` unset in
+`NODE_ENV=development` fails closed instead of running as a second authority.
+(Before any transition `active-authority.json` is absent and the check is still
+a no-op — dev is unaffected.)
+
+---
+
+## 7. Genesis + operator layer — DONE (C.2B.9b)
+
+Closes the six P1 blockers the migration readiness audit raised.
+
+| # | Blocker | Fix |
+|---|---|---|
+| F10 | The genesis repo → first-external transition was not implementable — `beginTransition` rejected the unmarked legacy source. | `beginGenesisTransition(legacySourceContext, targetContext)` — `kind: "genesis"`. Preconditions: source `source === "legacy-default"` **and** no marker, no `active-authority.json`, target `explicit-external` + not quarantined. `quarantineSource` for a genesis writes **no** `quarantine/<binding>.json` (so a backup can still be restored to the repo path); the legacy source is retired by the `active-authority.json` pointer + F11. |
+| F11 | The `legacy-repository` carve-out let a still-present repo tree boot as a second authority post-genesis. | carve-out removed (see §6 F11 update). |
+| F4 | No post-publish rollback / backup-restore authority recovery. | `beginRecoveryTransition(targetContext, reason)` — `kind: "recovery"`. Source is read from `active-authority.json` (no live source needed). `confirmQuiescence` for a recovery records but does **not** gate on the abandoned source's durable scan; still requires the worker down. `quarantineSource` **does** quarantine the abandoned root. A recovery target cannot be a quarantined root, and a stale / foreign marker on it fails closed. |
+| F3 | Byte-exact copy was not enforced — only the slug list was checked. | `prepareTransition({ sourceProjectsRoot })` freezes a per-file SHA-256 digest of the whole tree (the `.runtime-authority-generation.json` marker is excluded — it is re-stamped at publish; symlinks / non-regular files → `TRANSITION_CONTENT_UNSAFE`). `validateTarget({ targetProjectsRoot })` requires an exact match (`TRANSITION_TARGET_CONTENT_MISMATCH` on any mutated / missing / extra byte). The operator CLI always passes both roots. |
+| F2 | No operator entrypoint. | `scripts/run-authority-transition.ts` + `npm run authority:{status,begin-genesis,begin-relocation,begin-recovery,quiesce,prepare,validate,publish,quarantine,fail}`. Logic in `RuntimeAuthorityTransitionCommand.ts` — strict argument validation (absolute paths, no `..`, symlink-in-chain rejection, transition-id / generation patterns). `quiesce` auto-derives the durable-recovery decision from `ProductionExecutionDurableRecoveryService.scan()` per source project and requires `--assert-worker-stopped`. The CLI **never copies project data** — byte-exact materialization stays a `runtime:backup` + verified-candidate step. |
+| F1 | The runbook predated C.2B.9. | Rewritten — `docs/PROJECT_STORAGE.md` §6, 11 steps around the CLI + the verified candidate. |
+| F5 | 27 `.partial` files unclassified. | All EXCLUDE-SAFE — `AudioCompensationStore` journal-staging orphans under one gitignored project; `RuntimeBackupInventory` already excludes them. |
+
+Coverage: `scripts/smoke-c2b9b-genesis-transition.ts` (16 scenarios — genesis
+happy path / guards / crash-and-resume; F11 legacy repo boots before + refuses
+after genesis (real child boots) + foreign copy; F4 restore does not
+auto-activate + recovery transition + recovery guards; F3 byte-exact
+mutated/missing/extra + symlink; CLI strict-arg validation + a full genesis run;
+existing C.2B.9 regression; static no-execution).
+
 ### Known limitations
 
 - A raw `fs.write` to the old root's tree, bypassing the runtime entirely, is
   not prevented — the threat model is a second *runtime authority* activating,
-  not filesystem ACLs. The operator's runbook still puts the old tree behind
-  read-only OS permissions.
+  not filesystem ACLs. The runbook still renames the old tree read-only.
 - `confirmQuiescence` refuses while the worker reports active; it does not
   *force-stop* a running runtime. The operator stops the runtime; the
-  coordinator then confirms against the durable-recovery scan.
+  coordinator then confirms against the durable-recovery scan. The CLI's own
+  `getProductionRuntimeStatus()` reflects the CLI process (always down), so the
+  `--assert-worker-stopped` flag carries the operator's assertion and the
+  durable scan is the substantive gate.
 - The transition requires the **same** `ATOLYE_RUNTIME_AUTHORITY_ROOT` for source
-  and target (the shared coordination plane). Changing it too invalidates the
-  coordination and is an operator error.
+  and target (the shared coordination plane).
+- After a genesis publish, the target will not boot while `<repo>/data/projects`
+  still holds the same slugs (`RUNTIME_STORAGE_DUAL_ROOT_DIVERGENCE`) — a
+  deliberate fail-closed; the operator renames the old tree first (runbook step 8).
+- A recovery transition to a previously-quarantined root is impossible (the
+  quarantine mark is append-once, no un-quarantine) — recovery always goes to a
+  fresh root.
 
-### Next → migration readiness audit
+### Next → re-run the migration readiness audit
 
-C.2B.9 makes the transition *machinery* READY. A real project migration is still
-gated on a separate **migration readiness audit** and its own approved sprint.
-`cutoverAuthorized` stays false.
+C.2B.9b closes every P1 from the last audit. The next step is a **re-run of the
+migration readiness audit**; only a GO there, plus an explicit migration-sprint
+order, authorizes touching the real ~611 MB. `cutoverAuthorized` stays false.

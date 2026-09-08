@@ -157,7 +157,11 @@ Sprint Protokolü).
 | Operation-scoped context propagation | ✅ done | 129.25C.2B.4 |
 | Storage relocation audit (`docs/PRODUCTION_STORAGE_RELOCATION_AUDIT.md`) | ✅ done | 129.25C.2B.3 |
 | Asset-serving adapters (image route → `ImageStorage`) | ✅ done | **C.2B.5** |
-| **The actual copy / cutover / Git-untracking** | ⛔ **NOT STARTED** | C.2B.6 → C.2B.12 |
+| Cross-restart authority-generation enforcement | ✅ done | **C.2B.6b** |
+| Versioned authority transition (external→external) | ✅ done | **C.2B.9** |
+| Genesis transition (repo→first external) + operator CLI + byte-exact + backup recovery | ✅ done | **C.2B.9b** |
+| Migration readiness audit | 🟡 **NO-GO** (2026-09-08); re-run after C.2B.9b | — |
+| **The actual 611 MB copy / cutover / Git-untracking** | ⛔ **NOT STARTED** — `cutoverAuthorized = false` | C.2B.12 + a migration sprint |
 
 The audit graded 28 entrypoint families: **11 READY, 7 REQUIRES ADAPTER, 1
 REQUIRES MIGRATION, 5 REQUIRES POLICY DECISION, 4 BLOCKING**. Status of the 4
@@ -196,29 +200,102 @@ Plus `REQUIRES POLICY DECISION` items (protected-root roles for
 relocation-target / quarantine, portable-fingerprint semantics, Git-vs-byte
 evidence split, `data/visuals` scope).
 
-### Runbook (execute only once C.2B.5–C.2B.12 close — offline, operator-run)
+### Runbook — genesis migration (repo → first external root)
+
+**Offline, operator-run. Not executable until a re-run of the migration
+readiness audit returns GO and a migration sprint is explicitly authorized —
+`cutoverAuthorized` stays false.** The C.2B.9b operator CLI drives the control
+plane; it never copies project data (steps 4–5 do).
+
+The **authority cutover is the `publish` step, not editing `.env.local`.** Every
+step below is idempotent on `--transition-id` and resumes after a crash.
 
 ```
-0. Drain: no pipeline / production execution running; durable quiescence.
-1. npm run runtime:backup:create   &&   npm run runtime:backup:verify
-2. Create + preflight a verified migration candidate
-     (src/lib/runtime/migration/RuntimeMigrationCandidateService)
-     - DRY RUN  -> file count, byte count, per-file SHA-256
-3. Choose an EXCLUSIVE, EMPTY external target (e.g. C:\AtolyeData).
-4. Consume the candidate -> copy into <target>/projects/
-5. VERIFY: file count == , bytes == , checksum == , read test, app test
-     (npm run runtime:backup:restore-verify pattern + a real project open)
-6. Set ATOLYE_RUNTIME_ROOT=<target> in .env.local   (operator edits this — not automated)
-7. App test against the external root; confirm no write lands in <repo>/data/projects
-8. Quarantine the old <repo>/data/projects as READ-ONLY (do not delete yet).
-9. Separate Git-untracking sprint (C.2B.12): decide the untracking ORDER so no
-   ignored-durable record is lost, then `git rm --cached` the relocated tree
-   and extend `.gitignore`.
-10. Only after all of the above verifies: remove the quarantined old tree.
+0.  PRECHECK
+      npm run authority:status -- --authority-root <AR>      # must show NO active authority
+      Stop the Next.js server (the CLI cannot force-stop a running runtime).
+      Pick: <AR>  a persistent authority root (default os.tmpdir()/atolye-runtime-authority-v1;
+                  keep the SAME value forever — it is the shared coordination plane)
+            <T>   an EXCLUSIVE, EMPTY external target dir (e.g. D:\AtolyeData) — <T>/projects must not exist yet
+
+1.  BACKUP
+      npm run runtime:backup:create   &&   npm run runtime:backup:verify
+
+2.  BEGIN GENESIS
+      npm run authority:begin-genesis -- --authority-root <AR> --target <T> --transition-id <ID>
+
+3.  QUIESCE  (worker down + durable-recovery clean)
+      npm run authority:quiesce -- --authority-root <AR> --transition-id <ID> \
+        --assert-worker-stopped --source-projects <repo>/data/projects
+      → refuses if any project's production-execution/ scan is not "clean".
+
+4.  MATERIALIZE TARGET — BYTE-EXACT (this is NOT the CLI's job)
+      Create + preflight a verified migration candidate
+        (src/lib/runtime/migration/RuntimeMigrationCandidateService, backup-derived)
+      Consume it into <T>/projects/  — per-file SHA-256 readback.
+      DO NOT `cp -r` / `rsync` / re-serialize any JSON — a single changed byte in a
+      production-execution record makes the new root unbootable (RUNTIME_BOOTSTRAP_INVALID).
+      DO NOT copy the .runtime-authority-generation.json marker (publish re-stamps it).
+
+5.  PREPARE + VALIDATE  (freezes a per-file digest of <repo>/data/projects and
+                         requires <T>/projects to be a byte-exact copy)
+      npm run authority:prepare  -- --authority-root <AR> --transition-id <ID> \
+        --source-projects <repo>/data/projects
+      npm run authority:validate -- --authority-root <AR> --transition-id <ID> --target <T>
+      → validate fails (TRANSITION_TARGET_CONTENT_MISMATCH) on ANY difference.
+
+6.  PUBLISH AUTHORITY  (point of no return — no silent rollback after this)
+      npm run authority:publish -- --authority-root <AR> --transition-id <ID> --target <T>
+      → stamps <T>/projects/.runtime-authority-generation.json and CAS-writes
+        <AR>/authority-transition-v1/active-authority.json.
+
+7.  QUARANTINE OLD ROOT
+      npm run authority:quarantine -- --authority-root <AR> --transition-id <ID>
+      (genesis retires the repo default via the active-authority pointer — it does NOT
+       write a quarantine/<binding>.json, so a backup can still be restored to the repo path.)
+
+8.  CUT OVER + RESTART
+      Set ATOLYE_RUNTIME_ROOT=<T> and ATOLYE_RUNTIME_AUTHORITY_ROOT=<AR>  (operator edits .env.local).
+      The target will NOT boot while <repo>/data/projects still holds the same slugs
+      (RUNTIME_STORAGE_DUAL_ROOT_DIVERGENCE — a deliberate fail-closed).
+      → rename <repo>/data/projects to <repo>/data/projects.quarantined (read-only), then start.
+
+9.  RECOVERY VERIFY
+      Start the server → it boots against <T>; open a real project; confirm no write
+      lands in <repo>/data/projects.quarantined. `npm run authority:status` shows the
+      target as the active authority, sequence 1.
+
+10. GIT UNTRACKING  — a SEPARATE, reviewed C.2B.12 sprint (docs/GIT_UNTRACKING_PLAN.md).
+      `git rm --cached` the relocated tree in the documented order; extend `.gitignore`.
+      Protected: production-execution/**, production-acceptance.json.
+
+11. Only after everything above verifies over time: delete <repo>/data/projects.quarantined.
 ```
 
-Failed migration **never** deletes the source. Migration is **idempotent**. A
-slug collision **never** auto-overwrites (`RUNTIME_STORAGE_DUAL_ROOT_DIVERGENCE`).
+Failed transition (pre-publish) → `npm run authority:fail -- --transition-id <ID> --reason "<why>"`,
+then resume the old root. **After publish there is no rollback:** if the target
+proves bad, restore the step-1 backup into a FRESH root and run
+`npm run authority:begin-recovery -- --target <fresh> --transition-id <ID2> --reason "<why>"`
+→ quiesce → prepare → validate → publish → quarantine. A recovery transition
+quarantines the abandoned root; that root can never be recovered *to*.
+
+`data/brain/**` (AYAS ledger, Brain queue, autonomy state) is **not** migrated —
+it stays machine-local under `<repo>/data/brain/`.
+
+Migration is **idempotent**. A slug collision **never** auto-overwrites
+(`RUNTIME_STORAGE_DUAL_ROOT_DIVERGENCE`). A failed migration **never** deletes
+the source.
+
+### `.partial` files (F5 — read-only classification, migration-safe)
+
+The 27 `*.partial` files on disk are **EXCLUDE-SAFE**: all under
+`data/projects/i-stanbul-un-fethi-1453/production-execution/{audio-compensation-cleanup,audio-compensation-recovery}/.audio-journal-staging/`
+— orphan atomic-write staging from `AudioCompensationStore` journal persistence
+(`<name>.json.<uuid>.partial`). They are inert (never read as authority) and
+`RuntimeBackupInventory` already excludes them
+(`isAudioCompensationJournalStagingPartialAtProjectPath` → skip). Zero under any
+tracked / milestone project; `i-stanbul-un-fethi-1453` is a gitignored,
+in-progress 276 MB project and not a first-wave migration target.
 
 ---
 
