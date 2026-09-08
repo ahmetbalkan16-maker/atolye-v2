@@ -47,7 +47,14 @@ export type RuntimeAuthorityTransitionState =
   | "target-validated"
   | "published"
   | "old-root-quarantined"
-  | "failed";
+  | "failed"
+  // C.2B.11 — a token-authorized rollback runs as its own record (kind: "rollback"),
+  // created directly in `rollback-requested`. It shares this store and the single
+  // `active-authority.json` CAS; there is no edge from a forward record into it.
+  | "rollback-requested"
+  | "rollback-validated"
+  | "rollback-published"
+  | "former-target-quarantined";
 
 /**
  * `relocation` — external → external (both roots stamped). The source gets a
@@ -59,8 +66,15 @@ export type RuntimeAuthorityTransitionState =
  * `recovery`   — a disaster path: the current active authority is abandoned
  *   (possibly unreachable / corrupt) and authority is forcibly moved to a
  *   restored root. The abandoned source IS quarantined.
+ * `rollback`   — C.2B.11: a single-use, token-authorized reverse transition that
+ *   moves authority from the just-published target BACK to the quarantined old
+ *   root, only while nothing has mutated on either root since the cutover.
  */
-export type RuntimeAuthorityTransitionKind = "relocation" | "genesis" | "recovery";
+export type RuntimeAuthorityTransitionKind =
+  | "relocation"
+  | "genesis"
+  | "recovery"
+  | "rollback";
 
 const FORWARD: Readonly<
   Record<RuntimeAuthorityTransitionState, readonly RuntimeAuthorityTransitionState[]>
@@ -72,6 +86,10 @@ const FORWARD: Readonly<
   published: ["old-root-quarantined"],
   "old-root-quarantined": [],
   failed: [],
+  "rollback-requested": ["rollback-validated", "failed"],
+  "rollback-validated": ["rollback-published", "failed"],
+  "rollback-published": ["former-target-quarantined"],
+  "former-target-quarantined": [],
 });
 
 /** States in which the SOURCE root must not initialize a new runtime. */
@@ -101,7 +119,13 @@ export type RuntimeAuthorityTransitionErrorCode =
   | "TRANSITION_QUIESCENCE_NOT_CLEAN"
   | "TRANSITION_TARGET_INVENTORY_MISMATCH"
   | "TRANSITION_TARGET_CONTENT_MISMATCH"
-  | "TRANSITION_CONTENT_UNSAFE";
+  | "TRANSITION_CONTENT_UNSAFE"
+  // C.2B.11
+  | "ROLLBACK_TOKEN_INPUT_INVALID"
+  | "ROLLBACK_TOKEN_MISMATCH"
+  | "ROLLBACK_TOKEN_ALREADY_ISSUED"
+  | "ROLLBACK_TOKEN_ALREADY_CONSUMED"
+  | "QUARANTINE_ENFORCEMENT_INPUT_INVALID";
 
 export class RuntimeAuthorityTransitionError extends Error {
   constructor(
@@ -138,6 +162,9 @@ export interface RuntimeAuthorityTransitionRecord {
   readonly history: readonly RuntimeAuthorityTransitionHistoryEntry[];
   /** `recovery` only — why authority was forcibly moved. */
   readonly recoveryReason?: string;
+  /** `rollback` only — the forward transitionId being reversed + the token used. */
+  readonly rollbackOf?: string;
+  readonly rollbackTokenId?: string;
   /** Recorded at `prepared` — the frozen source project inventory. */
   readonly sourceFreeze?: {
     readonly projectSlugs: readonly string[];
@@ -181,6 +208,68 @@ export interface RuntimeAuthorityQuarantineRecord {
   readonly authorityIdentity: string;
   readonly resolverBindingIdentity: string;
   readonly quarantinedAt: string;
+}
+
+/* --------------------------------------------------- C.2B.11 record types -- */
+
+const ROLLBACK_TOKEN_ID = /^rbt-[0-9a-f]{48}$/;
+
+/**
+ * C.2B.11 — the append-once evidence that a retired root's `projects/` tree was
+ * put behind an OS read-only barrier (Windows FILE_ATTRIBUTE_READONLY on every
+ * regular file). `mode` names the mechanism so a future platform can widen it.
+ */
+export interface RuntimeAuthorityQuarantineEnforcementRecord {
+  readonly schemaVersion: typeof runtimeAuthorityTransitionSchemaVersion;
+  readonly transitionId: string;
+  readonly resolverBindingIdentity: string;
+  readonly mode: "windows-readonly-attribute";
+  readonly readOnlyFileCount: number;
+  readonly contentDigest: string;
+  readonly enforcedAt: string;
+}
+
+/**
+ * C.2B.11 — the single-use rollback authorization. Bound to EXACTLY one
+ * authority generation, one forward transition, one source (old) root, one
+ * target (new) root and one `transitionSequence`. Durable + append-once; it can
+ * never be replayed or re-pointed. It authorizes ONLY the reverse transition —
+ * not runtime startup, worker execution, candidate consume, or standing in for
+ * `active-authority.json` / the generation marker.
+ */
+export interface RuntimeAuthorityRollbackToken {
+  readonly schemaVersion: typeof runtimeAuthorityTransitionSchemaVersion;
+  readonly tokenId: string;
+  readonly transitionId: string;
+  readonly authorityGeneration: string;
+  readonly sourceResolverBindingIdentity: string;
+  readonly sourceAuthorityIdentity: string;
+  readonly targetResolverBindingIdentity: string;
+  readonly targetAuthorityIdentity: string;
+  readonly transitionSequence: number;
+  readonly sourceContentDigest: string;
+  readonly issuedAt: string;
+}
+
+/** Append-once: the rollback token has been spent by a rollback transition. */
+export interface RuntimeAuthorityRollbackTokenConsumption {
+  readonly schemaVersion: typeof runtimeAuthorityTransitionSchemaVersion;
+  readonly tokenId: string;
+  readonly rollbackTransitionId: string;
+  readonly consumedAt: string;
+}
+
+/** Append-once: a quarantined old root has been re-activated by a valid rollback. */
+export interface RuntimeAuthorityQuarantineLiftRecord {
+  readonly schemaVersion: typeof runtimeAuthorityTransitionSchemaVersion;
+  readonly resolverBindingIdentity: string;
+  readonly rollbackTransitionId: string;
+  readonly rollbackTokenId: string;
+  readonly liftedAt: string;
+}
+
+export function isValidRuntimeAuthorityRollbackTokenId(value: unknown): value is string {
+  return typeof value === "string" && ROLLBACK_TOKEN_ID.test(value);
 }
 
 export function isValidRuntimeAuthorityTransitionId(value: unknown): value is string {
@@ -333,6 +422,151 @@ export class RuntimeAuthorityTransitionStore {
     return this.readQuarantine(record.resolverBindingIdentity)!;
   }
 
+  /* ------------------------------------------------- C.2B.11 store ops --- */
+
+  readQuarantineEnforcement(
+    resolverBindingIdentity: string,
+  ): RuntimeAuthorityQuarantineEnforcementRecord | null {
+    this.requireBindingDigest(resolverBindingIdentity);
+    const value = this.readJson(
+      path.join(this.root, "quarantine-enforcement", `${resolverBindingIdentity}.json`),
+    );
+    if (value === null) return null;
+    if (!isQuarantineEnforcementRecord(value)) {
+      throw new RuntimeAuthorityTransitionError("TRANSITION_RECORD_CORRUPT", "quarantine-enforcement");
+    }
+    return value;
+  }
+
+  writeQuarantineEnforcement(
+    record: RuntimeAuthorityQuarantineEnforcementRecord,
+  ): RuntimeAuthorityQuarantineEnforcementRecord {
+    if (!isQuarantineEnforcementRecord(record)) {
+      throw new RuntimeAuthorityTransitionError("QUARANTINE_ENFORCEMENT_INPUT_INVALID", "shape");
+    }
+    return this.appendOnce(
+      path.join(this.root, "quarantine-enforcement", `${record.resolverBindingIdentity}.json`),
+      record,
+      (existing) =>
+        (existing as RuntimeAuthorityQuarantineEnforcementRecord).transitionId === record.transitionId &&
+        (existing as RuntimeAuthorityQuarantineEnforcementRecord).contentDigest === record.contentDigest,
+      isQuarantineEnforcementRecord,
+      "quarantine-enforcement",
+    );
+  }
+
+  readQuarantineLift(
+    resolverBindingIdentity: string,
+  ): RuntimeAuthorityQuarantineLiftRecord | null {
+    this.requireBindingDigest(resolverBindingIdentity);
+    const value = this.readJson(
+      path.join(this.root, "quarantine-lift", `${resolverBindingIdentity}.json`),
+    );
+    if (value === null) return null;
+    if (!isQuarantineLiftRecord(value)) {
+      throw new RuntimeAuthorityTransitionError("TRANSITION_RECORD_CORRUPT", "quarantine-lift");
+    }
+    return value;
+  }
+
+  writeQuarantineLift(
+    record: RuntimeAuthorityQuarantineLiftRecord,
+  ): RuntimeAuthorityQuarantineLiftRecord {
+    if (!isQuarantineLiftRecord(record)) {
+      throw new RuntimeAuthorityTransitionError("QUARANTINE_ENFORCEMENT_INPUT_INVALID", "lift shape");
+    }
+    return this.appendOnce(
+      path.join(this.root, "quarantine-lift", `${record.resolverBindingIdentity}.json`),
+      record,
+      (existing) =>
+        (existing as RuntimeAuthorityQuarantineLiftRecord).rollbackTokenId === record.rollbackTokenId,
+      isQuarantineLiftRecord,
+      "quarantine-lift",
+    );
+  }
+
+  readRollbackToken(tokenId: string): RuntimeAuthorityRollbackToken | null {
+    if (!isValidRuntimeAuthorityRollbackTokenId(tokenId)) {
+      throw new RuntimeAuthorityTransitionError("ROLLBACK_TOKEN_INPUT_INVALID", "tokenId");
+    }
+    const value = this.readJson(path.join(this.root, "rollback-tokens", `${tokenId}.json`));
+    if (value === null) return null;
+    if (!isRollbackToken(value)) {
+      throw new RuntimeAuthorityTransitionError("TRANSITION_RECORD_CORRUPT", "rollback-token");
+    }
+    return value;
+  }
+
+  listRollbackTokens(): readonly RuntimeAuthorityRollbackToken[] {
+    let names: string[];
+    try {
+      names = fs.readdirSync(path.join(this.root, "rollback-tokens"));
+    } catch (error) {
+      if (isNodeError(error) && error.code === "ENOENT") return [];
+      throw new RuntimeAuthorityTransitionError("TRANSITION_RECORD_UNSAFE", "rollback-tokens/");
+    }
+    const out: RuntimeAuthorityRollbackToken[] = [];
+    for (const name of names.sort()) {
+      const match = /^(rbt-[0-9a-f]{48})\.json$/.exec(name);
+      if (!match) continue;
+      const token = this.readRollbackToken(match[1]);
+      if (token) out.push(token);
+    }
+    return out;
+  }
+
+  writeRollbackToken(record: RuntimeAuthorityRollbackToken): RuntimeAuthorityRollbackToken {
+    if (!isRollbackToken(record)) {
+      throw new RuntimeAuthorityTransitionError("ROLLBACK_TOKEN_INPUT_INVALID", "shape");
+    }
+    // One token per forward transition — reject a second token for the same transitionId.
+    for (const existing of this.listRollbackTokens()) {
+      if (existing.transitionId === record.transitionId && existing.tokenId !== record.tokenId) {
+        throw new RuntimeAuthorityTransitionError("ROLLBACK_TOKEN_ALREADY_ISSUED", record.transitionId);
+      }
+    }
+    return this.appendOnce(
+      path.join(this.root, "rollback-tokens", `${record.tokenId}.json`),
+      record,
+      () => true,
+      isRollbackToken,
+      "rollback-token",
+    );
+  }
+
+  readRollbackTokenConsumption(
+    tokenId: string,
+  ): RuntimeAuthorityRollbackTokenConsumption | null {
+    if (!isValidRuntimeAuthorityRollbackTokenId(tokenId)) {
+      throw new RuntimeAuthorityTransitionError("ROLLBACK_TOKEN_INPUT_INVALID", "tokenId");
+    }
+    const value = this.readJson(
+      path.join(this.root, "rollback-tokens", `${tokenId}.consumed.json`),
+    );
+    if (value === null) return null;
+    if (!isRollbackTokenConsumption(value)) {
+      throw new RuntimeAuthorityTransitionError("TRANSITION_RECORD_CORRUPT", "rollback-token-consumption");
+    }
+    return value;
+  }
+
+  writeRollbackTokenConsumption(
+    record: RuntimeAuthorityRollbackTokenConsumption,
+  ): RuntimeAuthorityRollbackTokenConsumption {
+    if (!isRollbackTokenConsumption(record)) {
+      throw new RuntimeAuthorityTransitionError("ROLLBACK_TOKEN_INPUT_INVALID", "consumption shape");
+    }
+    return this.appendOnce(
+      path.join(this.root, "rollback-tokens", `${record.tokenId}.consumed.json`),
+      record,
+      (existing) =>
+        (existing as RuntimeAuthorityRollbackTokenConsumption).rollbackTransitionId ===
+        record.rollbackTransitionId,
+      isRollbackTokenConsumption,
+      "rollback-token-consumption",
+    );
+  }
+
   /**
    * Compare-and-set the single active-authority pointer.
    *
@@ -413,6 +647,55 @@ export class RuntimeAuthorityTransitionStore {
     if (!isValidRuntimeAuthorityTransitionId(value)) {
       throw new RuntimeAuthorityTransitionError("TRANSITION_INPUT_INVALID", "transitionId");
     }
+  }
+
+  private requireBindingDigest(value: string): void {
+    if (!BINDING_DIGEST.test(value)) {
+      throw new RuntimeAuthorityTransitionError("TRANSITION_INPUT_INVALID", "binding digest");
+    }
+  }
+
+  /** Append-once write (`flag: "wx"`); idempotent when the existing record matches. */
+  private appendOnce<T>(
+    target: string,
+    record: T,
+    matches: (existing: unknown) => boolean,
+    isValid: (value: unknown) => value is T,
+    label: string,
+  ): T {
+    const existing = this.readJson(target);
+    if (existing !== null) {
+      if (!isValid(existing)) {
+        throw new RuntimeAuthorityTransitionError("TRANSITION_RECORD_CORRUPT", label);
+      }
+      if (!matches(existing)) {
+        throw new RuntimeAuthorityTransitionError(
+          "TRANSITION_CAS_CONFLICT",
+          `${label} already written with a different binding`,
+        );
+      }
+      return existing;
+    }
+    this.ensureDirectory(path.dirname(target));
+    try {
+      fs.writeFileSync(target, `${JSON.stringify(record)}\n`, {
+        encoding: "utf8",
+        flag: "wx",
+        mode: 0o600,
+      });
+    } catch (error) {
+      if (isNodeError(error) && error.code === "EEXIST") {
+        const raced = this.readJson(target);
+        if (isValid(raced) && matches(raced)) return raced;
+        throw new RuntimeAuthorityTransitionError("TRANSITION_CAS_CONFLICT", label);
+      }
+      throw new RuntimeAuthorityTransitionError("TRANSITION_WRITE_FAILED", label);
+    }
+    const readback = this.readJson(target);
+    if (!isValid(readback) || !matches(readback)) {
+      throw new RuntimeAuthorityTransitionError("TRANSITION_WRITE_FAILED", `${label} readback`);
+    }
+    return readback;
   }
 
   private readJson(filePath: string): unknown {
@@ -580,7 +863,11 @@ function isTransitionRecord(
     (value.kind === undefined ||
       value.kind === "relocation" ||
       value.kind === "genesis" ||
-      value.kind === "recovery") &&
+      value.kind === "recovery" ||
+      value.kind === "rollback") &&
+    (value.rollbackOf === undefined || isValidRuntimeAuthorityTransitionId(value.rollbackOf)) &&
+    (value.rollbackTokenId === undefined ||
+      isValidRuntimeAuthorityRollbackTokenId(value.rollbackTokenId)) &&
     typeof value.state === "string" &&
     value.state in FORWARD &&
     isEndpoint(value.source) &&
@@ -630,6 +917,73 @@ function isQuarantineRecord(
   );
 }
 
+function isQuarantineEnforcementRecord(
+  value: unknown,
+): value is RuntimeAuthorityQuarantineEnforcementRecord {
+  if (!isRecord(value)) return false;
+  return (
+    value.schemaVersion === runtimeAuthorityTransitionSchemaVersion &&
+    isValidRuntimeAuthorityTransitionId(value.transitionId) &&
+    typeof value.resolverBindingIdentity === "string" &&
+    BINDING_DIGEST.test(String(value.resolverBindingIdentity)) &&
+    value.mode === "windows-readonly-attribute" &&
+    Number.isSafeInteger(value.readOnlyFileCount) &&
+    (value.readOnlyFileCount as number) >= 0 &&
+    typeof value.contentDigest === "string" &&
+    BINDING_DIGEST.test(String(value.contentDigest)) &&
+    typeof value.enforcedAt === "string"
+  );
+}
+
+function isQuarantineLiftRecord(
+  value: unknown,
+): value is RuntimeAuthorityQuarantineLiftRecord {
+  if (!isRecord(value)) return false;
+  return (
+    value.schemaVersion === runtimeAuthorityTransitionSchemaVersion &&
+    typeof value.resolverBindingIdentity === "string" &&
+    BINDING_DIGEST.test(String(value.resolverBindingIdentity)) &&
+    isValidRuntimeAuthorityTransitionId(value.rollbackTransitionId) &&
+    isValidRuntimeAuthorityRollbackTokenId(value.rollbackTokenId) &&
+    typeof value.liftedAt === "string"
+  );
+}
+
+function isRollbackToken(value: unknown): value is RuntimeAuthorityRollbackToken {
+  if (!isRecord(value)) return false;
+  return (
+    value.schemaVersion === runtimeAuthorityTransitionSchemaVersion &&
+    isValidRuntimeAuthorityRollbackTokenId(value.tokenId) &&
+    isValidRuntimeAuthorityTransitionId(value.transitionId) &&
+    typeof value.authorityGeneration === "string" &&
+    typeof value.sourceResolverBindingIdentity === "string" &&
+    BINDING_DIGEST.test(String(value.sourceResolverBindingIdentity)) &&
+    typeof value.sourceAuthorityIdentity === "string" &&
+    BINDING_DIGEST.test(String(value.sourceAuthorityIdentity)) &&
+    typeof value.targetResolverBindingIdentity === "string" &&
+    BINDING_DIGEST.test(String(value.targetResolverBindingIdentity)) &&
+    typeof value.targetAuthorityIdentity === "string" &&
+    BINDING_DIGEST.test(String(value.targetAuthorityIdentity)) &&
+    Number.isSafeInteger(value.transitionSequence) &&
+    (value.transitionSequence as number) >= 1 &&
+    typeof value.sourceContentDigest === "string" &&
+    BINDING_DIGEST.test(String(value.sourceContentDigest)) &&
+    typeof value.issuedAt === "string"
+  );
+}
+
+function isRollbackTokenConsumption(
+  value: unknown,
+): value is RuntimeAuthorityRollbackTokenConsumption {
+  if (!isRecord(value)) return false;
+  return (
+    value.schemaVersion === runtimeAuthorityTransitionSchemaVersion &&
+    isValidRuntimeAuthorityRollbackTokenId(value.tokenId) &&
+    isValidRuntimeAuthorityTransitionId(value.rollbackTransitionId) &&
+    typeof value.consumedAt === "string"
+  );
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -674,6 +1028,16 @@ function messageFor(code: RuntimeAuthorityTransitionErrorCode): string {
       return "Runtime authority transition target projects tree is not a byte-exact copy of the frozen source.";
     case "TRANSITION_CONTENT_UNSAFE":
       return "Runtime authority transition projects tree contains an unsafe path.";
+    case "ROLLBACK_TOKEN_INPUT_INVALID":
+      return "Runtime authority rollback token input is invalid.";
+    case "ROLLBACK_TOKEN_MISMATCH":
+      return "Runtime authority rollback token does not match the stored token.";
+    case "ROLLBACK_TOKEN_ALREADY_ISSUED":
+      return "Runtime authority rollback token was already issued for this transition.";
+    case "ROLLBACK_TOKEN_ALREADY_CONSUMED":
+      return "Runtime authority rollback token has already been consumed.";
+    case "QUARANTINE_ENFORCEMENT_INPUT_INVALID":
+      return "Runtime authority quarantine enforcement record is invalid.";
     default:
       return "Runtime authority transition input is invalid.";
   }

@@ -25,6 +25,16 @@ import {
   quarantineSource,
   validateTarget,
 } from "./RuntimeAuthorityTransitionCoordinator";
+import {
+  beginTokenAuthorizedRollback,
+  finalizeOldRootQuarantine,
+  publishRollback,
+  quarantineFormerTarget,
+  readRollbackAvailability,
+  RuntimeAuthorityRollbackError,
+  validateRollback,
+} from "./RuntimeAuthorityRollback";
+import { RuntimeAuthorityOldRootQuarantineError } from "./RuntimeAuthorityOldRootQuarantine";
 
 /**
  * F2 — the operator entrypoint for the authority transition state machine
@@ -187,16 +197,89 @@ export async function runRuntimeAuthorityTransitionCommand(
         return ok({ failed: summarize(record) });
       }
 
+      /* ------------------------------------------------ C.2B.11 ------- */
+
+      case "finalize-quarantine": {
+        const transitionId = requireTransitionId(args);
+        const oldRootProjects = path.join(requireDirArg(args, "old-root"), "projects");
+        const result = finalizeOldRootQuarantine({
+          store, transitionId, oldRootProjectsRoot: oldRootProjects,
+        });
+        return ok({ finalized: result });
+      }
+
+      case "rollback-status": {
+        const transitionId = requireTransitionId(args);
+        return ok({ rollback: readRollbackAvailability(store, transitionId) });
+      }
+
+      case "begin-rollback": {
+        const rollbackTransitionId = requireArgTransitionId(args, "rollback-transition-id");
+        const tokenId = requireArg(args, "token-id");
+        const oldRoot = requireDirArg(args, "old-root");
+        const target = requireDirArg(args, "target");
+        const record = beginTokenAuthorizedRollback({
+          store,
+          rollbackTransitionId,
+          tokenId,
+          oldRootContext: externalContext(oldRoot, workspaceRoot, authorityRoot),
+          oldRootAuthorityGeneration: generation,
+          oldRootProjectsRoot: path.join(oldRoot, "projects"),
+          formerTargetContext: externalContext(target, workspaceRoot, authorityRoot),
+          formerTargetAuthorityGeneration: generation,
+          formerTargetProjectsRoot: path.join(target, "projects"),
+        });
+        return ok({ rollbackStarted: summarize(record) });
+      }
+
+      case "validate-rollback": {
+        const rollbackTransitionId = requireArgTransitionId(args, "rollback-transition-id");
+        const record = validateRollback({
+          store,
+          rollbackTransitionId,
+          oldRootProjectsRoot: path.join(requireDirArg(args, "old-root"), "projects"),
+          formerTargetProjectsRoot: path.join(requireDirArg(args, "target"), "projects"),
+        });
+        return ok({ rollbackValidated: summarize(record) });
+      }
+
+      case "publish-rollback": {
+        const rollbackTransitionId = requireArgTransitionId(args, "rollback-transition-id");
+        const record = publishRollback({
+          store,
+          rollbackTransitionId,
+          oldRootProjectsRoot: path.join(requireDirArg(args, "old-root"), "projects"),
+        });
+        return ok({
+          rollbackPublished: summarize(record),
+          activeAuthority: store.readActiveAuthority(),
+        });
+      }
+
+      case "quarantine-former-target": {
+        const rollbackTransitionId = requireArgTransitionId(args, "rollback-transition-id");
+        const record = quarantineFormerTarget({
+          store,
+          rollbackTransitionId,
+          formerTargetProjectsRoot: path.join(requireDirArg(args, "target"), "projects"),
+        });
+        return ok({ formerTargetQuarantined: summarize(record) });
+      }
+
       default:
         throw new CommandInputError(
-          `unknown subcommand ${JSON.stringify(subcommand ?? "")} — expected one of: status, begin-genesis, begin-relocation, begin-recovery, quiesce, prepare, validate, publish, quarantine, fail`,
+          `unknown subcommand ${JSON.stringify(subcommand ?? "")} — expected one of: status, begin-genesis, begin-relocation, begin-recovery, quiesce, prepare, validate, publish, quarantine, fail, finalize-quarantine, rollback-status, begin-rollback, validate-rollback, publish-rollback, quarantine-former-target`,
         );
     }
   } catch (error) {
     if (error instanceof CommandInputError) {
       return fail("AUTHORITY_TRANSITION_INPUT_INVALID", error.message);
     }
-    if (error instanceof RuntimeAuthorityTransitionError) {
+    if (
+      error instanceof RuntimeAuthorityTransitionError ||
+      error instanceof RuntimeAuthorityRollbackError ||
+      error instanceof RuntimeAuthorityOldRootQuarantineError
+    ) {
       return fail(error.code, error.message);
     }
     return fail(
@@ -276,9 +359,13 @@ function resolveSafeExistingDir(raw: string, key: string): string {
 }
 
 function requireTransitionId(args: Record<string, string | true>): string {
-  const value = requireArg(args, "transition-id");
+  return requireArgTransitionId(args, "transition-id");
+}
+
+function requireArgTransitionId(args: Record<string, string | true>, key: string): string {
+  const value = requireArg(args, key);
   if (!isValidRuntimeAuthorityTransitionId(value)) {
-    throw new CommandInputError("--transition-id is malformed (8–128 chars, [A-Za-z0-9._:-])");
+    throw new CommandInputError(`--${key} is malformed (8–128 chars, [A-Za-z0-9._:-])`);
   }
   return value;
 }

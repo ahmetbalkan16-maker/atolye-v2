@@ -179,9 +179,18 @@ function assertAuthorityTransitionState(
   ).resolverBindingIdentity;
 
   if (store.readQuarantine(binding)) {
-    throw new ProductionRuntimeAuthorityEnforcementError(
-      "RUNTIME_AUTHORITY_ROOT_QUARANTINED",
-    );
+    // C.2B.11 — a quarantined root that a valid rollback re-activated (it has a
+    // `quarantine-lift` record) may boot ONLY while it is the current active
+    // authority. Every other quarantined root still fails closed.
+    const lift = store.readQuarantineLift(binding);
+    const activeNow = store.readActiveAuthority();
+    const reactivatedByRollback =
+      Boolean(lift) && activeNow?.resolverBindingIdentity === binding;
+    if (!reactivatedByRollback) {
+      throw new ProductionRuntimeAuthorityEnforcementError(
+        "RUNTIME_AUTHORITY_ROOT_QUARANTINED",
+      );
+    }
   }
 
   let transitionTargetHere = false;

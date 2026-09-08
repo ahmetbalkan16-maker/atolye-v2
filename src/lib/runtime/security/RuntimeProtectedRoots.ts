@@ -21,15 +21,16 @@ export type RuntimeProtectedRootRole =
   | "quarantine";
 
 /**
- * SEC1 — the migration roles that must never share a physical path with each
- * other during a consume/relocation. `assertMigrationRolesDisjoint()` enforces
- * every pair; `runtime`/`machine`/`authority` are deliberately excluded here
- * because the live model legitimately nests `live-projects` inside `runtime`.
+ * SEC1 / C.2B.11 — the roles that must never share a physical path with each
+ * other during a consume / relocation / rollback. `assertMigrationRolesDisjoint()`
+ * enforces every pair; `runtime`/`machine` are deliberately excluded because the
+ * live model legitimately nests `live-projects` inside `runtime`.
  */
 export const migrationDisjointRoles: readonly RuntimeProtectedRootRole[] = Object.freeze([
   "live-projects",
   "candidate",
   "backup",
+  "authority",
   "relocation-target",
   "quarantine",
 ]);
@@ -153,12 +154,14 @@ export function assertMigrationConsumeRootsDisjoint(roots: {
   readonly relocationTarget: string;
   readonly backup?: string;
   readonly quarantine?: string;
+  readonly authority?: string;
 }): {
   readonly liveProjects: string;
   readonly candidate: string;
   readonly relocationTarget: string;
   readonly backup?: string;
   readonly quarantine?: string;
+  readonly authority?: string;
 } {
   const named: [string, string][] = [
     ["live-projects", roots.liveProjects],
@@ -166,6 +169,7 @@ export function assertMigrationConsumeRootsDisjoint(roots: {
     ["relocation-target", roots.relocationTarget],
     ...(roots.backup ? ([["backup", roots.backup]] as [string, string][]) : []),
     ...(roots.quarantine ? ([["quarantine", roots.quarantine]] as [string, string][]) : []),
+    ...(roots.authority ? ([["authority", roots.authority]] as [string, string][]) : []),
   ];
   const canonical = named.map(([role, value]) => {
     try {
@@ -186,6 +190,7 @@ export function assertMigrationConsumeRootsDisjoint(roots: {
     relocationTarget: byRole["relocation-target"],
     ...(byRole.backup ? { backup: byRole.backup } : {}),
     ...(byRole.quarantine ? { quarantine: byRole.quarantine } : {}),
+    ...(byRole.authority ? { authority: byRole.authority } : {}),
   });
 }
 
