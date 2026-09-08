@@ -62,3 +62,43 @@ graphify-out/
 #  - .pipeline-jobs.lock/ is PipelineJobMutationLock's process-local mutex dir.
 /data/projects/unknown/
 **/.pipeline-jobs.lock/
+
+# ---------------------------------------------------------------------------
+# Local project working data — NOT a blanket /data/projects/*/ ignore.
+#
+# The repo tracks completed / milestone project snapshots that were added
+# deliberately (e.g. commit "Complete Fatih Istanbul conquest pipeline"):
+#   data/projects/{atilla-nin-yukselisi, atilla-nin-y-kselisi, hunlarin-dogusu,
+#   hunlarin-dogusu-attila-ya-giden-yol, osmanlinin-kurulusu,
+#   fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-...}
+#   plus the root data/projects/*.json research files.
+# Those stay tracked and are untouched by the rules below.
+#
+# Everything listed here is LOCAL working data: test/diagnostic slugs and
+# in-progress / experimental / duplicate pipeline runs that were never
+# promoted to git. Files stay on disk. To promote one later: `git add -f`.
+
+# Test / diagnostic slugs — a side effect of scripts/diag-*.ts + smoke suites
+# (each holds only an AIUsageManager-written ai-usage.json; regenerated on run).
+/data/projects/smoke/
+/data/projects/rprobe/
+/data/projects/diag-*/
+/data/projects/identity-hardening/
+
+# Experimental / in-progress local pipeline runs (0 tracked files each)
+/data/projects/i-stanbul-un-fethi-1453/
+/data/projects/osmanli-nin-yukselisi-kurulustan-i-stanbul-un-fethine-c8888f58-10d4-4647-8cdb-0f89d8fb5ae4/
+/data/projects/mimar-sinan-in-hayati-ve-basyapitlari-433c675d-5ecb-4da8-b3fd-17a332d713aa/
+/data/projects/suleymaniye-camii-ve-mimar-sinan-in-mirasi-2c5b8cdc-1234-48ce-a440-e0b5a361976c/
+/data/projects/sultan-mehmed-ii-and-the-conquest-of-constantinople-90fad1b3-85ff-4977-894d-b8c92490a8ea/
+/data/projects/sultan-mehmed-ii-and-the-conquest-of-constantinople-b7400945-4927-4231-aa31-82f75144e923/
+/data/projects/fatih-sultan-mehmet-ve-i-stanbul-un-fethi-302ce03f-e67b-4de0-b767-bfc40dd0f486/
+/data/projects/fatih-sultan-mehmet-ve-i-stanbul-un-fethi-5be83a84-3d83-49f3-8ef2-854543359ca1/
+/data/projects/fatih-sultan-mehmet-ve-i-stanbul-un-fethi-5ec34edd-7303-45aa-8a40-9873de62e7d4/
+/data/projects/fatih-sultan-mehmet-ve-i-stanbul-un-fethi-c0261ddc-d2d1-460b-bf6c-5be4bdc1b02b/
+
+# New durable-execution records generated since the flagship project's last
+# commit. Its 182 committed files (stage JSONs, assets, export media, and the
+# already-tracked production-execution records) stay tracked; only the ~280
+# uncommitted production-execution/*.json written since are ignored here.
+/data/projects/fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5/production-execution/
