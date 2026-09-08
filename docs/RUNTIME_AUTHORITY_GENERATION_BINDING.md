@@ -404,5 +404,64 @@ declared). `scripts/smoke-f13-candidate-path-budget.ts` F13-K.
 at `D:\AtolyeCandidate\candidates\c-817cdcd9df908176a5559e95`: 2360 files /
 610943674 bytes, aggregate `361b47af…`, manifestSha256 `41c9a5e6…`, max
 materialized path **234 / 0 violations**, byte-identical to the backup payload,
-`cutoverAuthorized = false`. **No consume, no genesis, no publish.** Real
-migration retry (Sprint 203) is now unblocked; `PUBLISH ONAY` still required.
+`cutoverAuthorized = false`. **No consume, no genesis, no publish.**
+
+## 10. F15 — production-execution derived index missing (OPEN, blocks the real migration)
+
+Sprint 203's real migration retry passed INSPECT + candidate re-verification, then
+**`runtime:migration:candidate:consume` failed with `DURABLE_RECOVERY_REQUIRED`**
+in the consume service's post-copy step (d): `scanDurableRecovery` →
+`ProductionExecutionDurableRecoveryService.scan()` per project.
+
+Read-only characterization of the live `data/projects`:
+
+- **11 of 17 projects** (every one with a `production-execution/` store) scan
+  `recovery-required`. **`clean` = 0. `indeterminate` = 0.**
+- In each, the **only** `recoveryRequired` finding is
+  `derived-index / class=missing / RECOVERY_INDEX_MISSING` — the `indexes/`
+  directory does not exist. **Every canonical durable record**
+  (`attempts` / `claims` / `idempotency` / `reservations` / …) **is `valid`.**
+- The derived lookup index is, by this codebase's own contract, a
+  *content-addressed, immutable, **rebuildable** derived artifact* built
+  deterministically from the canonical records — not an authorization,
+  execution, or business-decision source. `ProductionExecutionDurableRecoveryService.rebuildIndex()`
+  regenerates it. **No canonical data loss or corruption.**
+
+The migration's byte-integrity is perfect — the candidate is byte-identical to
+the backup, and both share the same benign index-missing state — but:
+
+1. `RuntimeMigrationCandidateConsumeService` step (d) treats
+   `decision === "recovery-required"` as a hard `DURABLE_RECOVERY_REQUIRED`
+   (no bypass flag).
+2. The C.2B.9 `authority:quiesce` gate also requires durable-recovery `clean`.
+3. The Sprint 202 candidate (immutable, byte-bound) carries no index either, so
+   it cannot be consumed without regenerating source + backup + candidate, or
+   refining the gate.
+
+Sprint 197's `c2b10a` fixtures never hit this: their projects have a single
+`production-execution/a.json` and no `idempotency/`/`reservations/` directory, so
+`collectCanonicalRecords` is empty and `inspectIndex` is never called. F15 is the
+**third blocker only a real migration reveals** (F13 path budget, F14 v4
+authority, F15 missing derived index).
+
+**Resolution needs its own decision** (each beyond Sprint 203's "use existing
+infra / invent nothing / stop on uncertainty / do not mutate `data/projects`"
+mandate):
+
+- **F15-A** — rebuild the 11 source derived indexes via `rebuildIndex()` (writes
+  `data/projects/<slug>/production-execution/indexes/<fingerprint>.json` — a
+  rebuildable derived artifact), regenerate the backup + candidate, re-run
+  Sprint 203. Makes the durable state genuinely `clean` for the migration *and*
+  for the eventual production runtime.
+- **F15-B** — refine the durable-recovery gate (consume step d + quiesce) so
+  "only a rebuildable derived-index missing, all canonical records valid" is not
+  a hard block; the index is rebuilt on the target post-consume or by the
+  runtime on first boot.
+- **F15-C** — a post-consume index-rebuild step on the target, without changing
+  consume's byte-exact materialization contract.
+
+Real migration is **NO-GO** until F15 is resolved. Sprint 203 ran no
+`authority:begin-genesis` / `authority:publish`; `cutoverAuthorized` stays
+`false`; the failed-consume output at `D:\AtolyeRuntime` was cleaned back to
+empty; the source `data/projects` is byte-unchanged; `b-fee58282da89` and
+`c-817cdcd9df908176a5559e95` are preserved. `PUBLISH ONAY` still required.

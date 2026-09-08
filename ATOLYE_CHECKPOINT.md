@@ -1,5 +1,93 @@
 ---
 
+## Sprint 203 - REAL MIGRATION EXECUTION RETRY — HALTED AT FAZ 3 (blocker F15) - 2026-09-08
+
+**Status:** Gerçek migration retry INSPECT + FAZ 1-2 PASS; **FAZ 3 (CONSUME) kendi post-copy
+invariant'ında durdu — F15.** `authority:begin-genesis` çalıştırılMADI. **`authority:publish` /
+`publishRollback` YAPILMADI. `active-authority.json` YOK. `.env.local` DEĞİŞMEDİ. legacy
+`data/projects` rename/move/delete YOK.** Execution Gate CLOSED. `cutoverAuthorized = false`.
+**Kod değişikliği YOK.** Yalnız checkpoint. Push yok. Failed-consume çıktısı `D:\AtolyeRuntime`
+temizlendi (boş).
+
+### INSPECT — hepsi PASS
+
+git clean HEAD `9c12145` (31 ahead / 0 behind). SOURCE `data/projects` 2388 files / 611005467 bytes
+/ 0 special; `runtimeAuthorityProjectsContentDigest` = `1a37493604b7fda26ea9b51ff3708dce1460e864e8f23f378886ae22e0fc2766`;
+`runtime:backup:inventory` aggregate `361b47afcf3bcfa68390e8ac723fa31e465d9bc2ad8b8980504f2508a1812fcd`;
+`.env.local` sha256 `bf52c74d…`. BACKUP `b-fee58282da89` verify PASS (aggregate `361b47af…`,
+manifestSha `822764fd…`, schema 4 / runtime-backup-v4). CANDIDATE `c-817cdcd9df908176a5559e95` verify
+PASS (candidateId `candidate-817cdcd9…`, manifestSha `41c9a5e6…`, aggregate `361b47af…`, 2360 files /
+610943674 bytes, durableExecutionBinding 1845 files / 174674566 bytes / `5bb5f7fb…`, sourceBackup
+formatVersion `runtime-backup-v4`). BINDING PASS. CROSS: source inventory aggregate == backup ==
+candidate; candidate durable binding == backup durable aggregate. `D:\AtolyeRuntime` /
+`D:\AtolyeAuthority` / `D:\AtolyeRestoreVerify` boş; `active-authority.json` yok; runtime env vars
+set değil; node process = 0; Execution Gate CLOSED; `cutoverAuthorized === false`.
+
+### FAZ 1-2 — PASS
+
+`assertMigrationConsumeRootsDisjoint(live-projects / candidate / relocation-target / backup /
+authority)` OK. Candidate `projects/` contentDigest `5470d2c2297f6f1bb656f1cfda27e461f55ff5f43a7457b706a178b8e76c8bed`
+(2360 files). Candidate identity / manifest SHA / backup binding / aggregate / file count / byte count
+/ candidate manifest / durable execution binding — hepsi eşleşti.
+
+### BLOCKER — F15: production-execution derived lookup index eksik (11/17 proje)
+
+`npm run runtime:migration:candidate:consume` (gerçek, → `D:\AtolyeRuntime`) → **`DURABLE_RECOVERY_REQUIRED`**
+("Post-copy durable-execution scan reports recovery-required."). Consume service step (d)
+`scanDurableRecovery` → `ProductionExecutionDurableRecoveryService.scan()` per proje.
+
+Read-only karakterizasyon (source `data/projects`): `production-execution/` store'u olan **11 projenin
+tamamı `recovery-required`**, **`clean` = 0**, **`indeterminate` = 0**. HER projede **tek** bad finding:
+`derived-index` `class=missing` `RECOVERY_INDEX_MISSING` `recoveryRequired=true` `canonicalTargetPresent=false`.
+**Her canonical durable kayıt (`attempts` / `claims` / `idempotency` / `reservations` / …) `valid`.**
+`indexes/` dizini hiç yok (ör. `i-stanbul-un-fethi-1453/production-execution/` — 81 attempt / 154
+idempotency / 54 claim / 29 reservation, hepsi valid, `indexes/` yok). Derived index checkpoint'in
+kendi tanımıyla (satır ~6979) *"canonical kayıtlardan deterministik üretilen, content-addressed,
+immutable ve **rebuildable derived artifact**; authorization/execution/business decision kaynağı
+DEĞİL"* — `ProductionExecutionDurableRecoveryService.rebuildIndex()` ile yeniden üretilebilir. **Veri
+kaybı / bozulma YOK.**
+
+Migration byte-integrity kusursuz: candidate backup'a byte-identical, ikisi de aynı (rebuildable)
+index-missing state'inde. Ama:
+1. `RuntimeMigrationCandidateConsumeService` step (d) → `DURABLE_RECOVERY_REQUIRED` hard fail (bypass yok).
+2. C.2B.9 `authority:quiesce` da durable-recovery `clean` istiyor → aynı şekilde fail eder.
+3. Sprint 202 candidate (byte-identical) da index'siz → source+backup+candidate yeniden üretilmeden
+   ya da gate gevşetilmeden consume edilemez.
+
+Sprint 197 c2b10a testleri bunu yakalayamadı: fixture projeleri tek `production-execution/a.json`
+kullanıyor, `idempotency/`+`reservations/` dizini yok → `collectCanonicalRecords` boş → `inspectIndex`
+çağrılmıyor → missing-index finding üretilmiyor. **Gerçek production data'nın açığa çıkardığı üçüncü
+blocker** (F13 path budget, F14 v4 authority, F15 missing derived index).
+
+### Çözüm yolları (her biri kendi yetkisini / sprint'ini gerektiriyor — S203 mandate'i dışında)
+
+- **F15-A**: 11 source derived index'i `rebuildIndex()` ile yeniden üret (`data/projects/<slug>/
+  production-execution/indexes/<fingerprint>.json` yazar — derived/rebuildable), sonra backup + candidate'ı
+  yeniden üret, sonra S203'ü tekrar çalıştır. `data/projects`'e 11 yeni derived dosya yazar; ama migration
+  VE nihai production runtime için durable state gerçekten `clean` olur.
+- **F15-B**: durable-recovery gate'ini (consume step d + quiesce) rafine et — "yalnız rebuildable
+  derived-index missing, tüm canonical kayıtlar valid" hard block olmasın; index target'ta consume
+  sonrası (ya da runtime ilk boot'ta) rebuild edilir. Contract refinement.
+- **F15-C**: consume'un byte-exact materialization contract'ını bozmadan, post-consume target'ta index
+  rebuild adımı.
+
+### Safety proof
+
+SOURCE `data/projects` failed consume SONRASI byte-unchanged: 2388 / 611005467 / 0 special,
+contentDigest `1a374936…` match, inventory aggregate `361b47af…` match, `.env.local` `bf52c74d…` match.
+Consume yalnız candidate'ı OKUDU ve `D:\AtolyeRuntime`'a YAZDI (sonra temizlendi). `data/brain` git
+clean. tracked `data/projects` = 0. `authority-transition-v1/` / `active-authority.json` HİÇBİR yerde
+YOK. `D:\AtolyeRuntime` / `D:\AtolyeAuthority` / `D:\AtolyeRestoreVerify` boş. node process = 0.
+`D:\AtolyeBackup\backups\b-fee58282da89` (2545 entries) + `D:\AtolyeCandidate\candidates\c-817cdcd9df908176a5559e95`
+(2544 entries) intact, dokunulmadı.
+
+### Sıradaki adım
+
+**F15 çözüm kararı** (F15-A / F15-B / F15-C) → sonra Sprint 203'ü tekrar. `authority:begin-genesis` /
+`authority:publish` bu noktaya kadar çalıştırılMAYACAK; `PUBLISH ONAY` hâlâ gerekli.
+
+<!-- SPRINT-203-END -->
+
 ## Sprint 202 - F13 CANDIDATE PATH BUDGET — CLOSED (+ F14, + HEAD-gate) - 2026-09-08
 
 **Status:** **F13 CLOSED.** Gerçek verified candidate `D:\AtolyeCandidate` altında oluşturuldu ve
