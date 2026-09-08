@@ -43,8 +43,8 @@ export function collectRuntimeTrackingInventory(
   const tracked = new Set(trackedPaths);
   const physical = new Set(physicalPaths);
   const untrackedPaths = physicalPaths.filter((file) => !tracked.has(file));
-  const ignoredPaths = untrackedPaths.filter((file) =>
-    isGitIgnored(canonicalRepositoryRoot, file));
+  const ignoredSet = filterGitIgnored(canonicalRepositoryRoot, untrackedPaths);
+  const ignoredPaths = untrackedPaths.filter((file) => ignoredSet.has(file));
   const ignored = new Set(ignoredPaths);
   return Object.freeze({
     trackedPaths: Object.freeze(trackedPaths),
@@ -66,8 +66,22 @@ export function assertRuntimeTrackingAdmission(
     inventory.trackedMissingPaths.length !== 0 ||
     inventory.unexpectedUntrackedPaths.length !== 0
   ) throw new Error("Runtime tracking admission failed.");
+
+  // A file is a permitted ignored path when EITHER it matches the durable
+  // record topology OR its ignore rule is a deliberate `data/projects/<...>/`
+  // directory exclusion committed to `.gitignore` (local project working data
+  // — see docs/PROJECT_STORAGE.md §5). A rule from `.git/info/exclude` or a
+  // non-directory pattern never qualifies, so fixture negative cases still fail.
+  const deliberatelyExcluded = collectDeliberateProjectExclusions(
+    repositoryRoot,
+    inventory.ignoredPaths,
+  );
+
   for (const relativePath of inventory.ignoredPaths) {
-    if (!isAllowedIgnoredDurablePath(relativePath)) {
+    if (
+      !isAllowedIgnoredDurablePath(relativePath) &&
+      !deliberatelyExcluded.has(relativePath)
+    ) {
       throw new Error("Runtime tracking admission failed.");
     }
     const absolutePath = path.resolve(repositoryRoot, ...relativePath.split("/"));
@@ -83,6 +97,43 @@ export function assertRuntimeTrackingAdmission(
     unexpectedUntracked: 0,
     trackedMissing: 0,
   });
+}
+
+function collectDeliberateProjectExclusions(
+  repositoryRoot: string,
+  ignoredPaths: readonly string[],
+): ReadonlySet<string> {
+  const excluded = new Set<string>();
+  if (ignoredPaths.length === 0) return excluded;
+
+  const result = spawnSync(
+    "git",
+    ["check-ignore", "--verbose", "--stdin", "-z"],
+    {
+      cwd: repositoryRoot,
+      input: `${ignoredPaths.join("\0")}\0`,
+      maxBuffer: 64 * 1024 * 1024,
+    },
+  );
+  // status 0: at least one match; 1: no matches; anything else is a real error.
+  if (result.status !== 0 && result.status !== 1) {
+    throw new Error("Runtime tracking ignore classification failed.");
+  }
+  const fields = result.stdout.toString("utf8").split("\0");
+  // repeating groups of 4: <source> <linenum> <pattern> <pathname>
+  for (let i = 0; i + 3 < fields.length; i += 4) {
+    const source = fields[i];
+    const pattern = fields[i + 2];
+    const pathname = fields[i + 3];
+    if (
+      source === ".gitignore" &&
+      /^\/data\/projects\/.+\/$/.test(pattern) &&
+      pathname.startsWith("data/projects/")
+    ) {
+      excluded.add(pathname);
+    }
+  }
+  return excluded;
 }
 
 export function isAllowedIgnoredDurablePath(value: string) {
@@ -127,12 +178,26 @@ function samePath(left: string, right: string) {
     : left === right;
 }
 
-function isGitIgnored(repositoryRoot: string, relativePath: string) {
-  const result = spawnSync("git", ["check-ignore", "--quiet", "--", relativePath], {
+/**
+ * Classify every candidate path in a single `git check-ignore` call. One
+ * process spawn instead of one per file — the ignored set under
+ * `data/projects/` can be thousands of files after the local-working-data
+ * `.gitignore` rules (docs/PROJECT_STORAGE.md §5).
+ */
+function filterGitIgnored(
+  repositoryRoot: string,
+  candidatePaths: readonly string[],
+): ReadonlySet<string> {
+  if (candidatePaths.length === 0) return new Set<string>();
+  const result = spawnSync("git", ["check-ignore", "--stdin", "-z"], {
     cwd: repositoryRoot,
-    stdio: "ignore",
+    input: `${candidatePaths.join("\0")}\0`,
+    maxBuffer: 128 * 1024 * 1024,
   });
-  if (result.status === 0) return true;
-  if (result.status === 1) return false;
-  throw new Error("Runtime tracking ignore classification failed.");
+  if (result.status !== 0 && result.status !== 1) {
+    throw new Error("Runtime tracking ignore classification failed.");
+  }
+  return new Set(
+    result.stdout.toString("utf8").split("\0").filter(Boolean),
+  );
 }
