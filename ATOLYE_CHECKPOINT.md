@@ -1,5 +1,124 @@
 ---
 
+## Sprint 204 - F15 CLOSED (F15-A) → REAL MIGRATION HALTED AT PHASE 11 (blocker F16) - 2026-09-08
+
+**Status:** **F15 = CLOSED via F15-A** (11 source derived indexes rebuilt with the sanctioned primitive).
+Real end-to-end run: new backup + new candidate + **real consume into `D:\AtolyeRuntime` = SUCCESS**
+(`durableRecoveryDecision: "clean"`). **PHASE 11 blocked — F16.** `authority:begin-genesis` NOT run
+(genesis control plane never created — decided to stop before it, `authority:validate` would fail
+deterministically). **`authority:publish` / `publishRollback` YAPILMADI. `active-authority.json` YOK.
+`.env.local` DEĞİŞMEDİ. legacy `data/projects` rename/move/delete YOK.** Execution Gate CLOSED.
+`cutoverAuthorized = false`. **Tracked kod değişikliği YOK** (F15-A yalnız gitignore'lu derived
+data yazdı). Yalnız checkpoint + docs. Push yok.
+
+### PHASE 0-1 — F15-A (11 derived index rebuild)
+
+INSPECT PASS: git clean HEAD `0b32ae0`, source 2388 files / 611005467 bytes / 0 symlink-special,
+contentDigest `1a374936…`, inventory aggregate `361b47af…`, `.env.local` `bf52c74d…` (4051b,
+mtime 2026-09-07), no `active-authority.json`, D: target/authority/restore-verify empty, node=0,
+Gate CLOSED, `cutoverAuthorized=false`.
+
+`ProductionExecutionDurableRecoveryService.scan()` — **11 projeler dinamik keşfedildi** (hard-code
+yok), hepsi `recovery-required` ve **tek bulgu `RECOVERY_INDEX_MISSING`** (canonical kayıtlar valid,
+symlink/unsafe yok → `PROCEED WITH F15-A: true`). Her proje için `rebuildIndex()` → **11/11 OK**
+(`RECOVERY_RECORD_VALID`, `created=true`), her biri tam 1 `indexes/lookup-<64hex>.json` yazdı.
+
+### PHASE 2 — F15 VERIFY
+
+Re-scan: **11/11 clean, recovery-required=0, indeterminate=0, canonicalValidAll=true.** Source
+integrity delta: files 2388 → **2399 (+11)**; `added` 11 dosya, **HEPSİ**
+`production-execution/indexes/lookup-*.json` (`allAddedAreIndexes: true`); **`modified: []`, `removed: []`**
+(hiçbir canonical kayıt değişmedi). Yeni source baseline: 2399 files / 611073169 bytes fs;
+contentDigest **`2ec5b9c08096e890b0ab7b29b05a2af8552da2a7563a803d01a41a1dde21a763`**; inventory
+**2371 files** / aggregate **`8701419987c94ecd8163fb6e0682d1f668d320566cb2bbccb74e3f76bd763ef4`**
+(28 hâlâ excluded: 27 `.partial` + 1 `.pipeline-jobs.lock/owner.json`).
+
+### PHASE 3-4 — new backup + new candidate
+
+Eski `b-fee58282da89` binding stale (aggregate `361b47af…` ≠ yeni `8701419987…`). **Yeni backup
+`b-0d971133190c`** `created-and-verified`: aggregate `8701419987…`, manifestSha
+`a5654b62a733b7e6137ee9e12bab172e499de18bb812e673a0bc351332be1b2a`, 2371 files / 611011376 bytes,
+durable-execution 1856. Verify PASS. **Eski backup korundu.**
+
+**Yeni candidate `c-d3743b64c5830509cc380b58`** (`candidate-d3743b64c5830509cc380b581dd4a7df71ede94a8930b82fada1c50c4a59aa74`),
+F13 layout: aggregate `8701419987…`, manifestSha `b937958b94ab437956ba1bfba0ac52bb2fc9b126d0ec6f5d0d5c0f83fb0959f0`,
+2371 files / 611011376 bytes, durableExecutionBinding 1856 / 174742268 / `c16c6da9…`,
+**max materialized path 234 / 0 violations**, backup payload'ına byte-identical
+(`0e46cf6c161553cd7c1ac156b283f39041a0069745a059a5f26e5dc49628219d`), 0 symlink / 0 special.
+`verifyMigrationCandidate` + `verifyMigrationCandidateBinding` bağımsız PASS.
+
+### PHASE 5-7 — persistent targets + REAL CONSUME + independent verify
+
+Disjointness (source/candidate/target/backup/quarantine/authority) OK. **`npm run
+runtime:migration:candidate:consume` → `D:\AtolyeRuntime` = SUCCESS**: `state: "consumed"`,
+**`durableRecoveryDecision: "clean"`**, contentDigest `0e46cf6c…`, 2371 files / 611011376 bytes,
+`cutoverAuthorized: false`. PHASE 7 bağımsız: BACKUP == CANDIDATE == TARGET byte-exact tree
+(`0e46cf6c…`), target independent inventory aggregate `8701419987…` (match), durable aggregate
+`c16c6da9…` (candidate + backup ile match), **target per-project durable recovery 11/11 clean**,
+target contentDigest == candidate contentDigest. **F15 uçtan uca çözüldü.**
+
+### BLOCKER — F16: authority-transition F3 gate `.partial`/`.lock` EXCLUDE-SAFE değil
+
+`authority:prepare` `sourceFreeze.contentDigest = runtimeAuthorityProjectsContentDigest(sourceProjectsRoot)`
+kullanıyor. Runbook (`docs/PROJECT_STORAGE.md` §6 step 5): `--source-projects <repo>/data/projects`.
+**`runtimeAuthorityProjectsContentDigest` yalnız authority-generation marker'ı atlıyor; F12/F5
+`.partial` + `.pipeline-jobs.lock/**` exclusion'larını UYGULAMIYOR** → source digest
+`2ec5b9c0…` / **2399 files** dondurur. `authority:validate` ise target'ı ölçer:
+`runtimeAuthorityProjectsContentDigest(D:\AtolyeRuntime\projects)` = `0e46cf6c…` / **2371 files**
+→ **`TRANSITION_TARGET_CONTENT_MISMATCH`** (validate deterministik FAIL).
+
+Fark = tam olarak F12/F5 EXCLUDE-SAFE 28 dosya: 27 `i-stanbul-un-fethi-1453/production-execution/
+audio-compensation-{cleanup,recovery}/.audio-journal-staging/*.json.<uuid>.partial` + 1
+`suleymaniye-camii-.../. pipeline-jobs.lock/owner.json` (stale process-local mutex; 0 node process).
+Migration zinciri (backup→candidate→consume) bunları DOĞRU şekilde hariç tutuyor (2371); ama
+authority-transition F3 primitive'i tutmadan, doğru migrate edilmiş target'ı reddeder.
+`docs/PROJECT_STORAGE.md:193` zaten "the runbook below is not yet executable" diyor.
+
+`smoke-c2b9`/`c2b9b` bunu yakalayamadı: fixture source == fixture target byte-for-byte (`.partial`/
+`.lock` yok). Consume'un post-copy `runtimeAuthorityProjectsContentDigest` check'i candidate-vs-target
+(2371 vs 2371) karşılaştırıyor, source-vs-target değil. **Dördüncü gerçek-data blocker** (F13 path
+budget, F14 v4 authority, F15 missing index, **F16 authority-transition F3 EXCLUDE-SAFE değil**).
+
+### F16 çözüm yolları (her biri kendi kararını gerektiriyor)
+
+- **F16-A** — `runtimeAuthorityProjectsContentDigest`'i (prepare + validate + consume post-copy'nin
+  tümü kullanıyor) F12/F5 EXCLUDE-SAFE yap: `.partial` staging + `.pipeline-jobs.lock/**` atla,
+  her yerde tutarlı. Contract refinement; F5/F12'nin backup tarafında zaten olan filtrenin F3
+  primitive'ine taşınması.
+- **F16-B** — `authority:prepare --source-projects` = verified candidate'ın `projects/` (kaynağa
+  kriptografik olarak bağlı, doğrulanmış 2371-file frozen projeksiyon). prepare 2371 dondurur,
+  validate target 2371 → match. Runbook'un literal `<repo>/data/projects`'inden ve "source froze it"
+  audit izinden sapar.
+- **F16-C** — genesis öncesi 28 transient dosyayı (`.partial` staging + stale `.pipeline-jobs.lock`)
+  quarantine et; source == target == 2371. Ama "no data/projects rename/move/delete".
+
+### Safety proof
+
+SOURCE `data/projects` mutation = **+11 derived index** (F15-A, yetkili), **0 canonical kayıt
+değişti**, 0 removed. `runtimeAuthorityProjectsContentDigest` `1a374936…` → `2ec5b9c0…` (11 yeni
+dosya). `.env.local` `bf52c74d…` DEĞİŞMEDİ. `data/brain` git clean. tracked `data/projects` = 0.
+**`authority-transition-v1/` / `active-authority.json` HİÇBİR yerde YOK** (genesis başlatılmadı).
+`D:\AtolyeAuthority` boş. node process = 0. Execution Gate CLOSED. `cutoverAuthorized = false`.
+
+### D: artifacts (bırakıldı)
+
+- `D:\AtolyeBackup\backups\b-fee58282da89` (S201) — **PRESERVED**.
+- `D:\AtolyeBackup\backups\b-0d971133190c` (S204) — **verified backup**, post-F15-A source.
+- `D:\AtolyeCandidate\candidates\c-817cdcd9df908176a5559e95` (S202) — stale (pre-F15-A), bırakıldı.
+- `D:\AtolyeCandidate\candidates\c-d3743b64c5830509cc380b58` (S204) — **verified candidate**,
+  post-F15-A source.
+- `D:\AtolyeRuntime` — **consumed target** (`state: consumed`, byte-exact, durable-clean). F16
+  fix sonrası genesis bunun üzerinde çalışacak (F16-A/B fix'i re-consume gerektirmez).
+- `D:\AtolyeAuthority` / `D:\AtolyeRestoreVerify` boş.
+
+### Sıradaki adım
+
+**F16 çözüm kararı** (F16-A / F16-B / F16-C) → sonra `authority:begin-genesis` → quiesce → prepare
+→ validate → HARD STOP. `authority:publish` bu noktaya kadar çalıştırılMAYACAK; `PUBLISH ONAY`
+hâlâ gerekli.
+
+<!-- SPRINT-204-END -->
+
 ## Sprint 203 - REAL MIGRATION EXECUTION RETRY — HALTED AT FAZ 3 (blocker F15) - 2026-09-08
 
 **Status:** Gerçek migration retry INSPECT + FAZ 1-2 PASS; **FAZ 3 (CONSUME) kendi post-copy

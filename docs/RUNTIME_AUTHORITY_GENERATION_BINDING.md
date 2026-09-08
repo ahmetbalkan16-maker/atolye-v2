@@ -406,7 +406,7 @@ at `D:\AtolyeCandidate\candidates\c-817cdcd9df908176a5559e95`: 2360 files /
 materialized path **234 / 0 violations**, byte-identical to the backup payload,
 `cutoverAuthorized = false`. **No consume, no genesis, no publish.**
 
-## 10. F15 — production-execution derived index missing (OPEN, blocks the real migration)
+## 10. F15 — production-execution derived index missing — CLOSED via F15-A (Sprint 204)
 
 Sprint 203's real migration retry passed INSPECT + candidate re-verification, then
 **`runtime:migration:candidate:consume` failed with `DURABLE_RECOVERY_REQUIRED`**
@@ -460,8 +460,75 @@ mandate):
 - **F15-C** — a post-consume index-rebuild step on the target, without changing
   consume's byte-exact materialization contract.
 
-Real migration is **NO-GO** until F15 is resolved. Sprint 203 ran no
-`authority:begin-genesis` / `authority:publish`; `cutoverAuthorized` stays
-`false`; the failed-consume output at `D:\AtolyeRuntime` was cleaned back to
-empty; the source `data/projects` is byte-unchanged; `b-fee58282da89` and
-`c-817cdcd9df908176a5559e95` are preserved. `PUBLISH ONAY` still required.
+### Sprint 204 — F15 closed via F15-A
+
+`ProductionExecutionDurableRecoveryService.rebuildIndex()` on each of the 11
+dynamically-discovered projects (canonical records read → deterministic index →
+exclusive no-clobber write of `production-execution/indexes/lookup-<64hex>.json`).
+**11/11 → `RECOVERY_RECORD_VALID` / `created=true`; re-scan 11/11 `clean`,
+`recovery-required = 0`.** Source delta: **+11 files, all `…/indexes/lookup-*.json`;
+`modified: []`, `removed: []`** — zero canonical records touched. New source:
+2399 files fs / inventory 2371 / aggregate
+`8701419987c94ecd8163fb6e0682d1f668d320566cb2bbccb74e3f76bd763ef4` /
+`runtimeAuthorityProjectsContentDigest` `2ec5b9c0…`. New backup
+`b-0d971133190c` + new candidate `c-d3743b64c5830509cc380b58` (F13 layout, max
+path 234 / 0 violations) both verified. **`runtime:migration:candidate:consume`
+→ `D:\AtolyeRuntime` = SUCCESS, `durableRecoveryDecision: "clean"`**, target
+byte-exact to candidate/backup, target per-project durable scan 11/11 clean. F15
+resolved end to end. Old `b-fee58282da89` / `c-817cdcd9df908176a5559e95` preserved.
+
+## 11. F16 — authority-transition F3 gate is not `.partial`/`.lock` EXCLUDE-SAFE (OPEN, blocks genesis)
+
+Sprint 204's real migration reached the genesis authority transition and stopped
+at **PHASE 11 (`authority:validate`)** — which would fail deterministically:
+
+- `authority:prepare` freezes `sourceFreeze.contentDigest =
+  runtimeAuthorityProjectsContentDigest(sourceProjectsRoot)` and the runbook
+  (`docs/PROJECT_STORAGE.md` §6 step 5) passes `--source-projects <repo>/data/projects`.
+- **`runtimeAuthorityProjectsContentDigest` skips only the authority-generation
+  marker — it does NOT apply the F12/F5 `.partial` + `.pipeline-jobs.lock/**`
+  exclusions** that `collectRuntimeBackupInventory` (and therefore the whole
+  backup → candidate → consume chain) applies. So it freezes a digest over
+  **2399** files (`2ec5b9c0…`).
+- `authority:validate` then computes `runtimeAuthorityProjectsContentDigest(<T>/projects)`
+  over the correctly-migrated target — **2371** files (`0e46cf6c…`) — and throws
+  **`TRANSITION_TARGET_CONTENT_MISMATCH`**.
+
+The 28-file difference is exactly the F12/F5 EXCLUDE-SAFE set: 27
+`i-stanbul-un-fethi-1453/production-execution/audio-compensation-{cleanup,recovery}/
+.audio-journal-staging/*.json.<uuid>.partial` (abandoned atomic-write staging)
++ 1 `suleymaniye-camii-…/.pipeline-jobs.lock/owner.json` (a stale process-local
+mutex; 0 node processes). The migration chain correctly excludes them; the
+authority-transition F3 primitive does not, so it rejects the correct target.
+`docs/PROJECT_STORAGE.md:193` already flags "the runbook below is not yet executable".
+
+`smoke-c2b9` / `c2b9b` never caught this — their fixtures have source == target
+byte-for-byte (no `.partial`/`.lock`), and consume's own post-copy
+`runtimeAuthorityProjectsContentDigest` check compares candidate-vs-target
+(2371 vs 2371), never source-vs-target. F16 is the **fourth blocker only a real
+migration reveals** (F13 path budget, F14 v4 authority, F15 missing index,
+F16 F3 not EXCLUDE-SAFE).
+
+**Resolution options (each its own decision):**
+
+- **F16-A** — make `runtimeAuthorityProjectsContentDigest` F12/F5 EXCLUDE-SAFE
+  (skip `.partial` staging + `.pipeline-jobs.lock/**`), consistently for
+  `prepare`, `validate`, and consume's post-copy check. Moves the filter that
+  already exists on the backup side into the F3 primitive.
+- **F16-B** — point `authority:prepare --source-projects` at the verified
+  candidate's `projects/` (the frozen, verified, byte-exact 2371-file projection
+  of the source, already cryptographically bound to it). Diverges from the
+  runbook's literal `<repo>/data/projects` and the "source froze it" audit trail.
+- **F16-C** — quarantine the 28 transient files (`.partial` staging + the stale
+  `.pipeline-jobs.lock`) before genesis so source == target == 2371. Contradicts
+  "no `data/projects` rename/move/delete".
+
+Real migration is **NO-GO** until F16 is resolved. Sprint 204 ran no
+`authority:begin-genesis` (the genesis control plane was never created — validate
+would fail deterministically), no `authority:publish`; `active-authority.json`
+absent; `cutoverAuthorized` stays `false`; `.env.local` unchanged; `data/projects`
+mutated only by F15-A (+11 gitignored derived indexes, 0 canonical records). The
+verified `D:\AtolyeRuntime` consumed target, `b-0d971133190c`, and
+`c-d3743b64c5830509cc380b58` are preserved for the F16-fix retry (an F16-A/B fix
+needs no re-consume). `b-fee58282da89` / `c-817cdcd9df908176a5559e95` also kept.
+`PUBLISH ONAY` still required.
