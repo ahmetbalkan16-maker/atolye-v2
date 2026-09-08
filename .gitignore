@@ -29,6 +29,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+.codex-devserver.*.log
+
+# one-off generated reports / dumps (regenerate on demand, do not commit)
+/OPENAI-LOCAL-MIGRATION-PLAN.md
 
 # env files (can opt-in for committing if needed)
 .env*

@@ -1,0 +1,75 @@
+{
+  // ─────────────────────────────────────────────────────────────────────────
+  // Atölye — VS Code Explorer declutter.
+  //
+  // EDITOR-ONLY settings. Nothing here deletes anything: every hidden path
+  // still exists on disk, and `npm run dev|build|lint`, `npx tsc --noEmit`,
+  // every `scripts/smoke-*.ts`, the pipeline and `graphify` all work exactly
+  // as before. To show something again, set its line to `false` or delete it.
+  // ─────────────────────────────────────────────────────────────────────────
+  "files.exclude": {
+    // VS Code defaults (restated so this file does not drop them)
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+
+    // Dependencies, build output and TS incremental cache (all git-ignored)
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/out": true,
+    "**/coverage": true,
+    "**/*.tsbuildinfo": true,
+
+    // Local tool state / caches
+    "**/.graphify": true, // ~87 MB local knowledge-graph output (git-ignored)
+    "**/.claude": true, // Claude Code local state (git-ignored)
+    "**/.codex": true, // Codex tool config (hooks.json)
+    "**/.cursor": true, // Cursor tool rules
+
+    // Local per-machine runtime binaries + generated test media (git-ignored)
+    "bin/piper": true, // Piper TTS engine + Turkish voice model
+    "data/e2e-output": true, // e2e pipeline MP4 outputs
+
+    // Logs and one-off generated dumps
+    "**/*.log": true,
+    ".codex-devserver.err.log": true, // accidentally-committed dev-server log (now untracked)
+    ".codex-devserver.out.log": true,
+    "OPENAI-LOCAL-MIGRATION-PLAN.md": true, // 7.5 MB auto-generated dependency scan; migration done in Sprints 174–179
+
+    // create-next-app boilerplate art, unused in this project
+    "public/next.svg": true,
+    "public/vercel.svg": true,
+    "public/window.svg": true,
+    "public/globe.svg": true,
+    "public/file.svg": true
+  },
+
+  // Keep the file watcher off the big / noisy trees (pure performance; these
+  // stay visible in the Explorer and searchable).
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.next/**": true,
+    "**/.git/**": true,
+    "**/.graphify/**": true,
+    "**/.claude/**": true,
+    "**/*.tsbuildinfo": true,
+    "bin/piper/**": true,
+    "data/e2e-output/**": true,
+    "data/projects/**": true
+  },
+
+  // Keep search fast: skip vendored / generated / huge files. `data/projects`
+  // is deliberately NOT excluded here so project data stays greppable.
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/.graphify": true,
+    "**/*.tsbuildinfo": true,
+    "bin/piper": true,
+    "data/e2e-output": true,
+    "package-lock.json": true,
+    "OPENAI-LOCAL-MIGRATION-PLAN.md": true
+  }
+}
