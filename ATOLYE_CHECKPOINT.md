@@ -1,5 +1,102 @@
 ---
 
+## Sprint 188 - Graphify Master Sprint: kalıcı sprint governance + project storage dokümantasyon + hijyen guard - 2026-09-08
+
+**Status:** GOVERNANCE + DOKÜMAN + GUARD TAMAM. **Migration/cutover = SPRINT NOT READY** (bilinçli —
+aşağıda). Commit yapıldı, **PUSH YAPILMADI** (emir §16). `npx tsc --noEmit` temiz. `npx eslint .` =
+0 error / 22 warning (baseline). `smoke-project-storage-hygiene` **8/8 PASS** (YENİ). Brain/AYAS smoke
+regression PASS. `git status --short` boş.
+
+### INSPECT bulgusu — external storage zaten var
+
+Sprint'in istediği "external project storage + tek abstraction + path security + AYAS wiring"
+**Sprint 129.25B → 129.25C.2B.4'te zaten yapılmış**:
+- `src/lib/runtime/RuntimeStoragePaths.ts` — `ATOLYE_RUNTIME_ROOT` env contract'ı, `getProjectsRoot()`
+  / `getProjectRoot(slug)` (sprint'in istediği tam isimler), frozen `RuntimeStorageContext`, logical
+  `data/projects/<slug>/...` → physical çözümleme. Unset → legacy `<repo>/data/projects` (bit-bit aynı).
+- `ProjectReader` / `ProjectWriter` / `FileStorage` / `AssetManager` / `Image|Audio|Video|Animation|Thumbnail
+  Storage` **hepsi bu abstraction üzerinden** (fiziksel `process.cwd()/data/projects` kurmuyor).
+- Path security: slug allow-list regex, `..`/absolute/root-escape reddi, symlink/junction/reparse reddi,
+  `RUNTIME_STORAGE_DUAL_ROOT_DIVERGENCE` (aynı slug iki root'ta → fail-closed). ✅
+- Migration tooling: `src/lib/runtime/migration/RuntimeMigrationCandidate{Service,Verifier,Preflight,...}`
+  (dry-run + checksum). Backup: `npm run runtime:backup:*`. ✅
+- Audit: `docs/PRODUCTION_STORAGE_RELOCATION_AUDIT.md` (28 entrypoint; 11 READY / 7 ADAPTER / 1 MIGRATION
+  / 5 POLICY / **4 BLOCKING**).
+
+### Migration/cutover neden NOT READY
+
+`docs/PRODUCTION_STORAGE_RELOCATION_AUDIT.md` + checkpoint C.2B.3'e göre gerçek relocation, **4 P0
+BLOCKING** kalem çözülmeden başlatılamaz: (1) image API route `process.cwd()/data/projects` doğrudan
+okur (C.2B.5), (2) startup-seviyesi frozen production runtime authority yok — recovery/worker farklı
+root → split-brain (C.2B.6), (3) durable execution adapter'ları tek authority generation'a bağlı değil
+(C.2B.6), (4) versioned/no-clobber authority transition protokolü yok (C.2B.9). Ayrıca `.env.local`
+değişikliği (dokunulmaz) ve ayrı bir Git-untracking sprint'i (C.2B.12) gerekiyor. Önerilen model:
+offline stop-the-world + drain + verified candidate consume + exclusive empty target + read-only
+old-root quarantine. 590 MB / ~2388 dosya / 11 gerçek projenin migrasyonu bu oturumda güvenli değil
+ve mevcut audited süreç tarafından yetkilendirilmiyor.
+
+### Bu sprintte YAPILAN (güvenli + değerli)
+
+1. **`ATOLYE_AI_RULES.md` → "# Graphify Sprint Protokolü"** (YENİ bölüm): `INSPECT → PLAN → IMPLEMENT →
+   TEST → AUDIT → CLEAN → COMMIT → FINAL VERIFY` kapıları; her kapı zorunlu; kapı geçilmezse
+   `SPRINT = NOT READY`. Repo hijyeni zorunlu (`git status --short` boş). Dosya sınıflandırması,
+   silinebilir/silinemez politikası, "şüpheli → SİLME, RAPORLA", "runtime data kaynak repoya yazılmaz".
+2. **`docs/PROJECT_STORAGE.md`** (YENİ): "projeler nereye kaydediliyor?" tek-cevap belgesi — logical
+   prefix, `ATOLYE_RUNTIME_ROOT` tablosu, abstraction API, path security, local dev, Git politikası
+   (tracked milestone vs ignored local-work), **migration status + operatör runbook** (backup → candidate
+   → preflight → verify → env → app test → quarantine → ayrı untracking sprint), backup komutları.
+3. **`scripts/smoke-project-storage-hygiene.ts`** (YENİ, 8 senaryo): statik regresyon guard'ı —
+   `src/`+`app/` içinde YENİ bir fiziksel `path.join(<cwd|__dirname|SHOUTY_CONST>, "data", "projects", …)`
+   bypass'ı belirirse **build fail**. Bilinen tek istisna (image GET route → C.2B.5) allow-list'te
+   kilitli, çoğalamaz. Ayrıca: abstraction export'ları duruyor mu, ProjectReader/Writer `process.cwd()`
+   kullanmıyor mu, `.gitignore`/`.gitattributes` kuralları duruyor mu, blanket `/data/projects/*/`
+   ignore YOK. `npm run smoke:project-storage-hygiene` olarak kayıtlı.
+
+4. **`scripts/lib/runtime-tracking-inventory.ts`** (DÜZELTME — AUDIT gate bulgusu): Sprint 187 sonrası
+   temizlik commit'leri (`4c60560` + `064a94f`, kullanıcı yönlendirmesiyle, push edildi) `.gitignore`'a
+   local-work proje slug kuralları ekledi. Bu, `runtime-tracking-inventory` admission modelini bozdu
+   (`data/projects/**` altında yalnız `production-execution/{4 tür}/<pattern>.json` "allowed ignored"
+   sayılıyordu) → `smoke-sprint-129-25b-runtime-root`, `-25b-1`, `-25c-1` **RED** oldu. **Düzeltildi:**
+   admission artık ignore kuralı `.gitignore`'a commit edilmiş bir `data/projects/<…>/` **dizin**
+   kuralıysa (kasıtlı local-work exclusion) dosyayı kabul eder — `.git/info/exclude` veya non-dir
+   pattern hâlâ reddedilir (fixture negatif testleri korunur). Ayrıca `git check-ignore` per-file →
+   **tek batched `--stdin -z` çağrısı** (2168 spawn → 1; smoke 120 sn timeout → ~6 sn). 3 smoke tekrar
+   **PASS**. Bu, audit'in `G1` / C.2B.12 endişesinin (Git-untracking admission modeli) kısmi kapatması.
+
+### DOKUNULMADI
+
+`src/lib/runtime/**` (kaynak), `src/lib/production/**`, `src/lib/projects/**`, `src/lib/storage/**`,
+pipeline, `data/projects/**` (fiziksel), `.env.local`, `.gitignore`, `.gitattributes`, Git index,
+AYAS/Brain runtime kodu, hiçbir gerçek proje dosyası. Değişen: 2 yeni dosya (`docs/PROJECT_STORAGE.md`,
+`scripts/smoke-project-storage-hygiene.ts`) + `ATOLYE_AI_RULES.md` + `package.json` (1 smoke kaydı) +
+`scripts/lib/runtime-tracking-inventory.ts` (test tooling düzeltmesi) + bu checkpoint.
+
+### Bilinen pre-existing FAIL (bu sprintin dışı)
+
+`smoke-sprint-129-25c-2a-guarded-filesystem` ve `-2b-4-runtime-context` bu makine/checkout'ta RED.
+Neden: OS temp-dir path uzunluğuna bağlı hard-coded boundary matematiği (`path.resolve(...).length ===
+240`) + child-process module resolution. `cfc6647` worktree'de de aynı → **temizlik commit'lerinden
+veya bu sprintten bağımsız, ortam-hassasiyeti**. Bu suite'in platform-evidence-gap'i checkpoint
+129.25B/C.2B.2'de zaten kayıtlı. Ayrı bir hardening işi.
+
+### Acceptance gate (§17)
+
+DONE: tek storage abstraction · `ATOLYE_PROJECTS_ROOT` configurable (= `ATOLYE_RUNTIME_ROOT`) · tüm
+project read/write abstraction kullanıyor · AYAS/Brain external-capable · path traversal korunuyor ·
+tsc PASS · eslint baseline · brain/ayas smoke PASS · storage hygiene guard PASS · git diff/--cached/
+--short temiz · push YAPILMADI.
+NOT READY: legacy data migrate (4 P0 blocker + offline gate) · migration checksum canlı doğrulama ·
+"yeni proje repo içine yazmıyor" canlı doğrulama (env unset olduğu için legacy default aktif) ·
+CI (repo'da `.github/` yok — guard smoke olarak eklendi, CI kurulumu ayrı).
+
+### Sıradaki tek adım
+
+Sub-sprint **C.2B.5** — image GET route'u `ImageStorage` üzerinden geçir (gif/svg için storage-service
+inspector ekle). Sonra C.2B.6 (frozen runtime authority), C.2B.9 (authority transition), C.2B.12
+(Git untracking) ve nihayet operatör migration runbook'u.
+
+<!-- SPRINT-188-END -->
+
 ## Sprint 187 - AYAS Voice Experience: erkek Türkçe ses + otomatik konuşma + wake-word + orb state machine (PHASE 6) - 2026-09-08
 
 **Status:** KOD + TEST + DOKÜMAN TAMAM. **Commit/push YAPILMADI** (emir §KESİN KURALLAR — bu sprint

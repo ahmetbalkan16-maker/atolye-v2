@@ -173,6 +173,111 @@ Bu sıra mümkün olduğunca korunmalıdır.
 
 ---
 
+# Graphify Sprint Protokolü
+
+Graphify / Claude üzerinden yürütülen **her** sprint bu kapılardan sırayla geçer.
+Bir kapı başarısızsa sonraki kapıya geçilmez; sprint `SPRINT = NOT READY` olarak
+raporlanır ve sorun çözülene kadar devam edilir. "Sprint tamamlandı" ancak
+tüm kapılar geçince söylenir.
+
+```
+INSPECT → PLAN → IMPLEMENT → TEST → AUDIT → CLEAN → COMMIT → FINAL VERIFY
+```
+
+## 1. INSPECT — implementasyondan önce zorunlu
+
+```bash
+git status --short
+git branch --show-current
+git log -5 --oneline
+git diff
+git diff --cached
+```
+
+Başlangıç durumu raporlanmadan koda başlanmaz. Kullanıcının mevcut değişiklikleri
+**asla** ezilmez. Önce mevcut mimari taranır — tamamlanmış bir işi yeniden yapma.
+
+## 2. PLAN
+
+En güvenli, en küçük, geriye dönük uyumlu çözüm seçilir. Büyük plansız refactor
+yok. İkinci bir orchestrator / provider router / storage root açma.
+
+## 3. IMPLEMENT
+
+Yalnız gerekli minimum değişiklik. Her yeni dosya için gerekçe: _neden gerekli,
+nerede kullanılıyor, kalıcı mı, Git'te mi durmalı, runtime mı?_ Runtime /
+generated / user data **kaynak repoya yazılmaz** (bkz. `docs/PROJECT_STORAGE.md`).
+
+## 4. TEST
+
+```bash
+npx tsc --noEmit          # 0 error
+npx eslint .              # 0 error, baseline warning korunur
+```
+
+- İlgili tüm Brain/AYAS smoke suite'leri.
+- Değişen `src/lib/...` dosyası için `grep scripts/` ile ilgili smoke'lar.
+- Yeni davranış için yeni/genişletilmiş smoke; regresyon testi.
+- Storage'a dokunulduysa `npx tsx scripts/smoke-project-storage-hygiene.ts`.
+
+## 5. AUDIT — Graphify kendine sorar
+
+**CODE:** Eski storage path'i / hardcoded proje yolu / duplicate helper /
+kullanılmayan import kaldı mı?
+**DATA:** Runtime data repoya yazılıyor mu? Generated artifact / temp dosya /
+untracked kullanıcı verisi oluştu mu?
+**SECURITY:** Path traversal / arbitrary FS write / external root dışına çıkış
+mümkün mü?
+**TEST:** Yeni davranış test edildi mi? Regression var mı? Mevcut smoke'lar
+geçiyor mu?
+**GIT:** `git status --short`, `git diff`, `git diff --cached` — üçü de beklenen
+temiz durumu gösteriyor mu?
+
+## 6. CLEAN — repo hijyeni zorunlu
+
+Sprint sonunda `git status --short` **boş** olmalı. Yeni oluşan runtime data /
+proje dosyası / medya / pipeline çıktısı / temp / test artifact / log / lock /
+cache Git çalışma ağacını kirletmez. Ancak **gerçek source-code değişikliği
+gizlenmez veya blanket ignore ile örtülmez**.
+
+Her artık dosya şu sınıflara ayrılır:
+`SOURCE · CONFIG · TEST · DOCUMENTATION · RUNTIME · GENERATED · TEMPORARY · USER DATA`
+
+### Silinebilir (kesin doğrulama ile)
+abandoned draft · test artifact · diagnostic artifact · temporary output · cache
+· lock · generated disposable data
+
+### Silinemez (açık doğrulama olmadan)
+gerçek kullanıcı projesi · medya · production output · tracked milestone ·
+canonical source · kullanıcı tarafından oluşturulan veri
+
+Şüpheli dosya → **SİLME, RAPORLA.** `git reset --hard` / `git clean -fdx`
+sınıflandırma bitmeden kullanılmaz.
+
+## 7. COMMIT
+
+Kullanıcı onayı olmadan commit/push yok — **istisna:** kullanıcı açıkça commit
+istediğinde. Push her zaman ayrı onay ister. Mantıklı, açık mesajlı commit(ler);
+gereksiz commit üretme. `data/projects/**` runtime verisi, CRLF gürültüsü ve
+generated artifact commit'e dahil edilmez.
+
+## 8. FINAL VERIFY + RAPOR
+
+```bash
+git status --short        # boş
+git diff                  # boş
+git diff --cached         # boş
+git status --ignored --short
+git log -1 --oneline
+```
+
+Rapor: değişen/yeni dosyalar · çalışma mantığı · test sonuçları (tsc/eslint/smoke)
+· riskler · commit hash(ler)i · working tree durumu · push yapıldı mı ·
+sonraki önerilen adım. Kapılardan biri geçilmediyse `SPRINT = NOT READY` +
+gerekçe.
+
+---
+
 # Test Kuralları
 
 Her sprint sonunda en az:
