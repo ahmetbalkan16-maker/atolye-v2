@@ -123,6 +123,11 @@ export function preflightRuntimeMigrationCandidate(input: {
   if (JSON.stringify(liveMarkers) !== JSON.stringify(backupMarkers) || liveDurable !== backupDurable) {
     throw new RuntimeMigrationCandidateError("CRITICAL_STATE_MISMATCH");
   }
+  // C1 — the repo-local git worktree check. After C.2B.12 `data/projects` is
+  // fully gitignored (no tracked files), so this is trivially "clean" and the
+  // `SOURCE_STALE` inventory/aggregate comparison above is the substantive gate.
+  // For a source outside the repository, use `preflightRuntimeMigrationExternalSource`,
+  // which reports repository cleanliness as `not-applicable` rather than "clean".
   const worktreeProjectsClean = cleanProjectsWorktree(input.repositoryRoot);
   if (!worktreeProjectsClean) throw new RuntimeMigrationCandidateError("SOURCE_STALE");
   const backupId = path.basename(backupDirectory);
@@ -261,6 +266,12 @@ function treeIdentity(files: readonly RuntimeBackupFileRecord[]) {
   }));
 }
 
+/**
+ * True when there is no uncommitted change under the repo-local `data/projects`
+ * pathspec. C.2B.12: once `data/projects` is untracked + gitignored there are no
+ * tracked files there, so this returns true and the inventory/aggregate match is
+ * what actually proves the source is current.
+ */
 function cleanProjectsWorktree(repositoryRoot: string) {
   try {
     const output = execFileSync("git", ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--", "data/projects"], {

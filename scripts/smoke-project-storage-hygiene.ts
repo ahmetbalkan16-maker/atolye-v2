@@ -230,19 +230,27 @@ function run() {
 
   /* ---------------------- git hygiene rules still in place ---------------- */
 
-  scenario(".gitignore keeps the runtime-local project data + lock rules", () => {
+  scenario(".gitignore untracks data/projects (C.2B.12) without catching data/brain", () => {
     const gitignore = fs.readFileSync(path.join(REPO_ROOT, ".gitignore"), "utf8");
-    for (const rule of [
-      "/data/projects/unknown/",
-      "**/.pipeline-jobs.lock/",
-      "/data/projects/smoke/",
-      "/data/projects/diag-*/",
-    ]) {
-      assert.ok(gitignore.includes(rule), `.gitignore must keep: ${rule}`);
-    }
+    // C.2B.12 — data/projects is external-runtime authority data; git stops
+    // tracking it (files stay on disk). The rule is exactly `/data/projects/`.
     assert.ok(
-      !/^\/data\/projects\/\*\/?\s*$/m.test(gitignore),
-      ".gitignore must NOT blanket-ignore /data/projects/*/ (would hide tracked milestone snapshots)",
+      /^\/data\/projects\/\s*$/m.test(gitignore),
+      ".gitignore must contain the /data/projects/ rule (C.2B.12)",
+    );
+    assert.ok(
+      gitignore.includes("**/.pipeline-jobs.lock/"),
+      ".gitignore must keep the PipelineJobMutationLock mutex-dir rule",
+    );
+    // The rule must be narrow — no /data/** or /data/* blanket that would also
+    // ignore data/brain/README.md or data/brain/README-anything.
+    assert.ok(
+      !/^\/data\/(\*\*?|)\s*$/m.test(gitignore),
+      ".gitignore must NOT blanket-ignore all of /data/",
+    );
+    assert.ok(
+      gitignore.includes("/data/brain/queue/") && !/^\/data\/brain\/\s*$/m.test(gitignore),
+      "data/brain must keep its granular rules — README.md stays tracked",
     );
   });
 

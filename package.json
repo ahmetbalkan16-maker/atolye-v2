@@ -68,6 +68,7 @@
     "smoke:f12-audio-journal-partial-classification": "tsx scripts/smoke-f12-audio-journal-partial-classification.ts",
     "smoke:c2b10a-candidate-consume": "tsx scripts/smoke-c2b10a-candidate-consume.ts",
     "smoke:c2b11-old-root-quarantine": "tsx scripts/smoke-c2b11-old-root-quarantine.ts",
+    "smoke:c2b12-git-untracking": "tsx scripts/smoke-c2b12-git-untracking.ts",
     "smoke:ayas-access-gate": "tsx scripts/smoke-ayas-access-gate.ts",
     "smoke:ayas-intent-intake": "tsx scripts/smoke-ayas-intent-intake.ts",
     "smoke:external-runtime-root-lifecycle": "tsx scripts/smoke-external-runtime-root-project-lifecycle.ts"
