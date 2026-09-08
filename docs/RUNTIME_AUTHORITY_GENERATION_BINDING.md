@@ -281,11 +281,37 @@ auto-activate + recovery transition + recovery guards; F3 byte-exact
 mutated/missing/extra + symlink; CLI strict-arg validation + a full genesis run;
 existing C.2B.9 regression; static no-execution).
 
+## 8. Old-root read-only quarantine + rollback token — DONE (C.2B.11)
+
+`src/lib/runtime/security/RuntimeAuthorityOldRootQuarantine.ts` +
+`RuntimeAuthorityRollback.ts`, driven from the same
+`RuntimeAuthorityTransitionStore` (no parallel control plane).
+
+| Contract | How |
+|---|---|
+| **Old-root read-only** | `finalizeOldRootQuarantine` sets `FILE_ATTRIBUTE_READONLY` (`chmod 0o444`) on every regular file under the retired `<old>/projects`, then **verifies** every file is non-writable. It cannot be applied+verified → `QUARANTINE_NOT_ENFORCED`, hard stop, **no silent fallback**. Advisory (a process can clear the bit — same threat-model boundary as the raw-`fs.write` note below), enough to keep the retired tree out of accidental serving/mutation and to anchor the audit + token. Append-once `quarantine-enforcement/<binding>.json` records the mode, file count and (unchanged) content digest. |
+| **Single-authority invariant** | The rollback runs as its own record (`kind: "rollback"`, states `rollback-requested → rollback-validated → rollback-published → former-target-quarantined`) but shares the one `active-authority.json` CAS — it never forks the pointer. `publishRollback` CAS: expected previous = the new-root binding at sequence *N*, next = the old-root binding at *N+1*. |
+| **Rollback token** | `RuntimeAuthorityRollbackToken` — `rbt-` + 48 hex crypto-random, durable, append-once, issued once per forward transition. Bound to EXACTLY one `authorityGeneration`, `transitionId`, source (old) binding, target (new) binding, `transitionSequence`, and `sourceContentDigest`. `beginTokenAuthorizedRollback` rejects every mismatch (`ROLLBACK_{GENERATION,SEQUENCE,SOURCE_ROOT,TARGET_ROOT}_MISMATCH`, `ROLLBACK_TOKEN_{NOT_FOUND,MISMATCH,CONSUMED}`). A `rollback-tokens/<id>.consumed.json` marker is written append-once at `publishRollback` → replay → `ROLLBACK_TOKEN_CONSUMED`. |
+| **"nothing moved since cutover"** | `validateRollback` requires both `<old>/projects` and `<new>/projects` to be byte-identical to the frozen `sourceContentDigest` — `ROLLBACK_OLD_ROOT_CONTENT_DRIFT` / `ROLLBACK_TARGET_DIRTY` otherwise (roadmap: rollback only if the new root is untouched). |
+| **Re-activation** | Enforcement lets a quarantined old root boot **only** when it has a `quarantine-lift/<binding>.json` record (written at `publishRollback`) AND is the current `active-authority.json` binding. Every other quarantined root still `RUNTIME_AUTHORITY_ROOT_QUARANTINED`. |
+| **Former target** | `quarantineFormerTarget` applies the read-only barrier to `<new>/projects` and writes its `quarantine/<binding>.json` + enforcement record. |
+| **Forward-recovery separation** | `beginRecoveryTransition` (C.2B.9b) is untouched; a rollback token never satisfies a recovery and a recovery never consumes a token. |
+| **CLI** | `authority:{finalize-quarantine, rollback-status, begin-rollback, validate-rollback, publish-rollback, quarantine-former-target}` — strict arg validation, explicit token id / generation / roots, no implicit discovery. |
+| **Crash safety** | Every step is idempotent on the rollback transitionId and rejects out-of-order (`ROLLBACK_ILLEGAL_STATE`); a crash between `validate` and `publish` leaves the active pointer on the new root and the token unconsumed — restart resumes, never a second authority. |
+
+Coverage: `scripts/smoke-c2b11-old-root-quarantine.ts` (15 scenarios).
+
 ### Known limitations
 
 - A raw `fs.write` to the old root's tree, bypassing the runtime entirely, is
-  not prevented — the threat model is a second *runtime authority* activating,
-  not filesystem ACLs. The runbook still renames the old tree read-only.
+  not fully prevented — C.2B.11's read-only barrier is advisory (a process can
+  clear the attribute first). The threat model is a second *runtime authority*
+  activating, not filesystem ACLs; the runbook also renames the old tree.
+- Genesis has no quarantined external old root, so there is no rollback token for
+  a genesis — its rollback is a manual backup restore to the repo path.
+- C.2B.11's rollback requires the new root to be **byte-identical** to the frozen
+  source. An "explicit reverse migration" path (roadmap condition b — roll back
+  after real work happened on the new root) is deliberately NOT implemented.
 - `confirmQuiescence` refuses while the worker reports active; it does not
   *force-stop* a running runtime. The operator stops the runtime; the
   coordinator then confirms against the durable-recovery scan. The CLI's own

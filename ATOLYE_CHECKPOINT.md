@@ -1,5 +1,97 @@
 ---
 
+## Sprint 198 - C.2B.11: Old-Root Read-Only Quarantine + Single-Authority Rollback Token - 2026-09-08
+
+**Status:** **C.2B.11 = READY.** Audit roadmap item 8 kapatıldı. **GERÇEK MIGRATION / BACKUP CREATE /
+GENESIS / PUBLISH / `.env.local` / `D:\Atolye*` / `active-authority.json` — HİÇBİRİ YAPILMADI.**
+`data/projects/**` byte-identical (2388 / 611005467 / digest `e95681751674ca0d2e67c9bdb415889fdc851124`).
+`.env.local` değişmedi. `active-authority.json` absent. Execution Gate CLOSED. `cutoverAuthorized`
+değiştirilmedi. Commit `<feat>` + `<docs>`. Push yok.
+
+### Yeni: read-only quarantine mekanizması — `RuntimeAuthorityOldRootQuarantine.ts`
+
+`enforceOldRootReadOnly(<old>/projects)` — her regular dosyaya `FILE_ATTRIBUTE_READONLY`
+(`chmod 0o444`), sonra **her dosyanın yazılamaz olduğunu DOĞRULAR**. Uygulanıp doğrulanamazsa →
+typed `QUARANTINE_NOT_ENFORCED` (**silent fallback YOK**). Advisory (bir process bit'i temizleyebilir —
+raw `fs.write` threat-model sınırıyla aynı). `verifyOldRootReadOnly` (mutation yok) + `liftOldRootReadOnly`
+(yalnız token-authorized rollback için). Symlink/junction/non-regular → `QUARANTINE_UNSAFE_TREE`.
+
+### Yeni: `RuntimeAuthorityRollback.ts`
+
+`finalizeOldRootQuarantine({ transitionId, oldRootProjectsRoot })` — state `old-root-quarantined`
+üzerinde (genesis/rollback hariç), read-only barrier + append-once `quarantine-enforcement/<binding>.json`
++ tek-kullanımlık **rollback token**. İdempotent (transition başına 1 token).
+
+`RuntimeAuthorityRollbackToken` — `rbt-` + 48 hex crypto-random; durable; append-once; TAM olarak bir
+`authorityGeneration` / `transitionId` / source (old) binding / target (new) binding / `transitionSequence`
+/ `sourceContentDigest`'e bağlı. Replay edilemez, başka generation/transition/root/sequence'e taşınamaz.
+Yalnız reverse transition için — runtime startup / worker execution / candidate consume / `active-authority.json`
+yerine geçme yetkisi VERMEZ.
+
+Rollback state machine (`kind: "rollback"` — mevcut C.2B.9 store + tek `active-authority.json` CAS,
+paralel sistem YOK): `rollback-requested → rollback-validated → rollback-published → former-target-quarantined`.
+`beginTokenAuthorizedRollback` her mismatch'i reddeder (`ROLLBACK_{GENERATION,SEQUENCE,SOURCE_ROOT,
+TARGET_ROOT}_MISMATCH`, `ROLLBACK_TOKEN_{NOT_FOUND,MISMATCH,CONSUMED}`). `validateRollback` her iki
+root'un frozen `sourceContentDigest`'e byte-identical olmasını şart koşar (`ROLLBACK_TARGET_DIRTY` /
+`ROLLBACK_OLD_ROOT_CONTENT_DRIFT`). `publishRollback`: old-root barrier lift + CAS active-authority
+(new→old, sequence+1) + append-once `quarantine-lift` + append-once token consumption.
+`quarantineFormerTarget`: new root'a barrier + quarantine.
+
+### Enforcement (`ProductionRuntimeAuthorityGenerationEnforcement.ts`)
+
+Quarantined bir root artık **yalnızca** `quarantine-lift` kaydı VAR ve o an `active-authority.json`
+binding'i ise boot edebilir (rollback re-activation). Diğer tüm quarantined root'lar hâlâ
+`RUNTIME_AUTHORITY_ROOT_QUARANTINED`. Transition olmadığında `readQuarantine` null → kod hiç çalışmıyor
+(dev/legacy davranışı değişmedi).
+
+### `RuntimeProtectedRoots` (additive)
+
+`migrationDisjointRoles`'a `authority` eklendi; `assertMigrationConsumeRootsDisjoint`'e opsiyonel
+`authority` param. `requiredRoles` / constructor / `assertWritableRoot` DEĞİŞMEDİ.
+
+### CLI
+
+`authority:{finalize-quarantine, rollback-status, begin-rollback, validate-rollback, publish-rollback,
+quarantine-former-target}` — strict arg (explicit token-id / generation / roots, no implicit discovery).
+Authority publish etmez, `.env.local` yazmaz, `active-authority.json`'ı elle yazmaz.
+
+### Tests
+
+`smoke-c2b11-old-root-quarantine.ts` — **PASS (15 senaryo)**: finalize barrier+evidence+token;
+finalize idempotent; finalize-before-quarantine → `ROLLBACK_NOT_AVAILABLE`; quarantined old root boot
+→ `RUNTIME_AUTHORITY_ROOT_QUARANTINED` + stray copy → `NOT_ACTIVE`; **token rollback happy path**
+(active → old root, sequence+1, token consumed, old root writable+boots, former target read-only+quarantined+refuses);
+**replay** → `ROLLBACK_TOKEN_CONSUMED`; wrong generation/mutated-token/wrong-old-root/wrong-target/nonexistent-token
+→ FAIL CLOSED; target dirty → `ROLLBACK_TARGET_DIRTY`; old-root content drift → FAIL CLOSED;
+**child-process crash between validate-rollback ve publish-rollback → restart resumes, ikinci authority YOK**;
+protected-root `authority` ∩ target / `quarantine` ∩ target → overlap; forward-recovery separation; CLI
+finalize→rollback full run + strict-arg; static no-execution; git tree unchanged.
+
+### Regression
+
+`c2b11` (15) · `c2b10a` (20) · `c2b9` (21) · `c2b9b` (16) · `c2b6` (14) · `c2b6b` (19) · `c2b5` (12) ·
+`f12` (6) · `project-storage-hygiene` (10) · `external-runtime-root-lifecycle` (7) ·
+`production-execution-durable-storage` (63) · `129-25c-1 runtime-backup` (39) · `129-25c-2b-1` (48) ·
+`ayas-access-gate` (14) · `ayas-intent-intake` (13) → **PASS**. `tsc` temiz · `eslint` **0 error / 22
+warning (baseline)** · `next build` OK. **Pre-existing FAIL** `129-25c-2a` + `129-25c-2b-4` — Sprint
+197 ile aynı (`RuntimeProtectedRoots` değişikliği additive; enforcement değişikliği `readQuarantine`
+null iken çalışmıyor). Sprint 198 regression'ı DEĞİL.
+
+### DOKUNULMADI
+
+`RuntimeAuthorityTransitionCoordinator.ts`, `RuntimeStoragePaths.ts`, `ProductionRuntimeCompositionRoot.ts`,
+`ProductionExecutionPersistence.ts`, `RuntimeMigrationCandidateConsumeService.ts`, pipeline, AYAS/Brain
+runtime, `.env.local`, `.gitignore`/`.gitattributes`, Git index, `data/projects/**` fiziksel, `data/brain`.
+
+### Sıradaki adım
+
+Audit roadmap: **C.2B.12** (Controlled Runtime Git Untracking — verified external authority +
+old-root quarantine doğrulandıktan sonra ayrı Git sprint'i). C.2B.10 orchestrator artık
+finalize-quarantine + rollback token adımlarını da içerebilir; publish yine ayrı `PUBLISH ONAY` bekler.
+`cutoverAuthorized = false`.
+
+<!-- SPRINT-198-END -->
+
 ## Sprint 197 - C.2B.10a: Verified Candidate Consume & Offline Materialization - 2026-09-08
 
 **Status:** **C.2B.10a = READY.** Sprint 196'da eksik olduğu tespit edilen consume/materialization

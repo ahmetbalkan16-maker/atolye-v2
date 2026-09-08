@@ -275,6 +275,15 @@ step below is idempotent on `--transition-id` and resumes after a crash.
       (genesis retires the repo default via the active-authority pointer — it does NOT
        write a quarantine/<binding>.json, so a backup can still be restored to the repo path.)
 
+7b. FINALIZE OLD-ROOT QUARANTINE + ISSUE ROLLBACK TOKEN  (C.2B.11 — relocation / recovery only)
+      npm run authority:finalize-quarantine -- --authority-root <AR> --transition-id <ID> --old-root <S>
+      → puts every regular file under <S>/projects behind FILE_ATTRIBUTE_READONLY, verifies it
+        (QUARANTINE_NOT_ENFORCED — hard stop — if it can't), records append-once enforcement
+        evidence, and prints a single-use rollback token bound to this exact
+        {generation, transition, old root, new root, transitionSequence, source digest}.
+      Keep the token id somewhere safe. `npm run authority:rollback-status -- ... --transition-id <ID>`
+      shows `rollbackAvailable`.
+
 8.  CUT OVER + RESTART
       Set ATOLYE_RUNTIME_ROOT=<T> and ATOLYE_RUNTIME_AUTHORITY_ROOT=<AR>  (operator edits .env.local).
       The target will NOT boot while <repo>/data/projects still holds the same slugs
@@ -295,19 +304,26 @@ step below is idempotent on `--transition-id` and resumes after a crash.
 
 Failed transition (pre-publish) → `npm run authority:fail -- --transition-id <ID> --reason "<why>"`,
 then resume the old root. Consume (step 4b) never touched the live source, so
-there is nothing to roll back there — abandon the `<T>` / `<CR>` scratch. **After
-publish there is no rollback:** if the target proves bad, restore the step-1
-backup into a FRESH root and run
-`npm run authority:begin-recovery -- --target <fresh> --transition-id <ID2> --reason "<why>"`
-→ quiesce → prepare → validate → publish → quarantine. A recovery transition
-quarantines the abandoned root; that root can never be recovered *to*.
+there is nothing to roll back there — abandon the `<T>` / `<CR>` scratch.
 
-> **C.2B.11 not complete.** The old-root read-only quarantine + a formal
-> single-authority rollback-token contract (audit roadmap item 8) are not yet
-> built. Today's post-publish recovery is the forward-only
-> `authority:begin-recovery` path above plus a manual read-only rename of the old
-> tree — adequate for a first genesis, but a real relocation sprint should close
-> C.2B.11 first.
+**After publish** (C.2B.11), two paths:
+
+- **Token rollback** — only while nothing has mutated on either root since the
+  cutover (`ROLLBACK_TARGET_DIRTY` / `ROLLBACK_OLD_ROOT_CONTENT_DRIFT` otherwise):
+  `npm run authority:begin-rollback -- --authority-root <AR> --workspace-root <repo> --generation <G> \`
+  `  --rollback-transition-id <RID> --token-id <TOKEN> --old-root <S> --target <T>`
+  → `authority:validate-rollback` → `authority:publish-rollback` (CAS authority
+  back to `<S>`, lift its read-only barrier, consume the token) →
+  `authority:quarantine-former-target` (read-only + quarantine `<T>`). The token
+  is single-use and cannot be replayed or re-pointed.
+- **Forward recovery** — the target proved bad and either root has drifted:
+  restore the step-1 backup into a FRESH root and run
+  `npm run authority:begin-recovery -- --target <fresh> --transition-id <ID2> --reason "<why>"`
+  → quiesce → prepare → validate → publish → quarantine. Forward-only; the
+  abandoned root can never be recovered *to*.
+
+A genesis has no quarantined external old root — its "rollback" is: restore the
+step-1 backup to `<repo>/data/projects`, unset `ATOLYE_RUNTIME_ROOT`. No token.
 
 `data/brain/**` (AYAS ledger, Brain queue, autonomy state) is **not** migrated —
 it stays machine-local under `<repo>/data/brain/`.
