@@ -76,15 +76,17 @@ services still *do the work*.
 | `security/BrainSecurityCatalog.ts` | The 18-control reference rubric | data |
 | `security/BrainSecurityAuditModel.ts` | Structured facts → security posture + prioritized backlog | pure |
 | `store/BrainExperienceStore.ts` | Durable JSON-file store behind the `BrainExperienceStore` port — atomic writes, redaction, reject-on-leak, corrupt-shard-fails-loud, deterministic reads | fs (own `rootDir` only) |
+| `worker/BrainTaskStore.ts` | Durable JSON-file persistence under `BrainTaskQueue` — `queue/tasks.json` + `queue/results/<cycle>.json`; atomic writes, reject-on-leak, payload caps, corrupt/schema-mismatch fails loud, idempotent enqueue + result save, every save re-validates the whole queue. Queue logic unchanged. | fs (own `rootDir` only) |
 | `BrainDryRunExperience.ts` | `BrainRunPlan` → a `mode: "dry-run"` experience record (honest zeros, hidden from the learner) | pure |
 | `probe/BrainResourceProbe.ts` | Read-only host probe: `nvidia-smi --query-gpu` + `os` → `BrainResourceSnapshot`; A2000 **60 °C hard stop** check | read-only spawn |
 | `probe/BrainRenderProbe.ts` | Read-only `ffprobe -show_format -show_streams` → `BrainFinalRenderReport` for the quality judge | read-only spawn |
 
 Types: `src/types/brain.ts`, `brainMemory.ts`, `brainWorker.ts`, `brainSecurity.ts`.
 Smoke suites: `scripts/smoke-brain-foundation.ts`, `smoke-brain-worker.ts`,
-`smoke-brain-security.ts`, `smoke-brain-plan-store.ts`, `smoke-brain-probes.ts`
-(~83 scenarios, GPU-free, $0, deterministic; the probe suite does two optional
-read-only live calls when `nvidia-smi` / `ffprobe` + an MP4 are present).
+`smoke-brain-security.ts`, `smoke-brain-plan-store.ts`, `smoke-brain-probes.ts`,
+`smoke-brain-task-store.ts` (~103 scenarios, GPU-free, $0, deterministic; the
+probe suite does two optional read-only live calls when `nvidia-smi` / `ffprobe`
++ an MP4 are present).
 
 CLI: `npx tsx scripts/brain-plan.ts "<topic>"` — read-only dry run of the
 14-phase plan (no pipeline, model, GPU, network, or file write).
@@ -188,10 +190,15 @@ module, 50 passing smoke scenarios, `tsc` + `eslint` clean.
 - Server / remote-access / proactive-comms / night-learning / security design:
   `docs/brain/ATOLYE_BRAIN_SERVER.md`.
 
+**Done (Sprint 182) — persistence only, still not wired to execution:**
+- `worker/BrainTaskStore.ts` — durable JSON-file store under `BrainTaskQueue`
+  (`data/brain/queue/`). Restart-safe, deterministic, secret-safe (reject-on-leak),
+  corruption-safe (loud fail), idempotent. `BrainTaskQueue.ts` unchanged; the
+  queue gained **no** production / GPU authority.
+
 **Not done (needs approval / later phases):**
 - Wiring `planBrainRun` to real `PipelineRunner` execution.
 - The role implementations (model calls).
-- Durable JSON-file store behind `BrainTaskQueue` (mirror of the experience store).
 - The security-fact gatherer feeding `BrainSecurityPostureInput`.
 - The Brain Worker runner + deployment (Server Brain + Local Agent).
 - Any `/api/brain/*` route; the Secure Gateway; any remote access.

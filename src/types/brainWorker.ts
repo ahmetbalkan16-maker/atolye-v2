@@ -100,6 +100,13 @@ export type BrainTaskOutcomeKind =
 
 export interface BrainTaskResult {
   readonly taskId: string;
+  /**
+   * Stable id for this result within its cycle. Optional for backward
+   * compatibility — the durable store derives one deterministically
+   * (`brainTaskResultId`) when it is absent, so re-persisting the same result
+   * never creates a duplicate row.
+   */
+  readonly resultId?: string;
   readonly outcomeKind: BrainTaskOutcomeKind;
   readonly status: Extract<BrainTaskStatus, "succeeded" | "failed" | "blocked-on-approval" | "skipped-unsafe">;
   readonly summary: string;

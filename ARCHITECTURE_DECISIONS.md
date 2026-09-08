@@ -664,6 +664,64 @@ kullanıcı-onaylı fazlardır. Bkz `docs/brain/ATOLYE_BRAIN.md`, `docs/brain/AT
 
 ---
 
+# ADR-023
+
+## Atölye Brain — Durable Task Queue Store (PHASE 6, Sprint 182)
+
+### Karar
+
+`BrainTaskQueue` (Sprint 180, saf in-memory model) yalnızca proses belleğinde yaşıyordu. Sprint 182
+tek küçük dosya ekler: `src/lib/brain/worker/BrainTaskStore.ts` — kuyruğu ve worker cycle sonuçlarını
+kalıcı hale getiren JSON-file persistence katmanı. Desen `store/BrainExperienceStore.ts` (Sprint 181)
+ile birebir aynı.
+
+- **Konum:** `data/brain/queue/tasks.json` (`{ schemaVersion, updatedAt, tasks }`) +
+  `data/brain/queue/results/<cycleId>.json` (`{ schemaVersion, cycleId, savedAt, report, results }`).
+- **`BrainTaskQueue.ts` DEĞİŞTİRİLMEDİ.** Store, mevcut saf fonksiyonları (`buildBrainTask`,
+  `enqueueBrainTask`, `validateBrainTaskQueue`, `nextRunnableBrainTask`, `applyBrainTaskResult`,
+  `approveBrainTask`, `pendingApprovalBrainTasks`) kompoze eder; kuyruğun tüm garantileri (taskId,
+  priority, createdAt, notBefore, dependencies, approval parking, autonomy policy, blocked state,
+  attempts, deterministik sıralama, dependency çözümleme, cycle detection, forbidden task'ların
+  çalışmaması) aynen korunur. **Her `saveQueue` `validateBrainTaskQueue`'yu yeniden koşar** ve
+  yapısal olarak geçersiz kuyruğu persist etmeyi reddeder.
+- **Atomic write:** temp → `fs.fsyncSync` → `fs.renameSync`.
+- **Corrupt = loud:** parse edilemeyen / yanlış şekilli / yanlış `schemaVersion` dosya →
+  `BRAIN_TASK_STORE_CORRUPT` / `BRAIN_TASK_STORE_SCHEMA_MISMATCH` fırlatır. **Asla "boş kuyruk"
+  sayılmaz, asla üzerine yazılmaz** (operatör inceler). Otomatik migration yok — gelecekte buraya
+  eklenecek.
+- **Reject on leak (mask-and-keep DEĞİL):** metni secret pattern'ine (`containsBrainSecret`) uyan
+  task / result → `BRAIN_TASK_STORE_SECRET_LEAK`, hiçbir şey yazılmaz. Experience store redakte
+  edip saklıyordu; task store için emir açıkça reddetmeyi istiyor (task'taki secret caller bug'ı).
+- **Payload sınırları:** `payload` ≤ 32 anahtar + ≤ 4 KB serialize; title/rationale ≤ 4000;
+  evidence ≤ 200 satır. Aşım → `BRAIN_TASK_STORE_PAYLOAD_TOO_LARGE`.
+- **Deterministik okuma:** tasks `taskId`'ye göre, results `resultId`'ye göre sıralı yazılır.
+- **Idempotency:** `enqueue` `taskId` üzerinde (`enqueueBrainTask` zaten dedupe ediyor);
+  `saveCycleResults` `cycleId` + `resultId` üzerinde. `BrainTaskResult`'a eklemeli opsiyonel
+  `resultId?` alanı; yoksa `brainTaskResultId(result)` deterministik türetir.
+- **Restart persistence:** `loadQueue()` dosya yoksa `[]`, varsa envelope + `validateBrainTaskQueue`
+  geçtikten sonra `BrainTask[]` döndürür (payload yeniden freeze edilir).
+
+Store yalnızca kuyruğu saklar. **Hiçbir task, model, pipeline veya GPU çalıştırmaz.** Kuyruk hiçbir
+production/GPU yetkisi kazanmaz.
+
+### Sebep
+
+Server Brain ↔ Local Atölye Agent senkronunun (`ATOLYE_BRAIN_SERVER.md`) ön koşulu: PC kapanıp
+açıldığında planlanan görevlerin kaybolmaması. Sprint 181'in experience store'u zaten kanıtlanmış
+deseni (atomic + reject-on-leak + corrupt-fails-loud + deterministic + idempotent) sağlıyordu;
+aynısını kuyruğa uygulamak en küçük ve en temiz entegrasyon. Yeni abstraction yok — mevcut saf
+kuyruk fonksiyonları ince bir persistence sarmalayıcısıyla kompoze edildi.
+
+### Durum
+
+Accepted — Sprint 182. `tsc` temiz, `eslint .` 0 error / 22 warning (baseline). 6 Brain smoke suite
+~103 senaryo PASS (yeni `smoke-brain-task-store` 20; mevcut 83 hâlâ yeşil). GPU / Ollama / production
+/ network 0. `BrainOrchestrator` → `PipelineRunner`, rol model çağrıları, Server Brain / Local Agent
+runner'ları, `/api/brain/*` + Secure Gateway hâlâ ayrı, kullanıcı-onaylı fazlar. Bkz
+`docs/brain/ATOLYE_BRAIN.md`, `docs/brain/ATOLYE_BRAIN_SERVER.md`.
+
+---
+
 # Yeni ADR Ekleme
 
 Yeni önemli mimari kararlar;

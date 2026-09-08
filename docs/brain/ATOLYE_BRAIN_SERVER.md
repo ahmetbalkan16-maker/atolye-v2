@@ -241,21 +241,23 @@ outcome.
 
 ## 8. What Sprint 181 actually shipped toward this
 
-| This doc's component | Sprint 181 artifact |
+| This doc's component | Artifact |
 |---|---|
-| Brain API `/brain/plan` (read) | `scripts/brain-plan.ts` — the read-only dry-run planner, CLI form |
-| Memory / Experience Store | `src/lib/brain/store/BrainExperienceStore.ts` — durable, atomic, redacted, `data/brain/experience/<yyyy-mm>.json` |
-| Local Agent resource guard | `src/lib/brain/probe/BrainResourceProbe.ts` — read-only `nvidia-smi` + `os`; A2000 60 °C hard stop |
-| Quality feed | `src/lib/brain/probe/BrainRenderProbe.ts` — read-only `ffprobe` → `BrainFinalRenderReport` |
-| Night-learning `OBSERVE` input | `buildBrainDryRunExperienceRecord` (marked `dry-run`) |
+| Brain API `/brain/plan` (read) | `scripts/brain-plan.ts` — the read-only dry-run planner, CLI form (Sprint 181) |
+| Memory / Experience Store | `src/lib/brain/store/BrainExperienceStore.ts` — durable, atomic, redacted, `data/brain/experience/<yyyy-mm>.json` (Sprint 181) |
+| **Task Queue (durable)** | `src/lib/brain/worker/BrainTaskStore.ts` — `data/brain/queue/tasks.json` + `queue/results/<cycle>.json`; restart-safe, deterministic, reject-on-leak, corruption-safe, idempotent. Queue logic unchanged; **no** execution authority (Sprint 182) |
+| Local Agent resource guard | `src/lib/brain/probe/BrainResourceProbe.ts` — read-only `nvidia-smi` + `os`; A2000 60 °C hard stop (Sprint 181) |
+| Quality feed | `src/lib/brain/probe/BrainRenderProbe.ts` — read-only `ffprobe` → `BrainFinalRenderReport` (Sprint 181) |
+| Night-learning `OBSERVE` input | `buildBrainDryRunExperienceRecord` (marked `dry-run`) (Sprint 181) |
 
 Everything else in this document is still design.
 
 ## 9. Explicitly NOT done (needs user approval, in this order)
 
-1. `BrainOrchestrator` → `PipelineRunner` wiring (one stage, behind a flag).
-2. The role model-call implementations (local Ollama only, $0).
-3. Durable store behind `BrainTaskQueue` (mirror of the experience store).
+1. ~~Durable store behind `BrainTaskQueue`~~ — **done, Sprint 182**
+   (`worker/BrainTaskStore.ts`).
+2. `BrainOrchestrator` → `PipelineRunner` wiring (one stage, behind a flag).
+3. The role model-call implementations (local Ollama only, $0).
 4. The Local Atölye Agent process (pull queue, run under autonomy gate).
 5. The Server Brain process (analysis / research / night learning only).
 6. The Brain API (`/api/brain/*`) — localhost only at first.

@@ -251,6 +251,22 @@ export {
   renderBrainWorkerCycleReport,
 } from "./worker/BrainWorkerReport";
 export type { BrainWorkerCycleInput } from "./worker/BrainWorkerReport";
+export {
+  createBrainTaskStore,
+  validateBrainTaskForStorage,
+  validateBrainTaskResultForStorage,
+  brainTaskResultId,
+  brainTaskStoreSchemaVersion,
+  BrainTaskStoreError,
+} from "./worker/BrainTaskStore";
+export type {
+  BrainTaskStoreHandle,
+  BrainTaskStoreOptions,
+  BrainTaskStoreErrorCode,
+  BrainTaskStorageValidation,
+  BrainTaskStorageReasonCode,
+  BrainCycleResultsRecord,
+} from "./worker/BrainTaskStore";
 
 /* ---- security ---- */
 export {

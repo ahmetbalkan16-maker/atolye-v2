@@ -1,5 +1,79 @@
 ---
 
+## Sprint 182 - Atölye Brain: durable task queue store (PHASE 6) - 2026-09-08
+
+**Status:** KOD + TEST + DOKÜMAN TAMAM. `npx tsc --noEmit` temiz (tüm repo). `npx eslint .` = 0 error
+/ 22 warning (hepsi önceden var — yeni dosyalar 0 katkı). 6 Brain smoke suite **~103 senaryo PASS**
+(`smoke-brain-foundation` 25, `smoke-brain-worker` 14, `smoke-brain-security` 11, `smoke-brain-plan-store`
+10, `smoke-brain-probes` 23, YENİ `smoke-brain-task-store` 20) — hepsi GPU'suz, $0, deterministik,
+filesystem-only. `graphify update .` commit sonrası çalıştırıldı (AST-only, LLM yok, $0). GPU / Ollama
+/ nvidia-smi / ffprobe / production / network **0** — bu sprint tamamen store/test seviyesinde kaldı.
+`.env.local` değişmedi. `data/projects/**` değişmedi. Kullanıcı çalışma-ağacı değişikliklerine (751
+dosya) dokunulmadı. HEAD Sprint 181 (`3975d4b`) üzerine kuruldu.
+
+### Bağlam
+
+Sprint 181'in "sıradaki tek adım"ı: `BrainTaskQueue` için `BrainExperienceStore` ile aynı desende
+durable JSON-file store. Server Brain ↔ Local Agent senkronunun ön koşulu. ADR-022 → ADR-023.
+
+### Ne yapıldı — eklemeli / geri alınabilir / yalnız persistence
+
+**`src/lib/brain/worker/BrainTaskStore.ts` (YENİ, tek dosya).** `createBrainTaskStore({ rootDir })`:
+- `data/brain/queue/tasks.json` = `{ schemaVersion, updatedAt, tasks: BrainTask[] }` (`taskId`'ye göre sıralı)
+- `data/brain/queue/results/<cycleId>.json` = `{ schemaVersion, cycleId, savedAt, report, results }`
+- **`BrainTaskQueue.ts` DEĞİŞTİRİLMEDİ.** Store mevcut saf fonksiyonları kompoze eder
+  (`buildBrainTask` / `enqueueBrainTask` / `validateBrainTaskQueue` / `nextRunnableBrainTask` /
+  `applyBrainTaskResult` / `approveBrainTask` / `pendingApprovalBrainTasks`). Her `saveQueue`
+  `validateBrainTaskQueue`'yu yeniden koşar → yapısal geçersiz kuyruğu (dup id / unknown dep /
+  cycle / bad timestamp) persist etmez.
+- **Atomic write:** temp → `fs.fsyncSync` → `fs.renameSync`.
+- **Corrupt = loud:** parse hatası / yanlış şekil → `BRAIN_TASK_STORE_CORRUPT`; yanlış envelope
+  `schemaVersion` → `BRAIN_TASK_STORE_SCHEMA_MISMATCH`. **Asla "boş kuyruk" fallback'i, asla
+  overwrite.** Migration hook'u yok (gelecek).
+- **Reject on leak (mask-and-keep DEĞİL):** `containsBrainSecret` eşleşen task/result →
+  `BRAIN_TASK_STORE_SECRET_LEAK`, hiçbir şey yazılmaz.
+- **Payload sınırları:** ≤ 32 anahtar + ≤ 4 KB payload, ≤ 4000 char title/rationale, ≤ 200 evidence
+  satırı → aşım `BRAIN_TASK_STORE_PAYLOAD_TOO_LARGE`.
+- **Idempotency:** `enqueue` `taskId` üzerinde; `saveCycleResults` `cycleId` + `resultId` üzerinde.
+  `BrainTaskResult`'a eklemeli opsiyonel `resultId?`; yoksa `brainTaskResultId()` deterministik türetir.
+- **Restart persistence:** yeni handle aynı `rootDir` → `loadQueue()` tüm görevleri (status /
+  attempts / updatedAt / dependsOn / notBefore / autonomy dahil) geri kazanır; payload yeniden freeze.
+- Store **hiçbir şey çalıştırmaz** — task / model / pipeline / GPU yok. Kuyruk hiçbir
+  production/GPU yetkisi kazanmadı.
+
+**`src/types/brainWorker.ts`** — `BrainTaskResult`'a opsiyonel `resultId?: string` (geriye dönük
+uyumlu; result dedup için). **`src/lib/brain/index.ts`** — yeni store export'ları.
+
+**Docs:** `data/brain/README.md` (`queue/` bölümü), `docs/brain/ATOLYE_BRAIN.md` (modül haritası +
+durum + smoke sayısı), `docs/brain/ATOLYE_BRAIN_SERVER.md` (§8 tablo, §9'da task-store done),
+`ARCHITECTURE_DECISIONS.md` ADR-023.
+
+### Testler (`scripts/smoke-brain-task-store.ts` — 20 senaryo, temp workspace)
+
+1 enqueue→persist→read · 2 restart/reload · 3 duplicate taskId idempotency · 4 duplicate result
+idempotency · 5 deterministik sıralama · 6+7 dependency persist + reload sonrası çözümleme · 8 cycle
+detection (save + load) · 9 notBefore persist + clock · 10 approval-required task park · 11 forbidden
+task çalışmıyor · 12 corrupt tasks.json → loud · 13 corrupt result shard → loud · 14 secret payload →
+reject (+14b oversized payload) · 15 atomic write (no .tmp, rejected save eski dosyayı bozmuyor) ·
+16 schemaVersion mismatch → loud · 17 boş kuyruk persist · 18 multi-cycle results · 19 tam queue
+state round-trip · 20 derived resultId stable. Mevcut `smoke-brain-worker` 14/14 hâlâ PASS.
+
+### Kullanıcı onayı bekleyen / sıradaki TEK adım
+
+**Sıradaki tek en mantıklı adım:** `BrainOrchestrator` → `PipelineRunner` arasında **tek stage'lik,
+flag arkası, opsiyonel** bir bağlantı taslağı — yalnız `research` gibi tek bir GPU'suz aşamayı,
+`AI_PROVIDER=mock` altında, ayrı kullanıcı onayıyla. (Bundan önce hiçbir gerçek inference/pipeline
+YOK.) Alternatif daha küçük adım: `BrainTaskQueue` için bir "worker cycle runner" iskeleti (yalnız
+`auto-safe` read-only task'ları, store'dan çekip store'a sonuç yazan; hâlâ execution YOK).
+
+### Test / güvenlik durumu
+
+`tsc` temiz, `eslint .` 0 error / 22 warning. 6 Brain smoke suite ~103/103 PASS. `BrainTaskQueue.ts`
+değişmediğinden mevcut worker davranışı bit-identical. GPU/Ollama/production/network **hiç
+çalıştırılmadı** (bu sprint filesystem-only). Ücretli API 0.
+
+<!-- SPRINT-182-END -->
+
 ## Sprint 181 - Atölye Brain: read-only adaptörler + durable experience store (PHASE 6) - 2026-09-08
 
 **Status:** KOD + TEST + DOKÜMAN TAMAM. `npx tsc --noEmit` temiz (tüm repo). `npx eslint .` = 0 error
