@@ -77,6 +77,9 @@ services still *do the work*.
 | `security/BrainSecurityAuditModel.ts` | Structured facts → security posture + prioritized backlog | pure |
 | `store/BrainExperienceStore.ts` | Durable JSON-file store behind the `BrainExperienceStore` port — atomic writes, redaction, reject-on-leak, corrupt-shard-fails-loud, deterministic reads | fs (own `rootDir` only) |
 | `worker/BrainTaskStore.ts` | Durable JSON-file persistence under `BrainTaskQueue` — `queue/tasks.json` + `queue/results/<cycle>.json`; atomic writes, reject-on-leak, payload caps, corrupt/schema-mismatch fails loud, idempotent enqueue + result save, every save re-validates the whole queue. Queue logic unchanged. | fs (own `rootDir` only) |
+| `worker/BrainWorkerCycle.ts` | The PC-off worker cycle skeleton — load queue → pick runnable `auto-safe` tasks (under `maxTasksPerCycle` / `cycleBudgetMs`) → run a **deterministic safe stub** per task → persist queue + results → build the morning report. Runs **nothing** (no model / GPU / pipeline / shell / network / fs); approval-gated tasks parked, forbidden tasks skipped. Imports only the queue model + report builder + store handle. | pure (store IO via the handle) |
+| `ui/BrainConsoleSnapshot.ts` | Read-only aggregate of the Brain's durable state (queue, last cycle, experience, conservative safety verdict) for the Brain Core UI. Writes nothing, runs nothing, no probe. Corrupt store → `errors[]`, not a crash. | fs (read-only) |
+| `src/components/brain/` | Brain Core UI — `brainCore.ts` (pure state model), `BrainCoreOrb.tsx` + `BrainCore.css` (CSS/SVG living orb, 7 states, reduced-motion aware, no WebGL/canvas/rAF), `BrainConsoleView.tsx` (pure presentational console), `BrainCoreConsole.tsx` (`"use client"` shell — panels, deterministic local chat, one read-only refresh Server Action, no client `fetch`). | React (presentational) |
 | `BrainDryRunExperience.ts` | `BrainRunPlan` → a `mode: "dry-run"` experience record (honest zeros, hidden from the learner) | pure |
 | `probe/BrainResourceProbe.ts` | Read-only host probe: `nvidia-smi --query-gpu` + `os` → `BrainResourceSnapshot`; A2000 **60 °C hard stop** check | read-only spawn |
 | `probe/BrainRenderProbe.ts` | Read-only `ffprobe -show_format -show_streams` → `BrainFinalRenderReport` for the quality judge | read-only spawn |
@@ -84,12 +87,20 @@ services still *do the work*.
 Types: `src/types/brain.ts`, `brainMemory.ts`, `brainWorker.ts`, `brainSecurity.ts`.
 Smoke suites: `scripts/smoke-brain-foundation.ts`, `smoke-brain-worker.ts`,
 `smoke-brain-security.ts`, `smoke-brain-plan-store.ts`, `smoke-brain-probes.ts`,
-`smoke-brain-task-store.ts` (~103 scenarios, GPU-free, $0, deterministic; the
-probe suite does two optional read-only live calls when `nvidia-smi` / `ffprobe`
-+ an MP4 are present).
+`smoke-brain-task-store.ts`, `smoke-brain-worker-cycle.ts`,
+`smoke-brain-core-ui.ts` (~135 scenarios, GPU-free, $0, deterministic; the probe
+suite does two optional read-only live calls when `nvidia-smi` / `ffprobe` + an
+MP4 are present).
 
 CLI: `npx tsx scripts/brain-plan.ts "<topic>"` — read-only dry run of the
 14-phase plan (no pipeline, model, GPU, network, or file write).
+
+UI: `/brain` — the **Brain Core**. A Server Component reads
+`loadBrainConsoleSnapshot()` (read-only) and hands it to the client console
+(orb + panels: Chat / Tasks / Memory / Research / Production / Learning /
+Safety). The page **represents** the Brain's real state; it grants **no**
+execution authority — the on-screen "Execution gate: CLOSED" badge is literal.
+`GET /api/brain/snapshot` is the same read-only aggregate as JSON.
 
 ## The 7 logical roles
 
@@ -196,12 +207,20 @@ module, 50 passing smoke scenarios, `tsc` + `eslint` clean.
   corruption-safe (loud fail), idempotent. `BrainTaskQueue.ts` unchanged; the
   queue gained **no** production / GPU authority.
 
+**Done (Sprint 183/184) — skeleton + UI, still not wired to execution:**
+- `worker/BrainWorkerCycle.ts` — the safe worker cycle. Deterministic safe-stub
+  processor only; approval-gated tasks parked, forbidden tasks skipped; runs
+  nothing. `BrainTaskQueue` / `BrainAutonomyPolicy` unchanged.
+- `ui/BrainConsoleSnapshot.ts` + `src/components/brain/*` + `/brain` route +
+  `GET /api/brain/snapshot` — the **Brain Core** UI. Read-only. Represents the
+  real Brain state; the execution gate stays closed.
+
 **Not done (needs approval / later phases):**
-- Wiring `planBrainRun` to real `PipelineRunner` execution.
-- The role implementations (model calls).
+- Wiring `BrainOrchestrator` / a real cycle processor to `PipelineRunner`.
+- The role implementations (model calls); the chat conversation layer.
 - The security-fact gatherer feeding `BrainSecurityPostureInput`.
-- The Brain Worker runner + deployment (Server Brain + Local Agent).
-- Any `/api/brain/*` route; the Secure Gateway; any remote access.
+- The Brain Worker runner deployment (Server Brain + Local Agent).
+- The Secure Gateway; any remote access.
 
 See `ATOLYE_CHECKPOINT.md` for the sprint entries and `ATOLYE_BRAIN_SERVER.md`
 for the phased remote-access plan.

@@ -722,6 +722,73 @@ runner'ları, `/api/brain/*` + Secure Gateway hâlâ ayrı, kullanıcı-onaylı 
 
 ---
 
+# ADR-024
+
+## Atölye Brain — Worker Cycle Skeleton + Brain Core UI (PHASE 6, Sprint 183/184)
+
+### Karar
+
+İki iş, tek kontrollü emir altında — **yürütme kapısı kapalı kalarak**:
+
+**A. `src/lib/brain/worker/BrainWorkerCycle.ts` — worker cycle iskeleti.**
+Mevcut `BrainTaskQueue` / `BrainTaskStore` / `buildBrainWorkerCycleReport` kompoze edilir. Bir cycle:
+store'dan kuyruğu yükler → yalnızca **`auto-safe`** ve runnable task'ları seçer (deterministik sıra,
+`maxTasksPerCycle` + `cycleBudgetMs` sınırları) → her task için **deterministik SAFE STUB** çalıştırır
+→ kuyruğu + cycle sonuçlarını `BrainTaskStore` ile persist eder → sabah raporunu üretir.
+- **Hiçbir gerçek execution yok.** Varsayılan processor saf no-op stub; model / GPU / pipeline /
+  shell / network / **fs** çağrısı yok. Modül yalnızca kuyruk modeli + rapor builder + store handle
+  tipini import eder; `child_process` / `fetch` / `PipelineRunner` / `AIManager` **hiçbir yerde yok**
+  (`smoke-brain-worker-cycle.ts` bunu statik olarak doğrular).
+- **Task güvenliği:** `requires-user-approval` → park (asla çalışmaz), `forbidden` → skipped-unsafe
+  (asla çalışmaz). Seçim `config.maxAutonomy`'den bağımsız olarak `auto-safe`'e sabitli — bu sprint
+  `auto-safe-reversible` bile çalıştırılmaz. Defense-in-depth: selector bir şekilde güvensiz task
+  döndürürse cycle işlemeden `BrainWorkerCycleError` fırlatır.
+- `DEFAULT_BRAIN_WORKER_CONFIG` (`allowGpuTasks: false`, `maxAutonomy: "auto-safe"`,
+  `gpuHardStopCelsius: 60`) — ayarlanabilir knob değil, cycle'ın *ne olduğunu* tarif eder.
+- `BrainTaskResult`'a eklemeli opsiyonel `resultId?` (Sprint 182'de eklendi, burada kullanılıyor).
+  `BrainTaskQueue.ts` / `BrainAutonomyPolicy.ts` **değiştirilmedi**.
+
+**B. Brain Core UI — `/brain` route + `src/components/brain/*` + `src/lib/brain/ui/BrainConsoleSnapshot.ts`.**
+Atölye'ye girildiğinde klasik chatbot değil, merkezde yaşayan bir **Brain Core / orb** gösterilir.
+- **Görsel:** saf CSS/SVG (`BrainCore.css` + `BrainCoreOrb.tsx`). WebGL / canvas / `requestAnimationFrame`
+  **yok** — tüm animasyon transform/opacity/filter, `prefers-reduced-motion` ile durur. Harici AI
+  görsel üretimi / runtime image generation **yok**.
+- **7 durum:** IDLE / ACTIVE / THINKING / LEARNING / WORKING / WARNING / ERROR — her biri farklı hue,
+  glow yoğunluğu, animasyon hızı, status pip. `deriveBrainCoreState(snapshot)` deterministik.
+- **Paneller:** Chat / Tasks / Memory / Research / Production / Learning / Safety. Gerçek veriye
+  bağlı olanlar (`tasks`, `memory`, `learning`, `safety`) `BrainConsoleSnapshot`'tan beslenir;
+  `research` / `production` açıkça **"Not connected"** placeholder gösterir — sahte veri yok.
+- **Chat:** deterministik yerel yanıt — asla LLM taklidi yapmaz; "konuşma katmanı bağlı değil" der ve
+  gerçek snapshot sayılarını yansıtır. Mikrofon düğmesi disabled placeholder.
+- **Veri yolu:** `/brain` bir Server Component; `loadBrainConsoleSnapshot()`'ı **read-only** çağırır
+  (kuyruk + son cycle + experience + probe'suz muhafazakâr safety verdict). Client tarafında `fetch`
+  / timer / polling **yok** — tek yenileme yolu read-only bir Server Action. `GET /api/brain/snapshot`
+  aynı aggregate'i JSON verir. Bozuk store → `errors[]` + görünür uyarı, sayfa çökmez.
+- **Yürütme tetikleyicisi YOK.** UI cycle çalıştıramaz, task onaylayamaz, pipeline başlatamaz.
+  Ekranda "Yürütme kapısı: CLOSED" rozeti — literal.
+
+Responsive: PC'de merkez + yan panel grid, telefonda tek sütun + `100dvh`. Mobil-uyumlu, touch-friendly,
+overflow'suz.
+
+### Sebep
+
+`ATOLYE_BRAIN_SERVER.md` mimarisinde sıradaki iki güvenli adım. Worker cycle, PC-kapalı Brain Worker'ın
+son saf katmanı — gerçek processor ayrı, onaylı faz. Brain Core UI ise "Atölye'nin merkezi burada"
+hissini verirken (`VISION.md` "Secure Remote Personal Studio") hiçbir yeni yetki açmaz: UI'nin var
+olması production execution yetkisi vermez. Mevcut `renderToStaticMarkup` smoke deseni (bkz
+`smoke-production-health-ui.ts`) UI'yi test-runner'sız doğrulanabilir kılar.
+
+### Durum
+
+Accepted — Sprint 183/184. `tsc` temiz, `eslint .` 0 error / 22 warning (baseline — yeni dosyalar 0
+katkı). 8 Brain smoke suite ~135 senaryo PASS (yeni `smoke-brain-worker-cycle` 15 + `smoke-brain-core-ui`
+17; mevcut 103 hâlâ yeşil). GPU / Ollama / model / production / network / shell / render **0**. Gerçek
+task processor, `BrainOrchestrator` → `PipelineRunner`, chat LLM katmanı, Server Brain / Local Agent
+runner'ları, Secure Gateway hâlâ ayrı, kullanıcı-onaylı fazlar. Bkz `docs/brain/ATOLYE_BRAIN.md`,
+`docs/brain/ATOLYE_BRAIN_SERVER.md`.
+
+---
+
 # Yeni ADR Ekleme
 
 Yeni önemli mimari kararlar;

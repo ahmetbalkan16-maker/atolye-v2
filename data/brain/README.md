@@ -56,7 +56,9 @@ data/brain/
   timestamp) and refuses a structurally invalid queue.
 - `queue/results/<cycleId>.json` envelope: `{ schemaVersion, cycleId, savedAt,
   report, results }`. `saveCycleResults()` is idempotent per `cycleId` +
-  `resultId` (`brainTaskResultId` derives one when the field is absent).
+  `resultId` (`brainTaskResultId` derives one when the field is absent). Written
+  by `worker/BrainWorkerCycle.ts` (`runBrainWorkerCycle`) — which runs a
+  **deterministic safe stub** per task and executes nothing (Sprint 183).
 - **Reject on leak** (not mask-and-keep): a task / result whose text matches a
   secret pattern → `BRAIN_TASK_STORE_SECRET_LEAK`, nothing written. Oversized
   `payload` → `BRAIN_TASK_STORE_PAYLOAD_TOO_LARGE`.

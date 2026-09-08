@@ -267,6 +267,23 @@ export type {
   BrainTaskStorageReasonCode,
   BrainCycleResultsRecord,
 } from "./worker/BrainTaskStore";
+export {
+  BRAIN_SAFE_STUB_MARKER,
+  DEFAULT_BRAIN_WORKER_CONFIG,
+  BrainWorkerCycleError,
+  brainSafeStubProcessor,
+  planBrainWorkerCycle,
+  runBrainWorkerCycle,
+  describeBrainWorkerCycleOutcome,
+} from "./worker/BrainWorkerCycle";
+export type {
+  BrainWorkerCycleOptions,
+  BrainWorkerCycleOutcome,
+  BrainWorkerCycleStopReason,
+  BrainWorkerCycleErrorCode,
+  BrainSafeTaskProcessor,
+  BrainSafeTaskContext,
+} from "./worker/BrainWorkerCycle";
 
 /* ---- security ---- */
 export {

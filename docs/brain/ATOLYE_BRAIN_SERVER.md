@@ -244,22 +244,33 @@ outcome.
 | This doc's component | Artifact |
 |---|---|
 | Brain API `/brain/plan` (read) | `scripts/brain-plan.ts` — the read-only dry-run planner, CLI form (Sprint 181) |
+| Brain API `/brain/snapshot` (read) | `GET /api/brain/snapshot` → `loadBrainConsoleSnapshot()` — read-only aggregate (Sprint 184) |
+| **Beyin Merkezi (UI)** | `/brain` route + `src/components/brain/*` — the Brain Core: living orb (7 states), panel tabs, deterministic local chat. Reads real state; **no** execution trigger (Sprint 184) |
 | Memory / Experience Store | `src/lib/brain/store/BrainExperienceStore.ts` — durable, atomic, redacted, `data/brain/experience/<yyyy-mm>.json` (Sprint 181) |
 | **Task Queue (durable)** | `src/lib/brain/worker/BrainTaskStore.ts` — `data/brain/queue/tasks.json` + `queue/results/<cycle>.json`; restart-safe, deterministic, reject-on-leak, corruption-safe, idempotent. Queue logic unchanged; **no** execution authority (Sprint 182) |
+| **Worker Cycle (skeleton)** | `src/lib/brain/worker/BrainWorkerCycle.ts` — load → pick `auto-safe` → deterministic **safe stub** → persist → report. Runs nothing; approval-gated parked, forbidden skipped (Sprint 183) |
 | Local Agent resource guard | `src/lib/brain/probe/BrainResourceProbe.ts` — read-only `nvidia-smi` + `os`; A2000 60 °C hard stop (Sprint 181) |
 | Quality feed | `src/lib/brain/probe/BrainRenderProbe.ts` — read-only `ffprobe` → `BrainFinalRenderReport` (Sprint 181) |
 | Night-learning `OBSERVE` input | `buildBrainDryRunExperienceRecord` (marked `dry-run`) (Sprint 181) |
 
-Everything else in this document is still design.
+**The Brain Core UI represents the Brain's real infrastructure. Its existence
+grants no production-execution authority** — the worker cycle runs only a
+deterministic safe stub, the UI has no execution trigger, and the on-screen
+"Execution gate: CLOSED" badge is literal. Everything else in this document is
+still design.
 
 ## 9. Explicitly NOT done (needs user approval, in this order)
 
 1. ~~Durable store behind `BrainTaskQueue`~~ — **done, Sprint 182**
    (`worker/BrainTaskStore.ts`).
-2. `BrainOrchestrator` → `PipelineRunner` wiring (one stage, behind a flag).
-3. The role model-call implementations (local Ollama only, $0).
-4. The Local Atölye Agent process (pull queue, run under autonomy gate).
-5. The Server Brain process (analysis / research / night learning only).
-6. The Brain API (`/api/brain/*`) — localhost only at first.
-7. The Secure Gateway + the PHASE 7 security backlog above.
-8. Any remote access (phone / tablet / other PC) — only after 7.
+2. ~~Worker cycle skeleton (safe stub, no execution)~~ — **done, Sprint 183**
+   (`worker/BrainWorkerCycle.ts`).
+3. ~~Read-only Brain API + Brain Core UI~~ — **done, Sprint 184**
+   (`/brain`, `GET /api/brain/snapshot`).
+4. A **real** task processor for the cycle (starts with one GPU-free,
+   `mock`-provider stage behind a flag) — replaces the safe stub.
+5. `BrainOrchestrator` → `PipelineRunner` wiring (one stage, behind a flag).
+6. The role model-call implementations (local Ollama only, $0); the chat layer.
+7. The Local Atölye Agent + Server Brain processes.
+8. The Secure Gateway + the PHASE 7 security backlog above.
+9. Any remote access (phone / tablet / other PC) — only after 8.

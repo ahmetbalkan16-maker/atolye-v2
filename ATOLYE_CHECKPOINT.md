@@ -1,5 +1,98 @@
 ---
 
+## Sprint 183/184 - Atölye Brain: Worker Cycle iskeleti + Brain Core UI (PHASE 6) - 2026-09-08
+
+**Status:** KOD + TEST + DOKÜMAN TAMAM. `npx tsc --noEmit` temiz (tüm repo). `npx eslint .` = 0 error
+/ 22 warning (hepsi önceden var — yeni dosyalar 0 katkı; çalışırken çıkan 2 yeni warning düzeltildi).
+8 Brain smoke suite **~135 senaryo PASS** (`smoke-brain-foundation` 25, `smoke-brain-worker` 14,
+`smoke-brain-security` 11, `smoke-brain-plan-store` 10, `smoke-brain-probes` 23, `smoke-brain-task-store`
+20, YENİ `smoke-brain-worker-cycle` 15, YENİ `smoke-brain-core-ui` 17). `graphify update .` commit
+sonrası çalıştırıldı (AST-only). **GPU / Ollama / model / nvidia-smi / ffprobe / render / production
+pipeline / network / fetch / shell / execFile / spawn — HİÇBİRİ ÇALIŞTIRILMADI.** `.env.local`
+değişmedi. `data/projects/**` değişmedi. `data/brain/` yalnız README tutuyor (UI read-only, smoke'lar
+temp workspace). Kullanıcı çalışma-ağacı değişikliklerine (751 dosya) dokunulmadı. HEAD Sprint 182
+(`9ef2971`) üzerine kuruldu.
+
+### Bağlam
+
+Sprint 182'nin "sıradaki adım"ı (worker cycle iskeleti) + Brain Core UI, tek kontrollü emir altında.
+ADR-023 → ADR-024. Emirin son hedefi: "Brain'in beyni hazır, merkezi hazır, ama güvenlik kapısı hâlâ
+kapalı."
+
+### BÖLÜM A — `src/lib/brain/worker/BrainWorkerCycle.ts` (YENİ)
+
+`runBrainWorkerCycle(store, options)` / `planBrainWorkerCycle(queue, options)` (saf). Bir cycle:
+1. `store.loadQueue()` 2. yalnızca **`auto-safe`** + runnable task'ları seçer (`nextRunnableBrainTask`,
+maxAutonomy sabit `"auto-safe"`) 3. `maxTasksPerCycle` + `cycleBudgetMs` (enjekte `elapsedMs()`)
+sınırları 4. deterministik sıra 5. her task için **`brainSafeStubProcessor`** — saf no-op
+(`[safe-stub]` özet, `durationMs: 0`, `succeeded`) 6. `applyBrainTaskResult` ile kuyruğu günceller
+7. `store.saveQueue` + `store.saveCycleResults` 8. `buildBrainWorkerCycleReport`.
+- **Gerçek execution YOK.** Modül import'ları: yalnız `./BrainTaskQueue`, `./BrainWorkerReport`,
+  `./BrainTaskStore` (tip), `@/types/brainWorker`. `child_process` / `execFile` / `spawn` / `fetch` /
+  `http` / `fs` / `PipelineRunner` / `AIManager` / `nvidia-smi` / `ffprobe` **hiçbir yerde yok**
+  (`smoke-brain-worker-cycle.ts` senaryo #13 kaynak dosyayı statik tarar).
+- **Task güvenliği:** `requires-user-approval` → `parkedForApproval` (asla işlenmez), `forbidden` →
+  `skippedUnsafe` (asla işlenmez). `auto-safe-reversible` bile bu sprint çalıştırılmaz. Defense-in-depth:
+  selector güvensiz task döndürürse `BrainWorkerCycleError` fırlatır (işlemeden).
+- `DEFAULT_BRAIN_WORKER_CONFIG` (`allowGpuTasks:false`, `maxAutonomy:"auto-safe"`, `gpuHardStopCelsius:60`).
+- **`BrainTaskQueue.ts` / `BrainAutonomyPolicy.ts` DEĞİŞTİRİLMEDİ.** `BrainTaskResult` opsiyonel
+  `resultId?` (Sprint 182'de eklenmişti, burada kullanılıyor).
+
+### BÖLÜM C–K — Brain Core UI
+
+| Dosya | İş |
+|---|---|
+| `src/lib/brain/ui/BrainConsoleSnapshot.ts` | `loadBrainConsoleSnapshot()` — **read-only** aggregate: kuyruk + son cycle + experience + probe'suz muhafazakâr `evaluateBrainSafety` (`source:"unavailable"`). Bozuk store → `errors[]` (çökmez). Dosya yoksa `connected.*=false` + dürüst empty state. Hiçbir yazma. |
+| `src/components/brain/brainCore.ts` | Saf state modeli (React yok): 7 `BrainCoreState`, `deriveBrainCoreState`, `mapTaskStatusToDisplay`, `BRAIN_PANELS`, `brainDeterministicReply` (LLM taklidi YOK). |
+| `src/components/brain/BrainCoreOrb.tsx` + `BrainCore.css` | Yaşayan orb — saf CSS/SVG. WebGL/canvas/`requestAnimationFrame` **yok**; transform/opacity/filter, `prefers-reduced-motion` ile durur. 7 durumda hue/glow/hız/pip farkı. |
+| `src/components/brain/BrainConsoleView.tsx` | Saf presentational konsol (orb + "Yürütme kapısı: CLOSED" rozeti + panel tab'leri + aktif panel). `research`/`production` → "Not connected". `renderToStaticMarkup` ile test edilebilir. |
+| `src/components/brain/BrainCoreConsole.tsx` | `"use client"` shell — panel/mesaj/draft state + transient core state (`thinking`/`active`). Tek yenileme yolu read-only Server Action; **client `fetch` / timer / polling YOK**. |
+| `app/brain/page.tsx` | Server Component → `loadBrainConsoleSnapshot()` → `<BrainCoreConsole>`. |
+| `app/brain/layout.tsx` | CSS import + metadata (root layout'a dokunulmadı). |
+| `app/brain/actions.ts` | `"use server"` `refreshBrainConsole()` — read-only. |
+| `app/api/brain/snapshot/route.ts` | `GET` — read-only snapshot JSON. Handler canlı test edildi: `success:true, gate:CLOSED, connected:false×3`. |
+
+**Responsive:** PC'de merkez + yan panel grid (`@media min-width:960px`), telefonda tek sütun +
+`100dvh`. **Yürütme tetikleyicisi YOK** — UI cycle çalıştıramaz, onay veremez, pipeline başlatamaz.
+`app/globals.css` / `app/layout.tsx` **değiştirilmedi** (yeni CSS `src/components/brain/BrainCore.css`
++ `app/brain/layout.tsx` import).
+
+### Testler
+
+**`scripts/smoke-brain-worker-cycle.ts` (15):** empty queue · 1 auto-safe task · deterministik sıra ·
+maxTasksPerCycle · cycleBudgetMs · approval parking · forbidden skip · reversible NOT run · result
+persist + idempotency · restart/reload · deterministik report · unsafe selection asla işlenmez ·
+**STATIC: BrainWorkerCycle.ts'te execution primitive yok** · safe-stub saf/deterministik · describe.
+
+**`scripts/smoke-brain-core-ui.ts` (17):** 7 core state · `deriveBrainCoreState` (error/warning/idle/
+learning) · `mapTaskStatusToDisplay` · orb render (data-state/hue/aria) × durumlar · showLabel/size ·
+CLOSED rozeti + tüm tab'ler · research/production "Not connected" · tasks empty vs gerçek satır+badge ·
+safety panel · learning panel (empty→cycle) · core state → orb hue geçişi · chat deterministik + gerçek
+sayılar · **CSS responsive + reduced-motion + WebGL/canvas yok (statik)** · **UI modüllerinde
+fetch/timer/execution primitive yok (statik)** · loader empty → not-connected · loader gerçek queue+cycle ·
+loader corrupt store → `errors[]` (çökmez).
+
+Mevcut `smoke-brain-worker` (14) + diğer tüm Brain smoke'ları hâlâ PASS.
+
+**Not (build):** `next build` kasıtlı çalıştırılmadı — "deployment YOK" / "uzun CPU testi YOK" kısıtı +
+kullanıcının `app/` altındaki ilgisiz WIP değişiklikleri. Doğrulama: `tsc --noEmit` (Next 16 aynı TS),
+`eslint`, `renderToStaticMarkup` smoke render'ları, API route handler'ının canlı çalıştırılması.
+
+### Kullanıcı onayı bekleyen / sıradaki TEK adım
+
+**Sıradaki tek en mantıklı adım:** worker cycle'a **gerçek ama minimal bir processor** taslağı —
+yalnızca tek bir GPU'suz, read-only `analyze-codebase` işlemi (ör. `src/lib/brain/` altındaki dosya
+sayımı, `node:fs` read-only), `BrainSafeTaskProcessor` enjeksiyonu olarak, ayrı kullanıcı onayıyla.
+Hâlâ model/GPU/pipeline yok. Bu, safe-stub'dan gerçek (ama hâlâ güvenli) analize ilk kontrollü geçiş.
+
+### Test / güvenlik durumu
+
+`tsc` temiz, `eslint .` 0 error / 22 warning. 8 Brain smoke suite ~135/135 PASS. `BrainTaskQueue.ts` /
+`BrainAutonomyPolicy.ts` değişmediğinden mevcut worker/queue davranışı bit-identical. GPU / Ollama /
+model / production / network / shell / render **hiç çalıştırılmadı**. Ücretli API 0.
+
+<!-- SPRINT-183-184-END -->
+
 ## Sprint 182 - Atölye Brain: durable task queue store (PHASE 6) - 2026-09-08
 
 **Status:** KOD + TEST + DOKÜMAN TAMAM. `npx tsc --noEmit` temiz (tüm repo). `npx eslint .` = 0 error
