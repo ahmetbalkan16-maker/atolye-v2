@@ -44,7 +44,8 @@
     "smoke:sprint-129-41": "tsx scripts/smoke-sprint-129-41-completed-stage-regeneration.ts",
     "smoke:project-storage-hygiene": "tsx scripts/smoke-project-storage-hygiene.ts",
     "smoke:c2b5-image-serving": "tsx scripts/smoke-c2b5-image-serving-adapter.ts",
-    "smoke:c2b6-authority-generation-marker": "tsx scripts/smoke-c2b6-authority-generation-marker.ts"
+    "smoke:c2b6-authority-generation-marker": "tsx scripts/smoke-c2b6-authority-generation-marker.ts",
+    "smoke:ayas-access-gate": "tsx scripts/smoke-ayas-access-gate.ts"
   },
   "dependencies": {
     "next": "16.2.10",
