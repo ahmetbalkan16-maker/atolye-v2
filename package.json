@@ -23,6 +23,7 @@
     "authority:validate-rollback": "tsx --env-file-if-exists=.env.local scripts/run-authority-transition.ts validate-rollback",
     "authority:publish-rollback": "tsx --env-file-if-exists=.env.local scripts/run-authority-transition.ts publish-rollback",
     "authority:quarantine-former-target": "tsx --env-file-if-exists=.env.local scripts/run-authority-transition.ts quarantine-former-target",
+    "runtime:migration:candidate:create": "tsx --env-file-if-exists=.env.local scripts/run-migration-candidate-create.ts",
     "runtime:migration:candidate:consume": "tsx --env-file-if-exists=.env.local scripts/run-migration-candidate-consume.ts",
     "production:acceptance:readiness": "tsx --env-file-if-exists=.env.local scripts/run-production-acceptance.ts readiness-only",
     "production:acceptance:diagnose": "tsx --env-file-if-exists=.env.local scripts/run-production-acceptance.ts diagnose",
