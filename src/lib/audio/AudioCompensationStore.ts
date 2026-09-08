@@ -2410,21 +2410,51 @@ function isJournalStagingPartial(compensationRelativePath: string): boolean {
 
 /**
  * Project-relative variant of `isJournalStagingPartial`, for callers (e.g. the
- * runtime backup inventory walker) that only have a path relative to the
- * project root, not to a specific compensation workspace. Matches
- * `production-execution/audio-compensation-cleanup/<ref>/.audio-journal-staging/<name>.partial`
- * and its `record/.audio-journal-staging/` variant.
+ * runtime backup inventory walker, the completed-stage regeneration planner)
+ * that only have a path relative to the project root, not to a specific
+ * compensation workspace.
+ *
+ * Anchors on `production-execution/{audio-compensation-cleanup |
+ * audio-compensation-recovery}` and then matches the crash-atomic journal
+ * staging shape underneath, with an **optional** per-compensation `<ref>`
+ * workspace directory. All four combinations are recognised:
+ *
+ *   production-execution/audio-compensation-cleanup/.audio-journal-staging/<name>.partial
+ *   production-execution/audio-compensation-cleanup/<ref>/.audio-journal-staging/<name>.partial
+ *   production-execution/audio-compensation-recovery/.audio-journal-staging/<name>.partial
+ *   production-execution/audio-compensation-recovery/<ref>/.audio-journal-staging/<name>.partial
+ *
+ * plus the `record/.audio-journal-staging/<name>.partial` sub-variant of each.
+ * Only genuine `.audio-journal-staging/*.partial` files match — a plain
+ * `.partial` elsewhere, or a non-`.partial` file inside the staging directory,
+ * never does. Path traversal / symlink safety is the caller's concern and is
+ * unchanged; this classifier operates on an already-canonical project-relative
+ * POSIX path.
  */
 export function isAudioCompensationJournalStagingPartialAtProjectPath(
   projectRelativePath: string,
 ): boolean {
   const segments = projectRelativePath.split("/");
-  const cleanupIndex = segments.findIndex(
+  const anchorIndex = segments.findIndex(
     (segment, index) =>
-      segment === CLEANUP_DIRECTORY && segments[index - 1] === "production-execution",
+      (segment === CLEANUP_DIRECTORY || segment === RECOVERY_DIRECTORY) &&
+      segments[index - 1] === "production-execution",
   );
-  if (cleanupIndex === -1 || segments.length <= cleanupIndex + 2) return false;
-  return isJournalStagingPartial(segments.slice(cleanupIndex + 2).join("/"));
+  if (anchorIndex === -1) return false;
+  let remainder = segments.slice(anchorIndex + 1);
+  // The `<ref>` compensation workspace directory is optional: skip a single
+  // leading segment that is neither the staging directory nor its `record/`
+  // sub-directory, so both `cleanup/.audio-journal-staging/...` and
+  // `cleanup/<ref>/.audio-journal-staging/...` resolve to the same tail.
+  if (
+    remainder.length > 0 &&
+    remainder[0] !== JOURNAL_STAGING_DIRECTORY &&
+    remainder[0] !== "record"
+  ) {
+    remainder = remainder.slice(1);
+  }
+  if (remainder.length === 0) return false;
+  return isJournalStagingPartial(remainder.join("/"));
 }
 
 function safeRetirementRelativeFile(value: string): boolean {
