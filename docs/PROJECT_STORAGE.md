@@ -164,10 +164,16 @@ REQUIRES MIGRATION, 5 REQUIRES POLICY DECISION, 4 BLOCKING**. Status of the 4
 **P0 BLOCKING** items that must be closed _before_ any relocation:
 
 1. ~~repository-local **image** API serving reads the old root directly~~ — **closed (C.2B.5)**: `ImageStorage.readImage` + `smoke-c2b5-image-serving-adapter` (12 scenarios)
-2. no startup-level **frozen production runtime authority** — recovery and the
-   worker can resolve different roots → split-brain (C.2B.6)
-3. **durable execution adapters** (`production-execution/**`) aren't bound to one
-   authority generation — unsafe while a lease/attempt is active (C.2B.6)
+2. startup-level **frozen production runtime authority** — **effectively closed by C.2B.4**
+   (one frozen `processRuntimeStorageContext` + `processRuntimeOperationContext`;
+   `runWithProductionRuntimeOperationContext` rejects a divergent nested context).
+   See `docs/RUNTIME_AUTHORITY_GENERATION_BINDING.md` §1.
+3. **durable execution adapters** cross-restart authority-generation binding —
+   **PARTIAL**: the in-flight preparation→execution window is already bound
+   (`ProductionPipelineExecutionFactory`); the cross-restart backstop primitive
+   is built (`RuntimeAuthorityGenerationMarker` + `smoke-c2b6-authority-generation-marker`,
+   14 scenarios) but **NOT wired** — needs a reviewed C.2B.6b sprint
+   (`docs/RUNTIME_AUTHORITY_GENERATION_BINDING.md` §5)
 4. no **versioned / no-clobber authority transition** protocol (C.2B.9)
 
 Plus `REQUIRES POLICY DECISION` items (protected-root roles for
