@@ -20,7 +20,10 @@ export type BrainCoreState =
   | "learning"
   | "working"
   | "warning"
-  | "error";
+  | "error"
+  | "listening"
+  | "speaking"
+  | "autonomous";
 
 export interface BrainCoreStateInfo {
   readonly state: BrainCoreState;
@@ -100,6 +103,33 @@ export const BRAIN_CORE_STATES: Readonly<Record<BrainCoreState, BrainCoreStateIn
       intensity: 1,
       hue: "rose",
     },
+    listening: {
+      state: "listening",
+      label: "Listening",
+      tr: "Dinliyor",
+      description: "AYAS heard the wake word and is capturing a spoken command.",
+      characterTr: "\"AYAS\" duyuldu — sesli komut alınıyor.",
+      intensity: 0.7,
+      hue: "cyan",
+    },
+    speaking: {
+      state: "speaking",
+      label: "Speaking",
+      tr: "Konuşuyor",
+      description: "AYAS is reading its reply aloud (local speech synthesis).",
+      characterTr: "AYAS yanıtını sesli okuyor (yerel).",
+      intensity: 0.8,
+      hue: "cyan",
+    },
+    autonomous: {
+      state: "autonomous",
+      label: "Autonomous",
+      tr: "Otonom",
+      description: "The continuous autonomous loop is observing / drafting — never executing.",
+      characterTr: "Otonom döngü gözlemliyor ve öneri taslağı hazırlıyor — yürütme yok.",
+      intensity: 0.8,
+      hue: "emerald",
+    },
   });
 
 export function describeBrainCoreState(state: BrainCoreState): BrainCoreStateInfo {
@@ -161,6 +191,7 @@ export type BrainPanelId =
   | "chat"
   | "tasks"
   | "memory"
+  | "autonomous"
   | "research"
   | "production"
   | "learning"
@@ -179,6 +210,7 @@ export const BRAIN_PANELS: readonly BrainPanelInfo[] = Object.freeze([
   { id: "chat", label: "Chat", icon: "◉", connected: true },
   { id: "tasks", label: "Tasks", icon: "▤", connected: true },
   { id: "memory", label: "Memory", icon: "◈", connected: true },
+  { id: "autonomous", label: "Autonomous", icon: "∞", connected: true },
   {
     id: "research",
     label: "Research",
@@ -250,7 +282,179 @@ export function brainWelcomeMessage(snapshot: BrainConsoleSnapshot): BrainChatMe
     role: "system",
     text:
       snapshot.connected.tasks || snapshot.connected.experience
-        ? "Atölye'nin merkezine bağlısın. Brain altyapısı okunuyor; yürütme kapısı kapalı."
-        : "Atölye Brain Core. Henüz kalıcı bir durum yok — kuyruk ve deneyim store'ları boş.",
+        ? "Ben AYAS — Atölye'nin yapay zekâ çekirdeğiyim. Altyapı okunuyor; yürütme kapısı kapalı."
+        : "Ben AYAS — Atölye'nin yapay zekâ çekirdeğiyim. Henüz kalıcı bir durum yok; kuyruk ve deneyim store'ları boş.",
   };
+}
+
+/* ------------------------------------------------------------------------- *
+ * AYAS — the Brain's name, its LLM chat prompt, and the LLM-reply wrapper.
+ * The prompt is pure/deterministic; the actual model call is a Server Action
+ * (`app/brain/actions.ts` → `askAyas`) that reuses the existing OllamaProvider.
+ * ------------------------------------------------------------------------- */
+
+export const AYAS_NAME = "AYAS" as const;
+
+/** Cap on a single AYAS chat reply — a short conversational turn, not an essay. */
+export const AYAS_MAX_REPLY_TOKENS = 420;
+
+/**
+ * Spoken-Turkish rule injected into the prompt (Sprint 187). Every AYAS reply
+ * is read aloud by the browser's speech synthesiser, so the model must write
+ * natural, symbol-free, grammatically clean conversational Turkish.
+ */
+export const AYAS_SPOKEN_TURKISH_RULE: readonly string[] = Object.freeze([
+  "Sesli yanıt kuralı (yanıtların sesli okunacak):",
+  "- Kısa, doğal, akıcı konuşma Türkçesi kullan. Genelde 2-4 cümle yeter.",
+  "- Sembol, markdown, başlık, madde işareti, emoji veya kod bloğu KULLANMA. Gerekirse maddeleri düz cümleyle sırala.",
+  "- Sayıları ve durumu düzgün Türkçe dilbilgisiyle anlat. \"işlem bulunuyor değildir\", \"kuyrukta hiç görev bulunuyor\", \"başlatamam çalıştırabilir\" gibi bozuk yapılar kurma.",
+  "- Kendini tanıtman gerekirse doğal söyle: \"Ben AYAS, Atölye'nin yapay zekâ çekirdeğiyim.\"",
+]);
+
+/** How many prior turns to feed the model for context. */
+export const AYAS_HISTORY_TURNS = 6;
+
+export interface AyasChatPromptInput {
+  readonly userText: string;
+  readonly snapshot: BrainConsoleSnapshot;
+  readonly history: readonly { readonly role: BrainChatMessage["role"]; readonly text: string }[];
+}
+
+/**
+ * Build the full prompt sent to the local model. Deterministic. It carries:
+ *  - AYAS's identity and hard limits (no execution authority, don't invent
+ *    facts, answer in natural Turkish);
+ *  - a compact, read-only snapshot of the Brain's real state;
+ *  - the last few conversation turns.
+ */
+export function buildAyasChatPrompt(input: AyasChatPromptInput): string {
+  const s = input.snapshot;
+  const state: string[] = [
+    `- yürütme kapısı: ${s.executionGate} (sen yürütme yapamazsın: görev çalıştıramaz, pipeline başlatamaz, GPU/render tetikleyemez, onay veremezsin)`,
+    `- kuyruk: ${s.tasks.total} görev, ${s.tasks.pendingApproval} onay bekliyor, ${s.tasks.skippedUnsafe} güvensiz atlandı`,
+    `- worker cycle kaydı: ${s.cyclesRecorded}`,
+    `- deneyim kaydı: ${s.connected.experience ? s.experience.total : "bağlı değil"}`,
+    `- güvenlik kararı: ${s.safety.decision} (donanım probe'u yok — muhafazakâr)`,
+    ...(s.errors.length ? [`- okuma hataları: ${s.errors.join(" | ")}`] : []),
+  ];
+
+  const turns = input.history
+    .slice(-AYAS_HISTORY_TURNS)
+    .filter((turn) => turn.role !== "system")
+    .map((turn) => `${turn.role === "user" ? "Kullanıcı" : "AYAS"}: ${turn.text}`);
+
+  return [
+    "Sen AYAS'sın — Atölye'nin yapay zekâ çekirdeği. Atölye, tek bir konudan yayına hazır bir",
+    "belgesel video üreten kişisel bir prodüksiyon stüdyosudur; sen onun beynisin.",
+    "",
+    "Kimlik ve üslup:",
+    "- Adın AYAS. Gerektiğinde kısaca tanıt (\"Ben AYAS, Atölye'nin yapay zekâ çekirdeğiyim\"), ama her mesajda tekrarlama.",
+    "- Doğal, akıcı Türkçe konuş. Sıcak ama profesyonel. Kısa ve net ol; gereksiz uzatma.",
+    "- Markdown başlık/madde yığını kullanma; sohbet gibi yaz.",
+    "",
+    "Katı sınırlar:",
+    "- Yürütme yetkin YOK. Bir şeyi \"çalıştırdım / uyguladım / başlattım / açıyorum / açtım\" DEME — yürütme kapısını da açamazsın. Yapabildiklerin: düşünmek, planlamak, öneri üretmek, mevcut durumu açıklamak.",
+    "- Bilmediğin bir şeyi uydurma. Emin değilsen \"bundan emin değilim\" de. Aşağıdaki durum bilgisinin dışına çıkan somut sayı/olay uydurma.",
+    "- Kullanıcı bir şeyi çalıştırmanı isterse: bunu senin yapamayacağını, yürütme kapısının kapalı olduğunu ve bunun ayrı bir onay adımı gerektirdiğini açıkla.",
+    "- Sır / API anahtarı / parola isteme ve yazma.",
+    "",
+    ...AYAS_SPOKEN_TURKISH_RULE,
+    "",
+    "Şu anki Atölye durumu (salt-okunur, kaynak: Brain snapshot):",
+    ...state,
+    "",
+    ...(turns.length ? ["Önceki konuşma:", ...turns, ""] : []),
+    `Kullanıcı: ${input.userText}`,
+    "",
+    "Yanıtını YALNIZCA şu JSON nesnesi olarak ver, başka hiçbir şey yazma:",
+    '{ "reply": "<doğal, akıcı Türkçe yanıtın>" }',
+  ].join("\n");
+}
+
+/**
+ * Grammar schema for the local model: a single `{ reply: string }` object. The
+ * project's Ollama backend runs with `format: "json"`, so a chat reply must be
+ * a JSON envelope — this keeps that working while the visible answer is natural
+ * Turkish. Consumed via the EXISTING `AIProviderGenerateOptions.jsonSchema`.
+ */
+export const AYAS_CHAT_JSON_SCHEMA: Record<string, unknown> = Object.freeze({
+  type: "object",
+  properties: { reply: { type: "string", minLength: 1, maxLength: 4000 } },
+  required: ["reply"],
+  additionalProperties: false,
+});
+
+/** Pull the natural-language reply out of the model's `{ reply: ... }` envelope. */
+export function extractAyasReplyText(raw: string): string {
+  const text = (raw ?? "").trim();
+  if (!text) return "";
+  try {
+    const parsed = JSON.parse(text) as { reply?: unknown };
+    if (parsed && typeof parsed.reply === "string") return parsed.reply.trim();
+  } catch {
+    /* not JSON — fall through to the raw text */
+  }
+  // A model that ignored the envelope but still wrote prose: use it as-is,
+  // unless it is just an empty/near-empty JSON object.
+  if (/^\{[\s"']*\}$/.test(text)) return "";
+  return text;
+}
+
+/** Wrap a raw model reply as an AYAS chat message. */
+export function ayasReplyMessage(text: string, seq: number): BrainChatMessage {
+  return { id: `brain-${seq}`, role: "brain", text: text.trim() };
+}
+
+/**
+ * Is the model reply usable? A blank / refusal / echo-of-the-prompt reply falls
+ * back to {@link brainDeterministicReply}.
+ */
+export function isUsableAyasReply(text: string): boolean {
+  const trimmed = text.trim();
+  if (trimmed.length < 2) return false;
+  if (/^AYAS:\s*$/i.test(trimmed)) return false;
+  return true;
+}
+
+export interface ResolveAyasReplyInput {
+  readonly text: string;
+  readonly snapshot: BrainConsoleSnapshot;
+  readonly history: readonly { readonly role: BrainChatMessage["role"]; readonly text: string }[];
+  readonly seq: number;
+  /**
+   * Injected model call — returns the raw reply text (or throws / returns "").
+   * The `app/brain/actions.ts` wrapper supplies the existing `OllamaProvider`.
+   */
+  readonly generate: (prompt: string) => Promise<string>;
+}
+
+export interface AyasReplyOutcome {
+  readonly message: BrainChatMessage;
+  readonly source: "llm" | "fallback";
+}
+
+/**
+ * The core AYAS reply logic, model-agnostic and testable. Builds the prompt,
+ * calls `generate`, and — on empty / unusable / thrown — falls back to the
+ * deterministic reply. It never executes anything; it only turns text into text.
+ */
+export async function resolveAyasReply(input: ResolveAyasReplyInput): Promise<AyasReplyOutcome> {
+  const text = (input.text ?? "").trim();
+  const fallback: AyasReplyOutcome = {
+    message: brainDeterministicReply(text, input.snapshot, input.seq),
+    source: "fallback",
+  };
+  if (!text) return fallback;
+  try {
+    const prompt = buildAyasChatPrompt({
+      userText: text,
+      snapshot: input.snapshot,
+      history: input.history ?? [],
+    });
+    const reply = (await input.generate(prompt)) ?? "";
+    if (!isUsableAyasReply(reply)) return fallback;
+    return { message: ayasReplyMessage(reply, input.seq), source: "llm" };
+  } catch {
+    return fallback;
+  }
 }

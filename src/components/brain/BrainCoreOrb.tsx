@@ -35,7 +35,7 @@ export function BrainCoreOrb({ state, size, showLabel = true }: BrainCoreOrbProp
         className="bc-orb"
         data-state={state}
         role="img"
-        aria-label={`Brain Core — ${info.label} (${info.tr})`}
+        aria-label={`AYAS — ${info.label} (${info.tr})`}
       >
         <span className="bc-orb__halo" aria-hidden="true" />
         <span className="bc-orb__field bc-orb__field--a" aria-hidden="true" />

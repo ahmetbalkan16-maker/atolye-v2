@@ -276,6 +276,45 @@ export {
   runBrainWorkerCycle,
   describeBrainWorkerCycleOutcome,
 } from "./worker/BrainWorkerCycle";
+
+/* ---- AYAS continuous autonomous loop (Sprint 186) ---- */
+export {
+  AYAS_LOOP_DEFAULTS,
+  ayasAutonomousSchemaVersion,
+  startAyasAutonomousLoop,
+  ayasHeartbeat,
+  advanceAyasCycle,
+  approveAyasImprovement,
+  retireAyasImprovement,
+  deriveAyasGaps,
+  ayasLoopRespectsGate,
+  AyasAutonomousError,
+} from "./autonomy/AyasAutonomousLoop";
+export type {
+  AyasAutonomousState,
+  AyasCyclePhase,
+  AyasObservation,
+  AyasImprovementRef,
+  AyasValidationResult,
+  AyasLoopConfig,
+  AyasSnapshotInput,
+  AyasCycleInput,
+  AyasCycleResult,
+  AyasHeartbeatResult,
+  AyasGateCheck,
+} from "./autonomy/AyasAutonomousLoop";
+export {
+  createAyasAutonomousStore,
+  sanitizeAyasStateForStorage,
+  AyasAutonomousStoreError,
+} from "./autonomy/AyasAutonomousStore";
+export type {
+  AyasAutonomousStoreHandle,
+  AyasAutonomousStoreOptions,
+  AyasAutonomousStoreErrorCode,
+} from "./autonomy/AyasAutonomousStore";
+export { loadAyasAutonomousView } from "./autonomy/AyasAutonomousView";
+export type { AyasAutonomousView, LoadAyasAutonomousViewOptions } from "./autonomy/AyasAutonomousView";
 export type {
   BrainWorkerCycleOptions,
   BrainWorkerCycleOutcome,

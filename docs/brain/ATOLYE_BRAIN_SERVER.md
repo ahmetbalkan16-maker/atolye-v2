@@ -245,7 +245,9 @@ outcome.
 |---|---|
 | Brain API `/brain/plan` (read) | `scripts/brain-plan.ts` — the read-only dry-run planner, CLI form (Sprint 181) |
 | Brain API `/brain/snapshot` (read) | `GET /api/brain/snapshot` → `loadBrainConsoleSnapshot()` — read-only aggregate (Sprint 184) |
-| **Beyin Merkezi (UI)** | `/brain` route + `src/components/brain/*` — the Brain Core: living orb (7 states), panel tabs, deterministic local chat. Reads real state; **no** execution trigger (Sprint 184) |
+| **Beyin Merkezi (UI) → AYAS** | `/brain` route + `src/components/brain/*` — the AYAS Core: living orb (10 states), 8 panel tabs, **real local-model chat** (`askAyas` → existing `OllamaProvider`, deterministic fallback), browser voice (wake word "AYAS", local TTS). Reads real state; **no** execution trigger (Sprint 184–186) |
+| text chat → local model | `app/brain/actions.ts` `askAyas` — `AIRouter().getProvider("ollama")` hard-pinned, no telemetry write, deterministic fallback (Sprint 186) |
+| **AYAS Autonomous Worker (loop core)** | `src/lib/brain/autonomy/*` + `scripts/ayas-autonomous-loop.ts` — observe → draft approval-gated proposals → checkpoint → resume. Never executes. The always-on deployment is a later phase; the checkpoint (`data/brain/autonomy/state.json`) is the migration seam (Sprint 186) |
 | Memory / Experience Store | `src/lib/brain/store/BrainExperienceStore.ts` — durable, atomic, redacted, `data/brain/experience/<yyyy-mm>.json` (Sprint 181) |
 | **Task Queue (durable)** | `src/lib/brain/worker/BrainTaskStore.ts` — `data/brain/queue/tasks.json` + `queue/results/<cycle>.json`; restart-safe, deterministic, reject-on-leak, corruption-safe, idempotent. Queue logic unchanged; **no** execution authority (Sprint 182) |
 | **Worker Cycle (skeleton)** | `src/lib/brain/worker/BrainWorkerCycle.ts` — load → pick `auto-safe` → deterministic **safe stub** → persist → report. Runs nothing; approval-gated parked, forbidden skipped (Sprint 183) |

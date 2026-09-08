@@ -391,8 +391,18 @@
   border: 1px solid var(--bc-border);
   background: rgba(255, 255, 255, 0.02);
   color: var(--bc-text-faint);
-  cursor: not-allowed;
+  cursor: pointer;
   font-size: 15px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.bc-mic:hover { color: var(--bc-text); border-color: var(--bc-border-strong); }
+.bc-mic[aria-disabled="true"] { cursor: not-allowed; }
+.bc-mic--live {
+  color: var(--bc-accent-bright);
+  border-color: var(--bc-accent);
+  background: var(--bc-accent-soft);
+  box-shadow: 0 0 0 1px var(--bc-accent-soft), 0 0 16px -4px var(--bc-accent-glow);
+  animation: bc-pulse 1.6s ease-in-out infinite;
 }
 
 .bc-note {
@@ -626,6 +636,93 @@
   animation: bc-pulse 2s ease-in-out infinite;
 }
 
+/* ======================================================= AYAS additions === */
+
+.bc-brand { display: flex; flex-direction: column; gap: 2px; }
+.bc-brand__sub {
+  margin: 4px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bc-text-dim);
+}
+.bc-online {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #7fe3aa;
+  box-shadow: 0 0 10px #7fe3aa;
+  animation: bc-pulse 2.4s ease-in-out infinite;
+}
+.bc-online--warning { background: hsl(38 92% 66%); box-shadow: 0 0 10px hsl(38 92% 66%); }
+.bc-online--error { background: #ff9c9c; box-shadow: 0 0 10px #ff9c9c; }
+.bc-online--autonomous { background: hsl(154 70% 60%); box-shadow: 0 0 10px hsl(154 70% 60%); }
+.bc-online--listening,
+.bc-online--speaking { background: var(--bc-accent-bright); box-shadow: 0 0 10px var(--bc-accent-bright); }
+
+/* voice status line */
+.bc-voice {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--bc-text-dim);
+}
+.bc-voice__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--bc-text-faint);
+}
+.bc-voice[data-voice="idle"] .bc-voice__dot { background: var(--bc-accent); box-shadow: 0 0 8px var(--bc-accent); }
+.bc-voice[data-voice="listening"] .bc-voice__dot,
+.bc-voice[data-voice="speaking"] .bc-voice__dot {
+  background: var(--bc-accent-bright);
+  box-shadow: 0 0 10px var(--bc-accent-bright);
+  animation: bc-pulse 1.4s ease-in-out infinite;
+}
+.bc-voice[data-voice="thinking"] .bc-voice__dot { background: hsl(262 85% 70%); box-shadow: 0 0 8px hsl(262 85% 70%); }
+.bc-voice[data-voice="unsupported"] .bc-voice__dot,
+.bc-voice[data-voice="error"] .bc-voice__dot { background: #ff9c9c; box-shadow: 0 0 8px hsl(348 80% 62% / 0.5); }
+.bc-voice--err { color: #ffb4b4; }
+
+.bc-link {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--bc-accent);
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+.bc-link:hover { color: var(--bc-accent-bright); }
+
+.bc-msg--typing { opacity: 0.7; font-style: italic; }
+
+/* AYAS orb states */
+.bc-orb[data-state="listening"] .bc-orb__ring--4 { animation-duration: 5s; }
+.bc-orb[data-state="listening"] .bc-orb__ring--2 { animation-duration: 6s; opacity: 0.9; }
+.bc-orb[data-state="listening"] .bc-orb__scan-arc { opacity: 0.9; }
+.bc-orb[data-state="listening"] .bc-orb__nucleus { animation-duration: 1.1s; }
+.bc-orb[data-state="listening"] .bc-orb__halo { opacity: calc(0.42 + 0.45 * var(--bc-intensity)); }
+
+/* SPEAKING — strong pulse + an outward sound wave */
+.bc-orb[data-state="speaking"] .bc-orb__core { animation-duration: 1.5s; }
+.bc-orb[data-state="speaking"] .bc-orb__halo { animation-duration: 1.3s; opacity: calc(0.5 + 0.5 * var(--bc-intensity)); }
+.bc-orb[data-state="speaking"] .bc-orb__nucleus { animation-duration: 0.7s; }
+.bc-orb[data-state="speaking"] .bc-orb__ring--5 { animation: bc-sound-wave 1.4s ease-out infinite; opacity: 0.8; }
+.bc-orb[data-state="speaking"] .bc-orb__scan-arc--1 { animation-duration: 1.8s; opacity: 0.9; }
+
+.bc-orb[data-state="autonomous"] .bc-orb__field--a { animation-duration: 16s; }
+.bc-orb[data-state="autonomous"] .bc-orb__field--b { animation-duration: 22s; }
+.bc-orb[data-state="autonomous"] .bc-orb__ring--3 { border-color: hsl(154 70% 60% / 0.28); }
+
 /* =========================================================== keyframes === */
 
 @keyframes bc-spin { to { transform: rotate(360deg); } }
@@ -638,6 +735,10 @@
   50% { opacity: 0.9; transform: scale(1.03); }
 }
 @keyframes bc-scan { to { stroke-dashoffset: -330; } }
+@keyframes bc-sound-wave {
+  0% { transform: scale(0.8); opacity: 0.85; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
 @keyframes bc-jitter {
   0%, 100% { transform: translate(0, 0); }
   25% { transform: translate(1.5px, -1px); }
@@ -662,7 +763,10 @@
   .bc-orb__field,
   .bc-orb__particles,
   .bc-orb__scan-arc,
-  .bc-pip__dot {
+  .bc-pip__dot,
+  .bc-online,
+  .bc-voice__dot,
+  .bc-mic--live {
     animation: none !important;
   }
 }

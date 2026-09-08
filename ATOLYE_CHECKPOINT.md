@@ -1,5 +1,238 @@
 ---
 
+## Sprint 187 - AYAS Voice Experience: erkek Türkçe ses + otomatik konuşma + wake-word + orb state machine (PHASE 6) - 2026-09-08
+
+**Status:** KOD + TEST + DOKÜMAN TAMAM. **Commit/push YAPILMADI** (emir §KESİN KURALLAR — bu sprint
+oturum-sonu commit kuralının istisnası; kullanıcı yalnızca rapor istedi). `npx tsc --noEmit` temiz.
+`npx eslint .` = **0 error / 22 warning (baseline korundu)**. Brain/AYAS smoke: **11 suite / 200 senaryo
+PASS** (`smoke-ayas-voice` 12→**36**, `smoke-brain-core-ui` +yeni voice-view assert'leri = 23; diğer 9
+suite değişmedi). `/brain` → HTTP 200, orb `data-state="idle"`, gate **CLOSED** header'da. **Canlı LLM turu
+doğrulandı** (Ollama :11434 açık): `resolveAyasReply` → mevcut `OllamaProvider`, doğal Türkçe, `source=llm`,
+~0.7–5 sn, `toSpokenAyasText` çıktısı temiz (markdown/emoji yok). HEAD `18bf561` üzerine (Sprint 186 hâlâ
+working-tree'de uncommitted — ona dokunulmadı, üstüne eklendi). ADR-026.
+
+### Amaç
+
+AYAS'ı yazıyla cevap veren arayüzden → doğal konuşan, dinleyen, konuşma durumunu orb'da yansıtan bir
+çekirdeğe dönüştürmek. **$0**: yalnız tarayıcının kendi `speechSynthesis` + `SpeechRecognition`
+API'leri. Yeni ücretli TTS/STT/provider/API key **yok**.
+
+### Voice mimarisi (telefon geleceğine uyumlu)
+
+Platformdan bağımsız çekirdek + platform adapter olarak ayrıştırıldı:
+
+- **`src/components/brain/ayasVoice.ts`** (saf, GENİŞLETİLDİ) — tek durum tipi (`AyasVoiceState`
+  + yeni `"error"`), saf state-machine reducer (`nextAyasVoiceState` / `ayasRestingVoiceState`),
+  wake-word matcher (Sprint 186'dan korundu), capability detection, **YENİ**: `selectAyasVoice`
+  (erkek/Türkçe ses seçim algoritması + tier), `AYAS_TTS_PROFILE` + `resolveAyasSpeechParams`
+  (pitch 0.82 / rate 1.03 / volume 1, clamp'li), `toSpokenAyasText` (TTS için markdown/sembol/emoji
+  temizleme — SADECE utterance'a, ekrandaki metne değil), `shouldAutoSpeakAyasReply`,
+  `describeAyasRecognitionError`.
+- **`src/components/brain/voice/ayasVoiceEngine.ts`** (YENİ, saf, DOM yok) — `AyasVoiceEngine` sınıfı +
+  `AyasVoicePlatform` arayüzü. Wake→command→speak orkestrasyonu, self-hearing guard, autoplay-block
+  tespiti. **Race koruması:** her dış komut monotonik `epoch` artırır; eski recognizer/utterance
+  callback'leri kendi epoch'unu karşılaştırıp no-op olur — geç gelen bir "wake", SPEAKING'i bozamaz.
+- **`src/components/brain/voice/browserVoiceAdapter.ts`** (YENİ, `"use client"`) —
+  `BrowserVoiceAdapter implements AyasVoicePlatform`. DOM Web Speech API'lerine dokunan **tek** yer.
+  `window` metod içinde lazy okunur (SSR/test güvenli). `fetch`/XHR/WebSocket/MediaRecorder/
+  `navigator.mediaDevices`/dış URL **yok**.
+- **`src/components/brain/useAyasVoice.ts`** (YENİDEN YAZILDI) — engine + adapter'ı React state'e bağlar.
+  Kendi voice mantığı yok. Voice OUTPUT (auto-speech, yerel, varsayılan açık, `muted` ile kapatılır) ve
+  voice INPUT (wake word, disclosure sonrası) bağımsız.
+
+### Erkek Türkçe ses seçimi (hard-code YOK)
+
+`selectAyasVoice` tier önceliği: **1.** Türkçe + erkek işareti (`tolga`, `eddy`, `erkek`, male…) →
+`tr-male` · **2.** Türkçe + doğal/neural/kaliteli → `tr-quality` · **3.** tam `tr-TR` → `tr-exact` ·
+**4.** herhangi Türkçe → `tr-any` · **5.** Türkçe yoksa → `voiceName: null` + `lang: "tr-TR"` (tarayıcı
+varsayılanı) → `fallback`. Deterministik (tie-break: localService, sonra kısa ad, sonra ad). Cihazdan
+cihaza değiştiği için `onVoicesChanged` ile bir kez tazelenir. **Dürüst not (kodda + raporda):**
+`SpeechSynthesis` bazı cihazlarda `pitch`'i fiziksel olarak uygulamaz — kod "en iyi ücretsiz sesi seç"
+yapar, belirli bir tını garanti etmez.
+
+### Otomatik konuşma + fallback
+
+Her başarılı yanıt (yazılı VEYA sesli) otomatik seslendirilir (TTS varsa + `muted` değilse). Akış:
+`THINKING → (reply) → SPEAKING → IDLE`, orb'da birebir. Tarayıcı autoplay policy sesi engellerse:
+uygulama çökmez, **metin yanıtı görünmeye devam eder**, engine `onAutoplayBlocked` ile "▶ Sesli yanıtı
+başlat" düğmesi sunar, kullanıcı jestiyle tekrar denenebilir.
+
+### Wake word — dürüst sınır
+
+Sprint 186'daki gerçek korundu: sürekli OS-seviyesi "tarayıcı kapalıyken dinle" **yapılmadı, sahte
+gösterilmedi**. "Wake word" = sesli mod açıkken "AYAS" demek AYAS'ı aktif dinlemeye geçirir.
+`webkitSpeechRecognition` sesi tarayıcı sağlayıcısının bulut servisine gönderir → **varsayılan KAPALI**,
+yalnız `bc-voice-disclosure` onayından sonra. `"AYAS"` metnin başından temizlenir (`stripLeadingWakeWord`).
+Tek başına "ayas" → uyanır, sonraki cümleyi bekler (12 sn timeout).
+
+### UI state machine + orb
+
+Tek tutarlı state: `off / idle / listening / thinking / speaking / error / unsupported`. Orb (`BrainCoreOrb`,
+CSS-only, backend'e dokunmaz): SPEAKING → güçlü pulse + `bc-sound-wave` dışa dalga; LISTENING → dinleme
+hissi; THINKING → tarama; ERROR → voice hata satırı (`bc-voice-error`) + orb `warning` (tam kırmızı
+`error` snapshot okuma hatalarına ayrılmış — bilinçli). `prefers-reduced-motion` korundu
+(`bc-mic--live` de eklendi). Mic butonu artık aktif (`bc-mic--live` göstergesi).
+
+### Execution Gate KIRMIZI ÇİZGİ — doğrulandı
+
+Voice katmanı yalnız SPEECH IN → TEXT → mevcut AYAS chat → TEXT → SPEECH OUT. Engine bir komutu SADECE
+`onCommand(text)` ile iletir; başka hiçbir yan etki yok (smoke 15-18 spy ile doğrular). Voice modülleri
+`PipelineRunner`/`BrainTaskStore`/`BrainWorkerCycle`/`approve*`/`executionGate`/`child_process`/
+`nvidia-smi`/`ffmpeg` **import/referans etmez** (statik smoke). "AYAS, gate'i aç" komutu → yalnız metin
+üretir, gate her katmanda **CLOSED**. Sprint 186'nın çalışan LLM bağlantısı bozulmadı.
+
+### DOKUNULMADI (regression emir listesi)
+
+`OllamaProvider`, `AIRouter`, `AIProvider`(hepsi), `AIUsageManager`, `ProjectWriter`, `BrainWorkerCycle`,
+`BrainTaskStore`, `BrainSafetyGovernor`, pipeline, GPU execution, `.env.local`, autonomous approval gate,
+`app/globals.css`, `app/layout.tsx`, `app/brain/actions.ts`, `app/brain/page.tsx`.
+
+### Testler
+
+`smoke-ayas-voice` (36): wake-word + varyantlar, capability + cloud-flag + disclosure, **voice selection
+(male / fallback / quality / exact / any / deterministik)**, TTS profile + clamp, `toSpokenAyasText`,
+engine — unsupported / recognition lifecycle + self-restart / permission-denied→error / wake→listening /
+strip→thinking / markThinking / THINKING→SPEAKING→IDLE / idle / synthesis start+params+completion /
+cancellation / **self-hearing prevention** / race (late wake during speaking) / rapid enable-disable /
+**auto-speech (19)** / **LLM failure→text (20)** / **TTS failure→chat intact (21)** / autoplay-block→replay /
+**Execution Gate (15-18): komut text-only + statik execution-primitive taraması + prompt yürütmeyi hâlâ
+yasaklıyor** / state model / **$0 statik: ses hiçbir yere gönderilmiyor, yalnız tarayıcı Web Speech API**.
+`smoke-brain-core-ui` (23): voice-view yeni prop şekli (`listening`/`muted`), mute toggle, voice-error +
+replay satırları, auto-speech notu. Mevcut 9 brain suite değişmedi, hepsi PASS.
+
+### Manuel test (Test A–E)
+
+Dev server `/brain` → HTTP 200, voice katmanı mount oluyor, gate CLOSED. **Test A/B/D/E gerçek tarayıcı
++ mikrofon/hoparlör gerektirir — bu ortamda çalıştırılamadı** (headless). Yerine: (a) 36-senaryo engine
+smoke tüm A–E davranışını kapsıyor, (b) canlı Ollama turu (Test A/B/E metin yolu) doğrulandı — doğal
+Türkçe, gate-farkında, `toSpokenAyasText` temiz. Not: küçük yerel model bazen "açıyorum" gibi kendini
+düzelten ifade kuruyor (model kalitesi tavanı) — **yürütme yapısal olarak engelli, metne bağlı değil**.
+
+### Sıradaki tek mantıklı adım
+
+Gerçek yüksek kaliteli erkek Türkçe TTS (yerel Piper/Coqui gibi $0 offline motor) için ayrı bir
+`AyasVoicePlatform` implementasyonu — bu sprintin abstraction'ı buna hazır. Ayrıca (ayrı onay) telefon
+için native voice layer.
+
+<!-- SPRINT-187-END -->
+
+## Sprint 186 - AYAS: gerçek LLM sohbeti + sesli wake-word + sürekli otonom döngü (PHASE 6) - 2026-09-08
+
+**Status:** KOD + TEST + DOKÜMAN TAMAM. Brain'in resmi adı artık **AYAS**. `npx tsc --noEmit` temiz.
+`npx eslint .` = 0 error / 22 warning (baseline). 11 Brain/AYAS smoke suite **~176 senaryo PASS**
+(mevcut 8 suite değişmedi/+4 UI senaryo; YENİ `smoke-ayas-chat` 12, `smoke-ayas-voice` 12,
+`smoke-ayas-autonomous` 11). `/brain` → HTTP 200 (yeni AYAS UI). **Gerçek LLM sohbeti canlı doğrulandı:**
+`resolveAyasReply` → mevcut `OllamaProvider` (`AI_PROVIDER`'dan bağımsız, `getProvider("ollama")` sabit)
+→ yerel model, ~1.7 sn, doğal Türkçe yanıt, doğru AYAS kimliği, "yürütme kapısı kapalı" bilinci.
+GPU 42→50 °C (A2000, 60 °C hard stop'un çok altında), tek kısa turn. **Execution gate CLOSED** her
+katmanda korundu. `.env.local` / `data/projects/**` değişmedi. `data/brain/` yalnız README (autonomy
+state'i temp'te test edildi, repo'ya yazılmadı). Kullanıcı çalışma-ağacı (751) korundu. HEAD `18bf561`
+üzerine. ADR-025.
+
+### DEĞİŞTİRİLMEDİ (emir listesi)
+
+`AIRouter`, `OllamaProvider`, tüm `AIProvider` implementasyonları, `AIManager`, `runObservedAIRequest`,
+`BrainRoles.ts`, `BrainWorkerCycle.ts`, `BrainTaskStore.ts`, `BrainSafetyGovernor.ts`,
+`BrainConsoleSnapshot.ts`, pipeline/execution, `app/globals.css`, `app/layout.tsx`, `.env.local`.
+
+### FAZ 1 — Gerçek LLM sohbeti
+
+- **`app/brain/actions.ts`** — YENİ `askAyas(input)` Server Action. `new AIRouter().getProvider("ollama")`
+  (sabit pin — `AI_PROVIDER=openai` olsa bile AYAS chat ücretli API'ye gitmez). **`runObservedAIRequest`
+  KULLANILMAZ** → `AIUsageManager` yok → `data/projects/unknown/ai-usage.json` **oluşturulmaz/değiştirilmez**
+  (emir §telemetry). `ollama` zaten `FREE_PROVIDERS`'ta, cost guard no-op — kaybedilen bir şey yok.
+- **`src/components/brain/brainCore.ts`** — YENİ saf fonksiyonlar: `buildAyasChatPrompt` (AYAS kimliği +
+  katı sınırlar + salt-okunur snapshot bağlamı + son 6 tur), `resolveAyasReply` (model-agnostik çekirdek
+  mantık, enjekte `generate` — test edilebilir; boş/kullanılamaz/exception → **deterministic fallback**),
+  `AYAS_CHAT_JSON_SCHEMA` + `extractAyasReplyText` (backend `format:"json"` çalıştığı için `{reply:string}`
+  zarfı — mevcut `jsonSchema` opsiyonu ile; doğal Türkçe yanıt zarftan çıkarılır). `brainDeterministicReply`
+  **korundu** (fallback).
+- **`BrainCoreConsole.tsx`** — `send()` artık async: user mesajı hemen eklenir, `startChat` transition ile
+  `askAyas` beklenir (orb `thinking`), hata → deterministic fallback. Client `fetch` **yok**.
+- Statik "Konuşma katmanı (LLM rolleri) henüz bağlı değil…" mesajı **kaldırıldı** — dinamik
+  `bc-chat-note`: model yapılandırılmışsa "AYAS yerel model (Ollama) üzerinden yanıtlıyor", fallback
+  olduysa "yerel modele ulaşılamadı".
+
+### FAZ 2 — AYAS kimliği
+
+`AYAS_NAME = "AYAS"`. Kimlik system prompt'ta tanımlı ("Ben AYAS, Atölye'nin yapay zekâ çekirdeği" —
+her mesajda tekrar etmez). UI: header "ATÖLYE / AYAS / ● ONLINE · Brain Core", orb `aria-label="AYAS —"`,
+`brainWelcomeMessage` AYAS'lı. Holographic command-center tasarımı **korundu**.
+
+### FAZ 3 — Sesli "AYAS" wake-word
+
+- **`src/components/brain/ayasVoice.ts`** (saf) — `detectAyasWakeWord` (varyantlar: ayas/ayaş/hayas/…),
+  `stripLeadingWakeWord`, `detectAyasVoiceCapability`, `AYAS_VOICE_STATES` (off/idle/listening/thinking/
+  speaking/unsupported), `AYAS_VOICE_DISCLOSURE`.
+- **`src/components/brain/useAyasVoice.ts`** (`"use client"`) — tarayıcının kendi ücretsiz Web Speech
+  API'leri: `speechSynthesis` (AYAS sesli yanıt — **yerel, güvenli**), `SpeechRecognition` /
+  `webkitSpeechRecognition` (wake-word). Yeni ücretli provider **yok**, API key **yok**, `fetch`/XHR/
+  WebSocket/MediaRecorder **yok** (statik test). `useSyncExternalStore` ile capability (hydration uyumlu).
+- **RAPOR — tarayıcı gerçeği:** Chromium'un `webkitSpeechRecognition`'ı sesi tarayıcı sağlayıcısının
+  **bulut servisine** gönderir → "ses verisini harici servise gönderme" kuralı gereği **varsayılan
+  KAPALI**, yalnızca açık bir bilgilendirme onayı (`bc-voice-disclosure`) sonrası başlar. Firefox'ta
+  STT yok → `unsupported`, metin sohbeti etkilenmez. **Gerçek sürekli OS wake-word bir web sayfasından
+  mümkün değil** (sekme odaklı olmalı, izin gerekli); "wake word" burada = sesli mod açıkken "AYAS"
+  demek AYAS'ı aktif dinlemeye geçirir. TTS (`speechSynthesis`) yereldir — güvenli fallback: metin
+  sohbeti + AYAS'ın sesli yanıtı, STT olmadan da çalışır.
+- UI durumları: `idle → listening → thinking → speaking` (orb + `bc-voice` göstergesi). Mikrofon
+  başarısızsa metin sohbeti **çalışmaya devam eder**.
+
+### FAZ 4+5 — Sürekli otonom döngü + checkpoint/resume
+
+- **`src/lib/brain/autonomy/AyasAutonomousLoop.ts`** (saf) — heartbeat + cycle iskeleti. Bir cycle:
+  gözlemle (salt-okunur snapshot) → `deriveAyasGaps` (deterministik, snapshot-temelli) → fikir üret
+  (LLM **input** olarak — modül provider import etmez) → önceliklendir → planla → `buildBrainImprovementProposal`
+  taslağı → `advanceBrainImprovementProposal("submit-for-approval")` → yapısal doğrula → checkpoint.
+  `phase = "await-approval"` (park) — döngü otomatik ilerlemez. **Execution gate CLOSED:** loop asla
+  `approved`/`applied` üretmez, task/pipeline/GPU çalıştırmaz. `ayasLoopRespectsGate` invariant'ı.
+  `approveAyasImprovement` = ayrı, açık çağrı (loop değil).
+- **`AyasAutonomousStore.ts`** — `data/brain/autonomy/state.json`, `BrainTaskStore` deseni: atomic
+  (temp→fsync→rename), redaction + reject-on-leak, bozuk JSON / şema / `executionGate ≠ CLOSED` → loud
+  throw (asla sessiz "fresh start").
+- **`AyasAutonomousView.ts`** — salt-okunur UI view loader.
+- **`scripts/ayas-autonomous-loop.ts`** — sürücü. `--once` (varsayılan) / `--ticks N` / `--continuous`
+  (gelecekteki always-on worker için) / `--llm` (döngü başına **tek** throttle'lı model çağrısı,
+  `llmCooldownMs` 10 dk; varsayılan model çağrısı **yok**). Sonsuz/recursive LLM **yok**. Canlı test:
+  `--once` → 1 cycle, gerçek eksik tespiti, öneri taslağı, park, `state.json` yazıldı, `gate: CLOSED`.
+- UI: yeni **Autonomous** paneli (8. tab) + Autonomous durum kartı + orb `autonomous` durumu.
+
+### FAZ — "PC KAPALIYKEN ÇALIŞMA" — açık rapor
+
+**Bu sprintte GERÇEKTEN uygulanmadı ve sahte gösterilmedi.** Yerel PC kapalıyken Ollama ve
+`ayas-autonomous-loop.ts` süreci **çalışmaz** — teknik gerçek budur. Uygulanan: state/checkpoint
+(`data/brain/autonomy/state.json`) PC kapanmadan önce yazılır, PC (veya gelecekteki her-zaman-açık
+worker) tekrar başladığında `store.load()` ile kaldığı yerden devam eder (heartbeat/cycle sayacı
+sıfırlanmaz — smoke J doğrular). Gelecek: `AYAS Autonomous Worker → sürekli açık server → Ollama →
+persistent state`. **Bu sprintte cloud/server altyapısı kurulmadı** (emir §5).
+
+### Testler
+
+`smoke-ayas-chat` (12): prompt/kimlik/sınırlar, `{reply}` zarfı + `extractAyasReplyText`, LLM başarı,
+LLM exception→fallback, boş/`{}`→fallback, AYAS identity, **K: actions.ts `AIUsageManager`/
+`runObservedAIRequest` içermez**, K2: FS write yok, gate CLOSED. `smoke-ayas-voice` (12): wake-word
+matcher + varyantlar + negatifler, capability (cloud-backed flag), state modeli, disclosure metni,
+**STATIK: voice modülleri `fetch`/XHR/WebSocket/MediaRecorder içermez**. `smoke-ayas-autonomous` (11):
+heartbeat state değişimi, gap analizi, cycle→draft→park, **H: loop gate'i bypass edemez** (12 cycle),
+**H2: loop provider import etmez**, checkpoint save/load, restart/resume, corrupt→loud, secret→redakte,
+view loader. `smoke-brain-core-ui` +4: AYAS header, dinamik chat note, voice UI, Autonomous panel.
+Mevcut 8 brain suite (137→+4) hâlâ PASS.
+
+### Kullanıcı onayı bekleyen / sıradaki TEK adım
+
+**Sıradaki tek en mantıklı adım:** `ayas-autonomous-loop.ts` için bir OS scheduler / systemd-timer
+girişi (yalnız `--once`, `--llm` opsiyonel) — PC açıkken düzenli otonom gözlem. Ardından (ayrı onay)
+"AYAS Autonomous Worker" için her-zaman-açık minimal deployment mimarisi (bu sprintte kurulmadı).
+
+### Güvenlik durumu
+
+Execution gate CLOSED (chat, voice, autonomous loop — hiçbiri yürütmez). Mimari izolasyon:
+`src/lib/brain/` hâlâ `@/lib/ai` / pipeline / production import etmez (chat wiring `app/` katmanında,
+loop LLM'i `scripts/` sürücüsünde). Maliyet: `ollama` = $0, telemetri yazımı yok. GPU: 1 kısa chat
+turn (~1.7 sn, 50 °C peak). TDR/WHEA/BSOD yok.
+
+<!-- SPRINT-186-END -->
+
 ## Sprint 185 - Atölye Brain Core: görsel yükseltme (holographic command center) (PHASE 6) - 2026-09-08
 
 **Status:** TAMAM — **yalnız görsel/UI**, hiçbir backend/mimari değişiklik yok. `npx tsc --noEmit`

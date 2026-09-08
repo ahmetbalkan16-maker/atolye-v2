@@ -161,7 +161,7 @@ async function run() {
       assert.ok(html.includes(`data-state="${state}"`), `orb missing data-state ${state}`);
       assert.ok(html.includes(`data-hue="${BRAIN_CORE_STATES[state].hue}"`));
       assert.ok(html.includes('role="img"'));
-      assert.ok(/aria-label="Brain Core/.test(html));
+      assert.ok(/aria-label="AYAS/.test(html));
       assert.ok(html.includes("bc-orb__core") && html.includes("bc-orb__particles"));
     }
   });
@@ -299,6 +299,97 @@ async function run() {
     assert.match(a.text, /1 onay bekliyor/);
   });
 
+  await scenario("12b. header shows AYAS + ● ONLINE; orb aria-label is AYAS", () => {
+    const html = renderView({ snapshot: baseSnapshot() });
+    assert.ok(html.includes("bc-brand__title"));
+    assert.ok(/>AYAS</.test(html), "brand title is AYAS");
+    assert.ok(html.includes("bc-online"));
+    assert.ok(/ONLINE|AUTONOMOUS|ATTENTION|DEGRADED/.test(html));
+    assert.ok(/aria-label="AYAS —/.test(html));
+  });
+
+  await scenario("12c. chat note is dynamic — no static 'not connected' line when the model is configured", () => {
+    const configured = renderView({ snapshot: baseSnapshot(), modelConfigured: true, lastReplySource: "llm" });
+    assert.ok(configured.includes('data-testid="bc-chat-note"'));
+    assert.ok(configured.includes("yerel model (Ollama) üzerinden yanıtlıyor"));
+    assert.ok(!configured.includes("Konuşma katmanı (LLM rolleri) henüz bağlı değil"), "the old static note is gone");
+    const fell = renderView({ snapshot: baseSnapshot(), modelConfigured: true, lastReplySource: "fallback" });
+    assert.ok(fell.includes("deterministik özet yanıt"));
+  });
+
+  await scenario("12d. voice UI — mic wired, disabled cleanly when unsupported", () => {
+    const noVoice = renderView({
+      snapshot: baseSnapshot(),
+      voice: {
+        state: "unsupported",
+        capability: { stt: false, tts: false, sttCloudBacked: false },
+        listening: false, muted: false, disclosureAccepted: false,
+      },
+    });
+    assert.ok(noVoice.includes('data-testid="bc-mic"'));
+    assert.ok(noVoice.includes('aria-disabled="true"'));
+    assert.ok(noVoice.includes('data-testid="bc-voice"'));
+
+    const cloudStt = renderView({
+      snapshot: baseSnapshot(),
+      voice: {
+        state: "off",
+        capability: { stt: true, tts: true, sttCloudBacked: true },
+        listening: false, muted: false, disclosureAccepted: false,
+      },
+    });
+    assert.ok(cloudStt.includes('data-testid="bc-voice-disclosure"'), "cloud STT needs an opt-in disclosure");
+    assert.ok(cloudStt.includes("bulut servisine gönderir"));
+
+    // TTS-capable browser → auto-speech mute toggle + auto-speech note
+    const ttsOnly = renderView({
+      snapshot: baseSnapshot(),
+      voice: {
+        state: "off",
+        capability: { stt: false, tts: true, sttCloudBacked: false },
+        listening: false, muted: false, disclosureAccepted: false,
+      },
+    });
+    assert.ok(ttsOnly.includes('data-testid="bc-voice-mute"'), "TTS browser gets an auto-speech mute toggle");
+    assert.ok(ttsOnly.includes("otomatik seslendirilir"));
+
+    // A voice error surfaces its own status line; a blocked auto-speech offers replay
+    const errored = renderView({
+      snapshot: baseSnapshot(),
+      voice: {
+        state: "error",
+        capability: { stt: true, tts: true, sttCloudBacked: false },
+        listening: false, muted: false, disclosureAccepted: true,
+        errorMessage: "Mikrofon izni reddedildi.",
+        pendingSpeech: "Merhaba, ben AYAS.",
+      },
+    });
+    assert.ok(errored.includes('data-testid="bc-voice-error"'));
+    assert.ok(errored.includes("Mikrofon izni reddedildi."));
+    assert.ok(errored.includes('data-testid="bc-voice-replay"'));
+  });
+
+  await scenario("12e. autonomous panel — empty vs real checkpoint", () => {
+    const empty = renderView({ snapshot: baseSnapshot(), activePanel: "autonomous" });
+    assert.ok(empty.includes('data-testid="bc-autonomous-empty"'));
+    assert.ok(empty.includes("yürütme kapısı KAPALI") || empty.includes("hiçbir şey yürütmez"));
+
+    const withState = renderView({
+      snapshot: baseSnapshot(),
+      activePanel: "autonomous",
+      autonomous: {
+        connected: true, executionGate: "CLOSED", phase: "await-approval",
+        cycleCount: 4, heartbeatCount: 40, pendingCount: 2, completedCount: 1,
+        awaitingApprovalCount: 2, pending: [{ id: "i1", title: "AYAS önerisi: test kapsamı", status: "awaiting-approval" }],
+        gaps: ["Deneyim geçmişi boş."], nextSingleStep: "2 öneri onay bekliyor.",
+      },
+    });
+    assert.ok(withState.includes('data-testid="bc-autonomous"'));
+    assert.ok(withState.includes(">CLOSED<"));
+    assert.ok(withState.includes("await-approval"));
+    assert.ok(withState.includes("AYAS önerisi: test kapsamı"));
+  });
+
   /* --------------------- D. responsive / perf (static) --------------- */
 
   await scenario("13. CSS is responsive + reduced-motion aware + overflow-safe + no WebGL/canvas", () => {
@@ -321,6 +412,7 @@ async function run() {
       "src/components/brain/BrainCoreOrb.tsx",
       "src/components/brain/BrainConsoleView.tsx",
       "src/components/brain/BrainCoreConsole.tsx",
+      "src/components/brain/ayasVoice.ts",
       "src/lib/brain/ui/BrainConsoleSnapshot.ts",
     ];
     for (const file of files) {

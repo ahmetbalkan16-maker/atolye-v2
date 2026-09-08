@@ -78,8 +78,11 @@ services still *do the work*.
 | `store/BrainExperienceStore.ts` | Durable JSON-file store behind the `BrainExperienceStore` port — atomic writes, redaction, reject-on-leak, corrupt-shard-fails-loud, deterministic reads | fs (own `rootDir` only) |
 | `worker/BrainTaskStore.ts` | Durable JSON-file persistence under `BrainTaskQueue` — `queue/tasks.json` + `queue/results/<cycle>.json`; atomic writes, reject-on-leak, payload caps, corrupt/schema-mismatch fails loud, idempotent enqueue + result save, every save re-validates the whole queue. Queue logic unchanged. | fs (own `rootDir` only) |
 | `worker/BrainWorkerCycle.ts` | The PC-off worker cycle skeleton — load queue → pick runnable `auto-safe` tasks (under `maxTasksPerCycle` / `cycleBudgetMs`) → run a **deterministic safe stub** per task → persist queue + results → build the morning report. Runs **nothing** (no model / GPU / pipeline / shell / network / fs); approval-gated tasks parked, forbidden tasks skipped. Imports only the queue model + report builder + store handle. | pure (store IO via the handle) |
-| `ui/BrainConsoleSnapshot.ts` | Read-only aggregate of the Brain's durable state (queue, last cycle, experience, conservative safety verdict) for the Brain Core UI. Writes nothing, runs nothing, no probe. Corrupt store → `errors[]`, not a crash. | fs (read-only) |
-| `src/components/brain/` | Brain Core UI — `brainCore.ts` (pure state model + per-state character line), `BrainCoreOrb.tsx` + `BrainCore.css` (deep "command-center" CSS/SVG living orb — 5 orbital rings, breathing core + bright nucleus, drifting particles, scanning arcs; 7 states each with a distinct character; reduced-motion aware; no WebGL/canvas/rAF; overflow-safe; desktop+tablet+mobile), `BrainConsoleView.tsx` (pure presentational command center — centred orb, state readout, minimal snapshot-only status cards, prominent panel tabs), `BrainCoreConsole.tsx` (`"use client"` shell — deterministic local chat, one read-only refresh Server Action, no client `fetch`). | React (presentational) |
+| `ui/BrainConsoleSnapshot.ts` | Read-only aggregate of the Brain's durable state (queue, last cycle, experience, conservative safety verdict) for the AYAS / Brain Core UI. Writes nothing, runs nothing, no probe. Corrupt store → `errors[]`, not a crash. | fs (read-only) |
+| `autonomy/AyasAutonomousLoop.ts` | AYAS continuous autonomous loop skeleton — heartbeat + cycle (observe → gap analysis → LLM ideas *as input* → draft `# USER APPROVAL REQUIRED` proposal → validate → checkpoint → park). Composes `BrainSelfImprovementLoop` / `BrainImprovementProposal`; imports **no provider**. Can never open the execution gate (`ayasLoopRespectsGate`). | pure |
+| `autonomy/AyasAutonomousStore.ts` | Checkpoint store — `data/brain/autonomy/state.json`; atomic, redacted, reject-on-leak, corrupt/schema/gate fails loud. Restart-safe. | fs (own `rootDir` only) |
+| `autonomy/AyasAutonomousView.ts` | Read-only UI view of the autonomous loop state. | fs (read-only) |
+| `src/components/brain/` | AYAS / Brain Core UI — `brainCore.ts` (pure state model + 10 core states + the AYAS chat prompt / `resolveAyasReply` / `{reply}` envelope helpers), `BrainCoreOrb.tsx` + `BrainCore.css` (deep "command-center" CSS/SVG living orb; reduced-motion aware; no WebGL/canvas/rAF; overflow-safe; desktop+tablet+mobile), `BrainConsoleView.tsx` (pure presentational command center — orb, AYAS ● ONLINE, snapshot-only status cards, 8 panel tabs incl. Autonomous, voice status), `BrainCoreConsole.tsx` (`"use client"` shell — async `askAyas` chat with deterministic fallback, auto-speech, voice hook, read-only refresh Server Action, no client `fetch`), `ayasVoice.ts` (pure — voice state-machine reducer, wake-word matcher, capability detection, male/Turkish voice-selection algorithm, TTS profile, `toSpokenAyasText`), `voice/ayasVoiceEngine.ts` (pure engine, no DOM — `AyasVoicePlatform` interface, epoch-guarded orchestration), `voice/browserVoiceAdapter.ts` (`"use client"` — the only DOM Web Speech API caller), `useAyasVoice.ts` (`"use client"` — binds the engine to React; STT off by default behind a cloud-disclosure). | React |
 | `BrainDryRunExperience.ts` | `BrainRunPlan` → a `mode: "dry-run"` experience record (honest zeros, hidden from the learner) | pure |
 | `probe/BrainResourceProbe.ts` | Read-only host probe: `nvidia-smi --query-gpu` + `os` → `BrainResourceSnapshot`; A2000 **60 °C hard stop** check | read-only spawn |
 | `probe/BrainRenderProbe.ts` | Read-only `ffprobe -show_format -show_streams` → `BrainFinalRenderReport` for the quality judge | read-only spawn |
@@ -88,12 +91,23 @@ Types: `src/types/brain.ts`, `brainMemory.ts`, `brainWorker.ts`, `brainSecurity.
 Smoke suites: `scripts/smoke-brain-foundation.ts`, `smoke-brain-worker.ts`,
 `smoke-brain-security.ts`, `smoke-brain-plan-store.ts`, `smoke-brain-probes.ts`,
 `smoke-brain-task-store.ts`, `smoke-brain-worker-cycle.ts`,
-`smoke-brain-core-ui.ts` (~137 scenarios, GPU-free, $0, deterministic; the probe
-suite does two optional read-only live calls when `nvidia-smi` / `ffprobe` + an
-MP4 are present).
+`smoke-brain-core-ui.ts`, `smoke-ayas-chat.ts`, `smoke-ayas-voice.ts`,
+`smoke-ayas-autonomous.ts` (~176 scenarios, GPU-free, $0, deterministic — the
+model call in the chat/loop tests is injected; the probe suite does two optional
+read-only live calls when `nvidia-smi` / `ffprobe` + an MP4 are present).
 
-CLI: `npx tsx scripts/brain-plan.ts "<topic>"` — read-only dry run of the
-14-phase plan (no pipeline, model, GPU, network, or file write).
+CLIs:
+- `npx tsx scripts/brain-plan.ts "<topic>"` — read-only dry run of the 14-phase
+  plan (no pipeline, model, GPU, network, or file write).
+- `npx tsx scripts/ayas-autonomous-loop.ts [--once|--ticks N|--continuous] [--llm]` —
+  the AYAS autonomous loop driver. Observes → drafts approval-gated proposals →
+  checkpoints. Runs no task/pipeline/GPU; `--llm` allows at most one throttled
+  local-model call per due cycle (default: none).
+
+Chat: `/brain` chat talks to the existing local model via the `askAyas` Server
+Action (`AIRouter().getProvider("ollama")`, hard-pinned, no telemetry write) with
+a deterministic fallback. The execution gate stays CLOSED — chat is text in,
+text out.
 
 UI: `/brain` — the **Brain Core**. A Server Component reads
 `loadBrainConsoleSnapshot()` (read-only) and hands it to the client console
@@ -212,14 +226,43 @@ module, 50 passing smoke scenarios, `tsc` + `eslint` clean.
   processor only; approval-gated tasks parked, forbidden tasks skipped; runs
   nothing. `BrainTaskQueue` / `BrainAutonomyPolicy` unchanged.
 - `ui/BrainConsoleSnapshot.ts` + `src/components/brain/*` + `/brain` route +
-  `GET /api/brain/snapshot` — the **Brain Core** UI. Read-only. Represents the
-  real Brain state; the execution gate stays closed.
+  `GET /api/brain/snapshot` — the **Brain Core** UI. Read-only.
+
+**Done (Sprint 185/186) — AYAS: talks, hears, and thinks continuously — gate still CLOSED:**
+- Brain Core visual upgrade → deep holographic command center.
+- **AYAS is the Brain's name.** `askAyas` Server Action wires the chat panel to
+  the existing local model (`AIRouter().getProvider("ollama")`, hard-pinned, no
+  telemetry write) with a deterministic fallback. Live-verified.
+- Voice: `ayasVoice.ts` + `useAyasVoice.ts` — browser Web Speech APIs only.
+  `speechSynthesis` (AYAS speaking, local). `SpeechRecognition` wake word OFF by
+  default behind a cloud-STT disclosure (Chromium streams audio to a vendor).
+- `autonomy/*` + `scripts/ayas-autonomous-loop.ts` — the continuous autonomous
+  loop: observe → gap analysis → draft approval-gated proposals → checkpoint →
+  resume. Never executes; never opens the gate.
+
+**Done (Sprint 187) — AYAS Voice Experience — gate still CLOSED:**
+- Platform-agnostic voice abstraction (phone-ready): `ayasVoice.ts` (pure —
+  state machine reducer, wake-word, capability, **voice-selection algorithm**,
+  TTS profile, `toSpokenAyasText`) + `voice/ayasVoiceEngine.ts` (pure engine,
+  no DOM — `AyasVoicePlatform` interface, epoch-guarded against stale callbacks)
+  + `voice/browserVoiceAdapter.ts` (the only DOM Web Speech API caller).
+- Male / Turkish voice picked by tier (male → natural → tr-TR → any → browser
+  default); no OS voice name hard-coded. Deep TTS profile (pitch 0.82). Some
+  devices ignore `pitch` — the code does not pretend otherwise.
+- Every successful reply (typed or spoken) is auto-spoken; THINKING → SPEAKING
+  → IDLE on the orb. Blocked auto-speech → a manual replay button; text always
+  shows.
+- Voice = speech-in → text → existing `askAyas` → text → speech-out. The engine
+  hands a captured command to `onCommand(text)` and does nothing else; static
+  smoke proves no execution / gate / approval primitive is referenced. "AYAS,
+  open the gate" only produces text — the gate stays CLOSED at every layer.
 
 **Not done (needs approval / later phases):**
 - Wiring `BrainOrchestrator` / a real cycle processor to `PipelineRunner`.
-- The role implementations (model calls); the chat conversation layer.
+- The role implementations wired to models per role (`BrainRoles.ts` still data).
 - The security-fact gatherer feeding `BrainSecurityPostureInput`.
-- The Brain Worker runner deployment (Server Brain + Local Agent).
+- An always-on **AYAS Autonomous Worker** deployment (Server Brain + Local Agent) —
+  the local loop stops when the PC is off; the checkpoint is the migration seam.
 - The Secure Gateway; any remote access.
 
 See `ATOLYE_CHECKPOINT.md` for the sprint entries and `ATOLYE_BRAIN_SERVER.md`
