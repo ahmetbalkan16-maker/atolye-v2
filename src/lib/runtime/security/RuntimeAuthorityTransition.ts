@@ -5,7 +5,10 @@ import {
   assertPathContained,
   validateSafeAncestorChain,
 } from "@/lib/runtime/RuntimeStoragePaths";
-import type { RuntimeAuthorityIdentityFields } from "./RuntimeAuthorityGenerationMarker";
+import {
+  runtimeAuthorityGenerationMarkerFileName,
+  type RuntimeAuthorityIdentityFields,
+} from "./RuntimeAuthorityGenerationMarker";
 
 /**
  * C.2B.9 — runtime authority transition control plane.
@@ -46,6 +49,19 @@ export type RuntimeAuthorityTransitionState =
   | "old-root-quarantined"
   | "failed";
 
+/**
+ * `relocation` — external → external (both roots stamped). The source gets a
+ *   `quarantine/<binding>.json` mark.
+ * `genesis`    — the legacy in-repo default → the first external root. The
+ *   legacy source was never a published authority, so it is retired by the
+ *   `active-authority.json` pointer alone (no quarantine file — it would also
+ *   forbid restoring a backup to the repo).
+ * `recovery`   — a disaster path: the current active authority is abandoned
+ *   (possibly unreachable / corrupt) and authority is forcibly moved to a
+ *   restored root. The abandoned source IS quarantined.
+ */
+export type RuntimeAuthorityTransitionKind = "relocation" | "genesis" | "recovery";
+
 const FORWARD: Readonly<
   Record<RuntimeAuthorityTransitionState, readonly RuntimeAuthorityTransitionState[]>
 > = Object.freeze({
@@ -76,11 +92,16 @@ export type RuntimeAuthorityTransitionErrorCode =
   | "TRANSITION_CAS_CONFLICT"
   | "TRANSITION_WRITE_FAILED"
   | "TRANSITION_SOURCE_UNMARKED"
+  | "TRANSITION_SOURCE_MARKED"
   | "TRANSITION_SOURCE_QUARANTINED"
+  | "TRANSITION_TARGET_QUARANTINED"
   | "TRANSITION_ALREADY_ACTIVE_ELSEWHERE"
+  | "TRANSITION_NO_ACTIVE_AUTHORITY"
   | "TRANSITION_QUIESCENCE_WORKER_ACTIVE"
   | "TRANSITION_QUIESCENCE_NOT_CLEAN"
-  | "TRANSITION_TARGET_INVENTORY_MISMATCH";
+  | "TRANSITION_TARGET_INVENTORY_MISMATCH"
+  | "TRANSITION_TARGET_CONTENT_MISMATCH"
+  | "TRANSITION_CONTENT_UNSAFE";
 
 export class RuntimeAuthorityTransitionError extends Error {
   constructor(
@@ -107,16 +128,23 @@ export interface RuntimeAuthorityTransitionHistoryEntry {
 export interface RuntimeAuthorityTransitionRecord {
   readonly schemaVersion: typeof runtimeAuthorityTransitionSchemaVersion;
   readonly transitionId: string;
+  /** Absent on records written before C.2B.9b — treat as `"relocation"`. */
+  readonly kind?: RuntimeAuthorityTransitionKind;
   readonly state: RuntimeAuthorityTransitionState;
   readonly source: RuntimeAuthorityEndpoint;
   readonly target: RuntimeAuthorityEndpoint;
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly history: readonly RuntimeAuthorityTransitionHistoryEntry[];
+  /** `recovery` only — why authority was forcibly moved. */
+  readonly recoveryReason?: string;
   /** Recorded at `prepared` — the frozen source project inventory. */
   readonly sourceFreeze?: {
     readonly projectSlugs: readonly string[];
     readonly inventoryDigest: string;
+    /** Per-file SHA-256 digest of the whole projects tree (F3 byte-exact). */
+    readonly contentDigest?: string;
+    readonly fileCount?: number;
     readonly frozenAt: string;
   };
   /** Recorded at `quiesced`. */
@@ -129,6 +157,7 @@ export interface RuntimeAuthorityTransitionRecord {
   readonly targetValidation?: {
     readonly markerStatus: "absent" | "match";
     readonly targetProjectSlugs: readonly string[];
+    readonly byteExact?: boolean;
     readonly validatedAt: string;
   };
   /** Recorded at `failed`. */
@@ -462,6 +491,72 @@ export function runtimeAuthorityInventoryDigest(
     .digest("hex");
 }
 
+export function resolveRuntimeAuthorityTransitionKind(
+  record: Pick<RuntimeAuthorityTransitionRecord, "kind">,
+): RuntimeAuthorityTransitionKind {
+  return record.kind ?? "relocation";
+}
+
+export interface RuntimeAuthorityProjectsContent {
+  readonly contentDigest: string;
+  readonly fileCount: number;
+}
+
+/**
+ * Deterministic per-file SHA-256 digest of an entire `projects/` tree — the
+ * evidence a controlled relocation copied **byte for byte** (F3). Rejects any
+ * symlink / junction / non-regular file. Returns a single digest over the
+ * sorted list of `relativePosixPath\0sha256\0size` lines plus the file count.
+ */
+export function runtimeAuthorityProjectsContentDigest(
+  projectsRoot: string,
+): RuntimeAuthorityProjectsContent {
+  const root = path.resolve(projectsRoot);
+  validateSafeAncestorChain(root);
+  const lines: string[] = [];
+  walkContent(root, root, lines);
+  lines.sort();
+  return {
+    contentDigest: createHash("sha256").update(lines.join("\n")).digest("hex"),
+    fileCount: lines.length,
+  };
+}
+
+function walkContent(root: string, dir: string, out: string[]): void {
+  const entries = fs
+    .readdirSync(dir, { withFileTypes: true })
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  for (const entry of entries) {
+    // The authority-generation marker is authority metadata, not project data —
+    // it is re-stamped at publish, so it never counts toward the byte digest.
+    if (dir === root && entry.name === runtimeAuthorityGenerationMarkerFileName) {
+      continue;
+    }
+    const full = path.join(dir, entry.name);
+    assertPathContained(root, full);
+    const link = fs.lstatSync(full);
+    if (link.isSymbolicLink()) {
+      throw new RuntimeAuthorityTransitionError(
+        "TRANSITION_CONTENT_UNSAFE",
+        `symlink under projects tree: ${path.relative(root, full)}`,
+      );
+    }
+    if (link.isDirectory()) {
+      walkContent(root, full, out);
+      continue;
+    }
+    if (!link.isFile()) {
+      throw new RuntimeAuthorityTransitionError(
+        "TRANSITION_CONTENT_UNSAFE",
+        `non-regular file under projects tree: ${path.relative(root, full)}`,
+      );
+    }
+    const rel = path.relative(root, full).split(path.sep).join("/");
+    const sha = createHash("sha256").update(fs.readFileSync(full)).digest("hex");
+    out.push(`${rel}\0${sha}\0${link.size}`);
+  }
+}
+
 /* --------------------------------------------------------------- shapes ---- */
 
 function isEndpoint(value: unknown): value is RuntimeAuthorityEndpoint {
@@ -482,6 +577,10 @@ function isTransitionRecord(
   return (
     value.schemaVersion === runtimeAuthorityTransitionSchemaVersion &&
     isValidRuntimeAuthorityTransitionId(value.transitionId) &&
+    (value.kind === undefined ||
+      value.kind === "relocation" ||
+      value.kind === "genesis" ||
+      value.kind === "recovery") &&
     typeof value.state === "string" &&
     value.state in FORWARD &&
     isEndpoint(value.source) &&
@@ -555,16 +654,26 @@ function messageFor(code: RuntimeAuthorityTransitionErrorCode): string {
       return "Runtime authority transition record could not be written.";
     case "TRANSITION_SOURCE_UNMARKED":
       return "Runtime authority transition source root carries no authority-generation marker.";
+    case "TRANSITION_SOURCE_MARKED":
+      return "Runtime authority genesis transition source root already carries a marker.";
     case "TRANSITION_SOURCE_QUARANTINED":
       return "Runtime authority transition source root is already quarantined.";
+    case "TRANSITION_TARGET_QUARANTINED":
+      return "Runtime authority transition target root is quarantined.";
     case "TRANSITION_ALREADY_ACTIVE_ELSEWHERE":
       return "Runtime authority transition source is not the active production authority.";
+    case "TRANSITION_NO_ACTIVE_AUTHORITY":
+      return "Runtime authority recovery transition needs a published active authority to recover from.";
     case "TRANSITION_QUIESCENCE_WORKER_ACTIVE":
       return "Runtime authority transition cannot quiesce while the production worker is active.";
     case "TRANSITION_QUIESCENCE_NOT_CLEAN":
       return "Runtime authority transition cannot quiesce while durable recovery is not clean.";
     case "TRANSITION_TARGET_INVENTORY_MISMATCH":
       return "Runtime authority transition target project inventory does not match the frozen source.";
+    case "TRANSITION_TARGET_CONTENT_MISMATCH":
+      return "Runtime authority transition target projects tree is not a byte-exact copy of the frozen source.";
+    case "TRANSITION_CONTENT_UNSAFE":
+      return "Runtime authority transition projects tree contains an unsafe path.";
     default:
       return "Runtime authority transition input is invalid.";
   }

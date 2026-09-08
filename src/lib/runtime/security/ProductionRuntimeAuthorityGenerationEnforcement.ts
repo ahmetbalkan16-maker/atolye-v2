@@ -32,8 +32,9 @@ import {
  *        - a **transition is in progress** with this root as source → FAIL CLOSED
  *          (`RUNTIME_AUTHORITY_TRANSITION_IN_PROGRESS`);
  *        - an **active authority** is published and it is a different root → FAIL
- *          CLOSED (`RUNTIME_AUTHORITY_NOT_ACTIVE`). (The legacy in-repo default
- *          never participates.)
+ *          CLOSED (`RUNTIME_AUTHORITY_NOT_ACTIVE`) — this now applies to the
+ *          legacy in-repo default too (F11), so a still-present repo tree cannot
+ *          run as a second authority after a genesis migration.
  *      When no transition has ever happened the whole control plane is absent
  *      and these checks are no-ops.
  *   3. Authority-generation marker:
@@ -202,9 +203,14 @@ function assertAuthorityTransitionState(
   }
 
   const active = store.readActiveAuthority();
-  const activeMatchesHere =
-    active?.resolverBindingIdentity === binding;
-  if (active && !activeMatchesHere && context.classification !== "legacy-repository") {
+  const activeMatchesHere = active?.resolverBindingIdentity === binding;
+  // F11 — once ANY authority has been published, EVERY root (including the
+  // legacy in-repo default) must be the published one. Before any transition
+  // `active` is null and this check is skipped, so dev / legacy / a first
+  // external deployment are unaffected. After a genesis migration, a
+  // still-present repo `data/projects` booted with `ATOLYE_RUNTIME_ROOT` unset
+  // now fails closed instead of running as a second authority.
+  if (active && !activeMatchesHere) {
     throw new ProductionRuntimeAuthorityEnforcementError(
       "RUNTIME_AUTHORITY_NOT_ACTIVE",
     );
