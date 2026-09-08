@@ -1,5 +1,90 @@
 ---
 
+## Sprint 197 - C.2B.10a: Verified Candidate Consume & Offline Materialization - 2026-09-08
+
+**Status:** **C.2B.10a = READY.** Sprint 196'da eksik olduğu tespit edilen consume/materialization
+servisi implement edildi ve sentetik fixture üzerinde kanıtlandı. **GERÇEK MIGRATION / BACKUP CREATE
+/ GENESIS / PUBLISH / `.env.local` / `D:\Atolye*` — HİÇBİRİ YAPILMADI.** `data/projects/**`
+byte-identical (2388 / 611005467 / digest `e95681751674ca0d2e67c9bdb415889fdc851124`). `.env.local`
+değişmedi. `active-authority.json` absent. Execution Gate CLOSED. `cutoverAuthorized` değiştirilmedi.
+Commit `<feat>` + `<docs>`. Push yok.
+
+### Yeni servis — `RuntimeMigrationCandidateConsumeService`
+
+`consumeVerifiedMigrationCandidate(input, deps?)` (async). Akış:
+`verifyMigrationCandidate` → `verifyMigrationCandidateBinding` (backup) → manifest exact-serialization
+binding → `runtimeAuthorityProjectsContentDigest(candidatePayload)` + `expectedContentDigest/FileCount/ByteCount`
+cross-check → **SEC1 disjointness** → **empty target / no-clobber** → per-file materialize
+(lstat regular-file, read, `sha256` == manifest, `openSync("wx")` + `fsyncSync`, target stat + re-hash)
+→ post-copy: `verifyRuntimeTreeAgainstManifest` (git-insensitive) + `runtimeAuthorityProjectsContentDigest(target)`
+== source + `collectRuntimeBackupInventory(target)` file/byte count + durable aggregate binding +
+read-only `ProductionExecutionDurableRecoveryService.scan()` per proje → immutable `result.json`.
+
+**State machine** (`<target>/.migration-consume/state.json`, atomic temp+fsync+rename):
+`created → validating → materializing → materialized → verifying → verified → consumed` (+ `failed`).
+Crash safety: `consumed` dışı her state'te target NEVER live sayılır; aynı `consumeId` + aynı
+candidate ile re-run `<target>/projects`'i siler ve immutable candidate'tan yeniden materialize eder;
+`consumed` iken idempotent (tam re-verify + `resumed: true`); farklı candidate aynı `consumeId` →
+`CONSUME_ID_CANDIDATE_MISMATCH`; farklı `consumeId` target'ı sahiplenmiş → `MIGRATION_TARGET_NOT_EMPTY`.
+Servis authority publish ETMEZ, `active-authority.json` yazMAZ, `.env.local` değiştirMEZ,
+`cutoverAuthorized: false` sabit döner.
+
+### SEC1 — `RuntimeProtectedRoots` (additive)
+
+Union'a `"relocation-target" | "quarantine"` eklendi (`requiredRoles` DEĞİŞMEDİ → mevcut yapılar
+etkilenmedi). `assertMigrationConsumeRootsDisjoint({ liveProjects, candidate, relocationTarget,
+backup?, quarantine? })` — pairwise disjoint (eşit / ancestor / descendant yok), symlink/junction/
+drive-root/relative reddi. `assertMigrationRolesDisjoint()` metodu + `migrationDisjointRoles` sabiti.
+
+### C1 — `preflightRuntimeMigrationExternalSource` (yeni dosya)
+
+`preflightRuntimeMigrationCandidate`'ın repo-local `data/projects` pathspec varsayımını çözer.
+**filesystem source cleanliness** (live tree == verified backup: identity + aggregate + marker +
+durable aggregate) HER ZAMAN çalışır; **repository cleanliness** (git worktree) yalnız
+`repositoryGitEvidence` verilince, aksi halde `"not-applicable"` (sessizce "clean" DEĞİL). Mutation yok.
+
+### CLI + tests
+
+`scripts/run-migration-candidate-consume.ts` + `RuntimeMigrationCandidateConsumeCommand.ts` +
+`npm run runtime:migration:candidate:consume` (strict args: absolute, `..` reddi, real dir,
+symlink-in-chain reddi, sha256/int arg pattern). Authority publish / `.env.local` / active-authority
+YAZMAZ.
+
+`scripts/smoke-c2b10a-candidate-consume.ts` — **PASS (20 senaryo grubu, 27 gereksinim)**: real backup
++ real candidate fixture; exact → PASS byte-exact; target non-empty / stray file → FAIL; candidate
+mutated / target mutated / extra / missing → FAIL; symlink candidate / symlink-junction target ancestor
+→ FAIL veya platform SKIP; traversal consumeId / relative target / `..` candidate dir → FAIL; candidate/
+backup/live/quarantine ∩ target → FAIL; wrong candidateId / manifest / backup binding → FAIL; durable
+record mutation → FAIL; duplicate consumeId same-candidate idempotent / different-candidate FAIL;
+**child-process crash mid-materialize / pre-verify → not consumed, restart → consumed**; post-copy
+digest/file-count/byte-count exact; CLI strict-arg + full run; static no-execution-primitive; git tree
+unchanged.
+
+### Regression
+
+`c2b10a` (20) · `c2b9` (21) · `c2b9b` (16) · `c2b6` (14) · `c2b6b` (19) · `c2b5` (12) · `f12` (6) ·
+`129-25c-2b-1` (48) · `129-25c-2b-2` (34) · `129-25c-1 runtime-backup` (39) · `project-storage-hygiene`
+(10) · `external-runtime-root-lifecycle` (7) · `production-execution-durable-storage` (63) ·
+`ayas-access-gate` (14) · `ayas-intent-intake` (13) → **PASS**. `tsc` temiz · `eslint` **0 error / 22
+warning (baseline)** · `next build` OK. **Pre-existing FAIL** `129-25c-2a` + `129-25c-2b-4` — clean
+HEAD ile aynı (`RuntimeProtectedRoots` değişikliği tamamen additive; ikisi de `assertComplete`/
+`assertWritableRoot` core'una dokunmadı). Sprint 197 regression'ı DEĞİL.
+
+### DOKUNULMADI
+
+`RuntimeAuthorityTransition.ts`, `RuntimeAuthorityTransitionCoordinator.ts`, `RuntimeStoragePaths.ts`,
+`ProductionRuntimeCompositionRoot.ts`, `ProductionExecutionPersistence.ts` (schema), pipeline, AYAS/
+Brain runtime, `.env.local`, `.gitignore`/`.gitattributes`, Git index, `data/projects/**` fiziksel,
+`data/brain`.
+
+### Sıradaki adım
+
+C.2B.10 orchestrator (Sprint 196) artık Phase 2→9 çalıştırılabilir (consume step 4b = yeni servis).
+Publish yine ayrı `PUBLISH ONAY` bekler. Önce **C.2B.11** (old-root read-only quarantine + rollback
+token contract) kapatılmalı — audit roadmap item 8, henüz yapılmadı. `cutoverAuthorized = false`.
+
+<!-- SPRINT-197-END -->
+
 ## Sprint 196 - C.2B.10 FULL MIGRATION ORCHESTRATOR — STOPPED AT INSPECT (missing consume service) - 2026-09-08
 
 **Status:** Kullanıcı C.2B.10'u tek orchestrator olarak (Phase 0→9 otomatik, publish için ayrı

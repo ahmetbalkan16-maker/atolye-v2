@@ -229,13 +229,34 @@ step below is idempotent on `--transition-id` and resumes after a crash.
         --assert-worker-stopped --source-projects <repo>/data/projects
       → refuses if any project's production-execution/ scan is not "clean".
 
-4.  MATERIALIZE TARGET — BYTE-EXACT (this is NOT the CLI's job)
-      Create + preflight a verified migration candidate
-        (src/lib/runtime/migration/RuntimeMigrationCandidateService, backup-derived)
-      Consume it into <T>/projects/  — per-file SHA-256 readback.
-      DO NOT `cp -r` / `rsync` / re-serialize any JSON — a single changed byte in a
-      production-execution record makes the new root unbootable (RUNTIME_BOOTSTRAP_INVALID).
-      DO NOT copy the .runtime-authority-generation.json marker (publish re-stamps it).
+4.  MATERIALIZE TARGET — BYTE-EXACT (this is NOT the authority CLI's job)
+      a. Create + preflight a verified migration candidate
+           (RuntimeMigrationCandidateService, backup-derived) →
+           <CR>/candidates/candidate-<64hex>/payload/projects/
+         For an external source, preflight cleanliness with
+           preflightRuntimeMigrationExternalSource (C1 — separates filesystem
+           source cleanliness from repository Git cleanliness).
+      b. Consume it into <T>/projects/ with the verified consume service (C.2B.10a):
+           npm run runtime:migration:candidate:consume -- \
+             --consume-id <CID> --candidate-id candidate-<64hex> \
+             --candidate-directory <CR>/candidates/candidate-<64hex> \
+             --relocation-target <T> --live-projects <repo>/data/projects \
+             --backup-directory <BK>/backup-<n>
+         → <T> must be EMPTY (only the service's own .migration-consume/ metadata).
+         → per-file SHA-256 readback + no-clobber; symlink / junction / traversal → fail.
+         → post-copy: runtimeAuthorityProjectsContentDigest(<T>/projects) must equal
+           the candidate payload's, file/byte counts + manifest + backup + durable
+           binding exact, read-only recovery scan not "recovery-required".
+         → crash-safe: an incomplete <T>/projects is never treated as consumed;
+           re-run with the same --consume-id resumes against the immutable candidate.
+      DO NOT `cp -r` / `rsync` / `fs.rename` the candidate, and DO NOT point
+      ATOLYE_RUNTIME_ROOT at the candidate payload — the consume service is the
+      only sanctioned path (a single changed byte in a production-execution record
+      makes the new root unbootable). DO NOT copy the
+      .runtime-authority-generation.json marker (publish re-stamps it).
+
+      candidate artifact ≠ live root · consume ≠ publish ·
+      materialization ≠ authority activation · publish (step 6) = cutover / point of no return.
 
 5.  PREPARE + VALIDATE  (freezes a per-file digest of <repo>/data/projects and
                          requires <T>/projects to be a byte-exact copy)
@@ -273,11 +294,20 @@ step below is idempotent on `--transition-id` and resumes after a crash.
 ```
 
 Failed transition (pre-publish) → `npm run authority:fail -- --transition-id <ID> --reason "<why>"`,
-then resume the old root. **After publish there is no rollback:** if the target
-proves bad, restore the step-1 backup into a FRESH root and run
+then resume the old root. Consume (step 4b) never touched the live source, so
+there is nothing to roll back there — abandon the `<T>` / `<CR>` scratch. **After
+publish there is no rollback:** if the target proves bad, restore the step-1
+backup into a FRESH root and run
 `npm run authority:begin-recovery -- --target <fresh> --transition-id <ID2> --reason "<why>"`
 → quiesce → prepare → validate → publish → quarantine. A recovery transition
 quarantines the abandoned root; that root can never be recovered *to*.
+
+> **C.2B.11 not complete.** The old-root read-only quarantine + a formal
+> single-authority rollback-token contract (audit roadmap item 8) are not yet
+> built. Today's post-publish recovery is the forward-only
+> `authority:begin-recovery` path above plus a manual read-only rename of the old
+> tree — adequate for a first genesis, but a real relocation sprint should close
+> C.2B.11 first.
 
 `data/brain/**` (AYAS ledger, Brain queue, autonomy state) is **not** migrated —
 it stays machine-local under `<repo>/data/brain/`.
