@@ -4,6 +4,7 @@ import {
   createRuntimeStorageContext,
   validateSafeAncestorChain,
 } from "@/lib/runtime/RuntimeStoragePaths";
+import { runtimeMigrationCandidateDirName } from "./RuntimeMigrationCandidateManifest";
 import {
   migrationCandidateError,
   RuntimeMigrationCandidateError,
@@ -52,7 +53,8 @@ export function runRuntimeMigrationCandidateCreateCommand(
       confirmCandidateCreation: true,
     });
 
-    const candidateDirectory = path.join(candidateRoot, "candidates", readiness.candidateId);
+    const candidateDirName = runtimeMigrationCandidateDirName(readiness.candidateId);
+    const candidateDirectory = path.join(candidateRoot, "candidates", candidateDirName);
     const verification = verifyMigrationCandidate(candidateDirectory);
     const binding = verifyMigrationCandidateBinding(candidateDirectory, backupDirectory);
 
@@ -60,6 +62,7 @@ export function runRuntimeMigrationCandidateCreateCommand(
       report: {
         ok: true,
         candidateId: readiness.candidateId,
+        candidateDirName,
         candidateDirectory,
         candidateLocator: readiness.candidateLocator,
         candidateCreated: readiness.candidateCreated,

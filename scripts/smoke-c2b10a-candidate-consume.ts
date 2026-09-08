@@ -29,6 +29,7 @@ import {
 } from "../src/lib/runtime/backup/RuntimeBackupManifest";
 import { verifyRuntimeBackup } from "../src/lib/runtime/backup/RuntimeBackupVerifier";
 import {
+  runtimeMigrationCandidateDirName,
   runtimeMigrationCandidateId,
   type RuntimeMigrationCandidateManifest,
 } from "../src/lib/runtime/migration/RuntimeMigrationCandidateManifest";
@@ -43,8 +44,9 @@ import { runRuntimeMigrationCandidateConsumeCommand } from "../src/lib/runtime/m
 
 const REPO = path.resolve(__dirname, "..");
 const STAMP = "2026-07-16T12:00:00.000Z";
-// One short shared sandbox — the candidate directory name is `candidate-<64hex>`,
-// so the materialised-path budget (259) leaves little room for a deep prefix.
+// One short shared sandbox. F13: the candidate directory is `c-<24hex>` and the
+// payload tree sits directly under `projects/` (no `payload/`), so the
+// materialised-path budget (259) has real headroom for a deep prefix.
 const SANDBOX = fs.mkdtempSync(path.join(os.tmpdir(), "c2b10a-"));
 let fixtureSeq = 0;
 let count = 0;
@@ -156,7 +158,9 @@ function buildFixture(_name: string): Fixture {
     allowTestTempRoot: true,
   }, { now: () => STAMP });
 
-  const candidateDirectory = path.join(candidateRoot, "candidates", candidateId);
+  const candidateDirectory = path.join(
+    candidateRoot, "candidates", runtimeMigrationCandidateDirName(candidateId),
+  );
   const candidateManifest = verifyMigrationCandidate(candidateDirectory).manifest;
   return {
     base, repositoryRoot, liveProjectsRoot, backupDirectory, candidateRoot,
@@ -211,7 +215,7 @@ async function main() {
       assert.equal(result.candidateAggregate, fx.candidateManifest.candidateAggregate);
       // every candidate file is present at the target, byte-identical
       for (const file of fx.candidateManifest.files) {
-        const src = path.join(fx.candidateDirectory, "payload", "projects", file.relativePath);
+        const src = path.join(fx.candidateDirectory, "projects", file.relativePath);
         const dst = path.join(target, "projects", file.relativePath);
         assert.equal(sha(dst), sha(src), file.relativePath);
       }
@@ -237,7 +241,7 @@ async function main() {
     await scenario("4 candidate mutated after verify → FAIL", async () => {
       const fx = mk("mutcand");
       const target = freshTarget(fx);
-      const victim = path.join(fx.candidateDirectory, "payload", "projects",
+      const victim = path.join(fx.candidateDirectory, "projects",
         fx.candidateManifest.files[0].relativePath);
       fs.chmodSync(victim, 0o600);
       fs.writeFileSync(victim, "tampered");
@@ -281,7 +285,7 @@ async function main() {
       fs.writeFileSync(outside, "x");
       let symlinkOk = true;
       try {
-        const victim = path.join(fx.candidateDirectory, "payload", "projects", "linky.txt");
+        const victim = path.join(fx.candidateDirectory, "projects", "linky.txt");
         fs.symlinkSync(outside, victim, "file");
         await assert.rejects(consume(baseInput(fx, target)), (e: unknown) =>
           e instanceof RuntimeMigrationCandidateConsumeError &&
@@ -366,7 +370,7 @@ async function main() {
       const fx = mk("durablemut");
       const durable = fx.candidateManifest.files.find((f) => f.classification === "durable-execution");
       assert.ok(durable, "fixture must contain a durable-execution record");
-      const victim = path.join(fx.candidateDirectory, "payload", "projects", durable!.relativePath);
+      const victim = path.join(fx.candidateDirectory, "projects", durable!.relativePath);
       fs.chmodSync(victim, 0o600);
       fs.writeFileSync(victim, `${fs.readFileSync(victim, "utf8")} `);
       await assert.rejects(consume(baseInput(fx, freshTarget(fx))), (e: unknown) =>
@@ -420,7 +424,7 @@ async function main() {
       const target = freshTarget(fx);
       const r = await consume(baseInput(fx, target, "consume-exact-01"));
       // independent recompute of the two digests over source + target
-      const srcDigest = contentDigest(path.join(fx.candidateDirectory, "payload", "projects"));
+      const srcDigest = contentDigest(path.join(fx.candidateDirectory, "projects"));
       const tgtDigest = contentDigest(path.join(target, "projects"));
       assert.equal(r.contentDigest, srcDigest.digest);
       assert.equal(r.contentDigest, tgtDigest.digest);

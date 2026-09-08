@@ -110,9 +110,17 @@ export function preflightRuntimeMigrationCandidate(input: {
     repositoryRoot: input.repositoryRoot,
     now: input.now,
   });
+  // After C.2B.12 `data/projects` is fully git-untracked, so the repository HEAD
+  // commit no longer describes the runtime tree — the per-file identity
+  // (`relativePath` / `sizeBytes` / `sha256` / `permissionClass` / `projectSlug`
+  // / `classification`) plus the aggregate fingerprint IS the freshness gate.
+  // `sourceHeadCommit` equality is only enforced while the backup actually
+  // captured tracked `data/projects` files (pre-C.2B.12 backups); an unrelated
+  // commit must not stale an otherwise byte-identical source.
+  const backupTrackedProjects = backup.manifest.files.some((file) => file.git?.tracked === true);
   if (JSON.stringify(treeIdentity(live.files)) !== JSON.stringify(treeIdentity(backup.manifest.files)) ||
       live.aggregateFingerprint !== backup.aggregateFingerprint ||
-      (backup.manifest.sourceHeadCommit !== undefined &&
+      (backupTrackedProjects && backup.manifest.sourceHeadCommit !== undefined &&
         live.sourceHeadCommit !== backup.manifest.sourceHeadCommit)) {
     throw new RuntimeMigrationCandidateError("SOURCE_STALE");
   }

@@ -20,6 +20,7 @@ import { verifyRuntimeTreeAgainstManifest } from "@/lib/runtime/backup/RuntimeBa
 import { runtimeAuthorityProjectsContentDigest } from "@/lib/runtime/security/RuntimeAuthorityTransition";
 import { ProductionExecutionDurableRecoveryService } from "@/lib/production/ProductionExecutionPersistence";
 import {
+  runtimeMigrationCandidateDirName,
   serializeRuntimeMigrationCandidateManifest,
   type RuntimeMigrationCandidateManifest,
 } from "./RuntimeMigrationCandidateManifest";
@@ -82,9 +83,9 @@ const forwardConsumeStates: Readonly<
 export interface RuntimeMigrationCandidateConsumeInput {
   /** Stable, operator-chosen id for this consume attempt (idempotency key). */
   readonly consumeId: string;
-  /** The `candidate-<64hex>` id the caller expects. */
+  /** The `candidate-<64hex>` id the caller expects (the full cryptographic identity). */
   readonly candidateId: string;
-  /** The verified candidate directory (`…/candidates/candidate-<64hex>`). */
+  /** The verified candidate directory (`…/candidates/c-<24hex>`). */
   readonly candidateDirectory: string;
   /** The exclusive, empty relocation target root; `projects/` is materialised under it. */
   readonly relocationTargetRoot: string;
@@ -185,7 +186,7 @@ async function consumeInternal(
   const quarantineRoot = input.quarantineRoot ? requireSafePath(input.quarantineRoot) : undefined;
   const relocationTargetRoot = ensureRelocationTargetRoot(input.relocationTargetRoot);
 
-  if (path.basename(candidateDirectory) !== candidateId) {
+  if (path.basename(candidateDirectory) !== runtimeMigrationCandidateDirName(candidateId)) {
     throw new RuntimeMigrationCandidateConsumeError("CANDIDATE_BINDING_MISMATCH");
   }
 
@@ -224,10 +225,11 @@ async function consumeInternal(
     }
   }
 
-  const candidatePayloadProjectsRoot = path.join(candidateDirectory, "payload", projectsDirectoryName);
-  requireSafeExistingDirectory(candidatePayloadProjectsRoot);
+  // F13: the candidate payload tree is `<candidateDirectory>/projects` (no `payload/`).
+  const candidateProjectsRoot = path.join(candidateDirectory, projectsDirectoryName);
+  requireSafeExistingDirectory(candidateProjectsRoot);
 
-  const sourceContent = safeContentDigest(candidatePayloadProjectsRoot);
+  const sourceContent = safeContentDigest(candidateProjectsRoot);
   const manifestFileCount = candidateManifest.inventory.files;
   const manifestByteCount = candidateManifest.inventory.bytes;
   if (sourceContent.fileCount !== manifestFileCount) {
@@ -321,7 +323,7 @@ async function consumeInternal(
     a.relativePath < b.relativePath ? -1 : a.relativePath > b.relativePath ? 1 : 0);
 
   for (let i = 0; i < sortedFiles.length; i += 1) {
-    materializeOneFile(candidatePayloadProjectsRoot, targetProjectsRoot, sortedFiles[i]);
+    materializeOneFile(candidateProjectsRoot, targetProjectsRoot, sortedFiles[i]);
     dependencies.afterFileMaterialized?.(i, sortedFiles[i].relativePath);
   }
   state = advance(statePath, state, "materialized", now, dependencies);
@@ -437,18 +439,18 @@ async function verifyMaterializedTarget(
 }
 
 function materializeOneFile(
-  candidatePayloadProjectsRoot: string,
+  candidateProjectsRoot: string,
   targetProjectsRoot: string,
   file: RuntimeBackupFileRecord,
 ): void {
   try {
-    assertRuntimeBackupMaterializedPath(candidatePayloadProjectsRoot, file.relativePath);
+    assertRuntimeBackupMaterializedPath(candidateProjectsRoot, file.relativePath);
     assertRuntimeBackupMaterializedPath(targetProjectsRoot, file.relativePath);
   } catch {
     throw new RuntimeMigrationCandidateConsumeError("MIGRATION_PATH_POLICY_VIOLATION");
   }
 
-  const sourceAbs = safeJoin(candidatePayloadProjectsRoot, file.relativePath);
+  const sourceAbs = safeJoin(candidateProjectsRoot, file.relativePath);
   const link = fs.lstatSync(sourceAbs);
   if (link.isSymbolicLink() || !link.isFile()) {
     throw new RuntimeMigrationCandidateConsumeError("MIGRATION_UNSUPPORTED_FILE_TYPE");

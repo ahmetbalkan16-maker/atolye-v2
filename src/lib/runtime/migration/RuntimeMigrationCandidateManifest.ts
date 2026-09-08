@@ -6,7 +6,6 @@ import {
   runtimeBackupFormatVersion,
   runtimeBackupFormatVersionV2,
   runtimeBackupFormatVersionV3,
-  runtimeBackupManifestSchemaVersion,
   runtimeBackupManifestSchemaVersionV2,
   runtimeBackupManifestSchemaVersionV3,
   validateRuntimeBackupManifest,
@@ -113,6 +112,35 @@ export function runtimeMigrationCandidateId(input: {
     runtimePortablePathPolicyVersion,
   ].join("\0"), "utf8").digest("hex");
   return `candidate-${digest}`;
+}
+
+/**
+ * F13 — the on-disk directory name for a verified candidate.
+ *
+ * The full `candidateId` (`candidate-<64hex>`) is the candidate's cryptographic
+ * identity: it is a content-address of the source backup + policy versions, it
+ * lives verbatim in `candidate.json`, and every identity / binding / digest
+ * check recomputes and enforces the full 64-hex value. It is NOT shortened.
+ *
+ * The materialised candidate tree (`<dir>/projects/<projectId>/…`) has to stay
+ * inside the 259 UTF-16 portable materialized-path budget for the real ~611 MB
+ * runtime. The 74-char `candidate-<64hex>` directory segment alone pushed 329
+ * real durable-execution records past that budget (Sprint 201 F13). So the
+ * directory that carries the payload is named with a deterministic 24-hex
+ * (96-bit) *projection* of the same digest — a filesystem handle, never an
+ * identity. A `c-<24hex>` prefix collision (2⁻⁹⁶ per distinct-backup pair) is
+ * still caught fail-closed: `verifyMigrationCandidate` recomputes the full
+ * `candidateId` from the manifest and `createOwnedDirectory` is exclusive.
+ */
+export const runtimeMigrationCandidateDirNameHexLength = 24;
+export const runtimeMigrationCandidateDirNamePattern = /^c-[a-f0-9]{24}$/;
+
+export function runtimeMigrationCandidateDirName(candidateId: string): string {
+  if (!/^candidate-[a-f0-9]{64}$/.test(candidateId)) {
+    throw new RuntimeMigrationCandidateError("CANDIDATE_ID_MISMATCH");
+  }
+  const hex = candidateId.slice("candidate-".length);
+  return `c-${hex.slice(0, runtimeMigrationCandidateDirNameHexLength)}`;
 }
 
 export function buildRuntimeMigrationCandidateManifest(input: {
@@ -282,30 +310,30 @@ function validateManifest(value: unknown): asserts value is RuntimeMigrationCand
   if (value.candidateId !== expectedId) {
     throw new RuntimeMigrationCandidateError("CANDIDATE_ID_MISMATCH");
   }
+  // F14 — a verified candidate is the PORTABLE, authority-free projection of the
+  // source backup: it binds by `manifestSha256` + `aggregateFingerprint` + file
+  // list, and deliberately never carries the source host's `sourceRuntimeAuthority`.
+  // A `runtime-backup-v4` source and its `runtime-backup-v3` (path-policy-v3)
+  // equivalent are byte/structure identical apart from that authority stanza, so
+  // the internal file-integrity re-validation runs against the v3 portable shape
+  // — v4 would demand a `sourceRuntimeAuthority` the candidate does not (and must
+  // not) hold.
   const isV4 = source.formatVersion === runtimeBackupFormatVersion;
   const isV3 = source.formatVersion === runtimeBackupFormatVersionV3;
+  const portablePathPolicyV3 = isV4 || isV3;
   const backupShape: RuntimeBackupManifest = {
-    schemaVersion: isV4
-      ? runtimeBackupManifestSchemaVersion
-      : isV3
-        ? runtimeBackupManifestSchemaVersionV3
-        : runtimeBackupManifestSchemaVersionV2,
-    backupFormatVersion: isV4
-      ? runtimeBackupFormatVersion
-      : isV3
-        ? runtimeBackupFormatVersionV3
-        : runtimeBackupFormatVersionV2,
-    ...(isV4
+    schemaVersion: portablePathPolicyV3
+      ? runtimeBackupManifestSchemaVersionV3
+      : runtimeBackupManifestSchemaVersionV2,
+    backupFormatVersion: portablePathPolicyV3
+      ? runtimeBackupFormatVersionV3
+      : runtimeBackupFormatVersionV2,
+    ...(portablePathPolicyV3
       ? {
           pathPolicyVersion: runtimeBackupPathPolicyVersionV3,
           sourceProjectIdentities: source.sourceProjectIdentities ?? [],
         }
-      : isV3
-        ? {
-            pathPolicyVersion: runtimeBackupPathPolicyVersionV3,
-            sourceProjectIdentities: source.sourceProjectIdentities ?? [],
-          }
-        : { pathPolicyVersion: runtimeBackupPathPolicyVersionV2 }),
+      : { pathPolicyVersion: runtimeBackupPathPolicyVersionV2 }),
     aggregateAlgorithm: runtimeBackupAggregateVersion,
     storagePolicyVersion: source.storagePolicyVersion as RuntimeBackupManifest["storagePolicyVersion"],
     createdAt: source.sourceCreatedAt,

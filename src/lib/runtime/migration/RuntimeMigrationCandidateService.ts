@@ -16,6 +16,7 @@ import { assertRuntimeMaterializedPath } from "@/lib/runtime/security/RuntimePat
 import { runtimeCandidateProtectedRootsFromContext } from "@/lib/runtime/security/RuntimeProtectedRoots";
 import {
   buildRuntimeMigrationCandidateManifest,
+  runtimeMigrationCandidateDirName,
   runtimeMigrationCandidateIdentitySha256,
   runtimeMigrationCandidateManifestSha256,
   runtimeMigrationCandidatePolicySha256,
@@ -180,7 +181,8 @@ function createVerifiedMigrationCandidateInternal(
         `candidates/.${randomId.slice(0, 8)}.partial`,
       );
       const stagedCandidateDirectory = partial.absolutePath;
-      const stagedProjectsRoot = partial.ensureDirectory("payload/projects");
+      // F13: candidate payload sits directly under `projects/` (no `payload/`).
+      const stagedProjectsRoot = partial.ensureDirectory("projects");
       const backupProjectsRoot = path.join(request.backupDirectory, "payload", "projects");
 
       for (const file of backup.manifest.files) {
@@ -191,7 +193,7 @@ function createVerifiedMigrationCandidateInternal(
         observe(dependencies, "payload-copy");
         const copied = partial.copyFileExclusive(
           source,
-          `payload/projects/${file.relativePath}`,
+          `projects/${file.relativePath}`,
           {
             executable: file.permissionClass === "executable",
             afterWrite: (destinationPath) => {
@@ -230,10 +232,12 @@ function createVerifiedMigrationCandidateInternal(
       try {
         observe(dependencies, "publish-reservation-acquire");
         publishReservation = session.acquireExclusiveReservation(
-          `candidates/.${preflight.candidateId}.publish.lock`,
+          `candidates/.${preflight.pathPlan.candidateDirName}.publish.lock`,
         );
         observe(dependencies, "final-create");
-        final = session.createOwnedDirectory(`candidates/${preflight.candidateId}`);
+        final = session.createOwnedDirectory(
+          `candidates/${preflight.pathPlan.candidateDirName}`,
+        );
       } catch (error) {
         if (isTargetExists(error)) {
           throw new RuntimeMigrationCandidateError("CANDIDATE_RECOVERY_REQUIRED");
@@ -379,13 +383,13 @@ function publishCandidateNoClobber(
   files: readonly { readonly relativePath: string; readonly permissionClass: string }[],
   dependencies: RuntimeMigrationCandidateCreateDependencies,
 ) {
-  final.ensureDirectory("payload/projects");
+  final.ensureDirectory("projects");
   for (const file of files) {
     dependencies.beforePublishFile?.(file.relativePath);
     observe(dependencies, "final-publish");
     final.publishFileExclusive(
-      path.join(stagedCandidateDirectory, "payload", "projects", ...file.relativePath.split("/")),
-      `payload/projects/${file.relativePath}`,
+      path.join(stagedCandidateDirectory, "projects", ...file.relativePath.split("/")),
+      `projects/${file.relativePath}`,
       { executable: file.permissionClass === "executable" },
     );
   }
@@ -406,7 +410,7 @@ function readiness(
     candidateCreated: created,
     candidateReused: !created,
     candidateId: verification.candidateId,
-    candidateLocator: `candidates/${verification.candidateId}`,
+    candidateLocator: `candidates/${runtimeMigrationCandidateDirName(verification.candidateId)}`,
     manifestSha256: verification.manifestSha256,
     sourceBackupManifestSha256,
     policyVersion: verification.manifest.pathPolicyVersion,
@@ -481,11 +485,11 @@ function hasConflictingOperationEvidence(candidateRoot: string, candidateId: str
     if (!pathEntryExists(candidatesRoot)) return false;
     const root = fs.lstatSync(candidatesRoot);
     if (root.isSymbolicLink() || !root.isDirectory()) return true;
-    const expectedReservation = `.${candidateId}.publish.lock`;
+    const expectedReservation = `.${runtimeMigrationCandidateDirName(candidateId)}.publish.lock`;
     return fs.readdirSync(candidatesRoot).some((name) =>
       name === expectedReservation ||
       name.endsWith(".partial") ||
-      /^\.candidate-[a-f0-9]{64}\.publish\.lock$/.test(name));
+      /^\.c-[a-f0-9]{24}\.publish\.lock$/.test(name));
   } catch {
     return true;
   }
@@ -509,12 +513,10 @@ function verifyStagedMigrationCandidate(
 ) {
   try {
     const root = requireStagingDirectory(candidateDirectory);
-    requireExactStagingEntries(root, ["candidate.json", "candidate.sha256", "payload"]);
+    requireExactStagingEntries(root, ["candidate.json", "candidate.sha256", "projects"]);
     const manifestPath = path.join(root, "candidate.json");
     const digestPath = path.join(root, "candidate.sha256");
-    const payloadRoot = requireStagingDirectory(path.join(root, "payload"));
-    requireExactStagingEntries(payloadRoot, ["projects"]);
-    const projectsRoot = requireStagingDirectory(path.join(payloadRoot, "projects"));
+    const projectsRoot = requireStagingDirectory(path.join(root, "projects"));
     requireStagingFile(manifestPath);
     requireStagingFile(digestPath);
     const serialized = fs.readFileSync(manifestPath, "utf8");

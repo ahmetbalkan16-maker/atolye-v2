@@ -13,6 +13,7 @@ import {
 import { verifyRuntimeBackup } from "../src/lib/runtime/backup/RuntimeBackupVerifier";
 import { RuntimeMigrationCandidateError } from "../src/lib/runtime/migration/RuntimeMigrationCandidateError";
 import {
+  runtimeMigrationCandidateDirName,
   runtimeMigrationCandidateId,
   runtimeMigrationCandidateIdentitySha256,
   runtimeMigrationCandidateManifestSha256,
@@ -158,7 +159,9 @@ function createFixture(): Fixture {
     candidateRoot,
     request,
     candidateId,
-    candidateDirectory: path.join(candidateRoot, "candidates", candidateId),
+    candidateDirectory: path.join(
+      candidateRoot, "candidates", runtimeMigrationCandidateDirName(candidateId),
+    ),
   };
 }
 
@@ -371,7 +374,10 @@ scenario("happy path", () => {
   assert.equal(result.candidateCreated, true);
   assert.equal(result.candidateReused, false);
   assert.equal(result.cutoverAuthorized, false);
-  assert.equal(result.candidateLocator, `candidates/${fixture.candidateId}`);
+  assert.equal(
+    result.candidateLocator,
+    `candidates/${runtimeMigrationCandidateDirName(fixture.candidateId)}`,
+  );
   assert.equal(verifyMigrationCandidate(fixture.candidateDirectory).valid, true);
   assert.equal(fs.readdirSync(path.join(fixture.candidateRoot, "candidates")).length, 1);
   const publicJson = JSON.stringify(result);
@@ -762,7 +768,7 @@ scenario("orphan-suspect mutation cleanup requires recovery", () => {
 scenario("reservation ownership mismatch requires recovery", () => {
   const fixture = current();
   const reservation = path.join(fixture.candidateRoot, "candidates",
-    `.${fixture.candidateId}.publish.lock`);
+    `.${runtimeMigrationCandidateDirName(fixture.candidateId)}.publish.lock`);
   expectCode("CANDIDATE_RECOVERY_REQUIRED", () => createCandidate(fixture, {
     afterFinalPublish: () => {
       fs.unlinkSync(reservation);

@@ -5,7 +5,6 @@ import {
   runtimeBackupFormatVersion,
   runtimeBackupFormatVersionV2,
   runtimeBackupFormatVersionV3,
-  runtimeBackupManifestSchemaVersion,
   runtimeBackupManifestSchemaVersionV2,
   runtimeBackupManifestSchemaVersionV3,
   type RuntimeBackupManifest,
@@ -18,6 +17,7 @@ import {
 } from "@/lib/runtime/backup/RuntimeBackupPathPolicy";
 import {
   minimalRuntimeDirectoryClosure,
+  runtimeMigrationCandidateDirName,
   runtimeMigrationCandidateManifestSha256,
   serializeRuntimeMigrationCandidateManifest,
   validateRuntimeMigrationCandidateManifest,
@@ -49,15 +49,13 @@ export function verifyMigrationCandidate(
     if (path.basename(candidateRoot).includes(".partial")) {
       throw new RuntimeMigrationCandidateError("CANDIDATE_INVALID");
     }
-    requireExactEntries(candidateRoot, ["candidate.json", "candidate.sha256", "payload"]);
+    // F13: `projects/` sits directly under the candidate directory (no `payload/`).
+    requireExactEntries(candidateRoot, ["candidate.json", "candidate.sha256", "projects"]);
     const manifestPath = path.join(candidateRoot, "candidate.json");
     const digestPath = path.join(candidateRoot, "candidate.sha256");
-    const payloadRoot = path.join(candidateRoot, "payload");
-    const projectsRoot = path.join(payloadRoot, "projects");
+    const projectsRoot = path.join(candidateRoot, "projects");
     requireRegularFile(manifestPath);
     requireRegularFile(digestPath);
-    requireAbsoluteDirectory(payloadRoot);
-    requireExactEntries(payloadRoot, ["projects"]);
     requireAbsoluteDirectory(projectsRoot);
 
     const serialized = fs.readFileSync(manifestPath, "utf8");
@@ -77,7 +75,7 @@ export function verifyMigrationCandidate(
     if (serializeRuntimeMigrationCandidateManifest(manifest) !== serialized) {
       throw new RuntimeMigrationCandidateError("CANDIDATE_INVALID");
     }
-    if (path.basename(candidateRoot) !== manifest.candidateId) {
+    if (path.basename(candidateRoot) !== runtimeMigrationCandidateDirName(manifest.candidateId)) {
       throw new RuntimeMigrationCandidateError("CANDIDATE_ID_MISMATCH");
     }
     const topology = inspectProjectsTree(projectsRoot);
@@ -155,30 +153,27 @@ export function runtimeBackupManifestFromCandidateManifest(
 }
 
 function asBackupManifest(candidate: RuntimeMigrationCandidateManifest): RuntimeBackupManifest {
+  // F14 — the candidate is the portable, authority-free projection of the backup.
+  // A `runtime-backup-v4` source is re-materialised against its `runtime-backup-v3`
+  // (path-policy-v3) equivalent: identical files / aggregate / project identities,
+  // minus the source host's `sourceRuntimeAuthority`, which the candidate never
+  // carries. `verifyRuntimeTreeAgainstManifest` only needs the file integrity.
   const isV4 = candidate.sourceBackup.formatVersion === runtimeBackupFormatVersion;
   const isV3 = candidate.sourceBackup.formatVersion === runtimeBackupFormatVersionV3;
+  const portablePathPolicyV3 = isV4 || isV3;
   return {
-    schemaVersion: isV4
-      ? runtimeBackupManifestSchemaVersion
-      : isV3
-        ? runtimeBackupManifestSchemaVersionV3
-        : runtimeBackupManifestSchemaVersionV2,
-    backupFormatVersion: isV4
-      ? runtimeBackupFormatVersion
-      : isV3
-        ? runtimeBackupFormatVersionV3
-        : runtimeBackupFormatVersionV2,
-    ...(isV4
+    schemaVersion: portablePathPolicyV3
+      ? runtimeBackupManifestSchemaVersionV3
+      : runtimeBackupManifestSchemaVersionV2,
+    backupFormatVersion: portablePathPolicyV3
+      ? runtimeBackupFormatVersionV3
+      : runtimeBackupFormatVersionV2,
+    ...(portablePathPolicyV3
       ? {
           pathPolicyVersion: runtimeBackupPathPolicyVersionV3,
           sourceProjectIdentities: candidate.sourceBackup.sourceProjectIdentities ?? [],
         }
-      : isV3
-        ? {
-            pathPolicyVersion: runtimeBackupPathPolicyVersionV3,
-            sourceProjectIdentities: candidate.sourceBackup.sourceProjectIdentities ?? [],
-          }
-        : { pathPolicyVersion: runtimeBackupPathPolicyVersionV2 }),
+      : { pathPolicyVersion: runtimeBackupPathPolicyVersionV2 }),
     aggregateAlgorithm: runtimeBackupAggregateVersion,
     storagePolicyVersion: candidate.sourceBackup.storagePolicyVersion as RuntimeBackupManifest["storagePolicyVersion"],
     createdAt: candidate.sourceBackup.sourceCreatedAt,

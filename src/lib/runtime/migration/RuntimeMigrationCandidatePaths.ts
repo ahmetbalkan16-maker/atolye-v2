@@ -9,16 +9,21 @@ import {
   runtimePathInside,
   sameRuntimePath,
 } from "@/lib/runtime/security/RuntimeProtectedRoots";
+import {
+  runtimeMigrationCandidateDirName,
+} from "./RuntimeMigrationCandidateManifest";
 import { RuntimeMigrationCandidateError } from "./RuntimeMigrationCandidateError";
 
 const candidateIdPattern = /^candidate-[a-f0-9]{64}$/;
 
 export interface RuntimeMigrationCandidatePathPlan {
   readonly candidateRoot: string;
+  /** `<candidateRoot>/candidates/c-<24hex>` — see `runtimeMigrationCandidateDirName`. */
   readonly candidateDirectory: string;
+  readonly candidateDirName: string;
   readonly manifestPath: string;
   readonly digestPath: string;
-  readonly payloadRoot: string;
+  /** The payload tree lives directly under the candidate directory (F13: no `payload/` level). */
   readonly projectsRoot: string;
   readonly persistent: boolean;
 }
@@ -74,20 +79,21 @@ export function planMigrationCandidatePaths(input: {
   if (!persistent && !input.allowTestTempRoot) {
     throw new RuntimeMigrationCandidateError("CAPABILITY_UNSUPPORTED");
   }
-  const relative = `candidates/${candidateId}`;
+  const candidateDirName = runtimeMigrationCandidateDirName(candidateId);
+  const relative = `candidates/${candidateDirName}`;
   try {
     validateRuntimeBackupMutationRelativePath(relative, candidateRoot);
   } catch {
     throw new RuntimeMigrationCandidateError("PATH_POLICY_VIOLATION");
   }
-  const candidateDirectory = path.resolve(candidateRoot, "candidates", candidateId);
+  const candidateDirectory = path.resolve(candidateRoot, "candidates", candidateDirName);
   return Object.freeze({
     candidateRoot,
     candidateDirectory,
+    candidateDirName,
     manifestPath: path.join(candidateDirectory, "candidate.json"),
     digestPath: path.join(candidateDirectory, "candidate.sha256"),
-    payloadRoot: path.join(candidateDirectory, "payload"),
-    projectsRoot: path.join(candidateDirectory, "payload", "projects"),
+    projectsRoot: path.join(candidateDirectory, "projects"),
     persistent,
   });
 }
