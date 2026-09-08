@@ -1,13 +1,81 @@
 ---
 
+## Sprint 193 - C.2B.9b COMMITTED + MIGRATION READINESS AUDIT RE-RUN (GO) - 2026-09-08
+
+**Status:** Sprint 192'nin C.2B.9b değişiklikleri **COMMIT EDİLDİ** (2 commit, repo convention'ına
+göre): `a7f894c feat(runtime): close genesis migration authority blockers (C.2B.9b)` (7 dosya) +
+`5953634 docs(checkpoint): Sprint 192 — ... READY` (3 dosya). **PUSH YAPILMADI** (emir gereği).
+HEAD `5953634`, origin'in **14 commit önünde**, 0 arkasında.
+
+Ardından tam **MIGRATION READINESS AUDIT RE-RUN** (read-only) yapıldı → **KARAR: GO**
+("migration teknik olarak hazır"). **`cutoverAuthorized = false` DEĞİŞMEDİ.** Bu sprintte
+**GERÇEK MIGRATION YAPILMADI**, `.env.local` / `git rm --cached` / `data/projects` move-copy-rename
+YOK, Execution Gate CLOSED.
+
+### Scope doğrulaması (Sprint 192 diff)
+
+10 dosya, hepsi C.2B.9b kapsamında. Yasaklı dokunuş yok: `data/projects/**` diff'te yok,
+`.env.local` yok, Execution Gate yok, `PipelineRunner`/`BrainWorkerCycle` import yok (yeni kodun
+statik testi doğruluyor), production-execution schema değişikliği yok, `.gitignore`/`.gitattributes`
+yok, UI/API/mobile/voice yok.
+
+### Regression (Sprint 193)
+
+`smoke:c2b9b-genesis-transition` **16** · `c2b9-authority-transition` **21** ·
+`c2b6-authority-generation-marker` **14** · `c2b6b-authority-generation-enforcement` **19** ·
+`c2b5-image-serving` **12** · `smoke-production-execution-durable-storage` **63** ·
+`external-runtime-root-project-lifecycle` **7** · `project-storage-hygiene` **10** ·
+`ayas-access-gate` **14** · `ayas-intent-intake` **13** → **PASS**.
+`npx tsc --noEmit` temiz · `npx eslint .` **0 error / 22 warning (baseline)** · `npx next build` OK.
+**Pre-existing FAIL (baseline'dan ayrı):** `smoke-sprint-129-25c-2a` + `smoke-sprint-129-25c-2b-4`
+— **clean HEAD'de (`git stash -u`) aynı şekilde fail ediyorlar**; ikisi de bu sprintin
+değiştirdiği 10 dosyayı import etmiyor. Sprint 193 regression'ı DEĞİL.
+
+### Audit RE-RUN — bölüm bölüm (hepsi read-only)
+
+| Başlık | Sonuç |
+|---|---|
+| A. Storage authority | **PASS** — canlı kodda `process.cwd()/data/projects` fallback yok; tüm asset/proje adapter'ları `resolveRuntimeStorageContext` / `resolveRuntimeLogicalPath` üzerinden; `data/projects/${slug}/...` string'leri **logical path**, canonical context'e anchor oluyor. `projects/VisualManager.ts` hâlâ ölü (F7, `data/visuals`, 0 importer). |
+| B. Genesis | **PASS** — `legacy-default → explicit-external` destekleniyor: source marker absent + `active-authority.json` absent + target explicit-external + not quarantined → sequence 1. |
+| C. Split-brain (F11) | **PASS** — carve-out kaldırıldı; `active` null iken check no-op (dev değişmedi), `active` varken farklı root → `RUNTIME_AUTHORITY_NOT_ACTIVE` TÜM classification'lara (legacy dahil). Gerçek child boot smoke'u (sc.6) kanıtlıyor. |
+| D. Byte-exact (F3) | **PASS** — `prepare` → `sourceFreeze.contentDigest` (per-file SHA-256, marker hariç); `validate` → tam eşitlik yoksa `TRANSITION_TARGET_CONTENT_MISMATCH`; mutated/missing/extra/symlink/non-regular hepsi fail-closed. |
+| E. Durable execution | **PASS** — 130 tracked `production-execution` kaydında absolute path / runtimeRoot / authorityRoot / workspaceRoot / resolverBindingIdentity YOK → location-independent, schema migration gereksiz. Bu sprint `src/lib/production/**` ve `RuntimeStoragePaths.ts`'e dokunmadı. Byte-exact copy şartı runbook'ta. |
+| F. Quiescence | **PASS** — worker `∈ {created, stopped}` şart; relocation/genesis durable-clean şart, recovery kaydeder ama gate etmez. Quiescence worker'ı **force-stop ETMEZ** (operatör durdurur; `--assert-worker-stopped` + durable scan). |
+| G. Publish / point of no return | **PASS** — `published` → yalnızca `old-root-quarantined`; ters kenar yok; `failTransition` published+'dan `TRANSITION_ILLEGAL_STATE`. `active-authority.json` CAS + monotonic sequence. Sessiz rollback yok. |
+| H. Recovery | **PASS** — restore otomatik authority OLMAZ (`RUNTIME_AUTHORITY_NOT_ACTIVE`); explicit `beginRecoveryTransition` → fresh root; quarantined root'a recovery imkânsız (append-once). |
+| I. Old root | **PASS** — runtime-level quarantine; quarantined binding boot → `RUNTIME_AUTHORITY_ROOT_QUARANTINED`. Raw fs.write threat-model dışı (runbook eski ağacı read-only rename ediyor). |
+| J. Operator CLI | **PASS** — 10 subcommand; absolute path + `..` reddi + real dir + `validateSafeAncestorChain` (symlink/junction) + transition-id + generation pattern; `quiesce` `--assert-worker-stopped` zorunlu + per-project `ProductionExecutionDurableRecoveryService.scan()`. CLI proje verisi kopyalamıyor. |
+| K. Runbook | **PASS** — `docs/PROJECT_STORAGE.md §6` = precheck → backup → begin-genesis → quiesce → materialize byte-exact → prepare → validate → publish → quarantine → set root → rename → restart → verify → C.2B.12 → deletion. `cp -r` / manuel re-serialization açıkça YASAK. |
+| L. `.partial` | **PASS** — 27 dosya, hepsi `i-stanbul-un-fethi-1453/production-execution/{audio-compensation-cleanup,audio-compensation-recovery}/.audio-journal-staging/` (13+14), `<name>.json.<uuid>.partial`. `RuntimeBackupInventory` + `RuntimeBackupService` zaten exclude ediyor. EXCLUDE-SAFE. |
+| M. Brain separation | **PASS** — `data/brain/{queue,autonomy,ayas-intents}` gitignored, brain store'ları `process.cwd()/data/brain` — `projectsRoot`'tan ayrı. MIGRATE EDİLMEZ. |
+| N. Security | **PASS** — `ayasExecutionGate = "CLOSED" as const`; hiçbir yerde `= "OPEN"` yok; yeni kod `PipelineRunner`/`BrainWorkerCycle`/`ffmpeg` import etmiyor (yalnız read-only `ProductionExecutionDurableRecoveryService.scan`). Access gate / middleware / auth route'ları 2 commit tarafından dokunulmadı. Authority activation ≠ execution activation. |
+
+### Kalan bulgular (non-blocking, taşınıyor)
+
+F6 (P2) `ProductionReadinessService` probe context frozen context değil — temp-isolated, veri riski yok.
+F7/F8/F9 (INFO) ölü `projects/VisualManager.ts` · `data/brain` ayrı root · ~1742 untracked
+`production-execution` kaydı fs ağacıyla taşınır (C.2B.12 yalnız 130 tracked'e dokunur).
+Binding doc "Known limitations": raw fs.write engellenmez (threat-model dışı) · quiescence
+force-stop yok · source+target aynı authority-root · her iki ağaç dururken DUAL_ROOT_DIVERGENCE
+(kasıtlı) · quarantined root'a recovery yok.
+
+### Sıradaki tek adım
+
+**AYRI, AÇIK BİR MIGRATION SPRINT'İ** — kullanıcı emriyle. O sprint: backup → begin-genesis →
+quiesce → byte-exact materialize → prepare → validate → **publish (cutover)** → quarantine →
+`.env.local` root'ları → eski ağacı rename → restart → verify. `cutoverAuthorized` ancak orada
+`true` olur. C.2B.12 (git untracking) ayrı reviewed sprint.
+
+<!-- SPRINT-193-END -->
+
 ## Sprint 192 - MIGRATION READINESS AUDIT (NO-GO) + C.2B.9b: genesis transition + operator layer - 2026-09-08
 
 **Status:** Audit → **NO-GO** (6 P1). C.2B.9b implemented those 6 P1 → **C.2B.9b = READY** (kendi
-review'ı aşağıda). **COMMIT YAPILMADI, PUSH YAPILMADI** (C.2B.9b emri: "commit OLUŞTURULMAYACAK").
-Değişiklikler working-tree'de bekliyor. `npx tsc --noEmit` temiz. `npx eslint .` = **0 error / 22
-warning (baseline)**. `npx next build` başarılı. `data/projects/**` = **2388 dosya / 611005467 byte /
-220 tracked / digest e95681751674ca0d2e67c9bdb415889fdc851124 — DEĞİŞMEDİ**. `.env.local` mtime
-değişmedi. HEAD hâlâ `97a420b` (commit yok).
+review'ı aşağıda). _(Sprint 192 emri gereği o oturumda commit edilmedi; **Sprint 193'te commit
+edildi** — `a7f894c` + `5953634`. PUSH hâlâ yapılmadı.)_ `npx tsc --noEmit` temiz. `npx eslint .` =
+**0 error / 22 warning (baseline)**. `npx next build` başarılı. `data/projects/**` = **2388 dosya /
+611005467 byte / 220 tracked / digest e95681751674ca0d2e67c9bdb415889fdc851124 — DEĞİŞMEDİ**.
+`.env.local` mtime değişmedi.
 
 ### BÖLÜM 1 — MIGRATION READINESS AUDIT (read-only, GO/NO-GO)
 
