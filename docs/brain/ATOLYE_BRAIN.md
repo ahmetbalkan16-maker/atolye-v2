@@ -79,7 +79,7 @@ services still *do the work*.
 | `worker/BrainTaskStore.ts` | Durable JSON-file persistence under `BrainTaskQueue` — `queue/tasks.json` + `queue/results/<cycle>.json`; atomic writes, reject-on-leak, payload caps, corrupt/schema-mismatch fails loud, idempotent enqueue + result save, every save re-validates the whole queue. Queue logic unchanged. | fs (own `rootDir` only) |
 | `worker/BrainWorkerCycle.ts` | The PC-off worker cycle skeleton — load queue → pick runnable `auto-safe` tasks (under `maxTasksPerCycle` / `cycleBudgetMs`) → run a **deterministic safe stub** per task → persist queue + results → build the morning report. Runs **nothing** (no model / GPU / pipeline / shell / network / fs); approval-gated tasks parked, forbidden tasks skipped. Imports only the queue model + report builder + store handle. | pure (store IO via the handle) |
 | `ui/BrainConsoleSnapshot.ts` | Read-only aggregate of the Brain's durable state (queue, last cycle, experience, conservative safety verdict) for the Brain Core UI. Writes nothing, runs nothing, no probe. Corrupt store → `errors[]`, not a crash. | fs (read-only) |
-| `src/components/brain/` | Brain Core UI — `brainCore.ts` (pure state model), `BrainCoreOrb.tsx` + `BrainCore.css` (CSS/SVG living orb, 7 states, reduced-motion aware, no WebGL/canvas/rAF), `BrainConsoleView.tsx` (pure presentational console), `BrainCoreConsole.tsx` (`"use client"` shell — panels, deterministic local chat, one read-only refresh Server Action, no client `fetch`). | React (presentational) |
+| `src/components/brain/` | Brain Core UI — `brainCore.ts` (pure state model + per-state character line), `BrainCoreOrb.tsx` + `BrainCore.css` (deep "command-center" CSS/SVG living orb — 5 orbital rings, breathing core + bright nucleus, drifting particles, scanning arcs; 7 states each with a distinct character; reduced-motion aware; no WebGL/canvas/rAF; overflow-safe; desktop+tablet+mobile), `BrainConsoleView.tsx` (pure presentational command center — centred orb, state readout, minimal snapshot-only status cards, prominent panel tabs), `BrainCoreConsole.tsx` (`"use client"` shell — deterministic local chat, one read-only refresh Server Action, no client `fetch`). | React (presentational) |
 | `BrainDryRunExperience.ts` | `BrainRunPlan` → a `mode: "dry-run"` experience record (honest zeros, hidden from the learner) | pure |
 | `probe/BrainResourceProbe.ts` | Read-only host probe: `nvidia-smi --query-gpu` + `os` → `BrainResourceSnapshot`; A2000 **60 °C hard stop** check | read-only spawn |
 | `probe/BrainRenderProbe.ts` | Read-only `ffprobe -show_format -show_streams` → `BrainFinalRenderReport` for the quality judge | read-only spawn |
@@ -88,7 +88,7 @@ Types: `src/types/brain.ts`, `brainMemory.ts`, `brainWorker.ts`, `brainSecurity.
 Smoke suites: `scripts/smoke-brain-foundation.ts`, `smoke-brain-worker.ts`,
 `smoke-brain-security.ts`, `smoke-brain-plan-store.ts`, `smoke-brain-probes.ts`,
 `smoke-brain-task-store.ts`, `smoke-brain-worker-cycle.ts`,
-`smoke-brain-core-ui.ts` (~135 scenarios, GPU-free, $0, deterministic; the probe
+`smoke-brain-core-ui.ts` (~137 scenarios, GPU-free, $0, deterministic; the probe
 suite does two optional read-only live calls when `nvidia-smi` / `ffprobe` + an
 MP4 are present).
 

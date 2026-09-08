@@ -253,6 +253,40 @@ async function run() {
     assert.ok(err.includes('role="alert"'));
   });
 
+  await scenario("11b. the state readout under the orb shows label · tr + a character line", () => {
+    const html = renderView({ snapshot: baseSnapshot(), coreState: "thinking" });
+    assert.ok(html.includes("bc-stateline__label"));
+    assert.ok(html.includes(BRAIN_CORE_STATES.thinking.label));
+    assert.ok(html.includes(BRAIN_CORE_STATES.thinking.tr));
+    assert.ok(html.includes(BRAIN_CORE_STATES.thinking.characterTr));
+    // every state carries a non-empty premium one-liner
+    for (const s of Object.values(BRAIN_CORE_STATES)) {
+      assert.ok(s.characterTr.trim().length > 8, `characterTr for ${s.state}`);
+    }
+  });
+
+  await scenario("11c. status cards are drawn only from the real snapshot; research/production are 'off'", () => {
+    const empty = renderView({ snapshot: baseSnapshot() });
+    assert.ok(empty.includes('data-testid="bc-cards"'));
+    for (const k of ["Tasks", "Memory", "Learning", "Safety", "Research", "Production"]) {
+      assert.ok(empty.includes(k), `missing status card ${k}`);
+    }
+    assert.ok(empty.includes("bc-statcard--off"), "research/production render as an 'off' card");
+
+    const withData = renderView({
+      snapshot: baseSnapshot({
+        connected: { tasks: true, cycles: true, experience: true },
+        tasks: { ...baseSnapshot().tasks, total: 7, pendingApproval: 2 },
+        cyclesRecorded: 3,
+        experience: { total: 4, lastTopic: "İstanbul 1453" },
+      }),
+    });
+    assert.ok(withData.includes(">7<"), "tasks total card shows the real number");
+    assert.ok(withData.includes("2 onay bekliyor"));
+    assert.ok(withData.includes("bc-statcard--warn"), "pending approval marks the tasks card as a warning");
+    assert.ok(withData.includes("İstanbul 1453"));
+  });
+
   await scenario("12. chat reply is deterministic, never fakes an LLM, reflects real numbers", () => {
     const snap = baseSnapshot({ cyclesRecorded: 2, tasks: { ...baseSnapshot().tasks, total: 4, pendingApproval: 1 } });
     const a = brainDeterministicReply("merhaba", snap, 1);
@@ -267,12 +301,15 @@ async function run() {
 
   /* --------------------- D. responsive / perf (static) --------------- */
 
-  await scenario("13. CSS is responsive + reduced-motion aware + has no WebGL/canvas", () => {
+  await scenario("13. CSS is responsive + reduced-motion aware + overflow-safe + no WebGL/canvas", () => {
     const rawCss = fs.readFileSync(path.join(REPO_ROOT, "src/components/brain/BrainCore.css"), "utf8");
     const css = rawCss.replace(/\/\*[\s\S]*?\*\//g, ""); // drop comments — check rules, not prose
     assert.ok(css.includes("@media (min-width: 960px)"), "missing desktop breakpoint");
+    assert.ok(css.includes("@media (max-width: 640px)"), "missing mobile breakpoint");
     assert.ok(css.includes("prefers-reduced-motion"), "missing reduced-motion guard");
     assert.ok(css.includes("100dvh"), "expected dynamic viewport height for mobile");
+    assert.ok(/\.bc-shell\s*\{[^}]*overflow-x:\s*hidden/.test(css), "shell must clip horizontal overflow");
+    assert.ok(css.includes("clamp("), "expected fluid clamp() sizing");
     for (const banned of ["WebGL", "getContext", "canvas", "requestAnimationFrame"]) {
       assert.ok(!css.includes(banned), `CSS must not reference ${banned}`);
     }

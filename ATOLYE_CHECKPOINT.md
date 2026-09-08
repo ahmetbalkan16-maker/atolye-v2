@@ -1,5 +1,41 @@
 ---
 
+## Sprint 185 - Atölye Brain Core: görsel yükseltme (holographic command center) (PHASE 6) - 2026-09-08
+
+**Status:** TAMAM — **yalnız görsel/UI**, hiçbir backend/mimari değişiklik yok. `npx tsc --noEmit`
+temiz. `npx eslint .` = 0 error / 22 warning (baseline). 8 Brain smoke suite **~137 senaryo PASS**
+(`smoke-brain-core-ui` 17 → **19**; diğer 7 suite değişmedi). `/brain` → HTTP 200 (dev server,
+19.6 KB), `/api/brain/snapshot` → HTTP 200 `{gate:"CLOSED", errors:0}`. **Execution gate CLOSED**
+doğrulandı. GPU / Ollama / model / production / network / FFmpeg — 0. `.env.local` /
+`data/projects/**` değişmedi. Kullanıcı çalışma-ağacı (751 dosya) korundu. HEAD `f1728b8` üzerine.
+
+### Değiştirilen dosyalar (4 — hepsi `src/components/brain/`)
+
+| Dosya | Değişiklik |
+|---|---|
+| `BrainCore.css` | Tam yeniden yazım — derin/premium "command center" dili. Nokta-grid + vignette arka plan; 5 orbital ring + nefes alan çekirdek + parlak nucleus + sürüklenen parçacıklar + 2 tarama arcı; her state'e özel karakter (`[data-state]` kuralları); `bc-topbar`, `bc-stateline`, `bc-cards/bc-statcard`, `bc-panel` command-center. `@media min-width:960px` + **YENİ `@media max-width:640px`**, `.bc-shell { overflow-x: hidden }`, `100dvh`, `clamp()` akışkan boyut. `prefers-reduced-motion` tüm yeni animasyonları durduruyor. WebGL/canvas/`requestAnimationFrame` **yok**. |
+| `BrainCoreOrb.tsx` | Daha zengin orb — 5 ring, 6 parçacık, `bc-orb__nucleus`, `bc-orb__field` (2 karşı-dönen parçacık alanı), 2 `bc-orb__scan-arc`. `size` artık opsiyonel (verilmezse CSS `clamp()` responsive; verilirse px sabit — smoke uyumu). `data-state`/`data-hue`/`role="img"`/`aria-label`/`bc-orb__core`/`bc-orb__particles` korundu. |
+| `BrainConsoleView.tsx` | Command-center düzeni — üstte ATÖLYE / BRAIN CORE, sağ üst ⛨ yürütme kapısı rozeti (CSS ile uppercase). Merkezde büyük orb → altında `LABEL · TR` + kısa premium karakter satırı. Minimal durum kartları (TASKS/MEMORY/LEARNING/SAFETY gerçek snapshot'tan; RESEARCH/PRODUCTION → "Not connected" `bc-statcard--off`). Sağ panel: belirgin tab'ler + aktif panel. **Tüm `data-testid`'ler + metin işaretçileri korundu** (`bc-tab-*`, `bc-refresh`, `bc-not-connected`, `bc-tasks(-empty)`, `bc-safety`, `bc-learning(-empty)`, "Yürütme kapısı: CLOSED", "proceed-with-constraints", "conservative bundle", "1 onay bekliyor" …). |
+| `brainCore.ts` | `BrainCoreStateInfo`'ya eklemeli `characterTr` alanı (7 state için premium tek-satır). `deriveBrainCoreState` / `mapTaskStatusToDisplay` / `BRAIN_PANELS` / `brainDeterministicReply` **değişmedi**. |
+
+**DEĞİŞTİRİLMEDİ:** `BrainConsoleSnapshot.ts`, `BrainTaskStore.ts`, `BrainExperienceStore.ts`,
+`BrainSafetyGovernor.ts`, `BrainWorkerCycle.ts`, `app/brain/*`, `app/api/brain/*`, `app/globals.css`,
+`app/layout.tsx`, `src/types/*`. UI hâlâ mevcut read-only altyapının üzerinde; yürütme tetikleyicisi yok.
+
+### Testler
+
+`smoke-brain-core-ui.ts` +2 senaryo: (11b) orb altındaki state readout `label · tr` + karakter satırı
++ her state'in dolu `characterTr`'si; (11c) durum kartları yalnız gerçek snapshot'tan, research/production
+`--off`, pendingApproval → `--warn`. Senaryo 13 genişletildi: mobil breakpoint + `overflow-x:hidden` +
+`clamp()` kontrolü. Mevcut 17 senaryonun tamamı hâlâ PASS.
+
+### Sonuç
+
+`/brain` artık beyaz/seyrek değil; derin, yaşayan bir Brain Core / holographic command center.
+Execution gate CLOSED — Brain hiçbir production/GPU/model yetkisi kazanmadı.
+
+<!-- SPRINT-185-END -->
+
 ## Sprint 183/184 - Atölye Brain: Worker Cycle iskeleti + Brain Core UI (PHASE 6) - 2026-09-08
 
 **Status:** KOD + TEST + DOKÜMAN TAMAM. `npx tsc --noEmit` temiz (tüm repo). `npx eslint .` = 0 error

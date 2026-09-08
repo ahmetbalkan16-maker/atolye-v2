@@ -1,18 +1,20 @@
 /**
- * Atölye Brain Core — console view (Sprint 184).
+ * Atölye Brain Core — command-center view (Sprint 185).
  *
  * Pure presentational. Given a snapshot + UI state it renders the whole Brain
- * Core: the orb, the execution-gate badge, the panel tabs, and the active
- * panel. Interaction handlers are optional so `renderToStaticMarkup` can render
- * it in the smoke suite with data alone.
+ * Core: the living orb at the true centre, the state readout, minimal status
+ * cards drawn only from the real snapshot, the execution-gate badge, and the
+ * command-center panel. Interaction handlers are optional so
+ * `renderToStaticMarkup` can render it in the smoke suite with data alone.
  *
- * It never fabricates data: a panel with no backing state renders an honest
- * "Not connected" empty state.
+ * It never fabricates data: a panel or card with no backing state renders an
+ * honest "Not connected" state.
  */
 
 import { BrainCoreOrb } from "./BrainCoreOrb";
 import {
   BRAIN_PANELS,
+  describeBrainCoreState,
   findBrainPanel,
   mapTaskStatusToDisplay,
   type BrainChatMessage,
@@ -36,34 +38,44 @@ export interface BrainConsoleViewProps {
 
 export function BrainConsoleView(props: BrainConsoleViewProps) {
   const { snapshot, coreState, activePanel } = props;
+  const stateInfo = describeBrainCoreState(coreState);
+
   return (
     <div className="bc-shell">
-      <header style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "space-between", alignItems: "center" }}>
+      <header className="bc-topbar">
         <div>
-          <p style={{ margin: 0, fontSize: 12, letterSpacing: "0.2em", color: "var(--bc-text-dim)" }}>
-            ATÖLYE
-          </p>
-          <h1 style={{ margin: "4px 0 0", fontSize: 22 }}>Brain Core</h1>
+          <p className="bc-brand__eyebrow">Atölye</p>
+          <h1 className="bc-brand__title">Brain Core</h1>
         </div>
         <span className="bc-gate" title="The Brain has no production / GPU / model authority.">
+          <span className="bc-gate__lock" aria-hidden="true" />
           ⛨ Yürütme kapısı: {snapshot.executionGate}
         </span>
       </header>
 
-      <div className="bc-grid">
-        <section className="bc-card bc-stage">
-          <BrainCoreOrb state={coreState} />
-          <p style={{ margin: 0, color: "var(--bc-text-dim)", fontSize: 13, maxWidth: 420 }}>
-            Atölye&apos;nin merkezi burada. Beyin altyapısı okunuyor; hiçbir üretim,
-            model veya GPU işlemi çalıştırılmıyor.
-          </p>
+      <div className="bc-main">
+        <section className="bc-stage" aria-label="Brain Core">
+          <div className="bc-stage__orb">
+            <BrainCoreOrb state={coreState} showLabel={false} />
+          </div>
+
+          <div className="bc-stateline">
+            <span className="bc-stateline__label">{stateInfo.label}</span>
+            <span className="bc-stateline__sep" aria-hidden="true">·</span>
+            <span className="bc-stateline__tr">{stateInfo.tr}</span>
+          </div>
+          <p className="bc-character">{stateInfo.characterTr}</p>
+
           {snapshot.errors.length > 0 ? (
-            <div className="bc-empty" role="alert">
+            <div className="bc-alert" role="alert">
               {snapshot.errors.map((error, index) => (
                 <div key={index}>⚠ {error}</div>
               ))}
             </div>
           ) : null}
+
+          <StatusCards snapshot={snapshot} />
+
           <button
             type="button"
             className="bc-btn bc-btn--ghost"
@@ -75,7 +87,12 @@ export function BrainConsoleView(props: BrainConsoleViewProps) {
           </button>
         </section>
 
-        <section className="bc-card" aria-label="Brain panels">
+        <section className="bc-panel" aria-label="Brain command center">
+          <div className="bc-panel__head">
+            <p className="bc-panel__title">Command Center</p>
+            <span className="bc-panel__title" aria-hidden="true">{activePanel}</span>
+          </div>
+
           <nav className="bc-tabs" role="tablist" aria-label="Brain Core panels">
             {BRAIN_PANELS.map((panel) => (
               <button
@@ -87,13 +104,14 @@ export function BrainConsoleView(props: BrainConsoleViewProps) {
                 onClick={() => props.onSelectPanel?.(panel.id)}
                 data-testid={`bc-tab-${panel.id}`}
               >
-                <span aria-hidden="true">{panel.icon}</span>
+                <span className="bc-tab__icon" aria-hidden="true">{panel.icon}</span>
                 {panel.label}
+                {panel.connected ? null : <span className="bc-tab__off">off</span>}
               </button>
             ))}
           </nav>
 
-          <div role="tabpanel" style={{ marginTop: 16 }} data-panel={activePanel}>
+          <div className="bc-tabpanel" role="tabpanel" data-panel={activePanel}>
             <PanelBody {...props} />
           </div>
         </section>
@@ -101,6 +119,73 @@ export function BrainConsoleView(props: BrainConsoleViewProps) {
     </div>
   );
 }
+
+/* ---------------------------------------------------------- status cards --- */
+
+function StatusCards({ snapshot }: { snapshot: BrainConsoleSnapshot }) {
+  const pending = snapshot.tasks.pendingApproval;
+  return (
+    <div className="bc-cards" data-testid="bc-cards">
+      <StatCard
+        k="Tasks"
+        v={String(snapshot.tasks.total)}
+        s={pending > 0 ? `${pending} onay bekliyor` : "onay bekleyen yok"}
+        tone={pending > 0 ? "warn" : undefined}
+      />
+      <StatCard
+        k="Memory"
+        v={snapshot.connected.experience ? String(snapshot.experience.total) : "—"}
+        s={
+          snapshot.connected.experience
+            ? `son: ${snapshot.experience.lastTopic ?? "—"}`
+            : "Not connected"
+        }
+        tone={snapshot.connected.experience ? undefined : "off"}
+      />
+      <StatCard
+        k="Learning"
+        v={String(snapshot.cyclesRecorded)}
+        s={snapshot.lastCycle ? `son cycle işlenen: ${snapshot.lastCycle.tasksRun}` : "cycle kaydı yok"}
+      />
+      <StatCard
+        k="Safety"
+        v={snapshot.safety.decision}
+        s="probe yok — muhafazakâr"
+        tone={
+          snapshot.safety.decision === "hold" || snapshot.safety.decision === "abort"
+            ? "warn"
+            : undefined
+        }
+      />
+      <StatCard k="Research" v="Not connected" s="onaylı sonraki aşama" tone="off" />
+      <StatCard k="Production" v="Not connected" s="yürütme kapısı kapalı" tone="off" />
+    </div>
+  );
+}
+
+function StatCard({
+  k,
+  v,
+  s,
+  tone,
+}: {
+  k: string;
+  v: string;
+  s?: string;
+  tone?: "warn" | "off";
+}) {
+  const cls =
+    "bc-statcard" + (tone === "warn" ? " bc-statcard--warn" : tone === "off" ? " bc-statcard--off" : "");
+  return (
+    <div className={cls}>
+      <span className="bc-statcard__k">{k}</span>
+      <span className="bc-statcard__v">{v}</span>
+      {s ? <span className="bc-statcard__s">{s}</span> : null}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- panels --- */
 
 function PanelBody(props: BrainConsoleViewProps) {
   const { snapshot, activePanel } = props;
@@ -147,7 +232,13 @@ function ChatPanel(props: BrainConsoleViewProps) {
         )}
       </div>
       <div className="bc-composer">
-        <button className="bc-mic" type="button" aria-disabled="true" title="Sesli etkileşim yakında" data-testid="bc-mic">
+        <button
+          className="bc-mic"
+          type="button"
+          aria-disabled="true"
+          title="Sesli etkileşim yakında"
+          data-testid="bc-mic"
+        >
           🎙
         </button>
         <input
@@ -162,7 +253,7 @@ function ChatPanel(props: BrainConsoleViewProps) {
           Gönder
         </button>
       </div>
-      <p style={{ margin: 0, fontSize: 11.5, color: "var(--bc-text-dim)" }}>
+      <p className="bc-note">
         Konuşma katmanı (LLM rolleri) henüz bağlı değil — yanıtlar deterministik ve
         durum bilgisiyle sınırlı.
       </p>
@@ -193,7 +284,9 @@ function TasksPanel({ snapshot }: { snapshot: BrainConsoleSnapshot }) {
             <div key={task.taskId} className="bc-row">
               <span>
                 {task.title}
-                <span className="bc-row__meta"> · {task.kind} · {task.priority}</span>
+                <span className="bc-row__meta">
+                  {" "}· {task.kind} · {task.priority}
+                </span>
               </span>
               <span className={`bc-badge bc-badge--${display.tone}`}>{display.label}</span>
             </div>
@@ -234,11 +327,17 @@ function LearningPanel({ snapshot }: { snapshot: BrainConsoleSnapshot }) {
       <dt>Son cycle</dt>
       <dd>{cycle.cycleId}</dd>
       <dt>Pencere</dt>
-      <dd>{cycle.startedAt} → {cycle.finishedAt}</dd>
+      <dd>
+        {cycle.startedAt} → {cycle.finishedAt}
+      </dd>
       <dt>Değerlendirilen / işlenen</dt>
-      <dd>{cycle.tasksConsidered} / {cycle.tasksRun}</dd>
+      <dd>
+        {cycle.tasksConsidered} / {cycle.tasksRun}
+      </dd>
       <dt>Sorun / onay bekleyen</dt>
-      <dd>{cycle.problemsFound} / {cycle.awaitingApproval}</dd>
+      <dd>
+        {cycle.problemsFound} / {cycle.awaitingApproval}
+      </dd>
       <dt>Sıradaki adım</dt>
       <dd>{cycle.nextSingleStep}</dd>
     </dl>
@@ -258,7 +357,7 @@ function SafetyPanel({ snapshot }: { snapshot: BrainConsoleSnapshot }) {
         <dt>Yürütme kapısı</dt>
         <dd>{snapshot.executionGate}</dd>
       </dl>
-      <ul style={{ margin: "12px 0 0", paddingLeft: 18, color: "var(--bc-text-dim)", fontSize: 13 }}>
+      <ul className="bc-reasons">
         {snapshot.safety.reasons.map((reason, index) => (
           <li key={index}>{reason}</li>
         ))}

@@ -27,6 +27,8 @@ export interface BrainCoreStateInfo {
   readonly label: string;
   readonly tr: string;
   readonly description: string;
+  /** Short, premium one-liner shown under the orb (Turkish). */
+  readonly characterTr: string;
   /** Relative glow / motion intensity, 0–1, for the orb. */
   readonly intensity: number;
   /** Hue family the orb shifts toward in this state. */
@@ -40,6 +42,7 @@ export const BRAIN_CORE_STATES: Readonly<Record<BrainCoreState, BrainCoreStateIn
       label: "Idle",
       tr: "Hazır",
       description: "Brain is ready and waiting.",
+      characterTr: "Sakin nefes alan çekirdek — beklemede.",
       intensity: 0.35,
       hue: "cyan",
     },
@@ -48,6 +51,7 @@ export const BRAIN_CORE_STATES: Readonly<Record<BrainCoreState, BrainCoreStateIn
       label: "Active",
       tr: "Etkin",
       description: "Talking with you / taking your input.",
+      characterTr: "Girdini alıyor — enerji canlanıyor.",
       intensity: 0.6,
       hue: "cyan",
     },
@@ -56,6 +60,7 @@ export const BRAIN_CORE_STATES: Readonly<Record<BrainCoreState, BrainCoreStateIn
       label: "Thinking",
       tr: "Düşünüyor",
       description: "Running a safe analysis or planning step.",
+      characterTr: "Halkalar dönüyor, tarama sürüyor — güvenli analiz.",
       intensity: 0.75,
       hue: "violet",
     },
@@ -64,6 +69,7 @@ export const BRAIN_CORE_STATES: Readonly<Record<BrainCoreState, BrainCoreStateIn
       label: "Learning",
       tr: "Öğreniyor",
       description: "Reviewing experience / knowledge.",
+      characterTr: "Bilgi akışı yoğunlaşıyor — deneyim taranıyor.",
       intensity: 0.7,
       hue: "emerald",
     },
@@ -72,6 +78,7 @@ export const BRAIN_CORE_STATES: Readonly<Record<BrainCoreState, BrainCoreStateIn
       label: "Working",
       tr: "Çalışıyor",
       description: "A Brain Worker cycle is processing safe tasks.",
+      characterTr: "Güçlü ama kontrollü aktivite — worker cycle işliyor.",
       intensity: 0.85,
       hue: "violet",
     },
@@ -80,6 +87,7 @@ export const BRAIN_CORE_STATES: Readonly<Record<BrainCoreState, BrainCoreStateIn
       label: "Warning",
       tr: "Uyarı",
       description: "Something needs your approval or attention.",
+      characterTr: "Dikkat gerekiyor — onay veya inceleme bekleyen bir durum var.",
       intensity: 0.9,
       hue: "amber",
     },
@@ -88,6 +96,7 @@ export const BRAIN_CORE_STATES: Readonly<Record<BrainCoreState, BrainCoreStateIn
       label: "Error",
       tr: "Hata",
       description: "A read failed — check the details.",
+      characterTr: "Bir okuma başarısız — ayrıntıları kontrol et.",
       intensity: 1,
       hue: "rose",
     },
