@@ -327,36 +327,82 @@ Coverage: `scripts/smoke-c2b11-old-root-quarantine.ts` (15 scenarios).
   quarantine mark is append-once, no un-quarantine) — recovery always goes to a
   fresh root.
 
-## 9. F13 — candidate materialized-path budget (OPEN, P0 for the real migration)
+## 9. F13 — candidate materialized-path budget — CLOSED (Sprint 202)
 
 Sprint 201's real execution run got a verified 611 MB backup
 (`D:\AtolyeBackup\backups\b-fee58282da89`, aggregate `361b47af…`), then
-**`runtime:migration:candidate:create` failed with `PATH_POLICY_VIOLATION`**:
+`runtime:migration:candidate:create` failed with `PATH_POLICY_VIOLATION`:
 `assertRuntimeBackupMaterializedPath` (limit `materializedPathUtf16 = 259`)
-rejects **329 of the 2360 files** — 321 `durable-execution` records + 8
-`other-runtime` — when materialised under
-`<candidateRoot>\candidates\candidate-<64hex>\payload\projects\<projectId>\…`.
+rejected **329 of the 2360 files** (321 `durable-execution` + 8 `other-runtime`)
+under `<candidateRoot>\candidates\candidate-<64hex>\payload\projects\<projectId>\…`
+(worst 290). The blocker was the **74-char `candidate-<64hex>` directory** + the
+`payload/projects/` nesting on top of the 64-hex-hashed durable-record filenames.
+The final runtime target (`D:\AtolyeRuntime\projects\<projectId>\…`) was only 194
+— always fine; only the intermediate immutable candidate artifact overflowed.
 
-- The blocker is the **`candidate-<64hex>` directory (74 chars)** + the
-  `payload/projects/` nesting on top of `production-execution/{attempts,claims,
-  idempotency,…}/pipeline-{attempt,record,claim}-<64hex-sha256>-vN.json`
-  (the durable-record filenames carry a 64-hex hash).
-- Worst candidate path = **290 chars**; even the theoretically-shortest root
-  `D:\C` still fails on **241 files** (worst 276).
-- The **final runtime target** path (`D:\AtolyeRuntime\projects\<projectId>\…`)
-  is only **194 chars — 0 failures**. The destination is fine; only the
-  intermediate immutable candidate artifact is too long.
-- This machine has Windows `LongPathsEnabled = 1`, but `assertRuntimeBackupMaterializedPath`
-  enforces 259 unconditionally (the "portable candidate" guarantee).
+### Fix — shortened, authority-free candidate layout
 
-**Fix requires its own reviewed sprint** — a change to the verified candidate
-contract: shorten the candidate directory name (`candidate-<64hex>` →
-e.g. `c-<24hex>`) and/or drop the `payload/` level, keeping the id / manifest /
-digest binding consistent, plus all `129-25c-2b-*` / `c2b10a` candidate tests.
-Real migration is **NO-GO** until F13 is closed.
+| Before (Sprint 201) | After (Sprint 202) |
+|---|---|
+| `<root>/candidates/candidate-<64hex>/payload/projects/<rel>` | `<root>/candidates/c-<24hex>/projects/<rel>` |
+| worst 290 (**329 over 259**) | worst **234 (0 over 259)** |
 
-### Next → re-run the migration readiness audit
+- **Full cryptographic identity is unchanged.** `candidateId` is still
+  `candidate-<64hex>` — a content-address of `sourceBackup.manifestSha256` +
+  `aggregateFingerprint` + policy versions — recorded verbatim in `candidate.json`
+  and re-verified in full by `verifyMigrationCandidate` / `validateManifest` /
+  the `reuseExistingCandidate` identity + policy SHA checks. `candidate.sha256`,
+  `runtimeMigrationCandidateIdentitySha256`, and every binding are byte-identical.
+- The **on-disk directory** is `runtimeMigrationCandidateDirName(candidateId)` =
+  `c-` + the first 24 hex (96 bits) of the same digest — a filesystem handle, not
+  an identity. A `c-<24hex>` prefix collision (2⁻⁹⁶ per distinct-backup pair) is
+  still caught fail-closed: `verifyMigrationCandidate` recomputes the full
+  `candidateId` from the manifest, and `createOwnedDirectory` is exclusive.
+- The **`payload/` nesting level is removed** — the candidate directory holds
+  `candidate.json`, `candidate.sha256`, `projects/` directly. Backups keep
+  `payload/projects/` (unchanged). `verifyMigrationCandidate` rejects a stray
+  legacy `payload/` entry.
+- The 259 budget stays enforced unconditionally (portable-candidate guarantee);
+  `LongPathsEnabled` is never consulted. Threaded through service / verifier /
+  consumer / create-command / `candidates/.<id>.publish.lock` / conflict scan.
+- Coverage: `scripts/smoke-f13-candidate-path-budget.ts` (15 scenarios: F13-A
+  the 329 real paths now fit, F13-B all 2360 ≤ 259 / max 234, F13-C target
+  0 violations, F13-D 258/259/260 boundary, F13-E UTF-16 Unicode count, F13-F/G
+  short-dir ↔ full-identity binding, F13-H/H2 crash-recovery, F13-I idempotent
+  reuse, F13-J traversal/symlink reject, F13-K reuse across HEAD commits, F14
+  a real v4 backup) + the 3 updated `129-25c-2b-*` / `c2b10a` suites.
 
-C.2B.9b closes every P1 from the last audit. The next step is a **re-run of the
-migration readiness audit**; only a GO there, plus an explicit migration-sprint
-order, authorizes touching the real ~611 MB. `cutoverAuthorized` stays false.
+### F14 — a `runtime-backup-v4` (authority-bound) backup could not become a candidate
+
+Surfaced only once F13 let the real run reach `buildRuntimeMigrationCandidateManifest`.
+`validateManifest` / `asBackupManifest` re-materialised a v4 source's backup shape
+with v4 versions, so `validateRuntimeBackupManifest` demanded a
+`sourceRuntimeAuthority` stanza — which the candidate, being the **portable
+authority-free projection** of the backup, deliberately never carries
+(`CANDIDATE_INVALID`). Fix: a v4 source is re-validated against its
+`runtime-backup-v3` (path-policy-v3) equivalent — identical files / aggregate /
+project identities, minus the source host's authority id. The candidate manifest
+still records the true `sourceBackup.formatVersion: "runtime-backup-v4"`; only the
+internal file-integrity re-check uses the portable shape.
+
+### Also — a C.2B.12 backup was staled by an unrelated HEAD commit
+
+`preflightRuntimeMigrationCandidate` hard-gated `SOURCE_STALE` on
+`backup.sourceHeadCommit !== live.sourceHeadCommit`. After C.2B.12 `data/projects`
+is fully git-untracked, so an unrelated commit (e.g. Sprint 201's own checkpoint)
+staled a byte-identical source and made `b-fee58282da89` unreusable. Fixed: the
+`sourceHeadCommit` equality is enforced only while the backup actually captured
+tracked `data/projects` files; otherwise the per-file identity + aggregate
+comparison is the sole freshness gate (as the existing code comment already
+declared). `scripts/smoke-f13-candidate-path-budget.ts` F13-K.
+
+### Real Sprint 202 result
+
+`npm run runtime:migration:candidate:create` against the preserved
+`b-fee58282da89` → **verified candidate**
+`candidate-817cdcd9df908176a5559e955a310f9a1f3f416907e6c94b2dc536aa0ae23863`
+at `D:\AtolyeCandidate\candidates\c-817cdcd9df908176a5559e95`: 2360 files /
+610943674 bytes, aggregate `361b47af…`, manifestSha256 `41c9a5e6…`, max
+materialized path **234 / 0 violations**, byte-identical to the backup payload,
+`cutoverAuthorized = false`. **No consume, no genesis, no publish.** Real
+migration retry (Sprint 203) is now unblocked; `PUBLISH ONAY` still required.

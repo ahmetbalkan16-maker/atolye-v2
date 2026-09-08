@@ -1,5 +1,92 @@
 ---
 
+## Sprint 202 - F13 CANDIDATE PATH BUDGET — CLOSED (+ F14, + HEAD-gate) - 2026-09-08
+
+**Status:** **F13 CLOSED.** Gerçek verified candidate `D:\AtolyeCandidate` altında oluşturuldu ve
+doğrulandı. **CONSUME YAPILMADI. `authority:begin-genesis` YAPILMADI. `authority:publish` YAPILMADI.
+`active-authority.json` YOK. `.env.local` DEĞİŞMEDİ. legacy `data/projects` rename/move/delete YOK.**
+Execution Gate CLOSED. `cutoverAuthorized = false`. Commit `<feat>` + `<docs>`. **Push yok.**
+
+### F13 fix — kısaltılmış, authority-free candidate layout
+
+| Önce (S201) | Sonra (S202) |
+|---|---|
+| `<root>/candidates/candidate-<64hex>/payload/projects/<rel>` — worst 290, **329 > 259** | `<root>/candidates/c-<24hex>/projects/<rel>` — worst **234, 0 > 259** |
+
+- **Tam kriptografik kimlik DEĞİŞMEDİ.** `candidateId` hâlâ `candidate-<64hex>` (backup manifestSha256
+  + aggregate + policy version'ların content-address'i); `candidate.json`'da aynen; `verifyMigrationCandidate`
+  / `validateManifest` / reuse identity+policy SHA tam 64-hex'i yeniden doğruluyor. `candidate.sha256`,
+  `runtimeMigrationCandidateIdentitySha256`, tüm binding'ler byte-identical.
+- Disk dizini = `runtimeMigrationCandidateDirName(candidateId)` = `c-` + aynı digest'in ilk 24 hex'i
+  (96-bit) — filesystem handle, kimlik değil. `c-<24hex>` prefix çakışması (2⁻⁹⁶) fail-closed yakalanır
+  (manifest'ten tam `candidateId` yeniden hesaplanır + `createOwnedDirectory` exclusive).
+- `payload/` seviyesi kaldırıldı — candidate dizini `candidate.json`, `candidate.sha256`, `projects/`.
+  Backup'lar `payload/projects/` KORUYOR (değişmedi). Verifier stray `payload/` girişini reddediyor.
+- 259 budget koşulsuz zorlanıyor (`LongPathsEnabled` hiç danışılmıyor). service / verifier / consumer /
+  create-command / `.publish.lock` / conflict scan hepsi aynı contract.
+
+### F14 — `runtime-backup-v4` (authority-bound) backup → candidate olamıyordu
+
+F13 açılınca gerçek run `buildRuntimeMigrationCandidateManifest`'e ulaştı ve **`CANDIDATE_INVALID`**.
+`validateManifest`/`asBackupManifest` v4 source'u v4 shape ile re-validate ediyor → `validateRuntimeBackupManifest`
+`sourceRuntimeAuthority` istiyor — candidate (backup'ın **portable authority-free projeksiyonu**) bunu
+KESİNLİKLE taşımaz. Fix: v4 source, `runtime-backup-v3` (path-policy-v3) eşdeğeriyle re-validate edilir
+(aynı files/aggregate/project identity, source host authority id hariç). Manifest gerçek
+`sourceBackup.formatVersion: "runtime-backup-v4"`'ü kaydetmeye devam ediyor.
+
+### HEAD-gate — C.2B.12 backup'ı ilgisiz bir commit ile stale oluyordu
+
+`preflightRuntimeMigrationCandidate` `SOURCE_STALE`'i `backup.sourceHeadCommit !== live.sourceHeadCommit`
+üzerinde hard-gate ediyordu. C.2B.12'den sonra `data/projects` tamamen untracked → S201'in kendi checkpoint
+commit'i byte-identical source'u stale yaptı, `b-fee58282da89` kullanılamaz hale geldi. Fix: `sourceHeadCommit`
+eşitliği yalnız backup gerçekten tracked `data/projects` dosyası yakaladıysa zorlanır; aksi halde per-file
+identity + aggregate karşılaştırması tek freshness gate (mevcut kod yorumunun zaten söylediği gibi).
+
+### Gerçek sonuç (Phase 10-11)
+
+`npm run runtime:migration:candidate:create` → korunan `b-fee58282da89` → **verified candidate**
+`candidate-817cdcd9df908176a5559e955a310f9a1f3f416907e6c94b2dc536aa0ae23863` @
+`D:\AtolyeCandidate\candidates\c-817cdcd9df908176a5559e95`:
+2360 files / 610943674 bytes, aggregate `361b47afcf3bcfa68390e8ac723fa31e465d9bc2ad8b8980504f2508a1812fcd`,
+manifestSha256 `41c9a5e6dfb5c35f1944e34072cbd45ef2a590c44f511457c9b1c59c27cf6117`,
+**max materialized path 234 / 0 violations**, backup payload'ına byte-identical (`5470d2c2…`),
+`cutoverAuthorized = false`. `verifyMigrationCandidate` + `verifyMigrationCandidateBinding` bağımsız PASS.
+
+### Safety proof (Phase 1 / 14)
+
+`data/projects` = 2388 files / 611005467 bytes / 0 symlink-special — DEĞİŞMEDİ. `runtimeAuthorityProjectsContentDigest`
+= `1a37493604b7fda26ea9b51ff3708dce1460e864e8f23f378886ae22e0fc2766` (tarihsel primitive değeriyle aynı — line 504).
+`runtime:backup:inventory` aggregate `361b47af…` (S195/200/201 ile aynı). `.env.local` sha256 `bf52c74d…` aynı.
+`data/brain` git clean. tracked `data/projects` = 0. `authority-transition-v1/` `D:\AtolyeAuthority`'de ve
+repo'da YOK. `D:\AtolyeRuntime` / `D:\AtolyeAuthority` boş. node process = 0 (dev server S201'den beri durdurulmuş).
+_(S199-201'in bespoke "whole-tree digest" `94d09cbbb8…` formülü o session script'iyle birlikte gitti;
+immutability iki bağımsız invariant ile kanıtlandı: content-digest primitive + backup inventory aggregate.)_
+
+### Regression (Phase 13)
+
+c2b5 (12) / c2b6 (14) / c2b6b (19) / c2b8 (5) / c2b9 (21) / c2b9b (16) / c2b10a (20) / c2b11 (15) /
+c2b12 (7) / f12 (6) / **f13 (15)** / runtime-backup (39) / 129-25c-2b-1 / 129-25c-2b-2 /
+production-execution-durable-recovery (29) / project-storage-hygiene (10) / external-runtime-root (7) — **PASS.**
+`npx tsc --noEmit` temiz. `npx eslint` 0 error / 22 warning (baseline). `npx next build` OK.
+Pre-existing FAIL `smoke-sprint-129-25c-2a` / `smoke-sprint-129-25c-2b-4` — aynı "Missing expected exception"
+OS temp path-length imzası (candidate koduna dokunmuyor, bu branch'te değişmedi).
+
+### D: artifacts (bırakıldı)
+
+- `D:\AtolyeBackup\backups\b-fee58282da89` — **PRESERVED** (S201 verified 611 MB backup; verify PASS).
+- `D:\AtolyeCandidate\candidates\c-817cdcd9df908176a5559e95` — **verified candidate** (S203 real-migration
+  retry'ında consume edilecek; yeniden üretilmesi gerekmez).
+- `D:\AtolyeRuntime` / `D:\AtolyeAuthority` / `D:\AtolyeRestoreVerify` boş.
+- Cleanup gerekirse: `Remove-Item D:\Atolye* -Recurse -Force` (ama S203 için ikisi de tutulmalı).
+
+### Sıradaki adım
+
+**Sprint 203 — real migration execution retry (publish gate'e kadar):** verified candidate'ı consume →
+`D:\AtolyeRuntime`, `authority:begin-genesis` → `target-validated`, sonra HARD STOP. `PUBLISH ONAY`
+hâlâ gerekli; `authority:publish` bu noktaya kadar çalıştırılMAYACAK.
+
+<!-- SPRINT-202-END -->
+
 ## Sprint 201 - C.2B.13 REAL MIGRATION EXECUTION — HALTED AT PHASE 7 (blocker F13) - 2026-09-08
 
 **Status:** Kontrollü gerçek migration execution başlatıldı (publish gate'e kadar). **PHASE 7'de
