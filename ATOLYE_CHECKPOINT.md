@@ -1,5 +1,65 @@
 ---
 
+## Sprint 196 - C.2B.10 FULL MIGRATION ORCHESTRATOR — STOPPED AT INSPECT (missing consume service) - 2026-09-08
+
+**Status:** Kullanıcı C.2B.10'u tek orchestrator olarak (Phase 0→9 otomatik, publish için ayrı
+`PUBLISH ONAY`) çalıştırmamı istedi. **INSPECT aşamasında bloke edildi — HİÇBİR gerçek-veri işlemi
+YAPILMADI.** Dev server durdurulMADI (4 PID hâlâ canlı), `D:\AtolyeRuntime` / `D:\AtolyeAuthority`
+oluşturulMADI, backup alınMADI. `data/projects/**` byte-identical (2388 / 611005467 / digest
+`e95681751674ca0d2e67c9bdb415889fdc851124`). `.env.local` değişmedi. `active-authority.json` absent.
+Execution Gate CLOSED. HEAD `a8bd55d` + bu checkpoint commit'i. Push yok.
+
+### INSPECT — doğrulananlar
+
+- git baseline temiz, data fingerprint beklenen değerlerde, `active-authority.json` yok.
+- D: sürücüsü: 931 GB boş, NTFS, `D:\AtolyeRuntime`/`D:\AtolyeAuthority` yok, overwrite riski yok.
+- 4 PID (30084 npm run dev / 11328 next dev / 18932 start-server / 16424 build worker) — komut
+  satırları `…\atolye-v2\…` içeriyor, aynı 08:49 oturumu → **doğrulanmış Atölye dev server ağacı**.
+
+### BLOCKER — C.2B.10'un çekirdek servisi hiç yazılmamış
+
+`docs/PRODUCTION_STORAGE_RELOCATION_AUDIT.md` roadmap'i (satır 136–139):
+
+| # | Sprint | Deliverable | Durum |
+|---|---|---|---|
+| 5 | C.2B.8 — External Runtime Evidence Model | backup/candidate Git evidence ayrımı, marker policy, `data/visuals` | **YAPILMADI** |
+| 6 | C.2B.9 — Relocation Authority & Quiescence | versioned authority generation + drain + durable-clean sözleşmesi | ✅ DONE (S191) + C.2B.9b (S192) |
+| 7 | **C.2B.10 — Verified Candidate Consume & Offline Materialization** | verified candidate → empty exclusive target, no-clobber materialization | ❌ **YAPILMADI** |
+| 8 | C.2B.11 — Old-Root Quarantine & Rollback Contract | rollback token kuralları | ❌ kısmen (C.2B.9b quarantine var; rollback contract yok) |
+
+`src/lib/runtime/migration/` yalnız şunları içeriyor: Error, Manifest, Paths, **Preflight**,
+**Service (yalnız _create_)**, **Verifier**. **Consume / materialize modülü YOK.** `grep` ile
+consume/materialize servisi: **hiç yok**. Candidate create + verify `cutoverAuthorized: false`
+döndürüyor — kasıtlı olarak consume adımı DEĞİLLER. Candidate `…/candidates/candidate-<id>/payload/projects/`
+üretiyor; bunu `D:\AtolyeRuntime\projects` yapan hiçbir mekanizma yok.
+
+Audit tasarım kararı (satır 117): candidate consume = **"Ayrı verified consume service"** olmalı —
+`cp -r` / arbitrary copy / "candidate path'ini live root yapma" **açıkça reddedilmiş** (binding
+kaybı + immutable→mutable). Gerekenler (satır 149–151): strict final verify + exact backup binding +
+semantic/policy identity + post-materialization byte inventory/marker/durable-aggregate/manifest
+binding exact.
+
+Ek açık kalemler: **SEC1 (P0)** `RuntimeProtectedRoots`'ta relocation-target + quarantine rolleri
+YOK; **C1 (P1)** `RuntimeMigrationCandidatePreflight` repo cleanliness repo-local `data/projects`
+pathspec'ine hard-coded (REQUIRES ADAPTER); **C.2B.8** hiç yapılmamış.
+
+### Karar
+
+Orchestrator Phase 3'te (candidate'ı `D:\AtolyeRuntime\projects`'e materialize) ve Phase 3→8
+köprüsünde çöküyor — mevcut audited mekanizma bunu sağlamıyor. Prompt: "Herhangi bir belirsizlikte
+DUR" + "yeni paralel authority sistemi icat etme". 611 MB gerçek veri için `fs.rename` /
+candidate-as-live-root **doğaçlaması yapılmadı** (audit ikisini de reddediyor). Consume service kendi
+review'lı sprint'ini gerektiriyor (HIGH complexity, P0 "target overwrite/mix").
+
+### Sıradaki adım
+
+**C.2B.10a — Verified Candidate Consume Service** (+ SEC1 relocation-target/quarantine protected-root
+rolleri, + C1 preflight external-source adapter, gerekiyorsa C.2B.8). O tamamlanınca orchestrator
+Phase 2→9 çalıştırılabilir; publish yine ayrı `PUBLISH ONAY` bekler. `cutoverAuthorized` bu sprintte
+değiştirilmedi.
+
+<!-- SPRINT-196-END -->
+
 ## Sprint 195 - F12 FIX: audio journal `.partial` classification in backup inventory - 2026-09-08
 
 **Status:** **F12 = CLOSED.** Sprint 194 Phase 0'da bulunan blocker düzeltildi. Commit `c66eff9`
