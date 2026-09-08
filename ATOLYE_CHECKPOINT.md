@@ -1,5 +1,128 @@
 ---
 
+## Sprint 181 - Atölye Brain: read-only adaptörler + durable experience store (PHASE 6) - 2026-09-08
+
+**Status:** KOD + TEST + DOKÜMAN TAMAM. `npx tsc --noEmit` temiz (tüm repo). `npx eslint .` = 0 error
+/ 22 warning (hepsi önceden var — yeni dosyalar 0 katkı). 5 Brain smoke suite **~83 senaryo PASS**
+(`smoke-brain-foundation` 25, `smoke-brain-worker` 14, `smoke-brain-security` 11, YENİ
+`smoke-brain-plan-store` 10, YENİ `smoke-brain-probes` 23) — hepsi GPU'suz-zorunlu, $0, deterministik.
+`smoke-brain-probes` `nvidia-smi` + `ffprobe` + MP4 varsa **2 opsiyonel read-only canlı çağrı** yapar
+(bu makinede ikisi de çalıştı: RTX A2000 12GB @ 44 °C / 19% / 14.5 W; gerçek MP4 metadata okundu).
+`graphify update .` commit sonrası çalıştırıldı (AST-only, LLM yok, $0). **Mevcut Sprint 180 dosyaları
+değiştirilmedi** dışında: `src/types/brain.ts` (+`mode?` opsiyonel alan) ve `BrainExperienceModel.ts`
+(+dry-run filtresi) — ikisi de geriye dönük uyumlu, eklemeli. `src/lib/pipeline` / `src/lib/production`
+/ `app/` hâlâ Brain'i **hiç** import etmiyor. Ücretli API 0. `.env.local` değişmedi. Production verisi
+değişmedi. Kullanıcı çalışma-ağacı değişikliklerine dokunulmadı.
+
+### Bağlam
+
+Sprint 180 raporunun "henüz yapamadıkları" listesini en düşük riskli sırayla kapatma. Sprint 180
+HEAD `86ad2e2` (+`95dc240` kullanıcının VS Code declutter chore commit'i). ADR-021 → ADR-022.
+
+### Ne yapıldı — hepsi read-only / geri alınabilir / eklemeli
+
+**AŞAMA 1 — `scripts/brain-plan.ts` (dry-run plan CLI).** Bir konudan 14 fazlık `BrainRunPlan`'ı
+deterministik gösterir (`UNDERSTAND → RESEARCH → VERIFY → PLAN → FIND MEDIA → SELECT MEDIA → WRITE →
+SCENE PLAN → PRODUCE → REVIEW → REPAIR → RE-REVIEW → FINALIZE → LEARN`). Pipeline / PipelineRunner /
+Ollama / GPU / `nvidia-smi` / ağ çağrısı **yok**; `--record-experience` dışında dosya yazmaz.
+`requestedAt` sabit varsayılan (`2026-01-01T…`) → aynı seçenekler her zaman aynı `planId`. `--json`
+makine-okunur; `--assume unavailable|cool`; `--experience-dir` (read-only) geçmişten strateji ipucu;
+`--hardware gtx-1650-4gb|rtx-a2000-12gb`. İçinde 14-faz sıra invariant assert'i var.
+
+**AŞAMA 2 — `src/lib/brain/store/BrainExperienceStore.ts` (durable JSON-file store).**
+`BrainExperienceStore` port'unun arkasındaki tek küçük adaptör. `data/brain/experience/<yyyy-mm>.json`
+(`{ schemaVersion, month, records }`). Atomic write (temp → `fs.fsyncSync` → `fs.renameSync`; yarıda
+kalan yazım eski shard'ı bozmaz). `validateBrainExperienceRecordForStorage` her free-text alanı
+`redactBrainText`'ten geçirir; redaction sonrası hâlâ secret eşleşen → `BRAIN_EXPERIENCE_RECORD_REJECTED`
+(asla "yine de yaz"). Bozuk JSON shard → `BRAIN_EXPERIENCE_STORE_CORRUPT_SHARD` fırlatır (asla
+"sessizce boş"). `list()` / `recent()` deterministik (`completedAt` desc, sonra `recordId`).
+`append()` `recordId` üzerinde idempotent; yazımdan hemen önce shard yeniden okunur (proses-yerel
+birleştirme — `PipelineJobMutationLock` ile aynı sınır). `.tmp` dosyaları shard regex'i (`\d{4}-\d{2}\.json`)
+tarafından yok sayılır. Klasör ilk yazımda güvenli oluşturulur. Testler daima `os.tmpdir()` temp
+workspace kullanır — `data/brain/` yalnızca README tutar.
+
+**AŞAMA 3 — `src/lib/brain/BrainDryRunExperience.ts` (plan → dry-run deneyim kaydı).**
+`BrainExperienceRecord`'a eklemeli `mode?: "production" | "dry-run"` (yoksa `production`) +
+`strategyConstraints?` + `planId?` + `notes?`. `finalStatus` union'a `"dry-run-planned"` eklendi.
+`buildBrainDryRunExperienceRecord(plan, request, safety, recommendation?)` dürüst sıfırlar taşır
+(`stages: []`, `qualityScore: 0`, `aiCostUsd: 0`), safe kısmı (constraints / approval-gated fazlar /
+first-blocked / next-single-step / experience hint) redakte `notes`'a yazar. `deriveBrainExperienceInsights`
+artık `mode === "dry-run"` kayıtları öğrenmeden dışlar; store `list()` de `includeDryRun` olmadan
+gizler. **Sahte başarı / uydurma GPU / model sonucu asla üretilmez.**
+
+**AŞAMA 5 — `src/lib/brain/probe/BrainResourceProbe.ts` (read-only host probe).**
+`nvidia-smi --query-gpu=temperature.gpu,utilization.gpu,power.draw,memory.used,memory.total
+--format=csv,noheader,nounits` (telemetri okuması — ayar/fan/power/clock/undervolt/BIOS/driver **yok**,
+inference **yok**, model pull **yok**, stress **yok**) + `node:os` RAM. `parseNvidiaSmiCsv` saf: normal
+satır / `[N/A]` / `[Not Supported]` (kısmi) / multi-GPU (ilk satır) / "fallen off the bus" → sinyal.
+GPU okunamazsa `source: "unavailable"` → Safety Governor muhafazakâr paket ("bilgi yok = güvenli"
+**değil**). `probeBrainResources` **asla throw etmez**. **RTX A2000 60 °C HARD STOP** ayrı deterministik
+kontrol olarak korundu: `evaluateBrainResourceHardStop(snapshot, profile)` + `BRAIN_A2000_GPU_HARD_STOP_C
+= 60` — genel 80 °C tavanın *yanında*, onu gevşetmeden; `BrainSafetyGovernor.ts` **değiştirilmedi**.
+Bilinmeyen sıcaklık hard stop'u tetiklemez ama "temiz" de saymaz.
+
+**AŞAMA 6 — `src/lib/brain/probe/BrainRenderProbe.ts` (read-only ffprobe adaptörü).**
+`ffprobe -v error -show_format -show_streams -of json <file>` (yalnız metadata — re-encode / render /
+mux / silme **yok**). `parseFfprobeJson` saf: container (format / duration / size / bit_rate), video
+(codec / w / h / fps — `avg_frame_rate` → `r_frame_rate` fallback, `30/1` ve `30000/1001` çözülür),
+audio (codec / sample_rate / channels). `probeMediaFile` **asla throw etmez**; dosya yoksa spawn bile
+denemez → `{ available: false }`. `buildBrainFinalRenderReport` yalnız gerçek `FfprobeMediaSummary`
+alır (tip zorlar) → `BrainFinalRenderReport` → `evaluateBrainQuality` uçtan uca (fixture'lar bu repo'nun
+`data/e2e-output/*.mp4` dosyalarından yakalandı; audio-only MP4 → judge reject).
+
+**AŞAMA 8–12 — `docs/brain/ATOLYE_BRAIN_SERVER.md` (yalnız tasarım).** Server Brain / Secure Gateway /
+Brain API / Local Atölye Agent / Task Queue / Approval Manager / Notification-Event katmanı + trust
+boundary'ler (iki-beyin ayrımı: Server Brain'in GPU/pipeline/Windows-fs yolu **yok**) + proaktif
+iletişim (`Event → Decision → Notification`, `CRITICAL`/`IMPORTANT`/`APPROVAL_REQUIRED`/`INFO` + token
+bucket / dedupe / quiet hours) + gece öğrenme (PC kapalı: analiz/araştırma/taslak; PC açık: senkron +
+`security`/`approval`/`production`/`code-change` bucket'ları) + PHASE 7 güvenlik backlog'u
+(authN → authZ → rate-limit → brute-force → session/cookie → CSRF → audit-log → intrusion detection;
+deterministik katman + Brain intelligence *birlikte*, temel kontroller **LLM'e bırakılmaz**) +
+self-improvement loop (değişmedi: `OBSERVE→…→REPORT` otonom, `APPLY` `user-approve` olmadan erişilemez;
+Brain kendi güvenlik sınırını/yetkisini/approval mekanizmasını değiştiremez). **Public server / domain /
+port / Tailscale / remote access AÇILMADI.**
+
+**AŞAMA 13 — Graphify.** Commit sonrası `graphify update . --no-description --no-label` (AST-only, $0).
+8880 → yeni node/edge (5 yeni Brain modülü + 2 smoke + 1 CLI). Brain hâlâ izole topluluk; pipeline/
+production ters-import yok. `.graphify/` gitignore'da (satır 48) — tracked diff yok.
+
+### Brain şu an gerçekten ne yapabiliyor (Sprint 180'e ek — hâlâ çalıştırmıyor)
+
+- Tek komuttan 14 fazlık planı **görünür** kılar (`brain-plan.ts`, dry-run).
+- Bitmiş üretim deneyimini **durable, atomik, redakte, deterministik** saklar/okur/filtreler
+  (`BrainExperienceStore`).
+- Dry-run planı **sahte sonuç üretmeden** deneyim olarak işaretler + kaydeder.
+- Gerçek host GPU/RAM durumunu **read-only** okur (`nvidia-smi` + `os`); okunamazsa muhafazakâr.
+- RTX A2000 için **60 °C hard stop**'u deterministik kontrol eder.
+- Bitmiş MP4'ün gerçek teknik gerçeğini **read-only** `ffprobe` ile çıkarır → kalite yargıcına verir.
+
+### Henüz yapamadıkları (ayrı, onaylı fazlar — sıra `ATOLYE_BRAIN_SERVER.md` §9)
+
+1. `BrainOrchestrator` → `PipelineRunner` (tek stage, flag arkası).
+2. Rol model çağrıları (yerel Ollama, $0).
+3. `BrainTaskQueue` durable store (experience store'un aynası).
+4. Local Atölye Agent + Server Brain runner'ları.
+5. `/api/brain/*` (önce localhost) + Secure Gateway + PHASE 7 güvenlik.
+6. Herhangi bir remote access (telefon/tablet/PC) — yalnız 5'ten sonra.
+
+### Kullanıcı onayı bekleyen / sıradaki TEK adım
+
+**Sıradaki tek en mantıklı adım:** `BrainTaskQueue` için `BrainExperienceStore` ile aynı desende
+durable JSON-file store (`data/brain/queue/tasks.json`) — hâlâ çalıştırma yok, hâlâ read-only'ye komşu,
+Server Brain / Local Agent senkronunun ön koşulu. Ardından (ayrı onay) `BrainOrchestrator` → tek
+pipeline stage.
+
+### Test / güvenlik durumu
+
+`tsc` temiz, `eslint .` 0 error / 22 warning (baseline). 5 Brain smoke suite ~83/83 PASS. Regresyon:
+Brain dışında hiçbir dosya davranışı değişmediğinden (`src/types/brain.ts` alanları opsiyonel,
+`BrainExperienceModel.ts` filtresi yalnız yeni `mode` alanına bakar) mevcut smoke seti etkilenmez;
+`tsc --noEmit` tüm repoda bunu doğrular. GPU: yalnız 1 read-only `nvidia-smi` telemetri sorgusu
+(A2000 @ 44 °C, ~15 W, saniyenin altında) + 1 read-only `ffprobe` metadata okuması — ayar değişikliği
+/ inference / render / encode **yok**, TDR/WHEA/BSOD **yok**. Ücretli API 0.
+
+<!-- SPRINT-181-END -->
+
 ## Sprint 180 - Atölye Brain: deterministik zekâ katmanı temeli (PHASE 6) - 2026-09-08
 
 **Status:** KOD + TEST TAMAM. `npx tsc --noEmit` temiz (tüm repo). `npx eslint .` = 0 error / 22

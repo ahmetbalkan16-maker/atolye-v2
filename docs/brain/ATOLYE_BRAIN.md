@@ -1,6 +1,6 @@
 ---
 Document: ATOLYE_BRAIN.md
-Status: Active — foundation landed, not yet wired to execution
+Status: Active — foundation + read-only adapters landed, not yet wired to execution
 Owner: Atölye V2
 Roadmap: PHASE 6 — Intelligence (AI Director + Production Memory + Knowledge Engine)
 Last Updated: 2026-09-08
@@ -75,10 +75,19 @@ services still *do the work*.
 | `security/BrainSecurityPolicy.ts` | Shell allowlist, path containment, request-risk classification | pure |
 | `security/BrainSecurityCatalog.ts` | The 18-control reference rubric | data |
 | `security/BrainSecurityAuditModel.ts` | Structured facts → security posture + prioritized backlog | pure |
+| `store/BrainExperienceStore.ts` | Durable JSON-file store behind the `BrainExperienceStore` port — atomic writes, redaction, reject-on-leak, corrupt-shard-fails-loud, deterministic reads | fs (own `rootDir` only) |
+| `BrainDryRunExperience.ts` | `BrainRunPlan` → a `mode: "dry-run"` experience record (honest zeros, hidden from the learner) | pure |
+| `probe/BrainResourceProbe.ts` | Read-only host probe: `nvidia-smi --query-gpu` + `os` → `BrainResourceSnapshot`; A2000 **60 °C hard stop** check | read-only spawn |
+| `probe/BrainRenderProbe.ts` | Read-only `ffprobe -show_format -show_streams` → `BrainFinalRenderReport` for the quality judge | read-only spawn |
 
 Types: `src/types/brain.ts`, `brainMemory.ts`, `brainWorker.ts`, `brainSecurity.ts`.
 Smoke suites: `scripts/smoke-brain-foundation.ts`, `smoke-brain-worker.ts`,
-`smoke-brain-security.ts` (50 scenarios, GPU-free, $0, deterministic).
+`smoke-brain-security.ts`, `smoke-brain-plan-store.ts`, `smoke-brain-probes.ts`
+(~83 scenarios, GPU-free, $0, deterministic; the probe suite does two optional
+read-only live calls when `nvidia-smi` / `ffprobe` + an MP4 are present).
+
+CLI: `npx tsx scripts/brain-plan.ts "<topic>"` — read-only dry run of the
+14-phase plan (no pipeline, model, GPU, network, or file write).
 
 ## The 7 logical roles
 
@@ -164,18 +173,28 @@ OBSERVE → ANALYZE → PROPOSE → TEST → VERIFY → REPORT   ← Brain may d
 
 ## Current status
 
-**Done (this session):** the full domain model + contracts + every pure
+**Done (Sprint 180):** the full domain model + contracts + every pure
 decision/safety/quality/experience/memory/security/worker/self-improvement
 module, 50 passing smoke scenarios, `tsc` + `eslint` clean.
+
+**Done (Sprint 181) — still read-only, still not wired to execution:**
+- `scripts/brain-plan.ts` — the read-only dry-run plan CLI.
+- `store/BrainExperienceStore.ts` — durable JSON-file experience store
+  (atomic, redacted, reject-on-leak, corrupt-shard-fails-loud, deterministic).
+- `BrainDryRunExperience.ts` — dry-run plan → a clearly-marked experience record.
+- `probe/BrainResourceProbe.ts` — read-only `nvidia-smi` + `os` host probe;
+  A2000 60 °C hard-stop check.
+- `probe/BrainRenderProbe.ts` — read-only `ffprobe` → `BrainFinalRenderReport`.
+- Server / remote-access / proactive-comms / night-learning / security design:
+  `docs/brain/ATOLYE_BRAIN_SERVER.md`.
 
 **Not done (needs approval / later phases):**
 - Wiring `planBrainRun` to real `PipelineRunner` execution.
 - The role implementations (model calls).
-- Durable JSON-file stores for memory / experience / task queue.
-- The read-only host resource probe (`nvidia-smi` etc.) feeding `BrainResourceSnapshot`.
-- The `ffprobe` + manifest adapter feeding `BrainFinalRenderReport`.
+- Durable JSON-file store behind `BrainTaskQueue` (mirror of the experience store).
 - The security-fact gatherer feeding `BrainSecurityPostureInput`.
-- The Brain Worker runner + deployment.
-- Any `/api/brain/*` route.
+- The Brain Worker runner + deployment (Server Brain + Local Agent).
+- Any `/api/brain/*` route; the Secure Gateway; any remote access.
 
-See `ATOLYE_CHECKPOINT.md` for the sprint entry and the phased plan.
+See `ATOLYE_CHECKPOINT.md` for the sprint entries and `ATOLYE_BRAIN_SERVER.md`
+for the phased remote-access plan.

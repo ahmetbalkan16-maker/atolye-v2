@@ -19,15 +19,29 @@ string or absolute host path. This is enforced in code:
 If you ever see a credential in a file here, it is a bug — scrub it and open a
 finding.
 
-## Layout (once the durable stores land — later, approved phase)
+## Layout
 
 ```
 data/brain/
-  memory/<yyyy-mm>.json        BrainMemoryRecord[]
-  experience/<yyyy-mm>.json    BrainExperienceRecord[]
-  queue/tasks.json             BrainTask[]
-  queue/results/<cycle>.json   BrainTaskResult[] + BrainWorkerCycleReport
-  proposals/<id>.json          BrainImprovementProposal
+  experience/<yyyy-mm>.json    { schemaVersion, month, records: BrainExperienceRecord[] }   ← LANDED (Sprint 181)
+  memory/<yyyy-mm>.json        BrainMemoryRecord[]                                            ← not implemented yet
+  queue/tasks.json             BrainTask[]                                                    ← not implemented yet
+  queue/results/<cycle>.json   BrainTaskResult[] + BrainWorkerCycleReport                     ← not implemented yet
+  proposals/<id>.json          BrainImprovementProposal                                       ← not implemented yet
 ```
 
-Today this directory only holds this README — the stores are not implemented yet.
+### `experience/` — `src/lib/brain/store/BrainExperienceStore.ts` (Sprint 181)
+
+- `createBrainExperienceStore({ rootDir })` — `rootDir` defaults to `data/brain`;
+  tests always pass a temp dir.
+- `append()` validates + redacts (`validateBrainExperienceRecordForStorage`),
+  rejects a record that still matches a secret pattern, writes atomically
+  (temp → `fsync` → `rename`), and is idempotent on `recordId`.
+- A shard that is not valid JSON throws `BRAIN_EXPERIENCE_STORE_CORRUPT_SHARD` —
+  it is never silently treated as empty.
+- `list()` / `recent()` are deterministic (`completedAt` desc, then `recordId`)
+  and hide `mode: "dry-run"` records unless `includeDryRun: true`.
+
+**Today this directory only holds this README.** The store creates
+`experience/` on first write; running productions have not populated it yet, and
+`brain-plan.ts` only writes here if you pass `--record-experience --experience-dir`.

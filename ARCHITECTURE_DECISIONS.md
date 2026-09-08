@@ -597,6 +597,73 @@ runner ve `/api/brain/*` route'ları ayrı, kullanıcı-onaylı fazlardır. Bkz 
 
 ---
 
+# ADR-022
+
+## Atölye Brain — Read-Only Adapters + Durable Experience Store (PHASE 6, Sprint 181)
+
+### Karar
+
+Sprint 180'in saf karar katmanına **yalnızca read-only / geri alınabilir** dört yapı taşı eklenir.
+Hiçbiri production'a bağlanmaz, hiçbiri gerçek LLM inference / GPU işi başlatmaz, hiçbiri public
+server açmaz.
+
+1. **`scripts/brain-plan.ts` — dry-run plan CLI.** Bir konudan 14 fazlık `BrainRunPlan`'ı
+   deterministik biçimde üretip gösterir. Pipeline / PipelineRunner / Ollama / GPU / `nvidia-smi` /
+   ağ çağrısı **yapmaz**; `--record-experience` dışında dosya yazmaz. `requestedAt` sabit
+   varsayılan → aynı seçenekler her zaman aynı `planId`.
+
+2. **`src/lib/brain/store/BrainExperienceStore.ts` — durable JSON-file experience store.**
+   `BrainExperienceStore` port'unun arkasındaki tek küçük adaptör. `data/brain/experience/<yyyy-mm>.json`.
+   - Atomic write: temp dosya → `fsync` → `rename` (yarıda kalan yazım eski shard'ı bozmaz).
+   - Her string `redactBrainText`'ten geçer; redaction sonrası hâlâ secret eşleşen kayıt reddedilir
+     (`BRAIN_EXPERIENCE_RECORD_REJECTED`).
+   - Bozuk JSON shard → `BRAIN_EXPERIENCE_STORE_CORRUPT_SHARD` fırlatır; asla "sessizce boş" sayılmaz
+     (veri kaybı gibi görünmesin + iyi veriyi ezmesin).
+   - `list()` / `recent()` deterministik sıra (`completedAt` desc, sonra `recordId`).
+   - `append()` `recordId` üzerinde idempotent; yazımdan hemen önce shard yeniden okunur (proses-yerel
+     birleştirme — `PipelineJobMutationLock` ile aynı sınır, dağıtık garanti değil).
+   - Testler daima temp workspace kullanır; `data/brain/` yalnızca README tutar.
+
+3. **`src/lib/brain/BrainDryRunExperience.ts` — plan → `mode: "dry-run"` deneyim kaydı.**
+   `BrainExperienceRecord`'a eklemeli `mode?: "production" | "dry-run"` alanı (yoksa `production`).
+   Dry-run kaydı dürüst sıfırlar taşır (`stages: []`, `qualityScore: 0`, `aiCostUsd: 0`),
+   `finalStatus: "dry-run-planned"`, ve `deriveBrainExperienceInsights` + store `list()` tarafından
+   öğrenmeden **dışlanır**. Sahte başarı / uydurma GPU sonucu asla üretilmez.
+
+4. **`src/lib/brain/probe/BrainResourceProbe.ts` + `BrainRenderProbe.ts` — read-only probe'lar.**
+   - Resource probe: `nvidia-smi --query-gpu=... --format=csv` (telemetri okuması — ayar/fan/power/
+     clock/undervolt/BIOS/driver **yok**, inference **yok**, stress **yok**) + `node:os` RAM.
+     GPU okunamazsa `source: "unavailable"` → Safety Governor muhafazakâr paket ("bilgi yok = güvenli"
+     **değil**). RTX A2000 için **60 °C hard stop** ayrı, deterministik bir kontrol olarak korunur
+     (`evaluateBrainResourceHardStop`) — genel 80 °C tavanın yanında, onu gevşetmeden.
+   - Render probe: `ffprobe -show_format -show_streams -of json` (yalnız metadata — re-encode / render
+     / mux / silme **yok**) → `BrainFinalRenderReport`. Gerçek dosya yoksa `{ available: false }`;
+     sahte container/stream üretilmez.
+
+Ek olarak `docs/brain/ATOLYE_BRAIN_SERVER.md`: Server Brain / Secure Gateway / Brain API / Local
+Atölye Agent / Task Queue / Approval Manager / Notification-Event katmanı + proaktif iletişim
+(`CRITICAL`/`IMPORTANT`/`APPROVAL_REQUIRED`/`INFO`) + gece öğrenme + PHASE 7 güvenlik backlog'u
+**tasarım olarak** dokümante edildi. Public server / domain / port / Tailscale / remote access
+**açılmadı**.
+
+### Sebep
+
+Sprint 180 "henüz yapamadıkları" listesindeki maddeler tek tek, en düşük riskli sırayla kapatılıyor:
+önce planı *görünür* kılan read-only bir arayüz, sonra deneyimi *saklayan* durable bir adaptör, sonra
+gerçek host/render verisini *ölçen* (ama değiştirmeyen) probe'lar. Her biri mevcut port arayüzüne
+(`BrainContracts.ts`) oturur, mevcut redaction/fail-closed/deterministik-id desenlerini kullanır ve
+`src/lib/brain/` izolasyonunu korur (pipeline/production hâlâ Brain'i import etmiyor).
+
+### Durum
+
+Accepted — Sprint 181. `tsc` temiz, `eslint .` 0 error / 22 warning (hepsi önceden var). 5 Brain
+smoke suite ~83 senaryo PASS (GPU'suz zorunlu; probe suite'i `nvidia-smi`/`ffprobe` + MP4 varsa 2
+opsiyonel read-only canlı çağrı yapar). Pipeline'a bağlama, rol model çağrıları, `BrainTaskQueue`
+durable store'u, Server Brain / Local Agent runner'ları ve `/api/brain/*` + Secure Gateway ayrı,
+kullanıcı-onaylı fazlardır. Bkz `docs/brain/ATOLYE_BRAIN.md`, `docs/brain/ATOLYE_BRAIN_SERVER.md`.
+
+---
+
 # Yeni ADR Ekleme
 
 Yeni önemli mimari kararlar;

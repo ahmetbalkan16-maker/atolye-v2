@@ -459,9 +459,24 @@ export interface BrainMediaStrategyOutcome {
   readonly meanRelevanceScore?: number;
 }
 
+/**
+ * How an experience record was produced.
+ *  - `production` — a real pipeline run finished (or was abandoned/failed). This
+ *    is the only mode the learning layer (`deriveBrainExperienceInsights`) reads.
+ *  - `dry-run`    — the planner produced a `BrainRunPlan` and nothing was
+ *    executed. No stage ran, no model was called, no GPU was touched. Stored so
+ *    the plan/strategy/constraints are auditable, but **never** counted as a
+ *    real outcome and never used to derive a strategy hint.
+ *
+ * Absent ⇒ `production` (backward compatible with pre-Sprint-181 records).
+ */
+export type BrainExperienceMode = "production" | "dry-run";
+
 export interface BrainExperienceRecord {
   readonly schemaVersion: typeof brainSchemaVersion;
   readonly recordId: string;
+  /** Absent ⇒ `"production"`. A `"dry-run"` record is never fed to the learner. */
+  readonly mode?: BrainExperienceMode;
   readonly topic: string;
   readonly topicCategory: BrainTopicCategory;
   readonly hardwareProfileId: string;
@@ -472,8 +487,15 @@ export interface BrainExperienceRecord {
     | "released"
     | "released-after-repair"
     | "abandoned"
-    | "failed";
+    | "failed"
+    | "dry-run-planned";
   readonly strategyLabel: string;
+  /** Safety + strategy constraints the plan/run operated under. */
+  readonly strategyConstraints?: readonly BrainStrategyConstraint[];
+  /** The `BrainRunPlan.planId` this record came from, when planner-sourced. */
+  readonly planId?: string;
+  /** Sanitised, human-readable notes (redacted before storage). */
+  readonly notes?: readonly string[];
   readonly stages: readonly BrainStageExperience[];
   readonly media: readonly BrainMediaStrategyOutcome[];
   readonly totals: {

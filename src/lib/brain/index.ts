@@ -275,3 +275,54 @@ export {
 /* ---- orchestrator run-planner ---- */
 export { planBrainRun, describeBrainRunPlan } from "./BrainOrchestrator";
 export type { BrainRunPhase, BrainRunPlan } from "./BrainOrchestrator";
+
+/* ---- experience store (durable JSON-file persistence) ---- */
+export {
+  createBrainExperienceStore,
+  validateBrainExperienceRecordForStorage,
+  brainExperienceRecordId,
+  BrainExperienceStoreError,
+} from "./store/BrainExperienceStore";
+export type {
+  BrainExperienceStoreHandle,
+  BrainExperienceStoreOptions,
+  BrainExperienceListQuery,
+  BrainExperienceValidation,
+  BrainExperienceValidationReasonCode,
+  BrainExperienceStoreErrorCode,
+} from "./store/BrainExperienceStore";
+
+/* ---- dry-run plan → experience record ---- */
+export { buildBrainDryRunExperienceRecord } from "./BrainDryRunExperience";
+export type { BrainDryRunExperienceInput } from "./BrainDryRunExperience";
+
+/* ---- read-only host resource probe (nvidia-smi + os) ---- */
+export {
+  probeBrainResources,
+  parseNvidiaSmiCsv,
+  evaluateBrainResourceHardStop,
+  BRAIN_A2000_GPU_HARD_STOP_C,
+  BRAIN_A2000_PROFILE_ID,
+} from "./probe/BrainResourceProbe";
+export type {
+  BrainResourceProbeOptions,
+  NvidiaSmiGpuReading,
+  BrainResourceHardStop,
+} from "./probe/BrainResourceProbe";
+
+/* ---- read-only ffprobe render adapter ---- */
+export {
+  probeMediaFile,
+  parseFfprobeJson,
+  buildBrainFinalRenderReport,
+} from "./probe/BrainRenderProbe";
+export type {
+  FfprobeResult,
+  FfprobeMediaSummary,
+  FfprobeUnavailable,
+  BrainRenderProbeOptions,
+  BrainFinalRenderReportInput,
+} from "./probe/BrainRenderProbe";
+
+/* ---- experience mode ---- */
+export type { BrainExperienceMode } from "@/types/brain";

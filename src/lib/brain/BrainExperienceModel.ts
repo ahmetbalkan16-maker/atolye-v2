@@ -60,7 +60,11 @@ export function deriveBrainExperienceInsights(
   query: BrainExperienceQuery,
 ): readonly BrainExperienceInsight[] {
   const minSupport = Math.max(1, Math.floor(query.minSupport));
-  const scoped = records.filter((record) => matchesQuery(record, query));
+  // Dry-run plans are audit artifacts, not outcomes — they never inform a
+  // strategy hint (a plan that was never executed proves nothing).
+  const scoped = records
+    .filter((record) => record.mode !== "dry-run")
+    .filter((record) => matchesQuery(record, query));
   const insights: BrainExperienceInsight[] = [];
   if (scoped.length < minSupport) return insights;
 
