@@ -1,5 +1,92 @@
 ---
 
+## Sprint 200 - C.2B.13: PRE-CUTOVER READINESS (+ C.2B.8 evidence model closure) - 2026-09-08
+
+**Status:** **C.2B.13 = PRE-CUTOVER READY** (CUTOVER DONE DEĞİL). **`PUBLISH ONAY` VERİLMEDİ.**
+`authority:publish` / `publishRollback` / gerçek cutover / `.env.local` / `ATOLYE_RUNTIME_ROOT`
+switch / `active-authority.json` / production worker start — HİÇBİRİ YAPILMADI. Execution Gate CLOSED.
+`cutoverAuthorized = false`. Commit `<feat>` + `<docs>`. Push yok. `D:\AtolyeRuntime` / `D:\AtolyeAuthority`
+oluşturulMADI (validation fixture'larla yapıldı; gerçek D: root'ları migration execution sprint'inde).
+
+### PHASE 0-3 — baseline (read-only)
+
+git clean, HEAD `36ef29d`, 25 ahead / 0 behind. C.2B.12 kapanışı doğrulandı: `data/projects` tracked = 0,
+`data/brain/README.md` tracked & ignore edilmiyor, `.gitignore:77:/data/projects/`. Gerçek data
+**DEĞİŞMEDİ**: 2388 files / 207 dirs / 611005467 bytes / whole-tree digest
+`94d09cbbb8efbc964f6fd1f24f720448ee339682ec65c02dd341508994a6ecd2`; symlink/junction/special file YOK;
+27 `.partial` (F12'den beri sabit). `.env.local` byte-for-byte aynı (sha256 `bf52c74dd8e0a9b1f2e0cd3c007ead3242113ce9e2ca46a1db63578bb694367e`). `ATOLYE_RUNTIME_ROOT`/`ATOLYE_RUNTIME_AUTHORITY_ROOT`
+`.env.local`'da ve shell'de SET DEĞİL. `authority-transition-v1/` yok → active-authority absent.
+D: 931 GB boş, NTFS, `D:\Atolye*` yok.
+
+### PHASE 4 — C.2B.8 (roadmap item 5) = DONE
+
+Mevcut C.2B.9→12 + Sprint 197 C1 adapter C.2B.8 gereksinimlerini karşılıyor — **yeni production kod
+GEREKMEDİ**, yalnız verification smoke + kararların yazımı:
+- **B1** byte/manifest authority her yerde gate; `RuntimeBackupInventory` git metadata'sı **strictly
+  opt-in** (`repositoryRoot` param) ve purely additive — `aggregateFingerprint` + per-file sha256
+  git'li ve git'siz **AYNI**; `verifyRuntimeTreeAgainstManifest` / candidate verify / consume post-copy
+  hepsi git-insensitive.
+- **C1** `preflightRuntimeMigrationExternalSource` (S197) external source → `repositoryCleanliness:
+  "not-applicable"` + filesystem cleanliness ayrı; repo-local preflight'ın git check'i C.2B.12'den
+  sonra trivially-clean (S199'da yorumlandı).
+- **PR2** `STORAGE_IDENTITY` fingerprint = `projectRoot: "data/projects/<slug>"` (logical, host path
+  yok) → **karar: portable by construction, rewrite YOK.**
+- **V1** `data/visuals` diskte yok, `projects/VisualManager.ts` 0 importer, backup/candidate scope'unda
+  değil → **karar: production authority DEĞİL, relocation scope dışı, production input olarak yasak.**
+- `scripts/smoke-c2b8-evidence-model.ts` (5 senaryo).
+
+### PHASE 5-11 — pre-cutover validation
+
+- **Backup inventory (real, read-only)** — `npm run runtime:backup:inventory` OK; 2360 inventoried /
+  28 excluded (27 `.partial` + 1 `.pipeline-jobs.*`) / **0 path-policy failure** / aggregate
+  `361b47afcf3bcfa68390e8ac723fa31e465d9bc2ad8b8980504f2508a1812fcd` (S195 ile aynı). `tracked: 0`
+  (C.2B.12 etkisi, git-informational — byte authority değişmedi). Git'siz inventory: aynı aggregate,
+  git field yok.
+- **F3 digest primitive** — `runtimeAuthorityProjectsContentDigest(data/projects)` real tree'de clean.
+- **Candidate / consume / authority transition / rollback / quarantine / generation enforcement** —
+  c2b9 (21) / c2b9b (16) / c2b10a (20) / c2b11 (15) / c2b12 (7) / c2b6 (14) / c2b6b (19) / c2b5 (12) /
+  c2b8 (5) / f12 (6) smoke'ları PASS; `published`/`publishRollback` stateine GEÇİLMEDİ.
+- **Protected roots** — `assertMigrationConsumeRootsDisjoint` (SEC1 + S198 `authority`) live/candidate/
+  backup/target/quarantine/authority disjoint kontrolü PASS.
+- **Quiescence** — 4 Atölye `next dev` process çalışıyor (PID 30084/11328/18932/16424). **KILL EDİLMEDİ**
+  (gerçek migration başlamadı). Gerçek cutover quiescence prosedürü final raporda.
+- **Regression** — `runtime-backup` (39) / `migration-candidate` 2b-1 (48) / 2b-2 (34) /
+  `production-execution-durable` (63) / `project-storage-hygiene` (10) / `external-runtime-root-lifecycle`
+  (7) / `ayas-access-gate` (14) / `ayas-intent-intake` (13) → PASS. `tsc` temiz · `eslint` **0 error /
+  22 warning (baseline)** · `next build` OK. **Pre-existing FAIL** `129-25c-2a` + `129-25c-2b-4` —
+  S199 ile aynı imza. Sprint 200 regression'ı DEĞİL.
+
+### PHASE 11 — final immutability
+
+`data/projects` 2388/207/611005467/`94d09cbbb8…` DEĞİŞMEDİ. `data/projects` tracked = 0. `data/brain`
+değişmedi (1 dosya). `.env.local` byte-for-byte aynı. `active-authority.json` absent.
+
+### DEĞİŞENLER
+
+`package.json` (1 smoke script) + `scripts/smoke-c2b8-evidence-model.ts` (yeni) +
+`docs/PRODUCTION_STORAGE_RELOCATION_AUDIT.md` (roadmap 5+10) + bu checkpoint. **Gerçek data / env /
+authority / production kod = 0 değişiklik.**
+
+### CUTOVER GATE
+
+```
+PUBLISH ONAY: BEKLENİYOR
+REAL CUTOVER: YAPILMADI
+AUTHORITY PUBLISH: YAPILMADI
+ENV SWITCH: YAPILMADI
+PRODUCTION WORKER START: YAPILMADI
+EXECUTION GATE: CLOSED
+```
+
+### Sıradaki adım
+
+Tüm C.2B.x altyapısı (5/6/6b/9/9b/10a/11/12/13 + F12) **PRE-CUTOVER READY**. Sıradaki: kullanıcının
+`PUBLISH ONAY` mesajı → ayrı, kontrollü **gerçek migration/cutover execution sprint'i** (backup:create
+→ candidate → consume → begin-genesis → quiesce → prepare → validate → **publish (point of no return)**
+→ quarantine → finalize-quarantine → `.env.local` root'ları → eski ağacı rename → restart → verify).
+
+<!-- SPRINT-200-END -->
+
 ## Sprint 199 - C.2B.12: Controlled Runtime Git Untracking - 2026-09-08
 
 **Status:** **C.2B.12 = READY.** Audit roadmap item 9 kapatıldı. **GERÇEK MIGRATION / BACKUP CREATE /
