@@ -145,6 +145,9 @@ export {
   isDeterministicBrainRole,
 } from "./BrainRoles";
 
+/* ---- id primitive ---- */
+export { stableBrainId, stableBrainValue } from "./BrainId";
+
 /* ---- decision journal ---- */
 export {
   buildBrainDecision,

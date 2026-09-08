@@ -13,7 +13,7 @@
  *  - ordering is stable (priority, then `createdAt`, then id).
  */
 
-import { stableProductionId } from "@/lib/production/ProductionDeterminism";
+import { stableBrainId } from "../BrainId";
 import {
   classifyBrainTaskAutonomy,
   isBrainTaskRunnableUnattended,
@@ -55,7 +55,7 @@ export function buildBrainTask(input: BrainTaskInput): BrainTask {
   return {
     schemaVersion: brainWorkerSchemaVersion,
     ...canonical,
-    taskId: stableProductionId("brain-task", canonical),
+    taskId: stableBrainId("brain-task", canonical),
     autonomy,
     status:
       autonomy === "requires-user-approval"

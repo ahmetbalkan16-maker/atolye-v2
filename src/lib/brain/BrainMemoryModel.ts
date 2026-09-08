@@ -9,7 +9,7 @@
  * No file IO here — the JSON-file store is a later, thin adapter.
  */
 
-import { stableProductionId } from "@/lib/production/ProductionDeterminism";
+import { stableBrainId } from "./BrainId";
 import { containsBrainSecret, redactBrainLines, redactBrainText } from "./BrainRedaction";
 import {
   brainMemorySchemaVersion,
@@ -58,11 +58,11 @@ export function buildBrainMemoryRecord(input: BrainMemoryRecordInput): BrainMemo
     ...(input.expiresAt ? { expiresAt: input.expiresAt } : {}),
   };
 
-  const contentFingerprint = stableProductionId("brain-memory-content", canonical);
+  const contentFingerprint = stableBrainId("brain-memory-content", canonical);
   return {
     schemaVersion: brainMemorySchemaVersion,
     ...canonical,
-    recordId: stableProductionId("brain-memory", { canonical, contentFingerprint }),
+    recordId: stableBrainId("brain-memory", { canonical, contentFingerprint }),
     redacted: titleResult.redacted || bodyResult.redacted || linkResult.redacted,
     contentFingerprint,
   };

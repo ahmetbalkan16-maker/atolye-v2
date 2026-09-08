@@ -25,7 +25,7 @@ import type {
   BrainStrategyRecommendation,
 } from "@/types/brain";
 import type { ProductionStepKey } from "@/types/project";
-import { stableProductionId } from "@/lib/production/ProductionDeterminism";
+import { stableBrainId } from "./BrainId";
 
 export interface BrainRunPhase {
   readonly phase: BrainPhase;
@@ -177,7 +177,7 @@ export function planBrainRun(
       : `Start UNDERSTAND for "${request.topic}" (no prior experience — default strategy).`;
 
   return {
-    planId: stableProductionId("brain-run-plan", {
+    planId: stableBrainId("brain-run-plan", {
       request: request.requestId,
       safety: safety.decision,
       constraints: baseConstraints,

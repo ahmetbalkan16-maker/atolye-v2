@@ -51,6 +51,11 @@ record / improvement proposal), `brainMemory.ts`, `brainWorker.ts`, `brainSecuri
 `smoke-brain-security.ts` (11). Redaction'da bir hata bulunup düzeltildi (module-level global regex
 `lastIndex` sızıntısı → çağrı-başına taze regex; anthropic-key openai-key'den önce, `(?!ant-)`).
 
+**İzolasyon:** `src/lib/brain/` yalnızca `@/types/brain*` + `@/types/project` + kendi dosyalarını
+import eder. `@/lib/production` / `@/lib/pipeline`'dan **hiç** import yok (kendi `BrainId.ts`
+deterministik-id primitifi var — Brain server-side worker'a bağımsız taşınabilsin diye). Ters yön de
+temiz: `src/lib/pipeline` / `src/lib/production` / `app/` hiçbir yerden Brain'i import etmiyor.
+
 **Docs:** `docs/brain/ATOLYE_BRAIN.md` (tam mimari + faz planı), `ARCHITECTURE_DECISIONS.md` ADR-021,
 `data/brain/README.md`.
 

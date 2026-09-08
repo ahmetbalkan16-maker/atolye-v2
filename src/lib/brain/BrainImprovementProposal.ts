@@ -12,7 +12,7 @@
  * `user-approve` event moves it toward `implemented`.
  */
 
-import { stableProductionId } from "@/lib/production/ProductionDeterminism";
+import { stableBrainId } from "./BrainId";
 import {
   brainSchemaVersion,
   type BrainImprovementApprovalState,
@@ -92,7 +92,7 @@ export function buildBrainImprovementProposal(
   return {
     schemaVersion: brainSchemaVersion,
     ...canonical,
-    proposalId: stableProductionId("brain-improvement", canonical),
+    proposalId: stableBrainId("brain-improvement", canonical),
     approvalState: "draft",
     history: [],
   };

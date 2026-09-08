@@ -15,7 +15,7 @@
  * this is the process around it.
  */
 
-import { stableProductionId } from "@/lib/production/ProductionDeterminism";
+import { stableBrainId } from "./BrainId";
 
 export type BrainImprovementLoopStage =
   | "observe"
@@ -105,7 +105,7 @@ export function startBrainImprovementLoop(
   startedAt: string,
 ): BrainImprovementLoopState {
   return {
-    loopId: stableProductionId("brain-improvement-loop", { proposalId, startedAt }),
+    loopId: stableBrainId("brain-improvement-loop", { proposalId, startedAt }),
     proposalId,
     stage: "observe",
     history: [],

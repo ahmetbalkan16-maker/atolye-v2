@@ -12,7 +12,7 @@
  * All text is run through {@link redactBrainLines} before it lands in the report.
  */
 
-import { stableProductionId } from "@/lib/production/ProductionDeterminism";
+import { stableBrainId } from "../BrainId";
 import { redactBrainLines } from "../BrainRedaction";
 import { pendingApprovalBrainTasks } from "./BrainTaskQueue";
 import {
@@ -82,7 +82,7 @@ export function buildBrainWorkerCycleReport(
 
   return {
     schemaVersion: brainWorkerSchemaVersion,
-    cycleId: stableProductionId("brain-worker-cycle", {
+    cycleId: stableBrainId("brain-worker-cycle", {
       startedAt: input.startedAt,
       results: results.map((result) => result.taskId),
     }),

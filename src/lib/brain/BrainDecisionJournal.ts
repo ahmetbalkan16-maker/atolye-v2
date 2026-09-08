@@ -16,7 +16,7 @@
  * and never touches production durable state.
  */
 
-import { stableProductionId, stableProductionValue } from "@/lib/production/ProductionDeterminism";
+import { stableBrainId, stableBrainValue } from "./BrainId";
 import {
   BRAIN_PHASE_ORDER,
   brainSchemaVersion,
@@ -76,14 +76,14 @@ export function buildBrainDecision(
     occurredAt: input.occurredAt,
     evidence,
   };
-  const inputsFingerprint = stableProductionId("brain-decision-input", {
+  const inputsFingerprint = stableBrainId("brain-decision-input", {
     ...canonicalInput,
     sequence,
   });
   return {
     schemaVersion: brainSchemaVersion,
     ...canonicalInput,
-    decisionId: stableProductionId("brain-decision", { canonicalInput, sequence }),
+    decisionId: stableBrainId("brain-decision", { canonicalInput, sequence }),
     sequence,
     inputsFingerprint,
   };
@@ -227,7 +227,7 @@ export function renderBrainDecisionReport(
 export function brainDecisionLogFingerprint(
   decisions: readonly BrainDecision[],
 ): string {
-  return stableProductionId(
+  return stableBrainId(
     "brain-decision-log",
     decisions.map((entry) => entry.inputsFingerprint),
   );
@@ -235,5 +235,5 @@ export function brainDecisionLogFingerprint(
 
 /** Escape hatch for debugging: canonical text form of a single decision. */
 export function stringifyBrainDecision(decision: BrainDecision): string {
-  return stableProductionValue(decision);
+  return stableBrainValue(decision);
 }

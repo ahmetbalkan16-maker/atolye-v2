@@ -21,7 +21,7 @@
  *    (already in the codebase) are the real fix.
  */
 
-import { stableProductionId } from "@/lib/production/ProductionDeterminism";
+import { stableBrainId } from "./BrainId";
 import {
   brainSchemaVersion,
   type BrainComputationMode,
@@ -93,7 +93,7 @@ function makeUnit(
   recombine: boolean,
 ): BrainWorkUnit {
   return {
-    id: stableProductionId("brain-work-unit", { stage, kind, index, label }),
+    id: stableBrainId("brain-work-unit", { stage, kind, index, label }),
     label,
     kind,
     estimatedPromptTokens: Math.max(1, Math.round(promptTokens)),
