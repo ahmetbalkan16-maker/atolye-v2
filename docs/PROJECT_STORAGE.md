@@ -116,29 +116,25 @@ under `<repo>/data/projects/` exactly as before. Tests always pass an isolated
 
 ---
 
-## 5. Git policy for `data/projects/`
+## 5. Git policy for `data/projects/` — C.2B.12
 
-Runtime project data is **local working data**, not source. The repo keeps only
-deliberately-committed **milestone snapshots** (a finished documentary, added by
-hand). Everything else is ignored:
+**`data/projects/` is entirely git-untracked** (Sprint 199). Runtime storage
+authority is the `ATOLYE_RUNTIME_ROOT` + the authority control plane
+(`RuntimeAuthorityTransition` / `*Rollback` / the generation marker), not git.
 
-- **Tracked** (220 files): `atilla-nin-yukselisi/`, `atilla-nin-y-kselisi/`,
-  `hunlarin-dogusu/`, `hunlarin-dogusu-attila-ya-giden-yol/`,
-  `osmanlinin-kurulusu/`, `fatih-…-cfe77fd8/` (full pipeline incl. media +
-  `production-execution/`), one stray in `i-stanbul-un-fethi-1453/`, and the
-  root `data/projects/*.json` research files.
-- **Ignored** (`.gitignore`, by explicit slug — never a blanket
-  `/data/projects/*/`): `unknown/`, `smoke/`, `rprobe/`, `diag-*/`,
-  `identity-hardening/`, and ~10 in-progress / experimental / duplicate local
-  pipeline runs. `**/.pipeline-jobs.lock/` (process mutex) is always ignored.
-- Local disk today: ~590 MB / ~2 388 files / ~17 project directories.
-- `production-execution/**` is **not** blanket-ignored — 130 records are tracked
-  under the milestone projects and that is deliberate.
-- To promote an ignored project later: `git add -f data/projects/<slug>/`.
-
-New rule: never `git add` runtime project output into `data/projects/` casually.
-A sprint ends with `git status --short` **empty** (`ATOLYE_AI_RULES.md` §Graphify
-Sprint Protokolü).
+- **`.gitignore`: one narrow rule — `/data/projects/`.** Every file under it —
+  the former milestone snapshots included — stays on disk; git just stops
+  tracking it. `git rm -r --cached -- data/projects` removed the 220 files from
+  the index only (checked: every worktree file byte-identical to its HEAD blob).
+- `data/brain/` keeps its granular rules (`README.md` tracked); `data/e2e-output`
+  and every other `data/` subtree are unaffected. `**/.pipeline-jobs.lock/`
+  (process mutex) is still ignored everywhere.
+- Local disk: ~611 MB / ~2 388 files / ~17 project directories — regenerated /
+  owned by the running app.
+- To deliberately pin a specific snapshot back into git: `git add -f data/projects/<path>`.
+- The historical tracked set (pre-C.2B.12) was 220 files across the milestone
+  documentaries + root `*.json` research files, incl. 130 `production-execution/`
+  records. Those bytes are unchanged on disk; git history still has them.
 
 ---
 

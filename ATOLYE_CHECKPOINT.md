@@ -1,5 +1,73 @@
 ---
 
+## Sprint 199 - C.2B.12: Controlled Runtime Git Untracking - 2026-09-08
+
+**Status:** **C.2B.12 = READY.** Audit roadmap item 9 kapatıldı. **GERÇEK MIGRATION / BACKUP CREATE /
+GENESIS / PUBLISH / `.env.local` / `D:\Atolye*` / `active-authority.json` — HİÇBİRİ YAPILMADI.**
+Execution Gate CLOSED. `cutoverAuthorized` değiştirilmedi. Commit `<feat>` + `<docs>`. Push yok.
+
+### İşlem — index-only untrack
+
+`git rm -r --cached -- data/projects` → 220 tracked dosya Git index'ten çıkarıldı; **çalışma ağacındaki
+hiçbir dosya silinmedi** (her dosya HEAD blob'una byte-identical — checked=220 / drift=0). `data/projects`
+disk fingerprint DEĞİŞMEDİ: **2388 files / 207 dirs / 611005467 bytes** (bu sprintte kurulan whole-tree
+digest `94d09cbbb8efbc964f6fd1f24f720448ee339682ec65c02dd341508994a6ecd2` before==after). Tarihsel
+tracked-content digest `e95681751674ca0d2e67c9bdb415889fdc851124` artık N/A (0 tracked) ama Git history
+hâlâ o blob'ları içeriyor.
+
+### `.gitignore`
+
+~50 satırlık "NOT a blanket ignore" granular bölüm (per-slug test/diag/in-progress kuralları) **tek dar
+kural** ile değiştirildi: `/data/projects/`. `**/.pipeline-jobs.lock/` korundu. `data/brain/{queue,
+autonomy,ayas-intents}/` kuralları DOKUNULMADI → `data/brain/README.md` hâlâ tracked, ignore edilmiyor.
+`data/e2e-output` ve diğer `data/` alt ağaçları etkilenmedi. **`data/**` gibi geniş kural YOK.**
+`git check-ignore -v data/projects/<gerçek dosya>` → `.gitignore:/data/projects/` eşleşiyor;
+untracked listesinde `data/projects/**` YOK (re-add koruması).
+
+### Kod
+
+- `RuntimeMigrationCandidatePreflight.ts` — `cleanProjectsWorktree` + call site'a **yorum** eklendi
+  (C.2B.12'den sonra `data/projects` fully gitignored → trivially clean; `SOURCE_STALE` inventory/
+  aggregate karşılaştırması substantive gate). **Davranış değişikliği YOK.**
+- Runtime authority tarafı `.git` / Git index / `git ls-files` üzerinden authority KEŞFETMİYOR —
+  `RuntimeStoragePaths`, `ProductionRuntimeCompositionRoot`, `ProductionRuntimeAuthorityGenerationEnforcement`,
+  `RuntimeAuthorityTransition`, `RuntimeAuthorityTransitionCoordinator`, `RuntimeAuthorityRollback`,
+  `RuntimeAuthorityOldRootQuarantine` = sıfır git referansı (static smoke doğruluyor).
+- `smoke-project-storage-hygiene.ts` — eski `.gitignore` assertion'ı (`/data/projects/unknown/` vb.
+  granular kurallar) C.2B.12 politikasına göre güncellendi (`/data/projects/` var + `data/brain` dar
+  kalıyor + `/data/**` yok).
+
+### Tests
+
+`smoke-c2b12-git-untracking.ts` — **PASS (7 senaryo)**: sentetik temp repo'da `git rm -r --cached
+data/projects` + `/data/projects/` kuralı → index-only, disk byte-identical; `data/brain` tracked kalıyor
++ ignore edilmiyor; re-add koruması (untracked listesi temiz, gerçek dosyalar ignore, tek dosya için `-f`
+gerekli); **C1 `preflightRuntimeMigrationExternalSource` → `repositoryCleanliness: "not-applicable"`** +
+filesystem cleanliness ayrı (mutasyon → `SOURCE_STALE`, git değil); protected-root disjointness;
+static no-git-authority; git tree unchanged.
+
+### Regression
+
+`c2b12` (7) · `c2b11` (15) · `c2b10a` (20) · `c2b9` (21) · `c2b9b` (16) · `c2b6` (14) · `c2b6b` (19) ·
+`c2b5` (12) · `f12` (6) · `project-storage-hygiene` (10, güncellenmiş) · `external-runtime-root-lifecycle`
+(7) · `production-execution-durable-storage` (63) · `129-25c-1 runtime-backup` (39) · `129-25c-2b-1` (48) ·
+`129-25c-2b-2` (34) · `ayas-access-gate` (14) · `ayas-intent-intake` (13) → **PASS**. `tsc` temiz ·
+`eslint` **0 error / 22 warning (baseline)** · `next build` OK. **Pre-existing FAIL** `129-25c-2a` +
+`129-25c-2b-4` — Sprint 198 ile aynı. Sprint 199 regression'ı DEĞİL.
+
+### DOKUNULMADI
+
+`data/projects/**` fiziksel içerik, `data/brain/**`, `.env.local`, `.gitattributes`, `active-authority.json`,
+`src/lib/runtime` (yalnız 1 yorum dosyası), pipeline, AYAS/Brain runtime, Git history.
+
+### Sıradaki adım
+
+Audit roadmap: **C.2B.13** (Controlled Cutover & Production Validation — C.2B.4–C.2B.12 bağımlı, final
+relocation gate). Ya da gerçek migration execution sprint'i (`PUBLISH ONAY` gerekli). Tüm C.2B.x
+altyapısı (5/6/6b/9/9b/10a/11/12 + F12) hazır. `cutoverAuthorized = false`.
+
+<!-- SPRINT-199-END -->
+
 ## Sprint 198 - C.2B.11: Old-Root Read-Only Quarantine + Single-Authority Rollback Token - 2026-09-08
 
 **Status:** **C.2B.11 = READY.** Audit roadmap item 8 kapatıldı. **GERÇEK MIGRATION / BACKUP CREATE /
