@@ -15,6 +15,10 @@ import {
   initialRuntimeAuthorityGeneration,
   runWithProductionRuntimeOperationContext,
 } from "./ProductionRuntimeOperationContext";
+import {
+  assertProductionRuntimeAuthorityGenerationCompatible,
+  enforceProductionRuntimeAuthorityGeneration,
+} from "./security/ProductionRuntimeAuthorityGenerationEnforcement";
 
 const runtimeNow = () => new Date().toISOString();
 const processRuntimeStorageContext = createRuntimeStorageContext();
@@ -29,14 +33,30 @@ productionWorkerLifecycle.bindRuntimeOperationContext(processRuntimeOperationCon
 const processRuntimeInitializer = new ProductionRuntimeInitializer({
   now: runtimeNow,
   listProjectSlugs: listProjectSlugsReadOnly,
-  createRecoveryBootstrap: (projectSlug) => new ProductionExecutionRecoveryBootstrap(new ProductionExecutionFilePersistenceAdapter({
-    trustedRootDirectory: path.join(ProjectReader.getProjectFolder(projectSlug), "production-execution"),
-    createRootDirectory: false,
-  }), processRuntimeOperationContext),
+  createRecoveryBootstrap: (projectSlug) => {
+    // C.2B.6b — read-only re-check per recovery bootstrap (same contract as
+    // startup, never writes / repairs the marker).
+    assertProductionRuntimeAuthorityGenerationCompatible(
+      processRuntimeStorageContext,
+      initialRuntimeAuthorityGeneration,
+    );
+    return new ProductionExecutionRecoveryBootstrap(new ProductionExecutionFilePersistenceAdapter({
+      trustedRootDirectory: path.join(ProjectReader.getProjectFolder(projectSlug), "production-execution"),
+      createRootDirectory: false,
+    }), processRuntimeOperationContext);
+  },
   workerLifecycle: productionWorkerLifecycle,
 });
 
 export async function initializeProductionProcessRuntime(): Promise<ProductionRuntimeInitializationSuccess> {
+  // C.2B.6b — the authority generation is finalized (the frozen contexts above);
+  // validate it against the runtime root's marker BEFORE any recovery bootstrap,
+  // worker start or pipeline-execution wiring. Fail-closed on mismatch or a
+  // production runtime root that is unset.
+  enforceProductionRuntimeAuthorityGeneration(
+    processRuntimeStorageContext,
+    initialRuntimeAuthorityGeneration,
+  );
   const result = await runWithProductionRuntimeOperationContext(
     processRuntimeOperationContext,
     () => processRuntimeInitializer.initialize(),
