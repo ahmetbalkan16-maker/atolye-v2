@@ -1,50 +1,67 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { RuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
+import {
+  ensureSafeContainedDirectory,
+  type RuntimeStorageContext,
+} from "@/lib/runtime/RuntimeStoragePaths";
 import {
   assertRuntimeAuthorityGenerationMarkerCompatible,
+  describeRuntimeAuthorityIdentity,
   resolveRuntimeAuthorityGenerationMarkerPath,
   RuntimeAuthorityGenerationMarkerError,
   writeRuntimeAuthorityGenerationMarker,
 } from "./RuntimeAuthorityGenerationMarker";
+import {
+  RuntimeAuthorityTransitionError,
+  RuntimeAuthorityTransitionStore,
+  runtimeAuthorityTransitionInProgressStates,
+} from "./RuntimeAuthorityTransition";
 
 /**
- * C.2B.6b — enforce the runtime authority *generation* at production startup and
- * recovery bootstrap.
+ * C.2B.6b + C.2B.9 — enforce the runtime authority *generation* and *transition
+ * state* at production startup and recovery bootstrap.
  *
  * The single authoritative validation primitive between "canonical runtime
- * authority is resolved" and "the runtime is exposed for durable use". It
- * composes the append-once `RuntimeAuthorityGenerationMarker` primitive with the
- * §5/§6 production-root policy:
+ * authority is resolved" and "the runtime is exposed for durable use":
  *
- *   1. Production (`NODE_ENV === "production"`) with `ATOLYE_RUNTIME_ROOT` unset
- *      (`source === "legacy-default"`) → FAIL CLOSED. Production must name an
- *      explicit runtime root.
- *   2. Read the marker for `(projectsRoot, authorityGeneration)`:
- *        - `MISMATCH` → FAIL CLOSED (throws from the marker primitive). Startup
- *          does not complete, recovery does not run, durable state is not
- *          consumed, the legacy root is NOT used as a fallback, the marker is
- *          NEVER overwritten.
- *        - `match` → continue.
- *        - `absent` on an **explicit-external** root whose `projects/` dir
- *          already exists (i.e. there is durable state to protect) → stamp it
- *          once, then continue.
- *        - `absent` otherwise (legacy default, in-workspace root, or a brand-new
- *          external root with no `projects/` yet) → continue unstamped; there is
- *          nothing to protect and the legacy default must keep working untouched.
+ *   1. Production (`NODE_ENV === "production"`) + `ATOLYE_RUNTIME_ROOT` unset
+ *      (`source === "legacy-default"`) → FAIL CLOSED (§5/§6).
+ *   2. Authority-transition control plane
+ *      (`<authorityRoot>/authority-transition-v1/`):
+ *        - this root is **quarantined** → FAIL CLOSED (`RUNTIME_AUTHORITY_ROOT_QUARANTINED`);
+ *        - a **transition is in progress** with this root as source → FAIL CLOSED
+ *          (`RUNTIME_AUTHORITY_TRANSITION_IN_PROGRESS`);
+ *        - an **active authority** is published and it is a different root → FAIL
+ *          CLOSED (`RUNTIME_AUTHORITY_NOT_ACTIVE`). (The legacy in-repo default
+ *          never participates.)
+ *      When no transition has ever happened the whole control plane is absent
+ *      and these checks are no-ops.
+ *   3. Authority-generation marker:
+ *        - `MISMATCH` → FAIL CLOSED (generation OR resolver binding changed —
+ *          this catches a durable state + marker copied to a different root);
+ *        - `match` → continue;
+ *        - `absent` on an **explicit-external** root:
+ *            · `projects/` holds project data and no transition explains it →
+ *              FAIL CLOSED (`RUNTIME_AUTHORITY_UNBOUND_STATE`) — a marker-less copy;
+ *            · otherwise stamp the marker on this first boot and continue;
+ *        - `absent` on the legacy default / an in-workspace root → continue
+ *          unstamped (nothing to protect; the legacy default is untouched).
  *
  * `assert…Compatible` is the read-only variant used at recovery bootstrap — it
- * NEVER writes and NEVER repairs a mismatch.
+ * runs the same production-root + control-plane + marker checks but NEVER writes
+ * and NEVER repairs.
  */
 
 export type ProductionRuntimeAuthorityEnforcementErrorCode =
-  "PRODUCTION_RUNTIME_ROOT_REQUIRED";
+  | "PRODUCTION_RUNTIME_ROOT_REQUIRED"
+  | "RUNTIME_AUTHORITY_ROOT_QUARANTINED"
+  | "RUNTIME_AUTHORITY_TRANSITION_IN_PROGRESS"
+  | "RUNTIME_AUTHORITY_NOT_ACTIVE"
+  | "RUNTIME_AUTHORITY_UNBOUND_STATE";
 
 export class ProductionRuntimeAuthorityEnforcementError extends Error {
   constructor(readonly code: ProductionRuntimeAuthorityEnforcementErrorCode) {
-    super(
-      "Production requires an explicit ATOLYE_RUNTIME_ROOT; the legacy in-repo default is not permitted in production.",
-    );
+    super(messageFor(code));
     this.name = "ProductionRuntimeAuthorityEnforcementError";
     this.stack = undefined;
   }
@@ -65,11 +82,6 @@ export interface ProductionRuntimeAuthorityEnforcementOptions {
   readonly env?: Readonly<Record<string, string | undefined>>;
 }
 
-/**
- * Full startup enforcement — may stamp the marker on an external root's first
- * boot. Throws (fail-closed) on a production-root violation or a generation
- * mismatch.
- */
 export function enforceProductionRuntimeAuthorityGeneration(
   context: RuntimeStorageContext,
   authorityGeneration: string,
@@ -84,21 +96,37 @@ export function enforceProductionRuntimeAuthorityGeneration(
     );
   }
 
-  // Rule 2 — authority-generation marker. Throws RUNTIME_AUTHORITY_GENERATION_MISMATCH.
+  // Rule 2 — authority-transition control plane.
+  const controlPlane = assertAuthorityTransitionState(context, authorityGeneration);
+
+  // Rule 3 — authority-generation marker. Throws RUNTIME_AUTHORITY_GENERATION_MISMATCH.
   const compatibility = assertRuntimeAuthorityGenerationMarkerCompatible({
     context,
     authorityGeneration,
   });
-
   if (compatibility.status === "match") {
     return { mode: "match", markerPath: compatibility.markerPath };
   }
 
-  // absent — stamp only an explicit-external root that already holds project data.
+  // absent — only an explicit-external root is a candidate for stamping.
   if (
     context.classification === "explicit-external" &&
-    isExistingRealDirectory(context.projectsRoot)
+    isExistingRealDirectory(context.runtimeRoot)
   ) {
+    // First boot creates an empty projects/ so that "absent marker + populated
+    // projects/" can only mean an out-of-band copy.
+    ensureSafeContainedDirectory(context.runtimeRoot, context.projectsRoot);
+
+    if (hasProjectData(context.projectsRoot) && !controlPlane.transitionTargetHere) {
+      if (!controlPlane.activeExists) {
+        throw new ProductionRuntimeAuthorityEnforcementError(
+          "RUNTIME_AUTHORITY_UNBOUND_STATE",
+        );
+      }
+      // controlPlane already asserted this root IS the active authority; a
+      // published transition without a marker means the stamp step was
+      // interrupted — finalize it.
+    }
     const written = writeRuntimeAuthorityGenerationMarker({
       context,
       authorityGeneration,
@@ -113,27 +141,114 @@ export function enforceProductionRuntimeAuthorityGeneration(
 }
 
 /**
- * Read-only recovery enforcement. Never writes, never repairs. Throws
- * `RUNTIME_AUTHORITY_GENERATION_MISMATCH` when the marker names a different
- * authority generation; returns silently for `match` and `absent`.
+ * Read-only recovery enforcement. Never writes, never repairs. Same
+ * production-root + control-plane + marker checks as the startup gate.
  */
 export function assertProductionRuntimeAuthorityGenerationCompatible(
   context: RuntimeStorageContext,
   authorityGeneration: string,
 ): void {
+  assertAuthorityTransitionState(context, authorityGeneration);
   assertRuntimeAuthorityGenerationMarkerCompatible({ context, authorityGeneration });
 }
 
-export { RuntimeAuthorityGenerationMarkerError };
+export {
+  RuntimeAuthorityGenerationMarkerError,
+  RuntimeAuthorityTransitionError,
+};
+
+/* --------------------------------------------------------------- internals --- */
+
+interface ControlPlaneVerdict {
+  readonly activeExists: boolean;
+  readonly activeMatchesHere: boolean;
+  readonly transitionTargetHere: boolean;
+}
+
+function assertAuthorityTransitionState(
+  context: RuntimeStorageContext,
+  authorityGeneration: string,
+): ControlPlaneVerdict {
+  const store = new RuntimeAuthorityTransitionStore({
+    authorityRoot: context.authorityRoot,
+  });
+  const binding = describeRuntimeAuthorityIdentity(
+    context,
+    authorityGeneration,
+  ).resolverBindingIdentity;
+
+  if (store.readQuarantine(binding)) {
+    throw new ProductionRuntimeAuthorityEnforcementError(
+      "RUNTIME_AUTHORITY_ROOT_QUARANTINED",
+    );
+  }
+
+  let transitionTargetHere = false;
+  for (const record of store.listTransitions()) {
+    if (
+      record.source.resolverBindingIdentity === binding &&
+      runtimeAuthorityTransitionInProgressStates.has(record.state)
+    ) {
+      throw new ProductionRuntimeAuthorityEnforcementError(
+        "RUNTIME_AUTHORITY_TRANSITION_IN_PROGRESS",
+      );
+    }
+    if (
+      record.target.resolverBindingIdentity === binding &&
+      (record.state === "published" || record.state === "old-root-quarantined")
+    ) {
+      transitionTargetHere = true;
+    }
+  }
+
+  const active = store.readActiveAuthority();
+  const activeMatchesHere =
+    active?.resolverBindingIdentity === binding;
+  if (active && !activeMatchesHere && context.classification !== "legacy-repository") {
+    throw new ProductionRuntimeAuthorityEnforcementError(
+      "RUNTIME_AUTHORITY_NOT_ACTIVE",
+    );
+  }
+
+  return {
+    activeExists: Boolean(active),
+    activeMatchesHere,
+    transitionTargetHere,
+  };
+}
 
 function isExistingRealDirectory(target: string): boolean {
   try {
-    // A "should we stamp?" gate only — the marker write path itself runs the
-    // real containment + symlink/junction checks (validateSafeAncestorChain,
-    // assertPathContained) before it touches the filesystem.
     const link = fs.lstatSync(path.resolve(target));
     return link.isDirectory() && !link.isSymbolicLink();
   } catch {
     return false;
+  }
+}
+
+function hasProjectData(projectsRoot: string): boolean {
+  try {
+    return fs
+      .readdirSync(path.resolve(projectsRoot), { withFileTypes: true })
+      .some((entry) => entry.isDirectory());
+  } catch {
+    return false;
+  }
+}
+
+function messageFor(
+  code: ProductionRuntimeAuthorityEnforcementErrorCode,
+): string {
+  switch (code) {
+    case "PRODUCTION_RUNTIME_ROOT_REQUIRED":
+      return "Production requires an explicit ATOLYE_RUNTIME_ROOT; the legacy in-repo default is not permitted in production.";
+    case "RUNTIME_AUTHORITY_ROOT_QUARANTINED":
+      return "This runtime root is quarantined by a completed authority transition and must not be used.";
+    case "RUNTIME_AUTHORITY_TRANSITION_IN_PROGRESS":
+      return "An authority transition is in progress for this runtime root; startup is refused until it completes.";
+    case "RUNTIME_AUTHORITY_NOT_ACTIVE":
+      return "A different runtime root is the active production authority; this root must not initialize.";
+    default:
+      return "This runtime root holds project data but no authority-generation marker and no transition explains it.";
   }
 }

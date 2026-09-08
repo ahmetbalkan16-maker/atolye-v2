@@ -215,7 +215,7 @@ async function main() {
       );
     });
 
-    await scenario("external root with NO projects/ yet → absent-unstamped, no write", () => {
+    await scenario("external root with NO projects/ yet → first boot creates projects/ + stamps", () => {
       const noProjects = path.join(tempRoot, "external-noprojects");
       fs.mkdirSync(noProjects, { recursive: true });
       const ctx = createRuntimeStorageContext({
@@ -224,10 +224,10 @@ async function main() {
         authorityRoot: path.join(tempRoot, "auth-np"),
       });
       const result = enforceProductionRuntimeAuthorityGeneration(ctx, GEN_A);
-      assert.equal(result.mode, "absent-unstamped");
+      assert.equal(result.mode, "initialized");
       assert.equal(
         fs.existsSync(path.join(noProjects, "projects", runtimeAuthorityGenerationMarkerFileName)),
-        false,
+        true,
       );
     });
 

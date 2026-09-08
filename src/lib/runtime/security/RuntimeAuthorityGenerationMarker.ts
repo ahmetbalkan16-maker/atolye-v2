@@ -80,6 +80,27 @@ export interface RuntimeAuthorityGenerationMarkerInput {
   readonly now?: string;
 }
 
+export type RuntimeAuthorityIdentityFields = Omit<
+  RuntimeAuthorityGenerationMarker,
+  "writtenAt"
+>;
+
+/**
+ * The identity a runtime storage context resolves to for a given authority
+ * generation — the same fields the marker carries. `authorityIdentity` keys on
+ * the projects root; `resolverBindingIdentity` keys on the whole resolver
+ * binding (workspace / runtime / projects / legacy / authority roots). Used by
+ * the C.2B.9 authority-transition control plane to name source / target
+ * authorities without re-deriving the digests.
+ */
+export function describeRuntimeAuthorityIdentity(
+  context: RuntimeStorageContext,
+  authorityGeneration: string,
+): RuntimeAuthorityIdentityFields {
+  assertTrustedContext(context);
+  return expectedMarkerFields(context, requireGeneration(authorityGeneration));
+}
+
 /** The marker path for a runtime root — a sibling of the project directories. */
 export function resolveRuntimeAuthorityGenerationMarkerPath(
   context: RuntimeStorageContext,

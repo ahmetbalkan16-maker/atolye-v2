@@ -46,6 +46,7 @@
     "smoke:c2b5-image-serving": "tsx scripts/smoke-c2b5-image-serving-adapter.ts",
     "smoke:c2b6-authority-generation-marker": "tsx scripts/smoke-c2b6-authority-generation-marker.ts",
     "smoke:c2b6b-authority-generation-enforcement": "tsx scripts/smoke-c2b6b-authority-generation-enforcement.ts",
+    "smoke:c2b9-authority-transition": "tsx scripts/smoke-c2b9-authority-transition.ts",
     "smoke:ayas-access-gate": "tsx scripts/smoke-ayas-access-gate.ts",
     "smoke:ayas-intent-intake": "tsx scripts/smoke-ayas-intent-intake.ts",
     "smoke:external-runtime-root-lifecycle": "tsx scripts/smoke-external-runtime-root-project-lifecycle.ts"
