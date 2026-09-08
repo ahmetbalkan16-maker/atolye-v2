@@ -1,5 +1,123 @@
 ---
 
+## Sprint 191 - C.2B.9: versioned authority transition + quiescence + old-root quarantine - 2026-09-08
+
+**Status:** **C.2B.9 = READY.** Kontrollü, versioned, quiesced authority relocation makinesi
+C.2B.6/C.2B.6b marker + enforcement üzerine eklendi. 1 commit (`06e8...` — aşağıda `git log`), **PUSH
+YAPILMADI**. `npx tsc --noEmit` temiz. `npx eslint .` = **0 error / 22 warning (baseline)**.
+`npx next build` başarılı. `git status --short` boş. origin'den 11 commit ileride.
+
+### Kapsam
+
+Yalnız C.2B.9 transition machinery + tests + docs. **DEĞİL:** gerçek proje migration, `data/projects/**`
+taşıma, 590 MB kopyalama, `git rm --cached`, git untracking, `.env.local`, Execution Gate açılması,
+iPhone/mobile, schema migration, ~130 durable record değişikliği.
+
+### INSPECT
+
+`ProductionWorkerLifecycle` state = `created|starting|ready|draining|stopped|failed`;
+`getProductionRuntimeStatus().lifecycleState`. `ProductionExecutionDurableRecoveryService.scan()` →
+decision `clean|recovery-required|indeterminate`. `context.authorityRoot` = machine-local coordination
+root (default `os.tmpdir()/atolye-runtime-authority-v1`, env `ATOLYE_RUNTIME_AUTHORITY_ROOT`), zaten
+flat `<identity>.lock` / `<identity>.claim.json` dosyaları tutuyor. Marker `resolverBindingIdentity`
+digest'i `authorityRoot` dahil tüm resolver binding'i kapsıyor (generation'dan bağımsız).
+Tüm durable production girişleri `initializeProductionProcessRuntime()` → C.2B.6b gate'inden geçiyor.
+
+### DESIGN + IMPLEMENT
+
+**Kontrol düzlemi** (machine-local, out-of-band) `<authorityRoot>/authority-transition-v1/`:
+- `active-authority.json` — tek aktif production authority (CAS korumalı, monotonic
+  `transitionSequence`; ilk transition'a kadar YOK)
+- `transitions/<transitionId>.json` — transition başına state kaydı (atomic temp→fsync→rename)
+- `quarantine/<resolverBindingIdentity>.json` — emekli root için append-once read-only işaret
+
+**YENİ `src/lib/runtime/security/RuntimeAuthorityTransition.ts`** — store + katı ileri state machine:
+`quiesce-requested → quiesced → prepared → target-validated → published → old-root-quarantined`;
+`failed` terminal (yalnız pre-publish). `published` = geri dönüşü yok. Path/symlink/size güvenli,
+corrupt = loud. `publishActiveAuthority` CAS: ilk transition dosya YOK; sonrakiler exact previous
+binding + `sequence+1`.
+
+**YENİ `src/lib/runtime/security/RuntimeAuthorityTransitionCoordinator.ts`** — `beginTransition` /
+`confirmQuiescence` / `prepareTransition` / `validateTarget` / `publishTransition` / `quarantineSource`
+/ `failTransition`. Her adım `transitionId` üzerinde idempotent, out-of-order çağrıyı reddediyor
+(`TRANSITION_ILLEGAL_STATE`). `confirmQuiescence` → worker `created|stopped` OLMALI + aggregate durable
+recovery `"clean"` OLMALI. `validateTarget` → target inventory == frozen source inventory OLMALI
+(marker-less / partial copy → FAIL CLOSED). `publishTransition` → 1) target marker damgala (idempotent)
+2) `active-authority.json` CAS 3) state commit.
+
+**`RuntimeAuthorityGenerationMarker.ts`** — `describeRuntimeAuthorityIdentity` export edildi
+(primitive davranışı değişmedi).
+
+**`ProductionRuntimeAuthorityGenerationEnforcement.ts`** (startup + recovery, iki yol da) — production-root
+kontrolünden sonra, marker kontrolünden önce kontrol düzlemi:
+- bu root quarantined → `RUNTIME_AUTHORITY_ROOT_QUARANTINED`
+- bu root source olan bir transition in-progress → `RUNTIME_AUTHORITY_TRANSITION_IN_PROGRESS`
+- aktif authority var ve farklı bir marked root → `RUNTIME_AUTHORITY_NOT_ACTIVE` (legacy in-repo
+  default asla katılmaz)
+- `absent` marker + dolu `projects/` + `active-authority.json` yok + transition target kaydı yok →
+  `RUNTIME_AUTHORITY_UNBOUND_STATE` (marker-less copy)
+Hiç transition olmadıysa kontrol düzlemi tamamen YOK → her kontrol no-op → dev / legacy / ilk external
+deployment değişmedi. explicit-external root'un ilk boot'u artık boş `projects/` yaratıp damgalıyor →
+"absent marker + data" yalnız out-of-band copy olabilir.
+
+### AUDIT (§31) — 12 soru
+
+| # | Soru | Cevap |
+|---|---|---|
+| 1 | İki ACTIVE authority mümkün mü? | **NO** — tek `active-authority.json`, CAS; non-active marked root → NOT_ACTIVE; quarantined → ROOT_QUARANTINED |
+| 2 | Quiesce sonrası yeni mutation mümkün mü? | **NO** — source'ta yeni runtime init edilemez (TRANSITION_IN_PROGRESS); `confirmQuiescence` worker aktifken reddeder |
+| 3 | Marker-less durable copy kabul ediliyor mu? | **NO** — UNBOUND_STATE / NOT_ACTIVE; `validateTarget` inventory eşitliği ister |
+| 4 | Foreign root kabul ediliyor mu? | **NO** — NOT_ACTIVE veya marker resolver-binding MISMATCH |
+| 5 | Foreign generation kabul ediliyor mu? | **NO** — marker MISMATCH |
+| 6 | Transition duplicate uygulanabilir mi? | **NO** — her adım idempotent, CAS, append-once quarantine |
+| 7 | Illegal state ordering mümkün mü? | **NO** — FORWARD map + `requireState` |
+| 8 | Restart transition'ı bozuyor mu? | **NO** — atomic write + disk'ten re-read; child-process crash/resume smoke |
+| 9 | Old root publish sonrası writable kalıyor mu? | **NO** — quarantine → runtime init edilemez (raw fs write threat model dışı) |
+| 10 | Execution Gate açılıyor mu? | **NO** — `ayasExecutionGate = "CLOSED"` sabit, hiç referans yok; static smoke |
+| 11 | Gerçek `data/projects/**` değişti mi? | **NO** — hepsi `os.tmpdir()`; `git status` bit-bit aynı |
+| 12 | production-execution records değişti mi? | **NO** — schema değişikliği yok; kontrol düzlemi `authorityRoot` altında |
+
+Tüm cevaplar beklenen → **C.2B.9 = READY**.
+
+### Testler — `smoke-c2b9-authority-transition` (21 senaryo)
+
+State machine happy path + history · duplicate transition idempotent · illegal ordering (publish before
+validate) → ILLEGAL_STATE · quiescence worker-active / not-clean red · target inventory mismatch ·
+begin: source==target / unmarked source red · duplicate publish idempotent + fail-after-publish illegal ·
+stale source → SOURCE_QUARANTINED · **enforcement:** target boots + source quarantined (+ recovery
+variant) · in-progress source denied · marker-less copy (no transition) → UNBOUND_STATE · marker-less
+copy (after transition) → NOT_ACTIVE · foreign generation → MISMATCH · two-active impossible ·
+**child-process:** her adım ayrı process'te ("crash" = exit), sonraki process resume → tek transition
+kaydı, sequence 1, `old-root-quarantined` · gerçek composition-root boot quarantined source'ta DENIED +
+target'ta ALLOWED · in-flight source'ta DENIED · old-root write attempt: quarantine mark rewrite
+edilmiyor, source reddi sürüyor · Execution Gate static · C.2B.6 marker smoke PASS · git tree değişmedi.
+
+### Regression
+
+tsc temiz · eslint 0/22 · `next build` OK · c2b5 (12) / c2b6 (14) / **c2b6b (19 — senaryo 9
+first-boot stamp için güncellendi)** / runtime-startup / runtime-status / worker-lifecycle /
+runtime-health-api / execution-durable-storage / canonical-runtime-foundation (29) /
+external-runtime-root-lifecycle (7) / 129-25b (21) / 129-25c-1 (39) / 129-25c-2b-1 (48) /
+129-25c-2b-2 (34) / orphan-reservation-recovery / ayas-intent-intake (13) / ayas-access-gate (14) /
+brain-security / brain-worker-cycle / storage-hygiene (10) **PASS**.
+
+**Pre-existing FAIL:** `smoke-sprint-129-25c-2a-guarded-filesystem` + `-2b-4-runtime-context` (line 138).
+Bu sprint `RuntimeStoragePaths.ts` veya `ProductionRuntimeCompositionRoot.ts`'e dokunmadı; `-2b-4` aynı
+satır 138'de aynı hatayla düşüyor (Sprint 188/189/190'da kayıtlı ortam hassasiyeti).
+
+### DOKUNULMADI
+
+`ProductionExecutionPersistence.ts`, `RuntimeStoragePaths.ts`, `ProductionRuntimeCompositionRoot.ts`,
+`ProductionPipelineExecutionFactory.ts` (D1), pipeline, AYAS/Brain, `.env.local`, `.gitattributes`,
+Git index, `data/projects/**` fiziksel, ~130 durable milestone kaydı.
+
+### Sıradaki tek adım
+
+**MIGRATION READINESS AUDIT** — C.2B.9 transition machinery READY; gerçek 590 MB proje migration'ı
+ayrı bir audit + ayrı onaylı sprint gerektirir. `cutoverAuthorized` false.
+
+<!-- SPRINT-191-END -->
+
 ## Sprint 190 - C.2B.6b: runtime authority generation enforcement (startup + recovery) - 2026-09-08
 
 **Status:** **C.2B.6b = READY.** C.2B.6'nın primitive olarak kalan cross-restart authority-generation

@@ -1,10 +1,11 @@
 # Runtime Authority-Generation Binding — C.2B.6 / C.2B.6b / C.2B.9
 
-Status: **C.2B.6b DONE** — the marker is wired into production startup + recovery
-bootstrap and fails closed on a generation / resolver-binding mismatch or a
-production runtime root that is unset. Master-sprint sessions 2026-09-08.
-C.2B.9 (versioned authority transition + quiescence + old-root quarantine) is
-still a separate later sprint.
+Status: **C.2B.6b + C.2B.9 DONE.** The marker is wired into production startup +
+recovery bootstrap (C.2B.6b, §5), and the versioned authority transition
+protocol — quiescence, atomic publish, old-root quarantine, split-brain
+prevention, crash recovery — is implemented and enforced (C.2B.9, §6).
+Master-sprint sessions 2026-09-08. A real project migration is still gated on a
+separate migration readiness audit; `cutoverAuthorized` stays false.
 
 This is the design + threat model for closing the durable half of the storage
 relocation audit's P0 items 2 and 3
@@ -169,17 +170,96 @@ No `production-execution` record schema change; the ~130 tracked milestone
 records are untouched. Coverage: `scripts/smoke-c2b6b-authority-generation-enforcement.ts`
 (19 scenarios, incl. child-process boots of the real composition root).
 
-### Residual boundary (→ C.2B.9)
+---
 
-C.2B.6b blocks the case where the durable state **and its marker** are moved to
-a different root (the marker's `resolverBindingIdentity` no longer matches →
-`MISMATCH`) — which is every real relocation path, since `runtime:backup` /
-migration-candidate materialization all copy the whole `projectsRoot` subtree.
-It does **not** block a brand-new empty external root that is stamped fresh and
-then has durable state copied in *without* the marker, nor
-`ProductionExecutionDurableRecoveryService` invoked as truly standalone operator
-tooling. Those are the old-root-quarantine + versioned-transition concerns of
-**C.2B.9**.
+## 6. Versioned authority transition — DONE (C.2B.9)
 
-Until C.2B.9: **do not relocate the runtime root.** The legacy in-repo default
-is unaffected and fully supported.
+The controlled way to move the runtime authority from one root to another. It is
+**not** the migration — no `data/projects` is copied by this machinery — it is
+the state machine + control plane that makes a copy-then-cutover *safe*.
+
+### Control plane
+
+Machine-local, out of band, under
+`<authorityRoot>/authority-transition-v1/` (a sibling of the per-project
+`.lock` / `.claim.json` files):
+
+| File | Meaning |
+|---|---|
+| `active-authority.json` | the single active production authority — `{ transitionSequence, transitionId, authorityGeneration, authorityIdentity, resolverBindingIdentity, activatedAt }`. **Absent until the first transition.** CAS-guarded, monotonic sequence. |
+| `transitions/<transitionId>.json` | one per transition; the state record + history. Atomic `temp → fsync → rename`. |
+| `quarantine/<resolverBindingIdentity>.json` | append-once read-only mark for a retired root. |
+
+### State machine (`RuntimeAuthorityTransition.ts`)
+
+```
+quiesce-requested → quiesced → prepared → target-validated → published → old-root-quarantined
+        └──────────────┴──────────┴───────────────┘→ failed   (terminal, pre-publish only)
+```
+
+Strictly forward. `published` is the point of no return — no silent rollback,
+the source is never made writable again.
+
+### Coordinator (`RuntimeAuthorityTransitionCoordinator.ts`)
+
+| Step | From → To | Guards |
+|---|---|---|
+| `beginTransition` | (active) → `quiesce-requested` | source marker must `match`; source not quarantined; source is the current active authority (or none yet); source ≠ target; idempotent on `transitionId` |
+| `confirmQuiescence` | `quiesce-requested` → `quiesced` | `workerLifecycleState ∈ {created, stopped}` **and** aggregate durable-recovery `"clean"` |
+| `prepareTransition` | `quiesced` → `prepared` | freezes the source `projectsRoot` inventory + digest |
+| `validateTarget` | `prepared` → `target-validated` | target endpoint matches; target marker `absent`/`match` (a `MISMATCH` already threw); **target inventory must equal the frozen source inventory** — a marker-less / partial copy fails closed |
+| `publishTransition` | `target-validated` → `published` | 1) stamp target marker (idempotent) 2) CAS `active-authority.json` (first: must be absent; later: exact previous binding + `sequence+1`) 3) commit state |
+| `quarantineSource` | `published` → `old-root-quarantined` | append-once `quarantine/<sourceBinding>.json` |
+| `failTransition` | `<pre-publish>` → `failed` | rejected from `published`+ |
+
+Every step is idempotent on `transitionId` and rejects an out-of-order call
+(`TRANSITION_ILLEGAL_STATE`). Each writes atomically and re-reads state from
+disk, so a crash between any two steps is resumed by re-running the step.
+
+### Enforcement integration
+
+`enforceProductionRuntimeAuthorityGeneration` (startup) and
+`assertProductionRuntimeAuthorityGenerationCompatible` (recovery) now read the
+control plane after the production-root check and before the marker check:
+
+- this root is **quarantined** → `RUNTIME_AUTHORITY_ROOT_QUARANTINED`
+- a **transition is in progress** with this root as source →
+  `RUNTIME_AUTHORITY_TRANSITION_IN_PROGRESS`
+- an **active authority** is published and this is a different marked root →
+  `RUNTIME_AUTHORITY_NOT_ACTIVE` (the legacy in-repo default never participates)
+- `absent` marker + populated `projects/` + no `active-authority.json` and no
+  transition target record → `RUNTIME_AUTHORITY_UNBOUND_STATE` (marker-less copy)
+
+**When no transition has ever happened the entire control plane is absent and
+every one of these checks is a no-op** — dev, the legacy default, and a first
+external deployment are completely unchanged. First boot of an explicit-external
+root now creates an empty `projects/` and stamps, so "absent marker + data" can
+only be an out-of-band copy.
+
+`AUTHORITY ACTIVE ≠ EXECUTION ENABLED` — a published transition does not open the
+Execution Gate.
+
+Coverage: `scripts/smoke-c2b9-authority-transition.ts` (21 scenarios — state
+machine, idempotency, ordering, quiescence guards, inventory mismatch, CAS
+conflict, enforcement integration, child-process crash-and-resume across every
+step, real composition-root boots denied on the quarantined source + mid-flight
+and allowed on the target).
+
+### Known limitations
+
+- A raw `fs.write` to the old root's tree, bypassing the runtime entirely, is
+  not prevented — the threat model is a second *runtime authority* activating,
+  not filesystem ACLs. The operator's runbook still puts the old tree behind
+  read-only OS permissions.
+- `confirmQuiescence` refuses while the worker reports active; it does not
+  *force-stop* a running runtime. The operator stops the runtime; the
+  coordinator then confirms against the durable-recovery scan.
+- The transition requires the **same** `ATOLYE_RUNTIME_AUTHORITY_ROOT` for source
+  and target (the shared coordination plane). Changing it too invalidates the
+  coordination and is an operator error.
+
+### Next → migration readiness audit
+
+C.2B.9 makes the transition *machinery* READY. A real project migration is still
+gated on a separate **migration readiness audit** and its own approved sprint.
+`cutoverAuthorized` stays false.

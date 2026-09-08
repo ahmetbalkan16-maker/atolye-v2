@@ -177,7 +177,20 @@ REQUIRES MIGRATION, 5 REQUIRES POLICY DECISION, 4 BLOCKING**. Status of the 4
    `NODE_ENV=production` + unset `ATOLYE_RUNTIME_ROOT` also fails closed.
    `smoke-c2b6b-authority-generation-enforcement` (19 scenarios). The in-flight
    preparation→execution window was already bound (`ProductionPipelineExecutionFactory`).
-4. no **versioned / no-clobber authority transition** protocol (C.2B.9) — still open
+4. ~~no **versioned / no-clobber authority transition** protocol~~ — **closed (C.2B.9)**:
+   `RuntimeAuthorityTransition` + `RuntimeAuthorityTransitionCoordinator` — a
+   strict forward state machine (quiesce → prepare → validate → publish →
+   quarantine), a machine-local control plane under
+   `<authorityRoot>/authority-transition-v1/`, CAS-guarded single active
+   authority, append-once old-root quarantine, idempotent + crash-resumable.
+   The startup / recovery enforcement refuses a quarantined root, a mid-transition
+   source, a non-active marked root, and marker-less copied state.
+   `smoke-c2b9-authority-transition` (21 scenarios). See
+   `docs/RUNTIME_AUTHORITY_GENERATION_BINDING.md` §6.
+
+**All four P0 BLOCKING items are now closed.** A real project migration is still
+gated on a separate **migration readiness audit** + its own approved sprint —
+`cutoverAuthorized` stays false and the runbook below is not yet executable.
 
 Plus `REQUIRES POLICY DECISION` items (protected-root roles for
 relocation-target / quarantine, portable-fingerprint semantics, Git-vs-byte
