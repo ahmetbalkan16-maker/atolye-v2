@@ -1,5 +1,69 @@
 ---
 
+## Sprint 195 - F12 FIX: audio journal `.partial` classification in backup inventory - 2026-09-08
+
+**Status:** **F12 = CLOSED.** Sprint 194 Phase 0'da bulunan blocker düzeltildi. Commit `c66eff9`
+(`fix(runtime)`) + bu docs/checkpoint commit'i. **PUSH YOK.** **GERÇEK MIGRATION / BACKUP CREATE /
+GENESIS / PUBLISH YAPILMADI.** `data/projects/**` byte-identical (2388 / 207 / 220 / 611005467 /
+digest `e95681751674ca0d2e67c9bdb415889fdc851124`). `.env.local` değişmedi. `active-authority.json`
+hâlâ absent. Execution Gate CLOSED.
+
+### F12 kök neden
+
+`isAudioCompensationJournalStagingPartialAtProjectPath` (`src/lib/audio/AudioCompensationStore.ts`)
+yalnız legacy layout'u eşleştiriyordu: `audio-compensation-cleanup/<ref>/.audio-journal-staging/<file>`.
+Gerçek diskte `<ref>` yok (`.audio-journal-staging` doğrudan `cleanup/` altında) ve
+`audio-compensation-recovery` ağacı hiç kontrol edilmiyordu. Sonuç: 27 `.partial` dosyası (97–108
+karakter) exclude edilmeyip `validateRuntimeBackupRelativePath`'e düşüyor → `fileNameUtf16: 96` limiti
+→ `RuntimeMutationError` → `collectRuntimeBackupInventory` / `runtime:backup:create` gerçek ağaçta
+patlıyor. Sprint 192/193 audit'i bu sonucu **kod okuyarak** vermiş, inventory'i **çalıştırmadan**.
+
+### F12 fix
+
+Helper artık `production-execution/{audio-compensation-cleanup | audio-compensation-recovery}` üzerine
+anchor oluyor, `<ref>` dizinini **opsiyonel** kabul ediyor (staging dizini veya `record/` değilse tek
+bir leading segment atlanıyor), ardından yine tam `.audio-journal-staging/<name>.partial` (veya
+`record/` alt-varyantı) şeklini arıyor. Genel `.partial` dosyaları exclude EDİLMİYOR. Path traversal /
+symlink kontrolleri değişmedi (caller sorumluluğu). İki canlı caller (`RuntimeBackupInventory`,
+`ProductionCompletedStageRegenerationPlanner`) düzeltilmiş sınıflandırmayı alıyor.
+
+`scripts/smoke-f12-audio-journal-partial-classification.ts` (6 senaryo) — helper'ı 4 formda (cleanup/
+recovery × ref/no-ref) + negatifler test ediyor VE fixture'da `collectRuntimeBackupInventory`'i
+GERÇEKTEN çalıştırıyor + bir over-length non-excludable ismin hâlâ throw ettiğini doğruluyor.
+
+### Audit RE-RUN — GERÇEK AĞAÇTA EXECUTED (kod okuma değil)
+
+| Kontrol | Sonuç |
+|---|---|
+| `npm run runtime:backup:inventory` (real, read-only) | **PASS** — 2360 dosya envanterlendi, 28 exclude (27 journal `.partial` + 1 `.pipeline-jobs.*`), aggregateFingerprint `361b47af…`, **0 kalan path-policy failure** |
+| `runtimeAuthorityProjectsContentDigest(data/projects)` (F3 primitive, read-only) | **PASS** — 625ms, `contentDigest 1a374936…`, fileCount 2388, symlink/non-regular yok |
+| Sprint 194 Phase 0 "finding #1" (86-char durable `.json`) | **false positive doğrulandı** — gerçek v3 projectId remap ile 168 karakterde geçiyor |
+| migration candidate preflight | exported; tam materialization `runtime:backup:create` istiyor → migration sprint'ine ertelendi |
+| `smoke:c2b9-authority-transition` / `smoke:c2b9b-genesis-transition` | **PASS** (21 / 16) |
+| `smoke:sprint-129-25c-1` (runtime backup, legacy `.partial` senaryosu dahil) | **PASS** (39) |
+| `smoke:sprint-129-41-completed-stage-regeneration` (diğer canlı caller) | **PASS** (181/181) |
+| `smoke:pipeline-completed-stage-regeneration` | **PASS** (9) |
+| `smoke:project-storage-hygiene` / `smoke-production-execution-durable-storage` | **PASS** (10 / 63) |
+| `smoke-audio-compensation-descriptor-rebind` / `-detached-pending-recovery` | **PASS** (11+1skip / 11) |
+| `smoke:f12-audio-journal-partial-classification` | **PASS** (6) |
+| `npx tsc --noEmit` / `npx eslint .` / `npx next build` | **PASS** / **0 error 22 warning (baseline)** / **PASS** |
+| Pre-existing FAIL `129-25c-2a` + `129-25c-2b-4` | aynı şekilde fail (ikisi de `AudioCompensationStore`'u import etmiyor) — Sprint 195 regression'ı DEĞİL |
+
+### VERDICT
+
+```
+F12 = CLOSED
+Migration readiness = GO  (backup inventory path artık gerçek ağaçta çalışıyor;
+                           C.2B.5/6/6b/9/9b + F10/F11/F4/F3 hepsi PASS)
+```
+
+`cutoverAuthorized` bu sprintte değiştirilmedi. Sonraki adım: **ayrı bir migration readiness audit**
+(tam candidate flow dahil) GO verirse C.2B.10 tekrar açılabilir. C.2B.10 dönüşünde hâlâ gereken:
+kalıcı `ATOLYE_RUNTIME_ROOT` (D: 931 GB boş) + kalıcı `ATOLYE_RUNTIME_AUTHORITY_ROOT` (temp DEĞİL) +
+`next dev` sunucusunun durdurulması.
+
+<!-- SPRINT-195-END -->
+
 ## Sprint 194 - C.2B.10 REAL MIGRATION — HALTED AT PHASE 0 (NO-GO, blocker F12) - 2026-09-08
 
 **Status:** Kullanıcı `cutoverAuthorized = true` verdi ve 18-fazlı gerçek migration runbook'unu

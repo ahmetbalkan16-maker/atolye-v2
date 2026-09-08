@@ -286,16 +286,31 @@ Migration is **idempotent**. A slug collision **never** auto-overwrites
 (`RUNTIME_STORAGE_DUAL_ROOT_DIVERGENCE`). A failed migration **never** deletes
 the source.
 
-### `.partial` files (F5 — read-only classification, migration-safe)
+### `.partial` files (F5 / F12 — read-only classification, migration-safe)
 
 The 27 `*.partial` files on disk are **EXCLUDE-SAFE**: all under
 `data/projects/i-stanbul-un-fethi-1453/production-execution/{audio-compensation-cleanup,audio-compensation-recovery}/.audio-journal-staging/`
 — orphan atomic-write staging from `AudioCompensationStore` journal persistence
 (`<name>.json.<uuid>.partial`). They are inert (never read as authority) and
-`RuntimeBackupInventory` already excludes them
-(`isAudioCompensationJournalStagingPartialAtProjectPath` → skip). Zero under any
-tracked / milestone project; `i-stanbul-un-fethi-1453` is a gitignored,
-in-progress 276 MB project and not a first-wave migration target.
+`RuntimeBackupInventory` excludes them
+(`isAudioCompensationJournalStagingPartialAtProjectPath` → skip).
+
+**F12 (Sprint 195):** the Sprint 192/193 audit reached "EXCLUDE-SAFE" by *reading*
+that skip; the classifier as written only matched the legacy
+`audio-compensation-cleanup/<ref>/.audio-journal-staging/` layout — it assumed a
+`<ref>` workspace directory the real tree does not have, and never checked the
+`audio-compensation-recovery` tree. So `collectRuntimeBackupInventory` actually
+threw `RuntimeMutationError` on the real tree (the 97–108-char `.partial` names
+exceed the 96-char portable file-name ceiling). Fixed: the classifier now
+anchors on `production-execution/{cleanup|recovery}`, treats `<ref>` as optional,
+and is verified by a smoke that *runs* the inventory against the real layout
+(`scripts/smoke-f12-audio-journal-partial-classification.ts`). A real read-only
+`npm run runtime:backup:inventory` now completes — 2360 files inventoried, 28
+excluded (27 journal `.partial` + 1 `.pipeline-jobs.*`), zero remaining
+path-policy failures.
+
+Zero `.partial` under any tracked / milestone project; `i-stanbul-un-fethi-1453`
+is a gitignored, in-progress project and not a first-wave migration target.
 
 ---
 
