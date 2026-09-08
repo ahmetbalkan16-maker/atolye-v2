@@ -1,0 +1,26 @@
+# Line-ending policy.
+#
+# The repository history is already 100% LF (verified: `git ls-files --eol`
+# reports zero `i/crlf` / `i/mixed` blobs). Git for Windows ships with a
+# system-level `core.autocrlf=true`, which was re-writing ~444 tracked text
+# files with CRLF in the working tree and showing them as spuriously
+# "modified" with no real content change. Pinning the policy here makes it
+# independent of each machine's Git config.
+* text=auto eol=lf
+
+# Explicit binary — never normalize, never diff as text.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.webp binary
+*.mp3  binary
+*.mp4  binary
+*.wav  binary
+*.m4a  binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
+*.otf  binary
+*.pdf  binary
