@@ -1,5 +1,173 @@
 ---
 
+## Sprint 189 - Master Sprint: C.2B.5 kapandı + C.2B.6 (partial) + AYAS access gate + queued-intent authorization pipeline - 2026-09-08
+
+**Status:** STORAGE AUTHORITY (C.2B.5 DONE, C.2B.6 PARTIAL) + AYAS GÜVENLİK KATMANI TAMAM.
+**Migration/cutover = NOT READY** (bilinçli — C.2B.6b + C.2B.9-11 gerekli). **iPhone PWA/voice/install
+= bu sprintte YAPILMADI** (kullanıcı scope kararı: "Storage authority only, go deep"). 4 commit
+(`cc1e31c`, `598058c`, `581907c`, `bc63d83`, `b9cfe62`), **PUSH YAPILMADI**. `npx tsc --noEmit` temiz.
+`npx eslint .` = **0 error / 22 warning (baseline korundu)**. `git status --short` boş. `npx next build`
+başarılı. HEAD `b9cfe62` (branch `wip/production-audio-resume-prep-v2`, origin'den 7 commit ileride —
+push emirle yasak).
+
+### Kapsam kararı (kullanıcı)
+
+3 soru soruldu. Cevaplar: **(1)** "Storage authority only, go deep" — C.2B.5 + C.2B.6'yı düzgün dene,
+düşük güvende NOT-READY gate. iPhone yok. **(2)** "Shared passcode gate on /brain + /api". **(3)**
+"Full queue + reconnect + dedup + authorization pipeline". §6 production-root-unset→fail-closed
+politikasını kullanıcı zaten belirtmişti. Yorum: storage birincil derin iş; auth gate + queue
+pipeline = server-side güvenlik altyapısı (PWA/UI yok).
+
+### C.2B.5 — image serving adapter (DONE) — `cc1e31c`
+
+Image GET route son `app/` storage-relocation bypass'ıydı (`process.cwd()/data/projects/...` doğrudan,
+yalnız lexical check). **Kapatıldı:**
+- `ImageStorage.readImage(slug, fileName, ctx?)` — logical path → canonical runtime storage context,
+  `requireContainedStorageFile` (realpath containment + symlink/junction reddi), 64 MB tavan. png/jpg/
+  jpeg/webp/gif/svg servisi + hafif per-type magic-byte sanity (SVG = utf-8 text `<?xml`/`<svg`).
+- Route artık audio/video/thumbnail route'larıyla aynı desen: tek storage-service çağrısı, her hatada
+  404. `X-Content-Type-Options: nosniff` + SVG için inert CSP eklendi.
+- **Audio route zaten temizmiş** (audit'in API2 kaydı `6387e3d`'de stale) — `AudioStorage.readStoredWav`
+  üzerinden. Doğrulandı + guard'a eklendi.
+- `smoke-project-storage-hygiene`: ALLOWLIST'ten image route düştü (**bekleyen istisna kalmadı**), image
+  + audio route'un storage-service üzerinden çalıştığına dair pozitif check'ler eklendi. 8 → **10 senaryo**.
+- YENİ `smoke-c2b5-image-serving-adapter` (**12 senaryo**): external `ATOLYE_RUNTIME_ROOT` çözümü, png/
+  jpg/gif/svg servisi, truncated/mislabeled/empty/missing/unknown-ext/traversal/bad-slug fail-closed,
+  symlink reddi (platform file-symlink yapamıyorsa skip), route-level 200/404, repo ağacı dokunulmadı.
+
+### C.2B.6 — durable authority-generation binding (PARTIAL) — `598058c`
+
+**Bulgular** (`docs/RUNTIME_AUTHORITY_GENERATION_BINDING.md`):
+- **RT1 (startup tek frozen authority) C.2B.4 ile etkin biçimde kapalı:** `ProductionRuntimeCompositionRoot`
+  tek `processRuntimeStorageContext` + tek `processRuntimeOperationContext` (explicit `authorityGeneration`),
+  worker lifecycle + her recovery bootstrap ona bağlı, `runWithProductionRuntimeOperationContext` farklı
+  `resolverBindingIdentity`'li nested context'i reddediyor.
+- **D1 in-flight window zaten bağlı:** `ProductionPipelineExecutionFactory` preparation'da runtime
+  `authorityIdentity` + `bindingFingerprint` + fiziksel store digest'i yakalıyor, execution öncesi
+  hepsini yeniden doğruluyor (`WORKER_EXECUTION_COORDINATION_FAILED`).
+- **Kalan boşluk:** cross-restart durable split-brain — N kuşağında yazılan kayıtlar, root değişimi +
+  N+1 altında restart, kuşak kontrolü olmadan tüketilir. Durable-record şema alanı **güvensiz** (~130
+  tracked milestone `production-execution` kaydını `PERSISTENCE_SCHEMA_UNSUPPORTED` yapar) → binding
+  additive, out-of-band bir marker olmalı.
+
+**Yapılan (additive, hiçbir live path'e bağlı DEĞİL — C.2B.1/C.2B.2 primitive deseni):**
+- `src/lib/runtime/security/RuntimeAuthorityGenerationMarker.ts`: `<projectsRoot>/.runtime-authority-generation.json`
+  (proje dizinlerinin kardeşi). `assert...Compatible` → `absent` (legacy/damgasız, uyumlu) | `match` |
+  `RUNTIME_AUTHORITY_GENERATION_MISMATCH` fırlatır. `write...` → append-once (`flag: wx`), read-back
+  doğrulamalı, **asla in-place overwrite etmez**. Identity digest'leri `ProductionRuntimeOperationContext.
+  createAuthorityIdentity` ile aynı (gelecekteki wiring cross-check edebilsin).
+- YENİ `smoke-c2b6-authority-generation-marker` (**14 senaryo**): absent / write / re-write match /
+  farklı kuşak MISMATCH / başka root'a kopyalanmış MISMATCH / tampered identity MISMATCH / corrupt +
+  malformed INVALID / oversize + symlink UNSAFE / geçersiz kuşak string INVALID / legacy default
+  workspace'e hiçbir şey yazmıyor.
+
+**NOT READY kalan:** composition root + recovery bootstrap'a marker wiring (**C.2B.6b**, C.2B.9'dan önce).
+`src/lib/production/**` + `ProductionRuntimeCompositionRoot` değişimi checkpoint kaydı + bağımsız
+review gerektiriyor; "ilk boot'ta external root'u damgala" davranışı gerçek `production:acceptance:*`
+akışıyla doğrulanmalı. Kullanıcının izin verdiği NOT-READY gate.
+
+### AYAS access gate (§24) — `581907c`
+
+`/brain` + studio sayfaları + her mutating `/api` route'un önüne tek paylaşımlı parola. Hesap yok,
+harici servis yok, $0. **Execution Gate'e DOKUNMAZ** — sadece kimlik doğrulama.
+- `src/lib/auth/accessGate.ts` (saf, yalnız Web Crypto — Edge/Node middleware runtime'ında değişmeden
+  çalışır): `resolveAccessGate` (enforced | disabled-dev | misconfigured), `issueSession`/`verifySession`
+  (HMAC-SHA256, 12 sa TTL, 60 sn skew), `isProtectedPath`, `isSameOriginRequest` (CSRF backstop),
+  `evaluateAttempt` (IP başına fixed-window brute-force limiter), `timingSafeEqual`.
+- `middleware.ts`: korunan path'lerde `ayas_session` cookie doğrular; production'da anahtar yok/kısa →
+  **503 fail-closed**; cross-origin state-changing istekte 403; tarayıcıyı `/login`'e yönlendirir, `/api`
+  için JSON 401.
+- `app/api/auth/login` (JSON veya HTML form; IP başına 8/10dk limit; HttpOnly + SameSite=Lax +
+  https'te Secure cookie) + `app/api/auth/logout`. `app/login/page.tsx` (koyu parola ekranı).
+- **Dev'de varsayılan kapalı** (anahtar yok). `AYAS_ACCESS_KEY` (≥12 karakter) ayarla → enforce.
+  `docs/ACCESS_GATE.md`.
+- YENİ `smoke-ayas-access-gate` (**14 senaryo**).
+
+### AYAS queued-intent authorization pipeline (§21-23) — `bc63d83`
+
+Server-side reconnect intake. Zincir: `USER → AUTH → AUTHORIZATION → ACTION POLICY → EXECUTION GATE`.
+- `src/lib/ayas/intake/AyasIntentPipeline.ts` (saf): `evaluateAyasIntent` dört aşamayı koşar, per-stage
+  step trace + tek decision döner. `classifyAyasIntent` = sabit tablo (`BrainAutonomyPolicy` deseni:
+  reasoning | execution | forbidden). `admitAyasIntents` — `clientIntentId` ile dedup, `clientSeq` ile
+  sıra, `highWaterSeq` cursor, batch replay idempotent.
+- **EXECUTION GATE = sabit `"CLOSED"`** (`src/lib/brain/**` invariant'ının aynası). Authenticated bir
+  mobil *execution* / *forbidden* intent → `denied-execution-gate-closed` — kaydedilir, asla enqueue
+  edilmez, asla çalışmaz. DENY = **gate**, policy değil (well-formed execution intent'te action-policy
+  step yine `pass`). **Bu §23 kabul kanıtı.**
+- `src/lib/ayas/intake/AyasIntentLedger.ts`: `data/brain/ayas-intents/ledger.json`, `BrainTaskStore`
+  disiplini (atomic temp→fsync→rename, corrupt = loud + asla overwrite, reject-on-leak). Yalnız
+  `textDigest` (sha256) saklar — ham söz **asla**. Batch cap 100, ledger cap 5000.
+- `app/api/ayas/intake/route.ts`: POST (batch sync, per-intent karar) + GET (reconnect reconciliation).
+  Middleware arkasında; gate enforced'ken session'ı kendi de doğrular. 256 KB body cap.
+- `.gitignore`: `data/brain/{queue,autonomy,ayas-intents}/` runtime state ignore (`data/brain/README.md`
+  tracked kalır) — `data/projects` runtime-tracking scope'unun dışında.
+- YENİ `smoke-ayas-intent-intake` (**13 senaryo**), `docs/AYAS_INTENT_INTAKE.md`.
+
+### External runtime root gerçek proje testi (§7) — `b9cfe62`
+
+YENİ `smoke-external-runtime-root-project-lifecycle` (**7 senaryo**): `ATOLYE_RUNTIME_ROOT`'u temp dir'e
+yönlendirir, GERÇEK `ProjectManager` / `ProjectWriter` / `ImageStorage` yollarıyla proje oluşturma →
+research → script → scenes → visuals → image asset → manifest read-back koşar. Kanıtlar: her dosya
+external root altında; repo `data/projects/` altına HİÇBİR ŞEY yazılmadı; temp workspace `data/projects/`
+boş; `git status --porcelain --untracked-files=all` bit-bit aynı.
+
+### Path security final taraması (§8) — CLEAN
+
+`process.cwd()` + `data/projects`, `__dirname` + `data/projects`, hardcoded physical join, duplicate
+resolver, `app/api/**` içinde storage-service dışı `fs` project read: **yeni bypass YOK**.
+- `data/projects/...` string literal'ları hepsi **logical prefix** (storage-service → runtime resolver),
+  fiziksel değil — hygiene guard bunları zaten ayırıyor.
+- Bilinen pre-existing kalemler (audit): `VisualManager` `data/visuals` (V1, policy decision, LOW),
+  `ProductionReadinessService` inject-edilebilir `cwd` (PR3, C.2B.6), `RuntimeMigrationCandidatePreflight`
+  git pathspec (C1, C.2B.8), `data/brain/**` (Brain'in kendi state root'u, tasarım gereği ayrı, artık
+  ignored). Hiçbiri `process.cwd()/data/projects` fiziksel çözümü değil.
+
+### Git untracking planı (§9) — `b9cfe62`
+
+`docs/GIT_UNTRACKING_PLAN.md` (C.2B.12): ~230 tracked `data/projects` dosyası sınıflandırıldı
+(MILESTONE SNAPSHOT / RUNTIME DATA / GENERATED). `production-execution/**` (130) +
+`production-acceptance.json` **protected** işaretlendi. Sıra: verified external authority + quarantine
+ÖNCE (C.2B.9-11) → sonra `git rm --cached` ayrı reviewed commit → sonra cutover. **Gerçek untracking
+YAPILMADI.** 590 MB gerçek veri = USER PROJECT DATA, storage relocation runbook'u ile taşınır, Git ile
+değil.
+
+### 590 MB gerçek veri — KORUNDU
+
+`data/projects/**` fiziksel: dokunulmadı. `rm -rf` / `git clean` / `git reset --hard` / blind overwrite:
+yok. Tracked milestone snapshot'lar (fatih-…-cfe77fd8 182 dosya dahil): değişmedi. `.env.local`:
+dokunulmadı.
+
+### DOKUNULMADI
+
+`src/lib/production/**`, `src/lib/pipeline/**`, `src/lib/runtime/RuntimeStoragePaths.ts`,
+`ProductionRuntimeCompositionRoot.ts`, `ProductionExecutionPersistence.ts` (kaynak), pipeline stage
+kodu, AYAS/Brain voice/autonomy/worker runtime kodu, `app/globals.css`, `app/layout.tsx`,
+`app/brain/*`, `.env.local`, `.gitattributes`, Git index (untracking yok), hiçbir gerçek proje dosyası.
+
+### Testler
+
+- `npx tsc --noEmit` temiz · `npx eslint .` 0 error / 22 warning · `npx next build` başarılı.
+- **YENİ smoke'lar:** c2b5-image-serving (12), c2b6-authority-generation-marker (14),
+  ayas-access-gate (14), ayas-intent-intake (13), external-runtime-root-lifecycle (7),
+  project-storage-hygiene (8→10).
+- **Brain/AYAS regression: 11 suite PASS** (ayas-chat 12, ayas-voice 36, ayas-autonomous 11,
+  brain-core-ui 23, brain-foundation 25, brain-task-store 20, brain-worker-cycle 15, brain-security 11,
+  brain-probes 23, brain-plan-store 10, brain-worker 14).
+- **Storage regression:** 129-25b (21), 129-25b-1 (13), 129-25c-1 (39), 129-25c-2b-1 (48),
+  129-25c-2b-2 (34) **PASS**.
+- **Pre-existing FAIL (bu sprint dışı):** `smoke-sprint-129-25c-2a-guarded-filesystem` +
+  `-2b-4-runtime-context` — Sprint 188'de kayıtlı OS temp-dir path-uzunluk boundary hassasiyeti.
+  Pre-sprint HEAD `3646963`'te bit-bit aynı şekilde başarısız; suite'lerin kaynağı + bağımlılıkları
+  bu branch'te değişmedi (`git diff --name-only 3646963 HEAD` doğruladı).
+
+### Sıradaki tek mantıklı adım
+
+**C.2B.6b** — `RuntimeAuthorityGenerationMarker`'ı `ProductionRuntimeCompositionRoot` + recovery
+bootstrap'a bağla (bağımsız review ile). Sonra C.2B.9 (versioned authority transition + quiescence).
+Ayrı onayla: AYAS iPhone PWA/install/voice (bu sprintte kapsam dışı bırakıldı).
+
+<!-- SPRINT-189-END -->
+
 ## Sprint 188 - Graphify Master Sprint: kalıcı sprint governance + project storage dokümantasyon + hijyen guard - 2026-09-08
 
 **Status:** GOVERNANCE + DOKÜMAN + GUARD TAMAM. **Migration/cutover = SPRINT NOT READY** (bilinçli —
