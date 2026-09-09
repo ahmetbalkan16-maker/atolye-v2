@@ -229,6 +229,10 @@ export default function D2WakeLabPage() {
   const [wakeScore, setWakeScore] = useState(0);
   const [sttState, setSttState] = useState<"idle" | "capturing" | "transcribing" | "done" | "error">("idle");
   const [lastTranscript, setLastTranscript] = useState<string>("—");
+  const [ayasState, setAyasState] = useState<"idle" | "thinking" | "done">("idle");
+  const [ayasReply, setAyasReply] = useState<string>("—");
+  const [ttsState, setTtsState] = useState<string>("idle");
+  const [rearmState, setRearmState] = useState<string>("—");
   const [bgRecovery, setBgRecovery] = useState<string>("— (henüz arka plana alınmadı)");
   const [logLines, setLogLines] = useState<readonly string[]>([]);
   const cmdRef = useRef<{ frames: Float32Array[]; ms: number; silence: number } | null>(null);
@@ -324,6 +328,70 @@ export default function D2WakeLabPage() {
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [log]);
 
+  const askAyasAndSpeak = useCallback(
+    async (text: string) => {
+      setAyasState("thinking");
+      let reply = "";
+      try {
+        const res = await fetch("/api/ayas/chat/stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, history: [], seq: 1 }),
+        });
+        if (res.ok && res.body) {
+          const reader = res.body.getReader();
+          const dec = new TextDecoder();
+          let buf = "";
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buf += dec.decode(value, { stream: true });
+            let nl: number;
+            while ((nl = buf.indexOf("\n\n")) !== -1) {
+              const line = buf.slice(0, nl).split("\n").find((l) => l.startsWith("data:"));
+              buf = buf.slice(nl + 2);
+              if (!line) continue;
+              try {
+                const ev = JSON.parse(line.slice(5).trim()) as { type: string; text?: string };
+                if (ev.type === "delta" && ev.text) reply += ev.text;
+                else if (ev.type === "done" && ev.text) reply = ev.text;
+              } catch {
+                /* skip */
+              }
+            }
+          }
+        }
+      } catch (e) {
+        log(`AYAS error: ${String(e)}`);
+      }
+      setAyasReply(reply || "(boş)");
+      setAyasState("done");
+      log(`AYAS -> "${reply.replace(/\s+/g, " ").slice(0, 140)}"`);
+
+      // TTS (existing speechSynthesis path — unchanged architecture)
+      if (typeof window !== "undefined" && "speechSynthesis" in window && reply) {
+        setTtsState("speaking");
+        const u = new SpeechSynthesisUtterance(reply.replace(/[*_`#>|]/g, " "));
+        u.lang = "tr-TR";
+        u.onend = () => {
+          setTtsState("done");
+          setRearmState("re-armed (detector listening for AYAS)");
+          log("TTS bitti -> detector RE-ARM");
+        };
+        u.onerror = () => {
+          setTtsState("blocked / error (▶ replay gerekebilir)");
+          setRearmState("re-armed");
+        };
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(u);
+      } else {
+        setTtsState("n/a");
+        setRearmState("re-armed");
+      }
+    },
+    [log],
+  );
+
   const runStt = useCallback(
     async (samples: Float32Array) => {
       setSttState("transcribing");
@@ -336,16 +404,19 @@ export default function D2WakeLabPage() {
           setLastTranscript(data.text);
           setSttState("done");
           log(`STT -> "${data.text}"`);
+          void askAyasAndSpeak(data.text);
         } else {
           setSttState("error");
+          setRearmState("re-armed (STT boş)");
           log(`STT error: ${res.status} ${data.error ?? ""}`);
         }
       } catch (e) {
         setSttState("error");
+        setRearmState("re-armed (STT hata)");
         log(`STT transport error: ${String(e)}`);
       }
     },
-    [log],
+    [askAyasAndSpeak, log],
   );
 
   const onWorkletMessage = useCallback(
@@ -555,6 +626,9 @@ export default function D2WakeLabPage() {
             lastWakeScore: wakeScore,
           },
           stt: { state: sttState, lastTranscript },
+          ayas: { state: ayasState, reply: ayasReply },
+          tts: { state: ttsState },
+          rearm: rearmState,
           elapsedSeconds: elapsed,
           elapsedHms: hhmmss(elapsed),
           backgroundRecovery: bgRecovery,
@@ -563,7 +637,7 @@ export default function D2WakeLabPage() {
         null,
         2,
       ),
-    [engine, envFp, sampleRate, ctxState, worklet, tel.frames, threshold, hits, truePos, falsePos, lastDetection, wakeScore, sttState, lastTranscript, elapsed, bgRecovery],
+    [engine, envFp, sampleRate, ctxState, worklet, tel.frames, threshold, hits, truePos, falsePos, lastDetection, wakeScore, sttState, lastTranscript, ayasState, ayasReply, ttsState, rearmState, elapsed, bgRecovery],
   );
 
   const rmsPct = Math.min(100, Math.round(tel.rms * 400));
@@ -638,6 +712,14 @@ export default function D2WakeLabPage() {
         <dd>{sttState}</dd>
         <dt>Son transcript</dt>
         <dd style={{ wordBreak: "break-word" }}>{lastTranscript}</dd>
+        <dt>AYAS state</dt>
+        <dd>{ayasState}</dd>
+        <dt>AYAS cevabı</dt>
+        <dd style={{ wordBreak: "break-word" }}>{ayasReply}</dd>
+        <dt>TTS state</dt>
+        <dd>{ttsState}</dd>
+        <dt>Re-arm state</dt>
+        <dd>{rearmState}</dd>
       </dl>
 
       <dl className="bc-kv" data-testid="d2w-audio" style={{ marginTop: 12 }}>

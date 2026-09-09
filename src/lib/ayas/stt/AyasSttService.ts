@@ -116,7 +116,8 @@ function defaultRun(
  * a long initial prompt hurts more than it helps.
  */
 // ASCII-only: Node's Windows execFile mangles non-ASCII argv (see AyasSttConfig).
-const AYAS_STT_PROMPT = "AYAS, Atolye, Graphify, pipeline, render, proje.";
+const AYAS_STT_PROMPT =
+  "AYAS, Atolye, Graphify, pipeline, runtime, render, proje, asama, visuals, script.";
 
 /** Normalise the few predictable mis-hears of "AYAS" back to the name. */
 export function normaliseAyasTranscript(text: string): string {
