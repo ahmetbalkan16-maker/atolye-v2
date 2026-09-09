@@ -25,8 +25,22 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
+import type { WakeRunnerStats } from "@/components/brain/voice/wake/openWakeWordRunner";
+
 type MicState = "off" | "requesting" | "on" | "denied" | "ended";
 type WorkletState = "idle" | "loading" | "running" | "stopped";
+
+/** Numeric-only pipeline diagnostics surfaced to the operator (no audio). */
+interface WakeDiag {
+  readonly rawScore: number; // last wakeword score, ANY magnitude (-1 = none yet)
+  readonly maxScore: number; // highest score this session (-1 = none yet)
+  readonly featFrames: number; // mel frames produced
+  readonly embeddings: number; // embeddings produced
+  readonly inferences: number; // wakeword inferences run
+  readonly error: string | null; // last error inside the runner
+}
+const ZERO_DIAG: WakeDiag = { rawScore: -1, maxScore: -1, featFrames: 0, embeddings: 0, inferences: 0, error: null };
+const fmtScore = (s: number) => (s < 0 ? "—" : s.toFixed(4));
 
 interface Telemetry {
   readonly inSamples: number;
@@ -53,6 +67,8 @@ interface WakeDetector {
   reset(): void;
   init?(): Promise<void>;
   dispose?(): void;
+  /** Numeric-only streaming diagnostics, if the detector keeps any. */
+  stats?(): WakeRunnerStats | null;
 }
 
 /**
@@ -157,6 +173,9 @@ class OpenWakeWordDetector implements WakeDetector {
     }
     return null;
   }
+  stats(): WakeRunnerStats | null {
+    return this.runner?.stats ?? null;
+  }
   reset(): void {
     this.runner?.reset();
   }
@@ -227,6 +246,8 @@ export default function D2WakeLabPage() {
   const [falsePos, setFalsePos] = useState(0);
   const [lastDetection, setLastDetection] = useState<string>("—");
   const [wakeScore, setWakeScore] = useState(0);
+  const [diag, setDiag] = useState<WakeDiag>(ZERO_DIAG);
+  const diagRef = useRef<WakeDiag>(ZERO_DIAG);
   const [sttState, setSttState] = useState<"idle" | "capturing" | "transcribing" | "done" | "error">("idle");
   const [lastTranscript, setLastTranscript] = useState<string>("—");
   const [ayasState, setAyasState] = useState<"idle" | "thinking" | "done">("idle");
@@ -424,6 +445,7 @@ export default function D2WakeLabPage() {
       const data = event.data;
       if (data.type === "telemetry") {
         setTel(data);
+        setDiag(diagRef.current); // flush numeric pipeline diagnostics ~5x/s
         return;
       }
       // data.type === "frame"
@@ -450,19 +472,36 @@ export default function D2WakeLabPage() {
         return;
       }
 
-      void Promise.resolve(detector.accept(data.samples)).then((hit) => {
-        if (hit && "score" in hit) setWakeScore(hit.score);
-        if (!hit) return;
-        setHits((n) => n + 1);
-        const stamp = new Date(hit.at).toISOString().slice(11, 19);
-        setLastDetection(`${stamp}  (${hit.keyword}, skor ${hit.score.toFixed(3)})`);
-        log(`WAKE_DETECTED — ${hit.keyword} skor=${hit.score.toFixed(3)}`);
-        if (detectorRef.current?.name === "openWakeWord") {
-          cmdRef.current = { frames: [], ms: 0, silence: 0 };
-          setSttState("capturing");
-          setLastTranscript("—");
-        }
-      });
+      void Promise.resolve(detector.accept(data.samples))
+        .then((hit) => {
+          const st = detector.stats?.();
+          if (st) {
+            diagRef.current = {
+              rawScore: st.lastScore,
+              maxScore: st.maxScore,
+              featFrames: st.melFrames,
+              embeddings: st.embeddings,
+              inferences: st.inferences,
+              error: st.lastError,
+            };
+          }
+          if (hit && "score" in hit) setWakeScore(hit.score);
+          if (!hit) return;
+          setHits((n) => n + 1);
+          const stamp = new Date(hit.at).toISOString().slice(11, 19);
+          setLastDetection(`${stamp}  (${hit.keyword}, skor ${hit.score.toFixed(3)})`);
+          log(`WAKE_DETECTED — ${hit.keyword} skor=${hit.score.toFixed(3)}`);
+          if (detectorRef.current?.name === "openWakeWord") {
+            cmdRef.current = { frames: [], ms: 0, silence: 0 };
+            setSttState("capturing");
+            setLastTranscript("—");
+          }
+        })
+        .catch((error) => {
+          diagRef.current = { ...diagRef.current, error: String(error) };
+          setDiag(diagRef.current);
+          log(`detector.accept HATA: ${String(error)}`);
+        });
     },
     [log, runStt],
   );
@@ -475,6 +514,9 @@ export default function D2WakeLabPage() {
     setTruePos(0);
     setFalsePos(0);
     setLastDetection("—");
+    setWakeScore(0);
+    diagRef.current = ZERO_DIAG;
+    setDiag(ZERO_DIAG);
     setBgRecovery("— (henüz arka plana alınmadı)");
     log("ARM: kullanıcı dokunuşu alındı");
 
@@ -625,6 +667,15 @@ export default function D2WakeLabPage() {
             lastDetection,
             lastWakeScore: wakeScore,
           },
+          pipeline: {
+            rawScoreLast: diag.rawScore,
+            rawScoreMax: diag.maxScore,
+            featureFrames: diag.featFrames,
+            embeddings: diag.embeddings,
+            inferences: diag.inferences,
+            runnerError: diag.error,
+            crossedThreshold: diag.maxScore >= 0 && diag.maxScore >= threshold,
+          },
           stt: { state: sttState, lastTranscript },
           ayas: { state: ayasState, reply: ayasReply },
           tts: { state: ttsState },
@@ -637,7 +688,7 @@ export default function D2WakeLabPage() {
         null,
         2,
       ),
-    [engine, envFp, sampleRate, ctxState, worklet, tel.frames, threshold, hits, truePos, falsePos, lastDetection, wakeScore, sttState, lastTranscript, ayasState, ayasReply, ttsState, rearmState, elapsed, bgRecovery],
+    [engine, envFp, sampleRate, ctxState, worklet, tel.frames, threshold, hits, truePos, falsePos, lastDetection, wakeScore, diag, sttState, lastTranscript, ayasState, ayasReply, ttsState, rearmState, elapsed, bgRecovery],
   );
 
   const rmsPct = Math.min(100, Math.round(tel.rms * 400));
@@ -706,8 +757,10 @@ export default function D2WakeLabPage() {
         <dd>{engine === "openwakeword" ? "openWakeWord (ONNX)" : "HEURISTIC-STUB"}</dd>
         <dt>Engine status</dt>
         <dd>{armed ? "RUNNING" : worklet === "stopped" ? "stopped" : "idle"}</dd>
-        <dt>Wake score (son frame)</dt>
-        <dd>{wakeScore.toFixed(3)}</dd>
+        <dt>Ham wake skoru (son frame)</dt>
+        <dd data-testid="d2w-rawscore">{fmtScore(diag.rawScore)}</dd>
+        <dt>Son HIT skoru</dt>
+        <dd>{wakeScore > 0 ? wakeScore.toFixed(3) : "— (henüz hit yok)"}</dd>
         <dt>STT state</dt>
         <dd>{sttState}</dd>
         <dt>Son transcript</dt>
@@ -763,6 +816,33 @@ export default function D2WakeLabPage() {
         />
         <Bar pct={engine === "openwakeword" ? Math.round(threshold * 100) : thrPct} />
       </div>
+
+      {engine === "openwakeword" ? (
+        <dl className="bc-kv" data-testid="d2w-diag" style={{ marginTop: 14 }}>
+          <dt>Pipeline — ham skor (son)</dt>
+          <dd data-testid="d2w-diag-raw">{fmtScore(diag.rawScore)}</dd>
+          <dt>Pipeline — en yüksek ham skor</dt>
+          <dd data-testid="d2w-diag-max">{fmtScore(diag.maxScore)}</dd>
+          <dt>Feature frames (mel)</dt>
+          <dd>{diag.featFrames.toLocaleString("tr-TR")}</dd>
+          <dt>Embeddings</dt>
+          <dd>{diag.embeddings.toLocaleString("tr-TR")}</dd>
+          <dt>Wakeword inference sayısı</dt>
+          <dd>{diag.inferences.toLocaleString("tr-TR")}</dd>
+          <dt>Runner hatası</dt>
+          <dd style={{ wordBreak: "break-word", color: diag.error ? "var(--bc-danger, #f66)" : undefined }}>
+            {diag.error ?? "yok"}
+          </dd>
+          <dt>Skor → eşik ({threshold.toFixed(2)})</dt>
+          <dd>
+            {diag.maxScore < 0
+              ? "— (henüz inference yok)"
+              : diag.maxScore >= threshold
+                ? `GEÇTİ (${diag.maxScore.toFixed(3)} ≥ ${threshold.toFixed(2)})`
+                : `altında (${diag.maxScore.toFixed(3)} < ${threshold.toFixed(2)})`}
+          </dd>
+        </dl>
+      ) : null}
 
       <dl className="bc-kv" data-testid="d2w-detection" style={{ marginTop: 14 }}>
         <dt>Wake hits</dt>

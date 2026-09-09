@@ -1,5 +1,65 @@
 ---
 
+## D2 FAZ 1B — AYAS iPhone wake detection: model PROVEN, lab INSTRUMENTED; gate CLOSED - 2026-09-09
+
+**Branch:** `wip/ayas-graphify-final-execution` (off `c8a0f90`). NOT merged / NOT pushed.
+
+**Symptom:** iPhone installed PWA, `/brain/voice-lab/wake` "openWakeWord + STT" — real engine loads,
+mic → AudioWorklet OK, RMS + Frames rise, but **Wake score 0.000 / hits 0 / STT never starts**.
+
+**Measured, not guessed (offline, ONNX Runtime, real `public/wake/*.onnx`):**
+- A synthesised Turkish "AYAS" clip through the **exact `OpenWakeWordRunner`** → peak **0.9992**;
+  the same clip through Python openWakeWord streaming (same 3 ONNX models) → peak **0.9991**. The
+  model + the whole feature pipeline (melspec → `/10+2` → embedding → wakeword) are **correct**.
+- Robust: level ±12 dB, phone-band EQ, white noise, reverb, hard-clip → peak stays **0.99**.
+- 48 k→16 k worklet resample, render-quantum 128/256/512/999/2048, and the page's un-serialised
+  `accept()` dispatch — **none** drop the score offline.
+- Per the spec's Section 4 rule (offline non-zero ⇒ not the model): **the drop is in the on-device
+  browser path** — and the lab could not measure it.
+
+**Root cause of the investigation being stuck (certain, code-level):**
+`page.tsx` only called `setWakeScore(hit.score)` *on a hit*, and `OpenWakeWordDetector.accept()`
+returns `null` for every sub-threshold frame → "Wake score" is **hard-wired to 0.000 until a hit
+fires**, regardless of the true model output. Runner exceptions were swallowed (`void
+Promise.resolve(accept()).then()` with no `.catch`) → an iOS wasm `.run()` failure is
+indistinguishable from "score 0". No feature-frame / embedding / inference counters → Section 7
+(A–E) not classifiable from the device.
+
+**Fix (wake-only, no audio recorded/logged — Section 6 numeric telemetry):**
+- `openWakeWordRunner.ts`: `get stats` → `{ frames, melFrames, embeddings, inferences, lastScore,
+  maxScore, lastError }` (inline counters, zero behaviour change on the happy path); `accept()`
+  wrapped so an inference failure lands in `stats.lastError` and returns `null` instead of rejecting;
+  `createSession` test seam.
+- `page.tsx`: always surfaces the **raw** per-frame score + session max + feature/embedding/
+  inference counts + runner error + a "score → threshold" verdict row (openWakeWord mode); `.catch`
+  on the dispatch; all of it in the copyable report JSON. Threshold **unchanged at 0.70** (Section
+  11 — prove real scores first).
+- New `scripts/smoke-ayas-wake-runner.ts` (12): resample rate/quantum-independence, exact ONNX
+  input shapes `[1,N]`/`[1,76,32,1]`/`[1,16,96]`, streaming windows, stats counters, error capture,
+  **real-ONNX integration** ("AYAS" → ≥0.9 fires, non-wake phrase → <0.5).
+
+**Verify:** tsc 0 / eslint 0 err (22 warnings pre-existing, all in `src/lib/runtime/backup/**`) /
+`next build` clean. 18 `smoke-ayas-*` + brain suites green. `git diff --check` clean; 2 files
+changed (`page.tsx`, `openWakeWordRunner.ts`) + 1 new test — all wake.
+
+**Unchanged:** Execution Gate CLOSED, `writeActionsEnabled=false`, STT backend logic, AYAS chat,
+TTS, Caddy, auth/CSRF, `.env.local`, storage authority, `D:\AtolyeRuntime`, `ProjectWriter`,
+`PipelineRunner`, `wakeWordVoiceAdapter.ts` (shares the now-instrumented runner; benefits from the
+no-reject `accept()` for free).
+
+**OPERATOR NEXT STEP (physical iPhone, one test):** rebuild + serve, open the installed PWA at
+`https://192.168.2.74/brain/voice-lab/wake`, pick **"openWakeWord + STT"**, START, say "AYAS" 5×,
+copy the **report JSON** `pipeline` block. Decision tree:
+- `inferences` climbs, `rawScoreMax ≈ 0.00x`, offline is 0.999 → **iOS wasm numerics** → swap to the
+  `onnxruntime-web/wasm` (CPU-only) build / disable wasm SIMD, re-test.
+- `rawScoreMax` 0.3–0.7 (below 0.70) → **Section 7 case C** — real-human vs synthetic-only training;
+  record ~30 "AYAS" clips → rerun `scripts/wake/train_ayas_wake.py`, or lower threshold with FP data.
+- `runnerError` non-null → that string is the bug.
+- `featureFrames` = 0 while Frames rise → frame delivery / worklet-message path.
+- `inferences` = 0 while `featureFrames` > 76 → embedding scheduling.
+
+<!-- D2-FAZ-1B-WAKE-DETECTION-END -->
+
 ## AYAS VOICE FINAL ACTIVATION — STT env live, full chain proven, physical-test ready; gate CLOSED - 2026-09-09
 
 **Branch:** `wip/ayas-graphify-final-execution` @ `53a2de6`. NOT merged / NOT pushed.

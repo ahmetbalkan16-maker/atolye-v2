@@ -14,6 +14,11 @@
  * Runs entirely on-device via onnxruntime-web (WASM). No audio leaves the page.
  * The three ONNX models are served from `/wake/` (see AyasWakeAssets); the
  * feature models are openWakeWord's, the wakeword model is `ayas.onnx`.
+ *
+ * `stats` exposes numeric-only counters (frames / feature frames / embeddings /
+ * inferences / last + max score / last error). No audio, ever — it exists so a
+ * device can report *where* the streaming chain drops to zero instead of only a
+ * post-threshold "0.000".
  */
 
 import * as ort from "onnxruntime-web";
@@ -33,12 +38,43 @@ export interface WakeRunnerOptions {
   readonly wakewordUrl: string;
   /** onnxruntime-web `wasmPaths` (dir that holds ort-*.wasm). */
   readonly wasmPaths?: string;
+  /** Test seam — build the three inference sessions (defaults to onnxruntime-web). */
+  readonly createSession?: (
+    url: string,
+    options: ort.InferenceSession.SessionOptions,
+  ) => Promise<WakeSession>;
+}
+
+/** The slice of `ort.InferenceSession` the runner uses. */
+export interface WakeSession {
+  readonly inputNames: readonly string[];
+  readonly outputNames: readonly string[];
+  run(feeds: Record<string, ort.Tensor>): Promise<Record<string, { data: unknown }>>;
+  release?(): void | Promise<void>;
+}
+
+/** Numeric-only streaming diagnostics. Contains no audio and never will. */
+export interface WakeRunnerStats {
+  /** `accept()` calls that carried a full 1280-sample chunk. */
+  readonly frames: number;
+  /** mel frames emitted by melspectrogram.onnx so far. */
+  readonly melFrames: number;
+  /** embeddings emitted by embedding_model.onnx so far. */
+  readonly embeddings: number;
+  /** wakeword inferences run so far. */
+  readonly inferences: number;
+  /** last wakeword score (any magnitude), or -1 before the first inference. */
+  readonly lastScore: number;
+  /** highest wakeword score seen this session, or -1 before the first inference. */
+  readonly maxScore: number;
+  /** message of the last error thrown inside `accept()`, or null. */
+  readonly lastError: string | null;
 }
 
 export class OpenWakeWordRunner {
-  private mel!: ort.InferenceSession;
-  private emb!: ort.InferenceSession;
-  private ww!: ort.InferenceSession;
+  private mel!: WakeSession;
+  private emb!: WakeSession;
+  private ww!: WakeSession;
 
   private readonly raw: Float32Array; // int16-scale samples, rolling
   private rawLen = 0;
@@ -50,6 +86,15 @@ export class OpenWakeWordRunner {
   private _ready = false;
   private disposed = false;
 
+  // numeric-only diagnostics — see WakeRunnerStats. No audio is retained here.
+  private nFrames = 0;
+  private nMelFrames = 0;
+  private nEmb = 0;
+  private nInfer = 0;
+  private lastScore = -1;
+  private maxScore = -1;
+  private lastError: string | null = null;
+
   constructor(private readonly opts: WakeRunnerOptions) {
     this.raw = new Float32Array((CHUNK + MEL_LOOKBACK) * 2);
     this.melBuf = new Float32Array(MEL_BUFFER_MAX * MEL_BINS);
@@ -60,15 +105,32 @@ export class OpenWakeWordRunner {
     return this._ready;
   }
 
+  /** Numeric-only streaming diagnostics — a fresh snapshot each read. */
+  get stats(): WakeRunnerStats {
+    return {
+      frames: this.nFrames,
+      melFrames: this.nMelFrames,
+      embeddings: this.nEmb,
+      inferences: this.nInfer,
+      lastScore: this.lastScore,
+      maxScore: this.maxScore,
+      lastError: this.lastError,
+    };
+  }
+
   async init(): Promise<void> {
     if (this.opts.wasmPaths) ort.env.wasm.wasmPaths = this.opts.wasmPaths;
     ort.env.wasm.numThreads = 1;
     ort.env.logLevel = "error";
     const so: ort.InferenceSession.SessionOptions = { executionProviders: ["wasm"], graphOptimizationLevel: "all" };
+    const create =
+      this.opts.createSession ??
+      (async (url: string, o: ort.InferenceSession.SessionOptions) =>
+        (await ort.InferenceSession.create(url, o)) as unknown as WakeSession);
     [this.mel, this.emb, this.ww] = await Promise.all([
-      ort.InferenceSession.create(this.opts.melspectrogramUrl, so),
-      ort.InferenceSession.create(this.opts.embeddingUrl, so),
-      ort.InferenceSession.create(this.opts.wakewordUrl, so),
+      create(this.opts.melspectrogramUrl, so),
+      create(this.opts.embeddingUrl, so),
+      create(this.opts.wakewordUrl, so),
     ]);
     this._ready = true;
   }
@@ -90,6 +152,11 @@ export class OpenWakeWordRunner {
   /**
    * Feed one 80 ms (1280-sample) frame of 16 kHz mono PCM in [-1, 1]. Returns
    * the wakeword score for the frame, or `null` if not enough context yet.
+   *
+   * Never rejects: an inference failure (e.g. an iOS wasm kernel gap) is
+   * recorded in `stats.lastError` and surfaced as `null`, so a broken device
+   * path shows up as a visible error string rather than an unhandled rejection
+   * that silently freezes the pipeline.
    */
   async accept(frame: Float32Array): Promise<number | null> {
     if (!this._ready || this.disposed) return null;
@@ -97,52 +164,67 @@ export class OpenWakeWordRunner {
     if (this.pending.length < CHUNK) return null;
 
     const chunk = this.pending.splice(0, CHUNK);
-    // roll the raw buffer, keep the last CHUNK + lookback samples
-    const keep = CHUNK + MEL_LOOKBACK;
-    if (this.rawLen + CHUNK > this.raw.length) {
-      this.raw.copyWithin(0, this.rawLen - keep + CHUNK, this.rawLen);
-      this.rawLen = keep - CHUNK;
-    }
-    for (let i = 0; i < CHUNK; i += 1) this.raw[this.rawLen + i] = chunk[i];
-    this.rawLen += CHUNK;
-
-    const melSlice = this.raw.subarray(Math.max(0, this.rawLen - (CHUNK + MEL_LOOKBACK)), this.rawLen);
-    const melOut = await this.mel.run({
-      [this.mel.inputNames[0]]: new ort.Tensor("float32", Float32Array.from(melSlice), [1, melSlice.length]),
-    });
-    const melData = melOut[this.mel.outputNames[0]].data as Float32Array; // (time, 1, ?, 32) row-major
-    const newFrames = melData.length / MEL_BINS;
-    for (let f = 0; f < newFrames; f += 1) {
-      if (this.melFrames >= MEL_BUFFER_MAX) {
-        this.melBuf.copyWithin(0, MEL_BINS, this.melFrames * MEL_BINS);
-        this.melFrames -= 1;
+    this.nFrames += 1;
+    try {
+      // roll the raw buffer, keep the last CHUNK + lookback samples
+      const keep = CHUNK + MEL_LOOKBACK;
+      if (this.rawLen + CHUNK > this.raw.length) {
+        this.raw.copyWithin(0, this.rawLen - keep + CHUNK, this.rawLen);
+        this.rawLen = keep - CHUNK;
       }
-      for (let b = 0; b < MEL_BINS; b += 1) {
-        this.melBuf[this.melFrames * MEL_BINS + b] = melData[f * MEL_BINS + b] / 10 + 2;
+      for (let i = 0; i < CHUNK; i += 1) this.raw[this.rawLen + i] = chunk[i];
+      this.rawLen += CHUNK;
+
+      const melSlice = this.raw.subarray(Math.max(0, this.rawLen - (CHUNK + MEL_LOOKBACK)), this.rawLen);
+      const melOut = await this.mel.run({
+        [this.mel.inputNames[0]]: new ort.Tensor("float32", Float32Array.from(melSlice), [1, melSlice.length]),
+      });
+      const melData = melOut[this.mel.outputNames[0]].data as Float32Array; // (time, 1, ?, 32) row-major
+      const newFrames = melData.length / MEL_BINS;
+      for (let f = 0; f < newFrames; f += 1) {
+        if (this.melFrames >= MEL_BUFFER_MAX) {
+          this.melBuf.copyWithin(0, MEL_BINS, this.melFrames * MEL_BINS);
+          this.melFrames -= 1;
+        }
+        for (let b = 0; b < MEL_BINS; b += 1) {
+          this.melBuf[this.melFrames * MEL_BINS + b] = melData[f * MEL_BINS + b] / 10 + 2;
+        }
+        this.melFrames += 1;
+        this.nMelFrames += 1;
       }
-      this.melFrames += 1;
-    }
-    if (this.melFrames < MEL_WINDOW) return null;
+      if (this.melFrames < MEL_WINDOW) return null;
 
-    // one new embedding from the last 76 mel frames
-    const embIn = this.melBuf.subarray((this.melFrames - MEL_WINDOW) * MEL_BINS, this.melFrames * MEL_BINS);
-    const embOut = await this.emb.run({
-      [this.emb.inputNames[0]]: new ort.Tensor("float32", Float32Array.from(embIn), [1, MEL_WINDOW, MEL_BINS, 1]),
-    });
-    const embData = embOut[this.emb.outputNames[0]].data as Float32Array; // (1,1,1,96)
-    if (this.embCount >= EMB_BUFFER_MAX) {
-      this.embBuf.copyWithin(0, EMB_DIM, this.embCount * EMB_DIM);
-      this.embCount -= 1;
-    }
-    for (let d = 0; d < EMB_DIM; d += 1) this.embBuf[this.embCount * EMB_DIM + d] = embData[d];
-    this.embCount += 1;
-    if (this.embCount < EMB_WINDOW) return null;
+      // one new embedding from the last 76 mel frames
+      const embIn = this.melBuf.subarray((this.melFrames - MEL_WINDOW) * MEL_BINS, this.melFrames * MEL_BINS);
+      const embOut = await this.emb.run({
+        [this.emb.inputNames[0]]: new ort.Tensor("float32", Float32Array.from(embIn), [1, MEL_WINDOW, MEL_BINS, 1]),
+      });
+      const embData = embOut[this.emb.outputNames[0]].data as Float32Array; // (1,1,1,96)
+      if (this.embCount >= EMB_BUFFER_MAX) {
+        this.embBuf.copyWithin(0, EMB_DIM, this.embCount * EMB_DIM);
+        this.embCount -= 1;
+      }
+      for (let d = 0; d < EMB_DIM; d += 1) this.embBuf[this.embCount * EMB_DIM + d] = embData[d];
+      this.embCount += 1;
+      this.nEmb += 1;
+      if (this.embCount < EMB_WINDOW) return null;
 
-    const wwIn = this.embBuf.subarray((this.embCount - EMB_WINDOW) * EMB_DIM, this.embCount * EMB_DIM);
-    const wwOut = await this.ww.run({
-      [this.ww.inputNames[0]]: new ort.Tensor("float32", Float32Array.from(wwIn), [1, EMB_WINDOW, EMB_DIM]),
-    });
-    const score = (wwOut[this.ww.outputNames[0]].data as Float32Array)[0];
-    return Number.isFinite(score) ? score : null;
+      const wwIn = this.embBuf.subarray((this.embCount - EMB_WINDOW) * EMB_DIM, this.embCount * EMB_DIM);
+      const wwOut = await this.ww.run({
+        [this.ww.inputNames[0]]: new ort.Tensor("float32", Float32Array.from(wwIn), [1, EMB_WINDOW, EMB_DIM]),
+      });
+      const score = (wwOut[this.ww.outputNames[0]].data as Float32Array)[0];
+      this.nInfer += 1;
+      if (Number.isFinite(score)) {
+        this.lastScore = score;
+        if (score > this.maxScore) this.maxScore = score;
+        return score;
+      }
+      this.lastError = "wakeword output was not finite";
+      return null;
+    } catch (error) {
+      this.lastError = (error as Error)?.message ?? String(error);
+      return null;
+    }
   }
 }
