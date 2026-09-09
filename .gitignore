@@ -55,6 +55,11 @@ graphify-out/
 /bin/piper/
 /data/e2e-output/
 
+# D2 wake-word research assets (research/ayas-d2-audio-lab) — onnxruntime-web
+# WASM + ONNX wake models, pulled/trained per-machine. NOT committed: size +
+# per-model license review. See app/brain/voice-lab/wake/page.tsx.
+/public/wake/
+
 # Caddy reverse-proxy runtime log (deploy/Caddyfile) — per-machine, not committed
 /caddy-ayas.log
 
