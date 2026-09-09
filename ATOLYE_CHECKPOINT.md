@@ -1,5 +1,42 @@
 ---
 
+## AYAS + GRAPHIFY MASTER SPRINT — Phase 0 + Phase 6 done; voice phases operator-gated; gate CLOSED - 2026-09-09
+
+**Branch:** `wip/ayas-graphify-readonly` (off `wip/production-audio-resume-prep-v2` @ `6244860`).
+**NOT merged, NOT pushed.** D2 audio/wake labs stay on `research/ayas-d2-audio-lab`.
+
+28-bölümlük master sprint istendi (PC+iPhone AYAS sesli + wake + STT + TTS + Graphify, production-ready).
+**Gerçekçi sonuç: NOT READY.** 10 fazın ~7'si fiziksel iPhone testi / operatör motor kararı /
+operatör-onaylı binary kurulumu ile gated — bunlar tek autonomous pass'te dürüstçe tamamlanamaz
+(sprintin kendi §24/§25'i de bunu kabul ediyor, sahte PASS yasak). **Bu pass'te tamamlanan:**
+
+- **PHASE 0 (baseline/architecture):** git/build durumu doğrulandı; "Graphify" = Atölye proje+pipeline
+  sistemi (kod knowledge-graph `.graphify/` var ama stale, alakasız). Voice yığını + `AyasStudioContext`
+  + read-only action'lar incelendi. Faz triyajı raporlandı.
+- **PHASE 6 (Graphify read-only intelligence) — YAPILDI:** `AyasStudioContext` artık her projenin
+  `<folder>/manifest.json`'unu **context-bound `ProjectReader` ile doğrudan** okuyor. **Bulgu:**
+  cutover sonrası proje klasörü **slug değil id** ile adlandırılıyor → `ProjectManager.getManifest(slug)`
+  ve `PipelineRecoveryPlanner` her gerçek projeyi **kaçırıyor** (hepsi "manifest okunamadı" dönüyor).
+  Çözüm: id→slug fallback ile doğrudan manifest okuma + saf `pipelineRecoveryStageOrder` /
+  `pipelineStageDependencies` üzerinden hesap. Proje başına + roll-up: sıradaki aşama, başarısız
+  aşamalar, bağımlılık-engeli, en son başarısızlık (aşama + manifest `error` = kök neden).
+  `PipelineRecoveryPlanner.ts` **değişmedi** (yalnız 2 saf sabit import). `buildAyasChatPrompt`
+  bu detayı render ediyor → AYAS "hangi aşamada takıldı / son başarısız stage / kök neden"i
+  **gerçek veriden** cevaplıyor. **Gerçek D:\AtolyeRuntime'a karşı doğrulandı:** 16 proje, 4'ünde
+  başarısız aşama, en son = visuals / `VISUAL_ASSET_GENERATION_FAILED`, yükleme 66 ms.
+  `smoke-ayas-studio-context` 12→**16**. Commit `feat(ayas)` `9785733`.
+
+**BLOCKED (operatör gerekli):** Faz 1 wake motor kararı (openWakeWord eğitim adımı / sherpa-onnx
+emscripten build — Porcupine önerilmez) + gerçek iPhone testi; Faz 2 whisper.cpp CUDA binary +
+model kurulumu + Türkçe konuşma testi; Faz 3-5/8/10 bunlara + cihaz testine bağlı. D2 Faz 0 lab'ı
+operatör tarafından iPhone'da test edilmeyi bekliyor (Faz 0 PASS varsayıldı).
+
+**Değişmeyen:** Execution Gate CLOSED, `writeActionsEnabled=false`, storage authority, `D:\AtolyeRuntime`,
+`D:\AtolyeAuthority`, Caddy, firewall, `.env.local`, `AYAS_ACCESS_KEY`, auth/CSRF, text-chat path,
+`runAyas`/`askAyas`/`/api/ayas/chat/stream`, TTS, `PipelineRunner`, `107fedc`.
+
+<!-- AYAS-GRAPHIFY-MASTER-SPRINT-END -->
+
 ## AYAS iOS VOICE FIX — single-shot recognition, command reaches backend; gate CLOSED - 2026-09-09
 
 **Status:** iPhone PWA'da sesli komut backend'e ulaşmıyordu. **Kök neden:** iOS/WebKit
