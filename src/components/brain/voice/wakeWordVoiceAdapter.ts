@@ -93,6 +93,10 @@ export interface WakeAdapterStatus {
   readonly recoveryCount: number;
   /** ms since the last 80 ms frame arrived (`-1` before the first frame). */
   readonly frameAgeMs: number;
+  /** Wake frames dropped because inference was still busy (iOS back-pressure). */
+  readonly droppedFrames: number;
+  /** The capture AudioContext state, or `"unknown"`. */
+  readonly audioContextState: string;
   readonly lastError: string | null;
 }
 
@@ -152,6 +156,8 @@ export interface WakeAudioBackend {
    * `false` if it must be fully rebuilt (track ended / context closed). Optional.
    */
   recover?(): Promise<boolean>;
+  /** Current AudioContext state for diagnostics (`"unknown"` if not applicable). */
+  state?(): string;
   /** Best-effort: does the environment support this path at all? */
   readonly supported: boolean;
 }
@@ -233,6 +239,11 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   private audioUp = false;
   private starting: Promise<void> | null = null;
   private recovering = false;
+  /** A wake inference is running — drop frames that land meanwhile (bounded memory). */
+  private accepting = false;
+  private droppedFrames = 0;
+  private lastHealthEmitAt = 0;
+  private lastHealthEmitDropped = 0;
   private startAttempts = 0;
   private cyclesCompleted = 0;
   private recoveryCount = 0;
@@ -302,6 +313,8 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       startAttempts: this.startAttempts,
       recoveryCount: this.recoveryCount,
       frameAgeMs: this.lastFrameAt === 0 ? -1 : Date.now() - this.lastFrameAt,
+      droppedFrames: this.droppedFrames,
+      audioContextState: this.audio.state?.() ?? "unknown",
       lastError: this.lastError,
     };
   }
@@ -460,6 +473,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     }
     await this.resumeOrRebuild("rearm");
     if (this.disposed || this.fatal || !this.audioUp) return;
+    this.accepting = false;
     this.runner.reset();
     this.phase = "wake";
     this.lastFrameAt = Date.now();
@@ -518,6 +532,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     const h = this.handlers;
     if (h) await this.ensureAudio(h);
     if (!this.disposed && !this.fatal && this.audioUp) {
+      this.accepting = false;
       this.runner.reset();
       this.phase = wasArmed ? "wake" : "idle";
       this.lastFrameAt = Date.now();
@@ -551,6 +566,17 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       void this.resumeOrRebuild("stall").finally(() => this.armWatchdog());
       return;
     }
+    // Surface a steady-state health beat while armed so the Brain lifecycle
+    // heartbeat records rising `droppedFrames` (the iOS back-pressure signal) —
+    // but only when it actually moved, so we don't re-render every tick.
+    if (armed && this.audioUp) {
+      const now = Date.now();
+      if (this.droppedFrames !== this.lastHealthEmitDropped || now - this.lastHealthEmitAt > 6000) {
+        this.lastHealthEmitDropped = this.droppedFrames;
+        this.lastHealthEmitAt = now;
+        this.emit();
+      }
+    }
     this.armWatchdog();
   }
 
@@ -568,15 +594,30 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
 
     if (this.phase === "wake") {
       if (Date.now() < this.cooldownUntil) return;
-      void this.runner.accept(frame).then((score) => {
-        if (this.phase !== "wake" || score === null) return;
-        if (score >= this.o.threshold) {
-          this.phase = "capturing";
-          this.resetCommand();
-          this.emit();
-          handlers.onFinalTranscript("AYAS");
-        }
-      });
+      // Single-flight. On a phone, 3 WASM ONNX runs per frame can exceed the
+      // 80 ms frame period; queuing every frame's `accept()` piles unbounded
+      // work + allocations onto the microtask queue → iOS memory-kills the PWA
+      // in ~30 s. Drop frames that arrive mid-inference (the runner also guards
+      // internally); openWakeWord's sliding windows tolerate the gap.
+      if (this.accepting) {
+        this.droppedFrames += 1;
+        return;
+      }
+      this.accepting = true;
+      void this.runner
+        .accept(frame)
+        .then((score) => {
+          if (this.phase !== "wake" || score === null) return;
+          if (score >= this.o.threshold) {
+            this.phase = "capturing";
+            this.resetCommand();
+            this.emit();
+            handlers.onFinalTranscript("AYAS");
+          }
+        })
+        .finally(() => {
+          this.accepting = false;
+        });
       return;
     }
 
@@ -627,6 +668,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     this.audioUp = false;
     this.starting = null;
     this.recovering = false;
+    this.accepting = false;
     this.clearWatchdog();
     if (typeof document !== "undefined") {
       document.removeEventListener("visibilitychange", this.onVisibility);
@@ -679,6 +721,10 @@ class MediaStreamWorkletBackend implements WakeAudioBackend {
     src.connect(this.node);
     this.node.connect(gain);
     gain.connect(this.ctx.destination);
+  }
+
+  state(): string {
+    return this.ctx?.state ?? "unknown";
   }
 
   async recover(): Promise<boolean> {

@@ -16,9 +16,18 @@
  * feature models are openWakeWord's, the wakeword model is `ayas.onnx`.
  *
  * `stats` exposes numeric-only counters (frames / feature frames / embeddings /
- * inferences / last + max score / last error). No audio, ever — it exists so a
- * device can report *where* the streaming chain drops to zero instead of only a
- * post-threshold "0.000".
+ * inferences / dropped frames / last + max score / last error). No audio, ever —
+ * it exists so a device can report *where* the streaming chain drops to zero
+ * instead of only a post-threshold "0.000".
+ *
+ * `accept()` is **single-flight**: three sequential WASM ONNX runs per 80 ms
+ * frame can exceed 80 ms on a phone, and the callers fire one `accept()` per
+ * frame. Without a guard the calls overlap, corrupt the shared rolling buffers,
+ * and pile unbounded promise/allocation work onto the microtask queue — which on
+ * an installed iOS PWA is enough memory pressure for WebKit to kill and reload
+ * the page within ~30 s. A frame that arrives while an inference is in flight is
+ * dropped (counted in `stats.dropped`); openWakeWord's sliding windows tolerate
+ * the occasional gap, and a device fast enough to keep up drops nothing.
  */
 
 import * as ort from "onnxruntime-web";
@@ -63,6 +72,8 @@ export interface WakeRunnerStats {
   readonly embeddings: number;
   /** wakeword inferences run so far. */
   readonly inferences: number;
+  /** frames dropped because an inference was still in flight (back-pressure). */
+  readonly dropped: number;
   /** last wakeword score (any magnitude), or -1 before the first inference. */
   readonly lastScore: number;
   /** highest wakeword score seen this session, or -1 before the first inference. */
@@ -85,12 +96,15 @@ export class OpenWakeWordRunner {
   private embCount = 0;
   private _ready = false;
   private disposed = false;
+  /** An `accept()` is mid-inference — the runner must not be re-entered. */
+  private inFlight = false;
 
   // numeric-only diagnostics — see WakeRunnerStats. No audio is retained here.
   private nFrames = 0;
   private nMelFrames = 0;
   private nEmb = 0;
   private nInfer = 0;
+  private nDropped = 0;
   private lastScore = -1;
   private maxScore = -1;
   private lastError: string | null = null;
@@ -112,6 +126,7 @@ export class OpenWakeWordRunner {
       melFrames: this.nMelFrames,
       embeddings: this.nEmb,
       inferences: this.nInfer,
+      dropped: this.nDropped,
       lastScore: this.lastScore,
       maxScore: this.maxScore,
       lastError: this.lastError,
@@ -140,6 +155,7 @@ export class OpenWakeWordRunner {
     this.pending = [];
     this.melFrames = 0;
     this.embCount = 0;
+    this.inFlight = false;
   }
 
   dispose(): void {
@@ -160,11 +176,21 @@ export class OpenWakeWordRunner {
    */
   async accept(frame: Float32Array): Promise<number | null> {
     if (!this._ready || this.disposed) return null;
+    // Single-flight: a frame that lands while an inference is running is dropped
+    // rather than queued — see the class comment. This is the memory-pressure
+    // guard for the iOS-PWA "reloads itself after ~30 s" symptom.
+    if (this.inFlight) {
+      this.nDropped += 1;
+      return null;
+    }
     for (let i = 0; i < frame.length; i += 1) this.pending.push(frame[i] * 32767);
     if (this.pending.length < CHUNK) return null;
+    // Defensive: never let the carry buffer ratchet if a caller over-feeds.
+    if (this.pending.length > CHUNK * 4) this.pending.splice(0, this.pending.length - CHUNK);
 
     const chunk = this.pending.splice(0, CHUNK);
     this.nFrames += 1;
+    this.inFlight = true;
     try {
       // roll the raw buffer, keep the last CHUNK + lookback samples
       const keep = CHUNK + MEL_LOOKBACK;
@@ -225,6 +251,8 @@ export class OpenWakeWordRunner {
     } catch (error) {
       this.lastError = (error as Error)?.message ?? String(error);
       return null;
+    } finally {
+      this.inFlight = false;
     }
   }
 }

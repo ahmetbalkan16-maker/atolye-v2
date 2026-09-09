@@ -284,6 +284,54 @@ async function run() {
     assert.equal(full, 40, `expected 40 chunks from 160 × 320-sample frames, got ${full}`);
   });
 
+  await scenario("single-flight: a frame that lands mid-inference is DROPPED, not queued", async () => {
+    const rec: Recorder = { melDims: [], embDims: [], wwDims: [] };
+    // A mel session that blocks until we release it — models a slow phone.
+    let release: () => void = () => {};
+    const gate = () => new Promise<void>((r) => { release = r; });
+    const slowMel = ((): WakeSession => {
+      const base = fakeMel(rec);
+      return {
+        inputNames: base.inputNames,
+        outputNames: base.outputNames,
+        async run(feeds) {
+          await gate();
+          return base.run(feeds);
+        },
+      };
+    })();
+    const runner = makeRunner({ mel: slowMel, emb: fakeEmb(rec), ww: fakeWw(rec, () => 0.9) });
+    await runner.init();
+
+    // Kick off one accept() — it parks inside mel.run().
+    const first = runner.accept(new Float32Array(CHUNK).fill(0.05));
+    await Promise.resolve(); // let it reach the gate
+    // Fire 30 more frames while the first is still in flight.
+    const drainings: Promise<number | null>[] = [];
+    for (let i = 0; i < 30; i += 1) drainings.push(runner.accept(new Float32Array(CHUNK).fill(0.05)));
+    const dropReturns = await Promise.all(drainings);
+    assert.ok(dropReturns.every((r) => r === null), "every mid-inference frame returns null");
+    assert.ok(runner.stats.dropped >= 30, `dropped should count them, got ${runner.stats.dropped}`);
+    assert.equal(rec.melDims.length, 0, "mel.run() entered exactly once — no overlap");
+
+    release();
+    await first;
+    assert.equal(rec.melDims.length, 1, "the single in-flight inference completed");
+    assert.equal(runner.ready, true, "the runner is usable again after the drop burst");
+  });
+
+  await scenario("carry buffer never ratchets when a caller over-feeds", async () => {
+    const rec: Recorder = { melDims: [], embDims: [], wwDims: [] };
+    const runner = makeRunner({ mel: fakeMel(rec), emb: fakeEmb(rec), ww: fakeWw(rec, () => 0.1) });
+    await runner.init();
+    // Feed a 20×-oversized frame in one go, many times.
+    for (let i = 0; i < 50; i += 1) await runner.accept(new Float32Array(CHUNK * 20).fill(0.01));
+    // pending is private; assert indirectly — the runner still produces frames
+    // at the right cadence and stats stay finite / bounded.
+    assert.ok(runner.stats.frames > 0 && Number.isFinite(runner.stats.frames));
+    assert.ok(runner.stats.inferences >= 0);
+  });
+
   await scenario("an inference failure is captured in stats.lastError, never thrown", async () => {
     const rec: Recorder = { melDims: [], embDims: [], wwDims: [] };
     const runner = makeRunner({ mel: fakeMel(rec, { throwOnCall: 5 }), emb: fakeEmb(rec), ww: fakeWw(rec, () => 0.5) });

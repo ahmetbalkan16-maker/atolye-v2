@@ -29,6 +29,16 @@ import type { AyasRecognitionMode, AyasVoiceCapability, AyasVoiceState } from ".
 
 const NO_CAPABILITY: AyasVoiceCapability = { stt: false, tts: false, sttCloudBacked: false };
 
+/** Numeric / enum wake-adapter health — no audio, no secrets. */
+export interface VoiceHealthSnapshot {
+  readonly phase: string;
+  readonly droppedFrames: number;
+  readonly frameAgeMs: number;
+  readonly recoveryCount: number;
+  readonly audioContextState: string;
+  readonly lastError: string | null;
+}
+
 /** Operator opt-in: use the on-device openWakeWord + local whisper STT engine. */
 const WAKE_ENGINE_OPT_IN = process.env.NEXT_PUBLIC_ATOLYE_WAKE_ENGINE === "on";
 
@@ -69,6 +79,8 @@ export interface UseAyasVoiceResult {
   readonly recovering: boolean;
   /** Completed wake→command→reply→re-arm cycles this session (wake engine only). */
   readonly wakeCycles: number;
+  /** Secret-free wake-adapter health for the Brain lifecycle heartbeat (wake engine only). */
+  readonly voiceHealth: VoiceHealthSnapshot | null;
   acceptDisclosure(): void;
   /**
    * The mic button. First tap: enable voice mode + listen. On the single-shot
@@ -100,6 +112,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
   const [recognitionMode, setRecognitionMode] = useState<AyasRecognitionMode>("continuous");
   const [recovering, setRecovering] = useState(false);
   const [wakeCycles, setWakeCycles] = useState(0);
+  const [voiceHealth, setVoiceHealth] = useState<VoiceHealthSnapshot | null>(null);
 
   const engineRef = useRef<AyasVoiceEngine | null>(null);
   const mutedRef = useRef(muted);
@@ -152,6 +165,14 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
               onStatus: (s) => {
                 setRecovering(s.mic === "recovering");
                 setWakeCycles(s.cyclesCompleted);
+                setVoiceHealth({
+                  phase: s.phase,
+                  droppedFrames: s.droppedFrames,
+                  frameAgeMs: s.frameAgeMs,
+                  recoveryCount: s.recoveryCount,
+                  audioContextState: s.audioContextState,
+                  lastError: s.lastError,
+                });
               },
             }),
           );
@@ -244,6 +265,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
     voiceTier,
     recovering: ready ? recovering : false,
     wakeCycles,
+    voiceHealth,
     acceptDisclosure,
     toggleListening,
     stopListening,

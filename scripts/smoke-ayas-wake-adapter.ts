@@ -532,6 +532,61 @@ async function run() {
     a.dispose();
   });
 
+  await scenario("TEST — slow inference: frames are DROPPED single-flight, never queued (iOS memory guard)", async () => {
+    const backend = new FakeBackend();
+    // A runner whose accept() parks until released — models a phone that can't
+    // keep up with the 80 ms frame rate.
+    let release: () => void = () => {};
+    let concurrent = 0;
+    let maxConcurrent = 0;
+    let accepts = 0;
+    class SlowRunner implements WakeRunnerLike {
+      ready = false;
+      async init() {
+        this.ready = true;
+      }
+      reset() {}
+      dispose() {}
+      async accept() {
+        accepts += 1;
+        concurrent += 1;
+        maxConcurrent = Math.max(maxConcurrent, concurrent);
+        await new Promise<void>((r) => {
+          release = r;
+        });
+        concurrent -= 1;
+        return 0.01;
+      }
+    }
+    const slowRunner = new SlowRunner();
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend,
+      runner: slowRunner,
+      tts: fakeTts(),
+      transcribe: async () => "x",
+      ...FAST,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    // Fire 40 frames while the first inference is parked.
+    for (let i = 0; i < 40; i += 1) backend.push("speech");
+    await settle();
+    assert.equal(maxConcurrent, 1, "the adapter never runs two inferences at once");
+    assert.ok(accepts <= 2, `only the in-flight frame reached the runner, got ${accepts}`);
+    const st = a.getStatus();
+    assert.ok(st.droppedFrames >= 35, `dropped frames are counted, got ${st.droppedFrames}`);
+    // Release the parked inference — the pipeline keeps working.
+    release();
+    await settle();
+    backend.push("wake");
+    await settle();
+    release();
+    await settle();
+    a.dispose();
+    assert.equal(backend.started, 1, "no extra mic acquisition from the back-pressure");
+  });
+
   await scenario("STATIC — wake capture uses unprocessed audio; mic stopped only on dispose", () => {
     const src = fs.readFileSync(path.join(REPO_ROOT, "src/components/brain/voice/wakeWordVoiceAdapter.ts"), "utf8");
     assert.match(src, /noiseSuppression:\s*false/);

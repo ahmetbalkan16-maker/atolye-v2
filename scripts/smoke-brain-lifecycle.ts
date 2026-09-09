@@ -2,19 +2,24 @@
  * Atölye Brain — page-lifecycle / unexpected-reload classification smoke.
  *
  * Deterministic / no browser. Exercises the pure `assessBrainReload` + record
- * parsing that back the reload detector: first boot, a SW-update reload, a
- * suspected iOS eviction (voice was active), a plain reload of an idle page,
- * and corrupt storage.
+ * parsing that back the reload detector, with the stronger evidence signals:
+ * navigation type, bfcache restore, a clean `pagehide`, and the previous
+ * instance's last liveness heartbeat (phase + uptime + dropped frames).
  */
 
 import assert from "node:assert/strict";
 
 import {
   assessBrainReload,
+  navigationKindFrom,
   parseBrainBootRecord,
+  parseBrainHeartbeat,
   EVICTION_WINDOW_MS,
   SW_RELOAD_MARKER_TTL_MS,
+  HEARTBEAT_TRUST_MS,
   type BrainBootRecord,
+  type BrainHeartbeat,
+  type AssessBrainReloadInput,
 } from "../src/lib/brain/ui/brainLifecycle";
 
 let count = 0;
@@ -32,92 +37,218 @@ const rec = (over: Partial<BrainBootRecord> = {}): BrainBootRecord => ({
   voiceCycleCount: 0,
   lastPhase: "idle",
   recoveryCount: 0,
+  cleanPagehide: false,
+  ...over,
+});
+
+const hb = (over: Partial<BrainHeartbeat> = {}): BrainHeartbeat => ({
+  bootId: "abc123",
+  at: 1_000_000,
+  uptimeMs: 34_000,
+  phase: "wake",
+  voiceActive: true,
+  droppedFrames: 180,
+  wakeInferences: 40,
+  audioContextState: "running",
+  lastError: null,
+  ...over,
+});
+
+const input = (over: Partial<AssessBrainReloadInput>): AssessBrainReloadInput => ({
+  prev: null,
+  heartbeat: null,
+  nowMs: 5_000_000,
+  navigationKind: "navigate",
+  bfcacheRestore: false,
+  swReloadMarkerAt: null,
   ...over,
 });
 
 scenario("first boot — no prior record", () => {
-  const a = assessBrainReload({ prev: null, nowMs: 5_000_000, swReloadMarkerAt: null });
+  const a = assessBrainReload(input({ prev: null }));
   assert.equal(a.firstBoot, true);
   assert.equal(a.cause, "first-boot");
   assert.equal(a.unexpectedReload, false);
   assert.equal(a.bootCount, 1);
+  assert.equal(a.previousBootId, null);
 });
 
-scenario("SW-update reload — recent marker wins, not eviction", () => {
+scenario("navigationKindFrom — string + legacy enum + bfcache", () => {
+  assert.equal(navigationKindFrom("reload", false), "reload");
+  assert.equal(navigationKindFrom(1, false), "reload");
+  assert.equal(navigationKindFrom("navigate", false), "navigate");
+  assert.equal(navigationKindFrom("back_forward", false), "back-forward");
+  assert.equal(navigationKindFrom("navigate", true), "bfcache-restore");
+  assert.equal(navigationKindFrom(undefined, false), "unknown");
+});
+
+scenario("SW-update reload — recent marker wins over everything", () => {
   const now = 5_000_000;
-  const a = assessBrainReload({
-    prev: rec({ voiceWasActive: true, bootAt: now - 30_000, bootCount: 2 }),
-    nowMs: now,
-    swReloadMarkerAt: now - 500, // fresh marker
-  });
+  const a = assessBrainReload(
+    input({
+      prev: rec({ voiceWasActive: true, bootAt: now - 30_000, bootCount: 2 }),
+      heartbeat: hb({ at: now - 1_000 }),
+      nowMs: now,
+      navigationKind: "reload",
+      swReloadMarkerAt: now - 500,
+    }),
+  );
   assert.equal(a.cause, "sw-update");
-  assert.equal(a.unexpectedReload, true, "voice was active → still worth telling the user");
+  assert.equal(a.browserReloadLikely, false, "an SW reload is not a browser kill");
+  assert.equal(a.unexpectedReload, true, "voice was active → still worth a resume prompt");
   assert.equal(a.bootCount, 3);
-  assert.equal(a.priorVoiceCycles, 0);
 });
 
-scenario("stale SW marker is ignored → falls through to eviction/idle logic", () => {
+scenario("bfcache restore — page was NOT destroyed, never 'unexpected'", () => {
   const now = 5_000_000;
-  const a = assessBrainReload({
-    prev: rec({ voiceWasActive: true, bootAt: now - 20_000 }),
-    nowMs: now,
-    swReloadMarkerAt: now - (SW_RELOAD_MARKER_TTL_MS + 5_000),
-  });
-  assert.equal(a.cause, "eviction-suspected");
+  const a = assessBrainReload(
+    input({
+      prev: rec({ voiceWasActive: true, bootAt: now - 20_000 }),
+      heartbeat: hb({ at: now - 2_000 }),
+      nowMs: now,
+      navigationKind: "back-forward",
+      bfcacheRestore: true,
+    }),
+  );
+  assert.equal(a.cause, "bfcache-restore");
+  assert.equal(a.unexpectedReload, false);
+  assert.equal(a.browserReloadLikely, false);
 });
 
-scenario("suspected iOS eviction — voice active, recent, no SW marker", () => {
+scenario("browser-reload-suspected — reload nav + fresh heartbeat mid-wake + no pagehide", () => {
   const now = 5_000_000;
-  const a = assessBrainReload({
-    prev: rec({ voiceWasActive: true, bootAt: now - 90_000, voiceCycleCount: 3, bootCount: 1 }),
-    nowMs: now,
-    swReloadMarkerAt: null,
-  });
-  assert.equal(a.cause, "eviction-suspected");
+  const a = assessBrainReload(
+    input({
+      prev: rec({ voiceWasActive: true, bootAt: now - 36_000, voiceCycleCount: 1, cleanPagehide: false }),
+      heartbeat: hb({ at: now - 2_000, uptimeMs: 34_000, phase: "wake", droppedFrames: 210 }),
+      nowMs: now,
+      navigationKind: "reload",
+    }),
+  );
+  assert.equal(a.cause, "browser-reload-suspected");
+  assert.equal(a.browserReloadLikely, true);
   assert.equal(a.unexpectedReload, true);
-  assert.equal(a.priorVoiceActive, true);
-  assert.equal(a.priorVoiceCycles, 3);
-  assert.equal(a.bootCount, 2);
+  assert.ok(a.priorInstance);
+  assert.equal(a.priorInstance!.hadFreshHeartbeat, true);
+  assert.equal(a.priorInstance!.diedAtPhase, "wake");
+  assert.equal(a.priorInstance!.diedAfterMs, 34_000);
+  assert.equal(a.priorInstance!.droppedFrames, 210);
 });
 
-scenario("plain reload of an IDLE page → not unexpected, just navigation", () => {
+scenario("clean pagehide before the reload → NOT a browser kill (manual reload / nav)", () => {
   const now = 5_000_000;
-  const a = assessBrainReload({
-    prev: rec({ voiceWasActive: false, bootAt: now - 5_000 }),
-    nowMs: now,
-    swReloadMarkerAt: null,
-  });
-  assert.equal(a.cause, "reload-or-navigation");
-  assert.equal(a.unexpectedReload, false, "an idle-page reload is noise, don't nag");
+  const a = assessBrainReload(
+    input({
+      prev: rec({ voiceWasActive: true, bootAt: now - 20_000, cleanPagehide: true }),
+      heartbeat: null,
+      nowMs: now,
+      navigationKind: "reload",
+    }),
+  );
+  assert.equal(a.cause, "manual-reload-or-nav");
+  assert.equal(a.browserReloadLikely, false);
+  assert.equal(a.unexpectedReload, true, "voice was active — still offer to resume");
 });
 
-scenario("voice active but reload is old (> eviction window) → not eviction", () => {
+scenario("plain reload of an IDLE page → not unexpected, not a browser-kill", () => {
+  const now = 5_000_000;
+  const a = assessBrainReload(
+    input({
+      prev: rec({ voiceWasActive: false, bootAt: now - 5_000 }),
+      navigationKind: "reload",
+      nowMs: now,
+    }),
+  );
+  assert.equal(a.cause, "manual-reload-or-nav");
+  assert.equal(a.unexpectedReload, false);
+  assert.equal(a.browserReloadLikely, false);
+});
+
+scenario("stale heartbeat (older than trust window) → priorInstance.hadFreshHeartbeat false", () => {
+  const now = 5_000_000;
+  const a = assessBrainReload(
+    input({
+      prev: rec({ voiceWasActive: true, bootAt: now - 60_000 }),
+      heartbeat: hb({ at: now - (HEARTBEAT_TRUST_MS + 5_000) }),
+      nowMs: now,
+      navigationKind: "navigate",
+    }),
+  );
+  assert.ok(a.priorInstance);
+  assert.equal(a.priorInstance!.hadFreshHeartbeat, false);
+  // navigate + voice active + no pagehide is still browser-reload-likely
+  assert.equal(a.browserReloadLikely, true);
+});
+
+scenario("heartbeat from a different bootId is ignored", () => {
+  const now = 5_000_000;
+  const a = assessBrainReload(
+    input({
+      prev: rec({ bootId: "aaa111", voiceWasActive: true, bootAt: now - 10_000 }),
+      heartbeat: hb({ bootId: "zzz999", at: now - 1_000 }),
+      nowMs: now,
+    }),
+  );
+  assert.equal(a.priorInstance, null);
+});
+
+scenario("stale SW marker is ignored → falls through to reload logic", () => {
+  const now = 5_000_000;
+  const a = assessBrainReload(
+    input({
+      prev: rec({ voiceWasActive: true, bootAt: now - 20_000 }),
+      nowMs: now,
+      navigationKind: "reload",
+      swReloadMarkerAt: now - (SW_RELOAD_MARKER_TTL_MS + 5_000),
+    }),
+  );
+  assert.notEqual(a.cause, "sw-update");
+  assert.equal(a.cause, "browser-reload-suspected");
+});
+
+scenario("voice active but reload is old (> eviction window) → not a browser kill", () => {
   const now = 10_000_000;
-  const a = assessBrainReload({
-    prev: rec({ voiceWasActive: true, bootAt: now - (EVICTION_WINDOW_MS + 60_000) }),
-    nowMs: now,
-    swReloadMarkerAt: null,
-  });
-  assert.equal(a.cause, "reload-or-navigation");
-  // still unexpectedReload=true because a voice session was armed when it vanished
+  const a = assessBrainReload(
+    input({
+      prev: rec({ voiceWasActive: true, bootAt: now - (EVICTION_WINDOW_MS + 60_000) }),
+      nowMs: now,
+      navigationKind: "reload",
+    }),
+  );
+  assert.equal(a.cause, "manual-reload-or-nav");
+  assert.equal(a.browserReloadLikely, false);
   assert.equal(a.unexpectedReload, true);
 });
 
-scenario("parseBrainBootRecord — valid / corrupt / partial", () => {
-  const good = parseBrainBootRecord(JSON.stringify(rec({ bootCount: 4, voiceWasActive: true })));
+scenario("parseBrainBootRecord — valid / corrupt / partial / previousBootId + cleanPagehide", () => {
+  const good = parseBrainBootRecord(
+    JSON.stringify(rec({ bootCount: 4, voiceWasActive: true, previousBootId: "p0", cleanPagehide: true })),
+  );
   assert.ok(good && good.bootCount === 4 && good.voiceWasActive === true);
+  assert.equal(good!.previousBootId, "p0");
+  assert.equal(good!.cleanPagehide, true);
   assert.equal(parseBrainBootRecord(null), null);
   assert.equal(parseBrainBootRecord("not json {{{"), null);
-  assert.equal(parseBrainBootRecord(JSON.stringify({ voiceWasActive: true })), null, "no bootAt/bootCount → null");
+  assert.equal(parseBrainBootRecord(JSON.stringify({ voiceWasActive: true })), null);
   const partial = parseBrainBootRecord(JSON.stringify({ bootAt: 1, bootCount: 2 }));
-  assert.ok(partial && partial.voiceWasActive === false && partial.voiceCycleCount === 0 && partial.lastPhase === "off");
+  assert.ok(partial && partial.voiceWasActive === false && partial.lastPhase === "off" && partial.cleanPagehide === false);
+});
+
+scenario("parseBrainHeartbeat — valid / corrupt / missing fields default to -1 / null", () => {
+  const good = parseBrainHeartbeat(JSON.stringify(hb({ droppedFrames: 12, phase: "capturing" })));
+  assert.ok(good && good.droppedFrames === 12 && good.phase === "capturing");
+  assert.equal(parseBrainHeartbeat(null), null);
+  assert.equal(parseBrainHeartbeat("}{"), null);
+  assert.equal(parseBrainHeartbeat(JSON.stringify({ phase: "wake" })), null, "no at/bootId → null");
+  const bare = parseBrainHeartbeat(JSON.stringify({ bootId: "x", at: 1 }));
+  assert.ok(bare && bare.droppedFrames === -1 && bare.wakeInferences === -1 && bare.lastError === null);
 });
 
 scenario("bootCount increments monotonically across reloads", () => {
   let prev: BrainBootRecord | null = null;
   let bc = 0;
   for (let i = 0; i < 5; i += 1) {
-    const a = assessBrainReload({ prev, nowMs: 1_000 + i * 1_000, swReloadMarkerAt: null });
+    const a = assessBrainReload(input({ prev, nowMs: 1_000 + i * 1_000 }));
     bc = a.bootCount;
     prev = rec({ bootCount: bc, bootAt: 1_000 + i * 1_000 });
   }

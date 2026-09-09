@@ -267,6 +267,8 @@ export default function D2WakeLabPage() {
   const nodeRef = useRef<AudioWorkletNode | null>(null);
   const gainRef = useRef<GainNode | null>(null);
   const detectorRef = useRef<WakeDetector | null>(null);
+  /** Single-flight guard: a wake inference is running — drop frames meanwhile. */
+  const acceptingRef = useRef(false);
   const thresholdRef = useRef(threshold);
   const startedAtRef = useRef<number>(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -314,6 +316,7 @@ export default function D2WakeLabPage() {
       acRef.current = null;
       detectorRef.current?.dispose?.();
       detectorRef.current = null;
+      acceptingRef.current = false;
       cmdRef.current = null;
       setArmed(false);
       setMic((m) => (m === "denied" ? m : "off"));
@@ -475,6 +478,12 @@ export default function D2WakeLabPage() {
         return;
       }
 
+      // Single-flight: on a phone 3 WASM ONNX runs per 80 ms frame can fall
+      // behind; queuing every frame piles unbounded work + allocations onto the
+      // microtask queue and iOS memory-kills the PWA. Drop frames that arrive
+      // mid-inference — the runner guards internally too.
+      if (acceptingRef.current) return;
+      acceptingRef.current = true;
       void Promise.resolve(detector.accept(data.samples))
         .then((hit) => {
           const st = detector.stats?.();
@@ -504,6 +513,9 @@ export default function D2WakeLabPage() {
           diagRef.current = { ...diagRef.current, error: String(error) };
           setDiag(diagRef.current);
           log(`detector.accept HATA: ${String(error)}`);
+        })
+        .finally(() => {
+          acceptingRef.current = false;
         });
     },
     [log, runStt],
@@ -609,6 +621,7 @@ export default function D2WakeLabPage() {
         log(`${det.name}: model hazır`);
       }
       detectorRef.current = det;
+      acceptingRef.current = false;
       cmdRef.current = null;
       setSttState("idle");
       const src = ac.createMediaStreamSource(stream);
@@ -688,15 +701,24 @@ export default function D2WakeLabPage() {
           rearm: rearmState,
           lifecycle: {
             bootId: life.bootId,
+            previousBootId: life.previousBootId,
             bootCount: life.bootCount,
             sessionUptimeMs: life.sessionUptimeMs,
             reloadCause: life.reloadCause,
+            navigationKind: life.navigationKind,
+            browserReloadLikely: life.browserReloadLikely,
             unexpectedReload: life.unexpectedReload,
             priorVoiceActive: life.priorVoiceActive,
             priorVoiceCycles: life.priorVoiceCycles,
+            priorCleanPagehide: life.priorCleanPagehide,
+            priorDiedAtPhase: life.priorDiedAtPhase,
+            priorDiedAfterMs: life.priorDiedAfterMs,
+            priorHeartbeatAgeMs: life.priorHeartbeatAgeMs,
+            priorDroppedFrames: life.priorDroppedFrames,
             voiceSessionCount: life.voiceSessionCount,
             voiceCycleCount: life.voiceCycleCount,
             recoveryCount: life.recoveryCount,
+            wakeDroppedFrames: life.wakeDroppedFrames,
             lastVoicePhase: life.lastVoicePhase,
             serviceWorkerState: life.serviceWorkerState,
             visibilityState: life.visibilityState,
@@ -893,10 +915,22 @@ export default function D2WakeLabPage() {
         <dd style={{ color: life.unexpectedReload ? "var(--bc-danger, #f66)" : undefined }}>
           {life.reloadCause}{life.unexpectedReload ? " · SESLİ OTURUM KESİLDİ" : ""}
         </dd>
-        <dt>Önceki boot — ses aktif / tur</dt>
-        <dd>{life.priorVoiceActive ? "evet" : "hayır"} / {life.priorVoiceCycles}</dd>
-        <dt>Bu oturum — ses / tur / recovery</dt>
-        <dd>{life.voiceSessionCount} / {life.voiceCycleCount} / {life.recoveryCount}</dd>
+        <dt>Navigation type</dt>
+        <dd>{life.navigationKind}{life.browserReloadLikely ? " · BROWSER-KILL LIKELY" : ""}</dd>
+        <dt>Önceki boot id</dt>
+        <dd>{life.previousBootId ?? "—"}</dd>
+        <dt>Önceki instance — öldüğü faz / süre</dt>
+        <dd>
+          {life.priorDiedAtPhase}
+          {life.priorDiedAfterMs >= 0 ? ` / ${hhmmss(Math.floor(life.priorDiedAfterMs / 1000))}` : " / —"}
+          {life.priorHeartbeatAgeMs >= 0 ? ` (son heartbeat ${Math.round(life.priorHeartbeatAgeMs / 1000)}s önce)` : ""}
+        </dd>
+        <dt>Önceki instance — düşen frame</dt>
+        <dd>{life.priorDroppedFrames >= 0 ? life.priorDroppedFrames : "—"}</dd>
+        <dt>Önceki boot — ses aktif / tur / temiz pagehide</dt>
+        <dd>{life.priorVoiceActive ? "evet" : "hayır"} / {life.priorVoiceCycles} / {life.priorCleanPagehide ? "evet" : "hayır"}</dd>
+        <dt>Bu oturum — ses / tur / recovery / düşen frame</dt>
+        <dd>{life.voiceSessionCount} / {life.voiceCycleCount} / {life.recoveryCount} / {life.wakeDroppedFrames >= 0 ? life.wakeDroppedFrames : "—"}</dd>
         <dt>Son voice phase</dt>
         <dd>{life.lastVoicePhase}</dd>
         <dt>Service worker</dt>

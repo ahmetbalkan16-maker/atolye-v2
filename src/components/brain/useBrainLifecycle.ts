@@ -4,24 +4,35 @@
  * Atölye Brain — page-lifecycle tracking + unexpected-reload detection.
  *
  * Writes a small `sessionStorage` boot record on every Brain load, compares it
- * with the previous one, and classifies the transition (first boot / SW update
- * / suspected iOS eviction / plain reload). It keeps a secret-free lifecycle
+ * with the previous one plus the previous instance's last liveness heartbeat,
+ * and classifies the transition (first boot / bfcache restore / SW update /
+ * suspected browser reload / manual reload). It keeps a secret-free lifecycle
  * telemetry snapshot for the Voice Lab, and tells `BrainCoreConsole` when a
- * voice session was interrupted by a reload so the UI can offer to resume it.
+ * voice session was interrupted so the UI can offer to resume it.
  *
- * No network, no polling, no React state churn — `sessionStorage` + refs only
- * (per-tab, cleared on close). The recorders are pure side effects, so they are
- * safe to call from a `useEffect`.
+ * While a voice session is armed it writes a heartbeat every few seconds; the
+ * NEXT boot reads it to report *where* and *how far in* the previous instance
+ * died — the evidence that separates "iOS killed the page mid-listen" from a
+ * plain navigation or a React remount.
+ *
+ * No network, no polling of the server. `sessionStorage` + refs + one short
+ * interval (only while voice is armed). The recorders are pure side effects.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   assessBrainReload,
+  navigationKindFrom,
   parseBrainBootRecord,
+  parseBrainHeartbeat,
   BRAIN_BOOT_STORAGE_KEY,
   BRAIN_SW_RELOAD_KEY,
+  BRAIN_HEARTBEAT_KEY,
+  BRAIN_VOICE_INTENT_KEY,
+  HEARTBEAT_INTERVAL_MS,
   type BrainBootRecord,
+  type BrainHeartbeat,
   type BrainLifecycleTelemetry,
   type BrainReloadAssessment,
   type BrainVoicePhase,
@@ -54,21 +65,51 @@ function swState(): BrainLifecycleTelemetry["serviceWorkerState"] {
   return navigator.serviceWorker.controller ? "controlled" : "none";
 }
 
+/** `PerformanceNavigationTiming.type`, or the legacy `performance.navigation.type`. */
+function rawNavigationType(): string | number | undefined {
+  try {
+    const entry = performance.getEntriesByType?.("navigation")?.[0] as
+      | { type?: string }
+      | undefined;
+    if (entry?.type) return entry.type;
+    const legacy = (performance as unknown as { navigation?: { type?: number } }).navigation;
+    return legacy?.type;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Health the wake adapter reports — folded into the heartbeat. */
+export interface BrainVoiceHealth {
+  readonly phase?: BrainVoicePhase;
+  readonly droppedFrames?: number;
+  readonly wakeInferences?: number;
+  readonly audioContextState?: string;
+  readonly lastError?: string | null;
+}
+
 const OFF_ASSESSMENT: BrainReloadAssessment = {
   firstBoot: true,
   unexpectedReload: false,
   cause: "first-boot",
+  navigationKind: "unknown",
   sinceLastBootMs: 0,
   priorVoiceActive: false,
   priorVoiceCycles: 0,
   priorPhase: "off",
+  priorCleanPagehide: false,
   bootCount: 1,
+  previousBootId: null,
+  priorInstance: null,
+  browserReloadLikely: false,
 };
 
 export interface UseBrainLifecycleResult {
   readonly assessment: BrainReloadAssessment;
   /** `true` while a reload-interrupted voice session is unacknowledged. */
   readonly voiceSessionInterrupted: boolean;
+  /** The user has, at some point this tab session, asked for hands-free voice. */
+  readonly voiceIntentPersisted: boolean;
   /** A fresh secret-free telemetry snapshot (call each render — no state churn). */
   getTelemetry(): BrainLifecycleTelemetry;
   /** Hands-free voice was armed / disarmed. */
@@ -77,10 +118,14 @@ export interface UseBrainLifecycleResult {
   noteVoiceCycle(): void;
   /** Latest adapter phase (cheap — persisted only at lifecycle moments). */
   notePhase(phase: BrainVoicePhase): void;
+  /** Latest wake-adapter health numbers (folded into the heartbeat). */
+  noteVoiceHealth(health: BrainVoiceHealth): void;
   /** A controlled voice-pipeline recovery ran. */
   noteRecovery(): void;
   /** The operator acknowledged / resumed the interrupted session. */
   dismissInterrupted(): void;
+  /** Remember (or forget) that the user wants hands-free voice, across reloads. */
+  setVoiceIntent(want: boolean): void;
 }
 
 export function useBrainLifecycle(): UseBrainLifecycleResult {
@@ -88,9 +133,20 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
   const [assessment] = useState<BrainReloadAssessment>(() => {
     if (typeof window === "undefined") return OFF_ASSESSMENT;
     const prev = parseBrainBootRecord(readSession(BRAIN_BOOT_STORAGE_KEY));
+    const heartbeat = parseBrainHeartbeat(readSession(BRAIN_HEARTBEAT_KEY));
     const markerRaw = readSession(BRAIN_SW_RELOAD_KEY);
     const swReloadMarkerAt = markerRaw && Number.isFinite(Number(markerRaw)) ? Number(markerRaw) : null;
-    return assessBrainReload({ prev, nowMs: Date.now(), swReloadMarkerAt });
+    // `pageshow.persisted` only arrives in an event; at first render assume not
+    // a bfcache restore (the pageshow handler re-assesses if it was).
+    const navigationKind = navigationKindFrom(rawNavigationType(), false);
+    return assessBrainReload({
+      prev,
+      heartbeat,
+      nowMs: Date.now(),
+      navigationKind,
+      bfcacheRestore: false,
+      swReloadMarkerAt,
+    });
   });
 
   const [bootId] = useState<string>(() => {
@@ -100,6 +156,7 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
       : Math.random().toString(36).slice(2, 10);
   });
   const [startedAt] = useState<number>(() => Date.now());
+  const [bfcacheRestored, setBfcacheRestored] = useState(false);
 
   const stateRef = useRef<{
     voiceActive: boolean;
@@ -107,6 +164,8 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
     voiceSessionCount: number;
     lastPhase: BrainVoicePhase;
     recoveryCount: number;
+    cleanPagehide: boolean;
+    health: BrainVoiceHealth;
   } | null>(null);
   if (stateRef.current === null) {
     stateRef.current = {
@@ -115,35 +174,61 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
       voiceSessionCount: 0,
       lastPhase: "off",
       recoveryCount: 0,
+      cleanPagehide: false,
+      health: {},
     };
   }
   const lastEventRef = useRef<{ name: string; at: number } | null>(null);
   if (lastEventRef.current === null) lastEventRef.current = { name: "boot", at: startedAt };
   const [acknowledged, setAcknowledged] = useState(false);
+  const [voiceIntentPersisted, setVoiceIntentPersisted] = useState<boolean>(
+    () => readSession(BRAIN_VOICE_INTENT_KEY) === "1",
+  );
 
   const persist = useCallback(() => {
     if (typeof window === "undefined") return;
     const s = stateRef.current!;
     const record: BrainBootRecord = {
       bootId,
+      previousBootId: assessment.previousBootId ?? undefined,
       bootCount: assessment.bootCount,
       bootAt: startedAt,
       voiceWasActive: s.voiceActive,
       voiceCycleCount: s.voiceCycleCount,
       lastPhase: s.lastPhase,
       recoveryCount: s.recoveryCount,
+      cleanPagehide: s.cleanPagehide,
     };
     writeSession(BRAIN_BOOT_STORAGE_KEY, JSON.stringify(record));
-  }, [assessment.bootCount, bootId, startedAt]);
+  }, [assessment.bootCount, assessment.previousBootId, bootId, startedAt]);
+
+  const writeHeartbeat = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const s = stateRef.current!;
+    if (!s.voiceActive) return;
+    const hb: BrainHeartbeat = {
+      bootId,
+      at: Date.now(),
+      uptimeMs: Date.now() - startedAt,
+      phase: s.health.phase ?? s.lastPhase,
+      voiceActive: s.voiceActive,
+      droppedFrames: typeof s.health.droppedFrames === "number" ? s.health.droppedFrames : -1,
+      wakeInferences: typeof s.health.wakeInferences === "number" ? s.health.wakeInferences : -1,
+      audioContextState: s.health.audioContextState ?? "",
+      lastError: s.health.lastError ?? null,
+    };
+    writeSession(BRAIN_HEARTBEAT_KEY, JSON.stringify(hb));
+  }, [bootId, startedAt]);
 
   const note = useCallback((name: string) => {
     lastEventRef.current = { name, at: Date.now() };
   }, []);
 
-  // Persist on mount; clear the one-shot SW-reload marker.
+  // Persist on mount; clear the one-shot SW-reload marker + stale heartbeat.
   useEffect(() => {
     persist();
     clearSession(BRAIN_SW_RELOAD_KEY);
+    clearSession(BRAIN_HEARTBEAT_KEY);
   }, [persist]);
 
   // Lifecycle events — persist the record at each so a reload sees fresh data.
@@ -154,22 +239,45 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
       persist();
     };
     const onPageHide = () => {
+      stateRef.current!.cleanPagehide = true;
       note("pagehide");
       persist();
+      // A clean unload is not a kill — drop the heartbeat so the next boot
+      // doesn't misread it as "died mid-listen".
+      clearSession(BRAIN_HEARTBEAT_KEY);
+    };
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        setBfcacheRestored(true);
+        note("pageshow:bfcache");
+      }
     };
     const onOnline = () => note("online");
     const onOffline = () => note("offline");
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("pageshow", onPageShow);
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
     return () => {
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
     };
   }, [note, persist]);
+
+  // Heartbeat — only runs while a voice session is armed.
+  const voiceActiveTick = useRef(0);
+  const [voiceActiveGen, setVoiceActiveGen] = useState(0);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!stateRef.current!.voiceActive) return;
+    writeHeartbeat();
+    const id = window.setInterval(writeHeartbeat, HEARTBEAT_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [writeHeartbeat, voiceActiveGen]);
 
   const markVoiceActive = useCallback(
     (active: boolean) => {
@@ -179,8 +287,12 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
       if (active) s.voiceSessionCount += 1;
       note(active ? "voice:armed" : "voice:disarmed");
       persist();
+      if (active) writeHeartbeat();
+      else clearSession(BRAIN_HEARTBEAT_KEY);
+      voiceActiveTick.current += 1;
+      setVoiceActiveGen(voiceActiveTick.current); // (re)start / stop the interval
     },
-    [note, persist],
+    [note, persist, writeHeartbeat],
   );
 
   const noteVoiceCycle = useCallback(() => {
@@ -193,6 +305,12 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
     stateRef.current!.lastPhase = phase; // persisted at the next lifecycle moment
   }, []);
 
+  const noteVoiceHealth = useCallback((health: BrainVoiceHealth) => {
+    const s = stateRef.current!;
+    s.health = { ...s.health, ...health };
+    if (health.phase) s.lastPhase = health.phase;
+  }, []);
+
   const noteRecovery = useCallback(() => {
     stateRef.current!.recoveryCount += 1;
     note("voice:recovery");
@@ -201,19 +319,35 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
 
   const dismissInterrupted = useCallback(() => setAcknowledged(true), []);
 
+  const setVoiceIntent = useCallback((want: boolean) => {
+    if (want) writeSession(BRAIN_VOICE_INTENT_KEY, "1");
+    else clearSession(BRAIN_VOICE_INTENT_KEY);
+    setVoiceIntentPersisted(want);
+  }, []);
+
   const getTelemetry = useCallback<() => BrainLifecycleTelemetry>(() => {
     const s = stateRef.current!;
+    const pi = assessment.priorInstance;
     return {
       bootId,
+      previousBootId: assessment.previousBootId,
       bootCount: assessment.bootCount,
       sessionUptimeMs: Date.now() - startedAt,
-      reloadCause: assessment.cause,
-      unexpectedReload: assessment.unexpectedReload,
+      reloadCause: bfcacheRestored ? "bfcache-restore" : assessment.cause,
+      navigationKind: bfcacheRestored ? "bfcache-restore" : assessment.navigationKind,
+      browserReloadLikely: assessment.browserReloadLikely && !bfcacheRestored,
+      unexpectedReload: assessment.unexpectedReload && !bfcacheRestored,
       priorVoiceActive: assessment.priorVoiceActive,
       priorVoiceCycles: assessment.priorVoiceCycles,
+      priorCleanPagehide: assessment.priorCleanPagehide,
+      priorDiedAtPhase: pi?.diedAtPhase ?? "unknown",
+      priorDiedAfterMs: pi?.diedAfterMs ?? -1,
+      priorHeartbeatAgeMs: pi?.heartbeatAgeAtBootMs ?? -1,
+      priorDroppedFrames: pi?.droppedFrames ?? -1,
       voiceSessionCount: s.voiceSessionCount,
       voiceCycleCount: s.voiceCycleCount,
       lastVoicePhase: s.lastPhase,
+      wakeDroppedFrames: typeof s.health.droppedFrames === "number" ? s.health.droppedFrames : -1,
       recoveryCount: s.recoveryCount,
       visibilityState: typeof document === "undefined" ? "unknown" : document.visibilityState,
       onlineState: typeof navigator === "undefined" ? true : navigator.onLine !== false,
@@ -221,16 +355,19 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
       lastLifecycleEvent: lastEventRef.current?.name ?? "boot",
       lastLifecycleEventAt: lastEventRef.current?.at ?? startedAt,
     };
-  }, [assessment, bootId, startedAt]);
+  }, [assessment, bfcacheRestored, bootId, startedAt]);
 
   return {
     assessment,
-    voiceSessionInterrupted: assessment.unexpectedReload && !acknowledged,
+    voiceSessionInterrupted: assessment.unexpectedReload && !bfcacheRestored && !acknowledged,
+    voiceIntentPersisted,
     getTelemetry,
     markVoiceActive,
     noteVoiceCycle,
     notePhase,
+    noteVoiceHealth,
     noteRecovery,
     dismissInterrupted,
+    setVoiceIntent,
   };
 }

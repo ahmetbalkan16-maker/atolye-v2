@@ -144,6 +144,23 @@ export function BrainCoreConsole({
   useEffect(() => {
     lifecycle.notePhase(voice.state);
   }, [voice.state, lifecycle]);
+  // Fold the wake-adapter's back-pressure / context numbers into the lifecycle
+  // heartbeat — this is what the NEXT boot reads to say where the page died.
+  useEffect(() => {
+    const h = voice.voiceHealth;
+    if (!h) return;
+    lifecycle.noteVoiceHealth({
+      phase: h.phase,
+      droppedFrames: h.droppedFrames,
+      audioContextState: h.audioContextState,
+      lastError: h.lastError,
+    });
+  }, [voice.voiceHealth, lifecycle]);
+  // Persist "the user wants hands-free voice" across reloads so the resume
+  // prompt survives repeated browser kills.
+  useEffect(() => {
+    if (voice.listening) lifecycle.setVoiceIntent(true);
+  }, [voice.listening, lifecycle]);
 
   const voiceRef = useRef(voice);
   useEffect(() => {
@@ -262,12 +279,21 @@ export function BrainCoreConsole({
   // select the chat panel and, when this device can hear, start listening
   // inside this click's user gesture (iOS needs that). No new path.
   const dismissInterrupted = lifecycle.dismissInterrupted;
+  const setVoiceIntent = lifecycle.setVoiceIntent;
   const startConversation = useCallback(() => {
     setActivePanel("chat");
     dismissInterrupted();
     const v = voiceRef.current;
     if (v.capability.stt && !v.listening) v.toggleListening();
   }, [dismissInterrupted]);
+
+  // Explicit "turn voice off" — forget the persisted intent so a later reload
+  // does not re-offer to resume a session the user deliberately ended.
+  const stopListening = useCallback(() => {
+    setVoiceIntent(false);
+    dismissInterrupted();
+    voiceRef.current.stopListening();
+  }, [setVoiceIntent, dismissInterrupted]);
 
   const restingState = useMemo(() => deriveBrainCoreState(snapshot), [snapshot]);
   const autonomousWaiting = (initialAutonomous?.awaitingApprovalCount ?? 0) > 0;
@@ -315,7 +341,7 @@ export function BrainCoreConsole({
         voiceTier: voice.voiceTier,
         recovering: voice.recovering,
         onToggleListening: voice.toggleListening,
-        onStopListening: voice.stopListening,
+        onStopListening: stopListening,
         onToggleMute: voice.toggleMute,
         onAcceptDisclosure: voice.acceptDisclosure,
         onReplayPendingSpeech: voice.replayPendingSpeech,
