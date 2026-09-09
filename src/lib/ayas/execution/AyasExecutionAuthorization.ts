@@ -22,9 +22,37 @@ import crypto from "node:crypto";
 
 import {
   canonicalAyasExecutionRequest,
-  type AyasExecutionActionId,
   type AyasExecutionRequest,
 } from "./AyasExecutionPolicy";
+
+/**
+ * A grant can be minted from a validated read-only `AyasExecutionRequest` or
+ * from any deterministic-layer descriptor that supplies its own canonical
+ * binding string (the write path uses `canonicalAyasResumeStageRequest`).
+ */
+export interface AyasExecutionGrantDescriptor {
+  readonly action: string;
+  readonly requestedBy: string;
+  readonly intent: string;
+  readonly projectSlug?: string;
+  readonly plan?: Readonly<Record<string, unknown>>;
+  /** The exact canonical string this grant is bound to. */
+  readonly canonical: string;
+}
+
+function toDescriptor(
+  input: AyasExecutionRequest | AyasExecutionGrantDescriptor,
+): AyasExecutionGrantDescriptor {
+  if ("canonical" in input) return input;
+  return {
+    action: input.action,
+    requestedBy: input.requestedBy,
+    intent: input.intent,
+    ...(input.projectSlug ? { projectSlug: input.projectSlug } : {}),
+    plan: input.plan,
+    canonical: canonicalAyasExecutionRequest(input),
+  };
+}
 
 export type AyasExecutionAuthorizationErrorCode =
   | "AYAS_EXEC_AUTH_IO"
@@ -58,7 +86,7 @@ export interface AyasExecutionAuthorizationRecord {
   readonly authorizationId: string;
   readonly executionId: string;
   readonly requestDigest: string;
-  readonly action: AyasExecutionActionId;
+  readonly action: string;
   readonly requestedBy: string;
   readonly intent: string;
   readonly plan: Readonly<Record<string, unknown>>;
@@ -95,9 +123,12 @@ export class AyasExecutionAuthorizationStore {
   }
 
   /** Deterministic layer only: mint a single-use grant bound to this exact request. */
-  grant(request: AyasExecutionRequest): AyasExecutionAuthorizationRecord {
+  grant(
+    input: AyasExecutionRequest | AyasExecutionGrantDescriptor,
+  ): AyasExecutionAuthorizationRecord {
+    const descriptor = toDescriptor(input);
     const createdAt = this.now();
-    const requestDigest = sha256(canonicalAyasExecutionRequest(request));
+    const requestDigest = sha256(descriptor.canonical);
     const executionId = "exec-" + sha256(requestDigest + "|" + createdAt.toISOString()).slice(0, 24);
     const authorizationId = "authz-" + crypto.randomUUID();
     const record: AyasExecutionAuthorizationRecord = {
@@ -105,11 +136,11 @@ export class AyasExecutionAuthorizationStore {
       authorizationId,
       executionId,
       requestDigest,
-      action: request.action,
-      requestedBy: request.requestedBy,
-      intent: request.intent,
-      plan: request.plan,
-      ...(request.projectSlug ? { projectSlug: request.projectSlug } : {}),
+      action: descriptor.action,
+      requestedBy: descriptor.requestedBy,
+      intent: descriptor.intent,
+      plan: descriptor.plan ?? {},
+      ...(descriptor.projectSlug ? { projectSlug: descriptor.projectSlug } : {}),
       createdAt: createdAt.toISOString(),
       expiresAt: new Date(createdAt.getTime() + this.ttlMs).toISOString(),
       state: "granted",
@@ -141,7 +172,10 @@ export class AyasExecutionAuthorizationStore {
    * Single-use: verify binding + expiry, mark `consumed`. A second call is a
    * replay. Returns the consumed record.
    */
-  consume(authorizationId: string, request: AyasExecutionRequest): AyasExecutionAuthorizationRecord {
+  consume(
+    authorizationId: string,
+    input: AyasExecutionRequest | AyasExecutionGrantDescriptor,
+  ): AyasExecutionAuthorizationRecord {
     const record = this.read(authorizationId);
     if (record.state !== "granted") {
       throw new AyasExecutionAuthorizationError(
@@ -149,7 +183,7 @@ export class AyasExecutionAuthorizationStore {
         `authorization ${authorizationId} is already ${record.state}`,
       );
     }
-    if (record.requestDigest !== sha256(canonicalAyasExecutionRequest(request))) {
+    if (record.requestDigest !== sha256(toDescriptor(input).canonical)) {
       throw new AyasExecutionAuthorizationError(
         "AYAS_EXEC_AUTH_BINDING_MISMATCH",
         `authorization ${authorizationId} is bound to a different request`,

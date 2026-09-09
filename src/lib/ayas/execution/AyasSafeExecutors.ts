@@ -16,8 +16,12 @@ import { PipelineRecoveryPlanner } from "@/lib/pipeline/PipelineRecoveryPlanner"
 import type { AyasExecutionActionId, AyasExecutionRequest } from "./AyasExecutionPolicy";
 
 export interface AyasExecutorResult {
-  readonly action: AyasExecutionActionId;
-  readonly write: false;
+  /** An enabled read-only action id, or `"resume-stage"` for the write executor. */
+  readonly action: AyasExecutionActionId | "resume-stage";
+  /** `true` only for a write action; the read-only executors are always `false`. */
+  readonly write: boolean;
+  /** For a write action: whether the pipeline side effect actually applied. */
+  readonly sideEffectApplied?: boolean;
   readonly summary: string;
   readonly data: Readonly<Record<string, unknown>>;
 }
