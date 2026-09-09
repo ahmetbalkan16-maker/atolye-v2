@@ -83,3 +83,5 @@ graphify-out/
 
 # PipelineJobMutationLock's process-local mutex dir — anywhere it appears.
 **/.pipeline-jobs.lock/
+/.venv-wake/
+/bin/whisper/
