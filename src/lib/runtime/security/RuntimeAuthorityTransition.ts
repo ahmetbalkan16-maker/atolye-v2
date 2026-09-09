@@ -121,6 +121,10 @@ export type RuntimeAuthorityTransitionErrorCode =
   | "TRANSITION_TARGET_INVENTORY_MISMATCH"
   | "TRANSITION_TARGET_CONTENT_MISMATCH"
   | "TRANSITION_CONTENT_UNSAFE"
+  // F17-B — identity-mapped source/target comparison
+  | "TRANSITION_SOURCE_IDENTITY_MISSING"
+  | "TRANSITION_TARGET_IDENTITY_UNKNOWN"
+  | "TRANSITION_IDENTITY_BINDING_MISMATCH"
   // C.2B.11
   | "ROLLBACK_TOKEN_INPUT_INVALID"
   | "ROLLBACK_TOKEN_MISMATCH"
@@ -173,6 +177,16 @@ export interface RuntimeAuthorityTransitionRecord {
     /** Per-file SHA-256 digest of the whole projects tree (F3 byte-exact). */
     readonly contentDigest?: string;
     readonly fileCount?: number;
+    /**
+     * F17-B — the verified `projectId ↔ projectSlug` map (from the migration
+     * candidate manifest's `sourceProjectIdentities`), sorted by `projectId`.
+     * When present, `validateTarget` compares the target by **logical project
+     * identity** rather than physical folder name, and `logicalContentDigest`
+     * is the F3 digest computed over identity-canonicalised paths.
+     */
+    readonly projectIdentities?: readonly { readonly projectId: string; readonly projectSlug: string }[];
+    readonly logicalContentDigest?: string;
+    readonly logicalFileCount?: number;
     readonly frozenAt: string;
   };
   /** Recorded at `quiesced`. */
@@ -786,19 +800,39 @@ export interface RuntimeAuthorityProjectsContent {
   readonly fileCount: number;
 }
 
+export interface RuntimeAuthorityProjectsContentOptions {
+  /**
+   * F17-B — canonicalise the **first path segment** (the project folder name) of
+   * every non-top-level file to its logical project identity, so a slug-layout
+   * repo source and a `projectId`-layout migration target that hold the SAME
+   * logical projects produce the SAME digest.
+   *
+   * Applied only to directory-first-segments; top-level files (`hunlar.json`, …)
+   * are hashed verbatim. It runs AFTER the symlink / non-regular-file rejection
+   * and AFTER the F16-A transient exclusion (which use the physical path), so it
+   * is never a security or exclusion bypass. Returning the segment unchanged is
+   * allowed — the caller's project-identity set check is what fails closed on an
+   * unmapped / unknown folder.
+   */
+  readonly remapProjectFolder?: (folderName: string) => string;
+}
+
 /**
  * Deterministic per-file SHA-256 digest of an entire `projects/` tree — the
  * evidence a controlled relocation copied **byte for byte** (F3). Rejects any
  * symlink / junction / non-regular file. Returns a single digest over the
  * sorted list of `relativePosixPath\0sha256\0size` lines plus the file count.
+ * With `remapProjectFolder` the `relativePosixPath` is the **logical** one
+ * (F17-B), never a physical `slug/…` vs `projectId/…` difference.
  */
 export function runtimeAuthorityProjectsContentDigest(
   projectsRoot: string,
+  options: RuntimeAuthorityProjectsContentOptions = {},
 ): RuntimeAuthorityProjectsContent {
   const root = path.resolve(projectsRoot);
   validateSafeAncestorChain(root);
   const lines: string[] = [];
-  walkContent(root, root, lines);
+  walkContent(root, root, lines, options.remapProjectFolder);
   lines.sort();
   return {
     contentDigest: createHash("sha256").update(lines.join("\n")).digest("hex"),
@@ -806,7 +840,12 @@ export function runtimeAuthorityProjectsContentDigest(
   };
 }
 
-function walkContent(root: string, dir: string, out: string[]): void {
+function walkContent(
+  root: string,
+  dir: string,
+  out: string[],
+  remapProjectFolder?: (folderName: string) => string,
+): void {
   const entries = fs
     .readdirSync(dir, { withFileTypes: true })
     .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
@@ -826,7 +865,7 @@ function walkContent(root: string, dir: string, out: string[]): void {
       );
     }
     if (link.isDirectory()) {
-      walkContent(root, full, out);
+      walkContent(root, full, out, remapProjectFolder);
       continue;
     }
     if (!link.isFile()) {
@@ -835,18 +874,24 @@ function walkContent(root: string, dir: string, out: string[]): void {
         `non-regular file under projects tree: ${path.relative(root, full)}`,
       );
     }
-    const rel = path.relative(root, full).split(path.sep).join("/");
+    const segments = path.relative(root, full).split(path.sep);
+    const rel = segments.join("/");
     // F16-A — EXCLUDE-SAFE: `.audio-journal-staging/*.partial` atomic-write
     // staging and `.pipeline-jobs.*` process-local coordination files are inert
     // — never authority, never a durable record. `collectRuntimeBackupInventory`
     // (and therefore the backup / candidate / consumed target) excludes them by
     // the same predicate, so the source freeze and the target digest agree.
-    // The symlink / non-regular-file rejection above is unaffected.
+    // The symlink / non-regular-file rejection above is unaffected. This uses the
+    // PHYSICAL path — the F17-B remap below never changes an exclusion decision.
     if (isRuntimeTransientExcludedRelativePath(rel)) {
       continue;
     }
+    // F17-B — canonicalise the project folder name to its logical identity.
+    const logicalRel = remapProjectFolder && segments.length > 1
+      ? [remapProjectFolder(segments[0]), ...segments.slice(1)].join("/")
+      : rel;
     const sha = createHash("sha256").update(fs.readFileSync(full)).digest("hex");
-    out.push(`${rel}\0${sha}\0${link.size}`);
+    out.push(`${logicalRel}\0${sha}\0${link.size}`);
   }
 }
 
@@ -1038,6 +1083,12 @@ function messageFor(code: RuntimeAuthorityTransitionErrorCode): string {
       return "Runtime authority transition target projects tree is not a byte-exact copy of the frozen source.";
     case "TRANSITION_CONTENT_UNSAFE":
       return "Runtime authority transition projects tree contains an unsafe path.";
+    case "TRANSITION_SOURCE_IDENTITY_MISSING":
+      return "Runtime authority transition source project folder has no entry in the verified project identity map.";
+    case "TRANSITION_TARGET_IDENTITY_UNKNOWN":
+      return "Runtime authority transition target project folder is not a known project identity.";
+    case "TRANSITION_IDENTITY_BINDING_MISMATCH":
+      return "Runtime authority transition project identity map does not match the one frozen at prepare.";
     case "ROLLBACK_TOKEN_INPUT_INVALID":
       return "Runtime authority rollback token input is invalid.";
     case "ROLLBACK_TOKEN_MISMATCH":

@@ -308,6 +308,11 @@ export function confirmQuiescence(
   });
 }
 
+export interface RuntimeAuthorityProjectIdentity {
+  readonly projectId: string;
+  readonly projectSlug: string;
+}
+
 export interface PrepareTransitionInput {
   readonly store: RuntimeAuthorityTransitionStore;
   readonly transitionId: string;
@@ -319,6 +324,50 @@ export interface PrepareTransitionInput {
    * a byte-exact copy (F3). The operator CLI always passes this.
    */
   readonly sourceProjectsRoot?: string;
+  /**
+   * F17-B — the verified `projectId ↔ projectSlug` map from the migration
+   * candidate manifest's `sourceProjectIdentities`. When given, `prepare` also
+   * freezes an **identity-canonicalised** content digest (`slug/…` folders
+   * rewritten to `projectId/…`) so `validateTarget` can accept a
+   * `projectId`-layout migration target without a spurious mismatch. Every
+   * source project folder MUST have an entry (`TRANSITION_SOURCE_IDENTITY_MISSING`).
+   */
+  readonly projectIdentities?: readonly RuntimeAuthorityProjectIdentity[];
+}
+
+/** F17-B — validate + canonicalise (sort by projectId, reject malformed / duplicate). */
+function canonicalProjectIdentities(
+  identities: readonly RuntimeAuthorityProjectIdentity[],
+): readonly RuntimeAuthorityProjectIdentity[] {
+  const idPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  const slugPattern = /^[a-zA-Z0-9-_]+$/;
+  const seenId = new Set<string>();
+  const seenSlug = new Set<string>();
+  const out: RuntimeAuthorityProjectIdentity[] = [];
+  for (const entry of identities) {
+    if (
+      !entry || typeof entry.projectId !== "string" || typeof entry.projectSlug !== "string" ||
+      !idPattern.test(entry.projectId) || !slugPattern.test(entry.projectSlug)
+    ) {
+      throw new RuntimeAuthorityTransitionError("TRANSITION_INPUT_INVALID", "project identity is malformed");
+    }
+    if (seenId.has(entry.projectId) || seenSlug.has(entry.projectSlug)) {
+      throw new RuntimeAuthorityTransitionError("TRANSITION_INPUT_INVALID", "duplicate project identity");
+    }
+    seenId.add(entry.projectId);
+    seenSlug.add(entry.projectSlug);
+    out.push({ projectId: entry.projectId, projectSlug: entry.projectSlug });
+  }
+  return out.sort((a, b) => (a.projectId < b.projectId ? -1 : a.projectId > b.projectId ? 1 : 0));
+}
+
+function sameIdentities(
+  left: readonly RuntimeAuthorityProjectIdentity[],
+  right: readonly RuntimeAuthorityProjectIdentity[],
+): boolean {
+  if (left.length !== right.length) return false;
+  return left.every((entry, index) =>
+    entry.projectId === right[index]?.projectId && entry.projectSlug === right[index]?.projectSlug);
 }
 
 export function prepareTransition(
@@ -331,6 +380,36 @@ export function prepareTransition(
   const content = input.sourceProjectsRoot
     ? runtimeAuthorityProjectsContentDigest(input.sourceProjectsRoot)
     : undefined;
+
+  let identityFreeze: {
+    projectIdentities: readonly RuntimeAuthorityProjectIdentity[];
+    logicalContentDigest?: string;
+    logicalFileCount?: number;
+  } | undefined;
+  if (input.projectIdentities) {
+    const identities = canonicalProjectIdentities(input.projectIdentities);
+    const slugToId = new Map(identities.map((entry) => [entry.projectSlug, entry.projectId]));
+    for (const slug of slugs) {
+      if (!slugToId.has(slug)) {
+        throw new RuntimeAuthorityTransitionError(
+          "TRANSITION_SOURCE_IDENTITY_MISSING",
+          `no project identity for source folder "${slug}"`,
+        );
+      }
+    }
+    const logical = input.sourceProjectsRoot
+      ? runtimeAuthorityProjectsContentDigest(input.sourceProjectsRoot, {
+          remapProjectFolder: (folder) => slugToId.get(folder) ?? folder,
+        })
+      : undefined;
+    identityFreeze = {
+      projectIdentities: identities,
+      ...(logical
+        ? { logicalContentDigest: logical.contentDigest, logicalFileCount: logical.fileCount }
+        : {}),
+    };
+  }
+
   return advance(input.store, record, "prepared", {
     sourceFreeze: {
       projectSlugs: slugs,
@@ -338,6 +417,7 @@ export function prepareTransition(
       ...(content
         ? { contentDigest: content.contentDigest, fileCount: content.fileCount }
         : {}),
+      ...(identityFreeze ?? {}),
       frozenAt: input.store.clock(),
     },
   });
@@ -355,6 +435,13 @@ export interface ValidateTargetInput {
    * a `contentDigest` — the target must be a byte-exact copy (F3).
    */
   readonly targetProjectsRoot?: string;
+  /**
+   * F17-B — the project identity map (from the migration candidate). When
+   * `prepare` froze one, this must be byte-equal to it
+   * (`TRANSITION_IDENTITY_BINDING_MISMATCH`); it is optional — `validateTarget`
+   * uses the frozen copy as the source of truth.
+   */
+  readonly projectIdentities?: readonly RuntimeAuthorityProjectIdentity[];
 }
 
 export function validateTarget(
@@ -383,32 +470,68 @@ export function validateTarget(
     throw new RuntimeAuthorityTransitionError("TRANSITION_ILLEGAL_STATE", "marker write during validate");
   }
 
-  // The target must hold exactly the frozen source inventory — a controlled
-  // relocation copies every project. A populated target that does not match the
-  // freeze (or an empty target when the source has data) is a marker-less /
-  // partial copy → fail closed.
   const targetSlugs = normalizeSlugs(input.targetProjectSlugs);
-  if (!sameStringSet(targetSlugs, record.sourceFreeze.projectSlugs)) {
-    throw new RuntimeAuthorityTransitionError("TRANSITION_TARGET_INVENTORY_MISMATCH");
-  }
+  const frozenIdentities = record.sourceFreeze.projectIdentities;
 
-  // F3 — when a content digest was frozen, the target must be a byte-exact copy.
   let byteExact = false;
-  if (record.sourceFreeze.contentDigest) {
-    if (!input.targetProjectsRoot) {
-      throw new RuntimeAuthorityTransitionError(
-        "TRANSITION_INPUT_INVALID",
-        "targetProjectsRoot is required — a byte-exact source digest was frozen",
-      );
+  if (frozenIdentities) {
+    // ---- F17-B — identity-mapped comparison (slug-layout source vs projectId-layout target) ----
+    if (input.projectIdentities && !sameIdentities(canonicalProjectIdentities(input.projectIdentities), frozenIdentities)) {
+      throw new RuntimeAuthorityTransitionError("TRANSITION_IDENTITY_BINDING_MISMATCH");
     }
-    const targetContent = runtimeAuthorityProjectsContentDigest(input.targetProjectsRoot);
-    if (
-      targetContent.contentDigest !== record.sourceFreeze.contentDigest ||
-      targetContent.fileCount !== record.sourceFreeze.fileCount
-    ) {
-      throw new RuntimeAuthorityTransitionError("TRANSITION_TARGET_CONTENT_MISMATCH");
+    const knownIds = new Set(frozenIdentities.map((entry) => entry.projectId));
+    for (const folder of targetSlugs) {
+      if (!knownIds.has(folder)) {
+        throw new RuntimeAuthorityTransitionError(
+          "TRANSITION_TARGET_IDENTITY_UNKNOWN",
+          `target folder "${folder}" is not a known project identity`,
+        );
+      }
     }
-    byteExact = true;
+    if (!sameStringSet(targetSlugs, [...knownIds])) {
+      throw new RuntimeAuthorityTransitionError("TRANSITION_TARGET_INVENTORY_MISMATCH");
+    }
+    if (record.sourceFreeze.logicalContentDigest) {
+      if (!input.targetProjectsRoot) {
+        throw new RuntimeAuthorityTransitionError(
+          "TRANSITION_INPUT_INVALID",
+          "targetProjectsRoot is required — a logical source digest was frozen",
+        );
+      }
+      // The target folders are already `projectId`, so its raw digest IS its
+      // logical digest — compare to the source's identity-canonicalised freeze.
+      const targetContent = runtimeAuthorityProjectsContentDigest(input.targetProjectsRoot, {
+        remapProjectFolder: (folder) => folder,
+      });
+      if (
+        targetContent.contentDigest !== record.sourceFreeze.logicalContentDigest ||
+        targetContent.fileCount !== record.sourceFreeze.logicalFileCount
+      ) {
+        throw new RuntimeAuthorityTransitionError("TRANSITION_TARGET_CONTENT_MISMATCH");
+      }
+      byteExact = true;
+    }
+  } else {
+    // ---- pre-F17-B — structurally identical target (folder names must match) ----
+    if (!sameStringSet(targetSlugs, record.sourceFreeze.projectSlugs)) {
+      throw new RuntimeAuthorityTransitionError("TRANSITION_TARGET_INVENTORY_MISMATCH");
+    }
+    if (record.sourceFreeze.contentDigest) {
+      if (!input.targetProjectsRoot) {
+        throw new RuntimeAuthorityTransitionError(
+          "TRANSITION_INPUT_INVALID",
+          "targetProjectsRoot is required — a byte-exact source digest was frozen",
+        );
+      }
+      const targetContent = runtimeAuthorityProjectsContentDigest(input.targetProjectsRoot);
+      if (
+        targetContent.contentDigest !== record.sourceFreeze.contentDigest ||
+        targetContent.fileCount !== record.sourceFreeze.fileCount
+      ) {
+        throw new RuntimeAuthorityTransitionError("TRANSITION_TARGET_CONTENT_MISMATCH");
+      }
+      byteExact = true;
+    }
   }
 
   return advance(input.store, record, "target-validated", {

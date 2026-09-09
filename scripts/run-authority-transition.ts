@@ -9,8 +9,14 @@ import { runRuntimeAuthorityTransitionCommand } from
  *   npm run authority:begin-relocation  -- --authority-root <p> --source <p> --target <p> --transition-id <id>
  *   npm run authority:begin-recovery    -- --authority-root <p> --target <p> --transition-id <id> --reason "<why>"
  *   npm run authority:quiesce           -- --authority-root <p> --transition-id <id> --assert-worker-stopped [--source-projects <p>]
- *   npm run authority:prepare           -- --authority-root <p> --transition-id <id> --source-projects <p>
- *   npm run authority:validate          -- --authority-root <p> --transition-id <id> --target <p>
+ *   npm run authority:prepare           -- --authority-root <p> --transition-id <id> --source-projects <p> [--candidate-directory <c>]
+ *   npm run authority:validate          -- --authority-root <p> --transition-id <id> --target <p> [--candidate-directory <c>]
+ *
+ * F17-B — `--candidate-directory` (a verified migration candidate,
+ * `…/candidates/c-<24hex>`) makes `prepare` / `validate` compare source and
+ * target by **logical project identity** (`sourceProjectIdentities`) instead of
+ * physical folder name, so a slug-layout `<repo>/data/projects` source validates
+ * against a `projectId`-layout migration target.
  *   npm run authority:publish           -- --authority-root <p> --transition-id <id> --target <p>
  *   npm run authority:quarantine        -- --authority-root <p> --transition-id <id>
  *   npm run authority:fail              -- --authority-root <p> --transition-id <id> --reason "<why>"

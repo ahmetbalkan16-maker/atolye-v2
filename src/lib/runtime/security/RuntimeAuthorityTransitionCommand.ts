@@ -7,6 +7,7 @@ import {
 } from "@/lib/runtime/RuntimeStoragePaths";
 import { initialRuntimeAuthorityGeneration } from "@/lib/runtime/ProductionRuntimeOperationContext";
 import { ProductionExecutionDurableRecoveryService } from "@/lib/production/ProductionExecutionPersistence";
+import { verifyMigrationCandidate } from "@/lib/runtime/migration/RuntimeMigrationCandidateVerifier";
 import {
   RuntimeAuthorityTransitionError,
   RuntimeAuthorityTransitionStore,
@@ -141,16 +142,21 @@ export async function runRuntimeAuthorityTransitionCommand(
       case "prepare": {
         const transitionId = requireTransitionId(args);
         const sourceProjects = requireDirArg(args, "source-projects");
+        const projectIdentities = optionalCandidateIdentities(args);
         const record = prepareTransition({
           store,
           transitionId,
           sourceProjectSlugs: projectSlugs(sourceProjects),
           sourceProjectsRoot: sourceProjects,
+          ...(projectIdentities ? { projectIdentities } : {}),
         });
         return ok({
           prepared: summarize(record),
           fileCount: record.sourceFreeze?.fileCount ?? null,
           contentDigest: record.sourceFreeze?.contentDigest ?? null,
+          projectIdentityCount: record.sourceFreeze?.projectIdentities?.length ?? 0,
+          logicalContentDigest: record.sourceFreeze?.logicalContentDigest ?? null,
+          logicalFileCount: record.sourceFreeze?.logicalFileCount ?? null,
         });
       }
 
@@ -158,6 +164,7 @@ export async function runRuntimeAuthorityTransitionCommand(
         const transitionId = requireTransitionId(args);
         const target = requireDirArg(args, "target");
         const targetProjects = path.join(target, "projects");
+        const projectIdentities = optionalCandidateIdentities(args);
         const record = validateTarget({
           store,
           transitionId,
@@ -165,8 +172,13 @@ export async function runRuntimeAuthorityTransitionCommand(
           targetAuthorityGeneration: generation,
           targetProjectSlugs: projectSlugs(targetProjects),
           targetProjectsRoot: targetProjects,
+          ...(projectIdentities ? { projectIdentities } : {}),
         });
-        return ok({ validated: summarize(record), byteExact: record.targetValidation?.byteExact ?? false });
+        return ok({
+          validated: summarize(record),
+          byteExact: record.targetValidation?.byteExact ?? false,
+          identityMapped: Boolean(record.sourceFreeze?.projectIdentities),
+        });
       }
 
       case "publish": {
@@ -396,6 +408,30 @@ function projectSlugs(projectsRoot: string): string[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * F17-B — `--candidate-directory <…/candidates/c-<24hex>>` (optional). The
+ * verified migration candidate manifest's `sourceProjectIdentities` is the
+ * trusted `projectId ↔ projectSlug` map for the identity-aware `prepare` /
+ * `validate` comparison. A bad / unverifiable candidate fails closed.
+ */
+function optionalCandidateIdentities(
+  args: Record<string, string | true>,
+): readonly { readonly projectId: string; readonly projectSlug: string }[] | undefined {
+  if (!("candidate-directory" in args)) return undefined;
+  const candidateDirectory = requireDirArg(args, "candidate-directory");
+  let manifest;
+  try {
+    manifest = verifyMigrationCandidate(candidateDirectory).manifest;
+  } catch {
+    throw new CommandInputError("--candidate-directory did not verify as a migration candidate");
+  }
+  const identities = manifest.sourceBackup.sourceProjectIdentities;
+  if (!identities || identities.length === 0) {
+    throw new CommandInputError("candidate manifest carries no sourceProjectIdentities");
+  }
+  return identities.map((entry) => ({ projectId: entry.projectId, projectSlug: entry.projectSlug }));
 }
 
 async function scanDurableRecovery(
