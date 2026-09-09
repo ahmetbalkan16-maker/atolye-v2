@@ -77,6 +77,8 @@
     "smoke:ayas-access-gate": "tsx scripts/smoke-ayas-access-gate.ts",
     "smoke:ayas-intent-intake": "tsx scripts/smoke-ayas-intent-intake.ts",
     "smoke:ayas-studio-context": "tsx scripts/smoke-ayas-studio-context.ts",
+    "smoke:ayas-execution-gate": "tsx scripts/smoke-ayas-execution-gate.ts",
+    "smoke:ayas-execution-bridge": "tsx scripts/smoke-ayas-execution-bridge.ts",
     "smoke:external-runtime-root-lifecycle": "tsx scripts/smoke-external-runtime-root-project-lifecycle.ts"
   },
   "dependencies": {

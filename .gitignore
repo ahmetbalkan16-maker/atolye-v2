@@ -60,6 +60,8 @@ graphify-out/
 /data/brain/queue/
 /data/brain/autonomy/
 /data/brain/ayas-intents/
+/data/brain/experience/
+/data/brain/execution/
 
 # ---------------------------------------------------------------------------
 # C.2B.12 (Sprint 199) — data/projects is external-runtime authority data.
