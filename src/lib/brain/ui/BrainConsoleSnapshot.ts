@@ -28,6 +28,7 @@ import {
 import {
   evaluateBrainSafety,
   resolveBrainHardwareProfile,
+  DEFAULT_BRAIN_HARDWARE_PROFILES,
 } from "@/lib/brain/BrainSafetyGovernor";
 import type { BrainSafetyDecision } from "@/types/brain";
 import type { BrainTask, BrainTaskStatus } from "@/types/brainWorker";
@@ -104,11 +105,28 @@ export interface LoadBrainConsoleSnapshotOptions {
   readonly hardwareProfileId?: string;
 }
 
+/**
+ * This project is used on two machines (AGENTS.md). The Brain hardware profile
+ * is resolved per-host from `ATOLYE_BRAIN_HARDWARE_PROFILE` when set to a known
+ * id (`rtx-a2000-12gb` on this workstation); otherwise it falls back to the more
+ * constrained `gtx-1650-4gb` profile, which keeps the safety governor
+ * conservative on an unknown host. Never a hard-coded single value.
+ */
+export const BRAIN_HARDWARE_PROFILE_ENV = "ATOLYE_BRAIN_HARDWARE_PROFILE";
+const BRAIN_HARDWARE_PROFILE_FALLBACK = "gtx-1650-4gb";
+
+export function resolveBrainHardwareProfileId(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): string {
+  const raw = env[BRAIN_HARDWARE_PROFILE_ENV]?.trim();
+  return raw && raw in DEFAULT_BRAIN_HARDWARE_PROFILES ? raw : BRAIN_HARDWARE_PROFILE_FALLBACK;
+}
+
 export async function loadBrainConsoleSnapshot(
   options: LoadBrainConsoleSnapshotOptions = {},
 ): Promise<BrainConsoleSnapshot> {
   const generatedAt = options.nowIso ?? new Date().toISOString();
-  const hardwareProfileId = options.hardwareProfileId ?? "gtx-1650-4gb";
+  const hardwareProfileId = options.hardwareProfileId ?? resolveBrainHardwareProfileId();
   const rootOpt = options.rootDir ? { rootDir: options.rootDir } : {};
   const errors: string[] = [];
 

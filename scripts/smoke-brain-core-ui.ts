@@ -407,6 +407,8 @@ async function run() {
   });
 
   await scenario("14. no Brain UI module contains a client fetch / timer / execution primitive", () => {
+    // The ONE allowed client fetch is the chat SSE consumer (ayasChatStreamClient.ts,
+    // checked separately below) — every other Brain UI module stays fetch-free.
     const files = [
       "src/components/brain/brainCore.ts",
       "src/components/brain/BrainCoreOrb.tsx",
@@ -422,6 +424,17 @@ async function run() {
         assert.ok(!code.includes(banned), `${file} must not reference "${banned}"`);
       }
     }
+  });
+
+  await scenario("14b. the chat SSE client streams text only — no execution / timer / GPU primitive", () => {
+    const raw = fs.readFileSync(path.join(REPO_ROOT, "src/components/brain/ayasChatStreamClient.ts"), "utf8");
+    const code = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+    assert.ok(code.includes("fetch"), "the SSE client does fetch the stream endpoint");
+    for (const banned of ["setInterval(", "child_process", "execFile", "spawn(", "PipelineRunner", "requestAnimationFrame", "nvidia-smi", "ffprobe", "eval(", "Function("]) {
+      assert.ok(!code.includes(banned), `ayasChatStreamClient.ts must not reference "${banned}"`);
+    }
+    // it targets exactly the AYAS chat stream route
+    assert.ok(code.includes("/api/ayas/chat/stream"));
   });
 
   /* ---------------------- E. snapshot loader ------------------------- */
@@ -472,6 +485,25 @@ async function run() {
       assert.ok(html.includes('role="alert"'));
       assert.ok(html.includes("BRAIN_TASK_STORE_CORRUPT"));
     }));
+
+  await scenario("18. hardware profile — per-host env override, safe fallback, unknown ignored (§19)", async () => {
+    const { resolveBrainHardwareProfileId } = await import("../src/lib/brain/ui/BrainConsoleSnapshot");
+    assert.equal(resolveBrainHardwareProfileId({}), "gtx-1650-4gb", "safe fallback on an unknown host");
+    assert.equal(
+      resolveBrainHardwareProfileId({ ATOLYE_BRAIN_HARDWARE_PROFILE: "rtx-a2000-12gb" }),
+      "rtx-a2000-12gb",
+      "a known id from the env is honoured",
+    );
+    assert.equal(
+      resolveBrainHardwareProfileId({ ATOLYE_BRAIN_HARDWARE_PROFILE: "made-up-gpu" }),
+      "gtx-1650-4gb",
+      "an unknown id is ignored (falls back)",
+    );
+    await withWs(async (root) => {
+      const snap = await loadBrainConsoleSnapshot({ rootDir: root, nowIso: NOW, hardwareProfileId: "rtx-a2000-12gb" });
+      assert.equal(snap.safety.hardwareProfileId, "rtx-a2000-12gb");
+    });
+  });
 
   console.log(`Atölye Brain Core UI smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "brain-core-ui", scenarios: count }));
