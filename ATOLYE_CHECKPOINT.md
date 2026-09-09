@@ -1,5 +1,110 @@
 ---
 
+## AYAS Brain — self-reload after ~3 turns: deferred SW reload + reload detector + resume UX; Graphify health; gate CLOSED - 2026-09-09
+
+**Branch:** `wip/ayas-graphify-final-execution` (off `cd20d9a`). NOT merged / NOT pushed.
+
+**Symptom (real iPhone, repeatable):** first 3 "AYAS" calls work end-to-end (wake→STT→AYAS→TTS),
+then **the page reloads itself**, and after that reload AYAS is unresponsive. Repeated several
+times.
+
+**REAL ROOT CAUSE (code-trace + reflog + build-id reasoning — the reload is (D) SW-caused, with
+(E) WebKit eviction still possible and now instrumented):** `bff56cc` added
+`navigator.serviceWorker` `controllerchange` → `window.location.reload()` to `PwaRegister.tsx` so
+a phone stuck on the stale `ayas-shell-v2` worker would pick up `v3`. On the **first visit after
+the `bff56cc`/`v3` deploy**, the new worker installs while the page is open, `skipWaiting` +
+`clients.claim()` fire `controllerchange` **mid-session**, and the old code reloaded **immediately
+and unconditionally** — landing on `/brain?source=pwa`, which (a) re-downloads the ~30 MB ONNX
+WASM and (b) drops the in-memory `WakeWordVoiceAdapter` (mic, AudioContext, worklet, ONNX runner,
+phase FSM). The reload itself was mistaken for "iOS eviction". After the reload the voice adapter
+is never re-armed (no user gesture yet → `getUserMedia` blocked, wake listener not started), so
+AYAS looks dead. **Why the first 3 turns worked:** the `v3` worker hadn't finished activating yet.
+**Why it died after:** the reload wiped the voice session and nothing resumed it.
+
+**FIX (client / UI only — no server logic, no route, no auth, no SW behaviour change to `sw.js`
+itself):**
+- **`PwaRegister.tsx` — deferred, single-shot `controllerchange` reload.** Reload *immediately*
+  only when the page is <6 s old (`STALE_PAGE_GRACE_MS`) **or** `document.visibilityState !==
+  "visible"` (nobody is mid-interaction). Otherwise set `reloadPending` and reload on the next
+  `pagehide` / `visibilitychange → hidden`. A `done` latch guarantees `reload()` runs **at most
+  once** per page instance (no reload loop). Writes a `sessionStorage["ayas.sw.reloadedAt.v1"]`
+  breadcrumb immediately before reloading. `register("/sw.js", { updateViaCache: "none" })` +
+  `reg.update()` + `reg.waiting?.postMessage("skip-waiting")` kept.
+- **`src/lib/brain/ui/brainLifecycle.ts` (NEW, pure, no DOM):** `assessBrainReload({ prev, nowMs,
+  swReloadMarkerAt })` classifies each boot as `first-boot` / `sw-update` (breadcrumb within a
+  20 s TTL) / `eviction-suspected` (prior boot had voice active, <15 min ago, no SW breadcrumb) /
+  `reload-or-navigation`. `unexpectedReload = prev.voiceWasActive`. `parseBrainBootRecord` is a
+  tolerant JSON parse (null on corrupt / missing `bootAt`+`bootCount`). Monotonic `bootCount`.
+- **`src/components/brain/useBrainLifecycle.ts` (NEW, "use client"):** wires the above to
+  `sessionStorage` (`ayas.brain.boot.v1`) + `visibilitychange` / `pagehide` / `online` / `offline`
+  **without React state churn** (lazy `useState` init, null-guarded refs, no `setState` in render).
+  Exposes `getTelemetry()` (bootId, bootCount, sessionUptimeMs, reloadCause, unexpectedReload,
+  prior/session voice + cycle + recovery counts, visibility / online / SW state, last lifecycle
+  event), `voiceSessionInterrupted`, and `markVoiceActive` / `noteVoiceCycle` / `notePhase` /
+  `noteRecovery` / `dismissInterrupted`.
+- **Post-reload resume UX** (`BrainCoreConsole.tsx` → `BrainConsoleView.tsx` `AyasPresenceCard` +
+  `brainCore.ts` `deriveAyasPresence` + `BrainCore.css`): when `voiceSessionInterrupted` (an
+  unexpected reload happened while a voice session was armed, not yet acknowledged) the presence
+  card turns `warn`, shows **"Sesli oturum kesildi (sayfa yeniden yüklendi). Devam etmek için
+  dokun."** and the CTA becomes **"Sesli oturuma devam et"** — one tap = `startConversation()`
+  (a real user gesture, so `getUserMedia` / wake listener re-arm cleanly). Dismissed on tap.
+- **`useAyasVoice.ts`** now surfaces `wakeCycles` (from `onStatus.cyclesCompleted`) for the cycle
+  counter. **`ayasChatStreamClient.ts`** cancels + releases the stream reader in `finally` so an
+  aborted turn can't leak a locked stream.
+- **Voice Lab** (`app/brain/voice-lab/wake/page.tsx`): a new `d2w-lifecycle` block (boot id/count,
+  session uptime, reload cause — red + "SESLİ OTURUM KESİLDİ" when unexpected, prior-boot voice
+  state, session voice/cycle/recovery counts, last phase, SW state, visibility/online, last
+  lifecycle event) + a `lifecycle` object in the JSON export. This is what disambiguates
+  (D) sw-update vs (E) eviction-suspected on the next physical test.
+
+**GRAPHIFY HEALTH (§13/§14 — read-only, authority untouched):** new
+`src/lib/ayas/GraphifyConsistency.ts` + `scripts/graphify-health-readonly.ts` +
+`scripts/smoke-graphify-consistency.ts` (9). Ran against the live `D:\AtolyeRuntime` (via
+`resolveRuntimeStorageContext` → `explicit-external`): **17 folders, 16 with `project.json` +
+`manifest.json`, 0 UNRESOLVABLE projects** (every folder/id/slug resolves through
+`ProjectFolderIndex`). **Brain↔Graphify consistent:** `loadAyasStudioContext` total = 16 = folders
+with `project.json`; byStatus + pipeline roll-up (4 failed-stage, latest = mimar-sinan / visuals /
+`VISUAL_ASSET_GENERATION_FAILED`) match. **Notes (not breaks, pre-existing):** 1 orphan folder
+`26b05c31-…` (only `ai-usage.json`, no `project.json` — `listProjects` already skips it);
+2 folders (`8e2a1371-…`, `e47a38d0-…`, both Hun projects, `status: research`) whose
+`project.json.id` is the human slug not the folder UUID — **READ resolves both directions**, only
+the (already-documented, gate-CLOSED) future WRITE path cares; the in-repo `data/projects/` is the
+git-ignored **quarantined** old root (7 stale records, 0 authoritative). **Verdict:
+CONSISTENT-WITH-NOTES.** No Graphify data changed (orphan + mismatches are on `D:\AtolyeRuntime`
+authority — reported only; the write-path fix remains a separate gated sprint).
+
+**Verify:** `tsc --noEmit` 0 · `eslint` 0 err (22 pre-existing warnings in
+`src/lib/runtime/backup/**`) · `next build` clean (exit 0, `/brain` + both voice-lab routes built).
+**Smoke — all green:** `graphify-consistency` 9 · `brain-lifecycle` 8 · `brain-core-ui` 33 ·
+`ayas-pwa-sw` 8 · `ayas-pwa-manifest` 8 · `ayas-voice` 52 · `ayas-wake-adapter` 21 ·
+`ayas-wake-runner` 12 · `brain-security` 11 · `ayas-chat-stream` 10 · `ayas-chat-stream-client` 8 ·
+`ayas-stt` 14 · `ayas-stt-security` 7 · `ayas-access-gate` 16 · `ayas-execution-gate` 16 ·
+`ayas-studio-context` 16 · `project-folder-index` 9. **Runtime:** server restarted on the fresh
+build (`npm start`, PID 24396 killed → new tree; `:3000` up in ~2 s); local + tunnel
+`haven-finds-distinct-selling.trycloudflare.com` `/brain` → 307 → `/login`, `/login` 200,
+`/manifest.webmanifest` 200, `/sw.js` 200 `Cache-Control: no-cache, no-store, must-revalidate`,
+`/offline` 200; cloudflared PID 23540 untouched, `ha_connections 1`, `register_success 1`
+(**0 reconnects**); Caddy + `.env.local` + quick tunnel unchanged. `git diff --check` clean.
+Preserved commits `cd20d9a bff56cc bfbd83c af6a6cc 0ef4f40` intact (linear ancestry, `c8a0f90`
+still an ancestor).
+
+**FINAL STATUS: READY_WITH_OPERATOR_TEST.** Every automated check is clean and the reload
+mechanism is now deferred + single-shot + instrumented, but the "self-reload after ~3 turns"
+symptom is only reproducible on the physical iPhone, so the fix is **UNPROVEN on device** until
+the operator runs the §16 protocol (`docs/AYAS_IPHONE_TEST_PROTOCOL.md`): success = 0 unexpected
+reload, 0 silent wake death, 0 permission re-prompt, 0 duplicate mic, 0 permanently-suspended
+AudioContext, 0 stuck phase, 0 recovery loop over a 10-turn / 10-min session; if a reload still
+occurs, the Voice Lab `d2w-lifecycle` block now says whether it was `sw-update` or
+`eviction-suspected`.
+
+**Unchanged:** Execution Gate CLOSED (`inspect-project` → `gate-not-open`, `resume-stage` →
+`write-execution-disabled`), `writeActionsEnabled`, `AyasExecutionGateStore`, auth / CSRF /
+access gate / session, `AYAS_ACCESS_KEY`, STT + chat + TTS pipeline, `wakeWordVoiceAdapter.ts`,
+`public/sw.js`, Graphify write path, `D:\AtolyeRuntime` / `D:\AtolyeAuthority` authority, Caddy,
+`.env.local`, `NEXT_PUBLIC_ATOLYE_WAKE_ENGINE=on`, quick tunnel, firewall.
+
+<!-- BRAIN-SELF-RELOAD-DEFERRED-SW-END -->
+
 ## AYAS wake — iOS TTS suspends the mic context; watchdog + resume recovery; gate CLOSED - 2026-09-09
 
 **Branch:** `wip/ayas-graphify-final-execution` (off `bff56cc`). NOT merged / NOT pushed.
