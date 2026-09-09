@@ -1,5 +1,60 @@
 ---
 
+## Sprint 212 - HTTPS + ACCESS KEY + PHONE ACTIVATION PREP — repo Caddyfile + operator handoff; **ACTIVATION = BLOCKED**; gate CLOSED - 2026-09-09
+
+**Status:** PC son operasyonel hazırlık. **Session non-admin** (`DESKTOP-9P0BG80\Metod`, `Admin: False`)
+→ sistem değişikliği YAPILAMADI/YAPILMADI (Caddy install YOK, hosts entry YOK, firewall rule YOK —
+hepsi elevated shell ister → operatör adımı). Kod değişikliği yok. `.env.local` DEĞİŞMEDİ (sha
+`a9743b2c…`). Execution Gate **CLOSED**, write execution **DISABLED**, storage migration TEKRAR YOK,
+push YOK. Commit `docs(deploy)` `dde7d5e`. `AYAS AKTİVASYON ONAY` yok → aktivasyon YAPILMADI.
+
+### Environment inspection (read-only)
+
+`Admin: False` | host `DESKTOP-9P0BG80` | LAN `192.168.2.74/24` (Ethernet) | GPU `NVIDIA RTX A2000
+12GB` (`nvidia-smi` 12282 MiB, driver 595.95) | Ollama up: `qwen2.5:7b` + `qwen2.5:3b` | reverse
+proxy: **hiçbiri kurulu değil** (Caddy winget'te) | port 443/3000: boş | `studio.local` hosts entry
+yok | `AYAS HTTPS (LAN)` firewall rule yok | node çalışmıyor.
+
+### Yapılan
+
+- **`deploy/Caddyfile` (YENİ)** — `reverse_proxy 127.0.0.1:3000`, `Host` + `X-Forwarded-Proto`
+  passthrough, SSE unbuffered (Caddy default), IP-site alternatifi yorumlu.
+- **`deploy/README.md` (YENİ)** — tam elevated operatör komutları: `winget install CaddyServer.Caddy`,
+  hosts satırı, **tek dar** `New-NetFirewallRule` (TCP 443 / `192.168.2.0/24`), `AYAS_ACCESS_KEY`
+  yöntemi (secret üretilmez), `npm run build && start` + `caddy run`, telefon checklist.
+
+### ENV doğrulama (secret değeri gösterilmeden)
+
+`ATOLYE_RUNTIME_ROOT=D:\AtolyeRuntime` ✓ | `ATOLYE_RUNTIME_AUTHORITY_ROOT=D:\AtolyeAuthority` ✓ |
+`OLLAMA_MODEL=qwen2.5:3b` ✓ (pipeline korundu) | `AYAS_OLLAMA_MODEL=qwen2.5:7b` ✓ |
+`ATOLYE_BRAIN_HARDWARE_PROFILE=rtx-a2000-12gb` ✓ | `AYAS_ACCESS_KEY` = **UNSET** (operatör) |
+`NEXT_PUBLIC_ATOLYE_PWA_SW` = UNSET.
+
+### Gerçek doğrulama
+
+AYAS chat → `qwen2.5:7b`, pipeline → `qwen2.5:3b`, hw profil `rtx-a2000-12gb` (resolver + snapshot).
+Streaming (canlı 7b): 19 delta, `source=llm`, `corrected=false`, "16 proje var" ✓. **Execution gate
+CLOSED** (autonomy sabiti + gerçek store, degraded=false): `inspect-project` → DENIED `gate-not-open`;
+`resume-stage` → DENIED `write-execution-disabled`; `run-pipeline-stage` → DENIED
+`reserved-action-not-enabled`. `active-authority.json` `s206-genesis-01` seq 1 generation v1 state
+`old-root-quarantined` DEĞİŞMEDİ. `data/projects` tracked = 0, `data/brain` yalnız README.md,
+`data/brain/execution/gate.json` yok.
+
+### Testler
+
+`tsc` temiz, eslint 0 err / 22 warn (baseline), `next build` exit 0. 18 AYAS/Brain + 11
+storage/runtime suite PASS. `129-25c-2a`/`-2b-4` aynı "Missing expected exception" baseline.
+
+### Operatör devir (elevated shell + telefon)
+
+`deploy/README.md` + `docs/AYAS_REMOTE_ACCESS.md`: (1) `AYAS_ACCESS_KEY` .env.local'a, (2) Caddy
+kurulumu, (3) hosts `192.168.2.74 studio.local`, (4) firewall rule (443/LAN-only), (5) `npm run
+build && start` + `caddy run`, (6) telefon `https://studio.local/brain` → login → chat → streaming →
+mic → STT → TTS → PWA install → "Yürütme kapısı: CLOSED" badge. Telefon testi PC'den yapılamaz →
+**OPERATOR DEVICE TEST PENDING**.
+
+<!-- SPRINT-212-END -->
+
 ## Sprint 211 - PC ACTIVATION PREPARATION — 7B + A2000 profile applied, remote runbook; **ACTIVATION = BLOCKED**; gate CLOSED - 2026-09-09
 
 **Status:** PC'yi gerçek telefon testine hazırlama. GPU **read-only** doğrulandı (`nvidia-smi`:
