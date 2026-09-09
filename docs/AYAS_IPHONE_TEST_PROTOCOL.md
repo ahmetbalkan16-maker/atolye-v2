@@ -74,6 +74,14 @@ Turları arka arkaya yap. **Her 3. turdan sonra** özellikle dikkat et (belirti 
 Tur __ : wake[ ]  STT[ ]  AYAS-cevap[ ]  TTS[ ]  re-arm[ ]   | reload gördün mü? E/H   | presence "kesildi" uyarısı? E/H
 ```
 
+**Her ~3 turda bir Voice Lab'i aç** (`/brain/voice-lab/wake`) → `d2w-lifecycle` bloğu:
+- **Navigation type** — `reload` + "BROWSER-KILL LIKELY" görürsen tarayıcı sayfayı öldürüyor.
+- **Bu oturum — düşen frame** — single-flight fix sonrası bu sayı **küçük** olmalı (telefon
+  yetişiyor). Yüzlerce/binlerce ise cihaz ONNX'e yetişemiyor → hâlâ bellek baskısı riski.
+- **Önceki instance — öldüğü faz / süre / düşen frame** — bir reload olduysa: hangi fazda
+  (`wake`/`capturing`/`processing`), kaç saniye sonra, kaç frame düşmüştü. Bu, kök nedeni
+  söyleyen kanıt.
+
 **BAŞARI KRİTERLERİ (hepsi sıfır olmalı):**
 
 - **0** beklenmeyen reload (sen yenilemeden sayfa yenilendi)
@@ -130,11 +138,19 @@ EĞER NOT READY    : hangi kriter, hangi turda, d2w-lifecycle ne diyordu:
   `PwaRegister` erteleme mantığında bir kaçak var VEYA `sw.js` `skipWaiting` zamanlamasını
   değiştirmek gerekiyor (bir sonraki sprint: `v3` worker'ı `skipWaiting`'i **mesajla** yapacak
   şekilde — otomatik değil).
-- **reload oluyor, cause = `eviction-suspected`** → bu SW değil, WebKit süreç tahliyesi. Kod
-  tarafında önlenemez; çözüm zaten yerinde (kesildi uyarısı + tek-dokunuş resume). Kabul
-  edilebilir davranış olarak işaretle.
+- **reload oluyor, cause = `browser-reload-suspected`, "bu oturum düşen frame" YÜKSEK** →
+  single-flight yetmedi; cihaz ONNX'e hiç yetişemiyor. Sonraki adım: wake modelini dinlemediğinde
+  `dispose()` edip yeniden `init()` etmek (armed değilken ~30MB WASM boşa duruyor), veya frame
+  hop'unu 80→160 ms'e çıkarmak (recall'ı gerçek-ses testiyle doğrula).
+- **reload oluyor, cause = `browser-reload-suspected`, "bu oturum düşen frame" ~0** → single-flight
+  çalıştı ama sayfa yine öldü → sorun ONNX backlog değil, **ham bellek ayak izi** (iOS memory
+  eviction) veya bir render crash. Kod tarafında daha fazlası yok; çözüm mevcut resume UX'i.
+  "Kabul edilebilir davranış" olarak işaretle — kullanıcı tek dokunuşla devam eder, izin
+  tekrar sorulmaz.
+- **reload oluyor, cause = `sw-update`** artık beklenmiyor (`44b4127` ertelemesi) — görülürse
+  `PwaRegister`'a dön.
 - **reload yok ama wake 3. turdan sonra ölüyor** → `wakeWordVoiceAdapter` watchdog / `resumeOrRebuild`
-  bölgesine dön (`cd20d9a` sprintinin konusu); `d2w-lifecycle` "last phase" + "recovery count"
-  kanıtıyla.
+  bölgesine dön (`cd20d9a` sprintinin konusu); `d2w-lifecycle` "son voice phase" + "bu oturum
+  recovery" kanıtıyla.
 - **çift mikrofon** → `useBrainLifecycle` `markVoiceActive` veya `startConversation` iki kez
   `toggleListening` çağırıyor; presence CTA idempotency'sine bak.

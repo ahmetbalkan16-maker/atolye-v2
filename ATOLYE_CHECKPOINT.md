@@ -1,5 +1,90 @@
 ---
 
+## AYAS Brain — iPhone reload PROVEN browser-side; single-flight wake inference + evidence telemetry; gate CLOSED - 2026-09-09
+
+**Branch:** `wip/ayas-graphify-final-execution` (commit `24e6df8`, off `8fd0fcf`). NOT merged / NOT pushed.
+
+**Physical iPhone evidence (operator, installed PWA, mobile data), Voice Lab `d2w-lifecycle`:**
+`bootCount 5` · `session uptime 00:00:36` · `reload cause eviction-suspected` · prior boot voice
+active / 1 turn · this session 0/1/0 · last voice phase `off` · **service worker `controlled`** ·
+`visibility visible` / `online` · **last lifecycle event `boot`** (no `pagehide`, no
+`visibilitychange` between the prior boot and this one).
+
+**What this proves:**
+- The deferred-`controllerchange` fix from `44b4127` **held** — the cause is NOT `sw-update` (no
+  breadcrumb → `PwaRegister`'s one `location.reload()` never ran), and the SW is stable/controlled.
+- The whole codebase has **exactly one** `window.location.reload()` (`PwaRegister.tsx:53`) and it
+  did not fire. `router.refresh()` calls are all on other pages.
+- ⇒ **iOS Safari / WKWebView is tearing down the page's web-content process and reloading it from
+  `start_url` every ~30–40 s while the page is foreground and mid-listen.** This is a genuine
+  browser reload (memory-pressure kill or render crash — both present identically), NOT a React
+  remount / Next refresh / SW loop / our code.
+
+**REAL, provable amplifier (fixed):** `onFrame` fired `runner.accept()` for **every** 80 ms frame
+with **no single-flight guard**. Three sequential WASM ONNX runs per frame exceed 80 ms on a
+phone; the `accept()` calls overlap, corrupt the shared rolling buffers, and pile unbounded
+promise + `Float32Array` allocation work onto the microtask queue — enough sustained memory
+pressure for WebKit to kill + reload an installed PWA in ~30 s. Matches every observed signal
+(fast cadence, dies mid-`wake`, `recoveryCount 0` so the audio pipeline itself is fine).
+
+**FIX (client / UI only — `public/sw.js`, routes, auth, STT/chat/TTS, execution gate, `.env.local`
+all untouched):**
+- **`openWakeWordRunner.ts`** — `accept()` is **single-flight**: a frame that lands while an
+  inference runs is dropped (counted in `stats.dropped`), never queued. Carry buffer capped at
+  `CHUNK*4`. `inFlight` cleared in `reset()`.
+- **`wakeWordVoiceAdapter.ts`** — `onFrame` guards the same way (drops before allocating the
+  `.then` closure), tracks `droppedFrames`, exposes `droppedFrames` + `audioContextState` in
+  `getStatus()`, and beats a **throttled** health status while armed (only when `droppedFrames`
+  moved or every 6 s) so the Brain lifecycle heartbeat sees rising back-pressure. `accepting`
+  cleared on re-arm / rebuild / dispose. Same guard added to the Voice Lab page.
+- **Stronger, secret-free reload telemetry** (`brainLifecycle.ts` + `useBrainLifecycle.ts`):
+  `PerformanceNavigationTiming.type`, `pageshow.persisted` (bfcache), a **clean-`pagehide`
+  flag**, and a **liveness heartbeat** written every 3 s while voice is armed — the NEXT boot
+  reads it to report *where and how far in* the prior instance died (phase, uptime, dropped
+  frames, AudioContext state, heartbeat age). New honest cause set: `first-boot` /
+  `bfcache-restore` / `sw-update` / **`browser-reload-suspected`** / `manual-reload-or-nav`, with
+  `browserReloadLikely` true only when navigation=reload (or a fresh heartbeat) **+** no clean
+  pagehide **+** prior voice active. A persistent **voice-intent marker** so the resume prompt
+  survives repeated kills; forgotten on an explicit "voice off".
+- **Voice Lab** (`d2w-lifecycle`): navigation type + BROWSER-KILL LIKELY flag, previous boot id,
+  prior instance death phase / uptime / heartbeat age / dropped frames, this session's dropped
+  frames. All in the JSON export.
+
+**Honesty:** `browser-reload-suspected` is provable (navigation + no pagehide + fresh heartbeat +
+voice active). Whether the specific mechanism is an **iOS memory eviction** vs a **render crash**
+is **UNPROVEN** — iOS exposes neither `performance.memory` nor a crash signal to the page. The
+raw evidence (phase, uptime, dropped-frame count) now rides along for the operator to read; if
+after the single-flight fix `droppedFrames` stays ~0 and it STILL reloads every ~30 s, the cause
+is raw footprint, not our backlog, and the answer is the graceful resume UX (already built).
+
+**Verify:** `tsc` 0 · `eslint` 0 err (22 pre-existing) · `next build` exit 0. **Smoke — 17 suites,
+282 scenarios, all green:** `brain-lifecycle` 8→**14** (navigation type, bfcache, clean-pagehide,
+heartbeat-based prior-instance evidence, different-bootId heartbeat ignored), `ayas-wake-adapter`
+21→**22** (slow-inference: `maxConcurrent === 1`, ≥35 frames dropped, `backend.started === 1`),
+`ayas-wake-runner` 12→**14** (mid-inference frames return null + counted in `stats.dropped`, carry
+buffer never ratchets), + `ayas-voice` 52 / `brain-core-ui` 33 / `ayas-pwa-sw` 8 / `graphify-consistency`
+9 / security & gate suites unchanged. **Runtime:** server restarted on the fresh build (old PIDs
+6056/21208 killed); `/brain` → 307 → `/login` local + tunnel `haven-finds-distinct-selling`;
+`/sw.js` `no-cache, no-store, must-revalidate`; cloudflared PID untouched, **0 reconnects**;
+Caddy + `.env.local` + quick tunnel unchanged. **Graphify health re-run:** CONSISTENT-WITH-NOTES,
+0 unresolvable, Brain↔Graphify 16 == 16. `git diff --check` clean; `public/sw.js` / execution
+gate / middleware / `next.config.ts` / `app/api/**` untouched.
+
+**FINAL STATUS: `READY_WITH_OPERATOR_TEST`.** The single-flight guard is the provable fix for the
+memory-backlog amplifier; the reload classifier is now evidence-based, not a guess. But the reload
+only repros on the physical iPhone, so **whether it stops** is UNPROVEN on device until the
+operator re-runs `docs/AYAS_IPHONE_TEST_PROTOCOL.md` (§3 10-turn session; watch the Voice Lab
+`d2w-lifecycle` "navigation type" + "prior instance — dropped frames": after the fix that number
+should be small; if a reload still happens, "reload cause" + "prior died at phase" say what).
+
+**Unchanged:** Execution Gate CLOSED, `writeActionsEnabled` false, `AyasExecutionGateStore`, auth /
+CSRF / access gate / session, `AYAS_ACCESS_KEY`, STT + chat + TTS pipeline, `public/sw.js`,
+`PwaRegister` reload path (from `44b4127`), Graphify write path, `D:\AtolyeRuntime` /
+`D:\AtolyeAuthority` authority, Caddy, `.env.local`, `NEXT_PUBLIC_ATOLYE_WAKE_ENGINE=on`, quick
+tunnel, firewall. Threshold 0.70.
+
+<!-- BRAIN-IPHONE-RELOAD-BROWSER-SIDE-END -->
+
 ## AYAS Brain — self-reload after ~3 turns: deferred SW reload + reload detector + resume UX; Graphify health; gate CLOSED - 2026-09-09
 
 **Branch:** `wip/ayas-graphify-final-execution` (off `cd20d9a`). NOT merged / NOT pushed.
