@@ -32,6 +32,7 @@ import {
 } from "./brainCore";
 import { shouldAutoSpeakAyasReply } from "./ayasVoice";
 import { useAyasVoice } from "./useAyasVoice";
+import { runAyasChatStream } from "./ayasChatStreamClient";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
 
@@ -51,6 +52,11 @@ export interface BrainCoreConsoleProps {
   readonly refresh?: () => Promise<BrainConsoleSnapshot>;
   /** Server Action that asks the local model (falls back to deterministic). */
   readonly askAyas?: AskAyasFn;
+  /**
+   * Try `/api/ayas/chat/stream` (token streaming) before the `askAyas` Server
+   * Action. Any transport / stream failure falls back to `askAyas`. Default on.
+   */
+  readonly streaming?: boolean;
 }
 
 export function BrainCoreConsole({
@@ -59,6 +65,7 @@ export function BrainCoreConsole({
   modelConfigured,
   refresh,
   askAyas,
+  streaming = true,
 }: BrainCoreConsoleProps) {
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [activePanel, setActivePanel] = useState<BrainPanelId>("chat");
@@ -116,7 +123,48 @@ export function BrainCoreConsole({
         return;
       }
 
+      const replyId = `brain-${seq + 1}`;
+      const finalizeSpeech = (finalText: string) => {
+        const v = voiceRef.current;
+        if (shouldAutoSpeakAyasReply({ ttsAvailable: v.capability.tts, muted: v.muted })) v.speak(finalText);
+        else v.markIdle();
+      };
+
       startChat(async () => {
+        // 1 — try token streaming.
+        if (streaming) {
+          let streamText = "";
+          let opened = false;
+          const streamResult = await runAyasChatStream({
+            text,
+            history,
+            seq: seq + 1,
+            onDelta: (delta) => {
+              streamText += delta;
+              setMessages((current) => {
+                if (!opened) {
+                  opened = true;
+                  return [...current, { id: replyId, role: "brain", text: streamText }];
+                }
+                return current.map((m) => (m.id === replyId ? { ...m, text: streamText } : m));
+              });
+            },
+          });
+          if (streamResult.ok) {
+            setLastReplySource(streamResult.source);
+            setMessages((current) => {
+              const exists = current.some((m) => m.id === replyId);
+              const msg: BrainChatMessage = { id: replyId, role: "brain", text: streamResult.text };
+              return exists ? current.map((m) => (m.id === replyId ? msg : m)) : [...current, msg];
+            });
+            finalizeSpeech(streamResult.text);
+            return;
+          }
+          // stream failed before/after opening — drop any partial and fall back.
+          if (opened) setMessages((current) => current.filter((m) => m.id !== replyId));
+        }
+
+        // 2 — fall back to the Server Action.
         let result: { message: BrainChatMessage; source: "llm" | "fallback" };
         try {
           result = await askAyas({ text, history, seq: seq + 1 });
@@ -127,7 +175,7 @@ export function BrainCoreConsole({
         deliverReply(result.message);
       });
     },
-    [askAyas, messages, snapshot, startChat],
+    [askAyas, messages, snapshot, startChat, streaming],
   );
 
   useEffect(() => {

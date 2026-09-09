@@ -21,11 +21,13 @@
 
 export const ayasExecutionRequestSchemaVersion = "1" as const;
 
-export type AyasExecutionActionId = "inspect-project";
+export type AyasExecutionActionId = "inspect-project" | "pipeline-recovery-plan";
 
 /** Reserved ids that are intentionally NOT enabled yet (write / pipeline path). */
 export const AYAS_EXECUTION_RESERVED_ACTIONS: readonly string[] = Object.freeze([
   "run-pipeline-stage",
+  "resume-stage",
+  "retry-stage",
   "regenerate-stage",
   "publish-youtube",
 ]);
@@ -51,6 +53,15 @@ export const AYAS_EXECUTION_ALLOWLIST: Readonly<Record<AyasExecutionActionId, Ay
       destructive: false,
       requiresProject: true,
       maxDurationMs: 5_000,
+    },
+    "pipeline-recovery-plan": {
+      id: "pipeline-recovery-plan",
+      summary:
+        "PipelineRecoveryPlanner ile bir projenin resume planını + başarısız/eksik aşamalarını SALT-OKUNUR hesaplar (hiçbir aşama çalıştırılmaz).",
+      write: false,
+      destructive: false,
+      requiresProject: true,
+      maxDurationMs: 10_000,
     },
   });
 
@@ -84,6 +95,8 @@ const MAX_INTENT = 2_000;
 const MAX_REQUESTED_BY = 200;
 const MAX_PLAN_BYTES = 4_096;
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,126}[a-z0-9])?$/i;
+/** Windows reserved device names — invalid as a path segment even with a valid shape. */
+const WINDOWS_RESERVED_RE = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
 // deny anything that smells like a path escape, an absolute path, or a shell op
 const SHELL_LIKE_RE =
   /(\.\.[\/\\]|[;&|`$]|\$\(|\|\||&&|\brm\s+-rf\b|\bpowershell\b|\bcmd(?:\.exe)?\b|\bbash\b|\bsh\s+-c\b|>\s*\/|<\s*\/|\bcurl\b|\bwget\b|\bInvoke-Expression\b|\biex\b)/i;
@@ -98,7 +111,8 @@ export function isUnsafeAyasProjectSlug(value: unknown): boolean {
   if (typeof value !== "string" || value.length === 0 || value.length > 128) return true;
   if (PATHISH_RE.test(value)) return true;
   if (value.includes("/") || value.includes("\\") || value.includes("..")) return true;
-  if (value.includes("\0")) return true;
+  if (value.includes("\0") || value.includes("%2e") || value.includes("%2f") || value.includes("%5c")) return true;
+  if (WINDOWS_RESERVED_RE.test(value)) return true;
   return !SLUG_RE.test(value);
 }
 

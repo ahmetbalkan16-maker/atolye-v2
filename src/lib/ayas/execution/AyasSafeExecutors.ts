@@ -12,6 +12,7 @@
  */
 
 import { ProjectReader } from "@/lib/projects/ProjectReader";
+import { PipelineRecoveryPlanner } from "@/lib/pipeline/PipelineRecoveryPlanner";
 import type { AyasExecutionActionId, AyasExecutionRequest } from "./AyasExecutionPolicy";
 
 export interface AyasExecutorResult {
@@ -62,8 +63,48 @@ async function inspectProject(request: AyasExecutionRequest): Promise<AyasExecut
   };
 }
 
+/**
+ * A real `src/lib/pipeline/` action — `PipelineRecoveryPlanner` — used
+ * READ-ONLY: it reads the project manifest and *computes* a resume plan +
+ * failed / next-incomplete stages. It runs no stage, writes nothing. This is
+ * the AYAS → PipelineRunner-family connection (spec §12) at its safe entry
+ * point; enabling an actual stage run (`resume-stage` / `retry-stage`) is a
+ * separate gated sprint.
+ */
+async function pipelineRecoveryPlan(request: AyasExecutionRequest): Promise<AyasExecutorResult> {
+  const slug = request.projectSlug as string;
+  const [plan, failedStages, nextStage] = await Promise.all([
+    PipelineRecoveryPlanner.createResumePlan(slug),
+    PipelineRecoveryPlanner.getFailedStages(slug),
+    PipelineRecoveryPlanner.getNextIncompleteStage(slug),
+  ]);
+  const blockedReason = plan.blocked ? plan.reason ?? "bağımlılık engeli" : null;
+  const summary =
+    plan.startStage === null
+      ? `"${slug}" pipeline'ı tamamlanmış görünüyor — çalıştırılacak aşama yok.`
+      : blockedReason
+        ? `"${slug}" ${plan.startStage} aşamasından devam edebilir ama engelli: ${blockedReason}.`
+        : `"${slug}" ${plan.startStage} aşamasından devam edebilir (${plan.stagesToRun.length} aşama kalan).`;
+  return {
+    action: "pipeline-recovery-plan",
+    write: false,
+    summary,
+    data: {
+      slug,
+      startStage: plan.startStage,
+      stagesToRun: plan.stagesToRun,
+      blocked: plan.blocked,
+      blockedReason,
+      failedStages,
+      nextIncompleteStage: nextStage,
+      dependencies: plan.dependencies.map((d) => ({ stage: d.stage, status: d.status, ready: d.ready })),
+    },
+  };
+}
+
 const EXECUTORS: Readonly<Record<AyasExecutionActionId, AyasExecutor>> = Object.freeze({
   "inspect-project": inspectProject,
+  "pipeline-recovery-plan": pipelineRecoveryPlan,
 });
 
 export function resolveAyasExecutor(action: AyasExecutionActionId): AyasExecutor | undefined {

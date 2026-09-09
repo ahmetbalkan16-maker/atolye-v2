@@ -74,10 +74,29 @@ async function run() {
     if (!v.ok) assert.equal(v.reason, "unknown-action");
   });
 
-  await scenario("policy — reserved (not-yet-enabled) action → DENY", () => {
-    const v = validateAyasExecutionRequest(goodRequest({ action: "run-pipeline-stage" }));
-    assert.equal(v.ok, false);
-    if (!v.ok) assert.equal(v.reason, "reserved-action-not-enabled");
+  await scenario("policy — reserved (not-yet-enabled) actions → DENY (incl. every pipeline write id)", () => {
+    for (const action of ["run-pipeline-stage", "resume-stage", "retry-stage", "regenerate-stage", "publish-youtube"]) {
+      const v = validateAyasExecutionRequest(goodRequest({ action }));
+      assert.equal(v.ok, false, action);
+      if (!v.ok) assert.equal(v.reason, "reserved-action-not-enabled", action);
+    }
+  });
+
+  await scenario("policy — pipeline-recovery-plan validates (a real, read-only PipelineRunner-family action)", () => {
+    const v = validateAyasExecutionRequest(goodRequest({ action: "pipeline-recovery-plan", plan: { mode: "resume" } }));
+    assert.equal(v.ok, true);
+    if (v.ok) {
+      assert.equal(v.request.action, "pipeline-recovery-plan");
+      assert.equal(v.spec.write, false);
+      assert.equal(v.spec.destructive, false);
+    }
+  });
+
+  await scenario("policy — UNC path / mixed traversal slug → DENY", () => {
+    for (const slug of ["\\\\server\\share", "//host/x", "....//x", "%2e%2e/x", "a\0b", "con", "..%5c.."]) {
+      const v = validateAyasExecutionRequest(goodRequest({ projectSlug: slug }));
+      assert.equal(v.ok, false, slug);
+    }
   });
 
   await scenario("policy — malformed request / plan → DENY", () => {
@@ -307,6 +326,98 @@ async function run() {
     if (!out.ok) assert.equal(out.stage, "executor");
     assert.equal(gate.readStateFailClosed().state, "CLOSED");
     assert.equal(authorizations.read(grant.authorizationId).state, "failed");
+  });
+
+  /* ----------------------------- §16 crash / restart mid-execution ------------ */
+
+  await scenario("bridge — a crash mid-execution: a fresh gate store reloads EXECUTING, and a replay is denied", async () => {
+    const root = tmpRoot();
+    const gate = openTestGate(root);
+    const authorizations = new AyasExecutionAuthorizationStore({ rootDir: root });
+
+    // executor "crashes" the process — the promise never settles this run.
+    const bridge = createAyasExecutionBridge({
+      gate,
+      authorizations,
+      resolveExecutor: () => () => new Promise<AyasExecutorResult>(() => {}),
+    });
+    const raw = goodRequest();
+    const v = validateAyasExecutionRequest(raw);
+    assert.ok(v.ok);
+    const grant = authorizations.grant(v.request);
+    // race the hung executor against a short timer — simulates the process dying mid-run
+    await Promise.race([
+      bridge.requestExecution({ rawRequest: raw, authorizationId: grant.authorizationId }),
+      new Promise((r) => setTimeout(r, 50)),
+    ]);
+
+    // after the "crash": gate durably records EXECUTING, authz durably records consumed.
+    const reloadedGate = new AyasExecutionGateStore({ rootDir: root });
+    assert.equal(reloadedGate.read().state, "EXECUTING");
+    assert.equal(authorizations.read(grant.authorizationId).state, "consumed");
+
+    // recovery: EXECUTING is not a runnable state — the operator faults it back to CLOSED.
+    reloadedGate.transition({ event: "fault", reason: "recover from crash" });
+    assert.equal(reloadedGate.read().state, "CLOSED");
+
+    // the half-used authorization can NEVER be replayed (single-use, already consumed).
+    const reopenGate = new AyasExecutionGateStore({ rootDir: root });
+    reopenGate.transition({ event: "arm" });
+    reopenGate.transition({ event: "confirm-ready" });
+    reopenGate.transition({ event: "open", activationAuthorizationId: ACT_ID });
+    const replay = await createAyasExecutionBridge({ gate: reopenGate, authorizations }).requestExecution({
+      rawRequest: raw,
+      authorizationId: grant.authorizationId,
+    });
+    assert.equal(replay.ok, false);
+    if (!replay.ok) assert.equal(replay.stage, "authorization");
+  });
+
+  await scenario("bridge — a stale gate sequence (concurrent transition) aborts the execution", async () => {
+    const root = tmpRoot();
+    const gate = openTestGate(root);
+    const authorizations = new AyasExecutionAuthorizationStore({ rootDir: root });
+    // a rogue writer bumps the gate between consume and begin-execution
+    const rogue = new AyasExecutionGateStore({ rootDir: root });
+    const bridge = createAyasExecutionBridge({
+      gate,
+      authorizations,
+      resolveExecutor: () => async () => {
+        throw new Error("unreachable");
+      },
+    });
+    const raw = goodRequest();
+    const v = validateAyasExecutionRequest(raw);
+    assert.ok(v.ok);
+    const grant = authorizations.grant(v.request);
+    // pre-consume then externally move the gate → the bridge's begin-execution CAS fails
+    rogue.transition({ event: "close", reason: "external" });
+    const out = await bridge.requestExecution({ rawRequest: raw, authorizationId: grant.authorizationId });
+    assert.equal(out.ok, false);
+    // the gate ends CLOSED (either the external close, or a fault)
+    assert.equal(gate.readStateFailClosed().state, "CLOSED");
+  });
+
+  /* ----------------------------- real pipeline-recovery-plan (§12, §13) ------- */
+
+  await scenario("bridge — a real pipeline-recovery-plan runs end to end against D:\\AtolyeRuntime", async () => {
+    const root = tmpRoot();
+    const gate = openTestGate(root);
+    const authorizations = new AyasExecutionAuthorizationStore({ rootDir: root });
+    const bridge = createAyasExecutionBridge({ gate, authorizations });
+    const raw = goodRequest({ action: "pipeline-recovery-plan", plan: { mode: "resume" } });
+    const v = validateAyasExecutionRequest(raw);
+    assert.ok(v.ok);
+    const grant = authorizations.grant(v.request);
+    const out = await bridge.requestExecution({ rawRequest: raw, authorizationId: grant.authorizationId });
+    assert.equal(out.ok, true, out.ok ? "" : `${out.stage}: ${out.detail}`);
+    if (out.ok) {
+      assert.equal(out.result.write, false);
+      assert.equal(out.result.action, "pipeline-recovery-plan");
+      assert.ok("stagesToRun" in out.result.data, "carries a real plan projection");
+      assert.equal(out.gateStateAfter, "READY");
+    }
+    assert.equal(authorizations.read(grant.authorizationId).state, "completed");
   });
 
   console.log(`AYAS execution bridge smoke: PASS (${count} scenarios)`);

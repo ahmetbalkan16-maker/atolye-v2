@@ -360,6 +360,13 @@ export interface AyasChatPromptInput {
   readonly history: readonly { readonly role: BrainChatMessage["role"]; readonly text: string }[];
   /** Optional read-only studio/runtime-authority facts (Sprint 208). */
   readonly studio?: AyasStudioContextView;
+  /**
+   * `"json"` (default) ends the prompt with the `{ reply }` envelope instruction
+   * — for the non-streaming `format: "json"` backend. `"text"` asks for a direct
+   * plain-text answer — for the streaming path, where token deltas of a JSON
+   * envelope would be unreadable.
+   */
+  readonly format?: "json" | "text";
 }
 
 /** Render the studio-context block for the prompt. Deterministic. */
@@ -470,8 +477,15 @@ export function buildAyasChatPrompt(input: AyasChatPromptInput): string {
     ...(turns.length ? ["Önceki konuşma:", ...turns, ""] : []),
     `Kullanıcı: ${input.userText}`,
     "",
-    "Yanıtını YALNIZCA şu JSON nesnesi olarak ver, başka hiçbir şey yazma:",
-    '{ "reply": "<doğal, akıcı Türkçe yanıtın>" }',
+    ...(input.format === "text"
+      ? [
+          "Doğrudan, düz metin olarak yanıt ver. JSON, tırnak zarfı, kod veya madde listesi kullanma.",
+          "Yukarıdaki durum/bağlam bilgisini olduğu gibi tekrarlama; yalnızca kullanıcının sorduğuna 2-4 cümleyle cevap ver.",
+        ]
+      : [
+          "Yanıtını YALNIZCA şu JSON nesnesi olarak ver, başka hiçbir şey yazma:",
+          '{ "reply": "<doğal, akıcı Türkçe yanıtın>" }',
+        ]),
   ].join("\n");
 }
 
