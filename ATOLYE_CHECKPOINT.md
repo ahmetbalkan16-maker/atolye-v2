@@ -1,5 +1,36 @@
 ---
 
+## AYAS VOICE FINAL ACTIVATION — STT env live, full chain proven, physical-test ready; gate CLOSED - 2026-09-09
+
+**Branch:** `wip/ayas-graphify-final-execution` @ `53a2de6`. NOT merged / NOT pushed.
+
+- **STT ACTIVATED:** `.env.local` (git-ignored) gained `AYAS_WHISPER_EXECUTABLE` / `AYAS_WHISPER_MODEL`
+  / `AYAS_FFMPEG_PATH` — **non-secret local paths, appended without reading/touching any existing
+  value** (a script did it, values never printed). `resolveAyasSttConfig` → `enabled=true`, all 3
+  paths exist.
+- **Full server voice chain proven with LIVE data** (3 spoken commands via Piper): STT (whisper CUDA
+  turbo, RTF 0.6-1.05) → existing `/api/ayas/chat/stream` (qwen2.5:7b) → Graphify Phase 6 studio
+  context → correct answers: "16 projeniz var", "Mimar Sinan'ın hayatı ve başyapıtları projesi
+  **visuals** aşamasında başarısız oldu", "aktif runtime authority **D:\AtolyeRuntime**". GPU peak
+  **54 °C / 5.7 GB VRAM** (turbo + 7b resident), **< 60 °C hard-stop**, thermal hold clear.
+- **`/brain/voice-lab/wake` = complete physical-test surface:** "openWakeWord + STT" engine mode now
+  runs wake → command capture → `/api/ayas/stt` → `/api/ayas/chat/stream` → `speechSynthesis` TTS →
+  detector re-arm, with **AYAS state / reply / TTS state / re-arm state** + all audio/wake/STT
+  diagnostics + copyable report JSON. Single "AYAS, kaç projem var" flow.
+- STT transcript normalisation widened: whisper "Grundtime"→"runtime", "ayes/aias"→"AYAS".
+- `smoke-ayas-stt` (14 mock + 1 real), `-security` (7), `-wake-adapter` (7), `project-folder-index`
+  (9), `studio-context` (16) + 21 AYAS/Brain/storage suites all green. tsc / lint (0 err) /
+  `next build` clean. `smoke-production-snapshot-builder` fails identically on base (pre-existing).
+- **Unchanged:** Gate CLOSED (autonomy + durable, not degraded), `writeActionsEnabled=false`, storage
+  authority, `D:\AtolyeRuntime/Authority`, `ProjectWriter`, Caddy (`https://192.168.2.74` → `:3000`),
+  firewall, `PipelineRunner`, `107fedc`, text-chat path, TTS architecture. **`.env.local` secrets not
+  read/printed; only the 3 non-secret STT paths appended.**
+- **OPERATOR_REQUIRED (physical only):** PC mic test + iPhone installed-PWA test at
+  `/brain/voice-lab/wake`; long-run thermal watch; real-human "AYAS" recall (synthetic training) —
+  if a real voice under-fires, record ~30 clips + rerun `scripts/wake/train_ayas_wake.py`.
+
+<!-- AYAS-VOICE-FINAL-ACTIVATION-END -->
+
 ## AYAS VOICE CLOSURE — real STT (whisper CUDA) + real wake (openWakeWord); gate CLOSED - 2026-09-09
 
 **Branch:** `wip/ayas-graphify-final-execution` (off `wip/ayas-graphify-readonly` @ `6244d64`;
