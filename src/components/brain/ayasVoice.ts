@@ -147,7 +147,13 @@ export function detectAyasVoiceCapability(win: AyasVoiceWindowLike | undefined):
  * restart) — unchanged.
  * ------------------------------------------------------------------------- */
 
-export type AyasRecognitionMode = "continuous" | "single-shot";
+/**
+ * `"wake-engine"` (Voice Closure Sprint): a local openWakeWord detector holds
+ * the mic open, fires on "AYAS", then captures the command and sends it to the
+ * whisper STT route. Unlike `webkitSpeechRecognition` it needs no per-utterance
+ * gesture, so — like `"continuous"` — the engine may re-arm it without a tap.
+ */
+export type AyasRecognitionMode = "continuous" | "single-shot" | "wake-engine";
 
 export interface AyasNavigatorLike {
   readonly userAgent?: string;

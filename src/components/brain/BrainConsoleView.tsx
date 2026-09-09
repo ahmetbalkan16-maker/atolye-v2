@@ -30,7 +30,7 @@ export interface BrainConsoleVoiceView {
   /** Voice INPUT (wake word) mode is on. */
   readonly listening: boolean;
   /** `"single-shot"` on iOS/WebKit — the mic tap captures one utterance. */
-  readonly recognitionMode?: "continuous" | "single-shot";
+  readonly recognitionMode?: "continuous" | "single-shot" | "wake-engine";
   /** Voice OUTPUT (auto-speech) is muted. */
   readonly muted: boolean;
   readonly disclosureAccepted: boolean;

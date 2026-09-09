@@ -49,8 +49,10 @@ interface WakeEvent {
 interface WakeDetector {
   readonly name: string;
   readonly info: string;
-  accept(frame: Float32Array): WakeEvent | null;
+  accept(frame: Float32Array): WakeEvent | null | Promise<WakeEvent | null>;
   reset(): void;
+  init?(): Promise<void>;
+  dispose?(): void;
 }
 
 /**
@@ -123,6 +125,46 @@ class SpeechBurstStub implements WakeDetector {
   }
 }
 
+/**
+ * REAL openWakeWord "AYAS" detector — the production path. Loads the three ONNX
+ * models from /wake/ via onnxruntime-web and runs the streaming pipeline. Needs
+ * `public/wake/ayas.onnx` (train it) + `npx tsx scripts/setup-wake-assets.ts`.
+ */
+class OpenWakeWordDetector implements WakeDetector {
+  readonly name = "openWakeWord";
+  readonly info = "gerçek wake-word modeli (ONNX, onnxruntime-web) — /wake/ayas.onnx";
+  private runner: import("@/components/brain/voice/wake/openWakeWordRunner").OpenWakeWordRunner | null = null;
+  private lastFire = 0;
+  constructor(private readonly threshold: () => number) {}
+  async init(): Promise<void> {
+    const { OpenWakeWordRunner } = await import("@/components/brain/voice/wake/openWakeWordRunner");
+    this.runner = new OpenWakeWordRunner({
+      melspectrogramUrl: "/wake/melspectrogram.onnx",
+      embeddingUrl: "/wake/embedding_model.onnx",
+      wakewordUrl: "/wake/ayas.onnx",
+      wasmPaths: "/ort/",
+    });
+    await this.runner.init();
+  }
+  async accept(frame: Float32Array): Promise<WakeEvent | null> {
+    if (!this.runner) return null;
+    const score = await this.runner.accept(frame);
+    if (score === null) return null;
+    const now = Date.now();
+    if (score >= this.threshold() && now - this.lastFire > 1500) {
+      this.lastFire = now;
+      return { keyword: "AYAS", score, at: now };
+    }
+    return null;
+  }
+  reset(): void {
+    this.runner?.reset();
+  }
+  dispose(): void {
+    this.runner?.dispose();
+  }
+}
+
 /* ---- SSR-safe environment fingerprint (no effect, no hydration mismatch) ---- */
 
 interface EnvFingerprint {
@@ -171,6 +213,7 @@ function hhmmss(totalSeconds: number): string {
 export default function D2WakeLabPage() {
   const envFp = useSyncExternalStore<EnvFingerprint | null>(NO_SUBSCRIBE, envSnapshot, () => null);
 
+  const [engine, setEngine] = useState<"stub" | "openwakeword">("stub");
   const [armed, setArmed] = useState(false);
   const [mic, setMic] = useState<MicState>("off");
   const [ctxState, setCtxState] = useState<string>("—");
@@ -183,8 +226,12 @@ export default function D2WakeLabPage() {
   const [truePos, setTruePos] = useState(0);
   const [falsePos, setFalsePos] = useState(0);
   const [lastDetection, setLastDetection] = useState<string>("—");
+  const [wakeScore, setWakeScore] = useState(0);
+  const [sttState, setSttState] = useState<"idle" | "capturing" | "transcribing" | "done" | "error">("idle");
+  const [lastTranscript, setLastTranscript] = useState<string>("—");
   const [bgRecovery, setBgRecovery] = useState<string>("— (henüz arka plana alınmadı)");
   const [logLines, setLogLines] = useState<readonly string[]>([]);
+  const cmdRef = useRef<{ frames: Float32Array[]; ms: number; silence: number } | null>(null);
 
   const acRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -237,7 +284,9 @@ export default function D2WakeLabPage() {
       gainRef.current = null;
       streamRef.current = null;
       acRef.current = null;
+      detectorRef.current?.dispose?.();
       detectorRef.current = null;
+      cmdRef.current = null;
       setArmed(false);
       setMic((m) => (m === "denied" ? m : "off"));
       setWorklet("stopped");
@@ -275,6 +324,30 @@ export default function D2WakeLabPage() {
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [log]);
 
+  const runStt = useCallback(
+    async (samples: Float32Array) => {
+      setSttState("transcribing");
+      try {
+        const { encodeWav16kMono } = await import("@/components/brain/voice/wake/wav");
+        const wav = encodeWav16kMono(samples);
+        const res = await fetch("/api/ayas/stt", { method: "POST", headers: { "Content-Type": "audio/wav" }, body: new Blob([wav.buffer as ArrayBuffer], { type: "audio/wav" }) });
+        const data = (await res.json().catch(() => ({}))) as { text?: string; error?: string };
+        if (res.ok && data.text) {
+          setLastTranscript(data.text);
+          setSttState("done");
+          log(`STT -> "${data.text}"`);
+        } else {
+          setSttState("error");
+          log(`STT error: ${res.status} ${data.error ?? ""}`);
+        }
+      } catch (e) {
+        setSttState("error");
+        log(`STT transport error: ${String(e)}`);
+      }
+    },
+    [log],
+  );
+
   const onWorkletMessage = useCallback(
     (event: MessageEvent<WorkletMessage>) => {
       const data = event.data;
@@ -285,15 +358,42 @@ export default function D2WakeLabPage() {
       // data.type === "frame"
       const detector = detectorRef.current;
       if (!detector) return;
-      const hit = detector.accept(data.samples);
-      if (hit) {
+
+      // openWakeWord mode: after a hit, capture ~5 s / until silence, then STT.
+      const cap = cmdRef.current;
+      if (cap) {
+        cap.frames.push(data.samples.slice(0));
+        cap.ms += 80;
+        let rms = 0;
+        for (let i = 0; i < data.samples.length; i += 1) rms += data.samples[i] * data.samples[i];
+        rms = Math.sqrt(rms / data.samples.length);
+        cap.silence = rms < 0.012 ? cap.silence + 80 : 0;
+        if (cap.ms >= 6000 || (cap.ms >= 400 && cap.silence >= 900)) {
+          cmdRef.current = null;
+          const merged = new Float32Array(cap.frames.reduce((n, f) => n + f.length, 0));
+          let off = 0;
+          for (const f of cap.frames) { merged.set(f, off); off += f.length; }
+          detector.reset();
+          void runStt(merged);
+        }
+        return;
+      }
+
+      void Promise.resolve(detector.accept(data.samples)).then((hit) => {
+        if (hit && "score" in hit) setWakeScore(hit.score);
+        if (!hit) return;
         setHits((n) => n + 1);
         const stamp = new Date(hit.at).toISOString().slice(11, 19);
-        setLastDetection(`${stamp}  (${hit.keyword}, tepe ${hit.score.toFixed(3)})`);
-        log(`WAKE_DETECTED — ${hit.keyword} tepe=${hit.score.toFixed(3)}`);
-      }
+        setLastDetection(`${stamp}  (${hit.keyword}, skor ${hit.score.toFixed(3)})`);
+        log(`WAKE_DETECTED — ${hit.keyword} skor=${hit.score.toFixed(3)}`);
+        if (detectorRef.current?.name === "openWakeWord") {
+          cmdRef.current = { frames: [], ms: 0, silence: 0 };
+          setSttState("capturing");
+          setLastTranscript("—");
+        }
+      });
     },
-    [log],
+    [log, runStt],
   );
 
   const arm = useCallback(async () => {
@@ -380,7 +480,18 @@ export default function D2WakeLabPage() {
     }
 
     try {
-      detectorRef.current = new SpeechBurstStub(() => thresholdRef.current);
+      const det: WakeDetector =
+        engine === "openwakeword"
+          ? new OpenWakeWordDetector(() => thresholdRef.current)
+          : new SpeechBurstStub(() => thresholdRef.current);
+      if (det.init) {
+        log(`${det.name}: model yükleniyor...`);
+        await det.init();
+        log(`${det.name}: model hazır`);
+      }
+      detectorRef.current = det;
+      cmdRef.current = null;
+      setSttState("idle");
       const src = ac.createMediaStreamSource(stream);
       const node = new AudioWorkletNode(ac, "d2-wake-lab-processor");
       const gain = ac.createGain();
@@ -409,7 +520,7 @@ export default function D2WakeLabPage() {
     );
     setArmed(true);
     log("ARMED — wake detector çalışıyor");
-  }, [armed, log, onWorkletMessage]);
+  }, [armed, engine, log, onWorkletMessage]);
 
   const classifyLast = useCallback(
     (correct: boolean) => {
@@ -425,7 +536,7 @@ export default function D2WakeLabPage() {
     () =>
       JSON.stringify(
         {
-          engine: { name: "HEURISTIC-STUB", info: "speech-burst VAD — not a wake-word model" },
+          engine,
           env: envFp,
           audio: {
             inputRateHz: sampleRate,
@@ -436,12 +547,14 @@ export default function D2WakeLabPage() {
             framesProcessed: tel.frames,
           },
           detection: {
-            thresholdOpenRms: threshold,
+            threshold,
             hits,
             markedCorrect: truePos,
             markedWrong: falsePos,
             lastDetection,
+            lastWakeScore: wakeScore,
           },
+          stt: { state: sttState, lastTranscript },
           elapsedSeconds: elapsed,
           elapsedHms: hhmmss(elapsed),
           backgroundRecovery: bgRecovery,
@@ -450,7 +563,7 @@ export default function D2WakeLabPage() {
         null,
         2,
       ),
-    [envFp, sampleRate, ctxState, worklet, tel.frames, threshold, hits, truePos, falsePos, lastDetection, elapsed, bgRecovery],
+    [engine, envFp, sampleRate, ctxState, worklet, tel.frames, threshold, hits, truePos, falsePos, lastDetection, wakeScore, sttState, lastTranscript, elapsed, bgRecovery],
   );
 
   const rmsPct = Math.min(100, Math.round(tel.rms * 400));
@@ -485,15 +598,46 @@ export default function D2WakeLabPage() {
         </button>
       </div>
 
+      <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+        <label style={{ fontSize: 12 }}>
+          <input
+            type="radio"
+            name="wake-engine"
+            checked={engine === "stub"}
+            disabled={armed}
+            onChange={() => {
+              setEngine("stub");
+              setThreshold(0.012);
+            }}
+          />{" "}
+          HEURISTIC-STUB (plumbing/CPU)
+        </label>
+        <label style={{ fontSize: 12 }}>
+          <input
+            type="radio"
+            name="wake-engine"
+            checked={engine === "openwakeword"}
+            disabled={armed}
+            onChange={() => {
+              setEngine("openwakeword");
+              setThreshold(0.5);
+            }}
+          />{" "}
+          openWakeWord + STT (gerçek AYAS)
+        </label>
+      </div>
+
       <dl className="bc-kv" data-testid="d2w-engine">
         <dt>Wake Engine</dt>
-        <dd>HEURISTIC-STUB</dd>
+        <dd>{engine === "openwakeword" ? "openWakeWord (ONNX)" : "HEURISTIC-STUB"}</dd>
         <dt>Engine status</dt>
         <dd>{armed ? "RUNNING" : worklet === "stopped" ? "stopped" : "idle"}</dd>
-        <dt>Model status</dt>
-        <dd>n/a (stub — model yok)</dd>
-        <dt>WASM status</dt>
-        <dd>n/a (stub — WASM yok)</dd>
+        <dt>Wake score (son frame)</dt>
+        <dd>{wakeScore.toFixed(3)}</dd>
+        <dt>STT state</dt>
+        <dd>{sttState}</dd>
+        <dt>Son transcript</dt>
+        <dd style={{ wordBreak: "break-word" }}>{lastTranscript}</dd>
       </dl>
 
       <dl className="bc-kv" data-testid="d2w-audio" style={{ marginTop: 12 }}>
@@ -520,20 +664,22 @@ export default function D2WakeLabPage() {
 
       <div style={{ marginTop: 14 }}>
         <label htmlFor="d2w-thr" className="bc-panel__title" style={{ display: "block", marginBottom: 4 }}>
-          Detection threshold (VAD open RMS): {threshold.toFixed(3)}
+          {engine === "openwakeword"
+            ? `Wake threshold (model skoru 0-1): ${threshold.toFixed(2)}`
+            : `Detection threshold (VAD open RMS): ${threshold.toFixed(3)}`}
         </label>
         <input
           id="d2w-thr"
           type="range"
-          min={0.004}
-          max={0.06}
-          step={0.001}
+          min={engine === "openwakeword" ? 0.2 : 0.004}
+          max={engine === "openwakeword" ? 0.98 : 0.06}
+          step={engine === "openwakeword" ? 0.01 : 0.001}
           value={threshold}
           onChange={(e) => setThreshold(Number(e.target.value))}
           style={{ width: "100%" }}
           data-testid="d2w-threshold"
         />
-        <Bar pct={thrPct} />
+        <Bar pct={engine === "openwakeword" ? Math.round(threshold * 100) : thrPct} />
       </div>
 
       <dl className="bc-kv" data-testid="d2w-detection" style={{ marginTop: 14 }}>

@@ -15,6 +15,11 @@ const eslintConfig = defineConfig([
     // Local graphify tool output/bundle (already git-ignored — not project source).
     ".graphify/**",
     "graphify-out/**",
+    // Per-machine wake/STT assets: onnxruntime-web WASM glue + ONNX models,
+    // staged into public/ by scripts/setup-wake-assets.ts (git-ignored).
+    "public/ort/**",
+    "public/wake/**",
+    ".venv-wake/**",
   ]),
   { files: ["scripts/smoke-production-execution-durable-attempt.ts"], rules: { "@typescript-eslint/no-explicit-any": "off" } },
   { files: ["src/types/productionExecutionDurableAttempt.ts"], rules: { "@typescript-eslint/no-empty-object-type": "off" } },

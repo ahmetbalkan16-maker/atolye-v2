@@ -90,3 +90,6 @@ graphify-out/
 **/.pipeline-jobs.lock/
 /.venv-wake/
 /bin/whisper/
+
+# onnxruntime-web WASM (copied from node_modules by scripts/setup-wake-assets.ts)
+/public/ort/
