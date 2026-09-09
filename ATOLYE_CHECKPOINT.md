@@ -1,5 +1,87 @@
 ---
 
+## AYAS CONTINUOUS FINALIZATION - streaming + real read-only pipeline action + crash tests + hw profile; **ACTIVATION = BLOCKED** (operator + device); gate CLOSED - 2026-09-09
+
+**Status:** Tek komutlu sürekli döngü turu. Sprint 208 + AYAS MASTER FULL ACTIVATION üzerine devam:
+kalan teknik blocker'lardan CLI'dan yapılabilir + test edilebilir olanlar tamamlandı. Aktivasyon
+YAPILMADI — komutta `AYAS AKTİVASYON ONAY` yok (§25 → HARD STOP). `ayasExecutionGate = "CLOSED" as
+const` ve gerçek `AyasExecutionGateStore` (state CLOSED, degraded=false) DEĞİŞMEDİ. `AyasAutonomousStore`
+fail-closed DEĞİŞMEDİ. Storage authority DEĞİŞMEDİ. `.env.local` DEĞİŞMEDİ. Commits `feat` ×3.
+**Push YOK.** Detay: `docs/AYAS_ACTIVATION.md` §§4b, 5, 5b, 7.
+
+### 1 — Token streaming (§4) — CODE READY, browser render NOT VERIFIED (`5f4eb53`)
+
+- **`src/lib/ayas/AyasChatStream.ts`** — `streamAyasChat()`: Ollama `/api/chat` `stream:true` NDJSON
+  → `delta` event'leri + tek `done`. Deterministik prompt yeniden kullanılır (`buildAyasChatPrompt`
+  yeni `format:"text"` — düz yanıt, `{reply}` zarfı yok). Tamamlanınca tam metin `isUsableAyasReply`
+  + `ayasReplyClaimsExecution`'dan geçer → kötü/execution-claim → `corrected:true` + deterministik
+  fallback. Fetch throw / abort / non-200 / boş → fallback `done`. Local Ollama'ya hard-pinned.
+- **`app/api/ayas/chat/stream/route.ts`** — POST SSE, auth-gated (intake ile aynı) + same-origin
+  CSRF, bounded body/text/history, `ReadableStream` frame'leri.
+- **`src/components/brain/ayasChatStreamClient.ts`** — `runAyasChatStream()` client SSE tüketici;
+  transport hatası için asla throw etmez → `{ok:false}` → çağıran `askAyas` Server Action'a döner.
+  `BrainCoreConsole` önce stream'i dener (`streaming` prop, default açık), delta'ları canlı mesaja
+  yazar, her hatada fallback.
+- `smoke-ayas-chat-stream.ts` (10) + `smoke-ayas-chat-stream-client.ts` (8). **Gerçek Ollama:
+  incremental delta'lar doğrulandı** (37 delta, first-token 2.3s soğuk / ~50ms sıcak).
+
+### 2 — AYAS → PipelineRunner: bir gerçek salt-okunur eylem (§12, §13) (`5f4eb53`)
+
+`AyasExecutionPolicy` allowlist'ine **`pipeline-recovery-plan`** (write:false, destructive:false):
+`PipelineRecoveryPlanner` (`src/lib/pipeline/`) — `createResumePlan` + `getFailedStages` +
+`getNextIncompleteStage` → manifest'i okur, plan HESAPLAR, hiçbir aşama çalıştırmaz, yazmaz.
+**`D:\AtolyeRuntime` üzerinde test-scoped açık gate ile uçtan uca doğrulandı**; gerçek gate CLOSED
+kalır. Her write id (`run-pipeline-stage`/`resume-stage`/`retry-stage`/`regenerate-stage`/
+`publish-youtube`) rezerve → DENY. Slug policy artık UNC (`\\host\share`), %-encoded traversal,
+Windows reserved device adları (`CON`/`NUL`/`COM1`…) da reddeder.
+
+### 3 — Crash/restart (§16) + hw profile (§19) (`5f4eb53` + `f71e8ee`)
+
+- `smoke-ayas-execution-bridge` +5 → **23**: execution ortasında crash → gate durably EXECUTING
+  (çalıştırılamaz durum) + authz consumed; yarım-kullanılmış authorization asla replay edilemez;
+  eşzamanlı gate transition → run abort + gate CLOSED.
+- `loadBrainConsoleSnapshot` → `ATOLYE_BRAIN_HARDWARE_PROFILE` (bilinen id → `rtx-a2000-12gb`;
+  bilinmeyen host → güvenli `gtx-1650-4gb` fallback). `rtx-a2000-12gb` profili zaten vardı,
+  erişilebilir değildi. Hard-code tek değer YOK. `smoke-brain-core-ui` +2 → **25**.
+
+### 4 — Model benchmark (§5)
+
+Gerçek canlı Ollama (A2000 12GB): factual/count/refuse/plan promptlarında **`qwen2.5:7b`, Türkçe
+kalite + instruction-following + ret doğruluğunda `qwen2.5:3b`'den belirgin daha iyi** (3b reddi
+bozuk kuruyor; zarfsız context'i tekrarlıyor). Latency 0.5–4s vs 0.3–1.5s; streaming first-token
+her ikisinde ~50ms. **Öneri: `AYAS_OLLAMA_MODEL=qwen2.5:7b` — operatör opt-in** (profil mekanizması
+hazır; `.env.local` operatörün).
+
+### Testler
+
+`tsc --noEmit` temiz. eslint **0 error / 22 warn** (baseline). `next build` exit 0
+(`/api/ayas/chat/stream` + `/manifest.webmanifest` route'ları). Smoke — yeni: chat-stream(10),
+chat-stream-client(8), execution-bridge 18→23, brain-core-ui 23→25; + tüm AYAS/Brain + storage
+regression PASS. Pre-existing `129-25c-2a`/`-2b-4` baseline.
+
+### Gerçek runtime doğrulaması (son)
+
+`explicit-external` / `D:\AtolyeRuntime\projects`. `active-authority.json` `s206-genesis-01` seq 1.
+`ProjectReader` 16 == `AyasStudioContext` 16. **Autonomy sabiti CLOSED. Gerçek `AyasExecutionGateStore`
+CLOSED, degraded=false. Gerçek bridge isteği (gerçek gate'e karşı) → gate aşamasında DENIED, gate
+CLOSED kaldı.** Streaming canlı: 37 delta, source=llm, corrected=false. Access gate `disabled-dev`
+(`AYAS_ACCESS_KEY` yok). Model `qwen2.5:3b` (override yok). HW profil `gtx-1650-4gb` fallback (env yok).
+
+### Aktivasyon neden BLOCKED (§25 — operatör + donanım)
+
+Bu komut `AYAS AKTİVASYON ONAY` taşımıyor → gate CLOSED, `Status = READY/WAITING FOR OPERATOR`
+(teknik) ama HTTPS / `AYAS_ACCESS_KEY` / gerçek cihaz / browser-render satisfiable değil → genel
+verdict **NOT READY / BLOCKED**. Detay tablo: `docs/AYAS_ACTIVATION.md` §7.
+
+### Sıradaki
+
+Operatör adımları (`docs/AYAS_ACTIVATION.md` §7): `AYAS AKTİVASYON ONAY` → tasarlanmış aktivasyon
+akışı gate'i `CLOSED→ARMED→READY→OPEN` sürükler; HTTPS reverse proxy; `AYAS_ACCESS_KEY`; telefon
+testi; `AYAS_OLLAMA_MODEL=qwen2.5:7b` (opsiyonel). Sonraki ayrı sprint: bir gerçek write action'ı
+(`resume-stage`) aktive gate arkasına bağlamak.
+
+<!-- AMFA-CONTINUOUS-END -->
+
 ## AYAS MASTER FULL ACTIVATION - execution control plane BUILT; **ACTIVATION = BLOCKED** (operator + device gated); gate stays CLOSED - 2026-09-09
 
 **Status:** Tek komutlu "inspect → implement → test → verify → fix → retest" turu. INSPECT + AUDIT

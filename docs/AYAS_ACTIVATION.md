@@ -3,15 +3,22 @@
 **Status: AYAS ACTIVATION = BLOCKED (operator + device gated). The Execution Gate
 stays `CLOSED`.**
 
-Two rounds of work:
+Rounds of work:
 
 - **Sprint 208** — INSPECT + AUDIT; shipped the studio-context wiring + a reply
   safety guard; found the activation blocker (§ Activation blocker).
 - **AYAS MASTER FULL ACTIVATION** — built the safety-critical execution control
   plane (gate state machine + policy + authorization + bridge), the AYAS chat
-  model profile, and the PWA manifest. Activation still not performed: the
-  command carried no `AYAS AKTİVASYON ONAY`, and HTTPS / `AYAS_ACCESS_KEY` /
-  real-device tests are operator/hardware gated (§ Control plane, § Remaining).
+  model profile, the PWA manifest.
+- **AYAS CONTINUOUS FINALIZATION** — token streaming (SSE route + client + UI
+  wiring, §4b), one real read-only `PipelineRunner`-family action
+  (`pipeline-recovery-plan`, §12), §16 crash/restart tests, expanded §17 slug
+  fuzz, the per-host Brain hardware profile (§19), and a real 3b-vs-7b model
+  benchmark.
+
+Activation still not performed: no command carried `AYAS AKTİVASYON ONAY`, and
+HTTPS / `AYAS_ACCESS_KEY` / real-device / browser-render tests are
+operator/hardware gated (§ 7).
 
 ---
 
@@ -163,7 +170,37 @@ request / unknown action / arbitrary shell / path traversal / repo-local storage
 bypass / wrong runtime authority / closed gate / expired authorization / replay /
 corrupt state fails closed / restart preserves safe state / PipelineRunner
 receives typed request only (no write action enabled) / secrets never logged` —
-`smoke-ayas-execution-gate` + `smoke-ayas-execution-bridge` (34).
+`smoke-ayas-execution-gate` (16) + `smoke-ayas-execution-bridge` (23, incl. §16
+crash-mid-execution + concurrent-transition).
+
+### AYAS → PipelineRunner — one real read-only action (spec §12, §13)
+
+`pipeline-recovery-plan` is allowlisted (`write: false`, `destructive: false`):
+it routes to `PipelineRecoveryPlanner` (`src/lib/pipeline/`) — `createResumePlan`
++ `getFailedStages` + `getNextIncompleteStage` — which reads the project manifest
+and *computes* a resume plan + failed / next-incomplete stages. It runs **no
+stage** and writes nothing. Verified end to end against `D:\AtolyeRuntime` through
+a test-scoped opened gate; the real gate stays `CLOSED`. Every actual write id
+(`run-pipeline-stage`, `resume-stage`, `retry-stage`, `regenerate-stage`,
+`publish-youtube`) is on the reserved list → DENY; enabling one is its own gated
+sprint. The slug policy also now rejects UNC paths (`\\host\share`), `%`-encoded
+traversal, and Windows reserved device names (`CON`, `NUL`, `COM1`…).
+
+---
+
+## 4b. Token streaming (spec §4) — CODE READY, browser render NOT VERIFIED
+
+| Piece | What it is |
+|---|---|
+| `src/lib/ayas/AyasChatStream.ts` | `streamAyasChat()` — talks to Ollama `/api/chat` `stream: true`, parses the NDJSON line stream, yields `delta` events then one `done`. Reuses the deterministic prompt (`buildAyasChatPrompt` `format: "text"` — a direct answer, no `{ reply }` envelope) and the SAME backstops as `askAyas`: on completion the full text runs `isUsableAyasReply` + `ayasReplyClaimsExecution`; unusable / execution-claim → `corrected: true` + deterministic fallback. Thrown fetch / abort / non-200 / empty → fallback `done`. Hard-pinned to the local Ollama model. |
+| `app/api/ayas/chat/stream/route.ts` | `POST` SSE. Auth-gated (same as `/api/ayas/intake`) + same-origin CSRF backstop, bounded body/text/history. `ReadableStream` of `data: {…}` frames. |
+| `src/components/brain/ayasChatStreamClient.ts` | `runAyasChatStream()` — client SSE consumer. Never throws for a transport problem → returns `{ ok: false }` so the caller falls back to the `askAyas` Server Action. |
+| `BrainCoreConsole` | Tries the stream first (`streaming` prop, default on); renders deltas into a live message; **any** failure falls back to `askAyas`. |
+
+Real Ollama: incremental deltas confirmed (37 deltas, first token 2.3 s, last run;
+41–65 ms first token when the model is warm). Browser incremental *rendering*
+cannot be verified from this environment. Coverage:
+`scripts/smoke-ayas-chat-stream.ts` (10) + `scripts/smoke-ayas-chat-stream-client.ts` (8).
 
 ---
 
@@ -176,7 +213,22 @@ override that applies to the `askAyas` chat path ONLY. Set it to `qwen2.5:7b`
 the pipeline model. Invalid value → ignored (AYAS chat never hard-fails on
 config). `askAyas` now calls `createAyasChatProvider()` — the same `OllamaProvider`
 class the router uses, still hard-pinned, never resolved from `AI_PROVIDER`.
-Coverage: `scripts/smoke-ayas-model-profile.ts` (6).
+Coverage: `scripts/smoke-ayas-model-profile.ts` (6). **Benchmark (real, live
+Ollama, A2000 12 GB):** on factual / count / refusal / plan prompts, `qwen2.5:7b`
+is clearly better on Turkish quality + instruction-following + refusal
+correctness than `qwen2.5:3b` (which garbles the refusal and, without the JSON
+envelope, echoes context); latency 0.5–4 s vs 0.3–1.5 s, streaming first-token
+~50 ms for both. **Recommendation: `AYAS_OLLAMA_MODEL=qwen2.5:7b`** — operator
+opt-in (it is the operator's local env; the profile mechanism is ready).
+
+## 5b. Brain hardware profile (spec §19)
+
+`loadBrainConsoleSnapshot` resolves the profile from
+`ATOLYE_BRAIN_HARDWARE_PROFILE` when set to a known id — `rtx-a2000-12gb` on this
+workstation — falling back to the more constrained `gtx-1650-4gb` on an unknown
+host (the project runs on two machines). The `rtx-a2000-12gb` profile already
+existed in `DEFAULT_BRAIN_HARDWARE_PROFILES`; it just wasn't reachable. Never a
+hard-coded single value. Coverage: `smoke-brain-core-ui` (+2 → 25).
 
 ## 6. PWA manifest (spec §12)
 
@@ -195,7 +247,8 @@ install + offline behaviour still need real-device testing.
 |---|---|---|
 | **Activation authorization** | No `AYAS AKTİVASYON ONAY` was given. The gate stays `CLOSED`. | Operator issues `AYAS AKTİVASYON ONAY` in a sprint command → then the designed operator activation flow drives the gate `CLOSED → ARMED → READY → OPEN`. |
 | **HTTPS / remote access** | This environment cannot terminate TLS or expose a LAN origin. Mobile Web Speech + mic require a secure context. | Operator runs the studio behind an HTTPS reverse proxy / local TLS terminator. **No auto-Tailscale.** |
-| **`AYAS_ACCESS_KEY`** | It is a secret — setting it is an operator action; it must not be authored here or logged. Until set, `resolveAccessGate` → `disabled-dev` (open). | Operator sets `AYAS_ACCESS_KEY` (≥ 12 chars) in `.env.local`. |
+| **`AYAS_ACCESS_KEY`** | It is a secret — setting it is an operator action; it must not be authored here or logged. Until set, `resolveAccessGate` → `disabled-dev` (open). The `/api/ayas/chat/stream` + `/api/ayas/intake` routes are auth-gated but the gate only *enforces* once the key is set. | Operator sets `AYAS_ACCESS_KEY` (≥ 12 chars) in `.env.local`. |
+| **Streaming — browser incremental render** | The SSE route + stream helper + client consumer are CLI-verified against live Ollama; incremental *rendering* in a real browser is not verifiable here. | Operator opens `/brain`, sends a turn, watches tokens append. |
 | **Real phone / mic / TTS / install** | No physical device in this environment. | Operator opens `/brain` on the phone over the HTTPS origin, logs in, sends a turn, enables voice + accepts the disclosure, installs the PWA. |
 | **Streaming (token-by-token)** | The chat is a Server Action (one blob). A streaming route + a client `fetch` reader is a real UI-architecture change whose incremental rendering can only be verified in a browser. | Its own sprint: an SSE / RSC-stream `askAyas` path + client reader + browser verification. |
 | **Real write execution via `PipelineRunner`** | The first real action must be `WRITE=FALSE` (spec §9); `PipelineRunner.run()` creates a project and runs the full generation pipeline. | Its own gated sprint: enable one reserved action (`run-pipeline-stage`) behind the activated gate, `mock`-provider stage first. |
