@@ -228,8 +228,12 @@ def main():
         raise SystemExit("no training windows — clips too short or synthesis failed")
 
     val = np.load(REPO / ".venv-wake" / "wake-data" / "validation_set_features.npy", mmap_mode="r")
-    val_w = np.stack([np.asarray(val[i:i + 16]) for i in range(0, len(val) - 16, 16)]).astype(np.float32)
-    print(f"  FP-validation windows={len(val_w)} (~11.3 h)", flush=True)
+    split = int(len(val) * 0.55)  # first 55% -> real-world negative TRAINING data; rest -> FP validation
+    real_neg_w = np.stack([np.asarray(val[i:i + 16]) for i in range(0, split - 16, 8)]).astype(np.float32)
+    val_w = np.stack([np.asarray(val[i:i + 16]) for i in range(split, len(val) - 16, 16)]).astype(np.float32)
+    val_hrs = 11.3 * (len(val) - split) / len(val)
+    tr_neg = np.concatenate([tr_neg, real_neg_w]).astype(np.float32)
+    print(f"  real-world negative training windows={len(real_neg_w)}; FP-validation windows={len(val_w)} (~{val_hrs:.1f} h)", flush=True)
 
     def batch_iter(bs=1024):
         while True:
@@ -257,7 +261,7 @@ def main():
     model.train_model(
         X=batch_iter(), max_steps=steps, warmup_steps=steps // 5, hold_steps=steps // 3,
         false_positive_val_data=list(val_fp_iter()), X_val=list(xval_iter()),
-        negative_weight_schedule=weights, val_steps=val_steps, lr=1e-4, val_set_hrs=11.3,
+        negative_weight_schedule=weights, val_steps=val_steps, lr=1e-4, val_set_hrs=val_hrs,
     )
     # Pick the checkpoint with the best (recall - fp_penalty). openWakeWord's
     # _select_best_model throws when no checkpoint clears its FP target (our
@@ -278,7 +282,7 @@ def main():
                 if np.max(mdl(torch.from_numpy(ww.astype(np.float32))).squeeze().numpy()) >= 0.5:
                     rc_tp += 1
             rec = rc_tp / max(1, rc_n)
-            vfp = sum(int((mdl(xb).squeeze().numpy() >= 0.5).sum()) for xb, _ in val_batches) / 11.3
+            vfp = sum(int((mdl(xb).squeeze().numpy() >= 0.5).sum()) for xb, _ in val_batches) / val_hrs
             scored.append((rec, vfp, mdl))
     scored.sort(key=lambda s: (s[0] - 0.02 * s[1]), reverse=True)
     best_rec, best_fp, best_mdl = scored[0]
@@ -310,7 +314,7 @@ def main():
         thr_table = {}
         for thr in (0.5, 0.7, 0.85, 0.95):
             rec = float(np.mean([s >= thr for s in pos_scores])) if pos_scores else 0.0
-            thr_table[str(thr)] = {"recall": round(rec, 3), "fp_per_hour": round(float((val_max >= thr).sum()) / 11.3, 2)}
+            thr_table[str(thr)] = {"recall": round(rec, 3), "fp_per_hour": round(float((val_max >= thr).sum()) / val_hrs, 2)}
         recall = thr_table["0.5"]["recall"]
         fp_per_hr = thr_table["0.5"]["fp_per_hour"]
 
