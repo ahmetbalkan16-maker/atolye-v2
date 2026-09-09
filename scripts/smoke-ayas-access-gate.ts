@@ -18,6 +18,7 @@ import {
   clearAttempts,
   evaluateAttempt,
   isProtectedPath,
+  isRequestOverHttps,
   isSameOriginRequest,
   issueSession,
   resolveAccessGate,
@@ -92,13 +93,29 @@ async function main() {
     assert.equal(await verifySession(undefined, KEY, NOW), false);
   });
 
-  await scenario("isProtectedPath: app + api locked, auth + assets open", () => {
-    for (const p of ["/", "/brain", "/api/pipeline", "/api/projects/x/pipeline/retry"]) {
+  await scenario("isProtectedPath: app + api locked, auth + assets + PWA shell open", () => {
+    for (const p of ["/", "/brain", "/api/pipeline", "/api/projects/x/pipeline/retry", "/api/ayas/chat/stream"]) {
       assert.equal(isProtectedPath(p), true, `${p} must be protected`);
     }
-    for (const p of ["/login", "/login?next=/brain", "/api/auth/login", "/api/auth/logout", "/_next/static/x.js", "/favicon.ico"]) {
+    for (const p of [
+      "/login", "/login?next=/brain", "/api/auth/login", "/api/auth/logout", "/_next/static/x.js",
+      "/favicon.ico", "/manifest.webmanifest", "/sw.js", "/offline", "/ayas-icon.svg", "/ayas-icon-maskable.svg",
+    ]) {
       assert.equal(isProtectedPath(p), false, `${p} must be open`);
     }
+  });
+
+  await scenario("isRequestOverHttps: forwarded-proto aware, production always secure, dev http not", () => {
+    // production → always Secure (production must be HTTPS)
+    assert.equal(isRequestOverHttps({ urlProtocol: "http:", forwardedProto: null, forwardedSsl: null, nodeEnv: "production" }), true);
+    // dev over plain localhost → not Secure (so a dev login works)
+    assert.equal(isRequestOverHttps({ urlProtocol: "http:", forwardedProto: null, forwardedSsl: null, nodeEnv: "development" }), false);
+    // behind a TLS-terminating proxy → Secure
+    assert.equal(isRequestOverHttps({ urlProtocol: "http:", forwardedProto: "https", forwardedSsl: null, nodeEnv: "development" }), true);
+    assert.equal(isRequestOverHttps({ urlProtocol: "http:", forwardedProto: "https, http", forwardedSsl: null, nodeEnv: "development" }), true);
+    assert.equal(isRequestOverHttps({ urlProtocol: "http:", forwardedProto: null, forwardedSsl: "on", nodeEnv: "development" }), true);
+    // direct HTTPS → Secure
+    assert.equal(isRequestOverHttps({ urlProtocol: "https:", forwardedProto: null, forwardedSsl: null, nodeEnv: "development" }), true);
   });
 
   await scenario("same-origin backstop: GET always ok, cross-origin POST blocked", () => {

@@ -128,6 +128,12 @@ const OPEN_EXACT: readonly string[] = [
   "/favicon.ico",
   "/robots.txt",
   "/manifest.webmanifest",
+  // PWA shell assets — the browser fetches these before a session exists
+  // (install prompt, service-worker registration, offline fallback).
+  "/sw.js",
+  "/offline",
+  "/ayas-icon.svg",
+  "/ayas-icon-maskable.svg",
 ];
 
 /** True when a request path must carry a valid session. */
@@ -141,6 +147,28 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 /** True when a same-origin check should be enforced (state-changing request). */
 export function requiresSameOrigin(method: string): boolean {
   return !SAFE_METHODS.has(method.toUpperCase());
+}
+
+/**
+ * Whether the browser↔origin hop is HTTPS — used to decide the session cookie's
+ * `Secure` flag when AYAS runs behind a TLS-terminating reverse proxy (the
+ * documented remote-access setup). Trusting `x-forwarded-proto` here can only
+ * make the cookie MORE restrictive (Secure), never less, so it is safe even when
+ * the header is unset / spoofed. In production the cookie is always `Secure`
+ * (production must be HTTPS); in local dev over plain `http://localhost` it is
+ * not, so a dev login still works.
+ */
+export function isRequestOverHttps(input: {
+  urlProtocol: string;
+  forwardedProto: string | null;
+  forwardedSsl: string | null;
+  nodeEnv: string | undefined;
+}): boolean {
+  if (input.nodeEnv === "production") return true;
+  if (input.urlProtocol === "https:") return true;
+  const proto = (input.forwardedProto ?? "").split(",")[0]?.trim().toLowerCase();
+  if (proto === "https") return true;
+  return (input.forwardedSsl ?? "").trim().toLowerCase() === "on";
 }
 
 /**

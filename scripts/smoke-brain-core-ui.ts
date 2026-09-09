@@ -399,6 +399,8 @@ async function run() {
     assert.ok(css.includes("@media (max-width: 640px)"), "missing mobile breakpoint");
     assert.ok(css.includes("prefers-reduced-motion"), "missing reduced-motion guard");
     assert.ok(css.includes("100dvh"), "expected dynamic viewport height for mobile");
+    assert.ok(css.includes("env(safe-area-inset-"), "expected safe-area-inset padding for notched phones");
+    assert.ok(/\.bc-composer input\s*\{\s*font-size:\s*16px/.test(css), "mobile composer input must be 16px (no iOS zoom)");
     assert.ok(/\.bc-shell\s*\{[^}]*overflow-x:\s*hidden/.test(css), "shell must clip horizontal overflow");
     assert.ok(css.includes("clamp("), "expected fluid clamp() sizing");
     for (const banned of ["WebGL", "getContext", "canvas", "requestAnimationFrame"]) {

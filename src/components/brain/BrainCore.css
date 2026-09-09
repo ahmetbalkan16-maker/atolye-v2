@@ -50,6 +50,10 @@
     radial-gradient(760px 520px at 88% 8%, hsl(var(--bc-hue) 60% 40% / 0.07), transparent 72%),
     linear-gradient(180deg, var(--bc-bg-2), var(--bc-bg) 46%);
   padding: clamp(16px, 4vw, 44px);
+  /* Keep the console clear of a phone's notch / home indicator. */
+  padding-left: max(clamp(16px, 4vw, 44px), env(safe-area-inset-left));
+  padding-right: max(clamp(16px, 4vw, 44px), env(safe-area-inset-right));
+  padding-bottom: max(clamp(16px, 4vw, 44px), env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: clamp(16px, 3vw, 28px);
@@ -753,6 +757,11 @@
   .bc-tabpanel { padding: 14px 12px 16px; min-height: 200px; }
   .bc-stateline__label { letter-spacing: 0.12em; }
   .bc-gate { font-size: 10.5px; padding: 7px 12px; }
+  /* 16px keeps iOS Safari from zooming the viewport when the input is focused. */
+  .bc-composer input { font-size: 16px; }
+  /* When the on-screen keyboard is up, cap the transcript so the composer stays reachable. */
+  .bc-chat__log { max-height: 46vh; }
+  .bc-composer { position: sticky; bottom: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

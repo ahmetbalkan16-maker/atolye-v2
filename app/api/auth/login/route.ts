@@ -5,6 +5,7 @@ import {
   clearAttempts,
   evaluateAttempt,
   isPlausibleAccessKey,
+  isRequestOverHttps,
   issueSession,
   resolveAccessGate,
   timingSafeEqual,
@@ -59,7 +60,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   clearAttempts(attempts, bucket);
   const token = await issueSession(gate.key as string);
-  const secure = request.nextUrl.protocol === "https:";
+  const secure = isRequestOverHttps({
+    urlProtocol: request.nextUrl.protocol,
+    forwardedProto: request.headers.get("x-forwarded-proto"),
+    forwardedSsl: request.headers.get("x-forwarded-ssl"),
+    nodeEnv: process.env.NODE_ENV,
+  });
   const response = respond(request, isForm, next, {
     status: 200,
     json: { ok: true },
