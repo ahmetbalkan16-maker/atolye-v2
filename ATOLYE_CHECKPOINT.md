@@ -1,5 +1,56 @@
 ---
 
+## Sprint 211 - PC ACTIVATION PREPARATION — 7B + A2000 profile applied, remote runbook; **ACTIVATION = BLOCKED**; gate CLOSED - 2026-09-09
+
+**Status:** PC'yi gerçek telefon testine hazırlama. GPU **read-only** doğrulandı (`nvidia-smi`:
+NVIDIA RTX A2000 12GB, 12282 MiB). `.env.local`'a (gitignored — commit edilmez) **2 non-secret,
+AYAS/Brain-only** değer eklendi. Kod değişikliği yok. Execution Gate **CLOSED**, write execution
+**DISABLED**, storage migration TEKRARLANMADI, push YOK. Commit `docs(ayas)` `5365907`.
+`AYAS AKTİVASYON ONAY` yok → aktivasyon YAPILMADI.
+
+### `.env.local` (gitignored, commit edilmez) — sha `c27a0def…` → `a9743b2c84f09877371289ea12e5daa9a2bd3b09104c2e425e13a68f103b625a`
+
+- **`AYAS_OLLAMA_MODEL=qwen2.5:7b`** — yalnız AYAS chat (`askAyas` + `/api/ayas/chat/stream`).
+  Pipeline `OLLAMA_MODEL` **`qwen2.5:3b` olarak kaldı** (doğrulandı: AYAS→7b, pipeline→3b). 7b bu
+  A2000 12GB'de daha önce benchmark edildi, zaten pull'lu.
+- **`ATOLYE_BRAIN_HARDWARE_PROFILE=rtx-a2000-12gb`** — yalnız Brain Core snapshot / safety governor.
+  Pipeline etkisi yok (doğrulandı: `resolveBrainHardwareProfileId` + snapshot → `rtx-a2000-12gb`,
+  safety `proceed-with-constraints`).
+- `AYAS_ACCESS_KEY` = **NOT SET** (operatör belirleyecek — secret üretilmedi). `NEXT_PUBLIC_ATOLYE_PWA_SW`
+  = NOT SET (browser test sonrası operatör).
+
+### Environment inspection (read-only)
+
+host `DESKTOP-9P0BG80` | LAN `192.168.2.74` (Ethernet) | reverse proxy: **hiçbiri kurulu değil**
+(Caddy/nginx/Traefik/IIS yok; Caddy winget'te mevcut `CaddyServer.Caddy 2.11.4`) | Windows Firewall:
+tüm profiller ON, app-specific inbound rule yok | node/next çalışmıyor.
+
+### Yapılan
+
+- **`docs/AYAS_REMOTE_ACCESS.md`** güncellendi — somut environment değerleri + operatör Caddy kurulumu
+  (`winget install CaddyServer.Caddy`, Caddyfile `reverse_proxy 127.0.0.1:3000`) + **tek dar
+  LAN-scoped firewall rule** (`New-NetFirewallRule ... -LocalPort 443 -RemoteAddress 192.168.2.0/24`)
+  + Next.js binding notu (proxy localhost'a bağlanır, HTTP port LAN'a açılmaz). Otomatik kurulum/
+  değişiklik YAPILMADI.
+- **`smoke-ayas-access-gate` +1 (16)** — §8 forwarded-header safety: sahte `X-Forwarded-Proto`
+  auth veya same-origin CSRF kontrolünü bypass edemez (yalnız cookie'yi DAHA kısıtlı yapar).
+
+### Testler + gerçek doğrulama
+
+`tsc` temiz, eslint 0 err / 22 warn (baseline), `next build` exit 0. 18 AYAS/Brain + 11
+storage/runtime suite PASS. `129-25c-2a`/`-2b-4` baseline. **Gerçek 7b (canlı Ollama):** "kaç proje
+var?" → "16 proje var" ✓; "pipeline çalıştır" → ret ✓; streaming 54 delta, first-token **100ms**,
+`corrected=false` ✓.
+
+### Runtime integrity
+
+`data/projects` tracked = 0, `data/brain` yalnız README.md, `data/brain/execution/gate.json` yok
+(fail-closed default). `active-authority.json` `s206-genesis-01` seq 1 DEĞİŞMEDİ. Autonomy sabiti
+CLOSED. Gerçek gate store CLOSED. Git: yalnız `docs/AYAS_REMOTE_ACCESS.md` + `smoke-ayas-access-gate.ts`
+değişti (kod yok).
+
+<!-- SPRINT-211-END -->
+
 ## Sprint 210 - MASTER OPERATOR / DEVICE ACTIVATION — audit + small hardening; **ACTIVATION = BLOCKED**; gate CLOSED - 2026-09-09
 
 **Status:** Konsolidasyon/audit turu. Prior turlarda kurulan her katman denetlendi; yalnızca küçük,
