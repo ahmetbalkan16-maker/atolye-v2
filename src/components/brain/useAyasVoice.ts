@@ -65,6 +65,8 @@ export interface UseAyasVoiceResult {
   /** The selected TTS voice name (diagnostic / report). */
   readonly voiceName: string | null;
   readonly voiceTier: string | null;
+  /** `true` while the on-device wake pipeline is re-acquiring the mic / context. */
+  readonly recovering: boolean;
   acceptDisclosure(): void;
   /**
    * The mic button. First tap: enable voice mode + listen. On the single-shot
@@ -94,6 +96,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
   const [voiceName, setVoiceName] = useState<string | null>(null);
   const [voiceTier, setVoiceTier] = useState<string | null>(null);
   const [recognitionMode, setRecognitionMode] = useState<AyasRecognitionMode>("continuous");
+  const [recovering, setRecovering] = useState(false);
 
   const engineRef = useRef<AyasVoiceEngine | null>(null);
   const mutedRef = useRef(muted);
@@ -140,7 +143,12 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
       };
       void import("./voice/wakeWordVoiceAdapter")
         .then(({ WakeWordVoiceAdapter }) => {
-          attach(new WakeWordVoiceAdapter({ onUnavailable: fallBack }));
+          attach(
+            new WakeWordVoiceAdapter({
+              onUnavailable: fallBack,
+              onStatus: (s) => setRecovering(s.mic === "recovering"),
+            }),
+          );
         })
         .catch(fallBack);
     } else {
@@ -228,6 +236,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
     pendingSpeech,
     voiceName,
     voiceTier,
+    recovering: ready ? recovering : false,
     acceptDisclosure,
     toggleListening,
     stopListening,

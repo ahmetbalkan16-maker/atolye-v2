@@ -1,5 +1,59 @@
 ---
 
+## AYAS wake — iOS TTS suspends the mic context; watchdog + resume recovery; gate CLOSED - 2026-09-09
+
+**Branch:** `wip/ayas-graphify-final-execution` (off `bff56cc`). NOT merged / NOT pushed.
+
+**Symptom (real iPhone, repeatable):** first "AYAS" call works end-to-end (wake→STT→AYAS→TTS), then
+the second "AYAS" gets **nothing**. `bfbd83c`'s persistent-mic fix + 12-cycle sim passed, real
+device still failed.
+
+**REAL ROOT CAUSE (code-trace + a deliberate suspend test):** iOS Safari **suspends the mic's
+capture `AudioContext` while `speechSynthesis` plays** and never resumes it. `bfbd83c` correctly
+stopped rebuilding the pipeline per turn, but nothing *resumed the suspended context after TTS* —
+so the worklet stopped emitting 80 ms frames, `onFrame` was never called again, and the adapter
+sat in `phase:"wake"` deaf forever. (Server-side ruled out by measurement: STT/chat 401/403 in
+<5 ms, GPU 42 °C, Ollama 200.) **Why first turn worked:** the context was `running` (fresh
+`getUserMedia`+`resume`) up to the first TTS. **Why the second failed:** that first TTS left it
+`suspended`.
+
+**FIX (`wakeWordVoiceAdapter.ts` — UI only, no server/auth/route change):**
+- **`ensureWakeReady()`** on every re-arm (from `startListening`) → `resumeOrRebuild("rearm")`
+  resumes a suspended AudioContext, then arms `phase:"wake"`. This is the direct fix.
+- **`speak()`** now wraps the TTS `onEnd`/`onError` → `resumeOrRebuild("post-tts")` — a proactive
+  resume the moment TTS finishes, before the engine even re-arms.
+- **Frame-flow watchdog** (self-rescheduling `setTimeout`, `.unref()`'d): while armed, if no frame
+  for `FRAME_STALL_MS` (2.5 s) → `resumeOrRebuild("stall")`; a bare `resume()` that claims health
+  but brings no frames back forces one bounded `rebuildAudio()`. Safety net for a silent stall
+  that fires no visibility event.
+- **Explicit phase state machine**: `idle · starting · wake · capturing · processing · speaking ·
+  rearming · recovering · fatal · disposed`; concurrency guards (`starting`, `recovering`) block
+  duplicate `getUserMedia` / duplicate recovery. `withTimeout(12 s)` on every async acquire.
+- `MediaStreamWorkletBackend.recover()` — resume unless the context is `closed` / track `ended`
+  (needs a rebuild); `muted` treated as transient (watchdog covers a real failure).
+- **Observability**: `getStatus()` → `{ mic, phase, cyclesCompleted, startAttempts, recoveryCount,
+  frameAgeMs, lastError }`; `onStatus` callback → `useAyasVoice.recovering` → the `/brain` presence
+  card shows **"AYAS bağlantıyı toparlıyor"** during a recovery. Voice Lab keeps its own detailed
+  diagnostics (separate `OpenWakeWordDetector` path — left as-is).
+- `AyasVoicePlatform.dispose?()` wired into `AyasVoiceEngine.dispose()` (from `bfbd83c`, kept).
+- **Threshold unchanged at 0.70.** Model / wake→STT→AYAS→TTS semantics / `useScreenWakeLock` /
+  `OpenWakeWordRunner` / `BrowserVoiceAdapter` / `/api/*` untouched.
+
+**Verify:** tsc 0 / eslint 0 err (22 pre-existing) / `next build` clean. `smoke-ayas-wake-adapter`
+14→**21** — §13 A–P: first/second wake, **50 consecutive cycles (mic acquired ONCE, recoveryCount
+0)**, TTS-suspend→resume→2nd wake, track-ended→one bounded rebuild, **frame-stall watchdog rebuild**,
+transient→3 retries→fatal (no storm), STT/transport/TTS failure keep the mic alive, visibility
+recovery, 30× rapid start/stop→no dup resources, concurrent recovery→one runs, dispose→no leak,
+remount→clean, 20-turn session w/ injected interruptions, `onStatus` emits `recovering`.
+`smoke-ayas-voice` 52, `smoke-brain-core-ui` 31→**32**, + wake-runner / chat-stream / access-gate /
+stt / pwa / execution-gate green. Server restarted (`node` PID 23376); tunnel `/brain` → 307 →
+/login; Caddy + tunnel unchanged (0 reconnects). `git diff --check` clean; 7 files, all voice/brain.
+
+**Unchanged:** Execution Gate CLOSED, `writeActionsEnabled`, auth/CSRF/access gate/session, STT
+backend, Graphify authority, `D:\AtolyeRuntime`, Caddy, `.env.local`, quick tunnel, `bff56cc` SW fix.
+
+<!-- WAKE-IOS-TTS-CONTEXT-SUSPEND-END -->
+
 ## /brain 404 on iPhone PWA — stale service worker; sw.js hardened; gate CLOSED - 2026-09-09
 
 **Branch:** `wip/ayas-graphify-final-execution` (off `bfbd83c`). NOT merged / NOT pushed.

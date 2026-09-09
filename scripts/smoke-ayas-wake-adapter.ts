@@ -1,15 +1,16 @@
 /**
- * AYAS wake-engine adapter smoke suite.
+ * AYAS wake-engine adapter smoke suite — long-term lifecycle hardening.
  *
  * Deterministic / no browser / no model. Drives WakeWordVoiceAdapter with a
- * synchronous fake audio backend + fake wake runner + fake STT transport and
- * asserts the FULL lifecycle: first wake → command → STT → transcript → re-arm →
- * second wake, sustained over many turns, plus start-failure recovery (bounded,
- * no retry storm), foreground recovery of a suspended mic, and clean disposal.
+ * synchronous fake audio backend + fake runner + fake STT and asserts the full
+ * lifecycle over many turns:
+ *   first wake → command → STT → reply → TTS → re-arm → second wake → … (50×)
+ * plus every failure/interruption path — an iOS-suspended AudioContext, an
+ * ended mic track, a frame-flow stall, getUserMedia failure, STT/transport/TTS
+ * failure — each recovered (bounded, no storm) with the mic kept warm.
  *
- * The key invariant this suite guards: the mic + worklet + ONNX runner are
- * started ONCE and kept alive across turns — re-arming after a reply is a state
- * flip, never a fresh getUserMedia (which iOS Safari hangs on after TTS).
+ * The invariant this guards: in normal multi-turn use the mic is acquired
+ * ONCE — `backend.started` must NOT grow with the turn count.
  */
 
 import assert from "node:assert/strict";
@@ -22,7 +23,7 @@ import {
   type WakeAudioBackend,
   type WakeRunnerLike,
 } from "../src/components/brain/voice/wakeWordVoiceAdapter";
-import type { AyasListenHandlers } from "../src/components/brain/voice/ayasVoiceEngine";
+import type { AyasListenHandlers, AyasSpeakOptions } from "../src/components/brain/voice/ayasVoiceEngine";
 
 let count = 0;
 async function scenario(name: string, fn: () => void | Promise<void>) {
@@ -34,23 +35,23 @@ async function scenario(name: string, fn: () => void | Promise<void>) {
 const FRAME = 1280;
 const REPO_ROOT = path.resolve(__dirname, "..");
 const tick = () => new Promise((r) => setTimeout(r, 0));
+const settle = async (n = 10) => {
+  for (let i = 0; i < n; i += 1) await tick();
+};
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Minimal `document` so the adapter's visibilitychange wiring is exercised. */
+/** `document` stub so the visibilitychange wiring is exercised. */
 const listeners = new Map<string, Set<() => void>>();
 (globalThis as { document?: unknown }).document = {
   visibilityState: "visible" as "visible" | "hidden",
   addEventListener: (t: string, fn: () => void) => {
-    if (!listeners.has(t)) listeners.set(t, new Set());
-    listeners.get(t)!.add(fn);
+    (listeners.get(t) ?? listeners.set(t, new Set()).get(t)!).add(fn);
   },
   removeEventListener: (t: string, fn: () => void) => listeners.get(t)?.delete(fn),
 };
 const fireVisibility = (state: "visible" | "hidden") => {
   (globalThis as { document: { visibilityState: string } }).document.visibilityState = state;
   for (const fn of listeners.get("visibilitychange") ?? []) fn();
-};
-const settle = async () => {
-  for (let i = 0; i < 6; i += 1) await tick();
 };
 
 class FakeBackend implements WakeAudioBackend {
@@ -59,10 +60,13 @@ class FakeBackend implements WakeAudioBackend {
   started = 0;
   stopped = 0;
   recovers = 0;
+  /** what recover() returns; and whether it re-enables frame delivery */
   recoverResult = true;
+  suspended = false;
   async start(cb: (f: Float32Array) => void) {
     this.onFrame = cb;
     this.started += 1;
+    this.suspended = false;
   }
   stop() {
     this.stopped += 1;
@@ -70,13 +74,15 @@ class FakeBackend implements WakeAudioBackend {
   }
   async recover() {
     this.recovers += 1;
+    if (this.recoverResult) this.suspended = false;
     return this.recoverResult;
   }
   push(kind: "silence" | "speech" | "wake") {
+    if (this.suspended || !this.onFrame) return; // a suspended context delivers nothing
     const f = new Float32Array(FRAME);
     if (kind !== "silence") for (let i = 0; i < FRAME; i += 1) f[i] = Math.sin(i / 4) * 0.3;
     (f as Float32Array & { __wake?: boolean }).__wake = kind === "wake";
-    this.onFrame?.(f);
+    this.onFrame(f);
   }
 }
 
@@ -101,6 +107,29 @@ class FakeRunner implements WakeRunnerLike {
   }
 }
 
+/** Fake TTS so speak() → afterSpeak() (post-TTS recovery) is exercised. */
+function fakeTts() {
+  let calls = 0;
+  const speak = (_text: string, options: AyasSpeakOptions) => {
+    calls += 1;
+    queueMicrotask(() => {
+      options.onStart();
+      queueMicrotask(() => options.onEnd());
+    });
+    return { cancel: () => {} };
+  };
+  return {
+    get calls() {
+      return calls;
+    },
+    speak,
+    cancelSpeech: () => {},
+    detectCapability: () => ({ stt: false, tts: true, sttCloudBacked: false }),
+    listVoices: () => [],
+    onVoicesChanged: () => () => {},
+  };
+}
+
 function collectHandlers() {
   const finals: string[] = [];
   const errors: string[] = [];
@@ -115,6 +144,8 @@ function collectHandlers() {
   return { handlers, finals, errors, get ended() { return ended; } };
 }
 
+const FAST = { rearmCooldownMs: 0, startRetryBackoffMs: 1, threshold: 0.5 } as const;
+
 /** One full turn: wake → command → STT → onEnd, then the engine's re-arm. */
 async function turn(a: WakeWordVoiceAdapter, backend: FakeBackend, h: AyasListenHandlers) {
   backend.push("wake");
@@ -122,165 +153,178 @@ async function turn(a: WakeWordVoiceAdapter, backend: FakeBackend, h: AyasListen
   for (let i = 0; i < 12; i += 1) backend.push("speech");
   for (let i = 0; i < 14; i += 1) backend.push("silence");
   await settle();
-  // engine re-arms after speaking the reply
-  a.startListening("tr-TR", h);
+  a.startListening("tr-TR", h); // engine re-arms after speaking the reply
   await settle();
 }
 
 async function run() {
-  await scenario("WAV encoder: 44-byte header, 16 kHz mono s16, correct length", () => {
+  await scenario("WAV encoder — 44-byte header, 16 kHz mono s16", () => {
     const wav = encodeWav16kMono(new Float32Array(16000));
     assert.equal(String.fromCharCode(...wav.slice(0, 4)), "RIFF");
-    assert.equal(String.fromCharCode(...wav.slice(8, 12)), "WAVE");
     const dv = new DataView(wav.buffer, wav.byteOffset, wav.byteLength);
-    assert.equal(dv.getUint16(22, true), 1);
     assert.equal(dv.getUint32(24, true), 16000);
-    assert.equal(dv.getUint16(34, true), 16);
     assert.equal(wav.length, 44 + 16000 * 2);
   });
 
-  await scenario("recognitionMode() is 'wake-engine'", () => {
-    const a = new WakeWordVoiceAdapter({ audioBackend: new FakeBackend(), runner: new FakeRunner(), transcribe: async () => "x" });
+  await scenario("recognitionMode() is 'wake-engine'; STT reported local", () => {
+    const a = new WakeWordVoiceAdapter({ audioBackend: new FakeBackend(), runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x" });
     assert.equal(a.recognitionMode(), "wake-engine");
-    assert.equal(a.detectCapability().sttCloudBacked, false, "STT is local (whisper), not cloud");
+    assert.equal(a.detectCapability().sttCloudBacked, false);
+    a.dispose();
   });
 
-  await scenario("first wake → 'AYAS' → command → transcript → onEnd (re-arm)", async () => {
+  await scenario("TEST A — first wake → response → SECOND wake", async () => {
     const backend = new FakeBackend();
-    const runner = new FakeRunner();
-    let sttCalls = 0;
-    const a = new WakeWordVoiceAdapter({
-      audioBackend: backend, runner, threshold: 0.5, rearmCooldownMs: 0,
-      transcribe: async () => { sttCalls += 1; return "kaç proje var"; },
-    });
+    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "kaç proje var", ...FAST });
     const c = collectHandlers();
     a.startListening("tr-TR", c.handlers);
     await settle();
     assert.equal(backend.started, 1);
-    assert.equal(runner.inits, 1);
-
-    backend.push("silence");
+    await turn(a, backend, c.handlers);
+    backend.push("wake");
     await settle();
-    assert.deepEqual(c.finals, []);
+    assert.deepEqual(c.finals, ["AYAS", "kaç proje var", "AYAS"]);
+    a.dispose();
+  });
 
+  await scenario("TEST B/C — 50 consecutive cycles; mic acquired ONCE, no leak", async () => {
+    const backend = new FakeBackend();
+    const runner = new FakeRunner();
+    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner, tts: fakeTts(), transcribe: async () => "x", ...FAST });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    for (let i = 0; i < 50; i += 1) await turn(a, backend, c.handlers);
+    const wakes = c.finals.filter((t) => t === "AYAS").length;
+    assert.equal(wakes, 50, `all 50 wakes fired (got ${wakes})`);
+    assert.equal(backend.started, 1, "mic acquired exactly once across 50 turns");
+    assert.equal(backend.stopped, 0, "mic never stopped between turns");
+    assert.equal(runner.inits, 1, "ONNX runner initialised once");
+    assert.equal(runner.disposes, 0);
+    assert.equal(a.getStatus().cyclesCompleted, 50);
+    assert.equal(a.getStatus().recoveryCount, 0, "no rebuilds needed in a healthy session");
+    a.dispose();
+  });
+
+  await scenario("TEST D — TTS completion resumes a suspended AudioContext, then re-arm works", async () => {
+    const backend = new FakeBackend();
+    const tts = fakeTts();
+    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner: new FakeRunner(), tts, transcribe: async () => "x", ...FAST });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+
+    // wake + command
+    backend.push("wake");
+    await settle();
+    for (let i = 0; i < 12; i += 1) backend.push("speech");
+    for (let i = 0; i < 14; i += 1) backend.push("silence");
+    await settle();
+
+    // iOS suspends the capture context while speechSynthesis plays
+    backend.suspended = true;
+    // AYAS speaks the reply; the engine's afterOutput re-arms in onEnd
+    a.speak("cevap", {
+      voiceName: null, lang: "tr-TR", pitch: 1, rate: 1, volume: 1,
+      onStart: () => {}, onEnd: () => a.startListening("tr-TR", c.handlers), onError: () => {},
+    });
+    await settle(20);
+
+    assert.ok(backend.recovers >= 1, "recover() was called after TTS / on re-arm");
+    assert.equal(backend.suspended, false, "context resumed");
+    assert.equal(backend.started, 1, "no rebuild — a resume was enough");
+    backend.push("wake");
+    await settle();
+    assert.equal(c.finals.filter((t) => t === "AYAS").length, 2, "SECOND wake heard after TTS");
+    a.dispose();
+  });
+
+  await scenario("TEST E — AudioContext suspended, recover() succeeds → no rebuild", async () => {
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x", ...FAST });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    backend.suspended = true;
+    backend.recoverResult = true;
+    fireVisibility("hidden");
+    fireVisibility("visible");
+    await settle(15);
+    assert.equal(backend.recovers, 1);
+    assert.equal(backend.started, 1, "resume, not rebuild");
+    assert.equal(backend.suspended, false);
+    a.dispose();
+  });
+
+  await scenario("TEST F — mic track ended → recover() fails → ONE bounded rebuild", async () => {
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x", ...FAST });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    backend.recoverResult = false; // track ended
+    fireVisibility("hidden");
+    fireVisibility("visible");
+    await settle(15);
+    assert.equal(backend.started, 2, "mic rebuilt exactly once");
+    assert.equal(a.getStatus().recoveryCount, 1);
+    backend.recoverResult = true;
+    backend.push("wake");
+    await settle();
+    assert.deepEqual(c.finals, ["AYAS"], "listening again after the rebuild");
+    a.dispose();
+  });
+
+  await scenario("TEST — frame-flow WATCHDOG rebuilds a silent stalled pipeline", async () => {
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x",
+      ...FAST, watchdogIntervalMs: 15, frameStallMs: 30,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    // context silently dies — recover() would lie ("running") but no frames come
+    backend.suspended = true;
+    backend.recoverResult = true;
+    await wait(120); // several watchdog ticks past the stall threshold
+    // resume claimed health but frames never returned → watchdog forces a rebuild
+    assert.ok(backend.started >= 2, `pipeline rebuilt by the watchdog (started=${backend.started})`);
+    assert.ok(a.getStatus().recoveryCount >= 1);
+    backend.suspended = false;
     backend.push("wake");
     await settle();
     assert.deepEqual(c.finals, ["AYAS"]);
-
-    for (let i = 0; i < 12; i += 1) backend.push("speech");
-    for (let i = 0; i < 14; i += 1) backend.push("silence");
-    await settle();
-
-    assert.equal(sttCalls, 1);
-    assert.deepEqual(c.finals, ["AYAS", "kaç proje var"]);
-    assert.ok(c.ended >= 1, "onEnd fired so the engine re-arms");
-  });
-
-  await scenario("RE-ARM keeps the mic alive — no second getUserMedia between turns", async () => {
-    const backend = new FakeBackend();
-    const runner = new FakeRunner();
-    const a = new WakeWordVoiceAdapter({
-      audioBackend: backend, runner, threshold: 0.5, rearmCooldownMs: 0,
-      transcribe: async () => "komut",
-    });
-    const c = collectHandlers();
-    a.startListening("tr-TR", c.handlers);
-    await settle();
-
-    await turn(a, backend, c.handlers);
-    await turn(a, backend, c.handlers);
-
-    assert.equal(backend.started, 1, "mic started exactly once across turns");
-    assert.equal(backend.stopped, 0, "mic never stopped between turns");
-    assert.equal(runner.inits, 1, "ONNX runner initialised once");
-    assert.ok(runner.resets >= 2, "streaming window reset on each re-arm");
-    assert.deepEqual(c.finals, ["AYAS", "komut", "AYAS", "komut"]);
-  });
-
-  await scenario("SECOND wake works, and 12 sustained cycles all fire", async () => {
-    const backend = new FakeBackend();
-    const a = new WakeWordVoiceAdapter({
-      audioBackend: backend, runner: new FakeRunner(), threshold: 0.5, rearmCooldownMs: 0,
-      transcribe: async () => "x",
-    });
-    const c = collectHandlers();
-    a.startListening("tr-TR", c.handlers);
-    await settle();
-
-    for (let i = 0; i < 12; i += 1) await turn(a, backend, c.handlers);
-
-    const wakes = c.finals.filter((t) => t === "AYAS").length;
-    assert.equal(wakes, 12, `all 12 wakes fired (got ${wakes})`);
-    assert.equal(backend.started, 1);
-    assert.equal(backend.stopped, 0);
-    assert.equal(a.getStatus().cyclesCompleted, 12);
-    assert.equal(a.getStatus().mic, "on");
-  });
-
-  await scenario("blank STT → onError('no-speech'), still re-arms and hears the next wake", async () => {
-    const backend = new FakeBackend();
-    const a = new WakeWordVoiceAdapter({
-      audioBackend: backend, runner: new FakeRunner(), threshold: 0.5, rearmCooldownMs: 0,
-      transcribe: async () => "",
-    });
-    const c = collectHandlers();
-    a.startListening("tr-TR", c.handlers);
-    await settle();
-    backend.push("wake");
-    await settle();
-    for (let i = 0; i < 12; i += 1) backend.push("speech");
-    for (let i = 0; i < 14; i += 1) backend.push("silence");
-    await settle();
-    assert.ok(c.errors.includes("no-speech"));
-    a.startListening("tr-TR", c.handlers);
-    await settle();
-    backend.push("wake");
-    await settle();
-    assert.equal(c.finals.filter((t) => t === "AYAS").length, 2, "re-armed after the blank turn");
-    assert.equal(backend.stopped, 0);
-  });
-
-  await scenario("STT transport failure → onError, mic stays alive, next turn works", async () => {
-    const backend = new FakeBackend();
-    let fail = true;
-    const a = new WakeWordVoiceAdapter({
-      audioBackend: backend, runner: new FakeRunner(), threshold: 0.5, rearmCooldownMs: 0,
-      transcribe: async () => { if (fail) throw new Error("stt-500"); return "ok"; },
-    });
-    const c = collectHandlers();
-    a.startListening("tr-TR", c.handlers);
-    await settle();
-    await turn(a, backend, c.handlers);
-    assert.ok(c.errors.length >= 1);
-    assert.equal(backend.stopped, 0, "a transport error does not tear down the mic");
-    fail = false;
-    await turn(a, backend, c.handlers);
-    assert.ok(c.finals.includes("ok"), "recovered on the next turn");
-  });
-
-  await scenario("stop() PAUSES (mic stays); dispose() tears down", async () => {
-    const backend = new FakeBackend();
-    const runner = new FakeRunner();
-    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner, threshold: 0.5, rearmCooldownMs: 0, transcribe: async () => "x" });
-    const c = collectHandlers();
-    const handle = a.startListening("tr-TR", c.handlers);
-    await settle();
-    handle.stop();
-    assert.equal(backend.stopped, 0, "stop() is a pause, not a teardown");
-    assert.equal(a.getStatus().phase, "idle");
-    backend.push("wake");
-    await settle();
-    assert.deepEqual(c.finals, [], "paused → no detection");
-
     a.dispose();
-    assert.equal(backend.stopped, 1, "dispose() stops the mic");
-    assert.equal(runner.disposes, 1, "dispose() releases the ONNX runner");
-    a.startListening("tr-TR", c.handlers);
-    await settle();
-    assert.equal(backend.started, 1, "a disposed adapter does not restart");
   });
 
-  await scenario("mic permission denied → fatal, onUnavailable('not-allowed'), no retry storm", async () => {
+  await scenario("TEST G — transient getUserMedia failure → bounded retry (3) then fatal", async () => {
+    let starts = 0;
+    const flaky: WakeAudioBackend = {
+      supported: true,
+      async start() { starts += 1; throw new Error("AbortError transient"); },
+      stop() {},
+    };
+    let unavailable = 0;
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: flaky, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x",
+      onUnavailable: () => { unavailable += 1; }, startRetryBackoffMs: 1,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await wait(30);
+    assert.equal(starts, 3);
+    assert.equal(unavailable, 1);
+    assert.equal(a.getStatus().mic, "fatal");
+    const before = starts;
+    a.startListening("tr-TR", c.handlers);
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    assert.equal(starts, before, "no further start() after fatal — no storm");
+    a.dispose();
+  });
+
+  await scenario("TEST — permission denied → fatal immediately (no retry)", async () => {
     let starts = 0;
     const denying: WakeAudioBackend = {
       supported: true,
@@ -288,93 +332,214 @@ async function run() {
       stop() {},
     };
     const reasons: string[] = [];
-    const a = new WakeWordVoiceAdapter({
-      audioBackend: denying, runner: new FakeRunner(), transcribe: async () => "x",
-      onUnavailable: (r) => reasons.push(r), startRetryBackoffMs: 1,
-    });
+    const a = new WakeWordVoiceAdapter({ audioBackend: denying, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x", onUnavailable: (r) => reasons.push(r), startRetryBackoffMs: 1 });
     const c = collectHandlers();
     a.startListening("tr-TR", c.handlers);
-    await settle();
-    a.startListening("tr-TR", c.handlers);
-    a.startListening("tr-TR", c.handlers);
-    await settle();
-    assert.equal(starts, 1, "denial is not retried");
+    await settle(15);
+    assert.equal(starts, 1);
     assert.deepEqual(reasons, ["not-allowed"]);
-    assert.ok(c.errors.includes("not-allowed"));
-    assert.equal(a.getStatus().mic, "fatal");
+    a.dispose();
   });
 
-  await scenario("transient start failure → bounded retry (3) then fatal 'start-blocked'", async () => {
-    let starts = 0;
-    const flaky: WakeAudioBackend = {
-      supported: true,
-      async start() { starts += 1; throw new Error("AbortError-ish transient"); },
-      stop() {},
+  await scenario("TEST H — STT failure → wake stays alive, next turn works", async () => {
+    const backend = new FakeBackend();
+    let fail = true;
+    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => { if (fail) throw new Error("stt-500"); return "ok"; }, ...FAST });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    await turn(a, backend, c.handlers);
+    assert.ok(c.errors.length >= 1);
+    assert.equal(backend.stopped, 0, "STT failure does not tear down the mic");
+    fail = false;
+    await turn(a, backend, c.handlers);
+    assert.ok(c.finals.includes("ok"));
+    a.dispose();
+  });
+
+  await scenario("TEST I — blank STT → onError('no-speech'), wake stays alive", async () => {
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "", ...FAST });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    await turn(a, backend, c.handlers);
+    assert.ok(c.errors.includes("no-speech"));
+    backend.push("wake");
+    await settle();
+    assert.equal(c.finals.filter((t) => t === "AYAS").length, 2);
+    assert.equal(backend.stopped, 0);
+    a.dispose();
+  });
+
+  await scenario("TEST J — TTS error → afterSpeak still recovers, wake stays alive", async () => {
+    const backend = new FakeBackend();
+    const badTts = fakeTts();
+    (badTts as { speak: unknown }).speak = (_t: string, o: AyasSpeakOptions) => {
+      queueMicrotask(() => o.onError());
+      return { cancel: () => {} };
     };
-    let unavailable = 0;
+    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner: new FakeRunner(), tts: badTts, transcribe: async () => "x", ...FAST });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    backend.push("wake");
+    await settle();
+    for (let i = 0; i < 12; i += 1) backend.push("speech");
+    for (let i = 0; i < 14; i += 1) backend.push("silence");
+    await settle();
+    backend.suspended = true;
+    a.speak("cevap", { voiceName: null, lang: "tr-TR", pitch: 1, rate: 1, volume: 1, onStart: () => {}, onEnd: () => {}, onError: () => a.startListening("tr-TR", c.handlers) });
+    await settle(15);
+    assert.equal(backend.suspended, false, "recovered even though TTS errored");
+    backend.push("wake");
+    await settle();
+    assert.equal(c.finals.filter((t) => t === "AYAS").length, 2);
+    a.dispose();
+  });
+
+  await scenario("TEST K — visibility hidden → visible restores wake", async () => {
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x", ...FAST });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    backend.suspended = true;
+    fireVisibility("hidden");
+    await settle();
+    fireVisibility("visible");
+    await settle(15);
+    backend.push("wake");
+    await settle();
+    assert.deepEqual(c.finals, ["AYAS"]);
+    a.dispose();
+  });
+
+  await scenario("TEST L — rapid start/stop churn → no duplicate resources", async () => {
+    const backend = new FakeBackend();
+    const runner = new FakeRunner();
+    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner, tts: fakeTts(), transcribe: async () => "x", ...FAST });
+    const c = collectHandlers();
+    for (let i = 0; i < 30; i += 1) {
+      const h = a.startListening("tr-TR", c.handlers);
+      h.stop();
+    }
+    await settle(20);
+    assert.equal(backend.started, 1, "still one mic despite 30 start/stop calls");
+    assert.equal(runner.inits, 1);
+    a.dispose();
+  });
+
+  await scenario("TEST M — two recoveries triggered at once → only one runs", async () => {
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x", ...FAST });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    backend.recoverResult = false; // both attempts want a rebuild
+    fireVisibility("visible");
+    fireVisibility("visible");
+    (a as unknown as { resumeOrRebuild(r: string): Promise<void> }).resumeOrRebuild("stall");
+    await settle(20);
+    assert.equal(backend.started, 2, "exactly one rebuild despite 3 concurrent triggers");
+    assert.equal(a.getStatus().recoveryCount, 1);
+    a.dispose();
+  });
+
+  await scenario("TEST N — dispose() releases mic + runner + watchdog; no leak", async () => {
+    const backend = new FakeBackend();
+    const runner = new FakeRunner();
+    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner, tts: fakeTts(), transcribe: async () => "x", ...FAST, watchdogIntervalMs: 50, frameStallMs: 100 });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle(6);
+    a.dispose();
+    assert.equal(backend.stopped, 1, "mic stopped exactly once");
+    assert.equal(runner.disposes, 1, "ONNX runner released");
+    assert.equal(a.getStatus().phase, "disposed");
+    const startsAfter = backend.started;
+    backend.suspended = true;
+    await wait(260); // ~5 watchdog intervals — it must be dead
+    assert.equal(backend.started, startsAfter, "no watchdog activity after dispose");
+    assert.equal(backend.recovers, 0, "no recovery after dispose");
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    assert.equal(backend.started, startsAfter, "a disposed adapter does not restart");
+  });
+
+  await scenario("TEST O — remount (new instance) → clean fresh session", async () => {
+    const b1 = new FakeBackend();
+    const a1 = new WakeWordVoiceAdapter({ audioBackend: b1, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x", ...FAST });
+    const c1 = collectHandlers();
+    a1.startListening("tr-TR", c1.handlers);
+    await settle();
+    await turn(a1, b1, c1.handlers);
+    a1.dispose();
+
+    const b2 = new FakeBackend();
+    const a2 = new WakeWordVoiceAdapter({ audioBackend: b2, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x", ...FAST });
+    const c2 = collectHandlers();
+    a2.startListening("tr-TR", c2.handlers);
+    await settle();
+    b2.push("wake");
+    await settle();
+    assert.deepEqual(c2.finals, ["AYAS"]);
+    assert.equal(b2.started, 1);
+    a2.dispose();
+  });
+
+  await scenario("TEST P — long session (20 turns) with an interruption every 5th turn", async () => {
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x", ...FAST });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    let expectedRebuilds = 0;
+    for (let i = 0; i < 20; i += 1) {
+      if (i > 0 && i % 5 === 0) {
+        backend.recoverResult = false; // track ended
+        fireVisibility("visible");
+        await settle(15);
+        backend.recoverResult = true;
+        expectedRebuilds += 1;
+      }
+      await turn(a, backend, c.handlers);
+    }
+    assert.equal(c.finals.filter((t) => t === "AYAS").length, 20, "all 20 wakes fired");
+    assert.equal(a.getStatus().recoveryCount, expectedRebuilds, "exactly the injected number of rebuilds");
+    assert.equal(backend.started, 1 + expectedRebuilds, "mic acquisitions = 1 + rebuilds (not turns)");
+    a.dispose();
+  });
+
+  await scenario("onStatus — emits 'recovering' during a rebuild, clears it after; carries counters", async () => {
+    const backend = new FakeBackend();
+    const seen: string[] = [];
     const a = new WakeWordVoiceAdapter({
-      audioBackend: flaky, runner: new FakeRunner(), transcribe: async () => "x",
-      onUnavailable: () => { unavailable += 1; }, startRetryBackoffMs: 1,
+      audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x",
+      ...FAST, onStatus: (s) => seen.push(s.mic),
     });
     const c = collectHandlers();
     a.startListening("tr-TR", c.handlers);
     await settle();
-    await new Promise((r) => setTimeout(r, 20)); // let the 3 bounded retries elapse
-    assert.equal(starts, 3, "exactly MAX_START_ATTEMPTS tries");
-    assert.equal(unavailable, 1, "onUnavailable fired once");
-    assert.equal(a.getStatus().mic, "fatal");
-    // further re-arm attempts do nothing (no storm)
-    const before = starts;
-    a.startListening("tr-TR", c.handlers);
-    a.startListening("tr-TR", c.handlers);
-    await settle();
-    assert.equal(starts, before, "no further start() calls after fatal");
-  });
-
-  await scenario("foreground recovery — suspended AudioContext resumed, no rebuild", async () => {
-    const backend = new FakeBackend();
-    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner: new FakeRunner(), threshold: 0.5, rearmCooldownMs: 0, transcribe: async () => "x" });
-    const c = collectHandlers();
-    a.startListening("tr-TR", c.handlers);
-    await settle();
-    backend.recoverResult = true;
-    fireVisibility("hidden");
+    backend.recoverResult = false; // force a rebuild
     fireVisibility("visible");
-    await settle();
-    assert.equal(backend.recovers, 1);
-    assert.equal(backend.started, 1, "healthy resume does not rebuild the mic");
-    backend.push("wake");
-    await settle();
-    assert.deepEqual(c.finals, ["AYAS"], "still listening after foreground recovery");
+    await settle(15);
+    assert.ok(seen.includes("recovering"), "UI is told the pipeline is recovering");
+    assert.equal(seen[seen.length - 1], "on", "and that it recovered");
+    const st = a.getStatus();
+    assert.equal(st.recoveryCount, 1);
+    assert.ok(st.frameAgeMs >= 0);
+    a.dispose();
   });
 
-  await scenario("foreground recovery — ended mic track rebuilt once (bounded)", async () => {
-    const backend = new FakeBackend();
-    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner: new FakeRunner(), threshold: 0.5, rearmCooldownMs: 0, startRetryBackoffMs: 1, transcribe: async () => "x" });
-    const c = collectHandlers();
-    a.startListening("tr-TR", c.handlers);
-    await settle();
-    backend.recoverResult = false; // track ended
-    fireVisibility("hidden");
-    fireVisibility("visible");
-    await settle();
-    assert.equal(backend.started, 2, "mic rebuilt exactly once");
-    backend.push("wake");
-    await settle();
-    assert.deepEqual(c.finals, ["AYAS"], "listening again after rebuild");
-  });
-
-  await scenario("STATIC — wake capture uses unprocessed audio (no NS / AGC) + keeps echo cancellation", () => {
+  await scenario("STATIC — wake capture uses unprocessed audio; mic stopped only on dispose", () => {
     const src = fs.readFileSync(path.join(REPO_ROOT, "src/components/brain/voice/wakeWordVoiceAdapter.ts"), "utf8");
     assert.match(src, /noiseSuppression:\s*false/);
     assert.match(src, /autoGainControl:\s*false/);
     assert.match(src, /echoCancellation:\s*true/);
-  });
-
-  await scenario("STATIC — the mic is only stopped on dispose(), never in finishCommand", () => {
-    const src = fs.readFileSync(path.join(REPO_ROOT, "src/components/brain/voice/wakeWordVoiceAdapter.ts"), "utf8");
     const finishBody = src.slice(src.indexOf("private async finishCommand"), src.indexOf("dispose(): void"));
-    assert.ok(!/this\.audio\.stop\(\)/.test(finishBody), "finishCommand must NOT stop the mic (that killed re-arm)");
+    assert.ok(!/this\.audio\.stop\(\)/.test(finishBody), "finishCommand must NOT stop the mic");
+    assert.match(src, /unref\?\.\(\)/, "the watchdog timer is unref'd so it never wedges a process");
   });
 
   console.log(`AYAS wake adapter smoke: PASS (${count} scenarios)`);

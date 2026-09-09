@@ -189,6 +189,8 @@ export interface AyasPresenceInput {
     readonly state: AyasVoiceState;
     /** `"wake-engine"` = the on-device "AYAS" detector; else tap-to-talk. */
     readonly mode?: "continuous" | "single-shot" | "wake-engine";
+    /** `true` while the wake pipeline is re-acquiring the mic / AudioContext. */
+    readonly recovering?: boolean;
   };
 }
 
@@ -246,20 +248,23 @@ export function deriveAyasPresence(input: AyasPresenceInput): AyasPresenceView {
   const hasVoice = Boolean(input.voice && (input.voice.ttsAvailable || input.voice.sttAvailable));
   const handsFree = input.voice?.mode === "wake-engine";
   const voiceState = input.voice?.state ?? "idle";
+  const recovering = Boolean(input.voice?.recovering) && !offline;
   const voice: AyasPresenceRow = offline
     ? { label: "Ses", value: "Çevrim dışı", tone: "off" }
     : !hasVoice
       ? { label: "Ses", value: "Bu cihazda ses yok", tone: "off" }
-      : {
-          label: "Ses",
-          value:
-            voiceState === "idle" && input.voice?.listening
-              ? handsFree
-                ? "\"AYAS\" bekleniyor (eller serbest)"
-                : "\"AYAS\" bekleniyor"
-              : ayasVoicePresenceValue(voiceState),
-          tone: voiceState === "error" ? "warn" : "ok",
-        };
+      : recovering
+        ? { label: "Ses", value: "AYAS bağlantıyı toparlıyor", tone: "warn" }
+        : {
+            label: "Ses",
+            value:
+              voiceState === "idle" && input.voice?.listening
+                ? handsFree
+                  ? "\"AYAS\" bekleniyor (eller serbest)"
+                  : "\"AYAS\" bekleniyor"
+                : ayasVoicePresenceValue(voiceState),
+            tone: voiceState === "error" ? "warn" : "ok",
+          };
 
   const mobile: AyasPresenceRow = offline
     ? { label: "Mobil", value: "Bağlantı bekleniyor", tone: "off" }

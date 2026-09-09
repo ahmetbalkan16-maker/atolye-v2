@@ -336,6 +336,25 @@ async function run() {
     assert.equal(tap.cta.label, "AYAS ile sesli konuş");
   });
 
+  await scenario("11d3. deriveAyasPresence — wake pipeline recovering → honest 'toparlıyor' state", () => {
+    const p = deriveAyasPresence({
+      connectivity: "online",
+      secureContext: true,
+      executionGate: "CLOSED",
+      voice: { sttAvailable: true, ttsAvailable: true, listening: true, state: "idle", mode: "wake-engine", recovering: true },
+    });
+    assert.equal(p.voice.value, "AYAS bağlantıyı toparlıyor");
+    assert.equal(p.voice.tone, "warn");
+    // offline still wins — never claim a recovery is happening when there's no link
+    const off = deriveAyasPresence({
+      connectivity: "offline",
+      secureContext: true,
+      executionGate: "CLOSED",
+      voice: { sttAvailable: true, ttsAvailable: true, listening: true, state: "idle", mode: "wake-engine", recovering: true },
+    });
+    assert.equal(off.voice.value, "Çevrim dışı");
+  });
+
   await scenario("11e. deriveAyasPresence — offline never fakes online; CTA disabled", () => {
     const p = deriveAyasPresence({
       connectivity: "offline",
