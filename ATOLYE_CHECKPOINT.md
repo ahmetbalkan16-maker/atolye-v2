@@ -1,5 +1,47 @@
 ---
 
+## AYAS + GRAPHIFY FINAL EXECUTION — uuid-folder identity fix; voice still operator-gated; gate CLOSED - 2026-09-09
+
+**Branch:** `wip/ayas-graphify-final-execution` (off `wip/ayas-graphify-readonly` @ `6244d64`).
+**NOT merged, NOT pushed.**
+
+Master sprint yeniden istendi (KURAL 23: sahte PASS yasak, gerçek sonuç yoksa `OPERATOR_REQUIRED`).
+**Bu pass'te tamamlanan gerçek iş — Section 2 (Graphify real-data closure):**
+
+- **Bulgu doğrulandı:** cutover sonrası `D:\AtolyeRuntime\projects\` her klasörü **project id (UUID)** ile
+  adlandırıyor. `ProjectReader`/`ProjectManager`/`PipelineRecoveryPlanner` projeyi tek bir path segment'i
+  ile adresliyor (`<projectsRoot>/<segment>/`), yeni projeler `<humanSlug>/`'a yazılıyor →
+  `getProject(humanSlug)`, `getManifest(humanSlug)`, `PipelineRecoveryPlanner.*`, `getProgressSummary`
+  ve **dashboard'un `/project/<slug>` sayfası 16 migrated projenin HEPSİNİ kaçırıyordu** (F17 kalıntısı).
+- **Düzeltme (`fix(graphify)` `0d34b2a`):** yeni `src/lib/projects/ProjectFolderIndex.ts` — salt-okunur
+  resolver: folder-adı / project id / project.json slug → gerçek klasör, yoksa null. **Hiçbir şey yazmaz,
+  dosya taşımaz, manifest'e dokunmaz.** Saf fallback: klasör zaten tam segment'te varsa **birebir aynı
+  davranış**, yalnız direct path yoksa tarar; `projectsRoot` mtime ile cache. Çözülen segment hâlâ
+  `getProjectRoot` containment/authority kontrollerinden geçer. `ProjectReader.getProjectFolder` bunu
+  danışır → `ProjectManager` + `PipelineRecoveryPlanner` + progress + `/project/<slug>` + AYAS
+  `pipeline-recovery-plan` executor'ı **hepsi tutarlı düzeldi.** Gerçek D:'ye karşı doğrulandı: 16 proje,
+  `getManifest`/`getProject`/`createResumePlan`/`getFailedStages` human slug ile çalışıyor.
+- **CAVEAT (raporlandı, burada DÜZELTİLMEDİ — gated sprint gerekir):** `ProjectWriter` /
+  `ProjectManager.updatePackageStatus` hâlâ `<slug>/` klasörü varsayıyor → migrated projeye pipeline
+  WRITE'ı yanlış path'e giderdi. Gate CLOSED + `resume-stage` DISABLED olduğu için write yolu çalışmıyor,
+  ama migrated data'da pipeline çalıştırmadan önce kapatılmalı.
+- `smoke-project-folder-index` (9, YENİ). tsc/lint(0 err)/`next build` temiz. Storage + pipeline +
+  production + authority + AYAS + Brain regression yeşil; `smoke-production-snapshot-builder` **base'de
+  aynı** başarısız (pre-existing, data-dependent).
+
+**BLOCKED (operatör — KURAL 23):** wake motoru = **WAKE_MODEL_REQUIRED** (Python 3.14.7 çok yeni,
+openWakeWord ML stack'i 3.11 ister; CUDA toolchain yok — `nvcc` yok; browser entegrasyonu + doğruluk
+cihaz-gated). STT = **OPERATOR_REQUIRED** (CUDA build yok, Türkçe doğruluk cihaz-gated). PC voice E2E +
+iPhone tüm testler = **OPERATOR_REQUIRED** (mikrofon/tarayıcı/cihaz erişimim yok). D2 Faz 0/1 lab'ları
+`research/ayas-d2-audio-lab`'te operatör iPhone testini bekliyor.
+
+**Değişmeyen:** Execution Gate CLOSED, `writeActionsEnabled=false`, storage authority, `D:\AtolyeRuntime`,
+`D:\AtolyeAuthority` (yalnız salt-okunur okundu), Caddy, firewall, `.env.local`, `AYAS_ACCESS_KEY`,
+auth/CSRF, text-chat path, `runAyas`/`askAyas`/`/api/ayas/chat/stream`, TTS, `PipelineRunner`, hiçbir
+dosya taşınmadı/manifest değişmedi.
+
+<!-- AYAS-GRAPHIFY-FINAL-EXECUTION-END -->
+
 ## AYAS + GRAPHIFY MASTER SPRINT — Phase 0 + Phase 6 done; voice phases operator-gated; gate CLOSED - 2026-09-09
 
 **Branch:** `wip/ayas-graphify-readonly` (off `wip/production-audio-resume-prep-v2` @ `6244860`).
