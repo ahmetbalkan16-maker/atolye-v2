@@ -1,5 +1,54 @@
 ---
 
+## AYAS MOBILE PWA / PHONE ACCESS FIX — real PNG icons + IP-first Caddy + install runbook; gate CLOSED - 2026-09-09
+
+**Status:** Telefonda AYAS'ı **kurulabilir PWA** yapma. Kök neden 3 katmanlı: (1) telefon
+`studio.local` çözemiyor (yalnız PC hosts'ta), (2) manifest SVG-only ikon → Chrome install prompt
+192+512 PNG ister, iOS apple-touch-icon PNG ister, (3) `NEXT_PUBLIC_ATOLYE_PWA_SW` unset → service
+worker register olmuyor → "Install" görünmüyor. Kod tarafı düzeltildi; kalan 3 adım operatör
+(Caddy CA telefonda güven, `NEXT_PUBLIC_ATOLYE_PWA_SW=on`, telefon install). Execution/storage/
+authority DOKUNULMADI. `.env.local` gitignored (operatör `AYAS_ACCESS_KEY` ekledi → access gate artık
+**`enforced`**; değer okunmadı/yazılmadı). Commit `feat(pwa)` `1d890ad`. Push YOK.
+
+### Yapılan (minimal, geri-alınabilir)
+
+- **`scripts/build-pwa-icons.ts` + `npm run build:pwa-icons`** — `sharp` ile orb SVG →
+  `public/icons/` (192/512 + maskable 192·512 + apple-touch 180 + favicon 16/32). **Commit'lendi**
+  (plain checkout kurulabilir olsun).
+- **`app/manifest.ts`** — PNG ikonlar (`any` + `maskable`), explicit `id`, `start_url
+  /brain?source=pwa`. SVG extra olarak kaldı.
+- **`app/layout.tsx`** — `metadata.manifest` link + `icons` (favicon + apple-touch-icon).
+- **`public/sw.js`** — SHELL PNG ikonları cache'liyor; cache `v1→v2`.
+- **`src/lib/auth/accessGate.ts`** — `OPEN_PREFIXES` += `/icons/` (browser manifest ikonlarını
+  session'dan önce çeker; gate artık enforced).
+- **`deploy/Caddyfile`** — **PRIMARY site artık LAN IP** (`https://192.168.2.74`, `tls internal`) →
+  telefon DNS gerektirmez; `studio.local` ikinci blok.
+- **`deploy/README.md` + `docs/AYAS_REMOTE_ACCESS.md`** — telefon akışı: Caddy CA'yı telefonda
+  güven (iOS'ta ayrıca *Certificate Trust Settings* toggle), `NEXT_PUBLIC_ATOLYE_PWA_SW=on`,
+  `https://192.168.2.74/brain`, Install / Add to Home Screen, troubleshooting.
+- **`scripts/smoke-ayas-pwa-manifest.ts` (8, YENİ)** — manifest install alanları, PNG 192+512 `any`
+  + maskable çift, her PNG dosyası deklare edilen boyutta gerçek PNG, apple-touch-icon, `/icons/`
+  pre-auth açık.
+
+### Testler + doğrulama
+
+`tsc` temiz, eslint 0 err / 22 warn, `next build` exit 0 (`/manifest.webmanifest` route). 19
+AYAS/Brain + 11 storage/runtime suite PASS. `129-25c-2a`/`-2b-4` baseline. Runtime:
+`explicit-external` / `D:\AtolyeRuntime`, 16 proje; AYAS→`qwen2.5:7b`, pipeline→`qwen2.5:3b`;
+autonomy sabiti + gerçek gate **CLOSED** (degraded=false); `inspect-project`→DENIED `gate-not-open`,
+`resume-stage`→DENIED `write-execution-disabled`; **access gate `enforced`**. `data/projects`
+tracked=0, `data/brain` yalnız README.md.
+
+### Kalan operatör adımları
+
+`deploy/README.md`: (1) `winget install CaddyServer.Caddy` + `caddy run --config deploy/Caddyfile`
++ `caddy trust`, (2) firewall rule (443/`192.168.2.0/24`), (3) **Caddy CA'yı telefonda güven**,
+(4) `.env.local` → `NEXT_PUBLIC_ATOLYE_PWA_SW=on` + rebuild, (5) telefon `https://192.168.2.74/brain`
+→ login → Install → AYAS ikonu → `/brain` → chat/streaming/mic/TTS → "Yürütme kapısı: CLOSED".
+Telefon install/offline testi PC'den yapılamaz → **PENDING OPERATOR DEVICE TEST**.
+
+<!-- MOBILE-PWA-FIX-END -->
+
 ## Sprint 212 - HTTPS + ACCESS KEY + PHONE ACTIVATION PREP — repo Caddyfile + operator handoff; **ACTIVATION = BLOCKED**; gate CLOSED - 2026-09-09
 
 **Status:** PC son operasyonel hazırlık. **Session non-admin** (`DESKTOP-9P0BG80\Metod`, `Admin: False`)
