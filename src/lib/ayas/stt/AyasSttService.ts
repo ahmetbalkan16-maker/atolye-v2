@@ -126,9 +126,7 @@ const AYAS_STT_PROMPT =
  */
 export function normaliseAyasTranscript(text: string): string {
   return text
-    .replace(/\b[Aa]ya[zsş]\b/g, "AYAS")
-    .replace(/\b[Aa]yas\b/g, "AYAS")
-    .replace(/\bhayas\b/gi, "AYAS")
+    .replace(/\b(?:aya[zsş]|ayes|aias|hayas)\b/gi, "AYAS")
     .replace(/\bgrundtime\b/gi, "runtime")
     .replace(/\s+/g, " ")
     .trim();
