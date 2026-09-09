@@ -38,6 +38,43 @@ const COMMAND_MAX_MS = 6000;
 const COMMAND_SILENCE_MS = 900;
 const COMMAND_MIN_MS = 350;
 const REARM_COOLDOWN_MS = 700;
+/** getUserMedia / ONNX load can hang on iOS — bound it so a hang can't wedge AYAS. */
+const AUDIO_START_TIMEOUT_MS = 12_000;
+/** Transient start failures (AbortError, timeout) get this many retries before fatal. */
+const MAX_START_ATTEMPTS = 3;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label}-timeout`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  }) as Promise<T>;
+}
+
+const delay = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+/** True for a genuine, unrecoverable permission / hardware denial. */
+function isFatalMediaError(error: unknown): boolean {
+  const e = error as { name?: string; message?: string };
+  const name = e?.name ?? "";
+  const msg = e?.message ?? "";
+  return (
+    name === "NotAllowedError" ||
+    name === "SecurityError" ||
+    name === "NotFoundError" ||
+    /permission|denied|not allowed/i.test(msg)
+  );
+}
+
+export interface WakeAdapterStatus {
+  readonly mic: "off" | "starting" | "on" | "recovering" | "fatal";
+  readonly phase: "idle" | "wake" | "command" | "busy";
+  readonly cyclesCompleted: number;
+  readonly startAttempts: number;
+  readonly lastError: string | null;
+}
 
 export interface WakeWordAdapterOptions {
   readonly wakewordUrl?: string;
@@ -59,6 +96,10 @@ export interface WakeWordAdapterOptions {
    * browser voice adapter — the engine will otherwise keep retrying `begin()`.
    */
   readonly onUnavailable?: (reason: "not-allowed" | "start-blocked") => void;
+  /** Re-arm cooldown after a turn (default 700 ms). Test seam. */
+  readonly rearmCooldownMs?: number;
+  /** Backoff between mic-start retries: `n * attempt` ms (default 400). Test seam. */
+  readonly startRetryBackoffMs?: number;
 }
 
 export interface WakeRunnerLike {
@@ -74,6 +115,12 @@ export interface WakeAudioBackend {
   /** Start capture; `onFrame` gets 1280-sample 16 kHz mono frames in [-1,1]. */
   start(onFrame: (frame: Float32Array) => void): Promise<void>;
   stop(): void;
+  /**
+   * Foreground recovery: resume a suspended AudioContext. Returns `true` if the
+   * capture is healthy again, `false` if it must be fully rebuilt (track ended).
+   * Optional — a synchronous test backend can omit it.
+   */
+  recover?(): Promise<boolean>;
   /** Best-effort: does the environment support this path at all? */
   readonly supported: boolean;
 }
@@ -109,21 +156,40 @@ async function postStt(url: string, wav: Uint8Array): Promise<string> {
 export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   private readonly tts = new BrowserVoiceAdapter();
   private readonly o: Required<
-    Omit<WakeWordAdapterOptions, "audioBackend" | "runner" | "transcribe" | "onUnavailable">
+    Omit<
+      WakeWordAdapterOptions,
+      "audioBackend" | "runner" | "transcribe" | "onUnavailable" | "rearmCooldownMs" | "startRetryBackoffMs"
+    >
   >;
+  private readonly rearmCooldownMs: number;
+  private readonly startRetryBackoffMs: number;
   private readonly audio: WakeAudioBackend;
   private readonly runner: WakeRunnerLike;
   private readonly transcribe: (wav: Uint8Array) => Promise<string>;
   private readonly onUnavailable?: (reason: "not-allowed" | "start-blocked") => void;
-  /** Set once `begin()` fails fatally — stops the engine's `onEnd` retry loop. */
+  /** Set once the mic cannot be acquired at all — stops the engine's retry loop. */
   private fatal = false;
 
-  private phase: "off" | "wake" | "command" | "busy" = "off";
+  /**
+   * `"idle"` = the audio backend is alive but not detecting (between turns / paused).
+   * The mic + AudioContext + worklet + ONNX runner are started ONCE and kept
+   * open for the whole session — re-arming after a turn is just a state flip, not
+   * a fresh `getUserMedia` (which iOS Safari frequently hangs on right after TTS).
+   */
+  private phase: "idle" | "wake" | "command" | "busy" = "idle";
   private handlers: AyasListenHandlers | null = null;
   private cmd: Float32Array[] = [];
   private cmdMs = 0;
   private silenceMs = 0;
   private cooldownUntil = 0;
+
+  private audioUp = false;
+  private starting: Promise<void> | null = null;
+  private startAttempts = 0;
+  private cyclesCompleted = 0;
+  private lastError: string | null = null;
+  private disposed = false;
+  private readonly onVisibility = () => this.recoverOnForeground();
 
   constructor(options: WakeWordAdapterOptions = {}) {
     this.o = {
@@ -145,6 +211,28 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       });
     this.transcribe = options.transcribe ?? ((wav) => postStt(this.o.sttUrl, wav));
     this.onUnavailable = options.onUnavailable;
+    this.rearmCooldownMs = options.rearmCooldownMs ?? REARM_COOLDOWN_MS;
+    this.startRetryBackoffMs = options.startRetryBackoffMs ?? 400;
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", this.onVisibility);
+    }
+  }
+
+  /** Numeric / enum status for diagnostics — no audio, no secrets. */
+  getStatus(): WakeAdapterStatus {
+    return {
+      mic: this.fatal
+        ? "fatal"
+        : this.audioUp
+          ? "on"
+          : this.starting
+            ? "starting"
+            : "off",
+      phase: this.phase,
+      cyclesCompleted: this.cyclesCompleted,
+      startAttempts: this.startAttempts,
+      lastError: this.lastError,
+    };
   }
 
   /* ---- TTS + capability: delegate to the browser adapter ---- */
@@ -178,38 +266,100 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     void lang; // the openWakeWord model + the whisper route are both tr-only
     void options;
     this.handlers = handlers;
-    // A prior fatal failure means this device cannot run the wake engine —
-    // don't re-attempt `begin()` on every `onEnd` retry; end quietly instead.
-    if (this.fatal) {
-      this.phase = "off";
+
+    // A device that has NO mic access will never get one — end quietly instead
+    // of letting the engine's `onEnd` loop retry `begin()` forever.
+    if (this.fatal || this.disposed) {
+      this.phase = "idle";
       queueMicrotask(() => handlers.onEnd());
       return { stop: () => {} };
     }
-    this.phase = "wake";
+
     this.resetCommand();
-    void this.begin(handlers);
+    this.phase = "wake";
+
+    if (this.audioUp) {
+      // Re-arm after a turn: the mic + worklet are still live. Just clear the
+      // streaming window so a stale partial "AYAS" can't fire.
+      this.runner.reset();
+    } else if (!this.starting) {
+      void this.ensureAudio(handlers);
+    }
+
     return {
+      // The engine calls this on every `teardownRecognition` (per turn). It is
+      // a PAUSE, not a teardown — keep the mic warm for the re-arm.
       stop: () => {
-        this.phase = "off";
-        this.handlers = null;
-        this.audio.stop();
+        if (this.phase !== "command" && this.phase !== "busy") this.phase = "idle";
       },
     };
   }
 
-  private async begin(handlers: AyasListenHandlers): Promise<void> {
-    try {
-      if (!this.runner.ready) await this.runner.init();
-      this.runner.reset();
-      await this.audio.start((frame) => this.onFrame(frame));
-    } catch (error) {
-      this.phase = "off";
-      this.fatal = true;
-      const reason = (error as Error).message?.includes("Permission") ? "not-allowed" : "start-blocked";
-      this.onUnavailable?.(reason);
-      handlers.onError(reason);
-      handlers.onEnd();
-    }
+  /** Bring the mic + worklet + ONNX runner up ONCE, with a bounded retry. */
+  private async ensureAudio(handlers: AyasListenHandlers): Promise<void> {
+    if (this.audioUp || this.starting || this.disposed) return;
+    const run = (async () => {
+      for (this.startAttempts = 1; this.startAttempts <= MAX_START_ATTEMPTS; this.startAttempts += 1) {
+        try {
+          if (!this.runner.ready) {
+            await withTimeout(this.runner.init(), AUDIO_START_TIMEOUT_MS, "runner-init");
+          }
+          this.runner.reset();
+          await withTimeout(
+            this.audio.start((frame) => this.onFrame(frame)),
+            AUDIO_START_TIMEOUT_MS,
+            "mic-start",
+          );
+          if (this.disposed) {
+            this.audio.stop();
+            return;
+          }
+          this.audioUp = true;
+          this.lastError = null;
+          return;
+        } catch (error) {
+          this.lastError = (error as Error)?.name || (error as Error)?.message || "start-error";
+          try {
+            this.audio.stop();
+          } catch {
+            /* ignore */
+          }
+          if (isFatalMediaError(error) || this.startAttempts >= MAX_START_ATTEMPTS) {
+            this.fatal = true;
+            const reason = isFatalMediaError(error) ? "not-allowed" : "start-blocked";
+            this.onUnavailable?.(reason);
+            handlers.onError(reason);
+            handlers.onEnd();
+            return;
+          }
+          await delay(this.startRetryBackoffMs * this.startAttempts);
+          if (this.disposed) return;
+        }
+      }
+    })();
+    this.starting = run.finally(() => {
+      this.starting = null;
+    });
+    await this.starting;
+  }
+
+  /** iOS suspends a backgrounded AudioContext — resume it on the way back. */
+  private recoverOnForeground(): void {
+    if (this.disposed || this.fatal || typeof document === "undefined") return;
+    if (document.visibilityState !== "visible" || !this.audioUp) return;
+    void (async () => {
+      try {
+        const healthy = this.audio.recover ? await this.audio.recover() : true;
+        if (healthy || this.disposed) return;
+        // The mic track ended — rebuild once (bounded by ensureAudio's retries).
+        this.audioUp = false;
+        this.startAttempts = 0;
+        const handlers = this.handlers;
+        if (handlers) await this.ensureAudio(handlers);
+      } catch {
+        /* leave it; the next turn's re-arm will try again */
+      }
+    })();
   }
 
   private resetCommand(): void {
@@ -266,18 +416,34 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     } catch (error) {
       handlers.onError((error as Error).message === "stt-503" ? "network" : "unknown");
     } finally {
-      this.cooldownUntil = Date.now() + REARM_COOLDOWN_MS;
-      this.phase = "off";
-      this.audio.stop();
+      // Pause detection + start the re-arm cooldown, but KEEP the mic open — the
+      // engine will re-arm us via `startListening` after it speaks the reply.
+      this.cooldownUntil = Date.now() + this.rearmCooldownMs;
+      this.phase = "idle";
+      this.cyclesCompleted += 1;
       handlers.onEnd(); // engine re-arms (wake-engine == continuous for re-arm)
     }
   }
 
   dispose(): void {
-    this.phase = "off";
+    this.disposed = true;
+    this.phase = "idle";
     this.handlers = null;
-    this.audio.stop();
-    this.runner.dispose();
+    this.audioUp = false;
+    this.starting = null;
+    if (typeof document !== "undefined") {
+      document.removeEventListener("visibilitychange", this.onVisibility);
+    }
+    try {
+      this.audio.stop();
+    } catch {
+      /* ignore */
+    }
+    try {
+      this.runner.dispose();
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -316,6 +482,19 @@ class MediaStreamWorkletBackend implements WakeAudioBackend {
     src.connect(this.node);
     this.node.connect(gain);
     gain.connect(this.ctx.destination);
+  }
+
+  async recover(): Promise<boolean> {
+    const track = this.stream?.getAudioTracks()[0];
+    if (!this.ctx || !track || track.readyState === "ended" || !track.enabled) return false;
+    if (this.ctx.state === "suspended") {
+      try {
+        await this.ctx.resume();
+      } catch {
+        return false;
+      }
+    }
+    return this.ctx.state === "running";
   }
 
   stop(): void {

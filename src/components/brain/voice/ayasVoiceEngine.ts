@@ -98,6 +98,12 @@ export interface AyasVoicePlatform {
   ): AyasListenHandle;
   speak(text: string, options: AyasSpeakOptions): AyasSpeakHandle;
   cancelSpeech(): void;
+  /**
+   * Release any long-lived host resource (a wake engine holds the mic +
+   * AudioContext + ONNX sessions open across turns). Called when the engine is
+   * disposed — `handle.stop()` between turns must NOT tear those down.
+   */
+  dispose?(): void;
 }
 
 /* ------------------------------------------------------------------ engine --- */
@@ -518,6 +524,11 @@ export class AyasVoiceEngine {
     this.clearTimer("speakStartTimer");
     this.teardownRecognition();
     this.safeCancelSpeech();
+    try {
+      this.platform.dispose?.();
+    } catch {
+      /* ignore */
+    }
     try {
       this.offVoicesChanged();
     } catch {

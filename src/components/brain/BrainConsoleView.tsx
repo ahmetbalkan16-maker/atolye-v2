@@ -225,6 +225,7 @@ function AyasPresenceCard(props: BrainConsoleViewProps) {
           ttsAvailable: props.voice.capability.tts,
           listening: props.voice.listening,
           state: props.voice.state,
+          mode: props.voice.recognitionMode,
         }
       : undefined,
   });

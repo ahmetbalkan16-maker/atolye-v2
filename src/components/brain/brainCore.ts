@@ -187,6 +187,8 @@ export interface AyasPresenceInput {
     readonly ttsAvailable: boolean;
     readonly listening: boolean;
     readonly state: AyasVoiceState;
+    /** `"wake-engine"` = the on-device "AYAS" detector; else tap-to-talk. */
+    readonly mode?: "continuous" | "single-shot" | "wake-engine";
   };
 }
 
@@ -204,6 +206,8 @@ export interface AyasPresenceView {
   readonly voice: AyasPresenceRow;
   readonly mobile: AyasPresenceRow;
   readonly security: AyasPresenceRow;
+  /** `true` when the on-device "AYAS" wake word is live (no per-turn tap). */
+  readonly handsFree: boolean;
   /** Generic, transport-agnostic reachability hint (never a hostname). */
   readonly reachHint: string;
   readonly cta: {
@@ -240,14 +244,21 @@ export function deriveAyasPresence(input: AyasPresenceInput): AyasPresenceView {
   const statusTone: "ok" | "warn" | "off" = offline ? "off" : degraded ? "warn" : "ok";
 
   const hasVoice = Boolean(input.voice && (input.voice.ttsAvailable || input.voice.sttAvailable));
+  const handsFree = input.voice?.mode === "wake-engine";
+  const voiceState = input.voice?.state ?? "idle";
   const voice: AyasPresenceRow = offline
     ? { label: "Ses", value: "Çevrim dışı", tone: "off" }
     : !hasVoice
       ? { label: "Ses", value: "Bu cihazda ses yok", tone: "off" }
       : {
           label: "Ses",
-          value: ayasVoicePresenceValue(input.voice?.state ?? "idle"),
-          tone: input.voice?.state === "error" ? "warn" : "ok",
+          value:
+            voiceState === "idle" && input.voice?.listening
+              ? handsFree
+                ? "\"AYAS\" bekleniyor (eller serbest)"
+                : "\"AYAS\" bekleniyor"
+              : ayasVoicePresenceValue(voiceState),
+          tone: voiceState === "error" ? "warn" : "ok",
         };
 
   const mobile: AyasPresenceRow = offline
@@ -272,12 +283,12 @@ export function deriveAyasPresence(input: AyasPresenceInput): AyasPresenceView {
   const cta: AyasPresenceView["cta"] = offline
     ? { label: "Çevrim dışı", kind: "disabled" }
     : hasVoice && input.voice?.sttAvailable && !input.voice.listening
-      ? { label: "AYAS ile sesli konuş", kind: "voice" }
+      ? { label: handsFree ? "Eller serbest — \"AYAS\" de" : "AYAS ile sesli konuş", kind: "voice" }
       : input.voice?.listening
         ? { label: "AYAS'a yaz", kind: "text" }
         : { label: "AYAS ile konuş", kind: "text" };
 
-  return { online, statusTr, statusTone, voice, mobile, security, reachHint, cta };
+  return { online, statusTr, statusTone, voice, mobile, security, handsFree, reachHint, cta };
 }
 
 /* ------------------------------------------------------------------------- *

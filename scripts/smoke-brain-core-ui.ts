@@ -304,6 +304,36 @@ async function run() {
     assert.equal(p.mobile.value, "Mobil erişim hazır");
     assert.match(p.security.value, /yürütme kapısı kapalı/);
     assert.equal(p.cta.kind, "voice");
+    assert.equal(p.handsFree, false, "no wake engine → not hands-free");
+  });
+
+  await scenario("11d2. deriveAyasPresence — wake engine active → hands-free label + armed hint", () => {
+    const armed = deriveAyasPresence({
+      connectivity: "online",
+      secureContext: true,
+      executionGate: "CLOSED",
+      voice: { sttAvailable: true, ttsAvailable: true, listening: true, state: "idle", mode: "wake-engine" },
+    });
+    assert.equal(armed.handsFree, true);
+    assert.match(armed.voice.value, /eller serbest/i);
+    // not listening yet → the CTA advertises hands-free
+    const idle = deriveAyasPresence({
+      connectivity: "online",
+      secureContext: true,
+      executionGate: "CLOSED",
+      voice: { sttAvailable: true, ttsAvailable: true, listening: false, state: "idle", mode: "wake-engine" },
+    });
+    assert.equal(idle.cta.kind, "voice");
+    assert.match(idle.cta.label, /eller serbest/i);
+    // fell back to the tap path
+    const tap = deriveAyasPresence({
+      connectivity: "online",
+      secureContext: true,
+      executionGate: "CLOSED",
+      voice: { sttAvailable: true, ttsAvailable: true, listening: false, state: "idle", mode: "single-shot" },
+    });
+    assert.equal(tap.handsFree, false);
+    assert.equal(tap.cta.label, "AYAS ile sesli konuş");
   });
 
   await scenario("11e. deriveAyasPresence — offline never fakes online; CTA disabled", () => {

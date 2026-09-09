@@ -1,5 +1,57 @@
 ---
 
+## AYAS wake engine — persistent mic re-arm (works once → dead FIXED); gate CLOSED - 2026-09-09
+
+**Branch:** `wip/ayas-graphify-final-execution` (off `af6a6cc`). NOT merged / NOT pushed.
+
+**Operator iPhone test:** first `/brain` voice call answered; **every call after that — nothing**,
+and a fresh Voice Lab load afterward also dead.
+
+**ROOT CAUSE — RE-ARM (PROVEN by code trace + the 12-cycle test):** `WakeWordVoiceAdapter` tore
+down the **entire** audio stack after every turn — `finishCommand` `finally: this.audio.stop()`
+(mic track stopped, AudioContext closed, worklet nulled) — then rebuilt it on re-arm
+(`begin()` → new `getUserMedia` + new `AudioContext` + `addModule`). On iOS Safari a second
+`getUserMedia` right after `speechSynthesis` + a `track.stop()` frequently **hangs** (promise never
+resolves → `begin()` awaits forever → AYAS silent, no error) or returns a muted track; the repeated
+`AudioContext` open/close can wedge WebKit's media process so even a **fresh page** can't
+`getUserMedia` (→ "Voice Lab also dead"). Secondary: `af6a6cc`'s `fatal` guard latched on the
+*first* transient failure and permanently killed the engine.
+**Server-side ruled out by measurement:** `/api/ayas/stt` + `/chat/stream` → 401 in <5 ms (not
+hung); GPU 42 °C / 482 MiB (no thermal hold); Ollama 200.
+
+**FIX (UI only) — `wakeWordVoiceAdapter.ts` + a 1-line engine hook:**
+- **Mic + worklet + ONNX runner start ONCE and stay open for the whole session.** Re-arm after a
+  turn = `runner.reset()` + `phase = "wake"` — never a fresh `getUserMedia`. `finishCommand`
+  `finally` now just `phase = "idle"` + cooldown; `handle.stop()` = PAUSE (not teardown). The mic
+  is released **only** on `dispose()`.
+- `AyasVoicePlatform.dispose?()` — new optional; `AyasVoiceEngine.dispose()` calls it (the engine's
+  per-turn `handle.stop()` churn must not free long-lived host resources). Fixes a real leak (the
+  adapter's `dispose()` was previously never called in production).
+- `ensureAudio()`: `withTimeout(12 s)` on `runner.init()` + `audio.start()` (hang guard) + **bounded
+  retry** (3 × linear backoff) + `fatal` **only** on a real `NotAllowedError`/permission denial
+  (`isFatalMediaError`). No retry storm.
+- **Foreground recovery:** `visibilitychange`→visible → `audio.recover()` resumes a suspended
+  AudioContext; if the mic track `ended` → rebuild once (bounded). `MediaStreamWorkletBackend.recover()`.
+- Observability: `getStatus()` → `{ mic, phase, cyclesCompleted, startAttempts, lastError }` (no
+  audio, no secrets); `/brain` presence card shows "eller serbest" when the wake engine is armed.
+- **Threshold 0.70, wake→STT→AYAS→TTS→re-arm semantics, `useScreenWakeLock`, `OpenWakeWordRunner`,
+  `BrowserVoiceAdapter`, `/api/*` — untouched.**
+
+**Verify:** tsc 0 / eslint 0 err (22 pre-existing) / `next build` clean. `smoke-ayas-wake-adapter`
+9→**14** — first wake, **re-arm keeps mic alive (started=1, stopped=0)**, second wake, **12
+sustained cycles**, blank-STT + transport-fail recovery, `stop()`=pause / `dispose()`=teardown,
+permission-denied fatal (no storm), transient → 3 bounded retries → fatal, foreground resume +
+rebuild-once. `smoke-ayas-voice` 52, `smoke-brain-core-ui` 30→**31**, + brain/wake-runner/
+chat-stream/access-gate/stt/pwa green. `git diff --check` clean; 6 files, all voice/brain.
+
+**Runtime:** server restarted (`node` PID 27200, :3000, "Ready in 325ms"); `/brain` local+tunnel →
+307 `/login`; voice endpoints 401 in <5 ms; Caddy + quick tunnel unchanged (0 reconnects).
+
+**Unchanged:** Execution Gate CLOSED, `writeActionsEnabled`, auth/CSRF/access gate/session, STT
+backend, Graphify authority, `D:\AtolyeRuntime`, Caddy, `.env.local`, the operator-run quick tunnel.
+
+<!-- WAKE-ENGINE-PERSISTENT-MIC-END -->
+
 ## Brain home uses the REAL wake engine + wake-mic un-processing; gate CLOSED - 2026-09-09
 
 **Branch:** `wip/ayas-graphify-final-execution` (off `0ef4f40`). NOT merged / NOT pushed.
