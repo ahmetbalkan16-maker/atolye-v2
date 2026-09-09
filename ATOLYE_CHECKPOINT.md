@@ -1,5 +1,89 @@
 ---
 
+## AYAS MASTER FULL ACTIVATION - execution control plane BUILT; **ACTIVATION = BLOCKED** (operator + device gated); gate stays CLOSED - 2026-09-09
+
+**Status:** Tek komutlu "inspect → implement → test → verify → fix → retest" turu. INSPECT + AUDIT
+sonrası **güvenlik-kritik AYAS execution control plane** sıfırdan kuruldu (fail-closed, gate
+DEFAULT = CLOSED), AYAS chat model profili ve PWA manifest eklendi. **Aktivasyon YAPILMADI** —
+komutta `AYAS AKTİVASYON ONAY` yok (§22 → HARD STOP), ayrıca HTTPS / `AYAS_ACCESS_KEY` / gerçek
+cihaz testleri operatör/donanım kapılı. `ayasExecutionGate = "CLOSED" as const` (autonomy sabiti)
+DEĞİŞMEDİ; `AyasAutonomousStore` fail-closed DEĞİŞMEDİ; storage authority DEĞİŞMEDİ; `.env.local`
+DEĞİŞMEDİ. Commits `feat(ayas)` ×3. **Push YOK.**
+
+### Kurulan — `src/lib/ayas/execution/` (ayrı control plane, `ca84b1b`)
+
+- **`AyasExecutionGate.ts`** — saf state machine `CLOSED→ARMED→READY→OPEN→EXECUTING→COMPLETED→READY`.
+  `open` bir operatör aktivasyon yetki id'si ister (LLM asla veremez); izinsiz `(state,event)` → **fault
+  → CLOSED**; `fault`/`close` her durumda CLOSED.
+- **`AyasExecutionGateStore.ts`** — durable: `gate.json` yoksa → CLOSED; monotonik `sequence`;
+  append-only `gate-log/<seq>.json` (exclusive open → replay/eşzamanlı yazar = `LOG_CONFLICT`);
+  `expectedSequence` CAS; atomik temp→fsync→rename; bozuk → `read()`'te loud + karar için fail-closed
+  CLOSED (dosya asla ezilmez); restart reload.
+- **`AyasExecutionPolicy.ts`** — deterministik allowlist (tek etkin eylem: SALT-OKUNUR
+  `inspect-project`; `run-pipeline-stage` vb. rezerve, etkin değil). Reddeder: bilinmeyen/rezerve
+  eylem, bozuk plan, güvensiz proje slug'ı (traversal/absolute/drive/ayraç), shell/injection içerik,
+  oversize. LLM yalnız *plan* üretir; karar deterministik katman.
+- **`AyasExecutionAuthorization.ts`** — durable tek-kullanımlık grant, kanonik istek digest'ine bağlı,
+  5 dk TTL. Replay/expiry/binding-mismatch/unknown → fail closed. Tam audit kimliği (`executionId`,
+  `authorizationId`, `action`, `plan`, `intent`, `state`, timestamps, `resultDigest`).
+- **`AyasSafeExecutors.ts`** — yalnız salt-okunur executor; `inspect-project` → `ProjectReader`
+  (runtime authority yolu, repo-local değil). `PipelineRunner` yok, shell yok, yazma yok.
+- **`AyasExecutionBridge.ts`** — tek yol: policy → gate (CLOSED → DENY) → `authorization.consume` →
+  gate `begin-execution` → executor (typed args, timeout) → `complete-execution` → `settle` → READY.
+  `begin-execution` sonrası her hata → gate `fault` → CLOSED + authz `failed`. Ham model metni hiçbir
+  yere geçmez; hiçbir şey shell'e gitmez.
+- `scripts/smoke-ayas-execution-gate.ts` (16) + `smoke-ayas-execution-bridge.ts` (18) — tam §17
+  negatif matris, durability, restart, replay/CAS, fault→CLOSED, bozuk→loud, ve TEST-scoped açılmış
+  gate ile **1 gerçek uçtan uca `inspect-project`** (gerçek gate CLOSED kalır). `.gitignore`:
+  `data/brain/execution/` + `experience/`.
+
+### Model profili (`e68910b`) + PWA (`e68910b`)
+
+- **`src/lib/ayas/AyasModelProfile.ts`** — opsiyonel `AYAS_OLLAMA_MODEL` override: yalnız `askAyas`
+  chat yolunu etkiler (global `OLLAMA_MODEL` ve tüm pipeline stage'leri DEĞİL). Set değilse → pipeline
+  modeli; geçersiz değer → yok sayılır (chat asla config'te hard-fail etmez). `askAyas` artık
+  `createAyasChatProvider()` (aynı `OllamaProvider` sınıfı, hâlâ hard-pinned). `qwen2.5:7b` zaten
+  pull'lu, A2000 12GB'ye sığıyor — **öneri: `AYAS_OLLAMA_MODEL=qwen2.5:7b`, uygulanmadı** (operatör).
+  `smoke-ayas-model-profile.ts` (6); `smoke-ayas-chat` senaryo K güncellendi.
+- **`app/manifest.ts`** → `/manifest.webmanifest` (accessGate zaten açık listede), name "Atölye AYAS",
+  `start_url /brain`, standalone, SVG ikonlar (`public/ayas-icon*.svg`). `app/layout.tsx`: `lang`
+  `en`→`tr`, gerçek Türkçe başlık, `viewport` (device-width, viewport-fit cover), apple-web-app meta.
+  **Service worker / offline shell ayrı follow-up**; install + offline gerçek cihaz gerektirir.
+
+### Testler
+
+`tsc --noEmit` temiz. eslint **0 error / 22 warn** (Sprint 206 baseline). `next build` exit 0
+(`/manifest.webmanifest` route üretildi). Smoke — **17 AYAS/Brain + 15 storage/runtime suite = hepsi
+PASS**: ayas-model-profile(6)/execution-gate(16)/execution-bridge(18)/studio-context(12)/chat(12)/
+voice(36)/intent-intake(13)/access-gate(14) + brain-core-ui/foundation/worker/worker-cycle/task-store/
+security/probes/plan-store + ayas-autonomous; c2b5/6/6b/9/9b/11/12 + f12/f13/f16/f17 +
+production-execution-durable-recovery + project-storage-hygiene + external-runtime-root +
+runtime-backup. Pre-existing `129-25c-2a`/`-2b-4` baseline.
+
+### Gerçek runtime doğrulaması
+
+`createRuntimeStorageContext()` → `explicit-external`, `D:\AtolyeRuntime\projects`. `active-authority.json`
+`s206-genesis-01` seq 1. `ProjectReader.listProjects()` = 16 == `AyasStudioContext` = 16. **Gerçek
+`AyasExecutionGateStore` (`data/brain/execution/gate.json`) → state CLOSED, degraded=false**
+(dosya henüz yok = sentetik CLOSED). Autonomy sabiti CLOSED. Ollama erişilebilir (`qwen2.5:7b` +
+`qwen2.5:3b`). Access gate `disabled-dev` (`AYAS_ACCESS_KEY` yok → operatör kapısı).
+
+### Aktivasyon neden BLOCKED (operatör + donanım — kod değil)
+
+`AYAS AKTİVASYON ONAY` yok (§22) → gate CLOSED. HTTPS / TLS bu ortamda kurulamaz (mobil Web Speech +
+mic secure context ister). `AYAS_ACCESS_KEY` bir secret — burada yazılmaz/loglanmaz. Gerçek telefon/
+mic/TTS/install fiziksel cihaz ister. Streaming (token-token) + gerçek write execution kendi ayrı
+sprint'leri. Detay: `docs/AYAS_ACTIVATION.md` §7.
+
+### Sıradaki
+
+`docs/AYAS_ACTIVATION.md` §7 tablosu — her satır bir operatör adımı veya ayrı sprint. Aktivasyon için:
+operatör `AYAS AKTİVASYON ONAY` verir → tasarlanmış operatör aktivasyon akışı gate'i
+`CLOSED→ARMED→READY→OPEN` sürükler (hard-code OPEN yok). **PHONE REAL-HARDWARE TEST = PENDING USER
+DEVICE TEST.**
+
+<!-- AMFA-END -->
+
 ## Sprint 208 - AYAS FINAL ACTIVATION — **ACTIVATION = BLOCKED** (gate stays CLOSED); AYAS studio context + reply guard shipped - 2026-09-09
 
 **Status:** Bu sprint storage migration değil — amaç AYAS/Brain Core'u gerçek backend + runtime

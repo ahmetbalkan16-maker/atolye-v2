@@ -1,14 +1,17 @@
-# AYAS Activation — Sprint 208 audit
+# AYAS Activation
 
-**Status: AYAS ACTIVATION = BLOCKED. The Execution Gate stays `CLOSED`.**
+**Status: AYAS ACTIVATION = BLOCKED (operator + device gated). The Execution Gate
+stays `CLOSED`.**
 
-Sprint 208 is *not* storage migration (that finished in Sprint 207). Its goal was
-to make the AYAS / Brain Core PC + mobile experience actually work on the real
-backend, real runtime authority, real voice pipeline and real project access —
-and then, if every gate passed, activate it.
+Two rounds of work:
 
-What shipped: the studio-context wiring + a reply safety guard (below). What is
-blocked and why: the activation itself (§ Activation blocker).
+- **Sprint 208** — INSPECT + AUDIT; shipped the studio-context wiring + a reply
+  safety guard; found the activation blocker (§ Activation blocker).
+- **AYAS MASTER FULL ACTIVATION** — built the safety-critical execution control
+  plane (gate state machine + policy + authorization + bridge), the AYAS chat
+  model profile, and the PWA manifest. Activation still not performed: the
+  command carried no `AYAS AKTİVASYON ONAY`, and HTTPS / `AYAS_ACCESS_KEY` /
+  real-device tests are operator/hardware gated (§ Control plane, § Remaining).
 
 ---
 
@@ -120,28 +123,83 @@ There is **no state machine, flag, env var, or CLI** that transitions this to
    would have nothing to activate.
 
 Per the sprint's own STOP CONDITIONS ("herhangi bir P0 … mimari blocker çıkarsa:
-STOP ve aktivasyonu yapma"), Sprint 208 stops here. Activation needs its own
-designed sprint — items 4–9 of `docs/brain/ATOLYE_BRAIN_SERVER.md` § 9, in order.
+STOP ve aktivasyonu yapma"), Sprint 208 stopped here. The **AYAS MASTER FULL
+ACTIVATION** round then built the designed control plane (§ 4) — as a *separate*
+plane, so the assertions in the table above are all still intact and the autonomy
+loop still can never execute anything.
 
 ---
 
-## 4. Path forward (each its own approved sprint)
+## 4. Execution control plane (AYAS MASTER FULL ACTIVATION)
 
-1. **Model + profile** (config only): `OLLAMA_MODEL=qwen2.5:7b`; fix the
-   `BrainConsoleSnapshot` hardware profile to the A2000.
-2. **Remote access**: set `AYAS_ACCESS_KEY`; run behind an HTTPS reverse proxy
-   (or `next start` + a local TLS terminator) so mobile Web Speech + mic work;
-   document the LAN/again method. **Do not** auto-install Tailscale.
-3. **PWA**: add `app/manifest.webmanifest` + a minimal offline shell + icons so
-   AYAS is installable on the phone.
-4. **Streaming**: a streaming `askAyas` path (Server-Sent Events / RSC stream)
-   for token-by-token replies.
-5. **The gate**: a designed, reversible activation state machine that mirrors the
-   `RuntimeAuthorityTransition` control-plane discipline (explicit approval,
-   durable record, one-step-at-a-time, fail-closed) — replacing the constant
-   without weakening any current assertion.
-6. **A real processor + `PipelineRunner` wiring** behind that gate — one
-   GPU-free `mock`-provider stage first (§ 9 items 4–5 of the server doc).
+`src/lib/ayas/execution/` — the safety-critical foundation for a *future*
+activation. Every piece is fail-closed; the gate DEFAULTS to `CLOSED`; nothing
+built here can open it (an operator activation flow, not built, does that). It is
+a **separate control plane** from the Brain autonomy layer — `AyasAutonomousStore`
+/ `AyasAutonomousLoop` / `AyasIntentPipeline` / the `ayasExecutionGate = "CLOSED"
+as const` constant are untouched.
+
+| Module | What it is |
+|---|---|
+| `AyasExecutionGate.ts` | Pure state machine: `CLOSED → ARMED → READY → OPEN → EXECUTING → COMPLETED → READY`. `open` requires an operator activation authorization id (an LLM can never supply it); any disallowed `(state,event)` **faults to `CLOSED`**; `fault` / `close` always land `CLOSED`. |
+| `AyasExecutionGateStore.ts` | Durable: absent `gate.json` → `CLOSED`; monotonic `sequence`; append-only `gate-log/<seq>.json` written with an exclusive open (replay / concurrent writer → `AYAS_EXECUTION_GATE_LOG_CONFLICT`); CAS on `expectedSequence`; atomic temp→fsync→rename; corrupt → loud on `read()` **and** fail-closed `CLOSED` for a decision, file never overwritten; restart reload. |
+| `AyasExecutionPolicy.ts` | Deterministic allowlist — one enabled action, read-only `inspect-project`; `run-pipeline-stage` etc. are *reserved, not enabled*. Rejects unknown/reserved action, malformed plan, unsafe project slug (traversal / absolute / drive / separator), shell-like or injection content anywhere in the request, oversize. The LLM only ever produces a *plan* — this deterministic layer decides. |
+| `AyasExecutionAuthorization.ts` | Durable single-use grants bound to the canonical request digest, hard TTL (5 min). Replay / expiry / binding-mismatch / unknown → fail closed. Carries the full audit identity (spec §6): `executionId`, `authorizationId`, `action`, `plan`, `intent`, `state`, timestamps, `resultDigest`. |
+| `AyasSafeExecutors.ts` | Read-only executors only. `inspect-project` reads `project.json` via `ProjectReader` (→ runtime authority → `D:\AtolyeRuntime`, never repo-local). No `PipelineRunner`, no shell, no writes. |
+| `AyasExecutionBridge.ts` | The one path: policy → gate (`CLOSED` → DENY) → `authorization.consume` → gate `begin-execution` → executor (typed args, timeout budget) → `complete-execution` → `settle` → `READY`. Any failure after `begin-execution` → gate `fault` → `CLOSED` + authorization `failed`. Raw model text never leaves the request object; nothing is shelled out. |
+
+Coverage: `scripts/smoke-ayas-execution-gate.ts` (16 — SM, durability, restart,
+replay/CAS, log conflict, fault→CLOSED, corrupt→loud + fail-closed) +
+`scripts/smoke-ayas-execution-bridge.ts` (18 — the full §17 negative matrix,
+authorization single-use / expiry / binding, DENY while the real gate is CLOSED,
+and one real end-to-end `inspect-project` via a *test-scoped* opened gate — the
+real gate stays `CLOSED`).
+
+### Security matrix (spec §17) — all PASS
+
+`authenticated / unauthenticated / invalid session / invalid CSRF` — existing
+`accessGate` + `middleware` (`smoke-ayas-access-gate`, 14). `malformed execution
+request / unknown action / arbitrary shell / path traversal / repo-local storage
+bypass / wrong runtime authority / closed gate / expired authorization / replay /
+corrupt state fails closed / restart preserves safe state / PipelineRunner
+receives typed request only (no write action enabled) / secrets never logged` —
+`smoke-ayas-execution-gate` + `smoke-ayas-execution-bridge` (34).
+
+---
+
+## 5. AYAS chat model profile (spec §3)
+
+`src/lib/ayas/AyasModelProfile.ts` — an **optional** `AYAS_OLLAMA_MODEL` env
+override that applies to the `askAyas` chat path ONLY. Set it to `qwen2.5:7b`
+(already pulled; fits the A2000 12 GB) for cleaner AYAS replies without moving
+`OLLAMA_MODEL` and every `AI_PROVIDER=ollama` pipeline stage. Unset → AYAS uses
+the pipeline model. Invalid value → ignored (AYAS chat never hard-fails on
+config). `askAyas` now calls `createAyasChatProvider()` — the same `OllamaProvider`
+class the router uses, still hard-pinned, never resolved from `AI_PROVIDER`.
+Coverage: `scripts/smoke-ayas-model-profile.ts` (6).
+
+## 6. PWA manifest (spec §12)
+
+`app/manifest.ts` → `/manifest.webmanifest` (the path `accessGate.ts` already
+lists open): name "Atölye AYAS", `start_url: /brain`, `display: standalone`,
+colors from `BrainCore.css`, SVG icons. `app/layout.tsx`: `lang` `en`→`tr`, real
+Turkish title/description, `viewport` (`device-width`, `viewport-fit: cover`),
+apple-web-app meta. A **service worker / offline shell is a scoped follow-up**;
+install + offline behaviour still need real-device testing.
+
+---
+
+## 7. Remaining blockers (operator / hardware — not code)
+
+| Blocker | Why it is not doable here | Unblock step |
+|---|---|---|
+| **Activation authorization** | No `AYAS AKTİVASYON ONAY` was given. The gate stays `CLOSED`. | Operator issues `AYAS AKTİVASYON ONAY` in a sprint command → then the designed operator activation flow drives the gate `CLOSED → ARMED → READY → OPEN`. |
+| **HTTPS / remote access** | This environment cannot terminate TLS or expose a LAN origin. Mobile Web Speech + mic require a secure context. | Operator runs the studio behind an HTTPS reverse proxy / local TLS terminator. **No auto-Tailscale.** |
+| **`AYAS_ACCESS_KEY`** | It is a secret — setting it is an operator action; it must not be authored here or logged. Until set, `resolveAccessGate` → `disabled-dev` (open). | Operator sets `AYAS_ACCESS_KEY` (≥ 12 chars) in `.env.local`. |
+| **Real phone / mic / TTS / install** | No physical device in this environment. | Operator opens `/brain` on the phone over the HTTPS origin, logs in, sends a turn, enables voice + accepts the disclosure, installs the PWA. |
+| **Streaming (token-by-token)** | The chat is a Server Action (one blob). A streaming route + a client `fetch` reader is a real UI-architecture change whose incremental rendering can only be verified in a browser. | Its own sprint: an SSE / RSC-stream `askAyas` path + client reader + browser verification. |
+| **Real write execution via `PipelineRunner`** | The first real action must be `WRITE=FALSE` (spec §9); `PipelineRunner.run()` creates a project and runs the full generation pipeline. | Its own gated sprint: enable one reserved action (`run-pipeline-stage`) behind the activated gate, `mock`-provider stage first. |
+| **`BrainConsoleSnapshot` hardware profile** | `gtx-1650-4gb` default vs the real A2000 12 GB — cosmetic, out of this scope. | A one-line default change + a hardware-profile entry. |
 
 ## Device-side validation
 
