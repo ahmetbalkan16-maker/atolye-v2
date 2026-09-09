@@ -1,5 +1,74 @@
 ---
 
+## AYAS FINALIZATION CONTINUOUS MASTER v2 - `resume-stage` write action DESIGNED+TESTED+DISABLED; PWA service worker (OFF); **ACTIVATION = BLOCKED**; gate CLOSED - 2026-09-09
+
+**Status:** Sürekli döngü turu. Kalan en önemli teknik iş — ilk WRITE action `resume-stage` —
+tamamen tasarlandı, test edildi, **DEVRE DIŞI** tutuldu (`AYAS = ACTIVE, WRITE EXECUTION = DISABLED`
+geçerli bir final durum, §23). Konservatif PWA service worker + offline shell eklendi (default KAPALI).
+Aktivasyon YAPILMADI — `AYAS AKTİVASYON ONAY` yok (§22). Gerçek gate (autonomy sabiti +
+`AyasExecutionGateStore`) CLOSED, doğrulandı. `.env.local` DEĞİŞMEDİ. Storage authority DEĞİŞMEDİ.
+Commits `feat(ayas)` `999b8fe` + `feat(pwa)` `8b42d83` + docs. **Push YOK.** Detay:
+`docs/AYAS_ACTIVATION.md` §§4c, 6b, 7.
+
+### 1 — `resume-stage` write action (§12–16) — DESIGNED + TESTED + DISABLED (`999b8fe`)
+
+- **`src/lib/ayas/execution/AyasWriteActionPolicy.ts`** — `validateAyasResumeStageRequest`: TAM BİR
+  proje slug'ı (wildcard/liste yok), TAM BİR bilinen `ProductionStepKey` (wildcard yok), aşama
+  projenin resume planında olmalı, beklenmeyen key yok, shell/traversal içerik yok, geçerli
+  `authorizationId`. Saf.
+- **`src/lib/ayas/execution/AyasWriteExecutor.ts`** — `createAyasResumeStageExecutor`:
+  `PipelineRunner.resume(slug, { stopAfterStage: stage })` (bounded, non-recursive, TEK aşama).
+  Runner **injectable** — testler mock kullanır, `D:\AtolyeRuntime`'a asla dokunmaz. Bound aşılırsa
+  → throw (fail closed). Opsiyonel execution-time plan re-check.
+- **`AyasExecutionBridge`** — paylaşılan `runFromOpenGate` core'a refactor + write branch:
+  `writeActionsEnabled` (default **false**) → `resume-stage` isteği gate'e dokunmadan
+  `write-execution-disabled` ile DENY. Enabled iken: validate → `resumePlanStages` kontrolü → authz
+  (request'in `authorizationId`'si verilen id ile eşleşmeli) → gate → executor → settle → READY;
+  crash → fault CLOSED + authz `failed`; single-use → replay yok.
+- **`AyasExecutionAuthorization`** — `grant`/`consume` artık canonical-string descriptor kabul eder
+  (write path `canonicalAyasResumeStageRequest` ile bağlanır); `action` string'e genişletildi.
+  Read-only path DEĞİŞMEDİ.
+- `smoke-ayas-write-action.ts` (16): validator negatif matris, bounded executor, plan re-check,
+  overshoot→fail-closed, `write-disabled` DENY, uçtan uca (mock runner), authz-id mismatch,
+  crash→CLOSED + replay denied, `stage-not-in-plan`.
+
+### 2 — PWA service worker + offline shell (§7) — OFF BY DEFAULT (`8b42d83`)
+
+- **`public/sw.js`** — konservatif: non-GET asla intercept edilmez; `/api/**` HER ZAMAN network
+  (execution/auth/stream/snapshot online-only, asla cache'lenmez); navigation network-first +
+  `/offline` fallback; static asset cache-first; gerisi passthrough. `eval`/`importScripts`/
+  `WebSocket`/`indexedDB` yok.
+- **`app/offline/page.tsx`** — static shell (veri yok, execution yok).
+- **`src/components/PwaRegister.tsx`** — `/sw.js`'i YALNIZCA `NEXT_PUBLIC_ATOLYE_PWA_SW === "on"`
+  iken register eder; flag kapalıyken stale worker'ı unregister eder (temiz geri alma). **Default
+  KAPALI** — operatör gerçek browser'da offline davranışı doğruladıktan sonra açar.
+- `smoke-ayas-pwa-sw.ts` (7): SW parse + mock worker scope'ta eval; `/api` bypass'ı `respondWith`'ten
+  önce; execution primitive yok.
+
+### Testler
+
+`tsc --noEmit` temiz. eslint **0 error / 22 warn** (baseline). `next build` exit 0 (`/offline`
+prerendered). Smoke — yeni: write-action(16), pwa-sw(7); execution-bridge 23 (write path dahil,
+refactor sonrası); + 19 AYAS/Brain + 14 storage/runtime suite hepsi PASS. Pre-existing
+`129-25c-2a`/`-2b-4` baseline.
+
+### Gerçek runtime doğrulaması
+
+`explicit-external` / `D:\AtolyeRuntime\projects`. `ProjectReader` 16 == `AyasStudioContext` 16.
+**Autonomy sabiti CLOSED. Gerçek `AyasExecutionGateStore` CLOSED, degraded=false. Gerçek read isteği
+→ `gate` aşamasında DENIED. Gerçek write isteği → `write-execution-disabled` ile DENIED.**
+
+### Final durum sınıflandırması (§25)
+
+Teknik: streaming code / model profile / studio context / execution gate / authorization / bridge /
+read-only PipelineRunner / **write action (designed+tested, DISABLED)** / security / fail-closed /
+audit / restart safety / runtime authority / regression / build → **PASS**. Fiziksel/browser/operatör:
+streaming browser render / PWA install / mobile / STT / TTS / mic / HTTPS / `AYAS_ACCESS_KEY` /
+`AYAS AKTİVASYON ONAY` → **NOT TESTED / BLOCKED**. Genel: **BLOCKED** (aktivasyon onayı + HTTPS +
+secret + cihaz eksik). `AYAS = would-be ACTIVE (read-only) once activated; WRITE EXECUTION = DISABLED`.
+
+<!-- AMFA-CONTINUOUS-V2-END -->
+
 ## AYAS CONTINUOUS FINALIZATION - streaming + real read-only pipeline action + crash tests + hw profile; **ACTIVATION = BLOCKED** (operator + device); gate CLOSED - 2026-09-09
 
 **Status:** Tek komutlu sürekli döngü turu. Sprint 208 + AYAS MASTER FULL ACTIVATION üzerine devam:

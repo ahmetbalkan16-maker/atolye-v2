@@ -15,6 +15,9 @@ Rounds of work:
   (`pipeline-recovery-plan`, §12), §16 crash/restart tests, expanded §17 slug
   fuzz, the per-host Brain hardware profile (§19), and a real 3b-vs-7b model
   benchmark.
+- **AYAS FINALIZATION CONTINUOUS MASTER v2** — the first WRITE action
+  (`resume-stage`) fully designed + tested + kept DISABLED (§4c), and a
+  conservative PWA service worker + offline shell, OFF by default (§6b).
 
 Activation still not performed: no command carried `AYAS AKTİVASYON ONAY`, and
 HTTPS / `AYAS_ACCESS_KEY` / real-device / browser-render tests are
@@ -204,6 +207,43 @@ cannot be verified from this environment. Coverage:
 
 ---
 
+## 4c. First WRITE action — `resume-stage` — DESIGNED + TESTED, DISABLED (spec §12–§16, §23)
+
+`AyasExecutionBridge` gains `writeActionsEnabled` (default `false`). Until a
+future operator + activation step sets it, every `resume-stage` request is denied
+`write-execution-disabled` before the gate is touched. `AYAS = ACTIVE, WRITE
+EXECUTION = DISABLED` is a valid final state (§23).
+
+| Piece | What it is |
+|---|---|
+| `AyasWriteActionPolicy.ts` | `validateAyasResumeStageRequest` — exactly ONE plain project slug (no `*` / `all` / list), exactly ONE known `ProductionStepKey` (no wildcard), the stage must be in the project's resume plan, no unexpected keys, no shell/traversal content, a well-formed `authorizationId`. Pure. |
+| `AyasWriteExecutor.ts` | `createAyasResumeStageExecutor` — calls `PipelineRunner.resume(slug, { stopAfterStage: stage })` (the bounded, non-recursive one-stage resume). The `PipelineRunner` is **injected** — tests use a mock, never `D:\AtolyeRuntime`. A run that overshoots its bound → throw (fail closed). Optional execution-time plan re-check. |
+| `AyasExecutionAuthorization` | `grant` / `consume` accept a canonical-string descriptor, so the write path binds via `canonicalAyasResumeStageRequest`. Read-only path unchanged. |
+| `AyasExecutionBridge` | refactored to a shared `runFromOpenGate` core. Write branch: disabled → DENY; enabled → validate → `resumePlanStages` check → authz (the request's `authorizationId` must match the supplied one) → gate → executor → settle → READY; crash → fault CLOSED + authz `failed`; single-use → no replay. |
+
+Coverage: `scripts/smoke-ayas-write-action.ts` (16) — the validator negative
+matrix, the bounded executor, plan re-check, overshoot, `write-disabled` DENY,
+end-to-end via a mock runner + a test-scoped gate, authz-id mismatch, crash →
+CLOSED + replay denied, `stage-not-in-plan`.
+
+---
+
+## 6b. PWA service worker + offline shell (spec §7) — OFF BY DEFAULT
+
+`public/sw.js` — conservative: **never** intercepts a non-GET request; `/api/**`
+is **always** the network (execution / auth / stream / snapshot stay online-only,
+never cached); navigations are network-first with an `/offline` fallback; static
+assets cache-first; everything else passthrough. No `eval` / `importScripts` /
+`WebSocket` / `indexedDB`. `app/offline/page.tsx` is a static shell (no data, no
+execution). `src/components/PwaRegister.tsx` registers `/sw.js` **only** when
+`NEXT_PUBLIC_ATOLYE_PWA_SW === "on"` — off by default, and it unregisters a stale
+worker when the flag is off, so toggling it off is a clean revert. The operator
+enables it after verifying offline behaviour in a real browser. Coverage:
+`scripts/smoke-ayas-pwa-sw.ts` (7 — the SW is parsed + evaluated in a mock worker
+scope; the `/api` bypass precedes any `respondWith`).
+
+---
+
 ## 5. AYAS chat model profile (spec §3)
 
 `src/lib/ayas/AyasModelProfile.ts` — an **optional** `AYAS_OLLAMA_MODEL` env
@@ -250,9 +290,8 @@ install + offline behaviour still need real-device testing.
 | **`AYAS_ACCESS_KEY`** | It is a secret — setting it is an operator action; it must not be authored here or logged. Until set, `resolveAccessGate` → `disabled-dev` (open). The `/api/ayas/chat/stream` + `/api/ayas/intake` routes are auth-gated but the gate only *enforces* once the key is set. | Operator sets `AYAS_ACCESS_KEY` (≥ 12 chars) in `.env.local`. |
 | **Streaming — browser incremental render** | The SSE route + stream helper + client consumer are CLI-verified against live Ollama; incremental *rendering* in a real browser is not verifiable here. | Operator opens `/brain`, sends a turn, watches tokens append. |
 | **Real phone / mic / TTS / install** | No physical device in this environment. | Operator opens `/brain` on the phone over the HTTPS origin, logs in, sends a turn, enables voice + accepts the disclosure, installs the PWA. |
-| **Streaming (token-by-token)** | The chat is a Server Action (one blob). A streaming route + a client `fetch` reader is a real UI-architecture change whose incremental rendering can only be verified in a browser. | Its own sprint: an SSE / RSC-stream `askAyas` path + client reader + browser verification. |
-| **Real write execution via `PipelineRunner`** | The first real action must be `WRITE=FALSE` (spec §9); `PipelineRunner.run()` creates a project and runs the full generation pipeline. | Its own gated sprint: enable one reserved action (`run-pipeline-stage`) behind the activated gate, `mock`-provider stage first. |
-| **`BrainConsoleSnapshot` hardware profile** | `gtx-1650-4gb` default vs the real A2000 12 GB — cosmetic, out of this scope. | A one-line default change + a hardware-profile entry. |
+| **PWA service worker + offline** | Built (`public/sw.js`), OFF by default (`NEXT_PUBLIC_ATOLYE_PWA_SW`). Offline behaviour + install can only be verified in a real browser. | Operator sets `NEXT_PUBLIC_ATOLYE_PWA_SW=on`, verifies offline + install on a device. |
+| **`resume-stage` write execution** | Designed + tested, DISABLED (`writeActionsEnabled` default `false`). Enabling it means AYAS can trigger a real pipeline stage (generation, writes to `D:\AtolyeRuntime`). | Its own gated sprint, behind the activated gate + an explicit operator write-enable — one project, one stage, one authorization. |
 
 ## Device-side validation
 
