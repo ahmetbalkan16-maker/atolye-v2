@@ -1,5 +1,80 @@
 ---
 
+## Sprint 207 - CONTROLLED PRODUCTION CUTOVER — **CUTOVER = COMPLETE** (PUBLISH ONAYLI) - 2026-09-09
+
+**Status:** **C.2B.13 CLOSED. The production runtime authority is now the external root
+`D:\AtolyeRuntime` (+ authority root `D:\AtolyeAuthority`), not the in-repo default.**
+`PUBLISH ONAY` verildi → gerçek cutover yapıldı. Genesis transition `s206-genesis-01`
+`target-validated → published → old-root-quarantined`. `active-authority.json` yazıldı
+(CAS, `transitionSequence: 1`). `.env.local`'a **yalnız** iki authority değeri eklendi.
+Legacy `<repo>\data\projects` **silinmedi / rename edilmedi** (byte-unchanged, restorable —
+genesis quarantine sözleşmesi). Git push YOK. AYAS Execution Gate **CLOSED** kaldı
+(AYAS aktivasyonu = ayrı Sprint 208). Bu sprintte **kod değişikliği = 0** (F17-B Sprint 206).
+Commit: `docs(checkpoint)` — checkpoint + `RUNTIME_AUTHORITY_GENERATION_BINDING.md` §13 +
+`PRODUCTION_STORAGE_RELOCATION_AUDIT.md`. **Push yok.**
+
+### 10-adım cutover protokolü — hepsi PASS
+
+| # | Adım | Sonuç |
+|---|---|---|
+| 1 | INSPECT (pre-publish) | 22/22 PASS — transition `target-validated`, `activeAuthority: null`, candidate/backup verify + binding, `D:\AtolyeRuntime` consumed & durable-clean, node = 0 |
+| 2 | `authority:publish` (**POINT OF NO RETURN**) | `published`. `active-authority.json` yazıldı — `transitionSequence: 1`, `authorityGeneration: runtime-authority-generation-v1`, `authorityIdentity ca3fae93…`, `resolverBindingIdentity ab5e8716…`, `activatedAt 2026-09-09T04:26:54.657Z`. Target marker `D:\AtolyeRuntime\projects\.runtime-authority-generation.json` stamp'lendi. |
+| 3 | post-publish verify | PASS — `authority:status` active = `s206-genesis-01`, state `published`, marker ↔ active-authority birebir |
+| 4 | ENV SWITCH | `.env.local`'a **yalnız** `ATOLYE_RUNTIME_ROOT=D:\AtolyeRuntime` + `ATOLYE_RUNTIME_AUTHORITY_ROOT=D:\AtolyeAuthority` (+ 1 açıklama comment) eklendi. Mevcut 60 satır (`OPENAI_API_KEY`, `AI_PROVIDER=ollama`, `IMAGE_PROVIDER=real`, `AUDIO_PROVIDER=openai`, FFmpeg path'leri…) korundu. SHA-256 `bf52c74d…` (4051 b) → **`c27a0def3bd83d89c048c498e1749e5025242d7ab3b895d624aafaacb77e4c25`** (4344 b). |
+| 5 | ENV verify | 18/18 PASS — ENV-resolved context: `classification: explicit-external`, `projectsRoot: D:\AtolyeRuntime\projects`, `authorityRoot: D:\AtolyeAuthority`; marker compat `match`; legacy ≠ aktif root |
+| 6 | LEGACY ROOT separation | Legacy `<repo>\data\projects` raw contentDigest **`090b3455e51bef47b8f585571ee4db2e9f42f6747500b28ee522e4bfbe2ebb5f`** / 2371 (S204 frozen raw ile birebir) — byte-unchanged; 0 read-only file; **authority marker taşımıyor**; 2399 fs file (28 transient dahil). Not mixed with the active root. **Destructive delete YAPILMADI.** |
+| 7 | OLD-ROOT QUARANTINE (C.2B.11) | `authority:quarantine` → `old-root-quarantined`; `authority:finalize-quarantine` → **`{ kind: "genesis", rollbackAvailable: false }`** — genesis sözleşmesi: OS read-only barrier YOK, repo default writable kalır ki bir backup oraya restore edilebilsin (`quarantine/<binding>.json` genesis için yazılmaz). Manuel `rm`/`del`/`Remove-Item`/`rename` kullanılmadı. |
+| 8 | FINAL RUNTIME BOOT verify | PASS — runtime `D:\AtolyeRuntime` kullanıyor, authority `D:\AtolyeAuthority` üzerinden çözülüyor, legacy authority değil |
+| 9 | FINAL PRODUCTION VALIDATION | **27/27 PASS**, 7 gate: `authority:status` / runtime authority resolution / production-execution durable recovery (**11/11 clean** on live root) / runtime storage hygiene / external runtime root lifecycle / candidate·backup binding / authority generation enforcement (`enforce…` + `assert…Compatible` her ikisi `mode: match`) |
+| 10 | AYAS Execution Gate | **CLOSED** — `ayasExecutionGate = "CLOSED"`, `cutoverAuthorized = false` (verifier sabiti, runtime write yok). AYAS bu sprintte aktive **edilmedi**. |
+
+### Final byte fingerprints
+
+- **Live runtime authority** `D:\AtolyeRuntime\projects`: `runtimeAuthorityProjectsContentDigest`
+  = **`0e46cf6c161553cd7c1ac156b283f39041a0069745a059a5f26e5dc49628219d`** / **2371 files**
+  == frozen `logicalContentDigest` == candidate `projects/` digest. Raw inventory = **2372**
+  files (`+1` = the `.runtime-authority-generation.json` marker stamp'i, `runtimeAuthorityProjectsContentDigest`
+  onu SKIP eder — beklenen ve doğru).
+- **Legacy** `<repo>\data\projects`: `090b3455…` / 2371 (frozen S204 raw), byte-unchanged, no marker, writable.
+- **Backup** `b-0d971133190c` manifestSha `a5654b62a733b7e6137ee9e12bab172e499de18bb812e673a0bc351332be1b2a`,
+  aggregate `8701419987c94ecd8163fb6e0682d1f668d320566cb2bbccb74e3f76bd763ef4`.
+- **Candidate** `c-d3743b64c5830509cc380b58` — `candidateId candidate-d3743b64c5830509cc380b581dd4a7df71ede94a8930b82fada1c50c4a59aa74`,
+  manifestSha `b937958b94ab437956ba1bfba0ac52bb2fc9b126d0ec6f5d0d5c0f83fb0959f0`,
+  `sourceBackup.backupId b-0d971133190c`.
+
+### Regression
+
+`authority:status` OK. Smoke: c2b5/6/6b/8/9/9b/10a/11/12 + f12/f13/f16/f17 + runtime-backup +
+migration-candidate 2b-1/2b-2 + production-execution-durable-recovery + project-storage-hygiene +
+external-runtime-root-project-lifecycle **PASS**. `tsc --noEmit` temiz. eslint **0 error / 22 warn**
+(Sprint 206 `c00d227` baseline — dokunulmayan `RuntimeBackup*` dosyalarındaki kullanılmayan version
+sabiti import'ları; S207 kod değiştirmedi). `next build` **exit 0**. Pre-existing `129-25c-2a` /
+`-2b-4` aynı "Missing expected exception" imzası (baseline).
+
+### Safety recap
+
+Git HEAD `c00d227` (Sprint 206 kodu), origin'in **37 önünde**, **NOT pushed**. Working tree:
+Sprint 207 kod değişikliği yok; sadece bu 3 doküman. `.env.local` gitignored (tracked değil).
+tracked `data/projects` = **0**. `data/brain` git clean. node process = **0**. Execution Gate
+**CLOSED**. `cutoverAuthorized = false`.
+
+### D: artifacts (KORUNUYOR — `Remove-Item D:\Atolye*` YAPMA)
+
+- `D:\AtolyeRuntime` — **CANLI PRODUCTION RUNTIME AUTHORITY** (consumed target + marker; 2371+1 files).
+- `D:\AtolyeAuthority\authority-transition-v1\` — `active-authority.json` (sequence 1) +
+  `transitions\s206-genesis-01.json` (`old-root-quarantined`). `quarantine/` YOK (genesis).
+- `b-0d971133190c` + `c-d3743b64c5830509cc380b58` — verified backup + candidate (kaynak provenance).
+- `b-fee58282da89` + `c-817cdcd9df908176a5559e95` — stale (pre-F15-A), bırakıldı.
+- `D:\AtolyeRestoreVerify` boş.
+
+### Sıradaki adım
+
+**SPRINT 208 = ATÖLYE BEYNİ / AYAS FINAL ACTIVATION** — ayrı sprint. Bu sprintte başlatılmadı.
+Git push: oturum sonu kuralı gereği yapılabilir ama Sprint 207 komutu **"Git push yapma"** dedi →
+push NOT PERFORMED; HEAD `c00d227` + bu `docs(checkpoint)` commit local kalır.
+
+<!-- SPRINT-207-END -->
+
 ## Sprint 206 - F17 CLOSED (F17-B) → GENESIS AUTHORITY CHAIN AT `target-validated` - PRE-PUBLISH - 2026-09-09
 
 **Status:** **F17 = CLOSED via F17-B.** Gerçek genesis authority zinciri

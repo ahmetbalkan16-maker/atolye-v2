@@ -1,14 +1,19 @@
 # Runtime Authority-Generation Binding — C.2B.6 / C.2B.6b / C.2B.9 / C.2B.9b
 
-Status: **C.2B.6b + C.2B.9 + C.2B.9b DONE.** The marker is wired into production
-startup + recovery bootstrap (C.2B.6b, §5); the versioned authority transition
-protocol — quiescence, atomic publish, old-root quarantine, split-brain
-prevention, crash recovery — is implemented and enforced (C.2B.9, §6); and the
-genesis transition (repo → first external), the operator CLI, byte-exact
-materialization enforcement, the split-brain fix, and backup-recovery are done
-(C.2B.9b, §7). Master-sprint sessions 2026-09-08. A real project migration is
-still gated on a **re-run of the migration readiness audit** + its own approved
-sprint; `cutoverAuthorized` stays false.
+Status: **C.2B.6b + C.2B.9 + C.2B.9b DONE; C.2B.13 CUTOVER = COMPLETE (§13, Sprint
+207).** The marker is wired into production startup + recovery bootstrap (C.2B.6b,
+§5); the versioned authority transition protocol — quiescence, atomic publish,
+old-root quarantine, split-brain prevention, crash recovery — is implemented and
+enforced (C.2B.9, §6); the genesis transition (repo → first external), the
+operator CLI, byte-exact materialization enforcement, the split-brain fix, and
+backup-recovery are done (C.2B.9b, §7). **F13 / F14 / F15 / F16 / F17 — the five
+real-data blockers — are all closed (§§9–12).** As of Sprint 207 the real ~611 MB
+migration is done: genesis transition `s206-genesis-01` is `published` +
+`old-root-quarantined`, `.env.local` points production at `D:\AtolyeRuntime` /
+`D:\AtolyeAuthority`, and the legacy `data/projects` tree is retired as authority
+but left byte-intact and restorable. Master-sprint sessions 2026-09-08 / 09.
+`cutoverAuthorized` (a verifier constant) stays false and the AYAS Execution Gate
+stays CLOSED — AYAS activation is a separate sprint.
 
 This is the design + threat model for closing the durable half of the storage
 relocation audit's P0 items 2 and 3
@@ -651,3 +656,86 @@ reads the tree): 2399 fs files / 611073169 bytes / inventory aggregate
 
 **`PUBLISH ONAY` is now the only thing standing between `target-validated` and
 the real cutover.**
+
+## 13. C.2B.13 — controlled production cutover — **COMPLETE (Sprint 207, PUBLISH ONAYLI)**
+
+`PUBLISH ONAY` was given. The genesis authority chain `s206-genesis-01` was carried
+`target-validated → published → old-root-quarantined`, and the production runtime
+authority is now the external root `D:\AtolyeRuntime` (+ authority root
+`D:\AtolyeAuthority`), not the in-repo default. No code changed this sprint (F17-B
+was Sprint 206) — the work was the CLI transition + the `.env.local` switch + the
+C.2B.11 quarantine + validation.
+
+### `authority:publish` — the point of no return
+
+`authority:publish --authority-root D:\AtolyeAuthority --transition-id s206-genesis-01
+--target D:\AtolyeRuntime` did two things atomically-per-store:
+
+1. stamped `D:\AtolyeRuntime\projects\.runtime-authority-generation.json` (the target
+   generation marker), and
+2. wrote `D:\AtolyeAuthority\authority-transition-v1\active-authority.json` under the
+   CAS guard — `transitionSequence: 1` (first ever publish, monotonic), `authorityGeneration:
+   runtime-authority-generation-v1`, `authorityIdentity ca3fae93c330a99ef8cb87c9a102b88e3938c1fa75f63cdb3c82ab74ded5ed64`,
+   `resolverBindingIdentity ab5e8716675b472bdeda149ba967dd0db3548af5618b25f4a74875bae2f19d80`,
+   `activatedAt 2026-09-09T04:26:54.657Z`.
+
+The target marker and `active-authority.json` agree field-for-field.
+
+### ENV switch — additive only
+
+`.env.local` gained exactly `ATOLYE_RUNTIME_ROOT=D:\AtolyeRuntime` and
+`ATOLYE_RUNTIME_AUTHORITY_ROOT=D:\AtolyeAuthority` (plus one comment line). All 60
+pre-existing lines were preserved verbatim. SHA-256 `bf52c74dd8e0a9b1f2e0cd3c007ead3242113ce9e2ca46a1db63578bb694367e`
+(4051 b) → `c27a0def3bd83d89c048c498e1749e5025242d7ab3b895d624aafaacb77e4c25`
+(4344 b). `createRuntimeStorageContext()` then resolves `classification:
+explicit-external`, `projectsRoot: D:\AtolyeRuntime\projects`, `authorityRoot:
+D:\AtolyeAuthority`; `assertRuntimeAuthorityGenerationMarkerCompatible` → `match`;
+`enforceProductionRuntimeAuthorityGeneration(ctx, gen)` and
+`assertProductionRuntimeAuthorityGenerationCompatible(ctx, gen)` both → `mode: match`.
+
+### Old-root quarantine — genesis semantics
+
+`authority:quarantine` advanced the transition to `old-root-quarantined`;
+`authority:finalize-quarantine` returned `{ kind: "genesis", rollbackAvailable: false }`.
+For a **genesis** transition this is the documented contract, not a failure: no OS
+read-only barrier is applied and no `quarantine/<binding>.json` is written — the repo
+default `<repo>\data\projects` stays writable *on purpose* so a backup can be restored
+there if the external root is ever lost. Genesis rollback = a manual backup restore to
+the repo path, not a token-authorized reverse transition. The legacy tree is retired
+as *authority* by the `active-authority.json` pointer and the ENV switch, not by a
+filesystem mutation.
+
+### Legacy tree — untouched
+
+`<repo>\data\projects` after cutover: raw `runtimeAuthorityProjectsContentDigest`
+`090b3455e51bef47b8f585571ee4db2e9f42f6747500b28ee522e4bfbe2ebb5f` / 2371 (identical
+to the Sprint 204 frozen raw digest), 2399 fs files, **0 read-only files**, **no
+`.runtime-authority-generation.json`** (it was never made an authority). No destructive
+delete, rename, or move.
+
+### Final production validation — 27/27 PASS, 7 gates
+
+`authority:status` (active = `s206-genesis-01`, `published`/`old-root-quarantined`,
+sequence 1) · runtime authority resolution (ENV → external, ≠ legacy) · production
+execution durable recovery (**11/11 `clean`** on the live `D:\AtolyeRuntime` root) ·
+runtime storage hygiene (`runtimeAuthorityProjectsContentDigest` skips the marker →
+`0e46cf6c161553cd7c1ac156b283f39041a0069745a059a5f26e5dc49628219d` / 2371; raw
+inventory `2372` = `+1` marker, expected; no `.partial` / `.pipeline-jobs.*` leaked) ·
+external runtime root lifecycle (both roots outside the repo; store under
+`authorityRoot`) · candidate·backup binding (candidate verifies, `sourceBackup.backupId
+b-0d971133190c`, candidate `projects/` digest `0e46cf6c…` / 2371 == live authority
+digest) · authority generation enforcement (both gates `mode: match`).
+
+`tsc --noEmit` clean · eslint 0 err / 22 warn (`c00d227` baseline) · `next build`
+exit 0. Regression: c2b5/6/6b/8/9/9b/10a/11/12 + f12/f13/f16/f17 + runtime-backup +
+migration-candidate 2b-1/2b-2 + production-execution-durable-recovery +
+project-storage-hygiene + external-runtime-root-project-lifecycle — **PASS**.
+
+### What is still closed
+
+`cutoverAuthorized` stays `false` (a verifier constant, no runtime write); the AYAS
+Execution Gate stays `CLOSED`. AYAS activation is a separate sprint (208). Git HEAD
+`c00d227`, 37 commits ahead of origin, **NOT pushed** (the Sprint 207 command
+explicitly forbade push).
+
+**`CUTOVER = COMPLETE`.**
