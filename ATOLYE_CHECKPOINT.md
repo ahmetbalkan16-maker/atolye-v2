@@ -1,5 +1,54 @@
 ---
 
+## Sprint 210 - MASTER OPERATOR / DEVICE ACTIVATION — audit + small hardening; **ACTIVATION = BLOCKED**; gate CLOSED - 2026-09-09
+
+**Status:** Konsolidasyon/audit turu. Prior turlarda kurulan her katman denetlendi; yalnızca küçük,
+güvenli, desktop-korur düzeltmeler yapıldı. Execution Gate **CLOSED**, write execution **DISABLED**,
+storage migration TEKRARLANMADI, `.env.local` DEĞİŞMEDİ (sha `c27a0def…`), push YOK. Commit
+`harden(ayas)` `d2c126a` + docs. Genel durum: **BLOCKED** (operatör aktivasyon onayı + HTTPS +
+`AYAS_ACCESS_KEY` + gerçek cihaz eksik).
+
+### Yapılan küçük güvenli düzeltmeler
+
+- **`src/lib/auth/accessGate.ts`** — `isRequestOverHttps({urlProtocol, forwardedProto, forwardedSsl,
+  nodeEnv})`: login route session cookie'sini artık TLS-terminating reverse proxy arkasında
+  (`X-Forwarded-Proto: https`) veya production'da `Secure` işaretler (yalnız doğrudan `https://` URL
+  değil). Header'a güvenmek cookie'yi yalnızca DAHA kısıtlı yapar → unset/spoof güvenli. Local dev
+  `http://localhost` login çalışmaya devam eder. `OPEN_EXACT` += `/sw.js`, `/offline`,
+  `/ayas-icon*.svg` (PWA shell/ikonlar session'dan önce yüklenir — `/manifest.webmanifest` gibi).
+- **`src/components/brain/BrainCore.css`** — `.bc-shell` `env(safe-area-inset-*)` padding (telefon
+  çentik/home indicator); mobil composer input `font-size: 16px` (iOS zoom-on-focus yok);
+  640px altında `.bc-chat__log { max-height: 46vh }` + sticky composer (klavye açıkken input erişilir).
+  Desktop değişmedi.
+- **`docs/AYAS_REMOTE_ACCESS.md` (YENİ)** — operatör runbook: HTTPS neden zorunlu (mic/SW/Secure
+  cookie), `AYAS_ACCESS_KEY`, TLS-terminating reverse proxy (Caddy/nginx; Host + `X-Forwarded-Proto`
+  forward, SSE buffering yok), ilk telefon bağlantısı, opsiyonel per-host env. **Secret yok.**
+- `smoke-ayas-access-gate` +1 (15), `smoke-brain-core-ui` (25, safe-area + 16px assertion).
+
+### Audit sonuçları (küçük fix dışında değişiklik yok)
+
+Model profili (`AYAS_OLLAMA_MODEL`) + hw profili (`ATOLYE_BRAIN_HARDWARE_PROFILE`) mekanizmaları hazır,
+env-opt-in. Authentication (accessGate/middleware/HMAC/CSRF/brute-force) sağlam; `AYAS_ACCESS_KEY`
+missing → `disabled-dev` (operatör kapısı). PWA manifest + SW (OFF default) doğru; SW `/api/**`
+cache'lemiyor. Streaming code PASS (browser render NOT TESTED). STT/TTS/mic code PASS (device NOT
+TESTED). Read-only PipelineRunner (`inspect-project`, `pipeline-recovery-plan`) güvenli. `resume-stage`
+DENIED/DISABLED.
+
+### Gerçek runtime doğrulaması
+
+`explicit-external` / `D:\AtolyeRuntime\projects`. `ProjectReader` 16 == `AyasStudioContext` 16.
+`active-authority.json` `s206-genesis-01` seq 1 (DEĞİŞMEDİ). **Autonomy sabiti CLOSED. Gerçek
+`AyasExecutionGateStore` = CLOSED (dosya yok = fail-closed default), degraded=false. Gerçek read
+isteği → `gate` DENIED. Gerçek write isteği → `write-execution-disabled` DENIED.** `data/projects`
+tracked = 0, `data/brain` yalnız README.md, `data/brain/execution/gate.json` yok.
+
+### Testler
+
+`tsc` temiz. eslint **0 error / 22 warn** (baseline). `next build` exit 0. 21 AYAS/Brain + 16
+storage/runtime suite PASS. `129-25c-2a`/`-2b-4` aynı "Missing expected exception" baseline.
+
+<!-- SPRINT-210-END -->
+
 ## AYAS FINALIZATION CONTINUOUS MASTER v2 - `resume-stage` write action DESIGNED+TESTED+DISABLED; PWA service worker (OFF); **ACTIVATION = BLOCKED**; gate CLOSED - 2026-09-09
 
 **Status:** Sürekli döngü turu. Kalan en önemli teknik iş — ilk WRITE action `resume-stage` —
