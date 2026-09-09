@@ -1,5 +1,76 @@
 ---
 
+## Sprint 208 - AYAS FINAL ACTIVATION — **ACTIVATION = BLOCKED** (gate stays CLOSED); AYAS studio context + reply guard shipped - 2026-09-09
+
+**Status:** Bu sprint storage migration değil — amaç AYAS/Brain Core'u gerçek backend + runtime
+authority + ses + proje erişimi ile çalışır hale getirip aktive etmekti. **INSPECT + AUDIT yapıldı;
+iki gerçek "broken" parça düzeltildi; aktivasyon P0 mimari blocker nedeniyle YAPILMADI.**
+`ayasExecutionGate = "CLOSED"` kaldı. Detaylı denetim: `docs/AYAS_ACTIVATION.md`. Commit
+`feat(ayas)` + `docs`. **Push yok.**
+
+### Ne düzeltildi (read-only, additive)
+
+- **`src/lib/ayas/AyasStudioContext.ts` (YENİ)** — `loadAyasStudioContext()`: aktif runtime storage
+  context'i (her okuma yolu gibi `resolveRuntimeStorageContext`) + `ProjectReader.listProjects()`
+  üzerinden gerçek proje envanterini okur. `{ runtimeAuthority: {runtimeRoot, projectsRoot,
+  authorityRoot, classification, external}, projects: {total, byStatus, sample}, notes }`. Asla
+  throw etmez (fail-soft → `available:false`). Hiçbir şey yazmaz/çalıştırmaz.
+- **`src/components/brain/brainCore.ts`** — `buildAyasChatPrompt` opsiyonel `studio` alanı: prompt'a
+  "Atölye stüdyo bağlamı (salt-okunur)" bloğu ekler (aktif runtime authority yolu, proje sayısı,
+  durum dağılımı, örnek projeler + "yalnızca bu bloktan cevap ver, uydurma"). `studio` yoksa blok
+  yok (back-compat). Ayrıca `ayasReplyClaimsExecution(text)` — modelin "yürütme kapısını açıyorum /
+  pipeline'ı başlattım / git push yaptım / değişikliği uyguladım" gibi iddialarını (ve "açalım /
+  açıp çalıştırabiliriz" tekliflerini) yakalayan deterministik, Türkçe-farkında guard; negatif/ret
+  biçimleri (`açamam`, `açamazsın`, `açık değil`) kasıtlı olarak eşleşmez. `resolveAyasReply` böyle
+  bir yanıtı düşürüp dürüst deterministik yanıta döner.
+- **`app/brain/actions.ts`** — `askAyas` studio context'i (snapshot ile paralel) yükleyip geçirir.
+- **`scripts/smoke-ayas-studio-context.ts` (YENİ, 12 senaryo)** + `package.json`
+  `smoke:ayas-studio-context`.
+
+### Gerçek sonuç (canlı Ollama, `D:\AtolyeRuntime`)
+
+Öncesi: "kaç proje var?" → "hiç proje yok" (yanlış); "runtime authority neresi?" → bilemiyordu; bir
+yanıt düpedüz **"yürütme kapısını açıyorum"** dedi. Sonrası (`qwen2.5:3b`): "16 proje var" ✓,
+"D:\AtolyeRuntime" (bozuk dilbilgisiyle ama doğru), guard en kötü halüsinasyonu yakalıyor.
+**`qwen2.5:7b` (zaten pull'lu, A2000 12GB'ye sığıyor) ile 3/3 temiz + doğru** — `.env.local`'da
+`OLLAMA_MODEL` değişikliği ÖNERİLİR ama **uygulanmadı** (tüm pipeline stage'lerini de etkiler →
+operatör kararı).
+
+### Aktivasyon neden BLOCKED (P0 mimari)
+
+`ayasExecutionGate` = `"CLOSED" as const`; `AyasExecutionGate = typeof ayasExecutionGate` (tek
+değeri `"CLOSED"` olan tip). ~8 katmanda **assert** ediliyor — en kritiği
+`AyasAutonomousStore`: `executionGate !== "CLOSED"` olan bir state'i **yüklemeyi ve yazmayı
+reddediyor** (`AYAS_STORE_INVALID`). `OPEN`'a geçiren state machine / flag / env / CLI **YOK**.
+Açmak için: (1) sabiti `"OPEN"` yapmak — sprint yasağı ("yeni bypass / hard-coded OPEN oluşturma");
+(2) yeni gate state machine — yeni özellik + `AyasAutonomousStore` fail-closed assert'ini kaldırmak
+= STOP koşulu ("disable-security-control"); (3) AYAS→`PipelineRunner` gerçek execution yolu — hiç
+yok (`BrainWorkerCycle` yalnız safe stub). Sprint'in kendi STOP koşulu gereği burada durdum.
+
+### Testler
+
+`tsc --noEmit` temiz. eslint **0 error / 22 warn** (Sprint 206 baseline; yeni dosyalar 0 warn).
+`next build` exit 0. Smoke: ayas-studio-context (12, YENİ) + ayas-chat/voice/intent-intake/access-gate
++ brain-core-ui/foundation/worker/worker-cycle/task-store/security/probes/plan-store + ayas-autonomous
++ project-storage-hygiene/external-runtime-root/c2b5 — **hepsi PASS**. Pre-existing `129-25c-2a`/`-2b-4`
+baseline.
+
+### Değişmeyen / güvenlik
+
+`.env.local` DEĞİŞMEDİ (sha `c27a0def…`). `active-authority.json` / generation marker elle
+yazılMADI. `D:\Atolye*` dokunulmadı. `data/projects` / `data/brain` mutation = 0. Storage authority
+mekanizması değişmedi. Execution Gate CLOSED. `cutoverAuthorized = false`. Git HEAD öncesi `6d1d2ef`
+(Sprint 207), origin'in 38 önünde, **push YOK**. AYAS bu sprintte de execution'a bağlanMADI.
+
+### Sıradaki
+
+`docs/AYAS_ACTIVATION.md` §4 — model+profil, remote access (HTTPS + `AYAS_ACCESS_KEY`, Tailscale
+otomatik kurma YOK), PWA, streaming, tasarlanmış geri-alınabilir gate state machine, sonra gerçek
+processor + `PipelineRunner` wiring. Her biri ayrı onaylı sprint. **PHONE REAL-HARDWARE TEST =
+PENDING USER DEVICE TEST** (HTTPS origin + `AYAS_ACCESS_KEY` + telefonda `/brain`).
+
+<!-- SPRINT-208-END -->
+
 ## Sprint 207 - CONTROLLED PRODUCTION CUTOVER — **CUTOVER = COMPLETE** (PUBLISH ONAYLI) - 2026-09-09
 
 **Status:** **C.2B.13 CLOSED. The production runtime authority is now the external root

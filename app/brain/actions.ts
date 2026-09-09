@@ -28,6 +28,7 @@ import {
   loadBrainConsoleSnapshot,
   type BrainConsoleSnapshot,
 } from "@/lib/brain/ui/BrainConsoleSnapshot";
+import { loadAyasStudioContext } from "@/lib/ayas/AyasStudioContext";
 import {
   AYAS_CHAT_JSON_SCHEMA,
   AYAS_MAX_REPLY_TOKENS,
@@ -53,10 +54,16 @@ function textOf(output: AIProviderOutput): string {
 }
 
 export async function askAyas(input: AskAyasInput): Promise<AyasReplyOutcome> {
-  const snapshot = await loadBrainConsoleSnapshot();
+  const [snapshot, studio] = await Promise.all([
+    loadBrainConsoleSnapshot(),
+    // Read-only: the active runtime authority path + real project inventory,
+    // so AYAS answers "kaç proje var" / "runtime authority neresi" from fact.
+    loadAyasStudioContext(),
+  ]);
   return resolveAyasReply({
     text: input.text,
     snapshot,
+    studio,
     history: input.history ?? [],
     seq: input.seq,
     // EXISTING provider, hard-pinned to the free local model — never resolved

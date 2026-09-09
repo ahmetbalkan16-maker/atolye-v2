@@ -76,6 +76,7 @@
     "smoke:c2b12-git-untracking": "tsx scripts/smoke-c2b12-git-untracking.ts",
     "smoke:ayas-access-gate": "tsx scripts/smoke-ayas-access-gate.ts",
     "smoke:ayas-intent-intake": "tsx scripts/smoke-ayas-intent-intake.ts",
+    "smoke:ayas-studio-context": "tsx scripts/smoke-ayas-studio-context.ts",
     "smoke:external-runtime-root-lifecycle": "tsx scripts/smoke-external-runtime-root-project-lifecycle.ts"
   },
   "dependencies": {

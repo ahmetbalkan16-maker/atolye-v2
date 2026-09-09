@@ -314,10 +314,113 @@ export const AYAS_SPOKEN_TURKISH_RULE: readonly string[] = Object.freeze([
 /** How many prior turns to feed the model for context. */
 export const AYAS_HISTORY_TURNS = 6;
 
+/* ------------------------------------------------------------------------- *
+ * AYAS studio context (Sprint 208) — a pure, read-only projection of the
+ * ACTIVE runtime storage authority + the real project inventory, so AYAS can
+ * answer "where is the runtime authority" / "how many projects" from fact
+ * rather than guessing off the task queue. The fs-touching loader lives in the
+ * server-only `src/lib/ayas/AyasStudioContext.ts`; this module stays pure.
+ * ------------------------------------------------------------------------- */
+
+export interface AyasStudioProjectView {
+  readonly slug: string;
+  readonly title: string;
+  /** Pipeline stage / `ProjectStatus`; `"unknown"` when the record omitted it. */
+  readonly status: string;
+}
+
+export interface AyasStudioContextView {
+  /** `false` when the context could not be resolved — the prompt says so plainly. */
+  readonly available: boolean;
+  readonly runtimeAuthority: {
+    /** e.g. `D:\AtolyeRuntime` — the active runtime root. */
+    readonly runtimeRoot: string;
+    /** e.g. `D:\AtolyeRuntime\projects`. */
+    readonly projectsRoot: string;
+    /** e.g. `D:\AtolyeAuthority` — the authority control-plane root. */
+    readonly authorityRoot: string;
+    readonly classification: string;
+    /** `true` when resolved from `ATOLYE_RUNTIME_ROOT` (not the in-repo default). */
+    readonly external: boolean;
+  };
+  readonly projects: {
+    readonly total: number;
+    /** `status → count`, only the non-zero entries, sorted by count desc. */
+    readonly byStatus: readonly { readonly status: string; readonly count: number }[];
+    /** A short sample for the prompt — most recently updated first. */
+    readonly sample: readonly AyasStudioProjectView[];
+  };
+  /** Non-fatal notes (e.g. "1 folder has no project.json"). */
+  readonly notes: readonly string[];
+}
+
 export interface AyasChatPromptInput {
   readonly userText: string;
   readonly snapshot: BrainConsoleSnapshot;
   readonly history: readonly { readonly role: BrainChatMessage["role"]; readonly text: string }[];
+  /** Optional read-only studio/runtime-authority facts (Sprint 208). */
+  readonly studio?: AyasStudioContextView;
+}
+
+/** Render the studio-context block for the prompt. Deterministic. */
+function ayasStudioPromptLines(studio: AyasStudioContextView | undefined): string[] {
+  if (!studio) return [];
+  if (!studio.available) {
+    return [
+      "",
+      "Atölye stüdyo bağlamı (salt-okunur): şu an çözülemedi — proje sayısı veya",
+      "runtime authority yolu sorulursa \"şu an bu bilgiye erişemiyorum\" de, tahmin etme.",
+    ];
+  }
+  const ra = studio.runtimeAuthority;
+  const statusText = studio.projects.byStatus.length
+    ? studio.projects.byStatus.map((s) => `${s.count} ${s.status}`).join(", ")
+    : "durum bilgisi yok";
+  const sample = studio.projects.sample
+    .slice(0, 6)
+    .map((p) => `  · ${p.title || p.slug} (${p.status})`);
+  return [
+    "",
+    "Atölye stüdyo bağlamı (salt-okunur, kaynak: runtime authority + proje envanteri):",
+    `- aktif runtime authority (proje deposu): ${ra.runtimeRoot}`,
+    `- proje kökü: ${ra.projectsRoot}`,
+    `- authority kontrol kökü: ${ra.authorityRoot}`,
+    `- depo türü: ${ra.classification}${ra.external ? " (repo dışı, harici disk)" : " (repo içi varsayılan)"}`,
+    `- toplam proje sayısı: ${studio.projects.total}`,
+    `- proje durumları: ${statusText}`,
+    ...(sample.length ? ["- örnek projeler:", ...sample] : []),
+    ...(studio.notes.length ? [`- notlar: ${studio.notes.join(" | ")}`] : []),
+    "\"Runtime authority neresi\" / \"kaç proje var\" gibi sorulara YALNIZCA bu bloktaki",
+    "değerlerle cevap ver; başka bir yol veya sayı uydurma.",
+  ];
+}
+
+/**
+ * Does a model reply falsely claim (or offer) to execute / activate something?
+ * AYAS has no execution authority — the wiring runs nothing regardless — but the
+ * shown text must not *say* it opened the execution gate, ran a pipeline,
+ * rendered, pushed, or applied a change, and must not offer to open the gate.
+ * Such a reply is dropped in favour of the honest deterministic one.
+ *
+ * Negated / refusing forms ("açamam", "açamazsın", "açık değil", "yapamam") are
+ * deliberately NOT matched. Deterministic, Turkish-aware.
+ */
+const AYAS_FALSE_EXECUTION_CLAIM = new RegExp(
+  [
+    // opening the execution gate — affirmative conjugations only
+    "yürütme\\s+kap[ıi]s[ıi]n[ıi]\\s+a[çc](?:[ıi]yor|t[ıi]m|t[ıi]k|al[ıi]m|[ıi]p\\b|ab[ıi]l[ıi]r|ar[ıi]z|ar[ıi]m|arak\\b)",
+    "(?:gate|kap[ıi]y[ıi])'?\\s*[ıi]?\\s*a[çc](?:t[ıi]m|[ıi]yorum|al[ıi]m)",
+    // ran / started / rendered / pushed / applied
+    "(?:pipeline'?[ıi]|üretimi|render'?[ıi]|videoyu|GPU'?yu|modeli|görevi)\\s+(?:ba[şs]latt[ıi]m|[çc]al[ıi][şs]t[ıi]rd[ıi]m|[çc]al[ıi][şs]t[ıi]r[ıi]yorum|[çc][ıi]kard[ıi]m|olu[şs]turdum)",
+    "render\\s+ald[ıi]m",
+    "git\\s+push\\s+(?:yapt[ıi]m|ettim)",
+    "de[ğg]i[şs]ikli[ğg]i\\s+uygulad[ıi]m",
+  ].join("|"),
+  "i",
+);
+
+export function ayasReplyClaimsExecution(text: string): boolean {
+  return AYAS_FALSE_EXECUTION_CLAIM.test(String(text ?? ""));
 }
 
 /**
@@ -362,6 +465,7 @@ export function buildAyasChatPrompt(input: AyasChatPromptInput): string {
     "",
     "Şu anki Atölye durumu (salt-okunur, kaynak: Brain snapshot):",
     ...state,
+    ...ayasStudioPromptLines(input.studio),
     "",
     ...(turns.length ? ["Önceki konuşma:", ...turns, ""] : []),
     `Kullanıcı: ${input.userText}`,
@@ -421,6 +525,8 @@ export interface ResolveAyasReplyInput {
   readonly snapshot: BrainConsoleSnapshot;
   readonly history: readonly { readonly role: BrainChatMessage["role"]; readonly text: string }[];
   readonly seq: number;
+  /** Optional read-only studio/runtime-authority facts (Sprint 208). */
+  readonly studio?: AyasStudioContextView;
   /**
    * Injected model call — returns the raw reply text (or throws / returns "").
    * The `app/brain/actions.ts` wrapper supplies the existing `OllamaProvider`.
@@ -435,8 +541,9 @@ export interface AyasReplyOutcome {
 
 /**
  * The core AYAS reply logic, model-agnostic and testable. Builds the prompt,
- * calls `generate`, and — on empty / unusable / thrown — falls back to the
- * deterministic reply. It never executes anything; it only turns text into text.
+ * calls `generate`, and — on empty / unusable / a false execution claim /
+ * thrown — falls back to the deterministic reply. It never executes anything;
+ * it only turns text into text.
  */
 export async function resolveAyasReply(input: ResolveAyasReplyInput): Promise<AyasReplyOutcome> {
   const text = (input.text ?? "").trim();
@@ -450,9 +557,13 @@ export async function resolveAyasReply(input: ResolveAyasReplyInput): Promise<Ay
       userText: text,
       snapshot: input.snapshot,
       history: input.history ?? [],
+      ...(input.studio ? { studio: input.studio } : {}),
     });
     const reply = (await input.generate(prompt)) ?? "";
     if (!isUsableAyasReply(reply)) return fallback;
+    // Defence in depth: the wiring runs nothing, but a weak model can still
+    // *claim* it opened the gate / ran a pipeline. Never show that — fall back.
+    if (ayasReplyClaimsExecution(reply)) return fallback;
     return { message: ayasReplyMessage(reply, input.seq), source: "llm" };
   } catch {
     return fallback;
