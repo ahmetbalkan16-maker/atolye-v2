@@ -620,7 +620,7 @@ export default function D2WakeLabPage() {
             disabled={armed}
             onChange={() => {
               setEngine("openwakeword");
-              setThreshold(0.5);
+              setThreshold(0.7);
             }}
           />{" "}
           openWakeWord + STT (gerçek AYAS)

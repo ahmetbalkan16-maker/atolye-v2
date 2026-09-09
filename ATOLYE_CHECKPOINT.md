@@ -30,11 +30,12 @@ are `OPERATOR_REQUIRED`.
 - **`.venv-wake/`** = isolated Python 3.11 (via `uv`, the repo's main env is 3.14) + openWakeWord 0.6
   full training stack (torch CPU, audiomentations, speechbrain, onnx, …). Gitignored.
 - `scripts/wake/train_ayas_wake.py` — trains a **real openWakeWord "AYAS" DNN**: Piper-synthesised
-  positives (batched) + negatives (other TR phrases + `generate_adversarial_texts` + noise) →
-  openWakeWord melspec/embedding features → train → FP measured vs openWakeWord's **real 11.3 h
-  validation set** → single-file ONNX. **Honest limit:** 1 TTS voice, 17 GB ACAV100M negative set NOT
-  fetched → recall ~0.99 on synthetic held-out but **FP/h ~40-70 → runtime threshold + real-voice
-  tuning is OPERATOR**.
+  positives (batched, 3 prosody buckets) + negatives (other TR phrases/words + `generate_adversarial_texts`
+  + noise **+ 55 % of openWakeWord's real 11.3 h validation audio as training negatives**) → openWakeWord
+  melspec/embedding features → train → single-file ONNX; FP measured on the held-out real audio.
+  **Result:** synthetic held-out recall **1.0**, **FP/h 0.2 @ threshold 0.7** (default), 0.39 @ 0.5.
+  **Honest limit that stands:** positives are ONE TTS voice → **real-human-voice recall is UNKNOWN
+  until the operator device-tests**; add real "AYAS" clips + rerun to improve. `ayas.onnx` ~870 KB.
 - `src/components/brain/voice/wake/openWakeWordRunner.ts` — faithful streaming port on
   **onnxruntime-web** (on-device WASM). `wakeWordVoiceAdapter.ts` — `AyasVoicePlatform`:
   getUserMedia+worklet+runner → `onFinalTranscript("AYAS")` → capture command → `POST /api/ayas/stt`

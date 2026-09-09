@@ -78,7 +78,7 @@ const DEFAULTS = {
   embeddingUrl: "/wake/embedding_model.onnx",
   wasmPaths: "/ort/",
   sttUrl: "/api/ayas/stt",
-  threshold: 0.5,
+  threshold: 0.7,
 };
 
 function frameRms(f: Float32Array): number {
