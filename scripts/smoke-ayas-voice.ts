@@ -23,7 +23,10 @@ import {
   detectAyasWakeWord,
   stripLeadingWakeWord,
   detectAyasVoiceCapability,
+  detectAyasSpeechRecognitionMode,
+  isAppleTouchDevice,
   describeAyasVoiceState,
+  describeAyasRecognitionError,
   nextAyasVoiceState,
   ayasRestingVoiceState,
   selectAyasVoice,
@@ -32,17 +35,22 @@ import {
   shouldAutoSpeakAyasReply,
   AYAS_VOICE_STATES,
   AYAS_VOICE_DISCLOSURE,
+  AYAS_VOICE_TAP_FOR_COMMAND,
+  AYAS_VOICE_TAP_TO_SPEAK,
   AYAS_TTS_PROFILE,
   AYAS_TTS_AUTOPLAY_BLOCKED,
   type AyasPlatformVoice,
+  type AyasRecognitionMode,
   type AyasVoiceState,
 } from "../src/components/brain/ayasVoice";
 import {
   AyasVoiceEngine,
   type AyasListenHandlers,
+  type AyasListenOptions,
   type AyasSpeakOptions,
   type AyasVoicePlatform,
 } from "../src/components/brain/voice/ayasVoiceEngine";
+import { BrowserVoiceAdapter } from "../src/components/brain/voice/browserVoiceAdapter";
 import {
   resolveAyasReply,
   brainDeterministicReply,
@@ -71,6 +79,8 @@ interface MockOptions {
   /** "autostart": onStart fires synchronously. "manual": test drives.
    *  "error": onError fires synchronously. "silent": nothing (autoplay block). */
   speakMode?: "autostart" | "manual" | "error" | "silent";
+  /** Absent → engine assumes "continuous" (all pre-iOS scenarios). */
+  recognitionMode?: AyasRecognitionMode;
 }
 
 class MockVoicePlatform implements AyasVoicePlatform {
@@ -79,8 +89,10 @@ class MockVoicePlatform implements AyasVoicePlatform {
   sttCloudBacked: boolean;
   voices: AyasPlatformVoice[];
   speakMode: NonNullable<MockOptions["speakMode"]>;
+  mode?: AyasRecognitionMode;
   calls = { startListening: 0, stopListening: 0, speak: 0, cancelSpeech: 0 };
-  lastListen: { handlers: AyasListenHandlers; stopped: boolean } | null = null;
+  lastListen: { handlers: AyasListenHandlers; stopped: boolean; options?: AyasListenOptions } | null = null;
+  lastListenOptions: AyasListenOptions | undefined;
   lastSpeak: { text: string; options: AyasSpeakOptions } | null = null;
   voicesChangedCb: (() => void) | null = null;
 
@@ -90,10 +102,14 @@ class MockVoicePlatform implements AyasVoicePlatform {
     this.sttCloudBacked = opts.sttCloudBacked ?? true;
     this.voices = opts.voices ?? [];
     this.speakMode = opts.speakMode ?? "autostart";
+    this.mode = opts.recognitionMode;
   }
 
   detectCapability() {
     return { stt: this.stt, tts: this.tts, sttCloudBacked: this.sttCloudBacked };
+  }
+  recognitionMode(): AyasRecognitionMode {
+    return this.mode ?? "continuous";
   }
   listVoices() {
     return this.voices;
@@ -104,9 +120,10 @@ class MockVoicePlatform implements AyasVoicePlatform {
       this.voicesChangedCb = null;
     };
   }
-  startListening(_lang: string, handlers: AyasListenHandlers) {
+  startListening(_lang: string, handlers: AyasListenHandlers, options?: AyasListenOptions) {
     this.calls.startListening += 1;
-    const entry = { handlers, stopped: false };
+    this.lastListenOptions = options;
+    const entry = { handlers, stopped: false, options };
     this.lastListen = entry;
     return {
       stop: () => {
@@ -143,6 +160,65 @@ class MockVoicePlatform implements AyasVoicePlatform {
   startSpeaking() {
     this.lastSpeak?.options.onStart();
   }
+}
+
+/* --------------- fake browser SpeechRecognition (adapter tests) --------------- */
+
+class FakeRecognition {
+  lang = "";
+  continuous = false;
+  interimResults = false;
+  maxAlternatives = 1;
+  onresult: ((e: unknown) => void) | null = null;
+  onerror: ((e: { error?: string }) => void) | null = null;
+  onend: (() => void) | null = null;
+  started = 0;
+  startThrows = false;
+  start() {
+    this.started += 1;
+    if (this.startThrows) throw new Error("iOS: start() outside a user activation");
+  }
+  stop() {}
+  abort() {}
+  private fire(transcript: string, isFinal: boolean) {
+    this.onresult?.({
+      resultIndex: 0,
+      results: { length: 1, 0: { 0: { transcript }, isFinal, length: 1 } },
+    });
+  }
+  emitInterim(t: string) { this.fire(t, false); }
+  emitFinal(t: string) { this.fire(t, true); }
+  emitEnd() { this.onend?.(); }
+  emitError(code: string) { this.onerror?.({ error: code }); }
+}
+
+function withFakeWindow(rec: FakeRecognition, body: () => void): void {
+  const g = globalThis as Record<string, unknown>;
+  const prevWindow = g.window;
+  const Ctor = function () { return rec; } as unknown as new () => FakeRecognition;
+  g.window = { webkitSpeechRecognition: Ctor, speechSynthesis: {}, SpeechSynthesisUtterance: function () {} };
+  try {
+    body();
+  } finally {
+    g.window = prevWindow;
+  }
+}
+
+function captureHandlers() {
+  const finals: string[] = [];
+  const errors: string[] = [];
+  let ended = 0;
+  const handlers: AyasListenHandlers = {
+    onFinalTranscript: (t) => finals.push(t),
+    onError: (c) => errors.push(c),
+    onEnd: () => { ended += 1; },
+  };
+  return {
+    handlers,
+    finals,
+    errors,
+    get ended() { return ended; },
+  };
 }
 
 interface Captured {
@@ -523,6 +599,168 @@ async function run() {
     assert.equal(engine.listening, false);
     assert.equal(platform.calls.startListening, platform.calls.stopListening + (engine.listening ? 1 : 0));
     engine.dispose();
+  });
+
+  /* =============================== iOS / WebKit single-shot ============= */
+
+  await scenario("iOS detect — UA / iPadOS-as-Mac → single-shot; desktop → continuous", () => {
+    assert.equal(isAppleTouchDevice({ userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) …" }), true);
+    assert.equal(isAppleTouchDevice({ userAgent: "… (Macintosh; …)", platform: "MacIntel", maxTouchPoints: 5 }), true);
+    assert.equal(isAppleTouchDevice({ userAgent: "… (Macintosh; …)", platform: "MacIntel", maxTouchPoints: 0 }), false);
+    assert.equal(isAppleTouchDevice({ userAgent: "… (Windows NT 10.0; …) Chrome/…" }), false);
+    assert.equal(
+      detectAyasSpeechRecognitionMode({ nav: { userAgent: "… (iPad; …)" } }),
+      "single-shot",
+    );
+    assert.equal(detectAyasSpeechRecognitionMode({ nav: { userAgent: "… Android … Chrome/…" } }), "continuous");
+  });
+
+  await scenario("engine — no platform.recognitionMode → 'continuous' (unchanged default)", () => {
+    const bare: AyasVoicePlatform = {
+      detectCapability: () => ({ stt: true, tts: true, sttCloudBacked: false }),
+      listVoices: () => [],
+      onVoicesChanged: () => () => {},
+      startListening: () => ({ stop() {} }),
+      speak: () => ({ cancel() {} }),
+      cancelSpeech: () => {},
+    };
+    const engine = new AyasVoiceEngine(bare, {
+      onStateChange: () => {}, onCommand: () => {}, onError: () => {}, onWake: () => {}, onAutoplayBlocked: () => {},
+    });
+    assert.equal(engine.recognitionMode, "continuous");
+    engine.dispose();
+  });
+
+  await scenario("adapter — single-shot config: continuous=false, interimResults=true; started once", () => {
+    const rec = new FakeRecognition();
+    withFakeWindow(rec, () => {
+      new BrowserVoiceAdapter().startListening("tr-TR", captureHandlers().handlers, { singleShot: true });
+      assert.equal(rec.continuous, false, "single-shot must not be continuous");
+      assert.equal(rec.interimResults, true, "single-shot must capture interims");
+      assert.equal(rec.started, 1);
+    });
+  });
+
+  await scenario("adapter — continuous config unchanged: continuous=true, interimResults=false", () => {
+    const rec = new FakeRecognition();
+    withFakeWindow(rec, () => {
+      new BrowserVoiceAdapter().startListening("tr-TR", captureHandlers().handlers, { singleShot: false });
+      assert.equal(rec.continuous, true);
+      assert.equal(rec.interimResults, false);
+    });
+  });
+
+  await scenario("adapter — interim-only result is NOT lost: forwarded once on onend (single-shot)", () => {
+    const rec = new FakeRecognition();
+    withFakeWindow(rec, () => {
+      const h = captureHandlers();
+      new BrowserVoiceAdapter().startListening("tr-TR", h.handlers, { singleShot: true });
+      rec.emitInterim("ayas kaç proje var");
+      assert.deepEqual(h.finals, [], "no final yet");
+      rec.emitEnd();
+      assert.deepEqual(h.finals, ["ayas kaç proje var"], "last interim forwarded on end");
+      assert.equal(h.ended, 1);
+    });
+  });
+
+  await scenario("adapter — a final result wins; the onend fallback does NOT double-fire", () => {
+    const rec = new FakeRecognition();
+    withFakeWindow(rec, () => {
+      const h = captureHandlers();
+      new BrowserVoiceAdapter().startListening("tr-TR", h.handlers, { singleShot: true });
+      rec.emitInterim("ayas kaç");
+      rec.emitFinal("ayas kaç proje var");
+      rec.emitEnd();
+      assert.deepEqual(h.finals, ["ayas kaç proje var"], "final only, once");
+    });
+  });
+
+  await scenario("adapter — blocked start() → onError('start-blocked'), never a silent swallow", () => {
+    const rec = new FakeRecognition();
+    rec.startThrows = true;
+    withFakeWindow(rec, () => {
+      const h = captureHandlers();
+      new BrowserVoiceAdapter().startListening("tr-TR", h.handlers, { singleShot: true });
+      assert.deepEqual(h.errors, ["start-blocked"]);
+    });
+  });
+
+  await scenario("engine single-shot — onEnd does NOT auto-restart; prompts to tap again", async () => {
+    const platform = new MockVoicePlatform({ recognitionMode: "single-shot" });
+    const { engine, cap } = makeEngine(platform);
+    engine.enableListening();
+    assert.equal(platform.calls.startListening, 1);
+    assert.deepEqual(platform.lastListenOptions, { singleShot: true }, "engine passes the flag");
+
+    // heard nothing → session ends
+    platform.fireRecognitionEnd();
+    await delay(20);
+    assert.equal(platform.calls.startListening, 1, "NO non-gesture restart on iOS");
+    assert.ok(cap.errors.includes(AYAS_VOICE_TAP_TO_SPEAK));
+    engine.dispose();
+  });
+
+  await scenario("engine single-shot — full flow: tap → 'AYAS' → tap → command → onCommand → same runAyas path", async () => {
+    const platform = new MockVoicePlatform({ recognitionMode: "single-shot" });
+    const { engine, cap } = makeEngine(platform);
+
+    engine.enableListening();               // tap 1 (gesture)
+    platform.fireTranscript("Merhaba AYAS"); // wake word only
+    assert.equal(engine.state, "listening");
+    assert.equal(cap.wakes, 1);
+    assert.deepEqual(cap.commands, [], "bare wake issues no command");
+    platform.fireRecognitionEnd();
+    await delay(10);
+    assert.equal(platform.calls.startListening, 1, "still no auto-restart");
+    assert.ok(cap.errors.includes(AYAS_VOICE_TAP_FOR_COMMAND), "prompted for the command");
+
+    engine.recaptureVoice();                 // tap 2 (gesture)
+    assert.equal(platform.calls.startListening, 2, "fresh session inside the user gesture");
+    platform.fireTranscript("kaç proje var"); // the command
+    assert.deepEqual(cap.commands, ["kaç proje var"], "command delivered to onCommand");
+    assert.equal(engine.state, "thinking");
+    engine.dispose();
+  });
+
+  await scenario("engine single-shot — one-breath 'AYAS kaç proje var' still works in ONE session", () => {
+    const platform = new MockVoicePlatform({ recognitionMode: "single-shot" });
+    const { engine, cap } = makeEngine(platform);
+    engine.enableListening();
+    platform.fireTranscript("AYAS kaç proje var");
+    assert.deepEqual(cap.commands, ["kaç proje var"]);
+    assert.equal(engine.state, "thinking");
+    engine.dispose();
+  });
+
+  await scenario("engine single-shot — canRecapture gates the mic tap; disabled while thinking/speaking", () => {
+    const platform = new MockVoicePlatform({ recognitionMode: "single-shot" });
+    const { engine } = makeEngine(platform);
+    assert.equal(engine.canRecapture, false, "not listening yet");
+    engine.enableListening();
+    assert.equal(engine.canRecapture, true, "listening + at rest");
+    engine.markThinking();
+    assert.equal(engine.canRecapture, false, "not while thinking");
+    engine.dispose();
+  });
+
+  await scenario("engine single-shot — after a spoken reply the mic stays armed (no non-gesture restart)", () => {
+    const platform = new MockVoicePlatform({ recognitionMode: "single-shot", speakMode: "manual" });
+    const { engine, cap } = makeEngine(platform);
+    engine.enableListening();
+    platform.fireTranscript("AYAS sistem durumu");
+    const startsBefore = platform.calls.startListening;
+    engine.speak("Kuyruk boş.");
+    platform.startSpeaking();
+    platform.finishSpeaking();
+    assert.equal(platform.calls.startListening, startsBefore, "no auto-restart after the reply");
+    assert.equal(engine.listening, true, "voice mode still on — mic armed for a tap");
+    assert.ok(cap.errors.includes(AYAS_VOICE_TAP_TO_SPEAK));
+    engine.dispose();
+  });
+
+  await scenario("describeAyasRecognitionError — start-blocked + language-not-supported have real messages", () => {
+    assert.match(describeAyasRecognitionError("start-blocked"), /tekrar dokun/i);
+    assert.match(describeAyasRecognitionError("language-not-supported"), /Dikte dilleri|etkin değil/i);
   });
 
   /* =============================== auto-speech + fallbacks ============== */

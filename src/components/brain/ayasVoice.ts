@@ -131,6 +131,53 @@ export function detectAyasVoiceCapability(win: AyasVoiceWindowLike | undefined):
   };
 }
 
+/* ------------------------------------------------------------------------- *
+ * Recognition mode (pure)
+ *
+ * iOS (Safari + every iOS browser — all WebKit) implements
+ * `webkitSpeechRecognition` as a SINGLE-SHOT recogniser and blocks
+ * `recognition.start()` unless it is called inside a user activation. The
+ * engine's default flow keeps recognition alive by auto-restarting it from a
+ * `setTimeout` in `onend` — a non-gesture call iOS rejects (silently), so after
+ * the wake word the command is never heard.
+ *
+ * `"single-shot"` → one recognition session per user tap; no non-gesture
+ * restart; capture interim results too (iOS often never marks a result final).
+ * `"continuous"` → the existing Chrome/Chromium behaviour (continuous + self-
+ * restart) — unchanged.
+ * ------------------------------------------------------------------------- */
+
+export type AyasRecognitionMode = "continuous" | "single-shot";
+
+export interface AyasNavigatorLike {
+  readonly userAgent?: string;
+  readonly platform?: string;
+  readonly maxTouchPoints?: number;
+}
+
+/** iPhone / iPad (incl. iPadOS 13+ which reports as "MacIntel" + touch). */
+export function isAppleTouchDevice(nav: AyasNavigatorLike | undefined): boolean {
+  if (!nav) return false;
+  const ua = nav.userAgent ?? "";
+  if (/\b(iPhone|iPad|iPod)\b/.test(ua)) return true;
+  const platform = nav.platform ?? "";
+  const touch = typeof nav.maxTouchPoints === "number" ? nav.maxTouchPoints : 0;
+  return (platform === "MacIntel" || /Mac/.test(ua)) && touch > 1;
+}
+
+export function detectAyasSpeechRecognitionMode(input: {
+  readonly win?: AyasVoiceWindowLike;
+  readonly nav?: AyasNavigatorLike;
+}): AyasRecognitionMode {
+  return isAppleTouchDevice(input.nav) ? "single-shot" : "continuous";
+}
+
+/* User-facing prompts for the single-shot flow (not errors — instructions). */
+export const AYAS_VOICE_TAP_FOR_COMMAND =
+  "Uyandım. Şimdi mikrofona tekrar dokunup komutunu söyle.";
+export const AYAS_VOICE_TAP_TO_SPEAK =
+  "Mikrofona dokun ve tek nefeste \"AYAS, ...\" diyerek söyle.";
+
 export const AYAS_VOICE_DISCLOSURE =
   "Tarayıcının konuşma tanıma motoru (Chromium'da webkitSpeechRecognition) " +
   "sesi işlemek için ses verisini tarayıcı sağlayıcısının bulut servisine gönderir. " +
@@ -443,6 +490,10 @@ export function describeAyasRecognitionError(code: string): string {
       return "Konuşma tanıma servisine ulaşılamadı. Metin sohbeti çalışıyor.";
     case "aborted":
       return "Dinleme durduruldu.";
+    case "start-blocked":
+      return "Mikrofon yeniden başlatılamadı. Mikrofona tekrar dokun.";
+    case "language-not-supported":
+      return "Türkçe konuşma tanıma bu cihazda etkin değil (Ayarlar › Dikte dilleri). Metin sohbeti çalışıyor.";
     default:
       return "Konuşma tanıma hatası. Metin sohbeti çalışıyor.";
   }

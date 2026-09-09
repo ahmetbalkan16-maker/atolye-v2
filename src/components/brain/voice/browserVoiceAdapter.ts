@@ -15,12 +15,15 @@
 
 import {
   detectAyasVoiceCapability,
+  detectAyasSpeechRecognitionMode,
   type AyasPlatformVoice,
+  type AyasRecognitionMode,
   type AyasVoiceCapability,
 } from "../ayasVoice";
 import type {
   AyasListenHandle,
   AyasListenHandlers,
+  AyasListenOptions,
   AyasSpeakHandle,
   AyasSpeakOptions,
   AyasVoicePlatform,
@@ -51,6 +54,7 @@ interface SpeechRecognitionLike {
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
   onerror: ((event: { error?: string }) => void) | null;
   onend: (() => void) | null;
+  onstart?: (() => void) | null;
   start(): void;
   stop(): void;
   abort(): void;
@@ -83,6 +87,17 @@ export class BrowserVoiceAdapter implements AyasVoicePlatform {
     return detectAyasVoiceCapability(w ? (w as never) : undefined);
   }
 
+  recognitionMode(): AyasRecognitionMode {
+    const w = getWindow();
+    const nav = typeof navigator === "undefined" ? undefined : navigator;
+    return detectAyasSpeechRecognitionMode({
+      win: w ? (w as never) : undefined,
+      nav: nav
+        ? { userAgent: nav.userAgent, platform: nav.platform, maxTouchPoints: nav.maxTouchPoints }
+        : undefined,
+    });
+  }
+
   listVoices(): AyasPlatformVoice[] {
     const synth = getSynth();
     if (!synth) return [];
@@ -112,35 +127,65 @@ export class BrowserVoiceAdapter implements AyasVoicePlatform {
     };
   }
 
-  startListening(lang: string, handlers: AyasListenHandlers): AyasListenHandle {
+  startListening(
+    lang: string,
+    handlers: AyasListenHandlers,
+    options?: AyasListenOptions,
+  ): AyasListenHandle {
     const Ctor = getRecognitionCtor();
     if (!Ctor) {
       handlers.onError("not-allowed");
       return { stop() {} };
     }
 
+    const singleShot = options?.singleShot === true;
+
     let recognition: SpeechRecognitionLike | null = new Ctor();
     recognition.lang = lang || "tr-TR";
-    recognition.continuous = true;
-    recognition.interimResults = false;
+    // iOS / WebKit is single-shot and drops the transcript if we wait for a
+    // final-only result — capture interims and keep the last one as the fallback.
+    recognition.continuous = !singleShot;
+    recognition.interimResults = singleShot;
     recognition.maxAlternatives = 1;
 
+    let forwardedFinal = false;
+    let lastInterim = "";
+
     recognition.onresult = (event) => {
-      let transcript = "";
+      let final = "";
+      let interim = "";
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
         const result = event.results[i];
-        if (result?.isFinal) transcript += result[0]?.transcript ?? "";
+        const text = result?.[0]?.transcript ?? "";
+        if (result?.isFinal) final += text;
+        else interim += text;
       }
-      transcript = transcript.trim();
-      if (transcript) handlers.onFinalTranscript(transcript);
+      final = final.trim();
+      interim = interim.trim();
+      if (final) {
+        forwardedFinal = true;
+        handlers.onFinalTranscript(final);
+      } else if (singleShot && interim) {
+        lastInterim = interim;
+      }
     };
     recognition.onerror = (event) => handlers.onError(event?.error ?? "unknown");
-    recognition.onend = () => handlers.onEnd();
+    recognition.onend = () => {
+      // iOS often ends without ever marking a result final — forward the last
+      // interim once so a spoken command is not silently lost.
+      if (singleShot && !forwardedFinal && lastInterim) {
+        forwardedFinal = true;
+        handlers.onFinalTranscript(lastInterim);
+      }
+      handlers.onEnd();
+    };
 
     try {
       recognition.start();
     } catch {
-      /* start() throws if called twice in quick succession — ignored */
+      // iOS rejects `start()` outside a user activation, or it throws when
+      // called twice quickly. Surface it — never leave the UI stuck "listening".
+      handlers.onError("start-blocked");
     }
 
     return {

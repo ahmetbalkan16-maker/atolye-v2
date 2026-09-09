@@ -29,6 +29,8 @@ export interface BrainConsoleVoiceView {
   readonly capability: AyasVoiceCapability;
   /** Voice INPUT (wake word) mode is on. */
   readonly listening: boolean;
+  /** `"single-shot"` on iOS/WebKit — the mic tap captures one utterance. */
+  readonly recognitionMode?: "continuous" | "single-shot";
   /** Voice OUTPUT (auto-speech) is muted. */
   readonly muted: boolean;
   readonly disclosureAccepted: boolean;
@@ -36,7 +38,10 @@ export interface BrainConsoleVoiceView {
   readonly pendingSpeech?: string | null;
   readonly voiceName?: string | null;
   readonly voiceTier?: string | null;
+  /** Mic button — enable / recapture (single-shot) / toggle off (continuous). */
   readonly onToggleListening?: () => void;
+  /** Explicit "turn voice off" — the "dinlemeyi kapat" link. */
+  readonly onStopListening?: () => void;
   readonly onToggleMute?: () => void;
   readonly onAcceptDisclosure?: () => void;
   readonly onReplayPendingSpeech?: () => void;
@@ -345,11 +350,16 @@ function ChatPanel(props: BrainConsoleViewProps) {
             <button
               type="button"
               className="bc-link"
-              onClick={voice.onToggleListening}
+              onClick={voice.onStopListening ?? voice.onToggleListening}
               data-testid="bc-voice-toggle"
             >
               dinlemeyi kapat
             </button>
+          ) : null}
+          {voice.listening && voice.recognitionMode === "single-shot" ? (
+            <span className="bc-voice__hint" data-testid="bc-voice-hint">
+              iPhone: mikrofona dokun, tek nefeste “AYAS, …” de.
+            </span>
           ) : null}
           {voice.capability.tts ? (
             <button

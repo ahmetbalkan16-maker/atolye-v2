@@ -126,10 +126,17 @@ phone**, phone on the same LAN.
    - **iOS/Safari:** Share ▸ *Add to Home Screen*.
 5. An **AYAS icon** appears on the home screen. Tapping it opens `/brain`
    full-screen (`display: standalone`) — no browser chrome.
-6. In the app: send a text turn (confirm it streams token-by-token); tap the mic,
-   accept the OS permission + the in-app disclosure, say "AYAS …"; confirm AYAS
-   speaks the reply.
-7. Confirm the **"Yürütme kapısı: CLOSED"** badge is shown. Do **not** actually
+6. In the app: send a text turn (confirm it streams token-by-token).
+7. **Voice — iPhone is single-shot** (Safari/WebKit): tap the mic, accept the OS
+   permission + the in-app disclosure, then say the whole thing in **one breath**:
+   *"AYAS, kaç proje var"*. If you only say *"AYAS"*, the app shows
+   *"Uyandım. Şimdi mikrofona tekrar dokunup komutunu söyle."* — **tap the mic
+   again** (that tap is the gesture iOS requires) and say the command. Confirm
+   AYAS speaks the reply (first time may need a tap on the ▶ replay button).
+   - iPhone needs Turkish dictation: **Settings ▸ General ▸ Keyboard ▸ Enable
+     Dictation** + add **Turkish** under *Dictation Languages*. Without it the app
+     shows "Türkçe konuşma tanıma bu cihazda etkin değil".
+8. Confirm the **"Yürütme kapısı: CLOSED"** badge is shown. Do **not** actually
    run "pipeline çalıştır" — AYAS refuses it, which is the point.
 
 **If "Install" does not appear (Chrome):** open `chrome://inspect` devtools on the

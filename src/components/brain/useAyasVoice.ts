@@ -24,7 +24,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AyasVoiceEngine } from "./voice/ayasVoiceEngine";
 import { BrowserVoiceAdapter } from "./voice/browserVoiceAdapter";
-import type { AyasVoiceCapability, AyasVoiceState } from "./ayasVoice";
+import type { AyasRecognitionMode, AyasVoiceCapability, AyasVoiceState } from "./ayasVoice";
 
 const NO_CAPABILITY: AyasVoiceCapability = { stt: false, tts: false, sttCloudBacked: false };
 
@@ -38,6 +38,8 @@ export interface UseAyasVoiceResult {
   readonly state: AyasVoiceState;
   /** Voice INPUT (wake word) mode is on. */
   readonly listening: boolean;
+  /** `"single-shot"` on iOS/WebKit — a tap captures one utterance, no auto-restart. */
+  readonly recognitionMode: AyasRecognitionMode;
   /** Voice OUTPUT (auto-speech) is muted. */
   readonly muted: boolean;
   readonly disclosureAccepted: boolean;
@@ -48,7 +50,15 @@ export interface UseAyasVoiceResult {
   readonly voiceName: string | null;
   readonly voiceTier: string | null;
   acceptDisclosure(): void;
+  /**
+   * The mic button. First tap: enable voice mode + listen. On the single-shot
+   * (iOS) path a later tap while at rest starts a FRESH recognition session
+   * inside that tap's gesture (tap → "AYAS" → tap → command). On the continuous
+   * path a later tap toggles listening off.
+   */
   toggleListening(): void;
+  /** The explicit "turn voice off" control (the "dinlemeyi kapat" link). */
+  stopListening(): void;
   toggleMute(): void;
   speak(text: string): void;
   replayPendingSpeech(): void;
@@ -67,6 +77,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
   const [pendingSpeech, setPendingSpeech] = useState<string | null>(null);
   const [voiceName, setVoiceName] = useState<string | null>(null);
   const [voiceTier, setVoiceTier] = useState<string | null>(null);
+  const [recognitionMode, setRecognitionMode] = useState<AyasRecognitionMode>("continuous");
 
   const engineRef = useRef<AyasVoiceEngine | null>(null);
   const mutedRef = useRef(muted);
@@ -91,6 +102,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
     setState(engine.state);
     setVoiceName(engine.voiceSelection.voiceName);
     setVoiceTier(engine.voiceSelection.tier);
+    setRecognitionMode(engine.recognitionMode);
     setReady(true);
 
     // The voice list often populates asynchronously — refine the label once.
@@ -113,11 +125,24 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
     const engine = engineRef.current;
     if (!engine) return;
     if (engine.listening) {
-      engine.disableListening();
+      if (engine.canRecapture) {
+        // iOS single-shot: this tap IS the user gesture the next `start()` needs.
+        setErrorMessage(null);
+        engine.recaptureVoice();
+      } else {
+        engine.disableListening();
+      }
     } else {
       setErrorMessage(null);
       engine.enableListening();
     }
+    setListening(engine.listening);
+  }, []);
+
+  const stopListening = useCallback(() => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    engine.disableListening();
     setListening(engine.listening);
   }, []);
 
@@ -152,6 +177,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
     capability: ready ? capability : NO_CAPABILITY,
     state: ready ? state : "off",
     listening,
+    recognitionMode,
     muted,
     disclosureAccepted,
     errorMessage,
@@ -160,6 +186,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
     voiceTier,
     acceptDisclosure,
     toggleListening,
+    stopListening,
     toggleMute,
     speak,
     replayPendingSpeech,

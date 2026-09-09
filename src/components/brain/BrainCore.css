@@ -694,6 +694,11 @@
 .bc-voice[data-voice="unsupported"] .bc-voice__dot,
 .bc-voice[data-voice="error"] .bc-voice__dot { background: #ff9c9c; box-shadow: 0 0 8px hsl(348 80% 62% / 0.5); }
 .bc-voice--err { color: #ffb4b4; }
+.bc-voice__hint {
+  width: 100%;
+  font-size: 11px;
+  color: var(--bc-text-faint);
+}
 
 .bc-link {
   appearance: none;

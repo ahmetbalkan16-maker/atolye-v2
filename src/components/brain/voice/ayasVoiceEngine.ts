@@ -20,6 +20,8 @@
 
 import {
   AYAS_TTS_AUTOPLAY_BLOCKED,
+  AYAS_VOICE_TAP_FOR_COMMAND,
+  AYAS_VOICE_TAP_TO_SPEAK,
   ayasRestingVoiceState,
   describeAyasRecognitionError,
   detectAyasWakeWord,
@@ -29,6 +31,7 @@ import {
   stripLeadingWakeWord,
   toSpokenAyasText,
   type AyasPlatformVoice,
+  type AyasRecognitionMode,
   type AyasVoiceCapability,
   type AyasVoiceMachineContext,
   type AyasVoiceSelection,
@@ -48,6 +51,15 @@ export interface AyasListenHandlers {
 
 export interface AyasListenHandle {
   stop(): void;
+}
+
+export interface AyasListenOptions {
+  /**
+   * `true` on the iOS / WebKit single-shot path: the adapter sets
+   * `continuous = false`, `interimResults = true`, and on `onend` forwards the
+   * last interim transcript if no final ever arrived.
+   */
+  readonly singleShot?: boolean;
 }
 
 export interface AyasSpeakOptions {
@@ -74,7 +86,16 @@ export interface AyasVoicePlatform {
   listVoices(): AyasPlatformVoice[];
   /** Subscribe to async voice-list population; returns an unsubscribe fn. */
   onVoicesChanged(callback: () => void): () => void;
-  startListening(lang: string, handlers: AyasListenHandlers): AyasListenHandle;
+  /**
+   * `"single-shot"` on iOS / WebKit (see `detectAyasSpeechRecognitionMode`).
+   * Absent → the engine assumes `"continuous"` (unchanged behaviour).
+   */
+  recognitionMode?(): AyasRecognitionMode;
+  startListening(
+    lang: string,
+    handlers: AyasListenHandlers,
+    options?: AyasListenOptions,
+  ): AyasListenHandle;
   speak(text: string, options: AyasSpeakOptions): AyasSpeakHandle;
   cancelSpeech(): void;
 }
@@ -121,6 +142,7 @@ export class AyasVoiceEngine {
 
   private capability: AyasVoiceCapability;
   private selection: AyasVoiceSelection;
+  private readonly mode: AyasRecognitionMode;
 
   private listenHandle: AyasListenHandle | null = null;
   private speakHandle: AyasSpeakHandle | null = null;
@@ -141,6 +163,7 @@ export class AyasVoiceEngine {
     this.speakStartTimeoutMs = options.speakStartTimeoutMs ?? SPEAK_START_TIMEOUT_MS;
     this.capability = safeCapability(platform);
     this.selection = selectAyasVoice(safeVoices(platform));
+    this.mode = safeMode(platform);
     this._state = ayasRestingVoiceState(this.ctx());
     this.offVoicesChanged = platform.onVoicesChanged(() => {
       if (this.disposed) return;
@@ -161,6 +184,23 @@ export class AyasVoiceEngine {
   }
   get voiceSelection(): AyasVoiceSelection {
     return this.selection;
+  }
+  get recognitionMode(): AyasRecognitionMode {
+    return this.mode;
+  }
+  /**
+   * `true` when a mic tap should start a FRESH recognition session (inside that
+   * tap's user gesture) rather than toggle listening off — the iOS single-shot
+   * flow: tap → "AYAS" → tap → command. Never true for the continuous path.
+   */
+  get canRecapture(): boolean {
+    return (
+      this.mode === "single-shot" &&
+      this._listening &&
+      !this.disposed &&
+      this.capability.stt &&
+      (this._state === "listening" || this._state === "idle")
+    );
   }
 
   private ctx(): AyasVoiceMachineContext {
@@ -214,31 +254,41 @@ export class AyasVoiceEngine {
 
     this.teardownRecognition();
     const gen = this.epoch;
+    const singleShot = this.mode === "single-shot";
     let handle: AyasListenHandle;
     try {
-      handle = this.platform.startListening(this.selection.lang, {
-        onFinalTranscript: (text) => {
-          if (this.isStale(gen)) return;
-          this.handleTranscript(text);
-        },
-        onError: (code) => {
-          if (this.isStale(gen)) return;
-          this.handleRecognitionError(code);
-        },
-        onEnd: () => {
-          if (this.isStale(gen)) return;
-          this.listenHandle = null;
-          if (this._listening && this._state !== "speaking" && this._state !== "thinking") {
+      handle = this.platform.startListening(
+        this.selection.lang,
+        {
+          onFinalTranscript: (text) => {
+            if (this.isStale(gen)) return;
+            this.handleTranscript(text);
+          },
+          onError: (code) => {
+            if (this.isStale(gen)) return;
+            this.handleRecognitionError(code);
+          },
+          onEnd: () => {
+            if (this.isStale(gen)) return;
+            this.listenHandle = null;
+            if (!this._listening || this._state === "speaking" || this._state === "thinking") return;
+            if (singleShot) {
+              // iOS: NEVER restart from here — a non-gesture `start()` is blocked.
+              // Ask the user to tap again; the next tap re-enters via recaptureVoice().
+              this.cb.onError(this.woke ? AYAS_VOICE_TAP_FOR_COMMAND : AYAS_VOICE_TAP_TO_SPEAK);
+              return;
+            }
             this.clearTimer("restartTimer");
             this.restartTimer = setTimeout(() => {
               this.restartTimer = null;
               this.startRecognition();
             }, this.restartDebounceMs);
-          }
+          },
         },
-      });
+        { singleShot },
+      );
     } catch {
-      this.cb.onError(describeAyasRecognitionError("unknown"));
+      this.cb.onError(describeAyasRecognitionError("start-blocked"));
       return;
     }
     this.listenHandle = handle;
@@ -312,7 +362,12 @@ export class AyasVoiceEngine {
   }
 
   private handleRecognitionError(code: string): void {
-    if (code === "not-allowed" || code === "service-not-allowed" || code === "audio-capture") {
+    if (
+      code === "not-allowed" ||
+      code === "service-not-allowed" ||
+      code === "audio-capture" ||
+      code === "language-not-supported"
+    ) {
       this._listening = false;
       this.woke = false;
       this.bumpEpoch();
@@ -322,9 +377,12 @@ export class AyasVoiceEngine {
       return;
     }
     if (code === "no-speech" || code === "aborted" || code === "network") {
-      // Transient — `onEnd` will restart the recogniser.
+      // Transient. On the continuous path `onEnd` restarts the recogniser; on
+      // the single-shot path `onEnd` prompts the user to tap again.
       return;
     }
+    // `start-blocked` and anything else: surface it, but keep the mic armed so
+    // the next tap (recaptureVoice) can retry — never a silent stuck "listening".
     this.cb.onError(describeAyasRecognitionError(code));
   }
 
@@ -429,8 +487,26 @@ export class AyasVoiceEngine {
     this.clearTimer("speakStartTimer");
     this.transition("speak-end");
     if (this._listening && this.capability.stt) {
-      this.startRecognition();
+      if (this.mode === "single-shot") {
+        // No non-gesture restart on iOS — the mic stays armed; a tap resumes it.
+        this.cb.onError(AYAS_VOICE_TAP_TO_SPEAK);
+      } else {
+        this.startRecognition();
+      }
     }
+  }
+
+  /**
+   * Start a fresh recognition session — MUST be called from inside a user
+   * gesture (a mic tap). The iOS single-shot flow's re-arm; on the continuous
+   * path it simply (re)starts the recogniser. No-op unless voice mode is on and
+   * the machine is at rest.
+   */
+  recaptureVoice(): void {
+    if (this.disposed || !this._listening || !this.capability.stt) return;
+    if (this._state === "speaking" || this._state === "thinking") return;
+    this.bumpEpoch();
+    this.startRecognition();
   }
 
   /* ---- lifecycle ---- */
@@ -487,5 +563,13 @@ function safeVoices(platform: AyasVoicePlatform): AyasPlatformVoice[] {
     return platform.listVoices();
   } catch {
     return [];
+  }
+}
+
+function safeMode(platform: AyasVoicePlatform): AyasRecognitionMode {
+  try {
+    return platform.recognitionMode?.() ?? "continuous";
+  } catch {
+    return "continuous";
   }
 }
