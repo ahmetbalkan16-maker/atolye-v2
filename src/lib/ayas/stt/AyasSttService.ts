@@ -119,12 +119,17 @@ function defaultRun(
 const AYAS_STT_PROMPT =
   "AYAS, Atolye, Graphify, pipeline, runtime, render, proje, asama, visuals, script.";
 
-/** Normalise the few predictable mis-hears of "AYAS" back to the name. */
+/**
+ * Normalise the few predictable mis-hears back to studio terms. The dfki TR
+ * voice says "AYAS" as "ayaz", and whisper renders the English loanword
+ * "runtime" as "Grundtime" (not a Turkish word). Both are deterministic.
+ */
 export function normaliseAyasTranscript(text: string): string {
   return text
     .replace(/\b[Aa]ya[zsş]\b/g, "AYAS")
     .replace(/\b[Aa]yas\b/g, "AYAS")
     .replace(/\bhayas\b/gi, "AYAS")
+    .replace(/\bgrundtime\b/gi, "runtime")
     .replace(/\s+/g, " ")
     .trim();
 }
