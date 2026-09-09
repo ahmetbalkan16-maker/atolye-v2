@@ -168,9 +168,13 @@ async function run() {
     for (const banned of ["AIUsageManager", "runObservedAIRequest", "ProjectWriter", "AIManager"]) {
       assert.ok(!code.includes(banned), `actions.ts must not reference ${banned} (telemetry to data/projects/unknown)`);
     }
-    // it does use the existing router + local provider, pinned to ollama
-    assert.ok(code.includes('getProvider("ollama")'), "AYAS chat must use the existing ollama provider");
-    assert.ok(!/getProvider\(\s*[^"'）)]*aiProviderConfig/.test(code), "provider must be pinned, not resolved from AI_PROVIDER");
+    // it uses the local Ollama provider directly, pinned — via createAyasChatProvider
+    // (the same OllamaProvider class the router uses), never resolved from AI_PROVIDER.
+    assert.ok(
+      code.includes("createAyasChatProvider(") || code.includes('getProvider("ollama")'),
+      "AYAS chat must use the local Ollama provider directly",
+    );
+    assert.ok(!/\baiProviderConfig\b/.test(code), "provider must be pinned, not resolved from AI_PROVIDER");
   });
 
   await scenario("K2. resolveAyasReply performs no filesystem write (in-memory only)", async () => {

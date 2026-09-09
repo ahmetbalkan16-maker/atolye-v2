@@ -79,6 +79,7 @@
     "smoke:ayas-studio-context": "tsx scripts/smoke-ayas-studio-context.ts",
     "smoke:ayas-execution-gate": "tsx scripts/smoke-ayas-execution-gate.ts",
     "smoke:ayas-execution-bridge": "tsx scripts/smoke-ayas-execution-bridge.ts",
+    "smoke:ayas-model-profile": "tsx scripts/smoke-ayas-model-profile.ts",
     "smoke:external-runtime-root-lifecycle": "tsx scripts/smoke-external-runtime-root-project-lifecycle.ts"
   },
   "dependencies": {

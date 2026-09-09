@@ -5,12 +5,13 @@
  *
  * `refreshBrainConsole` re-reads the Brain's durable state (read-only).
  *
- * `askAyas` is the ONE behavioural addition: it wires the chat panel to the
- * project's EXISTING local model. It builds a deterministic AYAS prompt (see
- * `buildAyasChatPrompt`) and calls the EXISTING `OllamaProvider` via the
- * EXISTING `AIRouter` — hard-pinned to `"ollama"`, never resolved from
- * `AI_PROVIDER`, so a stray `AI_PROVIDER=openai` can never route AYAS chat to a
- * paid API.
+ * `askAyas` wires the chat panel to the project's EXISTING local model. It builds
+ * a deterministic AYAS prompt (see `buildAyasChatPrompt`) and calls the EXISTING
+ * `OllamaProvider` directly — via `createAyasChatProvider`, which is the same
+ * `OllamaProvider` class the `AIRouter` uses, never resolved from `AI_PROVIDER`,
+ * so a stray `AI_PROVIDER=openai` can never route AYAS chat to a paid API. The
+ * only difference from the pipeline provider is an OPTIONAL `AYAS_OLLAMA_MODEL`
+ * override that applies to AYAS chat alone (spec §3).
  *
  * It deliberately does NOT go through `runObservedAIRequest`: that path writes
  * `data/projects/<slug>/ai-usage.json` (`unknown` slug when context-less — a
@@ -22,13 +23,13 @@
  * runs no task/pipeline/GPU, approves nothing.
  */
 
-import { AIRouter } from "@/lib/ai/router/AIRouter";
 import type { AIProviderOutput } from "@/lib/ai/providers/AIProvider";
 import {
   loadBrainConsoleSnapshot,
   type BrainConsoleSnapshot,
 } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import { loadAyasStudioContext } from "@/lib/ayas/AyasStudioContext";
+import { createAyasChatProvider, resolveAyasChatModelProfile, AYAS_MODEL_ENV } from "@/lib/ayas/AyasModelProfile";
 import {
   AYAS_CHAT_JSON_SCHEMA,
   AYAS_MAX_REPLY_TOKENS,
@@ -66,17 +67,17 @@ export async function askAyas(input: AskAyasInput): Promise<AyasReplyOutcome> {
     studio,
     history: input.history ?? [],
     seq: input.seq,
-    // EXISTING provider, hard-pinned to the free local model — never resolved
-    // from `AI_PROVIDER`, so a stray `AI_PROVIDER=openai` cannot bill AYAS chat.
-    // The backend runs `format: "json"`, so we pass the existing `jsonSchema`
-    // option (a `{ reply: string }` envelope) and unwrap the natural-language
-    // answer.
+    // The local `OllamaProvider`, hard-pinned — never resolved from `AI_PROVIDER`,
+    // so a stray `AI_PROVIDER=openai` cannot bill AYAS chat. The backend runs
+    // `format: "json"`, so we pass the existing `jsonSchema` option (a
+    // `{ reply: string }` envelope) and unwrap the natural-language answer.
     generate: async (prompt) =>
       extractAyasReplyText(
         textOf(
-          await new AIRouter()
-            .getProvider("ollama")
-            .generate(prompt, { maxTokens: AYAS_MAX_REPLY_TOKENS, jsonSchema: AYAS_CHAT_JSON_SCHEMA }),
+          await createAyasChatProvider().generate(prompt, {
+            maxTokens: AYAS_MAX_REPLY_TOKENS,
+            jsonSchema: AYAS_CHAT_JSON_SCHEMA,
+          }),
         ),
       ),
   });
@@ -89,5 +90,14 @@ export async function askAyas(input: AskAyasInput): Promise<AyasReplyOutcome> {
  * falls back gracefully per `askAyas`.
  */
 export async function ayasModelConfigured(): Promise<boolean> {
-  return Boolean(process.env.OLLAMA_HOST || process.env.OLLAMA_MODEL);
+  return Boolean(process.env.OLLAMA_HOST || process.env.OLLAMA_MODEL || process.env[AYAS_MODEL_ENV]);
+}
+
+/**
+ * The model AYAS chat will use + whether `AYAS_OLLAMA_MODEL` overrode the
+ * pipeline default (spec §3 — surfaced in the activation report, not the UI).
+ */
+export async function ayasChatModel(): Promise<{ model: string; overridden: boolean }> {
+  const profile = resolveAyasChatModelProfile();
+  return { model: profile.model, overridden: profile.overridden };
 }
