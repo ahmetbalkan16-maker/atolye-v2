@@ -31,10 +31,14 @@ export default async function BrainCorePage() {
         askAyas={askAyas}
       />
       {/* research/ayas-d2-audio-lab ONLY — not on any production branch.
-          Lets the installed PWA reach the Phase-0 lab (standalone has no URL bar). */}
+          Lets the installed PWA reach the labs (standalone has no URL bar). */}
       <p style={{ textAlign: "center", padding: "8px 0 24px", fontSize: 11, opacity: 0.5 }}>
         <a href="/brain/voice-lab" style={{ color: "inherit" }}>
-          D2 Audio Lab (araştırma) →
+          D2 Audio Lab (Faz 0) →
+        </a>
+        {"   ·   "}
+        <a href="/brain/voice-lab/wake" style={{ color: "inherit" }}>
+          D2 Wake Lab (Faz 1) →
         </a>
       </p>
     </>
