@@ -762,6 +762,17 @@
 .bc-presence__status--warn .bc-online { background: hsl(38 92% 66%); box-shadow: 0 0 9px hsl(38 92% 66%); }
 .bc-presence__status--off .bc-online { background: var(--bc-text-faint); box-shadow: none; animation: none; }
 
+.bc-presence__notice {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid hsl(38 90% 60% / 0.4);
+  background: hsl(38 90% 60% / 0.08);
+  color: hsl(38 92% 80%);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .bc-presence__rows {
   display: grid;
   grid-template-columns: minmax(0, auto) minmax(0, 1fr);

@@ -26,6 +26,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import type { WakeRunnerStats } from "@/components/brain/voice/wake/openWakeWordRunner";
+import { useBrainLifecycle } from "@/components/brain/useBrainLifecycle";
 
 type MicState = "off" | "requesting" | "on" | "denied" | "ended";
 type WorkletState = "idle" | "loading" | "running" | "stopped";
@@ -232,6 +233,8 @@ function hhmmss(totalSeconds: number): string {
 export default function D2WakeLabPage() {
   const envFp = useSyncExternalStore<EnvFingerprint | null>(NO_SUBSCRIBE, envSnapshot, () => null);
 
+  const lifecycle = useBrainLifecycle();
+  const life = lifecycle.getTelemetry();
   const [engine, setEngine] = useState<"stub" | "openwakeword">("stub");
   const [armed, setArmed] = useState(false);
   const [mic, setMic] = useState<MicState>("off");
@@ -683,6 +686,23 @@ export default function D2WakeLabPage() {
           ayas: { state: ayasState, reply: ayasReply },
           tts: { state: ttsState },
           rearm: rearmState,
+          lifecycle: {
+            bootId: life.bootId,
+            bootCount: life.bootCount,
+            sessionUptimeMs: life.sessionUptimeMs,
+            reloadCause: life.reloadCause,
+            unexpectedReload: life.unexpectedReload,
+            priorVoiceActive: life.priorVoiceActive,
+            priorVoiceCycles: life.priorVoiceCycles,
+            voiceSessionCount: life.voiceSessionCount,
+            voiceCycleCount: life.voiceCycleCount,
+            recoveryCount: life.recoveryCount,
+            lastVoicePhase: life.lastVoicePhase,
+            serviceWorkerState: life.serviceWorkerState,
+            visibilityState: life.visibilityState,
+            onlineState: life.onlineState,
+            lastLifecycleEvent: life.lastLifecycleEvent,
+          },
           elapsedSeconds: elapsed,
           elapsedHms: hhmmss(elapsed),
           backgroundRecovery: bgRecovery,
@@ -691,7 +711,7 @@ export default function D2WakeLabPage() {
         null,
         2,
       ),
-    [engine, envFp, sampleRate, ctxState, worklet, tel.frames, threshold, hits, truePos, falsePos, lastDetection, wakeScore, diag, sttState, lastTranscript, ayasState, ayasReply, ttsState, rearmState, elapsed, bgRecovery],
+    [engine, envFp, sampleRate, ctxState, worklet, tel.frames, threshold, hits, truePos, falsePos, lastDetection, wakeScore, diag, sttState, lastTranscript, ayasState, ayasReply, ttsState, rearmState, elapsed, bgRecovery, life],
   );
 
   const rmsPct = Math.min(100, Math.round(tel.rms * 400));
@@ -862,6 +882,29 @@ export default function D2WakeLabPage() {
         <dd>{bgRecovery}</dd>
         <dt>CPU observation</dt>
         <dd>[operatör — cihazda gözlemle]</dd>
+      </dl>
+
+      <dl className="bc-kv" data-testid="d2w-lifecycle" style={{ marginTop: 14 }}>
+        <dt>Boot id / count</dt>
+        <dd>{life.bootId} / {life.bootCount}</dd>
+        <dt>Session uptime</dt>
+        <dd>{hhmmss(Math.floor(life.sessionUptimeMs / 1000))}</dd>
+        <dt>Reload cause</dt>
+        <dd style={{ color: life.unexpectedReload ? "var(--bc-danger, #f66)" : undefined }}>
+          {life.reloadCause}{life.unexpectedReload ? " · SESLİ OTURUM KESİLDİ" : ""}
+        </dd>
+        <dt>Önceki boot — ses aktif / tur</dt>
+        <dd>{life.priorVoiceActive ? "evet" : "hayır"} / {life.priorVoiceCycles}</dd>
+        <dt>Bu oturum — ses / tur / recovery</dt>
+        <dd>{life.voiceSessionCount} / {life.voiceCycleCount} / {life.recoveryCount}</dd>
+        <dt>Son voice phase</dt>
+        <dd>{life.lastVoicePhase}</dd>
+        <dt>Service worker</dt>
+        <dd>{life.serviceWorkerState}</dd>
+        <dt>visibility / online</dt>
+        <dd>{life.visibilityState} / {life.onlineState ? "online" : "offline"}</dd>
+        <dt>Son lifecycle olayı</dt>
+        <dd>{life.lastLifecycleEvent}</dd>
       </dl>
 
       <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>

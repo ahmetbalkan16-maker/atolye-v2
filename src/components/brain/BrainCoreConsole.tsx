@@ -32,6 +32,7 @@ import {
 } from "./brainCore";
 import { ayasVoiceHoldsScreenAwake, shouldAutoSpeakAyasReply } from "./ayasVoice";
 import { useAyasVoice } from "./useAyasVoice";
+import { useBrainLifecycle } from "./useBrainLifecycle";
 import { useScreenWakeLock } from "./useScreenWakeLock";
 import { runAyasChatStream } from "./ayasChatStreamClient";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
@@ -122,6 +123,27 @@ export function BrainCoreConsole({
   // Keep the phone from auto-locking (and then evicting + reloading this page)
   // mid-conversation — while hands-free is armed or AYAS is speaking/thinking.
   useScreenWakeLock(ayasVoiceHoldsScreenAwake(voice.state, voice.listening));
+
+  // Detect an unexpected reload (iOS eviction / SW update) that interrupted a
+  // voice session, so the UI can offer to resume it. Records secret-free
+  // lifecycle telemetry in sessionStorage for the Voice Lab.
+  const lifecycle = useBrainLifecycle();
+  useEffect(() => {
+    lifecycle.markVoiceActive(voice.listening);
+  }, [voice.listening, lifecycle]);
+  useEffect(() => {
+    if (voice.recovering) lifecycle.noteRecovery();
+  }, [voice.recovering, lifecycle]);
+  const prevCyclesRef = useRef(0);
+  useEffect(() => {
+    if (voice.wakeCycles > prevCyclesRef.current) {
+      prevCyclesRef.current = voice.wakeCycles;
+      lifecycle.noteVoiceCycle();
+    }
+  }, [voice.wakeCycles, lifecycle]);
+  useEffect(() => {
+    lifecycle.notePhase(voice.state);
+  }, [voice.state, lifecycle]);
 
   const voiceRef = useRef(voice);
   useEffect(() => {
@@ -239,11 +261,13 @@ export function BrainCoreConsole({
   // The AYAS presence-card CTA: drop into the EXISTING chat/voice experience —
   // select the chat panel and, when this device can hear, start listening
   // inside this click's user gesture (iOS needs that). No new path.
+  const dismissInterrupted = lifecycle.dismissInterrupted;
   const startConversation = useCallback(() => {
     setActivePanel("chat");
+    dismissInterrupted();
     const v = voiceRef.current;
     if (v.capability.stt && !v.listening) v.toggleListening();
-  }, []);
+  }, [dismissInterrupted]);
 
   const restingState = useMemo(() => deriveBrainCoreState(snapshot), [snapshot]);
   const autonomousWaiting = (initialAutonomous?.awaitingApprovalCount ?? 0) > 0;
@@ -298,6 +322,7 @@ export function BrainCoreConsole({
       }}
       connectivity={connectivity}
       secureContext={secureContext}
+      voiceSessionInterrupted={lifecycle.voiceSessionInterrupted}
       onSelectPanel={setActivePanel}
       onDraftChange={setDraft}
       onSend={send}

@@ -71,6 +71,8 @@ export interface BrainConsoleViewProps {
   readonly connectivity?: AyasConnectivity;
   /** `true` when served over HTTPS (mic + phone use). Default `true` (SSR-safe). */
   readonly secureContext?: boolean;
+  /** A reload (iOS eviction / SW update) interrupted an active voice session. */
+  readonly voiceSessionInterrupted?: boolean;
   readonly onSelectPanel?: (id: BrainPanelId) => void;
   readonly onDraftChange?: (value: string) => void;
   readonly onSend?: () => void;
@@ -234,12 +236,16 @@ function AyasPresenceCard(props: BrainConsoleViewProps) {
   });
 
   const rows: AyasPresenceRow[] = [presence.voice, presence.mobile, presence.security];
+  const interrupted = props.voiceSessionInterrupted === true && !props.voice?.listening;
+  const ctaLabel = interrupted ? "Sesli oturuma devam et" : presence.cta.label;
+  const ctaKind = interrupted && presence.cta.kind !== "disabled" ? "voice" : presence.cta.kind;
 
   return (
     <section
-      className={`bc-presence bc-presence--${presence.statusTone}`}
+      className={`bc-presence bc-presence--${interrupted ? "warn" : presence.statusTone}`}
       data-testid="bc-presence"
       data-online={presence.online ? "true" : "false"}
+      data-interrupted={interrupted ? "true" : "false"}
       aria-label="AYAS bağlantı durumu"
     >
       <div className="bc-presence__head">
@@ -249,6 +255,12 @@ function AyasPresenceCard(props: BrainConsoleViewProps) {
           {presence.statusTr}
         </span>
       </div>
+
+      {interrupted ? (
+        <p className="bc-presence__notice" data-testid="bc-presence-interrupted">
+          Sesli oturum kesildi (sayfa yeniden yüklendi). Devam etmek için dokun.
+        </p>
+      ) : null}
 
       <dl className="bc-presence__rows">
         {rows.map((row) => (
@@ -270,9 +282,9 @@ function AyasPresenceCard(props: BrainConsoleViewProps) {
         onClick={props.onStartConversation}
         disabled={presence.cta.kind === "disabled" || !props.onStartConversation}
         data-testid="bc-presence-cta"
-        data-cta-kind={presence.cta.kind}
+        data-cta-kind={ctaKind}
       >
-        {presence.cta.label}
+        {ctaLabel}
       </button>
     </section>
   );

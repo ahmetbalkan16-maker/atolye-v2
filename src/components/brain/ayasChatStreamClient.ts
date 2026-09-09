@@ -57,11 +57,15 @@ export async function runAyasChatStream(input: RunAyasChatStreamInput): Promise<
   const decoder = new TextDecoder();
   let buffer = "";
   let terminal: Extract<AyasChatStreamEvent, { type: "done" }> | undefined;
+  let streamDone = false;
 
   try {
     for (;;) {
       const { value, done } = await reader.read();
-      if (done) break;
+      if (done) {
+        streamDone = true;
+        break;
+      }
       buffer += decoder.decode(value, { stream: true });
       let idx: number;
       while ((idx = buffer.indexOf("\n\n")) !== -1) {
@@ -85,6 +89,21 @@ export async function runAyasChatStream(input: RunAyasChatStreamInput): Promise<
     }
   } catch (error) {
     return { ok: false, reason: (error as Error)?.name === "AbortError" ? "aborted" : "stream-read" };
+  } finally {
+    // Release the lock + tear down the underlying stream so a partial / aborted
+    // read cannot leave a dangling reader accumulating across turns.
+    if (!streamDone) {
+      try {
+        await reader.cancel();
+      } catch {
+        /* ignore */
+      }
+    }
+    try {
+      reader.releaseLock();
+    } catch {
+      /* ignore */
+    }
   }
 
   if (!terminal) {

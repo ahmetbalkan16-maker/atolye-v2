@@ -430,6 +430,40 @@ async function run() {
     assert.ok(/disabled/.test(ctaTag.slice(0, ctaTag.indexOf(">"))), "offline CTA button is disabled");
   });
 
+  await scenario("11i. presence card — reload interrupted a voice session → resume notice + CTA", () => {
+    const html = renderView({
+      snapshot: baseSnapshot(),
+      connectivity: "online",
+      voiceSessionInterrupted: true,
+      onStartConversation: () => {},
+      voice: {
+        state: "idle",
+        capability: { stt: true, tts: true, sttCloudBacked: false },
+        listening: false,
+        muted: false,
+        disclosureAccepted: true,
+        recognitionMode: "wake-engine",
+      },
+    });
+    assert.ok(html.includes('data-interrupted="true"'));
+    assert.ok(html.includes('data-testid="bc-presence-interrupted"'));
+    assert.ok(/Sesli oturum kesildi/.test(html));
+    assert.ok(/Sesli oturuma devam et/.test(html), "the CTA offers to resume");
+    assert.ok(html.includes('data-cta-kind="voice"'));
+    // once the user is listening again, the notice is gone
+    const resumed = renderView({
+      snapshot: baseSnapshot(),
+      connectivity: "online",
+      voiceSessionInterrupted: true,
+      onStartConversation: () => {},
+      voice: {
+        state: "listening", capability: { stt: true, tts: true, sttCloudBacked: false },
+        listening: true, muted: false, disclosureAccepted: true, recognitionMode: "wake-engine",
+      },
+    });
+    assert.ok(!resumed.includes('data-testid="bc-presence-interrupted"'), "no notice once re-armed");
+  });
+
   await scenario("12. chat reply is deterministic, never fakes an LLM, reflects real numbers", () => {
     const snap = baseSnapshot({ cyclesRecorded: 2, tasks: { ...baseSnapshot().tasks, total: 4, pendingApproval: 1 } });
     const a = brainDeterministicReply("merhaba", snap, 1);

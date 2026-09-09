@@ -101,17 +101,22 @@ scenario("offline page exists and is static, no execution", () => {
   }
 });
 
-scenario("PwaRegister — OFF by default; on, it revalidates sw.js + reloads once on takeover", () => {
+scenario("PwaRegister — OFF by default; on, SW-update reload is DEFERRED, never mid-use", () => {
   const src = fs.readFileSync(path.join(REPO, "src/components/PwaRegister.tsx"), "utf8");
   assert.match(src, /NEXT_PUBLIC_ATOLYE_PWA_SW\s*===\s*"on"/);
   assert.match(src, /if\s*\(!enabled\)/);
   assert.match(src, /unregister\(\)/);
   assert.match(src, /register\("\/sw\.js"/);
   assert.match(src, /updateViaCache:\s*"none"/, "sw.js itself is always revalidated");
-  assert.match(src, /controllerchange/, "a new worker taking control reloads the page");
+  assert.match(src, /controllerchange/);
   assert.match(src, /window\.location\.reload\(\)/);
-  // reload exactly once — no loop
-  assert.match(src, /reloaded\s*=\s*true/);
+  // reload exactly once — a `done` latch
+  assert.match(src, /done\s*=\s*true/);
+  // a visible, established page is NOT reloaded — the reload is deferred
+  assert.match(src, /reloadPending/, "an in-use page defers the reload");
+  assert.match(src, /visibilityState/, "reload only when hidden / young");
+  assert.match(src, /pagehide/, "deferred reload happens on pagehide");
+  assert.match(src, /ayas\.sw\.reloadedAt/, "leaves a breadcrumb so the next boot classifies as sw-update");
 });
 
 console.log(`AYAS PWA service worker smoke: PASS (${count} scenarios)`);

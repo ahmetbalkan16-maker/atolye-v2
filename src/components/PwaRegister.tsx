@@ -7,9 +7,20 @@
  * enables it after verifying the offline behaviour in a real browser. When the
  * flag is unset this component registers nothing and, if a stale worker exists,
  * unregisters it so toggling the flag off is a clean revert.
+ *
+ * SW-update reloads are DEFERRED, never mid-use: when a new worker takes control
+ * (`controllerchange`) we reload immediately ONLY if the current page is very
+ * young (it might have been served stale HTML by the old worker) or is hidden.
+ * A page that has been running fine is left alone — the freshly-claimed worker
+ * is network-only for navigations, so the live page keeps working; the reload
+ * happens the next time the page is hidden / closed. A user mid-conversation is
+ * NEVER interrupted by a service-worker update.
  */
 
 import { useEffect } from "react";
+
+/** A page older than this is not "stale-broken" (those fail within seconds). */
+const STALE_PAGE_GRACE_MS = 6000;
 
 export function PwaRegister() {
   useEffect(() => {
@@ -25,14 +36,39 @@ export function PwaRegister() {
       return;
     }
 
-    // A superseded worker keeps serving stale HTML until it is replaced — so
-    // always revalidate `sw.js` itself, push any waiting worker to activate, and
-    // reload ONCE when a new worker takes control.
-    let reloaded = false;
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (reloaded) return;
-      reloaded = true;
+    let done = false;
+    let reloadPending = false;
+
+    const now = () => (typeof performance !== "undefined" ? performance.now() : STALE_PAGE_GRACE_MS + 1);
+    const doReload = () => {
+      if (done) return;
+      done = true;
+      // Leave a breadcrumb so the Brain classifies the next boot as an SW update
+      // (not a suspected eviction).
+      try {
+        window.sessionStorage.setItem("ayas.sw.reloadedAt.v1", String(Date.now()));
+      } catch {
+        /* ignore */
+      }
       window.location.reload();
+    };
+    const onHidden = () => {
+      if (reloadPending && document.visibilityState === "hidden") doReload();
+    };
+
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (done) return;
+      // Young page (possibly served stale HTML) or not visible → reload now.
+      if (now() < STALE_PAGE_GRACE_MS || document.visibilityState !== "visible") {
+        doReload();
+        return;
+      }
+      // In-use page: the claimed worker already handles it correctly. Defer.
+      reloadPending = true;
+    });
+    document.addEventListener("visibilitychange", onHidden);
+    window.addEventListener("pagehide", () => {
+      if (reloadPending) doReload();
     });
 
     navigator.serviceWorker
@@ -48,6 +84,8 @@ export function PwaRegister() {
       .catch(() => {
         /* registration is best-effort — the app works without it */
       });
+
+    return () => document.removeEventListener("visibilitychange", onHidden);
   }, []);
 
   return null;
