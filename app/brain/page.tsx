@@ -30,15 +30,17 @@ export default async function BrainCorePage() {
         refresh={refreshBrainConsole}
         askAyas={askAyas}
       />
-      {/* research/ayas-d2-audio-lab ONLY — not on any production branch.
-          Lets the installed PWA reach the labs (standalone has no URL bar). */}
-      <p style={{ textAlign: "center", padding: "8px 0 24px", fontSize: 11, opacity: 0.5 }}>
+      {/* Operator diagnostics only — the user-facing voice experience is the
+          AYAS card above ("AYAS ile sesli konuş"), not these labs. The installed
+          PWA has no URL bar, so keep them reachable but clearly secondary. */}
+      <p style={{ textAlign: "center", padding: "8px 0 24px", fontSize: 11, opacity: 0.45 }}>
+        Operatör araçları:{" "}
         <a href="/brain/voice-lab" style={{ color: "inherit" }}>
-          D2 Audio Lab (Faz 0) →
+          Audio Lab
         </a>
-        {"   ·   "}
+        {"  ·  "}
         <a href="/brain/voice-lab/wake" style={{ color: "inherit" }}>
-          D2 Wake Lab (Faz 1) →
+          Wake Lab (diagnostics)
         </a>
       </p>
     </>

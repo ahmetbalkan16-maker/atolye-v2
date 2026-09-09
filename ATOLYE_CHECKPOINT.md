@@ -1,5 +1,56 @@
 ---
 
+## Mobile 2-min reload — A/B/C measured; screen wake lock + /brain entry; gate CLOSED - 2026-09-09
+
+**Branch:** `wip/ayas-graphify-final-execution` (off `9c422fc`). NOT merged / NOT pushed.
+
+**Symptom:** iPhone mobile-data AYAS — ~2 min in, while AYAS is still answering, the page reloads /
+"session reset".
+
+**ROOT CAUSE = NOT DEVICE-PROVEN, but A/B/C ruled out by measurement:**
+- **A (session expiration) — RULED OUT.** `AYAS_SESSION_TTL_SECONDS = 43200` (12 h), cookie
+  `maxAge` 12 h, `CLOCK_SKEW 60`. No `120` / `120000` / 2-min value anywhere in auth. An expired
+  session ⇒ a 401→`/login` redirect on the *next* request or a degraded chat reply — it does not
+  reload a page that is just sitting there.
+- **B (Cloudflare quick tunnel) — RULED OUT for connection drops.** `cloudflared` 70 min uptime,
+  **0 reconnects, 0 errors** (`ha-connections:1`, one registered connection). 2 min 44 s of
+  sustained polling through the tunnel vs local: **100 % HTTP 200, flat ~90–130 ms, no cliff at
+  the 2-min mark.**
+- **C (client timer / refresh / reconnect) — RULED OUT.** No `location.reload` / `location.href=` /
+  `router.refresh|push|replace` / `<meta http-equiv=refresh>` / SW `controllerchange` anywhere in
+  `/brain`, the voice modules, or `/brain/voice-lab/**`. The only `setInterval` is a 1 s elapsed
+  clock; the `setTimeout`s are sub-second voice-engine debounces. `public/sw.js` never reloads and
+  is OFF by default (`NEXT_PUBLIC_ATOLYE_PWA_SW` unset).
+- **Surviving explanation:** iOS auto-locks the screen (default Auto-Lock 30 s–2 min → the 2-min
+  timing), suspends the backgrounded WebKit page, then evicts + reloads it — a Safari tab reloads
+  in place, an installed PWA relaunches from `start_url` (`/brain?source=pwa`). A web page cannot
+  stop that eviction; it CAN stop the screen from locking during a voice turn.
+
+**FIX (UI only, security-preserving):**
+- **`useScreenWakeLock.ts`** (NEW) — `navigator.wakeLock.request("screen")` while a voice turn is
+  active; auto-re-acquires on `visibilitychange`→visible; absent API / denied ⇒ silent no-op. No
+  timer, no network (held to the Brain-UI bar in `smoke-brain-core-ui` test 14).
+- **`ayasVoice.ts`** — pure `ayasVoiceHoldsScreenAwake(state, listening)`: true while hands-free is
+  armed OR AYAS is capturing/thinking/speaking.
+- **`BrainCoreConsole.tsx`** — `useScreenWakeLock(ayasVoiceHoldsScreenAwake(voice.state,
+  voice.listening))`.
+- **`app/brain/page.tsx`** — the two voice-lab links demoted to "Operatör araçları · Audio Lab ·
+  Wake Lab (diagnostics)" (small, opacity .45). `/brain` + the presence-card CTA "AYAS ile sesli
+  konuş" is the user entry; `start_url` is already `/brain?source=pwa`; no auto-redirect to the lab
+  exists or was added.
+
+**Verify:** tsc 0 / eslint 0 err (22 pre-existing) / `next build` clean. `smoke-ayas-voice`
+49→**50** (wake-lock predicate), `smoke-brain-core-ui` 30 (test-14 covers the new hook) + brain /
+wake / chat-stream / access-gate / stt / pwa suites green. `git diff --check` clean; 5 files + 1
+new hook, all UI.
+
+**Unchanged:** Execution Gate CLOSED, `writeActionsEnabled`, auth/CSRF/access gate/session
+TTL/rate limit, STT/wake model/voice adapter/wake runner/TTS, WAKE→STT→AYAS→TTS→re-arm,
+`D:\AtolyeRuntime`, Caddy, `.env.local`, the operator-run quick tunnel (still
+`haven-finds-distinct-selling.trycloudflare.com`, not written anywhere).
+
+<!-- MOBILE-2MIN-RELOAD-END -->
+
 ## Brain home page — AYAS mobile + voice presence card; gate CLOSED - 2026-09-09
 
 **Branch:** `wip/ayas-graphify-final-execution` (off `a72972f`). NOT merged / NOT pushed.

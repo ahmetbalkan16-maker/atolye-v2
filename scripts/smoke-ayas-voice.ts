@@ -33,6 +33,7 @@ import {
   resolveAyasSpeechParams,
   toSpokenAyasText,
   shouldAutoSpeakAyasReply,
+  ayasVoiceHoldsScreenAwake,
   AYAS_VOICE_STATES,
   AYAS_VOICE_DISCLOSURE,
   AYAS_VOICE_TAP_FOR_COMMAND,
@@ -410,6 +411,21 @@ async function run() {
     assert.match(spoken, /\bve\b/);
     assert.ok(!spoken.includes("\n"), "newlines collapsed");
     assert.equal(toSpokenAyasText(""), "");
+  });
+
+  await scenario("screen wake lock predicate — held during a voice turn / hands-free, released at rest", () => {
+    // hands-free armed → hold regardless of the transient state
+    assert.equal(ayasVoiceHoldsScreenAwake("idle", true), true);
+    assert.equal(ayasVoiceHoldsScreenAwake("listening", true), true);
+    // AYAS mid-turn even without hands-free (typed question, spoken answer)
+    assert.equal(ayasVoiceHoldsScreenAwake("thinking", false), true);
+    assert.equal(ayasVoiceHoldsScreenAwake("speaking", false), true);
+    assert.equal(ayasVoiceHoldsScreenAwake("listening", false), true);
+    // at rest → let the phone sleep normally
+    assert.equal(ayasVoiceHoldsScreenAwake("idle", false), false);
+    assert.equal(ayasVoiceHoldsScreenAwake("off", false), false);
+    assert.equal(ayasVoiceHoldsScreenAwake("error", false), false);
+    assert.equal(ayasVoiceHoldsScreenAwake("unsupported", false), false);
   });
 
   /* =============================== engine: capability gating ============ */

@@ -511,6 +511,9 @@ async function run() {
       "src/components/brain/BrainConsoleView.tsx",
       "src/components/brain/BrainCoreConsole.tsx",
       "src/components/brain/ayasVoice.ts",
+      // The screen wake lock only asks the OS to keep the display on — no
+      // timer, no network. Held to the same bar as the rest of the Brain UI.
+      "src/components/brain/useScreenWakeLock.ts",
       "src/lib/brain/ui/BrainConsoleSnapshot.ts",
     ];
     for (const file of files) {
@@ -520,6 +523,10 @@ async function run() {
         assert.ok(!code.includes(banned), `${file} must not reference "${banned}"`);
       }
     }
+    // The wake lock additionally must carry no timer at all.
+    const wl = fs.readFileSync(path.join(REPO_ROOT, "src/components/brain/useScreenWakeLock.ts"), "utf8");
+    assert.ok(!wl.includes("setTimeout(") && !wl.includes("setInterval("), "useScreenWakeLock has no timer");
+    assert.ok(wl.includes('navigator.wakeLock'), "useScreenWakeLock uses the Screen Wake Lock API");
   });
 
   await scenario("14b. the chat SSE client streams text only — no execution / timer / GPU primitive", () => {

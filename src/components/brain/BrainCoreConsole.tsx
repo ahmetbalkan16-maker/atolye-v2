@@ -30,8 +30,9 @@ import {
   type BrainCoreState,
   type BrainPanelId,
 } from "./brainCore";
-import { shouldAutoSpeakAyasReply } from "./ayasVoice";
+import { ayasVoiceHoldsScreenAwake, shouldAutoSpeakAyasReply } from "./ayasVoice";
 import { useAyasVoice } from "./useAyasVoice";
+import { useScreenWakeLock } from "./useScreenWakeLock";
 import { runAyasChatStream } from "./ayasChatStreamClient";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
@@ -117,6 +118,10 @@ export function BrainCoreConsole({
   const runAyasRef = useRef<(text: string) => void>(() => {});
   const handleVoiceCommand = useCallback((text: string) => runAyasRef.current(text), []);
   const voice = useAyasVoice({ onCommand: handleVoiceCommand });
+
+  // Keep the phone from auto-locking (and then evicting + reloading this page)
+  // mid-conversation — while hands-free is armed or AYAS is speaking/thinking.
+  useScreenWakeLock(ayasVoiceHoldsScreenAwake(voice.state, voice.listening));
 
   const voiceRef = useRef(voice);
   useEffect(() => {

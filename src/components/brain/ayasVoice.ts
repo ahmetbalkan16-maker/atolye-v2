@@ -482,6 +482,17 @@ export function shouldAutoSpeakAyasReply(input: {
   return input.ttsAvailable && !input.muted;
 }
 
+/**
+ * Whether AYAS should hold a screen wake lock right now. True while a
+ * hands-free voice session is armed (`listening`) or AYAS is mid-turn
+ * (capturing / thinking / speaking) — so an iOS phone does not auto-lock and
+ * then evict + reload the page in the middle of a spoken exchange. Pure.
+ */
+export function ayasVoiceHoldsScreenAwake(state: AyasVoiceState, listening: boolean): boolean {
+  if (listening) return true;
+  return state === "listening" || state === "thinking" || state === "speaking";
+}
+
 /** Human-readable Turkish description of a `SpeechRecognition` error code. */
 export function describeAyasRecognitionError(code: string): string {
   switch (code) {
