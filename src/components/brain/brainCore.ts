@@ -327,6 +327,16 @@ export interface AyasStudioProjectView {
   readonly title: string;
   /** Pipeline stage / `ProjectStatus`; `"unknown"` when the record omitted it. */
   readonly status: string;
+  /**
+   * Read-only pipeline facts (Phase 6) — computed by `PipelineRecoveryPlanner`
+   * from the project manifest, no stage is run. `null` fields mean "not probed"
+   * (fail-soft).
+   */
+  readonly nextStage?: string | null;
+  /** Pipeline stages currently in `failed` state. */
+  readonly failedStages?: readonly string[];
+  /** `true` when the resume plan is blocked by an unmet dependency. */
+  readonly blocked?: boolean;
 }
 
 export interface AyasStudioContextView {
@@ -349,6 +359,27 @@ export interface AyasStudioContextView {
     readonly byStatus: readonly { readonly status: string; readonly count: number }[];
     /** A short sample for the prompt — most recently updated first. */
     readonly sample: readonly AyasStudioProjectView[];
+    /**
+     * Read-only pipeline roll-up over ALL projects (Phase 6). Absent when the
+     * pipeline probe could not run. Lets AYAS answer "hangi aşamada takılıyor" /
+     * "son başarısız stage" from fact — it still runs nothing.
+     */
+    readonly pipeline?: {
+      /** Projects with at least one `failed` stage. */
+      readonly withFailedStage: number;
+      /** Projects whose resume plan is blocked by a dependency. */
+      readonly blocked: number;
+      /** `stage → count` of projects sitting at that next-incomplete stage, busiest first. */
+      readonly stalledAtStage: readonly { readonly stage: string; readonly count: number }[];
+      /** Most recently updated project that has a failed stage, or `null`. */
+      readonly latestFailure: {
+        readonly slug: string;
+        readonly title: string;
+        readonly failedStages: readonly string[];
+        /** The `error` string the failed stage recorded in the manifest, if any. */
+        readonly rootCause: string | null;
+      } | null;
+    };
   };
   /** Non-fatal notes (e.g. "1 folder has no project.json"). */
   readonly notes: readonly string[];
@@ -383,22 +414,46 @@ function ayasStudioPromptLines(studio: AyasStudioContextView | undefined): strin
   const statusText = studio.projects.byStatus.length
     ? studio.projects.byStatus.map((s) => `${s.count} ${s.status}`).join(", ")
     : "durum bilgisi yok";
-  const sample = studio.projects.sample
-    .slice(0, 6)
-    .map((p) => `  · ${p.title || p.slug} (${p.status})`);
+  const sample = studio.projects.sample.slice(0, 6).map((p) => {
+    const bits: string[] = [];
+    if (p.nextStage) bits.push(`sıradaki aşama: ${p.nextStage}`);
+    else if (p.nextStage === null) bits.push("pipeline tamamlanmış");
+    if (p.failedStages && p.failedStages.length) bits.push(`başarısız: ${p.failedStages.join("/")}`);
+    if (p.blocked) bits.push("ENGELLİ (bağımlılık)");
+    return `  · ${p.title || p.slug} (${p.status})${bits.length ? " — " + bits.join(", ") : ""}`;
+  });
+  const pl = studio.projects.pipeline;
+  const pipelineLines = pl
+    ? [
+        "- pipeline (salt-okunur özet, tüm projeler):",
+        `  · başarısız aşaması olan proje: ${pl.withFailedStage}`,
+        `  · bağımlılıkla engellenen proje: ${pl.blocked}`,
+        ...(pl.stalledAtStage.length
+          ? [`  · aşamada bekleyen: ${pl.stalledAtStage.map((s) => `${s.count} × ${s.stage}`).join(", ")}`]
+          : []),
+        ...(pl.latestFailure
+          ? [
+              `  · en son başarısızlık: "${pl.latestFailure.title}" → aşama ${pl.latestFailure.failedStages.join("/") || "?"}` +
+                (pl.latestFailure.rootCause ? ` (kök neden: ${pl.latestFailure.rootCause})` : ""),
+            ]
+          : ["  · başarısız aşaması olan proje yok"]),
+      ]
+    : ["- pipeline özeti: bu sefer okunamadı"];
   return [
     "",
-    "Atölye stüdyo bağlamı (salt-okunur, kaynak: runtime authority + proje envanteri):",
+    "Atölye stüdyo bağlamı (salt-okunur, kaynak: runtime authority + proje envanteri + pipeline manifestleri):",
     `- aktif runtime authority (proje deposu): ${ra.runtimeRoot}`,
     `- proje kökü: ${ra.projectsRoot}`,
     `- authority kontrol kökü: ${ra.authorityRoot}`,
     `- depo türü: ${ra.classification}${ra.external ? " (repo dışı, harici disk)" : " (repo içi varsayılan)"}`,
     `- toplam proje sayısı: ${studio.projects.total}`,
     `- proje durumları: ${statusText}`,
+    ...pipelineLines,
     ...(sample.length ? ["- örnek projeler:", ...sample] : []),
     ...(studio.notes.length ? [`- notlar: ${studio.notes.join(" | ")}`] : []),
-    "\"Runtime authority neresi\" / \"kaç proje var\" gibi sorulara YALNIZCA bu bloktaki",
-    "değerlerle cevap ver; başka bir yol veya sayı uydurma.",
+    "\"Kaç proje var\" / \"runtime authority neresi\" / \"hangi aşamada takıldı\" / \"son başarısız",
+    "stage\" gibi sorulara YALNIZCA bu bloktaki değerlerle cevap ver; yol, sayı veya aşama uydurma.",
+    "Bu bir salt-okunur özettir: pipeline çalıştıramaz, aşama tetikleyemez, proje düzenleyemezsin.",
   ];
 }
 

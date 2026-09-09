@@ -88,6 +88,20 @@ function writeProject(root: string, dir: string, record: Record<string, unknown>
   if (record) fs.writeFileSync(path.join(folder, "project.json"), JSON.stringify(record));
 }
 
+/** Write a `manifest.json` with a partial `packages` map (unlisted stages → pending). */
+function writeManifest(root: string, dir: string, packages: Record<string, { status: string; error?: string }>) {
+  const STAGES = [
+    "research", "script", "scenes", "visuals", "animation", "video",
+    "audio", "assembly", "thumbnail", "seo", "youtube", "export",
+  ];
+  const full: Record<string, { key: string; status: string; error: string | null }> = {};
+  for (const s of STAGES) full[s] = { key: s, status: packages[s]?.status ?? "pending", error: packages[s]?.error ?? null };
+  fs.writeFileSync(
+    path.join(root, "projects", dir, "manifest.json"),
+    JSON.stringify({ version: 1, slug: dir, projectId: dir, packages: full }),
+  );
+}
+
 async function run() {
   /* ---------------- loadAyasStudioContext (env-scoped temp root) ------------- */
 
@@ -103,10 +117,18 @@ async function run() {
   process.env.ATOLYE_RUNTIME_AUTHORITY_ROOT = authorityRoot;
 
   try {
-    writeProject(runtimeRoot, "alpha", { slug: "alpha", id: "id-a", title: "Alpha", status: "visuals", updatedAt: "2026-09-03T00:00:00.000Z" });
-    writeProject(runtimeRoot, "beta", { slug: "beta", id: "id-b", title: "Beta", status: "visuals", updatedAt: "2026-09-05T00:00:00.000Z" });
-    writeProject(runtimeRoot, "gamma", { slug: "gamma", id: "id-c", title: "Gamma", status: "script", updatedAt: "2026-09-01T00:00:00.000Z" });
+    writeProject(runtimeRoot, "alpha", { slug: "alpha", id: "alpha", title: "Alpha", status: "visuals", updatedAt: "2026-09-03T00:00:00.000Z" });
+    writeProject(runtimeRoot, "beta", { slug: "beta", id: "beta", title: "Beta", status: "visuals", updatedAt: "2026-09-05T00:00:00.000Z" });
+    writeProject(runtimeRoot, "gamma", { slug: "gamma", id: "gamma", title: "Gamma", status: "script", updatedAt: "2026-09-01T00:00:00.000Z" });
     writeProject(runtimeRoot, "orphan-no-json", null);
+    // beta: research+script done, scenes failed. alpha: research done, script pending.
+    // gamma: no manifest.json at all (probe must stay fail-soft).
+    writeManifest(runtimeRoot, "beta", {
+      research: { status: "completed" },
+      script: { status: "completed" },
+      scenes: { status: "failed", error: "SCENE_PLAN_TIMEOUT" },
+    });
+    writeManifest(runtimeRoot, "alpha", { research: { status: "completed" } });
 
     await scenario("loadAyasStudioContext — resolves the env runtime authority", async () => {
       const ctx = await loadAyasStudioContext();
@@ -136,6 +158,52 @@ async function run() {
     await scenario("loadAyasStudioContext — notes the folder with no project.json", async () => {
       const ctx = await loadAyasStudioContext();
       assert.ok(ctx.notes.some((n) => /project\.json yok/.test(n)), ctx.notes.join(" | "));
+    });
+
+    await scenario("Phase 6 — per-project pipeline probe: failed stage + next stage from manifest", async () => {
+      const ctx = await loadAyasStudioContext();
+      const beta = ctx.projects.sample.find((p) => p.slug === "beta");
+      assert.ok(beta, "beta in sample");
+      assert.deepEqual(beta!.failedStages, ["scenes"]);
+      assert.equal(beta!.nextStage, "scenes"); // first non-completed stage
+      const alpha = ctx.projects.sample.find((p) => p.slug === "alpha");
+      assert.equal(alpha!.nextStage, "script");
+      assert.deepEqual(alpha!.failedStages, []);
+    });
+
+    await scenario("Phase 6 — pipeline roll-up: withFailedStage / stalledAtStage / latestFailure + rootCause", async () => {
+      const ctx = await loadAyasStudioContext();
+      assert.ok(ctx.projects.pipeline, "pipeline roll-up present");
+      const pl = ctx.projects.pipeline!;
+      assert.equal(pl.withFailedStage, 1); // only beta
+      assert.equal(pl.blocked, 0);
+      assert.ok(pl.stalledAtStage.some((s) => s.stage === "scenes" && s.count >= 1));
+      assert.ok(pl.latestFailure, "latestFailure present");
+      assert.equal(pl.latestFailure!.slug, "beta");
+      assert.deepEqual(pl.latestFailure!.failedStages, ["scenes"]);
+      assert.equal(pl.latestFailure!.rootCause, "SCENE_PLAN_TIMEOUT");
+    });
+
+    await scenario("Phase 6 — fail-soft: project with no manifest.json is noted, not crashed", async () => {
+      const ctx = await loadAyasStudioContext();
+      const gamma = ctx.projects.sample.find((p) => p.slug === "gamma");
+      assert.equal(gamma!.nextStage, undefined); // not probed → field absent
+      assert.ok(ctx.notes.some((n) => /pipeline manifesti okunamadı/.test(n)), ctx.notes.join(" | "));
+    });
+
+    await scenario("Phase 6 — buildAyasChatPrompt renders the pipeline summary + failure root cause", async () => {
+      const ctx = await loadAyasStudioContext();
+      const prompt = buildAyasChatPrompt({
+        userText: "son başarısız stage ne?",
+        snapshot: snap(),
+        history: [],
+        format: "text",
+        studio: ctx,
+      });
+      assert.match(prompt, /pipeline \(salt-okunur özet/);
+      assert.match(prompt, /başarısız aşaması olan proje: 1/);
+      assert.match(prompt, /en son başarısızlık:.*scenes.*SCENE_PLAN_TIMEOUT/);
+      assert.match(prompt, /son başarısız/); // the instruction line mentions it
     });
   } finally {
     if (prevRuntime === undefined) delete process.env.ATOLYE_RUNTIME_ROOT;
