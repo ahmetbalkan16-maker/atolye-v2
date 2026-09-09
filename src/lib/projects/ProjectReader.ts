@@ -6,6 +6,7 @@ import {
   resolveRuntimeStorageContext,
   type RuntimeStorageInput,
 } from "@/lib/runtime/RuntimeStoragePaths";
+import { resolveProjectFolderSegment } from "./ProjectFolderIndex";
 
 export class ProjectReader {
   static getProjectsRoot(input: RuntimeStorageInput = {}) {
@@ -15,7 +16,13 @@ export class ProjectReader {
 
   static getProjectFolder(slug: string, input: RuntimeStorageInput = {}) {
     const context = resolveRuntimeStorageContext(input);
-    return getProjectRoot(slug, context);
+    // Read-only identity resolution: a folder that already exists at `<root>/<slug>`
+    // is used unchanged; otherwise map an id / project.json-slug to its real folder
+    // (post-cutover folders are named by project id). Never a write, never a move.
+    // The resolved segment still passes every `getProjectRoot` containment /
+    // authority check.
+    const segment = resolveProjectFolderSegment(slug, getProjectsRoot(context)) ?? slug;
+    return getProjectRoot(segment, context);
   }
 
   static async readJSON<T>(
