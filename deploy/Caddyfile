@@ -1,44 +1,50 @@
 # Atölye AYAS — reverse proxy for LAN HTTPS access (operator).
 #
-# Terminates TLS and forwards to the Next.js production server on localhost.
-# The phone reaches AYAS at https://studio.local (add the hosts entry below on
-# any device that must resolve it, or use https://192.168.2.74 with the
-# ip_addr site block instead).
+# Terminates TLS and forwards to the Next.js production server on localhost. The
+# phone cannot resolve `studio.local` (that name lives only in the PC's hosts
+# file), so the PRIMARY site here is the LAN IP — no DNS anywhere.
 #
-# Install + run (operator, in an ELEVATED shell — this session is not admin):
-#   winget install CaddyServer.Caddy
-#   caddy run --config deploy/Caddyfile      # foreground, from the repo root
-#   #   or:  caddy start --config deploy/Caddyfile
+# Run (operator, from the repo root). On Windows any process may bind :443, so
+# `caddy run` itself needs no elevation; `caddy trust` (writes the cert store)
+# and the firewall rule DO need an elevated shell.
+#   caddy run   --config deploy/Caddyfile
+#   #  or background:  caddy start --config deploy/Caddyfile
+#   caddy trust        # elevated — trust Caddy's local CA on THIS PC
 #
-# Caddy serves its own local CA cert; install that CA on the phone once
-# (`caddy trust` on this PC covers the PC; the phone needs the root cert too),
-# or point `tls` at a real cert/key pair you already have.
+# The phone must ALSO trust Caddy's local CA once — see deploy/README.md
+# ("Trust the CA on the phone"). Or replace `tls internal` with a real
+# cert/key pair.
 
-studio.local {
-	# Next.js production server — 127.0.0.1 only, never bound to the LAN directly.
+{
+	# quieter default logging; per-site log below
+	auto_https disable_redirects
+}
+
+# --- PRIMARY: reach AYAS by LAN IP (works with no DNS on the phone) ----------
+https://192.168.2.74 {
+	tls internal
 	reverse_proxy 127.0.0.1:3000 {
-		# Preserve the browser's view of the request so the app's same-origin /
-		# CSRF check and the Secure-cookie decision are correct.
 		header_up Host {host}
 		header_up X-Forwarded-Proto {scheme}
 		header_up X-Forwarded-For {remote_host}
 	}
-
-	# Caddy streams text/event-stream responses unbuffered by default, so the
-	# AYAS chat token stream (/api/ayas/chat/stream) works with no extra config.
-
 	encode zstd gzip
 	log {
-		output stderr
+		output file caddy-ayas.log
 		format console
 	}
 }
 
-# --- Alternative: reach it by IP (no hosts entry needed) ---------------------
-# 192.168.2.74 {
-# 	tls internal
-# 	reverse_proxy 127.0.0.1:3000 {
-# 		header_up Host {host}
-# 		header_up X-Forwarded-Proto {scheme}
-# 	}
-# }
+# --- Also accept studio.local (only where the name resolves, e.g. this PC) ---
+studio.local {
+	tls internal
+	reverse_proxy 127.0.0.1:3000 {
+		header_up Host {host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-For {remote_host}
+	}
+	encode zstd gzip
+}
+
+# Caddy streams `text/event-stream` unbuffered by default, so the AYAS chat
+# token stream (/api/ayas/chat/stream) needs no extra config.

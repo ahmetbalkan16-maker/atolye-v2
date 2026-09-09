@@ -44,23 +44,36 @@ npm run build
 npm run start            # Next on 127.0.0.1:3000 (HTTP) — do NOT expose this port directly
 ```
 
-Then put a TLS-terminating reverse proxy in front of it. Simplest is **Caddy**
-(local CA — the phone trusts it after a one-time cert install, or use a real cert):
+Then put **Caddy** in front of it (`deploy/Caddyfile` is ready — its **primary
+site is the LAN IP**, because the phone cannot resolve `studio.local`):
 
-```
-# install (operator runs this — the build agent must not):
-winget install CaddyServer.Caddy
-
-# Caddyfile
-studio.local {
-    reverse_proxy 127.0.0.1:3000
-}
+```powershell
+winget install CaddyServer.Caddy            # operator; the build agent must not
+cd <repo root>
+caddy run --config deploy/Caddyfile         # foreground; or: caddy start ...
+caddy trust                                 # trust Caddy's local CA on THIS PC
 ```
 
-Point the phone at `https://studio.local` (add a hosts entry or use the Caddy
-`192.168.2.74` site address). nginx / Traefik with your own cert are equally fine.
-**Do not** install Tailscale, a VPN, buy a domain, or open a port to the internet
-— LAN only.
+The phone reaches AYAS at **`https://192.168.2.74`** — no DNS anywhere.
+`studio.local` also works, but only where that name resolves (this PC's hosts
+file, or a router DNS entry). nginx / Traefik with your own cert are equally
+fine. **Do not** install Tailscale, a VPN, buy a domain, or open a port to the
+internet — LAN only.
+
+### Trust the CA on the phone (one time)
+
+`caddy trust` only covers this PC. Caddy's local root CA lives at
+`%AppData%\Local\Caddy\pki\authorities\local\root.crt` (or
+`caddy trust --help` to locate it). Get that file onto the phone and install it:
+
+- **iOS:** AirDrop / email the `.crt` → Settings ▸ *Profile Downloaded* ▸ Install
+  → then **Settings ▸ General ▸ About ▸ Certificate Trust Settings** → toggle it
+  **on** (this second step is easy to miss and PWA install fails silently without it).
+- **Android:** copy the file to the phone → Settings ▸ Security ▸ *Encryption &
+  credentials* ▸ *Install a certificate* ▸ *CA certificate*.
+
+Without this, the browser shows a cert warning and **the PWA will not install**
+(a service worker will not register on an untrusted origin).
 
 The proxy **must**:
 - forward the original `Host` header (so the same-origin CSRF check passes);
@@ -91,15 +104,38 @@ If you must run Next without a proxy for a quick test, bind it explicitly to the
 LAN IP (`next start -H 192.168.2.74`) — but then the mic / PWA will not work
 (no secure context) and the session cookie will not be `Secure`.
 
-## 3. First connection from the phone
+## 3. Install AYAS as an app on the phone
 
-1. Put the phone on the same network / tunnel.
-2. Open `https://studio.local/brain` (or your chosen host).
-3. You are redirected to `/login` — enter the passcode.
-4. Send a text turn; confirm the reply streams token-by-token.
-5. Tap the mic, accept the browser permission prompt, accept the in-app
-   disclosure (cloud speech recognition), say "AYAS …".
-6. Optionally "Add to Home Screen" to install the PWA.
+**Prerequisites** (all above): passcode set, Caddy running, **CA trusted on the
+phone**, phone on the same LAN.
+
+1. Enable the service worker — add to `.env.local` and rebuild:
+   ```
+   NEXT_PUBLIC_ATOLYE_PWA_SW=on
+   ```
+   ```powershell
+   npm run build && npm run start
+   ```
+   (Off by default; `PwaRegister` unregisters a stale worker if you turn it back
+   off, so this is a clean revert.)
+2. Phone browser → **`https://192.168.2.74/brain`** — no cert warning (CA trusted).
+3. Log in with the passcode.
+4. **Install:**
+   - **Android/Chrome:** menu ▸ *Install app* / *Add to Home screen* (the prompt
+     appears once the manifest + PNG icons + service worker are all seen).
+   - **iOS/Safari:** Share ▸ *Add to Home Screen*.
+5. An **AYAS icon** appears on the home screen. Tapping it opens `/brain`
+   full-screen (`display: standalone`) — no browser chrome.
+6. In the app: send a text turn (confirm it streams token-by-token); tap the mic,
+   accept the OS permission + the in-app disclosure, say "AYAS …"; confirm AYAS
+   speaks the reply.
+7. Confirm the **"Yürütme kapısı: CLOSED"** badge is shown. Do **not** actually
+   run "pipeline çalıştır" — AYAS refuses it, which is the point.
+
+**If "Install" does not appear (Chrome):** open `chrome://inspect` devtools on the
+phone (or `?debug`), check *Application ▸ Manifest* for errors — the usual causes
+are an untrusted cert (step "Trust the CA") or `NEXT_PUBLIC_ATOLYE_PWA_SW` not
+set / not rebuilt.
 
 ## 4. Per-host settings
 
@@ -111,10 +147,10 @@ AYAS_OLLAMA_MODEL=qwen2.5:7b               # AYAS chat only (askAyas + the strea
 ATOLYE_BRAIN_HARDWARE_PROFILE=rtx-a2000-12gb   # Brain Core snapshot / safety governor only
 ```
 
-Still an operator choice (enable only after a browser check):
+Required for the phone PWA install (§ 3):
 
 ```
-NEXT_PUBLIC_ATOLYE_PWA_SW=on            # the service worker — verify offline behaviour first
+NEXT_PUBLIC_ATOLYE_PWA_SW=on            # registers /sw.js — Chrome needs it for the install prompt
 ```
 
 ## What stays closed regardless

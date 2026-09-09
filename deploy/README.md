@@ -1,47 +1,59 @@
-# deploy/ — AYAS LAN HTTPS operator setup
+# deploy/ — AYAS phone PWA install (operator)
 
-This session verified the PC (non-admin, so nothing system-level was changed):
+Goal: tap an **AYAS icon** on the phone home screen → `/brain` opens full-screen,
+chat + voice work, `Yürütme kapısı: CLOSED` stays.
+
+## What the repo already provides
+
+- `deploy/Caddyfile` — reverse proxy; **primary site is the LAN IP** (`https://192.168.2.74`)
+  because the phone can't resolve `studio.local`. `Host` + `X-Forwarded-Proto`
+  passthrough, SSE unbuffered.
+- `public/icons/` — real PNG icons (192 / 512 / maskable / apple-touch, built by
+  `npm run build:pwa-icons`), committed so a plain checkout is installable.
+- `app/manifest.ts` — `display: standalone`, `id`, PNG icons, `start_url /brain`.
+- `public/sw.js` — conservative service worker (`/api/**` never cached; nav
+  network-first + `/offline`), registered only when `NEXT_PUBLIC_ATOLYE_PWA_SW=on`.
+
+## PC (verified read-only this session — non-admin, nothing changed)
 
 | | |
 |---|---|
-| host / LAN IP | `DESKTOP-9P0BG80` / `192.168.2.74` (Ethernet, /24) |
-| GPU | NVIDIA RTX A2000 12GB (`nvidia-smi`: 12282 MiB, driver 595.95) |
-| Ollama | `127.0.0.1:11434` — `qwen2.5:7b` (AYAS) + `qwen2.5:3b` (pipeline) |
-| reverse proxy | **none installed** (Caddy available via `winget`) |
-| ports 443 / 3000 | free (nothing listening) |
-| hosts `studio.local` | not present |
-| firewall rule `AYAS HTTPS (LAN)` | not present |
-| this session | **not elevated** — the three steps below need an admin shell |
+| host / LAN IP | `DESKTOP-9P0BG80` / `192.168.2.74` (Ethernet /24) |
+| GPU | NVIDIA RTX A2000 12 GB |
+| Ollama | up — `qwen2.5:7b` (AYAS) + `qwen2.5:3b` (pipeline) |
+| reverse proxy | none installed (Caddy in winget) |
+| ports 443 / 3000 | free |
+| `studio.local` hosts entry / `AYAS HTTPS (LAN)` rule | not present |
+| `AYAS_ACCESS_KEY` | **SET** (operator added it — value never shown/logged) |
+| `NEXT_PUBLIC_ATOLYE_PWA_SW` | NOT SET → service worker not yet registered |
 
-## Operator steps (all in an **elevated** PowerShell)
+## Operator steps
 
 ```powershell
-# 1 — reverse proxy
+# 1 — reverse proxy (elevated shell for the install; `caddy run` itself is fine unelevated)
 winget install CaddyServer.Caddy
 
-# 2 — DNS for the phone name (this PC; repeat the equivalent on the phone,
-#     or skip and use the IP site block in Caddyfile)
-Add-Content "$env:SystemRoot\System32\drivers\etc\hosts" "`n192.168.2.74 studio.local"
-
-# 3 — one narrow inbound rule: HTTPS only, LAN subnet only
+# 2 — one narrow inbound rule: HTTPS only, LAN subnet only (elevated)
 New-NetFirewallRule -DisplayName "AYAS HTTPS (LAN)" -Direction Inbound `
   -Protocol TCP -LocalPort 443 -RemoteAddress 192.168.2.0/24 -Action Allow
 
-# 4 — set the passcode (>= 12 chars, operator-chosen — never commit it)
-#     add a line to .env.local:  AYAS_ACCESS_KEY=<your strong passphrase>
-```
+# 3 — enable the service worker (needed for the Chrome install prompt)
+#     add to .env.local:  NEXT_PUBLIC_ATOLYE_PWA_SW=on
 
-## Run
-
-```powershell
+# 4 — run
 npm run build
-npm run start                       # Next on 127.0.0.1:3000
-caddy run --config deploy/Caddyfile # in the repo root, separate shell
-caddy trust                         # trust Caddy's local CA on this PC
+npm run start                              # Next on 127.0.0.1:3000
+caddy run --config deploy/Caddyfile        # separate shell, from the repo root
+caddy trust                                # trust Caddy's local CA on THIS PC (elevated)
+
+# 5 — trust Caddy's CA ON THE PHONE (one time) — see docs/AYAS_REMOTE_ACCESS.md
+#     "Trust the CA on the phone". iOS also needs the extra
+#     Settings > General > About > Certificate Trust Settings toggle.
 ```
 
-Then from the phone (same LAN): `https://studio.local/brain` — see
-`docs/AYAS_REMOTE_ACCESS.md` § 3 and the Sprint 212 phone checklist.
+Then on the phone (same LAN): `https://192.168.2.74/brain` → log in → browser
+menu → *Install app* / *Add to Home Screen*. Full checklist + troubleshooting:
+`docs/AYAS_REMOTE_ACCESS.md` § 3.
 
 ## Stays closed regardless
 

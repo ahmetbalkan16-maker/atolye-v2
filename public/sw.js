@@ -14,8 +14,16 @@
  * off by default so the operator enables it after verifying in a real browser.
  */
 
-const CACHE = "ayas-shell-v1";
-const SHELL = ["/", "/brain", "/offline", "/manifest.webmanifest", "/ayas-icon.svg", "/ayas-icon-maskable.svg"];
+const CACHE = "ayas-shell-v2";
+const SHELL = [
+  "/",
+  "/brain",
+  "/offline",
+  "/manifest.webmanifest",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/icons/apple-touch-icon.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

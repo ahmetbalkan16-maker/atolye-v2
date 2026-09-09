@@ -123,6 +123,9 @@ const OPEN_PREFIXES: readonly string[] = [
   "/api/auth/",
   "/_next/",
   "/__nextjs",
+  // PWA icons — the browser fetches the manifest's icons for the install prompt
+  // before any session exists.
+  "/icons/",
 ];
 const OPEN_EXACT: readonly string[] = [
   "/favicon.ico",
