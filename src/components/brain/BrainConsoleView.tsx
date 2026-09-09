@@ -14,8 +14,11 @@
 import { BrainCoreOrb } from "./BrainCoreOrb";
 import {
   BRAIN_PANELS,
+  deriveAyasPresence,
   findBrainPanel,
   mapTaskStatusToDisplay,
+  type AyasConnectivity,
+  type AyasPresenceRow,
   type BrainChatMessage,
   type BrainCoreState,
   type BrainPanelId,
@@ -62,10 +65,16 @@ export interface BrainConsoleViewProps {
   readonly lastReplySource?: "llm" | "fallback";
   readonly autonomous?: AyasAutonomousView;
   readonly voice?: BrainConsoleVoiceView;
+  /** Coarse client reachability for the AYAS presence card. Default `"online"`. */
+  readonly connectivity?: AyasConnectivity;
+  /** `true` when served over HTTPS (mic + phone use). Default `true` (SSR-safe). */
+  readonly secureContext?: boolean;
   readonly onSelectPanel?: (id: BrainPanelId) => void;
   readonly onDraftChange?: (value: string) => void;
   readonly onSend?: () => void;
   readonly onRefresh?: () => void;
+  /** CTA on the AYAS presence card — focus chat and (if available) start voice. */
+  readonly onStartConversation?: () => void;
 }
 
 export function BrainConsoleView(props: BrainConsoleViewProps) {
@@ -100,6 +109,8 @@ export function BrainConsoleView(props: BrainConsoleViewProps) {
             <span className="bc-stateline__tr">{stateTr(coreState)}</span>
           </div>
           <p className="bc-character">{stateCharacter(coreState)}</p>
+
+          <AyasPresenceCard {...props} />
 
           {snapshot.errors.length > 0 ? (
             <div className="bc-alert" role="alert">
@@ -192,6 +203,75 @@ function stateCharacter(state: BrainCoreState): string {
     speaking: "AYAS yanıtını sesli okuyor (yerel).",
     autonomous: "Otonom döngü gözlemliyor ve öneri taslağı hazırlıyor — yürütme yok.",
   }[state];
+}
+
+/* ------------------------------------------------------- AYAS presence --- */
+
+/**
+ * One-glance "is AYAS here, can I talk to it, is it reachable from my phone,
+ * is the link safe" — the mobile + voice status made a native part of the home
+ * page. Pure: everything comes from {@link deriveAyasPresence}. The CTA drops
+ * into the EXISTING chat/voice experience (`onStartConversation`), never a new
+ * parallel one. The transport is never named here.
+ */
+function AyasPresenceCard(props: BrainConsoleViewProps) {
+  const presence = deriveAyasPresence({
+    connectivity: props.connectivity ?? "online",
+    secureContext: props.secureContext ?? true,
+    executionGate: props.snapshot.executionGate,
+    voice: props.voice
+      ? {
+          sttAvailable: props.voice.capability.stt,
+          ttsAvailable: props.voice.capability.tts,
+          listening: props.voice.listening,
+          state: props.voice.state,
+        }
+      : undefined,
+  });
+
+  const rows: AyasPresenceRow[] = [presence.voice, presence.mobile, presence.security];
+
+  return (
+    <section
+      className={`bc-presence bc-presence--${presence.statusTone}`}
+      data-testid="bc-presence"
+      data-online={presence.online ? "true" : "false"}
+      aria-label="AYAS bağlantı durumu"
+    >
+      <div className="bc-presence__head">
+        <span className="bc-presence__name">AYAS</span>
+        <span className={`bc-presence__status bc-presence__status--${presence.statusTone}`}>
+          <span className="bc-online" aria-hidden="true" />
+          {presence.statusTr}
+        </span>
+      </div>
+
+      <dl className="bc-presence__rows">
+        {rows.map((row) => (
+          <div key={row.label} className={`bc-presence__row bc-presence__row--${row.tone}`}>
+            <dt>{row.label}</dt>
+            <dd>{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <p className="bc-presence__reach" data-testid="bc-presence-reach">
+        <span aria-hidden="true">iPhone → güvenli bağlantı → Atölye → AYAS</span>
+        <span className="bc-presence__reach-note">{presence.reachHint}</span>
+      </p>
+
+      <button
+        type="button"
+        className="bc-btn bc-presence__cta"
+        onClick={props.onStartConversation}
+        disabled={presence.cta.kind === "disabled" || !props.onStartConversation}
+        data-testid="bc-presence-cta"
+        data-cta-kind={presence.cta.kind}
+      >
+        {presence.cta.label}
+      </button>
+    </section>
+  );
 }
 
 /* ---------------------------------------------------------- status cards --- */

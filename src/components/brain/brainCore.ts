@@ -6,6 +6,7 @@
  * is testable without a browser.
  */
 
+import type { AyasVoiceState } from "./ayasVoice";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { BrainTaskStatus } from "@/types/brainWorker";
 
@@ -157,6 +158,126 @@ export function deriveBrainCoreState(snapshot: BrainConsoleSnapshot): BrainCoreS
 
 function hasRunningTask(byStatus: Readonly<Record<BrainTaskStatus, number>>): boolean {
   return (byStatus.running ?? 0) > 0;
+}
+
+/* ------------------------------------------------------------------------- *
+ * AYAS presence (Sprint — mobile + voice integration)
+ *
+ * A single-glance projection for the Brain home page: is AYAS reachable, is
+ * voice ready, is mobile access ready, is the link safe — plus the right CTA.
+ * Pure & deterministic. It states only what is actually known:
+ *  - reachability comes from the browser's own `navigator.onLine` + whether the
+ *    last read-only refresh succeeded (NO polling, NO heartbeat);
+ *  - "mobile ready" means this page is being served in a secure context, so the
+ *    same URL is usable from a phone — it never names or exposes the transport;
+ *  - "safe link" restates the Execution Gate, which stays CLOSED.
+ * ------------------------------------------------------------------------- */
+
+/** Coarse client-side reachability — derived from the browser, never polled. */
+export type AyasConnectivity = "online" | "degraded" | "offline";
+
+export interface AyasPresenceInput {
+  readonly connectivity: AyasConnectivity;
+  /** `true` when the page is a secure context (HTTPS) — mic + phone use need it. */
+  readonly secureContext: boolean;
+  /** The Execution Gate — always `"CLOSED"` today; restated, never changed. */
+  readonly executionGate: BrainConsoleSnapshot["executionGate"];
+  readonly voice?: {
+    readonly sttAvailable: boolean;
+    readonly ttsAvailable: boolean;
+    readonly listening: boolean;
+    readonly state: AyasVoiceState;
+  };
+}
+
+export interface AyasPresenceRow {
+  readonly label: string;
+  readonly value: string;
+  readonly tone: "ok" | "warn" | "off";
+}
+
+export interface AyasPresenceView {
+  readonly online: boolean;
+  /** Primary status word under the AYAS name. */
+  readonly statusTr: string;
+  readonly statusTone: "ok" | "warn" | "off";
+  readonly voice: AyasPresenceRow;
+  readonly mobile: AyasPresenceRow;
+  readonly security: AyasPresenceRow;
+  /** Generic, transport-agnostic reachability hint (never a hostname). */
+  readonly reachHint: string;
+  readonly cta: {
+    readonly label: string;
+    /** `"voice"` starts listening; `"text"` just focuses chat; `"disabled"` offline. */
+    readonly kind: "voice" | "text" | "disabled";
+  };
+}
+
+/** Turkish one-liner for a live voice state (home-page phrasing). */
+function ayasVoicePresenceValue(voiceState: AyasVoiceState): string {
+  switch (voiceState) {
+    case "listening":
+      return "AYAS dinliyor";
+    case "thinking":
+      return "AYAS düşünüyor";
+    case "speaking":
+      return "AYAS konuşuyor";
+    case "idle":
+      return "Sesli iletişim hazır";
+    case "error":
+      return "Ses hatası — metin sohbeti çalışır";
+    default:
+      return "Sesli iletişim hazır";
+  }
+}
+
+export function deriveAyasPresence(input: AyasPresenceInput): AyasPresenceView {
+  const online = input.connectivity === "online";
+  const degraded = input.connectivity === "degraded";
+  const offline = input.connectivity === "offline";
+
+  const statusTr = offline ? "ÇEVRİM DIŞI" : degraded ? "BAĞLANTI ZAYIF" : "ÇEVRİM İÇİ";
+  const statusTone: "ok" | "warn" | "off" = offline ? "off" : degraded ? "warn" : "ok";
+
+  const hasVoice = Boolean(input.voice && (input.voice.ttsAvailable || input.voice.sttAvailable));
+  const voice: AyasPresenceRow = offline
+    ? { label: "Ses", value: "Çevrim dışı", tone: "off" }
+    : !hasVoice
+      ? { label: "Ses", value: "Bu cihazda ses yok", tone: "off" }
+      : {
+          label: "Ses",
+          value: ayasVoicePresenceValue(input.voice?.state ?? "idle"),
+          tone: input.voice?.state === "error" ? "warn" : "ok",
+        };
+
+  const mobile: AyasPresenceRow = offline
+    ? { label: "Mobil", value: "Bağlantı bekleniyor", tone: "off" }
+    : !input.secureContext
+      ? { label: "Mobil", value: "Güvenli bağlantı gerekli", tone: "warn" }
+      : { label: "Mobil", value: "Mobil erişim hazır", tone: "ok" };
+
+  const gateClosed = input.executionGate === "CLOSED";
+  const security: AyasPresenceRow = {
+    label: "Güvenlik",
+    value: !gateClosed
+      ? `Yürütme kapısı: ${input.executionGate}`
+      : offline
+        ? "Yürütme kapısı kapalı"
+        : "Güvenli bağlantı · yürütme kapısı kapalı",
+    tone: gateClosed ? "ok" : "warn",
+  };
+
+  const reachHint = "iPhone ve PC'den güvenli erişim";
+
+  const cta: AyasPresenceView["cta"] = offline
+    ? { label: "Çevrim dışı", kind: "disabled" }
+    : hasVoice && input.voice?.sttAvailable && !input.voice.listening
+      ? { label: "AYAS ile sesli konuş", kind: "voice" }
+      : input.voice?.listening
+        ? { label: "AYAS'a yaz", kind: "text" }
+        : { label: "AYAS ile konuş", kind: "text" };
+
+  return { online, statusTr, statusTone, voice, mobile, security, reachHint, cta };
 }
 
 /* ------------------------------------------------------------------------- *

@@ -1,5 +1,52 @@
 ---
 
+## Brain home page — AYAS mobile + voice presence card; gate CLOSED - 2026-09-09
+
+**Branch:** `wip/ayas-graphify-final-execution` (off `a72972f`). NOT merged / NOT pushed.
+
+Surfaces the mobile + voice AYAS access (physically verified today: iPhone 4G/5G → Cloudflare
+**quick** tunnel → `:3000` → WAKE/STT/AYAS/TTS ✓) as a native part of `/brain`. **UI only** — no
+backend, no new route, no new chat/voice path.
+
+- **`brainCore.ts`** — new pure `deriveAyasPresence({connectivity, secureContext, executionGate,
+  voice})` → `{online, statusTr, voice/mobile/security rows, reachHint, cta}`. Deterministic,
+  fully unit-tested.
+- **`BrainConsoleView.tsx`** — new `<AyasPresenceCard>` in `.bc-stage` (between the character line
+  and the stat cards): `AYAS · ÇEVRİM İÇİ` + Ses / Mobil / Güvenlik rows + a generic
+  `iPhone → güvenli bağlantı → Atölye → AYAS` hint + one CTA ("AYAS ile sesli konuş" / "AYAS ile
+  konuş" / disabled when offline). New optional props `connectivity` / `secureContext` /
+  `onStartConversation` (SSR-safe defaults).
+- **`BrainCoreConsole.tsx`** — `connectivity` derived from `navigator.onLine` (via
+  `useSyncExternalStore`, no polling / no heartbeat / no fetch) + whether the existing read-only
+  `refresh()` threw (`degraded`). CTA `startConversation` = select chat panel + start voice inside
+  the click gesture (the EXISTING `useAyasVoice.toggleListening`).
+- **`BrainCore.css`** — `.bc-presence` block, reuses the existing tokens/`.bc-online`/`.bc-btn`;
+  mobile rules in the existing `@media (max-width:640px)`; the animated dot is already in the
+  `prefers-reduced-motion` guard.
+- **`smoke-brain-core-ui.ts`** 25→**30** (presence: online/offline/degraded/insecure, CTA kind,
+  gate restated, **§13 no tunnel-hostname / "cloudflare" leak in the markup**).
+
+**§13 honoured:** the quick-tunnel URL `haven-finds-distinct-selling.trycloudflare.com` is NOT in
+any source / UI / manifest / SW / env / doc. The card shows only generic "güvenli bağlantı".
+
+**Verify:** tsc 0 / eslint 0 err (22 pre-existing warnings, `src/lib/runtime/backup/**`) /
+`next build` clean. brain-core-ui 30, + brain/voice/wake/ayas suites (foundation 25, worker 14,
+worker-cycle 15, task-store 20, plan-store 10, ayas-voice 49, wake-adapter 7, wake-runner 12,
+chat-stream 10, chat-stream-client 8, access-gate 16, studio-context 16, stt 14, stt-security 7,
+pwa-manifest 8, pwa-sw 7, …) all green. `git diff --check` clean; 5 files, all Brain-UI.
+
+**Unchanged:** Execution Gate CLOSED, `writeActionsEnabled`, auth/CSRF/access-gate/rate-limit,
+`AyasExecutionGateStore`, STT/wake-model/voice-adapter/wake-runner/TTS, Graphify authority /
+`ProjectWriter` / `ProjectManager` UUID-folder issue, `D:\AtolyeRuntime` / `D:\AtolyeAuthority`,
+Caddy, `.env.local`, the Cloudflare tunnel (still the operator-run temporary quick tunnel).
+
+**Observation (NOT fixed — out of scope):** `.bc-shell` is never wrapped in `.bc-root`, so the
+`--bc-*` theme tokens resolve degraded page-wide (dark body + monochrome, vivid orb only). The new
+card shares that exact fate as every existing `.bc-statcard` — consistent, not worse. A deliberate
+theming pass is a separate sprint.
+
+<!-- BRAIN-HOME-AYAS-PRESENCE-END -->
+
 ## D2 FAZ 1B — AYAS iPhone wake detection: model PROVEN, lab INSTRUMENTED; gate CLOSED - 2026-09-09
 
 **Branch:** `wip/ayas-graphify-final-execution` (off `c8a0f90`). NOT merged / NOT pushed.

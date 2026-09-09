@@ -19,7 +19,7 @@
  * delivered to the exact same `runAyas` path as a typed one.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 
 import { BrainConsoleView } from "./BrainConsoleView";
 import {
@@ -35,6 +35,18 @@ import { useAyasVoice } from "./useAyasVoice";
 import { runAyasChatStream } from "./ayasChatStreamClient";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
+
+/** `useSyncExternalStore` subscribe: the browser's own connectivity signal. */
+function subscribeOnline(onChange: () => void): () => void {
+  window.addEventListener("online", onChange);
+  window.addEventListener("offline", onChange);
+  return () => {
+    window.removeEventListener("online", onChange);
+    window.removeEventListener("offline", onChange);
+  };
+}
+/** `useSyncExternalStore` subscribe for a value that never changes after load. */
+const noopSubscribe = (): (() => void) => () => {};
 
 export interface AskAyasFn {
   (input: {
@@ -76,6 +88,28 @@ export function BrainCoreConsole({
   const [lastReplySource, setLastReplySource] = useState<"llm" | "fallback" | undefined>(undefined);
   const [pending, startTransition] = useTransition();
   const [chatPending, startChat] = useTransition();
+
+  // Coarse client reachability for the AYAS presence card — the browser's own
+  // `online`/`offline` signal + whether the last read-only refresh threw. NO
+  // polling, NO heartbeat, no new network call of any kind. `useSyncExternalStore`
+  // keeps it SSR-safe (server snapshot: online + secure).
+  const [refreshFailed, setRefreshFailed] = useState(false);
+  const browserOnline = useSyncExternalStore(
+    subscribeOnline,
+    () => window.navigator.onLine !== false,
+    () => true,
+  );
+  const secureContext = useSyncExternalStore(
+    noopSubscribe,
+    () => window.isSecureContext !== false,
+    () => true,
+  );
+
+  const connectivity: "online" | "degraded" | "offline" = !browserOnline
+    ? "offline"
+    : refreshFailed
+      ? "degraded"
+      : "online";
 
   // A stable indirection so `useAyasVoice` never re-subscribes when the chat
   // runner's identity changes. A voice command and a typed message run the
@@ -189,11 +223,22 @@ export function BrainCoreConsole({
     startTransition(async () => {
       try {
         setSnapshot(await refresh());
+        setRefreshFailed(false);
       } catch {
-        /* keep the last good snapshot */
+        /* keep the last good snapshot; mark the link as degraded */
+        setRefreshFailed(true);
       }
     });
   };
+
+  // The AYAS presence-card CTA: drop into the EXISTING chat/voice experience —
+  // select the chat panel and, when this device can hear, start listening
+  // inside this click's user gesture (iOS needs that). No new path.
+  const startConversation = useCallback(() => {
+    setActivePanel("chat");
+    const v = voiceRef.current;
+    if (v.capability.stt && !v.listening) v.toggleListening();
+  }, []);
 
   const restingState = useMemo(() => deriveBrainCoreState(snapshot), [snapshot]);
   const autonomousWaiting = (initialAutonomous?.awaitingApprovalCount ?? 0) > 0;
@@ -245,10 +290,13 @@ export function BrainCoreConsole({
         onAcceptDisclosure: voice.acceptDisclosure,
         onReplayPendingSpeech: voice.replayPendingSpeech,
       }}
+      connectivity={connectivity}
+      secureContext={secureContext}
       onSelectPanel={setActivePanel}
       onDraftChange={setDraft}
       onSend={send}
       onRefresh={refresh ? doRefresh : undefined}
+      onStartConversation={startConversation}
     />
   );
 }

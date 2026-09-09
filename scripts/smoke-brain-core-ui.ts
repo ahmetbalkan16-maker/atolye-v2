@@ -27,6 +27,7 @@ import {
 import {
   BRAIN_CORE_STATES,
   BRAIN_PANELS,
+  deriveAyasPresence,
   deriveBrainCoreState,
   mapTaskStatusToDisplay,
   brainDeterministicReply,
@@ -285,6 +286,99 @@ async function run() {
     assert.ok(withData.includes("2 onay bekliyor"));
     assert.ok(withData.includes("bc-statcard--warn"), "pending approval marks the tasks card as a warning");
     assert.ok(withData.includes("İstanbul 1453"));
+  });
+
+  /* --------------------- AYAS presence (mobile + voice) -------------- */
+
+  await scenario("11d. deriveAyasPresence — online with voice → ÇEVRİM İÇİ + voice CTA", () => {
+    const p = deriveAyasPresence({
+      connectivity: "online",
+      secureContext: true,
+      executionGate: "CLOSED",
+      voice: { sttAvailable: true, ttsAvailable: true, listening: false, state: "idle" },
+    });
+    assert.equal(p.online, true);
+    assert.equal(p.statusTr, "ÇEVRİM İÇİ");
+    assert.equal(p.statusTone, "ok");
+    assert.equal(p.voice.value, "Sesli iletişim hazır");
+    assert.equal(p.mobile.value, "Mobil erişim hazır");
+    assert.match(p.security.value, /yürütme kapısı kapalı/);
+    assert.equal(p.cta.kind, "voice");
+  });
+
+  await scenario("11e. deriveAyasPresence — offline never fakes online; CTA disabled", () => {
+    const p = deriveAyasPresence({
+      connectivity: "offline",
+      secureContext: true,
+      executionGate: "CLOSED",
+      voice: { sttAvailable: true, ttsAvailable: true, listening: false, state: "idle" },
+    });
+    assert.equal(p.online, false);
+    assert.equal(p.statusTr, "ÇEVRİM DIŞI");
+    assert.equal(p.statusTone, "off");
+    assert.equal(p.cta.kind, "disabled");
+    assert.equal(p.voice.tone, "off");
+    assert.equal(p.mobile.tone, "off");
+  });
+
+  await scenario("11f. deriveAyasPresence — degraded refresh, no voice, insecure context", () => {
+    const degraded = deriveAyasPresence({
+      connectivity: "degraded",
+      secureContext: true,
+      executionGate: "CLOSED",
+    });
+    assert.equal(degraded.statusTr, "BAĞLANTI ZAYIF");
+    assert.equal(degraded.statusTone, "warn");
+    assert.equal(degraded.voice.value, "Bu cihazda ses yok");
+    assert.equal(degraded.cta.kind, "text");
+
+    const insecure = deriveAyasPresence({
+      connectivity: "online",
+      secureContext: false,
+      executionGate: "CLOSED",
+      voice: { sttAvailable: true, ttsAvailable: true, listening: false, state: "idle" },
+    });
+    assert.equal(insecure.mobile.value, "Güvenli bağlantı gerekli");
+    assert.equal(insecure.mobile.tone, "warn");
+  });
+
+  await scenario("11g. presence card renders in the stage, CTA wired, gate restated, no transport leak", () => {
+    const html = renderView({
+      snapshot: baseSnapshot(),
+      connectivity: "online",
+      secureContext: true,
+      onStartConversation: () => {},
+      voice: {
+        state: "idle",
+        capability: { stt: true, tts: true, sttCloudBacked: false },
+        listening: false,
+        muted: false,
+        disclosureAccepted: true,
+      },
+    });
+    assert.ok(html.includes('data-testid="bc-presence"'));
+    assert.ok(html.includes('data-testid="bc-presence-cta"'));
+    assert.ok(html.includes('data-cta-kind="voice"'));
+    assert.ok(/ÇEVRİM İÇİ/.test(html));
+    assert.ok(/yürütme kapısı kapalı/i.test(html), "the presence card restates the CLOSED gate");
+    // §13 — the transient quick tunnel must never appear in the markup
+    for (const leak of ["trycloudflare", "cloudflare", "haven-finds", "quick tunnel", "ngrok"]) {
+      assert.ok(!html.toLowerCase().includes(leak), `markup leaked "${leak}"`);
+    }
+  });
+
+  await scenario("11h. presence card — offline markup shows ÇEVRİM DIŞI and a disabled CTA", () => {
+    const html = renderView({
+      snapshot: baseSnapshot(),
+      connectivity: "offline",
+      onStartConversation: () => {},
+    });
+    assert.ok(/ÇEVRİM DIŞI/.test(html));
+    assert.ok(html.includes('data-cta-kind="disabled"'));
+    assert.ok(html.includes('data-online="false"'));
+    // the CTA <button> carries a `disabled` attribute in the offline markup
+    const ctaTag = html.slice(html.indexOf('class="bc-btn bc-presence__cta"'));
+    assert.ok(/disabled/.test(ctaTag.slice(0, ctaTag.indexOf(">"))), "offline CTA button is disabled");
   });
 
   await scenario("12. chat reply is deterministic, never fakes an LLM, reflects real numbers", () => {

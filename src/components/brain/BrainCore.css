@@ -714,6 +714,86 @@
 
 .bc-msg--typing { opacity: 0.7; font-style: italic; }
 
+/* -------------------------------------------------- AYAS presence card --- */
+
+.bc-presence {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--bc-border);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, var(--bc-surface-2), var(--bc-surface)),
+    var(--bc-bg-2);
+  box-shadow: 0 18px 40px -28px var(--bc-accent-glow);
+}
+.bc-presence--warn { border-color: hsl(38 90% 60% / 0.4); }
+.bc-presence--off { border-color: var(--bc-border); opacity: 0.92; }
+
+.bc-presence__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bc-presence__name {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--bc-text);
+}
+.bc-presence__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bc-text-dim);
+  white-space: nowrap;
+}
+.bc-presence__status--ok { color: #7fe3aa; }
+.bc-presence__status--warn { color: hsl(38 92% 74%); }
+.bc-presence__status--off { color: var(--bc-text-faint); }
+.bc-presence__status .bc-online { width: 7px; height: 7px; }
+.bc-presence__status--ok .bc-online { background: #7fe3aa; box-shadow: 0 0 9px #7fe3aa; }
+.bc-presence__status--warn .bc-online { background: hsl(38 92% 66%); box-shadow: 0 0 9px hsl(38 92% 66%); }
+.bc-presence__status--off .bc-online { background: var(--bc-text-faint); box-shadow: none; animation: none; }
+
+.bc-presence__rows {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: 7px 14px;
+  margin: 0;
+  font-size: 12.5px;
+}
+.bc-presence__row { display: contents; }
+.bc-presence__row dt { color: var(--bc-text-faint); }
+.bc-presence__row dd { margin: 0; color: var(--bc-text-dim); overflow-wrap: anywhere; }
+.bc-presence__row--ok dd { color: var(--bc-text); }
+.bc-presence__row--warn dd { color: hsl(38 92% 78%); }
+
+.bc-presence__reach {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--bc-text-faint);
+  letter-spacing: 0.03em;
+}
+.bc-presence__reach-note { opacity: 0.8; }
+
+.bc-presence__cta {
+  align-self: flex-start;
+  padding: 9px 18px;
+  font-size: 13px;
+}
+.bc-presence__cta:disabled { opacity: 0.45; }
+
 /* AYAS orb states */
 .bc-orb[data-state="listening"] .bc-orb__ring--4 { animation-duration: 5s; }
 .bc-orb[data-state="listening"] .bc-orb__ring--2 { animation-duration: 6s; opacity: 0.9; }
@@ -767,6 +847,12 @@
   /* When the on-screen keyboard is up, cap the transcript so the composer stays reachable. */
   .bc-chat__log { max-height: 46vh; }
   .bc-composer { position: sticky; bottom: 0; }
+
+  /* AYAS presence card — comfortable to read + tap on a phone. */
+  .bc-presence { padding: 14px; }
+  .bc-presence__head { flex-wrap: wrap; gap: 4px 12px; }
+  .bc-presence__cta { align-self: stretch; text-align: center; padding: 12px 18px; }
+  .bc-presence__reach span[aria-hidden="true"] { overflow-wrap: anywhere; }
 }
 
 @media (prefers-reduced-motion: reduce) {
