@@ -1,5 +1,58 @@
 ---
 
+## AYAS iOS VOICE FIX — single-shot recognition, command reaches backend; gate CLOSED - 2026-09-09
+
+**Status:** iPhone PWA'da sesli komut backend'e ulaşmıyordu. **Kök neden:** iOS/WebKit
+`webkitSpeechRecognition` single-shot; `.start()` user activation dışında engelli. Engine
+recognition'ı `onend` → `setTimeout` → `startRecognition()` ile canlı tutuyordu — bu non-gesture
+çağrı iOS tarafından sessizce reddediliyor (adapter'ın boş `catch`'i gizliyordu). Wake word'den
+sonra komut recognition'ı hiç çalışmıyor → `onresult` yok → `onFinalTranscript` yok → `onCommand`/
+`runAyas`/`/api/ayas/chat/stream` hiç çağrılmıyor. Ek: `continuous=true` (iOS desteklemez), yalnız
+`isFinal` sonuç alınması (iOS çoğu zaman yalnız interim verir). **Sadece voice modülleri düzeltildi;
+text chat path dokunulmadı; yeni endpoint yok.** Commit `fix(ayas)` `107fedc`. Push YOK.
+
+### Değişiklikler
+
+- **`ayasVoice.ts`** — `detectAyasSpeechRecognitionMode` / `isAppleTouchDevice` → iOS'ta
+  `"single-shot"`, aksi halde `"continuous"`. `AYAS_VOICE_TAP_FOR_COMMAND` / `AYAS_VOICE_TAP_TO_SPEAK`
+  prompt'ları; `describeAyasRecognitionError` += `start-blocked` + `language-not-supported`.
+- **`browserVoiceAdapter.ts`** — `recognitionMode()`; `startListening(lang, handlers, {singleShot})`:
+  single-shot → `continuous=false`, `interimResults=true`, `onend`'de final gelmemişse SON interim'i
+  bir kez `onFinalTranscript`'e aktar; `start()` throw → `onError("start-blocked")` (artık sessizce
+  yutulmaz). **Continuous path birebir aynı.**
+- **`ayasVoiceEngine.ts`** — `mode` (`platform.recognitionMode?()` ?? `"continuous"`). Single-shot:
+  `onend` → `setTimeout(startRecognition)` YOK, kullanıcıya "tekrar dokun" prompt'u; `afterOutput`
+  auto-restart YOK. Yeni `recaptureVoice()` (TAZE session — mic-tap gesture'ından çağrılmalı) +
+  `canRecapture` getter. `handleRecognitionError` `language-not-supported`'ta da fail-closed.
+- **`useAyasVoice.ts`** — `toggleListening` mode-aware: listening + `canRecapture` iken tap →
+  `recaptureVoice()` (kapatmaz); yeni `stopListening` ("dinlemeyi kapat" linki) + `recognitionMode`.
+- **`BrainConsoleView.tsx` / `BrainCoreConsole.tsx`** — "kapat" linki → `onStopListening`; mic butonu
+  aynı; single-shot'ta mic altında tek satır iPhone ipucu. `BrainCore.css` `.bc-voice__hint`.
+- **`docs/AYAS_REMOTE_ACCESS.md`** — telefon voice adımı (tek nefes / iki tap / iPhone Dikte dilleri).
+- `.gitignore` += `/caddy-ayas.log`.
+
+### Doğrulama
+
+**Engine'deki tek `setTimeout → startRecognition` satırı artık yalnız continuous path'te** (test
+edildi). iOS'ta ikinci `SpeechRecognition.start()` her zaman bir mic-tap gesture'ından (`recaptureVoice`).
+`smoke-ayas-voice` +13 → **49** (iOS UA, adapter single-shot config, interim kurtarma, final-öncelik,
+blocked-start görünür, engine auto-restart YOK + tap-to-recapture tam akış, tek-nefes hâlâ çalışıyor,
+`canRecapture` gating, cevap sonrası mic armed). 36 mevcut senaryo değişmedi. `tsc`/eslint(0 err)/
+`next build` temiz. AYAS/Brain + storage regression PASS. `129-25c-2a`/`-2b-4` baseline. Autonomy
+sabiti + gerçek gate store CLOSED (degraded=false); `writeActionsEnabled` default false. `.env.local`
+okunmadı/yazılmadı.
+
+### iOS voice flow (fix sonrası)
+
+mikrofon (tap 1, gesture) → recognition başlar (continuous=false, interimResults=true) → "AYAS"
+yakalanır (final veya onend'de son interim) → wake → `onend` → **restart YOK**, "tekrar dokun"
+prompt → mic (tap 2, gesture) → `recaptureVoice()` → TAZE recognition → "kaç proje var" →
+`onFinalTranscript` → `dispatchCommand` → `onCommand` → **mevcut `runAyas()` / stream path** →
+AYAS cevabı → `speechSynthesis` (autoplay-blocked ise ▶ replay). Tek-nefes "AYAS kaç proje var"
+tek session'da hâlâ çalışır.
+
+<!-- IOS-VOICE-FIX-END -->
+
 ## AYAS MOBILE PWA / PHONE ACCESS FIX — real PNG icons + IP-first Caddy + install runbook; gate CLOSED - 2026-09-09
 
 **Status:** Telefonda AYAS'ı **kurulabilir PWA** yapma. Kök neden 3 katmanlı: (1) telefon
