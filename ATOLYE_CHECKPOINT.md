@@ -1,5 +1,99 @@
 ---
 
+## Sprint 205 - F16-A DONE → genesis still blocked by F17 (slug↔projectId layout) - 2026-09-09
+
+**Status:** **F16-A = DONE** (`runtimeAuthorityProjectsContentDigest` artık F5/F12 EXCLUDE-SAFE,
+`collectRuntimeBackupInventory` ile aynı paylaşılan predicate). **F16 tam KAPANMADI — F17.**
+`authority:begin-genesis` çalıştırılMADI (validate deterministik FAIL eder — genesis control plane
+oluşturulmadı). **`authority:publish` / `publishRollback` YAPILMADI. `active-authority.json` YOK.
+`.env.local` DEĞİŞMEDİ. legacy `data/projects` rename/move/delete YOK. Bu sprintte `data/projects`
+mutation = 0** (F16-A yalnız kod). Execution Gate CLOSED. `cutoverAuthorized = false`. Commit
+`fix(runtime)` + `docs(checkpoint)`. Push yok.
+
+### F16-A — kod
+
+`src/lib/runtime/RuntimeTransientArtifactPolicy.ts` (YENİ) — tek paylaşılan predicate
+`isRuntimeTransientExcludedRelativePath` (`isAudioCompensationJournalStagingPartialAtProjectPath` +
+mevcut `"/.pipeline-jobs."` kuralını yeniden kullanır, ikinci filtre yok). Hem
+`collectRuntimeBackupInventory` (inline check'in davranış-koruyan refactor'ı) hem
+`runtimeAuthorityProjectsContentDigest`'in `walkContent`'i (symlink/non-regular reddinden SONRA
+uygulanır → adı excluded pattern'e uyan bir symlink hâlâ `TRANSITION_CONTENT_UNSAFE` atar; ordering/
+serialization/marker-skip değişmedi). F3 primitive'inin 5 caller'ı (`authority:prepare`,
+`authority:validate`, `RuntimeAuthorityRollback`, `RuntimeAuthorityOldRootQuarantine`, consume
+post-copy) artık transient set üzerinde hemfikir. Backup/candidate identity + aggregate DEĞİŞMEDİ
+(`b-0d971133190c` yeniden verify → aynı `8701419987…` / `a5654b62…`; live inventory aggregate aynı).
+Gerçek source digest fileCount 2399 → **2371** (target sayısıyla eşit).
+
+`scripts/smoke-f16-authority-digest-exclude-safe.ts` (7 senaryo: A 27 `.partial` + 1
+`.pipeline-jobs.lock` yok sayılır; B normal kayıt değişince digest değişir; C excluded dosya
+değişince/eklenince/silinince değişmez; D prepare(source-with-transients) vs validate(target-without)
+digest'leri eşleşir; E symlink/non-regular reddi korunur; F authority digest == inventory exclusion
+set; real-data: gerçek source 28 transient'i tam olarak dışlar, 2399→2371).
+
+Regression: c2b5/6/6b/8/9/9b/10a/11/12 + f12/f13/**f16** + runtime-backup(39) + migration-candidate
+2b-1/2b-2 + production-execution-durable-recovery + project-storage-hygiene + external-runtime-root
+**PASS**. tsc temiz, eslint 0 err / 22 warn, next build OK. Pre-existing `129-25c-2a`/`-2b-4` aynı
+"Missing expected exception" imzası (F16-A koduna dokunmuyor).
+
+### BLOCKER — F17: genesis `validateTarget` slug-layout source ≠ projectId-layout v3 target
+
+F16-A file-count yarısını çözdü (source 2399→2371 = target 2371). Ama gerçek migration target'ı hâlâ
+`authority:validate`'ten geçmez — F16-A'nın DOKUNMADIĞI yapısal bir sebeple:
+
+- **v3 backup path policy** (`runtime-backup-relative-path-v3`, mevcut default, C.2B.8 PR2 "portable
+  by construction") **`<slug>/… → <projectId>/…` remap yapar.** `<repo>/data/projects` 17 **slug**
+  klasörü (`i-stanbul-un-fethi-1453`, `atilla-nin-y-kselisi`, …); backup→candidate→consume edilen
+  `D:\AtolyeRuntime\projects` 17 **projectId** klasörü (`1ba3bebf-…`, `0453f0b4-…`).
+- `validateTarget` → `sameStringSet(normalizeSlugs(targetProjectSlugs), record.sourceFreeze.projectSlugs)`
+  → target projectId set'i vs source slug set'i → **`TRANSITION_TARGET_INVENTORY_MISMATCH`** (content
+  check'ten önce).
+- Onu geçse bile `runtimeAuthorityProjectsContentDigest` `<relativePath>\0<sha>\0<size>` satırlarını
+  hash'ler — `<slug>/…` vs `<projectId>/…` prefix'leri farklı → source freeze (`090b3455…`, 2371) ≠
+  target digest (`0e46cf6c…`, 2371) → **`TRANSITION_TARGET_CONTENT_MISMATCH`**.
+- **`digest(candidate/projects) == digest(target/projects)` = TRUE** (`0e46cf6c…`, ikisi de projectId,
+  ikisi de transient-free) — consume post-copy sözleşmesi geçerli. Boşluk yalnız **slug-layout source**
+  ile **projectId-layout materialized world** arasında.
+
+`smoke-c2b9b` yakalayamadı: fixture'ları `data/projects` ağacını `fs.cpSync` ile birebir kopyalar
+(iki tarafta da slug klasörleri, v3 remap yok). C.2B.9b genesis `validateTarget` **yapısal aynı**
+target için yazıldı; C.2B.10a v3 migration candidate **portable projectId-remapped**. **Beşinci
+gerçek-data blocker** (F13, F14, F15, F16, F17).
+
+### F17 çözüm yolları (her biri kendi kararını gerektiriyor)
+
+- **F17-A** — `authority:prepare`/`validate` **verified candidate**'ı frozen source olarak alsın
+  (`candidate/projects` = projectId-layout, transient-free, kriptografik bağlı projeksiyon).
+  prepare `candidate/projects` dondurur, validate `target/projects` kontrol eder → ikisi de projectId
+  → match. (Eski F16-B; runbook + audit-trail sorusu cevaplanmalı.)
+- **F17-B** — `validateTarget`'e slug↔projectId identity map'i öğret (candidate manifest zaten
+  `sourceProjectIdentities` taşıyor): target projectId set'ini source slug'larıyla bu map üzerinden
+  karşılaştır, content digest'i **logical** (identity-normalized) path üzerinden hesapla.
+- **F17-C** — verified candidate + consumed target'ı otoriter çift kabul eden bir genesis modu;
+  yalnız `target == candidate` byte-exact (consume zaten kanıtladı) + quiescence + marker absence
+  kontrol eder, `<repo>/data/projects`'ten yeniden türetmez.
+
+### Safety proof
+
+Bu sprintte `data/projects` mutation = **0** (F16-A yalnız kod; 28 transient dosya OKUNUR ama hiç
+değişmez; 0 canonical kayıt). `.env.local` `bf52c74d…` (4051b, mtime 2026-09-07) DEĞİŞMEDİ. `data/brain`
+git clean. tracked `data/projects` = 0. `authority-transition-v1/` / `active-authority.json` HİÇBİR
+yerde YOK. `D:\AtolyeAuthority` boş. node process = 0. Execution Gate CLOSED. `cutoverAuthorized = false`.
+
+### D: artifacts (bırakıldı — F17 fix retry'ında hâlâ geçerli)
+
+- `D:\AtolyeRuntime` — consumed target (`state: consumed`, byte-exact, durable-clean).
+- `D:\AtolyeBackup\backups\b-0d971133190c` + `D:\AtolyeCandidate\candidates\c-d3743b64c5830509cc380b58`
+  — verified backup + candidate (post-F15-A).
+- `b-fee58282da89` + `c-817cdcd9df908176a5559e95` — stale (pre-F15-A), bırakıldı.
+- `D:\AtolyeAuthority` / `D:\AtolyeRestoreVerify` boş.
+
+### Sıradaki adım
+
+**F17 çözüm kararı** (F17-A / F17-B / F17-C) → sonra `authority:begin-genesis` → quiesce → prepare
+→ validate → HARD STOP. `authority:publish` bu noktaya kadar çalıştırılMAYACAK; `PUBLISH ONAY` gerekli.
+
+<!-- SPRINT-205-END -->
+
 ## Sprint 204 - F15 CLOSED (F15-A) → REAL MIGRATION HALTED AT PHASE 11 (blocker F16) - 2026-09-08
 
 **Status:** **F15 = CLOSED via F15-A** (11 source derived indexes rebuilt with the sanctioned primitive).

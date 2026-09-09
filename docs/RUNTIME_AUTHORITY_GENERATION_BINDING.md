@@ -477,7 +477,7 @@ path 234 / 0 violations) both verified. **`runtime:migration:candidate:consume`
 byte-exact to candidate/backup, target per-project durable scan 11/11 clean. F15
 resolved end to end. Old `b-fee58282da89` / `c-817cdcd9df908176a5559e95` preserved.
 
-## 11. F16 — authority-transition F3 gate is not `.partial`/`.lock` EXCLUDE-SAFE (OPEN, blocks genesis)
+## 11. F16 — authority-transition F3 gate is not `.partial`/`.lock` EXCLUDE-SAFE — F16-A done (Sprint 205); genesis still blocked by F17
 
 Sprint 204's real migration reached the genesis authority transition and stopped
 at **PHASE 11 (`authority:validate`)** — which would fail deterministically:
@@ -523,12 +523,82 @@ F16 F3 not EXCLUDE-SAFE).
   `.pipeline-jobs.lock`) before genesis so source == target == 2371. Contradicts
   "no `data/projects` rename/move/delete".
 
-Real migration is **NO-GO** until F16 is resolved. Sprint 204 ran no
-`authority:begin-genesis` (the genesis control plane was never created — validate
-would fail deterministically), no `authority:publish`; `active-authority.json`
-absent; `cutoverAuthorized` stays `false`; `.env.local` unchanged; `data/projects`
-mutated only by F15-A (+11 gitignored derived indexes, 0 canonical records). The
-verified `D:\AtolyeRuntime` consumed target, `b-0d971133190c`, and
-`c-d3743b64c5830509cc380b58` are preserved for the F16-fix retry (an F16-A/B fix
-needs no re-consume). `b-fee58282da89` / `c-817cdcd9df908176a5559e95` also kept.
-`PUBLISH ONAY` still required.
+### Sprint 205 — F16-A done
+
+`src/lib/runtime/RuntimeTransientArtifactPolicy.ts` — one shared predicate
+`isRuntimeTransientExcludedRelativePath` (reuses `isAudioCompensationJournalStagingPartialAtProjectPath`
++ the existing `"/.pipeline-jobs."` rule, no second filter). Called from **both**
+`collectRuntimeBackupInventory` (behaviour-preserving refactor of its inline
+check) and `runtimeAuthorityProjectsContentDigest`'s `walkContent` (applied
+**after** the symlink / non-regular-file rejection, so `TRANSITION_CONTENT_UNSAFE`
+still fires for a symlink whose name matches an excluded pattern; deterministic
+ordering / serialization / marker-skip unchanged). All 5 callers of the F3
+primitive — `authority:prepare`, `authority:validate`, `RuntimeAuthorityRollback`,
+`RuntimeAuthorityOldRootQuarantine`, and consume's post-copy check — now agree on
+the transient set. Backup / candidate identity + aggregate unchanged
+(`b-0d971133190c` re-verifies with the same `8701419987…` / `a5654b62…`). Real
+source digest `fileCount` dropped 2399 → **2371**, matching the target count.
+Coverage: `scripts/smoke-f16-authority-digest-exclude-safe.ts` (7 scenarios).
+Regression c2b5/6/6b/8/9/9b/10a/11/12 + f12/f13/f16 + runtime-backup +
+migration-candidate + durable-recovery + storage-hygiene + external-runtime-root
+all PASS; tsc / eslint (0 err / 22 warn) / next build clean.
+
+## 12. F17 — genesis `validateTarget` compares slug-layout source vs projectId-layout v3 target (OPEN, blocks genesis)
+
+F16-A fixed the **file-count** half of Sprint 204's mismatch, but the real
+migration target still does not pass `authority:validate` — for a structural
+reason F16-A does not touch:
+
+- The **v3 backup path policy** (`runtime-backup-relative-path-v3`, the current
+  default, C.2B.8 PR2 "portable by construction") **remaps `<slug>/…` →
+  `<projectId>/…`**. So `<repo>/data/projects` has 17 **slug** folders
+  (`i-stanbul-un-fethi-1453`, `atilla-nin-y-kselisi`, …) while the backup →
+  candidate → consumed `D:\AtolyeRuntime\projects` has 17 **projectId** folders
+  (`1ba3bebf-…`, `0453f0b4-…`, …).
+- `validateTarget` (Coordinator) does
+  `sameStringSet(normalizeSlugs(targetProjectSlugs), record.sourceFreeze.projectSlugs)`
+  — the target's projectId folder names vs the source's slug folder names →
+  **`TRANSITION_TARGET_INVENTORY_MISMATCH`** (fires before the content check).
+- Even past that, `runtimeAuthorityProjectsContentDigest` hashes
+  `<relativePath>\0<sha>\0<size>` lines — the `<slug>/…` prefixes vs the
+  `<projectId>/…` prefixes differ, so the source freeze (`090b3455…`, 2371) ≠
+  the target digest (`0e46cf6c…`, 2371) → **`TRANSITION_TARGET_CONTENT_MISMATCH`**.
+- **`runtimeAuthorityProjectsContentDigest(candidate/projects) ==
+  runtimeAuthorityProjectsContentDigest(target/projects)` is TRUE** (`0e46cf6c…`,
+  both projectId, both transient-free) — the consume post-copy contract holds.
+  The gap is only between the **slug-layout source** and the **projectId-layout
+  materialized world**.
+
+`smoke-c2b9b` never caught this — its fixtures `fs.cpSync` the whole `data/projects`
+tree verbatim (slug folders on both sides, no v3 remap). C.2B.9b genesis
+`validateTarget` was written for a **structurally identical** target; the C.2B.10a
+v3 migration candidate is a **portable projectId-remapped** one. F17 is the
+**fifth blocker only a real migration reveals** (F13, F14, F15, F16, F17).
+
+**Resolution options (each its own decision):**
+
+- **F17-A** — `authority:prepare` / `validate` operate on the **verified
+  candidate** as the frozen source (its `projects/` is the projectId-layout,
+  transient-free, cryptographically-bound projection). `prepare` freezes
+  `candidate/projects`, `validate` checks `target/projects` — both projectId →
+  match. (This is F16-B under a new name; it needs the runbook + audit-trail
+  question answered.)
+- **F17-B** — teach `validateTarget` the slug↔projectId identity map (the
+  candidate manifest already carries `sourceProjectIdentities`): compare the
+  target's projectId set against the source slugs *through* that map, and compare
+  content digests over a **logical** (identity-normalized) path rather than the
+  raw folder name.
+- **F17-C** — a genesis mode that treats the verified candidate + consumed target
+  as the authoritative pair and only re-checks `target == candidate` byte-exact
+  (which consume already proved) plus quiescence + marker absence, without
+  re-deriving from `<repo>/data/projects`.
+
+Real migration is **NO-GO** until F17 is resolved. Sprint 205 ran no
+`authority:begin-genesis` (validate would fail deterministically), no
+`authority:publish`; `active-authority.json` absent; `cutoverAuthorized` stays
+`false`; `.env.local` unchanged; `data/projects` unmutated this sprint (F16-A is
+a code change only — 0 canonical records, 0 transients touched, the 28 transient
+files are read but never modified). The verified `D:\AtolyeRuntime` consumed
+target, `b-0d971133190c`, `c-d3743b64c5830509cc380b58` (+ the stale
+`b-fee58282da89` / `c-817cdcd9df908176a5559e95`) are preserved. `PUBLISH ONAY`
+still required.
