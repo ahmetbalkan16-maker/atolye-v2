@@ -68,6 +68,7 @@
     "smoke:c2b9b-genesis-transition": "tsx scripts/smoke-c2b9b-genesis-transition.ts",
     "smoke:f12-audio-journal-partial-classification": "tsx scripts/smoke-f12-audio-journal-partial-classification.ts",
     "smoke:f13-candidate-path-budget": "tsx scripts/smoke-f13-candidate-path-budget.ts",
+    "smoke:f16-authority-digest-exclude-safe": "tsx scripts/smoke-f16-authority-digest-exclude-safe.ts",
     "smoke:c2b10a-candidate-consume": "tsx scripts/smoke-c2b10a-candidate-consume.ts",
     "smoke:c2b11-old-root-quarantine": "tsx scripts/smoke-c2b11-old-root-quarantine.ts",
     "smoke:c2b8-evidence-model": "tsx scripts/smoke-c2b8-evidence-model.ts",

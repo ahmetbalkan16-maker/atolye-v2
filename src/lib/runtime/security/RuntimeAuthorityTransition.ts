@@ -5,6 +5,7 @@ import {
   assertPathContained,
   validateSafeAncestorChain,
 } from "@/lib/runtime/RuntimeStoragePaths";
+import { isRuntimeTransientExcludedRelativePath } from "@/lib/runtime/RuntimeTransientArtifactPolicy";
 import {
   runtimeAuthorityGenerationMarkerFileName,
   type RuntimeAuthorityIdentityFields,
@@ -835,6 +836,15 @@ function walkContent(root: string, dir: string, out: string[]): void {
       );
     }
     const rel = path.relative(root, full).split(path.sep).join("/");
+    // F16-A — EXCLUDE-SAFE: `.audio-journal-staging/*.partial` atomic-write
+    // staging and `.pipeline-jobs.*` process-local coordination files are inert
+    // — never authority, never a durable record. `collectRuntimeBackupInventory`
+    // (and therefore the backup / candidate / consumed target) excludes them by
+    // the same predicate, so the source freeze and the target digest agree.
+    // The symlink / non-regular-file rejection above is unaffected.
+    if (isRuntimeTransientExcludedRelativePath(rel)) {
+      continue;
+    }
     const sha = createHash("sha256").update(fs.readFileSync(full)).digest("hex");
     out.push(`${rel}\0${sha}\0${link.size}`);
   }

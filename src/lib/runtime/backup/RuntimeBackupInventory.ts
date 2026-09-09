@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { isAudioCompensationJournalStagingPartialAtProjectPath } from "@/lib/audio/AudioCompensationStore";
+import { isRuntimeTransientExcludedRelativePath } from "@/lib/runtime/RuntimeTransientArtifactPolicy";
 import {
   assertPathContained,
   getLogicalProjectIdentity,
@@ -324,11 +324,9 @@ function walkRuntimeTree(
       throw new Error("Runtime backup source contains an unsupported path.");
     }
     const diskRelativePath = relativePosix(projectsRoot, absolutePath);
-    if (
-      isAudioCompensationJournalStagingPartialAtProjectPath(diskRelativePath) ||
-      diskRelativePath.includes("/.pipeline-jobs.") ||
-      diskRelativePath.startsWith(".pipeline-jobs.")
-    ) {
+    // F5 / F12 / F16-A — shared EXCLUDE-SAFE predicate (also used by
+    // `runtimeAuthorityProjectsContentDigest`, so the two digests agree).
+    if (isRuntimeTransientExcludedRelativePath(diskRelativePath)) {
       continue;
     }
     const firstSegment = diskRelativePath.split("/")[0];
