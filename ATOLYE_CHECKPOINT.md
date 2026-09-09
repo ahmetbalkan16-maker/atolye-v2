@@ -1,5 +1,55 @@
 ---
 
+## Brain home uses the REAL wake engine + wake-mic un-processing; gate CLOSED - 2026-09-09
+
+**Branch:** `wip/ayas-graphify-final-execution` (off `0ef4f40`). NOT merged / NOT pushed.
+
+**Operator iPhone test found two things:** (1) "AYAS" wake is inconsistent — sometimes heard,
+sometimes not, has to raise voice; (2) the working hands-free experience only exists on
+`/brain/voice-lab/wake`, so the user keeps ending up in the lab.
+
+**ROOT CAUSE — D2 ROUTING (PROVEN):** there is **no redirect bug**. `manifest.start_url` is
+`/brain?source=pwa`; grep confirms zero `redirect` / `router.push|replace` / `window.location` /
+`<meta refresh>` from `/brain` to the lab. The real reason: **`/brain` never used the real wake
+engine.** `useAyasVoice` hard-wired `new AyasVoiceEngine(new BrowserVoiceAdapter())` —
+`webkitSpeechRecognition` (Apple-cloud STT, iOS single-shot, tap-per-utterance). `WakeWordVoiceAdapter`
+(openWakeWord "AYAS" + local whisper STT, `implements AyasVoicePlatform`, `smoke-ayas-wake-adapter`
+green) existed but **was wired into no page** — only the bespoke `OpenWakeWordDetector` in the lab.
+
+**ROOT CAUSE — WAKE RELIABILITY (NOT PROVEN — needs the device `pipeline` JSON):** offline the
+model is excellent (synthetic "AYAS" 0.999, robust to level/EQ/noise/reverb) and it was trained on
+ONE Piper TTS voice → real-human generalization gap is the likely cause (D2 FAZ 1B §7 case C: fix =
+record ~30 real clips → `train_ayas_wake.py`). One **measured-alignment** contributor addressed
+now: the wake `getUserMedia` ran with `noiseSuppression`+`autoGainControl` ON — browser NS/AGC
+dynamically reshape the spectrum and clamp onsets, which openWakeWord (trained on unprocessed
+audio) was never shown → inconsistent per-frame score. **Threshold unchanged at 0.70.**
+
+**FIX (UI only):**
+- `ayasVoice.ts` — pure `isWakeEngineCapable(win)` + `selectAyasVoicePlatform({optIn, supported})`.
+- `useAyasVoice.ts` — builds `WakeWordVoiceAdapter` (dynamic `import()`, so onnxruntime stays out
+  of the `/brain` chunk unless used) when `NEXT_PUBLIC_ATOLYE_WAKE_ENGINE=on` **and** the browser
+  is capable; otherwise `BrowserVoiceAdapter`, unchanged. Runtime fallback: if the wake engine
+  can't start (mic denied / ONNX load fail) it fires `onUnavailable` → the hook drops back to the
+  browser adapter (no engine-`onEnd` retry storm — new `fatal` guard in the adapter).
+- Wake capture `getUserMedia`: `noiseSuppression:false, autoGainControl:false`, `echoCancellation:true`
+  (kept — TTS self-trigger guard). Both `wakeWordVoiceAdapter.ts` and the wake-lab page.
+- **`AyasVoiceEngine` orchestration, threshold, wake→STT→AYAS→TTS→re-arm, `useScreenWakeLock`,
+  `BrowserVoiceAdapter`, `OpenWakeWordRunner`, `/api/*` — all untouched.**
+
+**Operator step:** add `NEXT_PUBLIC_ATOLYE_WAKE_ENGINE=on` to `.env.local` + rebuild → the `/brain`
+"AYAS ile sesli konuş" CTA now runs the real hands-free engine. Flag unset (current) = zero change.
+
+**Verify:** tsc 0 / eslint 0 err (22 pre-existing) / `next build` clean. `smoke-ayas-voice` 50→**52**
+(capability + platform-select), `smoke-ayas-wake-adapter` 7→**9** (onUnavailable, fatal-guard,
+no-NS/AGC), `smoke-brain-core-ui` 30 + brain/wake-runner/chat-stream/access-gate/stt/pwa green.
+`git diff --check` clean; 6 files, all voice-UI.
+
+**Unchanged:** Execution Gate CLOSED, `writeActionsEnabled`, auth/CSRF/access gate/session, TTS,
+Graphify authority, `D:\AtolyeRuntime`, Caddy, `.env.local` (operator adds the one flag), the
+operator-run quick tunnel (`haven-finds-distinct-selling.trycloudflare.com`, not written anywhere).
+
+<!-- BRAIN-HOME-REAL-WAKE-ENGINE-END -->
+
 ## Mobile 2-min reload — A/B/C measured; screen wake lock + /brain entry; gate CLOSED - 2026-09-09
 
 **Branch:** `wip/ayas-graphify-final-execution` (off `9c422fc`). NOT merged / NOT pushed.

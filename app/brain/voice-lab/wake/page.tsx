@@ -563,7 +563,10 @@ export default function D2WakeLabPage() {
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        // Match the wake adapter: openWakeWord wants unprocessed audio, so
+        // noise-suppression + auto-gain are OFF (they reshape the spectrum and
+        // clamp onsets → inconsistent wake score). Echo-cancellation stays on.
+        audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false },
       });
       streamRef.current = stream;
       setMic("on");

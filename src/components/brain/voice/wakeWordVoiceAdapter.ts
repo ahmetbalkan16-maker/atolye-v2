@@ -20,7 +20,7 @@
  * `AyasRecognitionMode`.
  */
 
-import { detectAyasVoiceCapability, type AyasPlatformVoice, type AyasRecognitionMode, type AyasVoiceCapability } from "../ayasVoice";
+import { isWakeEngineCapable, type AyasPlatformVoice, type AyasRecognitionMode, type AyasVoiceCapability } from "../ayasVoice";
 import type {
   AyasListenHandle,
   AyasListenHandlers,
@@ -53,6 +53,12 @@ export interface WakeWordAdapterOptions {
   readonly runner?: WakeRunnerLike;
   /** Test seam — replace the STT transport. */
   readonly transcribe?: (wav: Uint8Array) => Promise<string>;
+  /**
+   * Called once when the wake engine cannot start on this device (mic denied,
+   * ONNX/WASM failed to load, no worklet). The host should fall back to the
+   * browser voice adapter — the engine will otherwise keep retrying `begin()`.
+   */
+  readonly onUnavailable?: (reason: "not-allowed" | "start-blocked") => void;
 }
 
 export interface WakeRunnerLike {
@@ -102,10 +108,15 @@ async function postStt(url: string, wav: Uint8Array): Promise<string> {
 
 export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   private readonly tts = new BrowserVoiceAdapter();
-  private readonly o: Required<Omit<WakeWordAdapterOptions, "audioBackend" | "runner" | "transcribe">>;
+  private readonly o: Required<
+    Omit<WakeWordAdapterOptions, "audioBackend" | "runner" | "transcribe" | "onUnavailable">
+  >;
   private readonly audio: WakeAudioBackend;
   private readonly runner: WakeRunnerLike;
   private readonly transcribe: (wav: Uint8Array) => Promise<string>;
+  private readonly onUnavailable?: (reason: "not-allowed" | "start-blocked") => void;
+  /** Set once `begin()` fails fatally — stops the engine's `onEnd` retry loop. */
+  private fatal = false;
 
   private phase: "off" | "wake" | "command" | "busy" = "off";
   private handlers: AyasListenHandlers | null = null;
@@ -133,6 +144,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
         wasmPaths: this.o.wasmPaths,
       });
     this.transcribe = options.transcribe ?? ((wav) => postStt(this.o.sttUrl, wav));
+    this.onUnavailable = options.onUnavailable;
   }
 
   /* ---- TTS + capability: delegate to the browser adapter ---- */
@@ -159,20 +171,20 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   }
 
   static isSupported(win: Window | undefined): boolean {
-    if (!win) return false;
-    const cap = detectAyasVoiceCapability(win as never);
-    return (
-      cap.tts &&
-      typeof (win as { AudioWorkletNode?: unknown }).AudioWorkletNode !== "undefined" &&
-      typeof win.navigator?.mediaDevices?.getUserMedia === "function" &&
-      (win.isSecureContext === true)
-    );
+    return isWakeEngineCapable(win as never);
   }
 
   startListening(lang: string, handlers: AyasListenHandlers, options?: AyasListenOptions): AyasListenHandle {
     void lang; // the openWakeWord model + the whisper route are both tr-only
     void options;
     this.handlers = handlers;
+    // A prior fatal failure means this device cannot run the wake engine —
+    // don't re-attempt `begin()` on every `onEnd` retry; end quietly instead.
+    if (this.fatal) {
+      this.phase = "off";
+      queueMicrotask(() => handlers.onEnd());
+      return { stop: () => {} };
+    }
     this.phase = "wake";
     this.resetCommand();
     void this.begin(handlers);
@@ -192,7 +204,10 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       await this.audio.start((frame) => this.onFrame(frame));
     } catch (error) {
       this.phase = "off";
-      handlers.onError((error as Error).message?.includes("Permission") ? "not-allowed" : "start-blocked");
+      this.fatal = true;
+      const reason = (error as Error).message?.includes("Permission") ? "not-allowed" : "start-blocked";
+      this.onUnavailable?.(reason);
+      handlers.onError(reason);
       handlers.onEnd();
     }
   }
@@ -283,8 +298,12 @@ class MediaStreamWorkletBackend implements WakeAudioBackend {
       (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     this.ctx = new Ctor();
     await this.ctx.resume();
+    // openWakeWord was trained on unprocessed audio. Browser noise-suppression
+    // and auto-gain dynamically reshape the spectral envelope and clamp speech
+    // onsets, which makes the per-frame wake score inconsistent ("sometimes it
+    // hears me"). Keep echo-cancellation on so AYAS's own TTS can't self-trigger.
     this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false },
     });
     await this.ctx.audioWorklet.addModule("/worklets/d2-wake-lab-processor.js");
     const src = this.ctx.createMediaStreamSource(this.stream);

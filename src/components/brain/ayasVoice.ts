@@ -493,6 +493,46 @@ export function ayasVoiceHoldsScreenAwake(state: AyasVoiceState, listening: bool
   return state === "listening" || state === "thinking" || state === "speaking";
 }
 
+/** Window-ish shape needed to decide whether the on-device wake engine can run. */
+export interface AyasWakeCapableWindowLike extends AyasVoiceWindowLike {
+  readonly isSecureContext?: boolean;
+  readonly AudioWorkletNode?: unknown;
+  readonly navigator?: { readonly mediaDevices?: { readonly getUserMedia?: unknown } };
+}
+
+/**
+ * Can this browser run the openWakeWord + AudioWorklet capture path at all?
+ * (TTS present, `AudioWorkletNode`, `getUserMedia`, and a secure context for the
+ * mic.) Pure — `WakeWordVoiceAdapter.isSupported` delegates here.
+ */
+export function isWakeEngineCapable(win: AyasWakeCapableWindowLike | undefined): boolean {
+  if (!win) return false;
+  const cap = detectAyasVoiceCapability(win);
+  return (
+    cap.tts &&
+    typeof win.AudioWorkletNode !== "undefined" &&
+    typeof win.navigator?.mediaDevices?.getUserMedia === "function" &&
+    win.isSecureContext === true
+  );
+}
+
+/**
+ * Which voice platform the Brain home page should drive:
+ *  - `"wake-engine"` → the on-device openWakeWord "AYAS" detector + local
+ *    whisper STT (`WakeWordVoiceAdapter`) — a true hands-free wake word, no
+ *    per-utterance tap, no vendor cloud. Requires the operator opt-in
+ *    (`NEXT_PUBLIC_ATOLYE_WAKE_ENGINE=on`, assets staged) AND a capable browser.
+ *  - `"browser"` → `webkitSpeechRecognition` + local `speechSynthesis` — the
+ *    always-available fallback (single-shot on iOS).
+ * Pure; the caller supplies the two facts.
+ */
+export function selectAyasVoicePlatform(input: {
+  readonly wakeEngineOptIn: boolean;
+  readonly wakeEngineSupported: boolean;
+}): "wake-engine" | "browser" {
+  return input.wakeEngineOptIn && input.wakeEngineSupported ? "wake-engine" : "browser";
+}
+
 /** Human-readable Turkish description of a `SpeechRecognition` error code. */
 export function describeAyasRecognitionError(code: string): string {
   switch (code) {

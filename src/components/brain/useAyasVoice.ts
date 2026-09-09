@@ -20,13 +20,29 @@
  * never affected.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { AyasVoiceEngine } from "./voice/ayasVoiceEngine";
+import { AyasVoiceEngine, type AyasVoicePlatform } from "./voice/ayasVoiceEngine";
 import { BrowserVoiceAdapter } from "./voice/browserVoiceAdapter";
+import { isWakeEngineCapable, selectAyasVoicePlatform } from "./ayasVoice";
 import type { AyasRecognitionMode, AyasVoiceCapability, AyasVoiceState } from "./ayasVoice";
 
 const NO_CAPABILITY: AyasVoiceCapability = { stt: false, tts: false, sttCloudBacked: false };
+
+/** Operator opt-in: use the on-device openWakeWord + local whisper STT engine. */
+const WAKE_ENGINE_OPT_IN = process.env.NEXT_PUBLIC_ATOLYE_WAKE_ENGINE === "on";
+
+const noopSubscribe = (): (() => void) => () => {};
+
+/** SSR-safe: which voice platform to build (server → always the browser one). */
+function readVoicePlatformKind(): "wake-engine" | "browser" {
+  return selectAyasVoicePlatform({
+    wakeEngineOptIn: WAKE_ENGINE_OPT_IN,
+    wakeEngineSupported: isWakeEngineCapable(
+      typeof window === "undefined" ? undefined : (window as never),
+    ),
+  });
+}
 
 export interface UseAyasVoiceOptions {
   /** Fired with the command text captured after the wake word. */
@@ -89,35 +105,63 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
     mutedRef.current = muted;
   }, [muted]);
 
+  // The wake engine can't start on this device → drop back to the browser one.
+  const [forcedBrowser, setForcedBrowser] = useState(false);
+  const storeKind = useSyncExternalStore(noopSubscribe, readVoicePlatformKind, () => "browser" as const);
+  const platformKind: "wake-engine" | "browser" = forcedBrowser ? "browser" : storeKind;
+
   useEffect(() => {
-    const engine = new AyasVoiceEngine(new BrowserVoiceAdapter(), {
-      onStateChange: (next) => setState(next),
-      onCommand: (text) => onCommandRef.current(text),
-      onError: (message) => setErrorMessage(message),
-      onWake: () => setErrorMessage(null),
-      onAutoplayBlocked: (text) => setPendingSpeech(text),
-    });
-    engineRef.current = engine;
-    setCapability(engine.capabilities);
-    setState(engine.state);
-    setVoiceName(engine.voiceSelection.voiceName);
-    setVoiceTier(engine.voiceSelection.tier);
-    setRecognitionMode(engine.recognitionMode);
-    setReady(true);
+    let engine: AyasVoiceEngine | null = null;
+    let cancelled = false;
+
+    const attach = (platform: AyasVoicePlatform): void => {
+      if (cancelled) return;
+      engine = new AyasVoiceEngine(platform, {
+        onStateChange: (next) => setState(next),
+        onCommand: (text) => onCommandRef.current(text),
+        onError: (message) => setErrorMessage(message),
+        onWake: () => setErrorMessage(null),
+        onAutoplayBlocked: (text) => setPendingSpeech(text),
+      });
+      engineRef.current = engine;
+      setCapability(engine.capabilities);
+      setState(engine.state);
+      setVoiceName(engine.voiceSelection.voiceName);
+      setVoiceTier(engine.voiceSelection.tier);
+      setRecognitionMode(engine.recognitionMode);
+      setReady(true);
+    };
+
+    if (platformKind === "wake-engine") {
+      // Load the openWakeWord + onnxruntime bundle only when it will be used.
+      const fallBack = () => {
+        setListening(false);
+        setForcedBrowser(true);
+      };
+      void import("./voice/wakeWordVoiceAdapter")
+        .then(({ WakeWordVoiceAdapter }) => {
+          attach(new WakeWordVoiceAdapter({ onUnavailable: fallBack }));
+        })
+        .catch(fallBack);
+    } else {
+      attach(new BrowserVoiceAdapter());
+    }
 
     // The voice list often populates asynchronously — refine the label once.
     const refine = setTimeout(() => {
-      if (engineRef.current !== engine) return;
-      setVoiceName(engine.voiceSelection.voiceName);
-      setVoiceTier(engine.voiceSelection.tier);
+      const e = engineRef.current;
+      if (!e) return;
+      setVoiceName(e.voiceSelection.voiceName);
+      setVoiceTier(e.voiceSelection.tier);
     }, 400);
 
     return () => {
+      cancelled = true;
       clearTimeout(refine);
-      engine.dispose();
-      engineRef.current = null;
+      engine?.dispose();
+      if (engineRef.current === engine) engineRef.current = null;
     };
-  }, []);
+  }, [platformKind]);
 
   const acceptDisclosure = useCallback(() => setDisclosureAccepted(true), []);
 

@@ -34,6 +34,8 @@ import {
   toSpokenAyasText,
   shouldAutoSpeakAyasReply,
   ayasVoiceHoldsScreenAwake,
+  isWakeEngineCapable,
+  selectAyasVoicePlatform,
   AYAS_VOICE_STATES,
   AYAS_VOICE_DISCLOSURE,
   AYAS_VOICE_TAP_FOR_COMMAND,
@@ -411,6 +413,33 @@ async function run() {
     assert.match(spoken, /\bve\b/);
     assert.ok(!spoken.includes("\n"), "newlines collapsed");
     assert.equal(toSpokenAyasText(""), "");
+  });
+
+  await scenario("wake engine capability — needs tts + AudioWorkletNode + getUserMedia + secure ctx", () => {
+    const full = {
+      speechSynthesis: {},
+      webkitSpeechRecognition: function () {},
+      isSecureContext: true,
+      AudioWorkletNode: function () {},
+      navigator: { mediaDevices: { getUserMedia: () => {} } },
+    };
+    assert.equal(isWakeEngineCapable(full as never), true);
+    assert.equal(isWakeEngineCapable(undefined), false);
+    assert.equal(isWakeEngineCapable({ ...full, isSecureContext: false } as never), false, "insecure context");
+    assert.equal(isWakeEngineCapable({ ...full, AudioWorkletNode: undefined } as never), false, "no worklet");
+    assert.equal(
+      isWakeEngineCapable({ ...full, navigator: { mediaDevices: {} } } as never),
+      false,
+      "no getUserMedia",
+    );
+    assert.equal(isWakeEngineCapable({ ...full, speechSynthesis: undefined } as never), false, "no tts");
+  });
+
+  await scenario("voice platform selection — wake engine only with opt-in AND capability", () => {
+    assert.equal(selectAyasVoicePlatform({ wakeEngineOptIn: true, wakeEngineSupported: true }), "wake-engine");
+    assert.equal(selectAyasVoicePlatform({ wakeEngineOptIn: false, wakeEngineSupported: true }), "browser");
+    assert.equal(selectAyasVoicePlatform({ wakeEngineOptIn: true, wakeEngineSupported: false }), "browser");
+    assert.equal(selectAyasVoicePlatform({ wakeEngineOptIn: false, wakeEngineSupported: false }), "browser");
   });
 
   await scenario("screen wake lock predicate — held during a voice turn / hands-free, released at rest", () => {

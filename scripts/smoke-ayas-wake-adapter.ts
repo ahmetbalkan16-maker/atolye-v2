@@ -8,6 +8,8 @@
  */
 
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 
 import { encodeWav16kMono } from "../src/components/brain/voice/wake/wav";
 import {
@@ -25,6 +27,7 @@ async function scenario(name: string, fn: () => void | Promise<void>) {
 }
 
 const FRAME = 1280;
+const REPO_ROOT = path.resolve(__dirname, "..");
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 class FakeBackend implements WakeAudioBackend {
@@ -188,7 +191,7 @@ async function run() {
     assert.deepEqual(c.finals, []);
   });
 
-  await scenario("getUserMedia denial surfaces as 'not-allowed' + onEnd", async () => {
+  await scenario("getUserMedia denial surfaces as 'not-allowed' + onEnd + onUnavailable", async () => {
     const denying: WakeAudioBackend = {
       supported: true,
       async start() {
@@ -196,13 +199,66 @@ async function run() {
       },
       stop() {},
     };
-    const a = new WakeWordVoiceAdapter({ audioBackend: denying, runner: new FakeRunner(), transcribe: async () => "x" });
+    const reasons: string[] = [];
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: denying,
+      runner: new FakeRunner(),
+      transcribe: async () => "x",
+      onUnavailable: (r) => reasons.push(r),
+    });
     const c = collectHandlers();
     a.startListening("tr-TR", c.handlers);
     await tick();
     await tick();
     assert.ok(c.errors.includes("not-allowed"));
     assert.ok(c.ended >= 1);
+    assert.deepEqual(reasons, ["not-allowed"], "host is told to fall back");
+  });
+
+  await scenario("a fatal wake-engine failure does not retry begin() on the engine's onEnd loop", async () => {
+    let starts = 0;
+    const flaky: WakeAudioBackend = {
+      supported: true,
+      async start() {
+        starts += 1;
+        throw new Error("onnx/wasm load failed");
+      },
+      stop() {},
+    };
+    let unavailable = 0;
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: flaky,
+      runner: new FakeRunner(),
+      transcribe: async () => "x",
+      onUnavailable: () => {
+        unavailable += 1;
+      },
+    });
+    const c = collectHandlers();
+    // simulate the engine's continuous restart: startListening again after onEnd
+    a.startListening("tr-TR", c.handlers);
+    await tick();
+    await tick();
+    a.startListening("tr-TR", c.handlers);
+    await tick();
+    await tick();
+    a.startListening("tr-TR", c.handlers);
+    await tick();
+    await tick();
+    assert.equal(starts, 1, "audio backend start() attempted exactly once");
+    assert.equal(unavailable, 1, "onUnavailable fired once");
+    assert.ok(c.ended >= 3, "still ends cleanly on every startListening");
+    assert.deepEqual(c.finals, [], "never a spurious wake");
+  });
+
+  await scenario("wake capture uses unprocessed audio (no browser NS / AGC)", () => {
+    const src = fs.readFileSync(
+      path.join(REPO_ROOT, "src/components/brain/voice/wakeWordVoiceAdapter.ts"),
+      "utf8",
+    );
+    assert.match(src, /noiseSuppression:\s*false/, "noise suppression off for the wake mic");
+    assert.match(src, /autoGainControl:\s*false/, "auto gain off for the wake mic");
+    assert.match(src, /echoCancellation:\s*true/, "echo cancellation stays on (TTS self-trigger guard)");
   });
 
   console.log(`AYAS wake adapter smoke: PASS (${count} scenarios)`);
