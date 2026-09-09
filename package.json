@@ -83,6 +83,7 @@
     "smoke:ayas-chat-stream": "tsx scripts/smoke-ayas-chat-stream.ts",
     "smoke:ayas-chat-stream-client": "tsx scripts/smoke-ayas-chat-stream-client.ts",
     "smoke:ayas-write-action": "tsx scripts/smoke-ayas-write-action.ts",
+    "smoke:ayas-pwa-sw": "tsx scripts/smoke-ayas-pwa-sw.ts",
     "smoke:external-runtime-root-lifecycle": "tsx scripts/smoke-external-runtime-root-project-lifecycle.ts"
   },
   "dependencies": {
