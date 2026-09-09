@@ -141,6 +141,33 @@ async function main() {
     );
   });
 
+  await scenario("forwarded-header safety: X-Forwarded-Proto cannot bypass auth or CSRF (§8)", () => {
+    // (1) the same-origin backstop is driven by Origin/Referer vs Host — NOT by
+    // any forwarded-proto header, so a spoofed proto changes nothing here.
+    assert.equal(
+      isSameOriginRequest({ method: "POST", origin: "https://evil.test", referer: null, host: "studio.local" }),
+      false,
+      "a cross-origin POST is still blocked regardless of forwarded headers",
+    );
+    // (2) isRequestOverHttps only ever flips the cookie toward MORE restrictive
+    // (Secure). A spoofed `https` on a plain-HTTP request just makes the cookie
+    // Secure (browser then won't send it over HTTP) — a fail-safe, not a bypass.
+    const spoofed = isRequestOverHttps({ urlProtocol: "http:", forwardedProto: "https", forwardedSsl: null, nodeEnv: "development" });
+    assert.equal(spoofed, true);
+    // (3) it never makes a genuine HTTPS request "insecure": a spoofed `http`
+    // while actually on HTTPS still yields Secure via urlProtocol / production.
+    assert.equal(
+      isRequestOverHttps({ urlProtocol: "https:", forwardedProto: "http", forwardedSsl: null, nodeEnv: "development" }),
+      true,
+    );
+    assert.equal(
+      isRequestOverHttps({ urlProtocol: "http:", forwardedProto: "http", forwardedSsl: null, nodeEnv: "production" }),
+      true,
+    );
+    // (4) session verification is HMAC over the key — no header influences it.
+    // (covered by the "session fails for a different key" / "tampered tokens" scenarios)
+  });
+
   await scenario("brute-force limiter: allows the window, then blocks, then resets", () => {
     const store = new Map<string, AttemptLimiterState>();
     const opts = { limit: 3, windowSeconds: 60 };
