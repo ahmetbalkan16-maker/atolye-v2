@@ -1,5 +1,52 @@
 ---
 
+## /brain 404 on iPhone PWA — stale service worker; sw.js hardened; gate CLOSED - 2026-09-09
+
+**Branch:** `wip/ayas-graphify-final-execution` (off `bfbd83c`). NOT merged / NOT pushed.
+
+**Symptom:** iPhone via the quick tunnel — `/brain` used to `307 → /login`, now **404**.
+
+**ROOT CAUSE — the installed PWA's service worker (server/route/tunnel/Caddy all PROVEN healthy):**
+Real HTTP from this machine — `/brain` (local + tunnel + iPhone UA + `?source=pwa`) → **307 →
+/login** every time; `.next/server/app/brain/page.js` present; `next build` clean; tunnel 0
+reconnects; `/api/*` 401/403 in <5 ms. **A 404 for `/brain` can only be client-side** —
+`middleware.ts` gates every unauthenticated path to `/login` (even `/nonexistent` → 307), so a raw
+404 means an authenticated request *or* the App-Router's built-in 404 (there is no
+`app/not-found.tsx`). `public/sw.js` had two defects that produce exactly that:
+1. `SHELL` precache listed `/` and `/brain` — auth-gated, they 307-redirect, and `cache.addAll()`
+   **rejects on a redirected response** → the whole SW install fails → a stale worker stays in
+   control.
+2. The navigation handler fell back to `caches.match(request)` (a cached HTML page). After today's
+   3 rebuilds (BUILD_ID changed each time) a cached `/brain` HTML references a **dead build's
+   chunks/RSC** → the App Router renders the client-side 404. "önce 307, şimdi 404" = the SW
+   started serving stale HTML after a redeploy.
+
+**FIX (client / SW only — no server logic, no auth, no `/brain` route):**
+- `public/sw.js` `ayas-shell-v2` → **`v3`**: precache only unconditionally-200 assets (`/offline`,
+  manifest, icons — **`/` and `/brain` removed**); `Promise.allSettled` so a bad entry can't abort
+  install; **navigations are NETWORK-ONLY**, the sole fallback is `/offline` (never a cached HTML
+  page); cache-first kept only for content-hashed `/_next/static/`. The name bump makes `activate()`
+  purge the stale `v2` cache.
+- `src/components/PwaRegister.tsx`: `register("/sw.js", { updateViaCache: "none" })` + `reg.update()`
+  + nudge a waiting worker + **reload once on `controllerchange`** (`reloaded` guard — no loop).
+- `next.config.ts`: `Cache-Control: no-cache, no-store, must-revalidate` on `/sw.js`.
+
+**Verify:** tsc 0 / eslint 0 err / `next build` clean. `smoke-ayas-pwa-sw` 6→**8** (network-only
+nav, no gated route in precache, v3, register hardening), + pwa-manifest / voice / wake-adapter /
+brain-core-ui / access-gate / stt / execution-gate green. Server restarted (`node` PID 27464,
+":3000", "Ready in 91ms"); tunnel `/brain` → **307 → /login**; `/sw.js` → 200 with the no-cache
+header; Caddy + tunnel unchanged (0 reconnects). `git diff --check` clean; 4 files.
+
+**Operator recovery on the phone (one-time):** open the PWA / Safari tab and **pull-to-refresh once**
+(or close & reopen the installed app). The browser fetches `sw.js` v3, it claims the page, the next
+load is clean. If still stuck: Settings → Safari → Advanced → Website Data → remove the site, then
+reinstall.
+
+**Unchanged:** Execution Gate CLOSED, `writeActionsEnabled`, auth/CSRF/access gate/session,
+`/brain` + all routes, STT/wake/TTS, `D:\AtolyeRuntime`, Caddy, `.env.local`, the quick tunnel.
+
+<!-- BRAIN-404-STALE-SW-END -->
+
 ## AYAS wake engine — persistent mic re-arm (works once → dead FIXED); gate CLOSED - 2026-09-09
 
 **Branch:** `wip/ayas-graphify-final-execution` (off `af6a6cc`). NOT merged / NOT pushed.

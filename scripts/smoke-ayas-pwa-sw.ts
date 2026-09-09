@@ -40,10 +40,25 @@ scenario("sw.js — /api/ is bypassed before any cache logic (network-only)", ()
   assert.equal((code.match(/\/api\//g) || []).length, 1, "no other /api reference in the SW code");
 });
 
-scenario("sw.js — navigations are network-first with an /offline fallback", () => {
+scenario("sw.js — navigations are NETWORK-ONLY (never a cached HTML page), /offline as the only fallback", () => {
   assert.match(swSource, /request\.mode\s*===\s*"navigate"/);
+  assert.match(swSource, /request\.destination\s*===\s*"document"/);
   assert.match(swSource, /fetch\(request\)\.catch\(/);
   assert.match(swSource, /caches\.match\("\/offline"\)/);
+  // the navigation branch must NOT fall back to `caches.match(request)` — a
+  // stale HTML page references a prior build and renders as a client 404.
+  const navBranch = swSource.slice(
+    swSource.indexOf('request.mode === "navigate"'),
+    swSource.indexOf("_next/static/"),
+  );
+  assert.ok(!/caches\.match\(request\)/.test(navBranch), "navigations must not serve a cached document");
+});
+
+scenario("sw.js — precache holds no auth-gated route (/ and /brain would break cache.add)", () => {
+  const precache = swSource.slice(swSource.indexOf("PRECACHE = ["), swSource.indexOf("]"));
+  assert.ok(!/["']\/["']/.test(precache) && !/\/brain/.test(precache), "no gated routes in PRECACHE");
+  assert.match(swSource, /Promise\.allSettled/, "a bad precache entry must not abort install");
+  assert.match(swSource, /ayas-shell-v3/, "cache name bumped so activate() purges the stale cache");
 });
 
 scenario("sw.js — no execution / eval / dynamic code / network beyond fetch(request)", () => {
@@ -86,12 +101,17 @@ scenario("offline page exists and is static, no execution", () => {
   }
 });
 
-scenario("PwaRegister — OFF by default, registers only when NEXT_PUBLIC_ATOLYE_PWA_SW === 'on'", () => {
+scenario("PwaRegister — OFF by default; on, it revalidates sw.js + reloads once on takeover", () => {
   const src = fs.readFileSync(path.join(REPO, "src/components/PwaRegister.tsx"), "utf8");
   assert.match(src, /NEXT_PUBLIC_ATOLYE_PWA_SW\s*===\s*"on"/);
   assert.match(src, /if\s*\(!enabled\)/);
   assert.match(src, /unregister\(\)/);
-  assert.match(src, /register\("\/sw\.js"\)/);
+  assert.match(src, /register\("\/sw\.js"/);
+  assert.match(src, /updateViaCache:\s*"none"/, "sw.js itself is always revalidated");
+  assert.match(src, /controllerchange/, "a new worker taking control reloads the page");
+  assert.match(src, /window\.location\.reload\(\)/);
+  // reload exactly once — no loop
+  assert.match(src, /reloaded\s*=\s*true/);
 });
 
 console.log(`AYAS PWA service worker smoke: PASS (${count} scenarios)`);

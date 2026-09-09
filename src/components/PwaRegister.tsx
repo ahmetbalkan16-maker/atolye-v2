@@ -25,9 +25,29 @@ export function PwaRegister() {
       return;
     }
 
-    navigator.serviceWorker.register("/sw.js").catch(() => {
-      /* registration is best-effort — the app works without it */
+    // A superseded worker keeps serving stale HTML until it is replaced — so
+    // always revalidate `sw.js` itself, push any waiting worker to activate, and
+    // reload ONCE when a new worker takes control.
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (reloaded) return;
+      reloaded = true;
+      window.location.reload();
     });
+
+    navigator.serviceWorker
+      .register("/sw.js", { updateViaCache: "none" })
+      .then((reg) => {
+        void reg.update().catch(() => {});
+        const nudge = () => reg.waiting?.postMessage("skip-waiting");
+        nudge();
+        reg.addEventListener("updatefound", () => {
+          reg.installing?.addEventListener("statechange", nudge);
+        });
+      })
+      .catch(() => {
+        /* registration is best-effort — the app works without it */
+      });
   }, []);
 
   return null;
