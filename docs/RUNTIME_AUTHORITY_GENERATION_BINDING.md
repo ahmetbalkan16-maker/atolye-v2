@@ -543,7 +543,7 @@ Regression c2b5/6/6b/8/9/9b/10a/11/12 + f12/f13/f16 + runtime-backup +
 migration-candidate + durable-recovery + storage-hygiene + external-runtime-root
 all PASS; tsc / eslint (0 err / 22 warn) / next build clean.
 
-## 12. F17 — genesis `validateTarget` compares slug-layout source vs projectId-layout v3 target (OPEN, blocks genesis)
+## 12. F17 — genesis `validateTarget` compares slug-layout source vs projectId-layout v3 target — CLOSED via F17-B (Sprint 206)
 
 F16-A fixed the **file-count** half of Sprint 204's mismatch, but the real
 migration target still does not pass `authority:validate` — for a structural
@@ -593,12 +593,61 @@ v3 migration candidate is a **portable projectId-remapped** one. F17 is the
   (which consume already proved) plus quiescence + marker absence, without
   re-deriving from `<repo>/data/projects`.
 
-Real migration is **NO-GO** until F17 is resolved. Sprint 205 ran no
-`authority:begin-genesis` (validate would fail deterministically), no
-`authority:publish`; `active-authority.json` absent; `cutoverAuthorized` stays
-`false`; `.env.local` unchanged; `data/projects` unmutated this sprint (F16-A is
-a code change only — 0 canonical records, 0 transients touched, the 28 transient
-files are read but never modified). The verified `D:\AtolyeRuntime` consumed
-target, `b-0d971133190c`, `c-d3743b64c5830509cc380b58` (+ the stale
-`b-fee58282da89` / `c-817cdcd9df908176a5559e95`) are preserved. `PUBLISH ONAY`
-still required.
+### Sprint 206 — F17 closed via F17-B
+
+`runtimeAuthorityProjectsContentDigest(root, { remapProjectFolder })` canonicalises
+the first path segment (the project folder name) of every non-top-level file to
+its logical identity — applied AFTER the symlink / non-regular-file rejection and
+the F16-A transient exclusion (both on the physical path), so it is never a
+security or exclusion bypass; top-level files are hashed verbatim.
+
+`prepareTransition` gains an optional `projectIdentities` (the CLI reads the
+migration candidate manifest's already-verified `sourceProjectIdentities` from
+`--candidate-directory`): it validates the map (well-formed uuid / slug, no
+duplicate id or slug — `TRANSITION_INPUT_INVALID`), asserts every source project
+folder has an entry (`TRANSITION_SOURCE_IDENTITY_MISSING`), and freezes
+`projectIdentities` + a `logicalContentDigest` / `logicalFileCount` over
+`slug→projectId`-remapped paths, alongside the existing raw `projectSlugs` /
+`contentDigest`.
+
+`validateTarget`, when a `projectIdentities` freeze exists: an operator-supplied
+map must byte-equal the frozen one (`TRANSITION_IDENTITY_BINDING_MISMATCH`); every
+target folder must be a known projectId (`TRANSITION_TARGET_IDENTITY_UNKNOWN`);
+`sameStringSet(targetProjectIds, frozenProjectIds)`
+(`TRANSITION_TARGET_INVENTORY_MISMATCH`); the target's raw digest must equal the
+frozen `logicalContentDigest` (`TRANSITION_TARGET_CONTENT_MISMATCH`). With no
+freeze, the pre-F17-B structural (folder-name) path is unchanged — `smoke-c2b9` /
+`c2b9b` keep passing.
+
+Untouched: candidate / backup identity + aggregate fingerprint, the manifest
+format, authority generation binding, protected-root separation, monotonic
+transition sequence, CAS `active-authority`, rollback token binding, quarantine
+contract. Coverage: `scripts/smoke-f17-authority-identity-mapped-validation.ts`
+(12 scenarios). Regression + tsc / eslint (0 err / 22 warn) / next build clean.
+
+### Real Sprint 206 result — the genesis authority chain reached `target-validated`
+
+Against the preserved Sprint 204 artifacts (`b-0d971133190c`,
+`c-d3743b64c5830509cc380b58`, the consumed `D:\AtolyeRuntime`):
+
+```
+authority:begin-genesis  → s206-genesis-01  quiesce-requested
+authority:quiesce        → quiesced        (worker stopped ; source durable recovery "clean")
+authority:prepare        → prepared        (raw contentDigest 090b3455… / 2371 ;
+                                            projectIdentityCount 17 ;
+                                            logicalContentDigest 0e46cf6c… / 2371)
+authority:validate       → target-validated  byteExact=true  identityMapped=true
+```
+
+`authority:status`: `activeAuthority: null`; the one transition at `target-validated`.
+**HARD STOP.** No `authority:publish` / `publishRollback` / `quarantine` /
+`finalize-quarantine`; no `.env.local` change; no `ATOLYE_RUNTIME_ROOT` /
+`ATOLYE_RUNTIME_AUTHORITY_ROOT`; no legacy `data/projects` rename / move / delete;
+no worker / dev start. `cutoverAuthorized` stays `false`; Execution Gate CLOSED.
+`data/projects` byte-unchanged this sprint (F17-B is code-only; the chain only
+reads the tree): 2399 fs files / 611073169 bytes / inventory aggregate
+`8701419987…` / the 11 Sprint-204 F15-A derived indexes intact. `.env.local`
+`bf52c74d…` (4051 b, mtime 2026-09-07) unchanged.
+
+**`PUBLISH ONAY` is now the only thing standing between `target-validated` and
+the real cutover.**

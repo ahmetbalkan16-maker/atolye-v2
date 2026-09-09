@@ -1,5 +1,105 @@
 ---
 
+## Sprint 206 - F17 CLOSED (F17-B) → GENESIS AUTHORITY CHAIN AT `target-validated` - PRE-PUBLISH - 2026-09-09
+
+**Status:** **F17 = CLOSED via F17-B.** Gerçek genesis authority zinciri
+`begin-genesis → quiesce → prepare → validate` çalıştırıldı ve **`target-validated`**'e ulaştı.
+**HARD STOP.** `authority:publish` / `publishRollback` / `authority:quarantine` /
+`authority:finalize-quarantine` YAPILMADI. **`active-authority.json` YOK** (`authority:status` →
+`activeAuthority: null`). `.env.local` DEĞİŞMEDİ. `ATOLYE_RUNTIME_ROOT` / `ATOLYE_RUNTIME_AUTHORITY_ROOT`
+yazılMADI. legacy `data/projects` rename/move/delete YOK. worker/dev başlatılMADI. Execution Gate
+CLOSED. `cutoverAuthorized = false`. Bu sprintte `data/projects` mutation = 0 (F17-B yalnız kod;
+zincir ağacı yalnız OKUR). Commit `fix(runtime)` + `docs(checkpoint)`. **Push yok.**
+
+### F17-B — kod (`088a23e`)
+
+- `runtimeAuthorityProjectsContentDigest(root, { remapProjectFolder })` — her non-top-level dosyanın
+  ilk path segment'ini (proje klasör adı) logical identity'ye kanonikleştirir. symlink/non-regular
+  reddinden VE F16-A transient exclusion'dan SONRA uygulanır (ikisi de physical path) → hiçbir zaman
+  security/exclusion bypass değil. Top-level dosyalar aynen.
+- `prepareTransition` opsiyonel `projectIdentities` alır (CLI `--candidate-directory`'den verified
+  migration candidate manifest'inin `sourceProjectIdentities`'ini okur): map'i doğrular (well-formed
+  uuid/slug, dup id/slug yok → `TRANSITION_INPUT_INVALID`), her source proje klasörünün bir entry'si
+  olduğunu doğrular (`TRANSITION_SOURCE_IDENTITY_MISSING`), `projectIdentities` + `logicalContentDigest`/
+  `logicalFileCount`'u (`slug→projectId`-remapped path'ler) dondurur — mevcut raw `projectSlugs`/
+  `contentDigest`'in YANINA.
+- `validateTarget` (identity freeze varsa): operator-supplied map frozen'a byte-equal olmalı
+  (`TRANSITION_IDENTITY_BINDING_MISMATCH`); her target klasörü known projectId olmalı
+  (`TRANSITION_TARGET_IDENTITY_UNKNOWN`); `sameStringSet(targetProjectIds, frozenProjectIds)`
+  (`TRANSITION_TARGET_INVENTORY_MISMATCH`); target raw digest == frozen `logicalContentDigest`
+  (`TRANSITION_TARGET_CONTENT_MISMATCH`). Identity freeze YOKSA → pre-F17-B structural (folder-name)
+  yolu değişmedi (`smoke-c2b9`/`c2b9b` geçmeye devam).
+- CLI: `authority:prepare` / `authority:validate` opsiyonel `--candidate-directory`. Bozuk/doğrulanamayan
+  candidate veya boş `sourceProjectIdentities` → fail-closed.
+
+DEĞİŞMEDİ: candidate/backup identity + aggregate fingerprint, manifest format, authority generation
+binding, protected-root separation, monotonic transition sequence, CAS active-authority, rollback
+token binding, quarantine contract.
+
+`scripts/smoke-f17-authority-identity-mapped-validation.ts` (12 senaryo: slug→projectId PASS; eksik/
+bilinmeyen/duplicate identity fail-closed; target SHA/extra/missing → mismatch; `.partial` +
+`.pipeline-jobs.*` değişikliği digest'i oynatmaz; symlink → UNSAFE; tampered map → BINDING_MISMATCH;
+no-map backward compat; **real 17-project source identity-mapped digest `0e46cf6c…` == real
+`D:\AtolyeRuntime` target digest, 2371 files**).
+
+Regression: c2b5/6/6b/8/9/9b/10a/11/12 + f12/f13/f16/**f17** + runtime-backup + migration-candidate
+2b-1/2b-2 + production-execution-durable-recovery + project-storage-hygiene + external-runtime-root
+**PASS**. tsc temiz, eslint 0 err / 22 warn (baseline), next build OK. Pre-existing `129-25c-2a`/
+`-2b-4` aynı "Missing expected exception" imzası.
+
+### Gerçek authority zinciri (Sprint 204 artefactleri üzerinde — yeniden üretim YOK)
+
+Preflight (read-only): backup `b-0d971133190c` verify PASS (manifestSha `a5654b62…`, aggregate
+`8701419987…`), candidate `c-d3743b64c5830509cc380b58` verify + backup binding PASS (candidateId
+`candidate-d3743b64…`, `cutoverAuthorized: false`), consumed target `state: consumed`, 17
+`sourceProjectIdentities`. **F17-B compatibility:** 17 source slug klasörü ↔ 17 target projectId
+klasörü 1:1; **source-logical digest `0e46cf6c…` / 2371 == target-raw digest `0e46cf6c…` / 2371**;
+candidate-raw da `0e46cf6c…`; source durable recovery `clean`; node process = 0.
+
+```
+authority:begin-genesis  → s206-genesis-01  quiesce-requested
+authority:quiesce        --assert-worker-stopped --source-projects <repo>\data\projects
+                         → quiesced  (durableRecovery "clean")
+authority:prepare        --source-projects <repo>\data\projects
+                         --candidate-directory D:\AtolyeCandidate\candidates\c-d3743b64c5830509cc380b58
+                         → prepared  (contentDigest 090b3455… / 2371 ; projectIdentityCount 17 ;
+                                      logicalContentDigest 0e46cf6c… / 2371)
+authority:validate       --target D:\AtolyeRuntime
+                         --candidate-directory D:\AtolyeCandidate\candidates\c-d3743b64c5830509cc380b58
+                         → target-validated  byteExact=true  identityMapped=true
+```
+
+`authority:status` → `activeAuthority: null`; tek transition `s206-genesis-01` @ `target-validated`.
+`D:\AtolyeAuthority\authority-transition-v1\transitions\s206-genesis-01.json` var; `active-authority.json`
+YOK; `quarantine/` YOK.
+
+### Safety proof
+
+`data/projects` mutation bu sprintte = **0** (F17-B yalnız kod; authority zinciri ağacı yalnız
+digest için OKUR). fs 2399 files / 611073169 bytes / 0 special (S204 post-F15-A state); inventory
+2371 / aggregate `8701419987…` DEĞİŞMEDİ; 11 F15-A derived index yerinde. `.env.local` `bf52c74d…`
+(4051b, mtime 2026-09-07) DEĞİŞMEDİ. `data/brain` git clean. tracked `data/projects` = 0. Execution
+Gate CLOSED. `cutoverAuthorized = false`. node process = 0.
+
+### D: artifacts
+
+- `D:\AtolyeAuthority\authority-transition-v1\transitions\s206-genesis-01.json` — genesis transition
+  @ `target-validated` (PUBLISH ONAY bekliyor). `active-authority.json` YOK.
+- `D:\AtolyeRuntime` — consumed target (byte-exact, durable-clean).
+- `b-0d971133190c` + `c-d3743b64c5830509cc380b58` — verified backup + candidate.
+- `b-fee58282da89` + `c-817cdcd9df908176a5559e95` — stale (pre-F15-A), bırakıldı.
+- `D:\AtolyeRestoreVerify` boş.
+
+### Sıradaki adım
+
+**`PUBLISH ONAY`.** Onay gelince: `authority:publish -- --authority-root D:\AtolyeAuthority
+--transition-id s206-genesis-01 --target D:\AtolyeRuntime` (target marker stamp + CAS active-authority
+= POINT OF NO RETURN), sonra `.env.local`'a `ATOLYE_RUNTIME_ROOT=D:\AtolyeRuntime` +
+`ATOLYE_RUNTIME_AUTHORITY_ROOT=D:\AtolyeAuthority`, legacy `data/projects` rename, C.2B.11 old-root
+quarantine. Bu komutlardan HİÇBİRİ `PUBLISH ONAY` olmadan çalıştırılmaz.
+
+<!-- SPRINT-206-END -->
+
 ## Sprint 205 - F16-A DONE → genesis still blocked by F17 (slug↔projectId layout) - 2026-09-09
 
 **Status:** **F16-A = DONE** (`runtimeAuthorityProjectsContentDigest` artık F5/F12 EXCLUDE-SAFE,
