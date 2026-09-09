@@ -59,6 +59,13 @@ ADVERSARIAL = [
     "ayaz", "ayla", "ayasız", "hayat", "hayali", "ayakta", "ayarla", "aya bak",
     "ay ışığı", "haya", "aya", "yas", "ays", "a yas", "ayah", "iyas", "eyas",
 ]
+TR_WORDS = [
+    "merhaba", "evet", "hayır", "tamam", "proje", "video", "ses", "görsel", "sahne",
+    "senaryo", "başlat", "durdur", "devam", "iptal", "kaydet", "sil", "aç", "kapat",
+    "istanbul", "ankara", "bugün", "yarın", "sabah", "akşam", "bir", "iki", "üç",
+    "dört", "beş", "altı", "yedi", "sekiz", "dokuz", "on", "nasılsın", "ne haber",
+    "dinliyorum", "anladım", "bekle", "hazır", "çalışıyor", "bitti", "hata var",
+]
 POSITIVE_TEXTS = [
     "AYAS", "AYAS.", "AYAS?", "hey AYAS", "AYAS bak", "AYAS dinle",
     "AYAS lütfen", "AYAS merhaba", "AYAS neredesin", "AYAS uyan",
@@ -100,10 +107,7 @@ def _fixed(x: np.ndarray, seconds: float = 2.75, jitter: bool = True) -> np.ndar
         return x[start:start + n]
     pad = n - len(x)
     left = random.randint(0, pad) if jitter else pad // 2
-    # pad with low-level noise, not silence, so the model does not learn
-    # "mostly zeros -> positive" and fire on a silent mic.
-    floor = lambda k: (np.random.randn(k).astype(np.float32) * 0.002)
-    return np.concatenate([floor(left), x, floor(pad - left)])
+    return np.concatenate([np.zeros(left, np.float32), x, np.zeros(pad - left, np.float32)])
 
 
 def _augment(x: np.ndarray, rng: random.Random) -> np.ndarray:
@@ -200,9 +204,9 @@ def main():
     except Exception:
         adv = ADVERSARIAL
     neg_clips = np.concatenate([
-        synth_set(ascii_piper, TR_FILLER, 3, rng, 2.75, "neg-filler"),
-        synth_set(ascii_piper, adv, 3, rng, 2.75, "neg-adv"),
-        noise_set(400, rng, 2.75),
+        synth_set(ascii_piper, TR_FILLER + TR_WORDS, 4, rng, 2.75, "neg-filler"),
+        synth_set(ascii_piper, adv, 4, rng, 2.75, "neg-adv"),
+        noise_set(700, rng, 2.75),
     ])
     print(f"  positives={len(pos_clips)}  negatives={len(neg_clips)}", flush=True)
 

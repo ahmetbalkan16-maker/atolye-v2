@@ -1,5 +1,73 @@
 ---
 
+## AYAS VOICE CLOSURE — real STT (whisper CUDA) + real wake (openWakeWord); gate CLOSED - 2026-09-09
+
+**Branch:** `wip/ayas-graphify-final-execution` (off `wip/ayas-graphify-readonly` @ `6244d64`;
+merged `research/ayas-d2-audio-lab` for the voice labs). **NOT merged to production, NOT pushed.**
+
+Master sprint push: don't stop at "Python 3.14 uyumsuz / nvcc yok" — install alternatives, build,
+test. Result: **STT and wake are now REAL and running locally.** No fake PASS; browser + iPhone bits
+are `OPERATOR_REQUIRED`.
+
+### STT — DONE + verified on the real RTX A2000
+
+- `bin/whisper/` = whisper.cpp release b4938, **prebuilt Windows cuBLAS 12.4** (`whisper-cli.exe` +
+  CUDA runtime DLLs) + BLAS/CPU fallback + `ggml-large-v3-turbo` + `ggml-small` (~3.2 GB, gitignored).
+  Downloaded from `github.com/ggml-org/whisper.cpp` + HF `ggerganov/whisper.cpp`.
+- `src/lib/ayas/stt/`: `AyasSttConfig` (env-resolved, OFF unless `AYAS_WHISPER_EXECUTABLE`+`_MODEL` set),
+  `AyasSttAudio` (magic-byte sniff), `AyasSttService` (audio → ffmpeg 16k mono → whisper `-oj` → text;
+  **runs whisper from its own dir with ASCII cwd-relative arg paths** — Node's Windows `execFile`
+  mangles non-ASCII argv and the repo is under `\Atölye\`; fixed argv, no shell, temp cleaned, crash
+  isolated, `--prompt`+normalize "AYAS"), `AyasSttThermal` (60 °C hard-stop, not bypassable).
+- `POST /api/ayas/stt`: same auth as `/chat/stream` + per-session rate limit + size/type guards.
+  Transcript flows through the **existing** chat path — no gate, no pipeline, no write.
+- **Real test:** Piper "AYAS, atölyede kaç proje var?" → whisper CUDA → "AYAS, Atolye'de kaç proje
+  var?" in **~1.9 s (RTF 0.67, warm ~0.1)**, VRAM ~0.6-2 GB, GPU 51 °C. `smoke-ayas-stt` (14 mock +
+  1 real), `smoke-ayas-stt-security` (7). Commit `6020b7c`.
+
+### Wake — REAL model trained + browser runner built; tuning + device test = OPERATOR
+
+- **`.venv-wake/`** = isolated Python 3.11 (via `uv`, the repo's main env is 3.14) + openWakeWord 0.6
+  full training stack (torch CPU, audiomentations, speechbrain, onnx, …). Gitignored.
+- `scripts/wake/train_ayas_wake.py` — trains a **real openWakeWord "AYAS" DNN**: Piper-synthesised
+  positives (batched) + negatives (other TR phrases + `generate_adversarial_texts` + noise) →
+  openWakeWord melspec/embedding features → train → FP measured vs openWakeWord's **real 11.3 h
+  validation set** → single-file ONNX. **Honest limit:** 1 TTS voice, 17 GB ACAV100M negative set NOT
+  fetched → recall ~0.99 on synthetic held-out but **FP/h ~40-70 → runtime threshold + real-voice
+  tuning is OPERATOR**.
+- `src/components/brain/voice/wake/openWakeWordRunner.ts` — faithful streaming port on
+  **onnxruntime-web** (on-device WASM). `wakeWordVoiceAdapter.ts` — `AyasVoicePlatform`:
+  getUserMedia+worklet+runner → `onFinalTranscript("AYAS")` → capture command → `POST /api/ayas/stt`
+  → transcript → `onEnd` (engine re-arms). TTS delegated to `BrowserVoiceAdapter` unchanged.
+  `AyasRecognitionMode` += `"wake-engine"`. `scripts/setup-wake-assets.ts` stages ORT wasm + feature
+  models into `public/` (gitignored). `smoke-ayas-wake-adapter` (7). Commit `04c1c5b`.
+- `/brain/voice-lab/wake` now has a real "openWakeWord + STT" engine mode + diagnostics — the
+  operator's iPhone/PC device-test surface.
+
+### Graphify (from `6244d64`)
+
+Phase 6 read-only pipeline intelligence + `ProjectFolderIndex` (uuid-folder identity fix) — carried
+in. `smoke-project-folder-index` (9), `smoke-ayas-studio-context` (16).
+
+### OPERATOR_REQUIRED (real physical/tuning steps only)
+
+1. Wake threshold + real-voice samples: `/brain/voice-lab/wake` → openWakeWord mode → tune slider,
+   optionally add real "AYAS" clips + rerun `train_ayas_wake.py`.
+2. iPhone installed-PWA device test: getUserMedia/AudioContext/AudioWorklet + wake + STT + TTS +
+   re-arm + 5-10 min stability + background recovery. (`research/ayas-d2-audio-lab` Faz 0/1 labs.)
+3. PC mic E2E: `/brain/voice-lab/wake` on desktop Chrome.
+4. Set `AYAS_WHISPER_EXECUTABLE` + `AYAS_WHISPER_MODEL` (+ `AYAS_FFMPEG_PATH`) in `.env.local` to
+   turn STT on (operator — I did not write `.env.local`).
+
+### Unchanged
+
+Execution Gate CLOSED, `writeActionsEnabled=false`, storage authority, `D:\AtolyeRuntime/Authority`,
+Caddy, firewall, auth/CSRF, text-chat path (`runAyas`/`askAyas`/`/api/ayas/chat/stream`), TTS
+architecture, `PipelineRunner`, `ProjectWriter`, `.env.local`, `AYAS_ACCESS_KEY`, `107fedc`.
+`smoke-production-snapshot-builder` fails identically on the base (pre-existing).
+
+<!-- AYAS-VOICE-CLOSURE-END -->
+
 ## AYAS + GRAPHIFY FINAL EXECUTION — uuid-folder identity fix; voice still operator-gated; gate CLOSED - 2026-09-09
 
 **Branch:** `wip/ayas-graphify-final-execution` (off `wip/ayas-graphify-readonly` @ `6244d64`).
