@@ -82,15 +82,28 @@ Tur __ : wake[ ]  STT[ ]  AYAS-cevap[ ]  TTS[ ]  re-arm[ ]   | reload gördün m
 
 **Her ~3 turda bir Voice Lab'i aç** (`/brain/voice-lab/wake`) → `d2w-lifecycle` bloğu:
 - **Navigation type** — `reload` + "BROWSER-KILL LIKELY" görürsen tarayıcı sayfayı öldürüyor.
-- **Bu oturum — düşen frame** — single-flight fix sonrası bu sayı **küçük** olmalı (telefon
-  yetişiyor). Yüzlerce/binlerce ise cihaz ONNX'e yetişemiyor → hâlâ bellek baskısı riski.
-- **Önceki instance — öldüğü faz / süre / düşen frame** — bir reload olduysa: hangi fazda
-  (`wake`/`capturing`/`processing`), kaç saniye sonra, kaç frame düşmüştü. Bu, kök nedeni
-  söyleyen kanıt.
+- **Eviction kind** — bir reload olduysa: **"ARKA PLAN / EKRAN KİLİDİ tahliyesi"** (son olay
+  `visibility:hidden` idi = ekran kilidi/uygulama değişimi) mi yoksa **"ÖN PLAN BELLEK öldürmesi"**
+  (taze heartbeat + görünürdü) mü. Bu, kök nedeni söyleyen kanıt.
+- **Önceki instance — son olay / wake lock** — `visibility:hidden` + "WAKELOCK TUTULMUYORDU"
+  görürsen: ekran kilidi tahliyesi. Wake lock tutuluyorduysa ama yine reload olduysa: iOS Düşük
+  Güç Modu veya daha agresif bir tahliye.
+- **Bu oturum — wake lock** — "tutuluyor" olmalı. "tutulmuyor" ise: iPhone Ayarlar › Ekran ve
+  Parlaklık › Otomatik Kilit › **Asla** yap, ve Düşük Güç Modu'nu kapat.
+- **Bu oturum — düşen frame** — single-flight fix sonrası bu sayı **küçük** olmalı.
+- **Önceki instance — öldüğü faz / süre / düşen frame** — bir reload olduysa hangi fazda, kaç
+  saniye sonra, kaç frame düşmüştü.
+
+> **Reload olsa BİLE:** AYAS artık kendini tekrar tanıtMAMALI ve önceki konuşmayı unutMAMALI —
+> transkript `sessionStorage`'da saklanıyor. "Ben AYAS — Atölye'nin yapay zekâ çekirdeğiyim"
+> mesajı reload sonrası yeniden çıkarsa VEYA "kaçı bitti" gibi bağlamlı bir soruya bağlamsız
+> cevap verirse → **FAIL** (transkript geri yüklenmedi).
 
 **BAŞARI KRİTERLERİ (hepsi sıfır olmalı):**
 
 - **0** beklenmeyen reload (sen yenilemeden sayfa yenilendi)
+- **0** AYAS kendini tekrar tanıtması ("Ben AYAS — Atölye'nin yapay zekâ çekirdeğiyim") — reload olsa bile
+- **0** konuşma bağlamı kaybı (reload sonrası "kaçı bitti" gibi bağlamlı soru bağlamsız cevap alıyor)
 - **0** "Sesli komut engellendi" / "Mikrofon izni reddedildi. Sesli mod kapatıldı" (birkaç turdan sonra)
 - **0** sessiz wake ölümü ("AYAS" diyorsun, hiçbir şey olmuyor, hata da yok)
 - **0** izin yeniden sorma (2.1'den sonra bir daha mikrofon izni istenmemeli)
@@ -115,8 +128,14 @@ Tur __ : wake[ ]  STT[ ]  AYAS-cevap[ ]  TTS[ ]  re-arm[ ]   | reload gördün m
 | 4.2 | Safari arka plan | PWA'dan çık, 30 sn başka uygulama, geri dön | Ses oturumu kesilmişse presence **"Sesli oturum kesildi (sayfa yeniden yüklendi). Devam etmek için dokun."** + CTA "Sesli oturuma devam et"; dokun → temiz re-arm |
 | 4.3 | Uçak modu (offline) | Bir tur sırasında mobil veriyi kapat | AYAS dürüst "çevrimdışı" davranışı; sahte "online" yok. Veri geri gelince tekrar çalışır |
 | 4.4 | Hızlı başlat/durdur | CTA'ya 5 kez arka arkaya dokun | Çift mikrofon / çift AudioContext yok; tek oturum |
-| 4.5 | Gerçek eviction (varsa) | Oturum aktifken 5+ dk telefonu beklet
- (ağır bellek) sonra dön | Reload olursa presence "kesildi" uyarısı + CTA çıkmalı; `d2w-lifecycle` "reload cause" = `eviction-suspected` |
+| 4.5 | Gerçek eviction (varsa) | Oturum aktifken 5+ dk telefonu beklet (ağır bellek) sonra dön | Reload olursa presence "kesildi" uyarısı + CTA; `d2w-lifecycle` "Eviction kind" = arka plan mı ön plan mı |
+| 4.6 | ~3 dk stabilite | Bir tur yap, sonra **hiçbir şeye dokunmadan** telefonu elinde tut, ekran açık, ~4 dk bekle | Sayfa reload OLMAMALI. Olursa: `d2w-lifecycle` "Eviction kind" + "wake lock" oku, JSON'u kaydet |
+| 4.7 | 20 dk idle + resume | 15 tur yaptıktan sonra PWA'yı kapat, **20 dk** bekle, geri aç, "AYAS" de | Konuşma geri yüklenmiş olmalı (transkript görünür, tanıtım YOK); "AYAS" → wake çalışır (bir dokunuş gerekebilir) |
+
+**§31 — Bağlam testi (reload olsun ya da olmasın):**
+1. "Atölye'de kaç proje var" → "16 proje"
+2. "Peki kaçında hata var" → **bağlamlı** cevap ("4 projede…" / "mimar-sinan…"). AYAS önceki soruyu hatırlamalı.
+3. (varsa bir reload'dan sonra tekrar) "Peki kaçı tamamlandı" → yine bağlamlı ("6 tanesi…").
 
 ---
 

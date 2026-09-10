@@ -1,5 +1,93 @@
 ---
 
+## AYAS Brain — ~3-min iPhone reload: transcript persistence + eviction classifier + white-body fix; gate CLOSED - 2026-09-10
+
+**Branch:** `wip/ayas-graphify-final-execution` (commits `c5a9846` fix, `abc0e55` style, off `0fb9e0a`).
+NOT merged / NOT pushed.
+
+**P0 (real iPhone):** voice works, then after ~3 minutes the page reloads itself, **AYAS
+re-introduces itself**, and its answers **lose the thread**.
+
+**ROOT CAUSES (two, both proven in code):**
+
+1. **RE-INTRODUCTION + LOST CONTEXT — the chat transcript was in-memory only.** Every reload
+   wiped `messages` state and re-seeded `brainWelcomeMessage` ("Ben AYAS — Atölye'nin yapay zekâ
+   çekirdeğiyim"); message ids derived from `messages.length` (resets on reload); and the
+   `role: "system"` welcome line was fed to the model as history, cueing it to re-introduce.
+2. **THE ~3-MIN CADENCE — iOS screen Auto-Lock → background eviction.** The prior sprint's
+   single-flight fix took the reload from ~30 s to ~3 min, which is a common iOS screen Auto-Lock
+   interval: the tab is backgrounded, WebKit evicts the web-content process, it reloads from
+   `start_url`. Not fully preventable — the mitigation is a robust wake lock + graceful restore +
+   telemetry that *proves* the mechanism.
+
+Plus a **latent visual bug** the operator hit as "fazla açık arka plan": `app/globals.css` sets
+`body { background: #ffffff }` in light mode, and the Brain's `--bc-*` design tokens were declared
+**only on `.bc-root`** while `BrainConsoleView` renders a bare `.bc-shell` → `background:
+var(--bc-bg)` was invalid → the white body showed through the iOS overscroll / safe-area / notch.
+
+**FIXES (client / UI + CSS only — `public/sw.js`, `PwaRegister`, routes, auth, `app/api/**`,
+execution gate, `.env.local` all untouched):**
+
+- **`src/lib/brain/ui/brainConversation.ts` (NEW, pure)** — a `sessionStorage`-backed transcript:
+  stable `conversationId` + monotonic `turnSeq` (message ids no longer use `messages.length`),
+  bounded to 60 messages, dropped after a 6 h TTL, corruption-tolerant. `conversationHistoryForModel`
+  feeds the model the last N **NON-system** turns → AYAS is never cued to re-introduce.
+- **`BrainCoreConsole`** — restores the transcript on mount (a microtask, SSR-clean, no hydration
+  mismatch), persists on every change + on `pagehide` / `visibilitychange→hidden`.
+- **`useScreenWakeLock` hardened** — bounded retry (1 s / 3 s / 8 s, capped, `.unref()`'d) for a
+  Low-Power-Mode rejection; re-acquire on `pageshow` / `focus` too; reports held/lost via
+  `onStatus` → the lifecycle heartbeat.
+- **`brainLifecycle` — eviction classifier.** The heartbeat now records `visibilityState` +
+  `wakeLockHeld`; the boot record records the last lifecycle event; `assessBrainReload` emits
+  **`evictionKind`**: `background-eviction-suspected` (last event `visibility:hidden`, or a big
+  heartbeat gap, or died hidden) vs `foreground-memory-suspected` (fresh heartbeat + visible).
+  The Voice Lab shows it, plus the wake-lock state, in the `d2w-lifecycle` block + JSON export.
+- **`openWakeWordRunner`** — `enableMemPattern: false` + reusable model-input buffers (~275 KB/s of
+  per-frame `Float32Array.from` garbage removed) to flatten the WASM heap (the foreground-memory
+  mitigation). **REAL-ONNX test: synthesised "AYAS" still peaks above the 0.70 threshold.**
+- **`BrainCore.css`** — `--bc-*` tokens + `color-scheme: dark` on `.bc-shell`; `html:has(.bc-shell),
+  body:has(.bc-shell) { background:#010103 }` (no white bleed, either scheme); deeper ground
+  (`#030409` + a `--bc-bg-deep`), resting hue cyan→premium blue (206–208), soft central light,
+  stronger vignette; presence card = premium glass (`backdrop-filter: blur(14px) saturate(1.3)`,
+  hue-tinted fill, hairline top highlight). CSS only, all motion still transform/opacity/filter,
+  `prefers-reduced-motion` unchanged. Mobile hierarchy already AYAS core → status → voice CTA →
+  conversation.
+
+**GRAPHIFY MASTER INSPECT (§1, read-only):** runtime authority `D:\AtolyeRuntime` /
+`D:\AtolyeAuthority` (explicit-external); **16 valid projects, 0 unresolvable**, Brain↔Graphify
+**16 == 16**, 4 failed-stage (latest mimar-sinan / visuals / `VISUAL_ASSET_GENERATION_FAILED`),
+0 blocked. Notes only (pre-existing, `D:` authority, report-only): 1 orphan folder `26b05c31-…`,
+2 Hun folders `project.json.id` = human slug ≠ folder UUID. **Verdict CONSISTENT-WITH-NOTES.**
+No Graphify WRITE, no authority change.
+
+**Verify:** `tsc` 0 · `eslint` 0 err (22 pre-existing) · `next build` exit 0. **Smoke — 18 suites,
+301 scenarios, all green:** `brain-conversation` **8 (new)**, `brain-lifecycle` 14→**16**
+(eviction-kind: background vs foreground), `brain-core-ui` 34→**35** (transcript persistence
+wiring + wake-lock bounded-retry contract), `ayas-wake-runner` 14 incl. **REAL-ONNX "AYAS" > 0.70
+with the buffer reuse**, `ayas-wake-adapter` 27 / `ayas-voice` 54 / security + gate suites
+unchanged. **Runtime:** server restarted on the fresh build; `/brain` → 307 → `/login` local +
+tunnel; `/sw.js` `no-cache, no-store, must-revalidate`; built CSS confirmed to carry
+`body:has(.bc-shell)` + `#030409` + `blur(14px)`. **cloudflared:** still up from the 09-10 restart
+(`documents-lift-aquarium-unwrap.trycloudflare.com`), `ha_connections 1` / `register_success 1` /
+**0 reconnects**. Caddy + `.env.local` unchanged. `git diff --check` clean.
+
+**FINAL STATUS: `READY_WITH_OPERATOR_TEST`.** The re-introduction + lost-context symptom is
+**fixed by construction** (the transcript now survives a reload and the welcome line never reaches
+the model), and every automated check is clean. The ~3-min reload itself is an iOS platform
+behaviour (screen Auto-Lock → eviction) that the page cannot fully prevent — the wake lock is
+hardened and the telemetry now *proves* the mechanism, but whether a reload still happens (and
+whether it's `background-eviction` or `foreground-memory`) is **UNPROVEN on device** until the
+operator re-runs `docs/AYAS_IPHONE_TEST_PROTOCOL.md` §3 (15+ turns, then a 20-min idle + resume)
+and reads the Voice Lab "Eviction kind" + "wake lock" fields. **Even if a reload still occurs,
+AYAS no longer re-introduces itself or loses the conversation.**
+
+**Unchanged:** Execution Gate CLOSED, `writeActionsEnabled` false, auth / CSRF / access gate /
+session, `AYAS_ACCESS_KEY`, STT + chat + TTS pipeline, `public/sw.js`, `PwaRegister`, the
+deferred-reload + single-flight + transient-fatal fixes, Graphify write path, `D:\AtolyeRuntime` /
+`D:\AtolyeAuthority`, Caddy, `.env.local`, `NEXT_PUBLIC_ATOLYE_WAKE_ENGINE=on`, firewall. Threshold 0.70.
+
+<!-- BRAIN-IPHONE-3MIN-RELOAD-TRANSCRIPT-PERSIST-END -->
+
 ## AYAS Brain — "Sesli komut engellendi" was a transient iOS media error latched as fatal; recoverable `paused` state; gate CLOSED - 2026-09-10
 
 **Branch:** `wip/ayas-graphify-final-execution` (commit `d681cab`, off `76d7fd8`). NOT merged / NOT pushed.
