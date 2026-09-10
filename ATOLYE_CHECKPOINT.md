@@ -1,5 +1,73 @@
 ---
 
+## AYAS iPhone voice — "DİNLİYOR → HAZIR" erken kapanma FIX + Voice Lab görünürlük FIX; gate CLOSED - 2026-09-10
+
+**Branch:** `wip/ayas-graphify-final-execution` (commit `12e9126`, off `64b130c`). NOT merged / NOT pushed. `git diff --check` clean.
+
+**P1 (operatör, gerçek iPhone):** "AYAS" → **DİNLİYOR** → çok kısa süre sonra **HAZIR** → komut
+alınmıyor / cevap gelmiyor. **P2:** Voice Lab bağlantısı Brain ekranında görünmüyor.
+
+**KÖK NEDEN (kanıtlandı — reprodüksiyon: gerçek `WakeWordVoiceAdapter` + `AyasVoiceEngine`):**
+- **P1 = `64b130c` regresyonu.** O commit `PREROLL_FRAMES`'i 4→18 çıkardı ve pre-roll frame'lerini
+  konuşma enerjisi için sınıflandırıp `speechMs`/`sawSpeech`'i tohumladı. Sonuç: **wake kelimesi
+  ("AYAS") TEK BAŞINA `hasCommand`'ı doğru yaptı** → kullanıcı "AYAS"tan sonra ≥ ~1 sn doğal
+  duraklarsa ~1 sn'lik sondaki sessizlik capture'ı "AYAS" + sessizlik olarak bitiriyor → whisper
+  "AYAS" → engine `dispatchCommand("")` → "boş komut" dalı → state "listening"da kalıyor, komut
+  kayıp, 12 sn sonra `armWakeTimeout` → "idle" = HAZIR. Repro: 400/800 ms pause OK; **1200/2000 ms
+  pause → KOMUT KAYIP.**
+- **P2:** link `app/brain/page.tsx`'te `.bc-shell`'in KARDEŞİ bir `<p>` idi → belge renk şemasını
+  miras alıyor → **iOS Light Mode'da `#171717` yazı `#010103` zemin = görünmez**; `.bc-shell`
+  `min-height: 100dvh` → fold'un altında; `opacity: 0.45` + `11px` üstüne. Route
+  `/brain/voice-lab/wake` hep sağlamdı — navigasyon görünürlüğü sorunu.
+
+**FIX (client / VAD + UI only — single-flight / persistent AudioContext / MediaStream reuse /
+recovery / lifecycle / `sw.js` / `PwaRegister` / auth / routes / `.env.local` / threshold 0.70 /
+model / TTS hepsi DEĞİŞMEDİ):**
+- **`wakeWordVoiceAdapter.ts` VAD:** pre-roll artık **SADECE SES** — clip'e ekleniyor (onset
+  korunuyor) ama end-of-speech testine dahil DEĞİL. Yeni sayaçlar: `postWakeMs` /
+  `postWakeSpeechMs` (pre-roll hariç), `commandMs`, `commandStarted`, `gapMs`. `hasCommand` artık
+  post-wake konuşma istiyor; sondaki-sessizlik endpoint'i sadece komut BAŞLADIKTAN sonra geçerli.
+  Komut başlamadan önce yalnızca `COMMAND_ONSET_TIMEOUT_MS` (8 sn — protokolün 5 sn pause'unu
+  aşar) capture'ı bitirebilir (çıplak "AYAS"). `COMMAND_MAX_MS` artık **komut başlangıcından**
+  ölçülüyor (wake'ten değil) → uzun pause komut süresini yemiyor (gerekçeli değişiklik; diğer
+  `COMMAND_MIN_*` / `EOS_SILENCE_*` sabitleri aynı). Tek-nefes "AYAS kaç proje var" (komut
+  pre-roll'da): konuşma-yoğun pre-roll (`>= PREROLL_COMMAND_HINT_MS`) komutu hemen başlamış
+  sayıyor. `finishCommand` clip'i kırpıyor: çıplak "AYAS" → sadece pre-roll (ölü hava yok); uzun
+  wake→komut boşluğu → bayat wake kelimesi + ölü hava at, kısa lead-in tut; aksi halde tüm clip.
+  Noise-floor kalibrasyonu artık yüksek frame'leri atlıyor.
+- **`app/brain/page.tsx` + `BrainConsoleView.tsx` + `BrainCore.css`:** operatör-tanılama linki
+  `.bc-shell` içindeki `.bc-labs` footer'ına taşındı (`color-scheme: dark` + dark token'lar +
+  scroll akışında). Explicit `--bc-accent` renk, opacity hilesi yok, gerçek 34px dokunma hedefi,
+  premium tasarıma uyan pill. Görünmez `<p>` `page.tsx`'ten silindi.
+
+**REPRO SONUCU (gerçek adapter + engine):** "AYAS" + {400, 800, 1200, 2000, 5000} ms pause +
+komut → komut **her seferinde** modele ulaşıyor; state DİNLİYOR → **Düşünüyor** (asla DİNLİYOR →
+HAZIR). Çıplak "AYAS" tek-nefes retry için uyanık kalıyor. 2 sn pause sonrası 4.4 sn'lik komut
+kırpılmıyor.
+
+**TESTLER — tsc 0 · eslint 0 err (22 pre-existing, hiçbiri değişen dosyada) · `next build` exit 0.
+9 suite green:** `ayas-wake-adapter` 32→**39** (5 pause senaryosu + çıplak-AYAS + pause-sonrası-
+uzun-komut; **TEST E200 hâlâ green**), `brain-core-ui` 35→**36** (Voice Lab footer `.bc-shell`
+içinde, temalı, `color:inherit`/düşük-opacity yok), `ayas-voice` 54, `ayas-wake-runner` 17,
+`ayas-stt` 18, `ayas-stt-security` 7, `ayas-chat-stream` 11, `brain-conversation` 8,
+`brain-lifecycle` 16.
+
+**GRAPHIFY (read-only):** `graphify-health-readonly.ts` — **aynı**: CONSISTENT-WITH-NOTES, 17
+klasör / 16 geçerli / **0 unresolvable**, Brain↔Graphify **16 == 16**, 0 blocked. **WRITE yok,
+migration yok, authority değişmedi, gate CLOSED.**
+
+**SERVER:** rebuild + `next start` :3000 yeniden başlatıldı — `/brain` 307 `/login`,
+`/brain/voice-lab/wake` 307 `/login` (route var), `/sw.js` `no-cache`. cloudflared 1 HA conn, 0
+origin error.
+
+**FINAL STATUS `READY_WITH_OPERATOR_TEST`** — erken kapanma düzeltildi ve adapter+engine
+reprodüksiyonu ile kanıtlandı, ama fiziksel iPhone "AYAS + doğal duraklama + komut" akışı yalnız
+cihazda doğrulanabilir (`docs/AYAS_IPHONE_TEST_PROTOCOL.md` §4b TEST A–H).
+
+**PUSH YAPILMADI · MERGE YAPILMADI · DEPLOY YAPILMADI.**
+
+---
+
 ## AYAS iPhone voice — FORENSIC AUDIO/STT/RELOAD sprint: root-cause matrix, wake-score & runner-cost metrics, whisper guards; gate CLOSED - 2026-09-10
 
 **Branch:** `wip/ayas-graphify-final-execution` (off `9289b51`). NOT merged / NOT pushed. `git diff --check` clean.
