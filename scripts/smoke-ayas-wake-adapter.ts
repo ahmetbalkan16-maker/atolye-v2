@@ -1321,6 +1321,97 @@ async function run() {
     a.dispose();
   });
 
+  await scenario("CONVERSATION — a long reply (think + TTS longer than the idle timeout) does NOT close the session", async () => {
+    // The remaining natural-conversation bug: the 15 s idle timer used to be
+    // armed at command-END, so it counted during think + TTS. A long answer
+    // (> 15 s of speech) then dropped the session mid-reply and the next command
+    // needed "AYAS" again. The timer must measure USER SILENCE only.
+    const backend = new FakeBackend();
+    const tts = fakeTts();
+    (tts as { speak: unknown }).speak = (_t: string, o: AyasSpeakOptions) => {
+      queueMicrotask(() => o.onStart());
+      const timer = setTimeout(() => o.onEnd(), 600); // TTS runs 600 ms — LONGER than the 400 ms idle timeout
+      return { cancel: () => clearTimeout(timer) };
+    };
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend, runner: new FakeRunner(), tts,
+      transcribe: async () => "kaç proje var", ...FAST, conversationIdleMs: 400,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await drain();
+
+    // wake + first command
+    backend.push("wake");
+    await drain();
+    for (let i = 0; i < 12; i += 1) backend.push("speech");
+    for (let i = 0; i < 14; i += 1) backend.push("silence");
+    await drain();
+    assert.equal(a.getStatus().conversationActive, true);
+
+    // AYAS speaks a long reply; the engine re-arms in onEnd.
+    a.speak("çok uzun bir cevap cümlesi", {
+      voiceName: null, lang: "tr-TR", pitch: 1, rate: 1, volume: 1,
+      onStart: () => {}, onEnd: () => a.startListening("tr-TR", c.handlers), onError: () => {},
+    });
+    await wait(500); // past the 400 ms idle timeout, still mid-TTS
+    assert.equal(a.getStatus().conversationActive, true, "the idle timer did NOT run during think + TTS");
+    assert.equal(a.getStatus().conversationClosedReason, null, "…and no close reason was recorded");
+
+    await wait(300); // TTS ends (~600 ms) → re-arm
+    await drain();
+    assert.equal(a.getStatus().conversationActive, true, "session still open after the long reply");
+    assert.equal(a.getStatus().phase, "capturing", "re-armed straight into the in-session capture");
+
+    // the follow-up needs no wake word
+    for (let i = 0; i < 15; i += 1) backend.push("speech");
+    for (let i = 0; i < 16; i += 1) backend.push("silence");
+    await drain();
+    assert.equal(c.finals.filter((t) => t === "AYAS").length, 1, "exactly one real wake for the whole conversation");
+    assert.equal(c.finals.filter((t) => t !== "AYAS").length, 2, "the 2nd command was captured without a wake word");
+    a.dispose();
+  });
+
+  await scenario("CONVERSATION — an in-session 'tamam AYAS' closes the session (voice stop); no command dispatched", async () => {
+    const backend = new FakeBackend();
+    let transcript = "kaç proje var";
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(),
+      transcribe: async () => transcript, ...FAST,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await drain();
+    await sessionTurn(a, backend, c.handlers, { wake: true }); // real wake + "kaç proje var"
+    assert.equal(a.getStatus().conversationActive, true);
+    const finalsBefore = c.finals.length;
+
+    // in-session, the user says the stop phrase
+    transcript = "tamam AYAS";
+    for (let i = 0; i < 15; i += 1) backend.push("speech");
+    for (let i = 0; i < 16; i += 1) backend.push("silence");
+    await drain();
+    assert.equal(c.finals.length, finalsBefore, "the stop phrase is NOT dispatched as a command");
+    assert.equal(a.getStatus().conversationActive, false, "the session closed");
+    assert.equal(a.getStatus().conversationClosedReason, "explicit-stop");
+
+    // voice input is still ON — the adapter drops back to waiting for the wake word
+    a.startListening("tr-TR", c.handlers);
+    await drain();
+    assert.equal(a.getStatus().phase, "wake", "back to 'AYAS' wait (voice input NOT turned off)");
+
+    transcript = "kaç proje var";
+    for (let i = 0; i < 15; i += 1) backend.push("speech");
+    for (let i = 0; i < 16; i += 1) backend.push("silence");
+    await drain();
+    assert.equal(c.finals.length, finalsBefore, "no command without the wake word after the stop");
+
+    backend.push("wake");
+    await drain();
+    assert.equal(c.finals.filter((t) => t === "AYAS").length, 2, "re-wake works after a voice stop");
+    a.dispose();
+  });
+
   await scenario("CONVERSATION — REAL-DEVICE CASE: post-TTS recover() fails → rebuildAudio → session SURVIVES", async () => {
     // The exact regression the fake-backend tests missed: on iOS the capture
     // AudioContext does not always resume off-gesture after speechSynthesis, so

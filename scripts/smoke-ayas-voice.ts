@@ -22,6 +22,7 @@ import path from "node:path";
 import {
   detectAyasWakeWord,
   stripLeadingWakeWord,
+  detectAyasStopConversationIntent,
   detectAyasVoiceCapability,
   detectAyasSpeechRecognitionMode,
   isAppleTouchDevice,
@@ -310,6 +311,22 @@ async function run() {
   await scenario("9. wake-word stripping removes a leading wake word only", () => {
     assert.equal(stripLeadingWakeWord("AYAS raporu göster"), "raporu göster");
     assert.equal(stripLeadingWakeWord("raporu göster"), "raporu göster");
+  });
+
+  await scenario("stop-conversation intent — exact phrases only, accent-folded", () => {
+    for (const yes of [
+      "tamam AYAS", "Tamam Ayas.", "AYAS dur", "AYAS kapat", "AYAS bitir",
+      "sessiz moda geç", "Sessiz moda geç", "konuşmayı bitir", "sohbeti bitir",
+    ]) {
+      assert.equal(detectAyasStopConversationIntent(yes), true, `"${yes}" should close the session`);
+    }
+    // NOT a stop — anything that isn't the exact phrase stays a command
+    for (const no of [
+      "tamam AYAS bir şey daha", "AYAS kaç proje var", "durumu söyle",
+      "sessizlik", "bitirdim mi", "AYAS", "", "tamam",
+    ]) {
+      assert.equal(detectAyasStopConversationIntent(no), false, `"${no}" must NOT close the session`);
+    }
   });
 
   /* =============================== capability + disclosure =============== */

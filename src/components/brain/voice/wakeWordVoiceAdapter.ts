@@ -21,6 +21,7 @@
  */
 
 import {
+  detectAyasStopConversationIntent,
   isWakeEngineCapable,
   stripLeadingWakeWord,
   type AyasPlatformVoice,
@@ -1033,14 +1034,16 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   private enterPaused(handlers: AyasListenHandlers): void {
     // A `paused` interruption is RECOVERABLE and self-heals in seconds — it does
     // NOT close the conversation session (that would make every iOS post-TTS
-    // rebuild drop the session). The 15 s idle timer keeps running while paused,
-    // so a genuinely long disconnection still lapses the session on its own;
-    // `attemptUnpause` re-arms straight back into the in-session capture.
+    // rebuild drop the session). But a paused mic IS "the user not conversing",
+    // so run the 15 s idle timer while paused: a short glitch self-heals into
+    // the in-session capture (`attemptUnpause` → `rearmAfterRecovery`), a
+    // genuinely long disconnection lapses the session on its own.
     this.paused = true;
     this.audioUp = false;
     this.starting = null;
     this.phase = "paused";
     this.clearWatchdog();
+    if (this.conversationActive) this.armConversationTimer();
     this.emit();
     // Only escalate to a visible "tap to resume" once auto-retries have had a go.
     if (this.pausedRetries >= PAUSED_RETRIES_BEFORE_PROMPT) {
@@ -1421,12 +1424,18 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       this.tSttStart = Date.now();
       const text = await this.transcribe(wav);
       this.lastSttMs = Date.now() - this.tSttStart;
-      if (text) {
+      if (!text) {
+        handlers.onError("no-speech");
+      } else if (!this.wokeThisTurn && detectAyasStopConversationIntent(text)) {
+        // In-session, the user asked to end the conversation ("tamam AYAS", …).
+        // Close the session WITHOUT turning voice input off — the adapter drops
+        // back to waiting for the wake word. Do NOT dispatch it as a command.
+        this.endConversation();
+        handlers.onError("no-speech");
+      } else {
         // A conversation follow-up (no real wake this turn) gets the wake word
         // prefixed so the engine dispatches it just like a spoken "AYAS <cmd>".
         handlers.onFinalTranscript(this.wokeThisTurn ? text : this.withSessionWakePrefix(text));
-      } else {
-        handlers.onError("no-speech");
       }
     } catch (error) {
       this.lastSttMs = Date.now() - this.tSttStart;
@@ -1438,9 +1447,12 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       this.phase = "idle";
       this.wokeThisTurn = false;
       this.cyclesCompleted += 1;
-      // A completed command is activity — keep the session alive across the
-      // think + speak window (the re-arm after TTS restarts it again).
-      if (this.conversationActive) this.armConversationTimer();
+      // STOP the idle timer here: the think + TTS window is NOT the user being
+      // silent, so it must not count toward the 15 s timeout (a long reply used
+      // to drop the session mid-answer). The timer is re-armed by
+      // `rearmAfterRecovery()` once the mic is genuinely back to waiting for the
+      // user — that is the only true "user idle" clock.
+      this.clearConversationTimer();
       this.emit();
       handlers.onEnd(); // engine re-arms (wake-engine == continuous for re-arm)
     }

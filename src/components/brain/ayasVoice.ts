@@ -95,6 +95,39 @@ export function stripLeadingWakeWord(transcript: string): string {
   return match.woke ? match.command : normalize(transcript);
 }
 
+/**
+ * A short, EXACT phrase the user says to end an open conversation session (go
+ * back to waiting for "AYAS"). Deliberately exact-match only — a fuzzy match
+ * would silently eat a real command, and the 15 s idle timeout + the on-screen
+ * "dinlemeyi kapat" link are the primary ways to close a session. Turkish accent
+ * chars are folded first (`ç→c`, `ş→s`, `ı/İ→i`, …) so ASR spelling variance
+ * still matches.
+ */
+const STOP_CONVERSATION_PHRASES = new Set([
+  "tamam ayas",
+  "ayas tamam",
+  "ayas dur",
+  "ayas kapat",
+  "ayas bitir",
+  "ayas sessiz",
+  "ayas sessiz mod",
+  "ayas sessiz moda gec",
+  "sessiz moda gec",
+  "konusmayi bitir",
+  "sohbeti bitir",
+]);
+
+export function detectAyasStopConversationIntent(transcript: string): boolean {
+  const folded = normalize(transcript)
+    .replace(/[İıI]/g, "i")
+    .replace(/ç/g, "c")
+    .replace(/ö/g, "o")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ğ/g, "g");
+  return STOP_CONVERSATION_PHRASES.has(folded);
+}
+
 /* ------------------------------------------------------------------------- *
  * Capability detection (pure — given a window-like object)
  * ------------------------------------------------------------------------- */
