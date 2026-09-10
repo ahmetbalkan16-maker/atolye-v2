@@ -34,6 +34,10 @@ import {
 import type { BrainSignatureHistoryEntry } from "./BrainSelfHealLimits";
 import type { BrainOptimizationRun } from "./BrainOptimizationLoop";
 import type { BrainRuntimeEvent } from "./BrainRuntimeEvent";
+import {
+  brainSelfHealDecisionSchemaVersion,
+  type BrainSelfHealDecision,
+} from "./BrainSelfHealDecision";
 
 export type BrainSelfHealStoreErrorCode =
   | "SELFHEAL_STORE_CORRUPT"
@@ -95,6 +99,11 @@ export interface BrainSelfHealStoreHandle {
   /** Timestamps (epoch ms) of autonomous SAFE applies — the per-hour rate limit. */
   recordAutonomousApply(atMs: number): void;
   loadAutonomousApplyTimestamps(): readonly number[];
+  /* ---- Report Center: operator decisions (§10) ---- */
+  /** Record an operator ONAYLA / REDDET / DAHA SONRA decision (one per incident, latest wins). */
+  recordSelfHealDecision(decision: BrainSelfHealDecision): BrainSelfHealDecision;
+  loadSelfHealDecision(incidentId: string): BrainSelfHealDecision | undefined;
+  listSelfHealDecisions(): readonly BrainSelfHealDecision[];
 }
 
 export function createBrainSelfHealStore(options: BrainSelfHealStoreOptions = {}): BrainSelfHealStoreHandle {
@@ -103,6 +112,7 @@ export function createBrainSelfHealStore(options: BrainSelfHealStoreOptions = {}
   const incidentsDir = path.join(dir, "incidents");
   const learnedDir = path.join(dir, "learned");
   const optimizationsDir = path.join(dir, "optimizations");
+  const decisionsDir = path.join(dir, "decisions");
   const signaturesFile = path.join(dir, "signatures.json");
   const eventsFile = path.join(dir, "events.json");
   const autoApplyFile = path.join(dir, "auto-applies.json");
@@ -299,6 +309,36 @@ export function createBrainSelfHealStore(options: BrainSelfHealStoreOptions = {}
       const rec = readJson(autoApplyFile, "1", ["timestamps"]);
       if (!rec) return [];
       return Array.isArray(rec.timestamps) ? (rec.timestamps as number[]).filter((t) => typeof t === "number") : [];
+    },
+
+    /* ---- Report Center: operator decisions (§10) ---- */
+
+    recordSelfHealDecision(decision: BrainSelfHealDecision): BrainSelfHealDecision {
+      if (!ID_RE.test(decision.incidentId)) {
+        throw new BrainSelfHealStoreError("SELFHEAL_STORE_INVALID", `bad incident id ${JSON.stringify(decision.incidentId)}`);
+      }
+      if (decision.schemaVersion !== brainSelfHealDecisionSchemaVersion) {
+        throw new BrainSelfHealStoreError("SELFHEAL_STORE_SCHEMA_MISMATCH", `decision schemaVersion ${decision.schemaVersion} ≠ ${brainSelfHealDecisionSchemaVersion}`);
+      }
+      assertNoLeak(decision, `decision ${decision.incidentId}`);
+      writeAtomic(path.join(decisionsDir, `${decision.incidentId}.json`), decision);
+      return decision;
+    },
+
+    loadSelfHealDecision(incidentId: string): BrainSelfHealDecision | undefined {
+      if (!ID_RE.test(incidentId)) throw new BrainSelfHealStoreError("SELFHEAL_STORE_INVALID", `bad incident id ${JSON.stringify(incidentId)}`);
+      const record = readJson(path.join(decisionsDir, `${incidentId}.json`), brainSelfHealDecisionSchemaVersion, ["incidentId", "decision", "operatorApprovalId"]);
+      return record as unknown as BrainSelfHealDecision | undefined;
+    },
+
+    listSelfHealDecisions(): readonly BrainSelfHealDecision[] {
+      return listDir(decisionsDir)
+        .map((id) => {
+          const rec = readJson(path.join(decisionsDir, `${id}.json`), brainSelfHealDecisionSchemaVersion, ["incidentId", "decision", "operatorApprovalId"]);
+          return rec as unknown as BrainSelfHealDecision | undefined;
+        })
+        .filter((x): x is BrainSelfHealDecision => Boolean(x))
+        .sort((a, b) => (b.decidedAt < a.decidedAt ? -1 : b.decidedAt > a.decidedAt ? 1 : a.incidentId.localeCompare(b.incidentId)));
     },
   };
 }

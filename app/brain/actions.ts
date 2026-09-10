@@ -23,16 +23,31 @@
  * runs no task/pipeline/GPU, approves nothing.
  */
 
+import { cookies } from "next/headers";
+
 import type { AIProviderOutput } from "@/lib/ai/providers/AIProvider";
 import {
   loadBrainConsoleSnapshot,
   type BrainConsoleSnapshot,
 } from "@/lib/brain/ui/BrainConsoleSnapshot";
+import {
+  loadBrainSelfHealSnapshot,
+  type BrainSelfHealConsoleSnapshot,
+} from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
 import { loadAyasStudioContext } from "@/lib/ayas/AyasStudioContext";
 import { createAyasChatProvider, resolveAyasChatModelProfile, AYAS_MODEL_ENV } from "@/lib/ayas/AyasModelProfile";
+import { createBrainSelfHealStore } from "@/lib/brain/selfheal/BrainSelfHealStore";
+import { buildSelfHealDecision, type BrainSelfHealDecisionKind } from "@/lib/brain/selfheal/BrainSelfHealDecision";
+import { classifyPatchSet } from "@/lib/brain/selfheal/BrainPatchSafety";
+import {
+  buildAyasReportSpokenAnswer,
+  detectAyasReportIntent,
+} from "@/lib/brain/selfheal/BrainReportCenter";
+import { AYAS_SESSION_COOKIE, resolveAccessGate, verifySession } from "@/lib/auth/accessGate";
 import {
   AYAS_CHAT_JSON_SCHEMA,
   AYAS_MAX_REPLY_TOKENS,
+  ayasReplyMessage,
   extractAyasReplyText,
   resolveAyasReply,
   type AyasReplyOutcome,
@@ -55,6 +70,17 @@ function textOf(output: AIProviderOutput): string {
 }
 
 export async function askAyas(input: AskAyasInput): Promise<AyasReplyOutcome> {
+  // "AYAS, rapor ver" / "onay bekleyen ne" (§11) — answered deterministically
+  // from the Report Center snapshot BEFORE any model call. Runs nothing.
+  const reportIntent = detectAyasReportIntent(input.text ?? "");
+  if (reportIntent) {
+    const rc = loadBrainSelfHealSnapshot().reportCenter;
+    return {
+      message: ayasReplyMessage(buildAyasReportSpokenAnswer(rc, reportIntent), input.seq),
+      source: "fallback",
+    };
+  }
+
   const [snapshot, studio] = await Promise.all([
     loadBrainConsoleSnapshot(),
     // Read-only: the active runtime authority path + real project inventory,
@@ -81,6 +107,84 @@ export async function askAyas(input: AskAyasInput): Promise<AyasReplyOutcome> {
         ),
       ),
   });
+}
+
+/* --------------------------------------------- AYAS Report Center (§7–§15) --- */
+
+async function requireBrainSession(): Promise<void> {
+  const gate = resolveAccessGate(process.env);
+  if (gate.mode === "disabled-dev") return;
+  if (gate.mode !== "enforced") {
+    throw new Error("brain_report_decision_unavailable");
+  }
+  const token = (await cookies()).get(AYAS_SESSION_COOKIE)?.value;
+  if (!verifySession(token, gate.key as string)) {
+    throw new Error("authentication_required");
+  }
+}
+
+/** Re-read the self-heal / AYAS Report Center snapshot (read-only). */
+export async function refreshBrainSelfHeal(): Promise<BrainSelfHealConsoleSnapshot> {
+  return loadBrainSelfHealSnapshot();
+}
+
+export interface RecordSelfHealDecisionInput {
+  readonly incidentId: string;
+  readonly decision: BrainSelfHealDecisionKind;
+  readonly note?: string;
+}
+
+/**
+ * Record an operator ÇÖZÜMÜ ONAYLA / REDDET / DAHA SONRA decision (§10 / §11).
+ *
+ * This writes a small decision record only. It NEVER runs git, stages a patch,
+ * opens the execution gate, or touches production authority. The staged apply
+ * still happens through the Node operator CLI (`npm run selfheal -- apply <id>`),
+ * which reads this record and requires it to be an APPROVE.
+ */
+export async function recordSelfHealDecision(
+  input: RecordSelfHealDecisionInput,
+): Promise<BrainSelfHealConsoleSnapshot> {
+  await requireBrainSession();
+
+  const decision = input.decision;
+  if (decision !== "APPROVE" && decision !== "REJECT" && decision !== "LATER") {
+    throw new Error("invalid_decision");
+  }
+
+  const store = createBrainSelfHealStore();
+  const incident = store.loadIncident(input.incidentId);
+  if (!incident) throw new Error("incident_not_found");
+
+  if (incident.status !== "VERIFIED" && incident.status !== "AWAITING_APPROVAL") {
+    throw new Error(`incident_not_decidable:${incident.status}`);
+  }
+  if (incident.needsHumanReason) {
+    throw new Error("incident_needs_human");
+  }
+  // A FORBIDDEN-area fix can never be approved through this button — a human
+  // handles it directly.
+  const forbidden =
+    incident.patch?.safetyLevel === "FORBIDDEN_AUTONOMOUS" ||
+    classifyPatchSet(incident.patch?.changedFiles ?? incident.hypotheses[0]?.suspectFiles ?? []).forbidden.length > 0;
+  if (decision === "APPROVE" && forbidden) {
+    throw new Error("forbidden_area_needs_human");
+  }
+  if (decision === "APPROVE" && !incident.patch) {
+    throw new Error("no_patch_to_approve");
+  }
+
+  store.recordSelfHealDecision(
+    buildSelfHealDecision({
+      incidentId: incident.id,
+      decision,
+      note: input.note,
+      now: new Date().toISOString(),
+      incidentStatusAtDecision: incident.status,
+    }),
+  );
+
+  return loadBrainSelfHealSnapshot();
 }
 
 /**

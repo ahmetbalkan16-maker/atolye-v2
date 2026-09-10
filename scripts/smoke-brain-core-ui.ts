@@ -37,6 +37,8 @@ import {
 } from "../src/components/brain/brainCore";
 import { BrainCoreOrb } from "../src/components/brain/BrainCoreOrb";
 import { BrainConsoleView } from "../src/components/brain/BrainConsoleView";
+import { advanceIncident, buildBrainIncident } from "../src/lib/brain/selfheal/BrainIncident";
+import { buildBrainReportCenterView } from "../src/lib/brain/selfheal/BrainReportCenter";
 
 let count = 0;
 async function scenario(name: string, test: () => void | Promise<void>) {
@@ -530,12 +532,57 @@ async function run() {
   await scenario("12b3. Self-Healing panel — wired into the tab strip; empty state restates the operator-approval + gate rule", () => {
     const panelIds = BRAIN_PANELS.map((p) => p.id);
     assert.ok(panelIds.includes("selfheal"), "selfheal panel is in BRAIN_PANELS");
+    assert.equal(BRAIN_PANELS.find((p) => p.id === "selfheal")?.label, "AYAS Raporları");
     const html = renderView({ snapshot: baseSnapshot(), activePanel: "selfheal" });
     assert.ok(html.includes('data-panel="selfheal"'));
     // empty store → the honest "beklemede" state
     assert.ok(/bc-selfheal-empty/.test(html), "empty self-heal state");
     assert.ok(/operatör onayı olmadan/i.test(html), "restates: never applies without operator approval");
     assert.ok(!/AKIA|sk-[a-z]|Bearer /i.test(html), "no secret shapes in the panel");
+  });
+
+  await scenario("12b4. AYAS Report Center — home status card + the report panel render from the reportCenter view", () => {
+    let inc = buildBrainIncident({ category: "voice", severity: "P1", classification: "REAL_INCIDENT", symptom: "wake sonrası komut erken kapanıyor", now: NOW });
+    inc = advanceIncident(inc, { kind: "diagnose", now: NOW, hypotheses: [{ statement: "VAD pre-roll kirlenmesi", confidence: 0.86, evidence: [], counterEvidence: [], suspectFiles: ["scripts/smoke-x.ts"] }] }).incident;
+    inc = advanceIncident(inc, { kind: "sandbox-patch", now: NOW, patch: { patchId: "p", baseCommit: "abc", changedFiles: ["scripts/smoke-x.ts"], diff: "@@ -1 +1 @@", diffLines: 10, safetyLevel: "SAFE", risk: "LOW", rollbackPlan: "x", attempt: 1 } }).incident;
+    inc = advanceIncident(inc, { kind: "checks", now: NOW, checks: [
+      { name: "tsc", kind: "typecheck", status: "PASS", detail: "0" },
+      { name: "eslint", kind: "lint", status: "PASS", detail: "0" },
+      { name: "build", kind: "build", status: "PASS", detail: "0" },
+      { name: "smoke", kind: "smoke", status: "PASS", detail: "" },
+      { name: "regression", kind: "regression", status: "PASS", detail: "" },
+    ] }).incident;
+    inc = advanceIncident(inc, { kind: "verified", now: NOW }).incident;
+    inc = advanceIncident(inc, { kind: "await-approval", now: NOW }).incident;
+    const rc = buildBrainReportCenterView({ incidents: [inc], learned: [], decisions: [], now: NOW });
+
+    // home status card
+    const home = renderView({ snapshot: baseSnapshot(), reportCenter: rc });
+    assert.ok(home.includes('data-testid="bc-card-reports"'), "AYAS Raporları status card is drawn");
+    assert.ok(/AYAS Raporlar/.test(home));
+    assert.ok(/1 onay/.test(home));
+
+    // the report panel with the incident expanded + decision handlers
+    const panel = renderView({
+      snapshot: baseSnapshot(),
+      activePanel: "selfheal",
+      reportCenter: rc,
+      reportHandlers: {
+        filter: { status: "all", category: "all" },
+        onFilter: () => {},
+        expandedReportId: inc.id,
+        onToggleReport: () => {},
+        onDecision: () => {},
+        decisionPending: null,
+      },
+    });
+    assert.ok(/data-testid="bc-report"/.test(panel));
+    assert.ok(/Sistem Sağlığı %/.test(panel));
+    assert.ok(/data-testid="bc-report-counts"/.test(panel));
+    assert.ok(/data-testid="bc-report-detail"/.test(panel), "expanded incident shows the full chain");
+    assert.ok(/Zaman çizelgesi/.test(panel) && /Kök neden/.test(panel) && /Watchdog/.test(panel));
+    assert.ok(panel.includes(`bc-report-approve-${inc.id}`), "SAFE verified incident → ONAYLA button");
+    assert.ok(!panel.includes("@@"), "no raw diff in the panel");
   });
 
   await scenario("12c. chat note is dynamic — no static 'not connected' line when the model is configured", () => {

@@ -12,7 +12,13 @@ import { BrainCoreConsole } from "@/components/brain/BrainCoreConsole";
 import { loadBrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import { loadAyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
 import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
-import { askAyas, ayasModelConfigured, refreshBrainConsole } from "./actions";
+import {
+  askAyas,
+  ayasModelConfigured,
+  recordSelfHealDecision,
+  refreshBrainConsole,
+  refreshBrainSelfHeal,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +41,8 @@ export default async function BrainCorePage() {
       initialSelfHeal={selfHeal}
       modelConfigured={modelConfigured}
       refresh={refreshBrainConsole}
+      refreshSelfHeal={refreshBrainSelfHeal}
+      recordSelfHealDecision={recordSelfHealDecision}
       askAyas={askAyas}
     />
   );

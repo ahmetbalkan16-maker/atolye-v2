@@ -29,6 +29,10 @@ data/brain/
   selfheal/incidents/<id>.json { BrainIncident }                                                 ← LANDED (Self-Healing v1)
   selfheal/learned/<id>.json   { BrainLearnedPattern }                                           ← LANDED (Self-Healing v1)
   selfheal/signatures.json     { schemaVersion, entries: [{ signature, openedAt }] }             ← LANDED (Self-Healing v1)
+  selfheal/optimizations/<id>.json { BrainOptimizationRun }                                      ← LANDED (Autonomous v2)
+  selfheal/events.json         { schemaVersion, events: BrainRuntimeEvent[] } (bounded ring)     ← LANDED (Autonomous v2)
+  selfheal/auto-applies.json   { schemaVersion, timestamps: number[] } (per-hour rate limit)     ← LANDED (Autonomous v2)
+  selfheal/decisions/<id>.json { BrainSelfHealDecision } (operator ONAYLA/REDDET/DAHA SONRA)      ← LANDED (Report Center)
   memory/<yyyy-mm>.json        BrainMemoryRecord[]                                               ← not implemented yet
   proposals/<id>.json          BrainImprovementProposal                                         ← not implemented yet
 ```
@@ -42,9 +46,15 @@ data/brain/
 - **This subtree is gitignored** (`/data/brain/selfheal/`) — it is per-machine
   operational state, not shared project knowledge. The learned patterns are the
   Brain's local memory of "this fix worked here".
-- Written only by the operator CLI (`npm run selfheal:*` / `scripts/selfheal.ts`)
-  and the E2E smoke (which uses a temp dir). The browser / autonomous loop never
-  writes here. Nothing here can open the execution gate, push, merge or deploy.
+- Written by the operator CLI (`npm run selfheal:*` / `scripts/selfheal.ts`), the
+  E2E smokes (which use a temp dir), and — for `decisions/` only — the
+  auth-gated `recordSelfHealDecision` Server Action behind the AYAS Report Center
+  buttons. A decision record carries the operator's ONAYLA / REDDET / DAHA SONRA
+  choice + a deterministic `operatorApprovalId` + a redacted note; it does NOT
+  run git, stage a patch, or touch the execution gate. `npm run selfheal -- apply
+  <id>` reads it and requires an APPROVE before it stages anything. The browser /
+  autonomous loop never writes an incident, patch, or learned pattern here.
+  Nothing here can open the execution gate, push, merge or deploy.
 
 ### `experience/` — `src/lib/brain/store/BrainExperienceStore.ts` (Sprint 181)
 

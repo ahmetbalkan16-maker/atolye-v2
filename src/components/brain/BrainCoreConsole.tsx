@@ -46,7 +46,9 @@ import {
 } from "@/lib/brain/ui/brainConversation";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
-import type { BrainSelfHealSnapshot } from "@/lib/brain/selfheal/BrainSelfHealSnapshot";
+import type { BrainSelfHealConsoleSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
+import type { BrainReportStatusFilter } from "@/lib/brain/selfheal/BrainReportCenter";
+import type { BrainSelfHealDecisionKind } from "@/lib/brain/selfheal/BrainSelfHealDecision";
 
 /** `useSyncExternalStore` subscribe: the browser's own connectivity signal. */
 function subscribeOnline(onChange: () => void): () => void {
@@ -68,14 +70,26 @@ export interface AskAyasFn {
   }): Promise<{ message: BrainChatMessage; source: "llm" | "fallback" }>;
 }
 
+export interface RecordSelfHealDecisionFn {
+  (input: {
+    incidentId: string;
+    decision: BrainSelfHealDecisionKind;
+    note?: string;
+  }): Promise<BrainSelfHealConsoleSnapshot>;
+}
+
 export interface BrainCoreConsoleProps {
   readonly initialSnapshot: BrainConsoleSnapshot;
   readonly initialAutonomous?: AyasAutonomousView;
-  /** Read-only self-healing state for the Self-Healing panel. */
-  readonly initialSelfHeal?: (BrainSelfHealSnapshot & { readonly error?: string | null }) | null;
+  /** Read-only self-healing / Report Center state for the "AYAS Raporları" panel. */
+  readonly initialSelfHeal?: BrainSelfHealConsoleSnapshot | null;
   readonly modelConfigured?: boolean;
   /** Server Action that re-reads the snapshot (read-only). */
   readonly refresh?: () => Promise<BrainConsoleSnapshot>;
+  /** Server Action that re-reads the self-heal / Report Center snapshot (read-only). */
+  readonly refreshSelfHeal?: () => Promise<BrainSelfHealConsoleSnapshot>;
+  /** Server Action that records an operator ONAYLA / REDDET / DAHA SONRA decision (no git, no apply). */
+  readonly recordSelfHealDecision?: RecordSelfHealDecisionFn;
   /** Server Action that asks the local model (falls back to deterministic). */
   readonly askAyas?: AskAyasFn;
   /**
@@ -91,12 +105,26 @@ export function BrainCoreConsole({
   initialSelfHeal,
   modelConfigured,
   refresh,
+  refreshSelfHeal,
+  recordSelfHealDecision,
   askAyas,
   streaming = true,
 }: BrainCoreConsoleProps) {
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [activePanel, setActivePanel] = useState<BrainPanelId>("chat");
   const [draft, setDraft] = useState("");
+
+  // AYAS Report Center: the self-heal / report snapshot + the operator's
+  // filter / expand / decision interaction state. A decision RECORDS the
+  // operator's choice (server action) — it never runs git or the apply.
+  const [selfHeal, setSelfHeal] = useState(initialSelfHeal ?? null);
+  const [reportFilter, setReportFilter] = useState<{ status: BrainReportStatusFilter; category: string }>({
+    status: "all",
+    category: "all",
+  });
+  const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
+  const [decisionPending, setDecisionPending] = useState<string | null>(null);
+  const [, startSelfHeal] = useTransition();
 
   // Restore the transcript from sessionStorage so an iPhone reload (screen
   // Auto-Lock eviction / memory kill) does NOT wipe the conversation and make
@@ -360,7 +388,38 @@ export function BrainCoreConsole({
         setRefreshFailed(true);
       }
     });
+    if (refreshSelfHeal) {
+      startSelfHeal(async () => {
+        try {
+          setSelfHeal(await refreshSelfHeal());
+        } catch {
+          /* keep the last good self-heal snapshot */
+        }
+      });
+    }
   };
+
+  // Record an operator ONAYLA / REDDET / DAHA SONRA decision. This writes a
+  // small decision record server-side (auth-gated) — it does NOT run git, stage
+  // a patch, or open the execution gate. The staged apply still happens through
+  // `npm run selfheal -- apply <id>`.
+  const onReportDecision = useCallback(
+    (input: { incidentId: string; decision: BrainSelfHealDecisionKind }) => {
+      if (!recordSelfHealDecision || decisionPending) return;
+      setDecisionPending(input.incidentId);
+      startSelfHeal(async () => {
+        try {
+          const next = await recordSelfHealDecision(input);
+          setSelfHeal(next);
+        } catch {
+          /* leave the report as-is; the operator can retry */
+        } finally {
+          setDecisionPending(null);
+        }
+      });
+    },
+    [recordSelfHealDecision, decisionPending],
+  );
 
   // The AYAS presence-card CTA: drop into the EXISTING chat/voice experience —
   // select the chat panel and, when this device can hear, start listening
@@ -431,7 +490,16 @@ export function BrainCoreConsole({
       modelConfigured={modelConfigured}
       lastReplySource={lastReplySource}
       autonomous={initialAutonomous}
-      selfHeal={initialSelfHeal ?? null}
+      selfHeal={selfHeal}
+      reportCenter={selfHeal?.reportCenter ?? null}
+      reportHandlers={{
+        filter: reportFilter,
+        onFilter: setReportFilter,
+        expandedReportId,
+        onToggleReport: setExpandedReportId,
+        onDecision: recordSelfHealDecision ? onReportDecision : undefined,
+        decisionPending,
+      }}
       voice={{
         state: voice.state,
         capability: voice.capability,

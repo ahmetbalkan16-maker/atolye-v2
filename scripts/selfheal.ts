@@ -37,6 +37,7 @@ import type { BrainIncident } from "../src/lib/brain/selfheal/BrainIncident";
 import type { BrainTimelineEvent } from "../src/lib/brain/selfheal/BrainRootCauseEngine";
 import { observeForSelfHeal, type BrainLifecycleTelemetryLike, type BrainVoiceHealthLike } from "../src/lib/brain/selfheal/BrainSelfHealObservability";
 import { decideQueueAdmission } from "../src/lib/brain/selfheal/BrainSelfHealQueue";
+import { canApplyFromDecision, describeSelfHealDecision } from "../src/lib/brain/selfheal/BrainSelfHealDecision";
 import { DEFAULT_AUTO_APPLY_CONFIG } from "../src/lib/brain/selfheal/BrainAutoApplyPolicy";
 import { DEFAULT_HEAL_WATCHDOG_CONFIG } from "../src/lib/brain/selfheal/BrainHealWatchdog";
 import { compareBenchmark, type BrainBenchmarkSample } from "../src/lib/brain/selfheal/BrainOptimizationBenchmark";
@@ -158,6 +159,22 @@ async function main() {
     return;
   }
 
+  if (cmd === "decisions") {
+    const store = createBrainSelfHealStore();
+    const list = store.listSelfHealDecisions();
+    if (list.length === 0) {
+      console.log("no operator decisions recorded (Report Center ONAYLA / REDDET / DAHA SONRA).");
+      return;
+    }
+    for (const d of list) console.log(describeSelfHealDecision(d));
+    const approved = list.filter((d) => d.decision === "APPROVE");
+    if (approved.length) {
+      console.log(`\n${approved.length} APPROVE — apply with:`);
+      for (const d of approved) console.log(`  npm run selfheal -- apply ${d.incidentId}`);
+    }
+    return;
+  }
+
   if (cmd === "observe") {
     // selfheal observe <telemetry.json>  where telemetry.json = { lifecycle, voice? }
     const file = rest[0];
@@ -270,13 +287,27 @@ async function main() {
 
   if (cmd === "apply") {
     const id = rest[0];
-    const operator = flag("operator");
-    if (!id || !operator) return fail("usage: selfheal apply <incident-id> --operator <id>");
+    if (!id) return fail("usage: selfheal apply <incident-id> [--operator <id>]");
     const store = createBrainSelfHealStore();
     const incident = store.loadIncident(id);
     if (!incident) return fail(`no incident ${id}`);
     if (incident.status !== "AWAITING_APPROVAL" && incident.status !== "VERIFIED") {
       return fail(`incident ${id} is ${incident.status} — only AWAITING_APPROVAL / VERIFIED can be applied`);
+    }
+    // The operator id comes from --operator, OR from a Report Center APPROVE
+    // decision. REJECT / DAHA SONRA / no decision → refuse.
+    let operator = flag("operator");
+    if (!operator) {
+      const decision = store.loadSelfHealDecision(id);
+      if (!canApplyFromDecision(decision)) {
+        return fail(
+          decision
+            ? `incident ${id} decision is ${decision.decision} — not APPROVE. Approve it in the Report Center, or pass --operator <id>.`
+            : `incident ${id} has no operator decision. Approve it in the Report Center (AYAS Raporları), or pass --operator <id>.`,
+        );
+      }
+      operator = decision!.operatorApprovalId;
+      console.log(`using Report Center approval — approvalId ${operator} (${decision!.decidedAt.slice(0, 19)})`);
     }
     const adapters: BrainSelfHealAdapters = {
       now,
@@ -318,10 +349,12 @@ async function main() {
       "",
       "  status                         the self-healing snapshot (health, live state, incidents, learning)",
       "  report <id>                    one incident's full 🧠 report",
+      "  decisions                      list Report Center operator decisions (ONAYLA / REDDET / DAHA SONRA)",
       "  observe <telemetry.json>       classify a telemetry snapshot; open an incident if it is a real fault",
       "  heal <id> [--patch <f.json>]   drive an incident through the loop (auto-apply SAFE if SELFHEAL_AUTO_APPLY=on)",
       "  run <incident.json> [--patch]  v1-style run: diagnose + sandbox-test, stop at AWAITING_APPROVAL",
-      "  apply <id> --operator <id>     apply a VERIFIED patch to the working tree (git apply --index; never a push)",
+      "  apply <id> [--operator <id>]   apply a VERIFIED patch to the working tree (git apply --index; never a push).",
+      "                                 without --operator it uses the Report Center APPROVE decision for <id>.",
       "  optimize <bench.json>          compare a before/after benchmark → ACCEPT / REJECT / NEUTRAL",
       "  synthetic                      the synthetic-failure end-to-end proof",
       "  prune                          remove stale sandbox worktrees",

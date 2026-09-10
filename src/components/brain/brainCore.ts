@@ -359,7 +359,7 @@ export const BRAIN_PANELS: readonly BrainPanelInfo[] = Object.freeze([
   { id: "tasks", label: "Tasks", icon: "▤", connected: true },
   { id: "memory", label: "Memory", icon: "◈", connected: true },
   { id: "autonomous", label: "Autonomous", icon: "∞", connected: true },
-  { id: "selfheal", label: "Self-Healing", icon: "⟳", connected: true },
+  { id: "selfheal", label: "AYAS Raporları", icon: "🧠", connected: true },
   {
     id: "research",
     label: "Research",

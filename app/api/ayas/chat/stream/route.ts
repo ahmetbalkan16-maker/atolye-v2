@@ -7,8 +7,13 @@ import {
   isSameOriginRequest,
 } from "@/lib/auth/accessGate";
 import { loadBrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
+import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
 import { loadAyasStudioContext } from "@/lib/ayas/AyasStudioContext";
 import { streamAyasChat, ayasChatStreamEventToSse } from "@/lib/ayas/AyasChatStream";
+import {
+  buildAyasReportSpokenAnswer,
+  detectAyasReportIntent,
+} from "@/lib/brain/selfheal/BrainReportCenter";
 import type { BrainChatMessage } from "@/components/brain/brainCore";
 
 /**
@@ -80,9 +85,36 @@ export async function POST(request: NextRequest): Promise<Response> {
     : [];
   const seq = Number.isSafeInteger(b.seq) ? (b.seq as number) : history.length + 1;
 
+  const encoder = new TextEncoder();
+
+  // "AYAS, rapor ver" / "onay bekleyen ne" (§11) — deterministic Report Center
+  // answer, one terminal SSE frame, no model call, runs nothing.
+  const reportIntent = detectAyasReportIntent(text);
+  if (reportIntent) {
+    const rc = loadBrainSelfHealSnapshot().reportCenter;
+    const answer = buildAyasReportSpokenAnswer(rc, reportIntent);
+    const oneShot = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            ayasChatStreamEventToSse({ type: "done", text: answer, source: "fallback", corrected: false }),
+          ),
+        );
+        controller.close();
+      },
+    });
+    return new Response(oneShot, {
+      headers: {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-store, no-transform",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+      },
+    });
+  }
+
   const [snapshot, studio] = await Promise.all([loadBrainConsoleSnapshot(), loadAyasStudioContext()]);
 
-  const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {

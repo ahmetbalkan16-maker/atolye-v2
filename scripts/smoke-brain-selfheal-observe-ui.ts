@@ -16,6 +16,7 @@ import { observeForSelfHeal, type BrainLifecycleTelemetryLike } from "../src/lib
 import { advanceIncident, buildBrainIncident } from "../src/lib/brain/selfheal/BrainIncident";
 import { buildLearnedPattern } from "../src/lib/brain/selfheal/BrainLearnedPattern";
 import { buildBrainSelfHealSnapshot, EMPTY_BRAIN_SELFHEAL_SNAPSHOT } from "../src/lib/brain/selfheal/BrainSelfHealSnapshot";
+import { buildBrainReportCenterView } from "../src/lib/brain/selfheal/BrainReportCenter";
 import { BrainSelfHealingPanel } from "../src/components/brain/BrainSelfHealingPanel";
 import { BRAIN_PANELS } from "../src/components/brain/brainCore";
 
@@ -175,6 +176,67 @@ async function run() {
     assert.match(html, /staged/i);
     assert.match(html, /watchdog otomatik geri alır/i);
     assert.match(html, /audio graph stall/); // last root cause
+  });
+
+  /* -------------------- Report Center panel mode -------------------- */
+
+  await scenario("report center — panel renders health bar, count row, filters, and a per-incident chain with a decision button", () => {
+    let inc = buildBrainIncident({ category: "voice", severity: "P1", classification: "REAL_INCIDENT", symptom: "wake sonrası komut erken kapanıyor", now: NOW });
+    inc = advanceIncident(inc, { kind: "diagnose", now: NOW, hypotheses: [{ statement: "VAD pre-roll kirlenmesi", confidence: 0.86, evidence: ["37/50 turn"], counterEvidence: [], suspectFiles: ["scripts/smoke-x.ts"] }] }).incident;
+    inc = advanceIncident(inc, { kind: "sandbox-patch", now: NOW, patch: { patchId: "p", baseCommit: "abc", changedFiles: ["scripts/smoke-x.ts"], diff: "@@ raw diff", diffLines: 10, safetyLevel: "SAFE", risk: "LOW", rollbackPlan: "x", attempt: 1 } }).incident;
+    inc = advanceIncident(inc, { kind: "checks", now: NOW, checks: [
+      { name: "tsc", kind: "typecheck", status: "PASS", detail: "0" },
+      { name: "eslint", kind: "lint", status: "PASS", detail: "0" },
+      { name: "build", kind: "build", status: "PASS", detail: "0" },
+      { name: "smoke", kind: "smoke", status: "PASS", detail: "" },
+      { name: "regression", kind: "regression", status: "PASS", detail: "" },
+    ] }).incident;
+    inc = advanceIncident(inc, { kind: "verified", now: NOW }).incident;
+    inc = advanceIncident(inc, { kind: "await-approval", now: NOW }).incident;
+    const rc = buildBrainReportCenterView({ incidents: [inc], learned: [], decisions: [], now: NOW });
+
+    const html = renderToStaticMarkup(createElement(BrainSelfHealingPanel, {
+      snapshot: { ...EMPTY_BRAIN_SELFHEAL_SNAPSHOT, error: null },
+      reportCenter: rc,
+      executionGate: "CLOSED",
+      filter: { status: "all", category: "all" },
+      onFilter: () => {},
+      expandedReportId: inc.id,
+      onToggleReport: () => {},
+      onDecision: () => {},
+      decisionPending: null,
+    }));
+    assert.match(html, /data-testid="bc-report"/);
+    assert.match(html, /data-testid="bc-report-healthbar"/);
+    assert.match(html, /data-testid="bc-report-counts"/);
+    assert.match(html, /data-testid="bc-report-filters"/);
+    assert.match(html, /data-testid="bc-report-detail"/);
+    assert.match(html, /Çözümü Onayla/);
+    assert.match(html, new RegExp(`bc-report-approve-${inc.id}`));
+    assert.match(html, /watchdog otomatik geri alır/i);
+    assert.match(html, /staged/i);
+    assert.equal(html.includes("@@"), false, "the raw diff is not rendered");
+  });
+
+  await scenario("report center — a FORBIDDEN-area fix shows İNSAN GEREKLİ and no approve button", () => {
+    let inc = buildBrainIncident({ category: "security", severity: "P1", classification: "REAL_INCIDENT", symptom: "authority çözümü", now: NOW });
+    inc = advanceIncident(inc, { kind: "diagnose", now: NOW, hypotheses: [{ statement: "x", confidence: 0.8, evidence: [], counterEvidence: [], suspectFiles: ["src/lib/runtime/RuntimeStoragePaths.ts"] }] }).incident;
+    inc = advanceIncident(inc, { kind: "sandbox-patch", now: NOW, patch: { patchId: "p", baseCommit: "abc", changedFiles: ["src/lib/runtime/RuntimeStoragePaths.ts"], diff: "@@", diffLines: 6, safetyLevel: "FORBIDDEN_AUTONOMOUS", risk: "HIGH", rollbackPlan: "x", attempt: 1 } }).incident;
+    inc = advanceIncident(inc, { kind: "await-approval", now: NOW }).incident;
+    const rc = buildBrainReportCenterView({ incidents: [inc], learned: [], decisions: [], now: NOW });
+    const html = renderToStaticMarkup(createElement(BrainSelfHealingPanel, {
+      snapshot: { ...EMPTY_BRAIN_SELFHEAL_SNAPSHOT, error: null },
+      reportCenter: rc,
+      executionGate: "CLOSED",
+      filter: { status: "all", category: "all" },
+      onFilter: () => {},
+      expandedReportId: inc.id,
+      onToggleReport: () => {},
+      onDecision: () => {},
+      decisionPending: null,
+    }));
+    assert.match(html, /İNSAN GEREKLİ/);
+    assert.equal(html.includes(`bc-report-approve-${inc.id}`), false);
   });
 
   console.log(`Atölye Brain self-heal observe+UI smoke: PASS (${count} scenarios)`);

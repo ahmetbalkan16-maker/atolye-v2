@@ -24,10 +24,11 @@ import {
   type BrainPanelId,
 } from "./brainCore";
 import { describeAyasVoiceState, type AyasVoiceCapability, type AyasVoiceState } from "./ayasVoice";
-import { BrainSelfHealingPanel } from "./BrainSelfHealingPanel";
+import { BrainSelfHealingPanel, type BrainReportPanelHandlers } from "./BrainSelfHealingPanel";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
 import type { BrainSelfHealSnapshot } from "@/lib/brain/selfheal/BrainSelfHealSnapshot";
+import type { BrainReportCenterView } from "@/lib/brain/selfheal/BrainReportCenter";
 
 export interface BrainConsoleVoiceView {
   readonly state: AyasVoiceState;
@@ -72,6 +73,10 @@ export interface BrainConsoleViewProps {
   readonly autonomous?: AyasAutonomousView;
   /** Read-only self-healing state (incidents / repairs / learning). `null` ⇒ store empty. */
   readonly selfHeal?: (BrainSelfHealSnapshot & { readonly error?: string | null }) | null;
+  /** The AYAS Report Center view (§7–§15) for the panel + the home status card. */
+  readonly reportCenter?: BrainReportCenterView | null;
+  /** Report Center filter / expand / decision handlers (owned by `BrainCoreConsole`). */
+  readonly reportHandlers?: BrainReportPanelHandlers;
   readonly voice?: BrainConsoleVoiceView;
   /** Coarse client reachability for the AYAS presence card. Default `"online"`. */
   readonly connectivity?: AyasConnectivity;
@@ -130,7 +135,12 @@ export function BrainConsoleView(props: BrainConsoleViewProps) {
             </div>
           ) : null}
 
-          <StatusCards snapshot={snapshot} autonomous={props.autonomous} />
+          <StatusCards
+            snapshot={snapshot}
+            autonomous={props.autonomous}
+            reportCenter={props.reportCenter ?? null}
+            onOpenReports={props.onSelectPanel ? () => props.onSelectPanel!("selfheal") : undefined}
+          />
 
           <button
             type="button"
@@ -315,13 +325,34 @@ function AyasPresenceCard(props: BrainConsoleViewProps) {
 function StatusCards({
   snapshot,
   autonomous,
+  reportCenter,
+  onOpenReports,
 }: {
   snapshot: BrainConsoleSnapshot;
   autonomous?: AyasAutonomousView;
+  reportCenter?: BrainReportCenterView | null;
+  onOpenReports?: () => void;
 }) {
   const pending = snapshot.tasks.pendingApproval;
+  const rc = reportCenter;
   return (
     <div className="bc-cards" data-testid="bc-cards">
+      {rc ? (
+        <StatCard
+          k="🧠 AYAS Raporları"
+          v={`%${rc.systemHealthPercent}`}
+          s={
+            rc.counts.failed > 0
+              ? `${rc.counts.failed} insan gerekli · ${rc.counts.awaitingApproval} onay`
+              : rc.counts.awaitingApproval > 0
+                ? `${rc.counts.awaitingApproval} onay · ${rc.counts.investigating} inceleniyor · ${rc.counts.resolved} çözüldü`
+                : `${rc.counts.investigating} inceleniyor · ${rc.counts.resolved} çözüldü · ${rc.counts.learnedPatterns} öğrenildi`
+          }
+          tone={rc.counts.failed > 0 || rc.counts.awaitingApproval > 0 ? "warn" : undefined}
+          onClick={onOpenReports}
+          testid="bc-card-reports"
+        />
+      ) : null}
       <StatCard
         k="Tasks"
         v={String(snapshot.tasks.total)}
@@ -374,19 +405,35 @@ function StatCard({
   v,
   s,
   tone,
+  onClick,
+  testid,
 }: {
   k: string;
   v: string;
   s?: string;
   tone?: "warn" | "off";
+  onClick?: () => void;
+  testid?: string;
 }) {
   const cls =
     "bc-statcard" + (tone === "warn" ? " bc-statcard--warn" : tone === "off" ? " bc-statcard--off" : "");
-  return (
-    <div className={cls}>
+  const body = (
+    <>
       <span className="bc-statcard__k">{k}</span>
       <span className="bc-statcard__v">{v}</span>
       {s ? <span className="bc-statcard__s">{s}</span> : null}
+    </>
+  );
+  if (onClick) {
+    return (
+      <button type="button" className={`${cls} bc-statcard--link`} onClick={onClick} data-testid={testid}>
+        {body}
+      </button>
+    );
+  }
+  return (
+    <div className={cls} data-testid={testid}>
+      {body}
     </div>
   );
 }
@@ -416,7 +463,14 @@ function PanelBody(props: BrainConsoleViewProps) {
     case "autonomous":
       return <AutonomousPanel autonomous={props.autonomous} />;
     case "selfheal":
-      return <BrainSelfHealingPanel snapshot={props.selfHeal ?? null} executionGate={snapshot.executionGate} />;
+      return (
+        <BrainSelfHealingPanel
+          snapshot={props.selfHeal ?? null}
+          reportCenter={props.reportCenter ?? null}
+          executionGate={snapshot.executionGate}
+          {...(props.reportHandlers ?? {})}
+        />
+      );
     case "learning":
       return <LearningPanel snapshot={snapshot} />;
     case "safety":

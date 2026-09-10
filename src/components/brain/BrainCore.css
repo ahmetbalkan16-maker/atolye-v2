@@ -261,6 +261,135 @@ body:has(.bc-shell) {
 .bc-statcard--off .bc-statcard__v { color: var(--bc-text-faint); font-weight: 500; font-size: 14px; }
 .bc-statcard--warn { border-color: hsl(38 90% 60% / 0.4); }
 .bc-statcard--warn .bc-statcard__v { color: hsl(38 92% 74%); }
+.bc-statcard--link {
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.bc-statcard--link:hover { border-color: var(--bc-accent); background: var(--bc-accent-soft); }
+.bc-statcard--link:focus-visible { outline: none; border-color: var(--bc-accent); box-shadow: 0 0 0 3px var(--bc-accent-soft); }
+
+/* ------------------------------------------------- AYAS Report Center --- */
+
+.bc-report__top { margin-bottom: 12px; }
+.bc-report__healthbar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bc-surface-2);
+  overflow: hidden;
+}
+.bc-report__healthbar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, hsl(150 70% 45%), var(--bc-accent));
+}
+.bc-report__healthnum {
+  margin: 8px 0 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bc-text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bc-report__live {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--bc-border-strong);
+  color: var(--bc-accent);
+}
+.bc-report__headline { margin: 0; font-size: 12.5px; color: var(--bc-text-dim); }
+
+.bc-report__counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.bc-report__counts > div {
+  border: 1px solid var(--bc-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--bc-surface);
+}
+.bc-report__counts dt {
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bc-text-faint);
+}
+.bc-report__counts dd { margin: 2px 0 0; font-size: 18px; font-weight: 600; color: var(--bc-text); }
+.bc-report__count--warn { border-color: hsl(38 90% 60% / 0.45); }
+.bc-report__count--warn dd { color: hsl(38 92% 74%); }
+
+.bc-report__filters { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.bc-report__filterrow { display: flex; flex-wrap: wrap; gap: 6px; }
+.bc-chip {
+  font: inherit;
+  font-size: 11.5px;
+  padding: 5px 11px;
+  min-height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--bc-border-strong);
+  background: transparent;
+  color: var(--bc-text-dim);
+  cursor: pointer;
+}
+.bc-chip--on { border-color: var(--bc-accent); background: var(--bc-accent-soft); color: var(--bc-accent-bright); }
+
+.bc-report__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.bc-report__item {
+  border: 1px solid var(--bc-border);
+  border-left-width: 3px;
+  border-radius: 10px;
+  background: var(--bc-surface);
+  overflow: hidden;
+}
+.bc-report__item--critical { border-left-color: hsl(348 80% 60%); }
+.bc-report__item--high { border-left-color: hsl(38 90% 60%); }
+.bc-report__item--medium { border-left-color: hsl(48 90% 60%); }
+.bc-report__item--info { border-left-color: var(--bc-accent); }
+.bc-report__item--resolved { border-left-color: hsl(150 65% 48%); }
+.bc-report__summary {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 10px;
+  align-items: start;
+}
+.bc-report__sev { font-size: 10px; letter-spacing: 0.1em; white-space: nowrap; color: var(--bc-text-dim); }
+.bc-report__title { font-size: 13px; color: var(--bc-text); overflow-wrap: anywhere; }
+.bc-report__state { grid-column: 2; font-size: 11px; color: var(--bc-text-faint); }
+.bc-report__detail { padding: 4px 12px 14px; border-top: 1px solid var(--bc-border); }
+.bc-report__detail .bc-kv { margin-top: 10px; }
+.bc-report__mini { margin: 4px 0 0; padding-left: 16px; font-size: 11.5px; color: var(--bc-text-dim); }
+.bc-report__mini li { margin-bottom: 2px; overflow-wrap: anywhere; }
+.bc-report__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.bc-report__actions .bc-btn { min-height: 38px; }
+.bc-report__applyhint {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  color: var(--bc-text-dim);
+  overflow-wrap: anywhere;
+}
+.bc-report__applyhint code {
+  background: var(--bc-surface-2);
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-size: 11px;
+}
 
 /* --------------------------------------------------------------- panel --- */
 
