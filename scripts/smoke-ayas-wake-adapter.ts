@@ -954,6 +954,68 @@ async function run() {
     a.dispose();
   });
 
+  // ── "DİNLİYOR → HAZIR" regression: a natural pause between "AYAS" and the
+  //    command must NOT finalise the capture on the pre-roll wake word alone. ──
+  {
+    /** wake, then `pauseFrames` of silence, then a spoken command, then EOS. */
+    const wakePauseCommand = async (pauseFrames: number, commandFrames: number) => {
+      const backend = new FakeBackend();
+      let capturedMs = 0;
+      const a = new WakeWordVoiceAdapter({
+        audioBackend: backend,
+        runner: new FakeRunner(),
+        tts: fakeTts(),
+        transcribe: async (wav) => {
+          capturedMs = Math.round(((wav.byteLength - 44) / 2 / 16000) * 1000);
+          // A clip with real command audio (beyond the wake word) transcribes it;
+          // a lone-"AYAS" clip does not.
+          return capturedMs >= 2200 ? "AYAS atölyede kaç proje var" : "AYAS";
+        },
+        ...FAST,
+      });
+      const c = collectHandlers();
+      a.startListening("tr-TR", c.handlers);
+      await settle();
+      // pre-roll: room tone + a loud "AYAS" + the wake hit
+      for (let i = 0; i < 8; i += 1) backend.pushAmp(0);
+      for (let i = 0; i < 5; i += 1) backend.pushAmp(0.3);
+      backend.push("wake");
+      await settle();
+      for (let i = 0; i < pauseFrames; i += 1) backend.pushAmp(0);
+      await settle();
+      const midPauseFinals = c.finals.filter((t) => t !== "AYAS").length;
+      for (let i = 0; i < commandFrames; i += 1) backend.pushAmp(0.3);
+      for (let i = 0; i < 16; i += 1) backend.pushAmp(0);
+      await settle();
+      const command = c.finals.find((t) => t.includes("proje"));
+      a.dispose();
+      return { command, midPauseFinals, capturedMs, finals: c.finals };
+    };
+
+    for (const pauseMs of [400, 800, 1200, 2000, 5000]) {
+      await scenario(`VAD — "AYAS" + ${pauseMs} ms natural pause + command → the command IS captured`, async () => {
+        const r = await wakePauseCommand(Math.round(pauseMs / 80), 16);
+        assert.equal(r.midPauseFinals, 0, `nothing finalised during the ${pauseMs} ms pause`);
+        assert.ok(
+          r.command && r.command.includes("proje"),
+          `the command survived the pause, got ${JSON.stringify(r.finals)} (clip ${r.capturedMs} ms)`,
+        );
+      });
+    }
+
+    await scenario('VAD — a bare "AYAS" (no command ever spoken) does not hang; clip is just the wake word', async () => {
+      const r = await wakePauseCommand(110, 0); // ~8.8 s of silence, no command
+      assert.equal(r.command, undefined, "no phantom command");
+      // the finalised clip is the short pre-roll, not ~9 s of dead air
+      assert.ok(r.capturedMs > 0 && r.capturedMs < 2000, `bare-AYAS clip stays short (${r.capturedMs} ms)`);
+    });
+
+    await scenario("VAD — a long command after a pause is not truncated (COMMAND_MAX from onset, not wake)", async () => {
+      const r = await wakePauseCommand(25, 55); // 2 s pause + ~4.4 s command
+      assert.ok(r.command && r.command.includes("proje"), `long command captured, got ${JSON.stringify(r.finals)}`);
+    });
+  }
+
   await scenario("WakeScoreDetector — hard hit, soft sustained hit, single spike rejected, stats", () => {
     const d = new WakeScoreDetector({ hard: 0.7, soft: 0.6, softVotes: 3, softWindow: 5 });
     // a single frame at/above hard → immediate hit

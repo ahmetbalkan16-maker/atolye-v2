@@ -728,6 +728,38 @@ body:has(.bc-shell) {
 }
 .bc-link:hover { color: var(--bc-accent-bright); }
 
+/* Operator diagnostics footer — secondary, but always legible + reachable on a
+   phone (explicit colours, real tap targets, in the scroll flow of `.bc-shell`). */
+.bc-labs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 18px;
+  margin-top: auto;
+  padding: 16px 8px 4px;
+  border-top: 1px solid var(--bc-border);
+}
+.bc-labs__title {
+  font-size: 10.5px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--bc-text-faint);
+}
+.bc-labs__link {
+  color: var(--bc-accent);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  padding: 6px 12px;
+  border: 1px solid var(--bc-border-strong);
+  border-radius: 999px;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+}
+.bc-labs__link:hover { color: var(--bc-accent-bright); border-color: var(--bc-accent); }
+
 .bc-msg--typing { opacity: 0.7; font-style: italic; }
 
 /* -------------------------------------------------- AYAS presence card --- */

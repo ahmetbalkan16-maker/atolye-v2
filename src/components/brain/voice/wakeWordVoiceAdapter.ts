@@ -44,7 +44,7 @@ const COMMAND_MAX_MS = 8000;
 const EOS_SILENCE_LONG_MS = 1000; // short/medium utterance — room to pause & think
 const EOS_SILENCE_SHORT_MS = 700; // clearly-complete long utterance — end sooner
 const LONG_UTTERANCE_SPEECH_MS = 2000;
-/** A command must carry at least this much elapsed time AND real speech. */
+/** Once the command has begun: min command duration AND min post-wake speech to endpoint. */
 const COMMAND_MIN_MS = 450;
 const COMMAND_MIN_SPEECH_MS = 250;
 /**
@@ -55,14 +55,35 @@ const COMMAND_MIN_SPEECH_MS = 250;
  * detection lag + the command onset so nothing is lost. Whisper transcribes the
  * leading "AYAS" and `stripLeadingWakeWord` removes it; the extra ~1 s of audio
  * also lifts the clip above whisper's short-clip hallucination floor.
+ *
+ * The pre-roll is AUDIO ONLY. It never counts toward the end-of-speech test —
+ * see `commandStarted` / `postWakeSpeechMs`. A lone "AYAS" pre-roll plus the
+ * user's natural ~1 s pause before the command must NOT finalise the capture.
  */
 const PREROLL_FRAMES = 18; // ~1.44 s
+/**
+ * After the wake word, how long the capture waits for the command to actually
+ * START before giving up on a bare "AYAS". Must clear a natural "AYAS … <think>
+ * … command" pause — the operator protocol tests a 5 s gap. The pre-roll wake
+ * word does NOT count here.
+ */
+const COMMAND_ONSET_TIMEOUT_MS = 8000;
+/**
+ * A pre-roll already carrying clearly more speech than a lone wake word
+ * (~0.4–0.6 s) — the one-breath "AYAS kaç proje var" where the whole command is
+ * in the pre-roll because the wake score landed late. Treat the command as begun.
+ */
+const PREROLL_COMMAND_HINT_MS = 700;
+/** Lead-in frames kept before the first command word when trimming a long gap. */
+const COMMAND_LEADIN_FRAMES = 8; // ~640 ms
+/** A wake→command gap longer than this ⇒ the pre-roll wake word is stale; drop it + the dead air. */
+const COMMAND_GAP_DROP_PREROLL_MS = 1500;
 /** Silence RMS floor — the adaptive threshold never drops below / rises above this. */
 const SILENCE_RMS_MIN = 0.010;
 const SILENCE_RMS_MAX = 0.05;
 /** Frames used to estimate the room's noise floor at the start of a capture. */
 const NOISE_CAL_FRAMES = 5;
-/** RMS a pre-roll frame must clear to count as "the user was already speaking". */
+/** RMS a frame must clear to count as speech energy (pre-roll classification). */
 const PREROLL_SPEECH_RMS = 0.02;
 /** After a turn the wake path ignores audio this long (echo / TTS tail). */
 const REARM_COOLDOWN_MS = 350;
@@ -425,11 +446,26 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   private phase: WakeAdapterPhase = "idle";
   private handlers: AyasListenHandlers | null = null;
   private cmd: Float32Array[] = [];
-  private cmdMs = 0;
-  private silenceMs = 0;
+  /** ms + frame count of pre-roll audio prepended to the clip — NOT a command. */
+  private preRollMs = 0;
+  private preRollFrameCount = 0;
+  /** ms elapsed in the capturing phase since the wake word (pre-roll excluded). */
+  private postWakeMs = 0;
+  /** ms of speech energy observed since the wake word (pre-roll excluded). */
+  private postWakeSpeechMs = 0;
+  /** All speech ms incl. a speech-heavy pre-roll — only picks the EOS-silence window. */
   private speechMs = 0;
+  private silenceMs = 0;
   private sawSpeech = false;
-  /** Adaptive silence RMS threshold — calibrated from the first frames of a capture. */
+  /** The command has actually begun (post-wake speech, or it was already in the pre-roll). */
+  private commandStarted = false;
+  /** ms since the command began — drives COMMAND_MAX + the EOS-silence check. */
+  private commandMs = 0;
+  /** postWakeMs at the moment the command began — the wake→command gap. */
+  private gapMs = 0;
+  /** this.cmd.length at the moment the command began — for trimming a long silent gap. */
+  private cmdStartFrameCount = 0;
+  /** Adaptive silence RMS threshold — calibrated from the first quiet frames of a capture. */
   private silenceRms = 0.012;
   private noiseSamples = 0;
   private noiseSum = 0;
@@ -952,10 +988,17 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
 
   private resetCommand(): void {
     this.cmd = [];
-    this.cmdMs = 0;
-    this.silenceMs = 0;
+    this.preRollMs = 0;
+    this.preRollFrameCount = 0;
+    this.postWakeMs = 0;
+    this.postWakeSpeechMs = 0;
     this.speechMs = 0;
+    this.silenceMs = 0;
     this.sawSpeech = false;
+    this.commandStarted = false;
+    this.commandMs = 0;
+    this.gapMs = 0;
+    this.cmdStartFrameCount = 0;
     this.silenceRms = 0.012;
     this.noiseSamples = 0;
     this.noiseSum = 0;
@@ -986,18 +1029,26 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
           const carried = this.preRoll;
           this.preRoll = [];
           this.resetCommand();
-          // Seed the capture with the pre-roll (wake word + the command onset
-          // the detection lag put in the past). Classify each frame so a fast
-          // speaker whose whole command landed in the pre-roll still endpoints.
+          // The pre-roll is AUDIO ONLY: it carries the wake word + the command's
+          // first syllables past the detection lag so whisper still hears the
+          // onset. It does NOT satisfy the end-of-speech test — otherwise a lone
+          // "AYAS" pre-roll + the user's natural pause finalises the capture
+          // before the command is spoken (the "DİNLİYOR → HAZIR" bug).
+          let preRollSpeech = 0;
           for (const f of carried) {
             this.cmd.push(f);
-            this.cmdMs += (f.length / 16000) * 1000;
-            if (frameRms(f) >= PREROLL_SPEECH_RMS) {
-              this.speechMs += (f.length / 16000) * 1000;
-              this.sawSpeech = true;
-            }
+            this.preRollMs += (f.length / 16000) * 1000;
+            if (frameRms(f) >= PREROLL_SPEECH_RMS) preRollSpeech += (f.length / 16000) * 1000;
           }
-          this.silenceMs = 0; // only TRAILING silence ends the command
+          this.preRollFrameCount = carried.length;
+          // One-breath "AYAS kaç proje var": the wake score landed late so the
+          // whole command is already in the pre-roll — treat it as begun.
+          if (preRollSpeech >= PREROLL_COMMAND_HINT_MS) {
+            this.commandStarted = true;
+            this.sawSpeech = true;
+            this.speechMs = preRollSpeech;
+            this.postWakeSpeechMs = COMMAND_MIN_SPEECH_MS;
+          }
           this.emit();
           handlers.onFinalTranscript("AYAS");
         }
@@ -1007,33 +1058,55 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
 
     if (this.phase === "capturing") {
       this.cmd.push(frame.slice(0));
-      this.cmdMs += ms;
+      this.postWakeMs += ms;
       const rms = frameRms(frame);
 
-      // Estimate the room's noise floor from the quietest of the first few live
-      // frames (min is more robust than mean for "what is ambient here").
-      if (this.noiseSamples < NOISE_CAL_FRAMES) {
+      // Estimate the room's noise floor from the quietest of the first few
+      // GENUINELY-QUIET frames — a loud frame (the user already talking) must not
+      // raise the floor and make later pauses read as speech.
+      if (this.noiseSamples < NOISE_CAL_FRAMES && rms < SILENCE_RMS_MAX) {
         this.noiseSum = this.noiseSamples === 0 ? rms : Math.min(this.noiseSum, rms);
         this.noiseSamples += 1;
         this.silenceRms = Math.min(SILENCE_RMS_MAX, Math.max(SILENCE_RMS_MIN, this.noiseSum * 2.2));
       }
 
-      if (rms >= this.silenceRms) {
+      const isSpeech = rms >= this.silenceRms;
+      if (isSpeech) {
         this.speechMs += ms;
+        this.postWakeSpeechMs += ms;
         this.silenceMs = 0;
         this.sawSpeech = true;
       } else {
         this.silenceMs += ms;
       }
 
-      const eosSilence =
-        this.speechMs >= LONG_UTTERANCE_SPEECH_MS ? EOS_SILENCE_SHORT_MS : EOS_SILENCE_LONG_MS;
-      const hasCommand =
-        this.sawSpeech && this.cmdMs >= COMMAND_MIN_MS && this.speechMs >= COMMAND_MIN_SPEECH_MS;
-      const done = this.cmdMs >= COMMAND_MAX_MS || (hasCommand && this.silenceMs >= eosSilence);
+      // The command begins on the first real post-wake speech (or it was already
+      // in a speech-heavy pre-roll). Until then only the onset timeout can end it.
+      if (!this.commandStarted && this.postWakeSpeechMs >= COMMAND_MIN_SPEECH_MS) {
+        this.commandStarted = true;
+        this.gapMs = this.postWakeMs;
+        const speechFrames = Math.max(1, Math.ceil(this.postWakeSpeechMs / ms));
+        this.cmdStartFrameCount = Math.max(0, this.cmd.length - speechFrames);
+      }
+
+      let done: boolean;
+      if (this.commandStarted) {
+        this.commandMs += ms;
+        const eosSilence =
+          this.speechMs >= LONG_UTTERANCE_SPEECH_MS ? EOS_SILENCE_SHORT_MS : EOS_SILENCE_LONG_MS;
+        const hasCommand =
+          this.sawSpeech &&
+          this.postWakeSpeechMs >= COMMAND_MIN_SPEECH_MS &&
+          this.commandMs >= COMMAND_MIN_MS;
+        done = this.commandMs >= COMMAND_MAX_MS || (hasCommand && this.silenceMs >= eosSilence);
+      } else {
+        // Still waiting for the command to start — a bare "AYAS" ends here.
+        done = this.postWakeMs >= COMMAND_ONSET_TIMEOUT_MS;
+      }
+
       if (done) {
         this.tCaptureEnd = Date.now();
-        this.lastCaptureMs = this.cmdMs;
+        this.lastCaptureMs = Math.round(this.preRollMs + this.postWakeMs);
         this.lastWakeToCaptureMs = this.tWake ? this.tCaptureEnd - this.tWake : -1;
         this.phase = "processing";
         void this.finishCommand(handlers);
@@ -1042,9 +1115,22 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   }
 
   private async finishCommand(handlers: AyasListenHandlers): Promise<void> {
-    const merged = new Float32Array(this.cmd.reduce((n, f) => n + f.length, 0));
+    // Choose the audio to transcribe:
+    //  - command never started (a bare "AYAS") → the pre-roll only, no dead air
+    //    (a long silent tail makes whisper hallucinate);
+    //  - long silent gap between "AYAS" and the command → drop the now-stale
+    //    pre-roll wake word + the dead air, keep a short lead-in;
+    //  - otherwise → the whole clip (the pre-roll wake word helps whisper lock
+    //    onto Turkish and `stripLeadingWakeWord` removes it downstream).
+    let frames: Float32Array[] = this.cmd;
+    if (!this.commandStarted) {
+      frames = this.cmd.slice(0, this.preRollFrameCount || this.cmd.length);
+    } else if (this.gapMs > COMMAND_GAP_DROP_PREROLL_MS && this.cmdStartFrameCount > 0) {
+      frames = this.cmd.slice(Math.max(0, this.cmdStartFrameCount - COMMAND_LEADIN_FRAMES));
+    }
+    const merged = new Float32Array(frames.reduce((n, f) => n + f.length, 0));
     let off = 0;
-    for (const f of this.cmd) {
+    for (const f of frames) {
       merged.set(f, off);
       off += f.length;
     }

@@ -21,28 +21,17 @@ export default async function BrainCorePage() {
     ayasModelConfigured(),
     loadAyasAutonomousView(),
   ]);
+  // The operator-diagnostics links (Voice Lab / Audio Lab) live inside
+  // `BrainConsoleView`'s `.bc-shell` footer now — a sibling <p> here inherited the
+  // document colour scheme (dark-on-dark in iOS Light Mode) and sat below the
+  // `min-height: 100dvh` console, so it read as "gone".
   return (
-    <>
-      <BrainCoreConsole
-        initialSnapshot={snapshot}
-        initialAutonomous={autonomous}
-        modelConfigured={modelConfigured}
-        refresh={refreshBrainConsole}
-        askAyas={askAyas}
-      />
-      {/* Operator diagnostics only — the user-facing voice experience is the
-          AYAS card above ("AYAS ile sesli konuş"), not these labs. The installed
-          PWA has no URL bar, so keep them reachable but clearly secondary. */}
-      <p style={{ textAlign: "center", padding: "8px 0 24px", fontSize: 11, opacity: 0.45 }}>
-        Operatör araçları:{" "}
-        <a href="/brain/voice-lab" style={{ color: "inherit" }}>
-          Audio Lab
-        </a>
-        {"  ·  "}
-        <a href="/brain/voice-lab/wake" style={{ color: "inherit" }}>
-          Wake Lab (diagnostics)
-        </a>
-      </p>
-    </>
+    <BrainCoreConsole
+      initialSnapshot={snapshot}
+      initialAutonomous={autonomous}
+      modelConfigured={modelConfigured}
+      refresh={refreshBrainConsole}
+      askAyas={askAyas}
+    />
   );
 }

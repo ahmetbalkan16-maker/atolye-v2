@@ -168,6 +168,19 @@ export function BrainConsoleView(props: BrainConsoleViewProps) {
           </div>
         </section>
       </div>
+
+      {/* Operator diagnostics — kept clearly secondary but genuinely reachable
+          from the installed PWA (no URL bar). Inside `.bc-shell` so it follows
+          the dark theme + is in the scroll flow, never dark-on-dark or off-fold. */}
+      <footer className="bc-labs" data-testid="bc-labs">
+        <span className="bc-labs__title">Operatör tanılama</span>
+        <a className="bc-labs__link" href="/brain/voice-lab/wake" data-testid="bc-labs-wake">
+          AYAS Voice Lab
+        </a>
+        <a className="bc-labs__link" href="/brain/voice-lab" data-testid="bc-labs-audio">
+          Audio Lab
+        </a>
+      </footer>
     </div>
   );
 }

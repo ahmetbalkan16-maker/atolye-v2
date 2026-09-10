@@ -511,6 +511,22 @@ async function run() {
     assert.ok(/aria-label="AYAS —/.test(html));
   });
 
+  await scenario("12b2. Voice Lab is reachable from the Brain screen — inside .bc-shell, themed, not dark-on-dark", () => {
+    const html = renderView({ snapshot: baseSnapshot() });
+    // the diagnostics footer renders inside the shell (so it gets color-scheme: dark)
+    const shellStart = html.indexOf('class="bc-shell"');
+    const shellEnd = html.lastIndexOf("</div>");
+    const labsIdx = html.indexOf('data-testid="bc-labs"');
+    assert.ok(labsIdx > shellStart && labsIdx < shellEnd, "the labs footer is inside .bc-shell");
+    assert.ok(html.includes('href="/brain/voice-lab/wake"'), "links to the existing wake lab route");
+    assert.ok(html.includes('data-testid="bc-labs-wake"') && /AYAS Voice Lab/.test(html));
+    // the old invisibility bugs must be gone: no inline color:inherit, no low opacity
+    const footer = html.slice(labsIdx - 40, html.indexOf("</footer>", labsIdx) + 9);
+    assert.ok(!/color:\s*inherit/i.test(footer), "no color:inherit (was dark-on-dark in iOS light mode)");
+    assert.ok(!/opacity:\s*0?\.[0-4]/.test(footer), "no <0.5 opacity");
+    assert.ok(/bc-labs__link/.test(footer), "uses the themed link class");
+  });
+
   await scenario("12c. chat note is dynamic — no static 'not connected' line when the model is configured", () => {
     const configured = renderView({ snapshot: baseSnapshot(), modelConfigured: true, lastReplySource: "llm" });
     assert.ok(configured.includes('data-testid="bc-chat-note"'));
