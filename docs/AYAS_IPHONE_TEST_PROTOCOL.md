@@ -51,9 +51,15 @@ ertelenir, ve sayfa örneği başına **en fazla bir kez** olur.
 
 ---
 
-## 3. Uzun oturum — reload ve sessiz ölüm avı (10 tur / ~10 dk)
+## 3. Uzun oturum — reload / sessiz ölüm / "Sesli komut engellendi" avı (15 tur / ~15 dk)
 
-Turları arka arkaya yap. **Her 3. turdan sonra** özellikle dikkat et (belirti oradaydı).
+Turları arka arkaya yap. **Her 3–5 turdan sonra** özellikle dikkat et — belirtiler ~3-5 turda çıkıyordu.
+
+> **"Sesli komut engellendi" özel kontrolü (bu turun ana konusu):** Bu mesaj artık YALNIZCA wake
+> motoru bu cihazda **hiç çalışmadıysa** çıkmalı (ilk turdan önce). Birkaç başarılı turdan SONRA
+> mikrofon kesilirse kart **"AYAS ses bağlantısını yeniden kuruyor — dokunarak sürdür"** demeli
+> (turuncu), otomatik toparlanmalı, ve bir dokunuş anında geri getirmeli. "Sesli komut engellendi"
+> / "Mikrofon izni reddedildi. Sesli mod kapatıldı" birkaç turdan sonra çıkarsa → **FAIL**.
 
 | Tur | Komut örneği | Her turda kontrol |
 |-----|--------------|-------------------|
@@ -85,12 +91,19 @@ Tur __ : wake[ ]  STT[ ]  AYAS-cevap[ ]  TTS[ ]  re-arm[ ]   | reload gördün m
 **BAŞARI KRİTERLERİ (hepsi sıfır olmalı):**
 
 - **0** beklenmeyen reload (sen yenilemeden sayfa yenilendi)
+- **0** "Sesli komut engellendi" / "Mikrofon izni reddedildi. Sesli mod kapatıldı" (birkaç turdan sonra)
 - **0** sessiz wake ölümü ("AYAS" diyorsun, hiçbir şey olmuyor, hata da yok)
 - **0** izin yeniden sorma (2.1'den sonra bir daha mikrofon izni istenmemeli)
 - **0** çift mikrofon (iOS'ta üstte "mikrofon kullanılıyor" turuncu nokta tek olmalı, kayıt göstergesi çoğalmamalı)
 - **0** kalıcı suspended AudioContext (TTS'ten sonra wake geri gelmiyor kalıcı olarak)
 - **0** takılı faz (Voice Lab `phase` sürekli `processing` / `speaking`'de kalıyor)
 - **0** recovery loop (`d2w-lifecycle` "recovery count" durmadan artıyor; presence "toparlıyor"da kilitli)
+- **0** browser adapter'a düşme (kart aniden "iPhone: mikrofona dokun, tek nefeste …" moduna geçerse → wake motoru fallback etti = FAIL)
+
+**Kesinti olduğunda beklenen (transient → recovery):**
+- `AudioContext suspended` / `track ended` / TTS kesintisi / arka plan → kart "…yeniden kuruyor",
+  otomatik toparlanır, `recovery count` **1–2 artar sonra durur** (sürekli artmaz).
+- Bir dokunuş her zaman anında geri getirir; izin tekrar sorulmaz.
 
 ---
 

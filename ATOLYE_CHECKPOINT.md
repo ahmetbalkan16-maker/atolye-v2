@@ -1,5 +1,93 @@
 ---
 
+## AYAS Brain — "Sesli komut engellendi" was a transient iOS media error latched as fatal; recoverable `paused` state; gate CLOSED - 2026-09-10
+
+**Branch:** `wip/ayas-graphify-final-execution` (commit `d681cab`, off `76d7fd8`). NOT merged / NOT pushed.
+
+**Symptom (real iPhone):** after a few AYAS turns the screen shows **"Sesli komut engellendi"** and
+the voice system stops (does not come back without a page reload).
+
+**REAL ROOT CAUSE (code trace, no guessing):** the wake pipeline's mic re-acquire path went
+permanently `fatal` on a *transient* iOS media condition, then the host fell the wake engine back
+to the iOS-broken single-shot browser adapter and rendered a permission-denied message.
+
+- Per turn: TTS makes iOS suspend / close the capture `AudioContext` or end the mic track →
+  the re-arm's `recover()` returns false → `rebuildAudio` → `ensureAudio` → **the old
+  `MediaStreamWorkletBackend.start()` did `new AudioContext()` + `getUserMedia()` on EVERY
+  rebuild.**
+- **(1) iOS caps a page at ~4 AudioContexts.** `stop()` called `ctx.close()` without awaiting and
+  nulled it → after ~4 TTS→rebuild cycles `new AudioContext()` throws → 3 quick retries fail →
+  `startAttempts >= MAX_START_ATTEMPTS` → `this.fatal = true` (a one-way latch).
+- **(2) A non-gesture `getUserMedia` on iOS can throw `NotAllowedError`** even with permission
+  granted → the old `isFatalMediaError` → `fatal` immediately.
+- `fatal` → `onUnavailable` → `useAyasVoice.fallBack()` → `setForcedBrowser(true)` → wake engine
+  disposed, `BrowserVoiceAdapter` attached → iOS single-shot, `_listening=false` → **"Mikrofon
+  izni reddedildi. Sesli mod kapatıldı"** shown, voice dead.
+- Likely surfaced *now* because the previous sprint's single-flight fix stopped the ~30 s page
+  reload — the session lives long enough to reach the AudioContext limit.
+
+**FIX (client / UI only — `public/sw.js`, `PwaRegister`, routes, auth, STT/chat/TTS, execution
+gate, `.env.local` all untouched):**
+- **`MediaStreamWorkletBackend` — one `AudioContext` for the adapter's lifetime.** Never closed
+  until `dispose()`. Reuse a **live** mic track — `getUserMedia` only when the track genuinely
+  ended. `addModule` once per context. `stop()` = disconnect the graph, keep the context + mic
+  warm; new `dispose()` = the real teardown. A multi-turn session now creates **exactly one**
+  `AudioContext` and rarely re-runs `getUserMedia` → the iOS ~4-context limit is never hit, the
+  risky non-gesture `getUserMedia` is mostly avoided.
+- **Adapter — recoverable `paused` phase, not `fatal`.** `everHealthy` flag. `fatal` (→ browser
+  fallback) fires ONLY when the wake engine has **never** worked here (a real first-start
+  permission denial / no WASM / no mic hardware). A re-acquire that fails on a session that HAD
+  worked → `paused`: self-heals on a **3 s → 8 s → 20 s** backoff, immediately on a mic tap
+  (`retryNow()`) or on `visibilitychange → visible`. `startListening` no-ops while paused (no
+  `getUserMedia` storm from the engine's re-arm loop). After 3 quiet auto-retries it also
+  surfaces a gentle `mic-interrupted` notice.
+- **Engine + `describeAyasRecognitionError`** — `mic-interrupted` keeps the mic armed, never
+  drops to the `error` state, reads **"AYAS ses bağlantısını yeniden kuruyor. Hemen sürdürmek
+  için mikrofona dokun."** — never "izni reddedildi / kapatıldı".
+- **`useAyasVoice`** — exposes `voicePaused` + `retryVoice()`; a tap while paused calls
+  `retryNow()` (the gesture iOS needs) instead of toggling listening off.
+- **Presence card** — `paused` → "AYAS ses bağlantısını yeniden kuruyor — dokunarak sürdür"
+  (warn) + an actionable "Sesli oturumu sürdür" voice CTA. Offline still wins.
+
+**Transient vs fatal (the directive-2 table), now enforced:** `AudioContext` suspended /
+interrupted / closed, `MediaStreamTrack` ended / muted, `getUserMedia` `AbortError` / timeout /
+non-gesture `NotAllowedError` on a session that worked, `AudioWorklet` / ONNX stall, TTS
+interruption, visibility / pagehide → **recover / paused**. Only a *first-start* `NotAllowedError`
+/ `SecurityError` / `NotFoundError` (never worked, 0 cycles) → **fatal → browser fallback**.
+
+**Verify:** `tsc` 0 · `eslint` 0 err (22 pre-existing) · `next build` exit 0. **Smoke — 17 suites,
+297 scenarios, all green:** `ayas-wake-adapter` 22→**27** (re-acquire fails after healthy →
+`paused` not `fatal` + auto-heal; `retryNow()` tap; first-start denial still `fatal` + fallback;
+**100 consecutive turns → mic acquired ONCE, 0 fatal, 0 paused, 0 leak, recoveryCount 0**;
+`MediaStreamWorkletBackend` reuses the context + track across 10 rebuilds — `ctxCreated 1`,
+`getUserMediaCalls 1`), `ayas-voice` 52→**54** (`mic-interrupted` non-fatal, mic stays armed),
+`brain-core-ui` 33→**34** (paused presence + actionable CTA), + `brain-lifecycle` 14 /
+`ayas-wake-runner` 14 / `graphify-consistency` 9 / security + gate suites unchanged. **Runtime:**
+server restarted on the fresh build (PID 17948); `/brain` → 307 → `/login` local + tunnel;
+`/sw.js` `no-cache, no-store, must-revalidate`. **cloudflared had died with the prior session —
+restarted** (`cloudflared tunnel --url http://localhost:3000`); NEW quick-tunnel hostname
+`documents-lift-aquarium-unwrap.trycloudflare.com` (temporary, NOT hard-coded anywhere);
+`ha_connections 1` / `register_success 1` / **0 reconnects**. Caddy + `.env.local` unchanged.
+**Graphify health re-run:** CONSISTENT-WITH-NOTES, 0 unresolvable, Brain↔Graphify 16 == 16 —
+nothing to fix. `git diff --check` clean; `public/sw.js` / `PwaRegister` / execution gate /
+middleware / `next.config.ts` / `app/api/**` untouched.
+
+**FINAL STATUS: `READY_WITH_OPERATOR_TEST`.** The fatal-latch is removed and the AudioContext
+limit path is eliminated by construction; every automated check is clean including a 100-turn
+run. But "Sesli komut engellendi" only reproduces on the physical iPhone, so **whether it is
+gone** is UNPROVEN on device until the operator re-runs `docs/AYAS_IPHONE_TEST_PROTOCOL.md` §3
+(now 15+ turns / ~15 min). Success adds: 0 "Sesli komut engellendi", and if the mic is ever
+interrupted the card must read "…yeniden kuruyor — dokunarak sürdür" (recoverable) and a tap must
+bring it back.
+
+**Unchanged:** Execution Gate CLOSED, `writeActionsEnabled` false, `AyasExecutionGateStore`,
+auth / CSRF / access gate / session, `AYAS_ACCESS_KEY`, STT + chat + TTS pipeline, `public/sw.js`,
+`PwaRegister`, the deferred-reload + single-flight fixes, Graphify write path, `D:\AtolyeRuntime`
+/ `D:\AtolyeAuthority` authority, Caddy, `.env.local`, `NEXT_PUBLIC_ATOLYE_WAKE_ENGINE=on`,
+firewall. Threshold 0.70.
+
+<!-- BRAIN-IPHONE-VOICE-BLOCKED-TRANSIENT-FATAL-END -->
+
 ## AYAS Brain — iPhone reload PROVEN browser-side; single-flight wake inference + evidence telemetry; gate CLOSED - 2026-09-09
 
 **Branch:** `wip/ayas-graphify-final-execution` (commit `24e6df8`, off `8fd0fcf`). NOT merged / NOT pushed.
