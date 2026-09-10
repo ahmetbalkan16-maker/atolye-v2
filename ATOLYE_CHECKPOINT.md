@@ -1,5 +1,74 @@
 ---
 
+## AYAS — iPHONE MOBİL SES ZİNCİRİ TEŞHİS + ONARIM: wake engine mobil veride sağır — iki kök neden; gate CLOSED - 2026-09-13
+
+**Branch:** `wip/ayas-graphify-final-execution` (fix commit `27a530f`, off `dd611b8`). NOT merged / NOT pushed.
+`git diff --check` clean. 4 dosya, +175/-25.
+
+**Belirti:** gerçek iPhone'da mobil veriden `/brain` açılıyor, login + **metin** çalışıyor, ama telefondan
+konuşunca AYAS DUYMUYOR. PC çalışıyor. Ses kodu `12e9126`'dan beri DEĞİŞMEDİ (Report Center / Optimization
+Loop ses koduna dokunmadı). Tam zincir (PC→PWA→iPhone→mobil veri→Voice Lab→Wake Engine→STT→chat/voice→Brain→
+Report Center→SW) dosya dosya INSPECT edildi.
+
+**İKİ KÖK NEDEN — ikisi de kanıtla, tahminle değil:**
+
+**KN-1 — wake-engine varlıkları AUTH-GATED (kanıtlandı, HTTP-doğrulandı, DÜZELTİLDİ).**
+`accessGate.ts` `OPEN_PREFIXES` listesinde `/wake/` `/ort/` `/worklets/` YOK → `isProtectedPath` true →
+oturum yoksa `/wake/*.onnx`, `/ort/*.wasm`, `/worklets/*.js` → **307 → /login**. `AudioWorklet.addModule` /
+`WebAssembly.instantiateStreaming` login HTML alıyor → reddediyor → wake adapter `fatal` → `onUnavailable`
+→ iOS PWA'da `webkitSpeechRecognition` YOK → **sessiz tam başarısızlık.** curl ile kanıtlandı (cookiesiz
+hepsi 307). Oturum TTL 12s — süre dolunca tekrar ısırır. **FIX:** `OPEN_PREFIXES` += `/wake/` `/ort/`
+`/worklets/` (hassas değil — modeller "AYAS" kelimesini tanır, WASM public `onnxruntime-web` paketi,
+worklet ~3KB frame dilici). **Doğrulandı:** artık cookiesiz **200** + doğru content-type (localhost + tunnel);
+`/brain` hâlâ 307→/login; `/api/ayas/stt` hâlâ 401; `/wakeup` hâlâ korumalı.
+
+**KN-2 — capture AudioContext JEST DIŞINDA oluşturuluyor (kod karşılaştırmasıyla kanıtlandı, DÜZELTİLDİ).**
+`WakeWordVoiceAdapter.startListening()` (mic-tap jesti içinde çağrılır) → `void ensureAudio()` → `await
+runner.init()` (3 ONNX + WASM, hücresel veride SANİYELER) → **ANCAK SONRA** `audio.start()` → `new
+AudioContext()` + `resume()`. O ana kadar kullanıcı aktivasyonu bitmiştir. iOS Safari jest dışı AudioContext'i
+`suspended` bırakır, `resume()` `running` yapmaz → `start()` `audiocontext-not-running` atar → 3 deneme sonra
+`fatal` → aynı ölü fallback. **Kanıt:** aynı iPhone'da `/brain/voice-lab/wake` ÇALIŞIYOR — çünkü `arm()`
+AudioContext'i tap handler'ının EN BAŞINDA, `await`'ten önce senkron oluşturur+resume eder. PC çalışıyor
+çünkü masaüstü Chrome jest dışı resume yapar. **FIX (`wakeWordVoiceAdapter.ts`):** `WakeAudioBackend.prime?()`
+— senkron "AudioContext'i ŞİMDİ oluştur+resume et (await etme)" kancası; `startListening`/`retryNow`/
+`onVisibility` bunu jest/foreground aktivasyonu sıcakken çağırır → sonraki jest-dışı `start()` kutsanmış
+context'i devralır. İzin-dışı ilk başlangıç hatası artık `fatal` değil `enterPaused` (görünür "dokunarak
+sürdür" + çalışan retry — tap `start()`'ı taze aktivasyonda tekrar çalıştırır). Gerçek `NotAllowedError`
+hâlâ `fatal`. Emniyet supabı: hiç sağlıklı olmamış motor `MAX_UNPAUSE_BEFORE_FALLBACK` (6) denemeden sonra
+hâlâ paused → fallback (gerçekten yapamayan cihaz pause döngüsünde kilitlenmez). Masaüstü davranışı değişmedi.
+
+**TESTLER — tsc 0 · eslint 0 err (22 pre-existing) · `next build` 0.**
+`smoke-ayas-wake-adapter` 39→**41** (TEST G yeniden yazıldı: geçici ilk-başlangıç hatası → PAUSED değil fatal
++ bir tap kurtarır; TEST G2: emniyet-supabı fallback; `startListening` prime()'ı SENKRON çağırır kontrolü).
+`smoke-ayas-access-gate` 16→**17** (`/wake/` `/ort/` `/worklets/` OPEN; `/wakeup` + `/api/ayas/stt` korumalı).
+Tüm ayas + brain + selfheal + report + graphify regression yeşil. **Canlı HTTP tekrar-doğrulama:** wake
+varlıkları cookiesiz 200 (localhost + tunnel); `/brain` hâlâ 307; `/sw.js` + `/manifest` 200; tunnel URL
+DEĞİŞMEDİ (`documents-lift-aquarium-unwrap.trycloudflare.com`). Yeni build deploy + server restart; cloudflared
+PID 26852 dokunulmadı. Graphify salt-okunur CONSISTENT-WITH-NOTES 16==16.
+
+**GÜVENLİK:** gate CLOSED / `writeActionsEnabled` false — değişmedi. KN-1 yalnız statik hassas-olmayan yol açar
+(uygulama + tüm `/api/**` gated kalır). KN-2 client-only ses-adapter timing. Self-Heal/Report Center/
+Optimization Loop güvenlik modeli, `D:`/Caddy/firewall/Tailscale/`.env`/tunnel — dokunulmadı.
+
+**FINAL STATUS:**
+`MICROPHONE = PASS` · `AUDIO_CAPTURE = UNKNOWN` (kod düzeltildi — jest-içi prime; iPhone testi gerekli) ·
+`WAKE_ENGINE = UNKNOWN` (varlıklar açıldı+doğrulandı; AudioContext düzeltildi; recall = operatör tuning) ·
+`STT = PASS` · `CHAT = PASS` · `TTS = PASS` · `PWA = PASS` · `BRAIN_DETECTION = FAIL` (ses-sağlığı sunucu
+tarafında gözlemlenmiyor — artık en azından kullanıcıya görünür) · `SECURITY = PASS` · `BUILD = PASS` ·
+`GRAPHIFY = CONSISTENT` · `GIT = CLEAN`. **`VOICE_PIPELINE_READY = NOT READY (READY_WITH_OPERATOR_TEST)`**.
+Gerçek iPhone testi yapılmadı (bu ortamdan fiziksel mikrofona erişim yok) — KN-1 tam HTTP-doğrulandı,
+KN-2 kod-seviyesi düzeltme (Voice Lab vs `/brain` yol karşılaştırması) operatörün cihaz kontrolü gerektirir.
+Operatör adımları + telefon URL'i raporda. Rapor: `AYAS_MOBILE_VOICE_DIAGNOSTIC_FINAL_REPORT.md`.
+
+**Sonraki:** (1) operatör §REAL DEVICE TEST'i fiziksel iPhone'da mobil veriden çalıştırır. (2) wake yine
+tetiklenmezse (`audioContextState: running` iken) model-recall retrain (~30 gerçek "AYAS" klibi). (3) küçük
+takip: `POST /api/brain/voice-health` beacon → `observeForSelfHeal` → wake pipeline sağlıksızsa `voice`
+incident açar (asla auto-apply'a bağlı değil).
+
+**PUSH YAPILMADI · MERGE YAPILMADI · DEPLOY YAPILMADI.**
+
+---
+
 ## ATÖLYE BRAIN — AYAS OPTIMIZATION LOOP: BrainOptimizationLoop ↔ Voice Lab latency feed; gate CLOSED - 2026-09-13
 
 **Branch:** `wip/ayas-graphify-final-execution` (commit `331070e`, off `089789b`). NOT merged / NOT pushed.
