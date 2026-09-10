@@ -1,5 +1,74 @@
 ---
 
+## ATÖLYE BRAIN — AYAS OPTIMIZATION LOOP: BrainOptimizationLoop ↔ Voice Lab latency feed; gate CLOSED - 2026-09-13
+
+**Branch:** `wip/ayas-graphify-final-execution` (commit `331070e`, off `089789b`). NOT merged / NOT pushed.
+`git diff --check` clean. 16 dosya, +1279/-7.
+
+**Ne değişti:** Self-Heal v1/v2 + Report Center + Self-Learning mimarisine **dokunmadan** eksik kalan tek
+parça tamamlandı: `BrainOptimizationLoop` artık ses pipeline'ının zaten ürettiği gerçek per-turn
+latency mark'larını (`lastCaptureMs`/`lastSttMs`/`lastWakeToCaptureMs` — `WakeAdapterStatus` +
+`BrainLifecycleTelemetry`, Voice Lab report JSON'unda) okuyabiliyor, deterministik değerlendiriyor ve
+sonucu AYAS Report Center zincirinde gösteriyor.
+
+**YENİ SAF MODÜL — `src/lib/brain/selfheal/BrainVoiceLatency.ts`:**
+- `BrainVoiceLatencySample` + `BRAIN_LATENCY_METRICS` (`captureMs`/`sttMs`/`wakeToCaptureMs`/`totalTurnMs`
+  — gerçek contract adları)
+- `extractLatencySamples()` — GÜVENİLMEYEN Voice Lab report → doğrulanmış mark'lar. Doğrulama: sayı ·
+  negatif değil · makul aralık (≤ 120 sn) · bilinen metrik · ISO timestamp; talimat-şekilli
+  `source`/`sessionId` reddedilir; `-1` boşta sentinel'i hata değil, atlanır; `totalTurnMs =
+  wakeToCapture + stt` türetilir
+- `normalizeLatencySamples()` — dedupe · clamp · sentinel at · bayat at · sırala · sınırla
+- `buildLatencyBaseline()` — metrik başına median-of-N + p90
+- `observeVoiceLatency()` — eski pencere vs güncel pencere → metrik başına bulgu: `REGRESSION` (≥ %20
+  yavaş) / `IMPROVED` (≥ %15 hızlı) / `STABLE` / `UNKNOWN`. **Herhangi bir pencere yetersiz örneklenmişse
+  `UNKNOWN` — asla uydurulmuş REGRESSION/CRASH.** Güven = örnek sayısı + split dengesi + etki büyüklüğü.
+- `buildLatencyIncident()` — güvenilir (≥ 0.4) `REGRESSION` → **`performance` incident TASLAĞI: patch YOK,
+  hipotez YOK — bir GÖZLEM.** classification `REAL_INCIDENT` (güven ≥ 0.7) yoksa `UNKNOWN`, asla CRASH.
+
+**BAĞLANTI:** `BrainSelfHealStore` (+`appendLatencySamples`/`loadLatencySamples` → `latency.json`, bounded
+ring, atomik, secret-reject) · `BrainReportCenter` (+`latency: BrainLatencyObservation | null` görünümde;
+`buildAyasReportSpokenAnswer` regresyonda bir konuşma-Türkçesi cümle ekler) · `BrainSelfHealConsoleSnapshot`
+(store'daki örneklerin üzerinde `observeVoiceLatency` çalıştırır) · `BrainSelfHealingPanel` ("Ses gecikmesi
+(optimizasyon)" bloğu — headline + metrik başına baz/güncel/trend/örnek; onaylanabilir bir düzeltme DEĞİL)
+· `scripts/selfheal.ts` (+`latency [<voice-lab-report.json>]` — argümansız: store'dan salt-okunur gözlem;
+argümanla: ingest + observe + güvenilir regresyonda `performance` incident aç, sonra DUR).
+
+**GÜVENLİK (§0/§8/§12):** latency yolu yalnız-gözlem. `BrainVoiceLatency` sadece `buildBrainIncident` +
+`sanitizeUntrustedNote` import eder — fs YOK, child_process YOK, runner YOK, sandbox YOK. Zincir: VOICE
+LATENCY → OBSERVATION → FINDING → REPORT → operatör kararı → Node CLI → sandbox → apply. Bir latency bulgusu
+asla otomatik ilerlemez (`smoke-brain-latency-e2e` senaryo 5: reload'larda incident `OBSERVED` kalıyor).
+Browser buraya hiçbir şey yazmaz. `ayasExecutionGate = "CLOSED"`, `writeActionsEnabled = false`,
+`NEVER_AUTO_APPLY`, karar çekirdeği — değişmedi, yeniden doğrulandı.
+
+**TESTLER — tsc 0 · eslint 0 err (22 pre-existing) · `next build` 0.**
+`smoke-brain-voice-latency` **17** (ingest / geçersiz mark / injection / baseline / regression / improved /
+stable / UNKNOWN / incident / tehlikeli-ref-yok). `smoke-brain-latency-e2e` **6** (gerçek store: sağlıklı
+feed → STABLE / regresyon → zincirde `performance` incident, patch/hipotez yok, karar-verilemez / "rapor
+ver" güvenli özetler / ince feed → UNKNOWN, incident yok, iddia yok / otomatik-ilerleme yok / secret asla
+store'a). `smoke-brain-report-center` 13→**14**, `-report-voice-command` 8→**9**, `-report-security` 8→**9**,
+`-selfheal-observe-ui` 12→**13**, `-selfheal-store` 9→**10**. Tüm brain+selfheal+report+ayas+graphify
+suite'leri yeşil. **Canlı CLI yürüyüşü (gerçek store):** `latency <batch>` (34 mark) → REGRESSION +%75
+güven 0.76 → `sh-67666cae` (performance/REAL_INCIDENT) açıldı; `latency` salt-okunur; `status` gösterdi;
+`report` → ROOT CAUSE "not established", FIX "none" (gözlem). Sentetik incident + `latency.json` temizlendi.
+Graphify salt-okunur: CONSISTENT-WITH-NOTES, 16==16.
+
+**FINAL STATUS:** `OPTIMIZATION_LOOP_READY = READY` (gerçek feed okur, baseline hesaplar, regresyon tespit
+eder, Report Center + sesle gösterir — feed operatör-beslemeli `selfheal latency <report.json>`, henüz
+push-beslemeli değil; canlı ingest endpoint'i küçük opsiyonel takip) · `SECURITY = PASS` · `REPORT_CENTER =
+READY` · `GRAPHIFY = CONSISTENT` · `GIT = CLEAN` · `PUSH = NO` · `MERGE = NO` · `DEPLOY = NO`.
+**iPhone testi bu sprintte YAPILMADI (talimat gereği).**
+Rapor: `AYAS_OPTIMIZATION_LOOP_FINAL_REPORT.md`.
+
+**Bilinen sınırlar:** (a) feed operatör-beslemeli (`selfheal latency`), push-beslemeli değil — canlı
+`POST /api/brain/voice-latency` (auth-gated) küçük opsiyonel takip. (b) latency regresyonu otomatik fix
+hipotezi çıkarmaz (§8 gereği — gözlem; operatör `heal --patch` ile önerir; STT/voice `REVIEW_REQUIRED` +
+`NEVER_AUTO_APPLY`). (c) `compareBenchmark` accept/reject adımı hâlâ operatör/fixture-beslemeli.
+
+**PUSH YAPILMADI · MERGE YAPILMADI · DEPLOY YAPILMADI.**
+
+---
+
 ## ATÖLYE BRAIN — AYAS REPORT CENTER: operator-facing self-heal reports + ONAYLA/REDDET/DAHA SONRA + "rapor ver"; gate CLOSED - 2026-09-12
 
 **Branch:** `wip/ayas-graphify-final-execution` (commit `8d49f60`, off `d69f2d8`). NOT merged / NOT pushed.
