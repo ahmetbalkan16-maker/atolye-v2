@@ -11,17 +11,19 @@
  * glows, no cyberpunk neon.
  */
 
-.bc-root {
-  --bc-bg: #04050a;
-  --bc-bg-2: #080a12;
-  --bc-surface: rgba(255, 255, 255, 0.028);
+.bc-root,
+.bc-shell {
+  --bc-bg: #030409;
+  --bc-bg-2: #05060d;
+  --bc-bg-deep: #010103;
+  --bc-surface: rgba(255, 255, 255, 0.026);
   --bc-surface-2: rgba(255, 255, 255, 0.05);
-  --bc-border: rgba(255, 255, 255, 0.09);
+  --bc-border: rgba(255, 255, 255, 0.085);
   --bc-border-strong: rgba(255, 255, 255, 0.16);
   --bc-text: #e9edf7;
   --bc-text-dim: #8b94a9;
   --bc-text-faint: #5a6274;
-  --bc-hue: 190;            /* cyan default */
+  --bc-hue: 208;            /* deep premium blue (was cyan 190) */
   --bc-accent: hsl(var(--bc-hue) 85% 64%);
   --bc-accent-bright: hsl(var(--bc-hue) 100% 78%);
   --bc-accent-soft: hsl(var(--bc-hue) 85% 60% / 0.15);
@@ -29,13 +31,22 @@
   --bc-intensity: 0.35;
   --bc-orb-size: clamp(220px, 46vw, 380px);
   color: var(--bc-text);
+  color-scheme: dark;
   font-feature-settings: "tnum" 1, "cv05" 1;
 }
 
-.bc-root[data-hue="cyan"] { --bc-hue: 190; }
-.bc-root[data-hue="violet"] { --bc-hue: 262; }
+/* The brain experience owns the whole viewport — no white body behind the
+   iOS overscroll / safe-area / notch, in either colour scheme. */
+html:has(.bc-shell),
+body:has(.bc-shell) {
+  background: var(--bc-bg-deep, #010103);
+}
+
+/* Resting family shifted from cyan (190) toward a deep premium blue. */
+.bc-root[data-hue="cyan"] { --bc-hue: 206; }
+.bc-root[data-hue="violet"] { --bc-hue: 258; }
 .bc-root[data-hue="amber"] { --bc-hue: 38; }
-.bc-root[data-hue="emerald"] { --bc-hue: 154; }
+.bc-root[data-hue="emerald"] { --bc-hue: 156; }
 .bc-root[data-hue="rose"] { --bc-hue: 348; }
 
 /* =============================================================== shell === */
@@ -46,9 +57,12 @@
   overflow-x: hidden;
   background: var(--bc-bg);
   background-image:
-    radial-gradient(1100px 620px at 50% -12%, hsl(var(--bc-hue) 55% 32% / 0.16), transparent 70%),
-    radial-gradient(760px 520px at 88% 8%, hsl(var(--bc-hue) 60% 40% / 0.07), transparent 72%),
-    linear-gradient(180deg, var(--bc-bg-2), var(--bc-bg) 46%);
+    /* soft light depth toward the AYAS core, centre-top */
+    radial-gradient(900px 560px at 50% 14%, hsl(var(--bc-hue) 62% 34% / 0.16), transparent 66%),
+    radial-gradient(1300px 720px at 50% -14%, hsl(var(--bc-hue) 52% 30% / 0.12), transparent 72%),
+    radial-gradient(680px 480px at 90% 6%, hsl(var(--bc-hue) 60% 42% / 0.055), transparent 72%),
+    /* darker toward the bottom / edges */
+    linear-gradient(180deg, var(--bc-bg-2), var(--bc-bg) 40%, var(--bc-bg-deep) 100%);
   padding: clamp(16px, 4vw, 44px);
   /* Keep the console clear of a phone's notch / home indicator. */
   padding-left: max(clamp(16px, 4vw, 44px), env(safe-area-inset-left));
@@ -65,17 +79,19 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1.4px);
-  background-size: 44px 44px;
-  mask-image: radial-gradient(1200px 780px at 50% 22%, #000 0%, transparent 78%);
-  opacity: 0.5;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1.4px);
+  background-size: 46px 46px;
+  mask-image: radial-gradient(1100px 720px at 50% 20%, #000 0%, transparent 76%);
+  opacity: 0.42;
 }
 .bc-shell::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  box-shadow: inset 0 0 240px 40px rgba(0, 0, 0, 0.55);
+  /* deep cinematic vignette — edges recede, centre stays open */
+  background: radial-gradient(120% 90% at 50% 20%, transparent 42%, rgba(1, 1, 3, 0.55) 100%);
+  box-shadow: inset 0 0 320px 56px rgba(0, 0, 0, 0.6);
 }
 .bc-shell > * { position: relative; z-index: 1; }
 
@@ -717,18 +733,37 @@
 /* -------------------------------------------------- AYAS presence card --- */
 
 .bc-presence {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
+  padding: 18px;
   border: 1px solid var(--bc-border);
-  border-radius: 16px;
+  border-radius: 18px;
   background:
-    linear-gradient(180deg, var(--bc-surface-2), var(--bc-surface)),
-    var(--bc-bg-2);
-  box-shadow: 0 18px 40px -28px var(--bc-accent-glow);
+    linear-gradient(180deg, hsl(var(--bc-hue) 40% 12% / 0.55), hsl(var(--bc-hue) 30% 7% / 0.45)),
+    rgba(6, 8, 14, 0.72);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  box-shadow:
+    0 24px 60px -34px var(--bc-accent-glow),
+    0 1px 0 0 rgba(255, 255, 255, 0.06) inset,
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset;
 }
-.bc-presence--warn { border-color: hsl(38 90% 60% / 0.4); }
+/* hairline top highlight — the "premium glass" edge */
+.bc-presence::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  border-radius: 18px 18px 0 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14) 22%, rgba(255, 255, 255, 0.14) 78%, transparent);
+  pointer-events: none;
+}
+.bc-presence--warn {
+  border-color: hsl(38 90% 60% / 0.42);
+  box-shadow: 0 24px 60px -34px hsl(38 90% 55% / 0.35), 0 1px 0 0 rgba(255, 255, 255, 0.06) inset;
+}
 .bc-presence--off { border-color: var(--bc-border); opacity: 0.92; }
 
 .bc-presence__head {
