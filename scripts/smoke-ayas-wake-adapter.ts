@@ -218,6 +218,25 @@ async function run() {
     a.dispose();
   });
 
+  await scenario("iOS AudioContext — startListening primes the backend SYNCHRONOUSLY (in the tap gesture, before any await)", () => {
+    let primes = 0;
+    let primedBeforeStart = false;
+    let started = false;
+    const backend: WakeAudioBackend = {
+      supported: true,
+      prime() { primes += 1; if (!started) primedBeforeStart = true; },
+      async start(cb: (f: Float32Array) => void) { started = true; void cb; },
+      stop() {},
+    };
+    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x", ...FAST });
+    a.startListening("tr-TR", collectHandlers().handlers);
+    // synchronous check — prime() must have run in startListening's own call frame,
+    // NOT deferred to ensureAudio (which runs after `await runner.init()`).
+    assert.equal(primes, 1, "prime() called exactly once, synchronously");
+    assert.equal(primedBeforeStart, true, "primed while the gesture is still hot — before start()");
+    a.dispose();
+  });
+
   await scenario("TEST A — first wake → response → SECOND wake", async () => {
     const backend = new FakeBackend();
     const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "kaç proje var", ...FAST });
@@ -343,29 +362,63 @@ async function run() {
     a.dispose();
   });
 
-  await scenario("TEST G — transient getUserMedia failure → bounded retry (3) then fatal", async () => {
+  await scenario("TEST G — transient first-start failure (non-permission) → PAUSED not fatal; a tap recovers it", async () => {
+    // The iOS root cause: the AudioContext is created off-gesture (after the
+    // ONNX/WASM load) and stays `suspended` → start() throws
+    // `audiocontext-not-running`. That must NOT go fatal (a silent fallback to a
+    // browser adapter that on an iOS PWA hears nothing) — it pauses with a
+    // "tap to resume", and a tap (fresh activation) recovers it.
     let starts = 0;
+    let primes = 0;
+    let failsLeft = 3;
     const flaky: WakeAudioBackend = {
       supported: true,
-      async start() { starts += 1; throw new Error("AbortError transient"); },
+      prime() { primes += 1; },
+      async start(cb: (f: Float32Array) => void) {
+        starts += 1;
+        if (failsLeft > 0) { failsLeft -= 1; throw new Error("audiocontext-not-running"); }
+        void cb;
+      },
       stop() {},
     };
     let unavailable = 0;
     const a = new WakeWordVoiceAdapter({
       audioBackend: flaky, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x",
-      onUnavailable: () => { unavailable += 1; }, startRetryBackoffMs: 1,
+      onUnavailable: () => { unavailable += 1; }, startRetryBackoffMs: 1, pausedRetryMs: 10_000,
     });
     const c = collectHandlers();
     a.startListening("tr-TR", c.handlers);
     await wait(30);
-    assert.equal(starts, 3);
+    assert.equal(starts, 3, "MAX_START_ATTEMPTS, then pause — not an endless storm");
+    assert.equal(unavailable, 0, "NOT fatal / no fallback for a transient non-permission failure");
+    assert.equal(a.getStatus().mic, "paused");
+    assert.equal(primes >= 1, true, "startListening primed the AudioContext in-gesture");
+
+    // the tap: backend now succeeds, retryNow() drives a fresh start
+    a.retryNow();
+    await settle(15);
+    assert.equal(a.getStatus().mic, "on", "a tap recovered the wake engine");
+    a.dispose();
+  });
+
+  await scenario("TEST G2 — a never-healthy engine still paused after the safety cap → falls back", async () => {
+    fireVisibility("visible");
+    let unavailable = 0;
+    const dead: WakeAudioBackend = {
+      supported: true,
+      async start() { throw new Error("audiocontext-not-running"); },
+      stop() {},
+    };
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: dead, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x",
+      onUnavailable: () => { unavailable += 1; }, startRetryBackoffMs: 1, pausedRetryMs: 1,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    // let the auto-retries run past MAX_UNPAUSE_BEFORE_FALLBACK (6)
+    for (let i = 0; i < 40 && a.getStatus().mic !== "fatal"; i += 1) await wait(25);
+    assert.equal(a.getStatus().mic, "fatal", "a genuinely incapable device eventually falls back");
     assert.equal(unavailable, 1);
-    assert.equal(a.getStatus().mic, "fatal");
-    const before = starts;
-    a.startListening("tr-TR", c.handlers);
-    a.startListening("tr-TR", c.handlers);
-    await settle();
-    assert.equal(starts, before, "no further start() after fatal — no storm");
     a.dispose();
   });
 

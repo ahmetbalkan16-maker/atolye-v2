@@ -101,6 +101,13 @@ const FRAME_STALL_MS = 2500;
  * immediately on a mic tap or when the tab returns to the foreground.
  */
 const PAUSED_RETRY_BACKOFF_MS = [3_000, 8_000, 20_000] as const;
+/**
+ * A never-healthy wake engine that is still paused after this many recovery
+ * attempts is on a device that truly can't run it → fall back to the browser
+ * adapter. Generous, because on a slow iOS device the first few attempts can
+ * time out on the ONNX / WASM load or need one more gesture for the AudioContext.
+ */
+const MAX_UNPAUSE_BEFORE_FALLBACK = 6;
 /** Auto-retries from `paused` before AYAS also shows a visible "tap to resume". */
 const PAUSED_RETRIES_BEFORE_PROMPT = 3;
 
@@ -339,6 +346,17 @@ export interface WakeAudioBackend {
    * per turn eventually cannot start at all.
    */
   start(onFrame: (frame: Float32Array) => void): Promise<void>;
+  /**
+   * Synchronous, best-effort: create + `resume()` the capture AudioContext RIGHT
+   * NOW, while a user gesture (the mic tap) is still an active user activation.
+   * iOS Safari only lets an AudioContext reach `running` when it is created /
+   * resumed inside a user activation — but `start()` runs from `ensureAudio`,
+   * AFTER `await runner.init()` (a multi-second ONNX / WASM load), by which time
+   * the gesture is long gone and the context would stay `suspended`. The adapter
+   * calls this from inside `startListening` so the later `start()` inherits a
+   * blessed context. No-op on a backend without a real AudioContext. Optional.
+   */
+  prime?(): void;
   /** Between-turn pause: disconnect the graph but keep the context + mic warm. */
   stop(): void;
   /**
@@ -498,6 +516,9 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   private watchdog: ReturnType<typeof setTimeout> | null = null;
   private readonly onVisibility = () => {
     if (typeof document === "undefined" || document.visibilityState !== "visible") return;
+    // Returning to the foreground is a user action iOS accepts for AudioContext
+    // resume — prime before the recovery path re-touches it.
+    this.audio.prime?.();
     if (this.paused) void this.attemptUnpause("foreground");
     else void this.resumeOrRebuild("foreground");
   };
@@ -561,6 +582,9 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
    */
   retryNow(): void {
     if (this.disposed || this.fatal) return;
+    // This runs inside a mic-tap user activation — bless the AudioContext now so
+    // the resume() in start() (off-gesture) can move it to `running`.
+    this.audio.prime?.();
     if (this.pausedRetryTimer) {
       clearTimeout(this.pausedRetryTimer);
       this.pausedRetryTimer = null;
@@ -690,6 +714,12 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
 
     this.resetCommand();
 
+    // iOS: `startListening` is called from inside the mic-tap user activation.
+    // Bless the AudioContext NOW — `ensureAudio` / `ensureWakeReady` create /
+    // resume it much later (after the ONNX + WASM load), off-gesture, when iOS
+    // would leave it `suspended` and `start()` throws `audiocontext-not-running`.
+    this.audio.prime?.();
+
     if (this.audioUp) {
       // Re-arm after a turn: the mic + worklet are still live, but the iOS
       // AudioContext may have been suspended during TTS — verify + resume before
@@ -762,17 +792,15 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
             return;
           }
           if (this.startAttempts >= MAX_START_ATTEMPTS) {
-            if (neverWorked) {
-              // Never worked AND not a permission error (e.g. no WASM / worklet)
-              // — still a real "this device can't run the wake engine".
-              this.fatal = true;
-              this.phase = "fatal";
-              this.emit();
-              this.onUnavailable?.("start-blocked");
-              handlers.onError("start-blocked");
-              handlers.onEnd();
-              return;
-            }
+            // A device that passed `isWakeEngineCapable` (AudioWorkletNode +
+            // getUserMedia + secure context) but still can't start is almost
+            // always transient / gesture / slow-network — most often iOS leaving
+            // the AudioContext `suspended` because it was created off-gesture
+            // ("audiocontext-not-running"). Pause with a visible "tap to resume"
+            // (a tap re-runs `start()` inside a fresh activation) rather than a
+            // silent, permanent fallback to the browser adapter — which on an
+            // iOS installed PWA has no SpeechRecognition and hears nothing.
+            // A genuine permission denial (`NotAllowedError`) is handled above.
             this.enterPaused(handlers);
             return;
           }
@@ -824,6 +852,20 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     if (this.disposed || this.fatal || !this.paused) return;
     const h = this.handlers;
     if (!h) return;
+    // Safety valve: a wake engine that has NEVER produced a healthy start after
+    // this many recovery attempts (auto + at least one gesture) is on a device
+    // that genuinely cannot run it — fall back to the browser adapter instead of
+    // pausing forever. A session that HAD worked keeps self-healing indefinitely.
+    if (!this.everHealthy && this.pausedRetries >= MAX_UNPAUSE_BEFORE_FALLBACK) {
+      this.paused = false;
+      this.fatal = true;
+      this.phase = "fatal";
+      this.emit();
+      this.onUnavailable?.("start-blocked");
+      h.onError("start-blocked");
+      h.onEnd();
+      return;
+    }
     // An auto retry while the tab is hidden wastes a getUserMedia attempt (iOS
     // denies it) — hold for the next tick / a foreground event.
     if (source === "auto" && typeof document !== "undefined" && document.visibilityState !== "visible") {
@@ -1230,11 +1272,36 @@ export class MediaStreamWorkletBackend implements WakeAudioBackend {
     };
   }
 
-  private ctxCtor(): typeof AudioContext {
+  private ctxCtor(): typeof AudioContext | undefined {
+    if (typeof window === "undefined") return undefined;
     return (
       (typeof window.AudioContext === "function" ? window.AudioContext : undefined) ??
-      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
     );
+  }
+
+  /**
+   * In-gesture AudioContext unlock (see {@link WakeAudioBackend.prime}).
+   * Synchronous: create the context (or reuse a non-closed one) and kick off
+   * `resume()` without awaiting — so it happens while the mic tap is still a
+   * user activation. `start()` then reuses this blessed context.
+   */
+  prime(): void {
+    try {
+      if (typeof window === "undefined") return;
+      if (!this.ctx || this.ctx.state === "closed") {
+        const Ctor = this.ctxCtor();
+        if (!Ctor) return;
+        this.ctx = new Ctor();
+        this.nCtxCreated += 1;
+        this.moduleLoaded = false;
+      }
+      // fire-and-forget — resuming inside the activation blesses the context so
+      // the later off-gesture resume() in start() can move it to `running`.
+      void this.ctx.resume().catch(() => {});
+    } catch {
+      /* best-effort — start() surfaces any real failure */
+    }
   }
 
   private liveTrack(): MediaStreamTrack | null {
@@ -1250,9 +1317,11 @@ export class MediaStreamWorkletBackend implements WakeAudioBackend {
    * off the non-gesture `getUserMedia` path.
    */
   async start(onFrame: (frame: Float32Array) => void): Promise<void> {
-    // 1. AudioContext — reuse unless iOS closed it.
+    // 1. AudioContext — reuse the (ideally gesture-primed) one unless iOS closed it.
     if (!this.ctx || this.ctx.state === "closed") {
-      this.ctx = new (this.ctxCtor())();
+      const Ctor = this.ctxCtor();
+      if (!Ctor) throw new Error("no-audiocontext-constructor");
+      this.ctx = new Ctor();
       this.nCtxCreated += 1;
       this.moduleLoaded = false;
     }

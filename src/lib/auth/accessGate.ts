@@ -126,6 +126,17 @@ const OPEN_PREFIXES: readonly string[] = [
   // PWA icons — the browser fetches the manifest's icons for the install prompt
   // before any session exists.
   "/icons/",
+  // On-device wake-engine assets: the static openWakeWord / "AYAS" ONNX models
+  // (`/wake/`), the onnxruntime-web WASM runtime (`/ort/`), and the audio-capture
+  // AudioWorklet (`/worklets/`). None are sensitive — the models only detect the
+  // word "AYAS", the WASM is the public `onnxruntime-web` package, the worklet is
+  // a ~3 KB frame slicer. They are loaded by `AudioWorklet.addModule` /
+  // `WebAssembly.instantiateStreaming`, which choke on a 307 → /login HTML
+  // redirect: gating them silently kills the wake engine on ANY expired session
+  // (12 h TTL) and it never recovers without a full re-navigation + re-login.
+  "/wake/",
+  "/ort/",
+  "/worklets/",
 ];
 const OPEN_EXACT: readonly string[] = [
   "/favicon.ico",

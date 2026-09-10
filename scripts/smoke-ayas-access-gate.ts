@@ -105,6 +105,23 @@ async function main() {
     }
   });
 
+  await scenario("isProtectedPath: on-device wake-engine assets are OPEN (a 307→/login breaks addModule / WASM)", () => {
+    for (const p of [
+      "/wake/ayas.onnx",
+      "/wake/melspectrogram.onnx",
+      "/wake/embedding_model.onnx",
+      "/ort/ort-wasm-simd-threaded.wasm",
+      "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "/worklets/d2-wake-lab-processor.js",
+      "/worklets/d2-audio-lab-processor.js",
+    ]) {
+      assert.equal(isProtectedPath(p), false, `${p} must be open — the wake engine loads it before/without a live session`);
+    }
+    // still protected: the STT + chat routes, and anything that isn't a wake asset
+    assert.equal(isProtectedPath("/api/ayas/stt"), true);
+    assert.equal(isProtectedPath("/wakeup"), true, "prefix match must be exact — /wakeup is not /wake/");
+  });
+
   await scenario("isRequestOverHttps: forwarded-proto aware, production always secure, dev http not", () => {
     // production → always Secure (production must be HTTPS)
     assert.equal(isRequestOverHttps({ urlProtocol: "http:", forwardedProto: null, forwardedSsl: null, nodeEnv: "production" }), true);
