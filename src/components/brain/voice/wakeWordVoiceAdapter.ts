@@ -34,10 +34,26 @@ import { OpenWakeWordRunner } from "./wake/openWakeWordRunner";
 import { encodeWav16kMono } from "./wake/wav";
 
 const FRAME = 1280; // 80 ms @ 16 kHz — matches the worklet + openWakeWord
-const COMMAND_MAX_MS = 6000;
-const COMMAND_SILENCE_MS = 900;
-const COMMAND_MIN_MS = 350;
-const REARM_COOLDOWN_MS = 700;
+/** Hard cap on one spoken command — a long question still fits. */
+const COMMAND_MAX_MS = 8000;
+/**
+ * End-of-speech trailing silence. A short utterance is more likely still being
+ * formed → give it longer; a long one is more likely finished → end sooner.
+ * Old value (900 ms flat) cut people off mid-sentence when they paused to think.
+ */
+const EOS_SILENCE_LONG_MS = 1000; // short/medium utterance — room to pause & think
+const EOS_SILENCE_SHORT_MS = 700; // clearly-complete long utterance — end sooner
+const LONG_UTTERANCE_SPEECH_MS = 2000;
+/** A command must carry at least this much elapsed time AND real speech. */
+const COMMAND_MIN_MS = 450;
+const COMMAND_MIN_SPEECH_MS = 250;
+/** Wake-word onset can bleed into the first command frames — keep a short pre-roll. */
+const PREROLL_FRAMES = 4; // ~320 ms
+/** Silence RMS floor — the adaptive threshold never drops below / rises above this. */
+const SILENCE_RMS_MIN = 0.010;
+const SILENCE_RMS_MAX = 0.05;
+/** After a turn the wake path ignores audio this long (echo / TTS tail). */
+const REARM_COOLDOWN_MS = 350;
 /** getUserMedia / ONNX load can hang on iOS — bound it so a hang can't wedge AYAS. */
 const AUDIO_START_TIMEOUT_MS = 12_000;
 /** Transient start failures (AbortError, timeout) get this many retries before fatal. */
@@ -108,10 +124,14 @@ export interface WakeAdapterStatus {
   readonly recoveryCount: number;
   /** ms since the last 80 ms frame arrived (`-1` before the first frame). */
   readonly frameAgeMs: number;
-  /** Wake frames dropped because inference was still busy (iOS back-pressure). */
+  /** Wake samples the runner dropped under sustained overload (contiguous otherwise). */
   readonly droppedFrames: number;
   /** The capture AudioContext state, or `"unknown"`. */
   readonly audioContextState: string;
+  /** Last turn: command capture duration (ms), STT round-trip (ms), wake→capture-end (ms). `-1` = none yet. */
+  readonly lastCaptureMs: number;
+  readonly lastSttMs: number;
+  readonly lastWakeToCaptureMs: number;
   readonly lastError: string | null;
 }
 
@@ -156,6 +176,8 @@ export interface WakeWordAdapterOptions {
 
 export interface WakeRunnerLike {
   readonly ready: boolean;
+  /** Numeric-only diagnostics (frames / inferences / dropped / lastScore …). */
+  readonly stats?: { readonly dropped: number; readonly inferences: number; readonly lastError: string | null };
   init(): Promise<void>;
   reset(): void;
   dispose(): void;
@@ -272,12 +294,27 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   private cmd: Float32Array[] = [];
   private cmdMs = 0;
   private silenceMs = 0;
+  private speechMs = 0;
+  private sawSpeech = false;
+  /** Adaptive silence RMS threshold — calibrated from the first frames of a capture. */
+  private silenceRms = 0.012;
+  private noiseSamples = 0;
+  private noiseSum = 0;
+  /** Ring buffer of the most recent wake-phase frames, prepended to a new capture. */
+  private preRoll: Float32Array[] = [];
   private cooldownUntil = 0;
+  /** Per-turn latency marks (ms epoch) — surfaced via onStatus, no audio. */
+  private tWake = 0;
+  private tCaptureEnd = 0;
+  private tSttStart = 0;
+  private lastSttMs = -1;
+  private lastCaptureMs = -1;
+  private lastWakeToCaptureMs = -1;
 
   private audioUp = false;
   private starting: Promise<void> | null = null;
   private recovering = false;
-  /** A wake inference is running — drop frames that land meanwhile (bounded memory). */
+  /** A wake score-check is pending — the runner still buffers every frame. */
   private accepting = false;
   private droppedFrames = 0;
   private lastHealthEmitAt = 0;
@@ -382,8 +419,11 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       startAttempts: this.startAttempts,
       recoveryCount: this.recoveryCount,
       frameAgeMs: this.lastFrameAt === 0 ? -1 : Date.now() - this.lastFrameAt,
-      droppedFrames: this.droppedFrames,
+      droppedFrames: this.runner.stats?.dropped ?? this.droppedFrames,
       audioContextState: this.audio.state?.() ?? "unknown",
+      lastCaptureMs: this.lastCaptureMs,
+      lastSttMs: this.lastSttMs,
+      lastWakeToCaptureMs: this.lastWakeToCaptureMs,
       lastError: this.lastError,
     };
   }
@@ -614,6 +654,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     if (!this.disposed && !this.fatal && this.audioUp) {
       this.pausedRetries = 0;
       this.accepting = false;
+      this.preRoll = [];
       this.runner.reset();
       this.phase = "wake";
       this.lastFrameAt = Date.now();
@@ -643,6 +684,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     await this.resumeOrRebuild("rearm");
     if (this.disposed || this.fatal || !this.audioUp) return;
     this.accepting = false;
+    this.preRoll = [];
     this.runner.reset();
     this.phase = "wake";
     this.lastFrameAt = Date.now();
@@ -702,6 +744,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     if (h) await this.ensureAudio(h);
     if (!this.disposed && !this.fatal && this.audioUp) {
       this.accepting = false;
+      this.preRoll = [];
       this.runner.reset();
       this.phase = wasArmed ? "wake" : "idle";
       this.lastFrameAt = Date.now();
@@ -753,6 +796,11 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     this.cmd = [];
     this.cmdMs = 0;
     this.silenceMs = 0;
+    this.speechMs = 0;
+    this.sawSpeech = false;
+    this.silenceRms = 0.012;
+    this.noiseSamples = 0;
+    this.noiseSum = 0;
   }
 
   private onFrame(frame: Float32Array): void {
@@ -762,42 +810,68 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     const ms = (frame.length / 16000) * 1000;
 
     if (this.phase === "wake") {
+      // Keep a short pre-roll so the first command word (spoken right after
+      // "AYAS", no gap) isn't lost to the wake-inference lag.
+      this.preRoll.push(frame.slice(0));
+      if (this.preRoll.length > PREROLL_FRAMES) this.preRoll.shift();
+
       if (Date.now() < this.cooldownUntil) return;
-      // Single-flight. On a phone, 3 WASM ONNX runs per frame can exceed the
-      // 80 ms frame period; queuing every frame's `accept()` piles unbounded
-      // work + allocations onto the microtask queue → iOS memory-kills the PWA
-      // in ~30 s. Drop frames that arrive mid-inference (the runner also guards
-      // internally); openWakeWord's sliding windows tolerate the gap.
-      if (this.accepting) {
-        this.droppedFrames += 1;
-        return;
-      }
-      this.accepting = true;
-      void this.runner
-        .accept(frame)
-        .then((score) => {
-          if (this.phase !== "wake" || score === null) return;
-          if (score >= this.o.threshold) {
-            this.phase = "capturing";
-            this.resetCommand();
-            this.emit();
-            handlers.onFinalTranscript("AYAS");
+      // The runner is single-flight AND buffers every frame internally (bounded)
+      // so the audio it scores stays contiguous — a gappy stream was missing
+      // real "AYAS". We only skip attaching a fresh score-check while one is
+      // already pending; that frame's result rides the runner's catch-up.
+      void this.runner.accept(frame).then((score) => {
+        if (this.phase !== "wake" || score === null) return;
+        if (score >= this.o.threshold) {
+          this.tWake = Date.now();
+          this.phase = "capturing";
+          const carried = this.preRoll;
+          this.preRoll = [];
+          this.resetCommand();
+          // seed the capture with the pre-roll (the wake word + onset)
+          for (const f of carried) {
+            this.cmd.push(f);
+            this.cmdMs += (f.length / 16000) * 1000;
           }
-        })
-        .finally(() => {
-          this.accepting = false;
-        });
+          this.emit();
+          handlers.onFinalTranscript("AYAS");
+        }
+      });
       return;
     }
 
     if (this.phase === "capturing") {
       this.cmd.push(frame.slice(0));
       this.cmdMs += ms;
-      this.silenceMs = frameRms(frame) < 0.012 ? this.silenceMs + ms : 0;
-      const done =
-        this.cmdMs >= COMMAND_MAX_MS ||
-        (this.cmdMs >= COMMAND_MIN_MS && this.silenceMs >= COMMAND_SILENCE_MS);
+      const rms = frameRms(frame);
+
+      // Calibrate the silence floor from the first ~240 ms (before real speech).
+      if (!this.sawSpeech && this.noiseSamples < 3) {
+        this.noiseSum += rms;
+        this.noiseSamples += 1;
+        this.silenceRms = Math.min(
+          SILENCE_RMS_MAX,
+          Math.max(SILENCE_RMS_MIN, (this.noiseSum / this.noiseSamples) * 2.5),
+        );
+      }
+
+      if (rms >= this.silenceRms) {
+        this.speechMs += ms;
+        this.silenceMs = 0;
+        this.sawSpeech = true;
+      } else {
+        this.silenceMs += ms;
+      }
+
+      const eosSilence =
+        this.speechMs >= LONG_UTTERANCE_SPEECH_MS ? EOS_SILENCE_SHORT_MS : EOS_SILENCE_LONG_MS;
+      const hasCommand =
+        this.sawSpeech && this.cmdMs >= COMMAND_MIN_MS && this.speechMs >= COMMAND_MIN_SPEECH_MS;
+      const done = this.cmdMs >= COMMAND_MAX_MS || (hasCommand && this.silenceMs >= eosSilence);
       if (done) {
+        this.tCaptureEnd = Date.now();
+        this.lastCaptureMs = this.cmdMs;
+        this.lastWakeToCaptureMs = this.tWake ? this.tCaptureEnd - this.tWake : -1;
         this.phase = "processing";
         void this.finishCommand(handlers);
       }
@@ -814,10 +888,13 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     this.resetCommand();
     try {
       const wav = encodeWav16kMono(merged);
+      this.tSttStart = Date.now();
       const text = await this.transcribe(wav);
+      this.lastSttMs = Date.now() - this.tSttStart;
       if (text) handlers.onFinalTranscript(text);
       else handlers.onError("no-speech");
     } catch (error) {
+      this.lastSttMs = Date.now() - this.tSttStart;
       handlers.onError((error as Error).message === "stt-503" ? "network" : "unknown");
     } finally {
       // Pause detection + start the re-arm cooldown, but KEEP the mic open — the
@@ -839,6 +916,8 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     this.recovering = false;
     this.accepting = false;
     this.paused = false;
+    this.preRoll = [];
+    this.cmd = [];
     this.clearWatchdog();
     if (this.pausedRetryTimer) {
       clearTimeout(this.pausedRetryTimer);

@@ -470,7 +470,10 @@ async function run() {
     });
     assert.ok(html.includes('data-interrupted="true"'));
     assert.ok(html.includes('data-testid="bc-presence-interrupted"'));
-    assert.ok(/Sesli oturum kesildi/.test(html));
+    // A soft "reconnecting" notice — never a scary "your session died".
+    assert.ok(/yeniden kuruyor/.test(html), "reconnecting, not 'session died'");
+    assert.ok(/ekrana dokun/.test(html), "any tap resumes it");
+    assert.doesNotMatch(html, /kesildi|yeniden yüklendi/);
     assert.ok(/Sesli oturuma devam et/.test(html), "the CTA offers to resume");
     assert.ok(html.includes('data-cta-kind="voice"'));
     // once the user is listening again, the notice is gone

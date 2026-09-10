@@ -261,7 +261,7 @@ function AyasPresenceCard(props: BrainConsoleViewProps) {
 
       {interrupted ? (
         <p className="bc-presence__notice" data-testid="bc-presence-interrupted">
-          Sesli oturum kesildi (sayfa yeniden yüklendi). Devam etmek için dokun.
+          AYAS ses bağlantısını yeniden kuruyor. Devam etmek için ekrana dokun.
         </p>
       ) : null}
 

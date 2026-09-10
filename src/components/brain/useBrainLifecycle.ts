@@ -85,6 +85,9 @@ export interface BrainVoiceHealth {
   readonly droppedFrames?: number;
   readonly wakeInferences?: number;
   readonly audioContextState?: string;
+  readonly lastCaptureMs?: number;
+  readonly lastSttMs?: number;
+  readonly lastWakeToCaptureMs?: number;
   readonly lastError?: string | null;
 }
 
@@ -372,6 +375,9 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
       voiceCycleCount: s.voiceCycleCount,
       lastVoicePhase: s.lastPhase,
       wakeDroppedFrames: typeof s.health.droppedFrames === "number" ? s.health.droppedFrames : -1,
+      lastCaptureMs: typeof s.health.lastCaptureMs === "number" ? s.health.lastCaptureMs : -1,
+      lastSttMs: typeof s.health.lastSttMs === "number" ? s.health.lastSttMs : -1,
+      lastWakeToCaptureMs: typeof s.health.lastWakeToCaptureMs === "number" ? s.health.lastWakeToCaptureMs : -1,
       recoveryCount: s.recoveryCount,
       visibilityState: typeof document === "undefined" ? "unknown" : document.visibilityState,
       onlineState: typeof navigator === "undefined" ? true : navigator.onLine !== false,

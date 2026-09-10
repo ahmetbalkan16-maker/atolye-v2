@@ -36,6 +36,10 @@ export interface VoiceHealthSnapshot {
   readonly frameAgeMs: number;
   readonly recoveryCount: number;
   readonly audioContextState: string;
+  /** Last turn latency marks (ms): command capture, STT round-trip, wake→capture-end. `-1` = none. */
+  readonly lastCaptureMs: number;
+  readonly lastSttMs: number;
+  readonly lastWakeToCaptureMs: number;
   readonly lastError: string | null;
 }
 
@@ -186,6 +190,9 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
                 frameAgeMs: s.frameAgeMs,
                 recoveryCount: s.recoveryCount,
                 audioContextState: s.audioContextState,
+                lastCaptureMs: s.lastCaptureMs,
+                lastSttMs: s.lastSttMs,
+                lastWakeToCaptureMs: s.lastWakeToCaptureMs,
                 lastError: s.lastError,
               });
             },

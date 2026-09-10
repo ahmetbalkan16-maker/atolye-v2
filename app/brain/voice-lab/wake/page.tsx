@@ -724,6 +724,9 @@ export default function D2WakeLabPage() {
             voiceCycleCount: life.voiceCycleCount,
             recoveryCount: life.recoveryCount,
             wakeDroppedFrames: life.wakeDroppedFrames,
+            lastCaptureMs: life.lastCaptureMs,
+            lastSttMs: life.lastSttMs,
+            lastWakeToCaptureMs: life.lastWakeToCaptureMs,
             lastVoicePhase: life.lastVoicePhase,
             serviceWorkerState: life.serviceWorkerState,
             visibilityState: life.visibilityState,
@@ -953,6 +956,14 @@ export default function D2WakeLabPage() {
         <dd>{life.priorVoiceActive ? "evet" : "hayır"} / {life.priorVoiceCycles} / {life.priorCleanPagehide ? "evet" : "hayır"}</dd>
         <dt>Bu oturum — ses / tur / recovery / düşen frame</dt>
         <dd>{life.voiceSessionCount} / {life.voiceCycleCount} / {life.recoveryCount} / {life.wakeDroppedFrames >= 0 ? life.wakeDroppedFrames : "—"}</dd>
+        <dt>Son tur gecikmesi — capture / STT / wake→capture-end</dt>
+        <dd>
+          {life.lastCaptureMs >= 0 ? `${life.lastCaptureMs} ms` : "—"}
+          {" / "}
+          {life.lastSttMs >= 0 ? `${life.lastSttMs} ms` : "—"}
+          {" / "}
+          {life.lastWakeToCaptureMs >= 0 ? `${life.lastWakeToCaptureMs} ms` : "—"}
+        </dd>
         <dt>Son voice phase</dt>
         <dd>{life.lastVoicePhase}</dd>
         <dt>Service worker</dt>

@@ -227,6 +227,9 @@ export function BrainCoreConsole({
       phase: h.phase,
       droppedFrames: h.droppedFrames,
       audioContextState: h.audioContextState,
+      lastCaptureMs: h.lastCaptureMs,
+      lastSttMs: h.lastSttMs,
+      lastWakeToCaptureMs: h.lastWakeToCaptureMs,
       lastError: h.lastError,
     });
   }, [voice.voiceHealth, lifecycle]);
@@ -380,6 +383,16 @@ export function BrainCoreConsole({
     dismissInterrupted();
     voiceRef.current.stopListening();
   }, [setVoiceIntent, dismissInterrupted]);
+
+  // After a reload interrupted a voice session, the FIRST touch anywhere on the
+  // page is the user activation iOS needs — resume from it, so the operator
+  // never has to hunt for the CTA. (One-shot; the CTA still works too.)
+  useEffect(() => {
+    if (!lifecycle.voiceSessionInterrupted) return;
+    const resume = () => startConversation();
+    window.addEventListener("pointerdown", resume, { once: true, capture: true });
+    return () => window.removeEventListener("pointerdown", resume, { capture: true } as EventListenerOptions);
+  }, [lifecycle.voiceSessionInterrupted, startConversation]);
 
   const restingState = useMemo(() => deriveBrainCoreState(snapshot), [snapshot]);
   const autonomousWaiting = (initialAutonomous?.awaitingApprovalCount ?? 0) > 0;

@@ -455,11 +455,11 @@ export const AYAS_SPOKEN_TURKISH_RULE: readonly string[] = Object.freeze([
   "- Kısa, doğal, akıcı konuşma Türkçesi kullan. Genelde 2-4 cümle yeter.",
   "- Sembol, markdown, başlık, madde işareti, emoji veya kod bloğu KULLANMA. Gerekirse maddeleri düz cümleyle sırala.",
   "- Sayıları ve durumu düzgün Türkçe dilbilgisiyle anlat. \"işlem bulunuyor değildir\", \"kuyrukta hiç görev bulunuyor\", \"başlatamam çalıştırabilir\" gibi bozuk yapılar kurma.",
-  "- Kendini tanıtman gerekirse doğal söyle: \"Ben AYAS, Atölye'nin yapay zekâ çekirdeğiyim.\"",
+  "- Doğrudan soruya cevap ver. Selamlama, \"Ben AYAS\" veya kim olduğunla ilgili giriş cümlesi kurma.",
 ]);
 
 /** How many prior turns to feed the model for context. */
-export const AYAS_HISTORY_TURNS = 6;
+export const AYAS_HISTORY_TURNS = 12;
 
 /* ------------------------------------------------------------------------- *
  * AYAS studio context (Sprint 208) — a pure, read-only projection of the
@@ -651,8 +651,8 @@ export function buildAyasChatPrompt(input: AyasChatPromptInput): string {
   ];
 
   const turns = input.history
+    .filter((turn) => turn.role !== "system") // the UI welcome line is never conversational context
     .slice(-AYAS_HISTORY_TURNS)
-    .filter((turn) => turn.role !== "system")
     .map((turn) => `${turn.role === "user" ? "Kullanıcı" : "AYAS"}: ${turn.text}`);
 
   return [
@@ -660,7 +660,7 @@ export function buildAyasChatPrompt(input: AyasChatPromptInput): string {
     "belgesel video üreten kişisel bir prodüksiyon stüdyosudur; sen onun beynisin.",
     "",
     "Kimlik ve üslup:",
-    "- Adın AYAS. Gerektiğinde kısaca tanıt (\"Ben AYAS, Atölye'nin yapay zekâ çekirdeğiyim\"), ama her mesajda tekrarlama.",
+    "- Adın AYAS. Sürmekte olan bir konuşmada kendini ASLA yeniden tanıtma, selamlaşma yapma. Yalnızca kullanıcı doğrudan \"sen kimsin\" / \"adın ne\" diye sorarsa tek cümleyle söyle.",
     "- Doğal, akıcı Türkçe konuş. Sıcak ama profesyonel. Kısa ve net ol; gereksiz uzatma.",
     "- Markdown başlık/madde yığını kullanma; sohbet gibi yaz.",
     "",
@@ -676,7 +676,14 @@ export function buildAyasChatPrompt(input: AyasChatPromptInput): string {
     ...state,
     ...ayasStudioPromptLines(input.studio),
     "",
-    ...(turns.length ? ["Önceki konuşma:", ...turns, ""] : []),
+    ...(turns.length
+      ? [
+          "Bu, süren bir konuşmanın devamıdır. Önceki turları bağlam olarak kullan; tanıtım / selamlama YAPMA, doğrudan yanıtla.",
+          "Önceki konuşma:",
+          ...turns,
+          "",
+        ]
+      : []),
     `Kullanıcı: ${input.userText}`,
     "",
     ...(input.format === "text"

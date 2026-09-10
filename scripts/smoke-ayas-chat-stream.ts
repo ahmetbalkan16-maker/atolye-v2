@@ -79,6 +79,32 @@ async function run() {
     assert.match(j, /"reply":/);
   });
 
+  await scenario("prompt — never cues a self-introduction; history is a continuation", async () => {
+    // No literal "Ben AYAS ..." example phrase, and an explicit negative rule.
+    const cold = buildAyasChatPrompt({ userText: "kaç proje var", snapshot: snap(), history: [], format: "text" });
+    assert.doesNotMatch(cold, /Ben AYAS, Atölye'nin yapay zekâ çekirdeğiyim/);
+    assert.match(cold, /ASLA yeniden tanıtma/);
+    assert.match(cold, /Selamlama.*giriş cümlesi kurma|giriş cümlesi kurma/);
+
+    // With prior turns, an explicit "this is a continuation, don't greet" line,
+    // and the system welcome line is filtered OUT of the model history.
+    const warm = buildAyasChatPrompt({
+      userText: "peki kaçı bitti",
+      snapshot: snap(),
+      format: "text",
+      history: [
+        { role: "system", text: "Ben AYAS — Atölye'nin yapay zekâ çekirdeğiyim." },
+        { role: "user", text: "kaç proje var" },
+        { role: "brain", text: "16 proje var." },
+      ],
+    });
+    assert.match(warm, /süren bir konuşmanın devamıdır/);
+    assert.match(warm, /Önceki konuşma:/);
+    assert.match(warm, /Kullanıcı: kaç proje var/);
+    assert.match(warm, /AYAS: 16 proje var\./);
+    assert.doesNotMatch(warm, /yapay zekâ çekirdeğiyim\.\nKullanıcı/); // welcome line not in the transcript
+  });
+
   await scenario("clean reply — deltas arrive incrementally, concat == final text", async () => {
     const pieces = ["Merhaba, ", "ben AYAS. ", "Sana nasıl ", "yardımcı olabilirim?"];
     const events = await collect(

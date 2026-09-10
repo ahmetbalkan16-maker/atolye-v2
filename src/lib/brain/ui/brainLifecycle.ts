@@ -392,6 +392,10 @@ export interface BrainLifecycleTelemetry {
   readonly voiceCycleCount: number;
   readonly lastVoicePhase: BrainVoicePhase;
   readonly wakeDroppedFrames: number;
+  /** Last turn latency marks (ms): command capture, STT round-trip, wake→capture-end. `-1` = none. */
+  readonly lastCaptureMs: number;
+  readonly lastSttMs: number;
+  readonly lastWakeToCaptureMs: number;
   readonly recoveryCount: number;
   readonly visibilityState: string;
   readonly onlineState: boolean;

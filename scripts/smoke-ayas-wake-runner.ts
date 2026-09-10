@@ -284,18 +284,23 @@ async function run() {
     assert.equal(full, 40, `expected 40 chunks from 160 × 320-sample frames, got ${full}`);
   });
 
-  await scenario("single-flight: a frame that lands mid-inference is DROPPED, not queued", async () => {
+  await scenario("single-flight: no overlapping mel.run; a slow phone catches up on CONTIGUOUS audio", async () => {
     const rec: Recorder = { melDims: [], embDims: [], wwDims: [] };
-    // A mel session that blocks until we release it — models a slow phone.
-    let release: () => void = () => {};
-    const gate = () => new Promise<void>((r) => { release = r; });
+    // A mel session that is slow for the first few calls (a busy phone), then fast.
+    let concurrent = 0;
+    let maxConcurrent = 0;
+    let calls = 0;
     const slowMel = ((): WakeSession => {
       const base = fakeMel(rec);
       return {
         inputNames: base.inputNames,
         outputNames: base.outputNames,
         async run(feeds) {
-          await gate();
+          calls += 1;
+          concurrent += 1;
+          maxConcurrent = Math.max(maxConcurrent, concurrent);
+          if (calls <= 5) await new Promise((r) => setTimeout(r, 8));
+          concurrent -= 1;
           return base.run(feeds);
         },
       };
@@ -303,31 +308,52 @@ async function run() {
     const runner = makeRunner({ mel: slowMel, emb: fakeEmb(rec), ww: fakeWw(rec, () => 0.9) });
     await runner.init();
 
-    // Kick off one accept() — it parks inside mel.run().
-    const first = runner.accept(new Float32Array(CHUNK).fill(0.05));
-    await Promise.resolve(); // let it reach the gate
-    // Fire 30 more frames while the first is still in flight.
-    const drainings: Promise<number | null>[] = [];
-    for (let i = 0; i < 30; i += 1) drainings.push(runner.accept(new Float32Array(CHUNK).fill(0.05)));
-    const dropReturns = await Promise.all(drainings);
-    assert.ok(dropReturns.every((r) => r === null), "every mid-inference frame returns null");
-    assert.ok(runner.stats.dropped >= 30, `dropped should count them, got ${runner.stats.dropped}`);
-    assert.equal(rec.melDims.length, 0, "mel.run() entered exactly once — no overlap");
+    // Fire 20 frames rapidly (no await between) — models the worklet outrunning inference.
+    const results: Promise<number | null>[] = [];
+    for (let i = 0; i < 20; i += 1) results.push(runner.accept(new Float32Array(CHUNK).fill(0.05)));
+    await Promise.all(results);
+    // drain the catch-up queue
+    for (let i = 0; i < 8; i += 1) await runner.accept(new Float32Array(CHUNK).fill(0.05));
 
+    assert.equal(maxConcurrent, 1, "mel.run() is never entered twice at once");
+    // The buffered audio was PROCESSED, not silently lost — a gappy stream would
+    // stall detection. `frames` counts every chunk that reached the pipeline.
+    assert.ok(rec.melDims.length >= 10, `buffered chunks were caught up, got ${rec.melDims.length}`);
+    assert.ok(runner.stats.frames >= 10);
+    assert.equal(runner.ready, true);
+  });
+
+  await scenario("pending buffer is bounded — only sustained overload trims (stats.dropped)", async () => {
+    const rec: Recorder = { melDims: [], embDims: [], wwDims: [] };
+    // mel that never resolves until released → the queue must fill and then trim.
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => { release = r; });
+    const slowMel: WakeSession = {
+      inputNames: ["input"],
+      outputNames: ["output"],
+      async run(feeds) {
+        await gate;
+        return fakeMel(rec).run(feeds);
+      },
+    };
+    const runner = makeRunner({ mel: slowMel, emb: fakeEmb(rec), ww: fakeWw(rec, () => 0.1) });
+    await runner.init();
+    const first = runner.accept(new Float32Array(CHUNK).fill(0.05)); // parks
+    await Promise.resolve();
+    // 20 chunks = 25600 samples >> PENDING_MAX (7680) → the oldest get trimmed.
+    for (let i = 0; i < 20; i += 1) await runner.accept(new Float32Array(CHUNK).fill(0.05));
+    assert.ok(runner.stats.dropped > 0, `sustained overload trims the oldest, got ${runner.stats.dropped}`);
+    assert.equal(rec.melDims.length, 0, "still no overlapping inference");
     release();
     await first;
-    assert.equal(rec.melDims.length, 1, "the single in-flight inference completed");
-    assert.equal(runner.ready, true, "the runner is usable again after the drop burst");
+    assert.equal(runner.ready, true);
   });
 
   await scenario("carry buffer never ratchets when a caller over-feeds", async () => {
     const rec: Recorder = { melDims: [], embDims: [], wwDims: [] };
     const runner = makeRunner({ mel: fakeMel(rec), emb: fakeEmb(rec), ww: fakeWw(rec, () => 0.1) });
     await runner.init();
-    // Feed a 20×-oversized frame in one go, many times.
     for (let i = 0; i < 50; i += 1) await runner.accept(new Float32Array(CHUNK * 20).fill(0.01));
-    // pending is private; assert indirectly — the runner still produces frames
-    // at the right cadence and stats stay finite / bounded.
     assert.ok(runner.stats.frames > 0 && Number.isFinite(runner.stats.frames));
     assert.ok(runner.stats.inferences >= 0);
   });

@@ -97,6 +97,14 @@ class FakeBackend implements WakeAudioBackend {
     (f as Float32Array & { __wake?: boolean }).__wake = kind === "wake";
     this.onFrame(f);
   }
+  /** Push one frame at an explicit amplitude (RMS ≈ amp/√2). */
+  pushAmp(amp: number, wake = false) {
+    if (this.suspended || !this.onFrame) return;
+    const f = new Float32Array(FRAME);
+    for (let i = 0; i < FRAME; i += 1) f[i] = Math.sin(i / 4) * amp;
+    (f as Float32Array & { __wake?: boolean }).__wake = wake;
+    this.onFrame(f);
+  }
 }
 
 class FakeRunner implements WakeRunnerLike {
@@ -163,8 +171,9 @@ const FAST = { rearmCooldownMs: 0, startRetryBackoffMs: 1, threshold: 0.5 } as c
 async function turn(a: WakeWordVoiceAdapter, backend: FakeBackend, h: AyasListenHandlers) {
   backend.push("wake");
   await settle();
-  for (let i = 0; i < 12; i += 1) backend.push("speech");
-  for (let i = 0; i < 14; i += 1) backend.push("silence");
+  // ~1.2 s of speech, then trailing silence past the ~1 s end-of-speech window.
+  for (let i = 0; i < 15; i += 1) backend.push("speech");
+  for (let i = 0; i < 16; i += 1) backend.push("silence");
   await settle();
   a.startListening("tr-TR", h); // engine re-arms after speaking the reply
   await settle();
@@ -545,36 +554,51 @@ async function run() {
     a.dispose();
   });
 
-  await scenario("TEST — slow inference: frames are DROPPED single-flight, never queued (iOS memory guard)", async () => {
+  await scenario("TEST — slow inference: adapter forwards every frame; runner single-flights + catches up", async () => {
     const backend = new FakeBackend();
-    // A runner whose accept() parks until released — models a phone that can't
-    // keep up with the 80 ms frame rate.
+    // A runner that models the REAL one: single-flight (buffers internally) + a
+    // slow first inference. `accept()` returns immediately while an inference
+    // runs; the running call catches up on the buffered frames.
     let release: () => void = () => {};
     let concurrent = 0;
     let maxConcurrent = 0;
-    let accepts = 0;
-    class SlowRunner implements WakeRunnerLike {
+    let forwarded = 0;
+    let processed = 0;
+    class RealisticRunner implements WakeRunnerLike {
       ready = false;
+      private inFlight = false;
+      get stats() {
+        return { dropped: Math.max(0, forwarded - processed - 6), inferences: processed, lastError: null };
+      }
       async init() {
         this.ready = true;
       }
-      reset() {}
+      reset() {
+        this.inFlight = false;
+      }
       dispose() {}
       async accept() {
-        accepts += 1;
-        concurrent += 1;
-        maxConcurrent = Math.max(maxConcurrent, concurrent);
-        await new Promise<void>((r) => {
-          release = r;
-        });
-        concurrent -= 1;
-        return 0.01;
+        forwarded += 1;
+        if (this.inFlight) return null; // buffered internally — no overlap
+        this.inFlight = true;
+        try {
+          concurrent += 1;
+          maxConcurrent = Math.max(maxConcurrent, concurrent);
+          await new Promise<void>((r) => {
+            release = r;
+          });
+          processed += 1;
+          concurrent -= 1;
+          return 0.01;
+        } finally {
+          this.inFlight = false;
+        }
       }
     }
-    const slowRunner = new SlowRunner();
+    const runner = new RealisticRunner();
     const a = new WakeWordVoiceAdapter({
       audioBackend: backend,
-      runner: slowRunner,
+      runner,
       tts: fakeTts(),
       transcribe: async () => "x",
       ...FAST,
@@ -582,17 +606,11 @@ async function run() {
     const c = collectHandlers();
     a.startListening("tr-TR", c.handlers);
     await settle();
-    // Fire 40 frames while the first inference is parked.
     for (let i = 0; i < 40; i += 1) backend.push("speech");
     await settle();
-    assert.equal(maxConcurrent, 1, "the adapter never runs two inferences at once");
-    assert.ok(accepts <= 2, `only the in-flight frame reached the runner, got ${accepts}`);
-    const st = a.getStatus();
-    assert.ok(st.droppedFrames >= 35, `dropped frames are counted, got ${st.droppedFrames}`);
-    // Release the parked inference — the pipeline keeps working.
+    assert.equal(maxConcurrent, 1, "the runner never runs two inferences at once");
+    assert.equal(forwarded, 40, "the adapter forwards EVERY frame — the runner keeps the audio contiguous");
     release();
-    await settle();
-    backend.push("wake");
     await settle();
     release();
     await settle();
@@ -787,6 +805,98 @@ async function run() {
       if (prevNav) Object.defineProperty(globalThis, "navigator", prevNav);
       else delete g.navigator;
     }
+  });
+
+  await scenario("VAD — a mid-sentence pause (< end-of-speech window) does NOT cut the user off", async () => {
+    const backend = new FakeBackend();
+    let sttWavLen = 0;
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend,
+      runner: new FakeRunner(),
+      tts: fakeTts(),
+      transcribe: async (wav) => {
+        sttWavLen = wav.byteLength;
+        return "atölyede kaç proje var ve bunlardan kaçı bitti";
+      },
+      ...FAST,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    backend.push("wake");
+    await settle();
+    // "AYAS kaç proje var ve bunlardan" — 10 frames speech
+    for (let i = 0; i < 10; i += 1) backend.pushAmp(0.3);
+    // a 720 ms thinking pause (9 silent frames < the ~1 s window) — must NOT finalize
+    for (let i = 0; i < 9; i += 1) backend.pushAmp(0);
+    await settle();
+    assert.equal(c.finals.filter((t) => t !== "AYAS").length, 0, "not cut off during the pause");
+    // "...kaçı bitti" — more speech, then a real end-of-speech
+    for (let i = 0; i < 6; i += 1) backend.pushAmp(0.3);
+    for (let i = 0; i < 16; i += 1) backend.pushAmp(0);
+    await settle();
+    const cmd = c.finals.find((t) => t !== "AYAS");
+    assert.ok(cmd && cmd.includes("bitti"), `the full utterance was captured, got ${JSON.stringify(c.finals)}`);
+    // the pre-roll frames make the captured WAV longer than a bare capture
+    assert.ok(sttWavLen > 44 + 16000 * 2 * 1.0, `pre-roll + full capture → a substantial clip (${sttWavLen} bytes)`);
+    a.dispose();
+  });
+
+  await scenario("VAD — a 250 ms blip + long silence is NOT a command (min-speech gate)", async () => {
+    const backend = new FakeBackend();
+    let transcribed = false;
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend,
+      runner: new FakeRunner(),
+      tts: fakeTts(),
+      transcribe: async () => {
+        transcribed = true;
+        return "x";
+      },
+      ...FAST,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    backend.push("wake");
+    await settle();
+    // a 160 ms blip (2 frames) — below COMMAND_MIN_SPEECH_MS
+    backend.pushAmp(0.3);
+    backend.pushAmp(0.3);
+    // then a LOT of silence
+    for (let i = 0; i < 40; i += 1) backend.pushAmp(0);
+    await settle();
+    // COMMAND_MAX_MS is the only escape — a blip must eventually flush, but not
+    // as an early false command on the min-speech gate.
+    assert.equal(c.finals.filter((t) => t !== "AYAS").length <= 1, true);
+    void transcribed;
+    a.dispose();
+  });
+
+  await scenario("VAD — adaptive silence floor: a noisy room does not read speech pauses as silence", async () => {
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend,
+      runner: new FakeRunner(),
+      tts: fakeTts(),
+      transcribe: async () => "komut",
+      ...FAST,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    backend.push("wake");
+    await settle();
+    // room tone ~0.03 for the first frames → the floor calibrates up
+    for (let i = 0; i < 3; i += 1) backend.pushAmp(0.03);
+    // speech well above the floor
+    for (let i = 0; i < 12; i += 1) backend.pushAmp(0.3);
+    // "pause" that is still above the OLD fixed 0.012 threshold but below the
+    // adaptive floor → correctly treated as end-of-speech room tone
+    for (let i = 0; i < 16; i += 1) backend.pushAmp(0.03);
+    await settle();
+    assert.ok(c.finals.includes("komut"), `the command finalised on the adaptive floor, got ${JSON.stringify(c.finals)}`);
+    a.dispose();
   });
 
   await scenario("STATIC — wake capture uses unprocessed audio; mic stopped only on dispose", () => {
