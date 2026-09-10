@@ -1,5 +1,80 @@
 ---
 
+## ATÖLYE BRAIN — SELF-HEALING BRAIN v1: detect → diagnose → sandbox-fix → test → verify → learn; gate CLOSED - 2026-09-11
+
+**Branch:** `wip/ayas-graphify-final-execution` (commit `06b134e`, off `9e2068e`). NOT merged / NOT pushed. `git diff --check` clean. 31 dosya, +4824.
+
+**Ne:** Atölye artık kendi runtime hatalarını fark edip kök nedenini bulan, izole bir `git worktree`
+sandbox'ında düzelten, test + regression çalıştıran, başarısızsa rollback yapan, operatöre raporlayan
+ve **doğrulanmış çözümleri öğrenen** bir alt sisteme sahip. `src/lib/brain/selfheal/` altında **saf
+karar çekirdeği** + durable store'lar + yalnız operatör CLI'da çalışan Node adaptörleri. Tarayıcı /
+otonom döngü ASLA sandbox çalıştırmaz veya patch uygulamaz.
+
+**SAF ÇEKİRDEK (I/O yok, deterministik, ağır test):**
+- `BrainIncident` — incident kaydı + state machine (`OBSERVED → DIAGNOSED → PATCHING_SANDBOX →
+  TESTING → VERIFIED → AWAITING_APPROVAL → APPLIED / ROLLED_BACK / FAILED`). Her serbest metin
+  build'de redact + sınırlı.
+- `BrainAnomalyClassifier` — telemetri → `EXPECTED / TRANSIENT / USER_ACTION / KNOWN_BASELINE /
+  REAL_INCIDENT / UNKNOWN` + reload-neden ayrımı (`USER_INITIATED_RELOAD / USER_NAVIGATION /
+  BROWSER_RELOAD / PWA_LIFECYCLE_RESET / CRASH / UNEXPECTED_UNLOAD / UNKNOWN`). **Kesin kural: kanıt
+  yoksa UNKNOWN** — CRASH yalnız gerçekten bir hata kaydedildiyse iddia edilir.
+- `BrainRootCauseEngine` — timeline imzaları + son commit'ler + öğrenilen desenler korelasyonu →
+  `confidence / evidence / counterEvidence`'lı hipotezler.
+- `BrainPatchSafety` — her patch hedefi → `SAFE / REVIEW_REQUIRED / FORBIDDEN_AUTONOMOUS` (execution
+  gate, `.env`, `deploy/`, authority, güvenlik çekirdeğinin kendisi, CI/manifest = FORBIDDEN;
+  bilinmeyen yol fail-safe → REVIEW_REQUIRED).
+- `BrainSelfHealLimits` — deneme sınırı (3), diff/dosya/runtime sınırı, imza-başına susturma →
+  `FAILED_NEEDS_HUMAN`, asla sonsuz retry.
+- `BrainUntrustedInput` — log/transcript/chat = **VERİ**; talimat-şekilli satırlar ("ignore safety",
+  "open the gate", "send the secret", "git push") karantinaya alınır; zero-width/bidi karakter atılır.
+- `BrainOptimizationBenchmark` — yalnız ölçülmüş before/after; korumalı metrikte regresyon → REJECT;
+  < %5 kazanç → NEUTRAL; < 3 koşu → sonuç sayılmaz.
+- `BrainLearnedPattern` — desen yalnız regression'ı geçmiş VERIFIED/APPLIED incident'tan kaydedilir;
+  rollback edilen fix `failedFix`'tir, asla kazanç değil.
+- `SelfHealingBrain` — orchestrator, saf: sıradaki INTENT'i üretir, çalıştırmaz. Otonom olarak en
+  fazla `AWAITING_APPROVAL`; `APPLIED` operatör id ister.
+- `BrainSelfHealGuards` — her yan etkinin geçtiği minik fail-closed güvenlik çekirdeği (git
+  push/remote/config yok, network egress yok, secret okuma yok, FORBIDDEN apply yok, çekirdek
+  self-modification yok).
+
+**NODE (yalnız operatör CLI):** `BrainSelfHealStore` (durable incident+pattern+signature,
+`data/brain/selfheal/` gitignored, atomik, secret-leak red, corrupt-fail-closed); `BrainSelfHealSandbox`
+(git-worktree yaşam döngüsü, execFile, sabit argv, her komut guard'dan geçer); `BrainSelfHealRunner`
+(loop sürücüsü + 🧠 operatör raporu); `scripts/selfheal.ts` CLI (`status | report | synthetic | run
+[--patch] | apply --operator | prune`; `apply` yalnız `git apply --index` — staged, asla commit/push).
+
+**GÖZLEMLENEBİLİRLİK + UI:** `BrainSelfHealObservability` (`BrainLifecycleTelemetry`/VoiceHealth →
+anomali + incident taslağı); yeni **salt-okunur "Self-Healing" Brain paneli** (sistem sağlığı / aktif
+incident'lar / son onarımlar / optimizasyonlar / öğrenilenler / son eylem). Panel "Beyin kendi başına
+AWAITING_APPROVAL'a kadar gider, operatör olmadan canlı ağaca yazmaz; execution gate CLOSED"u yineler.
+Handler yok, fetch yok, timer yok.
+
+**TESTLER — tsc 0 · eslint 0 err (22 pre-existing warning) · `next build` exit 0.**
+`smoke-brain-selfheal` **40** (çekirdek), `-store` **7**, `-e2e` **3** (§10/§23 sentetik kanıt: atılabilir
+git repo + **gerçek** sandbox + loop → FAULT…LEARN, + kötü-patch → rollback → learn-failed yolu, +
+sızan-worktree-yok), `-security` **10** (her §0/§8/§15/§16 sınırı + statik kaynak taraması), `-observe-ui`
+**9**. `brain-core-ui` 36→**37** (panel bağlı). Komşu tüm brain + ayas + graphify smoke'ları hâlâ yeşil.
+
+**GRAPHIFY (salt-okunur, değişmedi):** CONSISTENT-WITH-NOTES, 16 geçerli / 0 unresolvable,
+Brain↔Graphify 16 == 16. Self-heal onu okur, Graphify write gate'ini AÇMAZ.
+
+**GÜVENLİK:** `ayasExecutionGate = "CLOSED"`, `writeActionsEnabled = false` — self-heal sistemi
+gate/bridge'i import etmez, push/merge/deploy çalıştırmaz, `.env` okumaz, `D:\AtolyeRuntime` /
+`D:\AtolyeAuthority` / Caddy / firewall / Tailscale'e dokunmaz. `smoke-brain-selfheal-security` +
+her selfheal kaynak dosyasının statik taraması ile doğrulandı.
+
+**FINAL STATUS: `SELF_HEALING_READY` (v1)** — sentetik kontrollü test (`smoke:brain-selfheal-e2e`)
+tam zinciri (FAULT→DETECT→INCIDENT→DIAGNOSE→ROOT CAUSE→PATCH SANDBOX→TEST→REGRESSION→VERIFY→REPORT→
+APPLY→LEARN) + rollback yolunu PASS ediyor. **Bilinen sınırlar:** (a) otonom `draftPatch` (gerçek
+hipotezden gerçek diff üreten LLM adımı) v1'de fixture; operatör `--patch` ile besliyor veya
+öğrenilen desen yönlendiriyor. (b) `run` komutu sandbox'ta gerçek `tsc/lint/build/smoke` çalıştırır
+ama tam repo build'i yavaş. (c) self-optimization benchmark motoru saf + test edildi ama henüz canlı
+bir metriğe bağlı değil.
+
+**PUSH YAPILMADI · MERGE YAPILMADI · DEPLOY YAPILMADI.**
+
+---
+
 ## AYAS iPhone voice — "DİNLİYOR → HAZIR" erken kapanma FIX + Voice Lab görünürlük FIX; gate CLOSED - 2026-09-10
 
 **Branch:** `wip/ayas-graphify-final-execution` (commit `12e9126`, off `64b130c`). NOT merged / NOT pushed. `git diff --check` clean.
