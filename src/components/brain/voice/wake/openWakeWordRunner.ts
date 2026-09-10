@@ -45,6 +45,8 @@ const EMB_BUFFER_MAX = 120;
 const PENDING_MAX = CHUNK * 6;
 /** Chunks processed per `accept()` when catching up — bounds a slow-phone spiral. */
 const MAX_CATCHUP = 4;
+/** Recent wakeword scores kept for the §5 distribution (≈ 20 s at ~12 infer/s). */
+const SCORE_RING = 256;
 
 export interface WakeRunnerOptions {
   readonly melspectrogramUrl: string;
@@ -67,6 +69,16 @@ export interface WakeSession {
   release?(): void | Promise<void>;
 }
 
+/** Real wakeword-score distribution over a bounded ring of recent inferences. */
+export interface WakeScoreDistribution {
+  readonly count: number;
+  readonly min: number;
+  readonly mean: number;
+  readonly median: number;
+  readonly p90: number;
+  readonly max: number;
+}
+
 /** Numeric-only streaming diagnostics. Contains no audio and never will. */
 export interface WakeRunnerStats {
   /** `accept()` calls that carried a full 1280-sample chunk. */
@@ -85,6 +97,25 @@ export interface WakeRunnerStats {
   readonly maxScore: number;
   /** message of the last error thrown inside `accept()`, or null. */
   readonly lastError: string | null;
+  /**
+   * Sprint 5 §5 — the real score distribution (min / mean / median / p90 / max)
+   * over the last {@link SCORE_RING} inferences, so a device can show *where* the
+   * threshold should sit instead of a blind 0.70. `null` before the first score.
+   */
+  readonly scoreDistribution: WakeScoreDistribution | null;
+  /** Sprint 5 §16 — current inference-queue depth in samples (0 when caught up). */
+  readonly pendingSamples: number;
+  /** high-water mark of {@link pendingSamples} this session. */
+  readonly maxPendingSamples: number;
+  /** `accept()` calls that had to process >1 chunk to catch up (phone falling behind). */
+  readonly catchupBatchesTotal: number;
+  /** most chunks a single `accept()` processed (≤ MAX_CATCHUP). */
+  readonly maxCatchupInOneAccept: number;
+  /**
+   * Highest number of `runChunk` bodies in flight at once. Single-flight ⇒ this
+   * MUST stay 1; a 2 here would mean the shared rolling buffers were corrupted.
+   */
+  readonly maxConcurrentInference: number;
 }
 
 export class OpenWakeWordRunner {
@@ -113,6 +144,15 @@ export class OpenWakeWordRunner {
   private lastScore = -1;
   private maxScore = -1;
   private lastError: string | null = null;
+  /** Ring of the last SCORE_RING finite wakeword scores (§5 distribution). */
+  private readonly scoreRing = new Float32Array(SCORE_RING);
+  private scoreRingLen = 0;
+  private scoreRingPos = 0;
+  private maxPending = 0;
+  private nCatchupBatches = 0;
+  private maxCatchup = 0;
+  private concurrent = 0;
+  private maxConcurrent = 0;
 
   /**
    * Reusable model-input scratch — the wake chain runs ~12×/s for minutes on a
@@ -145,7 +185,35 @@ export class OpenWakeWordRunner {
       lastScore: this.lastScore,
       maxScore: this.maxScore,
       lastError: this.lastError,
+      scoreDistribution: this.scoreDistribution(),
+      pendingSamples: this.pending.length,
+      maxPendingSamples: this.maxPending,
+      catchupBatchesTotal: this.nCatchupBatches,
+      maxCatchupInOneAccept: this.maxCatchup,
+      maxConcurrentInference: this.maxConcurrent,
     };
+  }
+
+  /** min / mean / median / p90 / max over the score ring — `null` before any score. */
+  private scoreDistribution(): WakeScoreDistribution | null {
+    if (this.scoreRingLen === 0) return null;
+    const s = Array.from(this.scoreRing.subarray(0, this.scoreRingLen)).sort((a, b) => a - b);
+    const at = (q: number) => s[Math.min(s.length - 1, Math.max(0, Math.round(q * (s.length - 1))))];
+    const round = (x: number) => Math.round(x * 1000) / 1000;
+    return {
+      count: s.length,
+      min: round(s[0]),
+      mean: round(s.reduce((a, b) => a + b, 0) / s.length),
+      median: round(at(0.5)),
+      p90: round(at(0.9)),
+      max: round(s[s.length - 1]),
+    };
+  }
+
+  private recordScore(score: number): void {
+    this.scoreRing[this.scoreRingPos] = score;
+    this.scoreRingPos = (this.scoreRingPos + 1) % SCORE_RING;
+    if (this.scoreRingLen < SCORE_RING) this.scoreRingLen += 1;
   }
 
   async init(): Promise<void> {
@@ -206,6 +274,7 @@ export class OpenWakeWordRunner {
     // phone, the audio stays CONTIGUOUS — a delayed-but-gapless chunk scores far
     // better than a gappy one, which is why real "AYAS" was being missed.
     for (let i = 0; i < frame.length; i += 1) this.pending.push(frame[i] * 32767);
+    if (this.pending.length > this.maxPending) this.maxPending = this.pending.length;
     if (this.pending.length > PENDING_MAX) {
       // Genuinely behind — drop the oldest to keep memory bounded (a real gap).
       this.nDropped += this.pending.length - PENDING_MAX;
@@ -218,17 +287,24 @@ export class OpenWakeWordRunner {
     if (this.pending.length < CHUNK) return null;
 
     this.inFlight = true;
+    this.concurrent += 1;
+    if (this.concurrent > this.maxConcurrent) this.maxConcurrent = this.concurrent;
     try {
       // Catch up over the buffered chunks (bounded), most recent score wins.
       let score: number | null = null;
+      let batch = 0;
       for (let n = 0; n < MAX_CATCHUP && this.pending.length >= CHUNK; n += 1) {
         score = await this.runChunk(this.pending.splice(0, CHUNK));
+        batch += 1;
       }
+      if (batch > 1) this.nCatchupBatches += 1;
+      if (batch > this.maxCatchup) this.maxCatchup = batch;
       return score;
     } catch (error) {
       this.lastError = (error as Error)?.message ?? String(error);
       return null;
     } finally {
+      this.concurrent -= 1;
       this.inFlight = false;
     }
   }
@@ -296,6 +372,7 @@ export class OpenWakeWordRunner {
       if (Number.isFinite(score)) {
         this.lastScore = score;
         if (score > this.maxScore) this.maxScore = score;
+        this.recordScore(score);
         return score;
       }
       this.lastError = "wakeword output was not finite";

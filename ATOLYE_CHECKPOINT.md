@@ -1,5 +1,84 @@
 ---
 
+## AYAS iPhone voice — FORENSIC AUDIO/STT/RELOAD sprint: root-cause matrix, wake-score & runner-cost metrics, whisper guards; gate CLOSED - 2026-09-10
+
+**Branch:** `wip/ayas-graphify-final-execution` (off `9289b51`). NOT merged / NOT pushed. `git diff --check` clean.
+
+**Trigger:** the operator's real physical iPhone test **invalidated** the prior sprint's
+`READY_WITH_OPERATOR_TEST` → **NOT_READY**. 8 real-device observations: wake needs "AYAS" repeated;
+command sentence after wake not reliably captured; "ses bağlantısı yeniden kuruluyor" → page
+reloads; chat STT sometimes wrong in a *meaning-breaking* way; AYAS restarts the conversation.
+
+**FORENSIC METHOD:** every pipeline link measured, not asserted. `scratchpad/stt-forensic.mjs` ran
+**~105 real whisper.cpp transcriptions** (3 Turkish sentences × clean / +noise / onset-trimmed ×
+10). New numeric telemetry added to the runner + adapter + Voice Lab so the operator's next
+device test *produces the distribution*, not a yes/no.
+
+**ROOT CAUSE MATRIX (proven):**
+
+| # | Symptom | Proven root cause | Evidence | Fix this sprint |
+|---|---|---|---|---|
+| 3 / 7 | command's first word lost → "wrong transcript that breaks meaning" | **capture onset truncation**, NOT whisper. whisper.cpp on clean 16 k audio is **100 % deterministic** (105/105 runs, `distinctTranscripts = 1`) and noise-robust (WER 0 with additive white noise). The ONLY condition that broke meaning was trimming the first 450 ms: "peki bu projelerden…" → "**bu** projelerden…", "Mimar Sinan…" → "**Sinan**…". whisper's own `minTokenP` on that truncated token = **0.12**. | `stt-forensic.mjs` output | `PREROLL_FRAMES` 4 → **18 (~1.44 s)** already in `4c1f30c`; this sprint proves it's the right lever + adds the confidence signal that flags a truncated clip. |
+| 1 / 2 / 6 | real "AYAS" missed / needs repeating | model trained on ONE synthetic voice → real voice peaks under 0.70 | (operator device test still required for the live number) | `WakeScoreDetector` two-tier (hard 0.70 **OR** 3-of-5 ≥ 0.60) already in `4c1f30c`; this sprint adds `runner.stats.scoreDistribution` (min/mean/median/p90/max over a 256-score ring) so §5 "see the real distribution before touching the threshold" is now literally on the Voice Lab screen. |
+| 7 | whisper hallucination (defence-in-depth) | short/near-silent clips can yield `[BLANK_AUDIO]` / drift; long `--prompt` primes the decode | forensic: long prompt added nothing on clean audio | `AyasSttService` whisper argv: **`-tp 0`** (deterministic first pass, fallback still escalates — no `-nf`), **`-mc 0`** (no cross-window text carry → kills "restart" drift), **`-sns`** (suppress non-speech tokens). Prompt trimmed `"AYAS, Atolye, Graphify."`. `-oj` → **`-ojf`**; per-token `p` parsed → `result.confidence { minTokenP, meanTokenP }` on the STT route (observability only, never gates). |
+| 4 / 5 | reload during voice + "yeniden kuruyor" | iOS eviction (screen-lock / foreground-memory) — **not** code-triggered. Only `PwaRegister` calls `location.reload()` and it is deferred while voice is active. | `sw.js` / `PwaRegister` re-audited; `brainLifecycle` classifier already records nav-type + eviction-kind | no code change — the operator device test must capture the Voice Lab `evictionKind` row. Softened notice + first-touch-anywhere resume shipped in `4c1f30c`. |
+| 8 | "AYAS restarts the conversation" | (a) **reload** wiping in-memory `messages` (Sprint 4 persistence covers it); (b) the **re-introduction** made a normal turn *look* like a restart (#1 prompt fix). Engine turn logic re-verified: `dispatchCommand` resets `woke`, bare-"AYAS" stays awake, no restart path. | `ayasVoiceEngine.ts` read | no code change — combination of #1 + Sprint 4 persistence. |
+
+**CODE (client / diagnostics only — `sw.js`, `PwaRegister`, auth, routes' security, execution
+gate, `.env.local`, threshold 0.70, model, wake→STT→AYAS→TTS semantics ALL unchanged):**
+
+- **`AyasSttService.ts`** — whisper argv `-tp 0 -mc 0 -sns`, prompt trimmed, `-oj`→`-ojf`,
+  `parseWhisperJson` now also returns `confidence {minTokenP, meanTokenP}` (punctuation-only
+  tokens excluded); `AyasSttResult.ok` + `/api/ayas/stt` response gain `confidence`.
+- **`openWakeWordRunner.ts`** — `WakeRunnerStats` gains **§5** `scoreDistribution`
+  (min/mean/median/p90/max, 256-score ring) and **§16** `pendingSamples` / `maxPendingSamples` /
+  `catchupBatchesTotal` / `maxCatchupInOneAccept` / `maxConcurrentInference` (single-flight
+  proof — must stay 1). All numeric, no audio.
+- **`wakeWordVoiceAdapter.ts`** — `MediaStreamWorkletBackend.resourceStats` (**§17**
+  `audioContextsCreated` / `mediaStreamsAcquired` / `graphRebuilds` — healthy multi-turn session
+  = 1 / 1). `WakeAdapterStatus` gains `runnerCost` + `backendResources`; `getStatus()` wires
+  them. `WakeRunnerLike.stats` widened to `Partial<WakeRunnerStats>`.
+- **`app/brain/voice-lab/wake/page.tsx`** — the diagnostics panel + JSON export now show the §5
+  score distribution, the §16 queue / catch-up / single-flight numbers, and the dropped-sample
+  count. Operator-safe (no audio, no PII).
+
+**AUTOMATED TESTS — tsc 0 · eslint 0 err (22 pre-existing warnings, none in touched files) ·
+`next build` exit 0. 9 suites re-run, all green:**
+`ayas-stt` 15→**18** (argv carries `-tp 0 -mc 0 -sns -ojf`, no `-nf`/`-oj`, prompt trimmed;
+`-ojf` token probs → confidence; punctuation tokens excluded), `ayas-wake-runner` 15→**17**
+(§5 `scoreDistribution` percentiles; §16 pending/catch-up bounded + `maxConcurrentInference === 1`),
+`ayas-wake-adapter` **32** (E100 default + **TEST E200 run and passing** via
+`WAKE_ADAPTER_TURNS=200`; §17 `resourceStats` 1 ctx / 1 stream over 11 starts; §16 runnerCost
+single-flight over 200 turns), `ayas-stt-security` 7, `ayas-chat-stream` 11, `ayas-voice` 54,
+`brain-core-ui` 35, `brain-conversation` 8, `brain-lifecycle` 16.
+**REAL integration:** Piper TR "AYAS, atölyede kaç proje var?" → whisper (`-ojf` + guards) →
+`"AYAS, atölyede kaç proje var?"` (cleaner than the pre-guard `"ayas atolye'de …"`), 2.8 s audio /
+1.6 s / RTF 0.56 / confidence min 0.55 mean 0.92.
+
+**GRAPHIFY (§2, read-only):** re-ran `graphify-health-readonly.ts` — **identical**:
+CONSISTENT-WITH-NOTES, 17 folders / 16 valid / **0 unresolvable**, Brain↔Graphify **16 == 16**,
+0 blocked, 4 failed-stage (latest mimar-sinan / visuals / `VISUAL_ASSET_GENERATION_FAILED`).
+1 orphan folder + 2 Hun `id≠folder` (pre-existing, `D:` authority, report-only). **No WRITE, no
+migration, no authority change, execution gate CLOSED.**
+
+**SERVER:** rebuilt, `next start` restarted on :3000 — `/brain` → 307 `/login`, `/sw.js`
+`no-cache,no-store`. cloudflared: 1 HA conn, 0 origin errors (hostname is the operator's ephemeral
+Quick Tunnel — not recorded here).
+
+**VERDICT: `NOT_READY` → still gated on the operator's physical iPhone re-test.** The audio
+pipeline is now *instrumented* end-to-end (wake score distribution, runner queue cost, AudioContext
+count, STT confidence, per-turn latency, reload eviction-kind) and the proven code bugs (onset
+truncation lever, wake two-tier, whisper guards) are fixed — but per the sprint's own rule
+**"otomatik test yeşil diye gerçek iPhone problemi kapatılmış sayılmaz"**, READY needs the
+operator to run TEST A–F on the device and confirm: wake reliable without repeating, no word loss
+after wake, no meaning-breaking STT error, context preserved across a reload, no recovery/reload
+loop. Full forensic report: `AYAS_IPHONE_VOICE_FORENSIC_SPRINT5_REPORT.md`.
+
+**PUSH YAPILMADI · MERGE YAPILMADI · DEPLOY YAPILMADI.** Preserve branch
+`wip/ayas-graphify-final-execution`.
+
+---
+
 ## AYAS Brain — iPhone voice: stop re-introductions, adaptive VAD, contiguous wake audio; gate CLOSED - 2026-09-10
 
 **Branch:** `wip/ayas-graphify-final-execution` (commit `4c1f30c`, off `9926292`). NOT merged / NOT pushed.

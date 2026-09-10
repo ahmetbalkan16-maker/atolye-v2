@@ -25,7 +25,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
-import type { WakeRunnerStats } from "@/components/brain/voice/wake/openWakeWordRunner";
+import type { WakeRunnerStats, WakeScoreDistribution } from "@/components/brain/voice/wake/openWakeWordRunner";
 import { useBrainLifecycle } from "@/components/brain/useBrainLifecycle";
 
 type MicState = "off" | "requesting" | "on" | "denied" | "ended";
@@ -39,9 +39,21 @@ interface WakeDiag {
   readonly embeddings: number; // embeddings produced
   readonly inferences: number; // wakeword inferences run
   readonly error: string | null; // last error inside the runner
+  readonly dist: WakeScoreDistribution | null; // §5 real score distribution
+  readonly pending: number; // §16 inference-queue depth (samples, 0 = caught up)
+  readonly maxPending: number; // §16 queue high-water mark
+  readonly catchupBatches: number; // §16 accept() calls that ran >1 chunk
+  readonly maxCatchup: number; // §16 most chunks in one accept()
+  readonly maxConcurrent: number; // §16 must stay 1 (single-flight proof)
+  readonly dropped: number; // §16 samples dropped under sustained overload
 }
-const ZERO_DIAG: WakeDiag = { rawScore: -1, maxScore: -1, featFrames: 0, embeddings: 0, inferences: 0, error: null };
+const ZERO_DIAG: WakeDiag = {
+  rawScore: -1, maxScore: -1, featFrames: 0, embeddings: 0, inferences: 0, error: null,
+  dist: null, pending: 0, maxPending: 0, catchupBatches: 0, maxCatchup: 0, maxConcurrent: 0, dropped: 0,
+};
 const fmtScore = (s: number) => (s < 0 ? "—" : s.toFixed(4));
+const fmtDist = (d: WakeScoreDistribution | null) =>
+  d ? `min ${d.min} · ort ${d.mean} · med ${d.median} · p90 ${d.p90} · max ${d.max}  (n=${d.count})` : "— (henüz skor yok)";
 
 interface Telemetry {
   readonly inSamples: number;
@@ -495,6 +507,13 @@ export default function D2WakeLabPage() {
               embeddings: st.embeddings,
               inferences: st.inferences,
               error: st.lastError,
+              dist: st.scoreDistribution,
+              pending: st.pendingSamples,
+              maxPending: st.maxPendingSamples,
+              catchupBatches: st.catchupBatchesTotal,
+              maxCatchup: st.maxCatchupInOneAccept,
+              maxConcurrent: st.maxConcurrentInference,
+              dropped: st.dropped,
             };
           }
           if (hit && "score" in hit) setWakeScore(hit.score);
@@ -694,6 +713,13 @@ export default function D2WakeLabPage() {
             inferences: diag.inferences,
             runnerError: diag.error,
             crossedThreshold: diag.maxScore >= 0 && diag.maxScore >= threshold,
+            scoreDistribution: diag.dist,
+            pendingSamples: diag.pending,
+            maxPendingSamples: diag.maxPending,
+            catchupBatchesTotal: diag.catchupBatches,
+            maxCatchupInOneAccept: diag.maxCatchup,
+            maxConcurrentInference: diag.maxConcurrent,
+            droppedSamples: diag.dropped,
           },
           stt: { state: sttState, lastTranscript },
           ayas: { state: ayasState, reply: ayasReply },
@@ -882,6 +908,18 @@ export default function D2WakeLabPage() {
           <dd>{diag.embeddings.toLocaleString("tr-TR")}</dd>
           <dt>Wakeword inference sayısı</dt>
           <dd>{diag.inferences.toLocaleString("tr-TR")}</dd>
+          <dt>Skor dağılımı (§5 — eşiği buna göre seç)</dt>
+          <dd data-testid="d2w-diag-dist" style={{ wordBreak: "break-word" }}>{fmtDist(diag.dist)}</dd>
+          <dt>Inference kuyruğu — şu an / tepe / düşen</dt>
+          <dd>
+            {diag.pending} / {diag.maxPending} örnek
+            {diag.dropped > 0 ? ` · ${diag.dropped} DÜŞTÜ` : " · düşen yok"}
+          </dd>
+          <dt>Catch-up — toplam batch / tek accept tepe / eşzamanlı</dt>
+          <dd style={{ color: diag.maxConcurrent > 1 ? "var(--bc-danger, #f66)" : undefined }}>
+            {diag.catchupBatches} / {diag.maxCatchup} / {diag.maxConcurrent}
+            {diag.maxConcurrent > 1 ? " · SINGLE-FLIGHT İHLALİ" : diag.maxConcurrent === 1 ? " · single-flight OK" : ""}
+          </dd>
           <dt>Runner hatası</dt>
           <dd style={{ wordBreak: "break-word", color: diag.error ? "var(--bc-danger, #f66)" : undefined }}>
             {diag.error ?? "yok"}

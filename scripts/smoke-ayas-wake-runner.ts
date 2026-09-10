@@ -272,6 +272,56 @@ async function run() {
     assert.equal(s.lastError, null);
   });
 
+  await scenario("§5 stats.scoreDistribution — min/mean/median/p90/max over the score ring", async () => {
+    const rec: Recorder = { melDims: [], embDims: [], wwDims: [] };
+    // A deterministic sweep of scores 0.2 … 0.9 so the percentiles are checkable.
+    const seq = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
+    let k = 0;
+    const runner = makeRunner({ mel: fakeMel(rec), emb: fakeEmb(rec), ww: fakeWw(rec, () => seq[k++ % seq.length]) });
+    await runner.init();
+    for (let i = 0; i < 60; i += 1) await runner.accept(new Float32Array(CHUNK).fill(0.05));
+    const d = runner.stats.scoreDistribution;
+    assert.ok(d, "distribution present once scores exist");
+    assert.ok(d && d.count >= 8 && d.count <= 256, `count ${d?.count}`);
+    assert.ok(d && d.min >= 0.2 - 1e-6 && d.min <= 0.4, `min ${d?.min}`);
+    assert.ok(d && d.max <= 0.9 + 1e-6 && d.max >= 0.7, `max ${d?.max}`);
+    assert.ok(d && d.median >= 0.3 && d.median <= 0.8, `median ${d?.median}`);
+    assert.ok(d && d.p90 >= d.median, `p90 ${d?.p90} ≥ median ${d?.median}`);
+    assert.ok(d && d.mean > d.min && d.mean < d.max, `mean ${d?.mean} in range`);
+  });
+
+  await scenario("§16 runtime-cost stats — pending / catch-up / single-flight are all bounded & observable", async () => {
+    const rec: Recorder = { melDims: [], embDims: [], wwDims: [] };
+    let calls = 0;
+    const slowMel = ((): WakeSession => {
+      const base = fakeMel(rec);
+      return {
+        inputNames: base.inputNames,
+        outputNames: base.outputNames,
+        async run(feeds) {
+          calls += 1;
+          if (calls <= 6) await new Promise((r) => setTimeout(r, 6)); // phone falls behind early
+          return base.run(feeds);
+        },
+      };
+    })();
+    const runner = makeRunner({ mel: slowMel, emb: fakeEmb(rec), ww: fakeWw(rec, () => 0.5) });
+    await runner.init();
+    const inFlight: Promise<number | null>[] = [];
+    for (let i = 0; i < 24; i += 1) inFlight.push(runner.accept(new Float32Array(CHUNK).fill(0.05)));
+    await Promise.all(inFlight);
+    for (let i = 0; i < 10; i += 1) await runner.accept(new Float32Array(CHUNK).fill(0.05));
+
+    const s = runner.stats;
+    assert.equal(s.maxConcurrentInference, 1, "single-flight — never 2 runChunk bodies at once");
+    assert.ok(s.maxPendingSamples > CHUNK, `queue actually backed up: ${s.maxPendingSamples}`);
+    // maxPending is the pre-trim high-water mark: PENDING_MAX (7680) + one 1280-frame push.
+    assert.ok(s.maxPendingSamples <= CHUNK * 7, `queue stays bounded (≤ PENDING_MAX + 1 frame): ${s.maxPendingSamples}`);
+    assert.ok(s.catchupBatchesTotal >= 1, "at least one accept() processed >1 chunk to catch up");
+    assert.ok(s.maxCatchupInOneAccept >= 2 && s.maxCatchupInOneAccept <= 4, `maxCatchup ${s.maxCatchupInOneAccept} (≤ MAX_CATCHUP)`);
+    assert.equal(s.pendingSamples < CHUNK, true, "fully drained at the end");
+  });
+
   await scenario("sub-chunk frames are buffered — 320-sample frames still produce chunks", async () => {
     const rec: Recorder = { melDims: [], embDims: [], wwDims: [] };
     const runner = makeRunner({ mel: fakeMel(rec), emb: fakeEmb(rec), ww: fakeWw(rec, () => 0.5) });

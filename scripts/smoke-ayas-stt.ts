@@ -52,6 +52,7 @@ function fakeRun(opts: {
   whisperTimeout?: boolean;
   whisperFail?: boolean;
   transcript?: string;
+  tokenProbs?: number[];
 }) {
   return async (executable: string, args: readonly string[]) => {
     if (executable === enabledConfig.ffmpegPath || args.includes("pcm_s16le")) {
@@ -62,20 +63,29 @@ function fakeRun(opts: {
       return { code: 0, stdout: "", stderr: "", timedOut: false };
     }
     // whisper
+    lastWhisperArgs = [...args];
     if (opts.whisperTimeout) return { code: null, stdout: "", stderr: "", timedOut: true };
     if (opts.whisperFail) return { code: 1, stdout: "", stderr: "whisper boom", timedOut: false };
     const ofIndex = args.indexOf("-of");
     const outBase = args[ofIndex + 1];
+    const transcript = opts.transcript ?? " Ayaz kaç proje var";
+    // -ojf (full) shape: per-token `p`. Emit tokens only when asked so the
+    // "backward-compatible with plain -oj" path is also exercised.
+    const tokens = opts.tokenProbs
+      ? opts.tokenProbs.map((p, i) => ({ text: i === 0 ? transcript.trim().split(" ")[0] : "x", p }))
+      : undefined;
     fs.writeFileSync(
       `${outBase}.json`,
       JSON.stringify({
         result: { language: "tr" },
-        transcription: [{ text: opts.transcript ?? " Ayaz kaç proje var" }],
+        transcription: [{ text: transcript, ...(tokens ? { tokens } : {}) }],
       }),
     );
     return { code: 0, stdout: "", stderr: "", timedOut: false };
   };
 }
+
+let lastWhisperArgs: string[] = [];
 
 async function run() {
   /* ---- config ---- */
@@ -169,6 +179,67 @@ async function run() {
       assert.equal(r.language, "tr");
       assert.equal(r.audioSeconds, 4);
       assert.ok(r.realTimeFactor >= 0);
+      assert.equal(r.confidence, null); // plain -oj shape (no tokens) → null
+    }
+  });
+
+  /* ---- Sprint 5 §7 — anti-hallucination guards + confidence ---- */
+  await scenario("service: whisper argv carries the §7 hallucination guards", async () => {
+    await transcribeAyasAudio(WAV, { config: enabledConfig, run: fakeRun({}) });
+    const a = lastWhisperArgs;
+    const pair = (flag: string) => a[a.indexOf(flag) + 1];
+    assert.ok(a.includes("-tp") && pair("-tp") === "0", "-tp 0 (deterministic first pass)");
+    assert.ok(a.includes("-mc") && pair("-mc") === "0", "-mc 0 (no cross-window text context)");
+    assert.ok(a.includes("-sns"), "-sns (suppress non-speech tokens)");
+    assert.ok(a.includes("-ojf"), "-ojf (full JSON with token probs)");
+    assert.ok(!a.includes("-nf"), "temperature fallback stays enabled (no -nf)");
+    assert.ok(!a.includes("-oj"), "plain -oj replaced by -ojf");
+    const prompt = pair("--prompt");
+    assert.equal(prompt, "AYAS, Atolye, Graphify.", "prompt trimmed to the three proper nouns");
+  });
+  await scenario("service: -ojf token probs → confidence { minTokenP, meanTokenP }", async () => {
+    const r = await transcribeAyasAudio(WAV, {
+      config: enabledConfig,
+      run: fakeRun({ transcript: " Ayaz kaç proje var", tokenProbs: [0.9, 0.4, 0.8, 0.95] }),
+    });
+    assert.equal(r.ok, true);
+    if (r.ok) {
+      assert.ok(r.confidence, "confidence present");
+      assert.equal(r.confidence?.minTokenP, 0.4);
+      assert.equal(r.confidence?.meanTokenP, 0.763); // (0.9+0.4+0.8+0.95)/4 = 0.7625 → 0.763
+    }
+  });
+  await scenario("service: punctuation-only tokens excluded from confidence", async () => {
+    const r = await transcribeAyasAudio(WAV, {
+      config: enabledConfig,
+      // fakeRun marks non-first tokens as "x" (a letter) — inject a comma token
+      // by hand via a transcript whose first word is punctuation.
+      run: async (executable: string, args: readonly string[]) => {
+        if (executable === enabledConfig.ffmpegPath || args.includes("pcm_s16le")) {
+          fs.writeFileSync(args[args.length - 1], Buffer.alloc(44 + 3 * 16000 * 2));
+          return { code: 0, stdout: "", stderr: "", timedOut: false };
+        }
+        const outBase = args[args.indexOf("-of") + 1];
+        fs.writeFileSync(
+          `${outBase}.json`,
+          JSON.stringify({
+            result: { language: "tr" },
+            transcription: [
+              { text: " Ayaz var", tokens: [
+                { text: " Ay", p: 0.8 },
+                { text: ",", p: 0.02 },
+                { text: " var", p: 0.9 },
+              ] },
+            ],
+          }),
+        );
+        return { code: 0, stdout: "", stderr: "", timedOut: false };
+      },
+    });
+    assert.equal(r.ok, true);
+    if (r.ok) {
+      assert.equal(r.confidence?.minTokenP, 0.8, "comma (p=0.02) ignored");
+      assert.equal(r.confidence?.meanTokenP, 0.85);
     }
   });
   await scenario("service: blank transcript → empty-transcript", async () => {
@@ -201,7 +272,11 @@ async function run() {
         assert.equal(r.ok, true, r.ok ? "" : `stt failed: ${JSON.stringify(r)}`);
         if (r.ok) {
           assert.match(r.text.toLowerCase(), /proje/, `transcript: "${r.text}"`);
-          console.log(`   real transcript: "${r.text}"  (${r.audioSeconds}s audio, ${r.processingMs}ms, RTF ${r.realTimeFactor})`);
+          assert.ok(r.confidence && r.confidence.minTokenP > 0, "real -ojf run surfaces token confidence");
+          console.log(
+            `   real transcript: "${r.text}"  (${r.audioSeconds}s audio, ${r.processingMs}ms, RTF ${r.realTimeFactor}, ` +
+              `conf min ${r.confidence?.minTokenP} / mean ${r.confidence?.meanTokenP})`,
+          );
         }
       } finally {
         fs.rmSync(work, { recursive: true, force: true });

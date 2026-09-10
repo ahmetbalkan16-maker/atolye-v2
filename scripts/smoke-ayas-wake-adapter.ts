@@ -21,6 +21,7 @@ import { encodeWav16kMono } from "../src/components/brain/voice/wake/wav";
 import {
   WakeWordVoiceAdapter,
   MediaStreamWorkletBackend,
+  WakeScoreDetector,
   type WakeAudioBackend,
   type WakeRunnerLike,
 } from "../src/components/brain/voice/wakeWordVoiceAdapter";
@@ -112,6 +113,10 @@ class FakeRunner implements WakeRunnerLike {
   inits = 0;
   resets = 0;
   disposes = 0;
+  private nAccept = 0;
+  private nInfer = 0;
+  private concurrent = 0;
+  private maxConcurrent = 0;
   async init() {
     this.ready = true;
     this.inits += 1;
@@ -124,7 +129,25 @@ class FakeRunner implements WakeRunnerLike {
     this.ready = false;
   }
   async accept(frame: Float32Array) {
+    this.concurrent += 1;
+    this.maxConcurrent = Math.max(this.maxConcurrent, this.concurrent);
+    this.nAccept += 1;
+    this.nInfer += 1;
+    this.concurrent -= 1;
     return (frame as Float32Array & { __wake?: boolean }).__wake ? 0.97 : 0.01;
+  }
+  get stats() {
+    return {
+      dropped: 0,
+      inferences: this.nInfer,
+      lastError: null,
+      pendingSamples: 0,
+      maxPendingSamples: 0,
+      catchupBatchesTotal: 0,
+      maxCatchupInOneAccept: 1,
+      maxConcurrentInference: this.maxConcurrent,
+      frames: this.nAccept,
+    };
   }
 }
 
@@ -704,36 +727,60 @@ async function run() {
     a.dispose();
   });
 
-  await scenario("TEST E100 — 100 consecutive turns; mic acquired ONCE, 0 fatal, 0 paused, 0 leak", async () => {
+  const LONG_RUN_TURNS = Math.max(100, Number(process.env.WAKE_ADAPTER_TURNS ?? "100") | 0);
+  await scenario(`TEST E${LONG_RUN_TURNS} — ${LONG_RUN_TURNS} consecutive turns; mic acquired ONCE, 0 fatal, 0 paused, 0 leak`, async () => {
+    const N = LONG_RUN_TURNS;
     const backend = new FakeBackend();
     const runner = new FakeRunner();
-    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner, tts: fakeTts(), transcribe: async () => "x", ...FAST });
+    // Push the watchdog out past the run so its periodic emit() doesn't dominate
+    // the wall-clock — this scenario is about turn-loop integrity, not the stall net.
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend, runner, tts: fakeTts(), transcribe: async () => "x",
+      ...FAST, watchdogIntervalMs: 3_600_000,
+    });
     const c = collectHandlers();
+    // Leaner settle for the hot loop — the FAST config has 0 cooldown / 1 ms backoff.
+    const fastTurn = async () => {
+      backend.push("wake");
+      await settle(4);
+      for (let i = 0; i < 15; i += 1) backend.push("speech");
+      for (let i = 0; i < 16; i += 1) backend.push("silence");
+      await settle(4);
+      a.startListening("tr-TR", c.handlers);
+      await settle(4);
+    };
     a.startListening("tr-TR", c.handlers);
     await settle();
-    for (let i = 0; i < 100; i += 1) {
+    for (let i = 0; i < N; i += 1) {
       // Every 10th turn, iOS "suspends" the context between turns — the re-arm's
       // resumeOrRebuild must resume it IN PLACE (no rebuild) before the next wake.
       if (i % 10 === 9) {
         backend.suspended = true;
         a.startListening("tr-TR", c.handlers); // re-arm → recover() resumes the ctx
-        await settle();
+        await settle(6);
         assert.equal(backend.suspended, false, `turn ${i}: context resumed in place`);
       }
-      await turn(a, backend, c.handlers);
+      await fastTurn();
     }
     const wakes = c.finals.filter((t) => t === "AYAS").length;
-    assert.equal(wakes, 100, `all 100 wakes fired (got ${wakes})`);
+    assert.equal(wakes, N, `all ${N} wakes fired (got ${wakes})`);
     const st = a.getStatus();
-    assert.equal(st.cyclesCompleted, 100);
-    assert.equal(st.mic, "on", "still healthy after 100 turns");
+    assert.equal(st.cyclesCompleted, N);
+    assert.equal(st.mic, "on", `still healthy after ${N} turns`);
     assert.notEqual(st.phase, "fatal");
     assert.notEqual(st.phase, "paused");
-    assert.equal(backend.started, 1, "mic acquired exactly once across 100 turns");
+    assert.equal(backend.started, 1, `mic acquired exactly once across ${N} turns`);
     assert.equal(backend.disposed, 0);
     assert.equal(runner.inits, 1, "ONNX runner initialised once");
     assert.equal(runner.disposes, 0);
     assert.equal(st.recoveryCount, 0, "in-place resume — never a rebuild");
+    // §16 — runner runtime cost stays bounded & single-flight over the whole run.
+    assert.ok(st.runnerCost, "runnerCost surfaced");
+    assert.equal(st.runnerCost?.maxConcurrentInference, 1, "§16: wake inference never overlaps");
+    assert.equal(st.runnerCost?.pendingSamples, 0, "§16: queue drained");
+    // §5 — the wake-score distribution is populated and sane.
+    assert.ok(st.wakeScore.n >= N, `§5: a score observed per turn (${st.wakeScore.n})`);
+    assert.equal(st.wakeScore.hits, N, `§5: ${N} wake confirmations for ${N} turns`);
     a.dispose();
     assert.equal(backend.disposed, 1, "dispose() (full teardown) called once, not stop()");
     assert.equal(runner.disposes, 1);
@@ -784,6 +831,14 @@ async function run() {
       assert.equal(ctxCreated, 1, "AudioContext reused (iOS caps a page at ~4)");
       assert.equal(getUserMediaCalls, 1, "live mic track reused — no non-gesture getUserMedia");
       assert.equal(moduleAdds, 1, "worklet module loaded once per context");
+
+      // §17 — the numeric resource counters the Voice Lab surfaces match reality.
+      const rs = backend.resourceStats;
+      assert.equal(rs.audioContextsCreated, 1, "§17: exactly 1 AudioContext over 11 starts");
+      assert.equal(rs.mediaStreamsAcquired, 1, "§17: exactly 1 getUserMedia over 11 starts");
+      assert.equal(rs.graphRebuilds, 11, "§17: the graph itself is re-wired each start (cheap)");
+      assert.equal(rs.audioContextState, "running");
+      assert.equal(rs.micTrackState, "live");
 
       // The track ends (iOS took it for speechSynthesis) → recover() fails, and
       // the next start() re-getUserMedia but STILL reuses the context.
@@ -896,6 +951,54 @@ async function run() {
     for (let i = 0; i < 16; i += 1) backend.pushAmp(0.03);
     await settle();
     assert.ok(c.finals.includes("komut"), `the command finalised on the adaptive floor, got ${JSON.stringify(c.finals)}`);
+    a.dispose();
+  });
+
+  await scenario("WakeScoreDetector — hard hit, soft sustained hit, single spike rejected, stats", () => {
+    const d = new WakeScoreDetector({ hard: 0.7, soft: 0.6, softVotes: 3, softWindow: 5 });
+    // a single frame at/above hard → immediate hit
+    assert.equal(d.observe(0.72), true);
+    // lone spikes below hard → NOT a hit (needs 3 of the last 5 ≥ 0.6)
+    assert.equal(d.observe(0.65), false);
+    assert.equal(d.observe(0.10), false);
+    assert.equal(d.observe(0.15), false);
+    assert.equal(d.observe(0.66), false, "only 2 of the last 5 above soft");
+    // a third moderate frame within the window → hit (real voice that peaks ~0.66)
+    assert.equal(d.observe(0.61), true, "sustained moderate energy is a real 'AYAS'");
+    // window resets after a fire
+    assert.equal(d.observe(0.61), false);
+    assert.equal(d.observe(0.61), false);
+    assert.equal(d.observe(0.61), true, "a fresh sustained run fires again");
+    const s = d.stats;
+    assert.equal(s.hits, 3);
+    assert.ok(s.n >= 9 && s.max >= 0.72 && s.mean > 0 && s.min <= 0.1);
+  });
+
+  await scenario("adapter — a real 'AYAS' that peaks at 0.64 (under 0.70) is still detected", async () => {
+    const backend = new FakeBackend();
+    // a runner that scores 0.64 for a wake frame — under the hard threshold
+    class SoftRunner implements WakeRunnerLike {
+      ready = false;
+      get stats() { return { dropped: 0, inferences: 0, lastError: null }; }
+      async init() { this.ready = true; }
+      reset() {}
+      dispose() {}
+      async accept(frame: Float32Array) {
+        return (frame as Float32Array & { __wake?: boolean }).__wake ? 0.64 : 0.02;
+      }
+    }
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend, runner: new SoftRunner(), tts: fakeTts(), transcribe: async () => "kaç proje var",
+      ...FAST, threshold: 0.7, wakeDetect: { soft: 0.6, softVotes: 3, softWindow: 5 },
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    // three sustained 0.64 wake frames → soft-tier hit
+    backend.push("wake"); backend.push("wake"); backend.push("wake");
+    await settle();
+    assert.ok(c.finals.includes("AYAS"), `soft-tier detected the real 'AYAS', got ${JSON.stringify(c.finals)}`);
+    assert.ok(a.getStatus().wakeScore.max >= 0.64);
     a.dispose();
   });
 

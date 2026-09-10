@@ -150,6 +150,27 @@ Tur __ : wake[ ]  STT[ ]  AYAS-cevap[ ]  TTS[ ]  re-arm[ ]   | reload gördün m
 
 ---
 
+## 4b. FORENSIC ÖLÇÜMLER — Sprint 5 (wake skoru, STT güveni, runner maliyeti)
+
+Bu blok "çalışıyor / çalışmıyor" değil, **sayı** ister. Voice Lab wake sayfasında (openWakeWord +
+STT modu) her tur sonrası oku ve **Export JSON**'u kaydet. Threshold 0.70'e DOKUNMA — önce bu
+dağılımı gör.
+
+| Test | Adım | Voice Lab'da okunacak | Beklenen / not düşülecek |
+|---|---|---|---|
+| **A — Wake 10×** | Normal sesle 10 kez "AYAS" de (tekrarlamadan), her seferinde ~3 sn ara | **"Skor dağılımı"** satırı: `min / ort / med / p90 / max (n=…)` ve **"Wake hits"** | 10 "AYAS" → **≥ 8 hit** ilk denemede. `p90` 0.70'in altındaysa iki-kademeli tetik (soft 0.60, 3/5) devrede demektir — normal. `max` sürekli < 0.55 ise model bu ses için zayıf → operatör kaydı + yeniden eğitim notu |
+| **B — Kısa komut 10×** | "AYAS, kaç proje var" 10 kez | **"Son transcript"** + STT `confidence` (JSON `stt.confidence` ya da route yanıtı) | Transcript **anlamı** her seferinde doğru olmalı. `minTokenP < 0.3` olan turda transcript'i kelime kelime kontrol et — ilk kelime düşmüş mü? |
+| **C — Uzun komut 10×** | "AYAS, Atölye'de kaç proje var ve bunlardan kaçı başarısız oldu" 10 kez | Aynı | İlk kelime ("Atölye'de") **her seferinde** transcript'te olmalı. Yoksa = onset truncation → `PREROLL_FRAMES` yetersiz, not düş |
+| **D — Duraklama** | "AYAS, Atölye'de kaç proje var … *(2 sn düşün)* … ve durumu ne" | "Son tur gecikmesi" capture ms | AYAS araya girMEMELİ; tek turda tam cümle |
+| **E — Bağlam 4 soru** | §31 dizisi (yukarıda) | AYAS cevapları | Tanıtım 0; her cevap bağlamlı |
+| **F — Reload sonrası** | 5 tur → telefonu 5 dk beklet (ekran açık) → dön; sonra 20 dk idle → dön | `d2w-lifecycle`: **"Eviction kind"**, **"Navigation type"**, **"Önceki instance — son olay / wake lock"**, **"Inference kuyruğu"**, **"Catch-up … eşzamanlı"** | Reload olduysa "Eviction kind" **arka plan mı ön plan mı** söylemeli (artık "unknown" değil hedef). **"eşzamanlı" = 1** olmalı (single-flight); 2 görülürse KRİTİK bug. Kuyruk tepe değeri sürekli 7680'e dayanıyorsa telefon inference'a yetişemiyor → not düş |
+
+**§17 — AudioContext / MediaStream sayacı:** JSON export'ta backend sayaçları (varsa) veya 100 tur
+sonrası Voice Lab'da: **AudioContext created ≈ 1, MediaStream acquired ≈ 1** olmalı. Her tur artan
+bir sayı = iOS ~4-context limitine gidiş = birkaç turda "başlatılamıyor".
+
+---
+
 ## 5. Sonuç raporu (operatör doldurur)
 
 ```
@@ -166,8 +187,15 @@ TUNNEL URL         :  (geçici — kayda değer değil)
 §4.3 OFFLINE       : PASS / FAIL
 §4.4 HIZLI TAP     : PASS / FAIL
 §4.5 EVICTION      : reload? E/H   | d2w-lifecycle "reload cause" = __________
+                     "Eviction kind" = __________   "eşzamanlı inference" = ___
 
-VOICE LAB JSON     : (Export → yapıştır — özellikle "lifecycle" bloğu)
+§4b-A WAKE 10×     : hit sayısı ___/10 | skor dağılımı min___ ort___ med___ p90___ max___
+§4b-B KISA 10×     : anlamı yanlış tur sayısı ___/10 | en düşük minTokenP ___
+§4b-C UZUN 10×     : ilk kelime düşen tur sayısı ___/10
+§4b-F RUNNER      : kuyruk tepe ___ | catch-up batch ___ | eşzamanlı ___ (1 olmalı) | düşen ___
+§17 KAYNAK        : AudioContext created ___  | MediaStream acquired ___  (ikisi de ≈1)
+
+VOICE LAB JSON     : (Export → yapıştır — "lifecycle" + "pipeline" blokları)
 
 GENEL             : READY / NOT READY
 EĞER NOT READY    : hangi kriter, hangi turda, d2w-lifecycle ne diyordu:

@@ -116,5 +116,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     audioSeconds: result.audioSeconds,
     processingMs: result.processingMs,
     realTimeFactor: result.realTimeFactor,
+    // Whisper's own per-token confidence (min / mean, 0..1) — observability only,
+    // lets the client tell "mis-heard the words" from "misunderstood the words".
+    confidence: result.confidence,
   });
 }

@@ -30,7 +30,7 @@ import type {
   AyasVoicePlatform,
 } from "./ayasVoiceEngine";
 import { BrowserVoiceAdapter } from "./browserVoiceAdapter";
-import { OpenWakeWordRunner } from "./wake/openWakeWordRunner";
+import { OpenWakeWordRunner, type WakeRunnerStats } from "./wake/openWakeWordRunner";
 import { encodeWav16kMono } from "./wake/wav";
 
 const FRAME = 1280; // 80 ms @ 16 kHz — matches the worklet + openWakeWord
@@ -47,11 +47,23 @@ const LONG_UTTERANCE_SPEECH_MS = 2000;
 /** A command must carry at least this much elapsed time AND real speech. */
 const COMMAND_MIN_MS = 450;
 const COMMAND_MIN_SPEECH_MS = 250;
-/** Wake-word onset can bleed into the first command frames — keep a short pre-roll. */
-const PREROLL_FRAMES = 4; // ~320 ms
+/**
+ * Rolling pre-roll prepended to a command capture. On a phone the wake score is
+ * computed on a DELAYED chunk (single-flight + catch-up), so "AYAS" fires
+ * hundreds of ms after it was actually spoken — the command's first word is
+ * already in the past. A ~1.4 s pre-roll covers the wake word itself + the
+ * detection lag + the command onset so nothing is lost. Whisper transcribes the
+ * leading "AYAS" and `stripLeadingWakeWord` removes it; the extra ~1 s of audio
+ * also lifts the clip above whisper's short-clip hallucination floor.
+ */
+const PREROLL_FRAMES = 18; // ~1.44 s
 /** Silence RMS floor — the adaptive threshold never drops below / rises above this. */
 const SILENCE_RMS_MIN = 0.010;
 const SILENCE_RMS_MAX = 0.05;
+/** Frames used to estimate the room's noise floor at the start of a capture. */
+const NOISE_CAL_FRAMES = 5;
+/** RMS a pre-roll frame must clear to count as "the user was already speaking". */
+const PREROLL_SPEECH_RMS = 0.02;
 /** After a turn the wake path ignores audio this long (echo / TTS tail). */
 const REARM_COOLDOWN_MS = 350;
 /** getUserMedia / ONNX load can hang on iOS — bound it so a hang can't wedge AYAS. */
@@ -70,6 +82,78 @@ const FRAME_STALL_MS = 2500;
 const PAUSED_RETRY_BACKOFF_MS = [3_000, 8_000, 20_000] as const;
 /** Auto-retries from `paused` before AYAS also shows a visible "tap to resume". */
 const PAUSED_RETRIES_BEFORE_PROMPT = 3;
+
+export interface WakeDetectConfig {
+  /** A single frame at/above this is an immediate hit. */
+  readonly hard: number;
+  /** `softVotes` of the last `softWindow` frames at/above this is also a hit. */
+  readonly soft: number;
+  readonly softVotes: number;
+  readonly softWindow: number;
+}
+
+const DEFAULT_WAKE_DETECT: WakeDetectConfig = { hard: 0.7, soft: 0.6, softVotes: 3, softWindow: 5 };
+
+/**
+ * Two-tier wake decision. The model was trained on ONE synthetic voice, so a
+ * real human "AYAS" often peaks just under the hard threshold — a sustained
+ * run of moderate scores is still a real hit, and far less false-positive prone
+ * than lowering the hard threshold. Numeric-only; no audio.
+ */
+export class WakeScoreDetector {
+  private recent: number[] = [];
+  private n = 0;
+  private sum = 0;
+  private min = 2;
+  private max = -1;
+  private hits = 0;
+  constructor(private readonly cfg: WakeDetectConfig = DEFAULT_WAKE_DETECT) {}
+
+  observe(score: number): boolean {
+    if (!Number.isFinite(score)) return false;
+    this.n += 1;
+    this.sum += score;
+    if (score < this.min) this.min = score;
+    if (score > this.max) this.max = score;
+    this.recent.push(score);
+    if (this.recent.length > this.cfg.softWindow) this.recent.shift();
+
+    if (score >= this.cfg.hard) return this.fire();
+    const votes = this.recent.filter((s) => s >= this.cfg.soft).length;
+    if (votes >= this.cfg.softVotes) return this.fire();
+    return false;
+  }
+
+  private fire(): boolean {
+    this.hits += 1;
+    this.recent = [];
+    return true;
+  }
+
+  /** Reset the sliding window (e.g. on re-arm) — keeps the session-long stats. */
+  rearm(): void {
+    this.recent = [];
+  }
+
+  /** Secret-free diagnostics for the Voice Lab / status line. */
+  get stats(): {
+    readonly n: number;
+    readonly mean: number;
+    readonly min: number;
+    readonly max: number;
+    readonly hits: number;
+    readonly window: readonly number[];
+  } {
+    return {
+      n: this.n,
+      mean: this.n ? Math.round((this.sum / this.n) * 1000) / 1000 : 0,
+      min: this.min > 1 ? 0 : Math.round(this.min * 1000) / 1000,
+      max: this.max < 0 ? 0 : Math.round(this.max * 1000) / 1000,
+      hits: this.hits,
+      window: [...this.recent],
+    };
+  }
+}
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -132,6 +216,40 @@ export interface WakeAdapterStatus {
   readonly lastCaptureMs: number;
   readonly lastSttMs: number;
   readonly lastWakeToCaptureMs: number;
+  /** Wake-score distribution this session (for real-voice threshold tuning). */
+  readonly wakeScore: {
+    readonly n: number;
+    readonly mean: number;
+    readonly min: number;
+    readonly max: number;
+    readonly hits: number;
+    readonly window: readonly number[];
+  };
+  /**
+   * Sprint 5 §16 — openWakeWord runner runtime cost: current + peak inference
+   * queue depth (samples), catch-up batches, and the single-flight proof
+   * (`maxConcurrentInference` must be 1). `null` for a test runner without stats.
+   */
+  readonly runnerCost: {
+    readonly pendingSamples: number;
+    readonly maxPendingSamples: number;
+    readonly catchupBatchesTotal: number;
+    readonly maxCatchupInOneAccept: number;
+    readonly maxConcurrentInference: number;
+    readonly inferences: number;
+  } | null;
+  /**
+   * Sprint 5 §17 — audio-resource lifetime counts: a healthy multi-turn session
+   * is `audioContextsCreated: 1, mediaStreamsAcquired: 1` however many turns run.
+   * `null` for a test backend without counters.
+   */
+  readonly backendResources: {
+    readonly audioContextsCreated: number;
+    readonly mediaStreamsAcquired: number;
+    readonly graphRebuilds: number;
+    readonly audioContextState: string;
+    readonly micTrackState: string;
+  } | null;
   readonly lastError: string | null;
 }
 
@@ -141,8 +259,10 @@ export interface WakeWordAdapterOptions {
   readonly embeddingUrl?: string;
   readonly wasmPaths?: string;
   readonly sttUrl?: string;
-  /** Detection threshold in [0, 1]. */
+  /** Hard detection threshold in [0, 1] (default 0.7). */
   readonly threshold?: number;
+  /** Two-tier wake decision config (default hard 0.7 / soft 0.6, 3-of-5). Test seam. */
+  readonly wakeDetect?: Partial<WakeDetectConfig>;
   /** Test seam — replace the whole audio backend. */
   readonly audioBackend?: WakeAudioBackend;
   /** Test seam — replace the wake runner. */
@@ -176,8 +296,12 @@ export interface WakeWordAdapterOptions {
 
 export interface WakeRunnerLike {
   readonly ready: boolean;
-  /** Numeric-only diagnostics (frames / inferences / dropped / lastScore …). */
-  readonly stats?: { readonly dropped: number; readonly inferences: number; readonly lastError: string | null };
+  /** Numeric-only diagnostics (frames / inferences / dropped / lastScore / §5 + §16 …). */
+  readonly stats?: Partial<WakeRunnerStats> & {
+    readonly dropped: number;
+    readonly inferences: number;
+    readonly lastError: string | null;
+  };
   init(): Promise<void>;
   reset(): void;
   dispose(): void;
@@ -204,6 +328,14 @@ export interface WakeAudioBackend {
   recover?(): Promise<boolean>;
   /** Current AudioContext state for diagnostics (`"unknown"` if not applicable). */
   state?(): string;
+  /** Sprint 5 §17 — numeric-only lifetime resource counters, if the backend keeps them. */
+  readonly resourceStats?: {
+    readonly audioContextsCreated: number;
+    readonly mediaStreamsAcquired: number;
+    readonly graphRebuilds: number;
+    readonly audioContextState: string;
+    readonly micTrackState: string;
+  };
   /** Full teardown — close the context, stop the tracks. Only on adapter dispose. */
   dispose?(): void;
   /** Best-effort: does the environment support this path at all? */
@@ -255,6 +387,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       | "watchdogIntervalMs"
       | "frameStallMs"
       | "pausedRetryMs"
+      | "wakeDetect"
       | "tts"
       | "onStatus"
     >
@@ -302,6 +435,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   private noiseSum = 0;
   /** Ring buffer of the most recent wake-phase frames, prepended to a new capture. */
   private preRoll: Float32Array[] = [];
+  private readonly detector: WakeScoreDetector;
   private cooldownUntil = 0;
   /** Per-turn latency marks (ms epoch) — surfaced via onStatus, no audio. */
   private tWake = 0;
@@ -342,6 +476,11 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       sttUrl: options.sttUrl ?? DEFAULTS.sttUrl,
       threshold: options.threshold ?? DEFAULTS.threshold,
     };
+    this.detector = new WakeScoreDetector({
+      ...DEFAULT_WAKE_DETECT,
+      hard: options.threshold ?? DEFAULT_WAKE_DETECT.hard,
+      ...options.wakeDetect,
+    });
     this.audio = options.audioBackend ?? new MediaStreamWorkletBackend();
     this.runner =
       options.runner ??
@@ -424,7 +563,23 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       lastCaptureMs: this.lastCaptureMs,
       lastSttMs: this.lastSttMs,
       lastWakeToCaptureMs: this.lastWakeToCaptureMs,
+      wakeScore: this.detector.stats,
+      runnerCost: this.runnerCost(),
+      backendResources: this.audio.resourceStats ?? null,
       lastError: this.lastError,
+    };
+  }
+
+  private runnerCost(): WakeAdapterStatus["runnerCost"] {
+    const s = this.runner.stats;
+    if (!s || typeof s.maxConcurrentInference !== "number") return null;
+    return {
+      pendingSamples: s.pendingSamples ?? 0,
+      maxPendingSamples: s.maxPendingSamples ?? 0,
+      catchupBatchesTotal: s.catchupBatchesTotal ?? 0,
+      maxCatchupInOneAccept: s.maxCatchupInOneAccept ?? 0,
+      maxConcurrentInference: s.maxConcurrentInference,
+      inferences: s.inferences,
     };
   }
 
@@ -655,6 +810,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       this.pausedRetries = 0;
       this.accepting = false;
       this.preRoll = [];
+      this.detector.rearm();
       this.runner.reset();
       this.phase = "wake";
       this.lastFrameAt = Date.now();
@@ -685,7 +841,8 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     if (this.disposed || this.fatal || !this.audioUp) return;
     this.accepting = false;
     this.preRoll = [];
-    this.runner.reset();
+      this.detector.rearm();
+      this.runner.reset();
     this.phase = "wake";
     this.lastFrameAt = Date.now();
     this.armWatchdog();
@@ -745,6 +902,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     if (!this.disposed && !this.fatal && this.audioUp) {
       this.accepting = false;
       this.preRoll = [];
+      this.detector.rearm();
       this.runner.reset();
       this.phase = wasArmed ? "wake" : "idle";
       this.lastFrameAt = Date.now();
@@ -822,17 +980,24 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       // already pending; that frame's result rides the runner's catch-up.
       void this.runner.accept(frame).then((score) => {
         if (this.phase !== "wake" || score === null) return;
-        if (score >= this.o.threshold) {
+        if (this.detector.observe(score)) {
           this.tWake = Date.now();
           this.phase = "capturing";
           const carried = this.preRoll;
           this.preRoll = [];
           this.resetCommand();
-          // seed the capture with the pre-roll (the wake word + onset)
+          // Seed the capture with the pre-roll (wake word + the command onset
+          // the detection lag put in the past). Classify each frame so a fast
+          // speaker whose whole command landed in the pre-roll still endpoints.
           for (const f of carried) {
             this.cmd.push(f);
             this.cmdMs += (f.length / 16000) * 1000;
+            if (frameRms(f) >= PREROLL_SPEECH_RMS) {
+              this.speechMs += (f.length / 16000) * 1000;
+              this.sawSpeech = true;
+            }
           }
+          this.silenceMs = 0; // only TRAILING silence ends the command
           this.emit();
           handlers.onFinalTranscript("AYAS");
         }
@@ -845,14 +1010,12 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       this.cmdMs += ms;
       const rms = frameRms(frame);
 
-      // Calibrate the silence floor from the first ~240 ms (before real speech).
-      if (!this.sawSpeech && this.noiseSamples < 3) {
-        this.noiseSum += rms;
+      // Estimate the room's noise floor from the quietest of the first few live
+      // frames (min is more robust than mean for "what is ambient here").
+      if (this.noiseSamples < NOISE_CAL_FRAMES) {
+        this.noiseSum = this.noiseSamples === 0 ? rms : Math.min(this.noiseSum, rms);
         this.noiseSamples += 1;
-        this.silenceRms = Math.min(
-          SILENCE_RMS_MAX,
-          Math.max(SILENCE_RMS_MIN, (this.noiseSum / this.noiseSamples) * 2.5),
-        );
+        this.silenceRms = Math.min(SILENCE_RMS_MAX, Math.max(SILENCE_RMS_MIN, this.noiseSum * 2.2));
       }
 
       if (rms >= this.silenceRms) {
@@ -950,9 +1113,35 @@ export class MediaStreamWorkletBackend implements WakeAudioBackend {
   private src: MediaStreamAudioSourceNode | null = null;
   /** `addModule` is per-context; loading it twice throws on some engines. */
   private moduleLoaded = false;
+  /**
+   * Sprint 5 §17 — lifetime resource counters. A healthy multi-turn session
+   * creates ONE AudioContext and acquires ONE mic track no matter how many turns
+   * run; a rising count here is the iOS ~4-context page-limit / non-gesture
+   * `getUserMedia` risk made visible.
+   */
+  private nCtxCreated = 0;
+  private nStreamAcquired = 0;
+  private nGraphRebuilds = 0;
 
   get supported(): boolean {
     return WakeWordVoiceAdapter.isSupported(typeof window === "undefined" ? undefined : window);
+  }
+
+  /** Numeric-only resource counters (no audio, no device labels). */
+  get resourceStats(): {
+    readonly audioContextsCreated: number;
+    readonly mediaStreamsAcquired: number;
+    readonly graphRebuilds: number;
+    readonly audioContextState: string;
+    readonly micTrackState: string;
+  } {
+    return {
+      audioContextsCreated: this.nCtxCreated,
+      mediaStreamsAcquired: this.nStreamAcquired,
+      graphRebuilds: this.nGraphRebuilds,
+      audioContextState: this.ctx?.state ?? "none",
+      micTrackState: this.stream?.getAudioTracks()[0]?.readyState ?? "none",
+    };
   }
 
   private ctxCtor(): typeof AudioContext {
@@ -978,6 +1167,7 @@ export class MediaStreamWorkletBackend implements WakeAudioBackend {
     // 1. AudioContext — reuse unless iOS closed it.
     if (!this.ctx || this.ctx.state === "closed") {
       this.ctx = new (this.ctxCtor())();
+      this.nCtxCreated += 1;
       this.moduleLoaded = false;
     }
     try {
@@ -1000,6 +1190,7 @@ export class MediaStreamWorkletBackend implements WakeAudioBackend {
       this.stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false },
       });
+      this.nStreamAcquired += 1;
     }
 
     // 3. Worklet module — load once per context.
@@ -1012,6 +1203,7 @@ export class MediaStreamWorkletBackend implements WakeAudioBackend {
 
     // 4. (Re)wire src → worklet → silent gain → destination.
     this.teardownGraph();
+    this.nGraphRebuilds += 1;
     this.src = this.ctx.createMediaStreamSource(this.stream);
     this.node = new AudioWorkletNode(this.ctx, "d2-wake-lab-processor");
     this.gain = this.ctx.createGain();

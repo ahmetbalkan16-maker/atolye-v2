@@ -46,6 +46,14 @@ export type AyasSttResult =
       readonly audioSeconds: number;
       readonly processingMs: number;
       readonly realTimeFactor: number;
+      /**
+       * Whisper's own per-token probability, collapsed to the weakest and the
+       * mean token in the utterance (0..1, `null` when the build emits no token
+       * probs). A low `minTokenP` means whisper itself is unsure — the caller can
+       * distinguish "AYAS mis-heard the words" from "AYAS heard the words but the
+       * model misunderstood". Never gates the transcript; observability only.
+       */
+      readonly confidence: { readonly minTokenP: number; readonly meanTokenP: number } | null;
     }
   | { readonly ok: false; readonly code: AyasSttFailureCode; readonly detail?: string };
 
@@ -112,12 +120,13 @@ function defaultRun(
 
 /**
  * Bias whisper toward the studio's proper nouns (the dfki TR voice says "AYAS"
- * as "ayaz"; whisper then transcribes the sound, not the name). Kept short —
- * a long initial prompt hurts more than it helps.
+ * as "ayaz"; whisper then transcribes the sound, not the name). Kept to the
+ * three names only: on a short command clip a longer initial prompt measurably
+ * pulls the decode toward its own vocabulary — Sprint 5 §7 forensic showed the
+ * long list added nothing on clean audio and risks priming on noisy audio.
  */
 // ASCII-only: Node's Windows execFile mangles non-ASCII argv (see AyasSttConfig).
-const AYAS_STT_PROMPT =
-  "AYAS, Atolye, Graphify, pipeline, runtime, render, proje, asama, visuals, script.";
+const AYAS_STT_PROMPT = "AYAS, Atolye, Graphify.";
 
 /**
  * Normalise the few predictable mis-hears back to studio terms. The dfki TR
@@ -132,19 +141,46 @@ export function normaliseAyasTranscript(text: string): string {
     .trim();
 }
 
-/** Parse whisper.cpp `-oj` JSON (written next to `-of <base>` as `<base>.json`). */
-function parseWhisperJson(raw: string): { text: string; language: string } | null {
+/**
+ * Parse whisper.cpp `-ojf` (full) JSON (written next to `-of <base>` as
+ * `<base>.json`). `-ojf` adds `tokens[].p` (per-token probability) on top of the
+ * plain `-oj` shape, so this stays backward-compatible with a plain `-oj` file
+ * (confidence just comes back `null`).
+ */
+function parseWhisperJson(
+  raw: string,
+): { text: string; language: string; confidence: { minTokenP: number; meanTokenP: number } | null } | null {
   try {
     const doc = JSON.parse(raw) as {
-      transcription?: { text?: string }[];
+      transcription?: { text?: string; tokens?: { text?: string; p?: number }[] }[];
       result?: { language?: string };
     };
-    const text = (doc.transcription ?? [])
+    const segments = doc.transcription ?? [];
+    const text = segments
       .map((seg) => (typeof seg.text === "string" ? seg.text : ""))
       .join("")
       .replace(/\s+/g, " ")
       .trim();
-    return { text, language: doc.result?.language ?? "" };
+
+    // Per-token probabilities — skip whisper's punctuation-only / whitespace
+    // tokens, they carry no acoustic signal and drag the mean around.
+    const probs: number[] = [];
+    for (const seg of segments) {
+      for (const tok of seg.tokens ?? []) {
+        if (typeof tok.p !== "number" || !Number.isFinite(tok.p)) continue;
+        if (typeof tok.text === "string" && !/[\p{L}\p{N}]/u.test(tok.text)) continue;
+        probs.push(tok.p);
+      }
+    }
+    const confidence =
+      probs.length > 0
+        ? {
+            minTokenP: Math.round(Math.min(...probs) * 1000) / 1000,
+            meanTokenP: Math.round((probs.reduce((a, b) => a + b, 0) / probs.length) * 1000) / 1000,
+          }
+        : null;
+
+    return { text, language: doc.result?.language ?? "", confidence };
   } catch {
     return null;
   }
@@ -212,7 +248,21 @@ export async function transcribeAyasAudio(
         "-l", config.language,
         "-t", String(config.threads),
         "--prompt", AYAS_STT_PROMPT,
-        "-nt", "-oj", "-of", ofArg,
+        // Sprint 5 §7 anti-hallucination guards for short command clips:
+        //  -tp 0   deterministic first decode pass (fallback still escalates on a
+        //          genuinely failed decode — we do NOT pass -nf).
+        //  -mc 0   store no decoded-text context between windows, so an 8 s clip's
+        //          later segments can't be primed by an earlier mis-hear
+        //          ("conversation restart" style drift).
+        //  -sns    suppress non-speech tokens — kills "[BLANK_AUDIO]" / "(music)" /
+        //          "♪" hallucinations on a silent or breath-only lead-in, which is
+        //          exactly what an over-eager capture hands us.
+        // beam-size / best-of are left at the whisper defaults (5/5): dropping them
+        // to 1 measurably regressed "AYAS" → "ayes" in the forensic.
+        "-tp", "0",
+        "-mc", "0",
+        "-sns",
+        "-nt", "-ojf", "-of", ofArg,
       ],
       elapsedForWhisper,
       whisperCwd,
@@ -233,6 +283,7 @@ export async function transcribeAyasAudio(
       audioSeconds: Math.round(audioSeconds * 100) / 100,
       processingMs,
       realTimeFactor: audioSeconds > 0 ? Math.round((processingMs / 1000 / audioSeconds) * 100) / 100 : 0,
+      confidence: parsed?.confidence ?? null,
     };
   } catch (error) {
     return { ok: false, code: "transcribe-failed", detail: (error as Error).message.slice(0, 200) };
