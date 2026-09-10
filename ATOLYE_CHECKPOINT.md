@@ -1,5 +1,81 @@
 ---
 
+## ATÖLYE BRAIN — AYAS REPORT CENTER: operator-facing self-heal reports + ONAYLA/REDDET/DAHA SONRA + "rapor ver"; gate CLOSED - 2026-09-12
+
+**Branch:** `wip/ayas-graphify-final-execution` (commit `8d49f60`, off `d69f2d8`). NOT merged / NOT pushed.
+`git diff --check` clean. 25 dosya, +3155/-116.
+
+**Ne değişti:** self-heal v1/v2 **çekirdeği değişmedi** — bu sprint eksik parçayı ekliyor: operatörün
+AYAS'ın ne bulduğunu / neden öyle düşündüğünü / hangi kanıtı olduğunu / ne değiştirmek istediğini /
+test edip etmediğini / riski / kendisinden ne istediğini / uygulandıktan sonra gerçekten düzelip
+düzelmediğini / ne öğrendiğini **gördüğü ve sesle sorduğu** AYAS RAPOR MERKEZİ.
+
+**YENİ SAF MODÜLLER (`src/lib/brain/selfheal/`):**
+- `BrainReportCenter.ts` — operatör görünüm modeli: sistem sağlığı %, sayaç satırı (açık / onay
+  bekleyen / inceleniyor / çözüldü / başarısız / öğrenilen), incident başına ZİNCİR (SORUN → KANIT →
+  ZAMAN ÇİZELGESİ → KÖK NEDEN + GÜVEN → ŞÜPHELİ DOSYALAR → ÖNERİLEN ÇÖZÜM → SANDBOX/REGRESSION/SECURITY
+  → RİSK → SONUÇ → OPERATÖR KARARI → WATCHDOG → ÖĞRENME). Ham diff **asla** yüzeye çıkmaz; her
+  serbest-metin alanı `BrainUntrustedInput`'ten bir kez daha geçer (savunma derinliği). Artı
+  `detectAyasReportIntent()` + `buildAyasReportSpokenAnswer()` — deterministik konuşma-Türkçesi
+  "rapor ver" / "onay bekleyen ne" cevabı (model çağrısı yok, hiçbir şey çalıştırmaz).
+- `BrainSelfHealDecision.ts` — operatör ONAYLA / REDDET / DAHA SONRA kaydı. `operatorApprovalId`
+  deterministik hash (`incidentId+decision+time` — **not değil**); not redakte + talimat-karantina.
+  `canApplyFromDecision()` yalnız APPROVE için true.
+
+**GÜVENLİK MODELİ (§10/§11/§21):** butonlar bir **karar kaydeder** — asla git çalıştırmaz, patch
+staged etmez, gate açmaz. `recordSelfHealDecision` Server Action auth-gated; karar-verilemez /
+FORBIDDEN incident'i reddeder; `data/brain/selfheal/decisions/<id>.json` yazar (gitignored, atomik,
+secret-reject). `npm run selfheal -- apply <id>` (--operator'sız) artık approvalId'yi bu APPROVE
+kaydından çözer — REJECT / LATER / yok → reddedilir. Staged `git apply --index` hâlâ **yalnız Node
+CLI'da**.
+
+**BAĞLANTI:** `BrainSelfHealStore` (+`recordSelfHealDecision`/`loadSelfHealDecision`/`listSelfHealDecisions`)
+· `BrainSelfHealConsoleSnapshot` (kararları birleştirir → `snapshot.reportCenter`) ·
+`BrainSelfHealingPanel` (Report Center'a genişletildi: sağlık çubuğu, sayaçlar, filtre çipleri,
+genişleyen zincir, ONAYLA/REDDET/DAHA SONRA — eski snapshot render'ı korundu) · `BrainConsoleView`
+(+ `🧠 AYAS Raporları` ana ekran kartı, panel "Self-Healing" → "AYAS Raporları" 🧠) · `BrainCoreConsole`
+(Server Action + filtre/genişletme/karar state) · `app/brain/actions.ts` (+`refreshBrainSelfHeal`,
+`recordSelfHealDecision`, "rapor ver" model öncesi yakalama) · `/api/ayas/chat/stream` ("rapor ver"
+tek SSE frame) · `scripts/selfheal.ts` (+`decisions` komutu; karar-gated `apply`) · `BrainCore.css`
+(`.bc-report*` — tema token'ları, gerçek dokunma hedefleri).
+
+**TESTLER — tsc 0 · eslint 0 err (22 pre-existing) · `next build` 0.**
+`smoke-brain-report-center` **13**, `-report-e2e` **5** (gerçek store: incident → snapshot → ONAYLA
+kaydı → bucket investigating → CLI-gate approvalId'yi çözer → REDDET geri çevirir → HEALED+learned →
+"rapor ver" özeti), `-report-store` **7**, `-report-voice-command` **8**, `-report-approval` **9**,
+`-report-security` **8**, `-watchdog` **7**, `-optimization-live` **7** — hepsi YENİ. `smoke-brain-core-ui`
+37→**38** (12b4: ana kart + rapor paneli), `smoke-brain-selfheal-observe-ui` 10→**12**. v1/v2 selfheal
+suite'leri değişmedi & yeşil (40/9/3/14/26/3). Komşu brain+ayas+graphify smoke'ları yeşil. **Canlı CLI
+yürüyüşü (gerçek store):** `observe` → incident sh-5948c705 açıldı; `status` Report Center snapshot'ı
+gösterdi; ONAYLA kaydı → `op-51c91b9f`; `decisions` listeledi; `apply` (--operator'sız) → "using Report
+Center approval — approvalId op-51c91b9f" (karar-gate çalışıyor; sentetik incident sonra temizlendi).
+
+**GÜVENLİK:** `ayasExecutionGate = "CLOSED"`, `writeActionsEnabled = false` — değişmedi, yeniden
+doğrulandı. Push/merge/deploy YOK; `.env` okuma YOK; `D:\AtolyeRuntime`/`D:\AtolyeAuthority`/Caddy/
+firewall/Tailscale DOKUNULMADI. Karar yazımı: yalnız küçük JSON, auth-gated, secret-reject, kötü id
+reddedilir, not redakte + talimat-karantina, approvalId not'tan etkilenmez, git/runner/sandbox/gate
+çağırmaz. Prompt injection: log/symptom/kanıt/karar-notu = VERİ. `smoke-brain-report-security` 8 +
+`smoke-brain-selfheal-security` 14 + statik tarama. Graphify salt-okunur: CONSISTENT-WITH-NOTES, 16==16.
+
+**FINAL STATUS:**
+`SELF_HEALING_READY: READY` (v1+v2, değişmedi, yeniden doğrulandı) ·
+`SELF_OPTIMIZATION_READY: READY` (motor+loop kanıtlı; canlı latency feed'i operatör bağlar) ·
+`SELF_LEARNING_READY: READY` · `REPORT_CENTER_READY: READY` · Voice "rapor ver": READY ·
+Operatör onayı (ONAYLA/REDDET/DAHA SONRA): READY (karar kaydeder, CLI uygular — APPROVE'a gated) ·
+Watchdog: READY · **SECURITY: PASS**.
+**iPhone:** `READY_WITH_OPERATOR_TEST` — Report Center/kart/"rapor ver" UI+state+karar katmanı, cihaz
+testi §26 operatörün; ses pipeline'ı değişmedi.
+Rapor: `AYAS_REPORT_CENTER_FINAL_REPORT.md`.
+
+**Bilinen sınırlar:** (a) `BrainOptimizationLoop` canlı latency feed'ine bağlı değil (ayrı küçük
+sprint). (b) karar yazımı yeni ama minimal browser→server yolu (§10 gereği) — küçük JSON, git/apply
+yok. (c) otonom `draftPatch` v2'den beri generator seam. (d) iPhone ~3 dk reload `UNKNOWN` (iOS sinyal
+vermiyor, asla CRASH uydurulmuyor, voice/PWA/SW `NEVER_AUTO_APPLY`).
+
+**PUSH YAPILMADI · MERGE YAPILMADI · DEPLOY YAPILMADI.**
+
+---
+
 ## ATÖLYE BRAIN — AUTONOMOUS BRAIN v2: continuous observe + SAFE auto-apply + post-apply watchdog + optimization; gate CLOSED - 2026-09-11
 
 **Branch:** `wip/ayas-graphify-final-execution` (commit `23ba767`, off `3da4096`). NOT merged / NOT pushed. `git diff --check` clean. 25 dosya, +2389/-53.
