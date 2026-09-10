@@ -29,7 +29,17 @@ export function loadBrainSelfHealSnapshot(options: LoadBrainSelfHealSnapshotOpti
     const store = createBrainSelfHealStore({ rootDir: options.rootDir });
     const incidents = store.listIncidents();
     const learned = store.listLearnedPatterns();
-    return { ...buildBrainSelfHealSnapshot({ incidents, learned, now }), error: null };
+    const optimizations = store
+      .listOptimizationRuns()
+      .filter((r) => r.stage === "accepted" || r.stage === "rejected")
+      .slice(0, 12)
+      .map((r) => ({
+        id: r.id,
+        headline: r.verdict?.headline ?? r.disposition,
+        verdict: r.stage === "accepted" ? ("ACCEPT" as const) : ("REJECT" as const),
+        at: r.updatedAt,
+      }));
+    return { ...buildBrainSelfHealSnapshot({ incidents, learned, optimizations, now }), error: null };
   } catch (error) {
     return {
       ...EMPTY_BRAIN_SELFHEAL_SNAPSHOT,

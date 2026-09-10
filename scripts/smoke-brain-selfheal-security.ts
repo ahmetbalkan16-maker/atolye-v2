@@ -20,9 +20,17 @@ import path from "node:path";
 
 import { assertSelfHealActionAllowed, assertNotSelfModifyingKernel, isSecretPath, BRAIN_SELFHEAL_INVARIANTS } from "../src/lib/brain/selfheal/BrainSelfHealGuards";
 import { classifyPatchSet, classifyPatchTarget } from "../src/lib/brain/selfheal/BrainPatchSafety";
-import { checkSelfHealAttempt, checkSignatureNotMuted, BRAIN_SELFHEAL_LIMITS } from "../src/lib/brain/selfheal/BrainSelfHealLimits";
+import {
+  checkSelfHealAttempt,
+  checkSignatureNotMuted,
+  checkAutonomousApplyRate,
+  checkRollbackAttempts,
+  checkCauseChain,
+  BRAIN_SELFHEAL_LIMITS,
+} from "../src/lib/brain/selfheal/BrainSelfHealLimits";
 import { sanitizeUntrustedText } from "../src/lib/brain/selfheal/BrainUntrustedInput";
-import { buildBrainIncident } from "../src/lib/brain/selfheal/BrainIncident";
+import { buildBrainIncident, advanceIncident } from "../src/lib/brain/selfheal/BrainIncident";
+import { decideAutoApply, DEFAULT_AUTO_APPLY_CONFIG } from "../src/lib/brain/selfheal/BrainAutoApplyPolicy";
 import { createBrainSelfHealStore, BrainSelfHealStoreError } from "../src/lib/brain/selfheal/BrainSelfHealStore";
 import os from "node:os";
 
@@ -150,9 +158,20 @@ async function run() {
   });
 
   await scenario("STATIC — the selfheal source never imports the execution gate / sets writeActionsEnabled / pushes", () => {
-    // the guard files themselves DEFINE the denylists (they contain "deploy", "push", …
-    // as data), so the term-mention checks skip them; the import checks apply to all.
-    const guardFiles = new Set(["BrainSelfHealGuards.ts", "BrainSelfHealLimits.ts", "BrainUntrustedInput.ts", "BrainSelfHealSandbox.ts", "BrainSelfHealRunner.ts", "BrainPatchSafety.ts"]);
+    // the guard / policy files themselves DEFINE the denylists (they contain
+    // "deploy", "push", ".env" … as DATA), so the term-mention checks skip them;
+    // the import + write-path checks apply to every file.
+    const guardFiles = new Set([
+      "BrainSelfHealGuards.ts",
+      "BrainSelfHealLimits.ts",
+      "BrainUntrustedInput.ts",
+      "BrainSelfHealSandbox.ts",
+      "BrainSelfHealRunner.ts",
+      "BrainPatchSafety.ts",
+      "BrainAutoApplyPolicy.ts",
+      "BrainPatchGeneration.ts",
+      "BrainSelfHealScheduler.ts",
+    ]);
     const files = fs.readdirSync(SELFHEAL_DIR).filter((f) => f.endsWith(".ts"));
     for (const f of files) {
       const src = fs.readFileSync(path.join(SELFHEAL_DIR, f), "utf-8");
@@ -184,6 +203,51 @@ async function run() {
     assert.equal(v.level, "FORBIDDEN_AUTONOMOUS");
     assert.equal(v.autoApplicable, false);
     assert.equal(v.forbidden.map((f) => f.path).includes("src/lib/ayas/execution/AyasExecutionGate.ts"), true);
+  });
+
+  /* ------------------------------- v2 (autonomous) boundaries ------------------------------- */
+
+  await scenario("v2 §2/§12 — auto-apply is OFF by default; a review / forbidden area is never AUTO_APPLY", () => {
+    const verified = (files: string[], conf = 0.95) => {
+      let inc = buildBrainIncident({ category: "ui", severity: "P2", classification: "REAL_INCIDENT", symptom: "x", now: "2026-09-12T00:00:00.000Z" });
+      inc = advanceIncident(inc, { kind: "diagnose", now: "n", hypotheses: [{ statement: "h", confidence: conf, evidence: [], counterEvidence: [], suspectFiles: files }] }).incident;
+      inc = advanceIncident(inc, { kind: "sandbox-patch", now: "n", patch: { patchId: "p", baseCommit: "abc", changedFiles: files, diff: "@@", diffLines: 10, safetyLevel: "SAFE", risk: "LOW", rollbackPlan: "x", attempt: 1 } }).incident;
+      inc = advanceIncident(inc, { kind: "checks", now: "n", checks: [
+        { name: "tsc", kind: "typecheck", status: "PASS", detail: "" }, { name: "lint", kind: "lint", status: "PASS", detail: "" },
+        { name: "build", kind: "build", status: "PASS", detail: "" }, { name: "smoke", kind: "smoke", status: "PASS", detail: "" },
+        { name: "reg", kind: "regression", status: "PASS", detail: "" }, { name: "sec", kind: "security", status: "PASS", detail: "" },
+      ] }).incident;
+      return advanceIncident(inc, { kind: "verified", now: "n" }).incident;
+    };
+    assert.equal(decideAutoApply({ incident: verified(["scripts/smoke-x.ts"]), config: DEFAULT_AUTO_APPLY_CONFIG, incidentSignature: "s" }).decision, "AWAIT_APPROVAL", "opt-in OFF");
+    assert.equal(decideAutoApply({ incident: verified(["public/sw.js"]), config: { ...DEFAULT_AUTO_APPLY_CONFIG, enabled: true }, incidentSignature: "s" }).decision, "AWAIT_APPROVAL", "SW is never auto");
+    assert.equal(decideAutoApply({ incident: verified(["src/lib/ayas/execution/AyasExecutionGate.ts"]), config: { ...DEFAULT_AUTO_APPLY_CONFIG, enabled: true }, incidentSignature: "s" }).decision, "HALT", "gate → HALT");
+    // even with the opt-in ON, an all-SAFE high-confidence patch → AUTO_APPLY
+    assert.equal(decideAutoApply({ incident: verified(["scripts/smoke-x.ts", "docs/y.md"]), config: { ...DEFAULT_AUTO_APPLY_CONFIG, enabled: true, confidenceThreshold: 0.7 }, incidentSignature: "s" }).decision, "AUTO_APPLY");
+  });
+
+  await scenario("v2 §24/§25 — autonomous apply-rate, rollback cap, cause-chain depth, and A→A loop all block", () => {
+    const now = Date.parse("2026-09-12T12:00:00.000Z");
+    const ts = Array.from({ length: BRAIN_SELFHEAL_LIMITS.maxAutonomousAppliesPerHour }, () => now - 60_000);
+    assert.equal(checkAutonomousApplyRate(ts, now).ok, false);
+    assert.equal(checkRollbackAttempts(BRAIN_SELFHEAL_LIMITS.maxRollbackAttempts).ok, false);
+    const deepChain = Array.from({ length: BRAIN_SELFHEAL_LIMITS.maxCauseChainDepth }, (_, i) => ({ id: `sh-${i}`, signature: `x:sig${i}` }));
+    assert.equal(checkCauseChain(deepChain, "x:new").violation, "CAUSE_CHAIN_TOO_DEEP");
+    assert.equal(checkCauseChain([{ id: "sh-1", signature: "x:loop" }], "x:loop").violation, "SELF_HEAL_LOOP");
+  });
+
+  await scenario("v2 §26 — auto-apply guard: an autonomous apply id is NOT an operator id, FORBIDDEN still denied", () => {
+    // the runner passes `autonomous-safe:<incidentId>` as the approval id for an auto-apply
+    assert.equal(assertSelfHealActionAllowed({ kind: "apply-patch", paths: ["scripts/smoke-x.ts"], operatorApprovalId: "autonomous-safe:sh-1" }).allowed, true, "SAFE + autonomous id → allowed (staged)");
+    assert.equal(assertSelfHealActionAllowed({ kind: "apply-patch", paths: ["src/lib/ayas/execution/AyasExecutionGate.ts"], operatorApprovalId: "autonomous-safe:sh-1" }).allowed, false, "FORBIDDEN still denied");
+    assert.equal(assertSelfHealActionAllowed({ kind: "apply-patch", paths: ["public/sw.js"], operatorApprovalId: "autonomous-safe:sh-1" }).allowed, true, "REVIEW + an id is allowed to be STAGED; the auto-apply policy is what keeps SW manual");
+  });
+
+  await scenario("v2 — the guard token check is exact: a filename containing '-f' is not a forbidden token", () => {
+    assert.equal(assertSelfHealActionAllowed({ kind: "sandbox-command", argv: ["node", "scripts/smoke-selfheal-fixture-test.js"] }).allowed, true);
+    assert.equal(assertSelfHealActionAllowed({ kind: "sandbox-command", argv: ["git", "push", "-f"] }).allowed, false);
+    assert.equal(assertSelfHealActionAllowed({ kind: "sandbox-command", argv: ["git", "-C", "/tmp/x", "push"] }).allowed, false, "git -C <dir> push still caught");
+    assert.equal(assertSelfHealActionAllowed({ kind: "sandbox-command", argv: ["git", "-C", "/tmp/x", "diff", "--name-only"] }).allowed, true);
   });
 
   console.log(`Atölye Brain self-heal security smoke: PASS (${count} scenarios)`);

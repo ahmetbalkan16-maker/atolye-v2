@@ -32,6 +32,8 @@ import {
   type BrainLearnedPattern,
 } from "./BrainLearnedPattern";
 import type { BrainSignatureHistoryEntry } from "./BrainSelfHealLimits";
+import type { BrainOptimizationRun } from "./BrainOptimizationLoop";
+import type { BrainRuntimeEvent } from "./BrainRuntimeEvent";
 
 export type BrainSelfHealStoreErrorCode =
   | "SELFHEAL_STORE_CORRUPT"
@@ -84,6 +86,15 @@ export interface BrainSelfHealStoreHandle {
   /** Mute-history: when incidents were opened per signature. */
   recordSignature(entry: BrainSignatureHistoryEntry): void;
   loadSignatureHistory(): readonly BrainSignatureHistoryEntry[];
+  /* ---- v2 ---- */
+  saveOptimizationRun(run: BrainOptimizationRun): BrainOptimizationRun;
+  listOptimizationRuns(): readonly BrainOptimizationRun[];
+  /** Append recent runtime events for the observer / post-apply watchdog (bounded). */
+  appendRuntimeEvents(events: readonly BrainRuntimeEvent[]): void;
+  loadRuntimeEvents(): readonly BrainRuntimeEvent[];
+  /** Timestamps (epoch ms) of autonomous SAFE applies — the per-hour rate limit. */
+  recordAutonomousApply(atMs: number): void;
+  loadAutonomousApplyTimestamps(): readonly number[];
 }
 
 export function createBrainSelfHealStore(options: BrainSelfHealStoreOptions = {}): BrainSelfHealStoreHandle {
@@ -91,7 +102,10 @@ export function createBrainSelfHealStore(options: BrainSelfHealStoreOptions = {}
   const dir = path.join(rootDir, "selfheal");
   const incidentsDir = path.join(dir, "incidents");
   const learnedDir = path.join(dir, "learned");
+  const optimizationsDir = path.join(dir, "optimizations");
   const signaturesFile = path.join(dir, "signatures.json");
+  const eventsFile = path.join(dir, "events.json");
+  const autoApplyFile = path.join(dir, "auto-applies.json");
 
   function ensureDir(d: string): void {
     try {
@@ -123,7 +137,7 @@ export function createBrainSelfHealStore(options: BrainSelfHealStoreOptions = {}
     }
   }
 
-  function readJson(file: string, expectedSchema: string, requiredKeys: readonly string[]): Record<string, unknown> | undefined {
+  function readJson(file: string, expectedSchema: string | undefined, requiredKeys: readonly string[]): Record<string, unknown> | undefined {
     if (!fs.existsSync(file)) return undefined;
     let raw: string;
     try {
@@ -141,7 +155,7 @@ export function createBrainSelfHealStore(options: BrainSelfHealStoreOptions = {}
       throw new BrainSelfHealStoreError("SELFHEAL_STORE_CORRUPT", `${path.basename(file)} has an unexpected shape`);
     }
     const record = parsed as Record<string, unknown>;
-    if (record.schemaVersion !== expectedSchema) {
+    if (expectedSchema !== undefined && record.schemaVersion !== expectedSchema) {
       throw new BrainSelfHealStoreError(
         "SELFHEAL_STORE_SCHEMA_MISMATCH",
         `${path.basename(file)} schemaVersion ${JSON.stringify(record.schemaVersion)} ≠ ${expectedSchema} — no automatic migration`,
@@ -239,6 +253,52 @@ export function createBrainSelfHealStore(options: BrainSelfHealStoreOptions = {}
       const cutoff = latest - 7 * 24 * 60 * 60 * 1000;
       const entries = [...existing, entry].filter((e) => e.openedAt >= cutoff).slice(-500);
       writeAtomic(signaturesFile, { schemaVersion: "1", entries });
+    },
+
+    /* ---- v2 ---- */
+
+    saveOptimizationRun(run: BrainOptimizationRun): BrainOptimizationRun {
+      if (!ID_RE.test(run.id)) throw new BrainSelfHealStoreError("SELFHEAL_STORE_INVALID", `bad optimization run id ${JSON.stringify(run.id)}`);
+      assertNoLeak(run, `optimization ${run.id}`);
+      writeAtomic(path.join(optimizationsDir, `${run.id}.json`), run);
+      return run;
+    },
+
+    listOptimizationRuns(): readonly BrainOptimizationRun[] {
+      return listDir(optimizationsDir)
+        .map((id) => {
+          const rec = readJson(path.join(optimizationsDir, `${id}.json`), undefined, ["id", "stage", "metricName"]);
+          return rec as unknown as BrainOptimizationRun | undefined;
+        })
+        .filter((x): x is BrainOptimizationRun => Boolean(x))
+        .sort((a, b) => (b.updatedAt < a.updatedAt ? -1 : 1));
+    },
+
+    appendRuntimeEvents(events: readonly BrainRuntimeEvent[]): void {
+      if (events.length === 0) return;
+      const existing = this.loadRuntimeEvents();
+      assertNoLeak(events, "runtime events");
+      const merged = [...existing, ...events].slice(-1000);
+      writeAtomic(eventsFile, { schemaVersion: "1", events: merged });
+    },
+
+    loadRuntimeEvents(): readonly BrainRuntimeEvent[] {
+      const rec = readJson(eventsFile, "1", ["events"]);
+      if (!rec) return [];
+      return Array.isArray(rec.events) ? (rec.events as BrainRuntimeEvent[]) : [];
+    },
+
+    recordAutonomousApply(atMs: number): void {
+      const existing = this.loadAutonomousApplyTimestamps();
+      const cutoff = Date.now() - 48 * 3_600_000;
+      const ts = [...existing, atMs].filter((t) => t >= cutoff).slice(-200);
+      writeAtomic(autoApplyFile, { schemaVersion: "1", timestamps: ts });
+    },
+
+    loadAutonomousApplyTimestamps(): readonly number[] {
+      const rec = readJson(autoApplyFile, "1", ["timestamps"]);
+      if (!rec) return [];
+      return Array.isArray(rec.timestamps) ? (rec.timestamps as number[]).filter((t) => typeof t === "number") : [];
     },
   };
 }

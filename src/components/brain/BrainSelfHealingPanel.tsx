@@ -26,7 +26,14 @@ export function BrainSelfHealingPanel({
   readonly snapshot: (BrainSelfHealSnapshot & { readonly error?: string | null }) | null;
   readonly executionGate: string;
 }) {
-  if (!snapshot || (snapshot.activeIncidents.length === 0 && snapshot.recentRepairs.length === 0 && snapshot.learning.length === 0)) {
+  const hasAnything =
+    snapshot &&
+    (snapshot.activeIncidents.length > 0 ||
+      snapshot.recentRepairs.length > 0 ||
+      snapshot.recentRollbacks.length > 0 ||
+      snapshot.learning.length > 0 ||
+      snapshot.optimizations.length > 0);
+  if (!hasAnything) {
     return (
       <div className="bc-empty" data-testid="bc-selfheal-empty">
         <strong>Self-Healing — beklemede</strong>
@@ -49,6 +56,11 @@ export function BrainSelfHealingPanel({
   return (
     <div data-testid="bc-selfheal">
       <dl className="bc-kv">
+        <dt>Canlı durum</dt>
+        <dd data-testid="bc-selfheal-live" style={{ color: snapshot.liveState === "NEEDS_HUMAN" ? "var(--bc-danger, #f66)" : undefined }}>
+          {snapshot.liveState}
+          {snapshot.currentRisk !== "NONE" ? ` · risk ${snapshot.currentRisk}` : ""}
+        </dd>
         <dt>Sistem sağlığı</dt>
         <dd data-testid="bc-selfheal-health" style={{ color: h.state === "needs-human" ? "var(--bc-danger, #f66)" : undefined }}>
           {HEALTH_TR[h.state]} — {h.summary}
@@ -57,11 +69,30 @@ export function BrainSelfHealingPanel({
         <dd>
           {h.openIncidents} / {h.needsHuman} / {h.p0}
         </dd>
+        <dt>Son kök neden</dt>
+        <dd data-testid="bc-selfheal-rootcause">{snapshot.lastRootCause ?? "—"}</dd>
         <dt>Son eylem</dt>
         <dd data-testid="bc-selfheal-last">{snapshot.lastAction ? `${snapshot.lastAction.at.slice(0, 19)} — ${snapshot.lastAction.text}` : "—"}</dd>
         <dt>Yürütme kapısı</dt>
-        <dd>{executionGate} · self-healing gate&apos;i açamaz, push/merge/deploy yapamaz</dd>
+        <dd>
+          {executionGate} · self-healing gate&apos;i açamaz, push/merge/deploy yapamaz. SAFE otomatik
+          düzeltmeler working tree&apos;ye <strong>staged</strong> uygulanır, commit edilmez; başarısız
+          olursa watchdog otomatik geri alır.
+        </dd>
       </dl>
+
+      {snapshot.recentRollbacks.length > 0 ? (
+        <>
+          <p className="bc-panel__title" style={{ margin: "14px 0 6px" }}>Son geri almalar</p>
+          <ul className="bc-reasons" data-testid="bc-selfheal-rollbacks">
+            {snapshot.recentRollbacks.map((i) => (
+              <li key={i.id}>
+                <strong>{i.id}</strong> · {i.symptom} — {i.disposition}
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
 
       {snapshot.activeIncidents.length > 0 ? (
         <>
@@ -88,11 +119,12 @@ export function BrainSelfHealingPanel({
 
       {snapshot.recentRepairs.length > 0 ? (
         <>
-          <p className="bc-panel__title" style={{ margin: "14px 0 6px" }}>Son onarımlar</p>
+          <p className="bc-panel__title" style={{ margin: "14px 0 6px" }}>Son sonuçlar</p>
           <ul className="bc-reasons" data-testid="bc-selfheal-repairs">
             {snapshot.recentRepairs.map((i) => (
-              <li key={i.id}>
-                <strong>{i.id}</strong> · {i.status} · {i.symptom}
+              <li key={i.id} style={{ color: i.status === "FAILED" ? "var(--bc-danger, #f66)" : undefined }}>
+                <strong>{i.id}</strong> · {i.status}
+                {i.status === "FAILED" ? " · ⚠ İNSAN GEREKLİ" : ""} · {i.symptom}
                 {i.changedFiles.length ? ` — ${i.changedFiles.join(", ")}` : ""}
               </li>
             ))}

@@ -42,6 +42,10 @@ export type BrainIncidentStatus =
   | "VERIFIED"
   | "AWAITING_APPROVAL"
   | "APPLIED"
+  /** v2: the patch is live; the watchdog is observing the result. */
+  | "MONITORING"
+  /** v2: terminal success — the incident signature is gone, no regression. */
+  | "HEALED"
   | "ROLLED_BACK"
   | "FAILED";
 
@@ -120,6 +124,17 @@ export interface BrainIncident {
   readonly disposition: string;
   /** Set once the incident can no longer be auto-progressed. */
   readonly needsHumanReason?: string;
+
+  /* ---- v2 ---- */
+  /** How the patch reached the working tree. */
+  readonly appliedBy?: "operator" | "autonomous-safe";
+  /** Post-apply watchdog result. */
+  readonly healVerdict?: "HEALED" | "HEAL_FAILED" | "OBSERVING";
+  readonly healEvidence?: readonly string[];
+  /** An incident this one was CAUSED BY (a self-heal patch that broke something else). */
+  readonly causedByIncidentId?: string;
+  /** Incident ids this one's patch later caused (loop-loop detection). */
+  readonly causedIncidentIds?: readonly string[];
 }
 
 export interface BrainIncidentInput {
@@ -199,10 +214,19 @@ export type BrainIncidentEvent =
   | { readonly kind: "verified"; readonly now: string }
   | { readonly kind: "await-approval"; readonly now: string }
   | { readonly kind: "apply"; readonly operatorId: string; readonly now: string }
+  /** v2: SAFE auto-apply to the working tree (staged, never pushed). */
+  | { readonly kind: "auto-apply"; readonly now: string }
+  /** v2: the watchdog is now observing the applied patch. */
+  | { readonly kind: "monitor"; readonly now: string }
+  /** v2: watchdog verdict. */
+  | { readonly kind: "healed"; readonly evidence: readonly string[]; readonly now: string }
+  | { readonly kind: "heal-failed"; readonly reason: string; readonly now: string }
   | { readonly kind: "rollback"; readonly reason: string; readonly now: string }
   | { readonly kind: "fail"; readonly reason: string; readonly now: string }
   | { readonly kind: "learned"; readonly learnedPatternId: string; readonly now: string }
-  | { readonly kind: "add-evidence"; readonly evidence: readonly BrainIncidentEvidence[]; readonly now: string };
+  | { readonly kind: "add-evidence"; readonly evidence: readonly BrainIncidentEvidence[]; readonly now: string }
+  /** v2: record that this incident's patch caused another incident (loop-loop). */
+  | { readonly kind: "caused"; readonly incidentId: string; readonly now: string };
 
 /** Legal status transitions. Missing entry ⇒ the event is refused (returns the incident unchanged + a reason). */
 const ALLOWED: Readonly<Record<BrainIncidentStatus, Partial<Record<BrainIncidentEvent["kind"], BrainIncidentStatus>>>> =
@@ -223,11 +247,25 @@ const ALLOWED: Readonly<Record<BrainIncidentStatus, Partial<Record<BrainIncident
       fail: "FAILED",
       "add-evidence": "TESTING",
     },
-    VERIFIED: { "await-approval": "AWAITING_APPROVAL", rollback: "ROLLED_BACK", "add-evidence": "VERIFIED", learned: "VERIFIED" },
+    VERIFIED: {
+      "await-approval": "AWAITING_APPROVAL",
+      "auto-apply": "APPLIED",
+      rollback: "ROLLED_BACK",
+      "add-evidence": "VERIFIED",
+      learned: "VERIFIED",
+    },
     AWAITING_APPROVAL: { apply: "APPLIED", rollback: "ROLLED_BACK", fail: "FAILED", "add-evidence": "AWAITING_APPROVAL" },
-    APPLIED: { learned: "APPLIED", rollback: "ROLLED_BACK", "add-evidence": "APPLIED" },
-    ROLLED_BACK: { learned: "ROLLED_BACK", "sandbox-patch": "PATCHING_SANDBOX", fail: "FAILED", "add-evidence": "ROLLED_BACK" },
-    FAILED: { learned: "FAILED", "add-evidence": "FAILED" },
+    APPLIED: { monitor: "MONITORING", learned: "APPLIED", rollback: "ROLLED_BACK", "add-evidence": "APPLIED", caused: "APPLIED" },
+    MONITORING: {
+      healed: "HEALED",
+      "heal-failed": "ROLLED_BACK",
+      rollback: "ROLLED_BACK",
+      "add-evidence": "MONITORING",
+      caused: "MONITORING",
+    },
+    HEALED: { learned: "HEALED", "add-evidence": "HEALED", caused: "HEALED", rollback: "ROLLED_BACK" },
+    ROLLED_BACK: { learned: "ROLLED_BACK", "sandbox-patch": "PATCHING_SANDBOX", fail: "FAILED", "add-evidence": "ROLLED_BACK", caused: "ROLLED_BACK" },
+    FAILED: { learned: "FAILED", "add-evidence": "FAILED", caused: "FAILED" },
   });
 
 export interface BrainIncidentTransition {
@@ -302,10 +340,51 @@ export function advanceIncident(incident: BrainIncident, event: BrainIncidentEve
       return {
         incident: {
           ...base,
-          disposition: `Applied to the working tree by operator ${scrub(event.operatorId, 60)} (not pushed).`,
+          appliedBy: "operator",
+          disposition: `Applied to the working tree by operator ${scrub(event.operatorId, 60)} (staged, not committed, not pushed).`,
         },
         changed: true,
       };
+    case "auto-apply":
+      return {
+        incident: {
+          ...base,
+          appliedBy: "autonomous-safe",
+          disposition: "Auto-applied to the working tree (SAFE patch, staged, not committed, not pushed) — watchdog next.",
+        },
+        changed: true,
+      };
+    case "monitor":
+      return {
+        incident: { ...base, healVerdict: "OBSERVING", disposition: "Monitoring the applied patch — watching for a regression / recurrence." },
+        changed: true,
+      };
+    case "healed":
+      return {
+        incident: {
+          ...base,
+          healVerdict: "HEALED",
+          healEvidence: event.evidence.slice(0, 10).map((e) => scrub(e, MAX_NOTE)),
+          disposition: `HEALED — ${event.evidence[0] ?? "the incident signature is gone and no regression appeared"}.`,
+        },
+        changed: true,
+      };
+    case "heal-failed":
+      return {
+        incident: {
+          ...base,
+          healVerdict: "HEAL_FAILED",
+          disposition: `Heal failed — auto-rolling back: ${scrub(event.reason, MAX_NOTE)}`,
+        },
+        changed: true,
+      };
+    case "caused": {
+      const causedIncidentIds = [...new Set([...(incident.causedIncidentIds ?? []), scrub(event.incidentId, 80)])].slice(0, 20);
+      return {
+        incident: { ...base, causedIncidentIds: Object.freeze(causedIncidentIds), disposition: `${incident.disposition} (its patch caused ${event.incidentId})` },
+        changed: true,
+      };
+    }
     case "rollback":
       return { incident: { ...base, disposition: `Rolled back: ${scrub(event.reason, MAX_NOTE)}` }, changed: true };
     case "fail":
@@ -385,5 +464,12 @@ export function brainIncidentSignature(incident: Pick<BrainIncident, "category" 
   return `${incident.category}:${symptom}`;
 }
 
-export const BRAIN_INCIDENT_TERMINAL: readonly BrainIncidentStatus[] = Object.freeze(["APPLIED", "FAILED"]);
-export const BRAIN_INCIDENT_AUTONOMOUS_CEILING: BrainIncidentStatus = "AWAITING_APPROVAL";
+export const BRAIN_INCIDENT_TERMINAL: readonly BrainIncidentStatus[] = Object.freeze(["HEALED", "FAILED"]);
+/**
+ * v1 ceiling: the Brain reached AWAITING_APPROVAL and stopped. v2: the Brain may
+ * go all the way to HEALED for a SAFE patch when the auto-apply policy allows;
+ * everything else still stops at AWAITING_APPROVAL. The policy decides — this is
+ * just the furthest the Brain is *ever* allowed to reach unattended.
+ */
+export const BRAIN_INCIDENT_AUTONOMOUS_CEILING: BrainIncidentStatus = "HEALED";
+export const BRAIN_INCIDENT_REVIEW_CEILING: BrainIncidentStatus = "AWAITING_APPROVAL";

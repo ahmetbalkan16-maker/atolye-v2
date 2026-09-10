@@ -22,6 +22,13 @@ export const BRAIN_SELFHEAL_LIMITS = Object.freeze({
   maxSignatureWindowMs: 24 * 60 * 60 * 1000,
   /** Total incidents the Brain may have in-flight (not terminal) at once. */
   maxConcurrentIncidents: 6,
+  /* ---- v2 ---- */
+  /** Autonomous SAFE auto-applies allowed per rolling hour (a brake on a self-patch storm). */
+  maxAutonomousAppliesPerHour: 4,
+  /** Auto-rollbacks for one incident before it is handed to a human. */
+  maxRollbackAttempts: 2,
+  /** Length of a self-heal cause chain (A→B→C) before the whole chain is frozen. */
+  maxCauseChainDepth: 3,
 });
 
 export interface BrainSelfHealAttemptState {
@@ -91,6 +98,52 @@ export function checkConcurrency(inFlightCount: number): BrainSelfHealLimitResul
     return fail("TOO_MANY_CONCURRENT", `${inFlightCount} incidents already in flight — pause new self-heal runs`);
   }
   return ok;
+}
+
+/* ---------------------------------------------------------------- v2 limits --- */
+
+export type BrainSelfHealV2Violation =
+  | "AUTONOMOUS_APPLY_RATE"
+  | "MAX_ROLLBACK_ATTEMPTS"
+  | "CAUSE_CHAIN_TOO_DEEP"
+  | "SELF_HEAL_LOOP";
+
+export interface BrainSelfHealV2LimitResult {
+  readonly ok: boolean;
+  readonly violation: BrainSelfHealV2Violation | null;
+  readonly reason: string;
+}
+const okV2: BrainSelfHealV2LimitResult = Object.freeze({ ok: true, violation: null, reason: "within limits" });
+
+/** Whether ANOTHER autonomous SAFE auto-apply is allowed right now. */
+export function checkAutonomousApplyRate(applyTimestampsMs: readonly number[], nowMs: number): BrainSelfHealV2LimitResult {
+  const inHour = applyTimestampsMs.filter((t) => nowMs - t <= 3_600_000).length;
+  if (inHour >= BRAIN_SELFHEAL_LIMITS.maxAutonomousAppliesPerHour) {
+    return { ok: false, violation: "AUTONOMOUS_APPLY_RATE", reason: `${inHour} autonomous applies in the last hour (max ${BRAIN_SELFHEAL_LIMITS.maxAutonomousAppliesPerHour}) — pausing auto-apply` };
+  }
+  return okV2;
+}
+
+export function checkRollbackAttempts(rollbackCount: number): BrainSelfHealV2LimitResult {
+  if (rollbackCount >= BRAIN_SELFHEAL_LIMITS.maxRollbackAttempts) {
+    return { ok: false, violation: "MAX_ROLLBACK_ATTEMPTS", reason: `${rollbackCount} auto-rollbacks for this incident (max ${BRAIN_SELFHEAL_LIMITS.maxRollbackAttempts}) — needs a human` };
+  }
+  return okV2;
+}
+
+/**
+ * Loop-loop protection (§25). `chain` is the caused-by chain leading to THIS
+ * incident (root → … → parent). Too deep, or a signature that already appears
+ * in the chain (A→B→…→A), freezes the whole chain.
+ */
+export function checkCauseChain(chain: readonly { id: string; signature: string }[], freshSignature: string): BrainSelfHealV2LimitResult {
+  if (chain.length >= BRAIN_SELFHEAL_LIMITS.maxCauseChainDepth) {
+    return { ok: false, violation: "CAUSE_CHAIN_TOO_DEEP", reason: `self-heal cause chain is ${chain.length} deep (max ${BRAIN_SELFHEAL_LIMITS.maxCauseChainDepth}) — freezing the chain for a human` };
+  }
+  if (chain.some((c) => c.signature === freshSignature)) {
+    return { ok: false, violation: "SELF_HEAL_LOOP", reason: `signature "${freshSignature}" already appears in this incident's cause chain (A→…→A loop) — freezing` };
+  }
+  return okV2;
 }
 
 function fail(violation: NonNullable<BrainSelfHealLimitResult["violation"]>, reason: string): BrainSelfHealLimitResult {

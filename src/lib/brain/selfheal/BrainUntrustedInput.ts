@@ -14,6 +14,8 @@
  * FORBIDDEN for the Brain to self-modify (see BrainPatchSafety).
  */
 
+import { redactBrainText } from "../BrainRedaction";
+
 const INSTRUCTION_PATTERNS: readonly RegExp[] = Object.freeze([
   /\b(ignore|bypass|disable|override|forget|skip)\b.{0,40}\b(safety|guard|rule|policy|instruction|check|limit|boundary|gate)/i,
   /\b(open|unlock|disable|bypass)\b.{0,30}\b(execution\s*gate|gate|firewall|auth|authentication)/i,
@@ -57,7 +59,9 @@ export function sanitizeUntrustedText(input: unknown, options: BrainUntrustedOpt
   const maxLines = options.maxLines ?? 200;
   const raw = typeof input === "string" ? input : input == null ? "" : String(input);
 
-  const cleaned = raw.replace(CONTROL_AND_INVISIBLE, " ");
+  // Defence in depth: strip any secret shape BEFORE quarantining instructions,
+  // so a token embedded in a log line never reaches a note / report / prompt.
+  const cleaned = redactBrainText(raw).text.replace(CONTROL_AND_INVISIBLE, " ");
 
   const quarantined: string[] = [];
   const lines = cleaned

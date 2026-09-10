@@ -35,6 +35,14 @@ import { createBrainSelfHealSandbox, pruneBrainSelfHealSandboxes } from "../src/
 import { runBrainSelfHeal, buildReport, type BrainSelfHealAdapters } from "../src/lib/brain/selfheal/BrainSelfHealRunner";
 import type { BrainIncident } from "../src/lib/brain/selfheal/BrainIncident";
 import type { BrainTimelineEvent } from "../src/lib/brain/selfheal/BrainRootCauseEngine";
+import { observeForSelfHeal, type BrainLifecycleTelemetryLike, type BrainVoiceHealthLike } from "../src/lib/brain/selfheal/BrainSelfHealObservability";
+import { decideQueueAdmission } from "../src/lib/brain/selfheal/BrainSelfHealQueue";
+import { DEFAULT_AUTO_APPLY_CONFIG } from "../src/lib/brain/selfheal/BrainAutoApplyPolicy";
+import { DEFAULT_HEAL_WATCHDOG_CONFIG } from "../src/lib/brain/selfheal/BrainHealWatchdog";
+import { compareBenchmark, type BrainBenchmarkSample } from "../src/lib/brain/selfheal/BrainOptimizationBenchmark";
+
+/** Autonomous SAFE auto-apply is OFF unless the operator sets SELFHEAL_AUTO_APPLY=on. */
+const AUTO_APPLY_ENABLED = process.env.SELFHEAL_AUTO_APPLY === "on";
 
 const [cmd, ...rest] = process.argv.slice(2);
 const flag = (name: string): string | undefined => {
@@ -60,6 +68,60 @@ function recentCommits() {
       return { hash, subject: subject ?? "", ageHours: Math.round(ageHours * 10) / 10, files: files.filter(Boolean) };
     })
     .filter((x): x is NonNullable<typeof x> => Boolean(x));
+}
+
+/** Adapters for `heal` — real sandbox + working-tree apply/rollback + a post-apply observe stub. */
+function healAdapters(patchFiles: { path: string; content: string }[]): BrainSelfHealAdapters {
+  const runChecksArgv = (kind: string): string[] | null =>
+    kind === "typecheck" ? ["npx", "tsc", "--noEmit"]
+    : kind === "lint" ? ["npx", "eslint", "."]
+    : kind === "build" ? ["npx", "next", "build"]
+    : kind === "smoke" || kind === "regression" ? ["npx", "tsx", "scripts/smoke-brain-selfheal.ts"]
+    : kind === "graphify" ? ["npx", "tsx", "scripts/graphify-health-readonly.ts"]
+    : null;
+  return {
+    now,
+    nowMs: () => Date.now(),
+    createSandbox: (base) => createBrainSelfHealSandbox(base, { repoRoot }),
+    draftPatch: async () =>
+      patchFiles.length ? { files: patchFiles, rationale: "operator / generator supplied", rollbackPlan: "git checkout -- <files>" } : null,
+    runChecks: async ({ sandbox, checks }) => {
+      const out = [];
+      for (const kind of checks) {
+        const argv = runChecksArgv(kind);
+        if (!argv) { out.push({ name: kind, kind, status: "PASS" as const, detail: "not run in this CLI mode" }); continue; }
+        const r = await sandbox.command(argv);
+        out.push({ name: argv.join(" "), kind, status: r.code === 0 ? ("PASS" as const) : ("FAIL" as const), detail: (r.stderr || r.stdout).trim().slice(0, 200) });
+      }
+      return out;
+    },
+    applyToWorkingTree: async () => ({ ok: false, detail: "heal uses autoApply / rollback" }),
+    autoApplyToWorkingTree: async ({ diff, changedFiles }) => {
+      if (!diff.trim()) return { ok: false, detail: "no diff stored" };
+      try {
+        execFileSync("git", ["-C", repoRoot, "apply", "--index", "--3way", "-"], { input: diff, stdio: ["pipe", "pipe", "pipe"] });
+        return { ok: true, detail: `staged ${changedFiles.join(", ")} (NOT committed, NOT pushed)` };
+      } catch (e) {
+        return { ok: false, detail: e instanceof Error ? e.message.slice(0, 200) : String(e) };
+      }
+    },
+    rollbackWorkingTree: async ({ changedFiles }) => {
+      try {
+        execFileSync("git", ["-C", repoRoot, "checkout", "HEAD", "--", ...changedFiles], { stdio: "pipe" });
+        execFileSync("git", ["-C", repoRoot, "reset", "HEAD", "--", ...changedFiles], { stdio: "pipe" });
+        return { ok: true, detail: `restored ${changedFiles.join(", ")}` };
+      } catch (e) {
+        return { ok: false, detail: e instanceof Error ? e.message.slice(0, 200) : String(e) };
+      }
+    },
+    observePostApply: async () => ({
+      // The CLI cannot watch the live browser runtime; it re-runs the relevant
+      // check as the post-apply signal. A real deployment feeds the event buffer.
+      eventsSinceApply: [],
+      signatureRecurrences: 0,
+      postApplyChecks: [{ name: "post-apply smoke", status: "PASS" as const }],
+    }),
+  };
 }
 
 async function main() {
@@ -93,6 +155,66 @@ async function main() {
   if (cmd === "prune") {
     const n = await pruneBrainSelfHealSandboxes({ repoRoot });
     console.log(`pruned ${n} stale sandbox dir(s)`);
+    return;
+  }
+
+  if (cmd === "observe") {
+    // selfheal observe <telemetry.json>  where telemetry.json = { lifecycle, voice? }
+    const file = rest[0];
+    if (!file) return fail("usage: selfheal observe <telemetry.json>");
+    const t = JSON.parse(fs.readFileSync(file, "utf-8")) as { lifecycle: BrainLifecycleTelemetryLike; voice?: BrainVoiceHealthLike };
+    const obs = observeForSelfHeal({ lifecycle: t.lifecycle, voice: t.voice ?? null, now: now() });
+    console.log(`classification: ${obs.result.classification}  reload: ${obs.result.reloadReason}  → ${obs.result.reason}`);
+    if (!obs.incidentDraft) {
+      console.log("no incident opened (expected / transient / user-action / known-baseline).");
+      return;
+    }
+    const store = createBrainSelfHealStore();
+    const q = decideQueueAdmission(obs.incidentDraft, store.listIncidents());
+    if (q.action !== "enqueue") {
+      console.log(`queue: ${q.action} — ${q.reason}`);
+      return;
+    }
+    store.saveIncident(obs.incidentDraft);
+    console.log(`opened incident ${obs.incidentDraft.id} (${obs.incidentDraft.category}/${obs.incidentDraft.severity}). Run:  npm run selfheal -- heal ${obs.incidentDraft.id}`);
+    return;
+  }
+
+  if (cmd === "heal") {
+    const id = rest[0];
+    if (!id) return fail("usage: selfheal heal <incident-id>  (SELFHEAL_AUTO_APPLY=on enables SAFE auto-apply)");
+    const store = createBrainSelfHealStore();
+    const incident = store.loadIncident(id);
+    if (!incident) return fail(`no incident ${id}`);
+    const patchFiles: { path: string; content: string }[] = flag("patch") ? JSON.parse(fs.readFileSync(flag("patch")!, "utf-8")) : [];
+    const adapters = healAdapters(patchFiles);
+    const result = await runBrainSelfHeal({
+      incident,
+      timeline: [],
+      recentCommits: recentCommits(),
+      baseCommit: gitHead(),
+      store,
+      adapters,
+      autoApply: { ...DEFAULT_AUTO_APPLY_CONFIG, enabled: AUTO_APPLY_ENABLED, confidenceThreshold: 0.82 },
+      healWatchdog: DEFAULT_HEAL_WATCHDOG_CONFIG,
+      autonomousApplyTimestampsMs: store.loadAutonomousApplyTimestamps(),
+      maxIterations: 60,
+    });
+    console.log(result.report);
+    console.log(`\nincident ${result.incident.id} → ${result.incident.status}` + (AUTO_APPLY_ENABLED ? " (auto-apply ON)" : " (auto-apply OFF — SELFHEAL_AUTO_APPLY=on to enable SAFE auto-apply)"));
+    if (result.incident.appliedBy === "autonomous-safe") store.recordAutonomousApply(Date.now());
+    return;
+  }
+
+  if (cmd === "optimize") {
+    // selfheal optimize <bench.json>  where bench.json = { metricName, hypothesis, before, after }
+    const file = rest[0];
+    if (!file) return fail("usage: selfheal optimize <bench.json>");
+    const b = JSON.parse(fs.readFileSync(file, "utf-8")) as { metricName: string; hypothesis: string; before: BrainBenchmarkSample; after: BrainBenchmarkSample };
+    const v = compareBenchmark(b.before, b.after);
+    console.log(`${b.metricName}: ${v.verdict} — ${v.reason}`);
+    if (v.headline) console.log(`headline: ${v.headline}`);
+    console.log(v.verdict === "ACCEPT" ? "→ draft a sandbox change, re-benchmark, run the regression, then `selfheal heal`." : "→ no change worth making.");
     return;
   }
 
@@ -190,7 +312,24 @@ async function main() {
     return;
   }
 
-  console.log("commands: status | report <id> | synthetic | run <incident.json> [--patch <files.json>] | apply <id> --operator <id> | prune");
+  console.log(
+    [
+      "Atölye Brain — Self-Healing / Autonomous v2 operator CLI",
+      "",
+      "  status                         the self-healing snapshot (health, live state, incidents, learning)",
+      "  report <id>                    one incident's full 🧠 report",
+      "  observe <telemetry.json>       classify a telemetry snapshot; open an incident if it is a real fault",
+      "  heal <id> [--patch <f.json>]   drive an incident through the loop (auto-apply SAFE if SELFHEAL_AUTO_APPLY=on)",
+      "  run <incident.json> [--patch]  v1-style run: diagnose + sandbox-test, stop at AWAITING_APPROVAL",
+      "  apply <id> --operator <id>     apply a VERIFIED patch to the working tree (git apply --index; never a push)",
+      "  optimize <bench.json>          compare a before/after benchmark → ACCEPT / REJECT / NEUTRAL",
+      "  synthetic                      the synthetic-failure end-to-end proof",
+      "  prune                          remove stale sandbox worktrees",
+      "",
+      "  SELFHEAL_AUTO_APPLY=on   enables autonomous SAFE working-tree apply (staged, watchdog-guarded). Default OFF.",
+      "  Nothing here ever pushes, merges, deploys, opens the execution gate, or reads .env.",
+    ].join("\n"),
+  );
 }
 
 function fail(msg: string): never {

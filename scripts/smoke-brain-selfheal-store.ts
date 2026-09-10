@@ -13,6 +13,8 @@ import path from "node:path";
 
 import { buildBrainIncident, advanceIncident, type BrainIncident } from "../src/lib/brain/selfheal/BrainIncident";
 import { buildLearnedPattern } from "../src/lib/brain/selfheal/BrainLearnedPattern";
+import { buildOptimizationRun } from "../src/lib/brain/selfheal/BrainOptimizationLoop";
+import { buildRuntimeEvent } from "../src/lib/brain/selfheal/BrainRuntimeEvent";
 import {
   createBrainSelfHealStore,
   BrainSelfHealStoreError,
@@ -132,6 +134,41 @@ async function run() {
       const store = createBrainSelfHealStore({ rootDir: root });
       assert.equal(store.loadIncident("sh-deadbeef"), undefined);
       assert.equal(store.listIncidents().length, 0);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  /* ---------------- v2 store ---------------- */
+
+  await scenario("v2 store — optimization runs / runtime events / autonomous-apply timestamps round-trip", () => {
+    const root = tmp();
+    try {
+      const store = createBrainSelfHealStore({ rootDir: root });
+      const opt = buildOptimizationRun({ id: "opt-1", metricName: "sttLatency", hypothesis: "skip beam fallback", now: NOW });
+      store.saveOptimizationRun(opt);
+      assert.equal(store.listOptimizationRuns().length, 1);
+      assert.equal(store.listOptimizationRuns()[0].metricName, "sttLatency");
+
+      store.appendRuntimeEvents([buildRuntimeEvent({ at: NOW, component: "voice", event: "wake-hit", metadata: { score: 0.7 } })]);
+      store.appendRuntimeEvents([buildRuntimeEvent({ at: "2026-09-11T12:00:01.000Z", component: "stt", event: "stt-error", severity: "error" })]);
+      assert.equal(store.loadRuntimeEvents().length, 2);
+
+      store.recordAutonomousApply(Date.parse(NOW));
+      store.recordAutonomousApply(Date.parse(NOW) + 1000);
+      assert.equal(store.loadAutonomousApplyTimestamps().length, 2);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  await scenario("v2 store — a secret in a runtime event is REJECTED, not stored", () => {
+    const root = tmp();
+    try {
+      const store = createBrainSelfHealStore({ rootDir: root });
+      const evt = { at: NOW, component: "api" as const, event: "fail", severity: "error" as const, metadata: { note: "ghp_0123456789abcdefghijklmnopqrstuvwxyzAB" } };
+      // buildRuntimeEvent redacts metadata strings; but a hand-crafted event bypassing it must be rejected by the store
+      assert.throws(() => store.appendRuntimeEvents([evt as never]), (e) => e instanceof BrainSelfHealStoreError && e.code === "SELFHEAL_STORE_SECRET_LEAK");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

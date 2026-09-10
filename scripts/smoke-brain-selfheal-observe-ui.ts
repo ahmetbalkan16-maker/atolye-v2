@@ -142,8 +142,39 @@ async function run() {
     inc = advanceIncident(inc, { kind: "fail", reason: "diagnosis inconclusive", now: NOW }).incident;
     const snapshot = buildBrainSelfHealSnapshot({ incidents: [inc], learned: [], now: NOW });
     assert.equal(snapshot.health.state, "needs-human");
+    assert.equal(snapshot.liveState, "NEEDS_HUMAN");
     const html = renderToStaticMarkup(createElement(BrainSelfHealingPanel, { snapshot: { ...snapshot, error: null }, executionGate: "CLOSED" }));
     assert.match(html, /İNSAN GEREKLİ/);
+  });
+
+  await scenario("v2 panel — live state, current risk, recent rollbacks, and the staged/auto-rollback note render", () => {
+    let inc = buildBrainIncident({ category: "voice", severity: "P1", classification: "REAL_INCIDENT", symptom: "wake capture stalls", now: NOW });
+    inc = advanceIncident(inc, { kind: "diagnose", now: NOW, hypotheses: [{ statement: "audio graph stall", confidence: 0.82, evidence: [], counterEvidence: [], suspectFiles: ["scripts/smoke-x.ts"] }] }).incident;
+    inc = advanceIncident(inc, { kind: "sandbox-patch", now: NOW, patch: { patchId: "p", baseCommit: "abc", changedFiles: ["scripts/smoke-x.ts"], diff: "@@", diffLines: 12, safetyLevel: "SAFE", risk: "LOW", rollbackPlan: "restore", attempt: 1 } }).incident;
+    inc = advanceIncident(inc, { kind: "checks", now: NOW, checks: [{ name: "smoke", kind: "smoke", status: "PASS", detail: "" }] }).incident;
+    inc = advanceIncident(inc, { kind: "verified", now: NOW }).incident;
+    inc = advanceIncident(inc, { kind: "auto-apply", now: NOW }).incident;
+    inc = advanceIncident(inc, { kind: "monitor", now: NOW }).incident;
+
+    let rolled = buildBrainIncident({ category: "ui", severity: "P2", classification: "REAL_INCIDENT", symptom: "a tile count is wrong", now: NOW });
+    rolled = advanceIncident(rolled, { kind: "diagnose", now: NOW, hypotheses: [{ statement: "off by one", confidence: 0.7, evidence: [], counterEvidence: [], suspectFiles: ["scripts/y.ts"] }] }).incident;
+    rolled = advanceIncident(rolled, { kind: "sandbox-patch", now: NOW, patch: { patchId: "q", baseCommit: "abc", changedFiles: ["scripts/y.ts"], diff: "@@", diffLines: 5, safetyLevel: "SAFE", risk: "LOW", rollbackPlan: "restore", attempt: 1 } }).incident;
+    rolled = advanceIncident(rolled, { kind: "checks", now: NOW, checks: [{ name: "smoke", kind: "smoke", status: "PASS", detail: "" }] }).incident;
+    rolled = advanceIncident(rolled, { kind: "verified", now: NOW }).incident;
+    rolled = advanceIncident(rolled, { kind: "auto-apply", now: NOW }).incident;
+    rolled = advanceIncident(rolled, { kind: "monitor", now: NOW }).incident;
+    rolled = advanceIncident(rolled, { kind: "heal-failed", reason: "signature recurred", now: NOW }).incident;
+
+    const snapshot = buildBrainSelfHealSnapshot({ incidents: [inc, rolled], learned: [], now: NOW });
+    assert.equal(snapshot.liveState, "MONITORING");
+    assert.equal(snapshot.recentRollbacks.length, 1);
+    const html = renderToStaticMarkup(createElement(BrainSelfHealingPanel, { snapshot: { ...snapshot, error: null }, executionGate: "CLOSED" }));
+    assert.match(html, /bc-selfheal-live/);
+    assert.match(html, /MONITORING/);
+    assert.match(html, /bc-selfheal-rollbacks/);
+    assert.match(html, /staged/i);
+    assert.match(html, /watchdog otomatik geri alır/i);
+    assert.match(html, /audio graph stall/); // last root cause
   });
 
   console.log(`Atölye Brain self-heal observe+UI smoke: PASS (${count} scenarios)`);

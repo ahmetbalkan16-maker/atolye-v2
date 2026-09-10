@@ -46,6 +46,18 @@ export interface BrainSelfHealLearningView {
   readonly status: string;
 }
 
+/** The Brain's current live activity (emir §30). */
+export type BrainSelfHealLiveState =
+  | "IDLE"
+  | "OBSERVING"
+  | "DIAGNOSING"
+  | "REPAIRING"
+  | "TESTING"
+  | "VERIFYING"
+  | "MONITORING"
+  | "HEALED"
+  | "NEEDS_HUMAN";
+
 export interface BrainSelfHealSnapshot {
   readonly health: {
     readonly state: "healthy" | "watching" | "healing" | "needs-human";
@@ -54,15 +66,23 @@ export interface BrainSelfHealSnapshot {
     readonly p0: number;
     readonly summary: string;
   };
+  /** v2: the single live-status word shown on the orb / panel. */
+  readonly liveState: BrainSelfHealLiveState;
+  /** v2: an aggregate risk read for the operator. */
+  readonly currentRisk: "NONE" | "LOW" | "MEDIUM" | "HIGH";
+  /** v2: the last confirmed root cause. */
+  readonly lastRootCause: string | null;
   readonly activeIncidents: readonly BrainSelfHealIncidentView[];
   readonly recentRepairs: readonly BrainSelfHealIncidentView[];
+  /** v2: incidents whose patch was rolled back (auto or manual). */
+  readonly recentRollbacks: readonly BrainSelfHealIncidentView[];
   readonly optimizations: readonly BrainSelfHealOptimizationView[];
   readonly learning: readonly BrainSelfHealLearningView[];
   readonly lastAction: { readonly at: string; readonly text: string } | null;
   readonly generatedAt: string;
 }
 
-const TERMINAL: readonly BrainIncidentStatus[] = ["APPLIED", "FAILED", "ROLLED_BACK"];
+const TERMINAL: readonly BrainIncidentStatus[] = ["HEALED", "FAILED", "ROLLED_BACK", "APPLIED"];
 
 function incidentView(i: BrainIncident): BrainSelfHealIncidentView {
   const realFail = i.checks.filter((c) => c.status === "FAIL" && !c.baseline).length;
@@ -135,10 +155,47 @@ export function buildBrainSelfHealSnapshot(input: BrainSelfHealSnapshotInput): B
   const lastChanged = incidents[0];
   const lastAction = lastChanged ? { at: lastChanged.updatedAt, text: `${lastChanged.id}: ${lastChanged.disposition}` } : null;
 
+  // v2 — the single live-status word, from the most-progressed active incident.
+  const STATUS_TO_LIVE: Record<string, BrainSelfHealLiveState> = {
+    OBSERVED: "OBSERVING",
+    DIAGNOSED: "DIAGNOSING",
+    PATCHING_SANDBOX: "REPAIRING",
+    TESTING: "TESTING",
+    VERIFIED: "VERIFYING",
+    AWAITING_APPROVAL: "NEEDS_HUMAN",
+    APPLIED: "MONITORING",
+    MONITORING: "MONITORING",
+  };
+  const liveState: BrainSelfHealLiveState =
+    needsHuman > 0
+      ? "NEEDS_HUMAN"
+      : active.length === 0
+        ? incidents.some((i) => i.status === "HEALED") && incidents[0]?.status === "HEALED"
+          ? "HEALED"
+          : "IDLE"
+        : (active.map((i) => STATUS_TO_LIVE[i.status]).find(Boolean) ?? "OBSERVING");
+
+  const risks = active.map((i) => i.patch?.risk).filter(Boolean) as string[];
+  const currentRisk: BrainSelfHealSnapshot["currentRisk"] =
+    needsHuman > 0 || risks.includes("HIGH")
+      ? "HIGH"
+      : risks.includes("MEDIUM")
+        ? "MEDIUM"
+        : risks.includes("LOW")
+          ? "LOW"
+          : "NONE";
+
+  const rollbacks = incidents.filter((i) => i.status === "ROLLED_BACK").slice(0, 8);
+  const lastRootCause = incidents.find((i) => i.confirmedRootCause)?.confirmedRootCause ?? incidents.find((i) => i.hypotheses[0])?.hypotheses[0]?.statement ?? null;
+
   return {
     health: { state, openIncidents: active.length, needsHuman, p0, summary },
+    liveState,
+    currentRisk,
+    lastRootCause,
     activeIncidents: active.map(incidentView),
-    recentRepairs: done.map(incidentView),
+    recentRepairs: done.filter((i) => i.status === "HEALED" || i.status === "APPLIED" || i.status === "FAILED").map(incidentView),
+    recentRollbacks: rollbacks.map(incidentView),
     optimizations: input.optimizations ?? [],
     learning,
     lastAction,
@@ -148,8 +205,12 @@ export function buildBrainSelfHealSnapshot(input: BrainSelfHealSnapshotInput): B
 
 export const EMPTY_BRAIN_SELFHEAL_SNAPSHOT: BrainSelfHealSnapshot = Object.freeze({
   health: { state: "healthy" as const, openIncidents: 0, needsHuman: 0, p0: 0, summary: "Self-healing store empty — the Brain is watching." },
+  liveState: "IDLE" as const,
+  currentRisk: "NONE" as const,
+  lastRootCause: null,
   activeIncidents: [],
   recentRepairs: [],
+  recentRollbacks: [],
   optimizations: [],
   learning: [],
   lastAction: null,

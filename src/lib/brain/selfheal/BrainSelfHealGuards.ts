@@ -11,18 +11,12 @@
 
 import { classifyPatchSet, type BrainPatchSafetyLevel } from "./BrainPatchSafety";
 
-/** Argv tokens a self-heal adapter must never run. */
-const FORBIDDEN_ARGV = Object.freeze([
-  "push",
-  "--force",
-  "-f", // git push -f
-  "reset --hard", // guarded separately, informational
-  "config",
-  "remote",
-  "clean",
-]);
+/** EXACT argv tokens a self-heal adapter must never pass (matched token-by-token, not as substrings). */
+const FORBIDDEN_ARGV_TOKENS = Object.freeze(["push", "--force", "-f", "--force-with-lease", "clean"]);
+/** Substrings that are dangerous anywhere in the joined command (a shell fragment). */
+const FORBIDDEN_ARGV_SUBSTRINGS = Object.freeze(["reset --hard", "rm -rf", "> /dev", "git push", "--no-verify"]);
 
-const FORBIDDEN_GIT_SUBCOMMANDS = Object.freeze(["push", "remote", "config", "gc", "prune"]);
+const FORBIDDEN_GIT_SUBCOMMANDS = Object.freeze(["push", "remote", "config", "gc", "prune", "clean"]);
 
 /** Files a self-heal run must never read. */
 export function isSecretPath(path: string): boolean {
@@ -69,12 +63,18 @@ export function assertSelfHealActionAllowed(req: SelfHealActionRequest): SelfHea
       const argv = req.argv ?? [];
       if (argv.length === 0) return DENY("no argv");
       const joined = argv.join(" ").toLowerCase();
-      if (argv[0] === "git") {
-        const sub = (argv[1] ?? "").toLowerCase();
+      if (argv[0] === "git" || argv[0] === "git.exe") {
+        // `git -C <dir> <sub> …` — find the first non-flag, non `-C <path>` token
+        let i = 1;
+        while (i < argv.length && (argv[i].startsWith("-") || (argv[i] === "-C" && (i += 1) < argv.length))) i += 1;
+        const sub = (argv[i] ?? "").toLowerCase();
         if (FORBIDDEN_GIT_SUBCOMMANDS.includes(sub)) return DENY(`git ${sub} is forbidden in a self-heal run`);
       }
-      for (const bad of FORBIDDEN_ARGV) {
-        if (joined.includes(bad)) return DENY(`argv contains a forbidden token: "${bad}"`);
+      for (const tok of argv) {
+        if (FORBIDDEN_ARGV_TOKENS.includes(tok.toLowerCase())) return DENY(`argv contains a forbidden token: "${tok}"`);
+      }
+      for (const bad of FORBIDDEN_ARGV_SUBSTRINGS) {
+        if (joined.includes(bad)) return DENY(`command contains a forbidden fragment: "${bad}"`);
       }
       if (/(^|\s)(npm|pnpm|yarn|npx)\s+(run\s+)?(publish|deploy|release)/.test(joined)) return DENY("publish / deploy / release is forbidden");
       if (/\b(deploy|vercel|netlify|cloudflared|wrangler|fly\s+deploy|gh\s+release)\b/.test(joined)) return DENY("a deployment command is forbidden");

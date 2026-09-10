@@ -95,7 +95,12 @@
     "smoke:brain-selfheal-store": "tsx scripts/smoke-brain-selfheal-store.ts",
     "smoke:brain-selfheal-e2e": "tsx scripts/smoke-brain-selfheal-e2e.ts",
     "smoke:brain-selfheal-security": "tsx scripts/smoke-brain-selfheal-security.ts",
-    "smoke:brain-selfheal-observe-ui": "tsx scripts/smoke-brain-selfheal-observe-ui.ts"
+    "smoke:brain-selfheal-observe-ui": "tsx scripts/smoke-brain-selfheal-observe-ui.ts",
+    "selfheal:observe": "tsx scripts/selfheal.ts observe",
+    "selfheal:heal": "tsx scripts/selfheal.ts heal",
+    "selfheal:optimize": "tsx scripts/selfheal.ts optimize",
+    "smoke:brain-selfheal-v2": "tsx scripts/smoke-brain-selfheal-v2.ts",
+    "smoke:brain-selfheal-e2e-v2": "tsx scripts/smoke-brain-selfheal-e2e-v2.ts"
   },
   "dependencies": {
     "next": "16.2.10",

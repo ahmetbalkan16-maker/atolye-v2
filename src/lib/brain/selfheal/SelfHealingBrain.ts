@@ -18,14 +18,17 @@
 import {
   advanceIncident,
   brainIncidentSignature,
-  BRAIN_INCIDENT_AUTONOMOUS_CEILING,
   type BrainIncident,
   type BrainIncidentCheck,
   type BrainIncidentEvent,
 } from "./BrainIncident";
 import { diagnoseRootCause, type BrainRecentCommit, type BrainTimelineEvent } from "./BrainRootCauseEngine";
 import { classifyPatchSet, patchRisk } from "./BrainPatchSafety";
-import { checkSelfHealAttempt, BRAIN_SELFHEAL_LIMITS } from "./BrainSelfHealLimits";
+import { checkSelfHealAttempt, checkRollbackAttempts, checkAutonomousApplyRate, BRAIN_SELFHEAL_LIMITS } from "./BrainSelfHealLimits";
+import { decideAutoApply, DEFAULT_AUTO_APPLY_CONFIG, type BrainAutoApplyConfig } from "./BrainAutoApplyPolicy";
+import { runHealWatchdog, DEFAULT_HEAL_WATCHDOG_CONFIG, type BrainHealWatchdogConfig } from "./BrainHealWatchdog";
+import type { BrainRuntimeEvent } from "./BrainRuntimeEvent";
+import type { BrainBenchmarkVerdict } from "./BrainOptimizationBenchmark";
 import type { BrainLearnedPattern } from "./BrainLearnedPattern";
 
 export interface SelfHealContext {
@@ -47,6 +50,25 @@ export interface SelfHealContext {
   readonly lastCheckResults?: readonly BrainIncidentCheck[] | null;
   /** An explicit operator approval id, when the operator has approved this incident's patch. */
   readonly operatorApprovalId?: string | null;
+
+  /* ---- v2 ---- */
+  readonly autoApply?: BrainAutoApplyConfig;
+  /** `null` ⇒ no post-apply watchdog (v1 behaviour: an operator apply → learn). */
+  readonly healWatchdog?: BrainHealWatchdogConfig | null;
+  /** Epoch ms of prior autonomous applies (rate-limit). */
+  readonly autonomousApplyTimestampsMs?: readonly number[];
+  /** Signatures whose last auto-apply ended in HEAL_FAILED. */
+  readonly recentlyFailedSignatures?: readonly string[];
+  /** For a MONITORING incident: the post-apply observation. */
+  readonly monitor?: {
+    readonly appliedAtMs: number;
+    readonly eventsSinceApply: readonly BrainRuntimeEvent[];
+    readonly signatureRecurrences: number;
+    readonly postApplyChecks?: readonly { readonly name: string; readonly status: "PASS" | "FAIL" }[];
+    readonly benchmark?: BrainBenchmarkVerdict | null;
+    /** Auto-rollbacks already done for this incident. */
+    readonly rollbackCount: number;
+  } | null;
 }
 
 export type SelfHealStep =
@@ -58,7 +80,12 @@ export type SelfHealStep =
   | { readonly kind: "verify" }
   | { readonly kind: "await-approval"; readonly summary: string }
   | { readonly kind: "apply-to-working-tree"; readonly operatorApprovalId: string }
+  /** v2: SAFE auto-apply to the working tree (staged, never pushed). */
+  | { readonly kind: "auto-apply-to-working-tree"; readonly checklist: readonly { readonly name: string; readonly ok: boolean; readonly detail: string }[] }
+  /** v2: start / continue the post-apply watchdog. */
+  | { readonly kind: "monitor"; readonly elapsedMs: number }
   | { readonly kind: "rollback"; readonly reason: string }
+  | { readonly kind: "auto-rollback"; readonly reason: string; readonly evidence: readonly string[] }
   | { readonly kind: "learn"; readonly outcome: "confirmed" | "failed" }
   | { readonly kind: "halt"; readonly reason: string; readonly needsHuman: boolean };
 
@@ -166,14 +193,31 @@ export function planSelfHealStep(incident: BrainIncident, ctx: SelfHealContext):
 
     case "VERIFIED": {
       const summary = buildApprovalSummary(incident);
-      if (incident.status !== BRAIN_INCIDENT_AUTONOMOUS_CEILING) {
+      // v2 — the auto-apply policy decides. Default (opt-in OFF, or anything but
+      // an all-SAFE high-confidence patch) → the Brain still stops for a human.
+      const rate = checkAutonomousApplyRate(ctx.autonomousApplyTimestampsMs ?? [], ctx.nowMs);
+      const verdict = decideAutoApply({
+        incident,
+        config: ctx.autoApply ?? DEFAULT_AUTO_APPLY_CONFIG,
+        recentlyFailedSignatures: ctx.recentlyFailedSignatures,
+        incidentSignature: brainIncidentSignature(incident),
+      });
+      if (verdict.decision === "AUTO_APPLY" && rate.ok) {
         return {
-          step: { kind: "await-approval", summary },
-          preEvent: { kind: "await-approval", now: ctx.now },
-          note: "Sandbox is green — the Brain stops here and asks the operator to apply.",
+          step: { kind: "auto-apply-to-working-tree", checklist: verdict.checklist },
+          preEvent: { kind: "auto-apply", now: ctx.now },
+          note: `SAFE auto-apply: ${verdict.reason}`,
         };
       }
-      return { step: { kind: "await-approval", summary }, note: "Awaiting operator approval." };
+      const why =
+        verdict.decision === "AUTO_APPLY" && !rate.ok
+          ? `${verdict.reason} — but ${rate.reason}`
+          : verdict.reason;
+      return {
+        step: { kind: "await-approval", summary: `${summary}\nauto-apply: ${verdict.decision} (${why})` },
+        preEvent: { kind: "await-approval", now: ctx.now },
+        note: `Sandbox green — ${why}. Awaiting operator approval.`,
+      };
     }
 
     case "AWAITING_APPROVAL": {
@@ -194,11 +238,67 @@ export function planSelfHealStep(incident: BrainIncident, ctx: SelfHealContext):
       return { step: { kind: "halt", reason: "waiting for operator approval", needsHuman: false }, note: "Idle until an operator applies or rejects." };
     }
 
-    case "APPLIED":
-      if (!incident.learnedPatternId) {
-        return { step: { kind: "learn", outcome: "confirmed" }, preEvent: { kind: "learned", learnedPatternId: `pending-${incident.id}`, now: ctx.now }, note: "Recording the verified fix as a learned pattern." };
+    case "APPLIED": {
+      // v2 — an APPLIED patch (operator OR autonomous) is now MONITORED by the
+      // watchdog before it can be called HEALED. An operator apply with the
+      // watchdog disabled skips straight to learn.
+      if (ctx.healWatchdog === null && incident.appliedBy === "operator") {
+        if (!incident.learnedPatternId) {
+          return { step: { kind: "learn", outcome: "confirmed" }, preEvent: { kind: "learned", learnedPatternId: `pending-${incident.id}`, now: ctx.now }, note: "Operator-applied; recording the verified fix as a learned pattern." };
+        }
+        return { step: { kind: "halt", reason: "incident closed — applied + learned", needsHuman: false }, note: "Done." };
       }
-      return { step: { kind: "halt", reason: "incident closed — applied + learned", needsHuman: false }, note: "Done." };
+      return {
+        step: { kind: "monitor", elapsedMs: 0 },
+        preEvent: { kind: "monitor", now: ctx.now },
+        note: "Patch is live — starting the post-apply watchdog.",
+      };
+    }
+
+    case "MONITORING": {
+      const m = ctx.monitor;
+      const cfg = ctx.healWatchdog ?? DEFAULT_HEAL_WATCHDOG_CONFIG;
+      if (!m) {
+        return { step: { kind: "monitor", elapsedMs: 0 }, note: "Watchdog — waiting for the first observation window." };
+      }
+      const wd = runHealWatchdog({
+        config: cfg,
+        elapsedMs: ctx.nowMs - m.appliedAtMs,
+        eventsSinceApply: m.eventsSinceApply,
+        signatureRecurrences: m.signatureRecurrences,
+        postApplyChecks: m.postApplyChecks,
+        benchmark: m.benchmark,
+      });
+      if (wd.verdict === "HEALED") {
+        return {
+          step: { kind: "learn", outcome: "confirmed" },
+          preEvent: { kind: "healed", evidence: wd.evidence, now: ctx.now },
+          note: `HEALED — ${wd.reason}. Recording the pattern.`,
+        };
+      }
+      if (wd.verdict === "HEAL_FAILED") {
+        const rb = checkRollbackAttempts(m.rollbackCount);
+        if (!rb.ok) {
+          return {
+            step: { kind: "halt", reason: rb.reason, needsHuman: true },
+            preEvent: { kind: "fail", reason: rb.reason, now: ctx.now },
+            note: "Watchdog says the fix failed and we are out of auto-rollbacks — handing to a human.",
+          };
+        }
+        return {
+          step: { kind: "auto-rollback", reason: wd.reason, evidence: wd.evidence },
+          preEvent: { kind: "heal-failed", reason: wd.reason, now: ctx.now },
+          note: `Watchdog: ${wd.reason} — auto-rolling back.`,
+        };
+      }
+      return { step: { kind: "monitor", elapsedMs: ctx.nowMs - m.appliedAtMs }, note: wd.reason };
+    }
+
+    case "HEALED":
+      if (!incident.learnedPatternId) {
+        return { step: { kind: "learn", outcome: "confirmed" }, preEvent: { kind: "learned", learnedPatternId: `pending-${incident.id}`, now: ctx.now }, note: "Recording the healed fix as a learned pattern." };
+      }
+      return { step: { kind: "halt", reason: "incident HEALED + learned", needsHuman: false }, note: "Done — self-healed." };
 
     case "ROLLED_BACK": {
       if (attempt <= BRAIN_SELFHEAL_LIMITS.maxPatchAttempts) {
