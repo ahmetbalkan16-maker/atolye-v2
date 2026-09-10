@@ -629,10 +629,31 @@ async function run() {
         assert.ok(!code.includes(banned), `${file} must not reference "${banned}"`);
       }
     }
-    // The wake lock additionally must carry no timer at all.
+    // The wake lock carries NO interval/polling. A bounded, `.unref()`'d retry
+    // `setTimeout` (≤3 attempts with backoff) is allowed — a Low Power Mode
+    // rejection must get a couple more tries before the screen is left to the OS.
     const wl = fs.readFileSync(path.join(REPO_ROOT, "src/components/brain/useScreenWakeLock.ts"), "utf8");
-    assert.ok(!wl.includes("setTimeout(") && !wl.includes("setInterval("), "useScreenWakeLock has no timer");
+    assert.ok(!wl.includes("setInterval("), "useScreenWakeLock has no polling interval");
+    assert.ok(/RETRY_BACKOFF_MS\s*=\s*\[[^\]]*\]\s*as const/.test(wl), "the retry schedule is a fixed, bounded array");
+    assert.ok(wl.includes("retries >= RETRY_BACKOFF_MS.length"), "retries are capped");
+    assert.ok(wl.includes("unref?.()"), "the retry timer is unref'd");
     assert.ok(wl.includes('navigator.wakeLock'), "useScreenWakeLock uses the Screen Wake Lock API");
+  });
+
+  await scenario("14c. BrainCoreConsole persists + restores the transcript so a reload does not re-greet", () => {
+    const src = fs.readFileSync(path.join(REPO_ROOT, "src/components/brain/BrainCoreConsole.tsx"), "utf8");
+    // restore from sessionStorage on mount
+    assert.ok(src.includes("parsePersistedConversation("), "restores a saved transcript");
+    assert.ok(src.includes("BRAIN_CONVERSATION_KEY"), "uses the conversation storage key");
+    // persist on change + on the way out
+    assert.ok(src.includes("serializeConversation("), "serialises the transcript");
+    assert.ok(/pagehide[\s\S]{0,120}persistConversation|persistConversation[\s\S]{0,200}pagehide/.test(src), "flushes on pagehide");
+    assert.ok(src.includes('visibilityState === "hidden"'), "flushes when the tab is hidden");
+    // stable ids — NOT messages.length
+    assert.ok(!/const seq = messages\.length/.test(src), "message ids no longer derive from messages.length");
+    assert.ok(src.includes("turnSeqRef.current"), "a monotonic turn ordinal drives message ids");
+    // the model history drops the system welcome
+    assert.ok(src.includes("conversationHistoryForModel("), "history for the model excludes the welcome line");
   });
 
   await scenario("14b. the chat SSE client streams text only — no execution / timer / GPU primitive", () => {

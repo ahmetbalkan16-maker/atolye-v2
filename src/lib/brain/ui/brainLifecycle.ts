@@ -69,6 +69,8 @@ export interface BrainBootRecord {
   readonly recoveryCount: number;
   /** The prior instance recorded a `pagehide` (a clean unload) before this boot. */
   readonly cleanPagehide?: boolean;
+  /** The last lifecycle event name the prior instance saw (e.g. `visibility:hidden`). */
+  readonly lastEvent?: string;
 }
 
 /** A secret-free liveness beacon written every few seconds while voice is armed. */
@@ -85,6 +87,10 @@ export interface BrainHeartbeat {
   /** Wake inferences run so far (`-1` = unknown). */
   readonly wakeInferences: number;
   readonly audioContextState: string;
+  /** `document.visibilityState` when this heartbeat was written. */
+  readonly visibilityState: string;
+  /** Was the screen wake lock held? (`null` = unknown / unsupported.) */
+  readonly wakeLockHeld: boolean | null;
   readonly lastError: string | null;
 }
 
@@ -107,8 +113,22 @@ export interface BrainPriorInstanceEvidence {
   readonly droppedFrames: number | null;
   readonly wakeInferences: number | null;
   readonly audioContextState: string | null;
+  /** Was the tab hidden (backgrounded / screen locked) at the last heartbeat / event? */
+  readonly diedHidden: boolean;
+  readonly wakeLockHeld: boolean | null;
   readonly lastError: string | null;
 }
+
+/**
+ * When the browser tore the page down, was it in the FOREGROUND (a memory kill
+ * while the user was looking at it) or the BACKGROUND (screen Auto-Lock / app
+ * switch → WebKit process eviction)? The fix differs: foreground → cut the
+ * footprint; background → hold the screen wake lock + restore seamlessly.
+ */
+export type BrainEvictionKind =
+  | "foreground-memory-suspected"
+  | "background-eviction-suspected"
+  | "unknown";
 
 export interface BrainReloadAssessment {
   readonly firstBoot: boolean;
@@ -121,6 +141,8 @@ export interface BrainReloadAssessment {
   readonly priorVoiceCycles: number;
   readonly priorPhase: BrainVoicePhase;
   readonly priorCleanPagehide: boolean;
+  /** The last lifecycle event the prior instance recorded, or `"unknown"`. */
+  readonly priorLastEvent: string;
   readonly bootCount: number;
   readonly previousBootId: string | null;
   readonly priorInstance: BrainPriorInstanceEvidence | null;
@@ -130,6 +152,8 @@ export interface BrainReloadAssessment {
    * pagehide + prior voice active. Not proof of *which* browser mechanism.
    */
   readonly browserReloadLikely: boolean;
+  /** If `browserReloadLikely`, the best guess at foreground-kill vs background-eviction. */
+  readonly evictionKind: BrainEvictionKind;
 }
 
 export interface AssessBrainReloadInput {
@@ -152,11 +176,16 @@ const FIRST_BOOT: Omit<BrainReloadAssessment, "navigationKind"> = {
   priorVoiceCycles: 0,
   priorPhase: "off",
   priorCleanPagehide: false,
+  priorLastEvent: "unknown",
   bootCount: 1,
   previousBootId: null,
   priorInstance: null,
   browserReloadLikely: false,
+  evictionKind: "unknown",
 };
+
+/** ms a hidden tab's timers run before iOS freezes them — a bigger heartbeat gap = was backgrounded. */
+const BACKGROUND_FREEZE_HINT_MS = 20_000;
 
 function priorEvidence(
   heartbeat: BrainHeartbeat | null,
@@ -177,8 +206,30 @@ function priorEvidence(
     droppedFrames: heartbeat.droppedFrames >= 0 ? heartbeat.droppedFrames : null,
     wakeInferences: heartbeat.wakeInferences >= 0 ? heartbeat.wakeInferences : null,
     audioContextState: heartbeat.audioContextState || null,
+    diedHidden: heartbeat.visibilityState === "hidden",
+    wakeLockHeld: typeof heartbeat.wakeLockHeld === "boolean" ? heartbeat.wakeLockHeld : null,
     lastError: heartbeat.lastError,
   };
+}
+
+function classifyEviction(
+  prev: BrainBootRecord,
+  evidence: BrainPriorInstanceEvidence | null,
+): BrainEvictionKind {
+  const lastEvent = prev.lastEvent ?? "";
+  const wasHiddenLast = lastEvent.startsWith("visibility:hidden") || lastEvent === "pagehide";
+  const heartbeatSaysHidden = evidence?.diedHidden === true;
+  const bigHeartbeatGap =
+    evidence?.heartbeatAgeAtBootMs != null && evidence.heartbeatAgeAtBootMs > BACKGROUND_FREEZE_HINT_MS;
+  if (wasHiddenLast || heartbeatSaysHidden || bigHeartbeatGap) {
+    // screen Auto-Lock / app switch → the tab was backgrounded, then evicted
+    return "background-eviction-suspected";
+  }
+  if (evidence?.hadFreshHeartbeat && !evidence.diedHidden) {
+    // alive and visible seconds before the reload → a memory kill in the foreground
+    return "foreground-memory-suspected";
+  }
+  return "unknown";
 }
 
 export function assessBrainReload(input: AssessBrainReloadInput): BrainReloadAssessment {
@@ -229,10 +280,12 @@ export function assessBrainReload(input: AssessBrainReloadInput): BrainReloadAss
     priorVoiceCycles: prev.voiceCycleCount,
     priorPhase: prev.lastPhase,
     priorCleanPagehide,
+    priorLastEvent: prev.lastEvent ?? "unknown",
     bootCount: prev.bootCount + 1,
     previousBootId: prev.bootId || null,
     priorInstance: evidence,
     browserReloadLikely,
+    evictionKind: browserReloadLikely ? classifyEviction(prev, evidence) : "unknown",
   };
 }
 
@@ -252,6 +305,7 @@ export function parseBrainBootRecord(raw: string | null): BrainBootRecord | null
       lastPhase: (typeof v.lastPhase === "string" ? v.lastPhase : "off") as BrainVoicePhase,
       recoveryCount: typeof v.recoveryCount === "number" ? v.recoveryCount : 0,
       cleanPagehide: v.cleanPagehide === true,
+      lastEvent: typeof v.lastEvent === "string" ? v.lastEvent : undefined,
     };
   } catch {
     return null;
@@ -273,6 +327,8 @@ export function parseBrainHeartbeat(raw: string | null): BrainHeartbeat | null {
       droppedFrames: typeof v.droppedFrames === "number" ? v.droppedFrames : -1,
       wakeInferences: typeof v.wakeInferences === "number" ? v.wakeInferences : -1,
       audioContextState: typeof v.audioContextState === "string" ? v.audioContextState : "",
+      visibilityState: typeof v.visibilityState === "string" ? v.visibilityState : "unknown",
+      wakeLockHeld: typeof v.wakeLockHeld === "boolean" ? v.wakeLockHeld : null,
       lastError: typeof v.lastError === "string" ? v.lastError : null,
     };
   } catch {
@@ -312,17 +368,26 @@ export interface BrainLifecycleTelemetry {
   readonly reloadCause: BrainReloadCause;
   readonly navigationKind: BrainNavigationKind;
   readonly browserReloadLikely: boolean;
+  readonly evictionKind: BrainEvictionKind;
   readonly unexpectedReload: boolean;
   readonly priorVoiceActive: boolean;
   readonly priorVoiceCycles: number;
   readonly priorCleanPagehide: boolean;
   /** Phase the prior page instance was in at its last heartbeat, or "unknown". */
   readonly priorDiedAtPhase: string;
+  /** Was the prior instance hidden (backgrounded / screen locked) when it died? */
+  readonly priorDiedHidden: boolean;
+  /** Screen wake lock held by the prior instance? (`null` = unknown.) */
+  readonly priorWakeLockHeld: boolean | null;
   /** Uptime (ms) the prior instance reached, or -1. */
   readonly priorDiedAfterMs: number;
   /** ms between the prior instance's last heartbeat and this boot, or -1. */
   readonly priorHeartbeatAgeMs: number;
   readonly priorDroppedFrames: number;
+  /** The last lifecycle event the prior instance recorded (e.g. `visibility:hidden`). */
+  readonly priorLastEvent: string;
+  /** Screen wake lock held right now? (`null` = unknown / unsupported.) */
+  readonly wakeLockHeld: boolean | null;
   readonly voiceSessionCount: number;
   readonly voiceCycleCount: number;
   readonly lastVoicePhase: BrainVoicePhase;

@@ -707,14 +707,19 @@ export default function D2WakeLabPage() {
             reloadCause: life.reloadCause,
             navigationKind: life.navigationKind,
             browserReloadLikely: life.browserReloadLikely,
+            evictionKind: life.evictionKind,
             unexpectedReload: life.unexpectedReload,
             priorVoiceActive: life.priorVoiceActive,
             priorVoiceCycles: life.priorVoiceCycles,
             priorCleanPagehide: life.priorCleanPagehide,
+            priorLastEvent: life.priorLastEvent,
             priorDiedAtPhase: life.priorDiedAtPhase,
+            priorDiedHidden: life.priorDiedHidden,
+            priorWakeLockHeld: life.priorWakeLockHeld,
             priorDiedAfterMs: life.priorDiedAfterMs,
             priorHeartbeatAgeMs: life.priorHeartbeatAgeMs,
             priorDroppedFrames: life.priorDroppedFrames,
+            wakeLockHeld: life.wakeLockHeld,
             voiceSessionCount: life.voiceSessionCount,
             voiceCycleCount: life.voiceCycleCount,
             recoveryCount: life.recoveryCount,
@@ -917,16 +922,33 @@ export default function D2WakeLabPage() {
         </dd>
         <dt>Navigation type</dt>
         <dd>{life.navigationKind}{life.browserReloadLikely ? " · BROWSER-KILL LIKELY" : ""}</dd>
+        <dt>Eviction kind</dt>
+        <dd style={{ color: life.evictionKind !== "unknown" ? "var(--bc-danger, #f66)" : undefined }}>
+          {life.evictionKind === "background-eviction-suspected"
+            ? "ARKA PLAN / EKRAN KİLİDİ tahliyesi"
+            : life.evictionKind === "foreground-memory-suspected"
+              ? "ÖN PLAN BELLEK öldürmesi"
+              : "—"}
+        </dd>
         <dt>Önceki boot id</dt>
         <dd>{life.previousBootId ?? "—"}</dd>
-        <dt>Önceki instance — öldüğü faz / süre</dt>
+        <dt>Önceki instance — öldüğü faz / süre / görünürlük</dt>
         <dd>
           {life.priorDiedAtPhase}
           {life.priorDiedAfterMs >= 0 ? ` / ${hhmmss(Math.floor(life.priorDiedAfterMs / 1000))}` : " / —"}
           {life.priorHeartbeatAgeMs >= 0 ? ` (son heartbeat ${Math.round(life.priorHeartbeatAgeMs / 1000)}s önce)` : ""}
+          {life.priorDiedHidden ? " · GİZLİYKEN" : ""}
+        </dd>
+        <dt>Önceki instance — son olay / wake lock</dt>
+        <dd>
+          {life.priorLastEvent}
+          {" · "}
+          {life.priorWakeLockHeld === null ? "wakelock ?" : life.priorWakeLockHeld ? "wakelock tutuluyordu" : "WAKELOCK TUTULMUYORDU"}
         </dd>
         <dt>Önceki instance — düşen frame</dt>
         <dd>{life.priorDroppedFrames >= 0 ? life.priorDroppedFrames : "—"}</dd>
+        <dt>Bu oturum — wake lock</dt>
+        <dd>{life.wakeLockHeld === null ? "bilinmiyor / desteklenmiyor" : life.wakeLockHeld ? "tutuluyor" : "tutulmuyor"}</dd>
         <dt>Önceki boot — ses aktif / tur / temiz pagehide</dt>
         <dd>{life.priorVoiceActive ? "evet" : "hayır"} / {life.priorVoiceCycles} / {life.priorCleanPagehide ? "evet" : "hayır"}</dd>
         <dt>Bu oturum — ses / tur / recovery / düşen frame</dt>

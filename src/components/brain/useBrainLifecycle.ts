@@ -98,10 +98,12 @@ const OFF_ASSESSMENT: BrainReloadAssessment = {
   priorVoiceCycles: 0,
   priorPhase: "off",
   priorCleanPagehide: false,
+  priorLastEvent: "unknown",
   bootCount: 1,
   previousBootId: null,
   priorInstance: null,
   browserReloadLikely: false,
+  evictionKind: "unknown",
 };
 
 export interface UseBrainLifecycleResult {
@@ -120,6 +122,8 @@ export interface UseBrainLifecycleResult {
   notePhase(phase: BrainVoicePhase): void;
   /** Latest wake-adapter health numbers (folded into the heartbeat). */
   noteVoiceHealth(health: BrainVoiceHealth): void;
+  /** Screen wake lock acquired / lost — folded into the heartbeat + telemetry. */
+  noteWakeLock(held: boolean): void;
   /** A controlled voice-pipeline recovery ran. */
   noteRecovery(): void;
   /** The operator acknowledged / resumed the interrupted session. */
@@ -165,6 +169,7 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
     lastPhase: BrainVoicePhase;
     recoveryCount: number;
     cleanPagehide: boolean;
+    wakeLockHeld: boolean | null;
     health: BrainVoiceHealth;
   } | null>(null);
   if (stateRef.current === null) {
@@ -175,6 +180,7 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
       lastPhase: "off",
       recoveryCount: 0,
       cleanPagehide: false,
+      wakeLockHeld: null,
       health: {},
     };
   }
@@ -198,6 +204,7 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
       lastPhase: s.lastPhase,
       recoveryCount: s.recoveryCount,
       cleanPagehide: s.cleanPagehide,
+      lastEvent: lastEventRef.current?.name,
     };
     writeSession(BRAIN_BOOT_STORAGE_KEY, JSON.stringify(record));
   }, [assessment.bootCount, assessment.previousBootId, bootId, startedAt]);
@@ -215,6 +222,8 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
       droppedFrames: typeof s.health.droppedFrames === "number" ? s.health.droppedFrames : -1,
       wakeInferences: typeof s.health.wakeInferences === "number" ? s.health.wakeInferences : -1,
       audioContextState: s.health.audioContextState ?? "",
+      visibilityState: typeof document === "undefined" ? "unknown" : document.visibilityState,
+      wakeLockHeld: s.wakeLockHeld,
       lastError: s.health.lastError ?? null,
     };
     writeSession(BRAIN_HEARTBEAT_KEY, JSON.stringify(hb));
@@ -237,6 +246,10 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
     const onVis = () => {
       note(`visibility:${document.visibilityState}`);
       persist();
+      // A hidden tab's timers freeze on iOS — write one last heartbeat NOW so the
+      // next boot can tell a background eviction (was hidden) from a foreground
+      // memory kill (was visible).
+      if (document.visibilityState === "hidden") writeHeartbeat();
     };
     const onPageHide = () => {
       stateRef.current!.cleanPagehide = true;
@@ -266,7 +279,7 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
     };
-  }, [note, persist]);
+  }, [note, persist, writeHeartbeat]);
 
   // Heartbeat — only runs while a voice session is armed.
   const voiceActiveTick = useRef(0);
@@ -311,6 +324,12 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
     if (health.phase) s.lastPhase = health.phase;
   }, []);
 
+  const noteWakeLock = useCallback((held: boolean) => {
+    // Tracked for the heartbeat only — not a `note()` (it must not mask the
+    // `visibility:hidden` that the eviction classifier reads).
+    stateRef.current!.wakeLockHeld = held;
+  }, []);
+
   const noteRecovery = useCallback(() => {
     stateRef.current!.recoveryCount += 1;
     note("voice:recovery");
@@ -336,14 +355,19 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
       reloadCause: bfcacheRestored ? "bfcache-restore" : assessment.cause,
       navigationKind: bfcacheRestored ? "bfcache-restore" : assessment.navigationKind,
       browserReloadLikely: assessment.browserReloadLikely && !bfcacheRestored,
+      evictionKind: bfcacheRestored ? "unknown" : assessment.evictionKind,
       unexpectedReload: assessment.unexpectedReload && !bfcacheRestored,
       priorVoiceActive: assessment.priorVoiceActive,
       priorVoiceCycles: assessment.priorVoiceCycles,
       priorCleanPagehide: assessment.priorCleanPagehide,
       priorDiedAtPhase: pi?.diedAtPhase ?? "unknown",
+      priorDiedHidden: pi?.diedHidden ?? false,
+      priorWakeLockHeld: pi?.wakeLockHeld ?? null,
       priorDiedAfterMs: pi?.diedAfterMs ?? -1,
       priorHeartbeatAgeMs: pi?.heartbeatAgeAtBootMs ?? -1,
       priorDroppedFrames: pi?.droppedFrames ?? -1,
+      priorLastEvent: assessment.priorLastEvent,
+      wakeLockHeld: s.wakeLockHeld,
       voiceSessionCount: s.voiceSessionCount,
       voiceCycleCount: s.voiceCycleCount,
       lastVoicePhase: s.lastPhase,
@@ -366,6 +390,7 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
     noteVoiceCycle,
     notePhase,
     noteVoiceHealth,
+    noteWakeLock,
     noteRecovery,
     dismissInterrupted,
     setVoiceIntent,

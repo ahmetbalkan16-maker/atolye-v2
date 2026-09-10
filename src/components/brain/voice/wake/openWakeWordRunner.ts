@@ -109,6 +109,16 @@ export class OpenWakeWordRunner {
   private maxScore = -1;
   private lastError: string | null = null;
 
+  /**
+   * Reusable model-input scratch — the wake chain runs ~12×/s for minutes on a
+   * phone, so a fresh `Float32Array.from(...)` per model per frame was ~275 KB/s
+   * of garbage. Single-flight `accept()` means no call overlaps, and ORT copies
+   * inputs into its WASM heap on `run()`, so one buffer per model is safe.
+   */
+  private readonly melInBuf = new Float32Array(CHUNK + MEL_LOOKBACK);
+  private readonly embInBuf = new Float32Array(MEL_WINDOW * MEL_BINS);
+  private readonly wwInBuf = new Float32Array(EMB_WINDOW * EMB_DIM);
+
   constructor(private readonly opts: WakeRunnerOptions) {
     this.raw = new Float32Array((CHUNK + MEL_LOOKBACK) * 2);
     this.melBuf = new Float32Array(MEL_BUFFER_MAX * MEL_BINS);
@@ -137,7 +147,17 @@ export class OpenWakeWordRunner {
     if (this.opts.wasmPaths) ort.env.wasm.wasmPaths = this.opts.wasmPaths;
     ort.env.wasm.numThreads = 1;
     ort.env.logLevel = "error";
-    const so: ort.InferenceSession.SessionOptions = { executionProviders: ["wasm"], graphOptimizationLevel: "all" };
+    const so: ort.InferenceSession.SessionOptions = {
+      executionProviders: ["wasm"],
+      graphOptimizationLevel: "all",
+      // A hands-free session runs the wake models ~12×/s for many minutes on an
+      // iPhone. `memPattern` pre-plans a reusable buffer pool per shape — great
+      // for throughput, but it holds that WASM heap for the life of the session,
+      // and on a memory-capped iOS PWA that steady footprint is a reload risk.
+      // These tiny models don't need it; turning it off trades a hair of speed
+      // for a materially smaller, flatter heap.
+      enableMemPattern: false,
+    };
     const create =
       this.opts.createSession ??
       (async (url: string, o: ort.InferenceSession.SessionOptions) =>
@@ -202,8 +222,13 @@ export class OpenWakeWordRunner {
       this.rawLen += CHUNK;
 
       const melSlice = this.raw.subarray(Math.max(0, this.rawLen - (CHUNK + MEL_LOOKBACK)), this.rawLen);
+      this.melInBuf.set(melSlice);
       const melOut = await this.mel.run({
-        [this.mel.inputNames[0]]: new ort.Tensor("float32", Float32Array.from(melSlice), [1, melSlice.length]),
+        [this.mel.inputNames[0]]: new ort.Tensor(
+          "float32",
+          this.melInBuf.subarray(0, melSlice.length),
+          [1, melSlice.length],
+        ),
       });
       const melData = melOut[this.mel.outputNames[0]].data as Float32Array; // (time, 1, ?, 32) row-major
       const newFrames = melData.length / MEL_BINS;
@@ -221,9 +246,11 @@ export class OpenWakeWordRunner {
       if (this.melFrames < MEL_WINDOW) return null;
 
       // one new embedding from the last 76 mel frames
-      const embIn = this.melBuf.subarray((this.melFrames - MEL_WINDOW) * MEL_BINS, this.melFrames * MEL_BINS);
+      this.embInBuf.set(
+        this.melBuf.subarray((this.melFrames - MEL_WINDOW) * MEL_BINS, this.melFrames * MEL_BINS),
+      );
       const embOut = await this.emb.run({
-        [this.emb.inputNames[0]]: new ort.Tensor("float32", Float32Array.from(embIn), [1, MEL_WINDOW, MEL_BINS, 1]),
+        [this.emb.inputNames[0]]: new ort.Tensor("float32", this.embInBuf, [1, MEL_WINDOW, MEL_BINS, 1]),
       });
       const embData = embOut[this.emb.outputNames[0]].data as Float32Array; // (1,1,1,96)
       if (this.embCount >= EMB_BUFFER_MAX) {
@@ -235,9 +262,9 @@ export class OpenWakeWordRunner {
       this.nEmb += 1;
       if (this.embCount < EMB_WINDOW) return null;
 
-      const wwIn = this.embBuf.subarray((this.embCount - EMB_WINDOW) * EMB_DIM, this.embCount * EMB_DIM);
+      this.wwInBuf.set(this.embBuf.subarray((this.embCount - EMB_WINDOW) * EMB_DIM, this.embCount * EMB_DIM));
       const wwOut = await this.ww.run({
-        [this.ww.inputNames[0]]: new ort.Tensor("float32", Float32Array.from(wwIn), [1, EMB_WINDOW, EMB_DIM]),
+        [this.ww.inputNames[0]]: new ort.Tensor("float32", this.wwInBuf, [1, EMB_WINDOW, EMB_DIM]),
       });
       const score = (wwOut[this.ww.outputNames[0]].data as Float32Array)[0];
       this.nInfer += 1;

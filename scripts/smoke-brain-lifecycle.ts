@@ -50,6 +50,8 @@ const hb = (over: Partial<BrainHeartbeat> = {}): BrainHeartbeat => ({
   droppedFrames: 180,
   wakeInferences: 40,
   audioContextState: "running",
+  visibilityState: "visible",
+  wakeLockHeld: true,
   lastError: null,
   ...over,
 });
@@ -115,24 +117,56 @@ scenario("bfcache restore — page was NOT destroyed, never 'unexpected'", () =>
   assert.equal(a.browserReloadLikely, false);
 });
 
-scenario("browser-reload-suspected — reload nav + fresh heartbeat mid-wake + no pagehide", () => {
+scenario("browser-reload-suspected — reload nav + fresh heartbeat mid-wake + no pagehide → FOREGROUND kill", () => {
   const now = 5_000_000;
   const a = assessBrainReload(
     input({
-      prev: rec({ voiceWasActive: true, bootAt: now - 36_000, voiceCycleCount: 1, cleanPagehide: false }),
-      heartbeat: hb({ at: now - 2_000, uptimeMs: 34_000, phase: "wake", droppedFrames: 210 }),
+      prev: rec({ voiceWasActive: true, bootAt: now - 36_000, voiceCycleCount: 1, cleanPagehide: false, lastEvent: "voice:cycle" }),
+      heartbeat: hb({ at: now - 2_000, uptimeMs: 34_000, phase: "wake", droppedFrames: 210, visibilityState: "visible" }),
       nowMs: now,
       navigationKind: "reload",
     }),
   );
   assert.equal(a.cause, "browser-reload-suspected");
   assert.equal(a.browserReloadLikely, true);
+  assert.equal(a.evictionKind, "foreground-memory-suspected");
   assert.equal(a.unexpectedReload, true);
   assert.ok(a.priorInstance);
   assert.equal(a.priorInstance!.hadFreshHeartbeat, true);
   assert.equal(a.priorInstance!.diedAtPhase, "wake");
   assert.equal(a.priorInstance!.diedAfterMs, 34_000);
   assert.equal(a.priorInstance!.droppedFrames, 210);
+  assert.equal(a.priorInstance!.diedHidden, false);
+});
+
+scenario("browser-reload-suspected — last event was visibility:hidden → BACKGROUND eviction (screen lock)", () => {
+  const now = 5_000_000;
+  const a = assessBrainReload(
+    input({
+      prev: rec({ voiceWasActive: true, bootAt: now - 190_000, voiceCycleCount: 3, lastEvent: "visibility:hidden" }),
+      heartbeat: hb({ at: now - 185_000, uptimeMs: 5_000, phase: "wake", visibilityState: "hidden", wakeLockHeld: false }),
+      nowMs: now,
+      navigationKind: "reload",
+    }),
+  );
+  assert.equal(a.cause, "browser-reload-suspected");
+  assert.equal(a.evictionKind, "background-eviction-suspected", "screen Auto-Lock → backgrounded → evicted");
+  assert.equal(a.priorLastEvent, "visibility:hidden");
+  assert.equal(a.priorInstance!.diedHidden, true);
+  assert.equal(a.priorInstance!.wakeLockHeld, false);
+});
+
+scenario("browser-reload-suspected — big heartbeat gap alone hints backgrounded", () => {
+  const now = 5_000_000;
+  const a = assessBrainReload(
+    input({
+      prev: rec({ voiceWasActive: true, bootAt: now - 40_000, lastEvent: "voice:cycle" }),
+      heartbeat: hb({ at: now - 25_000, visibilityState: "visible" }), // 25s gap > BACKGROUND_FREEZE_HINT_MS
+      nowMs: now,
+      navigationKind: "navigate",
+    }),
+  );
+  assert.equal(a.evictionKind, "background-eviction-suspected");
 });
 
 scenario("clean pagehide before the reload → NOT a browser kill (manual reload / nav)", () => {
@@ -234,14 +268,18 @@ scenario("parseBrainBootRecord — valid / corrupt / partial / previousBootId + 
   assert.ok(partial && partial.voiceWasActive === false && partial.lastPhase === "off" && partial.cleanPagehide === false);
 });
 
-scenario("parseBrainHeartbeat — valid / corrupt / missing fields default to -1 / null", () => {
-  const good = parseBrainHeartbeat(JSON.stringify(hb({ droppedFrames: 12, phase: "capturing" })));
+scenario("parseBrainHeartbeat — valid / corrupt / missing fields default", () => {
+  const good = parseBrainHeartbeat(JSON.stringify(hb({ droppedFrames: 12, phase: "capturing", visibilityState: "hidden" })));
   assert.ok(good && good.droppedFrames === 12 && good.phase === "capturing");
+  assert.equal(good!.visibilityState, "hidden");
+  assert.equal(good!.wakeLockHeld, true);
   assert.equal(parseBrainHeartbeat(null), null);
   assert.equal(parseBrainHeartbeat("}{"), null);
   assert.equal(parseBrainHeartbeat(JSON.stringify({ phase: "wake" })), null, "no at/bootId → null");
   const bare = parseBrainHeartbeat(JSON.stringify({ bootId: "x", at: 1 }));
   assert.ok(bare && bare.droppedFrames === -1 && bare.wakeInferences === -1 && bare.lastError === null);
+  assert.equal(bare!.visibilityState, "unknown");
+  assert.equal(bare!.wakeLockHeld, null);
 });
 
 scenario("bootCount increments monotonically across reloads", () => {

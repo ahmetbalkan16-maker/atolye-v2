@@ -23,6 +23,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 
 import { BrainConsoleView } from "./BrainConsoleView";
 import {
+  AYAS_HISTORY_TURNS,
   brainDeterministicReply,
   brainWelcomeMessage,
   deriveBrainCoreState,
@@ -35,6 +36,14 @@ import { useAyasVoice } from "./useAyasVoice";
 import { useBrainLifecycle } from "./useBrainLifecycle";
 import { useScreenWakeLock } from "./useScreenWakeLock";
 import { runAyasChatStream } from "./ayasChatStreamClient";
+import {
+  BRAIN_CONVERSATION_KEY,
+  conversationHistoryForModel,
+  newConversationId,
+  parsePersistedConversation,
+  serializeConversation,
+  shouldSeedWelcome,
+} from "@/lib/brain/ui/brainConversation";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
 
@@ -84,9 +93,71 @@ export function BrainCoreConsole({
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [activePanel, setActivePanel] = useState<BrainPanelId>("chat");
   const [draft, setDraft] = useState("");
+
+  // Restore the transcript from sessionStorage so an iPhone reload (screen
+  // Auto-Lock eviction / memory kill) does NOT wipe the conversation and make
+  // AYAS re-introduce itself. A stable conversationId + monotonic turnSeq drive
+  // message ids — never `messages.length`, which resets on reload. The restore
+  // runs post-mount (a microtask, to keep SSR clean and the lint happy): the
+  // server + first client paint show the welcome line, then the transcript
+  // swaps in — one extra render, no hydration mismatch.
+  const conversationIdRef = useRef<string | null>(null);
+  if (conversationIdRef.current === null) conversationIdRef.current = newConversationId();
+  const turnSeqRef = useRef(1);
   const [messages, setMessages] = useState<readonly BrainChatMessage[]>(() => [
     brainWelcomeMessage(initialSnapshot),
   ]);
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    queueMicrotask(() => {
+      let prev: ReturnType<typeof parsePersistedConversation> = null;
+      try {
+        prev = parsePersistedConversation(window.sessionStorage.getItem(BRAIN_CONVERSATION_KEY), Date.now());
+      } catch {
+        prev = null;
+      }
+      if (prev && !shouldSeedWelcome(prev)) {
+        conversationIdRef.current = prev.conversationId;
+        turnSeqRef.current = prev.turnSeq;
+        setMessages(prev.messages as readonly BrainChatMessage[]);
+      }
+    });
+  }, []);
+
+  // Persist the transcript on every change + on the way out (a reload can land
+  // before an effect flushes). Bounded + TTL'd in `serializeConversation`.
+  const persistConversation = useCallback((msgs: readonly BrainChatMessage[]) => {
+    try {
+      window.sessionStorage.setItem(
+        BRAIN_CONVERSATION_KEY,
+        serializeConversation({
+          conversationId: conversationIdRef.current ?? "c0",
+          turnSeq: turnSeqRef.current,
+          messages: msgs,
+          nowMs: Date.now(),
+        }),
+      );
+    } catch {
+      /* private mode / quota — transcript persistence is best-effort */
+    }
+  }, []);
+  useEffect(() => {
+    persistConversation(messages);
+  }, [messages, persistConversation]);
+  useEffect(() => {
+    const flush = () => persistConversation(messages);
+    const onVis = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [messages, persistConversation]);
   const [lastReplySource, setLastReplySource] = useState<"llm" | "fallback" | undefined>(undefined);
   const [pending, startTransition] = useTransition();
   const [chatPending, startChat] = useTransition();
@@ -120,14 +191,17 @@ export function BrainCoreConsole({
   const handleVoiceCommand = useCallback((text: string) => runAyasRef.current(text), []);
   const voice = useAyasVoice({ onCommand: handleVoiceCommand });
 
-  // Keep the phone from auto-locking (and then evicting + reloading this page)
-  // mid-conversation — while hands-free is armed or AYAS is speaking/thinking.
-  useScreenWakeLock(ayasVoiceHoldsScreenAwake(voice.state, voice.listening));
-
   // Detect an unexpected reload (iOS eviction / SW update) that interrupted a
   // voice session, so the UI can offer to resume it. Records secret-free
   // lifecycle telemetry in sessionStorage for the Voice Lab.
   const lifecycle = useBrainLifecycle();
+
+  // Keep the phone from auto-locking (and then evicting + reloading this page)
+  // mid-conversation — while hands-free is armed or AYAS is speaking/thinking.
+  // The held/lost status feeds the lifecycle heartbeat: "the screen lock was NOT
+  // holding right before the reload" is the tell of a background eviction.
+  const noteWakeLock = lifecycle.noteWakeLock;
+  useScreenWakeLock(ayasVoiceHoldsScreenAwake(voice.state, voice.listening), noteWakeLock);
   useEffect(() => {
     lifecycle.markVoiceActive(voice.listening);
   }, [voice.listening, lifecycle]);
@@ -172,12 +246,18 @@ export function BrainCoreConsole({
       const text = raw.trim();
       if (!text) return;
       const activeVoice = voiceRef.current;
-      const seq = messages.length;
-      const userMessage: BrainChatMessage = { id: `user-${seq}`, role: "user", text };
+      // Stable ids from a persisted monotonic ordinal — a user turn takes `seq`,
+      // its reply `seq + 1`. Survives a reload (unlike `messages.length`).
+      const seq = turnSeqRef.current;
+      turnSeqRef.current = seq + 2;
+      const cid = conversationIdRef.current ?? "c0";
+      const userMessage: BrainChatMessage = { id: `${cid}-u${seq}`, role: "user", text };
       setMessages((current) => [...current, userMessage]);
       setDraft("");
 
-      const history = messages.slice(-6).map((message) => ({ role: message.role, text: message.text }));
+      // History for the model: last N NON-system turns (the welcome line is
+      // dropped so the model is never cued to re-introduce AYAS).
+      const history = conversationHistoryForModel([...messages, userMessage], AYAS_HISTORY_TURNS);
 
       const deliverReply = (reply: BrainChatMessage) => {
         setMessages((current) => [...current, reply]);
@@ -201,7 +281,7 @@ export function BrainCoreConsole({
         return;
       }
 
-      const replyId = `brain-${seq + 1}`;
+      const replyId = `${cid}-b${seq + 1}`;
       const finalizeSpeech = (finalText: string) => {
         const v = voiceRef.current;
         if (shouldAutoSpeakAyasReply({ ttsAvailable: v.capability.tts, muted: v.muted })) v.speak(finalText);
