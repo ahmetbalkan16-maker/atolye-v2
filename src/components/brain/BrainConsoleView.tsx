@@ -53,6 +53,8 @@ export interface BrainConsoleVoiceView {
    * the wake word (Conversation Session Mode).
    */
   readonly conversationActive?: boolean;
+  /** Why the last conversation session closed — shown as a small diagnostic note. */
+  readonly conversationClosedReason?: string | null;
   /** Mic button — enable / recapture (single-shot) / toggle off (continuous). */
   readonly onToggleListening?: () => void;
   /** Explicit "turn voice off" — the "dinlemeyi kapat" link. */
@@ -526,6 +528,10 @@ function ChatPanel(props: BrainConsoleViewProps) {
           {voice.conversationActive ? (
             <span className="bc-voice__session" data-testid="bc-voice-session">
               Konuşma aktif
+            </span>
+          ) : voice.conversationClosedReason ? (
+            <span className="bc-voice__hint" data-testid="bc-voice-session-closed">
+              son oturum: {voice.conversationClosedReason}
             </span>
           ) : null}
           {voice.capability.stt && !voice.listening && !needsDisclosure ? (

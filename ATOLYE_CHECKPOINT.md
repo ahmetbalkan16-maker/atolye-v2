@@ -1,5 +1,68 @@
 ---
 
+## AYAS — CONVERSATION SESSION MODE / REAL-DEVICE DEBUG: iPhone'da hâlâ her komutta "AYAS" isteniyordu — kök neden: iOS post-TTS AudioContext rebuild'i oturumu kapatıyordu; gate CLOSED - 2026-09-10
+
+**Branch:** `wip/ayas-graphify-final-execution` (fix commit on top of `570b8c6`). NOT merged / NOT pushed.
+`git diff --check` clean. 6 dosya.
+
+**Operatör gerçek-cihaz bulgusu:** `570b8c6` tüm smoke suite'lerde PASS ama gerçek iPhone/PWA'da
+Conversation Session Mode ÇALIŞMIYOR — kullanıcı hâlâ her komuttan önce "AYAS" demek zorunda.
+
+**KÖK NEDEN (satır satır lifecycle takibi):** `570b8c6` `rebuildAudio()` ve `enterPaused()` içine
+`resetConversation()` koymuştu. iOS'ta `speechSynthesis` (TTS) capture AudioContext'i `suspended`
+bırakır (veya mic track'i biter) → `MediaStreamWorkletBackend.recover()` her yanıttan sonra `false`
+döner → `resumeOrRebuild("rearm")` → **`rebuildAudio()`** → `resetConversation()` → `conversationActive
+= false` → `ensureWakeReady` `else` dalı → `phase = "wake"` → **sonraki komut "AYAS" ister.** Oturum
+bayrağı ses-pipeline sağlığına BAĞLIYDI; ORTOGONAL olmalı. **Smoke neden kaçırdı:** `FakeBackend.recover()`
+varsayılan `true` döner → mutlu yolda `rebuildAudio()` HİÇ çağrılmaz → `resetConversation()` hiç
+çalışmaz. "iOS suspends" senaryoları bile `recoverResult = true` bırakıyordu. Multi-turn *wake*
+çalışıyordu (sprint 7) çünkü `rebuildAudio` zaten `phase = "wake"`e re-arm ediyordu — sorun o değil,
+oturum bayrağının onunla birlikte silinmesiydi.
+
+**ÇÖZÜM (adapter-only, engine hâlâ dokunulmadı):**
+- `resetConversation()` **`rebuildAudio()` ve `enterPaused()`'tan KALDIRILDI** — rebuild / recoverable
+  `paused` = pipeline churn, oturum-sonlandırıcı değil.
+- **Yeni `rearmAfterRecovery()`** — `ensureWakeReady` / `rebuildAudio` / `attemptUnpause` ortak re-arm:
+  `conversationActive` ise doğrudan in-session `phase = "capturing"` (+ `conversationArmed`, echo
+  cooldown, idle timer); değilse `phase = "wake"`. Hangi yoldan gelirse gelsin açık oturum korunur.
+- 15 sn idle timer artık `paused` sırasında da çalışıyor (`enterPaused` onu temizlemiyor) → gerçekten
+  uzun (>15 sn) kopma yine kendi kendine oturumu düşürür — meşru sonlandırıcı olan timer ile.
+- `conversationActive = false` artık TAM 5 yerde, hepsi meşru: `onConversationIdle` (`idle-timeout`),
+  `endConversation` (`explicit-stop`), 2× `fatal` latch (`fatal`), `dispose` (`disposed`). Her biri
+  `conversationClosedReason` kaydeder → `getStatus()` / `VoiceHealthSnapshot` / lifecycle heartbeat /
+  `ChatPanel` küçük "son oturum: <reason>" notu. "Neden tekrar AYAS dedim" cihazdan cevaplanabilir.
+- `speak()` guard `"capturing"` kapsamı korundu; sentetik `"AYAS "` prefix yeniden değerlendirildi —
+  adapter-only + engine'in mevcut public API'si en küçük güvenli çözüm (engine'i `detectAyasWakeWord`
+  baypası için değiştirmek davranışsal kazanç sağlamaz).
+
+**TESTLER — tsc 0 · eslint 0 err (22 pre-existing) · `next build` PASS.** `smoke-ayas-wake-adapter`
+49→**51** (+3 gerçek-cihaz senaryo: `recover()===false → rebuildAudio → oturum HAYATTA KALIR`;
+recoverable `paused` oturumu korur + in-session capture'a self-heal eder; idle timeout'u aşan `paused`
+timer ile düşer → `closedReason: "idle-timeout"`; eski "interruption oturumu kapatır" senaryosu HAYATTA
+KALMAYI assert edecek şekilde TERSİNE çevrildi). `smoke-ayas-voice` 54 (engine dokunulmadı),
+`smoke-brain-core-ui` 40. Tüm brain/report/selfheal/optimization/watchdog/latency/chat/studio-context
+regression yeşil. Graphify `update .` 10903/33406.
+
+**GÜVENLİK:** gate CLOSED / `writeActionsEnabled` false / `NEVER_AUTO_APPLY` — değişmedi. Wake modeli /
+threshold / ONNX / AudioWorklet / AudioContext / `prime()` / mic-izin / softWindow=7 + near-hard —
+dokunulmadı. Access gate / `D:` / Caddy / tunnel — dokunulmadı.
+
+**REAL DEVICE:** fiziksel iPhone erişimi YOK → hiçbir cihaz testi PASS yazılmadı. `recover()===false`
+yolu artık smoke ile kapsanıyor. `ChatPanel` "son oturum: <reason>" hâlâ başka bir neden gösterirse
+sıradaki kök nedeni işaret eder. Operatör adımları + doldurma tablosu raporda.
+
+**FINAL STATUS:** `ROOT CAUSE = FOUND` (rebuildAudio/enterPaused `resetConversation` → iOS churn'e
+bağlıydı; fake `recover()` hiç fail etmez) · `FIX = oturum bayrağı pipeline sağlığından ayrıldı;
+ortak `rearmAfterRecovery()` açık oturumu her resume/rebuild boyunca taşır` · `2./3. KOMUT WAKE'SİZ =
+beklenen PASS (recover()===false senaryosu ile kapsanıyor)` · `TIMEOUT = 15 sn, paused sırasında da` ·
+`POST-TIMEOUT = wake gerektirir` · `RE-WAKE = çalışır` · `TESTS = hepsi yeşil (+3 gerçek-cihaz)` ·
+`TSC/LINT/BUILD = PASS` · `GRAPHIFY = updated` · `SECURITY = PASS` · `REAL DEVICE = OPERATOR_REQUIRED` ·
+**PUSH/MERGE/DEPLOY = NO**. Rapor: `AYAS_CONVERSATION_SESSION_FINAL_REPORT.md`.
+
+**PUSH YAPILMADI · MERGE YAPILMADI · DEPLOY YAPILMADI.**
+
+---
+
 ## AYAS — CONVERSATION SESSION MODE: "AYAS" bir kez → oturum açık → takip komutları wake gerektirmez → 15 sn sessizlik → bekleme modu; gate CLOSED - 2026-09-10
 
 **Branch:** `wip/ayas-graphify-final-execution` (off `7a158c8`). NOT merged / NOT pushed. `git diff --check` clean.

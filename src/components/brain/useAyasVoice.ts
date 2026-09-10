@@ -40,6 +40,11 @@ export interface VoiceHealthSnapshot {
   readonly lastCaptureMs: number;
   readonly lastSttMs: number;
   readonly lastWakeToCaptureMs: number;
+  /** Conversation Session Mode diagnostics (wake engine). */
+  readonly conversationActive: boolean;
+  readonly conversationArmed: boolean;
+  /** Why the last session closed (`idle-timeout` / `explicit-stop` / `fatal` / `disposed`); `null` = never. */
+  readonly conversationClosedReason: string | null;
   readonly lastError: string | null;
 }
 
@@ -93,6 +98,8 @@ export interface UseAyasVoiceResult {
    * the wake word (Conversation Session Mode; wake engine only).
    */
   readonly conversationActive: boolean;
+  /** Why the last conversation session closed — diagnostics (`null` = never opened). */
+  readonly conversationClosedReason: string | null;
   /** Secret-free wake-adapter health for the Brain lifecycle heartbeat (wake engine only). */
   readonly voiceHealth: VoiceHealthSnapshot | null;
   acceptDisclosure(): void;
@@ -130,6 +137,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
   const [voicePaused, setVoicePaused] = useState(false);
   const [wakeCycles, setWakeCycles] = useState(0);
   const [conversationActive, setConversationActive] = useState(false);
+  const [conversationClosedReason, setConversationClosedReason] = useState<string | null>(null);
   const [voiceHealth, setVoiceHealth] = useState<VoiceHealthSnapshot | null>(null);
 
   const engineRef = useRef<AyasVoiceEngine | null>(null);
@@ -193,6 +201,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
               setVoicePaused(paused);
               setWakeCycles(s.cyclesCompleted);
               setConversationActive(s.conversationActive);
+              setConversationClosedReason(s.conversationClosedReason);
               setVoiceHealth({
                 phase: s.phase,
                 droppedFrames: s.droppedFrames,
@@ -202,6 +211,9 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
                 lastCaptureMs: s.lastCaptureMs,
                 lastSttMs: s.lastSttMs,
                 lastWakeToCaptureMs: s.lastWakeToCaptureMs,
+                conversationActive: s.conversationActive,
+                conversationArmed: s.conversationArmed,
+                conversationClosedReason: s.conversationClosedReason,
                 lastError: s.lastError,
               });
             },
@@ -231,6 +243,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
       voicePausedRef.current = false;
       setVoicePaused(false);
       setConversationActive(false);
+      setConversationClosedReason(null);
     };
   }, [platformKind]);
 
@@ -318,6 +331,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
     voicePaused: ready ? voicePaused : false,
     wakeCycles,
     conversationActive: ready ? conversationActive : false,
+    conversationClosedReason: ready ? conversationClosedReason : null,
     voiceHealth,
     acceptDisclosure,
     retryVoice,

@@ -335,6 +335,14 @@ export interface WakeAdapterStatus {
    * while follow-up commands skip the wake word. Drives the "Konuşma aktif" UI.
    */
   readonly conversationActive: boolean;
+  /** `true` while an in-session capture is waiting for the user (no wake word needed). */
+  readonly conversationArmed: boolean;
+  /**
+   * Why the last conversation session closed — `"idle-timeout"` / `"explicit-stop"`
+   * / `"fatal"` / `"disposed"`. `null` before the first session. Diagnostics for
+   * the real-device "why did I have to say AYAS again" question.
+   */
+  readonly conversationClosedReason: string | null;
   readonly lastError: string | null;
 }
 
@@ -559,6 +567,8 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   /** This capture began from a real wake hit (vs. an in-session re-arm). */
   private wokeThisTurn = false;
   private conversationTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Why the last conversation session closed — diagnostics only (`null` = never opened). */
+  private conversationClosedReason: string | null = null;
   /** Per-turn latency marks (ms epoch) — surfaced via onStatus, no audio. */
   private tWake = 0;
   private tCaptureEnd = 0;
@@ -696,11 +706,24 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       runnerCost: this.runnerCost(),
       backendResources: this.audio.resourceStats ?? null,
       conversationActive: this.conversationActive,
+      conversationArmed: this.conversationArmed,
+      conversationClosedReason: this.conversationClosedReason,
       lastError: this.lastError,
     };
   }
 
-  /* ---- conversation session: wake once, then follow-ups skip the wake word ---- */
+  /* ---- conversation session: wake once, then follow-ups skip the wake word ----
+   *
+   * The session is a LOGICAL state ("the user is in a back-and-forth with AYAS")
+   * and is deliberately ORTHOGONAL to audio-pipeline health. iOS suspends /
+   * rebuilds the capture AudioContext on every `speechSynthesis` reply — that
+   * churn (`resumeOrRebuild` / `rebuildAudio` / a transient `paused`) must NOT
+   * end the session, or every turn falls back to needing "AYAS" (the exact
+   * real-device regression the fake-backend smoke tests missed). The session
+   * ends ONLY on: 15 s of user silence, an explicit stop, the permanent `fatal`
+   * latch, or dispose. A pipeline rebuild re-arms straight back into the
+   * in-session capture via {@link rearmAfterRecovery}.
+   */
 
   private armConversationTimer(): void {
     this.clearConversationTimer();
@@ -717,9 +740,14 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     }
   }
 
-  /** Clear the session flag + timer WITHOUT changing `phase` — callers decide. */
-  private resetConversation(): void {
+  /**
+   * Close the session — flag + timer only, `phase` unchanged (callers decide).
+   * ONLY the four legitimate enders call this: idle timeout, explicit stop, the
+   * `fatal` latch, dispose. NOT pipeline recovery.
+   */
+  private resetConversation(reason: string): void {
     this.clearConversationTimer();
+    if (this.conversationActive) this.conversationClosedReason = reason;
     this.conversationActive = false;
     this.conversationArmed = false;
     this.wokeThisTurn = false;
@@ -734,6 +762,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     this.conversationTimer = null;
     if (this.disposed || this.fatal) return;
     const wasArmed = this.conversationArmed;
+    this.conversationClosedReason = "idle-timeout";
     this.conversationActive = false;
     this.conversationArmed = false;
     if (wasArmed && this.phase === "capturing" && !this.commandStarted) {
@@ -749,6 +778,34 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   }
 
   /**
+   * After the mic pipeline was resumed / rebuilt (post-TTS on iOS, a stall, the
+   * tab returning), flip to the correct armed phase: an open conversation
+   * session → straight into an in-session capture (NO wake word); otherwise →
+   * wait for "AYAS". Shared by {@link ensureWakeReady}, {@link rebuildAudio} and
+   * {@link attemptUnpause} so a rebuild never silently drops the session.
+   */
+  private rearmAfterRecovery(): void {
+    this.accepting = false;
+    this.preRoll = [];
+    this.runner.reset();
+    if (this.conversationActive && !this.disposed && !this.fatal) {
+      this.conversationArmed = true;
+      this.wokeThisTurn = false;
+      this.resetCommand();
+      this.tWake = Date.now();
+      this.cooldownUntil = Date.now() + this.rearmCooldownMs; // ignore the TTS echo tail
+      this.phase = "capturing";
+      this.armConversationTimer();
+    } else {
+      this.detector.rearm();
+      this.wokeThisTurn = false;
+      this.phase = "wake";
+    }
+    this.lastFrameAt = Date.now();
+    this.armWatchdog();
+  }
+
+  /**
    * The user explicitly turned voice input off (or is toggling it). Close any
    * open conversation session so the NEXT command needs the wake word again.
    * Never interrupts a capture already in progress.
@@ -756,7 +813,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   endConversation(): void {
     if (this.disposed) return;
     const wasArmed = this.conversationArmed;
-    this.resetConversation();
+    this.resetConversation("explicit-stop");
     if (wasArmed && this.phase === "capturing" && !this.commandStarted) {
       this.resetCommand();
       this.preRoll = [];
@@ -933,7 +990,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
           // track for speechSynthesis, …) is recoverable: pause + retry.
           const neverWorked = !this.everHealthy && this.cyclesCompleted === 0;
           if (neverWorked && isPermissionError(error)) {
-            this.resetConversation();
+            this.resetConversation("fatal");
             this.fatal = true;
             this.phase = "fatal";
             this.emit();
@@ -974,9 +1031,11 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
    * page limit was hit). Keep the engine's loop alive and self-heal.
    */
   private enterPaused(handlers: AyasListenHandlers): void {
-    // A mic interruption closes the conversation session — the next command
-    // needs the wake word again once the pipeline is back.
-    this.resetConversation();
+    // A `paused` interruption is RECOVERABLE and self-heals in seconds — it does
+    // NOT close the conversation session (that would make every iOS post-TTS
+    // rebuild drop the session). The 15 s idle timer keeps running while paused,
+    // so a genuinely long disconnection still lapses the session on its own;
+    // `attemptUnpause` re-arms straight back into the in-session capture.
     this.paused = true;
     this.audioUp = false;
     this.starting = null;
@@ -1011,7 +1070,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     // that genuinely cannot run it — fall back to the browser adapter instead of
     // pausing forever. A session that HAD worked keeps self-healing indefinitely.
     if (!this.everHealthy && this.pausedRetries >= MAX_UNPAUSE_BEFORE_FALLBACK) {
-      this.resetConversation();
+      this.resetConversation("fatal");
       this.paused = false;
       this.fatal = true;
       this.phase = "fatal";
@@ -1041,13 +1100,9 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     await this.ensureAudio(h);
     if (!this.disposed && !this.fatal && this.audioUp) {
       this.pausedRetries = 0;
-      this.accepting = false;
-      this.preRoll = [];
-      this.detector.rearm();
-      this.runner.reset();
-      this.phase = "wake";
-      this.lastFrameAt = Date.now();
-      this.armWatchdog();
+      // An open conversation session survived the pause → resume the in-session
+      // capture; otherwise wait for "AYAS".
+      this.rearmAfterRecovery();
       this.emit();
     }
     // If `ensureAudio` failed it has already called `enterPaused` again (which
@@ -1055,10 +1110,12 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   }
 
   /**
-   * Re-arm: make sure the capture pipeline is actually producing frames, then
-   * flip to `wake`. Called after every turn (from `startListening`) — this is
-   * where the "first turn works, then dead" iOS bug is caught: the AudioContext
-   * suspended during TTS is resumed here.
+   * Re-arm after a turn (called from `startListening`). Makes sure the capture
+   * pipeline is actually producing frames — this is where the "first turn works,
+   * then dead" iOS bug is caught: the AudioContext suspended during TTS is
+   * resumed (or the graph rebuilt) here — then flips to the right armed phase:
+   * an open conversation session → straight into an in-session capture (NO wake
+   * word); otherwise → wait for "AYAS".
    */
   private async ensureWakeReady(): Promise<void> {
     if (this.disposed || this.fatal) return;
@@ -1072,27 +1129,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     }
     await this.resumeOrRebuild("rearm");
     if (this.disposed || this.fatal || !this.audioUp) return;
-    this.accepting = false;
-    this.preRoll = [];
-    this.runner.reset();
-    if (this.conversationActive) {
-      // In-session: "AYAS" already fired this conversation. Capture the next
-      // command directly — no wake word. The idle timer (or an explicit stop /
-      // a fatal mic error) closes the session; a normal reply does not.
-      this.conversationArmed = true;
-      this.wokeThisTurn = false;
-      this.resetCommand();
-      this.tWake = Date.now();
-      this.cooldownUntil = Date.now() + this.rearmCooldownMs; // ignore the TTS echo tail
-      this.phase = "capturing";
-      this.armConversationTimer();
-    } else {
-      this.detector.rearm();
-      this.wokeThisTurn = false;
-      this.phase = "wake";
-    }
-    this.lastFrameAt = Date.now();
-    this.armWatchdog();
+    this.rearmAfterRecovery();
     this.emit();
   }
 
@@ -1128,14 +1165,16 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     }
   }
 
-  /** Full, bounded teardown + re-acquire — only when the pipeline is truly gone. */
+  /**
+   * Full, bounded teardown + re-acquire — only when a plain resume was not
+   * enough (track ended / context closed). On iOS this fires on most post-TTS
+   * re-arms; it is NORMAL churn, NOT a session-ender — an open conversation
+   * session is carried straight back into the in-session capture.
+   */
   private async rebuildAudio(reason: string): Promise<void> {
     if (this.disposed || this.fatal) return;
     this.recoveryCount += 1;
     this.lastError = `recover:${reason}`;
-    // The mic is genuinely gone — close the conversation session; a re-wake is
-    // required once the pipeline is rebuilt.
-    this.resetConversation();
     const wasArmed =
       this.phase === "wake" || this.phase === "rearming" || this.phase === "capturing";
     this.phase = "recovering";
@@ -1150,13 +1189,17 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     const h = this.handlers;
     if (h) await this.ensureAudio(h);
     if (!this.disposed && !this.fatal && this.audioUp) {
-      this.accepting = false;
-      this.preRoll = [];
-      this.detector.rearm();
-      this.runner.reset();
-      this.phase = wasArmed ? "wake" : "idle";
-      this.lastFrameAt = Date.now();
-      this.armWatchdog();
+      if (wasArmed) {
+        this.rearmAfterRecovery(); // honours an open conversation session
+      } else {
+        this.accepting = false;
+        this.preRoll = [];
+        this.detector.rearm();
+        this.runner.reset();
+        this.phase = "idle";
+        this.lastFrameAt = Date.now();
+        this.armWatchdog();
+      }
     }
   }
 
@@ -1248,6 +1291,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
           this.conversationActive = true;
           this.conversationArmed = false;
           this.wokeThisTurn = true;
+          this.conversationClosedReason = null;
           this.armConversationTimer();
           // The pre-roll is AUDIO ONLY: it carries the wake word + the command's
           // first syllables past the detection lag so whisper still hears the
@@ -1415,6 +1459,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     this.cmd = [];
     this.clearWatchdog();
     this.clearConversationTimer();
+    if (this.conversationActive) this.conversationClosedReason = "disposed";
     this.conversationActive = false;
     this.conversationArmed = false;
     if (this.pausedRetryTimer) {

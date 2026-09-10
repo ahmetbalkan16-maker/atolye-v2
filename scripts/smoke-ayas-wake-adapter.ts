@@ -1321,11 +1321,58 @@ async function run() {
     a.dispose();
   });
 
-  await scenario("CONVERSATION — a mid-session mic interruption closes the session (fatal-path safety)", async () => {
+  await scenario("CONVERSATION — REAL-DEVICE CASE: post-TTS recover() fails → rebuildAudio → session SURVIVES", async () => {
+    // The exact regression the fake-backend tests missed: on iOS the capture
+    // AudioContext does not always resume off-gesture after speechSynthesis, so
+    // `recover()` returns false and `resumeOrRebuild` rebuilds the graph. That
+    // rebuild is NORMAL churn — it must NOT drop the conversation session.
     const backend = new FakeBackend();
     const a = new WakeWordVoiceAdapter({
       audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(),
-      transcribe: async () => "kaç proje var", ...FAST, pausedRetryMs: 60_000,
+      transcribe: async () => "kaç proje var", ...FAST,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await drain();
+
+    // turn 1 — real wake + command
+    backend.push("wake");
+    await drain();
+    for (let i = 0; i < 12; i += 1) backend.push("speech");
+    for (let i = 0; i < 14; i += 1) backend.push("silence");
+    await drain();
+    assert.equal(a.getStatus().conversationActive, true);
+
+    // iOS: TTS suspends the context; recover() will FAIL → a rebuild is forced.
+    backend.suspended = true;
+    backend.recoverResult = false;   // resume() doesn't take → rebuild
+    backend.failStartsRemaining = 0; // but the rebuild's getUserMedia succeeds
+    a.speak("cevap", {
+      voiceName: null, lang: "tr-TR", pitch: 1, rate: 1, volume: 1,
+      onStart: () => {}, onEnd: () => a.startListening("tr-TR", c.handlers), onError: () => {},
+    });
+    await settle(20);
+
+    assert.ok(a.getStatus().recoveryCount >= 1, "the post-TTS re-arm rebuilt the pipeline");
+    assert.equal(a.getStatus().conversationActive, true, "the rebuild did NOT close the session");
+    assert.equal(a.getStatus().phase, "capturing", "re-armed straight into the in-session capture");
+    assert.equal(a.getStatus().conversationClosedReason, null, "no close reason — the session never ended");
+
+    // and a follow-up command needs no wake word
+    backend.recoverResult = true;
+    for (let i = 0; i < 15; i += 1) backend.push("speech");
+    for (let i = 0; i < 16; i += 1) backend.push("silence");
+    await drain();
+    assert.equal(c.finals.filter((t) => t === "AYAS").length, 1, "still exactly one real wake across the rebuild");
+    assert.equal(c.finals.filter((t) => t !== "AYAS").length, 2, "second command captured after the rebuild");
+    a.dispose();
+  });
+
+  await scenario("CONVERSATION — a recoverable `paused` interruption does NOT close the session; it self-heals", async () => {
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(),
+      transcribe: async () => "kaç proje var", ...FAST, pausedRetryMs: 60_000, // long — only an explicit retry un-pauses
     });
     const c = collectHandlers();
     a.startListening("tr-TR", c.handlers);
@@ -1333,12 +1380,46 @@ async function run() {
     await sessionTurn(a, backend, c.handlers, { wake: true });
     assert.equal(a.getStatus().conversationActive, true);
 
+    // the mic drops and every re-acquire fails → paused
     backend.recoverResult = false;
     backend.failStartsRemaining = 99;
-    fireVisibility("visible"); // → resumeOrRebuild → ensureAudio fails → enterPaused
-    await settle(30);
+    fireVisibility("visible");
+    await settle(20);
     assert.equal(a.getStatus().mic, "paused");
-    assert.equal(a.getStatus().conversationActive, false, "the interruption closed the conversation session");
+    assert.equal(a.getStatus().conversationActive, true, "a recoverable pause keeps the session open");
+    assert.equal(a.getStatus().conversationClosedReason, null, "no close reason — the session is still open");
+
+    // the backend heals; an explicit retry (a mic tap) brings it back
+    backend.recoverResult = true;
+    backend.failStartsRemaining = 0;
+    a.retryNow();
+    await settle(20);
+    assert.equal(a.getStatus().mic, "on", "self-healed");
+    assert.equal(a.getStatus().conversationActive, true, "…and the session resumed");
+    assert.equal(a.getStatus().phase, "capturing", "back in the in-session capture, no wake word needed");
+    a.dispose();
+  });
+
+  await scenario("CONVERSATION — a pause that outlasts the idle timeout DOES lapse the session (via the timer)", async () => {
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(),
+      transcribe: async () => "kaç proje var", ...FAST, pausedRetryMs: 10_000, conversationIdleMs: 150,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await drain();
+    await sessionTurn(a, backend, c.handlers, { wake: true });
+
+    backend.recoverResult = false;
+    backend.failStartsRemaining = 99;
+    fireVisibility("visible");
+    await settle(20);
+    assert.equal(a.getStatus().mic, "paused");
+    // the idle timer keeps running while paused → 150 ms later the session lapses
+    await wait(300);
+    assert.equal(a.getStatus().conversationActive, false, "15 s (here 150 ms) of no activity lapsed the session even while paused");
+    assert.equal(a.getStatus().conversationClosedReason, "idle-timeout");
     a.dispose();
   });
 

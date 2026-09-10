@@ -88,6 +88,11 @@ export interface BrainVoiceHealth {
   readonly lastCaptureMs?: number;
   readonly lastSttMs?: number;
   readonly lastWakeToCaptureMs?: number;
+  /** Conversation Session Mode — `true` while follow-up commands skip the wake word. */
+  readonly conversationActive?: boolean;
+  readonly conversationArmed?: boolean;
+  /** Why the last conversation session closed (`idle-timeout` / `explicit-stop` / `fatal` / `disposed`). */
+  readonly conversationClosedReason?: string | null;
   readonly lastError?: string | null;
 }
 

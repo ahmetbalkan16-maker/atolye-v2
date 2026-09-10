@@ -262,6 +262,9 @@ export function BrainCoreConsole({
       lastCaptureMs: h.lastCaptureMs,
       lastSttMs: h.lastSttMs,
       lastWakeToCaptureMs: h.lastWakeToCaptureMs,
+      conversationActive: h.conversationActive,
+      conversationArmed: h.conversationArmed,
+      conversationClosedReason: h.conversationClosedReason,
       lastError: h.lastError,
     });
   }, [voice.voiceHealth, lifecycle]);
@@ -534,6 +537,7 @@ export function BrainCoreConsole({
         recovering: voice.recovering,
         paused: voice.voicePaused,
         conversationActive: voice.conversationActive,
+        conversationClosedReason: voice.conversationClosedReason,
         onToggleListening: voice.toggleListening,
         onStopListening: stopListening,
         onToggleMute: voice.toggleMute,
