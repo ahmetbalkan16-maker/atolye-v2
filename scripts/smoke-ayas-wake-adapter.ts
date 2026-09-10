@@ -20,6 +20,7 @@ import path from "node:path";
 import { encodeWav16kMono } from "../src/components/brain/voice/wake/wav";
 import {
   WakeWordVoiceAdapter,
+  MediaStreamWorkletBackend,
   type WakeAudioBackend,
   type WakeRunnerLike,
 } from "../src/components/brain/voice/wakeWordVoiceAdapter";
@@ -59,17 +60,29 @@ class FakeBackend implements WakeAudioBackend {
   onFrame: ((f: Float32Array) => void) | null = null;
   started = 0;
   stopped = 0;
+  disposed = 0;
   recovers = 0;
   /** what recover() returns; and whether it re-enables frame delivery */
   recoverResult = true;
   suspended = false;
+  /** fail the next N `start()` calls with `startError`, then succeed */
+  failStartsRemaining = 0;
+  startError: Error = Object.assign(new Error("AbortError transient"), { name: "AbortError" });
   async start(cb: (f: Float32Array) => void) {
+    if (this.failStartsRemaining > 0) {
+      this.failStartsRemaining -= 1;
+      throw this.startError;
+    }
     this.onFrame = cb;
     this.started += 1;
     this.suspended = false;
   }
   stop() {
     this.stopped += 1;
+    this.onFrame = null;
+  }
+  dispose() {
+    this.disposed += 1;
     this.onFrame = null;
   }
   async recover() {
@@ -454,7 +467,7 @@ async function run() {
     a.startListening("tr-TR", c.handlers);
     await settle(6);
     a.dispose();
-    assert.equal(backend.stopped, 1, "mic stopped exactly once");
+    assert.equal(backend.disposed, 1, "mic fully torn down exactly once");
     assert.equal(runner.disposes, 1, "ONNX runner released");
     assert.equal(a.getStatus().phase, "disposed");
     const startsAfter = backend.started;
@@ -585,6 +598,195 @@ async function run() {
     await settle();
     a.dispose();
     assert.equal(backend.started, 1, "no extra mic acquisition from the back-pressure");
+  });
+
+  await scenario("TEST — re-acquire fails AFTER a healthy session → PAUSED not fatal; self-heals", async () => {
+    const backend = new FakeBackend();
+    const seen: string[] = [];
+    let unavailable = 0;
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x",
+      ...FAST, pausedRetryMs: 120, onUnavailable: () => { unavailable += 1; },
+      onStatus: (s) => seen.push(s.mic),
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    await turn(a, backend, c.handlers); // one good cycle → everHealthy
+    assert.equal(a.getStatus().cyclesCompleted, 1);
+
+    // Now the mic goes away and every re-acquire fails.
+    backend.recoverResult = false;
+    backend.failStartsRemaining = 99;
+    fireVisibility("visible"); // triggers resumeOrRebuild → ensureAudio → fails
+    await settle(30);
+    const st = a.getStatus();
+    assert.equal(st.mic, "paused", `paused, not fatal (got ${st.mic})`);
+    assert.equal(unavailable, 0, "NEVER falls back to the browser adapter mid-session");
+    assert.ok(seen.includes("paused"));
+    assert.ok(!seen.includes("fatal"));
+    const startsWhilePaused = backend.started;
+
+    // The backend heals — a scheduled auto-retry brings it back with no tap.
+    backend.recoverResult = true;
+    backend.failStartsRemaining = 0;
+    await wait(400); // a couple of 120 ms backoffs
+    await settle(10);
+    const st2 = a.getStatus();
+    assert.equal(st2.mic, "on", `recovered on its own (got ${st2.mic})`);
+    assert.equal(st2.phase, "wake");
+    assert.equal(backend.started, startsWhilePaused + 1, "one fresh acquire on recovery, not per retry");
+    a.dispose();
+  });
+
+  await scenario("TEST — retryNow() from paused re-acquires immediately (a mic tap)", async () => {
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x",
+      ...FAST, pausedRetryMs: 60_000, // long — so only an explicit retry can un-pause
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    await turn(a, backend, c.handlers);
+
+    backend.recoverResult = false;
+    backend.failStartsRemaining = 99;
+    fireVisibility("visible");
+    await settle(20);
+    assert.equal(a.getStatus().mic, "paused");
+
+    backend.recoverResult = true;
+    backend.failStartsRemaining = 0;
+    assert.equal(a.isPaused, true);
+    a.retryNow(); // the tap
+    await settle(15);
+    assert.equal(a.getStatus().mic, "on", "the tap recovered it without waiting for the backoff");
+    a.dispose();
+  });
+
+  await scenario("TEST — genuine FIRST-start permission denial (0 cycles) → still fatal + fallback", async () => {
+    let starts = 0;
+    const denying: WakeAudioBackend = {
+      supported: true,
+      async start() { starts += 1; const e = new Error("Permission denied"); e.name = "NotAllowedError"; throw e; },
+      stop() {},
+    };
+    const reasons: string[] = [];
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: denying, runner: new FakeRunner(), tts: fakeTts(), transcribe: async () => "x",
+      onUnavailable: (r) => reasons.push(r), startRetryBackoffMs: 1,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle(15);
+    assert.equal(starts, 1, "a real first-time denial is not retried");
+    assert.deepEqual(reasons, ["not-allowed"], "the host falls back to the browser adapter");
+    assert.equal(a.getStatus().mic, "fatal");
+    a.dispose();
+  });
+
+  await scenario("TEST E100 — 100 consecutive turns; mic acquired ONCE, 0 fatal, 0 paused, 0 leak", async () => {
+    const backend = new FakeBackend();
+    const runner = new FakeRunner();
+    const a = new WakeWordVoiceAdapter({ audioBackend: backend, runner, tts: fakeTts(), transcribe: async () => "x", ...FAST });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    for (let i = 0; i < 100; i += 1) {
+      // Every 10th turn, iOS "suspends" the context between turns — the re-arm's
+      // resumeOrRebuild must resume it IN PLACE (no rebuild) before the next wake.
+      if (i % 10 === 9) {
+        backend.suspended = true;
+        a.startListening("tr-TR", c.handlers); // re-arm → recover() resumes the ctx
+        await settle();
+        assert.equal(backend.suspended, false, `turn ${i}: context resumed in place`);
+      }
+      await turn(a, backend, c.handlers);
+    }
+    const wakes = c.finals.filter((t) => t === "AYAS").length;
+    assert.equal(wakes, 100, `all 100 wakes fired (got ${wakes})`);
+    const st = a.getStatus();
+    assert.equal(st.cyclesCompleted, 100);
+    assert.equal(st.mic, "on", "still healthy after 100 turns");
+    assert.notEqual(st.phase, "fatal");
+    assert.notEqual(st.phase, "paused");
+    assert.equal(backend.started, 1, "mic acquired exactly once across 100 turns");
+    assert.equal(backend.disposed, 0);
+    assert.equal(runner.inits, 1, "ONNX runner initialised once");
+    assert.equal(runner.disposes, 0);
+    assert.equal(st.recoveryCount, 0, "in-place resume — never a rebuild");
+    a.dispose();
+    assert.equal(backend.disposed, 1, "dispose() (full teardown) called once, not stop()");
+    assert.equal(runner.disposes, 1);
+  });
+
+  await scenario("BACKEND — MediaStreamWorkletBackend reuses the AudioContext + mic track across rebuilds", async () => {
+    let ctxCreated = 0;
+    let getUserMediaCalls = 0;
+    let moduleAdds = 0;
+    const track = { readyState: "live" as "live" | "ended", stop() { this.readyState = "ended"; } };
+    const stream = { getAudioTracks: () => [track], getTracks: () => [track] };
+
+    class MockCtx {
+      state: "suspended" | "running" | "closed" = "suspended";
+      destination = {};
+      audioWorklet = { addModule: async () => { moduleAdds += 1; } };
+      constructor() { ctxCreated += 1; }
+      async resume() { if (this.state !== "closed") this.state = "running"; }
+      async close() { this.state = "closed"; }
+      createMediaStreamSource() { return { connect() {} }; }
+      createGain() { return { gain: { value: 0 }, connect() {} }; }
+    }
+    class MockWorkletNode { port = { onmessage: null as unknown, postMessage() {} }; connect() {} disconnect() {} }
+
+    const g = globalThis as Record<string, unknown>;
+    const prevNav = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+    const prev = { window: g.window, AudioWorkletNode: g.AudioWorkletNode };
+    g.window = { AudioContext: MockCtx, isSecureContext: true };
+    Object.defineProperty(globalThis, "navigator", {
+      value: { mediaDevices: { getUserMedia: async () => { getUserMediaCalls += 1; return stream; } } },
+      configurable: true,
+      writable: true,
+    });
+    g.AudioWorkletNode = MockWorkletNode;
+
+    try {
+      const backend = new MediaStreamWorkletBackend();
+      await backend.start(() => {});
+      assert.equal(ctxCreated, 1);
+      assert.equal(getUserMediaCalls, 1);
+      assert.equal(moduleAdds, 1);
+
+      // 10 between-turn rebuilds with the track still live → NOTHING re-acquired.
+      for (let i = 0; i < 10; i += 1) {
+        backend.stop();
+        await backend.start(() => {});
+      }
+      assert.equal(ctxCreated, 1, "AudioContext reused (iOS caps a page at ~4)");
+      assert.equal(getUserMediaCalls, 1, "live mic track reused — no non-gesture getUserMedia");
+      assert.equal(moduleAdds, 1, "worklet module loaded once per context");
+
+      // The track ends (iOS took it for speechSynthesis) → recover() fails, and
+      // the next start() re-getUserMedia but STILL reuses the context.
+      track.readyState = "ended";
+      assert.equal(await backend.recover(), false);
+      backend.stop();
+      await backend.start(() => {});
+      assert.equal(getUserMediaCalls, 2, "one fresh acquire when the track genuinely ended");
+      assert.equal(ctxCreated, 1, "context still reused");
+
+      // Only a CLOSED context forces a new one.
+      backend.dispose();
+      assert.equal((backend.state()), "unknown");
+      await backend.start(() => {});
+      assert.equal(ctxCreated, 2);
+    } finally {
+      g.window = prev.window;
+      g.AudioWorkletNode = prev.AudioWorkletNode;
+      if (prevNav) Object.defineProperty(globalThis, "navigator", prevNav);
+      else delete g.navigator;
+    }
   });
 
   await scenario("STATIC — wake capture uses unprocessed audio; mic stopped only on dispose", () => {

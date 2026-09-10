@@ -191,6 +191,11 @@ export interface AyasPresenceInput {
     readonly mode?: "continuous" | "single-shot" | "wake-engine";
     /** `true` while the wake pipeline is re-acquiring the mic / AudioContext. */
     readonly recovering?: boolean;
+    /**
+     * `true` when a working wake session was interrupted (iOS took the mic away)
+     * and is recovering — a tap resumes it immediately. NOT a permanent failure.
+     */
+    readonly paused?: boolean;
   };
 }
 
@@ -248,14 +253,17 @@ export function deriveAyasPresence(input: AyasPresenceInput): AyasPresenceView {
   const hasVoice = Boolean(input.voice && (input.voice.ttsAvailable || input.voice.sttAvailable));
   const handsFree = input.voice?.mode === "wake-engine";
   const voiceState = input.voice?.state ?? "idle";
-  const recovering = Boolean(input.voice?.recovering) && !offline;
+  const paused = Boolean(input.voice?.paused) && !offline;
+  const recovering = (Boolean(input.voice?.recovering) || paused) && !offline;
   const voice: AyasPresenceRow = offline
     ? { label: "Ses", value: "Çevrim dışı", tone: "off" }
     : !hasVoice
       ? { label: "Ses", value: "Bu cihazda ses yok", tone: "off" }
-      : recovering
-        ? { label: "Ses", value: "AYAS bağlantıyı toparlıyor", tone: "warn" }
-        : {
+      : paused
+        ? { label: "Ses", value: "AYAS ses bağlantısını yeniden kuruyor — dokunarak sürdür", tone: "warn" }
+        : recovering
+          ? { label: "Ses", value: "AYAS bağlantıyı toparlıyor", tone: "warn" }
+          : {
             label: "Ses",
             value:
               voiceState === "idle" && input.voice?.listening
@@ -287,11 +295,13 @@ export function deriveAyasPresence(input: AyasPresenceInput): AyasPresenceView {
 
   const cta: AyasPresenceView["cta"] = offline
     ? { label: "Çevrim dışı", kind: "disabled" }
-    : hasVoice && input.voice?.sttAvailable && !input.voice.listening
-      ? { label: handsFree ? "Eller serbest — \"AYAS\" de" : "AYAS ile sesli konuş", kind: "voice" }
-      : input.voice?.listening
-        ? { label: "AYAS'a yaz", kind: "text" }
-        : { label: "AYAS ile konuş", kind: "text" };
+    : paused
+      ? { label: "Sesli oturumu sürdür", kind: "voice" }
+      : hasVoice && input.voice?.sttAvailable && !input.voice.listening
+        ? { label: handsFree ? "Eller serbest — \"AYAS\" de" : "AYAS ile sesli konuş", kind: "voice" }
+        : input.voice?.listening
+          ? { label: "AYAS'a yaz", kind: "text" }
+          : { label: "AYAS ile konuş", kind: "text" };
 
   return { online, statusTr, statusTone, voice, mobile, security, handsFree, reachHint, cta };
 }

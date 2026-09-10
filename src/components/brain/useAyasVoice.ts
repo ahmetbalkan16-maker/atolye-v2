@@ -77,6 +77,11 @@ export interface UseAyasVoiceResult {
   readonly voiceTier: string | null;
   /** `true` while the on-device wake pipeline is re-acquiring the mic / context. */
   readonly recovering: boolean;
+  /**
+   * `true` when a working wake session was interrupted (iOS took the mic away)
+   * and is recovering — a mic tap retries immediately. NOT a permanent failure.
+   */
+  readonly voicePaused: boolean;
   /** Completed wake→command→reply→re-arm cycles this session (wake engine only). */
   readonly wakeCycles: number;
   /** Secret-free wake-adapter health for the Brain lifecycle heartbeat (wake engine only). */
@@ -96,6 +101,8 @@ export interface UseAyasVoiceResult {
   replayPendingSpeech(): void;
   markThinking(): void;
   markIdle(): void;
+  /** Retry a paused wake pipeline NOW — call from inside a user gesture (a tap). */
+  retryVoice(): void;
 }
 
 export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
@@ -111,10 +118,14 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
   const [voiceTier, setVoiceTier] = useState<string | null>(null);
   const [recognitionMode, setRecognitionMode] = useState<AyasRecognitionMode>("continuous");
   const [recovering, setRecovering] = useState(false);
+  const [voicePaused, setVoicePaused] = useState(false);
   const [wakeCycles, setWakeCycles] = useState(0);
   const [voiceHealth, setVoiceHealth] = useState<VoiceHealthSnapshot | null>(null);
 
   const engineRef = useRef<AyasVoiceEngine | null>(null);
+  /** The wake adapter (when the wake engine is active) — for a gesture-driven retry. */
+  const wakeAdapterRef = useRef<{ retryNow(): void; readonly isPaused: boolean } | null>(null);
+  const voicePausedRef = useRef(false);
   const mutedRef = useRef(muted);
   const onCommandRef = useRef(options.onCommand);
   useEffect(() => {
@@ -159,23 +170,28 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
       };
       void import("./voice/wakeWordVoiceAdapter")
         .then(({ WakeWordVoiceAdapter }) => {
-          attach(
-            new WakeWordVoiceAdapter({
-              onUnavailable: fallBack,
-              onStatus: (s) => {
-                setRecovering(s.mic === "recovering");
-                setWakeCycles(s.cyclesCompleted);
-                setVoiceHealth({
-                  phase: s.phase,
-                  droppedFrames: s.droppedFrames,
-                  frameAgeMs: s.frameAgeMs,
-                  recoveryCount: s.recoveryCount,
-                  audioContextState: s.audioContextState,
-                  lastError: s.lastError,
-                });
-              },
-            }),
-          );
+          const adapter = new WakeWordVoiceAdapter({
+            // Fires ONLY when the wake engine has never worked on this device —
+            // a mid-session interruption pauses + self-heals instead.
+            onUnavailable: fallBack,
+            onStatus: (s) => {
+              setRecovering(s.mic === "recovering");
+              const paused = s.mic === "paused";
+              voicePausedRef.current = paused;
+              setVoicePaused(paused);
+              setWakeCycles(s.cyclesCompleted);
+              setVoiceHealth({
+                phase: s.phase,
+                droppedFrames: s.droppedFrames,
+                frameAgeMs: s.frameAgeMs,
+                recoveryCount: s.recoveryCount,
+                audioContextState: s.audioContextState,
+                lastError: s.lastError,
+              });
+            },
+          });
+          wakeAdapterRef.current = adapter;
+          attach(adapter);
         })
         .catch(fallBack);
     } else {
@@ -195,15 +211,30 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
       clearTimeout(refine);
       engine?.dispose();
       if (engineRef.current === engine) engineRef.current = null;
+      wakeAdapterRef.current = null;
+      voicePausedRef.current = false;
+      setVoicePaused(false);
     };
   }, [platformKind]);
 
   const acceptDisclosure = useCallback(() => setDisclosureAccepted(true), []);
 
+  const retryVoice = useCallback(() => {
+    setErrorMessage(null);
+    wakeAdapterRef.current?.retryNow();
+  }, []);
+
   const toggleListening = useCallback(() => {
     const engine = engineRef.current;
     if (!engine) return;
     if (engine.listening) {
+      // A paused wake pipeline: this tap is the user gesture that lets iOS hand
+      // the mic back — retry now, never toggle listening off.
+      if (voicePausedRef.current && wakeAdapterRef.current) {
+        setErrorMessage(null);
+        wakeAdapterRef.current.retryNow();
+        return;
+      }
       if (engine.canRecapture) {
         // iOS single-shot: this tap IS the user gesture the next `start()` needs.
         setErrorMessage(null);
@@ -264,9 +295,11 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
     voiceName,
     voiceTier,
     recovering: ready ? recovering : false,
+    voicePaused: ready ? voicePaused : false,
     wakeCycles,
     voiceHealth,
     acceptDisclosure,
+    retryVoice,
     toggleListening,
     stopListening,
     toggleMute,

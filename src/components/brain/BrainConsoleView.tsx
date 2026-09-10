@@ -43,6 +43,8 @@ export interface BrainConsoleVoiceView {
   readonly voiceTier?: string | null;
   /** `true` while the on-device wake pipeline is re-acquiring the mic / context. */
   readonly recovering?: boolean;
+  /** `true` when a working wake session was interrupted and is recovering (tap resumes). */
+  readonly paused?: boolean;
   /** Mic button — enable / recapture (single-shot) / toggle off (continuous). */
   readonly onToggleListening?: () => void;
   /** Explicit "turn voice off" — the "dinlemeyi kapat" link. */
@@ -231,6 +233,7 @@ function AyasPresenceCard(props: BrainConsoleViewProps) {
           state: props.voice.state,
           mode: props.voice.recognitionMode,
           recovering: props.voice.recovering,
+          paused: props.voice.paused,
         }
       : undefined,
   });

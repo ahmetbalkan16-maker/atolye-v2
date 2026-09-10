@@ -355,6 +355,29 @@ async function run() {
     assert.equal(off.voice.value, "Çevrim dışı");
   });
 
+  await scenario("11d4. deriveAyasPresence — wake pipeline PAUSED → 'dokunarak sürdür' + voice CTA (never fatal)", () => {
+    const p = deriveAyasPresence({
+      connectivity: "online",
+      secureContext: true,
+      executionGate: "CLOSED",
+      voice: { sttAvailable: true, ttsAvailable: true, listening: true, state: "idle", mode: "wake-engine", paused: true },
+    });
+    assert.match(p.voice.value, /yeniden kuruyor.*dokunarak sürdür/);
+    assert.equal(p.voice.tone, "warn");
+    // the CTA must be actionable (a tap = the gesture iOS needs), not disabled
+    assert.equal(p.cta.kind, "voice");
+    assert.equal(p.cta.label, "Sesli oturumu sürdür");
+    // offline still wins
+    const off = deriveAyasPresence({
+      connectivity: "offline",
+      secureContext: true,
+      executionGate: "CLOSED",
+      voice: { sttAvailable: true, ttsAvailable: true, listening: true, state: "idle", mode: "wake-engine", paused: true },
+    });
+    assert.equal(off.voice.value, "Çevrim dışı");
+    assert.equal(off.cta.kind, "disabled");
+  });
+
   await scenario("11e. deriveAyasPresence — offline never fakes online; CTA disabled", () => {
     const p = deriveAyasPresence({
       connectivity: "offline",

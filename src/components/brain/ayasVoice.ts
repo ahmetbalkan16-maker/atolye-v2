@@ -549,6 +549,8 @@ export function describeAyasRecognitionError(code: string): string {
       return "Dinleme durduruldu.";
     case "start-blocked":
       return "Mikrofon yeniden başlatılamadı. Mikrofona tekrar dokun.";
+    case "mic-interrupted":
+      return "AYAS ses bağlantısını yeniden kuruyor. Hemen sürdürmek için mikrofona dokun.";
     case "language-not-supported":
       return "Türkçe konuşma tanıma bu cihazda etkin değil (Ayarlar › Dikte dilleri). Metin sohbeti çalışıyor.";
     default:

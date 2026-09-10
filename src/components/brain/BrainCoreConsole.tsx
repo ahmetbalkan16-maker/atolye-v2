@@ -284,6 +284,12 @@ export function BrainCoreConsole({
     setActivePanel("chat");
     dismissInterrupted();
     const v = voiceRef.current;
+    // A paused wake pipeline: this click is the gesture that lets iOS hand the
+    // mic back — retry now rather than toggling listening.
+    if (v.voicePaused) {
+      v.retryVoice();
+      return;
+    }
     if (v.capability.stt && !v.listening) v.toggleListening();
   }, [dismissInterrupted]);
 
@@ -340,6 +346,7 @@ export function BrainCoreConsole({
         voiceName: voice.voiceName,
         voiceTier: voice.voiceTier,
         recovering: voice.recovering,
+        paused: voice.voicePaused,
         onToggleListening: voice.toggleListening,
         onStopListening: stopListening,
         onToggleMute: voice.toggleMute,

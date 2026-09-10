@@ -506,6 +506,29 @@ async function run() {
     engine.dispose();
   });
 
+  await scenario("'mic-interrupted' → gentle notice, mic STAYS armed, NOT the error state", () => {
+    const platform = new MockVoicePlatform();
+    const { engine, cap } = makeEngine(platform);
+    engine.enableListening();
+    const stateBefore = engine.state;
+    platform.fireRecognitionError("mic-interrupted");
+    assert.equal(engine.listening, true, "a transient interruption never disables listening");
+    assert.notEqual(engine.state, "error", "and never drops to the error state");
+    assert.equal(engine.state, stateBefore);
+    assert.ok(
+      cap.errors.some((e) => /yeniden kuruyor/.test(e)),
+      `a reassuring notice, not a scary one — got ${JSON.stringify(cap.errors)}`,
+    );
+    engine.dispose();
+  });
+
+  await scenario("describeAyasRecognitionError — 'mic-interrupted' is reassuring + points at the tap", () => {
+    const msg = describeAyasRecognitionError("mic-interrupted");
+    assert.match(msg, /yeniden kuruyor/);
+    assert.match(msg, /dokun/);
+    assert.doesNotMatch(msg, /reddedildi|kapatıldı/);
+  });
+
   /* =============================== engine: wake + states =============== */
 
   await scenario("8 + 12. AYAS wake-word detection — bare 'AYAS' → listening, wake fired", () => {
