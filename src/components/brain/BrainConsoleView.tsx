@@ -48,6 +48,11 @@ export interface BrainConsoleVoiceView {
   readonly recovering?: boolean;
   /** `true` when a working wake session was interrupted and is recovering (tap resumes). */
   readonly paused?: boolean;
+  /**
+   * `true` between an "AYAS" wake and the idle timeout — follow-up commands skip
+   * the wake word (Conversation Session Mode).
+   */
+  readonly conversationActive?: boolean;
   /** Mic button — enable / recapture (single-shot) / toggle off (continuous). */
   readonly onToggleListening?: () => void;
   /** Explicit "turn voice off" — the "dinlemeyi kapat" link. */
@@ -270,6 +275,7 @@ function AyasPresenceCard(props: BrainConsoleViewProps) {
           mode: props.voice.recognitionMode,
           recovering: props.voice.recovering,
           paused: props.voice.paused,
+          conversationActive: props.voice.conversationActive,
         }
       : undefined,
   });
@@ -517,6 +523,11 @@ function ChatPanel(props: BrainConsoleViewProps) {
         <p className="bc-voice" data-voice={voice.state} data-testid="bc-voice">
           <span className="bc-voice__dot" aria-hidden="true" />
           Ses: {voiceInfo.tr}
+          {voice.conversationActive ? (
+            <span className="bc-voice__session" data-testid="bc-voice-session">
+              Konuşma aktif
+            </span>
+          ) : null}
           {voice.capability.stt && !voice.listening && !needsDisclosure ? (
             <button
               type="button"

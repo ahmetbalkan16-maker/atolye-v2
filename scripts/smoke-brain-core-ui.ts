@@ -338,6 +338,31 @@ async function run() {
     assert.equal(tap.cta.label, "AYAS ile sesli konuş");
   });
 
+  await scenario("11d2b. deriveAyasPresence — conversation session active → 'Konuşma aktif' voice row", () => {
+    const active = deriveAyasPresence({
+      connectivity: "online",
+      secureContext: true,
+      executionGate: "CLOSED",
+      voice: {
+        sttAvailable: true, ttsAvailable: true, listening: true, state: "idle",
+        mode: "wake-engine", conversationActive: true,
+      },
+    });
+    assert.match(active.voice.value, /konuşma aktif/i, "the voice row reflects the open session");
+    assert.equal(active.voice.tone, "ok");
+    // recovering / paused still win over the session label (honest state first)
+    const recovering = deriveAyasPresence({
+      connectivity: "online",
+      secureContext: true,
+      executionGate: "CLOSED",
+      voice: {
+        sttAvailable: true, ttsAvailable: true, listening: true, state: "idle",
+        mode: "wake-engine", conversationActive: true, recovering: true,
+      },
+    });
+    assert.equal(recovering.voice.value, "AYAS bağlantıyı toparlıyor");
+  });
+
   await scenario("11d3. deriveAyasPresence — wake pipeline recovering → honest 'toparlıyor' state", () => {
     const p = deriveAyasPresence({
       connectivity: "online",
@@ -652,6 +677,31 @@ async function run() {
     assert.ok(errored.includes('data-testid="bc-voice-error"'));
     assert.ok(errored.includes("Mikrofon izni reddedildi."));
     assert.ok(errored.includes('data-testid="bc-voice-replay"'));
+  });
+
+  await scenario("12d2. voice UI — an open conversation session shows the 'Konuşma aktif' pill", () => {
+    const inSession = renderView({
+      snapshot: baseSnapshot(),
+      voice: {
+        state: "listening",
+        capability: { stt: true, tts: true, sttCloudBacked: false },
+        listening: true, muted: false, disclosureAccepted: true,
+        recognitionMode: "wake-engine", conversationActive: true,
+      },
+    });
+    assert.ok(inSession.includes('data-testid="bc-voice-session"'), "the session pill renders");
+    assert.ok(inSession.includes("Konuşma aktif"));
+
+    const idle = renderView({
+      snapshot: baseSnapshot(),
+      voice: {
+        state: "idle",
+        capability: { stt: true, tts: true, sttCloudBacked: false },
+        listening: true, muted: false, disclosureAccepted: true,
+        recognitionMode: "wake-engine", conversationActive: false,
+      },
+    });
+    assert.ok(!idle.includes('data-testid="bc-voice-session"'), "no pill when no session is open");
   });
 
   await scenario("12e. autonomous panel — empty vs real checkpoint", () => {

@@ -1,5 +1,76 @@
 ---
 
+## AYAS — CONVERSATION SESSION MODE: "AYAS" bir kez → oturum açık → takip komutları wake gerektirmez → 15 sn sessizlik → bekleme modu; gate CLOSED - 2026-09-10
+
+**Branch:** `wip/ayas-graphify-final-execution` (off `7a158c8`). NOT merged / NOT pushed. `git diff --check` clean.
+8 dosya (6 src + 2 smoke), yalnız voice + Brain UI katmanı.
+
+**Gerçek iPhone bulgusu:** mikrofon/wake/STT/yanıt/TTS/PWA HEPSİ çalışıyor. Tek UX sorunu: **her yeni
+komutta tekrar "AYAS" demek gerekiyor.** İstenen: BEKLEME → "AYAS" → WAKE → KONUŞMA OTURUMU → çok komut
+(wake yok) → sessizlik zaman aşımı → BEKLEME.
+
+**KÖK NEDEN (INSPECT):** Bir tur bittiğinde HEM engine HEM adapter "wake bekle"ye dönüyordu.
+`ayasVoiceEngine.dispatchCommand` → `this.woke = false`; `wakeWordVoiceAdapter.ensureWakeReady()` →
+`phase = "wake"` (+ `detector.rearm()`). Engine wake-engine yolunda saf pass-through — gerçek durum
+makinesi adapter'da (`phase: idle·wake·capturing·processing·speaking·rearming·…`). İkinci bir state
+machine YOK; mevcut `phase`'e bir oturum katmanı eklendi.
+
+**ÇÖZÜM (adapter-merkezli, minimum, engine DEĞİŞMEDİ):**
+- `wakeWordVoiceAdapter.ts`: `conversationActive` / `conversationArmed` / `wokeThisTurn` alanları +
+  `conversationTimer` + `CONVERSATION_IDLE_MS = 15_000` (+ `conversationIdleMs` test-seam).
+- Wake tetiklendiğinde (`onFrame` `detector.observe` true) → `conversationActive = true`,
+  `armConversationTimer()`.
+- `ensureWakeReady()` re-arm dalı: `conversationActive` ise → `phase = "wake"` YERİNE `phase =
+  "capturing"` + `conversationArmed = true` + TTS-echo cooldown + idle timer. Değilse eski davranış.
+- `finishCommand`: `wokeThisTurn ? text : "AYAS " + stripLeadingWakeWord(text)` — sentetik wake
+  öneki, engine'in mevcut `!woke` yolu komutu tıpkı sözlü "AYAS <komut>" gibi dispatch eder → **sıfır
+  engine değişikliği** (`detectAyasWakeWord` + `dispatchCommand` yeniden kullanılır).
+- Idle timer: wake / komut başlangıcı (`commandStarted`) / komut bitişi (`finishCommand`) / in-session
+  re-arm anlarında reset. Ateşlerse → `conversationActive = false`; boşta bekleyen in-session capture
+  ise `phase = "wake"`.
+- `speak()` guard'ına `"capturing"` eklendi → oturum açıkken gelen yazılı-tur TTS'i kendi sesini komut
+  sanmaz (TTS bitince re-arm oturumu geri getirir).
+- Oturum kapanışı: (A) 15 sn sessizlik, (B) `endConversation()` — `useAyasVoice.stopListening` +
+  `toggleListening` disable dalı bunu `engine.disableListening()` ÖNCESİ çağırır, (C) fatal/paused/
+  rebuild yolları `resetConversation()`. Normal yanıttan SONRA kapanmaz.
+- `getStatus()` += `conversationActive`; `useAyasVoice` bunu `onStatus`'tan yayar; `deriveAyasPresence`
+  ("Konuşma aktif — AYAS dinliyor") + `ChatPanel` küçük "Konuşma aktif" pill (`.bc-voice__session`).
+  Zaman aşımında → "AYAS bekleniyor". Büyük yeni UI yok.
+
+**TESTLER — tsc 0 · eslint 0 err (22 pre-existing, hepsi `src/lib/production` + `runtime/backup`, bu
+sprintle ilgisiz) · `next build` PASS (Turbopack 7 pre-existing warn, MusicLibrary.ts).**
+`smoke-ayas-wake-adapter` 42→**49** (+7 CONVERSATION: wake→oturum; 2/3. komut wake'siz; komut→timer
+reset; 15 sn→kapanır + sonraki komut wake ister + re-wake; yazılı-tur TTS komut sanılmaz; endConversation
+anında kapatır; mic interruption oturumu kapatır; dispose timer'ı temizler). Mevcut çok-turlu lifecycle
+testleri korundu — `turn()` helper artık turlar arası `endConversation()` çağırıyor (bağımsız tur =
+her turda taze wake; kaynak invariant'ları — mic 1×, 0 leak, 0 rebuild — değişmedi). `smoke-ayas-voice`
+54 (engine dokunulmadı). `smoke-brain-core-ui` 38→**40** (deriveAyasPresence "Konuşma aktif" satırı +
+ChatPanel pill). Regression yeşil: `smoke-brain-lifecycle` 16, `smoke-ayas-wake-runner` 17,
+`smoke-brain-report-*` (center 14 / e2e 5 / security 9 / store 7 / voice-command 9 / approval 9),
+`smoke-brain-selfheal*` (pure 40 / v2 26 / security 14 / observe-ui 13), `smoke-brain-optimization-live`
+7, `smoke-brain-watchdog` 7, `smoke-brain-voice-latency` 17, `smoke-ayas-chat` 12 / `-stream` 11,
+`smoke-ayas-studio-context` 16. Graphify `update .` — 10901 node / 33389 edge (AST-only, gitignored).
+
+**GÜVENLİK:** `ayasExecutionGate = CLOSED` / `writeActionsEnabled = false` / `NEVER_AUTO_APPLY` —
+değişmedi. Oturum katmanı yalnız `voice → intent → response` yönetir; tarayıcı/PWA'da git/patch/
+sandbox/apply/execution yetkisi YOK. Hard/soft threshold, wake modeli, ONNX, AudioWorklet, AudioContext
+— dokunulmadı; `softWindow = 7` + near-hard fast-path korundu. `prime()` / mic izin akışı / wake
+adapter retry-fallback — dokunulmadı. Yeni AudioContext yaratılmıyor; timer'lar `unref` + dispose'da
+temizleniyor. Access gate / `D:` / Caddy / firewall / tunnel — dokunulmadı.
+
+**REAL DEVICE:** Bu ortamdan fiziksel iPhone erişimi YOK → hiçbir cihaz testi PASS yazılmadı. Operatör
+adımları raporda (`AYAS_CONVERSATION_SESSION_FINAL_REPORT.md`).
+
+**FINAL STATUS:** `ROOT CAUSE = FOUND` · `IMPLEMENTATION = DONE` (adapter-only, engine değişmedi) ·
+`FIRST WAKE = 1× AYAS` · `2./3. KOMUT = wake gerektirmez` (kod + smoke doğrulandı) · `SESSION TIMEOUT =
+15 sn, aktivitede reset` · `POST-TIMEOUT = wake gerektirir` · `RE-WAKE = çalışır` · `TTS SELF-HEARING =
+korunuyor` · `SECURITY = PASS` · `BUILD = PASS` · `GRAPHIFY = updated` · `GIT = CLEAN` · `REAL DEVICE =
+OPERATOR_REQUIRED` · **PUSH/MERGE/DEPLOY = NO**.
+
+**PUSH YAPILMADI · MERGE YAPILMADI · DEPLOY YAPILMADI.**
+
+---
+
 ## AYAS — GERÇEK CİHAZ FOLLOW-UP: "AYAS Raporları" butonu mobilde açılmıyor + wake ~3× "AYAS"; gate CLOSED - 2026-09-13
 
 **Branch:** `wip/ayas-graphify-final-execution` (fix commit `f4fcc8e`, off `67095ee`). NOT merged / NOT pushed.

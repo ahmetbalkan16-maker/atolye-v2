@@ -533,6 +533,7 @@ export function BrainCoreConsole({
         voiceTier: voice.voiceTier,
         recovering: voice.recovering,
         paused: voice.voicePaused,
+        conversationActive: voice.conversationActive,
         onToggleListening: voice.toggleListening,
         onStopListening: stopListening,
         onToggleMute: voice.toggleMute,

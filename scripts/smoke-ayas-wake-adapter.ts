@@ -41,6 +41,14 @@ const settle = async (n = 10) => {
   for (let i = 0; i < n; i += 1) await tick();
 };
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/**
+ * Fast drain — `setImmediate` has no 15 ms Windows timer granularity, so the
+ * conversation-timeout scenarios can use small `conversationIdleMs` values
+ * without the settle noise straddling the deadline.
+ */
+const drain = async (n = 50) => {
+  for (let i = 0; i < n; i += 1) await new Promise((r) => setImmediate(r));
+};
 
 /** `document` stub so the visibilitychange wiring is exercised. */
 const listeners = new Map<string, Set<() => void>>();
@@ -190,7 +198,13 @@ function collectHandlers() {
 
 const FAST = { rearmCooldownMs: 0, startRetryBackoffMs: 1, threshold: 0.5 } as const;
 
-/** One full turn: wake → command → STT → onEnd, then the engine's re-arm. */
+/**
+ * One full INDEPENDENT turn: wake → command → STT → onEnd → session lapses →
+ * the engine's re-arm. `endConversation()` models the ≥15 s gap (or an explicit
+ * stop) between two unrelated turns — so this helper still exercises a fresh
+ * wake per call, which is what the lifecycle/resource scenarios assert.
+ * `sessionTurn()` covers back-to-back conversation follow-ups.
+ */
 async function turn(a: WakeWordVoiceAdapter, backend: FakeBackend, h: AyasListenHandlers) {
   backend.push("wake");
   await settle();
@@ -198,8 +212,28 @@ async function turn(a: WakeWordVoiceAdapter, backend: FakeBackend, h: AyasListen
   for (let i = 0; i < 15; i += 1) backend.push("speech");
   for (let i = 0; i < 16; i += 1) backend.push("silence");
   await settle();
+  a.endConversation(); // the conversation session lapses between separate turns
   a.startListening("tr-TR", h); // engine re-arms after speaking the reply
   await settle();
+}
+
+/**
+ * A conversation follow-up: `wake: true` on the first turn only, then commands
+ * with NO wake word while the session is open.
+ */
+async function sessionTurn(
+  a: WakeWordVoiceAdapter,
+  backend: FakeBackend,
+  h: AyasListenHandlers,
+  opts: { wake: boolean },
+) {
+  if (opts.wake) backend.push("wake");
+  await drain();
+  for (let i = 0; i < 15; i += 1) backend.push("speech");
+  for (let i = 0; i < 16; i += 1) backend.push("silence");
+  await drain();
+  a.startListening("tr-TR", h); // engine re-arms after the reply — session stays open
+  await drain();
 }
 
 async function run() {
@@ -297,9 +331,15 @@ async function run() {
     assert.ok(backend.recovers >= 1, "recover() was called after TTS / on re-arm");
     assert.equal(backend.suspended, false, "context resumed");
     assert.equal(backend.started, 1, "no rebuild — a resume was enough");
-    backend.push("wake");
+    // The conversation session is still open → a follow-up needs NO wake word.
+    for (let i = 0; i < 14; i += 1) backend.push("speech");
+    for (let i = 0; i < 16; i += 1) backend.push("silence");
     await settle();
-    assert.equal(c.finals.filter((t) => t === "AYAS").length, 2, "SECOND wake heard after TTS");
+    assert.equal(
+      c.finals.filter((t) => t !== "AYAS").length,
+      2,
+      "SECOND command captured after TTS (in-session, no wake word)",
+    );
     a.dispose();
   });
 
@@ -490,9 +530,11 @@ async function run() {
     a.speak("cevap", { voiceName: null, lang: "tr-TR", pitch: 1, rate: 1, volume: 1, onStart: () => {}, onEnd: () => {}, onError: () => a.startListening("tr-TR", c.handlers) });
     await settle(15);
     assert.equal(backend.suspended, false, "recovered even though TTS errored");
-    backend.push("wake");
+    // The session survived the TTS error → a follow-up command needs no wake word.
+    for (let i = 0; i < 14; i += 1) backend.push("speech");
+    for (let i = 0; i < 16; i += 1) backend.push("silence");
     await settle();
-    assert.equal(c.finals.filter((t) => t === "AYAS").length, 2);
+    assert.equal(c.finals.filter((t) => t !== "AYAS").length, 2, "next command still captured after the TTS error");
     a.dispose();
   });
 
@@ -799,6 +841,7 @@ async function run() {
       for (let i = 0; i < 15; i += 1) backend.push("speech");
       for (let i = 0; i < 16; i += 1) backend.push("silence");
       await settle(4);
+      a.endConversation(); // independent turns — a fresh wake each time
       a.startListening("tr-TR", c.handlers);
       await settle(4);
     };
@@ -1139,6 +1182,184 @@ async function run() {
     assert.ok(c.finals.includes("AYAS"), `soft-tier detected the real 'AYAS', got ${JSON.stringify(c.finals)}`);
     assert.ok(a.getStatus().wakeScore.max >= 0.64);
     a.dispose();
+  });
+
+  /* ─────────────────── Conversation Session Mode ─────────────────── */
+
+  await scenario("CONVERSATION — wake once, then 2 follow-up commands with NO wake word", async () => {
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(),
+      transcribe: async () => "kaç proje var", ...FAST,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle();
+    assert.equal(a.getStatus().conversationActive, false, "no session before the wake word");
+
+    await sessionTurn(a, backend, c.handlers, { wake: true }); // "AYAS" + command
+    assert.equal(a.getStatus().conversationActive, true, "the wake opened a conversation session");
+    await sessionTurn(a, backend, c.handlers, { wake: false }); // command only
+    await sessionTurn(a, backend, c.handlers, { wake: false }); // command only
+
+    assert.equal(c.finals.filter((t) => t === "AYAS").length, 1, "the wake word was spoken exactly once");
+    const commands = c.finals.filter((t) => t !== "AYAS");
+    assert.equal(commands.length, 3, "all three commands were dispatched");
+    assert.ok(
+      commands.slice(1).every((t) => t.startsWith("AYAS ")),
+      `in-session commands carry the synthetic wake prefix for the engine, got ${JSON.stringify(commands)}`,
+    );
+    assert.equal(backend.started, 1, "the mic was acquired once for the whole session");
+    assert.equal(a.getStatus().cyclesCompleted, 3);
+    a.dispose();
+  });
+
+  await scenario("CONVERSATION — 15 s (here 300 ms) of silence closes the session; next command needs the wake word", async () => {
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(),
+      transcribe: async () => "son değişiklik neydi", ...FAST, conversationIdleMs: 300,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await drain();
+    await sessionTurn(a, backend, c.handlers, { wake: true });
+    assert.equal(a.getStatus().conversationActive, true);
+
+    await wait(700); // stay silent well past the idle timeout
+    assert.equal(a.getStatus().conversationActive, false, "the idle timeout closed the session");
+    assert.equal(a.getStatus().phase, "wake", "and the adapter is back to waiting for the wake word");
+
+    const before = c.finals.length;
+    for (let i = 0; i < 15; i += 1) backend.push("speech");
+    for (let i = 0; i < 16; i += 1) backend.push("silence");
+    await drain();
+    assert.equal(c.finals.length, before, "a command with no wake word is NOT dispatched after the session closed");
+
+    backend.push("wake"); // re-wake
+    await drain();
+    for (let i = 0; i < 15; i += 1) backend.push("speech");
+    for (let i = 0; i < 16; i += 1) backend.push("silence");
+    await drain();
+    assert.equal(c.finals.filter((t) => t === "AYAS").length, 2, "re-wake reopened the session");
+    assert.equal(a.getStatus().conversationActive, true);
+    a.dispose();
+  });
+
+  await scenario("CONVERSATION — a successful command resets the idle timer", async () => {
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(),
+      transcribe: async () => "kaç proje var", ...FAST, conversationIdleMs: 400,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await drain();
+    await sessionTurn(a, backend, c.handlers, { wake: true });
+    const armed1 = Date.now();
+    await wait(250); // < 400 ms — still inside the first window
+    assert.equal(a.getStatus().conversationActive, true);
+    await sessionTurn(a, backend, c.handlers, { wake: false }); // a 2nd command → resets the timer
+    // Past the FIRST arm's deadline (armed1 + 400), but the reset moved it out.
+    while (Date.now() - armed1 < 480) await wait(20);
+    assert.equal(a.getStatus().conversationActive, true, "the 2nd command reset the idle timer");
+    await wait(500); // now well past the reset deadline too
+    assert.equal(a.getStatus().conversationActive, false, "…and it does eventually lapse on real silence");
+    a.dispose();
+  });
+
+  await scenario("CONVERSATION — a typed turn's TTS during an open session is not heard as a command", async () => {
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(),
+      transcribe: async () => "kaç proje var", ...FAST,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await drain();
+    await sessionTurn(a, backend, c.handlers, { wake: true });
+    assert.equal(a.getStatus().phase, "capturing", "re-armed into an in-session capture");
+    const before = c.finals.length;
+
+    // The user types instead of speaking; AYAS speaks the reply.
+    a.speak("yazılı bir cevap cümlesi", {
+      voiceName: null, lang: "tr-TR", pitch: 1, rate: 1, volume: 1,
+      onStart: () => {}, onEnd: () => a.startListening("tr-TR", c.handlers), onError: () => {},
+    });
+    assert.equal(a.getStatus().phase, "speaking", "speak() paused the in-session capture");
+    for (let i = 0; i < 25; i += 1) backend.push("speech"); // TTS echo into the mic
+    await drain();
+    assert.equal(c.finals.length, before, "nothing captured from the TTS echo");
+    // …and the session resumed listening after TTS.
+    assert.equal(a.getStatus().conversationActive, true);
+    for (let i = 0; i < 15; i += 1) backend.push("speech");
+    for (let i = 0; i < 16; i += 1) backend.push("silence");
+    await drain();
+    assert.equal(c.finals.length, before + 1, "a real follow-up IS captured once TTS ends");
+    a.dispose();
+  });
+
+  await scenario("CONVERSATION — endConversation() closes an open session immediately", async () => {
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(),
+      transcribe: async () => "kaç proje var", ...FAST,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await drain();
+    await sessionTurn(a, backend, c.handlers, { wake: true });
+    assert.equal(a.getStatus().conversationActive, true);
+
+    a.endConversation();
+    assert.equal(a.getStatus().conversationActive, false);
+    assert.equal(a.getStatus().phase, "idle", "an idling in-session capture drops to idle, not wake");
+
+    a.startListening("tr-TR", c.handlers); // engine re-arms
+    await drain();
+    assert.equal(a.getStatus().phase, "wake", "the re-arm needs the wake word again");
+    a.dispose();
+  });
+
+  await scenario("CONVERSATION — a mid-session mic interruption closes the session (fatal-path safety)", async () => {
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(),
+      transcribe: async () => "kaç proje var", ...FAST, pausedRetryMs: 60_000,
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await drain();
+    await sessionTurn(a, backend, c.handlers, { wake: true });
+    assert.equal(a.getStatus().conversationActive, true);
+
+    backend.recoverResult = false;
+    backend.failStartsRemaining = 99;
+    fireVisibility("visible"); // → resumeOrRebuild → ensureAudio fails → enterPaused
+    await settle(30);
+    assert.equal(a.getStatus().mic, "paused");
+    assert.equal(a.getStatus().conversationActive, false, "the interruption closed the conversation session");
+    a.dispose();
+  });
+
+  await scenario("CONVERSATION — dispose() clears the idle timer; no status emit after dispose", async () => {
+    const backend = new FakeBackend();
+    const seen: boolean[] = [];
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend, runner: new FakeRunner(), tts: fakeTts(),
+      transcribe: async () => "kaç proje var", ...FAST, conversationIdleMs: 60,
+      onStatus: (s) => seen.push(s.conversationActive),
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await drain();
+    await sessionTurn(a, backend, c.handlers, { wake: true });
+    assert.ok(seen.includes(true), "the session was reported active while open");
+    a.dispose();
+    const seenAtDispose = seen.length;
+    await wait(200); // well past the 60 ms idle timeout
+    assert.equal(a.getStatus().phase, "disposed");
+    assert.equal(seen.length, seenAtDispose, "the idle timer did not fire (or emit) after dispose");
   });
 
   await scenario("STATIC — wake capture uses unprocessed audio; mic stopped only on dispose", () => {

@@ -88,6 +88,11 @@ export interface UseAyasVoiceResult {
   readonly voicePaused: boolean;
   /** Completed wake→command→reply→re-arm cycles this session (wake engine only). */
   readonly wakeCycles: number;
+  /**
+   * `true` between an "AYAS" wake and the idle timeout — follow-up commands skip
+   * the wake word (Conversation Session Mode; wake engine only).
+   */
+  readonly conversationActive: boolean;
   /** Secret-free wake-adapter health for the Brain lifecycle heartbeat (wake engine only). */
   readonly voiceHealth: VoiceHealthSnapshot | null;
   acceptDisclosure(): void;
@@ -124,11 +129,14 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
   const [recovering, setRecovering] = useState(false);
   const [voicePaused, setVoicePaused] = useState(false);
   const [wakeCycles, setWakeCycles] = useState(0);
+  const [conversationActive, setConversationActive] = useState(false);
   const [voiceHealth, setVoiceHealth] = useState<VoiceHealthSnapshot | null>(null);
 
   const engineRef = useRef<AyasVoiceEngine | null>(null);
-  /** The wake adapter (when the wake engine is active) — for a gesture-driven retry. */
-  const wakeAdapterRef = useRef<{ retryNow(): void; readonly isPaused: boolean } | null>(null);
+  /** The wake adapter (when the wake engine is active) — for a gesture-driven retry / session close. */
+  const wakeAdapterRef = useRef<
+    { retryNow(): void; endConversation(): void; readonly isPaused: boolean } | null
+  >(null);
   const voicePausedRef = useRef(false);
   const mutedRef = useRef(muted);
   const onCommandRef = useRef(options.onCommand);
@@ -184,6 +192,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
               voicePausedRef.current = paused;
               setVoicePaused(paused);
               setWakeCycles(s.cyclesCompleted);
+              setConversationActive(s.conversationActive);
               setVoiceHealth({
                 phase: s.phase,
                 droppedFrames: s.droppedFrames,
@@ -221,6 +230,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
       wakeAdapterRef.current = null;
       voicePausedRef.current = false;
       setVoicePaused(false);
+      setConversationActive(false);
     };
   }, [platformKind]);
 
@@ -247,6 +257,8 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
         setErrorMessage(null);
         engine.recaptureVoice();
       } else {
+        // Explicit stop closes any open conversation session (next command needs "AYAS").
+        wakeAdapterRef.current?.endConversation();
         engine.disableListening();
       }
     } else {
@@ -259,6 +271,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
   const stopListening = useCallback(() => {
     const engine = engineRef.current;
     if (!engine) return;
+    wakeAdapterRef.current?.endConversation();
     engine.disableListening();
     setListening(engine.listening);
   }, []);
@@ -304,6 +317,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
     recovering: ready ? recovering : false,
     voicePaused: ready ? voicePaused : false,
     wakeCycles,
+    conversationActive: ready ? conversationActive : false,
     voiceHealth,
     acceptDisclosure,
     retryVoice,

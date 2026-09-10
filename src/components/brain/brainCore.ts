@@ -196,6 +196,11 @@ export interface AyasPresenceInput {
      * and is recovering — a tap resumes it immediately. NOT a permanent failure.
      */
     readonly paused?: boolean;
+    /**
+     * `true` between an "AYAS" wake and the idle timeout — follow-up commands
+     * skip the wake word (Conversation Session Mode).
+     */
+    readonly conversationActive?: boolean;
   };
 }
 
@@ -265,8 +270,9 @@ export function deriveAyasPresence(input: AyasPresenceInput): AyasPresenceView {
           ? { label: "Ses", value: "AYAS bağlantıyı toparlıyor", tone: "warn" }
           : {
             label: "Ses",
-            value:
-              voiceState === "idle" && input.voice?.listening
+            value: input.voice?.conversationActive
+              ? "Konuşma aktif — AYAS dinliyor"
+              : voiceState === "idle" && input.voice?.listening
                 ? handsFree
                   ? "\"AYAS\" bekleniyor (eller serbest)"
                   : "\"AYAS\" bekleniyor"
