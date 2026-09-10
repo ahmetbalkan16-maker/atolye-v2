@@ -18,6 +18,7 @@ import {
   EMPTY_BRAIN_REPORT_CENTER_VIEW,
   type BrainReportCenterView,
 } from "@/lib/brain/selfheal/BrainReportCenter";
+import { DEFAULT_LATENCY_CONFIG, observeVoiceLatency } from "@/lib/brain/selfheal/BrainVoiceLatency";
 import { createBrainSelfHealStore } from "@/lib/brain/selfheal/BrainSelfHealStore";
 
 export interface LoadBrainSelfHealSnapshotOptions {
@@ -48,15 +49,19 @@ export function loadBrainSelfHealSnapshot(options: LoadBrainSelfHealSnapshotOpti
         verdict: r.stage === "accepted" ? ("ACCEPT" as const) : ("REJECT" as const),
         at: r.updatedAt,
       }));
+    // The optimization loop's current Voice Lab latency read (§5 / §6) — pure,
+    // over the samples the operator has fed via `selfheal latency <report.json>`.
+    const latencySamples = store.loadLatencySamples();
+    const latency = latencySamples.length > 0 ? observeVoiceLatency(latencySamples, DEFAULT_LATENCY_CONFIG, now) : null;
     return {
       ...buildBrainSelfHealSnapshot({ incidents, learned, optimizations, now }),
-      reportCenter: buildBrainReportCenterView({ incidents, learned, decisions, optimizations, now }),
+      reportCenter: buildBrainReportCenterView({ incidents, learned, decisions, optimizations, latency, now }),
       error: null,
     };
   } catch (error) {
     return {
       ...EMPTY_BRAIN_SELFHEAL_SNAPSHOT,
-      reportCenter: { ...EMPTY_BRAIN_REPORT_CENTER_VIEW, generatedAt: now },
+      reportCenter: { ...EMPTY_BRAIN_REPORT_CENTER_VIEW, generatedAt: now, latency: null },
       generatedAt: now,
       error: error instanceof Error ? error.message : String(error),
     };

@@ -25,6 +25,7 @@ import type {
 import { classifyPatchSet } from "./BrainPatchSafety";
 import { sanitizeUntrustedNote } from "./BrainUntrustedInput";
 import type { BrainSelfHealDecision, BrainSelfHealDecisionKind } from "./BrainSelfHealDecision";
+import type { BrainLatencyObservation } from "./BrainVoiceLatency";
 
 /**
  * Defence in depth (§28): the incident records are already redacted +
@@ -200,6 +201,8 @@ export interface BrainReportCenterView {
   readonly reports: readonly BrainIncidentReportView[];
   readonly learning: readonly BrainSelfHealLearningView[];
   readonly optimizations: readonly BrainSelfHealOptimizationView[];
+  /** The optimization loop's current Voice Lab latency read (§5 / §6). `null` = no feed. */
+  readonly latency: BrainLatencyObservation | null;
 }
 
 /* --------------------------------------------------------------- builders */
@@ -273,6 +276,7 @@ export interface BuildReportCenterInput {
   readonly learned: readonly BrainLearnedPattern[];
   readonly decisions: readonly BrainSelfHealDecision[];
   readonly optimizations?: readonly BrainSelfHealOptimizationView[];
+  readonly latency?: BrainLatencyObservation | null;
   readonly now: string;
 }
 
@@ -444,6 +448,7 @@ export function buildBrainReportCenterView(input: BuildReportCenterInput): Brain
     reports,
     learning,
     optimizations: input.optimizations ?? [],
+    latency: input.latency ?? null,
   };
 }
 
@@ -475,6 +480,7 @@ export const EMPTY_BRAIN_REPORT_CENTER_VIEW: BrainReportCenterView = Object.free
   reports: [],
   learning: [],
   optimizations: [],
+  latency: null,
 });
 
 /* --------------------------------------------- "AYAS, rapor ver" (§11) --- */
@@ -524,8 +530,23 @@ export function detectAyasReportIntent(text: string): AyasReportIntent {
  * markdown, symbols, headings, bullets or emoji; 2–4 short sentences. Never a
  * model call, never runs anything.
  */
+/** One spoken-Turkish sentence about the latency read, or "" when there is nothing to say. */
+function latencySpokenLine(view: BrainReportCenterView): string {
+  const l = view.latency;
+  if (!l || !l.headline) return "";
+  const f = l.headline;
+  if (f.verdict === "REGRESSION") {
+    return `Son ses ölçümlerinde ${f.metricTr} arttı, güncel medyan yaklaşık ${f.currentMs} milisaniye, baz çizgi ${f.baselineMs} milisaniyeydi. Kanıt sayısı yeterli ve durum izleniyor.`;
+  }
+  if (f.verdict === "IMPROVED") {
+    return `Ses gecikmesinde iyileşme var, ${f.metricTr} baz çizginin altına indi.`;
+  }
+  return "";
+}
+
 export function buildAyasReportSpokenAnswer(view: BrainReportCenterView, intent: AyasReportIntent): string {
   const c = view.counts;
+  const latencyLine = latencySpokenLine(view);
 
   if (intent?.kind === "pending-detail") {
     const awaiting = view.reports.filter((r) => r.bucket === "awaiting");
@@ -551,6 +572,8 @@ export function buildAyasReportSpokenAnswer(view: BrainReportCenterView, intent:
     );
   }
 
+  const tail = latencyLine ? " " + latencyLine : "";
+
   if (c.failed > 0) {
     return (
       c.failed +
@@ -560,7 +583,8 @@ export function buildAyasReportSpokenAnswer(view: BrainReportCenterView, intent:
       c.investigating +
       " konu inceleniyor. Sistem sağlığı yüzde " +
       view.systemHealthPercent +
-      ". Raporu açıp ayrıntılara bakabilirsin."
+      ". Raporu açıp ayrıntılara bakabilirsin." +
+      tail
     );
   }
 
@@ -572,7 +596,8 @@ export function buildAyasReportSpokenAnswer(view: BrainReportCenterView, intent:
       c.resolved +
       " sorun çözüldü ve " +
       c.learnedPatterns +
-      " doğrulanmış çözüm öğrenildi."
+      " doğrulanmış çözüm öğrenildi." +
+      tail
     );
   }
 
@@ -585,5 +610,6 @@ export function buildAyasReportSpokenAnswer(view: BrainReportCenterView, intent:
   if (bits.length) pieces.push(bits.join(", ") + ".");
   pieces.push("Sistem sağlığı yüzde " + view.systemHealthPercent + ".");
   if (c.awaitingApproval > 0) pieces.push("Onay bekleyen konuyu görmek için raporu açabilirsin.");
+  if (latencyLine) pieces.push(latencyLine);
   return pieces.join(" ");
 }

@@ -174,6 +174,27 @@ async function run() {
     }
   });
 
+  await scenario("optimization store — Voice Lab latency samples round-trip, bounded, secret-reject", () => {
+    const root = tmp();
+    try {
+      const store = createBrainSelfHealStore({ rootDir: root });
+      store.appendLatencySamples([
+        { schemaVersion: "1", metric: "sttMs", valueMs: 1200, at: NOW, source: "voice-lab" },
+        { schemaVersion: "1", metric: "captureMs", valueMs: 1400, at: NOW, source: "voice-lab" },
+      ]);
+      store.appendLatencySamples([{ schemaVersion: "1", metric: "sttMs", valueMs: 1250, at: "2026-09-11T12:00:01.000Z", source: "voice-lab" }]);
+      assert.equal(store.loadLatencySamples().length, 3);
+      assert.equal(store.loadLatencySamples()[0].metric, "sttMs");
+      // a hand-crafted sample carrying a secret in `source` must be rejected by the store
+      assert.throws(
+        () => store.appendLatencySamples([{ schemaVersion: "1", metric: "sttMs", valueMs: 900, at: NOW, source: "AKIA" + "IOSFODNN7EXAMPLE" } as never]),
+        (e) => e instanceof BrainSelfHealStoreError && e.code === "SELFHEAL_STORE_SECRET_LEAK",
+      );
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   console.log(`Atölye Brain self-heal store smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "brain-selfheal-store", scenarios: count }));
 }

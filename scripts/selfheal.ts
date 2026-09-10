@@ -37,6 +37,14 @@ import type { BrainIncident } from "../src/lib/brain/selfheal/BrainIncident";
 import type { BrainTimelineEvent } from "../src/lib/brain/selfheal/BrainRootCauseEngine";
 import { observeForSelfHeal, type BrainLifecycleTelemetryLike, type BrainVoiceHealthLike } from "../src/lib/brain/selfheal/BrainSelfHealObservability";
 import { decideQueueAdmission } from "../src/lib/brain/selfheal/BrainSelfHealQueue";
+import {
+  buildLatencyIncident,
+  describeLatencyObservation,
+  DEFAULT_LATENCY_CONFIG,
+  extractLatencySamples,
+  normalizeLatencySamples,
+  observeVoiceLatency,
+} from "../src/lib/brain/selfheal/BrainVoiceLatency";
 import { canApplyFromDecision, describeSelfHealDecision } from "../src/lib/brain/selfheal/BrainSelfHealDecision";
 import { DEFAULT_AUTO_APPLY_CONFIG } from "../src/lib/brain/selfheal/BrainAutoApplyPolicy";
 import { DEFAULT_HEAL_WATCHDOG_CONFIG } from "../src/lib/brain/selfheal/BrainHealWatchdog";
@@ -197,6 +205,57 @@ async function main() {
     return;
   }
 
+  if (cmd === "latency") {
+    // selfheal latency [<voice-lab-report.json>]
+    //  - no arg → print the current latency observation from the store
+    //  - with arg → ingest the report's marks, observe, and open a `performance`
+    //    incident if there is a confident regression. NEVER runs a sandbox / apply.
+    const store = createBrainSelfHealStore();
+    const file = rest[0];
+    if (file) {
+      let report: unknown;
+      try {
+        report = JSON.parse(fs.readFileSync(file, "utf-8"));
+      } catch (e) {
+        return fail(`cannot read ${file}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+      const extracted = extractLatencySamples(report, { now: now(), source: "voice-lab" });
+      if (extracted.rejected.length) {
+        console.log(`rejected ${extracted.rejected.length} mark(s):`);
+        for (const r of extracted.rejected.slice(0, 8)) console.log(`  - ${r.reason}`);
+      }
+      if (extracted.valid.length === 0) {
+        console.log("no valid latency marks in the report — nothing ingested.");
+        return;
+      }
+      store.appendLatencySamples(normalizeLatencySamples(extracted.valid, { now: now() }));
+      console.log(`ingested ${extracted.valid.length} latency mark(s).`);
+    }
+
+    const samples = store.loadLatencySamples();
+    const obs = observeVoiceLatency(samples, DEFAULT_LATENCY_CONFIG, now());
+    console.log(describeLatencyObservation(obs));
+    for (const f of obs.findings) {
+      console.log(`  ${f.metric}: ${f.verdict} · baz ${f.baselineMs ?? "—"} ms · güncel ${f.currentMs ?? "—"} ms · trend ${f.trend} · örnek ${f.baselineSamples}+${f.recentSamples} · güven ${f.confidence.toFixed(2)}`);
+    }
+
+    const incidentDraft = buildLatencyIncident(obs, now());
+    if (!incidentDraft) {
+      console.log("\nno confident latency regression → no incident opened (observation recorded).");
+      return;
+    }
+    const q = decideQueueAdmission(incidentDraft, store.listIncidents());
+    if (q.action !== "enqueue") {
+      console.log(`\nlatency regression, but queue: ${q.action} — ${q.reason}`);
+      return;
+    }
+    store.saveIncident(incidentDraft);
+    console.log(`\nopened performance incident ${incidentDraft.id} (${incidentDraft.classification}).`);
+    console.log(`It is an OBSERVATION — nothing auto-applies. Review:  npm run selfheal -- report ${incidentDraft.id}`);
+    console.log(`Fix (operator decides):  npm run selfheal -- heal ${incidentDraft.id} --patch <files.json>`);
+    return;
+  }
+
   if (cmd === "heal") {
     const id = rest[0];
     if (!id) return fail("usage: selfheal heal <incident-id>  (SELFHEAL_AUTO_APPLY=on enables SAFE auto-apply)");
@@ -351,6 +410,8 @@ async function main() {
       "  report <id>                    one incident's full 🧠 report",
       "  decisions                      list Report Center operator decisions (ONAYLA / REDDET / DAHA SONRA)",
       "  observe <telemetry.json>       classify a telemetry snapshot; open an incident if it is a real fault",
+      "  latency [<voice-lab.json>]     ingest Voice Lab latency marks → optimization observation;",
+      "                                 open a `performance` incident on a confident regression (observation only)",
       "  heal <id> [--patch <f.json>]   drive an incident through the loop (auto-apply SAFE if SELFHEAL_AUTO_APPLY=on)",
       "  run <incident.json> [--patch]  v1-style run: diagnose + sandbox-test, stop at AWAITING_APPROVAL",
       "  apply <id> [--operator <id>]   apply a VERIFIED patch to the working tree (git apply --index; never a push).",

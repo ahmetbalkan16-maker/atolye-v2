@@ -100,6 +100,7 @@
     "selfheal:heal": "tsx scripts/selfheal.ts heal",
     "selfheal:optimize": "tsx scripts/selfheal.ts optimize",
     "selfheal:decisions": "tsx scripts/selfheal.ts decisions",
+    "selfheal:latency": "tsx scripts/selfheal.ts latency",
     "smoke:brain-selfheal-v2": "tsx scripts/smoke-brain-selfheal-v2.ts",
     "smoke:brain-selfheal-e2e-v2": "tsx scripts/smoke-brain-selfheal-e2e-v2.ts",
     "smoke:brain-report-center": "tsx scripts/smoke-brain-report-center.ts",
@@ -109,7 +110,9 @@
     "smoke:brain-report-approval": "tsx scripts/smoke-brain-report-approval.ts",
     "smoke:brain-report-security": "tsx scripts/smoke-brain-report-security.ts",
     "smoke:brain-watchdog": "tsx scripts/smoke-brain-watchdog.ts",
-    "smoke:brain-optimization-live": "tsx scripts/smoke-brain-optimization-live.ts"
+    "smoke:brain-optimization-live": "tsx scripts/smoke-brain-optimization-live.ts",
+    "smoke:brain-voice-latency": "tsx scripts/smoke-brain-voice-latency.ts",
+    "smoke:brain-latency-e2e": "tsx scripts/smoke-brain-latency-e2e.ts"
   },
   "dependencies": {
     "next": "16.2.10",

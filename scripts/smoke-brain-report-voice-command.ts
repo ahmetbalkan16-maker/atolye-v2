@@ -117,6 +117,35 @@ async function run() {
     assertSpoken(text);
   });
 
+  await scenario("spoken — a latency regression is mentioned in the summary, spoken-safe", () => {
+    const latency = {
+      generatedAt: NOW,
+      totalSamples: 24,
+      rejectedSamples: 0,
+      baseline: { generatedAt: NOW, entries: [] },
+      findings: [] as never[],
+      headline: {
+        metric: "sttMs" as const,
+        metricTr: "konuşma tanıma süresi",
+        verdict: "REGRESSION" as const,
+        trend: "degrading" as const,
+        baselineMs: 1200,
+        currentMs: 1780,
+        deltaPct: 0.48,
+        baselineSamples: 16,
+        recentSamples: 8,
+        recentWindowMs: 7_200_000,
+        confidence: 0.74,
+        evidence: ["baz çizgi 1200 ms · güncel 1780 ms"],
+      },
+    };
+    const v = { ...EMPTY_BRAIN_REPORT_CENTER_VIEW, generatedAt: NOW, latency };
+    const text = buildAyasReportSpokenAnswer(v, { kind: "summary" });
+    assert.match(text, /ses ölçümlerinde/i);
+    assert.match(text, /1780 milisaniye/);
+    assertSpoken(text);
+  });
+
   await scenario("spoken — a failed incident is surfaced first", () => {
     let failed = buildBrainIncident({ category: "lifecycle", severity: "P1", classification: "UNKNOWN", symptom: "oturum kaybı", now: NOW });
     failed = advanceIncident(failed, { kind: "diagnose", now: NOW, hypotheses: [] }).incident;

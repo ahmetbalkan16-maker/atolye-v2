@@ -239,6 +239,44 @@ async function run() {
     assert.equal(html.includes(`bc-report-approve-${inc.id}`), false);
   });
 
+  await scenario("report center — the Voice Lab latency block renders a regression headline + per-metric rows", () => {
+    const rc = buildBrainReportCenterView({
+      incidents: [],
+      learned: [],
+      decisions: [],
+      latency: {
+        generatedAt: NOW,
+        totalSamples: 22,
+        rejectedSamples: 0,
+        baseline: { generatedAt: NOW, entries: [] },
+        findings: [
+          { metric: "sttMs", metricTr: "konuşma tanıma (STT) süresi", verdict: "REGRESSION", trend: "degrading", baselineMs: 1200, currentMs: 1800, deltaPct: 0.5, baselineSamples: 14, recentSamples: 8, recentWindowMs: 7200000, confidence: 0.71, evidence: ["baz çizgi (medyan) 1200 ms"] },
+          { metric: "captureMs", metricTr: "komut yakalama süresi", verdict: "STABLE", trend: "stable", baselineMs: 1400, currentMs: 1420, deltaPct: 0.01, baselineSamples: 14, recentSamples: 8, recentWindowMs: 7200000, confidence: 0, evidence: [] },
+          { metric: "wakeToCaptureMs", metricTr: "uyandırmadan yakalama sonuna", verdict: "UNKNOWN", trend: "unknown", baselineMs: null, currentMs: null, deltaPct: null, baselineSamples: 1, recentSamples: 0, recentWindowMs: 7200000, confidence: 0, evidence: [] },
+          { metric: "totalTurnMs", metricTr: "toplam tur gecikmesi", verdict: "UNKNOWN", trend: "unknown", baselineMs: null, currentMs: null, deltaPct: null, baselineSamples: 0, recentSamples: 0, recentWindowMs: 7200000, confidence: 0, evidence: [] },
+        ],
+        headline: { metric: "sttMs", metricTr: "konuşma tanıma (STT) süresi", verdict: "REGRESSION", trend: "degrading", baselineMs: 1200, currentMs: 1800, deltaPct: 0.5, baselineSamples: 14, recentSamples: 8, recentWindowMs: 7200000, confidence: 0.71, evidence: ["baz çizgi (medyan) 1200 ms"] },
+      },
+      now: NOW,
+    });
+    const html = renderToStaticMarkup(createElement(BrainSelfHealingPanel, {
+      snapshot: { ...EMPTY_BRAIN_SELFHEAL_SNAPSHOT, error: null },
+      reportCenter: rc,
+      executionGate: "CLOSED",
+      filter: { status: "all", category: "all" },
+      onFilter: () => {},
+      expandedReportId: null,
+      onToggleReport: () => {},
+      onDecision: () => {},
+      decisionPending: null,
+    }));
+    assert.match(html, /data-testid="bc-report-latency"/);
+    assert.match(html, /data-testid="bc-report-latency-headline"/);
+    assert.match(html, /REGRESSION/);
+    assert.match(html, /1200 ms.*1800 ms/);
+    assert.match(html, /komut yakalama süresi/); // a STABLE metric row still shows
+  });
+
   console.log(`Atölye Brain self-heal observe+UI smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "brain-selfheal-observe-ui", scenarios: count }));
 }

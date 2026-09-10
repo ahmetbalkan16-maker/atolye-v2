@@ -33,6 +33,7 @@ data/brain/
   selfheal/events.json         { schemaVersion, events: BrainRuntimeEvent[] } (bounded ring)     ← LANDED (Autonomous v2)
   selfheal/auto-applies.json   { schemaVersion, timestamps: number[] } (per-hour rate limit)     ← LANDED (Autonomous v2)
   selfheal/decisions/<id>.json { BrainSelfHealDecision } (operator ONAYLA/REDDET/DAHA SONRA)      ← LANDED (Report Center)
+  selfheal/latency.json        { schemaVersion, samples: BrainVoiceLatencySample[] } (bounded ring) ← LANDED (Optimization Loop)
   memory/<yyyy-mm>.json        BrainMemoryRecord[]                                               ← not implemented yet
   proposals/<id>.json          BrainImprovementProposal                                         ← not implemented yet
 ```
@@ -55,6 +56,14 @@ data/brain/
   <id>` reads it and requires an APPROVE before it stages anything. The browser /
   autonomous loop never writes an incident, patch, or learned pattern here.
   Nothing here can open the execution gate, push, merge or deploy.
+- `latency.json` is the optimization loop's Voice Lab latency feed. Marks are fed
+  by `npm run selfheal -- latency <voice-lab-report.json>` (the operator copies
+  the Voice Lab report), validated (number, non-negative, sane range, known
+  metric, sane timestamp; an instruction-shaped `source`/`sessionId` is
+  rejected), normalized, and appended (bounded ring). `observeVoiceLatency` reads
+  them to a REGRESSION / STABLE / IMPROVED / UNKNOWN finding — a confident
+  regression opens a `performance` **observation** incident (no patch, no
+  hypothesis, no auto-progression). It never runs a sandbox / apply.
 
 ### `experience/` — `src/lib/brain/store/BrainExperienceStore.ts` (Sprint 181)
 

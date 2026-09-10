@@ -327,6 +327,17 @@ body:has(.bc-shell) {
 .bc-report__count--warn { border-color: hsl(38 90% 60% / 0.45); }
 .bc-report__count--warn dd { color: hsl(38 92% 74%); }
 
+.bc-report__latency {
+  border: 1px solid var(--bc-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: var(--bc-surface);
+}
+.bc-report__latencyhead { margin: 0 0 4px; font-size: 12.5px; color: var(--bc-text); }
+.bc-report__latencyhead--regression { color: hsl(38 92% 74%); }
+.bc-report__latencyhead--improved { color: hsl(150 65% 62%); }
+
 .bc-report__filters { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .bc-report__filterrow { display: flex; flex-wrap: wrap; gap: 6px; }
 .bc-chip {

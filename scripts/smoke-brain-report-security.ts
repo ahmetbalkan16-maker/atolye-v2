@@ -23,8 +23,8 @@ import {
   buildAyasReportSpokenAnswer,
   buildBrainReportCenterView,
 } from "../src/lib/brain/selfheal/BrainReportCenter";
-import { BrainSelfHealingPanel } from "../src/components/brain/BrainSelfHealingPanel";
 import { EMPTY_BRAIN_SELFHEAL_SNAPSHOT } from "../src/lib/brain/selfheal/BrainSelfHealSnapshot";
+import { BrainSelfHealingPanel } from "../src/components/brain/BrainSelfHealingPanel";
 
 let count = 0;
 async function scenario(name: string, fn: () => void | Promise<void>) {
@@ -133,6 +133,38 @@ async function run() {
     assert.equal(html.includes(`bc-report-approve-${inc.id}`), false, "no approve button for a FORBIDDEN fix");
     assert.match(html, /self-healing gate.{0,40}açamaz/i);
     assert.match(html, /staged/i);
+  });
+
+  await scenario("panel — a latency REGRESSION renders as an observation, NOT an approvable fix", () => {
+    const latency = {
+      generatedAt: NOW,
+      totalSamples: 24,
+      rejectedSamples: 0,
+      baseline: { generatedAt: NOW, entries: [] },
+      findings: [
+        { metric: "sttMs" as const, metricTr: "STT süresi", verdict: "REGRESSION" as const, trend: "degrading" as const, baselineMs: 1200, currentMs: 1900, deltaPct: 0.58, baselineSamples: 16, recentSamples: 8, recentWindowMs: 7200000, confidence: 0.75, evidence: ["baz çizgi 1200 ms"] },
+      ],
+      headline: { metric: "sttMs" as const, metricTr: "STT süresi", verdict: "REGRESSION" as const, trend: "degrading" as const, baselineMs: 1200, currentMs: 1900, deltaPct: 0.58, baselineSamples: 16, recentSamples: 8, recentWindowMs: 7200000, confidence: 0.75, evidence: ["baz çizgi 1200 ms"] },
+    };
+    const v = buildBrainReportCenterView({ incidents: [], learned: [], decisions: [], latency, now: NOW });
+    const html = renderToStaticMarkup(
+      createElement(BrainSelfHealingPanel, {
+        snapshot: { ...EMPTY_BRAIN_SELFHEAL_SNAPSHOT, error: null },
+        reportCenter: v,
+        executionGate: "CLOSED",
+        filter: { status: "all", category: "all" },
+        onFilter: () => {},
+        expandedReportId: null,
+        onToggleReport: () => {},
+        onDecision: () => {},
+        decisionPending: null,
+      }),
+    );
+    assert.match(html, /data-testid="bc-report-latency"/);
+    assert.match(html, /REGRESSION/);
+    // no approve/apply affordance appears just from a latency finding
+    assert.equal(/bc-report-approve-/.test(html), false);
+    assert.equal(/npm run selfheal -- apply/.test(html), false);
   });
 
   await scenario("panel — a decidable SAFE incident DOES render the three decision buttons", () => {

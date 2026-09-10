@@ -38,6 +38,7 @@ import {
   brainSelfHealDecisionSchemaVersion,
   type BrainSelfHealDecision,
 } from "./BrainSelfHealDecision";
+import type { BrainVoiceLatencySample } from "./BrainVoiceLatency";
 
 export type BrainSelfHealStoreErrorCode =
   | "SELFHEAL_STORE_CORRUPT"
@@ -104,6 +105,10 @@ export interface BrainSelfHealStoreHandle {
   recordSelfHealDecision(decision: BrainSelfHealDecision): BrainSelfHealDecision;
   loadSelfHealDecision(incidentId: string): BrainSelfHealDecision | undefined;
   listSelfHealDecisions(): readonly BrainSelfHealDecision[];
+  /* ---- Optimization loop: Voice Lab latency feed ---- */
+  /** Append validated + normalized latency samples (bounded ring). */
+  appendLatencySamples(samples: readonly BrainVoiceLatencySample[]): void;
+  loadLatencySamples(): readonly BrainVoiceLatencySample[];
 }
 
 export function createBrainSelfHealStore(options: BrainSelfHealStoreOptions = {}): BrainSelfHealStoreHandle {
@@ -116,6 +121,7 @@ export function createBrainSelfHealStore(options: BrainSelfHealStoreOptions = {}
   const signaturesFile = path.join(dir, "signatures.json");
   const eventsFile = path.join(dir, "events.json");
   const autoApplyFile = path.join(dir, "auto-applies.json");
+  const latencyFile = path.join(dir, "latency.json");
 
   function ensureDir(d: string): void {
     try {
@@ -339,6 +345,22 @@ export function createBrainSelfHealStore(options: BrainSelfHealStoreOptions = {}
         })
         .filter((x): x is BrainSelfHealDecision => Boolean(x))
         .sort((a, b) => (b.decidedAt < a.decidedAt ? -1 : b.decidedAt > a.decidedAt ? 1 : a.incidentId.localeCompare(b.incidentId)));
+    },
+
+    /* ---- Optimization loop: Voice Lab latency feed ---- */
+
+    appendLatencySamples(samples: readonly BrainVoiceLatencySample[]): void {
+      if (samples.length === 0) return;
+      assertNoLeak(samples, "latency samples");
+      const existing = this.loadLatencySamples();
+      const merged = [...existing, ...samples].slice(-4000);
+      writeAtomic(latencyFile, { schemaVersion: "1", samples: merged });
+    },
+
+    loadLatencySamples(): readonly BrainVoiceLatencySample[] {
+      const rec = readJson(latencyFile, "1", ["samples"]);
+      if (!rec) return [];
+      return Array.isArray(rec.samples) ? (rec.samples as BrainVoiceLatencySample[]) : [];
     },
   };
 }

@@ -86,7 +86,10 @@ export function BrainSelfHealingPanel({
   const rc = reportCenter ?? null;
 
   const hasAnything = rc
-    ? rc.reports.length > 0 || rc.learning.length > 0 || rc.optimizations.length > 0
+    ? rc.reports.length > 0 ||
+      rc.learning.length > 0 ||
+      rc.optimizations.length > 0 ||
+      (rc.latency != null && rc.latency.totalSamples > 0)
     : snapshot &&
       (snapshot.activeIncidents.length > 0 ||
         snapshot.recentRepairs.length > 0 ||
@@ -300,6 +303,43 @@ function ReportCenter({
           <dd>{c.learnedPatterns}</dd>
         </div>
       </dl>
+
+      {rc.latency && rc.latency.totalSamples > 0 ? (
+        <div className="bc-report__latency" data-testid="bc-report-latency">
+          <p className="bc-panel__title" style={{ margin: "0 0 6px" }}>Ses gecikmesi (optimizasyon)</p>
+          {rc.latency.headline ? (
+            <p
+              className={`bc-report__latencyhead bc-report__latencyhead--${rc.latency.headline.verdict.toLowerCase()}`}
+              data-testid="bc-report-latency-headline"
+            >
+              {rc.latency.headline.metricTr}: {rc.latency.headline.verdict}
+              {rc.latency.headline.baselineMs != null
+                ? ` — ${rc.latency.headline.baselineMs} ms → ${rc.latency.headline.currentMs} ms`
+                : ""}
+              {rc.latency.headline.deltaPct != null
+                ? ` (${rc.latency.headline.deltaPct > 0 ? "+" : ""}${Math.round(rc.latency.headline.deltaPct * 1000) / 10}%)`
+                : ""}
+              {` · güven ${rc.latency.headline.confidence.toFixed(2)}`}
+            </p>
+          ) : (
+            <p className="bc-report__latencyhead" data-testid="bc-report-latency-headline">
+              Belirgin bir gecikme değişimi yok ({rc.latency.totalSamples} ölçüm).
+            </p>
+          )}
+          <ul className="bc-report__mini">
+            {rc.latency.findings
+              .filter((f) => f.verdict !== "UNKNOWN")
+              .map((f) => (
+                <li key={f.metric}>
+                  {f.metricTr}: baz {f.baselineMs ?? "—"} ms · güncel {f.currentMs ?? "—"} ms · trend {f.trend} · örnek {f.baselineSamples}+{f.recentSamples}
+                </li>
+              ))}
+            {rc.latency.findings.every((f) => f.verdict === "UNKNOWN") ? (
+              <li>yeterli ölçüm yok — durum bilinmiyor (Voice Lab&apos;den <code>selfheal latency</code> ile besle)</li>
+            ) : null}
+          </ul>
+        </div>
+      ) : null}
 
       {onFilter ? (
         <div className="bc-report__filters" data-testid="bc-report-filters">

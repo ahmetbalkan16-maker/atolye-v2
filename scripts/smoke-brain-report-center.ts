@@ -235,6 +235,30 @@ async function run() {
     assert.match(v.optimizations[0].headline, /1250 ms/);
   });
 
+  await scenario("latency observation passes through the view (default null)", () => {
+    const plain = buildBrainReportCenterView({ incidents: [], learned: [], decisions: [], now: NOW });
+    assert.equal(plain.latency, null);
+
+    const withLatency = buildBrainReportCenterView({
+      incidents: [],
+      learned: [],
+      decisions: [],
+      latency: {
+        generatedAt: NOW,
+        totalSamples: 24,
+        rejectedSamples: 0,
+        baseline: { generatedAt: NOW, entries: [] },
+        findings: [
+          { metric: "sttMs", metricTr: "STT süresi", verdict: "REGRESSION", trend: "degrading", baselineMs: 1200, currentMs: 1750, deltaPct: 0.46, baselineSamples: 16, recentSamples: 8, recentWindowMs: 7200000, confidence: 0.72, evidence: ["baz çizgi 1200 ms"] },
+        ],
+        headline: { metric: "sttMs", metricTr: "STT süresi", verdict: "REGRESSION", trend: "degrading", baselineMs: 1200, currentMs: 1750, deltaPct: 0.46, baselineSamples: 16, recentSamples: 8, recentWindowMs: 7200000, confidence: 0.72, evidence: ["baz çizgi 1200 ms"] },
+      },
+      now: NOW,
+    });
+    assert.equal(withLatency.latency?.headline?.verdict, "REGRESSION");
+    assert.equal(EMPTY_BRAIN_REPORT_CENTER_VIEW.latency, null);
+  });
+
   console.log(`Atölye Brain report-center smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "brain-report-center", scenarios: count }));
 }
