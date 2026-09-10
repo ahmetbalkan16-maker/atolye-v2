@@ -1,5 +1,87 @@
 ---
 
+## AYAS Brain — iPhone voice: stop re-introductions, adaptive VAD, contiguous wake audio; gate CLOSED - 2026-09-10
+
+**Branch:** `wip/ayas-graphify-final-execution` (commit `4c1f30c`, off `9926292`). NOT merged / NOT pushed.
+
+**P0 (operator-verified, real iPhone):** AYAS re-introduces itself on almost every question; the
+user's voice is detected late or missed; AYAS cuts in before the user finishes their sentence.
+
+**ROOT CAUSES (traced in code, not guessed):**
+
+1. **RE-INTRODUCTION** — `buildAyasChatPrompt` literally handed the model the phrase
+   `"Adın AYAS. Gerektiğinde kısaca tanıt (\"Ben AYAS, Atölye'nin yapay zekâ çekirdeğiyim\")"`
+   and only said "her mesajda tekrarlama" — a 7B model leads with it anyway. History was also
+   `.slice(-6)` **before** the `role !== "system"` filter, and only 6 turns.
+2. **LATE / MISSED WAKE** — `onFrame` **discarded** a frame whenever `runner.accept` was
+   in-flight → on a slow phone the audio the model scored had temporal GAPS → real "AYAS" scored
+   low → missed. Plus a **700 ms deaf cooldown** after every turn.
+3. **EARLY CUT-OFF** — end-of-speech was a flat **900 ms** of `frameRms < a FIXED 0.012`, a
+   350 ms elapsed floor, no speech-energy gate. A mid-sentence thinking pause (>900 ms) ended
+   the capture → STT got a fragment → AYAS answered the fragment.
+
+**FIXES (client / UI only — `public/sw.js`, `PwaRegister`, routes, auth, `app/api/**`, execution
+gate, `.env.local` all untouched; threshold 0.70, model, wake→STT→AYAS→TTS semantics unchanged):**
+
+- **`brainCore.ts` prompt** — the identity line is now a **hard negative**: "Sürmekte olan bir
+  konuşmada kendini ASLA yeniden tanıtma, selamlaşma yapma; yalnızca kullanıcı doğrudan sorarsa
+  tek cümleyle söyle." A "Bu, süren bir konuşmanın devamıdır — tanıtım/selamlama YAPMA" line is
+  injected whenever history is non-empty. Spoken-Turkish rule adds "no greeting / no 'Ben AYAS'
+  opener". History: **filter system → then slice**; `AYAS_HISTORY_TURNS` 6 → **12** (matches the
+  stream route's `MAX_HISTORY`).
+- **`openWakeWordRunner`** — a frame that lands mid-inference is **BUFFERED** (bounded,
+  `PENDING_MAX` = 480 ms), NOT discarded; the running `accept()` **catches up** over the queued
+  chunks (`MAX_CATCHUP` = 4/turn) → the audio the model sees stays **CONTIGUOUS**. Only sustained
+  overload (queue > 480 ms) trims the oldest (`stats.dropped`). `accept()` refactored to a
+  `runChunk()` + catch-up loop.
+- **`wakeWordVoiceAdapter` VAD** — adaptive silence floor (calibrated from the first ~240 ms,
+  clamped 0.010–0.05); a **real-speech gate** (≥ 250 ms speech energy + ≥ 450 ms elapsed);
+  **adaptive end-of-speech** (1000 ms for a short/medium utterance so the user can pause & think,
+  700 ms once it's clearly a long complete one); `COMMAND_MAX` 6 → 8 s. A **~320 ms pre-roll**
+  ring buffer is prepended to the capture so the first word after "AYAS" isn't lost. `onFrame`
+  feeds every frame to the runner (contiguity), cooldown 700 → **350 ms**.
+- **Session-cut message** — "Sesli oturum kesildi (sayfa yeniden yüklendi)" → softened to
+  **"AYAS ses bağlantısını yeniden kuruyor. Devam etmek için ekrana dokun."**; the **FIRST touch
+  anywhere on the page** now resumes (the user activation iOS needs) — no hunting for the CTA.
+- **Latency telemetry** — per-turn marks (wake→capture-end, command-capture ms, STT round-trip ms)
+  flow adapter → `useAyasVoice` → lifecycle heartbeat → the Voice Lab `d2w-lifecycle` block +
+  JSON. Secret-free.
+
+**GRAPHIFY MASTER INSPECT (§1, read-only):** `D:\AtolyeRuntime` / `D:\AtolyeAuthority`
+(explicit-external); **16 valid projects, 0 unresolvable**, Brain↔Graphify **16 == 16**, 4
+failed-stage (latest mimar-sinan / visuals / `VISUAL_ASSET_GENERATION_FAILED`), 0 blocked.
+Verdict **CONSISTENT-WITH-NOTES** (1 orphan folder + 2 Hun `id≠folder`, pre-existing, `D:`
+authority, report-only). No Graphify WRITE, no authority / pipeline-write / gate change.
+
+**Verify:** `tsc` 0 · `eslint` 0 err (22 pre-existing) · `next build` exit 0. **Smoke — 18 suites,
+319 scenarios, all green:** `ayas-wake-adapter` 27→**30** (mid-sentence pause NOT cut off; 250 ms
+blip is NOT a command; adaptive floor; slow-phone contiguous catch-up + `maxConcurrent 1`),
+`ayas-wake-runner` 14→**15** (buffered-not-gappy + bounded trim; **REAL-ONNX "AYAS" still peaks
+> 0.70** with the catch-up refactor + reusable buffers), `ayas-chat-stream` 10→**11** (no
+self-intro cue; history is a continuation; system welcome filtered from model history),
+`ayas-voice` 54 / `brain-conversation` 8 / `brain-lifecycle` 16 / `brain-core-ui` 35 / security +
+gate suites unchanged. 100- and 200-turn adapter runs: mic acquired ONCE, 0 fatal, 0 paused, 0
+leak, `recoveryCount 0`. **Runtime:** server restarted on the fresh build; `/brain` → 307 →
+`/login` local + tunnel `documents-lift-aquarium-unwrap.trycloudflare.com`; `/sw.js` `no-cache,
+no-store, must-revalidate`; cloudflared `ha_connections 1` / `register_success 1` / **0
+reconnects**; Caddy + `.env.local` unchanged. `git diff --check` clean.
+
+**FINAL STATUS: `READY_WITH_OPERATOR_TEST`.** All three root causes are addressed at the state /
+prompt / VAD layer (not a workaround) and every automated check is clean, including the REAL-ONNX
+wake detection and the 100/200-turn resource invariants. The remaining unknown is real-human
+behaviour on the physical iPhone: whether real "AYAS" now scores reliably, whether the adaptive
+end-of-speech feels right for how the operator speaks, and whether the re-introductions truly
+stop (a model-behaviour question). Operator test: `docs/AYAS_IPHONE_TEST_PROTOCOL.md` §3 + §26
+(the 4-question contextual sequence) + read the Voice Lab "Son tur gecikmesi" (capture / STT /
+wake→capture-end) numbers.
+
+**Unchanged:** Execution Gate CLOSED, `writeActionsEnabled` false, auth / CSRF / access gate /
+session, `AYAS_ACCESS_KEY`, STT + chat + TTS transport, `public/sw.js`, `PwaRegister`, the prior
+reload / transcript-persistence / transient-fatal fixes, Graphify write path, `D:\AtolyeRuntime` /
+`D:\AtolyeAuthority`, Caddy, `.env.local`, `NEXT_PUBLIC_ATOLYE_WAKE_ENGINE=on`, firewall.
+
+<!-- BRAIN-IPHONE-VOICE-REINTRO-VAD-WAKE-END -->
+
 ## AYAS Brain — ~3-min iPhone reload: transcript persistence + eviction classifier + white-body fix; gate CLOSED - 2026-09-10
 
 **Branch:** `wip/ayas-graphify-final-execution` (commits `c5a9846` fix, `abc0e55` style, off `0fb9e0a`).

@@ -132,10 +132,21 @@ Tur __ : wake[ ]  STT[ ]  AYAS-cevap[ ]  TTS[ ]  re-arm[ ]   | reload gördün m
 | 4.6 | ~3 dk stabilite | Bir tur yap, sonra **hiçbir şeye dokunmadan** telefonu elinde tut, ekran açık, ~4 dk bekle | Sayfa reload OLMAMALI. Olursa: `d2w-lifecycle` "Eviction kind" + "wake lock" oku, JSON'u kaydet |
 | 4.7 | 20 dk idle + resume | 15 tur yaptıktan sonra PWA'yı kapat, **20 dk** bekle, geri aç, "AYAS" de | Konuşma geri yüklenmiş olmalı (transkript görünür, tanıtım YOK); "AYAS" → wake çalışır (bir dokunuş gerekebilir) |
 
-**§31 — Bağlam testi (reload olsun ya da olmasın):**
-1. "Atölye'de kaç proje var" → "16 proje"
-2. "Peki kaçında hata var" → **bağlamlı** cevap ("4 projede…" / "mimar-sinan…"). AYAS önceki soruyu hatırlamalı.
-3. (varsa bir reload'dan sonra tekrar) "Peki kaçı tamamlandı" → yine bağlamlı ("6 tanesi…").
+**§31 / §26 — Doğal konuşma + bağlam testi (reload olsun ya da olmasın):**
+1. "AYAS, Atölye'de kaç proje var" → "16 proje". **AYAS kendini tanıtMAMALI** ("Ben AYAS…" YASAK).
+2. "Peki kaçında hata var" → **bağlamlı** cevap ("4 projede…"). AYAS önceki soruyu hatırlamalı, tanıtım YOK.
+3. "Peki en son hata hangisi" → "mimar-sinan … visuals …". Yine tanıtım YOK.
+4. "Onu biraz açıkla" → bağlamlı devam.
+5. ~5 dk serbest konuşma → sonra 20 dk idle → tekrar "AYAS" + birkaç tur. Bağlam + kimlik korunmalı.
+
+**Doğal konuşma kriterleri (bu turun ana konusu):**
+- **Erken kesme YOK:** "AYAS, Atölye'de kaç proje var ve bunlardan…" derken düşünmek için
+  duraklayınca AYAS araya girMEMELİ. Cümleyi bitir → ~1 sn sonra cevap.
+- **Gereksiz uzun bekleme YOK:** kısa "AYAS kaç proje var" için 2-3 sn'de cevap gelmeli, 5-10 sn değil.
+- **Geç/kaçırılan algılama YOK:** "AYAS" dedikten sonra sistem hemen dinlemeye geçmeli; "AYAS"ı
+  birkaç kez tekrarlamak zorunda kalmamalısın.
+- **Voice Lab → "Son tur gecikmesi"** (capture / STT / wake→capture-end): capture ~1500-3000 ms,
+  STT ~1000-2500 ms makul. STT > 5000 ms veya capture sürekli 6000+ ise not düş.
 
 ---
 
