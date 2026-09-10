@@ -86,7 +86,16 @@
     "smoke:ayas-pwa-sw": "tsx scripts/smoke-ayas-pwa-sw.ts",
     "smoke:ayas-pwa-manifest": "tsx scripts/smoke-ayas-pwa-manifest.ts",
     "build:pwa-icons": "tsx scripts/build-pwa-icons.ts",
-    "smoke:external-runtime-root-lifecycle": "tsx scripts/smoke-external-runtime-root-project-lifecycle.ts"
+    "smoke:external-runtime-root-lifecycle": "tsx scripts/smoke-external-runtime-root-project-lifecycle.ts",
+    "selfheal": "tsx scripts/selfheal.ts",
+    "selfheal:status": "tsx scripts/selfheal.ts status",
+    "selfheal:synthetic": "tsx scripts/selfheal.ts synthetic",
+    "selfheal:prune": "tsx scripts/selfheal.ts prune",
+    "smoke:brain-selfheal": "tsx scripts/smoke-brain-selfheal.ts",
+    "smoke:brain-selfheal-store": "tsx scripts/smoke-brain-selfheal-store.ts",
+    "smoke:brain-selfheal-e2e": "tsx scripts/smoke-brain-selfheal-e2e.ts",
+    "smoke:brain-selfheal-security": "tsx scripts/smoke-brain-selfheal-security.ts",
+    "smoke:brain-selfheal-observe-ui": "tsx scripts/smoke-brain-selfheal-observe-ui.ts"
   },
   "dependencies": {
     "next": "16.2.10",

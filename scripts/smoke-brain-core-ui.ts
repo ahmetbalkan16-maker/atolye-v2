@@ -527,6 +527,17 @@ async function run() {
     assert.ok(/bc-labs__link/.test(footer), "uses the themed link class");
   });
 
+  await scenario("12b3. Self-Healing panel — wired into the tab strip; empty state restates the operator-approval + gate rule", () => {
+    const panelIds = BRAIN_PANELS.map((p) => p.id);
+    assert.ok(panelIds.includes("selfheal"), "selfheal panel is in BRAIN_PANELS");
+    const html = renderView({ snapshot: baseSnapshot(), activePanel: "selfheal" });
+    assert.ok(html.includes('data-panel="selfheal"'));
+    // empty store → the honest "beklemede" state
+    assert.ok(/bc-selfheal-empty/.test(html), "empty self-heal state");
+    assert.ok(/operatör onayı olmadan/i.test(html), "restates: never applies without operator approval");
+    assert.ok(!/AKIA|sk-[a-z]|Bearer /i.test(html), "no secret shapes in the panel");
+  });
+
   await scenario("12c. chat note is dynamic — no static 'not connected' line when the model is configured", () => {
     const configured = renderView({ snapshot: baseSnapshot(), modelConfigured: true, lastReplySource: "llm" });
     assert.ok(configured.includes('data-testid="bc-chat-note"'));
@@ -639,7 +650,9 @@ async function run() {
       // The screen wake lock only asks the OS to keep the display on — no
       // timer, no network. Held to the same bar as the rest of the Brain UI.
       "src/components/brain/useScreenWakeLock.ts",
+      "src/components/brain/BrainSelfHealingPanel.tsx",
       "src/lib/brain/ui/BrainConsoleSnapshot.ts",
+      "src/lib/brain/selfheal/BrainSelfHealSnapshot.ts",
     ];
     for (const file of files) {
       const raw = fs.readFileSync(path.join(REPO_ROOT, file), "utf8");

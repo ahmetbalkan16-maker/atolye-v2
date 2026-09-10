@@ -26,9 +26,25 @@ data/brain/
   experience/<yyyy-mm>.json    { schemaVersion, month, records: BrainExperienceRecord[] }        ← LANDED (Sprint 181)
   queue/tasks.json             { schemaVersion, updatedAt, tasks: BrainTask[] }                  ← LANDED (Sprint 182)
   queue/results/<cycle>.json   { schemaVersion, cycleId, savedAt, report, results }             ← LANDED (Sprint 182)
+  selfheal/incidents/<id>.json { BrainIncident }                                                 ← LANDED (Self-Healing v1)
+  selfheal/learned/<id>.json   { BrainLearnedPattern }                                           ← LANDED (Self-Healing v1)
+  selfheal/signatures.json     { schemaVersion, entries: [{ signature, openedAt }] }             ← LANDED (Self-Healing v1)
   memory/<yyyy-mm>.json        BrainMemoryRecord[]                                               ← not implemented yet
   proposals/<id>.json          BrainImprovementProposal                                         ← not implemented yet
 ```
+
+### `selfheal/` — `src/lib/brain/selfheal/BrainSelfHealStore.ts` (Self-Healing v1)
+
+- The durable side of the Self-Healing Brain: one JSON file per incident /
+  learned pattern; atomic write; `containsBrainSecret` REJECTS a leak (never
+  masks-and-keeps); corrupt / wrong-schema → loud throw, never a silent fresh
+  start; deterministic listing (newest first).
+- **This subtree is gitignored** (`/data/brain/selfheal/`) — it is per-machine
+  operational state, not shared project knowledge. The learned patterns are the
+  Brain's local memory of "this fix worked here".
+- Written only by the operator CLI (`npm run selfheal:*` / `scripts/selfheal.ts`)
+  and the E2E smoke (which uses a temp dir). The browser / autonomous loop never
+  writes here. Nothing here can open the execution gate, push, merge or deploy.
 
 ### `experience/` — `src/lib/brain/store/BrainExperienceStore.ts` (Sprint 181)
 

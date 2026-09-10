@@ -46,6 +46,7 @@ import {
 } from "@/lib/brain/ui/brainConversation";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
+import type { BrainSelfHealSnapshot } from "@/lib/brain/selfheal/BrainSelfHealSnapshot";
 
 /** `useSyncExternalStore` subscribe: the browser's own connectivity signal. */
 function subscribeOnline(onChange: () => void): () => void {
@@ -70,6 +71,8 @@ export interface AskAyasFn {
 export interface BrainCoreConsoleProps {
   readonly initialSnapshot: BrainConsoleSnapshot;
   readonly initialAutonomous?: AyasAutonomousView;
+  /** Read-only self-healing state for the Self-Healing panel. */
+  readonly initialSelfHeal?: (BrainSelfHealSnapshot & { readonly error?: string | null }) | null;
   readonly modelConfigured?: boolean;
   /** Server Action that re-reads the snapshot (read-only). */
   readonly refresh?: () => Promise<BrainConsoleSnapshot>;
@@ -85,6 +88,7 @@ export interface BrainCoreConsoleProps {
 export function BrainCoreConsole({
   initialSnapshot,
   initialAutonomous,
+  initialSelfHeal,
   modelConfigured,
   refresh,
   askAyas,
@@ -427,6 +431,7 @@ export function BrainCoreConsole({
       modelConfigured={modelConfigured}
       lastReplySource={lastReplySource}
       autonomous={initialAutonomous}
+      selfHeal={initialSelfHeal ?? null}
       voice={{
         state: voice.state,
         capability: voice.capability,

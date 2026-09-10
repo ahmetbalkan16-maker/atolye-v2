@@ -24,8 +24,10 @@ import {
   type BrainPanelId,
 } from "./brainCore";
 import { describeAyasVoiceState, type AyasVoiceCapability, type AyasVoiceState } from "./ayasVoice";
+import { BrainSelfHealingPanel } from "./BrainSelfHealingPanel";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
+import type { BrainSelfHealSnapshot } from "@/lib/brain/selfheal/BrainSelfHealSnapshot";
 
 export interface BrainConsoleVoiceView {
   readonly state: AyasVoiceState;
@@ -68,6 +70,8 @@ export interface BrainConsoleViewProps {
   /** Where the last chat reply came from. */
   readonly lastReplySource?: "llm" | "fallback";
   readonly autonomous?: AyasAutonomousView;
+  /** Read-only self-healing state (incidents / repairs / learning). `null` ⇒ store empty. */
+  readonly selfHeal?: (BrainSelfHealSnapshot & { readonly error?: string | null }) | null;
   readonly voice?: BrainConsoleVoiceView;
   /** Coarse client reachability for the AYAS presence card. Default `"online"`. */
   readonly connectivity?: AyasConnectivity;
@@ -411,6 +415,8 @@ function PanelBody(props: BrainConsoleViewProps) {
       return <MemoryPanel snapshot={snapshot} />;
     case "autonomous":
       return <AutonomousPanel autonomous={props.autonomous} />;
+    case "selfheal":
+      return <BrainSelfHealingPanel snapshot={props.selfHeal ?? null} executionGate={snapshot.executionGate} />;
     case "learning":
       return <LearningPanel snapshot={snapshot} />;
     case "safety":

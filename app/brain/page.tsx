@@ -11,6 +11,7 @@
 import { BrainCoreConsole } from "@/components/brain/BrainCoreConsole";
 import { loadBrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import { loadAyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
+import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
 import { askAyas, ayasModelConfigured, refreshBrainConsole } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,8 @@ export default async function BrainCorePage() {
     ayasModelConfigured(),
     loadAyasAutonomousView(),
   ]);
+  // Read-only self-healing state (incidents / repairs / learning). Fail-soft.
+  const selfHeal = loadBrainSelfHealSnapshot();
   // The operator-diagnostics links (Voice Lab / Audio Lab) live inside
   // `BrainConsoleView`'s `.bc-shell` footer now — a sibling <p> here inherited the
   // document colour scheme (dark-on-dark in iOS Light Mode) and sat below the
@@ -29,6 +32,7 @@ export default async function BrainCorePage() {
     <BrainCoreConsole
       initialSnapshot={snapshot}
       initialAutonomous={autonomous}
+      initialSelfHeal={selfHeal}
       modelConfigured={modelConfigured}
       refresh={refreshBrainConsole}
       askAyas={askAyas}
