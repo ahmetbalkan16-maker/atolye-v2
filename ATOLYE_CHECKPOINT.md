@@ -1,5 +1,71 @@
 ---
 
+## ATÖLYE BRAIN — AUTONOMOUS BRAIN v2: continuous observe + SAFE auto-apply + post-apply watchdog + optimization; gate CLOSED - 2026-09-11
+
+**Branch:** `wip/ayas-graphify-final-execution` (commit `23ba767`, off `3da4096`). NOT merged / NOT pushed. `git diff --check` clean. 25 dosya, +2389/-53.
+
+**Ne değişti:** v1'in `AWAITING_APPROVAL` tavanı vardı. v2, **dar tanımlı SAFE bir değişiklik sınıfı** için
+tüm yolu gidebilir: `DETECT → DIAGNOSE → PATCH → TEST → REGRESSION → VERIFY → AUTO-APPLY (working tree,
+STAGED, asla commit/push) → WATCHDOG → HEALED → LEARN` — ve watchdog reddederse **otomatik geri alır**.
+Diğer her şey hâlâ `AWAITING_APPROVAL`'da durur; FORBIDDEN alanlar `REPORT + HALT`.
+
+**YENİ SAF MODÜLLER:** `BrainRuntimeEvent` + `BrainRuntimeEventBuffer` (redakte + sınırlı event ring;
+metadata'daki secret → `[redacted]`) · `BrainAutoApplyPolicy` (otonom apply kapısı: opt-in ON + her
+dosya SAFE + never-auto-apply alanı değil [voice/STT/TTS/SW/auth/Graphify-write/execution] + confidence
+≥ eşik + tüm check + regression + security PASS + diff/dosya sınırı + imza yeni başarısız olmadı;
+**varsayılan AWAIT_APPROVAL**) · `BrainHealWatchdog` (uygulama sonrası doğrulama: HEALED yalnız imza
+tekrar etmedi + hata artışı yok + regression yok + perf kötüleşmedi; aksi HEAL_FAILED → auto-rollback)
+· `BrainSelfHealQueue` (P0→P3, imza-dedupe, kapasite defer) · `BrainSelfHealLimits v2` (autonomous
+apply/saat, rollback denemesi, cause-chain derinliği, A→B→…→A loop tespiti) · `BrainConfidenceEvolution`
+(temiz doğrulamalarla güven artar; başarısızlık/çelişki/bayatlıkla düşer; negatif öğrenme başarısız-fix'e
+benzeyeni sona atar) · `BrainPatchGeneration` (generator seam: redakte + talimatsız yapılandırılmış
+istek + çıktı doğrulama) · `BrainOptimizationLoop` (OBSERVE→BASELINE→HYPOTHESIS→SANDBOX→BENCHMARK→
+REGRESSION→COMPARE→ACCEPT/REJECT; yalnız ölçülmüş kazanç) · `BrainSelfHealScheduler` (canlı ses turu /
+yeni kullanıcı etkileşimi / kritik op / süren self-heal sırasında health-check YOK).
+
+**GENİŞLETİLDİ:** incident SM (+`MONITORING` +`HEALED`; +`auto-apply`/`monitor`/`healed`/`heal-failed`/
+`caused` event; +`appliedBy`/`healVerdict`/`causedByIncidentId`) · `SelfHealingBrain` (VERIFIED artık
+auto-apply politikasına danışır; APPLIED→MONITORING→(watchdog) HEALED veya auto-rollback) · `Runner`
+(v2 adaptörleri; v1 çağıranlar değişmedi — `healWatchdog: null` → operatör apply → learn) · `Store`
+(+`optimizations/` +`events.json` +`auto-applies.json`) · `Guards` (**exact argv-token check** —
+"-f" içeren dosya adı artık yanlış "forbidden token" değil; `git -C <dir> <sub>` yine ayrıştırılıyor)
+· `BrainUntrustedInput` (artık `redactBrainText` de çalıştırıyor) · Self-Healing paneli (canlı durum
+OBSERVING/DIAGNOSING/REPAIRING/TESTING/VERIFYING/MONITORING/HEALED/NEEDS_HUMAN, güncel risk, son
+geri almalar, son kök neden, "SAFE oto-düzeltmeler staged'dır, watchdog geri alır" notu) ·
+`scripts/selfheal.ts` (+`observe` +`heal` +`optimize`; `SELFHEAL_AUTO_APPLY=on` varsayılan OFF).
+
+**TESTLER — tsc 0 · eslint 0 err (22 pre-existing) · `next build` 0.**
+`smoke-brain-selfheal-v2` **26** (event buffer / auto-apply politikası / watchdog / queue / v2
+limitler / confidence evolution / negatif öğrenme / patch-gen kontratı / optimization loop /
+scheduler / genişletilmiş SM). `smoke-brain-selfheal-e2e-v2` **3** — **GERÇEK git-worktree sandbox +
+gerçek loop:** (1) kontrollü fault → … → AUTO-APPLY (SAFE) → WATCHDOG temiz → HEALED → LEARN;
+(2) AUTO-APPLY → watchdog imza tekrarını görür → AUTO-ROLLBACK → tree geri yüklendi → learn-failed
+(**asla yalancı "düzeltildi"**); (3) öğrenme 2. olayın teşhisini hızlandırır. Atılabilir repo'da yeni
+commit YOK. `smoke-brain-selfheal-security` 10→**14** (auto-apply varsayılan OFF; review/forbidden
+asla AUTO_APPLY; v2 rate/rollback/cause-chain/loop caps; exact token guard). `-store` 7→**9**,
+`-observe-ui` 9→**10**. v1 suite'leri değişmedi & yeşil. Komşu tüm brain+ayas+graphify smoke'ları yeşil.
+Graphify salt-okunur: CONSISTENT-WITH-NOTES, 16 == 16.
+
+**GÜVENLİK:** `ayasExecutionGate = "CLOSED"`, `writeActionsEnabled = false` — değişmedi, yeniden
+doğrulandı. Push/merge/deploy/release YOK; `.env` okuma YOK; `D:\AtolyeRuntime`/`D:\AtolyeAuthority`/
+Caddy/firewall/Tailscale DOKUNULMADI. Auto-apply: working-tree-staged, opt-in, watchdog-korumalı,
+SAFE-only, rate-limitli. Güvenlik çekirdeği (Guards/Limits/UntrustedInput/PatchSafety + yeni
+AutoApplyPolicy/PatchGeneration/Sandbox/Runner) FORBIDDEN self-modify.
+
+**FINAL STATUS:**
+`AUTO-HEALING: READY` · `AUTO-OPTIMIZATION: READY (motor + loop, canlı metrik feed'i operatör bağlar)`
+· `SELF-LEARNING: READY` · `AUTONOMOUS_SAFE_APPLY: READY (opt-in `SELFHEAL_AUTO_APPLY=on`)` ·
+`POST-APPLY_ROLLBACK: READY` · `SECURITY: PASS`.
+**Bilinen sınırlar:** (a) otonom `draftPatch` (hipotez→diff LLM adımı) v2'de generator seam +
+`BrainPatchGeneration` doğrulaması — gerçek LLM prod'da, testlerde/CLI'da fixture/operatör-`--patch`.
+(b) `observePostApply` CLI'da ilgili check'i yeniden çalıştırır; gerçek canlı olay buffer'ı bir
+deployment feed'i ister. (c) `BrainOptimizationLoop` saf + test ama canlı wake/STT/TTS latency
+feed'ine henüz bağlı değil.
+
+**PUSH YAPILMADI · MERGE YAPILMADI · DEPLOY YAPILMADI.**
+
+---
+
 ## ATÖLYE BRAIN — SELF-HEALING BRAIN v1: detect → diagnose → sandbox-fix → test → verify → learn; gate CLOSED - 2026-09-11
 
 **Branch:** `wip/ayas-graphify-final-execution` (commit `06b134e`, off `9e2068e`). NOT merged / NOT pushed. `git diff --check` clean. 31 dosya, +4824.
