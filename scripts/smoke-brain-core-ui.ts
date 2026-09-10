@@ -556,11 +556,19 @@ async function run() {
     inc = advanceIncident(inc, { kind: "await-approval", now: NOW }).incident;
     const rc = buildBrainReportCenterView({ incidents: [inc], learned: [], decisions: [], now: NOW });
 
-    // home status card
-    const home = renderView({ snapshot: baseSnapshot(), reportCenter: rc });
+    // home status card — a real <button> (clickable on touch), and the
+    // command-center panel carries a scroll anchor id so mobile can scroll it
+    // into view (the panel stacks far below the orb + presence card there —
+    // a plain panel switch looked like nothing happened).
+    const home = renderView({ snapshot: baseSnapshot(), reportCenter: rc, onOpenReports: () => {} });
     assert.ok(home.includes('data-testid="bc-card-reports"'), "AYAS Raporları status card is drawn");
     assert.ok(/AYAS Raporlar/.test(home));
     assert.ok(/1 onay/.test(home));
+    assert.ok(/<button[^>]*data-testid="bc-card-reports"/.test(home), "the card is a real <button>, not an inert <div>");
+    assert.ok(/id="bc-command-center"/.test(home), "the command-center panel has the scroll anchor");
+    // no handler passed at all → still falls back to a plain panel switch (a button, not dead)
+    const homeNoHandler = renderView({ snapshot: baseSnapshot(), reportCenter: rc, onSelectPanel: () => {} });
+    assert.ok(/<button[^>]*data-testid="bc-card-reports"/.test(homeNoHandler), "card stays clickable via the onSelectPanel fallback");
 
     // the report panel with the incident expanded + decision handlers
     const panel = renderView({

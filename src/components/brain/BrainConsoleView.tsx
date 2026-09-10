@@ -85,6 +85,12 @@ export interface BrainConsoleViewProps {
   /** A reload (iOS eviction / SW update) interrupted an active voice session. */
   readonly voiceSessionInterrupted?: boolean;
   readonly onSelectPanel?: (id: BrainPanelId) => void;
+  /**
+   * The "🧠 AYAS Raporları" home card. On mobile the command-center panel stacks
+   * far below the fold, so a plain panel switch looks like nothing happened —
+   * this handler selects the panel AND scrolls it into view.
+   */
+  readonly onOpenReports?: () => void;
   readonly onDraftChange?: (value: string) => void;
   readonly onSend?: () => void;
   readonly onRefresh?: () => void;
@@ -139,7 +145,10 @@ export function BrainConsoleView(props: BrainConsoleViewProps) {
             snapshot={snapshot}
             autonomous={props.autonomous}
             reportCenter={props.reportCenter ?? null}
-            onOpenReports={props.onSelectPanel ? () => props.onSelectPanel!("selfheal") : undefined}
+            onOpenReports={
+              props.onOpenReports ??
+              (props.onSelectPanel ? () => props.onSelectPanel!("selfheal") : undefined)
+            }
           />
 
           <button
@@ -153,7 +162,7 @@ export function BrainConsoleView(props: BrainConsoleViewProps) {
           </button>
         </section>
 
-        <section className="bc-panel" aria-label="AYAS command center">
+        <section className="bc-panel" id="bc-command-center" aria-label="AYAS command center">
           <div className="bc-panel__head">
             <p className="bc-panel__title">Command Center</p>
             <span className="bc-panel__title" aria-hidden="true">{activePanel}</span>

@@ -439,6 +439,26 @@ export function BrainCoreConsole({
     if (v.capability.stt && !v.listening) v.toggleListening();
   }, [dismissInterrupted]);
 
+  // The "🧠 AYAS Raporları" home card. On mobile `.bc-panel` (the command center)
+  // stacks far below the orb + presence card + status cards, so switching the
+  // active tab alone looks like nothing happened. Select the panel AND scroll it
+  // into view. NOT an execution / gate action — a read-only panel switch.
+  const openReports = useCallback(() => {
+    setActivePanel("selfheal");
+    if (typeof document === "undefined") return;
+    // The command-center <section id="bc-command-center"> is always mounted (only
+    // its inner tab panel swaps), so we can scroll to it synchronously — no
+    // timer / rAF. On mobile this is the whole point: the panel is far below the
+    // orb + presence card + status cards.
+    const el = document.getElementById("bc-command-center");
+    if (!el) return;
+    try {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch {
+      el.scrollIntoView(); // old engine — no options object
+    }
+  }, []);
+
   // Explicit "turn voice off" — forget the persisted intent so a later reload
   // does not re-offer to resume a session the user deliberately ended.
   const stopListening = useCallback(() => {
@@ -523,6 +543,7 @@ export function BrainCoreConsole({
       secureContext={secureContext}
       voiceSessionInterrupted={lifecycle.voiceSessionInterrupted}
       onSelectPanel={setActivePanel}
+      onOpenReports={openReports}
       onDraftChange={setDraft}
       onSend={send}
       onRefresh={refresh ? doRefresh : undefined}

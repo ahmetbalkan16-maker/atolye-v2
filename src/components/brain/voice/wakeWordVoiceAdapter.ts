@@ -118,14 +118,40 @@ export interface WakeDetectConfig {
   readonly soft: number;
   readonly softVotes: number;
   readonly softWindow: number;
+  /**
+   * Near-hard fast-path: a frame at/above `nearHardPeak` PLUS at least
+   * `nearHardVotes` frames (incl. the peak) at/above `nearHardSoft` in the
+   * window is a hit. This catches a real "AYAS" that spikes briefly to
+   * ~0.67-0.69 without sustaining 3 soft frames — a clear peak with real
+   * support, NOT a lone blip, and it never lowers `hard` or `soft`. Optional
+   * (defaults derived from `hard`).
+   */
+  readonly nearHardPeak?: number;
+  readonly nearHardSoft?: number;
+  readonly nearHardVotes?: number;
 }
 
-const DEFAULT_WAKE_DETECT: WakeDetectConfig = { hard: 0.7, soft: 0.6, softVotes: 3, softWindow: 5 };
+/**
+ * softWindow 7 (≈ 560 ms) not 5 (400 ms): a carefully pronounced "AYAS" runs
+ * ~500-650 ms, and a 400 ms window was clipping it before 3 soft frames could
+ * land — the operator's "say it 3×" symptom. nearHardPeak 0.67 is a
+ * clear-spike fast-path. hard (0.70) + soft (0.60) are UNCHANGED.
+ */
+const DEFAULT_WAKE_DETECT: WakeDetectConfig = {
+  hard: 0.7,
+  soft: 0.6,
+  softVotes: 3,
+  softWindow: 7,
+  nearHardPeak: 0.67,
+  nearHardSoft: 0.63,
+  nearHardVotes: 2,
+};
 
 /**
- * Two-tier wake decision. The model was trained on ONE synthetic voice, so a
- * real human "AYAS" often peaks just under the hard threshold — a sustained
- * run of moderate scores is still a real hit, and far less false-positive prone
+ * Multi-tier wake decision. The model was trained on ONE synthetic voice
+ * (`public/wake/ayas.report.json`), so a real human "AYAS" often peaks just
+ * under the hard threshold — a sustained moderate run, or a clear near-hard
+ * spike with support, is still a real hit and far less false-positive prone
  * than lowering the hard threshold. Numeric-only; no audio.
  */
 export class WakeScoreDetector {
@@ -149,6 +175,18 @@ export class WakeScoreDetector {
     if (score >= this.cfg.hard) return this.fire();
     const votes = this.recent.filter((s) => s >= this.cfg.soft).length;
     if (votes >= this.cfg.softVotes) return this.fire();
+
+    // near-hard fast-path — a clear spike (>= nearHardPeak) with real support.
+    const nearHardPeak = this.cfg.nearHardPeak ?? this.cfg.hard - 0.03;
+    const nearHardSoft = this.cfg.nearHardSoft ?? this.cfg.soft + 0.03;
+    const nearHardVotes = this.cfg.nearHardVotes ?? 2;
+    let peak = 0;
+    let support = 0;
+    for (const s of this.recent) {
+      if (s > peak) peak = s;
+      if (s >= nearHardSoft) support += 1;
+    }
+    if (peak >= nearHardPeak && support >= nearHardVotes) return this.fire();
     return false;
   }
 

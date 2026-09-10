@@ -1069,6 +1069,30 @@ async function run() {
     });
   }
 
+  await scenario("WakeScoreDetector — near-hard spike + support fires; a lone/low spike does not; defaults (softWindow 7, nearHardPeak 0.67)", () => {
+    // DEFAULT config (no args) — real-device recall tuning.
+    const d = new WakeScoreDetector();
+    // a real "AYAS" that spikes to 0.68 with one supporting 0.64 frame — used to
+    // need "say it 3×" because it never sustained 3 soft (>=0.6) frames.
+    assert.equal(d.observe(0.40), false);
+    assert.equal(d.observe(0.64), false, "one frame >= nearHardSoft, no peak yet");
+    assert.equal(d.observe(0.68), true, "near-hard peak (0.68) + a 0.64 support frame → hit");
+    // a LONE near-hard spike with no support → NOT a hit
+    assert.equal(d.observe(0.10), false, "window cleared after the fire");
+    assert.equal(d.observe(0.12), false);
+    assert.equal(d.observe(0.69), false, "a single near-hard frame with no >=0.63 support is not a hit");
+    // low-but-not-silent chatter never fires
+    const q = new WakeScoreDetector();
+    for (let i = 0; i < 30; i += 1) assert.equal(q.observe(0.3 + (i % 5) * 0.05), false, "0.30-0.50 chatter never wakes");
+    // the wider default window still needs 3 real soft frames for the soft path
+    const s = new WakeScoreDetector();
+    assert.equal(s.observe(0.61), false);
+    assert.equal(s.observe(0.30), false);
+    assert.equal(s.observe(0.61), false);
+    assert.equal(s.observe(0.30), false);
+    assert.equal(s.observe(0.61), true, "3 soft frames within the 7-frame window");
+  });
+
   await scenario("WakeScoreDetector — hard hit, soft sustained hit, single spike rejected, stats", () => {
     const d = new WakeScoreDetector({ hard: 0.7, soft: 0.6, softVotes: 3, softWindow: 5 });
     // a single frame at/above hard → immediate hit

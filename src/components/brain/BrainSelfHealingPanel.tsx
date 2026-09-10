@@ -100,11 +100,18 @@ export function BrainSelfHealingPanel({
   if (!hasAnything) {
     return (
       <div className="bc-empty" data-testid="bc-selfheal-empty">
-        <strong>AYAS Raporları — beklemede</strong>
+        <strong>AYAS Raporları</strong>
+        {rc ? (
+          <p className="bc-report__healthnum" data-testid="bc-report-health" style={{ margin: "6px 0 2px" }}>
+            Sistem Sağlığı %{rc.systemHealthPercent}
+            <span className="bc-report__live" data-testid="bc-report-live">{rc.liveState}</span>
+          </p>
+        ) : null}
         <p style={{ margin: "6px 0 0" }}>
-          Henüz kayıtlı bir olay yok. Beyin telemetriyi izliyor; gerçek bir anomali tespit
-          ederse otomatik olarak bir <em>incident</em> açar, sandbox&apos;ta düzeltir ve test eder
-          — ama canlı working tree&apos;ye <strong>operatör onayı olmadan</strong> asla yazmaz.
+          Şu an kayıtlı bir olay yok — sistem sağlıklı. Beyin telemetriyi izliyor; gerçek bir
+          anomali tespit ederse otomatik olarak bir <em>incident</em> açar, sandbox&apos;ta
+          düzeltir ve test eder — ama canlı working tree&apos;ye <strong>operatör onayı
+          olmadan</strong> asla yazmaz.
           {snapshot?.error ? (
             <>
               <br />
