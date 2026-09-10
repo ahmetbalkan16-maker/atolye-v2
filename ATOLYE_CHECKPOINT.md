@@ -1,5 +1,62 @@
 ---
 
+## AYAS — GERÇEK CİHAZ FOLLOW-UP: "AYAS Raporları" butonu mobilde açılmıyor + wake ~3× "AYAS"; gate CLOSED - 2026-09-13
+
+**Branch:** `wip/ayas-graphify-final-execution` (fix commit `f4fcc8e`, off `67095ee`). NOT merged / NOT pushed.
+`git diff --check` clean. 6 dosya, +119/-12.
+
+**Gerçek iPhone bulgusu:** (a) mikrofon + konuşma algılama çalışıyor ama wake için ~3× "AYAS" gerekiyor;
+(b) **"AYAS Raporları" butonuna dokununca hiçbir ekran/modal/sayfa açılmıyor.** İki bulgu INSPECT edildi.
+
+**BULGU 1 — Reports butonu (P0, PIPELINE/LAYOUT problem, DÜZELTİLDİ):** handler exception yok, yanlış route
+yok, click sorunu yok. Buton ÇALIŞIYOR — `activePanel` "selfheal"e geçiyor, panel render ediliyor. Sorun
+**konum:** kart `.bc-stage`'de (orb + presence + status kartları), panel `.bc-panel` AYRI grid hücresi.
+Masaüstü `.bc-main` 2 sütun → panel kartın yanında, tab değişimi görünür. Mobil `grid-template-columns: 1fr`
+→ `.bc-panel` orb+presence+7 kartın **çok altında** stack'lenir, `setActivePanel` scroll etmiyor → değişen
+içerik ekran dışında. Ne modal ne sayfa — görüş dışı tab değişimi. **FIX (minimum):** `BrainConsoleView`
++`onOpenReports` prop; `BrainCoreConsole` bunu `setActivePanel("selfheal")` + **senkron**
+`#bc-command-center.scrollIntoView({behavior:"smooth",block:"start"})` ile bağlar (`<section
+id="bc-command-center">` hep mount'lu → timer/rAF gerekmez, rAF Brain UI'da yasak); `onOpenReports` yoksa düz
+panel-değişimi fallback. Boş Report Center artık "Sistem Sağlığı %N · <liveState>" gösterir.
+
+**BULGU 2 — wake ~3× (ENGINE/THRESHOLD problem, PIPELINE değil):** `public/wake/ayas.report.json` modelin
+kendi raporu: "synthetic positives only (1 TTS voice); real-speaker recall + threshold = OPERATOR device
+test". Pipeline SAĞLAM — ölçüldü: `accept()` buffer-not-discard + catch-up (frame düşmez), single-flight
+(maxConcurrent 1), pre-roll, cooldown yalnız tur sonrası. Operatör "algılıyor" ve wake sonunda tetikleniyor
+→ pipeline skorluyor; skorlar sentetik-eğitilmiş modelde gerçek ses için marjinal. **SAFE ara değişiklik —
+hard (0.70) + soft (0.60) DEĞİŞMEDİ:** `softWindow` 5→**7** (400→560ms, dikkatli "AYAS" ~500-650ms sürer,
+400ms pencere kesiyordu) + **near-hard fast-path** (`score ≥ 0.67` bir frame + `≥ 2` frame `≥ 0.63` → hit;
+desteksiz tek sıçrama tetiklemez, 0.30-0.50 gürültü asla). **Gerçek çözüm operatörün:** `/brain/voice-lab/wake`
+`scoreDistribution` oku → retrain (`train_ayas_wake.py`, ~30 gerçek klip) ya da veriye dayalı `wakeDetect`.
+Threshold körlemesine DÜŞÜRÜLMEDİ.
+
+**TESTLER — tsc 0 · eslint 0 err (22 pre-existing) · `next build` 0.**
+`smoke-ayas-wake-adapter` 41→**42** (near-hard fast-path: spike+support→hit, lone spike→no, 0.30-0.50 chatter
+30 frame→asla, soft path hâlâ 3 gerçek soft frame). `smoke-brain-core-ui` 38 (Reports kartı gerçek `<button>`,
+`#bc-command-center` anchor, fallback tıklanabilir). Tüm ayas + brain + selfheal + report + graphify
+regression yeşil; yeni fail YOK. Graphify salt-okunur CONSISTENT-WITH-NOTES 16==16. Server rebuild + restart
+(BUILD_ID `xf4frXSInAqN693rLVMye`); cloudflared PID 26852 dokunulmadı, tunnel URL DEĞİŞMEDİ. Canlı re-verify
+(cookiesiz): `/login` 200 · `/brain` 307 · `/sw.js` 200 · `/wake/ayas.onnx` 200.
+
+**GÜVENLİK:** gate CLOSED / `writeActionsEnabled` false / `NEVER_AUTO_APPLY` — değişmedi. Reports butonu SALT
+read-only panel değişimi + scroll — git/patch/sandbox/apply/execution YOK. Karar butonları hâlâ yalnız karar
+kaydeder. "AYAS rapor ver" deterministik akış DEĞİŞMEDİ (aynı `BrainReportCenter` kaynağı). Access gate,
+`D:`/Caddy/firewall/tunnel — dokunulmadı.
+
+**FINAL STATUS:**
+`Reports button (code) = FIXED` (mobil scroll-into-view + gerçek `<button>` + anchor; markup-doğrulandı) ·
+`Reports button (device) = UNKNOWN` (operatör kontrolü) · `Wake (pipeline) = PASS` (problem değil) ·
+`Wake (engine/threshold) = ENGINE / THRESHOLD PROBLEM` (model 1 sentetik ses; near-hard + softWindow 7 recall
+yardımı, eşikler değişmedi; gerçek çözüm retrain) · `SECURITY = PASS` · `BUILD = PASS` · `GRAPHIFY =
+CONSISTENT` · `GIT = CLEAN` · PUSH/MERGE/DEPLOY = NO. **`VOICE_PIPELINE_READY = NOT READY
+(READY_WITH_OPERATOR_TEST)`**. Gerçek iPhone testi bu ortamdan yapılamaz — hiçbir şey "gerçek iPhone'da
+çalıştı" diye raporlanmadı. Operatör adımları + telefon URL'i + cevap formatı raporda.
+Rapor: `AYAS_MOBILE_WAKE_RELIABILITY_REPORT.md`.
+
+**PUSH YAPILMADI · MERGE YAPILMADI · DEPLOY YAPILMADI.**
+
+---
+
 ## AYAS — iPHONE MOBİL SES ZİNCİRİ TEŞHİS + ONARIM: wake engine mobil veride sağır — iki kök neden; gate CLOSED - 2026-09-13
 
 **Branch:** `wip/ayas-graphify-final-execution` (fix commit `27a530f`, off `dd611b8`). NOT merged / NOT pushed.
