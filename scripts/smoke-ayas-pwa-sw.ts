@@ -110,10 +110,10 @@ await scenario("sw.js — the ONE offline-capable route (phone-llm lab) is named
 // in this file's own top comment). This actually EXECUTES the real fetch
 // handler against two navigations while "offline" (fetch always rejects) and
 // asserts the two routes get genuinely different treatment.
-await scenario("sw.js executed: phone-llm navigation serves a cached copy of ITSELF offline; every other route still only gets the generic shell", async () => {
-  const cacheStore = new Map<string, Response>();
-  let fetchHandler: ((event: { request: { method: string; url: string; mode?: string }; respondWith: (p: Promise<Response>) => void }) => void) | null =
-    null;
+function makeFetchSandbox(cacheStore: Map<string, Response>) {
+  let fetchHandler:
+    | ((event: { request: { method: string; url: string; mode?: string }; respondWith: (p: Promise<Response>) => void }) => void)
+    | null = null;
   const sandbox = {
     self: {
       addEventListener: (type: string, fn: unknown) => {
@@ -144,14 +144,6 @@ await scenario("sw.js executed: phone-llm navigation serves a cached copy of ITS
   };
   vm.createContext(sandbox);
   vm.runInContext(swSource, sandbox);
-  assert.ok(fetchHandler, "fetch handler registered");
-
-  cacheStore.set("https://example.test/brain/voice-lab/phone-llm", new Response("phone-llm cached shell"));
-  // sw.js calls `caches.match("/offline")` with a bare relative string here — a
-  // different lookup shape than the `caches.match(request)` object-with-.url
-  // case above, so it needs its own key matching that exact call.
-  cacheStore.set("/offline", new Response("generic offline shell"));
-
   const dispatch = (url: string) =>
     new Promise<Response>((resolve) => {
       fetchHandler!({
@@ -161,13 +153,61 @@ await scenario("sw.js executed: phone-llm navigation serves a cached copy of ITS
         },
       });
     });
+  return { dispatch, hasHandler: () => fetchHandler !== null };
+}
 
-  const phoneLlm = await dispatch("https://example.test/brain/voice-lab/phone-llm");
-  assert.equal(await phoneLlm.text(), "phone-llm cached shell", "offline + previously cached → its OWN cached page, not the generic shell");
+await scenario(
+  "sw.js executed: phone-llm navigation serves a cached copy of ITSELF offline; an unrelated route still only gets the generic shell",
+  async () => {
+    const cacheStore = new Map<string, Response>();
+    cacheStore.set("https://example.test/brain/voice-lab/phone-llm", new Response("phone-llm cached shell"));
+    // sw.js calls `caches.match("/offline")` with a bare relative string here — a
+    // different lookup shape than the `caches.match(request)` object-with-.url
+    // case above, so it needs its own key matching that exact call.
+    cacheStore.set("/offline", new Response("generic offline shell"));
+    const { dispatch, hasHandler } = makeFetchSandbox(cacheStore);
+    assert.ok(hasHandler(), "fetch handler registered");
 
-  const other = await dispatch("https://example.test/brain");
-  assert.equal(await other.text(), "generic offline shell", "every other route is untouched — still only the generic /offline fallback");
-});
+    const phoneLlm = await dispatch("https://example.test/brain/voice-lab/phone-llm");
+    assert.equal(await phoneLlm.text(), "phone-llm cached shell", "offline + previously cached → its OWN cached page, not the generic shell");
+
+    const unrelated = await dispatch("https://example.test/research");
+    assert.equal(await unrelated.text(), "generic offline shell", "a route with no special handling is untouched — still only the generic /offline fallback");
+  },
+);
+
+await scenario(
+  "sw.js executed: the PWA launch route (/brain) redirects to the cached phone-llm lab when offline (Phone-LLM #50 fix), instead of a dead-end shell",
+  async () => {
+    const cacheStore = new Map<string, Response>();
+    // sw.js's `/brain` branch looks the lab route up via `caches.match(OFFLINE_CAPABLE_ROUTE)`
+    // — a bare relative string, exactly like the pre-existing `caches.match("/offline")`
+    // call elsewhere in this file. A real browser's Cache API resolves a relative
+    // string against the SW's own origin before matching; this mock does a plain
+    // string-key lookup, so the seed key must be the bare string too.
+    cacheStore.set("/brain/voice-lab/phone-llm", new Response("phone-llm cached shell"));
+    cacheStore.set("/offline", new Response("generic offline shell"));
+    const { dispatch } = makeFetchSandbox(cacheStore);
+
+    const brain = await dispatch("https://example.test/brain");
+    assert.equal(brain.status, 302, "a redirect, not a directly-served page");
+    assert.equal(brain.headers.get("location"), "https://example.test/brain/voice-lab/phone-llm", "redirects specifically to the offline-capable lab route");
+  },
+);
+
+await scenario(
+  "sw.js executed: /brain offline WITHOUT the lab route cached still falls back to the generic shell — never redirects to a dead cache entry",
+  async () => {
+    const cacheStore = new Map<string, Response>();
+    // Deliberately no phone-llm entry this time.
+    cacheStore.set("/offline", new Response("generic offline shell"));
+    const { dispatch } = makeFetchSandbox(cacheStore);
+
+    const brain = await dispatch("https://example.test/brain");
+    assert.equal(brain.status, 200);
+    assert.equal(await brain.text(), "generic offline shell");
+  },
+);
 
 await scenario("offline page exists and is static, no execution", () => {
   const src = fs.readFileSync(path.join(REPO, "app/offline/page.tsx"), "utf8");

@@ -41,6 +41,26 @@
  * own UI. Precaching it at `install` time removes the dependency on that
  * reload entirely.
  *
+ * SECOND, related gap (Phone-LLM #50): the installed PWA's manifest
+ * `start_url` is `/brain?source=pwa` (see `app/manifest.ts`) — a fixed,
+ * auth-gated entry point. Tapping the home-screen icon ALWAYS navigates
+ * there first, never straight to `/brain/voice-lab/phone-llm`, however that
+ * route was reached before. `/brain` cannot itself be made offline-capable
+ * the way the lab route is — it needs a live session, and precaching an
+ * auth-gated route fails `cache.addAll` (see above). Changing `start_url` to
+ * the lab route instead would "fix" this by breaking the primary, everyday
+ * "open AYAS" use case — a worse trade.
+ *
+ * So `/brain`'s OWN offline failure is handled specially, ONLY on genuine
+ * network failure (never online — a 307-to-login is a successful response,
+ * untouched): redirect the navigation to the cached lab route instead of the
+ * dead-end `/offline` shell. This is a browser-level redirect
+ * (`Response.redirect`), so it re-enters this SAME fetch handler as a fresh
+ * navigation to `OFFLINE_CAPABLE_ROUTE`, which is already handled above.
+ * `/brain`'s own online behavior (200, 307, whatever the network says) is
+ * completely unchanged — this only ever fires when `fetch(request)` itself
+ * rejects.
+ *
  * Registered ONLY when `NEXT_PUBLIC_ATOLYE_PWA_SW === "on"` (see PwaRegister).
  */
 
@@ -48,6 +68,9 @@ const CACHE = "ayas-shell-v3";
 
 /** The one navigable route allowed to survive a fully offline reload (see header). */
 const OFFLINE_CAPABLE_ROUTE = "/brain/voice-lab/phone-llm";
+
+/** The PWA's fixed `start_url` target (`app/manifest.ts`) — the route the home-screen icon always opens first. */
+const PWA_LAUNCH_ROUTE = "/brain";
 
 const PRECACHE = [
   "/offline",
@@ -109,6 +132,21 @@ self.addEventListener("fetch", (event) => {
             return response;
           })
           .catch(() => caches.match(request).then((hit) => hit || caches.match("/offline").then((h) => h || Response.error()))),
+      );
+      return;
+    }
+    // The PWA's own launch route (see header, "SECOND, related gap"): offline
+    // failure redirects to the cached lab route instead of a dead-end shell.
+    // Online behavior (200 / 307-to-login / anything the network returns) is
+    // untouched — this branch only runs when `fetch(request)` itself rejects.
+    if (url.pathname === PWA_LAUNCH_ROUTE) {
+      event.respondWith(
+        fetch(request).catch(() =>
+          caches
+            .match(OFFLINE_CAPABLE_ROUTE)
+            .then((hit) => (hit ? Response.redirect(new URL(OFFLINE_CAPABLE_ROUTE, self.location.origin).href, 302) : null))
+            .then((redirect) => redirect || caches.match("/offline").then((hit) => hit || Response.error())),
+        ),
       );
       return;
     }

@@ -1,5 +1,74 @@
 ---
 
+## AYAS PHASE 2 — BRAIN INTEGRATION (Model Router/Context/Memory/Reasoning/Tool Registry) VE PHONE-LLM PWA #50 KAPANIŞI: gerçek conversation kernel zaten bağlıydı (kanıtlandı); Phone-LLM offline launch-route redirect fix'i; gate CLOSED - 2026-09-11
+
+**Branch:** `wip/ayas-graphify-final-execution`, `c7844cd`'nin üzerinde. NOT merged / NOT pushed.
+
+### A — Brain Integration (#41-45) — SONUÇ: zaten bağlıydı, yeniden yazılmadı
+
+Bu sprintin asıl bulgusu: `src/lib/ayas/model/` (Model Provider/Router), `src/lib/ayas/context/`
+(Context Foundation), `src/lib/ayas/memory/` (Memory Foundation), `src/lib/ayas/reasoning/`
+(Reasoning Core + Tool Registry) — hepsi ÖNCEKİ bir turda (`c7844cd` commit'i içinde, hiç
+checkpoint'e yazılmadan) `src/lib/ayas/AyasChatStream.ts`'in `streamAyasChat()`'ine zaten
+bağlanmıştı. Bu sprintte yeniden yazılmadı — yalnızca kanıtlandı:
+
+```
+POST /api/ayas/chat/stream (app/api/ayas/chat/stream/route.ts)
+  → streamAyasChat()
+    → routeAyasModel()                    [#41 Model Router — complexity classify + provider seç]
+    → assembleAyasContext()               [#42 Context — state/reference/compression]
+    → recallAyasMemoryLines()             [#43 Memory okuma]
+    → shouldUseAyasReasoning(complexity)?
+        EVET → runAyasReasoning()         [#44 Reasoning; içeride checkAyasToolPermission #45]
+        HAYIR → route.provider.stream()   (mevcut doğrudan-stream yolu, değişmedi)
+    → isUsableAyasReply / ayasReplyClaimsExecution guard
+    → persistAyasMemoryFromTurn()         [#43 Memory yazma, fire-and-forget]
+```
+
+**Voice = text, aynı kernel (kanıtlı):** `BrainCoreConsole.tsx` `useAyasVoice({onCommand:
+handleVoiceCommand})` → `runAyas()` → `runAyasChatStreamWithPhoneFallback()` →
+`/api/ayas/chat/stream` → yukarıdaki AYNI `streamAyasChat()`. İkinci bir paralel kernel yok.
+
+**Tek gerçek boşluk (dokunulmadı):** `app/brain/actions.ts`'teki `askAyas()` — client-side stream
+başarısız olursa devreye giren ikincil fallback — hâlâ eski `resolveAyasReply()`'i (`brainCore.ts`,
+doğrudan Ollama'ya sabit) çağırıyor, Router/Context/Memory/Reasoning'den geçmiyor. Nadiren tetiklenen
+bir güvenlik ağı olduğu için minimal-diff gereği bu sprintte değiştirilmedi.
+
+**Tool Registry gerçek execution açmıyor** — yalnızca `checkAyasToolPermission` ile sınıflandırma;
+Execution Gate CLOSED, `writeActionsEnabled=false`, hiçbir arbitrary shell/browser execution yok.
+
+### B — Phone-LLM #50 blocker — KAPANDI
+
+**Kök neden (kanıtlı):** `app/manifest.ts` `start_url: "/brain?source=pwa"` — ana ekran ikonu HER
+ZAMAN `/brain`'e (auth-gated, `accessGate.ts`'te açık değil, `sw.js` `PRECACHE`'inde değil) navigasyon
+yapıyordu, `/brain/voice-lab/phone-llm`'e değil — telefon zaten o sayfayı cache'lemiş olsa bile oraya
+hiç ulaşılamıyordu.
+
+**Fix (`public/sw.js`, ~20 satır, minimal):** `manifest.ts`'e DOKUNULMADI (`start_url`'ü Phone-LLM'e
+sabitlemek normal "AYAS aç" kullanımını bozardı). Bunun yerine `/brain`'in KENDİ offline-hata dalına
+özel davranış: `fetch(request)` reddedilirse (yalnızca gerçek ağ hatası — online 200/307 davranışı
+DEĞİŞMEDİ), cache'de `/brain/voice-lab/phone-llm` varsa `Response.redirect(...,302)` ile oraya
+yönlendir; yoksa mevcut genel `/offline` kabuğuna düş (hiçbir zaman ölü bir cache girdisine
+yönlendirmez).
+
+**TESTLER:** tsc 0 hata · eslint 0 · `next build` PASS. `smoke-ayas-pwa-sw` 10→**12** (+2 gerçek
+davranışsal senaryo: `/brain` offline+cache'li→302 redirect kanıtlı; `/brain` offline+cache'siz→genel
+shell, ölü redirect yok). Ayrıca bu sprintte mevcut bir mock-fidelity boşluğu (cache key relative/
+absolute uyuşmazlığı) bulundu ve düzeltildi. 24 suite tam regresyon: hepsi PASS (voice 55, wake-adapter
+53, wake-runner 17, STT 17, access-gate 17, model-router 16, context 11, memory 14, reasoning 23,
+tool-registry 11, phone-runtime 24, phone-llm-capability 11, dahil).
+
+**CODE READY:** A ve B, ikisi de. **DEVICE VERIFIED:** HAYIR — bu sprintte fiziksel cihaz erişimi
+yok, yalnızca kod/build/regresyon doğrulandı. **OPERATOR REQUIRED:** gerçek iPhone'da — PWA online
+güncelle → Phone-LLM sayfasını bir kez ziyaret et (cache'e girmesi için) → PC kapat + internet kapat →
+ana ekran ikonuna dokun → `/brain` başarısız olup 302 ile Phone-LLM'e düşmeli. **BLOCKED:** yok — hem
+A hem B kod seviyesinde tam; yalnızca cihaz onayı bekliyor.
+
+Gate CLOSED, `writeActionsEnabled=false`, Cloudflare Worker/Quick Tunnel/wake-word/STT/TTS
+mimarisine dokunulmadı — hepsi bu sprintte de değişmeden regresyon-temiz kaldı.
+
+---
+
 ## AYAS — CONVERSATION SESSION MODE / REAL-DEVICE DEBUG: iPhone'da hâlâ her komutta "AYAS" isteniyordu — kök neden: iOS post-TTS AudioContext rebuild'i oturumu kapatıyordu; gate CLOSED - 2026-09-10
 
 **Branch:** `wip/ayas-graphify-final-execution` (fix commit on top of `570b8c6`). NOT merged / NOT pushed.
