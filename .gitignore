@@ -71,6 +71,7 @@ graphify-out/
 /data/brain/experience/
 /data/brain/execution/
 /data/brain/selfheal/
+/data/brain/memory/
 
 # ---------------------------------------------------------------------------
 # C.2B.12 (Sprint 199) — data/projects is external-runtime authority data.
@@ -94,3 +95,6 @@ graphify-out/
 
 # onnxruntime-web WASM (copied from node_modules by scripts/setup-wake-assets.ts)
 /public/ort/
+
+# wrangler build cache / local state (cloudflare/ayas-phone-gateway) — per-machine, not committed
+.wrangler/

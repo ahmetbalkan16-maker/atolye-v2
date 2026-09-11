@@ -16,8 +16,8 @@ import path from "node:path";
 import vm from "node:vm";
 
 let count = 0;
-function scenario(name: string, test: () => void) {
-  test();
+async function scenario(name: string, test: () => void | Promise<void>) {
+  await test();
   count += 1;
   if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${name}`);
 }
@@ -25,11 +25,12 @@ function scenario(name: string, test: () => void) {
 const REPO = path.resolve(__dirname, "..");
 const swSource = fs.readFileSync(path.join(REPO, "public/sw.js"), "utf8");
 
-scenario("sw.js — non-GET requests are never intercepted", () => {
+async function run() {
+await scenario("sw.js — non-GET requests are never intercepted", () => {
   assert.match(swSource, /request\.method\s*!==\s*"GET"\s*\)\s*return/);
 });
 
-scenario("sw.js — /api/ is bypassed before any cache logic (network-only)", () => {
+await scenario("sw.js — /api/ is bypassed before any cache logic (network-only)", () => {
   const code = swSource.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
   assert.match(code, /pathname\.startsWith\("\/api\/"\)\)\s*return;/);
   // the /api bypass appears BEFORE the first respondWith — so API is never cached.
@@ -40,34 +41,41 @@ scenario("sw.js — /api/ is bypassed before any cache logic (network-only)", ()
   assert.equal((code.match(/\/api\//g) || []).length, 1, "no other /api reference in the SW code");
 });
 
-scenario("sw.js — navigations are NETWORK-ONLY (never a cached HTML page), /offline as the only fallback", () => {
+await scenario("sw.js — navigations are NETWORK-ONLY (never a cached HTML page) except the ONE documented offline-capable route", () => {
   assert.match(swSource, /request\.mode\s*===\s*"navigate"/);
   assert.match(swSource, /request\.destination\s*===\s*"document"/);
   assert.match(swSource, /fetch\(request\)\.catch\(/);
   assert.match(swSource, /caches\.match\("\/offline"\)/);
-  // the navigation branch must NOT fall back to `caches.match(request)` — a
-  // stale HTML page references a prior build and renders as a client 404.
-  const navBranch = swSource.slice(
-    swSource.indexOf('request.mode === "navigate"'),
-    swSource.indexOf("_next/static/"),
-  );
-  assert.ok(!/caches\.match\(request\)/.test(navBranch), "navigations must not serve a cached document");
+  const navigateMarker = swSource.indexOf('request.mode === "navigate"');
+  // NOTE: `_next/static/` also appears earlier, in this file's own top
+  // comment — search must start AFTER the navigate marker, or `.slice()`
+  // silently gets an empty (start > end) string and this assertion is a
+  // no-op that always "passes". Bounding it correctly is what lets the count
+  // below mean anything.
+  const navBranchEnd = swSource.indexOf("_next/static/", navigateMarker);
+  const navBranch = swSource.slice(navigateMarker, navBranchEnd);
+  assert.ok(navBranchEnd > navigateMarker, "sanity: the slice must be non-empty");
+  const cacheMatchRequestCount = (navBranch.match(/caches\.match\(request\)/g) ?? []).length;
+  // Exactly one — the documented `OFFLINE_CAPABLE_ROUTE` exception (proven
+  // behaviorally in the next scenario). Any other count means either the
+  // exception vanished or a NEW route started caching documents unnoticed.
+  assert.equal(cacheMatchRequestCount, 1, "navigations must not serve a cached document, except the one documented exception");
 });
 
-scenario("sw.js — precache holds no auth-gated route (/ and /brain would break cache.add)", () => {
+await scenario("sw.js — precache holds no auth-gated route (/ and /brain would break cache.add)", () => {
   const precache = swSource.slice(swSource.indexOf("PRECACHE = ["), swSource.indexOf("]"));
   assert.ok(!/["']\/["']/.test(precache) && !/\/brain/.test(precache), "no gated routes in PRECACHE");
   assert.match(swSource, /Promise\.allSettled/, "a bad precache entry must not abort install");
   assert.match(swSource, /ayas-shell-v3/, "cache name bumped so activate() purges the stale cache");
 });
 
-scenario("sw.js — no execution / eval / dynamic code / network beyond fetch(request)", () => {
+await scenario("sw.js — no execution / eval / dynamic code / network beyond fetch(request)", () => {
   for (const banned of ["eval(", "Function(", "importScripts(", "XMLHttpRequest", "WebSocket", "indexedDB", "postMessage(", "PipelineRunner"]) {
     assert.ok(!swSource.includes(banned), `sw.js must not use "${banned}"`);
   }
 });
 
-scenario("sw.js — evaluates in a mock worker scope without throwing; registers the 4 lifecycle handlers", () => {
+await scenario("sw.js — evaluates in a mock worker scope without throwing; registers the 4 lifecycle handlers", () => {
   const handlers: string[] = [];
   const sandbox = {
     self: {
@@ -92,7 +100,76 @@ scenario("sw.js — evaluates in a mock worker scope without throwing; registers
   assert.deepEqual(handlers.sort(), ["activate", "fetch", "install", "message"]);
 });
 
-scenario("offline page exists and is static, no execution", () => {
+await scenario("sw.js — the ONE offline-capable route (phone-llm lab) is named and documented, distinct from the generic shell fallback", () => {
+  assert.match(swSource, /OFFLINE_CAPABLE_ROUTE\s*=\s*"\/brain\/voice-lab\/phone-llm"/);
+  assert.match(swSource, /url\.pathname === OFFLINE_CAPABLE_ROUTE/);
+});
+
+// Behavioral, not regex-slicing (a static slice bounded by the first
+// `_next/static/` substring is unreliable — that phrase also appears earlier,
+// in this file's own top comment). This actually EXECUTES the real fetch
+// handler against two navigations while "offline" (fetch always rejects) and
+// asserts the two routes get genuinely different treatment.
+await scenario("sw.js executed: phone-llm navigation serves a cached copy of ITSELF offline; every other route still only gets the generic shell", async () => {
+  const cacheStore = new Map<string, Response>();
+  let fetchHandler: ((event: { request: { method: string; url: string; mode?: string }; respondWith: (p: Promise<Response>) => void }) => void) | null =
+    null;
+  const sandbox = {
+    self: {
+      addEventListener: (type: string, fn: unknown) => {
+        if (type === "fetch") fetchHandler = fn as typeof fetchHandler;
+      },
+      skipWaiting: () => {},
+      clients: { claim: () => Promise.resolve() },
+      location: { origin: "https://example.test" },
+    },
+    caches: {
+      open: () =>
+        Promise.resolve({
+          addAll: () => Promise.resolve(),
+          put: (req: { url: string } | string, res: Response) => {
+            cacheStore.set(typeof req === "string" ? req : req.url, res);
+            return Promise.resolve();
+          },
+          match: (req: { url: string } | string) => Promise.resolve(cacheStore.get(typeof req === "string" ? req : req.url)),
+        }),
+      keys: () => Promise.resolve([]),
+      delete: () => Promise.resolve(true),
+      match: (req: { url: string } | string) => Promise.resolve(cacheStore.get(typeof req === "string" ? req : req.url)),
+    },
+    fetch: () => Promise.reject(new Error("offline")),
+    URL,
+    Response,
+    Promise,
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(swSource, sandbox);
+  assert.ok(fetchHandler, "fetch handler registered");
+
+  cacheStore.set("https://example.test/brain/voice-lab/phone-llm", new Response("phone-llm cached shell"));
+  // sw.js calls `caches.match("/offline")` with a bare relative string here — a
+  // different lookup shape than the `caches.match(request)` object-with-.url
+  // case above, so it needs its own key matching that exact call.
+  cacheStore.set("/offline", new Response("generic offline shell"));
+
+  const dispatch = (url: string) =>
+    new Promise<Response>((resolve) => {
+      fetchHandler!({
+        request: { method: "GET", url, mode: "navigate" },
+        respondWith: (p) => {
+          void p.then(resolve);
+        },
+      });
+    });
+
+  const phoneLlm = await dispatch("https://example.test/brain/voice-lab/phone-llm");
+  assert.equal(await phoneLlm.text(), "phone-llm cached shell", "offline + previously cached → its OWN cached page, not the generic shell");
+
+  const other = await dispatch("https://example.test/brain");
+  assert.equal(await other.text(), "generic offline shell", "every other route is untouched — still only the generic /offline fallback");
+});
+
+await scenario("offline page exists and is static, no execution", () => {
   const src = fs.readFileSync(path.join(REPO, "app/offline/page.tsx"), "utf8");
   assert.match(src, /force-static/);
   assert.match(src, /çevrimdışı|çevrimiçi/i);
@@ -101,7 +178,7 @@ scenario("offline page exists and is static, no execution", () => {
   }
 });
 
-scenario("PwaRegister — OFF by default; on, SW-update reload is DEFERRED, never mid-use", () => {
+await scenario("PwaRegister — OFF by default; on, SW-update reload is DEFERRED, never mid-use", () => {
   const src = fs.readFileSync(path.join(REPO, "src/components/PwaRegister.tsx"), "utf8");
   assert.match(src, /NEXT_PUBLIC_ATOLYE_PWA_SW\s*===\s*"on"/);
   assert.match(src, /if\s*\(!enabled\)/);
@@ -121,3 +198,9 @@ scenario("PwaRegister — OFF by default; on, SW-update reload is DEFERRED, neve
 
 console.log(`AYAS PWA service worker smoke: PASS (${count} scenarios)`);
 console.log(JSON.stringify({ status: "PASS", suite: "ayas-pwa-sw", scenarios: count }));
+}
+
+run().catch((error) => {
+  console.error("AYAS PWA service worker smoke FAILED:", error);
+  process.exitCode = 1;
+});

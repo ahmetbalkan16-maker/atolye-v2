@@ -137,6 +137,14 @@ const OPEN_PREFIXES: readonly string[] = [
   "/wake/",
   "/ort/",
   "/worklets/",
+  // AYAS phone-local-LLM lab (Tier 2 prototype, isolated from production
+  // chat/voice/memory/reasoning/self-heal — see the page's own header
+  // comment). It must be reachable with NO AYAS session at all: the whole
+  // point is a phone that can open it purely from its own local model +
+  // browser cache while the PC (and therefore session verification) is
+  // unreachable. Nothing sensitive lives behind this path — no chat history,
+  // no project data, no secret; it never calls `/api/ayas/**`.
+  "/brain/voice-lab/phone-llm",
 ];
 const OPEN_EXACT: readonly string[] = [
   "/favicon.ico",

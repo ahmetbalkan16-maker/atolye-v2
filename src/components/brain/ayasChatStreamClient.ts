@@ -15,6 +15,7 @@
  */
 
 import type { AyasChatStreamEvent } from "@/lib/ayas/AyasChatStream";
+import { resolveAyasWorkerUrl, getStoredAyasPhoneKey } from "./ayasPhoneFallback";
 
 export interface RunAyasChatStreamInput {
   readonly text: string;
@@ -24,6 +25,8 @@ export interface RunAyasChatStreamInput {
   /** Test seam. */
   readonly fetcher?: typeof fetch;
   readonly url?: string;
+  /** Extra request headers (e.g. the phone-gateway's `Authorization: Bearer …`). */
+  readonly headers?: Readonly<Record<string, string>>;
   /** Fired for every incremental token. */
   readonly onDelta: (delta: string) => void;
 }
@@ -41,7 +44,7 @@ export async function runAyasChatStream(input: RunAyasChatStreamInput): Promise<
   try {
     response = await fetcher(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(input.headers ?? {}) },
       body: JSON.stringify({ text: input.text, history: input.history, seq: input.seq }),
       ...(input.signal ? { signal: input.signal } : {}),
     });
@@ -116,4 +119,39 @@ export async function runAyasChatStream(input: RunAyasChatStreamInput): Promise<
     corrected: terminal.corrected,
     streamed: sawDelta && !terminal.corrected,
   };
+}
+
+/**
+ * AYAS PC-off phone fallback (Phase 2 · P0-A.4 · Option A).
+ *
+ * Tries the PC endpoint first (`runAyasChatStream`, unchanged behavior). Only
+ * when that fails with a genuine **network** error (the PC/tunnel is
+ * unreachable — not an HTTP error from a server that IS reachable, not an
+ * abort, not a stream-read fault) does it retry once against the deployed
+ * Cloudflare Worker, authenticated with the phone's stored key.
+ *
+ * No Worker URL configured, or no phone key stored yet (the one-time
+ * `?ayasPhoneKey=` bootstrap hasn't run on this device) → behaves exactly
+ * like the plain `runAyasChatStream` (returns its `network` failure as-is,
+ * so the caller's existing `askAyas` Server Action fallback still applies).
+ */
+export async function runAyasChatStreamWithPhoneFallback(
+  input: RunAyasChatStreamInput & {
+    /** Test seams — default to the real resolvers. */
+    readonly resolveWorkerUrl?: () => string | null;
+    readonly getPhoneKey?: () => string | null;
+  },
+): Promise<RunAyasChatStreamResult> {
+  const primary = await runAyasChatStream(input);
+  if (primary.ok || primary.reason !== "network") return primary;
+
+  const workerOrigin = (input.resolveWorkerUrl ?? resolveAyasWorkerUrl)();
+  const phoneKey = (input.getPhoneKey ?? getStoredAyasPhoneKey)();
+  if (!workerOrigin || !phoneKey) return primary;
+
+  return runAyasChatStream({
+    ...input,
+    url: `${workerOrigin}/api/ayas/chat/stream`,
+    headers: { ...(input.headers ?? {}), Authorization: `Bearer ${phoneKey}` },
+  });
 }

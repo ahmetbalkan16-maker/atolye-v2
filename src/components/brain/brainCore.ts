@@ -540,12 +540,31 @@ export interface AyasStudioContextView {
   readonly notes: readonly string[];
 }
 
+/**
+ * Phase 2 · Context Foundation — deterministic conversation-context blocks the
+ * server derives (`src/lib/ayas/context/*`) and hands to the prompt as ready
+ * lines. The prompt stays pure: it never runs the derivation, just renders what
+ * it is given.
+ */
+export interface AyasConversationPromptBlock {
+  /** "aktif proje: … / aktif aşama: … / çözülmemiş soru: …" */
+  readonly stateLines?: readonly string[];
+  /** "'o proje' = Mimar Sinan" resolutions + any unresolved-reference warning. */
+  readonly referenceLines?: readonly string[];
+  /** Extractive summary of the older turns that were dropped from the verbatim window. */
+  readonly historySummary?: readonly string[];
+}
+
 export interface AyasChatPromptInput {
   readonly userText: string;
   readonly snapshot: BrainConsoleSnapshot;
   readonly history: readonly { readonly role: BrainChatMessage["role"]; readonly text: string }[];
   /** Optional read-only studio/runtime-authority facts (Sprint 208). */
   readonly studio?: AyasStudioContextView;
+  /** Optional conversation-context blocks (Phase 2 · Phase B). */
+  readonly conversation?: AyasConversationPromptBlock;
+  /** Optional recalled long-term memory lines (Phase 2 · Phase C). */
+  readonly memoryLines?: readonly string[];
   /**
    * `"json"` (default) ends the prompt with the `{ reply }` envelope instruction
    * — for the non-streaming `format: "json"` backend. `"text"` asks for a direct
@@ -683,7 +702,19 @@ export function buildAyasChatPrompt(input: AyasChatPromptInput): string {
     "Şu anki Atölye durumu (salt-okunur, kaynak: Brain snapshot):",
     ...state,
     ...ayasStudioPromptLines(input.studio),
+    ...(input.memoryLines && input.memoryLines.length
+      ? ["", "Kalıcı hafızadan hatırlananlar (yalnızca ilgiliyse kullan, uydurma):", ...input.memoryLines]
+      : []),
+    ...(input.conversation?.stateLines && input.conversation.stateLines.length
+      ? ["", "Konuşma bağlamı (salt-okunur):", ...input.conversation.stateLines]
+      : []),
+    ...(input.conversation?.referenceLines && input.conversation.referenceLines.length
+      ? ["", ...input.conversation.referenceLines]
+      : []),
     "",
+    ...(input.conversation?.historySummary && input.conversation.historySummary.length
+      ? ["Daha eski turların özeti:", ...input.conversation.historySummary, ""]
+      : []),
     ...(turns.length
       ? [
           "Bu, süren bir konuşmanın devamıdır. Önceki turları bağlam olarak kullan; tanıtım / selamlama YAPMA, doğrudan yanıtla.",

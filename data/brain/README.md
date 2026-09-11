@@ -34,9 +34,30 @@ data/brain/
   selfheal/auto-applies.json   { schemaVersion, timestamps: number[] } (per-hour rate limit)     ← LANDED (Autonomous v2)
   selfheal/decisions/<id>.json { BrainSelfHealDecision } (operator ONAYLA/REDDET/DAHA SONRA)      ← LANDED (Report Center)
   selfheal/latency.json        { schemaVersion, samples: BrainVoiceLatencySample[] } (bounded ring) ← LANDED (Optimization Loop)
-  memory/<yyyy-mm>.json        BrainMemoryRecord[]                                               ← not implemented yet
+  memory/records.json          { schemaVersion, records: BrainMemoryRecord[] } (bounded ≤ 500)   ← LANDED (Phase 2 · Phase C)
   proposals/<id>.json          BrainImprovementProposal                                         ← not implemented yet
 ```
+
+### `memory/` — `src/lib/ayas/memory/AyasMemoryStore.ts` (Phase 2 · Phase C)
+
+- AYAS long-term memory — the thin fs adapter the pure `BrainMemoryModel` always
+  expected. One file `records.json` (`{ schemaVersion, records }`), atomic write
+  (temp → `rename`), bounded to 500 records (oldest non-pinned dropped first).
+- **This subtree is gitignored** (`/data/brain/memory/`) — per-machine, not
+  shared. (Cross-machine memory sync is a later phase.)
+- Written **fire-and-forget** by the chat path (`streamAyasChat` → `persistAyasMemoryFromTurn`)
+  AFTER a reply: `extractAyasMemoryCandidates` (deterministic pattern match — an
+  explicit preference / decision / env-fact / bug; small talk yields nothing) →
+  `scoreAyasMemoryCandidate` (importance + confidence gate; `transient` / secret
+  / `security-policy` → rejected) → `buildBrainMemoryRecord` (redaction) →
+  `validateBrainMemoryRecord` → `store.append` (re-asserts no-secret; dedupes on
+  `contentFingerprint`). It never blocks the response and never throws into it.
+- Read by `recallAyasMemoryLines` before a reply: `rankAyasMemory` scores each
+  record on importance + query/active-project token overlap, takes the top 4,
+  caps the block at ~700 chars, and injects them as
+  `"Kalıcı hafızadan hatırlananlar"` prompt lines — the whole store is never
+  dumped. `[]` on an empty store or any error.
+- Nothing here opens the execution gate, runs a task, or touches git.
 
 ### `selfheal/` — `src/lib/brain/selfheal/BrainSelfHealStore.ts` (Self-Healing v1)
 

@@ -1,0 +1,28 @@
+# AYAS phone gateway — Cloudflare Worker config (Phase 2 · P0-A.4 · Option A).
+#
+# Deploys to the account's free `*.workers.dev` subdomain — no custom domain,
+# no DNS change, no new Cloudflare product beyond Workers (which the account
+# already has, alongside the existing cloudflared Quick Tunnel). See
+# ../README.md for the exact deploy + secret commands.
+
+name = "ayas-phone-gateway"
+main = "src/worker.ts"
+compatibility_date = "2024-09-23"
+workers_dev = true
+
+# No [[routes]] / custom domain — intentional. This Worker only needs to be
+# independently reachable; it has nothing to do with the PC's tunnel hostname.
+
+# Non-secret config. Left unset here on purpose: CloudAyasProvider's own
+# defaults (gpt-4o-mini, https://api.openai.com/v1, 60000ms) already match the
+# PC-side config, so "unset" == "same as the PC's default cloud config". Only
+# uncomment/override if the operator's cloud vendor differs from the PC's.
+[vars]
+# AYAS_CLOUD_MODEL = "gpt-4o-mini"
+# AYAS_CLOUD_BASE_URL = "https://api.openai.com/v1"
+# AYAS_CLOUD_TIMEOUT_MS = "60000"
+# AYAS_EXTRA_ORIGIN = "https://your-named-tunnel-domain.example"
+
+# SECRETS — never put these here. Set with:
+#   npx wrangler secret put AYAS_CLOUD_API_KEY
+#   npx wrangler secret put AYAS_PHONE_KEY

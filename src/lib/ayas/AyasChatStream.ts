@@ -33,7 +33,13 @@ import {
 } from "@/components/brain/brainCore";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import { resolveOllamaConfig } from "@/lib/ai/OllamaConfig";
-import { resolveAyasChatModelProfile } from "./AyasModelProfile";
+import { routeAyasModel, type AyasModelRoute } from "./model/AyasModelRouter";
+import type { AyasModelProviderId, AyasChatComplexity } from "./model/AyasModelTypes";
+import { assembleAyasContext } from "./context/AyasContextAssembly";
+import { recallAyasMemoryLines, persistAyasMemoryFromTurn } from "./memory/AyasMemoryRecall";
+import { shouldUseAyasReasoning, runAyasReasoning } from "./reasoning/AyasReasoningCore";
+import type { AyasReasoningTrace } from "./reasoning/AyasReasoningTypes";
+import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
 
 export type AyasChatStreamEvent =
   | { readonly type: "delta"; readonly text: string }
@@ -45,6 +51,12 @@ export type AyasChatStreamEvent =
       /** `true` when a guard replaced the streamed text (unusable / execution claim). */
       readonly corrected: boolean;
       readonly reason?: string;
+      /** Which model answered — for the operational trace. Absent on the pure deterministic path. */
+      readonly provider?: AyasModelProviderId;
+      /** Coarse turn shape decided before the call. */
+      readonly complexity?: AyasChatComplexity;
+      /** Safe, secret-free reasoning summary (Phase D) — present only for COMPLEX/TOOL/REPAIR/RESEARCH turns that used the Reasoning Core. Never a raw model dump or chain-of-thought. */
+      readonly reasoning?: AyasReasoningTrace;
     };
 
 export interface StreamAyasChatInput {
@@ -58,12 +70,17 @@ export interface StreamAyasChatInput {
   readonly fetcher?: typeof fetch;
   /** Test seam — overrides env resolution. */
   readonly env?: NodeJS.ProcessEnv;
+  /** Test seam — inject a routing decision instead of probing model health. */
+  readonly route?: AyasModelRoute;
 }
 
-interface OllamaStreamLine {
-  message?: { content?: string | null };
-  done?: boolean;
-  done_reason?: string | null;
+/** Best-effort temperature for the model call — kept at the pipeline default. */
+function resolveChatTemperature(env: NodeJS.ProcessEnv): number | undefined {
+  try {
+    return resolveOllamaConfig(env).temperature;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function* streamAyasChat(
@@ -77,95 +94,181 @@ export async function* streamAyasChat(
     return;
   }
 
-  const prompt = buildAyasChatPrompt({
-    userText: text,
-    snapshot: input.snapshot,
-    history: input.history ?? [],
-    format: "text",
-    ...(input.studio ? { studio: input.studio } : {}),
-  });
-
   const env = input.env ?? process.env;
   const fetcher = input.fetcher ?? fetch;
-  const base = resolveOllamaConfig(env);
-  const profile = resolveAyasChatModelProfile(env, base);
-  const model = profile.model;
 
-  let full = "";
-  const controller = new AbortController();
-  const onAbort = () => controller.abort();
-  input.signal?.addEventListener("abort", onAbort);
-  const timeout = setTimeout(() => controller.abort(), base.timeoutMs);
+  // 1 — route: which model answers this turn (availability + complexity).
+  const route =
+    input.route ?? (await routeAyasModel({ text, env, fetcher, signal: input.signal }).catch(() => null));
+  const complexity = route?.decision.complexity;
 
-  try {
-    const response = await fetcher(`${base.baseUrl}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: prompt }],
-        stream: true,
-        options: {
-          temperature: base.temperature,
-          num_predict: AYAS_MAX_REPLY_TOKENS,
-          ...(base.numCtx !== undefined ? { num_ctx: base.numCtx } : {}),
-        },
-      }),
-      signal: controller.signal,
-      redirect: "error",
+  if (!route || !route.provider) {
+    yield {
+      type: "done",
+      text: route?.decision.unavailableMessage ?? deterministic(),
+      source: "fallback",
+      corrected: true,
+      reason: route?.decision.reason ?? "no-provider",
+      ...(complexity ? { complexity } : {}),
+    };
+    return;
+  }
+  const providerId = route.decision.providerId!;
+
+  // Phase B — deterministic conversation context (state + reference resolution +
+  // older-turn compression). Phase C — recalled long-term memory (top-K, safe).
+  const ctx = assembleAyasContext({
+    userText: text,
+    history: input.history ?? [],
+    ...(input.studio ? { studio: input.studio } : {}),
+  });
+  const memoryLines = await recallAyasMemoryLines(text, {
+    ...(ctx.trace.activeProject ? { activeProject: ctx.trace.activeProject } : {}),
+  }).catch(() => [] as string[]);
+
+  // Phase D — the complexity gate. SIMPLE/NORMAL never reach the Reasoning
+  // Core (falls through to the existing direct-stream path below, unchanged).
+  // COMPLEX/TOOL/REPAIR/RESEARCH get a structured pass first; its `answer` is
+  // what the user sees, guarded exactly like every other AYAS reply.
+  if (shouldUseAyasReasoning(route.decision.complexity)) {
+    const contextLines = [
+      ...(ctx.block.stateLines ?? []),
+      ...(ctx.block.referenceLines ?? []),
+      ...(ctx.block.historySummary ?? []),
+    ];
+    // REPAIR only — a redacted, read-only self-heal summary. Never fetched for
+    // any other complexity (no reason to touch that store otherwise).
+    let selfHealLines: string[] | undefined;
+    if (route.decision.complexity === "REPAIR") {
+      try {
+        const heal = loadBrainSelfHealSnapshot();
+        selfHealLines = [
+          `self-heal durumu: ${heal.health.summary} (açık olay: ${heal.health.openIncidents}, insan gerekiyor: ${heal.health.needsHuman}, risk: ${heal.currentRisk})`,
+          ...(heal.lastRootCause ? [`son doğrulanmış kök neden: ${heal.lastRootCause}`] : []),
+          ...heal.activeIncidents.slice(0, 2).map((i) => `aktif olay: ${i.symptom} (${i.rootCause ?? "kök neden bilinmiyor"})`),
+        ];
+      } catch {
+        selfHealLines = undefined;
+      }
+    }
+
+    const outcome = await runAyasReasoning({
+      userText: text,
+      complexity: route.decision.complexity,
+      provider: route.provider,
+      ...(contextLines.length ? { contextLines } : {}),
+      ...(memoryLines.length ? { memoryLines } : {}),
+      ...(selfHealLines?.length ? { selfHealLines } : {}),
+      ...(input.signal ? { signal: input.signal } : {}),
     });
 
-    if (!response.ok || !response.body) {
-      yield { type: "done", text: deterministic(), source: "fallback", corrected: true, reason: `ollama-${response.status}` };
+    if (!outcome.ok) {
+      yield {
+        type: "done",
+        text: deterministic(),
+        source: "fallback",
+        corrected: true,
+        reason: outcome.reason,
+        provider: providerId,
+        complexity: route.decision.complexity,
+      };
       return;
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
+    yield { type: "delta", text: outcome.result.answer };
+    yield {
+      type: "done",
+      text: outcome.result.answer,
+      source: "llm",
+      corrected: false,
+      provider: providerId,
+      complexity: route.decision.complexity,
+      reasoning: outcome.trace,
+    };
+    void persistAyasMemoryFromTurn({ userText: text, ayasReply: outcome.result.answer }).catch(() => {});
+    return;
+  }
 
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let nl: number;
-      while ((nl = buffer.indexOf("\n")) !== -1) {
-        const line = buffer.slice(0, nl).trim();
-        buffer = buffer.slice(nl + 1);
-        if (!line) continue;
-        let parsed: OllamaStreamLine;
-        try {
-          parsed = JSON.parse(line) as OllamaStreamLine;
-        } catch {
-          continue; // skip a malformed line, keep going
-        }
-        const piece = typeof parsed.message?.content === "string" ? parsed.message.content : "";
-        if (piece) {
-          full += piece;
-          yield { type: "delta", text: piece };
-        }
-        if (parsed.done) break;
+  const prompt = buildAyasChatPrompt({
+    userText: text,
+    snapshot: input.snapshot,
+    history: ctx.recentHistory,
+    format: "text",
+    conversation: ctx.block,
+    ...(memoryLines.length ? { memoryLines } : {}),
+    ...(input.studio ? { studio: input.studio } : {}),
+  });
+
+  // 2 — stream from the chosen provider (Ollama or Cloud, same contract).
+  let full = "";
+  try {
+    for await (const chunk of route.provider.stream({
+      prompt,
+      complexity: route.decision.complexity,
+      maxTokens: AYAS_MAX_REPLY_TOKENS,
+      temperature: resolveChatTemperature(env),
+      signal: input.signal,
+    })) {
+      if (chunk.type === "delta") {
+        full += chunk.text;
+        yield { type: "delta", text: chunk.text };
       }
     }
   } catch (error) {
-    const reason = (error as Error)?.name === "AbortError" ? "aborted" : "fetch-failed";
-    yield { type: "done", text: deterministic(), source: "fallback", corrected: true, reason };
+    const name = (error as Error)?.name === "AbortError" ? "aborted" : "fetch-failed";
+    // Provider transport failure → honest deterministic reply. NOTE: only the
+    // error NAME is used; a cloud error body is never surfaced.
+    yield {
+      type: "done",
+      text: deterministic(),
+      source: "fallback",
+      corrected: true,
+      reason: `${providerId}-${name}`,
+      provider: providerId,
+      ...(complexity ? { complexity } : {}),
+    };
     return;
-  } finally {
-    clearTimeout(timeout);
-    input.signal?.removeEventListener("abort", onAbort);
   }
 
+  // 3 — the same safety backstops, provider-agnostic.
   const finalText = full.trim();
   if (!isUsableAyasReply(finalText)) {
-    yield { type: "done", text: deterministic(), source: "fallback", corrected: true, reason: "unusable-reply" };
+    yield {
+      type: "done",
+      text: deterministic(),
+      source: "fallback",
+      corrected: true,
+      reason: "unusable-reply",
+      provider: providerId,
+      ...(complexity ? { complexity } : {}),
+    };
     return;
   }
   if (ayasReplyClaimsExecution(finalText)) {
-    yield { type: "done", text: deterministic(), source: "fallback", corrected: true, reason: "execution-claim" };
+    yield {
+      type: "done",
+      text: deterministic(),
+      source: "fallback",
+      corrected: true,
+      reason: "execution-claim",
+      provider: providerId,
+      ...(complexity ? { complexity } : {}),
+    };
     return;
   }
-  yield { type: "done", text: finalText, source: "llm", corrected: false };
+  yield {
+    type: "done",
+    text: finalText,
+    source: "llm",
+    corrected: false,
+    provider: providerId,
+    ...(complexity ? { complexity } : {}),
+  };
+
+  // Phase C — memory write side. Fire-and-forget: extract candidates from this
+  // turn, gate each (candidate → scoring → redaction → store/reject), persist
+  // the survivors. Never blocks the response, never throws into the stream.
+  void persistAyasMemoryFromTurn({ userText: text, ayasReply: finalText }).catch(() => {});
 }
 
 /** Serialise a stream event as one SSE frame. */

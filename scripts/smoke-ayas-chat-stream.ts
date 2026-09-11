@@ -41,9 +41,16 @@ function snap(): BrainConsoleSnapshot {
   };
 }
 
-/** A mock `fetch` that streams the given content pieces as Ollama NDJSON. */
+/**
+ * A URL-aware mock `fetch`: the model router first probes `GET /api/tags`
+ * (health) — always answer that "healthy" so Ollama is the routed provider —
+ * then `POST /api/chat` behaves per `opts` (the streamed reply, or a failure).
+ */
 function mockOllamaStream(pieces: string[], opts: { status?: number; noBody?: boolean; throwErr?: boolean } = {}): typeof fetch {
-  return (async () => {
+  return (async (url: string) => {
+    if (String(url).includes("/api/tags")) {
+      return new Response(JSON.stringify({ models: [{ name: "qwen2.5:7b" }] }), { status: 200 });
+    }
     if (opts.throwErr) throw new Error("ECONNREFUSED");
     if (opts.noBody) return new Response(null, { status: opts.status ?? 200 });
     if ((opts.status ?? 200) !== 200) return new Response("err", { status: opts.status });
@@ -154,42 +161,67 @@ async function run() {
     assert.equal(events[0].reason, "empty-input");
   });
 
-  await scenario("Ollama non-200 → fallback done", async () => {
+  await scenario("provider stream non-200 (health OK) → fallback done", async () => {
     const events = await collect(
       streamAyasChat({ text: "selam", snapshot: snap(), seq: 5, fetcher: mockOllamaStream([], { status: 500 }) }) as never,
     );
     assert.equal(events.at(-1)!.source, "fallback");
-    assert.match(String(events.at(-1)!.reason), /ollama-500/);
+    assert.match(String(events.at(-1)!.reason), /^ollama-/, "reason names the failed provider");
+    assert.equal(events.at(-1)!.provider, "ollama");
   });
 
-  await scenario("Ollama 200 but no body → fallback done", async () => {
+  await scenario("provider stream 200 but no body → fallback done", async () => {
     const events = await collect(
       streamAyasChat({ text: "selam", snapshot: snap(), seq: 6, fetcher: mockOllamaStream([], { noBody: true }) }) as never,
     );
     assert.equal(events.at(-1)!.source, "fallback");
   });
 
-  await scenario("fetch throws → fallback done (reason fetch-failed)", async () => {
+  await scenario("provider fetch throws → fallback done (provider-prefixed reason)", async () => {
     const events = await collect(
       streamAyasChat({ text: "selam", snapshot: snap(), seq: 7, fetcher: mockOllamaStream([], { throwErr: true }) }) as never,
     );
     assert.equal(events.at(-1)!.source, "fallback");
-    assert.equal(events.at(-1)!.reason, "fetch-failed");
+    assert.equal(events.at(-1)!.reason, "ollama-fetch-failed");
   });
 
-  await scenario("aborted signal → fallback done (reason aborted)", async () => {
+  await scenario("aborted signal during the provider stream → fallback done (reason aborted)", async () => {
     const ac = new AbortController();
-    const slowFetcher = (async () => {
+    const abortingFetcher = (async (url: string) => {
+      if (String(url).includes("/api/tags")) {
+        return new Response(JSON.stringify({ models: [{}] }), { status: 200 });
+      }
       ac.abort();
       const err = new Error("aborted");
       err.name = "AbortError";
       throw err;
     }) as unknown as typeof fetch;
     const events = await collect(
-      streamAyasChat({ text: "selam", snapshot: snap(), seq: 8, signal: ac.signal, fetcher: slowFetcher }) as never,
+      streamAyasChat({ text: "selam", snapshot: snap(), seq: 8, signal: ac.signal, fetcher: abortingFetcher }) as never,
     );
     assert.equal(events.at(-1)!.source, "fallback");
-    assert.equal(events.at(-1)!.reason, "aborted");
+    assert.equal(events.at(-1)!.reason, "ollama-aborted");
+  });
+
+  await scenario("no model provider (Ollama down, cloud unset) → honest fallback, no config detail", async () => {
+    const downFetcher = (async (url: string) => {
+      if (String(url).includes("/api/tags")) return new Response("nope", { status: 503 });
+      throw new Error("should not reach /api/chat");
+    }) as unknown as typeof fetch;
+    const events = await collect(
+      streamAyasChat({
+        text: "selam",
+        snapshot: snap(),
+        seq: 9,
+        fetcher: downFetcher,
+        env: { ...process.env, AYAS_CLOUD_API_KEY: "", OLLAMA_HOST: "127.0.0.1:11434" },
+      }) as never,
+    );
+    assert.equal(events.length, 1, "no deltas — nothing to stream");
+    assert.equal(events[0].source, "fallback");
+    assert.equal(events[0].corrected, true);
+    assert.match(String(events[0].text), /yapılandırılmamış/);
+    assert.doesNotMatch(String(events[0].text), /http|key|token|127\.0\.0\.1/i, "no config/secret detail leaked");
   });
 
   await scenario("SSE framing — one frame per event, JSON payload", async () => {

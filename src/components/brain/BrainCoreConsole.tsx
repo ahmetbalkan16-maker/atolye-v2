@@ -35,7 +35,8 @@ import { ayasVoiceHoldsScreenAwake, shouldAutoSpeakAyasReply } from "./ayasVoice
 import { useAyasVoice } from "./useAyasVoice";
 import { useBrainLifecycle } from "./useBrainLifecycle";
 import { useScreenWakeLock } from "./useScreenWakeLock";
-import { runAyasChatStream } from "./ayasChatStreamClient";
+import { runAyasChatStreamWithPhoneFallback } from "./ayasChatStreamClient";
+import { bootstrapAyasPhoneKeyFromUrl } from "./ayasPhoneFallback";
 import {
   BRAIN_CONVERSATION_KEY,
   conversationHistoryForModel,
@@ -156,6 +157,13 @@ export function BrainCoreConsole({
         setMessages(prev.messages as readonly BrainChatMessage[]);
       }
     });
+  }, []);
+
+  // One-time, per-device capture of the phone-gateway auth key from
+  // `?ayasPhoneKey=…` (Phase 2 · P0-A.4) — stores to localStorage, strips the
+  // param immediately. No-op when absent. See ayasPhoneFallback.ts.
+  useEffect(() => {
+    bootstrapAyasPhoneKeyFromUrl(window);
   }, []);
 
   // Persist the transcript on every change + on the way out (a reload can land
@@ -331,7 +339,7 @@ export function BrainCoreConsole({
         if (streaming) {
           let streamText = "";
           let opened = false;
-          const streamResult = await runAyasChatStream({
+          const streamResult = await runAyasChatStreamWithPhoneFallback({
             text,
             history,
             seq: seq + 1,
