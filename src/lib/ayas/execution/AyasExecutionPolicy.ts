@@ -33,7 +33,8 @@ export type AyasExecutionActionId =
   | "inspect-project"
   | "pipeline-recovery-plan"
   | "read-project-document"
-  | "inspect-source-file";
+  | "inspect-source-file"
+  | "search-project-source";
 
 /** Reserved ids that are intentionally NOT enabled yet (write / pipeline path). */
 export const AYAS_EXECUTION_RESERVED_ACTIONS: readonly string[] = Object.freeze([
@@ -88,6 +89,14 @@ export const AYAS_EXECUTION_ALLOWLIST: Readonly<Record<AyasExecutionActionId, Ay
       id: "inspect-source-file",
       summary:
         "Depo içinde (src/, scripts/, app/, üst düzey .md dosyaları) izin verilen bir dosyayı SALT-OKUNUR olarak, sınırlı boyutla okur.",
+      write: false,
+      destructive: false,
+      requiresProject: false,
+      maxDurationMs: 5_000,
+    },
+    "search-project-source": {
+      id: "search-project-source",
+      summary: "Tek bir teknik tanımlayıcıyı izinli kaynak köklerinde SALT-OKUNUR ve sınırlı sonuçla arar.",
       write: false,
       destructive: false,
       requiresProject: false,

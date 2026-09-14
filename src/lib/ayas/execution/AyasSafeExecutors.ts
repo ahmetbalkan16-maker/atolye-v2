@@ -149,6 +149,9 @@ const ALLOWED_SOURCE_EXTENSIONS: ReadonlySet<string> = new Set([".ts", ".tsx", "
 const DENY_SEGMENT_RE = /(^|\/)(node_modules|\.git|data|secrets|\.next|\.env\b|\.claude|\.vscode)(\/|$)/i;
 const SECRET_NAME_RE = /secret|credential|\.env(\.|$)|\.pem$|\.key$|\.pfx$/i;
 const MAX_SOURCE_FILE_CHARS = 300_000;
+const SOURCE_SEARCH_ROOTS = ["src", "scripts", "app"] as const;
+const MAX_SEARCH_FILES = 2_000;
+const MAX_SEARCH_RESULTS = 8;
 
 function truncateContent(content: string, maxChars: number): { content: string; truncated: boolean; totalChars: number } {
   const totalChars = content.length;
@@ -271,11 +274,41 @@ async function inspectSourceFile(request: AyasExecutionRequest): Promise<AyasExe
   };
 }
 
+/** Semantic bounded source search; never accepts a command, glob or path. */
+async function searchProjectSource(request: AyasExecutionRequest): Promise<AyasExecutorResult> {
+  const query = planField(request, "query");
+  if (typeof query !== "string" || !/^[A-Za-z_][A-Za-z0-9_.:-]{2,119}$/.test(query)) {
+    throw new AyasActionValidationError("invalid-search-query", "query tek bir sınırlı teknik tanımlayıcı olmalı");
+  }
+  const results: Array<{ filePath: string; line: number; excerpt: string }> = [];
+  let visited = 0;
+  const extensions = ALLOWED_SOURCE_EXTENSIONS;
+  const visit = (dir: string): void => {
+    if (results.length >= MAX_SEARCH_RESULTS || visited >= MAX_SEARCH_FILES || !fs.existsSync(dir)) return;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (results.length >= MAX_SEARCH_RESULTS || visited >= MAX_SEARCH_FILES) break;
+      const absolute = path.join(dir, entry.name);
+      if (entry.isDirectory()) { if (!DENY_SEGMENT_RE.test(absolute.replace(/\\/g, "/"))) visit(absolute); continue; }
+      visited++;
+      if (!entry.isFile() || !extensions.has(path.extname(entry.name).toLowerCase()) || SECRET_NAME_RE.test(entry.name)) continue;
+      const raw = fs.readFileSync(absolute, "utf8");
+      if (raw.length > MAX_SOURCE_FILE_CHARS) continue;
+      const lines = raw.split(/\r?\n/u);
+      for (let index = 0; index < lines.length && results.length < MAX_SEARCH_RESULTS; index++) {
+        if (lines[index]!.includes(query)) results.push({ filePath: path.relative(REPO_ROOT, absolute).replace(/\\/g, "/"), line: index + 1, excerpt: lines[index]!.trim().slice(0, 240) });
+      }
+    }
+  };
+  for (const root of SOURCE_SEARCH_ROOTS) visit(path.join(REPO_ROOT, root));
+  return { action: "search-project-source", write: false, summary: `"${query}" için ${results.length} sınırlı kaynak eşleşmesi bulundu.`, data: { query, results, resultLimit: MAX_SEARCH_RESULTS, visitedFiles: visited, truncated: results.length >= MAX_SEARCH_RESULTS || visited >= MAX_SEARCH_FILES } };
+}
+
 const EXECUTORS: Readonly<Record<AyasExecutionActionId, AyasExecutor>> = Object.freeze({
   "inspect-project": inspectProject,
   "pipeline-recovery-plan": pipelineRecoveryPlan,
   "read-project-document": readProjectDocument,
   "inspect-source-file": inspectSourceFile,
+  "search-project-source": searchProjectSource,
 });
 
 export function resolveAyasExecutor(action: AyasExecutionActionId): AyasExecutor | undefined {

@@ -1,5 +1,16 @@
 ---
 
+## 2026-09-14 — AYAS Guided Repair + Gated Writes (implementation, uncommitted)
+
+- Added bounded `AyasGuidedRepair` primitives for diagnosis/proposal/explicit approval and hash-checked semantic patching.
+- Added closed validation actions and append-only provenance journal hooks; arbitrary shell, deletion, Git, package, credential, and production operations remain unavailable.
+- Added isolated guided-repair smoke coverage.
+- Integrated the normal AYAS chat route with a bounded, session-scoped two-turn repair orchestrator and a safe one-file production planner. A current user approval consumes the exact pending proposal before patching; final claims are derived from patch and validation provenance.
+- Added replay denial, concurrent-edit-safe rollback, request-boundary session expiry/capacity, and product-level E2E coverage (24 assertions / 5 E2E scenarios).
+- Added bounded automatic fault localization from stack frames, technical symbols, error identifiers, test names and subsystem clues. New read-only `search-project-source` visits at most 2,000 allowed source files and returns at most 8 matches; ambiguity asks for a symptom clarification instead of guessing.
+
+---
+
 ## 2026-09-14 — AYAS Action Runtime Master Sprint
 
 - AYAS can now actually perform a real, narrowly-scoped READ-ONLY action and bring the real result

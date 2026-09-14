@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { type NextRequest, NextResponse } from "next/server";
 
 import {
@@ -10,6 +11,8 @@ import { loadBrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
 import { loadAyasStudioContext } from "@/lib/ayas/AyasStudioContext";
 import { streamAyasChat, ayasChatStreamEventToSse } from "@/lib/ayas/AyasChatStream";
+import { AyasGuidedRepairSessionRuntime } from "@/lib/ayas/execution/AyasGuidedRepairSessionRuntime";
+import { createAyasProductionRepairDeps } from "@/lib/ayas/execution/AyasGuidedRepairProduction";
 import {
   buildAyasReportSpokenAnswer,
   detectAyasReportIntent,
@@ -32,6 +35,7 @@ export const dynamic = "force-dynamic";
 const MAX_BODY_BYTES = 32 * 1024;
 const MAX_TEXT = 4_000;
 const MAX_HISTORY = 12;
+const guidedRepairSessions = new AyasGuidedRepairSessionRuntime(() => createAyasProductionRepairDeps());
 
 async function requireAuthenticated(request: NextRequest): Promise<boolean> {
   const gate = resolveAccessGate(process.env);
@@ -84,6 +88,18 @@ export async function POST(request: NextRequest): Promise<Response> {
         .slice(-MAX_HISTORY)
     : [];
   const seq = Number.isSafeInteger(b.seq) ? (b.seq as number) : history.length + 1;
+
+  // Product-level bounded repair boundary. The conversation adapter diagnoses,
+  // proposes and applies only after a current-turn approval; it never infers
+  // approval from assistant, source, log or tool text.
+  const sessionToken = request.cookies.get(AYAS_SESSION_COOKIE)?.value ?? "dev-session";
+  const sessionKey = crypto.createHash("sha256").update(sessionToken).digest("hex");
+  const repairTurn = await guidedRepairSessions.handle({ sessionId: sessionKey, text, turnId: `http-turn-${crypto.randomUUID()}`, workspaceId: "atolye-v2" });
+  if (repairTurn.progress !== "İnceliyorum" || /(hata|bug|exception|çalışmıyor|çöktü|düzelt)/iu.test(text)) {
+    const answer = repairTurn.text;
+    const oneShot = new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(encoderFor().encode(ayasChatStreamEventToSse({ type: "done", text: answer, source: "fallback", corrected: false }))); controller.close(); } });
+    return new Response(oneShot, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store, no-transform", Connection: "keep-alive" } });
+  }
 
   const encoder = new TextEncoder();
 
@@ -155,3 +171,5 @@ export async function POST(request: NextRequest): Promise<Response> {
     },
   });
 }
+
+function encoderFor(): TextEncoder { return new TextEncoder(); }

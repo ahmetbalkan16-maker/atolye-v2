@@ -1,5 +1,19 @@
 ---
 
+## AYAS Guided Code Repair + Gated Write Actions — 2026-09-14
+
+- [x] Safe data-only diagnosis and evidence/fingerprint-bound proposals.
+- [x] Explicit current-user approval provenance, expiry/revocation, workspace/file/operation scope, bounded cycles and new-file policy.
+- [x] Hash-checked patch engine with concurrent-edit denial, AYAS-only rollback, structured patch provenance and journal hooks.
+- [x] Closed validation registry; arbitrary shell, package scripts/install, deletion, Git, credentials and production execution remain unavailable.
+- [x] Deterministic same-scope/material-expansion classifier and bounded one-cycle remediation helper.
+- [x] Isolated acceptance smoke (24 assertions, 5 product E2E scenarios) with no real repository or memory/production mutation.
+- [x] Wired `POST /api/ayas/chat/stream` through bounded session persistence, safe production diagnosis/planning, proposal UX, exact next-turn approval, real patch/validation and evidence-grounded completion.
+- [x] Authorization replay, cross-session approval, proposal mutation, concurrent edit, validation rollback and same-scope remediation covered deterministically.
+- [x] Added evidence-driven fault localization and semantic `search-project-source`: stack path/symbol/error-id/test/subsystem anchors, bounded candidate scoring, Graphify evidence and clarification on material ambiguity; user source paths are no longer required for supported errors.
+
+---
+
 ## AYAS Action Runtime Master Sprint — 2026-09-14
 
 - [x] Extended the read-only allowlist (`AyasExecutionPolicy.ts`) with `read-project-document`

@@ -83,6 +83,8 @@
     "smoke:ayas-chat-stream": "tsx scripts/smoke-ayas-chat-stream.ts",
     "smoke:ayas-chat-stream-client": "tsx scripts/smoke-ayas-chat-stream-client.ts",
     "smoke:ayas-write-action": "tsx scripts/smoke-ayas-write-action.ts",
+    "smoke:ayas-guided-repair": "tsx scripts/smoke-ayas-guided-repair.ts",
+    "smoke:ayas-fault-localization": "tsx scripts/smoke-ayas-fault-localization.ts",
     "smoke:ayas-pwa-sw": "tsx scripts/smoke-ayas-pwa-sw.ts",
     "smoke:ayas-pwa-manifest": "tsx scripts/smoke-ayas-pwa-manifest.ts",
     "build:pwa-icons": "tsx scripts/build-pwa-icons.ts",
