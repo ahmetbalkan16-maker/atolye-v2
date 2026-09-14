@@ -110,32 +110,58 @@ function toLine(r: BrainMemoryRecord): string {
   return `  · (${r.kind}) ${text}`;
 }
 
-/** The prompt block. `[]` when nothing relevant / the store is empty / any error. */
-export async function recallAyasMemoryLines(
+export interface AyasMemoryRecallTrace {
+  readonly lines: readonly string[];
+  /** How many records actually made it into `lines` (post char-budget cutoff). */
+  readonly recallCount: number;
+  /** Of those, how many carry the "kimlik" (identity) tag — see `AyasMemoryRecall`'s identity bonus above and `AyasMemoryCandidate.ts`'s `IDENTITY` pattern. */
+  readonly identityRecallCount: number;
+}
+
+/**
+ * The trace-carrying implementation. `recallAyasMemoryLines` below is a thin,
+ * BACKWARD-COMPATIBLE wrapper over this for every existing caller/test that
+ * only ever needed the formatted lines — its signature and return type are
+ * unchanged. `AyasChatStream.ts` calls THIS function instead so it can report
+ * safe, secret-free recall metadata (`recallCount`/`identityRecallCount`) on
+ * the turn's own observability trace, without duplicating the ranking logic.
+ */
+export async function recallAyasMemoryWithTrace(
   query: string,
   options: RecallAyasMemoryOptions = {},
-): Promise<string[]> {
+): Promise<AyasMemoryRecallTrace> {
   try {
     const store = createAyasMemoryStore(options.store);
     const records = store.load();
-    if (records.length === 0) return [];
+    if (records.length === 0) return { lines: [], recallCount: 0, identityRecallCount: 0 };
     const top = rankAyasMemory(records, query, {
       ...(options.activeProject ? { activeProject: options.activeProject } : {}),
       ...(options.nowIso ? { nowIso: options.nowIso } : {}),
     });
-    if (top.length === 0) return [];
+    if (top.length === 0) return { lines: [], recallCount: 0, identityRecallCount: 0 };
     const lines: string[] = [];
+    let identityRecallCount = 0;
     let chars = 0;
     for (const r of top) {
       const line = toLine(r);
       if (chars + line.length > MAX_BLOCK_CHARS) break;
       lines.push(line);
       chars += line.length;
+      if (r.tags.includes("kimlik")) identityRecallCount += 1;
     }
-    return lines;
+    return { lines, recallCount: lines.length, identityRecallCount };
   } catch {
-    return [];
+    return { lines: [], recallCount: 0, identityRecallCount: 0 };
   }
+}
+
+/** The prompt block. `[]` when nothing relevant / the store is empty / any error. */
+export async function recallAyasMemoryLines(
+  query: string,
+  options: RecallAyasMemoryOptions = {},
+): Promise<string[]> {
+  const trace = await recallAyasMemoryWithTrace(query, options);
+  return [...trace.lines];
 }
 
 /**

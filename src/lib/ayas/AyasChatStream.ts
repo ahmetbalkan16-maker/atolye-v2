@@ -36,10 +36,31 @@ import { resolveOllamaConfig } from "@/lib/ai/OllamaConfig";
 import { routeAyasModel, type AyasModelRoute } from "./model/AyasModelRouter";
 import type { AyasModelProviderId, AyasChatComplexity } from "./model/AyasModelTypes";
 import { assembleAyasContext } from "./context/AyasContextAssembly";
-import { recallAyasMemoryLines, persistAyasMemoryFromTurn } from "./memory/AyasMemoryRecall";
+import { recallAyasMemoryWithTrace, persistAyasMemoryFromTurn } from "./memory/AyasMemoryRecall";
+import type { AyasMemoryStoreOptions } from "./memory/AyasMemoryStore";
 import { shouldUseAyasReasoning, runAyasReasoning } from "./reasoning/AyasReasoningCore";
 import type { AyasReasoningTrace } from "./reasoning/AyasReasoningTypes";
 import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
+
+/**
+ * Safe, secret-free memory observability trace (real-user-test root-cause
+ * fix) — boolean/count metadata ONLY, never raw memory text, never the user
+ * message, never a secret. `candidateCount`/`persisted` describe what THIS
+ * turn's own message contributed to memory (computed synchronously — see
+ * the `await persistAyasMemoryFromTurn` call below, moved BEFORE this event
+ * is yielded so the numbers it reports are already real, not a guess about
+ * a background task that might still be in flight). `recallCount`/
+ * `identityRecallCount`/`promptInjected`/`historyCount` describe what was
+ * recalled/used to build THIS reply.
+ */
+export interface AyasMemoryTrace {
+  readonly candidateCount: number;
+  readonly persisted: boolean;
+  readonly recallCount: number;
+  readonly identityRecallCount: number;
+  readonly promptInjected: boolean;
+  readonly historyCount: number;
+}
 
 export type AyasChatStreamEvent =
   | { readonly type: "delta"; readonly text: string }
@@ -57,6 +78,8 @@ export type AyasChatStreamEvent =
       readonly complexity?: AyasChatComplexity;
       /** Safe, secret-free reasoning summary (Phase D) — present only for COMPLEX/TOOL/REPAIR/RESEARCH turns that used the Reasoning Core. Never a raw model dump or chain-of-thought. */
       readonly reasoning?: AyasReasoningTrace;
+      /** Safe, secret-free memory observability trace — see {@link AyasMemoryTrace}. Absent only on the pure deterministic (no-provider) fallback path, which never touches memory. */
+      readonly memoryTrace?: AyasMemoryTrace;
     };
 
 export interface StreamAyasChatInput {
@@ -72,6 +95,17 @@ export interface StreamAyasChatInput {
   readonly env?: NodeJS.ProcessEnv;
   /** Test seam — inject a routing decision instead of probing model health. */
   readonly route?: AyasModelRoute;
+  /**
+   * Test seam — overrides the memory store's `rootDir` for BOTH the recall
+   * and persist calls this turn. Omitted (the real production call from
+   * `route.ts` never sets it) → both default to the real, unchanged
+   * `data/brain/memory` root — production behavior is byte-for-byte
+   * identical to before this field existed. Exists so the real-user-test
+   * two-turn memory bug can be reproduced/asserted end-to-end against
+   * `streamAyasChat` itself (the exact function the HTTP route calls)
+   * without ever touching the operator's real memory file.
+   */
+  readonly memoryStore?: AyasMemoryStoreOptions;
 }
 
 /** Best-effort temperature for the model call — kept at the pipeline default. */
@@ -122,9 +156,20 @@ export async function* streamAyasChat(
     history: input.history ?? [],
     ...(input.studio ? { studio: input.studio } : {}),
   });
-  const memoryLines = await recallAyasMemoryLines(text, {
+  const memoryRecall = await recallAyasMemoryWithTrace(text, {
     ...(ctx.trace.activeProject ? { activeProject: ctx.trace.activeProject } : {}),
-  }).catch(() => [] as string[]);
+    ...(input.memoryStore ? { store: input.memoryStore } : {}),
+  }).catch(() => ({ lines: [] as readonly string[], recallCount: 0, identityRecallCount: 0 }));
+  const memoryLines = memoryRecall.lines;
+  /** Shared by both terminal-event sites below — see `AyasMemoryTrace`'s own doc comment for what each field means and why persist is awaited BEFORE this is built. */
+  const buildMemoryTrace = (persistOutcome: { candidates: number; stored: number }): AyasMemoryTrace => ({
+    candidateCount: persistOutcome.candidates,
+    persisted: persistOutcome.stored > 0,
+    recallCount: memoryRecall.recallCount,
+    identityRecallCount: memoryRecall.identityRecallCount,
+    promptInjected: memoryLines.length > 0,
+    historyCount: ctx.recentHistory.length,
+  });
 
   // Phase D — the complexity gate. SIMPLE/NORMAL never reach the Reasoning
   // Core (falls through to the existing direct-stream path below, unchanged).
@@ -175,6 +220,17 @@ export async function* streamAyasChat(
       return;
     }
 
+    // Persist BEFORE the terminal event, AWAITED — see `AyasMemoryTrace`'s doc
+    // comment: this makes "the write completed before the caller sees the
+    // reply" an explicit, provable guarantee rather than an accident of
+    // `AyasMemoryStore.append` currently being synchronous fs I/O hidden
+    // behind an `async` wrapper (real-user-test race-condition audit item).
+    const persistOutcome = await persistAyasMemoryFromTurn({
+      userText: text,
+      ayasReply: outcome.result.answer,
+      ...(input.memoryStore ? { store: input.memoryStore } : {}),
+    }).catch(() => ({ candidates: 0, stored: 0, rejected: 0 }));
+
     yield { type: "delta", text: outcome.result.answer };
     yield {
       type: "done",
@@ -184,8 +240,8 @@ export async function* streamAyasChat(
       provider: providerId,
       complexity: route.decision.complexity,
       reasoning: outcome.trace,
+      memoryTrace: buildMemoryTrace(persistOutcome),
     };
-    void persistAyasMemoryFromTurn({ userText: text, ayasReply: outcome.result.answer }).catch(() => {});
     return;
   }
 
@@ -256,6 +312,20 @@ export async function* streamAyasChat(
     };
     return;
   }
+  // Phase C — memory write side. AWAITED, BEFORE the terminal event (moved
+  // here from an unawaited "fire-and-forget" call — real-user-test
+  // race-condition audit item): extract candidates from this turn, gate each
+  // (candidate → scoring → redaction → store/reject), persist the survivors.
+  // Still never throws into the stream (`.catch` below); `AyasMemoryStore.append`
+  // is synchronous fs I/O today, so this was never actually slow — awaiting it
+  // just makes "the write is done before the reply is shown" an explicit,
+  // provable guarantee instead of relying on that implementation detail.
+  const persistOutcome = await persistAyasMemoryFromTurn({
+    userText: text,
+    ayasReply: finalText,
+    ...(input.memoryStore ? { store: input.memoryStore } : {}),
+  }).catch(() => ({ candidates: 0, stored: 0, rejected: 0 }));
+
   yield {
     type: "done",
     text: finalText,
@@ -263,12 +333,8 @@ export async function* streamAyasChat(
     corrected: false,
     provider: providerId,
     ...(complexity ? { complexity } : {}),
+    memoryTrace: buildMemoryTrace(persistOutcome),
   };
-
-  // Phase C — memory write side. Fire-and-forget: extract candidates from this
-  // turn, gate each (candidate → scoring → redaction → store/reject), persist
-  // the survivors. Never blocks the response, never throws into the stream.
-  void persistAyasMemoryFromTurn({ userText: text, ayasReply: finalText }).catch(() => {});
 }
 
 /** Serialise a stream event as one SSE frame. */

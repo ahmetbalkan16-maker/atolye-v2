@@ -12,9 +12,14 @@
  */
 
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 import { streamAyasChat, ayasChatStreamEventToSse } from "../src/lib/ayas/AyasChatStream";
 import { buildAyasChatPrompt } from "../src/components/brain/brainCore";
+import { createAyasMemoryStore } from "../src/lib/ayas/memory/AyasMemoryStore";
+import { buildBrainMemoryRecord } from "../src/lib/brain/BrainMemoryModel";
 import type { BrainConsoleSnapshot } from "../src/lib/brain/ui/BrainConsoleSnapshot";
 
 let count = 0;
@@ -74,6 +79,40 @@ async function collect(gen: AsyncGenerator<{ type: string } & Record<string, unk
   const events: ({ type: string } & Record<string, unknown>)[] = [];
   for await (const e of gen) events.push(e);
   return events;
+}
+
+/** Same as `mockOllamaStream`, but also captures the REAL `/api/chat` request body (the actual prompt sent) into `capturedBodies` — for asserting what the model would really receive, not just what the mocked reply says back. */
+function capturingMockOllamaStream(pieces: string[], capturedBodies: string[]): typeof fetch {
+  return (async (url: string, init?: RequestInit) => {
+    if (String(url).includes("/api/tags")) {
+      return new Response(JSON.stringify({ models: [{ name: "qwen2.5:7b" }] }), { status: 200 });
+    }
+    if (String(url).includes("/api/chat") && init?.body) {
+      capturedBodies.push(String(init.body));
+    }
+    const lines = [
+      ...pieces.map((p) => JSON.stringify({ message: { content: p }, done: false })),
+      JSON.stringify({ done: true, done_reason: "stop" }),
+    ];
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        const enc = new TextEncoder();
+        for (const l of lines) controller.enqueue(enc.encode(l + "\n"));
+        controller.close();
+      },
+    });
+    return new Response(body, { status: 200, headers: { "Content-Type": "application/x-ndjson" } });
+  }) as unknown as typeof fetch;
+}
+
+function tmpMemRoot(): string {
+  return fs.mkdtempSync(path.join(os.tmpdir(), "ayas-chatstream-mem-"));
+}
+
+/** Pulls the real prompt text out of the captured Ollama `/api/chat` request body — `{model, messages:[{role:"user", content: <the real prompt>}], stream:true, options:{...}}`. */
+function promptFromCapturedBody(body: string): string {
+  const parsed = JSON.parse(body) as { messages?: { content?: string }[] };
+  return parsed.messages?.[0]?.content ?? "";
 }
 
 async function run() {
@@ -223,6 +262,154 @@ async function run() {
     assert.match(String(events[0].text), /yapılandırılmamış/);
     assert.doesNotMatch(String(events[0].text), /http|key|token|127\.0\.0\.1/i, "no config/secret detail leaked");
   });
+
+  /* ---------------- real-user-test bug: identity memory, end-to-end through streamAyasChat itself ---------------- */
+
+  await scenario(
+    "MEMORY E2E — TURN 1 & TURN 2 (exact real-user-test scenario), through the REAL streamAyasChat production function, a REAL on-disk store: Ahmet + ownership + purpose all reach the real Ollama prompt on a SEPARATE later turn",
+    async () => {
+      const root = tmpMemRoot();
+      const bodies1: string[] = [];
+
+      // TURN 1 — the exact real-user-test message.
+      const turn1 = await collect(
+        streamAyasChat({
+          text: "Beni Ahmet olarak hatırla. Ben Atölye projesinin sahibiyim ve AYAS'ı kişisel yapay zekâ asistanım olarak geliştirmek istiyorum.",
+          snapshot: snap(),
+          seq: 20,
+          fetcher: capturingMockOllamaStream(["Anladım, ", "Ahmet."], bodies1),
+          memoryStore: { rootDir: root },
+        }) as never,
+      );
+      const done1 = turn1.at(-1)!;
+      assert.equal(done1.type, "done");
+      assert.equal(done1.source, "llm");
+      const trace1 = done1.memoryTrace as { candidateCount: number; persisted: boolean } | undefined;
+      assert.ok(trace1, "TURN 1 done event must carry a memoryTrace");
+      assert.ok(trace1!.candidateCount >= 1, `expected memoryCandidateCount >= 1, got ${trace1!.candidateCount}`);
+      assert.equal(trace1!.persisted, true, "memoryPersisted must be true");
+
+      // Verify the record REALLY is on disk (not just a self-reported count) —
+      // and that it carries BOTH the name AND the ownership/purpose sentence
+      // (extraction stores the FULL user message as the body, not just the
+      // "Ahmet" clause — item 6 of the task).
+      const onDisk = createAyasMemoryStore({ rootDir: root }).load();
+      assert.equal(onDisk.length, 1);
+      assert.equal(onDisk[0].kind, "user-preference");
+      assert.equal(onDisk[0].importance, "durable");
+      assert.ok(onDisk[0].tags.includes("kimlik"));
+      assert.match(onDisk[0].body, /ahmet/i);
+      assert.match(onDisk[0].body, /atölye|atolye/i, "ownership ('Atölye projesinin sahibiyim') must be in the stored body");
+      assert.match(onDisk[0].body, /asistan/i, "purpose ('kişisel yapay zekâ asistanım') must be in the stored body");
+
+      // TURN 2 — a genuinely SEPARATE streamAyasChat call (exactly how two
+      // real HTTP requests to /api/ayas/chat/stream work), same store root.
+      const bodies2: string[] = [];
+      const turn2 = await collect(
+        streamAyasChat({
+          text: "Benim adım ne ve benimle ilgili ne hatırlıyorsun?",
+          snapshot: snap(),
+          seq: 21,
+          fetcher: capturingMockOllamaStream(["Adın Ahmet."], bodies2),
+          memoryStore: { rootDir: root },
+        }) as never,
+      );
+      const done2 = turn2.at(-1)!;
+      assert.equal(done2.type, "done");
+      const trace2 = done2.memoryTrace as { candidateCount: number; recallCount: number; identityRecallCount: number; promptInjected: boolean } | undefined;
+      assert.ok(trace2, "TURN 2 done event must carry a memoryTrace");
+      assert.ok(trace2!.recallCount >= 1, `expected memoryRecallCount >= 1, got ${trace2!.recallCount}`);
+      assert.ok(trace2!.identityRecallCount >= 1, `expected identityRecallCount >= 1, got ${trace2!.identityRecallCount}`);
+      assert.equal(trace2!.promptInjected, true);
+      // ROUND 2 regression guard: turn 2's OWN message ("Benim adım ne ve
+      // benimle ilgili ne hatırlıyorsun?") must NOT itself be extracted as a
+      // new identity candidate — it's a question, not a statement.
+      assert.equal(trace2!.candidateCount, 0, "asking about one's own name must not itself become a new stored candidate");
+
+      // THE decisive check: the REAL prompt text that was actually sent
+      // toward Ollama for TURN 2 (not the mocked reply) really contains the
+      // name, the ownership, and the purpose — not just "Ahmet" by accident.
+      assert.equal(bodies2.length, 1, "exactly one /api/chat call for turn 2");
+      const prompt2 = promptFromCapturedBody(bodies2[0]);
+      assert.match(prompt2, /Kalıcı hafızadan hatırlananlar/, "the memory block header must be present in the real prompt");
+      assert.match(prompt2, /ahmet/i, "the real Ollama prompt must contain the user's name");
+      assert.match(prompt2, /atölye|atolye/i, "the real Ollama prompt must contain the ownership fact");
+      assert.match(prompt2, /asistan/i, "the real Ollama prompt must contain the stated purpose");
+    },
+  );
+
+  await scenario(
+    "MEMORY E2E — an unrelated, pre-existing 'visuals' project-status memory does NOT suppress the identity recall",
+    async () => {
+      const root = tmpMemRoot();
+      const store = createAyasMemoryStore({ rootDir: root });
+      // Seed an irrelevant, older, normal-importance memory — the exact shape
+      // the real user reported seeing surface instead of their own identity.
+      store.append(
+        buildBrainMemoryRecord({
+          kind: "known-bug",
+          title: "Bilinen sorun",
+          body: "visuals aşamasında bir proje başarısız oldu ve kuyrukta o görev var",
+          importance: "normal",
+          confidence: "reported",
+          tags: ["bug", "visuals"],
+          observedAt: "2026-09-10T00:00:00.000Z",
+          links: [],
+        }),
+      );
+
+      const bodies1: string[] = [];
+      await collect(
+        streamAyasChat({
+          text: "Beni Ahmet olarak hatırla. Ben Atölye projesinin sahibiyim ve AYAS'ı kişisel yapay zekâ asistanım olarak geliştirmek istiyorum.",
+          snapshot: snap(),
+          seq: 22,
+          fetcher: capturingMockOllamaStream(["Tamam."], bodies1),
+          memoryStore: { rootDir: root },
+        }) as never,
+      );
+
+      const bodies2: string[] = [];
+      const turn2 = await collect(
+        streamAyasChat({
+          text: "Benim adım ne?",
+          snapshot: snap(),
+          seq: 23,
+          fetcher: capturingMockOllamaStream(["Adın Ahmet."], bodies2),
+          memoryStore: { rootDir: root },
+        }) as never,
+      );
+      const trace2 = turn2.at(-1)!.memoryTrace as { identityRecallCount: number } | undefined;
+      assert.ok(trace2 && trace2.identityRecallCount >= 1, "identity must still be recalled with an unrelated note in the store");
+      const prompt2 = promptFromCapturedBody(bodies2[0]);
+      assert.match(prompt2, /ahmet/i, "identity must reach the real prompt even alongside the unrelated visuals note");
+    },
+  );
+
+  await scenario(
+    "MEMORY E2E — NEGATIVE: no identity memory stored → nothing is injected, no fabricated name in the real prompt",
+    async () => {
+      const root = tmpMemRoot(); // fresh, empty store — never seeded
+      const bodies: string[] = [];
+      const events = await collect(
+        streamAyasChat({
+          text: "Benim adım ne?",
+          snapshot: snap(),
+          seq: 24,
+          fetcher: capturingMockOllamaStream(["Bilmiyorum."], bodies),
+          memoryStore: { rootDir: root },
+        }) as never,
+      );
+      const trace = events.at(-1)!.memoryTrace as { recallCount: number; identityRecallCount: number; promptInjected: boolean } | undefined;
+      assert.ok(trace);
+      assert.equal(trace!.recallCount, 0);
+      assert.equal(trace!.identityRecallCount, 0);
+      assert.equal(trace!.promptInjected, false);
+      const prompt = promptFromCapturedBody(bodies[0]);
+      assert.doesNotMatch(prompt, /Kalıcı hafızadan hatırlananlar/, "no memory block at all when nothing was ever stored");
+      assert.doesNotMatch(prompt, /\bahmet\b/i, "the real prompt must never contain a name nobody ever stated");
+    },
+  );
 
   await scenario("SSE framing — one frame per event, JSON payload", async () => {
     const frame = ayasChatStreamEventToSse({ type: "delta", text: "merhaba" });

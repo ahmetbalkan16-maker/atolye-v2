@@ -56,8 +56,16 @@ const BUG = /\b(bug var|hata (veriyor|aliyorum|var)|calismiyor|bilinen (sorun|ha
  * ordinary conjugated verb/adjective like "yorgunum"/"değilim" normally does
  * not) — this is what keeps it from false-matching "ben değilim" / "ben
  * yorgunum" as if they were identity statements.
+ *
+ * ROUND 2 (found by a REAL end-to-end execution, not a guess): "adim
+ * [a-z]+" originally also matched "adım **ne**?" — a QUESTION about the
+ * name, not a statement of it — because "ne" is just as valid a lowercase
+ * word as "Ahmet" to a bare `[a-z]+`. The negative lookahead excludes the
+ * common Turkish interrogatives that can immediately follow "adım" in a
+ * question ("adım ne", "adım nedir", "adım neydi", "adım kim" — the last a
+ * malformed-but-real way people sometimes ask).
  */
-const IDENTITY = /\b(beni .* olarak hatirla|adim [a-z]+|ben [a-z]+'(im|yim)\b|bana .* diye (hitap et|cagir))\b/;
+const IDENTITY = /\b(beni .* olarak hatirla|adim (?!ne\b|nedir\b|neydi\b|kim\b)[a-z]+|ben [a-z]+'(im|yim)\b|bana .* diye (hitap et|cagir))\b/;
 
 export function extractAyasMemoryCandidates(input: {
   readonly userText: string;

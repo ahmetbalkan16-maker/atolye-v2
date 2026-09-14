@@ -91,6 +91,17 @@ async function run() {
   });
 
   await scenario(
+    'candidate — ROUND 2 fix (found by a real end-to-end run): asking "Benim adım ne ve benimle ilgili ne hatırlıyorsun?" must NOT itself be extracted as an identity statement — it is a QUESTION about the name, not a statement of it',
+    () => {
+      const cands = extractAyasMemoryCandidates({
+        userText: "Benim adım ne ve benimle ilgili ne hatırlıyorsun?",
+        ayasReply: "Adın Ahmet.",
+      });
+      assert.equal(cands.length, 0, "a question about one's own name must never itself become a stored memory candidate");
+    },
+  );
+
+  await scenario(
     'candidate — TEST 5: plain conjugated Turkish sentences that merely END IN "-im"/"-yim" (no apostrophe, not a proper noun) do NOT false-positive as an identity statement',
     () => {
       // "ben değilim" / "ben yorgunum" are ordinary negation/adjective conjugations,
