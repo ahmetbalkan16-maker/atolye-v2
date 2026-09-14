@@ -1,6 +1,6 @@
 ---
 
-## AYAS Developer Agent Autonomy + Graphify Unified Master Sprint — READY FOR REVIEW / UNCOMMITTED — 2026-09-14
+## AYAS Developer Agent Autonomy + Graphify Unified Master Sprint — CLOSED / COMMITTED (`a3491f1`) — 2026-09-14
 
 - Added six policy-governed developer evidence actions: structured repository status, bounded working/staged/file diff, bounded log/show history, symlink-safe source ranges, revision/manifest-aware bounded Graphify explain/tree evidence, and a closed validation registry. All remain `write: false`; there is no generic shell or caller-provided executable/argument surface.
 - Added `AyasDeveloperWorkflow`: explicit workflow/step lifecycles, ordered dependencies, terminal protection, validated result propagation, structured history/failures, one bounded transient read retry, and immutable authority ceilings (12 steps, 16 actions, 4 Graphify queries, 4 validations, 2 repair attempts, 2 write dispatches, 1 read retry, 192,000 output chars).
