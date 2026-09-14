@@ -15,9 +15,16 @@
  * is network-only for navigations, so the live page keeps working; the reload
  * happens the next time the page is hidden / closed. A user mid-conversation is
  * NEVER interrupted by a service-worker update.
+ *
+ * One more deferral reason, additive to the two above: a Phone-LLM model
+ * actively downloading/caching/loading (`phoneLlmDownloadGuard.ts`) — see
+ * that file's header for why. This is the only Phone-LLM-aware line in this
+ * component; everything else about SW update behavior is unchanged.
  */
 
 import { useEffect } from "react";
+
+import { isAyasPhoneLlmDownloadActive } from "@/components/brain/voice/localLlm/phoneLlmDownloadGuard";
 
 /** A page older than this is not "stale-broken" (those fail within seconds). */
 const STALE_PAGE_GRACE_MS = 6000;
@@ -42,6 +49,13 @@ export function PwaRegister() {
     const now = () => (typeof performance !== "undefined" ? performance.now() : STALE_PAGE_GRACE_MS + 1);
     const doReload = () => {
       if (done) return;
+      if (isAyasPhoneLlmDownloadActive()) {
+        // A Phone-LLM model is actively downloading/caching/loading — defer
+        // again rather than cut it off. The next visibilitychange/pagehide
+        // re-checks this, same as the existing "in-use page" deferral below.
+        reloadPending = true;
+        return;
+      }
       done = true;
       // Leave a breadcrumb so the Brain classifies the next boot as an SW update
       // (not a suspected eviction).

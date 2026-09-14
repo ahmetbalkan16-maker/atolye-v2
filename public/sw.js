@@ -64,7 +64,25 @@
  * Registered ONLY when `NEXT_PUBLIC_ATOLYE_PWA_SW === "on"` (see PwaRegister).
  */
 
-const CACHE = "ayas-shell-v3";
+// v3 → v4 (2026-09-11): real-device retest kept showing a pre-fix
+// downloader bundle on the phone AFTER a fix was deployed. Root cause
+// turned out to be the ORIGIN server process, not this worker (a stale
+// `npm start` process kept serving a pre-fix `.next` build after a later
+// `npm run build` completed without a restart — see
+// `phoneLlmPrecacheDownloader.ts`'s header and `ATOLYE_CHECKPOINT.md`).
+// Bumping this version is a defensive, independent second layer: even if
+// a phone's installed worker had already cache-first-cached a pre-fix
+// `/_next/static/**` chunk under its old content-hash URL (harmless on
+// its own — new builds use new hashes — but worth clearing proactively),
+// changing this literal changes `sw.js`'s own byte content, which the
+// browser DOES detect as an update (unlike the deploy above, which
+// changed nothing this file's bytes could reveal). That triggers the
+// worker lifecycle already built for exactly this: `install` →
+// `skipWaiting()` → `activate()` deletes every cache key that isn't this
+// one → `PwaRegister.tsx`'s existing deferred-reload logic hands the page
+// fresh network-first content. No new invalidation mechanism was
+// invented — this reuses the version-keyed purge `activate()` already had.
+const CACHE = "ayas-shell-v4";
 
 /** The one navigable route allowed to survive a fully offline reload (see header). */
 const OFFLINE_CAPABLE_ROUTE = "/brain/voice-lab/phone-llm";

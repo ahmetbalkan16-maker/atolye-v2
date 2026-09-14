@@ -1,26 +1,59 @@
 /**
- * AYAS phone gateway — Cloudflare Worker (Phase 2 · P0-A.4 · Option A).
+ * AYAS phone gateway — Cloudflare Worker (Phase 2 · P0-A.4 · Option A +
+ * Phone-LLM Range-blocker closure).
  *
- * The ONLY thing this Worker does: while the PC is off (cloudflared / Next /
- * Ollama all down), give the installed phone PWA a stable, always-up
- * `POST /api/ayas/chat/stream` endpoint that answers with a cloud LLM instead.
+ * TWO independent, unrelated routes live here — each documented and secured
+ * on its own; neither imports or depends on the other:
  *
- * It is deliberately a THIN GATEWAY — no reasoning, no context assembly, no
- * long-term memory, no studio/project awareness. Those all require the PC
- * (filesystem, Ollama, `data/brain/`) and stay there; a Worker cannot see any
- * of it and must not try to fake it. It reuses two PURE, dependency-free
- * modules from the main app rather than re-implementing them:
+ * 1. `POST /api/ayas/chat/stream` — while the PC is off (cloudflared / Next /
+ *    Ollama all down), gives the installed phone PWA a stable, always-up
+ *    endpoint that answers with a cloud LLM instead. See the original design
+ *    notes below (unchanged this pass).
  *
- *   - `createCloudAyasProvider` (src/lib/ayas/model/CloudAyasProvider.ts) —
- *     the exact same OpenAI-compatible SSE client the PC-side cloud fallback
- *     uses. Only `fetch`/`AbortController`/`TextDecoder` — no Node/Next import,
- *     so it bundles into the Workers runtime unchanged.
- *   - `isUsableAyasReply` / `ayasReplyClaimsExecution`
- *     (src/components/brain/brainCore.ts) — the same safety backstops the PC
- *     path applies, so a degraded cloud reply still can never claim to have
- *     written a file, run a command, pushed git, or deployed anything.
+ * 2. `GET <MODEL_PROXY_PATH>` (see constant below) — the Phone-LLM Range
+ *    blocker fix. Real-device evidence (see
+ *    `src/components/brain/voice/localLlm/phoneLlmPrecacheDownloader.ts`'s
+ *    header and `phoneLlmRangeDiagnostic.ts`) proved that on a real iPhone,
+ *    a `Range` request straight to `huggingface.co` for this exact model's
+ *    weight file gets `HTTP 200` + `Content-Range: absent` — 100%
+ *    reproducibly, including with a cache-busting query, while the SAME
+ *    request from `curl`/PC `fetch()`/this Worker's own server-side `fetch()`
+ *    gets a clean `206 Partial Content` every time. This route puts a
+ *    Cloudflare edge `fetch()` — the side of that gap proven to work — in
+ *    front of the phone, so the phone's own `Range` request goes to THIS
+ *    Worker's origin (which it has never cached anything under) instead of
+ *    repeatedly hitting `huggingface.co` directly.
  *
- * SECURITY:
+ *    HARD CONSTRAINTS (this is a single-purpose proxy, not a general one):
+ *      - Exactly ONE upstream URL is ever fetched — a hardcoded literal
+ *        (`MODEL_UPSTREAM_URL`), not derived from any request input. There is
+ *        no path parameter, no query parameter, nothing the caller supplies
+ *        that changes which URL this Worker fetches. It cannot be used to
+ *        proxy an arbitrary URL.
+ *      - A `Range` header is REQUIRED on every request; its absence is a
+ *        `400` (see `handleModelWeightProxy`) — this route never serves a
+ *        whole-file download.
+ *      - The upstream `Range` header is forwarded byte-for-byte. If upstream
+ *        doesn't answer `206`, THIS Worker never reads that body (mirrors
+ *        the app's own SAFE ABORT — see `fetchOneChunk`'s header) and
+ *        returns a typed `502` instead of ever passing through an
+ *        unverified/full body.
+ *      - The response body is streamed straight through
+ *        (`new Response(upstream.body, ...)`) — never `.arrayBuffer()`'d,
+ *        never buffered. The ~460MB file is never materialized in this
+ *        Worker's memory, at any chunk size.
+ *      - `Content-Range` / `Content-Length` / `Accept-Ranges` / `ETag` are
+ *        forwarded from upstream unchanged, plus
+ *        `Access-Control-Expose-Headers` naming all four — without that,
+ *        the browser hides them from the app's own `response.headers.get()`
+ *        calls on a cross-origin response even when the wire response is
+ *        perfect (`Content-Range`/`ETag`/`Accept-Ranges` are NOT in the
+ *        CORS-safelisted response-header set).
+ *      - Reuses the SAME `AYAS_PHONE_KEY` bearer-token gate as the chat
+ *        route (`isAuthorized`) — the existing auth mechanism, not a new
+ *        one — so this Worker can't be used as a free anonymous mirror.
+ *
+ * SECURITY (route 1, chat stream — unchanged from the original design):
  *   - `AYAS_CLOUD_API_KEY` is a Worker secret (`wrangler secret put`). Read only
  *     inside `CloudAyasProvider` for the `Authorization` header to the LLM. It
  *     is never logged, echoed, or put in an error/response body.
@@ -33,15 +66,17 @@
  *     `AYAS_CLOUD_BASE_URL` vars + the `AYAS_CLOUD_API_KEY` secret). The
  *     request body is read for `text` / `history` / `seq` ONLY.
  *   - No arbitrary URL forwarding: the LLM base URL is fixed server-side.
- *   - Exactly one route is served: `POST /api/ayas/chat/stream`. Everything
- *     else is 404/405, generic body, no version/stack leak.
+ *   - Exactly two routes are served (see above). Everything else is
+ *     404/405, generic body, no version/stack leak.
  *   - This Worker holds NO reference to the PC's IP, `localhost`, Ollama, or
  *     cloudflared — it cannot depend on any of them being up. That is the
- *     entire point of it existing.
+ *     entire point of route 1 existing; route 2 is independent of the PC too
+ *     (it talks only to `huggingface.co`).
  */
 
 import { createCloudAyasProvider } from "../../../src/lib/ayas/model/CloudAyasProvider";
 import { isUsableAyasReply, ayasReplyClaimsExecution } from "../../../src/components/brain/brainCore";
+import { MODEL_PROXY_ROUTES } from "./modelProxyConfig";
 
 /** Worker bindings — set via `wrangler.toml` [vars] (non-secret) + `wrangler secret put` (secret). */
 export interface AyasWorkerEnv {
@@ -107,10 +142,57 @@ function corsHeaders(origin: string | null): HeadersInit {
   };
 }
 
+/**
+ * Route 2's own CORS header set — kept separate from `corsHeaders()` above
+ * rather than extending it, so route 1's (already real-device-verified)
+ * CORS contract is never perturbed by this route's needs. `Range` must be
+ * allow-listed (it is NOT a CORS-safelisted request header, so a
+ * cross-origin `fetch()` with a `Range` header triggers a real preflight);
+ * `Content-Range`/`Content-Length`/`Accept-Ranges`/`ETag` must be exposed
+ * (none of the four are in the CORS-safelisted RESPONSE header set, so
+ * without this the app's own `response.headers.get(...)` calls would see
+ * `null` for all of them even on a perfect 206 from this Worker).
+ */
+function modelProxyCorsHeaders(origin: string | null): HeadersInit {
+  if (!origin) return {};
+  return {
+    "Access-Control-Allow-Origin": origin,
+    Vary: "Origin",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Authorization, Range",
+    "Access-Control-Expose-Headers": "Content-Range, Content-Length, Accept-Ranges, ETag",
+    "Access-Control-Max-Age": "600",
+  };
+}
+
 function json(status: number, body: Record<string, unknown>, origin: string | null): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json", ...corsHeaders(origin) },
+  });
+}
+
+/**
+ * Route 2's own JSON-error responder — was missing; every non-206 response
+ * from route 2 (400/401/403/405/502) was going through `json()` above,
+ * which stamps route 1's CORS header set (`Access-Control-Allow-Headers:
+ * Content-Type, Authorization`, no `Range`; no
+ * `Access-Control-Expose-Headers` for Content-Range/Content-Length/
+ * Accept-Ranges/ETag). The OPTIONS preflight for route 2 always used the
+ * CORRECT `modelProxyCorsHeaders()` set (confirmed live via curl with the
+ * real production Origin), so the preflight for a Range+Authorization
+ * request succeeded — but any actual GET that then received a non-206
+ * response (a real-device auth mismatch after `AYAS_PHONE_KEY` rotation
+ * this session, for instance) got a response whose CORS headers didn't
+ * match what route 2 actually needs, which is a real, confirmed defect
+ * regardless of the exact browser-engine behavior it triggers. Fixed by
+ * giving route 2 its own responder using `modelProxyCorsHeaders()` — every
+ * error path below now uses this instead of `json()`.
+ */
+function modelProxyJson(status: number, body: Record<string, unknown>, origin: string | null): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...modelProxyCorsHeaders(origin) },
   });
 }
 
@@ -133,6 +215,65 @@ function isAuthorized(request: Request, env: AyasWorkerEnv): boolean {
   const match = /^Bearer\s+(.+)$/.exec(header.trim());
   if (!match) return false;
   return timingSafeEqual(match[1].trim(), env.AYAS_PHONE_KEY!.trim());
+}
+
+const BYTES_RANGE_RE = /^bytes=\d+-\d+$/;
+
+/**
+ * Route 2 (Phone-LLM Range proxy) — see file header for the full design
+ * rationale and hard constraints. Requires a single `bytes=<start>-<end>`
+ * Range header, forwards it verbatim to `upstreamUrl` (the router below
+ * resolves this from the closed `MODEL_PROXY_ROUTES` allowlist by matching
+ * the request path — the only URL this function ever fetches for a given
+ * request), and — ONLY if upstream answers `206` — streams that response
+ * straight through without ever buffering it. Any other upstream status is
+ * a fail-closed `502`, body cancelled unread.
+ */
+async function handleModelWeightProxy(request: Request, origin: string | null, upstreamUrl: string): Promise<Response> {
+  const range = request.headers.get("range");
+  if (!range) {
+    return modelProxyJson(
+      400,
+      { error: "range_required", detail: "This gateway only serves bounded Range requests for a small, fixed set of phone-fallback weight files — no whole-file download is offered." },
+      origin,
+    );
+  }
+  if (!BYTES_RANGE_RE.test(range.trim())) {
+    return modelProxyJson(400, { error: "invalid_range", detail: "Range must be exactly one 'bytes=<start>-<end>' window." }, origin);
+  }
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(upstreamUrl, { headers: { Range: range } });
+  } catch {
+    return modelProxyJson(502, { error: "upstream_unreachable" }, origin);
+  }
+
+  if (upstream.status !== 206) {
+    // SAFE ABORT — mirrors fetchOneChunk's own fix exactly (see its header):
+    // never read a body whose status doesn't match what a Range request
+    // expects. Cancelled unread, never passed through.
+    await upstream.body?.cancel().catch(() => {});
+    return modelProxyJson(502, { error: "upstream_range_not_honored", detail: `upstream responded ${upstream.status}, expected 206` }, origin);
+  }
+
+  const headers = new Headers(modelProxyCorsHeaders(origin) as HeadersInit);
+  headers.set("Content-Type", upstream.headers.get("content-type") ?? "application/octet-stream");
+  const contentRange = upstream.headers.get("content-range");
+  const contentLength = upstream.headers.get("content-length");
+  const etag = upstream.headers.get("etag");
+  if (contentRange) headers.set("Content-Range", contentRange);
+  if (contentLength) headers.set("Content-Length", contentLength);
+  headers.set("Accept-Ranges", upstream.headers.get("accept-ranges") ?? "bytes");
+  if (etag) headers.set("ETag", etag);
+  // Live pass-through, not a cache — never let an intermediate cache key
+  // on this Worker's own URL and serve a stale/wrong slice back.
+  headers.set("Cache-Control", "no-store");
+
+  // STREAM straight through: `upstream.body` is a ReadableStream, handed
+  // directly to this Response. Cloudflare Workers pipe this without ever
+  // materializing the bytes here — this is the entire point of route 2.
+  return new Response(upstream.body, { status: 206, headers });
 }
 
 /**
@@ -302,6 +443,33 @@ const ayasPhoneGatewayWorker = {
   async fetch(request: Request, env: AyasWorkerEnv): Promise<Response> {
     const url = new URL(request.url);
     const origin = allowedOrigin(request.headers.get("origin"), env);
+
+    // Route 2 — Phone-LLM Range proxy (see file header). Handled first and
+    // entirely separately from route 1's logic/CORS/method rules below.
+    // `MODEL_PROXY_ROUTES` is a closed, hardcoded allowlist (see
+    // `modelProxyConfig.ts`) — matching by `===` against each entry's fixed
+    // `path`, never a wildcard/prefix match, keeps the "only ever fetches
+    // hardcoded upstream URLs" guarantee true for every entry.
+    const modelRoute = MODEL_PROXY_ROUTES.find((r) => r.path === url.pathname);
+    if (modelRoute) {
+      if (request.method === "OPTIONS") {
+        return new Response(null, { status: 204, headers: modelProxyCorsHeaders(origin) });
+      }
+      if (request.method !== "GET") {
+        return modelProxyJson(405, { error: "method_not_allowed" }, origin);
+      }
+      if (request.headers.get("origin") && !origin) {
+        return modelProxyJson(403, { error: "origin_not_allowed" }, null);
+      }
+      if (!isAuthorized(request, env)) {
+        return modelProxyJson(401, { error: "unauthorized" }, origin);
+      }
+      try {
+        return await handleModelWeightProxy(request, origin, modelRoute.upstreamUrl);
+      } catch {
+        return modelProxyJson(502, { error: "gateway_error" }, origin);
+      }
+    }
 
     if (url.pathname !== ROUTE_PATH) {
       return new Response("not found", { status: 404 });

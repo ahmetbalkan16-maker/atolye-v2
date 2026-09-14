@@ -13,6 +13,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
+import { NextRequest } from "next/server";
+
 import {
   AYAS_SESSION_TTL_SECONDS,
   clearAttempts,
@@ -26,6 +28,7 @@ import {
   verifySession,
   type AttemptLimiterState,
 } from "../src/lib/auth/accessGate";
+import { middleware } from "../middleware";
 
 const REPO_ROOT = path.resolve(__dirname, "..");
 const KEY = "correct-horse-battery-staple";
@@ -212,6 +215,54 @@ async function main() {
     assert.equal(timingSafeEqual("abc", "abc"), true);
     assert.equal(timingSafeEqual("abc", "abd"), false);
     assert.equal(timingSafeEqual("abc", "ab"), false);
+  });
+
+  await scenario("middleware: an unauthenticated redirect preserves the FULL path+query in `next` — regression for the ayasPhoneKey-dropped-on-login bug", async () => {
+    // Real bug, real symptom: an unauthenticated phone opening
+    // `/brain?ayasPhoneKey=<key>` (the Phone LLM gateway's one-time
+    // bootstrap link) got redirected to `/login?next=%2Fbrain` — the
+    // `ayasPhoneKey` query string silently dropped by `jsonOrRedirect`
+    // building `next` from `pathname` alone. After login, `BrainCoreConsole`
+    // mounted on bare `/brain` with no key to bootstrap into localStorage,
+    // so the Phone LLM Lab page's `resolvePhoneLlmNetworkFetch` always saw
+    // `getStoredAyasPhoneKey() === null` and failed `gateway-not-configured`
+    // — no matter how many times the link was opened.
+    delete process.env.AYAS_ACCESS_KEY;
+    process.env.AYAS_ACCESS_KEY = "correct-horse-battery-staple-xyz";
+    try {
+      const req = new NextRequest("https://192.168.2.74/brain?ayasPhoneKey=some-real-looking-key-0123456789", {
+        headers: { host: "192.168.2.74", accept: "text/html" },
+      });
+      const res = await middleware(req);
+      assert.equal(res.status, 307, "no session cookie → must redirect, not pass through");
+      const location = res.headers.get("location");
+      assert.ok(location, "redirect must set a Location header");
+      const loginUrl = new URL(location!);
+      assert.equal(loginUrl.pathname, "/login");
+      const next = loginUrl.searchParams.get("next");
+      assert.equal(
+        next,
+        "/brain?ayasPhoneKey=some-real-looking-key-0123456789",
+        "the full path+query — not just the pathname — must survive into `next`",
+      );
+    } finally {
+      delete process.env.AYAS_ACCESS_KEY;
+    }
+  });
+
+  await scenario("middleware: a protected path with NO query string still redirects cleanly to next=<pathname> (no trailing '?')", async () => {
+    process.env.AYAS_ACCESS_KEY = "correct-horse-battery-staple-xyz";
+    try {
+      const req = new NextRequest("https://192.168.2.74/brain", {
+        headers: { host: "192.168.2.74", accept: "text/html" },
+      });
+      const res = await middleware(req);
+      const location = res.headers.get("location");
+      const loginUrl = new URL(location!);
+      assert.equal(loginUrl.searchParams.get("next"), "/brain", "no query string must not leave a stray '?' in next");
+    } finally {
+      delete process.env.AYAS_ACCESS_KEY;
+    }
   });
 
   await scenario("wiring: middleware + login route import the gate; Execution Gate untouched", () => {

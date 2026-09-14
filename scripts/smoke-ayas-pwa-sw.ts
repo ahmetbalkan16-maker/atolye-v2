@@ -66,7 +66,7 @@ await scenario("sw.js — precache holds no auth-gated route (/ and /brain would
   const precache = swSource.slice(swSource.indexOf("PRECACHE = ["), swSource.indexOf("]"));
   assert.ok(!/["']\/["']/.test(precache) && !/\/brain/.test(precache), "no gated routes in PRECACHE");
   assert.match(swSource, /Promise\.allSettled/, "a bad precache entry must not abort install");
-  assert.match(swSource, /ayas-shell-v3/, "cache name bumped so activate() purges the stale cache");
+  assert.match(swSource, /ayas-shell-v4/, "cache name bumped so activate() purges the stale cache (v3 → v4, real-device deployment-staleness follow-up)");
 });
 
 await scenario("sw.js — no execution / eval / dynamic code / network beyond fetch(request)", () => {

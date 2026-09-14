@@ -80,7 +80,20 @@ function jsonOrRedirect(
     return NextResponse.json(body, { status });
   }
   const loginUrl = new URL("/login", request.nextUrl);
-  loginUrl.searchParams.set("next", pathname);
+  // Preserve the FULL path+query, not just the pathname — a request like
+  // `/brain?ayasPhoneKey=<key>` (the Phone LLM gateway's one-time bootstrap
+  // link, see `ayasPhoneFallback.ts`) previously lost `ayasPhoneKey` right
+  // here: an unauthenticated visit redirected to `/login?next=%2Fbrain`,
+  // the query string silently dropped, so after login `BrainCoreConsole`
+  // mounted on bare `/brain` with no `ayasPhoneKey` to bootstrap into
+  // localStorage — the Phone LLM Lab page's `resolvePhoneLlmNetworkFetch`
+  // then always saw `getStoredAyasPhoneKey() === null` and failed with
+  // `gateway-not-configured`, regardless of how many times the bootstrap
+  // link was opened. `app/login/page.tsx`'s `safeNext` and
+  // `app/api/auth/login/route.ts`'s `safeNext` both already accept and
+  // preserve a full path+query `next` value unchanged — this was the only
+  // broken link in that chain.
+  loginUrl.searchParams.set("next", pathname + request.nextUrl.search);
   const redirect = NextResponse.redirect(loginUrl);
   redirect.headers.set("x-ayas-access-gate", status === 503 ? "misconfigured" : "enforced");
   return redirect;
