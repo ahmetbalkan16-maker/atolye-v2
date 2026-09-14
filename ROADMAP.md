@@ -1,5 +1,43 @@
 ---
 
+## AYAS Brain Maturity Master Sprint — 2026-09-14
+
+- [x] Took over Codex's uncommitted diff (15 files) + 1 new untracked file mid-sprint; preserved all
+      of it, reviewed it against HEAD `120c713c`, built on it rather than restarting.
+- [x] Confirmed (by reading, not assuming): stream safety — raw provider deltas never cross the
+      delta/done boundary; direct/reasoning guard parity via shared `finalizeAyasReply`; bounded
+      single correction attempt, no recursion; bare-"bu" false positive fixed; recency-ordered
+      active topic; self-referential memory relevance gate; deterministic ambiguity clarification.
+- [x] Found and fixed 7 additional real defects via live + adversarial testing that were NOT in
+      Codex's diff: 2 punctuation-sensitivity false positives (`replyNeedsContextCorrection`), an
+      unbounded "yardımcı olabilirim anywhere" over-trigger rejecting ~half of live first-drafts, a
+      literal-label-question false positive whose own hardcoded safe-fallback self-rejected (negation
+      -unaware regex), a live Cyrillic script-corruption gap (guard only covered Han/Kana/Hangul), an
+      option-extraction vocabulary gap ("yaklaşım" not recognized), and one dead-variable lint warning.
+- [x] Hardened the live harness (`scripts/live-ayas-brain-maturity.ts`) to test actual streamed
+      content (`visibleText` accumulated from every delta, asserted against `done.text`), not just
+      `done.text` in isolation — the exact weakness a prior review had flagged.
+- [x] Explicitly audited test-memory isolation across every touched/new test file (wrapper-based
+      auto-isolation confirmed in two files, explicit per-call isolation in the others); confirmed the
+      real `data/brain/memory/records.json` holds only genuine pre-existing data, untouched by this work.
+- [x] One residual, non-blocking, explicitly documented limitation: an extreme adversarial chain (dense
+      technical discussion → zero-transition unrelated personal question) can still show stale-topic
+      bleed after a correction retry. Added a targeted, regression-tested prompt instruction that
+      genuinely helps but doesn't fully eliminate it — a full fix needs real topic classification,
+      which this sprint was explicitly told not to build.
+- [x] Deterministic regression: **320 scenarios across 13 suites** (not 264/11 — 2 real suites,
+      `smoke-ayas-phone-runtime.ts` and `smoke-brain-selfheal-observe-ui.ts`, were missing from the
+      first sweep; found via an explicit import-grep cross-check, not assumed from Graphify alone).
+      TypeScript clean; ESLint 0 errors / 22 pre-existing warnings (0 new).
+- [x] Real configured `qwen2.5:7b` acceptance reported honestly: typically 17–18/20 across reruns, not
+      a clean 20/20 — the residual failures are always cold-start (no-history) turns where a small
+      7B model's first draft AND one correction both come back generic, safely contained by the
+      deterministic clarification fallback (verified via raw-draft inspection, not assumed). Zero
+      label artifacts, zero script corruption, zero fabricated execution across every observed run.
+- [ ] User review of the intentionally unstaged package; commit/push deliberately not performed.
+
+---
+
 ## AYAS Natural Conversation Polish Remediation — 2026-09-14
 
 - [x] Fix standalone-label echo leak (`stripAyasReplyLabelEcho` block-aware rewrite + userText
@@ -13,10 +51,9 @@
       all green.
 - [x] Live re-verification against the real, currently-configured `qwen2.5:7b` — two independent
       reruns of all 10 original acceptance scenarios; the three targeted defects did not recur.
-- [ ] Two residual, explicitly non-blocking soft-quality items left for a future sprint: topical
-      drift on the literal "what do the labels mean" question, and semantic mismatch on "Bugün
-      biraz yoruldum" — general model comprehension, out of this remediation's scope.
-- [ ] User review and commit/push; active branch has no configured upstream.
+- [x] Former residual literal-label and personal-statement comprehension items closed by AYAS Brain
+      Maturity Master Sprint.
+- [x] Natural Conversation Polish committed/pushed as `120c713c`; branch upstream is configured.
 
 ---
 
@@ -25,8 +62,8 @@
 - [x] Complete the existing social/declarative prompt and mid-reply label-filter handoff.
 - [x] Preserve the first real answer after user echoes and handle CRLF label lines.
 - [x] Validate with isolated chat-quality 20/20, chat 12/12, TypeScript and ESLint.
-- [ ] Operator evaluation of naturalness with the live model (not run in this task).
-- [ ] User review and commit/push; active branch has no configured upstream.
+- [x] Live naturalness evaluation completed in the subsequent remediation/master sprint.
+- [x] Natural Conversation Polish package committed/pushed as `120c713c`; upstream configured.
 
 ---
 

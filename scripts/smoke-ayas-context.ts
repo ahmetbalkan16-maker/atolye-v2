@@ -153,6 +153,96 @@ async function run() {
     assert.equal(a.trace.activeProject, null);
   });
 
+  /* ---------------- conversational follow-through + topic continuity ---------------- */
+
+  await scenario("follow-through — pronoun resolves to the single prior reply", () => {
+    const hist = h(["user", "Cevaplar bazen mekanik."], ["brain", "Üslup yönergesini daha doğal hale getirebiliriz."]);
+    const r = resolveAyasReferences("Onu biraz daha doğal yapabilir miyiz?", deriveAyasConversationState(hist), hist);
+    assert.equal(r.unresolved.length, 0);
+    assert.match(r.resolutions[0].referent, /Cevaplar bazen mekanik/);
+  });
+
+  await scenario("follow-through — demonstrative resolves without losing the prior topic", () => {
+    const hist = h(["user", "Context penceresini konuşalım."], ["brain", "Yakın turları on iki mesaj tutuyoruz."]);
+    const r = resolveAyasReferences("Bunu nasıl iyileştiririz?", deriveAyasConversationState(hist), hist);
+    assert.equal(r.clarification, null);
+    assert.match(r.resolutions[0].referent, /Context penceresini/);
+  });
+
+  await scenario("follow-through — second-option reference selects the real second option", () => {
+    const hist = h(["user", "Konuşma tarafında prompt ve context olmak üzere iki alan var."], ["brain", "İkisini de değerlendirebiliriz."]);
+    const state = deriveAyasConversationState(hist);
+    assert.deepEqual(state.options, ["prompt", "context"]);
+    const r = resolveAyasReferences("İkincisine bakalım.", state, hist);
+    assert.equal(r.resolutions[0].referent, "context");
+  });
+
+  await scenario("follow-through — adversarial-sweep finding: 'yaklaşım' (approach) enumerates options same as 'seçenek/alan'", () => {
+    // Real finding: the colon-form extractor only recognized "seçenek/alan/
+    // problem/öneri" — "Üç yaklaşım var: hız, kalite ve maliyet." silently
+    // failed to extract options at all, so a later "üçüncüsü" fell through to
+    // an unnecessary clarification instead of correctly resolving.
+    const hist = h(["user", "Üç yaklaşım var: zaman, kalite ve maliyet."]);
+    const state = deriveAyasConversationState(hist);
+    assert.deepEqual(state.options, ["zaman", "kalite", "maliyet"]);
+    const r = resolveAyasReferences("Üçüncüsü.", state, hist);
+    assert.equal(r.clarification, null);
+    assert.equal(r.resolutions[0].referent, "maliyet");
+  });
+
+  await scenario("follow-through — elliptical 'neden?' continues the selected option", () => {
+    const hist = h(
+      ["user", "Prompt ve context olmak üzere iki seçenek var."],
+      ["brain", "İkisini karşılaştırabiliriz."],
+      ["user", "İkincisine bakalım."],
+      ["brain", "Context daha güçlü bir devamlılık sağlar."],
+    );
+    const state = deriveAyasConversationState(hist);
+    assert.equal(state.selectedOption, "context");
+    const r = resolveAyasReferences("Neden?", state, hist);
+    assert.equal(r.resolutions[0].referent, "context");
+  });
+
+  await scenario("follow-through — 'ikincisini biraz aç' keeps the option identity", () => {
+    const hist = h(["brain", "Birincisi prompt iyileştirme, ikincisi context sürekliliği, üçüncüsü memory politikası."]);
+    const state = deriveAyasConversationState(hist);
+    const r = resolveAyasReferences("İkincisini biraz aç.", state, hist);
+    assert.match(r.resolutions[0].referent, /context sürekliliği/i);
+  });
+
+  await scenario("follow-through — exclusion survives acknowledgment + 'bunun dışında'", () => {
+    const hist = h(["user", "Memory tarafına bugün dokunmayalım."], ["brain", "Tamam, memory'yi kapsam dışında tutuyorum."]);
+    const state = deriveAyasConversationState(hist);
+    assert.equal(state.temporaryConstraints.length, 1);
+    const r = resolveAyasReferences("Tamam, bunun dışında ne geliştirebiliriz?", state, hist);
+    assert.match(r.resolutions[0].referent, /Memory tarafına bugün dokunmayalım/i);
+  });
+
+  await scenario("follow-through — two plausible referents require clarification", () => {
+    const hist = h(["user", "İki problem var: cevaplar uzun ve bazen mekanik."], ["brain", "İki problemi de görüyorum."]);
+    const r = resolveAyasReferences("Onu düzelt.", deriveAyasConversationState(hist), hist);
+    assert.ok(r.unresolved.length > 0);
+    assert.match(r.clarification ?? "", /cevaplar uzun.*bazen mekanik/i);
+  });
+
+  await scenario("follow-through — fresh no-history reference requires clarification", () => {
+    const r = resolveAyasReferences("Onu biraz sadeleştir.", deriveAyasConversationState([]), []);
+    assert.equal(r.resolutions.length, 0);
+    assert.match(r.clarification ?? "", /Neyi kastettiğini/);
+  });
+
+  await scenario("topic continuity — selected option and exclusion are rendered together", () => {
+    const hist = h(
+      ["user", "Prompt ve context olmak üzere iki seçenek var."],
+      ["user", "İkincisine bakalım."],
+      ["user", "Memory'ye şimdilik girme."],
+    );
+    const a = assembleAyasContext({ userText: "Burada ilk problem ne?", history: hist });
+    assert.equal(a.trace.selectedOption, "context");
+    assert.equal(a.trace.temporaryConstraintCount, 1);
+    assert.match(a.block.stateLines?.join("\n") ?? "", /context[\s\S]*Memory/i);
+  });
+
   console.log(`AYAS context smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-context", scenarios: count }));
 }

@@ -101,8 +101,12 @@ function promptFromCapturedBody(body: string): string {
   return parsed.messages?.[0]?.content ?? "";
 }
 
+const testMemoryRoots = new Set<string>();
+
 function tmpMemRoot(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "ayas-chat-quality-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-chat-quality-"));
+  testMemoryRoots.add(root);
+  return root;
 }
 
 /** Seeds a real identity ("kimlik") record into a fresh tmp store — the exact shape `AyasMemoryCandidate.ts`'s IDENTITY pattern produces. */
@@ -251,6 +255,19 @@ async function run() {
     assert.equal(ayasReplyHasUnexpectedScriptMixing("Anladım, devam edelim.", "Tamam güzel."), false);
   });
 
+  await scenario("script-guard — Brain Maturity adversarial-sweep finding: unexpected Cyrillic corruption is blocked too", () => {
+    // Real live finding: a single Cyrillic syllable embedded mid-word in an
+    // otherwise Turkish reply ("tanıдавasınuz") — the original guard only
+    // covered Han/Kana/Hangul; this proves the failure class recurs with a
+    // different script and the guard must generalize, not just patch one case.
+    assert.equal(
+      ayasReplyHasUnexpectedScriptMixing("Beni tanıдавasınuz, kullanıcı.", "Benim adım ne?"),
+      true,
+    );
+    // and legitimate Cyrillic stays unblocked when the user introduced it
+    assert.equal(ayasReplyHasUnexpectedScriptMixing("Привет anlamı merhaba demektir.", "Привет ne demek?"), false);
+  });
+
   // --- buildAyasChatPrompt — complexity-gated studio block -----------------
 
   await scenario("prompt — SIMPLE complexity omits the studio/project-state block", () => {
@@ -297,6 +314,19 @@ async function run() {
     assert.match(p, /onay\/teyit/);
     // declarative-statement acceptance guidance (untouched by this remediation)
     assert.match(p, /KABUL ET/);
+  });
+
+  await scenario("prompt — general comprehension keeps personal statements and literal terminology on-topic", () => {
+    const prompt = buildAyasChatPrompt({ userText: "Bugün biraz yoruldum.", snapshot: snap(), history: [], format: "text" });
+    assert.match(prompt, /kişisel bir durum veya duygu/i);
+    assert.match(prompt, /Atölye, proje, pipeline veya görev durumuna atlama/i);
+    assert.match(prompt, /literal terimler/i);
+  });
+
+  await scenario("prompt — recent conversation outranks memory and ambiguity must be clarified", () => {
+    const prompt = buildAyasChatPrompt({ userText: "Onu düzelt.", snapshot: snap(), history: [], format: "text" });
+    assert.match(prompt, /Güncel konuşma ile kalıcı hafıza çatışırsa güncel konuşma önceliklidir/i);
+    assert.match(prompt, /birden çok makul karşılık varsa tahmin etme/i);
   });
 
   // --- end-to-end via streamAyasChat (real function, mocked Ollama) --------
@@ -394,8 +424,12 @@ async function run() {
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-chat-quality", scenarios: count }));
 }
 
-run().catch((err) => {
-  console.error("AYAS chat quality smoke: FAIL");
-  console.error(err);
-  process.exitCode = 1;
-});
+run()
+  .catch((err) => {
+    console.error("AYAS chat quality smoke: FAIL");
+    console.error(err);
+    process.exitCode = 1;
+  })
+  .finally(() => {
+    for (const root of testMemoryRoots) fs.rmSync(root, { recursive: true, force: true });
+  });

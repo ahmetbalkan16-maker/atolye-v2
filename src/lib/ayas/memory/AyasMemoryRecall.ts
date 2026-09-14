@@ -112,6 +112,8 @@ function toLine(r: BrainMemoryRecord): string {
 
 export interface AyasMemoryRecallTrace {
   readonly lines: readonly string[];
+  /** Per-line identity metadata used by the chat relevance gate. */
+  readonly entries: readonly { readonly line: string; readonly identity: boolean }[];
   /** How many records actually made it into `lines` (post char-budget cutoff). */
   readonly recallCount: number;
   /** Of those, how many carry the "kimlik" (identity) tag — see `AyasMemoryRecall`'s identity bonus above and `AyasMemoryCandidate.ts`'s `IDENTITY` pattern. */
@@ -133,25 +135,27 @@ export async function recallAyasMemoryWithTrace(
   try {
     const store = createAyasMemoryStore(options.store);
     const records = store.load();
-    if (records.length === 0) return { lines: [], recallCount: 0, identityRecallCount: 0 };
+    if (records.length === 0) return { lines: [], entries: [], recallCount: 0, identityRecallCount: 0 };
     const top = rankAyasMemory(records, query, {
       ...(options.activeProject ? { activeProject: options.activeProject } : {}),
       ...(options.nowIso ? { nowIso: options.nowIso } : {}),
     });
-    if (top.length === 0) return { lines: [], recallCount: 0, identityRecallCount: 0 };
+    if (top.length === 0) return { lines: [], entries: [], recallCount: 0, identityRecallCount: 0 };
     const lines: string[] = [];
+    const entries: { line: string; identity: boolean }[] = [];
     let identityRecallCount = 0;
     let chars = 0;
     for (const r of top) {
       const line = toLine(r);
       if (chars + line.length > MAX_BLOCK_CHARS) break;
       lines.push(line);
+      entries.push({ line, identity: r.tags.includes("kimlik") });
       chars += line.length;
       if (r.tags.includes("kimlik")) identityRecallCount += 1;
     }
-    return { lines, recallCount: lines.length, identityRecallCount };
+    return { lines, entries, recallCount: lines.length, identityRecallCount };
   } catch {
-    return { lines: [], recallCount: 0, identityRecallCount: 0 };
+    return { lines: [], entries: [], recallCount: 0, identityRecallCount: 0 };
   }
 }
 

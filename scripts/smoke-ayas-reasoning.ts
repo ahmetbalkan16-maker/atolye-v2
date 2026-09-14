@@ -17,6 +17,9 @@
  */
 
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 import {
   shouldUseAyasReasoning,
@@ -25,7 +28,7 @@ import {
 } from "../src/lib/ayas/reasoning/AyasReasoningCore";
 import { parseAyasReasoningOutput } from "../src/lib/ayas/reasoning/AyasReasoningParser";
 import { buildAyasReasoningPrompt } from "../src/lib/ayas/reasoning/AyasReasoningPrompt";
-import { streamAyasChat } from "../src/lib/ayas/AyasChatStream";
+import { streamAyasChat as productionStreamAyasChat, type StreamAyasChatInput } from "../src/lib/ayas/AyasChatStream";
 import type { AyasModelProvider } from "../src/lib/ayas/model/AyasModelTypes";
 import type { BrainConsoleSnapshot } from "../src/lib/brain/ui/BrainConsoleSnapshot";
 
@@ -98,6 +101,13 @@ const snapshot: BrainConsoleSnapshot = {
   experience: { total: 0 },
   safety: { decision: "proceed-with-constraints", snapshotSource: "unavailable", reasons: [], hardwareProfileId: "gtx-1650-4gb" },
 };
+
+const testMemoryRoots = new Set<string>();
+async function* streamAyasChat(input: StreamAyasChatInput) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-reasoning-mem-"));
+  testMemoryRoots.add(root);
+  yield* productionStreamAyasChat({ ...input, memoryStore: input.memoryStore ?? { rootDir: root } });
+}
 
 async function run() {
   /* ---------------- complexity gate ---------------- */
@@ -363,6 +373,55 @@ async function run() {
     assert.equal(events[0].type, "delta", "the answer is still emitted as a delta before the done event");
   });
 
+  await scenario("streamAyasChat — reasoning prompt receives recent roles and the selected conversational option", async () => {
+    const provider = mockProvider((prompt) => {
+      assert.match(prompt, /Yakın konuşma turları/);
+      assert.match(prompt, /Kullanıcı: Prompt ve context olmak üzere iki seçenek var/);
+      assert.match(prompt, /kullanıcının seçtiği seçenek: context/i);
+      return okJson({ answer: "Context, yakın turları doğru sırayla taşıdığı için daha önemlidir." });
+    });
+    const events: { type: string; source?: string }[] = [];
+    for await (const e of streamAyasChat({
+      text: "Neden daha önemli?",
+      snapshot,
+      seq: 2,
+      history: [
+        { role: "user", text: "Prompt ve context olmak üzere iki seçenek var." },
+        { role: "brain", text: "İkisini karşılaştırabiliriz." },
+        { role: "user", text: "İkincisine bakalım." },
+        { role: "brain", text: "Context daha önemli." },
+      ],
+      route: { decision: { complexity: "COMPLEX", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) events.push(e as never);
+    assert.equal(events.at(-1)?.source, "llm", JSON.stringify(events.at(-1)));
+  });
+
+  await scenario("streamAyasChat — reasoning answer gets the same label-cleanup guard", async () => {
+    const provider = mockProvider(() => okJson({ answer: "Kullanıcı: Neden?\nAYAS:\nContext güncel konuşmayı taşıdığı için." }));
+    let done: { source?: string; text?: string } | undefined;
+    for await (const e of streamAyasChat({
+      text: "Neden daha önemli?",
+      snapshot,
+      seq: 3,
+      route: { decision: { complexity: "COMPLEX", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) if ((e as { type: string }).type === "done") done = e as never;
+    assert.equal(done?.source, "llm");
+    assert.equal(done?.text, "Context güncel konuşmayı taşıdığı için.");
+  });
+
+  await scenario("streamAyasChat — reasoning answer gets the same mixed-script corruption guard", async () => {
+    const provider = mockProvider(() => okJson({ answer: "Context önemli. 今天感觉有点累。" }));
+    let done: { source?: string; reason?: string } | undefined;
+    for await (const e of streamAyasChat({
+      text: "Neden daha önemli?",
+      snapshot,
+      seq: 4,
+      route: { decision: { complexity: "COMPLEX", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) if ((e as { type: string }).type === "done") done = e as never;
+    assert.equal(done?.source, "fallback");
+    assert.equal(done?.reason, "script-mixing");
+  });
+
   await scenario("streamAyasChat — TOOL complexity: a read-only tool is named in the trace", async () => {
     const provider = mockProvider(() => okJson({ requiredTools: ["pipeline-recovery-plan"] }));
     let done: { reasoning?: { requiredTools: string[] } } | undefined;
@@ -415,7 +474,11 @@ async function run() {
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-reasoning", scenarios: count }));
 }
 
-run().catch((error) => {
-  console.error("AYAS reasoning smoke FAILED:", error);
-  process.exitCode = 1;
-});
+run()
+  .catch((error) => {
+    console.error("AYAS reasoning smoke FAILED:", error);
+    process.exitCode = 1;
+  })
+  .finally(() => {
+    for (const root of testMemoryRoots) fs.rmSync(root, { recursive: true, force: true });
+  });

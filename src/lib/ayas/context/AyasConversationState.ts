@@ -30,6 +30,12 @@ export interface AyasConversationStateView {
   readonly activeTopic: string | null;
   /** The pipeline stage last discussed, or `null`. */
   readonly activeStage: string | null;
+  /** Options last presented/discussed, in their conversational order. */
+  readonly options: readonly string[];
+  /** Option explicitly selected by the user (for example "ikincisi"), if any. */
+  readonly selectedOption: string | null;
+  /** Immediate, conversation-only exclusions such as "memory'ye bugün girme". */
+  readonly temporaryConstraints: readonly string[];
   /** The user's last message, trimmed — the thing `devam et` / `bunu da` extends. */
   readonly lastUserText: string | null;
   /** AYAS's last reply, trimmed — the thing `bir önceki` / `onu` may point at. */
@@ -47,6 +53,9 @@ export const EMPTY_AYAS_CONVERSATION_STATE: AyasConversationStateView = Object.f
   activeProject: null,
   activeTopic: null,
   activeStage: null,
+  options: [],
+  selectedOption: null,
+  temporaryConstraints: [],
   lastUserText: null,
   lastAssistantText: null,
   unresolvedQuestions: [],
@@ -56,6 +65,8 @@ export const EMPTY_AYAS_CONVERSATION_STATE: AyasConversationStateView = Object.f
 
 const MAX_ENTITIES = 8;
 const MAX_UNRESOLVED = 3;
+const MAX_OPTIONS = 5;
+const MAX_CONSTRAINTS = 3;
 
 const STAGE_WORDS = [
   "research",
@@ -93,6 +104,70 @@ function pendingQuestion(assistantText: string): string | null {
   return last.length <= 200 ? last : null;
 }
 
+function compact(text: string, max = 120): string {
+  const value = text.replace(/\s+/g, " ").trim().replace(/[.!?]+$/, "");
+  return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
+}
+
+/** Small, general option extractor; it is deliberately not a Turkish parser. */
+export function extractAyasConversationOptions(text: string): string[] {
+  const value = compact(text, 500);
+  const folded = fold(value);
+  let source = "";
+
+  // Adversarial-sweep finding: "yaklaşım/yöntem/yol" (approach/method/way) are
+  // ordinary synonyms for an enumerable option in Turkish, same shape as
+  // "seçenek/alan" — without them, a real "Üç yaklaşım var: A, B ve C."
+  // failed to extract options at all, so a later "üçüncüsü" fell through
+  // safely to a clarification instead of correctly resolving. Extending the
+  // existing whitelist, not adding a parser.
+  const colon = folded.match(/\b(?:iki|uc|2|3)\s+(?:secenek|alan|problem|oneri|yaklasim|yontem|yol)[^:]{0,30}:\s*(.+)$/i);
+  if (colon?.[1]) source = colon[1];
+
+  if (!source && /\bolmak uzere\b/.test(folded)) {
+    source = value.split(/\bolmak üzere\b|\bolmak uzere\b/i)[0]?.trim() ?? "";
+    source = source.replace(/^.*?(?:tarafında|tarafinda)\s+/i, "");
+  }
+
+  if (source) {
+    const parts = source
+      .split(/\s+(?:ve|veya)\s+|\s*,\s*/i)
+      .map((part) => compact(part, 80))
+      .filter((part) => part.length >= 2 && part.length <= 80);
+    if (parts.length >= 2 && parts.length <= MAX_OPTIONS) return parts;
+  }
+
+  const ordinalMatches = [...value.matchAll(/(?:^|\s)(?:\d+[.)]|birincisi|ikincisi|üçüncüsü|ucuncusu)\s*[:—-]?\s*([^\n;]+?)(?=(?:\s+(?:\d+[.)]|birincisi|ikincisi|üçüncüsü|ucuncusu)\s*[:—-]?)|$)/gi)]
+    .map((match) => compact(match[1] ?? "", 80))
+    .filter((part) => part.length >= 2);
+  return ordinalMatches.length >= 2 ? ordinalMatches.slice(0, MAX_OPTIONS) : [];
+}
+
+function selectedOptionIndex(text: string): number | null {
+  const value = fold(text);
+  if (/\b(ilki|birincisi|birincisine|birincisini|ilkine|ilkini)\b/.test(value)) return 0;
+  if (/\b(ikincisi|ikincisine|ikincisini|ikinciye|ikinciyi)\b/.test(value)) return 1;
+  if (/\b(ucuncusu|ucuncusune|ucuncusunu|ucuncuye|ucuncuyu)\b/.test(value)) return 2;
+  return null;
+}
+
+function immediateConstraint(text: string): string | null {
+  const value = fold(text);
+  if (!/\b(dokunmayalim|girme|girmeyelim|degistirme|konusmayalim|haric|disinda tut|olmasin)\b/.test(value)) return null;
+  return compact(text, 140);
+}
+
+function explicitTopic(text: string): string | null {
+  const value = fold(text);
+  const match = value.match(/^(.{2,100}?)\s+(?:konusalim|inceleyelim|ele alalim|uzerinden gidelim)\b/);
+  if (!match?.[1]) return null;
+  let topic = match[1].replace(/^(?:bugun|simdi)\s+/, "").trim();
+  const marker = Math.max(topic.lastIndexOf("yalnizca "), topic.lastIndexOf("sadece "));
+  if (marker >= 0) topic = topic.slice(marker).replace(/^(?:yalnizca|sadece)\s+/, "");
+  topic = topic.replace(/\b(?:tarafini|konusunu)$/, "").trim();
+  return topic.length >= 2 ? compact(topic, 80) : null;
+}
+
 /**
  * Deterministically derive the conversation state. `history` is the same
  * `{role,text}[]` the chat route already has; system/welcome turns are filtered.
@@ -126,7 +201,14 @@ export function deriveAyasConversationState(
   };
 
   let activeProject: string | null = null;
+  let activeProjectTurn = -1;
   let activeStage: string | null = null;
+  let conversationOptions: string[] = [];
+  let selectedOption: string | null = null;
+  let selectedOptionTurn = -1;
+  let statedTopic: string | null = null;
+  let statedTopicTurn = -1;
+  const constraints: string[] = [];
   let lastUserText: string | null = null;
   let lastAssistantText: string | null = null;
   const unresolved: string[] = [];
@@ -142,6 +224,7 @@ export function deriveAyasConversationState(
       ) {
         note(p.display, "project", idx);
         activeProject = p.display;
+        activeProjectTurn = idx;
       }
     }
     for (const stage of STAGE_WORDS) {
@@ -156,6 +239,22 @@ export function deriveAyasConversationState(
 
     if (turn.role === "user") {
       lastUserText = turn.text.trim();
+      const choice = selectedOptionIndex(turn.text);
+      if (choice !== null && conversationOptions[choice]) {
+        selectedOption = conversationOptions[choice];
+        selectedOptionTurn = idx;
+      }
+      const constraint = immediateConstraint(turn.text);
+      if (constraint) {
+        constraints.push(constraint);
+        if (constraints.length > MAX_CONSTRAINTS) constraints.shift();
+      }
+      const topic = explicitTopic(turn.text);
+      if (topic) {
+        statedTopic = topic;
+        statedTopicTurn = idx;
+        note(topic, "topic", idx);
+      }
       // answering clears the most recent pending question
       if (unresolved.length && turn.text.trim().length > 0) unresolved.length = 0;
     } else {
@@ -166,22 +265,49 @@ export function deriveAyasConversationState(
         unresolved.push(q);
       }
     }
+
+    const discoveredOptions = extractAyasConversationOptions(turn.text);
+    if (discoveredOptions.length) {
+      conversationOptions = discoveredOptions;
+      selectedOption = null;
+      selectedOptionTurn = -1;
+      discoveredOptions.forEach((option) => note(option, "topic", idx));
+    }
   });
 
   const recentEntities = [...entities.values()]
     .sort((a, b) => b.lastTurn - a.lastTurn || a.value.localeCompare(b.value))
     .slice(0, MAX_ENTITIES);
 
+  const conversationalTopic = [...turns]
+    .reverse()
+    .filter((turn) => turn.role === "user")
+    .map((turn) => turn.text.trim())
+    .find((value) =>
+      value.split(/\s+/).length >= 3 &&
+      !/^\s*(?:tamam|peki|evet|hayır|hayir|bunu|şunu|sunu|onu|o\b|bu\b|neden\b|niye\b|nasıl yani|nasil yani|devam et|ilk\b|ikinci\b)/i.test(value),
+    );
+
+  const explicitFocus = [
+    ...(selectedOption ? [{ value: selectedOption, turn: selectedOptionTurn }] : []),
+    ...(statedTopic ? [{ value: statedTopic, turn: statedTopicTurn }] : []),
+    ...(activeProject ? [{ value: activeProject, turn: activeProjectTurn }] : []),
+  ].sort((a, b) => b.turn - a.turn)[0]?.value ?? null;
+
   const activeTopic =
-    activeProject ??
+    explicitFocus ??
     recentEntities.find((e) => e.kind === "topic")?.value ??
-    (activeStage ? `${activeStage} aşaması` : null);
+    (activeStage ? `${activeStage} aşaması` : null) ??
+    (conversationalTopic ? compact(conversationalTopic, 100) : null);
 
   return {
     conversationId: options.conversationId ?? "c0",
     activeProject,
     activeTopic,
     activeStage,
+    options: conversationOptions,
+    selectedOption,
+    temporaryConstraints: constraints,
     lastUserText,
     lastAssistantText,
     unresolvedQuestions: unresolved.slice(0, MAX_UNRESOLVED),

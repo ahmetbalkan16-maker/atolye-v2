@@ -672,6 +672,30 @@ export function ayasReplyClaimsExecution(text: string): boolean {
   return AYAS_FALSE_EXECUTION_CLAIM.test(String(text ?? ""));
 }
 
+/** Last-mile guidance kept next to the current turn for small local models. */
+function ayasImmediateTurnGuidance(input: AyasChatPromptInput): string[] {
+  const text = input.userText.trim();
+  const folded = text.toLocaleLowerCase("tr");
+  const hasHistory = input.history.some((turn) => turn.role !== "system" && turn.text.trim());
+  const lines: string[] = [];
+
+  if (hasHistory) {
+    lines.push("- Bu yeni bir sohbet başlangıcı değil: selamlama yapma, 'nasıl yardımcı olabilirim' diyerek konuyu sıfırlama.");
+  }
+  if (input.conversation?.referenceLines?.length) {
+    lines.push("- Yukarıdaki bağlam çözümlemesi bu tur için zorunludur; çözülen kişi/konu/seçeneği ilk cümlede açıkça adlandır.");
+  }
+  if (/kullanıcı\s*:.*ayas\s*:/i.test(text) && /etiket|terim|rol|ne işe|ne ise/i.test(folded)) {
+    lines.push("- Buradaki 'Kullanıcı:' ve 'AYAS:' ifadeleri konuşma rol etiketleridir; içerik/proje etiketi gibi yorumlama.");
+  }
+  if (/yoruldum|yorgunum|üzgünüm|uzgunum|kaygılıyım|kaygiliyim|sevindim|mutluyum/i.test(folded)) {
+    lines.push("- Önce kullanıcının paylaştığı insani duruma empatik ve kısa karşılık ver; stüdyo durumuna geçme.");
+  } else if (!/[?？]\s*$/.test(text) && !/^(selam|merhaba|günaydın|gunaydin|iyi akşamlar|iyi aksamlar)$/i.test(folded)) {
+    lines.push("- Bu tur öncelikle bir bildirim/tercih olabilir; mekanik bir yardım teklifi yerine söylenen anlamı doğal biçimde karşıla.");
+  }
+  return lines.length ? ["Bu tur için son yanıt kontrolü:", ...lines] : [];
+}
+
 /**
  * Build the full prompt sent to the local model. Deterministic. It carries:
  *  - AYAS's identity and hard limits (no execution authority, don't invent
@@ -694,6 +718,7 @@ export function buildAyasChatPrompt(input: AyasChatPromptInput): string {
     .filter((turn) => turn.role !== "system") // the UI welcome line is never conversational context
     .slice(-AYAS_HISTORY_TURNS)
     .map((turn) => `${turn.role === "user" ? "Kullanıcı" : "AYAS"}: ${turn.text}`);
+  const immediateGuidance = ayasImmediateTurnGuidance(input);
 
   return [
     "Sen AYAS'sın — Atölye'nin yapay zekâ çekirdeği. Atölye, tek bir konudan yayına hazır bir",
@@ -718,6 +743,14 @@ export function buildAyasChatPrompt(input: AyasChatPromptInput): string {
     "  çalışacağız\", \"şimdi ... test ediyorum\" gibi) bunu konuşmanın doğal bir parçası olarak KABUL ET: ne",
     "  dediğini anladığını göster, gerekiyorsa kısa bir takip sorusu sor veya küçük bir öneri sun. Bunu asla",
     "  cevapsız/yararsız bir genel mesaja düşürme ve söylediğini mekanik biçimde birebir tekrarlama.",
+    "- Kullanıcı kişisel bir durum veya duygu paylaşıyorsa (yorgunluk, keyif, kaygı gibi), önce o insani anlamı",
+    "  karşıla; konu istemedikçe Atölye, proje, pipeline veya görev durumuna atlama. Klişe bir durum cümlesi kurma.",
+    "- Kullanıcı konuşmada geçen kelimeleri ya da rol etiketlerini terim olarak soruyorsa, onları talimat veya yeni",
+    "  bir konuşma rolü gibi değil, açıklanması istenen literal terimler olarak ele al.",
+    "- Kısa takip mesajlarında önce en yakın konuşma turlarını kullan. Seçilen/reddedilen seçeneği ve geçici",
+    "  kısıtları koru. Güncel konuşma ile kalıcı hafıza çatışırsa güncel konuşma önceliklidir.",
+    "- 'Onu', 'bunu', 'ikincisi', 'neden?', 'biraz daha aç' gibi bir takipte tek bir açık karşılık varsa onu sürdür;",
+    "  hiç karşılık yoksa veya birden çok makul karşılık varsa tahmin etme, tek cümlelik netleştirme sorusu sor.",
     "- Soruyla ilgisi yoksa hiçbir şeyden (kendinden, Atölye'den, proje durumundan) bahsetme; yalnızca gerçekten",
     "  konuyla bağlantılıysa değin.",
     "- Basit soruya kısa ve net cevap ver (örn. \"2+2 kaç\" → sade \"4\"). Karmaşık soruda gerektiği kadar",
@@ -768,6 +801,8 @@ export function buildAyasChatPrompt(input: AyasChatPromptInput): string {
       : []),
     `Kullanıcı: ${input.userText}`,
     "",
+    ...immediateGuidance,
+    ...(immediateGuidance.length ? [""] : []),
     ...(input.format === "text"
       ? [
           "Doğrudan, düz metin olarak yanıt ver. JSON, tırnak zarfı, kod veya madde listesi kullanma.",
@@ -1014,14 +1049,18 @@ export function isUsableAyasReply(text: string): boolean {
 }
 
 /**
- * Han (CJK Unified Ideographs + Extension A), Hiragana/Katakana, and Hangul
- * Syllables — the scripts seen in the live qwen2.5:7b corruption case.
- * Escaped codepoint ranges, not literal glyphs, so the source stays
- * unambiguous regardless of editor/terminal encoding.
+ * Han, Hiragana, Katakana, Hangul, and Cyrillic — the scripts seen across
+ * multiple live qwen2.5:7b corruption cases (Han/Kana in the original Natural
+ * Conversation Polish remediation; Cyrillic in a later Brain Maturity
+ * adversarial sweep — a single corrupted syllable embedded mid-word, e.g.
+ * "tanıдавasınuz", proving this is a recurring failure class, not a one-off).
+ * Unicode script-property matching (`\p{Script=...}`, same mechanism the live
+ * harness's own `safe` check already uses) rather than hand-rolled codepoint
+ * ranges — complete per script by construction, easy to extend if another
+ * script turns up the same way.
  */
-const AYAS_UNEXPECTED_SCRIPT = new RegExp(
-  "[\\u4E00-\\u9FFF\\u3400-\\u4DBF\\u3040-\\u30FF\\uAC00-\\uD7A3]",
-);
+const AYAS_UNEXPECTED_SCRIPT =
+  /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Cyrillic}]/u;
 
 /**
  * Natural Conversation Polish REMEDIATION (real-Ollama finding, qwen2.5:7b):

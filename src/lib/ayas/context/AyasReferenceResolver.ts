@@ -30,9 +30,11 @@ export interface AyasReferenceResolutionResult {
   readonly unresolved: readonly string[];
   /** A ready-to-append prompt block (empty when nothing to say). */
   readonly promptLines: readonly string[];
+  /** Safe deterministic question when guessing would be unsafe. */
+  readonly clarification: string | null;
 }
 
-const EMPTY: AyasReferenceResolutionResult = Object.freeze({ resolutions: [], unresolved: [], promptLines: [] });
+const EMPTY: AyasReferenceResolutionResult = Object.freeze({ resolutions: [], unresolved: [], promptLines: [], clarification: null });
 
 function fold(text: string): string {
   return String(text ?? "")
@@ -49,8 +51,16 @@ function fold(text: string): string {
 const REF_PATTERNS: { re: RegExp; phrase: string }[] = [
   { re: /\b(az once(ki)?|az onceden|demin(ki)?|birazonce|bir onceki|onceki)\b/, phrase: "az önceki" },
   { re: /\b(o proje(yi|nin|de)?|su proje(yi|nin)?|bu proje(yi|nin)?)\b/, phrase: "o proje" },
-  { re: /\b(bunu|sunu|onu|bunlari|sunlari)\b/, phrase: "bunu / şunu / onu" },
-  { re: /\b(devam et|devam edelim|kaldigimiz yerden|bir daha soyle|tekrar et)\b/, phrase: "devam et" },
+  { re: /\b(ilki|birincisi|birincisine|birincisini|ilkine|ilkini)\b/, phrase: "ilk seçenek" },
+  { re: /\b(ikincisi|ikincisine|ikincisini|ikinciye|ikinciyi)\b/, phrase: "ikinci seçenek" },
+  { re: /\b(ucuncusu|ucuncusune|ucuncusunu|ucuncuye|ucuncuyu)\b/, phrase: "üçüncü seçenek" },
+  { re: /\b(bunun disinda)\b/, phrase: "bunun dışında" },
+  {
+    re: /\b(bunu|buna|bununla|bu\s+(?:kismi|neden|nasil)|sunu|suna|sununla|onu|ona|onunla|o kismi|onun uzerinden|bunlari|sunlari)\b/,
+    phrase: "bunu / şunu / onu",
+  },
+  { re: /\b(devam et|devam edelim|kaldigimiz yerden|bir daha soyle|tekrar et|biraz daha ac|nasil yani|ayni sekilde)\b/, phrase: "devam et" },
+  { re: /^\s*(neden|niye|nicin)\s*\??\s*$/, phrase: "neden?" },
   { re: /\b(orada|oradaki|orasi)\b/, phrase: "orada" },
 ];
 
@@ -72,7 +82,19 @@ export function resolveAyasReferences(
   const lastUserBefore = [...history].reverse().find((t) => t.role === "user" && t.text.trim() !== raw)?.text?.trim() ?? null;
 
   for (const phrase of present) {
-    if (phrase === "o proje") {
+    if (phrase === "ilk seçenek" || phrase === "ikinci seçenek" || phrase === "üçüncü seçenek") {
+      const index = phrase === "ilk seçenek" ? 0 : phrase === "ikinci seçenek" ? 1 : 2;
+      const option = state.options[index];
+      if (option) resolutions.push({ phrase, referent: option, kind: "last-topic" });
+      else unresolved.push(phrase);
+    } else if (phrase === "bunun dışında") {
+      const constraint = state.temporaryConstraints.at(-1);
+      if (constraint) {
+        resolutions.push({ phrase, referent: `şu geçici kısıtı koruyarak: "${truncate(constraint, 120)}"`, kind: "last-topic" });
+      } else if (state.selectedOption || state.activeTopic || lastUserBefore) {
+        resolutions.push({ phrase, referent: state.selectedOption ?? state.activeTopic ?? truncate(lastUserBefore!, 120), kind: "last-topic" });
+      } else unresolved.push(phrase);
+    } else if (phrase === "o proje") {
       if (state.activeProject) {
         resolutions.push({ phrase, referent: state.activeProject, kind: "project" });
       } else {
@@ -98,8 +120,16 @@ export function resolveAyasReferences(
       } else {
         unresolved.push(phrase);
       }
-    } else if (phrase === "devam et") {
-      if (state.lastUserText || lastUserBefore) {
+    } else if (phrase === "devam et" || phrase === "neden?") {
+      if (state.selectedOption) {
+        resolutions.push({ phrase, referent: state.selectedOption, kind: "last-topic" });
+      } else if (state.lastAssistantText) {
+        resolutions.push({
+          phrase,
+          referent: truncate(state.lastAssistantText, 120),
+          kind: phrase === "devam et" ? "continuation" : "prior-reply",
+        });
+      } else if (state.lastUserText || lastUserBefore) {
         resolutions.push({
           phrase,
           referent: truncate((lastUserBefore ?? state.lastUserText)!, 120),
@@ -109,13 +139,23 @@ export function resolveAyasReferences(
         unresolved.push(phrase);
       }
     } else if (phrase === "bunu / şunu / onu") {
-      if (state.unresolvedQuestions.length) {
+      if (state.options.length > 1 && !state.selectedOption) {
+        unresolved.push(`${phrase} (${state.options.join(" / ")})`);
+      } else if (state.selectedOption) {
+        resolutions.push({ phrase, referent: state.selectedOption, kind: "last-topic" });
+      } else if (state.unresolvedQuestions.length) {
         resolutions.push({
           phrase: "bunu / şunu / onu",
           referent: `AYAS'ın sorduğu: "${truncate(state.unresolvedQuestions[0], 120)}"`,
           kind: "prior-question",
         });
-      } else if (state.lastAssistantText) {
+      } else if (lastUserBefore && !/[?？]\s*$/.test(lastUserBefore) && lastUserBefore.split(/\s+/).length >= 3) {
+        resolutions.push({
+          phrase: "bunu / şunu / onu",
+          referent: truncate(lastUserBefore, 120),
+          kind: "last-topic",
+        });
+      } else if (state.lastAssistantText && lastUserBefore) {
         resolutions.push({
           phrase: "bunu / şunu / onu",
           referent: truncate(state.lastAssistantText, 120),
@@ -143,7 +183,13 @@ export function resolveAyasReferences(
     );
   }
 
-  return { resolutions, unresolved, promptLines };
+  const clarification = unresolved.length
+    ? state.options.length > 1
+      ? `${state.options.slice(0, 3).join(" mı, ")} mı kastediyorsun?`
+      : "Neyi kastettiğini biraz netleştirir misin?"
+    : null;
+
+  return { resolutions, unresolved, promptLines, clarification };
 }
 
 function truncate(s: string, n: number): string {

@@ -16,7 +16,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { streamAyasChat, ayasChatStreamEventToSse } from "../src/lib/ayas/AyasChatStream";
+import {
+  streamAyasChat as productionStreamAyasChat,
+  ayasChatStreamEventToSse,
+  type StreamAyasChatInput,
+} from "../src/lib/ayas/AyasChatStream";
 import { buildAyasChatPrompt } from "../src/components/brain/brainCore";
 import { createAyasMemoryStore } from "../src/lib/ayas/memory/AyasMemoryStore";
 import { buildBrainMemoryRecord } from "../src/lib/brain/BrainMemoryModel";
@@ -105,8 +109,20 @@ function capturingMockOllamaStream(pieces: string[], capturedBodies: string[]): 
   }) as unknown as typeof fetch;
 }
 
+const testMemoryRoots = new Set<string>();
+
 function tmpMemRoot(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "ayas-chatstream-mem-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-chatstream-mem-"));
+  testMemoryRoots.add(root);
+  return root;
+}
+
+async function* streamAyasChat(input: StreamAyasChatInput) {
+  if (input.memoryStore) {
+    yield* productionStreamAyasChat(input);
+    return;
+  }
+  yield* productionStreamAyasChat({ ...input, memoryStore: { rootDir: tmpMemRoot() } });
 }
 
 /** Pulls the real prompt text out of the captured Ollama `/api/chat` request body — `{model, messages:[{role:"user", content: <the real prompt>}], stream:true, options:{...}}`. */
@@ -152,17 +168,17 @@ async function run() {
   });
 
   await scenario("clean reply — deltas arrive incrementally, concat == final text", async () => {
-    const pieces = ["Merhaba, ", "ben AYAS. ", "Sana nasıl ", "yardımcı olabilirim?"];
+    const pieces = ["Merhaba, ", "sana nasıl ", "yardımcı ", "olabilirim?"];
     const events = await collect(
       streamAyasChat({ text: "selam", snapshot: snap(), seq: 1, fetcher: mockOllamaStream(pieces) }) as never,
     );
     const deltas = events.filter((e) => e.type === "delta");
-    assert.equal(deltas.length, 4, "one delta per streamed piece");
+    assert.equal(deltas.length, 1, "raw provider pieces stay internal; only validated output is emitted");
     const done = events.at(-1)!;
     assert.equal(done.type, "done");
     assert.equal(done.source, "llm");
     assert.equal(done.corrected, false);
-    assert.equal(deltas.map((d) => d.text).join(""), "Merhaba, ben AYAS. Sana nasıl yardımcı olabilirim?");
+    assert.equal(deltas.map((d) => d.text).join(""), "Merhaba, sana nasıl yardımcı olabilirim?");
     assert.equal(done.text, deltas.map((d) => d.text).join(""));
   });
 
@@ -180,7 +196,7 @@ async function run() {
     assert.equal(done.source, "fallback");
     assert.equal(done.corrected, true);
     assert.equal(done.reason, "execution-claim");
-    assert.match(done.text as string, /KAPALI/);
+    assert.match(done.text as string, /kapalı/i);
   });
 
   await scenario("safety — an unusable (blank) reply → corrected fallback", async () => {
@@ -411,6 +427,143 @@ async function run() {
     },
   );
 
+  await scenario("FOLLOW-THROUGH — fresh unresolved pronoun asks for clarification before any provider call", async () => {
+    let fetchCalls = 0;
+    const fetcher = (async () => {
+      fetchCalls += 1;
+      throw new Error("provider must not be touched");
+    }) as unknown as typeof fetch;
+    const events = await collect(streamAyasChat({
+      text: "Onu biraz sadeleştir.",
+      snapshot: snap(),
+      seq: 30,
+      history: [],
+      fetcher,
+      memoryStore: { rootDir: tmpMemRoot() },
+    }) as never);
+    assert.equal(fetchCalls, 0);
+    assert.equal(events.length, 1);
+    assert.equal(events[0].reason, "clarification-required");
+    assert.match(String(events[0].text), /Neyi kastettiğini/);
+  });
+
+  await scenario("FOLLOW-THROUGH — recent context is preserved in the real streamed provider prompt", async () => {
+    const bodies: string[] = [];
+    const events = await collect(streamAyasChat({
+      text: "İkincisine bakalım.",
+      snapshot: snap(),
+      seq: 31,
+      history: [
+        { role: "user", text: "Konuşma tarafında prompt ve context olmak üzere iki alan var." },
+        { role: "brain", text: "İkisini de değerlendirebiliriz." },
+      ],
+      fetcher: capturingMockOllamaStream(["Context tarafına bakalım."], bodies),
+      memoryStore: { rootDir: tmpMemRoot() },
+    }) as never);
+    assert.equal(events.at(-1)!.source, "llm");
+    const prompt = promptFromCapturedBody(bodies[0]);
+    assert.match(prompt, /"ikinci seçenek" = context/);
+    assert.match(prompt, /Kullanıcı: Konuşma tarafında prompt ve context/);
+  });
+
+  await scenario("MEMORY POLICY — current exclusion wins and unrelated long-term memory is not injected", async () => {
+    const root = tmpMemRoot();
+    createAyasMemoryStore({ rootDir: root }).append(buildBrainMemoryRecord({
+      kind: "decision",
+      title: "Memory çalışması",
+      body: "Memory katmanını bugün genişletmek planlanıyor.",
+      importance: "durable",
+      confidence: "reported",
+      tags: ["memory"],
+      observedAt: "2026-09-10T00:00:00.000Z",
+      links: [],
+    }));
+    const bodies: string[] = [];
+    await collect(streamAyasChat({
+      text: "Tamam, bunun dışında ne geliştirebiliriz?",
+      snapshot: snap(),
+      seq: 32,
+      history: [
+        { role: "user", text: "Memory tarafına bugün dokunmayalım." },
+        { role: "brain", text: "Tamam, memory'yi kapsam dışında tutuyorum." },
+      ],
+      fetcher: capturingMockOllamaStream(["Context sürekliliğini geliştirebiliriz."], bodies),
+      memoryStore: { rootDir: root },
+    }) as never);
+    const prompt = promptFromCapturedBody(bodies[0]);
+    assert.match(prompt, /geçici konuşma kısıtları: Memory tarafına bugün dokunmayalım/i);
+    assert.doesNotMatch(prompt, /Kalıcı hafızadan hatırlananlar/);
+  });
+
+  await scenario("MEMORY POLICY — a drifted name answer is corrected from isolated identity memory", async () => {
+    const root = tmpMemRoot();
+    await collect(streamAyasChat({
+      text: "Beni Ahmet olarak hatırla.", snapshot: snap(), seq: 33,
+      fetcher: capturingMockOllamaStream(["Tamam."], []), memoryStore: { rootDir: root },
+    }) as never);
+    const events = await collect(streamAyasChat({
+      text: "Benim adım ne?", snapshot: snap(), seq: 34,
+      history: [{ role: "user", text: "Beni Ahmet olarak hatırla." }, { role: "brain", text: "Tamam." }],
+      fetcher: capturingMockOllamaStream(["Size nasıl yardımcı olabilirim?"], []), memoryStore: { rootDir: root },
+    }) as never);
+    const done = events.at(-1)!;
+    assert.equal(done.text, "Adın Ahmet.");
+    assert.equal(done.reason, "memory-identity-correction");
+  });
+
+  await scenario(
+    "FOLLOW-THROUGH — adversarial-sweep finding: the context-correction prompt tells the model not to force an unrelated new turn back onto a stale topic",
+    async () => {
+      // A real live finding: after a technical multi-turn discussion, a
+      // completely unrelated new question ("what should I eat for lunch")
+      // kept getting pulled back to the stale topic once the FIRST draft
+      // needed a correction retry — because the correction prompt gave the
+      // model the recent history but no explicit permission to ignore it.
+      // This asserts the fix: when there's no resolved referent/selected
+      // option to preserve, the correction prompt explicitly says so.
+      let call = 0;
+      const capturedPrompts: string[] = [];
+      const provider = {
+        async *stream(opts: { prompt: string }) {
+          capturedPrompts.push(opts.prompt);
+          call += 1;
+          // A bare "Selam" draft with no real content — always needs correction.
+          yield { type: "delta" as const, text: "Selam" };
+        },
+        async chat(opts: { prompt: string }) {
+          capturedPrompts.push(opts.prompt);
+          call += 1;
+          return { text: "Bugün öğle yemeğinde makarna güzel olur." };
+        },
+      };
+      const events = await collect(
+        streamAyasChat({
+          text: "Bugün öğle yemeğinde ne yesem?",
+          snapshot: snap(),
+          seq: 1,
+          history: [
+            { role: "user", text: "Üç yaklaşım var: hız, kalite ve maliyet." },
+            { role: "brain", text: "Bunlardan hangisiyle ilerlemek istersiniz?" },
+          ],
+          route: {
+            decision: { complexity: "NORMAL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" },
+            provider: provider as never,
+          },
+        }) as never,
+      );
+      const done = events.at(-1)!;
+      assert.equal(call, 2, "one draft call + exactly one bounded correction call");
+      assert.equal(capturedPrompts.length, 2);
+      assert.match(
+        capturedPrompts[1],
+        /önceki konuyla[\s\S]*ilgisizse/i,
+        "the correction prompt must tell the model it may ignore an unrelated stale topic when nothing is explicitly selected to preserve",
+      );
+      assert.equal(done.source, "llm");
+      assert.equal(done.corrected, true);
+    },
+  );
+
   await scenario("SSE framing — one frame per event, JSON payload", async () => {
     const frame = ayasChatStreamEventToSse({ type: "delta", text: "merhaba" });
     assert.equal(frame, 'data: {"type":"delta","text":"merhaba"}\n\n');
@@ -420,7 +573,11 @@ async function run() {
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-chat-stream", scenarios: count }));
 }
 
-run().catch((error) => {
-  console.error("AYAS chat stream smoke FAILED:", error);
-  process.exitCode = 1;
-});
+run()
+  .catch((error) => {
+    console.error("AYAS chat stream smoke FAILED:", error);
+    process.exitCode = 1;
+  })
+  .finally(() => {
+    for (const root of testMemoryRoots) fs.rmSync(root, { recursive: true, force: true });
+  });

@@ -38,6 +38,8 @@ export interface RunAyasReasoningInput {
   readonly memoryLines?: readonly string[];
   readonly selfHealLines?: readonly string[];
   readonly signal?: AbortSignal;
+  /** Stream integration defers answer guards to its shared final-response pipeline. */
+  readonly deferAnswerGuards?: boolean;
 }
 
 export type RunAyasReasoningOutcome =
@@ -91,10 +93,10 @@ export async function runAyasReasoning(input: RunAyasReasoningInput): Promise<Ru
   const allowedTools = parsed.result.requiredTools.filter((id) => checkAyasToolPermission(id).allowed);
   const result: AyasReasoningResult = { ...parsed.result, requiredTools: allowedTools };
 
-  if (!isUsableAyasReply(result.answer)) {
+  if (!input.deferAnswerGuards && !isUsableAyasReply(result.answer)) {
     return { ok: false, reason: "reasoning-unusable-answer" };
   }
-  if (ayasReplyClaimsExecution(result.answer)) {
+  if (!input.deferAnswerGuards && ayasReplyClaimsExecution(result.answer)) {
     return { ok: false, reason: "reasoning-execution-claim" };
   }
 

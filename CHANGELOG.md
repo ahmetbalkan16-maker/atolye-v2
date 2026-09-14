@@ -1,5 +1,40 @@
 ---
 
+## 2026-09-14 — AYAS Brain Maturity Master Sprint
+
+- Took over Codex's uncommitted Conversational Follow-Through / topic-state / memory-relevance /
+  reasoning-parity work (15 files, ~1150 insertions), reviewed and preserved it, then found and fixed
+  7 additional real defects via live + adversarial testing against the real, currently-configured
+  `qwen2.5:7b`: two punctuation-sensitivity false positives in the context-quality guard; an unbounded
+  "contains a help-offer phrase anywhere" check that was rejecting roughly half of live first-draft
+  replies; a literal-label-question false positive whose own hardcoded safe-fallback text rejected
+  itself (a negation-unaware regex); a live Cyrillic script-corruption case the mixed-script guard
+  didn't cover (was Han/Kana/Hangul only, generalized to `\p{Script=...}` matching); an
+  option-extraction vocabulary gap ("yaklaşım" not recognized as an option-enumerating word); and one
+  dead-variable lint warning.
+- Hardened `scripts/live-ayas-brain-maturity.ts` to verify actual streamed content
+  (`visibleText` from accumulated deltas, checked against `done.text`) instead of only `done.text` —
+  the specific weakness a prior review had flagged.
+- Added a targeted, regression-tested correction-prompt instruction for one identified non-blocking
+  residual: an extreme adversarial chain (dense technical discussion immediately followed by a fully
+  unrelated question) can still show stale-topic bleed after a correction retry — genuinely reduced,
+  not fully eliminated (would need real topic classification, out of this sprint's scope, and safe:
+  no fabrication or unsafe content in the observed drift).
+- Validation, counted directly rather than assumed: TypeScript clean; ESLint 0 errors / 22
+  pre-existing warnings (0 new); **320 deterministic scenarios across 13 suites** (corrected from an
+  initial undercount of 264/11 — 2 real suites were missing from the first regression sweep). Live
+  `qwen2.5:7b` acceptance reported honestly: typically 17–18/20 across reruns (not a claimed clean
+  20/20) — every residual failure is a cold-start, no-history turn where a small model's first draft
+  and one correction attempt both come back generic, safely contained by the deterministic
+  clarification fallback; zero label artifacts, zero script corruption, zero fabricated execution
+  observed across every rerun. Explicitly audited that no test in this diff can reach real AYAS
+  memory (two files use a wrapper that unconditionally isolates; the rest pass isolation per call).
+- Graphify consulted before editing and updated after code stabilized; `.graphify/` remains
+  gitignored/untracked. No production pipeline/project mutation, real AYAS memory access, commit,
+  push, merge or deploy. Execution Gate remains CLOSED; no executor introduced.
+
+---
+
 ## 2026-09-14 — AYAS Natural Conversation Polish Remediation
 
 - Fixed 3 real defects found via a live `qwen2.5:7b` acceptance run (mocked smoke tests alone

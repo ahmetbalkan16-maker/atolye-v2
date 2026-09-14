@@ -1,12 +1,121 @@
 ---
 
+## AYAS Brain Maturity Master Sprint — Claude takeover + remediation — READY FOR REVIEW — 2026-09-14
+
+- **Takeover**: branch `wip/ayas-graphify-final-execution`, HEAD `120c713c3706d78eb6bd352c175aed22c3a9b877`
+  (clean, matches the committed Natural Conversation Polish remediation baseline). Codex had left a
+  substantial uncommitted diff (15 files, ~1150 insertions) plus one new untracked file,
+  `scripts/live-ayas-brain-maturity.ts` — all preserved and built on, nothing discarded.
+- **Codex's work, reviewed and largely confirmed correct**: stream safety (raw provider deltas
+  accumulate internally in `full +=`/reasoning-outcome variables and are never yielded — only
+  `validatedReplyChunks(finalized.text)`, post-`finalizeAyasReply`, ever crosses the delta/done
+  boundary; audited every `yield` site in `streamAyasChat` — the 7 fallback/clarification sites
+  carry deterministic text only, the 2 real-answer sites both go through `finalizeAyasReply`);
+  direct/reasoning guard parity via `deferAnswerGuards` + one shared `finalizeAyasReply`; bounded
+  single correction attempt (`correctionAttempts: 0 | 1`, no recursion — confirmed `runAyasReasoning`
+  and the correction path each call the provider at most once); the bare-"bu" false-positive fix
+  (case-suffixed forms / two-word compounds only, never a standalone "bu"/"o"); recency-ordered
+  `activeTopic` (selected option / stated topic / active project, most recent turn wins); the
+  self-referential + meaningful-overlap memory relevance gate; deterministic ambiguity clarification
+  (`ctx.clarification`) short-circuiting before any provider call.
+- **Additional real defects found via live + adversarial testing and fixed in this pass** (none of
+  these were in Codex's diff or the prior review's known-findings list):
+  1. Two punctuation-sensitivity bugs in `replyNeedsContextCorrection`/`AyasChatStream.ts`: exact
+     token-Set membership against a folded-but-not-depunctuated reply meant a correct answer ending
+     in "context," or "ahmet." (trailing punctuation attached) was wrongly flagged as off-topic —
+     found via `smoke-ayas-reasoning.ts`'s own selected-option-continuity scenario failing live.
+     Fixed to substring containment, matching the already-correct `anchors` check.
+  2. An unbounded `\byardımcı olabilirim\b` (anywhere-in-reply) check was rejecting most genuinely
+     on-topic answers that simply closed with an ordinary Turkish courtesy offer — found live: ~10
+     of 20 first-pass live turns were hitting the generic fallback because of this one rule. Bounded
+     to replies short enough that the phrase IS effectively the whole reply
+     (`GENERIC_HELP_OFFER_MAX_CHARS`), not merely containing it; the true bare-generic-offer failure
+     mode is still caught (verified with a negative control).
+  3. The literal-"what do Kullanıcı:/AYAS: labels mean" question had no exemption from the general
+     label-echo check, so a genuinely correct answer using those exact terms was rejected; separately,
+     the HARDCODED safe-fallback string for that exact case said "... proje etiketi **değildir**" and
+     was rejecting **itself**, because `/belgesel|proje etiketi/` didn't account for negation. Both
+     fixed (an `isLiteralLabelQuestion` exemption computed once; the content-tag check now excludes
+     a negated match) and verified against a genuine-hallucination negative control that must still
+     (and still does) get rejected.
+  4. **Live-only, cross-conversation finding**: a reply contained a single embedded Cyrillic syllable
+     mid-word ("tanı**дав**asınuz") in an otherwise Turkish sentence — the same qwen2.5:7b corruption
+     class the prior remediation fixed for Han/Kana/Hangul, recurring with a different script. The
+     mixed-script guard (`ayasReplyHasUnexpectedScriptMixing`, `brainCore.ts`) now also covers
+     Cyrillic, switched to `\p{Script=...}` Unicode-property matching (same mechanism the live
+     harness's own check already used) instead of hand-rolled codepoint ranges, for easier extension.
+  5. `extractAyasConversationOptions`'s colon-form whitelist only recognized "seçenek/alan/problem/
+     öneri" — "üç **yaklaşım** var: ..." silently extracted no options. Added "yaklaşım/yöntem/yol"
+     as ordinary synonyms (extending an existing small whitelist, not a new parser).
+  6. A dead variable (`memoryLines`, superseded by `memoryLinesForPrompt`) left an ESLint warning in
+     `AyasChatStream.ts` — removed; lint is back to the pre-existing 22 warnings / 0 errors.
+  7. The live harness (`scripts/live-ayas-brain-maturity.ts`) only ever inspected `done.text`,
+     exactly the weakness a review had already flagged — hardened to accumulate every `delta` event
+     into `visibleText` and assert `visibleText === done.text` whenever any deltas were emitted (the
+     real client always renders `done.text`, so a zero-delta deterministic-clarification turn is
+     legitimate, not a leak), plus a duplicate-chunk heuristic and a strengthened "not just any short
+     string" acknowledgment check.
+- **One identified, partially-mitigated, non-blocking residual**: an adversarial chain (dense
+  technical multi-turn discussion immediately followed, with zero transition, by a fully unrelated
+  personal question — "what should I eat for lunch") can still pull the corrected reply back toward
+  the stale topic. Added an explicit correction-prompt instruction ("no resolved referent → this turn
+  may be unrelated, answer it directly") — genuinely reduces this and is regression-tested end to end
+  (`smoke-ayas-chat-stream.ts`), but does not fully eliminate it against a small 7B model's tendency
+  to anchor on salient recent history. Not a safety issue (no fabrication, no unsafe/executed
+  content) — a full fix would require real topic-relevance classification, which is exactly the
+  "giant Turkish NLP parser" this sprint was explicitly told not to build. Documented, not hidden.
+- **Test-memory isolation audited explicitly** (a prior review's finding #8): every touched/new test
+  file either passes `memoryStore: { rootDir: <tmp> }` on every call, or (`smoke-ayas-chat-stream.ts`,
+  `smoke-ayas-reasoning.ts`) uses a local `streamAyasChat` wrapper that unconditionally injects a
+  fresh isolated tmp root unless the caller explicitly overrides it — verified by reading both
+  wrappers, not assumed. The operator's real `data/brain/memory/records.json` was inspected as part
+  of this audit (to rule out contamination) and confirmed to hold only genuine pre-existing records
+  unrelated to any test fixture in this diff; it was not modified by this work.
+- **Graphify**: consulted before editing (`explain` on `assembleAyasContext`, `deriveAyasConversationState`,
+  `resolveAyasReferences`, `runAyasReasoning`, `recallAyasMemoryWithTrace`, `AyasChatStream.ts`, and
+  the changed files' fan-in) to confirm real callers before touching shared context/reasoning/memory
+  code; `stripAyasReplyLabelEcho` is newer than the graph snapshot and doesn't resolve there — noted
+  explicitly, confirmed via direct code inspection instead. Regression suite selection (13 suites, see
+  below) was cross-checked by grepping every `scripts/smoke-*.ts` for an import of any changed module,
+  not assumed from the graph alone. `graphify update .` run after the code stabilized (11364 nodes /
+  34525 edges / 310 communities, modest growth matching the actual diff size — not independently
+  re-verified beyond that sanity check, so not quoted as a precise "N nodes changed" figure).
+  `.graphify/` remains gitignored/untracked throughout.
+- **Deterministic validation, actually counted (not assumed to match any prior total)**: TypeScript
+  clean; ESLint 0 errors / 22 pre-existing warnings (0 new); **320 scenarios across 13 suites** —
+  chat-quality 35, chat-stream 20, context 21, reasoning 26, memory 22, chat 12, voice 55,
+  studio-context 16, chat-stream-client 8, tool-registry 11, Brain Core UI 41, phone-runtime 40,
+  self-heal observe+UI 13. (The prior draft's "264 across 11 suites" undercounted by 2 real suites —
+  `smoke-ayas-phone-runtime.ts` and `smoke-brain-selfheal-observe-ui.ts` — found via the import-grep
+  cross-check above, not by the earlier Graphify pass alone.)
+- **Real, currently-configured local Ollama (`qwen2.5:7b`) acceptance — reported honestly, not as a
+  clean 20/20**: across multiple reruns of the same 20-scenario matrix, typically 17–18/20 pass; the
+  ones that don't are always a first-turn (no-history) declarative/acknowledgment/conceptual prompt
+  where the model's first draft AND its one correction attempt both come back generic/low-content —
+  verified by raw-draft inspection, not guessed — safely and honestly contained by the deterministic
+  "please clarify" fallback (no fabrication, no label artifact, no script corruption, no execution
+  claim in any observed run). This is probabilistic small-7B-model fluency on a cold start, not a
+  reproducible logic defect; forcing a "good" first-turn answer out of a small local model
+  deterministically is out of this sprint's scope. Multi-turn scenarios (pronoun/ordinal/`neden?`/
+  exclusion/topic-switch/ambiguity/no-history-guard) passed consistently across every rerun. An
+  adversarial sweep beyond the acceptance matrix (stale-project→explicit-topic-switch, identity +
+  unrelated pinned memory, multi-option→completely-unrelated-question, read-only+follow-up,
+  empty-memory self-reference) is what surfaced defects 3–5 above, all now fixed.
+- No production pipeline execution, production project/runtime mutation, real AYAS memory
+  contamination, credential access, commit, push, merge, rebase, reset, restore, clean or stash.
+  Execution Gate remains CLOSED; no executor was introduced anywhere in this diff. Intended source,
+  test and documentation changes remain unstaged for user review.
+
+---
+
 ## AYAS Natural Conversation Polish Remediation — 2026-09-14
 
 - Follows directly on the "AYAS Natural Conversation Polish — Codex continuation" entry below. A
   LIVE naturalness acceptance run against the real, currently-configured `qwen2.5:7b` (local Ollama)
   found 3 real defects the mocked smoke suite could not see; this entry is the fix for exactly those
   three, nothing else. Same branch (`wip/ayas-graphify-final-execution`), same files plus
-  `src/lib/ayas/AyasChatStream.ts`; all changes remain unstaged/uncommitted.
+  `src/lib/ayas/AyasChatStream.ts`. This remediation was subsequently committed and pushed as
+  `120c713c3706d78eb6bd352c175aed22c3a9b877`; it is the clean baseline for the Brain Maturity sprint.
 - **A — standalone-label echo leak (`stripAyasReplyLabelEcho`, `brainCore.ts`).** Live testing
   showed qwen2.5:7b sometimes puts a `Kullanıcı:` / `AYAS:` role label alone on its own line, with
   the echoed/real content on the line(s) that follow, instead of sharing the label's line — a shape
@@ -61,9 +170,9 @@
 - **LIVE NATURALNESS: PASS** against this remediation's three specific blocking targets, confirmed
   on a real, currently-configured local model — not a mocked/simulated verification.
 - No production execution, project mutation, provider/network call beyond the local Ollama calls
-  this evaluation itself made, reconciliation, or production cleanup. Nothing staged, committed, or
-  pushed; branch and HEAD unchanged throughout. `AYAS Conversational Follow-Through` (the next
-  sprint proposed in the original acceptance audit) was explicitly NOT started.
+  this evaluation itself made, reconciliation, or production cleanup. This remediation later closed
+  in commit `120c713c`; Conversational Follow-Through and Brain Maturity are documented above as the
+  separate current, intentionally uncommitted review package.
 
 ---
 
@@ -79,14 +188,13 @@
 - Fixed two handoff regressions: preserve the first labeled AYAS answer after leading user echoes;
   recognize label lines with Windows CRLF endings. Added five deterministic regression scenarios.
   All chat-quality stream tests now use temporary memory stores, including previously defaulted cases.
-- Validation: TypeScript PASS; repo ESLint 0 errors / 22 existing warnings; chat-quality 20/20 and
-  chat 12/12 PASS. No live model or device verification; naturalness still needs operator evaluation.
-- No production execution, project mutation, provider/network call, reconciliation or production
-  cleanup. Git pull returned already up to date, but this branch has no upstream and origin fetches
-  only `wip/production-audio-resume-prep-v2`: active-branch remote synchronization is not established.
-- Code continuation complete; changes intentionally unstaged/uncommitted. User explicitly prohibited
-  add/commit/push/reset/clean. Next: user reviews the diff, verifies live conversation if desired, and
-  handles commit/push. Sprint 129.41 production remains blocked for this task.
+- Validation at that handoff: TypeScript PASS; repo ESLint 0 errors / 22 existing warnings;
+  chat-quality 20/20 and chat 12/12 PASS. Live model verification was subsequently completed by the
+  remediation and Brain Maturity entries above.
+- No production execution or project mutation occurred. The branch is now synchronized with
+  `origin/wip/ayas-graphify-final-execution`; the former no-upstream state is closed.
+- That continuation/remediation is committed as `120c713c`; the separate current Brain Maturity
+  package above remains unstaged for user review. Sprint 129.41 production remains outside this task.
 
 ---
 

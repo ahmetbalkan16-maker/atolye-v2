@@ -36,7 +36,7 @@ import {
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import { resolveOllamaConfig } from "@/lib/ai/OllamaConfig";
 import { routeAyasModel, type AyasModelRoute } from "./model/AyasModelRouter";
-import type { AyasModelProviderId, AyasChatComplexity } from "./model/AyasModelTypes";
+import type { AyasModelProvider, AyasModelProviderId, AyasChatComplexity } from "./model/AyasModelTypes";
 import { assembleAyasContext } from "./context/AyasContextAssembly";
 import { recallAyasMemoryWithTrace, persistAyasMemoryFromTurn } from "./memory/AyasMemoryRecall";
 import type { AyasMemoryStoreOptions } from "./memory/AyasMemoryStore";
@@ -82,6 +82,8 @@ export type AyasChatStreamEvent =
       readonly reasoning?: AyasReasoningTrace;
       /** Safe, secret-free memory observability trace — see {@link AyasMemoryTrace}. Absent only on the pure deterministic (no-provider) fallback path, which never touches memory. */
       readonly memoryTrace?: AyasMemoryTrace;
+      /** Number of bounded correction calls made after the first model draft. */
+      readonly correctionAttempts?: 0 | 1;
     };
 
 export interface StreamAyasChatInput {
@@ -139,6 +141,43 @@ function isSelfReferentialQuery(text: string): boolean {
   return SELF_REFERENTIAL.test(fold(text));
 }
 
+const MEMORY_RELEVANCE_STOPWORDS = new Set([
+  "acaba", "ama", "bana", "benim", "bir", "biraz", "bugun", "bunu", "daha", "gibi", "icin",
+  "ile", "mi", "midir", "nasil", "neden", "nedir", "olan", "olarak", "simdi", "sonra", "ve",
+  "veya", "yapabiliriz", "yapalım", "yapalim",
+]);
+const MEMORY_SUFFIXES = ["larimiz", "lerimiz", "lari", "leri", "dan", "den", "nin", "nın", "nun", "nün", "dir", "dır", "dur", "dür", "yi", "yı", "yu", "yü"];
+
+function meaningfulMemoryTokens(text: string): Set<string> {
+  const words = fold(text).replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/);
+  const tokens = new Set<string>();
+  for (const word of words) {
+    if (word.length < 4 || MEMORY_RELEVANCE_STOPWORDS.has(word)) continue;
+    let root = word;
+    const suffix = MEMORY_SUFFIXES.find((candidate) => word.endsWith(candidate) && word.length - candidate.length >= 4);
+    if (suffix) root = word.slice(0, -suffix.length);
+    tokens.add(root);
+  }
+  return tokens;
+}
+
+function hasMeaningfulMemoryOverlap(query: Set<string>, line: string): boolean {
+  const memory = meaningfulMemoryTokens(line);
+  const matches = [...query].filter((token) => memory.has(token));
+  return matches.length >= 2 || matches.some((token) => token.length >= 7);
+}
+
+function relevantMemoryLinesForTurn(
+  entries: readonly { readonly line: string; readonly identity: boolean }[],
+  text: string,
+): string[] {
+  const query = meaningfulMemoryTokens(text);
+  const selfReferential = isSelfReferentialQuery(text);
+  return entries
+    .filter((entry) => (selfReferential && entry.identity) || hasMeaningfulMemoryOverlap(query, entry.line))
+    .map((entry) => entry.line);
+}
+
 /**
  * Same sprint, same evidence: the studio/project-state block (task counts,
  * pipeline stages, runtime authority paths) was leaking into replies that had
@@ -151,6 +190,301 @@ function isSelfReferentialQuery(text: string): boolean {
 const STUDIO_RELEVANT = /\b(proje\w*|pipeline\w*|asama\w*|stage\w*|runtime\w*|kuyruk\w*|gorev\w*|render\w*|sahne\w*|uretim\w*|takild\w*|basarisiz\w*)\b/;
 function isStudioRelevantQuery(text: string): boolean {
   return STUDIO_RELEVANT.test(fold(text));
+}
+
+/**
+ * A real generic "Merhaba! Size nasıl yardımcı olabilirim?" non-answer is
+ * short — well under this. A substantive reply that happens to close with the
+ * same courteous phrase runs well over it (see `replyNeedsContextCorrection`'s
+ * `isBareHelpOffer` — bounding by length, not phrase presence, is what keeps
+ * this a structural signal instead of a string the model could just avoid).
+ */
+const GENERIC_HELP_OFFER_MAX_CHARS = 70;
+
+function replyNeedsContextCorrection(input: {
+  readonly reply: string;
+  readonly userText: string;
+  readonly hasHistory: boolean;
+  readonly selectedOption: string | null;
+  readonly activeTopic: string | null;
+  readonly hasResolvedReference: boolean;
+  readonly memoryLines: readonly string[];
+}): boolean {
+  const reply = fold(input.reply).trim();
+  const user = fold(input.userText).trim();
+  if (!reply) {
+    return input.hasHistory || /^(tamam|peki|guzel|anladim|nasilsin|iyi misin)\b/.test(user);
+  }
+  // The user is literally asking what the "Kullanıcı:"/"AYAS:" conversation
+  // labels mean/do — a correct answer MUST reference them as terms. Computed
+  // once, used to exempt that legitimate case from the label-echo check right
+  // below (a real false positive found live: it was rejecting genuinely
+  // on-topic answers to this exact question) and to gate the dedicated
+  // quality check for it further down.
+  const isLiteralLabelQuestion = /kullanici\s*:.*ayas\s*:/.test(user) && /etiket|terim|rol/.test(user);
+  if (reply === user) return true;
+  if (user.length >= 12 && reply.includes(user)) return true;
+  if (/konuyu sifirla/.test(reply)) return true;
+  if (!isLiteralLabelQuestion && /\b(kullanici|ayas)\s*:/.test(reply)) return true;
+  const memorySatisfied = isSelfReferentialQuery(input.userText) && input.memoryLines.some((line) => {
+    const tokens = fold(line).split(/\s+/).filter((token) => token.length >= 4);
+    // Substring containment, not exact token-Set membership: `reply` still carries
+    // punctuation (`fold` doesn't strip it), so a trailing comma/period on the
+    // matched word (e.g. "ahmet.") would otherwise make an exact `.split(/\s+/)`
+    // token miss a genuinely correct answer — a real false positive found via
+    // live/adversarial testing, same class as the `topicTokens` fix below.
+    return tokens.some((token) => reply.includes(token));
+  });
+  if (memorySatisfied) return false;
+  const userIsGreeting = /^(selam|merhaba|gunaydin|iyi aksamlar|iyi geceler)\b/.test(user);
+  if (userIsGreeting && /\b(benim adim ayas|ben ayas)\b/.test(reply)) return true;
+  if (!userIsGreeting && /^(selam|merhaba)\b/.test(reply)) return true;
+  // Only a GENERIC, near-empty "how can I help?" reply is the failure mode
+  // this guards against — not any reply that substantively engages with the
+  // turn and then politely closes with the same common Turkish phrase (a real
+  // false positive found live: the unbounded `\b...\b` match anywhere in the
+  // reply was rejecting most genuinely on-topic answers, since a closing
+  // offer-to-help is a completely ordinary way to end a Turkish reply).
+  // Bounded on overall reply length, not phrase position — short enough that
+  // the phrase IS effectively the whole reply, not a closing courtesy after
+  // real content.
+  const isBareHelpOffer = reply.length <= GENERIC_HELP_OFFER_MAX_CHARS && /\b(nasil|ne sekilde) yardimci olabilirim\b/.test(reply);
+  if (!userIsGreeting && !/[?？]\s*$/.test(input.userText) && isBareHelpOffer) return true;
+  if (input.hasHistory && /^(selam|merhaba|sagol\w*)\b/.test(reply)) return true;
+  if (input.hasHistory && /^nasilsin\b/.test(reply)) return true;
+  if (input.hasHistory && isBareHelpOffer) return true;
+  if (/kacinilacak ilk taslak|ilk yanit taslagi/.test(reply)) return true;
+  if (input.selectedOption) {
+    const anchors = fold(input.selectedOption).split(/\s+/).filter((token) => token.length >= 4);
+    if (anchors.length && !anchors.some((anchor) => reply.includes(anchor))) return true;
+  }
+  if (input.activeTopic && (input.hasResolvedReference || /^(ilk|neden|niye|nicin|bunu|sunu|onu|orada)\b/.test(user))) {
+    // Substring containment against the whole folded reply — same fix as
+    // `anchors` above and `memorySatisfied` below: an exact token-Set match
+    // (the prior implementation) false-positived whenever the topic word in
+    // the reply carried trailing punctuation (e.g. "context," / "context.")
+    // since `fold` never strips punctuation — a real bug caught by
+    // `smoke-ayas-reasoning.ts`'s selected-option-continuity scenario.
+    const topicTokens = fold(input.activeTopic).split(/\s+/).filter((token) => token.length >= 5);
+    if (topicTokens.length && !topicTokens.some((token) => reply.includes(token))) return true;
+  }
+  if (isLiteralLabelQuestion) {
+    // "proje etiketi" alone doesn't distinguish a hallucinated WRONG answer
+    // ("bu bir proje etiketidir") from a correct one that explicitly denies
+    // it ("... proje etiketi değildir") — a real false positive found live:
+    // the hardcoded safe fallback for this exact scenario says "değildir" and
+    // was rejecting itself. Only flag a POSITIVE claim, not a negated one.
+    const wronglyClaimsContentTag = /belgesel|proje etiketi(?!\s*degil)/.test(reply);
+    if (!/konusma|mesaj|rol/.test(reply) || wronglyClaimsContentTag) return true;
+  }
+  return input.hasResolvedReference && /^(size |sana )?nasil yardimci olabilirim/.test(reply);
+}
+
+function buildContextCorrectionPrompt(input: {
+  readonly userText: string;
+  readonly recentHistory: readonly { readonly role: BrainChatMessage["role"]; readonly text: string }[];
+  readonly firstReply: string;
+  readonly selectedOption: string | null;
+  readonly resolvedReferents: readonly string[];
+}): string {
+  const focus = [input.selectedOption, ...input.resolvedReferents].filter(Boolean).slice(0, 3).join(" | ");
+  return [
+    "Sen AYAS'sın. Aşağıdaki kısa konuşmaya yalnızca doğal, doğrudan Türkçe cevap ver.",
+    "Selamlama, kendini tanıtma, genel yardım teklifi, rol etiketi, markdown veya kullanıcı cümlesinin tekrarı olmasın.",
+    ...input.recentHistory.slice(-6).map((turn) => `${turn.role === "user" ? "Kullanıcı" : "AYAS"}: ${turn.text.replace(/\s+/g, " ").slice(0, 300)}`),
+    `Kullanıcı: ${input.userText}`,
+    ...(focus
+      ? [`Korunması gereken açık odak/referans: ${focus}`]
+      : [
+          // No resolved referent/selected option means this turn doesn't
+          // structurally depend on the topic above — a real adversarial-sweep
+          // finding: without this, the model kept pulling an unrelated new
+          // question (e.g. what to eat for lunch) back to a stale technical
+          // topic just because it was still visible in recent history.
+          "Yukarıdaki turlar yalnızca bağlam içindir, zorunlu bir konu değildir. Son mesaj önceki konuyla",
+          "ilgisizse (örn. günlük bir konudan bahsediyorsa) önceki konuyu tekrar getirme; son mesajı kendi",
+          "başına, doğrudan ve doğal biçimde yanıtla.",
+        ]),
+    `Kaçınılacak ilk taslak: ${input.firstReply.replace(/\s+/g, " ").slice(0, 240)}`,
+    "Son mesaja 1-3 cümleyle cevap ver. Soruysa gerçekten cevapla; bildirimse anlamını doğal biçimde karşıla.",
+    "'Kullanıcı:' ve 'AYAS:' terim olarak sorulduysa bunların konuşma rol etiketleri olduğunu açıkla.",
+  ].join("\n");
+}
+
+function replyHasPersonalStatementDrift(reply: string, userText: string): boolean {
+  const user = fold(userText);
+  const answer = fold(reply);
+  if (/\b(yoruldum|yorgunum|uzgunum|kaygiliyim|endiseliyim|moralim bozuk)\b/.test(user)) {
+    return !/anliyorum|anladim|zorlayici|dinlen|mola|uzgun|kaygi|endise|yanindayim/.test(answer);
+  }
+  if (/\b(mutluyum|sevindim|keyfim yerinde)\b/.test(user)) return !/sevindim|harika|guzel|mutlu/.test(answer);
+  return false;
+}
+
+function identityNameFromContext(
+  lines: readonly string[],
+  history: readonly { readonly role: BrainChatMessage["role"]; readonly text: string }[],
+  userText: string,
+): string | null {
+  if (!/\b(adim|ismim)\b/.test(fold(userText))) return null;
+  for (const line of [...lines, ...history.filter((turn) => turn.role === "user").map((turn) => turn.text)]) {
+    const match = line.match(/\bBeni\s+([\p{L}][\p{L}'’-]{1,40})\s+olarak\s+hatırla\b/iu)
+      ?? line.match(/\badım\s+([\p{L}][\p{L}'’-]{1,40})\b/iu);
+    if (match?.[1]) return match[1];
+  }
+  return null;
+}
+
+function replyHasUnexpectedStudioDrift(reply: string, userText: string): boolean {
+  return !isStudioRelevantQuery(userText) && /\b(kuyruk|worker cycle|pipeline|gpu|proceed-with-constraints)\b/.test(fold(reply));
+}
+
+function replyViolatesReadOnlyConstraint(reply: string, contextTexts: readonly string[]): boolean {
+  const context = fold(contextTexts.join(" "));
+  if (!/degistirmeden|salt okunur|yalnizca oku/.test(context)) return false;
+  return /gerekli duzenlemeleri yap|dosyayi degistir|degisiklikleri uygula|duzenleyebiliriz/.test(fold(reply));
+}
+
+function replyMissesReadOnlyConstraint(reply: string, contextTexts: readonly string[]): boolean {
+  const context = fold(contextTexts.join(" "));
+  if (!/degistirmeden|salt okunur|yalnizca oku/.test(context)) return false;
+  return !/salt okunur|degistirm|yazma|yalnizca oku/.test(fold(reply));
+}
+
+function buildSafeContextFallback(input: {
+  readonly userText: string;
+  readonly selectedOption: string | null;
+  readonly activeTopic: string | null;
+  readonly issue: string;
+}): string {
+  const user = fold(input.userText);
+  if (input.issue === "execution-claim") return "Bu işlemi gerçekleştirmedim; yürütme kapısı kapalı. Yalnızca salt okunur açıklama ve planlama yapabilirim.";
+  if (input.issue === "read-only-constraint") return "Salt okunur sınırı koruyacağım; hiçbir değişiklik veya yürütme yapmadan yalnızca inceleme ve açıklama üzerinden ilerleyeceğim.";
+  if (/kullanici\s*:.*ayas\s*:/.test(user) && /etiket|terim|rol/.test(user)) {
+    return "Kullanıcı etiketi senin mesajını, AYAS etiketi benim yanıtımı gösteren konuşma rol işaretleridir. Bunlar içerik veya proje etiketi değildir.";
+  }
+  if (/\b(yoruldum|yorgunum|uzgunum|kaygiliyim|endiseliyim|moralim bozuk)\b/.test(user)) {
+    return "Bunu yaşamanın zorlayıcı olabileceğini anlıyorum. İstersen biraz yavaşlayıp sana iyi gelecek şekilde devam edebiliriz.";
+  }
+  if (/\b(mutluyum|sevindim|keyfim yerinde)\b/.test(user)) {
+    return "Buna sevindim. İstersen bu iyi hissi koruyarak konuşmaya devam edebiliriz.";
+  }
+  const focus = input.selectedOption ?? input.activeTopic;
+  if (focus) {
+    return `${focus} konusunu koruyarak devam edelim. Hangi yönünü ele almamı istediğini biraz netleştirir misin?`;
+  }
+  return "Yanıtı güvenli ve doğru biçimde oluşturamadım. Neyi ele almamı istediğini biraz netleştirir misin?";
+}
+
+interface AyasFinalizationInput {
+  readonly rawReply: string;
+  readonly userText: string;
+  readonly recentHistory: readonly { readonly role: BrainChatMessage["role"]; readonly text: string }[];
+  readonly selectedOption: string | null;
+  readonly activeTopic: string | null;
+  readonly resolvedReferents: readonly string[];
+  readonly memoryLines: readonly string[];
+  readonly provider: AyasModelProvider;
+  readonly complexity: AyasChatComplexity;
+  readonly env: NodeJS.ProcessEnv;
+  readonly signal?: AbortSignal;
+}
+
+interface AyasFinalizationResult {
+  readonly text: string;
+  readonly source: "llm" | "fallback";
+  readonly corrected: boolean;
+  readonly reason?: string;
+  readonly correctionAttempts: 0 | 1;
+}
+
+function replyIssue(reply: string, input: AyasFinalizationInput): string | null {
+  if (!isUsableAyasReply(reply)) return "unusable-reply";
+  if (ayasReplyClaimsExecution(reply)) return "execution-claim";
+  const scriptContext = [input.userText, ...input.recentHistory.map((turn) => turn.text)].join(" ");
+  if (ayasReplyHasUnexpectedScriptMixing(reply, scriptContext)) return "script-mixing";
+  const quality = {
+    reply,
+    userText: input.userText,
+    hasHistory: input.recentHistory.length > 0,
+    selectedOption: input.selectedOption,
+    activeTopic: input.activeTopic,
+    hasResolvedReference: input.resolvedReferents.length > 0,
+    memoryLines: input.memoryLines,
+  };
+  if (replyNeedsContextCorrection(quality)) return "context-quality";
+  if (replyHasPersonalStatementDrift(reply, input.userText)) return "personal-statement-drift";
+  if (replyHasUnexpectedStudioDrift(reply, input.userText)) return "studio-drift";
+  const constraintContext = [input.userText, ...input.recentHistory.map((turn) => turn.text)];
+  if (replyViolatesReadOnlyConstraint(reply, constraintContext) || replyMissesReadOnlyConstraint(reply, constraintContext)) {
+    return "read-only-constraint";
+  }
+  if (/\p{Extended_Pictographic}/u.test(reply)) return "unexpected-pictograph";
+  return null;
+}
+
+async function finalizeAyasReply(input: AyasFinalizationInput): Promise<AyasFinalizationResult> {
+  const cleaned = stripAyasReplyLabelEcho(input.rawReply.trim(), input.userText);
+  const recalledIdentityName = identityNameFromContext(input.memoryLines, input.recentHistory, input.userText);
+  const foldedIdentityName = recalledIdentityName ? fold(recalledIdentityName) : "";
+  const identitySatisfied = recalledIdentityName
+    ? new RegExp(`(?:ad[ıi]n|ismin)\\s+${foldedIdentityName}\\b|^${foldedIdentityName}[,.!\\s]`).test(fold(cleaned))
+    : false;
+
+  if (recalledIdentityName && !identitySatisfied) {
+    return { text: `Adın ${recalledIdentityName}.`, source: "fallback", corrected: true, reason: "memory-identity-correction", correctionAttempts: 0 };
+  }
+
+  const initialIssue = replyIssue(cleaned, input);
+  if (!initialIssue) {
+    const labelCleaned = cleaned !== input.rawReply.trim();
+    return {
+      text: cleaned,
+      source: "llm",
+      corrected: labelCleaned,
+      ...(labelCleaned ? { reason: "label-cleanup" } : {}),
+      correctionAttempts: 0,
+    };
+  }
+
+  try {
+    const correction = await input.provider.chat({
+      prompt: buildContextCorrectionPrompt({
+        userText: input.userText,
+        recentHistory: input.recentHistory,
+        firstReply: cleaned,
+        selectedOption: input.selectedOption,
+        resolvedReferents: input.resolvedReferents,
+      }),
+      complexity: input.complexity,
+      maxTokens: AYAS_MAX_REPLY_TOKENS,
+      temperature: resolveChatTemperature(input.env),
+      ...(input.signal ? { signal: input.signal } : {}),
+    });
+    const revised = stripAyasReplyLabelEcho(correction.text.trim(), input.userText);
+    if (!replyIssue(revised, { ...input, rawReply: revised })) {
+      return { text: revised, source: "llm", corrected: true, reason: "context-retry", correctionAttempts: 1 };
+    }
+  } catch {
+    // The single bounded correction is best-effort; safe fallback follows.
+  }
+
+  let fallback = buildSafeContextFallback({
+    userText: input.userText,
+    selectedOption: input.selectedOption,
+    activeTopic: input.activeTopic,
+    issue: initialIssue,
+  });
+  if (replyIssue(fallback, { ...input, rawReply: fallback })) {
+    fallback = "Yanıtı güvenli ve doğru biçimde oluşturamadım; hiçbir işlem gerçekleştirmedim. Salt okunur sınırı koruyarak neyi ele almamı istediğini netleştirir misin?";
+  }
+  return { text: fallback, source: "fallback", corrected: true, reason: initialIssue, correctionAttempts: 1 };
+}
+
+function validatedReplyChunks(text: string, maxChars = 160): string[] {
+  const chunks: string[] = [];
+  for (let offset = 0; offset < text.length; offset += maxChars) chunks.push(text.slice(offset, offset + maxChars));
+  return chunks;
 }
 
 /** Best-effort temperature for the model call — kept at the pipeline default. */
@@ -170,6 +504,25 @@ export async function* streamAyasChat(
 
   if (!text) {
     yield { type: "done", text: deterministic(), source: "fallback", corrected: true, reason: "empty-input" };
+    return;
+  }
+
+  // Resolve short-turn references before touching a provider or persistent
+  // memory. If the current text has no single safe referent, fail closed with
+  // a concise clarification instead of letting a small model manufacture one.
+  const ctx = assembleAyasContext({
+    userText: text,
+    history: input.history ?? [],
+    ...(input.studio ? { studio: input.studio } : {}),
+  });
+  if (ctx.clarification) {
+    yield {
+      type: "done",
+      text: ctx.clarification,
+      source: "fallback",
+      corrected: true,
+      reason: "clarification-required",
+    };
     return;
   }
 
@@ -196,24 +549,19 @@ export async function* streamAyasChat(
 
   // Phase B — deterministic conversation context (state + reference resolution +
   // older-turn compression). Phase C — recalled long-term memory (top-K, safe).
-  const ctx = assembleAyasContext({
-    userText: text,
-    history: input.history ?? [],
-    ...(input.studio ? { studio: input.studio } : {}),
-  });
   const memoryRecall = await recallAyasMemoryWithTrace(text, {
     ...(ctx.trace.activeProject ? { activeProject: ctx.trace.activeProject } : {}),
     ...(input.memoryStore ? { store: input.memoryStore } : {}),
-  }).catch(() => ({ lines: [] as readonly string[], recallCount: 0, identityRecallCount: 0 }));
-  const memoryLines = memoryRecall.lines;
+  }).catch(() => ({ lines: [] as readonly string[], entries: [] as readonly { readonly line: string; readonly identity: boolean }[], recallCount: 0, identityRecallCount: 0 }));
+  const memoryLinesForPrompt = relevantMemoryLinesForTurn(memoryRecall.entries, text);
   /**
    * Shared by both terminal-event sites below — see `AyasMemoryTrace`'s own
    * doc comment for what each field means and why persist is awaited BEFORE
-   * this is built. `injected` is passed explicitly (not derived from
-   * `memoryLines.length` here) because the direct-stream path below applies
-   * an additional relevance gate (`isSelfReferentialQuery`) — `promptInjected`
-   * must report what actually reached the model this turn, not just what was
-   * recalled from the store.
+   * this is built. `injected` is passed explicitly (not derived from a raw
+   * recall count here) because `relevantMemoryLinesForTurn` already applies
+   * the turn's relevance gate (`isSelfReferentialQuery` + meaningful overlap)
+   * — `promptInjected` must report what actually reached the model this turn,
+   * not just what was recalled from the store.
    */
   const buildMemoryTrace = (
     persistOutcome: { candidates: number; stored: number },
@@ -236,6 +584,12 @@ export async function* streamAyasChat(
       ...(ctx.block.stateLines ?? []),
       ...(ctx.block.referenceLines ?? []),
       ...(ctx.block.historySummary ?? []),
+      ...(ctx.recentHistory.length
+        ? [
+            "Yakın konuşma turları (en güncel bağlam; kalıcı hafızadan önceliklidir):",
+            ...ctx.recentHistory.map((turn) => `${turn.role === "user" ? "Kullanıcı" : "AYAS"}: ${turn.text}`),
+          ]
+        : []),
     ];
     // REPAIR only — a redacted, read-only self-heal summary. Never fetched for
     // any other complexity (no reason to touch that store otherwise).
@@ -258,9 +612,10 @@ export async function* streamAyasChat(
       complexity: route.decision.complexity,
       provider: route.provider,
       ...(contextLines.length ? { contextLines } : {}),
-      ...(memoryLines.length ? { memoryLines } : {}),
+      ...(memoryLinesForPrompt.length ? { memoryLines: memoryLinesForPrompt } : {}),
       ...(selfHealLines?.length ? { selfHealLines } : {}),
       ...(input.signal ? { signal: input.signal } : {}),
+      deferAnswerGuards: true,
     });
 
     if (!outcome.ok) {
@@ -276,27 +631,38 @@ export async function* streamAyasChat(
       return;
     }
 
-    // Persist BEFORE the terminal event, AWAITED — see `AyasMemoryTrace`'s doc
-    // comment: this makes "the write completed before the caller sees the
-    // reply" an explicit, provable guarantee rather than an accident of
-    // `AyasMemoryStore.append` currently being synchronous fs I/O hidden
-    // behind an `async` wrapper (real-user-test race-condition audit item).
+    const finalized = await finalizeAyasReply({
+      rawReply: outcome.result.answer,
+      userText: text,
+      recentHistory: ctx.recentHistory,
+      selectedOption: ctx.trace.selectedOption,
+      activeTopic: ctx.trace.activeTopic,
+      resolvedReferents: ctx.resolvedReferents,
+      memoryLines: memoryLinesForPrompt,
+      provider: route.provider,
+      complexity: route.decision.complexity,
+      env,
+      ...(input.signal ? { signal: input.signal } : {}),
+    });
+
     const persistOutcome = await persistAyasMemoryFromTurn({
       userText: text,
-      ayasReply: outcome.result.answer,
+      ayasReply: finalized.text,
       ...(input.memoryStore ? { store: input.memoryStore } : {}),
     }).catch(() => ({ candidates: 0, stored: 0, rejected: 0 }));
 
-    yield { type: "delta", text: outcome.result.answer };
+    for (const chunk of validatedReplyChunks(finalized.text)) yield { type: "delta", text: chunk };
     yield {
       type: "done",
-      text: outcome.result.answer,
-      source: "llm",
-      corrected: false,
+      text: finalized.text,
+      source: finalized.source,
+      corrected: finalized.corrected,
+      ...(finalized.reason ? { reason: finalized.reason } : {}),
       provider: providerId,
       complexity: route.decision.complexity,
       reasoning: outcome.trace,
-      memoryTrace: buildMemoryTrace(persistOutcome, memoryLines.length > 0),
+      memoryTrace: buildMemoryTrace(persistOutcome, memoryLinesForPrompt.length > 0),
+      correctionAttempts: finalized.correctionAttempts,
     };
     return;
   }
@@ -304,7 +670,6 @@ export async function* streamAyasChat(
   // Chat-quality sprint gates (direct-stream path only — see the two helpers'
   // doc comments above): surface recalled memory only for a self-referential
   // turn, and the studio/project-state block only for a project-topical one.
-  const memoryLinesForPrompt = memoryLines.length && isSelfReferentialQuery(text) ? memoryLines : [];
   const studioForPrompt = input.studio && isStudioRelevantQuery(text) ? input.studio : undefined;
 
   const prompt = buildAyasChatPrompt({
@@ -318,7 +683,8 @@ export async function* streamAyasChat(
     ...(studioForPrompt ? { studio: studioForPrompt } : {}),
   });
 
-  // 2 — stream from the chosen provider (Ollama or Cloud, same contract).
+  // 2 — consume the provider stream internally. Raw model chunks never cross
+  // the SSE/UI boundary; only a fully validated final answer is emitted below.
   let full = "";
   try {
     for await (const chunk of route.provider.stream({
@@ -330,7 +696,6 @@ export async function* streamAyasChat(
     })) {
       if (chunk.type === "delta") {
         full += chunk.text;
-        yield { type: "delta", text: chunk.text };
       }
     }
   } catch (error) {
@@ -349,53 +714,19 @@ export async function* streamAyasChat(
     return;
   }
 
-  // 3 — the same safety backstops, provider-agnostic, plus the chat-quality
-  // sprint's label-echo strip (see `stripAyasReplyLabelEcho`'s doc comment) —
-  // runs BEFORE the usability check so a pure echo correctly falls back
-  // honestly instead of showing the leaked "Kullanıcı: ..." line.
-  const finalText = stripAyasReplyLabelEcho(full.trim(), text);
-  if (!isUsableAyasReply(finalText)) {
-    yield {
-      type: "done",
-      text: deterministic(),
-      source: "fallback",
-      corrected: true,
-      reason: "unusable-reply",
-      provider: providerId,
-      ...(complexity ? { complexity } : {}),
-    };
-    return;
-  }
-  if (ayasReplyClaimsExecution(finalText)) {
-    yield {
-      type: "done",
-      text: deterministic(),
-      source: "fallback",
-      corrected: true,
-      reason: "execution-claim",
-      provider: providerId,
-      ...(complexity ? { complexity } : {}),
-    };
-    return;
-  }
-  // Remediation: a real qwen2.5:7b run code-switched into unrelated Han/Kana
-  // script mid-reply during an otherwise Turkish conversation — see
-  // `ayasReplyHasUnexpectedScriptMixing`'s doc comment. Context = this turn's
-  // text plus whatever recent history was already assembled for the prompt,
-  // so a user who introduced that script themselves is never blocked.
-  const scriptContext = [text, ...ctx.recentHistory.map((h) => h.text)].join(" ");
-  if (ayasReplyHasUnexpectedScriptMixing(finalText, scriptContext)) {
-    yield {
-      type: "done",
-      text: deterministic(),
-      source: "fallback",
-      corrected: true,
-      reason: "script-mixing",
-      provider: providerId,
-      ...(complexity ? { complexity } : {}),
-    };
-    return;
-  }
+  const finalized = await finalizeAyasReply({
+    rawReply: full,
+    userText: text,
+    recentHistory: ctx.recentHistory,
+    selectedOption: ctx.trace.selectedOption,
+    activeTopic: ctx.trace.activeTopic,
+    resolvedReferents: ctx.resolvedReferents,
+    memoryLines: memoryLinesForPrompt,
+    provider: route.provider,
+    complexity: route.decision.complexity,
+    env,
+    ...(input.signal ? { signal: input.signal } : {}),
+  });
   // Phase C — memory write side. AWAITED, BEFORE the terminal event (moved
   // here from an unawaited "fire-and-forget" call — real-user-test
   // race-condition audit item): extract candidates from this turn, gate each
@@ -406,18 +737,21 @@ export async function* streamAyasChat(
   // provable guarantee instead of relying on that implementation detail.
   const persistOutcome = await persistAyasMemoryFromTurn({
     userText: text,
-    ayasReply: finalText,
+    ayasReply: finalized.text,
     ...(input.memoryStore ? { store: input.memoryStore } : {}),
   }).catch(() => ({ candidates: 0, stored: 0, rejected: 0 }));
 
+  for (const chunk of validatedReplyChunks(finalized.text)) yield { type: "delta", text: chunk };
   yield {
     type: "done",
-    text: finalText,
-    source: "llm",
-    corrected: false,
+    text: finalized.text,
+    source: finalized.source,
+    corrected: finalized.corrected,
+    ...(finalized.reason ? { reason: finalized.reason } : {}),
     provider: providerId,
     ...(complexity ? { complexity } : {}),
     memoryTrace: buildMemoryTrace(persistOutcome, memoryLinesForPrompt.length > 0),
+    correctionAttempts: finalized.correctionAttempts,
   };
 }
 
