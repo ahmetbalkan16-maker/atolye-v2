@@ -42,6 +42,22 @@ const IMPORTANCE_WEIGHT: Record<BrainMemoryRecord["importance"], number> = {
   pinned: 6,
 };
 
+/**
+ * ROOT-CAUSE FIX (real-user-test bug, recall side): pure keyword-overlap
+ * ranking structurally cannot connect a question like "benim adım ne" to a
+ * stored record about "Ahmet" — Turkish morphology means the query almost
+ * never shares an exact token with the stored name/fact ("adım" vs "adı" vs
+ * "ismim" vs the name itself are all different tokens here, no stemming).
+ * A durable identity record already outscores a merely-`normal` project note
+ * on base importance weight alone once overlap is ~0 for both — but this
+ * bonus makes that a GUARANTEED structural property instead of an emergent
+ * one that depends on nothing else outscoring it. Scoped tightly to the
+ * "kimlik" tag `extractAyasMemoryCandidates` attaches ONLY to explicit
+ * self-identification statements — never a blanket boost for every
+ * user-preference, and never for project/tool/environment notes.
+ */
+const IDENTITY_TAG_BONUS = 3;
+
 const STOPWORDS = new Set([
   "bir", "bu", "su", "o", "ve", "ile", "icin", "ne", "mi", "mu", "var", "yok",
   "the", "a", "an", "is", "to", "of",
@@ -76,7 +92,8 @@ export function rankAyasMemory(
     let overlap = 0;
     for (const t of qTokens) if (rText.has(t)) overlap += 2;
     for (const t of projectTokens) if (rText.has(t)) overlap += 3;
-    const score = IMPORTANCE_WEIGHT[r.importance] + overlap;
+    const identityBonus = r.tags.includes("kimlik") ? IDENTITY_TAG_BONUS : 0;
+    const score = IMPORTANCE_WEIGHT[r.importance] + overlap + identityBonus;
     return { r, score };
   });
 

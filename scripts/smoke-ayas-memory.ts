@@ -63,6 +63,45 @@ async function run() {
     assert.equal(env[0]?.kind, "environment-note");
   });
 
+  /* ---------------- identity / "remember me as X" (real-user-test bug fix) ---------------- */
+
+  await scenario('candidate — TEST 1: "beni Ahmet olarak hatırla ben Atölye projesinin sahibiyim…" (the EXACT real-user-test message) is extracted as a "kimlik"-tagged user-preference', () => {
+    const cands = extractAyasMemoryCandidates({
+      userText:
+        "beni ahmet olarak hatırla ben atölye projesinin sahibiyim ve ayısı kişisel yapay zeka asistanım olarak geliştirmek istiyorum",
+      ayasReply: "Anladım, Ahmet.",
+    });
+    assert.equal(cands.length, 1, "exactly one candidate — no double-fire against PREFERENCE/DECISION/ENV_FACT/BUG");
+    assert.equal(cands[0].kind, "user-preference");
+    assert.equal(cands[0].source, "user-stated");
+    assert.ok(cands[0].tags.includes("kimlik"));
+    assert.match(cands[0].body, /ahmet/i);
+  });
+
+  await scenario('candidate — TEST 3: "Bana Ahmet diye hitap et" is also extracted as a "kimlik" candidate', () => {
+    const cands = extractAyasMemoryCandidates({ userText: "Bana Ahmet diye hitap et lütfen", ayasReply: "Tamam, Ahmet." });
+    assert.equal(cands.length, 1);
+    assert.equal(cands[0].kind, "user-preference");
+    assert.ok(cands[0].tags.includes("kimlik"));
+  });
+
+  await scenario('candidate — "adım Ahmet" and "ben Ahmet\'im" (apostrophe form) are both caught', () => {
+    assert.equal(extractAyasMemoryCandidates({ userText: "merhaba, adım Ahmet, memnun oldum", ayasReply: "Ben de." })[0]?.tags.includes("kimlik"), true);
+    assert.equal(extractAyasMemoryCandidates({ userText: "ben Ahmet'im, Atölye'yi ben kurdum", ayasReply: "Anladım." })[0]?.tags.includes("kimlik"), true);
+  });
+
+  await scenario(
+    'candidate — TEST 5: plain conjugated Turkish sentences that merely END IN "-im"/"-yim" (no apostrophe, not a proper noun) do NOT false-positive as an identity statement',
+    () => {
+      // "ben değilim" / "ben yorgunum" are ordinary negation/adjective conjugations,
+      // not identity statements — the REQUIRED apostrophe before im/yim is what
+      // tells them apart from "ben Ahmet'im".
+      assert.equal(extractAyasMemoryCandidates({ userText: "hayır ben değilim, o yaptı bence", ayasReply: "Anladım." }).length, 0);
+      assert.equal(extractAyasMemoryCandidates({ userText: "ben bugün gerçekten çok yorgunum", ayasReply: "Dinlenmelisin." }).length, 0);
+      assert.equal(extractAyasMemoryCandidates({ userText: "naber, bugün hava çok güzel değil mi", ayasReply: "Evet." }).length, 0);
+    },
+  );
+
   /* ---------------- governance ---------------- */
 
   await scenario("governance — a user-stated preference → store as durable/reported", () => {
@@ -160,6 +199,34 @@ async function run() {
     assert.ok(!top.some((r) => r.body.includes("alakasız eski not")), "irrelevant transient excluded");
   });
 
+  await scenario(
+    'recall — TEST 4: a "kimlik"-tagged identity record outranks an unrelated "visuals" project-status note for an identity question, even with ZERO literal keyword overlap',
+    () => {
+      const records = [
+        rec({
+          kind: "known-bug",
+          title: "Bilinen sorun",
+          body: "visuals aşamasında bir proje başarısız oldu ve kuyrukta o görev var",
+          tags: ["bug", "visuals"],
+          importance: "normal",
+        }),
+        rec({
+          kind: "user-preference",
+          title: "Kullanıcı kimliği / hitap tercihi",
+          body: "beni ahmet olarak hatırla ben atölye projesinin sahibiyim",
+          tags: ["kimlik"],
+          importance: "durable",
+        }),
+      ];
+      // The real query has NO literal token overlap with either record's body
+      // ("adım"/"ne"/"ilgili" vs "ahmet"/"visuals") — this is the exact
+      // structural gap the identity bonus exists to close.
+      const top = rankAyasMemory(records, "benim adım ne ve benimle ilgili ne hatırlıyorsun", { nowIso: NOW });
+      assert.ok(top.length > 0, "the identity record must still surface with zero keyword overlap");
+      assert.ok(top[0].tags.includes("kimlik"), "the identity record must rank FIRST, ahead of the irrelevant visuals note");
+    },
+  );
+
   await scenario("recall — empty store → [] ; no error", async () => {
     const root = tmpRoot();
     const lines = await recallAyasMemoryLines("herhangi bir soru", { store: { rootDir: root } });
@@ -208,6 +275,52 @@ async function run() {
     });
     assert.equal(typeof a.stored, "number");
   });
+
+  await scenario(
+    "TEST 2 (end-to-end, exact real-user-test flow): turn 1 persists the identity statement; a SEPARATE, later turn's recall finds it by name",
+    async () => {
+      const root = tmpRoot();
+      const turn1 = await persistAyasMemoryFromTurn({
+        userText:
+          "beni ahmet olarak hatırla ben atölye projesinin sahibiyim ve ayısı kişisel yapay zeka asistanım olarak geliştirmek istiyorum",
+        ayasReply: "Anladım, Ahmet.",
+        nowIso: NOW,
+        store: { rootDir: root },
+      });
+      assert.equal(turn1.candidates, 1);
+      assert.equal(turn1.stored, 1, "the identity statement must actually reach AyasMemoryStore.append");
+      const stored = createAyasMemoryStore({ rootDir: root }).load();
+      assert.equal(stored.length, 1);
+      assert.equal(stored[0].importance, "durable");
+      assert.ok(stored[0].tags.includes("kimlik"));
+
+      const lines = await recallAyasMemoryLines("benim adım ne ve benimle ilgili ne hatırlıyorsun", {
+        store: { rootDir: root },
+      });
+      assert.equal(lines.length >= 1, true, "the recalled-memory block must not be empty on turn 2");
+      assert.ok(lines.some((l) => /ahmet/i.test(l)), "Ahmet must actually appear in what would be injected into memoryLines");
+    },
+  );
+
+  await scenario(
+    "TEST 6: a genuinely CORRUPT memory store (malformed JSON on disk, not just a missing file) never throws",
+    async () => {
+      const root = tmpRoot();
+      const dir = path.join(root, "memory");
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, "records.json"), "{ this is not valid JSON ][", "utf-8");
+
+      const lines = await recallAyasMemoryLines("benim adım ne", { store: { rootDir: root } });
+      assert.deepEqual(lines, [], "a corrupt store degrades to an empty memory block, never throws");
+
+      const outcome = await persistAyasMemoryFromTurn({
+        userText: "bundan sonra kısa yaz",
+        ayasReply: "ok",
+        store: { rootDir: root },
+      });
+      assert.equal(typeof outcome.stored, "number", "the write side still resolves normally against a corrupt file");
+    },
+  );
 
   console.log(`AYAS memory smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-memory", scenarios: count }));

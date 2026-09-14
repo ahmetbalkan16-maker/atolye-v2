@@ -29,8 +29,8 @@ function clean(s: string, max = 400): string {
   return t.length <= max ? t : `${t.slice(0, max - 1)}…`;
 }
 
-/** "bundan sonra … / her zaman … / lütfen … yapma / … tercih ederim / şunu unutma" */
-const PREFERENCE = /\b(bundan sonra|her (zaman|seferinde)|artik|surekli|lutfen .* (yap|yapma|kullan|kullanma)|tercih ederim|istemiyorum|istiyorum ki|sunu (unutma|hatirla|not al)|kural olarak|varsayilan olarak)\b/;
+/** "bundan sonra … / her zaman … / lütfen … yapma / … tercih ederim / bunu/şunu unutma" */
+const PREFERENCE = /\b(bundan sonra|her (zaman|seferinde)|artik|surekli|lutfen .* (yap|yapma|kullan|kullanma)|tercih ederim|istemiyorum|istiyorum ki|(bu|su)nu (unutma|hatirla|not al)|kural olarak|varsayilan olarak)\b/;
 
 /** "… karar verdik / … yapmaya karar / … kullanacagiz / … olsun dedik" */
 const DECISION = /\b(karar (verdik|verildi)|karar aldik|yapmaya karar|kullanacagiz|kullanmayacagiz|.* olsun dedik|kesinlestirdik|uzerinde anlastik)\b/;
@@ -40,6 +40,24 @@ const ENV_FACT = /\b(benim (makinem|bilgisayarim|gpu'?m|kurulumum)|.* kullaniyor
 
 /** "… bug var / … hata veriyor / … calismiyor / bilinen sorun …" */
 const BUG = /\b(bug var|hata (veriyor|aliyorum|var)|calismiyor|bilinen (sorun|hata)|surekli patliyor|bozuk)\b/;
+
+/**
+ * ROOT-CAUSE FIX (real-user-test bug): explicit self-identification / naming /
+ * how-to-address-me instructions — none of the four patterns above ever
+ * caught "beni Ahmet olarak hatırla", "adım Ahmet", "ben Ahmet'im", "bana
+ * Ahmet diye hitap et" — a user stating their own name/preferred address was
+ * SILENTLY DROPPED before it ever reached governance scoring, not rejected
+ * by it. This is the ONLY new pattern added; every existing pattern's
+ * matching behavior is unchanged (verified: this message still does not
+ * match PREFERENCE/DECISION/ENV_FACT/BUG on its own).
+ *
+ * "ben X'im" REQUIRES the apostrophe (Turkish orthography convention: a
+ * suffix on a proper noun takes an apostrophe — "Ahmet'im" — while an
+ * ordinary conjugated verb/adjective like "yorgunum"/"değilim" normally does
+ * not) — this is what keeps it from false-matching "ben değilim" / "ben
+ * yorgunum" as if they were identity statements.
+ */
+const IDENTITY = /\b(beni .* olarak hatirla|adim [a-z]+|ben [a-z]+'(im|yim)\b|bana .* diye (hitap et|cagir))\b/;
 
 export function extractAyasMemoryCandidates(input: {
   readonly userText: string;
@@ -86,6 +104,21 @@ export function extractAyasMemoryCandidates(input: {
       title: "Bilinen sorun",
       body: clean(user),
       tags: [...baseTags, "hata"],
+      source: "user-stated",
+    });
+  }
+  if (IDENTITY.test(f)) {
+    // `kind: "user-preference"` + `source: "user-stated"` — reuses the
+    // EXISTING governance rule that already scores exactly this shape as
+    // `durable` (see `AyasMemoryGovernance.ts`); no governance change
+    // needed. The "kimlik" tag is what `rankAyasMemory` gives a recall
+    // priority bonus to (see `AyasMemoryRecall.ts`) so an unrelated
+    // project-status note can never outrank the user's own stated identity.
+    out.push({
+      kind: "user-preference",
+      title: "Kullanıcı kimliği / hitap tercihi",
+      body: clean(user),
+      tags: [...baseTags, "kimlik"],
       source: "user-stated",
     });
   }
