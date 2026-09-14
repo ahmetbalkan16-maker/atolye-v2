@@ -9,6 +9,7 @@
 import type { AyasVoiceState } from "./ayasVoice";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { BrainTaskStatus } from "@/types/brainWorker";
+import type { AyasChatComplexity } from "@/lib/ayas/model/AyasModelTypes";
 
 /* ------------------------------------------------------------------------- *
  * Core states
@@ -463,7 +464,7 @@ export const AYAS_SPOKEN_TURKISH_RULE: readonly string[] = Object.freeze([
   "- Kısa, doğal, akıcı konuşma Türkçesi kullan. Genelde 2-4 cümle yeter.",
   "- Sembol, markdown, başlık, madde işareti, emoji veya kod bloğu KULLANMA. Gerekirse maddeleri düz cümleyle sırala.",
   "- Sayıları ve durumu düzgün Türkçe dilbilgisiyle anlat. \"işlem bulunuyor değildir\", \"kuyrukta hiç görev bulunuyor\", \"başlatamam çalıştırabilir\" gibi bozuk yapılar kurma.",
-  "- Doğrudan soruya cevap ver. Selamlama, \"Ben AYAS\" veya kim olduğunla ilgili giriş cümlesi kurma.",
+  "- Kullanıcının söylediğine doğrudan karşılık ver. Selamlama, \"Ben AYAS\" veya kim olduğunla ilgili giriş cümlesi kurma.",
 ]);
 
 /** How many prior turns to feed the model for context. */
@@ -565,6 +566,18 @@ export interface AyasChatPromptInput {
   readonly conversation?: AyasConversationPromptBlock;
   /** Optional recalled long-term memory lines (Phase 2 · Phase C). */
   readonly memoryLines?: readonly string[];
+  /**
+   * Chat-quality sprint: the coarse turn shape from `classifyAyasComplexity`
+   * (already computed by `AyasChatStream.ts` for routing — no new classifier,
+   * no extra model call). `"SIMPLE"` (greetings, arithmetic, trivia, "sen
+   * kimsin") skips the studio/project-state block below: dumping runtime
+   * authority + pipeline counts in front of a "2+2 kaç?" was priming the model
+   * to answer with unrelated Atölye/proje chatter. Omitted (every existing
+   * caller — `resolveAyasReply`/`askAyas` and every smoke test that doesn't
+   * pass it) behaves exactly as before this field existed: studio context
+   * always included.
+   */
+  readonly complexity?: AyasChatComplexity;
   /**
    * `"json"` (default) ends the prompt with the `{ reply }` envelope instruction
    * — for the non-streaming `format: "json"` backend. `"text"` asks for a direct
@@ -687,9 +700,20 @@ export function buildAyasChatPrompt(input: AyasChatPromptInput): string {
     "belgesel video üreten kişisel bir prodüksiyon stüdyosudur; sen onun beynisin.",
     "",
     "Kimlik ve üslup:",
-    "- Adın AYAS. Sürmekte olan bir konuşmada kendini ASLA yeniden tanıtma, selamlaşma yapma. Yalnızca kullanıcı doğrudan \"sen kimsin\" / \"adın ne\" diye sorarsa tek cümleyle söyle.",
-    "- Doğal, akıcı Türkçe konuş. Sıcak ama profesyonel. Kısa ve net ol; gereksiz uzatma.",
+    "- Adın AYAS. Sürmekte olan bir konuşmada kendini ASLA yeniden tanıtma, selamlaşma yapma. Yalnızca kullanıcı",
+    "  doğrudan sana kim olduğunu sorarsa tek cümleyle söyle; sormadıysa hiç bahsetme.",
+    "- Kullanıcı kendi kimliği hakkında soru sorduğunda (\"adım ne\", \"ben kimim\", \"hakkımda ne biliyorsun\" gibi)",
+    "  bu SANA değil, KULLANICIYA dair bir sorudur — cevabı kullanıcı hakkında hatırladığın bilgiden kur, kendi",
+    "  tanıtımınla karıştırma.",
+    "- Önce kullanıcının ne söylediğini/sorduğunu anla, doğrudan buna karşılık ver (bir soruysa cevapla, bir",
+    "  bildirimse/isteyse doğal biçimde onu onayla veya ona göre davran); gerekiyorsa ardından kısa açıklama ekle.",
+    "- Soruyla ilgisi yoksa hiçbir şeyden (kendinden, Atölye'den, proje durumundan) bahsetme; yalnızca gerçekten",
+    "  konuyla bağlantılıysa değin.",
+    "- Basit soruya kısa ve net cevap ver (örn. \"2+2 kaç\" → sade \"4\"). Karmaşık soruda gerektiği kadar",
+    "  düşün ve açıkla; ama gereksiz uzatma ve aynı bilgiyi tekrar tekrar anlatma.",
+    "- Doğal, akıcı, konuşma diline yakın Türkçe kullan. Sıcak ama profesyonel.",
     "- Markdown başlık/madde yığını kullanma; sohbet gibi yaz.",
+    "- Bilmediğin / emin olmadığın bir şeyi uydurma; emin değilsen bunu açıkça söyle.",
     "",
     "Katı sınırlar:",
     "- Yürütme yetkin YOK. Bir şeyi \"çalıştırdım / uyguladım / başlattım / açıyorum / açtım\" DEME — yürütme kapısını da açamazsın. Yapabildiklerin: düşünmek, planlamak, öneri üretmek, mevcut durumu açıklamak.",
@@ -701,9 +725,17 @@ export function buildAyasChatPrompt(input: AyasChatPromptInput): string {
     "",
     "Şu anki Atölye durumu (salt-okunur, kaynak: Brain snapshot):",
     ...state,
-    ...ayasStudioPromptLines(input.studio),
+    ...(input.complexity !== "SIMPLE" ? ayasStudioPromptLines(input.studio) : []),
     ...(input.memoryLines && input.memoryLines.length
-      ? ["", "Kalıcı hafızadan hatırlananlar (yalnızca ilgiliyse kullan, uydurma):", ...input.memoryLines]
+      ? [
+          "",
+          "Kalıcı hafızadan hatırlananlar (kullanıcının kendi ağzından, \"ben/benim\" diliyle not edilmiştir —",
+          "kullanıcıya cevap verirken bunu ikinci tekil şahsa çevir: \"adın X\", \"sahibisin\", \"geliştiriyorsun\" gibi;",
+          "olduğu gibi, birebir kopyalayıp okuma):",
+          ...input.memoryLines,
+          "Bunları sessiz arka plan bağlamı olarak kullan; kullanıcı açıkça \"ne hatırlıyorsun / benim hakkımda ne",
+          "biliyorsun\" diye sormadıkça bu listeyi dökme. Sorarsa ilgili olanları net, düzenli biçimde söyle. Uydurma.",
+        ]
       : []),
     ...(input.conversation?.stateLines && input.conversation.stateLines.length
       ? ["", "Konuşma bağlamı (salt-okunur):", ...input.conversation.stateLines]
@@ -728,7 +760,10 @@ export function buildAyasChatPrompt(input: AyasChatPromptInput): string {
     ...(input.format === "text"
       ? [
           "Doğrudan, düz metin olarak yanıt ver. JSON, tırnak zarfı, kod veya madde listesi kullanma.",
-          "Yukarıdaki durum/bağlam bilgisini olduğu gibi tekrarlama; yalnızca kullanıcının sorduğuna 2-4 cümleyle cevap ver.",
+          "Yanıtını \"Kullanıcı:\" veya \"AYAS:\" gibi bir etiketle başlatma, kullanıcının sorusunu tekrar yazma —",
+          "yukarıdaki \"Kullanıcı: ...\" satırı sadece SANA bağlam; senin çıktın onun bir devamı değil, doğrudan cevabın.",
+          "Yukarıdaki durum/bağlam bilgisini olduğu gibi tekrarlama; yalnızca kullanıcının söylediğine/sorduğuna",
+          "2-4 cümleyle doğal bir karşılık ver — bir soruysa cevapla, bir bildirim/istekse onu doğal biçimde onayla.",
         ]
       : [
           "Yanıtını YALNIZCA şu JSON nesnesi olarak ver, başka hiçbir şey yazma:",
@@ -772,13 +807,42 @@ export function ayasReplyMessage(text: string, seq: number): BrainChatMessage {
 }
 
 /**
+ * Chat-quality sprint (real-Ollama finding, qwen2.5:7b): the model
+ * occasionally echoes the "Kullanıcı: ... / AYAS: ..." label convention used
+ * to RENDER conversation history back at the start of its own reply — even on
+ * a turn with no history at all — completing the "Kullanıcı: <soru>" line the
+ * prompt shows it rather than answering past it. A deterministic backstop,
+ * the same spirit as {@link isUsableAyasReply} / {@link ayasReplyClaimsExecution}:
+ * strips a leading echoed label, never invents or rewrites real content. If
+ * stripping empties the reply (it was pure echo, nothing else), the empty
+ * string is returned on purpose — {@link isUsableAyasReply} then correctly
+ * falls back to the honest deterministic reply instead of showing the echo.
+ */
+export function stripAyasReplyLabelEcho(text: string): string {
+  return text
+    // A leading echoed "Kullanıcı: <soru>" line — with or without anything
+    // after it (a lone echo is the whole reply just as often as a multi-line
+    // one), so the newline is optional here (`\n*`, not `\n+`).
+    .replace(/^\s*Kullanıcı:\s*[^\n]*\n*/i, "")
+    .replace(/^\s*AYAS:\s*/i, "")
+    // A dangling "Kullanıcı: ..." (the model starting a NEXT, fabricated
+    // turn) at the very end — same line or its own, real Turkish prose never
+    // legitimately ends on a colon-suffixed "Kullanıcı".
+    .replace(/\s*Kullanıcı:\s*[^\n]*$/i, "")
+    .trim();
+}
+
+/**
  * Is the model reply usable? A blank / refusal / echo-of-the-prompt reply falls
  * back to {@link brainDeterministicReply}.
  */
 export function isUsableAyasReply(text: string): boolean {
   const trimmed = text.trim();
   if (trimmed.length < 2) return false;
-  if (/^AYAS:\s*$/i.test(trimmed)) return false;
+  // Bare self-label, with or without a colon/punctuation and nothing else —
+  // not a real answer (chat-quality sprint: a real, if rare, qwen2.5:7b
+  // failure mode on an ambiguous/declarative turn).
+  if (/^AYAS\s*[:.!]?\s*$/i.test(trimmed)) return false;
   return true;
 }
 
@@ -821,7 +885,7 @@ export async function resolveAyasReply(input: ResolveAyasReplyInput): Promise<Ay
       history: input.history ?? [],
       ...(input.studio ? { studio: input.studio } : {}),
     });
-    const reply = (await input.generate(prompt)) ?? "";
+    const reply = stripAyasReplyLabelEcho((await input.generate(prompt)) ?? "");
     if (!isUsableAyasReply(reply)) return fallback;
     // Defence in depth: the wiring runs nothing, but a weak model can still
     // *claim* it opened the gate / ran a pipeline. Never show that — fall back.

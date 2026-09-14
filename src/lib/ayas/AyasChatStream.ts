@@ -27,6 +27,7 @@ import {
   brainDeterministicReply,
   isUsableAyasReply,
   ayasReplyClaimsExecution,
+  stripAyasReplyLabelEcho,
   AYAS_MAX_REPLY_TOKENS,
   type BrainChatMessage,
   type AyasStudioContextView,
@@ -108,6 +109,49 @@ export interface StreamAyasChatInput {
   readonly memoryStore?: AyasMemoryStoreOptions;
 }
 
+function fold(text: string): string {
+  return String(text ?? "")
+    .toLocaleLowerCase("tr")
+    .replace(/[İıI]/g, "i")
+    .replace(/ç/g, "c")
+    .replace(/ö/g, "o")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ğ/g, "g");
+}
+
+/**
+ * Chat-quality sprint — a real-Ollama finding, not a guess: once ANY memory
+ * line is present in the prompt, qwen2.5:7b drags it into unrelated replies
+ * (math, geography, "bugün ne yapabiliriz") — `AyasMemoryRecall.ts`'s
+ * identity-recall bonus deliberately guarantees an identity record clears the
+ * relevance filter for ANY query (so "benim adım ne", zero keyword overlap
+ * with "Ahmet", still recalls it — that bonus is untouched here, still
+ * exactly what the prior memory-fix sprint tested). This is a SECOND,
+ * independent, narrower gate at the prompt-assembly layer only: whether
+ * THIS turn's direct-stream prompt actually surfaces what was recalled. A
+ * turn about the user's own identity/facts, or an explicit "what do you
+ * remember" question, still gets it — a turn with no self-reference doesn't.
+ */
+const SELF_REFERENTIAL = /\b(ben|benim|beni|bana|bende|adim|kimim|hakkimda|hatirl\w*|taniyor\w*|unutma\w*|ismim)\b/;
+function isSelfReferentialQuery(text: string): boolean {
+  return SELF_REFERENTIAL.test(fold(text));
+}
+
+/**
+ * Same sprint, same evidence: the studio/project-state block (task counts,
+ * pipeline stages, runtime authority paths) was leaking into replies that had
+ * nothing to do with Atölye's projects (an identity statement, "bugün ne
+ * yapabiliriz"). Gating on `complexity !== "SIMPLE"` alone (in
+ * `buildAyasChatPrompt`) was not enough — most real turns classify NORMAL. A
+ * second, topical check, same style as `AyasComplexityRouter.ts`'s existing
+ * regex classification (deterministic, no model).
+ */
+const STUDIO_RELEVANT = /\b(proje\w*|pipeline\w*|asama\w*|stage\w*|runtime\w*|kuyruk\w*|gorev\w*|render\w*|sahne\w*|uretim\w*|takild\w*|basarisiz\w*)\b/;
+function isStudioRelevantQuery(text: string): boolean {
+  return STUDIO_RELEVANT.test(fold(text));
+}
+
 /** Best-effort temperature for the model call — kept at the pipeline default. */
 function resolveChatTemperature(env: NodeJS.ProcessEnv): number | undefined {
   try {
@@ -161,13 +205,24 @@ export async function* streamAyasChat(
     ...(input.memoryStore ? { store: input.memoryStore } : {}),
   }).catch(() => ({ lines: [] as readonly string[], recallCount: 0, identityRecallCount: 0 }));
   const memoryLines = memoryRecall.lines;
-  /** Shared by both terminal-event sites below — see `AyasMemoryTrace`'s own doc comment for what each field means and why persist is awaited BEFORE this is built. */
-  const buildMemoryTrace = (persistOutcome: { candidates: number; stored: number }): AyasMemoryTrace => ({
+  /**
+   * Shared by both terminal-event sites below — see `AyasMemoryTrace`'s own
+   * doc comment for what each field means and why persist is awaited BEFORE
+   * this is built. `injected` is passed explicitly (not derived from
+   * `memoryLines.length` here) because the direct-stream path below applies
+   * an additional relevance gate (`isSelfReferentialQuery`) — `promptInjected`
+   * must report what actually reached the model this turn, not just what was
+   * recalled from the store.
+   */
+  const buildMemoryTrace = (
+    persistOutcome: { candidates: number; stored: number },
+    injected: boolean,
+  ): AyasMemoryTrace => ({
     candidateCount: persistOutcome.candidates,
     persisted: persistOutcome.stored > 0,
     recallCount: memoryRecall.recallCount,
     identityRecallCount: memoryRecall.identityRecallCount,
-    promptInjected: memoryLines.length > 0,
+    promptInjected: injected,
     historyCount: ctx.recentHistory.length,
   });
 
@@ -240,10 +295,16 @@ export async function* streamAyasChat(
       provider: providerId,
       complexity: route.decision.complexity,
       reasoning: outcome.trace,
-      memoryTrace: buildMemoryTrace(persistOutcome),
+      memoryTrace: buildMemoryTrace(persistOutcome, memoryLines.length > 0),
     };
     return;
   }
+
+  // Chat-quality sprint gates (direct-stream path only — see the two helpers'
+  // doc comments above): surface recalled memory only for a self-referential
+  // turn, and the studio/project-state block only for a project-topical one.
+  const memoryLinesForPrompt = memoryLines.length && isSelfReferentialQuery(text) ? memoryLines : [];
+  const studioForPrompt = input.studio && isStudioRelevantQuery(text) ? input.studio : undefined;
 
   const prompt = buildAyasChatPrompt({
     userText: text,
@@ -251,8 +312,9 @@ export async function* streamAyasChat(
     history: ctx.recentHistory,
     format: "text",
     conversation: ctx.block,
-    ...(memoryLines.length ? { memoryLines } : {}),
-    ...(input.studio ? { studio: input.studio } : {}),
+    complexity: route.decision.complexity,
+    ...(memoryLinesForPrompt.length ? { memoryLines: memoryLinesForPrompt } : {}),
+    ...(studioForPrompt ? { studio: studioForPrompt } : {}),
   });
 
   // 2 — stream from the chosen provider (Ollama or Cloud, same contract).
@@ -286,8 +348,11 @@ export async function* streamAyasChat(
     return;
   }
 
-  // 3 — the same safety backstops, provider-agnostic.
-  const finalText = full.trim();
+  // 3 — the same safety backstops, provider-agnostic, plus the chat-quality
+  // sprint's label-echo strip (see `stripAyasReplyLabelEcho`'s doc comment) —
+  // runs BEFORE the usability check so a pure echo correctly falls back
+  // honestly instead of showing the leaked "Kullanıcı: ..." line.
+  const finalText = stripAyasReplyLabelEcho(full.trim());
   if (!isUsableAyasReply(finalText)) {
     yield {
       type: "done",
@@ -333,7 +398,7 @@ export async function* streamAyasChat(
     corrected: false,
     provider: providerId,
     ...(complexity ? { complexity } : {}),
-    memoryTrace: buildMemoryTrace(persistOutcome),
+    memoryTrace: buildMemoryTrace(persistOutcome, memoryLinesForPrompt.length > 0),
   };
 }
 
