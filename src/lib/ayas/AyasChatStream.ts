@@ -27,6 +27,7 @@ import {
   brainDeterministicReply,
   isUsableAyasReply,
   ayasReplyClaimsExecution,
+  ayasReplyHasUnexpectedScriptMixing,
   stripAyasReplyLabelEcho,
   AYAS_MAX_REPLY_TOKENS,
   type BrainChatMessage,
@@ -352,7 +353,7 @@ export async function* streamAyasChat(
   // sprint's label-echo strip (see `stripAyasReplyLabelEcho`'s doc comment) —
   // runs BEFORE the usability check so a pure echo correctly falls back
   // honestly instead of showing the leaked "Kullanıcı: ..." line.
-  const finalText = stripAyasReplyLabelEcho(full.trim());
+  const finalText = stripAyasReplyLabelEcho(full.trim(), text);
   if (!isUsableAyasReply(finalText)) {
     yield {
       type: "done",
@@ -372,6 +373,24 @@ export async function* streamAyasChat(
       source: "fallback",
       corrected: true,
       reason: "execution-claim",
+      provider: providerId,
+      ...(complexity ? { complexity } : {}),
+    };
+    return;
+  }
+  // Remediation: a real qwen2.5:7b run code-switched into unrelated Han/Kana
+  // script mid-reply during an otherwise Turkish conversation — see
+  // `ayasReplyHasUnexpectedScriptMixing`'s doc comment. Context = this turn's
+  // text plus whatever recent history was already assembled for the prompt,
+  // so a user who introduced that script themselves is never blocked.
+  const scriptContext = [text, ...ctx.recentHistory.map((h) => h.text)].join(" ");
+  if (ayasReplyHasUnexpectedScriptMixing(finalText, scriptContext)) {
+    yield {
+      type: "done",
+      text: deterministic(),
+      source: "fallback",
+      corrected: true,
+      reason: "script-mixing",
       provider: providerId,
       ...(complexity ? { complexity } : {}),
     };

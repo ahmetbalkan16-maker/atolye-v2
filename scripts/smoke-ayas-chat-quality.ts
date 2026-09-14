@@ -28,6 +28,7 @@ import {
   buildAyasChatPrompt,
   isUsableAyasReply,
   stripAyasReplyLabelEcho,
+  ayasReplyHasUnexpectedScriptMixing,
 } from "../src/components/brain/brainCore";
 import { createAyasMemoryStore } from "../src/lib/ayas/memory/AyasMemoryStore";
 import { buildBrainMemoryRecord } from "../src/lib/brain/BrainMemoryModel";
@@ -128,6 +129,7 @@ async function collectDone(gen: AsyncGenerator<{ type: string } & Record<string,
 }
 
 async function run() {
+  const isolatedMemoryRoot = tmpMemRoot();
   // --- stripAyasReplyLabelEcho -------------------------------------------
 
   await scenario("label-strip — pure 'Kullanıcı: X' echo (whole reply) → empty", () => {
@@ -151,11 +153,102 @@ async function run() {
 
   // --- isUsableAyasReply ---------------------------------------------------
 
+  await scenario("label-strip — leading user echo preserves the labeled real answer", () => {
+    assert.equal(stripAyasReplyLabelEcho("\r\nKullanıcı: Adım ne?\r\n\r\nAYAS: Adın Ahmet.\r\n"), "Adın Ahmet.");
+  });
+
+  await scenario("label-strip — mid-reply fabricated exchange is removed, surrounding answer survives", () => {
+    assert.equal(stripAyasReplyLabelEcho("Tabii, bunu yapabiliriz.\n\nKullanıcı: Nasıl?\nAYAS: Sahte yanıt.\n\nİlk adımı seçelim."), "Tabii, bunu yapabiliriz.\n\nİlk adımı seçelim.");
+  });
+
+  await scenario("label-strip — own leading label survives while a later fabricated exchange does not", () => {
+    assert.equal(stripAyasReplyLabelEcho("AYAS: Hazırım.\nKullanıcı: Başlayalım mı?\nAYAS: Sahte yanıt."), "Hazırım.");
+  });
+
+  await scenario("label-strip — ordinary mentions and multiline content survive", () => {
+    const text = "AYAS ile sohbet ediyoruz.\nKullanıcı tercihlerini dikkate alıyorum.\n\nSonraki adımı seçelim.";
+    assert.equal(stripAyasReplyLabelEcho(text), text);
+  });
+
+  await scenario("label-strip — empty and whitespace-only input stays empty", () => {
+    assert.equal(stripAyasReplyLabelEcho(""), "");
+    assert.equal(stripAyasReplyLabelEcho(" \r\n\t"), "");
+  });
+
+  // --- stripAyasReplyLabelEcho — remediation: label + content split across lines ---
+
+  await scenario("label-strip — standalone Kullanıcı label + next-line echo + standalone AYAS label + answer", () => {
+    const out = stripAyasReplyLabelEcho("Kullanıcı:\nBugün beynin konuşma tarafını geliştireceğiz.\n\nAYAS:\nİyiyim, hazırım. Ne yapabiliriz?");
+    assert.equal(out, "İyiyim, hazırım. Ne yapabiliriz?");
+  });
+
+  await scenario("label-strip — same case with blank lines between role and content", () => {
+    const out = stripAyasReplyLabelEcho("Kullanıcı:\n\nBugün beynin konuşma tarafını geliştireceğiz.\n\nAYAS:\n\nİyiyim, hazırım. Ne yapabiliriz?");
+    assert.equal(out, "İyiyim, hazırım. Ne yapabiliriz?");
+  });
+
+  await scenario("label-strip — multiline user echo under standalone Kullanıcı label is entirely discarded", () => {
+    const out = stripAyasReplyLabelEcho("Kullanıcı:\nBirinci satır.\nİkinci satır.\nAYAS:\nGerçek cevap.");
+    assert.equal(out, "Gerçek cevap.");
+  });
+
+  await scenario("label-strip — genuine leading standalone AYAS label preserves its (possibly multi-paragraph) answer", () => {
+    const out = stripAyasReplyLabelEcho("AYAS:\nİlk paragraf.\n\nİkinci paragraf devam ediyor.");
+    assert.equal(out, "İlk paragraf.\n\nİkinci paragraf devam ediyor.");
+  });
+
+  await scenario("label-strip — fabricated standalone Kullanıcı/AYAS block in the middle of a valid answer is removed safely", () => {
+    const out = stripAyasReplyLabelEcho(
+      "Gerçek başlangıç cümlesi.\n\nKullanıcı:\nSahte soru burada.\n\nAYAS:\nSahte cevap burada.\n\nGerçek devam cümlesi.",
+    );
+    assert.equal(out, "Gerçek başlangıç cümlesi.\n\nGerçek devam cümlesi.");
+  });
+
+  await scenario("label-strip — literal explanatory sentence naming both labels remains untouched", () => {
+    const text = "Kullanıcı: ve AYAS: etiketleri konuşmadaki rolleri gösterir.";
+    assert.equal(stripAyasReplyLabelEcho(text), text);
+  });
+
+  await scenario("label-strip — remediation: a verbatim echo of the user's OWN question is stripped even when that question names both labels", () => {
+    // Real live-model finding: when the user's literal question itself names
+    // both labels, the model can echo it verbatim as a first line that ALSO
+    // (coincidentally) matches the both-labels-mentioned prose shape. Passing
+    // the actual userText disambiguates a genuine echo from genuine prose.
+    const userText = "Kullanıcı: ve AYAS: etiketleri ne işe yarıyor?";
+    const raw = "Kullanıcı: ve AYAS: etiketleri ne işe yarıyor?\nAYAS: Bu etiketler konuşmadaki rolleri belirtir.";
+    assert.equal(stripAyasReplyLabelEcho(raw, userText), "Bu etiketler konuşmadaki rolleri belirtir.");
+  });
+
+  await scenario("label-strip — genuine explanatory prose naming both labels still survives when userText is supplied but doesn't match", () => {
+    const userText = "Bu etiketler ne işe yarıyor?";
+    const text = "Kullanıcı: ve AYAS: etiketleri konuşmadaki rolleri gösterir.";
+    assert.equal(stripAyasReplyLabelEcho(text, userText), text);
+  });
+
   await scenario("usability — a bare 'AYAS' self-label (with or without punctuation) is not a real answer", () => {
     assert.equal(isUsableAyasReply("AYAS"), false);
     assert.equal(isUsableAyasReply("AYAS."), false);
     assert.equal(isUsableAyasReply("AYAS:"), false);
     assert.equal(isUsableAyasReply("Ankara'dır."), true);
+  });
+
+  // --- ayasReplyHasUnexpectedScriptMixing (remediation: live mixed-script finding) ---
+
+  await scenario("script-guard — unexpected CJK corruption in an otherwise Turkish conversation is blocked", () => {
+    assert.equal(
+      ayasReplyHasUnexpectedScriptMixing("İyiyim, hazırım. Sen今天感觉有点累。", "Bugün biraz yoruldum."),
+      true,
+    );
+  });
+
+  await scenario("script-guard — legitimate CJK is never blocked when the user's own turn introduced it", () => {
+    assert.equal(ayasReplyHasUnexpectedScriptMixing("好的，谢谢。", "你好吗？"), false);
+    assert.equal(
+      ayasReplyHasUnexpectedScriptMixing("Merhaba anlamı 你好 demektir.", "你好 ne demek?"),
+      false,
+    );
+    // and a plain Turkish reply to a plain Turkish turn never trips it
+    assert.equal(ayasReplyHasUnexpectedScriptMixing("Anladım, devam edelim.", "Tamam güzel."), false);
   });
 
   // --- buildAyasChatPrompt — complexity-gated studio block -----------------
@@ -188,6 +281,22 @@ async function run() {
     });
     assert.match(p, /ikinci tekil şahsa çevir/);
     assert.match(p, /birebir kopyalayıp okuma/);
+  });
+
+  await scenario("prompt — remediation: greeting guidance no longer embeds the literal canned 'İyiyim, hazırım.' example", () => {
+    const p = buildAyasChatPrompt({ userText: "selam", snapshot: snap(), history: [], format: "text" });
+    assert.doesNotMatch(p, /İyiyim,?\s*hazırım/i);
+  });
+
+  await scenario("prompt — declarative/social prompt guidance remains present after the remediation rewrite", () => {
+    const p = buildAyasChatPrompt({ userText: "merhaba", snapshot: snap(), history: [], format: "text" });
+    // social-opener guidance (rewritten, but still present in spirit)
+    assert.match(p, /gerçek bir sohbet/);
+    assert.match(p, /[Nn]as[ıi]ls[ıi]n/);
+    // acknowledgment guidance (new, remediation-added)
+    assert.match(p, /onay\/teyit/);
+    // declarative-statement acceptance guidance (untouched by this remediation)
+    assert.match(p, /KABUL ET/);
   });
 
   // --- end-to-end via streamAyasChat (real function, mocked Ollama) --------
@@ -234,6 +343,7 @@ async function run() {
     await collectDone(
       streamAyasChat({
         text: "Bugün ne yapabiliriz?", snapshot: snap(), studio: studio(), seq: 1,
+        memoryStore: { rootDir: isolatedMemoryRoot },
         fetcher: capturingMockOllamaStream(["Bugün istediğin bir şeyle başlayabiliriz."], bodies),
       }) as never,
     );
@@ -246,6 +356,7 @@ async function run() {
     await collectDone(
       streamAyasChat({
         text: "Kaç proje var, hangi aşamada takıldık?", snapshot: snap(), studio: studio(), seq: 1,
+        memoryStore: { rootDir: isolatedMemoryRoot },
         fetcher: capturingMockOllamaStream(["16 proje var."], bodies),
       }) as never,
     );
@@ -258,6 +369,7 @@ async function run() {
     const done = await collectDone(
       streamAyasChat({
         text: "Merhaba", snapshot: snap(), studio: studio(), seq: 1,
+        memoryStore: { rootDir: isolatedMemoryRoot },
         fetcher: capturingMockOllamaStream(["Merhaba! Nasıl yardımcı olabilirim?"], bodies),
       }) as never,
     );
@@ -271,6 +383,7 @@ async function run() {
     const done = await collectDone(
       streamAyasChat({
         text: "Atölye için bir yapay zekâ asistanı geliştiriyorum.", snapshot: snap(), seq: 1,
+        memoryStore: { rootDir: isolatedMemoryRoot },
         fetcher: capturingMockOllamaStream(["Kullanıcı: Atölye için bir yapay zekâ asistanı geliştiriyorum."], bodies),
       }) as never,
     );

@@ -707,6 +707,17 @@ export function buildAyasChatPrompt(input: AyasChatPromptInput): string {
     "  tanıtımınla karıştırma.",
     "- Önce kullanıcının ne söylediğini/sorduğunu anla, doğrudan buna karşılık ver (bir soruysa cevapla, bir",
     "  bildirimse/isteyse doğal biçimde onu onayla veya ona göre davran); gerekiyorsa ardından kısa açıklama ekle.",
+    "- Basit bir selamlaşma (\"selam\", \"merhaba\" gibi) gelirse kısa ve doğal bir selamla karşılık ver; bunu bir",
+    "  durum bildiren cümleyle açma — sadece SELAMLA.",
+    "- \"Nasılsın\", \"iyi misin\", \"ne yapıyorsun\" gibi doğrudan bir durum SORUSU gelirse bunu gerçek bir sohbet",
+    "  anı gibi ele al: kısa, sıcak, insancıl, kendi cümlelerinle bir sosyal cevap ver, ardından istersen ne",
+    "  üzerinde çalışmak istediğini sor.",
+    "- Kısa bir onay/teyit (\"tamam\", \"güzel\", \"anladım\" gibi) gelirse doğal ve kısa bir devam cümlesi kur; bunu",
+    "  durum bildiren kalıp bir cümleyle veya konuyla ilgisiz yeni bir konuyla AÇMA.",
+    "- Kullanıcı soru sormadan bir düşünce/durum paylaşıyorsa (\"... geliştiriyorum\", \"bugün ... üzerinde",
+    "  çalışacağız\", \"şimdi ... test ediyorum\" gibi) bunu konuşmanın doğal bir parçası olarak KABUL ET: ne",
+    "  dediğini anladığını göster, gerekiyorsa kısa bir takip sorusu sor veya küçük bir öneri sun. Bunu asla",
+    "  cevapsız/yararsız bir genel mesaja düşürme ve söylediğini mekanik biçimde birebir tekrarlama.",
     "- Soruyla ilgisi yoksa hiçbir şeyden (kendinden, Atölye'den, proje durumundan) bahsetme; yalnızca gerçekten",
     "  konuyla bağlantılıysa değin.",
     "- Basit soruya kısa ve net cevap ver (örn. \"2+2 kaç\" → sade \"4\"). Karmaşık soruda gerektiği kadar",
@@ -809,27 +820,183 @@ export function ayasReplyMessage(text: string, seq: number): BrainChatMessage {
 /**
  * Chat-quality sprint (real-Ollama finding, qwen2.5:7b): the model
  * occasionally echoes the "Kullanıcı: ... / AYAS: ..." label convention used
- * to RENDER conversation history back at the start of its own reply — even on
- * a turn with no history at all — completing the "Kullanıcı: <soru>" line the
- * prompt shows it rather than answering past it. A deterministic backstop,
- * the same spirit as {@link isUsableAyasReply} / {@link ayasReplyClaimsExecution}:
- * strips a leading echoed label, never invents or rewrites real content. If
- * stripping empties the reply (it was pure echo, nothing else), the empty
- * string is returned on purpose — {@link isUsableAyasReply} then correctly
- * falls back to the honest deterministic reply instead of showing the echo.
+ * to RENDER conversation history (see `buildAyasChatPrompt`'s `turns`
+ * mapping) back into its own reply — as a leading line, a trailing dangling
+ * line, a fabricated MID-REPLY exchange, e.g.:
+ *
+ *   "Tabii, bunu yapabiliriz.
+ *
+ *   Kullanıcı: bunu nasıl yapacağız?
+ *   AYAS: Önce mimariyi inceleyelim.
+ *
+ *   Bence ilk adım..."
+ *
+ * or (Natural Conversation Polish REMEDIATION, found via live real-model
+ * testing) the same label put on its OWN line, with the echoed/fabricated
+ * content on the line(s) that follow rather than sharing the label's line:
+ *
+ *   "Kullanıcı:
+ *   Bugün beynin konuşma tarafını geliştireceğiz.
+ *
+ *   AYAS:
+ *   İyiyim, hazırım. ..."
+ *
+ * A small line-based state machine, so it works wherever the block occurs,
+ * not only at the start/end, and whether label + content share a line or not:
+ *
+ *  - a line that IS just "Kullanıcı:" (nothing else on it) opens a Kullanıcı
+ *    block — every line after it (blank or not) is discarded as echoed user
+ *    content until a "AYAS:" boundary is found (or the text ends);
+ *  - a line that is "Kullanıcı: <text>" (label + content sharing the line) is
+ *    a self-contained echo — only that one line is discarded, nothing after
+ *    it is touched;
+ *  - a line that IS just "AYAS:" opens an AYAS block. If nothing real has
+ *    been kept yet, this is the model self-labeling its OWN real answer — the
+ *    marker line is dropped and everything after it is kept as-is (no bound,
+ *    a genuine multi-paragraph answer survives whole). If real content was
+ *    already kept, this is a fabricated mid-reply continuation — the marker
+ *    and the fabricated content that follows it (up to the next blank line,
+ *    matching how the single-line fabrication case is already bounded by
+ *    surrounding blank lines) are discarded;
+ *  - a line "AYAS: <text>" (label + content sharing the line) is handled the
+ *    same way at the single-line grain: kept whole (for the final regex pass
+ *    below to strip its prefix) when it's the first real content, dropped
+ *    entirely otherwise.
+ *
+ * Critically, a line only counts as a label-block opener when the label sits
+ * at the very start of the line, alone or immediately followed by content on
+ * THAT SAME line — a line that merely *mentions* both labels together, e.g.
+ * "Kullanıcı: ve AYAS: etiketleri konuşmadaki rolleri gösterir.", can never
+ * be the render convention (a single history line never carries both role
+ * labels at once) and is ordinarily explanatory prose — kept untouched.
+ * EXCEPT: live testing found a real collision — when the user's OWN question
+ * literally names both labels (e.g. "Kullanıcı: ve AYAS: etiketleri ne işe
+ * yarıyor?"), the model can echo that question verbatim as its first line,
+ * which *also* mentions both labels and would otherwise be misread as safe
+ * prose. The optional `userText` parameter disambiguates: a line that exactly
+ * matches the render convention's own `Kullanıcı: ${userText}` form (see
+ * `buildAyasChatPrompt`'s `Kullanıcı: ${input.userText}` line) is always the
+ * echo, checked before the both-labels prose exception, however un-prose-like
+ * the user's own question happened to be. Callers that already have the
+ * user's current-turn text (`streamAyasChat`, `resolveAyasReply`) pass it;
+ * omitting it (existing callers, existing tests) disables only this one
+ * disambiguation and falls back to the prose exception as before.
+ *
+ * A dangling label sharing a line with real content at the very end (not on
+ * its own line, so the rules above cannot isolate it) gets a second, narrower
+ * pass, unchanged from before. Never touches the words "Kullanıcı"/"AYAS"
+ * mid-sentence. If stripping empties the reply (it was pure echo, nothing
+ * else), the empty string is returned on purpose — {@link isUsableAyasReply}
+ * then correctly falls back to the honest deterministic reply instead of
+ * showing the echo.
  */
-export function stripAyasReplyLabelEcho(text: string): string {
-  return text
-    // A leading echoed "Kullanıcı: <soru>" line — with or without anything
-    // after it (a lone echo is the whole reply just as often as a multi-line
-    // one), so the newline is optional here (`\n*`, not `\n+`).
-    .replace(/^\s*Kullanıcı:\s*[^\n]*\n*/i, "")
-    .replace(/^\s*AYAS:\s*/i, "")
-    // A dangling "Kullanıcı: ..." (the model starting a NEXT, fabricated
-    // turn) at the very end — same line or its own, real Turkish prose never
-    // legitimately ends on a colon-suffixed "Kullanıcı".
-    .replace(/\s*Kullanıcı:\s*[^\n]*$/i, "")
+type AyasLabelLineClass = "bare-user" | "bare-ayas" | "inline-user" | "inline-ayas" | "blank" | "normal";
+
+function classifyAyasLabelLine(line: string, userText: string): AyasLabelLineClass {
+  if (line.trim().length === 0) return "blank";
+  // The exact render-convention echo of THIS turn's own input — checked
+  // before the both-labels prose exception below, so a literal user question
+  // that itself names both labels is still recognized as an echo rather than
+  // misread as prose (see this function's doc comment above). Checked both
+  // WITH the "Kullanıcı: " prefix the render convention adds (the normal
+  // case) and WITHOUT it (a real live-model finding: when the user's own
+  // text already starts with "Kullanıcı:", the model can reproduce it
+  // verbatim, unprefixed, since one is already there).
+  if (userText) {
+    const trimmedLine = line.trim().toLocaleLowerCase("tr");
+    const trimmedUser = userText.trim().toLocaleLowerCase("tr");
+    if (trimmedLine === trimmedUser || trimmedLine === `kullanıcı: ${trimmedUser}`) return "inline-user";
+  }
+  // A line mentioning BOTH labels can never be the real render convention
+  // (one history line only ever carries one role) — always prose.
+  if (/Kullanıcı\s*:/i.test(line) && /AYAS\s*:/i.test(line)) return "normal";
+  if (/^\s*Kullanıcı\s*:\s*$/i.test(line)) return "bare-user";
+  if (/^\s*AYAS\s*:\s*$/i.test(line)) return "bare-ayas";
+  if (/^\s*Kullanıcı\s*:\s*\S/i.test(line)) return "inline-user";
+  if (/^\s*AYAS\s*:\s*\S/i.test(line)) return "inline-ayas";
+  return "normal";
+}
+
+export function stripAyasReplyLabelEcho(text: string, userText: string = ""): string {
+  const lines = text.split("\n");
+  let state: "scanning" | "user-block" | "fake-ayas-block" = "scanning";
+  let hasRealContent = false;
+  const kept: string[] = [];
+
+  for (const line of lines) {
+    const cls = classifyAyasLabelLine(line, userText);
+
+    if (state === "user-block") {
+      if (cls === "bare-ayas" || cls === "inline-ayas") {
+        state = "scanning"; // boundary reached — fall through to handle this label line below
+      } else {
+        continue; // more echoed user content (bare/inline label, blank, or prose) — discard
+      }
+    } else if (state === "fake-ayas-block") {
+      if (cls === "blank") {
+        state = "scanning";
+        kept.push(line); // paragraph boundary — the fabricated block ends here
+        continue;
+      }
+      if (cls === "bare-user" || cls === "inline-user") {
+        state = "user-block"; // another fake turn starting right away
+        continue;
+      }
+      continue; // more fabricated AYAS content — discard
+    }
+
+    // state === "scanning" here (either originally, or a block just ended above)
+    if (cls === "bare-user") {
+      state = "user-block";
+      continue;
+    }
+    if (cls === "inline-user") {
+      continue; // self-contained echo — only this line is discarded
+    }
+    if (cls === "bare-ayas" || cls === "inline-ayas") {
+      const isFirst = !hasRealContent;
+      if (isFirst) {
+        hasRealContent = true;
+        if (cls === "inline-ayas") kept.push(line); // bare: nothing on this line to keep
+      } else {
+        state = "fake-ayas-block"; // drop the label; its content is swallowed above
+      }
+      continue;
+    }
+    if (cls === "blank") {
+      kept.push(line);
+      continue;
+    }
+    hasRealContent = true;
+    kept.push(line);
+  }
+
+  let out = kept
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n") // collapse the blank-line gaps a removed line leaves behind
     .trim();
+
+  // The reply's own leading self-label: prefix only, keep the content. Guarded
+  // the same way `classifyAyasLabelLine` is — if the rest of that first line
+  // also names "Kullanıcı:", this was never a real label (it's explanatory
+  // prose the line-based pass already chose to keep whole), so it's left
+  // alone rather than mutilated.
+  const leadingAyas = out.match(/^\s*AYAS\s*:\s*/i);
+  if (leadingAyas) {
+    const firstLine = out.slice(0, out.indexOf("\n") === -1 ? out.length : out.indexOf("\n"));
+    if (!/Kullanıcı\s*:/i.test(firstLine.slice(leadingAyas[0].length))) {
+      out = out.slice(leadingAyas[0].length);
+    }
+  }
+
+  // A same-line dangling label at the very end — same guard, mirrored: skip
+  // when the matched dangling tail itself names "AYAS:" (explanatory prose).
+  const trailingKullanici = out.match(/\s*Kullanıcı\s*:\s*[^\n]*$/i);
+  if (trailingKullanici && !/AYAS\s*:/i.test(trailingKullanici[0])) {
+    out = out.slice(0, trailingKullanici.index);
+  }
+
+  return out.trim();
 }
 
 /**
@@ -843,6 +1010,43 @@ export function isUsableAyasReply(text: string): boolean {
   // not a real answer (chat-quality sprint: a real, if rare, qwen2.5:7b
   // failure mode on an ambiguous/declarative turn).
   if (/^AYAS\s*[:.!]?\s*$/i.test(trimmed)) return false;
+  return true;
+}
+
+/**
+ * Han (CJK Unified Ideographs + Extension A), Hiragana/Katakana, and Hangul
+ * Syllables — the scripts seen in the live qwen2.5:7b corruption case.
+ * Escaped codepoint ranges, not literal glyphs, so the source stays
+ * unambiguous regardless of editor/terminal encoding.
+ */
+const AYAS_UNEXPECTED_SCRIPT = new RegExp(
+  "[\\u4E00-\\u9FFF\\u3400-\\u4DBF\\u3040-\\u30FF\\uAC00-\\uD7A3]",
+);
+
+/**
+ * Natural Conversation Polish REMEDIATION (real-Ollama finding, qwen2.5:7b):
+ * a live test produced a reply that code-switched into Han/Kana script
+ * mid-sentence during an otherwise Turkish conversation — a fabricated,
+ * hallucinated continuation ("İyiyim, hazırım. Sen今天感觉有点累。"), not a
+ * legitimate translation or answer. `stripAyasReplyLabelEcho` correctly
+ * discards a fabricated LABELED exchange either side of it, but this
+ * corruption sat inside the reply's own kept first line — no label to key
+ * off, so nothing else in the guard chain catches it.
+ *
+ * A narrow, deterministic, context-based check (never a blanket Unicode
+ * ban): it fires ONLY when the reply contains Han/Kana/Hangul script the
+ * conversation itself never introduced. `context` is the current user
+ * message plus whatever recent turns the caller already has on hand — pass
+ * anything the user said or was shown; if that script appears anywhere in
+ * it, the guard stands down and the reply is left alone, so a user who
+ * writes in, asks about, or is himself quoting Chinese/Japanese/Korean text
+ * is never blocked. It never edits the text — like the other guards, it only
+ * decides usable/not, and the deterministic fallback in
+ * `streamAyasChat`/`resolveAyasReply` covers the rest.
+ */
+export function ayasReplyHasUnexpectedScriptMixing(text: string, context: string): boolean {
+  if (!AYAS_UNEXPECTED_SCRIPT.test(text)) return false;
+  if (AYAS_UNEXPECTED_SCRIPT.test(context)) return false;
   return true;
 }
 
@@ -885,11 +1089,15 @@ export async function resolveAyasReply(input: ResolveAyasReplyInput): Promise<Ay
       history: input.history ?? [],
       ...(input.studio ? { studio: input.studio } : {}),
     });
-    const reply = stripAyasReplyLabelEcho((await input.generate(prompt)) ?? "");
+    const reply = stripAyasReplyLabelEcho((await input.generate(prompt)) ?? "", text);
     if (!isUsableAyasReply(reply)) return fallback;
     // Defence in depth: the wiring runs nothing, but a weak model can still
     // *claim* it opened the gate / ran a pipeline. Never show that — fall back.
     if (ayasReplyClaimsExecution(reply)) return fallback;
+    // Remediation: a real qwen2.5:7b run code-switched into unrelated Han/Kana
+    // script mid-reply — see `ayasReplyHasUnexpectedScriptMixing`'s doc comment.
+    const scriptContext = [text, ...(input.history ?? []).map((h) => h.text)].join(" ");
+    if (ayasReplyHasUnexpectedScriptMixing(reply, scriptContext)) return fallback;
     return { message: ayasReplyMessage(reply, input.seq), source: "llm" };
   } catch {
     return fallback;

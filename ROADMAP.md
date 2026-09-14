@@ -1,5 +1,35 @@
 ---
 
+## AYAS Natural Conversation Polish Remediation — 2026-09-14
+
+- [x] Fix standalone-label echo leak (`stripAyasReplyLabelEcho` block-aware rewrite + userText
+      disambiguation), found via live `qwen2.5:7b` acceptance testing (scenarios #4, #9, #10).
+- [x] Add a bounded, deterministic mixed-script (Han/Kana/Hangul) corruption guard
+      (`ayasReplyHasUnexpectedScriptMixing`), wired into both `resolveAyasReply` and `streamAyasChat`.
+- [x] Remove the literal "İyiyim, hazırım." example from the prompt guidance; rewrite as
+      behavior-only rules (greeting / state-of-being question / acknowledgment).
+- [x] 10 new deterministic regression scenarios; full chat-quality suite 32/32; TypeScript clean;
+      Graphify-confirmed regression sweep (chat-stream, voice, chat, studio-context, stream-client)
+      all green.
+- [x] Live re-verification against the real, currently-configured `qwen2.5:7b` — two independent
+      reruns of all 10 original acceptance scenarios; the three targeted defects did not recur.
+- [ ] Two residual, explicitly non-blocking soft-quality items left for a future sprint: topical
+      drift on the literal "what do the labels mean" question, and semantic mismatch on "Bugün
+      biraz yoruldum" — general model comprehension, out of this remediation's scope.
+- [ ] User review and commit/push; active branch has no configured upstream.
+
+---
+
+## AYAS Natural Conversation Polish — 2026-09-14
+
+- [x] Complete the existing social/declarative prompt and mid-reply label-filter handoff.
+- [x] Preserve the first real answer after user echoes and handle CRLF label lines.
+- [x] Validate with isolated chat-quality 20/20, chat 12/12, TypeScript and ESLint.
+- [ ] Operator evaluation of naturalness with the live model (not run in this task).
+- [ ] User review and commit/push; active branch has no configured upstream.
+
+---
+
 <!-- SPRINT-130.2-START -->
 ## Sprint 130.2 - Real Photo Source Download Reliability & Latency Budget
 

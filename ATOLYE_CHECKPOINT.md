@@ -1,5 +1,95 @@
 ---
 
+## AYAS Natural Conversation Polish Remediation — 2026-09-14
+
+- Follows directly on the "AYAS Natural Conversation Polish — Codex continuation" entry below. A
+  LIVE naturalness acceptance run against the real, currently-configured `qwen2.5:7b` (local Ollama)
+  found 3 real defects the mocked smoke suite could not see; this entry is the fix for exactly those
+  three, nothing else. Same branch (`wip/ayas-graphify-final-execution`), same files plus
+  `src/lib/ayas/AyasChatStream.ts`; all changes remain unstaged/uncommitted.
+- **A — standalone-label echo leak (`stripAyasReplyLabelEcho`, `brainCore.ts`).** Live testing
+  showed qwen2.5:7b sometimes puts a `Kullanıcı:` / `AYAS:` role label alone on its own line, with
+  the echoed/real content on the line(s) that follow, instead of sharing the label's line — a shape
+  the prior line-only filter didn't cover, so the user's own sentence leaked verbatim as the reply's
+  first line before the real answer. Rewrote the function around a small per-line state machine
+  (`classifyAyasLabelLine` + a `scanning` / `user-block` / `fake-ayas-block` state) that swallows a
+  bare-label block's content until the next label boundary, while a same-line "label: content" form
+  still only drops that one line (unchanged prior behavior). A line naming BOTH labels together
+  (never possible from the real render convention) is always treated as explanatory prose and kept —
+  except when it's an exact echo of the user's own turn (the new optional `userText` parameter,
+  passed by both call sites), which a live rerun proved necessary: the stress-test question itself
+  named both labels, and the model echoed it verbatim.
+- **B — mixed-script corruption guard (`ayasReplyHasUnexpectedScriptMixing`, new export in
+  `brainCore.ts`, wired into `resolveAyasReply` and `streamAyasChat`).** A live run produced
+  `"İyiyim, hazırım. Sen今天感觉有点累。"` — qwen2.5:7b hallucinating a fake bilingual continuation
+  mid-reply, with the corruption sitting inside the reply's own kept content (no label to key off).
+  New deterministic guard: fires only when the reply contains Han/Kana/Hangul script the
+  conversation itself (current turn + recent history) never introduced — never a blanket Unicode
+  ban, never touches text the user themselves wrote in or asked about. On trigger it fails closed
+  via the existing fallback contract (`reason: "script-mixing"` → the honest deterministic reply),
+  the same shape as `isUsableAyasReply`/`ayasReplyClaimsExecution` — no new subsystem.
+- **C — stock-phrase overfitting (`buildAyasChatPrompt`, `brainCore.ts`).** The prior prompt's
+  parenthetical example `(örn. "İyiyim, hazırım.")` was being copied near-verbatim by the model as a
+  stock opener for "Selam" and "Tamam güzel." — neither a "nasılsın" question. Rewrote the guidance
+  into three separate, phrase-free behavioral rules (plain greeting → short natural greeting; a real
+  state-of-being question → brief social answer; a short acknowledgment → natural continuation, no
+  canned state-of-being opener, no unrelated new topic). No replacement canned phrase hardcoded.
+- Test coverage: 10 new deterministic scenarios in `scripts/smoke-ayas-chat-quality.ts` (6 for the
+  label state machine incl. the userText-disambiguation fix found via a second live rerun, 2 for the
+  script guard, 2 for the prompt rewrite) — suite now 32/32, all existing scenarios still pass
+  unmodified. Regression swept beyond the task's minimum via Graphify's real call-graph (fan-in for
+  `buildAyasChatPrompt`/`isUsableAyasReply`/`ayasReplyClaimsExecution`, since `stripAyasReplyLabelEcho`
+  itself predates the current `.graphify` snapshot and doesn't resolve there): `smoke:ayas-chat-stream`
+  15/15, `smoke-ayas-voice.ts` 55/55, `smoke-ayas-chat.ts` 12/12, `smoke:ayas-studio-context` 16/16,
+  `smoke:ayas-chat-stream-client` 8/8. `npx tsc --noEmit` clean throughout. `graphify update .` run
+  after the code changes (AST-only, no API cost); `.graphify/` is gitignored, doesn't touch the
+  tracked diff.
+- **Live re-verification against real `qwen2.5:7b`, two independent reruns**, re-testing all 10
+  original acceptance scenarios each time: no echoed user content leaked into any final response
+  (was: scenarios #4 and #9, and transiently #10 mid-fix); no fabricated `Kullanıcı:`/`AYAS:`
+  dialogue reached the user in any of the 20 replies; zero recurrences of the `"İyiyim, hazırım."`
+  stock opener (was: scenarios #2 and #6). Multi-turn topic tracking (#7) and pronoun resolution
+  (#8) held correctly across both reruns. The mixed-script guard is deterministically verified
+  against the actual captured corrupted string from the original live finding, but did NOT get a
+  chance to fire again live in these reruns — qwen2.5:7b's code-switch into Han/Kana script appears
+  to be a rare/probabilistic sampling failure, not one that reproduces on demand; its presence is
+  defense-in-depth, not re-proven live. Two residual, explicitly non-blocking soft issues remain,
+  unrelated to the three targeted defects and not addressed here: occasional topical drift on the
+  literal "what do the labels mean" question (scenario #10 — same as the original acceptance run's
+  explicitly-non-blocking finding), and mild semantic mismatch on "Bugün biraz yoruldum" (scenario
+  #5 — general model comprehension quality, out of this remediation's scope per the task).
+- **LIVE NATURALNESS: PASS** against this remediation's three specific blocking targets, confirmed
+  on a real, currently-configured local model — not a mocked/simulated verification.
+- No production execution, project mutation, provider/network call beyond the local Ollama calls
+  this evaluation itself made, reconciliation, or production cleanup. Nothing staged, committed, or
+  pushed; branch and HEAD unchanged throughout. `AYAS Conversational Follow-Through` (the next
+  sprint proposed in the original acceptance audit) was explicitly NOT started.
+
+---
+
+## AYAS Natural Conversation Polish — Codex continuation — 2026-09-14
+
+- Repository confirmed at `C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atolye-v2`.
+  HEAD `1c2145901444fd0daabf35b21b4fef0c41c7283f`, branch `wip/ayas-graphify-final-execution`;
+  baseline `37dc655a115f32013e918ffde96df19c4e5ae4a4` exists and is an ancestor.
+- User confirmed that the pre-existing `brainCore.ts` Natural Conversation Polish diff was the
+  handoff to finish. HEAD already contains the chat-quality relevance gates and identity fixes;
+  those were not reimplemented. Preserved the handoff's social/declarative prompt guidance and
+  mid-reply fabricated-dialogue filtering.
+- Fixed two handoff regressions: preserve the first labeled AYAS answer after leading user echoes;
+  recognize label lines with Windows CRLF endings. Added five deterministic regression scenarios.
+  All chat-quality stream tests now use temporary memory stores, including previously defaulted cases.
+- Validation: TypeScript PASS; repo ESLint 0 errors / 22 existing warnings; chat-quality 20/20 and
+  chat 12/12 PASS. No live model or device verification; naturalness still needs operator evaluation.
+- No production execution, project mutation, provider/network call, reconciliation or production
+  cleanup. Git pull returned already up to date, but this branch has no upstream and origin fetches
+  only `wip/production-audio-resume-prep-v2`: active-branch remote synchronization is not established.
+- Code continuation complete; changes intentionally unstaged/uncommitted. User explicitly prohibited
+  add/commit/push/reset/clean. Next: user reviews the diff, verifies live conversation if desired, and
+  handles commit/push. Sprint 129.41 production remains blocked for this task.
+
+---
+
 ## AYAS PHASE 2 — BRAIN INTEGRATION (Model Router/Context/Memory/Reasoning/Tool Registry) VE PHONE-LLM PWA #50 KAPANIŞI: gerçek conversation kernel zaten bağlıydı (kanıtlandı); Phone-LLM offline launch-route redirect fix'i; gate CLOSED - 2026-09-11
 
 **Branch:** `wip/ayas-graphify-final-execution`, `c7844cd`'nin üzerinde. NOT merged / NOT pushed.

@@ -1,5 +1,40 @@
 ---
 
+## 2026-09-14 — AYAS Natural Conversation Polish Remediation
+
+- Fixed 3 real defects found via a live `qwen2.5:7b` acceptance run (mocked smoke tests alone
+  couldn't have caught these): (A) standalone role-label echo leak in `stripAyasReplyLabelEcho`
+  (label alone on its own line, echoed content on the next — rewrote around a per-line state
+  machine; also disambiguates a user question that itself names both labels from genuine
+  explanatory prose, via a new optional `userText` parameter); (B) new bounded, deterministic
+  mixed-script (Han/Kana/Hangul) corruption guard, `ayasReplyHasUnexpectedScriptMixing`, wired into
+  both `resolveAyasReply` and `streamAyasChat` — fails closed to the existing honest-fallback
+  contract, never a blanket Unicode ban, never blocks legitimate user-introduced multilingual text;
+  (C) removed the literal "İyiyim, hazırım." example from the prompt guidance that the model was
+  copying as a stock opener even for plain greetings/acknowledgments — rewritten as behavior-only
+  rules.
+- 10 new deterministic regression scenarios in `scripts/smoke-ayas-chat-quality.ts` (32/32 total,
+  all pre-existing scenarios unchanged). TypeScript clean. Regression swept via Graphify's real
+  call-graph fan-in beyond the task's minimum: `smoke:ayas-chat-stream`, `smoke-ayas-voice.ts`,
+  `smoke-ayas-chat.ts`, `smoke:ayas-studio-context`, `smoke:ayas-chat-stream-client` — all green.
+- Live re-verified against the real, currently-configured `qwen2.5:7b`, two independent reruns of
+  all 10 original acceptance scenarios: no echoed user content leaked, no fabricated dialogue
+  reached the user, zero recurrences of the stock "İyiyim, hazırım." opener, multi-turn context
+  intact. Two pre-existing, explicitly non-blocking soft-quality items (general model comprehension,
+  not this remediation's targets) remain for a future sprint. Nothing staged/committed/pushed.
+
+---
+
+## 2026-09-14 — AYAS Natural Conversation Polish continuation
+
+- Completed the existing social/declarative prompt and fabricated-dialogue filtering change.
+- Preserved the first real labeled answer after a leading user echo; fixed CRLF label recognition.
+- Added five regression scenarios and isolated all chat-quality stream tests from live memory.
+- Validation: chat-quality 20/20, chat 12/12, TypeScript PASS, ESLint 0 errors (22 existing warnings).
+  No live provider evaluation or production execution. Commit/push left to the user.
+
+---
+
 <!-- SPRINT-154-START -->
 ## 2026-08-28 - Sprint 154 i-stanbul-un-fethi-1453 Video Completion + Detached-Pending Audio Compensation Recovery
 
