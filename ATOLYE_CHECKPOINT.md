@@ -1,6 +1,6 @@
 ---
 
-## AYAS Action Runtime Master Sprint — real read-only tool dispatch — READY FOR USER REVIEW (not committed) — 2026-09-14
+## AYAS Action Runtime Master Sprint — real read-only tool dispatch — CLOSED / COMMITTED / PUSHED (`1e2ea876c19997f36ab557aad91c6cc9ab9126b0`) — 2026-09-14
 
 - **Goal**: move AYAS from only *describing* what a tool would show to actually *performing* a real,
   narrowly-scoped, READ-ONLY action, bringing the real result into the conversation. Explicitly
@@ -154,10 +154,15 @@
   all unchanged by this follow-up.
 - No production pipeline execution, production project/runtime mutation, real AYAS memory
   contamination, credential access, package install, process/service control, destructive shell,
-  arbitrary terminal execution, DB write, commit, push, merge, rebase, reset, restore, clean or stash.
-  Execution Gate remains CLOSED and semantically unchanged; the new Action Runtime never touches it.
-  **This development task explicitly did not commit or push — Git closure is reserved for the user
-  or a later explicit closure task**, matching the pattern of the two prior sprints above.
+  arbitrary terminal execution, DB write performed by the development pass itself, merge, rebase,
+  reset, restore, clean or stash. Execution Gate remains CLOSED and semantically unchanged; the new
+  Action Runtime never touches it.
+- **Git closure (separate, explicitly-authorized task)**: pre-commit state re-verified to match this
+  entry exactly (branch/HEAD/nothing-staged), lightweight final validation re-run (tsc clean, lint 0
+  errors/22 pre-existing warnings, closure smoke suites PASS, `git diff --check` clean), staged
+  exactly the 22 intended files, committed as `1e2ea876c19997f36ab557aad91c6cc9ab9126b0` on
+  `wip/ayas-graphify-final-execution`, pushed to `origin/wip/ayas-graphify-final-execution` (fast
+  -forward, no force), local/remote SHA verified equal, working tree clean.
 
 ---
 

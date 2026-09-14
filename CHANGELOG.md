@@ -47,8 +47,8 @@
   files); **456 deterministic scenarios across 19 suites** (was 421/18 before the reliability pass).
 - Execution Gate remains CLOSED and semantically unchanged, re-verified after the reliability pass
   (all 6 write-path files still zero diff). No production execution, project/runtime mutation, or
-  credential access. This sprint explicitly did not commit or push — Git closure is reserved for a
-  separate, explicitly-authorized task.
+  credential access. Committed and pushed (separate, explicitly-authorized closure task) as
+  `1e2ea876c19997f36ab557aad91c6cc9ab9126b0` on `wip/ayas-graphify-final-execution`.
 
 ---
 

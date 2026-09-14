@@ -45,8 +45,10 @@
       `smoke-ayas-tool-candidate-resolution.ts`, plus new integration scenarios in
       `smoke-ayas-reasoning.ts`/`smoke-ayas-studio-context.ts`); TypeScript clean; ESLint 0 errors /
       22 pre-existing warnings (0 new). Write-path files re-confirmed zero diff after convergence.
-- [ ] User review of the intentionally unstaged package; commit/push deliberately not performed —
-      reserved for a separate, explicitly-authorized closure task.
+- [x] Git closure (separate, explicitly-authorized task): pre-commit state re-verified, lightweight
+      validation re-run, staged exactly the 22 intended files, committed and pushed as
+      `1e2ea876c19997f36ab557aad91c6cc9ab9126b0` on `wip/ayas-graphify-final-execution`, local/remote
+      SHA verified equal.
 
 ---
 
