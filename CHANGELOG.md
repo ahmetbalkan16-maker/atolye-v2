@@ -1,6 +1,6 @@
 ---
 
-## 2026-09-14 — AYAS Guided Repair + Gated Writes (implementation, uncommitted)
+## 2026-09-14 — AYAS Guided Repair + Gated Writes (`f237101`)
 
 - Added bounded `AyasGuidedRepair` primitives for diagnosis/proposal/explicit approval and hash-checked semantic patching.
 - Added closed validation actions and append-only provenance journal hooks; arbitrary shell, deletion, Git, package, credential, and production operations remain unavailable.

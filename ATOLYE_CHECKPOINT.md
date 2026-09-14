@@ -1,6 +1,6 @@
 ---
 
-## AYAS Guided Code Repair + Gated Write Actions — IMPLEMENTED / UNCOMMITTED — 2026-09-14
+## AYAS Guided Code Repair + Gated Write Actions — CLOSED / COMMITTED / PUSHED (`f237101`) — 2026-09-14
 
 - Added `src/lib/ayas/execution/AyasGuidedRepair.ts`: data-only diagnosis, immutable proposal fingerprints, explicit user approval provenance, workspace/file/operation scope, expiry, bounded patching with precondition hashes, rollback-on-failure, closed validation registry, and journal hooks.
 - No generic shell executor, deletion, Git mutation, package installation, credential/system/production access, or implicit write path was added. File creation remains opt-in in the proposal bounds.
@@ -8,7 +8,7 @@
 - Real product path: `POST /api/ayas/chat/stream` → bounded `AyasGuidedRepairSessionRuntime` (hashed session key, 100-session/30-minute ceiling) → `AyasGuidedRepairConversation` → safe source inspection/model proposal → later exact current-turn approval → `AyasGuidedRepair.apply` → closed validation registry → provenance-grounded reply. No patch occurs from chat text alone or before approval.
 - Fault localization no longer requires a user-supplied path: stack frames, error identifiers, function/class symbols, test names and bounded subsystem/stage clues feed the read-only `search-project-source` action (2,000 visited-file / 8-result ceiling). One strong candidate is inspected automatically; materially ambiguous subsystem evidence produces one symptom-level clarification. Graphify explain evidence is collected around the selected anchor when available.
 - A model may only propose a fully-read, deterministically located source file; deterministic policy rechecks path, proposal fingerprint, workspace, operation, precondition hash, expiry and single-use authorization before a write. Validation failure rolls back only when the file still equals AYAS's own patch; a concurrent user edit is never overwritten.
-- Committed baseline remains HEAD `3332f83`; these changes are intentionally uncommitted per the sprint instruction.
+- Main Guided Repair implementation was committed and pushed as `f237101`; the process-local pending-proposal restart limitation remains intentionally deferred.
 
 ---
 
