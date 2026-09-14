@@ -1,5 +1,57 @@
 ---
 
+## 2026-09-14 — AYAS Action Runtime Master Sprint
+
+- AYAS can now actually perform a real, narrowly-scoped READ-ONLY action and bring the real result
+  into the conversation, instead of only describing what a tool would show. New allowlisted actions
+  `read-project-document` (checkpoint/roadmap/changelog) and `inspect-source-file` (strict path
+  validation, `src`/`scripts`/`app`/top-level `.md` only), alongside the existing `inspect-project` /
+  `pipeline-recovery-plan`.
+- New dispatcher `src/lib/ayas/execution/AyasActionRuntime.ts` — deliberately separate from the
+  existing write-authorization `AyasExecutionGate`/`AyasExecutionBridge` machinery (which stays
+  CLOSED and untouched, zero diff on all 6 write-path files) rather than reusing a ceremony that has
+  never been authorized. At most one dispatch per turn; a real result is fed back through one bounded
+  extra model call, explicitly framed as untrusted data, never an instruction.
+- A project slug used by a tool dispatch is always derived deterministically
+  (`AyasConversationState`'s new `activeProjectSlug`), never trusted from the model; a document id or
+  file path the model suggests is re-validated from scratch by the executor.
+- Nine distinct real false-execution/false-tool-use claim phrasings found and fixed via iterative
+  live-adversarial testing against the real, currently-configured `qwen2.5:7b` (passive-voice claims,
+  an invented-tool-name bypass, future-tense and ongoing-tense mutation-capability claims, an
+  unconditional delete-claim guard, a command-execution claim, an inchoative "starting to delete"
+  claim, and a passive "tool was run" claim that also surfaced a real bug — JavaScript's `\b` never
+  fires before a Turkish-specific letter like "ç", fixed with an explicit Unicode-aware pattern).
+- Fixed a routing BLOCKER: the complexity classifier never routed checkpoint/changelog/named-file
+  questions to the reasoning core at all, making the whole Action Runtime unreachable for its own
+  headline examples — extended with a structural file-path-mention signal and broadened vocabulary.
+- **Reliability convergence (same-day follow-up)**: the reliability residual noted below was treated
+  as an active defect, root-caused, and fixed structurally rather than accepted as model fluency.
+  Pinned `temperature: 0` on the reasoning core's own structured-JSON call only (never the
+  direct-stream path, never the grounding call). Added a deterministic pre-resolution
+  (`resolveDeterministicToolCandidate`, `AyasChatStream.ts`) for the 4 cases that structurally,
+  unambiguously name exactly one allowlisted action (checkpoint/roadmap/changelog/a real file path) —
+  dispatch selection for these no longer depends on the model naming the tool at all, reusing the
+  same structural signals the complexity router already had. Deliberately defers (never guesses) on
+  2+ candidates or a write-intent verb near the file/document. Two further live findings fixed: a
+  plain file-edit-and-commit capability OFFER (singular AND plural "we can" forms) that no prior
+  guard covered, and a pre-existing model-driven fallback that could silently pick one of two
+  ambiguously-named files instead of deferring.
+- Live reliability re-measured honestly: the 4 structural candidates hit **100% dispatch (40/40
+  across two independent full 5-repetition passes)** — a structural guarantee, not just an observed
+  rate. The original 6-scenario acceptance harness, previously flaky (3–5/6 across reruns), passed
+  **6/6 on four consecutive reruns** after convergence. `inspect-project`/`pipeline-recovery-plan`
+  (deliberately not a structural candidate — "which project" has no narrow single-keyword signal)
+  measured 4/5 in the final sample, reported honestly rather than claimed as 100%; safety held in
+  every case regardless (no fake claims, no wrong dispatches, no mutation).
+- Validation: TypeScript clean; ESLint 0 errors / 22 pre-existing warnings (0 new, none in touched
+  files); **456 deterministic scenarios across 19 suites** (was 421/18 before the reliability pass).
+- Execution Gate remains CLOSED and semantically unchanged, re-verified after the reliability pass
+  (all 6 write-path files still zero diff). No production execution, project/runtime mutation, or
+  credential access. This sprint explicitly did not commit or push — Git closure is reserved for a
+  separate, explicitly-authorized task.
+
+---
+
 ## 2026-09-14 — AYAS Brain Maturity Master Sprint
 
 - Took over Codex's uncommitted Conversational Follow-Through / topic-state / memory-relevance /
@@ -30,8 +82,11 @@
   observed across every rerun. Explicitly audited that no test in this diff can reach real AYAS
   memory (two files use a wrapper that unconditionally isolates; the rest pass isolation per call).
 - Graphify consulted before editing and updated after code stabilized; `.graphify/` remains
-  gitignored/untracked. No production pipeline/project mutation, real AYAS memory access, commit,
-  push, merge or deploy. Execution Gate remains CLOSED; no executor introduced.
+  gitignored/untracked. No production pipeline/project mutation, real AYAS memory access, merge or
+  deploy performed by the development pass itself. Execution Gate remains CLOSED; no executor
+  introduced. Committed and pushed (separate, explicitly-authorized closure task) as
+  `d26e160d55b011ec79b3aee1de8e3cfb4d6700b7` on `wip/ayas-graphify-final-execution` — the baseline
+  the AYAS Action Runtime Master Sprint builds on.
 
 ---
 

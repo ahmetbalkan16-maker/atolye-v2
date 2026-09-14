@@ -21,7 +21,19 @@
 
 export const ayasExecutionRequestSchemaVersion = "1" as const;
 
-export type AyasExecutionActionId = "inspect-project" | "pipeline-recovery-plan";
+/**
+ * `read-project-document` / `inspect-source-file` (Action Runtime sprint) are
+ * the first two allowlisted actions with NO `projectSlug` — their target
+ * lives in `plan` instead (`documentId` / `filePath`) and is validated by the
+ * executor itself (`AyasSafeExecutors.ts`), on top of this file's generic
+ * plan checks (shape/size/shell-like-content) — see that file's doc comment
+ * for the full two-layer validation rationale.
+ */
+export type AyasExecutionActionId =
+  | "inspect-project"
+  | "pipeline-recovery-plan"
+  | "read-project-document"
+  | "inspect-source-file";
 
 /** Reserved ids that are intentionally NOT enabled yet (write / pipeline path). */
 export const AYAS_EXECUTION_RESERVED_ACTIONS: readonly string[] = Object.freeze([
@@ -62,6 +74,24 @@ export const AYAS_EXECUTION_ALLOWLIST: Readonly<Record<AyasExecutionActionId, Ay
       destructive: false,
       requiresProject: true,
       maxDurationMs: 10_000,
+    },
+    "read-project-document": {
+      id: "read-project-document",
+      summary:
+        "ATOLYE_CHECKPOINT.md / ROADMAP.md / CHANGELOG.md dosyalarından birinin en güncel (en üstteki) bölümünü SALT-OKUNUR olarak okur.",
+      write: false,
+      destructive: false,
+      requiresProject: false,
+      maxDurationMs: 5_000,
+    },
+    "inspect-source-file": {
+      id: "inspect-source-file",
+      summary:
+        "Depo içinde (src/, scripts/, app/, üst düzey .md dosyaları) izin verilen bir dosyayı SALT-OKUNUR olarak, sınırlı boyutla okur.",
+      write: false,
+      destructive: false,
+      requiresProject: false,
+      maxDurationMs: 5_000,
     },
   });
 

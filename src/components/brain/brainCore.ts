@@ -660,16 +660,157 @@ const AYAS_FALSE_EXECUTION_CLAIM = new RegExp(
     "yürütme\\s+kap[ıi]s[ıi]n[ıi]\\s+a[çc](?:[ıi]yor|t[ıi]m|t[ıi]k|al[ıi]m|[ıi]p\\b|ab[ıi]l[ıi]r|ar[ıi]z|ar[ıi]m|arak\\b)",
     "(?:gate|kap[ıi]y[ıi])'?\\s*[ıi]?\\s*a[çc](?:t[ıi]m|[ıi]yorum|al[ıi]m)",
     // ran / started / rendered / pushed / applied
-    "(?:pipeline'?[ıi]|üretimi|render'?[ıi]|videoyu|GPU'?yu|modeli|görevi)\\s+(?:ba[şs]latt[ıi]m|[çc]al[ıi][şs]t[ıi]rd[ıi]m|[çc]al[ıi][şs]t[ıi]r[ıi]yorum|[çc][ıi]kard[ıi]m|olu[şs]turdum)",
+    "(?:pipeline'?[ıi]|üretimi|render'?[ıi]|videoyu|GPU'?yu|modeli|görevi|komut\\w*)\\s+(?:ba[şs]latt[ıi]m|[çc]al[ıi][şs]t[ıi]rd[ıi]m|[çc]al[ıi][şs]t[ıi]r[ıi]yorum|[çc][ıi]kard[ıi]m|olu[şs]turdum)",
     "render\\s+ald[ıi]m",
     "git\\s+push\\s+(?:yapt[ıi]m|ettim)",
     "de[ğg]i[şs]ikli[ğg]i\\s+uygulad[ıi]m",
+    // Action Runtime sprint — live adversarial findings: "'ls -la' komutunu
+    // çalıştırıyorum" (widened "komutu" to "komut\w*" above, since Turkish's
+    // accusative+possessive suffix makes it "komutunu", not bare "komutu");
+    // and "dosyasını silmeye başlıyorum" — an inchoative "starting to X"
+    // construction the suffix-based DELETE_CLAIM pattern below doesn't cover
+    // (note: Turkish vowel harmony conjugates "başlamak" as "başlıyorum",
+    // dropping the stem's own final vowel — "ba[şs]la\\w*" would NOT have
+    // matched this; "ba[şs]l\\w*" does).
+    "silmeye\\s+ba[şs]l\\w*",
   ].join("|"),
   "i",
 );
 
+/**
+ * Action Runtime sprint — a live adversarial finding: asked to flip a boolean
+ * in source code, qwen2.5:7b answered "...write:false değerlerini true
+ * yapabilirim" — a FUTURE-CAPABILITY claim ("I CAN do this"), not a
+ * completion claim `AYAS_FALSE_EXECUTION_CLAIM` above already catches. No
+ * mutation is structurally possible (no write executor exists anywhere in
+ * this codepath), but the wording itself is misleading. Deliberately AND
+ * -gated on a value/boolean-shaped target, not the capability verb alone —
+ * "yapabilirim" ("I can do [x]") is an extremely common, benign helper verb
+ * ("Bunu nasıl yapabilirim" etc.); the prior remediation sprint already hit
+ * this exact over-trigger trap with "yardımcı olabilirim" and had to bound
+ * it. Requiring BOTH the verb AND a concrete value/flag-shaped word narrows
+ * this to the genuine claim, not ordinary helpful phrasing.
+ */
+// Broadened past the original CAPABILITY-only forms ("-ebilirim") to also
+// cover ONGOING ("-iyorum") and PAST ("-dim") tense — a second live finding:
+// "önceden verdiğim yetkiyle checkpoint dosyasını silme işlemi
+// gerçekleştiriyorum" claims an ACTIVE mutation in progress, a third tense
+// shape neither the original completion-claim nor capability-claim patterns
+// covered. Still AND-gated with a concrete target hint for the generic verbs
+// (same over-trigger reasoning as before) — deletion is the one exception
+// (below), since this system has NO delete capability anywhere, ever, making
+// any first-person delete claim unconditionally false, no target needed.
+const MUTATION_ACTION_VERB =
+  /\b(de[ğg]i[şs]tir(?:ebilirim|iyorum|d[ıi]m)|d[üu]zenle(?:yebilirim|niyorum|d[ıi]m)|g[üu]ncelle(?:yebilirim|y?iyorum|d[ıi]m)|yap(?:abilirim|[ıi]yorum|t[ıi]m|aca[ğg][ıi]m)|uygula(?:yabilirim|[ıi]yorum|d[ıi]m)|gerçekle[şs]tir(?:ebilirim|iyorum|d[ıi]m))\b/i;
+const MUTATION_TARGET_HINT = /\btrue\b|\bfalse\b|de[ğg]eri(?:ni|nin)?\b|sat[ıi]r[ıi](?:ni|nin)?\b|silme\s+i[şs]lemi/i;
+
+function ayasReplyClaimsMutationCapability(text: string): boolean {
+  const t = String(text ?? "");
+  return MUTATION_ACTION_VERB.test(t) && MUTATION_TARGET_HINT.test(t);
+}
+
+/**
+ * Unconditional — no AND-gate, unlike the check above. There is no delete
+ * executor anywhere in this codebase (Action Runtime dispatches four
+ * read-only actions; the write path has exactly one reserved, disabled
+ * `resume-stage` action, never a delete). A first-person claim of deleting
+ * something is therefore NEVER legitimate, so there is no benign-phrasing
+ * risk to gate against the way "yapabilirim" alone needed gating.
+ */
+const DELETE_CLAIM = /\bsil(?:iyorum|d[ıi]m|meke?|indi|inmi[şs]|inecek)\b|silme\s+i[şs]lemi/i;
+
+/**
+ * Action Runtime RELIABILITY sprint — a live reliability re-run found a
+ * FOURTH claim shape none of the checks above cover: a plain CAPABILITY
+ * OFFER framed as help, not tied to a value/flag ("Evet, dosyalarınızı
+ * düzenleyip commit yapmak için yardımcı olabilirim. Lütfen dosya adını ve
+ * değişiklikleri belirtin.") — asked to edit-and-commit a file, AYAS said
+ * yes and asked for details, instead of honestly declining. Distinct from
+ * `ayasReplyClaimsMutationCapability` above: that one is gated on a
+ * value/flag target (`true`/`false`/`değeri`/`satırı`), which a file-edit
+ * offer never mentions — this one is gated on a FILE/commit target instead.
+ * AND-gated the same way, for the same reason: "yardımcı olabilirim" alone
+ * is extremely common and benign, so this only fires when a concrete
+ * edit/commit-shaped verb AND a file/commit-shaped target are BOTH present.
+ * Only affirmative suffixes are listed (no negated forms — "değiştiremem",
+ * "yapamam" — matching this file's established convention elsewhere).
+ *
+ * Both 1st-person SINGULAR ("-ebilirim", I can) and PLURAL ("-ebiliriz", we
+ * can) capability suffixes are covered — a live adversarial re-run found
+ * "...dosyasını düzenlemek ve yeni bir kural ekleme işlemi
+ * gerçekleştirebiliriz" (an inclusive "we can" framing, a natural
+ * collaborative register for a Turkish assistant), which the singular-only
+ * suffix list missed entirely; AYAS speaking of itself as "we" is still
+ * AYAS making the same false claim.
+ */
+const FILE_WRITE_CAPABILITY_VERB =
+  /\b(d[üu]zenle(?:yip|yebilir(?:im|iz)|r[ıi]m|meye)?|de[ğg]i[şs]tir(?:ebilir(?:im|iz)|ir[ıi]m)?|g[üu]ncelle(?:yebilir(?:im|iz)|r[ıi]m)?|kaydet(?:ebilir(?:im|iz)|er[ıi]m)?|commit\s*(?:at[ıi]yorum|atabilir(?:im|iz)|yapabilir(?:im|iz)|edebilir(?:im|iz))?|olu[şs]tur(?:abilir(?:im|iz)|ur[ıi]m)?|gerçekle[şs]tir(?:ebilir(?:im|iz))?)\b/i;
+const FILE_WRITE_TARGET_HINT = /\bdosya|\bcommit/i;
+
+function ayasReplyOffersFileWriteCapability(text: string): boolean {
+  const t = String(text ?? "");
+  return FILE_WRITE_CAPABILITY_VERB.test(t) && FILE_WRITE_TARGET_HINT.test(t);
+}
+
 export function ayasReplyClaimsExecution(text: string): boolean {
-  return AYAS_FALSE_EXECUTION_CLAIM.test(String(text ?? ""));
+  const t = String(text ?? "");
+  return (
+    AYAS_FALSE_EXECUTION_CLAIM.test(t) ||
+    ayasReplyClaimsMutationCapability(t) ||
+    DELETE_CLAIM.test(t) ||
+    ayasReplyOffersFileWriteCapability(t)
+  );
+}
+
+/**
+ * Action Runtime sprint — Execution Claim Integrity (spec Phase 8). Distinct
+ * from {@link ayasReplyClaimsExecution}: that regex is scoped to WRITE/deploy
+ * -shaped claims ("git push yaptım", "pipeline'ı başlattım"); this one is
+ * scoped to READ/inspection-shaped completion claims — "baktım", "okudum",
+ * "kontrol ettim", "inceledim" — which are only false when NO read-only tool
+ * actually ran this turn. The SAME phrase is true and desired once a real
+ * Action Runtime dispatch succeeds ("Checkpoint dosyasını okudum. Son kayıt
+ * …" — Phase 8's own GOOD example), so this is never applied blanket across
+ * every reply: `AyasChatStream.ts` only checks it when the reasoning turn
+ * named at least one candidate tool and none of them actually executed.
+ * Deliberately NOT matched against ordinary idiom ("sorununu anlıyorum/
+ * inceledim, üzgünüm") by scoping it to that narrow context rather than by
+ * trying to enumerate every non-file sense of these verbs.
+ *
+ * Covers both first-person ("okudum") and PASSIVE/impersonal ("okundu",
+ * "gösterildi") completion phrasing — an adversarial-sweep finding: a real
+ * qwen2.5:7b reply said "Dizin ve içeriği doğru şekilde okundu ve
+ * gösterildi." (passive voice) after a denied dispatch, which the
+ * first-person-only version of this pattern completely missed.
+ */
+const AYAS_FALSE_TOOL_USE_CLAIM =
+  /\b(bakt[ıi]m|kontrol\s+ettim|inceledim|okudum|g[öo]zden\s+geçirdim|g[öo]z\s+att[ıi]m|tarad[ıi]m|sorgulad[ıi]m|okundu|g[öo]sterildi|bulundu|tamamland[ıi]|incelendi|kontrol\s+edildi|listelendi|yap[ıi]ld[ıi]|al[ıi]nd[ıi])\b/i;
+
+/**
+ * A second live-acceptance finding, closing this out: a real qwen2.5:7b
+ * reply said "'inspect-project' aracı çalıştırıldı." (passive "was run") for
+ * a turn where dispatch never actually happened. "çalıştır…" forms belong in
+ * this same claim family but need their OWN pattern rather than folding into
+ * {@link AYAS_FALSE_TOOL_USE_CLAIM} above: that regex is wrapped in a leading
+ * `\b`, and JS's `\b` is ASCII-`\w`-only — it never fires immediately before
+ * a Turkish-specific letter like "ç" (both "start-of-string"/whitespace and
+ * "ç" read as non-word to `\b`, so no transition exists), so a naive
+ * `\bçalıştır…` alternative would silently never match at a sentence start
+ * or after a space, which is exactly where this claim appears. Every
+ * existing alternative above happens to start with an ASCII letter, which is
+ * why this never surfaced before. Fixed here with an explicit
+ * Unicode-letter-aware boundary instead of `\b`. Covers active
+ * ("çalıştırdım", "çalıştırıyorum") and passive ("çalıştırıldı",
+ * "çalıştırılıyor") completion/ongoing forms; infinitive/capability/
+ * nominalized forms ("çalıştırmak", "çalıştırabilirim", "çalıştırma") are
+ * deliberately excluded by the suffix list, verified against negative
+ * controls before landing.
+ */
+const TOOL_RUN_CLAIM = /(?:^|[^\p{L}])çal[ıi][şs]t[ıi]r(?:d[ıi]m|[ıi]yorum|[ıi]ld[ıi]|[ıi]l[ıi]yor)(?:$|[^\p{L}])/iu;
+
+export function ayasReplyClaimsToolUse(text: string): boolean {
+  const t = String(text ?? "");
+  return AYAS_FALSE_TOOL_USE_CLAIM.test(t) || TOOL_RUN_CLAIM.test(t);
 }
 
 /** Last-mile guidance kept next to the current turn for small local models. */

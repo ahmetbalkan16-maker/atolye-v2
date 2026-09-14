@@ -28,6 +28,19 @@ export interface AyasReasoningResult {
   readonly plan: readonly string[];
   /** Tool ids from {@link AyasToolDescriptor}`.id` — never a free-form string. */
   readonly requiredTools: readonly string[];
+  /**
+   * A minimal, OPTIONAL hint for the one named tool that needs input beyond a
+   * project slug (`read-project-document` / `inspect-source-file`). Treated
+   * purely as an untrusted SUGGESTION — same trust level as `requiredTools`
+   * itself: the Action Runtime (`AyasActionRuntime.ts`) re-validates it from
+   * scratch (closed enum for `documentId`; strict root/extension/traversal
+   * checks for `filePath`) before anything is read. Never a free-form path
+   * the model can use to escape those checks.
+   */
+  readonly toolInput?: {
+    readonly documentId?: string;
+    readonly filePath?: string;
+  };
   readonly risk: string;
   readonly verification: readonly string[];
   /** The actual reply text shown to the user — still runs through the same

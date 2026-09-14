@@ -1,6 +1,167 @@
 ---
 
-## AYAS Brain Maturity Master Sprint — Claude takeover + remediation — READY FOR REVIEW — 2026-09-14
+## AYAS Action Runtime Master Sprint — real read-only tool dispatch — READY FOR USER REVIEW (not committed) — 2026-09-14
+
+- **Goal**: move AYAS from only *describing* what a tool would show to actually *performing* a real,
+  narrowly-scoped, READ-ONLY action, bringing the real result into the conversation. Explicitly
+  forbidden in this sprint: file writes/deletes, git mutation, package installs, process/service
+  control, destructive shell, arbitrary terminal execution, DB writes, production execution, memory
+  mutation as a side effect of a tool call. Baseline: branch `wip/ayas-graphify-final-execution`,
+  HEAD `d26e160d55b011ec79b3aee1de8e3cfb4d6700b7` (clean).
+- **Execution Gate decision**: the existing `AyasExecutionGate`/`AyasExecutionBridge`/
+  `AyasExecutionAuthorization` machinery governs WRITE authorization (`CLOSED→ARMED→READY→OPEN→
+  EXECUTING→COMPLETED→READY`, needs a real operator activation id) and was deliberately **not**
+  reused or opened for reads — gating pure reads behind a ceremony that has never been authorized
+  would make reads permanently unreachable. Instead, built a structurally separate, narrower
+  dispatcher, `src/lib/ayas/execution/AyasActionRuntime.ts` (`runAyasReadOnlyAction`), that only
+  imports the existing policy validator (`AyasExecutionPolicy`) and executor registry
+  (`AyasSafeExecutors`) — verified to have exactly 2 top-level imports, neither touching Gate/
+  Authorization/Bridge/WriteExecutor. Confirmed via `git diff --stat` that all 6 write-path files
+  (`AyasExecutionBridge.ts`, `AyasExecutionGate.ts`, `AyasExecutionGateStore.ts`,
+  `AyasExecutionAuthorization.ts`, `AyasWriteActionPolicy.ts`, `AyasWriteExecutor.ts`) have **zero**
+  diff — the Gate stays CLOSED and untouched, exactly as before this sprint.
+- **Allowlist extended** (`AyasExecutionPolicy.ts` — the single source of truth `AYAS_EXECUTION_
+  ALLOWLIST`, which `AyasToolRegistry.ts` auto-derives the model-facing tool catalog from): the
+  existing read-only `inspect-project` / `pipeline-recovery-plan` gained two new read-only actions,
+  `read-project-document` (closed-enum `ATOLYE_CHECKPOINT.md` / `ROADMAP.md` / `CHANGELOG.md`,
+  bounded to 6000 chars from the top since these are newest-first) and `inspect-source-file` (strict
+  path validation scoped to `src/`/`scripts/`/`app/`/a top-level `.md`, blocks traversal/absolute
+  paths/`.env`/secret-shaped names/`data`/`node_modules`/`.git`, allowlisted extensions only, bounded
+  to 300,000 chars, double-checked via `path.relative` that the resolved path stays inside the root).
+  All four actions: `write: false, destructive: false`.
+- **Trust boundary**: a tool dispatch never trusts the model for a project slug — `AyasConversation
+  State.ts` now derives `activeProjectSlug` deterministically from the same turn-scanning loop that
+  already produces the display-title `activeProject`, sourced from `knownProjects[].slug`; the model
+  may only *suggest* `documentId`/`filePath` (new optional `toolInput` on the reasoning result),
+  which the executor re-validates from scratch (closed enum / strict path rules) — the same trust
+  tier as `requiredTools` itself, never assumed correct.
+- **Dispatch**: `attemptAyasToolDispatch` (`AyasChatStream.ts`) fires at most ONE tool per turn, only
+  when exactly one unambiguous allowlisted candidate was named, skips a project-scoped action when no
+  `activeProjectSlug` is known. On a real success, the reasoning-produced `answer` is **replaced** by
+  one additional bounded `provider.chat()` call fed the real result, explicitly framed as untrusted
+  DATA between delimiters (prompt-injection defense) — never as an instruction.
+- **Execution-claim integrity — the largest part of this sprint, found entirely via live-adversarial
+  iteration against the real, currently-configured `qwen2.5:7b`, not from the deterministic suite
+  alone.** Nine distinct real false-claim phrasings were found and fixed, one per live rerun, each
+  verified with a standalone regex check (real phrase + benign negative controls) before landing:
+  passive-voice tool-use claims ("okundu", "gösterildi", …); an **invented tool name bypassing the
+  guard entirely** — `requiredTools` is filtered to empty by both the parser's own tool lookup and the
+  core's permission check, so "named nothing" and "named a fabricated tool" looked identical; fixed by
+  threading a pre-filter `rawToolCount`/`anyToolNamedBeforeFilter` signal from the parser through the
+  reasoning core, used instead of the post-filter count to decide whether the fake-claim guard should
+  arm; a future-tense mutation-**capability** claim ("...true yapabilirim") — narrowly AND-gated on a
+  verb AND a value/flag target hint, deliberately narrow after an earlier sprint's "yardımcı
+  olabilirim" over-trigger lesson; an ongoing-tense mutation claim tied to an UNRELATED real dispatch
+  (a document READ actually ran while the reply claimed an active delete); an unconditional
+  `DELETE_CLAIM` (no target-hint gate needed — this codebase has no delete executor anywhere, so any
+  first-person delete claim is unconditionally false), extended to cover active/passive/future forms;
+  a command-execution claim ("'ls -la' komutunu çalıştırıyorum" — added `komut\w*` to the noun list);
+  an inchoative "starting to delete" claim ("...silmeye başlıyorum", correctly conjugated for Turkish
+  vowel harmony); and, on the FINAL post-fix live rerun, a **passive "tool was run" claim**
+  ("'inspect-project' aracı çalıştırıldı") for a turn where dispatch never happened. Fixing that last
+  one surfaced its own real bug: JavaScript's `\b` is ASCII-`\w`-only and never fires immediately
+  before a Turkish-specific letter like "ç" — every prior alternative in that regex happened to start
+  with an ASCII letter, so this never surfaced before. Fixed with a separate, explicitly
+  Unicode-letter-aware pattern (`TOOL_RUN_CLAIM`, `brainCore.ts`) instead of folding into the existing
+  `\b`-wrapped regex.
+- **Complexity-router fix (BLOCKER, found via live testing)**: all 3 headline example phrasings
+  ("Checkpoint'e bak…", "Changelog dosyasına bak…", a named-source-file question) classified as
+  `NORMAL`, never reaching the reasoning core or Action Runtime at all — `AyasComplexityRouter.ts`'s
+  `TOOL` regex had no vocabulary for checkpoint/roadmap/changelog and required tight noun-verb
+  adjacency real sentences violate. Fixed with an extended `TOOL` regex plus a structural
+  `FILE_PATH_MENTION` signal (a repo-path-shaped string is itself a strong, phrasing-independent
+  signal, checked on the RAW unfolded text since folding strips the extension-separating dot) and
+  presence-anywhere (not adjacency) `araç`+`çalıştır` / `.env`-mention checks.
+- **Original residual (SUPERSEDED — see RELIABILITY CONVERGENCE below)**: an earlier pass reported
+  that real dispatch succeeded in most, but not every, live rerun for the same explicit request,
+  attributed to the reasoning core's non-zero sampling temperature. A same-day follow-up task
+  ("FINAL RELIABILITY CONVERGENCE") treated this as an ACTIVE MAJOR rather than accepting it as
+  inherent model fluency, root-caused it, and fixed it structurally — see below.
+
+### RELIABILITY CONVERGENCE (same-day follow-up, still part of this uncommitted sprint)
+
+- **Root cause, not just a symptom fix**: the reasoning core's structured tool-selection call used
+  the pipeline's shared, non-zero default temperature — the exact same call for every complexity, so
+  the SAME explicit request ("Checkpoint'e bak…") could dispatch on one run and honestly decline on
+  the next purely from model sampling. Two changes, evaluated in order per the task's own instruction
+  before picking one:
+  1. **Pinned `temperature: 0`** on ONLY `runAyasReasoning`'s own one-shot structured-JSON
+     `provider.chat()` call (`AyasReasoningCore.ts`) — scoped to that single call site; the
+     direct-stream (SIMPLE/NORMAL) path and the tool-grounding call both keep the pipeline default,
+     since naturalness of user-facing prose, not tool selection, is what matters there.
+  2. **Deterministic pre-resolution** (`resolveDeterministicToolCandidate`, new export in
+     `AyasChatStream.ts`): for the 4 cases that structurally, unambiguously identify exactly one
+     allowlisted read-only action — a checkpoint/roadmap/changelog mention, or a real repo-relative
+     file path — dispatch selection no longer depends on the model naming the tool AT ALL. Reuses the
+     SAME keyword/structural signals `AyasComplexityRouter.ts` already used for TOOL classification
+     (newly exported: `CHECKPOINT_MENTION`/`ROADMAP_MENTION`/`CHANGELOG_MENTION`/
+     `extractAyasFilePathMention`/`hasMultipleAyasFilePathMentions`) — not a new parser, a second use
+     of an existing signal. Deliberately conservative both ways: 2+ distinct candidates (e.g. both a
+     checkpoint AND a roadmap mention, or two distinct file paths) → defers, never guesses; an
+     explicit write-intent verb near the file/document (`düzenle`/`değiştir`/`güncelle`/`sil`/
+     `kaldır`/`oluştur`/`commit`/`push`/`uygula`/`kaydet`) → also defers, so a mutating-shaped request
+     never gets silently answered with a (safe but wrong-question) READ dispatch.
+  3. **`inspect-project`/`pipeline-recovery-plan` deliberately NOT covered** by the deterministic
+     resolver — "which project" has no narrow single-keyword signal the way a fixed document name or
+     a file extension does; building one would be exactly the unbounded "giant NLP parser" this task
+     was explicitly told not to build. These two stay reasoning-driven (now also benefiting from the
+     pinned temperature).
+- **Two further live-adversarial findings during convergence, both fixed**:
+  1. A plain **file-edit-and-commit capability OFFER** ("Evet, dosyalarınızı düzenleyip commit yapmak
+     için yardımcı olabilirim. Lütfen dosya adını ve değişiklikleri belirtin.") — a FOURTH false-claim
+     shape none of the prior nine covered (not tied to a value/flag target the way the earlier
+     mutation-capability guard was gated). New AND-gated check
+     (`ayasReplyOffersFileWriteCapability`, `brainCore.ts`): an edit/commit-shaped verb AND a
+     file/commit-shaped target, covering both 1st-person singular ("-ebilirim") and PLURAL
+     ("-ebiliriz", an inclusive "we can" framing a second live rerun also found) affirmative forms
+     only — negated forms ("değiştiremem") deliberately excluded, matching this file's established
+     convention.
+  2. **Two real files named together** ("A.ts ve B.ts dosyalarını karşılaştırır mısın?") — the
+     deterministic resolver correctly deferred, but the PRE-EXISTING model-driven fallback branch
+     could still independently name just one of the two and dispatch it: a real, honest, safe read
+     (no false claim resulted), but a silent pick between two candidates the user never asked to
+     choose between. `hasMultipleAyasFilePathMentions` is now checked unconditionally at the top of
+     `attemptAyasToolDispatch`, covering both branches, not just the deterministic one.
+- **Live reliability acceptance (new harness, `scripts/live-ayas-action-runtime-reliability.ts`)**:
+  each of the 4 structural candidates tested 5 independent repetitions against the real, currently
+  -configured `qwen2.5:7b` — **100% dispatch (20/20) in this run, and a repeat full run afterward
+  also went 20/20 (40/40 total across two independent full passes, zero variance)** — this is a
+  STRUCTURAL guarantee (dispatch selection never depends on model output for these 4 cases), not
+  merely an observed rate. The original 6-scenario `live-ayas-action-runtime.ts` harness, previously
+  flaky (3–5/6 across reruns), now passed **6/6 on four consecutive reruns** after convergence.
+  `inspect-project`/`pipeline-recovery-plan` (reasoning-driven, not a structural candidate by design)
+  measured 4/5 real dispatch in the final repeated sample after the temperature fix — reported
+  honestly, not claimed as 100%; root-caused via a direct `runAyasReasoning` probe to an even split
+  between the model naming BOTH overlapping tools together (correctly triggering the pre-existing
+  "exactly one unambiguous tool" rule) and residual real-world inference-engine floating-point
+  variance under GPU batching even at temperature 0 (a well-known, industry-general limitation of
+  greedy decoding in production LLM serving, not specific to this codebase) — not hidden as "small
+  -model fluency" without first finding the actual cause. Safety held in every single observed case
+  regardless: ambiguous/unsupported/ordinary-conversation turns never dispatched.
+- **Deterministic validation, counted directly (final)**: TypeScript clean; ESLint 0 errors / 22
+  pre-existing warnings, all in files this sprint never touched (0 new); **456 scenarios across 19
+  suites** — action-runtime 17, tool-candidate-resolution 25 (new), chat-quality 35,
+  chat-stream-client 8, chat-stream 20, chat 12, context 21, execution-bridge 23, execution-gate 16,
+  model-router 16, phone-runtime 40, reasoning 41, studio-context 24, tool-registry 11, voice 55,
+  write-action 16, Brain Core UI 41, self-heal observe+UI 13, memory 22.
+- **Graphify**: `graphify update .` re-run after these changes (11394 nodes / 34597 edges / 299
+  communities — a 1-edge delta from the small `brainCore.ts` addition, no unexpected fan-in growth);
+  the new-file limitation (brand-new files don't resolve via incremental `graphify explain`) persists
+  unchanged, still worked around via direct code inspection, still documented rather than hidden.
+- **Second-pass review re-confirmed after convergence**: `git diff --stat` on all 6 write-path files
+  is still empty (re-verified as the concluding step); max 1 dispatch/turn, max 1 correction attempt,
+  Execution Gate CLOSED/untouched, no secret exposure, no path traversal, no hidden mutable state —
+  all unchanged by this follow-up.
+- No production pipeline execution, production project/runtime mutation, real AYAS memory
+  contamination, credential access, package install, process/service control, destructive shell,
+  arbitrary terminal execution, DB write, commit, push, merge, rebase, reset, restore, clean or stash.
+  Execution Gate remains CLOSED and semantically unchanged; the new Action Runtime never touches it.
+  **This development task explicitly did not commit or push — Git closure is reserved for the user
+  or a later explicit closure task**, matching the pattern of the two prior sprints above.
+
+---
+
+## AYAS Brain Maturity Master Sprint — Claude takeover + remediation — CLOSED / COMMITTED / PUSHED (`d26e160d55b011ec79b3aee1de8e3cfb4d6700b7`) — 2026-09-14
 
 - **Takeover**: branch `wip/ayas-graphify-final-execution`, HEAD `120c713c3706d78eb6bd352c175aed22c3a9b877`
   (clean, matches the committed Natural Conversation Polish remediation baseline). Codex had left a
@@ -102,9 +263,14 @@
   unrelated pinned memory, multi-option→completely-unrelated-question, read-only+follow-up,
   empty-memory self-reference) is what surfaced defects 3–5 above, all now fixed.
 - No production pipeline execution, production project/runtime mutation, real AYAS memory
-  contamination, credential access, commit, push, merge, rebase, reset, restore, clean or stash.
-  Execution Gate remains CLOSED; no executor was introduced anywhere in this diff. Intended source,
-  test and documentation changes remain unstaged for user review.
+  contamination, credential access, merge, rebase, reset, restore, clean or stash performed by the
+  development pass itself. Execution Gate remains CLOSED; no executor was introduced anywhere in
+  this diff.
+- **Git closure (separate, explicitly-authorized task, after this entry was first written)**:
+  re-verified the approved state matched the working tree, staged exactly the reviewed files,
+  committed, and pushed. Committed as `d26e160d55b011ec79b3aee1de8e3cfb4d6700b7` on
+  `wip/ayas-graphify-final-execution`, pushed to `origin/wip/ayas-graphify-final-execution`. This is
+  the baseline the next sprint (AYAS Action Runtime Master Sprint, below) built on.
 
 ---
 

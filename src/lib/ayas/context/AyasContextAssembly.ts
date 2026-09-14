@@ -23,6 +23,8 @@ export interface AssembledAyasContext {
   /** Machine-readable trace for observability (Phase K). */
   readonly trace: {
     readonly activeProject: string | null;
+    /** The real slug behind `activeProject` — see `AyasConversationStateView.activeProjectSlug`. */
+    readonly activeProjectSlug: string | null;
     readonly activeStage: string | null;
     readonly activeTopic: string | null;
     readonly resolvedReferences: number;
@@ -80,6 +82,7 @@ export function assembleAyasContext(input: {
     resolvedReferents: refs.resolutions.map((resolution) => resolution.referent),
     trace: {
       activeProject: state.activeProject,
+      activeProjectSlug: state.activeProjectSlug,
       activeStage: state.activeStage,
       activeTopic: state.activeTopic,
       resolvedReferences: refs.resolutions.length,

@@ -24,8 +24,16 @@ export interface AyasConversationEntity {
 
 export interface AyasConversationStateView {
   readonly conversationId: string;
-  /** Most recently referenced project (slug or title), or `null`. */
+  /** Most recently referenced project's DISPLAY title (or slug if no title), or `null`. */
   readonly activeProject: string | null;
+  /**
+   * The SAME project's real slug — Action Runtime (`AyasChatStream.ts`) tool
+   * dispatch (spec §Action Runtime) derives `projectSlug` from this, NEVER
+   * from model-supplied free text, so a hallucinated/invented slug can never
+   * reach a real executor. `null` whenever `activeProject` is null OR was
+   * matched from conversation text with no known-project slug behind it.
+   */
+  readonly activeProjectSlug: string | null;
   /** A short label for what AYAS is currently helping with, or `null`. */
   readonly activeTopic: string | null;
   /** The pipeline stage last discussed, or `null`. */
@@ -51,6 +59,7 @@ export interface AyasConversationStateView {
 export const EMPTY_AYAS_CONVERSATION_STATE: AyasConversationStateView = Object.freeze({
   conversationId: "c0",
   activeProject: null,
+  activeProjectSlug: null,
   activeTopic: null,
   activeStage: null,
   options: [],
@@ -184,13 +193,14 @@ export function deriveAyasConversationState(
     return { ...EMPTY_AYAS_CONVERSATION_STATE, conversationId: options.conversationId ?? "c0" };
   }
 
-  const knownProjects: { slugFold: string; titleFold: string; display: string }[] = (options.studio?.available
+  const knownProjects: { slugFold: string; titleFold: string; display: string; slug: string }[] = (options.studio?.available
     ? options.studio.projects.sample
     : []
   ).map((p) => ({
     slugFold: fold(p.slug),
     titleFold: fold(p.title || p.slug),
     display: (p.title || p.slug).trim(),
+    slug: p.slug,
   }));
 
   const entities = new Map<string, AyasConversationEntity>();
@@ -201,6 +211,7 @@ export function deriveAyasConversationState(
   };
 
   let activeProject: string | null = null;
+  let activeProjectSlug: string | null = null;
   let activeProjectTurn = -1;
   let activeStage: string | null = null;
   let conversationOptions: string[] = [];
@@ -224,6 +235,7 @@ export function deriveAyasConversationState(
       ) {
         note(p.display, "project", idx);
         activeProject = p.display;
+        activeProjectSlug = p.slug;
         activeProjectTurn = idx;
       }
     }
@@ -303,6 +315,7 @@ export function deriveAyasConversationState(
   return {
     conversationId: options.conversationId ?? "c0",
     activeProject,
+    activeProjectSlug,
     activeTopic,
     activeStage,
     options: conversationOptions,

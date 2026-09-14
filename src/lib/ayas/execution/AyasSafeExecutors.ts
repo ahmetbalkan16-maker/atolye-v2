@@ -11,9 +11,36 @@
  * deliberately absent — enabling one is its own gated sprint.
  */
 
+import fs from "node:fs";
+import path from "node:path";
+
 import { ProjectReader } from "@/lib/projects/ProjectReader";
 import { PipelineRecoveryPlanner } from "@/lib/pipeline/PipelineRecoveryPlanner";
 import type { AyasExecutionActionId, AyasExecutionRequest } from "./AyasExecutionPolicy";
+
+/**
+ * A tool-level (not policy-level) input rejection — thrown by
+ * `readProjectDocument` / `inspectSourceFile` for anything their OWN
+ * semantic validation refuses (unknown document id, path traversal, a root/
+ * extension outside the allowlist, a secret-shaped name). `AyasExecutionPolicy.ts`'s
+ * `validateAyasExecutionRequest` already checked the request's generic shape/
+ * size/shell-like content — this is the SECOND, tool-specific layer Phase 5
+ * requires. The Action Runtime dispatcher catches this by name and reports a
+ * clean `denied` outcome instead of a generic `executor-failed`.
+ */
+export class AyasActionValidationError extends Error {
+  constructor(
+    readonly reasonCode: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "AyasActionValidationError";
+  }
+}
+
+function planField(request: AyasExecutionRequest, key: string): unknown {
+  return (request.plan as Record<string, unknown> | undefined)?.[key];
+}
 
 export interface AyasExecutorResult {
   /** An enabled read-only action id, or `"resume-stage"` for the write executor. */
@@ -106,9 +133,149 @@ async function pipelineRecoveryPlan(request: AyasExecutionRequest): Promise<Ayas
   };
 }
 
+const REPO_ROOT = process.cwd();
+
+/** Closed enum — never an arbitrary path. Newest entries are prepended, so a bounded read from the top is the "current" section. */
+const DOCUMENT_PATHS: Readonly<Record<string, string>> = Object.freeze({
+  checkpoint: "ATOLYE_CHECKPOINT.md",
+  roadmap: "ROADMAP.md",
+  changelog: "CHANGELOG.md",
+});
+const MAX_DOCUMENT_CHARS = 6_000;
+
+const ALLOWED_SOURCE_ROOTS: readonly string[] = Object.freeze(["src/", "scripts/", "app/"]);
+const ALLOWED_SOURCE_EXTENSIONS: ReadonlySet<string> = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".md", ".json"]);
+/** Belt-and-suspenders on top of the strict root allowlist below. */
+const DENY_SEGMENT_RE = /(^|\/)(node_modules|\.git|data|secrets|\.next|\.env\b|\.claude|\.vscode)(\/|$)/i;
+const SECRET_NAME_RE = /secret|credential|\.env(\.|$)|\.pem$|\.key$|\.pfx$/i;
+const MAX_SOURCE_FILE_CHARS = 300_000;
+
+function truncateContent(content: string, maxChars: number): { content: string; truncated: boolean; totalChars: number } {
+  const totalChars = content.length;
+  if (totalChars <= maxChars) return { content, truncated: false, totalChars };
+  return {
+    content: `${content.slice(0, maxChars)}\n\n… (kesildi, dosyanın geri kalanı gösterilmedi — toplam ${totalChars} karakter)`,
+    truncated: true,
+    totalChars,
+  };
+}
+
+/**
+ * Reads a fixed, closed-enum document (checkpoint/roadmap/changelog) — never
+ * an arbitrary path. Bounded to the first `MAX_DOCUMENT_CHARS` (these files
+ * are documented as prepended newest-first, so "the top" IS "what's current").
+ */
+async function readProjectDocument(request: AyasExecutionRequest): Promise<AyasExecutorResult> {
+  const documentId = planField(request, "documentId");
+  if (typeof documentId !== "string" || !(documentId in DOCUMENT_PATHS)) {
+    throw new AyasActionValidationError("unknown-document", `bilinmeyen belge kimliği: ${String(documentId)}`);
+  }
+  const relPath = DOCUMENT_PATHS[documentId]!;
+  const absPath = path.join(REPO_ROOT, relPath);
+
+  let raw: string;
+  try {
+    raw = fs.readFileSync(absPath, "utf-8");
+  } catch {
+    return {
+      action: "read-project-document",
+      write: false,
+      summary: `"${relPath}" bulunamadı veya okunamadı.`,
+      data: { documentId, path: relPath, exists: false },
+    };
+  }
+  const { content, truncated, totalChars } = truncateContent(raw, MAX_DOCUMENT_CHARS);
+  return {
+    action: "read-project-document",
+    write: false,
+    summary: `"${relPath}" dosyasının en güncel bölümü okundu (${totalChars} karakter${truncated ? ", kesildi" : ""}).`,
+    data: { documentId, path: relPath, exists: true, content, truncated, totalChars },
+  };
+}
+
+function isPathWithinRoot(absPath: string, root: string): boolean {
+  const rel = path.relative(root, absPath);
+  return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
+}
+
+/**
+ * Reads one file, strictly bounded: no traversal, no absolute/drive path, no
+ * path outside `src/`/`scripts/`/`app/` (or a top-level `.md` file), no
+ * disallowed extension, no secret-shaped name/segment (`.env*`, `secrets/`,
+ * `data/` — real project/runtime data, never exposed here). Size-capped with
+ * a clear truncation marker, never silently cut without saying so.
+ */
+async function inspectSourceFile(request: AyasExecutionRequest): Promise<AyasExecutorResult> {
+  const rawPath = planField(request, "filePath");
+  if (typeof rawPath !== "string" || rawPath.length === 0 || rawPath.length > 300) {
+    throw new AyasActionValidationError("invalid-path", "filePath eksik veya çok uzun");
+  }
+  const normalized = rawPath.replace(/\\/g, "/").replace(/^\.\//, "");
+  if (
+    normalized.includes("..") ||
+    path.isAbsolute(normalized) ||
+    /^[a-zA-Z]:/.test(normalized) ||
+    normalized.startsWith("~") ||
+    normalized.includes("\0")
+  ) {
+    throw new AyasActionValidationError("path-traversal", "filePath bir traversal / mutlak yol içeriyor");
+  }
+  if (DENY_SEGMENT_RE.test(normalized) || SECRET_NAME_RE.test(normalized)) {
+    throw new AyasActionValidationError("path-denied", "filePath yasaklı bir segment veya gizli-bilgi benzeri isim içeriyor");
+  }
+  const inAllowedRoot =
+    ALLOWED_SOURCE_ROOTS.some((root) => normalized.startsWith(root)) ||
+    (!normalized.includes("/") && normalized.toLowerCase().endsWith(".md"));
+  if (!inAllowedRoot) {
+    throw new AyasActionValidationError(
+      "path-not-allowed",
+      "filePath izinli köklerin dışında (src/, scripts/, app/ veya üst düzey bir .md dosyası olmalı)",
+    );
+  }
+  const ext = path.extname(normalized).toLowerCase();
+  if (!ALLOWED_SOURCE_EXTENSIONS.has(ext)) {
+    throw new AyasActionValidationError("extension-not-allowed", `"${ext || "(uzantısız)"}" uzantısına izin verilmiyor`);
+  }
+  const absPath = path.resolve(REPO_ROOT, normalized);
+  if (!isPathWithinRoot(absPath, REPO_ROOT)) {
+    throw new AyasActionValidationError("path-traversal", "çözümlenen yol depo kökünün dışında");
+  }
+
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(absPath);
+  } catch {
+    return {
+      action: "inspect-source-file",
+      write: false,
+      summary: `"${normalized}" bulunamadı.`,
+      data: { filePath: normalized, exists: false },
+    };
+  }
+  if (!stat.isFile()) {
+    return {
+      action: "inspect-source-file",
+      write: false,
+      summary: `"${normalized}" bir dosya değil.`,
+      data: { filePath: normalized, exists: false },
+    };
+  }
+
+  const raw = fs.readFileSync(absPath, "utf-8");
+  const { content, truncated, totalChars } = truncateContent(raw, MAX_SOURCE_FILE_CHARS);
+  return {
+    action: "inspect-source-file",
+    write: false,
+    summary: `"${normalized}" okundu (${totalChars} karakter${truncated ? ", kesildi" : ""}).`,
+    data: { filePath: normalized, exists: true, extension: ext, content, truncated, totalChars },
+  };
+}
+
 const EXECUTORS: Readonly<Record<AyasExecutionActionId, AyasExecutor>> = Object.freeze({
   "inspect-project": inspectProject,
   "pipeline-recovery-plan": pipelineRecoveryPlan,
+  "read-project-document": readProjectDocument,
+  "inspect-source-file": inspectSourceFile,
 });
 
 export function resolveAyasExecutor(action: AyasExecutionActionId): AyasExecutor | undefined {

@@ -76,6 +76,39 @@ function mockProvider(chat: (prompt: string) => string | Promise<string>): AyasM
   };
 }
 
+/**
+ * Action Runtime sprint — a real tool dispatch means `route.provider.chat()`
+ * is called TWICE per turn (the reasoning pass, then the tool-grounded
+ * follow-up) instead of once. This mock returns each queued response in
+ * order — index 0 for the reasoning call, index 1 for the grounding call —
+ * and captures every prompt it was given, so a test can assert on both.
+ */
+function mockProviderSequence(responses: readonly (string | ((prompt: string) => string))[]): AyasModelProvider & { prompts: string[] } {
+  const prompts: string[] = [];
+  let i = 0;
+  return {
+    id: "ollama",
+    kind: "local",
+    model: "test-model",
+    configured: true,
+    prompts,
+    async health() {
+      return { available: true, detail: "test", checkedAtMs: Date.now() };
+    },
+    async chat(req) {
+      prompts.push(req.prompt);
+      const entry = responses[i];
+      i += 1;
+      if (entry === undefined) throw new Error(`mockProviderSequence: no response queued for call #${i}`);
+      const text = typeof entry === "function" ? entry(req.prompt) : entry;
+      return { text, finishReason: "stop" };
+    },
+    async *stream() {
+      throw new Error("stream() must never be called on the Reasoning Core path");
+    },
+  };
+}
+
 const snapshot: BrainConsoleSnapshot = {
   generatedAt: "2026-09-11T10:00:00.000Z",
   executionGate: "CLOSED",
@@ -468,6 +501,352 @@ async function run() {
     }
     assert.equal(done?.source, "fallback");
     assert.ok(!done?.text?.includes("deploy ettim"));
+  });
+
+  /* ---------------- Action Runtime — real read-only tool dispatch (end-to-end) ---------------- */
+
+  await scenario("ACTION RUNTIME — a named, dispatchable tool actually executes and grounds the final answer in the REAL result", async () => {
+    const provider = mockProviderSequence([
+      okJson({
+        requiredTools: ["inspect-source-file"],
+        toolInput: { filePath: "src/lib/ayas/execution/AyasExecutionPolicy.ts" },
+        answer: "Dosyaya bakmam gerekiyor.", // honest intent-only phrasing, per the prompt's own instruction
+      }),
+      "Bu dosya AYAS'ın hangi salt-okunur eylemleri gerçekten çalıştırabileceğini belirleyen izinli-eylem listesini tanımlıyor.",
+    ]);
+    const events: { type: string; text?: string; source?: string; actionTrace?: { tool: string; executed: boolean } }[] = [];
+    for await (const e of streamAyasChat({
+      text: "Bu dosyanın ne işe yaradığını açıklar mısın?",
+      snapshot,
+      seq: 1,
+      route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) {
+      events.push(e as never);
+    }
+    const done = events.at(-1)!;
+    assert.equal(done.source, "llm");
+    assert.equal(done.actionTrace?.tool, "inspect-source-file");
+    assert.equal(done.actionTrace?.executed, true);
+    assert.match(done.text!, /izinli-eylem/i, "the final answer must come from the real grounded call, not the reasoning pass's own guess");
+    assert.equal(provider.prompts.length, 2, "exactly one reasoning call + exactly one grounding call — no more");
+    // The grounding prompt must carry the REAL file content and frame it as data.
+    const groundingPrompt = provider.prompts[1]!;
+    assert.match(groundingPrompt, /AYAS_EXECUTION_ALLOWLIST/, "the real file content must reach the grounding prompt");
+    assert.match(groundingPrompt, /VERİ[\s\S]*talimat değil/i, "the tool result must be explicitly framed as data, not an instruction");
+  });
+
+  await scenario("ACTION RUNTIME — a denied dispatch (path outside policy) never lets the reasoning answer falsely claim success", async () => {
+    const provider = mockProviderSequence([
+      okJson({
+        requiredTools: ["inspect-source-file"],
+        toolInput: { filePath: "/etc/passwd" }, // will be denied by the Action Runtime, not a real read
+        answer: "Dosyayı kontrol ettim, her şey yolunda görünüyor.", // FALSE completion claim
+      }),
+      // The bounded correction attempt (`finalizeAyasReply` always tries
+      // exactly one, whatever the guard reason) — here the "small model"
+      // repeats the same false claim, proving the deterministic fallback
+      // still wins even when the retry doesn't self-correct.
+      "Kontrol ettim, dosya gayet normal görünüyor.",
+    ]);
+    const events: { type: string; text?: string; actionTrace?: { tool: string; executed: boolean } }[] = [];
+    for await (const e of streamAyasChat({
+      text: "O dosyaya bak.",
+      snapshot,
+      seq: 1,
+      route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) {
+      events.push(e as never);
+    }
+    const done = events.at(-1)!;
+    assert.equal(done.actionTrace?.tool, "inspect-source-file");
+    assert.equal(done.actionTrace?.executed, false);
+    assert.ok(!done.text!.includes("kontrol ettim") && !done.text!.includes("Kontrol ettim"), "a false completion claim must never reach the user when the tool never actually ran, even after the one bounded correction attempt");
+    // Reasoning call + exactly one bounded correction attempt — never more.
+    assert.equal(provider.prompts.length, 2);
+  });
+
+  await scenario("ACTION RUNTIME — a genuine post-execution completion claim is allowed through (the guard only fires when nothing ran)", async () => {
+    const provider = mockProviderSequence([
+      okJson({
+        requiredTools: ["read-project-document"],
+        toolInput: { documentId: "changelog" },
+        answer: "Bakmam gerekiyor.",
+      }),
+      "CHANGELOG dosyasını okudum; en güncel kayıt bu depoya ait güncellemeleri listeliyor.",
+    ]);
+    const events: { type: string; text?: string; source?: string }[] = [];
+    for await (const e of streamAyasChat({
+      text: "Changelog'a bak, en son ne eklenmiş?",
+      snapshot,
+      seq: 1,
+      route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) {
+      events.push(e as never);
+    }
+    const done = events.at(-1)!;
+    assert.equal(done.source, "llm");
+    assert.match(done.text!, /okudum/, "a TRUE completion claim, backed by a real successful dispatch, must not be stripped");
+  });
+
+  await scenario("ACTION RUNTIME — no candidate tool named: behaves exactly as before this sprint (no dispatch attempted)", async () => {
+    const provider = mockProviderSequence([okJson({ requiredTools: [] })]);
+    const events: { type: string; actionTrace?: unknown }[] = [];
+    for await (const e of streamAyasChat({
+      text: "Mimar Sinan neden takıldı, ne yapmalıyız",
+      snapshot,
+      seq: 1,
+      route: { decision: { complexity: "COMPLEX", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) {
+      events.push(e as never);
+    }
+    const done = events.at(-1)!;
+    assert.equal(done.actionTrace, undefined, "no tool named → no actionTrace at all, same shape as before this sprint");
+    assert.equal(provider.prompts.length, 1, "no grounding call when nothing was dispatched");
+  });
+
+  await scenario("ACTION RUNTIME — a real tool-grounded reply becomes ordinary recent-turn context for an immediate follow-up", async () => {
+    const providerTurn1 = mockProviderSequence([
+      okJson({ requiredTools: ["read-project-document"], toolInput: { documentId: "changelog" }, answer: "Bakmam gerekiyor." }),
+      "CHANGELOG dosyasını okudum; en üstte Action Runtime sprintiyle ilgili bir kayıt var.",
+    ]);
+    const history: { role: "user" | "brain"; text: string }[] = [];
+    const turn1Events: { type: string; text?: string }[] = [];
+    for await (const e of streamAyasChat({
+      text: "Changelog'a bak.",
+      snapshot,
+      seq: 1,
+      route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider: providerTurn1 },
+    })) {
+      turn1Events.push(e as never);
+    }
+    const turn1Text = turn1Events.at(-1)!.text!;
+    history.push({ role: "user", text: "Changelog'a bak." }, { role: "brain", text: turn1Text });
+
+    // Turn 2 names no tool at all — proves the tool result reached the
+    // ORDINARY conversation history mechanism (same `ctx.recentHistory` any
+    // turn already gets), not a special store only a dispatching turn sees.
+    const providerTurn2 = mockProviderSequence([okJson({ requiredTools: [] })]);
+    for await (const _e of streamAyasChat({
+      text: "Bunu biraz daha aç.",
+      snapshot,
+      seq: 2,
+      history,
+      route: { decision: { complexity: "COMPLEX", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider: providerTurn2 },
+    })) {
+      void _e;
+    }
+    assert.equal(providerTurn2.prompts.length, 1);
+    assert.match(providerTurn2.prompts[0]!, /Action Runtime sprintiyle ilgili/, "turn 2's reasoning prompt must carry turn 1's REAL grounded reply as ordinary recent history");
+  });
+
+  await scenario("ACTION RUNTIME — the mixed-script and label-cleanup guards still apply to a grounded (tool-backed) reply", async () => {
+    const provider = mockProviderSequence([
+      okJson({ requiredTools: ["read-project-document"], toolInput: { documentId: "changelog" }, answer: "Bakmam gerekiyor." }),
+      // The grounding call itself can still hallucinate a script mix or a label echo — grounding changes WHAT informed the reply, not which guards apply to it.
+      "CHANGELOG'u okudum. Sen今天感觉如何?",
+    ]);
+    const events: { type: string; text?: string; source?: string }[] = [];
+    for await (const e of streamAyasChat({
+      text: "Changelog'a bak.",
+      snapshot,
+      seq: 1,
+      route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) {
+      events.push(e as never);
+    }
+    const done = events.at(-1)!;
+    assert.ok(!/[一-鿿]/.test(done.text!), "unexpected Han script must still be caught in a grounded reply, exactly as in any other path");
+  });
+
+  await scenario("ACTION RUNTIME — adversarial finding: an INVENTED tool name still arms the fake-claim guard (it doesn't just vanish after registry filtering)", async () => {
+    const provider = mockProviderSequence([
+      okJson({
+        requiredTools: ["run_shell_command"], // not a real tool — the parser drops it entirely
+        answer: "Sonuç: dosya listesi başarıyla alındı ve gösterildi.", // fabricated completion claim
+      }),
+      // The bounded correction attempt — still fabricates.
+      "İşte komutun çıktısı: dosyalar listelendi.",
+    ]);
+    const events: { type: string; text?: string; actionTrace?: unknown }[] = [];
+    for await (const e of streamAyasChat({
+      text: "run_shell_command aracını kullanarak dosyaları listele.",
+      snapshot,
+      seq: 1,
+      route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) {
+      events.push(e as never);
+    }
+    const done = events.at(-1)!;
+    // The invented tool never survives the registry filter, so there is no
+    // dispatch attempt at all — but the model clearly TRIED to use a tool,
+    // and the fabricated "here's the result" answer must still be rejected.
+    assert.equal(done.actionTrace, undefined, "an invented tool that the registry has never heard of is never dispatched");
+    assert.ok(!done.text!.includes("başarıyla alındı") && !done.text!.includes("listelendi"), "a fabricated tool-output claim must be rejected even when the named tool was invented, not merely denied");
+  });
+
+  /* ---------------- ACTION RUNTIME RELIABILITY (see smoke-ayas-tool-candidate-resolution.ts for pure resolver coverage) ---------------- */
+
+  await scenario("ACTION RUNTIME RELIABILITY — deterministic dispatch fires even when the model names NOTHING (dispatch does not depend on stochastic tool naming)", async () => {
+    const provider = mockProviderSequence([
+      okJson({ requiredTools: [], answer: "Bakmam gerekiyor." }), // model named no tool at all
+      "Checkpoint'e göre en son AYAS Brain Maturity Master Sprint kapandı.",
+    ]);
+    const events: { type: string; actionTrace?: { tool: string; executed: boolean } }[] = [];
+    for await (const e of streamAyasChat({
+      text: "Checkpoint'e bak, en son nerede kalmışız?",
+      snapshot,
+      seq: 1,
+      route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) {
+      events.push(e as never);
+    }
+    const done = events.at(-1)!;
+    assert.equal(done.actionTrace?.tool, "read-project-document");
+    assert.equal(done.actionTrace?.executed, true);
+    assert.equal(provider.prompts.length, 2, "exactly 1 dispatch → reasoning call + 1 grounding call, never more");
+  });
+
+  await scenario("ACTION RUNTIME RELIABILITY — deterministic dispatch OVERRIDES a WRONG tool the model names (the real target is structurally guaranteed, not just usually right)", async () => {
+    const provider = mockProviderSequence([
+      // Model names a DIFFERENT real, allowlisted action — still wrong for
+      // this explicit request. The deterministic candidate must win.
+      okJson({ requiredTools: ["inspect-project"], answer: "Projeyi kontrol etmem gerekiyor." }),
+      "Roadmap'e göre sırada Action Runtime reliability işi var.",
+    ]);
+    const events: { type: string; actionTrace?: { tool: string; executed: boolean } }[] = [];
+    for await (const e of streamAyasChat({
+      text: "Roadmap'i oku, sıradaki işi söyle.",
+      snapshot,
+      seq: 1,
+      route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) {
+      events.push(e as never);
+    }
+    const done = events.at(-1)!;
+    assert.equal(done.actionTrace?.tool, "read-project-document", "the deterministic roadmap candidate must win over the model's own (wrong) suggestion");
+    assert.equal(done.actionTrace?.executed, true);
+  });
+
+  await scenario("ACTION RUNTIME RELIABILITY — repeated identical explicit requests dispatch the SAME way every time, regardless of what the (simulated) model output varies to", async () => {
+    // Three separate turns, same explicit request text, three DIFFERENT
+    // simulated model outputs (empty / a wrong tool / a right-shaped but
+    // wrong-input tool) — the deterministic candidate must win identically
+    // every time, proving dispatch no longer depends on model sampling for
+    // this explicit, unambiguous request.
+    const variants = [
+      okJson({ requiredTools: [] }),
+      okJson({ requiredTools: ["inspect-project"] }),
+      okJson({ requiredTools: ["read-project-document"], toolInput: { documentId: "roadmap" } }), // right action, wrong document
+    ];
+    for (const variant of variants) {
+      const provider = mockProviderSequence([variant, "CHANGELOG'a göre en son Action Runtime reliability kapandı."]);
+      const events: { type: string; actionTrace?: { tool: string; executed: boolean } }[] = [];
+      for await (const e of streamAyasChat({
+        text: "Changelog'a bak, en son ne eklenmiş?",
+        snapshot,
+        seq: 1,
+        route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+      })) {
+        events.push(e as never);
+      }
+      const done = events.at(-1)!;
+      assert.equal(done.actionTrace?.tool, "read-project-document");
+      assert.equal(done.actionTrace?.executed, true);
+    }
+  });
+
+  await scenario("ACTION RUNTIME RELIABILITY — a mutating-lookalike explicit file request still declines honestly end to end (deterministic resolver defers, model correctly names nothing)", async () => {
+    const provider = mockProviderSequence([okJson({ requiredTools: [], answer: "Dosya düzenleme veya commit yapamam; bunu yapamıyorum." })]);
+    const events: { type: string; text?: string; actionTrace?: unknown }[] = [];
+    for await (const e of streamAyasChat({
+      text: "src/lib/ayas/AyasChatStream.ts dosyasını düzenle ve commit at.",
+      snapshot,
+      seq: 1,
+      route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) {
+      events.push(e as never);
+    }
+    const done = events.at(-1)!;
+    assert.equal(done.actionTrace, undefined, "a mutating-shaped request must never trigger a (harmless but wrong-answer) deterministic READ dispatch");
+  });
+
+  await scenario("ACTION RUNTIME RELIABILITY — an ambiguous explicit request (two documents named together) defers to the reasoning path, never guesses one", async () => {
+    const provider = mockProviderSequence([okJson({ requiredTools: [], answer: "Hangisine bakmamı istediğini netleştirir misin: checkpoint mi, roadmap mı?" })]);
+    const events: { type: string; text?: string; actionTrace?: unknown }[] = [];
+    for await (const e of streamAyasChat({
+      text: "Checkpoint ve roadmap'e birlikte bakar mısın?",
+      snapshot,
+      seq: 1,
+      route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) {
+      events.push(e as never);
+    }
+    const done = events.at(-1)!;
+    assert.equal(done.actionTrace, undefined, "ambiguous (2 candidates) must never silently guess one — must defer/clarify instead");
+  });
+
+  await scenario("ACTION RUNTIME RELIABILITY — runAyasReasoning pins temperature: 0 on its own structured-JSON call (scoped fix, unit-checked directly)", async () => {
+    const seenTemperatures: (number | undefined)[] = [];
+    const provider: AyasModelProvider = {
+      id: "ollama",
+      kind: "local",
+      model: "test-model",
+      configured: true,
+      async health() {
+        return { available: true, detail: "test", checkedAtMs: Date.now() };
+      },
+      async chat(req) {
+        seenTemperatures.push(req.temperature);
+        return { text: okJson(), finishReason: "stop" };
+      },
+      async *stream() {
+        throw new Error("stream() must never be called on the Reasoning Core path");
+      },
+    };
+    const outcome = await runAyasReasoning({ userText: "Checkpoint'e bak.", complexity: "TOOL", provider });
+    assert.equal(outcome.ok, true);
+    assert.deepEqual(seenTemperatures, [0], "the reasoning core's own structured-JSON call must request temperature 0 — a scoped fix, never applied to the grounding call or the direct-stream path");
+  });
+
+  await scenario("ACTION RUNTIME RELIABILITY — a live adversarial finding: two real files named together must defer even when the MODEL ITSELF names only one of them", async () => {
+    // The deterministic resolver correctly defers on 2 distinct file
+    // mentions (see smoke-ayas-tool-candidate-resolution.ts) — but a live
+    // re-run found the pre-existing MODEL-DRIVEN fallback branch could
+    // still independently pick just one of the two and dispatch it, a
+    // silent guess between two ambiguous candidates the user never asked to
+    // choose between (safe — a real, honest read — but not a clarification).
+    const provider = mockProviderSequence([
+      okJson({ requiredTools: ["inspect-source-file"], toolInput: { filePath: "src/lib/ayas/execution/AyasExecutionPolicy.ts" } }),
+    ]);
+    const events: { type: string; actionTrace?: unknown }[] = [];
+    for await (const e of streamAyasChat({
+      text: "src/lib/ayas/execution/AyasExecutionPolicy.ts ve src/lib/ayas/execution/AyasSafeExecutors.ts dosyalarını karşılaştırır mısın?",
+      snapshot,
+      seq: 1,
+      route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) {
+      events.push(e as never);
+    }
+    const done = events.at(-1)!;
+    assert.equal(done.actionTrace, undefined, "two distinct files named together must defer, even when the model itself names only one of them");
+    assert.equal(provider.prompts.length, 1, "no grounding call when dispatch correctly deferred");
+  });
+
+  await scenario("ACTION RUNTIME RELIABILITY — the Execution Gate is never touched by a deterministic dispatch (structural, sanity-checked here)", async () => {
+    const provider = mockProviderSequence([okJson({ requiredTools: [] }), "CHANGELOG'a göre en son kayıt bu."]);
+    for await (const _e of streamAyasChat({
+      text: "Changelog'a bak.",
+      snapshot,
+      seq: 1,
+      route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) {
+      void _e;
+    }
+    // The `snapshot` object passed in (and its `executionGate: "CLOSED"`) is
+    // never mutated by a dispatch — this suite's own module imports zero
+    // Gate/Authorization/Bridge symbols (see the file header), so there is
+    // structurally nothing here that could flip it.
+    assert.equal(snapshot.executionGate, "CLOSED");
   });
 
   console.log(`AYAS reasoning smoke: PASS (${count} scenarios)`);

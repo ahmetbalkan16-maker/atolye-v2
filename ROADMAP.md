@@ -1,5 +1,55 @@
 ---
 
+## AYAS Action Runtime Master Sprint — 2026-09-14
+
+- [x] Extended the read-only allowlist (`AyasExecutionPolicy.ts`) with `read-project-document`
+      (checkpoint/roadmap/changelog) and `inspect-source-file` (strict path validation), alongside
+      the existing `inspect-project` / `pipeline-recovery-plan`; both read-only, non-destructive.
+- [x] Built `src/lib/ayas/execution/AyasActionRuntime.ts`, a dispatcher deliberately separate from the
+      write-authorization `AyasExecutionGate`/`AyasExecutionBridge` — verified exactly 2 imports,
+      neither touching Gate/Authorization; verified zero diff on all 6 write-path files. Gate stays
+      CLOSED, semantically unchanged.
+- [x] Deterministic `activeProjectSlug` (`AyasConversationState.ts`) so a tool dispatch never trusts a
+      model-supplied project slug; `documentId`/`filePath` suggestions re-validated by the executor.
+- [x] Wired real dispatch + grounding into `AyasChatStream.ts` (at most 1 tool/turn, real result fed
+      back through one bounded extra model call, framed as untrusted data).
+- [x] Found and fixed 9 distinct real false-execution/false-tool-use claim phrasings via iterative
+      live-adversarial testing against the real, currently-configured `qwen2.5:7b`, including an
+      invented-tool-name guard bypass and a JavaScript `\b`-before-Turkish-letter bug.
+- [x] Fixed a routing BLOCKER: `AyasComplexityRouter.ts` never routed the sprint's own headline
+      example questions (checkpoint/changelog/named-file) to the reasoning core at all.
+- [x] Deterministic regression: **421 scenarios across 18 suites** (17 new for Action Runtime itself);
+      TypeScript clean; ESLint 0 errors / 22 pre-existing warnings (0 new).
+- [x] **RELIABILITY CONVERGENCE (same-day follow-up)** — the dispatch-reliability residual above was
+      treated as an active defect (not accepted as model fluency), root-caused, and fixed
+      structurally: pinned `temperature: 0` on ONLY `runAyasReasoning`'s own structured-JSON call
+      (`AyasReasoningCore.ts`); added deterministic pre-resolution
+      (`resolveDeterministicToolCandidate`, `AyasChatStream.ts`) for the 4 cases that structurally,
+      unambiguously name exactly one allowlisted action — dispatch selection for these no longer
+      depends on the model at all, reusing the complexity router's own existing structural signals
+      (newly exported `CHECKPOINT_MENTION`/`ROADMAP_MENTION`/`CHANGELOG_MENTION`/
+      `extractAyasFilePathMention`/`hasMultipleAyasFilePathMentions`), never guessing on 2+ candidates
+      or a write-intent verb near the file/document. `inspect-project`/`pipeline-recovery-plan`
+      deliberately left reasoning-driven — no narrow single-keyword "which project" signal exists.
+- [x] Two further live-adversarial findings fixed during convergence: a plain file-edit-and-commit
+      capability OFFER (singular AND plural "we can" forms — `ayasReplyOffersFileWriteCapability`,
+      brainCore.ts), and a pre-existing model-driven fallback that could silently dispatch one of two
+      ambiguously-named files instead of deferring (`hasMultipleAyasFilePathMentions` now checked
+      unconditionally in `attemptAyasToolDispatch`).
+- [x] Live reliability re-measured honestly: the 4 structural candidates — **100% dispatch (40/40
+      across two independent full 5-repetition passes)**, a structural guarantee, not an observed
+      rate. The original 6-scenario harness, previously flaky (3–5/6), passed **6/6 on four
+      consecutive reruns**. `inspect-project`/`pipeline-recovery-plan` measured 4/5 in the final
+      sample — reported honestly, not claimed as 100%; safety held in every case regardless.
+- [x] Deterministic regression grew to **456 scenarios across 19 suites** (25 new in a dedicated
+      `smoke-ayas-tool-candidate-resolution.ts`, plus new integration scenarios in
+      `smoke-ayas-reasoning.ts`/`smoke-ayas-studio-context.ts`); TypeScript clean; ESLint 0 errors /
+      22 pre-existing warnings (0 new). Write-path files re-confirmed zero diff after convergence.
+- [ ] User review of the intentionally unstaged package; commit/push deliberately not performed —
+      reserved for a separate, explicitly-authorized closure task.
+
+---
+
 ## AYAS Brain Maturity Master Sprint — 2026-09-14
 
 - [x] Took over Codex's uncommitted diff (15 files) + 1 new untracked file mid-sprint; preserved all
@@ -34,7 +84,9 @@
       7B model's first draft AND one correction both come back generic, safely contained by the
       deterministic clarification fallback (verified via raw-draft inspection, not assumed). Zero
       label artifacts, zero script corruption, zero fabricated execution across every observed run.
-- [ ] User review of the intentionally unstaged package; commit/push deliberately not performed.
+- [x] Reviewed, committed and pushed (separate, explicitly-authorized closure task) as
+      `d26e160d55b011ec79b3aee1de8e3cfb4d6700b7` on `wip/ayas-graphify-final-execution` — the
+      baseline the AYAS Action Runtime Master Sprint builds on.
 
 ---
 

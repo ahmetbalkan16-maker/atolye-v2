@@ -28,7 +28,19 @@ export type AyasReasoningParseFailureReason =
   | "invalid-field-types";
 
 export type AyasReasoningParseOutcome =
-  | { readonly ok: true; readonly result: AyasReasoningResult }
+  | {
+      readonly ok: true;
+      readonly result: AyasReasoningResult;
+      /**
+       * How many tool ids the model's raw JSON named BEFORE `findAyasTool`
+       * dropped the ones the registry has never heard of — an invented tool
+       * name (e.g. "run_shell_command") is filtered out at THIS layer, so
+       * `result.requiredTools` alone can't distinguish "named an invented
+       * tool" from "named nothing at all". The Action Runtime's
+       * fake-completion-claim guard needs the former to still arm.
+       */
+      readonly rawToolCount: number;
+    }
   | { readonly ok: false; readonly reason: AyasReasoningParseFailureReason };
 
 /**
@@ -103,6 +115,13 @@ export function parseAyasReasoningOutput(raw: string, complexity: AyasChatComple
   // Drop any tool id the registry doesn't recognise — never trust a model-invented id.
   const requiredTools = rawTools.filter((id) => findAyasTool(id) !== null);
 
+  // Fail-soft, never fails the whole parse: an absent/malformed `toolInput`
+  // (or either of its fields) just means no hint reached the Action Runtime —
+  // dispatch for a tool that needs one is then skipped, not crashed. The
+  // Action Runtime re-validates whatever DOES come through from scratch
+  // regardless (closed enum / strict path checks) — this is only a hint.
+  const toolInput = parseToolInputHint(p.toolInput);
+
   return {
     ok: true,
     result: {
@@ -113,9 +132,26 @@ export function parseAyasReasoningOutput(raw: string, complexity: AyasChatComple
       complexity, // caller's classification wins, never the model's own claim
       plan,
       requiredTools,
+      ...(toolInput ? { toolInput } : {}),
       risk,
       verification,
       answer,
     },
+    rawToolCount: rawTools.length,
   };
+}
+
+const MAX_TOOL_INPUT_STRING = 300;
+
+function parseToolInputHint(v: unknown): { documentId?: string; filePath?: string } | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const raw = v as Record<string, unknown>;
+  const documentId = clampString(raw.documentId, MAX_TOOL_INPUT_STRING);
+  const filePath = clampString(raw.filePath, MAX_TOOL_INPUT_STRING);
+  // clampString returns null only for a present-but-wrong-typed field — drop
+  // that one field rather than the whole hint (still fail-soft overall).
+  const out: { documentId?: string; filePath?: string } = {};
+  if (documentId) out.documentId = documentId;
+  if (filePath) out.filePath = filePath;
+  return Object.keys(out).length ? out : null;
 }

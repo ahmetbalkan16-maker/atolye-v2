@@ -43,7 +43,22 @@ export interface RunAyasReasoningInput {
 }
 
 export type RunAyasReasoningOutcome =
-  | { readonly ok: true; readonly result: AyasReasoningResult; readonly trace: AyasReasoningTrace }
+  | {
+      readonly ok: true;
+      readonly result: AyasReasoningResult;
+      readonly trace: AyasReasoningTrace;
+      /**
+       * `true` when the model named at least one tool BEFORE the registry
+       * filter ran — even if every one of them was unknown/disallowed and
+       * `result.requiredTools` ended up empty. An adversarial-sweep finding:
+       * without this, a model asked to use an invented tool name (filtered
+       * out entirely) looked identical to a turn that named no tool at all,
+       * so the Action Runtime's fake-completion-claim guard never armed —
+       * exactly the turn where a fabricated "here's the result" answer is
+       * most likely.
+       */
+      readonly anyToolNamedBeforeFilter: boolean;
+    }
   | { readonly ok: false; readonly reason: string };
 
 /** Builds the safe, secret-free trace (spec §10) — never the raw model JSON, never a CoT. */
@@ -73,6 +88,17 @@ export async function runAyasReasoning(input: RunAyasReasoningInput): Promise<Ru
       prompt,
       complexity: input.complexity,
       maxTokens: REASONING_MAX_TOKENS,
+      // Action Runtime RELIABILITY sprint — pinned to 0 (greedy decoding),
+      // scoped to ONLY this one-shot structured-JSON call. A live
+      // acceptance report found the SAME explicit, unambiguous request
+      // could dispatch on one run and honestly decline on the next, purely
+      // from the reasoning call's non-zero sampling temperature (the
+      // pipeline's shared default, otherwise used everywhere). Pinning it
+      // here makes THIS call's output consistent for a given input without
+      // touching the direct-stream path's or the grounding call's
+      // temperature — both keep the pipeline default, since naturalness of
+      // the user-facing prose (not tool selection) is what matters there.
+      temperature: 0,
       ...(input.signal ? { signal: input.signal } : {}),
     });
     raw = out.text;
@@ -100,5 +126,5 @@ export async function runAyasReasoning(input: RunAyasReasoningInput): Promise<Ru
     return { ok: false, reason: "reasoning-execution-claim" };
   }
 
-  return { ok: true, result, trace: buildAyasReasoningTrace(result) };
+  return { ok: true, result, trace: buildAyasReasoningTrace(result), anyToolNamedBeforeFilter: parsed.rawToolCount > 0 };
 }
