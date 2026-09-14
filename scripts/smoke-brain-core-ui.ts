@@ -627,6 +627,25 @@ async function run() {
     assert.ok(fell.includes("deterministik özet yanıt"));
   });
 
+  await scenario(
+    "12c2. ChatGPT-style stop control: appears only while a reply is actually streaming AND a handler is wired, never a dead button",
+    () => {
+      const idle = renderView({ snapshot: baseSnapshot(), chatPending: false, onStopGenerating: () => {} });
+      assert.ok(!idle.includes('data-testid="bc-stop"'), "no stop control while idle, even if a handler is passed");
+
+      const pendingNoHandler = renderView({ snapshot: baseSnapshot(), chatPending: true });
+      assert.ok(
+        !pendingNoHandler.includes('data-testid="bc-stop"'),
+        "no stop control without a handler — never render a dead button",
+      );
+
+      const pending = renderView({ snapshot: baseSnapshot(), chatPending: true, onStopGenerating: () => {} });
+      assert.ok(pending.includes('data-testid="bc-stop"'), "stop control renders while a reply streams");
+      assert.ok(/<button[^>]*data-testid="bc-stop"/.test(pending), "it is a real <button>, not an inert element");
+      assert.ok(pending.includes("AYAS düşünüyor"), "the typing indicator and the stop control coexist");
+    },
+  );
+
   await scenario("12d. voice UI — mic wired, disabled cleanly when unsupported", () => {
     const noVoice = renderView({
       snapshot: baseSnapshot(),

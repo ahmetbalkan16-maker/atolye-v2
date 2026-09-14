@@ -100,6 +100,8 @@ export interface BrainConsoleViewProps {
   readonly onOpenReports?: () => void;
   readonly onDraftChange?: (value: string) => void;
   readonly onSend?: () => void;
+  /** ChatGPT-style stop control — present only while a reply is actually streaming (`chatPending`). */
+  readonly onStopGenerating?: () => void;
   readonly onRefresh?: () => void;
   /** CTA on the AYAS presence card — focus chat and (if available) start voice. */
   readonly onStartConversation?: () => void;
@@ -517,7 +519,20 @@ function ChatPanel(props: BrainConsoleViewProps) {
           ))
         )}
         {props.chatPending ? (
-          <p className="bc-msg bc-msg--brain bc-msg--typing">AYAS düşünüyor…</p>
+          <p className="bc-msg bc-msg--brain bc-msg--typing">
+            AYAS düşünüyor…
+            {props.onStopGenerating ? (
+              <button
+                type="button"
+                className="bc-link"
+                onClick={props.onStopGenerating}
+                data-testid="bc-stop"
+                style={{ marginLeft: "10px" }}
+              >
+                ⏹ Durdur
+              </button>
+            ) : null}
+          </p>
         ) : null}
       </div>
 

@@ -287,6 +287,19 @@ export function BrainCoreConsole({
     voiceRef.current = voice;
   }, [voice]);
 
+  // ChatGPT-style "stop generating" (§3 of the PC-brain upgrade): the
+  // streaming route/client already accept an `AbortSignal` end-to-end
+  // (`route.ts` passes `request.signal` into `streamAyasChat`, which passes
+  // it into the provider's own `AbortController` — see `OllamaAyasProvider`)
+  // and `runAyasChatStream` already resolves `{ok:false, reason:"aborted"}`
+  // on exactly this signal (smoke-tested) — this was PURELY a missing UI
+  // trigger, never wired to any control. One controller per in-flight turn;
+  // cleared once that turn settles so a later abort can't affect a new one.
+  const chatAbortRef = useRef<AbortController | null>(null);
+  const stopGenerating = useCallback(() => {
+    chatAbortRef.current?.abort();
+  }, []);
+
   const runAyas = useCallback(
     (raw: string) => {
       const text = raw.trim();
@@ -339,10 +352,13 @@ export function BrainCoreConsole({
         if (streaming) {
           let streamText = "";
           let opened = false;
+          const controller = new AbortController();
+          chatAbortRef.current = controller;
           const streamResult = await runAyasChatStreamWithPhoneFallback({
             text,
             history,
             seq: seq + 1,
+            signal: controller.signal,
             onDelta: (delta) => {
               streamText += delta;
               setMessages((current) => {
@@ -354,6 +370,7 @@ export function BrainCoreConsole({
               });
             },
           });
+          if (chatAbortRef.current === controller) chatAbortRef.current = null;
           if (streamResult.ok) {
             setLastReplySource(streamResult.source);
             setMessages((current) => {
@@ -362,6 +379,23 @@ export function BrainCoreConsole({
               return exists ? current.map((m) => (m.id === replyId ? msg : m)) : [...current, msg];
             });
             finalizeSpeech(streamResult.text);
+            return;
+          }
+          // A DELIBERATE user stop is not a transport failure — never fall
+          // back to a fresh (non-cancellable) askAyas call, which would just
+          // produce an answer anyway and defeat the whole point of stopping.
+          // Keep whatever partial text had already streamed in as the final
+          // message (ChatGPT's own behavior on Stop); drop the placeholder
+          // entirely if nothing had arrived yet. Never auto-speak a reply the
+          // user explicitly cut off.
+          if (streamResult.reason === "aborted") {
+            if (opened && streamText.trim()) {
+              setMessages((current) => current.map((m) => (m.id === replyId ? { ...m, text: streamText } : m)));
+              setLastReplySource("llm");
+            } else if (opened) {
+              setMessages((current) => current.filter((m) => m.id !== replyId));
+            }
+            voiceRef.current.markIdle();
             return;
           }
           // stream failed before/after opening — drop any partial and fall back.
@@ -559,6 +593,7 @@ export function BrainCoreConsole({
       onOpenReports={openReports}
       onDraftChange={setDraft}
       onSend={send}
+      onStopGenerating={chatPending ? stopGenerating : undefined}
       onRefresh={refresh ? doRefresh : undefined}
       onStartConversation={startConversation}
     />
