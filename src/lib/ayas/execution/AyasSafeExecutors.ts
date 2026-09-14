@@ -17,6 +17,9 @@ import path from "node:path";
 import { ProjectReader } from "@/lib/projects/ProjectReader";
 import { PipelineRecoveryPlanner } from "@/lib/pipeline/PipelineRecoveryPlanner";
 import type { AyasExecutionActionId, AyasExecutionRequest } from "./AyasExecutionPolicy";
+import { AYAS_DEVELOPER_EXECUTORS } from "./AyasDeveloperEvidence";
+import { AyasActionValidationError, type AyasExecutor, type AyasExecutorResult } from "./AyasActionContracts";
+export { AyasActionValidationError, type AyasExecutor, type AyasExecutorResult } from "./AyasActionContracts";
 
 /**
  * A tool-level (not policy-level) input rejection — thrown by
@@ -28,32 +31,9 @@ import type { AyasExecutionActionId, AyasExecutionRequest } from "./AyasExecutio
  * requires. The Action Runtime dispatcher catches this by name and reports a
  * clean `denied` outcome instead of a generic `executor-failed`.
  */
-export class AyasActionValidationError extends Error {
-  constructor(
-    readonly reasonCode: string,
-    message: string,
-  ) {
-    super(message);
-    this.name = "AyasActionValidationError";
-  }
-}
-
 function planField(request: AyasExecutionRequest, key: string): unknown {
   return (request.plan as Record<string, unknown> | undefined)?.[key];
 }
-
-export interface AyasExecutorResult {
-  /** An enabled read-only action id, or `"resume-stage"` for the write executor. */
-  readonly action: AyasExecutionActionId | "resume-stage";
-  /** `true` only for a write action; the read-only executors are always `false`. */
-  readonly write: boolean;
-  /** For a write action: whether the pipeline side effect actually applied. */
-  readonly sideEffectApplied?: boolean;
-  readonly summary: string;
-  readonly data: Readonly<Record<string, unknown>>;
-}
-
-export type AyasExecutor = (request: AyasExecutionRequest) => Promise<AyasExecutorResult>;
 
 async function inspectProject(request: AyasExecutionRequest): Promise<AyasExecutorResult> {
   const slug = request.projectSlug as string;
@@ -309,6 +289,7 @@ const EXECUTORS: Readonly<Record<AyasExecutionActionId, AyasExecutor>> = Object.
   "read-project-document": readProjectDocument,
   "inspect-source-file": inspectSourceFile,
   "search-project-source": searchProjectSource,
+  ...AYAS_DEVELOPER_EXECUTORS,
 });
 
 export function resolveAyasExecutor(action: AyasExecutionActionId): AyasExecutor | undefined {

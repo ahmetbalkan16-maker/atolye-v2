@@ -1,5 +1,17 @@
 ---
 
+## AYAS Developer Agent Autonomy + Graphify — 2026-09-14
+
+- [x] Closed read-only actions for Git status/diff/history, bounded source ranges, Graphify structural evidence, and registered validations.
+- [x] Deterministic multi-step workflow plans with explicit step/workflow states, dependencies, structured failures/history, terminal-state protection, and hard immutable budgets.
+- [x] Graphify freshness/output/path trust boundaries; stale/unavailable/failure states degrade only to validated read-only evidence.
+- [x] Guided Repair workflow pause/resume with exact authorization binding and existing stale-content protection.
+- [x] Validation-driven repair success, Graphify-assisted re-diagnosis, separately authorized corrective repair, and non-convergence termination.
+- [x] Real Guided Repair conversation integration plus controlled A-K product scenarios; no production data mutation.
+- [ ] Next: persist workflow/proposal state durably across process restarts and add a schema-bound AYAS planner that can select only registered workflow steps without increasing authority or budgets.
+
+---
+
 ## AYAS Guided Code Repair + Gated Write Actions — 2026-09-14
 
 - [x] Safe data-only diagnosis and evidence/fingerprint-bound proposals.

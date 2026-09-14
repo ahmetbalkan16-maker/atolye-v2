@@ -85,6 +85,8 @@
     "smoke:ayas-write-action": "tsx scripts/smoke-ayas-write-action.ts",
     "smoke:ayas-guided-repair": "tsx scripts/smoke-ayas-guided-repair.ts",
     "smoke:ayas-fault-localization": "tsx scripts/smoke-ayas-fault-localization.ts",
+    "smoke:ayas-developer-actions": "tsx scripts/smoke-ayas-developer-actions.ts",
+    "smoke:ayas-developer-workflow": "tsx scripts/smoke-ayas-developer-workflow.ts",
     "smoke:ayas-pwa-sw": "tsx scripts/smoke-ayas-pwa-sw.ts",
     "smoke:ayas-pwa-manifest": "tsx scripts/smoke-ayas-pwa-manifest.ts",
     "build:pwa-icons": "tsx scripts/build-pwa-icons.ts",

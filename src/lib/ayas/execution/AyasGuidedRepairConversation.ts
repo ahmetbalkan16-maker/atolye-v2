@@ -4,6 +4,7 @@ import {
   type AyasRepairBounds, type AyasRepairEvidence, type AyasRepairOperation,
   type AyasRepairProposal, type AyasValidationAction,
 } from "./AyasGuidedRepair";
+import { createAyasDeveloperWorkflow, runAyasDeveloperWorkflow, type AyasDeveloperWorkflow } from "./AyasDeveloperWorkflow";
 
 export type AyasRepairProgress = "İnceliyorum" | "Onay bekleniyor" | "Düzeltme uygulanıyor" | "Final doğrulama" | "Tamamlandı" | "blocked";
 export interface AyasGuidedDiagnosisPlan {
@@ -18,7 +19,7 @@ export interface AyasGuidedRepairConversationDeps extends AyasGuidedRepairDeps {
   readonly diagnoseTurn: (input: { text: string; turnId: string; workspaceId: string }) => Promise<AyasGuidedDiagnosisPlan | { readonly clarification: string } | null>;
   readonly proposalTtlMs?: number;
 }
-interface PendingRepair { readonly proposal: AyasRepairProposal; readonly patches: readonly AyasPatch[]; readonly remediationPatches?: readonly AyasPatch[]; readonly createdAtMs: number; }
+interface PendingRepair { readonly proposal: AyasRepairProposal; readonly patches: readonly AyasPatch[]; readonly remediationPatches?: readonly AyasPatch[]; readonly workflow?: AyasDeveloperWorkflow; readonly createdAtMs: number; }
 const APPROVAL_RE = /^(?:onaylıyorum|onayliyorum|onayla|evet,? uygula)\.?$/iu;
 const REVISION_RE = /^ikinci dosyaya dokunma\.?$/iu;
 
@@ -44,16 +45,21 @@ export class AyasGuidedRepairConversation {
     if (!plan || plan.patches.length === 0) return { progress: "İnceliyorum", text: "Güvenli bir repair planı oluşturmak için dosya ve hata kanıtı gerekli." };
     const diagnosis = diagnoseAyasRepair({ issue: normalized, workspaceId, rootCause: plan.rootCause, reproduced: plan.reproduced, evidence: plan.evidence, graphifyFindings: plan.graphifyFindings });
     const proposal = createAyasRepairProposal({ issueFingerprint: diagnosis.issueFingerprint, workspaceId, rootCauseStatus: diagnosis.rootCauseStatus, rootCause: diagnosis.rootCause, evidence: diagnosis.evidence, graphifyFindings: diagnosis.graphifyFindings, approvedFiles: [...new Set(plan.patches.map((patch) => patch.filePath))], operationClasses: plan.operationClasses, validationActions: plan.validationActions, forbiddenOperations: ["shell", "delete", "git", "package", "production", "secrets"], exclusions: plan.exclusions ?? ["unrelated subsystems"], expectedResult: plan.expectedResult, risk: plan.risk, bounds: plan.bounds });
-    this.pending = { proposal, patches: plan.patches, remediationPatches: plan.remediationPatches, createdAtMs: this.now().getTime() };
+    const workflow = plan.remediationPatches ? undefined : createAyasDeveloperWorkflow({ kind: "automatic-repair", goal: normalized, steps: [{ id: "authorized-repair", kind: "repair", proposal, patches: plan.patches, expectedEvidence: plan.expectedResult }] });
+    if (workflow) await runAyasDeveloperWorkflow(workflow, { applyRepair: this.service.apply });
+    this.pending = { proposal, patches: plan.patches, remediationPatches: plan.remediationPatches, workflow, createdAtMs: this.now().getTime() };
     return { progress: "Onay bekleniyor", text: `Hata ${proposal.rootCauseStatus === "reproduced" ? "yeniden üretildi" : "güçlü biçimde destekleniyor"}. Repair planı ${proposal.proposalId} hazır (${proposal.approvedFiles.join(", ")}; fingerprint ${proposal.proposalFingerprint.slice(0, 12)}; workspace ${proposal.workspaceId}). Onay bekleniyor.`, proposal };
   }
 
-  private revisePending(): AyasRepairConversationResult {
+  private async revisePending(): Promise<AyasRepairConversationResult> {
     const current = this.pending!; const patches = current.patches.filter((_, index) => index !== 1);
     if (patches.length === current.patches.length) return { progress: "blocked", text: "Teklifte ikinci bir dosya yok." };
     const p = current.proposal;
     const proposal = createAyasRepairProposal({ issueFingerprint: p.issueFingerprint, workspaceId: p.workspaceId, rootCauseStatus: p.rootCauseStatus, rootCause: p.rootCause, evidence: p.evidence, graphifyFindings: p.graphifyFindings, approvedFiles: patches.map((patch) => patch.filePath), operationClasses: [...new Set(patches.map((patch) => patch.operation))], validationActions: p.validationActions, forbiddenOperations: p.forbiddenOperations, exclusions: [...p.exclusions, "user excluded second file"], expectedResult: p.expectedResult, risk: p.risk, bounds: { ...p.bounds, maxFiles: patches.length } });
-    this.pending = { proposal, patches, remediationPatches: current.remediationPatches?.filter((patch) => proposal.approvedFiles.includes(patch.filePath)), createdAtMs: this.now().getTime() };
+    const remediationPatches = current.remediationPatches?.filter((patch) => proposal.approvedFiles.includes(patch.filePath));
+    const workflow = remediationPatches ? undefined : createAyasDeveloperWorkflow({ kind: "automatic-repair", goal: proposal.rootCause, steps: [{ id: "authorized-repair", kind: "repair", proposal, patches, expectedEvidence: proposal.expectedResult }] });
+    if (workflow) await runAyasDeveloperWorkflow(workflow, { applyRepair: this.service.apply });
+    this.pending = { proposal, patches, remediationPatches, workflow, createdAtMs: this.now().getTime() };
     return { progress: "Onay bekleniyor", text: `Teklif revize edildi: ${proposal.proposalId}. Onay bekleniyor.`, proposal };
   }
 
@@ -64,7 +70,13 @@ export class AyasGuidedRepairConversation {
     if (workspaceId !== pending.proposal.workspaceId) return { progress: "blocked", text: "Onay farklı bir workspace için kullanılamaz." };
     try {
       const authorization = this.service.approve(pending.proposal, { proposalId: pending.proposal.proposalId, proposalFingerprint: pending.proposal.proposalFingerprint, issueFingerprint: pending.proposal.issueFingerprint, workspaceId, approvedByUser: true, userTurnId: turnId, currentTurnId: turnId });
-      const repair = pending.remediationPatches ? await this.service.applyWithBoundedRemediation(pending.proposal, authorization, pending.patches, async () => pending.remediationPatches ?? []) : await this.service.apply(pending.proposal, authorization, pending.patches);
+      let repair: RepairOutcome;
+      if (pending.remediationPatches) repair = await this.service.applyWithBoundedRemediation(pending.proposal, authorization, pending.patches, async () => pending.remediationPatches ?? []);
+      else if (pending.workflow) {
+        const workflow = pending.workflow;
+        await runAyasDeveloperWorkflow(workflow, { applyRepair: this.service.apply }, { authorizations: { "authorized-repair": authorization } });
+        repair = workflow.steps[0]!.result as RepairOutcome;
+      } else repair = await this.service.apply(pending.proposal, authorization, pending.patches);
       if (!repair.ok) return { progress: repair.lifecycle === "blocked" ? "blocked" : "Final doğrulama", text: `Repair tamamlanmadı: ${repair.reason}`, proposal: pending.proposal, authorization, repair };
       this.pending = undefined;
       const validated = repair.validations.length > 0 && repair.validations.every((value) => Boolean((value as { ok?: boolean }).ok));

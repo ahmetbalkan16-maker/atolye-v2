@@ -1,5 +1,16 @@
 ---
 
+## 2026-09-14 — AYAS Developer Agent Autonomy + Graphify (uncommitted)
+
+- Added policy/Action Runtime-backed repository status, diff, Git history, source-range, Graphify, and registered-validation executors with fixed commands, bounded arguments/time/output, repository containment, and structured results.
+- Added a bounded developer workflow runtime with explicit lifecycle states, dependencies, failures, audit/repair histories, immutable budgets, authorization pause/resume, terminal protection, validation-driven success, corrective attempts, and convergence detection.
+- Integrated ordinary product Guided Repair proposals with the workflow authorization lifecycle while preserving the existing bounded-remediation compatibility path.
+- Replaced Windows `.cmd` validator shims with shell-free `process.execPath` calls to fixed package entrypoints; verified the production typecheck adapter directly.
+- Added `smoke-ayas-developer-actions.ts` and `smoke-ayas-developer-workflow.ts`, including controlled A-K scenarios and command/path/budget/Graphify attacks.
+- Graphify-generated artifacts remain ignored/untracked; no commit or push was performed.
+
+---
+
 ## 2026-09-14 — AYAS Guided Repair + Gated Writes (`f237101`)
 
 - Added bounded `AyasGuidedRepair` primitives for diagnosis/proposal/explicit approval and hash-checked semantic patching.

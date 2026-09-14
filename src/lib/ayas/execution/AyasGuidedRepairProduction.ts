@@ -17,9 +17,12 @@ async function fixed(command: string, args: readonly string[], cwd: string, time
 }
 
 async function fixedLocal(bin: string, args: readonly string[], cwd: string, timeout: number) {
-  const executable = path.join(cwd, "node_modules", ".bin", process.platform === "win32" ? `${bin}.cmd` : bin);
-  if (!fs.existsSync(executable)) throw new Error(`registered validator unavailable: ${bin}`);
-  return fixed(executable, args, cwd, timeout);
+  const localEntries: Readonly<Record<string, string>> = { tsc: "node_modules/typescript/bin/tsc", eslint: "node_modules/eslint/bin/eslint.js", graphify: "node_modules/@sentropic/graphify/dist/cli.js" };
+  const candidates = [path.join(cwd, localEntries[bin] ?? "")];
+  if (bin === "graphify" && process.env.APPDATA) candidates.push(path.join(process.env.APPDATA, "npm", "node_modules", "@sentropic", "graphify", "dist", "cli.js"));
+  const entry = candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
+  if (!entry) throw new Error(`registered validator unavailable: ${bin}`);
+  return fixed(process.execPath, [entry, ...args], cwd, timeout);
 }
 
 /** Closed production adapters: no model-supplied command or package script is accepted. */
@@ -60,7 +63,8 @@ async function diagnoseProductionTurn(input: { text: string; turnId: string; wor
   if (typeof record.rootCause !== "string" || typeof record.updatedContent !== "string" || record.updatedContent === original || record.updatedContent.length > 300_000) return null;
   let graphifyFindings: string[] = [];
   if (localized.status === "located" && localized.anchors[0]) {
-    try { const graph = await fixedLocal("graphify", ["explain", localized.anchors[0]], process.cwd(), 15_000); graphifyFindings = [`${localized.anchors[0]}: ${graph.stdout.slice(0, 1_000)}`]; } catch { graphifyFindings = []; }
+    const graph = await runAyasReadOnlyAction({ rawRequest: { schemaVersion: "1", action: "query-graphify", requestedBy: input.turnId, intent: "guided repair structural evidence", plan: { operation: "explain", symbol: localized.anchors[0] } } });
+    if (graph.executed && graph.result.data.status === "fresh" && typeof graph.result.data.evidence === "string") graphifyFindings = [`${localized.anchors[0]}: ${graph.result.data.evidence.slice(0, 1_000)}`];
   }
   return {
     rootCause: record.rootCause.slice(0, 2_000), reproduced: false,

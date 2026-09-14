@@ -34,7 +34,13 @@ export type AyasExecutionActionId =
   | "pipeline-recovery-plan"
   | "read-project-document"
   | "inspect-source-file"
-  | "search-project-source";
+  | "search-project-source"
+  | "inspect-repository-status"
+  | "inspect-repository-diff"
+  | "inspect-git-history"
+  | "inspect-source-range"
+  | "query-graphify"
+  | "run-developer-validation";
 
 /** Reserved ids that are intentionally NOT enabled yet (write / pipeline path). */
 export const AYAS_EXECUTION_RESERVED_ACTIONS: readonly string[] = Object.freeze([
@@ -101,6 +107,36 @@ export const AYAS_EXECUTION_ALLOWLIST: Readonly<Record<AyasExecutionActionId, Ay
       destructive: false,
       requiresProject: false,
       maxDurationMs: 5_000,
+    },
+    "inspect-repository-status": {
+      id: "inspect-repository-status",
+      summary: "Depo durumunu porcelain-v1 üzerinden SALT-OKUNUR ve yapılandırılmış biçimde inceler.",
+      write: false, destructive: false, requiresProject: false, maxDurationMs: 10_000,
+    },
+    "inspect-repository-diff": {
+      id: "inspect-repository-diff",
+      summary: "Working-tree, staged veya tek doğrulanmış dosya diff'ini sınırlı biçimde okur.",
+      write: false, destructive: false, requiresProject: false, maxDurationMs: 15_000,
+    },
+    "inspect-git-history": {
+      id: "inspect-git-history",
+      summary: "Sınırlı git log veya doğrulanmış ref için git show çıktısını SALT-OKUNUR inceler.",
+      write: false, destructive: false, requiresProject: false, maxDurationMs: 15_000,
+    },
+    "inspect-source-range": {
+      id: "inspect-source-range",
+      summary: "İzinli bir kaynak dosyasının doğrulanmış ve sınırlı satır aralığını okur.",
+      write: false, destructive: false, requiresProject: false, maxDurationMs: 5_000,
+    },
+    "query-graphify": {
+      id: "query-graphify",
+      summary: "Aktif ve güncel Graphify grafiğinde doğrulanmış bir sembolü sınırlı biçimde açıklar.",
+      write: false, destructive: false, requiresProject: false, maxDurationMs: 20_000,
+    },
+    "run-developer-validation": {
+      id: "run-developer-validation",
+      summary: "Kapalı kayıt defterindeki TypeScript, lint veya AYAS smoke doğrulamasını shell olmadan çalıştırır.",
+      write: false, destructive: false, requiresProject: false, maxDurationMs: 120_000,
     },
   });
 

@@ -1,5 +1,17 @@
 ---
 
+## AYAS Developer Agent Autonomy + Graphify Unified Master Sprint — READY FOR REVIEW / UNCOMMITTED — 2026-09-14
+
+- Added six policy-governed developer evidence actions: structured repository status, bounded working/staged/file diff, bounded log/show history, symlink-safe source ranges, revision/manifest-aware bounded Graphify explain/tree evidence, and a closed validation registry. All remain `write: false`; there is no generic shell or caller-provided executable/argument surface.
+- Added `AyasDeveloperWorkflow`: explicit workflow/step lifecycles, ordered dependencies, terminal protection, validated result propagation, structured history/failures, one bounded transient read retry, and immutable authority ceilings (12 steps, 16 actions, 4 Graphify queries, 4 validations, 2 repair attempts, 2 write dispatches, 1 read retry, 192,000 output chars).
+- Repair steps pause with zero write dispatches, resume only with proposal-bound Guided Repair authorization, and inherit its expiry/fingerprint/workspace/path/operation/content-hash checks. A write is not success until registered validation passes; validation failure may enter a separately authorized corrective attempt, while duplicate patch evidence terminates `repair-non-convergent`.
+- The real AYAS Guided Repair conversation now records ordinary proposals in this workflow lifecycle and resumes the same workflow after current-turn approval. The legacy explicitly bounded remediation branch remains compatible.
+- Controlled A-K coverage proves Graphify-assisted evidence, authorization pause/resume, successful repair, failed-validation re-analysis, second authorization/success, non-convergence, stale/unavailable Graphify fallback, policy/dependency stop, budget stop, and stale-source no-mutation. Existing Action Runtime, reasoning/chat, gate/bridge, Guided Repair, write-action, fault-localization, and Graphify consistency suites remain green.
+- Active Graphify CLI was used for discovery/review. Generated `.graphify` content remains ignored and unstaged. Its known incremental limitation remains: untracked new source is not added to the active manifest, so runtime freshness correctly reports `stale` until a later tracked refresh; safe source inspection remains available.
+- Next recommended maturity phase: durable, restart-safe workflow/proposal persistence plus a schema-bound model planner for creating these already-authoritative workflow plans; do not widen write authority.
+
+---
+
 ## AYAS Guided Code Repair + Gated Write Actions — CLOSED / COMMITTED / PUSHED (`f237101`) — 2026-09-14
 
 - Added `src/lib/ayas/execution/AyasGuidedRepair.ts`: data-only diagnosis, immutable proposal fingerprints, explicit user approval provenance, workspace/file/operation scope, expiry, bounded patching with precondition hashes, rollback-on-failure, closed validation registry, and journal hooks.
