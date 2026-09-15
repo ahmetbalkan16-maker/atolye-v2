@@ -6,7 +6,18 @@ import { containsBrainSecret, redactBrainText } from "../BrainRedaction";
 
 export const ayasApprovalInboxSchemaVersion = "1" as const;
 export type AyasInboxDecision = "APPROVE" | "REJECT" | "LATER";
-export type AyasInboxProposalStatus = "PENDING" | "APPROVED" | "REJECTED" | "DEFERRED" | "STALE" | "COMPLETED" | "FAILED";
+/**
+ * `RESERVED`: a one-shot authorization has been reserved (see
+ * `reserveApproval`) but execution has not yet been finalized. `ABANDONED`:
+ * a reservation was finalized without any possibility of mutation having
+ * occurred (safe, but still terminal — the same reservation is never
+ * reused). `RECOVERY_REQUIRED`: a reservation was finalized while mutation
+ * may have occurred; a human must review before the proposal is considered
+ * resolved. Neither `ABANDONED` nor `RECOVERY_REQUIRED` is re-decidable —
+ * a fresh proposal (new content, new hash) is required to try again.
+ */
+export type AyasInboxProposalStatus = "PENDING" | "APPROVED" | "REJECTED" | "DEFERRED" | "STALE" | "COMPLETED" | "FAILED" | "RESERVED" | "ABANDONED" | "RECOVERY_REQUIRED";
+export type AyasInboxReservationOutcome = "EXECUTED" | "ABANDONED" | "RECOVERY_REQUIRED";
 
 export interface AyasInboxProposal {
   readonly schemaVersion: typeof ayasApprovalInboxSchemaVersion;
@@ -42,7 +53,12 @@ export interface AyasInboxDecisionRecord {
   readonly reason?: string;
   readonly evidenceFingerprint: string;
   readonly authorizationId?: string;
+  /** @deprecated one-shot marker from the original single-phase `consumeApproval` — still enforced, kept for backward compatibility. New callers should use `reserveApproval`/`finalizeApproval`. */
   readonly authorizationConsumedAt?: string;
+  readonly reservationId?: string;
+  readonly reservedAt?: string;
+  readonly finalizedAt?: string;
+  readonly finalizationOutcome?: AyasInboxReservationOutcome;
 }
 
 export interface AyasInboxResultRecord {
@@ -97,7 +113,12 @@ export interface AyasApprovalInboxHandle {
   save(state: AyasApprovalInboxState): AyasApprovalInboxState;
   createProposal(input: Omit<AyasInboxProposal, "schemaVersion" | "proposalId" | "lastUpdatedAt" | "proposalHash" | "status" | "createdBy"> & { proposalId?: string }): AyasInboxProposal;
   decide(proposalId: string, decision: AyasInboxDecision, now: string, reason?: string): { proposal: AyasInboxProposal; decision: AyasInboxDecisionRecord };
+  /** @deprecated single-phase one-shot consumption. New callers should use `reserveApproval`/`finalizeApproval` instead. */
   consumeApproval(proposalId: string, proposalHashValue: string, baseHead: string, exactFiles: readonly string[], now: string): AyasInboxDecisionRecord;
+  /** Phase 1 of the two-phase authority lifecycle: durably reserves the one-shot authorization (proposal moves to `RESERVED`) without implying anything about the gate or mutation. */
+  reserveApproval(proposalId: string, proposalHashValue: string, baseHead: string, exactFiles: readonly string[], now: string): { readonly reservationId: string; readonly authorizationId: string; readonly decisionId: string };
+  /** Phase 2: durably finalizes a reservation exactly once. Does not run anything — pure record-keeping. */
+  finalizeApproval(reservationId: string, outcome: AyasInboxReservationOutcome, now: string): void;
   recordResult(result: AyasInboxResultRecord, status: "COMPLETED" | "FAILED" | "STALE"): void;
 }
 
@@ -163,7 +184,7 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       };
       const proposal = { ...base, schemaVersion: ayasApprovalInboxSchemaVersion, proposalHash: proposalHash(base), status: "PENDING" as const };
       const state = load();
-      const duplicate = state.proposals.find((p) => p.proposalHash === proposal.proposalHash && ["PENDING", "APPROVED", "REJECTED", "DEFERRED"].includes(p.status));
+      const duplicate = state.proposals.find((p) => p.proposalHash === proposal.proposalHash && ["PENDING", "APPROVED", "REJECTED", "DEFERRED", "RESERVED"].includes(p.status));
       if (duplicate) return duplicate;
       save({ ...state, proposals: [...state.proposals, proposal] });
       return proposal;
@@ -198,6 +219,61 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       const consumed = { ...decision, authorizationConsumedAt: now };
       save({ ...state, decisions: state.decisions.map((d) => d.decisionId === decision.decisionId ? consumed : d) });
       return consumed;
+    },
+    reserveApproval(proposalId, proposalHashValue, baseHead, exactFiles, now) {
+      const state = load();
+      const proposal = state.proposals.find((p) => p.proposalId === proposalId);
+      const decision = [...state.decisions].reverse().find((d) => d.proposalId === proposalId && d.decision === "APPROVE");
+      // A decision already used by either phase-1 mechanism (this one or the
+      // deprecated single-phase `consumeApproval`) can never be reserved
+      // again — the two mechanisms share one underlying one-shot guard.
+      if (!proposal || !decision || proposal.status !== "APPROVED" || decision.authorizationConsumedAt || decision.reservedAt) {
+        throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "approval is missing, stale, or already reserved/consumed");
+      }
+      if (proposal.safetyClassification !== "SAFE" || !decision.authorizationId) {
+        throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", `refusing to reserve authorization for a non-SAFE proposal: ${proposal.safetyClassification}`);
+      }
+      if (proposal.proposalHash !== proposalHashValue || proposal.baseHead !== baseHead || JSON.stringify([...proposal.exactFiles]) !== JSON.stringify([...exactFiles])) {
+        throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "approval scope or HEAD is stale");
+      }
+      const reservationId = `ayas-reservation-${crypto.randomUUID()}`;
+      const reserved = { ...decision, reservationId, reservedAt: now };
+      const reservedProposal = { ...proposal, status: "RESERVED" as const, lastUpdatedAt: now };
+      save({
+        ...state,
+        proposals: state.proposals.map((p) => p.proposalId === proposalId ? reservedProposal : p),
+        decisions: state.decisions.map((d) => d.decisionId === decision.decisionId ? reserved : d),
+      });
+      return { reservationId, authorizationId: decision.authorizationId, decisionId: decision.decisionId };
+    },
+    finalizeApproval(reservationId, outcome, now) {
+      const state = load();
+      const decision = state.decisions.find((d) => d.reservationId === reservationId);
+      if (!decision) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "reservation not found");
+      if (decision.finalizedAt) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "reservation already finalized");
+      const proposal = state.proposals.find((p) => p.proposalId === decision.proposalId);
+      // Structural invariant, enforced here rather than by caller ordering
+      // discipline (the same principle as the SAFE-only check in `decide`):
+      // "EXECUTED" may only be recorded once a real result already exists
+      // (`recordResult` has already moved the proposal to a terminal result
+      // status). Without this, a caller that finalized EXECUTED before
+      // recording a result could leave a successfully-authorized proposal
+      // durably stuck at "RESERVED" forever — indistinguishable from an
+      // execution that never happened.
+      if (outcome === "EXECUTED" && proposal?.status !== "COMPLETED" && proposal?.status !== "FAILED" && proposal?.status !== "STALE") {
+        throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "cannot finalize EXECUTED before a result has been durably recorded");
+      }
+      const finalized = { ...decision, finalizedAt: now, finalizationOutcome: outcome };
+      // "EXECUTED" leaves the proposal's status alone — `recordResult` is
+      // the durable record of a real execution outcome (COMPLETED/FAILED/
+      // STALE) and remains the single source of truth for that. This call
+      // only marks the reservation itself as spent. For ABANDONED/
+      // RECOVERY_REQUIRED, `recordResult` is never reached (no execution to
+      // record), so this is the only place those terminal statuses are set.
+      const nextProposals = proposal && outcome !== "EXECUTED"
+        ? state.proposals.map((p) => p.proposalId === decision.proposalId ? { ...p, status: outcome, lastUpdatedAt: now } : p)
+        : state.proposals;
+      save({ ...state, proposals: nextProposals, decisions: state.decisions.map((d) => d.decisionId === decision.decisionId ? finalized : d) });
     },
     recordResult(result, status) {
       const state = load();

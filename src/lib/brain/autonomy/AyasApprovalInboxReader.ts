@@ -2,7 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 
 export const ayasApprovalInboxSchemaVersion = "1" as const;
-export type AyasInboxProposalStatus = "PENDING" | "APPROVED" | "REJECTED" | "DEFERRED" | "STALE" | "COMPLETED" | "FAILED";
+/**
+ * Kept in sync with the Store's own `AyasInboxProposalStatus` by hand (this
+ * module deliberately has zero import of the Store — see the module doc
+ * below) rather than imported, so this listing must be updated whenever the
+ * Store's status union changes. This is a compile-time accuracy concern
+ * only: `readAyasApprovalInboxProposals` never validates `status` against
+ * this union at runtime (see below), so an out-of-date list here cannot
+ * cause a crash or a misread — only a stale type hint.
+ */
+export type AyasInboxProposalStatus = "PENDING" | "APPROVED" | "REJECTED" | "DEFERRED" | "STALE" | "COMPLETED" | "FAILED" | "RESERVED" | "ABANDONED" | "RECOVERY_REQUIRED";
 
 export interface AyasInboxProposalRead {
   readonly proposalId: string;
