@@ -27,7 +27,10 @@ async function scenario(name: string, fn: () => void | Promise<void>) {
   if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${name}`);
 }
 
-const NOW = "2026-09-11T12:00:00.000Z";
+// Keep retention-window fixtures recent without coupling the smoke to a
+// calendar date. Production retention remains the same 48-hour policy.
+const NOW = new Date(Date.now() - 60 * 60_000).toISOString();
+const later = (ms: number) => new Date(Date.parse(NOW) + ms).toISOString();
 
 function tmp(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "sh-store-"));
@@ -50,7 +53,7 @@ async function run() {
     try {
       const store = createBrainSelfHealStore({ rootDir: root });
       const a = store.saveIncident(inc({ symptom: "alpha" }));
-      const b = advanceIncident(inc({ symptom: "beta" }), { kind: "diagnose", now: "2026-09-11T13:00:00.000Z", hypotheses: [] }).incident;
+      const b = advanceIncident(inc({ symptom: "beta" }), { kind: "diagnose", now: later(60 * 60_000), hypotheses: [] }).incident;
       store.saveIncident(b);
       assert.deepEqual(store.loadIncident(a.id), a);
       const list = store.listIncidents();
@@ -151,7 +154,7 @@ async function run() {
       assert.equal(store.listOptimizationRuns()[0].metricName, "sttLatency");
 
       store.appendRuntimeEvents([buildRuntimeEvent({ at: NOW, component: "voice", event: "wake-hit", metadata: { score: 0.7 } })]);
-      store.appendRuntimeEvents([buildRuntimeEvent({ at: "2026-09-11T12:00:01.000Z", component: "stt", event: "stt-error", severity: "error" })]);
+      store.appendRuntimeEvents([buildRuntimeEvent({ at: later(1_000), component: "stt", event: "stt-error", severity: "error" })]);
       assert.equal(store.loadRuntimeEvents().length, 2);
 
       store.recordAutonomousApply(Date.parse(NOW));
@@ -182,7 +185,7 @@ async function run() {
         { schemaVersion: "1", metric: "sttMs", valueMs: 1200, at: NOW, source: "voice-lab" },
         { schemaVersion: "1", metric: "captureMs", valueMs: 1400, at: NOW, source: "voice-lab" },
       ]);
-      store.appendLatencySamples([{ schemaVersion: "1", metric: "sttMs", valueMs: 1250, at: "2026-09-11T12:00:01.000Z", source: "voice-lab" }]);
+      store.appendLatencySamples([{ schemaVersion: "1", metric: "sttMs", valueMs: 1250, at: later(1_000), source: "voice-lab" }]);
       assert.equal(store.loadLatencySamples().length, 3);
       assert.equal(store.loadLatencySamples()[0].metric, "sttMs");
       // a hand-crafted sample carrying a secret in `source` must be rejected by the store
