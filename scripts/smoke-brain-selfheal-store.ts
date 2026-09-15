@@ -160,6 +160,27 @@ async function run() {
       store.recordAutonomousApply(Date.parse(NOW));
       store.recordAutonomousApply(Date.parse(NOW) + 1000);
       assert.equal(store.loadAutonomousApplyTimestamps().length, 2);
+      const realNow = Date.now;
+      const fixedNow = realNow();
+      Date.now = () => fixedNow;
+      try {
+        store.recordAutonomousApply(fixedNow + 4 * 60_000);
+        store.recordAutonomousApply(fixedNow + 5 * 60_000);
+        assert.throws(() => store.recordAutonomousApply(fixedNow + 5 * 60_000 + 1), (e) => e instanceof BrainSelfHealStoreError && e.code === "SELFHEAL_STORE_INVALID");
+        for (const invalid of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+          assert.throws(() => store.recordAutonomousApply(invalid), (e) => e instanceof BrainSelfHealStoreError && e.code === "SELFHEAL_STORE_INVALID");
+        }
+        assert.equal(store.loadAutonomousApplyTimestamps().length, 4, "normal, +4m, and exact +5m timestamps are retained");
+        fs.writeFileSync(
+          path.join(store.dir, "auto-applies.json"),
+          JSON.stringify({ schemaVersion: "1", timestamps: [fixedNow + 6 * 60_000, fixedNow, fixedNow - 1000] }),
+        );
+        const persisted = store.loadAutonomousApplyTimestamps();
+        assert.equal(persisted.length, 2, "persisted future apply timestamps are ignored on read");
+        assert.equal(persisted.every((t) => Number.isFinite(t) && t <= fixedNow + 5 * 60_000), true);
+      } finally {
+        Date.now = realNow;
+      }
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

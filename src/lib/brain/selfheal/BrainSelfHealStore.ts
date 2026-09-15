@@ -40,6 +40,9 @@ import {
 } from "./BrainSelfHealDecision";
 import type { BrainVoiceLatencySample } from "./BrainVoiceLatency";
 
+const AUTONOMOUS_APPLY_RETENTION_MS = 48 * 3_600_000;
+const AUTONOMOUS_APPLY_MAX_FUTURE_SKEW_MS = 5 * 60_000;
+
 export type BrainSelfHealStoreErrorCode =
   | "SELFHEAL_STORE_CORRUPT"
   | "SELFHEAL_STORE_SCHEMA_MISMATCH"
@@ -305,16 +308,29 @@ export function createBrainSelfHealStore(options: BrainSelfHealStoreOptions = {}
     },
 
     recordAutonomousApply(atMs: number): void {
+      const now = Date.now();
+      const cutoff = now - AUTONOMOUS_APPLY_RETENTION_MS;
+      const futureCutoff = now + AUTONOMOUS_APPLY_MAX_FUTURE_SKEW_MS;
+      if (!Number.isFinite(atMs)) {
+        throw new BrainSelfHealStoreError("SELFHEAL_STORE_INVALID", "autonomous apply timestamp must be finite");
+      }
+      if (atMs > futureCutoff) {
+        throw new BrainSelfHealStoreError("SELFHEAL_STORE_INVALID", "autonomous apply timestamp is implausibly in the future");
+      }
       const existing = this.loadAutonomousApplyTimestamps();
-      const cutoff = Date.now() - 48 * 3_600_000;
-      const ts = [...existing, atMs].filter((t) => t >= cutoff).slice(-200);
+      const ts = [...existing, atMs]
+        .filter((t) => t >= cutoff)
+        .slice(-200);
       writeAtomic(autoApplyFile, { schemaVersion: "1", timestamps: ts });
     },
 
     loadAutonomousApplyTimestamps(): readonly number[] {
       const rec = readJson(autoApplyFile, "1", ["timestamps"]);
       if (!rec) return [];
-      return Array.isArray(rec.timestamps) ? (rec.timestamps as number[]).filter((t) => typeof t === "number") : [];
+      const futureCutoff = Date.now() + AUTONOMOUS_APPLY_MAX_FUTURE_SKEW_MS;
+      return Array.isArray(rec.timestamps)
+        ? (rec.timestamps as number[]).filter((t) => Number.isFinite(t) && t <= futureCutoff)
+        : [];
     },
 
     /* ---- Report Center: operator decisions (§10) ---- */
