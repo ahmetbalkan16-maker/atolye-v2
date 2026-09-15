@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { containsBrainSecret, redactBrainText } from "../BrainRedaction";
+import { isAyasDeferredEligibleNow } from "./AyasDeferredEligibility";
 
 export const ayasApprovalInboxSchemaVersion = "1" as const;
 export type AyasInboxDecision = "APPROVE" | "REJECT" | "LATER";
@@ -236,7 +237,18 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       const state = load();
       const existing = state.proposals.find((p) => p.proposalId === proposalId);
       if (!existing) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "proposal not found");
-      if (existing.status !== "PENDING" && !(decision === "LATER" && existing.status === "DEFERRED")) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", `proposal is not pending: ${existing.status}`);
+      // M8 — a DEFERRED proposal accepts a fresh LATER at any time (re-defer
+      // further, unconditionally — unchanged, pre-existing behavior), and
+      // ALSO accepts APPROVE/REJECT once `nextEligibleAt` has passed. Before
+      // M8 this second case was structurally impossible: the View already
+      // showed such a proposal as "pending" (actionable), but this guard
+      // rejected any decision except another LATER for it — a real view/
+      // authority mismatch. `isAyasDeferredEligibleNow` is the SAME
+      // predicate the View uses, so the two can never disagree again.
+      const decidable = existing.status === "PENDING"
+        || (existing.status === "DEFERRED" && decision === "LATER")
+        || (existing.status === "DEFERRED" && decision !== "LATER" && isAyasDeferredEligibleNow(existing.nextEligibleAt, now));
+      if (!decidable) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", `proposal is not pending: ${existing.status}`);
       // Authority boundary: only a SAFE-classified proposal may ever be
       // approved. This is enforced here, not merely by callers, so no future
       // caller of `decide()` can mint an authorization for a REVIEW_REQUIRED

@@ -1,4 +1,5 @@
 import { readAyasApprovalInboxState, type AyasApprovalInboxReadState, type AyasInboxDecisionRead, type AyasInboxProposalRead, type AyasInboxResultRead } from "./AyasApprovalInboxReader";
+import { isAyasDeferredEligibleNow } from "./AyasDeferredEligibility";
 
 export const ayasHumanExplanationFields = ["currentProblem", "selectionReason", "expectedUserBenefit", "expectedBehaviorChange", "unchangedBehavior", "riskIfNotDone", "technicalRisk", "productionImpact"] as const;
 export type AyasHumanExplanationField = typeof ayasHumanExplanationFields[number];
@@ -47,8 +48,11 @@ export function buildAyasApprovalInboxView(state: AyasApprovalInboxReadState, no
     result: [...state.results].reverse().find((item) => item.proposalId === proposal.proposalId),
   });
   const all = state.proposals.map(enrich);
-  const nowMs = Date.parse(now);
-  const pending = all.filter((proposal) => proposal.status === "PENDING" || (proposal.status === "DEFERRED" && (!proposal.nextEligibleAt || Date.parse(proposal.nextEligibleAt) <= nowMs))).slice(0, 20);
+  // M8 — the SAME predicate the durable authority layer's decision gate now
+  // uses (see `AyasDeferredEligibility.ts`), so an eligible-again deferred
+  // proposal shown here as "pending" is always one that layer will actually
+  // accept an APPROVE/REJECT for.
+  const pending = all.filter((proposal) => proposal.status === "PENDING" || (proposal.status === "DEFERRED" && isAyasDeferredEligibleNow(proposal.nextEligibleAt, now))).slice(0, 20);
   const today = all.filter((proposal) => istanbulDay(proposal.createdAt) === istanbulDay(now)).slice(-40).reverse();
   const history = all.filter((proposal) => proposal.status !== "PENDING" || proposal.decision || proposal.result).slice(-100).reverse();
   return { connected: true, pending, today, history };
