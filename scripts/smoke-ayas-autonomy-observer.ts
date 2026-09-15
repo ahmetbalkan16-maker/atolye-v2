@@ -84,9 +84,10 @@ async function main() {
     assert.doesNotMatch(src, /git\s+(add|commit|push)|production:acceptance:(execute|resume)|writeFileSync\([^)]*data[\\/]projects/i);
   });
 
-  await scenario("/brain approval panel renders pending proposals for display regardless of decision-UI availability", () => {
+  await scenario("/brain legacy approval panel delegates to the single Gelişim Merkezi implementation", () => {
     const src = read("src/components/brain/AyasApprovalInboxPanel.tsx");
-    assert.match(src, /inbox\.pending\.map/);
+    assert.match(src, /<AyasDevelopmentCenter inbox=\{inbox\}/);
+    assert.doesNotMatch(src, />ONAYLA</);
   });
 
   await scenario("no Stage 7A file references the execution gate — it cannot be reached from this sprint's code", () => {

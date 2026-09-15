@@ -22,7 +22,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 
 import { BrainConsoleView } from "./BrainConsoleView";
-import { AyasApprovalInboxPanel } from "./AyasApprovalInboxPanel";
 import {
   AYAS_HISTORY_TURNS,
   brainDeterministicReply,
@@ -128,7 +127,7 @@ export function BrainCoreConsole({
   // filter / expand / decision interaction state. A decision RECORDS the
   // operator's choice (server action) — it never runs git or the apply.
   const [selfHeal, setSelfHeal] = useState(initialSelfHeal ?? null);
-  const [approvalInbox, setApprovalInbox] = useState(initialApprovalInbox ?? { connected: false, pending: [] });
+  const [approvalInbox, setApprovalInbox] = useState(initialApprovalInbox ?? { connected: false, pending: [], today: [], history: [] });
   const [reportFilter, setReportFilter] = useState<{ status: BrainReportStatusFilter; category: string }>({
     status: "all",
     category: "all",
@@ -535,6 +534,14 @@ export function BrainCoreConsole({
     }
   }, []);
 
+  const openDevelopment = useCallback(() => {
+    setActivePanel("development");
+    if (typeof document === "undefined") return;
+    const el = document.getElementById("bc-command-center");
+    if (!el) return;
+    try { el.scrollIntoView({ behavior: "smooth", block: "start" }); } catch { el.scrollIntoView(); }
+  }, []);
+
   // Explicit "turn voice off" — forget the persisted intent so a later reload
   // does not re-offer to resume a session the user deliberately ended.
   const stopListening = useCallback(() => {
@@ -576,7 +583,6 @@ export function BrainCoreConsole({
 
   return (
     <>
-      <AyasApprovalInboxPanel inbox={approvalInbox} pendingId={approvalPending} onDecision={onApprovalDecision} />
       <BrainConsoleView
       snapshot={snapshot}
       coreState={coreState}
@@ -588,6 +594,9 @@ export function BrainCoreConsole({
       modelConfigured={modelConfigured}
       lastReplySource={lastReplySource}
       autonomous={initialAutonomous}
+      approvalInbox={approvalInbox}
+      approvalPendingId={approvalPending}
+      onApprovalDecision={onApprovalDecision}
       selfHeal={selfHeal}
       reportCenter={selfHeal?.reportCenter ?? null}
       reportHandlers={{
@@ -627,6 +636,7 @@ export function BrainCoreConsole({
       voiceSessionInterrupted={lifecycle.voiceSessionInterrupted}
       onSelectPanel={setActivePanel}
       onOpenReports={openReports}
+      onOpenDevelopment={openDevelopment}
       onDraftChange={setDraft}
       onSend={send}
       onStopGenerating={chatPending ? stopGenerating : undefined}

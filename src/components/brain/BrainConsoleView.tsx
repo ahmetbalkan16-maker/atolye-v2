@@ -31,8 +31,10 @@ import {
   type AyasVoiceState,
 } from "./ayasVoice";
 import { BrainSelfHealingPanel, type BrainReportPanelHandlers } from "./BrainSelfHealingPanel";
+import { AyasDevelopmentCenter } from "./AyasDevelopmentCenter";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
+import type { AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import type { BrainSelfHealSnapshot } from "@/lib/brain/selfheal/BrainSelfHealSnapshot";
 import type { BrainReportCenterView } from "@/lib/brain/selfheal/BrainReportCenter";
 
@@ -92,6 +94,9 @@ export interface BrainConsoleViewProps {
   /** Where the last chat reply came from. */
   readonly lastReplySource?: "llm" | "fallback";
   readonly autonomous?: AyasAutonomousView;
+  readonly approvalInbox?: AyasApprovalInboxView;
+  readonly approvalPendingId?: string | null;
+  readonly onApprovalDecision?: (input: { proposalId: string; decision: "APPROVE" | "REJECT" | "LATER" }) => void;
   /** Read-only self-healing state (incidents / repairs / learning). `null` ⇒ store empty. */
   readonly selfHeal?: (BrainSelfHealSnapshot & { readonly error?: string | null }) | null;
   /** The AYAS Report Center view (§7–§15) for the panel + the home status card. */
@@ -112,6 +117,7 @@ export interface BrainConsoleViewProps {
    * this handler selects the panel AND scrolls it into view.
    */
   readonly onOpenReports?: () => void;
+  readonly onOpenDevelopment?: () => void;
   readonly onDraftChange?: (value: string) => void;
   readonly onSend?: () => void;
   /** ChatGPT-style stop control — present only while a reply is actually streaming (`chatPending`). */
@@ -168,9 +174,14 @@ export function BrainConsoleView(props: BrainConsoleViewProps) {
             snapshot={snapshot}
             autonomous={props.autonomous}
             reportCenter={props.reportCenter ?? null}
+            approvalInbox={props.approvalInbox}
             onOpenReports={
               props.onOpenReports ??
               (props.onSelectPanel ? () => props.onSelectPanel!("selfheal") : undefined)
+            }
+            onOpenDevelopment={
+              props.onOpenDevelopment ??
+              (props.onSelectPanel ? () => props.onSelectPanel!("development") : undefined)
             }
           />
 
@@ -370,17 +381,29 @@ function StatusCards({
   snapshot,
   autonomous,
   reportCenter,
+  approvalInbox,
   onOpenReports,
+  onOpenDevelopment,
 }: {
   snapshot: BrainConsoleSnapshot;
   autonomous?: AyasAutonomousView;
   reportCenter?: BrainReportCenterView | null;
+  approvalInbox?: AyasApprovalInboxView;
   onOpenReports?: () => void;
+  onOpenDevelopment?: () => void;
 }) {
   const pending = snapshot.tasks.pendingApproval;
   const rc = reportCenter;
   return (
     <div className="bc-cards" data-testid="bc-cards">
+      <StatCard
+        k="◇ Gelişim Merkezi"
+        v={String(approvalInbox?.pending.length ?? 0)}
+        s={(approvalInbox?.pending.length ?? 0) > 0 ? "kararın bekleniyor" : "onay bekleyen yok"}
+        tone={(approvalInbox?.pending.length ?? 0) > 0 ? "warn" : undefined}
+        onClick={onOpenDevelopment}
+        testid="bc-card-development"
+      />
       {rc ? (
         <StatCard
           k="🧠 AYAS Raporları"
@@ -506,6 +529,8 @@ function PanelBody(props: BrainConsoleViewProps) {
       return <MemoryPanel snapshot={snapshot} />;
     case "autonomous":
       return <AutonomousPanel autonomous={props.autonomous} />;
+    case "development":
+      return <AyasDevelopmentCenter inbox={props.approvalInbox ?? { connected: true, pending: [], today: [], history: [] }} pendingId={props.approvalPendingId} onDecision={props.onApprovalDecision} />;
     case "selfheal":
       return (
         <BrainSelfHealingPanel

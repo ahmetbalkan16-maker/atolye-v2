@@ -18,7 +18,25 @@ export type AyasAutonomyDaemonPhase = "STARTING" | "OBSERVING" | "PROPOSAL_PENDI
 
 export interface AyasAutonomyDaemonState { readonly schemaVersion: typeof ayasAutonomyDaemonSchemaVersion; readonly phase: AyasAutonomyDaemonPhase; readonly updatedAt: string; readonly lastObservationAt?: string; readonly lastError?: string; readonly activeProposalId?: string; readonly heartbeatCount: number; }
 export interface AyasDaemonObservation { readonly now: string; readonly branch: string; readonly head: string; readonly repoClean: boolean; readonly graphifyFresh: boolean; readonly machineAction: "ALLOW" | "THROTTLE" | "PAUSE" | "STOP OWN WORKLOAD" | "BLOCK NEW HEAVY WORK"; readonly gaps: readonly string[]; }
-export interface AyasDaemonCandidate { readonly objective: string; readonly rationale: string; readonly evidence: readonly string[]; readonly graphifyEvidence: readonly string[]; readonly exactFiles: readonly string[]; readonly expectedDiffScope: string; readonly testsPlanned: readonly string[]; readonly risk: string; readonly rank: number; }
+export interface AyasDaemonCandidate {
+  readonly objective: string;
+  readonly currentProblem: string;
+  readonly selectionReason: string;
+  readonly expectedUserBenefit: string;
+  readonly expectedBehaviorChange: string;
+  readonly unchangedBehavior: string;
+  readonly riskIfNotDone: string;
+  readonly technicalRisk: string;
+  readonly productionImpact: string;
+  readonly rationale: string;
+  readonly evidence: readonly string[];
+  readonly graphifyEvidence: readonly string[];
+  readonly exactFiles: readonly string[];
+  readonly expectedDiffScope: string;
+  readonly testsPlanned: readonly string[];
+  readonly risk: string;
+  readonly rank: number;
+}
 export interface AyasDaemonOptions { readonly inbox?: AyasApprovalInboxHandle; readonly stateFile?: string; readonly gateRoot?: string; readonly repoRoot?: string; readonly now?: () => string; readonly revalidation?: Pick<AyasExecutionRevalidationDeps, "readMachineHealth" | "readRepository" | "workload">; }
 
 const initialState = (now: string): AyasAutonomyDaemonState => ({ schemaVersion: ayasAutonomyDaemonSchemaVersion, phase: "STARTING", updatedAt: now, heartbeatCount: 0 });
@@ -52,7 +70,7 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
     if (state.phase === "PAUSED_DIRTY_REPO" || state.phase === "PAUSED_MACHINE_HEALTH" || !observation.repoClean || !observation.graphifyFresh) return [];
     const proposals = candidates.map((candidate) => {
       const safety = classifyPatchSet(candidate.exactFiles);
-      return inbox.createProposal({ createdAt: observation.now, baseBranch: observation.branch, baseHead: observation.head, objective: candidate.objective, rationale: candidate.rationale, evidence: candidate.evidence, graphifyEvidence: candidate.graphifyEvidence, candidateRank: candidate.rank, risk: candidate.risk, safetyClassification: safety.level, exactFiles: candidate.exactFiles, expectedDiffScope: candidate.expectedDiffScope, testsPlanned: candidate.testsPlanned, estimatedCost: "zero-cost" });
+      return inbox.createProposal({ createdAt: observation.now, baseBranch: observation.branch, baseHead: observation.head, objective: candidate.objective, currentProblem: candidate.currentProblem, selectionReason: candidate.selectionReason, expectedUserBenefit: candidate.expectedUserBenefit, expectedBehaviorChange: candidate.expectedBehaviorChange, unchangedBehavior: candidate.unchangedBehavior, riskIfNotDone: candidate.riskIfNotDone, technicalRisk: candidate.technicalRisk, productionImpact: candidate.productionImpact, rationale: candidate.rationale, evidence: candidate.evidence, graphifyEvidence: candidate.graphifyEvidence, candidateRank: candidate.rank, risk: candidate.risk, safetyClassification: safety.level, exactFiles: candidate.exactFiles, expectedDiffScope: candidate.expectedDiffScope, testsPlanned: candidate.testsPlanned, estimatedCost: "zero-cost" });
     }).filter((proposal, index, all) => all.findIndex((other) => other.proposalHash === proposal.proposalHash) === index);
     if (proposals.length) transition("WAITING_APPROVAL", { activeProposalId: proposals[0]?.proposalId });
     return proposals;

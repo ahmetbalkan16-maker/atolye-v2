@@ -27,6 +27,15 @@ export interface AyasInboxProposal {
   readonly baseBranch: string;
   readonly baseHead: string;
   readonly objective: string;
+  /** Human-facing explanation fields are optional on reads for schema-v1 compatibility. */
+  readonly currentProblem?: string;
+  readonly selectionReason?: string;
+  readonly expectedUserBenefit?: string;
+  readonly expectedBehaviorChange?: string;
+  readonly unchangedBehavior?: string;
+  readonly riskIfNotDone?: string;
+  readonly technicalRisk?: string;
+  readonly productionImpact?: string;
   readonly rationale: string;
   readonly evidence: readonly string[];
   readonly graphifyEvidence: readonly string[];
@@ -107,11 +116,43 @@ function proposalHash(input: Record<string, unknown>): string {
 
 export interface AyasApprovalInboxStoreOptions { readonly rootDir?: string; }
 
+export const ayasApprovalExplanationFields = [
+  "objective",
+  "currentProblem",
+  "selectionReason",
+  "expectedUserBenefit",
+  "expectedBehaviorChange",
+  "unchangedBehavior",
+  "riskIfNotDone",
+  "technicalRisk",
+  "productionImpact",
+] as const;
+
+export type AyasApprovalExplanationField = typeof ayasApprovalExplanationFields[number];
+
+export function missingAyasApprovalExplanation(proposal: AyasInboxProposal): readonly AyasApprovalExplanationField[] {
+  return ayasApprovalExplanationFields.filter((field) => typeof proposal[field] !== "string" || !proposal[field]?.trim());
+}
+
+export function isAyasProposalApprovalReady(proposal: AyasInboxProposal): boolean {
+  return proposal.safetyClassification === "SAFE"
+    && missingAyasApprovalExplanation(proposal).length === 0
+    && proposal.exactFiles.length > 0
+    && proposal.expectedDiffScope.trim().length > 0
+    && proposal.testsPlanned.length > 0
+    && proposal.graphifyEvidence.length > 0
+    && proposal.baseHead.trim().length > 0;
+}
+
+type AyasProposalCreateInput = Omit<AyasInboxProposal, "schemaVersion" | "proposalId" | "lastUpdatedAt" | "proposalHash" | "status" | "createdBy" | AyasApprovalExplanationField>
+  & Required<Pick<AyasInboxProposal, AyasApprovalExplanationField>>
+  & { readonly proposalId?: string };
+
 export interface AyasApprovalInboxHandle {
   readonly stateFile: string;
   load(): AyasApprovalInboxState;
   save(state: AyasApprovalInboxState): AyasApprovalInboxState;
-  createProposal(input: Omit<AyasInboxProposal, "schemaVersion" | "proposalId" | "lastUpdatedAt" | "proposalHash" | "status" | "createdBy"> & { proposalId?: string }): AyasInboxProposal;
+  createProposal(input: AyasProposalCreateInput): AyasInboxProposal;
   decide(proposalId: string, decision: AyasInboxDecision, now: string, reason?: string): { proposal: AyasInboxProposal; decision: AyasInboxDecisionRecord };
   /** @deprecated single-phase one-shot consumption. New callers should use `reserveApproval`/`finalizeApproval` instead. */
   consumeApproval(proposalId: string, proposalHashValue: string, baseHead: string, exactFiles: readonly string[], now: string): AyasInboxDecisionRecord;
@@ -172,9 +213,11 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       const exactFiles = [...new Set(input.exactFiles.map((file) => scrub(file, 240)))];
       const evidence = cleanList(input.evidence, 500);
       const graphifyEvidence = cleanList(input.graphifyEvidence, 500);
-      assertNoSecret([input.objective, input.rationale, ...evidence, ...graphifyEvidence, ...exactFiles]);
+      const explanations = ayasApprovalExplanationFields.map((field) => scrub(input[field], 700));
+      assertNoSecret([...explanations, input.rationale, ...evidence, ...graphifyEvidence, ...exactFiles]);
       const base = {
         ...input,
+        ...Object.fromEntries(ayasApprovalExplanationFields.map((field, index) => [field, explanations[index]])),
         proposalId: input.proposalId ?? `ayas-proposal-${crypto.randomUUID()}`,
         lastUpdatedAt: now,
         exactFiles,
@@ -199,6 +242,7 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       // caller of `decide()` can mint an authorization for a REVIEW_REQUIRED
       // or FORBIDDEN_AUTONOMOUS proposal by omitting its own pre-check.
       if (decision === "APPROVE" && existing.safetyClassification !== "SAFE") throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", `only SAFE proposals may be approved, got: ${existing.safetyClassification}`);
+      if (decision === "APPROVE" && !isAyasProposalApprovalReady(existing)) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", "SAFE proposal explanation or approval evidence is incomplete");
       const nextStatus: AyasInboxProposalStatus = decision === "APPROVE" ? "APPROVED" : decision === "REJECT" ? "REJECTED" : "DEFERRED";
       const record: AyasInboxDecisionRecord = { decisionId: `ayas-decision-${crypto.randomUUID()}`, proposalId, proposalHash: existing.proposalHash, decision, decidedAt: now, ...(reason ? { reason: scrub(reason, 400) } : {}), evidenceFingerprint: digest(existing.evidence), ...(decision === "APPROVE" ? { authorizationId: `ayas-dev-auth-${crypto.randomUUID()}` } : {}) };
       const proposal = { ...existing, status: nextStatus, lastUpdatedAt: now, ...(decision === "LATER" ? { nextEligibleAt: new Date(Date.parse(now) + 24 * 60 * 60 * 1000).toISOString() } : {}) };
@@ -214,7 +258,7 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       // reach status "APPROVED" via `decide()`, which already refuses
       // non-SAFE proposals — this re-check is defense-in-depth against any
       // future path that could otherwise flip `status` to "APPROVED" directly.
-      if (proposal.safetyClassification !== "SAFE" || !decision.authorizationId) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", `refusing to consume authorization for a non-SAFE proposal: ${proposal.safetyClassification}`);
+      if (!isAyasProposalApprovalReady(proposal) || !decision.authorizationId) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", `refusing to consume authorization for an unsafe or explanation-incomplete proposal: ${proposal.safetyClassification}`);
       if (proposal.proposalHash !== proposalHashValue || proposal.baseHead !== baseHead || JSON.stringify([...proposal.exactFiles]) !== JSON.stringify([...exactFiles])) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "approval scope or HEAD is stale");
       const consumed = { ...decision, authorizationConsumedAt: now };
       save({ ...state, decisions: state.decisions.map((d) => d.decisionId === decision.decisionId ? consumed : d) });
@@ -230,8 +274,8 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       if (!proposal || !decision || proposal.status !== "APPROVED" || decision.authorizationConsumedAt || decision.reservedAt) {
         throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "approval is missing, stale, or already reserved/consumed");
       }
-      if (proposal.safetyClassification !== "SAFE" || !decision.authorizationId) {
-        throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", `refusing to reserve authorization for a non-SAFE proposal: ${proposal.safetyClassification}`);
+      if (!isAyasProposalApprovalReady(proposal) || !decision.authorizationId) {
+        throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", `refusing to reserve authorization for an unsafe or explanation-incomplete proposal: ${proposal.safetyClassification}`);
       }
       if (proposal.proposalHash !== proposalHashValue || proposal.baseHead !== baseHead || JSON.stringify([...proposal.exactFiles]) !== JSON.stringify([...exactFiles])) {
         throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "approval scope or HEAD is stale");

@@ -402,6 +402,7 @@ export type BrainPanelId =
   | "tasks"
   | "memory"
   | "autonomous"
+  | "development"
   | "selfheal"
   | "research"
   | "production"
@@ -422,6 +423,7 @@ export const BRAIN_PANELS: readonly BrainPanelInfo[] = Object.freeze([
   { id: "tasks", label: "Tasks", icon: "▤", connected: true },
   { id: "memory", label: "Memory", icon: "◈", connected: true },
   { id: "autonomous", label: "Autonomous", icon: "∞", connected: true },
+  { id: "development", label: "Gelişim Merkezi", icon: "◇", connected: true },
   { id: "selfheal", label: "AYAS Raporları", icon: "🧠", connected: true },
   {
     id: "research",

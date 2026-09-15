@@ -17,15 +17,52 @@ export interface AyasInboxProposalRead {
   readonly proposalId: string;
   readonly proposalHash: string;
   readonly createdAt: string;
+  readonly lastUpdatedAt: string;
   readonly objective: string;
+  readonly currentProblem?: string;
+  readonly selectionReason?: string;
+  readonly expectedUserBenefit?: string;
+  readonly expectedBehaviorChange?: string;
+  readonly unchangedBehavior?: string;
+  readonly riskIfNotDone?: string;
+  readonly technicalRisk?: string;
+  readonly productionImpact?: string;
   readonly rationale: string;
+  readonly evidence: readonly string[];
+  readonly graphifyEvidence: readonly string[];
   readonly exactFiles: readonly string[];
+  readonly expectedDiffScope: string;
   readonly risk: string;
   readonly safetyClassification: "SAFE" | "REVIEW_REQUIRED" | "FORBIDDEN_AUTONOMOUS";
   readonly testsPlanned: readonly string[];
   readonly status: AyasInboxProposalStatus;
   readonly baseHead: string;
   readonly nextEligibleAt?: string;
+}
+
+export interface AyasInboxDecisionRead {
+  readonly decisionId: string;
+  readonly proposalId: string;
+  readonly decision: "APPROVE" | "REJECT" | "LATER";
+  readonly decidedAt: string;
+  readonly reservedAt?: string;
+  readonly finalizedAt?: string;
+  readonly finalizationOutcome?: "EXECUTED" | "ABANDONED" | "RECOVERY_REQUIRED";
+}
+
+export interface AyasInboxResultRead {
+  readonly resultId: string;
+  readonly proposalId: string;
+  readonly completedAt: string;
+  readonly outcome: "COMPLETED" | "FAILED" | "ROLLED_BACK" | "STALE";
+  readonly testsRun: readonly string[];
+  readonly testResults: readonly string[];
+}
+
+export interface AyasApprovalInboxReadState {
+  readonly proposals: readonly AyasInboxProposalRead[];
+  readonly decisions: readonly AyasInboxDecisionRead[];
+  readonly results: readonly AyasInboxResultRead[];
 }
 
 export class AyasApprovalInboxReaderError extends Error {
@@ -53,10 +90,10 @@ export interface AyasApprovalInboxReaderOptions { readonly rootDir?: string; }
  * "disconnected" for display purposes — this module does not repair or
  * rewrite corrupt state.
  */
-export function readAyasApprovalInboxProposals(options: AyasApprovalInboxReaderOptions = {}): readonly AyasInboxProposalRead[] {
+export function readAyasApprovalInboxState(options: AyasApprovalInboxReaderOptions = {}): AyasApprovalInboxReadState {
   const root = path.resolve(options.rootDir ?? path.join(process.cwd(), "data", "brain"));
   const stateFile = path.join(root, "autonomy", "approval-inbox.json");
-  if (!fs.existsSync(stateFile)) return [];
+  if (!fs.existsSync(stateFile)) return { proposals: [], decisions: [], results: [] };
 
   let parsed: unknown;
   try {
@@ -65,8 +102,12 @@ export function readAyasApprovalInboxProposals(options: AyasApprovalInboxReaderO
     throw new AyasApprovalInboxReaderError("AYAS_INBOX_READ_CORRUPT", `approval-inbox.json is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
   }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new AyasApprovalInboxReaderError("AYAS_INBOX_READ_CORRUPT", "approval-inbox.json has an invalid shape");
-  const state = parsed as { readonly schemaVersion?: unknown; readonly proposals?: unknown };
+  const state = parsed as { readonly schemaVersion?: unknown; readonly proposals?: unknown; readonly decisions?: unknown; readonly results?: unknown };
   if (state.schemaVersion !== ayasApprovalInboxSchemaVersion) throw new AyasApprovalInboxReaderError("AYAS_INBOX_READ_SCHEMA_MISMATCH", "approval-inbox.json schema is unsupported");
-  if (!Array.isArray(state.proposals)) throw new AyasApprovalInboxReaderError("AYAS_INBOX_READ_CORRUPT", "approval-inbox.json proposals field is not an array");
-  return state.proposals as readonly AyasInboxProposalRead[];
+  if (!Array.isArray(state.proposals) || !Array.isArray(state.decisions) || !Array.isArray(state.results)) throw new AyasApprovalInboxReaderError("AYAS_INBOX_READ_CORRUPT", "approval-inbox.json durable collections are invalid");
+  return { proposals: state.proposals as readonly AyasInboxProposalRead[], decisions: state.decisions as readonly AyasInboxDecisionRead[], results: state.results as readonly AyasInboxResultRead[] };
+}
+
+export function readAyasApprovalInboxProposals(options: AyasApprovalInboxReaderOptions = {}): readonly AyasInboxProposalRead[] {
+  return readAyasApprovalInboxState(options).proposals;
 }
