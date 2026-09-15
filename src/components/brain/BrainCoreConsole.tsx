@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 
 import { BrainConsoleView } from "./BrainConsoleView";
+import { AyasApprovalInboxPanel } from "./AyasApprovalInboxPanel";
 import {
   AYAS_HISTORY_TURNS,
   brainDeterministicReply,
@@ -47,6 +48,7 @@ import {
 } from "@/lib/brain/ui/brainConversation";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
+import type { AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import type { BrainSelfHealConsoleSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
 import type { BrainReportStatusFilter } from "@/lib/brain/selfheal/BrainReportCenter";
 import type { BrainSelfHealDecisionKind } from "@/lib/brain/selfheal/BrainSelfHealDecision";
@@ -82,6 +84,7 @@ export interface RecordSelfHealDecisionFn {
 export interface BrainCoreConsoleProps {
   readonly initialSnapshot: BrainConsoleSnapshot;
   readonly initialAutonomous?: AyasAutonomousView;
+  readonly initialApprovalInbox?: AyasApprovalInboxView;
   /** Read-only self-healing / Report Center state for the "AYAS Raporları" panel. */
   readonly initialSelfHeal?: BrainSelfHealConsoleSnapshot | null;
   readonly modelConfigured?: boolean;
@@ -91,6 +94,8 @@ export interface BrainCoreConsoleProps {
   readonly refreshSelfHeal?: () => Promise<BrainSelfHealConsoleSnapshot>;
   /** Server Action that records an operator ONAYLA / REDDET / DAHA SONRA decision (no git, no apply). */
   readonly recordSelfHealDecision?: RecordSelfHealDecisionFn;
+  /** Stage 7A: read-only — the inbox is display-only, there is no decision action here. */
+  readonly refreshApprovalInbox?: () => Promise<AyasApprovalInboxView>;
   /** Server Action that asks the local model (falls back to deterministic). */
   readonly askAyas?: AskAyasFn;
   /**
@@ -103,10 +108,12 @@ export interface BrainCoreConsoleProps {
 export function BrainCoreConsole({
   initialSnapshot,
   initialAutonomous,
+  initialApprovalInbox,
   initialSelfHeal,
   modelConfigured,
   refresh,
   refreshSelfHeal,
+  refreshApprovalInbox,
   recordSelfHealDecision,
   askAyas,
   streaming = true,
@@ -119,6 +126,7 @@ export function BrainCoreConsole({
   // filter / expand / decision interaction state. A decision RECORDS the
   // operator's choice (server action) — it never runs git or the apply.
   const [selfHeal, setSelfHeal] = useState(initialSelfHeal ?? null);
+  const [approvalInbox, setApprovalInbox] = useState(initialApprovalInbox ?? { connected: false, pending: [] });
   const [reportFilter, setReportFilter] = useState<{ status: BrainReportStatusFilter; category: string }>({
     status: "all",
     category: "all",
@@ -442,6 +450,11 @@ export function BrainCoreConsole({
         }
       });
     }
+    if (refreshApprovalInbox) {
+      startSelfHeal(async () => {
+        try { setApprovalInbox(await refreshApprovalInbox()); } catch { /* keep the last durable inbox view */ }
+      });
+    }
   };
 
   // Record an operator ONAYLA / REDDET / DAHA SONRA decision. This writes a
@@ -547,7 +560,9 @@ export function BrainCoreConsole({
                         : restingState;
 
   return (
-    <BrainConsoleView
+    <>
+      <AyasApprovalInboxPanel inbox={approvalInbox} />
+      <BrainConsoleView
       snapshot={snapshot}
       coreState={coreState}
       activePanel={activePanel}
@@ -602,7 +617,8 @@ export function BrainCoreConsole({
       onStopGenerating={chatPending ? stopGenerating : undefined}
       onRefresh={refresh ? doRefresh : undefined}
       onStartConversation={startConversation}
-    />
+      />
+    </>
   );
 }
 
