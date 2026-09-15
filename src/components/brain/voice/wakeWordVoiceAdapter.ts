@@ -24,6 +24,7 @@ import {
   detectAyasStopConversationIntent,
   isWakeEngineCapable,
   stripLeadingWakeWord,
+  type AyasMicPermissionState,
   type AyasPlatformVoice,
   type AyasRecognitionMode,
   type AyasVoiceCapability,
@@ -344,6 +345,24 @@ export interface WakeAdapterStatus {
    * the real-device "why did I have to say AYAS again" question.
    */
   readonly conversationClosedReason: string | null;
+  /**
+   * True Hands-Free UYAN Acoustic Wake Finalization — which model produced
+   * the last wake hit (`primaryWakeLabel` / `aliasWakeLabel`, e.g.
+   * `"uyan-acoustic"` / `"ayas-acoustic"`), or `null` before the first wake
+   * this session. Diagnostics only — see `AyasVoicePlatform`'s doc comment:
+   * it never changes what a wake DOES (still only the canonical `AYAS` wake
+   * intent, still no execution authority).
+   */
+  readonly wakeSource: string | null;
+  /** Alias-model wake-score distribution — `null` when no alias is configured. */
+  readonly wakeScoreAlias: {
+    readonly n: number;
+    readonly mean: number;
+    readonly min: number;
+    readonly max: number;
+    readonly hits: number;
+    readonly window: readonly number[];
+  } | null;
   readonly lastError: string | null;
 }
 
@@ -361,6 +380,24 @@ export interface WakeWordAdapterOptions {
   readonly audioBackend?: WakeAudioBackend;
   /** Test seam — replace the wake runner. */
   readonly runner?: WakeRunnerLike;
+  /**
+   * True Hands-Free UYAN Acoustic Wake Finalization — an OPTIONAL second
+   * acoustic wake model (e.g. the original "AYAS" model, kept as a
+   * backward-compatible alias once `wakewordUrl` becomes "UYAN"), scored on
+   * every frame ALONGSIDE the primary model. Either firing runs the exact
+   * same capture → STT → command path — see `onFrame`. Omitted by default:
+   * single-model behavior is byte-for-byte unchanged from before this option
+   * existed.
+   */
+  readonly wakewordUrlAlias?: string;
+  /** `WakeAdapterStatus.wakeSource` label when the PRIMARY model fires. Default `"ayas-acoustic"` (unchanged from before this field existed). */
+  readonly primaryWakeLabel?: string;
+  /** `WakeAdapterStatus.wakeSource` label when the ALIAS model fires. Only meaningful when `wakewordUrlAlias` (or `runnerAlias`) is set. */
+  readonly aliasWakeLabel?: string;
+  /** Test seam — replace the alias runner (see `wakewordUrlAlias`). */
+  readonly runnerAlias?: WakeRunnerLike;
+  /** Two-tier wake-decision config for the ALIAS model only (defaults to the same as `wakeDetect`). Test seam. */
+  readonly wakeDetectAlias?: Partial<WakeDetectConfig>;
   /** Test seam — replace the STT transport. */
   readonly transcribe?: (wav: Uint8Array) => Promise<string>;
   /**
@@ -368,7 +405,7 @@ export interface WakeWordAdapterOptions {
    * ONNX/WASM failed to load, no worklet). The host should fall back to the
    * browser voice adapter — the engine will otherwise keep retrying `begin()`.
    */
-  readonly onUnavailable?: (reason: "not-allowed" | "start-blocked") => void;
+  readonly onUnavailable?: (reason: "not-allowed" | "start-blocked" | "runner-init") => void;
   /** Re-arm cooldown after a turn (default 700 ms). Test seam. */
   readonly rearmCooldownMs?: number;
   /** Backoff between mic-start retries: `n * attempt` ms (default 400). Test seam. */
@@ -384,7 +421,7 @@ export interface WakeWordAdapterOptions {
   /** Test seam — the TTS platform (defaults to a fresh {@link BrowserVoiceAdapter}). */
   readonly tts?: Pick<
     AyasVoicePlatform,
-    "speak" | "cancelSpeech" | "detectCapability" | "listVoices" | "onVoicesChanged"
+    "speak" | "cancelSpeech" | "detectCapability" | "listVoices" | "onVoicesChanged" | "requestMicrophonePermission"
   >;
   /** Fired on every phase transition — numeric/enum only, for a UI status line. */
   readonly onStatus?: (status: WakeAdapterStatus) => void;
@@ -480,7 +517,7 @@ async function postStt(url: string, wav: Uint8Array): Promise<string> {
 export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   private readonly tts: Pick<
     AyasVoicePlatform,
-    "speak" | "cancelSpeech" | "detectCapability" | "listVoices" | "onVoicesChanged"
+    "speak" | "cancelSpeech" | "detectCapability" | "listVoices" | "onVoicesChanged" | "requestMicrophonePermission"
   >;
   private readonly o: Required<
     Omit<
@@ -498,6 +535,11 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       | "wakeDetect"
       | "tts"
       | "onStatus"
+      | "wakewordUrlAlias"
+      | "primaryWakeLabel"
+      | "aliasWakeLabel"
+      | "runnerAlias"
+      | "wakeDetectAlias"
     >
   >;
   private readonly rearmCooldownMs: number;
@@ -509,7 +551,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   private readonly audio: WakeAudioBackend;
   private readonly runner: WakeRunnerLike;
   private readonly transcribe: (wav: Uint8Array) => Promise<string>;
-  private readonly onUnavailable?: (reason: "not-allowed" | "start-blocked") => void;
+  private readonly onUnavailable?: (reason: "not-allowed" | "start-blocked" | "runner-init") => void;
   private readonly onStatus?: (status: WakeAdapterStatus) => void;
   /**
    * Set ONLY when the wake engine has never worked on this device (a true
@@ -560,6 +602,23 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
   /** Ring buffer of the most recent wake-phase frames, prepended to a new capture. */
   private preRoll: Float32Array[] = [];
   private readonly detector: WakeScoreDetector;
+  /**
+   * True Hands-Free UYAN Acoustic Wake Finalization — an OPTIONAL second
+   * acoustic model + detector, scored on every "wake" frame ALONGSIDE
+   * `runner`/`detector`. Either one firing runs the exact same capture code
+   * below (same canonical `AYAS` wake intent, same state machine, same STT/
+   * TTS path) — this only ever adds a second SCORE source, never a second
+   * engine. `null` (the default) reproduces the original single-model
+   * behaviour byte-for-byte — every existing single-model caller/test is
+   * unaffected.
+   */
+  private readonly runnerAlias: WakeRunnerLike | null;
+  private readonly detectorAlias: WakeScoreDetector | null;
+  /** Diagnostic labels only — see `WakeAdapterStatus.wakeSource`. Never gate behavior. */
+  private readonly primaryWakeLabel: string;
+  private readonly aliasWakeLabel: string;
+  /** Which model produced the last wake hit — diagnostics only, `null` before the first. */
+  private lastWakeSource: string | null = null;
   private cooldownUntil = 0;
   /** Conversation session: a wake fired and follow-up commands skip the wake word. */
   private conversationActive = false;
@@ -626,6 +685,25 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
         embeddingUrl: this.o.embeddingUrl,
         wasmPaths: this.o.wasmPaths,
       });
+    this.primaryWakeLabel = options.primaryWakeLabel ?? "ayas-acoustic";
+    this.aliasWakeLabel = options.aliasWakeLabel ?? "alias-acoustic";
+    this.runnerAlias =
+      options.runnerAlias ??
+      (options.wakewordUrlAlias
+        ? new OpenWakeWordRunner({
+            wakewordUrl: options.wakewordUrlAlias,
+            melspectrogramUrl: this.o.melspectrogramUrl,
+            embeddingUrl: this.o.embeddingUrl,
+            wasmPaths: this.o.wasmPaths,
+          })
+        : null);
+    this.detectorAlias = this.runnerAlias
+      ? new WakeScoreDetector({
+          ...DEFAULT_WAKE_DETECT,
+          hard: options.threshold ?? DEFAULT_WAKE_DETECT.hard,
+          ...options.wakeDetectAlias,
+        })
+      : null;
     this.transcribe = options.transcribe ?? ((wav) => postStt(this.o.sttUrl, wav));
     this.onUnavailable = options.onUnavailable;
     this.onStatus = options.onStatus;
@@ -709,8 +787,14 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       conversationActive: this.conversationActive,
       conversationArmed: this.conversationArmed,
       conversationClosedReason: this.conversationClosedReason,
+      wakeSource: this.lastWakeSource,
+      wakeScoreAlias: this.detectorAlias?.stats ?? null,
       lastError: this.lastError,
     };
+  }
+
+  requestMicrophonePermission(): Promise<AyasMicPermissionState> {
+    return this.tts.requestMicrophonePermission?.() ?? Promise.resolve("unknown");
   }
 
   /* ---- conversation session: wake once, then follow-ups skip the wake word ----
@@ -770,7 +854,9 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       this.resetCommand();
       this.preRoll = [];
       this.detector.rearm();
+      this.detectorAlias?.rearm();
       this.runner.reset();
+      this.runnerAlias?.reset();
       this.phase = "wake";
       this.lastFrameAt = Date.now();
       this.armWatchdog();
@@ -789,6 +875,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     this.accepting = false;
     this.preRoll = [];
     this.runner.reset();
+    this.runnerAlias?.reset();
     if (this.conversationActive && !this.disposed && !this.fatal) {
       this.conversationArmed = true;
       this.wokeThisTurn = false;
@@ -799,6 +886,7 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       this.armConversationTimer();
     } else {
       this.detector.rearm();
+      this.detectorAlias?.rearm();
       this.wokeThisTurn = false;
       this.phase = "wake";
     }
@@ -954,10 +1042,34 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     const run = (async () => {
       for (this.startAttempts = 1; this.startAttempts <= MAX_START_ATTEMPTS; this.startAttempts += 1) {
         try {
-          if (!this.runner.ready) {
-            await withTimeout(this.runner.init(), AUDIO_START_TIMEOUT_MS, "runner-init");
+          const inits: Promise<void>[] = [];
+          if (!this.runner.ready) inits.push(this.runner.init());
+          if (this.runnerAlias && !this.runnerAlias.ready) inits.push(this.runnerAlias.init());
+          if (inits.length) {
+            try {
+              await withTimeout(Promise.all(inits).then(() => undefined), AUDIO_START_TIMEOUT_MS, "runner-init");
+            } catch (error) {
+              // A model/WASM/asset failure is not a microphone interruption and
+              // another user gesture cannot repair it. Before the wake engine
+              // has ever been healthy, hand control back to the host so it can
+              // attach BrowserVoiceAdapter immediately instead of entering the
+              // visible reconnect loop for a permanently unavailable model.
+              if (!this.everHealthy) {
+                this.lastError = (error as Error)?.name || (error as Error)?.message || "runner-init";
+                this.resetConversation("fatal");
+                this.fatal = true;
+                this.phase = "fatal";
+                this.emit();
+                this.onUnavailable?.("runner-init");
+                handlers.onError("start-blocked");
+                handlers.onEnd();
+                return;
+              }
+              throw error;
+            }
           }
           this.runner.reset();
+          this.runnerAlias?.reset();
           await withTimeout(
             this.audio.start((frame) => this.onFrame(frame)),
             AUDIO_START_TIMEOUT_MS,
@@ -1198,7 +1310,9 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
         this.accepting = false;
         this.preRoll = [];
         this.detector.rearm();
+        this.detectorAlias?.rearm();
         this.runner.reset();
+        this.runnerAlias?.reset();
         this.phase = "idle";
         this.lastFrameAt = Date.now();
         this.armWatchdog();
@@ -1281,9 +1395,21 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
       // so the audio it scores stays contiguous — a gappy stream was missing
       // real "AYAS". We only skip attaching a fresh score-check while one is
       // already pending; that frame's result rides the runner's catch-up.
-      void this.runner.accept(frame).then((score) => {
-        if (this.phase !== "wake" || score === null) return;
-        if (this.detector.observe(score)) {
+      //
+      // When an alias model is configured (True Hands-Free UYAN sprint) it is
+      // an entirely independent runner + detector scored on the SAME frame —
+      // no shared mutable state with the primary, so running both concurrently
+      // is safe. `Promise.resolve(null)` stands in when there is no alias,
+      // which reproduces the original single-model timing/behavior exactly.
+      void Promise.all([
+        this.runner.accept(frame),
+        this.runnerAlias ? this.runnerAlias.accept(frame) : Promise.resolve(null),
+      ]).then(([primaryScore, aliasScore]) => {
+        if (this.phase !== "wake") return;
+        const primaryHit = primaryScore !== null && this.detector.observe(primaryScore);
+        const aliasHit = Boolean(this.detectorAlias) && aliasScore !== null && this.detectorAlias!.observe(aliasScore);
+        if (primaryHit || aliasHit) {
+          this.lastWakeSource = primaryHit ? this.primaryWakeLabel : this.aliasWakeLabel;
           this.tWake = Date.now();
           this.phase = "capturing";
           const carried = this.preRoll;
@@ -1489,6 +1615,11 @@ export class WakeWordVoiceAdapter implements AyasVoicePlatform {
     }
     try {
       this.runner.dispose();
+    } catch {
+      /* ignore */
+    }
+    try {
+      this.runnerAlias?.dispose();
     } catch {
       /* ignore */
     }

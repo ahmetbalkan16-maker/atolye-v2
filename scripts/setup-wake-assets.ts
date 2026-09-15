@@ -6,9 +6,13 @@
  *                  Apache-2.0) — copied from a local openWakeWord install or
  *                  fetched from the openWakeWord GitHub release
  *
- * `public/wake/ayas.onnx` is produced separately by
- * `scripts/wake/train_ayas_wake.py` (the trained wake model). Both dirs are
- * gitignored; run this after `npm install` / on a fresh checkout.
+ * `public/wake/ayas.onnx` is the currently deployed acoustic model.
+ * `public/wake/uyan.onnx` is an optional future candidate; merely generating
+ * or staging it does not make acoustic UYAN a shipped capability. Both are
+ * produced separately by
+ * `scripts/wake/train_ayas_wake.py --word <uyan|ayas>` (the trained wake
+ * models). Both dirs are gitignored; run this after `npm install` / on a
+ * fresh checkout.
  *
  *   npx tsx scripts/setup-wake-assets.ts
  */
@@ -89,12 +93,17 @@ async function main(): Promise<void> {
     }
   }
 
-  const ayas = path.join(WAKE_DST, "ayas.onnx");
-  if (await exists(ayas)) {
-    const s = await stat(ayas);
-    console.log(`wake  ayas.onnx present (${(s.size / 1024).toFixed(0)} KB)`);
-  } else {
-    console.log("wake  ayas.onnx NOT present — train it: python scripts/wake/train_ayas_wake.py");
+  // AYAS is the currently deployed acoustic model. UYAN remains an optional
+  // candidate until a separately trained asset passes physical validation.
+  // Presence here is reported for staging diagnostics only.
+  for (const word of ["uyan", "ayas"] as const) {
+    const model = path.join(WAKE_DST, `${word}.onnx`);
+    if (await exists(model)) {
+      const s = await stat(model);
+      console.log(`wake  ${word}.onnx present (${(s.size / 1024).toFixed(0)} KB)`);
+    } else {
+      console.log(`wake  ${word}.onnx NOT present — train it: python scripts/wake/train_ayas_wake.py --word ${word}`);
+    }
   }
   console.log("done.");
 }

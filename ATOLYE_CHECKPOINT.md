@@ -1,5 +1,25 @@
 ---
 
+## AYAS Brain Mobile Voice Hardening — PHYSICAL ACCEPTANCE PASSED / READY TO COMMIT — 2026-09-15
+
+- `/brain` voice readiness now has one canonical state shared by Presence Card and Command Center.
+  Initialization is bounded to 8 seconds; an unavailable wake engine falls back to the browser
+  adapter where supported and otherwise exposes a truthful permission/unsupported/error state.
+- The explicit voice action requests microphone access in the originating user gesture, then resumes
+  AudioContext/STT without waiting behind model import. Browser SpeechRecognition lifecycle events are
+  tracked internally; normal speech completion is not classified as a reconnect failure, and final
+  transcripts continue through the existing AYAS reasoning/response/TTS path.
+- The deployed acoustic model remains truthfully identified as AYAS. Text invocation keeps UYAN as the
+  preferred intent plus HEY UYAN, AYAS, HEY AYAS, AYA, HEY AYA and ATÖLYE aliases. No unvalidated
+  acoustic-UYAN capability is presented in product UI.
+- SSR/client hydration uses a stable first render for browser-only lifecycle state. Temporary VOICE
+  DEBUG UI was removed after physical acceptance; safe internal adapter/error/event/elapsed diagnostics
+  remain available to tests and runtime code.
+- Physical phone acceptance passed: initialization, immediate microphone flow, transcript, AYAS
+  response and repeated speaking all worked. Execution Gate remained CLOSED. Nineteen relevant smoke
+  suites passed (429 scenarios), TypeScript/build passed, lint had 0 errors (22 pre-existing unrelated
+  warnings), and `git diff --check` passed. No production data, authority, or execution policy changed.
+
 ## AYAS Wake Word + Phone Access + Premium 3D Brain Orb Master Sprint — IMPLEMENTED / READY TO COMMIT (not committed) — 2026-09-15
 
 - **Wake alias resolver** (`src/components/brain/ayasVoice.ts` —

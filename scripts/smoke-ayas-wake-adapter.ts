@@ -41,6 +41,14 @@ const settle = async (n = 10) => {
   for (let i = 0; i < n; i += 1) await tick();
 };
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const waitForMic = async (
+  adapter: WakeWordVoiceAdapter,
+  expected: ReturnType<WakeWordVoiceAdapter["getStatus"]>["mic"],
+  timeoutMs = 500,
+) => {
+  const deadline = Date.now() + timeoutMs;
+  while (adapter.getStatus().mic !== expected && Date.now() < deadline) await wait(5);
+};
 /**
  * Fast drain — `setImmediate` has no 15 ms Windows timer granularity, so the
  * conversation-timeout scenarios can use small `conversationIdleMs` values
@@ -156,6 +164,13 @@ class FakeRunner implements WakeRunnerLike {
       maxConcurrentInference: this.maxConcurrent,
       frames: this.nAccept,
     };
+  }
+}
+
+class FailingRunner extends FakeRunner {
+  override async init() {
+    this.inits += 1;
+    throw new Error("wake-model-missing");
   }
 }
 
@@ -438,6 +453,25 @@ async function run() {
     a.retryNow();
     await settle(15);
     assert.equal(a.getStatus().mic, "on", "a tap recovered the wake engine");
+    a.dispose();
+  });
+
+  await scenario("TEST G1 — missing wake model falls back immediately; it is never mislabeled as a mic reconnect", async () => {
+    const reasons: string[] = [];
+    const backend = new FakeBackend();
+    const a = new WakeWordVoiceAdapter({
+      audioBackend: backend,
+      runner: new FailingRunner(),
+      tts: fakeTts(),
+      transcribe: async () => "x",
+      onUnavailable: (reason) => reasons.push(reason),
+    });
+    const c = collectHandlers();
+    a.startListening("tr-TR", c.handlers);
+    await settle(15);
+    assert.deepEqual(reasons, ["runner-init"]);
+    assert.equal(a.getStatus().mic, "fatal");
+    assert.notEqual(a.getStatus().mic, "paused");
     a.dispose();
   });
 
@@ -755,7 +789,7 @@ async function run() {
     backend.recoverResult = false;
     backend.failStartsRemaining = 99;
     fireVisibility("visible"); // triggers resumeOrRebuild → ensureAudio → fails
-    await settle(30);
+    await waitForMic(a, "paused");
     const st = a.getStatus();
     assert.equal(st.mic, "paused", `paused, not fatal (got ${st.mic})`);
     assert.equal(unavailable, 0, "NEVER falls back to the browser adapter mid-session");
@@ -789,7 +823,7 @@ async function run() {
     backend.recoverResult = false;
     backend.failStartsRemaining = 99;
     fireVisibility("visible");
-    await settle(20);
+    await waitForMic(a, "paused");
     assert.equal(a.getStatus().mic, "paused");
 
     backend.recoverResult = true;

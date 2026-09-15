@@ -1,13 +1,22 @@
 #!/usr/bin/env python3
 """
-Train a real openWakeWord "AYAS" model (Voice Closure Sprint).
+Train a real openWakeWord wake model — "AYAS" or "UYAN" (Voice Closure Sprint;
+generalised so a future UYAN candidate can be trained and validated separately).
 
 Deterministic, self-contained, CPU-friendly. Positives + most negatives are
 synthesised locally with the repo's Piper Turkish voice (bin/piper); false-
 positive rate is measured against openWakeWord's 11.3 h precomputed validation
 feature set.
 
-  python scripts/wake/train_ayas_wake.py --steps 8000 --n-pos 1400 --out public/wake/ayas.onnx
+  python scripts/wake/train_ayas_wake.py --word ayas --steps 18000 --n-pos 1600 --out public/wake/ayas.onnx
+  python scripts/wake/train_ayas_wake.py --word uyan --steps 18000 --n-pos 1600 --out public/wake/uyan.onnx
+
+`--word` defaults to `ayas` — running with no arguments reproduces the exact
+original AYAS pipeline byte-for-byte (same texts, same SEED, same output path).
+`uyan` selects a second, independent positive/adversarial text set for a
+candidate acoustic model; it is not a shipped capability until physical
+validation is complete. Everything else (synthesis, feature extraction,
+training loop, FP validation, export) is shared, unchanged code.
 
 Honest limits (reported, not hidden):
   * one TTS voice -> synthetic-only positives. Real-speaker recall is unknown
@@ -70,6 +79,28 @@ POSITIVE_TEXTS = [
     "AYAS", "AYAS.", "AYAS?", "hey AYAS", "AYAS bak", "AYAS dinle",
     "AYAS lütfen", "AYAS merhaba", "AYAS neredesin", "AYAS uyan",
 ]
+
+# --- UYAN — optional acoustic candidate; requires separate physical validation ---
+# Phase 7's required adversarial set: phonetic near-misses that must NOT fire —
+# "uyandım" / "uyanık" / "duyan" plus siblings sharing the same root/rhyme.
+ADVERSARIAL_UYAN = [
+    "uyandım", "uyanık", "duyan", "uyandır", "uyanmış", "uyansın", "uyanamadım",
+    "uyanacağım", "duyuyorum", "duydum", "duyar", "oyun", "uyum", "uzan", "uzun",
+    "uyuyan", "boyan", "koyan", "soyan", "doyan", "uyku", "uyandırma",
+]
+POSITIVE_TEXTS_UYAN = [
+    "UYAN", "UYAN.", "UYAN?", "hey UYAN", "UYAN bak", "UYAN dinle",
+    "UYAN lütfen", "UYAN merhaba", "UYAN neredesin", "UYAN AYAS",
+]
+
+# word key -> (positive texts, EXTRA adversarial negatives, ONNX class_mapping,
+# text passed to openWakeWord's own generate_adversarial_texts()). TR_FILLER /
+# TR_WORDS / noise negatives are shared across every word — generic Turkish
+# speech + silence any wake model must reject.
+WORD_CONFIGS = {
+    "ayas": {"positives": POSITIVE_TEXTS, "adversarial": ADVERSARIAL, "class_mapping": "ayas", "gen_word": "AYAS"},
+    "uyan": {"positives": POSITIVE_TEXTS_UYAN, "adversarial": ADVERSARIAL_UYAN, "class_mapping": "uyan", "gen_word": "UYAN"},
+}
 
 
 def _piper_batch(piper_dir: Path, lines: list[str], out_dir: Path, length_scale: float, noise: float):
@@ -174,10 +205,16 @@ def windows(emb: np.ndarray, w: int = 16) -> np.ndarray:
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--word", default="ayas", choices=sorted(WORD_CONFIGS), help="which wake word to train")
     ap.add_argument("--steps", type=int, default=8000)
     ap.add_argument("--n-pos", type=int, default=1400)
-    ap.add_argument("--out", default=str(REPO / "public" / "wake" / "ayas.onnx"))
+    ap.add_argument("--out", default=None, help=f"default: public/wake/<word>.onnx")
     args = ap.parse_args()
+    cfg = WORD_CONFIGS[args.word.lower()]
+    if args.out is None:
+        args.out = str(REPO / "public" / "wake" / f"{args.word.lower()}.onnx")
+    positive_texts = cfg["positives"]
+    adversarial_base = cfg["adversarial"]
 
     random.seed(SEED)
     np.random.seed(SEED)
@@ -194,15 +231,15 @@ def main():
     import shutil
     shutil.copytree(PIPER_SRC, ascii_piper)
 
-    per_pos = max(1, args.n_pos // (len(POSITIVE_TEXTS) * 6))
-    print(f"[1/5] synthesising positives (~{args.n_pos})...", flush=True)
-    pos_clips = synth_set(ascii_piper, POSITIVE_TEXTS, per_pos, rng, 2.75, "pos")
+    per_pos = max(1, args.n_pos // (len(positive_texts) * 6))
+    print(f"[1/5] synthesising positives (~{args.n_pos}) for word={args.word.upper()}...", flush=True)
+    pos_clips = synth_set(ascii_piper, positive_texts, per_pos, rng, 2.75, "pos")
 
     print("[2/5] synthesising negatives...", flush=True)
     try:
-        adv = list(dict.fromkeys(ADVERSARIAL + list(generate_adversarial_texts("AYAS", 40))))
+        adv = list(dict.fromkeys(adversarial_base + list(generate_adversarial_texts(cfg["gen_word"], 40))))
     except Exception:
-        adv = ADVERSARIAL
+        adv = adversarial_base
     neg_clips = np.concatenate([
         synth_set(ascii_piper, TR_FILLER + TR_WORDS, 4, rng, 2.75, "neg-filler"),
         synth_set(ascii_piper, adv, 4, rng, 2.75, "neg-adv"),
@@ -292,7 +329,7 @@ def main():
     print("[5/5] exporting + validating...", flush=True)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     model.model.eval()
-    model.export_to_onnx(args.out, class_mapping="ayas")
+    model.export_to_onnx(args.out, class_mapping=cfg["class_mapping"])
     try:  # consolidate any external-data split into one file (browser onnxruntime-web)
         import onnx as _onnx
         _m = _onnx.load(args.out, load_external_data=True)

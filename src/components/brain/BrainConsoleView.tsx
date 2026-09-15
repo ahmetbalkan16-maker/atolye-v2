@@ -23,7 +23,13 @@ import {
   type BrainCoreState,
   type BrainPanelId,
 } from "./brainCore";
-import { describeAyasVoiceState, type AyasVoiceCapability, type AyasVoiceState } from "./ayasVoice";
+import {
+  describeAyasVoiceState,
+  type AyasMicPermissionState,
+  type AyasVoiceCapability,
+  type AyasVoiceReadiness,
+  type AyasVoiceState,
+} from "./ayasVoice";
 import { BrainSelfHealingPanel, type BrainReportPanelHandlers } from "./BrainSelfHealingPanel";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
@@ -55,6 +61,14 @@ export interface BrainConsoleVoiceView {
   readonly conversationActive?: boolean;
   /** Why the last conversation session closed — shown as a small diagnostic note. */
   readonly conversationClosedReason?: string | null;
+  /**
+   * Mobile Voice Regression sprint — `true` until the voice platform has
+   * attached at least once. Never treated as "unsupported" while this holds.
+   */
+  readonly initializing?: boolean;
+  readonly readiness?: AyasVoiceReadiness;
+  /** Best-effort; `"unknown"` on Safari/WebKit, which cannot be queried at all. */
+  readonly micPermission?: AyasMicPermissionState;
   /** Mic button — enable / recapture (single-shot) / toggle off (continuous). */
   readonly onToggleListening?: () => void;
   /** Explicit "turn voice off" — the "dinlemeyi kapat" link. */
@@ -253,7 +267,7 @@ function stateCharacter(state: BrainCoreState): string {
     working: "Güçlü ama kontrollü aktivite — worker cycle işliyor.",
     warning: "Dikkat gerekiyor — onay veya inceleme bekleyen bir durum var.",
     error: "Bir okuma başarısız — ayrıntıları kontrol et.",
-    listening: "\"AYAS\" duyuldu — sesli komut alınıyor.",
+    listening: "\"UYAN\" (\"AYAS\") duyuldu — sesli komut alınıyor.",
     speaking: "AYAS yanıtını sesli okuyor (yerel).",
     autonomous: "Otonom döngü gözlemliyor ve öneri taslağı hazırlıyor — yürütme yok.",
     offline: "Bağlantı yok — çekirdek düşük enerjide, sakin bekliyor.",
@@ -269,8 +283,8 @@ function stateCharacter(state: BrainCoreState): string {
  * into the EXISTING chat/voice experience (`onStartConversation`), never a new
  * parallel one. The transport is never named here.
  */
-function AyasPresenceCard(props: BrainConsoleViewProps) {
-  const presence = deriveAyasPresence({
+function presenceFromProps(props: BrainConsoleViewProps) {
+  return deriveAyasPresence({
     connectivity: props.connectivity ?? "online",
     secureContext: props.secureContext ?? true,
     executionGate: props.snapshot.executionGate,
@@ -284,9 +298,16 @@ function AyasPresenceCard(props: BrainConsoleViewProps) {
           recovering: props.voice.recovering,
           paused: props.voice.paused,
           conversationActive: props.voice.conversationActive,
+          initializing: props.voice.initializing,
+          micPermission: props.voice.micPermission,
+          readiness: props.voice.readiness,
         }
       : undefined,
   });
+}
+
+function AyasPresenceCard(props: BrainConsoleViewProps) {
+  const presence = presenceFromProps(props);
 
   const rows: AyasPresenceRow[] = [presence.voice, presence.mobile, presence.security];
   const interrupted = props.voiceSessionInterrupted === true && !props.voice?.listening;
@@ -311,7 +332,7 @@ function AyasPresenceCard(props: BrainConsoleViewProps) {
 
       {interrupted ? (
         <p className="bc-presence__notice" data-testid="bc-presence-interrupted">
-          AYAS ses bağlantısını yeniden kuruyor. Devam etmek için ekrana dokun.
+          Önceki sesli oturum kesildi. Sürdürmek için aşağıdaki düğmeye dokun.
         </p>
       ) : null}
 
@@ -506,6 +527,8 @@ function PanelBody(props: BrainConsoleViewProps) {
 function ChatPanel(props: BrainConsoleViewProps) {
   const { messages, voice } = props;
   const voiceInfo = voice ? describeAyasVoiceState(voice.state) : undefined;
+  const voiceReadiness: AyasVoiceReadiness | undefined = voice?.readiness;
+  const voicePresence = presenceFromProps(props).voice;
   const needsDisclosure =
     voice && voice.capability.stt && voice.capability.sttCloudBacked && !voice.disclosureAccepted;
   const llmLive = props.modelConfigured && props.lastReplySource !== "fallback";
@@ -543,7 +566,7 @@ function ChatPanel(props: BrainConsoleViewProps) {
       {voice && voiceInfo ? (
         <p className="bc-voice" data-voice={voice.state} data-testid="bc-voice">
           <span className="bc-voice__dot" aria-hidden="true" />
-          Ses: {voiceInfo.tr}
+          Ses: {voicePresence.value}
           {voice.conversationActive ? (
             <span className="bc-voice__session" data-testid="bc-voice-session">
               Konuşma aktif
@@ -553,14 +576,14 @@ function ChatPanel(props: BrainConsoleViewProps) {
               son oturum: {voice.conversationClosedReason}
             </span>
           ) : null}
-          {voice.capability.stt && !voice.listening && !needsDisclosure ? (
+          {voice.capability.stt && !voice.listening && !needsDisclosure && voiceReadiness !== "initializing" ? (
             <button
               type="button"
               className="bc-link"
               onClick={voice.onToggleListening}
               data-testid="bc-voice-toggle"
             >
-              dinlemeyi aç
+              {voiceReadiness === "permission-needed" ? "Mikrofonu Etkinleştir" : "dinlemeyi aç"}
             </button>
           ) : null}
           {voice.listening ? (
@@ -575,7 +598,7 @@ function ChatPanel(props: BrainConsoleViewProps) {
           ) : null}
           {voice.listening && voice.recognitionMode === "single-shot" ? (
             <span className="bc-voice__hint" data-testid="bc-voice-hint">
-              iPhone: mikrofona dokun, tek nefeste “AYAS, …” de.
+              iPhone: mikrofona dokun, tek nefeste “UYAN, …” de.
             </span>
           ) : null}
           {voice.capability.tts ? (
@@ -629,12 +652,19 @@ function ChatPanel(props: BrainConsoleViewProps) {
         <button
           className={`bc-mic${voice?.listening ? " bc-mic--live" : ""}`}
           type="button"
-          onClick={voice?.capability.stt ? voice.onToggleListening : undefined}
-          aria-disabled={voice?.capability.stt ? undefined : "true"}
+          onClick={voice?.capability.stt && !needsDisclosure ? voice.onToggleListening : undefined}
+          aria-disabled={voice?.capability.stt && !needsDisclosure ? undefined : "true"}
           aria-pressed={voice?.listening ? "true" : "false"}
           title={
-            voice?.capability.stt
-              ? "Sesli mod: \"AYAS\" diyerek seslen"
+            needsDisclosure
+              ? "Sesli modu açmadan önce bilgilendirmeyi kabul et"
+              : voice?.capability.stt
+              ? // Hands-free (wake-engine) is the on-device openWakeWord AUDIO
+                // model, trained only on "AYAS" — every other mode goes through
+                // the text alias resolver, where "UYAN" (primary) genuinely works.
+                voice.recognitionMode === "wake-engine"
+                ? "Sesli mod: \"AYAS\" diyerek seslen"
+                : "Sesli mod: \"UYAN\" diyerek seslen"
               : "Bu tarayıcıda konuşma tanıma yok — metin sohbeti çalışır"
           }
           data-testid="bc-mic"

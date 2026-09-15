@@ -475,8 +475,11 @@ export function BrainCoreConsole({
     setActivePanel("chat");
     dismissInterrupted();
     const v = voiceRef.current;
+    // Browser-provider STT keeps its existing explicit disclosure gate. The
+    // first tap opens Chat; after acceptance, the mic control starts capture.
+    if (v.capability.sttCloudBacked && !v.disclosureAccepted) return;
     // A paused wake pipeline: this click is the gesture that lets iOS hand the
-    // mic back — retry now rather than toggling listening.
+    // mic back — retry now rather than waiting for the next backoff interval.
     if (v.voicePaused) {
       v.retryVoice();
       return;
@@ -511,16 +514,6 @@ export function BrainCoreConsole({
     dismissInterrupted();
     voiceRef.current.stopListening();
   }, [setVoiceIntent, dismissInterrupted]);
-
-  // After a reload interrupted a voice session, the FIRST touch anywhere on the
-  // page is the user activation iOS needs — resume from it, so the operator
-  // never has to hunt for the CTA. (One-shot; the CTA still works too.)
-  useEffect(() => {
-    if (!lifecycle.voiceSessionInterrupted) return;
-    const resume = () => startConversation();
-    window.addEventListener("pointerdown", resume, { once: true, capture: true });
-    return () => window.removeEventListener("pointerdown", resume, { capture: true } as EventListenerOptions);
-  }, [lifecycle.voiceSessionInterrupted, startConversation]);
 
   const restingState = useMemo(() => deriveBrainCoreState(snapshot), [snapshot]);
   const autonomousWaiting = (initialAutonomous?.awaitingApprovalCount ?? 0) > 0;
@@ -590,6 +583,9 @@ export function BrainCoreConsole({
         paused: voice.voicePaused,
         conversationActive: voice.conversationActive,
         conversationClosedReason: voice.conversationClosedReason,
+        initializing: voice.initializing,
+        readiness: voice.readiness,
+        micPermission: voice.micPermission,
         onToggleListening: voice.toggleListening,
         onStopListening: stopListening,
         onToggleMute: voice.toggleMute,

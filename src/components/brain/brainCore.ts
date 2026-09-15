@@ -6,7 +6,7 @@
  * is testable without a browser.
  */
 
-import type { AyasVoiceState } from "./ayasVoice";
+import { resolveAyasVoiceReadiness, type AyasMicPermissionState, type AyasVoiceReadiness, type AyasVoiceState } from "./ayasVoice";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { BrainTaskStatus } from "@/types/brainWorker";
 import type { AyasChatComplexity } from "@/lib/ayas/model/AyasModelTypes";
@@ -115,7 +115,7 @@ export const BRAIN_CORE_STATES: Readonly<Record<BrainCoreState, BrainCoreStateIn
       label: "Listening",
       tr: "Dinliyor",
       description: "AYAS heard the wake word and is capturing a spoken command.",
-      characterTr: "\"AYAS\" duyuldu — sesli komut alınıyor.",
+      characterTr: "\"UYAN\" (\"AYAS\") duyuldu — sesli komut alınıyor.",
       intensity: 0.7,
       hue: "cyan",
     },
@@ -216,6 +216,16 @@ export interface AyasPresenceInput {
      * skip the wake word (Conversation Session Mode).
      */
     readonly conversationActive?: boolean;
+    /**
+     * Mobile Voice Regression sprint — `true` until the voice platform has
+     * attached at least once. Distinct from "unsupported": a device is never
+     * classified as having no voice just because this is still `true`.
+     */
+    readonly initializing?: boolean;
+    /** Best-effort; `"unknown"` on Safari/WebKit, which cannot be queried at all. */
+    readonly micPermission?: AyasMicPermissionState;
+    /** Canonical live readiness supplied by useAyasVoice. */
+    readonly readiness?: AyasVoiceReadiness;
   };
 }
 
@@ -270,33 +280,57 @@ export function deriveAyasPresence(input: AyasPresenceInput): AyasPresenceView {
   const statusTr = offline ? "ÇEVRİM DIŞI" : degraded ? "BAĞLANTI ZAYIF" : "ÇEVRİM İÇİ";
   const statusTone: "ok" | "warn" | "off" = offline ? "off" : degraded ? "warn" : "ok";
 
-  const hasVoice = Boolean(input.voice && (input.voice.ttsAvailable || input.voice.sttAvailable));
+  // Mobile Voice Regression sprint — a closed, truthful set of voice states.
+  // Crucially distinguishes "still detecting" (transient) and "permission
+  // issue" (actionable) from "genuinely unsupported" (permanent) — collapsing
+  // all three into one "Bu cihazda ses yok" message was itself the bug: a
+  // slow/hung capability check on a real device looked identical to a device
+  // that could never have voice at all.
+  const readiness =
+    input.voice?.readiness ??
+    resolveAyasVoiceReadiness({
+      initializing: Boolean(input.voice?.initializing),
+      sttAvailable: Boolean(input.voice?.sttAvailable),
+      ttsAvailable: Boolean(input.voice?.ttsAvailable),
+      micPermission: input.voice?.micPermission ?? "unknown",
+      error: input.voice?.state === "error",
+    });
   const handsFree = input.voice?.mode === "wake-engine";
   const voiceState = input.voice?.state ?? "idle";
   const paused = Boolean(input.voice?.paused) && !offline;
   const recovering = (Boolean(input.voice?.recovering) || paused) && !offline;
   const voice: AyasPresenceRow = offline
     ? { label: "Ses", value: "Çevrim dışı", tone: "off" }
-    : !hasVoice
-      ? { label: "Ses", value: "Bu cihazda ses yok", tone: "off" }
-      : paused
-        ? { label: "Ses", value: "AYAS ses bağlantısını yeniden kuruyor — dokunarak sürdür", tone: "warn" }
-        : recovering
-          ? { label: "Ses", value: "AYAS bağlantıyı toparlıyor", tone: "warn" }
-          : {
-            label: "Ses",
-            value: input.voice?.conversationActive
-              ? "Konuşma aktif — AYAS dinliyor"
-              : voiceState === "idle" && input.voice?.listening
-                ? handsFree
-                  // Hands-free = the on-device openWakeWord audio model, trained
-                  // ONLY on "AYAS" — the text-alias resolver (UYAN, …) does not
-                  // reach this path, so this label must not claim otherwise.
-                  ? "\"AYAS\" bekleniyor (eller serbest)"
-                  : "\"UYAN\" (\"AYAS\") bekleniyor"
-                : ayasVoicePresenceValue(voiceState),
-            tone: voiceState === "error" ? "warn" : "ok",
-          };
+    : readiness === "initializing"
+      ? { label: "Ses", value: "Sesli iletişim başlatılıyor…", tone: "off" }
+      : readiness === "unsupported"
+        ? { label: "Ses", value: "Bu cihazda ses yok", tone: "off" }
+              : readiness === "permission-denied"
+          ? { label: "Ses", value: "Mikrofon engellendi — tarayıcı ayarlarından izin ver", tone: "warn" }
+        : readiness === "error"
+          ? { label: "Ses", value: "Ses başlatılamadı — tekrar dene", tone: "warn" }
+          : paused
+            ? { label: "Ses", value: "AYAS ses bağlantısını yeniden kuruyor — dokunarak sürdür", tone: "warn" }
+            : recovering
+              ? { label: "Ses", value: "AYAS bağlantıyı toparlıyor", tone: "warn" }
+              : readiness === "stt-unsupported"
+                ? { label: "Ses", value: "Mikrofon desteklenmiyor — AYAS sesli yanıt verebilir", tone: "warn" }
+                : readiness === "permission-needed"
+                  ? { label: "Ses", value: "Mikrofon izni gerekli — etkinleştirmek için dokun", tone: "warn" }
+                  : {
+                    label: "Ses",
+                    value: input.voice?.conversationActive
+                      ? "Konuşma aktif — AYAS dinliyor"
+                      : voiceState === "idle" && input.voice?.listening
+                        ? handsFree
+                          // Hands-free = the on-device openWakeWord audio model, trained
+                          // ONLY on "AYAS" — the text-alias resolver (UYAN, …) does not
+                          // reach this path, so this label must not claim otherwise.
+                          ? "\"AYAS\" bekleniyor (eller serbest)"
+                          : "\"UYAN\" (\"AYAS\") bekleniyor"
+                        : ayasVoicePresenceValue(voiceState),
+                    tone: voiceState === "error" ? "warn" : "ok",
+                  };
 
   const mobile: AyasPresenceRow = offline
     ? { label: "Mobil", value: "Bağlantı bekleniyor", tone: "off" }
@@ -321,11 +355,16 @@ export function deriveAyasPresence(input: AyasPresenceInput): AyasPresenceView {
     ? { label: "Çevrim dışı", kind: "disabled" }
     : paused
       ? { label: "Sesli oturumu sürdür", kind: "voice" }
-      : hasVoice && input.voice?.sttAvailable && !input.voice.listening
-        ? { label: handsFree ? "Eller serbest — \"AYAS\" de" : "AYAS ile sesli konuş", kind: "voice" }
-        : input.voice?.listening
-          ? { label: "AYAS'a yaz", kind: "text" }
-          : { label: "AYAS ile konuş", kind: "text" };
+      : readiness === "permission-needed"
+        // A tap here IS the user gesture that triggers the real browser
+        // permission prompt — unlike "permission-denied", where a re-tap
+        // cannot fix it (the user must change a browser/site setting).
+        ? { label: "Mikrofonu Etkinleştir", kind: "voice" }
+        : readiness === "ready" && input.voice?.sttAvailable && !input.voice.listening
+          ? { label: handsFree ? "Eller serbest — \"AYAS\" de" : "AYAS ile sesli konuş", kind: "voice" }
+          : input.voice?.listening
+            ? { label: "AYAS'a yaz", kind: "text" }
+            : { label: "AYAS ile konuş", kind: "text" };
 
   return { online, statusTr, statusTone, voice, mobile, security, handsFree, reachHint, cta };
 }

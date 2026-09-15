@@ -141,8 +141,15 @@ export interface UseBrainLifecycleResult {
 }
 
 export function useBrainLifecycle(): UseBrainLifecycleResult {
-  // Assess once, on the client, during the first render (lazy init — not an effect).
-  const [assessment] = useState<BrainReloadAssessment>(() => {
+  // Server and the first hydration render must expose the same fixed snapshot.
+  // The client-only assessment may be prepared eagerly, but it is not consumed
+  // by rendered UI until React has completed hydration.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setHydrated(true), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+  const [clientAssessment] = useState<BrainReloadAssessment>(() => {
     if (typeof window === "undefined") return OFF_ASSESSMENT;
     const prev = parseBrainBootRecord(readSession(BRAIN_BOOT_STORAGE_KEY));
     const heartbeat = parseBrainHeartbeat(readSession(BRAIN_HEARTBEAT_KEY));
@@ -160,6 +167,7 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
       swReloadMarkerAt,
     });
   });
+  const assessment = hydrated ? clientAssessment : OFF_ASSESSMENT;
 
   const [bootId] = useState<string>(() => {
     if (typeof window === "undefined") return "ssr";
@@ -183,7 +191,7 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
   if (stateRef.current === null) {
     stateRef.current = {
       voiceActive: false,
-      voiceCycleCount: assessment.priorVoiceCycles, // carry the count across a reload
+      voiceCycleCount: clientAssessment.priorVoiceCycles, // carry the count across a reload
       voiceSessionCount: 0,
       lastPhase: "off",
       recoveryCount: 0,
@@ -395,7 +403,7 @@ export function useBrainLifecycle(): UseBrainLifecycleResult {
   return {
     assessment,
     voiceSessionInterrupted: assessment.unexpectedReload && !bfcacheRestored && !acknowledged,
-    voiceIntentPersisted,
+    voiceIntentPersisted: hydrated ? voiceIntentPersisted : false,
     getTelemetry,
     markVoiceActive,
     noteVoiceCycle,

@@ -178,6 +178,13 @@ class FakeRecognition {
   onresult: ((e: unknown) => void) | null = null;
   onerror: ((e: { error?: string }) => void) | null = null;
   onend: (() => void) | null = null;
+  onstart: (() => void) | null = null;
+  onaudiostart: (() => void) | null = null;
+  onsoundstart: (() => void) | null = null;
+  onspeechstart: (() => void) | null = null;
+  onspeechend: (() => void) | null = null;
+  onsoundend: (() => void) | null = null;
+  onaudioend: (() => void) | null = null;
   started = 0;
   startThrows = false;
   start() {
@@ -196,6 +203,16 @@ class FakeRecognition {
   emitFinal(t: string) { this.fire(t, true); }
   emitEnd() { this.onend?.(); }
   emitError(code: string) { this.onerror?.({ error: code }); }
+  emitLifecycle() {
+    this.onstart?.();
+    this.onaudiostart?.();
+    this.onsoundstart?.();
+    this.onspeechstart?.();
+    this.onspeechend?.();
+    this.onsoundend?.();
+    this.onaudioend?.();
+    this.onend?.();
+  }
 }
 
 function withFakeWindow(rec: FakeRecognition, body: () => void): void {
@@ -213,16 +230,19 @@ function withFakeWindow(rec: FakeRecognition, body: () => void): void {
 function captureHandlers() {
   const finals: string[] = [];
   const errors: string[] = [];
+  const events: string[] = [];
   let ended = 0;
   const handlers: AyasListenHandlers = {
     onFinalTranscript: (t) => finals.push(t),
     onError: (c) => errors.push(c),
     onEnd: () => { ended += 1; },
+    onEvent: (event) => events.push(event),
   };
   return {
     handlers,
     finals,
     errors,
+    events,
     get ended() { return ended; },
   };
 }
@@ -933,6 +953,21 @@ async function run() {
       new BrowserVoiceAdapter().startListening("tr-TR", captureHandlers().handlers, { singleShot: false });
       assert.equal(rec.continuous, true);
       assert.equal(rec.interimResults, false);
+    });
+  });
+
+  await scenario("adapter — reports the complete Web Speech lifecycle without classifying normal end as an error", () => {
+    const rec = new FakeRecognition();
+    withFakeWindow(rec, () => {
+      const h = captureHandlers();
+      new BrowserVoiceAdapter().startListening("tr-TR", h.handlers, { singleShot: false });
+      rec.emitLifecycle();
+      assert.deepEqual(h.events, [
+        "start", "audiostart", "soundstart", "speechstart",
+        "speechend", "soundend", "audioend", "end",
+      ]);
+      assert.deepEqual(h.errors, [], "normal speech completion is not a connection failure");
+      assert.equal(h.ended, 1);
     });
   });
 

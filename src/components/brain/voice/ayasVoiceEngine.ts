@@ -30,6 +30,7 @@ import {
   selectAyasVoice,
   stripLeadingWakeWord,
   toSpokenAyasText,
+  type AyasMicPermissionState,
   type AyasPlatformVoice,
   type AyasRecognitionMode,
   type AyasVoiceCapability,
@@ -47,7 +48,29 @@ export interface AyasListenHandlers {
   onError(code: string): void;
   /** The recogniser stopped (it stops itself periodically even when healthy). */
   onEnd(): void;
+  /**
+   * Recognition actually began — the mic is live, which can only happen once
+   * permission was granted (Mobile Voice Regression sprint: the one reliable,
+   * immediate signal that a "prompt" permission state just became "granted",
+   * with no bearing on whether the user has said anything yet). Optional —
+   * a platform that cannot observe this (none currently) simply omits it.
+   */
+  onListening?(): void;
+  /** Secret-free Web Speech lifecycle event for internal health diagnostics and tests. */
+  onEvent?(event: AyasRecognitionEvent): void;
 }
+
+export type AyasRecognitionEvent =
+  | "start"
+  | "audiostart"
+  | "soundstart"
+  | "speechstart"
+  | "result"
+  | "speechend"
+  | "soundend"
+  | "audioend"
+  | "error"
+  | "end";
 
 export interface AyasListenHandle {
   stop(): void;
@@ -99,6 +122,17 @@ export interface AyasVoicePlatform {
   speak(text: string, options: AyasSpeakOptions): AyasSpeakHandle;
   cancelSpeech(): void;
   /**
+   * Best-effort microphone permission read (Mobile Voice Regression sprint).
+   * Chromium supports `navigator.permissions.query({name:"microphone"})`;
+   * Safari/WebKit does not implement it at all — absent, or resolving to
+   * `"unknown"`, is a real platform gap, never treated as "denied". Never
+   * itself requests permission (that only ever happens from `startListening`,
+   * inside a user gesture).
+   */
+  queryMicPermission?(): Promise<AyasMicPermissionState>;
+  /** Start the real microphone permission request from a user gesture. */
+  requestMicrophonePermission?(): Promise<AyasMicPermissionState>;
+  /**
    * Release any long-lived host resource (a wake engine holds the mic +
    * AudioContext + ONNX sessions open across turns). Called when the engine is
    * disposed — `handle.stop()` between turns must NOT tear those down.
@@ -112,12 +146,22 @@ export interface AyasVoiceEngineCallbacks {
   onStateChange(state: AyasVoiceState): void;
   /** A spoken command (wake word already stripped). Text in, nothing else. */
   onCommand(text: string): void;
-  /** A recoverable error message (Turkish, user-facing). */
-  onError(message: string): void;
+  /**
+   * A recoverable error message (Turkish, user-facing). `code`, when present,
+   * is the raw `SpeechRecognition` error (`"not-allowed"`, `"no-speech"`, …)
+   * behind it — Mobile Voice Regression sprint: lets a caller reliably tell a
+   * genuine microphone-permission denial apart from every other transient
+   * error, without pattern-matching the human message text.
+   */
+  onError(message: string, code?: string): void;
   /** The wake word was just heard (before any command). */
   onWake(): void;
   /** Auto-speech was blocked by the browser; `text` can be replayed on a gesture. */
   onAutoplayBlocked(text: string): void;
+  /** Recognition actually started (mic permission granted) — see {@link AyasListenHandlers.onListening}. */
+  onListening?(): void;
+  /** Last platform recognition event, surfaced only through DEV diagnostics. */
+  onRecognitionEvent?(event: AyasRecognitionEvent, code?: string): void;
 }
 
 const RESTART_DEBOUNCE_MS = 350;
@@ -190,6 +234,19 @@ export class AyasVoiceEngine {
   }
   get voiceSelection(): AyasVoiceSelection {
     return this.selection;
+  }
+
+  /**
+   * Begin microphone permission immediately. The hook deliberately calls this
+   * before the platform's async runner/model work; the returned promise is
+   * diagnostic/permission state only and does not gate the gesture-bound start.
+   */
+  requestMicrophonePermission(): Promise<AyasMicPermissionState> {
+    try {
+      return this.platform.requestMicrophonePermission?.() ?? Promise.resolve("unknown");
+    } catch {
+      return Promise.resolve("unknown");
+    }
   }
   get recognitionMode(): AyasRecognitionMode {
     return this.mode;
@@ -272,7 +329,16 @@ export class AyasVoiceEngine {
           },
           onError: (code) => {
             if (this.isStale(gen)) return;
+            this.cb.onRecognitionEvent?.("error", code);
             this.handleRecognitionError(code);
+          },
+          onEvent: (event) => {
+            if (this.isStale(gen)) return;
+            this.cb.onRecognitionEvent?.(event);
+          },
+          onListening: () => {
+            if (this.isStale(gen)) return;
+            this.cb.onListening?.();
           },
           onEnd: () => {
             if (this.isStale(gen)) return;
@@ -378,7 +444,7 @@ export class AyasVoiceEngine {
       this.woke = false;
       this.bumpEpoch();
       this.teardownRecognition();
-      this.cb.onError(describeAyasRecognitionError(code));
+      this.cb.onError(describeAyasRecognitionError(code), code);
       this.transition("error");
       return;
     }
@@ -389,7 +455,7 @@ export class AyasVoiceEngine {
     }
     // `start-blocked` and anything else: surface it, but keep the mic armed so
     // the next tap (recaptureVoice) can retry — never a silent stuck "listening".
-    this.cb.onError(describeAyasRecognitionError(code));
+    this.cb.onError(describeAyasRecognitionError(code), code);
   }
 
   /* ---- speaking (TTS) ---- */

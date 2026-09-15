@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // `/brain` is physically retested through an ephemeral Cloudflare Quick
+  // Tunnel during `next dev`. Without this dev-only allowlist Next blocks the
+  // tunnel's cross-origin Next.js client/HMR resources; the server-rendered
+  // Brain remains visible, but its client component never hydrates and voice
+  // effects never mount. The wildcard is limited to Cloudflare's tunnel host
+  // suffix and has no production/runtime-authority effect.
+  allowedDevOrigins: ["*.trycloudflare.com"],
   turbopack: {
     root: process.cwd(),
   },

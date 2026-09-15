@@ -16,6 +16,7 @@
 import {
   detectAyasVoiceCapability,
   detectAyasSpeechRecognitionMode,
+  type AyasMicPermissionState,
   type AyasPlatformVoice,
   type AyasRecognitionMode,
   type AyasVoiceCapability,
@@ -55,6 +56,12 @@ interface SpeechRecognitionLike {
   onerror: ((event: { error?: string }) => void) | null;
   onend: (() => void) | null;
   onstart?: (() => void) | null;
+  onaudiostart?: (() => void) | null;
+  onsoundstart?: (() => void) | null;
+  onspeechstart?: (() => void) | null;
+  onspeechend?: (() => void) | null;
+  onsoundend?: (() => void) | null;
+  onaudioend?: (() => void) | null;
   start(): void;
   stop(): void;
   abort(): void;
@@ -81,10 +88,59 @@ function getSynth(): SpeechSynthesis | undefined {
   return w && "speechSynthesis" in w ? w.speechSynthesis : undefined;
 }
 
+let sharedMicrophonePermissionRequest: Promise<AyasMicPermissionState> | null = null;
+
 export class BrowserVoiceAdapter implements AyasVoicePlatform {
   detectCapability(): AyasVoiceCapability {
     const w = getWindow();
     return detectAyasVoiceCapability(w ? (w as never) : undefined);
+  }
+
+  /**
+   * Best-effort — Chromium exposes `navigator.permissions.query({name:
+   * "microphone"})`; Safari/WebKit throws or has no `permissions` object at
+   * all, in which case this resolves to `"unknown"` (a real platform gap,
+   * never reported as "denied"). Never requests permission itself.
+   */
+  async queryMicPermission(): Promise<AyasMicPermissionState> {
+    const nav = typeof navigator === "undefined" ? undefined : navigator;
+    try {
+      const status = await nav?.permissions?.query({ name: "microphone" as PermissionName });
+      if (status?.state === "granted" || status?.state === "denied" || status?.state === "prompt") {
+        return status.state;
+      }
+    } catch {
+      /* Safari/WebKit: no "microphone" permission descriptor support. */
+    }
+    return "unknown";
+  }
+
+  /**
+   * Request microphone access immediately from the caller's user gesture.
+   * The promise is shared while a prompt is open, so a gesture cannot create
+   * competing getUserMedia prompts. Tracks are stopped immediately: the
+   * actual SpeechRecognition / wake adapter remains the owner of live capture.
+   */
+  requestMicrophonePermission(): Promise<AyasMicPermissionState> {
+    if (sharedMicrophonePermissionRequest) return sharedMicrophonePermissionRequest;
+    const nav = typeof navigator === "undefined" ? undefined : navigator;
+    const mediaDevices = nav?.mediaDevices;
+    const getUserMedia = mediaDevices?.getUserMedia;
+    if (typeof getUserMedia !== "function") return Promise.resolve("unknown");
+
+    sharedMicrophonePermissionRequest = getUserMedia.call(mediaDevices, { audio: true })
+      .then((stream) => {
+        for (const track of stream.getTracks()) track.stop();
+        return "granted" as const;
+      })
+      .catch((error: unknown) => {
+        const name = error && typeof error === "object" && "name" in error ? String(error.name) : "";
+        return name === "NotAllowedError" || name === "PermissionDeniedError" ? "denied" : "unknown";
+      })
+      .finally(() => {
+        sharedMicrophonePermissionRequest = null;
+      });
+    return sharedMicrophonePermissionRequest;
   }
 
   recognitionMode(): AyasRecognitionMode {
@@ -152,6 +208,7 @@ export class BrowserVoiceAdapter implements AyasVoicePlatform {
     let lastInterim = "";
 
     recognition.onresult = (event) => {
+      handlers.onEvent?.("result");
       let final = "";
       let interim = "";
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
@@ -169,8 +226,26 @@ export class BrowserVoiceAdapter implements AyasVoicePlatform {
         lastInterim = interim;
       }
     };
-    recognition.onerror = (event) => handlers.onError(event?.error ?? "unknown");
+    recognition.onerror = (event) => {
+      handlers.onEvent?.("error");
+      handlers.onError(event?.error ?? "unknown");
+    };
+    // Fires once recognition genuinely begins — the mic is live, which can
+    // only happen after the browser's permission prompt was accepted (or was
+    // already granted from a prior visit). The one reliable, immediate signal
+    // that a "prompt" permission state just became "granted".
+    recognition.onstart = () => {
+      handlers.onEvent?.("start");
+      handlers.onListening?.();
+    };
+    recognition.onaudiostart = () => handlers.onEvent?.("audiostart");
+    recognition.onsoundstart = () => handlers.onEvent?.("soundstart");
+    recognition.onspeechstart = () => handlers.onEvent?.("speechstart");
+    recognition.onspeechend = () => handlers.onEvent?.("speechend");
+    recognition.onsoundend = () => handlers.onEvent?.("soundend");
+    recognition.onaudioend = () => handlers.onEvent?.("audioend");
     recognition.onend = () => {
+      handlers.onEvent?.("end");
       // iOS often ends without ever marking a result final — forward the last
       // interim once so a spoken command is not silently lost.
       if (singleShot && !forwardedFinal && lastInterim) {
@@ -196,6 +271,13 @@ export class BrowserVoiceAdapter implements AyasVoicePlatform {
         current.onresult = null;
         current.onerror = null;
         current.onend = null;
+        current.onstart = null;
+        current.onaudiostart = null;
+        current.onsoundstart = null;
+        current.onspeechstart = null;
+        current.onspeechend = null;
+        current.onsoundend = null;
+        current.onaudioend = null;
         try {
           current.abort();
         } catch {

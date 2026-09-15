@@ -497,10 +497,11 @@ async function run() {
     });
     assert.ok(html.includes('data-interrupted="true"'));
     assert.ok(html.includes('data-testid="bc-presence-interrupted"'));
-    // A soft "reconnecting" notice — never a scary "your session died".
-    assert.ok(/yeniden kuruyor/.test(html), "reconnecting, not 'session died'");
-    assert.ok(/ekrana dokun/.test(html), "any tap resumes it");
-    assert.doesNotMatch(html, /kesildi|yeniden yüklendi/);
+    // A truthful prior-session notice — reconnecting is reserved for a live,
+    // recoverable adapter failure and only the explicit CTA resumes capture.
+    assert.ok(/Önceki sesli oturum kesildi/.test(html));
+    assert.ok(/aşağıdaki düğmeye dokun/.test(html));
+    assert.doesNotMatch(html, /yeniden kuruyor|herhangi bir yere dokun/);
     assert.ok(/Sesli oturuma devam et/.test(html), "the CTA offers to resume");
     assert.ok(html.includes('data-cta-kind="voice"'));
     // once the user is listening again, the notice is gone
@@ -669,6 +670,10 @@ async function run() {
     });
     assert.ok(cloudStt.includes('data-testid="bc-voice-disclosure"'), "cloud STT needs an opt-in disclosure");
     assert.ok(cloudStt.includes("bulut servisine gönderir"));
+    assert.ok(
+      /aria-disabled="true"[^>]*data-testid="bc-mic"/.test(cloudStt),
+      "the composer mic cannot bypass the cloud-STT disclosure",
+    );
 
     // TTS-capable browser → auto-speech mute toggle + auto-speech note
     const ttsOnly = renderView({

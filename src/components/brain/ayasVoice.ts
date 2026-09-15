@@ -307,6 +307,63 @@ export function detectAyasVoiceCapability(win: AyasVoiceWindowLike | undefined):
 }
 
 /* ------------------------------------------------------------------------- *
+ * Mobile Voice Regression sprint — voice READINESS (pure)
+ *
+ * `AyasVoiceCapability` alone (`stt`/`tts` booleans) cannot tell a genuinely
+ * unsupported device apart from one that simply hasn't finished detecting
+ * capability yet (SSR default → client hydration), nor from a device that
+ * supports the API but has the microphone permission denied. Collapsing all
+ * of these into one "Bu cihazda ses yok" message is itself a bug — it makes
+ * a transient/recoverable state look permanent. This resolver keeps that
+ * distinction explicit and testable, independent of any single UI string.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Microphone permission as the browser reports it. Chromium exposes this via
+ * `navigator.permissions.query({name:"microphone"})`; Safari/WebKit does not
+ * implement that query at all (`"unknown"` there is a real, permanent
+ * platform gap, not a bug) — `"denied"` is instead learned the moment a
+ * recognition attempt actually fails with `not-allowed`/`service-not-allowed`.
+ */
+export type AyasMicPermissionState = "unknown" | "granted" | "denied" | "prompt";
+
+export type AyasVoiceReadiness =
+  | "initializing"
+  | "unsupported"
+  /** TTS works, STT does not (e.g. iOS Safari with no wake engine) — AYAS can still speak. */
+  | "stt-unsupported"
+  | "permission-needed"
+  | "permission-denied"
+  | "error"
+  | "ready";
+
+export interface AyasVoiceReadinessInput {
+  /** `true` until the voice platform has attached at least once — never permanent. */
+  readonly initializing: boolean;
+  readonly sttAvailable: boolean;
+  readonly ttsAvailable: boolean;
+  readonly micPermission: AyasMicPermissionState;
+  /** A platform/engine error after attachment, distinct from unsupported. */
+  readonly error?: boolean;
+}
+
+/**
+ * One of a small closed set of TRUTHFUL voice states, in priority order:
+ * still detecting → genuinely unsupported → explicitly denied → STT-only-gap
+ * → permission not yet granted (only when the browser can actually say so)
+ * → ready. Never conflates "not finished checking" with "will never work."
+ */
+export function resolveAyasVoiceReadiness(input: AyasVoiceReadinessInput): AyasVoiceReadiness {
+  if (input.initializing) return "initializing";
+  if (!input.sttAvailable && !input.ttsAvailable) return "unsupported";
+  if (input.micPermission === "denied") return "permission-denied";
+  if (input.error) return "error";
+  if (!input.sttAvailable) return "stt-unsupported";
+  if (input.micPermission === "prompt") return "permission-needed";
+  return "ready";
+}
+
+/* ------------------------------------------------------------------------- *
  * Recognition mode (pure)
  *
  * iOS (Safari + every iOS browser — all WebKit) implements
