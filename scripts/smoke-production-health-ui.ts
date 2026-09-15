@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 import {
   ProductionHealthPanelView,
   loadProductionHealthUiState,
@@ -13,7 +14,7 @@ import type { ProductionHealthReport } from "../src/lib/production/ProductionHea
 const slug = "sprint-95-7-health-ui";
 const evaluatedAt = "2026-07-11T19:00:00.000Z";
 
-async function main() {
+async function runScenarios() {
   const baseReport = await ProductionHealthService.getProductionHealth({
     projectSlug: slug,
     evaluatedAt,
@@ -110,6 +111,17 @@ async function main() {
   });
 
   console.log("Sprint 95.7 production health UI smoke: PASS (10 scenarios)");
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime(
+    {
+      name: "production-health-ui",
+      projectSlug: slug,
+      configureProductionExecution: false,
+    },
+    runScenarios,
+  );
 }
 
 function render(state: ProductionHealthUiState) {

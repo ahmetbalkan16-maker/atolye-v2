@@ -16,6 +16,7 @@ import path from "node:path";
 
 import { ProjectReader } from "@/lib/projects/ProjectReader";
 import { PipelineRecoveryPlanner } from "@/lib/pipeline/PipelineRecoveryPlanner";
+import { findAyasProductionProjects, summarizeAyasProductionProjects, type AyasCatalogProjectStatus } from "../AyasProjectCatalog";
 import type { AyasExecutionActionId, AyasExecutionRequest } from "./AyasExecutionPolicy";
 import { AYAS_DEVELOPER_EXECUTORS } from "./AyasDeveloperEvidence";
 import { AyasActionValidationError, type AyasExecutor, type AyasExecutorResult } from "./AyasActionContracts";
@@ -283,12 +284,80 @@ async function searchProjectSource(request: AyasExecutionRequest): Promise<AyasE
   return { action: "search-project-source", write: false, summary: `"${query}" için ${results.length} sınırlı kaynak eşleşmesi bulundu.`, data: { query, results, resultLimit: MAX_SEARCH_RESULTS, visitedFiles: visited, truncated: results.length >= MAX_SEARCH_RESULTS || visited >= MAX_SEARCH_FILES } };
 }
 
+const KNOWN_CATALOG_STATUSES: ReadonlySet<string> = new Set([
+  "draft", "research", "script", "scenes", "visuals", "animation", "video", "audio",
+  "assembly", "thumbnail", "seo", "voice", "youtube", "export", "completed", "unknown",
+]);
+const MAX_CATALOG_PROJECTS_RETURNED = 50;
+
+/**
+ * Production Project Catalog sprint — the one NEW enumerate/filter/summarize
+ * action this sprint adds. Reuses `AyasProjectCatalog.ts` (itself built on
+ * the existing `resolveRuntimeStorageContext`/`ProjectReader`/
+ * `PipelineRecoveryPlanner` primitives — no second project-discovery path).
+ * `projectId`/`titleContains` are untrusted query hints, never a raw
+ * filesystem path — the catalog only ever matches them against its own
+ * already-safely-resolved in-memory summaries. Runs no stage, writes
+ * nothing.
+ */
+async function listProductionProjects(request: AyasExecutionRequest): Promise<AyasExecutorResult> {
+  const statusRaw = planField(request, "status");
+  const completionStateRaw = planField(request, "completionState");
+  const resumableOnlyRaw = planField(request, "resumableOnly");
+  const titleContainsRaw = planField(request, "titleContains");
+  const projectIdRaw = planField(request, "projectId");
+  const modeRaw = planField(request, "mode");
+
+  if (statusRaw !== undefined && (typeof statusRaw !== "string" || !KNOWN_CATALOG_STATUSES.has(statusRaw))) {
+    throw new AyasActionValidationError("invalid-status", `bilinmeyen proje durumu: ${String(statusRaw)}`);
+  }
+  if (completionStateRaw !== undefined && completionStateRaw !== "completed" && completionStateRaw !== "incomplete") {
+    throw new AyasActionValidationError("invalid-completion-state", "completionState 'completed' veya 'incomplete' olmalı");
+  }
+  if (resumableOnlyRaw !== undefined && typeof resumableOnlyRaw !== "boolean") {
+    throw new AyasActionValidationError("invalid-resumable-flag", "resumableOnly boolean olmalı");
+  }
+  if (titleContainsRaw !== undefined && (typeof titleContainsRaw !== "string" || titleContainsRaw.length === 0 || titleContainsRaw.length > 200)) {
+    throw new AyasActionValidationError("invalid-query", "titleContains eksik veya çok uzun");
+  }
+  if (projectIdRaw !== undefined && (typeof projectIdRaw !== "string" || projectIdRaw.length === 0 || projectIdRaw.length > 200)) {
+    throw new AyasActionValidationError("invalid-project-id", "projectId eksik veya çok uzun");
+  }
+  if (modeRaw !== undefined && modeRaw !== "list" && modeRaw !== "summary") {
+    throw new AyasActionValidationError("invalid-mode", "mode 'list' veya 'summary' olmalı");
+  }
+
+  const filtered = await findAyasProductionProjects({
+    ...(typeof statusRaw === "string" ? { status: statusRaw as AyasCatalogProjectStatus } : {}),
+    ...(completionStateRaw === "completed" || completionStateRaw === "incomplete" ? { completionState: completionStateRaw } : {}),
+    ...(resumableOnlyRaw === true ? { resumableOnly: true } : {}),
+    ...(typeof titleContainsRaw === "string" ? { titleContains: titleContainsRaw } : {}),
+    ...(typeof projectIdRaw === "string" ? { projectId: projectIdRaw } : {}),
+  });
+  const summary = summarizeAyasProductionProjects(filtered);
+  const summaryOnly = modeRaw === "summary";
+  const truncated = filtered.length > MAX_CATALOG_PROJECTS_RETURNED;
+  const bounded = truncated ? filtered.slice(0, MAX_CATALOG_PROJECTS_RETURNED) : filtered;
+
+  return {
+    action: "list-production-projects",
+    write: false,
+    summary: `${filtered.length} proje eşleşti (tamamlanan: ${summary.completedCount}, yarım/devam eden: ${summary.incompleteCount}, devam edilebilir: ${summary.resumableCount}).`,
+    data: {
+      matchCount: filtered.length,
+      summary,
+      ...(summaryOnly ? {} : { projects: bounded, truncated }),
+    },
+  };
+}
+
 const EXECUTORS: Readonly<Record<AyasExecutionActionId, AyasExecutor>> = Object.freeze({
   "inspect-project": inspectProject,
   "pipeline-recovery-plan": pipelineRecoveryPlan,
   "read-project-document": readProjectDocument,
   "inspect-source-file": inspectSourceFile,
   "search-project-source": searchProjectSource,
+  "list-production-projects": listProductionProjects,
   ...AYAS_DEVELOPER_EXECUTORS,
 });
 

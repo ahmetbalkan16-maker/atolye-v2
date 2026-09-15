@@ -142,6 +142,57 @@ async function* streamAyasChat(input: StreamAyasChatInput) {
   yield* productionStreamAyasChat({ ...input, memoryStore: input.memoryStore ?? { rootDir: root } });
 }
 
+/**
+ * Production Project Catalog sprint (Scenarios H/I/J) — the same
+ * `ATOLYE_RUNTIME_ROOT` env-scoped sandbox idiom `smoke-ayas-project-catalog
+ * .ts` uses, duplicated locally (small, script-local, not exported there) so
+ * a real dispatch through `attemptAyasToolDispatch` → the REAL
+ * `list-production-projects` executor → `AyasProjectCatalog.ts` reads real
+ * fixture fs state instead of this machine's actual production data.
+ * `manifest.json` is deliberately omitted — these scenarios only assert
+ * count/filter correctness, never `resumable`/`resumeCandidateStage`
+ * (already covered by `smoke-ayas-project-catalog.ts` Scenario D), so a
+ * missing manifest simply leaves `resumable: false` rather than needing to
+ * fabricate valid stage output.
+ */
+function writeCatalogProject(root: string, dir: string, record: Record<string, unknown>) {
+  const folder = path.join(root, "projects", dir);
+  fs.mkdirSync(folder, { recursive: true });
+  fs.writeFileSync(path.join(folder, "project.json"), JSON.stringify(record));
+}
+
+function writeCatalogAsset(root: string, dir: string, relPath: string, content = "x") {
+  const full = path.join(root, "projects", dir, relPath);
+  fs.mkdirSync(path.dirname(full), { recursive: true });
+  fs.writeFileSync(full, content);
+}
+
+async function withCatalogRuntimeRoot<T>(build: (root: string) => void, run: () => Promise<T>): Promise<T> {
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-reasoning-catalog-"));
+  const runtimeRoot = path.join(sandbox, "runtime");
+  fs.mkdirSync(path.join(runtimeRoot, "projects"), { recursive: true });
+  const prev = process.env.ATOLYE_RUNTIME_ROOT;
+  process.env.ATOLYE_RUNTIME_ROOT = runtimeRoot;
+  try {
+    build(runtimeRoot);
+    return await run();
+  } finally {
+    if (prev === undefined) delete process.env.ATOLYE_RUNTIME_ROOT;
+    else process.env.ATOLYE_RUNTIME_ROOT = prev;
+    fs.rmSync(sandbox, { recursive: true, force: true });
+  }
+}
+
+/** Builds the 3-project fixture shared by Scenarios H/I/J: 1 completed (with a real video), 2 incomplete. */
+function buildThreeProjectFixture(root: string) {
+  writeCatalogProject(root, "finished-doc", { id: "finished-doc", title: "Bitmiş Belgesel", status: "completed", updatedAt: "2026-09-01T00:00:00.000Z" });
+  writeCatalogAsset(root, "finished-doc", "export/bundle/video.mp4");
+
+  writeCatalogProject(root, "half-done", { id: "half-done", title: "Yarım Kalan Proje", status: "visuals", updatedAt: "2026-09-02T00:00:00.000Z" });
+
+  writeCatalogProject(root, "just-started", { id: "just-started", title: "Yeni Başlayan Proje", status: "draft", updatedAt: "2026-09-03T00:00:00.000Z" });
+}
+
 async function run() {
   /* ---------------- complexity gate ---------------- */
 
@@ -847,6 +898,141 @@ async function run() {
     // Gate/Authorization/Bridge symbols (see the file header), so there is
     // structurally nothing here that could flip it.
     assert.equal(snapshot.executionGate, "CLOSED");
+  });
+
+  /* ---------------- PRODUCT PROJECT CATALOG — real conversation-path E2E (Production Project Catalog + Resume Awareness sprint, Scenarios H/I/J) ---------------- */
+
+  await scenario("PRODUCT CATALOG — H: 'Kaç projem var?' dispatches list-production-projects and grounds on the REAL total count", async () => {
+    await withCatalogRuntimeRoot(buildThreeProjectFixture, async () => {
+      const provider = mockProviderSequence([
+        okJson({ requiredTools: [], answer: "Proje sayısını kontrol etmem gerekiyor." }), // model names nothing — deterministic candidate must still fire
+        "Toplam 3 projen var.",
+      ]);
+      const events: { type: string; actionTrace?: { tool: string; executed: boolean } }[] = [];
+      for await (const e of streamAyasChat({
+        text: "Kaç projem var?",
+        snapshot,
+        seq: 1,
+        route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+      })) {
+        events.push(e as never);
+      }
+      const done = events.at(-1)!;
+      assert.equal(done.actionTrace?.tool, "list-production-projects");
+      assert.equal(done.actionTrace?.executed, true);
+      assert.equal(provider.prompts.length, 2, "exactly 1 dispatch → reasoning call + 1 grounding call");
+      // The grounding call's prompt carries the REAL executor result — the
+      // fixture has exactly 3 projects (1 completed, 2 incomplete), so the
+      // real `AyasSafeExecutors.ts` summary sentence must say so, proving
+      // real data (not a guess) reached the model.
+      assert.match(provider.prompts[1]!, /3 proje eşleşti/, "grounding prompt must carry the REAL total project count");
+      assert.match(provider.prompts[1]!, /tamamlanan: 1/, "grounding prompt must carry the REAL completed count");
+    });
+  });
+
+  await scenario("PRODUCT CATALOG — I: 'Yarım kalan projeler hangileri?' dispatches with completionState:incomplete and returns the correct SUBSET", async () => {
+    await withCatalogRuntimeRoot(buildThreeProjectFixture, async () => {
+      const provider = mockProviderSequence([
+        okJson({ requiredTools: [], answer: "Yarım kalan projelere bakmam gerekiyor." }),
+        "Yarım kalan iki projen var: Yarım Kalan Proje ve Yeni Başlayan Proje.",
+      ]);
+      const events: { type: string; actionTrace?: { tool: string; executed: boolean } }[] = [];
+      for await (const e of streamAyasChat({
+        text: "Yarım kalan projeler hangileri?",
+        snapshot,
+        seq: 1,
+        route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+      })) {
+        events.push(e as never);
+      }
+      const done = events.at(-1)!;
+      assert.equal(done.actionTrace?.tool, "list-production-projects");
+      assert.equal(done.actionTrace?.executed, true);
+      // The correct SUBSET reached the grounding call: exactly the 2
+      // incomplete projects' titles present, the completed one ABSENT —
+      // the strongest available proof the real completionState:incomplete
+      // filter (not just the count) was applied correctly end to end.
+      const grounding = provider.prompts[1]!;
+      assert.match(grounding, /2 proje eşleşti/, "grounding prompt must carry the REAL incomplete-only match count");
+      assert.match(grounding, /Yarım Kalan Proje/);
+      assert.match(grounding, /Yeni Başlayan Proje/);
+      assert.doesNotMatch(grounding, /Bitmiş Belgesel/, "the completed project must be EXCLUDED from an incomplete-only result");
+    });
+  });
+
+  await scenario("PRODUCT CATALOG — J: 'Yarım kalan projelerden devam et' never bypasses the authorization/execution boundary", async () => {
+    await withCatalogRuntimeRoot(buildThreeProjectFixture, async () => {
+      // Case 1 — COLD, no prior conversation: "devam et" ("continue") has no
+      // antecedent for `AyasReferenceResolver.ts` to resolve (a real,
+      // PRE-EXISTING guard — see its `REF_PATTERNS` "devam et" entry) so it
+      // is asked as a CLARIFICATION question before reasoning/dispatch is
+      // ever reached — a live finding, discovered running this exact
+      // scenario: dispatch is not even attempted, which is a STRONGER
+      // no-execution guarantee than "the dispatch happens to be read-only".
+      const coldProvider = mockProviderSequence([]); // must never be called — clarification short-circuits before any model call
+      const coldEvents: { type: string; text?: string; reason?: string; actionTrace?: unknown }[] = [];
+      for await (const e of streamAyasChat({
+        text: "Yarım kalan projelerden devam et",
+        snapshot,
+        seq: 1,
+        route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider: coldProvider },
+      })) {
+        coldEvents.push(e as never);
+      }
+      const coldDone = coldEvents.at(-1)!;
+      assert.equal(coldDone.reason, "clarification-required", "a context-free 'devam et' must be asked to clarify, never dispatched or executed");
+      assert.equal(coldDone.actionTrace, undefined, "no dispatch attempt at all — not even a read — for an unresolved continuation referent");
+      assert.equal(coldProvider.prompts.length, 0, "the clarification short-circuit happens before any model call");
+
+      // Case 2 — WARM, the realistic Phase 7 flow: the user already asked
+      // "Yarım kalan projeler hangileri?" (a real catalog turn) and THEN
+      // says "devam et". The reference resolver now resolves "devam et" to
+      // that prior reply as a `continuation` referent (not to any execution
+      // instruction), so reasoning/dispatch IS reached — and must still
+      // land on the same READ-ONLY `list-production-projects` action,
+      // never `resume-stage` or any write-shaped action.
+      const turn1Provider = mockProviderSequence([
+        okJson({ requiredTools: [], answer: "Yarım kalan projelere bakmam gerekiyor." }),
+        "Yarım kalan iki projen var: Yarım Kalan Proje ve Yeni Başlayan Proje.",
+      ]);
+      const turn1Events: { type: string; text?: string }[] = [];
+      for await (const e of streamAyasChat({
+        text: "Yarım kalan projeler hangileri?",
+        snapshot,
+        seq: 1,
+        route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider: turn1Provider },
+      })) {
+        turn1Events.push(e as never);
+      }
+      const turn1Text = turn1Events.at(-1)!.text!;
+      const history: { role: "user" | "brain"; text: string }[] = [
+        { role: "user", text: "Yarım kalan projeler hangileri?" },
+        { role: "brain", text: turn1Text },
+      ];
+
+      const turn2Provider = mockProviderSequence([
+        okJson({ requiredTools: [], answer: "Hangi projeden devam edeceğimizi kontrol etmem gerekiyor." }),
+        "Yarım kalan projelerin durumunu tekrar kontrol ettim.",
+      ]);
+      const turn2Events: { type: string; actionTrace?: { tool: string; executed: boolean } }[] = [];
+      for await (const e of streamAyasChat({
+        text: "Yarım kalan projelerden devam et",
+        snapshot,
+        seq: 2,
+        history,
+        route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider: turn2Provider },
+      })) {
+        turn2Events.push(e as never);
+      }
+      const turn2Done = turn2Events.at(-1)!;
+      assert.equal(turn2Done.actionTrace?.tool, "list-production-projects", "with prior context resolving the referent, a 'devam et' catalog query must still land on the read-only lookup, never a write/execute action");
+      assert.equal(turn2Done.actionTrace?.executed, true);
+
+      // Structural proof in both cases: this suite's own module imports
+      // zero Gate/Authorization/Bridge symbols (see the file header), so
+      // there is nothing here that could flip it either way.
+      assert.equal(snapshot.executionGate, "CLOSED");
+    });
   });
 
   console.log(`AYAS reasoning smoke: PASS (${count} scenarios)`);

@@ -1,5 +1,109 @@
 ---
 
+## AYAS Autonomous Zero-Cost Brain + Machine Safety Foundation — 2026-09-15
+
+- [x] Criterion 37 schema-bound planner wired into both Guided Repair product creation paths; direct product bypass removed.
+- [x] Central deterministic autonomous zero-cost policy and no-paid-fallback model routing.
+- [x] Free local machine telemetry + bounded five-action Machine Health Guard wired to canonical heavy-work admission/lifecycle.
+- [x] Production health/readiness read path kept separate from machine readiness/sentinel probes.
+- [x] Repo/Decision/Failure/Sprint/Project Brain composed into the real AYAS chat product path using existing authorities.
+- [x] Internet/research content labelled and sanitized as untrusted external evidence in real downstream prompts.
+- [x] Controlled self-improvement composed through Graphify, planner, durable workflow, authorization, gate, tests, evaluation and memory; protected boundaries are never autonomous targets.
+- [x] Documentary Quality integrated with the existing Brain quality evaluator on the real production health read path.
+- [x] Automatic production resume remains closed; no production data or video changed.
+- [x] Final READY gate: research-schema, production-health API/UI, full AYAS regression matrix, Graphify `scope all`, TypeScript, lint, and diff checks are green; fixtures use isolated canonical runtimes and production data remains untouched.
+
+
+## AYAS Production Project Catalog + Resume Awareness — 2026-09-14
+
+- [x] `AyasProjectCatalog.ts` — normalized `AyasProductionProjectSummary`
+      read model + read-only Catalog Service
+      (`loadAyasProjectCatalog`/`listAyasProductionProjects`/
+      `getAyasProductionProject`/`findAyasProductionProjects`/
+      `summarizeAyasProductionProjects`), built entirely on the existing
+      `resolveRuntimeStorageContext`/`ProjectReader`/`PipelineRecoveryPlanner`
+      primitives — no second project-discovery path.
+- [x] Found and fixed a real double-count bug before shipping (folder-name
+      vs `project.json`-internal `id` mismatch for migrated projects) —
+      one-folder-equals-one-catalog-entry is now structural, verified
+      against real data (31 with duplicates → correct 17).
+- [x] New read-only action `list-production-projects`
+      (`AyasExecutionPolicy.ts`/`AyasSafeExecutors.ts`) wired through the
+      EXISTING planner/tool-dispatch/reasoning architecture: a new
+      AND-gated Turkish routing signal + a new deterministic tool
+      candidate, the same structural pre-resolution precedent as
+      checkpoint/roadmap/changelog/file-path requests.
+- [x] Resume awareness derived only from a real
+      `PipelineRecoveryPlanner.createResumePlan()` read — never guessed.
+- [x] Proved (not assumed) the "no execution from a continuation request"
+      requirement holds via two independent, real mechanisms: a
+      context-free "devam et" is asked to clarify before any dispatch is
+      attempted; a context-established one still dispatches only the
+      read-only catalog lookup, never a write/execute action.
+- [x] New `smoke-ayas-project-catalog.ts` (7 scenarios) +
+      `smoke-ayas-tool-candidate-resolution.ts` (+9) +
+      `smoke-ayas-reasoning.ts` (+3 real conversation-path E2E) — ~30
+      regression suites green, TypeScript clean, ESLint 0 errors / 22
+      pre-existing warnings (0 new), `git diff --check` clean.
+- [x] Real read-only sanity check against the actual production runtime:
+      17 projects, 6 completed, 10 incomplete, 1 unknown, 12 resumable —
+      matches the prior forensic preservation audit exactly.
+- [ ] Activate real production resume/execution from a catalog-derived
+      candidate — deliberately NOT this sprint; separate, controlled,
+      gated future work.
+- [ ] User review of the intentionally unstaged package; commit/push
+      deliberately not performed — reserved for the user.
+
+---
+
+## AYAS Durable Workflow Persistence + Schema-Bound Planner — 2026-09-14
+
+- [x] Durable, atomic, schema-versioned, corrupt-fail-closed workflow store
+      (`AyasDeveloperWorkflowStore.ts`) mirroring `AyasExecutionGateStore.ts`'s
+      proven idiom — `data/brain/execution/workflows/<id>.json`, deep-validated
+      on read (state, budget/usage-never-exceeds-ceiling, step/dependency
+      structure via the existing plan validator, repair-proposal fingerprint
+      authenticity), path-safety-validated ids, bounded record size,
+      optimistic-concurrency CAS guard.
+- [x] Additive `onCheckpoint` hook on `AyasDeveloperWorkflow.ts` (zero
+      behaviour change for existing callers) at workflow-start,
+      before-mutation, after-mutation, step-terminal, and workflow-terminal.
+- [x] Proved (not assumed) the crash-around-write-boundary invariant: a
+      checkpoint right before a repair mutation, resumed from a fresh
+      process, never duplicates the write — via the workflow's own
+      repair-history fingerprint check AND, independently, the executor's
+      own precondition-hash check.
+- [x] `AyasWorkflowRecovery.ts` — recoverable / awaiting-authorization /
+      terminal / stale / corrupt / unsupported-schema / blocked
+      classification; staleness re-verifies pending repair preconditions
+      against current on-disk content before any resume is even considered.
+- [x] Durable session/proposal persistence (`AyasGuidedRepairSessionStore.ts`)
+      + additive restart-safe recovery wired into
+      `AyasGuidedRepairSessionRuntime.ts` AND the real product route
+      (`app/api/ayas/chat/stream/route.ts`) — not just library code.
+- [x] Schema-bound planner (`AyasWorkflowPlanner.ts`): translates a
+      structured intent into a validated workflow using the SAME
+      deterministic registries the real dispatcher uses; rejects unknown
+      actions, shell-injection-shaped plan content, budget escalation, and
+      tampered proposal references; never bypasses the authorization gate.
+- [x] 4 new smoke suites (56 new scenarios), 28 regression suites green,
+      TypeScript clean, ESLint 0 errors / 22 pre-existing warnings (0 new).
+- [x] Adversarial review: BLOCKER = 0, MAJOR = 0 — persisted-authorization
+      replay, duplicate write after restart, budget reset after restart,
+      stale repair execution, terminal-workflow resumption, corrupted-state
+      execution, workflow/session-id path traversal, planner unknown-action/
+      shell-injection/budget-escalation, and persisted-secret leakage all
+      traced to a specific check and verified live. Two residuals
+      documented: CAS guard not yet wired at the session-runtime layer
+      (mutation safety still holds via independent mechanisms); a
+      defense-in-depth write-action rejection currently unreachable (the
+      allowlist is entirely read-only today).
+- [ ] User review of the intentionally unstaged package; commit/push
+      deliberately not performed — reserved for a separate,
+      explicitly-authorized closure task.
+
+---
+
 ## AYAS Developer Agent Autonomy + Graphify — 2026-09-14
 
 - [x] Closed read-only actions for Git status/diff/history, bounded source ranges, Graphify structural evidence, and registered validations.

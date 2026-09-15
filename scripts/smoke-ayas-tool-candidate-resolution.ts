@@ -34,7 +34,7 @@ async function scenario(name: string, test: () => void | Promise<void>) {
 function assertResolves(
   text: string,
   expectedAction: string,
-  expectedInput: Readonly<Record<string, string>>,
+  expectedInput: Readonly<Record<string, string | boolean>>,
 ) {
   const got = resolveDeterministicToolCandidate(text);
   assert.ok(got, `expected a deterministic candidate for: "${text}"`);
@@ -131,6 +131,43 @@ async function run() {
   });
   await scenario("inspect-source-file — mutating lookalike defers", () => {
     assertDefers("src/lib/ayas/AyasChatStream.ts dosyasını düzenle.");
+  });
+
+  // ---- list-production-projects (Production Project Catalog sprint) -----
+  await scenario("catalog — 'Kaç projem var?' resolves to the 'all' filter (empty toolInput)", () => {
+    assertResolves("Kaç projem var?", "list-production-projects", {});
+  });
+  await scenario("catalog — 'Hangi videolar tamamlandı?' resolves to completionState:completed", () => {
+    assertResolves("Hangi videolar tamamlandı?", "list-production-projects", { completionState: "completed" });
+  });
+  await scenario("catalog — 'Yarım kalan projeler hangileri?' resolves to completionState:incomplete", () => {
+    assertResolves("Yarım kalan projeler hangileri?", "list-production-projects", { completionState: "incomplete" });
+  });
+  await scenario("catalog — 'Devam edebileceğimiz proje var mı?' resolves to resumableOnly:true", () => {
+    assertResolves("Devam edebileceğimiz proje var mı?", "list-production-projects", { resumableOnly: true });
+  });
+  await scenario("catalog — 'Yarım kalan projelerden devam et' still resolves to a READ-only catalog lookup, never a write/execute action", () => {
+    // The imperative "devam et" ("continue") phrasing must not smuggle
+    // execution intent past the closed gate via the catalog path — the
+    // resolved action is the same read-only `list-production-projects` as
+    // every other catalog phrasing (the "yarım kalan" signal wins the
+    // closed filter-kind priority order; see `resolveAyasProjectCatalogFilterKind`).
+    assertResolves("Yarım kalan projelerden devam et", "list-production-projects", { completionState: "incomplete" });
+  });
+  await scenario("catalog — unrelated counterexample defers", () => {
+    assertDefers("Bugün hava nasıl, dışarı çıkalım mı?");
+  });
+  await scenario("catalog — a named-project mention alone (no count/status/resume word) defers to the reasoning-driven path", () => {
+    // No closed filter-kind signal present — falls through so the
+    // reasoning-driven path can supply `toolInput.titleContains` instead,
+    // same precedent as document/file-path candidates above.
+    assertDefers("İstanbul'un Fethi projesi ile ilgili ne düşünüyorsun?");
+  });
+  await scenario("catalog — ambiguous form (a document candidate named together with a catalog query) defers", () => {
+    assertDefers("Checkpoint'e bak ve kaç projem var, söyler misin?");
+  });
+  await scenario("catalog — mutating lookalike defers (an explicit delete request must not silently resolve to a READ)", () => {
+    assertDefers("Yarım kalan projeleri sil.");
   });
 
   // ---- ordinary conversation never spuriously dispatches -----------------

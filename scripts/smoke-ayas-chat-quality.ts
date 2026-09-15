@@ -383,11 +383,17 @@ async function run() {
 
   await scenario("e2e — project-topical question: studio block IS surfaced", async () => {
     const bodies: string[] = [];
+    // Production Project Catalog sprint — "kaç proje var" style phrasing now
+    // correctly routes to TOOL (the new real catalog action), so it no
+    // longer exercises this direct-stream/studio-context-injection path;
+    // this phrasing stays project-topical (matches STUDIO_RELEVANT's own
+    // "aşama"/"takıldı" words) without naming a "proje"/"video" count/status
+    // question, so it still reliably classifies NORMAL.
     await collectDone(
       streamAyasChat({
-        text: "Kaç proje var, hangi aşamada takıldık?", snapshot: snap(), studio: studio(), seq: 1,
+        text: "Hangi aşamada takıldık?", snapshot: snap(), studio: studio(), seq: 1,
         memoryStore: { rootDir: isolatedMemoryRoot },
-        fetcher: capturingMockOllamaStream(["16 proje var."], bodies),
+        fetcher: capturingMockOllamaStream(["Bir proje şu an visuals aşamasında bekliyor."], bodies),
       }) as never,
     );
     const prompt = promptFromCapturedBody(bodies[0]!);

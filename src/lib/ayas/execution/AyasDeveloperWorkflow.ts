@@ -28,9 +28,28 @@ export interface AyasDeveloperWorkflow {
   readonly history: AyasWorkflowHistoryEntry[]; readonly repairHistory: AyasRepairAttemptRecord[]; terminalReason?: string;
 }
 export interface AyasWorkflowRepairOutcome { readonly ok: boolean; readonly lifecycle: string; readonly reason?: string; readonly files?: readonly string[]; readonly validations?: readonly unknown[]; readonly [key: string]: unknown; }
+/**
+ * Durable Workflow Persistence sprint — an OPTIONAL, additive checkpoint
+ * hook. Existing callers that omit it behave byte-for-byte as before (a
+ * no-op default). When supplied, the caller (a durable store adapter) is
+ * given a chance to persist the CURRENT in-memory `workflow` object at the
+ * few points where a crash would otherwise leave durable state stale:
+ * right after the workflow starts/resumes, immediately BEFORE a mutation is
+ * dispatched (`before-mutation` — the single most dangerous boundary,
+ * called right after the repair attempt is recorded into `repairHistory`
+ * but before `applyRepair` runs, so a crash mid-write still leaves a
+ * recovered workflow whose repair-history already blocks a naive replay via
+ * the existing non-convergence check below), immediately AFTER a mutation
+ * result is known (`after-mutation`), and right before every terminal /
+ * awaiting-authorization / budget-exhausted return. Never awaited in a way
+ * that blocks step execution beyond what the hook itself takes — a slow or
+ * failing checkpoint is the caller's own concern, not swallowed here.
+ */
+export type AyasWorkflowCheckpointPoint = "started" | "before-mutation" | "after-mutation" | "step-terminal" | "workflow-terminal";
 export interface AyasDeveloperWorkflowDeps {
   readonly runReadOnlyAction?: typeof runAyasReadOnlyAction;
   readonly applyRepair: (proposal: AyasRepairProposal, authorization: AyasRepairAuthorization, patches: readonly AyasPatch[]) => Promise<AyasWorkflowRepairOutcome>;
+  readonly onCheckpoint?: (workflow: AyasDeveloperWorkflow, point: AyasWorkflowCheckpointPoint) => void | Promise<void>;
 }
 export interface AyasWorkflowRunInput { readonly authorizations?: Readonly<Record<string, AyasRepairAuthorization>>; }
 
@@ -108,9 +127,10 @@ function canFollowFailedDependency(workflow: AyasDeveloperWorkflow, record: Ayas
 /** Resumes in place. Completed steps are never rerun; terminal workflows are inert. */
 export async function runAyasDeveloperWorkflow(workflow: AyasDeveloperWorkflow, deps: AyasDeveloperWorkflowDeps, input: AyasWorkflowRunInput = {}): Promise<AyasDeveloperWorkflow> {
   if (TERMINAL.has(workflow.state)) return workflow;
+  const checkpoint = async (point: AyasWorkflowCheckpointPoint) => { await deps.onCheckpoint?.(workflow, point); };
   const planCheck = validateAyasDeveloperWorkflowPlan({ kind: workflow.kind, goal: workflow.goal, steps: workflow.steps.map((record) => record.step), budget: workflow.budget });
-  if (!planCheck.ok) { workflow.state = "rejected"; workflow.terminalReason = planCheck.failure.detail; event(workflow, "workflow-rejected", planCheck.failure.detail); return workflow; }
-  workflow.state = "running"; event(workflow, "workflow-running", "deterministic execution started/resumed");
+  if (!planCheck.ok) { workflow.state = "rejected"; workflow.terminalReason = planCheck.failure.detail; event(workflow, "workflow-rejected", planCheck.failure.detail); await checkpoint("workflow-terminal"); return workflow; }
+  workflow.state = "running"; event(workflow, "workflow-running", "deterministic execution started/resumed"); await checkpoint("started");
   const read = deps.runReadOnlyAction ?? runAyasReadOnlyAction;
   for (const record of workflow.steps) {
     if (record.state === "succeeded" || record.state === "skipped" || record.state === "failed" || record.state === "rejected") continue;
@@ -119,7 +139,7 @@ export async function runAyasDeveloperWorkflow(workflow: AyasDeveloperWorkflow, 
     const failedDependency = dependencies.some((item) => item.state !== "succeeded");
     if (failedDependency && !canFollowFailedDependency(workflow, record)) { record.state = "skipped"; record.failure = { code: "dependency-failure", detail: "a prerequisite did not succeed", retryable: false }; event(workflow, "step-skipped", record.failure.detail, record.step.id); continue; }
     const exhausted = budgetFailure(workflow, record.step, resumingAuthorization);
-    if (exhausted) { record.state = "rejected"; record.failure = exhausted; workflow.state = "budget-exhausted"; workflow.terminalReason = exhausted.detail; event(workflow, "budget-exhausted", exhausted.detail, record.step.id); return workflow; }
+    if (exhausted) { record.state = "rejected"; record.failure = exhausted; workflow.state = "budget-exhausted"; workflow.terminalReason = exhausted.detail; event(workflow, "budget-exhausted", exhausted.detail, record.step.id); await checkpoint("workflow-terminal"); return workflow; }
     record.state = "ready"; record.state = "running"; delete record.failure; record.attempts += 1; event(workflow, "step-running", record.step.kind, record.step.id);
     if (record.step.kind !== "repair") {
       workflow.usage.actions += 1; if (record.step.kind === "graphify") workflow.usage.graphifyQueries += 1; if (record.step.kind === "validation") { workflow.usage.validations += 1; workflow.state = "validating"; }
@@ -131,31 +151,39 @@ export async function runAyasDeveloperWorkflow(workflow: AyasDeveloperWorkflow, 
         outcome = await read({ rawRequest: record.step.request }); failure = outcome.executed ? undefined : classifyActionFailure(outcome); if (!failure && record.step.kind === "graphify" && outcome.executed) failure = graphifyFailure(outcome.result.data);
       }
       record.result = outcome; workflow.usage.outputChars += JSON.stringify(outcome).length;
-      if (workflow.usage.outputChars > workflow.budget.maxOutputChars) { record.state = "failed"; record.failure = { code: "output-truncation", detail: "workflow output budget exceeded", retryable: false }; workflow.state = "budget-exhausted"; workflow.terminalReason = record.failure.detail; event(workflow, "budget-exhausted", record.failure.detail, record.step.id); return workflow; }
+      if (workflow.usage.outputChars > workflow.budget.maxOutputChars) { record.state = "failed"; record.failure = { code: "output-truncation", detail: "workflow output budget exceeded", retryable: false }; workflow.state = "budget-exhausted"; workflow.terminalReason = record.failure.detail; event(workflow, "budget-exhausted", record.failure.detail, record.step.id); await checkpoint("workflow-terminal"); return workflow; }
       if (!failure && record.step.kind === "validation" && outcome.executed && outcome.result.data.status !== "passed") failure = { code: outcome.result.data.status === "unavailable" ? "command-unavailable" : "validation-failure", detail: outcome.result.summary, retryable: false };
-      if (failure) { record.state = failure.code === "policy-rejection" || failure.code === "invalid-action-input" ? "rejected" : "failed"; record.failure = failure; event(workflow, "step-failed", `${failure.code}: ${failure.detail}`, record.step.id); if (!record.step.allowAfterValidationFailure && failure.code !== "graphify-stale" && failure.code !== "graphify-unavailable" && failure.code !== "graphify-failure") { workflow.state = record.state === "rejected" ? "rejected" : "failed"; workflow.terminalReason = failure.detail; return workflow; } }
+      if (failure) { record.state = failure.code === "policy-rejection" || failure.code === "invalid-action-input" ? "rejected" : "failed"; record.failure = failure; event(workflow, "step-failed", `${failure.code}: ${failure.detail}`, record.step.id); if (!record.step.allowAfterValidationFailure && failure.code !== "graphify-stale" && failure.code !== "graphify-unavailable" && failure.code !== "graphify-failure") { workflow.state = record.state === "rejected" ? "rejected" : "failed"; workflow.terminalReason = failure.detail; await checkpoint("workflow-terminal"); return workflow; } }
       else { record.state = "succeeded"; event(workflow, "step-succeeded", record.step.expectedEvidence, record.step.id); }
-      workflow.state = "running"; continue;
+      workflow.state = "running"; await checkpoint("step-terminal"); continue;
     }
     const fingerprint = patchFingerprint(record.step.patches);
-    if (!resumingAuthorization && workflow.repairHistory.some((attempt) => attempt.patchFingerprint === fingerprint)) { record.state = "failed"; record.failure = { code: "repair-non-convergence", detail: "the same patch was proposed again", retryable: false }; workflow.state = "repair-non-convergent"; workflow.terminalReason = record.failure.detail; event(workflow, "repair-non-convergent", record.failure.detail, record.step.id); return workflow; }
+    if (!resumingAuthorization && workflow.repairHistory.some((attempt) => attempt.patchFingerprint === fingerprint)) { record.state = "failed"; record.failure = { code: "repair-non-convergence", detail: "the same patch was proposed again", retryable: false }; workflow.state = "repair-non-convergent"; workflow.terminalReason = record.failure.detail; event(workflow, "repair-non-convergent", record.failure.detail, record.step.id); await checkpoint("workflow-terminal"); return workflow; }
     if (!resumingAuthorization) workflow.usage.repairAttempts += 1;
     const attempt: AyasRepairAttemptRecord = resumingAuthorization
       ? workflow.repairHistory.find((item) => item.stepId === record.step.id)!
       : { attempt: workflow.repairHistory.length + 1, stepId: record.step.id, trigger: workflow.repairHistory.at(-1)?.retryReason ?? workflow.goal, proposalFingerprint: record.step.proposal.proposalFingerprint, patchFingerprint: fingerprint, graphifyEvidence: clone(record.step.proposal.graphifyFindings), authorizationState: "required" };
     if (!resumingAuthorization) workflow.repairHistory.push(attempt);
     const authorization = input.authorizations?.[record.step.id];
-    if (!authorization) { record.state = "awaiting-authorization"; record.failure = { code: "authorization-required", detail: `explicit authorization is required for ${record.step.proposal.proposalId}`, retryable: false }; workflow.state = "awaiting-authorization"; event(workflow, "authorization-required", record.failure.detail, record.step.id); return workflow; }
+    if (!authorization) { record.state = "awaiting-authorization"; record.failure = { code: "authorization-required", detail: `explicit authorization is required for ${record.step.proposal.proposalId}`, retryable: false }; workflow.state = "awaiting-authorization"; event(workflow, "authorization-required", record.failure.detail, record.step.id); await checkpoint("workflow-terminal"); return workflow; }
     attempt.authorizationState = "approved"; workflow.usage.actions += 1; workflow.usage.writes += 1; workflow.usage.validations += record.step.proposal.validationActions.length;
+    // The single most dangerous boundary — `repairHistory` already carries
+    // this attempt's fingerprint (pushed above), so a checkpoint HERE means
+    // a crash mid-`applyRepair` recovers into a workflow whose own
+    // non-convergence check (above) blocks a naive resume from replaying
+    // the same patch, even before the write's own precondition-hash check
+    // would independently reject the replay (see AyasGuidedRepair.ts).
+    await checkpoint("before-mutation");
     const applied = await deps.applyRepair(record.step.proposal, authorization, record.step.patches); record.result = applied; attempt.writeResult = applied; attempt.validationResult = applied.validations; workflow.usage.outputChars += JSON.stringify(applied).length;
-    if (workflow.usage.outputChars > workflow.budget.maxOutputChars) { record.state = "failed"; record.failure = { code: "output-truncation", detail: "workflow output budget exceeded", retryable: false }; workflow.state = "budget-exhausted"; workflow.terminalReason = record.failure.detail; event(workflow, "budget-exhausted", record.failure.detail, record.step.id); return workflow; }
+    await checkpoint("after-mutation");
+    if (workflow.usage.outputChars > workflow.budget.maxOutputChars) { record.state = "failed"; record.failure = { code: "output-truncation", detail: "workflow output budget exceeded", retryable: false }; workflow.state = "budget-exhausted"; workflow.terminalReason = record.failure.detail; event(workflow, "budget-exhausted", record.failure.detail, record.step.id); await checkpoint("workflow-terminal"); return workflow; }
     if (!applied.ok) {
       const failure = repairFailure(applied.reason ?? "repair failed"); record.state = "failed"; record.failure = failure; attempt.retryReason = failure.detail; if (failure.code === "invalid-authorization" || failure.code === "stale-authorization") attempt.authorizationState = "invalid";
-      if (failure.code === "validation-failure" && record.step.allowAfterValidationFailure) { event(workflow, "validation-failed", failure.detail, record.step.id); workflow.state = "running"; continue; }
-      attempt.terminalReason = failure.detail; workflow.state = failure.code === "invalid-authorization" || failure.code === "stale-authorization" ? "rejected" : "failed"; workflow.terminalReason = failure.detail; event(workflow, "repair-failed", `${failure.code}: ${failure.detail}`, record.step.id); return workflow;
+      if (failure.code === "validation-failure" && record.step.allowAfterValidationFailure) { event(workflow, "validation-failed", failure.detail, record.step.id); workflow.state = "running"; await checkpoint("step-terminal"); continue; }
+      attempt.terminalReason = failure.detail; workflow.state = failure.code === "invalid-authorization" || failure.code === "stale-authorization" ? "rejected" : "failed"; workflow.terminalReason = failure.detail; event(workflow, "repair-failed", `${failure.code}: ${failure.detail}`, record.step.id); await checkpoint("workflow-terminal"); return workflow;
     }
-    record.state = "succeeded"; event(workflow, "repair-succeeded", record.step.expectedEvidence, record.step.id);
+    record.state = "succeeded"; event(workflow, "repair-succeeded", record.step.expectedEvidence, record.step.id); await checkpoint("step-terminal");
   }
   const unresolvedFailure = workflow.steps.find((record) => record.state === "failed" && !record.step.allowAfterValidationFailure && !(record.step.kind === "graphify" && ["graphify-stale", "graphify-unavailable", "graphify-failure", "graphify-output-limit"].includes(record.failure?.code ?? "")));
-  workflow.state = unresolvedFailure ? "failed" : "succeeded"; workflow.terminalReason = unresolvedFailure?.failure?.detail ?? "all eligible steps completed and required validations passed"; event(workflow, "workflow-terminal", workflow.terminalReason); return workflow;
+  workflow.state = unresolvedFailure ? "failed" : "succeeded"; workflow.terminalReason = unresolvedFailure?.failure?.detail ?? "all eligible steps completed and required validations passed"; event(workflow, "workflow-terminal", workflow.terminalReason); await checkpoint("workflow-terminal"); return workflow;
 }

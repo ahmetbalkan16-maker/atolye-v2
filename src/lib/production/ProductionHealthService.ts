@@ -7,6 +7,7 @@ import { productionHealthSchemaVersion } from "@/types/productionHealth";
 import type { ProductionHealthResult } from "@/types/productionHealth";
 import type { ProductionSnapshot } from "@/types/productionSnapshot";
 import type { ProductionIntelligence } from "@/types/productionIntelligence";
+import { evaluateProductionDocumentaryQuality, type ProductionDocumentaryQualityResult } from "./ProductionDocumentaryQuality";
 
 export interface GetProductionHealthInput {
   projectSlug: string;
@@ -20,6 +21,7 @@ export interface ProductionHealthReport {
   snapshot: ProductionSnapshot;
   health: ProductionHealthResult;
   intelligence?: ProductionIntelligence;
+  documentaryQuality?: ProductionDocumentaryQualityResult;
 }
 
 export class ProductionHealthService {
@@ -54,6 +56,7 @@ export class ProductionHealthService {
       });
     }
 
+    const documentaryQuality = await evaluateProductionDocumentaryQuality(snapshot).catch(() => undefined);
     return {
       schemaVersion: productionHealthSchemaVersion,
       projectSlug: input.projectSlug,
@@ -61,6 +64,7 @@ export class ProductionHealthService {
       snapshot,
       health,
       ...deriveIntelligence(snapshot, health),
+      ...(documentaryQuality?.available ? { documentaryQuality } : {}),
     };
   }
 }

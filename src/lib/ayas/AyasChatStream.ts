@@ -52,6 +52,7 @@ import {
   CHANGELOG_MENTION,
   extractAyasFilePathMention,
   hasMultipleAyasFilePathMentions,
+  resolveAyasProjectCatalogFilterKind,
 } from "./model/AyasComplexityRouter";
 
 /**
@@ -114,6 +115,8 @@ export interface StreamAyasChatInput {
   readonly text: string;
   readonly snapshot: BrainConsoleSnapshot;
   readonly studio?: AyasStudioContextView;
+  /** Existing Repo/Decision/Failure/Sprint/Project Brain read models, composed by the product route. */
+  readonly productBrainLines?: readonly string[];
   readonly history?: readonly { readonly role: BrainChatMessage["role"]; readonly text: string }[];
   readonly seq: number;
   readonly signal?: AbortSignal;
@@ -392,7 +395,16 @@ interface AyasToolDispatchAttempt {
   readonly actionOutcome: AyasActionRuntimeOutcome;
 }
 
-type AyasToolInputHint = { readonly documentId?: string; readonly filePath?: string };
+type AyasToolInputHint = {
+  readonly documentId?: string;
+  readonly filePath?: string;
+  readonly status?: string;
+  readonly completionState?: "completed" | "incomplete";
+  readonly resumableOnly?: boolean;
+  readonly titleContains?: string;
+  readonly projectId?: string;
+  readonly mode?: "list" | "summary";
+};
 interface AyasDeterministicToolCandidate {
   readonly action: AyasExecutionActionId;
   readonly toolInput: AyasToolInputHint;
@@ -459,6 +471,25 @@ export function resolveDeterministicToolCandidate(userText: string): AyasDetermi
   if (hasMultipleAyasFilePathMentions(userText)) return null;
   const filePath = extractAyasFilePathMention(userText);
   if (filePath) candidates.push({ action: "inspect-source-file", toolInput: { filePath } });
+
+  // Production Project Catalog sprint — one of 4 closed filter categories
+  // (all/completed/incomplete/resumable), the SAME reuse pattern as the
+  // document candidates above: dispatch selection for these does not
+  // depend on the model naming the tool. A request naming a SPECIFIC
+  // project by name ("İstanbul'un Fethi ne durumda?") does NOT resolve
+  // here — `resolveAyasProjectCatalogFilterKind` returns `null` unless one
+  // of the closed count/status/resume words is present, so a named-project
+  // query correctly falls through to the reasoning-driven path (which can
+  // supply `toolInput.titleContains`), matching the same precedent as
+  // `inspect-project`/`pipeline-recovery-plan` above.
+  const catalogFilterKind = resolveAyasProjectCatalogFilterKind(userText);
+  if (catalogFilterKind) {
+    const toolInput: AyasToolInputHint =
+      catalogFilterKind === "resumable" ? { resumableOnly: true } :
+      catalogFilterKind === "all" ? {} :
+      { completionState: catalogFilterKind };
+    candidates.push({ action: "list-production-projects", toolInput });
+  }
 
   if (candidates.length !== 1) return null;
   if (WRITE_INTENT_VERB_NEAR_FILE.test(userText)) return null;
@@ -809,6 +840,7 @@ export async function* streamAyasChat(
   // what the user sees, guarded exactly like every other AYAS reply.
   if (shouldUseAyasReasoning(route.decision.complexity)) {
     const contextLines = [
+      ...(input.productBrainLines ?? []),
       ...(ctx.block.stateLines ?? []),
       ...(ctx.block.referenceLines ?? []),
       ...(ctx.block.historySummary ?? []),

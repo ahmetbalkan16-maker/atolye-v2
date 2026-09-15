@@ -1,5 +1,121 @@
 ---
 
+## 2026-09-15 — AYAS Autonomous Zero-Cost Brain + Machine Safety Foundation (READY TO COMMIT; not committed)
+
+- Closed Criterion 37 by routing real Guided Repair product workflow creation through the schema-bound planner.
+- Added central $0 autonomous cost policy; removed default paid/unknown cloud fallback.
+- Added free local machine telemetry and a non-executing Machine Health Guard at canonical heavy-stage admission and owned-handler boundaries.
+- Added real AYAS product composition for Repo/Decision/Failure/Sprint/Project Brain.
+- Sandboxed research as untrusted external evidence before downstream prompts.
+- Added controlled self-improvement chain using existing Graphify/planner/durable workflow/authorization/Guided Repair/test/memory authorities.
+- Integrated the existing Documentary Quality evaluator into the production health read path using real ffprobe evidence only.
+- Preserved closed automatic production resume, production data, Execution Gate, destructive-operation and authority boundaries.
+- Repaired the two stale environment fixture assumptions: research schema compatibility now uses a canonical isolated test runtime; production-health API/UI consumers no longer assume legacy `data/projects`.
+- Final Graphify uses supported `--scope all` (zero untracked exclusions) and indexes all intended sprint modules, including product-reachable controlled self-improvement context.
+- Full targeted/regression validation is green; no commit or push performed.
+
+
+## 2026-09-14 — AYAS Production Project Catalog + Resume Awareness
+
+- AYAS can now answer "Kaç projem var?", "Hangi videolar tamamlandı?",
+  "Yarım kalan projeler hangileri?" and similar from real, read-only
+  production project data — never the legacy root, never double-counted.
+  New `AyasProjectCatalog.ts`: a normalized `AyasProductionProjectSummary`
+  read model + `loadAyasProjectCatalog`/`listAyasProductionProjects`/
+  `getAyasProductionProject`/`findAyasProductionProjects`/
+  `summarizeAyasProductionProjects`, built entirely on the existing
+  `resolveRuntimeStorageContext`/`ProjectReader`/`PipelineRecoveryPlanner`
+  primitives — no second project-discovery path.
+  - Found and fixed a real double-count bug before shipping: cross-matching
+    `project.json`'s internal `id` against a separate directory listing
+    produced a spurious duplicate entry for a migrated project whose folder
+    name doesn't match its `id`. Fixed by reading each real folder's own
+    `project.json` directly — one folder is now structurally guaranteed to
+    equal one catalog entry.
+- New read-only action `list-production-projects`
+  (`AyasExecutionPolicy.ts`/`AyasSafeExecutors.ts`, `write:false`), routed
+  through the EXISTING planner/tool-dispatch/reasoning architecture — a new
+  Turkish AND-gated regex signal (`AyasComplexityRouter.ts`) plus a new
+  deterministic tool candidate (`AyasChatStream.ts`), the same structural
+  pre-resolution pattern already used for checkpoint/roadmap/changelog/
+  file-path requests, never a parallel special-case chat path.
+- Resume awareness is derived only from a real
+  `PipelineRecoveryPlanner.createResumePlan()` read — the same computation
+  `pipeline-recovery-plan` already dispatches — never guessed.
+- Proved, not assumed, that a "let's continue this one" request cannot
+  bypass the authorization/execution boundary via the catalog path: a
+  context-free "devam et" is asked to clarify before any dispatch is even
+  attempted (the pre-existing reference resolver's own guard); with real
+  prior catalog context it resolves to that context and still dispatches
+  only the same read-only catalog lookup, never a write/execute action.
+- New `smoke-ayas-project-catalog.ts` (7 scenarios). Extended
+  `smoke-ayas-tool-candidate-resolution.ts` (+9) and `smoke-ayas-reasoning.ts`
+  (+3, real conversation-path E2E for the count/subset/no-execution
+  guarantees) — ~30 regression suites re-run green, TypeScript clean,
+  ESLint 0 errors / 22 pre-existing warnings (0 new), `git diff --check`
+  clean. Real read-only sanity check against the actual production runtime:
+  17 projects, 6 completed, 10 incomplete, 1 unknown, 12 resumable.
+- Production execution/resume activation from a catalog-derived candidate
+  is explicitly out of scope — a separate, future, gated sprint.
+
+---
+
+## 2026-09-14 — AYAS Durable Workflow Persistence + Schema-Bound Planner
+
+- `AyasDeveloperWorkflow` (and the Guided Repair session that creates and
+  resumes it) now survives a process restart — without increasing AYAS
+  authority. New `AyasDeveloperWorkflowStore.ts` (`data/brain/execution/workflows/`)
+  and `AyasGuidedRepairSessionStore.ts` (`data/brain/execution/repair-sessions/`),
+  both mirroring `AyasExecutionGateStore.ts`'s proven atomic-write /
+  corrupt-fail-closed idiom: temp file → fsync → rename, schema-versioned,
+  deep-validated on read, bounded record size, workflow/session id
+  path-safety-validated before ever touching the filesystem.
+- Added an additive `onCheckpoint` hook to `AyasDeveloperWorkflow.ts` (zero
+  behaviour change for existing callers) so a durable store can persist
+  state right before/after a repair mutation dispatches.
+- Proved, not assumed, that a crash around the write boundary cannot
+  duplicate a mutation (the sprint's own declared BLOCKER-if-unproven
+  scenario): a checkpoint taken right before `applyRepair` runs, resumed
+  from a fresh process with fresh in-memory state, is refused by the
+  workflow's own repair-history fingerprint check; a crash even later, right
+  after a successful write, is independently refused by the executor's own
+  precondition-hash check. Two structurally independent mechanisms, both
+  verified live.
+- Added `AyasWorkflowRecovery.ts` — classifies a recovered workflow as
+  `recoverable | awaiting-authorization | terminal | stale | corrupt |
+  unsupported-schema | blocked`; loading and deciding to continue are kept
+  distinct, nothing auto-executes on load. Staleness re-verifies every
+  pending repair step's precondition hash against current on-disk content.
+- `AyasGuidedRepairConversation.ts` / `AyasGuidedRepairSessionRuntime.ts`
+  gained additive durability hooks (optional, backward compatible) and are
+  now wired into the real product route
+  (`app/api/ayas/chat/stream/route.ts`) — a paused-for-authorization repair
+  proposal now survives a server restart or deploy in production, not just
+  in library code.
+- Added `AyasWorkflowPlanner.ts` — a schema-bound planner
+  (`planAyasDeveloperWorkflow`) that translates a structured intent into a
+  validated workflow using the SAME deterministic registries/validators the
+  real dispatcher already uses (never a parallel copy): unregistered
+  actions, shell-injection-shaped plan content, budget escalation above the
+  deterministic ceilings, and a tampered (non-authentic) proposal reference
+  are all rejected before any workflow is created. The planner never
+  bypasses authorization — every repair step in an accepted plan still
+  unconditionally pauses for explicit authorization at execution time.
+- 4 new smoke suites (`smoke-ayas-workflow-store.ts` 17,
+  `smoke-ayas-workflow-recovery.ts` 15, `smoke-ayas-workflow-planner.ts`
+  16, `smoke-ayas-guided-repair-durability.ts` 8 — 56 new scenarios), all
+  28 relevant regression suites green, TypeScript clean, ESLint 0 errors /
+  22 pre-existing warnings (0 new). Adversarial review: BLOCKER = 0, MAJOR
+  = 0; two residuals explicitly documented (CAS concurrency guard not yet
+  wired at the session-runtime layer; a defense-in-depth write-action
+  rejection that is currently unreachable since the allowlist is entirely
+  read-only).
+- The write-authorization Execution Gate remains completely untouched by
+  this sprint. This sprint explicitly did not commit or push — Git closure
+  is reserved for a separate, explicitly-authorized task.
+
+---
+
 ## 2026-09-14 — AYAS Developer Agent Autonomy + Graphify (`a3491f1`)
 
 - Added policy/Action Runtime-backed repository status, diff, Git history, source-range, Graphify, and registered-validation executors with fixed commands, bounded arguments/time/output, repository containment, and structured results.

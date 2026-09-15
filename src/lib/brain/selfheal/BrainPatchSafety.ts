@@ -32,6 +32,11 @@ const RULES: readonly Rule[] = Object.freeze([
   // ---- FORBIDDEN_AUTONOMOUS -------------------------------------------------
   {
     level: "FORBIDDEN_AUTONOMOUS",
+    why: "AYAS zero-cost policy or machine-health protection boundary",
+    test: (p) => p.startsWith("src/lib/ayas/policy/") || p.startsWith("src/lib/ayas/machine/"),
+  },
+  {
+    level: "FORBIDDEN_AUTONOMOUS",
     why: "the AYAS execution control plane (gate / policy / authorization / bridge)",
     test: (p) => p.startsWith("src/lib/ayas/execution/"),
   },

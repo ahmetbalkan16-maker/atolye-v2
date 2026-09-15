@@ -113,7 +113,11 @@ async function run() {
   });
 
   await scenario("complexity — NORMAL for an ordinary single question", () => {
-    assert.equal(classifyAyasComplexity("kaç proje var"), "NORMAL");
+    // Production Project Catalog sprint — "kaç proje var" now correctly
+    // routes to TOOL so the real catalog action can dispatch (previously
+    // NORMAL, before that action existed); see smoke-ayas-project-catalog.ts
+    // for the dedicated coverage of this routing change.
+    assert.equal(classifyAyasComplexity("kaç proje var"), "TOOL");
     assert.equal(classifyAyasComplexity("runtime authority neresi"), "NORMAL");
   });
 
@@ -180,24 +184,39 @@ async function run() {
 
   await scenario("router — Ollama healthy → routes to ollama; complexity carried", async () => {
     const fetcher = mockFetch({});
+    // Production Project Catalog sprint — "kaç proje var" now correctly
+    // classifies as TOOL (see the dedicated complexity assertion above);
+    // this test's own point is that whatever complexity is computed is
+    // carried through routing unchanged, which still holds.
     const r = await routeAyasModel({ text: "kaç proje var", env: OLLAMA_ENV, fetcher });
     assert.equal(r.decision.providerId, "ollama");
-    assert.equal(r.decision.complexity, "NORMAL");
+    assert.equal(r.decision.complexity, "TOOL");
     assert.equal(r.provider?.id, "ollama");
     assert.match(r.decision.reason, /sağlıklı/);
   });
 
-  await scenario("router — Ollama down + cloud configured → VISIBLE cloud fallback", async () => {
+  await scenario("router — Ollama down + unknown-cost cloud configured → denied, no paid fallback", async () => {
     const fetcher = mockFetch({ tags: () => new Response("down", { status: 503 }) });
     const r = await routeAyasModel({
       text: "durumu analiz et",
       env: env({ ...(OLLAMA_ENV as Record<string,string>), AYAS_CLOUD_API_KEY: SECRET }),
       fetcher,
     });
-    assert.equal(r.decision.providerId, "cloud");
+    assert.equal(r.decision.providerId, null);
     assert.equal(r.decision.complexity, "COMPLEX");
-    assert.match(r.decision.reason, /yerel model kapalı.*bulut/i);
+    assert.match(r.decision.reason, /sıfır-maliyet politikasıyla kapalı/i);
     assert.equal(JSON.stringify(r.decision).includes(SECRET), false, "decision trace never contains the key");
+  });
+
+  await scenario("router — environment cannot self-classify an API-key cloud as free-public", async () => {
+    const fetcher = mockFetch({ tags: () => new Response("down", { status: 503 }) });
+    const r = await routeAyasModel({
+      text: "durumu analiz et",
+      env: env({ ...(OLLAMA_ENV as Record<string,string>), AYAS_CLOUD_API_KEY: SECRET, AYAS_CLOUD_COST_CLASS: "free-public" }),
+      fetcher,
+    });
+    assert.equal(r.decision.providerId, null);
+    assert.match(r.decision.reason, /sıfır-maliyet politikasıyla kapalı/i);
   });
 
   await scenario("router — neither provider → null provider + honest message, no config/secret detail", async () => {

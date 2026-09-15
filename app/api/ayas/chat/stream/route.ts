@@ -10,9 +10,12 @@ import {
 import { loadBrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
 import { loadAyasStudioContext } from "@/lib/ayas/AyasStudioContext";
+import { loadAyasProductBrainContext } from "@/lib/ayas/AyasProductBrain";
 import { streamAyasChat, ayasChatStreamEventToSse } from "@/lib/ayas/AyasChatStream";
-import { AyasGuidedRepairSessionRuntime } from "@/lib/ayas/execution/AyasGuidedRepairSessionRuntime";
+import { AyasGuidedRepairSessionRuntime, type AyasGuidedRepairDurability } from "@/lib/ayas/execution/AyasGuidedRepairSessionRuntime";
 import { createAyasProductionRepairDeps } from "@/lib/ayas/execution/AyasGuidedRepairProduction";
+import { AyasGuidedRepairSessionStore } from "@/lib/ayas/execution/AyasGuidedRepairSessionStore";
+import { AyasDeveloperWorkflowStore } from "@/lib/ayas/execution/AyasDeveloperWorkflowStore";
 import {
   buildAyasReportSpokenAnswer,
   detectAyasReportIntent,
@@ -35,7 +38,17 @@ export const dynamic = "force-dynamic";
 const MAX_BODY_BYTES = 32 * 1024;
 const MAX_TEXT = 4_000;
 const MAX_HISTORY = 12;
-const guidedRepairSessions = new AyasGuidedRepairSessionRuntime(() => createAyasProductionRepairDeps());
+// Durable Workflow Persistence sprint — restart-safe repair sessions. A
+// pending proposal / paused-for-authorization workflow now survives a
+// server restart or deploy (data/brain/execution/{repair-sessions,workflows}/);
+// persistence is additive — a store IO failure never blocks or fails a
+// conversation turn (see AyasGuidedRepairSessionRuntime's own doc comment).
+const guidedRepairDurability: AyasGuidedRepairDurability = {
+  sessionStore: new AyasGuidedRepairSessionStore(),
+  workflowStore: new AyasDeveloperWorkflowStore(),
+  workspaceRoot: process.cwd(),
+};
+const guidedRepairSessions = new AyasGuidedRepairSessionRuntime(() => createAyasProductionRepairDeps(), 100, 30 * 60 * 1000, () => Date.now(), guidedRepairDurability);
 
 async function requireAuthenticated(request: NextRequest): Promise<boolean> {
   const gate = resolveAccessGate(process.env);
@@ -130,6 +143,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const [snapshot, studio] = await Promise.all([loadBrainConsoleSnapshot(), loadAyasStudioContext()]);
+  const productBrain = await loadAyasProductBrainContext(snapshot);
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -137,7 +151,8 @@ export async function POST(request: NextRequest): Promise<Response> {
         for await (const event of streamAyasChat({
           text,
           snapshot,
-          studio,
+           studio,
+          productBrainLines: productBrain.lines,
           history,
           seq,
           signal: request.signal,

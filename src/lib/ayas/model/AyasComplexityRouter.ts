@@ -114,6 +114,52 @@ const ENV_MENTION = /\.env\b/i;
 const TOOL_RUN_WORDS = /\barac\w*\b/i;
 const RUN_VERB_WORDS = /\bcalistir\w*\b/;
 
+/**
+ * Production Project Catalog sprint — AND-gated the same way as
+ * `TOOL_RUN_WORDS`/`RUN_VERB_WORDS` above (word-order-independent, cheap
+ * false positives): a "proje"/"video" noun ANYWHERE in the message, plus a
+ * count/status/resume query word ANYWHERE — never a single combined regex
+ * trying to enforce adjacency, which real Turkish sentences routinely
+ * violate (the same lesson the Action Runtime sprint already learned for
+ * file-path mentions). Checked on folded text, so Turkish accents are
+ * already normalized.
+ */
+const PROJECT_NOUN_WORDS = /\b(proje\w*|video\w*)\b/;
+const PROJECT_COUNT_WORDS = /\bkac\w*\b/;
+/** "tamamlandı"/"tamamlanan"/"tamamlanmış" — passive/perfect "already completed", NOT the capability form below. */
+const PROJECT_COMPLETED_WORDS = /\btamamlan\w*\b/;
+const PROJECT_INCOMPLETE_WORDS = /\byarim\w*\b|\beski\w*\b/;
+/** "devam edebilir"/"tamamlayabiliriz" — capability/continuation framing ("which could we finish"), distinct from the already-completed forms above. */
+const PROJECT_RESUMABLE_WORDS = /\bdevam ed\w*\b|\bresumable\b|\btamamlaya\w*bil\w*\b/;
+/** "nerede kalmış" — a live-tested Turkish idiom for "where did we leave off" (the exact phrasing an earlier sprint's own headline example used for a document, reused here for a named project). */
+const PROJECT_STATUS_WORDS = /\bnerede kal\w*\b/;
+
+export type AyasProjectCatalogFilterKind = "all" | "completed" | "incomplete" | "resumable";
+
+/** True when the message is asking about the production project catalog at all (routing signal). */
+export function isAyasProjectCatalogQuery(text: string): boolean {
+  const t = fold(text);
+  return PROJECT_NOUN_WORDS.test(t) && (PROJECT_COUNT_WORDS.test(t) || PROJECT_COMPLETED_WORDS.test(t) || PROJECT_INCOMPLETE_WORDS.test(t) || PROJECT_RESUMABLE_WORDS.test(t) || PROJECT_STATUS_WORDS.test(t));
+}
+
+/**
+ * Which closed filter category the message most specifically names, or
+ * `null` if it isn't a catalog query at all (or names a specific project by
+ * name — that goes through the reasoning-driven `toolInput` path instead,
+ * the same precedent as `inspect-project`/`pipeline-recovery-plan`: "which
+ * project" has no narrow single-keyword signal the way a fixed filter
+ * category does).
+ */
+export function resolveAyasProjectCatalogFilterKind(text: string): AyasProjectCatalogFilterKind | null {
+  const t = fold(text);
+  if (!PROJECT_NOUN_WORDS.test(t)) return null;
+  if (PROJECT_RESUMABLE_WORDS.test(t)) return "resumable";
+  if (PROJECT_INCOMPLETE_WORDS.test(t)) return "incomplete";
+  if (PROJECT_COMPLETED_WORDS.test(t)) return "completed";
+  if (PROJECT_COUNT_WORDS.test(t) || PROJECT_STATUS_WORDS.test(t)) return "all";
+  return null;
+}
+
 /** Multi-step analysis / decision cues. */
 const COMPLEX = /\b(neden(ini)? bul|kok neden|analiz et|degerlendir|karsilastir|ne yapmali(yiz|yim)?|nasil ilerleyelim|plan(la| yap| cikar)|adim adim|once .* sonra|hem .* hem|tespit et .* coz)\b/;
 
@@ -151,6 +197,7 @@ export function classifyAyasComplexity(text: string): AyasChatComplexity {
   // space, which would destroy the extension separator these patterns need.
   if (FILE_PATH_MENTION.test(text) || ENV_MENTION.test(text)) return "TOOL";
   if (TOOL_RUN_WORDS.test(t) && RUN_VERB_WORDS.test(t)) return "TOOL";
+  if (isAyasProjectCatalogQuery(text)) return "TOOL";
   if (COMPLEX.test(t)) return "COMPLEX";
 
   const words = t.split(" ").filter(Boolean);

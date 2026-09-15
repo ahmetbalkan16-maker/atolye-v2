@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 import {
   getProductionHealth,
   isProductionHealthApiConsumerError,
@@ -9,7 +10,7 @@ import type { ProductionHealthReport } from "../src/lib/production/ProductionHea
 const slug = "sprint-95-6-consumer";
 const evaluatedAt = "2026-07-11T18:00:00.000Z";
 
-async function main() {
+async function runScenarios() {
   const baseReport = await ProductionHealthService.getProductionHealth({
     projectSlug: slug,
     evaluatedAt,
@@ -149,6 +150,17 @@ async function main() {
 
   console.log(
     "Sprint 95.6 production health API consumer smoke: PASS (15 scenarios)",
+  );
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime(
+    {
+      name: "production-health-api-consumer",
+      projectSlug: slug,
+      configureProductionExecution: false,
+    },
+    runScenarios,
   );
 }
 

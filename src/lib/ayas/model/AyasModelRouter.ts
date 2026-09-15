@@ -12,8 +12,9 @@
  *   1. classify complexity (deterministic, `AyasComplexityRouter`).
  *   2. probe the local model (`ollama.health()` — a 2.5 s `/api/tags` check).
  *   3. Ollama healthy  → use Ollama.
- *      Ollama down + cloud configured → use Cloud (a VISIBLE fallback — the
- *          decision's `reason` says so and the operational trace records it).
+ *      Ollama down → no provider. Autonomous monetary authority is exactly $0;
+ *          paid, subscription, metered-free-tier and unknown cloud cost are
+ *          denied centrally. There is no paid fallback.
  *      neither → NO provider. `unavailableMessage` is an honest, config-free
  *          sentence; the caller shows it instead of a model answer.
  *
@@ -33,6 +34,7 @@ import { classifyAyasComplexity } from "./AyasComplexityRouter";
 import { createCloudAyasProvider } from "./CloudAyasProvider";
 import { createOllamaAyasProvider } from "./OllamaAyasProvider";
 import type { AyasModelProvider, AyasModelRouteDecision } from "./AyasModelTypes";
+import { evaluateAyasZeroCost } from "../policy/AyasZeroCostPolicy";
 
 const NO_PROVIDER_MESSAGE =
   "AYAS şu an yanıt veremiyor: yerel model kapalı ve bulut modeli yapılandırılmamış. Metin sohbeti çalışmaya devam ediyor.";
@@ -70,7 +72,7 @@ export function buildAyasModelProviders(
 export async function routeAyasModel(input: RouteAyasModelInput): Promise<AyasModelRoute> {
   const env = input.env ?? process.env;
   const fetcher = input.fetcher ?? fetch;
-  const { ollama, cloud } = input.providers ?? buildAyasModelProviders(env, fetcher);
+  const { ollama } = input.providers ?? buildAyasModelProviders(env, fetcher);
 
   const complexity = classifyAyasComplexity(input.text);
 
@@ -91,36 +93,17 @@ export async function routeAyasModel(input: RouteAyasModelInput): Promise<AyasMo
         provider: ollama,
       };
     }
-    // 2 — local down; fall back to cloud if it is configured. VISIBLE, not silent.
-    if (cloud.configured) {
-      return {
-        decision: {
-          complexity,
-          providerId: "cloud",
-          providerKind: "cloud",
-          model: cloud.model,
-          reason: `yerel model kapalı (${health.detail}) → bulut modeline geçildi`,
-        },
-        provider: cloud,
-      };
-    }
-    return noProvider(complexity, `yerel model kapalı (${health.detail}), bulut yapılandırılmamış`);
+    // 2 — only a provider explicitly classified as genuinely free-public may
+    // be used. API-key presence never implies free; absent/unknown fails closed.
+    const cloudCost = evaluateAyasZeroCost("unknown-cost");
+    void cloudCost; // Generic API-key endpoints cannot self-attest as free-public.
+    return noProvider(complexity, `yerel model kapalı (${health.detail}); ücretli veya maliyeti belirsiz fallback sıfır-maliyet politikasıyla kapalı`);
   }
 
   // Ollama not configured at all → cloud, or nothing.
-  if (cloud.configured) {
-    return {
-      decision: {
-        complexity,
-        providerId: "cloud",
-        providerKind: "cloud",
-        model: cloud.model,
-        reason: "yerel model yapılandırılmamış → bulut modeli",
-      },
-      provider: cloud,
-    };
-  }
-  return noProvider(complexity, "hiçbir model sağlayıcısı yapılandırılmamış");
+  const cloudCost = evaluateAyasZeroCost("unknown-cost");
+  void cloudCost;
+  return noProvider(complexity, "yerel model yapılandırılmamış; ücretli veya maliyeti belirsiz fallback sıfır-maliyet politikasıyla kapalı");
 }
 
 function noProvider(

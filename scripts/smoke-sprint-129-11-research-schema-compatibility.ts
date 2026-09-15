@@ -19,8 +19,10 @@ import { PipelineJobManager } from "../src/lib/pipeline/PipelineJobManager";
 import { PipelineRecoveryPlanner } from "../src/lib/pipeline/PipelineRecoveryPlanner";
 import { ProjectReader } from "../src/lib/projects/ProjectReader";
 import { ProjectManager } from "../src/lib/projects/ProjectManager";
+import type { Project } from "../src/types/project";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 
-const productionSlug = "fatih-sultan-mehmet-in-i-stanbul-un-fethine-hazirlanisi-cfe77fd8-8350-4415-bc87-211e3d36c4d5";
+const productionSlug = `sprint-129-11-research-schema-${process.pid}`;
 const topic = "Canonical production research compatibility fixture";
 const timestamp = "2026-07-15T14:00:00.000Z";
 let passed = 0;
@@ -92,7 +94,7 @@ async function expectCode(action: () => Promise<unknown>, code: string) {
   await assert.rejects(action, (error) => error instanceof AIResponseError && error.code === code);
 }
 
-async function main() {
+async function runScenarios() {
   const planBefore = await PipelineRecoveryPlanner.createResumePlan(productionSlug);
   const planReplay = await PipelineRecoveryPlanner.createResumePlan(productionSlug);
   const marker = await ProjectReader.readJSON<{ publishMode?: string; published?: boolean }>(productionSlug, "production-acceptance.json");
@@ -152,16 +154,16 @@ async function main() {
       "AI_RESPONSE_SCHEMA_INVALID",
     ));
     await test("job manifest history and durable evidence share the stable schema issue code", async () => {
-      const project = await ProjectManager.createProject("Sprint 129.11 evidence fixture");
-      await PipelineJobManager.listJobs(project.slug);
+      await ProjectManager.updatePackageStatus(productionSlug, "research", "pending");
+      await PipelineJobManager.listJobs(productionSlug);
       const error = schemaError(fixture({ sources: ["invalid"] }));
       const evidence = getAIResponseSchemaEvidence(error);
       assert(evidence);
-      await PipelineJobManager.startStage(project.slug, "research", () => ProjectManager.updatePackageStatus(project.slug, "research", "running", undefined, { runType: "initial" }).then(() => undefined));
-      await PipelineJobManager.persistStageFailure(project.slug, "research", () => ProjectManager.updatePackageStatus(project.slug, "research", "failed", error.code, { errorEvidence: evidence }).then(() => undefined), error.code, evidence);
-      const job = await PipelineJobManager.getJobForStageReadOnly(project.slug, "research");
-      const manifest = await ProjectManager.getManifest(project.slug);
-      const history = await PipelineJobManager.listHistory(project.slug);
+      await PipelineJobManager.startStage(productionSlug, "research", () => ProjectManager.updatePackageStatus(productionSlug, "research", "running", undefined, { runType: "initial" }).then(() => undefined));
+      await PipelineJobManager.persistStageFailure(productionSlug, "research", () => ProjectManager.updatePackageStatus(productionSlug, "research", "failed", error.code, { errorEvidence: evidence }).then(() => undefined), error.code, evidence);
+      const job = await PipelineJobManager.getJobForStageReadOnly(productionSlug, "research");
+      const manifest = await ProjectManager.getManifest(productionSlug);
+      const history = await PipelineJobManager.listHistory(productionSlug);
       assert.equal(job?.errorEvidence?.code, error.code);
       assert.equal(manifest?.packages.research.errorEvidence?.code, error.code);
       assert.equal(history.events.at(-1)?.errorEvidence?.code, error.code);
@@ -206,6 +208,54 @@ async function main() {
     process.chdir(originalCwd);
     fs.rmSync(workspace, { recursive: true, force: true });
   }
+}
+
+async function prepareCanonicalFixture(projectFolder: string) {
+  const project: Project = {
+    id: "sprint-129-11-research-schema-compatibility",
+    slug: productionSlug,
+    title: topic,
+    status: "draft",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+  fs.writeFileSync(
+    path.join(projectFolder, "project.json"),
+    JSON.stringify(project, null, 2),
+    "utf8",
+  );
+  await ProjectManager.createManifest(project);
+  for (const stage of ["research", "script", "scenes"] as const) {
+    fs.writeFileSync(
+      path.join(projectFolder, `${stage}.json`),
+      JSON.stringify({ stage }),
+      "utf8",
+    );
+    await ProjectManager.updatePackageStatus(productionSlug, stage, "completed");
+  }
+  fs.writeFileSync(
+    path.join(projectFolder, "production-acceptance.json"),
+    JSON.stringify({ publishMode: "package-only", published: false }),
+    "utf8",
+  );
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime(
+    {
+      name: "sprint-129-11-research-schema-compatibility",
+      projectSlug: productionSlug,
+      configureProductionExecution: false,
+    },
+    async (runtime) => {
+      const projectFolder = path.join(
+        runtime.runtimeStorageContext.projectsRoot,
+        productionSlug,
+      );
+      await prepareCanonicalFixture(projectFolder);
+      await runScenarios();
+    },
+  );
 }
 
 void main().catch((error) => {

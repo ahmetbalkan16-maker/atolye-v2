@@ -40,7 +40,8 @@ export type AyasExecutionActionId =
   | "inspect-git-history"
   | "inspect-source-range"
   | "query-graphify"
-  | "run-developer-validation";
+  | "run-developer-validation"
+  | "list-production-projects";
 
 /** Reserved ids that are intentionally NOT enabled yet (write / pipeline path). */
 export const AYAS_EXECUTION_RESERVED_ACTIONS: readonly string[] = Object.freeze([
@@ -137,6 +138,11 @@ export const AYAS_EXECUTION_ALLOWLIST: Readonly<Record<AyasExecutionActionId, Ay
       id: "run-developer-validation",
       summary: "Kapalı kayıt defterindeki TypeScript, lint veya AYAS smoke doğrulamasını shell olmadan çalıştırır.",
       write: false, destructive: false, requiresProject: false, maxDurationMs: 120_000,
+    },
+    "list-production-projects": {
+      id: "list-production-projects",
+      summary: "Authoritative Atölye production proje kataloğunu (durum, tamamlanan/yarım/resumable) SALT-OKUNUR olarak listeler/özetler.",
+      write: false, destructive: false, requiresProject: false, maxDurationMs: 10_000,
     },
   });
 

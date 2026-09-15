@@ -33,6 +33,7 @@ import {
   ProductionWorkerLifecycle,
   runWithProductionWorkerLifecycleIdentity,
 } from "./ProductionWorkerLifecycle";
+import { assertAyasHeavyWorkloadAllowed } from "@/lib/ayas/machine/AyasMachineHealthGuard";
 
 const processCanonicalLockKey = Symbol.for(
   "@atolye/production-pipeline-execution-canonical-authority-lock/v1",
@@ -172,6 +173,9 @@ async function executePreparedDurableProductionPipelineStage(
     authority: ProductionPipelineCompletedPreparationAuthority) => Promise<boolean>,
   active: ProductionRuntimeOperationContext,
 ): Promise<boolean> {
+  // Admission-only safety guard: this does not authorize execution and cannot
+  // mutate lifecycle/production state. It runs before durable preparation.
+  await assertAyasHeavyWorkloadAllowed({ stage: context.stage, ownedActive: false });
   const predecessorAdapter = new ProductionExecutionFilePersistenceAdapter({
     trustedRootDirectory: `${ProjectReader.getProjectFolder(context.projectSlug)}/production-execution`,
   });
@@ -204,6 +208,9 @@ async function executePreparedDurableProductionPipelineStage(
     executionFingerprint: identity.executionFingerprint,
   }, async () => {
     await emitProductionPipelineExecutionEvent("lifecycle-bound");
+    // Re-check at the owned-workload boundary immediately before the stage
+    // handler. Still only ALLOW/THROTTLE/PAUSE/STOP/BLOCK authority.
+    await assertAyasHeavyWorkloadAllowed({ stage: context.stage, ownedActive: true });
     return new ProductionPipelineExecutionAdapter(
       prepared.executionAdapter,
       () => prepared.request,
