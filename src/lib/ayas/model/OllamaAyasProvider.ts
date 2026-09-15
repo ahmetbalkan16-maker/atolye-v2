@@ -96,6 +96,13 @@ export function createOllamaAyasProvider(
             model,
             messages: [{ role: "user", content: req.prompt }],
             stream: true,
+            // Ollama's own grammar-constrained decoding (server >= 0.5) —
+            // when the caller supplies a schema, this makes the RAW model
+            // output far more likely to already satisfy it, instead of
+            // relying on prompt instructions alone. Omitted entirely for a
+            // request with no schema (the ordinary streaming chat path),
+            // so unconstrained generation is completely unaffected.
+            ...(req.responseSchema ? { format: req.responseSchema } : {}),
             options: {
               temperature: req.temperature ?? base.temperature,
               num_predict: req.maxTokens,

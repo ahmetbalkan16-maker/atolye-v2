@@ -1,8 +1,8 @@
-import { execFile } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { promisify } from "node:util";
+
+import { processIsAlive, readProcessStartEpochMs } from "./AyasProcessLiveness";
 
 /**
  * Durable mutual exclusion for a single `gateRoot`, modeled on this
@@ -39,7 +39,6 @@ interface LockOwner {
   readonly acquiredAt: string;
 }
 
-const execFileAsync = promisify(execFile);
 const DEFAULT_STALE_AFTER_MS = 10 * 60_000;
 const DEFAULT_ACQUIRE_RETRY_LIMIT = 50;
 const DEFAULT_ACQUIRE_RETRY_DELAY_MS = 20;
@@ -55,34 +54,6 @@ export interface AyasExecutionAuthorityLockOptions {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function processIsAlive(pid: number): boolean {
-  try { process.kill(pid, 0); return true; }
-  catch (error) { return (error as NodeJS.ErrnoException).code === "EPERM"; }
-}
-
-async function readProcessStartEpochMs(pid: number): Promise<number> {
-  if (process.platform === "win32") {
-    const script = `$p=Get-Process -Id ${pid} -ErrorAction Stop;([DateTimeOffset]$p.StartTime).ToUnixTimeMilliseconds()`;
-    const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { timeout: 3_000, windowsHide: true });
-    const value = Number(stdout.trim());
-    if (!Number.isSafeInteger(value)) throw new Error("process start time unavailable");
-    return value;
-  }
-  const [stat, system, ticksResult] = await Promise.all([
-    fs.readFile(`/proc/${pid}/stat`, "utf8"),
-    fs.readFile("/proc/stat", "utf8"),
-    execFileAsync("getconf", ["CLK_TCK"], { timeout: 3_000 }),
-  ]);
-  const end = stat.lastIndexOf(")");
-  const fields = stat.slice(end + 2).split(" ");
-  const startTicks = Number(fields[19]);
-  const boot = Number(/^btime\s+(\d+)$/m.exec(system)?.[1]);
-  const ticks = Number(ticksResult.stdout.trim());
-  const value = Math.round((boot + startTicks / ticks) * 1_000);
-  if (![startTicks, boot, ticks, value].every(Number.isFinite)) throw new Error("process start time unavailable");
-  return value;
 }
 
 /**

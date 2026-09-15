@@ -19,7 +19,7 @@
 import { isUsableAyasReply, ayasReplyClaimsExecution } from "@/components/brain/brainCore";
 import type { AyasModelProvider, AyasChatComplexity } from "../model/AyasModelTypes";
 import { buildAyasReasoningPrompt } from "./AyasReasoningPrompt";
-import { parseAyasReasoningOutput } from "./AyasReasoningParser";
+import { parseAyasReasoningOutput, AYAS_REASONING_JSON_SCHEMA } from "./AyasReasoningParser";
 import { checkAyasToolPermission } from "./AyasToolRegistry";
 import type { AyasReasoningResult, AyasReasoningTrace } from "./AyasReasoningTypes";
 
@@ -99,6 +99,14 @@ export async function runAyasReasoning(input: RunAyasReasoningInput): Promise<Ru
       // temperature — both keep the pipeline default, since naturalness of
       // the user-facing prose (not tool selection) is what matters there.
       temperature: 0,
+      // M12 — ask a provider that supports it (currently Ollama) to
+      // constrain its raw output to this exact shape via grammar-based
+      // decoding, instead of relying on prompt instructions alone. Never a
+      // substitute for validation: `parseAyasReasoningOutput` below still
+      // independently checks every field exactly as before, for every
+      // provider, including one that has no such capability and ignores
+      // this entirely.
+      responseSchema: AYAS_REASONING_JSON_SCHEMA,
       ...(input.signal ? { signal: input.signal } : {}),
     });
     raw = out.text;

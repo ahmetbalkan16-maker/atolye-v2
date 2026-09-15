@@ -20,6 +20,37 @@ const MAX_STRING = 4_000;
 const MAX_SHORT_STRING = 400;
 const MAX_ARRAY = 12;
 
+/**
+ * JSON Schema for the SAME shape this parser validates below — passed to a
+ * provider's own constrained-generation support (currently Ollama's
+ * `format`) so the raw model output is far more likely to already conform,
+ * instead of relying on prompt instructions alone. This is a generation
+ * HINT only: `parseAyasReasoningOutput` below still independently validates
+ * every field exactly as before, unconditionally, for every provider
+ * (including one that ignores this schema entirely). Keep this in sync by
+ * hand with the fields `parseAyasReasoningOutput` reads — there is no
+ * runtime link between the two, only this shared file.
+ */
+export const AYAS_REASONING_JSON_SCHEMA: Readonly<Record<string, unknown>> = Object.freeze({
+  type: "object",
+  properties: {
+    intent: { type: "string" },
+    goal: { type: "string" },
+    constraints: { type: "array", items: { type: "string" } },
+    assumptions: { type: "array", items: { type: "string" } },
+    plan: { type: "array", items: { type: "string" } },
+    requiredTools: { type: "array", items: { type: "string" } },
+    toolInput: {
+      type: "object",
+      properties: { documentId: { type: "string" }, filePath: { type: "string" } },
+    },
+    risk: { type: "string" },
+    verification: { type: "array", items: { type: "string" } },
+    answer: { type: "string" },
+  },
+  required: ["intent", "goal", "constraints", "assumptions", "plan", "requiredTools", "risk", "verification", "answer"],
+});
+
 export type AyasReasoningParseFailureReason =
   | "empty-output"
   | "no-json-object"

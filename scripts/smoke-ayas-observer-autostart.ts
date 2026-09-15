@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { acquireAyasObserverLock, releaseAyasObserverLock, AyasObserverLockError } from "../src/lib/brain/autonomy/AyasObserverSingletonLock";
+import { readProcessStartEpochMs } from "../src/lib/brain/autonomy/AyasProcessLiveness";
 
 let count = 0;
 function scenario(name: string, fn: () => void | Promise<void>) { return Promise.resolve(fn()).then(() => { count += 1; if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${name}`); }); }
@@ -21,7 +22,16 @@ async function deadPid(): Promise<number> {
   return pid;
 }
 
-function writeFixtureLock(lockFile: string, pid: number, ageMs: number): void {
+/** Writes the CURRENT (M12, JSON) lock format: `{"pid", "processStartEpochMs"}`. */
+function writeFixtureLock(lockFile: string, pid: number, ageMs: number, processStartEpochMs?: number): void {
+  fs.mkdirSync(path.dirname(lockFile), { recursive: true });
+  fs.writeFileSync(lockFile, `${JSON.stringify({ pid, ...(processStartEpochMs !== undefined ? { processStartEpochMs } : {}) })}\n`);
+  const past = new Date(Date.now() - ageMs);
+  fs.utimesSync(lockFile, past, past);
+}
+
+/** Writes the LEGACY (pre-M12, bare-integer) lock format, for backward-compatibility testing. */
+function writeLegacyFixtureLock(lockFile: string, pid: number, ageMs: number): void {
   fs.mkdirSync(path.dirname(lockFile), { recursive: true });
   fs.writeFileSync(lockFile, `${pid}\n`);
   const past = new Date(Date.now() - ageMs);
@@ -44,75 +54,134 @@ function runPs(scriptRelPath: string, args: readonly string[]): { stdout: string
 async function main() {
   // === Lock module: single-instance / stale / live / restart behavior ===
 
-  await scenario("an isolated observer lock can be acquired and released", () => {
+  await scenario("an isolated observer lock can be acquired and released", async () => {
     const { autonomyDir, lockFile } = lockPaths(root());
-    acquireAyasObserverLock(autonomyDir, lockFile);
+    await acquireAyasObserverLock(autonomyDir, lockFile);
     assert.ok(fs.existsSync(lockFile));
     releaseAyasObserverLock(lockFile);
     assert.equal(fs.existsSync(lockFile), false);
   });
 
-  await scenario("a second acquire attempt against the SAME live lock is rejected, not silently interleaved", () => {
+  await scenario("a second acquire attempt against the SAME live lock is rejected, not silently interleaved", async () => {
     const { autonomyDir, lockFile } = lockPaths(root());
-    acquireAyasObserverLock(autonomyDir, lockFile);
-    assert.throws(() => acquireAyasObserverLock(autonomyDir, lockFile), (e: unknown) => e instanceof AyasObserverLockError && e.code === "AYAS_OBSERVER_ALREADY_RUNNING");
+    await acquireAyasObserverLock(autonomyDir, lockFile);
+    await assert.rejects(acquireAyasObserverLock(autonomyDir, lockFile), (e: unknown) => e instanceof AyasObserverLockError && e.code === "AYAS_OBSERVER_ALREADY_RUNNING");
     releaseAyasObserverLock(lockFile);
   });
 
-  await scenario("a confirmed-dead owner's stale lock is safely reclaimed", async () => {
+  await scenario("M12 fix: a CONFIRMED-dead owner's lock is reclaimed IMMEDIATELY — no 30-minute wait — even though it is only seconds old", async () => {
     const { autonomyDir, lockFile } = lockPaths(root());
     const pid = await deadPid();
-    writeFixtureLock(lockFile, pid, 40 * 60_000);
-    acquireAyasObserverLock(autonomyDir, lockFile, { staleAfterMs: 30 * 60_000 });
-    assert.ok(fs.existsSync(lockFile));
-    const owner = Number(fs.readFileSync(lockFile, "utf8").trim());
-    assert.equal(owner, process.pid, "the reclaiming process must now own the lock");
+    // Deliberately only 1s old (nowhere near any staleAfterMs window) — the
+    // fix is precisely that a POSITIVELY confirmed-dead PID does not need
+    // to wait out the age gate at all.
+    writeFixtureLock(lockFile, pid, 1_000, Date.now() - 1_000);
+    const started = Date.now();
+    await acquireAyasObserverLock(autonomyDir, lockFile, { staleAfterMs: 30 * 60_000 });
+    const elapsedMs = Date.now() - started;
+    assert.ok(elapsedMs < 5_000, `reclaim of a confirmed-dead owner must be near-immediate, took ${elapsedMs}ms`);
+    const owner = JSON.parse(fs.readFileSync(lockFile, "utf8").trim()) as { pid: number };
+    assert.equal(owner.pid, process.pid, "the reclaiming process must now own the lock");
     releaseAyasObserverLock(lockFile);
   });
 
-  await scenario("a live owner's lock is NOT stolen merely because it is old — the real M9 fix: age alone used to be sufficient", async () => {
+  await scenario("legacy (pre-M12, bare-PID-format) lock from a confirmed-dead owner is ALSO reclaimed immediately", async () => {
     const { autonomyDir, lockFile } = lockPaths(root());
-    // Our OWN pid is genuinely alive — simulates a long-running --continuous
-    // observer whose lock file was never refreshed past the staleness window.
-    writeFixtureLock(lockFile, process.pid, 40 * 60_000);
-    assert.throws(
-      () => acquireAyasObserverLock(autonomyDir, lockFile, { staleAfterMs: 30 * 60_000 }),
+    const pid = await deadPid();
+    writeLegacyFixtureLock(lockFile, pid, 1_000);
+    const started = Date.now();
+    await acquireAyasObserverLock(autonomyDir, lockFile, { staleAfterMs: 30 * 60_000 });
+    assert.ok(Date.now() - started < 5_000);
+    releaseAyasObserverLock(lockFile);
+  });
+
+  await scenario("a live owner's lock is NEVER stolen merely because it is old — B1: this invariant is unchanged by the M12 fix", async () => {
+    const { autonomyDir, lockFile } = lockPaths(root());
+    // Our OWN pid is genuinely alive, with our OWN real start time recorded
+    // — simulates a long-running --continuous observer whose lock file was
+    // never refreshed past the staleness window.
+    const ownStart = await readProcessStartEpochMs(process.pid).catch(() => Date.now() - Math.floor(process.uptime() * 1000));
+    writeFixtureLock(lockFile, process.pid, 40 * 60_000, ownStart);
+    await assert.rejects(
+      acquireAyasObserverLock(autonomyDir, lockFile, { staleAfterMs: 30 * 60_000 }),
       (e: unknown) => e instanceof AyasObserverLockError && /already running/.test(e.message),
     );
     fs.rmSync(lockFile, { force: true });
   });
 
-  await scenario("a lock that is old but whose owner cannot be confirmed dead (unparseable PID) fails closed — never reclaimed", () => {
+  await scenario("PID reuse: a live PID whose recorded start time no longer matches is treated as a DIFFERENT (dead-original) process, reclaimed immediately", async () => {
+    const { autonomyDir, lockFile } = lockPaths(root());
+    // Our own PID is alive, but the recorded start time is deliberately
+    // wrong — simulates "a different process now happens to reuse this
+    // PID number", which must NOT be mistaken for the original live owner.
+    writeFixtureLock(lockFile, process.pid, 1_000, 1);
+    const started = Date.now();
+    await acquireAyasObserverLock(autonomyDir, lockFile, { staleAfterMs: 30 * 60_000 });
+    assert.ok(Date.now() - started < 5_000, "a positively-established PID-reuse mismatch must reclaim immediately, like a confirmed-dead owner");
+    releaseAyasObserverLock(lockFile);
+  });
+
+  await scenario("a lock whose owner cannot be confirmed dead (unparseable content) fails closed — never reclaimed, at any age", () => {
     const { autonomyDir, lockFile } = lockPaths(root());
     fs.mkdirSync(path.dirname(lockFile), { recursive: true });
     fs.writeFileSync(lockFile, "not-a-pid\n");
     const past = new Date(Date.now() - 40 * 60_000);
     fs.utimesSync(lockFile, past, past);
-    assert.throws(() => acquireAyasObserverLock(autonomyDir, lockFile, { staleAfterMs: 30 * 60_000 }), (e: unknown) => e instanceof AyasObserverLockError);
+    return assert.rejects(acquireAyasObserverLock(autonomyDir, lockFile, { staleAfterMs: 30 * 60_000 }), (e: unknown) => e instanceof AyasObserverLockError)
+      .finally(() => fs.rmSync(lockFile, { force: true }));
+  });
+
+  await scenario("a young (not-yet-stale) lock whose liveness is unknown is never reclaimed — the original conservative fallback is unchanged", async () => {
+    const { autonomyDir, lockFile } = lockPaths(root());
+    // A malformed record's liveness can never be positively determined, so
+    // it always falls to the age-gated "unknown" path — young means never.
+    fs.mkdirSync(path.dirname(lockFile), { recursive: true });
+    fs.writeFileSync(lockFile, "not-a-pid\n");
+    const past = new Date(Date.now() - 5_000);
+    fs.utimesSync(lockFile, past, past);
+    await assert.rejects(acquireAyasObserverLock(autonomyDir, lockFile, { staleAfterMs: 30 * 60_000 }), (e: unknown) => e instanceof AyasObserverLockError);
     fs.rmSync(lockFile, { force: true });
   });
 
-  await scenario("a young (not-yet-stale) lock is never reclaimed, even from a confirmed-dead owner", async () => {
+  await scenario("concurrent-reclaim race: if the lock record changes between the two observations, the in-flight reclaim aborts and does not steal it", async () => {
     const { autonomyDir, lockFile } = lockPaths(root());
     const pid = await deadPid();
-    writeFixtureLock(lockFile, pid, 5_000); // 5s old, well under the staleness window
-    assert.throws(() => acquireAyasObserverLock(autonomyDir, lockFile, { staleAfterMs: 30 * 60_000 }), (e: unknown) => e instanceof AyasObserverLockError);
-    fs.rmSync(lockFile, { force: true });
+    writeFixtureLock(lockFile, pid, 1_000, Date.now() - 1_000);
+    // Race a rewrite to land between the module's two observations (~50ms
+    // apart) — simulates a different process legitimately re-acquiring at
+    // the same moment. Continuously rewrite (not a single timed write) so
+    // the race lands reliably regardless of exact scheduling.
+    let generation = 0;
+    const rewrite = setInterval(() => {
+      generation += 1;
+      try {
+        fs.writeFileSync(lockFile, `${JSON.stringify({ pid: pid + 1, processStartEpochMs: generation })}\n`);
+      } catch { /* fine if the file is briefly gone */ }
+    }, 8);
+    try {
+      await assert.rejects(
+        acquireAyasObserverLock(autonomyDir, lockFile, { staleAfterMs: 30 * 60_000 }),
+        (e: unknown) => e instanceof AyasObserverLockError,
+      );
+    } finally {
+      clearInterval(rewrite);
+      fs.rmSync(lockFile, { force: true });
+    }
   });
 
-  await scenario("restart-safety: a fresh acquire call (simulating a process restart) still respects a live lock", () => {
+  await scenario("restart-safety: a fresh acquire call (simulating a process restart) still respects a live lock", async () => {
     const { autonomyDir, lockFile } = lockPaths(root());
-    acquireAyasObserverLock(autonomyDir, lockFile);
+    await acquireAyasObserverLock(autonomyDir, lockFile);
     // No in-memory state carries over between these two calls other than the durable lock file itself.
-    assert.throws(() => acquireAyasObserverLock(autonomyDir, lockFile), (e: unknown) => e instanceof AyasObserverLockError);
+    await assert.rejects(acquireAyasObserverLock(autonomyDir, lockFile), (e: unknown) => e instanceof AyasObserverLockError);
     releaseAyasObserverLock(lockFile);
   });
 
-  await scenario("restart-safety: after a clean release, a fresh acquire call succeeds immediately", () => {
+  await scenario("restart-safety: after a clean release, a fresh acquire call succeeds immediately", async () => {
     const { autonomyDir, lockFile } = lockPaths(root());
-    acquireAyasObserverLock(autonomyDir, lockFile);
+    await acquireAyasObserverLock(autonomyDir, lockFile);
     releaseAyasObserverLock(lockFile);
-    acquireAyasObserverLock(autonomyDir, lockFile);
+    await acquireAyasObserverLock(autonomyDir, lockFile);
     assert.ok(fs.existsSync(lockFile));
     releaseAyasObserverLock(lockFile);
   });
@@ -120,6 +189,11 @@ async function main() {
   await scenario("the lock module has zero dependency on approval/gate/daemon authority, or the M3 execution-authority lock", () => {
     const src = fs.readFileSync(path.join(REPO_ROOT, "src", "lib", "brain", "autonomy", "AyasObserverSingletonLock.ts"), "utf8");
     assert.doesNotMatch(src, /AyasApprovalInboxStore|AyasExecutionGateStore|AyasAutonomyDaemon|AyasExecutionAuthorityLock|reserveApproval|finalizeApproval|consumeApproval|executeApproved/);
+  });
+
+  await scenario("the shared process-liveness helper module has zero dependency on any lock domain or authority surface", () => {
+    const src = fs.readFileSync(path.join(REPO_ROOT, "src", "lib", "brain", "autonomy", "AyasProcessLiveness.ts"), "utf8");
+    assert.doesNotMatch(src, /AyasApprovalInboxStore|AyasExecutionGateStore|AyasAutonomyDaemon|reserveApproval|finalizeApproval|consumeApproval|executeApproved|AyasObserverSingletonLock/);
   });
 
   // === Startup entrypoint classification: OBSERVER_ONLY_SAFE ===

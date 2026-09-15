@@ -50,6 +50,17 @@ export interface AyasModelRequest {
   readonly temperature?: number;
   readonly numCtx?: number;
   readonly signal?: AbortSignal;
+  /**
+   * Optional JSON Schema (draft-2020-12-ish subset) constraining the raw
+   * model output via the provider's OWN constrained-generation support
+   * (Ollama's `format` field, grammar-based), when the provider offers one —
+   * never a substitute for validation. `parseAyasReasoningOutput` (or any
+   * other caller) still independently validates the result exactly as
+   * before; this only makes the raw text more likely to already conform,
+   * for a provider that supports it. A provider without this capability
+   * simply ignores the field — same behavior as before this existed.
+   */
+  readonly responseSchema?: Readonly<Record<string, unknown>>;
 }
 
 export type AyasModelStreamChunk =

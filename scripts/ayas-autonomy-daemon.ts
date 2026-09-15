@@ -34,7 +34,7 @@ async function main(): Promise<void> {
   const continuous = process.argv.includes("--continuous");
   const intervalArg = process.argv.indexOf("--interval-ms");
   const intervalMs = intervalArg >= 0 ? Math.max(1_000, Number(process.argv[intervalArg + 1] ?? "300000")) : 5 * 60_000;
-  acquireAyasObserverLock(autonomyDir, lockFile);
+  await acquireAyasObserverLock(autonomyDir, lockFile);
   process.on("exit", () => releaseAyasObserverLock(lockFile));
   const observer = createAyasAutonomyObserver({ stateFile, now: () => new Date().toISOString() });
   try {
