@@ -8,8 +8,13 @@ const action = (patch: Partial<AyasMachineTelemetry>, ownedActive = false): Ayas
 assert.equal(action({}), "ALLOW");
 assert.equal(action({ cpuPercent: 92 }), "THROTTLE");
 assert.equal(action({ cpuPercent: 99 }), "PAUSE");
+assert.equal(action({ ramUsedPercent: 93 }), "PAUSE");
+assert.equal(action({ vramUsedPercent: 95 }), "PAUSE");
+assert.equal(action({ cpuPercent: 90 }), "THROTTLE");
 assert.equal(action({ diskFreePercent: 2 }), "BLOCK NEW HEAVY WORK");
 assert.equal(action({ diskFreePercent: 2 }, true), "STOP OWN WORKLOAD");
+assert.equal(evaluateAyasMachineHealth({ ...base, cpuPercent: 99 }, { stage: "video", ownedActive: false }).mayStart, false);
+assert.equal(evaluateAyasMachineHealth({ ...base, diskFreePercent: 2 }, { stage: "video", ownedActive: true }).mayStart, false);
 assert.equal(action({ ramUsedPercent: undefined }), "BLOCK NEW HEAVY WORK");
 assert.equal(action({ gpuPercent: undefined, unavailable: ["gpu"] }), "THROTTLE");
 
@@ -19,4 +24,4 @@ assert.match(canonical, /assertAyasHeavyWorkloadAllowed\(\{ stage: context\.stag
 const healthRead = fs.readFileSync("src/lib/production/ProductionHealthService.ts", "utf8");
 const readiness = fs.readFileSync("src/lib/production/ProductionReadinessService.ts", "utf8");
 assert.doesNotMatch(healthRead + readiness, /AyasMachineHealthGuard|collectAyasMachineTelemetry/);
-console.log(JSON.stringify({ status: "PASS", suite: "ayas-machine-health", scenarios: 10 }));
+console.log(JSON.stringify({ status: "PASS", suite: "ayas-machine-health", scenarios: 16 }));
