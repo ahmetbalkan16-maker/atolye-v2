@@ -25,6 +25,7 @@ import { classifyPatchTarget, classifyPatchSet, patchRisk } from "../src/lib/bra
 import {
   checkSelfHealAttempt,
   checkSignatureNotMuted,
+  checkAutonomousApplyRate,
   BRAIN_SELFHEAL_LIMITS,
 } from "../src/lib/brain/selfheal/BrainSelfHealLimits";
 import { sanitizeUntrustedText, sanitizeUntrustedNote } from "../src/lib/brain/selfheal/BrainUntrustedInput";
@@ -297,6 +298,20 @@ async function run() {
     const history = Array.from({ length: BRAIN_SELFHEAL_LIMITS.maxIncidentsPerSignature }, (_, i) => ({ signature: "voice:x y z", openedAt: t0 - i * 1000 }));
     assert.equal(checkSignatureNotMuted("voice:x y z", history, t0).violation, "SIGNATURE_MUTED");
     assert.equal(checkSignatureNotMuted("voice:other", history, t0).ok, true);
+  });
+
+  await scenario("limits — autonomous apply rate counts only finite timestamps in the past hour", () => {
+    const now = Date.parse(NOW);
+    const hour = 3_600_000;
+    const recent = [now, now - 1, now - 59 * 60_000];
+
+    assert.equal(checkAutonomousApplyRate(recent, now).ok, true, "three recent applies remain allowed");
+    assert.equal(checkAutonomousApplyRate([...recent, now - hour], now).violation, "AUTONOMOUS_APPLY_RATE", "exactly one hour old counts");
+    assert.equal(checkAutonomousApplyRate([...recent, now - hour - 1], now).ok, true, "one hour plus one millisecond old does not count");
+    assert.equal(checkAutonomousApplyRate([...recent, now + 1], now).ok, true, "one millisecond future does not count");
+    assert.equal(checkAutonomousApplyRate([now + 4 * 60_000, now + 5 * 60_000, now + 6 * 60_000, now + 1], now).ok, true, "future timestamps alone cannot trip the rate");
+    assert.equal(checkAutonomousApplyRate([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY], now).ok, true, "non-finite timestamps do not count");
+    assert.equal(checkAutonomousApplyRate([...recent, now - 2 * hour, now + 4 * 60_000, Number.NaN], now).ok, true, "mixed history counts only valid recent entries");
   });
 
   /* ---------------- untrusted input / prompt injection ---------------- */

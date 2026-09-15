@@ -117,7 +117,10 @@ const okV2: BrainSelfHealV2LimitResult = Object.freeze({ ok: true, violation: nu
 
 /** Whether ANOTHER autonomous SAFE auto-apply is allowed right now. */
 export function checkAutonomousApplyRate(applyTimestampsMs: readonly number[], nowMs: number): BrainSelfHealV2LimitResult {
-  const inHour = applyTimestampsMs.filter((t) => nowMs - t <= 3_600_000).length;
+  const inHour = applyTimestampsMs.filter((t) => {
+    const ageMs = nowMs - t;
+    return Number.isFinite(ageMs) && ageMs >= 0 && ageMs <= 3_600_000;
+  }).length;
   if (inHour >= BRAIN_SELFHEAL_LIMITS.maxAutonomousAppliesPerHour) {
     return { ok: false, violation: "AUTONOMOUS_APPLY_RATE", reason: `${inHour} autonomous applies in the last hour (max ${BRAIN_SELFHEAL_LIMITS.maxAutonomousAppliesPerHour}) — pausing auto-apply` };
   }
