@@ -25,7 +25,12 @@ export type BrainCoreState =
   | "error"
   | "listening"
   | "speaking"
-  | "autonomous";
+  | "autonomous"
+  /** Premium 3D Brain Orb sprint — the browser itself is offline (no network at
+   * all). Distinct from `error` (a read failed while still connected): the orb
+   * dims to a quiet, static minimum rather than jittering — "energy fades, the
+   * look stays premium," never an alarming/broken appearance. */
+  | "offline";
 
 export interface BrainCoreStateInfo {
   readonly state: BrainCoreState;
@@ -131,6 +136,15 @@ export const BRAIN_CORE_STATES: Readonly<Record<BrainCoreState, BrainCoreStateIn
       characterTr: "Otonom döngü gözlemliyor ve öneri taslağı hazırlıyor — yürütme yok.",
       intensity: 0.8,
       hue: "emerald",
+    },
+    offline: {
+      state: "offline",
+      label: "Offline",
+      tr: "Çevrim Dışı",
+      description: "No network connection — resting at a quiet minimum, not an error.",
+      characterTr: "Bağlantı yok — çekirdek düşük enerjide, sakin bekliyor.",
+      intensity: 0.08,
+      hue: "cyan",
     },
   });
 
@@ -275,8 +289,11 @@ export function deriveAyasPresence(input: AyasPresenceInput): AyasPresenceView {
               ? "Konuşma aktif — AYAS dinliyor"
               : voiceState === "idle" && input.voice?.listening
                 ? handsFree
+                  // Hands-free = the on-device openWakeWord audio model, trained
+                  // ONLY on "AYAS" — the text-alias resolver (UYAN, …) does not
+                  // reach this path, so this label must not claim otherwise.
                   ? "\"AYAS\" bekleniyor (eller serbest)"
-                  : "\"AYAS\" bekleniyor"
+                  : "\"UYAN\" (\"AYAS\") bekleniyor"
                 : ayasVoicePresenceValue(voiceState),
             tone: voiceState === "error" ? "warn" : "ok",
           };

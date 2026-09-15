@@ -1,5 +1,89 @@
 ---
 
+## 2026-09-15 — AYAS Wake Word + Phone Access + Premium 3D Brain Orb (READY TO COMMIT; not committed)
+
+- **Wake alias resolver**: `"UYAN"` is the primary wake word; `HEY UYAN`,
+  `AYAS`, `HEY AYAS`, `AYA`, `HEY AYA`, `ATÖLYE` remain fully supported,
+  all resolving to the one canonical wake intent — AYAS's own identity is
+  unchanged. Matching is now POSITIONAL: an alias only wakes AYAS as the
+  LEADING invocation of the utterance (leading whitespace/punctuation is
+  tolerated), never a word appearing later in an unrelated sentence — this
+  structurally closes the earlier disclosed false-positive risk for "uyan"
+  used mid-sentence, addressed to someone else. `"atölye"` additionally
+  requires a following comma or end-of-utterance before it wakes, since it
+  is also the studio's own name and constantly used in ordinary sentences
+  ABOUT it ("Atölye bugün kapalı") — the other aliases carry no such
+  restriction. No fuzzy/edit-distance matching anywhere; the remaining
+  command text (Turkish characters included) is preserved exactly. A
+  Ctrl+Space browser push-to-talk fallback is also available (browser STT
+  platform only) — pressing it behaves exactly like a spoken wake alias,
+  grants no execution authority. Real disclosed residual: a sentence that
+  itself OPENS with "uyan"/"aya", addressed to someone else, still wakes.
+- **Runtime authority recovery — COMPLETE**: a separate, non-Claude-Code
+  migration (2026-09-14) had physically relocated the runtime + authority
+  data off the old, now-deleted `D:\AtolyeRuntime`/`D:\AtolyeAuthority` onto
+  the canonical `Program\Atölye\runtime\...` without running the project's
+  own relocation/recovery transition tool, leaving the authority control
+  plane stamped with identity hashes for a path that no longer exists —
+  every `npm run dev` boot failed closed with `RUNTIME_AUTHORITY_NOT_ACTIVE`.
+  Fixed via the project's own sanctioned CLI only (`authority:begin-recovery
+  → quiesce → prepare → validate → publish → quarantine`), after backing up
+  and removing the one stale, never-validly-stamped marker file that blocked
+  it. Single active authority confirmed (`resolverBindingIdentity
+  8bc24c8c…`, sequence 2), canonical external runtime preserved, zero
+  `data/projects` fallback, zero production project/media mutation (only
+  the coordination marker file changed on disk).
+- **Phone access — operational, zero-cost**: local (`127.0.0.1`) and LAN
+  (`192.168.2.74`) access confirmed working against the recovered runtime;
+  a free Cloudflare Quick Tunnel (`cloudflared tunnel --url
+  http://127.0.0.1:3000`) confirmed reachable end-to-end, access-gate
+  enforced identically on all three paths. **The Quick Tunnel hostname is
+  EPHEMERAL — a new one is minted on every daemon/tunnel restart; this is
+  NOT a stable public hostname**, and no paid tunnel/VPN was added to make
+  it one.
+- **Windows auto-start**: `scripts/ayas-access-daemon.ps1` (idempotent —
+  TCP-listen + process-name checks so a re-run, including at every login,
+  never starts a second app server or a second tunnel; bounded health
+  backoff before the tunnel is ever started; rotated logs; touches nothing
+  execution/self-improvement/production-resume related) registered via
+  `scripts/register-ayas-autostart.ps1`. Task Scheduler registration needs
+  elevation this environment doesn't have, so it falls back automatically
+  to a per-user Startup-folder shortcut (`shell:startup`) — no admin rights
+  either way. `scripts/unregister-ayas-autostart.ps1` removes either.
+- **Phone access status API**: `GET /api/ayas/phone-access` (access-gate
+  protected, same as every other route) exposes the bounded
+  `AyasPhoneAccessHealth` read model — `appServer`/`lanAccess`/`tunnel`/
+  `ayasBackend` plus the CURRENT ephemeral tunnel URL — read live from the
+  daemon's status file (`data/brain/phone-access/status.json`, gitignored),
+  fail-safe (never trusts a stale/frozen "online" past 5 minutes). **Known
+  residual — REMOTE URL DISCOVERY**: a fully remote user (no LAN access)
+  whose PC reboots has no way to learn the NEW Quick Tunnel URL without
+  first reaching some already-live AYAS endpoint (LAN, or a still-open
+  prior tunnel session) — reaching this status API at all requires already
+  having a way in. Not solved here; a paid named tunnel with a fixed
+  hostname would solve it but is out of the zero-cost scope.
+- **Premium 3D Brain Orb**: the home-screen orb (`BrainCoreOrb.tsx` +
+  `BrainCore.css`, Sprint 185 base) gained a translucent glass shell
+  (off-centre 3D shading), two slow conic-gradient orbital light bands, a
+  glass specular highlight, and a richer multi-hue (blue/cyan/violet)
+  energy core — pure CSS (transform/opacity/filter only), no WebGL/canvas,
+  `prefers-reduced-motion` respected. Added a genuine `offline` visual
+  state (dims to a calm, static minimum, never an error/jitter look),
+  wired to the already-computed browser `connectivity` signal — no new
+  detection logic. Verified with real Playwright screenshots (desktop,
+  mobile, offline, reduced-motion), not just unit assertions.
+- Full combined regression green: `ayas-voice` (75), `ayas-wake-adapter`
+  (53), `ayas-reasoning` (45, incl. a real voice-engine→reasoning E2E for
+  the wake alias), `brain-core-ui` (41), `ayas-chat`/`-stream`/`-quality`
+  (12/20/35), `ayas-project-catalog` (7), `ayas-studio-context` (24),
+  `ayas-access-gate` (19), `ayas-execution-gate` (16), production-health
+  API/UI (15/10), `ayas-phone-access-health` (12), and the full
+  `c2b6`/`c2b6b`/`c2b9`/`c2b9b`/`c2b11` authority-transition suite family.
+  `npx tsc --noEmit --incremental false` PASS; lint 0 errors / same 22
+  pre-existing warnings / 0 new; `git diff --check` clean. Execution Gate
+  untouched (still CLOSED) throughout every part of this sprint.
+
+
 ## 2026-09-15 — AYAS Autonomous Zero-Cost Brain + Machine Safety Foundation (READY TO COMMIT; not committed)
 
 - Closed Criterion 37 by routing real Guided Repair product workflow creation through the schema-bound planner.

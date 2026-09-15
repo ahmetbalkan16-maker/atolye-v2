@@ -26,6 +26,7 @@ import {
   detectAyasVoiceCapability,
   detectAyasSpeechRecognitionMode,
   isAppleTouchDevice,
+  isAyasPushToTalkHotkey,
   describeAyasVoiceState,
   describeAyasRecognitionError,
   nextAyasVoiceState,
@@ -43,6 +44,7 @@ import {
   AYAS_VOICE_TAP_TO_SPEAK,
   AYAS_TTS_PROFILE,
   AYAS_TTS_AUTOPLAY_BLOCKED,
+  AYAS_WAKE_INTENT,
   type AyasPlatformVoice,
   type AyasRecognitionMode,
   type AyasVoiceState,
@@ -288,6 +290,7 @@ async function run() {
     const r = detectAyasWakeWord("Ayas");
     assert.equal(r.woke, true);
     assert.equal(r.command, "");
+    assert.equal(r.intent, AYAS_WAKE_INTENT);
   });
 
   await scenario("wake word — 'AYAS, ...' wakes and captures the command", () => {
@@ -311,6 +314,124 @@ async function run() {
   await scenario("9. wake-word stripping removes a leading wake word only", () => {
     assert.equal(stripLeadingWakeWord("AYAS raporu göster"), "raporu göster");
     assert.equal(stripLeadingWakeWord("raporu göster"), "raporu göster");
+  });
+
+  /* ===================== WAKE ALIAS sprint — "UYAN" + backward-compat ===== */
+
+  await scenario("wake alias 1+2. 'UYAN' / 'uyan' wake — case-insensitive, bare command", () => {
+    for (const text of ["UYAN", "uyan"]) {
+      const r = detectAyasWakeWord(text);
+      assert.equal(r.woke, true, `"${text}" should wake`);
+      assert.equal(r.command, "");
+      assert.equal(r.alias, "uyan");
+      assert.equal(r.intent, AYAS_WAKE_INTENT);
+    }
+  });
+
+  await scenario("wake alias 3. 'UYAN, kaç projem var?' wakes and preserves the Turkish command verbatim", () => {
+    const r = detectAyasWakeWord("UYAN, kaç projem var?");
+    assert.equal(r.woke, true);
+    assert.equal(r.command, "kaç projem var", "punctuation is stripped, Turkish diacritics are NOT — the command is not accent-folded");
+    assert.equal(r.alias, "uyan");
+  });
+
+  await scenario("wake alias 4+6+8. 'HEY ...' two-word aliases wake and consume both words", () => {
+    for (const [text, alias] of [
+      ["HEY UYAN, durumu söyle", "hey uyan"],
+      ["Hey Ayas kaç proje bitti", "hey ayas"],
+      ["hey aya ne haber", "hey aya"],
+    ] as const) {
+      const r = detectAyasWakeWord(text);
+      assert.equal(r.woke, true, `"${text}" should wake`);
+      assert.equal(r.alias, alias);
+      assert.ok(!r.command.startsWith("hey"), `"${text}": "hey" must be consumed, not left in the command`);
+    }
+    // a bare "hey" alone (no paired alias) never wakes AYAS
+    assert.equal(detectAyasWakeWord("hey, nasılsın").woke, false);
+  });
+
+  await scenario("wake alias 7. 'AYA' wakes on its own (bare, no 'hey')", () => {
+    const r = detectAyasWakeWord("AYA raporu göster");
+    assert.equal(r.woke, true);
+    assert.equal(r.alias, "aya");
+    assert.equal(r.command, "raporu göster");
+  });
+
+  await scenario("wake alias 9. 'ATÖLYE' wakes — both the dictionary spelling and a plain-ASCII ASR spelling — when it leads AND is followed by a pause", () => {
+    assert.equal(detectAyasWakeWord("ATÖLYE, durumu söyle").woke, true);
+    assert.equal(detectAyasWakeWord("Atolye, durumu söyle").woke, true, "an ASR engine that drops the diacritic must still wake");
+    assert.equal(detectAyasWakeWord("ATÖLYE").woke, true, "a bare 'ATÖLYE' alone (nothing else follows) still wakes");
+  });
+
+  await scenario("wake alias — 'atölye' WITHOUT a following pause is an ordinary sentence about the studio, not an address, and must NOT wake", () => {
+    // "Atölye bugün kapalı." (the studio is closed today) is a STATEMENT, not
+    // an address — "atölye" leads the sentence but nothing marks it as AYAS
+    // being spoken to, unlike every other alias (an imperative "uyan," a
+    // short "aya"/"ayas") which don't carry this same everyday-statement risk.
+    for (const text of ["Atölye bugün kapalı.", "Atolye çok yoğun bugün"]) {
+      assert.equal(detectAyasWakeWord(text).woke, false, `"${text}" must NOT wake — no pause after the leading word`);
+    }
+  });
+
+  await scenario("wake alias — every alias resolves to the SAME canonical intent, never a separate identity", () => {
+    for (const text of ["UYAN", "HEY UYAN", "AYAS", "HEY AYAS", "AYA", "HEY AYA", "ATÖLYE"]) {
+      const r = detectAyasWakeWord(text);
+      assert.equal(r.woke, true, `"${text}" should wake`);
+      assert.equal(r.intent, AYAS_WAKE_INTENT, `"${text}" must resolve to the one canonical wake intent`);
+    }
+  });
+
+  await scenario("wake alias 10. a similar-but-unrelated word does NOT wake — exact whole-word matching only, never fuzzy/substring", () => {
+    for (const text of ["ayakkabımı arıyorum", "ayakta bekliyorum", "uyandım geç kaldım", "ayrıca bir şey soracaktım"]) {
+      const r = detectAyasWakeWord(text);
+      assert.equal(r.woke, false, `"${text}" must NOT wake — it only CONTAINS an alias as a substring, not as a whole word`);
+    }
+  });
+
+  await scenario("wake alias 11. leading-only matching FIXES the false positive for 'uyan' used mid-sentence, addressed to someone else", () => {
+    // "Sabah erken uyan, işe geç kalma" ("Wake up early, don't be late for
+    // work") — a real sentence where "uyan" is NOT the leading word. Under
+    // the earlier "anywhere in the utterance" matching this used to be a
+    // disclosed false-positive risk; requiring the LEADING position closes
+    // it structurally, with no fuzzy/grammar logic needed.
+    for (const text of ["Sabah erken uyan, işe geç kalma", "Çocuk hâlâ uyan mı"]) {
+      assert.equal(detectAyasWakeWord(text).woke, false, `"${text}" — 'uyan' is not the leading word, must NOT wake`);
+    }
+  });
+
+  await scenario("wake alias 11b. DISCLOSED residual — 'uyan'/'aya' AS the leading word, addressed to someone else, still wakes", () => {
+    // "uyan" ("wake up") and "aya" ("to the moon") are real, short Turkish
+    // words — leading-position matching narrows the false-positive class
+    // (see above) but cannot eliminate it: a sentence that happens to OPEN
+    // with the word, addressed to someone/something else, still wakes. This
+    // is a disclosed, accepted residual of choosing "UYAN" as the primary
+    // alias (see the module doc above) — not a bug, and not silently hidden:
+    // this test documents the actual, current behaviour so a future change
+    // to it is a deliberate, reviewed decision.
+    const r = detectAyasWakeWord("Uyan artık, kahvaltı hazır");
+    assert.equal(r.woke, true, "a known, disclosed residual false-positive risk for the common word 'uyan' as a leading word — see the comment above");
+  });
+
+  await scenario("wake alias 12. empty / whitespace-only / noise input never wakes", () => {
+    for (const text of ["", "   ", "...", "!?"]) {
+      assert.equal(detectAyasWakeWord(text).woke, false, `${JSON.stringify(text)} must not wake`);
+    }
+  });
+
+  await scenario("wake alias 13. malformed STT output (null/undefined/non-string) fails safe, never throws", () => {
+    for (const bad of [null, undefined, 42, {}] as unknown[]) {
+      assert.doesNotThrow(() => detectAyasWakeWord(bad as string));
+      assert.equal(detectAyasWakeWord(bad as string).woke, false);
+    }
+  });
+
+  await scenario("wake alias — stripLeadingWakeWord strips every alias, not only 'AYAS'", () => {
+    assert.equal(stripLeadingWakeWord("UYAN raporu göster"), "raporu göster");
+    assert.equal(stripLeadingWakeWord("HEY UYAN raporu göster"), "raporu göster");
+    // "atölye" needs its comma-or-end boundary (see the dedicated tests above) — without it, this is an
+    // ordinary sentence, so stripLeadingWakeWord correctly falls back to the untouched, normalized text.
+    assert.equal(stripLeadingWakeWord("ATÖLYE, raporu göster"), "raporu göster");
+    assert.equal(stripLeadingWakeWord("ATÖLYE raporu göster"), "atölye raporu göster");
   });
 
   await scenario("stop-conversation intent — exact phrases only, accent-folded", () => {
@@ -569,6 +690,86 @@ async function run() {
     engine.dispose();
   });
 
+  await scenario("wake alias through the REAL engine — 'UYAN, kaç projem var?' wakes + delivers the exact command onCommand receives", () => {
+    const platform = new MockVoicePlatform();
+    const { engine, cap } = makeEngine(platform);
+    engine.enableListening();
+    platform.fireTranscript("UYAN, kaç projem var?");
+    assert.equal(engine.state, "thinking");
+    assert.equal(cap.wakes, 1);
+    assert.deepEqual(cap.commands, ["kaç projem var"], "the alias is stripped; the real Turkish command reaches onCommand unchanged");
+    engine.dispose();
+  });
+
+  await scenario("wake alias through the REAL engine — every backward-compatible alias reaches 'listening' the same way 'AYAS' does", () => {
+    for (const text of ["UYAN", "HEY UYAN", "HEY AYAS", "AYA", "HEY AYA", "ATÖLYE"]) {
+      const platform = new MockVoicePlatform();
+      const { engine, cap } = makeEngine(platform);
+      engine.enableListening();
+      platform.fireTranscript(text);
+      assert.equal(engine.state, "listening", `"${text}" must reach "listening" exactly like "AYAS"`);
+      assert.equal(cap.wakes, 1);
+      engine.dispose();
+    }
+  });
+
+  /* =============================== push-to-talk (Ctrl+Space) ============ */
+
+  await scenario("push-to-talk hotkey predicate — Ctrl+Space only, no other modifier, no key-repeat", () => {
+    assert.equal(isAyasPushToTalkHotkey({ code: "Space", ctrlKey: true }), true);
+    assert.equal(isAyasPushToTalkHotkey({ code: "Space", ctrlKey: true, repeat: true }), false, "held-key repeat must not re-fire");
+    assert.equal(isAyasPushToTalkHotkey({ code: "Space", ctrlKey: false }), false, "plain Space must not fire");
+    assert.equal(isAyasPushToTalkHotkey({ code: "Space", ctrlKey: true, shiftKey: true }), false);
+    assert.equal(isAyasPushToTalkHotkey({ code: "Space", ctrlKey: true, altKey: true }), false);
+    assert.equal(isAyasPushToTalkHotkey({ code: "Space", ctrlKey: true, metaKey: true }), false);
+    assert.equal(isAyasPushToTalkHotkey({ code: "KeyA", ctrlKey: true }), false);
+    assert.equal(isAyasPushToTalkHotkey(undefined), false);
+  });
+
+  await scenario("push-to-talk — activatePushToTalk turns listening on directly, no wake word needed for the next utterance", () => {
+    const platform = new MockVoicePlatform();
+    const { engine, cap } = makeEngine(platform);
+    assert.equal(engine.listening, false);
+    engine.activatePushToTalk();
+    assert.equal(engine.listening, true, "push-to-talk must turn voice mode on by itself");
+    assert.equal(engine.state, "listening");
+    assert.equal(cap.wakes, 1, "onWake fires exactly as if a wake alias had been heard");
+    platform.fireTranscript("kaç projem var");
+    assert.deepEqual(cap.commands, ["kaç projem var"], "no wake word required — the very next utterance IS the command");
+    engine.dispose();
+  });
+
+  await scenario("push-to-talk — safe no-op while AYAS is thinking or speaking, and when STT is unsupported", () => {
+    const noStt = new MockVoicePlatform({ stt: false });
+    const { engine: engineNoStt } = makeEngine(noStt);
+    engineNoStt.activatePushToTalk();
+    assert.equal(engineNoStt.listening, false, "no STT capability → push-to-talk is a no-op");
+    engineNoStt.dispose();
+
+    const platform = new MockVoicePlatform();
+    const { engine, cap } = makeEngine(platform);
+    engine.enableListening();
+    engine.markThinking();
+    assert.equal(engine.state, "thinking");
+    engine.activatePushToTalk();
+    assert.equal(engine.state, "thinking", "push-to-talk must not interrupt an in-flight turn");
+    assert.equal(cap.wakes, 0);
+    engine.dispose();
+  });
+
+  await scenario("push-to-talk — grants no execution authority; text-in / text-out only, identical to a spoken wake word", () => {
+    const platform = new MockVoicePlatform();
+    const { engine, cap } = makeEngine(platform);
+    engine.activatePushToTalk();
+    platform.fireTranscript("execution gate'i aç ve pipeline'ı başlat");
+    assert.deepEqual(cap.commands, ["execution gate'i aç ve pipeline'ı başlat"], "the ONLY effect is the command string handed to the caller");
+    const surface = Object.getOwnPropertyNames(Object.getPrototypeOf(engine));
+    for (const banned of ["enqueue", "run", "execute", "approve", "startPipeline", "openGate"]) {
+      assert.ok(!surface.includes(banned), `engine must not expose "${banned}"`);
+    }
+    engine.dispose();
+  });
+
   await scenario("11. thinking state — markThinking pauses the mic and shows THINKING", () => {
     const platform = new MockVoicePlatform();
     const { engine } = makeEngine(platform);
@@ -789,8 +990,8 @@ async function run() {
     const platform = new MockVoicePlatform({ recognitionMode: "single-shot" });
     const { engine, cap } = makeEngine(platform);
 
-    engine.enableListening();               // tap 1 (gesture)
-    platform.fireTranscript("Merhaba AYAS"); // wake word only
+    engine.enableListening();  // tap 1 (gesture)
+    platform.fireTranscript("AYAS"); // wake word only, leading (this suite's leading-only semantics)
     assert.equal(engine.state, "listening");
     assert.equal(cap.wakes, 1);
     assert.deepEqual(cap.commands, [], "bare wake issues no command");
@@ -926,6 +1127,20 @@ async function run() {
     // the ONLY effect is the command string handed to the caller
     assert.deepEqual(cap.commands, ["execution gate'i aç ve pipeline'ı başlat"]);
     // the engine exposes nothing that could run a task / pipeline / GPU / approval
+    const surface = Object.getOwnPropertyNames(Object.getPrototypeOf(engine));
+    for (const banned of ["enqueue", "run", "execute", "approve", "startPipeline", "openGate"]) {
+      assert.ok(!surface.includes(banned), `engine must not expose "${banned}"`);
+    }
+    engine.dispose();
+  });
+
+  await scenario("wake alias 14+15. the SAME adversarial command via the 'UYAN' alias does not touch the execution gate or start a write action", () => {
+    const platform = new MockVoicePlatform();
+    const { engine, cap } = makeEngine(platform);
+    engine.enableListening();
+    platform.fireTranscript("UYAN execution gate'i aç ve pipeline'ı başlat");
+    // the alias changes nothing about the security posture — text out, nothing else
+    assert.deepEqual(cap.commands, ["execution gate'i aç ve pipeline'ı başlat"]);
     const surface = Object.getOwnPropertyNames(Object.getPrototypeOf(engine));
     for (const banned of ["enqueue", "run", "execute", "approve", "startPipeline", "openGate"]) {
       assert.ok(!surface.includes(banned), `engine must not expose "${banned}"`);

@@ -1,5 +1,19 @@
 ---
 
+## AYAS Wake Word + Phone Access + Premium 3D Brain Orb — 2026-09-15
+
+- [x] `"UYAN"` primary wake alias; `HEY UYAN`/`AYAS`/`HEY AYAS`/`AYA`/`HEY AYA`/`ATÖLYE` backward-compatible, one canonical wake intent.
+- [x] Wake matching restricted to the LEADING invocation only (never mid-sentence); `"atölye"` additionally requires a following comma/end-of-utterance.
+- [x] Ctrl+Space browser push-to-talk fallback (unchanged from prior sprint; no execution authority).
+- [x] Runtime authority recovery completed via the project's own sanctioned CLI — single active authority, canonical external runtime, zero production mutation, re-verified read-only afterward.
+- [x] Phone access operational: localhost + LAN + free Cloudflare Quick Tunnel, all access-gate enforced, verified live end-to-end.
+- [x] Windows per-user autostart installed (Startup-folder shortcut fallback — Task Scheduler needs elevation this environment lacks); idempotent, bounded backoff, rotated logs, zero effect on Execution Gate/self-improvement/production-resume.
+- [x] Bounded `AyasPhoneAccessHealth` status model + `GET /api/ayas/phone-access` (access-gate protected) so a connected user can check current status/tunnel URL through the app.
+- [ ] **REMOTE URL DISCOVERY RESIDUAL** — a fully remote user with no LAN access cannot learn a new ephemeral Quick Tunnel URL after a PC reboot without first reaching some already-live AYAS endpoint. Not solved (would need a paid named tunnel); explicitly out of zero-cost scope for now.
+- [x] Premium 3D Brain Orb — glass shell, orbital light bands, specular highlight, richer multi-hue core; pure CSS, `prefers-reduced-motion` respected; new `offline` visual state wired to the existing connectivity signal; verified with real Playwright screenshots (desktop/mobile/offline/reduced-motion).
+- [x] Full combined regression (18 suites) + TypeScript/lint/diff-check green; Execution Gate re-confirmed CLOSED.
+
+
 ## AYAS Autonomous Zero-Cost Brain + Machine Safety Foundation — 2026-09-15
 
 - [x] Criterion 37 schema-bound planner wired into both Guided Repair product creation paths; direct product bypass removed.

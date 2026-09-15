@@ -72,6 +72,7 @@ graphify-out/
 /data/brain/execution/
 /data/brain/selfheal/
 /data/brain/memory/
+/data/brain/phone-access/
 
 # ---------------------------------------------------------------------------
 # C.2B.12 (Sprint 199) — data/projects is external-runtime authority data.

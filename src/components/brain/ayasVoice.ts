@@ -16,13 +16,19 @@
  *
  * IMPORTANT browser reality (surfaced in the UI + the sprint report):
  *  - `speechSynthesis` (AYAS speaking) runs locally in the browser — safe.
- *  - `SpeechRecognition` (hearing "AYAS") is only implemented in Chromium
- *    browsers as `webkitSpeechRecognition`, and that implementation streams
- *    audio to the browser vendor's cloud service. It is therefore OFF by
- *    default and only starts after an explicit, informed user opt-in.
+ *  - `SpeechRecognition` (hearing the wake word) is only implemented in
+ *    Chromium browsers as `webkitSpeechRecognition`, and that implementation
+ *    streams audio to the browser vendor's cloud service. It is therefore OFF
+ *    by default and only starts after an explicit, informed user opt-in.
  *  - A true always-on OS wake word is not possible from a web page (the tab
- *    must be focused and mic permission granted). "Wake word" here means: while
- *    voice mode is on, saying "AYAS" flips AYAS into active listening.
+ *    must be focused and mic permission granted). "Wake word" here means:
+ *    while voice mode is on, saying a wake alias flips AYAS into active
+ *    listening.
+ *  - Wake Alias sprint: "UYAN" is now the primary/preferred wake alias — the
+ *    easiest first try for a Turkish speaker. AYAS's own identity is
+ *    unchanged, and every alias below (see `detectAyasWakeWord`) resolves to
+ *    the exact same canonical wake intent — none is a separate identity, and
+ *    none by itself grants any execution authority.
  */
 
 export type AyasVoiceState =
@@ -42,7 +48,7 @@ export interface AyasVoiceStateInfo {
 
 export const AYAS_VOICE_STATES: Readonly<Record<AyasVoiceState, AyasVoiceStateInfo>> = Object.freeze({
   off: { state: "off", label: "Voice off", tr: "Ses kapalı" },
-  idle: { state: "idle", label: "Waiting for \"AYAS\"", tr: "\"AYAS\" bekleniyor" },
+  idle: { state: "idle", label: "Waiting for \"UYAN\" (\"AYAS\")", tr: "\"UYAN\" (\"AYAS\") bekleniyor" },
   listening: { state: "listening", label: "Listening", tr: "Dinliyor" },
   thinking: { state: "thinking", label: "Thinking", tr: "Düşünüyor" },
   speaking: { state: "speaking", label: "Speaking", tr: "Konuşuyor" },
@@ -55,16 +61,91 @@ export function describeAyasVoiceState(state: AyasVoiceState): AyasVoiceStateInf
 }
 
 /* ------------------------------------------------------------------------- *
- * Wake-word matcher (pure)
+ * Wake-alias resolver (pure)
+ *
+ * Every alias below resolves to exactly ONE canonical wake intent
+ * (`AYAS_WAKE_INTENT`) — no alias is a separate identity, and AYAS's own name
+ * does not change. `"uyan"` is the primary/preferred alias (the easiest
+ * first-try word for a Turkish speaker); `"ayas"` + its known ASR mishears
+ * are the original (Sprint 186) wake word, kept verbatim for backward
+ * compatibility, alongside the newer `"aya"` / `"atölye"` aliases and their
+ * "HEY …" forms.
+ *
+ * Matching is EXACT on whole, case/punctuation/whitespace-normalized words
+ * (or adjacent word PAIRS for a "HEY …" alias) AND positional: an alias only
+ * wakes AYAS as the LEADING invocation of the utterance (leading whitespace/
+ * punctuation is tolerated and skipped first) — never a word that merely
+ * appears somewhere later in an unrelated sentence. Deliberately NOT fuzzy /
+ * edit-distance either. This is a real, disclosed trade-off for the two
+ * short, plain-Turkish-word aliases: "uyan" ("wake up") and "aya" ("to the
+ * moon") are both real words that, spoken as the very FIRST word to someone/
+ * something else ("Uyan artık…" said to a person), can still coincidentally
+ * satisfy "leading position." Exact whole-word + leading-only matching (no
+ * substring/fuzzy expansion, no mid-sentence trigger) is the mitigation
+ * actually applied; it narrows that false-positive class to a real address-
+ * shaped opener, it cannot eliminate it for a common word chosen as an alias.
  * ------------------------------------------------------------------------- */
 
-/** Common ASR spellings/mishears of the wake word "AYAS". */
-const WAKE_VARIANTS = ["ayas", "ayaş", "aias", "hayas", "ayes"];
+/** The single canonical wake intent every alias below resolves to. */
+export const AYAS_WAKE_INTENT = "AYAS_WAKE" as const;
+export type AyasWakeIntent = typeof AYAS_WAKE_INTENT;
+
+/**
+ * Single-word wake aliases — matched as the LEADING word of the (leading-
+ * filler-trimmed) transcript, case/punctuation-insensitive via `normalize()`.
+ * Order is documentation only.
+ */
+const WAKE_SINGLE_WORD_ALIASES: readonly string[] = [
+  "uyan", // primary / preferred
+  "ayas", "ayaş", "aias", "hayas", "ayes", // AYAS + known ASR mishears (Sprint 186, unchanged)
+  "aya",
+  "atölye", "atolye", // the dictionary word + a plain-ASCII ASR spelling
+];
+
+/**
+ * `"atölye"` (either spelling) is by far the most ordinary Turkish word in
+ * the alias set — it is literally the studio's own name, constantly used to
+ * talk ABOUT it ("Atölye bugün kapalı," "Atölye çok yoğun"), not just to
+ * address it. Leading-position alone cannot tell "ATÖLYE, ..." (an address)
+ * apart from "Atölye bugün kapalı." (an ordinary sentence that happens to
+ * start with the word) — both have "atölye" as the first word. Requiring a
+ * comma right after it (or nothing else at all — a bare "ATÖLYE") is the
+ * cheapest reliable disambiguator without any grammar/NLP. The other
+ * aliases (an imperative "uyan," the short "aya"/"ayas") don't carry this
+ * same everyday-statement risk and are not restricted this way.
+ */
+const ATOLYE_LEADING_TOKENS: readonly string[] = ["atölye", "atolye"];
+
+function hasAtolyeLeadingBoundary(leadingText: string): boolean {
+  const trimmed = leadingText.trimStart();
+  const firstToken = trimmed.split(/\s+/, 1)[0] ?? "";
+  const rest = trimmed.slice(firstToken.length).trim();
+  return rest === "" || firstToken.endsWith(",");
+}
+
+/**
+ * Two-word ("HEY …") wake aliases — matched as an exact ADJACENT word pair.
+ * Only the pairs explicitly supported are listed here; a bare "hey" alone
+ * never wakes AYAS.
+ */
+const WAKE_TWO_WORD_ALIASES: ReadonlyArray<readonly [string, string]> = [
+  ["hey", "uyan"],
+  ["hey", "ayas"],
+  ["hey", "aya"],
+];
 
 export interface AyasWakeMatch {
   readonly woke: boolean;
-  /** The command text that followed the wake word (may be empty — a bare "AYAS"). */
+  /** The command text that followed the wake word (may be empty — a bare wake alias). */
   readonly command: string;
+  /**
+   * The literal alias text that matched (e.g. `"uyan"`, `"hey ayas"`); `null`
+   * when `woke` is false. Diagnostic only — every alias maps to the SAME
+   * `intent`, so this never branches AYAS's behaviour.
+   */
+  readonly alias: string | null;
+  /** {@link AYAS_WAKE_INTENT} when `woke`, else `null`. */
+  readonly intent: AyasWakeIntent | null;
 }
 
 function normalize(text: string): string {
@@ -76,23 +157,84 @@ function normalize(text: string): string {
 }
 
 /**
- * Does this transcript contain the wake word? If so, return whatever the user
- * said after it as `command`. Deterministic.
+ * Strips LEADING whitespace and stray leading punctuation only — never
+ * touches interior content — so a transcript with an incidental leading
+ * pause/mark still recognizes its wake alias as "the leading invocation."
+ */
+function trimLeadingFiller(text: string): string {
+  return String(text ?? "").replace(/^[\s.,!?;:¡¿'"“”‘’()\-–—]+/, "");
+}
+
+const NO_WAKE_MATCH: AyasWakeMatch = Object.freeze({ woke: false, command: "", alias: null, intent: null });
+
+/**
+ * Does this transcript OPEN with a wake alias? If so, return whatever the
+ * user said after it as `command` — taken from the ORIGINAL normalized words
+ * (not accent-folded), so Turkish characters in the command reach the
+ * downstream reasoning path exactly as spoken. Deterministic and POSITIONAL:
+ * only the leading word (or leading word pair, for a "HEY …" alias) is ever
+ * checked — a real alias word appearing later in an unrelated sentence never
+ * wakes AYAS.
  */
 export function detectAyasWakeWord(transcript: string): AyasWakeMatch {
-  const words = normalize(transcript).split(" ").filter(Boolean);
-  for (let i = 0; i < words.length; i += 1) {
-    if (WAKE_VARIANTS.includes(words[i])) {
-      return { woke: true, command: words.slice(i + 1).join(" ").trim() };
-    }
+  const leading = trimLeadingFiller(transcript);
+  const words = normalize(leading).split(" ").filter(Boolean);
+  if (words.length === 0) return NO_WAKE_MATCH;
+
+  const pair = WAKE_TWO_WORD_ALIASES.find(([a, b]) => words[0] === a && words[1] === b);
+  if (pair) {
+    return {
+      woke: true,
+      command: words.slice(2).join(" ").trim(),
+      alias: `${pair[0]} ${pair[1]}`,
+      intent: AYAS_WAKE_INTENT,
+    };
   }
-  return { woke: false, command: "" };
+
+  if (WAKE_SINGLE_WORD_ALIASES.includes(words[0])) {
+    if (ATOLYE_LEADING_TOKENS.includes(words[0]) && !hasAtolyeLeadingBoundary(leading)) {
+      return NO_WAKE_MATCH;
+    }
+    return { woke: true, command: words.slice(1).join(" ").trim(), alias: words[0], intent: AYAS_WAKE_INTENT };
+  }
+
+  return NO_WAKE_MATCH;
 }
 
 /** Strip a leading wake word from a command captured while already listening. */
 export function stripLeadingWakeWord(transcript: string): string {
   const match = detectAyasWakeWord(transcript);
   return match.woke ? match.command : normalize(transcript);
+}
+
+/* ------------------------------------------------------------------------- *
+ * Push-to-talk fallback (pure hotkey predicate)
+ *
+ * Ctrl+Space is a keyboard alternative to saying a wake alias — pressing it
+ * has the SAME effect as the wake word being heard (see
+ * `AyasVoiceEngine.activatePushToTalk`): AYAS starts listening directly, no
+ * wake word needed for the very next utterance. It grants no execution
+ * authority of its own — identical security posture to a spoken wake word.
+ * ------------------------------------------------------------------------- */
+
+export interface AyasHotkeyLike {
+  readonly code?: string;
+  readonly ctrlKey?: boolean;
+  readonly metaKey?: boolean;
+  readonly altKey?: boolean;
+  readonly shiftKey?: boolean;
+  /** Auto-repeat while the key is held — a real DOM `KeyboardEvent` sets this. */
+  readonly repeat?: boolean;
+}
+
+/**
+ * `true` only for a clean Ctrl+Space press — no other modifier, not a
+ * key-repeat — so it does not fire inside an unrelated combo
+ * (Ctrl+Shift+Space, Ctrl+Alt+Space, …) or repeatedly while held.
+ */
+export function isAyasPushToTalkHotkey(event: AyasHotkeyLike | undefined): boolean {
+  if (!event || event.repeat) return false;
+  return event.code === "Space" && Boolean(event.ctrlKey) && !event.altKey && !event.shiftKey && !event.metaKey;
 }
 
 /**
@@ -215,7 +357,7 @@ export function detectAyasSpeechRecognitionMode(input: {
 export const AYAS_VOICE_TAP_FOR_COMMAND =
   "Uyandım. Şimdi mikrofona tekrar dokunup komutunu söyle.";
 export const AYAS_VOICE_TAP_TO_SPEAK =
-  "Mikrofona dokun ve tek nefeste \"AYAS, ...\" diyerek söyle.";
+  "Mikrofona dokun ve tek nefeste \"UYAN, ...\" diyerek söyle.";
 
 export const AYAS_VOICE_DISCLOSURE =
   "Tarayıcının konuşma tanıma motoru (Chromium'da webkitSpeechRecognition) " +

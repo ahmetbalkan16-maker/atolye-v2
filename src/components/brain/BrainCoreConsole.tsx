@@ -525,23 +525,33 @@ export function BrainCoreConsole({
   const restingState = useMemo(() => deriveBrainCoreState(snapshot), [snapshot]);
   const autonomousWaiting = (initialAutonomous?.awaitingApprovalCount ?? 0) > 0;
   const coreState: BrainCoreState =
-    restingState === "error"
-      ? "error"
-      : voice.state === "speaking"
-        ? "speaking"
-        : voice.state === "listening"
-          ? "listening"
-          : voice.state === "thinking" || chatPending || pending
-            ? "thinking"
-            : restingState === "warning"
-              ? "warning"
-              : voice.state === "error"
+    // Premium 3D Brain Orb sprint — the browser itself is offline overrides
+    // everything else (voice/chat state is moot with no network at all); this
+    // consumes the EXISTING `connectivity` signal computed above, no new
+    // detection logic. "degraded" (a refresh failed while still online) maps
+    // onto the existing "warning" treatment, same as every other soft-attention
+    // case below.
+    connectivity === "offline"
+      ? "offline"
+      : restingState === "error"
+        ? "error"
+        : voice.state === "speaking"
+          ? "speaking"
+          : voice.state === "listening"
+            ? "listening"
+            : voice.state === "thinking" || chatPending || pending
+              ? "thinking"
+              : restingState === "warning"
                 ? "warning"
-                : draft.trim().length > 0
-                  ? "active"
-                  : autonomousWaiting && restingState === "idle"
-                    ? "autonomous"
-                    : restingState;
+                : voice.state === "error"
+                  ? "warning"
+                  : connectivity === "degraded"
+                    ? "warning"
+                    : draft.trim().length > 0
+                      ? "active"
+                      : autonomousWaiting && restingState === "idle"
+                        ? "autonomous"
+                        : restingState;
 
   return (
     <BrainConsoleView

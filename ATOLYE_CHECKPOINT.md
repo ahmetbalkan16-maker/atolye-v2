@@ -1,5 +1,136 @@
 ---
 
+## AYAS Wake Word + Phone Access + Premium 3D Brain Orb Master Sprint — IMPLEMENTED / READY TO COMMIT (not committed) — 2026-09-15
+
+- **Wake alias resolver** (`src/components/brain/ayasVoice.ts` —
+  `detectAyasWakeWord`): primary alias `"UYAN"`; `HEY UYAN`, `AYAS`,
+  `HEY AYAS`, `AYA`, `HEY AYA`, `ATÖLYE` remain backward-compatible, every
+  alias resolving to the one `AYAS_WAKE_INTENT` — AYAS's identity is
+  unchanged. Matching is now LEADING-POSITION-ONLY (leading whitespace/
+  punctuation tolerated and trimmed first): an alias must open the
+  utterance, never merely appear later in it. `"atölye"`/`"atolye"`
+  additionally require a following comma or end-of-utterance
+  (`hasAtolyeLeadingBoundary`) — it's the studio's own name and the most
+  ordinary Turkish word in the set ("Atölye bugün kapalı" is a statement,
+  not an address), a restriction none of the other aliases carry. No
+  fuzzy/edit-distance matching; command text (Turkish characters included)
+  preserved exactly. Verified against all 6 required-wake and 5
+  required-no-wake examples via a real, byte-for-byte check, not just
+  inference. Ctrl+Space push-to-talk (browser platform only,
+  `activatePushToTalk`) unchanged from the prior sprint. DISCLOSED residual
+  (narrowed, not eliminated, by the leading-only fix): a sentence that
+  itself OPENS with "uyan"/"aya", addressed to someone/something else,
+  still wakes — e.g. "Uyan artık, kahvaltı hazır."
+- **Runtime authority recovery — COMPLETE, verified read-only afterward**:
+  root cause was a separate, non-Claude-Code migration (2026-09-14) that
+  physically moved runtime+authority data off the deleted
+  `D:\AtolyeRuntime`/`D:\AtolyeAuthority` onto the canonical
+  `Program\Atölye\runtime\...` WITHOUT running `authority:begin-relocation`
+  — `active-authority.json` and the per-root marker kept identity hashes
+  computed for the vanished old path, so every boot's freshly-computed
+  identity mismatched and `RUNTIME_AUTHORITY_NOT_ACTIVE` fired closed
+  (working as designed). Fixed with the project's own CLI only — backed up
+  (checksummed) + removed the one stale, never-validly-stamped marker file,
+  then `authority:begin-recovery → quiesce → prepare → validate → publish
+  → quarantine`, using the target's own real 24-project directory as the
+  self-referential recovery basis (source is abandoned, not required to
+  exist). Result: `activeAuthority.resolverBindingIdentity = 8bc24c8c…`,
+  `transitionSequence: 2`, both transitions (`s206-genesis-01` and
+  `recovery-2026-09-15-01`) terminal at `old-root-quarantined`. Re-verified
+  read-only afterward (no second destructive run): `classification:
+  "explicit-external"`, no legacy-default fallback, no `D:\` path anywhere
+  in the resolved context, real Project Catalog read confirms 17 projects /
+  6 completed / 10 incomplete / 1 unknown / 12 resumable — identical before
+  and after the wake-word + orb work, proving zero drift/mutation since.
+- **Phone access — operational, zero-cost, no paid service**: `npm run dev`
+  boots and stays up (no more authority crash); real HTTP 307 (access-gate
+  redirect, `x-ayas-access-gate: enforced`) confirmed on `127.0.0.1:3000`,
+  LAN `192.168.2.74:3000`, and a live free Cloudflare Quick Tunnel
+  (`cloudflared tunnel --url http://127.0.0.1:3000`) — all three identical,
+  all three gated. **The Quick Tunnel hostname is EPHEMERAL** (a new one
+  every daemon/tunnel restart) — never described as a stable public
+  hostname anywhere in code, docs, or UI copy.
+- **Windows auto-start (no admin)**: `scripts/ayas-access-daemon.ps1` —
+  idempotent (TCP-listen check for the app server, process-name check for
+  cloudflared — a re-run, including at every logon, never starts a
+  duplicate of either), bounded growing-backoff health check (max 30
+  attempts) BEFORE cloudflared is ever started, rotated logs (5 MB cap, one
+  `.old` backup), writes the bounded status file. Verified over two
+  independent runs ~21 minutes apart: neither the app server nor cloudflared
+  were duplicated; the SAME cloudflared pid was correctly detected and
+  reused. `scripts/register-ayas-autostart.ps1` tries
+  `Register-ScheduledTask` (AtLogOn, current user, `-RunLevel Limited`)
+  first; this session's own permissions refused it
+  (`Register-ScheduledTask : Erişim engellendi`, HRESULT 0x80070005 — not
+  something the script escalates past), so it falls back automatically to
+  a per-user Startup-folder shortcut (`%APPDATA%\...\Startup\AYAS Access
+  Online.lnk`, verified via `WScript.Shell` that TargetPath/Arguments are
+  byte-correct, "Atölye" included). `scripts/unregister-ayas-autostart.ps1`
+  removes either mechanism. A real, non-trivial bug was caught and fixed
+  during this verification: Windows PowerShell 5.1 silently mis-decodes a
+  BOM-less `.ps1`/status-JSON file containing non-ASCII characters (the
+  repo path's own "ö"), corrupting execution in ways that look like
+  unrelated runtime errors — fixed by writing all three `.ps1` files and
+  the status JSON with an explicit UTF-8 BOM/BOM-less-as-appropriate, plus
+  a defensive BOM-strip in the Node-side reader for any future writer.
+- **Phone access status model**: `AyasPhoneAccessHealth`
+  (`src/lib/runtime/access/AyasPhoneAccessHealth.ts`) — bounded,
+  fail-safe read of the daemon's status file (size-capped, shape-validated,
+  never trusts a stale write past 5 minutes, rejects any `tunnelUrl` not
+  matching the real `trycloudflare.com` pattern). Wired into
+  `GET /api/ayas/phone-access` (access-gate protected like every other
+  route — verified 401 unauthenticated / 200 with a real session cookie
+  against the live server) so a connected user can check current status —
+  including the live tunnel URL — through the app itself instead of
+  needing PC/terminal access. **REMOTE URL DISCOVERY RESIDUAL (honestly
+  classified, not solved)**: a fully remote user with no LAN access, after
+  a PC reboot mints a new ephemeral tunnel URL, has no channel to learn it
+  without first reaching some already-live AYAS endpoint — this is a real,
+  structural limit of the free-Quick-Tunnel-only zero-cost design, not
+  something this sprint papers over. A paid named tunnel would solve it;
+  out of scope by explicit instruction.
+- **Premium 3D Brain Orb** (`BrainCoreOrb.tsx` + `BrainCore.css`, additive
+  on the Sprint 185 base — no rewrite): new `bc-orb__shell` (off-centre
+  radial-gradient + inset rim-light/rim-shadow — the actual "glass sphere"
+  trick), `bc-orb__bands`/`bc-orb__bands--2` (conic-gradient orbital light
+  sweep, masked to a thin ring), `bc-orb__specular` (glass highlight),
+  `bc-orb__halo--outer` (second, wider ambient layer for depth), and a
+  richer screen-blended violet tone in the core. Pure CSS
+  (transform/opacity/filter/background only) — no WebGL/canvas, matching
+  the Machine Health Guard's low-idle-cost philosophy; `prefers-reduced-
+  motion` extended to cover every new animated layer. Added a genuine
+  `offline` `BrainCoreState` (dims to a calm, static, non-jittering
+  minimum — "energy fades, the look stays premium") wired to
+  `BrainCoreConsole.tsx`'s ALREADY-COMPUTED `connectivity` signal (no new
+  detection logic added). Verified with real Playwright screenshots
+  through the actual login flow — desktop, mobile (390px), the real
+  browser `offline` event (confirmed the header/presence card/orb all
+  correctly read "OFFLINE · ÇEVRİM DIŞI" with the dimmed-but-still-premium
+  treatment), and `prefers-reduced-motion: reduce` (confirmed a complete,
+  non-broken static frame) — not just unit-level CSS-class assertions.
+- **Security invariants held throughout, verified not assumed**: wake
+  aliases and push-to-talk only ever produce text via `onCommand` (existing
+  `smoke-ayas-voice`/`smoke-ayas-execution-gate` adversarial-command tests
+  extended to the `UYAN` alias, still green); the phone tunnel only exposes
+  the SAME access-gated app (identical `307`/`401` gate behaviour on
+  localhost/LAN/tunnel, verified live); Windows autostart only brings
+  process/network access online — the daemon script contains zero
+  references to the Execution Gate, self-improvement, or
+  `production:acceptance:resume` (confirmed by both a static grep and by
+  construction: it never calls into the Node app's internals at all, only
+  starts `npm run dev` and the unrelated `cloudflared` binary). Execution
+  Gate re-confirmed CLOSED at the end.
+- Full combined regression green (18 suites): `ayas-voice` 75,
+  `ayas-wake-adapter` 53, `ayas-reasoning` 45, `brain-core-ui` 41,
+  `ayas-chat`/`-stream`/`-quality` 12/20/35, `ayas-project-catalog` 7,
+  `ayas-studio-context` 24, `ayas-access-gate` 19, `ayas-execution-gate`
+  16, production-health API/UI 15/10, `ayas-phone-access-health` 12 (incl.
+  a real `GET`-route test), `c2b6` 14, `c2b6b` 19, `c2b9` 21, `c2b9b` 16,
+  `c2b11` 15. `npx tsc --noEmit --incremental false` PASS; lint 0 errors /
+  22 pre-existing warnings (0 new); `git diff --check` clean. No
+  `git add`/`commit`/`push` performed.
+
+
 ## AYAS Autonomous Zero-Cost Brain + Machine Safety Foundation Master Sprint — IMPLEMENTED / READY TO COMMIT (not committed) — 2026-09-15
 
 - Ten ordered, test-gated implementation groups completed without production project/video mutation, git add, commit, or push.

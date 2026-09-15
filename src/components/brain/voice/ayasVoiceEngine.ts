@@ -515,6 +515,30 @@ export class AyasVoiceEngine {
     this.startRecognition();
   }
 
+  /**
+   * Push-to-talk fallback (Ctrl+Space): behave exactly as if a wake alias had
+   * just been heard, so the very next utterance is captured as the command —
+   * no spoken wake word required. Turns listening on first if it was off.
+   * Safe no-op when unsupported, disposed, or mid-turn (thinking/speaking).
+   * Grants no execution authority by itself — identical security posture to
+   * a spoken wake word: text out via `onCommand`, nothing else.
+   */
+  activatePushToTalk(): void {
+    if (this.disposed || !this.capability.stt) return;
+    if (this._state === "speaking" || this._state === "thinking") return;
+    if (!this._listening) {
+      this.enableListening();
+    } else if (this.mode === "single-shot") {
+      this.recaptureVoice();
+    } else if (!this.listenHandle) {
+      this.startRecognition();
+    }
+    this.woke = true;
+    this.cb.onWake();
+    this.transition("wake");
+    this.armWakeTimeout();
+  }
+
   /* ---- lifecycle ---- */
 
   dispose(): void {

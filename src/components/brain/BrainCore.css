@@ -668,6 +668,21 @@ body:has(.bc-shell) {
   animation: bc-pulse calc(6s - 3s * var(--bc-intensity)) ease-in-out infinite;
   z-index: -2;
 }
+/* Premium 3D Brain Orb sprint — a second, wider + softer ambient layer behind
+   the tighter halo above, so the glow reads as depth (near + far light) rather
+   than a single flat ring of colour. */
+.bc-orb__halo--outer {
+  position: absolute;
+  inset: -30%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, hsl(var(--bc-hue) 85% 55% / 0.16), transparent 60%),
+    radial-gradient(circle at 60% 65%, hsl(calc(var(--bc-hue) + 45) 80% 55% / 0.1), transparent 62%);
+  filter: blur(22px);
+  opacity: calc(0.3 + 0.5 * var(--bc-intensity));
+  animation: bc-pulse calc(9s - 3s * var(--bc-intensity)) ease-in-out infinite;
+  z-index: -3;
+}
 
 .bc-orb__field {
   position: absolute;
@@ -684,6 +699,56 @@ body:has(.bc-shell) {
 }
 .bc-orb__field--a { animation: bc-spin 34s linear infinite; }
 .bc-orb__field--b { animation: bc-spin 52s linear infinite reverse; inset: 8%; }
+
+/*
+ * Premium 3D Brain Orb sprint — the translucent glass shell. This is what
+ * turns flat concentric rings into a sphere: an off-centre highlight (light
+ * from upper-left) plus inset top/bottom shading (rim light / rim shadow) —
+ * the same trick a CSS "glass ball" uses, just layered under the existing
+ * rings/core so nothing else has to change.
+ */
+.bc-orb__shell {
+  position: absolute;
+  inset: 6%;
+  border-radius: 50%;
+  background:
+    radial-gradient(120% 120% at 30% 22%, hsl(var(--bc-hue) 95% 84% / 0.5), transparent 44%),
+    radial-gradient(140% 140% at 70% 80%, hsl(calc(var(--bc-hue) + 46) 80% 42% / 0.32), transparent 60%),
+    radial-gradient(circle at 50% 50%, hsl(var(--bc-hue) 70% 20% / 0.92), hsl(var(--bc-hue) 80% 7% / 0.97) 74%, #01020a 100%);
+  box-shadow:
+    inset 0 -30px 54px rgba(0, 0, 0, 0.72),
+    inset 10px -14px 30px rgba(0, 0, 0, 0.35),
+    inset 0 16px 38px hsl(var(--bc-hue) 90% 75% / calc(0.16 + 0.16 * var(--bc-intensity))),
+    inset 0 0 0 1px hsl(var(--bc-hue) 60% 82% / 0.14);
+}
+
+/*
+ * Slow orbital light bands — a conic-gradient sweep masked down to a thin
+ * ring, so the colour genuinely travels around the sphere (blue → cyan →
+ * violet) instead of a static border colour.
+ */
+.bc-orb__bands {
+  position: absolute;
+  inset: 4%;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    hsl(var(--bc-hue) 90% 70% / 0) 0deg,
+    hsl(var(--bc-hue) 95% 78% / 0.95) 34deg,
+    hsl(calc(var(--bc-hue) + 55) 92% 74% / 0.8) 100deg,
+    hsl(var(--bc-hue) 90% 70% / 0) 190deg,
+    hsl(var(--bc-hue) 90% 70% / 0) 360deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 5px));
+  opacity: calc(0.45 + 0.5 * var(--bc-intensity));
+  animation: bc-spin 14s linear infinite;
+}
+.bc-orb__bands--2 {
+  inset: 13%;
+  animation: bc-spin 22s linear infinite reverse;
+  opacity: calc(0.32 + 0.4 * var(--bc-intensity));
+}
 
 .bc-orb__ring {
   position: absolute;
@@ -710,7 +775,9 @@ body:has(.bc-shell) {
   place-items: center;
   background:
     radial-gradient(circle at 34% 30%, hsl(var(--bc-hue) 100% 86%), transparent 52%),
+    radial-gradient(circle at 74% 80%, hsl(calc(var(--bc-hue) + 55) 90% 66% / 0.9), transparent 62%),
     radial-gradient(circle at 66% 72%, var(--bc-accent), hsl(var(--bc-hue) 78% 20%) 72%);
+  background-blend-mode: screen, screen, normal;
   box-shadow:
     0 0 calc(24px + 70px * var(--bc-intensity)) var(--bc-accent-glow),
     inset 0 0 46px hsl(var(--bc-hue) 92% 72% / 0.4),
@@ -724,6 +791,26 @@ body:has(.bc-shell) {
   background: radial-gradient(circle, #fff, hsl(var(--bc-hue) 100% 85%) 60%, transparent 72%);
   box-shadow: 0 0 22px hsl(var(--bc-hue) 100% 85%);
   animation: bc-pulse calc(3s - 1.4s * var(--bc-intensity)) ease-in-out infinite;
+}
+
+/*
+ * Premium 3D Brain Orb sprint — the specular highlight: a soft, offset bright
+ * patch that reads as light reflecting off a curved glass surface. The single
+ * cheapest trick for selling "glass sphere" over "flat circle."
+ */
+.bc-orb__specular {
+  position: absolute;
+  top: 13%;
+  left: 19%;
+  width: 30%;
+  height: 20%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.14) 55%, transparent 76%);
+  filter: blur(2px);
+  transform: rotate(-18deg);
+  opacity: calc(0.5 + 0.3 * var(--bc-intensity));
+  animation: bc-specular-drift 9s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .bc-orb__particles {
@@ -775,6 +862,16 @@ body:has(.bc-shell) {
 .bc-orb[data-state="warning"] .bc-orb__ring--1 { border-top-color: hsl(38 96% 64%); }
 .bc-orb[data-state="error"] .bc-orb__core { animation: bc-jitter 0.85s steps(6) infinite; }
 .bc-orb[data-state="error"] .bc-orb__ring--2 { animation-timing-function: steps(9); }
+/* Offline — "energy fades, the look stays premium": slow everything that isn't
+   already scaled down by the very low `--bc-intensity` (0.08) above, and turn
+   off the two things that read as "actively doing something" (scanning,
+   drifting particles) rather than "quietly resting". Never a jitter/error look. */
+.bc-orb[data-state="offline"] .bc-orb__scan-arc { opacity: 0.12; animation-duration: 12s; }
+.bc-orb[data-state="offline"] .bc-orb__particles { animation-duration: 90s; opacity: 0.3; }
+.bc-orb[data-state="offline"] .bc-orb__bands,
+.bc-orb[data-state="offline"] .bc-orb__bands--2 { animation-duration: 70s; }
+.bc-orb[data-state="offline"] .bc-orb__specular { animation-duration: 20s; }
+.bc-orb[data-state="offline"] .bc-orb__ring--1 { border-top-color: hsl(var(--bc-hue) 40% 55% / 0.5); }
 
 /* status pip */
 .bc-pip {
@@ -1065,6 +1162,10 @@ body:has(.bc-shell) {
   50% { transform: translate(-1.5px, 1px); }
   75% { transform: translate(1px, 1.5px); }
 }
+@keyframes bc-specular-drift {
+  0%, 100% { transform: rotate(-18deg) scale(1); }
+  50% { transform: rotate(-13deg) scale(1.06); }
+}
 
 /* ============================================================ responsive === */
 
@@ -1091,7 +1192,10 @@ body:has(.bc-shell) {
   .bc-orb__nucleus,
   .bc-orb__ring,
   .bc-orb__halo,
+  .bc-orb__halo--outer,
   .bc-orb__field,
+  .bc-orb__bands,
+  .bc-orb__specular,
   .bc-orb__particles,
   .bc-orb__scan-arc,
   .bc-pip__dot,

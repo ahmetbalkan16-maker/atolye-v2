@@ -31,6 +31,7 @@ import { buildAyasReasoningPrompt } from "../src/lib/ayas/reasoning/AyasReasonin
 import { streamAyasChat as productionStreamAyasChat, type StreamAyasChatInput } from "../src/lib/ayas/AyasChatStream";
 import type { AyasModelProvider } from "../src/lib/ayas/model/AyasModelTypes";
 import type { BrainConsoleSnapshot } from "../src/lib/brain/ui/BrainConsoleSnapshot";
+import { AyasVoiceEngine, type AyasVoicePlatform, type AyasListenHandlers } from "../src/components/brain/voice/ayasVoiceEngine";
 
 let count = 0;
 async function scenario(name: string, test: () => void | Promise<void>) {
@@ -180,6 +181,37 @@ async function withCatalogRuntimeRoot<T>(build: (root: string) => void, run: () 
     if (prev === undefined) delete process.env.ATOLYE_RUNTIME_ROOT;
     else process.env.ATOLYE_RUNTIME_ROOT = prev;
     fs.rmSync(sandbox, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Wake Alias sprint — a minimal, script-local {@link AyasVoicePlatform} (same
+ * small-duplication idiom as the catalog sandbox helpers above) so a real
+ * `AyasVoiceEngine` can drive the voice-layer half of the "UYAN, ..." product
+ * E2E test below. TTS is unused here (`tts: false`) — this test only needs
+ * the wake-alias-strip → `onCommand` half of the engine.
+ */
+class MinimalVoicePlatform implements AyasVoicePlatform {
+  private handlers: AyasListenHandlers | null = null;
+  detectCapability() {
+    return { stt: true, tts: false, sttCloudBacked: false };
+  }
+  listVoices() {
+    return [];
+  }
+  onVoicesChanged() {
+    return () => {};
+  }
+  startListening(_lang: string, handlers: AyasListenHandlers) {
+    this.handlers = handlers;
+    return { stop: () => { this.handlers = null; } };
+  }
+  speak() {
+    return { cancel: () => {} };
+  }
+  cancelSpeech() {}
+  fireTranscript(text: string) {
+    this.handlers?.onFinalTranscript(text);
   }
 }
 
@@ -927,6 +959,54 @@ async function run() {
       // real data (not a guess) reached the model.
       assert.match(provider.prompts[1]!, /3 proje eşleşti/, "grounding prompt must carry the REAL total project count");
       assert.match(provider.prompts[1]!, /tamamlanan: 1/, "grounding prompt must carry the REAL completed count");
+    });
+  });
+
+  await scenario("WAKE ALIAS — H2: 'UYAN, kaç projem var?' wakes via the REAL AyasVoiceEngine, then the stripped command still dispatches list-production-projects on the REAL total count", async () => {
+    await withCatalogRuntimeRoot(buildThreeProjectFixture, async () => {
+      // ---- voice layer: the REAL engine + wake-alias resolver, not a bare
+      // ---- detectAyasWakeWord() call in isolation ----
+      const platform = new MinimalVoicePlatform();
+      let woke = false;
+      let capturedCommand: string | null = null;
+      const engine = new AyasVoiceEngine(platform, {
+        onStateChange: () => {},
+        onCommand: (text) => { capturedCommand = text; },
+        onError: () => {},
+        onWake: () => { woke = true; },
+        onAutoplayBlocked: () => {},
+      });
+      engine.enableListening();
+      platform.fireTranscript("UYAN, kaç projem var?");
+      assert.equal(woke, true, "the 'UYAN' alias must wake AYAS exactly like the original 'AYAS' wake word");
+      assert.equal(capturedCommand, "kaç projem var", "the wake alias is stripped; the real Turkish command text reaches onCommand unchanged");
+      engine.dispose();
+
+      // ---- reasoning layer: the SAME real dispatch Scenario H proves, fed the
+      // ---- exact text the voice layer just produced ----
+      const provider = mockProviderSequence([
+        okJson({ requiredTools: [], answer: "Proje sayısını kontrol etmem gerekiyor." }),
+        "Toplam 3 projen var.",
+      ]);
+      const events: { type: string; actionTrace?: { tool: string; executed: boolean } }[] = [];
+      for await (const e of streamAyasChat({
+        text: capturedCommand!,
+        snapshot,
+        seq: 1,
+        route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+      })) {
+        events.push(e as never);
+      }
+      const done = events.at(-1)!;
+      assert.equal(done.actionTrace?.tool, "list-production-projects");
+      assert.equal(done.actionTrace?.executed, true);
+      assert.equal(provider.prompts.length, 2, "exactly 1 dispatch → reasoning call + 1 grounding call");
+      assert.match(
+        provider.prompts[1]!,
+        /3 proje eşleşti/,
+        "grounding prompt must carry the REAL total project count, reached end-to-end from a spoken 'UYAN' alias",
+      );
+      assert.equal(snapshot.executionGate, "CLOSED", "the voice → reasoning path never touches the Execution Gate");
     });
   });
 

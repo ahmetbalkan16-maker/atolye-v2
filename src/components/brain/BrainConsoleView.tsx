@@ -220,6 +220,7 @@ export function BrainConsoleView(props: BrainConsoleViewProps) {
 /* ------------------------------------------------------- state helpers --- */
 
 function onlineLabel(state: BrainCoreState): string {
+  if (state === "offline") return "OFFLINE";
   if (state === "error") return "DEGRADED";
   if (state === "warning") return "ATTENTION";
   if (state === "autonomous") return "AUTONOMOUS";
@@ -232,6 +233,7 @@ function stateLabel(state: BrainCoreState): string {
     idle: "Idle", active: "Active", thinking: "Thinking", learning: "Learning",
     working: "Working", warning: "Warning", error: "Error",
     listening: "Listening", speaking: "Speaking", autonomous: "Autonomous",
+    offline: "Offline",
   }[state];
 }
 function stateTr(state: BrainCoreState): string {
@@ -239,6 +241,7 @@ function stateTr(state: BrainCoreState): string {
     idle: "Hazır", active: "Etkin", thinking: "Düşünüyor", learning: "Öğreniyor",
     working: "Çalışıyor", warning: "Uyarı", error: "Hata",
     listening: "Dinliyor", speaking: "Konuşuyor", autonomous: "Otonom",
+    offline: "Çevrim Dışı",
   }[state];
 }
 function stateCharacter(state: BrainCoreState): string {
@@ -253,6 +256,7 @@ function stateCharacter(state: BrainCoreState): string {
     listening: "\"AYAS\" duyuldu — sesli komut alınıyor.",
     speaking: "AYAS yanıtını sesli okuyor (yerel).",
     autonomous: "Otonom döngü gözlemliyor ve öneri taslağı hazırlıyor — yürütme yok.",
+    offline: "Bağlantı yok — çekirdek düşük enerjide, sakin bekliyor.",
   }[state];
 }
 

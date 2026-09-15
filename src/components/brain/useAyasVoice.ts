@@ -24,7 +24,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 
 import { AyasVoiceEngine, type AyasVoicePlatform } from "./voice/ayasVoiceEngine";
 import { BrowserVoiceAdapter } from "./voice/browserVoiceAdapter";
-import { isWakeEngineCapable, selectAyasVoicePlatform } from "./ayasVoice";
+import { isAyasPushToTalkHotkey, isWakeEngineCapable, selectAyasVoicePlatform } from "./ayasVoice";
 import type { AyasRecognitionMode, AyasVoiceCapability, AyasVoiceState } from "./ayasVoice";
 
 const NO_CAPABILITY: AyasVoiceCapability = { stt: false, tts: false, sttCloudBacked: false };
@@ -245,6 +245,28 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
       setConversationActive(false);
       setConversationClosedReason(null);
     };
+  }, [platformKind]);
+
+  // Push-to-talk fallback (Ctrl+Space): a keyboard alternative to a spoken
+  // wake alias. Scoped to the `"browser"` platform only — on the wake-engine
+  // (openWakeWord) platform, wake is decided by the audio classifier inside
+  // `WakeWordVoiceAdapter`'s own phase state machine, which this cannot
+  // (and must not) reach into; flipping the engine's `woke` flag there would
+  // show a misleading "Listening…" state before the adapter actually starts
+  // capturing.
+  useEffect(() => {
+    if (typeof document === "undefined" || platformKind !== "browser") return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!isAyasPushToTalkHotkey(event)) return;
+      const engine = engineRef.current;
+      if (!engine || !engine.capabilities.stt) return;
+      event.preventDefault();
+      setErrorMessage(null);
+      engine.activatePushToTalk();
+      setListening(engine.listening);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, [platformKind]);
 
   const acceptDisclosure = useCallback(() => setDisclosureAccepted(true), []);

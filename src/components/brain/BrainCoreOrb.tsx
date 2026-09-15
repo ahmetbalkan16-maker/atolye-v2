@@ -1,10 +1,13 @@
 /**
- * Atölye Brain Core — the living orb (Sprint 185).
+ * Atölye Brain Core — the living orb (Sprint 185, premium 3D pass).
  *
  * Pure presentational. All motion is CSS (see `BrainCore.css`, loaded by the
- * route): layered orbital rings, a breathing energy core, a bright nucleus,
- * drifting energy particles and scanning arcs. No canvas, no WebGL, no JS
- * animation loop — so it renders on the server and in `renderToStaticMarkup`.
+ * route): a translucent glass shell (off-centre 3D shading), slow orbital
+ * light bands, layered orbital rings, a breathing multi-hue energy core, a
+ * bright nucleus, a glass specular highlight, drifting energy particles and
+ * scanning arcs. No canvas, no WebGL, no JS animation loop — so it renders on
+ * the server and in `renderToStaticMarkup`, and stays cheap at idle (pure
+ * transform/opacity/filter, paused under `prefers-reduced-motion`).
  *
  * `size` is optional: omit it and the CSS `clamp()` makes the orb responsive;
  * pass it (e.g. from the smoke suite) to pin an exact pixel size.
@@ -37,9 +40,14 @@ export function BrainCoreOrb({ state, size, showLabel = true }: BrainCoreOrbProp
         role="img"
         aria-label={`AYAS — ${info.label} (${info.tr})`}
       >
+        <span className="bc-orb__halo bc-orb__halo--outer" aria-hidden="true" />
         <span className="bc-orb__halo" aria-hidden="true" />
         <span className="bc-orb__field bc-orb__field--a" aria-hidden="true" />
         <span className="bc-orb__field bc-orb__field--b" aria-hidden="true" />
+
+        <span className="bc-orb__shell" aria-hidden="true" />
+        <span className="bc-orb__bands" aria-hidden="true" />
+        <span className="bc-orb__bands bc-orb__bands--2" aria-hidden="true" />
 
         {Array.from({ length: RING_COUNT }, (_, index) => (
           <span key={index} className={`bc-orb__ring bc-orb__ring--${index + 1}`} aria-hidden="true" />
@@ -48,6 +56,8 @@ export function BrainCoreOrb({ state, size, showLabel = true }: BrainCoreOrbProp
         <span className="bc-orb__core" aria-hidden="true">
           <span className="bc-orb__nucleus" aria-hidden="true" />
         </span>
+
+        <span className="bc-orb__specular" aria-hidden="true" />
 
         <span className="bc-orb__particles" aria-hidden="true">
           {Array.from({ length: PARTICLE_COUNT }, (_, index) => (
