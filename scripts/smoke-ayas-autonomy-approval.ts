@@ -1,0 +1,207 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+import { createAyasApprovalInboxStore, AyasApprovalInboxStoreError, type AyasInboxProposal } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
+
+let count = 0;
+function scenario(name: string, fn: () => void | Promise<void>) { return Promise.resolve(fn()).then(() => { count += 1; if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${name}`); }); }
+function root() { return fs.mkdtempSync(path.join(os.tmpdir(), "ayas-approval-")); }
+function read(relPath: string): string { return fs.readFileSync(path.join(process.cwd(), relPath), "utf8"); }
+
+function proposalInput(overrides: Partial<Omit<AyasInboxProposal, "schemaVersion" | "proposalId" | "lastUpdatedAt" | "proposalHash" | "status" | "createdBy">> = {}) {
+  return {
+    createdAt: "2026-09-15T12:00:00.000Z",
+    baseBranch: "wip/test",
+    baseHead: "abc123",
+    objective: "test-only bounded observability",
+    rationale: "a deterministic smoke gap is visible",
+    evidence: ["fixture evidence"],
+    graphifyEvidence: ["fresh structural graph"],
+    candidateRank: 1,
+    risk: "low and reversible",
+    safetyClassification: "SAFE" as const,
+    exactFiles: ["scripts/smoke-ayas-machine-health.ts"],
+    expectedDiffScope: "+1 assertion",
+    testsPlanned: ["smoke-ayas-autonomy-approval"],
+    estimatedCost: "zero-cost" as const,
+    ...overrides,
+  };
+}
+
+async function main() {
+  await scenario("a SAFE proposal can be approved and mints an authorization", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const proposal = inbox.createProposal(proposalInput());
+    const { decision } = inbox.decide(proposal.proposalId, "APPROVE", "2026-09-15T12:01:00.000Z");
+    assert.equal(decision.decision, "APPROVE");
+    assert.ok(decision.authorizationId);
+  });
+
+  await scenario("a REVIEW_REQUIRED proposal cannot be approved — fails at the Store", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const proposal = inbox.createProposal(proposalInput({ safetyClassification: "REVIEW_REQUIRED" }));
+    assert.throws(
+      () => inbox.decide(proposal.proposalId, "APPROVE", "2026-09-15T12:01:00.000Z"),
+      (error: unknown) => error instanceof AyasApprovalInboxStoreError && error.code === "AYAS_INBOX_UNSAFE_APPROVAL",
+    );
+  });
+
+  await scenario("a FORBIDDEN_AUTONOMOUS proposal cannot be approved — fails at the Store", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const proposal = inbox.createProposal(proposalInput({ safetyClassification: "FORBIDDEN_AUTONOMOUS" }));
+    assert.throws(
+      () => inbox.decide(proposal.proposalId, "APPROVE", "2026-09-15T12:01:00.000Z"),
+      (error: unknown) => error instanceof AyasApprovalInboxStoreError && error.code === "AYAS_INBOX_UNSAFE_APPROVAL",
+    );
+  });
+
+  await scenario("a direct, unwrapped Store call cannot bypass the SAFE-only rule", () => {
+    // No caller-side pre-check at all here — proves the invariant lives in
+    // the Store itself, not merely in `app/brain/actions.ts`'s own guard.
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const proposal = inbox.createProposal(proposalInput({ safetyClassification: "REVIEW_REQUIRED" }));
+    assert.throws(() => inbox.decide(proposal.proposalId, "APPROVE", "2026-09-15T12:01:00.000Z"));
+    const state = inbox.load();
+    assert.equal(state.proposals.find((p) => p.proposalId === proposal.proposalId)?.status, "PENDING");
+    assert.equal(state.decisions.length, 0);
+  });
+
+  await scenario("a naive caller that skips its own safety pre-check still fails at the Store", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const proposal = inbox.createProposal(proposalInput({ safetyClassification: "FORBIDDEN_AUTONOMOUS" }));
+    const naiveCallerApprove = (proposalId: string) => inbox.decide(proposalId, "APPROVE", "2026-09-15T12:01:00.000Z");
+    assert.throws(() => naiveCallerApprove(proposal.proposalId));
+  });
+
+  await scenario("authorization ID is minted only for a valid SAFE APPROVE", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const proposal = inbox.createProposal(proposalInput());
+    const { decision } = inbox.decide(proposal.proposalId, "APPROVE", "2026-09-15T12:01:00.000Z");
+    assert.ok(decision.authorizationId);
+  });
+
+  await scenario("REJECT mints no authorization", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const proposal = inbox.createProposal(proposalInput());
+    const { decision } = inbox.decide(proposal.proposalId, "REJECT", "2026-09-15T12:01:00.000Z");
+    assert.equal(decision.authorizationId, undefined);
+  });
+
+  await scenario("LATER (defer) mints no authorization", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const proposal = inbox.createProposal(proposalInput());
+    const { decision, proposal: updated } = inbox.decide(proposal.proposalId, "LATER", "2026-09-15T12:01:00.000Z");
+    assert.equal(decision.authorizationId, undefined);
+    assert.equal(updated.status, "DEFERRED");
+    assert.ok(updated.nextEligibleAt);
+  });
+
+  await scenario("proposal-hash binding is enforced at consumption", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const proposal = inbox.createProposal(proposalInput());
+    inbox.decide(proposal.proposalId, "APPROVE", "2026-09-15T12:01:00.000Z");
+    assert.throws(() => inbox.consumeApproval(proposal.proposalId, "wrong-hash", proposal.baseHead, proposal.exactFiles, "2026-09-15T12:02:00.000Z"));
+  });
+
+  await scenario("base-HEAD binding is enforced at consumption", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const proposal = inbox.createProposal(proposalInput());
+    inbox.decide(proposal.proposalId, "APPROVE", "2026-09-15T12:01:00.000Z");
+    assert.throws(() => inbox.consumeApproval(proposal.proposalId, proposal.proposalHash, "wrong-head", proposal.exactFiles, "2026-09-15T12:02:00.000Z"));
+  });
+
+  await scenario("exact-file-scope binding is enforced at consumption", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const proposal = inbox.createProposal(proposalInput());
+    inbox.decide(proposal.proposalId, "APPROVE", "2026-09-15T12:01:00.000Z");
+    assert.throws(() => inbox.consumeApproval(proposal.proposalId, proposal.proposalHash, proposal.baseHead, ["scripts/other.ts"], "2026-09-15T12:02:00.000Z"));
+  });
+
+  await scenario("a consumed authorization cannot replay", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const proposal = inbox.createProposal(proposalInput());
+    inbox.decide(proposal.proposalId, "APPROVE", "2026-09-15T12:01:00.000Z");
+    inbox.consumeApproval(proposal.proposalId, proposal.proposalHash, proposal.baseHead, proposal.exactFiles, "2026-09-15T12:02:00.000Z");
+    assert.throws(() => inbox.consumeApproval(proposal.proposalId, proposal.proposalHash, proposal.baseHead, proposal.exactFiles, "2026-09-15T12:03:00.000Z"));
+  });
+
+  await scenario("corrupt durable inbox fails closed", () => {
+    const workspace = root();
+    fs.mkdirSync(path.join(workspace, "autonomy"), { recursive: true });
+    fs.writeFileSync(path.join(workspace, "autonomy", "approval-inbox.json"), "not json");
+    const inbox = createAyasApprovalInboxStore({ rootDir: workspace });
+    assert.throws(
+      () => inbox.load(),
+      (error: unknown) => error instanceof AyasApprovalInboxStoreError && error.code === "AYAS_INBOX_CORRUPT",
+    );
+  });
+
+  await scenario("schema mismatch fails closed", () => {
+    const workspace = root();
+    fs.mkdirSync(path.join(workspace, "autonomy"), { recursive: true });
+    fs.writeFileSync(path.join(workspace, "autonomy", "approval-inbox.json"), JSON.stringify({ schemaVersion: "99", revision: 0, proposals: [], decisions: [], results: [] }));
+    const inbox = createAyasApprovalInboxStore({ rootDir: workspace });
+    assert.throws(
+      () => inbox.load(),
+      (error: unknown) => error instanceof AyasApprovalInboxStoreError && error.code === "AYAS_INBOX_SCHEMA_MISMATCH",
+    );
+  });
+
+  await scenario("duplicate proposal hash is suppressed — no second row is created", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const first = inbox.createProposal(proposalInput());
+    const second = inbox.createProposal(proposalInput());
+    assert.equal(first.proposalId, second.proposalId);
+    assert.equal(inbox.load().proposals.length, 1);
+  });
+
+  await scenario("a rejected proposal does not silently resurface as a new pending candidate on an identical re-submission", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const proposal = inbox.createProposal(proposalInput());
+    inbox.decide(proposal.proposalId, "REJECT", "2026-09-15T12:01:00.000Z");
+    const resubmitted = inbox.createProposal(proposalInput());
+    assert.equal(resubmitted.proposalId, proposal.proposalId);
+    assert.equal(resubmitted.status, "REJECTED");
+    assert.equal(inbox.load().proposals.length, 1);
+  });
+
+  await scenario("a deferred proposal cannot be approved or rejected directly — only re-deferred", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const proposal = inbox.createProposal(proposalInput());
+    inbox.decide(proposal.proposalId, "LATER", "2026-09-15T12:01:00.000Z");
+    assert.throws(() => inbox.decide(proposal.proposalId, "APPROVE", "2026-09-15T12:02:00.000Z"));
+    assert.throws(() => inbox.decide(proposal.proposalId, "REJECT", "2026-09-15T12:02:00.000Z"));
+    const { proposal: reDeferred } = inbox.decide(proposal.proposalId, "LATER", "2026-09-15T12:02:00.000Z");
+    assert.equal(reDeferred.status, "DEFERRED");
+  });
+
+  await scenario("restart preserves proposal and decision state", () => {
+    const workspace = root();
+    const first = createAyasApprovalInboxStore({ rootDir: workspace });
+    const proposal = first.createProposal(proposalInput());
+    first.decide(proposal.proposalId, "APPROVE", "2026-09-15T12:01:00.000Z");
+    const second = createAyasApprovalInboxStore({ rootDir: workspace });
+    const state = second.load();
+    assert.equal(state.proposals.find((p) => p.proposalId === proposal.proposalId)?.status, "APPROVED");
+    assert.equal(state.decisions.length, 1);
+  });
+
+  await scenario("Stage 7B files have zero import of AyasExecutionGateStore or executeApproved", () => {
+    const files = [
+      "src/lib/brain/autonomy/AyasApprovalInboxStore.ts",
+      "src/components/brain/AyasApprovalInboxPanel.tsx",
+      "src/components/brain/BrainCoreConsole.tsx",
+      "app/brain/page.tsx",
+      "app/brain/actions.ts",
+    ];
+    for (const file of files) {
+      assert.doesNotMatch(read(file), /AyasExecutionGateStore|executeApproved/, `${file} must not reach execution authority`);
+    }
+  });
+
+  console.log(`AYAS autonomy approval smoke: PASS (${count} scenarios)`);
+  console.log(JSON.stringify({ status: "PASS", suite: "ayas-autonomy-approval", scenarios: count }));
+}
+main().catch((error) => { console.error("AYAS autonomy approval smoke FAILED:", error); process.exitCode = 1; });

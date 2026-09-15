@@ -94,8 +94,9 @@ export interface BrainCoreConsoleProps {
   readonly refreshSelfHeal?: () => Promise<BrainSelfHealConsoleSnapshot>;
   /** Server Action that records an operator ONAYLA / REDDET / DAHA SONRA decision (no git, no apply). */
   readonly recordSelfHealDecision?: RecordSelfHealDecisionFn;
-  /** Stage 7A: read-only — the inbox is display-only, there is no decision action here. */
   readonly refreshApprovalInbox?: () => Promise<AyasApprovalInboxView>;
+  /** Server Action that records an operator ONAYLA / REDDET / DAHA SONRA approval decision. Session-gated; the safety-classification policy is enforced server-side (Store boundary), not by this prop's presence. */
+  readonly decideApproval?: (input: { proposalId: string; decision: "APPROVE" | "REJECT" | "LATER" }) => Promise<AyasApprovalInboxView>;
   /** Server Action that asks the local model (falls back to deterministic). */
   readonly askAyas?: AskAyasFn;
   /**
@@ -115,6 +116,7 @@ export function BrainCoreConsole({
   refreshSelfHeal,
   refreshApprovalInbox,
   recordSelfHealDecision,
+  decideApproval,
   askAyas,
   streaming = true,
 }: BrainCoreConsoleProps) {
@@ -133,6 +135,7 @@ export function BrainCoreConsole({
   });
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
   const [decisionPending, setDecisionPending] = useState<string | null>(null);
+  const [approvalPending, setApprovalPending] = useState<string | null>(null);
   const [, startSelfHeal] = useTransition();
 
   // Restore the transcript from sessionStorage so an iPhone reload (screen
@@ -479,6 +482,18 @@ export function BrainCoreConsole({
     [recordSelfHealDecision, decisionPending],
   );
 
+  // Record an operator ONAYLA / REDDET / DAHA SONRA approval decision via
+  // `decideAyasApproval`. The safety-classification policy (only a SAFE
+  // proposal may be approved) is enforced server-side, in
+  // `AyasApprovalInboxStore.decide()` — this handler cannot bypass it.
+  const onApprovalDecision = useCallback((input: { proposalId: string; decision: "APPROVE" | "REJECT" | "LATER" }) => {
+    if (!decideApproval || approvalPending) return;
+    setApprovalPending(input.proposalId);
+    startSelfHeal(async () => {
+      try { setApprovalInbox(await decideApproval(input)); } catch { /* retain last durable view */ } finally { setApprovalPending(null); }
+    });
+  }, [approvalPending, decideApproval]);
+
   // The AYAS presence-card CTA: drop into the EXISTING chat/voice experience —
   // select the chat panel and, when this device can hear, start listening
   // inside this click's user gesture (iOS needs that). No new path.
@@ -561,7 +576,7 @@ export function BrainCoreConsole({
 
   return (
     <>
-      <AyasApprovalInboxPanel inbox={approvalInbox} />
+      <AyasApprovalInboxPanel inbox={approvalInbox} pendingId={approvalPending} onDecision={onApprovalDecision} />
       <BrainConsoleView
       snapshot={snapshot}
       coreState={coreState}

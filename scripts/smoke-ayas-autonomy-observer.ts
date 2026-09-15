@@ -84,17 +84,9 @@ async function main() {
     assert.doesNotMatch(src, /git\s+(add|commit|push)|production:acceptance:(execute|resume)|writeFileSync\([^)]*data[\\/]projects/i);
   });
 
-  await scenario("/brain approval panel is display-only: no ONAYLA, REDDET, or DAHA SONRA control", () => {
+  await scenario("/brain approval panel renders pending proposals for display regardless of decision-UI availability", () => {
     const src = read("src/components/brain/AyasApprovalInboxPanel.tsx");
-    assert.doesNotMatch(src, /ONAYLA|REDDET|DAHA SONRA|onClick|onDecision/);
     assert.match(src, /inbox\.pending\.map/);
-  });
-
-  await scenario("decideAyasApproval is not reachable from the Stage 7A /brain UI path", () => {
-    const pageSrc = read("app/brain/page.tsx");
-    const consoleSrc = read("src/components/brain/BrainCoreConsole.tsx");
-    assert.doesNotMatch(pageSrc, /decideAyasApproval/);
-    assert.doesNotMatch(consoleSrc, /decideApproval/);
   });
 
   await scenario("no Stage 7A file references the execution gate — it cannot be reached from this sprint's code", () => {
@@ -162,23 +154,19 @@ async function main() {
     assert.match(src, /refreshAyasApprovalInbox/);
   });
 
-  await scenario("app/brain/page.tsx sources the inbox refresh from observerActions, not from ./actions", () => {
+  await scenario("app/brain/page.tsx sources the read-only inbox refresh from observerActions, not from ./actions (independent of the separate Package B decision wiring)", () => {
     const src = read("app/brain/page.tsx");
     assert.match(src, /from\s+"\.\/observerActions"/);
     const actionsImportBlock = src.slice(src.indexOf('from "./actions"') - 400, src.indexOf('from "./actions"'));
     assert.doesNotMatch(actionsImportBlock, /refreshAyasApprovalInbox/);
-    assert.doesNotMatch(src, /decideAyasApproval/);
   });
 
-  await scenario("no Stage 7A-reachable file can mint or consume authorization", () => {
+  await scenario("the observer runner and observer module remain unreachable from authorization/execution APIs", () => {
     const files = [
       "src/lib/brain/autonomy/AyasAutonomyObserver.ts",
       "src/lib/brain/autonomy/AyasApprovalInboxReader.ts",
       "src/lib/brain/autonomy/AyasApprovalInboxView.ts",
       "app/brain/observerActions.ts",
-      "app/brain/page.tsx",
-      "src/components/brain/AyasApprovalInboxPanel.tsx",
-      "src/components/brain/BrainCoreConsole.tsx",
       "scripts/ayas-autonomy-daemon.ts",
     ];
     for (const file of files) {

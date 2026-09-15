@@ -79,6 +79,7 @@
     "smoke:ayas-studio-context": "tsx scripts/smoke-ayas-studio-context.ts",
     "smoke:ayas-execution-gate": "tsx scripts/smoke-ayas-execution-gate.ts",
     "smoke:ayas-execution-bridge": "tsx scripts/smoke-ayas-execution-bridge.ts",
+    "smoke:ayas-autonomy-approval": "tsx scripts/smoke-ayas-autonomy-approval.ts",
     "smoke:ayas-autonomy-observer": "tsx scripts/smoke-ayas-autonomy-observer.ts",
     "smoke:ayas-model-profile": "tsx scripts/smoke-ayas-model-profile.ts",
     "smoke:ayas-chat-stream": "tsx scripts/smoke-ayas-chat-stream.ts",

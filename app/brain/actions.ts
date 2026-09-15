@@ -37,6 +37,8 @@ import {
 import { loadAyasStudioContext } from "@/lib/ayas/AyasStudioContext";
 import { createAyasChatProvider, resolveAyasChatModelProfile, AYAS_MODEL_ENV } from "@/lib/ayas/AyasModelProfile";
 import { createBrainSelfHealStore } from "@/lib/brain/selfheal/BrainSelfHealStore";
+import { createAyasApprovalInboxStore, type AyasInboxDecision } from "@/lib/brain/autonomy/AyasApprovalInboxStore";
+import { loadAyasApprovalInboxView, type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import { buildSelfHealDecision, type BrainSelfHealDecisionKind } from "@/lib/brain/selfheal/BrainSelfHealDecision";
 import { classifyPatchSet } from "@/lib/brain/selfheal/BrainPatchSafety";
 import {
@@ -126,6 +128,20 @@ async function requireBrainSession(): Promise<void> {
 /** Re-read the self-heal / AYAS Report Center snapshot (read-only). */
 export async function refreshBrainSelfHeal(): Promise<BrainSelfHealConsoleSnapshot> {
   return loadBrainSelfHealSnapshot();
+}
+
+// Stage 7A's read-only refresh (`refreshAyasApprovalInbox`) lives in
+// `./observerActions.ts` instead — it must not depend on this file, which
+// carries the Package B decision authority below.
+export async function decideAyasApproval(input: { proposalId: string; decision: AyasInboxDecision; reason?: string }): Promise<AyasApprovalInboxView> {
+  await requireBrainSession();
+  if (input.decision !== "APPROVE" && input.decision !== "REJECT" && input.decision !== "LATER") throw new Error("invalid_decision");
+  const store = createAyasApprovalInboxStore();
+  const proposal = store.load().proposals.find((entry) => entry.proposalId === input.proposalId);
+  if (!proposal) throw new Error("proposal_not_found");
+  if (input.decision === "APPROVE" && proposal.safetyClassification !== "SAFE") throw new Error("forbidden_area_needs_human");
+  store.decide(input.proposalId, input.decision, new Date().toISOString(), input.reason);
+  return loadAyasApprovalInboxView();
 }
 
 export interface RecordSelfHealDecisionInput {

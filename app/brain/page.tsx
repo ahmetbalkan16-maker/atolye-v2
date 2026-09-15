@@ -16,12 +16,13 @@ import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSn
 import {
   askAyas,
   ayasModelConfigured,
+  decideAyasApproval,
   recordSelfHealDecision,
   refreshBrainConsole,
   refreshBrainSelfHeal,
 } from "./actions";
 // Stage 7A: read-only inbox refresh comes from its own observer-only action
-// module — this page has no dependency on the Package B decision action.
+// module, independent of the Package B decision action above.
 import { refreshAyasApprovalInbox } from "./observerActions";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,7 @@ export default async function BrainCorePage() {
       refresh={refreshBrainConsole}
       refreshSelfHeal={refreshBrainSelfHeal}
       refreshApprovalInbox={refreshAyasApprovalInbox}
+      decideApproval={decideAyasApproval}
       recordSelfHealDecision={recordSelfHealDecision}
       askAyas={askAyas}
     />
