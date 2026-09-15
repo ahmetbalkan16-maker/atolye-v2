@@ -6,6 +6,7 @@ import { collectAyasMachineTelemetry } from "../src/lib/ayas/machine/AyasMachine
 import { evaluateAyasMachineHealth } from "../src/lib/ayas/machine/AyasMachineHealthGuard";
 import { loadBrainConsoleSnapshot } from "../src/lib/brain/ui/BrainConsoleSnapshot";
 import { createAyasAutonomyObserver } from "../src/lib/brain/autonomy/AyasAutonomyObserver";
+import { acquireAyasObserverLock, releaseAyasObserverLock } from "../src/lib/brain/autonomy/AyasObserverSingletonLock";
 
 const root = process.cwd();
 const autonomyDir = path.join(root, "data", "brain", "autonomy");
@@ -13,18 +14,6 @@ const lockFile = path.join(autonomyDir, "daemon.lock");
 const stateFile = path.join(autonomyDir, "daemon-state.json");
 
 function git(args: readonly string[]): string { return execFileSync("git", [...args], { cwd: root, encoding: "utf8", windowsHide: true }).trim(); }
-function acquireLock(): void {
-  fs.mkdirSync(autonomyDir, { recursive: true });
-  try { const fd = fs.openSync(lockFile, "wx"); fs.writeFileSync(fd, `${process.pid}\n`, "utf8"); fs.closeSync(fd); }
-  catch (error) {
-    try {
-      const age = Date.now() - fs.statSync(lockFile).mtimeMs;
-      if (age > 30 * 60_000) { fs.rmSync(lockFile); acquireLock(); return; }
-    } catch { /* unreadable lock remains a block */ }
-    throw new Error(`AYAS_AUTONOMY_ALREADY_RUNNING: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-function releaseLock(): void { try { fs.rmSync(lockFile, { force: true }); } catch { /* best effort */ } }
 function graphifyFresh(): boolean { return fs.existsSync(path.join(root, ".graphify", "graph.json")); }
 
 async function tick(observer: ReturnType<typeof createAyasAutonomyObserver>): Promise<void> {
@@ -45,12 +34,12 @@ async function main(): Promise<void> {
   const continuous = process.argv.includes("--continuous");
   const intervalArg = process.argv.indexOf("--interval-ms");
   const intervalMs = intervalArg >= 0 ? Math.max(1_000, Number(process.argv[intervalArg + 1] ?? "300000")) : 5 * 60_000;
-  acquireLock();
-  process.on("exit", releaseLock);
+  acquireAyasObserverLock(autonomyDir, lockFile);
+  process.on("exit", () => releaseAyasObserverLock(lockFile));
   const observer = createAyasAutonomyObserver({ stateFile, now: () => new Date().toISOString() });
   try {
     do { await tick(observer); if (continuous) await new Promise((resolve) => setTimeout(resolve, intervalMs)); } while (continuous);
     console.log(JSON.stringify({ status: observer.state.phase, stateFile }));
-  } finally { releaseLock(); }
+  } finally { releaseAyasObserverLock(lockFile); }
 }
 main().catch((error) => { console.error("AYAS autonomy daemon FAILED:", error); process.exitCode = 1; });
