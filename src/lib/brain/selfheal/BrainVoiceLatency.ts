@@ -58,6 +58,8 @@ export interface BrainVoiceLatencySample {
 export const MAX_LATENCY_MS = 120_000;
 /** Marks this old are ignored entirely. */
 const DEFAULT_MAX_WINDOW_MS = 24 * 60 * 60 * 1000;
+/** Small client-clock differences are tolerated; farther-future marks are untrusted. */
+const MAX_FUTURE_SKEW_MS = 5 * 60 * 1000;
 
 const METRIC_TR: Record<BrainLatencyMetric, string> = {
   captureMs: "komut yakalama süresi",
@@ -107,6 +109,11 @@ export function validateLatencySample(
   if (r.at !== undefined) {
     if (typeof r.at !== "string" || !ISO_RE.test(r.at) || Number.isNaN(Date.parse(r.at))) {
       return { ok: false, reason: `invalid timestamp ${JSON.stringify(r.at)}` };
+    }
+    const sampleAtMs = Date.parse(r.at);
+    const fallbackNowMs = Date.parse(fallbackNow);
+    if (!Number.isNaN(fallbackNowMs) && sampleAtMs > fallbackNowMs + MAX_FUTURE_SKEW_MS) {
+      return { ok: false, reason: `future timestamp ${JSON.stringify(r.at)}` };
     }
     at = r.at;
   }
@@ -197,14 +204,17 @@ export function normalizeLatencySamples(
   opts: { readonly maxCount?: number; readonly now?: string; readonly maxWindowMs?: number } = {},
 ): readonly BrainVoiceLatencySample[] {
   const maxCount = opts.maxCount ?? 4000;
-  const cutoff = opts.now ? Date.parse(opts.now) - (opts.maxWindowMs ?? DEFAULT_MAX_WINDOW_MS) : -Infinity;
+  const parsedNow = opts.now === undefined ? undefined : Date.parse(opts.now);
+  const hasValidNow = parsedNow !== undefined && !Number.isNaN(parsedNow);
+  const cutoff = hasValidNow ? parsedNow - (opts.maxWindowMs ?? DEFAULT_MAX_WINDOW_MS) : -Infinity;
+  const futureCutoff = hasValidNow ? parsedNow + MAX_FUTURE_SKEW_MS : Infinity;
   const seen = new Set<string>();
   const out: BrainVoiceLatencySample[] = [];
   for (const s of samples) {
     if (!BRAIN_LATENCY_METRICS.includes(s.metric)) continue;
     if (!Number.isFinite(s.valueMs) || s.valueMs <= 0 || s.valueMs > MAX_LATENCY_MS) continue;
     const t = Date.parse(s.at);
-    if (Number.isNaN(t) || t < cutoff) continue;
+    if (Number.isNaN(t) || t < cutoff || t > futureCutoff) continue;
     const key = `${s.metric}|${s.at}|${s.valueMs}`;
     if (seen.has(key)) continue;
     seen.add(key);

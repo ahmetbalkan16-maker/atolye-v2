@@ -33,6 +33,8 @@ async function scenario(name: string, fn: () => void | Promise<void>) {
 
 const NOW = "2026-09-13T12:00:00.000Z";
 const nowMs = Date.parse(NOW);
+const farFuture = new Date(nowMs + 10 * 60_000).toISOString();
+const toleratedClockSkew = new Date(nowMs + 4 * 60_000).toISOString();
 const iso = (msAgo: number) => new Date(nowMs - msAgo).toISOString();
 
 function s(metric: BrainVoiceLatencySample["metric"], valueMs: number, msAgo: number, source = "voice-lab"): BrainVoiceLatencySample {
@@ -79,6 +81,8 @@ async function run() {
   await scenario("B3. a malformed timestamp is rejected; a missing one falls back to `now`", () => {
     assert.equal(validateLatencySample({ metric: "sttMs", valueMs: 100, at: "yesterday" }, NOW).ok, false);
     assert.equal(validateLatencySample({ metric: "sttMs", valueMs: 100, at: 123 }, NOW).ok, false);
+    assert.equal(validateLatencySample({ metric: "sttMs", valueMs: 100, at: farFuture }, NOW).ok, false);
+    assert.equal(validateLatencySample({ metric: "sttMs", valueMs: 100, at: toleratedClockSkew }, NOW).ok, true);
     const ok = validateLatencySample({ metric: "sttMs", valueMs: 100 }, NOW);
     assert.equal(ok.ok, true);
     assert.equal(ok.ok && ok.sample.at, NOW);
@@ -190,8 +194,9 @@ async function run() {
   await scenario("normalize — dedupe, drop stale (> maxWindow), sort, cap", () => {
     const dup = s("sttMs", 1200, 3600_000);
     const stale = s("sttMs", 9000, 40 * 3600_000);
-    const out = normalizeLatencySamples([dup, dup, stale, s("sttMs", 1300, 1800_000)], { now: NOW });
-    assert.equal(out.length, 2, "one dedup + one stale dropped");
+    const future = { ...s("sttMs", 9000, 0), at: farFuture };
+    const out = normalizeLatencySamples([dup, dup, stale, future, s("sttMs", 1300, 1800_000)], { now: NOW });
+    assert.equal(out.length, 2, "one duplicate, one stale, and one far-future mark dropped");
     assert.ok(out[0].at < out[1].at, "sorted ascending");
   });
 
