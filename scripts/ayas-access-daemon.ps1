@@ -3,8 +3,8 @@
   AYAS phone access daemon — idempotent, zero-cost, no admin required.
 
 .DESCRIPTION
-  Ensures the AYAS app server (`npm run dev`) and a free Cloudflare Quick
-  Tunnel are running, then writes a small, bounded status file the app itself
+  Ensures the AYAS production app server (`npm run build` + `npm start`) and
+  the configured Cloudflare named tunnel (`cloudflared tunnel run ayas`) are running, then writes a small, bounded status file the app itself
   reads (`AyasPhoneAccessHealth.ts`). Safe to re-run at any time, including
   from Task Scheduler at every logon — it never starts a second app server or
   a second tunnel, and it never touches the Execution Gate, autonomous
@@ -33,12 +33,18 @@ $StateDir = Join-Path $env:LOCALAPPDATA "AtolyeAyasAccess"
 $LogDir = Join-Path $StateDir "logs"
 $StatusDir = Join-Path $RepoRoot "data\brain\phone-access"
 $StatusFile = Join-Path $StatusDir "status.json"
-$DevPidFile = Join-Path $StateDir "dev-server.pid"
+$AppPidFile = Join-Path $StateDir "app-server.pid"
 $TunnelPidFile = Join-Path $StateDir "cloudflared.pid"
-$DevLog = Join-Path $LogDir "dev-server.log"
-$DevErrLog = Join-Path $LogDir "dev-server.err.log"
+$BuildLog = Join-Path $LogDir "next-build.log"
+$BuildErrLog = Join-Path $LogDir "next-build.err.log"
+$AppLog = Join-Path $LogDir "app-server.log"
+$AppErrLog = Join-Path $LogDir "app-server.err.log"
 $TunnelLog = Join-Path $LogDir "cloudflared.log"
+$TunnelStdoutLog = Join-Path $LogDir "cloudflared-stdout.log"
 $DaemonLog = Join-Path $LogDir "daemon.log"
+$CloudflaredConfig = Join-Path $env:USERPROFILE ".cloudflared\config.yml"
+$TunnelName = "ayas"
+$NamedTunnelUrl = "https://ayas.atolyeayas.com"
 
 New-Item -ItemType Directory -Force -Path $StateDir, $LogDir, $StatusDir | Out-Null
 
@@ -57,7 +63,7 @@ function Invoke-LogRotation([string]$Path, [long]$MaxBytes = 5MB) {
     Rename-Item $Path $old -Force
   }
 }
-foreach ($log in @($DevLog, $DevErrLog, $TunnelLog, $DaemonLog)) { Invoke-LogRotation $log }
+foreach ($log in @($BuildLog, $BuildErrLog, $AppLog, $AppErrLog, $TunnelLog, $TunnelStdoutLog, $DaemonLog)) { Invoke-LogRotation $log }
 
 function Test-PortListening([int]$TargetPort) {
   try {
@@ -90,24 +96,55 @@ function Get-RunningProcessByName([string]$PidFilePath, [string]$Name) {
   return $null
 }
 
-# ---- 1. app server — idempotent via a real TCP listen check, not just a pid file ----
+# Best-effort command-line inspection narrows duplicate protection to the AYAS
+# named tunnel. If WMI access is denied, the pid-file check remains the safe
+# fallback; arbitrary cloudflared processes are never claimed as ours.
+function Get-ProcessCommandLine([int]$ProcessId) {
+  try {
+    return (Get-CimInstance Win32_Process -Filter "ProcessId = $ProcessId" -ErrorAction Stop).CommandLine
+  } catch {
+    return $null
+  }
+}
+
+function Get-RunningNamedTunnel() {
+  $fromPid = Get-RunningProcessByName $TunnelPidFile "cloudflared"
+  if ($fromPid) { return $fromPid }
+  foreach ($proc in @(Get-Process -Name "cloudflared" -ErrorAction SilentlyContinue)) {
+    $commandLine = Get-ProcessCommandLine $proc.Id
+    if ($commandLine -and $commandLine -match "(?i)tunnel.*run.*$TunnelName" -and
+        $commandLine -match [regex]::Escape($CloudflaredConfig)) {
+      return $proc
+    }
+  }
+  return $null
+}
+
+# ---- 1. production app server — idempotent via a real TCP listen check ----
 $portAlreadyListening = Test-PortListening $Port
 if (-not $portAlreadyListening) {
-  Write-Log "Port $Port not listening — starting app server (npm run dev)."
-  # Native Start-Process redirection — no cmd.exe wrapper, no shell quoting to
-  # get wrong. stdout/stderr must be DIFFERENT files (Start-Process rejects
-  # the same path for both).
-  $p = Start-Process -FilePath "npm.cmd" -ArgumentList "run", "dev" `
+  Write-Log "Port $Port not listening — building production app."
+  $build = Start-Process -FilePath "npm.cmd" -ArgumentList "run", "build" `
     -WorkingDirectory $RepoRoot `
-    -RedirectStandardOutput $DevLog -RedirectStandardError $DevErrLog `
-    -WindowStyle Hidden -PassThru
-  Set-Content -Path $DevPidFile -Value $p.Id
+    -RedirectStandardOutput $BuildLog -RedirectStandardError $BuildErrLog `
+    -WindowStyle Hidden -Wait -PassThru
+  if ($build.ExitCode -ne 0) {
+    Write-Log "Production build failed with exit code $($build.ExitCode); app and tunnel will not start."
+  } else {
+    Write-Log "Production build passed — starting app server (npm start)."
+    # Native Start-Process redirection — stdout/stderr must be different files.
+    $p = Start-Process -FilePath "npm.cmd" -ArgumentList "run", "start", "--", "-p", "$Port" `
+      -WorkingDirectory $RepoRoot `
+      -RedirectStandardOutput $AppLog -RedirectStandardError $AppErrLog `
+      -WindowStyle Hidden -PassThru
+    Set-Content -Path $AppPidFile -Value $p.Id
+  }
 } else {
   Write-Log "Port $Port already listening — not starting a duplicate app server."
 }
 
 # ---- 2. wait for REAL health with bounded, growing backoff (not a fixed sleep) ----
-$healthy = $false
+$healthy = if ($portAlreadyListening) { Test-LocalHealth $Port } else { $false }
 $attempt = 0
 $maxAttempts = 30
 while (-not $healthy -and $attempt -lt $maxAttempts) {
@@ -117,38 +154,36 @@ while (-not $healthy -and $attempt -lt $maxAttempts) {
 }
 Write-Log "App server health after $attempt attempt(s): $healthy"
 
-# ---- 3. cloudflared — only once the origin is real; never a duplicate process ----
-$tunnelProc = Get-RunningProcessByName $TunnelPidFile "cloudflared"
-if (-not $tunnelProc) {
-  $existingByName = Get-Process -Name "cloudflared" -ErrorAction SilentlyContinue | Select-Object -First 1
-  if ($existingByName) { $tunnelProc = $existingByName }
-}
+# ---- 3. named cloudflared tunnel — only once the origin is real ----
+$tunnelProc = Get-RunningNamedTunnel
 $tunnelUrl = $null
 $tunnelState = "offline"
 
 if ($healthy -and -not $tunnelProc) {
-  Write-Log "Origin healthy — starting cloudflared quick tunnel."
-  $tunnelState = "starting"
-  $p = Start-Process -FilePath $CloudflaredExe `
-    -ArgumentList "tunnel", "--url", "http://127.0.0.1:$Port" `
-    -RedirectStandardOutput (Join-Path $LogDir "cloudflared-stdout.log") `
-    -RedirectStandardError $TunnelLog -WindowStyle Hidden -PassThru
-  Set-Content -Path $TunnelPidFile -Value $p.Id
-  for ($i = 0; $i -lt 15; $i++) {
-    Start-Sleep -Seconds 1
-    if (Test-Path $TunnelLog) {
-      $match = Select-String -Path $TunnelLog -Pattern "https://[a-z0-9-]+\.trycloudflare\.com" -ErrorAction SilentlyContinue | Select-Object -First 1
-      if ($match) { $tunnelUrl = $match.Matches[0].Value; $tunnelState = "online"; break }
+  if (-not (Test-Path $CloudflaredConfig)) {
+    Write-Log "Named tunnel config not found at $CloudflaredConfig — tunnel will not start."
+  } else {
+    Write-Log "Origin healthy — starting cloudflared named tunnel '$TunnelName'."
+    $tunnelState = "starting"
+    $p = Start-Process -FilePath $CloudflaredExe `
+      -ArgumentList "tunnel", "--config", $CloudflaredConfig, "run", $TunnelName `
+      -RedirectStandardOutput $TunnelStdoutLog -RedirectStandardError $TunnelLog -WindowStyle Hidden -PassThru
+    Set-Content -Path $TunnelPidFile -Value $p.Id
+    Start-Sleep -Seconds 2
+    $tunnelProc = Get-RunningNamedTunnel
+    if ($tunnelProc) {
+      $tunnelUrl = $NamedTunnelUrl
+      $tunnelState = "online"
+    } else {
+      Write-Log "Named tunnel exited before health confirmation — leaving state 'starting'."
     }
   }
-  if (-not $tunnelUrl) { Write-Log "cloudflared did not report a quick-tunnel URL within 15s — leaving state 'starting'." }
 } elseif ($tunnelProc) {
-  Write-Log "cloudflared already running (pid $($tunnelProc.Id)) — not starting a duplicate."
-  $match = Select-String -Path $TunnelLog -Pattern "https://[a-z0-9-]+\.trycloudflare\.com" -ErrorAction SilentlyContinue | Select-Object -Last 1
-  if ($match) { $tunnelUrl = $match.Matches[0].Value; $tunnelState = "online" }
-  else { $tunnelState = "starting" }
+  Write-Log "Named cloudflared tunnel already running (pid $($tunnelProc.Id)) — not starting a duplicate."
+  $tunnelUrl = $NamedTunnelUrl
+  $tunnelState = "online"
 } else {
-  Write-Log "Origin not healthy — cloudflared intentionally NOT started (never treat an unready app as tunnel-ready)."
+  Write-Log "Origin not healthy — named cloudflared intentionally NOT started (never treat an unready app as tunnel-ready)."
 }
 
 # ---- 4. write the bounded status file — this is ALL the running app reads ----
@@ -156,7 +191,7 @@ if ($healthy -and -not $tunnelProc) {
 # reachability. It must never gain an execution-gate, self-improvement, or
 # production-resume field — those stay their own, separately-gated systems.
 $status = [ordered]@{
-  appServer   = if ($healthy) { "online" } elseif ($portAlreadyListening -or (Test-Path $DevPidFile)) { "starting" } else { "offline" }
+  appServer   = if ($healthy) { "online" } elseif ($portAlreadyListening -or (Test-Path $AppPidFile)) { "starting" } else { "offline" }
   lanAccess   = if ($healthy) { "online" } else { "unknown" }
   tunnel      = $tunnelState
   ayasBackend = if (-not $healthy) { "offline" } elseif ($tunnelUrl) { "online" } else { "degraded" }

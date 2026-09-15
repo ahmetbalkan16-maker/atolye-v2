@@ -5,7 +5,7 @@ import path from "node:path";
  * AYAS phone access health (Phone Access sprint).
  *
  * A small, bounded, READ-ONLY view of whether AYAS is reachable from a phone
- * right now — local app server, LAN, and the free Cloudflare Quick Tunnel.
+ * right now — local app server, LAN, and the Cloudflare tunnel.
  * The daemon (`scripts/ayas-access-daemon.ts` → `ayas-access-daemon.ps1`)
  * OWNS process/network truth and writes a tiny status file; this module only
  * ever reads it, deep-validates the shape, and fails safe ("unknown"/
@@ -29,9 +29,10 @@ export interface AyasPhoneAccessHealth {
   readonly tunnel: AyasPhoneAccessComponentStatus;
   readonly ayasBackend: AyasPhoneAccessBackendStatus;
   /**
-   * The current public Quick Tunnel URL, when the daemon reports `tunnel:
-   * "online"`. `trycloudflare.com` URLs are EPHEMERAL — a new daemon run
-   * mints a new one — so this is diagnostic, never a stable identifier.
+   * The current public tunnel URL, when the daemon reports `tunnel: "online"`.
+   * Quick Tunnel URLs are EPHEMERAL — a new daemon run mints a new one —
+   * while the named tunnel URL is stable; both are diagnostic, never an
+   * execution authority.
    * `null` when no tunnel is up. Shown to the operator, not a secret by
    * itself (it grants no access beyond the same access-gate login every
    * other AYAS URL already requires) — still worth NOT logging broadly, since
@@ -128,8 +129,8 @@ interface RawAyasPhoneAccessStatus {
 const COMPONENT_STATUSES: readonly AyasPhoneAccessComponentStatus[] = ["online", "offline", "starting"];
 const LAN_STATUSES: readonly AyasPhoneAccessLanStatus[] = ["online", "offline", "unknown"];
 const BACKEND_STATUSES: readonly AyasPhoneAccessBackendStatus[] = ["online", "degraded", "offline"];
-/** A `trycloudflare.com` quick-tunnel URL only — anything else is dropped, never trusted verbatim. */
-const TUNNEL_URL_PATTERN = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com\/?$/;
+/** Only AYAS Cloudflare tunnel hosts are trusted; arbitrary URLs fail closed. */
+const TUNNEL_URL_PATTERN = /^https:\/\/(?:[a-z0-9-]+\.trycloudflare\.com|ayas\.atolyeayas\.com)\/?$/;
 
 function isRawStatusShape(value: unknown): value is RawAyasPhoneAccessStatus {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;

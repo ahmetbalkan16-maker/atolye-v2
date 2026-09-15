@@ -40,7 +40,7 @@ function Register-ViaTaskScheduler {
 
   Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
     -Principal $principal -Settings $settings -Description `
-    "Starts the AYAS app server + a free Cloudflare Quick Tunnel at logon. Never touches the Execution Gate, self-improvement, or production resume - process/network only." `
+    "Starts the AYAS production Next server + named Cloudflare tunnel (ayas) at logon. Never touches the Execution Gate, self-improvement, or production resume - process/network only." `
     -Force | Out-Null
 }
 
@@ -57,7 +57,7 @@ function Register-ViaStartupShortcut {
   $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$DaemonScript`""
   $shortcut.WorkingDirectory = $RepoRoot
   $shortcut.WindowStyle = 7  # minimized — belt-and-braces alongside -WindowStyle Hidden
-  $shortcut.Description = "Starts AYAS app server + a free Cloudflare Quick Tunnel at logon (no execution-gate / self-improvement / production-resume effect)."
+  $shortcut.Description = "Starts AYAS production Next server + named Cloudflare tunnel (ayas) at logon (no execution-gate / self-improvement / production-resume effect)."
   $shortcut.Save()
 }
 

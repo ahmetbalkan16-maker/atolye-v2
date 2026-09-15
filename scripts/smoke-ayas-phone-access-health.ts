@@ -159,6 +159,22 @@ async function run() {
     );
   });
 
+  await scenario("the stable AYAS named tunnel URL is trusted when the daemon reports it online", () => {
+    const now = Date.now();
+    withStatusFile(
+      JSON.stringify({
+        appServer: "online", lanAccess: "online", tunnel: "online", ayasBackend: "online",
+        tunnelUrl: "https://ayas.atolyeayas.com", updatedAt: new Date(now).toISOString(),
+      }),
+      (statusFilePath) => {
+        const health = readAyasPhoneAccessHealth({ statusFilePath, now: () => now });
+        assert.equal(health.appServer, "online");
+        assert.equal(health.tunnelUrl, "https://ayas.atolyeayas.com");
+        assert.equal(health.stale, false);
+      },
+    );
+  });
+
   await scenario("STATIC — the health reader never references execution-gate / self-improvement / production-resume primitives", () => {
     const raw = fs.readFileSync(
       path.join(REPO_ROOT, "src/lib/runtime/access/AyasPhoneAccessHealth.ts"),
