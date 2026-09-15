@@ -30,6 +30,7 @@
  *    forever) — see the real-timer race scenario above, reused by name here.
  */
 import assert from "node:assert/strict";
+import fs from "node:fs";
 
 import {
   detectAyasVoiceCapability,
@@ -388,6 +389,20 @@ async function run() {
     assert.equal(cap.wakes, 1);
     assert.deepEqual(cap.commands, ["kaç projem var"]);
     engine.dispose();
+  });
+
+  await scenario("Stage 1 — the mounted voice hook has no execution-control import or command surface", () => {
+    const source = fs.readFileSync("src/components/brain/useAyasVoice.ts", "utf8");
+    assert.doesNotMatch(
+      source,
+      /from\s+["'][^"']*(?:\/execution\/|AyasExecutionGate|AyasExecutionBridge|AyasExecutionAuthorization)[^"']*["']/u,
+      "voice lifecycle must not import execution-control authority",
+    );
+    assert.doesNotMatch(
+      source,
+      /\b(?:openGate|beginExecution|executeAyas|authorizeAyas|startPipeline)\s*\(/u,
+      "voice lifecycle must not expose or invoke execution commands",
+    );
   });
 
   /* =============================== I/J. security invariants ============== */
