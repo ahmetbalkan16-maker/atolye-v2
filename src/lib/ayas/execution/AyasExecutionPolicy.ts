@@ -41,7 +41,8 @@ export type AyasExecutionActionId =
   | "inspect-source-range"
   | "query-graphify"
   | "run-developer-validation"
-  | "list-production-projects";
+  | "list-production-projects"
+  | "ayas-development-status";
 
 /** Reserved ids that are intentionally NOT enabled yet (write / pipeline path). */
 export const AYAS_EXECUTION_RESERVED_ACTIONS: readonly string[] = Object.freeze([
@@ -143,6 +144,12 @@ export const AYAS_EXECUTION_ALLOWLIST: Readonly<Record<AyasExecutionActionId, Ay
       id: "list-production-projects",
       summary: "Authoritative Atölye production proje kataloğunu (durum, tamamlanan/yarım/resumable) SALT-OKUNUR olarak listeler/özetler.",
       write: false, destructive: false, requiresProject: false, maxDurationMs: 10_000,
+    },
+    "ayas-development-status": {
+      id: "ayas-development-status",
+      summary:
+        "AYAS'ın kendi kendini geliştirme (self-improvement) önerilerinin durumunu — bekleyen onaylar, bugünkü değerlendirmeler, geçmiş kararlar — kalıcı onay kutusundan SALT-OKUNUR özetler. Hiçbir onay/rezervasyon/yürütme yapmaz.",
+      write: false, destructive: false, requiresProject: false, maxDurationMs: 5_000,
     },
   });
 

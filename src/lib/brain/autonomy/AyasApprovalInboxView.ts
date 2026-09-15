@@ -18,7 +18,8 @@ export interface AyasApprovalInboxView {
   readonly error?: string;
 }
 
-const istanbulDay = (iso: string): string => {
+/** Exported so other read-only consumers (e.g. AYAS's natural-language development-status answers) use the SAME "today" boundary as this view, rather than inventing a second one. */
+export const istanbulDay = (iso: string): string => {
   const time = Date.parse(iso);
   return Number.isFinite(time) ? new Date(time + 3 * 60 * 60 * 1000).toISOString().slice(0, 10) : "invalid";
 };

@@ -17,6 +17,7 @@ import path from "node:path";
 import { ProjectReader } from "@/lib/projects/ProjectReader";
 import { PipelineRecoveryPlanner } from "@/lib/pipeline/PipelineRecoveryPlanner";
 import { findAyasProductionProjects, summarizeAyasProductionProjects, type AyasCatalogProjectStatus } from "../AyasProjectCatalog";
+import { computeAyasDevelopmentStatusData, buildAyasDevelopmentStatusSummary } from "./AyasDevelopmentStatus";
 import type { AyasExecutionActionId, AyasExecutionRequest } from "./AyasExecutionPolicy";
 import { AYAS_DEVELOPER_EXECUTORS } from "./AyasDeveloperEvidence";
 import { AyasActionValidationError, type AyasExecutor, type AyasExecutorResult } from "./AyasActionContracts";
@@ -351,6 +352,27 @@ async function listProductionProjects(request: AyasExecutionRequest): Promise<Ay
   };
 }
 
+/**
+ * M7 — natural-language self-improvement status. Read-only, zero-authority:
+ * builds on the SAME durable view (`AyasApprovalInboxView`/`Reader`) the
+ * Gelişim Merkezi UI already uses, never the Store's decide/reserve/finalize
+ * surface. `userText` (carried in `plan.userText` by the deterministic
+ * candidate resolver in `AyasChatStream.ts`) only selects which SHAPE of
+ * answer to build (general overview vs. one proposal's benefit) — it never
+ * changes which durable data is read.
+ */
+async function ayasDevelopmentStatus(request: AyasExecutionRequest): Promise<AyasExecutorResult> {
+  const userTextRaw = planField(request, "userText");
+  const userText = typeof userTextRaw === "string" ? userTextRaw : "";
+  const data = computeAyasDevelopmentStatusData(userText, new Date().toISOString());
+  return {
+    action: "ayas-development-status",
+    write: false,
+    summary: buildAyasDevelopmentStatusSummary(data),
+    data: data as unknown as Record<string, unknown>,
+  };
+}
+
 const EXECUTORS: Readonly<Record<AyasExecutionActionId, AyasExecutor>> = Object.freeze({
   "inspect-project": inspectProject,
   "pipeline-recovery-plan": pipelineRecoveryPlan,
@@ -358,6 +380,7 @@ const EXECUTORS: Readonly<Record<AyasExecutionActionId, AyasExecutor>> = Object.
   "inspect-source-file": inspectSourceFile,
   "search-project-source": searchProjectSource,
   "list-production-projects": listProductionProjects,
+  "ayas-development-status": ayasDevelopmentStatus,
   ...AYAS_DEVELOPER_EXECUTORS,
 });
 

@@ -160,6 +160,37 @@ export function resolveAyasProjectCatalogFilterKind(text: string): AyasProjectCa
   return null;
 }
 
+/**
+ * M7 — AYAS's OWN self-improvement/development status (the Gelişim Merkezi
+ * proposal inbox), never confused with the production video pipeline's
+ * "proje"/"video" catalog above (`isAyasProjectCatalogQuery`) — deliberately
+ * a completely disjoint signal set. AND-gated in groups (a subject/topic
+ * word plus an action/question word), the same structural pattern as the
+ * project-catalog signals: no single generic word alone (e.g. bare
+ * "geliştir" or bare "bekliyor") is enough, since those collide with
+ * ordinary production-pipeline or everyday phrasing ("bu videoyu nasıl
+ * geliştirebilirim", "projeyi bekliyor musun").
+ */
+const AYAS_SELF_SUBJECT = /\b(kendini|kendinde|kendin|kendisi|ayasin|gelisim merkezi|oneri\w*|onerilerini)\b/;
+const AYAS_DEV_WORDS = /\b(gelistir\w*|gelisme\w*|gelisim\w*)\b/;
+const AYAS_APPROVAL_WORDS = /\b(onay\w*|reddet\w*)\b/;
+const AYAS_DEFERRED_PHRASE = /\bsonraya birak\w*\b|\bdaha sonraya\b/;
+const AYAS_BENEFIT_WORDS = /\bfayda\w*\b|\byapacaksin\b|\byapamiyorsun\b|\byapabiliyor\w*\b/;
+const AYAS_RECOVERY_WORDS = /\brecovery\b/;
+/** Generic Turkish 2nd-person-singular verb suffix — broad on purpose, but never checked standalone: always AND-gated below with an AYAS development/approval topic word. */
+const AYAS_SECOND_PERSON_SUFFIX = /\w*(yorsun|misin|musun|müsün|mısın|dun\b|dın\b|din\b|tun\b|tın\b|tin\b|acaksin|eceksin)\b/;
+
+/** True for a question about AYAS's own self-improvement proposals/approvals — routes to TOOL, the same bucket as the read-only project-catalog and document queries. */
+export function isAyasDevelopmentStatusQuery(text: string): boolean {
+  const t = fold(text);
+  if (AYAS_RECOVERY_WORDS.test(t)) return true;
+  if (AYAS_DEFERRED_PHRASE.test(t)) return true;
+  if (AYAS_BENEFIT_WORDS.test(t) && (AYAS_APPROVAL_WORDS.test(t) || AYAS_SELF_SUBJECT.test(t))) return true;
+  if (AYAS_SELF_SUBJECT.test(t) && (AYAS_DEV_WORDS.test(t) || AYAS_APPROVAL_WORDS.test(t))) return true;
+  if (AYAS_SECOND_PERSON_SUFFIX.test(t) && (AYAS_DEV_WORDS.test(t) || AYAS_APPROVAL_WORDS.test(t))) return true;
+  return false;
+}
+
 /** Multi-step analysis / decision cues. */
 const COMPLEX = /\b(neden(ini)? bul|kok neden|analiz et|degerlendir|karsilastir|ne yapmali(yiz|yim)?|nasil ilerleyelim|plan(la| yap| cikar)|adim adim|once .* sonra|hem .* hem|tespit et .* coz)\b/;
 
@@ -198,6 +229,7 @@ export function classifyAyasComplexity(text: string): AyasChatComplexity {
   if (FILE_PATH_MENTION.test(text) || ENV_MENTION.test(text)) return "TOOL";
   if (TOOL_RUN_WORDS.test(t) && RUN_VERB_WORDS.test(t)) return "TOOL";
   if (isAyasProjectCatalogQuery(text)) return "TOOL";
+  if (isAyasDevelopmentStatusQuery(text)) return "TOOL";
   if (COMPLEX.test(t)) return "COMPLEX";
 
   const words = t.split(" ").filter(Boolean);

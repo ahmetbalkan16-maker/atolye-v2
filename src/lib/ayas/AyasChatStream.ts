@@ -53,6 +53,7 @@ import {
   extractAyasFilePathMention,
   hasMultipleAyasFilePathMentions,
   resolveAyasProjectCatalogFilterKind,
+  isAyasDevelopmentStatusQuery,
 } from "./model/AyasComplexityRouter";
 
 /**
@@ -404,6 +405,8 @@ type AyasToolInputHint = {
   readonly titleContains?: string;
   readonly projectId?: string;
   readonly mode?: "list" | "summary";
+  /** `ayas-development-status` only — the raw user text, used ONLY to pick the answer's shape (see `AyasDevelopmentStatus.ts`), never to select which durable data is read. */
+  readonly userText?: string;
 };
 interface AyasDeterministicToolCandidate {
   readonly action: AyasExecutionActionId;
@@ -489,6 +492,14 @@ export function resolveDeterministicToolCandidate(userText: string): AyasDetermi
       catalogFilterKind === "all" ? {} :
       { completionState: catalogFilterKind };
     candidates.push({ action: "list-production-projects", toolInput });
+  }
+
+  // M7 — AYAS's own self-improvement/development status (Gelişim Merkezi
+  // proposal inbox). Deliberately a disjoint signal set from the production
+  // project catalog above (see `isAyasDevelopmentStatusQuery`'s own doc
+  // comment) — a message can trigger at most one of the two.
+  if (isAyasDevelopmentStatusQuery(userText)) {
+    candidates.push({ action: "ayas-development-status", toolInput: { userText } });
   }
 
   if (candidates.length !== 1) return null;
