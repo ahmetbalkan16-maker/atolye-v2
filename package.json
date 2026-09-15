@@ -85,6 +85,8 @@
     "smoke:ayas-authorization-reservation": "tsx scripts/smoke-ayas-authorization-reservation.ts",
     "smoke:ayas-approval-durable-state-compatibility": "tsx scripts/smoke-ayas-approval-durable-state-compatibility.ts",
     "smoke:ayas-execution-journal": "tsx scripts/smoke-ayas-execution-journal.ts",
+    "smoke:ayas-isolated-gate-root": "tsx scripts/smoke-ayas-isolated-gate-root.ts",
+    "smoke:ayas-execution-authority-lock": "tsx scripts/smoke-ayas-execution-authority-lock.ts",
     "smoke:ayas-model-profile": "tsx scripts/smoke-ayas-model-profile.ts",
     "smoke:ayas-chat-stream": "tsx scripts/smoke-ayas-chat-stream.ts",
     "smoke:ayas-chat-stream-client": "tsx scripts/smoke-ayas-chat-stream-client.ts",
