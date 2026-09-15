@@ -87,6 +87,7 @@
     "smoke:ayas-execution-journal": "tsx scripts/smoke-ayas-execution-journal.ts",
     "smoke:ayas-isolated-gate-root": "tsx scripts/smoke-ayas-isolated-gate-root.ts",
     "smoke:ayas-execution-authority-lock": "tsx scripts/smoke-ayas-execution-authority-lock.ts",
+    "smoke:ayas-execution-revalidation-scope-recovery": "tsx scripts/smoke-ayas-execution-revalidation-scope-recovery.ts",
     "smoke:ayas-model-profile": "tsx scripts/smoke-ayas-model-profile.ts",
     "smoke:ayas-chat-stream": "tsx scripts/smoke-ayas-chat-stream.ts",
     "smoke:ayas-chat-stream-client": "tsx scripts/smoke-ayas-chat-stream-client.ts",
