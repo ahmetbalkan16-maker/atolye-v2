@@ -88,6 +88,48 @@ async function main() {
   await scenario("YÜRÜT opens a second confirmation before dispatch", () => { const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox: buildAyasApprovalInboxView(state([proposal({ status: "APPROVED" })]), NOW), onExecute: () => undefined })); assert.match(html, />YÜRÜT</); assert.doesNotMatch(html, /YÜRÜTMEYİ BAŞLAT/); });
   await scenario("execution confirmation states one-shot consumption", () => { const src = fs.readFileSync(path.join(process.cwd(), "src/components/brain/AyasDevelopmentCenter.tsx"), "utf8"); assert.match(src, /Yürütürsem ne olacak\?/); assert.match(src, /YÜRÜTMEYİ BAŞLAT/); assert.match(src, /tek kullanımlıktır/); });
   await scenario("executingId disables the YÜRÜT control for that proposal", () => { const p = proposal({ status: "APPROVED" }); const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox: buildAyasApprovalInboxView(state([p]), NOW), executingId: p.proposalId, onExecute: () => undefined })); assert.match(html, /YÜRÜTÜLÜYOR…/); });
+  await scenario("YÜRÜT only calls setConfirming — the client never dispatches onExecute before the confirmation screen", () => {
+    const src = fs.readFileSync(path.join(process.cwd(), "src/components/brain/AyasDevelopmentCenter.tsx"), "utf8");
+    const control = src.slice(src.indexOf("function ExecuteControl"));
+    const initialButton = control.slice(control.lastIndexOf("return (\n    <div className=\"bc-dev__actions\">"));
+    assert.doesNotMatch(initialButton.split("YÜRÜT<")[0] ?? "", /onExecute\?\.\(/, "the initial YÜRÜT button must only open confirmation, never dispatch directly");
+  });
+  await scenario("VAZGEÇ (cancel) never calls onExecute — it only resets local confirmation state", () => {
+    const src = fs.readFileSync(path.join(process.cwd(), "src/components/brain/AyasDevelopmentCenter.tsx"), "utf8");
+    const control = src.slice(src.indexOf("function ExecuteControl"), src.indexOf("function TimelineCard"));
+    const cancelButtonLine = control.split("\n").find((line) => line.includes("VAZGEÇ"));
+    assert.ok(cancelButtonLine);
+    assert.doesNotMatch(cancelButtonLine ?? "", /onExecute/, "VAZGEÇ must never reference onExecute");
+    assert.match(cancelButtonLine ?? "", /setConfirming\(false\)/);
+  });
+  await scenario("YÜRÜTMEYİ BAŞLAT is the only control wired to onExecute, with the exact proposalId", () => {
+    const src = fs.readFileSync(path.join(process.cwd(), "src/components/brain/AyasDevelopmentCenter.tsx"), "utf8");
+    const control = src.slice(src.indexOf("function ExecuteControl"), src.indexOf("function TimelineCard"));
+    const dispatchLine = control.split("\n").find((line) => line.includes("onExecute?.({ proposalId: proposal.proposalId })"));
+    assert.ok(dispatchLine, "exactly one dispatch call, bound to this proposal's own id");
+    assert.match(dispatchLine ?? "", /YÜRÜTMEYİ BAŞLAT/);
+  });
+  await scenario("a returned execution error for this proposal renders a visible, non-silent message", () => {
+    const p = proposal({ status: "APPROVED" });
+    const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox: buildAyasApprovalInboxView(state([p]), NOW), executionError: { proposalId: p.proposalId, code: "AYAS_MUTATION_KIND_UNKNOWN" }, onExecute: () => undefined }));
+    assert.match(html, /Bu öneri için kayıtlı bir uygulama bulunamadı/);
+    assert.match(html, /role="alert"/);
+  });
+  await scenario("an unrecognized error code still renders a visible fallback message, never nothing", () => {
+    const p = proposal({ status: "APPROVED" });
+    const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox: buildAyasApprovalInboxView(state([p]), NOW), executionError: { proposalId: p.proposalId, code: "SOME_FUTURE_CODE" }, onExecute: () => undefined }));
+    assert.match(html, /SOME_FUTURE_CODE/);
+  });
+  await scenario("an execution error for a DIFFERENT proposal never bleeds into this one", () => {
+    const p = proposal({ status: "APPROVED" });
+    const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox: buildAyasApprovalInboxView(state([p]), NOW), executionError: { proposalId: "some-other-proposal", code: "AYAS_MUTATION_KIND_UNKNOWN" }, onExecute: () => undefined }));
+    assert.doesNotMatch(html, /Bu öneri için kayıtlı bir uygulama bulunamadı/);
+  });
+  await scenario("no execution error present renders no alert at all", () => {
+    const p = proposal({ status: "APPROVED" });
+    const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox: buildAyasApprovalInboxView(state([p]), NOW), onExecute: () => undefined }));
+    assert.doesNotMatch(html, /role="alert"/);
+  });
   console.log(`AYAS Gelişim Merkezi smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-development-center", scenarios: count }));
 }

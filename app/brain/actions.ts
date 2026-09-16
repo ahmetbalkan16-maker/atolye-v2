@@ -39,7 +39,7 @@ import { createAyasChatProvider, resolveAyasChatModelProfile, AYAS_MODEL_ENV } f
 import { createBrainSelfHealStore } from "@/lib/brain/selfheal/BrainSelfHealStore";
 import { createAyasApprovalInboxStore, type AyasInboxDecision } from "@/lib/brain/autonomy/AyasApprovalInboxStore";
 import { loadAyasApprovalInboxView, type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
-import { executeAyasApprovedProposalWith, defaultAyasProposalExecutionDeps } from "@/lib/brain/autonomy/AyasProposalExecutionService";
+import { executeAyasApprovedProposalWith, defaultAyasProposalExecutionDeps, AyasProposalExecutionError } from "@/lib/brain/autonomy/AyasProposalExecutionService";
 import { buildSelfHealDecision, type BrainSelfHealDecisionKind } from "@/lib/brain/selfheal/BrainSelfHealDecision";
 import { classifyPatchSet } from "@/lib/brain/selfheal/BrainPatchSafety";
 import {
@@ -145,6 +145,13 @@ export async function decideAyasApproval(input: { proposalId: string; decision: 
   return loadAyasApprovalInboxView();
 }
 
+export interface AyasExecuteProposalResult {
+  readonly ok: boolean;
+  /** Present only when `ok` is false — always one of this module's own short, non-secret codes (never a raw internal error message). */
+  readonly code?: string;
+  readonly inbox: AyasApprovalInboxView;
+}
+
 /**
  * The one real Package C execution entrypoint (M15). Accepts only a
  * proposalId — never a callback, filesystem path, gateRoot, or mutation
@@ -156,11 +163,23 @@ export async function decideAyasApproval(input: { proposalId: string; decision: 
  * fixtures instead of real production state. This is a separate, explicit
  * action from `decideAyasApproval` above: approving a proposal never calls
  * this.
+ *
+ * Returns a result object rather than throwing across the Server Action
+ * boundary: Next.js redacts a thrown error's message in production, so a
+ * client-side `catch` would only ever see a generic, useless string — the
+ * caller could never distinguish "proposal already executed" from "machine
+ * health blocked" from an actual bug. Returning `{ ok: false, code }`
+ * carries the real (already safe, non-secret) reason through intact.
  */
-export async function executeAyasApprovedProposal(input: { proposalId: string }): Promise<AyasApprovalInboxView> {
+export async function executeAyasApprovedProposal(input: { proposalId: string }): Promise<AyasExecuteProposalResult> {
   await requireBrainSession();
-  await executeAyasApprovedProposalWith(input.proposalId, defaultAyasProposalExecutionDeps());
-  return loadAyasApprovalInboxView();
+  try {
+    await executeAyasApprovedProposalWith(input.proposalId, defaultAyasProposalExecutionDeps());
+    return { ok: true, inbox: loadAyasApprovalInboxView() };
+  } catch (error) {
+    const code = error instanceof AyasProposalExecutionError ? error.code : error instanceof Error ? error.message : "EXECUTION_FAILED";
+    return { ok: false, code, inbox: loadAyasApprovalInboxView() };
+  }
 }
 
 export interface RecordSelfHealDecisionInput {

@@ -221,6 +221,21 @@ async function main() {
     assert.match(executeBody, /requireBrainSession/, "the execution action must independently verify the session, not rely on middleware alone");
     assert.match(executeBody, /executeAyasApprovedProposalWith/, "the execution action must delegate to Package C via the extracted service");
   });
+  await scenario("M15.1 fix: executeAyasApprovedProposal returns a result rather than letting a thrown error cross the Server Action boundary unconverted", () => {
+    // The bug this fixes: BrainCoreConsole.tsx's `onExecuteProposal` used to
+    // do `try { setApprovalInbox(await executeProposal(input)); } catch { }`
+    // — any thrown error (e.g. AYAS_MUTATION_KIND_UNKNOWN because the
+    // running server had a stale build) was silently discarded, so a human
+    // clicking YÜRÜT saw nothing happen at all with no explanation.
+    const actionsSrc = read("app/brain/actions.ts");
+    const executeBody = actionsSrc.slice(actionsSrc.indexOf("export async function executeAyasApprovedProposal"));
+    assert.match(executeBody, /catch\s*\(error\)/, "the action itself must catch the thrown execution error");
+    assert.match(executeBody, /ok:\s*false/, "a failure must be a normal returned value, not a re-thrown error, so Next.js never redacts the reason in production");
+    const consoleSrc = read("src/components/brain/BrainCoreConsole.tsx");
+    const onExecuteBody = consoleSrc.slice(consoleSrc.indexOf("const onExecuteProposal"), consoleSrc.indexOf("const onExecuteProposal") + 700);
+    assert.doesNotMatch(onExecuteBody, /catch\s*\{\s*\/\*\s*retain last durable view\s*\*\/\s*\}/, "the silent-discard catch must be gone from the execution handler");
+    assert.match(onExecuteBody, /setExecutionError/, "a failed result must be recorded in visible state, not discarded");
+  });
 
   console.log(`AYAS autonomy approval smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-autonomy-approval", scenarios: count }));

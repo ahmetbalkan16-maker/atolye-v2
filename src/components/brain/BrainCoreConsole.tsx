@@ -97,7 +97,7 @@ export interface BrainCoreConsoleProps {
   /** Server Action that records an operator ONAYLA / REDDET / DAHA SONRA approval decision. Session-gated; the safety-classification policy is enforced server-side (Store boundary), not by this prop's presence. */
   readonly decideApproval?: (input: { proposalId: string; decision: "APPROVE" | "REJECT" | "LATER" }) => Promise<AyasApprovalInboxView>;
   /** Server Action that runs an already-APPROVED proposal through Package C's execution authority chain. Session-gated, separate from `decideApproval` — approving never calls this. */
-  readonly executeProposal?: (input: { proposalId: string }) => Promise<AyasApprovalInboxView>;
+  readonly executeProposal?: (input: { proposalId: string }) => Promise<{ readonly ok: boolean; readonly code?: string; readonly inbox: AyasApprovalInboxView }>;
   /** Server Action that asks the local model (falls back to deterministic). */
   readonly askAyas?: AskAyasFn;
   /**
@@ -139,6 +139,7 @@ export function BrainCoreConsole({
   const [decisionPending, setDecisionPending] = useState<string | null>(null);
   const [approvalPending, setApprovalPending] = useState<string | null>(null);
   const [executionPending, setExecutionPending] = useState<string | null>(null);
+  const [executionError, setExecutionError] = useState<{ readonly proposalId: string; readonly code: string } | null>(null);
   const [, startSelfHeal] = useTransition();
 
   // Restore the transcript from sessionStorage so an iPhone reload (screen
@@ -500,11 +501,25 @@ export function BrainCoreConsole({
   // Run an already-APPROVED proposal through Package C via `executeProposal`
   // (`executeAyasApprovedProposal`). A separate, explicit action from
   // `onApprovalDecision` above — approving a proposal never calls this.
+  // The action returns `{ ok, code }` rather than throwing (Next.js redacts
+  // a thrown Server Action error's message in production, which would make
+  // every failure look identical and invisible) — a genuine transport/
+  // network failure is the only case that still reaches `catch`, and it is
+  // surfaced with its own explicit code rather than silently discarded.
   const onExecuteProposal = useCallback((input: { proposalId: string }) => {
     if (!executeProposal || executionPending) return;
     setExecutionPending(input.proposalId);
+    setExecutionError(null);
     startSelfHeal(async () => {
-      try { setApprovalInbox(await executeProposal(input)); } catch { /* retain last durable view */ } finally { setExecutionPending(null); }
+      try {
+        const result = await executeProposal(input);
+        setApprovalInbox(result.inbox);
+        setExecutionError(result.ok ? null : { proposalId: input.proposalId, code: result.code ?? "EXECUTION_FAILED" });
+      } catch {
+        setExecutionError({ proposalId: input.proposalId, code: "NETWORK_ERROR" });
+      } finally {
+        setExecutionPending(null);
+      }
     });
   }, [executionPending, executeProposal]);
 
@@ -613,6 +628,7 @@ export function BrainCoreConsole({
       approvalPendingId={approvalPending}
       onApprovalDecision={onApprovalDecision}
       executionPendingId={executionPending}
+      executionError={executionError}
       onExecuteProposal={onExecuteProposal}
       selfHeal={selfHeal}
       reportCenter={selfHeal?.reportCenter ?? null}
