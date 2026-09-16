@@ -135,6 +135,19 @@ This project is developed across many sequential AI sessions under strict, check
   unimplemented, and before starting work in `src/lib/production/`.
 - Don't `git commit` or `git push` without explicit user approval, even after a change is verified
   — this holds regardless of how confident the change is.
+  - **Standing exception (M18.1, user policy):** a human clicking **"BATCH ONAYLA VE UYGULA"** in
+    Gelişim Merkezi, on an AYAS-governed micro-improvement batch that is `READY_FOR_REVIEW`, is
+    itself the one required explicit approval for that batch's commit and push — no further
+    per-commit confirmation is needed for that specific action. This exception is intentionally
+    narrow: it covers only `AyasMicroBatchApprovalService.approveAndExecuteAyasMicroBatch`, which
+    binds the click to an exact `batchId` + `batchHash` (any drift — HEAD, an item, the hash itself
+    — invalidates the authorization and blocks publication), still runs the mutation through
+    Package C unmodified, still Graphify-verifies every applied item and the whole batch again
+    before staging, and still refuses to commit/push if any check fails. Every other commit/push in
+    this repository — including this service's own infrastructure changes, and any individual
+    PRIORITY_SAFE proposal today — still requires separate explicit approval as above. The same
+    single-click principle is intended for a future individual-proposal "ONAYLA VE UYGULA" (not yet
+    built) once REVIEW_REQUIRED/FORBIDDEN_AUTONOMOUS proposals remain excluded from it.
 
 ## graphify
 

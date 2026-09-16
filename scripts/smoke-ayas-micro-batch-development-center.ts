@@ -140,8 +140,8 @@ function main(): void {
   // --- UI: AyasDevelopmentCenter's MicroBatchPanel ---
 
   function emptyInbox() { return buildAyasApprovalInboxView({ proposals: [], decisions: [], results: [] } as AyasApprovalInboxReadState, NOW); }
-  function htmlFor(microBatch: AyasMicroBatchDevelopmentView | undefined) {
-    return renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox: emptyInbox(), microBatch, onDecision: () => undefined }));
+  function htmlFor(microBatch: AyasMicroBatchDevelopmentView | undefined, extra: Record<string, unknown> = {}) {
+    return renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox: emptyInbox(), microBatch, onDecision: () => undefined, ...extra }));
   }
 
   scenario("UI: microBatch prop omitted entirely renders no micro-batch section and does not crash (backward compatible)", () => {
@@ -214,10 +214,49 @@ function main(): void {
     assert.match(html, /Şu anda biriken küçük bir geliştirme paketi yok/);
   });
 
-  scenario("UI: the micro-batch section renders no ONAYLA/YÜRÜT control — this sprint is read-only visibility, not whole-batch execution", () => {
+  scenario("UI: an ACCUMULATING batch renders NO 'BATCH ONAYLA VE UYGULA' control — it is not yet reviewable", () => {
+    const html = htmlFor(buildAyasMicroBatchDevelopmentView(readState({ batches: [batch({ status: "ACCUMULATING" })] })));
+    assert.doesNotMatch(html, /BATCH ONAYLA VE UYGULA/);
+  });
+
+  scenario("UI: a COMPLETED (historical) batch renders NO 'BATCH ONAYLA VE UYGULA' control — it was already decided", () => {
+    const html = htmlFor(buildAyasMicroBatchDevelopmentView(readState({ batches: [batch({ status: "COMPLETED" })] })));
+    assert.doesNotMatch(html, /BATCH ONAYLA VE UYGULA/);
+  });
+
+  scenario("UI: a READY_FOR_REVIEW batch renders exactly ONE action control, 'BATCH ONAYLA VE UYGULA' — never a separate ONAYLA, YÜRÜT, or Git-publish button", () => {
     const html = htmlFor(buildAyasMicroBatchDevelopmentView(readState({ batches: [batch({ status: "READY_FOR_REVIEW" })] })));
-    const section = html.slice(html.indexOf("ayas-dev-micro-active"));
-    assert.doesNotMatch(section.slice(0, section.indexOf("ayas-dev-today") === -1 ? section.length : section.indexOf("ayas-dev-today")), />ONAYLA</);
+    const matches = html.match(/BATCH ONAYLA VE UYGULA/g) ?? [];
+    assert.equal(matches.length, 1, "exactly one occurrence of the button label");
+    assert.doesNotMatch(html, />YÜRÜT</);
+    assert.doesNotMatch(html, />ONAYLA</); // never the bare M17 single-proposal label inside the batch section
+  });
+
+  scenario("the confirmation dialog (shown after the first click, before renderToStaticMarkup can capture client state — verified by source instead) states the exact required execution+publication authority sentence", () => {
+    const src = fs.readFileSync(path.join(process.cwd(), "src", "components", "brain", "AyasDevelopmentCenter.tsx"), "utf8");
+    assert.match(src, /Bu işlem, gösterilen exact batch&apos;i Package C ile uygulayacak, test edecek, Graphify&apos;ı güncelleyecek ve tüm kontroller başarılı olursa tek Git commit&apos;i oluşturup remote&apos;a push edecektir\./);
+    assert.match(src, /Ayrı bir YÜRÜT veya Git yayınlama onayı istenmeyecek/);
+    assert.match(src, /BATCH ONAYLA VE UYGULA — onaylarsam ne olacak\?/);
+  });
+
+  scenario("UI: a pending BATCH ONAYLA VE UYGULA disables the control and shows 'UYGULANIYOR…'", () => {
+    const b = batch({ status: "READY_FOR_REVIEW" });
+    const html = htmlFor(buildAyasMicroBatchDevelopmentView(readState({ batches: [b] })), { batchOnaylaPending: true, onBatchOnaylaVeUygula: () => undefined });
+    assert.match(html, /UYGULANIYOR…/);
+    assert.match(html, /disabled/);
+  });
+
+  scenario("UI: a batch-approval error for THIS batch renders its mapped Turkish message; an error for a DIFFERENT batchId is never shown here", () => {
+    const b = batch({ status: "READY_FOR_REVIEW" });
+    const htmlOwn = htmlFor(buildAyasMicroBatchDevelopmentView(readState({ batches: [b] })), { batchOnaylaError: { batchId: b.batchId, code: "AYAS_GRAPHIFY_UNEXPECTED_DEPENDENCY" }, onBatchOnaylaVeUygula: () => undefined });
+    assert.match(htmlOwn, /Graphify, uygulanan bir dosyada beklenmeyen bir bağımlılık buldu/);
+    const htmlOther = htmlFor(buildAyasMicroBatchDevelopmentView(readState({ batches: [b] })), { batchOnaylaError: { batchId: "some-other-batch", code: "AYAS_GRAPHIFY_UNEXPECTED_DEPENDENCY" }, onBatchOnaylaVeUygula: () => undefined });
+    assert.doesNotMatch(htmlOther, /beklenmeyen bir bağımlılık/);
+  });
+
+  scenario("UI: with no onBatchOnaylaVeUygula handler supplied, the control still renders but stays disabled — never silently omitted or silently clickable to nowhere", () => {
+    const html = htmlFor(buildAyasMicroBatchDevelopmentView(readState({ batches: [batch({ status: "READY_FOR_REVIEW" })] })));
+    assert.match(html, /BATCH ONAYLA VE UYGULA/);
   });
 
   console.log(`AYAS micro batch development center smoke: PASS (${count} scenarios)`);

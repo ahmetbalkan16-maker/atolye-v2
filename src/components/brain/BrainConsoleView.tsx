@@ -103,6 +103,10 @@ export interface BrainConsoleViewProps {
   readonly executionPendingId?: string | null;
   readonly executionError?: { readonly proposalId: string; readonly code: string } | null;
   readonly onExecuteProposal?: (input: { proposalId: string }) => void;
+  /** M18.1 — "BATCH ONAYLA VE UYGULA": one click authorizes Package C execution, Graphify verification, and Git publication together for the exact reviewed batch. */
+  readonly batchOnaylaPending?: boolean;
+  readonly batchOnaylaError?: { readonly batchId: string; readonly code: string } | null;
+  readonly onBatchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => void;
   /** Read-only self-healing state (incidents / repairs / learning). `null` ⇒ store empty. */
   readonly selfHeal?: (BrainSelfHealSnapshot & { readonly error?: string | null }) | null;
   /** The AYAS Report Center view (§7–§15) for the panel + the home status card. */
@@ -536,7 +540,7 @@ function PanelBody(props: BrainConsoleViewProps) {
     case "autonomous":
       return <AutonomousPanel autonomous={props.autonomous} />;
     case "development":
-      return <AyasDevelopmentCenter inbox={props.approvalInbox ?? { connected: true, pending: [], today: [], history: [] }} microBatch={props.microBatch ?? { connected: true, active: null, history: [] }} pendingId={props.approvalPendingId} onDecision={props.onApprovalDecision} executingId={props.executionPendingId} executionError={props.executionError} onExecute={props.onExecuteProposal} />;
+      return <AyasDevelopmentCenter inbox={props.approvalInbox ?? { connected: true, pending: [], today: [], history: [] }} microBatch={props.microBatch ?? { connected: true, active: null, history: [] }} pendingId={props.approvalPendingId} onDecision={props.onApprovalDecision} executingId={props.executionPendingId} executionError={props.executionError} onExecute={props.onExecuteProposal} batchOnaylaPending={props.batchOnaylaPending} batchOnaylaError={props.batchOnaylaError} onBatchOnaylaVeUygula={props.onBatchOnaylaVeUygula} />;
     case "selfheal":
       return (
         <BrainSelfHealingPanel

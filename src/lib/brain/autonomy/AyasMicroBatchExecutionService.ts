@@ -6,8 +6,8 @@ import { reconcileAyasMicroBatchStaleness } from "./AyasMicroBatchStaleness";
 import { createAyasMicroBatchStore, type AyasMicroBatchStoreHandle, type AyasMicroBatch } from "./AyasMicroBatch";
 import { createAyasMicroItemStore, type AyasMicroItemStore } from "./AyasMicroItem";
 import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "./AyasPatchArtifact";
-import { runAyasBoundedMutationWithValidators } from "./AyasMutationRegistry";
-import { createAyasSmokeTestValidator } from "./AyasMutationValidators";
+import { applyAyasBoundedFileReplacements } from "./AyasBoundedFileWrite";
+import { runAyasValidators, createAyasSmokeTestValidator, AyasValidatorFailedError } from "./AyasMutationValidators";
 
 /**
  * M18 — batch execution, entirely reusing `AyasAutonomyDaemon.executeApproved`
@@ -92,6 +92,19 @@ export interface AyasMicroBatchExecutionDeps {
   readonly batchStore?: AyasMicroBatchStoreHandle;
   readonly itemStore?: AyasMicroItemStore;
   readonly artifactStore?: AyasPatchArtifactStore;
+  /**
+   * M18 — called once per item, in batch order, AFTER every item's file has
+   * already been written to disk by the same atomic transaction but BEFORE
+   * that transaction is accepted (still inside `AyasBoundedFileWrite`'s
+   * `after()` hook). Throwing here rolls back EVERY item's write, not just
+   * this one — the exact same all-or-nothing guarantee the batch's own
+   * validators already rely on, reused rather than a second rollback
+   * mechanism. Used by `AyasMicroBatchApprovalService` for the per-item
+   * Graphify structural check; omitted (default no-op) for every other
+   * caller, including the plain manual-execution path and all M18 tests
+   * that predate that requirement.
+   */
+  readonly onItemApplied?: (item: { readonly microItemId: string; readonly exactFiles: readonly string[] }) => void | Promise<void>;
 }
 
 function git(repoRoot: string, args: readonly string[]): string {
@@ -143,15 +156,29 @@ export async function executeAyasApprovedMicroBatchWith(batchId: string, deps: A
     currentExactFiles: freshBatch.exactFilesUnion,
     repoClean,
     applyWhileExecuting: async () => {
-      // All items applied as ONE bounded, atomic, rollback-on-any-failure operation
+      // All items applied as ONE bounded, atomic, rollback-on-any-failure write
       // (AyasBoundedFileWrite's own guarantee — Phase 23's "whole batch rollback,
-      // never half-applied") — every item's replacements combined, every item's
-      // validators combined, exactly the M17 runAyasBoundedMutationWithValidators
-      // primitive, unmodified.
+      // never half-applied") — every item's replacements combined into a single
+      // `applyAyasBoundedFileReplacements` transaction. Validation itself runs
+      // PER ITEM, in batch order, inside the same `after()` hook (still pre-
+      // commit): each item's own validator(s) run, then `onItemApplied` (M18's
+      // per-item Graphify structural check, when supplied). Any throw here —
+      // from a validator OR from `onItemApplied` — rolls back EVERY item's
+      // write, including ones already validated earlier in this same loop, not
+      // just the one that failed.
       const allReplacements = items.flatMap(({ artifact }) => artifact.replacements);
-      const allValidatorScripts = [...new Set(items.flatMap(({ artifact }) => artifact.validatorScripts))];
-      const run = await runAyasBoundedMutationWithValidators(deps.repoRoot, ["scripts/"], allReplacements, allValidatorScripts.map((s) => createAyasSmokeTestValidator(s)));
-      return { changedFiles: run.changedFiles, diffFingerprint: "", testsRun: run.testsRun, testResults: run.testResults };
+      const testsRun: string[] = [];
+      const testResults: string[] = [];
+      const changedFiles = await applyAyasBoundedFileReplacements(deps.repoRoot, ["scripts/"], allReplacements, async (outcomes) => {
+        for (const { ref, artifact } of items) {
+          const results = await runAyasValidators(deps.repoRoot, artifact.validatorScripts.map((s) => createAyasSmokeTestValidator(s)));
+          for (const r of results) { testsRun.push(r.validator); testResults.push(r.pass ? "PASS" : "FAIL"); }
+          if (results.some((r) => !r.pass)) throw new AyasValidatorFailedError(results);
+          if (deps.onItemApplied) await deps.onItemApplied({ microItemId: ref.microItemId, exactFiles: ref.exactFiles });
+        }
+        return outcomes.map((o) => o.filePath);
+      });
+      return { changedFiles, diffFingerprint: "", testsRun, testResults };
     },
   });
 

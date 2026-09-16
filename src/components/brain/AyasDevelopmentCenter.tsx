@@ -206,8 +206,48 @@ function MicroBatchItemCard({ item }: { readonly item: AyasMicroBatchDevelopment
   );
 }
 
-/** M18 — one batch (active or historical). Read-only: this sprint's Gelişim Merkezi surfaces the batch for human visibility only — whole-batch ONAYLA/YÜRÜT is a separate, not-yet-wired authority surface (see the M18 report). */
-function MicroBatchEntry({ entry }: { readonly entry: AyasMicroBatchDevelopmentEntry }) {
+const batchOnaylaErrorLabel: Record<string, string> = {
+  NOT_READY: "Bu paket artık toplu incelemeye hazır durumda değil — sayfa güncel olmayabilir.",
+  BATCH_HASH_MISMATCH: "Paket, gösterildiğinden beri değişti — sayfayı yenile ve tekrar incele.",
+  AYAS_MICRO_BATCH_ITEM_HASH_MISMATCH: "Bir öğenin içeriği değişti — paket artık güvenilir değil.",
+  AYAS_GRAPHIFY_UNEXPECTED_DEPENDENCY: "Graphify, uygulanan bir dosyada beklenmeyen bir bağımlılık buldu — işlem güvenli şekilde durduruldu.",
+  AYAS_GRAPHIFY_UNAVAILABLE: "Graphify bu makinede kullanılamıyor — işlem güvenli şekilde durduruldu.",
+  AYAS_MICRO_BATCH_STAGE_SCOPE_MISMATCH: "Uygulanan değişikliklerin kapsamı onaylanan paketle eşleşmiyor — işlem durduruldu.",
+  AYAS_MICRO_BATCH_PUSH_FAILED: "Commit oluşturuldu ama remote'a push başarısız oldu — manuel inceleme gerekiyor.",
+  NETWORK_ERROR: "Bağlantı hatası oluştu — tekrar dene.",
+};
+
+/** M18.1 — "BATCH ONAYLA VE UYGULA": the single human authorization. Visible ONLY for a READY_FOR_REVIEW batch — never for ACCUMULATING (not yet reviewable) or a historical/terminal batch (already decided). One click here authorizes Package C execution, per-item + final Graphify verification, and — only if every check passes — one exact-scope Git commit and push. There is no second confirmation afterward. */
+function BatchOnaylaVeUygulaControl({ entry, pending, error, onApprove }: { readonly entry: AyasMicroBatchDevelopmentEntry; readonly pending?: boolean; readonly error?: { readonly batchId: string; readonly code: string } | null; readonly onApprove?: (input: { batchId: string; batchHash: string }) => void }) {
+  const [confirming, setConfirming] = useState(false);
+  if (entry.status !== "READY_FOR_REVIEW") return null;
+  const errorMessage = error?.batchId === entry.batchId ? (batchOnaylaErrorLabel[error.code] ?? `İşlem başarısız oldu (${error.code}).`) : null;
+  if (confirming) {
+    return (
+      <div className="bc-dev__confirm" role="group" aria-label="Onaylarsam ne olacak?">
+        <strong>BATCH ONAYLA VE UYGULA — onaylarsam ne olacak?</strong>
+        <p>Bu işlem, gösterilen exact batch&apos;i Package C ile uygulayacak, test edecek, Graphify&apos;ı güncelleyecek ve tüm kontroller başarılı olursa tek Git commit&apos;i oluşturup remote&apos;a push edecektir.</p>
+        <p><b>Kapsam:</b> {entry.exactFilesUnion.join(", ")}</p>
+        <p><b>Öğe sayısı:</b> {entry.items.length}</p>
+        <p>Ayrı bir YÜRÜT veya Git yayınlama onayı istenmeyecek — bu tek onay hepsini kapsar.</p>
+        {errorMessage ? <p className="bc-dev__notice bc-dev__notice--danger" role="alert">{errorMessage}</p> : null}
+        <div className="bc-dev__actions">
+          <button type="button" className="bc-btn" disabled={pending || !onApprove} onClick={() => onApprove?.({ batchId: entry.batchId, batchHash: entry.batchHash })}>{pending ? "UYGULANIYOR…" : "BATCH ONAYLA VE UYGULA"}</button>
+          <button type="button" className="bc-btn bc-btn--ghost" disabled={pending} onClick={() => setConfirming(false)}>VAZGEÇ</button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="bc-dev__actions">
+      <button type="button" className="bc-btn" disabled={pending || !onApprove} onClick={() => setConfirming(true)}>{pending ? "UYGULANIYOR…" : "BATCH ONAYLA VE UYGULA"}</button>
+      {errorMessage ? <p className="bc-dev__notice bc-dev__notice--danger" role="alert">{errorMessage}</p> : null}
+    </div>
+  );
+}
+
+/** M18 — one batch (active or historical). Read-only history; the active READY_FOR_REVIEW batch additionally shows the single BATCH ONAYLA VE UYGULA control. */
+function MicroBatchEntry({ entry, onaylaPending, onaylaError, onBatchOnaylaVeUygula }: { readonly entry: AyasMicroBatchDevelopmentEntry; readonly onaylaPending?: boolean; readonly onaylaError?: { readonly batchId: string; readonly code: string } | null; readonly onBatchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => void }) {
   return (
     <article className="bc-dev__proposal" data-testid={`ayas-micro-batch-${entry.batchId}`}>
       <header className="bc-dev__proposal-head">
@@ -224,18 +264,19 @@ function MicroBatchEntry({ entry }: { readonly entry: AyasMicroBatchDevelopmentE
       {entry.decision ? <p className="bc-dev__outcome">Karar: {entry.decision.decision} · {new Date(entry.decision.decidedAt).toLocaleString("tr-TR")}</p> : null}
       {entry.result ? <p className="bc-dev__outcome">Yürütme sonucu: {entry.result.outcome} · Testler: {entry.result.testResults.join(" · ") || "kayıt yok"}</p> : null}
       <div className="bc-dev__micro-items">{entry.items.map((item) => <MicroBatchItemCard key={item.microItemId} item={item} />)}</div>
+      <BatchOnaylaVeUygulaControl entry={entry} pending={onaylaPending} error={onaylaError} onApprove={onBatchOnaylaVeUygula} />
     </article>
   );
 }
 
-/** M18 — "Küçük Geliştirme Paketi": Lane A (MICRO_SAFE). AYAS biriktirdiği küçük, düşük riskli geliştirmeleri burada tek bir toplu paket olarak gösterir; her biri ayrı ayrı onay istemez. */
-function MicroBatchPanel({ microBatch }: { readonly microBatch: AyasMicroBatchDevelopmentView }) {
+/** M18 — "Küçük Geliştirme Paketi": Lane A (MICRO_SAFE). AYAS biriktirdiği küçük, düşük riskli geliştirmeleri burada tek bir toplu paket olarak gösterir; her biri ayrı ayrı onay istemez. Toplu inceleme tamamlandığında tek bir "BATCH ONAYLA VE UYGULA" eylemi Package C yürütmesini, Graphify doğrulamasını ve Git yayınlamasını birlikte yetkilendirir. */
+function MicroBatchPanel({ microBatch, onaylaPending, onaylaError, onBatchOnaylaVeUygula }: { readonly microBatch: AyasMicroBatchDevelopmentView; readonly onaylaPending?: boolean; readonly onaylaError?: { readonly batchId: string; readonly code: string } | null; readonly onBatchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => void }) {
   if (!microBatch.connected) return <div className="bc-empty" role="alert"><strong>Küçük Geliştirme Paketi okunamadı</strong><p>{microBatch.error || "Kalıcı durum deposuna ulaşılamıyor."}</p></div>;
   return (
     <>
       <section className="bc-dev__section" aria-labelledby="ayas-dev-micro-active">
         <h3 id="ayas-dev-micro-active">Biriken Küçük Geliştirme Paketi {microBatch.active ? <span>{microBatch.active.items.length}</span> : null}</h3>
-        {microBatch.active ? <MicroBatchEntry entry={microBatch.active} /> : <p className="bc-empty">Şu anda biriken küçük bir geliştirme paketi yok.</p>}
+        {microBatch.active ? <MicroBatchEntry entry={microBatch.active} onaylaPending={onaylaPending} onaylaError={onaylaError} onBatchOnaylaVeUygula={onBatchOnaylaVeUygula} /> : <p className="bc-empty">Şu anda biriken küçük bir geliştirme paketi yok.</p>}
       </section>
       <section className="bc-dev__section" aria-labelledby="ayas-dev-micro-history">
         <h3 id="ayas-dev-micro-history">Geçmiş Paketler <span>{microBatch.history.length}</span></h3>
@@ -245,13 +286,13 @@ function MicroBatchPanel({ microBatch }: { readonly microBatch: AyasMicroBatchDe
   );
 }
 
-export function AyasDevelopmentCenter({ inbox, microBatch, pendingId, onDecision, executingId, executionError, onExecute }: { readonly inbox: AyasApprovalInboxView; readonly microBatch?: AyasMicroBatchDevelopmentView; readonly pendingId?: string | null; readonly onDecision?: (input: { proposalId: string; decision: Decision }) => void; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string }) => void }) {
+export function AyasDevelopmentCenter({ inbox, microBatch, pendingId, onDecision, executingId, executionError, onExecute, batchOnaylaPending, batchOnaylaError, onBatchOnaylaVeUygula }: { readonly inbox: AyasApprovalInboxView; readonly microBatch?: AyasMicroBatchDevelopmentView; readonly pendingId?: string | null; readonly onDecision?: (input: { proposalId: string; decision: Decision }) => void; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string }) => void; readonly batchOnaylaPending?: boolean; readonly batchOnaylaError?: { readonly batchId: string; readonly code: string } | null; readonly onBatchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => void }) {
   if (!inbox.connected) return <div className="bc-empty" role="alert"><strong>Gelişim Merkezi okunamadı</strong><p>{inbox.error || "Kalıcı durum deposuna ulaşılamıyor."}</p></div>;
   return (
     <section className="bc-dev" aria-label="AYAS Gelişim Merkezi" data-testid="ayas-development-center">
       <header className="bc-dev__hero"><span>İnsan denetimli gelişim</span><h2>AYAS Gelişim Merkezi</h2><p>AYAS’ın neyi neden geliştirmek istediğini, sana sağlayacağı faydayı ve güvenlik sınırlarını karar vermeden önce gör.</p></header>
       <section className="bc-dev__section" aria-labelledby="ayas-dev-pending"><h3 id="ayas-dev-pending">Onay Bekleyenler <span>{inbox.pending.length}</span></h3>{inbox.pending.length ? inbox.pending.map((proposal) => <PendingProposal key={proposal.proposalId} proposal={proposal} pendingId={pendingId} onDecision={onDecision} />) : <p className="bc-empty">Onay bekleyen gerçek bir öneri yok.</p>}</section>
-      {microBatch ? <MicroBatchPanel microBatch={microBatch} /> : null}
+      {microBatch ? <MicroBatchPanel microBatch={microBatch} onaylaPending={batchOnaylaPending} onaylaError={batchOnaylaError} onBatchOnaylaVeUygula={onBatchOnaylaVeUygula} /> : null}
       <section className="bc-dev__section" aria-labelledby="ayas-dev-today"><h3 id="ayas-dev-today">Bugün Neleri Geliştirmeye Çalıştı? <span>{inbox.today.length}</span></h3>{inbox.today.length ? <div className="bc-dev__timeline">{inbox.today.map((proposal) => <TimelineCard key={proposal.proposalId} proposal={proposal} executingId={executingId} executionError={executionError} onExecute={onExecute} />)}</div> : <p className="bc-empty">Bugün değerlendirilmiş bir gelişim adayı yok.</p>}</section>
       <section className="bc-dev__section" aria-labelledby="ayas-dev-history"><h3 id="ayas-dev-history">Geçmiş Kararlar <span>{inbox.history.length}</span></h3>{inbox.history.length ? <div className="bc-dev__timeline">{inbox.history.map((proposal) => <TimelineCard key={proposal.proposalId} proposal={proposal} executingId={executingId} executionError={executionError} onExecute={onExecute} />)}</div> : <p className="bc-empty">Henüz kalıcı bir karar veya yürütme sonucu yok.</p>}</section>
     </section>

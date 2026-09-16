@@ -17,6 +17,7 @@ import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSn
 import {
   askAyas,
   ayasModelConfigured,
+  batchOnaylaVeUygula,
   decideAyasApproval,
   executeAyasApprovedProposal,
   recordSelfHealDecision,
@@ -57,6 +58,7 @@ export default async function BrainCorePage() {
       refreshMicroBatch={refreshAyasMicroBatch}
       decideApproval={decideAyasApproval}
       executeProposal={executeAyasApprovedProposal}
+      batchOnaylaVeUygula={batchOnaylaVeUygula}
       recordSelfHealDecision={recordSelfHealDecision}
       askAyas={askAyas}
     />

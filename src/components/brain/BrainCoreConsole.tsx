@@ -103,6 +103,8 @@ export interface BrainCoreConsoleProps {
   readonly decideApproval?: (input: { proposalId: string; decision: "APPROVE" | "REJECT" | "LATER" }) => Promise<AyasApprovalInboxView>;
   /** Server Action that runs an already-APPROVED proposal through Package C's execution authority chain. Session-gated, separate from `decideApproval` — approving never calls this. */
   readonly executeProposal?: (input: { proposalId: string }) => Promise<{ readonly ok: boolean; readonly code?: string; readonly inbox: AyasApprovalInboxView }>;
+  /** M18.1 — "BATCH ONAYLA VE UYGULA": Server Action that decides, executes through Package C, Graphify-verifies, and (only if every check passes) commits+pushes the exact reviewed batch — one call, one human authorization. */
+  readonly batchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => Promise<{ readonly ok: boolean; readonly code?: string; readonly commitSha?: string; readonly microBatch: AyasMicroBatchDevelopmentView }>;
   /** Server Action that asks the local model (falls back to deterministic). */
   readonly askAyas?: AskAyasFn;
   /**
@@ -126,6 +128,7 @@ export function BrainCoreConsole({
   recordSelfHealDecision,
   decideApproval,
   executeProposal,
+  batchOnaylaVeUygula,
   askAyas,
   streaming = true,
 }: BrainCoreConsoleProps) {
@@ -148,6 +151,8 @@ export function BrainCoreConsole({
   const [approvalPending, setApprovalPending] = useState<string | null>(null);
   const [executionPending, setExecutionPending] = useState<string | null>(null);
   const [executionError, setExecutionError] = useState<{ readonly proposalId: string; readonly code: string } | null>(null);
+  const [batchOnaylaPendingId, setBatchOnaylaPendingId] = useState<string | null>(null);
+  const [batchOnaylaError, setBatchOnaylaError] = useState<{ readonly batchId: string; readonly code: string } | null>(null);
   const [, startSelfHeal] = useTransition();
 
   // Restore the transcript from sessionStorage so an iPhone reload (screen
@@ -536,6 +541,30 @@ export function BrainCoreConsole({
     });
   }, [executionPending, executeProposal]);
 
+  // "BATCH ONAYLA VE UYGULA" (M18.1) — the single human authorization for a
+  // READY_FOR_REVIEW micro batch. One call: decide → Package C execution →
+  // per-item + final Graphify verification → post-execution validation →
+  // exact-scope Git commit → push. No second YÜRÜT, no second Git-publish
+  // confirmation. Same `{ ok, code }`-over-throw posture as `onExecuteProposal`
+  // above, for the same reason (a thrown Server Action error is redacted in
+  // production).
+  const onBatchOnaylaVeUygula = useCallback((input: { batchId: string; batchHash: string }) => {
+    if (!batchOnaylaVeUygula || batchOnaylaPendingId) return;
+    setBatchOnaylaPendingId(input.batchId);
+    setBatchOnaylaError(null);
+    startSelfHeal(async () => {
+      try {
+        const result = await batchOnaylaVeUygula(input);
+        setMicroBatch(result.microBatch);
+        setBatchOnaylaError(result.ok ? null : { batchId: input.batchId, code: result.code ?? "APPROVAL_FAILED" });
+      } catch {
+        setBatchOnaylaError({ batchId: input.batchId, code: "NETWORK_ERROR" });
+      } finally {
+        setBatchOnaylaPendingId(null);
+      }
+    });
+  }, [batchOnaylaPendingId, batchOnaylaVeUygula]);
+
   // The AYAS presence-card CTA: drop into the EXISTING chat/voice experience —
   // select the chat panel and, when this device can hear, start listening
   // inside this click's user gesture (iOS needs that). No new path.
@@ -644,6 +673,9 @@ export function BrainCoreConsole({
       executionPendingId={executionPending}
       executionError={executionError}
       onExecuteProposal={onExecuteProposal}
+      batchOnaylaPending={batchOnaylaPendingId !== null}
+      batchOnaylaError={batchOnaylaError}
+      onBatchOnaylaVeUygula={onBatchOnaylaVeUygula}
       selfHeal={selfHeal}
       reportCenter={selfHeal?.reportCenter ?? null}
       reportHandlers={{
