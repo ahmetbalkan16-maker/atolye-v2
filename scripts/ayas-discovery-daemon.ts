@@ -11,6 +11,7 @@ import { discoverAyasSafeCandidates } from "../src/lib/brain/autonomy/AyasDiscov
 import { discoverAyasNovelPatchCandidates } from "../src/lib/brain/autonomy/AyasNovelPatchDiscovery";
 import { accumulateAyasMicroBatchCandidates } from "../src/lib/brain/autonomy/AyasMicroBatchAccumulator";
 import { createAyasMicroBatchStore } from "../src/lib/brain/autonomy/AyasMicroBatch";
+import { createAyasMicroItemStore } from "../src/lib/brain/autonomy/AyasMicroItem";
 import { reconcileAyasMicroBatchStaleness } from "../src/lib/brain/autonomy/AyasMicroBatchStaleness";
 
 /**
@@ -86,10 +87,11 @@ async function main(): Promise<void> {
   // patch discovery above: a failure here never aborts staleness reconciliation
   // or the individual-proposal discovery already completed.
   const microBatchStore = createAyasMicroBatchStore();
-  const staledBatches = reconcileAyasMicroBatchStaleness(microBatchStore, observation.head, now);
+  const microItemStore = createAyasMicroItemStore();
+  const staledBatches = reconcileAyasMicroBatchStaleness(microBatchStore, microItemStore, observation.head, now);
   let microBatch: Awaited<ReturnType<typeof accumulateAyasMicroBatchCandidates>> = { itemsAdded: [], batch: null, rejections: [], readyForReview: false, staledPreviousBatchId: null };
   try {
-    microBatch = await accumulateAyasMicroBatchCandidates({ repoRoot: root, observation, batchStore: microBatchStore });
+    microBatch = await accumulateAyasMicroBatchCandidates({ repoRoot: root, observation, batchStore: microBatchStore, itemStore: microItemStore });
   } catch (error) {
     observation.gaps.push(`micro batch accumulation failed: ${error instanceof Error ? error.message : String(error)}`);
   }

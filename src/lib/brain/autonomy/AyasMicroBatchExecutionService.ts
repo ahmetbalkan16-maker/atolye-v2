@@ -127,7 +127,7 @@ export async function executeAyasApprovedMicroBatchWith(batchId: string, deps: A
   const currentHead = git(deps.repoRoot, ["rev-parse", "HEAD"]);
   const repoClean = git(deps.repoRoot, ["status", "--porcelain"]).length === 0;
 
-  reconcileAyasMicroBatchStaleness(batchStore, currentHead, new Date().toISOString());
+  reconcileAyasMicroBatchStaleness(batchStore, itemStore, currentHead, new Date().toISOString());
   const freshBatch = batchStore.load().batches.find((b) => b.batchId === batchId);
   if (!freshBatch || freshBatch.status !== "APPROVED") throw new AyasMicroBatchExecutionError("STALE_APPROVAL", "batch state changed since lookup");
 

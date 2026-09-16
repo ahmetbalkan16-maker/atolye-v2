@@ -125,6 +125,44 @@ async function main(): Promise<void> {
     }
   });
 
+  await scenario("orphan-repair rediscovery: a real gap whose batch went STALE across a HEAD move is superseded, then genuinely rediscovered as a FRESH item against the new HEAD — proving the semanticKey is not permanently blocked", async () => {
+    const { repoRoot, head: head1 } = makeErrorClassFixtureRepo(["OnlyOneError"]);
+    await destroyAyasMicroBatchWorktree(repoRoot);
+    try {
+      const stores = freshStores();
+      const observation1 = baseObservation({ head: head1, branch: git(repoRoot, ["branch", "--show-current"]), now: "2026-09-16T00:00:00.000Z" });
+      const tick1 = await accumulateAyasMicroBatchCandidates({ repoRoot, observation: observation1, ...stores, maxAttemptsPerTick: 1 });
+      assert.equal(tick1.itemsAdded.length, 1);
+      const item1 = tick1.itemsAdded[0]!;
+      const batch1 = tick1.batch!;
+      assert.equal(item1.state, "BATCHED");
+
+      // The branch genuinely moves on (an unrelated real commit) — the underlying OnlyOneError gap itself is untouched and still real.
+      fs.writeFileSync(path.join(repoRoot, "README.md"), "unrelated change\n", "utf8");
+      git(repoRoot, ["add", "-A"]); git(repoRoot, ["commit", "-q", "-m", "unrelated"]);
+      const head2 = git(repoRoot, ["rev-parse", "HEAD"]);
+
+      const observation2 = baseObservation({ head: head2, branch: git(repoRoot, ["branch", "--show-current"]), now: "2026-09-16T00:10:00.000Z" });
+      const tick2 = await accumulateAyasMicroBatchCandidates({ repoRoot, observation: observation2, ...stores, maxAttemptsPerTick: 1 });
+
+      // The old batch and item are reconciled by the accumulator's own inline staling path (worktree rebuild at the new head).
+      assert.equal(stores.batchStore.load().batches.find((b) => b.batchId === batch1.batchId)!.status, "STALE");
+      assert.equal(stores.itemStore.load(item1.microItemId).state, "SUPERSEDED");
+
+      // The SAME real opportunity is genuinely rediscovered — a fresh microItemId, BATCHED into a fresh batch at the new HEAD.
+      assert.equal(tick2.itemsAdded.length, 1, "the still-real OnlyOneError gap must be rediscovered, not permanently blocked");
+      const item2 = tick2.itemsAdded[0]!;
+      assert.notEqual(item2.microItemId, item1.microItemId);
+      assert.equal(item2.semanticKey, item1.semanticKey);
+      assert.equal(item2.state, "BATCHED");
+      assert.ok(tick2.batch);
+      assert.equal(tick2.batch!.baseHead, head2);
+      assert.equal(tick2.staledPreviousBatchId, batch1.batchId);
+    } finally {
+      await destroyAyasMicroBatchWorktree(repoRoot);
+    }
+  });
+
   await scenario("cross-observer-restart dedup: a fresh accumulator call (simulating a restart) reusing the SAME durable stores does not duplicate an already-BATCHED item", async () => {
     const repoRoot = process.cwd();
     const head = git(repoRoot, ["rev-parse", "HEAD"]);

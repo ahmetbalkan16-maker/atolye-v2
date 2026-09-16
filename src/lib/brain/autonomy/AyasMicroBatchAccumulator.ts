@@ -12,6 +12,7 @@ import { createAyasPatchArtifactStore, type AyasPatchArtifactStore, type AyasPat
 import { createAyasMicroItemStore, type AyasMicroItemStore, type AyasMicroItem } from "./AyasMicroItem";
 import { createAyasMicroBatchStore, type AyasMicroBatchStoreHandle, type AyasMicroBatch, type AyasMicroBatchItemRef } from "./AyasMicroBatch";
 import { evaluateAyasMicroBatchReadiness, AYAS_MICRO_BATCH_MAX_ITEMS, AYAS_MICRO_BATCH_MAX_ATTEMPTS_PER_TICK } from "./AyasMicroBatchLimits";
+import { supersedeStaleBatchOrphans } from "./AyasMicroBatchStaleness";
 import type { AyasDaemonObservation } from "./AyasAutonomyDaemon";
 
 /**
@@ -82,6 +83,13 @@ export async function accumulateAyasMicroBatchCandidates(deps: AyasMicroBatchAcc
     if (activeBatch.status === "ACCUMULATING" || activeBatch.status === "READY_FOR_REVIEW") {
       activeBatch = batchStore.markStale(activeBatch.batchId, observation.now);
       staledPreviousBatchId = activeBatch.batchId;
+      // Orphan reconciliation: the batch above is STALE now, but its own member
+      // items are a separate durable record and are never implicitly staled by
+      // that transition — without this, they would stay BATCHED forever and
+      // permanently block their semanticKey from ever being rediscovered. Reuses
+      // the exact same idempotent, crash-safe helper `reconcileAyasMicroBatchStaleness`
+      // itself calls, rather than duplicating the reconciliation logic here.
+      supersedeStaleBatchOrphans(batchStore, itemStore, observation.now);
     }
     activeBatch = null;
   }
