@@ -112,8 +112,21 @@ function assertNoSecret(values: readonly string[]): void {
   if (values.some(containsBrainSecret)) throw new AyasApprovalInboxStoreError("AYAS_INBOX_SECRET_LEAK", "approval inbox refused a secret-like value");
 }
 
+// M16 incident fix: a proposal's identity must depend only on WHAT is being
+// proposed (mutationKind, exactFiles, baseHead/baseBranch, the explanation
+// text, evidence, risk/classification fields) — never on WHEN it was
+// discovered. `proposalId` was already excluded; `createdAt`/`lastUpdatedAt`
+// were not, and both are set to the discovering call's own timestamp
+// (`observation.now`), which differs on every observer tick. That made
+// `proposalHash` — and therefore `createProposal`'s terminal-status-aware
+// dedup below, which compares `proposalHash` equality — unable to recognize
+// two ticks proposing the identical candidate as the same proposal, so a
+// continuously-ticking discovery source (unlike the old one-shot,
+// human-triggered `ayas-propose.ts` path) minted a brand-new proposal every
+// single tick. Excluding these two volatile fields is the fix.
+const AYAS_PROPOSAL_HASH_VOLATILE_FIELDS = new Set(["proposalId", "createdAt", "lastUpdatedAt"]);
 function proposalHash(input: Record<string, unknown>): string {
-  const material = Object.fromEntries(Object.entries(input).filter(([key]) => key !== "proposalId"));
+  const material = Object.fromEntries(Object.entries(input).filter(([key]) => !AYAS_PROPOSAL_HASH_VOLATILE_FIELDS.has(key)));
   return digest({ ...material, schemaVersion: ayasApprovalInboxSchemaVersion });
 }
 
