@@ -35,6 +35,7 @@ import { AyasDevelopmentCenter } from "./AyasDevelopmentCenter";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
 import type { AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
+import type { AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
 import type { BrainSelfHealSnapshot } from "@/lib/brain/selfheal/BrainSelfHealSnapshot";
 import type { BrainReportCenterView } from "@/lib/brain/selfheal/BrainReportCenter";
 
@@ -95,6 +96,8 @@ export interface BrainConsoleViewProps {
   readonly lastReplySource?: "llm" | "fallback";
   readonly autonomous?: AyasAutonomousView;
   readonly approvalInbox?: AyasApprovalInboxView;
+  /** M18 — the Lane A (MICRO_SAFE) accumulating batch, for the "Küçük Geliştirme Paketi" section. */
+  readonly microBatch?: AyasMicroBatchDevelopmentView;
   readonly approvalPendingId?: string | null;
   readonly onApprovalDecision?: (input: { proposalId: string; decision: "APPROVE" | "REJECT" | "LATER" }) => void;
   readonly executionPendingId?: string | null;
@@ -533,7 +536,7 @@ function PanelBody(props: BrainConsoleViewProps) {
     case "autonomous":
       return <AutonomousPanel autonomous={props.autonomous} />;
     case "development":
-      return <AyasDevelopmentCenter inbox={props.approvalInbox ?? { connected: true, pending: [], today: [], history: [] }} pendingId={props.approvalPendingId} onDecision={props.onApprovalDecision} executingId={props.executionPendingId} executionError={props.executionError} onExecute={props.onExecuteProposal} />;
+      return <AyasDevelopmentCenter inbox={props.approvalInbox ?? { connected: true, pending: [], today: [], history: [] }} microBatch={props.microBatch ?? { connected: true, active: null, history: [] }} pendingId={props.approvalPendingId} onDecision={props.onApprovalDecision} executingId={props.executionPendingId} executionError={props.executionError} onExecute={props.onExecuteProposal} />;
     case "selfheal":
       return (
         <BrainSelfHealingPanel

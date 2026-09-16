@@ -18,6 +18,8 @@ import {
   type AyasDevelopmentProposal,
 } from "../../brain/autonomy/AyasApprovalInboxView";
 import { readAyasApprovalInboxState, type AyasApprovalInboxReaderOptions } from "../../brain/autonomy/AyasApprovalInboxReader";
+import { buildAyasMicroBatchDevelopmentView } from "../../brain/autonomy/AyasMicroBatchDevelopmentView";
+import { readAyasMicroBatchState, type AyasMicroBatchReaderOptions } from "../../brain/autonomy/AyasMicroBatchReader";
 
 function fold(text: string): string {
   return String(text ?? "")
@@ -104,6 +106,14 @@ export type AyasDevelopmentBenefitFocus =
   | { readonly kind: "single"; readonly proposal: AyasDevelopmentProposalSummary }
   | { readonly kind: "ambiguous"; readonly candidates: readonly AyasDevelopmentProposalSummary[] };
 
+/** M18 — a compact, honest summary of Lane A's currently-accumulating batch (if any), for the natural-language status answer. Never includes a diff or artifact content — just enough to say "what" and "how many," exactly like `AyasDevelopmentProposalSummary` does for individual proposals. */
+export interface AyasDevelopmentMicroBatchSummary {
+  readonly batchId: string;
+  readonly status: "ACCUMULATING" | "READY_FOR_REVIEW";
+  readonly itemCount: number;
+  readonly semanticKeys: readonly string[];
+}
+
 export interface AyasDevelopmentStatusData {
   readonly connected: boolean;
   readonly generatedAt: string;
@@ -118,6 +128,8 @@ export interface AyasDevelopmentStatusData {
   readonly recoveryRequired: readonly AyasDevelopmentProposalSummary[];
   readonly hasAnyActivityToday: boolean;
   readonly hasAnyPending: boolean;
+  /** M18 — the currently-accumulating (or ready-for-review) micro-batch, `null` when none is active. A read failure never breaks the overall status answer — it just omits this field (see `computeAyasDevelopmentStatusData`). */
+  readonly microBatch: AyasDevelopmentMicroBatchSummary | null;
   /** Populated only for a benefit-style question ("bunu onaylarsam ne olur?"); `null` for a general status overview. */
   readonly benefitFocus: AyasDevelopmentBenefitFocus | null;
 }
@@ -140,6 +152,7 @@ export function computeAyasDevelopmentStatusData(
   userText: string,
   now: string,
   readerOptions: AyasApprovalInboxReaderOptions = {},
+  microBatchReaderOptions: AyasMicroBatchReaderOptions = {},
 ): AyasDevelopmentStatusData {
   const today = istanbulDay(now);
   let view: ReturnType<typeof buildAyasApprovalInboxView> | { readonly connected: false; readonly error: string };
@@ -148,6 +161,23 @@ export function computeAyasDevelopmentStatusData(
   } catch (error) {
     view = { connected: false, error: error instanceof Error ? error.message : String(error) };
   }
+
+  // M18 — a failure reading the micro-batch inbox never breaks the overall
+  // status answer (the same fail-soft posture as every other read here):
+  // it just means "no micro-batch info available right now," not "AYAS is
+  // disconnected."
+  let microBatch: AyasDevelopmentMicroBatchSummary | null = null;
+  try {
+    const microBatchView = buildAyasMicroBatchDevelopmentView(readAyasMicroBatchState(microBatchReaderOptions));
+    if (microBatchView.active && (microBatchView.active.status === "ACCUMULATING" || microBatchView.active.status === "READY_FOR_REVIEW")) {
+      microBatch = {
+        batchId: microBatchView.active.batchId,
+        status: microBatchView.active.status,
+        itemCount: microBatchView.active.items.length,
+        semanticKeys: microBatchView.active.items.map((item) => item.semanticKey),
+      };
+    }
+  } catch { /* fail-soft — the individual-proposal status answer still stands on its own */ }
 
   if (!view.connected) {
     return {
@@ -164,6 +194,7 @@ export function computeAyasDevelopmentStatusData(
       recoveryRequired: [],
       hasAnyActivityToday: false,
       hasAnyPending: false,
+      microBatch,
       benefitFocus: null,
     };
   }
@@ -198,6 +229,7 @@ export function computeAyasDevelopmentStatusData(
     recoveryRequired,
     hasAnyActivityToday: todayCreated.length > 0 || todayDecided.length > 0 || todayCompleted.length > 0,
     hasAnyPending: pending.length > 0,
+    microBatch,
     benefitFocus,
   };
 }
@@ -257,6 +289,14 @@ export function buildAyasDevelopmentStatusSummary(data: AyasDevelopmentStatusDat
   if (data.recoveryRequired.length > 0) {
     parts.push(
       `${data.recoveryRequired.length} öneri RECOVERY_REQUIRED durumunda — yürütme sonucu belirsiz olabilir, otomatik olarak tekrar denenmez, insan incelemesi gerekiyor.`,
+    );
+  }
+  if (data.microBatch) {
+    const keys = data.microBatch.semanticKeys.join(", ");
+    parts.push(
+      data.microBatch.status === "READY_FOR_REVIEW"
+        ? `Ayrıca ${data.microBatch.itemCount} küçük, düşük riskli geliştirmeyi (${keys}) tek bir pakette biriktirdim ve toplu incelemene hazır — her biri için ayrı ayrı onay istemiyorum, paketin tamamını birlikte inceleyebilirsin.`
+        : `Ayrıca şu anda ${data.microBatch.itemCount} küçük, düşük riskli geliştirmeyi (${keys}) bir pakette biriktiriyorum; henüz toplu incelemene sunulmadı.`,
     );
   }
   return parts.join(" ");

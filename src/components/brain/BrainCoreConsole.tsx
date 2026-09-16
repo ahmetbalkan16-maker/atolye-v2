@@ -48,6 +48,7 @@ import {
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
 import type { AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
+import type { AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
 import type { BrainSelfHealConsoleSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
 import type { BrainReportStatusFilter } from "@/lib/brain/selfheal/BrainReportCenter";
 import type { BrainSelfHealDecisionKind } from "@/lib/brain/selfheal/BrainSelfHealDecision";
@@ -84,6 +85,8 @@ export interface BrainCoreConsoleProps {
   readonly initialSnapshot: BrainConsoleSnapshot;
   readonly initialAutonomous?: AyasAutonomousView;
   readonly initialApprovalInbox?: AyasApprovalInboxView;
+  /** M18 — read-only initial snapshot of the Lane A (MICRO_SAFE) accumulating batch, for the "Küçük Geliştirme Paketi" section. */
+  readonly initialMicroBatch?: AyasMicroBatchDevelopmentView;
   /** Read-only self-healing / Report Center state for the "AYAS Raporları" panel. */
   readonly initialSelfHeal?: BrainSelfHealConsoleSnapshot | null;
   readonly modelConfigured?: boolean;
@@ -94,6 +97,8 @@ export interface BrainCoreConsoleProps {
   /** Server Action that records an operator ONAYLA / REDDET / DAHA SONRA decision (no git, no apply). */
   readonly recordSelfHealDecision?: RecordSelfHealDecisionFn;
   readonly refreshApprovalInbox?: () => Promise<AyasApprovalInboxView>;
+  /** M18 — Server Action that re-reads the micro-batch (read-only). */
+  readonly refreshMicroBatch?: () => Promise<AyasMicroBatchDevelopmentView>;
   /** Server Action that records an operator ONAYLA / REDDET / DAHA SONRA approval decision. Session-gated; the safety-classification policy is enforced server-side (Store boundary), not by this prop's presence. */
   readonly decideApproval?: (input: { proposalId: string; decision: "APPROVE" | "REJECT" | "LATER" }) => Promise<AyasApprovalInboxView>;
   /** Server Action that runs an already-APPROVED proposal through Package C's execution authority chain. Session-gated, separate from `decideApproval` — approving never calls this. */
@@ -111,11 +116,13 @@ export function BrainCoreConsole({
   initialSnapshot,
   initialAutonomous,
   initialApprovalInbox,
+  initialMicroBatch,
   initialSelfHeal,
   modelConfigured,
   refresh,
   refreshSelfHeal,
   refreshApprovalInbox,
+  refreshMicroBatch,
   recordSelfHealDecision,
   decideApproval,
   executeProposal,
@@ -131,6 +138,7 @@ export function BrainCoreConsole({
   // operator's choice (server action) — it never runs git or the apply.
   const [selfHeal, setSelfHeal] = useState(initialSelfHeal ?? null);
   const [approvalInbox, setApprovalInbox] = useState(initialApprovalInbox ?? { connected: false, pending: [], today: [], history: [] });
+  const [microBatch, setMicroBatch] = useState(initialMicroBatch ?? { connected: false, active: null, history: [] });
   const [reportFilter, setReportFilter] = useState<{ status: BrainReportStatusFilter; category: string }>({
     status: "all",
     category: "all",
@@ -462,6 +470,11 @@ export function BrainCoreConsole({
         try { setApprovalInbox(await refreshApprovalInbox()); } catch { /* keep the last durable inbox view */ }
       });
     }
+    if (refreshMicroBatch) {
+      startSelfHeal(async () => {
+        try { setMicroBatch(await refreshMicroBatch()); } catch { /* keep the last durable micro-batch view */ }
+      });
+    }
   };
 
   // Record an operator ONAYLA / REDDET / DAHA SONRA decision. This writes a
@@ -625,6 +638,7 @@ export function BrainCoreConsole({
       lastReplySource={lastReplySource}
       autonomous={initialAutonomous}
       approvalInbox={approvalInbox}
+      microBatch={microBatch}
       approvalPendingId={approvalPending}
       onApprovalDecision={onApprovalDecision}
       executionPendingId={executionPending}

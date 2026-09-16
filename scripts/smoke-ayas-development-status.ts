@@ -10,6 +10,7 @@ import {
   isAyasDevelopmentBenefitQuery,
 } from "../src/lib/ayas/execution/AyasDevelopmentStatus";
 import { isAyasDevelopmentStatusQuery } from "../src/lib/ayas/model/AyasComplexityRouter";
+import { createAyasMicroBatchStore, type AyasMicroBatchItemRef } from "../src/lib/brain/autonomy/AyasMicroBatch";
 
 let count = 0;
 function scenario(name: string, fn: () => void | Promise<void>) { return Promise.resolve(fn()).then(() => { count += 1; if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${name}`); }); }
@@ -307,6 +308,65 @@ async function main() {
     };
     walk(ayasDir);
     assert.deepEqual(offenders, [], `unexpected approval-authority reference(s): ${offenders.join(", ")}`);
+  });
+
+  // --- M18: the "Küçük Geliştirme Paketi" micro-batch in the status answer ---
+
+  const MICRO_ITEM: AyasMicroBatchItemRef = { microItemId: "ayas-micro-item-status-a", semanticKey: "ayas-novel-status-a", patchArtifactId: "ayas-patch-artifact-does-not-exist", patchHash: "hash-a", exactFiles: ["scripts/smoke-a.ts"] };
+
+  await scenario("microBatch is null when no batch has ever been accumulated", () => {
+    const rootDir = root();
+    const data = computeAyasDevelopmentStatusData("bugün ne geliştirmeye çalıştın", NOW, { rootDir }, { rootDir });
+    assert.equal(data.microBatch, null);
+    assert.doesNotMatch(buildAyasDevelopmentStatusSummary(data), /küçük/);
+  });
+
+  await scenario("microBatch reflects an ACCUMULATING batch's itemCount and semanticKeys; the summary states it is NOT yet ready for review", () => {
+    const rootDir = root();
+    const batchStore = createAyasMicroBatchStore({ rootDir });
+    const batch = batchStore.createOrVersion({ batchVersion: 1, baseHead: "abc123", baseBranch: "wip/test", items: [MICRO_ITEM], exactFilesUnion: ["scripts/smoke-a.ts"], validatorUnion: [], worktreeBaseHead: "abc123", createdAt: NOW, validationSummary: ["fixture"], aggregateRisk: "low" } as never);
+    const data = computeAyasDevelopmentStatusData("bugün ne geliştirmeye çalıştın", NOW, { rootDir }, { rootDir });
+    assert.ok(data.microBatch);
+    assert.equal(data.microBatch!.batchId, batch.batchId);
+    assert.equal(data.microBatch!.status, "ACCUMULATING");
+    assert.equal(data.microBatch!.itemCount, 1);
+    assert.deepEqual(data.microBatch!.semanticKeys, ["ayas-novel-status-a"]);
+    const summary = buildAyasDevelopmentStatusSummary(data);
+    assert.match(summary, /ayas-novel-status-a/);
+    assert.match(summary, /henüz toplu incelemene sunulmadı/);
+  });
+
+  await scenario("microBatch reports READY_FOR_REVIEW distinctly, and the summary invites whole-batch review rather than individual approval", () => {
+    const rootDir = root();
+    const batchStore = createAyasMicroBatchStore({ rootDir });
+    const batch = batchStore.createOrVersion({ batchVersion: 1, baseHead: "abc123", baseBranch: "wip/test", items: [MICRO_ITEM], exactFilesUnion: ["scripts/smoke-a.ts"], validatorUnion: [], worktreeBaseHead: "abc123", createdAt: NOW, validationSummary: ["fixture"], aggregateRisk: "low" } as never);
+    batchStore.markReadyForReview(batch.batchId, NOW);
+    const data = computeAyasDevelopmentStatusData("bugün ne geliştirmeye çalıştın", NOW, { rootDir }, { rootDir });
+    assert.equal(data.microBatch!.status, "READY_FOR_REVIEW");
+    const summary = buildAyasDevelopmentStatusSummary(data);
+    assert.match(summary, /toplu incelemene hazır/);
+    assert.match(summary, /her biri için ayrı ayrı onay istemiyorum/);
+  });
+
+  await scenario("a COMPLETED batch is not reported as the active microBatch — only ACCUMULATING/READY_FOR_REVIEW count as 'currently accumulating'", () => {
+    const rootDir = root();
+    const batchStore = createAyasMicroBatchStore({ rootDir });
+    const batch = batchStore.createOrVersion({ batchVersion: 1, baseHead: "abc123", baseBranch: "wip/test", items: [MICRO_ITEM], exactFilesUnion: ["scripts/smoke-a.ts"], validatorUnion: [], worktreeBaseHead: "abc123", createdAt: NOW, validationSummary: ["fixture"], aggregateRisk: "low" } as never);
+    batchStore.markReadyForReview(batch.batchId, NOW);
+    batchStore.decide(batch.batchId, "APPROVE", batch.batchHash, NOW);
+    const reservation = batchStore.reserveApproval(batch.batchId, batch.batchHash, batch.baseHead, NOW);
+    batchStore.recordResult({ resultId: "r1", batchId: batch.batchId, authorizationId: reservation.authorizationId, startedAt: NOW, completedAt: NOW, changedFiles: ["scripts/smoke-a.ts"], testsRun: [], testResults: [], outcome: "COMPLETED" }, "COMPLETED");
+    const data = computeAyasDevelopmentStatusData("bugün ne geliştirmeye çalıştın", NOW, { rootDir }, { rootDir });
+    assert.equal(data.microBatch, null);
+  });
+
+  await scenario("a corrupt micro-batch-inbox.json is fail-soft: the overall status answer stays connected, just without micro-batch info", () => {
+    const rootDir = root();
+    fs.mkdirSync(path.join(rootDir, "autonomy"), { recursive: true });
+    fs.writeFileSync(path.join(rootDir, "autonomy", "micro-batch-inbox.json"), "{ not valid json", "utf8");
+    const data = computeAyasDevelopmentStatusData("bugün ne geliştirmeye çalıştın", NOW, { rootDir }, { rootDir });
+    assert.equal(data.connected, true);
+    assert.equal(data.microBatch, null);
   });
 
   console.log(`AYAS development status smoke: PASS (${count} scenarios)`);

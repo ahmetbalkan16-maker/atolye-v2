@@ -12,6 +12,7 @@ import { BrainCoreConsole } from "@/components/brain/BrainCoreConsole";
 import { loadBrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import { loadAyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
 import { loadAyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
+import { loadAyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
 import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
 import {
   askAyas,
@@ -24,16 +25,17 @@ import {
 } from "./actions";
 // Stage 7A: read-only inbox refresh comes from its own observer-only action
 // module, independent of the Package B decision action above.
-import { refreshAyasApprovalInbox } from "./observerActions";
+import { refreshAyasApprovalInbox, refreshAyasMicroBatch } from "./observerActions";
 
 export const dynamic = "force-dynamic";
 
 export default async function BrainCorePage() {
-  const [snapshot, modelConfigured, autonomous, approvalInbox] = await Promise.all([
+  const [snapshot, modelConfigured, autonomous, approvalInbox, microBatch] = await Promise.all([
     loadBrainConsoleSnapshot(),
     ayasModelConfigured(),
     loadAyasAutonomousView(),
     loadAyasApprovalInboxView(),
+    loadAyasMicroBatchDevelopmentView(),
   ]);
   // Read-only self-healing state (incidents / repairs / learning). Fail-soft.
   const selfHeal = loadBrainSelfHealSnapshot();
@@ -46,11 +48,13 @@ export default async function BrainCorePage() {
       initialSnapshot={snapshot}
       initialAutonomous={autonomous}
       initialApprovalInbox={approvalInbox}
+      initialMicroBatch={microBatch}
       initialSelfHeal={selfHeal}
       modelConfigured={modelConfigured}
       refresh={refreshBrainConsole}
       refreshSelfHeal={refreshBrainSelfHeal}
       refreshApprovalInbox={refreshAyasApprovalInbox}
+      refreshMicroBatch={refreshAyasMicroBatch}
       decideApproval={decideAyasApproval}
       executeProposal={executeAyasApprovedProposal}
       recordSelfHealDecision={recordSelfHealDecision}

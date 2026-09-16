@@ -12,7 +12,14 @@
  */
 
 import { loadAyasApprovalInboxView, type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
+import { loadAyasMicroBatchDevelopmentView, type AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
 
 export async function refreshAyasApprovalInbox(): Promise<AyasApprovalInboxView> {
   return loadAyasApprovalInboxView();
+}
+
+// M18 — read-only micro-batch refresh, same posture as the proposal inbox
+// refresh above: no mutating authority module in this file's import chain.
+export async function refreshAyasMicroBatch(): Promise<AyasMicroBatchDevelopmentView> {
+  return loadAyasMicroBatchDevelopmentView();
 }
