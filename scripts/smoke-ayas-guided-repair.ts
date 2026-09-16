@@ -26,6 +26,7 @@ assert.throws(() => approveAyasRepair(proposal, { proposalId: proposal.proposalI
 const revoked = revokeAyasRepairAuthorization(auth); const revokedResult = await service.apply(proposal, revoked, []); assert.equal(revokedResult.ok, false);
 const changed = { ...proposal, expectedResult: "different" }; const changedResult = await service.apply(changed, auth, []); assert.equal(changedResult.ok, false);
 const outside = await service.apply(proposal, auth, [{ filePath: "src/other.ts", operation: "patch-source", expectedHash: null, content: "bad" }]); assert.equal(outside.ok, false);
+assert.throws(() => createAyasRepairProposal({ issueFingerprint: "issue-2", workspaceId: "fixture", rootCauseStatus: "reproduced", rootCause: "trying to patch the execution gate", evidence: [{ kind: "source", ref: "src/lib/ayas/execution/AyasExecutionGateStore.ts", summary: "read" }], graphifyFindings: ["fixture"], approvedFiles: ["src/lib/ayas/execution/AyasExecutionGateStore.ts"], operationClasses: ["patch-source"], validationActions: ["graphify-explain"], forbiddenOperations: ["delete", "shell", "git"], exclusions: [], expectedResult: "gate changed", risk: "low", bounds: { maxFiles: 1, maxNewFiles: 0, maxRepairCycles: 1, maxValidationCycles: 1, maxDurationMs: 1000, allowFileCreation: false } }), /forbidden/);
 
 // Product-level two-turn flow through the same conversation orchestrator used by the HTTP route.
 const productRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-guided-product-"));
@@ -44,7 +45,7 @@ const concurrentConversation = new AyasGuidedRepairConversation({ workspaceRoot:
 await concurrentConversation.handleUserTurn("Bu hata çıktı", "c1", "fixture-product"); fs.writeFileSync(productAbs, "// user edit\n" + final);
 const concurrent = await concurrentConversation.handleUserTurn("Onaylıyorum", "c2", "fixture-product"); assert.notEqual(concurrent.progress, "Tamamlandı"); assert.match(fs.readFileSync(productAbs, "utf8"), /^\/\/ user edit/u);
 fs.rmSync(productRoot, { recursive: true, force: true });
-console.log("AYAS guided repair smoke passed (24 assertions; product E2E=5)");
+console.log("AYAS guided repair smoke passed (25 assertions; product E2E=5)");
 fs.rmSync(root, { recursive: true, force: true });
 }
 void main();

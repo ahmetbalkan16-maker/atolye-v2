@@ -9,6 +9,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
+import { classifyPatchSet } from "@/lib/brain/selfheal/BrainPatchSafety";
+
 export type AyasRepairRootCauseStatus = "suspected" | "strongly-supported" | "reproduced";
 export type AyasRepairLifecycle = "proposed" | "approved" | "active" | "validating" | "completed" | "revoked" | "expired" | "blocked" | "failed";
 export type AyasRepairOperation = "patch-source" | "patch-test" | "create-regression" | "create-approved-source" | "patch-doc";
@@ -81,6 +83,8 @@ export function createAyasRepairProposal(input: Omit<AyasRepairProposal, "schema
   if (!input.rootCause || !input.workspaceId || input.approvedFiles.length === 0) throw new Error("incomplete repair proposal");
   if (input.approvedFiles.length > input.bounds.maxFiles || input.bounds.maxRepairCycles > 1 || input.bounds.maxValidationCycles < 0) throw new Error("repair bounds exceeded");
   input.approvedFiles.forEach((f) => safeRelative(process.cwd(), f));
+  const forbiddenTargets = classifyPatchSet(input.approvedFiles).forbidden;
+  if (forbiddenTargets.length > 0) throw new Error(`repair target forbidden: ${forbiddenTargets.map((t) => t.path).join(", ")}`);
   input.operationClasses.forEach((o) => { if (!OPS.has(o)) throw new Error("unknown repair operation"); });
   input.validationActions.forEach((v) => { if (!VALIDATIONS.has(v)) throw new Error("validation action is not registered"); });
   const base = { ...input, schemaVersion: "1" as const, proposalId: input.proposalId ?? `proposal-${crypto.randomUUID()}`, createdAt: input.createdAt ?? new Date().toISOString(), status: "proposed" as const };
@@ -111,6 +115,8 @@ export function createAyasGuidedRepairService(deps: AyasGuidedRepairDeps = {}) {
     if (consumeAuthorization && consumedAuthorizations.has(auth.authorizationId)) return { ok: false, lifecycle: "blocked", reason: "authorization replay denied", repairId };
     if (!isAyasRepairProposalAuthentic(proposal) || auth.proposalId !== proposal.proposalId || auth.proposalFingerprint !== proposal.proposalFingerprint || auth.issueFingerprint !== proposal.issueFingerprint || auth.workspaceId !== proposal.workspaceId) return { ok: false, lifecycle: "blocked", reason: "proposal authorization mismatch", repairId };
     if (patches.length > proposal.bounds.maxFiles || classifyAyasRepairScope(patches.map((p) => p.filePath), proposal) === "material-expansion") return { ok: false, lifecycle: "blocked", reason: "scope expansion requires a new proposal", repairId };
+    const forbiddenTargets = classifyPatchSet(patches.map((p) => p.filePath)).forbidden;
+    if (forbiddenTargets.length > 0) return { ok: false, lifecycle: "blocked", reason: `repair target forbidden: ${forbiddenTargets.map((t) => t.path).join(", ")}`, repairId };
     if (proposal.validationActions.length > proposal.bounds.maxValidationCycles) return { ok: false, lifecycle: "blocked", reason: "validation cycle bound exceeded", repairId };
     const files: string[] = []; const before: Array<{ abs: string; old: string | null; patch: AyasPatch }> = []; const provenance: AyasPatchProvenance[] = [];
     try {
