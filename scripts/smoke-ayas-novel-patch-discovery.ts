@@ -62,6 +62,16 @@ async function main(): Promise<void> {
     const head = git(repoRoot, ["rev-parse", "HEAD"]);
     const artifactStoreDir = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-artifacts-real-"));
     const artifactStore = createAyasPatchArtifactStore({ rootDir: artifactStoreDir });
+    // Captured before discovery runs, not hardcoded to 1: `git worktree list`
+    // legitimately includes every worktree linked to this repository, not
+    // just a sandbox — running this exact scenario itself from inside a
+    // clean-room (a second, linked worktree) is real and expected, and it
+    // must not be mistaken for a leaked sandbox. The invariant this proves
+    // is "discovery added no NEW worktree," not "exactly one worktree
+    // exists" — a clean-room-only finding, caught only once this suite ran
+    // from a linked worktree instead of the always-the-main-worktree
+    // assumption fixture-only testing never exercised.
+    const worktreesBefore = git(repoRoot, ["worktree", "list"]).split("\n").filter(Boolean).length;
     const result = await discoverAyasNovelPatchCandidates({ repoRoot, observation: baseObservation({ head, branch: git(repoRoot, ["branch", "--show-current"]) }), artifactStore, maxAttemptsPerTick: 1 });
     // There may legitimately be zero remaining gaps once every class has its own smoke test (this suite itself covers several) — assert the CONTRACT, not a specific count.
     for (const candidate of result.candidates) {
@@ -74,9 +84,8 @@ async function main(): Promise<void> {
       assert.equal(artifact.safetyClassification, "SAFE");
     }
     assert.ok(result.findings.length >= 0);
-    // Real repository, real worktree list — must be back to just the main worktree afterward.
-    const worktrees = git(repoRoot, ["worktree", "list"]);
-    assert.equal(worktrees.split("\n").length, 1, "no sandbox worktree may survive discovery");
+    const worktreesAfter = git(repoRoot, ["worktree", "list"]).split("\n").filter(Boolean).length;
+    assert.equal(worktreesAfter, worktreesBefore, "discovery must never leave behind a new (leaked) worktree, whatever the baseline count was");
   });
 
   await scenario("determinism/anti-spam: two ticks at the same HEAD produce the same patchHash for the same gap (so inbox.createProposal's own dedup would collapse them to one proposal)", async () => {
