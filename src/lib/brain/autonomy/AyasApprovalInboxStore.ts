@@ -188,8 +188,10 @@ export interface AyasApprovalInboxHandle {
   decide(proposalId: string, decision: AyasInboxDecision, now: string, reason?: string): { proposal: AyasInboxProposal; decision: AyasInboxDecisionRecord };
   /**
    * M16 — durable, backend-authoritative staleness reconciliation. Only a
-   * PENDING or APPROVED proposal may transition to STALE; anything else
-   * (including an already-RESERVED proposal, which may be mid-execution
+   * PENDING, APPROVED, or DEFERRED proposal may transition to STALE (M17:
+   * DEFERRED added — a deferred proposal bound to a superseded baseHead
+   * must not stay re-approvable once its `nextEligibleAt` passes); anything
+   * else (including an already-RESERVED proposal, which may be mid-execution
    * under the authority lock) throws rather than silently no-op-ing. Never
    * touches decisions/results/reservation/authorization fields — pure
    * proposal-status bookkeeping, so it can never transfer or replay
@@ -306,10 +308,16 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       const state = load();
       const existing = state.proposals.find((p) => p.proposalId === proposalId);
       if (!existing) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "proposal not found");
-      if (existing.status !== "PENDING" && existing.status !== "APPROVED") {
+      if (existing.status !== "PENDING" && existing.status !== "APPROVED" && existing.status !== "DEFERRED") {
         throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", `proposal cannot be marked stale from status: ${existing.status}`);
       }
-      const proposal = { ...existing, status: "STALE" as const, lastUpdatedAt: now };
+      // A DEFERRED proposal carries `nextEligibleAt` — once it transitions to
+      // STALE that field is meaningless (STALE is never re-eligible for
+      // anything), so it is cleared here rather than left as confusing,
+      // unused leftover state on an otherwise-terminal record. `undefined`
+      // (not omission) is enough: JSON.stringify drops `undefined`-valued
+      // keys entirely, so the persisted record has no `nextEligibleAt` at all.
+      const proposal = { ...existing, status: "STALE" as const, lastUpdatedAt: now, nextEligibleAt: undefined };
       save({ ...state, proposals: state.proposals.map((p) => p.proposalId === proposalId ? proposal : p) });
       return proposal;
     },
