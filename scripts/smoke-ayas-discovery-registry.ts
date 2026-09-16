@@ -50,8 +50,28 @@ function fixtureRepo(): { readonly repoRoot: string; readonly head: string } {
   git(repoRoot, "init", "-q");
   git(repoRoot, "config", "user.email", "smoke@example.invalid");
   git(repoRoot, "config", "user.name", "Smoke");
+  // Without this, Windows' global autocrlf setting can make git consider
+  // the just-committed file "modified" immediately after commit (an
+  // LF/CRLF normalization mismatch) — a real, latent bug in this fixture
+  // that only surfaced once a genuine discovery candidate made `repoClean`
+  // actually matter (discover() refuses to run against a dirty repo).
+  git(repoRoot, "config", "core.autocrlf", "false");
   fs.writeFileSync(path.join(repoRoot, "fixture.txt"), "fixture\n");
-  git(repoRoot, "add", "fixture.txt");
+  // `AyasAutonomyDaemon.discover()` gates on `observation.graphifyFresh`,
+  // which `ayas-discovery-daemon.ts` derives from a plain file-existence
+  // check — a fixture .graphify/graph.json (content irrelevant) is enough
+  // to make the real spawned process exercise real discovery, not just
+  // staleness reconciliation. It must be COMMITTED (not merely present),
+  // or the fixture repo would show as dirty (an untracked file) and
+  // discover()'s own repoClean gate would refuse to run at all.
+  fs.mkdirSync(path.join(repoRoot, ".graphify"), { recursive: true });
+  fs.writeFileSync(path.join(repoRoot, ".graphify", "graph.json"), "{}\n");
+  // Mirrors the real repo's own .gitignore for `data/brain/` — the durable
+  // inbox this test writes under `<repoRoot>/data/brain/` must not itself
+  // make the fixture look dirty to git (the exact self-inflicted-dirty-repo
+  // class of bug this project has hit for real before).
+  fs.writeFileSync(path.join(repoRoot, ".gitignore"), "/data/\n");
+  git(repoRoot, "add", "fixture.txt", ".graphify/graph.json", ".gitignore");
   git(repoRoot, "commit", "-qm", "base");
   return { repoRoot, head: git(repoRoot, "rev-parse", "HEAD") };
 }
@@ -85,8 +105,24 @@ function staleProposalInput(baseHead: string) {
 }
 
 async function main() {
-  await scenario("the real, production AYAS_DISCOVERY_SOURCES registry is empty at M16 (mechanism ships before any real candidate)", () => {
-    assert.deepEqual(AYAS_DISCOVERY_SOURCES, []);
+  await scenario("the real, production AYAS_DISCOVERY_SOURCES registry has exactly one entry: second-safe-smoke-coverage-v1", () => {
+    assert.equal(AYAS_DISCOVERY_SOURCES.length, 1);
+    assert.equal(AYAS_DISCOVERY_SOURCES[0]?.candidate.mutationKind, "second-safe-smoke-coverage-v1");
+    assert.equal(AYAS_DISCOVERY_SOURCES[0]?.candidate.exactFiles.length, 1);
+    assert.equal(AYAS_DISCOVERY_SOURCES[0]?.candidate.exactFiles[0], "scripts/smoke-ayas-machine-health-non-gpu-stage.ts");
+  });
+  await scenario("second-safe-smoke-coverage-v1's mutationKind is actually registered in the real AyasMutationRegistry", () => {
+    const result = discoverAyasSafeCandidates({ repoRoot: "/fixture-nonexistent-path-so-the-detector-is-true", observation: observation() });
+    assert.equal(result.length, 1, "the real detector must find the target file missing and the real mutationKind must be registered");
+    assert.equal(result[0]?.mutationKind, "second-safe-smoke-coverage-v1");
+  });
+  await scenario("second-safe-smoke-coverage-v1's detector is false once its target file exists", () => {
+    const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-discovery-detector-"));
+    fs.mkdirSync(path.join(repoRoot, "scripts"), { recursive: true });
+    fs.writeFileSync(path.join(repoRoot, "scripts", "smoke-ayas-machine-health-non-gpu-stage.ts"), "// already created\n");
+    const result = discoverAyasSafeCandidates({ repoRoot, observation: observation() });
+    assert.deepEqual(result, [], "once the file exists, the deterministic detector must no longer propose it");
+    fs.rmSync(repoRoot, { recursive: true, force: true });
   });
   await scenario("an applicable source naming a registered mutationKind is returned", () => {
     const sources: readonly AyasDiscoverySource[] = [{ candidate: candidate(), isApplicable: () => true }];
@@ -124,9 +160,9 @@ async function main() {
     const result = discoverAyasSafeCandidates({ repoRoot: "/fixture", observation: observation() }, sources, registeredRegistry);
     assert.deepEqual(result.map((c) => c.objective), ["first", "second"]);
   });
-  await scenario("with no sources argument, the function defaults to the real (currently empty) AYAS_DISCOVERY_SOURCES", () => {
-    const result = discoverAyasSafeCandidates({ repoRoot: "/fixture", observation: observation() });
-    assert.deepEqual(result, []);
+  await scenario("with no sources argument, the function defaults to the real AYAS_DISCOVERY_SOURCES", () => {
+    const result = discoverAyasSafeCandidates({ repoRoot: "/fixture-nonexistent-path", observation: observation() });
+    assert.equal(result.length, AYAS_DISCOVERY_SOURCES.length);
   });
 
   await scenario("M16: AyasDiscoveryRegistry.ts imports no execution/gate/authority module (structurally cannot reserve, execute, decide, or open a gate)", () => {
@@ -167,10 +203,14 @@ async function main() {
     assert.equal(result.status, "OK");
     assert.equal(result.head, head);
     assert.deepEqual(result.staleReconciled, [proposal.proposalId]);
-    assert.deepEqual(result.discovered, [], "the production discovery registry is empty at M16 — nothing should be discovered");
+    assert.equal(result.discovered.length, 1, "the fixture repo has no scripts/smoke-ayas-machine-health-non-gpu-stage.ts — the real second-safe-smoke-coverage-v1 candidate must be genuinely discovered");
 
     const finalState = inbox.load();
     assert.equal(finalState.proposals.find((p) => p.proposalId === proposal.proposalId)?.status, "STALE", "the real spawned process must durably reconcile the fixture proposal, not just report it");
+    const discoveredProposal = finalState.proposals.find((p) => p.proposalId === result.discovered[0]);
+    assert.equal(discoveredProposal?.status, "PENDING");
+    assert.equal(discoveredProposal?.mutationKind, "second-safe-smoke-coverage-v1");
+    assert.equal(discoveredProposal?.baseHead, head);
     fs.rmSync(repoRoot, { recursive: true, force: true });
   });
 
