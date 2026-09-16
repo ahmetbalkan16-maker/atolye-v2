@@ -97,6 +97,8 @@ export interface BrainConsoleViewProps {
   readonly approvalInbox?: AyasApprovalInboxView;
   readonly approvalPendingId?: string | null;
   readonly onApprovalDecision?: (input: { proposalId: string; decision: "APPROVE" | "REJECT" | "LATER" }) => void;
+  readonly executionPendingId?: string | null;
+  readonly onExecuteProposal?: (input: { proposalId: string }) => void;
   /** Read-only self-healing state (incidents / repairs / learning). `null` ⇒ store empty. */
   readonly selfHeal?: (BrainSelfHealSnapshot & { readonly error?: string | null }) | null;
   /** The AYAS Report Center view (§7–§15) for the panel + the home status card. */
@@ -530,7 +532,7 @@ function PanelBody(props: BrainConsoleViewProps) {
     case "autonomous":
       return <AutonomousPanel autonomous={props.autonomous} />;
     case "development":
-      return <AyasDevelopmentCenter inbox={props.approvalInbox ?? { connected: true, pending: [], today: [], history: [] }} pendingId={props.approvalPendingId} onDecision={props.onApprovalDecision} />;
+      return <AyasDevelopmentCenter inbox={props.approvalInbox ?? { connected: true, pending: [], today: [], history: [] }} pendingId={props.approvalPendingId} onDecision={props.onApprovalDecision} executingId={props.executionPendingId} onExecute={props.onExecuteProposal} />;
     case "selfheal":
       return (
         <BrainSelfHealingPanel

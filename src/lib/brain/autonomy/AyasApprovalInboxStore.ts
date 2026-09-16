@@ -52,6 +52,8 @@ export interface AyasInboxProposal {
   readonly supersedesProposalId?: string;
   readonly createdBy: "ayas-daemon";
   readonly nextEligibleAt?: string;
+  /** Optional on reads for schema-v1 compatibility with proposals created before this field existed — such a proposal can never become execution-eligible (see `AyasMutationRegistry`). Participates in `proposalHash`, so it cannot be silently rebound after creation. */
+  readonly mutationKind?: string;
 }
 
 export interface AyasInboxDecisionRecord {
@@ -142,11 +144,12 @@ export function isAyasProposalApprovalReady(proposal: AyasInboxProposal): boolea
     && proposal.expectedDiffScope.trim().length > 0
     && proposal.testsPlanned.length > 0
     && proposal.graphifyEvidence.length > 0
-    && proposal.baseHead.trim().length > 0;
+    && proposal.baseHead.trim().length > 0
+    && Boolean(proposal.mutationKind?.trim());
 }
 
 type AyasProposalCreateInput = Omit<AyasInboxProposal, "schemaVersion" | "proposalId" | "lastUpdatedAt" | "proposalHash" | "status" | "createdBy" | AyasApprovalExplanationField>
-  & Required<Pick<AyasInboxProposal, AyasApprovalExplanationField>>
+  & Required<Pick<AyasInboxProposal, AyasApprovalExplanationField | "mutationKind">>
   & { readonly proposalId?: string };
 
 export interface AyasApprovalInboxHandle {

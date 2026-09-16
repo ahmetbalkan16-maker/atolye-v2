@@ -17,6 +17,7 @@ import {
   askAyas,
   ayasModelConfigured,
   decideAyasApproval,
+  executeAyasApprovedProposal,
   recordSelfHealDecision,
   refreshBrainConsole,
   refreshBrainSelfHeal,
@@ -51,6 +52,7 @@ export default async function BrainCorePage() {
       refreshSelfHeal={refreshBrainSelfHeal}
       refreshApprovalInbox={refreshAyasApprovalInbox}
       decideApproval={decideAyasApproval}
+      executeProposal={executeAyasApprovedProposal}
       recordSelfHealDecision={recordSelfHealDecision}
       askAyas={askAyas}
     />

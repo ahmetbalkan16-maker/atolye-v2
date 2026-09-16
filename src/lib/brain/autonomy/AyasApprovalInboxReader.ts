@@ -38,6 +38,7 @@ export interface AyasInboxProposalRead {
   readonly status: AyasInboxProposalStatus;
   readonly baseHead: string;
   readonly nextEligibleAt?: string;
+  readonly mutationKind?: string;
 }
 
 export interface AyasInboxDecisionRead {

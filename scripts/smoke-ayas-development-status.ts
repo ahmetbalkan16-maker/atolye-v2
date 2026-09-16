@@ -39,6 +39,7 @@ function proposalInput(overrides: Partial<Omit<AyasInboxProposal, "schemaVersion
     expectedDiffScope: "+1 assertion",
     testsPlanned: ["smoke-ayas-development-status"],
     estimatedCost: "zero-cost" as const,
+    mutationKind: "test-fixture-mutation",
     ...overrides,
   };
 }

@@ -40,6 +40,7 @@ function proposal(overrides: Partial<AyasInboxProposalRead> = {}): AyasInboxProp
     safetyClassification: "SAFE",
     testsPlanned: ["smoke-brain-core-ui", "npx tsc --noEmit"],
     status: "PENDING",
+    mutationKind: "test-fixture-mutation",
     ...overrides,
   };
 }
@@ -79,6 +80,14 @@ async function main() {
   await scenario("today contains actual evaluated statuses without changing pending semantics", () => { const view = buildAyasApprovalInboxView(state([proposal(), proposal({ proposalId: "done", status: "COMPLETED" })]), NOW); assert.equal(view.today.length, 2); assert.equal(view.pending.length, 1); });
   await scenario("durable decision and outcome are attached to history", () => { const p = proposal({ status: "COMPLETED" }); const view = buildAyasApprovalInboxView(state([p], [{ decisionId: "d1", proposalId: p.proposalId, decision: "APPROVE", decidedAt: NOW, reservedAt: NOW, finalizedAt: NOW, finalizationOutcome: "EXECUTED" }], [{ resultId: "r1", proposalId: p.proposalId, completedAt: NOW, outcome: "COMPLETED", testsRun: ["smoke"], testResults: ["PASS"] }]), NOW); assert.equal(view.history[0]?.decision?.decision, "APPROVE"); assert.equal(view.history[0]?.result?.outcome, "COMPLETED"); });
   await scenario("responsive CSS collapses facts and preserves touch-sized actions", () => { const css = fs.readFileSync(path.join(process.cwd(), "src/components/brain/BrainCore.css"), "utf8"); assert.match(css, /\.bc-dev__facts \{ grid-template-columns: 1fr; \}/); assert.match(css, /min-height: 44px/); });
+  await scenario("APPROVED proposal exposes YÜRÜT", () => assert.match(htmlFor(state([proposal({ status: "APPROVED" })])), />YÜRÜT</));
+  for (const status of ["PENDING", "REJECTED", "DEFERRED", "RESERVED", "COMPLETED", "ABANDONED", "RECOVERY_REQUIRED", "STALE", "FAILED"] as const) {
+    await scenario(`${status} does not expose YÜRÜT`, () => assert.doesNotMatch(htmlFor(state([proposal({ status })])), />YÜRÜT</));
+  }
+  await scenario("RECOVERY_REQUIRED exposes neither YÜRÜT nor ordinary replay", () => { const html = htmlFor(state([proposal({ status: "RECOVERY_REQUIRED" })])); assert.doesNotMatch(html, />YÜRÜT</); assert.doesNotMatch(html, /TEKRAR ÇALIŞTIR|YENİDEN DENE/); assert.match(html, /Yürütme sonucu belirsiz olabilir/); });
+  await scenario("YÜRÜT opens a second confirmation before dispatch", () => { const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox: buildAyasApprovalInboxView(state([proposal({ status: "APPROVED" })]), NOW), onExecute: () => undefined })); assert.match(html, />YÜRÜT</); assert.doesNotMatch(html, /YÜRÜTMEYİ BAŞLAT/); });
+  await scenario("execution confirmation states one-shot consumption", () => { const src = fs.readFileSync(path.join(process.cwd(), "src/components/brain/AyasDevelopmentCenter.tsx"), "utf8"); assert.match(src, /Yürütürsem ne olacak\?/); assert.match(src, /YÜRÜTMEYİ BAŞLAT/); assert.match(src, /tek kullanımlıktır/); });
+  await scenario("executingId disables the YÜRÜT control for that proposal", () => { const p = proposal({ status: "APPROVED" }); const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox: buildAyasApprovalInboxView(state([p]), NOW), executingId: p.proposalId, onExecute: () => undefined })); assert.match(html, /YÜRÜTÜLÜYOR…/); });
   console.log(`AYAS Gelişim Merkezi smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-development-center", scenarios: count }));
 }

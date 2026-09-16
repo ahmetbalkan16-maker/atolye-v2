@@ -39,6 +39,7 @@ import { createAyasChatProvider, resolveAyasChatModelProfile, AYAS_MODEL_ENV } f
 import { createBrainSelfHealStore } from "@/lib/brain/selfheal/BrainSelfHealStore";
 import { createAyasApprovalInboxStore, type AyasInboxDecision } from "@/lib/brain/autonomy/AyasApprovalInboxStore";
 import { loadAyasApprovalInboxView, type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
+import { executeAyasApprovedProposalWith, defaultAyasProposalExecutionDeps } from "@/lib/brain/autonomy/AyasProposalExecutionService";
 import { buildSelfHealDecision, type BrainSelfHealDecisionKind } from "@/lib/brain/selfheal/BrainSelfHealDecision";
 import { classifyPatchSet } from "@/lib/brain/selfheal/BrainPatchSafety";
 import {
@@ -141,6 +142,24 @@ export async function decideAyasApproval(input: { proposalId: string; decision: 
   if (!proposal) throw new Error("proposal_not_found");
   if (input.decision === "APPROVE" && proposal.safetyClassification !== "SAFE") throw new Error("forbidden_area_needs_human");
   store.decide(input.proposalId, input.decision, new Date().toISOString(), input.reason);
+  return loadAyasApprovalInboxView();
+}
+
+/**
+ * The one real Package C execution entrypoint (M15). Accepts only a
+ * proposalId — never a callback, filesystem path, gateRoot, or mutation
+ * content from the client. This action is a thin, session-gated wrapper:
+ * all the real logic (proposal lookup, re-derivation of hash/baseHead/
+ * exactFiles, mutation resolution, and delegation to
+ * `AyasAutonomyDaemon.executeApproved()`) lives in the fully testable
+ * `AyasProposalExecutionService`, so it can be exercised against isolated
+ * fixtures instead of real production state. This is a separate, explicit
+ * action from `decideAyasApproval` above: approving a proposal never calls
+ * this.
+ */
+export async function executeAyasApprovedProposal(input: { proposalId: string }): Promise<AyasApprovalInboxView> {
+  await requireBrainSession();
+  await executeAyasApprovedProposalWith(input.proposalId, defaultAyasProposalExecutionDeps());
   return loadAyasApprovalInboxView();
 }
 

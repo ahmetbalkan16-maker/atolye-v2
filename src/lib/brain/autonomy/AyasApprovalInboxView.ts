@@ -36,7 +36,8 @@ export function isAyasDevelopmentApprovalReady(proposal: AyasInboxProposalRead):
     && proposal.expectedDiffScope?.trim().length > 0
     && proposal.testsPlanned.length > 0
     && proposal.graphifyEvidence?.length > 0
-    && proposal.baseHead.trim().length > 0;
+    && proposal.baseHead.trim().length > 0
+    && Boolean(proposal.mutationKind?.trim());
 }
 
 export function buildAyasApprovalInboxView(state: AyasApprovalInboxReadState, now = new Date().toISOString()): AyasApprovalInboxView {

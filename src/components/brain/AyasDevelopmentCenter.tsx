@@ -97,7 +97,37 @@ function PendingProposal({ proposal, pendingId, onDecision }: { readonly proposa
   );
 }
 
-function TimelineCard({ proposal }: { readonly proposal: AyasDevelopmentProposal }) {
+/** Visible/enabled only for APPROVED — the one status where execution is eligible. Every other status (including RESERVED/COMPLETED/ABANDONED/RECOVERY_REQUIRED) renders no execution control at all — RECOVERY_REQUIRED in particular must never offer an ordinary replay. */
+function ExecuteControl({ proposal, executingId, onExecute }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly onExecute?: (input: { proposalId: string }) => void }) {
+  const [confirming, setConfirming] = useState(false);
+  if (proposal.status !== "APPROVED") return null;
+  const busy = executingId === proposal.proposalId;
+  if (confirming) {
+    return (
+      <div className="bc-dev__confirm" role="group" aria-label="Yürütürsem ne olacak?">
+        <strong>Yürütürsem ne olacak?</strong>
+        <p><b>Hedef:</b> {proposal.objective}</p>
+        <p><b>Fayda:</b> {proposal.expectedUserBenefit}</p>
+        <p><b>Kapsam:</b> {proposal.exactFiles.join(", ")}</p>
+        <p><b>Test planı:</b> {proposal.testsPlanned.join(" · ")}</p>
+        <p><b>Üretim etkisi:</b> {proposal.productionImpact}</p>
+        <p><b>Uygulama kimliği:</b> <code>{proposal.mutationKind || "—"}</code></p>
+        <p>Bu onay tek kullanımlıktır; yürütme başladıktan sonra aynı onay tekrar kullanılamaz.</p>
+        <div className="bc-dev__actions">
+          <button type="button" className="bc-btn" disabled={busy || !onExecute} onClick={() => onExecute?.({ proposalId: proposal.proposalId })}>YÜRÜTMEYİ BAŞLAT</button>
+          <button type="button" className="bc-btn bc-btn--ghost" disabled={busy} onClick={() => setConfirming(false)}>VAZGEÇ</button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="bc-dev__actions">
+      <button type="button" className="bc-btn" disabled={busy || !onExecute} onClick={() => setConfirming(true)}>{busy ? "YÜRÜTÜLÜYOR…" : "YÜRÜT"}</button>
+    </div>
+  );
+}
+
+function TimelineCard({ proposal, executingId, onExecute }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly onExecute?: (input: { proposalId: string }) => void }) {
   return (
     <article className="bc-dev__timeline-card">
       <div><span className="bc-dev__status">{statusLabel[proposal.status]}</span><strong>{proposal.objective}</strong></div>
@@ -105,19 +135,20 @@ function TimelineCard({ proposal }: { readonly proposal: AyasDevelopmentProposal
       {proposal.decision ? <p className="bc-dev__outcome">Karar: {proposal.decision.decision} · {new Date(proposal.decision.decidedAt).toLocaleString("tr-TR")}</p> : null}
       {proposal.result ? <p className="bc-dev__outcome">Yürütme sonucu: {proposal.result.outcome} · Testler: {proposal.result.testResults.join(" · ") || "kayıt yok"}</p> : null}
       {proposal.status === "RECOVERY_REQUIRED" ? <RecoveryNotice /> : null}
+      <ExecuteControl proposal={proposal} executingId={executingId} onExecute={onExecute} />
       <details><summary>Ayrıntıları göster</summary><ProposalDetails proposal={proposal} /></details>
     </article>
   );
 }
 
-export function AyasDevelopmentCenter({ inbox, pendingId, onDecision }: { readonly inbox: AyasApprovalInboxView; readonly pendingId?: string | null; readonly onDecision?: (input: { proposalId: string; decision: Decision }) => void }) {
+export function AyasDevelopmentCenter({ inbox, pendingId, onDecision, executingId, onExecute }: { readonly inbox: AyasApprovalInboxView; readonly pendingId?: string | null; readonly onDecision?: (input: { proposalId: string; decision: Decision }) => void; readonly executingId?: string | null; readonly onExecute?: (input: { proposalId: string }) => void }) {
   if (!inbox.connected) return <div className="bc-empty" role="alert"><strong>Gelişim Merkezi okunamadı</strong><p>{inbox.error || "Kalıcı durum deposuna ulaşılamıyor."}</p></div>;
   return (
     <section className="bc-dev" aria-label="AYAS Gelişim Merkezi" data-testid="ayas-development-center">
       <header className="bc-dev__hero"><span>İnsan denetimli gelişim</span><h2>AYAS Gelişim Merkezi</h2><p>AYAS’ın neyi neden geliştirmek istediğini, sana sağlayacağı faydayı ve güvenlik sınırlarını karar vermeden önce gör.</p></header>
       <section className="bc-dev__section" aria-labelledby="ayas-dev-pending"><h3 id="ayas-dev-pending">Onay Bekleyenler <span>{inbox.pending.length}</span></h3>{inbox.pending.length ? inbox.pending.map((proposal) => <PendingProposal key={proposal.proposalId} proposal={proposal} pendingId={pendingId} onDecision={onDecision} />) : <p className="bc-empty">Onay bekleyen gerçek bir öneri yok.</p>}</section>
-      <section className="bc-dev__section" aria-labelledby="ayas-dev-today"><h3 id="ayas-dev-today">Bugün Neleri Geliştirmeye Çalıştı? <span>{inbox.today.length}</span></h3>{inbox.today.length ? <div className="bc-dev__timeline">{inbox.today.map((proposal) => <TimelineCard key={proposal.proposalId} proposal={proposal} />)}</div> : <p className="bc-empty">Bugün değerlendirilmiş bir gelişim adayı yok.</p>}</section>
-      <section className="bc-dev__section" aria-labelledby="ayas-dev-history"><h3 id="ayas-dev-history">Geçmiş Kararlar <span>{inbox.history.length}</span></h3>{inbox.history.length ? <div className="bc-dev__timeline">{inbox.history.map((proposal) => <TimelineCard key={proposal.proposalId} proposal={proposal} />)}</div> : <p className="bc-empty">Henüz kalıcı bir karar veya yürütme sonucu yok.</p>}</section>
+      <section className="bc-dev__section" aria-labelledby="ayas-dev-today"><h3 id="ayas-dev-today">Bugün Neleri Geliştirmeye Çalıştı? <span>{inbox.today.length}</span></h3>{inbox.today.length ? <div className="bc-dev__timeline">{inbox.today.map((proposal) => <TimelineCard key={proposal.proposalId} proposal={proposal} executingId={executingId} onExecute={onExecute} />)}</div> : <p className="bc-empty">Bugün değerlendirilmiş bir gelişim adayı yok.</p>}</section>
+      <section className="bc-dev__section" aria-labelledby="ayas-dev-history"><h3 id="ayas-dev-history">Geçmiş Kararlar <span>{inbox.history.length}</span></h3>{inbox.history.length ? <div className="bc-dev__timeline">{inbox.history.map((proposal) => <TimelineCard key={proposal.proposalId} proposal={proposal} executingId={executingId} onExecute={onExecute} />)}</div> : <p className="bc-empty">Henüz kalıcı bir karar veya yürütme sonucu yok.</p>}</section>
     </section>
   );
 }

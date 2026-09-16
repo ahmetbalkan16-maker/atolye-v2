@@ -34,6 +34,7 @@ function proposalInput(overrides: Partial<Omit<AyasInboxProposal, "schemaVersion
     expectedDiffScope: "+1 assertion",
     testsPlanned: ["smoke-ayas-autonomy-approval"],
     estimatedCost: "zero-cost" as const,
+    mutationKind: "test-fixture-mutation",
     ...overrides,
   };
 }
@@ -196,17 +197,29 @@ async function main() {
     assert.equal(state.decisions.length, 1);
   });
 
-  await scenario("Stage 7B files have zero import of AyasExecutionGateStore or executeApproved", () => {
+  await scenario("Stage 7B decision/display files have zero import of AyasExecutionGateStore or executeApproved", () => {
+    // `app/brain/actions.ts` is deliberately EXCLUDED as of M15: it now hosts
+    // the one real, session-gated `executeAyasApprovedProposal` action. Every
+    // other file in Stage 7B's decision/display path stays execution-free —
+    // the invariant this scenario always proved.
     const files = [
       "src/lib/brain/autonomy/AyasApprovalInboxStore.ts",
       "src/components/brain/AyasApprovalInboxPanel.tsx",
       "src/components/brain/BrainCoreConsole.tsx",
       "app/brain/page.tsx",
-      "app/brain/actions.ts",
     ];
     for (const file of files) {
       assert.doesNotMatch(read(file), /AyasExecutionGateStore|executeApproved/, `${file} must not reach execution authority`);
     }
+  });
+  await scenario("M15: actions.ts reaches execution ONLY through executeAyasApprovedProposal, never through decideAyasApproval", () => {
+    const src = read("app/brain/actions.ts");
+    assert.match(src, /AyasProposalExecutionService/, "actions.ts must delegate execution to the extracted, testable service — not reimplement it inline");
+    const decideBody = src.slice(src.indexOf("export async function decideAyasApproval"), src.indexOf("export async function decideAyasApproval") + src.slice(src.indexOf("export async function decideAyasApproval")).indexOf("\n}\n"));
+    assert.doesNotMatch(decideBody, /executeAyasApprovedProposalWith|AyasAutonomyDaemon/, "decideAyasApproval must never call into execution");
+    const executeBody = src.slice(src.indexOf("export async function executeAyasApprovedProposal"));
+    assert.match(executeBody, /requireBrainSession/, "the execution action must independently verify the session, not rely on middleware alone");
+    assert.match(executeBody, /executeAyasApprovedProposalWith/, "the execution action must delegate to Package C via the extracted service");
   });
 
   console.log(`AYAS autonomy approval smoke: PASS (${count} scenarios)`);
