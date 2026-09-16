@@ -9,6 +9,9 @@ import { createAyasAutonomyDaemon } from "../src/lib/brain/autonomy/AyasAutonomy
 import { reconcileAyasStaleProposals } from "../src/lib/brain/autonomy/AyasProposalStaleness";
 import { discoverAyasSafeCandidates } from "../src/lib/brain/autonomy/AyasDiscoveryRegistry";
 import { discoverAyasNovelPatchCandidates } from "../src/lib/brain/autonomy/AyasNovelPatchDiscovery";
+import { accumulateAyasMicroBatchCandidates } from "../src/lib/brain/autonomy/AyasMicroBatchAccumulator";
+import { createAyasMicroBatchStore } from "../src/lib/brain/autonomy/AyasMicroBatch";
+import { reconcileAyasMicroBatchStaleness } from "../src/lib/brain/autonomy/AyasMicroBatchStaleness";
 
 /**
  * AYAS discovery daemon (M16) — a single-shot, read-mostly companion to the
@@ -77,6 +80,20 @@ async function main(): Promise<void> {
 
   const discovered = daemon.discover(observation, [...discoverAyasSafeCandidates({ repoRoot: root, observation }), ...novel.candidates]);
 
+  // M18 — MICRO_SAFE candidates never reach the line above (AyasNovelPatchDiscovery
+  // skips them); they accumulate here instead, in the persistent isolated batch
+  // worktree, never the real working tree. Same best-effort posture as the novel
+  // patch discovery above: a failure here never aborts staleness reconciliation
+  // or the individual-proposal discovery already completed.
+  const microBatchStore = createAyasMicroBatchStore();
+  const staledBatches = reconcileAyasMicroBatchStaleness(microBatchStore, observation.head, now);
+  let microBatch: Awaited<ReturnType<typeof accumulateAyasMicroBatchCandidates>> = { itemsAdded: [], batch: null, rejections: [], readyForReview: false, staledPreviousBatchId: null };
+  try {
+    microBatch = await accumulateAyasMicroBatchCandidates({ repoRoot: root, observation, batchStore: microBatchStore });
+  } catch (error) {
+    observation.gaps.push(`micro batch accumulation failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
   console.log(JSON.stringify({
     status: "OK",
     head: observation.head,
@@ -87,6 +104,12 @@ async function main(): Promise<void> {
     discovered: discovered.map((p) => p.proposalId),
     novelRejections: novel.rejections,
     findings: novel.findings.length,
+    microBatchStaleReconciled: staledBatches.map((b) => b.batchId),
+    microItemsAdded: microBatch.itemsAdded.map((i) => i.microItemId),
+    microBatchId: microBatch.batch?.batchId ?? null,
+    microBatchStatus: microBatch.batch?.status ?? null,
+    microBatchReadyForReview: microBatch.readyForReview,
+    microBatchRejections: microBatch.rejections,
   }));
 }
 main().catch((error) => { console.error("AYAS discovery daemon FAILED:", error); process.exitCode = 1; });

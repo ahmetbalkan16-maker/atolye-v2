@@ -101,14 +101,15 @@ async function main(): Promise<void> {
     }
   });
 
-  await scenario("retry budget is a hard, server-owned bound: with 3 real candidates and maxAttemptsPerTick=2, at most 2 are ever drafted-and-validated", async () => {
+  await scenario("M18 routing: MICRO_SAFE-eligible gaps never reach this pipeline's own sandbox-attempt retry budget at all — they are skipped here regardless of maxAttemptsPerTick, since AyasMicroBatchAccumulator now owns drafting-and-validating them (see its own 'retry budget bounds sandbox-validation-failure rejections' scenario for the equivalent coverage on that path)", async () => {
     const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-retry-budget-"));
     git(repoRoot, ["init", "-q"]); git(repoRoot, ["config", "user.email", "f@example.com"]); git(repoRoot, ["config", "user.name", "f"]);
     fs.mkdirSync(path.join(repoRoot, "src", "lib", "widget"), { recursive: true });
     fs.mkdirSync(path.join(repoRoot, "scripts"), { recursive: true });
     // Three real, distinct gaps (alphabetically ordered by the detector), each an INVALID JS identifier as a class name
-    // (starts with a digit) — every one will fail sandbox typecheck for real, so this proves the retry budget bounds
-    // actual sandbox attempts, not just candidates returned.
+    // (starts with a digit) — every one would fail sandbox typecheck for real IF this pipeline ever attempted them. It
+    // no longer does: today's one live generator ("ayas-detector:error-code-contract-gap-v1") always classifies as
+    // MICRO_SAFE, so every gap is skipped by the M18 classification check before any sandbox attempt is made here.
     for (const name of ["1AaaError", "2BbbError", "3CccError"]) {
       fs.writeFileSync(path.join(repoRoot, "src", "lib", "widget", `${name}.ts`), `export class ${name} extends Error {\n  constructor(readonly code: "X", message: string) { super(message); }\n}\n`, "utf8");
     }
@@ -116,8 +117,8 @@ async function main(): Promise<void> {
     const head = git(repoRoot, ["rev-parse", "HEAD"]);
     const artifactStore = createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-retry-budget-artifacts-")) });
     const result = await discoverAyasNovelPatchCandidates({ repoRoot, observation: baseObservation({ head, branch: git(repoRoot, ["branch", "--show-current"]) }), artifactStore, maxAttemptsPerTick: 2 });
-    assert.deepEqual(result.candidates, [], "all three candidates are structurally invalid JS — none can pass sandbox validation");
-    assert.equal(result.rejections.length, 2, `retry budget of 2 must bound sandbox attempts to exactly 2, got ${result.rejections.length}`);
+    assert.deepEqual(result.candidates, [], "none of the three gaps ever reach sandbox validation on this path");
+    assert.equal(result.rejections.length, 0, "MICRO_SAFE-eligible gaps are silently skipped here, not counted as rejections on this pipeline — they belong to the batch lane instead");
   });
 
   await scenario("duplicate discovery across simulated restarts: the SAME real inbox never accumulates more than one proposal for an unchanged, still-open gap", async () => {

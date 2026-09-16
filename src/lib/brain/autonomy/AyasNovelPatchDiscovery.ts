@@ -5,6 +5,7 @@ import path from "node:path";
 import { classifyPatchSet } from "../selfheal/BrainPatchSafety";
 import type { AyasDaemonCandidate, AyasDaemonObservation } from "./AyasAutonomyDaemon";
 import { findAyasErrorCodeContractGaps, generateAyasErrorCodeContractPatch, checkAyasNovelPatchLimits, runAyasDiscoveryFindings, type AyasDiscoveryFinding } from "./AyasPatchDetectors";
+import { classifyAyasMicroCandidate } from "./AyasMicroClassifier";
 import { createAyasPatchSandbox, applyAyasPatchReplacementsInSandbox, runAyasPatchSandboxValidators, captureAyasPatchSandboxDiff, destroyAyasPatchSandbox } from "./AyasPatchSandbox";
 import { createAyasPatchArtifactStore, computeAyasPatchHash, type AyasPatchArtifact } from "./AyasPatchArtifact";
 
@@ -76,6 +77,16 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
 
   for (const gap of gaps.slice(0, maxAttempts)) {
     const generated = generateAyasErrorCodeContractPatch(gap);
+
+    // M18: a candidate classified MICRO_SAFE belongs to the batch lane
+    // (AyasMicroBatchAccumulator), never an individual human-facing
+    // proposal — skip it here so the two lanes never both propose the same
+    // opportunity. Anything else (PRIORITY_SAFE — currently none, since the
+    // one live generator's output is always MICRO_SAFE-eligible today) keeps
+    // flowing through this unmodified individual-proposal pipeline.
+    const microClassification = classifyAyasMicroCandidate({ exactFiles: generated.exactFiles, totalLines: generated.replacements[0]!.content.split("\n").length, generatorIdentity: generated.generatorIdentity });
+    if (microClassification.classification === "MICRO_SAFE") continue;
+
     const limitViolations = checkAyasNovelPatchLimits(generated.replacements);
     if (limitViolations.length > 0) {
       const reason = `blast-radius/domain policy: ${limitViolations.map((v) => `${v.rule}: ${v.detail}`).join("; ")}`;

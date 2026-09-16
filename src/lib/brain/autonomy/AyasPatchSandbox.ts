@@ -78,8 +78,8 @@ export async function applyAyasPatchReplacementsInSandbox(
 
 const TSC_LOCAL_ENTRY = path.join("node_modules", "typescript", "bin", "tsc");
 
-/** Project-wide `tsc --noEmit` inside the sandbox — the only step exercising the full type system; targeted smoke-test validators (below) only transpile. */
-function createAyasSandboxTypecheckValidator(): AyasValidator {
+/** Project-wide `tsc --noEmit` inside the sandbox (or any other worktree rooted at `sandboxRoot`) — the only step exercising the full type system; targeted smoke-test validators (below) only transpile. Exported so M18's persistent batch worktree can reuse it unchanged. */
+export function createAyasSandboxTypecheckValidator(): AyasValidator {
   return async (sandboxRoot: string): Promise<AyasValidatorResult> => {
     const entry = path.join(sandboxRoot, TSC_LOCAL_ENTRY);
     if (!fs.existsSync(entry)) return { validator: "typecheck-project", pass: false, summary: "local tsc binary is unavailable in sandbox" };
