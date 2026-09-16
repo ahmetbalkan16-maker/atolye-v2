@@ -174,6 +174,38 @@ async function main() {
     assert.equal(finalProposal.status, "STALE");
   });
 
+  await scenario("real execution-time validator failure rolls back the write and leaves the proposal RECOVERY_REQUIRED, never a false success", async () => {
+    const repoRoot = root();
+    git(repoRoot, "init", "-q");
+    git(repoRoot, "config", "user.email", "smoke@example.invalid");
+    git(repoRoot, "config", "user.name", "Smoke");
+    fs.mkdirSync(path.join(repoRoot, "scripts"), { recursive: true });
+    fs.writeFileSync(path.join(repoRoot, "scripts/existing.ts"), "export const value = 1;\n");
+    fs.writeFileSync(path.join(repoRoot, ".gitignore"), "node_modules/\n"); // node_modules is a local dev dependency link, not source under test — see the "declared validators" scenario above for the same pattern
+    git(repoRoot, "add", "-A");
+    git(repoRoot, "commit", "-qm", "base");
+    const head = git(repoRoot, "rev-parse", "HEAD");
+    const gateRoot = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "ayas-patch-exec-gate-")), "self-improvement");
+    const inbox = createAyasApprovalInboxStore({ rootDir: path.join(fs.mkdtempSync(path.join(os.tmpdir(), "ayas-patch-exec-inbox-")), "brain") });
+    const patchArtifactStore = createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-patch-exec-artifacts-")) });
+    fs.mkdirSync(path.join(repoRoot, "node_modules"), { recursive: true });
+    fs.symlinkSync(path.join(process.cwd(), "node_modules", "tsx"), path.join(repoRoot, "node_modules", "tsx"), process.platform === "win32" ? "junction" : "dir");
+    // A patch artifact whose own declared content does NOT report {"status":"PASS"} — a real, deterministic validator failure at execution time (not sandbox drafting).
+    const artifact = freezeArtifact(patchArtifactStore, {
+      baseHead: head,
+      replacements: [{ filePath: "scripts/smoke-fixture-generated.ts", expectedHash: null, content: "console.log('this smoke test never reports PASS');\n", allowCreate: true }],
+      validatorScripts: ["scripts/smoke-fixture-generated.ts"],
+    });
+    const proposal = inbox.createProposal(proposalInput({ baseHead: head, patchArtifactId: artifact.artifactId, patchHash: artifact.patchHash } as never));
+    inbox.decide(proposal.proposalId, "APPROVE", "2026-09-16T09:01:00.000Z");
+    const deps: AyasProposalExecutionDeps = { repoRoot, gateRoot, inbox, patchArtifactStore };
+    await assert.rejects(executeAyasApprovedProposalWith(proposal.proposalId, deps));
+    // Rollback: AyasBoundedFileWrite's own documented guarantee — a failing validator inside applyAyasBoundedFileReplacements' after() hook rolls back every file it wrote.
+    assert.equal(fs.existsSync(path.join(repoRoot, "scripts/smoke-fixture-generated.ts")), false, "the write must be rolled back, not left half-applied");
+    const finalProposal = inbox.load().proposals.find((p) => p.proposalId === proposal.proposalId)!;
+    assert.equal(finalProposal.status, "RECOVERY_REQUIRED", "an execution that could have mutated before failing must never be silently treated as a clean failure — a human must review it");
+  });
+
   await scenario("dirty repo at execution time: refuses, never mutates", async () => {
     const { deps, proposal, inbox, repoRoot } = setup();
     inbox.decide(proposal.proposalId, "APPROVE", "2026-09-16T09:01:00.000Z");

@@ -127,7 +127,19 @@ function assertNoSecret(values: readonly string[]): void {
 // continuously-ticking discovery source (unlike the old one-shot,
 // human-triggered `ayas-propose.ts` path) minted a brand-new proposal every
 // single tick. Excluding these two volatile fields is the fix.
-const AYAS_PROPOSAL_HASH_VOLATILE_FIELDS = new Set(["proposalId", "createdAt", "lastUpdatedAt"]);
+// M17 — same incident class as the M16 fix above, caught by a duplicate-
+// discovery-across-restarts test: `patchArtifactId` is a fresh
+// `crypto.randomUUID()` every time a patch artifact is drafted and frozen,
+// even when the underlying content (and therefore `patchHash`) is byte-
+// identical. Leaving it in the hash material meant two ticks proposing the
+// exact same sandbox-validated candidate got different `proposalHash`
+// values, so terminal-status-aware dedup could never recognize them as the
+// same proposal — a second, redundant proposal was created every tick.
+// `patchHash` alone already proves content identity (it IS deterministic —
+// see AyasPatchArtifact.ts); `patchArtifactId` is merely a pointer to WHERE
+// that content happens to be stored this time, never part of WHAT is
+// proposed, so it is excluded here exactly like `createdAt`/`lastUpdatedAt`.
+const AYAS_PROPOSAL_HASH_VOLATILE_FIELDS = new Set(["proposalId", "createdAt", "lastUpdatedAt", "patchArtifactId"]);
 function proposalHash(input: Record<string, unknown>): string {
   const material = Object.fromEntries(Object.entries(input).filter(([key]) => !AYAS_PROPOSAL_HASH_VOLATILE_FIELDS.has(key)));
   return digest({ ...material, schemaVersion: ayasApprovalInboxSchemaVersion });

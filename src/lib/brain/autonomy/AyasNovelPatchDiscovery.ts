@@ -90,17 +90,25 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
     });
     if (!sandbox) continue;
 
+    let validatorResults: Awaited<ReturnType<typeof runAyasPatchSandboxValidators>>;
     try {
       await applyAyasPatchReplacementsInSandbox(sandbox, ["scripts/"], generated.replacements);
-      const validatorResults = await runAyasPatchSandboxValidators(sandbox, generated.validatorScripts);
-      const failed = validatorResults.find((r) => !r.pass);
-      if (failed) {
-        const reason = `sandbox validation failed: ${failed.validator} — ${failed.summary}`;
-        rejections.push({ candidateId: generated.candidateId, reason });
-        writeRejectionLog(repoRoot, { candidateId: generated.candidateId, reason, at: observation.now });
-        continue;
-      }
+      // runAyasValidators (via runAyasPatchSandboxValidators) is fail-fast: a
+      // failing validator THROWS (AyasValidatorFailedError), it never returns
+      // an array containing a failing entry. This must be caught here, not
+      // pattern-matched on the return value — an uncaught throw would abort
+      // discovery for the whole tick instead of just rejecting this one
+      // candidate and trying the next.
+      validatorResults = await runAyasPatchSandboxValidators(sandbox, generated.validatorScripts);
+    } catch (error) {
+      const reason = error instanceof Error ? `sandbox validation failed: ${error.message}` : `sandbox validation failed: ${String(error)}`;
+      rejections.push({ candidateId: generated.candidateId, reason });
+      writeRejectionLog(repoRoot, { candidateId: generated.candidateId, reason, at: observation.now });
+      await destroyAyasPatchSandbox(sandbox);
+      continue;
+    }
 
+    try {
       const diff = await captureAyasPatchSandboxDiff(sandbox);
       const safety = classifyPatchSet(generated.exactFiles);
       const artifactInput: Omit<AyasPatchArtifact, "schemaVersion" | "patchHash"> = {

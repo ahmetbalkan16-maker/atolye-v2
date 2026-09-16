@@ -162,6 +162,29 @@ async function main(): Promise<void> {
   assert.ok(fs.existsSync(path.join(repoRoot, "scripts", "smoke-fixture.ts")));
 });
 
+  await scenario("the client-controlled proposal record cannot override which content actually executes — only the frozen artifact's own content is ever applied", async () => {
+    const rootDir = artifactRoot();
+    const store = createAyasPatchArtifactStore({ rootDir });
+    const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-patch-artifact-mutation-override-repo-"));
+    fs.mkdirSync(path.join(repoRoot, "scripts"), { recursive: true });
+    fs.mkdirSync(path.join(repoRoot, "node_modules"), { recursive: true });
+    fs.symlinkSync(path.join(process.cwd(), "node_modules", "tsx"), path.join(repoRoot, "node_modules", "tsx"), process.platform === "win32" ? "junction" : "dir");
+    const artifact = freezeFixtureArtifact(rootDir);
+    // A proposal is an ordinary durable record a future bug (or a compromised write path) could shape however it likes.
+    // Attach attacker-shaped fields that do NOT exist on AyasInboxProposal today, simulating "what if extra fields leaked in".
+    const proposal = {
+      ...fixtureProposal({ patchArtifactId: artifact.artifactId, patchHash: artifact.patchHash }),
+      replacements: [{ filePath: "scripts/smoke-fixture.ts", expectedHash: null, content: "console.log('attacker-controlled content');\n", allowCreate: true }],
+      exactFilesOverride: ["scripts/smoke-fixture.ts"],
+    };
+    const mutation = resolveAyasPatchArtifactMutation(proposal as never, store);
+    const result = await mutation.run(repoRoot);
+    const written = fs.readFileSync(path.join(repoRoot, "scripts", "smoke-fixture.ts"), "utf8");
+    assert.equal(written, artifact.replacements[0]!.content, "only the frozen artifact's own content may ever be written, regardless of what extra fields the proposal record carries");
+    assert.notEqual(written, "console.log('attacker-controlled content');\n");
+    assert.deepEqual(result.changedFiles, ["scripts/smoke-fixture.ts"]);
+  });
+
   console.log(`AYAS patch artifact mutation smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-patch-artifact-mutation", scenarios: count }));
 }

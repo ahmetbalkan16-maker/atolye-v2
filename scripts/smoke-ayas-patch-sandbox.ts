@@ -145,6 +145,34 @@ async function main(): Promise<void> {
     }
   });
 
+  await scenario("sandbox cleanup succeeds even when applyAyasPatchReplacementsInSandbox itself threw (precondition mismatch mid-apply)", async () => {
+    const fixture = makeFixtureRepo();
+    const sandbox = await createAyasPatchSandbox(fixture.repoRoot, fixture.head);
+    try {
+      await assert.rejects(applyAyasPatchReplacementsInSandbox(sandbox, ["scripts/"], [{ filePath: "scripts/existing.ts", expectedHash: "wrong-hash-does-not-match-real-content", content: "export const existing = 999;\n", allowCreate: false }]));
+      // The precondition-mismatch write must never have landed, in the sandbox or the real fixture repo.
+      // Normalize line endings — git's own core.autocrlf checkout behavior is environment-specific, not part of what this assertion is testing.
+      assert.equal(fs.readFileSync(path.join(sandbox.sandboxRoot, "scripts", "existing.ts"), "utf8").replace(/\r\n/g, "\n"), "export const existing = 1;\n");
+    } finally {
+      await destroyAyasPatchSandbox(sandbox);
+    }
+    const worktrees = git(fixture.repoRoot, ["worktree", "list"]);
+    assert.equal(worktrees.split("\n").length, 1, "a failed apply must still leave the sandbox fully torn down, no leaked worktree");
+  });
+
+  await scenario("execution-time precondition staleness: a file the artifact expects to be absent (null precondition) but that now exists out-of-band is rejected, not silently overwritten", async () => {
+    const fixture = makeFixtureRepo();
+    const sandbox = await createAyasPatchSandbox(fixture.repoRoot, fixture.head);
+    try {
+      // Simulate "out-of-band" drift: something else created this file inside the sandbox before the bounded write runs (e.g. a race, or a bug elsewhere) — the artifact's own recorded precondition (null = must not exist yet) must still be honored.
+      fs.writeFileSync(path.join(sandbox.sandboxRoot, "scripts", "unexpected-already-there.ts"), "export const driftedIn = true;\n", "utf8");
+      await assert.rejects(applyAyasPatchReplacementsInSandbox(sandbox, ["scripts/"], [{ filePath: "scripts/unexpected-already-there.ts", expectedHash: null, content: "export const intended = true;\n", allowCreate: true }]));
+      assert.equal(fs.readFileSync(path.join(sandbox.sandboxRoot, "scripts", "unexpected-already-there.ts"), "utf8"), "export const driftedIn = true;\n", "the out-of-band file must be left exactly as found, never clobbered");
+    } finally {
+      await destroyAyasPatchSandbox(sandbox);
+    }
+  });
+
   console.log(`AYAS patch sandbox smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-patch-sandbox", scenarios: count }));
 }

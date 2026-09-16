@@ -126,5 +126,29 @@ scenario("distinct artifacts (different artifactId) never collide on disk", () =
   assert.equal(store.load("ayas-patch-artifact-two").artifactId, "ayas-patch-artifact-two");
 });
 
+scenario("freeze is create-only even for a DIFFERENT payload reusing the same artifactId — immutability cannot be bypassed by changing content", () => {
+  const store = createAyasPatchArtifactStore({ rootDir: root() });
+  const artifactId = "ayas-patch-artifact-reused-id";
+  store.freeze(baseInput({ artifactId }));
+  assert.throws(
+    () => store.freeze(baseInput({ artifactId, rationale: "a completely different, later regeneration" })),
+    (error: unknown) => error instanceof AyasPatchArtifactError && error.code === "AYAS_PATCH_ARTIFACT_ALREADY_FROZEN",
+  );
+  // The originally frozen content must still be exactly what loads back — never silently replaced.
+  const loaded = store.load(artifactId);
+  assert.equal(loaded.rationale, "fixture rationale");
+});
+
+scenario("loadVerified detects tampering of the actual executable payload (replacements[].content), not just explanation text", () => {
+  const dir = root();
+  const store = createAyasPatchArtifactStore({ rootDir: dir });
+  const frozen = store.freeze(baseInput());
+  const file = path.join(store.dir, `${frozen.artifactId}.json`);
+  const onDisk = JSON.parse(fs.readFileSync(file, "utf8"));
+  onDisk.replacements[0].content = "console.log('a silently swapped payload');\n";
+  fs.writeFileSync(file, JSON.stringify(onDisk, null, 2));
+  assert.throws(() => store.loadVerified(frozen.artifactId), (error: unknown) => error instanceof AyasPatchArtifactError && error.code === "AYAS_PATCH_ARTIFACT_HASH_MISMATCH");
+});
+
 console.log(`AYAS patch artifact smoke: PASS (${count} scenarios)`);
 console.log(JSON.stringify({ status: "PASS", suite: "ayas-patch-artifact", scenarios: count }));
