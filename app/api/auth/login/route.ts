@@ -127,7 +127,14 @@ function respond(
 ): NextResponse {
   void next;
   if (isForm) {
-    return NextResponse.redirect(new URL(options.redirectTo, request.nextUrl), 303);
+    // A relative Location, not an absolute URL built from `request.nextUrl`:
+    // under `next start`, `request.nextUrl` resolves to the server's own
+    // bind address (`localhost:<port>`) regardless of the real Host /
+    // X-Forwarded-Host, which broke this redirect for every client that
+    // isn't the server itself (confirmed via the phone tunnel). A relative
+    // Location is resolved by the browser against the page's actual origin
+    // (RFC 7231 §7.1.2), so this is correct behind any reverse proxy.
+    return new NextResponse(null, { status: 303, headers: { location: options.redirectTo } });
   }
   return NextResponse.json(options.json, { status: options.status });
 }
