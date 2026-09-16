@@ -1,4 +1,5 @@
-import { applyAyasBoundedFileReplacements } from "./AyasBoundedFileWrite";
+import { applyAyasBoundedFileReplacements, type AyasBoundedFileReplacement } from "./AyasBoundedFileWrite";
+import { runAyasValidators, createAyasSmokeTestValidator, type AyasValidator } from "./AyasMutationValidators";
 
 /**
  * The closed, server-owned mapping from a proposal's `mutationKind` to the
@@ -27,6 +28,38 @@ export interface AyasMutationImplementation {
   /** Must equal the referencing proposal's own `exactFiles` exactly (order-sensitive) — checked at resolution time, before anything runs. */
   readonly exactFiles: readonly string[];
   readonly run: (repoRoot: string) => Promise<AyasMutationRunResult>;
+}
+
+/**
+ * Shared orchestration for the common case (M16): write bounded file
+ * replacements, then run this entry's own declared validators, all inside
+ * the bounded-write primitive's `after()` hook — so a validator failure (or
+ * throw) triggers the SAME automatic rollback `AyasBoundedFileWrite` already
+ * proves for any other failure. If a validator fails, this throws
+ * `AyasValidatorFailedError` before returning, which propagates out of
+ * `applyWhileExecuting` — Package C's own existing, unmodified recovery
+ * classification (see `AyasAutonomyDaemon.ts`'s catch block) then handles
+ * it: since the throw happens before `MUTATION_COMPLETED` is ever
+ * journaled, the last journaled phase is `EXECUTING`, which
+ * `classifyExecutionRecovery` conservatively treats as `mutationPossible:
+ * true` → `RECOVERY_REQUIRED`, never a false "success", regardless of
+ * whether this rollback actually succeeded — Package C never trusts a
+ * callback's own self-report.
+ */
+export async function runAyasBoundedMutationWithValidators(
+  repoRoot: string,
+  allowedRoots: readonly string[],
+  replacements: readonly AyasBoundedFileReplacement[],
+  validators: readonly AyasValidator[],
+): Promise<AyasMutationRunResult> {
+  return applyAyasBoundedFileReplacements(repoRoot, allowedRoots, replacements, async (outcomes) => {
+    const results = await runAyasValidators(repoRoot, validators);
+    return {
+      changedFiles: outcomes.map((o) => o.filePath),
+      testsRun: results.map((r) => r.validator),
+      testResults: results.map((r) => (r.pass ? "PASS" : "FAIL")),
+    };
+  });
 }
 
 /**
@@ -179,16 +212,16 @@ const FIRST_SAFE_SMOKE_COVERAGE_V1_CONTENT = [
  */
 const AYAS_MUTATION_REGISTRY: ReadonlyMap<string, AyasMutationImplementation> = new Map([
   ["first-safe-smoke-coverage-v1", {
+    // M16: retrofitted with a real validator — the mutationKind's own
+    // registry entry is static source, so this only affects future
+    // (re-)resolution, never the already-COMPLETED historical proposal.
     exactFiles: ["scripts/smoke-ayas-proposal-terminal-state-dedup.ts"],
-    run: async (repoRoot: string): Promise<AyasMutationRunResult> => {
-      const changedFiles = await applyAyasBoundedFileReplacements(
-        repoRoot,
-        ["scripts/"],
-        [{ filePath: "scripts/smoke-ayas-proposal-terminal-state-dedup.ts", expectedHash: null, content: FIRST_SAFE_SMOKE_COVERAGE_V1_CONTENT, allowCreate: true }],
-        async (outcomes) => outcomes.map((o) => o.filePath),
-      );
-      return { changedFiles, testsRun: ["smoke-ayas-proposal-terminal-state-dedup"], testResults: [] };
-    },
+    run: (repoRoot: string): Promise<AyasMutationRunResult> => runAyasBoundedMutationWithValidators(
+      repoRoot,
+      ["scripts/"],
+      [{ filePath: "scripts/smoke-ayas-proposal-terminal-state-dedup.ts", expectedHash: null, content: FIRST_SAFE_SMOKE_COVERAGE_V1_CONTENT, allowCreate: true }],
+      [createAyasSmokeTestValidator("scripts/smoke-ayas-proposal-terminal-state-dedup.ts")],
+    ),
   } satisfies AyasMutationImplementation],
 ]);
 

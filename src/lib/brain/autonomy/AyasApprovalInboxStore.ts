@@ -158,6 +158,16 @@ export interface AyasApprovalInboxHandle {
   save(state: AyasApprovalInboxState): AyasApprovalInboxState;
   createProposal(input: AyasProposalCreateInput): AyasInboxProposal;
   decide(proposalId: string, decision: AyasInboxDecision, now: string, reason?: string): { proposal: AyasInboxProposal; decision: AyasInboxDecisionRecord };
+  /**
+   * M16 — durable, backend-authoritative staleness reconciliation. Only a
+   * PENDING or APPROVED proposal may transition to STALE; anything else
+   * (including an already-RESERVED proposal, which may be mid-execution
+   * under the authority lock) throws rather than silently no-op-ing. Never
+   * touches decisions/results/reservation/authorization fields — pure
+   * proposal-status bookkeeping, so it can never transfer or replay
+   * authorization, and full history is preserved either way.
+   */
+  markStale(proposalId: string, now: string): AyasInboxProposal;
   /** @deprecated single-phase one-shot consumption. New callers should use `reserveApproval`/`finalizeApproval` instead. */
   consumeApproval(proposalId: string, proposalHashValue: string, baseHead: string, exactFiles: readonly string[], now: string): AyasInboxDecisionRecord;
   /** Phase 1 of the two-phase authority lifecycle: durably reserves the one-shot authorization (proposal moves to `RESERVED`) without implying anything about the gate or mutation. */
@@ -263,6 +273,17 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       const proposal = { ...existing, status: nextStatus, lastUpdatedAt: now, ...(decision === "LATER" ? { nextEligibleAt: new Date(Date.parse(now) + 24 * 60 * 60 * 1000).toISOString() } : {}) };
       save({ ...state, proposals: state.proposals.map((p) => p.proposalId === proposalId ? proposal : p), decisions: [...state.decisions, record] });
       return { proposal, decision: record };
+    },
+    markStale(proposalId, now) {
+      const state = load();
+      const existing = state.proposals.find((p) => p.proposalId === proposalId);
+      if (!existing) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "proposal not found");
+      if (existing.status !== "PENDING" && existing.status !== "APPROVED") {
+        throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", `proposal cannot be marked stale from status: ${existing.status}`);
+      }
+      const proposal = { ...existing, status: "STALE" as const, lastUpdatedAt: now };
+      save({ ...state, proposals: state.proposals.map((p) => p.proposalId === proposalId ? proposal : p) });
+      return proposal;
     },
     consumeApproval(proposalId, proposalHashValue, baseHead, exactFiles, now) {
       const state = load();

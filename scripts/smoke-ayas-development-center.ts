@@ -85,6 +85,23 @@ async function main() {
     await scenario(`${status} does not expose YÜRÜT`, () => assert.doesNotMatch(htmlFor(state([proposal({ status })])), />YÜRÜT</));
   }
   await scenario("RECOVERY_REQUIRED exposes neither YÜRÜT nor ordinary replay", () => { const html = htmlFor(state([proposal({ status: "RECOVERY_REQUIRED" })])); assert.doesNotMatch(html, />YÜRÜT</); assert.doesNotMatch(html, /TEKRAR ÇALIŞTIR|YENİDEN DENE/); assert.match(html, /Yürütme sonucu belirsiz olabilir/); });
+  await scenario("M16: a STALE proposal shows the Turkish 'lost currency' label and lands in history, not pending", () => {
+    const p = proposal({ status: "STALE" });
+    const view = buildAyasApprovalInboxView(state([p]), NOW);
+    assert.equal(view.pending.length, 0);
+    assert.equal(view.history.length, 1);
+    assert.match(htmlFor(state([p])), /GÜNCELLİĞİNİ YİTİRDİ/);
+  });
+  await scenario("M16: a real (non-empty) PASS validator result is visibly rendered, not silently dropped", () => {
+    const p = proposal({ status: "COMPLETED" });
+    const html = htmlFor(state([p], [], [{ resultId: "r1", proposalId: p.proposalId, completedAt: NOW, outcome: "COMPLETED", testsRun: ["scripts/smoke-ayas-example.ts"], testResults: ["PASS"] }]));
+    assert.match(html, /Testler: PASS/);
+  });
+  await scenario("M16: a real validator FAILURE is visibly rendered too, not hidden behind a generic success message", () => {
+    const p = proposal({ status: "RECOVERY_REQUIRED" });
+    const html = htmlFor(state([p], [], [{ resultId: "r1", proposalId: p.proposalId, completedAt: NOW, outcome: "FAILED", testsRun: ["scripts/smoke-ayas-example.ts"], testResults: ["FAIL"] }]));
+    assert.match(html, /Testler: FAIL/);
+  });
   await scenario("YÜRÜT opens a second confirmation before dispatch", () => { const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox: buildAyasApprovalInboxView(state([proposal({ status: "APPROVED" })]), NOW), onExecute: () => undefined })); assert.match(html, />YÜRÜT</); assert.doesNotMatch(html, /YÜRÜTMEYİ BAŞLAT/); });
   await scenario("execution confirmation states one-shot consumption", () => { const src = fs.readFileSync(path.join(process.cwd(), "src/components/brain/AyasDevelopmentCenter.tsx"), "utf8"); assert.match(src, /Yürütürsem ne olacak\?/); assert.match(src, /YÜRÜTMEYİ BAŞLAT/); assert.match(src, /tek kullanımlıktır/); });
   await scenario("executingId disables the YÜRÜT control for that proposal", () => { const p = proposal({ status: "APPROVED" }); const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox: buildAyasApprovalInboxView(state([p]), NOW), executingId: p.proposalId, onExecute: () => undefined })); assert.match(html, /YÜRÜTÜLÜYOR…/); });

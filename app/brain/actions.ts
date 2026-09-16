@@ -23,6 +23,8 @@
  * runs no task/pipeline/GPU, approves nothing.
  */
 
+import { execFileSync } from "node:child_process";
+
 import { cookies } from "next/headers";
 
 import type { AIProviderOutput } from "@/lib/ai/providers/AIProvider";
@@ -40,6 +42,7 @@ import { createBrainSelfHealStore } from "@/lib/brain/selfheal/BrainSelfHealStor
 import { createAyasApprovalInboxStore, type AyasInboxDecision } from "@/lib/brain/autonomy/AyasApprovalInboxStore";
 import { loadAyasApprovalInboxView, type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import { executeAyasApprovedProposalWith, defaultAyasProposalExecutionDeps, AyasProposalExecutionError } from "@/lib/brain/autonomy/AyasProposalExecutionService";
+import { reconcileAyasStaleProposals } from "@/lib/brain/autonomy/AyasProposalStaleness";
 import { buildSelfHealDecision, type BrainSelfHealDecisionKind } from "@/lib/brain/selfheal/BrainSelfHealDecision";
 import { classifyPatchSet } from "@/lib/brain/selfheal/BrainPatchSafety";
 import {
@@ -138,8 +141,16 @@ export async function decideAyasApproval(input: { proposalId: string; decision: 
   await requireBrainSession();
   if (input.decision !== "APPROVE" && input.decision !== "REJECT" && input.decision !== "LATER") throw new Error("invalid_decision");
   const store = createAyasApprovalInboxStore();
+  // M16: reconcile staleness before honoring any decision — a PENDING or
+  // APPROVED proposal whose baseHead no longer matches HEAD is durably
+  // marked STALE here rather than being approved (or re-approved) into a
+  // dead end. Read-only w.r.t. execution: never reserves, executes, or
+  // opens a gate.
+  const currentHead = execFileSync("git", ["rev-parse", "HEAD"], { cwd: process.cwd(), encoding: "utf8", windowsHide: true }).trim();
+  reconcileAyasStaleProposals(store, currentHead, new Date().toISOString());
   const proposal = store.load().proposals.find((entry) => entry.proposalId === input.proposalId);
   if (!proposal) throw new Error("proposal_not_found");
+  if (proposal.status === "STALE") throw new Error("proposal_stale");
   if (input.decision === "APPROVE" && proposal.safetyClassification !== "SAFE") throw new Error("forbidden_area_needs_human");
   store.decide(input.proposalId, input.decision, new Date().toISOString(), input.reason);
   return loadAyasApprovalInboxView();

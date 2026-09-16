@@ -4,6 +4,7 @@ import path from "node:path";
 import { createAyasApprovalInboxStore, isAyasProposalApprovalReady, type AyasApprovalInboxHandle } from "./AyasApprovalInboxStore";
 import { createAyasAutonomyDaemon } from "./AyasAutonomyDaemon";
 import { resolveAyasMutation, AyasMutationRegistryError, type AyasMutationImplementation } from "./AyasMutationRegistry";
+import { reconcileAyasStaleProposals } from "./AyasProposalStaleness";
 
 /**
  * The one real Package C execution entrypoint (M15), factored out of the
@@ -62,6 +63,14 @@ export async function executeAyasApprovedProposalWith(proposalId: string, deps: 
 
   const currentHead = git(deps.repoRoot, ["rev-parse", "HEAD"]);
   const repoClean = git(deps.repoRoot, ["status", "--porcelain"]).length === 0;
+
+  // Proactive, backend-authoritative staleness reconciliation: if the repo
+  // has moved on since this proposal's baseHead, durably transition it to
+  // STALE now rather than letting it fail the daemon's own stale-head guard
+  // (below, and inside `executeApproved` as independent defense-in-depth)
+  // while remaining forever "APPROVED but unexecutable" with no visible
+  // record of why. This never reserves, executes, or opens a gate.
+  reconcileAyasStaleProposals(deps.inbox, currentHead, new Date().toISOString());
 
   // Fresh re-read, immediately before executing — never trust the lookup above.
   const freshProposal = deps.inbox.load().proposals.find((entry) => entry.proposalId === proposalId);

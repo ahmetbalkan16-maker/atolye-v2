@@ -265,6 +265,19 @@ async function main() {
     assert.throws(() => inbox.reserveApproval(proposal.proposalId, proposal.proposalHash, proposal.baseHead, proposal.exactFiles, "2026-09-15T12:04:00.000Z"), "the real reservation is still not re-reservable");
   });
 
+  await scenario("M16: markStale refuses a proposal that is not PENDING/APPROVED (e.g. already RESERVED, mid-execution)", () => {
+    const { inbox, proposal } = approvedProposal();
+    inbox.reserveApproval(proposal.proposalId, proposal.proposalHash, proposal.baseHead, proposal.exactFiles, "2026-09-16T09:02:00.000Z");
+    assert.throws(() => inbox.markStale(proposal.proposalId, "2026-09-16T10:00:00.000Z"), AyasApprovalInboxStoreError);
+    assert.equal(inbox.load().proposals.find((p) => p.proposalId === proposal.proposalId)?.status, "RESERVED", "a RESERVED (possibly mid-execution) proposal must never be reclassified out from under the authority lock");
+  });
+  await scenario("M16: markStale refuses an already-terminal proposal (e.g. COMPLETED) rather than silently no-op-ing", () => {
+    const { inbox, proposal } = approvedProposal();
+    const reservation = inbox.reserveApproval(proposal.proposalId, proposal.proposalHash, proposal.baseHead, proposal.exactFiles, "2026-09-16T09:02:00.000Z");
+    inbox.recordResult({ resultId: `result-${proposal.proposalId}`, proposalId: proposal.proposalId, authorizationId: reservation.authorizationId, startedAt: "2026-09-16T09:02:30.000Z", completedAt: "2026-09-16T09:03:00.000Z", changedFiles: proposal.exactFiles, diffFingerprint: "fixture", testsRun: ["fixture"], testResults: ["PASS"], outcome: "COMPLETED", gateAuditIdentity: "fixture", operatorReviewStatus: "WAITING_REVIEW" }, "COMPLETED");
+    assert.throws(() => inbox.markStale(proposal.proposalId, "2026-09-16T10:00:00.000Z"), AyasApprovalInboxStoreError);
+  });
+
   await scenario("the Stage 7B approval smoke suite still passes unmodified (no regression)", () => {
     const src = fs.readFileSync(path.join(process.cwd(), "scripts", "smoke-ayas-autonomy-approval.ts"), "utf8");
     assert.doesNotMatch(src, /reserveApproval|finalizeApproval/, "Stage 7B's own smoke file is untouched by M2");

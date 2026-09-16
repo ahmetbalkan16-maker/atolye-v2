@@ -13,6 +13,7 @@ let count = 0;
 function scenario(name: string, fn: () => void | Promise<void>) { return Promise.resolve(fn()).then(() => { count += 1; if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${name}`); }); }
 function root() { return fs.mkdtempSync(path.join(os.tmpdir(), "ayas-exec-service-")); }
 function git(repoRoot: string, ...args: string[]) { return execFileSync("git", ["-C", repoRoot, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim(); }
+function read(relPath: string): string { return fs.readFileSync(path.join(process.cwd(), relPath), "utf8"); }
 
 function repository(): { repoRoot: string; head: string } {
   const repoRoot = root();
@@ -112,12 +113,33 @@ async function main() {
     const [p] = inbox.load().proposals; inbox.decide(p!.proposalId, "APPROVE", "2026-09-16T09:01:00.000Z");
     await assert.rejects(executeAyasApprovedProposalWith(p!.proposalId, { repoRoot, gateRoot, inbox, registry: testRegistry }), (e: unknown) => e instanceof AyasProposalExecutionError && e.code === "AYAS_MUTATION_SCOPE_MISMATCH");
   });
-  await scenario("stale baseHead (repo advanced) is blocked", async () => {
+  await scenario("M16: stale baseHead (repo advanced) is blocked, durably marked STALE, and no reservation is ever created", async () => {
+    const { repoRoot, gateRoot, inbox, proposal } = setup();
+    inbox.decide(proposal.proposalId, "APPROVE", "2026-09-16T09:01:00.000Z");
+    fs.writeFileSync(path.join(repoRoot, "src/other.ts"), "export const another = 1;\n");
+    git(repoRoot, "add", "src/other.ts"); git(repoRoot, "commit", "-qm", "advance HEAD");
+    await assert.rejects(executeAyasApprovedProposalWith(proposal.proposalId, { repoRoot, gateRoot, inbox, registry: testRegistry }), (e: unknown) => e instanceof AyasProposalExecutionError && e.code === "STALE_APPROVAL");
+    const state = inbox.load();
+    assert.equal(state.proposals.find((p) => p.proposalId === proposal.proposalId)?.status, "STALE", "M16: an APPROVED proposal whose baseHead no longer matches HEAD must never remain permanently APPROVED-but-unexecutable");
+    assert.equal(state.decisions.find((d) => d.proposalId === proposal.proposalId)?.reservationId, undefined, "no authorization may ever be reserved for a proposal discovered stale");
+    assert.equal(fs.existsSync(path.join(gateRoot, "execution", "gate.json")), false, "the isolated gate must never even be touched");
+  });
+  await scenario("M16: a proposal marked STALE by a prior execution attempt cannot be executed again, and a fresh commit does not resurrect it", async () => {
     const { repoRoot, gateRoot, inbox, proposal } = setup();
     inbox.decide(proposal.proposalId, "APPROVE", "2026-09-16T09:01:00.000Z");
     fs.writeFileSync(path.join(repoRoot, "src/other.ts"), "export const another = 1;\n");
     git(repoRoot, "add", "src/other.ts"); git(repoRoot, "commit", "-qm", "advance HEAD");
     await assert.rejects(executeAyasApprovedProposalWith(proposal.proposalId, { repoRoot, gateRoot, inbox, registry: testRegistry }));
+    await assert.rejects(executeAyasApprovedProposalWith(proposal.proposalId, { repoRoot, gateRoot, inbox, registry: testRegistry }), (e: unknown) => e instanceof AyasProposalExecutionError && e.code === "NOT_APPROVED");
+  });
+  await scenario("M16: a PENDING (never-approved) proposal whose baseHead is already stale is also reconciled to STALE by an execution attempt against a sibling proposal", async () => {
+    const { repoRoot, gateRoot, inbox, proposal, head } = setup();
+    const sibling = inbox.createProposal(proposalInput({ baseHead: head, exactFiles: ["src/sibling.ts"], mutationKind: "fixture-mutation" }));
+    inbox.decide(proposal.proposalId, "APPROVE", "2026-09-16T09:01:00.000Z");
+    fs.writeFileSync(path.join(repoRoot, "src/other.ts"), "export const another = 1;\n");
+    git(repoRoot, "add", "src/other.ts"); git(repoRoot, "commit", "-qm", "advance HEAD");
+    await assert.rejects(executeAyasApprovedProposalWith(proposal.proposalId, { repoRoot, gateRoot, inbox, registry: testRegistry }));
+    assert.equal(inbox.load().proposals.find((p) => p.proposalId === sibling.proposalId)?.status, "STALE", "the same reconciliation pass durably resolves every stale PENDING/APPROVED proposal, not only the one being executed");
   });
   await scenario("dirty working tree is blocked, no mutation attempted", async () => {
     const { repoRoot, gateRoot, inbox, proposal } = setup();
@@ -213,6 +235,13 @@ async function main() {
     const fulfilled = results.filter((r) => r.status === "fulfilled");
     assert.equal(fulfilled.length, 1);
     assert.equal(started <= 2, true); // the loser is rejected by the durable one-shot reservation guard, not by never attempting
+  });
+
+  await scenario("M16: AyasProposalStaleness.ts imports no execution/gate/mutation authority module (structurally cannot reserve, execute, or open a gate)", () => {
+    const src = read("src/lib/brain/autonomy/AyasProposalStaleness.ts");
+    const importLines = src.split("\n").filter((line) => /^\s*import\b/.test(line)).join("\n");
+    assert.doesNotMatch(importLines, /AyasAutonomyDaemon|AyasExecutionGateStore|AyasMutationRegistry|AyasExecutionAuthorityLock/, "the staleness reconciliation module must import no execution/gate/mutation authority module");
+    assert.doesNotMatch(src, /\breserveApproval\s*\(|\bexecuteApproved\s*\(/, "the staleness reconciliation module must never call reserveApproval or executeApproved");
   });
 
   console.log(`AYAS proposal execution service smoke: PASS (${count} scenarios)`);

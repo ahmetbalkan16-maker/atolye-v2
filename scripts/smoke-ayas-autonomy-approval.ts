@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { createAyasApprovalInboxStore, AyasApprovalInboxStoreError, type AyasInboxProposal } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
+import { reconcileAyasStaleProposals } from "../src/lib/brain/autonomy/AyasProposalStaleness";
 
 let count = 0;
 function scenario(name: string, fn: () => void | Promise<void>) { return Promise.resolve(fn()).then(() => { count += 1; if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${name}`); }); }
@@ -235,6 +236,80 @@ async function main() {
     const onExecuteBody = consoleSrc.slice(consoleSrc.indexOf("const onExecuteProposal"), consoleSrc.indexOf("const onExecuteProposal") + 700);
     assert.doesNotMatch(onExecuteBody, /catch\s*\{\s*\/\*\s*retain last durable view\s*\*\/\s*\}/, "the silent-discard catch must be gone from the execution handler");
     assert.match(onExecuteBody, /setExecutionError/, "a failed result must be recorded in visible state, not discarded");
+  });
+
+  await scenario("M16: markStale transitions a PENDING proposal to STALE and preserves every other field", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const proposal = inbox.createProposal(proposalInput());
+    const staled = inbox.markStale(proposal.proposalId, "2026-09-16T10:00:00.000Z");
+    assert.equal(staled.status, "STALE");
+    assert.equal(staled.lastUpdatedAt, "2026-09-16T10:00:00.000Z");
+    assert.equal(staled.proposalHash, proposal.proposalHash);
+    assert.equal(staled.baseHead, proposal.baseHead, "baseHead must never be silently rewritten");
+  });
+  await scenario("M16: markStale transitions an APPROVED proposal to STALE without touching its authorizationId", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const proposal = inbox.createProposal(proposalInput());
+    const { decision } = inbox.decide(proposal.proposalId, "APPROVE", "2026-09-16T09:01:00.000Z");
+    inbox.markStale(proposal.proposalId, "2026-09-16T10:00:00.000Z");
+    const state = inbox.load();
+    assert.equal(state.proposals.find((p) => p.proposalId === proposal.proposalId)?.status, "STALE");
+    const stillThere = state.decisions.find((d) => d.decisionId === decision.decisionId);
+    assert.equal(stillThere?.authorizationId, decision.authorizationId, "the historical decision record, including its authorizationId, must remain untouched");
+    assert.equal(stillThere?.authorizationConsumedAt, undefined, "marking stale must never mark the authorization as consumed");
+  });
+  await scenario("M16: reconcileAyasStaleProposals marks every PENDING/APPROVED proposal with a mismatched baseHead, and none others", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const pendingStale = inbox.createProposal(proposalInput({ baseHead: "old-head", exactFiles: ["scripts/smoke-a.ts"] }));
+    const approvedStale = inbox.createProposal(proposalInput({ baseHead: "old-head", exactFiles: ["scripts/smoke-b.ts"] }));
+    inbox.decide(approvedStale.proposalId, "APPROVE", "2026-09-16T09:01:00.000Z");
+    const fresh = inbox.createProposal(proposalInput({ baseHead: "new-head", exactFiles: ["scripts/smoke-c.ts"] }));
+    const rejected = inbox.createProposal(proposalInput({ baseHead: "old-head", exactFiles: ["scripts/smoke-d.ts"] }));
+    inbox.decide(rejected.proposalId, "REJECT", "2026-09-16T09:01:00.000Z");
+    const staled = reconcileAyasStaleProposals(inbox, "new-head", "2026-09-16T10:00:00.000Z");
+    assert.deepEqual(new Set(staled.map((p) => p.proposalId)), new Set([pendingStale.proposalId, approvedStale.proposalId]));
+    const state = inbox.load();
+    assert.equal(state.proposals.find((p) => p.proposalId === pendingStale.proposalId)?.status, "STALE");
+    assert.equal(state.proposals.find((p) => p.proposalId === approvedStale.proposalId)?.status, "STALE");
+    assert.equal(state.proposals.find((p) => p.proposalId === fresh.proposalId)?.status, "PENDING", "a proposal whose baseHead matches currentHead must never be touched");
+    assert.equal(state.proposals.find((p) => p.proposalId === rejected.proposalId)?.status, "REJECTED", "a non-PENDING/APPROVED proposal must never be reclassified even if its baseHead is stale");
+  });
+  await scenario("M16 concurrency: two overlapping reconcileAyasStaleProposals passes over the same stale proposal never crash or double-transition — the second sees it already STALE and leaves it alone", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const proposal = inbox.createProposal(proposalInput({ baseHead: "old-head" }));
+    const firstPass = reconcileAyasStaleProposals(inbox, "new-head", "2026-09-16T10:00:00.000Z");
+    const secondPass = reconcileAyasStaleProposals(inbox, "new-head", "2026-09-16T10:00:01.000Z");
+    assert.equal(firstPass.length, 1);
+    assert.deepEqual(secondPass, [], "a proposal already STALE must never be re-matched or re-transitioned by a later pass");
+    const state = inbox.load();
+    assert.equal(state.proposals.find((p) => p.proposalId === proposal.proposalId)?.status, "STALE");
+    assert.equal(state.proposals.find((p) => p.proposalId === proposal.proposalId)?.lastUpdatedAt, "2026-09-16T10:00:00.000Z", "the second, no-op pass must never touch lastUpdatedAt again");
+  });
+  await scenario("M16: reconcileAyasStaleProposals is a no-op when every baseHead already matches currentHead", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    inbox.createProposal(proposalInput({ baseHead: "same-head" }));
+    const staled = reconcileAyasStaleProposals(inbox, "same-head", "2026-09-16T10:00:00.000Z");
+    assert.deepEqual(staled, []);
+  });
+  await scenario("M16: decideAyasApproval reconciles staleness before honoring any decision, and still never reaches execution", () => {
+    const src = read("app/brain/actions.ts");
+    assert.match(src, /AyasProposalStaleness/, "actions.ts must reuse the shared reconciliation helper, not reimplement staleness detection inline");
+    const decideBody = src.slice(src.indexOf("export async function decideAyasApproval"), src.indexOf("export async function decideAyasApproval") + src.slice(src.indexOf("export async function decideAyasApproval")).indexOf("\n}\n"));
+    assert.match(decideBody, /reconcileAyasStaleProposals/, "decideAyasApproval must reconcile staleness before honoring ONAYLA/REDDET/DAHA SONRA");
+    assert.doesNotMatch(decideBody, /executeAyasApprovedProposalWith|AyasAutonomyDaemon/, "decideAyasApproval must still never call into execution");
+  });
+
+  await scenario("M16 re-proof: executeAyasApprovedProposal's own type signature and body accept/read nothing from the client but proposalId", () => {
+    const src = read("app/brain/actions.ts");
+    const signature = src.slice(src.indexOf("export async function executeAyasApprovedProposal"));
+    assert.match(signature.split("\n")[0] ?? "", /input: \{ proposalId: string \}/, "the client-facing input type must be exactly { proposalId: string } — no mutationKind/exactFiles/gateRoot/callback");
+    const body = signature.slice(0, signature.indexOf("\nexport ", 1) < 0 ? undefined : signature.indexOf("\nexport ", 1));
+    assert.doesNotMatch(body, /input\.(?!proposalId)/, "the action body must read only input.proposalId, never any other client-supplied field");
+  });
+  await scenario("M16 re-proof: decideAyasApproval requires an authenticated session before touching any durable state", () => {
+    const src = read("app/brain/actions.ts");
+    const decideBody = src.slice(src.indexOf("export async function decideAyasApproval"), src.indexOf("export async function decideAyasApproval") + src.slice(src.indexOf("export async function decideAyasApproval")).indexOf("\n}\n"));
+    assert.match(decideBody.split("\n")[1] ?? "", /await requireBrainSession\(\);/, "requireBrainSession must be the first statement in the function body");
   });
 
   console.log(`AYAS autonomy approval smoke: PASS (${count} scenarios)`);
