@@ -73,6 +73,14 @@ graphify-out/
 /data/brain/selfheal/
 /data/brain/memory/
 /data/brain/phone-access/
+# Package C's isolated self-improvement execution root (M15) — only the
+# execution/ subtree (gate/gate-log/journal/authority-lock), narrower than
+# the parent so it can later legitimately hold tracked documentation or
+# schema material. Untracked evidence under here made the repo look dirty
+# to AyasExecutionRevalidation's own cleanliness check, aborting every real
+# execution before any mutation — this rule fixes that without touching
+# Package C's revalidation semantics themselves.
+/data/brain/self-improvement/execution/
 
 # ---------------------------------------------------------------------------
 # C.2B.12 (Sprint 199) — data/projects is external-runtime authority data.
