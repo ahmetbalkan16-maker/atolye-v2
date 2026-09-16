@@ -54,6 +54,9 @@ export interface AyasInboxProposal {
   readonly nextEligibleAt?: string;
   /** Optional on reads for schema-v1 compatibility with proposals created before this field existed — such a proposal can never become execution-eligible (see `AyasMutationRegistry`). Participates in `proposalHash`, so it cannot be silently rebound after creation. */
   readonly mutationKind?: string;
+  /** M17 — present only when `mutationKind` is `"patch-artifact:v1"`: the frozen, immutable `AyasPatchArtifact` this proposal reviews/executes exactly. Both fields are ordinary proposal fields, so they participate in `proposalHash` like every other field above — no artifact can be silently swapped onto an already-created proposal. */
+  readonly patchArtifactId?: string;
+  readonly patchHash?: string;
 }
 
 export interface AyasInboxDecisionRecord {

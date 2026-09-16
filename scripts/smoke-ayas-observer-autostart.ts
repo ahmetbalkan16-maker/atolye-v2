@@ -209,6 +209,16 @@ async function main() {
     assert.doesNotMatch(src, /executeApproved|\.decide\(|reserveApproval|finalizeApproval|consumeApproval|AyasExecutionGateStore|AyasExecutionGate\b|AyasApprovalInboxStore/);
   });
 
+  await scenario("M17: the startup entrypoint imports none of the sandboxed patch-drafting modules either — sandbox drafting stays behind the same arm's-length child-process boundary as the rest of discovery", () => {
+    const src = fs.readFileSync(path.join(REPO_ROOT, "scripts", "ayas-autonomy-daemon.ts"), "utf8");
+    assert.doesNotMatch(src, /AyasNovelPatchDiscovery|AyasPatchSandbox|AyasPatchDetectors|AyasPatchArtifact|AyasPatchArtifactMutation/);
+  });
+
+  await scenario("M17: ayas-discovery-daemon.ts (the child process) is the one place novel-patch discovery is wired in — not any other script", () => {
+    const src = fs.readFileSync(path.join(REPO_ROOT, "scripts", "ayas-discovery-daemon.ts"), "utf8");
+    assert.match(src, /discoverAyasNovelPatchCandidates/);
+  });
+
   await scenario("the startup entrypoint resolves its repo root explicitly (process.cwd()), not an ambient/relative assumption", () => {
     const src = fs.readFileSync(path.join(REPO_ROOT, "scripts", "ayas-autonomy-daemon.ts"), "utf8");
     assert.match(src, /const root = process\.cwd\(\)/);

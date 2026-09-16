@@ -1,5 +1,6 @@
 import { applyAyasBoundedFileReplacements, type AyasBoundedFileReplacement } from "./AyasBoundedFileWrite";
 import { runAyasValidators, createAyasSmokeTestValidator, type AyasValidator } from "./AyasMutationValidators";
+import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "./AyasNovelPatchDiscovery";
 
 /**
  * The closed, server-owned mapping from a proposal's `mutationKind` to the
@@ -290,6 +291,20 @@ const AYAS_MUTATION_REGISTRY: ReadonlyMap<string, AyasMutationImplementation> = 
       [{ filePath: "scripts/smoke-ayas-machine-health-non-gpu-stage.ts", expectedHash: null, content: SECOND_SAFE_SMOKE_COVERAGE_V1_CONTENT, allowCreate: true }],
       [createAyasSmokeTestValidator("scripts/smoke-ayas-machine-health-non-gpu-stage.ts")],
     ),
+  } satisfies AyasMutationImplementation],
+  // M17 — sentinel-only registration for `isAyasMutationKindRegistered`'s
+  // discovery-time invariant ("a candidate can never become
+  // execution-eligible without a registered mutationKind"). This entry must
+  // never actually run: `AyasProposalExecutionService` always resolves
+  // `patch-artifact:v1` proposals through `resolveAyasPatchArtifactMutation`
+  // (the frozen-artifact path) BEFORE ever reaching `resolveAyasMutation`.
+  // `exactFiles: []` guarantees that even if that branch were ever removed
+  // by mistake, `resolveAyasMutation`'s own exactFiles comparison would fail
+  // closed (AYAS_MUTATION_SCOPE_MISMATCH) rather than silently matching, and
+  // `run` throws unconditionally as a second, independent fail-closed layer.
+  [AYAS_PATCH_ARTIFACT_MUTATION_KIND, {
+    exactFiles: [],
+    run: (): Promise<AyasMutationRunResult> => { throw new AyasMutationRegistryError("AYAS_MUTATION_SCOPE_MISMATCH", "patch-artifact:v1 must resolve via resolveAyasPatchArtifactMutation, never the static registry"); },
   } satisfies AyasMutationImplementation],
 ]);
 

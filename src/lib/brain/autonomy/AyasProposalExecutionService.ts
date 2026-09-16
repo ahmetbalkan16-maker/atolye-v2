@@ -4,6 +4,9 @@ import path from "node:path";
 import { createAyasApprovalInboxStore, isAyasProposalApprovalReady, type AyasApprovalInboxHandle } from "./AyasApprovalInboxStore";
 import { createAyasAutonomyDaemon } from "./AyasAutonomyDaemon";
 import { resolveAyasMutation, AyasMutationRegistryError, type AyasMutationImplementation } from "./AyasMutationRegistry";
+import { resolveAyasPatchArtifactMutation, AyasPatchArtifactMutationError } from "./AyasPatchArtifactMutation";
+import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "./AyasNovelPatchDiscovery";
+import type { AyasPatchArtifactStore } from "./AyasPatchArtifact";
 import { reconcileAyasStaleProposals } from "./AyasProposalStaleness";
 
 /**
@@ -35,6 +38,8 @@ export interface AyasProposalExecutionDeps {
   readonly inbox: AyasApprovalInboxHandle;
   /** Test-only override — omitted in production, where `resolveAyasMutation` uses the one real, closed registry. */
   readonly registry?: ReadonlyMap<string, AyasMutationImplementation>;
+  /** Test-only override for `resolveAyasPatchArtifactMutation` — omitted in production, where it reads/verifies from the one real, durable `data/brain/self-improvement/patch-artifacts` store. Never touches `data/brain` when a test supplies its own isolated store. */
+  readonly patchArtifactStore?: AyasPatchArtifactStore;
 }
 
 export function defaultAyasProposalExecutionDeps(): AyasProposalExecutionDeps {
@@ -56,9 +61,12 @@ export async function executeAyasApprovedProposalWith(proposalId: string, deps: 
 
   let mutation;
   try {
-    mutation = deps.registry ? resolveAyasMutation(proposal.mutationKind ?? "", proposal.exactFiles, deps.registry) : resolveAyasMutation(proposal.mutationKind ?? "", proposal.exactFiles);
+    mutation = proposal.mutationKind === AYAS_PATCH_ARTIFACT_MUTATION_KIND
+      ? resolveAyasPatchArtifactMutation(proposal, deps.patchArtifactStore)
+      : deps.registry ? resolveAyasMutation(proposal.mutationKind ?? "", proposal.exactFiles, deps.registry) : resolveAyasMutation(proposal.mutationKind ?? "", proposal.exactFiles);
   } catch (error) {
-    throw new AyasProposalExecutionError(error instanceof AyasMutationRegistryError ? error.code : "MUTATION_BINDING_UNRESOLVED", error instanceof Error ? error.message : String(error));
+    const code = error instanceof AyasMutationRegistryError || error instanceof AyasPatchArtifactMutationError ? error.code : "MUTATION_BINDING_UNRESOLVED";
+    throw new AyasProposalExecutionError(code, error instanceof Error ? error.message : String(error));
   }
 
   const currentHead = git(deps.repoRoot, ["rev-parse", "HEAD"]);

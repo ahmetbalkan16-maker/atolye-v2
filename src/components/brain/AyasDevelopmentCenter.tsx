@@ -4,6 +4,29 @@ import { useState } from "react";
 
 import type { AyasApprovalInboxView, AyasDevelopmentProposal } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 
+/** M17 — the exact human-reviewable diff + sandbox evidence for a sandbox-drafted patch. Renders nothing for a statically pre-written (M15/M16-style) proposal, which has no `patchArtifact`. */
+function PatchArtifactPanel({ proposal }: { readonly proposal: AyasDevelopmentProposal }) {
+  const artifact = proposal.patchArtifact;
+  if (!artifact) return null;
+  return (
+    <div className="bc-dev__patch" aria-label="AYAS'ın oluşturduğu tam değişiklik">
+      <p className="bc-dev__notice bc-dev__notice--safe">AYAS bu değişikliği kendi oluşturdu ve izole bir sandbox&apos;ta doğruladı.</p>
+      <dl className="bc-dev__facts">
+        <div><dt>Patch hash</dt><dd><code>{artifact.patchHash}</code></dd></div>
+        <div><dt>Üretici</dt><dd><code>{artifact.generatorIdentity}</code></dd></div>
+        <div><dt>Sandbox&apos;ta tekrar çalışacak validatorlar</dt><dd>{artifact.validatorScripts.join(" · ") || "Belirtilmemiş"}</dd></div>
+        <div><dt>Sandbox testleri geçti mi?</dt><dd>{artifact.sandboxValidationSummary.length ? <ul>{artifact.sandboxValidationSummary.map((line) => <li key={line}>{line}</li>)}</ul> : "Kayıt yok"}</dd></div>
+      </dl>
+      {artifact.diffPreview.map((file) => (
+        <details key={file.filePath} open>
+          <summary>{file.isNewFile ? "Yeni dosya" : "Değişecek dosya"}: <code>{file.filePath}</code></summary>
+          <pre className="bc-dev__diff"><code>{file.content}</code></pre>
+        </details>
+      ))}
+    </div>
+  );
+}
+
 type Decision = "APPROVE" | "REJECT" | "LATER";
 
 const statusLabel: Record<AyasDevelopmentProposal["status"], string> = {
@@ -56,6 +79,7 @@ function ProposalDetails({ proposal }: { readonly proposal: AyasDevelopmentPropo
         <div><dt>Graphify kanıtı</dt><dd>{proposal.graphifyEvidence?.join(" · ") || "Belirtilmemiş"}</dd></div>
         <div><dt>Base HEAD</dt><dd><code>{proposal.baseHead}</code></dd></div>
       </dl>
+      <PatchArtifactPanel proposal={proposal} />
     </div>
   );
 }

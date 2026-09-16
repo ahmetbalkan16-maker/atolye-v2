@@ -8,7 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { AyasDevelopmentCenter } from "../src/components/brain/AyasDevelopmentCenter";
 import { BRAIN_PANELS } from "../src/components/brain/brainCore";
 import { createAyasApprovalInboxStore, AyasApprovalInboxStoreError } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
-import { buildAyasApprovalInboxView, isAyasDevelopmentApprovalReady } from "../src/lib/brain/autonomy/AyasApprovalInboxView";
+import { buildAyasApprovalInboxView, isAyasDevelopmentApprovalReady, type AyasDevelopmentPatchArtifact } from "../src/lib/brain/autonomy/AyasApprovalInboxView";
 import type { AyasApprovalInboxReadState, AyasInboxProposalRead } from "../src/lib/brain/autonomy/AyasApprovalInboxReader";
 
 const NOW = "2026-09-15T12:00:00.000Z";
@@ -146,6 +146,30 @@ async function main() {
     const p = proposal({ status: "APPROVED" });
     const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox: buildAyasApprovalInboxView(state([p]), NOW), onExecute: () => undefined }));
     assert.doesNotMatch(html, /role="alert"/);
+  });
+  await scenario("M17: a statically pre-written (non-artifact) proposal renders no patch/diff panel", () => {
+    const html = htmlFor(state([proposal()]));
+    assert.doesNotMatch(html, /AYAS bu değişikliği kendi oluşturdu/);
+    assert.doesNotMatch(html, /Patch hash/);
+  });
+  await scenario("M17: a sandbox-drafted proposal's exact diff, patchHash, validators, and sandbox result all render", () => {
+    const p = proposal({ mutationKind: "patch-artifact:v1" });
+    const view = buildAyasApprovalInboxView(state([p]), NOW);
+    const patchArtifact: AyasDevelopmentPatchArtifact = {
+      patchArtifactId: "ayas-patch-artifact-fixture",
+      patchHash: "fixture-patch-hash-1234567890",
+      generatorIdentity: "ayas-detector:error-code-contract-gap-v1",
+      diffPreview: [{ filePath: "scripts/smoke-ayas-error-code-contract-widget.ts", content: 'new WidgetError("X", "y");\n', isNewFile: true }],
+      validatorScripts: ["scripts/smoke-ayas-error-code-contract-widget.ts"],
+      sandboxValidationSummary: ["typecheck-project: PASS", "scripts/smoke-ayas-error-code-contract-widget.ts: PASS"],
+    };
+    const enrichedView = { ...view, pending: view.pending.map((item) => ({ ...item, patchArtifact })) };
+    const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox: enrichedView, onDecision: () => undefined }));
+    assert.match(html, /AYAS bu değişikliği kendi oluşturdu/);
+    assert.match(html, /fixture-patch-hash-1234567890/);
+    assert.match(html, /new WidgetError/);
+    assert.match(html, /typecheck-project: PASS/);
+    assert.match(html, /scripts\/smoke-ayas-error-code-contract-widget\.ts/);
   });
   console.log(`AYAS Gelişim Merkezi smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-development-center", scenarios: count }));

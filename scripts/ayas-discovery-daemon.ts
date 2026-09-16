@@ -8,6 +8,7 @@ import { createAyasApprovalInboxStore } from "../src/lib/brain/autonomy/AyasAppr
 import { createAyasAutonomyDaemon } from "../src/lib/brain/autonomy/AyasAutonomyDaemon";
 import { reconcileAyasStaleProposals } from "../src/lib/brain/autonomy/AyasProposalStaleness";
 import { discoverAyasSafeCandidates } from "../src/lib/brain/autonomy/AyasDiscoveryRegistry";
+import { discoverAyasNovelPatchCandidates } from "../src/lib/brain/autonomy/AyasNovelPatchDiscovery";
 
 /**
  * AYAS discovery daemon (M16) — a single-shot, read-mostly companion to the
@@ -57,7 +58,24 @@ async function main(): Promise<void> {
 
   const daemon = createAyasAutonomyDaemon({ inbox, now: () => now });
   daemon.observe(observation);
-  const discovered = daemon.discover(observation, discoverAyasSafeCandidates({ repoRoot: root, observation }));
+
+  // M17 — sandboxed, structurally-detected novel candidates (never
+  // hand-embedded). Drafting, applying, and validating all happen inside an
+  // isolated `git worktree` under os.tmpdir() (see AyasPatchSandbox.ts) — this
+  // call never touches the real working tree, never stages/commits/pushes,
+  // and only ever returns a candidate for a patch that already passed
+  // sandbox validation and was frozen as an immutable artifact. A failure
+  // here is folded into `gaps`, exactly like every other best-effort signal
+  // in this script — it never aborts staleness reconciliation or the
+  // existing static-source discovery below.
+  let novel: Awaited<ReturnType<typeof discoverAyasNovelPatchCandidates>> = { candidates: [], rejections: [], findings: [] };
+  try {
+    novel = await discoverAyasNovelPatchCandidates({ repoRoot: root, observation });
+  } catch (error) {
+    observation.gaps.push(`novel patch discovery failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  const discovered = daemon.discover(observation, [...discoverAyasSafeCandidates({ repoRoot: root, observation }), ...novel.candidates]);
 
   console.log(JSON.stringify({
     status: "OK",
@@ -67,6 +85,8 @@ async function main(): Promise<void> {
     machineAction: observation.machineAction,
     staleReconciled: staled.map((p) => p.proposalId),
     discovered: discovered.map((p) => p.proposalId),
+    novelRejections: novel.rejections,
+    findings: novel.findings.length,
   }));
 }
 main().catch((error) => { console.error("AYAS discovery daemon FAILED:", error); process.exitCode = 1; });

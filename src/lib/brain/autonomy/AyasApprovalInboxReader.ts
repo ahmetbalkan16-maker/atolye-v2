@@ -39,6 +39,8 @@ export interface AyasInboxProposalRead {
   readonly baseHead: string;
   readonly nextEligibleAt?: string;
   readonly mutationKind?: string;
+  readonly patchArtifactId?: string;
+  readonly patchHash?: string;
 }
 
 export interface AyasInboxDecisionRead {

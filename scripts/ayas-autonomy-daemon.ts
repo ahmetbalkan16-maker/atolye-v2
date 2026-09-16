@@ -28,7 +28,12 @@ function runAyasDiscoveryDaemon(): { readonly ok: boolean; readonly summary: str
   const tsxCli = path.join(root, "node_modules", "tsx", "dist", "cli.mjs");
   const script = path.join(root, "scripts", "ayas-discovery-daemon.ts");
   try {
-    const stdout = execFileSync(process.execPath, [tsxCli, script], { cwd: root, encoding: "utf8", windowsHide: true, timeout: 60_000, maxBuffer: 2_000_000, stdio: ["ignore", "pipe", "pipe"] });
+    // M17 — bumped from 60_000: sandboxed novel-patch discovery (git worktree
+    // create + apply + a project-wide `tsc --noEmit` + the generated smoke
+    // test itself) can legitimately take longer than the old static-only
+    // discovery step did. Still well inside one 300_000ms tick interval, so
+    // a slow discovery step can never overlap the next tick.
+    const stdout = execFileSync(process.execPath, [tsxCli, script], { cwd: root, encoding: "utf8", windowsHide: true, timeout: 240_000, maxBuffer: 2_000_000, stdio: ["ignore", "pipe", "pipe"] });
     return { ok: true, summary: stdout.trim() };
   } catch (error) {
     return { ok: false, summary: error instanceof Error ? error.message : String(error) };
