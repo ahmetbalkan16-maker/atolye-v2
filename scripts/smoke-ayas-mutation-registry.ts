@@ -9,9 +9,14 @@ const testEntry: AyasMutationImplementation = { exactFiles: ["src/fixture.ts"], 
 const testRegistry = new Map<string, AyasMutationImplementation>([["fixture-mutation", testEntry]]);
 
 async function main() {
-  await scenario("the real registry is empty for M15 — no mutationKind resolves against it yet", () => {
+  await scenario("an unregistered mutationKind never resolves against the real registry", () => {
     assert.equal(isAyasMutationKindRegistered("anything"), false);
     assert.throws(() => resolveAyasMutation("anything", []), (e: unknown) => e instanceof AyasMutationRegistryError && e.code === "AYAS_MUTATION_KIND_UNKNOWN");
+  });
+  await scenario("the real registry's one reviewed entry (first-safe-smoke-coverage-v1) resolves with its exact declared exactFiles", () => {
+    assert.equal(isAyasMutationKindRegistered("first-safe-smoke-coverage-v1"), true);
+    const impl = resolveAyasMutation("first-safe-smoke-coverage-v1", ["scripts/smoke-ayas-proposal-terminal-state-dedup.ts"]);
+    assert.deepEqual(impl.exactFiles, ["scripts/smoke-ayas-proposal-terminal-state-dedup.ts"]);
   });
   await scenario("unknown mutationKind is rejected before any gate/reservation activity", () => {
     assert.throws(() => resolveAyasMutation("does-not-exist", ["src/fixture.ts"], testRegistry), (e: unknown) => e instanceof AyasMutationRegistryError && e.code === "AYAS_MUTATION_KIND_UNKNOWN");
