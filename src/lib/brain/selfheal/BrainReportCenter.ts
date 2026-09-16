@@ -515,7 +515,9 @@ export function detectAyasReportIntent(text: string): AyasReportIntent {
   const summary =
     /\brapor ver\b/.test(t) ||
     /\bdurum raporu\b/.test(t) ||
-    /\brapor(u|un)? (ver|goster|oku|ozetle|soyle)\b/.test(t) ||
+    /\brapor (var mi|hazir mi)\b/.test(t) ||
+    /\b(bug|hata)\b.*\b(buldun mu|tespit ettin mi)\b/.test(t) ||
+    /\brapor\w* (ver|goster|oku|ozetle|soyle)\b/.test(t) ||
     /\b(kendini|sistemi) (kontrol et|incele)\b/.test(t) ||
     /\bson inceleme\b/.test(t) ||
     /\b(self ?heal|kendini iyilestirme) (durumu|raporu)\b/.test(t) ||

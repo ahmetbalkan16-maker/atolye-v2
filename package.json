@@ -78,6 +78,7 @@
     "smoke:ayas-intent-intake": "tsx scripts/smoke-ayas-intent-intake.ts",
     "smoke:ayas-studio-context": "tsx scripts/smoke-ayas-studio-context.ts",
     "smoke:ayas-execution-gate": "tsx scripts/smoke-ayas-execution-gate.ts",
+    "smoke:ayas-intent-routing": "tsx scripts/smoke-ayas-intent-routing.ts",
     "smoke:ayas-execution-bridge": "tsx scripts/smoke-ayas-execution-bridge.ts",
     "smoke:ayas-autonomy-daemon": "tsx scripts/smoke-ayas-autonomy-daemon.ts",
     "smoke:ayas-verified-gate-transition": "tsx scripts/smoke-ayas-verified-gate-transition.ts",

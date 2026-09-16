@@ -16,9 +16,9 @@ import { AyasGuidedRepairSessionRuntime, type AyasGuidedRepairDurability } from 
 import { createAyasProductionRepairDeps } from "@/lib/ayas/execution/AyasGuidedRepairProduction";
 import { AyasGuidedRepairSessionStore } from "@/lib/ayas/execution/AyasGuidedRepairSessionStore";
 import { AyasDeveloperWorkflowStore } from "@/lib/ayas/execution/AyasDeveloperWorkflowStore";
+import { resolveAyasPreReasoningIntent } from "@/lib/ayas/AyasIntentRouting";
 import {
   buildAyasReportSpokenAnswer,
-  detectAyasReportIntent,
 } from "@/lib/brain/selfheal/BrainReportCenter";
 import type { BrainChatMessage } from "@/components/brain/brainCore";
 
@@ -108,20 +108,25 @@ export async function POST(request: NextRequest): Promise<Response> {
   const sessionToken = request.cookies.get(AYAS_SESSION_COOKIE)?.value ?? "dev-session";
   const sessionKey = crypto.createHash("sha256").update(sessionToken).digest("hex");
   const repairTurn = await guidedRepairSessions.handle({ sessionId: sessionKey, text, turnId: `http-turn-${crypto.randomUUID()}`, workspaceId: "atolye-v2" });
-  if (repairTurn.progress !== "İnceliyorum" || /(hata|bug|exception|çalışmıyor|çöktü|düzelt)/iu.test(text)) {
+  if (repairTurn.progress !== "İnceliyorum") {
     const answer = repairTurn.text;
     const oneShot = new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(encoderFor().encode(ayasChatStreamEventToSse({ type: "done", text: answer, source: "fallback", corrected: false }))); controller.close(); } });
     return new Response(oneShot, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store, no-transform", Connection: "keep-alive" } });
   }
 
   const encoder = new TextEncoder();
+  const preReasoningIntent = resolveAyasPreReasoningIntent(text);
+
+  if (preReasoningIntent.kind === "guided-repair") {
+    const oneShot = new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(encoder.encode(ayasChatStreamEventToSse({ type: "done", text: repairTurn.text, source: "fallback", corrected: false }))); controller.close(); } });
+    return new Response(oneShot, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store, no-transform", Connection: "keep-alive" } });
+  }
 
   // "AYAS, rapor ver" / "onay bekleyen ne" (§11) — deterministic Report Center
   // answer, one terminal SSE frame, no model call, runs nothing.
-  const reportIntent = detectAyasReportIntent(text);
-  if (reportIntent) {
+  if (preReasoningIntent.kind === "report-center") {
     const rc = loadBrainSelfHealSnapshot().reportCenter;
-    const answer = buildAyasReportSpokenAnswer(rc, reportIntent);
+    const answer = buildAyasReportSpokenAnswer(rc, preReasoningIntent.reportIntent);
     const oneShot = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(

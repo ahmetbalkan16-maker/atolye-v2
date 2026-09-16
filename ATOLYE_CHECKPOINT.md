@@ -1,5 +1,40 @@
 ---
 
+## AYAS M13 — INTENT ROUTING READY / CREDENTIAL ROTATION AWAITING EXPLICIT LIVE-AUTH APPROVAL — 2026-09-16
+
+- Trusted baseline doğrulandı: branch `wip/ayas-graphify-final-execution`, local/remote HEAD
+  `d66760254e76cfd08054d2aa326041550d4a7a2a`, başlangıç working tree ve index temizdi.
+- Graphify-first kaynak izi doğrulandı: route sırası Guided Repair session → legacy Report Center
+  kestirmesi → normal chat/reasoning → deterministic tool candidate idi. Bu nedenle geniş Report
+  Center `onay bekleyen` sinyali M7 `ayas-development-status` çözümlemesinden önce yanıt dönüyordu.
+- Unicode token tabanlı Guided Repair sinyali eklendi. Standalone `bug` korunurken `Bugün` artık
+  `bug` alt-dizesi olarak eşleşmiyor; `hata`, `exception`, `çalışmıyor`, `çöktü`, `düzelt`, Türkçe
+  büyük/küçük harf ve noktalama davranışları korunuyor.
+- Route-level intent resolver özgüllük sırasını tek, test edilebilir noktada uygular:
+  AYAS development-status → explicit Report Center → Guided Repair → normal reasoning. Genel
+  `onay` tek başına development-status tetiklemez. Report Center canonical davranışı korunur.
+- Yeni `smoke-ayas-intent-routing` 30/30; development-status 22/22; chat-stream 20/20;
+  chat-quality 35/35; reasoning 45/45; reasoning-schema 14/14; tool-candidate 34/34;
+  tool-registry 11/11; action-runtime 17/17; report-center 14/14; report E2E 5/5; observer
+  autostart 25/25; autonomy observer 22/22; autonomy approval 19/19; Guided Repair 24 assertion;
+  execution gate 16/16; execution authority 29/29; access gate 19/19; Brain Core UI 41/41 ve
+  diğer hedefli regresyonlar PASS. TypeScript, repository ESLint, production build ve
+  `git diff --check` PASS. Fresh Graphify: 12.222 node / 36.532 edge / 323 community.
+- Production gate read-only doğrulamada `CLOSED`, sequence `14`; production mutation/approval/
+  reservation/executeApproved/gate transition çalıştırılmadı. Startup observer shortcut count `1`.
+  Eski lock PID `13460` ölüydü; M12 recovery yolu doğrulanıp observer PID `29436` ile yeniden
+  başlatıldı.
+- Credential kaynağı `.env.local` ve `.gitignore` kapsamı doğrulandı. Anahtar değeri okunmadı veya
+  çıktılanmadı. Canlı auth davranışını değiştiren rotasyon çağrısı güvenlik onay katmanında, riskin
+  kullanıcı tarafından yeni bir mesajla açıkça kabul edilmesi gerektiği için reddedildi; dolanma
+  yapılmadı. Bu nedenle rotasyon, eski/yeni key canlı kabul-red kanıtı, `/brain` live acceptance,
+  clean-room ve post-commit live check henüz tamamlanmadı.
+- Sonraki adım: kullanıcı canlı AYAS erişim anahtarı rotasyonu ve kısa servis yeniden başlatma
+  riskini açıkça onayladıktan sonra rotasyonu secret çıktısı olmadan uygula; old=401/new=200,
+  `/brain`, doğal dil routing, safety sayaçları, clean-room, final commit ve push kapanışını yap.
+
+---
+
 ## AYAS Brain Mobile Voice Hardening — PHYSICAL ACCEPTANCE PASSED / READY TO COMMIT — 2026-09-15
 
 - `/brain` voice readiness now has one canonical state shared by Presence Card and Command Center.
