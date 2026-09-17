@@ -16,8 +16,15 @@
  * pipeline model rather than throwing (AYAS chat must not hard-fail on config).
  */
 
-import { OllamaProvider } from "@/lib/ai/providers/OllamaProvider";
-import { resolveOllamaConfig, type OllamaConfig } from "@/lib/ai/OllamaConfig";
+// Relative imports, deliberately not `@/`-aliased: this module is now also
+// imported transitively from `scripts/ayas-discovery-daemon.ts` (via
+// AyasResearchScheduler -> AyasDeepResearchEngine), which must remain
+// invocable via plain `tsx` from an arbitrary cwd (a real, pre-existing
+// regression test spawns it against an isolated temp fixture root) —
+// `@/` alias resolution depends on discovering this project's own
+// tsconfig.json relative to the process cwd, which fails outside it.
+import { OllamaProvider } from "../ai/providers/OllamaProvider";
+import { resolveOllamaConfig, type OllamaConfig } from "../ai/OllamaConfig";
 
 export const AYAS_MODEL_ENV = "AYAS_OLLAMA_MODEL";
 

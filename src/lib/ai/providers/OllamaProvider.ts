@@ -1,4 +1,8 @@
-import { createProviderDispatchAdapter } from "@/lib/providers/ProviderDispatchAdapterAuthority";
+// Relative, not `@/`-aliased: this provider is now also reachable from
+// `scripts/ayas-discovery-daemon.ts` (via the AYAS research scheduler),
+// which must remain invocable via plain `tsx` from an arbitrary cwd — see
+// the same note in `AyasModelProfile.ts`.
+import { createProviderDispatchAdapter } from "../../providers/ProviderDispatchAdapterAuthority";
 import { resolveOllamaConfig, type OllamaConfig } from "../OllamaConfig";
 import type {
   AIProviderGenerateOptions,
