@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { classifyPatchSet } from "../selfheal/BrainPatchSafety";
 import type { AyasDaemonCandidate, AyasDaemonObservation } from "./AyasAutonomyDaemon";
-import { findAyasErrorCodeContractGaps, generateAyasErrorCodeContractPatch, checkAyasNovelPatchLimits, runAyasDiscoveryFindings, type AyasDiscoveryFinding } from "./AyasPatchDetectors";
+import { AYAS_GENERATOR_SOURCES, checkAyasNovelPatchLimits, runAyasDiscoveryFindings, type AyasDiscoveryFinding, type AyasGeneratedNovelPatch } from "./AyasPatchDetectors";
 import { classifyAyasMicroCandidate } from "./AyasMicroClassifier";
 import { createAyasPatchSandbox, applyAyasPatchReplacementsInSandbox, runAyasPatchSandboxValidators, captureAyasPatchSandboxDiff, destroyAyasPatchSandbox } from "./AyasPatchSandbox";
 import { createAyasPatchArtifactStore, computeAyasPatchHash, type AyasPatchArtifact } from "./AyasPatchArtifact";
@@ -45,17 +45,39 @@ function writeRejectionLog(repoRoot: string, rejection: AyasNovelPatchRejection 
 }
 
 /**
- * Orchestrates M17's sandboxed drafting pipeline for exactly one discovery
- * class today (`error-code-contract-gap`): detect → generate content
- * (pure, in-memory) → policy limits → isolated `git worktree` sandbox →
- * apply → validate (`tsc --noEmit` + the new smoke test itself) → on PASS,
- * freeze an immutable artifact and return one `AyasDaemonCandidate`; on
- * FAIL, log a rejection and try the next candidate (bounded). Never
- * touches the real working tree, never stages/commits/pushes, never opens
- * an execution gate, never reserves or executes anything. The other four
- * discovery classes (`runAyasDiscoveryFindings`) run alongside and are
- * surfaced as informational evidence only — no generator is registered for
- * them yet (see `AyasPatchDetectors.ts`'s own module doc).
+ * Deterministic round-robin over every registered generator source
+ * (M19.4 — "batch diversity"): pulls one candidate from each source in turn
+ * until every source is exhausted, so a tick's bounded attempt budget is
+ * never monopolized by whichever class happens to have the most gaps.
+ * Never randomized — order is always source-registration order, then
+ * within-source discovery order.
+ */
+function interleaveAyasGeneratorSources(repoRoot: string): readonly AyasGeneratedNovelPatch[] {
+  const queues = AYAS_GENERATOR_SOURCES.map((source) => [...source.discover(repoRoot)]);
+  const interleaved: AyasGeneratedNovelPatch[] = [];
+  for (let more = true; more; ) {
+    more = false;
+    for (const queue of queues) {
+      const next = queue.shift();
+      if (next) { interleaved.push(next); more = true; }
+    }
+  }
+  return interleaved;
+}
+
+/**
+ * Orchestrates M17/M19's sandboxed drafting pipeline across every
+ * registered generator source (`AyasPatchDetectors.AYAS_GENERATOR_SOURCES`):
+ * detect → generate content (pure, in-memory) → policy limits → isolated
+ * `git worktree` sandbox → apply → validate (`tsc --noEmit` + the new/edited
+ * smoke test itself) → on PASS, freeze an immutable artifact and return one
+ * `AyasDaemonCandidate`; on FAIL, log a rejection and try the next candidate
+ * (bounded). Never touches the real working tree, never stages/commits/
+ * pushes, never opens an execution gate, never reserves or executes
+ * anything. The remaining detect-only classes (`runAyasDiscoveryFindings`)
+ * run alongside and are surfaced as informational evidence only — no
+ * generator is registered for them (see `AyasPatchDetectors.ts`'s own
+ * module doc for why).
  */
 export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDiscoveryDeps): Promise<AyasNovelPatchDiscoveryResult> {
   const { repoRoot, observation } = deps;
@@ -67,22 +89,17 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
     return { candidates: [], rejections: [], findings };
   }
 
-  const gaps = findAyasErrorCodeContractGaps(repoRoot).filter((gap) => {
-    const patch = generateAyasErrorCodeContractPatch(gap);
-    return !fs.existsSync(path.join(repoRoot, patch.exactFiles[0]!));
-  });
+  const generatedCandidates = interleaveAyasGeneratorSources(repoRoot);
 
   const candidates: AyasNovelPatchCandidate[] = [];
   const rejections: AyasNovelPatchRejection[] = [];
 
-  for (const gap of gaps.slice(0, maxAttempts)) {
-    const generated = generateAyasErrorCodeContractPatch(gap);
-
+  for (const generated of generatedCandidates.slice(0, maxAttempts)) {
     // M18: a candidate classified MICRO_SAFE belongs to the batch lane
     // (AyasMicroBatchAccumulator), never an individual human-facing
     // proposal — skip it here so the two lanes never both propose the same
-    // opportunity. Anything else (PRIORITY_SAFE — currently none, since the
-    // one live generator's output is always MICRO_SAFE-eligible today) keeps
+    // opportunity. Anything else (PRIORITY_SAFE — the two M19 generators,
+    // today, since they are not yet on the micro-eligible allowlist) keeps
     // flowing through this unmodified individual-proposal pipeline.
     const microClassification = classifyAyasMicroCandidate({ exactFiles: generated.exactFiles, totalLines: generated.replacements[0]!.content.split("\n").length, generatorIdentity: generated.generatorIdentity });
     if (microClassification.classification === "MICRO_SAFE") continue;
@@ -133,6 +150,7 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
         replacements: generated.replacements,
         validatorScripts: generated.validatorScripts,
         graphifyEvidence: generated.graphifyEvidence,
+        graphifyImportCounts: generated.expectedGraphifyImportCounts,
         safetyClassification: safety.level,
         problemStatement: generated.currentProblem,
         rationale: generated.rationale,

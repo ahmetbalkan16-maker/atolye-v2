@@ -11,6 +11,14 @@ import { AyasMicroBatchWorktreeError } from "../src/lib/brain/autonomy/AyasMicro
  */
 const CODES = ["AYAS_MICRO_BATCH_WORKTREE_CREATE_FAILED", "AYAS_MICRO_BATCH_WORKTREE_REBUILD_FAILED"] as const;
 
+// AYAS M19.3: compile-time exhaustiveness — if a future code is added to
+// AyasMicroBatchWorktreeError's own declared union but not to CODES above, this line
+// fails `tsc --noEmit` (never silently passes at runtime).
+type _AyasExpectedCode = ConstructorParameters<typeof AyasMicroBatchWorktreeError>[0];
+type _AyasMissingCodes = Exclude<_AyasExpectedCode, (typeof CODES)[number]>;
+const _ayasExhaustiveCodesCheck: _AyasMissingCodes extends never ? true : ["AYAS: CODES is missing a declared code — regenerate this smoke test", _AyasMissingCodes] = true;
+void _ayasExhaustiveCodesCheck;
+
 for (const code of CODES) {
   const error = new AyasMicroBatchWorktreeError(code, `test message for ${code}`);
   assert.equal(error.code, code, `constructing with code "${code}" must carry that exact code`);

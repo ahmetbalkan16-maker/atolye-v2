@@ -11,6 +11,14 @@ import { AyasApprovalInboxStoreError } from "../src/lib/brain/autonomy/AyasAppro
  */
 const CODES = ["AYAS_INBOX_CORRUPT", "AYAS_INBOX_SCHEMA_MISMATCH", "AYAS_INBOX_IO", "AYAS_INBOX_SECRET_LEAK", "AYAS_INBOX_INVALID", "AYAS_INBOX_UNSAFE_APPROVAL"] as const;
 
+// AYAS M19.3: compile-time exhaustiveness — if a future code is added to
+// AyasApprovalInboxStoreError's own declared union but not to CODES above, this line
+// fails `tsc --noEmit` (never silently passes at runtime).
+type _AyasExpectedCode = ConstructorParameters<typeof AyasApprovalInboxStoreError>[0];
+type _AyasMissingCodes = Exclude<_AyasExpectedCode, (typeof CODES)[number]>;
+const _ayasExhaustiveCodesCheck: _AyasMissingCodes extends never ? true : ["AYAS: CODES is missing a declared code — regenerate this smoke test", _AyasMissingCodes] = true;
+void _ayasExhaustiveCodesCheck;
+
 for (const code of CODES) {
   const error = new AyasApprovalInboxStoreError(code, `test message for ${code}`);
   assert.equal(error.code, code, `constructing with code "${code}" must carry that exact code`);

@@ -3,7 +3,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { findAyasErrorCodeContractGaps, generateAyasErrorCodeContractPatch, checkAyasNovelPatchLimits, findAyasProbeCoverageFindings, findAyasDiagnosticQualityFindings, findAyasWorkflowResilienceFindings, findAyasSelfHealObservabilityFindings, runAyasDiscoveryFindings, AYAS_NOVEL_PATCH_MAX_FILES, AYAS_NOVEL_PATCH_MAX_TOTAL_LINES } from "../src/lib/brain/autonomy/AyasPatchDetectors";
+import {
+  findAyasErrorCodeContractGaps, generateAyasErrorCodeContractPatch, checkAyasNovelPatchLimits, findAyasProbeCoverageFindings,
+  findAyasDiagnosticQualityFindings, findAyasWorkflowResilienceFindings, findAyasSelfHealObservabilityFindings, runAyasDiscoveryFindings,
+  AYAS_NOVEL_PATCH_MAX_FILES, AYAS_NOVEL_PATCH_MAX_TOTAL_LINES, countDeclaredImportStatements, findAyasErrorCodeContractDrift,
+  generateAyasErrorCodeContractDriftPatch, findAyasBareAssertionGaps, generateAyasBareAssertionMessagePatch, AYAS_GENERATOR_SOURCES,
+} from "../src/lib/brain/autonomy/AyasPatchDetectors";
 
 let count = 0;
 function scenario(name: string, fn: () => void) { fn(); count += 1; if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${name}`); }
@@ -165,6 +170,152 @@ scenario("a detector never throws for a directory that does not exist (fail clos
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-patch-detectors-empty-"));
   assert.deepEqual(findAyasErrorCodeContractGaps(root), []);
   assert.deepEqual(runAyasDiscoveryFindings(root), []);
+});
+
+// ---------------------------------------------------------------------------
+// M19 — countDeclaredImportStatements
+// ---------------------------------------------------------------------------
+
+scenario("countDeclaredImportStatements counts one edge per import statement, regardless of how many named symbols it destructures", () => {
+  const content = [
+    'import assert from "node:assert/strict";',
+    'import { a, b, c } from "./module";',
+    "",
+    "assert.ok(a && b && c);",
+    "",
+  ].join("\n");
+  assert.equal(countDeclaredImportStatements(content), 2);
+});
+
+scenario("countDeclaredImportStatements returns 0 for content with no import statements", () => {
+  assert.equal(countDeclaredImportStatements("console.log(1);\n"), 0);
+});
+
+scenario("generateAyasErrorCodeContractPatch's own declared expectedGraphifyImportCounts matches its own countDeclaredImportStatements", () => {
+  const root = fixtureRoot();
+  fs.writeFileSync(path.join(root, "src", "lib", "widget", "WidgetError.ts"), 'export class WidgetError extends Error {\n  constructor(readonly code: "X", message: string) { super(message); }\n}\n', "utf8");
+  const patch = generateAyasErrorCodeContractPatch(findAyasErrorCodeContractGaps(root)[0]!);
+  const file = patch.exactFiles[0]!;
+  assert.equal(patch.expectedGraphifyImportCounts[file], countDeclaredImportStatements(patch.replacements[0]!.content));
+  assert.equal(patch.expectedGraphifyImportCounts[file], 2, "node:assert/strict + the one target-class import");
+});
+
+// ---------------------------------------------------------------------------
+// M19 — error-code-contract-drift (Class 1b)
+// ---------------------------------------------------------------------------
+
+scenario("findAyasErrorCodeContractDrift finds nothing for a class with no generated file yet (that's findAyasErrorCodeContractGaps's job)", () => {
+  const root = fixtureRoot();
+  fs.writeFileSync(path.join(root, "src", "lib", "widget", "WidgetError.ts"), 'export class WidgetError extends Error {\n  constructor(readonly code: "X", message: string) { super(message); }\n}\n', "utf8");
+  assert.deepEqual(findAyasErrorCodeContractDrift(root), []);
+});
+
+scenario("findAyasErrorCodeContractDrift finds nothing when the generated file already byte-matches the current template", () => {
+  const root = fixtureRoot();
+  fs.writeFileSync(path.join(root, "src", "lib", "widget", "WidgetError.ts"), 'export class WidgetError extends Error {\n  constructor(readonly code: "X", message: string) { super(message); }\n}\n', "utf8");
+  const gap = findAyasErrorCodeContractGaps(root)[0]!;
+  const patch = generateAyasErrorCodeContractPatch(gap);
+  fs.writeFileSync(path.join(root, patch.exactFiles[0]!), patch.replacements[0]!.content, "utf8");
+  assert.deepEqual(findAyasErrorCodeContractDrift(root), []);
+});
+
+scenario("findAyasErrorCodeContractDrift detects a stale generated file (source gained a code the generated file never covered)", () => {
+  const root = fixtureRoot();
+  fs.writeFileSync(path.join(root, "src", "lib", "widget", "WidgetError.ts"), 'export class WidgetError extends Error {\n  constructor(readonly code: "X", message: string) { super(message); }\n}\n', "utf8");
+  const gap = findAyasErrorCodeContractGaps(root)[0]!;
+  const patch = generateAyasErrorCodeContractPatch(gap);
+  fs.writeFileSync(path.join(root, patch.exactFiles[0]!), patch.replacements[0]!.content, "utf8");
+  // Source evolves: a second code is added to the union, but the generated file is never regenerated.
+  fs.writeFileSync(path.join(root, "src", "lib", "widget", "WidgetError.ts"), 'export class WidgetError extends Error {\n  constructor(readonly code: "X" | "Y", message: string) { super(message); }\n}\n', "utf8");
+  const drift = findAyasErrorCodeContractDrift(root);
+  assert.equal(drift.length, 1);
+  assert.equal(drift[0]!.className, "WidgetError");
+  assert.deepEqual(drift[0]!.codes, ["X", "Y"]);
+});
+
+scenario("generateAyasErrorCodeContractDriftPatch produces an EDIT (allowCreate: false) bound to the existing file's real current hash", () => {
+  const root = fixtureRoot();
+  fs.writeFileSync(path.join(root, "src", "lib", "widget", "WidgetError.ts"), 'export class WidgetError extends Error {\n  constructor(readonly code: "X", message: string) { super(message); }\n}\n', "utf8");
+  const gap = findAyasErrorCodeContractGaps(root)[0]!;
+  const patch = generateAyasErrorCodeContractPatch(gap);
+  fs.writeFileSync(path.join(root, patch.exactFiles[0]!), patch.replacements[0]!.content, "utf8");
+  fs.writeFileSync(path.join(root, "src", "lib", "widget", "WidgetError.ts"), 'export class WidgetError extends Error {\n  constructor(readonly code: "X" | "Y", message: string) { super(message); }\n}\n', "utf8");
+  const drift = findAyasErrorCodeContractDrift(root)[0]!;
+  const driftPatch = generateAyasErrorCodeContractDriftPatch(drift);
+  assert.equal(driftPatch.replacements[0]!.allowCreate, false);
+  assert.notEqual(driftPatch.replacements[0]!.expectedHash, null);
+  assert.ok(driftPatch.replacements[0]!.content.includes('"Y"'));
+  assert.equal(driftPatch.generatorIdentity, "ayas-detector:error-code-contract-drift-v1");
+});
+
+// ---------------------------------------------------------------------------
+// M19 — diagnostic-quality-gap generator (Class 6)
+// ---------------------------------------------------------------------------
+
+scenario("findAyasBareAssertionGaps flags a bare assert.equal(a, b) with no message", () => {
+  const root = fixtureRoot();
+  fs.writeFileSync(path.join(root, "scripts", "smoke-bare.ts"), "assert.equal(1, 1);\n", "utf8");
+  const gaps = findAyasBareAssertionGaps(root);
+  assert.equal(gaps.length, 1);
+  assert.equal(gaps[0]!.fixedCallCount, 1);
+});
+
+scenario("findAyasBareAssertionGaps does NOT flag assert.ok(cond, \"message\") as bare — a 2-argument assert.ok already has a message (the exact bug this generator must avoid)", () => {
+  const root = fixtureRoot();
+  fs.writeFileSync(path.join(root, "scripts", "smoke-messaged-ok.ts"), 'assert.ok(condition, "condition must hold");\n', "utf8");
+  assert.deepEqual(findAyasBareAssertionGaps(root), []);
+});
+
+scenario("findAyasBareAssertionGaps DOES flag a genuinely bare assert.ok(cond) — one argument, no message", () => {
+  const root = fixtureRoot();
+  fs.writeFileSync(path.join(root, "scripts", "smoke-bare-ok.ts"), "assert.ok(condition);\n", "utf8");
+  const gaps = findAyasBareAssertionGaps(root);
+  assert.equal(gaps.length, 1);
+});
+
+scenario("findAyasBareAssertionGaps does not flag assert.equal(a, b, \"message\") — 3 arguments already has a message", () => {
+  const root = fixtureRoot();
+  fs.writeFileSync(path.join(root, "scripts", "smoke-messaged-equal.ts"), 'assert.equal(1, 1, "one equals one");\n', "utf8");
+  assert.deepEqual(findAyasBareAssertionGaps(root), []);
+});
+
+scenario("findAyasBareAssertionGaps skips a file whose line count already exceeds the blast-radius bound (whole-file replacement)", () => {
+  const root = fixtureRoot();
+  const content = `${"// padding\n".repeat(AYAS_NOVEL_PATCH_MAX_TOTAL_LINES + 5)}assert.equal(1, 1);\n`;
+  fs.writeFileSync(path.join(root, "scripts", "smoke-too-big.ts"), content, "utf8");
+  assert.deepEqual(findAyasBareAssertionGaps(root), []);
+});
+
+scenario("generateAyasBareAssertionMessagePatch appends the call's own literal source as its message, changes nothing else, and never adds a line", () => {
+  const root = fixtureRoot();
+  const original = 'assert.equal(error.code, code);\nassert.ok(flag);\n';
+  fs.writeFileSync(path.join(root, "scripts", "smoke-bare2.ts"), original, "utf8");
+  const gap = findAyasBareAssertionGaps(root)[0]!;
+  const patch = generateAyasBareAssertionMessagePatch(gap);
+  assert.equal(patch.replacements[0]!.allowCreate, false);
+  assert.notEqual(patch.replacements[0]!.expectedHash, null);
+  assert.equal(patch.replacements[0]!.content.split("\n").length, original.split("\n").length, "an in-place message append must never change the file's line count");
+  assert.ok(patch.replacements[0]!.content.includes('assert.equal(error.code, code, "assert.equal(error.code, code)")'));
+  assert.ok(patch.replacements[0]!.content.includes('assert.ok(flag, "assert.ok(flag)")'));
+  // Re-scanning the GENERATED content itself must find no remaining bare calls — the fix is idempotent/complete.
+  fs.writeFileSync(path.join(root, "scripts", "smoke-bare2.ts"), patch.replacements[0]!.content, "utf8");
+  assert.deepEqual(findAyasBareAssertionGaps(root), []);
+});
+
+// ---------------------------------------------------------------------------
+// M19.2/M19.4 — generator-source registry
+// ---------------------------------------------------------------------------
+
+scenario("AYAS_GENERATOR_SOURCES registers exactly the three M19 generator-backed classes, in a fixed (non-random) order", () => {
+  assert.deepEqual(AYAS_GENERATOR_SOURCES.map((s) => s.discoveryClass), ["error-code-contract-gap", "error-code-contract-drift", "diagnostic-quality-gap"]);
+});
+
+scenario("every AYAS_GENERATOR_SOURCES entry's discover() is a pure function of repoRoot — same fixture, same result, twice", () => {
+  const root = fixtureRoot();
+  fs.writeFileSync(path.join(root, "src", "lib", "widget", "WidgetError.ts"), 'export class WidgetError extends Error {\n  constructor(readonly code: "X", message: string) { super(message); }\n}\n', "utf8");
+  for (const source of AYAS_GENERATOR_SOURCES) {
+    assert.deepEqual(source.discover(root), source.discover(root));
+  }
 });
 
 console.log(`AYAS patch detectors smoke: PASS (${count} scenarios)`);

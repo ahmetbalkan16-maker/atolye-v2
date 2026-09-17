@@ -41,6 +41,19 @@ export interface AyasPatchArtifact {
   readonly replacements: readonly AyasPatchArtifactReplacement[];
   readonly validatorScripts: readonly string[];
   readonly graphifyEvidence: readonly string[];
+  /**
+   * M19 — self-declared, content-derived expected Graphify `imports_from`
+   * edge count per file (see `AyasPatchDetectors.countDeclaredImportStatements`).
+   * Optional for backward compatibility: artifacts frozen before this field
+   * existed simply omit it, and `AyasMicroBatchApprovalService` falls back to
+   * its legacy per-generatorIdentity constant for those. Any artifact frozen
+   * from here on always carries it — this is what lets a generator whose
+   * output files have a VARYING import count (e.g. `diagnostic-quality-gap`,
+   * which edits an arbitrary pre-existing file) declare its own expectation
+   * instead of needing a single hardcoded number to fit every file it could
+   * ever touch.
+   */
+  readonly graphifyImportCounts?: Readonly<Record<string, number>>;
   readonly safetyClassification: "SAFE" | "REVIEW_REQUIRED" | "FORBIDDEN_AUTONOMOUS";
   readonly problemStatement: string;
   readonly rationale: string;

@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { discoverAyasNovelPatchCandidates, AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "../src/lib/brain/autonomy/AyasNovelPatchDiscovery";
+import { generateAyasErrorCodeContractPatch } from "../src/lib/brain/autonomy/AyasPatchDetectors";
 import { createAyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatchArtifact";
 import { createAyasAutonomyDaemon, type AyasDaemonObservation } from "../src/lib/brain/autonomy/AyasAutonomyDaemon";
 import { createAyasApprovalInboxStore } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
@@ -34,12 +35,19 @@ async function main(): Promise<void> {
 
   await scenario("rejects a would-be candidate whose target file already exists on disk (already-handled gap), without touching the sandbox", async () => {
     // Build a fixture repo whose gap's generated target file already exists — the exact same anti-spam pattern the M16 static registry already uses.
+    // The existing file is built via the REAL generator (not a placeholder string): since M19 added a second generator
+    // (`error-code-contract-drift`) that independently compares an existing generated file's content against what the
+    // CURRENT template would produce, a placeholder/stale file here would now also surface as real drift — correct
+    // behavior for that new class, but not what THIS scenario is testing (the ORIGINAL create-generator's "already
+    // handled, skip" path). Using the real generator's own output keeps the fixture byte-identical to "up to date",
+    // so this scenario still asserts zero candidates/rejections from EITHER generator.
     const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-existing-fixture-"));
     git(repoRoot, ["init", "-q"]); git(repoRoot, ["config", "user.email", "f@example.com"]); git(repoRoot, ["config", "user.name", "f"]);
     fs.mkdirSync(path.join(repoRoot, "src", "lib", "widget"), { recursive: true });
     fs.mkdirSync(path.join(repoRoot, "scripts"), { recursive: true });
     fs.writeFileSync(path.join(repoRoot, "src", "lib", "widget", "WidgetError.ts"), 'export class WidgetError extends Error {\n  constructor(readonly code: "WIDGET_BROKEN", message: string) { super(message); }\n}\n', "utf8");
-    fs.writeFileSync(path.join(repoRoot, "scripts", "smoke-ayas-error-code-contract-widget.ts"), "// already exists\n", "utf8");
+    const widgetGap = { className: "WidgetError", sourceFile: "src/lib/widget/WidgetError.ts", modulePath: "../src/lib/widget/WidgetError", codes: ["WIDGET_BROKEN"] };
+    fs.writeFileSync(path.join(repoRoot, "scripts", "smoke-ayas-error-code-contract-widget.ts"), generateAyasErrorCodeContractPatch(widgetGap).replacements[0]!.content, "utf8");
     git(repoRoot, ["add", "-A"]); git(repoRoot, ["commit", "-q", "-m", "initial"]);
     const head = git(repoRoot, ["rev-parse", "HEAD"]);
     const artifactStore = createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-artifacts-")) });

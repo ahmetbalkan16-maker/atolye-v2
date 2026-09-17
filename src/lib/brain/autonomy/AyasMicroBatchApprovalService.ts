@@ -6,7 +6,8 @@ import { createAyasMicroBatchStore, type AyasMicroBatchStoreHandle, type AyasMic
 import { createAyasMicroItemStore, type AyasMicroItemStore } from "./AyasMicroItem";
 import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "./AyasPatchArtifact";
 import { executeAyasApprovedMicroBatchWith, AyasMicroBatchExecutionError } from "./AyasMicroBatchExecutionService";
-import { checkAyasBatchItemWithGraphify, AyasBatchGraphifyCheckError } from "./AyasBatchGraphifyCheck";
+import { AyasBatchGraphifyCheckError } from "./AyasBatchGraphifyCheck";
+import { createAyasGraphifyEvidenceStore, checkAyasItemWithGraphifyEvidenced, type AyasGraphifyEvidenceStore } from "./AyasGraphifyEvidenceStore";
 
 /**
  * M18.1 — "BATCH ONAYLA VE UYGULA": the single human authorization the user
@@ -60,13 +61,14 @@ export interface AyasMicroBatchApprovalDeps {
   readonly batchStore?: AyasMicroBatchStoreHandle;
   readonly itemStore?: AyasMicroItemStore;
   readonly artifactStore?: AyasPatchArtifactStore;
-  /** Test seam only — real callers never set this; defaults to the actual generator-shape contract every eligible micro generator currently produces (`node:assert/strict` + one target-class import). */
+  readonly graphifyEvidenceStore?: AyasGraphifyEvidenceStore;
+  /** Test seam / legacy fallback only — used only for artifacts frozen before M19's per-artifact `graphifyImportCounts` field existed. Real callers never set this. */
   readonly expectedImportCountByGenerator?: Readonly<Record<string, number>>;
 }
 
 export type AyasMicroBatchApprovalOutcome =
-  | { readonly ok: true; readonly commitSha: string; readonly pushed: true; readonly changedFiles: readonly string[] }
-  | { readonly ok: false; readonly code: string; readonly stage: "EXECUTION" | "POST_VALIDATION" | "STAGING" | "COMMIT" | "PUSH"; readonly message: string };
+  | { readonly ok: true; readonly commitSha: string; readonly pushed: true; readonly changedFiles: readonly string[]; readonly graphifyEvidenceItemIds: readonly string[] }
+  | { readonly ok: false; readonly code: string; readonly stage: "EXECUTION" | "POST_VALIDATION" | "STAGING" | "COMMIT" | "PUSH"; readonly message: string; readonly graphifyEvidenceItemIds: readonly string[] };
 
 function git(repoRoot: string, args: readonly string[]): string {
   return execFileSync("git", [...args], { cwd: repoRoot, encoding: "utf8", windowsHide: true }).trim();
@@ -76,11 +78,27 @@ const DEFAULT_EXPECTED_IMPORT_COUNT: Readonly<Record<string, number>> = {
   "ayas-detector:error-code-contract-gap-v1": 2, // node:assert/strict + the one target-class import — this generator's own fixed, declared shape
 };
 
-/** Deletes every file in `files` that currently exists — used ONLY to revert a Step-4 (post-execution) failure. Safe precisely because every current micro-item file is brand-new (`allowCreate: true`, `expectedHash: null`); there is no "previous content" to restore, only a clean absence to return to. */
-function revertNewFiles(repoRoot: string, files: readonly string[]): void {
+/**
+ * Reverts every file in `files` to its state at HEAD — used ONLY to undo a
+ * Step-4 (post-execution, pre-commit) failure. Nothing has been committed
+ * yet at that point, so HEAD still reflects the exact pre-mutation state:
+ * `git checkout HEAD -- <file>` restores a pre-existing (edited) file
+ * byte-for-byte; it fails for a file HEAD has no blob for (one this
+ * mutation newly created), which is deleted instead. Generalized in M19
+ * from the original `revertNewFiles` (which only ever deleted, correct only
+ * because every micro item before M19 was a brand-new file) — an
+ * edit-capable generator entering this lane without this fix would have
+ * silently discarded the ORIGINAL content of an edited file on any Step-4
+ * failure instead of restoring it.
+ */
+function revertToHead(repoRoot: string, files: readonly string[]): void {
   for (const f of files) {
-    const abs = path.join(repoRoot, f);
-    if (fs.existsSync(abs)) fs.rmSync(abs, { force: true });
+    try {
+      execFileSync("git", ["checkout", "HEAD", "--", f], { cwd: repoRoot, encoding: "utf8", windowsHide: true });
+    } catch {
+      const abs = path.join(repoRoot, f);
+      if (fs.existsSync(abs)) fs.rmSync(abs, { force: true });
+    }
   }
 }
 
@@ -115,8 +133,14 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
   const batchStore = deps.batchStore ?? createAyasMicroBatchStore();
   const itemStore = deps.itemStore ?? createAyasMicroItemStore();
   const artifactStore = deps.artifactStore ?? createAyasPatchArtifactStore();
+  const graphifyEvidenceStore = deps.graphifyEvidenceStore ?? createAyasGraphifyEvidenceStore({ rootDir: path.join(deps.gateRoot, "graphify-evidence") });
   const remoteName = deps.remoteName ?? "origin";
-  const expectedImportCounts = deps.expectedImportCountByGenerator ?? DEFAULT_EXPECTED_IMPORT_COUNT;
+  const legacyExpectedImportCounts = deps.expectedImportCountByGenerator ?? DEFAULT_EXPECTED_IMPORT_COUNT;
+  const graphifyEvidenceItemIds = new Set<string>();
+
+  /** Prefers the artifact's own M19 `graphifyImportCounts` (self-declared, content-derived, correct per-file even when a generator's output import count varies); falls back to the legacy per-generatorIdentity constant only for an artifact frozen before that field existed. */
+  const expectedImportCountFor = (artifact: { readonly generatorIdentity: string; readonly graphifyImportCounts?: Readonly<Record<string, number>> }, file: string): number | undefined =>
+    artifact.graphifyImportCounts?.[file] ?? legacyExpectedImportCounts[artifact.generatorIdentity];
 
   const batchBefore = batchStore.load().batches.find((b) => b.batchId === batchId);
   if (!batchBefore) throw new AyasMicroBatchApprovalError("NOT_FOUND", "batch not found");
@@ -139,14 +163,17 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
         const artifact = artifactStore.loadVerified(
           batchStore.load().batches.find((b) => b.batchId === batchId)!.items.find((r) => r.microItemId === item.microItemId)!.patchArtifactId,
         );
-        const expected = expectedImportCounts[artifact.generatorIdentity];
-        if (expected === undefined) throw new AyasBatchGraphifyCheckError("AYAS_GRAPHIFY_UNEXPECTED_DEPENDENCY", `no declared Graphify import-count contract for generator "${artifact.generatorIdentity}" — refusing to guess`);
-        for (const file of item.exactFiles) checkAyasBatchItemWithGraphify(deps.repoRoot, file, expected);
+        for (const file of item.exactFiles) {
+          const expected = expectedImportCountFor(artifact, file);
+          if (expected === undefined) throw new AyasBatchGraphifyCheckError("AYAS_GRAPHIFY_UNEXPECTED_DEPENDENCY", `no declared Graphify import-count contract for generator "${artifact.generatorIdentity}" file "${file}" — refusing to guess`);
+          checkAyasItemWithGraphifyEvidenced({ repoRoot: deps.repoRoot, evidenceStore: graphifyEvidenceStore, itemId: item.microItemId, file, expectedImportCount: expected }); // throws (and still records a FAIL record) on mismatch — never swallowed
+          graphifyEvidenceItemIds.add(item.microItemId);
+        }
       },
     });
   } catch (error) {
     const code = error instanceof AyasMicroBatchExecutionError || error instanceof AyasBatchGraphifyCheckError ? error.code : error instanceof Error ? error.message : "EXECUTION_FAILED";
-    return { ok: false, code, stage: "EXECUTION", message: error instanceof Error ? error.message : String(error) };
+    return { ok: false, code, stage: "EXECUTION", message: error instanceof Error ? error.message : String(error), graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
 
   const batchAfterExec = batchStore.load().batches.find((b) => b.batchId === batchId)!;
@@ -155,9 +182,12 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
   // --- Step 4: batch-wide post-execution validation (final Graphify refresh + project TypeScript + git diff --check) ---
   try {
     for (const file of files) {
-      const artifact = artifactStore.loadVerified(batchAfterExec.items.find((r) => r.exactFiles.includes(file))!.patchArtifactId);
-      const expected = expectedImportCounts[artifact.generatorIdentity] ?? 0;
-      checkAyasBatchItemWithGraphify(deps.repoRoot, file, expected); // final refresh, re-derived from the now-committed working tree, not reused from the pre-commit check
+      const item = batchAfterExec.items.find((r) => r.exactFiles.includes(file))!;
+      const artifact = artifactStore.loadVerified(item.patchArtifactId);
+      const expected = expectedImportCountFor(artifact, file) ?? 0;
+      // final refresh, re-derived from the now-committed working tree, not reused from the pre-commit check
+      checkAyasItemWithGraphifyEvidenced({ repoRoot: deps.repoRoot, evidenceStore: graphifyEvidenceStore, itemId: item.microItemId, file, expectedImportCount: expected });
+      graphifyEvidenceItemIds.add(item.microItemId);
     }
     const tscEntry = path.join(deps.repoRoot, "node_modules", "typescript", "bin", "tsc");
     execFileSync(process.execPath, [tscEntry, "--noEmit"], { cwd: deps.repoRoot, encoding: "utf8", windowsHide: true, timeout: 180_000 });
@@ -165,10 +195,10 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
     git(deps.repoRoot, ["diff", "--check", "--", ...files]);
   } catch (error) {
     git(deps.repoRoot, ["reset", "--", ...files]); // undo the intent-to-add above before reverting the files themselves
-    revertNewFiles(deps.repoRoot, files);
+    revertToHead(deps.repoRoot, files);
     const message = error instanceof Error ? error.message : String(error);
     const code = error instanceof AyasBatchGraphifyCheckError ? error.code : "POST_EXECUTION_VALIDATION_FAILED";
-    return { ok: false, code, stage: "POST_VALIDATION", message };
+    return { ok: false, code, stage: "POST_VALIDATION", message, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
 
   // --- Step 6: exact-scope Git staging only — never `git add .` / `-A` / `commit -a` ---
@@ -177,15 +207,15 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
   const expectedFiles = [...files].sort();
   if (JSON.stringify(stagedFiles) !== JSON.stringify(expectedFiles)) {
     git(deps.repoRoot, ["reset"]);
-    revertNewFiles(deps.repoRoot, files);
-    return { ok: false, code: "AYAS_MICRO_BATCH_STAGE_SCOPE_MISMATCH", stage: "STAGING", message: `staged scope ${JSON.stringify(stagedFiles)} did not exactly match the approved batch's files ${JSON.stringify(expectedFiles)}` };
+    revertToHead(deps.repoRoot, files);
+    return { ok: false, code: "AYAS_MICRO_BATCH_STAGE_SCOPE_MISMATCH", stage: "STAGING", message: `staged scope ${JSON.stringify(stagedFiles)} did not exactly match the approved batch's files ${JSON.stringify(expectedFiles)}`, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
   try {
     git(deps.repoRoot, ["diff", "--cached", "--check"]);
   } catch (error) {
     git(deps.repoRoot, ["reset"]);
-    revertNewFiles(deps.repoRoot, files);
-    return { ok: false, code: "AYAS_MICRO_BATCH_WHITESPACE_ERROR", stage: "STAGING", message: error instanceof Error ? error.message : String(error) };
+    revertToHead(deps.repoRoot, files);
+    return { ok: false, code: "AYAS_MICRO_BATCH_WHITESPACE_ERROR", stage: "STAGING", message: error instanceof Error ? error.message : String(error), graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
 
   // --- Step 7: ONE batch commit ---
@@ -197,7 +227,7 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
     // A commit failure with content already staged is left exactly as-is for
     // human inspection — RECOVERY_REQUIRED-equivalent, never auto-reset,
     // never auto-retried.
-    return { ok: false, code: "AYAS_MICRO_BATCH_COMMIT_FAILED", stage: "COMMIT", message: error instanceof Error ? error.message : String(error) };
+    return { ok: false, code: "AYAS_MICRO_BATCH_COMMIT_FAILED", stage: "COMMIT", message: error instanceof Error ? error.message : String(error), graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
 
   // --- Step 8: push, never force ---
@@ -207,14 +237,14 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
   } catch (error) {
     // The commit already exists locally and is never rewritten/reset here —
     // a push failure is reported as-is; a human decides whether to retry.
-    return { ok: false, code: "AYAS_MICRO_BATCH_PUSH_FAILED", stage: "PUSH", message: error instanceof Error ? error.message : String(error) };
+    return { ok: false, code: "AYAS_MICRO_BATCH_PUSH_FAILED", stage: "PUSH", message: error instanceof Error ? error.message : String(error), graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
 
   const localHead = git(deps.repoRoot, ["rev-parse", "HEAD"]);
   const remoteHead = git(deps.repoRoot, ["rev-parse", `${remoteName}/${branch}`]);
   if (localHead !== remoteHead) {
-    return { ok: false, code: "AYAS_MICRO_BATCH_PUBLISH_UNVERIFIED", stage: "PUSH", message: `local HEAD ${localHead} does not match ${remoteName}/${branch} ${remoteHead} after push` };
+    return { ok: false, code: "AYAS_MICRO_BATCH_PUBLISH_UNVERIFIED", stage: "PUSH", message: `local HEAD ${localHead} does not match ${remoteName}/${branch} ${remoteHead} after push`, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
 
-  return { ok: true, commitSha, pushed: true, changedFiles: files };
+  return { ok: true, commitSha, pushed: true, changedFiles: files, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
 }
