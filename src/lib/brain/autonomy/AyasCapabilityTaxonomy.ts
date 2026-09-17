@@ -24,6 +24,28 @@ export const AYAS_CAPABILITY_CATEGORIES = [
   "WORKFLOW_RESILIENCE",
   "DIAGNOSTICS",
   "PERFORMANCE",
+  // AYAS CONTINUOUS EXTERNAL INTELLIGENCE sprint (Part C/J) — research is no
+  // longer scoped only to Atölye video/audio production; it must also cover
+  // AYAS's OWN self-improvement/engineering-intelligence capability. These 16
+  // categories are deliberately vendor-neutral (same rule as the original 17
+  // above) and, unlike the video/audio set, mostly relate to AYAS's own
+  // `src/lib/ayas/` + `src/lib/brain/` subsystems rather than a pipeline stage.
+  "AI_ASSISTANTS",
+  "CODING_AGENTS",
+  "RESEARCH_AGENTS",
+  "MULTIMODAL_AI",
+  "VOICE_AI",
+  "AUDIO_AI",
+  "VIDEO_AI",
+  "IMAGE_AI",
+  "MEMORY_CONTEXT",
+  "TOOL_USE",
+  "AGENT_ORCHESTRATION",
+  "AUTOMATION_WORKFLOW",
+  "DEVELOPER_PLATFORMS",
+  "OPEN_SOURCE_AI",
+  "SECURITY_RELIABILITY",
+  "UI_UX",
 ] as const;
 
 export type AyasCapabilityCategory = typeof AYAS_CAPABILITY_CATEGORIES[number];
@@ -58,4 +80,20 @@ export const AYAS_CAPABILITY_CATEGORY_RELATED_PATHS: Readonly<Record<AyasCapabil
   WORKFLOW_RESILIENCE: ["src/lib/pipeline/", "src/lib/production/"],
   DIAGNOSTICS: ["src/lib/brain/probe/", "src/lib/brain/selfheal/"],
   PERFORMANCE: [],
+  AI_ASSISTANTS: ["src/lib/ayas/"],
+  CODING_AGENTS: ["src/lib/brain/autonomy/"],
+  RESEARCH_AGENTS: ["src/lib/brain/autonomy/"],
+  MULTIMODAL_AI: ["src/lib/ai/"],
+  VOICE_AI: ["src/lib/ayas/stt/", "src/components/brain/voice/"],
+  AUDIO_AI: ["src/lib/audio/"],
+  VIDEO_AI: ["src/lib/video/", "src/lib/animation/"],
+  IMAGE_AI: ["src/lib/visuals/"],
+  MEMORY_CONTEXT: ["src/lib/ayas/context/"],
+  TOOL_USE: ["src/lib/ayas/"],
+  AGENT_ORCHESTRATION: ["src/lib/brain/autonomy/"],
+  AUTOMATION_WORKFLOW: ["src/lib/pipeline/"],
+  DEVELOPER_PLATFORMS: [],
+  OPEN_SOURCE_AI: ["src/lib/ai/providers/"],
+  SECURITY_RELIABILITY: ["src/lib/brain/selfheal/", "src/lib/production/"],
+  UI_UX: ["src/components/"],
 };
