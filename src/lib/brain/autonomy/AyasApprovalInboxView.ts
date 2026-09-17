@@ -1,6 +1,7 @@
 import { readAyasApprovalInboxState, type AyasApprovalInboxReadState, type AyasInboxDecisionRead, type AyasInboxProposalRead, type AyasInboxResultRead } from "./AyasApprovalInboxReader";
 import { isAyasDeferredEligibleNow } from "./AyasDeferredEligibility";
 import { createAyasPatchArtifactStore, AyasPatchArtifactError } from "./AyasPatchArtifact";
+import { classifyAyasFindingValue, type AyasFindingValueClass } from "./AyasFindingValueClass";
 
 export const ayasHumanExplanationFields = ["currentProblem", "selectionReason", "expectedUserBenefit", "expectedBehaviorChange", "unchangedBehavior", "riskIfNotDone", "technicalRisk", "productionImpact"] as const;
 export type AyasHumanExplanationField = typeof ayasHumanExplanationFields[number];
@@ -22,6 +23,8 @@ export interface AyasDevelopmentProposal extends AyasInboxProposalRead {
   readonly result?: AyasInboxResultRead;
   /** Present only for a `patchArtifactId`-bearing proposal, and only when the artifact still loads and verifies — a missing/corrupt artifact never crashes the view, it just omits the diff (the proposal's other fields still render normally). */
   readonly patchArtifact?: AyasDevelopmentPatchArtifact;
+  /** M20.1 — deterministic value classification, computed fresh from `exactFiles` on every read (never stored, never influenced by proposal prose, never an authority signal — purely "why does this matter" for a human reading Gelişim Merkezi). */
+  readonly valueClass: AyasFindingValueClass;
 }
 
 export interface AyasApprovalInboxView {
@@ -82,6 +85,7 @@ export function buildAyasApprovalInboxView(state: AyasApprovalInboxReadState, no
     decision: [...state.decisions].reverse().find((item) => item.proposalId === proposal.proposalId),
     result: [...state.results].reverse().find((item) => item.proposalId === proposal.proposalId),
     patchArtifact: loadAyasDevelopmentPatchArtifact(proposal),
+    valueClass: classifyAyasFindingValue(proposal.exactFiles),
   });
   const all = state.proposals.map(enrich);
   // M8 — the SAME predicate the durable authority layer's decision gate now

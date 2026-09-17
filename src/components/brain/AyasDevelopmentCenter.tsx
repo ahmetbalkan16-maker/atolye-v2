@@ -57,6 +57,15 @@ const statusLabel: Record<AyasDevelopmentProposal["status"], string> = {
   RECOVERY_REQUIRED: "RECOVERY_REQUIRED",
 };
 
+/** M20.1 — deterministic value classification labels (see `AyasFindingValueClass.ts`). Purely descriptive, never an authority signal. */
+const valueClassLabel: Record<AyasDevelopmentProposal["valueClass"], string> = {
+  TEST_QUALITY: "Test kalitesi geliştirmesi",
+  PRODUCT_BEHAVIOR: "Ürün davranışı geliştirmesi",
+  RELIABILITY_RECOVERY: "Güvenilirlik / kurtarma geliştirmesi",
+  OBSERVABILITY: "Gözlemlenebilirlik geliştirmesi",
+  PERFORMANCE: "Performans geliştirmesi",
+};
+
 function SafetyNotice({ proposal }: { readonly proposal: AyasDevelopmentProposal }) {
   if (proposal.safetyClassification === "REVIEW_REQUIRED") return <p className="bc-dev__notice bc-dev__notice--warn">İNSAN İNCELEMESİ GEREKİYOR</p>;
   if (proposal.safetyClassification === "FORBIDDEN_AUTONOMOUS") return <p className="bc-dev__notice bc-dev__notice--danger">AYAS BUNU KENDİ BAŞINA UYGULAYAMAZ</p>;
@@ -161,6 +170,7 @@ function PendingProposal({ proposal, pendingId, onDecision, onaylaVeUygulaPendin
         <div><span className="bc-dev__status">{statusLabel[proposal.status]}</span><h3>{proposal.objective}</h3></div>
         <span className={`bc-dev__safety bc-dev__safety--${proposal.safetyClassification.toLowerCase()}`}>{proposal.safetyClassification}</span>
       </header>
+      <p className="bc-dev__valueclass" title="Bu bulgunun türü — dosya yollarından deterministik olarak hesaplanır, öneri metninden değil">{valueClassLabel[proposal.valueClass]}</p>
       <SafetyNotice proposal={proposal} />
       <ProposalDetails proposal={proposal} />
       {confirming && proposal.approvalReady ? (
