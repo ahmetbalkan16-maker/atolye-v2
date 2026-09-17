@@ -446,6 +446,58 @@ async function run() {
     assert.match(out.message.text, /D:\\AtolyeRuntime/);
   });
 
+  // M20.6 — a pipeline stage's `error` field is real, uncontrolled-length
+  // text that ends up directly in the AYAS chat prompt as "kök neden"
+  // (see ayasStudioPromptLines in brainCore.ts). These two scenarios prove
+  // the fix: it's bounded and redacted before it ever reaches the loader's
+  // return value, so a huge or leaky manifest error can never balloon the
+  // prompt or carry an absolute path/secret-looking value into it.
+  await scenario("M20.6 — a pipeline stage's rootCause is truncated to a bounded length, never embedded raw and unbounded", async () => {
+    const sandbox2 = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-studio-rootcause-"));
+    const runtimeRoot2 = path.join(sandbox2, "runtime");
+    fs.mkdirSync(path.join(runtimeRoot2, "projects"), { recursive: true });
+    const prev = process.env.ATOLYE_RUNTIME_ROOT;
+    process.env.ATOLYE_RUNTIME_ROOT = runtimeRoot2;
+    try {
+      writeProject(runtimeRoot2, "huge", { slug: "huge", id: "huge", title: "Huge", status: "assembly" });
+      const hugeError = "FFMPEG_FAILED: ".repeat(50); // ~750 chars — realistic for a raw ffmpeg stderr dump
+      writeManifest(runtimeRoot2, "huge", { assembly: { status: "failed", error: hugeError } });
+      const ctx = await loadAyasStudioContext();
+      const rootCause = ctx.projects.pipeline?.latestFailure?.rootCause ?? "";
+      assert.ok(rootCause.length > 0, "rootCause must still be present, just bounded");
+      assert.ok(rootCause.length <= 300, `rootCause must be bounded, got ${rootCause.length} chars`);
+      assert.ok(rootCause.length < hugeError.length, "the bound must actually have cut something off for this input");
+    } finally {
+      if (prev === undefined) delete process.env.ATOLYE_RUNTIME_ROOT; else process.env.ATOLYE_RUNTIME_ROOT = prev;
+      fs.rmSync(sandbox2, { recursive: true, force: true });
+    }
+  });
+
+  await scenario("M20.6 — a pipeline stage's rootCause has an embedded absolute path redacted before reaching the prompt", async () => {
+    const sandbox3 = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-studio-rootcause-"));
+    const runtimeRoot3 = path.join(sandbox3, "runtime");
+    fs.mkdirSync(path.join(runtimeRoot3, "projects"), { recursive: true });
+    const prev = process.env.ATOLYE_RUNTIME_ROOT;
+    process.env.ATOLYE_RUNTIME_ROOT = runtimeRoot3;
+    try {
+      writeProject(runtimeRoot3, "leaky", { slug: "leaky", id: "leaky", title: "Leaky", status: "video" });
+      const leakySegment = "C:\\Users\\Metod\\secret-project\\credentials.json";
+      const leakyError = `ENOENT: no such file or directory, open '${leakySegment}'`;
+      writeManifest(runtimeRoot3, "leaky", { video: { status: "failed", error: leakyError } });
+      const ctx = await loadAyasStudioContext();
+      const rootCause = ctx.projects.pipeline?.latestFailure?.rootCause ?? "";
+      assert.ok(!rootCause.includes(leakySegment), `rootCause must not carry the raw absolute path into the prompt: ${rootCause}`);
+      assert.match(rootCause, /\[redacted:absolute-path\]/);
+      // And prove it never reaches buildAyasChatPrompt's output either — not just the loader's own field.
+      // (The runtime authority's OWN path is legitimately in the prompt — this checks the LEAKY error path specifically, not paths in general.)
+      const prompt = buildAyasChatPrompt({ userText: "son başarısız stage ne?", snapshot: snap(), history: [], format: "text", studio: ctx });
+      assert.ok(!prompt.includes(leakySegment), "the raw leaky error path must never reach the model prompt");
+    } finally {
+      if (prev === undefined) delete process.env.ATOLYE_RUNTIME_ROOT; else process.env.ATOLYE_RUNTIME_ROOT = prev;
+      fs.rmSync(sandbox3, { recursive: true, force: true });
+    }
+  });
+
   console.log(`AYAS studio context smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-studio-context", scenarios: count }));
 }

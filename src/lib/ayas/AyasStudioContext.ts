@@ -18,6 +18,7 @@
 
 import fs from "node:fs";
 
+import { redactBrainText } from "@/lib/brain/BrainRedaction";
 import {
   resolveRuntimeStorageContext,
   getProjectsRoot,
@@ -35,6 +36,18 @@ import type {
 
 /** How many sample projects to carry into the prompt. */
 export const AYAS_STUDIO_SAMPLE_LIMIT = 6;
+
+/**
+ * A pipeline stage's `error` field in `manifest.json` is real, uncontrolled-
+ * length text (an FFmpeg stderr dump, a full stack trace, or worse) that
+ * `ayasStudioPromptLines` (`brainCore.ts`) embeds directly into the AYAS
+ * chat prompt as "kök neden". Bounding + redacting it here — the same
+ * `redactBrainText` + slice pattern already used for a durable decision
+ * `reason` (`AyasApprovalInboxStore.ts`'s `scrub`) — keeps one long/leaky
+ * manifest error from either ballooning prompt token cost or carrying an
+ * absolute path/secret-looking value into the model prompt.
+ */
+const AYAS_STUDIO_ROOT_CAUSE_MAX_CHARS = 300;
 
 /** Read-only pipeline facts for one project — no stage is run. Fail-soft. */
 interface ProjectPipelineProbe {
@@ -104,7 +117,10 @@ async function probeProjectPipeline(
     (pipelineStageDependencies[nextStage] ?? []).some((dep) => statusOf(dep) !== "completed");
   const lastFailed = failedStages[failedStages.length - 1];
   const rawErr = lastFailed ? pkgs[lastFailed]?.error : undefined;
-  const rootCause = typeof rawErr === "string" && rawErr.trim() ? rawErr.trim() : null;
+  const rootCause =
+    typeof rawErr === "string" && rawErr.trim()
+      ? redactBrainText(rawErr.trim()).text.slice(0, AYAS_STUDIO_ROOT_CAUSE_MAX_CHARS)
+      : null;
 
   return { nextStage, failedStages, blocked, rootCause, probed: true };
 }
