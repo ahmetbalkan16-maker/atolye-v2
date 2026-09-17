@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 
 import type { AyasApprovalInboxHandle, AyasApprovalInboxState, AyasInboxProposal, AyasInboxProposalStatus, AyasInboxDecisionRecord, AyasInboxResultRecord } from "./AyasApprovalInboxStore";
 import { createAyasAutonomyDaemon } from "./AyasAutonomyDaemon";
+import type { AyasExecutionJournalPhase } from "./AyasExecutionJournal";
 import { reconcileAyasMicroBatchStaleness } from "./AyasMicroBatchStaleness";
 import { createAyasMicroBatchStore, type AyasMicroBatchStoreHandle, type AyasMicroBatch } from "./AyasMicroBatch";
 import { createAyasMicroItemStore, type AyasMicroItemStore } from "./AyasMicroItem";
@@ -105,6 +106,8 @@ export interface AyasMicroBatchExecutionDeps {
    * that predate that requirement.
    */
   readonly onItemApplied?: (item: { readonly microItemId: string; readonly exactFiles: readonly string[] }) => void | Promise<void>;
+  /** M21.1 — test-only pass-through to `AyasAutonomyDaemon`'s crash-injection hook. Never set in production. */
+  readonly onJournalPhase?: (phase: AyasExecutionJournalPhase) => void;
 }
 
 function git(repoRoot: string, args: readonly string[]): string {
@@ -145,7 +148,7 @@ export async function executeAyasApprovedMicroBatchWith(batchId: string, deps: A
   if (!freshBatch || freshBatch.status !== "APPROVED") throw new AyasMicroBatchExecutionError("STALE_APPROVAL", "batch state changed since lookup");
 
   const adapter = createAyasMicroBatchAsInboxAdapter(batchStore, batchId);
-  const daemon = createAyasAutonomyDaemon({ inbox: adapter, gateRoot: deps.gateRoot, repoRoot: deps.repoRoot });
+  const daemon = createAyasAutonomyDaemon({ inbox: adapter, gateRoot: deps.gateRoot, repoRoot: deps.repoRoot, onJournalPhase: deps.onJournalPhase });
 
   await daemon.executeApproved({
     proposalId: batch.batchId,

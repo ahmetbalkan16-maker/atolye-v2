@@ -64,6 +64,10 @@ export interface AyasMicroBatchApprovalDeps {
   readonly graphifyEvidenceStore?: AyasGraphifyEvidenceStore;
   /** Test seam / legacy fallback only — used only for artifacts frozen before M19's per-artifact `graphifyImportCounts` field existed. Real callers never set this. */
   readonly expectedImportCountByGenerator?: Readonly<Record<string, number>>;
+  /** M21.1 — test-only crash-injection hooks. Never set in production. */
+  readonly onJournalPhase?: (phase: import("./AyasExecutionJournal").AyasExecutionJournalPhase) => void;
+  readonly onBeforeCommit?: () => void;
+  readonly onAfterCommitBeforePush?: () => void;
 }
 
 export type AyasMicroBatchApprovalOutcome =
@@ -159,6 +163,7 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
       batchStore,
       itemStore,
       artifactStore,
+      onJournalPhase: deps.onJournalPhase,
       onItemApplied: async (item) => {
         const artifact = artifactStore.loadVerified(
           batchStore.load().batches.find((b) => b.batchId === batchId)!.items.find((r) => r.microItemId === item.microItemId)!.patchArtifactId,
@@ -221,6 +226,7 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
   // --- Step 7: ONE batch commit ---
   let commitSha: string;
   try {
+    deps.onBeforeCommit?.();
     git(deps.repoRoot, ["commit", "-m", commitMessageFor(batchAfterExec)]);
     commitSha = git(deps.repoRoot, ["rev-parse", "HEAD"]);
   } catch (error) {
@@ -233,6 +239,7 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
   // --- Step 8: push, never force ---
   const branch = git(deps.repoRoot, ["rev-parse", "--abbrev-ref", "HEAD"]);
   try {
+    deps.onAfterCommitBeforePush?.();
     git(deps.repoRoot, ["push", remoteName, branch]);
   } catch (error) {
     // The commit already exists locally and is never rewritten/reset here —

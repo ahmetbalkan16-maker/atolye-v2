@@ -56,6 +56,10 @@ export interface AyasProposalApprovalDeps {
   readonly inbox: AyasApprovalInboxHandle;
   readonly artifactStore?: AyasPatchArtifactStore;
   readonly graphifyEvidenceStore?: AyasGraphifyEvidenceStore;
+  /** M21.1 — test-only crash-injection hooks. Never set in production. */
+  readonly onJournalPhase?: (phase: import("./AyasExecutionJournal").AyasExecutionJournalPhase) => void;
+  readonly onBeforeCommit?: () => void;
+  readonly onAfterCommitBeforePush?: () => void;
 }
 
 export type AyasProposalApprovalOutcome =
@@ -135,7 +139,7 @@ export async function approveAndExecuteAyasProposal(proposalId: string, approved
 
   // --- Package C execution (unmodified AyasAutonomyDaemon.executeApproved, via the existing AyasProposalExecutionService) ---
   try {
-    await executeAyasApprovedProposalWith(proposalId, { repoRoot: deps.repoRoot, gateRoot: deps.gateRoot, inbox: deps.inbox, patchArtifactStore: artifactStore });
+    await executeAyasApprovedProposalWith(proposalId, { repoRoot: deps.repoRoot, gateRoot: deps.gateRoot, inbox: deps.inbox, patchArtifactStore: artifactStore, onJournalPhase: deps.onJournalPhase });
   } catch (error) {
     const code = error instanceof AyasProposalExecutionError ? error.code : error instanceof Error ? error.message : "EXECUTION_FAILED";
     return { ok: false, code, stage: "EXECUTION", message: error instanceof Error ? error.message : String(error), graphifyEvidenceItemIds: [] };
@@ -184,6 +188,7 @@ export async function approveAndExecuteAyasProposal(proposalId: string, approved
   // --- ONE commit ---
   let commitSha: string;
   try {
+    deps.onBeforeCommit?.();
     git(deps.repoRoot, ["commit", "-m", commitMessageFor(approved)]);
     commitSha = git(deps.repoRoot, ["rev-parse", "HEAD"]);
   } catch (error) {
@@ -195,6 +200,7 @@ export async function approveAndExecuteAyasProposal(proposalId: string, approved
   // --- push, never force ---
   const branch = git(deps.repoRoot, ["rev-parse", "--abbrev-ref", "HEAD"]);
   try {
+    deps.onAfterCommitBeforePush?.();
     git(deps.repoRoot, ["push", remoteName, branch]);
   } catch (error) {
     return { ok: false, code: "AYAS_PROPOSAL_PUSH_FAILED", stage: "PUSH", message: error instanceof Error ? error.message : String(error), graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };

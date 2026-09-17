@@ -42,7 +42,31 @@ export interface AyasDaemonCandidate {
   readonly patchArtifactId?: string;
   readonly patchHash?: string;
 }
-export interface AyasDaemonOptions { readonly inbox?: AyasApprovalInboxHandle; readonly stateFile?: string; readonly gateRoot?: string; readonly repoRoot?: string; readonly now?: () => string; readonly revalidation?: Pick<AyasExecutionRevalidationDeps, "readMachineHealth" | "readRepository" | "workload">; }
+export interface AyasDaemonOptions {
+  readonly inbox?: AyasApprovalInboxHandle;
+  readonly stateFile?: string;
+  readonly gateRoot?: string;
+  readonly repoRoot?: string;
+  readonly now?: () => string;
+  readonly revalidation?: Pick<AyasExecutionRevalidationDeps, "readMachineHealth" | "readRepository" | "workload">;
+  /**
+   * M21.1 — fires synchronously immediately AFTER each execution-journal
+   * phase is durably written (`writeJournal` inside `executeApproved`),
+   * before the next step runs. Every real caller omits this — its only
+   * purpose is deterministic crash-injection testing (see
+   * `scripts/ayas-crash-injection-worker.ts`): a test can throw or call
+   * `process.exit()` inside it to simulate a genuine interruption at an
+   * EXACT, named journal boundary, with the guarantee that the journal
+   * record for that phase is already durable on disk before it fires (a
+   * crash "during" a phase is indistinguishable, for recovery purposes,
+   * from a crash immediately after the phase's own journal write — the
+   * durable state is what recovery classification reads either way). Never
+   * influences control flow itself: if it throws, that throw propagates
+   * through `executeApproved`'s own existing try/catch exactly like any
+   * other execution-time failure already does — no new failure path.
+   */
+  readonly onJournalPhase?: (phase: AyasExecutionJournalPhase) => void;
+}
 
 const initialState = (now: string): AyasAutonomyDaemonState => ({ schemaVersion: ayasAutonomyDaemonSchemaVersion, phase: "STARTING", updatedAt: now, heartbeatCount: 0 });
 
@@ -117,6 +141,7 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
         ...(journalContext.reservationId ? { reservationId: journalContext.reservationId } : {}),
         ...extra,
       });
+      options.onJournalPhase?.(phase);
     };
 
     writeJournal("APPROVED_NOT_STARTED");

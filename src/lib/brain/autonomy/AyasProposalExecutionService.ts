@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { createAyasApprovalInboxStore, isAyasProposalApprovalReady, type AyasApprovalInboxHandle } from "./AyasApprovalInboxStore";
 import { createAyasAutonomyDaemon } from "./AyasAutonomyDaemon";
+import type { AyasExecutionJournalPhase } from "./AyasExecutionJournal";
 import { resolveAyasMutation, AyasMutationRegistryError, type AyasMutationImplementation } from "./AyasMutationRegistry";
 import { resolveAyasPatchArtifactMutation, AyasPatchArtifactMutationError } from "./AyasPatchArtifactMutation";
 import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "./AyasNovelPatchDiscovery";
@@ -40,6 +41,8 @@ export interface AyasProposalExecutionDeps {
   readonly registry?: ReadonlyMap<string, AyasMutationImplementation>;
   /** Test-only override for `resolveAyasPatchArtifactMutation` — omitted in production, where it reads/verifies from the one real, durable `data/brain/self-improvement/patch-artifacts` store. Never touches `data/brain` when a test supplies its own isolated store. */
   readonly patchArtifactStore?: AyasPatchArtifactStore;
+  /** M21.1 — test-only pass-through to `AyasAutonomyDaemon`'s crash-injection hook. Never set in production. */
+  readonly onJournalPhase?: (phase: AyasExecutionJournalPhase) => void;
 }
 
 export function defaultAyasProposalExecutionDeps(): AyasProposalExecutionDeps {
@@ -84,7 +87,7 @@ export async function executeAyasApprovedProposalWith(proposalId: string, deps: 
   const freshProposal = deps.inbox.load().proposals.find((entry) => entry.proposalId === proposalId);
   if (!freshProposal || freshProposal.status !== "APPROVED") throw new AyasProposalExecutionError("STALE_APPROVAL", "proposal state changed since lookup");
 
-  const daemon = createAyasAutonomyDaemon({ inbox: deps.inbox, gateRoot: deps.gateRoot, repoRoot: deps.repoRoot });
+  const daemon = createAyasAutonomyDaemon({ inbox: deps.inbox, gateRoot: deps.gateRoot, repoRoot: deps.repoRoot, onJournalPhase: deps.onJournalPhase });
   await daemon.executeApproved({
     proposalId: proposal.proposalId,
     proposalHash: proposal.proposalHash,
