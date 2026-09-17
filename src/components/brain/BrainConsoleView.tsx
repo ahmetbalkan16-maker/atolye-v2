@@ -37,6 +37,7 @@ import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView
 import type { AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import type { AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
 import type { AyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
+import type { AyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
 import { AyasGoalResearchPanel } from "./AyasGoalResearchPanel";
 import type { BrainSelfHealSnapshot } from "@/lib/brain/selfheal/BrainSelfHealSnapshot";
 import type { BrainReportCenterView } from "@/lib/brain/selfheal/BrainReportCenter";
@@ -102,6 +103,8 @@ export interface BrainConsoleViewProps {
   readonly microBatch?: AyasMicroBatchDevelopmentView;
   /** M22.14 — read-only goals + external-research state, for the "Hedefler ve Araştırma" section. */
   readonly goalDevelopment?: AyasGoalDevelopmentView;
+  /** AYAS CONTINUOUS EXTERNAL INTELLIGENCE sprint — read-only research scheduler + source registry status, for the "Araştırma Motoru" section. */
+  readonly researchEngineStatus?: AyasResearchEngineStatusView;
   readonly approvalPendingId?: string | null;
   readonly onApprovalDecision?: (input: { proposalId: string; decision: "APPROVE" | "REJECT" | "LATER" }) => void;
   readonly executionPendingId?: string | null;
@@ -551,7 +554,7 @@ function PanelBody(props: BrainConsoleViewProps) {
       return (
         <>
           <AyasDevelopmentCenter inbox={props.approvalInbox ?? { connected: true, pending: [], today: [], history: [] }} microBatch={props.microBatch ?? { connected: true, active: null, history: [] }} pendingId={props.approvalPendingId} onDecision={props.onApprovalDecision} executingId={props.executionPendingId} executionError={props.executionError} onExecute={props.onExecuteProposal} batchOnaylaPending={props.batchOnaylaPending} batchOnaylaError={props.batchOnaylaError} onBatchOnaylaVeUygula={props.onBatchOnaylaVeUygula} proposalOnaylaPendingId={props.proposalOnaylaPendingId} proposalOnaylaError={props.proposalOnaylaError} onProposalOnaylaVeUygula={props.onProposalOnaylaVeUygula} />
-          <AyasGoalResearchPanel view={props.goalDevelopment ?? { connected: true, goals: [], research: [] }} />
+          <AyasGoalResearchPanel view={props.goalDevelopment ?? { connected: true, goals: [], research: [] }} researchEngineStatus={props.researchEngineStatus ?? { connected: true, consecutiveFailures: 0, sources: [], digest: { sourcesRegistered: 0, sourcesChangedLast24h: 0, sourcesFailingNow: 0, findingsLast24h: 0 } }} />
         </>
       );
     case "selfheal":

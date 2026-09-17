@@ -50,6 +50,7 @@ import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView
 import type { AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import type { AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
 import type { AyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
+import type { AyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
 import type { BrainSelfHealConsoleSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
 import type { BrainReportStatusFilter } from "@/lib/brain/selfheal/BrainReportCenter";
 import type { BrainSelfHealDecisionKind } from "@/lib/brain/selfheal/BrainSelfHealDecision";
@@ -89,6 +90,8 @@ export interface BrainCoreConsoleProps {
   /** M18 — read-only initial snapshot of the Lane A (MICRO_SAFE) accumulating batch, for the "Küçük Geliştirme Paketi" section. */
   readonly initialMicroBatch?: AyasMicroBatchDevelopmentView;
   readonly initialGoalDevelopment?: AyasGoalDevelopmentView;
+  /** AYAS CONTINUOUS EXTERNAL INTELLIGENCE sprint — read-only initial snapshot of the research scheduler + source registry status, for the "Araştırma Motoru" section. */
+  readonly initialResearchEngineStatus?: AyasResearchEngineStatusView;
   /** Read-only self-healing / Report Center state for the "AYAS Raporları" panel. */
   readonly initialSelfHeal?: BrainSelfHealConsoleSnapshot | null;
   readonly modelConfigured?: boolean;
@@ -103,6 +106,8 @@ export interface BrainCoreConsoleProps {
   readonly refreshMicroBatch?: () => Promise<AyasMicroBatchDevelopmentView>;
   /** M22.14 — Server Action that re-reads the goal + external-research state (read-only). */
   readonly refreshGoalDevelopment?: () => Promise<AyasGoalDevelopmentView>;
+  /** AYAS CONTINUOUS EXTERNAL INTELLIGENCE sprint — Server Action that re-reads the research scheduler + source registry status (read-only). */
+  readonly refreshResearchEngineStatus?: () => Promise<AyasResearchEngineStatusView>;
   /** Server Action that records an operator ONAYLA / REDDET / DAHA SONRA approval decision. Session-gated; the safety-classification policy is enforced server-side (Store boundary), not by this prop's presence. */
   readonly decideApproval?: (input: { proposalId: string; decision: "APPROVE" | "REJECT" | "LATER" }) => Promise<AyasApprovalInboxView>;
   /** Server Action that runs an already-APPROVED proposal through Package C's execution authority chain. Session-gated, separate from `decideApproval` — approving never calls this. */
@@ -126,6 +131,7 @@ export function BrainCoreConsole({
   initialApprovalInbox,
   initialMicroBatch,
   initialGoalDevelopment,
+  initialResearchEngineStatus,
   initialSelfHeal,
   modelConfigured,
   refresh,
@@ -133,6 +139,7 @@ export function BrainCoreConsole({
   refreshApprovalInbox,
   refreshMicroBatch,
   refreshGoalDevelopment,
+  refreshResearchEngineStatus,
   recordSelfHealDecision,
   decideApproval,
   executeProposal,
@@ -152,6 +159,7 @@ export function BrainCoreConsole({
   const [approvalInbox, setApprovalInbox] = useState(initialApprovalInbox ?? { connected: false, pending: [], today: [], history: [] });
   const [microBatch, setMicroBatch] = useState(initialMicroBatch ?? { connected: false, active: null, history: [] });
   const [goalDevelopment, setGoalDevelopment] = useState(initialGoalDevelopment ?? { connected: false, goals: [], research: [] });
+  const [researchEngineStatus, setResearchEngineStatus] = useState(initialResearchEngineStatus ?? { connected: false, consecutiveFailures: 0, sources: [], digest: { sourcesRegistered: 0, sourcesChangedLast24h: 0, sourcesFailingNow: 0, findingsLast24h: 0 } });
   const [reportFilter, setReportFilter] = useState<{ status: BrainReportStatusFilter; category: string }>({
     status: "all",
     category: "all",
@@ -497,6 +505,11 @@ export function BrainCoreConsole({
         try { setGoalDevelopment(await refreshGoalDevelopment()); } catch { /* keep the last durable goal/research view */ }
       });
     }
+    if (refreshResearchEngineStatus) {
+      startSelfHeal(async () => {
+        try { setResearchEngineStatus(await refreshResearchEngineStatus()); } catch { /* keep the last durable research-engine status view */ }
+      });
+    }
   };
 
   // Record an operator ONAYLA / REDDET / DAHA SONRA decision. This writes a
@@ -706,6 +719,7 @@ export function BrainCoreConsole({
       approvalInbox={approvalInbox}
       microBatch={microBatch}
       goalDevelopment={goalDevelopment}
+      researchEngineStatus={researchEngineStatus}
       approvalPendingId={approvalPending}
       onApprovalDecision={onApprovalDecision}
       executionPendingId={executionPending}

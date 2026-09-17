@@ -39,6 +39,24 @@ import { createAyasMicroItemStore, type AyasMicroItem } from "./AyasMicroItem";
  *     regardless of age (never delete literally everything, even if it's
  *     all old — the most recent handful stay as a rolling audit sample).
  *
+ * AYAS CONTINUOUS EXTERNAL INTELLIGENCE sprint (Part P) — deliberately does
+ * NOT extend this scope to the research subtrees:
+ *   - `research-sources/` (`AyasResearchSourceStateStore`) is one file PER
+ *     REGISTERED SOURCE, overwritten in place on every check — it is not an
+ *     append-only log at all and is already self-bounded by the size of
+ *     `AyasResearchSourceRegistry`, so there is nothing here for a hygiene
+ *     pass to prune.
+ *   - `external-research/` (`AyasExternalResearchStore`) findings are
+ *     exactly the "audit evidence required by governance" category this
+ *     module's own MUST-RETAIN rule above already protects for
+ *     micro-items/artifacts — a finding is small (every field is
+ *     `scrub()`-bounded), growth is naturally slow (at most a few dozen
+ *     candidate entries considered per DEEP run, most filtered out before
+ *     ever being recorded), and it is the human-facing Gelişim Merkezi
+ *     record of what AYAS actually found, not disposable cache. Left
+ *     un-pruned by design this sprint rather than speculatively deleting
+ *     evidence nothing yet requires bounding.
+ *
  * `auditAyasStorageHygiene` is pure/read-only (dry-run): it computes and
  * returns exactly what would be deleted and why, touching no file at all.
  * `applyAyasStorageHygiene` calls it internally and then deletes exactly

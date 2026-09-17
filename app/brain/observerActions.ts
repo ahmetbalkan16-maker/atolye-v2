@@ -14,6 +14,7 @@
 import { loadAyasApprovalInboxView, type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import { loadAyasMicroBatchDevelopmentView, type AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
 import { loadAyasGoalDevelopmentView, type AyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
+import { loadAyasResearchEngineStatusView, type AyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
 
 export async function refreshAyasApprovalInbox(): Promise<AyasApprovalInboxView> {
   return loadAyasApprovalInboxView();
@@ -31,4 +32,12 @@ export async function refreshAyasMicroBatch(): Promise<AyasMicroBatchDevelopment
 // execute/approve/gate method at all — see their own smoke tests).
 export async function refreshAyasGoalDevelopment(): Promise<AyasGoalDevelopmentView> {
   return loadAyasGoalDevelopmentView();
+}
+
+// AYAS CONTINUOUS EXTERNAL INTELLIGENCE sprint, Part O — read-only research
+// engine (scheduler + source registry) status refresh, same posture as
+// every other refresh in this file: no mutating authority module in this
+// file's import chain.
+export async function refreshAyasResearchEngineStatus(): Promise<AyasResearchEngineStatusView> {
+  return loadAyasResearchEngineStatusView();
 }

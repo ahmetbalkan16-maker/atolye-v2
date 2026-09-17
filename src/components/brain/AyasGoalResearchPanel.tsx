@@ -3,6 +3,7 @@
 import type { AyasGoalDevelopmentView, AyasGoalDevelopmentEntry } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
 import type { AyasGoalStatus } from "@/lib/brain/autonomy/AyasGoalStore";
 import type { AyasExternalResearchFinding } from "@/lib/brain/autonomy/AyasExternalResearchStore";
+import type { AyasResearchEngineStatusView, AyasResearchEngineSourceView, AyasResearchEngineSourceStatus } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
 
 /**
  * M22.14 — read-only Gelişim Merkezi view of AYAS's goals and external
@@ -92,11 +93,61 @@ function GoalCard({ goal }: { readonly goal: AyasGoalDevelopmentEntry }) {
   );
 }
 
-export function AyasGoalResearchPanel({ view }: { readonly view: AyasGoalDevelopmentView }) {
+const sourceStatusLabel: Record<AyasResearchEngineSourceStatus, string> = {
+  NEVER_CHECKED: "henüz kontrol edilmedi",
+  OK: "değişti",
+  UNCHANGED: "değişmedi",
+  ERROR: "hata",
+};
+
+function formatAyasScheduleTime(iso: string | undefined): string {
+  return iso ? new Date(iso).toLocaleString("tr-TR") : "henüz planlanmadı";
+}
+
+function ResearchEngineStatusSection({ status }: { readonly status: AyasResearchEngineStatusView }) {
+  if (!status.connected) return <div className="bc-empty" role="alert"><strong>Araştırma Motoru okunamadı</strong><p>{status.error || "Kalıcı durum deposuna ulaşılamıyor."}</p></div>;
+  return (
+    <section className="bc-dev__section" aria-labelledby="ayas-research-engine">
+      <h3 id="ayas-research-engine">Araştırma Motoru</h3>
+      <dl className="bc-dev__facts">
+        <div><dt>Son hafif tarama (LIGHT)</dt><dd>{formatAyasScheduleTime(status.lastLightCompletedAt)}</dd></div>
+        <div><dt>Sıradaki hafif tarama</dt><dd>{formatAyasScheduleTime(status.nextLightAt)}</dd></div>
+        <div><dt>Son derin analiz (DEEP)</dt><dd>{formatAyasScheduleTime(status.lastDeepCompletedAt)}</dd></div>
+        <div><dt>Sıradaki derin analiz</dt><dd>{formatAyasScheduleTime(status.nextDeepAt)}</dd></div>
+        <div><dt>Son 24 saat</dt><dd>{status.digest.sourcesRegistered} kaynak izleniyor · {status.digest.sourcesChangedLast24h} değişti · {status.digest.findingsLast24h} yeni bulgu · {status.digest.sourcesFailingNow} kaynak hata veriyor</dd></div>
+        {status.lastError ? <div><dt>Son hata</dt><dd>{status.lastError}</dd></div> : null}
+      </dl>
+    </section>
+  );
+}
+
+function SourceRow({ source }: { readonly source: AyasResearchEngineSourceView }) {
+  const tone = source.status === "ERROR" ? "bc-dev__notice--danger" : source.status === "OK" ? "bc-dev__notice--safe" : "bc-dev__notice--warn";
+  return (
+    <li data-testid={`ayas-research-source-${source.sourceId}`}>
+      <strong>{source.provider}</strong> <span className={`bc-dev__safety ${tone}`}>{sourceStatusLabel[source.status]}</span>
+      <span> — {source.category}{source.officialSource ? " · resmi kaynak" : ""}{source.lastCheckedAt ? ` · son kontrol: ${new Date(source.lastCheckedAt).toLocaleString("tr-TR")}` : ""}{source.consecutiveFailures > 0 ? ` · ${source.consecutiveFailures} ardışık hata` : ""}</span>
+    </li>
+  );
+}
+
+function ResearchSourcesSection({ status }: { readonly status: AyasResearchEngineStatusView }) {
+  if (!status.connected || status.sources.length === 0) return null;
+  return (
+    <section className="bc-dev__section" aria-labelledby="ayas-research-sources">
+      <h3 id="ayas-research-sources">Kaynaklar <span>{status.sources.length}</span></h3>
+      <ul>{status.sources.map((source) => <SourceRow key={source.sourceId} source={source} />)}</ul>
+    </section>
+  );
+}
+
+export function AyasGoalResearchPanel({ view, researchEngineStatus }: { readonly view: AyasGoalDevelopmentView; readonly researchEngineStatus?: AyasResearchEngineStatusView }) {
   if (!view.connected) return <div className="bc-empty" role="alert"><strong>Hedefler ve Araştırma okunamadı</strong><p>{view.error || "Kalıcı durum deposuna ulaşılamıyor."}</p></div>;
   return (
     <section className="bc-dev" aria-label="AYAS Hedefler ve Araştırma" data-testid="ayas-goal-research-panel">
       <header className="bc-dev__hero"><span>Hedef odaklı gelişim</span><h2>Hedefler ve Dış Araştırma</h2><p>AYAS&apos;ın hangi yüksek seviyeli hedefler üzerinde çalıştığını ve internetten hangi gerçek yetenekleri araştırıp Atölye ile karşılaştırdığını gör.</p></header>
+      {researchEngineStatus ? <ResearchEngineStatusSection status={researchEngineStatus} /> : null}
+      {researchEngineStatus ? <ResearchSourcesSection status={researchEngineStatus} /> : null}
       <section className="bc-dev__section" aria-labelledby="ayas-goals-active"><h3 id="ayas-goals-active">Aktif Hedefler <span>{view.goals.filter((g) => g.status !== "COMPLETED" && g.status !== "CANCELLED").length}</span></h3>
         {view.goals.filter((g) => g.status !== "COMPLETED" && g.status !== "CANCELLED").length
           ? view.goals.filter((g) => g.status !== "COMPLETED" && g.status !== "CANCELLED").map((g) => <GoalCard key={g.goalId} goal={g} />)

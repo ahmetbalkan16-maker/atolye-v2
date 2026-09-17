@@ -14,6 +14,7 @@ import { loadAyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView"
 import { loadAyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import { loadAyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
 import { loadAyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
+import { loadAyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
 import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
 import {
   askAyas,
@@ -28,7 +29,7 @@ import {
 } from "./actions";
 // Stage 7A: read-only inbox refresh comes from its own observer-only action
 // module, independent of the Package B decision action above.
-import { refreshAyasApprovalInbox, refreshAyasMicroBatch, refreshAyasGoalDevelopment } from "./observerActions";
+import { refreshAyasApprovalInbox, refreshAyasMicroBatch, refreshAyasGoalDevelopment, refreshAyasResearchEngineStatus } from "./observerActions";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,8 @@ export default async function BrainCorePage() {
   const selfHeal = loadBrainSelfHealSnapshot();
   // Read-only goal + external-research state (M22.14). Fail-soft (its own loader never throws).
   const goalDevelopment = loadAyasGoalDevelopmentView();
+  // Read-only research-engine (scheduler + source registry) status. Fail-soft (its own loader never throws).
+  const researchEngineStatus = loadAyasResearchEngineStatusView();
   // The operator-diagnostics links (Voice Lab / Audio Lab) live inside
   // `BrainConsoleView`'s `.bc-shell` footer now — a sibling <p> here inherited the
   // document colour scheme (dark-on-dark in iOS Light Mode) and sat below the
@@ -55,6 +58,7 @@ export default async function BrainCorePage() {
       initialApprovalInbox={approvalInbox}
       initialMicroBatch={microBatch}
       initialGoalDevelopment={goalDevelopment}
+      initialResearchEngineStatus={researchEngineStatus}
       initialSelfHeal={selfHeal}
       modelConfigured={modelConfigured}
       refresh={refreshBrainConsole}
@@ -62,6 +66,7 @@ export default async function BrainCorePage() {
       refreshApprovalInbox={refreshAyasApprovalInbox}
       refreshMicroBatch={refreshAyasMicroBatch}
       refreshGoalDevelopment={refreshAyasGoalDevelopment}
+      refreshResearchEngineStatus={refreshAyasResearchEngineStatus}
       decideApproval={decideAyasApproval}
       executeProposal={executeAyasApprovedProposal}
       batchOnaylaVeUygula={batchOnaylaVeUygula}

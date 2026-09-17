@@ -13,6 +13,7 @@ import { accumulateAyasMicroBatchCandidates } from "../src/lib/brain/autonomy/Ay
 import { createAyasMicroBatchStore } from "../src/lib/brain/autonomy/AyasMicroBatch";
 import { createAyasMicroItemStore } from "../src/lib/brain/autonomy/AyasMicroItem";
 import { reconcileAyasMicroBatchStaleness } from "../src/lib/brain/autonomy/AyasMicroBatchStaleness";
+import { tickAyasResearchScheduler, type AyasResearchSchedulerTickResult } from "../src/lib/brain/autonomy/AyasResearchScheduler";
 
 /**
  * AYAS discovery daemon (M16) — a single-shot, read-mostly companion to the
@@ -96,6 +97,23 @@ async function main(): Promise<void> {
     observation.gaps.push(`micro batch accumulation failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 
+  // AYAS CONTINUOUS EXTERNAL INTELLIGENCE sprint (Part B/Q) — one scheduler
+  // tick per discovery-daemon tick, the exact same "spawned once per cycle,
+  // never a second parallel mechanism" posture as everything else in this
+  // script. `tickAyasResearchScheduler` is itself a fast no-op the
+  // overwhelming majority of the time (cadence not due yet) and is
+  // independently lease-protected against a second concurrent daemon
+  // process, so this can never produce a duplicate scan. A research failure
+  // (network down, every source erroring) is folded into `gaps` exactly
+  // like the other best-effort signals above — it must never abort
+  // discovery, staleness reconciliation, or anything else in this script.
+  let research: AyasResearchSchedulerTickResult | undefined;
+  try {
+    research = await tickAyasResearchScheduler({ repoRoot: root });
+  } catch (error) {
+    observation.gaps.push(`research scheduler tick failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
   console.log(JSON.stringify({
     status: "OK",
     head: observation.head,
@@ -112,6 +130,10 @@ async function main(): Promise<void> {
     microBatchStatus: microBatch.batch?.status ?? null,
     microBatchReadyForReview: microBatch.readyForReview,
     microBatchRejections: microBatch.rejections,
+    researchOutcome: research?.outcome ?? "ERROR",
+    researchNextLightAt: research?.state.nextLightAt ?? null,
+    researchNextDeepAt: research?.state.nextDeepAt ?? null,
+    researchFindingsRecorded: research?.deep?.findingsRecorded ?? 0,
   }));
 }
 main().catch((error) => { console.error("AYAS discovery daemon FAILED:", error); process.exitCode = 1; });
