@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { redactBrainText } from "../BrainRedaction";
+import type { AyasCapabilityCategory } from "./AyasCapabilityTaxonomy";
 
 /**
  * M22.3/M22.11/M22.12 — durable record of ONE external capability research
@@ -33,6 +34,8 @@ export interface AyasExternalResearchFinding {
   readonly provider: string;
   /** e.g. "voice cloning with prosody control". Human-facing capability name. */
   readonly capability: string;
+  /** M22.6 — the fixed taxonomy category this finding belongs to. Optional for backward compatibility with findings recorded before this field existed (e.g. M22.13's first real finding); a finding missing it is simply not filterable by category, never treated as invalid. */
+  readonly category?: AyasCapabilityCategory;
   /** The exact problem this external capability solves for a user — never invented, always traceable to `sourceUrl`. */
   readonly problemSolved: string;
   readonly sourceUrl: string;
@@ -115,6 +118,7 @@ export function createAyasExternalResearchStore(options: AyasExternalResearchSto
         recordedAt: now,
         provider: scrub(input.provider, 120),
         capability: scrub(input.capability, 200),
+        ...(input.category ? { category: input.category } : {}),
         problemSolved: scrub(input.problemSolved),
         sourceUrl: input.sourceUrl.trim(),
         isOfficialSource: input.isOfficialSource,
