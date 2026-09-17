@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
+import ts from "typescript";
+
 import { classifyPatchSet } from "../selfheal/BrainPatchSafety";
 import type { AyasDaemonCandidate, AyasDaemonObservation } from "./AyasAutonomyDaemon";
 import type { AyasPatchArtifactReplacement } from "./AyasPatchArtifact";
@@ -294,27 +296,45 @@ export interface AyasBareAssertionGap {
   readonly fixedCallCount: number;
 }
 
-const BARE_ASSERT_CALL_RE = /assert\.(?:equal|ok|deepEqual)\([^)]*\)/g;
-const BARE_ASSERT_CALL_NAME_RE = /^assert\.(equal|ok|deepEqual)\(/;
-
 /**
- * `assert.ok(value, message?)` takes ONE value argument before an optional
- * message, so a 2-argument call (1 comma) already HAS a message; but
- * `assert.equal`/`assert.deepEqual(actual, expected, message?)` take TWO
- * value arguments first, so a 2-argument call (1 comma) has NO message yet
- * — only a 3-argument call (2 commas) does. Treating every function the
- * same way (as the informational `findAyasDiagnosticQualityFindings` scan
- * above still does, harmlessly, since it only ever counts) would make a
- * GENERATOR wrongly re-message an `assert.ok(cond, "already has one")` call
- * — this is the one place that distinction must be exact, since it decides
- * what gets mutated.
+ * Finds every bare `assert.equal`/`assert.ok`/`assert.deepEqual(...)` call
+ * via the REAL TypeScript AST (`ts.createSourceFile`), not a regex. A first
+ * cut used a `[^)]*`-style regex, matched live against this repo's own
+ * corpus, and produced a real bug: `assert.ok(Math.abs(x - y) < 0.4, msg)`
+ * has a NESTED call (`Math.abs(...)`) as part of its first argument, and
+ * `[^)]*` stops at that INNER closing paren — the "call" it thought it saw
+ * was actually just `assert.ok(Math.abs(x - y)`, so appending a message
+ * there inserted a bogus 2nd argument into `Math.abs` instead, a real
+ * `tsc --noEmit` failure caught by sandbox validation (never applied for
+ * real, but confirmed the regex approach cannot be trusted for the real
+ * corpus). The AST has no such ambiguity: `node.arguments.length` is exact
+ * regardless of how deeply nested the first argument's own expression is,
+ * and `node.getEnd()` gives the call's real closing-paren position — this
+ * is why this generator parses rather than pattern-matches.
  */
-function isBareAssertCall(call: string): boolean {
-  if (call.includes("`")) return false;
-  const match = BARE_ASSERT_CALL_NAME_RE.exec(call);
-  if (!match) return false;
-  const commaCount = call.match(/,/g)?.length ?? 0;
-  return match[1] === "ok" ? commaCount === 0 : commaCount === 1;
+interface AyasBareAssertCallSite { readonly insertAt: number; readonly callText: string }
+
+function findBareAssertCallSites(text: string, fileName: string): readonly AyasBareAssertCallSite[] {
+  const sourceFile = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true);
+  const sites: AyasBareAssertCallSite[] = [];
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      ts.isIdentifier(node.expression.expression) &&
+      node.expression.expression.text === "assert" &&
+      (node.expression.name.text === "equal" || node.expression.name.text === "ok" || node.expression.name.text === "deepEqual")
+    ) {
+      const requiredArgs = node.expression.name.text === "ok" ? 1 : 2;
+      if (node.arguments.length === requiredArgs) {
+        const lastArg = node.arguments[node.arguments.length - 1]!;
+        sites.push({ insertAt: lastArg.getEnd(), callText: node.getText(sourceFile) });
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return sites;
 }
 
 /** Class 6 (generator-backed): a bare `assert.equal(a, b)` / `assert.ok(a)` / `assert.deepEqual(a, b)` call in `scripts/smoke-*.ts` with no failure-message argument — a failure gives no indication of which check failed. The fix is purely mechanical and non-semantic: append the call's own literal source text as its message, verbatim, so a failure at least names the exact expression that failed. Never changes what is asserted, only how a failure is reported. Bounded to files small enough to stay inside blast-radius policy (`AYAS_NOVEL_PATCH_MAX_TOTAL_LINES`) since a replacement is always the whole file. */
@@ -325,15 +345,14 @@ export function findAyasBareAssertionGaps(repoRoot: string): readonly AyasBareAs
     let text: string;
     try { text = fs.readFileSync(file, "utf8"); } catch { continue; }
     if (text.split("\n").length > AYAS_NOVEL_PATCH_MAX_TOTAL_LINES) continue; // whole-file replacement — stay inside blast-radius policy
-    BARE_ASSERT_CALL_RE.lastIndex = 0;
-    let fixedCallCount = 0;
-    const expectedContent = text.replace(BARE_ASSERT_CALL_RE, (call) => {
-      if (!isBareAssertCall(call)) return call;
-      fixedCallCount += 1;
-      return call.replace(/\)$/, `, ${JSON.stringify(call)})`);
-    });
-    if (fixedCallCount === 0 || expectedContent === text) continue;
-    gaps.push({ file: toPosix(repoRoot, file), currentContent: text, expectedContent, fixedCallCount });
+    const sites = findBareAssertCallSites(text, file);
+    if (sites.length === 0) continue;
+    // Insert back-to-front so an earlier insertion never shifts a later site's offset.
+    let expectedContent = text;
+    for (const site of [...sites].sort((a, b) => b.insertAt - a.insertAt)) {
+      expectedContent = `${expectedContent.slice(0, site.insertAt)}, ${JSON.stringify(site.callText)}${expectedContent.slice(site.insertAt)}`;
+    }
+    gaps.push({ file: toPosix(repoRoot, file), currentContent: text, expectedContent, fixedCallCount: sites.length });
   }
   return gaps;
 }
@@ -349,7 +368,7 @@ export function generateAyasBareAssertionMessagePatch(gap: AyasBareAssertionGap)
     validatorScripts: [gap.file],
     objective: `${gap.file} içindeki mesajsız assert çağrılarına teşhis mesajı ekle`,
     currentProblem: `${gap.file} içinde ${gap.fixedCallCount} adet assert.equal/ok/deepEqual çağrısı hiçbir üçüncü (mesaj) argüman taşımıyor — bu çağrılardan biri başarısız olduğunda hangi ifadenin başarısız olduğuna dair hiçbir bilgi verilmiyor.`,
-    selectionReason: `${gap.file} kaynağı doğrudan okunarak, virgül sayısı 2'den az olan ve şablon literal içermeyen assert.equal/ok/deepEqual çağrıları tespit edildi (yapısal, deterministik regex taraması).`,
+    selectionReason: `${gap.file} kaynağının gerçek TypeScript AST'si ayrıştırılarak, argüman sayısı beklenen mesaj argümanını içermeyen assert.equal/ok/deepEqual çağrıları tespit edildi (yapısal, deterministik AST taraması — bir regex değil).`,
     expectedUserBenefit: "Bu dosyadaki bir regresyon artık hangi tam ifadenin başarısız olduğunu gösteren bir hata mesajıyla raporlanır; hata ayıklama süresi kısalır.",
     expectedBehaviorChange: "Var olan bir test dosyasındaki assert çağrılarına üçüncü argüman olarak kendi kaynak metinleri eklenir; hiçbir assert mantığı veya kontrol akışı değişmez.",
     unchangedBehavior: "Her assert çağrısının ne doğruladığı birebir aynı kalır; yalnızca başarısızlık mesajı eklenir.",
@@ -357,8 +376,8 @@ export function generateAyasBareAssertionMessagePatch(gap: AyasBareAssertionGap)
     technicalRisk: "Düşük; yalnızca var olan assert çağrılarına üçüncü (mesaj) argüman eklenir, birinci ve ikinci argümanlar (asıl doğrulama) değişmez.",
     productionImpact: "none",
     rationale: `${gap.file} içinde ${gap.fixedCallCount} mesajsız assert çağrısı yapısal taramayla tespit edildi.`,
-    evidence: [`${gap.file} — ${gap.fixedCallCount} adet assert.equal/ok/deepEqual çağrısı, 2'den az virgül ve şablon literal içermiyor (mesaj argümanı yok)`],
-    graphifyEvidence: [`${gap.file}'in mesajsız assert çağrıları yapısal regex taramasıyla tespit edildi; düzeltme yalnızca üçüncü argüman ekler, import grafiği değişmez`],
+    evidence: [`${gap.file} — ${gap.fixedCallCount} adet assert.equal/ok/deepEqual çağrısı, TypeScript AST'sinde beklenen argüman sayısını (mesaj hariç) taşıyor — mesaj argümanı yok`],
+    graphifyEvidence: [`${gap.file}'in mesajsız assert çağrıları gerçek TypeScript AST'si ayrıştırılarak tespit edildi; düzeltme yalnızca üçüncü argüman ekler, import grafiği değişmez`],
     expectedDiffScope: `Var olan 1 dosya düzenlenir: ${gap.file} (${gap.fixedCallCount} çağrıya mesaj eklenir, satır sayısı değişmez)`,
     expectedGraphifyImportCounts: { [gap.file]: countDeclaredImportStatements(gap.expectedContent) },
   };
