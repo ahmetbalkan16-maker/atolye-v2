@@ -107,6 +107,10 @@ export interface BrainConsoleViewProps {
   readonly batchOnaylaPending?: boolean;
   readonly batchOnaylaError?: { readonly batchId: string; readonly code: string } | null;
   readonly onBatchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => void;
+  /** M20.7 — "ONAYLA VE UYGULA": the individual-proposal equivalent, one click authorizes decide + Package C execution + Graphify verification + Git publication for the exact reviewed proposal. */
+  readonly proposalOnaylaPendingId?: string | null;
+  readonly proposalOnaylaError?: { readonly proposalId: string; readonly code: string } | null;
+  readonly onProposalOnaylaVeUygula?: (input: { proposalId: string; proposalHash: string }) => void;
   /** Read-only self-healing state (incidents / repairs / learning). `null` ⇒ store empty. */
   readonly selfHeal?: (BrainSelfHealSnapshot & { readonly error?: string | null }) | null;
   /** The AYAS Report Center view (§7–§15) for the panel + the home status card. */
@@ -540,7 +544,7 @@ function PanelBody(props: BrainConsoleViewProps) {
     case "autonomous":
       return <AutonomousPanel autonomous={props.autonomous} />;
     case "development":
-      return <AyasDevelopmentCenter inbox={props.approvalInbox ?? { connected: true, pending: [], today: [], history: [] }} microBatch={props.microBatch ?? { connected: true, active: null, history: [] }} pendingId={props.approvalPendingId} onDecision={props.onApprovalDecision} executingId={props.executionPendingId} executionError={props.executionError} onExecute={props.onExecuteProposal} batchOnaylaPending={props.batchOnaylaPending} batchOnaylaError={props.batchOnaylaError} onBatchOnaylaVeUygula={props.onBatchOnaylaVeUygula} />;
+      return <AyasDevelopmentCenter inbox={props.approvalInbox ?? { connected: true, pending: [], today: [], history: [] }} microBatch={props.microBatch ?? { connected: true, active: null, history: [] }} pendingId={props.approvalPendingId} onDecision={props.onApprovalDecision} executingId={props.executionPendingId} executionError={props.executionError} onExecute={props.onExecuteProposal} batchOnaylaPending={props.batchOnaylaPending} batchOnaylaError={props.batchOnaylaError} onBatchOnaylaVeUygula={props.onBatchOnaylaVeUygula} proposalOnaylaPendingId={props.proposalOnaylaPendingId} proposalOnaylaError={props.proposalOnaylaError} onProposalOnaylaVeUygula={props.onProposalOnaylaVeUygula} />;
     case "selfheal":
       return (
         <BrainSelfHealingPanel

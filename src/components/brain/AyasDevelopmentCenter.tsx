@@ -5,6 +5,17 @@ import { useState } from "react";
 import type { AyasApprovalInboxView, AyasDevelopmentProposal } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import type { AyasMicroBatchDevelopmentEntry, AyasMicroBatchDevelopmentItem, AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
 
+/**
+ * Mirrors `AyasNovelPatchDiscovery.AYAS_PATCH_ARTIFACT_MUTATION_KIND` as a
+ * literal, deliberately NOT imported here: that module pulls in
+ * `node:fs`/`node:child_process`, which cannot be bundled into this "use
+ * client" component. `mutationKind` on the view model is already a plain
+ * string, so a literal comparison is exactly as correct as importing the
+ * constant would be, without pulling server-only code into the client
+ * bundle.
+ */
+const AYAS_PATCH_ARTIFACT_MUTATION_KIND_LITERAL = "patch-artifact:v1";
+
 /** M17 — the exact human-reviewable diff + sandbox evidence for a sandbox-drafted patch. `undefined` for a statically pre-written (M15/M16-style) proposal, which has no `patchArtifact`. Also reused by M18's micro-batch item cards. */
 function PatchArtifactDiff({ artifact }: { readonly artifact: AyasDevelopmentProposal["patchArtifact"] }) {
   if (!artifact) return null;
@@ -88,7 +99,59 @@ function ProposalDetails({ proposal }: { readonly proposal: AyasDevelopmentPropo
   );
 }
 
-function PendingProposal({ proposal, pendingId, onDecision }: { readonly proposal: AyasDevelopmentProposal; readonly pendingId?: string | null; readonly onDecision?: (input: { proposalId: string; decision: Decision }) => void }) {
+const proposalOnaylaErrorLabel: Record<string, string> = {
+  NOT_FOUND: "Öneri bulunamadı — sayfa güncel olmayabilir.",
+  NOT_READY: "Bu öneri artık PENDING durumunda değil — sayfa güncel olmayabilir.",
+  PROPOSAL_HASH_MISMATCH: "Öneri, gösterildiğinden beri değişti — sayfayı yenile ve tekrar incele.",
+  NOT_SAFE: "Bu öneri SAFE sınıfında değil — tek onaylı yürütme için uygun değil.",
+  NOT_PATCH_ARTIFACT: "Bu öneri türü için tek onaylı yürütme henüz bağlanmadı.",
+  AYAS_GRAPHIFY_UNEXPECTED_DEPENDENCY: "Graphify, uygulanan dosyada beklenmeyen bir bağımlılık buldu — işlem güvenli şekilde durduruldu.",
+  AYAS_GRAPHIFY_UNAVAILABLE: "Graphify bu makinede kullanılamıyor — işlem güvenli şekilde durduruldu.",
+  AYAS_PROPOSAL_STAGE_SCOPE_MISMATCH: "Uygulanan değişikliğin kapsamı onaylanan öneriyle eşleşmiyor — işlem durduruldu.",
+  AYAS_PROPOSAL_PUSH_FAILED: "Commit oluşturuldu ama remote'a push başarısız oldu — manuel inceleme gerekiyor.",
+  NETWORK_ERROR: "Bağlantı hatası oluştu — tekrar dene.",
+};
+
+/**
+ * M20.7 — "ONAYLA VE UYGULA": the individual-proposal equivalent of M18.1's
+ * "BATCH ONAYLA VE UYGULA". Visible only for a PENDING, SAFE,
+ * approval-ready, patch-artifact-backed proposal — every other proposal
+ * (REVIEW_REQUIRED, FORBIDDEN_AUTONOMOUS, or a static-registry mutationKind)
+ * keeps using the ordinary ONAYLA → (separately) YÜRÜT controls below,
+ * unchanged. One click here authorizes decide → Package C execution →
+ * Graphify verification → validation → exact-scope Git commit → push, with
+ * no second confirmation afterward.
+ */
+function ProposalOnaylaVeUygulaControl({ proposal, pendingId, error, onApprove }: { readonly proposal: AyasDevelopmentProposal; readonly pendingId?: string | null; readonly error?: { readonly proposalId: string; readonly code: string } | null; readonly onApprove?: (input: { proposalId: string; proposalHash: string }) => void }) {
+  const [confirming, setConfirming] = useState(false);
+  if (proposal.mutationKind !== AYAS_PATCH_ARTIFACT_MUTATION_KIND_LITERAL || proposal.safetyClassification !== "SAFE" || !proposal.approvalReady) return null;
+  const busy = pendingId === proposal.proposalId;
+  const errorMessage = error?.proposalId === proposal.proposalId ? (proposalOnaylaErrorLabel[error.code] ?? `İşlem başarısız oldu (${error.code}).`) : null;
+  if (confirming) {
+    return (
+      <div className="bc-dev__confirm" role="group" aria-label="Onaylarsam ne olacak?">
+        <strong>ONAYLA VE UYGULA — onaylarsam ne olacak?</strong>
+        <p>Bu işlem, gösterilen bu öneriyi Package C ile uygulayacak, test edecek, Graphify ile doğrulayacak ve tüm kontroller başarılı olursa tek Git commit&apos;i oluşturup remote&apos;a push edecektir.</p>
+        <p><b>Hedef:</b> {proposal.objective}</p>
+        <p><b>Kapsam:</b> {proposal.exactFiles.join(", ")}</p>
+        <p>Ayrı bir YÜRÜT veya Git yayınlama onayı istenmeyecek — bu tek onay hepsini kapsar.</p>
+        {errorMessage ? <p className="bc-dev__notice bc-dev__notice--danger" role="alert">{errorMessage}</p> : null}
+        <div className="bc-dev__actions">
+          <button type="button" className="bc-btn" disabled={busy || !onApprove} onClick={() => onApprove?.({ proposalId: proposal.proposalId, proposalHash: proposal.proposalHash })}>{busy ? "UYGULANIYOR…" : "ONAYLA VE UYGULA"}</button>
+          <button type="button" className="bc-btn bc-btn--ghost" disabled={busy} onClick={() => setConfirming(false)}>VAZGEÇ</button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="bc-dev__actions">
+      <button type="button" className="bc-btn" disabled={busy || !onApprove} onClick={() => setConfirming(true)}>{busy ? "UYGULANIYOR…" : "ONAYLA VE UYGULA"}</button>
+      {errorMessage ? <p className="bc-dev__notice bc-dev__notice--danger" role="alert">{errorMessage}</p> : null}
+    </div>
+  );
+}
+
+function PendingProposal({ proposal, pendingId, onDecision, onaylaVeUygulaPendingId, onaylaVeUygulaError, onProposalOnaylaVeUygula }: { readonly proposal: AyasDevelopmentProposal; readonly pendingId?: string | null; readonly onDecision?: (input: { proposalId: string; decision: Decision }) => void; readonly onaylaVeUygulaPendingId?: string | null; readonly onaylaVeUygulaError?: { readonly proposalId: string; readonly code: string } | null; readonly onProposalOnaylaVeUygula?: (input: { proposalId: string; proposalHash: string }) => void }) {
   const [confirming, setConfirming] = useState(false);
   const busy = pendingId === proposal.proposalId;
   const decide = (decision: Decision) => onDecision?.({ proposalId: proposal.proposalId, decision });
@@ -121,6 +184,7 @@ function PendingProposal({ proposal, pendingId, onDecision }: { readonly proposa
           <button type="button" className="bc-btn bc-btn--ghost" disabled={busy || !onDecision} onClick={() => decide("LATER")}>DAHA SONRA</button>
         </div>
       )}
+      <ProposalOnaylaVeUygulaControl proposal={proposal} pendingId={onaylaVeUygulaPendingId} error={onaylaVeUygulaError} onApprove={onProposalOnaylaVeUygula} />
     </article>
   );
 }
@@ -286,12 +350,12 @@ function MicroBatchPanel({ microBatch, onaylaPending, onaylaError, onBatchOnayla
   );
 }
 
-export function AyasDevelopmentCenter({ inbox, microBatch, pendingId, onDecision, executingId, executionError, onExecute, batchOnaylaPending, batchOnaylaError, onBatchOnaylaVeUygula }: { readonly inbox: AyasApprovalInboxView; readonly microBatch?: AyasMicroBatchDevelopmentView; readonly pendingId?: string | null; readonly onDecision?: (input: { proposalId: string; decision: Decision }) => void; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string }) => void; readonly batchOnaylaPending?: boolean; readonly batchOnaylaError?: { readonly batchId: string; readonly code: string } | null; readonly onBatchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => void }) {
+export function AyasDevelopmentCenter({ inbox, microBatch, pendingId, onDecision, executingId, executionError, onExecute, batchOnaylaPending, batchOnaylaError, onBatchOnaylaVeUygula, proposalOnaylaPendingId, proposalOnaylaError, onProposalOnaylaVeUygula }: { readonly inbox: AyasApprovalInboxView; readonly microBatch?: AyasMicroBatchDevelopmentView; readonly pendingId?: string | null; readonly onDecision?: (input: { proposalId: string; decision: Decision }) => void; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string }) => void; readonly batchOnaylaPending?: boolean; readonly batchOnaylaError?: { readonly batchId: string; readonly code: string } | null; readonly onBatchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => void; readonly proposalOnaylaPendingId?: string | null; readonly proposalOnaylaError?: { readonly proposalId: string; readonly code: string } | null; readonly onProposalOnaylaVeUygula?: (input: { proposalId: string; proposalHash: string }) => void }) {
   if (!inbox.connected) return <div className="bc-empty" role="alert"><strong>Gelişim Merkezi okunamadı</strong><p>{inbox.error || "Kalıcı durum deposuna ulaşılamıyor."}</p></div>;
   return (
     <section className="bc-dev" aria-label="AYAS Gelişim Merkezi" data-testid="ayas-development-center">
       <header className="bc-dev__hero"><span>İnsan denetimli gelişim</span><h2>AYAS Gelişim Merkezi</h2><p>AYAS’ın neyi neden geliştirmek istediğini, sana sağlayacağı faydayı ve güvenlik sınırlarını karar vermeden önce gör.</p></header>
-      <section className="bc-dev__section" aria-labelledby="ayas-dev-pending"><h3 id="ayas-dev-pending">Onay Bekleyenler <span>{inbox.pending.length}</span></h3>{inbox.pending.length ? inbox.pending.map((proposal) => <PendingProposal key={proposal.proposalId} proposal={proposal} pendingId={pendingId} onDecision={onDecision} />) : <p className="bc-empty">Onay bekleyen gerçek bir öneri yok.</p>}</section>
+      <section className="bc-dev__section" aria-labelledby="ayas-dev-pending"><h3 id="ayas-dev-pending">Onay Bekleyenler <span>{inbox.pending.length}</span></h3>{inbox.pending.length ? inbox.pending.map((proposal) => <PendingProposal key={proposal.proposalId} proposal={proposal} pendingId={pendingId} onDecision={onDecision} onaylaVeUygulaPendingId={proposalOnaylaPendingId} onaylaVeUygulaError={proposalOnaylaError} onProposalOnaylaVeUygula={onProposalOnaylaVeUygula} />) : <p className="bc-empty">Onay bekleyen gerçek bir öneri yok.</p>}</section>
       {microBatch ? <MicroBatchPanel microBatch={microBatch} onaylaPending={batchOnaylaPending} onaylaError={batchOnaylaError} onBatchOnaylaVeUygula={onBatchOnaylaVeUygula} /> : null}
       <section className="bc-dev__section" aria-labelledby="ayas-dev-today"><h3 id="ayas-dev-today">Bugün Neleri Geliştirmeye Çalıştı? <span>{inbox.today.length}</span></h3>{inbox.today.length ? <div className="bc-dev__timeline">{inbox.today.map((proposal) => <TimelineCard key={proposal.proposalId} proposal={proposal} executingId={executingId} executionError={executionError} onExecute={onExecute} />)}</div> : <p className="bc-empty">Bugün değerlendirilmiş bir gelişim adayı yok.</p>}</section>
       <section className="bc-dev__section" aria-labelledby="ayas-dev-history"><h3 id="ayas-dev-history">Geçmiş Kararlar <span>{inbox.history.length}</span></h3>{inbox.history.length ? <div className="bc-dev__timeline">{inbox.history.map((proposal) => <TimelineCard key={proposal.proposalId} proposal={proposal} executingId={executingId} executionError={executionError} onExecute={onExecute} />)}</div> : <p className="bc-empty">Henüz kalıcı bir karar veya yürütme sonucu yok.</p>}</section>

@@ -43,6 +43,7 @@ import { createAyasApprovalInboxStore, type AyasInboxDecision } from "@/lib/brai
 import { loadAyasApprovalInboxView, type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import { executeAyasApprovedProposalWith, defaultAyasProposalExecutionDeps, AyasProposalExecutionError } from "@/lib/brain/autonomy/AyasProposalExecutionService";
 import { approveAndExecuteAyasMicroBatch, defaultAyasMicroBatchApprovalDeps, AyasMicroBatchApprovalError } from "@/lib/brain/autonomy/AyasMicroBatchApprovalService";
+import { approveAndExecuteAyasProposal, defaultAyasProposalApprovalDeps, AyasProposalApprovalError } from "@/lib/brain/autonomy/AyasProposalApprovalService";
 import { loadAyasMicroBatchDevelopmentView, type AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
 import { reconcileAyasStaleProposals } from "@/lib/brain/autonomy/AyasProposalStaleness";
 import { buildSelfHealDecision, type BrainSelfHealDecisionKind } from "@/lib/brain/selfheal/BrainSelfHealDecision";
@@ -227,6 +228,42 @@ export async function batchOnaylaVeUygula(input: { batchId: string; batchHash: s
   } catch (error) {
     const code = error instanceof AyasMicroBatchApprovalError ? error.code : error instanceof Error ? error.message : "APPROVAL_FAILED";
     return { ok: false, code, microBatch: loadAyasMicroBatchDevelopmentView() };
+  }
+}
+
+export interface AyasProposalOnaylaVeUygulaResult {
+  readonly ok: boolean;
+  /** Present only when `ok` is false — one of `AyasProposalApprovalService`'s own short, non-secret codes. */
+  readonly code?: string;
+  /** Present only when `ok` is true — the pushed commit's SHA. */
+  readonly commitSha?: string;
+  readonly inbox: AyasApprovalInboxView;
+}
+
+/**
+ * "ONAYLA VE UYGULA" (M20.7) — the individual-proposal single human
+ * authorization, mirroring `batchOnaylaVeUygula` above for the batch lane.
+ * This ONE click authorizes the exact reviewed proposal to be decided,
+ * executed through Package C, Graphify-verified, exact-staged, committed as
+ * ONE commit, and pushed — with no second "YÜRÜT" and no second
+ * Git-publication approval. The real orchestration lives in the fully
+ * testable `AyasProposalApprovalService`; this action is a thin,
+ * session-gated wrapper that accepts only a `proposalId` and the exact
+ * `proposalHash` the human reviewed — never a callback, filesystem path,
+ * gateRoot, or mutation content from the client. `decideAyasApproval` /
+ * `executeAyasApprovedProposal` above remain unchanged for every other
+ * proposal (REVIEW_REQUIRED, or a non-patch-artifact mutationKind).
+ */
+export async function proposalOnaylaVeUygula(input: { proposalId: string; proposalHash: string }): Promise<AyasProposalOnaylaVeUygulaResult> {
+  await requireBrainSession();
+  try {
+    const result = await approveAndExecuteAyasProposal(input.proposalId, input.proposalHash, defaultAyasProposalApprovalDeps());
+    return result.ok
+      ? { ok: true, commitSha: result.commitSha, inbox: loadAyasApprovalInboxView() }
+      : { ok: false, code: result.code, inbox: loadAyasApprovalInboxView() };
+  } catch (error) {
+    const code = error instanceof AyasProposalApprovalError ? error.code : error instanceof Error ? error.message : "APPROVAL_FAILED";
+    return { ok: false, code, inbox: loadAyasApprovalInboxView() };
   }
 }
 

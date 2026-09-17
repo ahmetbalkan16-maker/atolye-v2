@@ -105,6 +105,8 @@ export interface BrainCoreConsoleProps {
   readonly executeProposal?: (input: { proposalId: string }) => Promise<{ readonly ok: boolean; readonly code?: string; readonly inbox: AyasApprovalInboxView }>;
   /** M18.1 — "BATCH ONAYLA VE UYGULA": Server Action that decides, executes through Package C, Graphify-verifies, and (only if every check passes) commits+pushes the exact reviewed batch — one call, one human authorization. */
   readonly batchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => Promise<{ readonly ok: boolean; readonly code?: string; readonly commitSha?: string; readonly microBatch: AyasMicroBatchDevelopmentView }>;
+  /** M20.7 — "ONAYLA VE UYGULA": Server Action that does the same for one individual, patch-artifact-backed PRIORITY_SAFE proposal. */
+  readonly proposalOnaylaVeUygula?: (input: { proposalId: string; proposalHash: string }) => Promise<{ readonly ok: boolean; readonly code?: string; readonly commitSha?: string; readonly inbox: AyasApprovalInboxView }>;
   /** Server Action that asks the local model (falls back to deterministic). */
   readonly askAyas?: AskAyasFn;
   /**
@@ -129,6 +131,7 @@ export function BrainCoreConsole({
   decideApproval,
   executeProposal,
   batchOnaylaVeUygula,
+  proposalOnaylaVeUygula,
   askAyas,
   streaming = true,
 }: BrainCoreConsoleProps) {
@@ -153,6 +156,8 @@ export function BrainCoreConsole({
   const [executionError, setExecutionError] = useState<{ readonly proposalId: string; readonly code: string } | null>(null);
   const [batchOnaylaPendingId, setBatchOnaylaPendingId] = useState<string | null>(null);
   const [batchOnaylaError, setBatchOnaylaError] = useState<{ readonly batchId: string; readonly code: string } | null>(null);
+  const [proposalOnaylaPendingId, setProposalOnaylaPendingId] = useState<string | null>(null);
+  const [proposalOnaylaError, setProposalOnaylaError] = useState<{ readonly proposalId: string; readonly code: string } | null>(null);
   const [, startSelfHeal] = useTransition();
 
   // Restore the transcript from sessionStorage so an iPhone reload (screen
@@ -565,6 +570,26 @@ export function BrainCoreConsole({
     });
   }, [batchOnaylaPendingId, batchOnaylaVeUygula]);
 
+  // "ONAYLA VE UYGULA" (M20.7) — the individual-proposal equivalent of
+  // `onBatchOnaylaVeUygula` above: one call, one human authorization,
+  // decide → Package C execution → Graphify verification → Git publication.
+  const onProposalOnaylaVeUygula = useCallback((input: { proposalId: string; proposalHash: string }) => {
+    if (!proposalOnaylaVeUygula || proposalOnaylaPendingId) return;
+    setProposalOnaylaPendingId(input.proposalId);
+    setProposalOnaylaError(null);
+    startSelfHeal(async () => {
+      try {
+        const result = await proposalOnaylaVeUygula(input);
+        setApprovalInbox(result.inbox);
+        setProposalOnaylaError(result.ok ? null : { proposalId: input.proposalId, code: result.code ?? "APPROVAL_FAILED" });
+      } catch {
+        setProposalOnaylaError({ proposalId: input.proposalId, code: "NETWORK_ERROR" });
+      } finally {
+        setProposalOnaylaPendingId(null);
+      }
+    });
+  }, [proposalOnaylaPendingId, proposalOnaylaVeUygula]);
+
   // The AYAS presence-card CTA: drop into the EXISTING chat/voice experience —
   // select the chat panel and, when this device can hear, start listening
   // inside this click's user gesture (iOS needs that). No new path.
@@ -676,6 +701,9 @@ export function BrainCoreConsole({
       batchOnaylaPending={batchOnaylaPendingId !== null}
       batchOnaylaError={batchOnaylaError}
       onBatchOnaylaVeUygula={onBatchOnaylaVeUygula}
+      proposalOnaylaPendingId={proposalOnaylaPendingId}
+      proposalOnaylaError={proposalOnaylaError}
+      onProposalOnaylaVeUygula={onProposalOnaylaVeUygula}
       selfHeal={selfHeal}
       reportCenter={selfHeal?.reportCenter ?? null}
       reportHandlers={{

@@ -18,6 +18,7 @@ import {
   askAyas,
   ayasModelConfigured,
   batchOnaylaVeUygula,
+  proposalOnaylaVeUygula,
   decideAyasApproval,
   executeAyasApprovedProposal,
   recordSelfHealDecision,
@@ -59,6 +60,7 @@ export default async function BrainCorePage() {
       decideApproval={decideAyasApproval}
       executeProposal={executeAyasApprovedProposal}
       batchOnaylaVeUygula={batchOnaylaVeUygula}
+      proposalOnaylaVeUygula={proposalOnaylaVeUygula}
       recordSelfHealDecision={recordSelfHealDecision}
       askAyas={askAyas}
     />
