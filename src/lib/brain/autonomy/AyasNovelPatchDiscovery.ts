@@ -8,6 +8,7 @@ import { AYAS_GENERATOR_SOURCES, checkAyasNovelPatchLimits, runAyasDiscoveryFind
 import { classifyAyasMicroCandidate } from "./AyasMicroClassifier";
 import { createAyasPatchSandbox, applyAyasPatchReplacementsInSandbox, runAyasPatchSandboxValidators, captureAyasPatchSandboxDiff, destroyAyasPatchSandbox } from "./AyasPatchSandbox";
 import { createAyasPatchArtifactStore, computeAyasPatchHash, type AyasPatchArtifact } from "./AyasPatchArtifact";
+import { createAyasSandboxUnvalidatableStore, contentFingerprintOf, type AyasSandboxUnvalidatableStore } from "./AyasSandboxUnvalidatableStore";
 
 /** The one static, reviewed mutationKind every patch-artifact-backed proposal uses — see `AyasPatchArtifactMutation.ts`. Never a per-candidate string; the artifact itself, not the mutationKind, carries the specific content identity. */
 export const AYAS_PATCH_ARTIFACT_MUTATION_KIND = "patch-artifact:v1" as const;
@@ -34,6 +35,7 @@ export interface AyasNovelPatchDiscoveryDeps {
   readonly artifactStore?: ReturnType<typeof createAyasPatchArtifactStore>;
   /** Bounded retry budget — at most this many gap candidates are drafted-and-sandbox-validated per tick (server-owned, never proposal-configurable). Each attempt is a genuinely different candidate, never a re-attempt of identical failing content. */
   readonly maxAttemptsPerTick?: number;
+  readonly sandboxUnvalidatableStore?: AyasSandboxUnvalidatableStore;
 }
 
 function writeRejectionLog(repoRoot: string, rejection: AyasNovelPatchRejection & { readonly at: string }): void {
@@ -83,6 +85,7 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
   const { repoRoot, observation } = deps;
   const maxAttempts = deps.maxAttemptsPerTick ?? 2;
   const artifactStore = deps.artifactStore ?? createAyasPatchArtifactStore({ rootDir: path.join(repoRoot, "data", "brain", "self-improvement", "patch-artifacts") });
+  const sandboxUnvalidatableStore = deps.sandboxUnvalidatableStore ?? createAyasSandboxUnvalidatableStore({ rootDir: path.join(repoRoot, "data", "brain", "self-improvement", "sandbox-unvalidatable") });
   const findings = runAyasDiscoveryFindings(repoRoot);
 
   if (!observation.repoClean || observation.machineAction === "PAUSE" || observation.machineAction === "STOP OWN WORKLOAD") {
@@ -94,7 +97,20 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
   const candidates: AyasNovelPatchCandidate[] = [];
   const rejections: AyasNovelPatchRejection[] = [];
 
-  for (const generated of generatedCandidates.slice(0, maxAttempts)) {
+  let attempts = 0;
+  for (const generated of generatedCandidates) {
+    if (attempts >= maxAttempts) break;
+
+    // Gap 4 (M21.4) — this EXACT semantic key may already have failed real
+    // sandbox validation with this EXACT generated content (source hash +
+    // generator identity are baked into the fingerprint). Nothing relevant
+    // has changed, so skip it WITHOUT spending an attempt — a suppressed
+    // candidate is not an "attempt," exactly like a MICRO_SAFE candidate
+    // below isn't; both are cheap, deterministic skips before any real
+    // sandbox work happens.
+    const contentFingerprint = contentFingerprintOf(generated.replacements.map((r) => r.content).join("|"));
+    if (sandboxUnvalidatableStore.shouldSkip(generated.candidateId, contentFingerprint)) continue;
+
     // M18: a candidate classified MICRO_SAFE belongs to the batch lane
     // (AyasMicroBatchAccumulator), never an individual human-facing
     // proposal — skip it here so the two lanes never both propose the same
@@ -106,12 +122,14 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
 
     const limitViolations = checkAyasNovelPatchLimits(generated.replacements);
     if (limitViolations.length > 0) {
+      attempts += 1;
       const reason = `blast-radius/domain policy: ${limitViolations.map((v) => `${v.rule}: ${v.detail}`).join("; ")}`;
       rejections.push({ candidateId: generated.candidateId, reason });
       writeRejectionLog(repoRoot, { candidateId: generated.candidateId, reason, at: observation.now });
       continue;
     }
 
+    attempts += 1;
     const sandbox = await createAyasPatchSandbox(repoRoot, observation.head).catch((error) => {
       rejections.push({ candidateId: generated.candidateId, reason: `sandbox create failed: ${error instanceof Error ? error.message : String(error)}` });
       return null;
@@ -132,6 +150,14 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
       const reason = error instanceof Error ? `sandbox validation failed: ${error.message}` : `sandbox validation failed: ${String(error)}`;
       rejections.push({ candidateId: generated.candidateId, reason });
       writeRejectionLog(repoRoot, { candidateId: generated.candidateId, reason, at: observation.now });
+      // Gap 4 (M21.4) — remember this EXACT (semanticKey, content) pairing
+      // failed real sandbox validation, so a future tick with unchanged
+      // source skips it instead of repeating the same doomed attempt
+      // forever. A source change (new fingerprint) naturally lifts the
+      // suppression on its own next tick.
+      try {
+        sandboxUnvalidatableStore.record({ semanticKey: generated.candidateId, generatorIdentity: generated.generatorIdentity, contentFingerprint, reason, requiredCapability: "unknown — validator failed for a reason not necessarily related to the generated content itself; see reason", now: observation.now });
+      } catch { /* best-effort suppression only — never blocks discovery */ }
       await destroyAyasPatchSandbox(sandbox);
       continue;
     }
@@ -187,6 +213,21 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
         patchHash: artifact.patchHash,
       });
       break; // one frozen, sandbox-validated novel candidate per tick is enough — bounded proposal volume (Phase 18).
+    } catch (error) {
+      // A candidate can fail AFTER passing its own validators — e.g. the
+      // artifact store's own secret-scan rejects content that merely
+      // LOOKS secret-like (a real, live example: diagnostic-quality-gap
+      // echoing back a failing assert's own source text as a message can
+      // incidentally embed something matching the absolute-path/env-secret
+      // redaction rules). This must be treated exactly like a validator
+      // failure — a rejection for THIS candidate, never an uncaught
+      // exception that aborts the whole tick's discovery.
+      const reason = error instanceof Error ? `post-validation artifact freeze failed: ${error.message}` : `post-validation artifact freeze failed: ${String(error)}`;
+      rejections.push({ candidateId: generated.candidateId, reason });
+      writeRejectionLog(repoRoot, { candidateId: generated.candidateId, reason, at: observation.now });
+      try {
+        sandboxUnvalidatableStore.record({ semanticKey: generated.candidateId, generatorIdentity: generated.generatorIdentity, contentFingerprint, reason, requiredCapability: "unknown — freeze failed after sandbox validation already passed; see reason", now: observation.now });
+      } catch { /* best-effort suppression only — never blocks discovery */ }
     } finally {
       await destroyAyasPatchSandbox(sandbox);
     }

@@ -152,6 +152,34 @@ async function main(): Promise<void> {
     assert.equal(afterTick2, afterTick1, "a second discovery tick at the same HEAD must never grow the proposal count for the same still-open gap");
   });
 
+  await scenario("Gap 4 (M21.4): a candidate that fails real sandbox validation is suppressed on the NEXT tick with unchanged content — no repeated attempt, no repeated rejection", async () => {
+    // A real diagnostic-quality-gap candidate whose own smoke-test validator is deterministically broken (never reports {"status":"PASS"}) — a real, repeatable sandbox failure unrelated to whether the bare-assert fix itself is "correct."
+    const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-suppress-fixture-"));
+    git(repoRoot, ["init", "-q"]); git(repoRoot, ["config", "user.email", "f@example.com"]); git(repoRoot, ["config", "user.name", "f"]);
+    fs.mkdirSync(path.join(repoRoot, "scripts"), { recursive: true });
+    fs.writeFileSync(path.join(repoRoot, "scripts", "smoke-always-broken.ts"), 'assert.equal(1, 1);\nconsole.log("this smoke test never reports PASS");\n', "utf8");
+    git(repoRoot, ["add", "-A"]); git(repoRoot, ["commit", "-q", "-m", "initial"]);
+    fs.mkdirSync(path.join(repoRoot, "node_modules"), { recursive: true });
+    for (const dep of ["tsx", "typescript", "@types"]) {
+      fs.symlinkSync(path.join(process.cwd(), "node_modules", dep), path.join(repoRoot, "node_modules", dep), process.platform === "win32" ? "junction" : "dir");
+    }
+    fs.writeFileSync(path.join(repoRoot, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2020", module: "commonjs", moduleResolution: "node", esModuleInterop: true, strict: true, skipLibCheck: true, noEmit: true, types: ["node"] }, include: ["scripts/**/*.ts"], exclude: ["node_modules"] }, null, 2));
+    git(repoRoot, ["add", "-A"]); git(repoRoot, ["commit", "-q", "-m", "tsconfig"]);
+    const head = git(repoRoot, ["rev-parse", "HEAD"]);
+    const obs = baseObservation({ head, branch: git(repoRoot, ["branch", "--show-current"]) });
+
+    const { createAyasSandboxUnvalidatableStore } = await import("../src/lib/brain/autonomy/AyasSandboxUnvalidatableStore");
+    const sandboxUnvalidatableStore = createAyasSandboxUnvalidatableStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-suppress-store-")) });
+
+    const store1 = createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-suppress-art1-")) });
+    const tick1 = await discoverAyasNovelPatchCandidates({ repoRoot, observation: obs, artifactStore: store1, maxAttemptsPerTick: 3, sandboxUnvalidatableStore });
+    assert.ok(tick1.rejections.some((r) => r.candidateId.includes("always-broken")), "tick 1 must actually attempt and reject the broken candidate for real");
+
+    const store2 = createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-suppress-art2-")) });
+    const tick2 = await discoverAyasNovelPatchCandidates({ repoRoot, observation: { ...obs, now: "2026-09-16T00:05:00.000Z" }, artifactStore: store2, maxAttemptsPerTick: 3, sandboxUnvalidatableStore });
+    assert.ok(!tick2.rejections.some((r) => r.candidateId.includes("always-broken")), "tick 2, same unchanged content, must skip it WITHOUT another real sandbox attempt — no repeated rejection");
+  });
+
   console.log(`AYAS novel patch discovery smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-novel-patch-discovery", scenarios: count }));
 }
