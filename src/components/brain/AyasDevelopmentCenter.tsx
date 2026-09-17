@@ -2,8 +2,31 @@
 
 import { useState } from "react";
 
-import type { AyasApprovalInboxView, AyasDevelopmentProposal } from "@/lib/brain/autonomy/AyasApprovalInboxView";
+import type { AyasApprovalInboxView, AyasDevelopmentProposal, AyasPublicationDisplayState } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import type { AyasMicroBatchDevelopmentEntry, AyasMicroBatchDevelopmentItem, AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
+
+/**
+ * Approval-race UX hardening (Part A). `null` means "no extra banner" — the
+ * card renders exactly as it did before this sprint. Every other value is a
+ * plain-language explanation of why an item that LOOKS pending/approved may
+ * not actually be actionable right now, so a human is never left to
+ * discover a race's outcome only after the fact.
+ */
+const publicationDisplayStateNotice: Record<AyasPublicationDisplayState, string | null> = {
+  NORMAL: null,
+  EXECUTING_NOW: "ŞU AN UYGULANIYOR — bu tam olarak onayladığınız işlem; sonucu birazdan burada görünecek.",
+  WAITING_OTHER_PUBLICATION: "BEKLE — BAŞKA BİR GELİŞTİRME ŞU AN UYGULANIYOR. O işlem bitene kadar bu öğe için onay/uygulama başlatılamaz; bitince otomatik olarak yeniden doğrulanacak.",
+  REVALIDATING_FOR_NEW_HEAD: "YENİ HEAD İÇİN YENİDEN DOĞRULANIYOR — depo bu öğenin dayandığı sürümden ileri gitti; bir sonraki denetimde güncelliğini yitirmiş olarak işaretlenecek.",
+  STALE_SUPERSEDED: "GÜNCELLİĞİNİ YİTİRDİ — YENİ SÜRÜM HAZIRLANIYOR. Aynı gerçek boşluk için güncel HEAD'e bağlı taze bir aday zaten oluşturuldu; onay için o adayı bekleyin.",
+  STALE_AWAITING_REDISCOVERY: "GÜNCELLİĞİNİ YİTİRDİ — henüz yeniden keşfedilmedi. Konu hâlâ gerçekse AYAS bir sonraki taramada güncel HEAD'e bağlı yeni bir aday oluşturabilir.",
+};
+
+function PublicationActivityNotice({ displayState }: { readonly displayState: AyasPublicationDisplayState }) {
+  const message = publicationDisplayStateNotice[displayState];
+  if (!message) return null;
+  const tone = displayState === "EXECUTING_NOW" ? "bc-dev__notice--safe" : displayState === "STALE_SUPERSEDED" ? "bc-dev__notice--safe" : "bc-dev__notice--warn";
+  return <p className={`bc-dev__notice ${tone}`} role="status">{message}</p>;
+}
 
 /**
  * Mirrors `AyasNovelPatchDiscovery.AYAS_PATCH_ARTIFACT_MUTATION_KIND` as a
@@ -131,9 +154,12 @@ const proposalOnaylaErrorLabel: Record<string, string> = {
  * Graphify verification → validation → exact-scope Git commit → push, with
  * no second confirmation afterward.
  */
+/** Approval-race UX hardening (Part A) — neither control offers an action while the other side of a HEAD-bound race is unresolved: the human would otherwise be able to click something that is guaranteed to go stale, or is racing an execution that's already running. */
+const AYAS_NON_ACTIONABLE_DISPLAY_STATES: ReadonlySet<AyasPublicationDisplayState> = new Set(["WAITING_OTHER_PUBLICATION", "REVALIDATING_FOR_NEW_HEAD"]);
+
 function ProposalOnaylaVeUygulaControl({ proposal, pendingId, error, onApprove }: { readonly proposal: AyasDevelopmentProposal; readonly pendingId?: string | null; readonly error?: { readonly proposalId: string; readonly code: string } | null; readonly onApprove?: (input: { proposalId: string; proposalHash: string }) => void }) {
   const [confirming, setConfirming] = useState(false);
-  if (proposal.mutationKind !== AYAS_PATCH_ARTIFACT_MUTATION_KIND_LITERAL || proposal.safetyClassification !== "SAFE" || !proposal.approvalReady) return null;
+  if (proposal.mutationKind !== AYAS_PATCH_ARTIFACT_MUTATION_KIND_LITERAL || proposal.safetyClassification !== "SAFE" || !proposal.approvalReady || AYAS_NON_ACTIONABLE_DISPLAY_STATES.has(proposal.displayState)) return null;
   const busy = pendingId === proposal.proposalId;
   const errorMessage = error?.proposalId === proposal.proposalId ? (proposalOnaylaErrorLabel[error.code] ?? `İşlem başarısız oldu (${error.code}).`) : null;
   if (confirming) {
@@ -172,6 +198,7 @@ function PendingProposal({ proposal, pendingId, onDecision, onaylaVeUygulaPendin
       </header>
       <p className="bc-dev__valueclass" title="Bu bulgunun türü — dosya yollarından deterministik olarak hesaplanır, öneri metninden değil">{valueClassLabel[proposal.valueClass]}</p>
       <SafetyNotice proposal={proposal} />
+      <PublicationActivityNotice displayState={proposal.displayState} />
       <ProposalDetails proposal={proposal} />
       {confirming && proposal.approvalReady ? (
         <div className="bc-dev__confirm" role="group" aria-label="Onay verirsem ne olacak?">
@@ -189,7 +216,7 @@ function PendingProposal({ proposal, pendingId, onDecision, onaylaVeUygulaPendin
         </div>
       ) : (
         <div className="bc-dev__actions">
-          {proposal.safetyClassification === "SAFE" && proposal.approvalReady ? <button type="button" className="bc-btn" disabled={busy || !onDecision} onClick={() => setConfirming(true)}>ONAYLA</button> : null}
+          {proposal.safetyClassification === "SAFE" && proposal.approvalReady && !AYAS_NON_ACTIONABLE_DISPLAY_STATES.has(proposal.displayState) ? <button type="button" className="bc-btn" disabled={busy || !onDecision} onClick={() => setConfirming(true)}>ONAYLA</button> : null}
           <button type="button" className="bc-btn bc-btn--ghost" disabled={busy || !onDecision} onClick={() => decide("REJECT")}>REDDET</button>
           <button type="button" className="bc-btn bc-btn--ghost" disabled={busy || !onDecision} onClick={() => decide("LATER")}>DAHA SONRA</button>
         </div>
@@ -294,7 +321,7 @@ const batchOnaylaErrorLabel: Record<string, string> = {
 /** M18.1 — "BATCH ONAYLA VE UYGULA": the single human authorization. Visible ONLY for a READY_FOR_REVIEW batch — never for ACCUMULATING (not yet reviewable) or a historical/terminal batch (already decided). One click here authorizes Package C execution, per-item + final Graphify verification, and — only if every check passes — one exact-scope Git commit and push. There is no second confirmation afterward. */
 function BatchOnaylaVeUygulaControl({ entry, pending, error, onApprove }: { readonly entry: AyasMicroBatchDevelopmentEntry; readonly pending?: boolean; readonly error?: { readonly batchId: string; readonly code: string } | null; readonly onApprove?: (input: { batchId: string; batchHash: string }) => void }) {
   const [confirming, setConfirming] = useState(false);
-  if (entry.status !== "READY_FOR_REVIEW") return null;
+  if (entry.status !== "READY_FOR_REVIEW" || AYAS_NON_ACTIONABLE_DISPLAY_STATES.has(entry.displayState)) return null;
   const errorMessage = error?.batchId === entry.batchId ? (batchOnaylaErrorLabel[error.code] ?? `İşlem başarısız oldu (${error.code}).`) : null;
   if (confirming) {
     return (
@@ -337,6 +364,7 @@ function MicroBatchEntry({ entry, onaylaPending, onaylaError, onBatchOnaylaVeUyg
       </dl>
       {entry.decision ? <p className="bc-dev__outcome">Karar: {entry.decision.decision} · {new Date(entry.decision.decidedAt).toLocaleString("tr-TR")}</p> : null}
       {entry.result ? <p className="bc-dev__outcome">Yürütme sonucu: {entry.result.outcome} · Testler: {entry.result.testResults.join(" · ") || "kayıt yok"}</p> : null}
+      <PublicationActivityNotice displayState={entry.displayState} />
       <div className="bc-dev__micro-items">{entry.items.map((item) => <MicroBatchItemCard key={item.microItemId} item={item} />)}</div>
       <BatchOnaylaVeUygulaControl entry={entry} pending={onaylaPending} error={onaylaError} onApprove={onBatchOnaylaVeUygula} />
     </article>

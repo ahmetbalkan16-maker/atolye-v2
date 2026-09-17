@@ -2,6 +2,53 @@ import { readAyasApprovalInboxState, type AyasApprovalInboxReadState, type AyasI
 import { isAyasDeferredEligibleNow } from "./AyasDeferredEligibility";
 import { createAyasPatchArtifactStore, AyasPatchArtifactError } from "./AyasPatchArtifact";
 import { classifyAyasFindingValue, type AyasFindingValueClass } from "./AyasFindingValueClass";
+import { readAyasPublicationActivity, AYAS_PUBLICATION_ACTIVITY_UNKNOWN, type AyasPublicationActivitySnapshot } from "./AyasPublicationActivity";
+
+/**
+ * Approval-race UX hardening (Part A). Purely a display hint derived from
+ * already-durable facts at read time — never itself an authority signal and
+ * never mutates anything:
+ * - `EXECUTING_NOW`: THIS proposal reserved the gate and it is still open.
+ * - `WAITING_OTHER_PUBLICATION`: the gate is open for a DIFFERENT governed
+ *   action; this one has not decided/reserved yet, so it cannot be the owner.
+ * - `REVALIDATING_FOR_NEW_HEAD`: the live repository HEAD has already moved
+ *   past this proposal's `baseHead`, but the durable store has not yet run
+ *   its next staleness-reconciliation pass — this closes the exact window
+ *   that made the earlier incident confusing (an item that LOOKED pending
+ *   and actionable was actually already dead).
+ * - `STALE_SUPERSEDED`: the store has confirmed STALE, and a fresh
+ *   rediscovery bound to the current HEAD already exists for the same files.
+ * - `STALE_AWAITING_REDISCOVERY`: confirmed STALE, no successor seen yet.
+ * - `NORMAL`: none of the above — render exactly as before this sprint.
+ */
+export type AyasPublicationDisplayState =
+  | "NORMAL"
+  | "EXECUTING_NOW"
+  | "WAITING_OTHER_PUBLICATION"
+  | "REVALIDATING_FOR_NEW_HEAD"
+  | "STALE_SUPERSEDED"
+  | "STALE_AWAITING_REDISCOVERY";
+
+function computeAyasPublicationDisplayState(
+  proposal: Pick<AyasInboxProposalRead, "status" | "baseHead" | "exactFiles" | "createdAt">,
+  decision: AyasInboxDecisionRead | undefined,
+  activity: AyasPublicationActivitySnapshot,
+  all: readonly AyasInboxProposalRead[],
+): { readonly displayState: AyasPublicationDisplayState; readonly supersededByProposalId?: string } {
+  if (proposal.status === "STALE") {
+    const successor = [...all]
+      .filter((p) => p.status === "PENDING" && p.exactFiles.length > 0 && p.exactFiles.length === proposal.exactFiles.length && p.exactFiles.every((f) => proposal.exactFiles.includes(f)))
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
+    return successor ? { displayState: "STALE_SUPERSEDED", supersededByProposalId: successor.proposalId } : { displayState: "STALE_AWAITING_REDISCOVERY" };
+  }
+  if (proposal.status !== "PENDING" && proposal.status !== "APPROVED" && proposal.status !== "DEFERRED") return { displayState: "NORMAL" };
+  if (activity.publicationActive) {
+    const ownsReservation = Boolean(decision?.reservedAt) && !decision?.finalizedAt;
+    return { displayState: ownsReservation ? "EXECUTING_NOW" : "WAITING_OTHER_PUBLICATION" };
+  }
+  if (activity.liveCurrentHead && activity.liveCurrentHead !== proposal.baseHead) return { displayState: "REVALIDATING_FOR_NEW_HEAD" };
+  return { displayState: "NORMAL" };
+}
 
 export const ayasHumanExplanationFields = ["currentProblem", "selectionReason", "expectedUserBenefit", "expectedBehaviorChange", "unchangedBehavior", "riskIfNotDone", "technicalRisk", "productionImpact"] as const;
 export type AyasHumanExplanationField = typeof ayasHumanExplanationFields[number];
@@ -25,6 +72,10 @@ export interface AyasDevelopmentProposal extends AyasInboxProposalRead {
   readonly patchArtifact?: AyasDevelopmentPatchArtifact;
   /** M20.1 — deterministic value classification, computed fresh from `exactFiles` on every read (never stored, never influenced by proposal prose, never an authority signal — purely "why does this matter" for a human reading Gelişim Merkezi). */
   readonly valueClass: AyasFindingValueClass;
+  /** Approval-race UX hardening (Part A) — see `computeAyasPublicationDisplayState`. Purely descriptive; never gates or grants anything. */
+  readonly displayState: AyasPublicationDisplayState;
+  /** Set only when `displayState === "STALE_SUPERSEDED"`. */
+  readonly supersededByProposalId?: string;
 }
 
 export interface AyasApprovalInboxView {
@@ -77,16 +128,22 @@ function loadAyasDevelopmentPatchArtifact(proposal: AyasInboxProposalRead): Ayas
   }
 }
 
-export function buildAyasApprovalInboxView(state: AyasApprovalInboxReadState, now = new Date().toISOString()): AyasApprovalInboxView {
-  const enrich = (proposal: AyasInboxProposalRead): AyasDevelopmentProposal => ({
-    ...proposal,
-    approvalReady: isAyasDevelopmentApprovalReady(proposal),
-    missingExplanation: missingAyasHumanExplanation(proposal),
-    decision: [...state.decisions].reverse().find((item) => item.proposalId === proposal.proposalId),
-    result: [...state.results].reverse().find((item) => item.proposalId === proposal.proposalId),
-    patchArtifact: loadAyasDevelopmentPatchArtifact(proposal),
-    valueClass: classifyAyasFindingValue(proposal.exactFiles),
-  });
+export function buildAyasApprovalInboxView(state: AyasApprovalInboxReadState, now = new Date().toISOString(), activity: AyasPublicationActivitySnapshot = AYAS_PUBLICATION_ACTIVITY_UNKNOWN): AyasApprovalInboxView {
+  const enrich = (proposal: AyasInboxProposalRead): AyasDevelopmentProposal => {
+    const decision = [...state.decisions].reverse().find((item) => item.proposalId === proposal.proposalId);
+    const { displayState, supersededByProposalId } = computeAyasPublicationDisplayState(proposal, decision, activity, state.proposals);
+    return {
+      ...proposal,
+      approvalReady: isAyasDevelopmentApprovalReady(proposal),
+      missingExplanation: missingAyasHumanExplanation(proposal),
+      decision,
+      result: [...state.results].reverse().find((item) => item.proposalId === proposal.proposalId),
+      patchArtifact: loadAyasDevelopmentPatchArtifact(proposal),
+      valueClass: classifyAyasFindingValue(proposal.exactFiles),
+      displayState,
+      supersededByProposalId,
+    };
+  };
   const all = state.proposals.map(enrich);
   // M8 — the SAME predicate the durable authority layer's decision gate now
   // uses (see `AyasDeferredEligibility.ts`), so an eligible-again deferred
@@ -100,7 +157,7 @@ export function buildAyasApprovalInboxView(state: AyasApprovalInboxReadState, no
 
 export function loadAyasApprovalInboxView(): AyasApprovalInboxView {
   try {
-    return buildAyasApprovalInboxView(readAyasApprovalInboxState());
+    return buildAyasApprovalInboxView(readAyasApprovalInboxState(), new Date().toISOString(), readAyasPublicationActivity());
   } catch (error) {
     return { connected: false, pending: [], today: [], history: [], error: error instanceof Error ? error.message : String(error) };
   }
