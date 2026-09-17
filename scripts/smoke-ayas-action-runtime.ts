@@ -50,58 +50,58 @@ async function run() {
     const out = await runAyasReadOnlyAction({
       rawRequest: baseRequest({ plan: { filePath: "src/lib/ayas/execution/AyasExecutionPolicy.ts" } }),
     });
-    assert.equal(out.executed, true);
+    assert.equal(out.executed, true, "assert.equal(out.executed, true)");
     if (!out.executed) return;
-    assert.equal(out.action, "inspect-source-file");
-    assert.equal(out.result.write, false);
+    assert.equal(out.action, "inspect-source-file", "assert.equal(out.action, \"inspect-source-file\")");
+    assert.equal(out.result.write, false, "assert.equal(out.result.write, false)");
     const data = out.result.data as { exists: boolean; content: string };
-    assert.equal(data.exists, true);
+    assert.equal(data.exists, true, "assert.equal(data.exists, true)");
     assert.match(data.content, /AYAS_EXECUTION_ALLOWLIST/, "the real file content must actually be present");
-    assert.ok(out.durationMs >= 0);
+    assert.ok(out.durationMs >= 0, "assert.ok(out.durationMs >= 0)");
   });
 
   await scenario("known read-only tool actually executes: read-project-document reads the real CHANGELOG.md", async () => {
     const out = await runAyasReadOnlyAction({
       rawRequest: baseRequest({ action: "read-project-document", plan: { documentId: "changelog" } }),
     });
-    assert.equal(out.executed, true);
+    assert.equal(out.executed, true, "assert.equal(out.executed, true)");
     if (!out.executed) return;
     const data = out.result.data as { exists: boolean; content: string };
-    assert.equal(data.exists, true);
-    assert.ok(data.content.length > 0);
+    assert.equal(data.exists, true, "assert.equal(data.exists, true)");
+    assert.ok(data.content.length > 0, "assert.ok(data.content.length > 0)");
   });
 
   // --- policy-layer denials (existing, unchanged AyasExecutionPolicy) ------
 
   await scenario("unknown tool is denied, never dispatched", async () => {
     const out = await runAyasReadOnlyAction({ rawRequest: baseRequest({ action: "delete_everything" }) });
-    assert.equal(out.executed, false);
+    assert.equal(out.executed, false, "assert.equal(out.executed, false)");
     if (out.executed) return;
-    assert.equal(out.stage, "policy");
-    assert.equal(out.reason, "unknown-action");
+    assert.equal(out.stage, "policy", "assert.equal(out.stage, \"policy\")");
+    assert.equal(out.reason, "unknown-action", "assert.equal(out.reason, \"unknown-action\")");
   });
 
   await scenario("a reserved/mutating action (resume-stage) is denied, never dispatched", async () => {
     const out = await runAyasReadOnlyAction({ rawRequest: baseRequest({ action: "resume-stage" }) });
-    assert.equal(out.executed, false);
+    assert.equal(out.executed, false, "assert.equal(out.executed, false)");
     if (out.executed) return;
-    assert.equal(out.reason, "reserved-action-not-enabled");
+    assert.equal(out.reason, "reserved-action-not-enabled", "assert.equal(out.reason, \"reserved-action-not-enabled\")");
   });
 
   await scenario("missing required input (inspect-project with no projectSlug) is rejected", async () => {
     const out = await runAyasReadOnlyAction({ rawRequest: baseRequest({ action: "inspect-project" }) });
-    assert.equal(out.executed, false);
+    assert.equal(out.executed, false, "assert.equal(out.executed, false)");
     if (out.executed) return;
-    assert.equal(out.reason, "missing-project");
+    assert.equal(out.reason, "missing-project", "assert.equal(out.reason, \"missing-project\")");
   });
 
   await scenario("shell-like content anywhere in the request is rejected (no arbitrary shell escape)", async () => {
     const out = await runAyasReadOnlyAction({
       rawRequest: baseRequest({ plan: { filePath: "src/foo.ts; rm -rf /" } }),
     });
-    assert.equal(out.executed, false);
+    assert.equal(out.executed, false, "assert.equal(out.executed, false)");
     if (out.executed) return;
-    assert.equal(out.reason, "shell-like-content");
+    assert.equal(out.reason, "shell-like-content", "assert.equal(out.reason, \"shell-like-content\")");
   });
 
   // --- tool-level (second-layer) denials — AyasSafeExecutors.ts own checks -
@@ -110,10 +110,10 @@ async function run() {
     const out = await runAyasReadOnlyAction({
       rawRequest: baseRequest({ plan: { filePath: "/etc/passwd" } }),
     });
-    assert.equal(out.executed, false);
+    assert.equal(out.executed, false, "assert.equal(out.executed, false)");
     if (out.executed) return;
-    assert.equal(out.stage, "safety");
-    assert.equal(out.reason, "path-traversal");
+    assert.equal(out.stage, "safety", "assert.equal(out.stage, \"safety\")");
+    assert.equal(out.reason, "path-traversal", "assert.equal(out.reason, \"path-traversal\")");
   });
 
   await scenario("a path outside the allowed roots (src/, scripts/, app/, top-level .md) is rejected", async () => {
@@ -123,46 +123,46 @@ async function run() {
     const out = await runAyasReadOnlyAction({
       rawRequest: baseRequest({ plan: { filePath: "tsconfig.json" } }),
     });
-    assert.equal(out.executed, false);
+    assert.equal(out.executed, false, "assert.equal(out.executed, false)");
     if (out.executed) return;
-    assert.equal(out.stage, "safety");
-    assert.equal(out.reason, "path-not-allowed");
+    assert.equal(out.stage, "safety", "assert.equal(out.stage, \"safety\")");
+    assert.equal(out.reason, "path-not-allowed", "assert.equal(out.reason, \"path-not-allowed\")");
   });
 
   await scenario("real project/runtime data (data/) is rejected even though it's a plausible-looking relative path", async () => {
     const out = await runAyasReadOnlyAction({
       rawRequest: baseRequest({ plan: { filePath: "data/brain/memory/records.json" } }),
     });
-    assert.equal(out.executed, false);
+    assert.equal(out.executed, false, "assert.equal(out.executed, false)");
     if (out.executed) return;
-    assert.equal(out.stage, "safety");
-    assert.equal(out.reason, "path-denied");
+    assert.equal(out.stage, "safety", "assert.equal(out.stage, \"safety\")");
+    assert.equal(out.reason, "path-denied", "assert.equal(out.reason, \"path-denied\")");
   });
 
   await scenario("a secret-shaped filename within an allowed root is rejected (.env exposure blocked)", async () => {
     const out = await runAyasReadOnlyAction({
       rawRequest: baseRequest({ plan: { filePath: "src/config/.env.local" } }),
     });
-    assert.equal(out.executed, false);
+    assert.equal(out.executed, false, "assert.equal(out.executed, false)");
     if (out.executed) return;
-    assert.equal(out.stage, "safety");
-    assert.equal(out.reason, "path-denied");
+    assert.equal(out.stage, "safety", "assert.equal(out.stage, \"safety\")");
+    assert.equal(out.reason, "path-denied", "assert.equal(out.reason, \"path-denied\")");
   });
 
   await scenario("a disallowed extension within an allowed root is rejected", async () => {
     const out = await runAyasReadOnlyAction({
       rawRequest: baseRequest({ plan: { filePath: "src/lib/ayas/execution/AyasExecutionPolicy.ts.exe" } }),
     });
-    assert.equal(out.executed, false);
+    assert.equal(out.executed, false, "assert.equal(out.executed, false)");
     if (out.executed) return;
-    assert.equal(out.reason, "extension-not-allowed");
+    assert.equal(out.reason, "extension-not-allowed", "assert.equal(out.reason, \"extension-not-allowed\")");
   });
 
   await scenario("an unknown documentId is rejected (closed enum, never an arbitrary path)", async () => {
     const out = await runAyasReadOnlyAction({
       rawRequest: baseRequest({ action: "read-project-document", plan: { documentId: "../../../etc/passwd" } }),
     });
-    assert.equal(out.executed, false);
+    assert.equal(out.executed, false, "assert.equal(out.executed, false)");
   });
 
   // --- honest, non-denial outcomes ------------------------------------------
@@ -174,7 +174,7 @@ async function run() {
     assert.equal(out.executed, true, "a valid, allowed, merely-nonexistent path is an honest result, not a policy denial");
     if (!out.executed) return;
     const data = out.result.data as { exists: boolean };
-    assert.equal(data.exists, false);
+    assert.equal(data.exists, false, "assert.equal(data.exists, false)");
   });
 
   // --- executor-layer failure modes (test seam: resolveExecutor) -----------
@@ -189,10 +189,10 @@ async function run() {
       rawRequest: baseRequest(),
       resolveExecutor: () => failingExecutor,
     });
-    assert.equal(out.executed, false);
+    assert.equal(out.executed, false, "assert.equal(out.executed, false)");
     if (out.executed) return;
-    assert.equal(out.stage, "executor");
-    assert.equal(out.reason, "executor-failed");
+    assert.equal(out.stage, "executor", "assert.equal(out.stage, \"executor\")");
+    assert.equal(out.reason, "executor-failed", "assert.equal(out.reason, \"executor-failed\")");
     assert.equal(calls, 1, "no retry — exactly one attempt");
   });
 
@@ -208,10 +208,10 @@ async function run() {
       rawRequest: baseRequest(),
       resolveExecutor: () => hungExecutor,
     });
-    assert.equal(out.executed, false);
+    assert.equal(out.executed, false, "assert.equal(out.executed, false)");
     if (out.executed) return;
-    assert.equal(out.stage, "timeout");
-    assert.equal(calls, 1);
+    assert.equal(out.stage, "timeout", "assert.equal(out.stage, \"timeout\")");
+    assert.equal(calls, 1, "assert.equal(calls, 1)");
   });
 
   await scenario("exactly one executor call per dispatch — no duplicate execution", async () => {
@@ -224,8 +224,8 @@ async function run() {
       rawRequest: baseRequest({ plan: { filePath: "src/lib/ayas/execution/AyasExecutionPolicy.ts" } }),
       resolveExecutor: () => countingExecutor,
     });
-    assert.equal(out.executed, true);
-    assert.equal(calls, 1);
+    assert.equal(out.executed, true, "assert.equal(out.executed, true)");
+    assert.equal(calls, 1, "assert.equal(calls, 1)");
   });
 
   // --- Execution Gate isolation ----------------------------------------------
@@ -234,12 +234,12 @@ async function run() {
     const gateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-action-runtime-gate-"));
     try {
       const gate = new AyasExecutionGateStore({ rootDir: gateRoot });
-      assert.equal(gate.readStateFailClosed().state, "CLOSED");
+      assert.equal(gate.readStateFailClosed().state, "CLOSED", "assert.equal(gate.readStateFailClosed().state, \"CLOSED\")");
       // `runAyasReadOnlyAction` never receives this (or any) gate instance —
       // the call below has no way to reach it. Reading it again afterward
       // just confirms nothing external touched it either.
       await runAyasReadOnlyAction({ rawRequest: baseRequest({ plan: { filePath: "src/lib/ayas/execution/AyasExecutionPolicy.ts" } }) });
-      assert.equal(gate.readStateFailClosed().state, "CLOSED");
+      assert.equal(gate.readStateFailClosed().state, "CLOSED", "assert.equal(gate.readStateFailClosed().state, \"CLOSED\")");
     } finally {
       fs.rmSync(gateRoot, { recursive: true, force: true });
     }
