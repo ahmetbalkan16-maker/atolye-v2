@@ -49,6 +49,7 @@ import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
 import type { AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import type { AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
+import type { AyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
 import type { BrainSelfHealConsoleSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
 import type { BrainReportStatusFilter } from "@/lib/brain/selfheal/BrainReportCenter";
 import type { BrainSelfHealDecisionKind } from "@/lib/brain/selfheal/BrainSelfHealDecision";
@@ -87,6 +88,7 @@ export interface BrainCoreConsoleProps {
   readonly initialApprovalInbox?: AyasApprovalInboxView;
   /** M18 — read-only initial snapshot of the Lane A (MICRO_SAFE) accumulating batch, for the "Küçük Geliştirme Paketi" section. */
   readonly initialMicroBatch?: AyasMicroBatchDevelopmentView;
+  readonly initialGoalDevelopment?: AyasGoalDevelopmentView;
   /** Read-only self-healing / Report Center state for the "AYAS Raporları" panel. */
   readonly initialSelfHeal?: BrainSelfHealConsoleSnapshot | null;
   readonly modelConfigured?: boolean;
@@ -99,6 +101,8 @@ export interface BrainCoreConsoleProps {
   readonly refreshApprovalInbox?: () => Promise<AyasApprovalInboxView>;
   /** M18 — Server Action that re-reads the micro-batch (read-only). */
   readonly refreshMicroBatch?: () => Promise<AyasMicroBatchDevelopmentView>;
+  /** M22.14 — Server Action that re-reads the goal + external-research state (read-only). */
+  readonly refreshGoalDevelopment?: () => Promise<AyasGoalDevelopmentView>;
   /** Server Action that records an operator ONAYLA / REDDET / DAHA SONRA approval decision. Session-gated; the safety-classification policy is enforced server-side (Store boundary), not by this prop's presence. */
   readonly decideApproval?: (input: { proposalId: string; decision: "APPROVE" | "REJECT" | "LATER" }) => Promise<AyasApprovalInboxView>;
   /** Server Action that runs an already-APPROVED proposal through Package C's execution authority chain. Session-gated, separate from `decideApproval` — approving never calls this. */
@@ -121,12 +125,14 @@ export function BrainCoreConsole({
   initialAutonomous,
   initialApprovalInbox,
   initialMicroBatch,
+  initialGoalDevelopment,
   initialSelfHeal,
   modelConfigured,
   refresh,
   refreshSelfHeal,
   refreshApprovalInbox,
   refreshMicroBatch,
+  refreshGoalDevelopment,
   recordSelfHealDecision,
   decideApproval,
   executeProposal,
@@ -145,6 +151,7 @@ export function BrainCoreConsole({
   const [selfHeal, setSelfHeal] = useState(initialSelfHeal ?? null);
   const [approvalInbox, setApprovalInbox] = useState(initialApprovalInbox ?? { connected: false, pending: [], today: [], history: [] });
   const [microBatch, setMicroBatch] = useState(initialMicroBatch ?? { connected: false, active: null, history: [] });
+  const [goalDevelopment, setGoalDevelopment] = useState(initialGoalDevelopment ?? { connected: false, goals: [], research: [] });
   const [reportFilter, setReportFilter] = useState<{ status: BrainReportStatusFilter; category: string }>({
     status: "all",
     category: "all",
@@ -485,6 +492,11 @@ export function BrainCoreConsole({
         try { setMicroBatch(await refreshMicroBatch()); } catch { /* keep the last durable micro-batch view */ }
       });
     }
+    if (refreshGoalDevelopment) {
+      startSelfHeal(async () => {
+        try { setGoalDevelopment(await refreshGoalDevelopment()); } catch { /* keep the last durable goal/research view */ }
+      });
+    }
   };
 
   // Record an operator ONAYLA / REDDET / DAHA SONRA decision. This writes a
@@ -693,6 +705,7 @@ export function BrainCoreConsole({
       autonomous={initialAutonomous}
       approvalInbox={approvalInbox}
       microBatch={microBatch}
+      goalDevelopment={goalDevelopment}
       approvalPendingId={approvalPending}
       onApprovalDecision={onApprovalDecision}
       executionPendingId={executionPending}

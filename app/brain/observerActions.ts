@@ -13,6 +13,7 @@
 
 import { loadAyasApprovalInboxView, type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import { loadAyasMicroBatchDevelopmentView, type AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
+import { loadAyasGoalDevelopmentView, type AyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
 
 export async function refreshAyasApprovalInbox(): Promise<AyasApprovalInboxView> {
   return loadAyasApprovalInboxView();
@@ -22,4 +23,12 @@ export async function refreshAyasApprovalInbox(): Promise<AyasApprovalInboxView>
 // refresh above: no mutating authority module in this file's import chain.
 export async function refreshAyasMicroBatch(): Promise<AyasMicroBatchDevelopmentView> {
   return loadAyasMicroBatchDevelopmentView();
+}
+
+// M22.14 — read-only goal + external-research refresh, same posture as
+// every other refresh in this file: no mutating authority module in this
+// file's import chain (AyasGoalStore/AyasExternalResearchStore expose no
+// execute/approve/gate method at all — see their own smoke tests).
+export async function refreshAyasGoalDevelopment(): Promise<AyasGoalDevelopmentView> {
+  return loadAyasGoalDevelopmentView();
 }

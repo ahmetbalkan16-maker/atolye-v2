@@ -36,6 +36,8 @@ import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
 import type { AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import type { AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
+import type { AyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
+import { AyasGoalResearchPanel } from "./AyasGoalResearchPanel";
 import type { BrainSelfHealSnapshot } from "@/lib/brain/selfheal/BrainSelfHealSnapshot";
 import type { BrainReportCenterView } from "@/lib/brain/selfheal/BrainReportCenter";
 
@@ -98,6 +100,8 @@ export interface BrainConsoleViewProps {
   readonly approvalInbox?: AyasApprovalInboxView;
   /** M18 — the Lane A (MICRO_SAFE) accumulating batch, for the "Küçük Geliştirme Paketi" section. */
   readonly microBatch?: AyasMicroBatchDevelopmentView;
+  /** M22.14 — read-only goals + external-research state, for the "Hedefler ve Araştırma" section. */
+  readonly goalDevelopment?: AyasGoalDevelopmentView;
   readonly approvalPendingId?: string | null;
   readonly onApprovalDecision?: (input: { proposalId: string; decision: "APPROVE" | "REJECT" | "LATER" }) => void;
   readonly executionPendingId?: string | null;
@@ -544,7 +548,12 @@ function PanelBody(props: BrainConsoleViewProps) {
     case "autonomous":
       return <AutonomousPanel autonomous={props.autonomous} />;
     case "development":
-      return <AyasDevelopmentCenter inbox={props.approvalInbox ?? { connected: true, pending: [], today: [], history: [] }} microBatch={props.microBatch ?? { connected: true, active: null, history: [] }} pendingId={props.approvalPendingId} onDecision={props.onApprovalDecision} executingId={props.executionPendingId} executionError={props.executionError} onExecute={props.onExecuteProposal} batchOnaylaPending={props.batchOnaylaPending} batchOnaylaError={props.batchOnaylaError} onBatchOnaylaVeUygula={props.onBatchOnaylaVeUygula} proposalOnaylaPendingId={props.proposalOnaylaPendingId} proposalOnaylaError={props.proposalOnaylaError} onProposalOnaylaVeUygula={props.onProposalOnaylaVeUygula} />;
+      return (
+        <>
+          <AyasDevelopmentCenter inbox={props.approvalInbox ?? { connected: true, pending: [], today: [], history: [] }} microBatch={props.microBatch ?? { connected: true, active: null, history: [] }} pendingId={props.approvalPendingId} onDecision={props.onApprovalDecision} executingId={props.executionPendingId} executionError={props.executionError} onExecute={props.onExecuteProposal} batchOnaylaPending={props.batchOnaylaPending} batchOnaylaError={props.batchOnaylaError} onBatchOnaylaVeUygula={props.onBatchOnaylaVeUygula} proposalOnaylaPendingId={props.proposalOnaylaPendingId} proposalOnaylaError={props.proposalOnaylaError} onProposalOnaylaVeUygula={props.onProposalOnaylaVeUygula} />
+          <AyasGoalResearchPanel view={props.goalDevelopment ?? { connected: true, goals: [], research: [] }} />
+        </>
+      );
     case "selfheal":
       return (
         <BrainSelfHealingPanel
