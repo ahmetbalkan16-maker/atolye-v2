@@ -198,7 +198,13 @@ async function main() {
 
     const tsxCli = path.join(process.cwd(), "node_modules", "tsx", "dist", "cli.mjs");
     const script = path.join(process.cwd(), "scripts", "ayas-discovery-daemon.ts");
-    const stdout = execFileSync(process.execPath, [tsxCli, script], { cwd: repoRoot, encoding: "utf8", windowsHide: true, timeout: 60_000, stdio: ["ignore", "pipe", "pipe"] });
+    // AYAS_RESEARCH_SCHEDULER_ENABLED=0: this test proves staleness
+    // reconciliation/discovery, not the research scheduler — against a
+    // fixture repo with no prior scheduler state, an enabled scheduler
+    // would treat everything as due and attempt a REAL internet+local-model
+    // research cycle as an unrelated side effect, which is slow enough to
+    // blow this call's own 60s timeout (confirmed live).
+    const stdout = execFileSync(process.execPath, [tsxCli, script], { cwd: repoRoot, encoding: "utf8", windowsHide: true, timeout: 60_000, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, AYAS_RESEARCH_SCHEDULER_ENABLED: "0" } });
     const result = JSON.parse(stdout.trim().split("\n").pop()!) as { status: string; head: string; staleReconciled: string[]; discovered: string[] };
     assert.equal(result.status, "OK");
     assert.equal(result.head, head);

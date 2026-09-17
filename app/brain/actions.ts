@@ -41,6 +41,9 @@ import { createAyasChatProvider, resolveAyasChatModelProfile, AYAS_MODEL_ENV } f
 import { createBrainSelfHealStore } from "@/lib/brain/selfheal/BrainSelfHealStore";
 import { createAyasApprovalInboxStore, type AyasInboxDecision } from "@/lib/brain/autonomy/AyasApprovalInboxStore";
 import { loadAyasApprovalInboxView, type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
+import { loadAyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
+import { loadAyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
+import { detectAyasResearchStatusIntent, buildAyasResearchStatusSpokenAnswer } from "@/lib/brain/autonomy/AyasResearchStatusIntent";
 import { executeAyasApprovedProposalWith, defaultAyasProposalExecutionDeps, AyasProposalExecutionError } from "@/lib/brain/autonomy/AyasProposalExecutionService";
 import { approveAndExecuteAyasMicroBatch, defaultAyasMicroBatchApprovalDeps, AyasMicroBatchApprovalError } from "@/lib/brain/autonomy/AyasMicroBatchApprovalService";
 import { approveAndExecuteAyasProposal, defaultAyasProposalApprovalDeps, AyasProposalApprovalError } from "@/lib/brain/autonomy/AyasProposalApprovalService";
@@ -86,6 +89,20 @@ export async function askAyas(input: AskAyasInput): Promise<AyasReplyOutcome> {
     const rc = loadBrainSelfHealSnapshot().reportCenter;
     return {
       message: ayasReplyMessage(buildAyasReportSpokenAnswer(rc, reportIntent), input.seq),
+      source: "fallback",
+    };
+  }
+
+  // AYAS CONTINUOUS EXTERNAL INTELLIGENCE sprint — "Son internette ne
+  // araştırdın?" / "Sonraki araştırma ne zaman?" / "CapCut tarafında yeni ne
+  // buldun?" — same deterministic, pre-model-call posture as the report
+  // intent above: answered directly from the real durable goal/research and
+  // scheduler state, never invented, never a model call.
+  const researchStatusIntent = detectAyasResearchStatusIntent(input.text ?? "");
+  if (researchStatusIntent) {
+    const [goalDevelopment, researchEngineStatus] = [loadAyasGoalDevelopmentView(), loadAyasResearchEngineStatusView()];
+    return {
+      message: ayasReplyMessage(buildAyasResearchStatusSpokenAnswer(goalDevelopment, researchEngineStatus, researchStatusIntent), input.seq),
       source: "fallback",
     };
   }

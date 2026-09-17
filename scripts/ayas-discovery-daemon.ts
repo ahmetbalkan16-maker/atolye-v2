@@ -107,11 +107,22 @@ async function main(): Promise<void> {
   // (network down, every source erroring) is folded into `gaps` exactly
   // like the other best-effort signals above — it must never abort
   // discovery, staleness reconciliation, or anything else in this script.
+  // `AYAS_RESEARCH_SCHEDULER_ENABLED=0` is a real operator opt-out (e.g. "I
+  // don't want AYAS reaching the internet right now"), and is also how a
+  // repo-root-spawning test that has nothing to do with research (e.g.
+  // smoke-ayas-discovery-registry.ts's isolated-fixture-repo integration
+  // test) avoids incurring a real, first-ever-tick network+local-model
+  // research cycle as an unrelated side effect — confirmed live: without
+  // this, that test's spawned child process could exceed its own timeout
+  // budget waiting on a real DEEP scan it never asked for.
   let research: AyasResearchSchedulerTickResult | undefined;
-  try {
-    research = await tickAyasResearchScheduler({ repoRoot: root });
-  } catch (error) {
-    observation.gaps.push(`research scheduler tick failed: ${error instanceof Error ? error.message : String(error)}`);
+  const researchSchedulerEnabled = process.env.AYAS_RESEARCH_SCHEDULER_ENABLED !== "0";
+  if (researchSchedulerEnabled) {
+    try {
+      research = await tickAyasResearchScheduler({ repoRoot: root });
+    } catch (error) {
+      observation.gaps.push(`research scheduler tick failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   console.log(JSON.stringify({
@@ -130,7 +141,7 @@ async function main(): Promise<void> {
     microBatchStatus: microBatch.batch?.status ?? null,
     microBatchReadyForReview: microBatch.readyForReview,
     microBatchRejections: microBatch.rejections,
-    researchOutcome: research?.outcome ?? "ERROR",
+    researchOutcome: research?.outcome ?? (researchSchedulerEnabled ? "ERROR" : "DISABLED"),
     researchNextLightAt: research?.state.nextLightAt ?? null,
     researchNextDeepAt: research?.state.nextDeepAt ?? null,
     researchFindingsRecorded: research?.deep?.findingsRecorded ?? 0,
