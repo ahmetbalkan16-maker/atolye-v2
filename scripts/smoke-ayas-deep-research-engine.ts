@@ -7,6 +7,7 @@ import type { AddressInfo } from "node:net";
 
 import { runAyasDeepResearchScan } from "../src/lib/brain/autonomy/AyasDeepResearchEngine";
 import { createAyasExternalResearchStore } from "../src/lib/brain/autonomy/AyasExternalResearchStore";
+import { createAyasResearchNoveltyStore } from "../src/lib/brain/autonomy/AyasResearchNoveltyStore";
 import { buildAyasDeepAnalysisPrompt, parseAyasDeepAnalysisOutput, corroborateAyasGapClaim } from "../src/lib/brain/autonomy/AyasDeepAnalysis";
 import type { AyasResearchSource } from "../src/lib/brain/autonomy/AyasResearchSourceRegistry";
 import type { AIProvider, AIProviderOutput } from "../src/lib/ai/providers/AIProvider";
@@ -44,7 +45,7 @@ const ATOM_ONE_ENTRY = (title: string, summary: string) =>
   `<feed><entry><title>${title}</title><link href="https://example.test/release/1"/><summary>${summary}</summary><updated>2026-01-01T00:00:00Z</updated></entry></feed>`;
 
 function source(url: string): AyasResearchSource {
-  return { sourceId: "fixture-source", provider: "FixtureProvider", category: "OPEN_SOURCE_AI", kind: "atom", url, officialSource: true, notes: "test fixture" };
+  return { sourceId: "fixture-source", provider: "FixtureProvider", category: "OPEN_SOURCE_AI", kind: "atom", url, officialSource: true, expectedContentTypes: ["application/atom+xml"], notes: "test fixture" };
 }
 
 async function main() {
@@ -92,6 +93,7 @@ async function main() {
     await scenario("adversarial prompt-injection-shaped content in the fetched entry never executes anything — it is recorded (if at all) as an inert string field, never as an instruction", async () => {
       const rootDir = tempDir("ayas-deep-adversarial-");
       const researchStore = createAyasExternalResearchStore({ rootDir });
+      const noveltyStore = createAyasResearchNoveltyStore({ rootDir: tempDir("ayas-deep-adversarial-novelty-") }); // never the real research-novelty root
       // The fake provider simulates a model that (correctly) treated the adversarial text as DATA and just echoed a description of it — this is the only thing that could ever reach durable state, never a real executed action.
       const provider = fakeProvider(JSON.stringify({
         capability: "suspicious release note",
@@ -104,7 +106,7 @@ async function main() {
         atolyeGapNotes: `entry title contained adversarial-looking text: ${ADVERSARIAL_TITLE}`,
         isNoteworthy: true,
       }));
-      const result = await runAyasDeepResearchScan({ sources: [source(base)], researchStore, provider, dangerouslyAllowPrivateNetworkForTests: true });
+      const result = await runAyasDeepResearchScan({ noveltyStore, sources: [source(base)], researchStore, provider, dangerouslyAllowPrivateNetworkForTests: true });
       assert.equal(result.findingsRecorded, 1);
       const [finding] = researchStore.list();
       assert.ok(finding);
@@ -125,12 +127,18 @@ async function main() {
   await withFixtureServer(ATOM_ONE_ENTRY("Same release", "same summary"), "application/atom+xml", async (base) => {
     await scenario("the same feed entry (same link) is never recorded twice across two scans — dedup by sourceUrl", async () => {
       const researchStore = createAyasExternalResearchStore({ rootDir: tempDir("ayas-deep-dedup-") });
+      const noveltyStore = createAyasResearchNoveltyStore({ rootDir: tempDir("ayas-deep-dedup-novelty-") }); // never the real research-novelty root
       const provider = fakeProvider(JSON.stringify({ capability: "cap", problemSolved: "p", category: "OPEN_SOURCE_AI", confidence: "high", licenseCostStatus: "open-source", licenseCostNotes: "", atolyeGapStatus: "missing", atolyeGapNotes: "", isNoteworthy: true }));
-      const first = await runAyasDeepResearchScan({ sources: [source(base)], researchStore, provider, dangerouslyAllowPrivateNetworkForTests: true });
-      const second = await runAyasDeepResearchScan({ sources: [source(base)], researchStore, provider, dangerouslyAllowPrivateNetworkForTests: true });
+      const first = await runAyasDeepResearchScan({ noveltyStore, sources: [source(base)], researchStore, provider, dangerouslyAllowPrivateNetworkForTests: true });
+      const second = await runAyasDeepResearchScan({ noveltyStore, sources: [source(base)], researchStore, provider, dangerouslyAllowPrivateNetworkForTests: true });
       assert.equal(first.findingsRecorded, 1);
       assert.equal(second.findingsRecorded, 0);
-      assert.equal(second.entryOutcomes[0]!.outcome, "SKIPPED_DUPLICATE");
+      // The durable novelty memory now catches an unchanged item BEFORE the
+      // findings list is even consulted — a strictly earlier and cheaper
+      // stop than the original sourceUrl comparison, and one that also works
+      // for entries that never became findings at all.
+      assert.equal(second.entryOutcomes[0]!.outcome, "SKIPPED_UNCHANGED");
+      assert.equal(second.entryOutcomes[0]!.noveltyReason, "UNCHANGED");
       assert.equal(researchStore.list().length, 1);
     });
   });
@@ -139,8 +147,9 @@ async function main() {
   await withFixtureServer(ATOM_ONE_ENTRY("v1.2.4 — chore: bump dependency", "routine internal maintenance"), "application/atom+xml", async (base) => {
     await scenario("a routine, not-noteworthy entry (the model's own judgment) is never recorded", async () => {
       const researchStore = createAyasExternalResearchStore({ rootDir: tempDir("ayas-deep-noise-") });
+      const noveltyStore = createAyasResearchNoveltyStore({ rootDir: tempDir("ayas-deep-noise-novelty-") }); // never the real research-novelty root
       const provider = fakeProvider(JSON.stringify({ capability: "dependency bump", problemSolved: "n/a", category: null, confidence: "low", licenseCostStatus: "unknown", licenseCostNotes: "", atolyeGapStatus: "missing", atolyeGapNotes: "", isNoteworthy: false }));
-      const result = await runAyasDeepResearchScan({ sources: [source(base)], researchStore, provider, dangerouslyAllowPrivateNetworkForTests: true });
+      const result = await runAyasDeepResearchScan({ noveltyStore, sources: [source(base)], researchStore, provider, dangerouslyAllowPrivateNetworkForTests: true });
       assert.equal(result.findingsRecorded, 0);
       assert.equal(result.entryOutcomes[0]!.outcome, "SKIPPED_NOT_NOTEWORTHY");
     });
@@ -150,8 +159,9 @@ async function main() {
   await withFixtureServer(ATOM_ONE_ENTRY("v2.0", "a real update"), "application/atom+xml", async (base) => {
     await scenario("a malformed/unparseable model reply results in zero findings recorded, not a crash and not a guessed record", async () => {
       const researchStore = createAyasExternalResearchStore({ rootDir: tempDir("ayas-deep-malformed-") });
+      const noveltyStore = createAyasResearchNoveltyStore({ rootDir: tempDir("ayas-deep-malformed-novelty-") }); // never the real research-novelty root
       const provider = fakeProvider("this is not json at all");
-      const result = await runAyasDeepResearchScan({ sources: [source(base)], researchStore, provider, dangerouslyAllowPrivateNetworkForTests: true });
+      const result = await runAyasDeepResearchScan({ noveltyStore, sources: [source(base)], researchStore, provider, dangerouslyAllowPrivateNetworkForTests: true });
       assert.equal(result.findingsRecorded, 0);
       assert.equal(result.entryOutcomes[0]!.outcome, "SKIPPED_INVALID_MODEL_OUTPUT");
     });
@@ -161,7 +171,8 @@ async function main() {
   await withFixtureServer(ATOM_ONE_ENTRY("v3.0", "another update"), "application/atom+xml", async (base) => {
     await scenario("the model itself being unavailable degrades that one entry gracefully, the scan still completes", async () => {
       const researchStore = createAyasExternalResearchStore({ rootDir: tempDir("ayas-deep-model-down-") });
-      const result = await runAyasDeepResearchScan({ sources: [source(base)], researchStore, provider: throwingProvider(), dangerouslyAllowPrivateNetworkForTests: true });
+      const noveltyStore = createAyasResearchNoveltyStore({ rootDir: tempDir("ayas-deep-model-down-novelty-") }); // never the real research-novelty root
+      const result = await runAyasDeepResearchScan({ noveltyStore, sources: [source(base)], researchStore, provider: throwingProvider(), dangerouslyAllowPrivateNetworkForTests: true });
       assert.equal(result.findingsRecorded, 0);
       assert.equal(result.entryOutcomes[0]!.outcome, "SKIPPED_ANALYSIS_ERROR");
       assert.ok(result.sourceErrors.length > 0);

@@ -15,6 +15,12 @@ import type { AyasResearchSource } from "../src/lib/brain/autonomy/AyasResearchS
  * temp `data/brain`-shaped state root, `dangerouslyAllowPrivateNetworkForTests`
  * (this module's own documented test-only escape hatch — never set by the
  * real scheduler).
+ *
+ * Every scan below passes `minCheckIntervalMs: 0`: this suite exercises
+ * CHANGE DETECTION, and several scenarios legitimately run two scans
+ * back-to-back within the same millisecond, which the registry's own
+ * per-source rate floor would otherwise — correctly — skip. That floor is
+ * covered on its own terms in `smoke-ayas-research-source-resilience.ts`.
  */
 let count = 0;
 function scenario(name: string, fn: () => void | Promise<void>) { return Promise.resolve(fn()).then(() => { count += 1; if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${name}`); }); }
@@ -31,7 +37,7 @@ async function withFixtureServer(handler: http.RequestListener, fn: (baseUrl: st
 }
 
 function source(url: string): AyasResearchSource {
-  return { sourceId: "fixture-source", provider: "Fixture", category: "OPEN_SOURCE_AI", kind: "atom", url, officialSource: true, notes: "test fixture" };
+  return { sourceId: "fixture-source", provider: "Fixture", category: "OPEN_SOURCE_AI", kind: "atom", url, officialSource: true, expectedContentTypes: ["application/atom+xml"], notes: "test fixture" };
 }
 
 async function main() {
@@ -40,7 +46,7 @@ async function main() {
     async (base) => {
       await scenario("a source checked for the first time is reported as changed (there is no prior baseline to compare against)", async () => {
         const stateStore = createAyasResearchSourceStateStore({ rootDir: tempDir("ayas-light-first-") });
-        const result = await runAyasLightResearchScan({ sources: [source(base)], stateStore, dangerouslyAllowPrivateNetworkForTests: true });
+        const result = await runAyasLightResearchScan({ minCheckIntervalMs: 0, sources: [source(base)], stateStore, dangerouslyAllowPrivateNetworkForTests: true });
         assert.equal(result.sourcesChecked, 1);
         assert.equal(result.sourcesChanged, 1);
         assert.equal(result.results[0]!.status, "OK");
@@ -59,9 +65,9 @@ async function main() {
       await scenario("an unchanged source (identical content hash on a second check) is reported as NOT changed", async () => {
         const stateStore = createAyasResourceSourceStateStoreHelper();
         const src = source(base);
-        const first = await runAyasLightResearchScan({ sources: [src], stateStore, dangerouslyAllowPrivateNetworkForTests: true });
+        const first = await runAyasLightResearchScan({ minCheckIntervalMs: 0, sources: [src], stateStore, dangerouslyAllowPrivateNetworkForTests: true });
         assert.equal(first.sourcesChanged, 1);
-        const second = await runAyasLightResearchScan({ sources: [src], stateStore, dangerouslyAllowPrivateNetworkForTests: true });
+        const second = await runAyasLightResearchScan({ minCheckIntervalMs: 0, sources: [src], stateStore, dangerouslyAllowPrivateNetworkForTests: true });
         assert.equal(second.sourcesChanged, 0, "identical content must never be reported as changed twice");
         assert.equal(second.results[0]!.status, "OK");
         assert.equal(hitCount, 2, "both checks must have reached the fixture server (no ETag stored yet to short-circuit via 304)");
@@ -86,8 +92,8 @@ async function main() {
       await scenario("a second check sends the prior ETag via If-None-Match and honors a real 304 as unchanged", async () => {
         const stateStore = createAyasResearchSourceStateStore({ rootDir: tempDir("ayas-light-etag-") });
         const src = source(base);
-        await runAyasLightResearchScan({ sources: [src], stateStore, dangerouslyAllowPrivateNetworkForTests: true });
-        const second = await runAyasLightResearchScan({ sources: [src], stateStore, dangerouslyAllowPrivateNetworkForTests: true });
+        await runAyasLightResearchScan({ minCheckIntervalMs: 0, sources: [src], stateStore, dangerouslyAllowPrivateNetworkForTests: true });
+        const second = await runAyasLightResearchScan({ minCheckIntervalMs: 0, sources: [src], stateStore, dangerouslyAllowPrivateNetworkForTests: true });
         assert.equal(conditionalHitWith304, true, "the second request must have used the stored ETag and received a real 304");
         assert.equal(second.sourcesChanged, 0);
         assert.equal(etagRequestCount, 2, "exactly two real requests must have reached the server");
@@ -102,10 +108,10 @@ async function main() {
       async (base) => {
         const stateStore = createAyasResearchSourceStateStore({ rootDir: tempDir("ayas-light-changed-") });
         const src = source(base);
-        const first = await runAyasLightResearchScan({ sources: [src], stateStore, dangerouslyAllowPrivateNetworkForTests: true });
+        const first = await runAyasLightResearchScan({ minCheckIntervalMs: 0, sources: [src], stateStore, dangerouslyAllowPrivateNetworkForTests: true });
         assert.equal(first.sourcesChanged, 1);
         responseBody = "<feed><entry><title>version B — materially different</title></entry></feed>";
-        const second = await runAyasLightResearchScan({ sources: [src], stateStore, dangerouslyAllowPrivateNetworkForTests: true });
+        const second = await runAyasLightResearchScan({ minCheckIntervalMs: 0, sources: [src], stateStore, dangerouslyAllowPrivateNetworkForTests: true });
         assert.equal(second.sourcesChanged, 1, "a real content change must be detected");
       },
     );
@@ -113,8 +119,8 @@ async function main() {
 
   await scenario("a source that always fails is recorded as ERROR with an increasing failure count, never crashes the scan", async () => {
     const stateStore = createAyasResearchSourceStateStore({ rootDir: tempDir("ayas-light-fail-") });
-    const badSource: AyasResearchSource = { sourceId: "bad-source", provider: "Bad", category: "OPEN_SOURCE_AI", kind: "atom", url: "http://127.0.0.1:1/", officialSource: true, notes: "unreachable" };
-    const result = await runAyasLightResearchScan({ sources: [badSource], stateStore });
+    const badSource: AyasResearchSource = { sourceId: "bad-source", provider: "Bad", category: "OPEN_SOURCE_AI", kind: "atom", url: "http://127.0.0.1:1/", officialSource: true, expectedContentTypes: ["application/atom+xml"], notes: "unreachable" };
+    const result = await runAyasLightResearchScan({ minCheckIntervalMs: 0, sources: [badSource], stateStore });
     assert.equal(result.sourcesFailed, 1);
     assert.equal(result.results[0]!.status, "ERROR");
     const state = stateStore.read("bad-source");
@@ -126,8 +132,8 @@ async function main() {
       (req, res) => { res.writeHead(200, { "Content-Type": "application/atom+xml" }); res.end("<feed><entry><title>ok</title></entry></feed>"); },
       async (base) => {
         const stateStore = createAyasResearchSourceStateStore({ rootDir: tempDir("ayas-light-mixed-") });
-        const badSource: AyasResearchSource = { sourceId: "bad-source", provider: "Bad", category: "OPEN_SOURCE_AI", kind: "atom", url: "http://127.0.0.1:1/", officialSource: true, notes: "unreachable" };
-        const result = await runAyasLightResearchScan({ sources: [badSource, source(base)], stateStore, dangerouslyAllowPrivateNetworkForTests: true });
+        const badSource: AyasResearchSource = { sourceId: "bad-source", provider: "Bad", category: "OPEN_SOURCE_AI", kind: "atom", url: "http://127.0.0.1:1/", officialSource: true, expectedContentTypes: ["application/atom+xml"], notes: "unreachable" };
+        const result = await runAyasLightResearchScan({ minCheckIntervalMs: 0, sources: [badSource, source(base)], stateStore, dangerouslyAllowPrivateNetworkForTests: true });
         assert.equal(result.sourcesChecked, 2);
         assert.equal(result.sourcesFailed, 1);
         assert.equal(result.sourcesChanged, 1);
@@ -137,15 +143,15 @@ async function main() {
 
   await scenario("a repeatedly-failing source backs off instead of being retried on every single tick", async () => {
     const stateStore = createAyasResearchSourceStateStore({ rootDir: tempDir("ayas-light-backoff-") });
-    const badSource: AyasResearchSource = { sourceId: "bad-source", provider: "Bad", category: "OPEN_SOURCE_AI", kind: "atom", url: "http://127.0.0.1:1/", officialSource: true, notes: "unreachable" };
-    await runAyasLightResearchScan({ sources: [badSource], stateStore }); // consecutiveFailures now 1
-    const immediateRetry = await runAyasLightResearchScan({ sources: [badSource], stateStore });
+    const badSource: AyasResearchSource = { sourceId: "bad-source", provider: "Bad", category: "OPEN_SOURCE_AI", kind: "atom", url: "http://127.0.0.1:1/", officialSource: true, expectedContentTypes: ["application/atom+xml"], notes: "unreachable" };
+    await runAyasLightResearchScan({ minCheckIntervalMs: 0, sources: [badSource], stateStore }); // consecutiveFailures now 1
+    const immediateRetry = await runAyasLightResearchScan({ minCheckIntervalMs: 0, sources: [badSource], stateStore });
     assert.equal(immediateRetry.results[0]!.status, "SKIPPED_BACKOFF", "an immediate re-check of a just-failed source must be skipped, not re-attempted");
     assert.equal(immediateRetry.sourcesSkipped, 1);
     // simulate enough time passing for backoff to elapse
     const pastState = stateStore.read("bad-source")!;
     stateStore.write({ ...pastState, lastCheckedAt: new Date(Date.now() - AYAS_LIGHT_SCAN_BASE_BACKOFF_MS * 2).toISOString() });
-    const afterBackoff = await runAyasLightResearchScan({ sources: [badSource], stateStore });
+    const afterBackoff = await runAyasLightResearchScan({ minCheckIntervalMs: 0, sources: [badSource], stateStore });
     assert.notEqual(afterBackoff.results[0]!.status, "SKIPPED_BACKOFF", "once the backoff window has elapsed, the source must be re-attempted");
   });
 

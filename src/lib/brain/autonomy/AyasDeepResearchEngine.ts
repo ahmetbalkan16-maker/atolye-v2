@@ -4,7 +4,9 @@ import { ayasSafePublicFetch } from "./AyasSafePublicFetch";
 import { extractAyasFeedEntries, type AyasFeedEntry } from "./AyasFeedEntryExtractor";
 import { buildAyasDeepAnalysisPrompt, parseAyasDeepAnalysisOutput, corroborateAyasGapClaim, AYAS_DEEP_ANALYSIS_JSON_SCHEMA } from "./AyasDeepAnalysis";
 import { createAyasExternalResearchStore, type AyasExternalResearchStore } from "./AyasExternalResearchStore";
-import type { AyasResearchSource } from "./AyasResearchSourceRegistry";
+import { resolveAyasResearchSourcePolicy, type AyasResearchSource } from "./AyasResearchSourceRegistry";
+import { classifyAyasResearchDisposition, type AyasResearchDisposition } from "./AyasResearchDisposition";
+import { createAyasResearchNoveltyStore, type AyasResearchNoveltyStore } from "./AyasResearchNoveltyStore";
 
 /**
  * AYAS CONTINUOUS EXTERNAL INTELLIGENCE sprint, Part F — the DEEP scan.
@@ -27,9 +29,13 @@ import type { AyasResearchSource } from "./AyasResearchSourceRegistry";
 export interface AyasDeepScanEntryOutcome {
   readonly sourceId: string;
   readonly entryTitle: string;
-  readonly outcome: "RECORDED" | "SKIPPED_NOT_NOTEWORTHY" | "SKIPPED_DUPLICATE" | "SKIPPED_INVALID_MODEL_OUTPUT" | "SKIPPED_ANALYSIS_ERROR";
+  readonly outcome: "RECORDED" | "SKIPPED_NOT_NOTEWORTHY" | "SKIPPED_DUPLICATE" | "SKIPPED_UNCHANGED" | "SKIPPED_INVALID_MODEL_OUTPUT" | "SKIPPED_ANALYSIS_ERROR";
   readonly findingId?: string;
   readonly gapClaimDowngraded?: boolean;
+  /** What AYAS decided this finding is FOR. Only `ACTIONABLE_PROPOSAL_CANDIDATE` may enter discovery, and even that authorizes nothing on its own. */
+  readonly disposition?: AyasResearchDisposition;
+  /** Why the novelty memory considered this item new (or not). */
+  readonly noveltyReason?: string;
 }
 
 export interface AyasDeepScanResult {
@@ -46,6 +52,10 @@ export interface AyasDeepScanResult {
 export interface AyasDeepResearchDeps {
   readonly sources: readonly AyasResearchSource[];
   readonly researchStore?: AyasExternalResearchStore;
+  readonly noveltyStore?: AyasResearchNoveltyStore;
+  /** Overrides each source's own retry policy — for deterministic tests. */
+  readonly maxRetries?: number;
+  readonly retryBaseDelayMs?: number;
   readonly provider?: AIProvider;
   readonly repoRoot?: string;
   readonly maxEntriesPerSource?: number;
@@ -76,6 +86,7 @@ function resolveEntryUrl(entry: AyasFeedEntry, source: AyasResearchSource): stri
 
 export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promise<AyasDeepScanResult> {
   const researchStore = deps.researchStore ?? createAyasExternalResearchStore();
+  const noveltyStore = deps.noveltyStore ?? createAyasResearchNoveltyStore();
   const provider = deps.provider ?? createAyasChatProvider();
   const repoRoot = deps.repoRoot ?? process.cwd();
   const maxEntriesPerSource = deps.maxEntriesPerSource ?? AYAS_DEEP_SCAN_DEFAULT_MAX_ENTRIES_PER_SOURCE;
@@ -91,9 +102,19 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
     let body: string;
     let contentType: string;
     try {
+      const policy = resolveAyasResearchSourcePolicy(source);
       const fetched = await ayasSafePublicFetch(source.url, {
         timeoutMs: deps.timeoutMs ?? 12000,
-        maxBodyBytes: deps.maxBodyBytes ?? AYAS_DEEP_SCAN_DEFAULT_MAX_BODY_BYTES,
+        maxBodyBytes: deps.maxBodyBytes ?? policy.deepMaxBodyBytes ?? AYAS_DEEP_SCAN_DEFAULT_MAX_BODY_BYTES,
+        // The DEEP scan reads at most `maxEntriesPerSource` entries, and a
+        // newest-first feed puts them at the very start of the body, so a
+        // bounded prefix is all this step has ever actually needed. A feed
+        // truncated mid-`<entry>` simply yields one fewer complete block —
+        // the extractor only matches closed `<entry>...</entry>` pairs, so
+        // a partial trailing block is dropped rather than half-parsed.
+        acceptTruncatedBody: true,
+        maxRetries: deps.maxRetries ?? policy.maxRetries,
+        ...(deps.retryBaseDelayMs === undefined ? {} : { retryBaseDelayMs: deps.retryBaseDelayMs }),
         dangerouslyAllowPrivateNetworkForTests: deps.dangerouslyAllowPrivateNetworkForTests,
       });
       if (!fetched.ok) { sourceErrors.push({ sourceId: source.sourceId, error: `${fetched.code}: ${fetched.message}` }); continue; }
@@ -111,9 +132,23 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
     for (const entry of entries) {
       entriesConsidered += 1;
       const entryUrl = resolveEntryUrl(entry, source);
+      const observation = { sourceId: source.sourceId, url: entryUrl, versionTag: entry.title?.trim() || null, contentText: `${entry.title}\n${entry.summary}` };
+
+      // Novelty memory comes FIRST, before any model call. An item AYAS has
+      // already looked at costs nothing to skip here, whereas the old
+      // findings-only dedup re-analyzed every not-noteworthy entry on every
+      // single scan, forever. A materially changed version still reopens
+      // evaluation — `assess` says so explicitly.
+      const novelty = noveltyStore.assess(observation);
+      if (!novelty.isNovel) {
+        noveltyStore.remember(observation);
+        entryOutcomes.push({ sourceId: source.sourceId, entryTitle: entry.title, outcome: "SKIPPED_UNCHANGED", noveltyReason: novelty.reasonCode });
+        continue;
+      }
 
       if (existing.some((f) => f.sourceUrl === entryUrl)) {
-        entryOutcomes.push({ sourceId: source.sourceId, entryTitle: entry.title, outcome: "SKIPPED_DUPLICATE" });
+        noveltyStore.remember(observation);
+        entryOutcomes.push({ sourceId: source.sourceId, entryTitle: entry.title, outcome: "SKIPPED_DUPLICATE", noveltyReason: novelty.reasonCode });
         continue;
       }
 
@@ -135,11 +170,27 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
         continue;
       }
       if (!parsed.isNoteworthy) {
-        entryOutcomes.push({ sourceId: source.sourceId, entryTitle: entry.title, outcome: "SKIPPED_NOT_NOTEWORTHY" });
+        // Remember the verdict. This is the case the old dedup could not
+        // see at all, and the reason an uninteresting release note used to
+        // be re-analyzed on every scan for the rest of time.
+        noveltyStore.remember(observation, { judgedNotNoteworthy: true });
+        entryOutcomes.push({ sourceId: source.sourceId, entryTitle: entry.title, outcome: "SKIPPED_NOT_NOTEWORTHY", noveltyReason: novelty.reasonCode });
         continue;
       }
 
       const corroboration = corroborateAyasGapClaim(parsed.category, parsed.atolyeGapStatus, parsed.atolyeGapNotes, repoRoot);
+
+      // What is this finding FOR? Decided deterministically from already-
+      // structured, already-corroborated facts — never from the external
+      // text, and never as a free-text verdict the model could inflate.
+      const { disposition } = classifyAyasResearchDisposition({
+        category: parsed.category ?? source.category,
+        atolyeGapStatus: corroboration.atolyeGapStatus,
+        confidence: parsed.confidence,
+        licenseCostStatus: parsed.licenseCostStatus,
+        isOfficialSource: source.officialSource,
+        previouslyEvaluated: novelty.reasonCode === "UNCHANGED",
+      });
 
       try {
         const finding = researchStore.record({
@@ -157,7 +208,8 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
           atolyeGapStatus: corroboration.atolyeGapStatus,
           atolyeGapNotes: corroboration.atolyeGapNotes,
         });
-        entryOutcomes.push({ sourceId: source.sourceId, entryTitle: entry.title, outcome: "RECORDED", findingId: finding.findingId, gapClaimDowngraded: corroboration.downgraded });
+        noveltyStore.remember(observation, { disposition, findingId: finding.findingId, judgedNotNoteworthy: false });
+        entryOutcomes.push({ sourceId: source.sourceId, entryTitle: entry.title, outcome: "RECORDED", findingId: finding.findingId, gapClaimDowngraded: corroboration.downgraded, disposition, noveltyReason: novelty.reasonCode });
       } catch (error) {
         entryOutcomes.push({ sourceId: source.sourceId, entryTitle: entry.title, outcome: "SKIPPED_ANALYSIS_ERROR" });
         sourceErrors.push({ sourceId: source.sourceId, error: `record failed: ${error instanceof Error ? error.message : String(error)}` });

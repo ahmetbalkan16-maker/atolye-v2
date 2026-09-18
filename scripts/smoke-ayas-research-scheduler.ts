@@ -31,7 +31,7 @@ function tempDir(prefix: string): string {
 }
 
 const STUB_SOURCES: readonly AyasResearchSource[] = [
-  { sourceId: "stub-a", provider: "StubProvider", category: "OPEN_SOURCE_AI", kind: "atom", url: "http://127.0.0.1:1/feed-a.atom", officialSource: true, notes: "unreachable by design — deterministic fast failure" },
+  { sourceId: "stub-a", provider: "StubProvider", category: "OPEN_SOURCE_AI", kind: "atom", url: "http://127.0.0.1:1/feed-a.atom", officialSource: true, expectedContentTypes: ["application/atom+xml"], notes: "unreachable by design — deterministic fast failure" },
 ];
 
 /** Every scenario's own isolated LIGHT-engine dependency — MUST be scoped to that scenario's temp `gateRoot`. Without this, the light engine's default `createAyasResearchSourceStateStore()` falls back to the REAL production `data/brain/self-improvement/research-sources/` (confirmed live: an earlier version of this file without this helper actually wrote a `stub-a.json` into real production data before this fix). */

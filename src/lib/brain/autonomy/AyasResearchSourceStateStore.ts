@@ -25,6 +25,21 @@ export interface AyasResearchSourceCheckState {
   readonly status: AyasResearchSourceCheckStatus;
   readonly lastError?: string;
   readonly consecutiveFailures: number;
+  /**
+   * AYAS EXTERNAL RESEARCH INTELLIGENCE sprint — durable health metadata.
+   * All OPTIONAL on purpose: a state file written before these fields
+   * existed stays readable under the same `schemaVersion`, so adding
+   * health visibility never invalidates live production state. A record
+   * missing them simply reports less detail, never an error.
+   */
+  /** Which class of failure this was (`AyasFetchFailureClass`), so a reader can tell "the network blipped" from "this endpoint is gone" without re-parsing an error string. */
+  readonly lastFailureClass?: string;
+  /** The last time this source was fetched successfully — what distinguishes "failing but recently fine" from "has not worked in days". */
+  readonly lastSuccessAt?: string;
+  /** Whether the last successful read was a bounded PREFIX rather than the full body. Not a failure: a normal, expected condition for a very large official feed. */
+  readonly lastReadTruncated?: boolean;
+  /** Advisory wait the endpoint itself asked for, when it was rate limited. */
+  readonly retryAfterMs?: number;
 }
 
 export interface AyasResearchSourceStateStoreOptions { readonly rootDir?: string }
