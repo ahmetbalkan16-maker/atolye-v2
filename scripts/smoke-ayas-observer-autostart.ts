@@ -277,7 +277,85 @@ async function main() {
     );
     assert.match(readArgs, /-Continuous\b/);
     const wrapperSrc = fs.readFileSync(path.join(REPO_ROOT, "scripts", "ayas-autonomy-daemon.ps1"), "utf8");
-    assert.match(wrapperSrc, /if \(\$Continuous\) \{ \$args \+= "--continuous" \}/, "the wrapper must translate -Continuous into --continuous for the real observer entrypoint");
+    assert.match(wrapperSrc, /if \(\$Continuous\) \{ \$daemonArgs \+= "--continuous" \}/, "the wrapper must translate -Continuous into --continuous for the real observer entrypoint");
+  });
+
+  await scenario("the wrapper never assigns to PowerShell's reserved automatic $args variable", () => {
+    // npm's own `npx.ps1` shim re-parses the caller's raw invocation text and
+    // re-runs it through `Invoke-Expression`, so the literal token written in
+    // the wrapper is re-evaluated in a NEW scope. `$args` is automatic and
+    // therefore exists — empty — in that new scope, so `@args` splats nothing
+    // and npx launches bare. Comments are stripped first so the explanatory
+    // prose in the wrapper itself is not mistaken for a real assignment.
+    const src = fs.readFileSync(path.join(REPO_ROOT, "scripts", "ayas-autonomy-daemon.ps1"), "utf8").replace(/^\s*#.*$/gm, "");
+    assert.doesNotMatch(src, /\$args\s*(?:\+?=)/, "the wrapper must not assign to the reserved automatic $args variable");
+  });
+
+  await scenario("BEHAVIOR: the wrapper actually forwards its arguments to npx — a bare, argument-less launch must be impossible", () => {
+    // Every assertion above reads only the wrapper's SOURCE, which is exactly
+    // how the `$args` defect survived: the source read correctly while the real
+    // invocation forwarded nothing, so `npx` ran bare, opened an interactive
+    // shell, hit EOF and exited 0 — a silent startup failure the $LASTEXITCODE
+    // guard could not see. This runs the real wrapper against a PATH-shimmed
+    // `npx` that records what it received. No observer is started and nothing
+    // touches the network.
+    //
+    // The shim MUST reproduce npm's own dispatch to be meaningful: a naive shim
+    // that just reads its bound `$args` forwards correctly even for the broken
+    // wrapper, and so catches nothing. npm's `npx.ps1`, when invoked from a
+    // script, ignores its bound arguments entirely — it re-parses the caller's
+    // raw `$MyInvocation.Statement`, drops the command name, and re-evaluates
+    // the remainder via `Invoke-Expression`, whose new scope supplies a fresh
+    // empty automatic `$args`. That re-evaluation step is the whole bug, so it
+    // is mirrored verbatim here.
+    const shim = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-npx-shim-"));
+    const received = path.join(shim, "received.txt");
+    // PowerShell resolves `npx.ps1` (ExternalScript) ahead of `npx.cmd`
+    // (Application), so the ExternalScript is the path that must be exercised.
+    // The recorder is invoked BY the shim and simply reports the arguments it
+    // was really given — it reads its own bound `$args` directly, with no
+    // re-parse, so it faithfully reports whatever survived npm's dispatch.
+    const recorder = path.join(shim, "recorder.ps1");
+    const psQuote = (value: string) => `'${value.replace(/'/g, "''")}'`;
+    fs.writeFileSync(recorder, `Set-Content -LiteralPath ${psQuote(received)} -Value ($args -join ' ')\n`);
+    fs.writeFileSync(
+      path.join(shim, "npx.ps1"),
+      [
+        // Mirrors npm's npx.ps1 exactly, including its PS 5.1 reflection
+        // fallback for the `Statement` property.
+        `if (($MyInvocation | Get-Member -Name 'Statement') -and $MyInvocation.Statement) {`,
+        `  $ORIGINAL = $MyInvocation.Statement`,
+        `} else {`,
+        `  $ORIGINAL = ([Management.Automation.InvocationInfo].GetProperty('ScriptPosition', [Reflection.BindingFlags] 'Instance, NonPublic')).GetValue($MyInvocation).Text`,
+        `}`,
+        `$ELEMENTS = [Management.Automation.Language.Parser]::ParseInput($ORIGINAL, [ref] $null, [ref] $null).EndBlock.Statements.PipelineElements.CommandElements.Extent.Text`,
+        `$FORWARDED = ($ELEMENTS | Select-Object -Skip 1) -join ' '`,
+        // The load-bearing step: the caller's literal argument token is
+        // re-evaluated here, in Invoke-Expression's own new scope.
+        `Invoke-Expression "& ${psQuote(recorder)} $FORWARDED"`,
+        `exit 0`,
+      ].join("\n") + "\n",
+    );
+    fs.writeFileSync(path.join(shim, "npx.cmd"), `@echo off\r\n> ${JSON.stringify(received)} echo %*\r\nexit /b 0\r\n`);
+    let code: number;
+    try {
+      execFileSync(PS, ["-NoProfile", "-File", path.join(REPO_ROOT, "scripts", "ayas-autonomy-daemon.ps1"), "-Continuous", "-IntervalMs", "12345"], {
+        encoding: "utf8",
+        windowsHide: true,
+        env: { ...process.env, PATH: `${shim}${path.delimiter}${process.env.PATH ?? ""}` },
+      });
+      code = 0;
+    } catch (error) {
+      code = (error as { status?: number }).status ?? 1;
+    }
+    assert.equal(code, 0, "the wrapper must exit 0 when the launched command succeeds");
+    assert.ok(fs.existsSync(received), "the wrapper must actually invoke npx");
+    const forwarded = fs.readFileSync(received, "utf8").trim();
+    assert.notEqual(forwarded, "", "npx must NEVER be launched with an empty argument list — that starts no observer yet still exits 0");
+    assert.match(forwarded, /\btsx\b/);
+    assert.match(forwarded, /scripts[\\/]ayas-autonomy-daemon\.ts/);
+    assert.match(forwarded, /--continuous\b/, "-Continuous must reach the real entrypoint as --continuous");
+    assert.match(forwarded, /--interval-ms\s+12345\b/, "-IntervalMs must reach the real entrypoint");
   });
 
   await scenario("unregister dry-run reports what WOULD happen and removes nothing", () => {
