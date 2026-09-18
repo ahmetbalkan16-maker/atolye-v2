@@ -68,8 +68,8 @@ async function main() {
       const dir = root();
       writeFixture(dir, status);
       const proposals = readAyasApprovalInboxProposals({ rootDir: dir });
-      assert.equal(proposals.length, 1);
-      assert.equal(proposals[0]?.status, status);
+      assert.equal(proposals.length, 1, "assert.equal(proposals.length, 1)");
+      assert.equal(proposals[0]?.status, status, "assert.equal(proposals[0]?.status, status)");
     });
   }
 
@@ -78,7 +78,7 @@ async function main() {
       const dir = root();
       writeFixture(dir, status);
       const view = viewOverFixtureRoot(dir);
-      assert.equal(view.connected, true);
+      assert.equal(view.connected, true, "assert.equal(view.connected, true)");
       assert.equal(view.pending.length, 0, `${status} must not be presented as awaiting operator action`);
     });
   }
@@ -87,22 +87,22 @@ async function main() {
     const dir = root();
     writeFixture(dir, "PENDING");
     const view = viewOverFixtureRoot(dir);
-    assert.equal(view.pending.length, 1);
-    assert.equal(view.pending[0]?.status, "PENDING");
+    assert.equal(view.pending.length, 1, "assert.equal(view.pending.length, 1)");
+    assert.equal(view.pending[0]?.status, "PENDING", "assert.equal(view.pending[0]?.status, \"PENDING\")");
   });
 
   await scenario("View: an eligible DEFERRED (nextEligibleAt already passed) appears as pending", () => {
     const dir = root();
     writeFixture(dir, "DEFERRED", { nextEligibleAt: "2020-01-01T00:00:00.000Z" });
     const view = viewOverFixtureRoot(dir);
-    assert.equal(view.pending.length, 1);
+    assert.equal(view.pending.length, 1, "assert.equal(view.pending.length, 1)");
   });
 
   await scenario("View: a not-yet-eligible DEFERRED does not appear as pending", () => {
     const dir = root();
     writeFixture(dir, "DEFERRED", { nextEligibleAt: "2099-01-01T00:00:00.000Z" });
     const view = viewOverFixtureRoot(dir);
-    assert.equal(view.pending.length, 0);
+    assert.equal(view.pending.length, 0, "assert.equal(view.pending.length, 0)");
   });
 
   await scenario("RESERVED, EXECUTED-finalized, ABANDONED, and RECOVERY_REQUIRED are distinguishable in the durable record alone", () => {
@@ -121,7 +121,7 @@ async function main() {
       assert.ok(!seen.has(key), `${label} must have a unique (status, finalizationOutcome) signature`);
       seen.add(key);
     }
-    assert.equal(seen.size, 4);
+    assert.equal(seen.size, 4, "assert.equal(seen.size, 4)");
   });
 
   await scenario("corrupt durable state degrades identically for M2 data as it did before M2 (Reader throws, View degrades to disconnected)", () => {
@@ -134,9 +134,9 @@ async function main() {
       (error: unknown) => error instanceof AyasApprovalInboxReaderError && error.code === "AYAS_INBOX_READ_CORRUPT",
     );
     const view = viewOverFixtureRoot(dir);
-    assert.equal(view.connected, false);
-    assert.deepEqual(view.pending, []);
-    assert.ok(view.error);
+    assert.equal(view.connected, false, "assert.equal(view.connected, false)");
+    assert.deepEqual(view.pending, [], "assert.deepEqual(view.pending, [])");
+    assert.ok(view.error, "assert.ok(view.error)");
   });
 
   await scenario("schemaVersion remains \"1\" for M2 — old and new statuses coexist under the same envelope version", () => {
