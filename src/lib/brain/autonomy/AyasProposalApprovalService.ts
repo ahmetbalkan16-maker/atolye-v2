@@ -101,19 +101,30 @@ function commitMessageFor(proposal: AyasInboxProposal): string {
 }
 
 /**
+ * Shared precondition check for both publish entrypoints below — identical
+ * except for which `status` the proposal must already be in. Re-derives the
+ * proposal fresh from durable state; never trusts a caller-held copy.
+ */
+function loadAyasProposalForPublish(proposalId: string, approvedProposalHash: string, requiredStatus: "PENDING" | "APPROVED", deps: AyasProposalApprovalDeps): AyasInboxProposal {
+  if (typeof proposalId !== "string" || !proposalId.trim()) throw new AyasProposalApprovalError("INVALID_INPUT", "proposalId is required");
+  if (typeof approvedProposalHash !== "string" || !approvedProposalHash.trim()) throw new AyasProposalApprovalError("INVALID_INPUT", "approvedProposalHash is required");
+  const proposal = deps.inbox.load().proposals.find((p) => p.proposalId === proposalId);
+  if (!proposal) throw new AyasProposalApprovalError("NOT_FOUND", "proposal not found");
+  if (proposal.status !== requiredStatus) throw new AyasProposalApprovalError("NOT_READY", `proposal status is ${proposal.status}, not ${requiredStatus}`);
+  if (proposal.proposalHash !== approvedProposalHash) throw new AyasProposalApprovalError("PROPOSAL_HASH_MISMATCH", "the proposal changed since it was shown for review — authorization refused");
+  if (proposal.safetyClassification !== "SAFE") throw new AyasProposalApprovalError("NOT_SAFE", "proposal is not SAFE-classified — never eligible for single-approval execution");
+  if (proposal.mutationKind !== AYAS_PATCH_ARTIFACT_MUTATION_KIND || !proposal.patchArtifactId) {
+    throw new AyasProposalApprovalError("NOT_PATCH_ARTIFACT", "single-approval execution is only wired for patch-artifact-backed proposals");
+  }
+  return proposal;
+}
+
+/**
  * The one entrypoint for "ONAYLA VE UYGULA". Accepts only a proposalId and
  * the exact proposalHash the human reviewed. Every other input is
  * re-derived from durable state.
  */
 export async function approveAndExecuteAyasProposal(proposalId: string, approvedProposalHash: string, deps: AyasProposalApprovalDeps): Promise<AyasProposalApprovalOutcome> {
-  if (typeof proposalId !== "string" || !proposalId.trim()) throw new AyasProposalApprovalError("INVALID_INPUT", "proposalId is required");
-  if (typeof approvedProposalHash !== "string" || !approvedProposalHash.trim()) throw new AyasProposalApprovalError("INVALID_INPUT", "approvedProposalHash is required");
-
-  const artifactStore = deps.artifactStore ?? createAyasPatchArtifactStore();
-  const graphifyEvidenceStore = deps.graphifyEvidenceStore ?? createAyasGraphifyEvidenceStore({ rootDir: path.join(deps.gateRoot, "graphify-evidence") });
-  const remoteName = deps.remoteName ?? "origin";
-  const graphifyEvidenceItemIds = new Set<string>();
-
   // Deliberately NO pre-emptive staleness reconciliation here (unlike the
   // older two-step `decideAyasApproval` action, where decide and execute can
   // be arbitrarily far apart in time): decide and execute happen inside the
@@ -123,23 +134,51 @@ export async function approveAndExecuteAyasProposal(proposalId: string, approved
   // detection to Package C's own execution-time revalidation rather than a
   // separate pre-check, so a HEAD-drift failure here is consistently
   // reported at the EXECUTION stage, not thrown before it.
-  const proposalBefore = deps.inbox.load().proposals.find((p) => p.proposalId === proposalId);
-  if (!proposalBefore) throw new AyasProposalApprovalError("NOT_FOUND", "proposal not found");
-  if (proposalBefore.status !== "PENDING") throw new AyasProposalApprovalError("NOT_READY", `proposal status is ${proposalBefore.status}, not PENDING`);
-  if (proposalBefore.proposalHash !== approvedProposalHash) throw new AyasProposalApprovalError("PROPOSAL_HASH_MISMATCH", "the proposal changed since it was shown for review — authorization refused");
-  if (proposalBefore.safetyClassification !== "SAFE") throw new AyasProposalApprovalError("NOT_SAFE", "proposal is not SAFE-classified — never eligible for single-approval execution");
-  if (proposalBefore.mutationKind !== AYAS_PATCH_ARTIFACT_MUTATION_KIND || !proposalBefore.patchArtifactId) {
-    throw new AyasProposalApprovalError("NOT_PATCH_ARTIFACT", "single-approval execution is only wired for patch-artifact-backed proposals");
-  }
+  loadAyasProposalForPublish(proposalId, approvedProposalHash, "PENDING", deps);
 
   // --- decide: one durable APPROVE decision ---
   deps.inbox.decide(proposalId, "APPROVE", new Date().toISOString());
   const approved = deps.inbox.load().proposals.find((p) => p.proposalId === proposalId)!;
   if (!isAyasProposalApprovalReady(approved)) throw new AyasProposalApprovalError("NOT_READY", "proposal did not reach an approval-ready state after decide");
 
+  return publishAyasApprovedProposal(approved, deps);
+}
+
+/**
+ * The owner-approval-model resume entrypoint (Step 6 of the durable
+ * one-click correction): publishes a proposal that is ALREADY durably
+ * `APPROVED` — i.e. the owner already clicked ONAYLA while live execution
+ * was off (`AyasAutonomousExecutionGate.decideAyasOwnerApproval`'s
+ * `APPROVED_PENDING_EXECUTION` path already called `inbox.decide()`). Unlike
+ * `approveAndExecuteAyasProposal` above, this never calls `decide()` itself
+ * — recording the owner's decision and publishing it are now two separate
+ * moments in time, potentially across a process restart, so this function
+ * only ever consumes an approval that already exists; it can never mint one.
+ * Reuses the exact same `publishAyasApprovedProposal` pipeline (execute →
+ * Graphify → validate → stage → commit → push) as the immediate-execution
+ * path, so there is exactly one mutation/publish implementation, not two.
+ *
+ * Callers are responsible for only ever invoking this on a proposal whose
+ * APPROVE came from the owner-approval model specifically (see
+ * `AyasOwnerApprovalResume.ts`, which is the only intended caller) — this
+ * function itself only checks that a decidable APPROVED state exists, the
+ * same authority boundary `approveAndExecuteAyasProposal` already enforces.
+ */
+export async function publishAlreadyOwnerApprovedAyasProposal(proposalId: string, approvedProposalHash: string, deps: AyasProposalApprovalDeps): Promise<AyasProposalApprovalOutcome> {
+  const approved = loadAyasProposalForPublish(proposalId, approvedProposalHash, "APPROVED", deps);
+  if (!isAyasProposalApprovalReady(approved)) throw new AyasProposalApprovalError("NOT_READY", "proposal is not in an approval-ready state");
+  return publishAyasApprovedProposal(approved, deps);
+}
+
+async function publishAyasApprovedProposal(approved: AyasInboxProposal, deps: AyasProposalApprovalDeps): Promise<AyasProposalApprovalOutcome> {
+  const artifactStore = deps.artifactStore ?? createAyasPatchArtifactStore();
+  const graphifyEvidenceStore = deps.graphifyEvidenceStore ?? createAyasGraphifyEvidenceStore({ rootDir: path.join(deps.gateRoot, "graphify-evidence") });
+  const remoteName = deps.remoteName ?? "origin";
+  const graphifyEvidenceItemIds = new Set<string>();
+
   // --- Package C execution (unmodified AyasAutonomyDaemon.executeApproved, via the existing AyasProposalExecutionService) ---
   try {
-    await executeAyasApprovedProposalWith(proposalId, { repoRoot: deps.repoRoot, gateRoot: deps.gateRoot, inbox: deps.inbox, patchArtifactStore: artifactStore, onJournalPhase: deps.onJournalPhase });
+    await executeAyasApprovedProposalWith(approved.proposalId, { repoRoot: deps.repoRoot, gateRoot: deps.gateRoot, inbox: deps.inbox, patchArtifactStore: artifactStore, onJournalPhase: deps.onJournalPhase });
   } catch (error) {
     const code = error instanceof AyasProposalExecutionError ? error.code : error instanceof Error ? error.message : "EXECUTION_FAILED";
     return { ok: false, code, stage: "EXECUTION", message: error instanceof Error ? error.message : String(error), graphifyEvidenceItemIds: [] };
@@ -153,8 +192,8 @@ export async function approveAndExecuteAyasProposal(proposalId: string, approved
     for (const file of files) {
       const expected = artifact.graphifyImportCounts?.[file];
       if (expected === undefined) throw new AyasBatchGraphifyCheckError("AYAS_GRAPHIFY_UNEXPECTED_DEPENDENCY", `no declared Graphify import-count contract for generator "${artifact.generatorIdentity}" file "${file}" — refusing to guess`);
-      checkAyasItemWithGraphifyEvidenced({ repoRoot: deps.repoRoot, evidenceStore: graphifyEvidenceStore, itemId: proposalId, file, expectedImportCount: expected });
-      graphifyEvidenceItemIds.add(proposalId);
+      checkAyasItemWithGraphifyEvidenced({ repoRoot: deps.repoRoot, evidenceStore: graphifyEvidenceStore, itemId: approved.proposalId, file, expectedImportCount: expected });
+      graphifyEvidenceItemIds.add(approved.proposalId);
     }
     const tscEntry = path.join(deps.repoRoot, "node_modules", "typescript", "bin", "tsc");
     execFileSync(process.execPath, [tscEntry, "--noEmit"], { cwd: deps.repoRoot, encoding: "utf8", windowsHide: true, timeout: 180_000 });

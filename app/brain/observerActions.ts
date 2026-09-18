@@ -15,9 +15,19 @@ import { loadAyasApprovalInboxView, type AyasApprovalInboxView } from "@/lib/bra
 import { loadAyasMicroBatchDevelopmentView, type AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
 import { loadAyasGoalDevelopmentView, type AyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
 import { loadAyasResearchEngineStatusView, type AyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
+import { loadAyasOwnerRecommendationsView, type AyasOwnerRecommendationsView } from "@/lib/brain/autonomy/AyasOwnerRecommendationsView";
 
 export async function refreshAyasApprovalInbox(): Promise<AyasApprovalInboxView> {
   return loadAyasApprovalInboxView();
+}
+
+// Owner-approval model — read-only, same posture as the refresh above: no
+// mutating authority module in this file's import chain. Only ever surfaces
+// proposals AYAS has already internally filtered to RECOMMEND_FOR_APPROVAL
+// + executable; REJECT/DEFER are durably recorded by the daemon
+// (`AyasAutonomousReview.reviewAyasPendingProposals`), never by this refresh.
+export async function refreshAyasOwnerRecommendations(): Promise<AyasOwnerRecommendationsView> {
+  return loadAyasOwnerRecommendationsView();
 }
 
 // M18 — read-only micro-batch refresh, same posture as the proposal inbox

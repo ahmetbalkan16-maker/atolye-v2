@@ -81,6 +81,16 @@ async function main() {
   await scenario("durable decision and outcome are attached to history", () => { const p = proposal({ status: "COMPLETED" }); const view = buildAyasApprovalInboxView(state([p], [{ decisionId: "d1", proposalId: p.proposalId, decision: "APPROVE", decidedAt: NOW, reservedAt: NOW, finalizedAt: NOW, finalizationOutcome: "EXECUTED" }], [{ resultId: "r1", proposalId: p.proposalId, completedAt: NOW, outcome: "COMPLETED", testsRun: ["smoke"], testResults: ["PASS"] }]), NOW); assert.equal(view.history[0]?.decision?.decision, "APPROVE"); assert.equal(view.history[0]?.result?.outcome, "COMPLETED"); });
   await scenario("responsive CSS collapses facts and preserves touch-sized actions", () => { const css = fs.readFileSync(path.join(process.cwd(), "src/components/brain/BrainCore.css"), "utf8"); assert.match(css, /\.bc-dev__facts \{ grid-template-columns: 1fr; \}/); assert.match(css, /min-height: 44px/); });
   await scenario("APPROVED proposal exposes YÜRÜT", () => assert.match(htmlFor(state([proposal({ status: "APPROVED" })])), />YÜRÜT</));
+  await scenario("durable one-click correction: an APPROVED proposal whose decision carries the owner-approved reason does NOT expose the legacy YÜRÜT control", () => {
+    const p = proposal({ status: "APPROVED" });
+    const html = htmlFor(state([p], [{ decisionId: "d1", proposalId: p.proposalId, decision: "APPROVE", decidedAt: NOW, reason: "owner-approved: pending execution enablement" }]));
+    assert.doesNotMatch(html, />YÜRÜT</);
+  });
+  await scenario("an APPROVED proposal from the legacy manual ONAYLA flow (no owner-approved reason) still exposes YÜRÜT, unchanged", () => {
+    const p = proposal({ status: "APPROVED" });
+    const html = htmlFor(state([p], [{ decisionId: "d1", proposalId: p.proposalId, decision: "APPROVE", decidedAt: NOW }]));
+    assert.match(html, />YÜRÜT</);
+  });
   for (const status of ["PENDING", "REJECTED", "DEFERRED", "RESERVED", "COMPLETED", "ABANDONED", "RECOVERY_REQUIRED", "STALE", "FAILED"] as const) {
     await scenario(`${status} does not expose YÜRÜT`, () => assert.doesNotMatch(htmlFor(state([proposal({ status })])), />YÜRÜT</));
   }

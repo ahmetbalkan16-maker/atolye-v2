@@ -16,6 +16,7 @@ import { loadAyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicr
 import { loadAyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
 import { loadAyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
 import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
+import { loadAyasOwnerRecommendationsView } from "@/lib/brain/autonomy/AyasOwnerRecommendationsView";
 import {
   askAyas,
   ayasModelConfigured,
@@ -26,10 +27,11 @@ import {
   recordSelfHealDecision,
   refreshBrainConsole,
   refreshBrainSelfHeal,
+  ayasOwnerApprovalDecision,
 } from "./actions";
 // Stage 7A: read-only inbox refresh comes from its own observer-only action
 // module, independent of the Package B decision action above.
-import { refreshAyasApprovalInbox, refreshAyasMicroBatch, refreshAyasGoalDevelopment, refreshAyasResearchEngineStatus } from "./observerActions";
+import { refreshAyasApprovalInbox, refreshAyasMicroBatch, refreshAyasGoalDevelopment, refreshAyasResearchEngineStatus, refreshAyasOwnerRecommendations } from "./observerActions";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +45,8 @@ export default async function BrainCorePage() {
   ]);
   // Read-only self-healing state (incidents / repairs / learning). Fail-soft.
   const selfHeal = loadBrainSelfHealSnapshot();
+  // Owner-approval model — read-only, AYAS's own already-filtered recommendations. Fail-soft (its own loader never throws).
+  const ownerRecommendations = loadAyasOwnerRecommendationsView();
   // Read-only goal + external-research state (M22.14). Fail-soft (its own loader never throws).
   const goalDevelopment = loadAyasGoalDevelopmentView();
   // Read-only research-engine (scheduler + source registry) status. Fail-soft (its own loader never throws).
@@ -60,6 +64,7 @@ export default async function BrainCorePage() {
       initialGoalDevelopment={goalDevelopment}
       initialResearchEngineStatus={researchEngineStatus}
       initialSelfHeal={selfHeal}
+      initialOwnerRecommendations={ownerRecommendations}
       modelConfigured={modelConfigured}
       refresh={refreshBrainConsole}
       refreshSelfHeal={refreshBrainSelfHeal}
@@ -67,10 +72,12 @@ export default async function BrainCorePage() {
       refreshMicroBatch={refreshAyasMicroBatch}
       refreshGoalDevelopment={refreshAyasGoalDevelopment}
       refreshResearchEngineStatus={refreshAyasResearchEngineStatus}
+      refreshOwnerRecommendations={refreshAyasOwnerRecommendations}
       decideApproval={decideAyasApproval}
       executeProposal={executeAyasApprovedProposal}
       batchOnaylaVeUygula={batchOnaylaVeUygula}
       proposalOnaylaVeUygula={proposalOnaylaVeUygula}
+      ownerApprovalDecision={ayasOwnerApprovalDecision}
       recordSelfHealDecision={recordSelfHealDecision}
       askAyas={askAyas}
     />

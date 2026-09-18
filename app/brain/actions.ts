@@ -47,6 +47,9 @@ import { detectAyasResearchStatusIntent, buildAyasResearchStatusSpokenAnswer } f
 import { executeAyasApprovedProposalWith, defaultAyasProposalExecutionDeps, AyasProposalExecutionError } from "@/lib/brain/autonomy/AyasProposalExecutionService";
 import { approveAndExecuteAyasMicroBatch, defaultAyasMicroBatchApprovalDeps, AyasMicroBatchApprovalError } from "@/lib/brain/autonomy/AyasMicroBatchApprovalService";
 import { approveAndExecuteAyasProposal, defaultAyasProposalApprovalDeps, AyasProposalApprovalError } from "@/lib/brain/autonomy/AyasProposalApprovalService";
+import { decideAyasOwnerApproval, type AyasOwnerDecision } from "@/lib/brain/autonomy/AyasAutonomousExecutionGate";
+import type { AyasApprovalBindingSnapshot } from "@/lib/brain/autonomy/AyasApprovalBinding";
+import { loadAyasOwnerRecommendationsView, type AyasOwnerRecommendationsView } from "@/lib/brain/autonomy/AyasOwnerRecommendationsView";
 import { loadAyasMicroBatchDevelopmentView, type AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
 import { reconcileAyasStaleProposals } from "@/lib/brain/autonomy/AyasProposalStaleness";
 import { buildSelfHealDecision, type BrainSelfHealDecisionKind } from "@/lib/brain/selfheal/BrainSelfHealDecision";
@@ -281,6 +284,74 @@ export async function proposalOnaylaVeUygula(input: { proposalId: string; propos
   } catch (error) {
     const code = error instanceof AyasProposalApprovalError ? error.code : error instanceof Error ? error.message : "APPROVAL_FAILED";
     return { ok: false, code, inbox: loadAyasApprovalInboxView() };
+  }
+}
+
+export interface AyasOwnerApprovalDecisionResult {
+  readonly ok: boolean;
+  /** Present only when `ok` is false — one of `AyasAutonomousExecutionGate`'s own short, non-secret reasons (e.g. `AUTONOMOUS_EXECUTION_DISABLED`, `BASE_HEAD_CHANGED`, `NOT_EXECUTABLE_CLASSIFICATION`), or `AyasProposalApprovalService`'s own code when execution itself failed. */
+  readonly code?: string;
+  /** Present only when `ok` is true — the pushed commit's SHA. */
+  readonly commitSha?: string;
+  readonly recommendations: AyasOwnerRecommendationsView;
+}
+
+/**
+ * Owner-approval model — the ONE action an owner's APPROVE/REJECT click
+ * calls. Accepts only the exact binding the owner was shown (never a raw
+ * proposalId alone) so every field the owner saw — baseHead, scope, patch-
+ * artifact identity, risk classification — gets re-validated fresh
+ * (`AyasApprovalBinding.reevaluateAyasApprovalBinding`, inside the gate)
+ * before anything else happens. REJECT durably records the decision with no
+ * mutation. APPROVE is ALWAYS durably recorded (`AyasInboxProposalStatus =
+ * "APPROVED"`) once valid — that's what makes it survive a hard reload or a
+ * server restart, unlike a client-only "already approved" flag ever could.
+ * If `AYAS_AUTONOMOUS_EXECUTION_ENABLED` is also set, this delegates to the
+ * exact same canonical execution primitive `proposalOnaylaVeUygula` uses
+ * (`AyasProposalApprovalService.approveAndExecuteAyasProposal`) — no
+ * parallel mutation engine. If it is not set, nothing executes yet;
+ * `AyasOwnerApprovalResume.ts` is what later resumes it automatically, with
+ * no second owner click. The live env var is read for real here (no
+ * override), so this can never execute anything unless that flag is
+ * explicitly set in the real deployment environment.
+ */
+export async function ayasOwnerApprovalDecision(input: { binding: AyasApprovalBindingSnapshot; decision: AyasOwnerDecision }): Promise<AyasOwnerApprovalDecisionResult> {
+  await requireBrainSession();
+  try {
+    const outcome = await decideAyasOwnerApproval(input.binding, input.decision, {
+      ...defaultAyasProposalApprovalDeps(),
+      inbox: createAyasApprovalInboxStore(),
+    });
+    if (outcome.executed) {
+      return { ok: true, commitSha: outcome.result.commitSha, recommendations: loadAyasOwnerRecommendationsView() };
+    }
+    // Neither of the next two is an error — both are an owner decision that
+    // was accepted and durably recorded, with no mutation performed:
+    //
+    // - APPROVED_PENDING_EXECUTION: the APPROVE was valid and is now durable
+    //   (`AyasInboxProposalStatus = "APPROVED"`); live execution is simply off
+    //   right now. The card moves out of "AYAS'ın Önerileri" and into the
+    //   durable "ONAYLANDI" list on this same refreshed view — no
+    //   client-side flag involved.
+    // - OWNER_REJECTED: recording a rejection is never a mutation, so it
+    //   always succeeds regardless of the live-execution flag. Reporting it
+    //   as `ok: false` would light up the caller's error surface for what is
+    //   actually the owner getting exactly what they asked for.
+    //
+    // In both cases the refreshed view is what communicates the new state;
+    // there is nothing for the caller to report as a failure.
+    if (outcome.reason === "APPROVED_PENDING_EXECUTION" || outcome.reason === "OWNER_REJECTED") {
+      return { ok: true, recommendations: loadAyasOwnerRecommendationsView() };
+    }
+    const code = outcome.reason === "EXECUTION_FAILED" ? outcome.result.code : outcome.reason;
+    return { ok: false, code, recommendations: loadAyasOwnerRecommendationsView() };
+  } catch (error) {
+    // Same precedence as `proposalOnaylaVeUygula` above: prefer the service's
+    // own stable, short error CODE over its English prose, so the owner-facing
+    // label lookup in `AyasDevelopmentCenter` can actually match it instead of
+    // falling through and rendering a raw internal message.
+    const code = error instanceof AyasProposalApprovalError ? error.code : error instanceof Error ? error.message : "APPROVAL_FAILED";
+    return { ok: false, code, recommendations: loadAyasOwnerRecommendationsView() };
   }
 }
 

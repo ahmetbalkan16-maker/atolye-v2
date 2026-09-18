@@ -36,6 +36,8 @@ import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
 import type { AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import type { AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
+import type { AyasOwnerPendingExecutionEntry, AyasOwnerRecommendation } from "@/lib/brain/autonomy/AyasOwnerRecommendationsView";
+import type { AyasApprovalBindingSnapshot } from "@/lib/brain/autonomy/AyasApprovalBinding";
 import type { AyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
 import type { AyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
 import { AyasGoalResearchPanel } from "./AyasGoalResearchPanel";
@@ -118,6 +120,13 @@ export interface BrainConsoleViewProps {
   readonly proposalOnaylaPendingId?: string | null;
   readonly proposalOnaylaError?: { readonly proposalId: string; readonly code: string } | null;
   readonly onProposalOnaylaVeUygula?: (input: { proposalId: string; proposalHash: string }) => void;
+  /** Owner-approval model — plain-language recommendations AYAS has already internally filtered to RECOMMEND_FOR_APPROVAL + executable. */
+  readonly ownerRecommendations?: readonly AyasOwnerRecommendation[];
+  readonly ownerDecisionPendingId?: string | null;
+  readonly ownerDecisionError?: { readonly proposalId: string; readonly code: string } | null;
+  readonly onOwnerApprovalDecision?: (input: { binding: AyasApprovalBindingSnapshot; decision: "APPROVE" | "REJECT" }) => void;
+  /** Durable one-click correction — proposals the owner already durably APPROVED while live execution was off, read entirely from server state (never client memory). */
+  readonly ownerApprovalPendingExecution?: readonly AyasOwnerPendingExecutionEntry[];
   /** Read-only self-healing state (incidents / repairs / learning). `null` ⇒ store empty. */
   readonly selfHeal?: (BrainSelfHealSnapshot & { readonly error?: string | null }) | null;
   /** The AYAS Report Center view (§7–§15) for the panel + the home status card. */
@@ -553,7 +562,7 @@ function PanelBody(props: BrainConsoleViewProps) {
     case "development":
       return (
         <>
-          <AyasDevelopmentCenter inbox={props.approvalInbox ?? { connected: true, pending: [], today: [], history: [] }} microBatch={props.microBatch ?? { connected: true, active: null, history: [] }} pendingId={props.approvalPendingId} onDecision={props.onApprovalDecision} executingId={props.executionPendingId} executionError={props.executionError} onExecute={props.onExecuteProposal} batchOnaylaPending={props.batchOnaylaPending} batchOnaylaError={props.batchOnaylaError} onBatchOnaylaVeUygula={props.onBatchOnaylaVeUygula} proposalOnaylaPendingId={props.proposalOnaylaPendingId} proposalOnaylaError={props.proposalOnaylaError} onProposalOnaylaVeUygula={props.onProposalOnaylaVeUygula} />
+          <AyasDevelopmentCenter inbox={props.approvalInbox ?? { connected: true, pending: [], today: [], history: [] }} microBatch={props.microBatch ?? { connected: true, active: null, history: [] }} pendingId={props.approvalPendingId} onDecision={props.onApprovalDecision} executingId={props.executionPendingId} executionError={props.executionError} onExecute={props.onExecuteProposal} batchOnaylaPending={props.batchOnaylaPending} batchOnaylaError={props.batchOnaylaError} onBatchOnaylaVeUygula={props.onBatchOnaylaVeUygula} proposalOnaylaPendingId={props.proposalOnaylaPendingId} proposalOnaylaError={props.proposalOnaylaError} onProposalOnaylaVeUygula={props.onProposalOnaylaVeUygula} ownerRecommendations={props.ownerRecommendations} ownerDecisionPendingId={props.ownerDecisionPendingId} ownerDecisionError={props.ownerDecisionError} onOwnerApprovalDecision={props.onOwnerApprovalDecision} ownerApprovalPendingExecution={props.ownerApprovalPendingExecution} />
           <AyasGoalResearchPanel view={props.goalDevelopment ?? { connected: true, goals: [], research: [] }} researchEngineStatus={props.researchEngineStatus ?? { connected: true, consecutiveFailures: 0, sources: [], digest: { sourcesRegistered: 0, sourcesChangedLast24h: 0, sourcesFailingNow: 0, findingsLast24h: 0 } }} />
         </>
       );

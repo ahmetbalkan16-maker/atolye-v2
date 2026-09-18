@@ -48,6 +48,8 @@ export interface AyasInboxDecisionRead {
   readonly proposalId: string;
   readonly decision: "APPROVE" | "REJECT" | "LATER";
   readonly decidedAt: string;
+  /** Already present in the durable JSON (the Store's own `AyasInboxDecisionRecord.reason`); widened onto this read-only projection so a consumer can read the provenance-prefix convention (`AyasOwnerApprovalProvenance.ts`) without importing the authority-bearing Store. */
+  readonly reason?: string;
   readonly reservedAt?: string;
   readonly finalizedAt?: string;
   readonly finalizationOutcome?: "EXECUTED" | "ABANDONED" | "RECOVERY_REQUIRED";

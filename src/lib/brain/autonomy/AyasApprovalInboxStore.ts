@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { containsBrainSecret, redactBrainText } from "../BrainRedaction";
 import { isAyasDeferredEligibleNow } from "./AyasDeferredEligibility";
+import type { AyasProposalStructuredImpact } from "./AyasProposalImpact";
 
 export const ayasApprovalInboxSchemaVersion = "1" as const;
 export type AyasInboxDecision = "APPROVE" | "REJECT" | "LATER";
@@ -57,6 +58,8 @@ export interface AyasInboxProposal {
   /** M17 — present only when `mutationKind` is `"patch-artifact:v1"`: the frozen, immutable `AyasPatchArtifact` this proposal reviews/executes exactly. Both fields are ordinary proposal fields, so they participate in `proposalHash` like every other field above — no artifact can be silently swapped onto an already-created proposal. */
   readonly patchArtifactId?: string;
   readonly patchHash?: string;
+  /** Optional on reads for backward compatibility with proposals created before this field existed (see `AyasProposalImpact.ts`) — such a proposal is treated as fully unresolved impact by `evaluateAyasImpactPolicy`, never as a free pass. Participates in `proposalHash` like every other field, so it cannot be silently attached to an already-created proposal. */
+  readonly structuredImpact?: AyasProposalStructuredImpact;
 }
 
 export interface AyasInboxDecisionRecord {

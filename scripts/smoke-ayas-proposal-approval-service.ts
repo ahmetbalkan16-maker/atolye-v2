@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { approveAndExecuteAyasProposal, AyasProposalApprovalError } from "../src/lib/brain/autonomy/AyasProposalApprovalService";
+import { approveAndExecuteAyasProposal, publishAlreadyOwnerApprovedAyasProposal, AyasProposalApprovalError } from "../src/lib/brain/autonomy/AyasProposalApprovalService";
 import { createAyasApprovalInboxStore, type AyasApprovalInboxHandle, type AyasInboxProposal } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
 import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatchArtifact";
 import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "../src/lib/brain/autonomy/AyasNovelPatchDiscovery";
@@ -269,6 +269,64 @@ async function main(): Promise<void> {
     assert.equal(result.ok, true);
     const changedInCommit = git(f.repoRoot, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").split("\n").filter(Boolean);
     assert.deepEqual(changedInCommit, ["scripts/smoke-fixture-generated.ts"]);
+  });
+
+  // --- publishAlreadyOwnerApprovedAyasProposal (Step 6 resume entrypoint) ---
+  // Exercises the shared publish pipeline (`publishAyasApprovedProposal`)
+  // through its SECOND entrypoint — the one `AyasOwnerApprovalResume.ts`
+  // calls for a proposal that is already durably APPROVED, never PENDING.
+  // `approveAndExecuteAyasProposal`'s own scenarios above already prove the
+  // pipeline's mutation/Graphify/staging/commit/push behavior in depth; this
+  // section only proves the two entrypoints share that ONE pipeline and
+  // differ correctly on their precondition.
+
+  await scenario("publishAlreadyOwnerApprovedAyasProposal refuses a still-PENDING proposal — it is only for an already-approved one", async () => {
+    const f = makeFixture();
+    const { proposal } = seedNewFileProposal(f);
+    await assert.rejects(
+      publishAlreadyOwnerApprovedAyasProposal(proposal.proposalId, proposal.proposalHash, f),
+      (e: unknown) => e instanceof AyasProposalApprovalError && e.code === "NOT_READY",
+    );
+    assert.equal(f.inbox.load().proposals.find((p) => p.proposalId === proposal.proposalId)!.status, "PENDING", "must not have decided anything");
+  });
+
+  await scenario("publishAlreadyOwnerApprovedAyasProposal publishes an already-APPROVED proposal through the SAME one-commit pipeline, without deciding again", async () => {
+    const f = makeFixture();
+    const { proposal } = seedNewFileProposal(f);
+    f.inbox.decide(proposal.proposalId, "APPROVE", new Date().toISOString());
+    const decisionsBefore = f.inbox.load().decisions.filter((d) => d.proposalId === proposal.proposalId && d.decision === "APPROVE").length;
+    const result = await publishAlreadyOwnerApprovedAyasProposal(proposal.proposalId, proposal.proposalHash, f);
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    const localHead = git(f.repoRoot, "rev-parse", "HEAD");
+    const remoteHead = git(f.remoteDir, "rev-parse", "master");
+    assert.equal(localHead, remoteHead);
+    assert.equal(localHead, result.commitSha);
+    assert.equal(f.inbox.load().proposals.find((p) => p.proposalId === proposal.proposalId)!.status, "COMPLETED");
+    const decisionsAfter = f.inbox.load().decisions.filter((d) => d.proposalId === proposal.proposalId && d.decision === "APPROVE").length;
+    assert.equal(decisionsAfter, decisionsBefore, "must not create a second APPROVE decision record — the approval already existed");
+  });
+
+  await scenario("publishAlreadyOwnerApprovedAyasProposal refuses a stale proposalHash exactly like the PENDING entrypoint does", async () => {
+    const f = makeFixture();
+    const { proposal } = seedNewFileProposal(f);
+    f.inbox.decide(proposal.proposalId, "APPROVE", new Date().toISOString());
+    await assert.rejects(
+      publishAlreadyOwnerApprovedAyasProposal(proposal.proposalId, "stale-hash-value", f),
+      (e: unknown) => e instanceof AyasProposalApprovalError && e.code === "PROPOSAL_HASH_MISMATCH",
+    );
+  });
+
+  await scenario("publishAlreadyOwnerApprovedAyasProposal refuses to replay an already-COMPLETED proposal", async () => {
+    const f = makeFixture();
+    const { proposal } = seedNewFileProposal(f);
+    f.inbox.decide(proposal.proposalId, "APPROVE", new Date().toISOString());
+    const first = await publishAlreadyOwnerApprovedAyasProposal(proposal.proposalId, proposal.proposalHash, f);
+    assert.equal(first.ok, true);
+    await assert.rejects(
+      publishAlreadyOwnerApprovedAyasProposal(proposal.proposalId, proposal.proposalHash, f),
+      (e: unknown) => e instanceof AyasProposalApprovalError && e.code === "NOT_READY",
+    );
   });
 
   await scenario("the module never stages via broad commands — source inspection proves no `add .` / `add -A` / `commit -a`", () => {

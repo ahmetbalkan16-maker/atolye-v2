@@ -143,11 +143,21 @@ This project is developed across many sequential AI sessions under strict, check
     binds the click to an exact `batchId` + `batchHash` (any drift — HEAD, an item, the hash itself
     — invalidates the authorization and blocks publication), still runs the mutation through
     Package C unmodified, still Graphify-verifies every applied item and the whole batch again
-    before staging, and still refuses to commit/push if any check fails. Every other commit/push in
-    this repository — including this service's own infrastructure changes, and any individual
-    PRIORITY_SAFE proposal today — still requires separate explicit approval as above. The same
-    single-click principle is intended for a future individual-proposal "ONAYLA VE UYGULA" (not yet
-    built) once REVIEW_REQUIRED/FORBIDDEN_AUTONOMOUS proposals remain excluded from it.
+    before staging, and still refuses to commit/push if any check fails. The same single-click
+    principle also covers the individual-proposal case, now built: a human clicking **"ONAYLA VE
+    UYGULA"** in Gelişim Merkezi on a `PENDING`, `SAFE`, patch-artifact-backed proposal is the one
+    required explicit approval for that proposal's commit and push, scoped to
+    `AyasProposalApprovalService.approveAndExecuteAyasProposal` and bound to the exact `proposalId`
+    + `proposalHash` the human reviewed (any drift invalidates it, exactly like the batch case
+    above). `REVIEW_REQUIRED`/`FORBIDDEN_AUTONOMOUS` proposals remain permanently excluded from
+    this — they are never `SAFE`, so `AyasApprovalInboxStore.decide()` refuses to approve them
+    regardless of any UI action. A further owner-approval layer
+    (`AyasAutonomousExecutionGate.decideAyasOwnerApproval`) sits on top of this same primitive for a
+    fully autonomous APPROVE/REJECT flow, but it stays inert unless `AYAS_AUTONOMOUS_EXECUTION_ENABLED=1`
+    is explicitly set in the deployment environment — off by default, so it grants no standing
+    exception beyond what is already documented here. Every other commit/push in this repository —
+    including this service's own infrastructure changes — still requires separate explicit approval
+    as above.
 
 ## graphify
 

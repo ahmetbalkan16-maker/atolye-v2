@@ -7,6 +7,7 @@ import { evaluateAyasMachineHealth } from "../src/lib/ayas/machine/AyasMachineHe
 import { createAyasApprovalInboxStore } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
 import { createAyasAutonomyDaemon } from "../src/lib/brain/autonomy/AyasAutonomyDaemon";
 import { reconcileAyasStaleProposals } from "../src/lib/brain/autonomy/AyasProposalStaleness";
+import { reviewAyasPendingProposals } from "../src/lib/brain/autonomy/AyasAutonomousReview";
 import { discoverAyasSafeCandidates } from "../src/lib/brain/autonomy/AyasDiscoveryRegistry";
 import { discoverAyasNovelPatchCandidates } from "../src/lib/brain/autonomy/AyasNovelPatchDiscovery";
 import { accumulateAyasMicroBatchCandidates } from "../src/lib/brain/autonomy/AyasMicroBatchAccumulator";
@@ -82,6 +83,20 @@ async function main(): Promise<void> {
 
   const discovered = daemon.discover(observation, [...discoverAyasSafeCandidates({ repoRoot: root, observation }), ...novel.candidates]);
 
+  // Owner-approval model — AYAS's own internal REJECT/DEFER/RECOMMEND_FOR_APPROVAL
+  // filter, run once per tick over every currently-PENDING proposal (including
+  // ones from a prior tick, not just what `discovered` just added). REJECT/DEFER
+  // are durably recorded here so the owner never has to see them; only a
+  // RECOMMEND_FOR_APPROVAL + executable proposal is ever surfaced by
+  // `AyasOwnerRecommendationsView`'s read-only projection. Never executes
+  // anything — same best-effort posture as every other signal in this tick.
+  let ownerReview: ReturnType<typeof reviewAyasPendingProposals> = { rejected: [], deferred: [], recommended: [] };
+  try {
+    ownerReview = reviewAyasPendingProposals(inbox, () => now);
+  } catch (error) {
+    observation.gaps.push(`owner-approval internal review failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
   // M18 — MICRO_SAFE candidates never reach the line above (AyasNovelPatchDiscovery
   // skips them); they accumulate here instead, in the persistent isolated batch
   // worktree, never the real working tree. Same best-effort posture as the novel
@@ -145,6 +160,9 @@ async function main(): Promise<void> {
     researchNextLightAt: research?.state.nextLightAt ?? null,
     researchNextDeepAt: research?.state.nextDeepAt ?? null,
     researchFindingsRecorded: research?.deep?.findingsRecorded ?? 0,
+    ownerReviewRejected: ownerReview.rejected.map((r) => r.proposalId),
+    ownerReviewDeferred: ownerReview.deferred.map((d) => d.proposalId),
+    ownerReviewRecommended: ownerReview.recommended.map((r) => r.binding.proposalId),
   }));
 }
 main().catch((error) => { console.error("AYAS discovery daemon FAILED:", error); process.exitCode = 1; });

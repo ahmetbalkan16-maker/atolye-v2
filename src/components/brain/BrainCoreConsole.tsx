@@ -49,6 +49,8 @@ import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasAutonomousView } from "@/lib/brain/autonomy/AyasAutonomousView";
 import type { AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import type { AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
+import type { AyasOwnerRecommendationsView } from "@/lib/brain/autonomy/AyasOwnerRecommendationsView";
+import type { AyasApprovalBindingSnapshot } from "@/lib/brain/autonomy/AyasApprovalBinding";
 import type { AyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
 import type { AyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
 import type { BrainSelfHealConsoleSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
@@ -94,6 +96,8 @@ export interface BrainCoreConsoleProps {
   readonly initialResearchEngineStatus?: AyasResearchEngineStatusView;
   /** Read-only self-healing / Report Center state for the "AYAS Raporları" panel. */
   readonly initialSelfHeal?: BrainSelfHealConsoleSnapshot | null;
+  /** Owner-approval model — read-only initial snapshot of AYAS's own filtered recommendations (RECOMMEND_FOR_APPROVAL + executable only). */
+  readonly initialOwnerRecommendations?: AyasOwnerRecommendationsView;
   readonly modelConfigured?: boolean;
   /** Server Action that re-reads the snapshot (read-only). */
   readonly refresh?: () => Promise<BrainConsoleSnapshot>;
@@ -116,6 +120,10 @@ export interface BrainCoreConsoleProps {
   readonly batchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => Promise<{ readonly ok: boolean; readonly code?: string; readonly commitSha?: string; readonly microBatch: AyasMicroBatchDevelopmentView }>;
   /** M20.7 — "ONAYLA VE UYGULA": Server Action that does the same for one individual, patch-artifact-backed PRIORITY_SAFE proposal. */
   readonly proposalOnaylaVeUygula?: (input: { proposalId: string; proposalHash: string }) => Promise<{ readonly ok: boolean; readonly code?: string; readonly commitSha?: string; readonly inbox: AyasApprovalInboxView }>;
+  /** Owner-approval model — Server Action that re-reads AYAS's own filtered recommendations (read-only). */
+  readonly refreshOwnerRecommendations?: () => Promise<AyasOwnerRecommendationsView>;
+  /** Owner-approval model — Server Action for the owner's one APPROVE/REJECT on an exact recommendation binding. Session-gated; live execution stays off unless the server's own AYAS_AUTONOMOUS_EXECUTION_ENABLED flag is set. */
+  readonly ownerApprovalDecision?: (input: { binding: AyasApprovalBindingSnapshot; decision: "APPROVE" | "REJECT" }) => Promise<{ readonly ok: boolean; readonly code?: string; readonly commitSha?: string; readonly recommendations: AyasOwnerRecommendationsView }>;
   /** Server Action that asks the local model (falls back to deterministic). */
   readonly askAyas?: AskAyasFn;
   /**
@@ -133,6 +141,7 @@ export function BrainCoreConsole({
   initialGoalDevelopment,
   initialResearchEngineStatus,
   initialSelfHeal,
+  initialOwnerRecommendations,
   modelConfigured,
   refresh,
   refreshSelfHeal,
@@ -145,6 +154,8 @@ export function BrainCoreConsole({
   executeProposal,
   batchOnaylaVeUygula,
   proposalOnaylaVeUygula,
+  refreshOwnerRecommendations,
+  ownerApprovalDecision,
   askAyas,
   streaming = true,
 }: BrainCoreConsoleProps) {
@@ -157,6 +168,9 @@ export function BrainCoreConsole({
   // operator's choice (server action) — it never runs git or the apply.
   const [selfHeal, setSelfHeal] = useState(initialSelfHeal ?? null);
   const [approvalInbox, setApprovalInbox] = useState(initialApprovalInbox ?? { connected: false, pending: [], today: [], history: [] });
+  const [ownerRecommendations, setOwnerRecommendations] = useState(initialOwnerRecommendations ?? { connected: false, recommendations: [], pendingExecution: [] });
+  const [ownerDecisionPendingId, setOwnerDecisionPendingId] = useState<string | null>(null);
+  const [ownerDecisionError, setOwnerDecisionError] = useState<{ proposalId: string; code: string } | null>(null);
   const [microBatch, setMicroBatch] = useState(initialMicroBatch ?? { connected: false, active: null, history: [] });
   const [goalDevelopment, setGoalDevelopment] = useState(initialGoalDevelopment ?? { connected: false, goals: [], research: [] });
   const [researchEngineStatus, setResearchEngineStatus] = useState(initialResearchEngineStatus ?? { connected: false, consecutiveFailures: 0, sources: [], digest: { sourcesRegistered: 0, sourcesChangedLast24h: 0, sourcesFailingNow: 0, findingsLast24h: 0 } });
@@ -495,6 +509,11 @@ export function BrainCoreConsole({
         try { setApprovalInbox(await refreshApprovalInbox()); } catch { /* keep the last durable inbox view */ }
       });
     }
+    if (refreshOwnerRecommendations) {
+      startSelfHeal(async () => {
+        try { setOwnerRecommendations(await refreshOwnerRecommendations()); } catch { /* keep the last durable recommendations view */ }
+      });
+    }
     if (refreshMicroBatch) {
       startSelfHeal(async () => {
         try { setMicroBatch(await refreshMicroBatch()); } catch { /* keep the last durable micro-batch view */ }
@@ -615,6 +634,28 @@ export function BrainCoreConsole({
     });
   }, [proposalOnaylaPendingId, proposalOnaylaVeUygula]);
 
+  // Owner-approval model — the owner's one APPROVE/REJECT on an exact
+  // recommendation binding. REJECT durably records the decision with no
+  // mutation; APPROVE re-validates everything fresh server-side and, only if
+  // still valid AND the server's own live-execution flag is set, delegates
+  // to the same canonical execution path as `onProposalOnaylaVeUygula` above.
+  const onOwnerApprovalDecision = useCallback((input: { binding: AyasApprovalBindingSnapshot; decision: "APPROVE" | "REJECT" }) => {
+    if (!ownerApprovalDecision || ownerDecisionPendingId) return;
+    setOwnerDecisionPendingId(input.binding.proposalId);
+    setOwnerDecisionError(null);
+    startSelfHeal(async () => {
+      try {
+        const result = await ownerApprovalDecision(input);
+        setOwnerRecommendations(result.recommendations);
+        setOwnerDecisionError(result.ok ? null : { proposalId: input.binding.proposalId, code: result.code ?? "APPROVAL_FAILED" });
+      } catch {
+        setOwnerDecisionError({ proposalId: input.binding.proposalId, code: "NETWORK_ERROR" });
+      } finally {
+        setOwnerDecisionPendingId(null);
+      }
+    });
+  }, [ownerDecisionPendingId, ownerApprovalDecision]);
+
   // The AYAS presence-card CTA: drop into the EXISTING chat/voice experience —
   // select the chat panel and, when this device can hear, start listening
   // inside this click's user gesture (iOS needs that). No new path.
@@ -717,6 +758,11 @@ export function BrainCoreConsole({
       lastReplySource={lastReplySource}
       autonomous={initialAutonomous}
       approvalInbox={approvalInbox}
+      ownerRecommendations={ownerRecommendations.recommendations}
+      ownerDecisionPendingId={ownerDecisionPendingId}
+      ownerDecisionError={ownerDecisionError}
+      onOwnerApprovalDecision={onOwnerApprovalDecision}
+      ownerApprovalPendingExecution={ownerRecommendations.pendingExecution}
       microBatch={microBatch}
       goalDevelopment={goalDevelopment}
       researchEngineStatus={researchEngineStatus}

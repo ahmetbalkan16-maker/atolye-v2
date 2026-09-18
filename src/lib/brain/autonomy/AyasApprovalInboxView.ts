@@ -3,6 +3,7 @@ import { isAyasDeferredEligibleNow } from "./AyasDeferredEligibility";
 import { createAyasPatchArtifactStore, AyasPatchArtifactError } from "./AyasPatchArtifact";
 import { classifyAyasFindingValue, type AyasFindingValueClass } from "./AyasFindingValueClass";
 import { readAyasPublicationActivity, AYAS_PUBLICATION_ACTIVITY_UNKNOWN, type AyasPublicationActivitySnapshot } from "./AyasPublicationActivity";
+import { isAyasOwnerApprovedDecisionReason } from "./AyasOwnerApprovalProvenance";
 
 /**
  * Approval-race UX hardening (Part A). Purely a display hint derived from
@@ -76,6 +77,16 @@ export interface AyasDevelopmentProposal extends AyasInboxProposalRead {
   readonly displayState: AyasPublicationDisplayState;
   /** Set only when `displayState === "STALE_SUPERSEDED"`. */
   readonly supersededByProposalId?: string;
+  /**
+   * True only for an `APPROVED` proposal whose APPROVE came from the
+   * owner-approval model (`AyasAutonomousExecutionGate.decideAyasOwnerApproval`)
+   * while live execution was disabled — durably resumable by
+   * `AyasOwnerApprovalResume.ts`, never by a second manual click. A legacy
+   * `decideAyasApproval`-approved proposal is `false` here and keeps its
+   * ordinary manual "YÜRÜT" control; this flag is what lets the UI show the
+   * two differently without a client-side flag of its own.
+   */
+  readonly ownerApprovedPendingExecution: boolean;
 }
 
 export interface AyasApprovalInboxView {
@@ -142,6 +153,7 @@ export function buildAyasApprovalInboxView(state: AyasApprovalInboxReadState, no
       valueClass: classifyAyasFindingValue(proposal.exactFiles),
       displayState,
       supersededByProposalId,
+      ownerApprovedPendingExecution: proposal.status === "APPROVED" && isAyasOwnerApprovedDecisionReason(decision?.reason),
     };
   };
   const all = state.proposals.map(enrich);

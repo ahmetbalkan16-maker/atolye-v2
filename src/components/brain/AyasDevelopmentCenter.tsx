@@ -4,6 +4,17 @@ import { useState } from "react";
 
 import type { AyasApprovalInboxView, AyasDevelopmentProposal, AyasPublicationDisplayState } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import type { AyasMicroBatchDevelopmentEntry, AyasMicroBatchDevelopmentItem, AyasMicroBatchDevelopmentView } from "@/lib/brain/autonomy/AyasMicroBatchDevelopmentView";
+// `import type` only — erased entirely at compile time, so none of
+// `AyasOwnerRecommendationsView.ts`'s own runtime imports (which reach
+// node:fs/node:child_process transitively, same reason
+// AYAS_PATCH_ARTIFACT_MUTATION_KIND_LITERAL below is a literal rather than an
+// import) ever reach this "use client" component's bundle.
+import type { AyasOwnerPendingExecutionEntry, AyasOwnerRecommendation } from "@/lib/brain/autonomy/AyasOwnerRecommendationsView";
+import type { AyasApprovalBindingSnapshot } from "@/lib/brain/autonomy/AyasApprovalBinding";
+import type { AyasProposalStructuredImpact } from "@/lib/brain/autonomy/AyasProposalImpact";
+
+/** Mirrors `AyasAutonomousExecutionGate.AyasOwnerDecision`, kept a local literal for the same client-bundle reason as `AYAS_PATCH_ARTIFACT_MUTATION_KIND_LITERAL` below. */
+type AyasOwnerDecisionLiteral = "APPROVE" | "REJECT";
 
 /**
  * Approval-race UX hardening (Part A). `null` means "no extra banner" — the
@@ -144,6 +155,129 @@ const proposalOnaylaErrorLabel: Record<string, string> = {
   NETWORK_ERROR: "Bağlantı hatası oluştu — tekrar dene.",
 };
 
+const ayasOwnerDecisionErrorLabel: Record<string, string> = {
+  AUTONOMOUS_EXECUTION_DISABLED: "Otonom yürütme şu an kapalı — bu sürümde etkinleştirilmedi.",
+  BASE_HEAD_CHANGED: "Depo bu öneriden sonra ilerledi — onay artık geçersiz. AYAS aynı konuyu güncel sürüme göre yeniden değerlendirebilir.",
+  SCOPE_CHANGED: "Önerinin kapsamı değişti — onay artık geçersiz.",
+  PATCH_ARTIFACT_CHANGED: "Değişikliğin kendisi değişti — onay artık geçersiz.",
+  RISK_CLASSIFICATION_CHANGED: "Risk sınıflandırması değişti — onay artık geçersiz.",
+  PROPOSAL_HASH_CHANGED: "Öneri, gösterildiğinden beri değişti — onay artık geçersiz.",
+  NOT_PENDING: "Bu öneri artık beklemede değil — muhtemelen zaten karar verildi.",
+  PROPOSAL_NOT_FOUND: "Bu öneri artık bulunamıyor.",
+  NOT_EXECUTABLE_CLASSIFICATION: "AYAS bu değişikliği kendi başına uygulayamaz — güvenlik sınıflandırması buna izin vermiyor.",
+  NETWORK_ERROR: "Bağlantı hatası oluştu — tekrar dene.",
+};
+
+/**
+ * Raw structured-impact fields (Step 2) — enum values, not prose, so this is
+ * only ever rendered inside the existing `<details>` "Teknik ayrıntılar"
+ * disclosure alongside `proposalId`/`baseHead`, never inline: the plain-
+ * language `request.dependencyDisclosure` sentence above is what an owner is
+ * expected to read to decide.
+ */
+function AyasStructuredImpactFacts({ impact }: { readonly impact: AyasProposalStructuredImpact }) {
+  return (
+    <>
+      <div><dt>Bağımlılık etkisi</dt><dd><code>{impact.dependencyImpact}</code></dd></div>
+      <div><dt>Dış servis etkisi</dt><dd><code>{impact.externalServiceImpact}</code></dd></div>
+      <div><dt>Maliyet</dt><dd><code>{impact.estimatedCost}</code></dd></div>
+      <div><dt>Ücretli taahhüt gerektiriyor mu</dt><dd><code>{String(impact.paidCommitmentRequired)}</code></dd></div>
+      <div><dt>Lisans durumu</dt><dd><code>{impact.licensingStatus}</code></dd></div>
+      <div><dt>Geri alınabilirlik</dt><dd><code>{impact.reversibility}</code></dd></div>
+      <div><dt>Doğrulama güveni</dt><dd><code>{impact.validationConfidence}</code></dd></div>
+    </>
+  );
+}
+
+/**
+ * Owner-approval model — the plain-language recommendation card. Shows only
+ * `AyasOwnerRecommendation`s the server has already filtered to
+ * RECOMMEND_FOR_APPROVAL + executable (see `AyasOwnerRecommendationsView.ts`)
+ * — no hashes, no patch internals, no Graphify output in the primary view;
+ * that detail is available behind the `<details>` disclosure below, matching
+ * `PatchArtifactDiff`'s existing convention, never required to decide.
+ */
+function AyasOwnerRecommendationCard({ recommendation, pendingId, error, onDecision }: {
+  readonly recommendation: AyasOwnerRecommendation;
+  readonly pendingId?: string | null;
+  readonly error?: { readonly proposalId: string; readonly code: string } | null;
+  readonly onDecision?: (input: { binding: AyasApprovalBindingSnapshot; decision: AyasOwnerDecisionLiteral }) => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const { request, binding } = recommendation;
+  const busy = pendingId === binding.proposalId;
+  const errorMessage = error?.proposalId === binding.proposalId ? (ayasOwnerDecisionErrorLabel[error.code] ?? `İşlem başarısız oldu (${error.code}).`) : null;
+  const decide = (decision: AyasOwnerDecisionLiteral) => onDecision?.({ binding, decision });
+
+  return (
+    <article className="bc-dev__proposal bc-dev__owner-rec" data-testid={`ayas-owner-rec-${binding.proposalId}`}>
+      <header className="bc-dev__proposal-head">
+        <div><span className="bc-dev__status">AYAS ÖNERİYOR</span><h3>{request.wantsTo}</h3></div>
+        <span className={`bc-dev__safety bc-dev__safety--safe`}>{request.risk}</span>
+      </header>
+      <p><b>Neden:</b> {request.why}</p>
+      <p><b>Beklenen fayda:</b> {request.expectedBenefit}</p>
+      <p><b>Kapsam:</b> {request.scope}</p>
+      <p><b>Risk açıklaması:</b> {request.riskExplanation}</p>
+      <p><b>Doğrulama:</b> {request.validationSummary}</p>
+      <p><b>Dış maliyet / bağımlılık / lisans:</b> {request.externalCost}</p>
+      <p><b>Bağımlılık / lisans açıklaması:</b> {request.dependencyDisclosure}</p>
+      <p className="bc-dev__notice bc-dev__notice--safe">AYAS tavsiyesi: DEVAM ET</p>
+      <details>
+        <summary>Teknik ayrıntılar</summary>
+        <dl className="bc-dev__facts">
+          <div><dt>Öneri ID</dt><dd><code>{binding.proposalId}</code></dd></div>
+          <div><dt>Base HEAD</dt><dd><code>{binding.baseHead}</code></dd></div>
+          <div><dt>Kapsam (dosyalar)</dt><dd>{binding.exactFiles.join(", ")}</dd></div>
+          {binding.patchArtifactId ? <div><dt>Patch artifact</dt><dd><code>{binding.patchArtifactId}</code></dd></div> : null}
+          {request.advanced?.structuredImpact ? <AyasStructuredImpactFacts impact={request.advanced.structuredImpact} /> : null}
+        </dl>
+      </details>
+      {errorMessage ? <p className="bc-dev__notice bc-dev__notice--danger" role="alert">{errorMessage}</p> : null}
+      {confirming ? (
+        <div className="bc-dev__confirm" role="group" aria-label="Onaylarsam ne olacak?">
+          <strong>ONAYLA — onaylarsam ne olacak?</strong>
+          <p>AYAS bu değişikliği kendisi uygulayacak, test edecek ve başarılı olursa tek bir commit olarak yayınlayacak. İkinci bir onay istenmeyecek.</p>
+          <div className="bc-dev__actions">
+            <button type="button" className="bc-btn" disabled={busy || !onDecision} onClick={() => decide("APPROVE")}>{busy ? "UYGULANIYOR…" : "ONAYLA"}</button>
+            <button type="button" className="bc-btn bc-btn--ghost" disabled={busy} onClick={() => setConfirming(false)}>VAZGEÇ</button>
+          </div>
+        </div>
+      ) : (
+        <div className="bc-dev__actions">
+          <button type="button" className="bc-btn" disabled={busy || !onDecision} onClick={() => setConfirming(true)}>{busy ? "UYGULANIYOR…" : "ONAYLA"}</button>
+          <button type="button" className="bc-btn bc-btn--ghost" disabled={busy || !onDecision} onClick={() => decide("REJECT")}>REDDET</button>
+        </div>
+      )}
+    </article>
+  );
+}
+
+/**
+ * Durable one-click correction (Step 3/4). A proposal the owner already
+ * durably APPROVED while live execution was off — read entirely from the
+ * server's `pendingExecution` list, never from client memory, so it reads
+ * "ONAYLANDI" exactly the same after a hard reload or a server restart as it
+ * did the moment the owner clicked. Deliberately has NO button at all: the
+ * owner's decision already happened once and is already durably recorded;
+ * offering ONAYLA again here would be the exact duplicate-authorization this
+ * correction rules out. `AyasOwnerApprovalResume.ts` is what later turns
+ * this into a real execution once live execution is enabled.
+ */
+function AyasOwnerPendingExecutionCard({ entry }: { readonly entry: AyasOwnerPendingExecutionEntry }) {
+  return (
+    <article className="bc-dev__proposal bc-dev__owner-rec" data-testid={`ayas-owner-pending-execution-${entry.proposalId}`}>
+      <header className="bc-dev__proposal-head">
+        <div><span className="bc-dev__status">ONAYLANDI</span><h3>{entry.wantsTo}</h3></div>
+      </header>
+      <div className="bc-dev__confirm" role="status">
+        <p>Otomatik yürütme şu anda devre dışı. AYAS, yürütme etkinleştirildiğinde bu onayı yeniden doğrulayıp işlemi otomatik olarak sürdürecek.</p>
+        <p><small>Onaylandı: {new Date(entry.approvedAt).toLocaleString("tr-TR")}</small></p>
+      </div>
+    </article>
+  );
+}
+
 /**
  * M20.7 — "ONAYLA VE UYGULA": the individual-proposal equivalent of M18.1's
  * "BATCH ONAYLA VE UYGULA". Visible only for a PENDING, SAFE,
@@ -237,10 +371,10 @@ const executionErrorLabel: Record<string, string> = {
   NETWORK_ERROR: "Bağlantı hatası oluştu — tekrar dene.",
 };
 
-/** Visible/enabled only for APPROVED — the one status where execution is eligible. Every other status (including RESERVED/COMPLETED/ABANDONED/RECOVERY_REQUIRED) renders no execution control at all — RECOVERY_REQUIRED in particular must never offer an ordinary replay. */
+/** Visible/enabled only for APPROVED — the one status where execution is eligible. Every other status (including RESERVED/COMPLETED/ABANDONED/RECOVERY_REQUIRED) renders no execution control at all — RECOVERY_REQUIRED in particular must never offer an ordinary replay. A proposal APPROVED via the owner-approval model (`ownerApprovedPendingExecution`) also renders nothing here — it already has its own durable "ONAYLANDI" card (`AyasOwnerPendingExecutionCard`) and resumes automatically via `AyasOwnerApprovalResume.ts`, never via this manual YÜRÜT control. */
 function ExecuteControl({ proposal, executingId, executionError, onExecute }: { readonly proposal: AyasDevelopmentProposal; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string }) => void }) {
   const [confirming, setConfirming] = useState(false);
-  if (proposal.status !== "APPROVED") return null;
+  if (proposal.status !== "APPROVED" || proposal.ownerApprovedPendingExecution) return null;
   const busy = executingId === proposal.proposalId;
   const error = executionError?.proposalId === proposal.proposalId ? executionError : null;
   const errorMessage = error ? executionErrorLabel[error.code] ?? `Yürütme başarısız oldu (${error.code}).` : null;
@@ -388,11 +522,35 @@ function MicroBatchPanel({ microBatch, onaylaPending, onaylaError, onBatchOnayla
   );
 }
 
-export function AyasDevelopmentCenter({ inbox, microBatch, pendingId, onDecision, executingId, executionError, onExecute, batchOnaylaPending, batchOnaylaError, onBatchOnaylaVeUygula, proposalOnaylaPendingId, proposalOnaylaError, onProposalOnaylaVeUygula }: { readonly inbox: AyasApprovalInboxView; readonly microBatch?: AyasMicroBatchDevelopmentView; readonly pendingId?: string | null; readonly onDecision?: (input: { proposalId: string; decision: Decision }) => void; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string }) => void; readonly batchOnaylaPending?: boolean; readonly batchOnaylaError?: { readonly batchId: string; readonly code: string } | null; readonly onBatchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => void; readonly proposalOnaylaPendingId?: string | null; readonly proposalOnaylaError?: { readonly proposalId: string; readonly code: string } | null; readonly onProposalOnaylaVeUygula?: (input: { proposalId: string; proposalHash: string }) => void }) {
+export function AyasDevelopmentCenter({ inbox, microBatch, pendingId, onDecision, executingId, executionError, onExecute, batchOnaylaPending, batchOnaylaError, onBatchOnaylaVeUygula, proposalOnaylaPendingId, proposalOnaylaError, onProposalOnaylaVeUygula, ownerRecommendations, ownerDecisionPendingId, ownerDecisionError, onOwnerApprovalDecision, ownerApprovalPendingExecution }: { readonly inbox: AyasApprovalInboxView; readonly microBatch?: AyasMicroBatchDevelopmentView; readonly pendingId?: string | null; readonly onDecision?: (input: { proposalId: string; decision: Decision }) => void; readonly executingId?: string | null; readonly executionError?: { readonly proposalId: string; readonly code: string } | null; readonly onExecute?: (input: { proposalId: string }) => void; readonly batchOnaylaPending?: boolean; readonly batchOnaylaError?: { readonly batchId: string; readonly code: string } | null; readonly onBatchOnaylaVeUygula?: (input: { batchId: string; batchHash: string }) => void; readonly proposalOnaylaPendingId?: string | null; readonly proposalOnaylaError?: { readonly proposalId: string; readonly code: string } | null; readonly onProposalOnaylaVeUygula?: (input: { proposalId: string; proposalHash: string }) => void; readonly ownerRecommendations?: readonly AyasOwnerRecommendation[]; readonly ownerDecisionPendingId?: string | null; readonly ownerDecisionError?: { readonly proposalId: string; readonly code: string } | null; readonly onOwnerApprovalDecision?: (input: { binding: AyasApprovalBindingSnapshot; decision: AyasOwnerDecisionLiteral }) => void; readonly ownerApprovalPendingExecution?: readonly AyasOwnerPendingExecutionEntry[] }) {
   if (!inbox.connected) return <div className="bc-empty" role="alert"><strong>Gelişim Merkezi okunamadı</strong><p>{inbox.error || "Kalıcı durum deposuna ulaşılamıyor."}</p></div>;
   return (
     <section className="bc-dev" aria-label="AYAS Gelişim Merkezi" data-testid="ayas-development-center">
       <header className="bc-dev__hero"><span>İnsan denetimli gelişim</span><h2>AYAS Gelişim Merkezi</h2><p>AYAS’ın neyi neden geliştirmek istediğini, sana sağlayacağı faydayı ve güvenlik sınırlarını karar vermeden önce gör.</p></header>
+      {ownerRecommendations && ownerRecommendations.length > 0 ? (
+        <section className="bc-dev__section" aria-labelledby="ayas-owner-recommendations" data-testid="ayas-owner-recommendations">
+          <h3 id="ayas-owner-recommendations">AYAS&apos;ın Önerileri <span>{ownerRecommendations.length}</span></h3>
+          <div className="bc-dev__timeline">
+            {ownerRecommendations.map((recommendation) => (
+              <AyasOwnerRecommendationCard
+                key={recommendation.binding.proposalId}
+                recommendation={recommendation}
+                pendingId={ownerDecisionPendingId}
+                error={ownerDecisionError}
+                onDecision={onOwnerApprovalDecision}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+      {ownerApprovalPendingExecution && ownerApprovalPendingExecution.length > 0 ? (
+        <section className="bc-dev__section" aria-labelledby="ayas-owner-pending-execution" data-testid="ayas-owner-pending-execution">
+          <h3 id="ayas-owner-pending-execution">Onaylandı — Yürütme Bekleniyor <span>{ownerApprovalPendingExecution.length}</span></h3>
+          <div className="bc-dev__timeline">
+            {ownerApprovalPendingExecution.map((entry) => <AyasOwnerPendingExecutionCard key={entry.proposalId} entry={entry} />)}
+          </div>
+        </section>
+      ) : null}
       <section className="bc-dev__section" aria-labelledby="ayas-dev-pending"><h3 id="ayas-dev-pending">Onay Bekleyenler <span>{inbox.pending.length}</span></h3>{inbox.pending.length ? inbox.pending.map((proposal) => <PendingProposal key={proposal.proposalId} proposal={proposal} pendingId={pendingId} onDecision={onDecision} onaylaVeUygulaPendingId={proposalOnaylaPendingId} onaylaVeUygulaError={proposalOnaylaError} onProposalOnaylaVeUygula={onProposalOnaylaVeUygula} />) : <p className="bc-empty">Onay bekleyen gerçek bir öneri yok.</p>}</section>
       {microBatch ? <MicroBatchPanel microBatch={microBatch} onaylaPending={batchOnaylaPending} onaylaError={batchOnaylaError} onBatchOnaylaVeUygula={onBatchOnaylaVeUygula} /> : null}
       <section className="bc-dev__section" aria-labelledby="ayas-dev-today"><h3 id="ayas-dev-today">Bugün Neleri Geliştirmeye Çalıştı? <span>{inbox.today.length}</span></h3>{inbox.today.length ? <div className="bc-dev__timeline">{inbox.today.map((proposal) => <TimelineCard key={proposal.proposalId} proposal={proposal} executingId={executingId} executionError={executionError} onExecute={onExecute} />)}</div> : <p className="bc-empty">Bugün değerlendirilmiş bir gelişim adayı yok.</p>}</section>
