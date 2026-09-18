@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+
 import { captureAyasRuntimeStabilitySnapshot, type AyasRuntimeStabilitySnapshot, type AyasRuntimeStabilitySnapshotDeps } from "./AyasRuntimeStabilitySnapshot";
 import { evaluateAyasRuntimeStabilityHealth, type AyasRuntimeHealthDecision, type AyasRuntimeHealthExpectations } from "./AyasRuntimeStabilityHealth";
 import { findAyasOutOfScopeViolations, type AyasRuntimeImpactScope, type AyasScopeViolation } from "./AyasRuntimeStabilityScope";
@@ -76,7 +78,16 @@ export function baselineAyasPreconditions(options: { readonly requireCleanRepo?:
 export async function runAyasControlledOperation<T>(operation: AyasControlledOperation<T>, deps: AyasRuntimeStabilityGuardDeps = {}): Promise<AyasControlledOperationOutcome<T>> {
   const store = deps.store ?? createAyasStabilityTransactionStore({ ...(deps.now === undefined ? {} : { now: deps.now }) });
   if (deps.skipRecovery !== true) recoverInterruptedAyasStabilityTransactions({ store });
-  const capture = deps.captureSnapshot ?? (() => captureAyasRuntimeStabilitySnapshot(deps.snapshot ?? {}));
+  // ONE salt for the whole run. `AyasRuntimeStabilitySnapshot`'s salt contract
+  // is that fingerprints are comparable within a single guard run and never
+  // across runs, which only holds if both captures share a salt — and the salt
+  // defaults to a fresh random value per capture. Pinning it here makes that
+  // contract true by construction for every caller: without it, every tracked
+  // env var and every process command line appears to have "changed" between
+  // the before and after snapshots, turning a clean operation into an
+  // out-of-scope runtime-config violation.
+  const runSalt = deps.snapshot?.salt ?? crypto.randomUUID();
+  const capture = deps.captureSnapshot ?? (() => captureAyasRuntimeStabilitySnapshot({ ...(deps.snapshot ?? {}), salt: runSalt }));
 
   const before = capture();
 

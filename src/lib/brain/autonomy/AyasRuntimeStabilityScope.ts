@@ -41,6 +41,27 @@ export interface AyasRuntimeImpactScope {
   readonly allowed: readonly AyasRuntimeImpactDimension[];
   /** Ports this operation may restart. A service change on any other port is a violation even when "service" is allowed. */
   readonly allowedPorts: readonly number[];
+  /**
+   * The impact classification this scope was derived from, when a caller
+   * derives its scope rather than hand-writing one (see
+   * `AyasProposalRuntimeImpact`). Recorded so a durable transaction proves
+   * WHICH declaration produced this dimension list, not merely the list.
+   */
+  readonly impactClass?: string;
+  /**
+   * Checks the declared impact makes inapplicable, in plain language (e.g.
+   * "this class can never restart a service"). Persisted onto the
+   * transaction so that a check which correctly did not run is a visible,
+   * reviewable claim rather than an invisible absence — the difference
+   * between a lightweight guard decision and a silent bypass.
+   */
+  readonly notApplicable?: readonly string[];
+}
+
+/** Optional provenance recorded alongside a declared scope. Purely descriptive: nothing here widens or narrows what the scope permits. */
+export interface AyasRuntimeImpactScopeAnnotations {
+  readonly impactClass?: string;
+  readonly notApplicable?: readonly string[];
 }
 
 export interface AyasRuntimeImpactChange {
@@ -48,8 +69,19 @@ export interface AyasRuntimeImpactChange {
   readonly detail: string;
 }
 
-export function declareAyasRuntimeImpactScope(operation: string, allowed: readonly AyasRuntimeImpactDimension[], allowedPorts: readonly number[] = []): AyasRuntimeImpactScope {
-  return Object.freeze({ operation, allowed: Object.freeze([...allowed]), allowedPorts: Object.freeze([...allowedPorts]) });
+export function declareAyasRuntimeImpactScope(
+  operation: string,
+  allowed: readonly AyasRuntimeImpactDimension[],
+  allowedPorts: readonly number[] = [],
+  annotations: AyasRuntimeImpactScopeAnnotations = {},
+): AyasRuntimeImpactScope {
+  return Object.freeze({
+    operation,
+    allowed: Object.freeze([...allowed]),
+    allowedPorts: Object.freeze([...allowedPorts]),
+    ...(annotations.impactClass === undefined ? {} : { impactClass: annotations.impactClass }),
+    ...(annotations.notApplicable === undefined ? {} : { notApplicable: Object.freeze([...annotations.notApplicable]) }),
+  });
 }
 
 /**

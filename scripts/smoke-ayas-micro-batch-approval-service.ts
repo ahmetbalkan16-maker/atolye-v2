@@ -8,6 +8,8 @@ import { approveAndExecuteAyasMicroBatch, AyasMicroBatchApprovalError } from "..
 import { createAyasMicroBatchStore, type AyasMicroBatchStoreHandle, type AyasMicroBatchItemRef } from "../src/lib/brain/autonomy/AyasMicroBatch";
 import { createAyasMicroItemStore, type AyasMicroItemStore } from "../src/lib/brain/autonomy/AyasMicroItem";
 import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatchArtifact";
+import { isolatedStabilityGuardDeps } from "./ayas-isolated-stability-guard";
+import { ayasPublicationOperationName } from "../src/lib/brain/autonomy/AyasGuardedPublication";
 
 /**
  * M18.1 — "BATCH ONAYLA VE UYGULA": the single-approval → Package C
@@ -31,6 +33,8 @@ interface Fixture {
   readonly itemStore: AyasMicroItemStore;
   readonly artifactStore: AyasPatchArtifactStore;
   readonly gateRoot: string;
+  /** Every publication now runs under the Runtime Stability Guard; this keeps the guard's own observations isolated too, so no scenario's outcome can depend on the real scheduler state, the real approval inbox or the real :3000. */
+  readonly stabilityGuard: ReturnType<typeof isolatedStabilityGuardDeps>;
 }
 
 function widgetContent(className: string): string {
@@ -80,6 +84,7 @@ function makeFixture(): Fixture {
 
   return {
     repoRoot, remoteDir, head,
+    stabilityGuard: isolatedStabilityGuardDeps({ isolateApprovalInbox: true }),
     batchStore: createAyasMicroBatchStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-approval-svc-batch-")) }),
     itemStore: createAyasMicroItemStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-approval-svc-items-")) }),
     artifactStore: createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-approval-svc-artifacts-")) }),
@@ -139,6 +144,46 @@ async function main(): Promise<void> {
     assert.equal(localHead, result.commitSha);
     assert.equal(git(f.repoRoot, "status", "--short"), "", "working tree must be clean after publication");
     assert.equal(f.batchStore.load().batches.find((b) => b.batchId === batch.batchId)!.status, "COMPLETED");
+
+    // The batch lane goes through the SAME `runGuardedAyasPublication`
+    // primitive as the individual-proposal lane, so a batch publication is
+    // equally incapable of reaching Git without a durable guard record.
+    const transactions = f.stabilityGuard.store!.load().transactions.filter((t) => t.operation === ayasPublicationOperationName("micro-batch", batch.batchId));
+    assert.equal(transactions.length, 1, "exactly ONE stability transaction must exist for this batch publication");
+    assert.equal(transactions[0]!.state, "COMPLETED");
+    assert.equal(transactions[0]!.scope.impactClass, "TEST_ONLY");
+    assert.deepEqual(transactions[0]!.violations, []);
+    assert.deepEqual(transactions[0]!.healthFailures, []);
+    assert.equal(transactions[0]!.after?.repo.head, localHead, "the after-snapshot must prove which commit this batch produced");
+  });
+
+  await scenario("a batch whose declared file union reaches the storage/execution authority is refused before any decision or mutation", async () => {
+    const f = makeFixture();
+    const ref = seedItem(f, "WidgetError");
+    const batch = readyBatch(f, [{ ...ref, exactFiles: ["src/lib/runtime/RuntimeStoragePaths.ts"] }]);
+    await assert.rejects(
+      approveAndExecuteAyasMicroBatch(batch.batchId, batch.batchHash, f),
+      (e: unknown) => e instanceof AyasMicroBatchApprovalError && e.code === "RUNTIME_IMPACT_NOT_PUBLISHABLE",
+    );
+    assert.equal(f.batchStore.load().batches.find((b) => b.batchId === batch.batchId)!.status, "READY_FOR_REVIEW", "no approval may be minted for a batch this lane can never publish");
+    assert.equal(f.stabilityGuard.store!.load().transactions.length, 0);
+    assert.equal(git(f.repoRoot, "status", "--short"), "");
+  });
+
+  await scenario("a dirty working tree fail-closes the batch lane at the guard precondition — nothing executed, nothing committed", async () => {
+    const f = makeFixture();
+    const ref = seedItem(f, "WidgetError");
+    const batch = readyBatch(f, [ref]);
+    fs.writeFileSync(path.join(f.repoRoot, "scripts", "unrelated-in-flight-work.ts"), "export const wip = 1;\n");
+    const headBefore = git(f.repoRoot, "rev-parse", "HEAD");
+
+    const result = await approveAndExecuteAyasMicroBatch(batch.batchId, batch.batchHash, f);
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.code, "AYAS_MICRO_BATCH_STABILITY_GUARD_REFUSED");
+    assert.equal(result.stage, "STABILITY_GUARD");
+    assert.equal(git(f.repoRoot, "rev-parse", "HEAD"), headBefore);
+    assert.equal(fs.existsSync(path.join(f.repoRoot, ref.exactFiles[0]!)), false, "the mutation must never have run");
   });
 
   await scenario("one commit for a multi-item batch, not one per item", async () => {

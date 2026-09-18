@@ -9,6 +9,7 @@ import { approveAndExecuteAyasProposal, publishAlreadyOwnerApprovedAyasProposal,
 import { createAyasApprovalInboxStore, type AyasApprovalInboxHandle, type AyasInboxProposal } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
 import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatchArtifact";
 import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "../src/lib/brain/autonomy/AyasNovelPatchDiscovery";
+import { isolatedStabilityGuardDeps } from "./ayas-isolated-stability-guard";
 
 /**
  * M20.7 — "ONAYLA VE UYGULA" for an individual patch-artifact-backed
@@ -27,6 +28,8 @@ interface Fixture {
   readonly gateRoot: string;
   readonly inbox: AyasApprovalInboxHandle;
   readonly artifactStore: AyasPatchArtifactStore;
+  /** Every publication now runs under the Runtime Stability Guard; this keeps the guard's own observations isolated too, so no scenario's outcome can depend on the real scheduler state or the real :3000. */
+  readonly stabilityGuard: ReturnType<typeof isolatedStabilityGuardDeps>;
 }
 
 function makeFixture(): Fixture {
@@ -56,6 +59,7 @@ function makeFixture(): Fixture {
 
   return {
     repoRoot, remoteDir,
+    stabilityGuard: isolatedStabilityGuardDeps(),
     gateRoot: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-proposal-approval-gate-")),
     inbox: createAyasApprovalInboxStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-proposal-approval-inbox-")) }),
     artifactStore: createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-proposal-approval-artifacts-")) }),

@@ -8,6 +8,8 @@ import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "./Aya
 import { AyasBatchGraphifyCheckError } from "./AyasBatchGraphifyCheck";
 import { createAyasGraphifyEvidenceStore, checkAyasItemWithGraphifyEvidenced, type AyasGraphifyEvidenceStore } from "./AyasGraphifyEvidenceStore";
 import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "./AyasNovelPatchDiscovery";
+import { runGuardedAyasPublication, type AyasGuardedPublicationGuardDeps } from "./AyasGuardedPublication";
+import { classifyAyasRuntimeImpact } from "./AyasProposalRuntimeImpact";
 
 /**
  * M20.7 — "ONAYLA VE UYGULA": the individual-PRIORITY_SAFE-proposal
@@ -56,6 +58,14 @@ export interface AyasProposalApprovalDeps {
   readonly inbox: AyasApprovalInboxHandle;
   readonly artifactStore?: AyasPatchArtifactStore;
   readonly graphifyEvidenceStore?: AyasGraphifyEvidenceStore;
+  /**
+   * Runtime Stability Guard wiring. Production leaves this undefined: the
+   * guard then binds to the same `repoRoot`, `inbox` and `gateRoot` this
+   * publication itself uses, so it can never observe a different system than
+   * the one it is supervising. Tests inject isolated stores and probes so no
+   * scenario reads or writes real runtime state.
+   */
+  readonly stabilityGuard?: AyasGuardedPublicationGuardDeps;
   /** M21.1 — test-only crash-injection hooks. Never set in production. */
   readonly onJournalPhase?: (phase: import("./AyasExecutionJournal").AyasExecutionJournalPhase) => void;
   readonly onBeforeCommit?: () => void;
@@ -64,7 +74,7 @@ export interface AyasProposalApprovalDeps {
 
 export type AyasProposalApprovalOutcome =
   | { readonly ok: true; readonly commitSha: string; readonly pushed: true; readonly changedFiles: readonly string[]; readonly graphifyEvidenceItemIds: readonly string[] }
-  | { readonly ok: false; readonly code: string; readonly stage: "APPROVAL" | "EXECUTION" | "POST_VALIDATION" | "STAGING" | "COMMIT" | "PUSH"; readonly message: string; readonly graphifyEvidenceItemIds: readonly string[] };
+  | { readonly ok: false; readonly code: string; readonly stage: "APPROVAL" | "STABILITY_GUARD" | "EXECUTION" | "POST_VALIDATION" | "STAGING" | "COMMIT" | "PUSH"; readonly message: string; readonly graphifyEvidenceItemIds: readonly string[] };
 
 function git(repoRoot: string, args: readonly string[]): string {
   return execFileSync("git", [...args], { cwd: repoRoot, encoding: "utf8", windowsHide: true }).trim();
@@ -115,6 +125,16 @@ function loadAyasProposalForPublish(proposalId: string, approvedProposalHash: st
   if (proposal.safetyClassification !== "SAFE") throw new AyasProposalApprovalError("NOT_SAFE", "proposal is not SAFE-classified — never eligible for single-approval execution");
   if (proposal.mutationKind !== AYAS_PATCH_ARTIFACT_MUTATION_KIND || !proposal.patchArtifactId) {
     throw new AyasProposalApprovalError("NOT_PATCH_ARTIFACT", "single-approval execution is only wired for patch-artifact-backed proposals");
+  }
+  // Runtime-impact eligibility is checked HERE, before any decision is minted,
+  // rather than inside the publish pipeline: `approveAndExecuteAyasProposal`
+  // calls `inbox.decide()` before publishing, so a refusal raised later would
+  // leave a durable APPROVE for a proposal this lane can never publish. The
+  // classification is a pure function of `exactFiles` (already bound into
+  // `proposalHash`), so it cannot disagree with the guard's own re-derivation.
+  const impact = classifyAyasRuntimeImpact(proposal.exactFiles);
+  if (!impact.publishable) {
+    throw new AyasProposalApprovalError("RUNTIME_IMPACT_NOT_PUBLISHABLE", `declared runtime impact ${impact.impactClass} is never eligible for one-click publication — ${impact.summary}`);
   }
   return proposal;
 }
@@ -170,7 +190,65 @@ export async function publishAlreadyOwnerApprovedAyasProposal(proposalId: string
   return publishAyasApprovedProposal(approved, deps);
 }
 
+/**
+ * The canonical mutation boundary for an individually owner-approved
+ * proposal: both public entrypoints above funnel through exactly this
+ * function, so wiring the Runtime Stability Guard here — and only here —
+ * makes a guarded publication the ONLY kind of publication this lane can
+ * perform. There is no second path to `runAyasProposalPublishPipeline`.
+ *
+ * The pipeline itself is handed to the guard unmodified, as an opaque
+ * callback. Its own staging/whitespace/commit/push discipline, its own
+ * pre-commit recovery, and its own deliberate refusal to auto-reset after a
+ * commit are all untouched — the guard supervises that pipeline, it does not
+ * replace, retry or second-guess any part of it.
+ */
 async function publishAyasApprovedProposal(approved: AyasInboxProposal, deps: AyasProposalApprovalDeps): Promise<AyasProposalApprovalOutcome> {
+  const guarded = await runGuardedAyasPublication<AyasProposalApprovalOutcome>({
+    lane: "proposal",
+    subjectId: approved.proposalId,
+    exactFiles: approved.exactFiles,
+    repoRoot: deps.repoRoot,
+    gateRoot: deps.gateRoot,
+    inbox: deps.inbox,
+    publish: () => runAyasProposalPublishPipeline(approved, deps),
+    ...(deps.stabilityGuard === undefined ? {} : { guard: deps.stabilityGuard }),
+  });
+
+  switch (guarded.state) {
+    case "COMPLETED":
+      return guarded.value;
+
+    case "REFUSED":
+      // Nothing was attempted: no mutation, no commit, no push.
+      return { ok: false, code: "AYAS_PROPOSAL_STABILITY_GUARD_REFUSED", stage: "STABILITY_GUARD", message: guarded.reasons.join(" | "), graphifyEvidenceItemIds: [] };
+
+    case "ROLLED_BACK":
+      // The pipeline failed and the guard PROVED the baseline was restored, so
+      // the lane's own structured failure is the whole truth — reported
+      // unchanged, with its original code and stage.
+      return guarded.value;
+
+    default: {
+      // RECOVERY_REQUIRED / FAILED. Either the pipeline failed and its undo
+      // could not be proven (a commit exists, or the tree is still dirty), or
+      // it succeeded but a stability postcondition did not hold afterwards.
+      // Both are human-visible states and neither is auto-resolved here.
+      if (guarded.value !== undefined && !guarded.value.ok) {
+        return { ...guarded.value, message: `${guarded.value.message} | runtime stability guard: ${guarded.state} — ${guarded.reasons.join(" | ")}` };
+      }
+      return {
+        ok: false,
+        code: "AYAS_PROPOSAL_STABILITY_POSTCONDITION_FAILED",
+        stage: "STABILITY_GUARD",
+        message: `${guarded.state}: ${guarded.reasons.join(" | ")}`,
+        graphifyEvidenceItemIds: guarded.value?.ok ? guarded.value.graphifyEvidenceItemIds : [],
+      };
+    }
+  }
+}
+
+async function runAyasProposalPublishPipeline(approved: AyasInboxProposal, deps: AyasProposalApprovalDeps): Promise<AyasProposalApprovalOutcome> {
   const artifactStore = deps.artifactStore ?? createAyasPatchArtifactStore();
   const graphifyEvidenceStore = deps.graphifyEvidenceStore ?? createAyasGraphifyEvidenceStore({ rootDir: path.join(deps.gateRoot, "graphify-evidence") });
   const remoteName = deps.remoteName ?? "origin";

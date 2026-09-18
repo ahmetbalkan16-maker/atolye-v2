@@ -124,6 +124,19 @@ export interface AyasRuntimeStabilitySnapshotDeps {
   readonly salt?: AyasEnvFingerprintSalt;
   /** Env var names to record (name + set/unset + fingerprint). */
   readonly trackedEnvVars?: readonly string[];
+  /**
+   * When false, the owning process's command line is NOT read, no
+   * `commandFingerprint` is recorded — and, deliberately, no gap is recorded
+   * either. Reserved for an operation whose declared impact class can never
+   * restart or re-identify a service (see `AyasProposalRuntimeImpact`),
+   * where port+pid continuity is the required proof and process-identity
+   * fingerprinting is explicitly not applicable. Recording a gap for a check
+   * that was correctly skipped would fail-close every such operation for no
+   * safety gain, since `gaps` is itself a health failure. Defaults to true,
+   * so the prove-everything posture stays the default and a caller has to
+   * ask for the lighter one.
+   */
+  readonly probeCommandLine?: boolean;
 }
 
 const DEFAULT_TRACKED_ENV_VARS = ["AYAS_AUTONOMOUS_EXECUTION_ENABLED", "AYAS_RESEARCH_SCHEDULER_ENABLED", "ATOLYE_RUNTIME_ROOT", "NODE_ENV"] as const;
@@ -214,8 +227,8 @@ export function captureAyasRuntimeStabilitySnapshot(deps: AyasRuntimeStabilitySn
       services.push({ port, listening: false });
       continue;
     }
-    const commandLine = commandProbe(pid);
-    if (commandLine === undefined) gaps.push(`command line unreadable for pid ${pid} on port ${port}`);
+    const commandLine = deps.probeCommandLine === false ? undefined : commandProbe(pid);
+    if (commandLine === undefined && deps.probeCommandLine !== false) gaps.push(`command line unreadable for pid ${pid} on port ${port}`);
     services.push({ port, listening: true, pid, ...(commandLine === undefined ? {} : { commandFingerprint: fingerprintAyasValue(commandLine, salt) }) });
   }
 

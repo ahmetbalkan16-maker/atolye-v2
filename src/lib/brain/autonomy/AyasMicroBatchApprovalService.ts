@@ -8,6 +8,8 @@ import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "./Aya
 import { executeAyasApprovedMicroBatchWith, AyasMicroBatchExecutionError } from "./AyasMicroBatchExecutionService";
 import { AyasBatchGraphifyCheckError } from "./AyasBatchGraphifyCheck";
 import { createAyasGraphifyEvidenceStore, checkAyasItemWithGraphifyEvidenced, type AyasGraphifyEvidenceStore } from "./AyasGraphifyEvidenceStore";
+import { runGuardedAyasPublication, type AyasGuardedPublicationGuardDeps } from "./AyasGuardedPublication";
+import { classifyAyasRuntimeImpact } from "./AyasProposalRuntimeImpact";
 
 /**
  * M18.1 — "BATCH ONAYLA VE UYGULA": the single human authorization the user
@@ -62,6 +64,13 @@ export interface AyasMicroBatchApprovalDeps {
   readonly itemStore?: AyasMicroItemStore;
   readonly artifactStore?: AyasPatchArtifactStore;
   readonly graphifyEvidenceStore?: AyasGraphifyEvidenceStore;
+  /**
+   * Runtime Stability Guard wiring — the batch lane's counterpart to
+   * `AyasProposalApprovalDeps.stabilityGuard`, using the SAME
+   * `runGuardedAyasPublication` primitive so the two owner-approved lanes
+   * cannot drift apart. Production leaves this undefined.
+   */
+  readonly stabilityGuard?: AyasGuardedPublicationGuardDeps;
   /** Test seam / legacy fallback only — used only for artifacts frozen before M19's per-artifact `graphifyImportCounts` field existed. Real callers never set this. */
   readonly expectedImportCountByGenerator?: Readonly<Record<string, number>>;
   /** M21.1 — test-only crash-injection hooks. Never set in production. */
@@ -72,7 +81,7 @@ export interface AyasMicroBatchApprovalDeps {
 
 export type AyasMicroBatchApprovalOutcome =
   | { readonly ok: true; readonly commitSha: string; readonly pushed: true; readonly changedFiles: readonly string[]; readonly graphifyEvidenceItemIds: readonly string[] }
-  | { readonly ok: false; readonly code: string; readonly stage: "EXECUTION" | "POST_VALIDATION" | "STAGING" | "COMMIT" | "PUSH"; readonly message: string; readonly graphifyEvidenceItemIds: readonly string[] };
+  | { readonly ok: false; readonly code: string; readonly stage: "STABILITY_GUARD" | "EXECUTION" | "POST_VALIDATION" | "STAGING" | "COMMIT" | "PUSH"; readonly message: string; readonly graphifyEvidenceItemIds: readonly string[] };
 
 function git(repoRoot: string, args: readonly string[]): string {
   return execFileSync("git", [...args], { cwd: repoRoot, encoding: "utf8", windowsHide: true }).trim();
@@ -151,10 +160,26 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
   if (batchBefore.status !== "READY_FOR_REVIEW") throw new AyasMicroBatchApprovalError("NOT_READY", `batch status is ${batchBefore.status}, not READY_FOR_REVIEW`);
   if (batchBefore.batchHash !== approvedBatchHash) throw new AyasMicroBatchApprovalError("BATCH_HASH_MISMATCH", "the batch changed since it was shown for review — authorization refused");
 
+  // Runtime-impact eligibility, checked before the decision is minted — a
+  // refusal raised after `decide()` would leave a durable APPROVE for a batch
+  // this lane can never publish. Derived purely from `exactFilesUnion`, which
+  // `batchHash` already binds.
+  const impact = classifyAyasRuntimeImpact(batchBefore.exactFilesUnion);
+  if (!impact.publishable) {
+    throw new AyasMicroBatchApprovalError("RUNTIME_IMPACT_NOT_PUBLISHABLE", `declared runtime impact ${impact.impactClass} is never eligible for one-click publication — ${impact.summary}`);
+  }
+
   // --- decide: one durable APPROVE decision, binding this exact batchHash + baseHead (AyasMicroBatch.decide's own existing guard) ---
   const now = () => new Date().toISOString();
   batchStore.decide(batchId, "APPROVE", approvedBatchHash, now());
 
+  /**
+   * Everything from Package C execution to the verified push, unchanged.
+   * Handed to `runGuardedAyasPublication` as an opaque callback so this lane
+   * and the individual-proposal lane share ONE Runtime Stability Guard
+   * integration rather than two that can drift.
+   */
+  const publishPipeline = async (): Promise<AyasMicroBatchApprovalOutcome> => {
   // --- Package C execution, with the per-item Graphify structural check inside the same atomic write ---
   try {
     await executeAyasApprovedMicroBatchWith(batchId, {
@@ -254,4 +279,40 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
   }
 
   return { ok: true, commitSha, pushed: true, changedFiles: files, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
+  };
+
+  const guarded = await runGuardedAyasPublication<AyasMicroBatchApprovalOutcome>({
+    lane: "micro-batch",
+    subjectId: batchId,
+    exactFiles: batchBefore.exactFilesUnion,
+    repoRoot: deps.repoRoot,
+    gateRoot: deps.gateRoot,
+    publish: publishPipeline,
+    ...(deps.stabilityGuard === undefined ? {} : { guard: deps.stabilityGuard }),
+  });
+
+  switch (guarded.state) {
+    case "COMPLETED":
+      return guarded.value;
+    case "REFUSED":
+      // Nothing was attempted: no mutation, no commit, no push.
+      return { ok: false, code: "AYAS_MICRO_BATCH_STABILITY_GUARD_REFUSED", stage: "STABILITY_GUARD", message: guarded.reasons.join(" | "), graphifyEvidenceItemIds: [] };
+    case "ROLLED_BACK":
+      // The pipeline failed and the guard PROVED the baseline was restored, so
+      // the lane's own structured failure is reported unchanged.
+      return guarded.value;
+    default: {
+      // RECOVERY_REQUIRED / FAILED — real and unverified, never auto-resolved.
+      if (guarded.value !== undefined && !guarded.value.ok) {
+        return { ...guarded.value, message: `${guarded.value.message} | runtime stability guard: ${guarded.state} — ${guarded.reasons.join(" | ")}` };
+      }
+      return {
+        ok: false,
+        code: "AYAS_MICRO_BATCH_STABILITY_POSTCONDITION_FAILED",
+        stage: "STABILITY_GUARD",
+        message: `${guarded.state}: ${guarded.reasons.join(" | ")}`,
+        graphifyEvidenceItemIds: guarded.value?.ok ? guarded.value.graphifyEvidenceItemIds : [],
+      };
+    }
+  }
 }
