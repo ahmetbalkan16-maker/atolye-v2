@@ -254,6 +254,25 @@ function run() {
     );
   });
 
+  scenario("M25: every durable self-improvement subtree present on disk has a matching .gitignore rule (repoClean regression guard)", () => {
+    // Confirmed live impact, not theoretical: M24 added
+    // data/brain/self-improvement/research-novelty/ but missed its .gitignore
+    // line, so the first real write there made `git status --porcelain`
+    // non-empty — which is exactly what the AYAS observer's own repoClean
+    // check reads to decide OBSERVING vs PAUSED_DIRTY_REPO. A future sprint
+    // that adds another durable subtree and forgets this same line would
+    // silently reproduce the identical self-improvement outage, so this
+    // pins the CONTRACT (every subtree present must be covered), not just
+    // today's one fixed path — it stays meaningful as the app's own durable
+    // state grows.
+    const gitignore = fs.readFileSync(path.join(REPO_ROOT, ".gitignore"), "utf8");
+    const root = path.join(REPO_ROOT, "data", "brain", "self-improvement");
+    if (!fs.existsSync(root)) return; // nothing accumulated yet on this machine — nothing to check
+    const subdirs = fs.readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+    const missing = subdirs.filter((name) => !gitignore.includes(`/data/brain/self-improvement/${name}/`));
+    assert.deepEqual(missing, [], `every data/brain/self-improvement/<name>/ subtree on disk must have a matching .gitignore rule - missing: ${missing.join(", ")}`);
+  });
+
   scenario(".gitattributes pins the LF line-ending policy", () => {
     const attrs = fs.readFileSync(path.join(REPO_ROOT, ".gitattributes"), "utf8");
     assert.match(attrs, /\*\s+text=auto\s+eol=lf/, "the LF policy must stay pinned");

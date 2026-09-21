@@ -240,11 +240,15 @@ async function main() {
   });
 
   // === PowerShell register/unregister lifecycle (real invocations, isolated fixture Startup dir) ===
+  // `-ForceStartupShortcut` pins these scenarios to the shortcut-only code
+  // path (M25 added a Task Scheduler-first path — see the dedicated
+  // scheduled-task scenarios below) so they stay isolated from this
+  // machine's real "AYAS Autonomy Observer" registration.
 
   await scenario("register dry-run reports what WOULD happen (continuous mode) and makes no filesystem change", () => {
     const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-startup-"));
     const before = fs.readdirSync(fixture);
-    const { stdout, code } = runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-StartupDir", fixture]);
+    const { stdout, code } = runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-StartupDir", fixture, "-ForceStartupShortcut"]);
     assert.equal(code, 0);
     assert.match(stdout, /DRY-RUN/);
     assert.match(stdout, /observe-only/);
@@ -254,14 +258,14 @@ async function main() {
 
   await scenario("register -Apply creates exactly one shortcut, and a second -Apply detects and replaces it rather than duplicating", () => {
     const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-startup-"));
-    const first = runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture]);
+    const first = runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture, "-ForceStartupShortcut"]);
     assert.equal(first.code, 0);
     assert.match(first.stdout, /Installed/);
     const afterFirst = fs.readdirSync(fixture);
     assert.equal(afterFirst.length, 1);
-    const dryRunSecond = runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-StartupDir", fixture]);
+    const dryRunSecond = runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-StartupDir", fixture, "-ForceStartupShortcut"]);
     assert.match(dryRunSecond.stdout, /Existing installation detected/);
-    const second = runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture]);
+    const second = runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture, "-ForceStartupShortcut"]);
     assert.equal(second.code, 0);
     const afterSecond = fs.readdirSync(fixture);
     assert.equal(afterSecond.length, 1, "re-applying must replace, never duplicate, the fixed-name shortcut");
@@ -269,7 +273,7 @@ async function main() {
 
   await scenario("the generated shortcut's Arguments literally contain -Continuous, and the wrapper script maps it to --continuous for the real entrypoint", () => {
     const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-startup-"));
-    runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture]);
+    runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture, "-ForceStartupShortcut"]);
     const readArgs = execFileSync(
       PS,
       ["-NoProfile", "-Command", `$s = New-Object -ComObject WScript.Shell; $lnk = $s.CreateShortcut("${path.join(fixture, "AYAS Autonomy Observer.lnk")}"); Write-Output $lnk.Arguments`],
@@ -358,9 +362,79 @@ async function main() {
     assert.match(forwarded, /--interval-ms\s+12345\b/, "-IntervalMs must reach the real entrypoint");
   });
 
+  await scenario("M25 BEHAVIOR: a continuous observer that keeps crashing is restarted a bounded number of times, then exits non-zero rather than looping forever", () => {
+    // A `-Continuous` run has no code path that exits 0 on its own (see the
+    // wrapper's own comment), so a persistently non-zero-exiting child is
+    // the realistic crash shape this test reproduces - counted via a PATH
+    // shim, exactly like the argument-forwarding test above, but exiting 7
+    // on every invocation instead of forwarding to a recorder.
+    const shim = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-npx-crash-shim-"));
+    const countFile = path.join(shim, "count.txt");
+    fs.writeFileSync(countFile, "0");
+    fs.writeFileSync(
+      path.join(shim, "npx.ps1"),
+      [
+        `$n = [int](Get-Content -LiteralPath ${JSON.stringify(countFile)}) + 1`,
+        `Set-Content -LiteralPath ${JSON.stringify(countFile)} -Value $n`,
+        `exit 7`,
+      ].join("\n") + "\n",
+    );
+    fs.writeFileSync(path.join(shim, "npx.cmd"), `@echo off\r\nexit /b 7\r\n`);
+    let code: number;
+    let combined = "";
+    try {
+      const out = execFileSync(
+        PS,
+        ["-NoProfile", "-File", path.join(REPO_ROOT, "scripts", "ayas-autonomy-daemon.ps1"), "-Continuous", "-MaxRestarts", "3", "-RestartDelaySeconds", "0"],
+        { encoding: "utf8", windowsHide: true, env: { ...process.env, PATH: `${shim}${path.delimiter}${process.env.PATH ?? ""}` } },
+      );
+      combined = out;
+      code = 0;
+    } catch (error) {
+      const e = error as { stdout?: string; stderr?: string; status?: number };
+      combined = `${e.stdout ?? ""}\n${e.stderr ?? ""}`;
+      code = e.status ?? 1;
+    }
+    assert.notEqual(code, 0, "a persistently crashing continuous observer must eventually report failure, never a silent success");
+    assert.equal(fs.readFileSync(countFile, "utf8").trim(), "3", "must attempt exactly -MaxRestarts launches, no more and no fewer");
+    assert.match(combined, /restarting in/i);
+    assert.match(combined, /giving up after 3 restarts/i);
+  });
+
+  await scenario("M25 BEHAVIOR: a continuous observer that exits cleanly (code 0) is trusted as a deliberate stop and is never retried", () => {
+    // Exercises the boundary the restart loop must NOT touch: an exact 0
+    // exit is never a crash, so this must behave exactly like the pre-M25
+    // wrapper (one attempt, exit 0), regardless of -MaxRestarts.
+    const shim = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-npx-clean-shim-"));
+    const countFile = path.join(shim, "count.txt");
+    fs.writeFileSync(countFile, "0");
+    fs.writeFileSync(
+      path.join(shim, "npx.ps1"),
+      [
+        `$n = [int](Get-Content -LiteralPath ${JSON.stringify(countFile)}) + 1`,
+        `Set-Content -LiteralPath ${JSON.stringify(countFile)} -Value $n`,
+        `exit 0`,
+      ].join("\n") + "\n",
+    );
+    fs.writeFileSync(path.join(shim, "npx.cmd"), `@echo off\r\nexit /b 0\r\n`);
+    let code: number;
+    try {
+      execFileSync(
+        PS,
+        ["-NoProfile", "-File", path.join(REPO_ROOT, "scripts", "ayas-autonomy-daemon.ps1"), "-Continuous", "-MaxRestarts", "3", "-RestartDelaySeconds", "0"],
+        { encoding: "utf8", windowsHide: true, env: { ...process.env, PATH: `${shim}${path.delimiter}${process.env.PATH ?? ""}` } },
+      );
+      code = 0;
+    } catch (error) {
+      code = (error as { status?: number }).status ?? 1;
+    }
+    assert.equal(code, 0);
+    assert.equal(fs.readFileSync(countFile, "utf8").trim(), "1", "a clean exit must never be retried, even though -MaxRestarts allows more");
+  });
+
   await scenario("unregister dry-run reports what WOULD happen and removes nothing", () => {
     const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-startup-"));
-    runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture]);
+    runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture, "-ForceStartupShortcut"]);
     const before = fs.readdirSync(fixture);
     const { stdout, code } = runPs("scripts/unregister-ayas-autonomy-autostart.ps1", ["-StartupDir", fixture]);
     assert.equal(code, 0);
@@ -370,7 +444,7 @@ async function main() {
 
   await scenario("unregister -Apply is idempotent: removes when present, reports honestly when already absent", () => {
     const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-startup-"));
-    runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture]);
+    runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture, "-ForceStartupShortcut"]);
     const first = runPs("scripts/unregister-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture]);
     assert.match(first.stdout, /Removed/);
     assert.equal(fs.readdirSync(fixture).length, 0);
@@ -387,7 +461,7 @@ async function main() {
     const fixtureStartup = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-startup-spaced-"));
     const { stdout, code } = (() => {
       try {
-        const out = execFileSync(PS, ["-NoProfile", "-File", path.join(spacedRoot, "scripts", "register-ayas-autonomy-autostart.ps1"), "-Apply", "-StartupDir", fixtureStartup], { encoding: "utf8", windowsHide: true });
+        const out = execFileSync(PS, ["-NoProfile", "-File", path.join(spacedRoot, "scripts", "register-ayas-autonomy-autostart.ps1"), "-Apply", "-StartupDir", fixtureStartup, "-ForceStartupShortcut"], { encoding: "utf8", windowsHide: true });
         return { stdout: out, code: 0 };
       } catch (error) {
         const e = error as { stdout?: string; status?: number };
@@ -399,6 +473,143 @@ async function main() {
     const files = fs.readdirSync(fixtureStartup);
     assert.equal(files.length, 1);
   });
+
+  // === M25: Task Scheduler-first autostart (crash-restart supervision) ===
+  // Real `Register-ScheduledTask`/`Unregister-ScheduledTask` calls against a
+  // distinct, per-test-run task name — never the real "AYAS Autonomy
+  // Observer" registration — cleaned up in a `finally` even on assertion
+  // failure so a failing test can never leave a stray task behind.
+  //
+  // Task Scheduler registration is itself refused by SOME sessions' own
+  // permissions (observed directly on the machine this suite was written
+  // against: `Register-ScheduledTask` → "Erişim engellendi" / HRESULT
+  // 0x80070005 — the exact condition `register-ayas-autonomy-autostart.ps1`
+  // is designed to fall back from, matching the pre-existing "AYAS Access
+  // Online" precedent). These scenarios must therefore pass in EITHER
+  // outcome: probe once for real, then assert the Task-Scheduler-specific
+  // contract only when this session can actually grant it, and assert the
+  // fallback contract (Startup shortcut, hidden window, task cleaned up)
+  // otherwise — never silently skip the coverage either way.
+
+  function uniqueTestTaskName(): string { return `AYAS Autonomy Observer TEST ${process.pid}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`; }
+  function getScheduledTaskInfo(taskName: string): { exists: boolean; xml: string } {
+    // `-ErrorAction Stop` is required: Get-ScheduledTask's own "not found"
+    // error is non-terminating by default, so without it execFileSync would
+    // never throw and this would report `exists: true` for a missing task.
+    try {
+      const xml = execFileSync(PS, ["-NoProfile", "-Command", `(Get-ScheduledTask -TaskName ${JSON.stringify(taskName)} -ErrorAction Stop | Export-ScheduledTask)`], { encoding: "utf8", windowsHide: true });
+      return { exists: true, xml };
+    } catch { return { exists: false, xml: "" }; }
+  }
+  function removeScheduledTaskIfPresent(taskName: string): void {
+    try { execFileSync(PS, ["-NoProfile", "-Command", `Unregister-ScheduledTask -TaskName ${JSON.stringify(taskName)} -Confirm:$false -ErrorAction SilentlyContinue`], { encoding: "utf8", windowsHide: true }); } catch { /* best effort */ }
+  }
+  const taskSchedulerAvailable = (() => {
+    const probeName = uniqueTestTaskName();
+    try {
+      execFileSync(
+        PS,
+        ["-NoProfile", "-Command", `$a = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c exit 0"; $t = New-ScheduledTaskTrigger -AtLogOn; Register-ScheduledTask -TaskName ${JSON.stringify(probeName)} -Action $a -Trigger $t -Force | Out-Null`],
+        { encoding: "utf8", windowsHide: true },
+      );
+      return true;
+    } catch { return false; }
+    finally { removeScheduledTaskIfPresent(probeName); }
+  })();
+  if (process.env.SMOKE_TRACE === "1") console.log(`Task Scheduler registration available in this session: ${taskSchedulerAvailable}`);
+
+  await scenario("register -Apply (default, no -ForceStartupShortcut) prefers Task Scheduler when available, else falls back to a hidden-window Startup shortcut — never both, never neither", () => {
+    const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-startup-"));
+    const taskName = uniqueTestTaskName();
+    try {
+      const { stdout, code } = runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture, "-TaskName", taskName]);
+      assert.equal(code, 0, stdout);
+      const info = getScheduledTaskInfo(taskName);
+      if (taskSchedulerAvailable) {
+        assert.match(stdout, /scheduled task/);
+        assert.equal(fs.readdirSync(fixture).length, 0, "the Task Scheduler path must not also create a Startup shortcut");
+        assert.ok(info.exists, "the scheduled task must actually be registered");
+        assert.match(info.xml, /<LogonType>InteractiveToken<\/LogonType>/, "must run interactively (no stored credentials / unattended widening)");
+        assert.match(info.xml, /<RestartOnFailure>/, "must declare restart-on-failure so a crash mid-run is recovered without a fresh logon");
+        assert.match(info.xml, /<Interval>PT1M<\/Interval>/, "restart interval must match the 1-minute cadence");
+        assert.match(info.xml, /<Count>3<\/Count>/, "restart count must match the bounded (never infinite) retry budget");
+        assert.doesNotMatch(info.xml, /<ExecutionTimeLimit>PT[1-9][0-9]*[MH]<\/ExecutionTimeLimit>/, "a genuinely continuous process must not carry a finite execution time cap");
+        assert.match(info.xml, /--Continuous|-Continuous/, "continuous mode must still reach the daemon wrapper");
+        assert.match(info.xml, /WindowStyle Hidden/, "the window must be hidden so it cannot be closed by an unaware user - the plausible trigger for the incident this fix addresses");
+      } else {
+        assert.match(stdout, /falling back to a Startup-folder shortcut/);
+        assert.equal(info.exists, false, "a refused Task Scheduler registration must leave no task behind");
+        const files = fs.readdirSync(fixture);
+        assert.equal(files.length, 1, "the fallback must still install exactly one Startup shortcut");
+      }
+    } finally { removeScheduledTaskIfPresent(taskName); }
+  });
+
+  await scenario("register -Apply is idempotent: a second -Apply replaces, never duplicates, whichever mechanism this session actually uses", () => {
+    const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-startup-"));
+    const taskName = uniqueTestTaskName();
+    try {
+      const first = runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture, "-TaskName", taskName]);
+      assert.equal(first.code, 0, first.stdout);
+      const second = runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture, "-TaskName", taskName]);
+      assert.equal(second.code, 0, second.stdout);
+      if (taskSchedulerAvailable) {
+        const count = execFileSync(PS, ["-NoProfile", "-Command", `(Get-ScheduledTask -TaskName ${JSON.stringify(taskName)} | Measure-Object).Count`], { encoding: "utf8", windowsHide: true }).trim();
+        assert.equal(count, "1", "re-applying must replace, never duplicate, the task");
+      } else {
+        assert.equal(fs.readdirSync(fixture).length, 1, "re-applying must replace, never duplicate, the fallback shortcut");
+      }
+    } finally { removeScheduledTaskIfPresent(taskName); }
+  });
+
+  await scenario("register dry-run makes no registration either way, and honestly reports an existing one on the mechanism this session actually uses", () => {
+    const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-startup-"));
+    const taskName = uniqueTestTaskName();
+    try {
+      const dryBefore = runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-StartupDir", fixture, "-TaskName", taskName]);
+      assert.equal(dryBefore.code, 0);
+      assert.equal(getScheduledTaskInfo(taskName).exists, false, "dry-run must never register anything");
+      assert.equal(fs.readdirSync(fixture).length, 0, "dry-run must never write a shortcut either");
+      runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture, "-TaskName", taskName]);
+      const dryAfter = runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-StartupDir", fixture, "-TaskName", taskName]);
+      if (taskSchedulerAvailable) {
+        assert.match(dryAfter.stdout, /Existing scheduled task detected/);
+      } else {
+        assert.match(dryAfter.stdout, /Existing Startup shortcut detected/);
+      }
+    } finally { removeScheduledTaskIfPresent(taskName); }
+  });
+
+  await scenario("unregister removes whichever mechanism is installed (dry-run first, then -Apply, then idempotent re-run)", () => {
+    const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-startup-"));
+    const taskName = uniqueTestTaskName();
+    try {
+      runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture, "-TaskName", taskName]);
+      const dry = runPs("scripts/unregister-ayas-autonomy-autostart.ps1", ["-StartupDir", fixture, "-TaskName", taskName]);
+      assert.match(dry.stdout, /DRY-RUN: would remove/);
+      const apply = runPs("scripts/unregister-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture, "-TaskName", taskName]);
+      assert.match(apply.stdout, /Removed/);
+      assert.equal(getScheduledTaskInfo(taskName).exists, false);
+      assert.equal(fs.readdirSync(fixture).length, 0);
+      const again = runPs("scripts/unregister-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture, "-TaskName", taskName]);
+      assert.equal(again.code, 0);
+      assert.match(again.stdout, /No AYAS autonomy observer shortcut was installed/);
+    } finally { removeScheduledTaskIfPresent(taskName); }
+  });
+
+  if (taskSchedulerAvailable) {
+    await scenario("registering via Task Scheduler cleans up a leftover Startup shortcut from a prior less-reliable install, so exactly one mechanism is ever active", () => {
+      const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-startup-"));
+      const taskName = uniqueTestTaskName();
+      try {
+        runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture, "-ForceStartupShortcut"]);
+        assert.equal(fs.readdirSync(fixture).length, 1, "precondition: a shortcut exists from the forced-fallback path");
+        runPs("scripts/register-ayas-autonomy-autostart.ps1", ["-Apply", "-StartupDir", fixture, "-TaskName", taskName]);
+        assert.equal(fs.readdirSync(fixture).length, 0, "the Task Scheduler registration must remove the now-superseded shortcut");
+        assert.ok(getScheduledTaskInfo(taskName).exists);
+      } finally { removeScheduledTaskIfPresent(taskName); }
+    });
+  }
 
   console.log(`AYAS observer autostart smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-observer-autostart", scenarios: count }));
