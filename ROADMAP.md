@@ -1,5 +1,16 @@
 ---
 
+## AYAS Phase 2 P0 — Conversational Memory / Continuity — 2026-09-21
+
+- [x] Provenance/trust/freshness/conflict-aware deterministic hybrid retrieval (BM25 + Turkish concept signal + fusion/rerank).
+- [x] Empty, missing, malformed, invalid and unreadable memory-store states separated; corrupt store remains immutable on failed persistence.
+- [x] Stale/conflicting/future/overridden/instruction-injection memory excluded from prompt context; duplicates collapsed.
+- [x] Turkish continuation, direct constraint preservation and bounded typo-tolerant repair intent covered by invariant tests.
+- [x] 15-invariant conversation benchmark, 27-probe adversarial suite, full affected AYAS and Phase 1 health/authority regression matrix green.
+- [x] Graphify refreshed and reviewed with commit-oriented/untracked-file limitation explicitly recorded.
+- [ ] Owner review, commit and push. This run intentionally leaves all Git publication actions pending.
+- [ ] Deferred: trace-driven learning, skill A/B optimization, causality memory, local/cloud routing, M26-B, F7/F8 and unrelated production work.
+
 ## AYAS Wake Word + Phone Access + Premium 3D Brain Orb — 2026-09-15
 
 - [x] `"UYAN"` primary wake alias; `HEY UYAN`/`AYAS`/`HEY AYAS`/`AYA`/`HEY AYA`/`ATÖLYE` backward-compatible, one canonical wake intent.

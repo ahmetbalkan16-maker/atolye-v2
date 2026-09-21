@@ -15,10 +15,23 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { containsBrainSecret } from "@/lib/brain/BrainRedaction";
-import { validateBrainMemoryRecord } from "@/lib/brain/BrainMemoryModel";
+import { buildBrainMemoryRecord, validateBrainMemoryRecord } from "@/lib/brain/BrainMemoryModel";
 import { brainMemorySchemaVersion, type BrainMemoryRecord } from "@/types/brainMemory";
 
 const MAX_RECORDS = 500;
+
+export type AyasMemoryStoreErrorCode =
+  | "AYAS_MEMORY_STORE_READ_FAILED"
+  | "AYAS_MEMORY_STORE_MALFORMED"
+  | "AYAS_MEMORY_STORE_INVALID"
+  | "AYAS_MEMORY_STORE_WRITE_FAILED";
+
+export class AyasMemoryStoreError extends Error {
+  constructor(readonly code: AyasMemoryStoreErrorCode, message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "AyasMemoryStoreError";
+  }
+}
 
 export interface AyasMemoryStoreOptions {
   /** Override the `data/brain` root — for tests. */
@@ -41,6 +54,53 @@ interface StoreFile {
   records: BrainMemoryRecord[];
 }
 
+const MEMORY_KINDS = new Set([
+  "project-structure", "decision", "test-result", "known-bug", "user-preference",
+  "security-policy", "outcome-history", "graphify-state", "environment-note",
+]);
+const MEMORY_IMPORTANCE = new Set(["transient", "normal", "durable", "pinned"]);
+const MEMORY_CONFIDENCE = new Set(["observed", "inferred", "reported"]);
+const PRODUCTION_STAGES = new Set([
+  "research", "script", "scenes", "visuals", "animation", "video", "audio",
+  "assembly", "thumbnail", "seo", "youtube", "export",
+]);
+
+function isStoredMemoryRecord(value: unknown): value is BrainMemoryRecord {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Partial<BrainMemoryRecord>;
+  if (!(
+    record.schemaVersion === brainMemorySchemaVersion &&
+    typeof record.recordId === "string" && record.recordId.trim().length > 0 &&
+    typeof record.contentFingerprint === "string" && record.contentFingerprint.trim().length > 0 &&
+    typeof record.redacted === "boolean" &&
+    typeof record.kind === "string" && MEMORY_KINDS.has(record.kind) &&
+    typeof record.title === "string" &&
+    typeof record.body === "string" &&
+    typeof record.importance === "string" && MEMORY_IMPORTANCE.has(record.importance) &&
+    typeof record.confidence === "string" && MEMORY_CONFIDENCE.has(record.confidence) &&
+    (record.stage === undefined || (typeof record.stage === "string" && PRODUCTION_STAGES.has(record.stage))) &&
+    typeof record.observedAt === "string" &&
+    (record.expiresAt === undefined || typeof record.expiresAt === "string") &&
+    Array.isArray(record.tags) && record.tags.every((tag) => typeof tag === "string") &&
+    Array.isArray(record.links) && record.links.every((link) => typeof link === "string") &&
+    validateBrainMemoryRecord(record as BrainMemoryRecord).valid
+  )) return false;
+
+  const rebuilt = buildBrainMemoryRecord({
+    kind: record.kind as BrainMemoryRecord["kind"],
+    title: record.title,
+    body: record.body,
+    importance: record.importance as BrainMemoryRecord["importance"],
+    confidence: record.confidence as BrainMemoryRecord["confidence"],
+    tags: record.tags,
+    ...(record.stage ? { stage: record.stage as NonNullable<BrainMemoryRecord["stage"]> } : {}),
+    observedAt: record.observedAt,
+    links: record.links,
+    ...(record.expiresAt ? { expiresAt: record.expiresAt } : {}),
+  });
+  return rebuilt.recordId === record.recordId && rebuilt.contentFingerprint === record.contentFingerprint;
+}
+
 function assertNoLeak(record: BrainMemoryRecord): void {
   if (
     containsBrainSecret(record.title) ||
@@ -58,20 +118,54 @@ export function createAyasMemoryStore(options: AyasMemoryStoreOptions = {}): Aya
   const file = path.join(dir, "records.json");
 
   const readFile = (): StoreFile => {
+    let raw: string;
     try {
-      const parsed = JSON.parse(fs.readFileSync(file, "utf-8")) as Partial<StoreFile>;
-      const records = Array.isArray(parsed.records) ? parsed.records : [];
-      return { schemaVersion: brainMemorySchemaVersion, records };
-    } catch {
-      return { schemaVersion: brainMemorySchemaVersion, records: [] };
+      raw = fs.readFileSync(file, "utf-8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
+        return { schemaVersion: brainMemorySchemaVersion, records: [] };
+      }
+      throw new AyasMemoryStoreError("AYAS_MEMORY_STORE_READ_FAILED", "memory store could not be read", {
+        cause: error,
+      });
     }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (error) {
+      throw new AyasMemoryStoreError("AYAS_MEMORY_STORE_MALFORMED", "memory store is not valid JSON", {
+        cause: error,
+      });
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new AyasMemoryStoreError("AYAS_MEMORY_STORE_INVALID", "memory store has an invalid envelope");
+    }
+    const envelope = parsed as Partial<StoreFile>;
+    if (envelope.schemaVersion !== brainMemorySchemaVersion || !Array.isArray(envelope.records)) {
+      throw new AyasMemoryStoreError("AYAS_MEMORY_STORE_INVALID", "memory store schema is invalid");
+    }
+    if (!envelope.records.every(isStoredMemoryRecord)) {
+      throw new AyasMemoryStoreError("AYAS_MEMORY_STORE_INVALID", "memory store contains an invalid record");
+    }
+    return { schemaVersion: brainMemorySchemaVersion, records: envelope.records };
   };
 
   const writeFile = (data: StoreFile): void => {
-    fs.mkdirSync(dir, { recursive: true });
     const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
-    fs.writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
-    fs.renameSync(tmp, file);
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
+      fs.renameSync(tmp, file);
+    } catch (error) {
+      try {
+        fs.rmSync(tmp, { force: true });
+      } catch {
+        // Best-effort cleanup must never mask the original persistence failure.
+      }
+      throw new AyasMemoryStoreError("AYAS_MEMORY_STORE_WRITE_FAILED", "memory store could not be written", {
+        cause: error,
+      });
+    }
   };
 
   return {

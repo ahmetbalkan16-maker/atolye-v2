@@ -49,6 +49,7 @@ function fold(text: string): string {
 
 /** Demonstratives / back-references we look for. */
 const REF_PATTERNS: { re: RegExp; phrase: string }[] = [
+  { re: /\b(dun konustugumuz|onceki konusmada|gecen konustugumuz|kaldigimiz konu)\b/, phrase: "önceki konuşma" },
   { re: /\b(az once(ki)?|az onceden|demin(ki)?|birazonce|bir onceki|onceki)\b/, phrase: "az önceki" },
   { re: /\b(o proje(yi|nin|de)?|su proje(yi|nin)?|bu proje(yi|nin)?)\b/, phrase: "o proje" },
   { re: /\b(ilki|birincisi|birincisine|birincisini|ilkine|ilkini)\b/, phrase: "ilk seçenek" },
@@ -82,7 +83,17 @@ export function resolveAyasReferences(
   const lastUserBefore = [...history].reverse().find((t) => t.role === "user" && t.text.trim() !== raw)?.text?.trim() ?? null;
 
   for (const phrase of present) {
-    if (phrase === "ilk seçenek" || phrase === "ikinci seçenek" || phrase === "üçüncü seçenek") {
+    if (phrase === "önceki konuşma") {
+      if (state.activeTopic) {
+        resolutions.push({ phrase, referent: state.activeTopic, kind: "continuation" });
+      } else if (state.lastAssistantText) {
+        resolutions.push({ phrase, referent: truncate(state.lastAssistantText, 120), kind: "continuation" });
+      } else if (lastUserBefore) {
+        resolutions.push({ phrase, referent: truncate(lastUserBefore, 120), kind: "continuation" });
+      } else {
+        unresolved.push(phrase);
+      }
+    } else if (phrase === "ilk seçenek" || phrase === "ikinci seçenek" || phrase === "üçüncü seçenek") {
       const index = phrase === "ilk seçenek" ? 0 : phrase === "ikinci seçenek" ? 1 : 2;
       const option = state.options[index];
       if (option) resolutions.push({ phrase, referent: option, kind: "last-topic" });

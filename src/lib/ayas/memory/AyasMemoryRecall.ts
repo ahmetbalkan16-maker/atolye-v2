@@ -3,8 +3,10 @@
  *
  *   query → recall → top-K relevant → prompt lines
  *
- * Deterministic relevance (no embeddings this phase): a record scores on
- * importance + tag/word overlap with the query + the active project. Only the
+ * Deterministic hybrid relevance (no embedding/network dependency): BM25-style
+ * lexical rank and Turkish-aware concept rank are fused, then reranked by
+ * source trust, freshness, importance and active-project continuity. Conflicts
+ * and suspicious timestamps are quarantined before prompt assembly. Only the
  * top few, capped by characters, ever reach the prompt — the whole memory is
  * never dumped. Pure aside from the one `AyasMemoryStore.load()` read.
  *
@@ -13,63 +15,20 @@
  * never throws into the caller and never blocks the response.
  */
 
-import { buildBrainMemoryRecord, recallBrainMemory } from "@/lib/brain/BrainMemoryModel";
+import { buildBrainMemoryRecord } from "@/lib/brain/BrainMemoryModel";
 import type { BrainMemoryRecord } from "@/types/brainMemory";
 import { createAyasMemoryStore, type AyasMemoryStoreOptions } from "./AyasMemoryStore";
 import { extractAyasMemoryCandidates } from "./AyasMemoryCandidate";
 import { scoreAyasMemoryCandidate } from "./AyasMemoryGovernance";
+import {
+  retrieveAyasMemory,
+  type AyasMemoryFreshness,
+  type AyasMemoryTrustClass,
+} from "./AyasMemoryRetrieval";
 
 const TOP_K = 4;
 const MAX_LINE_CHARS = 160;
 const MAX_BLOCK_CHARS = 700;
-
-function fold(text: string): string {
-  return String(text ?? "")
-    .toLocaleLowerCase("tr")
-    .replace(/[İıI]/g, "i")
-    .replace(/ç/g, "c")
-    .replace(/ö/g, "o")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ğ/g, "g")
-    .replace(/[^\p{L}\p{N}\s]/gu, " ");
-}
-
-const IMPORTANCE_WEIGHT: Record<BrainMemoryRecord["importance"], number> = {
-  transient: 0,
-  normal: 2,
-  durable: 4,
-  pinned: 6,
-};
-
-/**
- * ROOT-CAUSE FIX (real-user-test bug, recall side): pure keyword-overlap
- * ranking structurally cannot connect a question like "benim adım ne" to a
- * stored record about "Ahmet" — Turkish morphology means the query almost
- * never shares an exact token with the stored name/fact ("adım" vs "adı" vs
- * "ismim" vs the name itself are all different tokens here, no stemming).
- * A durable identity record already outscores a merely-`normal` project note
- * on base importance weight alone once overlap is ~0 for both — but this
- * bonus makes that a GUARANTEED structural property instead of an emergent
- * one that depends on nothing else outscoring it. Scoped tightly to the
- * "kimlik" tag `extractAyasMemoryCandidates` attaches ONLY to explicit
- * self-identification statements — never a blanket boost for every
- * user-preference, and never for project/tool/environment notes.
- */
-const IDENTITY_TAG_BONUS = 3;
-
-const STOPWORDS = new Set([
-  "bir", "bu", "su", "o", "ve", "ile", "icin", "ne", "mi", "mu", "var", "yok",
-  "the", "a", "an", "is", "to", "of",
-]);
-
-function tokens(text: string): Set<string> {
-  return new Set(
-    fold(text)
-      .split(/\s+/)
-      .filter((w) => w.length >= 3 && !STOPWORDS.has(w)),
-  );
-}
 
 export interface RecallAyasMemoryOptions {
   readonly activeProject?: string;
@@ -83,25 +42,7 @@ export function rankAyasMemory(
   query: string,
   options: { activeProject?: string; nowIso?: string } = {},
 ): BrainMemoryRecord[] {
-  const recalled = recallBrainMemory(records, {}, options.nowIso).records;
-  const qTokens = tokens(query);
-  const projectTokens = options.activeProject ? tokens(options.activeProject) : new Set<string>();
-
-  const scored = recalled.map((r) => {
-    const rText = tokens(`${r.title} ${r.body} ${r.tags.join(" ")}`);
-    let overlap = 0;
-    for (const t of qTokens) if (rText.has(t)) overlap += 2;
-    for (const t of projectTokens) if (rText.has(t)) overlap += 3;
-    const identityBonus = r.tags.includes("kimlik") ? IDENTITY_TAG_BONUS : 0;
-    const score = IMPORTANCE_WEIGHT[r.importance] + overlap + identityBonus;
-    return { r, score };
-  });
-
-  return scored
-    .filter((s) => s.score > 0 && (s.r.importance === "pinned" || s.score >= 2))
-    .sort((a, b) => b.score - a.score || Date.parse(b.r.observedAt) - Date.parse(a.r.observedAt))
-    .slice(0, TOP_K)
-    .map((s) => s.r);
+  return retrieveAyasMemory(records, query, { ...options, limit: TOP_K }).selected.map((decision) => decision.record);
 }
 
 function toLine(r: BrainMemoryRecord): string {
@@ -111,13 +52,22 @@ function toLine(r: BrainMemoryRecord): string {
 }
 
 export interface AyasMemoryRecallTrace {
+  readonly status: "ok" | "unreadable";
   readonly lines: readonly string[];
   /** Per-line identity metadata used by the chat relevance gate. */
-  readonly entries: readonly { readonly line: string; readonly identity: boolean }[];
+  readonly entries: readonly {
+    readonly line: string;
+    readonly identity: boolean;
+    readonly trustClass: AyasMemoryTrustClass;
+    readonly freshness: AyasMemoryFreshness;
+  }[];
   /** How many records actually made it into `lines` (post char-budget cutoff). */
   readonly recallCount: number;
-  /** Of those, how many carry the "kimlik" (identity) tag — see `AyasMemoryRecall`'s identity bonus above and `AyasMemoryCandidate.ts`'s `IDENTITY` pattern. */
+  /** Of those, how many carry the "kimlik" (identity) tag. */
   readonly identityRecallCount: number;
+  readonly quarantinedCount: number;
+  readonly conflictCount: number;
+  readonly staleCount: number;
 }
 
 /**
@@ -135,27 +85,51 @@ export async function recallAyasMemoryWithTrace(
   try {
     const store = createAyasMemoryStore(options.store);
     const records = store.load();
-    if (records.length === 0) return { lines: [], entries: [], recallCount: 0, identityRecallCount: 0 };
-    const top = rankAyasMemory(records, query, {
+    if (records.length === 0) {
+      return { status: "ok", lines: [], entries: [], recallCount: 0, identityRecallCount: 0, quarantinedCount: 0, conflictCount: 0, staleCount: 0 };
+    }
+    const retrieval = retrieveAyasMemory(records, query, {
       ...(options.activeProject ? { activeProject: options.activeProject } : {}),
       ...(options.nowIso ? { nowIso: options.nowIso } : {}),
+      limit: TOP_K,
     });
-    if (top.length === 0) return { lines: [], entries: [], recallCount: 0, identityRecallCount: 0 };
+    if (retrieval.selected.length === 0) {
+      return {
+        status: "ok",
+        lines: [],
+        entries: [],
+        recallCount: 0,
+        identityRecallCount: 0,
+        quarantinedCount: retrieval.quarantined.length,
+        conflictCount: retrieval.quarantined.filter((decision) => decision.conflictState === "conflicting").length,
+        staleCount: retrieval.quarantined.filter((decision) => decision.quarantineReason === "stale-fact").length,
+      };
+    }
     const lines: string[] = [];
-    const entries: { line: string; identity: boolean }[] = [];
+    const entries: { line: string; identity: boolean; trustClass: AyasMemoryTrustClass; freshness: AyasMemoryFreshness }[] = [];
     let identityRecallCount = 0;
     let chars = 0;
-    for (const r of top) {
+    for (const decision of retrieval.selected) {
+      const r = decision.record;
       const line = toLine(r);
       if (chars + line.length > MAX_BLOCK_CHARS) break;
       lines.push(line);
-      entries.push({ line, identity: r.tags.includes("kimlik") });
+      entries.push({ line, identity: r.tags.includes("kimlik"), trustClass: decision.trustClass, freshness: decision.freshness });
       chars += line.length;
       if (r.tags.includes("kimlik")) identityRecallCount += 1;
     }
-    return { lines, entries, recallCount: lines.length, identityRecallCount };
+    return {
+      status: "ok",
+      lines,
+      entries,
+      recallCount: lines.length,
+      identityRecallCount,
+      quarantinedCount: retrieval.quarantined.length,
+      conflictCount: retrieval.quarantined.filter((decision) => decision.conflictState === "conflicting").length,
+      staleCount: retrieval.quarantined.filter((decision) => decision.quarantineReason === "stale-fact").length,
+    };
   } catch {
-    return { lines: [], entries: [], recallCount: 0, identityRecallCount: 0 };
+    return { status: "unreadable", lines: [], entries: [], recallCount: 0, identityRecallCount: 0, quarantinedCount: 0, conflictCount: 0, staleCount: 0 };
   }
 }
 

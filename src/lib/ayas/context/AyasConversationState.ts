@@ -162,7 +162,7 @@ function selectedOptionIndex(text: string): number | null {
 
 function immediateConstraint(text: string): string | null {
   const value = fold(text);
-  if (!/\b(dokunmayalim|girme|girmeyelim|degistirme|konusmayalim|haric|disinda tut|olmasin)\b/.test(value)) return null;
+  if (!/\b(dokunma|dokunmayalim|girme|girmeyelim|degistirme|konusmayalim|haric|disinda tut|olmasin)\b/.test(value)) return null;
   return compact(text, 140);
 }
 

@@ -243,6 +243,30 @@ async function run() {
     assert.match(a.block.stateLines?.join("\n") ?? "", /context[\s\S]*Memory/i);
   });
 
+  await scenario('long-session follow-up — "Dün konuştuğumuz şeyi devam ettir" resolves without guessing', () => {
+    const hist = h(
+      ["user", "Mimar Sinan videosunun girişini planlayalım."],
+      ["brain", "Girişi kısa bir İstanbul panoramasıyla açmayı öneriyorum."],
+    );
+    const a = assembleAyasContext({ userText: "Dün konuştuğumuz şeyi devam ettir.", history: hist });
+    assert.equal(a.clarification, null);
+    assert.ok(a.resolvedReferents.length > 0);
+    assert.match(a.block.referenceLines?.join("\n") ?? "", /Mimar Sinan|İstanbul panoraması/i);
+  });
+
+  await scenario("long-session constraint — a direct 'dokunma' instruction survives compression", () => {
+    const hist = h(
+      ["user", "Bu konuşmada production'a dokunma."],
+      ...Array.from({ length: 20 }, (_, index) => [
+        index % 2 ? "brain" : "user",
+        `Bağlam turu ${index + 1} hakkında ayrıntı.`,
+      ] as ["user" | "brain", string]),
+    );
+    const a = assembleAyasContext({ userText: "Devam et.", history: hist });
+    assert.match(a.block.stateLines?.join("\n") ?? "", /production'a dokunma/i);
+    assert.ok(a.trace.droppedTurns > 0);
+  });
+
   console.log(`AYAS context smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-context", scenarios: count }));
 }

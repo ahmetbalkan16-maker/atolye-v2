@@ -14,8 +14,9 @@ import path from "node:path";
 
 import { extractAyasMemoryCandidates } from "../src/lib/ayas/memory/AyasMemoryCandidate";
 import { scoreAyasMemoryCandidate } from "../src/lib/ayas/memory/AyasMemoryGovernance";
-import { createAyasMemoryStore } from "../src/lib/ayas/memory/AyasMemoryStore";
-import { rankAyasMemory, recallAyasMemoryLines, persistAyasMemoryFromTurn } from "../src/lib/ayas/memory/AyasMemoryRecall";
+import { AyasMemoryStoreError, createAyasMemoryStore } from "../src/lib/ayas/memory/AyasMemoryStore";
+import { rankAyasMemory, recallAyasMemoryLines, recallAyasMemoryWithTrace, persistAyasMemoryFromTurn } from "../src/lib/ayas/memory/AyasMemoryRecall";
+import { retrieveAyasMemory } from "../src/lib/ayas/memory/AyasMemoryRetrieval";
 import { buildBrainMemoryRecord } from "../src/lib/brain/BrainMemoryModel";
 
 let count = 0;
@@ -184,6 +185,21 @@ async function run() {
     assert.equal(store.load().length, 0);
   });
 
+  await scenario("store — structurally invalid records fail closed with a typed error", () => {
+    const root = tmpRoot();
+    const dir = path.join(root, "memory");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, "records.json"),
+      JSON.stringify({ schemaVersion: "1", records: [{ schemaVersion: "1", body: 42 }] }),
+      "utf-8",
+    );
+    assert.throws(
+      () => createAyasMemoryStore({ rootDir: root }).load(),
+      (error: unknown) => error instanceof AyasMemoryStoreError && error.code === "AYAS_MEMORY_STORE_INVALID",
+    );
+  });
+
   await scenario("store — prune drops expired non-pinned; keeps pinned", () => {
     const root = tmpRoot();
     const store = createAyasMemoryStore({ rootDir: root });
@@ -252,6 +268,62 @@ async function run() {
     assert.equal(lines.length >= 1, true);
     assert.match(lines[0], /\(user-preference\)/);
     assert.ok(lines.join("\n").length <= 800);
+  });
+
+  await scenario("retrieval — irrelevant durable memory is not selected solely because it is durable", () => {
+    const result = retrieveAyasMemory(
+      [rec({ body: "bundan sonra cevapları kısa tut", tags: ["tercih"] })],
+      "Ankara hava durumu nasıl",
+      { nowIso: NOW },
+    );
+    assert.equal(result.selected.length, 0);
+  });
+
+  await scenario("retrieval — reported memory outranks a newer inferred memory", () => {
+    const result = retrieveAyasMemory(
+      [
+        rec({ body: "sesli yanıtları kısa tut", tags: ["ses"], confidence: "reported", observedAt: "2026-08-01T10:00:00.000Z" }),
+        rec({ body: "sesli yanıtları uzun tut", tags: ["ses"], confidence: "inferred", observedAt: "2026-09-10T10:00:00.000Z" }),
+      ],
+      "sesli yanıt tercihim",
+      { nowIso: NOW },
+    );
+    assert.equal(result.selected[0]?.trustClass, "user-reported");
+  });
+
+  await scenario("retrieval — conflicting identity facts are quarantined instead of guessed", () => {
+    const result = retrieveAyasMemory(
+      [
+        rec({ body: "beni Ahmet olarak hatırla", tags: ["kimlik"] }),
+        rec({ body: "beni Mehmet olarak hatırla", tags: ["kimlik"] }),
+      ],
+      "benim adım ne",
+      { nowIso: NOW },
+    );
+    assert.equal(result.selected.length, 0);
+    assert.equal(result.quarantined.length, 2);
+    assert.ok(result.quarantined.every((decision) => decision.conflictState === "conflicting"));
+    assert.ok(result.quarantined.every((decision) => decision.quarantineReason === "conflicting-fact"));
+  });
+
+  await scenario("retrieval — a future-dated fact is quarantined", () => {
+    const result = retrieveAyasMemory(
+      [rec({ body: "sesli yanıtları kısa tut", tags: ["ses"], observedAt: "2026-09-12T10:06:00.000Z" })],
+      "sesli yanıt tercihim",
+      { nowIso: NOW },
+    );
+    assert.equal(result.selected.length, 0);
+    assert.equal(result.quarantined[0]?.quarantineReason, "future-timestamp");
+  });
+
+  await scenario("retrieval — explicit current request overrides a conflicting remembered preference", () => {
+    const result = retrieveAyasMemory(
+      [rec({ body: "bundan sonra cevapları kısa tut", tags: ["tercih"] })],
+      "Bu sefer uzun ve detaylı anlat",
+      { nowIso: NOW },
+    );
+    assert.equal(result.selected.length, 0);
+    assert.equal(result.quarantined[0]?.quarantineReason, "current-request-overrides-memory");
   });
 
   /* ---------------- write path ---------------- */
@@ -323,6 +395,12 @@ async function run() {
 
       const lines = await recallAyasMemoryLines("benim adım ne", { store: { rootDir: root } });
       assert.deepEqual(lines, [], "a corrupt store degrades to an empty memory block, never throws");
+      const trace = await recallAyasMemoryWithTrace("benim adım ne", { store: { rootDir: root } });
+      assert.equal(trace.status, "unreadable", "corrupt is explicitly distinguishable from an empty store");
+      assert.throws(
+        () => createAyasMemoryStore({ rootDir: root }).load(),
+        (error: unknown) => error instanceof AyasMemoryStoreError && error.code === "AYAS_MEMORY_STORE_MALFORMED",
+      );
 
       const outcome = await persistAyasMemoryFromTurn({
         userText: "bundan sonra kısa yaz",
@@ -330,6 +408,7 @@ async function run() {
         store: { rootDir: root },
       });
       assert.equal(typeof outcome.stored, "number", "the write side still resolves normally against a corrupt file");
+      assert.equal(fs.readFileSync(path.join(dir, "records.json"), "utf-8"), "{ this is not valid JSON ][", "corrupt state is never overwritten");
     },
   );
 

@@ -1,5 +1,16 @@
 ---
 
+## 2026-09-21 — AYAS Phase 2 P0 Conversational Intelligence (READY FOR OWNER REVIEW; not committed)
+
+- Added deterministic hybrid memory retrieval with BM25 lexical scoring, Turkish concept matching, reciprocal-rank fusion, trust/freshness/importance/project reranking and stable tie-breaking.
+- Added fail-closed quarantine for equal-trust conflicts, future/stale facts, current-request overrides and memory instruction-injection shapes; duplicate records no longer repeat in recall.
+- Hardened the memory store with runtime schema/enum/timestamp/canonical-identity validation and stable read/malformed/invalid/write errors. Missing/empty remains valid; corrupt state is never silently replaced; failed temp write/rename preserves committed bytes.
+- Improved Turkish continuation/reference resolution, direct `dokunma` constraint preservation and narrowly bounded one-character repair-intent typo tolerance.
+- Added a 15-invariant conversation benchmark and 27-probe adversarial storage/retrieval suite. TypeScript, changed-file ESLint, diff check, affected AYAS suites, Phase 1 health 61/61 and observer/research/authority regressions pass.
+- Retrieval performance on 500 records / 25 repetitions: 11.447 ms average, 13.343 ms p95, 14.326 ms max (isolated final run).
+- Graphify structural refresh is current at HEAD with 13,476 nodes / 39,644 edges / 291 communities, 0 duplicate ids and 0 dangling edges. New untracked files are not treated as fully represented; no Graphify-only safety claim is made.
+- No commit or push was performed.
+
 ## 2026-09-15 — AYAS Wake Word + Phone Access + Premium 3D Brain Orb (READY TO COMMIT; not committed)
 
 - **Wake alias resolver**: `"UYAN"` is the primary wake word; `HEY UYAN`,
