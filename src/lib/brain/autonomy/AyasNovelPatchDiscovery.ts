@@ -126,6 +126,14 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
       const reason = `blast-radius/domain policy: ${limitViolations.map((v) => `${v.rule}: ${v.detail}`).join("; ")}`;
       rejections.push({ candidateId: generated.candidateId, reason });
       writeRejectionLog(repoRoot, { candidateId: generated.candidateId, reason, at: observation.now });
+      // A policy rejection is a deterministic property of this exact
+      // generated content. Remembering its fingerprint prevents permanently
+      // over-limit candidates from spending the bounded attempt budget on
+      // every tick and starving every candidate ordered after them. A source
+      // change changes the fingerprint and automatically reopens evaluation.
+      try {
+        sandboxUnvalidatableStore.record({ semanticKey: generated.candidateId, generatorIdentity: generated.generatorIdentity, contentFingerprint, reason, requiredCapability: "none — policy limits are a property of the generated content; a changed fingerprint is evaluated again", now: observation.now });
+      } catch { /* best-effort suppression only — never blocks discovery */ }
       continue;
     }
 

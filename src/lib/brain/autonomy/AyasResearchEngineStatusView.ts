@@ -2,6 +2,7 @@ import { createAyasResearchSchedulerStateStore } from "./AyasResearchSchedulerSt
 import { createAyasResearchSourceStateStore } from "./AyasResearchSourceStateStore";
 import { createAyasExternalResearchStore } from "./AyasExternalResearchStore";
 import { resolveAyasResearchSourceRegistry } from "./AyasResearchSourceRegistry";
+import { createAyasLocalDiscoveryRunLedger, type AyasLocalDiscoveryRunStatus } from "./AyasLocalDiscoveryRunLedger";
 
 /**
  * AYAS CONTINUOUS EXTERNAL INTELLIGENCE sprint, Part O — the read-only
@@ -48,6 +49,15 @@ export interface AyasResearchEngineStatusView {
   readonly lastSuccessfulResearchAt?: string;
   readonly sources: readonly AyasResearchEngineSourceView[];
   readonly digest: AyasResearchEngineDigest;
+  readonly localDiscovery?: {
+    readonly lastStartedAt: string;
+    readonly lastCompletedAt?: string;
+    readonly nextExpectedAt?: string;
+    readonly status: AyasLocalDiscoveryRunStatus;
+    readonly candidateCount: number;
+    readonly proposalCount: number;
+    readonly duplicateCount: number;
+  };
   readonly error?: string;
 }
 
@@ -59,6 +69,8 @@ export function loadAyasResearchEngineStatusView(now: string = new Date().toISOS
     const sourceStateStore = createAyasResearchSourceStateStore();
     const registry = resolveAyasResearchSourceRegistry();
     const findings = createAyasExternalResearchStore().list();
+    const discoveryRuns = createAyasLocalDiscoveryRunLedger().read().runs;
+    const latestDiscovery = discoveryRuns[discoveryRuns.length - 1];
 
     const nowMs = Date.parse(now);
     const sources: AyasResearchEngineSourceView[] = registry.map((source) => {
@@ -97,6 +109,15 @@ export function loadAyasResearchEngineStatusView(now: string = new Date().toISOS
       lastSuccessfulResearchAt: schedulerState.lastSuccessfulResearchAt,
       sources,
       digest,
+      ...(latestDiscovery ? { localDiscovery: {
+        lastStartedAt: latestDiscovery.startedAt,
+        lastCompletedAt: latestDiscovery.completedAt,
+        nextExpectedAt: latestDiscovery.nextExpectedAt,
+        status: latestDiscovery.status,
+        candidateCount: latestDiscovery.candidateCount,
+        proposalCount: latestDiscovery.proposalCount,
+        duplicateCount: latestDiscovery.duplicateCount,
+      } } : {}),
     };
   } catch (error) {
     return {

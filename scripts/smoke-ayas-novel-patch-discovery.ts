@@ -9,6 +9,7 @@ import { generateAyasErrorCodeContractPatch } from "../src/lib/brain/autonomy/Ay
 import { createAyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatchArtifact";
 import { createAyasAutonomyDaemon, type AyasDaemonObservation } from "../src/lib/brain/autonomy/AyasAutonomyDaemon";
 import { createAyasApprovalInboxStore } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
+import { createAyasSandboxUnvalidatableStore } from "../src/lib/brain/autonomy/AyasSandboxUnvalidatableStore";
 
 let count = 0;
 async function scenario(name: string, fn: () => void | Promise<void>) { await fn(); count += 1; if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${name}`); }
@@ -136,16 +137,17 @@ async function main(): Promise<void> {
     const daemon = createAyasAutonomyDaemon({ inbox, now: () => "2026-09-16T00:00:00.000Z" });
     const obs = baseObservation({ head, branch: git(repoRoot, ["branch", "--show-current"]), now: "2026-09-16T00:00:00.000Z" });
     daemon.observe(obs);
+    const sandboxUnvalidatableStore = createAyasSandboxUnvalidatableStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-restart-suppression-")) });
 
     // "Tick 1" — first discovery run (a fresh process, in reality).
     const store1 = createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-restart-artifacts-1-")) });
-    const tick1 = await discoverAyasNovelPatchCandidates({ repoRoot, observation: obs, artifactStore: store1, maxAttemptsPerTick: 1 });
+    const tick1 = await discoverAyasNovelPatchCandidates({ repoRoot, observation: obs, artifactStore: store1, sandboxUnvalidatableStore, maxAttemptsPerTick: 1 });
     daemon.discover(obs, tick1.candidates);
     const afterTick1 = inbox.load().proposals.length;
 
     // "Tick 2" — simulates the observer restarting and running discovery again against the SAME unchanged HEAD.
     const store2 = createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-restart-artifacts-2-")) });
-    const tick2 = await discoverAyasNovelPatchCandidates({ repoRoot, observation: { ...obs, now: "2026-09-16T00:05:00.000Z" }, artifactStore: store2, maxAttemptsPerTick: 1 });
+    const tick2 = await discoverAyasNovelPatchCandidates({ repoRoot, observation: { ...obs, now: "2026-09-16T00:05:00.000Z" }, artifactStore: store2, sandboxUnvalidatableStore, maxAttemptsPerTick: 1 });
     daemon.discover({ ...obs, now: "2026-09-16T00:05:00.000Z" }, tick2.candidates);
     const afterTick2 = inbox.load().proposals.length;
 
@@ -168,7 +170,6 @@ async function main(): Promise<void> {
     const head = git(repoRoot, ["rev-parse", "HEAD"]);
     const obs = baseObservation({ head, branch: git(repoRoot, ["branch", "--show-current"]) });
 
-    const { createAyasSandboxUnvalidatableStore } = await import("../src/lib/brain/autonomy/AyasSandboxUnvalidatableStore");
     const sandboxUnvalidatableStore = createAyasSandboxUnvalidatableStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-suppress-store-")) });
 
     const store1 = createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-novel-suppress-art1-")) });

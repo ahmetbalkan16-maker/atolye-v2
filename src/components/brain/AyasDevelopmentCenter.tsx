@@ -117,6 +117,7 @@ function RecoveryNotice() {
 }
 
 function ProposalDetails({ proposal }: { readonly proposal: AyasDevelopmentProposal }) {
+  const sourceLabel = proposal.discoverySource === "RESEARCH_LIGHT" ? "LIGHT araştırma" : proposal.discoverySource === "RESEARCH_DEEP" ? "DEEP araştırma" : "Yerel discovery";
   return (
     <div className="bc-dev__details">
       <div className="bc-dev__benefit">
@@ -124,6 +125,7 @@ function ProposalDetails({ proposal }: { readonly proposal: AyasDevelopmentPropo
         <strong>{proposal.expectedUserBenefit || "Açıklama eksik"}</strong>
       </div>
       <dl className="bc-dev__facts">
+        <div><dt>Kaynak</dt><dd>{sourceLabel}{proposal.sourceReference ? ` · ${proposal.sourceReference}` : ""}</dd></div>
         <div><dt>Mevcut sorun</dt><dd>{proposal.currentProblem || "Belirtilmemiş"}</dd></div>
         <div><dt>AYAS neden seçti?</dt><dd>{proposal.selectionReason || proposal.rationale || "Belirtilmemiş"}</dd></div>
         <div><dt>Ne değişecek?</dt><dd>{proposal.expectedBehaviorChange || "Belirtilmemiş"}</dd></div>

@@ -29,6 +29,7 @@
 import { classifyPatchSet } from "../selfheal/BrainPatchSafety";
 import { isAyasProposalApprovalReady, missingAyasApprovalExplanation, type AyasInboxProposal } from "./AyasApprovalInboxStore";
 import { evaluateAyasImpactPolicy } from "./AyasProposalImpact";
+import { isAyasMutationKindRegistered } from "./AyasMutationRegistry";
 
 export type AyasInternalDecisionKind = "REJECT" | "DEFER" | "RECOMMEND_FOR_APPROVAL";
 
@@ -57,7 +58,7 @@ function textOf(proposal: AyasInboxProposal, field: keyof AyasInboxProposal): st
  * one later.
  */
 function hasNoExecutionPath(proposal: AyasInboxProposal): boolean {
-  return !proposal.mutationKind || !proposal.mutationKind.trim();
+  return !proposal.mutationKind || !proposal.mutationKind.trim() || !isAyasMutationKindRegistered(proposal.mutationKind);
 }
 
 export function evaluateAyasInternalDecision(proposal: AyasInboxProposal): AyasInternalDecisionResult {

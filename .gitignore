@@ -141,6 +141,11 @@ graphify-out/
 # again, exactly the failure class this sprint's forensics were chasing.
 /data/brain/self-improvement/research-novelty/
 
+# Continuous local-discovery run evidence. Runtime-owned like the scheduler
+# state above; tracking it would make the next observer tick pause itself as
+# a dirty repository immediately after recording a successful run.
+/data/brain/self-improvement/discovery-runs/
+
 # ---------------------------------------------------------------------------
 # C.2B.12 (Sprint 199) — data/projects is external-runtime authority data.
 #

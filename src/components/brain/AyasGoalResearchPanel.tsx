@@ -110,6 +110,8 @@ function ResearchEngineStatusSection({ status }: { readonly status: AyasResearch
     <section className="bc-dev__section" aria-labelledby="ayas-research-engine">
       <h3 id="ayas-research-engine">Araştırma Motoru</h3>
       <dl className="bc-dev__facts">
+        <div><dt>Son yerel discovery</dt><dd>{status.localDiscovery ? `${formatAyasScheduleTime(status.localDiscovery.lastCompletedAt ?? status.localDiscovery.lastStartedAt)} · ${status.localDiscovery.status} · ${status.localDiscovery.candidateCount} aday / ${status.localDiscovery.proposalCount} yeni proposal` : "henüz kayıt yok"}</dd></div>
+        <div><dt>Sıradaki yerel discovery</dt><dd>{formatAyasScheduleTime(status.localDiscovery?.nextExpectedAt)}</dd></div>
         <div><dt>Son hafif tarama (LIGHT)</dt><dd>{formatAyasScheduleTime(status.lastLightCompletedAt)}</dd></div>
         <div><dt>Sıradaki hafif tarama</dt><dd>{formatAyasScheduleTime(status.nextLightAt)}</dd></div>
         <div><dt>Son derin analiz (DEEP)</dt><dd>{formatAyasScheduleTime(status.lastDeepCompletedAt)}</dd></div>

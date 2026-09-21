@@ -1,5 +1,16 @@
 ---
 
+## 2026-09-21 — AYAS Development Center Continuous Self-Improvement (OWNER-APPROVED; included in final commit)
+
+- Added an atomic, bounded local-discovery run ledger and Development Center visibility for last/next local tick plus candidate/proposal counts.
+- Preserved the existing bounded observer trigger and independent LIGHT 6h / DEEP 24h research schedules; invalid intervals now fail closed.
+- Tightened the runtime Graphify gate from “graph file exists” to `lastAnalyzedHead == HEAD && stale == false`; local ticks never invoke a Graphify rebuild themselves.
+- Bridged only deterministically actionable, persisted research findings into governed proposals with durable local/LIGHT/DEEP provenance and a deliberately non-executable planning mutation identity.
+- Reconciled HEAD-bound proposal and micro-batch freshness on Development Center load/refresh, eliminating offline-observer zombie PENDING presentation without adding approval or execution authority.
+- Applied the previously deferred content-fingerprint suppression for deterministic policy rejects, preventing head-of-line discovery starvation while reopening changed content.
+- Hardened internal review so unregistered mutation kinds cannot be recommended for approval.
+- Added deterministic continuous-discovery/research/freshness/restart/zero-candidate acceptance coverage and dedicated policy-suppression coverage. This reviewed package is included in the owner-approved final commit/push.
+
 ## 2026-09-21 — AYAS Phase 2 P0 Conversational Intelligence (READY FOR OWNER REVIEW; not committed)
 
 - Added deterministic hybrid memory retrieval with BM25 lexical scoring, Turkish concept matching, reciprocal-rank fusion, trust/freshness/importance/project reranking and stable tie-breaking.

@@ -1,5 +1,17 @@
 ---
 
+## AYAS Development Center Continuous Self-Improvement — 2026-09-21
+
+- [x] Bounded continuous local discovery remains on the supervised observer cadence and is independent of LIGHT/DEEP research cadence.
+- [x] Durable local run evidence distinguishes a successful zero-candidate tick from a missing/failed run and exposes last/next/counts in Development Center.
+- [x] Discovery admission verifies Graphify's analyzed HEAD and stale flag; it does not rebuild Graphify on recurring ticks.
+- [x] Evidence-backed candidates persist once; repeated discovery reuses canonical proposal identity instead of proliferating actionable cards.
+- [x] Development Center initial read/refresh retires obsolete HEAD-bound proposals and micro-batches to history without gaining authority.
+- [x] Worthy research findings enter the governed proposal pipeline with LIGHT/DEEP provenance and hostile content cannot grant execution authority.
+- [x] Deterministic policy-rejected novel candidates no longer starve later bounded discovery attempts.
+- [x] Approval and execution freshness gates remain fail-closed and unchanged.
+- [x] Owner-approved final commit and push are included in this clean-closure publication.
+
 ## AYAS Phase 2 P0 — Conversational Memory / Continuity — 2026-09-21
 
 - [x] Provenance/trust/freshness/conflict-aware deterministic hybrid retrieval (BM25 + Turkish concept signal + fusion/rerank).

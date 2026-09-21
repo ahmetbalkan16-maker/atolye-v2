@@ -15,6 +15,9 @@ import { createAyasMicroBatchStore } from "../src/lib/brain/autonomy/AyasMicroBa
 import { createAyasMicroItemStore } from "../src/lib/brain/autonomy/AyasMicroItem";
 import { reconcileAyasMicroBatchStaleness } from "../src/lib/brain/autonomy/AyasMicroBatchStaleness";
 import { tickAyasResearchScheduler, type AyasResearchSchedulerTickResult } from "../src/lib/brain/autonomy/AyasResearchScheduler";
+import { createAyasLocalDiscoveryRunLedger } from "../src/lib/brain/autonomy/AyasLocalDiscoveryRunLedger";
+import { createAyasExternalResearchStore } from "../src/lib/brain/autonomy/AyasExternalResearchStore";
+import { discoverAyasResearchProposalCandidates } from "../src/lib/brain/autonomy/AyasResearchProposalBridge";
 
 /**
  * AYAS discovery daemon (M16) — a single-shot, read-mostly companion to the
@@ -38,23 +41,34 @@ const root = process.cwd();
 function git(args: readonly string[]): string {
   return execFileSync("git", [...args], { cwd: root, encoding: "utf8", windowsHide: true }).trim();
 }
-function graphifyFresh(): boolean {
-  return fs.existsSync(path.join(root, ".graphify", "graph.json"));
+function graphifyFresh(head: string): boolean {
+  try {
+    if (!fs.statSync(path.join(root, ".graphify", "graph.json")).isFile()) return false;
+    const branch = JSON.parse(fs.readFileSync(path.join(root, ".graphify", "branch.json"), "utf8")) as { readonly lastAnalyzedHead?: unknown; readonly stale?: unknown };
+    return branch.lastAnalyzedHead === head && branch.stale === false;
+  } catch { return false; }
 }
 
 async function main(): Promise<void> {
   const now = new Date().toISOString();
   const telemetry = await collectAyasMachineTelemetry({ cwd: root, now: () => now });
   const health = evaluateAyasMachineHealth(telemetry, { stage: "video", ownedActive: false });
+  const head = git(["rev-parse", "HEAD"]);
   const observation = {
     now,
     branch: git(["branch", "--show-current"]),
-    head: git(["rev-parse", "HEAD"]),
+    head,
     repoClean: git(["status", "--porcelain"]).length === 0,
-    graphifyFresh: graphifyFresh(),
+    graphifyFresh: graphifyFresh(head),
     machineAction: health.action,
     gaps: [] as string[],
   };
+  const nextExpectedArg = process.argv.indexOf("--next-expected-at");
+  const nextExpectedAt = nextExpectedArg >= 0 ? process.argv[nextExpectedArg + 1] : undefined;
+  const ledger = createAyasLocalDiscoveryRunLedger();
+  const ledgerRun = ledger.start({ startedAt: now, baseHead: observation.head, ...(nextExpectedAt ? { nextExpectedAt } : {}) });
+
+  try {
 
   const inbox = createAyasApprovalInboxStore();
   // Backend-authoritative staleness reconciliation: unconditional, since it
@@ -81,7 +95,11 @@ async function main(): Promise<void> {
     observation.gaps.push(`novel patch discovery failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 
-  const discovered = daemon.discover(observation, [...discoverAyasSafeCandidates({ repoRoot: root, observation }), ...novel.candidates]);
+  const researchCandidates = discoverAyasResearchProposalCandidates(createAyasExternalResearchStore().list(), inbox.load().proposals);
+  const candidates = [...discoverAyasSafeCandidates({ repoRoot: root, observation }), ...novel.candidates, ...researchCandidates];
+  const proposalIdsBefore = new Set(inbox.load().proposals.map((proposal) => proposal.proposalId));
+  const discovered = daemon.discover(observation, candidates);
+  const proposalCount = inbox.load().proposals.filter((proposal) => !proposalIdsBefore.has(proposal.proposalId)).length;
 
   // Owner-approval model — AYAS's own internal REJECT/DEFER/RECOMMEND_FOR_APPROVAL
   // filter, run once per tick over every currently-PENDING proposal (including
@@ -140,6 +158,16 @@ async function main(): Promise<void> {
     }
   }
 
+  ledger.complete(ledgerRun.runId, {
+    completedAt: new Date().toISOString(),
+    candidateCount: candidates.length,
+    proposalCount,
+    duplicateCount: Math.max(0, discovered.length - proposalCount),
+    staleProposalCount: staled.length,
+    staleBatchCount: staledBatches.length,
+    researchOutcome: research?.outcome ?? (researchSchedulerEnabled ? "ERROR" : "DISABLED"),
+  });
+
   console.log(JSON.stringify({
     status: "OK",
     head: observation.head,
@@ -163,6 +191,13 @@ async function main(): Promise<void> {
     ownerReviewRejected: ownerReview.rejected.map((r) => r.proposalId),
     ownerReviewDeferred: ownerReview.deferred.map((d) => d.proposalId),
     ownerReviewRecommended: ownerReview.recommended.map((r) => r.binding.proposalId),
+    localDiscoveryRunId: ledgerRun.runId,
+    localCandidateCount: candidates.length,
+    localProposalCount: proposalCount,
   }));
+  } catch (error) {
+    try { ledger.fail(ledgerRun.runId, new Date().toISOString()); } catch { /* preserve the original failure */ }
+    throw error;
+  }
 }
 main().catch((error) => { console.error("AYAS discovery daemon FAILED:", error); process.exitCode = 1; });

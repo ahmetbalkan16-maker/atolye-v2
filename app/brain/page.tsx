@@ -17,6 +17,7 @@ import { loadAyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelo
 import { loadAyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
 import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
 import { loadAyasOwnerRecommendationsView } from "@/lib/brain/autonomy/AyasOwnerRecommendationsView";
+import { reconcileAyasDevelopmentCenterFreshness } from "@/lib/brain/autonomy/AyasDevelopmentCenterReconciliation";
 import {
   askAyas,
   ayasModelConfigured,
@@ -36,6 +37,11 @@ import { refreshAyasApprovalInbox, refreshAyasMicroBatch, refreshAyasGoalDevelop
 export const dynamic = "force-dynamic";
 
 export default async function BrainCorePage() {
+  // Lifecycle-only reconciliation: a page read may retire HEAD-bound zombie
+  // items to STALE, but can never approve, reserve, execute, or open a gate.
+  // If it cannot complete, fail closed instead of rendering stale PENDING
+  // state as actionable.
+  reconcileAyasDevelopmentCenterFreshness();
   const [snapshot, modelConfigured, autonomous, approvalInbox, microBatch] = await Promise.all([
     loadBrainConsoleSnapshot(),
     ayasModelConfigured(),

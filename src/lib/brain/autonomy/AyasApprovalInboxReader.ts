@@ -41,6 +41,8 @@ export interface AyasInboxProposalRead {
   readonly mutationKind?: string;
   readonly patchArtifactId?: string;
   readonly patchHash?: string;
+  readonly discoverySource?: "LOCAL_DISCOVERY" | "RESEARCH_LIGHT" | "RESEARCH_DEEP";
+  readonly sourceReference?: string;
 }
 
 export interface AyasInboxDecisionRead {

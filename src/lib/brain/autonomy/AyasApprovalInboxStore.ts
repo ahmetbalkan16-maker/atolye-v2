@@ -20,6 +20,7 @@ export type AyasInboxDecision = "APPROVE" | "REJECT" | "LATER";
  */
 export type AyasInboxProposalStatus = "PENDING" | "APPROVED" | "REJECTED" | "DEFERRED" | "STALE" | "COMPLETED" | "FAILED" | "RESERVED" | "ABANDONED" | "RECOVERY_REQUIRED";
 export type AyasInboxReservationOutcome = "EXECUTED" | "ABANDONED" | "RECOVERY_REQUIRED";
+export type AyasProposalDiscoverySource = "LOCAL_DISCOVERY" | "RESEARCH_LIGHT" | "RESEARCH_DEEP";
 
 export interface AyasInboxProposal {
   readonly schemaVersion: typeof ayasApprovalInboxSchemaVersion;
@@ -60,6 +61,10 @@ export interface AyasInboxProposal {
   readonly patchHash?: string;
   /** Optional on reads for backward compatibility with proposals created before this field existed (see `AyasProposalImpact.ts`) — such a proposal is treated as fully unresolved impact by `evaluateAyasImpactPolicy`, never as a free pass. Participates in `proposalHash` like every other field, so it cannot be silently attached to an already-created proposal. */
   readonly structuredImpact?: AyasProposalStructuredImpact;
+  /** Provenance only — never an authority signal. Missing on legacy proposals means LOCAL_DISCOVERY. */
+  readonly discoverySource?: AyasProposalDiscoverySource;
+  /** Stable local identifier such as an external-research finding id; never raw external content. */
+  readonly sourceReference?: string;
 }
 
 export interface AyasInboxDecisionRecord {

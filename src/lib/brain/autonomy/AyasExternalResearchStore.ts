@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { redactBrainText } from "../BrainRedaction";
 import type { AyasCapabilityCategory } from "./AyasCapabilityTaxonomy";
+import type { AyasResearchDisposition } from "./AyasResearchDisposition";
 
 /**
  * M22.3/M22.11/M22.12 — durable record of ONE external capability research
@@ -52,6 +53,10 @@ export interface AyasExternalResearchFinding {
   readonly atolyeGapNotes: string;
   /** M22.12 — explicit acknowledgement that source content was treated as data, never as instructions. Always true for a real record; the field exists so a reviewer can see the boundary was actually considered, not merely assumed. */
   readonly treatedSourceAsUntrusted: true;
+  /** Deterministic post-corroboration routing result. Optional for legacy/manual findings. */
+  readonly disposition?: AyasResearchDisposition;
+  readonly dispositionReason?: string;
+  readonly researchMode?: "LIGHT" | "DEEP";
 }
 
 export class AyasExternalResearchStoreError extends Error {
@@ -130,6 +135,9 @@ export function createAyasExternalResearchStore(options: AyasExternalResearchSto
         atolyeGapStatus: input.atolyeGapStatus,
         atolyeGapNotes: scrub(input.atolyeGapNotes),
         treatedSourceAsUntrusted: true,
+        ...(input.disposition ? { disposition: input.disposition } : {}),
+        ...(input.dispositionReason ? { dispositionReason: scrub(input.dispositionReason, 120) } : {}),
+        ...(input.researchMode ? { researchMode: input.researchMode } : {}),
       };
       fs.mkdirSync(dir, { recursive: true });
       const target = path.join(dir, `${finding.findingId}.json`);

@@ -183,7 +183,7 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
       // What is this finding FOR? Decided deterministically from already-
       // structured, already-corroborated facts — never from the external
       // text, and never as a free-text verdict the model could inflate.
-      const { disposition } = classifyAyasResearchDisposition({
+      const { disposition, reasonCode: dispositionReason } = classifyAyasResearchDisposition({
         category: parsed.category ?? source.category,
         atolyeGapStatus: corroboration.atolyeGapStatus,
         confidence: parsed.confidence,
@@ -207,6 +207,9 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
           licenseCostNotes: parsed.licenseCostNotes,
           atolyeGapStatus: corroboration.atolyeGapStatus,
           atolyeGapNotes: corroboration.atolyeGapNotes,
+          disposition,
+          dispositionReason,
+          researchMode: "DEEP",
         });
         noveltyStore.remember(observation, { disposition, findingId: finding.findingId, judgedNotNoteworthy: false });
         entryOutcomes.push({ sourceId: source.sourceId, entryTitle: entry.title, outcome: "RECORDED", findingId: finding.findingId, gapClaimDowngraded: corroboration.downgraded, disposition, noveltyReason: novelty.reasonCode });

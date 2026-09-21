@@ -6,7 +6,7 @@ import { classifyPatchSet } from "../selfheal/BrainPatchSafety";
 import { AyasExecutionGateStore } from "../../ayas/execution/AyasExecutionGateStore";
 import { applyVerifiedGateTransition } from "./AyasVerifiedGateTransition";
 import { createAyasExecutionJournal, classifyExecutionRecovery, ayasExecutionJournalSchemaVersion, type AyasExecutionJournalPhase } from "./AyasExecutionJournal";
-import { createAyasApprovalInboxStore, type AyasApprovalInboxHandle, type AyasInboxDecision, type AyasInboxProposal } from "./AyasApprovalInboxStore";
+import { createAyasApprovalInboxStore, type AyasApprovalInboxHandle, type AyasInboxDecision, type AyasInboxProposal, type AyasProposalDiscoverySource } from "./AyasApprovalInboxStore";
 import type { AyasProposalStructuredImpact } from "./AyasProposalImpact";
 import { createAyasIsolatedGateRoot, type AyasIsolatedGateRoot } from "./AyasIsolatedGateRoot";
 import { withAyasExecutionAuthorityLock } from "./AyasExecutionAuthorityLock";
@@ -44,6 +44,8 @@ export interface AyasDaemonCandidate {
   readonly patchHash?: string;
   /** Optional — see `AyasProposalImpact.ts`. A discovery source that doesn't model this yet simply omits it; `evaluateAyasImpactPolicy` treats that exactly like an explicit fully-unresolved impact, never a free pass. */
   readonly structuredImpact?: AyasProposalStructuredImpact;
+  readonly discoverySource?: AyasProposalDiscoverySource;
+  readonly sourceReference?: string;
 }
 export interface AyasDaemonOptions {
   readonly inbox?: AyasApprovalInboxHandle;
@@ -102,7 +104,7 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
     if (state.phase === "PAUSED_DIRTY_REPO" || state.phase === "PAUSED_MACHINE_HEALTH" || !observation.repoClean || !observation.graphifyFresh) return [];
     const proposals = candidates.map((candidate) => {
       const safety = classifyPatchSet(candidate.exactFiles);
-      return inbox.createProposal({ createdAt: observation.now, baseBranch: observation.branch, baseHead: observation.head, objective: candidate.objective, currentProblem: candidate.currentProblem, selectionReason: candidate.selectionReason, expectedUserBenefit: candidate.expectedUserBenefit, expectedBehaviorChange: candidate.expectedBehaviorChange, unchangedBehavior: candidate.unchangedBehavior, riskIfNotDone: candidate.riskIfNotDone, technicalRisk: candidate.technicalRisk, productionImpact: candidate.productionImpact, rationale: candidate.rationale, evidence: candidate.evidence, graphifyEvidence: candidate.graphifyEvidence, candidateRank: candidate.rank, risk: candidate.risk, safetyClassification: safety.level, exactFiles: candidate.exactFiles, expectedDiffScope: candidate.expectedDiffScope, testsPlanned: candidate.testsPlanned, estimatedCost: "zero-cost", mutationKind: candidate.mutationKind, ...(candidate.patchArtifactId ? { patchArtifactId: candidate.patchArtifactId } : {}), ...(candidate.patchHash ? { patchHash: candidate.patchHash } : {}), ...(candidate.structuredImpact ? { structuredImpact: candidate.structuredImpact } : {}) });
+      return inbox.createProposal({ createdAt: observation.now, baseBranch: observation.branch, baseHead: observation.head, objective: candidate.objective, currentProblem: candidate.currentProblem, selectionReason: candidate.selectionReason, expectedUserBenefit: candidate.expectedUserBenefit, expectedBehaviorChange: candidate.expectedBehaviorChange, unchangedBehavior: candidate.unchangedBehavior, riskIfNotDone: candidate.riskIfNotDone, technicalRisk: candidate.technicalRisk, productionImpact: candidate.productionImpact, rationale: candidate.rationale, evidence: candidate.evidence, graphifyEvidence: candidate.graphifyEvidence, candidateRank: candidate.rank, risk: candidate.risk, safetyClassification: safety.level, exactFiles: candidate.exactFiles, expectedDiffScope: candidate.expectedDiffScope, testsPlanned: candidate.testsPlanned, estimatedCost: "zero-cost", mutationKind: candidate.mutationKind, ...(candidate.patchArtifactId ? { patchArtifactId: candidate.patchArtifactId } : {}), ...(candidate.patchHash ? { patchHash: candidate.patchHash } : {}), ...(candidate.structuredImpact ? { structuredImpact: candidate.structuredImpact } : {}), ...(candidate.discoverySource ? { discoverySource: candidate.discoverySource } : {}), ...(candidate.sourceReference ? { sourceReference: candidate.sourceReference } : {}) });
     }).filter((proposal, index, all) => all.findIndex((other) => other.proposalHash === proposal.proposalHash) === index);
     if (proposals.length) transition("WAITING_APPROVAL", { activeProposalId: proposals[0]?.proposalId });
     return proposals;
