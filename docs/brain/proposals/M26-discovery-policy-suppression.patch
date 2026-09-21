@@ -1,0 +1,211 @@
+diff --git a/src/lib/brain/autonomy/AyasNovelPatchDiscovery.ts b/src/lib/brain/autonomy/AyasNovelPatchDiscovery.ts
+index 9ecec2c..0e8c0a9 100644
+--- a/src/lib/brain/autonomy/AyasNovelPatchDiscovery.ts
++++ b/src/lib/brain/autonomy/AyasNovelPatchDiscovery.ts
+@@ -126,5 +126,15 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
+       const reason = `blast-radius/domain policy: ${limitViolations.map((v) => `${v.rule}: ${v.detail}`).join("; ")}`;
+       rejections.push({ candidateId: generated.candidateId, reason });
+       writeRejectionLog(repoRoot, { candidateId: generated.candidateId, reason, at: observation.now });
++      // M26 — a policy rejection is a pure function of the generated content, so it is exactly as deterministic
++      // as the sandbox failure handled below: identical content is rejected identically on every future tick.
++      // Left unremembered, candidates that can NEVER pass policy spent the whole per-tick attempt budget forever
++      // (each tick: one attempt, one more rejection log, no suppression), so every candidate ordered after them
++      // was never even attempted — live: 79 identical rejections from two candidates, 225 of 234 never reached.
++      // Same suppression, same auto-lift: any source change alters the generated content, hence the fingerprint.
++      // The first evaluation still spends its attempt, so the per-tick bound is unchanged.
++      try {
++        sandboxUnvalidatableStore.record({ semanticKey: generated.candidateId, generatorIdentity: generated.generatorIdentity, contentFingerprint, reason, requiredCapability: "none — policy limits are a property of the generated content; lifts automatically when the source (and so the content) changes", now: observation.now });
++      } catch { /* best-effort suppression only — never blocks discovery */ }
+       continue;
+     }
+diff --git a/scripts/smoke-ayas-novel-patch-policy-suppression.ts b/scripts/smoke-ayas-novel-patch-policy-suppression.ts
+new file mode 100644
+index 0000000..e117077
+--- /dev/null
++++ b/scripts/smoke-ayas-novel-patch-policy-suppression.ts
+@@ -0,0 +1,185 @@
++import assert from "node:assert/strict";
++import { execFileSync } from "node:child_process";
++import fs from "node:fs";
++import os from "node:os";
++import path from "node:path";
++
++import { discoverAyasNovelPatchCandidates } from "../src/lib/brain/autonomy/AyasNovelPatchDiscovery";
++import { AYAS_GENERATOR_SOURCES } from "../src/lib/brain/autonomy/AyasPatchDetectors";
++import { createAyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatchArtifact";
++import { createAyasSandboxUnvalidatableStore, type AyasSandboxUnvalidatableStore } from "../src/lib/brain/autonomy/AyasSandboxUnvalidatableStore";
++import type { AyasDaemonObservation } from "../src/lib/brain/autonomy/AyasAutonomyDaemon";
++
++/**
++ * M26 — head-of-line blocking in individual-proposal discovery. A candidate whose generated content can NEVER
++ * pass the blast-radius/domain policy (live: `scripts/smoke-ayas-autonomy-approval.ts` exceeds 20000 chars) was
++ * rejected — and spent one of the two per-tick attempts — on EVERY tick, because only sandbox-validation
++ * failures were remembered. Two such candidates therefore consumed the entire budget forever, and every
++ * candidate ordered after them was never attempted (live: 225 of 234). Everything here runs against throwaway
++ * fixture repos with injected stores, so it can never touch the real `data/brain` (unlike this suite's sibling,
++ * `smoke-ayas-novel-patch-discovery.ts`, whose real-repo scenarios write there).
++ */
++
++let count = 0;
++async function scenario(name: string, fn: () => void | Promise<void>) { await fn(); count += 1; if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${name}`); }
++
++function git(cwd: string, args: readonly string[]): string { return execFileSync("git", [...args], { cwd, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "ignore"] }).trim(); }
++
++function observation(head: string, branch: string, now = "2026-09-21T00:00:00.000Z"): AyasDaemonObservation {
++  return { now, branch, head, repoClean: true, graphifyFresh: true, machineAction: "ALLOW", gaps: [] };
++}
++
++/** Over the 20000-char policy limit but under the 400-line generation cutoff, with one bare assert so the real diagnostic generator picks it up. */
++function oversizeScript(tag: string): string {
++  const filler = Array.from({ length: 260 }, (_, i) => `// ${tag} filler line ${String(i).padStart(4, "0")} ${"x".repeat(84)}`).join("\n");
++  return `import assert from "node:assert/strict";\nassert.equal(1, 1);\n${filler}\nconsole.log("fixture");\n`;
++}
++/** Small (in policy) and deterministically broken: it never reports PASS, so a real sandbox attempt on it always fails — proof the candidate was REACHED. */
++const BROKEN_SCRIPT = 'import assert from "node:assert/strict";\nassert.equal(1, 1);\nconsole.log("this smoke test never reports PASS");\n';
++
++interface Fixture { readonly repoRoot: string; readonly branch: string; head(): string; write(rel: string, content: string): void; commit(message: string): string }
++function makeFixture(scripts: Readonly<Record<string, string>>): Fixture {
++  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-policy-suppress-"));
++  git(repoRoot, ["init", "-q"]); git(repoRoot, ["config", "user.email", "f@example.com"]); git(repoRoot, ["config", "user.name", "f"]);
++  // A machine-level `core.autocrlf=true` would check the sandbox worktree out with CRLF while the generator hashed the LF working-tree file,
++  // failing every attempt with a "precondition hash mismatch" before any validator runs — which would make "the candidate was reached" a much
++  // weaker claim than "the real validators ran on it".
++  git(repoRoot, ["config", "core.autocrlf", "false"]);
++  fs.mkdirSync(path.join(repoRoot, "scripts"), { recursive: true });
++  for (const [name, content] of Object.entries(scripts)) fs.writeFileSync(path.join(repoRoot, "scripts", name), content, "utf8");
++  git(repoRoot, ["add", "-A"]); git(repoRoot, ["commit", "-q", "-m", "initial"]);
++  // The sandbox validates offline through the real toolchain — same environment the existing Gap 4 scenario builds.
++  fs.mkdirSync(path.join(repoRoot, "node_modules"), { recursive: true });
++  for (const dep of ["tsx", "typescript", "@types"]) fs.symlinkSync(path.join(process.cwd(), "node_modules", dep), path.join(repoRoot, "node_modules", dep), process.platform === "win32" ? "junction" : "dir");
++  fs.writeFileSync(path.join(repoRoot, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2020", module: "commonjs", moduleResolution: "node", esModuleInterop: true, strict: true, skipLibCheck: true, noEmit: true, types: ["node"] }, include: ["scripts/**/*.ts"], exclude: ["node_modules"] }, null, 2));
++  git(repoRoot, ["add", "tsconfig.json"]); git(repoRoot, ["commit", "-q", "-m", "tsconfig"]);
++  return {
++    repoRoot,
++    branch: git(repoRoot, ["branch", "--show-current"]),
++    head: () => git(repoRoot, ["rev-parse", "HEAD"]),
++    write: (rel, content) => fs.writeFileSync(path.join(repoRoot, rel), content, "utf8"),
++    // Explicit pathspecs only — `git add -A` here would sweep the node_modules junctions and data/ into the commit.
++    commit: (message) => { git(repoRoot, ["add", "scripts"]); git(repoRoot, ["commit", "-q", "-m", message]); return git(repoRoot, ["rev-parse", "HEAD"]); },
++  };
++}
++
++function diagnosticOrder(repoRoot: string): string[] {
++  const source = AYAS_GENERATOR_SOURCES.find((entry) => entry.discoveryClass === "diagnostic-quality-gap");
++  assert.ok(source, "the diagnostic-quality-gap generator must be registered");
++  return source.discover(repoRoot).map((patch) => patch.candidateId);
++}
++const rejectionLogCount = (repoRoot: string): number => {
++  const dir = path.join(repoRoot, "data", "brain", "self-improvement", "patch-artifacts", "rejected");
++  return fs.existsSync(dir) ? fs.readdirSync(dir).length : 0;
++};
++const isPolicyReject = (reason: string): boolean => reason.startsWith("blast-radius/domain policy: file-size:");
++/** A genuine validator failure — NOT a policy rejection, and NOT an environmental apply failure (e.g. a precondition hash mismatch) that ends the attempt before any validator ran. */
++const isRealSandboxFailure = (reason: string): boolean => reason.startsWith("sandbox validation failed:") && !isPolicyReject(reason) && !/precondition hash mismatch/.test(reason);
++const AAA = "ayas-diagnostic-scripts-smoke-aaa-oversize-ts";
++const BBB = "ayas-diagnostic-scripts-smoke-bbb-oversize-ts";
++const CCC = "ayas-diagnostic-scripts-smoke-ccc-broken-ts";
++
++function freshStores() {
++  return {
++    artifactStore: createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-policy-suppress-artifacts-")) }),
++    sandboxUnvalidatableStore: createAyasSandboxUnvalidatableStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-policy-suppress-store-")) }),
++  };
++}
++
++async function main(): Promise<void> {
++  await scenario("HEAD-OF-LINE: two permanently over-limit candidates no longer starve the candidate ordered after them — tick 1 rejects and remembers them, tick 2 skips them and REACHES the third", async () => {
++    const fx = makeFixture({ "smoke-aaa-oversize.ts": oversizeScript("aaa"), "smoke-bbb-oversize.ts": oversizeScript("bbb"), "smoke-ccc-broken.ts": BROKEN_SCRIPT });
++    assert.deepEqual(diagnosticOrder(fx.repoRoot), [AAA, BBB, CCC], "fixture validity: the two over-limit candidates must be ordered ahead of the third");
++    const stores = freshStores();
++    const obs = observation(fx.head(), fx.branch);
++
++    const tick1 = await discoverAyasNovelPatchCandidates({ repoRoot: fx.repoRoot, observation: obs, maxAttemptsPerTick: 2, ...stores });
++    assert.deepEqual(tick1.rejections.map((r) => r.candidateId), [AAA, BBB], "tick 1 spends its bounded budget on the two over-limit candidates (first evaluation is unchanged)");
++    assert.ok(tick1.rejections.every((r) => isPolicyReject(r.reason)), `the rejection reason format must be unchanged: ${JSON.stringify(tick1.rejections)}`);
++    assert.deepEqual(tick1.candidates, [], "an over-limit candidate never becomes a candidate");
++    const remembered = stores.sandboxUnvalidatableStore.list().filter((record) => record.semanticKey === AAA || record.semanticKey === BBB);
++    assert.equal(remembered.length, 2, "both policy rejections must be remembered");
++    assert.ok(remembered.every((record) => record.attemptCount === 1 && record.reason.startsWith("blast-radius/domain policy") && record.requiredCapability.startsWith("none —")));
++    assert.equal(rejectionLogCount(fx.repoRoot), 2);
++
++    const tick2 = await discoverAyasNovelPatchCandidates({ repoRoot: fx.repoRoot, observation: { ...obs, now: "2026-09-21T00:05:00.000Z" }, maxAttemptsPerTick: 2, ...stores });
++    assert.ok(!tick2.rejections.some((r) => r.candidateId === AAA || r.candidateId === BBB), "tick 2 must NOT reject the same two candidates again");
++    const reached = tick2.rejections.find((r) => r.candidateId === CCC);
++    assert.ok(reached, "tick 2 must now REACH the third candidate — before this fix it was never attempted");
++    assert.ok(isRealSandboxFailure(reached.reason), `the third candidate must have been run through the REAL sandbox validators: ${reached.reason}`);
++    assert.equal(rejectionLogCount(fx.repoRoot), 3, "no repeated rejection log for the two suppressed candidates — only the newly attempted third");
++    const afterTick2 = stores.sandboxUnvalidatableStore.list().filter((record) => record.semanticKey === AAA || record.semanticKey === BBB);
++    assert.ok(afterTick2.every((record) => record.attemptCount === 1), "a suppressed candidate is not re-recorded");
++  });
++
++  await scenario("the per-tick attempt bound is unchanged: with a budget of ONE, each tick advances by exactly one candidate and never spends more", async () => {
++    const fx = makeFixture({ "smoke-aaa-oversize.ts": oversizeScript("aaa"), "smoke-bbb-oversize.ts": oversizeScript("bbb") });
++    const stores = freshStores();
++    const obs = observation(fx.head(), fx.branch);
++    const run = (minute: number) => discoverAyasNovelPatchCandidates({ repoRoot: fx.repoRoot, observation: { ...obs, now: `2026-09-21T00:0${minute}:00.000Z` }, maxAttemptsPerTick: 1, ...stores });
++    assert.deepEqual((await run(0)).rejections.map((r) => r.candidateId), [AAA]);
++    assert.deepEqual((await run(1)).rejections.map((r) => r.candidateId), [BBB], "tick 2 skips the remembered first candidate and moves on");
++    assert.deepEqual((await run(2)).rejections, [], "tick 3: everything is remembered — nothing to attempt, nothing to log");
++    assert.equal(rejectionLogCount(fx.repoRoot), 2);
++  });
++
++  await scenario("the suppression lifts automatically when the source changes: still over-limit is re-evaluated, and once back within limits the candidate reaches the sandbox", async () => {
++    const fx = makeFixture({ "smoke-aaa-oversize.ts": oversizeScript("aaa") });
++    const stores = freshStores();
++    const tick1 = await discoverAyasNovelPatchCandidates({ repoRoot: fx.repoRoot, observation: observation(fx.head(), fx.branch), maxAttemptsPerTick: 2, ...stores });
++    assert.deepEqual(tick1.rejections.map((r) => r.candidateId), [AAA]);
++    const firstFingerprint = stores.sandboxUnvalidatableStore.load(AAA)?.contentFingerprint;
++    assert.ok(firstFingerprint);
++
++    // Unchanged source: skipped.
++    const unchanged = await discoverAyasNovelPatchCandidates({ repoRoot: fx.repoRoot, observation: observation(fx.head(), fx.branch, "2026-09-21T00:05:00.000Z"), maxAttemptsPerTick: 2, ...stores });
++    assert.deepEqual(unchanged.rejections, []);
++
++    // Changed but STILL over the limit: new content, new fingerprint — a changed candidate is evaluated afresh, never permanently blacklisted.
++    fx.write("scripts/smoke-aaa-oversize.ts", oversizeScript("aaa-edited"));
++    const stillOver = await discoverAyasNovelPatchCandidates({ repoRoot: fx.repoRoot, observation: observation(fx.commit("edit, still oversize"), fx.branch, "2026-09-21T00:10:00.000Z"), maxAttemptsPerTick: 2, ...stores });
++    assert.deepEqual(stillOver.rejections.map((r) => r.candidateId), [AAA]);
++    assert.ok(isPolicyReject(stillOver.rejections[0]!.reason));
++    const secondRecord = stores.sandboxUnvalidatableStore.load(AAA);
++    assert.notEqual(secondRecord?.contentFingerprint, firstFingerprint, "the fingerprint follows the content");
++    assert.equal(secondRecord?.attemptCount, 1, "a new fingerprint starts a fresh count");
++
++    // Shrunk within limits: the policy suppression no longer applies at all — the candidate reaches the real sandbox.
++    fx.write("scripts/smoke-aaa-oversize.ts", BROKEN_SCRIPT);
++    const withinLimits = await discoverAyasNovelPatchCandidates({ repoRoot: fx.repoRoot, observation: observation(fx.commit("shrink"), fx.branch, "2026-09-21T00:15:00.000Z"), maxAttemptsPerTick: 2, ...stores });
++    const reached = withinLimits.rejections.find((r) => r.candidateId === AAA);
++    assert.ok(reached && isRealSandboxFailure(reached.reason), `a candidate back within limits must reach the REAL sandbox validators: ${JSON.stringify(withinLimits.rejections)}`);
++  });
++
++  await scenario("suppression is best-effort: if remembering fails, discovery still completes and behaves exactly as it did before this change", async () => {
++    const fx = makeFixture({ "smoke-aaa-oversize.ts": oversizeScript("aaa"), "smoke-bbb-oversize.ts": oversizeScript("bbb") });
++    const failing: AyasSandboxUnvalidatableStore = {
++      dir: "unused",
++      record() { throw new Error("disk full"); },
++      shouldSkip() { return false; },
++      load() { return undefined; },
++      list() { return []; },
++      clear() { /* nothing to clear */ },
++    };
++    const artifactStore = freshStores().artifactStore;
++    const obs = observation(fx.head(), fx.branch);
++    for (const minute of [0, 5]) {
++      const result = await discoverAyasNovelPatchCandidates({ repoRoot: fx.repoRoot, observation: { ...obs, now: `2026-09-21T00:${String(minute).padStart(2, "0")}:00.000Z` }, maxAttemptsPerTick: 2, artifactStore, sandboxUnvalidatableStore: failing });
++      assert.deepEqual(result.rejections.map((r) => r.candidateId), [AAA, BBB], "with no working store the candidates are rejected each tick, exactly as before — the failure never propagates");
++    }
++  });
++
++  await scenario("the gate itself is untouched: an over-limit candidate is still rejected on first sight, with the unchanged reason, and never produces an artifact", async () => {
++    const fx = makeFixture({ "smoke-aaa-oversize.ts": oversizeScript("aaa") });
++    const stores = freshStores();
++    const result = await discoverAyasNovelPatchCandidates({ repoRoot: fx.repoRoot, observation: observation(fx.head(), fx.branch), maxAttemptsPerTick: 2, ...stores });
++    assert.deepEqual(result.candidates, []);
++    assert.equal(result.rejections.length, 1);
++    assert.match(result.rejections[0]!.reason, /^blast-radius\/domain policy: file-size: scripts\/smoke-aaa-oversize\.ts exceeds 20000 chars$/);
++    assert.equal(fs.readdirSync(stores.artifactStore.dir).filter((entry) => entry.endsWith(".json")).length, 0, "no patch artifact may ever be frozen for a policy-rejected candidate");
++  });
++
++  console.log(`AYAS novel patch policy suppression smoke: PASS (${count} scenarios)`);
++  console.log(JSON.stringify({ status: "PASS", suite: "ayas-novel-patch-policy-suppression", scenarios: count }));
++}
++main().catch((error) => { console.error("AYAS novel patch policy suppression smoke FAILED:", error); process.exitCode = 1; });
