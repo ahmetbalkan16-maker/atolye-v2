@@ -59,13 +59,13 @@ async function run() {
         { type: "done", text: "Merhaba, ben AYAS.", source: "llm", corrected: false },
       ]),
     });
-    assert.deepEqual(deltas, ["Merhaba, ", "ben AYAS."]);
-    assert.equal(res.ok, true);
+    assert.deepEqual(deltas, ["Merhaba, ", "ben AYAS."], "assert.deepEqual(deltas, [\"Merhaba, \", \"ben AYAS.\"])");
+    assert.equal(res.ok, true, "assert.equal(res.ok, true)");
     if (res.ok) {
-      assert.equal(res.text, "Merhaba, ben AYAS.");
-      assert.equal(res.source, "llm");
-      assert.equal(res.corrected, false);
-      assert.equal(res.streamed, true);
+      assert.equal(res.text, "Merhaba, ben AYAS.", "assert.equal(res.text, \"Merhaba, ben AYAS.\")");
+      assert.equal(res.source, "llm", "assert.equal(res.source, \"llm\")");
+      assert.equal(res.corrected, false, "assert.equal(res.corrected, false)");
+      assert.equal(res.streamed, true, "assert.equal(res.streamed, true)");
     }
   });
 
@@ -83,8 +83,8 @@ async function run() {
         { chunkChars: 7 },
       ),
     });
-    assert.deepEqual(deltas, ["abc", "def"]);
-    assert.equal(res.ok, true);
+    assert.deepEqual(deltas, ["abc", "def"], "assert.deepEqual(deltas, [\"abc\", \"def\"])");
+    assert.equal(res.ok, true, "assert.equal(res.ok, true)");
   });
 
   await scenario("CRLF SSE frames and a terminal frame without a trailing separator are parsed", async () => {
@@ -96,8 +96,8 @@ async function run() {
         { crlf: true, omitFinalSeparator: true, chunkChars: 5 },
       ),
     });
-    assert.equal(res.ok, true);
-    if (res.ok) assert.equal(res.text, "Adın Eylultest.");
+    assert.equal(res.ok, true, "assert.equal(res.ok, true)");
+    if (res.ok) assert.equal(res.text, "Adın Eylultest.", "assert.equal(res.text, \"Adın Eylultest.\")");
   });
 
   await scenario("corrected terminal — streamed=false so the caller replaces", async () => {
@@ -109,35 +109,35 @@ async function run() {
         { type: "done", text: "Yürütme kapısı KAPALI.", source: "fallback", corrected: true, reason: "execution-claim" },
       ]),
     });
-    assert.equal(res.ok, true);
+    assert.equal(res.ok, true, "assert.equal(res.ok, true)");
     if (res.ok) {
-      assert.equal(res.corrected, true);
-      assert.equal(res.streamed, false);
-      assert.equal(res.text, "Yürütme kapısı KAPALI.");
+      assert.equal(res.corrected, true, "assert.equal(res.corrected, true)");
+      assert.equal(res.streamed, false, "assert.equal(res.streamed, false)");
+      assert.equal(res.text, "Yürütme kapısı KAPALI.", "assert.equal(res.text, \"Yürütme kapısı KAPALI.\")");
     }
   });
 
   await scenario("non-OK response → ok:false http-<status>", async () => {
     const res = await runAyasChatStream({ ...base, onDelta: () => {}, fetcher: sseFetch([], { status: 401 }) });
-    assert.equal(res.ok, false);
-    if (!res.ok) assert.equal(res.reason, "http-401");
+    assert.equal(res.ok, false, "assert.equal(res.ok, false)");
+    if (!res.ok) assert.equal(res.reason, "http-401", "assert.equal(res.reason, \"http-401\")");
   });
 
   await scenario("missing body → ok:false", async () => {
     const res = await runAyasChatStream({ ...base, onDelta: () => {}, fetcher: sseFetch([], { noBody: true }) });
-    assert.equal(res.ok, false);
+    assert.equal(res.ok, false, "assert.equal(res.ok, false)");
   });
 
   await scenario("network throw → ok:false network", async () => {
     const res = await runAyasChatStream({ ...base, onDelta: () => {}, fetcher: sseFetch([], { throwErr: "ECONNREFUSED" }) });
-    assert.equal(res.ok, false);
-    if (!res.ok) assert.equal(res.reason, "network");
+    assert.equal(res.ok, false, "assert.equal(res.ok, false)");
+    if (!res.ok) assert.equal(res.reason, "network", "assert.equal(res.reason, \"network\")");
   });
 
   await scenario("abort throw → ok:false aborted", async () => {
     const res = await runAyasChatStream({ ...base, onDelta: () => {}, fetcher: sseFetch([], { throwErr: "AbortError" }) });
-    assert.equal(res.ok, false);
-    if (!res.ok) assert.equal(res.reason, "aborted");
+    assert.equal(res.ok, false, "assert.equal(res.ok, false)");
+    if (!res.ok) assert.equal(res.reason, "aborted", "assert.equal(res.reason, \"aborted\")");
   });
 
   await scenario("stream ends with no `done` event → ok:false no-terminal-event", async () => {
@@ -146,8 +146,8 @@ async function run() {
       onDelta: () => {},
       fetcher: sseFetch([{ type: "delta", text: "yarım" }]),
     });
-    assert.equal(res.ok, false);
-    if (!res.ok) assert.equal(res.reason, "no-terminal-event");
+    assert.equal(res.ok, false, "assert.equal(res.ok, false)");
+    if (!res.ok) assert.equal(res.reason, "no-terminal-event", "assert.equal(res.reason, \"no-terminal-event\")");
   });
 
   console.log(`AYAS chat stream client smoke: PASS (${count} scenarios)`);
