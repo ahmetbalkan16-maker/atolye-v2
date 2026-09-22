@@ -15,29 +15,29 @@ function read(relPath: string): string { return fs.readFileSync(path.join(proces
 async function main() {
   await scenario("normal observation reaches OBSERVING", () => {
     const observer = createAyasAutonomyObserver({ now: () => "2026-09-15T12:00:00.000Z" });
-    assert.equal(observer.state.phase, "STARTING");
+    assert.equal(observer.state.phase, "STARTING", "assert.equal(observer.state.phase, \"STARTING\")");
     observer.observe({ now: "2026-09-15T12:00:00.000Z", branch: "wip/test", head: "abc", repoClean: true, graphifyFresh: true, machineAction: "ALLOW", gaps: [] });
-    assert.equal(observer.state.phase, "OBSERVING");
+    assert.equal(observer.state.phase, "OBSERVING", "assert.equal(observer.state.phase, \"OBSERVING\")");
   });
 
   await scenario("machine health PAUSE pauses the observer", () => {
     const observer = createAyasAutonomyObserver();
     observer.observe({ now: "2026-09-15T12:00:00.000Z", branch: "wip/test", head: "abc", repoClean: true, graphifyFresh: true, machineAction: "PAUSE", gaps: [] });
-    assert.equal(observer.state.phase, "PAUSED_MACHINE_HEALTH");
+    assert.equal(observer.state.phase, "PAUSED_MACHINE_HEALTH", "assert.equal(observer.state.phase, \"PAUSED_MACHINE_HEALTH\")");
     assert.match(observer.state.lastError ?? "", /PAUSE/);
   });
 
   await scenario("machine health STOP OWN WORKLOAD pauses the observer", () => {
     const observer = createAyasAutonomyObserver();
     observer.observe({ now: "2026-09-15T12:00:00.000Z", branch: "wip/test", head: "abc", repoClean: true, graphifyFresh: true, machineAction: "STOP OWN WORKLOAD", gaps: [] });
-    assert.equal(observer.state.phase, "PAUSED_MACHINE_HEALTH");
+    assert.equal(observer.state.phase, "PAUSED_MACHINE_HEALTH", "assert.equal(observer.state.phase, \"PAUSED_MACHINE_HEALTH\")");
     assert.match(observer.state.lastError ?? "", /STOP OWN WORKLOAD/);
   });
 
   await scenario("dirty repo pauses the observer", () => {
     const observer = createAyasAutonomyObserver();
     observer.observe({ now: "2026-09-15T12:00:00.000Z", branch: "wip/test", head: "abc", repoClean: false, graphifyFresh: true, machineAction: "ALLOW", gaps: [] });
-    assert.equal(observer.state.phase, "PAUSED_DIRTY_REPO");
+    assert.equal(observer.state.phase, "PAUSED_DIRTY_REPO", "assert.equal(observer.state.phase, \"PAUSED_DIRTY_REPO\")");
   });
 
   await scenario("observer state survives restart via an isolated state file", () => {
@@ -46,7 +46,7 @@ async function main() {
     const first = createAyasAutonomyObserver({ stateFile, now: () => "2026-09-15T12:00:00.000Z" });
     first.observe({ now: "2026-09-15T12:00:00.000Z", branch: "wip/test", head: "abc", repoClean: true, graphifyFresh: true, machineAction: "ALLOW", gaps: [] });
     const second = createAyasAutonomyObserver({ stateFile });
-    assert.equal(second.state.phase, "OBSERVING");
+    assert.equal(second.state.phase, "OBSERVING", "assert.equal(second.state.phase, \"OBSERVING\")");
   });
 
   await scenario("corrupt observer state file fails loudly", () => {
@@ -105,7 +105,7 @@ async function main() {
 
   await scenario("missing inbox file returns a safe empty/display state", () => {
     const workspace = root();
-    assert.deepEqual(readAyasApprovalInboxProposals({ rootDir: workspace }), []);
+    assert.deepEqual(readAyasApprovalInboxProposals({ rootDir: workspace }), [], "assert.deepEqual(readAyasApprovalInboxProposals({ rootDir: workspace }), [])");
   });
 
   await scenario("corrupt inbox JSON fails loudly at the reader boundary (not silently reinterpreted)", () => {
@@ -130,9 +130,9 @@ async function main() {
     process.chdir(workspace);
     try {
       const view = loadAyasApprovalInboxView();
-      assert.equal(view.connected, false);
-      assert.deepEqual(view.pending, []);
-      assert.ok(view.error);
+      assert.equal(view.connected, false, "assert.equal(view.connected, false)");
+      assert.deepEqual(view.pending, [], "assert.deepEqual(view.pending, [])");
+      assert.ok(view.error, "assert.ok(view.error)");
     } finally {
       process.chdir(cwd);
     }
