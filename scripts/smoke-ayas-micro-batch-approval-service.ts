@@ -10,6 +10,8 @@ import { createAyasMicroItemStore, type AyasMicroItemStore } from "../src/lib/br
 import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatchArtifact";
 import { isolatedStabilityGuardDeps } from "./ayas-isolated-stability-guard";
 import { ayasPublicationOperationName } from "../src/lib/brain/autonomy/AyasGuardedPublication";
+import { AyasPostPublicationClosureError } from "../src/lib/brain/autonomy/AyasPostPublicationClosure";
+import { createAyasExecutionJournal } from "../src/lib/brain/autonomy/AyasExecutionJournal";
 
 /**
  * M18.1 — "BATCH ONAYLA VE UYGULA": the single-approval → Package C
@@ -160,6 +162,37 @@ async function main(): Promise<void> {
     assert.deepEqual(transactions[0]!.violations, []);
     assert.deepEqual(transactions[0]!.healthFailures, []);
     assert.equal(transactions[0]!.after?.repo.head, localHead, "the after-snapshot must prove which commit this batch produced");
+  });
+
+  await scenario("deferred micro-batch keeps batch and micro-item terminal states open until shared closure succeeds", async () => {
+    const f = makeFixture(); const ref = seedItem(f, "WidgetError"); const batch = readyBatch(f, [ref]);
+    const result = await approveAndExecuteAyasMicroBatch(batch.batchId, batch.batchHash, {
+      ...f,
+      postPublicationClosure: () => {
+        assert.equal(f.batchStore.load().batches.find((entry) => entry.batchId === batch.batchId)!.status, "RESERVED");
+        assert.notEqual(f.itemStore.load(ref.microItemId).state, "EXECUTED");
+        assert.equal(createAyasExecutionJournal({ rootDir: f.gateRoot }).list().at(-1)!.phase, "MUTATION_COMPLETED_PENDING_PUBLICATION");
+      },
+    });
+    assert.equal(result.ok, true);
+    assert.equal(f.batchStore.load().batches.find((entry) => entry.batchId === batch.batchId)!.status, "COMPLETED");
+    assert.equal(f.itemStore.load(ref.microItemId).state, "EXECUTED");
+    assert.equal(createAyasExecutionJournal({ rootDir: f.gateRoot }).list().at(-1)!.phase, "RESULT_RECORDED");
+  });
+
+  await scenario("a post-push micro-batch closure failure is recovery-required and never falsely marks micro-items executed", async () => {
+    const f = makeFixture(); const ref = seedItem(f, "WidgetError"); const batch = readyBatch(f, [ref]);
+    const before = git(f.repoRoot, "rev-parse", "HEAD");
+    const result = await approveAndExecuteAyasMicroBatch(batch.batchId, batch.batchHash, {
+      ...f,
+      postPublicationClosure: () => { throw new AyasPostPublicationClosureError("AYAS_POST_PUBLICATION_GRAPHIFY_STALE", "fixture stale graph"); },
+    });
+    assert.equal(result.ok, false); if (result.ok) return;
+    const published = git(f.repoRoot, "rev-parse", "HEAD");
+    assert.notEqual(published, before); assert.equal(git(f.remoteDir, "rev-parse", "master"), published);
+    assert.equal(f.batchStore.load().batches.find((entry) => entry.batchId === batch.batchId)!.status, "RECOVERY_REQUIRED");
+    assert.notEqual(f.itemStore.load(ref.microItemId).state, "EXECUTED");
+    assert.equal(createAyasExecutionJournal({ rootDir: f.gateRoot }).list().at(-1)!.phase, "RECOVERY_REQUIRED");
   });
 
   await scenario("a batch whose declared file union reaches the storage/execution authority is refused before any decision or mutation", async () => {

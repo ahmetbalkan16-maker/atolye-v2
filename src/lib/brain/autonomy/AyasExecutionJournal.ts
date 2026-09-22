@@ -23,6 +23,7 @@ export type AyasExecutionJournalPhase =
   | "GATE_COMPLETED"
   | "GATE_SETTLED"
   | "GATE_CLOSED"
+  | "MUTATION_COMPLETED_PENDING_PUBLICATION"
   | "RESULT_RECORDED"
   | "FAILED"
   | "PARTIAL_UNKNOWN"
@@ -42,6 +43,11 @@ export interface AyasExecutionJournalEntry {
   readonly startedAt: string;
   readonly updatedAt: string;
   readonly mutationFingerprint?: string;
+  /** Present only for the narrow deferred-publication receipt. */
+  readonly changedFiles?: readonly string[];
+  readonly testsRun?: readonly string[];
+  readonly testResults?: readonly string[];
+  readonly mutationCompletedAt?: string;
   readonly lastError?: string;
 }
 
@@ -57,7 +63,7 @@ export class AyasExecutionJournalError extends Error {
 
 const PHASES: readonly AyasExecutionJournalPhase[] = [
   "APPROVED_NOT_STARTED", "AUTHORIZATION_RESERVED", "GATE_ARMED", "GATE_READY", "GATE_OPEN",
-  "EXECUTING", "MUTATION_COMPLETED", "GATE_COMPLETED", "GATE_SETTLED", "GATE_CLOSED",
+  "EXECUTING", "MUTATION_COMPLETED", "GATE_COMPLETED", "GATE_SETTLED", "GATE_CLOSED", "MUTATION_COMPLETED_PENDING_PUBLICATION",
   "RESULT_RECORDED", "FAILED", "PARTIAL_UNKNOWN", "RECOVERY_REQUIRED",
 ];
 
@@ -87,6 +93,16 @@ function validate(raw: unknown, executionId: string): AyasExecutionJournalEntry 
   if (typeof record.executionId !== "string" || typeof record.proposalId !== "string" || typeof record.proposalHash !== "string" ||
     typeof record.baseHead !== "string" || !Array.isArray(record.exactFiles) || typeof record.startedAt !== "string" || typeof record.updatedAt !== "string") {
     throw new AyasExecutionJournalError("AYAS_JOURNAL_CORRUPT", `journal entry ${executionId} is structurally invalid`);
+  }
+  const stringList = (value: unknown): boolean => Array.isArray(value) && value.every((item) => typeof item === "string");
+  if (!stringList(record.exactFiles) || (record.authorizationId !== undefined && typeof record.authorizationId !== "string") ||
+    (record.reservationId !== undefined && typeof record.reservationId !== "string") ||
+    (record.mutationFingerprint !== undefined && typeof record.mutationFingerprint !== "string") ||
+    (record.changedFiles !== undefined && !stringList(record.changedFiles)) ||
+    (record.testsRun !== undefined && !stringList(record.testsRun)) ||
+    (record.testResults !== undefined && !stringList(record.testResults)) ||
+    (record.mutationCompletedAt !== undefined && typeof record.mutationCompletedAt !== "string")) {
+    throw new AyasExecutionJournalError("AYAS_JOURNAL_CORRUPT", `journal entry ${executionId} has an invalid deferred receipt`);
   }
   return record as unknown as AyasExecutionJournalEntry;
 }
@@ -175,6 +191,7 @@ export function classifyExecutionRecovery(entry: AyasExecutionJournalEntry): Aya
     case "GATE_COMPLETED":
     case "GATE_SETTLED":
     case "GATE_CLOSED":
+    case "MUTATION_COMPLETED_PENDING_PUBLICATION":
       // Window E: mutation callback returned successfully, crash before the
       // result was durably recorded — the real-world change likely happened.
       return { window: "E", mutationPossible: true, recommendation: "HUMAN_REVIEW_REQUIRED" };

@@ -38,7 +38,12 @@ export interface AyasPostPublicationClosureDeps {
   readonly readIntegrity?: () => AyasGraphIntegrity;
   /** Test seam only. Production invokes the existing health CLI. */
   readonly runHealth?: () => { readonly verdict?: unknown; readonly ownerActionRecommended?: unknown };
+  readonly nowMs?: () => number;
+  readonly sleepMs?: (milliseconds: number) => void;
 }
+const GRAPHIFY_METADATA_CONVERGENCE_TIMEOUT_MS = 30_000;
+const GRAPHIFY_METADATA_POLL_MS = 250;
+function defaultSleep(milliseconds: number): void { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds); }
 
 function git(repoRoot: string, args: readonly string[]): string {
   return execFileSync("git", [...args], { cwd: repoRoot, encoding: "utf8", windowsHide: true }).trim();
@@ -102,7 +107,15 @@ export function closeAyasPostPublication(expectedHead: string, deps: AyasPostPub
     throw new AyasPostPublicationClosureError("AYAS_POST_PUBLICATION_HEAD_UNVERIFIED", `published HEAD mismatch: expected ${expectedHead}, local ${localHead}, remote ${remoteHead}`);
   }
   (deps.refreshGraphify ?? (() => defaultRefreshGraphify(deps.repoRoot)))();
-  const graph = (deps.readGraphifyBranch ?? (() => defaultGraphifyBranch(deps.repoRoot)))();
+  const readGraph = deps.readGraphifyBranch ?? (() => defaultGraphifyBranch(deps.repoRoot));
+  const nowMs = deps.nowMs ?? Date.now;
+  const sleepMs = deps.sleepMs ?? defaultSleep;
+  const deadline = nowMs() + GRAPHIFY_METADATA_CONVERGENCE_TIMEOUT_MS;
+  let graph = readGraph();
+  while ((graph.lastAnalyzedHead !== expectedHead || graph.stale !== false) && nowMs() < deadline) {
+    sleepMs(GRAPHIFY_METADATA_POLL_MS);
+    graph = readGraph();
+  }
   if (graph.lastAnalyzedHead !== expectedHead || graph.stale !== false) {
     throw new AyasPostPublicationClosureError("AYAS_POST_PUBLICATION_GRAPHIFY_STALE", "Graphify did not become fresh for the published HEAD");
   }

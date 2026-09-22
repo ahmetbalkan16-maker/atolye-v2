@@ -11,6 +11,9 @@ import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "../sr
 import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "../src/lib/brain/autonomy/AyasNovelPatchDiscovery";
 import { isolatedStabilityGuardDeps } from "./ayas-isolated-stability-guard";
 import { closeAyasPostPublication, AyasPostPublicationClosureError } from "../src/lib/brain/autonomy/AyasPostPublicationClosure";
+import { createAyasExecutionJournal, classifyExecutionRecovery } from "../src/lib/brain/autonomy/AyasExecutionJournal";
+import { executeAyasApprovedProposalWith } from "../src/lib/brain/autonomy/AyasProposalExecutionService";
+import { finalizeAyasDeferredPublication, AyasDeferredPublicationFinalizerError } from "../src/lib/brain/autonomy/AyasDeferredPublicationFinalizer";
 
 /**
  * M20.7 — "ONAYLA VE UYGULA" for an individual patch-artifact-backed
@@ -190,6 +193,23 @@ async function main(): Promise<void> {
     assert.deepEqual(order, ["graphify-refresh", "graphify-freshness", "integrity", "health"]);
   });
 
+  await scenario("deferred receipt is durable and terminal success is absent until the closure callback returns", async () => {
+    const f = makeFixture(); const { proposal } = seedNewFileProposal(f);
+    const result = await approveAndExecuteAyasProposal(proposal.proposalId, proposal.proposalHash, {
+      ...f, postPublicationClosure: () => {
+        const state = f.inbox.load();
+        assert.equal(state.proposals.find((p) => p.proposalId === proposal.proposalId)!.status, "RESERVED");
+        assert.equal(state.decisions.find((d) => d.proposalId === proposal.proposalId)!.finalizationOutcome, undefined);
+        const journal = createAyasExecutionJournal({ rootDir: f.gateRoot }).list().at(-1)!;
+        assert.equal(journal.phase, "MUTATION_COMPLETED_PENDING_PUBLICATION");
+        assert.ok(Array.isArray(journal.changedFiles));
+      },
+    });
+    assert.equal(result.ok, true);
+    const journal = createAyasExecutionJournal({ rootDir: f.gateRoot }).list().at(-1)!;
+    assert.equal(journal.phase, "RESULT_RECORDED");
+  });
+
   await scenario("a post-push Graphify closure failure preserves the published commit and becomes recovery-required, never a false success", async () => {
     const f = makeFixture(); const { proposal } = seedNewFileProposal(f); const before = git(f.repoRoot, "rev-parse", "HEAD");
     const result = await approveAndExecuteAyasProposal(proposal.proposalId, proposal.proposalHash, {
@@ -200,8 +220,101 @@ async function main(): Promise<void> {
     assert.equal(result.code, "AYAS_POST_PUBLICATION_GRAPHIFY_STALE");
     const published = git(f.repoRoot, "rev-parse", "HEAD");
     assert.notEqual(published, before); assert.equal(git(f.remoteDir, "rev-parse", "master"), published);
+    const state = f.inbox.load();
+    assert.equal(state.proposals.find((entry) => entry.proposalId === proposal.proposalId)!.status, "RECOVERY_REQUIRED");
+    assert.equal(state.decisions.find((entry) => entry.proposalId === proposal.proposalId)!.finalizationOutcome, "RECOVERY_REQUIRED");
+    assert.equal(state.results.filter((entry) => entry.proposalId === proposal.proposalId).length, 0, "a failed closure must not synthesize a completed result");
+    assert.equal(createAyasExecutionJournal({ rootDir: f.gateRoot }).list().at(-1)!.phase, "RECOVERY_REQUIRED");
     const transaction = f.stabilityGuard.store!.load().transactions.at(-1)!;
     assert.equal(transaction.state, "RECOVERY_REQUIRED");
+  });
+
+  await scenario("an interruption after mutation but before commit leaves a recovery-required durable receipt and never records terminal success", async () => {
+    const f = makeFixture(); const { proposal } = seedNewFileProposal(f); const before = git(f.repoRoot, "rev-parse", "HEAD");
+    const result = await approveAndExecuteAyasProposal(proposal.proposalId, proposal.proposalHash, {
+      ...f, onBeforeCommit: () => { throw new Error("fixture interruption before commit"); },
+    });
+    assert.equal(result.ok, false); if (result.ok) return;
+    assert.equal(result.stage, "COMMIT");
+    assert.equal(git(f.repoRoot, "rev-parse", "HEAD"), before, "no commit is invented after interruption");
+    const state = f.inbox.load();
+    assert.equal(state.proposals.find((entry) => entry.proposalId === proposal.proposalId)!.status, "RECOVERY_REQUIRED");
+    assert.equal(state.results.filter((entry) => entry.proposalId === proposal.proposalId).length, 0);
+    assert.equal(createAyasExecutionJournal({ rootDir: f.gateRoot }).list().at(-1)!.phase, "RECOVERY_REQUIRED");
+  });
+
+  await scenario("an interruption after commit but before push preserves the local commit, keeps the remote unchanged, and never guesses success", async () => {
+    const f = makeFixture(); const { proposal } = seedNewFileProposal(f); const before = git(f.repoRoot, "rev-parse", "HEAD");
+    const result = await approveAndExecuteAyasProposal(proposal.proposalId, proposal.proposalHash, {
+      ...f, onAfterCommitBeforePush: () => { throw new Error("fixture interruption before push"); },
+    });
+    assert.equal(result.ok, false); if (result.ok) return;
+    assert.equal(result.stage, "PUSH");
+    const local = git(f.repoRoot, "rev-parse", "HEAD");
+    assert.notEqual(local, before, "the already-created local commit is preserved without rewrite");
+    assert.equal(git(f.remoteDir, "rev-parse", "master"), before, "the remote was never falsely treated as published");
+    const state = f.inbox.load();
+    assert.equal(state.proposals.find((entry) => entry.proposalId === proposal.proposalId)!.status, "RECOVERY_REQUIRED");
+    assert.equal(state.results.filter((entry) => entry.proposalId === proposal.proposalId).length, 0);
+    assert.equal(createAyasExecutionJournal({ rootDir: f.gateRoot }).list().at(-1)!.phase, "RECOVERY_REQUIRED");
+  });
+
+  await scenario("the shared finalizer accepts only the durable receipt once: duplicate finalization cannot duplicate result, approval, or journal success", async () => {
+    const f = makeFixture(); const { proposal } = seedNewFileProposal(f);
+    f.inbox.decide(proposal.proposalId, "APPROVE", new Date().toISOString());
+    const receipt = await executeAyasApprovedProposalWith(proposal.proposalId, {
+      repoRoot: f.repoRoot, gateRoot: f.gateRoot, inbox: f.inbox, patchArtifactStore: f.artifactStore, deferredPublication: true,
+    });
+    assert.ok(receipt);
+    if (!receipt) return;
+    assert.equal(createAyasExecutionJournal({ rootDir: f.gateRoot }).read(receipt.executionId)!.phase, "MUTATION_COMPLETED_PENDING_PUBLICATION");
+    git(f.repoRoot, "add", "--", ...receipt.exactFiles); git(f.repoRoot, "commit", "-q", "-m", "fixture deferred publish"); git(f.repoRoot, "push", "-q", "origin", "master");
+    const head = git(f.repoRoot, "rev-parse", "HEAD");
+    finalizeAyasDeferredPublication(receipt, { repoRoot: f.repoRoot, gateRoot: f.gateRoot, inbox: f.inbox, expectedHead: head });
+    assert.throws(() => finalizeAyasDeferredPublication(receipt, { repoRoot: f.repoRoot, gateRoot: f.gateRoot, inbox: f.inbox, expectedHead: head }),
+      (error: unknown) => error instanceof AyasDeferredPublicationFinalizerError && error.code === "AYAS_DEFERRED_RECEIPT_NOT_PENDING");
+    const state = f.inbox.load();
+    assert.equal(state.results.filter((entry) => entry.proposalId === proposal.proposalId).length, 1);
+    assert.equal(state.decisions.filter((entry) => entry.proposalId === proposal.proposalId && entry.finalizationOutcome === "EXECUTED").length, 1);
+    assert.equal(createAyasExecutionJournal({ rootDir: f.gateRoot }).read(receipt.executionId)!.phase, "RESULT_RECORDED");
+  });
+
+  await scenario("a crash after result persistence during finalization resumes the same receipt without replaying or duplicating the result", async () => {
+    const f = makeFixture(); const { proposal } = seedNewFileProposal(f);
+    f.inbox.decide(proposal.proposalId, "APPROVE", new Date().toISOString());
+    const receipt = await executeAyasApprovedProposalWith(proposal.proposalId, {
+      repoRoot: f.repoRoot, gateRoot: f.gateRoot, inbox: f.inbox, patchArtifactStore: f.artifactStore, deferredPublication: true,
+    });
+    assert.ok(receipt); if (!receipt) return;
+    git(f.repoRoot, "add", "--", ...receipt.exactFiles); git(f.repoRoot, "commit", "-q", "-m", "fixture finalizer restart"); git(f.repoRoot, "push", "-q", "origin", "master");
+    f.inbox.recordResult({ resultId: "interrupted-finalizer", proposalId: receipt.proposalId, authorizationId: receipt.authorizationId, startedAt: receipt.mutationCompletedAt, completedAt: new Date().toISOString(), changedFiles: receipt.changedFiles, diffFingerprint: receipt.diffFingerprint, testsRun: receipt.testsRun, testResults: receipt.testResults, outcome: "COMPLETED", gateAuditIdentity: receipt.authorizationId, operatorReviewStatus: "WAITING_REVIEW" }, "COMPLETED");
+    const head = git(f.repoRoot, "rev-parse", "HEAD");
+    finalizeAyasDeferredPublication(receipt, { repoRoot: f.repoRoot, gateRoot: f.gateRoot, inbox: f.inbox, expectedHead: head });
+    const state = f.inbox.load();
+    assert.equal(state.results.filter((entry) => entry.proposalId === proposal.proposalId).length, 1);
+    assert.equal(state.decisions.find((entry) => entry.reservationId === receipt.reservationId)!.finalizationOutcome, "EXECUTED");
+    assert.equal(createAyasExecutionJournal({ rootDir: f.gateRoot }).read(receipt.executionId)!.phase, "RESULT_RECORDED");
+  });
+
+  await scenario("crash window after push before finalizer reloads the receipt, fails closed, and never guesses terminal success or replays mutation", async () => {
+    const f = makeFixture(); const { proposal } = seedNewFileProposal(f);
+    f.inbox.decide(proposal.proposalId, "APPROVE", new Date().toISOString());
+    const receipt = await executeAyasApprovedProposalWith(proposal.proposalId, {
+      repoRoot: f.repoRoot, gateRoot: f.gateRoot, inbox: f.inbox, patchArtifactStore: f.artifactStore, deferredPublication: true,
+    });
+    assert.ok(receipt); if (!receipt) return;
+    git(f.repoRoot, "add", "--", ...receipt.exactFiles); git(f.repoRoot, "commit", "-q", "-m", "fixture pushed before finalizer"); git(f.repoRoot, "push", "-q", "origin", "master");
+    const published = git(f.repoRoot, "rev-parse", "HEAD");
+    assert.equal(git(f.remoteDir, "rev-parse", "master"), published);
+    const reloaded = createAyasExecutionJournal({ rootDir: f.gateRoot }).read(receipt.executionId)!;
+    assert.equal(reloaded.phase, "MUTATION_COMPLETED_PENDING_PUBLICATION");
+    assert.equal(classifyExecutionRecovery(reloaded).window, "E");
+    const state = f.inbox.load();
+    assert.equal(state.proposals.find((entry) => entry.proposalId === proposal.proposalId)!.status, "RESERVED");
+    assert.equal(state.results.filter((entry) => entry.proposalId === proposal.proposalId).length, 0);
+    await assert.rejects(executeAyasApprovedProposalWith(proposal.proposalId, {
+      repoRoot: f.repoRoot, gateRoot: f.gateRoot, inbox: f.inbox, patchArtifactStore: f.artifactStore, deferredPublication: true,
+    }), (error: unknown) => error instanceof Error && /status is RESERVED/i.test(error.message));
   });
 
   await scenario("stale Graphify metadata and unhealthy health are independently fail-closed by the canonical closure", () => {
@@ -214,6 +327,31 @@ async function main(): Promise<void> {
       repoRoot: f.repoRoot, refreshGraphify: () => {}, readGraphifyBranch: () => ({ lastAnalyzedHead: head, stale: false }),
       readIntegrity: () => ({ duplicateIds: 0, danglingEdges: 0, selfLoops: 0 }), runHealth: () => ({ verdict: "DEGRADED", ownerActionRecommended: true }),
     }), (error: unknown) => error instanceof AyasPostPublicationClosureError && error.code === "AYAS_POST_PUBLICATION_HEALTH_UNHEALTHY");
+  });
+
+  await scenario("Graphify metadata convergence polls a stale read until the published HEAD is authoritative", () => {
+    const f = makeFixture(); const head = git(f.repoRoot, "rev-parse", "HEAD"); let reads = 0; let clock = 0;
+    closeAyasPostPublication(head, {
+      repoRoot: f.repoRoot, refreshGraphify: () => {}, nowMs: () => clock,
+      sleepMs: (ms) => { clock += ms; },
+      readGraphifyBranch: () => (++reads < 3 ? { lastAnalyzedHead: "old-head", stale: false } : { lastAnalyzedHead: head, stale: false }),
+      readIntegrity: () => ({ duplicateIds: 0, danglingEdges: 0, selfLoops: 0 }),
+      runHealth: () => ({ verdict: "HEALTHY", ownerActionRecommended: false }),
+    });
+    assert.equal(reads, 3);
+  });
+
+  await scenario("Graphify metadata convergence timeout is bounded and deterministic", () => {
+    const f = makeFixture(); const head = git(f.repoRoot, "rev-parse", "HEAD"); let reads = 0; let clock = 0;
+    assert.throws(() => closeAyasPostPublication(head, {
+      repoRoot: f.repoRoot, refreshGraphify: () => {}, nowMs: () => clock,
+      sleepMs: (ms) => { clock += ms; },
+      readGraphifyBranch: () => { reads += 1; return { lastAnalyzedHead: "old-head", stale: false }; },
+      readIntegrity: () => ({ duplicateIds: 0, danglingEdges: 0, selfLoops: 0 }),
+      runHealth: () => ({ verdict: "HEALTHY", ownerActionRecommended: false }),
+    }), (error: unknown) => error instanceof AyasPostPublicationClosureError && error.code === "AYAS_POST_PUBLICATION_GRAPHIFY_STALE");
+    assert.equal(clock, 30_000, "the convergence deadline is independently bounded at 30 seconds");
+    assert.equal(reads, 121, "initial read plus exactly 120 polls at the 250ms interval");
   });
 
   await scenario("a proposalHash that no longer matches the current proposal is refused before any decision or mutation", async () => {

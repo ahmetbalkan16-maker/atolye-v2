@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 
 import type { AyasApprovalInboxHandle, AyasApprovalInboxState, AyasInboxProposal, AyasInboxProposalStatus, AyasInboxDecisionRecord, AyasInboxResultRecord } from "./AyasApprovalInboxStore";
-import { createAyasAutonomyDaemon } from "./AyasAutonomyDaemon";
+import { createAyasAutonomyDaemon, type AyasDeferredPublicationReceipt } from "./AyasAutonomyDaemon";
 import type { AyasExecutionJournalPhase } from "./AyasExecutionJournal";
 import { reconcileAyasMicroBatchStaleness } from "./AyasMicroBatchStaleness";
 import { createAyasMicroBatchStore, type AyasMicroBatchStoreHandle, type AyasMicroBatch } from "./AyasMicroBatch";
@@ -45,7 +45,7 @@ function mapBatchStatusToProposalStatus(status: AyasMicroBatch["status"]): AyasI
   }
 }
 
-function createAyasMicroBatchAsInboxAdapter(batchStore: AyasMicroBatchStoreHandle, batchId: string): AyasApprovalInboxHandle {
+export function createAyasMicroBatchAsInboxAdapter(batchStore: AyasMicroBatchStoreHandle, batchId: string): AyasApprovalInboxHandle {
   const unsupported = (name: string) => (): never => { throw new AyasMicroBatchExecutionError("AYAS_MICRO_BATCH_ADAPTER_UNSUPPORTED", `${name} must never be called via the batch execution adapter — structurally unreachable`); };
   return {
     stateFile: batchStore.stateFile,
@@ -68,7 +68,25 @@ function createAyasMicroBatchAsInboxAdapter(batchStore: AyasMicroBatchStoreHandl
         reservationId: decision.reservationId, reservedAt: decision.reservedAt, finalizedAt: decision.finalizedAt,
         finalizationOutcome: decision.finalizationOutcome, evidenceFingerprint: decision.batchHash,
       }] : [];
-      return { schemaVersion: "1", revision: raw.revision, proposals, decisions, results: [] };
+      const results: readonly AyasInboxResultRecord[] = raw.results
+        .filter((result) => result.batchId === batchId)
+        .map((result) => ({
+          resultId: result.resultId,
+          proposalId: result.batchId,
+          authorizationId: result.authorizationId,
+          startedAt: result.startedAt,
+          completedAt: result.completedAt,
+          changedFiles: result.changedFiles,
+          // Micro-batch results predate the inbox fingerprint field. The
+          // governed execution path supplies an empty fingerprint there too.
+          diffFingerprint: "",
+          testsRun: result.testsRun,
+          testResults: result.testResults,
+          outcome: result.outcome,
+          gateAuditIdentity: result.authorizationId,
+          operatorReviewStatus: "WAITING_REVIEW",
+        }));
+      return { schemaVersion: "1", revision: raw.revision, proposals, decisions, results };
     },
     save: unsupported("save"),
     createProposal: unsupported("createProposal"),
@@ -108,6 +126,7 @@ export interface AyasMicroBatchExecutionDeps {
   readonly onItemApplied?: (item: { readonly microItemId: string; readonly exactFiles: readonly string[] }) => void | Promise<void>;
   /** M21.1 — test-only pass-through to `AyasAutonomyDaemon`'s crash-injection hook. Never set in production. */
   readonly onJournalPhase?: (phase: AyasExecutionJournalPhase) => void;
+  readonly deferredPublication?: boolean;
 }
 
 function git(repoRoot: string, args: readonly string[]): string {
@@ -121,7 +140,7 @@ function git(repoRoot: string, args: readonly string[]): string {
  * `loadVerified`) immediately before delegating to
  * `AyasAutonomyDaemon.executeApproved()` via the adapter above.
  */
-export async function executeAyasApprovedMicroBatchWith(batchId: string, deps: AyasMicroBatchExecutionDeps): Promise<void> {
+export async function executeAyasApprovedMicroBatchWith(batchId: string, deps: AyasMicroBatchExecutionDeps): Promise<AyasDeferredPublicationReceipt | undefined> {
   if (typeof batchId !== "string" || !batchId.trim()) throw new AyasMicroBatchExecutionError("INVALID_INPUT", "batchId is required");
   const batchStore = deps.batchStore ?? createAyasMicroBatchStore();
   const itemStore = deps.itemStore ?? createAyasMicroItemStore();
@@ -150,6 +169,7 @@ export async function executeAyasApprovedMicroBatchWith(batchId: string, deps: A
   const adapter = createAyasMicroBatchAsInboxAdapter(batchStore, batchId);
   const daemon = createAyasAutonomyDaemon({ inbox: adapter, gateRoot: deps.gateRoot, repoRoot: deps.repoRoot, onJournalPhase: deps.onJournalPhase });
 
+  let receipt: AyasDeferredPublicationReceipt | undefined;
   await daemon.executeApproved({
     proposalId: batch.batchId,
     proposalHash: batch.batchHash,
@@ -158,6 +178,7 @@ export async function executeAyasApprovedMicroBatchWith(batchId: string, deps: A
     exactFiles: batch.exactFilesUnion,
     currentExactFiles: freshBatch.exactFilesUnion,
     repoClean,
+    ...(deps.deferredPublication ? { deferredPublication: true, onDeferredReceipt: (value) => { receipt = value; } } : {}),
     applyWhileExecuting: async () => {
       // All items applied as ONE bounded, atomic, rollback-on-any-failure write
       // (AyasBoundedFileWrite's own guarantee — Phase 23's "whole batch rollback,
@@ -185,9 +206,10 @@ export async function executeAyasApprovedMicroBatchWith(batchId: string, deps: A
     },
   });
 
-  for (const { ref } of items) {
+  if (!deps.deferredPublication) for (const { ref } of items) {
     try { itemStore.transition(ref.microItemId, "EXECUTED", new Date().toISOString()); } catch { /* best-effort bookkeeping — the durable batch result above is the authoritative record */ }
   }
+  return receipt;
 }
 
 export { mapBatchStatusToProposalStatus };

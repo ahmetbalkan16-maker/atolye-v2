@@ -104,6 +104,11 @@ function makeFixture(): Fixture {
 
   return {
     repoRoot, remoteDir, gateRoot, listeners, transactionStore, schedulerStore,
+    // This suite proves the guard's durable lifecycle. Publication closure is
+    // independently covered by the proposal-approval service suite; keeping
+    // it isolated here avoids requiring a real Graphify installation inside
+    // this deliberately minimal Git fixture.
+    postPublicationClosure: () => {},
     inbox: createAyasApprovalInboxStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-guarded-pub-inbox-")) }),
     artifactStore: createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-guarded-pub-artifacts-")) }),
     stabilityGuard: {

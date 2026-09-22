@@ -5,11 +5,12 @@ import path from "node:path";
 import { createAyasMicroBatchStore, type AyasMicroBatchStoreHandle, type AyasMicroBatch } from "./AyasMicroBatch";
 import { createAyasMicroItemStore, type AyasMicroItemStore } from "./AyasMicroItem";
 import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "./AyasPatchArtifact";
-import { executeAyasApprovedMicroBatchWith, AyasMicroBatchExecutionError } from "./AyasMicroBatchExecutionService";
+import { executeAyasApprovedMicroBatchWith, createAyasMicroBatchAsInboxAdapter, AyasMicroBatchExecutionError } from "./AyasMicroBatchExecutionService";
 import { AyasBatchGraphifyCheckError } from "./AyasBatchGraphifyCheck";
 import { createAyasGraphifyEvidenceStore, checkAyasItemWithGraphifyEvidenced, type AyasGraphifyEvidenceStore } from "./AyasGraphifyEvidenceStore";
 import { runGuardedAyasPublication, type AyasGuardedPublicationGuardDeps } from "./AyasGuardedPublication";
 import { closeAyasPostPublication } from "./AyasPostPublicationClosure";
+import { finalizeAyasDeferredPublication, markAyasDeferredPublicationRecoveryRequired } from "./AyasDeferredPublicationFinalizer";
 import { classifyAyasRuntimeImpact } from "./AyasProposalRuntimeImpact";
 
 /**
@@ -183,15 +184,20 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
    * integration rather than two that can drift.
    */
   const publishPipeline = async (): Promise<AyasMicroBatchApprovalOutcome> => {
+  let deferredReceipt: Awaited<ReturnType<typeof executeAyasApprovedMicroBatchWith>>;
+  const requireRecovery = (reason: string): void => {
+    if (deferredReceipt) markAyasDeferredPublicationRecoveryRequired(deferredReceipt, { gateRoot: deps.gateRoot, inbox: createAyasMicroBatchAsInboxAdapter(batchStore, batchId), reason });
+  };
   // --- Package C execution, with the per-item Graphify structural check inside the same atomic write ---
   try {
-    await executeAyasApprovedMicroBatchWith(batchId, {
+    deferredReceipt = await executeAyasApprovedMicroBatchWith(batchId, {
       repoRoot: deps.repoRoot,
       gateRoot: deps.gateRoot,
       batchStore,
       itemStore,
       artifactStore,
       onJournalPhase: deps.onJournalPhase,
+      deferredPublication: true,
       onItemApplied: async (item) => {
         const artifact = artifactStore.loadVerified(
           batchStore.load().batches.find((b) => b.batchId === batchId)!.items.find((r) => r.microItemId === item.microItemId)!.patchArtifactId,
@@ -230,6 +236,7 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
     git(deps.repoRoot, ["reset", "--", ...files]); // undo the intent-to-add above before reverting the files themselves
     revertToHead(deps.repoRoot, files);
     const message = error instanceof Error ? error.message : String(error);
+    requireRecovery(message);
     const code = error instanceof AyasBatchGraphifyCheckError ? error.code : "POST_EXECUTION_VALIDATION_FAILED";
     return { ok: false, code, stage: "POST_VALIDATION", message, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
@@ -241,6 +248,7 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
   if (JSON.stringify(stagedFiles) !== JSON.stringify(expectedFiles)) {
     git(deps.repoRoot, ["reset"]);
     revertToHead(deps.repoRoot, files);
+    requireRecovery("AYAS_MICRO_BATCH_STAGE_SCOPE_MISMATCH");
     return { ok: false, code: "AYAS_MICRO_BATCH_STAGE_SCOPE_MISMATCH", stage: "STAGING", message: `staged scope ${JSON.stringify(stagedFiles)} did not exactly match the approved batch's files ${JSON.stringify(expectedFiles)}`, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
   try {
@@ -248,6 +256,7 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
   } catch (error) {
     git(deps.repoRoot, ["reset"]);
     revertToHead(deps.repoRoot, files);
+    requireRecovery(error instanceof Error ? error.message : String(error));
     return { ok: false, code: "AYAS_MICRO_BATCH_WHITESPACE_ERROR", stage: "STAGING", message: error instanceof Error ? error.message : String(error), graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
 
@@ -261,7 +270,9 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
     // A commit failure with content already staged is left exactly as-is for
     // human inspection — RECOVERY_REQUIRED-equivalent, never auto-reset,
     // never auto-retried.
-    return { ok: false, code: "AYAS_MICRO_BATCH_COMMIT_FAILED", stage: "COMMIT", message: error instanceof Error ? error.message : String(error), graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
+    const message = error instanceof Error ? error.message : String(error);
+    requireRecovery(message);
+    return { ok: false, code: "AYAS_MICRO_BATCH_COMMIT_FAILED", stage: "COMMIT", message, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
 
   // --- Step 8: push, never force ---
@@ -272,18 +283,25 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
   } catch (error) {
     // The commit already exists locally and is never rewritten/reset here —
     // a push failure is reported as-is; a human decides whether to retry.
-    return { ok: false, code: "AYAS_MICRO_BATCH_PUSH_FAILED", stage: "PUSH", message: error instanceof Error ? error.message : String(error), graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
+    const message = error instanceof Error ? error.message : String(error);
+    requireRecovery(message);
+    return { ok: false, code: "AYAS_MICRO_BATCH_PUSH_FAILED", stage: "PUSH", message, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
 
   const localHead = git(deps.repoRoot, ["rev-parse", "HEAD"]);
   const remoteHead = git(deps.repoRoot, ["rev-parse", `${remoteName}/${branch}`]);
   if (localHead !== remoteHead) {
+    requireRecovery(`local HEAD ${localHead} does not match ${remoteName}/${branch} ${remoteHead} after push`);
     return { ok: false, code: "AYAS_MICRO_BATCH_PUBLISH_UNVERIFIED", stage: "PUSH", message: `local HEAD ${localHead} does not match ${remoteName}/${branch} ${remoteHead} after push`, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
 
   try {
     (deps.postPublicationClosure ?? ((head) => closeAyasPostPublication(head, { repoRoot: deps.repoRoot, remoteName })))(localHead);
+    if (!deferredReceipt) throw new Error("AYAS_DEFERRED_RECEIPT_MISSING");
+    finalizeAyasDeferredPublication(deferredReceipt, { repoRoot: deps.repoRoot, gateRoot: deps.gateRoot, inbox: createAyasMicroBatchAsInboxAdapter(batchStore, batchId), expectedHead: localHead, remoteName });
+    for (const item of batchAfterExec.items) itemStore.transition(item.microItemId, "EXECUTED", new Date().toISOString());
   } catch (error) {
+    if (deferredReceipt) markAyasDeferredPublicationRecoveryRequired(deferredReceipt, { gateRoot: deps.gateRoot, inbox: createAyasMicroBatchAsInboxAdapter(batchStore, batchId), reason: error instanceof Error ? error.message : String(error) });
     return { ok: false, code: error instanceof Error && "code" in error ? String((error as { code: unknown }).code) : "AYAS_POST_PUBLICATION_CLOSURE_FAILED", stage: "POST_PUBLICATION_CLOSURE", message: error instanceof Error ? error.message : String(error), graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
 

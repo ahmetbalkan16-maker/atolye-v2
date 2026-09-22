@@ -63,7 +63,11 @@ export async function accumulateAyasMicroBatchCandidates(deps: AyasMicroBatchAcc
   const artifactStore = deps.artifactStore ?? createAyasPatchArtifactStore();
   const maxAttempts = deps.maxAttemptsPerTick ?? AYAS_MICRO_BATCH_MAX_ATTEMPTS_PER_TICK;
 
-  if (!observation.repoClean || observation.machineAction === "PAUSE" || observation.machineAction === "STOP OWN WORKLOAD") {
+  // Discovery may only turn fresh Graphify knowledge into durable,
+  // owner-actionable micro-batch state.  Do not reconcile, rebuild the
+  // sandbox worktree, freeze artifacts, or touch existing batches here:
+  // temporary graph staleness must merely pause NEW accumulation.
+  if (observation.graphifyFresh !== true || !observation.repoClean || observation.machineAction === "PAUSE" || observation.machineAction === "STOP OWN WORKLOAD") {
     return { itemsAdded: [], batch: null, rejections: [], readyForReview: false, staledPreviousBatchId: null };
   }
 

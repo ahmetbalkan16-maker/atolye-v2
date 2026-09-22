@@ -66,6 +66,60 @@ async function main(): Promise<void> {
     assert.deepEqual(result.itemsAdded, []);
   });
 
+  await scenario("stale Graphify metadata creates no artifact, micro-item, or batch even when real MICRO_SAFE gaps are discoverable", async () => {
+    const { repoRoot, head } = makeErrorClassFixtureRepo(["WidgetError"]);
+    await destroyAyasMicroBatchWorktree(repoRoot);
+    try {
+      const stores = freshStores();
+      const artifactFilesBefore = fs.existsSync(stores.artifactStore.dir) ? fs.readdirSync(stores.artifactStore.dir).sort() : [];
+      const result = await accumulateAyasMicroBatchCandidates({ repoRoot, observation: baseObservation({ head, branch: git(repoRoot, ["branch", "--show-current"]), graphifyFresh: false }), ...stores, maxAttemptsPerTick: 1 });
+      assert.deepEqual(result.itemsAdded, []);
+      assert.equal(result.batch, null);
+      assert.equal(result.readyForReview, false);
+      assert.equal(stores.itemStore.list().length, 0);
+      assert.equal(stores.batchStore.load().batches.length, 0);
+      const artifactFilesAfter = fs.existsSync(stores.artifactStore.dir) ? fs.readdirSync(stores.artifactStore.dir).sort() : [];
+      assert.deepEqual(artifactFilesAfter, artifactFilesBefore, "stale knowledge must not freeze a patch artifact");
+    } finally {
+      await destroyAyasMicroBatchWorktree(repoRoot);
+    }
+  });
+
+  await scenario("a stale tick preserves an accumulating batch without promotion, then fresh Graphify resumes accumulation into READY_FOR_REVIEW", async () => {
+    const { repoRoot, head } = makeErrorClassFixtureRepo(["AlphaError", "BravoError", "CharlieError"]);
+    await destroyAyasMicroBatchWorktree(repoRoot);
+    try {
+      const stores = freshStores(); const observation = baseObservation({ head, branch: git(repoRoot, ["branch", "--show-current"]) });
+      const first = await accumulateAyasMicroBatchCandidates({ repoRoot, observation, ...stores, maxAttemptsPerTick: 2 });
+      assert.equal(first.itemsAdded.length, 2); assert.equal(first.batch!.status, "ACCUMULATING");
+      const stale = await accumulateAyasMicroBatchCandidates({ repoRoot, observation: { ...observation, graphifyFresh: false, now: "2026-09-16T00:05:00.000Z" }, ...stores, maxAttemptsPerTick: 2 });
+      assert.deepEqual(stale.itemsAdded, []); assert.equal(stale.readyForReview, false);
+      const preserved = stores.batchStore.load().batches.find((batch) => batch.batchId === first.batch!.batchId)!;
+      assert.equal(preserved.status, "ACCUMULATING"); assert.equal(preserved.items.length, 2); assert.equal(stores.itemStore.list().length, 2);
+      const fresh = await accumulateAyasMicroBatchCandidates({ repoRoot, observation: { ...observation, now: "2026-09-16T00:10:00.000Z" }, ...stores, maxAttemptsPerTick: 2 });
+      assert.equal(fresh.itemsAdded.length, 1); assert.equal(fresh.readyForReview, true); assert.equal(fresh.batch!.status, "READY_FOR_REVIEW"); assert.equal(fresh.batch!.items.length, 3);
+    } finally {
+      await destroyAyasMicroBatchWorktree(repoRoot);
+    }
+  });
+
+  await scenario("a READY_FOR_REVIEW batch is preserved unchanged on a stale tick and receives no stale-derived item", async () => {
+    const { repoRoot, head } = makeErrorClassFixtureRepo(["AlphaError", "BravoError", "CharlieError", "DeltaError"]);
+    await destroyAyasMicroBatchWorktree(repoRoot);
+    try {
+      const stores = freshStores(); const observation = baseObservation({ head, branch: git(repoRoot, ["branch", "--show-current"]) });
+      const ready = await accumulateAyasMicroBatchCandidates({ repoRoot, observation, ...stores, maxAttemptsPerTick: 3 });
+      assert.equal(ready.batch!.status, "READY_FOR_REVIEW"); assert.equal(ready.batch!.items.length, 3);
+      const snapshot = JSON.stringify(ready.batch);
+      const stale = await accumulateAyasMicroBatchCandidates({ repoRoot, observation: { ...observation, graphifyFresh: false, now: "2026-09-16T00:05:00.000Z" }, ...stores, maxAttemptsPerTick: 3 });
+      assert.deepEqual(stale.itemsAdded, []);
+      const preserved = stores.batchStore.load().batches.find((batch) => batch.batchId === ready.batch!.batchId)!;
+      assert.equal(JSON.stringify(preserved), snapshot); assert.equal(stores.itemStore.list().length, 3);
+    } finally {
+      await destroyAyasMicroBatchWorktree(repoRoot);
+    }
+  });
+
   await scenario("end-to-end against the REAL Atölye repo: accumulates real MICRO_SAFE items into a persistent batch, real repo stays clean", async () => {
     const repoRoot = process.cwd();
     const head = git(repoRoot, ["rev-parse", "HEAD"]);

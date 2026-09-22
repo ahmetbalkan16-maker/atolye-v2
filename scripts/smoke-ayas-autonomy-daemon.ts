@@ -29,6 +29,15 @@ async function main() {
     daemon.observe(observation);
     assert.equal(daemon.discover(observation, [candidate()]).length, 0);
   });
+  await scenario("stale Graphify never promotes a candidate into a new owner-actionable PENDING proposal", () => {
+    const inbox = createAyasApprovalInboxStore({ rootDir: root() });
+    const daemon = createAyasAutonomyDaemon({ inbox });
+    const staleObservation = { now: "2026-09-15T12:00:00.000Z", branch: "wip/test", head: "new-head", repoClean: true, graphifyFresh: false, machineAction: "ALLOW" as const, gaps: [] };
+    assert.deepEqual(daemon.discover(staleObservation, [candidate()]), []);
+    assert.equal(inbox.load().proposals.length, 0, "artifact discovery is not proposal promotion while Graphify is stale");
+    const freshObservation = { ...staleObservation, graphifyFresh: true };
+    assert.equal(daemon.discover(freshObservation, [candidate()])[0]?.status, "PENDING");
+  });
   await scenario("safe candidate becomes one durable pending proposal", () => {
     const daemon = createAyasAutonomyDaemon({ inbox: createAyasApprovalInboxStore({ rootDir: root() }) });
     const observation = { now: "2026-09-15T12:00:00.000Z", branch: "wip/test", head: "abc", repoClean: true, graphifyFresh: true, machineAction: "ALLOW" as const, gaps: [] };

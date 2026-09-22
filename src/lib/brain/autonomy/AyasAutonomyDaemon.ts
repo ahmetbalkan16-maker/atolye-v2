@@ -47,6 +47,13 @@ export interface AyasDaemonCandidate {
   readonly discoverySource?: AyasProposalDiscoverySource;
   readonly sourceReference?: string;
 }
+export interface AyasDeferredPublicationReceipt {
+  readonly executionId: string; readonly proposalId: string; readonly proposalHash: string;
+  readonly authorizationId: string; readonly reservationId: string; readonly baseHead: string;
+  readonly exactFiles: readonly string[]; readonly changedFiles: readonly string[];
+  readonly diffFingerprint: string; readonly testsRun: readonly string[]; readonly testResults: readonly string[];
+  readonly mutationCompletedAt: string;
+}
 export interface AyasDaemonOptions {
   readonly inbox?: AyasApprovalInboxHandle;
   readonly stateFile?: string;
@@ -116,7 +123,7 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
     transition(decision === "APPROVE" ? "APPROVED_PENDING_EXECUTION" : decision === "LATER" ? "DEFERRED" : "OBSERVING", { activeProposalId: proposalId });
     return result.proposal;
   };
-  const executeApproved = async (input: { readonly proposalId: string; readonly proposalHash: string; readonly baseHead: string; readonly currentHead: string; readonly exactFiles: readonly string[]; readonly currentExactFiles: readonly string[]; readonly repoClean: boolean; readonly applyWhileExecuting: (authorizationId: string) => Promise<{ readonly changedFiles: readonly string[]; readonly diffFingerprint: string; readonly testsRun: readonly string[]; readonly testResults: readonly string[] }>; }): Promise<AyasInboxProposal> => {
+  const executeApproved = async (input: { readonly proposalId: string; readonly proposalHash: string; readonly baseHead: string; readonly currentHead: string; readonly exactFiles: readonly string[]; readonly currentExactFiles: readonly string[]; readonly repoClean: boolean; readonly deferredPublication?: boolean; readonly onDeferredReceipt?: (receipt: AyasDeferredPublicationReceipt) => void; readonly applyWhileExecuting: (authorizationId: string) => Promise<{ readonly changedFiles: readonly string[]; readonly diffFingerprint: string; readonly testsRun: readonly string[]; readonly testResults: readonly string[] }>; }): Promise<AyasInboxProposal> => {
     if (!input.repoClean) { transition("PAUSED_DIRTY_REPO", { lastError: "working tree became dirty before execution" }); throw new Error("AYAS_DAEMON_DIRTY_REPO"); }
     if (!isolatedGateRoot) throw new Error("AYAS_DAEMON_DEVELOPMENT_GATE_ROOT_REQUIRED");
     if (input.currentHead !== input.baseHead) { transition("ERROR", { lastError: "proposal HEAD is stale" }); throw new Error("AYAS_DAEMON_STALE_HEAD"); }
@@ -131,7 +138,7 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
     const journal = createAyasExecutionJournal({ rootDir: isolatedGateRoot });
     const startedAt = now();
     const journalContext: { authorizationId?: string; reservationId?: string } = {};
-    const writeJournal = (phase: AyasExecutionJournalPhase, extra: { readonly gateSequence?: number; readonly mutationFingerprint?: string; readonly lastError?: string } = {}): void => {
+    const writeJournal = (phase: AyasExecutionJournalPhase, extra: { readonly gateSequence?: number; readonly mutationFingerprint?: string; readonly lastError?: string; readonly changedFiles?: readonly string[]; readonly testsRun?: readonly string[]; readonly testResults?: readonly string[]; readonly mutationCompletedAt?: string } = {}): void => {
       journal.record({
         schemaVersion: ayasExecutionJournalSchemaVersion,
         executionId,
@@ -187,6 +194,12 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
         record = applyVerifiedGateTransition(gate, { event: "close" }, "CLOSED");
         writeJournal("GATE_CLOSED", { gateSequence: record.sequence, mutationFingerprint: actual.diffFingerprint });
         const result = { ...reported, changedFiles: actual.changedFiles, diffFingerprint: actual.diffFingerprint };
+        if (input.deferredPublication) {
+          const receipt: AyasDeferredPublicationReceipt = { executionId, proposalId: input.proposalId, proposalHash: input.proposalHash, authorizationId: reservation.authorizationId, reservationId: reservation.reservationId, baseHead: input.baseHead, exactFiles: input.exactFiles, changedFiles: result.changedFiles, diffFingerprint: result.diffFingerprint, testsRun: result.testsRun, testResults: result.testResults, mutationCompletedAt: now() };
+          writeJournal("MUTATION_COMPLETED_PENDING_PUBLICATION", { mutationFingerprint: result.diffFingerprint, changedFiles: result.changedFiles, testsRun: result.testsRun, testResults: result.testResults, mutationCompletedAt: receipt.mutationCompletedAt });
+          input.onDeferredReceipt?.(receipt);
+          return inbox.load().proposals.find((entry) => entry.proposalId === input.proposalId)!;
+        }
         inbox.recordResult({ resultId: `ayas-result-${input.proposalId}-${Date.now()}`, proposalId: input.proposalId, authorizationId: reservation.authorizationId, startedAt: state.updatedAt, completedAt: now(), changedFiles: result.changedFiles, diffFingerprint: result.diffFingerprint, testsRun: result.testsRun, testResults: result.testResults, outcome: "COMPLETED", gateAuditIdentity: reservation.authorizationId, operatorReviewStatus: "WAITING_REVIEW" }, "COMPLETED");
         inbox.finalizeApproval(reservation.reservationId, "EXECUTED", now());
         writeJournal("RESULT_RECORDED", { mutationFingerprint: result.diffFingerprint });

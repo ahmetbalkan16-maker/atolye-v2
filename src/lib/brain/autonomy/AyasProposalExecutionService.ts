@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 
 import { createAyasApprovalInboxStore, isAyasProposalApprovalReady, type AyasApprovalInboxHandle } from "./AyasApprovalInboxStore";
-import { createAyasAutonomyDaemon } from "./AyasAutonomyDaemon";
+import { createAyasAutonomyDaemon, type AyasDeferredPublicationReceipt } from "./AyasAutonomyDaemon";
 import type { AyasExecutionJournalPhase } from "./AyasExecutionJournal";
 import { resolveAyasMutation, AyasMutationRegistryError, type AyasMutationImplementation } from "./AyasMutationRegistry";
 import { resolveAyasPatchArtifactMutation, AyasPatchArtifactMutationError } from "./AyasPatchArtifactMutation";
@@ -43,6 +43,7 @@ export interface AyasProposalExecutionDeps {
   readonly patchArtifactStore?: AyasPatchArtifactStore;
   /** M21.1 — test-only pass-through to `AyasAutonomyDaemon`'s crash-injection hook. Never set in production. */
   readonly onJournalPhase?: (phase: AyasExecutionJournalPhase) => void;
+  readonly deferredPublication?: boolean;
 }
 
 export function defaultAyasProposalExecutionDeps(): AyasProposalExecutionDeps {
@@ -54,7 +55,7 @@ function git(repoRoot: string, args: readonly string[]): string {
   return execFileSync("git", [...args], { cwd: repoRoot, encoding: "utf8", windowsHide: true }).trim();
 }
 
-export async function executeAyasApprovedProposalWith(proposalId: string, deps: AyasProposalExecutionDeps): Promise<void> {
+export async function executeAyasApprovedProposalWith(proposalId: string, deps: AyasProposalExecutionDeps): Promise<AyasDeferredPublicationReceipt | undefined> {
   if (typeof proposalId !== "string" || !proposalId.trim()) throw new AyasProposalExecutionError("INVALID_INPUT", "proposalId is required");
 
   const proposal = deps.inbox.load().proposals.find((entry) => entry.proposalId === proposalId);
@@ -88,6 +89,7 @@ export async function executeAyasApprovedProposalWith(proposalId: string, deps: 
   if (!freshProposal || freshProposal.status !== "APPROVED") throw new AyasProposalExecutionError("STALE_APPROVAL", "proposal state changed since lookup");
 
   const daemon = createAyasAutonomyDaemon({ inbox: deps.inbox, gateRoot: deps.gateRoot, repoRoot: deps.repoRoot, onJournalPhase: deps.onJournalPhase });
+  let receipt: AyasDeferredPublicationReceipt | undefined;
   await daemon.executeApproved({
     proposalId: proposal.proposalId,
     proposalHash: proposal.proposalHash,
@@ -96,9 +98,11 @@ export async function executeAyasApprovedProposalWith(proposalId: string, deps: 
     exactFiles: proposal.exactFiles,
     currentExactFiles: freshProposal.exactFiles,
     repoClean,
+    ...(deps.deferredPublication ? { deferredPublication: true, onDeferredReceipt: (value) => { receipt = value; } } : {}),
     applyWhileExecuting: async () => {
       const run = await mutation.run(deps.repoRoot);
       return { changedFiles: run.changedFiles, diffFingerprint: "", testsRun: run.testsRun, testResults: run.testResults };
     },
   });
+  return receipt;
 }

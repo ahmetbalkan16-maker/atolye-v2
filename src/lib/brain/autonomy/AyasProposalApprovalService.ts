@@ -10,6 +10,7 @@ import { createAyasGraphifyEvidenceStore, checkAyasItemWithGraphifyEvidenced, ty
 import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "./AyasNovelPatchDiscovery";
 import { runGuardedAyasPublication, type AyasGuardedPublicationGuardDeps } from "./AyasGuardedPublication";
 import { closeAyasPostPublication } from "./AyasPostPublicationClosure";
+import { finalizeAyasDeferredPublication, markAyasDeferredPublicationRecoveryRequired } from "./AyasDeferredPublicationFinalizer";
 import { classifyAyasRuntimeImpact } from "./AyasProposalRuntimeImpact";
 
 /**
@@ -256,10 +257,15 @@ async function runAyasProposalPublishPipeline(approved: AyasInboxProposal, deps:
   const graphifyEvidenceStore = deps.graphifyEvidenceStore ?? createAyasGraphifyEvidenceStore({ rootDir: path.join(deps.gateRoot, "graphify-evidence") });
   const remoteName = deps.remoteName ?? "origin";
   const graphifyEvidenceItemIds = new Set<string>();
+  let deferredReceipt: Awaited<ReturnType<typeof executeAyasApprovedProposalWith>>;
+  const requireRecovery = (reason: string): void => {
+    if (deferredReceipt) markAyasDeferredPublicationRecoveryRequired(deferredReceipt, { gateRoot: deps.gateRoot, inbox: deps.inbox, reason });
+  };
 
   // --- Package C execution (unmodified AyasAutonomyDaemon.executeApproved, via the existing AyasProposalExecutionService) ---
   try {
-    await executeAyasApprovedProposalWith(approved.proposalId, { repoRoot: deps.repoRoot, gateRoot: deps.gateRoot, inbox: deps.inbox, patchArtifactStore: artifactStore, onJournalPhase: deps.onJournalPhase });
+    deferredReceipt = await executeAyasApprovedProposalWith(approved.proposalId, { repoRoot: deps.repoRoot, gateRoot: deps.gateRoot, inbox: deps.inbox, patchArtifactStore: artifactStore, onJournalPhase: deps.onJournalPhase, deferredPublication: true });
+    if (!deferredReceipt) throw new Error("AYAS_DEFERRED_RECEIPT_MISSING");
   } catch (error) {
     const code = error instanceof AyasProposalExecutionError ? error.code : error instanceof Error ? error.message : "EXECUTION_FAILED";
     return { ok: false, code, stage: "EXECUTION", message: error instanceof Error ? error.message : String(error), graphifyEvidenceItemIds: [] };
@@ -284,6 +290,7 @@ async function runAyasProposalPublishPipeline(approved: AyasInboxProposal, deps:
     git(deps.repoRoot, ["reset", "--", ...files]);
     revertToHead(deps.repoRoot, files);
     const message = error instanceof Error ? error.message : String(error);
+    requireRecovery(message);
     const code = error instanceof AyasBatchGraphifyCheckError ? error.code : "POST_EXECUTION_VALIDATION_FAILED";
     return { ok: false, code, stage: "POST_VALIDATION", message, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
@@ -295,6 +302,7 @@ async function runAyasProposalPublishPipeline(approved: AyasInboxProposal, deps:
   if (JSON.stringify(stagedFiles) !== JSON.stringify(expectedFiles)) {
     git(deps.repoRoot, ["reset"]);
     revertToHead(deps.repoRoot, files);
+    requireRecovery("AYAS_PROPOSAL_STAGE_SCOPE_MISMATCH");
     return { ok: false, code: "AYAS_PROPOSAL_STAGE_SCOPE_MISMATCH", stage: "STAGING", message: `staged scope ${JSON.stringify(stagedFiles)} did not exactly match the approved proposal's files ${JSON.stringify(expectedFiles)}`, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
   try {
@@ -302,6 +310,7 @@ async function runAyasProposalPublishPipeline(approved: AyasInboxProposal, deps:
   } catch (error) {
     git(deps.repoRoot, ["reset"]);
     revertToHead(deps.repoRoot, files);
+    requireRecovery(error instanceof Error ? error.message : String(error));
     return { ok: false, code: "AYAS_PROPOSAL_WHITESPACE_ERROR", stage: "STAGING", message: error instanceof Error ? error.message : String(error), graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
 
@@ -314,7 +323,9 @@ async function runAyasProposalPublishPipeline(approved: AyasInboxProposal, deps:
   } catch (error) {
     // A commit failure with content already staged is left exactly as-is for
     // human inspection — never auto-reset, never auto-retried.
-    return { ok: false, code: "AYAS_PROPOSAL_COMMIT_FAILED", stage: "COMMIT", message: error instanceof Error ? error.message : String(error), graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
+    const message = error instanceof Error ? error.message : String(error);
+    requireRecovery(message);
+    return { ok: false, code: "AYAS_PROPOSAL_COMMIT_FAILED", stage: "COMMIT", message, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
 
   // --- push, never force ---
@@ -323,12 +334,15 @@ async function runAyasProposalPublishPipeline(approved: AyasInboxProposal, deps:
     deps.onAfterCommitBeforePush?.();
     git(deps.repoRoot, ["push", remoteName, branch]);
   } catch (error) {
-    return { ok: false, code: "AYAS_PROPOSAL_PUSH_FAILED", stage: "PUSH", message: error instanceof Error ? error.message : String(error), graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
+    const message = error instanceof Error ? error.message : String(error);
+    requireRecovery(message);
+    return { ok: false, code: "AYAS_PROPOSAL_PUSH_FAILED", stage: "PUSH", message, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
 
   const localHead = git(deps.repoRoot, ["rev-parse", "HEAD"]);
   const remoteHead = git(deps.repoRoot, ["rev-parse", `${remoteName}/${branch}`]);
   if (localHead !== remoteHead) {
+    requireRecovery(`local HEAD ${localHead} does not match ${remoteName}/${branch} ${remoteHead} after push`);
     return { ok: false, code: "AYAS_PROPOSAL_PUBLISH_UNVERIFIED", stage: "PUSH", message: `local HEAD ${localHead} does not match ${remoteName}/${branch} ${remoteHead} after push`, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
 
@@ -336,7 +350,9 @@ async function runAyasProposalPublishPipeline(approved: AyasInboxProposal, deps:
   // unhealthy runtime therefore cannot be reported as a clean publication.
   try {
     (deps.postPublicationClosure ?? ((head) => closeAyasPostPublication(head, { repoRoot: deps.repoRoot, remoteName })))(localHead);
+    finalizeAyasDeferredPublication(deferredReceipt!, { repoRoot: deps.repoRoot, gateRoot: deps.gateRoot, inbox: deps.inbox, expectedHead: localHead, remoteName });
   } catch (error) {
+    if (deferredReceipt) markAyasDeferredPublicationRecoveryRequired(deferredReceipt, { gateRoot: deps.gateRoot, inbox: deps.inbox, reason: error instanceof Error ? error.message : String(error) });
     return { ok: false, code: error instanceof Error && "code" in error ? String((error as { code: unknown }).code) : "AYAS_POST_PUBLICATION_CLOSURE_FAILED", stage: "POST_PUBLICATION_CLOSURE", message: error instanceof Error ? error.message : String(error), graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
 
