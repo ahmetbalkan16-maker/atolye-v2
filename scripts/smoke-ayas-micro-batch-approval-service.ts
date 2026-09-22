@@ -35,6 +35,7 @@ interface Fixture {
   readonly gateRoot: string;
   /** Every publication now runs under the Runtime Stability Guard; this keeps the guard's own observations isolated too, so no scenario's outcome can depend on the real scheduler state, the real approval inbox or the real :3000. */
   readonly stabilityGuard: ReturnType<typeof isolatedStabilityGuardDeps>;
+  readonly postPublicationClosure: (expectedHead: string) => void;
 }
 
 function widgetContent(className: string): string {
@@ -89,6 +90,10 @@ function makeFixture(): Fixture {
     itemStore: createAyasMicroItemStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-approval-svc-items-")) }),
     artifactStore: createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-approval-svc-artifacts-")) }),
     gateRoot: path.join(fs.mkdtempSync(path.join(os.tmpdir(), "ayas-approval-svc-gate-"))),
+    postPublicationClosure: (expectedHead) => {
+      assert.equal(git(repoRoot, "rev-parse", "HEAD"), expectedHead);
+      assert.equal(git(remoteDir, "rev-parse", "master"), expectedHead);
+    },
   };
 }
 

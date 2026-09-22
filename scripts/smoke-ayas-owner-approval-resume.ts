@@ -31,6 +31,7 @@ interface Fixture {
   readonly gateRoot: string;
   readonly inbox: AyasApprovalInboxHandle;
   readonly artifactStore: AyasPatchArtifactStore;
+  readonly postPublicationClosure: (expectedHead: string) => void;
 }
 
 function makeFixture(): Fixture {
@@ -60,6 +61,10 @@ function makeFixture(): Fixture {
     gateRoot: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-owner-resume-gate-")),
     inbox: createAyasApprovalInboxStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-owner-resume-inbox-")) }),
     artifactStore: createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-owner-resume-artifacts-")) }),
+    postPublicationClosure: (expectedHead) => {
+      assert.equal(git(repoRoot, "rev-parse", "HEAD"), expectedHead);
+      assert.equal(git(remoteDir, "rev-parse", "master"), expectedHead);
+    },
   };
 }
 

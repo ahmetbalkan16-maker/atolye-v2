@@ -9,6 +9,7 @@ import { AyasBatchGraphifyCheckError } from "./AyasBatchGraphifyCheck";
 import { createAyasGraphifyEvidenceStore, checkAyasItemWithGraphifyEvidenced, type AyasGraphifyEvidenceStore } from "./AyasGraphifyEvidenceStore";
 import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "./AyasNovelPatchDiscovery";
 import { runGuardedAyasPublication, type AyasGuardedPublicationGuardDeps } from "./AyasGuardedPublication";
+import { closeAyasPostPublication } from "./AyasPostPublicationClosure";
 import { classifyAyasRuntimeImpact } from "./AyasProposalRuntimeImpact";
 
 /**
@@ -70,11 +71,13 @@ export interface AyasProposalApprovalDeps {
   readonly onJournalPhase?: (phase: import("./AyasExecutionJournal").AyasExecutionJournalPhase) => void;
   readonly onBeforeCommit?: () => void;
   readonly onAfterCommitBeforePush?: () => void;
+  /** Test seam only. Production runs the one canonical post-push Graphify/health closure. */
+  readonly postPublicationClosure?: (expectedHead: string) => void;
 }
 
 export type AyasProposalApprovalOutcome =
   | { readonly ok: true; readonly commitSha: string; readonly pushed: true; readonly changedFiles: readonly string[]; readonly graphifyEvidenceItemIds: readonly string[] }
-  | { readonly ok: false; readonly code: string; readonly stage: "APPROVAL" | "STABILITY_GUARD" | "EXECUTION" | "POST_VALIDATION" | "STAGING" | "COMMIT" | "PUSH"; readonly message: string; readonly graphifyEvidenceItemIds: readonly string[] };
+  | { readonly ok: false; readonly code: string; readonly stage: "APPROVAL" | "STABILITY_GUARD" | "EXECUTION" | "POST_VALIDATION" | "STAGING" | "COMMIT" | "PUSH" | "POST_PUBLICATION_CLOSURE"; readonly message: string; readonly graphifyEvidenceItemIds: readonly string[] };
 
 function git(repoRoot: string, args: readonly string[]): string {
   return execFileSync("git", [...args], { cwd: repoRoot, encoding: "utf8", windowsHide: true }).trim();
@@ -327,6 +330,14 @@ async function runAyasProposalPublishPipeline(approved: AyasInboxProposal, deps:
   const remoteHead = git(deps.repoRoot, ["rev-parse", `${remoteName}/${branch}`]);
   if (localHead !== remoteHead) {
     return { ok: false, code: "AYAS_PROPOSAL_PUBLISH_UNVERIFIED", stage: "PUSH", message: `local HEAD ${localHead} does not match ${remoteName}/${branch} ${remoteHead} after push`, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
+  }
+
+  // The published SHA becomes authoritative only here.  A stale graph or
+  // unhealthy runtime therefore cannot be reported as a clean publication.
+  try {
+    (deps.postPublicationClosure ?? ((head) => closeAyasPostPublication(head, { repoRoot: deps.repoRoot, remoteName })))(localHead);
+  } catch (error) {
+    return { ok: false, code: error instanceof Error && "code" in error ? String((error as { code: unknown }).code) : "AYAS_POST_PUBLICATION_CLOSURE_FAILED", stage: "POST_PUBLICATION_CLOSURE", message: error instanceof Error ? error.message : String(error), graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };
   }
 
   return { ok: true, commitSha, pushed: true, changedFiles: files, graphifyEvidenceItemIds: [...graphifyEvidenceItemIds] };

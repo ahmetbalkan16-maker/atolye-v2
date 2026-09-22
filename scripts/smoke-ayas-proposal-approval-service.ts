@@ -10,6 +10,7 @@ import { createAyasApprovalInboxStore, type AyasApprovalInboxHandle, type AyasIn
 import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatchArtifact";
 import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "../src/lib/brain/autonomy/AyasNovelPatchDiscovery";
 import { isolatedStabilityGuardDeps } from "./ayas-isolated-stability-guard";
+import { closeAyasPostPublication, AyasPostPublicationClosureError } from "../src/lib/brain/autonomy/AyasPostPublicationClosure";
 
 /**
  * M20.7 — "ONAYLA VE UYGULA" for an individual patch-artifact-backed
@@ -30,6 +31,7 @@ interface Fixture {
   readonly artifactStore: AyasPatchArtifactStore;
   /** Every publication now runs under the Runtime Stability Guard; this keeps the guard's own observations isolated too, so no scenario's outcome can depend on the real scheduler state or the real :3000. */
   readonly stabilityGuard: ReturnType<typeof isolatedStabilityGuardDeps>;
+  readonly postPublicationClosure: (expectedHead: string) => void;
 }
 
 function makeFixture(): Fixture {
@@ -63,6 +65,10 @@ function makeFixture(): Fixture {
     gateRoot: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-proposal-approval-gate-")),
     inbox: createAyasApprovalInboxStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-proposal-approval-inbox-")) }),
     artifactStore: createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-proposal-approval-artifacts-")) }),
+    postPublicationClosure: (expectedHead) => {
+      assert.equal(git(repoRoot, "rev-parse", "HEAD"), expectedHead);
+      assert.equal(git(remoteDir, "rev-parse", "master"), expectedHead);
+    },
   };
 }
 
@@ -166,6 +172,48 @@ async function main(): Promise<void> {
     assert.equal(localHead, result.commitSha);
     assert.equal(git(f.repoRoot, "status", "--short"), "");
     assert.equal(f.inbox.load().proposals.find((p) => p.proposalId === proposal.proposalId)!.status, "COMPLETED");
+  });
+
+  await scenario("real publication order closes only after the new pushed HEAD: refresh, fresh metadata, integrity, then HEALTHY health", async () => {
+    const f = makeFixture(); const { proposal } = seedNewFileProposal(f); const order: string[] = [];
+    const result = await approveAndExecuteAyasProposal(proposal.proposalId, proposal.proposalHash, {
+      ...f,
+      postPublicationClosure: (head) => closeAyasPostPublication(head, {
+        repoRoot: f.repoRoot,
+        refreshGraphify: () => { assert.equal(git(f.remoteDir, "rev-parse", "master"), head); order.push("graphify-refresh"); },
+        readGraphifyBranch: () => { order.push("graphify-freshness"); return { lastAnalyzedHead: head, stale: false }; },
+        readIntegrity: () => { order.push("integrity"); return { duplicateIds: 0, danglingEdges: 0, selfLoops: 0 }; },
+        runHealth: () => { order.push("health"); return { verdict: "HEALTHY", ownerActionRecommended: false }; },
+      }),
+    });
+    assert.equal(result.ok, true);
+    assert.deepEqual(order, ["graphify-refresh", "graphify-freshness", "integrity", "health"]);
+  });
+
+  await scenario("a post-push Graphify closure failure preserves the published commit and becomes recovery-required, never a false success", async () => {
+    const f = makeFixture(); const { proposal } = seedNewFileProposal(f); const before = git(f.repoRoot, "rev-parse", "HEAD");
+    const result = await approveAndExecuteAyasProposal(proposal.proposalId, proposal.proposalHash, {
+      ...f, postPublicationClosure: () => { throw new AyasPostPublicationClosureError("AYAS_POST_PUBLICATION_GRAPHIFY_STALE", "fixture stale graph"); },
+    });
+    assert.equal(result.ok, false); if (result.ok) return;
+    assert.equal(result.stage, "POST_PUBLICATION_CLOSURE");
+    assert.equal(result.code, "AYAS_POST_PUBLICATION_GRAPHIFY_STALE");
+    const published = git(f.repoRoot, "rev-parse", "HEAD");
+    assert.notEqual(published, before); assert.equal(git(f.remoteDir, "rev-parse", "master"), published);
+    const transaction = f.stabilityGuard.store!.load().transactions.at(-1)!;
+    assert.equal(transaction.state, "RECOVERY_REQUIRED");
+  });
+
+  await scenario("stale Graphify metadata and unhealthy health are independently fail-closed by the canonical closure", () => {
+    const f = makeFixture(); const head = git(f.repoRoot, "rev-parse", "HEAD");
+    assert.throws(() => closeAyasPostPublication(head, {
+      repoRoot: f.repoRoot, refreshGraphify: () => {}, readGraphifyBranch: () => ({ lastAnalyzedHead: "old-head", stale: false }),
+      readIntegrity: () => ({ duplicateIds: 0, danglingEdges: 0, selfLoops: 0 }), runHealth: () => ({ verdict: "HEALTHY", ownerActionRecommended: false }),
+    }), (error: unknown) => error instanceof AyasPostPublicationClosureError && error.code === "AYAS_POST_PUBLICATION_GRAPHIFY_STALE");
+    assert.throws(() => closeAyasPostPublication(head, {
+      repoRoot: f.repoRoot, refreshGraphify: () => {}, readGraphifyBranch: () => ({ lastAnalyzedHead: head, stale: false }),
+      readIntegrity: () => ({ duplicateIds: 0, danglingEdges: 0, selfLoops: 0 }), runHealth: () => ({ verdict: "DEGRADED", ownerActionRecommended: true }),
+    }), (error: unknown) => error instanceof AyasPostPublicationClosureError && error.code === "AYAS_POST_PUBLICATION_HEALTH_UNHEALTHY");
   });
 
   await scenario("a proposalHash that no longer matches the current proposal is refused before any decision or mutation", async () => {
