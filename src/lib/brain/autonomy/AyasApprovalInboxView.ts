@@ -103,6 +103,10 @@ export const istanbulDay = (iso: string): string => {
   return Number.isFinite(time) ? new Date(time + 3 * 60 * 60 * 1000).toISOString().slice(0, 10) : "invalid";
 };
 
+/** These records still need a human or an already-authorized execution path,
+ * so a calendar rollover must never make them disappear from the main view. */
+const DAILY_VIEW_ACTION_REQUIRED_STATUSES = new Set<AyasInboxProposalRead["status"]>(["APPROVED", "RESERVED", "RECOVERY_REQUIRED"]);
+
 export function missingAyasHumanExplanation(proposal: AyasInboxProposalRead): readonly AyasHumanExplanationField[] {
   return ayasHumanExplanationFields.filter((field) => typeof proposal[field] !== "string" || !proposal[field]?.trim());
 }
@@ -163,7 +167,11 @@ export function buildAyasApprovalInboxView(state: AyasApprovalInboxReadState, no
   // accept an APPROVE/REJECT for.
   const pending = all.filter((proposal) => proposal.status === "PENDING" || (proposal.status === "DEFERRED" && isAyasDeferredEligibleNow(proposal.nextEligibleAt, now))).slice(0, 20);
   const today = all.filter((proposal) => istanbulDay(proposal.createdAt) === istanbulDay(now)).slice(-40).reverse();
-  const history = all.filter((proposal) => proposal.status !== "PENDING" || proposal.decision || proposal.result).slice(-100).reverse();
+  // Durable history stays untouched. This is only the main-screen projection:
+  // today's decisions/results remain visible, while an older terminal record
+  // drops out unless it still needs owner/action recovery.
+  const currentDay = istanbulDay(now);
+  const history = all.filter((proposal) => istanbulDay(proposal.createdAt) === currentDay || DAILY_VIEW_ACTION_REQUIRED_STATUSES.has(proposal.status)).slice(-100).reverse();
   return { connected: true, pending, today, history };
 }
 

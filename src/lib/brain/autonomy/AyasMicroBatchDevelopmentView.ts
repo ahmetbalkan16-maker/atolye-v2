@@ -1,6 +1,6 @@
 import { readAyasMicroBatchState, type AyasMicroBatchReadState, type AyasMicroBatchRead, type AyasMicroBatchDecisionRead, type AyasMicroBatchResultRead } from "./AyasMicroBatchReader";
 import { createAyasPatchArtifactStore, AyasPatchArtifactError } from "./AyasPatchArtifact";
-import type { AyasDevelopmentPatchArtifact, AyasPublicationDisplayState } from "./AyasApprovalInboxView";
+import { istanbulDay, type AyasDevelopmentPatchArtifact, type AyasPublicationDisplayState } from "./AyasApprovalInboxView";
 import { readAyasPublicationActivity, AYAS_PUBLICATION_ACTIVITY_UNKNOWN, type AyasPublicationActivitySnapshot } from "./AyasPublicationActivity";
 
 /** Approval-race UX hardening (Part A) — the batch-lane analogue of `computeAyasPublicationDisplayState` in `AyasApprovalInboxView.ts`. A batch's "same work" identity is its `exactFilesUnion` (the individual-proposal view uses `exactFiles` the same way) rather than any one item's `semanticKey`, since a regenerated batch is not guaranteed to bundle the exact same item set. */
@@ -92,11 +92,15 @@ function enrich(batch: AyasMicroBatchRead, decisions: readonly AyasMicroBatchDec
 }
 
 const ACTIVE_STATUSES = new Set<AyasMicroBatchRead["status"]>(["ACCUMULATING", "READY_FOR_REVIEW"]);
+const ACTION_REQUIRED_STATUSES = new Set<AyasMicroBatchRead["status"]>(["APPROVED", "RESERVED", "RECOVERY_REQUIRED"]);
 
 /** Pure: builds the view from an already-read state object — no filesystem access of its own (besides each item's artifact resolution, which uses the default artifact store exactly like `buildAyasApprovalInboxView` does). Exported so tests can construct `AyasMicroBatchReadState` in memory, the same convention `buildAyasApprovalInboxView` already established. */
-export function buildAyasMicroBatchDevelopmentView(state: AyasMicroBatchReadState, activity: AyasPublicationActivitySnapshot = AYAS_PUBLICATION_ACTIVITY_UNKNOWN): AyasMicroBatchDevelopmentView {
+export function buildAyasMicroBatchDevelopmentView(state: AyasMicroBatchReadState, activity: AyasPublicationActivitySnapshot = AYAS_PUBLICATION_ACTIVITY_UNKNOWN, now = new Date().toISOString()): AyasMicroBatchDevelopmentView {
   const activeRaw = state.batches.find((b) => ACTIVE_STATUSES.has(b.status)) ?? null;
-  const historyRaw = state.batches.filter((b) => !ACTIVE_STATUSES.has(b.status)).slice(-20).reverse();
+  const currentDay = istanbulDay(now);
+  // This is a visibility projection only. Older completed/terminal batches
+  // remain durable but do not accumulate on the daily main screen.
+  const historyRaw = state.batches.filter((b) => !ACTIVE_STATUSES.has(b.status) && (istanbulDay(b.createdAt) === currentDay || ACTION_REQUIRED_STATUSES.has(b.status))).slice(-20).reverse();
   return {
     connected: true,
     active: activeRaw ? enrich(activeRaw, state.decisions, state.results, activity, state.batches) : null,
@@ -106,7 +110,7 @@ export function buildAyasMicroBatchDevelopmentView(state: AyasMicroBatchReadStat
 
 export function loadAyasMicroBatchDevelopmentView(): AyasMicroBatchDevelopmentView {
   try {
-    return buildAyasMicroBatchDevelopmentView(readAyasMicroBatchState(), readAyasPublicationActivity());
+    return buildAyasMicroBatchDevelopmentView(readAyasMicroBatchState(), readAyasPublicationActivity(), new Date().toISOString());
   } catch (error) {
     return { connected: false, active: null, history: [], error: error instanceof Error ? error.message : String(error) };
   }

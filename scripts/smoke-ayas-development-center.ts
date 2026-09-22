@@ -8,7 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { AyasDevelopmentCenter } from "../src/components/brain/AyasDevelopmentCenter";
 import { BRAIN_PANELS } from "../src/components/brain/brainCore";
 import { createAyasApprovalInboxStore, AyasApprovalInboxStoreError } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
-import { buildAyasApprovalInboxView, isAyasDevelopmentApprovalReady, type AyasDevelopmentPatchArtifact } from "../src/lib/brain/autonomy/AyasApprovalInboxView";
+import { buildAyasApprovalInboxView, isAyasDevelopmentApprovalReady, istanbulDay, type AyasDevelopmentPatchArtifact } from "../src/lib/brain/autonomy/AyasApprovalInboxView";
 import type { AyasApprovalInboxReadState, AyasInboxProposalRead } from "../src/lib/brain/autonomy/AyasApprovalInboxReader";
 
 const NOW = "2026-09-15T12:00:00.000Z";
@@ -78,6 +78,34 @@ async function main() {
   await scenario("DEFERRED is displayed correctly in history", () => assert.match(htmlFor(state([proposal({ status: "DEFERRED", nextEligibleAt: "2026-09-16T12:00:00.000Z" })])), /DAHA SONRA/));
   await scenario("empty inbox fabricates no activity", () => { const html = htmlFor(state([])); assert.match(html, /Onay bekleyen gerçek bir öneri yok/); assert.match(html, /Bugün değerlendirilmiş bir gelişim adayı yok/); assert.match(html, /Henüz kalıcı bir karar/); });
   await scenario("today contains actual evaluated statuses without changing pending semantics", () => { const view = buildAyasApprovalInboxView(state([proposal(), proposal({ proposalId: "done", status: "COMPLETED" })]), NOW); assert.equal(view.today.length, 2); assert.equal(view.pending.length, 1); });
+  await scenario("daily hygiene hides yesterday COMPLETED and STALE records from the main history projection", () => {
+    const yesterday = "2026-09-14T12:00:00.000Z";
+    const view = buildAyasApprovalInboxView(state([proposal({ proposalId: "completed-yesterday", status: "COMPLETED", createdAt: yesterday }), proposal({ proposalId: "stale-yesterday", status: "STALE", createdAt: yesterday })]), NOW);
+    assert.deepEqual(view.history, []);
+  });
+  await scenario("daily hygiene keeps yesterday PENDING and APPROVED-pending-execution records visible", () => {
+    const yesterday = "2026-09-14T12:00:00.000Z";
+    const pending = proposal({ proposalId: "pending-yesterday", createdAt: yesterday });
+    const approved = proposal({ proposalId: "approved-yesterday", status: "APPROVED", createdAt: yesterday });
+    const view = buildAyasApprovalInboxView(state([pending, approved]), NOW);
+    assert.deepEqual(view.pending.map((item) => item.proposalId), [pending.proposalId]);
+    assert.deepEqual(view.history.map((item) => item.proposalId), [approved.proposalId]);
+  });
+  await scenario("daily hygiene keeps yesterday RECOVERY_REQUIRED visible but keeps today's terminal result visible normally", () => {
+    const recovery = proposal({ proposalId: "recovery-yesterday", status: "RECOVERY_REQUIRED", createdAt: "2026-09-14T12:00:00.000Z" });
+    const todayDone = proposal({ proposalId: "completed-today", status: "COMPLETED" });
+    const view = buildAyasApprovalInboxView(state([recovery, todayDone]), NOW);
+    assert.deepEqual(view.history.map((item) => item.proposalId).sort(), [recovery.proposalId, todayDone.proposalId].sort());
+  });
+  await scenario("Istanbul midnight boundary is shared by the daily projection", () => {
+    assert.equal(istanbulDay("2026-09-14T20:59:59.999Z"), "2026-09-14");
+    assert.equal(istanbulDay("2026-09-14T21:00:00.000Z"), "2026-09-15");
+  });
+  await scenario("daily projection never mutates durable approval state", () => {
+    const durable = state([proposal({ proposalId: "completed-yesterday", status: "COMPLETED", createdAt: "2026-09-14T12:00:00.000Z" })]);
+    const before = JSON.stringify(durable); buildAyasApprovalInboxView(durable, NOW);
+    assert.equal(JSON.stringify(durable), before);
+  });
   await scenario("durable decision and outcome are attached to history", () => { const p = proposal({ status: "COMPLETED" }); const view = buildAyasApprovalInboxView(state([p], [{ decisionId: "d1", proposalId: p.proposalId, decision: "APPROVE", decidedAt: NOW, reservedAt: NOW, finalizedAt: NOW, finalizationOutcome: "EXECUTED" }], [{ resultId: "r1", proposalId: p.proposalId, completedAt: NOW, outcome: "COMPLETED", testsRun: ["smoke"], testResults: ["PASS"] }]), NOW); assert.equal(view.history[0]?.decision?.decision, "APPROVE"); assert.equal(view.history[0]?.result?.outcome, "COMPLETED"); });
   await scenario("responsive CSS collapses facts and preserves touch-sized actions", () => { const css = fs.readFileSync(path.join(process.cwd(), "src/components/brain/BrainCore.css"), "utf8"); assert.match(css, /\.bc-dev__facts \{ grid-template-columns: 1fr; \}/); assert.match(css, /min-height: 44px/); });
   await scenario("APPROVED proposal exposes YÜRÜT", () => assert.match(htmlFor(state([proposal({ status: "APPROVED" })])), />YÜRÜT</));

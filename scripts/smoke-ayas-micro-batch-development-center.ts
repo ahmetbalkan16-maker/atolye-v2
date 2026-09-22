@@ -107,7 +107,7 @@ function main(): void {
   });
 
   scenario("buildAyasMicroBatchDevelopmentView: a COMPLETED batch is history, not active", () => {
-    const view = buildAyasMicroBatchDevelopmentView(readState({ batches: [batch({ status: "COMPLETED" })] }));
+    const view = buildAyasMicroBatchDevelopmentView(readState({ batches: [batch({ status: "COMPLETED" })] }), undefined, NOW);
     assert.equal(view.active, null);
     assert.equal(view.history.length, 1);
     assert.equal(view.history[0]!.status, "COMPLETED");
@@ -116,7 +116,7 @@ function main(): void {
   scenario("buildAyasMicroBatchDevelopmentView: history is most-recent-first", () => {
     const view = buildAyasMicroBatchDevelopmentView(readState({
       batches: [batch({ batchId: "b1", status: "COMPLETED" }), batch({ batchId: "b2", status: "STALE" })],
-    }));
+    }), undefined, NOW);
     assert.deepEqual(view.history.map((b) => b.batchId), ["b2", "b1"]);
   });
 
@@ -132,9 +132,20 @@ function main(): void {
       batches: [batch({ status: "COMPLETED" })],
       decisions: [{ decisionId: "d1", batchId: "ayas-micro-batch-fixture", decision: "APPROVE", decidedAt: NOW }],
       results: [{ resultId: "r1", batchId: "ayas-micro-batch-fixture", completedAt: NOW, outcome: "COMPLETED", changedFiles: ["scripts/smoke-x.ts"], testsRun: ["scripts/smoke-x.ts"], testResults: ["PASS"] }],
-    });
+    }, undefined, NOW);
     assert.equal(view.history[0]!.decision?.decision, "APPROVE");
     assert.equal(view.history[0]!.result?.outcome, "COMPLETED");
+  });
+
+  scenario("daily hygiene hides yesterday completed micro-batches while preserving an active batch and today's completed batch", () => {
+    const yesterday = batch({ batchId: "completed-yesterday", status: "COMPLETED", createdAt: "2026-09-15T12:00:00.000Z" });
+    const today = batch({ batchId: "completed-today", status: "COMPLETED" });
+    const active = batch({ batchId: "active-yesterday", status: "ACCUMULATING", createdAt: "2026-09-15T12:00:00.000Z" });
+    const durable = readState({ batches: [yesterday, today, active] }); const before = JSON.stringify(durable);
+    const view = buildAyasMicroBatchDevelopmentView(durable, undefined, NOW);
+    assert.equal(view.active?.batchId, active.batchId);
+    assert.deepEqual(view.history.map((entry) => entry.batchId), [today.batchId]);
+    assert.equal(JSON.stringify(durable), before);
   });
 
   // --- UI: AyasDevelopmentCenter's MicroBatchPanel ---
@@ -205,7 +216,7 @@ function main(): void {
       batches: [batch({ status: "COMPLETED" })],
       decisions: [{ decisionId: "d1", batchId: "ayas-micro-batch-fixture", decision: "APPROVE", decidedAt: NOW }],
       results: [{ resultId: "r1", batchId: "ayas-micro-batch-fixture", completedAt: NOW, outcome: "COMPLETED", changedFiles: ["scripts/smoke-x.ts"], testsRun: ["scripts/smoke-x.ts"], testResults: ["PASS"] }],
-    }));
+    }), undefined, NOW);
     const html = htmlFor(view);
     assert.match(html, /Geçmiş Paketler/);
     assert.match(html, /TAMAMLANDI/);
@@ -220,7 +231,7 @@ function main(): void {
   });
 
   scenario("UI: a COMPLETED (historical) batch renders NO 'BATCH ONAYLA VE UYGULA' control — it was already decided", () => {
-    const html = htmlFor(buildAyasMicroBatchDevelopmentView(readState({ batches: [batch({ status: "COMPLETED" })] })));
+    const html = htmlFor(buildAyasMicroBatchDevelopmentView(readState({ batches: [batch({ status: "COMPLETED" })] }), undefined, NOW));
     assert.doesNotMatch(html, /BATCH ONAYLA VE UYGULA/);
   });
 
