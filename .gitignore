@@ -171,3 +171,4 @@ graphify-out/
 
 # wrangler build cache / local state (cloudflare/ayas-phone-gateway) — per-machine, not committed
 .wrangler/
+data/brain/self-improvement/stability/
