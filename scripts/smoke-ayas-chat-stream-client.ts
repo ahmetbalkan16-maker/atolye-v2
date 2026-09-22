@@ -20,7 +20,7 @@ async function scenario(name: string, test: () => Promise<void>) {
   if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${name}`);
 }
 
-function sseFetch(events: AyasChatStreamEvent[], opts: { status?: number; noBody?: boolean; throwErr?: string; chunkChars?: number } = {}): typeof fetch {
+function sseFetch(events: AyasChatStreamEvent[], opts: { status?: number; noBody?: boolean; throwErr?: string; chunkChars?: number; crlf?: boolean; omitFinalSeparator?: boolean } = {}): typeof fetch {
   return (async () => {
     if (opts.throwErr) {
       const e = new Error(opts.throwErr);
@@ -29,7 +29,9 @@ function sseFetch(events: AyasChatStreamEvent[], opts: { status?: number; noBody
     }
     if (opts.noBody) return new Response(null, { status: opts.status ?? 200 });
     if ((opts.status ?? 200) !== 200) return new Response("nope", { status: opts.status });
-    const text = events.map(ayasChatStreamEventToSse).join("");
+    let text = events.map(ayasChatStreamEventToSse).join("");
+    if (opts.crlf) text = text.replace(/\n/gu, "\r\n");
+    if (opts.omitFinalSeparator) text = text.replace(/(?:\r?\n){2}$/u, "");
     const enc = new TextEncoder();
     const bytes = enc.encode(text);
     const chunk = opts.chunkChars ?? bytes.length;
@@ -83,6 +85,19 @@ async function run() {
     });
     assert.deepEqual(deltas, ["abc", "def"]);
     assert.equal(res.ok, true);
+  });
+
+  await scenario("CRLF SSE frames and a terminal frame without a trailing separator are parsed", async () => {
+    const res = await runAyasChatStream({
+      ...base,
+      onDelta: () => {},
+      fetcher: sseFetch(
+        [{ type: "done", text: "Adın Eylultest.", source: "fallback", corrected: true, reason: "memory-identity-correction" }],
+        { crlf: true, omitFinalSeparator: true, chunkChars: 5 },
+      ),
+    });
+    assert.equal(res.ok, true);
+    if (res.ok) assert.equal(res.text, "Adın Eylultest.");
   });
 
   await scenario("corrected terminal — streamed=false so the caller replaces", async () => {

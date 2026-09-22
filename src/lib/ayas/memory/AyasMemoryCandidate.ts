@@ -65,7 +65,7 @@ const BUG = /\b(bug var|hata (veriyor|aliyorum|var)|calismiyor|bilinen (sorun|ha
  * question ("adım ne", "adım nedir", "adım neydi", "adım kim" — the last a
  * malformed-but-real way people sometimes ask).
  */
-const IDENTITY = /\b(beni .* olarak hatirla|adim (?!ne\b|nedir\b|neydi\b|kim\b)[a-z]+|ben [a-z]+'(im|yim)\b|bana .* diye (hitap et|cagir))\b/;
+const IDENTITY = /\b(beni .* olarak hatirla|adim (?!ne\b|nedir\b|neydi\b|kim\b)[a-z][a-z0-9'-]*|ben [a-z][a-z0-9'-]*'(im|yim)\b|bana .* diye (hitap et|cagir))\b/;
 
 export function extractAyasMemoryCandidates(input: {
   readonly userText: string;

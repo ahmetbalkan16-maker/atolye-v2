@@ -5,19 +5,16 @@
  *
  * `refreshBrainConsole` re-reads the Brain's durable state (read-only).
  *
- * `askAyas` wires the chat panel to the project's EXISTING local model. It builds
- * a deterministic AYAS prompt (see `buildAyasChatPrompt`) and calls the EXISTING
- * `OllamaProvider` directly — via `createAyasChatProvider`, which is the same
- * `OllamaProvider` class the `AIRouter` uses, never resolved from `AI_PROVIDER`,
- * so a stray `AI_PROVIDER=openai` can never route AYAS chat to a paid API. The
- * only difference from the pipeline provider is an OPTIONAL `AYAS_OLLAMA_MODEL`
- * override that applies to AYAS chat alone (spec §3).
+ * `askAyas` wires the chat panel to the same governed `streamAyasChat` pipeline
+ * used by the streaming route. That pipeline uses the AYAS model profile and
+ * never resolves from `AI_PROVIDER`, so a stray `AI_PROVIDER=openai` cannot
+ * route AYAS chat to a paid API. The optional `AYAS_OLLAMA_MODEL` override still
+ * applies only to AYAS chat (spec §3).
  *
  * It deliberately does NOT go through `runObservedAIRequest`: that path writes
  * `data/projects/<slug>/ai-usage.json` (`unknown` slug when context-less — a
  * file the operator asked us not to touch), and its cost guard is a no-op for
- * the free `ollama` provider anyway. So `askAyas` calls the provider directly
- * and writes no telemetry.
+ * the free `ollama` provider anyway. `askAyas` writes no telemetry.
  *
  * The execution gate stays CLOSED: chat is prompt → text. It enqueues nothing,
  * runs no task/pipeline/GPU, approves nothing.
@@ -27,7 +24,6 @@ import { execFileSync } from "node:child_process";
 
 import { cookies } from "next/headers";
 
-import type { AIProviderOutput } from "@/lib/ai/providers/AIProvider";
 import {
   loadBrainConsoleSnapshot,
   type BrainConsoleSnapshot,
@@ -37,7 +33,9 @@ import {
   type BrainSelfHealConsoleSnapshot,
 } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
 import { loadAyasStudioContext } from "@/lib/ayas/AyasStudioContext";
-import { createAyasChatProvider, resolveAyasChatModelProfile, AYAS_MODEL_ENV } from "@/lib/ayas/AyasModelProfile";
+import { resolveAyasChatModelProfile, AYAS_MODEL_ENV } from "@/lib/ayas/AyasModelProfile";
+import { loadAyasProductBrainContext } from "@/lib/ayas/AyasProductBrain";
+import { streamAyasChat, type AyasChatStreamEvent } from "@/lib/ayas/AyasChatStream";
 import { createBrainSelfHealStore } from "@/lib/brain/selfheal/BrainSelfHealStore";
 import { createAyasApprovalInboxStore, type AyasInboxDecision } from "@/lib/brain/autonomy/AyasApprovalInboxStore";
 import { loadAyasApprovalInboxView, type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
@@ -60,11 +58,7 @@ import {
 } from "@/lib/brain/selfheal/BrainReportCenter";
 import { AYAS_SESSION_COOKIE, resolveAccessGate, verifySession } from "@/lib/auth/accessGate";
 import {
-  AYAS_CHAT_JSON_SCHEMA,
-  AYAS_MAX_REPLY_TOKENS,
   ayasReplyMessage,
-  extractAyasReplyText,
-  resolveAyasReply,
   type AyasReplyOutcome,
   type BrainChatMessage,
 } from "@/components/brain/brainCore";
@@ -77,11 +71,6 @@ export interface AskAyasInput {
   readonly text: string;
   readonly history: readonly { readonly role: BrainChatMessage["role"]; readonly text: string }[];
   readonly seq: number;
-}
-
-function textOf(output: AIProviderOutput): string {
-  if (typeof output === "string") return output;
-  return output.refused ? "" : output.content ?? "";
 }
 
 export async function askAyas(input: AskAyasInput): Promise<AyasReplyOutcome> {
@@ -116,26 +105,24 @@ export async function askAyas(input: AskAyasInput): Promise<AyasReplyOutcome> {
     // so AYAS answers "kaç proje var" / "runtime authority neresi" from fact.
     loadAyasStudioContext(),
   ]);
-  return resolveAyasReply({
+  // Streaming transport is optional for the UI, but Phase 2 context/memory
+  // semantics are not. The Server Action fallback therefore consumes the
+  // SAME governed stream pipeline to its terminal event instead of retaining
+  // a second, older chat implementation with divergent memory behavior.
+  const productBrain = await loadAyasProductBrainContext(snapshot);
+  let terminal: Extract<AyasChatStreamEvent, { type: "done" }> | undefined;
+  for await (const event of streamAyasChat({
     text: input.text,
     snapshot,
     studio,
+    productBrainLines: productBrain.lines,
     history: input.history ?? [],
     seq: input.seq,
-    // The local `OllamaProvider`, hard-pinned — never resolved from `AI_PROVIDER`,
-    // so a stray `AI_PROVIDER=openai` cannot bill AYAS chat. The backend runs
-    // `format: "json"`, so we pass the existing `jsonSchema` option (a
-    // `{ reply: string }` envelope) and unwrap the natural-language answer.
-    generate: async (prompt) =>
-      extractAyasReplyText(
-        textOf(
-          await createAyasChatProvider().generate(prompt, {
-            maxTokens: AYAS_MAX_REPLY_TOKENS,
-            jsonSchema: AYAS_CHAT_JSON_SCHEMA,
-          }),
-        ),
-      ),
-  });
+  })) {
+    if (event.type === "done") terminal = event;
+  }
+  const text = terminal?.text ?? "AYAS şu an yanıt veremiyor; metin sohbeti çalışıyor.";
+  return { message: ayasReplyMessage(text, input.seq), source: terminal?.source ?? "fallback" };
 }
 
 /* --------------------------------------------- AYAS Report Center (§7–§15) --- */

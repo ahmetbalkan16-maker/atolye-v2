@@ -129,10 +129,10 @@ function identityValue(record: BrainMemoryRecord): string | null {
   if (!record.tags.includes("kimlik")) return null;
   const value = fold(record.body);
   const patterns = [
-    /\bbeni\s+([a-z]{2,40})\s+olarak\b/,
-    /\badim\s+([a-z]{2,40})\b/,
-    /\bben\s+([a-z]{2,40})\s*(?:im|yim)\b/,
-    /\bbana\s+([a-z]{2,40})\s+diye\b/,
+    /\bbeni\s+([a-z][a-z0-9'-]{1,40})\s+olarak\b/,
+    /\badim\s+([a-z][a-z0-9'-]{1,40})\b/,
+    /\bben\s+([a-z][a-z0-9'-]{1,40})\s*(?:im|yim)\b/,
+    /\bbana\s+([a-z][a-z0-9'-]{1,40})\s+diye\b/,
   ];
   for (const pattern of patterns) {
     const match = value.match(pattern);
@@ -161,7 +161,15 @@ function conflictClaim(record: BrainMemoryRecord): ConflictClaim | null {
   return { domain, value: polarity };
 }
 
-function conflictingRecordIds(records: readonly BrainMemoryRecord[]): Set<string> {
+function isExplicitUserIdentityDeclaration(record: BrainMemoryRecord): boolean {
+  return record.kind === "user-preference" &&
+    record.confidence === "reported" &&
+    record.tags.includes("kimlik") &&
+    record.title === "Kullanıcı kimliği / hitap tercihi" &&
+    identityValue(record) !== null;
+}
+
+function conflictingRecordIds(records: readonly BrainMemoryRecord[], nowMs: number): Set<string> {
   const groups = new Map<string, { record: BrainMemoryRecord; claim: ConflictClaim }[]>();
   for (const record of records) {
     const claim = conflictClaim(record);
@@ -181,6 +189,33 @@ function conflictingRecordIds(records: readonly BrainMemoryRecord[]): Set<string
         .map((entry) => entry.claim.value),
     );
     if (topValues.size !== 1) {
+      // An explicit user identity correction is naturally temporal: the
+      // newest equally-trusted declaration supersedes older declarations.
+      // Keep the fail-closed behavior if competing declarations share the
+      // same latest timestamp; there is then no defensible ordering.
+      if (group[0]?.claim.domain === "identity" && topTrust === TRUST_WEIGHT["user-reported"]) {
+        const trusted = group.filter((entry) => {
+          const observedAtMs = Date.parse(entry.record.observedAt);
+          return TRUST_WEIGHT[trustClass(entry.record)] === topTrust &&
+            isExplicitUserIdentityDeclaration(entry.record) &&
+            !containsInstructionInjection(entry.record) &&
+            Number.isFinite(observedAtMs) &&
+            observedAtMs <= nowMs + 5 * 60_000;
+        });
+        const latestMs = Math.max(...trusted.map((entry) => Date.parse(entry.record.observedAt)));
+        const latestValues = new Set(
+          trusted
+            .filter((entry) => Date.parse(entry.record.observedAt) === latestMs)
+            .map((entry) => entry.claim.value),
+        );
+        if (latestValues.size === 1) {
+          const trustedValue = [...latestValues][0];
+          group
+            .filter((entry) => entry.claim.value !== trustedValue)
+            .forEach((entry) => conflicts.add(entry.record.recordId));
+          continue;
+        }
+      }
       group.forEach((entry) => conflicts.add(entry.record.recordId));
       continue;
     }
@@ -278,7 +313,7 @@ export function retrieveAyasMemory(
   const lexicalRanks = rankMap(candidates.map((record) => ({ id: record.recordId, score: lexical.get(record.recordId) ?? 0 })));
   const conceptRanks = rankMap(conceptValues);
 
-  const conflictIds = conflictingRecordIds(candidates);
+  const conflictIds = conflictingRecordIds(candidates, nowMs);
 
   const decisions = candidates.map((record): AyasMemoryRetrievalDecision => {
     const source = trustClass(record);

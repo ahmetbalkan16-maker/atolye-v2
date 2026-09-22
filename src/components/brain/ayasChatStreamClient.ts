@@ -62,6 +62,33 @@ export async function runAyasChatStream(input: RunAyasChatStreamInput): Promise<
   let terminal: Extract<AyasChatStreamEvent, { type: "done" }> | undefined;
   let streamDone = false;
 
+  const consumeFrame = (frame: string): void => {
+    const line = frame.split(/\r?\n/u).find((value) => value.startsWith("data:"));
+    if (!line) return;
+    let event: AyasChatStreamEvent;
+    try {
+      event = JSON.parse(line.slice(5).trim()) as AyasChatStreamEvent;
+    } catch {
+      return;
+    }
+    if (event.type === "delta") {
+      sawDelta = true;
+      input.onDelta(event.text);
+    } else if (event.type === "done") {
+      terminal = event;
+    }
+  };
+
+  const drainFrames = (): void => {
+    for (;;) {
+      const separator = buffer.match(/\r?\n\r?\n/u);
+      if (!separator || separator.index === undefined) return;
+      const frame = buffer.slice(0, separator.index);
+      buffer = buffer.slice(separator.index + separator[0].length);
+      consumeFrame(frame);
+    }
+  };
+
   try {
     for (;;) {
       const { value, done } = await reader.read();
@@ -70,26 +97,11 @@ export async function runAyasChatStream(input: RunAyasChatStreamInput): Promise<
         break;
       }
       buffer += decoder.decode(value, { stream: true });
-      let idx: number;
-      while ((idx = buffer.indexOf("\n\n")) !== -1) {
-        const frame = buffer.slice(0, idx);
-        buffer = buffer.slice(idx + 2);
-        const line = frame.split("\n").find((l) => l.startsWith("data:"));
-        if (!line) continue;
-        let event: AyasChatStreamEvent;
-        try {
-          event = JSON.parse(line.slice(5).trim()) as AyasChatStreamEvent;
-        } catch {
-          continue;
-        }
-        if (event.type === "delta") {
-          sawDelta = true;
-          input.onDelta(event.text);
-        } else if (event.type === "done") {
-          terminal = event;
-        }
-      }
+      drainFrames();
     }
+    buffer += decoder.decode();
+    drainFrames();
+    if (buffer.trim()) consumeFrame(buffer);
   } catch (error) {
     return { ok: false, reason: (error as Error)?.name === "AbortError" ? "aborted" : "stream-read" };
   } finally {

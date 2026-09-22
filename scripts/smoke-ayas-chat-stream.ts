@@ -403,6 +403,82 @@ async function run() {
   );
 
   await scenario(
+    "MEMORY E2E — a newer explicit identity correction in live-style history overrides recalled and older identity facts",
+    async () => {
+      const root = tmpMemRoot();
+      const store = createAyasMemoryStore({ rootDir: root });
+      store.append(
+        buildBrainMemoryRecord({
+          kind: "user-preference",
+          title: "Kimlik",
+          body: "Beni Atlas olarak hatırla.",
+          importance: "durable",
+          confidence: "reported",
+          tags: ["kimlik"],
+          observedAt: "2026-09-20T00:00:00.000Z",
+          links: [],
+        }),
+      );
+      const bodies: string[] = [];
+      const events = await collect(
+        streamAyasChat({
+          text: "Adım ne?",
+          snapshot: snap(),
+          seq: 24,
+          history: [
+            { role: "user", text: "Beni Atlas olarak hatırla." },
+            { role: "brain", text: "Anladım." },
+            { role: "user", text: "Beni Deniz olarak hatırla; önceki Atlas bilgisini geçersiz kıl." },
+          ],
+          fetcher: capturingMockOllamaStream(["Adın Atlas."], bodies),
+          memoryStore: { rootDir: root },
+        }) as never,
+      );
+      assert.equal(events.at(-1)!.text, "Adın Deniz.");
+    },
+  );
+
+  await scenario("MEMORY E2E — provider unavailable still answers a trusted recalled identity instead of echoing the question", async () => {
+    const root = tmpMemRoot();
+    createAyasMemoryStore({ rootDir: root }).append(
+      buildBrainMemoryRecord({
+        kind: "user-preference",
+        title: "Kullanıcı kimliği / hitap tercihi",
+        body: "Beni AyasTest9381 olarak hatırla.",
+        importance: "durable",
+        confidence: "reported",
+        tags: ["kimlik"],
+        observedAt: "2026-09-20T00:00:00.000Z",
+        links: [],
+      }),
+    );
+    const unavailable = (async () => new Response("unavailable", { status: 503 })) as unknown as typeof fetch;
+    const events = await collect(
+      streamAyasChat({
+        text: "Benim adım ne?",
+        snapshot: snap(),
+        seq: 25,
+        history: [{ role: "user", text: "Benim adım ne?" }],
+        fetcher: unavailable,
+        memoryStore: { rootDir: root },
+      }) as never,
+    );
+    const done = events.at(-1)!;
+    assert.equal(done.text, "Adın AyasTest9381.");
+    assert.equal(done.reason, "memory-identity-correction");
+    assert.equal((done.memoryTrace as { identityRecallCount: number }).identityRecallCount, 1);
+  });
+
+  await scenario("MEMORY E2E — provider unavailable and no trusted identity yields explicit uncertainty, never a question echo", async () => {
+    const unavailable = (async () => new Response("unavailable", { status: 503 })) as unknown as typeof fetch;
+    const events = await collect(
+      streamAyasChat({ text: "Benim adım ne?", snapshot: snap(), seq: 26, fetcher: unavailable }) as never,
+    );
+    assert.match(String(events.at(-1)!.text), /bilmiyorum/i);
+    assert.doesNotMatch(String(events.at(-1)!.text), /^Adın ne[?.]?$/i);
+  });
+
+  await scenario(
     "MEMORY E2E — NEGATIVE: no identity memory stored → nothing is injected, no fabricated name in the real prompt",
     async () => {
       const root = tmpMemRoot(); // fresh, empty store — never seeded
@@ -412,7 +488,7 @@ async function run() {
           text: "Benim adım ne?",
           snapshot: snap(),
           seq: 24,
-          fetcher: capturingMockOllamaStream(["Bilmiyorum."], bodies),
+          fetcher: capturingMockOllamaStream(["Adın ne."], bodies),
           memoryStore: { rootDir: root },
         }) as never,
       );
@@ -421,6 +497,7 @@ async function run() {
       assert.equal(trace!.recallCount, 0);
       assert.equal(trace!.identityRecallCount, 0);
       assert.equal(trace!.promptInjected, false);
+      assert.match(String(events.at(-1)!.text), /bilmiyorum/i, "a missing identity must yield explicit uncertainty, never a question echo");
       const prompt = promptFromCapturedBody(bodies[0]);
       assert.doesNotMatch(prompt, /Kalıcı hafızadan hatırlananlar/, "no memory block at all when nothing was ever stored");
       assert.doesNotMatch(prompt, /\bahmet\b/i, "the real prompt must never contain a name nobody ever stated");

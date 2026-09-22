@@ -168,11 +168,12 @@ async function run() {
     for (const banned of ["AIUsageManager", "runObservedAIRequest", "ProjectWriter", "AIManager"]) {
       assert.ok(!code.includes(banned), `actions.ts must not reference ${banned} (telemetry to data/projects/unknown)`);
     }
-    // it uses the local Ollama provider directly, pinned — via createAyasChatProvider
-    // (the same OllamaProvider class the router uses), never resolved from AI_PROVIDER.
+    // It either uses the pinned local provider directly or delegates to the
+    // governed stream pipeline, whose model router is itself AYAS-profile
+    // pinned and never resolved from AI_PROVIDER.
     assert.ok(
-      code.includes("createAyasChatProvider(") || code.includes('getProvider("ollama")'),
-      "AYAS chat must use the local Ollama provider directly",
+      code.includes("streamAyasChat(") || code.includes("createAyasChatProvider(") || code.includes('getProvider("ollama")'),
+      "AYAS chat must use the governed AYAS pipeline or the local Ollama provider directly",
     );
     assert.ok(!/\baiProviderConfig\b/.test(code), "provider must be pinned, not resolved from AI_PROVIDER");
   });

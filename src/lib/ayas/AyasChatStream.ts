@@ -586,12 +586,30 @@ function identityNameFromContext(
   userText: string,
 ): string | null {
   if (!/\b(adim|ismim)\b/.test(fold(userText))) return null;
-  for (const line of [...lines, ...history.filter((turn) => turn.role === "user").map((turn) => turn.text)]) {
-    const match = line.match(/\bBeni\s+([\p{L}][\p{L}'’-]{1,40})\s+olarak\s+hatırla\b/iu)
-      ?? line.match(/\badım\s+([\p{L}][\p{L}'’-]{1,40})\b/iu);
-    if (match?.[1]) return match[1];
+  // A current conversation correction must beat both durable recall and an
+  // older user turn. History arrives oldest-first from the UI, so inspect it
+  // newest-first before consulting recalled memory. This keeps the final
+  // identity safeguard aligned with retrieval's current-request-overrides-
+  // memory rule instead of reviving a superseded name in its fallback reply.
+  const candidates = [
+    ...history.filter((turn) => turn.role === "user").map((turn) => turn.text).reverse(),
+    ...lines,
+  ];
+  for (const line of candidates) {
+    const match = line.match(/\bBeni\s+([\p{L}][\p{L}\p{N}'’-]{1,40})\s+olarak\s+hatırla\b/iu)
+      ?? line.match(/\badım\s+([\p{L}][\p{L}\p{N}'’-]{1,40})\b/iu);
+    if (match?.[1] && !/^(?:ne|nedir|neydi|kim|kimdir)$/u.test(fold(match[1]))) return match[1];
   }
   return null;
+}
+
+function isIdentityQuestion(text: string): boolean {
+  return /\b(adim|ismim)\b/.test(fold(text));
+}
+
+function isIdentityQuestionEcho(reply: string): boolean {
+  const value = fold(reply).replace(/[?!.,]+$/g, "").trim();
+  return /^(adin|ismin)(?:\s+ne(?:dir)?)?$/.test(value);
 }
 
 function replyHasUnexpectedStudioDrift(reply: string, userText: string): boolean {
@@ -704,6 +722,13 @@ async function finalizeAyasReply(input: AyasFinalizationInput): Promise<AyasFina
   if (recalledIdentityName && !identitySatisfied) {
     return { text: `Adın ${recalledIdentityName}.`, source: "fallback", corrected: true, reason: "memory-identity-correction", correctionAttempts: 0 };
   }
+  // A model may sometimes restate an identity question as declarative prose
+  // ("Adın ne."). It is neither an answer nor an acceptable fallback. When
+  // retrieval provides no trustworthy identity, answer with explicit
+  // uncertainty rather than presenting the user's question as a fact.
+  if (!recalledIdentityName && isIdentityQuestion(input.userText) && isIdentityQuestionEcho(cleaned)) {
+    return { text: "Bunu bilmiyorum; adını söylersen hatırlayabilirim.", source: "fallback", corrected: true, reason: "unknown-identity", correctionAttempts: 0 };
+  }
 
   const initialIssue = replyIssue(cleaned, input);
   if (!initialIssue) {
@@ -799,12 +824,54 @@ export async function* streamAyasChat(
   const env = input.env ?? process.env;
   const fetcher = input.fetcher ?? fetch;
 
+  // Memory is part of context assembly, not a provider capability. Resolve it
+  // before model routing so a temporarily unavailable local model cannot turn
+  // a known trusted identity into a question echo or generic fallback.
+  const memoryRecall = await recallAyasMemoryWithTrace(text, {
+    ...(ctx.trace.activeProject ? { activeProject: ctx.trace.activeProject } : {}),
+    ...(input.memoryStore ? { store: input.memoryStore } : {}),
+  }).catch(() => ({ lines: [] as readonly string[], entries: [] as readonly { readonly line: string; readonly identity: boolean }[], recallCount: 0, identityRecallCount: 0 }));
+  const memoryLinesForPrompt = relevantMemoryLinesForTurn(memoryRecall.entries, text);
+
   // 1 — route: which model answers this turn (availability + complexity).
   const route =
     input.route ?? (await routeAyasModel({ text, env, fetcher, signal: input.signal }).catch(() => null));
   const complexity = route?.decision.complexity;
 
   if (!route || !route.provider) {
+    const recalledIdentityName = identityNameFromContext(memoryLinesForPrompt, input.history ?? [], text);
+    const memoryTrace: AyasMemoryTrace = {
+      candidateCount: 0,
+      persisted: false,
+      recallCount: memoryRecall.recallCount,
+      identityRecallCount: memoryRecall.identityRecallCount,
+      promptInjected: false,
+      historyCount: ctx.recentHistory.length,
+    };
+    if (recalledIdentityName) {
+      yield {
+        type: "done",
+        text: `Adın ${recalledIdentityName}.`,
+        source: "fallback",
+        corrected: true,
+        reason: "memory-identity-correction",
+        memoryTrace,
+        ...(complexity ? { complexity } : {}),
+      };
+      return;
+    }
+    if (isIdentityQuestion(text)) {
+      yield {
+        type: "done",
+        text: "Bunu bilmiyorum; adını söylersen hatırlayabilirim.",
+        source: "fallback",
+        corrected: true,
+        reason: "unknown-identity",
+        memoryTrace,
+        ...(complexity ? { complexity } : {}),
+      };
+      return;
+    }
     yield {
       type: "done",
       text: route?.decision.unavailableMessage ?? deterministic(),
@@ -819,11 +886,6 @@ export async function* streamAyasChat(
 
   // Phase B — deterministic conversation context (state + reference resolution +
   // older-turn compression). Phase C — recalled long-term memory (top-K, safe).
-  const memoryRecall = await recallAyasMemoryWithTrace(text, {
-    ...(ctx.trace.activeProject ? { activeProject: ctx.trace.activeProject } : {}),
-    ...(input.memoryStore ? { store: input.memoryStore } : {}),
-  }).catch(() => ({ lines: [] as readonly string[], entries: [] as readonly { readonly line: string; readonly identity: boolean }[], recallCount: 0, identityRecallCount: 0 }));
-  const memoryLinesForPrompt = relevantMemoryLinesForTurn(memoryRecall.entries, text);
   /**
    * Shared by both terminal-event sites below — see `AyasMemoryTrace`'s own
    * doc comment for what each field means and why persist is awaited BEFORE
@@ -946,7 +1008,11 @@ export async function* streamAyasChat(
     const finalized = await finalizeAyasReply({
       rawReply: rawReplyForFinalization,
       userText: text,
-      recentHistory: ctx.recentHistory,
+      // Identity correction is a terminal safety guard. Preserve the bounded
+      // request history here (not only the derived prompt window) so an
+      // explicit current-turn correction cannot disappear before this guard
+      // verifies the final answer.
+      recentHistory: input.history ?? [],
       selectedOption: ctx.trace.selectedOption,
       activeTopic: ctx.trace.activeTopic,
       resolvedReferents: ctx.resolvedReferents,
@@ -1042,7 +1108,9 @@ export async function* streamAyasChat(
   const finalized = await finalizeAyasReply({
     rawReply: full,
     userText: text,
-    recentHistory: ctx.recentHistory,
+    // See the reasoning-path finalizer above: full request history is capped
+    // by the route/client contract and is required for identity precedence.
+    recentHistory: input.history ?? [],
     selectedOption: ctx.trace.selectedOption,
     activeTopic: ctx.trace.activeTopic,
     resolvedReferents: ctx.resolvedReferents,

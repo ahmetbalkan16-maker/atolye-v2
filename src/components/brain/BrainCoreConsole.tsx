@@ -202,6 +202,14 @@ export function BrainCoreConsole({
   const [messages, setMessages] = useState<readonly BrainChatMessage[]>(() => [
     brainWelcomeMessage(initialSnapshot),
   ]);
+  // React state is the rendered transcript; this ref is the authoritative
+  // in-flight snapshot for building the very next request. Keeping it in
+  // step before scheduling state avoids losing an immediately preceding user
+  // correction when consecutive turns are dispatched around a render.
+  const messagesRef = useRef<readonly BrainChatMessage[]>(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
   const restoredRef = useRef(false);
   useEffect(() => {
     if (restoredRef.current) return;
@@ -216,6 +224,7 @@ export function BrainCoreConsole({
       if (prev && !shouldSeedWelcome(prev)) {
         conversationIdRef.current = prev.conversationId;
         turnSeqRef.current = prev.turnSeq;
+        messagesRef.current = prev.messages as readonly BrainChatMessage[];
         setMessages(prev.messages as readonly BrainChatMessage[]);
       }
     });
@@ -373,15 +382,21 @@ export function BrainCoreConsole({
       turnSeqRef.current = seq + 2;
       const cid = conversationIdRef.current ?? "c0";
       const userMessage: BrainChatMessage = { id: `${cid}-u${seq}`, role: "user", text };
-      setMessages((current) => [...current, userMessage]);
+      const messagesWithUser = [...messagesRef.current, userMessage];
+      messagesRef.current = messagesWithUser;
+      setMessages(messagesWithUser);
       setDraft("");
 
       // History for the model: last N NON-system turns (the welcome line is
       // dropped so the model is never cued to re-introduce AYAS).
-      const history = conversationHistoryForModel([...messages, userMessage], AYAS_HISTORY_TURNS);
+      const history = conversationHistoryForModel(messagesWithUser, AYAS_HISTORY_TURNS);
 
       const deliverReply = (reply: BrainChatMessage) => {
-        setMessages((current) => [...current, reply]);
+        setMessages((current) => {
+          const next = [...current, reply];
+          messagesRef.current = next;
+          return next;
+        });
         // Read voice state at delivery time — the user may have muted / unmuted
         // while the model was thinking.
         const v = voiceRef.current;
@@ -423,23 +438,24 @@ export function BrainCoreConsole({
             signal: controller.signal,
             onDelta: (delta) => {
               streamText += delta;
-              setMessages((current) => {
-                if (!opened) {
-                  opened = true;
-                  return [...current, { id: replyId, role: "brain", text: streamText }];
-                }
-                return current.map((m) => (m.id === replyId ? { ...m, text: streamText } : m));
-              });
+              const current = messagesRef.current;
+              const next: readonly BrainChatMessage[] = !opened
+                ? [...current, { id: replyId, role: "brain", text: streamText }]
+                : current.map((m) => (m.id === replyId ? { ...m, text: streamText } : m));
+              opened = true;
+              messagesRef.current = next;
+              setMessages(next);
             },
           });
           if (chatAbortRef.current === controller) chatAbortRef.current = null;
           if (streamResult.ok) {
             setLastReplySource(streamResult.source);
-            setMessages((current) => {
-              const exists = current.some((m) => m.id === replyId);
-              const msg: BrainChatMessage = { id: replyId, role: "brain", text: streamResult.text };
-              return exists ? current.map((m) => (m.id === replyId ? msg : m)) : [...current, msg];
-            });
+            const current = messagesRef.current;
+            const exists = current.some((m) => m.id === replyId);
+            const msg: BrainChatMessage = { id: replyId, role: "brain", text: streamResult.text };
+            const next = exists ? current.map((m) => (m.id === replyId ? msg : m)) : [...current, msg];
+            messagesRef.current = next;
+            setMessages(next);
             finalizeSpeech(streamResult.text);
             return;
           }
@@ -452,16 +468,24 @@ export function BrainCoreConsole({
           // user explicitly cut off.
           if (streamResult.reason === "aborted") {
             if (opened && streamText.trim()) {
-              setMessages((current) => current.map((m) => (m.id === replyId ? { ...m, text: streamText } : m)));
+              const next = messagesRef.current.map((m) => (m.id === replyId ? { ...m, text: streamText } : m));
+              messagesRef.current = next;
+              setMessages(next);
               setLastReplySource("llm");
             } else if (opened) {
-              setMessages((current) => current.filter((m) => m.id !== replyId));
+              const next = messagesRef.current.filter((m) => m.id !== replyId);
+              messagesRef.current = next;
+              setMessages(next);
             }
             voiceRef.current.markIdle();
             return;
           }
           // stream failed before/after opening — drop any partial and fall back.
-          if (opened) setMessages((current) => current.filter((m) => m.id !== replyId));
+          if (opened) {
+            const next = messagesRef.current.filter((m) => m.id !== replyId);
+            messagesRef.current = next;
+            setMessages(next);
+          }
         }
 
         // 2 — fall back to the Server Action.
@@ -475,7 +499,7 @@ export function BrainCoreConsole({
         deliverReply(result.message);
       });
     },
-    [askAyas, messages, snapshot, startChat, streaming],
+    [askAyas, snapshot, startChat, streaming],
   );
 
   useEffect(() => {
