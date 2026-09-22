@@ -51,7 +51,14 @@ function git(repoRoot: string, args: readonly string[]): string {
 
 function defaultRefreshGraphify(repoRoot: string): void {
   try {
-    execFileSync(process.platform === "win32" ? "npx.cmd" : "npx", ["graphify", "update", "--scope", "all", "--no-description", "--no-label", "."], {
+    const graphifyArgs = ["graphify", "update", "--scope", "all", "--no-description", "--no-label", "."];
+    // Node cannot directly spawn a Windows .cmd shim (spawnSync npx.cmd EINVAL).
+    // Use the explicit command processor with a fixed command line; this is not
+    // shell:true and neither the executable nor its arguments are user-controlled.
+    const command = process.platform === "win32"
+      ? [process.env.ComSpec ?? path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "cmd.exe"), ["/d", "/s", "/c", "npx.cmd graphify update --scope all --no-description --no-label ."]] as const
+      : ["npx", graphifyArgs] as const;
+    execFileSync(command[0], command[1], {
       cwd: repoRoot, encoding: "utf8", windowsHide: true, timeout: 300_000,
     });
   } catch (error) {
