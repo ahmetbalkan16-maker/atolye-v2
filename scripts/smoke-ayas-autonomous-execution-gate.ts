@@ -73,6 +73,7 @@ interface Fixture {
   readonly inbox: AyasApprovalInboxHandle;
   readonly inboxRootDir: string;
   readonly artifactStore: AyasPatchArtifactStore;
+  readonly postPublicationClosure: (expectedHead: string) => void;
 }
 
 function makeFixture(): Fixture {
@@ -104,6 +105,13 @@ function makeFixture(): Fixture {
     inbox: createAyasApprovalInboxStore({ rootDir: inboxRootDir }),
     inboxRootDir,
     artifactStore: createAyasPatchArtifactStore({ rootDir: fs.mkdtempSync(path.join(os.tmpdir(), "ayas-autonomous-gate-artifacts-")) }),
+    // The real post-push Graphify/health closure is covered by
+    // smoke-ayas-proposal-approval-service.ts; this throwaway repo has no
+    // graph or health CLI, so only the published HEAD is verified here.
+    postPublicationClosure: (expectedHead) => {
+      assert.equal(git(repoRoot, "rev-parse", "HEAD"), expectedHead);
+      assert.equal(git(remoteDir, "rev-parse", "master"), expectedHead);
+    },
   };
 }
 

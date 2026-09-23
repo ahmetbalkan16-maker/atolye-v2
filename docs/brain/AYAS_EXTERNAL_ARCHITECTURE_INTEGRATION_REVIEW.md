@@ -121,7 +121,9 @@ their old behavior. No persistent context migration.
   journal 24. The proposal-approval suite was interrupted
   because it performs fixture-local Git commits/pushes, despite not touching
   this repository; the owner's no-commit/no-push instruction was interpreted
-  strictly. Other Git-mutating fixture suites were not run.
+  strictly. Other Git-mutating fixture suites were not run. *(Historical,
+  owner-review time. Superseded at owner closure: the proposal-approval suite
+  was run in full, 26/26 PASS.)*
 - `npx tsc --noEmit`, changed-file ESLint `--max-warnings 0` and
   `git diff --check` passed.
 - Graphify `update --scope all --no-description --no-label .`: 13,619 nodes,
@@ -141,4 +143,15 @@ in characters rather than tokenizer tokens. A unified event projection and
 vector retrieval were intentionally deferred. Upstream commit IDs and real
 model answer-quality/cost deltas were not obtainable in this run. Live runtime
 origin/tunnel was not destructively retested. Owner review is required before
-any staging, commit or push.
+any staging, commit or push. *(Historical, owner-review time.)*
+
+## Owner closure
+
+Owner review completed. The change set was committed as `7ff6a44`
+(`fix(ayas): close context and research scheduler review`) on
+`wip/ayas-graphify-final-execution` and pushed normally; local HEAD equals
+origin HEAD (ahead/behind 0/0). Final validation: proposal/approval 26/26
+PASS, scheduler 13/13 PASS, context 32/32 PASS. Graphify is current for
+`7ff6a44` (lastAnalyzedHead == HEAD, stale=false, 0 duplicate IDs, dangling
+edges or self-loops). The owner-review-time statements above are retained
+as the historical record.
