@@ -1,8 +1,8 @@
 ﻿<#
 .SYNOPSIS
-  Registers "AYAS Access Online" to run scripts\ayas-access-daemon.ps1 at
-  logon — no admin rights required either way, no VS Code / terminal needed
-  to stay open afterward.
+  Registers "AYAS Access Online" to run the narrow, single-owner access
+  supervisor at logon. Running this registration script changes Windows
+  persistence and requires separate owner authorization.
 
 .DESCRIPTION
   Tries the Task Scheduler route first (Register-ScheduledTask, AtLogOn,
@@ -23,6 +23,7 @@ $RepoRoot = "C:\Users\Metod\Desktop\solid\SW2020.x64.SP4.0\Program\Atölye\atoly
 $DaemonScript = Join-Path $RepoRoot "scripts\ayas-access-daemon.ps1"
 $StartupDir = [Environment]::GetFolderPath("Startup")
 $ShortcutPath = Join-Path $StartupDir "AYAS Access Online.lnk"
+$AccessArguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$DaemonScript`" -Continuous -IntervalSeconds 60"
 
 if (-not (Test-Path $DaemonScript)) {
   throw "Daemon script not found at $DaemonScript"
@@ -30,12 +31,12 @@ if (-not (Test-Path $DaemonScript)) {
 
 function Register-ViaTaskScheduler {
   $action = New-ScheduledTaskAction -Execute "powershell.exe" `
-    -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$DaemonScript`""
+    -Argument $AccessArguments
   $trigger = New-ScheduledTaskTrigger -AtLogOn
   $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
   $settings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
-    -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 10) `
+    -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero) `
     -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
 
   Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
@@ -54,7 +55,7 @@ function Register-ViaStartupShortcut {
   $shell = New-Object -ComObject WScript.Shell
   $shortcut = $shell.CreateShortcut($ShortcutPath)
   $shortcut.TargetPath = "powershell.exe"
-  $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$DaemonScript`""
+  $shortcut.Arguments = $AccessArguments
   $shortcut.WorkingDirectory = $RepoRoot
   $shortcut.WindowStyle = 7  # minimized — belt-and-braces alongside -WindowStyle Hidden
   $shortcut.Description = "Starts AYAS production Next server + named Cloudflare tunnel (ayas) at logon (no execution-gate / self-improvement / production-resume effect)."
@@ -76,6 +77,6 @@ if ($usedMechanism -eq "task-scheduler") {
   Write-Host "Start it right now with:  Start-ScheduledTask -TaskName '$TaskName'"
 } else {
   Write-Host "Created Startup shortcut: $ShortcutPath (runs at your next logon)."
-  Write-Host "Start it right now with:  powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$DaemonScript`""
+  Write-Host "Start it right now with:  powershell.exe $AccessArguments"
 }
 Write-Host "Remove it with:           scripts\unregister-ayas-autostart.ps1"
