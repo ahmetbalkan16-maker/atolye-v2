@@ -160,6 +160,21 @@ export class AIManager {
           stage: context?.stage ?? "research",
         },
       });
+      // A lost usage record for a dispatched call is an accounting failure, not a
+      // provider failure: the provider may already have been paid. The lenient
+      // path must never turn it into mock research (the strict path already
+      // throws it below). A budget-blocked call made no request, so it keeps the
+      // mock fallback.
+      if (
+        !policy?.failClosed &&
+        !observed.telemetryPersisted &&
+        observed.errorCode !== "AI_COST_BUDGET_EXCEEDED"
+      ) {
+        console.error("[AIManager.runResearch] AI usage persistence failed; not falling back to mock research.", {
+          topic,
+        });
+        throw new AIResponseError("AI_USAGE_PERSISTENCE_FAILED");
+      }
       if (observed.errorCode) throw new AIResponseError(observed.errorCode);
       const { response } = observed;
 
@@ -202,6 +217,7 @@ export class AIManager {
         (error instanceof AIResponseError || error instanceof ResearchAIConfigError || error instanceof ApplicationTimestampError)
       ) throw error;
       if (policy?.failClosed) return failClosedOrReturn(fallback, policy);
+      if (error instanceof AIResponseError && error.code === "AI_USAGE_PERSISTENCE_FAILED") throw error;
       console.error("[AIManager.runResearch] Falling back to mock research:", {
         topic,
         error,

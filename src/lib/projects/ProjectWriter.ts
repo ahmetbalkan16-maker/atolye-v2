@@ -9,13 +9,32 @@ import {
   type RuntimeStorageContext,
   type RuntimeStorageInput,
 } from "@/lib/runtime/RuntimeStoragePaths";
+import {
+  findOtherFoldersOwningIdentity,
+  resolveProjectFolderSegment,
+} from "./ProjectFolderIndex";
+
+export class ProjectAlreadyExistsError extends Error {
+  readonly code = "PROJECT_ALREADY_EXISTS";
+
+  constructor() {
+    super("Another project folder already owns this project slug.");
+    this.name = "ProjectAlreadyExistsError";
+    this.stack = undefined;
+  }
+}
+
+type ProjectFolderLease = {
+  readonly segment: string;
+  release(): void;
+};
 
 export class ProjectWriter {
   static async ensureProjectFolder(slug: string, input: RuntimeStorageInput = {}) {
     const context = resolveRuntimeStorageContext(input);
-    const lease = acquireProjectWriteAuthority(slug, context);
+    const lease = this.acquireExistingProjectLease(slug, context);
     try {
-      return this.ensureSafeProjectFolder(slug, context);
+      return this.ensureSafeProjectFolder(lease.segment, context);
     } finally {
       lease.release();
     }
@@ -37,9 +56,9 @@ export class ProjectWriter {
     input: RuntimeStorageInput = {},
   ) {
     const context = resolveRuntimeStorageContext(input);
-    const lease = acquireProjectWriteAuthority(slug, context);
+    const lease = this.acquireExistingProjectLease(slug, context);
     try {
-      const folder = await this.ensureSafeProjectFolder(slug, context);
+      const folder = await this.ensureSafeProjectFolder(lease.segment, context);
       requireSafeJsonFileName(fileName);
       const file = path.join(folder, fileName);
       const handle = await fs.open(file, "wx");
@@ -61,11 +80,66 @@ export class ProjectWriter {
     input: RuntimeStorageInput = {},
   ) {
     const context = resolveRuntimeStorageContext(input);
+    await this.writeJSONAtomicallyWithLease(
+      this.acquireExistingProjectLease(slug, context),
+      fileName,
+      data,
+      context,
+    );
+  }
+
+  /**
+   * New-project creation. Always targets the canonical `<projectsRoot>/<slug>/`
+   * folder (never an index-resolved alias, which could overwrite a legacy
+   * project) and fails closed when a *different* folder already owns `slug` as
+   * its `project.json` id or slug — creating there would shadow that project
+   * (split-brain). Re-creating into `<slug>/` itself is unchanged.
+   */
+  static async writeNewProjectJSON(
+    slug: string,
+    fileName: string,
+    data: unknown,
+    input: RuntimeStorageInput = {},
+  ) {
+    const context = resolveRuntimeStorageContext(input);
+    if (findOtherFoldersOwningIdentity(slug, context.projectsRoot).length > 0) {
+      throw new ProjectAlreadyExistsError();
+    }
     const lease = acquireProjectWriteAuthority(slug, context);
+    await this.writeJSONAtomicallyWithLease(
+      { segment: slug, release: () => lease.release() },
+      fileName,
+      data,
+      context,
+    );
+  }
+
+  static async removeJSON(
+    slug: string,
+    fileName: string,
+    input: RuntimeStorageInput = {},
+  ) {
+    const context = resolveRuntimeStorageContext(input);
+    const lease = this.acquireExistingProjectLease(slug, context);
+    try {
+      const folder = await this.ensureSafeProjectFolder(lease.segment, context);
+      requireSafeJsonFileName(fileName);
+      await fs.rm(path.join(folder, fileName), { force: true });
+    } finally {
+      lease.release();
+    }
+  }
+
+  private static async writeJSONAtomicallyWithLease(
+    lease: ProjectFolderLease,
+    fileName: string,
+    data: unknown,
+    context: RuntimeStorageContext,
+  ) {
     let temporaryFile: string | undefined;
 
     try {
-      const folder = await this.ensureSafeProjectFolder(slug, context);
+      const folder = await this.ensureSafeProjectFolder(lease.segment, context);
       requireSafeJsonFileName(fileName);
       const file = path.join(folder, fileName);
       temporaryFile = path.join(
@@ -94,19 +168,36 @@ export class ProjectWriter {
     }
   }
 
-  static async removeJSON(
+  /**
+   * Existing-project writes target the folder the read path resolves
+   * (`ProjectReader.getProjectFolder` → `ProjectFolderIndex`). Post-cutover
+   * legacy records live in `<uuid>/` while callers still carry the slug; joining
+   * the slug blindly created a second, partial `<slug>/` tree that then shadowed
+   * the real project (split-brain). A slug that resolves to nothing, or to its
+   * own folder, is leased and written exactly as before. For an alias of a
+   * different folder both leases are held: the slug's (so writers that still
+   * lock on the slug keep excluding this write, and the slug's dual-root
+   * quarantine / authority-claim checks apply unchanged) and the folder's.
+   */
+  private static acquireExistingProjectLease(
     slug: string,
-    fileName: string,
-    input: RuntimeStorageInput = {},
-  ) {
-    const context = resolveRuntimeStorageContext(input);
-    const lease = acquireProjectWriteAuthority(slug, context);
+    context: RuntimeStorageContext,
+  ): ProjectFolderLease {
+    const segment = resolveProjectFolderSegment(slug, context.projectsRoot) ?? slug;
+    const aliasLease = acquireProjectWriteAuthority(slug, context);
+    if (segment === slug) return { segment, release: () => aliasLease.release() };
     try {
-      const folder = await this.ensureSafeProjectFolder(slug, context);
-      requireSafeJsonFileName(fileName);
-      await fs.rm(path.join(folder, fileName), { force: true });
-    } finally {
-      lease.release();
+      const folderLease = acquireProjectWriteAuthority(segment, context);
+      return {
+        segment,
+        release: () => {
+          folderLease.release();
+          aliasLease.release();
+        },
+      };
+    } catch (error) {
+      aliasLease.release();
+      throw error;
     }
   }
 

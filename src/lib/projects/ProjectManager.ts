@@ -99,7 +99,9 @@ export class ProjectManager {
       updatedAt: now,
     };
 
-    await ProjectWriter.writeJSON(slug, "project.json", project);
+    // Canonical new-project path: always `<slug>/`, never an index-resolved alias;
+    // throws `ProjectAlreadyExistsError` when a different folder owns this slug.
+    await ProjectWriter.writeNewProjectJSON(slug, "project.json", project);
     await this.createManifest(project);
 
     return project;

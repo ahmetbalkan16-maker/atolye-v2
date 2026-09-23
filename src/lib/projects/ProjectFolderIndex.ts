@@ -57,7 +57,24 @@ function readIndex(projectsRoot: string): CachedIndex {
 
   const byId = new Map<string, string>();
   const bySlug = new Map<string, string>();
+  const { folders, found } = scanFolders(projectsRoot);
+
+  // Deterministic: sort by folder name so a slug collision resolves the same way
+  // every call; an exact id match is unique (UUID) and always wins.
+  found.sort((a, b) => a.folder.localeCompare(b.folder));
+  for (const f of found) {
+    if (f.id && !byId.has(f.id)) byId.set(f.id, f.folder);
+    if (f.slug && !bySlug.has(f.slug)) bySlug.set(f.slug, f.folder);
+  }
+
+  const next: CachedIndex = { mtimeMs, byId, bySlug, folders };
+  cache.set(projectsRoot, next);
+  return next;
+}
+
+function scanFolders(projectsRoot: string): { folders: Set<string>; found: FolderIndexEntry[] } {
   const folders = new Set<string>();
+  const found: FolderIndexEntry[] = [];
   let entries: fs.Dirent[] = [];
   try {
     entries = fs.readdirSync(projectsRoot, { withFileTypes: true });
@@ -65,7 +82,6 @@ function readIndex(projectsRoot: string): CachedIndex {
     /* leave empty */
   }
 
-  const found: FolderIndexEntry[] = [];
   for (const entry of entries) {
     if (!entry.isDirectory() || !SAFE_SEGMENT.test(entry.name)) continue;
     folders.add(entry.name);
@@ -79,18 +95,24 @@ function readIndex(projectsRoot: string): CachedIndex {
       /* a folder with no readable project.json is not indexable — skip */
     }
   }
+  return { folders, found };
+}
 
-  // Deterministic: sort by folder name so a slug collision resolves the same way
-  // every call; an exact id match is unique (UUID) and always wins.
-  found.sort((a, b) => a.folder.localeCompare(b.folder));
-  for (const f of found) {
-    if (f.id && !byId.has(f.id)) byId.set(f.id, f.folder);
-    if (f.slug && !bySlug.has(f.slug)) bySlug.set(f.slug, f.folder);
-  }
-
-  const next: CachedIndex = { mtimeMs, byId, bySlug, folders };
-  cache.set(projectsRoot, next);
-  return next;
+/**
+ * Folders other than `<identifier>/` whose `project.json` id or slug is
+ * `identifier`. Unlike `resolveProjectFolderSegment` this never takes the
+ * direct-folder fast path and never uses the cache (a fresh read-only scan),
+ * so a new project cannot be created under a slug another folder already owns.
+ */
+export function findOtherFoldersOwningIdentity(
+  identifier: string,
+  projectsRoot: string,
+): string[] {
+  if (typeof identifier !== "string" || !SAFE_SEGMENT.test(identifier)) return [];
+  return scanFolders(projectsRoot).found
+    .filter((entry) => entry.folder !== identifier && (entry.id === identifier || entry.slug === identifier))
+    .map((entry) => entry.folder)
+    .sort();
 }
 
 /**
