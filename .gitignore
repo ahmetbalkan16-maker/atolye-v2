@@ -171,4 +171,7 @@ graphify-out/
 
 # wrangler build cache / local state (cloudflare/ayas-phone-gateway) — per-machine, not committed
 .wrangler/
-data/brain/self-improvement/stability/
+
+# AyasRuntimeStabilityTransaction state (stability-transactions.json) — per-machine
+# runtime state, anchored like every other data/brain/self-improvement/ rule.
+/data/brain/self-improvement/stability/

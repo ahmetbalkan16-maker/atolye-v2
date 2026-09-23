@@ -3,6 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { getActiveRuntimeOperationScope } from "./RuntimeOperationScope";
+import {
+  findOtherFoldersOwningIdentity,
+  invalidateProjectFolderIndex,
+  resolveProjectFolderSegment,
+} from "../projects/ProjectFolderIndex";
 
 export const runtimeStorageEnvironmentVariable = "ATOLYE_RUNTIME_ROOT";
 export const runtimeStoragePolicyVersion = "runtime-storage-v1";
@@ -38,6 +43,8 @@ interface TrustedAuthorityLeaseState {
   readonly projectSlug: string;
   readonly lockRoot: string;
   readonly ownerId: string;
+  /** Physical-folder lease held together with an alias lease (existing-project writes). */
+  readonly companion?: RuntimeStorageAuthorityLease;
   active: boolean;
 }
 
@@ -87,7 +94,8 @@ export type RuntimeStorageErrorCode =
   | "RUNTIME_STORAGE_AUTHORITY_LOCKED"
   | "RUNTIME_STORAGE_AUTHORITY_CLAIM_INVALID"
   | "RUNTIME_STORAGE_CONTEXT_INVALID"
-  | "RUNTIME_STORAGE_OPERATION_CONTEXT_MISMATCH";
+  | "RUNTIME_STORAGE_OPERATION_CONTEXT_MISMATCH"
+  | "RUNTIME_STORAGE_PROJECT_ROOT_AMBIGUOUS";
 
 export class RuntimeStorageError extends Error {
   constructor(readonly code: RuntimeStorageErrorCode) {
@@ -102,6 +110,11 @@ export interface RuntimeStorageAuthorityLease {
   readonly projectSlug: string;
   readonly [authorityLeaseBrand]: true;
   release(): void;
+}
+
+export interface ExistingProjectWriteAuthorityLease extends RuntimeStorageAuthorityLease {
+  /** Physical folder segment under `projectsRoot` that holds the leased project. */
+  readonly projectFolder: string;
 }
 
 export function createIsolatedRuntimeStorageContext(
@@ -248,6 +261,45 @@ export function getProjectRoot(
   return projectRoot;
 }
 
+/**
+ * Physical root of an EXISTING project addressed by any identifier — its folder
+ * name, `project.json` id or `project.json` slug. The single read-side resolver
+ * (`ProjectReader.getProjectFolder`, `resolveRuntimeLogicalPath`): an existing
+ * `<projectsRoot>/<identifier>/` is used unchanged, otherwise `ProjectFolderIndex`
+ * maps the identifier to the folder that owns it (post-cutover folders are named
+ * by project id while callers carry the slug). Read-only: never creates a folder,
+ * a lock or an authority claim. `getProjectRoot` stays the literal-segment
+ * primitive (new-project creation must never resolve through the index).
+ */
+export function getExistingProjectRoot(
+  identifier: string,
+  input: RuntimeStorageInput = {},
+): string {
+  const context = resolveRuntimeStorageContext(input);
+  const segment = resolveProjectFolderSegment(identifier, context.projectsRoot) ?? identifier;
+  return getProjectRoot(segment, context);
+}
+
+/**
+ * Write-side counterpart of `getExistingProjectRoot` (non-locking — the caller
+ * holds `acquireExistingProjectWriteAuthority` or its own authority). Returns the
+ * same physical root the read path sees and applies the write-authority checks
+ * (dual-root quarantine, authority claim) to the addressed identifier and, for an
+ * alias, to the physical folder too. Never lets a write open a second root for an
+ * identity another folder owns (`RUNTIME_STORAGE_PROJECT_ROOT_AMBIGUOUS`).
+ */
+export function getExistingProjectRootForWrite(
+  identifier: string,
+  input: RuntimeStorageInput = {},
+): string {
+  requireProjectSlug(identifier);
+  const context = resolveRuntimeStorageContext(input);
+  assertProjectWriteAuthorityWithContext(context, identifier);
+  const segment = resolveExistingProjectSegmentForWrite(context, identifier);
+  if (segment !== identifier) assertProjectWriteAuthorityWithContext(context, segment);
+  return containedPath(context.projectsRoot, segment);
+}
+
 export function assertProjectWriteAuthority(
   slug: string,
   input: RuntimeStorageInput = {},
@@ -262,8 +314,48 @@ export function acquireProjectWriteAuthority(
   input: RuntimeStorageInput = {},
 ): RuntimeStorageAuthorityLease {
   requireProjectSlug(slug);
-  const context = resolveRuntimeStorageContext(input);
+  return acquireAuthorityLease(resolveRuntimeStorageContext(input), slug);
+}
 
+/**
+ * Lease for a write to an EXISTING project addressed by any identifier. Holds the
+ * identifier's own lease (unchanged lock/claim identity, so writers that still
+ * lock on it keep excluding this write, and its dual-root quarantine / claim
+ * checks apply) and, when the identifier is an alias of a different folder, that
+ * physical folder's lease as well — every existing-project write therefore holds
+ * the lease of the root it writes. The folder is resolved under the identifier's
+ * lease and re-checked once both are held. New-project creation never uses this.
+ */
+export function acquireExistingProjectWriteAuthority(
+  identifier: string,
+  input: RuntimeStorageInput = {},
+): ExistingProjectWriteAuthorityLease {
+  requireProjectSlug(identifier);
+  const context = resolveRuntimeStorageContext(input);
+  return acquireAuthorityLease(context, identifier, () => {
+    const projectFolder = resolveExistingProjectSegmentForWrite(context, identifier);
+    if (projectFolder === identifier) return { projectFolder };
+    const companion = acquireAuthorityLease(context, projectFolder);
+    try {
+      if (resolveExistingProjectSegmentForWrite(context, identifier) !== projectFolder) {
+        throw new RuntimeStorageError("RUNTIME_STORAGE_PROJECT_ROOT_AMBIGUOUS");
+      }
+    } catch (error) {
+      companion.release();
+      throw error;
+    }
+    return { projectFolder, companion };
+  }) as ExistingProjectWriteAuthorityLease;
+}
+
+function acquireAuthorityLease(
+  context: RuntimeStorageContext,
+  slug: string,
+  underLock?: () => {
+    readonly projectFolder: string;
+    readonly companion?: RuntimeStorageAuthorityLease;
+  },
+): RuntimeStorageAuthorityLease {
   // This read-only validation must precede every coordination or runtime mutation.
   validateSafeAncestorChain(context.runtimeRoot);
   validateSafeAncestorChain(context.projectsRoot);
@@ -283,12 +375,14 @@ export function acquireProjectWriteAuthority(
 
   const ownerId = randomUUID();
   let lease: RuntimeStorageAuthorityLease | undefined;
+  let companion: RuntimeStorageAuthorityLease | undefined;
   let released = false;
   const release = () => {
     if (released) return;
     released = true;
     const state = lease ? trustedAuthorityLeases.get(lease) : undefined;
     if (state) state.active = false;
+    companion?.release();
     try {
       validateExistingDirectory(lockRoot);
       const ownerPath = path.join(lockRoot, "owner.json");
@@ -316,9 +410,12 @@ export function acquireProjectWriteAuthority(
     assertProjectWriteAuthorityWithContext(context, slug);
     establishAuthorityClaim(context, slug, identity);
     assertProjectWriteAuthorityWithContext(context, slug);
+    const extension = underLock?.();
+    companion = extension?.companion;
     lease = Object.freeze({
       context,
       projectSlug: slug,
+      ...(extension ? { projectFolder: extension.projectFolder } : {}),
       [authorityLeaseBrand]: true as const,
       release,
     });
@@ -327,6 +424,7 @@ export function acquireProjectWriteAuthority(
       projectSlug: slug,
       lockRoot,
       ownerId,
+      ...(companion ? { companion } : {}),
       active: true,
     });
     return lease;
@@ -367,6 +465,9 @@ export function assertProjectWriteAuthorityLease(
       throw new Error("invalid");
     }
     assertProjectWriteAuthorityWithContext(context, projectSlug);
+    if (state.companion) {
+      assertProjectWriteAuthorityLease(state.companion, state.companion.projectSlug, context);
+    }
   } catch {
     state.active = false;
     throw new RuntimeStorageError("RUNTIME_STORAGE_AUTHORITY_CLAIM_INVALID");
@@ -424,7 +525,7 @@ export function resolveRuntimeLogicalPath(
   const context = resolveRuntimeStorageContext(input);
   const segments = validateRuntimeLogicalPath(logicalPath);
   const [slug, ...remainder] = segments.slice(2);
-  const projectRoot = getProjectRoot(slug, context);
+  const projectRoot = getExistingProjectRoot(slug, context);
   return remainder.reduce((current, segment) => containedPath(current, segment), projectRoot);
 }
 
@@ -434,8 +535,7 @@ export function resolveRuntimeLogicalPathForWrite(
 ): string {
   const context = resolveRuntimeStorageContext(input);
   const segments = validateRuntimeLogicalPath(logicalPath);
-  assertProjectWriteAuthorityWithContext(context, segments[2]);
-  const projectRoot = containedPath(context.projectsRoot, segments[2]);
+  const projectRoot = getExistingProjectRootForWrite(segments[2], context);
   return segments.slice(3).reduce(
     (current, segment) => containedPath(current, segment),
     projectRoot,
@@ -547,6 +647,39 @@ function assertProjectWriteAuthorityWithContext(
     }
   }
   assertAuthorityClaimCompatible(context, slug);
+}
+
+/**
+ * The folder an existing-project WRITE may target: the read path's answer,
+ * accepted only when a fresh (uncached) identity scan agrees on exactly one
+ * physical root. A folder holding its own `project.json` is taken as-is only
+ * when no other folder claims the same identifier.
+ * Fails closed with `RUNTIME_STORAGE_PROJECT_ROOT_AMBIGUOUS` when several folders
+ * own the identifier, or when `<identifier>/` exists without a `project.json`
+ * while another folder owns it — a partial tree left by an earlier raw-slug
+ * write: writing into it deepens the split, writing elsewhere diverges from reads.
+ */
+function resolveExistingProjectSegmentForWrite(
+  context: RuntimeStorageContext,
+  identifier: string,
+): string {
+  const projectsRoot = context.projectsRoot;
+  const owners = findOtherFoldersOwningIdentity(identifier, projectsRoot);
+  if (fs.existsSync(containedPath(projectsRoot, identifier, "project.json"))) {
+    if (owners.length > 0) throw new RuntimeStorageError("RUNTIME_STORAGE_PROJECT_ROOT_AMBIGUOUS");
+    return identifier;
+  }
+  if (owners.length > 1) throw new RuntimeStorageError("RUNTIME_STORAGE_PROJECT_ROOT_AMBIGUOUS");
+  const expected = owners[0] ?? identifier;
+  if ((resolveProjectFolderSegment(identifier, projectsRoot) ?? identifier) === expected) {
+    return expected;
+  }
+  // The index cache is keyed on the root's mtime; re-read once before failing closed.
+  invalidateProjectFolderIndex(projectsRoot);
+  if ((resolveProjectFolderSegment(identifier, projectsRoot) ?? identifier) === expected) {
+    return expected;
+  }
+  throw new RuntimeStorageError("RUNTIME_STORAGE_PROJECT_ROOT_AMBIGUOUS");
 }
 
 function assertNoDualRootDivergence(
@@ -853,6 +986,8 @@ function messageFor(code: RuntimeStorageErrorCode) {
       return "Runtime storage context is invalid.";
     case "RUNTIME_STORAGE_OPERATION_CONTEXT_MISMATCH":
       return "Runtime storage operation context does not match.";
+    case "RUNTIME_STORAGE_PROJECT_ROOT_AMBIGUOUS":
+      return "Runtime storage project root is ambiguous.";
     default:
       return "Runtime storage path is invalid.";
   }

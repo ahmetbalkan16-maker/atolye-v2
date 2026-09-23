@@ -8,7 +8,7 @@ import { VideoStorage } from "@/lib/assets/storage/VideoStorage";
 import { ThumbnailStorage } from "@/lib/thumbnail/ThumbnailStorage";
 import { requireContainedStorageDirectory } from "@/lib/assets/storage/StoragePathSecurity";
 import {
-  acquireProjectWriteAuthority,
+  acquireExistingProjectWriteAuthority,
   ensureSafeContainedDirectory,
   resolveRuntimeLogicalPathForWrite,
   resolveRuntimeStorageContext,
@@ -67,7 +67,7 @@ export async function materializeExportBundle(
 ): Promise<ExportBundleInfo> {
   const context = resolveRuntimeStorageContext(input.storageContext ?? {});
   const slug = requireSafeSlug(input.projectSlug);
-  const lease = acquireProjectWriteAuthority(slug, context);
+  const lease = acquireExistingProjectWriteAuthority(slug, context);
   let stagingAbsolute: string | undefined;
 
   try {

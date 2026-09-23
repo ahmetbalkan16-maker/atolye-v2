@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import {
-  acquireProjectWriteAuthority,
+  acquireExistingProjectWriteAuthority,
   ensureSafeContainedDirectory,
   resolveRuntimeLogicalPath,
   resolveRuntimeLogicalPathForWrite,
@@ -123,7 +123,7 @@ function withWriteAuthority<T>(
 ) {
   if (!relativePath.startsWith("data/projects/")) return run();
   const slug = relativePath.split("/")[2];
-  const lease = acquireProjectWriteAuthority(slug, context);
+  const lease = acquireExistingProjectWriteAuthority(slug, context);
   try {
     return run();
   } finally {

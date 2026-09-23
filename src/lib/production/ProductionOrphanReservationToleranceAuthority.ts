@@ -7,7 +7,8 @@ import type { ProductionExecutionPersistenceAdapter } from "@/types/productionEx
 import { stableProductionId } from "./ProductionDeterminism";
 import {
   type RuntimeStorageInput,
-  getProjectRoot,
+  getExistingProjectRoot,
+  getExistingProjectRootForWrite,
 } from "@/lib/runtime/RuntimeStoragePaths";
 
 /**
@@ -120,11 +121,13 @@ export function validateProductionOrphanReservationToleranceAuthorityBody(
     );
 }
 
-function directory(projectSlug: string, input: RuntimeStorageInput = {}): string {
+function directory(projectSlug: string, input: RuntimeStorageInput = {}, write = false): string {
   // A dedicated sibling directory to retry-budget-extensions/ — physically
   // separate so the two authority families can never collide or be confused.
-  return path.join(getProjectRoot(projectSlug, input), "production-execution",
-    "orphan-reservation-tolerances");
+  const projectRoot = write
+    ? getExistingProjectRootForWrite(projectSlug, input)
+    : getExistingProjectRoot(projectSlug, input);
+  return path.join(projectRoot, "production-execution", "orphan-reservation-tolerances");
 }
 
 function assertContained(projectSlug: string, targetPath: string, input: RuntimeStorageInput = {}) {
@@ -145,7 +148,7 @@ export function writeProductionOrphanReservationToleranceAuthority(
       reasonCode: "ORPHAN_RESERVATION_TOLERANCE_INTEGRITY_MISMATCH",
       evidence: ["body:integrity-invalid"] };
   }
-  const dir = directory(projectSlug, input);
+  const dir = directory(projectSlug, input, true);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const authorityPath = path.join(dir, `tolerance-${body.authorityId}.json`);
   assertContained(projectSlug, authorityPath, input);

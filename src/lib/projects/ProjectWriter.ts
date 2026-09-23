@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import {
+  acquireExistingProjectWriteAuthority,
   acquireProjectWriteAuthority,
   ensureSafeContainedDirectory,
   getProjectRoot,
@@ -9,10 +10,7 @@ import {
   type RuntimeStorageContext,
   type RuntimeStorageInput,
 } from "@/lib/runtime/RuntimeStoragePaths";
-import {
-  findOtherFoldersOwningIdentity,
-  resolveProjectFolderSegment,
-} from "./ProjectFolderIndex";
+import { findOtherFoldersOwningIdentity } from "./ProjectFolderIndex";
 
 export class ProjectAlreadyExistsError extends Error {
   readonly code = "PROJECT_ALREADY_EXISTS";
@@ -102,9 +100,7 @@ export class ProjectWriter {
     input: RuntimeStorageInput = {},
   ) {
     const context = resolveRuntimeStorageContext(input);
-    if (findOtherFoldersOwningIdentity(slug, context.projectsRoot).length > 0) {
-      throw new ProjectAlreadyExistsError();
-    }
+    this.assertNewProjectSlugAvailable(slug, context);
     const lease = acquireProjectWriteAuthority(slug, context);
     await this.writeJSONAtomicallyWithLease(
       { segment: slug, release: () => lease.release() },
@@ -112,6 +108,18 @@ export class ProjectWriter {
       data,
       context,
     );
+  }
+
+  /**
+   * The ownership rule `writeNewProjectJSON` enforces, exposed so a caller that
+   * would pay for provider work before creating the project can refuse first.
+   * Read-only (a fresh, uncached scan).
+   */
+  static assertNewProjectSlugAvailable(slug: string, input: RuntimeStorageInput = {}) {
+    const context = resolveRuntimeStorageContext(input);
+    if (findOtherFoldersOwningIdentity(slug, context.projectsRoot).length > 0) {
+      throw new ProjectAlreadyExistsError();
+    }
   }
 
   static async removeJSON(
@@ -170,35 +178,18 @@ export class ProjectWriter {
 
   /**
    * Existing-project writes target the folder the read path resolves
-   * (`ProjectReader.getProjectFolder` → `ProjectFolderIndex`). Post-cutover
-   * legacy records live in `<uuid>/` while callers still carry the slug; joining
-   * the slug blindly created a second, partial `<slug>/` tree that then shadowed
-   * the real project (split-brain). A slug that resolves to nothing, or to its
-   * own folder, is leased and written exactly as before. For an alias of a
-   * different folder both leases are held: the slug's (so writers that still
-   * lock on the slug keep excluding this write, and the slug's dual-root
-   * quarantine / authority-claim checks apply unchanged) and the folder's.
+   * (`ProjectReader.getProjectFolder`). Post-cutover legacy records live in
+   * `<uuid>/` while callers still carry the slug; joining the slug blindly
+   * created a second, partial `<slug>/` tree that then shadowed the real project
+   * (split-brain). `acquireExistingProjectWriteAuthority` holds the slug's lease
+   * and, for an alias of a different folder, the folder's lease too.
    */
   private static acquireExistingProjectLease(
     slug: string,
     context: RuntimeStorageContext,
   ): ProjectFolderLease {
-    const segment = resolveProjectFolderSegment(slug, context.projectsRoot) ?? slug;
-    const aliasLease = acquireProjectWriteAuthority(slug, context);
-    if (segment === slug) return { segment, release: () => aliasLease.release() };
-    try {
-      const folderLease = acquireProjectWriteAuthority(segment, context);
-      return {
-        segment,
-        release: () => {
-          folderLease.release();
-          aliasLease.release();
-        },
-      };
-    } catch (error) {
-      aliasLease.release();
-      throw error;
-    }
+    const lease = acquireExistingProjectWriteAuthority(slug, context);
+    return { segment: lease.projectFolder, release: () => lease.release() };
   }
 
   private static async ensureSafeProjectFolder(

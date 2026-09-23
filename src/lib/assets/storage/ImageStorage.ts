@@ -5,7 +5,7 @@ import {
   requireContainedStorageFile,
 } from "./StoragePathSecurity";
 import {
-  acquireProjectWriteAuthority,
+  acquireExistingProjectWriteAuthority,
   ensureSafeContainedDirectory,
   resolveRuntimeLogicalPath,
   resolveRuntimeLogicalPathForWrite,
@@ -66,7 +66,7 @@ export class ImageStorage {
     mimeType,
   }: SaveImageInput, input: RuntimeStorageInput = {}): SavedImage {
     const context = resolveRuntimeStorageContext(input);
-    const lease = acquireProjectWriteAuthority(projectSlug, context);
+    const lease = acquireExistingProjectWriteAuthority(projectSlug, context);
     try {
       const parsed = parseImageData(data, mimeType);
       const resolvedFileName =

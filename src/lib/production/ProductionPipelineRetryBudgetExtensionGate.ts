@@ -14,7 +14,7 @@ import { buildProductionPipelineExecutionIdentity } from "./ProductionPipelineEx
 import { readProductionCanonicalTerminalDurableLineage } from "./ProductionCanonicalDurableLineage";
 import {
   type RuntimeStorageInput,
-  getProjectRoot,
+  getExistingProjectRoot,
 } from "@/lib/runtime/RuntimeStoragePaths";
 import type { RetryBudgetExtensionDurableBinding } from
   "@/types/productionPipelineRetryBudgetExtension";
@@ -232,7 +232,7 @@ async function verifyDurableSiblingBindingForExecution(
   input: RuntimeStorageInput = {},
 ): Promise<{ ok: boolean; reasonCode: string; evidence: readonly string[] }> {
   const jobId = `${projectSlug}-${stage}`;
-  const projectPath = getProjectRoot(projectSlug, input);
+  const projectPath = getExistingProjectRoot(projectSlug, input);
   const trustedRootDirectory = path.join(projectPath, "production-execution");
 
   let adapter: ProductionExecutionFilePersistenceAdapter;

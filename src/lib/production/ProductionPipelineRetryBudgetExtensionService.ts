@@ -90,7 +90,7 @@ export interface RetryBudgetExtensionApplyResult {
 
 import {
   type RuntimeStorageInput,
-  getProjectRoot,
+  getExistingProjectRoot,
   resolveRuntimeStorageContext,
 } from "@/lib/runtime/RuntimeStoragePaths";
 
@@ -115,7 +115,7 @@ export async function planRetryBudgetExtension(
     };
   }
 
-  const projectPath = getProjectRoot(projectSlug, context);
+  const projectPath = getExistingProjectRoot(projectSlug, context);
   if (!fs.existsSync(projectPath)) {
     return {
       eligible: false,

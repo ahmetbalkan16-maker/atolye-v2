@@ -209,7 +209,7 @@ function run() {
     );
     assert.match(source, /resolveRuntimeLogicalPath(ForWrite)?/, "FileStorage must use the logical resolver");
     assert.match(source, /startsWith\(["'`]data\/projects\//, "FileStorage keeps the logical prefix router");
-    assert.match(source, /acquireProjectWriteAuthority/, "writes under the prefix must take a lease");
+    assert.match(source, /acquire(Existing)?ProjectWriteAuthority/, "writes under the prefix must take a lease");
   });
 
   /* -------------------------- path-traversal guard ------------------------ */

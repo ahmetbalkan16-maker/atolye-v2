@@ -6,7 +6,7 @@ import {
   requireContainedStorageFile,
 } from "@/lib/assets/storage/StoragePathSecurity";
 import {
-  acquireProjectWriteAuthority,
+  acquireExistingProjectWriteAuthority,
   ensureSafeContainedDirectory,
   resolveRuntimeLogicalPath,
   resolveRuntimeLogicalPathForWrite,
@@ -46,7 +46,7 @@ export class ThumbnailStorage {
     mimeType: ThumbnailMimeType;
   }, storageInput: RuntimeStorageInput = {}): SavedThumbnail {
     const context = resolveRuntimeStorageContext(storageInput);
-    const lease = acquireProjectWriteAuthority(input.projectSlug, context);
+    const lease = acquireExistingProjectWriteAuthority(input.projectSlug, context);
     try {
     requireSafeSegment(input.projectSlug);
     requireSafeSegment(input.assetId);
@@ -205,7 +205,7 @@ export class ThumbnailStorage {
     input: RuntimeStorageInput = {},
   ): void {
     const context = resolveRuntimeStorageContext(input);
-    const lease = acquireProjectWriteAuthority(projectSlug, context);
+    const lease = acquireExistingProjectWriteAuthority(projectSlug, context);
     try {
     requireSafeSegment(projectSlug);
     if (typeof filePath !== "string" || filePath.includes("\\")) {

@@ -45,7 +45,7 @@ import {
   requireContainedStorageFile,
 } from "./StoragePathSecurity";
 import {
-  acquireProjectWriteAuthority,
+  acquireExistingProjectWriteAuthority,
   ensureSafeContainedDirectory,
   resolveRuntimeLogicalPath,
   resolveRuntimeLogicalPathForWrite,
@@ -1586,7 +1586,7 @@ function acquireAudioProjectWriteAuthority(
   const waitCell = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT));
   for (let attempt = 0; attempt < AUDIO_AUTHORITY_ATTEMPTS; attempt += 1) {
     try {
-      return acquireProjectWriteAuthority(projectSlug, context);
+      return acquireExistingProjectWriteAuthority(projectSlug, context);
     } catch (error) {
       if (
         !(error instanceof RuntimeStorageError) ||

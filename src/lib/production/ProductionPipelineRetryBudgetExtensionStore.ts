@@ -9,7 +9,8 @@ import {
 } from "./ProductionPipelineRetryBudgetExtensionSchema";
 import {
   type RuntimeStorageInput,
-  getProjectRoot,
+  getExistingProjectRoot,
+  getExistingProjectRootForWrite,
 } from "@/lib/runtime/RuntimeStoragePaths";
 
 export interface RetryBudgetExtensionStoreResult<T> {
@@ -21,11 +22,18 @@ export interface RetryBudgetExtensionStoreResult<T> {
   readonly evidence: readonly string[];
 }
 
+/**
+ * `write` resolves through the existing-project write checks; the directory may
+ * then be created. Both variants name the same physical root when they succeed.
+ */
 export function getRetryBudgetExtensionDirectory(
   projectSlug: string,
   input: RuntimeStorageInput = {},
+  write = false,
 ): string {
-  const projectRoot = getProjectRoot(projectSlug, input);
+  const projectRoot = write
+    ? getExistingProjectRootForWrite(projectSlug, input)
+    : getExistingProjectRoot(projectSlug, input);
   return path.join(projectRoot, "production-execution", "retry-budget-extensions");
 }
 
@@ -34,7 +42,7 @@ function assertCanonicalProjectContainment(
   targetPath: string,
   input: RuntimeStorageInput = {},
 ): void {
-  const projectRoot = getProjectRoot(projectSlug, input);
+  const projectRoot = getExistingProjectRoot(projectSlug, input);
   const rel = path.relative(projectRoot, targetPath);
   if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) {
     throw new Error(`CANONICAL_CONTAINMENT_VIOLATION: ${targetPath} is outside project root ${projectRoot}`);
@@ -45,7 +53,7 @@ function ensureExtensionDirectory(
   projectSlug: string,
   input: RuntimeStorageInput = {},
 ): string {
-  const dir = getRetryBudgetExtensionDirectory(projectSlug, input);
+  const dir = getRetryBudgetExtensionDirectory(projectSlug, input, true);
   assertCanonicalProjectContainment(projectSlug, dir, input);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });

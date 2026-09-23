@@ -1,5 +1,13 @@
 ---
 
+## AYAS Shared Project Root + Silent Fallback Safety — 2026-09-23
+
+- [x] Recover and test Claude's uncommitted shared-root, accounting-fallback and conflict-response work; retain all safe changes.
+- [x] Reject duplicate identity ownership even when the addressed `<slug>/project.json` exists; TEMP regression reproduces the original gap and passes after repair.
+- [x] Validate normal project/asset/FileStorage/manifest/later-stage authority-store writes and script/scenes accounting behavior with TEMP fixtures; live runtime fingerprints unchanged.
+- [ ] Separately review exact physical-child contracts in owner-governed regeneration and legacy reauthorization before extending canonical alias support; the owner chose this safe-scope split and these paths currently fail closed for legacy aliases.
+- [ ] Resolve same-folder topic recreate product semantics separately. Full system write-path completion requires the deferred physical-child contract review; this scoped safety closure can be published independently.
+
 ## AYAS Development Center Continuous Self-Improvement — 2026-09-21
 
 - [x] Bounded continuous local discovery remains on the supervised observer cadence and is independent of LIGHT/DEEP research cadence.

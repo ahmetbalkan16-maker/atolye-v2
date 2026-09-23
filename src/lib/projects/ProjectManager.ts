@@ -85,6 +85,16 @@ export class ProjectManager {
       .replace(/^-+|-+$/g, "");
   }
 
+  /**
+   * Throws `ProjectAlreadyExistsError` when `createProject(topic)` would refuse
+   * because a different folder owns the topic's slug — lets a route refuse
+   * before any paid provider call. Re-creating into the topic's own `<slug>/`
+   * is not a conflict here (deferred owner decision, see ATOLYE_CHECKPOINT.md).
+   */
+  static assertProjectCreatable(topic: string) {
+    ProjectWriter.assertNewProjectSlugAvailable(this.createSlug(topic));
+  }
+
   static async createProject(topic: string, description?: string) {
     const slug = this.createSlug(topic);
     const now = new Date().toISOString();

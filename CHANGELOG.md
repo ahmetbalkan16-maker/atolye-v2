@@ -1,5 +1,13 @@
 ---
 
+## 2026-09-23 — Shared project-root and script/scenes accounting safety (scoped closure)
+
+- Preserved Claude's interrupted implementation: shared canonical root resolution for existing normal project writers and reads, dual alias/physical leases, asset/FileStorage and production authority-store alignment, script/scenes accounting failure visibility, and early project-conflict responses.
+- Added a failing-then-passing TEMP regression for a direct slug folder whose logical identity is also claimed by another folder; writes now fail closed with `RUNTIME_STORAGE_PROJECT_ROOT_AMBIGUOUS` instead of deepening duplicate ownership.
+- Against clean `1c8e9d1` sources, the new TEMP suites fail 17/20 root cases and 14/38 script/scenes cases; the current implementation passes 20/20 and 38/38.
+- Verified root 20/20 and script/scenes 38/38; TypeScript and changed-file lint pass. Existing-suite failures reproduced on clean baseline; live runtime, authority and legacy project trees remained byte/mtime-identical.
+- The owner chose a separate review for exact physical-child regeneration and reauthorization contracts; this safe-scope closure does not claim full system-wide canonical-root coverage.
+
 ## 2026-09-21 — AYAS Development Center Continuous Self-Improvement (OWNER-APPROVED; included in final commit)
 
 - Added an atomic, bounded local-discovery run ledger and Development Center visibility for last/next local tick plus candidate/proposal counts.

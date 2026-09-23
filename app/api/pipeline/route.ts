@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { PipelineRunner } from "@/lib/pipeline/PipelineRunner";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
+import { ProjectAlreadyExistsError } from "@/lib/projects/ProjectWriter";
 import { createPipelineStateErrorResponse } from "@/lib/pipeline/PipelineStateApiError";
 
 /**
@@ -78,6 +79,18 @@ export async function POST(req: Request) {
 
     if (stateErrorResponse) {
       return stateErrorResponse;
+    }
+
+    // `createProject` runs first in `PipelineRunner.run`, so nothing was paid:
+    // another folder owns this topic's slug. Point at that project, as before.
+    if (error instanceof ProjectAlreadyExistsError) {
+      return NextResponse.json(
+        await attachProjectReference(
+          { success: false, error: "Bu konu için zaten bir proje var.", code: error.code },
+          slug,
+        ),
+        { status: 409 },
+      );
     }
 
     // Any other mid-pipeline failure (a provider/OpenAI/FFmpeg error, etc.):

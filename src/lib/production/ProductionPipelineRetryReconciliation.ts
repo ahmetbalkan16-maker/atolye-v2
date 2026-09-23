@@ -1,7 +1,7 @@
 import type { PipelineJob } from "@/types/pipelineJob";
 import {
   type RuntimeStorageContext,
-  getProjectRoot,
+  getExistingProjectRoot,
   resolveRuntimeStorageContext,
 } from "@/lib/runtime/RuntimeStoragePaths";
 import { AdapterBackedProductionExecutionClaimService } from "./ProductionExecutionDurableClaim";
@@ -92,7 +92,7 @@ export async function reconcileFailedPipelineExecution(
     { id: job.id, attempts: durableAttemptOrdinal },
   );
   const trustedRootDirectory =
-    `${getProjectRoot(job.projectSlug, storageContext)}/production-execution`;
+    `${getExistingProjectRoot(job.projectSlug, storageContext)}/production-execution`;
   const adapter = dependencies.createAdapter?.(trustedRootDirectory) ??
     new ProductionExecutionFilePersistenceAdapter({
       trustedRootDirectory,

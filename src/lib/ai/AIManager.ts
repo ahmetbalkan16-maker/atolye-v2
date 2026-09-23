@@ -7,7 +7,10 @@ import {
   failClosedOrReturn,
   type GenerationExecutionPolicy,
 } from "./GenerationExecutionPolicy";
-import { runObservedAIRequest } from "./runObservedAIRequest";
+import {
+  runObservedAIRequest,
+  type ObservedAIRequestResult,
+} from "./runObservedAIRequest";
 import { AIResponseError } from "./AIResponseError";
 import { getResearchMaxTokens, ResearchAIConfigError } from "./ResearchAIConfig";
 import { getScriptMaxTokens, ScriptAIConfigError } from "./ScriptAIConfig";
@@ -117,6 +120,32 @@ function strictScriptDurationPromptLines(env: NodeJS.ProcessEnv = process.env): 
   ];
 }
 
+/**
+ * A lost usage record for a dispatched call is an accounting failure, not a
+ * provider failure: the provider may already have been paid. The lenient path
+ * must never turn it into mock output (the strict path throws the observed code).
+ * A budget-blocked call made no request, so it keeps the mock fallback.
+ */
+function throwIfLenientUsageNotPersisted(
+  observed: ObservedAIRequestResult,
+  policy: GenerationExecutionPolicy | undefined,
+  label: string,
+  details: Record<string, unknown>,
+) {
+  if (
+    !policy?.failClosed &&
+    !observed.telemetryPersisted &&
+    observed.errorCode !== "AI_COST_BUDGET_EXCEEDED"
+  ) {
+    console.error(`[AIManager.${label}] AI usage persistence failed; not falling back to mock output.`, details);
+    throw new AIResponseError("AI_USAGE_PERSISTENCE_FAILED");
+  }
+}
+
+function isUsagePersistenceFailure(error: unknown) {
+  return error instanceof AIResponseError && error.code === "AI_USAGE_PERSISTENCE_FAILED";
+}
+
 export class AIManager {
   static async runResearch(
     topic: string,
@@ -160,21 +189,7 @@ export class AIManager {
           stage: context?.stage ?? "research",
         },
       });
-      // A lost usage record for a dispatched call is an accounting failure, not a
-      // provider failure: the provider may already have been paid. The lenient
-      // path must never turn it into mock research (the strict path already
-      // throws it below). A budget-blocked call made no request, so it keeps the
-      // mock fallback.
-      if (
-        !policy?.failClosed &&
-        !observed.telemetryPersisted &&
-        observed.errorCode !== "AI_COST_BUDGET_EXCEEDED"
-      ) {
-        console.error("[AIManager.runResearch] AI usage persistence failed; not falling back to mock research.", {
-          topic,
-        });
-        throw new AIResponseError("AI_USAGE_PERSISTENCE_FAILED");
-      }
+      throwIfLenientUsageNotPersisted(observed, policy, "runResearch", { topic });
       if (observed.errorCode) throw new AIResponseError(observed.errorCode);
       const { response } = observed;
 
@@ -217,7 +232,7 @@ export class AIManager {
         (error instanceof AIResponseError || error instanceof ResearchAIConfigError || error instanceof ApplicationTimestampError)
       ) throw error;
       if (policy?.failClosed) return failClosedOrReturn(fallback, policy);
-      if (error instanceof AIResponseError && error.code === "AI_USAGE_PERSISTENCE_FAILED") throw error;
+      if (isUsagePersistenceFailure(error)) throw error;
       console.error("[AIManager.runResearch] Falling back to mock research:", {
         topic,
         error,
@@ -332,6 +347,7 @@ export class AIManager {
           stage: context?.stage ?? "script",
         },
       });
+      throwIfLenientUsageNotPersisted(observed, policy, "runScript", { topic });
       if (observed.errorCode) throw new AIResponseError(observed.errorCode);
       const { response } = observed;
 
@@ -446,6 +462,7 @@ export class AIManager {
         (error instanceof AIResponseError || error instanceof ScriptAIConfigError || error instanceof ApplicationTimestampError)
       ) throw error;
       if (policy?.failClosed) return failClosedOrReturn(fallback, policy);
+      if (isUsagePersistenceFailure(error)) throw error;
       console.error("[AIManager.runScript] Falling back to mock script:", {
         topic,
         error,
@@ -532,7 +549,7 @@ export class AIManager {
       : legacyPrompt;
 
     try {
-      const { response } = await runObservedAIRequest({
+      const observed = await runObservedAIRequest({
         prompt,
         provider,
         maxTokens: getSceneMaxTokens(),
@@ -551,6 +568,12 @@ export class AIManager {
           stage: context?.stage ?? "scenes",
         },
       });
+      // Honour the observed outcome like runResearch / runScript: a budget block,
+      // provider failure, refusal or truncation is not a usable response, and an
+      // unpersisted usage record is an accounting failure, never silently accepted.
+      throwIfLenientUsageNotPersisted(observed, policy, "runScenes", { scriptTitle: script.title });
+      if (observed.errorCode) throw new AIResponseError(observed.errorCode);
+      const { response } = observed;
 
       if (!response.trim()) {
         console.error("[AIManager.runScenes] Empty provider response.");
@@ -606,6 +629,7 @@ export class AIManager {
           error instanceof SceneAIConfigError)
       ) throw error;
       if (policy?.failClosed) return failClosedOrReturn(fallback, policy);
+      if (isUsagePersistenceFailure(error)) throw error;
       console.error("[AIManager.runScenes] Falling back to mock scenes:", {
         scriptTitle: script.title,
         error,

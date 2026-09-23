@@ -12,7 +12,7 @@ import { buildProductionPipelineExecutionIdentity } from "./ProductionPipelineEx
 import { stableProductionId } from "./ProductionDeterminism";
 import {
   type RuntimeStorageInput,
-  getProjectRoot,
+  getExistingProjectRoot,
   resolveRuntimeStorageContext,
 } from "@/lib/runtime/RuntimeStoragePaths";
 import {
@@ -102,7 +102,7 @@ export async function planEnvironmentalFailureRetryExtension(
       "ENVIRONMENTAL_FAILURE_RETRY_ARGUMENT_INVALID", ["argument:operator-evidence-invalid"]);
   }
 
-  const projectPath = getProjectRoot(projectSlug, context);
+  const projectPath = getExistingProjectRoot(projectSlug, context);
   if (!fs.existsSync(projectPath)) {
     return planFailure(projectSlug, stage, jobId,
       "ENVIRONMENTAL_FAILURE_RETRY_NOT_ELIGIBLE", ["project:not-found"]);

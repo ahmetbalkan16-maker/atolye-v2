@@ -5,7 +5,7 @@ import {
   requireContainedStorageFile,
 } from "./StoragePathSecurity";
 import {
-  acquireProjectWriteAuthority,
+  acquireExistingProjectWriteAuthority,
   ensureSafeContainedDirectory,
   resolveRuntimeLogicalPath,
   resolveRuntimeLogicalPathForWrite,
@@ -63,7 +63,7 @@ export class VideoStorage {
     input: RuntimeStorageInput,
   ) {
     const context = resolveRuntimeStorageContext(input);
-    const lease = acquireProjectWriteAuthority(projectSlug, context);
+    const lease = acquireExistingProjectWriteAuthority(projectSlug, context);
     try {
       const fileName = `${id}.mp4`;
       const temporaryFileName = `${id}.partial.mp4`;
@@ -105,7 +105,7 @@ export class VideoStorage {
       throw new Error("Invalid video output path.");
     }
     const slug = path.relative(videoRoot, absolutePath).split(path.sep)[0];
-    const lease = acquireProjectWriteAuthority(slug, context);
+    const lease = acquireExistingProjectWriteAuthority(slug, context);
     try {
       fs.renameSync(temporaryAbsolutePath, absolutePath);
     } finally {
@@ -224,7 +224,7 @@ export class VideoStorage {
       const context = resolveRuntimeStorageContext(input);
       if (!inside(context.projectsRoot, filePath)) return;
       const slug = path.relative(context.projectsRoot, filePath).split(path.sep)[0];
-      const lease = acquireProjectWriteAuthority(slug, context);
+      const lease = acquireExistingProjectWriteAuthority(slug, context);
       try {
         fs.rmSync(filePath, { force: true });
       } finally {

@@ -389,8 +389,8 @@ export function validateEnvironmentalFailureRetryExtensionReceipt(
 
 // --- storage (shares the retry-budget-extensions directory, distinct prefix) ---
 
-function directory(projectSlug: string, input: RuntimeStorageInput = {}): string {
-  return getRetryBudgetExtensionDirectory(projectSlug, input);
+function directory(projectSlug: string, input: RuntimeStorageInput = {}, write = false): string {
+  return getRetryBudgetExtensionDirectory(projectSlug, input, write);
 }
 
 function assertContained(projectSlug: string, targetPath: string, input: RuntimeStorageInput = {}) {
@@ -411,7 +411,7 @@ export function writeEnvironmentalFailureRetryExtensionAuthority(
       reasonCode: "ENVIRONMENTAL_FAILURE_RETRY_EXTENSION_INTEGRITY_MISMATCH",
       evidence: ["body:integrity-invalid"] };
   }
-  const dir = directory(projectSlug, input);
+  const dir = directory(projectSlug, input, true);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const authorityPath = path.join(dir, `envfail-authority-${body.authorityId}.json`);
   assertContained(projectSlug, authorityPath, input);
@@ -503,7 +503,7 @@ export function writeEnvironmentalFailureRetryExtensionReceipt(
       reasonCode: "ENVIRONMENTAL_FAILURE_RETRY_EXTENSION_RECEIPT_CORRUPT",
       evidence: ["receipt:integrity-invalid"] };
   }
-  const dir = directory(projectSlug, input);
+  const dir = directory(projectSlug, input, true);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const receiptPath = path.join(dir, `envfail-receipt-${receipt.authorityId}-${receipt.state}.json`);
   assertContained(projectSlug, receiptPath, input);

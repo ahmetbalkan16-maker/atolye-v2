@@ -7,7 +7,8 @@ import type { ProductionRegenerationBinding } from "@/types/productionRegenerati
 import { stableProductionId } from "./ProductionDeterminism";
 import {
   type RuntimeStorageInput,
-  getProjectRoot,
+  getExistingProjectRoot,
+  getExistingProjectRootForWrite,
   resolveRuntimeStorageContext,
 } from "@/lib/runtime/RuntimeStoragePaths";
 import { buildProductionPipelineExecutionIdentity } from "./ProductionPipelineExecutionFactory";
@@ -165,11 +166,13 @@ export function validateProductionSupersededDuplicateReservationAuthorityBody(
     );
 }
 
-function directory(projectSlug: string, input: RuntimeStorageInput = {}): string {
+function directory(projectSlug: string, input: RuntimeStorageInput = {}, write = false): string {
   // A dedicated sibling directory to orphan-reservation-tolerances/ — physically
   // separate so the two authority families can never collide or be confused.
-  return path.join(getProjectRoot(projectSlug, input), "production-execution",
-    "superseded-duplicate-reservations");
+  const projectRoot = write
+    ? getExistingProjectRootForWrite(projectSlug, input)
+    : getExistingProjectRoot(projectSlug, input);
+  return path.join(projectRoot, "production-execution", "superseded-duplicate-reservations");
 }
 
 function assertContained(projectSlug: string, targetPath: string, input: RuntimeStorageInput = {}) {
@@ -190,7 +193,7 @@ export function writeProductionSupersededDuplicateReservationAuthority(
       reasonCode: "SUPERSEDED_DUPLICATE_RESERVATION_INTEGRITY_MISMATCH",
       evidence: ["body:integrity-invalid"] };
   }
-  const dir = directory(projectSlug, input);
+  const dir = directory(projectSlug, input, true);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const decisionPath = path.join(dir, `decision-${body.decisionId}.json`);
   assertContained(projectSlug, decisionPath, input);

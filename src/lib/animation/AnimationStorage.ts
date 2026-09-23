@@ -15,7 +15,7 @@ import type { Asset } from "@/types/asset";
 import type { AnimationMotionPlanScene } from "@/types/animation";
 import { isAdmissibleProductionProvider } from "@/lib/production/ProductionProviderResolution";
 import {
-  acquireProjectWriteAuthority,
+  acquireExistingProjectWriteAuthority,
   ensureSafeContainedDirectory,
   resolveRuntimeLogicalPath,
   resolveRuntimeLogicalPathForWrite,
@@ -68,7 +68,7 @@ export class AnimationStorage {
     input: RuntimeStorageInput = {},
   ): StoredAnimationMotionPlan {
     const context = resolveRuntimeStorageContext(input);
-    const lease = acquireProjectWriteAuthority(projectSlug, context);
+    const lease = acquireExistingProjectWriteAuthority(projectSlug, context);
     try {
       validateArtifact(artifact);
       const relativePath = this.getMotionPlanPath(projectSlug, artifact.assetId);
@@ -161,7 +161,7 @@ export class AnimationStorage {
   ) {
     const context = resolveRuntimeStorageContext(input);
     try {
-      const lease = acquireProjectWriteAuthority(projectSlug, context);
+      const lease = acquireExistingProjectWriteAuthority(projectSlug, context);
       try {
       const expectedPrefix = `${this.getAnimationDir(projectSlug)}/`;
       if (!filePath.startsWith(expectedPrefix)) return;

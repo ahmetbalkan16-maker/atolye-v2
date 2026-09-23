@@ -144,11 +144,11 @@ export function buildProductionPipelineRegenerationRetryBudgetExtensionReceipt(
   });
 }
 
-function directory(projectSlug: string, input: RuntimeStorageInput = {}): string {
+function directory(projectSlug: string, input: RuntimeStorageInput = {}, write = false): string {
   // Deliberately the SAME directory as the ordinal-4 mechanism — only the
   // filename prefix differs (regen-authority- / regen-receipt- vs.
   // authority- / receipt-), so the two can never collide.
-  return getRetryBudgetExtensionDirectory(projectSlug, input);
+  return getRetryBudgetExtensionDirectory(projectSlug, input, write);
 }
 
 function assertContained(projectSlug: string, targetPath: string, input: RuntimeStorageInput = {}) {
@@ -169,7 +169,7 @@ export function writeRegenerationRetryBudgetExtensionAuthority(
       reasonCode: "PIPELINE_REGENERATION_RETRY_BUDGET_EXTENSION_INTEGRITY_MISMATCH",
       evidence: ["body:integrity-invalid"] };
   }
-  const dir = directory(projectSlug, input);
+  const dir = directory(projectSlug, input, true);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const authorityPath = path.join(dir, `regen-authority-${body.authorityId}.json`);
   assertContained(projectSlug, authorityPath, input);
@@ -243,7 +243,7 @@ export function writeRegenerationRetryBudgetExtensionReceipt(
   receipt: ProductionPipelineRegenerationRetryBudgetExtensionReceipt,
   input: RuntimeStorageInput = {},
 ): RegenerationRetryBudgetExtensionStoreResult<ProductionPipelineRegenerationRetryBudgetExtensionReceipt> {
-  const dir = directory(projectSlug, input);
+  const dir = directory(projectSlug, input, true);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const receiptPath = path.join(dir, `regen-receipt-${receipt.authorityId}-${receipt.state}.json`);
   assertContained(projectSlug, receiptPath, input);

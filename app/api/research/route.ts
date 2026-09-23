@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AIManager } from "@/lib/ai/AIManager";
 import { ProjectManager } from "@/lib/projects/ProjectManager";
+import { ProjectAlreadyExistsError } from "@/lib/projects/ProjectWriter";
 
 export async function POST(req: Request) {
   try {
@@ -14,6 +15,10 @@ export async function POST(req: Request) {
     }
 
     const cleanTopic = topic.trim();
+
+    // 0. A slug another project folder owns cannot be created: refuse before
+    // paying for research.
+    ProjectManager.assertProjectCreatable(cleanTopic);
 
     // 1. RESEARCH
     const research = await AIManager.runResearch(cleanTopic);
@@ -30,6 +35,13 @@ export async function POST(req: Request) {
       research,
     });
   } catch (error) {
+    if (error instanceof ProjectAlreadyExistsError) {
+      return NextResponse.json(
+        { success: false, error: "Bu konu için zaten bir proje var.", code: error.code },
+        { status: 409 }
+      );
+    }
+
     console.error("[Research API] Pipeline error:", error);
 
     return NextResponse.json(

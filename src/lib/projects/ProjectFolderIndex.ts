@@ -138,6 +138,16 @@ export function resolveProjectFolderSegment(
   return index.byId.get(identifier) ?? index.bySlug.get(identifier) ?? null;
 }
 
+/**
+ * Drop the cached scan for one projects root. The cache is keyed on the root's
+ * mtime, which a `project.json` rewritten inside an existing folder does not
+ * change; the write-side resolver (`RuntimeStoragePaths`) calls this when its
+ * fresh scan disagrees with the cached answer, so reads see what writes see.
+ */
+export function invalidateProjectFolderIndex(projectsRoot: string): void {
+  cache.delete(projectsRoot);
+}
+
 /** Test seam — drop the per-root scan cache. */
 export function clearProjectFolderIndexCache(): void {
   cache.clear();
