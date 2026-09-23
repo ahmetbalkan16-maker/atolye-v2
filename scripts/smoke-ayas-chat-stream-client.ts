@@ -117,6 +117,26 @@ async function run() {
     }
   });
 
+  await scenario("first terminal is authoritative — late delta and duplicate done are ignored", async () => {
+    const deltas: string[] = [];
+    const res = await runAyasChatStream({
+      ...base,
+      onDelta: (delta) => deltas.push(delta),
+      fetcher: sseFetch([
+        { type: "delta", text: "Doğru cevap." },
+        { type: "done", text: "Doğru cevap.", source: "llm", corrected: false },
+        { type: "delta", text: "ESKİ" },
+        { type: "done", text: "ESKİ", source: "fallback", corrected: true, reason: "late-replay" },
+      ]),
+    });
+    assert.deepEqual(deltas, ["Doğru cevap."]);
+    assert.equal(res.ok, true);
+    if (res.ok) {
+      assert.equal(res.text, "Doğru cevap.");
+      assert.equal(res.corrected, false);
+    }
+  });
+
   await scenario("non-OK response → ok:false http-<status>", async () => {
     const res = await runAyasChatStream({ ...base, onDelta: () => {}, fetcher: sseFetch([], { status: 401 }) });
     assert.equal(res.ok, false, "assert.equal(res.ok, false)");

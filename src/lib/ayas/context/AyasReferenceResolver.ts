@@ -60,7 +60,11 @@ const REF_PATTERNS: { re: RegExp; phrase: string }[] = [
     re: /\b(bunu|buna|bununla|bu\s+(?:kismi|neden|nasil)|sunu|suna|sununla|onu|ona|onunla|o kismi|onun uzerinden|bunlari|sunlari)\b/,
     phrase: "bunu / şunu / onu",
   },
-  { re: /\b(devam et|devam edelim|kaldigimiz yerden|bir daha soyle|tekrar et|biraz daha ac|nasil yani|ayni sekilde)\b/, phrase: "devam et" },
+  { re: /\b(aynisini|ayni sekilde)\b/, phrase: "aynı yöntem" },
+  { re: /\b(devam et|devam edelim|kaldigimiz yerden|bir daha soyle|tekrar et|biraz daha ac|nasil yani)\b/, phrase: "devam et" },
+  { re: /\b(simdi ne yap(?:acagiz|acaz|caz)|sirada ne var|bundan sonra ne|sonra ne yap(?:acagiz|acaz|caz))\b/, phrase: "sonraki adım" },
+  { re: /^\s*(?:tamam|peki|olur)(?:\s*,)?\s+(?:ver|goster|paylas|gonder)(?:\s+(?:bakalim|hadi))?[.!]?\s*$/, phrase: "bekleyen teslim" },
+  { re: /\b(?:bir )?oncekine don|\bonceki konuya don\b/, phrase: "önceki konu" },
   { re: /^\s*(neden|niye|nicin)\s*\??\s*$/, phrase: "neden?" },
   { re: /\b(orada|oradaki|orasi)\b/, phrase: "orada" },
 ];
@@ -74,7 +78,27 @@ export function resolveAyasReferences(
   if (!raw) return EMPTY;
   const folded = fold(raw);
 
-  const present = REF_PATTERNS.filter((p) => p.re.test(folded)).map((p) => p.phrase);
+  // A current-turn instruction to discard earlier context has higher authority
+  // than any lexical back-reference inside that same sentence. Treating the
+  // word "önceki" in "önceki bağlamı kullanma" as a request to retrieve that
+  // context reverses the user's explicit intent.
+  if (
+    /\b(?:onceki|eski)\s+(?:baglami|konusmayi|konuyu|mesajlari)\s+(?:kullanma|dikkate alma|yok say|unut)\b/.test(folded) ||
+    /\b(?:baglami|konusmayi|konuyu|mesajlari)\s+(?:sifirla|unut)\b/.test(folded)
+  ) {
+    return EMPTY;
+  }
+
+  const asksForAlternative = /\b(?:bunu|sunu|onu)\s+degil(?:\s*,)?\s+(?:digerini|oburunu)\b|\b(?:digerini|oburunu)\s+kastet/.test(folded);
+  const rejectsPriorReferent = /\b(?:hayir|yok)\b[^.!?]{0,50}\b(?:bunu|sunu|onu)\s+(?:demedim|kastetmedim)\b/.test(folded);
+
+  const present = [
+    ...(asksForAlternative ? ["diğer seçenek"] : rejectsPriorReferent ? ["reddedilen referans"] : []),
+    ...REF_PATTERNS
+      .filter((p) => p.re.test(folded))
+      .map((p) => p.phrase)
+      .filter((phrase) => !(asksForAlternative || rejectsPriorReferent) || phrase !== "bunu / şunu / onu"),
+  ].filter((phrase, index, all) => all.indexOf(phrase) === index);
   if (present.length === 0) return EMPTY;
 
   const resolutions: AyasReferenceResolution[] = [];
@@ -83,7 +107,27 @@ export function resolveAyasReferences(
   const lastUserBefore = [...history].reverse().find((t) => t.role === "user" && t.text.trim() !== raw)?.text?.trim() ?? null;
 
   for (const phrase of present) {
-    if (phrase === "önceki konuşma") {
+    if (phrase === "diğer seçenek") {
+      const assistantOptions = state.options.filter((option) => fold(state.lastAssistantText ?? "").includes(fold(option)));
+      const selected = state.selectedOption ?? (assistantOptions.length === 1 ? assistantOptions[0] : undefined);
+      const alternatives = state.options.filter((option) => option !== selected);
+      if (state.options.length === 2 && selected && alternatives.length === 1) {
+        resolutions.push({ phrase, referent: alternatives[0], kind: "last-topic" });
+      } else {
+        unresolved.push(state.options.length ? `${phrase} (${state.options.join(" / ")})` : phrase);
+      }
+    } else if (phrase === "reddedilen referans") {
+      // Rejection identifies what is wrong, not what the replacement should be.
+      // Unless the user also names the alternative, asking once is safer than
+      // silently carrying the rejected object forward.
+      unresolved.push(phrase);
+    } else if (phrase === "önceki konu") {
+      const previousTopic = state.recentEntities.find(
+        (entity) => entity.kind === "topic" && fold(entity.value) !== fold(state.activeTopic ?? ""),
+      );
+      if (previousTopic) resolutions.push({ phrase, referent: previousTopic.value, kind: "last-topic" });
+      else unresolved.push(phrase);
+    } else if (phrase === "önceki konuşma") {
       if (state.activeTopic) {
         resolutions.push({ phrase, referent: state.activeTopic, kind: "continuation" });
       } else if (state.lastAssistantText) {
@@ -131,14 +175,22 @@ export function resolveAyasReferences(
       } else {
         unresolved.push(phrase);
       }
-    } else if (phrase === "devam et" || phrase === "neden?") {
+    } else if (phrase === "aynı yöntem") {
+      if (state.lastAssistantText) {
+        resolutions.push({ phrase, referent: truncate(state.lastAssistantText, 120), kind: "prior-reply" });
+      } else if (lastUserBefore) {
+        resolutions.push({ phrase, referent: truncate(lastUserBefore, 120), kind: "continuation" });
+      } else {
+        unresolved.push(phrase);
+      }
+    } else if (phrase === "devam et" || phrase === "sonraki adım" || phrase === "bekleyen teslim" || phrase === "neden?") {
       if (state.selectedOption) {
         resolutions.push({ phrase, referent: state.selectedOption, kind: "last-topic" });
       } else if (state.lastAssistantText) {
         resolutions.push({
           phrase,
           referent: truncate(state.lastAssistantText, 120),
-          kind: phrase === "devam et" ? "continuation" : "prior-reply",
+          kind: phrase === "neden?" ? "prior-reply" : "continuation",
         });
       } else if (state.lastUserText || lastUserBefore) {
         resolutions.push({

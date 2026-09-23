@@ -63,6 +63,10 @@ export async function runAyasChatStream(input: RunAyasChatStreamInput): Promise<
   let streamDone = false;
 
   const consumeFrame = (frame: string): void => {
+    // The first terminal event is authoritative. A duplicated/replayed `done`
+    // or a late delta (for example after a reconnecting proxy flush) must not
+    // replace the completed answer or append stale text to the UI.
+    if (terminal) return;
     const line = frame.split(/\r?\n/u).find((value) => value.startsWith("data:"));
     if (!line) return;
     let event: AyasChatStreamEvent;

@@ -39,6 +39,7 @@ import { resolveOllamaConfig } from "@/lib/ai/OllamaConfig";
 import { routeAyasModel, type AyasModelRoute } from "./model/AyasModelRouter";
 import type { AyasModelProvider, AyasModelProviderId, AyasChatComplexity } from "./model/AyasModelTypes";
 import { assembleAyasContext } from "./context/AyasContextAssembly";
+import { deriveAyasConversationState } from "./context/AyasConversationState";
 import { recallAyasMemoryWithTrace, persistAyasMemoryFromTurn } from "./memory/AyasMemoryRecall";
 import type { AyasMemoryStoreOptions } from "./memory/AyasMemoryStore";
 import { shouldUseAyasReasoning, runAyasReasoning } from "./reasoning/AyasReasoningCore";
@@ -229,6 +230,49 @@ function isStudioRelevantQuery(text: string): boolean {
  */
 const GENERIC_HELP_OFFER_MAX_CHARS = 70;
 
+/**
+ * A short non-question has very little semantic payload, independently of
+ * which acknowledgement word the speaker chose. This intentionally measures
+ * utterance shape rather than keeping a dictionary of "tamam / peki / olur"
+ * style tokens: the same rule naturally applies to informal paraphrases.
+ */
+function isLowInformationTurn(text: string): boolean {
+  const normalized = fold(text).replace(/[^\p{L}\p{N}\s]/gu, " ").trim();
+  return normalized.length > 0 && normalized.split(/\s+/).length <= 2 && !/[?？]\s*$/.test(text);
+}
+
+/**
+ * Sequencing language is a conversational continuation signal, not a new
+ * topic. Keep the list to discourse roles (ordinal, temporal and procedural)
+ * so it works for natural paraphrases without binding any particular fixture.
+ */
+function hasContinuationCue(text: string): boolean {
+  const value = fold(text);
+  return /\b(?:ilk|once|sonra|ardindan|siradaki|devam|buradan|burdan|nasil ilerle|ne yap)\b/.test(value);
+}
+
+function hasExplicitTopicCorrection(text: string): boolean {
+  const value = fold(text);
+  return /\b(?:hayir|degil|yanlis|yeni konu|baska konu|konuyu degistir)\b/.test(value);
+}
+
+function shouldPreserveActiveTopic(input: {
+  readonly userText: string;
+  readonly hasHistory: boolean;
+  readonly activeTopic: string | null;
+  readonly hasResolvedReference: boolean;
+  readonly hasPendingContinuation: boolean;
+}): boolean {
+  if (!input.activeTopic || !input.hasHistory || hasExplicitTopicCorrection(input.userText)) return false;
+  const user = fold(input.userText).trim();
+  return (
+    input.hasResolvedReference ||
+    /^(?:ilk|neden|niye|nicin|bunu|sunu|onu|orada)\b/.test(user) ||
+    hasContinuationCue(input.userText) ||
+    (isLowInformationTurn(input.userText) && input.hasPendingContinuation)
+  );
+}
+
 function replyNeedsContextCorrection(input: {
   readonly reply: string;
   readonly userText: string;
@@ -236,6 +280,7 @@ function replyNeedsContextCorrection(input: {
   readonly selectedOption: string | null;
   readonly activeTopic: string | null;
   readonly hasResolvedReference: boolean;
+  readonly hasPendingContinuation: boolean;
   readonly memoryLines: readonly string[];
 }): boolean {
   const reply = fold(input.reply).trim();
@@ -286,14 +331,15 @@ function replyNeedsContextCorrection(input: {
     const anchors = fold(input.selectedOption).split(/\s+/).filter((token) => token.length >= 4);
     if (anchors.length && !anchors.some((anchor) => reply.includes(anchor))) return true;
   }
-  if (input.activeTopic && (input.hasResolvedReference || /^(ilk|neden|niye|nicin|bunu|sunu|onu|orada)\b/.test(user))) {
+  const activeTopic = input.activeTopic;
+  if (activeTopic && shouldPreserveActiveTopic(input)) {
     // Substring containment against the whole folded reply — same fix as
     // `anchors` above and `memorySatisfied` below: an exact token-Set match
     // (the prior implementation) false-positived whenever the topic word in
     // the reply carried trailing punctuation (e.g. "context," / "context.")
     // since `fold` never strips punctuation — a real bug caught by
     // `smoke-ayas-reasoning.ts`'s selected-option-continuity scenario.
-    const topicTokens = fold(input.activeTopic).split(/\s+/).filter((token) => token.length >= 5);
+    const topicTokens = fold(activeTopic).split(/\s+/).filter((token) => token.length >= 5);
     if (topicTokens.length && !topicTokens.some((token) => reply.includes(token))) return true;
   }
   if (isLiteralLabelQuestion) {
@@ -630,8 +676,11 @@ function replyMissesReadOnlyConstraint(reply: string, contextTexts: readonly str
 
 function buildSafeContextFallback(input: {
   readonly userText: string;
+  readonly hasHistory: boolean;
   readonly selectedOption: string | null;
   readonly activeTopic: string | null;
+  readonly hasResolvedReference: boolean;
+  readonly hasPendingContinuation: boolean;
   readonly issue: string;
 }): string {
   const user = fold(input.userText);
@@ -648,6 +697,25 @@ function buildSafeContextFallback(input: {
     return "Buna sevindim. İstersen bu iyi hissi koruyarak konuşmaya devam edebiliriz.";
   }
   const focus = input.selectedOption ?? input.activeTopic;
+  const preservesTopic = shouldPreserveActiveTopic({
+    userText: input.userText,
+    hasHistory: input.hasHistory,
+    activeTopic: input.activeTopic,
+    hasResolvedReference: input.hasResolvedReference,
+    hasPendingContinuation: input.hasPendingContinuation,
+  });
+  if (!focus && isLowInformationTurn(input.userText)) {
+    return "Anladım.";
+  }
+  if (isLowInformationTurn(input.userText) && !input.hasPendingContinuation) {
+    return "Anladım.";
+  }
+  if (!focus && !input.hasHistory && !/[?？]\s*$/.test(input.userText)) {
+    return "Söylediğin bağlamı dikkate alacağım.";
+  }
+  if (focus && preservesTopic) {
+    return `${focus} için önce mevcut durumu ve hedeflenen değişikliği ayıralım; ardından ilk adımı belirleyebiliriz.`;
+  }
   if (focus) {
     return `${focus} konusunu koruyarak devam edelim. Hangi yönünü ele almamı istediğini biraz netleştirir misin?`;
   }
@@ -660,6 +728,8 @@ interface AyasFinalizationInput {
   readonly recentHistory: readonly { readonly role: BrainChatMessage["role"]; readonly text: string }[];
   readonly selectedOption: string | null;
   readonly activeTopic: string | null;
+  /** The prior assistant turn left a direct question awaiting the user's reply. */
+  readonly hasPendingContinuation: boolean;
   readonly resolvedReferents: readonly string[];
   readonly memoryLines: readonly string[];
   readonly provider: AyasModelProvider;
@@ -698,6 +768,7 @@ function replyIssue(reply: string, input: AyasFinalizationInput): string | null 
     selectedOption: input.selectedOption,
     activeTopic: input.activeTopic,
     hasResolvedReference: input.resolvedReferents.length > 0,
+    hasPendingContinuation: input.hasPendingContinuation,
     memoryLines: input.memoryLines,
   };
   if (replyNeedsContextCorrection(quality)) return "context-quality";
@@ -764,13 +835,25 @@ async function finalizeAyasReply(input: AyasFinalizationInput): Promise<AyasFina
     // The single bounded correction is best-effort; safe fallback follows.
   }
 
+  const hasStaticIntentFallback =
+    (isLowInformationTurn(input.userText) && !input.hasPendingContinuation) ||
+    (!input.selectedOption &&
+      !input.activeTopic &&
+      (!input.recentHistory.length && !/[?？]\s*$/.test(input.userText)));
   let fallback = buildSafeContextFallback({
     userText: input.userText,
+    hasHistory: input.recentHistory.length > 0,
     selectedOption: input.selectedOption,
     activeTopic: input.activeTopic,
+    hasResolvedReference: input.resolvedReferents.length > 0,
+    hasPendingContinuation: input.hasPendingContinuation,
     issue: initialIssue,
   });
-  if (replyIssue(fallback, { ...input, rawReply: fallback })) {
+  // The two focus-free intent fallbacks are static, reviewed sentences: they
+  // contain neither model output nor user-derived text. Do not let the broad
+  // model-reply quality gate turn a safe acknowledgement/context receipt back
+  // into the generic clarification that this branch exists to avoid.
+  if (!hasStaticIntentFallback && replyIssue(fallback, { ...input, rawReply: fallback })) {
     fallback = "Yanıtı güvenli ve doğru biçimde oluşturamadım; hiçbir işlem gerçekleştirmedim. Salt okunur sınırı koruyarak neyi ele almamı istediğini netleştirir misin?";
   }
   return { text: fallback, source: "fallback", corrected: true, reason: initialIssue, correctionAttempts: 1 };
@@ -820,6 +903,25 @@ export async function* streamAyasChat(
     };
     return;
   }
+
+  // Context assembly resolves the current utterance against earlier turns;
+  // for an explicit correction, derive the same existing conversation state
+  // with this turn appended so the correction outranks the previously
+  // resolved topic during terminal repair/fallback. This reuses the canonical
+  // state projection rather than introducing another topic parser.
+  const correctedTurnState = hasExplicitTopicCorrection(text)
+    ? deriveAyasConversationState([
+        ...(input.history ?? []),
+        { role: "user", text },
+      ], input.studio ? { studio: input.studio } : {})
+    : null;
+  const activeTopicForFinalization = correctedTurnState?.activeTopic ?? ctx.trace.activeTopic;
+  // Only a direct unanswered assistant question makes a bare acknowledgement
+  // a continuation. An old topic alone is not an open task.
+  const hasPendingContinuation = deriveAyasConversationState(
+    input.history ?? [],
+    input.studio ? { studio: input.studio } : {},
+  ).unresolvedQuestions.length > 0;
 
   const env = input.env ?? process.env;
   const fetcher = input.fetcher ?? fetch;
@@ -1014,7 +1116,8 @@ export async function* streamAyasChat(
       // verifies the final answer.
       recentHistory: input.history ?? [],
       selectedOption: ctx.trace.selectedOption,
-      activeTopic: ctx.trace.activeTopic,
+      activeTopic: activeTopicForFinalization,
+      hasPendingContinuation,
       resolvedReferents: ctx.resolvedReferents,
       memoryLines: memoryLinesForPrompt,
       provider: route.provider,
@@ -1112,7 +1215,8 @@ export async function* streamAyasChat(
     // by the route/client contract and is required for identity precedence.
     recentHistory: input.history ?? [],
     selectedOption: ctx.trace.selectedOption,
-    activeTopic: ctx.trace.activeTopic,
+    activeTopic: activeTopicForFinalization,
+    hasPendingContinuation,
     resolvedReferents: ctx.resolvedReferents,
     memoryLines: memoryLinesForPrompt,
     provider: route.provider,

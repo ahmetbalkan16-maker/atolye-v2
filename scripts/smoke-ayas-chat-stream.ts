@@ -209,6 +209,78 @@ async function run() {
     assert.equal(done.reason, "unusable-reply");
   });
 
+  await scenario("fallback intent — meaningful first-turn statements are acknowledged without a generic clarification", async () => {
+    for (const text of [
+      "Konuşma deneyimini daha tutarlı hâle getiriyorum.",
+      "Bugün yanıtların gereksiz uzadığı bir sorun fark ettim.",
+    ]) {
+      const events = await collect(streamAyasChat({ text, snapshot: snap(), seq: 31, fetcher: mockOllamaStream([" "]) }) as never);
+      const done = events.at(-1)!;
+      assert.equal(done.source, "fallback");
+      assert.doesNotMatch(done.text as string, /neyi ele almamı istediğini|netleştirir misin/i);
+      assert.doesNotMatch(done.text as string, /\?\s*$/);
+    }
+  });
+
+  await scenario("fallback intent — low-information acknowledgments do not become meaningless questions", async () => {
+    for (const text of ["Tamam.", "Olur.", "Peki.", "Anladım.", "Evet."]) {
+      const events = await collect(streamAyasChat({ text, snapshot: snap(), seq: 32, fetcher: mockOllamaStream([" "]) }) as never);
+      const done = events.at(-1)!;
+      assert.equal(done.source, "fallback");
+      assert.doesNotMatch(done.text as string, /neyi ele almamı istediğini|netleştirir misin/i);
+      assert.doesNotMatch(done.text as string, /\?\s*$/);
+    }
+  });
+
+  await scenario("fallback intent — a bare acknowledgment does not reopen a completed topic", async () => {
+    const events = await collect(streamAyasChat({
+      text: "Elbette.", snapshot: snap(), seq: 32,
+      history: [
+        { role: "user" as const, text: "Yanıtları daha kısa tutalım." },
+        { role: "brain" as const, text: "Yanıtları kısa ve doğrudan tutacağım." },
+      ],
+      fetcher: mockOllamaStream([" "]),
+    }) as never);
+    const done = events.at(-1)!;
+    assert.equal(done.source, "fallback");
+    assert.equal(done.text, "Anladım.");
+  });
+
+  await scenario("fallback intent — an acknowledgment answers a pending continuation without generic clarification", async () => {
+    const events = await collect(streamAyasChat({
+      text: "Kesinlikle.", snapshot: snap(), seq: 32,
+      history: [
+        { role: "user" as const, text: "Yanıtların akıcılığını iyileştirelim." },
+        { role: "brain" as const, text: "Önce gereksiz dolgu ifadelerini ayıralım mı?" },
+      ],
+      fetcher: mockOllamaStream([" "]),
+    }) as never);
+    const done = events.at(-1)!;
+    assert.equal(done.source, "fallback");
+    assert.match(done.text as string, /akıcılığ|dolgu|yanıt/i);
+    assert.doesNotMatch(done.text as string, /neyi ele almamı istediğini|netleştirir misin/i);
+  });
+
+  await scenario("fallback intent — implicit continuation preserves a resolved topic until an explicit correction", async () => {
+    const prior = [
+      { role: "user" as const, text: "AYAS'ın cevapları bazen fazla mekanik." },
+      { role: "brain" as const, text: "Onu biraz daha doğal yapabilir miyiz?" },
+    ];
+    const continued = await collect(streamAyasChat({
+      text: "Peki ilk adım nedir?", snapshot: snap(), seq: 33, history: prior, fetcher: mockOllamaStream([" "]),
+    }) as never);
+    const continuedDone = continued.at(-1)!;
+    assert.match(continuedDone.text as string, /mekanik|cevap/i);
+    assert.doesNotMatch(continuedDone.text as string, /neyi ele almamı istediğini|netleştirir misin/i);
+
+    const corrected = await collect(streamAyasChat({
+      text: "Hayır, thumbnail tarafını konuşalım.", snapshot: snap(), seq: 34, history: prior, fetcher: mockOllamaStream([" "]),
+    }) as never);
+    const correctedDone = corrected.at(-1)!;
+    assert.match(correctedDone.text as string, /thumbnail/i);
+    assert.doesNotMatch(correctedDone.text as string, /mekanik/i);
+  });
+
   await scenario("empty input → immediate fallback done, no deltas", async () => {
     const events = await collect(streamAyasChat({ text: "  ", snapshot: snap(), seq: 4, fetcher: mockOllamaStream(["x"]) }) as never);
     assert.equal(events.length, 1);

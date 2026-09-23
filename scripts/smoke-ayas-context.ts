@@ -254,6 +254,57 @@ async function run() {
     assert.match(a.block.referenceLines?.join("\n") ?? "", /Mimar Sinan|İstanbul panoraması/i);
   });
 
+  await scenario("Turkish continuation — 'aynısını / aynı şekilde' reuses the prior method", () => {
+    const hist = h(["user", "İlk sahneyi üç kısa cümleyle özetle."], ["brain", "İlk sahnenin kısa özeti hazır."]);
+    for (const text of ["İkinci sahne için de aynısını yap.", "Bunu da aynı şekilde yap."]) {
+      const r = resolveAyasReferences(text, deriveAyasConversationState(hist), hist);
+      assert.equal(r.clarification, null);
+      assert.ok(r.resolutions.length > 0);
+    }
+  });
+
+  await scenario("Turkish continuation — next-step and pending-delivery shorthand bind to context", () => {
+    const hist = h(["user", "Araştırmayı tamamladık."], ["brain", "Sırada senaryo taslağı var."]);
+    for (const text of ["Şimdi ne yapacağız?", "simdi ne yapcaz", "Tamam, ver."]) {
+      const r = resolveAyasReferences(text, deriveAyasConversationState(hist), hist);
+      assert.equal(r.clarification, null);
+      assert.ok(r.resolutions.length > 0);
+    }
+  });
+
+  await scenario("correction — rejection asks; explicit other selects the sole alternative", () => {
+    const bareHist = h(["user", "Renk paletini konuşalım."], ["brain", "Mavi paleti mi kastediyorsun?"]);
+    const rejected = resolveAyasReferences("Hayır, ben onu demedim.", deriveAyasConversationState(bareHist), bareHist);
+    assert.ok(rejected.clarification);
+    assert.equal(rejected.resolutions.length, 0);
+
+    const optionHist = h(
+      ["brain", "İki seçenek var: kısa anlatım ve ayrıntılı anlatım."],
+      ["user", "İlkini seçelim."],
+      ["brain", "Kısa anlatımı seçtim."],
+    );
+    const alternative = resolveAyasReferences("Bunu değil, diğerini seç.", deriveAyasConversationState(optionHist), optionHist);
+    assert.equal(alternative.clarification, null);
+    assert.match(alternative.resolutions[0]?.referent ?? "", /ayrintili anlatim/i);
+  });
+
+  await scenario("topic return — 'öncekine dön' selects the previous distinct topic", () => {
+    const hist = h(
+      ["user", "Önce ses tasarımını konuşalım."], ["brain", "Ses katmanlarını değerlendirebiliriz."],
+      ["user", "Şimdi thumbnail tarafını konuşalım."], ["brain", "Başlık okunabilirliğiyle başlayalım."],
+    );
+    const r = resolveAyasReferences("Öncekine dön.", deriveAyasConversationState(hist), hist);
+    assert.equal(r.clarification, null);
+    assert.match(r.resolutions[0]?.referent ?? "", /ses tasar/i);
+  });
+
+  await scenario("context authority — explicit opt-out suppresses prior-context injection", () => {
+    const hist = h(["user", "Render ayarlarını konuşalım."], ["brain", "Bitrate ile başlayalım."]);
+    const r = resolveAyasReferences("Önceki bağlamı kullanma; yeni konu olarak renk teorisini anlat.", deriveAyasConversationState(hist), hist);
+    assert.equal(r.clarification, null);
+    assert.equal(r.resolutions.length, 0);
+  });
+
   await scenario("long-session constraint — a direct 'dokunma' instruction survives compression", () => {
     const hist = h(
       ["user", "Bu konuşmada production'a dokunma."],
