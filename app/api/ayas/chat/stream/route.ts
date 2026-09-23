@@ -12,6 +12,7 @@ import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSn
 import { loadAyasStudioContext } from "@/lib/ayas/AyasStudioContext";
 import { loadAyasProductBrainContext } from "@/lib/ayas/AyasProductBrain";
 import { streamAyasChat, ayasChatStreamEventToSse } from "@/lib/ayas/AyasChatStream";
+import { ayasTraceSessionScope, startAyasTrace, type AyasTraceHandle, type AyasTraceSpanHandle, type AyasTraceStatus } from "@/lib/ayas/trace/AyasUnifiedTrace";
 import { AyasGuidedRepairSessionRuntime, type AyasGuidedRepairDurability } from "@/lib/ayas/execution/AyasGuidedRepairSessionRuntime";
 import { createAyasProductionRepairDeps } from "@/lib/ayas/execution/AyasGuidedRepairProduction";
 import { AyasGuidedRepairSessionStore } from "@/lib/ayas/execution/AyasGuidedRepairSessionStore";
@@ -107,19 +108,57 @@ export async function POST(request: NextRequest): Promise<Response> {
   // approval from assistant, source, log or tool text.
   const sessionToken = request.cookies.get(AYAS_SESSION_COOKIE)?.value ?? "dev-session";
   const sessionKey = crypto.createHash("sha256").update(sessionToken).digest("hex");
-  const repairTurn = await guidedRepairSessions.handle({ sessionId: sessionKey, text, turnId: `http-turn-${crypto.randomUUID()}`, workspaceId: "atolye-v2" });
+  const trace = startAyasTrace({ rootKind: "chat-turn", scope: ayasTraceSessionScope(request.cookies.get(AYAS_SESSION_COOKIE)?.value) });
+  const turnSpan = trace.startSpan("conversation", "ayas-route", "route-turn");
+  // One observer lifecycle per turn: every branch ends through finishTurn, and a
+  // throw before the stream takes over is recorded as an error, never left running.
+  const finishTurn = (status: AyasTraceStatus, errorCode?: string) => {
+    turnSpan.end(status, undefined, errorCode);
+    trace.finish(status, errorCode);
+  };
+  try {
+    return await respondToAyasTurn({ request, text, history, seq, sessionKey, trace, turnSpan, finishTurn });
+  } catch (error) {
+    finishTurn("error");
+    throw error;
+  }
+}
+
+interface AyasTurnInput {
+  readonly request: NextRequest;
+  readonly text: string;
+  readonly history: { role: BrainChatMessage["role"]; text: string }[];
+  readonly seq: number;
+  readonly sessionKey: string;
+  readonly trace: AyasTraceHandle;
+  readonly turnSpan: AyasTraceSpanHandle;
+  readonly finishTurn: (status: AyasTraceStatus, errorCode?: string) => void;
+}
+
+async function respondToAyasTurn({ request, text, history, seq, sessionKey, trace, turnSpan, finishTurn }: AyasTurnInput): Promise<Response> {
+  const repairSpan = trace.startSpan("conversation", "ayas-repair", "guided-repair", turnSpan.spanId);
+  let repairTurn;
+  try {
+    repairTurn = await guidedRepairSessions.handle({ sessionId: sessionKey, text, turnId: `http-turn-${crypto.randomUUID()}`, workspaceId: "atolye-v2" });
+    repairSpan.end("ok");
+  } catch (error) {
+    repairSpan.end("error");
+    throw error;
+  }
   if (repairTurn.progress !== "İnceliyorum") {
+    finishTurn("fallback");
     const answer = repairTurn.text;
     const oneShot = new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(encoderFor().encode(ayasChatStreamEventToSse({ type: "done", text: answer, source: "fallback", corrected: false }))); controller.close(); } });
-    return new Response(oneShot, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store, no-transform", Connection: "keep-alive" } });
+    return new Response(oneShot, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store, no-transform", Connection: "keep-alive", "X-Ayas-Trace-Id": trace.traceId } });
   }
 
   const encoder = new TextEncoder();
   const preReasoningIntent = resolveAyasPreReasoningIntent(text);
 
   if (preReasoningIntent.kind === "guided-repair") {
+    finishTurn("fallback");
     const oneShot = new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(encoder.encode(ayasChatStreamEventToSse({ type: "done", text: repairTurn.text, source: "fallback", corrected: false }))); controller.close(); } });
-    return new Response(oneShot, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store, no-transform", Connection: "keep-alive" } });
+    return new Response(oneShot, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store, no-transform", Connection: "keep-alive", "X-Ayas-Trace-Id": trace.traceId } });
   }
 
   // "AYAS, rapor ver" / "onay bekleyen ne" (§11) — deterministic Report Center
@@ -127,6 +166,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (preReasoningIntent.kind === "report-center") {
     const rc = loadBrainSelfHealSnapshot().reportCenter;
     const answer = buildAyasReportSpokenAnswer(rc, preReasoningIntent.reportIntent);
+    finishTurn("fallback");
     const oneShot = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(
@@ -143,12 +183,23 @@ export async function POST(request: NextRequest): Promise<Response> {
         "Cache-Control": "no-store, no-transform",
         Connection: "keep-alive",
         "X-Accel-Buffering": "no",
+        "X-Ayas-Trace-Id": trace.traceId,
       },
     });
   }
 
-  const [snapshot, studio] = await Promise.all([loadBrainConsoleSnapshot(), loadAyasStudioContext()]);
-  const productBrain = await loadAyasProductBrainContext(snapshot);
+  const contextSpan = trace.startSpan("context", "ayas-route", "load-context", turnSpan.spanId);
+  let snapshot: Awaited<ReturnType<typeof loadBrainConsoleSnapshot>>;
+  let studio: Awaited<ReturnType<typeof loadAyasStudioContext>>;
+  let productBrain: Awaited<ReturnType<typeof loadAyasProductBrainContext>>;
+  try {
+    [snapshot, studio] = await Promise.all([loadBrainConsoleSnapshot(), loadAyasStudioContext()]);
+    productBrain = await loadAyasProductBrainContext(snapshot);
+    contextSpan.end("ok");
+  } catch (error) {
+    contextSpan.end("error");
+    throw error;
+  }
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -161,10 +212,16 @@ export async function POST(request: NextRequest): Promise<Response> {
           history,
           seq,
           signal: request.signal,
+          trace,
+          traceParentSpanId: turnSpan.spanId,
         })) {
           controller.enqueue(encoder.encode(ayasChatStreamEventToSse(event)));
+          if (event.type === "done") {
+            finishTurn(request.signal.aborted ? "cancelled" : event.source === "fallback" ? "fallback" : "ok");
+          }
         }
       } catch {
+        finishTurn(request.signal.aborted ? "cancelled" : "error", request.signal.aborted ? undefined : "CHAT_STREAM_FAILURE");
         controller.enqueue(
           encoder.encode(
             ayasChatStreamEventToSse({
@@ -177,8 +234,15 @@ export async function POST(request: NextRequest): Promise<Response> {
           ),
         );
       } finally {
+        // No-op after a terminal event or the catch above (finish is idempotent).
+        finishTurn(request.signal.aborted ? "cancelled" : "error");
         controller.close();
       }
+    },
+    // Client disconnect: recorded before any later enqueue failure can mark
+    // the turn as a server error. Observer-only; the stream is unchanged.
+    cancel() {
+      finishTurn("cancelled");
     },
   });
 
@@ -188,6 +252,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       "Cache-Control": "no-store, no-transform",
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
+      "X-Ayas-Trace-Id": trace.traceId,
     },
   });
 }

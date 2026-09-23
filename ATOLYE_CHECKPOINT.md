@@ -1,3 +1,47 @@
+## AYAS UNIFIED TRACE — END-TO-END CAUSAL OBSERVABILITY, OBSERVER-ONLY — 2026-09-23
+
+- **Recovery point.** Resumed Claude's interrupted Unified Trace sprint without resetting it. Branch `wip/ayas-graphify-final-execution`; local HEAD, upstream and real GitHub origin all `8882840e38db84a06713f5c2cccfe32f95bf0759` (ahead/behind 0/0), nothing staged, `git diff --check` clean. Nine in-scope files were uncommitted: 6 modified and 3 untracked, +728/−31 in total. Graphify had already been refreshed with scope `all` at 22:08, after the last source edit, so it covered the new files. The work stopped right before the planned authority-coupling review. The core, chat slice, approval slice, memory hook, trace read route and the three smokes were implemented but not re-validated; all were kept and completed.
+- **Review fixes** (HIGH `code-review` pass 1 found 10 issues; pass 2 found 9):
+  - The default store is now claimed process-wide on `globalThis` (`Symbol.for`), like the canonical pipeline runtimes, so separately loaded route bundles share it.
+  - The chat route has one turn lifecycle: a `finishTurn` helper, an outer catch for setup throws, and a stream `cancel()` that records `cancelled`. Previously a client abort or disconnect was recorded as `error`, and the report-center branch finished its trace before work that can throw.
+  - `streamAyasChat` became a thin wrapper that owns the conversation span, replacing a ~430-line unindented `try`.
+  - Tool spans: policy/safety refusals are `denied`; executor faults and timeouts are `error` with safe codes; a named but undispatched tool is `TOOL_NOT_DISPATCHED`.
+  - The duplicate retry events were removed.
+  - A correction retry aborted by the client is `cancelled`/`ABORTED`; a router crash is `MODEL_ROUTE_FAILURE`.
+  - Approval: only `AyasProposalApprovalError` counts as `denied`, and unexpected faults are `error`. Execution status follows the stage (`APPROVAL`/`STABILITY_GUARD` → `denied`).
+  - The resume/replay entry point `publishAlreadyOwnerApprovedAyasProposal` is now traced too.
+  - Only the domain call sits inside each `try`, and `ayasTraceErrorCode` never throws, so a trace call can never replace a domain result or error.
+  - The approval-service import was changed from the `@/` alias to a relative path (`ayas:tests` rule).
+  - Metadata sanitization reads only allowlisted keys and runs once per write.
+  - The trace route uses the shared session-scope and ID helpers.
+  - The persist-failure observer was tried and then reverted: `persistAyasMemoryFromTurn` never throws by contract, so that path was unreachable. This is recorded as a known gap.
+  - The owner-approval `operator` scope (no HTTP read surface) is intentional.
+- **Security.** The `security-review` skill could not start: its preamble requires an `origin/HEAD` ref this clone lacks, and git refs were not changed to force it. An equivalent manual review found no vulnerability:
+  - Middleware plus route-level auth protect the endpoint.
+  - Unauthenticated, tampered, expired, garbage, misconfigured-gate and production-no-key reads all get 401.
+  - Another session's trace and malformed, forged or unknown IDs all get the same 404.
+  - Responses are `no-store`, and the body carries no prompt, token, scope or key.
+  - Metadata is an allowlist; error codes are regex- and secret-word-filtered.
+  - Storage is bounded and trace IDs are never an authority token.
+- **Validation (final code).** `smoke-ayas-unified-trace` 17/17 covers:
+  - end-to-end causality and the endpoint matrix;
+  - sharing across two module instances;
+  - unreadable memory and malformed input;
+  - eight concurrent mixed turns, the correction abort, caps/retention and the benchmark.
+
+  `smoke-ayas-proposal-approval-service` 27/27 includes a TRACE ON/OFF/BROKEN matrix over 8 authority cases, each on a fresh TEMP repo with a local bare remote. The cases are approve+publish, stale hash, NOT_SAFE, HEAD drift, replay, push failure, resume and resume replay. Domain result, proposal status, decision/result counts, local/remote HEAD movement and cleanliness are identical in all three modes. In ON mode the trace status and verbatim domain code mirror the outcome, with no proposal identifier.
+
+  The other passing suites: reasoning 45, chat-stream 30, chat-stream-client 10, chat-quality 35, chat 12, conversation-quality-master 37, intent-routing 32, phone-runtime 40, tool-candidate-resolution 34, context 32, memory 29, model-router 17, model-profile 6, action-runtime 17, tool-registry 11, reasoning-schema 14, product-brain 9, autonomous-foundation-acceptance 42, daemon-authority-boundary 23, execution-gate 16, autonomous-execution-gate 26, owner-approval-resume 2, owner-approval-daemon-integration 5, approval-durable-state-compatibility 24, guarded-publication 32, deep-research-engine 13, research-intelligence 28, autonomous 11. That is 30 suites green, so there was no failure to classify against a clean baseline. TypeScript and changed-file ESLint `--max-warnings 0` pass, and `git diff --check` is clean. Full-repo `npm run lint` reports 13 pre-existing warnings (0 errors), all in 9 untouched operator/smoke scripts outside this sprint's scope; none is in a changed file.
+- **Performance.** TEMP chat fixture, mocked provider, 200 interleaved and warmed-up iterations per arm: median 0.258 ms with tracing off vs 0.302 ms on, about +0.044 ms. A real span start/end costs about 2.2 µs. There is no per-event disk I/O and no body serialization.
+- **Isolation and data.** Every suite was classified before running as TEMP-isolated or read-only against live data. The chat path does no AI-usage accounting, every memory write in these suites uses TEMP roots, and the approval suites use TEMP repos and bare remotes with TEMP gate, journal, inbox, artifacts and evidence. Fingerprints (path/size/mtime/SHA-256) were identical before and after testing: runtime 2,374 files, authority 4, legacy `data/projects` 2,399, `data/brain` 773 (excluding the server heartbeat), restored ledger SHA-256 `5f896a8ca44a59f673a14174e6658b0c24fb50bd267d41068536f4d69456a122` with 4 records. **Runtime/Test Mutation: NONE.**
+- **Graphify.** Recovery: 13,806 nodes / 40,662 edges / 303 communities, `lastAnalyzedHead == 8882840`, `stale=false`, 0 duplicate/dangling/self-loop. After the changes (scope `all`): 13,821 / 40,709 / 303, 0 anomalies. `review-analysis` blast radius is high (148) because `approveAndExecuteAyasProposal`, `AyasChatStreamEvent` and the trace handles are bridge nodes. Authority coupling is **none**:
+  - `AyasUnifiedTrace.ts` imports only `node:crypto` and `node:perf_hooks`.
+  - The only reader of trace state is the read route.
+  - The only graph path from the trace store to the execution-gate store runs through a smoke test and a historical commit node, not code.
+- **Docs.** `docs/AYAS_UNIFIED_TRACE.md` covers contract, propagation, privacy, retention, failure semantics, authority non-goals, the two slices, memory hooks and known gaps.
+- **Publication.** Explicit-path staging only. This entry ships in the sprint commit; the post-commit Graphify rebuild at the new HEAD, the normal push, `ls-remote` parity and a final data fingerprint follow the commit and are reported in the session report.
+- **Next roadmap stage:** Memory Temporal v2. Retrieval evaluation stays deferred.
+
 ## AYAS FINAL H8 POST-CLOSURE CODE-SIDE CLEANUP — 2026-09-23
 
 - **Claude recovery point.** Branch `wip/ayas-graphify-final-execution`, local HEAD and real GitHub origin `e5c6a943662cc9800264653448d07784b99a629c`, ahead/behind 0/0, no staged files. Claude left 15 modified source/test files and one untracked TEMP smoke; no sprint commit or checkpoint entry had been made. The in-scope implementation already contained an implicit-root write gate, TEMP diagnostic/smoke isolation, and a read-only canonical backup resolver. All files were preserved. The new smoke had not been validated, and the 16-copy data inventory had not been done.

@@ -36,6 +36,7 @@ import {
 } from "@/components/brain/brainCore";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import { resolveOllamaConfig } from "@/lib/ai/OllamaConfig";
+import type { AyasTraceHandle, AyasTraceSpanHandle, AyasTraceStatus } from "./trace/AyasUnifiedTrace";
 import { routeAyasModel, type AyasModelRoute } from "./model/AyasModelRouter";
 import type { AyasModelProvider, AyasModelProviderId, AyasChatComplexity } from "./model/AyasModelTypes";
 import { assembleAyasContext } from "./context/AyasContextAssembly";
@@ -122,6 +123,10 @@ export interface StreamAyasChatInput {
   readonly history?: readonly { readonly role: BrainChatMessage["role"]; readonly text: string }[];
   readonly seq: number;
   readonly signal?: AbortSignal;
+  /** Optional, explicit observer context; never consulted for routing or authority. */
+  readonly trace?: AyasTraceHandle;
+  /** Parent span from the HTTP turn, when one exists. */
+  readonly traceParentSpanId?: string | null;
   /** Test seam — defaults to global `fetch`. */
   readonly fetcher?: typeof fetch;
   /** Test seam — overrides env resolution. */
@@ -636,6 +641,20 @@ async function attemptAyasToolDispatch(input: {
   return { toolId, actionOutcome };
 }
 
+/**
+ * Observer-only classification of one dispatch attempt for the trace:
+ * policy/safety refusals are denials, executor faults and timeouts are errors,
+ * and a tool the model named but that was never dispatched is a denial.
+ */
+function toolDispatchTraceStatus(dispatch: AyasToolDispatchAttempt | null, toolNamed: boolean): { readonly status: AyasTraceStatus; readonly errorCode?: string } {
+  if (!dispatch) return toolNamed ? { status: "denied", errorCode: "TOOL_NOT_DISPATCHED" } : { status: "ok" };
+  const outcome = dispatch.actionOutcome;
+  if (outcome.executed) return { status: "ok" };
+  if (outcome.stage === "policy") return { status: "denied", errorCode: "TOOL_POLICY_DENIED" };
+  if (outcome.stage === "safety") return { status: "denied", errorCode: "TOOL_SAFETY_DENIED" };
+  return { status: "error", errorCode: outcome.stage === "timeout" ? "TOOL_TIMEOUT" : "TOOL_EXECUTOR_FAILURE" };
+}
+
 function replyHasPersonalStatementDrift(reply: string, userText: string): boolean {
   const user = fold(userText);
   const answer = fold(reply);
@@ -756,6 +775,8 @@ interface AyasFinalizationInput {
   readonly complexity: AyasChatComplexity;
   readonly env: NodeJS.ProcessEnv;
   readonly signal?: AbortSignal;
+  readonly trace?: AyasTraceHandle;
+  readonly traceParentSpanId?: string | null;
   /**
    * Action Runtime sprint (Phase 8, execution-claim integrity) — `true` only
    * when reasoning named at least one candidate read-only tool this turn AND
@@ -833,7 +854,9 @@ async function finalizeAyasReply(input: AyasFinalizationInput): Promise<AyasFina
     };
   }
 
+  const correctionSpan = input.trace?.startSpan("model", "ayas-model", "correction", input.traceParentSpanId, 2);
   try {
+    correctionSpan?.event("retry", "running", { attempt: 2 });
     const correction = await input.provider.chat({
       prompt: buildContextCorrectionPrompt({
         userText: input.userText,
@@ -849,10 +872,14 @@ async function finalizeAyasReply(input: AyasFinalizationInput): Promise<AyasFina
     });
     const revised = stripAyasReplyLabelEcho(correction.text.trim(), input.userText);
     if (!replyIssue(revised, { ...input, rawReply: revised })) {
+      correctionSpan?.end("ok");
       return { text: revised, source: "llm", corrected: true, reason: "context-retry", correctionAttempts: 1 };
     }
-  } catch {
+    correctionSpan?.end("fallback");
+  } catch (error) {
     // The single bounded correction is best-effort; safe fallback follows.
+    const aborted = (error as Error)?.name === "AbortError";
+    correctionSpan?.end(aborted ? "cancelled" : "error", undefined, aborted ? "ABORTED" : "PROVIDER_FAILURE");
   }
 
   const hasStaticIntentFallback =
@@ -897,10 +924,26 @@ function resolveChatTemperature(env: NodeJS.ProcessEnv): number | undefined {
 export async function* streamAyasChat(
   input: StreamAyasChatInput,
 ): AsyncGenerator<AyasChatStreamEvent, void, unknown> {
+  const conversationSpan = input.trace?.startSpan("conversation", "ayas-chat", "stream-turn", input.traceParentSpanId);
+  try {
+    yield* streamAyasChatTurn(input, conversationSpan);
+  } finally {
+    // Covers thrown dependencies and generator cancellation. end() is idempotent
+    // for every normal terminal branch inside the turn.
+    conversationSpan?.end(input.signal?.aborted ? "cancelled" : "error");
+  }
+}
+
+async function* streamAyasChatTurn(
+  input: StreamAyasChatInput,
+  conversationSpan: AyasTraceSpanHandle | undefined,
+): AsyncGenerator<AyasChatStreamEvent, void, unknown> {
   const text = (input.text ?? "").trim();
+  const trace = input.trace;
   const deterministic = () => brainDeterministicReply(text, input.snapshot, input.seq).text;
 
   if (!text) {
+    conversationSpan?.end("fallback");
     yield { type: "done", text: deterministic(), source: "fallback", corrected: true, reason: "empty-input" };
     return;
   }
@@ -908,12 +951,17 @@ export async function* streamAyasChat(
   // Resolve short-turn references before touching a provider or persistent
   // memory. If the current text has no single safe referent, fail closed with
   // a concise clarification instead of letting a small model manufacture one.
-  const ctx = assembleAyasContext({
-    userText: text,
-    history: input.history ?? [],
-    ...(input.studio ? { studio: input.studio } : {}),
-  });
+  const contextSpan = trace?.startSpan("context", "ayas-context", "assemble", conversationSpan?.spanId);
+  let ctx: ReturnType<typeof assembleAyasContext>;
+  try {
+    ctx = assembleAyasContext({ userText: text, history: input.history ?? [], ...(input.studio ? { studio: input.studio } : {}) });
+    contextSpan?.end("ok", { historyCount: ctx.recentHistory.length, resolvedCount: ctx.trace.resolvedReferences, droppedCount: ctx.trace.droppedTurns });
+  } catch (error) {
+    contextSpan?.end("error", undefined, "CONTEXT_ASSEMBLY_FAILURE");
+    throw error;
+  }
   if (hasUnresolvedMaterialReferent({ history: input.history ?? [], resolvedReferents: ctx.resolvedReferents })) {
+    conversationSpan?.end("fallback");
     yield {
       type: "done",
       text: "Birden fazla olası konu var; hangisini kastettiğini biraz netleştirir misin?",
@@ -924,6 +972,7 @@ export async function* streamAyasChat(
     return;
   }
   if (ctx.clarification) {
+    conversationSpan?.end("fallback");
     yield {
       type: "done",
       text: ctx.clarification,
@@ -959,18 +1008,26 @@ export async function* streamAyasChat(
   // Memory is part of context assembly, not a provider capability. Resolve it
   // before model routing so a temporarily unavailable local model cannot turn
   // a known trusted identity into a question echo or generic fallback.
+  const memorySpan = trace?.startSpan("memory", "ayas-memory", "recall", conversationSpan?.spanId);
+  memorySpan?.event("memory-query", "running");
   const memoryRecall = await recallAyasMemoryWithTrace(text, {
     ...(ctx.trace.activeProject ? { activeProject: ctx.trace.activeProject } : {}),
     ...(input.memoryStore ? { store: input.memoryStore } : {}),
-  }).catch(() => ({ lines: [] as readonly string[], entries: [] as readonly { readonly line: string; readonly identity: boolean }[], recallCount: 0, identityRecallCount: 0 }));
+  }).catch(() => ({ status: "unreadable" as const, candidateCount: 0, lines: [] as readonly string[], entries: [] as readonly { readonly line: string; readonly identity: boolean }[], recallCount: 0, identityRecallCount: 0 }));
+  memorySpan?.event("retrieval-query", memoryRecall.status === "ok" ? "ok" : "error", { candidateCount: memoryRecall.candidateCount, selectedCount: memoryRecall.recallCount });
+  memorySpan?.end(memoryRecall.status === "ok" ? "ok" : "error", { candidateCount: memoryRecall.candidateCount, selectedCount: memoryRecall.recallCount, identityCount: memoryRecall.identityRecallCount }, memoryRecall.status === "ok" ? undefined : "MEMORY_UNREADABLE");
   const memoryLinesForPrompt = relevantMemoryLinesForTurn(memoryRecall.entries, text);
 
   // 1 — route: which model answers this turn (availability + complexity).
+  const routingSpan = trace?.startSpan("model", "ayas-model", "route", conversationSpan?.spanId);
   const route =
     input.route ?? (await routeAyasModel({ text, env, fetcher, signal: input.signal }).catch(() => null));
+  // `null` only when the router itself threw; a route without a provider is an ordinary fallback.
+  routingSpan?.end(route === null ? "error" : route.provider ? "ok" : "fallback", undefined, route === null ? "MODEL_ROUTE_FAILURE" : undefined);
   const complexity = route?.decision.complexity;
 
   if (!route || !route.provider) {
+    conversationSpan?.end("fallback");
     const recalledIdentityName = identityNameFromContext(memoryLinesForPrompt, input.history ?? [], text);
     const memoryTrace: AyasMemoryTrace = {
       candidateCount: 0,
@@ -1072,18 +1129,27 @@ export async function* streamAyasChat(
       }
     }
 
-    const outcome = await runAyasReasoning({
-      userText: text,
-      complexity: route.decision.complexity,
-      provider: route.provider,
-      ...(contextLines.length ? { contextLines } : {}),
-      ...(memoryLinesForPrompt.length ? { memoryLines: memoryLinesForPrompt } : {}),
-      ...(selfHealLines?.length ? { selfHealLines } : {}),
-      ...(input.signal ? { signal: input.signal } : {}),
-      deferAnswerGuards: true,
-    });
+    const reasoningSpan = trace?.startSpan("model", "ayas-model", "reason", conversationSpan?.spanId);
+    let outcome: Awaited<ReturnType<typeof runAyasReasoning>>;
+    try {
+      outcome = await runAyasReasoning({
+        userText: text,
+        complexity: route.decision.complexity,
+        provider: route.provider,
+        ...(contextLines.length ? { contextLines } : {}),
+        ...(memoryLinesForPrompt.length ? { memoryLines: memoryLinesForPrompt } : {}),
+        ...(selfHealLines?.length ? { selfHealLines } : {}),
+        ...(input.signal ? { signal: input.signal } : {}),
+        deferAnswerGuards: true,
+      });
+      reasoningSpan?.end(outcome.ok ? "ok" : "fallback");
+    } catch (error) {
+      reasoningSpan?.end("error", undefined, "PROVIDER_FAILURE");
+      throw error;
+    }
 
     if (!outcome.ok) {
+      conversationSpan?.end("fallback");
       yield {
         type: "done",
         text: deterministic(),
@@ -1101,13 +1167,22 @@ export async function* streamAyasChat(
     // result (Phase 9 grounding); on anything else the original reasoning
     // answer is kept, but `guardAgainstFakeToolClaim` below makes sure it
     // cannot claim the read happened anyway.
-    const dispatch = await attemptAyasToolDispatch({
-      userText: text,
-      requiredTools: outcome.result.requiredTools,
-      toolInput: outcome.result.toolInput,
-      intent: outcome.result.intent,
-      activeProjectSlug: ctx.trace.activeProjectSlug,
-    });
+    const toolSpan = trace?.startSpan("tool", "ayas-tool", "dispatch", conversationSpan?.spanId);
+    let dispatch: Awaited<ReturnType<typeof attemptAyasToolDispatch>>;
+    try {
+      dispatch = await attemptAyasToolDispatch({
+        userText: text,
+        requiredTools: outcome.result.requiredTools,
+        toolInput: outcome.result.toolInput,
+        intent: outcome.result.intent,
+        activeProjectSlug: ctx.trace.activeProjectSlug,
+      });
+      const toolTrace = toolDispatchTraceStatus(dispatch, outcome.anyToolNamedBeforeFilter);
+      toolSpan?.end(toolTrace.status, { attempted: Boolean(dispatch), executed: Boolean(dispatch?.actionOutcome.executed) }, toolTrace.errorCode);
+    } catch (error) {
+      toolSpan?.end("error", undefined, "TOOL_FAILURE");
+      throw error;
+    }
 
     let rawReplyForFinalization = outcome.result.answer;
     if (dispatch?.actionOutcome.executed) {
@@ -1154,14 +1229,18 @@ export async function* streamAyasChat(
       complexity: route.decision.complexity,
       env,
       guardAgainstFakeToolClaim: toolNamedButNotExecuted,
+      ...(trace ? { trace, traceParentSpanId: conversationSpan?.spanId } : {}),
       ...(input.signal ? { signal: input.signal } : {}),
     });
 
+    const persistSpan = trace?.startSpan("persistence", "ayas-memory", "persist", conversationSpan?.spanId);
     const persistOutcome = await persistAyasMemoryFromTurn({
       userText: text,
       ayasReply: finalized.text,
       ...(input.memoryStore ? { store: input.memoryStore } : {}),
     }).catch(() => ({ candidates: 0, stored: 0, rejected: 0 }));
+    persistSpan?.end("ok", { candidateCount: persistOutcome.candidates, storedCount: persistOutcome.stored });
+    conversationSpan?.end(finalized.source === "llm" ? "ok" : "fallback");
 
     for (const chunk of validatedReplyChunks(finalized.text)) yield { type: "delta", text: chunk };
     yield {
@@ -1210,6 +1289,7 @@ export async function* streamAyasChat(
   // 2 — consume the provider stream internally. Raw model chunks never cross
   // the SSE/UI boundary; only a fully validated final answer is emitted below.
   let full = "";
+  const providerSpan = trace?.startSpan("model", "ayas-model", "stream", conversationSpan?.spanId);
   try {
     for await (const chunk of route.provider.stream({
       prompt,
@@ -1222,8 +1302,11 @@ export async function* streamAyasChat(
         full += chunk.text;
       }
     }
+    providerSpan?.end("ok");
   } catch (error) {
     const name = (error as Error)?.name === "AbortError" ? "aborted" : "fetch-failed";
+    providerSpan?.end(name === "aborted" ? "cancelled" : "error", undefined, name === "aborted" ? "ABORTED" : "PROVIDER_FAILURE");
+    conversationSpan?.end(name === "aborted" ? "cancelled" : "fallback");
     // Provider transport failure → honest deterministic reply. NOTE: only the
     // error NAME is used; a cloud error body is never surfaced.
     yield {
@@ -1254,6 +1337,7 @@ export async function* streamAyasChat(
     env,
     // The direct-stream path never names or dispatches a tool.
     guardAgainstFakeToolClaim: false,
+    ...(trace ? { trace, traceParentSpanId: conversationSpan?.spanId } : {}),
     ...(input.signal ? { signal: input.signal } : {}),
   });
   // Phase C — memory write side. AWAITED, BEFORE the terminal event (moved
@@ -1264,11 +1348,14 @@ export async function* streamAyasChat(
   // is synchronous fs I/O today, so this was never actually slow — awaiting it
   // just makes "the write is done before the reply is shown" an explicit,
   // provable guarantee instead of relying on that implementation detail.
+  const persistSpan = trace?.startSpan("persistence", "ayas-memory", "persist", conversationSpan?.spanId);
   const persistOutcome = await persistAyasMemoryFromTurn({
     userText: text,
     ayasReply: finalized.text,
     ...(input.memoryStore ? { store: input.memoryStore } : {}),
   }).catch(() => ({ candidates: 0, stored: 0, rejected: 0 }));
+  persistSpan?.end("ok", { candidateCount: persistOutcome.candidates, storedCount: persistOutcome.stored });
+  conversationSpan?.end(finalized.source === "llm" ? "ok" : "fallback");
 
   for (const chunk of validatedReplyChunks(finalized.text)) yield { type: "delta", text: chunk };
   yield {

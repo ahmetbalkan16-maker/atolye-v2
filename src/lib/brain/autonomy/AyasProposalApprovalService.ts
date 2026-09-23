@@ -12,6 +12,7 @@ import { runGuardedAyasPublication, type AyasGuardedPublicationGuardDeps } from 
 import { closeAyasPostPublication } from "./AyasPostPublicationClosure";
 import { finalizeAyasDeferredPublication, markAyasDeferredPublicationRecoveryRequired } from "./AyasDeferredPublicationFinalizer";
 import { classifyAyasRuntimeImpact } from "./AyasProposalRuntimeImpact";
+import { ayasTraceErrorCode, startAyasTrace, type AyasTraceHandle, type AyasTraceSpanHandle, type AyasTraceStore } from "../../ayas/trace/AyasUnifiedTrace";
 
 /**
  * M20.7 — "ONAYLA VE UYGULA": the individual-PRIORITY_SAFE-proposal
@@ -58,6 +59,10 @@ export interface AyasProposalApprovalDeps {
   readonly gateRoot: string;
   readonly remoteName?: string;
   readonly inbox: AyasApprovalInboxHandle;
+  /** Observer-only test seam. Disabling tracing never changes approval or execution inputs. */
+  readonly traceEnabled?: boolean;
+  /** Observer-only test seam for failure isolation. Production uses the bounded memory store. */
+  readonly traceStore?: AyasTraceStore;
   readonly artifactStore?: AyasPatchArtifactStore;
   readonly graphifyEvidenceStore?: AyasGraphifyEvidenceStore;
   /**
@@ -149,23 +154,32 @@ function loadAyasProposalForPublish(proposalId: string, approvedProposalHash: st
  * re-derived from durable state.
  */
 export async function approveAndExecuteAyasProposal(proposalId: string, approvedProposalHash: string, deps: AyasProposalApprovalDeps): Promise<AyasProposalApprovalOutcome> {
-  // Deliberately NO pre-emptive staleness reconciliation here (unlike the
-  // older two-step `decideAyasApproval` action, where decide and execute can
-  // be arbitrarily far apart in time): decide and execute happen inside the
-  // SAME call below, and `executeAyasApprovedProposalWith` already
-  // reconciles staleness internally, immediately before executing — mirrors
-  // `AyasMicroBatchApprovalService`, which likewise leaves HEAD-drift
-  // detection to Package C's own execution-time revalidation rather than a
-  // separate pre-check, so a HEAD-drift failure here is consistently
-  // reported at the EXECUTION stage, not thrown before it.
-  loadAyasProposalForPublish(proposalId, approvedProposalHash, "PENDING", deps);
+  const trace = startAyasApprovalTrace(deps);
+  const approvalSpan = trace.startSpan("approval", "ayas-approval", "decide");
+  let approved: AyasInboxProposal;
+  try {
+    // Deliberately NO pre-emptive staleness reconciliation here (unlike the
+    // older two-step `decideAyasApproval` action, where decide and execute can
+    // be arbitrarily far apart in time): decide and execute happen inside the
+    // SAME call below, and `executeAyasApprovedProposalWith` already
+    // reconciles staleness internally, immediately before executing — mirrors
+    // `AyasMicroBatchApprovalService`, which likewise leaves HEAD-drift
+    // detection to Package C's own execution-time revalidation rather than a
+    // separate pre-check, so a HEAD-drift failure here is consistently
+    // reported at the EXECUTION stage, not thrown before it.
+    loadAyasProposalForPublish(proposalId, approvedProposalHash, "PENDING", deps);
 
-  // --- decide: one durable APPROVE decision ---
-  deps.inbox.decide(proposalId, "APPROVE", new Date().toISOString());
-  const approved = deps.inbox.load().proposals.find((p) => p.proposalId === proposalId)!;
-  if (!isAyasProposalApprovalReady(approved)) throw new AyasProposalApprovalError("NOT_READY", "proposal did not reach an approval-ready state after decide");
+    // --- decide: one durable APPROVE decision ---
+    deps.inbox.decide(proposalId, "APPROVE", new Date().toISOString());
+    approved = deps.inbox.load().proposals.find((p) => p.proposalId === proposalId)!;
+    if (!isAyasProposalApprovalReady(approved)) throw new AyasProposalApprovalError("NOT_READY", "proposal did not reach an approval-ready state after decide");
+  } catch (error) {
+    traceAyasApprovalRefusal(trace, approvalSpan, error);
+    throw error;
+  }
+  approvalSpan.end("ok");
 
-  return publishAyasApprovedProposal(approved, deps);
+  return publishObservedAyasApprovedProposal(approved, deps, trace);
 }
 
 /**
@@ -189,9 +203,55 @@ export async function approveAndExecuteAyasProposal(proposalId: string, approved
  * same authority boundary `approveAndExecuteAyasProposal` already enforces.
  */
 export async function publishAlreadyOwnerApprovedAyasProposal(proposalId: string, approvedProposalHash: string, deps: AyasProposalApprovalDeps): Promise<AyasProposalApprovalOutcome> {
-  const approved = loadAyasProposalForPublish(proposalId, approvedProposalHash, "APPROVED", deps);
-  if (!isAyasProposalApprovalReady(approved)) throw new AyasProposalApprovalError("NOT_READY", "proposal is not in an approval-ready state");
-  return publishAyasApprovedProposal(approved, deps);
+  const trace = startAyasApprovalTrace(deps);
+  const approvalSpan = trace.startSpan("approval", "ayas-approval", "resume");
+  let approved: AyasInboxProposal;
+  try {
+    approved = loadAyasProposalForPublish(proposalId, approvedProposalHash, "APPROVED", deps);
+    if (!isAyasProposalApprovalReady(approved)) throw new AyasProposalApprovalError("NOT_READY", "proposal is not in an approval-ready state");
+  } catch (error) {
+    traceAyasApprovalRefusal(trace, approvalSpan, error);
+    throw error;
+  }
+  approvalSpan.end("ok");
+  return publishObservedAyasApprovedProposal(approved, deps, trace);
+}
+
+/*
+ * Unified Trace observers for both entrypoints. Write-only: nothing below is
+ * read back, and every domain value or error passes through unchanged — only
+ * the domain call itself sits inside each `try`, so a trace call can never
+ * replace a result or an error.
+ */
+function startAyasApprovalTrace(deps: AyasProposalApprovalDeps): AyasTraceHandle {
+  return startAyasTrace({ rootKind: "owner-approval", enabled: deps.traceEnabled !== false, ...(deps.traceStore ? { store: deps.traceStore } : {}) });
+}
+
+function traceAyasApprovalRefusal(trace: AyasTraceHandle, span: AyasTraceSpanHandle, error: unknown): void {
+  // A domain refusal is a denial; anything unexpected (I/O, corrupt state) stays an error.
+  const status = error instanceof AyasProposalApprovalError ? "denied" : "error";
+  const code = ayasTraceErrorCode(error);
+  span.end(status, undefined, code);
+  trace.finish(status, code);
+}
+
+async function publishObservedAyasApprovedProposal(approved: AyasInboxProposal, deps: AyasProposalApprovalDeps, trace: AyasTraceHandle): Promise<AyasProposalApprovalOutcome> {
+  const executionSpan = trace.startSpan("execution", "ayas-publication", "guarded-publish");
+  let outcome: AyasProposalApprovalOutcome;
+  try {
+    outcome = await publishAyasApprovedProposal(approved, deps);
+  } catch (error) {
+    const code = ayasTraceErrorCode(error);
+    executionSpan.end("error", undefined, code);
+    trace.finish("error", code);
+    throw error;
+  }
+  const status = outcome.ok ? "ok" : outcome.stage === "APPROVAL" || outcome.stage === "STABILITY_GUARD" ? "denied" : "error";
+  const code = outcome.ok ? undefined : outcome.code;
+  executionSpan.event("gate-result", status, undefined, code);
+  executionSpan.end(status, undefined, code);
+  trace.finish(status, code);
+  return outcome;
 }
 
 /**

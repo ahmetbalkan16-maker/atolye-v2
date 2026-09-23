@@ -1,5 +1,16 @@
 ---
 
+## AYAS Unified Trace — End-to-End Causal Observability — 2026-09-23
+
+- [x] Trace/span/event contract (schema v1): random UUID IDs used only as lookup keys, parent/child causality, attempts, monotonic durations, idempotent terminal status.
+- [x] Chat/model vertical slice: route → guided repair → context → memory recall → routing → reasoning/stream → tool dispatch → bounded correction retry → persistence, with success, provider failure, abort, retry, tool success/denial and concurrent-turn isolation proven.
+- [x] Owner-approval slice, observer only: decide and resume/replay entry points; TRACE ON/OFF/BROKEN give identical authority outcomes across 8 cases; domain error codes preserved verbatim.
+- [x] Same-session read endpoint `GET /api/ayas/trace/{traceId}` (middleware + route auth, session-hash scope, uniform 404, `no-store`); no prompt, message, body, secret or proposal identifier recorded or returned.
+- [x] Bounded, process-wide, in-memory storage (128 traces / 1 h / 64 spans / 128 events); failure-isolated writes; measured overhead reported.
+- [x] Memory/retrieval hooks: body-free query start/end, candidate/selected/identity counts, duration, `MEMORY_UNREADABLE`.
+- [ ] Known gaps (see `docs/AYAS_UNIFIED_TRACE.md`): persist write failures are invisible because the domain swallows them; owner-approval traces have no read surface; voice, research scheduler, micro-batch approval, daemon and production pipeline are not instrumented yet.
+- [ ] **Next stage: Memory Temporal v2.** Retrieval evaluation remains deferred.
+
 ## AYAS Shared Project Root + Silent Fallback Safety — 2026-09-23
 
 - [x] Recover and test Claude's uncommitted shared-root, accounting-fallback and conflict-response work; retain all safe changes.

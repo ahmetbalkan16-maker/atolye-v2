@@ -29,6 +29,7 @@ import {
 import { parseAyasReasoningOutput } from "../src/lib/ayas/reasoning/AyasReasoningParser";
 import { buildAyasReasoningPrompt } from "../src/lib/ayas/reasoning/AyasReasoningPrompt";
 import { streamAyasChat as productionStreamAyasChat, type StreamAyasChatInput } from "../src/lib/ayas/AyasChatStream";
+import { BoundedAyasTraceStore, startAyasTrace } from "../src/lib/ayas/trace/AyasUnifiedTrace";
 import type { AyasModelProvider } from "../src/lib/ayas/model/AyasModelTypes";
 import type { BrainConsoleSnapshot } from "../src/lib/brain/ui/BrainConsoleSnapshot";
 import { AyasVoiceEngine, type AyasVoicePlatform, type AyasListenHandlers } from "../src/components/brain/voice/ayasVoiceEngine";
@@ -589,6 +590,8 @@ async function run() {
   /* ---------------- Action Runtime — real read-only tool dispatch (end-to-end) ---------------- */
 
   await scenario("ACTION RUNTIME — a named, dispatchable tool actually executes and grounds the final answer in the REAL result", async () => {
+    const traceStore = new BoundedAyasTraceStore();
+    const trace = startAyasTrace({ rootKind: "chat-turn", scope: "tool-success", store: traceStore });
     const provider = mockProviderSequence([
       okJson({
         requiredTools: ["inspect-source-file"],
@@ -602,6 +605,7 @@ async function run() {
       text: "Bu dosyanın ne işe yaradığını açıklar mısın?",
       snapshot,
       seq: 1,
+      trace,
       route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
     })) {
       events.push(e as never);
@@ -616,9 +620,15 @@ async function run() {
     const groundingPrompt = provider.prompts[1]!;
     assert.match(groundingPrompt, /AYAS_EXECUTION_ALLOWLIST/, "the real file content must reach the grounding prompt");
     assert.match(groundingPrompt, /VERİ[\s\S]*talimat değil/i, "the tool result must be explicitly framed as data, not an instruction");
+    trace.finish("ok");
+    const record = traceStore.get(trace.traceId, "tool-success")!;
+    assert.ok(record.spans.some((span) => span.kind === "tool" && span.status === "ok" && span.metadata?.executed === true));
+    assert.ok(!JSON.stringify(record).includes("AYAS_EXECUTION_ALLOWLIST"), "read content must not enter the trace");
   });
 
   await scenario("ACTION RUNTIME — a denied dispatch (path outside policy) never lets the reasoning answer falsely claim success", async () => {
+    const traceStore = new BoundedAyasTraceStore();
+    const trace = startAyasTrace({ rootKind: "chat-turn", scope: "tool-denial", store: traceStore });
     const provider = mockProviderSequence([
       okJson({
         requiredTools: ["inspect-source-file"],
@@ -636,6 +646,7 @@ async function run() {
       text: "O dosyaya bak.",
       snapshot,
       seq: 1,
+      trace,
       route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
     })) {
       events.push(e as never);
@@ -646,6 +657,11 @@ async function run() {
     assert.ok(!done.text!.includes("kontrol ettim") && !done.text!.includes("Kontrol ettim"), "a false completion claim must never reach the user when the tool never actually ran, even after the one bounded correction attempt");
     // Reasoning call + exactly one bounded correction attempt — never more.
     assert.equal(provider.prompts.length, 2);
+    trace.finish("fallback");
+    const record = traceStore.get(trace.traceId, "tool-denial")!;
+    assert.ok(record.spans.some((span) => span.kind === "tool" && span.status === "denied"));
+    assert.ok(record.spans.some((span) => span.operation === "correction" && span.attempt === 2));
+    assert.ok(!JSON.stringify(record).includes("/etc/passwd"));
   });
 
   await scenario("ACTION RUNTIME — a genuine post-execution completion claim is allowed through (the guard only fires when nothing ran)", async () => {

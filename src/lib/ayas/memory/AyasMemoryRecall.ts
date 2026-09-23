@@ -53,6 +53,8 @@ function toLine(r: BrainMemoryRecord): string {
 
 export interface AyasMemoryRecallTrace {
   readonly status: "ok" | "unreadable";
+  /** Bounded, body-free count of records considered by this read. */
+  readonly candidateCount: number;
   readonly lines: readonly string[];
   /** Per-line identity metadata used by the chat relevance gate. */
   readonly entries: readonly {
@@ -86,7 +88,7 @@ export async function recallAyasMemoryWithTrace(
     const store = createAyasMemoryStore(options.store);
     const records = store.load();
     if (records.length === 0) {
-      return { status: "ok", lines: [], entries: [], recallCount: 0, identityRecallCount: 0, quarantinedCount: 0, conflictCount: 0, staleCount: 0 };
+      return { status: "ok", candidateCount: 0, lines: [], entries: [], recallCount: 0, identityRecallCount: 0, quarantinedCount: 0, conflictCount: 0, staleCount: 0 };
     }
     const retrieval = retrieveAyasMemory(records, query, {
       ...(options.activeProject ? { activeProject: options.activeProject } : {}),
@@ -96,6 +98,7 @@ export async function recallAyasMemoryWithTrace(
     if (retrieval.selected.length === 0) {
       return {
         status: "ok",
+        candidateCount: records.length,
         lines: [],
         entries: [],
         recallCount: 0,
@@ -120,6 +123,7 @@ export async function recallAyasMemoryWithTrace(
     }
     return {
       status: "ok",
+      candidateCount: records.length,
       lines,
       entries,
       recallCount: lines.length,
@@ -129,7 +133,7 @@ export async function recallAyasMemoryWithTrace(
       staleCount: retrieval.quarantined.filter((decision) => decision.quarantineReason === "stale-fact").length,
     };
   } catch {
-    return { status: "unreadable", lines: [], entries: [], recallCount: 0, identityRecallCount: 0, quarantinedCount: 0, conflictCount: 0, staleCount: 0 };
+    return { status: "unreadable", candidateCount: 0, lines: [], entries: [], recallCount: 0, identityRecallCount: 0, quarantinedCount: 0, conflictCount: 0, staleCount: 0 };
   }
 }
 

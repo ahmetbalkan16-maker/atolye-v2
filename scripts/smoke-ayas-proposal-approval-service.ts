@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { approveAndExecuteAyasProposal, publishAlreadyOwnerApprovedAyasProposal, AyasProposalApprovalError } from "../src/lib/brain/autonomy/AyasProposalApprovalService";
+import { approveAndExecuteAyasProposal, publishAlreadyOwnerApprovedAyasProposal, AyasProposalApprovalError, type AyasProposalApprovalOutcome } from "../src/lib/brain/autonomy/AyasProposalApprovalService";
 import { createAyasApprovalInboxStore, type AyasApprovalInboxHandle, type AyasInboxProposal } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
 import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatchArtifact";
 import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "../src/lib/brain/autonomy/AyasNovelPatchDiscovery";
@@ -14,6 +14,7 @@ import { closeAyasPostPublication, AyasPostPublicationClosureError } from "../sr
 import { createAyasExecutionJournal, classifyExecutionRecovery } from "../src/lib/brain/autonomy/AyasExecutionJournal";
 import { executeAyasApprovedProposalWith } from "../src/lib/brain/autonomy/AyasProposalExecutionService";
 import { finalizeAyasDeferredPublication, AyasDeferredPublicationFinalizerError } from "../src/lib/brain/autonomy/AyasDeferredPublicationFinalizer";
+import { ayasTraceStore } from "../src/lib/ayas/trace/AyasUnifiedTrace";
 
 /**
  * M20.7 — "ONAYLA VE UYGULA" for an individual patch-artifact-backed
@@ -175,6 +176,112 @@ async function main(): Promise<void> {
     assert.equal(localHead, result.commitSha);
     assert.equal(git(f.repoRoot, "status", "--short"), "");
     assert.equal(f.inbox.load().proposals.find((p) => p.proposalId === proposal.proposalId)!.status, "COMPLETED");
+    const trace = ayasTraceStore.latest("operator");
+    assert.equal(trace?.rootKind, "owner-approval");
+    assert.equal(trace?.status, "ok");
+    assert.deepEqual(trace?.spans.map((span) => [span.kind, span.status]), [["approval", "ok"], ["execution", "ok"]]);
+    assert.ok(!JSON.stringify(trace).includes(proposal.proposalId), "trace must keep only safe correlation, never the proposal body or identifier");
+  });
+
+  await scenario("TRACE ON / OFF / BROKEN: every approval, refusal, stale, replay, publish-failure and resume outcome is identical — trace never decides, gates or widens authority", async () => {
+    const failingStore = { put() { throw new Error("trace unavailable"); }, get() { throw new Error("trace unavailable"); }, latest() { throw new Error("trace unavailable"); } };
+    const modes = { on: {}, off: { traceEnabled: false }, broken: { traceStore: failingStore } } as const;
+    type Mode = keyof typeof modes;
+    type Run = (f: Fixture, mode: Mode) => Promise<{ readonly proposalId: string; readonly call: () => Promise<AyasProposalApprovalOutcome> }>;
+    const withMode = (f: Fixture, mode: Mode) => ({ ...f, ...modes[mode] });
+    const cases: Record<string, Run> = {
+      "approve-and-publish": async (f, mode) => { const { proposal } = seedNewFileProposal(f); return { proposalId: proposal.proposalId, call: () => approveAndExecuteAyasProposal(proposal.proposalId, proposal.proposalHash, withMode(f, mode)) }; },
+      "stale-hash-refused": async (f, mode) => { const { proposal } = seedNewFileProposal(f); return { proposalId: proposal.proposalId, call: () => approveAndExecuteAyasProposal(proposal.proposalId, "stale-hash-value", withMode(f, mode)) }; },
+      "not-safe-refused": async (f, mode) => {
+        const proposal = f.inbox.createProposal(proposalInput({ baseHead: git(f.repoRoot, "rev-parse", "HEAD"), safetyClassification: "REVIEW_REQUIRED", mutationKind: undefined, exactFiles: ["src/lib/ayas/whatever.ts"] } as never));
+        return { proposalId: proposal.proposalId, call: () => approveAndExecuteAyasProposal(proposal.proposalId, proposal.proposalHash, withMode(f, mode)) };
+      },
+      "head-drift-stale": async (f, mode) => {
+        const { proposal } = seedNewFileProposal(f);
+        fs.writeFileSync(path.join(f.repoRoot, "scripts", "existing.ts"), "export const existing = 2;\n");
+        git(f.repoRoot, "add", "-A"); git(f.repoRoot, "commit", "-q", "-m", "moved on");
+        return { proposalId: proposal.proposalId, call: () => approveAndExecuteAyasProposal(proposal.proposalId, proposal.proposalHash, withMode(f, mode)) };
+      },
+      "replay-refused": async (f, mode) => {
+        const { proposal } = seedNewFileProposal(f);
+        assert.equal((await approveAndExecuteAyasProposal(proposal.proposalId, proposal.proposalHash, withMode(f, mode))).ok, true);
+        return { proposalId: proposal.proposalId, call: () => approveAndExecuteAyasProposal(proposal.proposalId, proposal.proposalHash, withMode(f, mode)) };
+      },
+      "push-failure": async (f, mode) => {
+        const otherClone = root();
+        git(otherClone, "clone", "-q", f.remoteDir, ".");
+        git(otherClone, "config", "user.email", "g@example.com"); git(otherClone, "config", "user.name", "g");
+        fs.writeFileSync(path.join(otherClone, "elsewhere.ts"), "export const elsewhere = 1;\n");
+        git(otherClone, "add", "-A"); git(otherClone, "commit", "-q", "-m", "elsewhere");
+        git(otherClone, "push", "-q", "origin", "master");
+        const { proposal } = seedNewFileProposal(f);
+        return { proposalId: proposal.proposalId, call: () => approveAndExecuteAyasProposal(proposal.proposalId, proposal.proposalHash, withMode(f, mode)) };
+      },
+      "resume-publish": async (f, mode) => {
+        const { proposal } = seedNewFileProposal(f);
+        f.inbox.decide(proposal.proposalId, "APPROVE", new Date().toISOString());
+        return { proposalId: proposal.proposalId, call: () => publishAlreadyOwnerApprovedAyasProposal(proposal.proposalId, proposal.proposalHash, withMode(f, mode)) };
+      },
+      "resume-replay-refused": async (f, mode) => {
+        const { proposal } = seedNewFileProposal(f);
+        f.inbox.decide(proposal.proposalId, "APPROVE", new Date().toISOString());
+        assert.equal((await publishAlreadyOwnerApprovedAyasProposal(proposal.proposalId, proposal.proposalHash, withMode(f, mode))).ok, true);
+        return { proposalId: proposal.proposalId, call: () => publishAlreadyOwnerApprovedAyasProposal(proposal.proposalId, proposal.proposalHash, withMode(f, mode)) };
+      },
+    };
+
+    for (const [name, run] of Object.entries(cases)) {
+      const observed: Partial<Record<Mode, unknown>> = {};
+      for (const mode of Object.keys(modes) as Mode[]) {
+        const f = makeFixture();
+        const { proposalId, call } = await run(f, mode);
+        const localBefore = git(f.repoRoot, "rev-parse", "HEAD");
+        const remoteBefore = git(f.remoteDir, "rev-parse", "master");
+        const traceBefore = ayasTraceStore.latest("operator")?.traceId;
+        let result: { readonly ok: boolean; readonly stage?: string; readonly code?: string; readonly changedFiles?: readonly string[] } | { readonly thrown: string; readonly refusal: boolean };
+        try {
+          const outcome = await call();
+          result = outcome.ok ? { ok: true, changedFiles: outcome.changedFiles } : { ok: false, stage: outcome.stage, code: outcome.code };
+        } catch (error) {
+          result = error instanceof AyasProposalApprovalError
+            ? { thrown: error.code, refusal: true }
+            : { thrown: error instanceof Error ? error.name : String(error), refusal: false };
+        }
+        const state = f.inbox.load();
+        const localAfter = git(f.repoRoot, "rev-parse", "HEAD");
+        const remoteAfter = git(f.remoteDir, "rev-parse", "master");
+        observed[mode] = {
+          result,
+          status: state.proposals.find((p) => p.proposalId === proposalId)?.status,
+          approveDecisions: state.decisions.filter((d) => d.proposalId === proposalId && d.decision === "APPROVE").length,
+          results: state.results.filter((r) => r.proposalId === proposalId).length,
+          localMoved: localAfter !== localBefore,
+          remoteMoved: remoteAfter !== remoteBefore,
+          remoteEqualsLocal: remoteAfter === localAfter,
+          clean: git(f.repoRoot, "status", "--short") === "",
+        };
+
+        const trace = ayasTraceStore.latest("operator");
+        if (mode !== "on") {
+          assert.equal(trace?.traceId, traceBefore, `${name}/${mode}: no trace is recorded when tracing is off or its store is broken`);
+          continue;
+        }
+        assert.notEqual(trace?.traceId, traceBefore, `${name}: a new owner-approval trace exists`);
+        assert.equal(trace?.rootKind, "owner-approval");
+        const serialized = JSON.stringify(trace);
+        assert.ok(!serialized.includes(proposalId), `${name}: the trace carries no proposal identifier or body`);
+        const expected = "thrown" in result
+          ? { status: result.refusal ? "denied" : "error", code: result.refusal ? result.thrown : undefined }
+          : result.ok ? { status: "ok", code: undefined } : { status: result.stage === "APPROVAL" || result.stage === "STABILITY_GUARD" ? "denied" : "error", code: result.code };
+        assert.equal(trace?.status, expected.status, `${name}: trace status mirrors the domain outcome`);
+        assert.equal(trace?.events.at(-1)?.errorCode, expected.code, `${name}: the domain error code is preserved verbatim`);
+        assert.equal(trace?.spans[0]?.kind, "approval");
+        assert.equal(trace?.spans[0]?.operation, name.startsWith("resume") ? "resume" : "decide");
+        assert.ok(trace?.spans.every((span) => span.status !== "running" && span.parentSpanId === null));
+      }
+      assert.deepEqual(observed.off, observed.on, `${name}: TRACE OFF changes no authority outcome`);
+      assert.deepEqual(observed.broken, observed.on, `${name}: TRACE BROKEN changes no authority outcome`);
+    }
   });
 
   await scenario("real publication order closes only after the new pushed HEAD: refresh, fresh metadata, integrity, then HEALTHY health", async () => {
@@ -363,6 +470,9 @@ async function main(): Promise<void> {
     );
     assert.equal(f.inbox.load().proposals.find((p) => p.proposalId === proposal.proposalId)!.status, "PENDING", "no decision must be recorded");
     assert.equal(git(f.repoRoot, "status", "--short"), "");
+    const trace = ayasTraceStore.latest("operator");
+    assert.equal(trace?.status, "denied");
+    assert.equal(trace?.spans[0]?.errorCode, "PROPOSAL_HASH_MISMATCH");
   });
 
   await scenario("a REVIEW_REQUIRED proposal is refused before any decision — never eligible for single-approval execution", async () => {

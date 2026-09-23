@@ -1,5 +1,14 @@
 ---
 
+## 2026-09-23 — AYAS Unified Trace (end-to-end causal observability, observer-only)
+
+- Added `src/lib/ayas/trace/AyasUnifiedTrace.ts`: schema-v1 trace/span/event contract, allowlisted labels and metadata, sanitized error codes, a bounded process-wide in-memory store, and a tolerant reader.
+- Instrumented the AYAS chat turn (route, guided repair, context, memory recall, model routing/reasoning/stream, tool dispatch, correction retry, persistence). Chat responses carry `X-Ayas-Trace-Id`.
+- Added the same-session diagnostic endpoint `GET /api/ayas/trace/{traceId}`. All non-owner reads fail closed with 401 or a uniform 404.
+- Observed both owner-approval entry points (decide and resume/replay) without changing any approval, gate, execution or publish input. TRACE ON/OFF/BROKEN produce identical authority outcomes.
+- Memory recall reports a body-free `candidateCount`; recall failures surface as `MEMORY_UNREADABLE`.
+- Validation: unified trace 17/17, proposal approval 27/27 (including an 8-case ON/OFF/BROKEN matrix), and 28 further chat/authority suites green; TypeScript and changed-file ESLint pass; live runtime, authority, legacy, ledger and `data/brain` fingerprints unchanged. See `docs/AYAS_UNIFIED_TRACE.md`.
+
 ## 2026-09-23 — Shared project-root and script/scenes accounting safety (scoped closure)
 
 - Preserved Claude's interrupted implementation: shared canonical root resolution for existing normal project writers and reads, dual alias/physical leases, asset/FileStorage and production authority-store alignment, script/scenes accounting failure visibility, and early project-conflict responses.
