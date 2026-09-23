@@ -32,6 +32,34 @@ export const AYAS_RESEARCH_SCHEDULER_DEFAULT_STATE: AyasResearchSchedulerState =
   consecutiveFailures: 0,
 };
 
+export class AyasResearchSchedulerStateError extends Error {
+  constructor(readonly code: "READ_FAILED" | "MALFORMED" | "SCHEMA_MISMATCH" | "INVALID", message: string) {
+    super(message);
+    this.name = "AyasResearchSchedulerStateError";
+  }
+}
+
+function validateState(value: unknown): AyasResearchSchedulerState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new AyasResearchSchedulerStateError("INVALID", "research scheduler state has an invalid envelope");
+  }
+  const record = value as Record<string, unknown>;
+  if (record.schemaVersion !== ayasResearchSchedulerStateSchemaVersion) {
+    throw new AyasResearchSchedulerStateError("SCHEMA_MISMATCH", "research scheduler state schema is unsupported");
+  }
+  if (!Number.isSafeInteger(record.consecutiveFailures) || (record.consecutiveFailures as number) < 0) {
+    throw new AyasResearchSchedulerStateError("INVALID", "research scheduler failure count is invalid");
+  }
+  const timestamps = ["lastLightStartedAt", "lastLightCompletedAt", "nextLightAt", "lastDeepStartedAt", "lastDeepCompletedAt", "nextDeepAt", "lastSuccessfulResearchAt"];
+  if (timestamps.some((key) => record[key] !== undefined && (typeof record[key] !== "string" || !Number.isFinite(Date.parse(record[key])))) ||
+    (record.currentRunId !== undefined && typeof record.currentRunId !== "string") ||
+    (record.currentMode !== undefined && record.currentMode !== "LIGHT" && record.currentMode !== "DEEP") ||
+    (record.lastError !== undefined && typeof record.lastError !== "string")) {
+    throw new AyasResearchSchedulerStateError("INVALID", "research scheduler state has invalid fields");
+  }
+  return value as AyasResearchSchedulerState;
+}
+
 export interface AyasResearchSchedulerStateStoreOptions { readonly rootDir?: string }
 
 export interface AyasResearchSchedulerStateStore {
@@ -47,14 +75,20 @@ export function createAyasResearchSchedulerStateStore(options: AyasResearchSched
   return {
     file,
     read() {
+      let serialized: string;
       try {
-        const raw = JSON.parse(fs.readFileSync(file, "utf8")) as AyasResearchSchedulerState;
-        return raw?.schemaVersion === ayasResearchSchedulerStateSchemaVersion ? raw : AYAS_RESEARCH_SCHEDULER_DEFAULT_STATE;
-      } catch {
-        return AYAS_RESEARCH_SCHEDULER_DEFAULT_STATE;
+        serialized = fs.readFileSync(file, "utf8");
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return AYAS_RESEARCH_SCHEDULER_DEFAULT_STATE;
+        throw new AyasResearchSchedulerStateError("READ_FAILED", "research scheduler state could not be read");
       }
+      let raw: unknown;
+      try { raw = JSON.parse(serialized); }
+      catch { throw new AyasResearchSchedulerStateError("MALFORMED", "research scheduler state is not valid JSON"); }
+      return validateState(raw);
     },
     write(state) {
+      validateState(state);
       fs.mkdirSync(dir, { recursive: true });
       const tmp = path.join(dir, `.scheduler-state.${process.pid}.tmp`);
       try {

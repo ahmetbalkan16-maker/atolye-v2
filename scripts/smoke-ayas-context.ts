@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 import { deriveAyasConversationState } from "../src/lib/ayas/context/AyasConversationState";
 import { resolveAyasReferences } from "../src/lib/ayas/context/AyasReferenceResolver";
 import { compressAyasHistory } from "../src/lib/ayas/context/AyasContextCompression";
-import { assembleAyasContext } from "../src/lib/ayas/context/AyasContextAssembly";
+import { assembleAyasContext, AYAS_RECENT_HISTORY_CHAR_BUDGET } from "../src/lib/ayas/context/AyasContextAssembly";
 import type { AyasStudioContextView } from "../src/components/brain/brainCore";
 
 let count = 0;
@@ -129,6 +129,62 @@ async function run() {
     assert.match(c.summary.join(" "), /Daha önce konuşulan konular/);
     // the summary is extractive — it only contains text that appeared in the turns
     assert.ok(c.summary.join(" ").includes("proje"));
+  });
+
+  await scenario("compression — soft budget drops older bulky turns, preserves the last two verbatim and caps total summary", () => {
+    const turns = h(
+      ["user", `Eski ayrıntı ${"x".repeat(4_000)}`],
+      ["brain", `İlgisiz yanıt ${"y".repeat(4_000)}`],
+      ["user", "Mimar Sinan projesini sürdür"],
+      ["brain", "Visuals aşamasını kontrol ediyorum."],
+    );
+    const bounded = compressAyasHistory(turns, { maxRecentChars: 1_000, maxSummaryChars: 120 });
+    assert.deepEqual(bounded.recent, turns.slice(-2));
+    assert.equal(bounded.droppedTurns, 2);
+    assert.ok(bounded.summary.join("").length <= 120);
+    const unbounded = compressAyasHistory(turns);
+    assert.equal(unbounded.droppedTurns, 0, "direct compression remains backward compatible without a budget");
+  });
+
+  await scenario("assembly — budget reduces irrelevant history while retaining current referents and critical recent turns", () => {
+    const turns = h(
+      ["user", `Eski konu ${"x".repeat(4_000)}`],
+      ["brain", `Uzun yanıt ${"y".repeat(4_000)}`],
+      ["user", "Mimar Sinan projesini aç"],
+      ["brain", "Mimar Sinan projesi visuals aşamasında."],
+    );
+    const assembled = assembleAyasContext({ userText: "o projede devam et", history: turns, studio: STUDIO });
+    assert.deepEqual(assembled.recentHistory.slice(-2), turns.slice(-2));
+    assert.ok(assembled.trace.recentHistoryChars <= AYAS_RECENT_HISTORY_CHAR_BUDGET);
+    assert.ok(assembled.trace.historySummaryChars <= 600);
+    assert.equal(assembled.trace.droppedTurns, 1);
+    assert.ok(assembled.block.referenceLines?.join(" ").includes("Mimar Sinan"));
+  });
+
+  await scenario("assembly — soft ceiling keeps the newest two turns even if they alone exceed the budget", () => {
+    const turns = h(["user", "older"], ["brain", "x".repeat(7_000)], ["user", "latest constraint"]);
+    const assembled = assembleAyasContext({ userText: "devam et", history: turns });
+    assert.deepEqual(assembled.recentHistory, turns.slice(-2));
+    assert.ok(assembled.trace.recentHistoryChars > AYAS_RECENT_HISTORY_CHAR_BUDGET);
+  });
+
+  await scenario("assembly — bounded long-history cost is measurable", () => {
+    const turns = h(...Array.from({ length: 12 }, (_, index) => [index % 2 ? "brain" : "user", `${index}: ${"x".repeat(1_000)}`] as [string, string]));
+    const baselineChars = turns.reduce((sum, turn) => sum + turn.text.length, 0);
+    const baselineStarted = performance.now();
+    for (let index = 0; index < 500; index += 1) compressAyasHistory(turns);
+    const baselineCompressionMs = (performance.now() - baselineStarted) / 500;
+    const boundedStarted = performance.now();
+    for (let index = 0; index < 500; index += 1) compressAyasHistory(turns, { maxRecentChars: AYAS_RECENT_HISTORY_CHAR_BUDGET });
+    const boundedCompressionMs = (performance.now() - boundedStarted) / 500;
+    const started = performance.now();
+    let selectedChars = 0;
+    for (let index = 0; index < 500; index += 1) {
+      const assembled = assembleAyasContext({ userText: "devam et", history: turns });
+      selectedChars = assembled.trace.recentHistoryChars + assembled.trace.historySummaryChars;
+    }
+    assert.ok(selectedChars < baselineChars * 0.65, "bounded context should save at least 35% for this representative long history");
+    console.log(JSON.stringify({ contextBudgetEvaluation: { baselineChars, selectedChars, reductionPercent: Math.round((1 - selectedChars / baselineChars) * 100), baselineCompressionMs: Number(baselineCompressionMs.toFixed(3)), boundedCompressionMs: Number(boundedCompressionMs.toFixed(3)), msPerAssembly: Number(((performance.now() - started) / 500).toFixed(3)) } }));
   });
 
   /* ---------------- assembly ---------------- */

@@ -11457,3 +11457,13 @@ Completed
 Bu belge mümkün olduğunca kısa tutulmalıdır.
 
 Detaylı bilgiler ilgili dokümantasyon dosyalarında bulunmalıdır.
+## AYAS EXTERNAL OPEN-SOURCE ARCHITECTURE INTEGRATION — OWNER REVIEW PENDING — 2026-09-23
+
+- Owner accepted `d750bd7552d4790b6116b8aa61f2748919a94fd6` as this sprint's new trusted baseline on `wip/ayas-graphify-final-execution`; it supersedes the old expected baseline for this sprint. Entry: local/origin 0/0, worktree/index clean, Graphify fresh/integral, AYAS HEALTHY, observer OBSERVING. The approved intervening commit was not rewritten.
+- Current dirty scope is only the external-architecture sprint. Two native, bounded integrations: fail-closed validation of existing research scheduler state v1; soft 6,000-character recent-history budget with last-two-turn/current-request/referent protection and 600-character combined summary cap. No authority/store/schema/dependency or OS/runtime infrastructure change.
+- Research and full AYAS inventory/gap decisions: `docs/brain/AYAS_EXTERNAL_ARCHITECTURE_INTEGRATION_REVIEW.md`. External source code was not copied. Direct tests 32/32 context and 13/13 scheduler; 23 additional relevant suites passed; TypeScript, changed-file ESLint and diff check passed. The proposal-approval fixture suite was stopped because it commits/pushes only to temporary fixture repositories; no main-repo stage/commit/push occurred.
+- Owner-review scheduler regression: an unreadable scheduler state path is not treated as missing state; `AyasResearchSchedulerStateStore` fails closed with `READ_FAILED`, proven by a real `EISDIR` read failure (state path is a directory). No authority, approval or execution-gate scope widened.
+- Graphify refreshed at baseline HEAD: 13,619 nodes / 40,092 edges / 303 communities, lastAnalyzedHead == HEAD, stale=false; duplicate/dangling/self-loop 0. Review analysis: high blast radius, 18 impacted files / 7 communities; direct contract tests cover the changed modules.
+- This is **NOT COMMITTED OR PUSHED**. Owner review is next. Live read-only health now reports `DEGRADED` solely for `PAUSED_DIRTY_REPO` and `REPO_DIRTY` (`ownerActionRecommended=false`), the expected fail-closed state while reviewing. Do not approve Development Center proposals or micro-batches. Do not stage, commit or push until the owner's explicit review decision.
+
+---

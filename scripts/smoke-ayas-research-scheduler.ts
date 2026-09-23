@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { tickAyasResearchScheduler, AYAS_RESEARCH_LIGHT_INTERVAL_MS, AYAS_RESEARCH_DEEP_INTERVAL_MS, resolveAyasResearchGateRoot } from "../src/lib/brain/autonomy/AyasResearchScheduler";
-import { createAyasResearchSchedulerStateStore } from "../src/lib/brain/autonomy/AyasResearchSchedulerStateStore";
+import { AyasResearchSchedulerStateError, createAyasResearchSchedulerStateStore } from "../src/lib/brain/autonomy/AyasResearchSchedulerStateStore";
 import { createAyasResearchSourceStateStore, type AyasResearchSourceStateStore } from "../src/lib/brain/autonomy/AyasResearchSourceStateStore";
 import type { AyasLightResearchDeps } from "../src/lib/brain/autonomy/AyasLightResearchEngine";
 import { createAyasExternalResearchStore } from "../src/lib/brain/autonomy/AyasExternalResearchStore";
@@ -45,6 +45,49 @@ function deepDepsFor(gateRoot: string): Omit<AyasDeepResearchDeps, "sources"> {
 }
 
 async function main() {
+  await scenario("missing state defaults, but malformed, unknown-version and invalid state fail closed without launching research", async () => {
+    const gateRoot = tempDir("ayas-sched-corrupt-");
+    const stateStore = createAyasResearchSchedulerStateStore({ rootDir: gateRoot });
+    assert.equal(stateStore.read().consecutiveFailures, 0);
+    const invalid = [
+      ["not-json", "MALFORMED"],
+      [JSON.stringify({ schemaVersion: "2", consecutiveFailures: 0 }), "SCHEMA_MISMATCH"],
+      [JSON.stringify({ schemaVersion: "1", consecutiveFailures: -1 }), "INVALID"],
+      [JSON.stringify({ schemaVersion: "1", consecutiveFailures: 0, nextDeepAt: "not-a-date" }), "INVALID"],
+    ] as const;
+    for (const [contents, code] of invalid) {
+      fs.writeFileSync(stateStore.file, contents);
+      await assert.rejects(
+        tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, stateStore, sources: STUB_SOURCES }),
+        (error: unknown) => error instanceof AyasResearchSchedulerStateError && error.code === code,
+      );
+      assert.equal(fs.readFileSync(stateStore.file, "utf8"), contents, "corrupt historical state must remain untouched");
+    }
+  });
+
+  await scenario("unreadable state path fails closed instead of being mistaken for a missing file", async () => {
+    const gateRoot = tempDir("ayas-sched-unreadable-");
+    const stateStore = createAyasResearchSchedulerStateStore({ rootDir: gateRoot });
+    fs.mkdirSync(stateStore.file);
+    await assert.rejects(
+      tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, stateStore, sources: STUB_SOURCES }),
+      (error: unknown) => error instanceof AyasResearchSchedulerStateError && error.code === "READ_FAILED",
+    );
+  });
+
+  await scenario("valid scheduler state survives store recreation and rejects invalid writes", () => {
+    const gateRoot = tempDir("ayas-sched-reload-");
+    const stateStore = createAyasResearchSchedulerStateStore({ rootDir: gateRoot });
+    const nextLightAt = new Date(Date.now() + 10_000).toISOString();
+    stateStore.write({ schemaVersion: "1", consecutiveFailures: 2, nextLightAt });
+    assert.equal(createAyasResearchSchedulerStateStore({ rootDir: gateRoot }).read().nextLightAt, nextLightAt);
+    assert.throws(() => stateStore.write({ schemaVersion: "1", consecutiveFailures: -1 }), AyasResearchSchedulerStateError);
+    assert.equal(stateStore.read().consecutiveFailures, 2);
+    fs.writeFileSync(path.join(gateRoot, ".scheduler-state.interrupted.tmp"), '{"schemaVersion":"1","consecutiveFailures":');
+    assert.equal(createAyasResearchSchedulerStateStore({ rootDir: gateRoot }).read().consecutiveFailures, 2,
+      "an interrupted temp write must not replace the committed state");
+  });
+
   await scenario("first-ever tick: nothing scheduled yet -> both LIGHT and DEEP are due, DEEP wins priority", async () => {
     const gateRoot = tempDir("ayas-sched-first-");
     const result = await tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, sources: STUB_SOURCES, light: lightDepsFor(gateRoot), deep: deepDepsFor(gateRoot) });

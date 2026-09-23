@@ -12,6 +12,9 @@ import { deriveAyasConversationState } from "./AyasConversationState";
 import { resolveAyasReferences } from "./AyasReferenceResolver";
 import { compressAyasHistory } from "./AyasContextCompression";
 
+/** Soft ceiling for verbatim history; current request and resolved state are never truncated. */
+export const AYAS_RECENT_HISTORY_CHAR_BUDGET = 6_000;
+
 export interface AssembledAyasContext {
   readonly block: AyasConversationPromptBlock;
   /** The turns to feed the model verbatim (older ones are in `block.historySummary`). */
@@ -30,6 +33,8 @@ export interface AssembledAyasContext {
     readonly resolvedReferences: number;
     readonly unresolvedReferences: number;
     readonly droppedTurns: number;
+    readonly recentHistoryChars: number;
+    readonly historySummaryChars: number;
     readonly selectedOption: string | null;
     readonly temporaryConstraintCount: number;
   };
@@ -49,6 +54,7 @@ export function assembleAyasContext(input: {
   const refs = resolveAyasReferences(input.userText, state, input.history);
   const compressed = compressAyasHistory(input.history, {
     ...(input.recentTurns ? { recentTurns: input.recentTurns } : {}),
+    maxRecentChars: AYAS_RECENT_HISTORY_CHAR_BUDGET,
   });
 
   const stateLines: string[] = [];
@@ -88,6 +94,8 @@ export function assembleAyasContext(input: {
       resolvedReferences: refs.resolutions.length,
       unresolvedReferences: refs.unresolved.length,
       droppedTurns: compressed.droppedTurns,
+      recentHistoryChars: compressed.recent.reduce((sum, turn) => sum + turn.text.length, 0),
+      historySummaryChars: compressed.summary.reduce((sum, line) => sum + line.length, 0),
       selectedOption: state.selectedOption,
       temporaryConstraintCount: state.temporaryConstraints.length,
     },

@@ -17,6 +17,8 @@ export interface CompressAyasHistoryOptions {
   readonly recentTurns?: number;
   /** Max characters of the extractive summary (default 600). */
   readonly maxSummaryChars?: number;
+  /** Soft verbatim budget. The last two turns remain intact even when they exceed it. */
+  readonly maxRecentChars?: number;
 }
 
 export interface CompressedAyasHistory {
@@ -36,14 +38,19 @@ export function compressAyasHistory(
 ): CompressedAyasHistory {
   const recentTurns = Math.max(2, options.recentTurns ?? DEFAULT_RECENT);
   const maxChars = Math.max(120, options.maxSummaryChars ?? DEFAULT_SUMMARY_CHARS);
+  const maxRecentChars = options.maxRecentChars === undefined ? Infinity : Math.max(0, options.maxRecentChars);
 
   const turns = history.filter((t) => t.role !== "system" && typeof t.text === "string" && t.text.trim());
-  if (turns.length <= recentTurns) {
-    return { summary: [], recent: turns, droppedTurns: 0 };
+  let recentStart = Math.max(0, turns.length - recentTurns);
+  let recentChars = turns.slice(recentStart).reduce((sum, turn) => sum + turn.text.length, 0);
+  while (recentStart < turns.length - 2 && recentChars > maxRecentChars) {
+    recentChars -= turns[recentStart].text.length;
+    recentStart += 1;
   }
+  if (recentStart === 0) return { summary: [], recent: turns, droppedTurns: 0 };
 
-  const older = turns.slice(0, turns.length - recentTurns);
-  const recent = turns.slice(turns.length - recentTurns);
+  const older = turns.slice(0, recentStart);
+  const recent = turns.slice(recentStart);
 
   const userAsks = older.filter((t) => t.role === "user").map((t) => firstSentence(t.text));
   const ayasQuestions = older
@@ -61,7 +68,14 @@ export function compressAyasHistory(
     lines.push(`${older.length} eski tur özetlendi (belirgin bir konu çıkmadı).`);
   }
 
-  return { summary: lines, recent, droppedTurns: older.length };
+  let remaining = maxChars;
+  const boundedLines = lines.flatMap((line) => {
+    if (remaining <= 0) return [];
+    const bounded = line.length <= remaining ? line : `${line.slice(0, Math.max(0, remaining - 1))}…`;
+    remaining -= bounded.length;
+    return [bounded];
+  });
+  return { summary: boundedLines, recent, droppedTurns: older.length };
 }
 
 function firstSentence(text: string): string {
