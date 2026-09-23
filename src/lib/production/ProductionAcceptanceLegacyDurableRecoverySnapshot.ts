@@ -1,4 +1,5 @@
 import path from "node:path";
+import { getExistingProjectRootForWrite } from "@/lib/runtime/RuntimeStoragePaths";
 import { validateProductionExecutionPersistencePayload } from "./ProductionExecutionPersistence";
 import { createProductionExecutionReadDescriptor,
   ProductionExecutionDescriptorBoundReadAdapter } from
@@ -60,7 +61,7 @@ export async function createLegacyReauthorizationDurableRecoverySnapshot(input: 
 }): Promise<LegacyDurableRecoveryAuthoritySnapshot> {
   const runtimeOperationContext = requireActiveProductionRuntimeOperationContext();
   const storage = requireProductionRuntimeStorageContext(runtimeOperationContext);
-  const expectedProjectFolder = path.resolve(storage.projectsRoot, input.projectSlug);
+  const expectedProjectFolder = getExistingProjectRootForWrite(input.projectSlug, storage);
   if (path.relative(expectedProjectFolder, path.resolve(input.projectFolder)) !== "") {
     throw invalid(input.projectSlug);
   }

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { getExistingProjectRootForWrite } from "@/lib/runtime/RuntimeStoragePaths";
 import type {
   ProductionExecutionPersistenceAdapter,
   ProductionExecutionPersistencePayloadByKind,
@@ -57,7 +58,7 @@ export function createProductionExecutionReadDescriptor(input: {
     throw new TypeError("Production execution read project identity is invalid.");
   }
   const storage = requireProductionRuntimeStorageContext(input.runtimeOperationContext);
-  const projectRoot = path.resolve(storage.projectsRoot, input.projectSlug);
+  const projectRoot = getExistingProjectRootForWrite(input.projectSlug, storage);
   const root = path.join(projectRoot, "production-execution");
   assertContained(storage.projectsRoot, root);
   const projectRootIdentity = readDirectoryIdentity(projectRoot);

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import { clearProjectFolderIndexCache } from "../src/lib/projects/ProjectFolderIndex";
 import os from "node:os";
 import path from "node:path";
 import {
@@ -307,6 +308,30 @@ async function run() {
   });
   pass("prepare (with a real verified backup) requeues exactly assembly+downstream, " +
     "snapshots the prior assembly.json, and is idempotent on replay");
+
+  await withGitBackedRuntime(async (storageContext) => {
+    const slug = "pipeline-legacy-alias";
+    const physical = "8e2a1371-0000-4000-8000-00000000abcd";
+    buildEligibleProject(storageContext, slug, slug);
+    fs.renameSync(path.join(storageContext.projectsRoot, slug),
+      path.join(storageContext.projectsRoot, physical));
+    clearProjectFolderIndexCache();
+    const plan = await createPipelineCompletedStageRegenerationPlan({
+      projectSlug: slug, fromStage: "assembly", context: storageContext,
+    });
+    const backupAuthority = bootstrapRuntimeBackupStorageAuthority(storageContext);
+    const backup = createVerifiedRuntimeBackup({ authority: backupAuthority, projectSlug: slug });
+    const input = { plan, backupId: backup.backupId, reasonCode: "SILENT_AUDIO_REPAIR",
+      confirmation: plan.planFingerprint, context: storageContext, backupAuthority };
+    const result = await preparePipelineCompletedStageRegeneration(input);
+    const replay = await preparePipelineCompletedStageRegeneration(input);
+    assert.equal(result.status, "prepared");
+    assert.equal(replay.status, "already-prepared");
+    assert.equal(fs.existsSync(path.join(storageContext.projectsRoot, physical,
+      "pipeline-regeneration", "regenerations", result.intent.regenerationId, "prepared.json")), true);
+    assert.equal(fs.existsSync(path.join(storageContext.projectsRoot, slug)), false);
+  });
+  pass("legacy pipeline alias prepares and replays only in its UUID folder");
 
   // 8. A prepared-but-not-yet-completed regeneration blocks a fresh plan even if the
   //    source stage's completed status is independently restored in the meantime

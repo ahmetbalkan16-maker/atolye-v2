@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { isRuntimeTransientExcludedRelativePath } from "@/lib/runtime/RuntimeTransientArtifactPolicy";
 import {
   assertPathContained,
-  getLogicalProjectIdentity,
+  getExistingProjectRootForWrite,
   requireContainedRealDirectory,
   resolveRuntimeStorageContext,
   runtimeStoragePolicyVersion,
@@ -17,11 +17,9 @@ import {
   aggregateRuntimeFileRecords,
   emptyClassificationTotals,
   runtimeBackupAggregateVersion,
-  runtimeBackupFormatVersion,
   runtimeBackupFormatVersionV1,
   runtimeBackupFormatVersionV2,
   runtimeBackupFormatVersionV3,
-  runtimeBackupManifestSchemaVersion,
   runtimeBackupManifestSchemaVersionV1,
   runtimeBackupManifestSchemaVersionV2,
   runtimeBackupManifestSchemaVersionV3,
@@ -402,15 +400,10 @@ function projectScanRoot(
   if (!/^[a-zA-Z0-9-_]+$/.test(slug)) {
     throw new Error("Runtime backup project identity is invalid.");
   }
-  const target = path.join(projectsRoot, slug);
+  const target = getExistingProjectRootForWrite(slug, context);
   assertPathContained(projectsRoot, target);
   requireContainedRealDirectory(context.projectsRoot, target);
   return target;
-}
-
-function inferProjectSlug(relativePath: string) {
-  const first = relativePath.split("/")[0];
-  return /^[a-zA-Z0-9-_]+$/.test(first) && relativePath.includes("/") ? first : undefined;
 }
 
 function classifyRuntimeFile(relativePath: string): RuntimeBackupFileClassification {

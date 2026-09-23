@@ -13,7 +13,7 @@ import { assertProductionRegenerationPhysicalProject } from
 import { getProductionRegenerationClosure } from
   "@/lib/production/ProductionCompletedStageRegenerationGraph";
 import { collectRuntimeBackupInventory } from "@/lib/runtime/backup/RuntimeBackupInventory";
-import type { RuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
+import { getExistingProjectRootForWrite, type RuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
 import type { PipelineRecoveryStageKey } from "@/types/pipelineRecovery";
 import type { Project, ProjectManifest } from "@/types/project";
 import type { AudioData } from "@/types/audio";
@@ -74,8 +74,8 @@ export async function createPipelineCompletedStageRegenerationPlan(input: {
     input.fromStage as typeof supportedPipelineRegenerationFromStages[number])) {
     throw new PipelineRegenerationPlanError("PIPELINE_REGENERATION_STAGE_INVALID");
   }
-  const projectFolder = ProjectReader.getProjectFolder(input.projectSlug, input.context);
-  assertProductionRegenerationPhysicalProject(input.projectSlug, input.context, projectFolder);
+  const projectFolder = getExistingProjectRootForWrite(input.projectSlug, input.context);
+  assertProductionRegenerationPhysicalProject(path.basename(projectFolder), input.context, projectFolder);
 
   // Mutual exclusivity: a project with a production-acceptance marker is owned by the
   // acceptance-gated regeneration system (`ProductionCompletedStageRegenerationPlanner`),

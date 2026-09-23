@@ -1,6 +1,10 @@
+import fs from "node:fs";
+import path from "node:path";
 import {
-  acquireProjectWriteAuthority,
-  type RuntimeStorageAuthorityLease,
+  acquireExistingProjectWriteAuthority,
+  assertProjectWriteAuthorityLease,
+  getExistingProjectRootForWrite,
+  type ExistingProjectWriteAuthorityLease,
 } from "@/lib/runtime/RuntimeStoragePaths";
 import {
   integrityFor,
@@ -98,9 +102,26 @@ export async function reauthorizeProductionAcceptanceLegacyMarker(input: {
       "configuration",
     );
   }
-  let lease: RuntimeStorageAuthorityLease | undefined;
+  let lease: ExistingProjectWriteAuthorityLease | undefined;
   try {
-    lease = acquireProjectWriteAuthority(input.projectSlug, first.context);
+    lease = acquireExistingProjectWriteAuthority(input.projectSlug, first.context);
+    assertProjectWriteAuthorityLease(lease, input.projectSlug, first.context);
+    // `first.projectFolder` is a realpath; compare like with like.
+    if (fs.realpathSync(getExistingProjectRootForWrite(input.projectSlug, first.context)) !==
+      first.projectFolder || lease.projectFolder !== path.basename(first.projectFolder)) {
+      throw new ProductionAcceptanceLegacyReauthorizationError(
+        "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_ENVIRONMENT_DRIFT", input.projectSlug, "storage");
+    }
+    const locked = await createLegacyReauthorizationPreflight(
+      input.projectSlug, input.sourceMarkerSha256, dependencies);
+    assertProjectWriteAuthorityLease(lease, input.projectSlug, first.context);
+    if (locked.projectFolder !== first.projectFolder ||
+      locked.reauthorizationId !== first.reauthorizationId ||
+      locked.markerDeviceIdentity !== first.markerDeviceIdentity ||
+      locked.markerInodeIdentity !== first.markerInodeIdentity) {
+      throw new ProductionAcceptanceLegacyReauthorizationError(
+        "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_CONCURRENT_CHANGE", input.projectSlug, "concurrency");
+    }
     const archiveIdentity = publishLegacyArchive({
       projectFolder: first.projectFolder,
       markerBytes: first.markerBytes,
@@ -112,6 +133,11 @@ export async function reauthorizeProductionAcceptanceLegacyMarker(input: {
       input.sourceMarkerSha256,
       dependencies,
     );
+    assertProjectWriteAuthorityLease(lease, input.projectSlug, first.context);
+    if (second.projectFolder !== first.projectFolder) {
+      throw new ProductionAcceptanceLegacyReauthorizationError(
+        "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_CONCURRENT_CHANGE", input.projectSlug, "concurrency");
+    }
     if (
       second.reauthorizationId !== first.reauthorizationId ||
       second.markerDeviceIdentity !== first.markerDeviceIdentity ||

@@ -80,7 +80,7 @@ let passed = 0;
 function check(value: unknown, message: string) {
   assert.ok(value, message);
   passed += 1;
-  console.log(`[smoke-129.41] (${passed}/181) ${message}`);
+  console.log(`[smoke-129.41] (${passed}/183) ${message}`);
 }
 
 function assertOwnedTempMutationTarget(projectSlug: string, projectRoot: string, ownedRoot: string) {
@@ -336,7 +336,7 @@ interface Fixture {
   authority: ReturnType<typeof bootstrapTestRuntimeBackupStorageAuthority>;
 }
 
-function fixture(label: string, forcedSlug?: string): Fixture {
+function fixture(label: string, forcedSlug?: string, legacyAlias = false): Fixture {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "a41-"));
   const workspaceRoot = path.join(root, "w");
   const runtimeRoot = path.join(workspaceRoot, "data");
@@ -362,11 +362,12 @@ function fixture(label: string, forcedSlug?: string): Fixture {
   });
   fs.mkdirSync(context.projectsRoot, { recursive: true });
   const authority = bootstrapTestRuntimeBackupStorageAuthority(context, backupRoot);
-  const projectRoot = path.join(context.projectsRoot, slug);
+  const projectRoot = path.join(context.projectsRoot,
+    legacyAlias ? "8e2a1371-0000-4000-8000-00000000abcd" : slug);
   assertOwnedTempMutationTarget(slug, projectRoot, root);
   fs.mkdirSync(path.join(projectRoot, "assets", "videos"), { recursive: true });
   fs.mkdirSync(path.join(projectRoot, "assets", "images"), { recursive: true });
-  const project = { id: `project-${label}`, slug, title: label, status: "assembly",
+  const project = { id: legacyAlias ? slug : `project-${label}`, slug, title: label, status: "assembly",
     createdAt: at, updatedAt: at };
   const completed = new Set(["research", "script", "scenes", "visuals", "animation",
     "video", "audio", "assembly"]);
@@ -619,6 +620,26 @@ async function main() {
 
     const f = fixture("primary"); roots.push(f.root);
     check(f.slug !== forbiddenProductionSlug && f.projectRoot.startsWith(os.tmpdir()), "owned temp only");
+    const legacy = fixture("legacy-alias", undefined, true); roots.push(legacy.root);
+    check(!fs.existsSync(path.join(legacy.context.projectsRoot, legacy.slug)),
+      "legacy alias starts without a slug folder");
+    const legacyPlan = await plan(legacy);
+    const legacyBackup = createVerifiedRuntimeBackup({
+      authority: legacy.authority, projectSlug: legacy.slug });
+    const legacyInput = { plan: legacyPlan, backupId: legacyBackup.backupId,
+      reasonCode: "FRAMING_REMEDIATION", confirmation: legacyPlan.planFingerprint,
+      context: legacy.context, backupAuthority: legacy.authority };
+    const legacyPrepared = await prepareCompletedStageRegeneration(legacyInput);
+    const legacyReplay = await prepareCompletedStageRegeneration(legacyInput);
+    check(legacyPrepared.status === "prepared" && legacyReplay.status === "already-prepared" &&
+      fs.existsSync(path.join(legacy.projectRoot, "production-regeneration", "regenerations",
+        legacyPrepared.intent.regenerationId, "prepared.json")) &&
+      !fs.existsSync(path.join(legacy.context.projectsRoot, legacy.slug)),
+    "legacy alias prepares and replays only in the UUID folder");
+    // fixture() re-points the ambient env; restore the primary fixture's roots.
+    process.env.ATOLYE_RUNTIME_ROOT = f.context.runtimeRoot;
+    process.env.ATOLYE_RUNTIME_AUTHORITY_ROOT = f.context.authorityRoot;
+    process.env.ATOLYE_WORKSPACE_ROOT = f.context.workspaceRoot;
     for (const rejectedStage of ["research", "script", "scenes", "visuals", "animation",
       "audio", "thumbnail", "seo", "youtube", "export", "unknown-stage"]) {
       await assert.rejects(() => createCompletedStageRegenerationPlan({ projectSlug: f.slug,
@@ -1652,8 +1673,8 @@ async function main() {
       fs.readdirSync(conflictRegenerationRoot).length === 1,
     "two-process conflicting preparation has one winner and fail-closed loser");
 
-    assert.equal(passed, 181, `expected 181 scenarios, received ${passed}`);
-    process.stdout.write(`Sprint 129.41 completed-stage regeneration smoke: PASS (${passed}/181)\n`);
+    assert.equal(passed, 183, `expected 183 scenarios, received ${passed}`);
+    process.stdout.write(`Sprint 129.41 completed-stage regeneration smoke: PASS (${passed}/183)\n`);
   } finally {
     delete process.env.ATOLYE_RUNTIME_ROOT;
     delete process.env.ATOLYE_RUNTIME_AUTHORITY_ROOT;

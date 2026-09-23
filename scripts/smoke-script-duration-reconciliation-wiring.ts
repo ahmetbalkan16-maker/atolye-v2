@@ -5,11 +5,21 @@
  * strict/production response-parsing path (parseStrictScriptResponse), not
  * just the pure estimator functions in isolation (see
  * smoke-narration-duration-estimator.ts for those).
+ *
+ * `runScript("T", undefined, ...)` records usage under the context-less
+ * `unknown` project. Run without isolation it resolved the legacy default and
+ * appended to the repository's `data/projects/unknown/ai-usage.json` (2026-09-23
+ * incident), so every storage root here — runtime, authority and the legacy
+ * workspace — is run-owned TEMP, verified before the first call.
  */
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 import { AIManager } from "../src/lib/ai/AIManager";
 import { strictGenerationExecutionPolicy } from "../src/lib/ai/GenerationExecutionPolicy";
 import type { AIProvider, AIProviderResult } from "../src/lib/ai/providers";
+import { createRuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePaths";
 
 let count = 0;
 function scenario(name: string, test: () => void | Promise<void>) {
@@ -123,7 +133,37 @@ async function run() {
   console.log(JSON.stringify({ status: "PASS", suite: "script-duration-reconciliation-wiring", scenarios: count }));
 }
 
-run().catch((error) => {
+function insideRoot(root: string, candidate: string) {
+  const relative = path.relative(root, candidate);
+  return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
+}
+
+async function main() {
+  await withCanonicalSmokeRuntime({
+    name: "script-duration-reconciliation-wiring",
+    // No operation context: storage resolves from the environment, whose legacy
+    // workspace (`ATOLYE_WORKSPACE_ROOT`) is set below to a run-owned folder.
+    enterOperationContext: false,
+    environment: { ATOLYE_WORKSPACE_ROOT: undefined },
+  }, async (runtime) => {
+    const legacyWorkspace = path.join(runtime.workspaceRoot, "legacy-workspace");
+    fs.mkdirSync(path.join(legacyWorkspace, "data", "projects"), { recursive: true });
+    process.env.ATOLYE_WORKSPACE_ROOT = legacyWorkspace;
+    const storage = createRuntimeStorageContext();
+    const roots = { runtimeRoot: storage.runtimeRoot, projectsRoot: storage.projectsRoot,
+      legacyProjectsRoot: storage.legacyProjectsRoot, authorityRoot: storage.authorityRoot };
+    for (const [name, root] of Object.entries(roots)) {
+      assert.ok(insideRoot(runtime.workspaceRoot, root), `${name} escaped the run-owned workspace: ${root}`);
+    }
+    await run();
+    const ledger = JSON.parse(fs.readFileSync(
+      path.join(storage.projectsRoot, "unknown", "ai-usage.json"), "utf8")) as { records: unknown[] };
+    console.log(JSON.stringify({ suite: "script-duration-reconciliation-wiring", isolation: {
+      workspaceRoot: runtime.workspaceRoot, ...roots, unknownLedgerRecords: ledger.records.length } }));
+  });
+}
+
+main().catch((error) => {
   console.error("Script duration reconciliation wiring smoke FAILED:", error);
   process.exitCode = 1;
 });

@@ -3,7 +3,8 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { PipelineJobManager } from "@/lib/pipeline/PipelineJobManager";
 import {
-  acquireProjectWriteAuthority,
+  acquireExistingProjectWriteAuthority,
+  getExistingProjectRootForWrite,
   assertProjectWriteAuthorityLease,
   type RuntimeStorageContext,
 } from "@/lib/runtime/RuntimeStoragePaths";
@@ -106,14 +107,21 @@ export async function preparePipelineCompletedStageRegeneration(input: {
     planFingerprint: input.plan.planFingerprint,
     reasonCode: input.reasonCode,
   })).slice(0, 48)}`;
-  const lease = acquireProjectWriteAuthority(input.plan.projectSlug, input.context);
+  const lease = acquireExistingProjectWriteAuthority(input.plan.projectSlug, input.context);
   try {
     assertProjectWriteAuthorityLease(lease, input.plan.projectSlug, input.context);
+    const projectFolder = getExistingProjectRootForWrite(input.plan.projectSlug, input.context);
+    if (path.basename(projectFolder) !== lease.projectFolder) {
+      throw new PipelineRegenerationPreparationError("PIPELINE_REGENERATION_CONFLICT");
+    }
     const physicalProject = assertProductionRegenerationPhysicalProject(
-      input.plan.projectSlug, input.context);
+      lease.projectFolder, input.context, projectFolder);
     return await PipelineJobManager.withProjectLock(input.plan.projectSlug, async () => {
       assertProjectWriteAuthorityLease(lease, input.plan.projectSlug, input.context);
       reassertProductionRegenerationPhysicalProject(physicalProject);
+      if (getExistingProjectRootForWrite(input.plan.projectSlug, input.context) !== projectFolder) {
+        throw new PipelineRegenerationPreparationError("PIPELINE_REGENERATION_CONFLICT");
+      }
       rejectConflictingRegeneration(input.plan.projectSlug, regenerationId, input.context);
 
       const existingReceipt = readRegenerationPreparedReceipt(
@@ -141,7 +149,6 @@ export async function preparePipelineCompletedStageRegeneration(input: {
       }
 
       const verification = verifyBoundBackup(input, currentPlan);
-      const projectFolder = path.join(input.context.projectsRoot, input.plan.projectSlug);
       const createdAt = recovering?.createdAt ?? new Date().toISOString();
       const mutations = recovering
         ? mutationsFromIntent(recovering)

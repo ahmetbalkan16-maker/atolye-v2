@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import {
   assertPathContained,
   ensureSafeDirectory,
+  getExistingProjectRootForWrite,
   type RuntimeStorageContext,
 } from "@/lib/runtime/RuntimeStoragePaths";
 import {
@@ -196,11 +197,18 @@ export class GuardedRuntimeFilesystem {
         "payload",
         "projects",
       );
+      const physicalFolders = new Map<string, string>();
+      for (const file of manifest.files) {
+        if (file.projectSlug && !physicalFolders.has(file.projectSlug)) {
+          physicalFolders.set(file.projectSlug, path.basename(
+            getExistingProjectRootForWrite(file.projectSlug, decodedRequest.context)));
+        }
+      }
       for (const file of manifest.files) {
         validateRuntimeBackupRelativePath(file.relativePath);
         assertRuntimeBackupMaterializedPath(payloadProjectsRoot, file.relativePath);
         const diskRelativePath = file.projectSlug
-          ? file.relativePath.replace(/^[^/]+/, file.projectSlug)
+          ? file.relativePath.replace(/^[^/]+/, physicalFolders.get(file.projectSlug)!)
           : file.relativePath;
         const source = atomicContainedFilePath(
           decodedRequest.context.projectsRoot,

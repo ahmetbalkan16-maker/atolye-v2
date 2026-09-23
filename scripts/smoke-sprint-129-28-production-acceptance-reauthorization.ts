@@ -37,11 +37,14 @@ import {
 import { materializePipelineStageExecutionOptions, PipelineStageExecutor } from
   "../src/lib/pipeline/PipelineStageExecutor";
 import { ProjectManager } from "../src/lib/projects/ProjectManager";
+import { ProjectReader } from "../src/lib/projects/ProjectReader";
+import { clearProjectFolderIndexCache } from "../src/lib/projects/ProjectFolderIndex";
 import { ProductionWorkerLifecycle, runWithProductionWorkerLifecycleIdentity } from
   "../src/lib/production/ProductionWorkerLifecycle";
 import { installCanonicalProductionPipelineExecutionRuntime } from
   "../src/lib/production/ProductionPipelineExecutionCanonicalRuntime";
-import { createRuntimeStorageContext } from "../src/lib/runtime/RuntimeStoragePaths";
+import { createIsolatedRuntimeStorageContext, createRuntimeStorageContext, RuntimeStorageError } from
+  "../src/lib/runtime/RuntimeStoragePaths";
 import { createProductionRuntimeOperationContext, initialRuntimeAuthorityGeneration,
   requireActiveProductionRuntimeOperationContext, requireProductionRuntimeStorageContext,
   runWithProductionRuntimeOperationContext } from
@@ -241,6 +244,18 @@ function fixture(suffix: string) {
   fs.writeFileSync(path.join(folder, "manifest.json"), JSON.stringify({ fixture: suffix }));
   const markerBytes = fs.readFileSync(markerPath);
   return { slug, folder, marker, markerPath, markerBytes, markerSha256: sha256Bytes(markerBytes) };
+}
+
+function legacyAliasFixture(suffix: string) {
+  const item = fixture(suffix);
+  const folder = path.join(runtimeRoot, "projects", crypto.randomUUID());
+  fs.renameSync(item.folder, folder);
+  fs.writeFileSync(path.join(folder, "project.json"), JSON.stringify({
+    id: item.slug, slug: item.slug, title: item.slug, status: "created",
+  }));
+  clearProjectFolderIndexCache();
+  return { ...item, folder, markerPath: path.join(folder, "production-acceptance.json"),
+    logicalFolder: item.folder };
 }
 
 let deps: { environment: NodeJS.ProcessEnv; authorityRoot: string };
@@ -1318,6 +1333,60 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
     )), true);
   });
 
+  await scenario("legacy alias publishes only in its canonical UUID folder", async () => {
+    const item = legacyAliasFixture("uuid-alias");
+    const folder = item.folder;
+    const context = requireProductionRuntimeStorageContext(mainRuntime);
+    assert.equal(ProjectReader.getProjectFolder(item.slug, context), folder);
+    const plan = await planProductionAcceptanceLegacyReauthorization(
+      item.slug, item.markerSha256, deps);
+    const input = { projectSlug: item.slug, sourceMarkerSha256: item.markerSha256,
+      reason: "legacy-environment-unrecoverable", reauthorizationId: plan.reauthorizationId,
+      confirmation: plan.reauthorizationId };
+    const first = await reauthorizeProductionAcceptanceLegacyMarker(input, deps);
+    const replay = await reauthorizeProductionAcceptanceLegacyMarker(input, deps);
+    assert.equal(first.decision, "reauthorized");
+    assert.equal(replay.decision, "replayed");
+    assert.equal(fs.existsSync(path.join(folder, "production-acceptance-reauthorization.json")), true);
+    assert.equal(fs.existsSync(item.logicalFolder), false);
+    assert.equal(ProjectReader.getProjectFolder(item.slug, context), folder);
+  });
+
+  await scenario("legacy alias rejects wrong confirmation and marker drift before publication", async () => {
+    const item = legacyAliasFixture("uuid-denials");
+    const plan = await planProductionAcceptanceLegacyReauthorization(
+      item.slug, item.markerSha256, deps);
+    const input = { projectSlug: item.slug, sourceMarkerSha256: item.markerSha256,
+      reason: "legacy-environment-unrecoverable", reauthorizationId: plan.reauthorizationId,
+      confirmation: "0".repeat(64) };
+    await assert.rejects(reauthorizeProductionAcceptanceLegacyMarker(input, deps),
+      (error: unknown) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
+        error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_CONFIRMATION_REQUIRED");
+    fs.appendFileSync(item.markerPath, "\n");
+    await assert.rejects(reauthorizeProductionAcceptanceLegacyMarker({
+      ...input, confirmation: plan.reauthorizationId }, deps),
+    (error: unknown) => error instanceof ProductionAcceptanceLegacyReauthorizationError &&
+      error.code === "PRODUCTION_ACCEPTANCE_REAUTHORIZATION_SOURCE_HASH_MISMATCH");
+    assert.equal(fs.existsSync(path.join(item.folder, "production-acceptance-reauthorization.json")), false);
+    assert.equal(fs.existsSync(item.logicalFolder), false);
+  });
+
+  await scenario("legacy alias rejects collision before publication", async () => {
+    const collision = legacyAliasFixture("uuid-collision");
+    const second = path.join(runtimeRoot, "projects", crypto.randomUUID());
+    fs.mkdirSync(second);
+    fs.writeFileSync(path.join(second, "project.json"), JSON.stringify({
+      id: collision.slug, slug: collision.slug, title: "collision", status: "created",
+    }));
+    clearProjectFolderIndexCache();
+    await assert.rejects(planProductionAcceptanceLegacyReauthorization(
+      collision.slug, collision.markerSha256, deps),
+    (error: unknown) => error instanceof RuntimeStorageError &&
+      error.code === "RUNTIME_STORAGE_PROJECT_ROOT_AMBIGUOUS");
+    assert.equal(fs.existsSync(path.join(collision.folder, "production-acceptance-reauthorization.json")), false);
+    assert.equal(fs.existsSync(collision.logicalFolder), false);
+  });
+
   await scenario("exact replay is mutation-free", async () => {
     const item = fixture("replay");
     const plan = await planProductionAcceptanceLegacyReauthorization(item.slug, item.markerSha256, deps);
@@ -2200,7 +2269,9 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
         "src/lib/production/ProductionPipelineExecutionCanonicalRuntime.ts", "utf8");
       const policySource = fs.readFileSync(
         "src/lib/production/ProductionAcceptancePolicy.ts", "utf8");
-      assert.match(factorySource, /const completedPreparations\s*=\s*new WeakMap/);
+      assert.match(factorySource, /const completedPreparations\s*=\s*claimProcessCompletedPreparations\(\)/);
+      assert.match(factorySource, /function claimProcessCompletedPreparations\(\):\s*WeakMap</);
+      assert.match(factorySource, /existing\.value instanceof WeakMap/);
       assert.match(factorySource, /readCompletedProductionPipelinePreparation/);
       assert.doesNotMatch(factorySource, /canonicalIdentity[\s\S]{0,400}\bjobId\b/);
       assert.match(factorySource, /stage:\s*durableStage/);
@@ -2893,6 +2964,30 @@ await runWithProductionRuntimeOperationContext(mainRuntime, async () => {
   });
 
 });
+
+  await scenario("legacy alias rejects dual root before publication", async () => {
+    // mainRuntime's legacy root is the repository's data/projects; the divergent
+    // legacy copy lives in a run-owned legacy workspace instead.
+    const dualStorage = createIsolatedRuntimeStorageContext({ environment,
+      workspaceRoot: path.join(root, "legacy-workspace-uuid-dual"), authorityRoot });
+    const dualRuntime = createProductionRuntimeOperationContext({ operationId: "legacy-alias-uuid-dual",
+      operationType: "pipeline-stage-execution", authorityGeneration: initialRuntimeAuthorityGeneration,
+      storageContext: dualStorage });
+    await runWithProductionRuntimeOperationContext(dualRuntime, async () => {
+      const dual = legacyAliasFixture("uuid-dual");
+      const legacyCopy = path.join(dualStorage.legacyProjectsRoot, dual.slug);
+      const relativeCopy = path.relative(root, legacyCopy);
+      assert.ok(relativeCopy !== "" && !relativeCopy.startsWith("..") && !path.isAbsolute(relativeCopy),
+        `dual-root legacy copy escaped the run-owned workspace: ${legacyCopy}`);
+      fs.mkdirSync(legacyCopy, { recursive: true });
+      await assert.rejects(planProductionAcceptanceLegacyReauthorization(
+        dual.slug, dual.markerSha256, deps),
+      (error: unknown) => error instanceof RuntimeStorageError &&
+        error.code === "RUNTIME_STORAGE_DUAL_ROOT_DIVERGENCE");
+      assert.equal(fs.existsSync(path.join(dual.folder, "production-acceptance-reauthorization.json")), false);
+      assert.equal(fs.existsSync(path.join(process.cwd(), "data", "projects", dual.slug)), false);
+    });
+  });
 
   await scenario("runtime authority generation mismatch invalidates before provider", async () => {
     let providerCalls = 0;

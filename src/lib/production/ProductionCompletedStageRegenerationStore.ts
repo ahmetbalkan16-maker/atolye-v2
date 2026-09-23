@@ -8,7 +8,7 @@ import type {
   ProductionRegenerationPreparedReceipt,
 } from "@/types/productionRegeneration";
 import type { ProductionRegenerationFileFingerprint } from "@/types/productionRegeneration";
-import type { RuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
+import { getExistingProjectRootForWrite, type RuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
 import { regenerationDirectory, regenerationProjectFolder, regenerationRoot } from
   "./ProductionCompletedStageRegenerationPaths";
 import { canonicalProductionSecurityValue } from "./ProductionDeterminism";
@@ -340,7 +340,8 @@ export function recordRegeneratedPackageCompletion(
   const active = readActiveRegenerationBinding(projectSlug, stage, context);
   if (!active) return;
   if (!context) throw new Error("RUNTIME_STORAGE_CONTEXT_REQUIRED");
-  assertProductionRegenerationPhysicalProject(projectSlug, context, packagePath);
+  const physicalProject = getExistingProjectRootForWrite(projectSlug, context);
+  assertProductionRegenerationPhysicalProject(path.basename(physicalProject), context, packagePath);
   const bytes = fs.readFileSync(packagePath);
   const packageSha256 = sha256(bytes);
   const directory = regenerationDirectory(projectSlug, active.regenerationId, context);

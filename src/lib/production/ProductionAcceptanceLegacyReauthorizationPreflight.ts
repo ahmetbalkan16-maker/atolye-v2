@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { ProjectReader } from "@/lib/projects/ProjectReader";
 import {
   PipelineRecoveryPlanner,
   pipelineRecoveryStageOrder,
@@ -8,6 +7,7 @@ import {
 import { PipelineJobManager } from "@/lib/pipeline/PipelineJobManager";
 import {
   createRuntimeStorageContext,
+  getExistingProjectRootForWrite,
   type RuntimeStorageContext,
 } from "@/lib/runtime/RuntimeStoragePaths";
 import { getActiveProductionRuntimeOperationContext,
@@ -118,7 +118,7 @@ export async function createLegacyReauthorizationPreflight(
   }
   const runtimeRoot = realDirectory(context.runtimeRoot, projectSlug);
   const projectsRoot = realDirectory(context.projectsRoot, projectSlug);
-  const projectFolder = realDirectory(ProjectReader.getProjectFolder(projectSlug, context), projectSlug);
+  const projectFolder = realDirectory(getExistingProjectRootForWrite(projectSlug, context), projectSlug);
   if (!inside(runtimeRoot, projectsRoot) || !inside(projectsRoot, projectFolder)) {
     throw failure("PRODUCTION_ACCEPTANCE_REAUTHORIZATION_STORAGE_MISMATCH", projectSlug, "storage");
   }

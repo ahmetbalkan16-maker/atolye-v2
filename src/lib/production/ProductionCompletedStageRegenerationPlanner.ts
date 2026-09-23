@@ -10,7 +10,7 @@ import { validateProductionGlobalTerminalQuiescence } from
   "./ProductionGlobalTerminalQuiescence";
 import { readCanonicalProductionAcceptanceMarkerDescriptorBound } from
   "./ProductionAcceptanceMarkerDescriptorReader";
-import { getLogicalProjectIdentity, type RuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
+import { getExistingProjectRootForWrite, type RuntimeStorageContext } from "@/lib/runtime/RuntimeStoragePaths";
 import type { PipelineRecoveryStageKey } from "@/types/pipelineRecovery";
 import type { Project, ProjectManifest } from "@/types/project";
 import {
@@ -62,8 +62,8 @@ export async function createCompletedStageRegenerationPlan(input: {
   if (input.fromStage !== "video" && input.fromStage !== "assembly") {
     throw new ProductionRegenerationPlanError("PRODUCTION_REGENERATION_STAGE_INVALID");
   }
-  const projectFolder = ProjectReader.getProjectFolder(input.projectSlug, input.context);
-  assertProductionRegenerationPhysicalProject(input.projectSlug, input.context, projectFolder);
+  const projectFolder = getExistingProjectRootForWrite(input.projectSlug, input.context);
+  assertProductionRegenerationPhysicalProject(path.basename(projectFolder), input.context, projectFolder);
   const [project, manifest, jobs] = await Promise.all([
     ProjectReader.readJSON<Project>(input.projectSlug, "project.json", input.context),
     ProjectReader.readJSON<ProjectManifest>(input.projectSlug, "manifest.json", input.context),
@@ -138,7 +138,7 @@ export async function createCompletedStageRegenerationPlan(input: {
     invalidatedStages: closure.invalidatedStages,
     effectiveSequence: closure.effectiveSequence,
     projectAggregateFingerprint: treeAggregate(
-      resolveProjectIdentity(input.context.projectsRoot, input.projectSlug).projectId,
+      resolveProjectIdentity(input.context.projectsRoot, path.basename(projectFolder)).projectId,
       files,
     ),
     fileFingerprints: files,
