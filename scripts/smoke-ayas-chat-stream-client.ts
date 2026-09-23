@@ -129,11 +129,11 @@ async function run() {
         { type: "done", text: "ESKİ", source: "fallback", corrected: true, reason: "late-replay" },
       ]),
     });
-    assert.deepEqual(deltas, ["Doğru cevap."]);
-    assert.equal(res.ok, true);
+    assert.deepEqual(deltas, ["Doğru cevap."], "assert.deepEqual(deltas, [\"Doğru cevap.\"])");
+    assert.equal(res.ok, true, "assert.equal(res.ok, true)");
     if (res.ok) {
-      assert.equal(res.text, "Doğru cevap.");
-      assert.equal(res.corrected, false);
+      assert.equal(res.text, "Doğru cevap.", "assert.equal(res.text, \"Doğru cevap.\")");
+      assert.equal(res.corrected, false, "assert.equal(res.corrected, false)");
     }
   });
 
