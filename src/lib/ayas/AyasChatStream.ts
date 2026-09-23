@@ -256,6 +256,26 @@ function hasExplicitTopicCorrection(text: string): boolean {
   return /\b(?:hayir|degil|yanlis|yeni konu|baska konu|konuyu degistir)\b/.test(value);
 }
 
+/**
+ * A deictic reference cannot safely collapse an explicitly enumerated prior
+ * user turn into one topic. This is intentionally structural: a cardinal
+ * enumeration followed by two substantive clauses is ambiguous regardless of
+ * the domain nouns used for the alternatives.
+ */
+function hasUnresolvedMaterialReferent(input: {
+  readonly history: readonly { readonly role: BrainChatMessage["role"]; readonly text: string }[];
+  readonly resolvedReferents: readonly string[];
+}): boolean {
+  const latest = input.history.at(-1);
+  if (!latest || latest.role !== "user" || input.resolvedReferents.length === 0) return false;
+  if (!input.resolvedReferents.some((referent) => fold(referent) === fold(latest.text))) return false;
+  const enumerated = fold(latest.text).match(/\b(?:iki|uc|dort|2|3|4)\b[^:;—–-]{0,80}[:;—–-]\s*(.+)$/u)?.[1] ?? "";
+  const alternatives = enumerated
+    .split(/\s*(?:,|;|\bve\b|\bveya\b|\byahut\b)\s*/iu)
+    .filter((part) => part.trim().split(/\s+/u).length >= 2);
+  return alternatives.length >= 2;
+}
+
 function shouldPreserveActiveTopic(input: {
   readonly userText: string;
   readonly hasHistory: boolean;
@@ -707,7 +727,7 @@ function buildSafeContextFallback(input: {
   if (!focus && isLowInformationTurn(input.userText)) {
     return "Anladım.";
   }
-  if (isLowInformationTurn(input.userText) && !input.hasPendingContinuation) {
+  if (isLowInformationTurn(input.userText) && !input.hasPendingContinuation && !input.hasResolvedReference) {
     return "Anladım.";
   }
   if (!focus && !input.hasHistory && !/[?？]\s*$/.test(input.userText)) {
@@ -836,7 +856,7 @@ async function finalizeAyasReply(input: AyasFinalizationInput): Promise<AyasFina
   }
 
   const hasStaticIntentFallback =
-    (isLowInformationTurn(input.userText) && !input.hasPendingContinuation) ||
+    (isLowInformationTurn(input.userText) && !input.hasPendingContinuation && !input.resolvedReferents.length) ||
     (!input.selectedOption &&
       !input.activeTopic &&
       (!input.recentHistory.length && !/[?？]\s*$/.test(input.userText)));
@@ -893,6 +913,16 @@ export async function* streamAyasChat(
     history: input.history ?? [],
     ...(input.studio ? { studio: input.studio } : {}),
   });
+  if (hasUnresolvedMaterialReferent({ history: input.history ?? [], resolvedReferents: ctx.resolvedReferents })) {
+    yield {
+      type: "done",
+      text: "Birden fazla olası konu var; hangisini kastettiğini biraz netleştirir misin?",
+      source: "fallback",
+      corrected: true,
+      reason: "clarification-required",
+    };
+    return;
+  }
   if (ctx.clarification) {
     yield {
       type: "done",

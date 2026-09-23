@@ -281,6 +281,30 @@ async function run() {
     assert.doesNotMatch(correctedDone.text as string, /mekanik/i);
   });
 
+  await scenario("reference safety — unresolved material alternatives ask before an action is inferred", async () => {
+    for (const [history, text] of [
+      [[{ role: "user" as const, text: "İki ayrı iyileştirme var: yanıtları kısaltmak ve tonu daha doğal yapmak." }], "Onu uygula."],
+      [[{ role: "user" as const, text: "İki konu öne çıkıyor: akış hızı ve görsel tutarlılık." }], "Bunu düzelt."],
+    ] as const) {
+      const events = await collect(streamAyasChat({ text, snapshot: snap(), seq: 35, history, fetcher: mockOllamaStream([" "]) }) as never);
+      const done = events.at(-1)!;
+      assert.equal(done.source, "fallback");
+      assert.equal(done.reason, "clarification-required");
+      assert.match(done.text as string, /hangisini|neyi kastettiğini|netleştirir misin/i);
+    }
+  });
+
+  await scenario("reference safety — a later explicit assistant focus resolves earlier alternatives", async () => {
+    const history = [
+      { role: "user" as const, text: "İki ayrı iyileştirme var: yanıtları kısaltmak ve tonu daha doğal yapmak." },
+      { role: "brain" as const, text: "Önce tonu daha doğal hâle getirelim." },
+    ];
+    const events = await collect(streamAyasChat({ text: "Onu uygula.", snapshot: snap(), seq: 36, history, fetcher: mockOllamaStream([" "]) }) as never);
+    const done = events.at(-1)!;
+    assert.notEqual(done.reason, "clarification-required");
+    assert.match(done.text as string, /ton|doğal/i);
+  });
+
   await scenario("empty input → immediate fallback done, no deltas", async () => {
     const events = await collect(streamAyasChat({ text: "  ", snapshot: snap(), seq: 4, fetcher: mockOllamaStream(["x"]) }) as never);
     assert.equal(events.length, 1);
