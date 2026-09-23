@@ -8,11 +8,12 @@ import type {
   PipelineJobHistory,
   PipelineJobList,
 } from "../src/types/pipelineJob";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 
 const slug = `sprint-91-corruption-smoke-${process.pid}`;
-const projectFolder = path.join(process.cwd(), "data", "projects", slug);
-const jobsFile = path.join(projectFolder, "pipeline-jobs.json");
-const historyFile = path.join(projectFolder, "pipeline-history.json");
+let projectFolder: string;
+let jobsFile: string;
+let historyFile: string;
 const now = "2026-07-11T00:00:00.000Z";
 
 const validJob: PipelineJob = {
@@ -190,4 +191,15 @@ async function main() {
   }
 }
 
-void main();
+void withCanonicalSmokeRuntime({
+  name: "pipeline-state-corruption",
+  enterOperationContext: false,
+}, async (runtime) => {
+  projectFolder = path.join(runtime.runtimeRoot, "projects", slug);
+  jobsFile = path.join(projectFolder, "pipeline-jobs.json");
+  historyFile = path.join(projectFolder, "pipeline-history.json");
+  await main();
+}).catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

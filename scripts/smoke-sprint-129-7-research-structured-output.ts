@@ -91,6 +91,11 @@ async function main() {
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-sprint-129-7-"));
   fs.mkdirSync(path.join(workspace, "data", "projects", "smoke"), { recursive: true });
   process.chdir(workspace);
+  // Name the TEMP runtime explicitly; a workspace alone grants no write root.
+  const previousWorkspaceRoot = process.env.ATOLYE_WORKSPACE_ROOT;
+  const previousRuntimeRoot = process.env.ATOLYE_RUNTIME_ROOT;
+  process.env.ATOLYE_WORKSPACE_ROOT = workspace;
+  process.env.ATOLYE_RUNTIME_ROOT = path.join(workspace, "data");
   try {
     await test("research prompt documents trusted canonical timestamp", () => {
       const prompt = createResearchPrompt(topic);
@@ -210,6 +215,10 @@ async function main() {
     process.stdout.write(`Sprint 129.7 research structured output smoke PASS: ${passed} scenarios.\n`);
   } finally {
     process.chdir(originalCwd);
+    if (previousWorkspaceRoot === undefined) delete process.env.ATOLYE_WORKSPACE_ROOT;
+    else process.env.ATOLYE_WORKSPACE_ROOT = previousWorkspaceRoot;
+    if (previousRuntimeRoot === undefined) delete process.env.ATOLYE_RUNTIME_ROOT;
+    else process.env.ATOLYE_RUNTIME_ROOT = previousRuntimeRoot;
     fs.rmSync(workspace, { recursive: true, force: true });
   }
 }

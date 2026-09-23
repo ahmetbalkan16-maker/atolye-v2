@@ -34,9 +34,10 @@ import type {
   YouTubePublishReconciliationRequest,
   YouTubePublishReconciliationResult,
 } from "../src/types/youtubePublish";
+import { withCanonicalSmokeRuntime } from "./lib/CanonicalSmokeRuntime";
 
 const slug = `sprint-124-reconciliation-${process.pid}`;
-const root = path.resolve(process.cwd(), "data", "projects", slug);
+let root: string;
 const now = "2026-07-14T04:00:00.000Z";
 const project: Project = {
   id: `project-${process.pid}`,
@@ -767,4 +768,13 @@ function pass() {
   passed++;
 }
 
-void main();
+void withCanonicalSmokeRuntime({
+  name: "publish-reconciliation",
+  enterOperationContext: false,
+}, async (runtime) => {
+  root = path.join(runtime.runtimeRoot, "projects", slug);
+  await main();
+}).catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

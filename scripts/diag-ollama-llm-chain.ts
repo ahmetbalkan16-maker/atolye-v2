@@ -4,16 +4,35 @@
  * fell back to mock. Use it to check LLM-chain reliability without a full e2e.
  *
  *   OLLAMA_MODEL=qwen2.5:3b OLLAMA_NUM_CTX=8192 npx tsx scripts/diag-ollama-llm-chain.ts
+ *
+ * Storage isolation: the chain records AI usage for "diag-llm-chain", so every run
+ * gets its own TEMP runtime, authority and workspace root (removed on exit),
+ * whatever root variables the shell exports — the records never reach the live
+ * runtime or the repository `data/projects`.
  */
-import { AIManager } from "../src/lib/ai/AIManager";
-import { resolveOllamaConfig } from "../src/lib/ai/OllamaConfig";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 process.env.AI_PROVIDER = "ollama";
+const isolationRoot = fs.mkdtempSync(path.join(os.tmpdir(), "atolye-diag-llm-chain-"));
+for (const [key, folder] of [
+  ["ATOLYE_RUNTIME_ROOT", "runtime"],
+  ["ATOLYE_RUNTIME_AUTHORITY_ROOT", "authority"],
+  ["ATOLYE_WORKSPACE_ROOT", "workspace"],
+] as const) {
+  process.env[key] = path.join(isolationRoot, folder);
+  fs.mkdirSync(process.env[key]!);
+}
 
 const topic = process.argv[2]?.trim() || "Kanuni Sultan Süleyman";
 
 async function main() {
+  // Loaded only after the isolated roots are in place.
+  const { AIManager } = await import("../src/lib/ai/AIManager");
+  const { resolveOllamaConfig } = await import("../src/lib/ai/OllamaConfig");
   const cfg = resolveOllamaConfig();
+  console.log(`storage=${isolationRoot} (TEMP, removed on exit)`);
   console.log(`model=${cfg.model} num_ctx=${cfg.numCtx ?? "server-default"} timeoutMs=${cfg.timeoutMs}`);
 
   const t0 = Date.now();
@@ -58,7 +77,9 @@ async function main() {
   process.exitCode = allReal ? 0 : 1;
 }
 
-void main().catch((e) => {
-  console.error("FATAL:", e);
-  process.exitCode = 2;
-});
+void main()
+  .catch((e) => {
+    console.error("FATAL:", e);
+    process.exitCode = 2;
+  })
+  .finally(() => fs.rmSync(isolationRoot, { recursive: true, force: true }));

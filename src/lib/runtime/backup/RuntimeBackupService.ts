@@ -11,8 +11,6 @@ import {
   type RuntimeBackupStorageAuthority,
 } from "./RuntimeBackupAuthority";
 import {
-  runtimeBackupFormatVersion,
-  runtimeBackupFormatVersionV3,
   runtimeBackupManifestSchemaVersion,
   runtimeBackupManifestSchemaVersionV3,
   type RuntimeBackupManifest,
@@ -22,6 +20,7 @@ import {
   type RuntimeBackupVerificationReport,
 } from "./RuntimeBackupVerifier";
 import { validateRuntimeBackupMutationRelativePath } from "./RuntimeBackupPathPolicy";
+import { assertExplicitRuntimeStorageRoot } from "@/lib/runtime/RuntimeStoragePaths";
 
 export type RuntimeBackupErrorCode =
   | "RUNTIME_BACKUP_PATH_INVALID"
@@ -92,6 +91,9 @@ export function createVerifiedRuntimeBackup(
   const dependencies = decodeCreateDependencies(rawDependencies);
   const authority = request.authority;
   const context = authority.context;
+  // A backup's source must be an explicitly selected runtime root, never a
+  // cwd-inferred legacy tree silently treated as the live one.
+  assertExplicitRuntimeStorageRoot(context);
   const repositoryRoot = requireExistingAbsoluteDirectory(context.workspaceRoot);
   const backupRoot = authority.canonicalBackupRoot;
   const backupId = dependencies.backupId ??

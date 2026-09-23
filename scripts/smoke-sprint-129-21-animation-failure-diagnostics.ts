@@ -114,6 +114,8 @@ async function main() {
         env: {
           ...process.env,
           ATOLYE_12921_WORKSPACE: workspace,
+          ATOLYE_WORKSPACE_ROOT: workspace,
+          ATOLYE_RUNTIME_ROOT: path.join(workspace, "data"), // explicit run-owned write root
           OPENAI_API_KEY: "configured-for-smoke",
           TSX_TSCONFIG_PATH: path.join(repository, "tsconfig.json"),
         },

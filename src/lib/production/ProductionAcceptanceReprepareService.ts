@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { ProjectReader } from "@/lib/projects/ProjectReader";
 import {
+  assertExplicitRuntimeStorageRoot,
   createRuntimeStorageContext,
   type RuntimeStorageContext,
 } from "@/lib/runtime/RuntimeStoragePaths";
@@ -72,6 +73,8 @@ export async function reprepareProductionAcceptanceMarker(
   let originalBytes: Buffer;
   try {
     const runtimeStorageContext = createRuntimeStorageContext({ environment });
+    // The marker is written with raw file operations, outside the project write lease.
+    assertExplicitRuntimeStorageRoot(runtimeStorageContext);
     paths = await resolveSafeMarkerPaths(projectSlug, operations, runtimeStorageContext);
     originalBytes = await operations.readFile(paths.markerPath);
   } catch {

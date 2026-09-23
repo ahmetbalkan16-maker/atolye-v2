@@ -54,10 +54,21 @@ export type RuntimeStorageClassification =
   | "explicit-workspace"
   | "explicit-external";
 
+/**
+ * How the runtime root was chosen. `implicit-default`: no `ATOLYE_RUNTIME_ROOT`
+ * — `data/projects` was inferred from a workspace (whether cwd or explicitly
+ * named). Such a root stays readable for historical inspection but is never
+ * writable (`RUNTIME_STORAGE_CONTEXT_REQUIRED`); the deliberate legacy
+ * write mode is `ATOLYE_RUNTIME_ROOT=<workspace>/data` (`explicit-legacy`).
+ * Not part of any authority / resolver-binding identity.
+ */
+export type RuntimeStorageRootSelection = "explicit" | "implicit-default";
+
 export interface RuntimeStorageConfiguration {
   readonly policyVersion: typeof runtimeStoragePolicyVersion;
   readonly source: "legacy-default" | "environment";
   readonly classification: RuntimeStorageClassification;
+  readonly rootSelection: RuntimeStorageRootSelection;
   readonly workspaceRoot: string;
   readonly runtimeRoot: string;
   readonly projectsRoot: string;
@@ -95,7 +106,8 @@ export type RuntimeStorageErrorCode =
   | "RUNTIME_STORAGE_AUTHORITY_CLAIM_INVALID"
   | "RUNTIME_STORAGE_CONTEXT_INVALID"
   | "RUNTIME_STORAGE_OPERATION_CONTEXT_MISMATCH"
-  | "RUNTIME_STORAGE_PROJECT_ROOT_AMBIGUOUS";
+  | "RUNTIME_STORAGE_PROJECT_ROOT_AMBIGUOUS"
+  | "RUNTIME_STORAGE_CONTEXT_REQUIRED";
 
 export class RuntimeStorageError extends Error {
   constructor(readonly code: RuntimeStorageErrorCode) {
@@ -121,8 +133,9 @@ export function createIsolatedRuntimeStorageContext(
   options: RuntimeStorageResolutionOptions = {},
 ): RuntimeStorageContext {
   const environment = options.environment ?? process.env;
+  const namedWorkspace = options.workspaceRoot ?? environment.ATOLYE_WORKSPACE_ROOT;
   const workspaceRoot = canonicalAbsolutePath(
-    options.workspaceRoot ?? environment.ATOLYE_WORKSPACE_ROOT ?? process.cwd(),
+    namedWorkspace ?? process.cwd(),
     "RUNTIME_STORAGE_CONFIGURATION_INVALID",
   );
   const legacyProjectsRoot = getLegacyProjectsRoot(workspaceRoot);
@@ -130,6 +143,8 @@ export function createIsolatedRuntimeStorageContext(
     environment,
     runtimeStorageEnvironmentVariable,
   );
+  const rootSelection: RuntimeStorageRootSelection =
+    explicitlyConfigured ? "explicit" : "implicit-default";
 
   let source: RuntimeStorageConfiguration["source"];
   let classification: RuntimeStorageClassification;
@@ -182,6 +197,7 @@ export function createIsolatedRuntimeStorageContext(
     policyVersion: runtimeStoragePolicyVersion,
     source,
     classification,
+    rootSelection,
     workspaceRoot,
     runtimeRoot,
     projectsRoot,
@@ -278,6 +294,36 @@ export function getExistingProjectRoot(
   const context = resolveRuntimeStorageContext(input);
   const segment = resolveProjectFolderSegment(identifier, context.projectsRoot) ?? identifier;
   return getProjectRoot(segment, context);
+}
+
+/**
+ * Read-only canonical physical root of an EXISTING project, for read-side
+ * consumers that must agree exactly with the write path (backup inventory /
+ * materialization). The same folder `getExistingProjectRootForWrite` resolves —
+ * a fresh identity scan must agree on exactly one owner
+ * (`RUNTIME_STORAGE_PROJECT_ROOT_AMBIGUOUS` otherwise) — but it performs no
+ * write-authority check: no explicit-root requirement and no dual-root
+ * quarantine on the addressed identifier, because reading the configured root's
+ * folder is unambiguous even while a historical copy of the identifier sits in
+ * the legacy root. The physical folder keeps the read-path checks, so the same
+ * folder present in both roots (a true dual live root) still fails closed.
+ */
+export function getCanonicalExistingProjectRoot(
+  identifier: string,
+  input: RuntimeStorageInput = {},
+): string {
+  requireProjectSlug(identifier);
+  const context = resolveRuntimeStorageContext(input);
+  return getProjectRoot(resolveExistingProjectSegmentForWrite(context, identifier), context);
+}
+
+/**
+ * Throws `RUNTIME_STORAGE_CONTEXT_REQUIRED` unless the storage root was chosen
+ * explicitly (see `RuntimeStorageRootSelection`). Every project write-authority
+ * check applies it; raw-filesystem writers and backup creation call it directly.
+ */
+export function assertExplicitRuntimeStorageRoot(input: RuntimeStorageInput = {}): void {
+  requireExplicitRootSelection(resolveRuntimeStorageContext(input));
 }
 
 /**
@@ -631,10 +677,18 @@ export function assertPathContained(root: string, candidate: string): void {
   }
 }
 
+function requireExplicitRootSelection(context: RuntimeStorageContext) {
+  if (context.rootSelection !== "explicit") {
+    throw new RuntimeStorageError("RUNTIME_STORAGE_CONTEXT_REQUIRED");
+  }
+}
+
 function assertProjectWriteAuthorityWithContext(
   context: RuntimeStorageContext,
   slug: string,
 ) {
+  // A runtime root inferred from a workspace is never a write target.
+  requireExplicitRootSelection(context);
   validateSafeAncestorChain(context.runtimeRoot);
   validateSafeAncestorChain(context.projectsRoot);
   const projectRoot = containedPath(context.projectsRoot, slug);
@@ -658,6 +712,7 @@ function assertProjectWriteAuthorityWithContext(
  * own the identifier, or when `<identifier>/` exists without a `project.json`
  * while another folder owns it — a partial tree left by an earlier raw-slug
  * write: writing into it deepens the split, writing elsewhere diverges from reads.
+ * Read-only itself; `getCanonicalExistingProjectRoot` shares it with the write path.
  */
 function resolveExistingProjectSegmentForWrite(
   context: RuntimeStorageContext,
@@ -988,6 +1043,8 @@ function messageFor(code: RuntimeStorageErrorCode) {
       return "Runtime storage operation context does not match.";
     case "RUNTIME_STORAGE_PROJECT_ROOT_AMBIGUOUS":
       return "Runtime storage project root is ambiguous.";
+    case "RUNTIME_STORAGE_CONTEXT_REQUIRED":
+      return "Runtime storage root is not configured for writes.";
     default:
       return "Runtime storage path is invalid.";
   }

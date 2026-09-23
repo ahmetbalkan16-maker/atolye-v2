@@ -23,7 +23,9 @@ function provider(value:AIProviderResult,onCall?:(prompt:string)=>void):AIProvid
 function research(){return{topic:"x",summary:"s",historicalContext:"h",timeline:["t"],characters:[],locations:[],keyEvents:["e"],strategies:[],controversies:[],interestingFacts:[],documentaryFlow:["d"],sceneIdeas:["s"],imagePrompts:["i"],animationPrompts:[],musicIdeas:[],soundEffects:[],thumbnailIdeas:[],youtubeTitles:[],sources:["https://example.org"]}}
 function digest(root:string){const hash=createHash("sha256");const walk=(dir:string)=>fs.readdirSync(dir,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name)).forEach(e=>{const p=path.join(dir,e.name);hash.update(path.relative(root,p));if(e.isDirectory())walk(p);else hash.update(fs.readFileSync(p))});walk(root);return hash.digest("hex")}
 
-async function main(){const repo=process.cwd(),production=path.join(repo,"data","projects",slug),before=digest(production),root=fs.mkdtempSync(path.join(os.tmpdir(),"atolye-12915-")),copy=path.join(root,"data","projects",slug);fs.mkdirSync(path.dirname(copy),{recursive:true});fs.cpSync(production,copy,{recursive:true});process.chdir(root);try{
+async function main(){const repo=process.cwd(),production=path.join(repo,"data","projects",slug),before=digest(production),root=fs.mkdtempSync(path.join(os.tmpdir(),"atolye-12915-")),copy=path.join(root,"data","projects",slug);fs.mkdirSync(path.dirname(copy),{recursive:true});fs.cpSync(production,copy,{recursive:true});process.chdir(root);
+// A workspace alone grants no write root; name the run-owned TEMP runtime.
+const previousWorkspaceRoot=process.env.ATOLYE_WORKSPACE_ROOT,previousRuntimeRoot=process.env.ATOLYE_RUNTIME_ROOT;process.env.ATOLYE_WORKSPACE_ROOT=root;process.env.ATOLYE_RUNTIME_ROOT=path.join(root,"data");try{
   await test("provider payload without createdAt is valid",()=>assert.equal(validateProviderScript(script()),undefined));
   await test("provider createdAt is rejected",()=>assert(validateProviderScript(script({createdAt:"noncanonical-secret-value"}))?.issues.some(i=>i.path==="$.createdAt"&&i.reason==="UNKNOWN_FIELD")));
   await test("application adds canonical timestamp",()=>assert.equal(parseStrictScriptResponse(JSON.stringify(script()),()=>stamp).createdAt,stamp));
@@ -64,5 +66,5 @@ async function main(){const repo=process.cwd(),production=path.join(repo,"data",
   await test("package policy remains not ready unpublished",()=>assert(marker?.productionReady===false&&marker.published===false&&marker.publishMode==="package-only"));
   await test("real runtime remains byte-for-byte unchanged",()=>assert.equal(digest(production),before));
   assert.equal(passed,29);process.stdout.write(`Sprint 129.15 script timestamp smoke PASS: ${passed} scenarios.\n`)
-}finally{process.chdir(repo);fs.rmSync(root,{recursive:true,force:true})}}
+}finally{process.chdir(repo);if(previousWorkspaceRoot===undefined)delete process.env.ATOLYE_WORKSPACE_ROOT;else process.env.ATOLYE_WORKSPACE_ROOT=previousWorkspaceRoot;if(previousRuntimeRoot===undefined)delete process.env.ATOLYE_RUNTIME_ROOT;else process.env.ATOLYE_RUNTIME_ROOT=previousRuntimeRoot;fs.rmSync(root,{recursive:true,force:true})}}
 void main().catch(e=>{process.stderr.write(`Sprint 129.15 smoke FAILED: ${e instanceof Error?e.message:"unknown"}\n`);process.exitCode=1});

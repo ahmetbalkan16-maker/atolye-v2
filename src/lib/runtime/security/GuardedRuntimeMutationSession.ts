@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import {
   assertPathContained,
   ensureSafeDirectory,
-  getExistingProjectRootForWrite,
+  getCanonicalExistingProjectRoot,
   type RuntimeStorageContext,
 } from "@/lib/runtime/RuntimeStoragePaths";
 import {
@@ -144,13 +144,18 @@ export class GuardedRuntimeFilesystem {
   ): AtomicRuntimeBackupCreateResult {
     const decodedRequest = decodeAtomicCreateRequest(request);
     assertAtomicCreateRoots(this.protectedRoots, decodedRequest);
+    // Git metadata describes an in-repository runtime tree only: an external
+    // runtime root is outside the repository and not under version control.
+    const gitRepositoryRoot = decodedRequest.context.classification === "explicit-external"
+      ? undefined
+      : decodedRequest.repositoryRoot;
     const createdAt = new Date().toISOString();
     const partialRelative = `.p-${randomUUID().replace(/-/g, "").slice(0, 8)}`;
     const finalRelative = `backups/${decodedRequest.backupId}`;
     const inventoryManifest = collectRuntimeBackupInventory({
       context: decodedRequest.context,
       projectSlug: decodedRequest.projectSlug,
-      repositoryRoot: decodedRequest.repositoryRoot,
+      repositoryRoot: gitRepositoryRoot,
       now: () => createdAt,
     });
     const manifest = createV3Manifest(
@@ -168,7 +173,7 @@ export class GuardedRuntimeFilesystem {
     const sourceBefore = collectRuntimeBackupInventory({
       context: decodedRequest.context,
       projectSlug: decodedRequest.projectSlug,
-      repositoryRoot: decodedRequest.repositoryRoot,
+      repositoryRoot: gitRepositoryRoot,
       now: () => createdAt,
     });
     assertExactInventory(sourceBefore, inventoryManifest);
@@ -201,7 +206,7 @@ export class GuardedRuntimeFilesystem {
       for (const file of manifest.files) {
         if (file.projectSlug && !physicalFolders.has(file.projectSlug)) {
           physicalFolders.set(file.projectSlug, path.basename(
-            getExistingProjectRootForWrite(file.projectSlug, decodedRequest.context)));
+            getCanonicalExistingProjectRoot(file.projectSlug, decodedRequest.context)));
         }
       }
       for (const file of manifest.files) {
@@ -232,7 +237,7 @@ export class GuardedRuntimeFilesystem {
       const sourceAfter = collectRuntimeBackupInventory({
         context: decodedRequest.context,
         projectSlug: decodedRequest.projectSlug,
-        repositoryRoot: decodedRequest.repositoryRoot,
+        repositoryRoot: gitRepositoryRoot,
         now: () => createdAt,
       });
       assertExactInventory(sourceAfter, inventoryManifest);

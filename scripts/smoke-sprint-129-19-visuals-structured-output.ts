@@ -67,6 +67,8 @@ async function main() {
         env: {
           ...process.env,
           ATOLYE_12919_WORKSPACE: workspace,
+          ATOLYE_WORKSPACE_ROOT: workspace,
+          ATOLYE_RUNTIME_ROOT: path.join(workspace, "data"), // explicit run-owned write root
           ATOLYE_12919_REPO: repo,
           TSX_TSCONFIG_PATH: path.join(repo, "tsconfig.json"),
         },

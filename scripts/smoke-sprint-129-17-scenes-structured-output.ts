@@ -100,6 +100,11 @@ async function main() {
   const researchBefore = fs.readFileSync(path.join(copy, "research.json"));
   const scriptBefore = fs.readFileSync(path.join(copy, "script.json"));
   process.chdir(workspace);
+  // Name the TEMP runtime explicitly; a workspace alone grants no write root.
+  const previousWorkspaceRoot = process.env.ATOLYE_WORKSPACE_ROOT;
+  const previousRuntimeRoot = process.env.ATOLYE_RUNTIME_ROOT;
+  process.env.ATOLYE_WORKSPACE_ROOT = workspace;
+  process.env.ATOLYE_RUNTIME_ROOT = path.join(workspace, "data");
   try {
     await test("canonical scenes JSON succeeds", () => assert.equal(validateProviderScenes(scenes(), script()), undefined));
     await test("missing top-level field has exact path", () => issue({}, "$.scenes", "MISSING_REQUIRED_FIELD"));
@@ -206,6 +211,10 @@ async function main() {
     process.stdout.write(`Sprint 129.17 scenes structured output smoke PASS: ${passed} scenarios.\n`);
   } finally {
     process.chdir(repo);
+    if (previousWorkspaceRoot === undefined) delete process.env.ATOLYE_WORKSPACE_ROOT;
+    else process.env.ATOLYE_WORKSPACE_ROOT = previousWorkspaceRoot;
+    if (previousRuntimeRoot === undefined) delete process.env.ATOLYE_RUNTIME_ROOT;
+    else process.env.ATOLYE_RUNTIME_ROOT = previousRuntimeRoot;
     fs.rmSync(workspace, { recursive: true, force: true });
   }
 }

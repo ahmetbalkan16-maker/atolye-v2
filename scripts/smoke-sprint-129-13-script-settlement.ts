@@ -41,6 +41,8 @@ async function fixtureProject(label: string) { const project=await ProjectManage
 async function main() {
   const repository=process.cwd(),productionFolder=ProjectReader.getProjectFolder(productionSlug),runtimeHashBefore=hashTree(productionFolder),workspace=fs.mkdtempSync(path.join(os.tmpdir(),"atolye-sprint-129-13-"));
   fs.mkdirSync(path.join(workspace,"data","projects"),{recursive:true});fs.cpSync(productionFolder,path.join(workspace,"data","projects",productionSlug),{recursive:true});process.chdir(workspace);
+  // A workspace alone grants no write root; name the run-owned TEMP runtime.
+  const previousWorkspaceRoot=process.env.ATOLYE_WORKSPACE_ROOT,previousRuntimeRoot=process.env.ATOLYE_RUNTIME_ROOT;process.env.ATOLYE_WORKSPACE_ROOT=workspace;process.env.ATOLYE_RUNTIME_ROOT=path.join(workspace,"data");
   try {
     await test("script default is stage-specific",()=>assert.equal(getScriptMaxTokens(env()),3200));
     await test("research budget does not affect script",()=>assert.equal(getScriptMaxTokens(env({OPENAI_RESEARCH_MAX_TOKENS:"4800"})),3200));
@@ -96,6 +98,6 @@ async function main() {
     await test("scenes success leaves visuals as the first recovery stage",()=>assert.equal(recovery.stagesToRun[0],"visuals"));
     await test("real production runtime is unchanged",()=>assert.equal(hashTree(productionFolder),runtimeHashBefore));
     assert.equal(passed,42);assert.equal(getResearchMaxTokens(env()),3200);process.stdout.write(`Sprint 129.13 script budget and settlement smoke PASS: ${passed} scenarios.\n`);
-  } finally { process.chdir(repository);fs.rmSync(workspace,{recursive:true,force:true}); }
+  } finally { process.chdir(repository);if(previousWorkspaceRoot===undefined)delete process.env.ATOLYE_WORKSPACE_ROOT;else process.env.ATOLYE_WORKSPACE_ROOT=previousWorkspaceRoot;if(previousRuntimeRoot===undefined)delete process.env.ATOLYE_RUNTIME_ROOT;else process.env.ATOLYE_RUNTIME_ROOT=previousRuntimeRoot;fs.rmSync(workspace,{recursive:true,force:true}); }
 }
 void main().catch(error=>{process.stderr.write(`Sprint 129.13 smoke FAILED: ${error instanceof Error?error.message:"unknown"}\n`);process.exitCode=1});

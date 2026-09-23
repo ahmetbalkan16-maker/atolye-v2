@@ -5,7 +5,8 @@ import { execFileSync } from "node:child_process";
 import { isRuntimeTransientExcludedRelativePath } from "@/lib/runtime/RuntimeTransientArtifactPolicy";
 import {
   assertPathContained,
-  getExistingProjectRootForWrite,
+  getCanonicalExistingProjectRoot,
+  getProjectRoot,
   requireContainedRealDirectory,
   resolveRuntimeStorageContext,
   runtimeStoragePolicyVersion,
@@ -110,6 +111,13 @@ function collectRuntimeBackupInventoryWithPolicy(
   const scanRoot = options.projectSlug
     ? projectScanRoot(context, projectsRoot, options.projectSlug)
     : projectsRoot;
+  if (!options.projectSlug) {
+    // A whole-runtime scan otherwise walks physical folders directly and could
+    // miss the same-folder dual-root check applied by project-scoped inventory.
+    for (const entry of fs.readdirSync(projectsRoot, { withFileTypes: true })) {
+      if (entry.isDirectory()) getProjectRoot(entry.name, context);
+    }
+  }
   const git = options.repositoryRoot
     ? collectGitMetadata(options.repositoryRoot, projectsRoot)
     : undefined;
@@ -400,7 +408,8 @@ function projectScanRoot(
   if (!/^[a-zA-Z0-9-_]+$/.test(slug)) {
     throw new Error("Runtime backup project identity is invalid.");
   }
-  const target = getExistingProjectRootForWrite(slug, context);
+  // Read-only canonical resolution: inventory never needs write authority.
+  const target = getCanonicalExistingProjectRoot(slug, context);
   assertPathContained(projectsRoot, target);
   requireContainedRealDirectory(context.projectsRoot, target);
   return target;
