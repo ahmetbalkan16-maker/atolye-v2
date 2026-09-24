@@ -1,5 +1,13 @@
 ---
 
+## 2026-09-24 — AYAS Security / Supply-Chain Defense (Stage 9)
+
+- Audited actual AYAS trust paths and package lock/install scripts. No dependency was installed or upgraded. Live `npm audit` metadata transfer was rejected by automatic approval review; offline cached advisory result and its limit are documented.
+- Closed four reproduced security boundaries: bounded writes now refuse symlink/junction components and replace file entries atomically; tool IDs use own-key allowlists; source reads refuse linked paths; chat/intake JSON is limited while streaming even without `Content-Length`.
+- Clean `2397edf` TEMP baseline 13/17 improved to 17/17 security cases (held-out 5/7 → 7/7), plus isolated source-read 0/1 → 1/1 and oversized-body 0/2 → 2/2. Relevant Stage 8, approval, tool, fetch, patch and trace regressions passed with no test mutation of live runtime/authority/legacy data. See `docs/AYAS_SECURITY_SUPPLY_CHAIN.md`.
+
+---
+
 ## 2026-09-24 — AYAS Research → Improvement Learning Loop (Stage 8)
 
 - Recovered Claude's 16 uncommitted Stage 8 files without resetting the repository. Added bounded finding classification, local gap measurement, explicit hypotheses, durable reservations and evidence, disposable benchmark experiments and owner-reviewable proposal binding.

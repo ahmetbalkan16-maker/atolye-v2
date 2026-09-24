@@ -5,6 +5,7 @@ import {
   verifySession,
 } from "@/lib/auth/accessGate";
 import { createAyasIntentLedger } from "@/lib/ayas/intake/AyasIntentLedger";
+import { readAyasBoundedJsonBody } from "@/lib/ayas/security/AyasBoundedRequestBody";
 import type { AyasQueuedIntent } from "@/lib/ayas/intake/AyasIntentPipeline";
 
 /**
@@ -66,12 +67,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "payload_too_large" }, { status: 413 });
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
-  }
+  const parsed = await readAyasBoundedJsonBody(request, MAX_BODY_BYTES);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.reason }, { status: parsed.reason === "payload_too_large" ? 413 : 400 });
+  const body = parsed.value;
   const intents = (body as { intents?: unknown })?.intents;
   if (!Array.isArray(intents)) {
     return NextResponse.json(

@@ -231,7 +231,7 @@ export function validateAyasExecutionRequest(raw: unknown): AyasExecutionValidat
       detail: `"${action}" is reserved and not enabled — needs its own gated sprint`,
     };
   }
-  if (!(action in AYAS_EXECUTION_ALLOWLIST)) {
+  if (!Object.prototype.hasOwnProperty.call(AYAS_EXECUTION_ALLOWLIST, action)) {
     return { ok: false, reason: "unknown-action", detail: `"${action}" is not on the allowlist` };
   }
   const spec = AYAS_EXECUTION_ALLOWLIST[action as AyasExecutionActionId];

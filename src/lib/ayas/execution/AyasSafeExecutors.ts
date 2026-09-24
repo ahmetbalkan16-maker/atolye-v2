@@ -125,6 +125,21 @@ const DOCUMENT_PATHS: Readonly<Record<string, string>> = Object.freeze({
 });
 const MAX_DOCUMENT_CHARS = 6_000;
 
+function denyLinkedRepositoryPath(relativePath: string): void {
+  let cursor = REPO_ROOT;
+  for (const segment of relativePath.split("/")) {
+    cursor = path.join(cursor, segment);
+    try {
+      if (fs.lstatSync(cursor).isSymbolicLink()) {
+        throw new AyasActionValidationError("path-denied", "bağlantılı depo yolu okunamaz");
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+      throw error;
+    }
+  }
+}
+
 const ALLOWED_SOURCE_ROOTS: readonly string[] = Object.freeze(["src/", "scripts/", "app/"]);
 const ALLOWED_SOURCE_EXTENSIONS: ReadonlySet<string> = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".md", ".json"]);
 /** Belt-and-suspenders on top of the strict root allowlist below. */
@@ -152,11 +167,12 @@ function truncateContent(content: string, maxChars: number): { content: string; 
  */
 async function readProjectDocument(request: AyasExecutionRequest): Promise<AyasExecutorResult> {
   const documentId = planField(request, "documentId");
-  if (typeof documentId !== "string" || !(documentId in DOCUMENT_PATHS)) {
+  if (typeof documentId !== "string" || !Object.prototype.hasOwnProperty.call(DOCUMENT_PATHS, documentId)) {
     throw new AyasActionValidationError("unknown-document", `bilinmeyen belge kimliği: ${String(documentId)}`);
   }
   const relPath = DOCUMENT_PATHS[documentId]!;
   const absPath = path.join(REPO_ROOT, relPath);
+  denyLinkedRepositoryPath(relPath);
 
   let raw: string;
   try {
@@ -225,6 +241,7 @@ async function inspectSourceFile(request: AyasExecutionRequest): Promise<AyasExe
   if (!isPathWithinRoot(absPath, REPO_ROOT)) {
     throw new AyasActionValidationError("path-traversal", "çözümlenen yol depo kökünün dışında");
   }
+  denyLinkedRepositoryPath(normalized);
 
   let stat: fs.Stats;
   try {
@@ -385,5 +402,5 @@ const EXECUTORS: Readonly<Record<AyasExecutionActionId, AyasExecutor>> = Object.
 });
 
 export function resolveAyasExecutor(action: AyasExecutionActionId): AyasExecutor | undefined {
-  return EXECUTORS[action];
+  return Object.prototype.hasOwnProperty.call(EXECUTORS, action) ? EXECUTORS[action] : undefined;
 }

@@ -1,5 +1,17 @@
 ---
 
+## AYAS Security / Supply-Chain Defense — Stage 9 — 2026-09-24
+
+- [x] Inventory package, model, tool, skill, MCP, agent, research, command, path, sandbox, patch, secret, trace and AYAS API trust boundaries; document concrete threats in `docs/AYAS_SECURITY_SUPPLY_CHAIN.md`.
+- [x] Fix four demonstrated boundaries: symlink/junction writer escape, inherited object-key tool IDs, linked source-reader disclosure and unadvertised oversized chat/intake JSON bodies. Preserve owner and execution authority.
+- [x] Same security evaluator on clean `2397edf` archive and final source: 13/17 → 17/17, held-out 5/7 → 7/7; isolated source read 0/1 → 1/1; oversized body 0/2 → 2/2. Stage 8 and relevant authority, patch, tool, fetch, API and trace regressions pass; runtime/test mutation none.
+- [x] Audit lockfile and install scripts without package changes. Offline `npm audit` reports zero cached advisories; live audit remains unavailable because automatic approval review rejected transfer of package metadata to the npm registry.
+- [ ] Follow-up: pin/verify browser phone-model artifact revisions, review native install downloads on each dependency update, and run a current live advisory lookup only with explicit owner authorization for metadata transfer. These are documented limitations, not Stage 10/10A work.
+
+**Next roadmap stage: 10 — Codex Skill + Developer Intelligence.**
+
+---
+
 ## AYAS Research → Improvement Learning Loop — Stage 8 — 2026-09-24
 
 - [x] Preserve Claude's uncommitted implementation; connect finding relevance and novelty to a current-HEAD, non-held-out local quality gap and an explicit, bounded hypothesis.

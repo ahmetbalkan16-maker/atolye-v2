@@ -12,6 +12,7 @@ import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSn
 import { loadAyasStudioContext } from "@/lib/ayas/AyasStudioContext";
 import { loadAyasProductBrainContext } from "@/lib/ayas/AyasProductBrain";
 import { streamAyasChat, ayasChatStreamEventToSse } from "@/lib/ayas/AyasChatStream";
+import { readAyasBoundedJsonBody } from "@/lib/ayas/security/AyasBoundedRequestBody";
 import { ayasTraceSessionScope, startAyasTrace, type AyasTraceHandle, type AyasTraceSpanHandle, type AyasTraceStatus } from "@/lib/ayas/trace/AyasUnifiedTrace";
 import { AyasGuidedRepairSessionRuntime, type AyasGuidedRepairDurability } from "@/lib/ayas/execution/AyasGuidedRepairSessionRuntime";
 import { createAyasProductionRepairDeps } from "@/lib/ayas/execution/AyasGuidedRepairProduction";
@@ -79,12 +80,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     return NextResponse.json({ error: "payload_too_large" }, { status: 413 });
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
-  }
+  const parsed = await readAyasBoundedJsonBody(request, MAX_BODY_BYTES);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.reason }, { status: parsed.reason === "payload_too_large" ? 413 : 400 });
+  const body = parsed.value;
   const b = (body ?? {}) as { text?: unknown; history?: unknown; seq?: unknown };
   const text = typeof b.text === "string" ? b.text.trim() : "";
   if (!text || text.length > MAX_TEXT) {

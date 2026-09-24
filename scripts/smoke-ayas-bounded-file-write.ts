@@ -86,6 +86,26 @@ async function main() {
     }), /validation failed/);
     assert.equal(fs.readFileSync(path.join(r, "src/fixture.ts"), "utf8"), "raced\n", "assert.equal(fs.readFileSync(path.join(r, \"src/fixture.ts\"), \"utf8\"), \"raced\\n\")");
   });
+  await scenario("second-file commit failure rolls back the first file", async () => {
+    const r = root(); fs.mkdirSync(path.join(r, "src"));
+    fs.writeFileSync(path.join(r, "src/a.ts"), "a-old\n");
+    fs.writeFileSync(path.join(r, "src/b.ts"), "b-old\n");
+    const original = fs.renameSync;
+    let calls = 0;
+    (fs as { renameSync: typeof fs.renameSync }).renameSync = ((from, to) => {
+      calls += 1;
+      if (calls === 2) throw new Error("injected second-file commit failure");
+      return original(from, to);
+    }) as typeof fs.renameSync;
+    try {
+      await assert.rejects(applyAyasBoundedFileReplacements(r, ["src/"], [
+        { filePath: "src/a.ts", expectedHash: hash("a-old\n"), content: "a-new\n" },
+        { filePath: "src/b.ts", expectedHash: hash("b-old\n"), content: "b-new\n" },
+      ], async () => undefined), /injected second-file commit failure/);
+    } finally { (fs as { renameSync: typeof fs.renameSync }).renameSync = original; }
+    assert.equal(fs.readFileSync(path.join(r, "src/a.ts"), "utf8"), "a-old\n");
+    assert.equal(fs.readFileSync(path.join(r, "src/b.ts"), "utf8"), "b-old\n");
+  });
 
   console.log(`AYAS bounded file write smoke: PASS (${count} scenarios)`);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-bounded-file-write", scenarios: count }));

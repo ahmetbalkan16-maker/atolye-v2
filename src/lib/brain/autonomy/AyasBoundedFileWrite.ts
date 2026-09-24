@@ -45,6 +45,19 @@ export interface AyasBoundedWriteOutcome {
 
 const textHash = (value: string): string => crypto.createHash("sha256").update(value, "utf8").digest("hex");
 
+function replaceFileAtomically(abs: string, content: string): void {
+  const temporary = path.join(path.dirname(abs), `.${path.basename(abs)}.ayas-${crypto.randomUUID()}.tmp`);
+  try {
+    const mode = fs.existsSync(abs) ? fs.statSync(abs).mode : 0o600;
+    fs.writeFileSync(temporary, content, { encoding: "utf8", flag: "wx", mode });
+    // Replacing the directory entry does not follow a leaf symlink introduced
+    // between the path check and commit; direct writeFileSync would follow it.
+    fs.renameSync(temporary, abs);
+  } finally {
+    try { fs.rmSync(temporary, { force: true }); } catch { /* preserve the original failure */ }
+  }
+}
+
 /**
  * Resolves `filePath` (relative to `repoRoot`) and rejects traversal,
  * absolute paths, null bytes, and any denied segment — the caller supplies
@@ -59,7 +72,28 @@ export function resolveAyasBoundedPath(repoRoot: string, filePath: string, allow
   if (!allowedRoots.some((root) => n.startsWith(root))) {
     throw new AyasBoundedFileWriteError("AYAS_BOUNDED_WRITE_PATH_OUTSIDE_ALLOWLIST", `path outside allowlist: ${filePath}`);
   }
-  return path.resolve(repoRoot, n);
+  const root = path.resolve(repoRoot);
+  const resolved = path.resolve(root, n);
+  // A lexical allowlist is insufficient: an existing source directory may
+  // be a symlink/junction to another tree. Reject every existing component,
+  // including the leaf, before either reading a precondition or writing.
+  const realRoot = fs.realpathSync(root);
+  let cursor = root;
+  for (const segment of n.split("/")) {
+    cursor = path.join(cursor, segment);
+    let stat: fs.Stats;
+    try { stat = fs.lstatSync(cursor); }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") break;
+      throw error;
+    }
+    const real = fs.realpathSync(cursor);
+    const relative = path.relative(realRoot, real);
+    if (stat.isSymbolicLink() || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+      throw new AyasBoundedFileWriteError("AYAS_BOUNDED_WRITE_PATH_DENIED", `linked or escaped path denied: ${filePath}`);
+    }
+  }
+  return resolved;
 }
 
 /**
@@ -87,11 +121,17 @@ export async function applyAyasBoundedFileReplacements<T>(
     if (!exists && replacement.expectedHash !== null) throw new AyasBoundedFileWriteError("AYAS_BOUNDED_WRITE_NEW_FILE_MUST_USE_NULL_PRECONDITION", `new file must use null precondition: ${replacement.filePath}`);
     before.push({ abs, old, replacement });
   }
-  for (const item of before) {
-    fs.mkdirSync(path.dirname(item.abs), { recursive: true });
-    fs.writeFileSync(item.abs, item.replacement.content, "utf8");
-  }
+  const written: typeof before = [];
   try {
+    for (const item of before) {
+      // Recheck after preflight; a linked component introduced while the other
+      // replacement hashes were read must not become a write target.
+      resolveAyasBoundedPath(repoRoot, item.replacement.filePath, allowedRoots);
+      fs.mkdirSync(path.dirname(item.abs), { recursive: true });
+      resolveAyasBoundedPath(repoRoot, item.replacement.filePath, allowedRoots);
+      replaceFileAtomically(item.abs, item.replacement.content);
+      written.push(item);
+    }
     const outcomes: readonly AyasBoundedWriteOutcome[] = before.map((item) => ({
       filePath: item.replacement.filePath,
       beforeHash: item.old === null ? null : textHash(item.old),
@@ -99,12 +139,13 @@ export async function applyAyasBoundedFileReplacements<T>(
     }));
     return await after(outcomes);
   } catch (error) {
-    for (let i = before.length - 1; i >= 0; i--) {
-      const item = before[i]!;
+    for (let i = written.length - 1; i >= 0; i--) {
+      const item = written[i]!;
       try {
+        resolveAyasBoundedPath(repoRoot, item.replacement.filePath, allowedRoots);
         const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, "utf8") : null;
         if (current !== item.replacement.content) continue; // someone else already changed it further — do not clobber
-        if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, "utf8");
+        if (item.old === null) fs.rmSync(item.abs, { force: true }); else replaceFileAtomically(item.abs, item.old);
       } catch { /* fail closed; caller's own journal records the failure */ }
     }
     throw error;
