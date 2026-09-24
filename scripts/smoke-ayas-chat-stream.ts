@@ -132,6 +132,19 @@ function promptFromCapturedBody(body: string): string {
 }
 
 async function run() {
+  await scenario("fresh external facts fail closed when research lookup has no executor", async () => {
+    const bodies: string[] = [];
+    const events = await collect(streamAyasChat({
+      text: "Bugünün güncel dış haberlerini araştır", snapshot: snap(), seq: 0,
+      fetcher: capturingMockOllamaStream(["Eski bilgimden bir haber uyduruyorum."], bodies),
+    }) as never);
+    const done = events.at(-1)!;
+    assert.equal(done.source, "fallback");
+    assert.equal(done.reason, "required-fresh-tool-unavailable");
+    assert.match(done.text as string, /doğrulayan bir araç.*kullanılamıyor/i);
+    assert.equal(bodies.length, 0, "no model completion may stand in for required fresh evidence");
+  });
+
   await scenario("prompt — streaming uses format:text (no { reply } envelope)", async () => {
     const p = buildAyasChatPrompt({ userText: "selam", snapshot: snap(), history: [], format: "text" });
     assert.ok(!p.includes('{ "reply":'), "text-mode prompt must not ask for the JSON envelope");

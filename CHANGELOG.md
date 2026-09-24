@@ -1,5 +1,13 @@
 ---
 
+## 2026-09-24 — AYAS Agentic Tool / Skill / Model Intelligence (Stage 7)
+
+- Added an advisory, deterministic capability inventory and task-requirement selector using the real read-only allowlist, health-probed local model, and explicit skill/agent registration evidence. Unknown-cost cloud, placeholder web lookup, unregistered skills and absent Claude/Codex adapters never appear as live executable capability.
+- Chat now refuses explicitly fresh external answers without a real lookup and uses the existing read-only executor for structurally identified Git status and a single named Markdown source. A write request cannot dispatch a model-named read tool. Approval, execution and publication authority remain in their existing gates.
+- The same 41-case evaluator on a clean `7814868` TEMP archive and final code improved 12/41 to 41/41; five reserved cases improved 0/5 to 5/5. Model routing stayed 41/41. Relevant regressions, TypeScript, changed-file lint, Graphify and data integrity are documented in `docs/AYAS_AGENTIC_INTELLIGENCE.md`.
+
+---
+
 ## 2026-09-24 — AYAS Cognitive Self-Improvement & Answer Quality
 
 - Added an OS-TEMP-only deterministic 55-case evaluator across 17 quality dimensions and five held-out cases, with advisory failure taxonomy and bounded improvement evidence. The same evaluator on clean `f1c8e8a` and final code improves 46/55 to 53/55; unexpected failures fall from 7 to 0.

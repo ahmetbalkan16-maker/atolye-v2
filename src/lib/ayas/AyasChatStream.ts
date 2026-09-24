@@ -38,6 +38,7 @@ import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import { resolveOllamaConfig } from "@/lib/ai/OllamaConfig";
 import type { AyasTraceHandle, AyasTraceSpanHandle, AyasTraceStatus } from "./trace/AyasUnifiedTrace";
 import { routeAyasModel, type AyasModelRoute } from "./model/AyasModelRouter";
+import { selectAyasAgenticRoute } from "./routing/AyasAgenticRouting";
 import type { AyasModelProvider, AyasModelProviderId, AyasChatComplexity } from "./model/AyasModelTypes";
 import { assembleAyasContext } from "./context/AyasContextAssembly";
 import { deriveAyasConversationState } from "./context/AyasConversationState";
@@ -610,18 +611,30 @@ export function resolveDeterministicToolCandidate(userText: string): AyasDetermi
  */
 async function attemptAyasToolDispatch(input: {
   readonly userText: string;
+  readonly selectedToolId?: string | null;
+  readonly selectionBlocksToolDispatch: boolean;
   readonly requiredTools: readonly string[];
   readonly toolInput: AyasToolInputHint | undefined;
   readonly intent: string;
   readonly activeProjectSlug: string | null;
 }): Promise<AyasToolDispatchAttempt | null> {
+  if (input.selectionBlocksToolDispatch) return null;
   if (hasMultipleAyasFilePathMentions(input.userText)) return null;
   const deterministic = resolveDeterministicToolCandidate(input.userText);
+  const selectedPath = input.selectedToolId === "inspect-source-file" ? extractAyasFilePathMention(input.userText) : null;
   let toolId: AyasExecutionActionId;
   let toolInput: AyasToolInputHint | undefined;
   if (deterministic) {
     toolId = deterministic.action;
     toolInput = deterministic.toolInput;
+  } else if (input.selectedToolId === "inspect-repository-status") {
+    // A structural, exact read-only recommendation. The ordinary allowlist,
+    // request validator and executor still own the authority boundary below.
+    toolId = "inspect-repository-status";
+    toolInput = {};
+  } else if (selectedPath) {
+    toolId = "inspect-source-file";
+    toolInput = { filePath: selectedPath };
   } else {
     if (input.requiredTools.length !== 1) return null;
     const candidate = input.requiredTools[0]!;
@@ -1089,6 +1102,17 @@ async function* streamAyasChatTurn(
   // `null` only when the router itself threw; a route without a provider is an ordinary fallback.
   routingSpan?.end(route === null ? "error" : route.provider ? "ok" : "fallback", undefined, route === null ? "MODEL_ROUTE_FAILURE" : undefined);
   const complexity = route?.decision.complexity;
+  const agentic = selectAyasAgenticRoute({
+    text,
+    availableModelIds: route?.decision.providerId === "ollama" && route.provider ? ["ollama"] : [],
+  });
+  const selectionSpan = trace?.startSpan("tool", "ayas-route", "route-turn", conversationSpan?.spanId);
+  selectionSpan?.end(
+    agentic.requirement.requiresFreshExternalEvidence && agentic.selectedToolId === null ? "denied" : "ok",
+    { candidateCount: agentic.candidateCounts.tool + agentic.candidateCounts.skill + agentic.candidateCounts.model + agentic.candidateCounts.agent,
+      selectedCount: Number(Boolean(agentic.selectedToolId)) + Number(Boolean(agentic.selectedSkillId)) + Number(Boolean(agentic.selectedModelId)) + 1 },
+    agentic.requirement.requiresFreshExternalEvidence && agentic.selectedToolId === null ? "REQUIRED_TOOL_UNAVAILABLE" : undefined,
+  );
 
   if (!route || !route.provider) {
     conversationSpan?.end("fallback");
@@ -1137,6 +1161,18 @@ async function* streamAyasChatTurn(
     return;
   }
   const providerId = route.decision.providerId!;
+
+  // There is no live, user-request research lookup executor. A fresh external
+  // fact cannot be silently answered from Ollama's internal knowledge.
+  if (agentic.requirement.requiresFreshExternalEvidence && agentic.selectedToolId === null) {
+    conversationSpan?.end("denied", undefined, "REQUIRED_TOOL_UNAVAILABLE");
+    yield {
+      type: "done", text: "Güncel dış kaynakları doğrulayan bir araç şu an kullanılamıyor; bu konuda güncel bir yanıt veremem.",
+      source: "fallback", corrected: true, reason: "required-fresh-tool-unavailable",
+      provider: providerId, complexity: route.decision.complexity,
+    };
+    return;
+  }
 
   // Phase B — deterministic conversation context (state + reference resolution +
   // older-turn compression). Phase C — recalled long-term memory (top-K, safe).
@@ -1237,6 +1273,8 @@ async function* streamAyasChatTurn(
     try {
       dispatch = await attemptAyasToolDispatch({
         userText: text,
+        selectedToolId: agentic.selectedToolId,
+        selectionBlocksToolDispatch: agentic.requirement.mutation || agentic.requirement.ambiguous,
         requiredTools: outcome.result.requiredTools,
         toolInput: outcome.result.toolInput,
         intent: outcome.result.intent,

@@ -931,6 +931,44 @@ async function run() {
     assert.equal(provider.prompts.length, 1, "no grounding call when dispatch correctly deferred");
   });
 
+  await scenario("AGENTIC ROUTING — a write request cannot dispatch a model-named read tool", async () => {
+    const provider = mockProviderSequence([
+      okJson({ requiredTools: ["inspect-source-file"], toolInput: { filePath: "src/lib/ayas/execution/AyasExecutionPolicy.ts" }, answer: "Bu işlem için onay gerekir." }),
+    ]);
+    const events: { type: string; actionTrace?: unknown }[] = [];
+    for await (const e of streamAyasChat({
+      text: "src/lib/ayas/execution/AyasExecutionPolicy.ts dosyasını değiştir",
+      snapshot, seq: 1,
+      route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) events.push(e as never);
+    assert.equal(events.at(-1)?.actionTrace, undefined);
+    assert.equal(provider.prompts.length, 1, "no tool dispatch or grounding call on a mutation request");
+  });
+
+  await scenario("AGENTIC ROUTING — explicit git status dispatches the existing read-only executor", async () => {
+    const provider = mockProviderSequence([okJson({ requiredTools: [], answer: "Durumu kontrol etmeliyim." }), "Git durumu okundu."]);
+    const events: { type: string; actionTrace?: { tool: string; executed: boolean } }[] = [];
+    for await (const e of streamAyasChat({
+      text: "Git durumunu kontrol et", snapshot, seq: 1,
+      route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) events.push(e as never);
+    assert.equal(events.at(-1)?.actionTrace?.tool, "inspect-repository-status");
+    assert.equal(events.at(-1)?.actionTrace?.executed, true);
+    assert.equal(provider.prompts.length, 2);
+  });
+
+  await scenario("AGENTIC ROUTING — a named Markdown file is one bounded source target", async () => {
+    const provider = mockProviderSequence([okJson({ requiredTools: [], answer: "Dosyaya bakmalıyım." }), "ROADMAP okundu."]);
+    const events: { type: string; actionTrace?: { tool: string; executed: boolean } }[] = [];
+    for await (const e of streamAyasChat({
+      text: "ROADMAP.md dosyasını açıkla", snapshot, seq: 1,
+      route: { decision: { complexity: "TOOL", providerId: "ollama", providerKind: "local", model: "m", reason: "ok" }, provider },
+    })) events.push(e as never);
+    assert.equal(events.at(-1)?.actionTrace?.tool, "inspect-source-file");
+    assert.equal(events.at(-1)?.actionTrace?.executed, true);
+    assert.equal(provider.prompts.length, 2);
+  });
+
   await scenario("ACTION RUNTIME RELIABILITY — the Execution Gate is never touched by a deterministic dispatch (structural, sanity-checked here)", async () => {
     const provider = mockProviderSequence([okJson({ requiredTools: [] }), "CHANGELOG'a göre en son kayıt bu."]);
     for await (const _e of streamAyasChat({

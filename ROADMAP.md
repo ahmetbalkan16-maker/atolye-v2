@@ -1,5 +1,17 @@
 ---
 
+## AYAS Agentic Tool / Skill / Model Intelligence — Stage 7 — 2026-09-24
+
+- [x] Inventory real read-only tools, local/unknown-cost models, project-local but unregistered skills, and unavailable live Claude/Codex adapters without fabricating availability.
+- [x] Match bounded task requirements to required/beneficial/no tool, relevant registered skill, health-probed local model, and evidence-backed optional agent recommendation. Keep all mutation and approval authority outside selection.
+- [x] Fail visibly when fresh external evidence has no executor; preserve the existing read-only policy and executor for Git status and source reads.
+- [x] Same 41-case evaluator on clean `7814868` archive and final worktree: 12/41 → 41/41, reserved 0/5 → 5/5; TypeScript, lint and relevant regressions pass. See `docs/AYAS_AGENTIC_INTELLIGENCE.md`.
+- [ ] Live AYAS skill registration and Claude/Codex dispatch adapters do not exist; their selection branches are explicitly simulated and advisory. Novel natural-language freshness phrasing remains a bounded recognizer limit.
+
+**Next roadmap stage: Research → Improvement Learning Loop.** Security / Supply-Chain Defense, Codex Skill + Developer Intelligence, Graphify normalization and Controlled Self-Evolution remain separate.
+
+---
+
 ## AYAS Cognitive Self-Improvement & Answer Quality — 2026-09-24
 
 - [x] Same-hash 17-dimension, 55-case deterministic baseline/final evaluator on a clean `f1c8e8a` archive and current worktree: 46/55 to 53/55, unexpected failures 7 to 0, held-out 4/5.
