@@ -1,5 +1,13 @@
 ---
 
+## 2026-09-24 — AYAS Codex Skill + Developer Intelligence (Stage 10)
+
+- Added pure, advisory developer intelligence in `src/lib/ayas/developer/`: task model, repository recovery (first unfinished gate, lifecycle, Git readiness, scope drift, evidence trust), host-aware minimum-skill selection, test strategy with root-safety classification and a known-unsafe registry, failure triage, baseline decisions, review planning and finding classification, and a redacted task-packet compiler for manual Claude/Codex/owner handoff.
+- Added the read-only `scripts/ayas-developer-handoff.ts` CLI, which recovers the real repository state and prints a scoped packet. It never mutates the repository, dispatches an agent or approves anything, and it fails closed on an unknown or non-ancestor baseline.
+- Same-evaluator clean `644bc06` TEMP baseline 0/39 → 39/39 flow scenarios (held-out 0/10 → 9/10), 0/61 → 61/61 components, 14/14 TEMP Git + CLI integration. Existing files unchanged; runtime/test mutation none. See `docs/AYAS_DEVELOPER_INTELLIGENCE.md`.
+
+---
+
 ## 2026-09-24 — AYAS Security / Supply-Chain Defense (Stage 9)
 
 - Audited actual AYAS trust paths and package lock/install scripts. No dependency was installed or upgraded. Live `npm audit` metadata transfer was rejected by automatic approval review; offline cached advisory result and its limit are documented.

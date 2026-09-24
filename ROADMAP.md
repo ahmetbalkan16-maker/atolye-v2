@@ -1,5 +1,17 @@
 ---
 
+## AYAS Codex Skill + Developer Intelligence — Stage 10 — 2026-09-24
+
+- [x] Recover the real repository state (staged/unstaged/untracked/ignored, committed vs pushed vs closed, tracking vs real remote) and resume from the first unfinished gate without restarting; detect scope drift, divergence and unknown state and stop for the owner.
+- [x] Classify developer tasks with explicit dimensions; select the minimum skill set by host-specific registration evidence (installed ≠ registered); choose Claude/Codex/local tool/none by task needs and availability, delivered by manual paste (no dispatch adapter exists).
+- [x] Compile scoped, redacted, size-measured task packets that always carry Git safety, the known-unsafe test registry and root-isolation rules; select tests from change scope with static root-safety classification; triage failures; decide baseline comparison; plan focused review and classify findings with evidence.
+- [x] Same evaluator on clean `644bc06` archive and final source: flows 0/39 → 39/39, held-out 0/10 → 9/10, components 0/61 → 61/61, integration 14/14. No authority widening, no live-data mutation. See `docs/AYAS_DEVELOPER_INTELLIGENCE.md`.
+- [ ] Follow-up: wire developer intelligence into AYAS chat / the Brain Control Center (Stage 11) with a trace span; register or relocate project-local skills; reduce static test-safety over-flagging with reviewed per-suite root declarations.
+
+**Next roadmap stage: 10A — Graphify Validation, Recovery & Integration Normalization.**
+
+---
+
 ## AYAS Security / Supply-Chain Defense — Stage 9 — 2026-09-24
 
 - [x] Inventory package, model, tool, skill, MCP, agent, research, command, path, sandbox, patch, secret, trace and AYAS API trust boundaries; document concrete threats in `docs/AYAS_SECURITY_SUPPLY_CHAIN.md`.
