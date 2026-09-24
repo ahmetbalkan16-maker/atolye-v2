@@ -19,6 +19,7 @@ import type { AyasApprovalInboxHandle } from "./AyasApprovalInboxStore";
 import { evaluateAyasInternalDecision, type AyasInternalDecisionResult } from "./AyasInternalDecision";
 import { buildAyasOwnerApprovalRequest, type AyasOwnerApprovalRequest } from "./AyasOwnerApprovalRequest";
 import { bindAyasOwnerApproval, type AyasApprovalBindingSnapshot } from "./AyasApprovalBinding";
+import { AYAS_INTERNAL_REVIEW_REASON_PREFIX } from "./AyasOwnerApprovalProvenance";
 
 export interface AyasAutonomousReviewOutcome {
   readonly rejected: readonly { readonly proposalId: string; readonly decision: AyasInternalDecisionResult }[];
@@ -44,7 +45,7 @@ export function reviewAyasPendingProposals(inbox: AyasApprovalInboxHandle, now: 
       // "owner-rejected:") — both currently land on the same
       // `AyasInboxProposalStatus = "REJECTED"`, so this is the one durable
       // field that tells them apart without inventing a parallel status.
-      inbox.decide(proposal.proposalId, "REJECT", now(), `ayas-internal: ${decision.reasons.join("; ")}`);
+      inbox.decide(proposal.proposalId, "REJECT", now(), `${AYAS_INTERNAL_REVIEW_REASON_PREFIX} ${decision.reasons.join("; ")}`);
       rejected.push({ proposalId: proposal.proposalId, decision });
     } else if (decision.decision === "DEFER") {
       // Same provenance rationale as above, plus Step 7's "a deferred item
@@ -52,7 +53,7 @@ export function reviewAyasPendingProposals(inbox: AyasApprovalInboxHandle, now: 
       // is that reason, and `nextEligibleAt` (set by `decide()` itself,
       // `isAyasDeferredEligibleNow`-gated) is the bounded reconsideration
       // trigger, so no new field is needed to satisfy either requirement.
-      inbox.decide(proposal.proposalId, "LATER", now(), `ayas-internal: ${decision.reasons.join("; ")}`);
+      inbox.decide(proposal.proposalId, "LATER", now(), `${AYAS_INTERNAL_REVIEW_REASON_PREFIX} ${decision.reasons.join("; ")}`);
       deferred.push({ proposalId: proposal.proposalId, decision });
     } else {
       recommended.push({ request: buildAyasOwnerApprovalRequest(proposal, decision), binding: bindAyasOwnerApproval(proposal, now()) });

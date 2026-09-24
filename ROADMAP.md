@@ -1,5 +1,17 @@
 ---
 
+## AYAS Research → Improvement Learning Loop — Stage 8 — 2026-09-24
+
+- [x] Preserve Claude's uncommitted implementation; connect finding relevance and novelty to a current-HEAD, non-held-out local quality gap and an explicit, bounded hypothesis.
+- [x] Run only registered strategies in disposable TEMP clones with matched baseline, benchmark, held-out and regression checks; persist positive and negative evidence, bound retries and PC-off catch-up.
+- [x] Hash-bind improved evidence to ordinary owner-reviewable proposals; keep experiment mutation kinds unregistered and all approval, execution and publication authority in existing gates.
+- [x] Same evaluator on clean `cc3e2e1` archive and final code: decision 8/28 → 28/28, held-out 2/8 → 8/8; 55 integration scenarios pass. See `docs/AYAS_RESEARCH_IMPROVEMENT_LOOP.md`.
+- [ ] Production change-strategy registry is intentionally empty. A real strategy needs a separate reviewed commit; Stage 15 autonomous promotion remains out of scope.
+
+**Next roadmap stage: Security / Supply-Chain Defense.**
+
+---
+
 ## AYAS Agentic Tool / Skill / Model Intelligence — Stage 7 — 2026-09-24
 
 - [x] Inventory real read-only tools, local/unknown-cost models, project-local but unregistered skills, and unavailable live Claude/Codex adapters without fabricating availability.

@@ -8,9 +8,9 @@ export const AYAS_TRACE_MAX_AGE_MS = 60 * 60 * 1000;
 export const AYAS_TRACE_MAX_SPANS = 64;
 export const AYAS_TRACE_MAX_EVENTS = 128;
 
-export type AyasTraceRootKind = "chat-turn" | "owner-approval";
+export type AyasTraceRootKind = "chat-turn" | "owner-approval" | "research-improvement";
 export type AyasTraceStatus = "running" | "ok" | "error" | "fallback" | "cancelled" | "denied";
-export type AyasTraceSpanKind = "conversation" | "context" | "memory" | "retrieval" | "model" | "tool" | "approval" | "execution" | "persistence" | "outcome";
+export type AyasTraceSpanKind = "conversation" | "context" | "memory" | "retrieval" | "model" | "tool" | "approval" | "execution" | "persistence" | "outcome" | "research" | "experiment";
 export type AyasTraceEventType = "started" | "completed" | "failed" | "fallback" | "retry" | "cancelled" | "gate-result" | "memory-query" | "retrieval-query";
 export type AyasTraceMetadata = Readonly<Record<string, number | boolean | null>>;
 
@@ -62,12 +62,14 @@ type MutableTrace = {
 };
 
 const STATUS = new Set<AyasTraceStatus>(["running", "ok", "error", "fallback", "cancelled", "denied"]);
-const KINDS = new Set<AyasTraceSpanKind>(["conversation", "context", "memory", "retrieval", "model", "tool", "approval", "execution", "persistence", "outcome"]);
+const KINDS = new Set<AyasTraceSpanKind>(["conversation", "context", "memory", "retrieval", "model", "tool", "approval", "execution", "persistence", "outcome", "research", "experiment"]);
 const EVENTS = new Set<AyasTraceEventType>(["started", "completed", "failed", "fallback", "retry", "cancelled", "gate-result", "memory-query", "retrieval-query"]);
 const METADATA_KEYS = new Set([
   "historyCount", "resolvedCount", "droppedCount", "candidateCount", "selectedCount", "identityCount", "storedCount", "attempted", "executed", "attempt",
   // Memory Temporal v2 — counts and flags only.
   "failedCount", "temporalAsOf", "temporalHistory", "currentCount", "historicalCount", "supersededCount", "conflictCount", "uncertainCount",
+  // Research → improvement loop — counts and flags only; ids and text stay in the durable experiment record.
+  "findingCount", "ignoredCount", "hypothesisCount", "experimentCount", "caseCount", "targetGain", "heldOutDelta", "regressionCount", "improved",
 ]);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -101,8 +103,8 @@ function safeDetail(metadata: unknown, errorCode: unknown): { errorCode?: string
   return { ...(code ? { errorCode: code } : {}), ...(meta ? { metadata: meta } : {}) };
 }
 
-const COMPONENTS = new Set(["ayas-chat", "ayas-context", "ayas-memory", "ayas-model", "ayas-tool", "ayas-repair", "ayas-route", "ayas-approval", "ayas-publication"]);
-const OPERATIONS = new Set(["stream-turn", "assemble", "recall", "route", "reason", "correction", "dispatch", "persist", "stream", "route-turn", "guided-repair", "load-context", "decide", "resume", "guarded-publish"]);
+const COMPONENTS = new Set(["ayas-chat", "ayas-context", "ayas-memory", "ayas-model", "ayas-tool", "ayas-repair", "ayas-route", "ayas-approval", "ayas-publication", "ayas-research"]);
+const OPERATIONS = new Set(["stream-turn", "assemble", "recall", "route", "reason", "correction", "dispatch", "persist", "stream", "route-turn", "guided-repair", "load-context", "decide", "resume", "guarded-publish", "improvement-cycle", "classify-findings", "measure-gap", "run-experiment"]);
 function safeLabel(value: string, allowed: ReadonlySet<string>): string {
   return allowed.has(value) ? value : "unknown";
 }
@@ -262,7 +264,7 @@ export function readAyasTraceSnapshot(raw: unknown): AyasTraceSnapshot | undefin
   if (!raw || typeof raw !== "object") return undefined;
   const value = raw as Record<string, unknown>;
   if (value.schemaVersion !== AYAS_TRACE_SCHEMA_VERSION || !isAyasTraceId(value.traceId) || !Array.isArray(value.spans) || !Array.isArray(value.events)) return undefined;
-  if (value.rootKind !== "chat-turn" && value.rootKind !== "owner-approval") return undefined;
+  if (value.rootKind !== "chat-turn" && value.rootKind !== "owner-approval" && value.rootKind !== "research-improvement") return undefined;
   const spans: AyasTraceSpan[] = [];
   for (const rawSpan of value.spans.slice(0, AYAS_TRACE_MAX_SPANS)) {
     if (!rawSpan || typeof rawSpan !== "object") continue;

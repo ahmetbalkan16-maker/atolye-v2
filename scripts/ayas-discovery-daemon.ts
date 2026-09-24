@@ -17,7 +17,8 @@ import { reconcileAyasMicroBatchStaleness } from "../src/lib/brain/autonomy/Ayas
 import { tickAyasResearchScheduler, type AyasResearchSchedulerTickResult } from "../src/lib/brain/autonomy/AyasResearchScheduler";
 import { createAyasLocalDiscoveryRunLedger } from "../src/lib/brain/autonomy/AyasLocalDiscoveryRunLedger";
 import { createAyasExternalResearchStore } from "../src/lib/brain/autonomy/AyasExternalResearchStore";
-import { discoverAyasResearchProposalCandidates } from "../src/lib/brain/autonomy/AyasResearchProposalBridge";
+import { discoverAyasResearchExperimentProposalCandidates, discoverAyasResearchProposalCandidates } from "../src/lib/brain/autonomy/AyasResearchProposalBridge";
+import { AYAS_RESEARCH_DESIGN_REVIEW_CLOSED_GATE, runAyasResearchImprovementCycle, type AyasResearchImprovementCycleResult } from "../src/lib/brain/autonomy/AyasResearchImprovementCycle";
 
 /**
  * AYAS discovery daemon (M16) — a single-shot, read-mostly companion to the
@@ -49,7 +50,11 @@ function graphifyFresh(head: string): boolean {
   } catch { return false; }
 }
 
+/** The observer kills this child at 240s; the improvement cycle only spends what is left under this ceiling. */
+const AYAS_DISCOVERY_CHILD_WORK_CEILING_MS = 200_000;
+
 async function main(): Promise<void> {
+  const childStartedAt = Date.now();
   const now = new Date().toISOString();
   const telemetry = await collectAyasMachineTelemetry({ cwd: root, now: () => now });
   const health = evaluateAyasMachineHealth(telemetry, { stage: "video", ownedActive: false });
@@ -105,7 +110,25 @@ async function main(): Promise<void> {
     observation.gaps.push(`novel patch discovery failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 
-  const researchCandidates = discoverAyasResearchProposalCandidates(createAyasExternalResearchStore().list(), inbox.load().proposals);
+  // Stage 8 — research → improvement loop. Bounded and restart-safe: it can
+  // only hand verified IMPROVED experiment evidence to the bridge below, and it
+  // never approves, reserves, executes or publishes anything. Operator opt-out
+  // mirrors the research scheduler's.
+  const researchFindings = createAyasExternalResearchStore().list();
+  let improvement: AyasResearchImprovementCycleResult | undefined;
+  const researchImprovementEnabled = process.env.AYAS_RESEARCH_IMPROVEMENT_ENABLED !== "0";
+  if (researchImprovementEnabled) {
+    try {
+      improvement = await runAyasResearchImprovementCycle({ repoRoot: root, observation, findings: researchFindings, inbox, timeBudgetMs: Math.max(0, Math.min(90_000, AYAS_DISCOVERY_CHILD_WORK_CEILING_MS - (Date.now() - childStartedAt))) });
+    } catch (error) {
+      observation.gaps.push(`research improvement cycle failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  const researchCandidates = [
+    // With the loop enabled, a finding becomes a design-review proposal only when the loop says a design is what is missing; a failed cycle admits none.
+    ...discoverAyasResearchProposalCandidates(researchFindings, inbox.load().proposals, researchImprovementEnabled ? (improvement?.designReviewGate ?? AYAS_RESEARCH_DESIGN_REVIEW_CLOSED_GATE) : undefined),
+    ...discoverAyasResearchExperimentProposalCandidates(improvement?.proposalEvidence ?? [], inbox.load().proposals, observation.head),
+  ];
   const candidates = [...discoverAyasSafeCandidates({ repoRoot: root, observation }), ...novel.candidates, ...researchCandidates];
   const proposalIdsBefore = new Set(inbox.load().proposals.map((proposal) => proposal.proposalId));
   const discovered = daemon.discover(observation, candidates);
@@ -170,6 +193,12 @@ async function main(): Promise<void> {
     researchNextLightAt: research?.state.nextLightAt ?? null,
     researchNextDeepAt: research?.state.nextDeepAt ?? null,
     researchFindingsRecorded: research?.deep?.findingsRecorded ?? 0,
+    researchImprovementOutcome: improvement?.outcome ?? (researchImprovementEnabled ? "ERROR" : "DISABLED"),
+    researchImprovementClassified: improvement?.classified ?? 0,
+    researchImprovementPending: improvement?.pendingFindings ?? 0,
+    researchImprovementAdmission: improvement?.admission ?? null,
+    researchImprovementExperimentVerdict: improvement?.experiment?.verdict ?? null,
+    researchImprovementStaleProposals: improvement?.staleProposals ?? [],
     ownerReviewRejected: ownerReview.rejected.map((r) => r.proposalId),
     ownerReviewDeferred: ownerReview.deferred.map((d) => d.proposalId),
     ownerReviewRecommended: ownerReview.recommended.map((r) => r.binding.proposalId),

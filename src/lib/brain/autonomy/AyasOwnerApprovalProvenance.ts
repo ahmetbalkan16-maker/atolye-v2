@@ -19,6 +19,14 @@ export const AYAS_OWNER_APPROVED_REASON_PREFIX = "owner-approved:";
 
 export const AYAS_OWNER_APPROVED_PENDING_EXECUTION_REASON = `${AYAS_OWNER_APPROVED_REASON_PREFIX} pending execution enablement`;
 
+/** Prefix AYAS's own internal review (`AyasAutonomousReview`) puts on every REJECT/LATER it records. */
+export const AYAS_INTERNAL_REVIEW_REASON_PREFIX = "ayas-internal:";
+
+/** True for a decision AYAS recorded itself; every other decision came from a human path. */
+export function isAyasInternalReviewDecisionReason(reason: string | undefined): boolean {
+  return typeof reason === "string" && reason.startsWith(AYAS_INTERNAL_REVIEW_REASON_PREFIX);
+}
+
 /** True only for a decision `reason` written by the owner-approval model's own APPROVE path — never true for a legacy manual `decideAyasApproval` APPROVE (whose `reason` is either absent or operator-authored free text that was never asked to start with this exact prefix). */
 export function isAyasOwnerApprovedDecisionReason(reason: string | undefined): boolean {
   return typeof reason === "string" && reason.startsWith(AYAS_OWNER_APPROVED_REASON_PREFIX);

@@ -1,5 +1,13 @@
 ---
 
+## 2026-09-24 — AYAS Research → Improvement Learning Loop (Stage 8)
+
+- Recovered Claude's 16 uncommitted Stage 8 files without resetting the repository. Added bounded finding classification, local gap measurement, explicit hypotheses, durable reservations and evidence, disposable benchmark experiments and owner-reviewable proposal binding.
+- Kept research text and experiment scores outside approval and execution authority. Production strategies remain unregistered; a live measured gap can request design review but cannot generate or promote a source change by itself.
+- Closed a Windows benchmark-timeout hang, isolated child profile/configuration paths under TEMP, and made failed sandbox disposal reject evidence. Same-evaluator clean `cc3e2e1` baseline 8/28 improved to 28/28 decisions; held-out 2/8 to 8/8; 55 integration scenarios pass. See `docs/AYAS_RESEARCH_IMPROVEMENT_LOOP.md`.
+
+---
+
 ## 2026-09-24 — AYAS Agentic Tool / Skill / Model Intelligence (Stage 7)
 
 - Added an advisory, deterministic capability inventory and task-requirement selector using the real read-only allowlist, health-probed local model, and explicit skill/agent registration evidence. Unknown-cost cloud, placeholder web lookup, unregistered skills and absent Claude/Codex adapters never appear as live executable capability.

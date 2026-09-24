@@ -146,6 +146,12 @@ graphify-out/
 # a dirty repository immediately after recording a successful run.
 /data/brain/self-improvement/discovery-runs/
 
+# Stage 8 research → improvement loop state (index, experiment records,
+# evidence packages, gap snapshots and its own lock root). Written by the
+# discovery daemon; left untracked it would make the next tick's repoClean
+# check fail and halt the loop itself, the same failure as research-novelty.
+/data/brain/self-improvement/research-improvement/
+
 # ---------------------------------------------------------------------------
 # C.2B.12 (Sprint 199) — data/projects is external-runtime authority data.
 #
