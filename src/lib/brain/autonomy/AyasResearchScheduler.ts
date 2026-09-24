@@ -2,10 +2,13 @@ import crypto from "node:crypto";
 import path from "node:path";
 
 import { withAyasExecutionAuthorityLock, AyasExecutionAuthorityLockError } from "./AyasExecutionAuthorityLock";
-import { createAyasResearchSchedulerStateStore, type AyasResearchSchedulerState, type AyasResearchSchedulerStateStore } from "./AyasResearchSchedulerStateStore";
+import { createAyasResearchSchedulerHeartbeatStore, createAyasResearchSchedulerStateStore, isAyasCanonicalUtc, type AyasResearchSchedulerState, type AyasResearchSchedulerStateStore } from "./AyasResearchSchedulerStateStore";
 import { runAyasLightResearchScan, type AyasLightScanResult, type AyasLightResearchDeps } from "./AyasLightResearchEngine";
 import { runAyasDeepResearchScan, type AyasDeepScanResult, type AyasDeepResearchDeps } from "./AyasDeepResearchEngine";
 import { resolveAyasResearchSourceRegistry, type AyasResearchSource } from "./AyasResearchSourceRegistry";
+import { AYAS_GOAL_RESEARCH_ON_TIME_GRACE_MS, tickDueAyasGoalResearchJob } from "./AyasGoalResearchSchedule";
+import type { AyasGoalStore } from "./AyasGoalStore";
+import type { AyasResearchSourceStateStore } from "./AyasResearchSourceStateStore";
 
 /**
  * AYAS CONTINUOUS EXTERNAL INTELLIGENCE sprint, Part B — the durable
@@ -20,13 +23,9 @@ import { resolveAyasResearchSourceRegistry, type AyasResearchSource } from "./Ay
  * research cycles concurrently" gets the same tested guarantee "never two
  * concurrent governed executions" already has, for free.
  *
- * Catch-up semantics fall out of a simple design choice rather than needing
- * special-cased logic: `nextLightAt`/`nextDeepAt` are always rescheduled as
- * `now + interval`, never `previousNextAt + interval`. If the machine was
- * off for three days, the next tick after startup sees both due, runs
- * exactly ONE catch-up cycle, and reschedules from `now` — it can never
- * "replay" the missed intervals, because there is no accumulator counting
- * them.
+ * The local observer only runs while this machine is on. A missed cadence
+ * is coalesced into at most one cycle after restart. A reservation surviving
+ * a crash is uncertain: its occurrence is skipped rather than replayed.
  */
 export const AYAS_RESEARCH_LIGHT_INTERVAL_MS = 6 * 60 * 60_000;
 export const AYAS_RESEARCH_DEEP_INTERVAL_MS = 24 * 60 * 60_000;
@@ -40,7 +39,7 @@ function isDue(nextAt: string | undefined, nowIso: string): boolean {
   return Date.parse(nowIso) >= Date.parse(nextAt);
 }
 
-export type AyasResearchSchedulerTickOutcome = "NONE_DUE" | "ANOTHER_RUN_ACTIVE" | "LIGHT" | "DEEP";
+export type AyasResearchSchedulerTickOutcome = "NONE_DUE" | "ANOTHER_RUN_ACTIVE" | "RECOVERED_UNCERTAIN" | "GOAL_RECONCILED" | "GOAL_WAITING" | "GOAL_SKIPPED" | "GOAL_DEFERRED" | "GOAL_SUCCEEDED" | "GOAL_FAILED" | "LIGHT" | "DEEP";
 
 export interface AyasResearchSchedulerTickResult {
   readonly outcome: AyasResearchSchedulerTickOutcome;
@@ -59,6 +58,8 @@ export interface AyasResearchSchedulerDeps {
   readonly deepInterval?: number;
   readonly light?: Omit<AyasLightResearchDeps, "sources">;
   readonly deep?: Omit<AyasDeepResearchDeps, "sources">;
+  readonly goalStore?: AyasGoalStore;
+  readonly sourceStateStore?: AyasResearchSourceStateStore;
 }
 
 /**
@@ -79,79 +80,131 @@ export async function tickAyasResearchScheduler(deps: AyasResearchSchedulerDeps 
   const lightInterval = deps.lightInterval ?? AYAS_RESEARCH_LIGHT_INTERVAL_MS;
   const deepInterval = deps.deepInterval ?? AYAS_RESEARCH_DEEP_INTERVAL_MS;
 
-  const nowIso = now();
+  // Read once before taking the lock to fail closed on corrupt state without
+  // creating a lock directory. The authoritative read is repeated UNDER the
+  // lock; no stale snapshot is ever used for a write or admission decision.
   let state = stateStore.read();
-
-  // A `currentRunId` left over from a process that died mid-run — the lock
-  // itself is independently stale-reclaimable, this just keeps the
-  // diagnostic fields honest rather than showing a permanently-stuck run.
-  if (state.currentRunId) {
-    state = stateStore.write({ ...state, currentRunId: undefined, currentMode: undefined, lastError: "recovered from an interrupted research run (process restarted mid-run)" });
-  }
-
-  const lightDue = isDue(state.nextLightAt, nowIso);
-  const deepDue = isDue(state.nextDeepAt, nowIso);
-  if (!lightDue && !deepDue) return { outcome: "NONE_DUE", state };
-
-  const mode: "LIGHT" | "DEEP" = deepDue ? "DEEP" : "LIGHT"; // DEEP takes priority over an overlapping LIGHT due-time (Part B)
-  const runId = crypto.randomUUID();
-
+  // Liveness is recorded on EVERY heartbeat, before the lock, so a long run
+  // holding the lock never looks like downtime. If it cannot be recorded,
+  // unknown liveness counts as downtime (the conservative side for Goal jobs).
+  let liveSince: string;
+  try { liveSince = createAyasResearchSchedulerHeartbeatStore({ rootDir: gateRoot }).beat(now(), AYAS_GOAL_RESEARCH_ON_TIME_GRACE_MS).liveSince; }
+  catch { liveSince = now(); }
   try {
-    const result = await withAyasExecutionAuthorityLock(gateRoot, async () => {
+    return await withAyasExecutionAuthorityLock(gateRoot, async () => {
+      state = stateStore.read();
+      const nowIso = now();
+      const nowMs = Date.parse(nowIso);
+      if (!isAyasCanonicalUtc(nowIso) || ![lightInterval, deepInterval].every((n) => Number.isSafeInteger(n) && n > 0)) {
+        throw new Error("research scheduler clock or interval is invalid");
+      }
+
+      // An earlier process may have reached a provider and crashed before
+      // committing its result. Never repeat that occurrence automatically.
+      if (state.currentRunId) {
+        const interruptedMode = state.currentMode;
+        state = stateStore.write({
+          ...state,
+          currentRunId: undefined,
+          currentMode: undefined,
+          currentOccurrenceId: undefined,
+          currentScheduledFor: undefined,
+          lastUncertainRunId: state.currentRunId,
+          lastReconciledAt: nowIso,
+          lastError: "RESEARCH_OUTCOME_UNCERTAIN",
+          consecutiveFailures: state.consecutiveFailures + 1,
+          nextLightAt: new Date(nowMs + lightInterval).toISOString(),
+          ...(interruptedMode !== "LIGHT" ? { nextDeepAt: new Date(nowMs + deepInterval).toISOString() } : {}),
+        });
+        return { outcome: "RECOVERED_UNCERTAIN", state };
+      }
+
+      if (state.goalResearchJobs?.length) {
+        let goalTick: Awaited<ReturnType<typeof tickDueAyasGoalResearchJob>>;
+        try {
+          goalTick = await tickDueAyasGoalResearchJob(state, {
+            repoRoot, gateRoot, stateStore, goalStore: deps.goalStore, sourceStateStore: deps.sourceStateStore,
+            sources, now, deep: deps.deep, liveSince,
+          });
+        } catch {
+          // A Goal-path fault must never stall the regular cadence. A job it
+          // left RUNNING becomes UNCERTAIN on the next tick (never replayed).
+          // `lastGoalFaultAt` keeps the fault visible after later cycles.
+          state = stateStore.write({ ...stateStore.read(), lastError: "GOAL_RESEARCH_TICK_FAILED", lastGoalFaultAt: nowIso, lastReconciledAt: nowIso });
+          goalTick = undefined;
+        }
+        if (goalTick) return { outcome: goalTick.outcome, state: goalTick.state, deep: goalTick.deep };
+      }
+
+      const lightDue = isDue(state.nextLightAt, nowIso);
+      const deepDue = isDue(state.nextDeepAt, nowIso);
+      if (!lightDue && !deepDue) return { outcome: "NONE_DUE", state };
+
+      const mode: "LIGHT" | "DEEP" = deepDue ? "DEEP" : "LIGHT";
+      const scheduledFor = (mode === "DEEP" ? state.nextDeepAt : state.nextLightAt) ?? nowIso;
+      const occurrenceId = crypto.createHash("sha256").update(`ayas-research:${mode}:${scheduledFor}`).digest("hex");
+      const missedFor = (dueAt: string | undefined, interval: number): number =>
+        dueAt && nowMs > Date.parse(dueAt) ? Math.max(0, Math.floor((nowMs - Date.parse(dueAt)) / interval)) : 0;
+      const missedCount = Math.min(Number.MAX_SAFE_INTEGER, (lightDue ? missedFor(state.nextLightAt, lightInterval) : 0) + (deepDue ? missedFor(state.nextDeepAt, deepInterval) : 0));
+      const runId = crypto.randomUUID();
+
+      // This fsynced reservation precedes the first network/provider call.
       state = stateStore.write({
         ...state,
         currentRunId: runId,
         currentMode: mode,
+        currentOccurrenceId: occurrenceId,
+        currentScheduledFor: scheduledFor,
+        lastOccurrenceId: occurrenceId,
+        lastScheduledFor: scheduledFor,
+        lastAttemptAt: nowIso,
+        lastMissedCount: missedCount,
+        totalMissedOccurrences: Math.min(Number.MAX_SAFE_INTEGER, (state.totalMissedOccurrences ?? 0) + missedCount),
+        totalAttempts: Math.min(Number.MAX_SAFE_INTEGER, (state.totalAttempts ?? 0) + 1),
         ...(mode === "LIGHT" ? { lastLightStartedAt: nowIso } : { lastLightStartedAt: nowIso, lastDeepStartedAt: nowIso }),
       });
 
       const light = await runAyasLightResearchScan({ ...deps.light, sources });
       const lightCompletedAt = now();
 
-      if (mode === "LIGHT") {
-        return { light, deep: undefined as AyasDeepScanResult | undefined, lightCompletedAt, deepCompletedAt: undefined as string | undefined };
+      let deep: AyasDeepScanResult | undefined;
+      let deepCompletedAt: string | undefined;
+      if (mode === "DEEP") {
+        const changedSourceIds = new Set(light.results.filter((r) => r.changed).map((r) => r.sourceId));
+        const changedSources = sources.filter((s) => changedSourceIds.has(s.sourceId));
+        deep = await runAyasDeepResearchScan({ ...deps.deep, sources: changedSources, repoRoot, scheduleContext: { scheduledFor, runId, occurrenceId } });
+        deepCompletedAt = now();
       }
 
-      const changedSourceIds = new Set(light.results.filter((r) => r.changed).map((r) => r.sourceId));
-      const changedSources = sources.filter((s) => changedSourceIds.has(s.sourceId));
-      const deep = await runAyasDeepResearchScan({ ...deps.deep, sources: changedSources, repoRoot });
-      const deepCompletedAt = now();
-      return { light, deep, lightCompletedAt, deepCompletedAt };
+      const finalNow = now();
+      // Finalization remains inside the same cross-process lock. A failed
+      // final write leaves the reservation intact for uncertain recovery.
+      // A completed cycle is a successful cycle: per-source failures keep
+      // their own durable state and backoff, and `consecutiveFailures` feeds
+      // the stability/health guards, so it counts only thrown or uncertain runs.
+      state = stateStore.write({
+        ...state,
+        currentRunId: undefined,
+        currentMode: undefined,
+        currentOccurrenceId: undefined,
+        currentScheduledFor: undefined,
+        lastLightCompletedAt: lightCompletedAt,
+        lastExecutedAt: finalNow,
+        nextLightAt: new Date(Date.parse(finalNow) + lightInterval).toISOString(),
+        ...(mode === "DEEP" ? { lastDeepCompletedAt: deepCompletedAt, nextDeepAt: new Date(Date.parse(finalNow) + deepInterval).toISOString() } : {}),
+        lastError: undefined,
+        consecutiveFailures: 0,
+        lastSuccessfulResearchAt: finalNow,
+      });
+      return { outcome: mode, light, deep, state };
     });
-
-    const finalNow = now();
-    state = stateStore.write({
-      ...state,
-      currentRunId: undefined,
-      currentMode: undefined,
-      lastLightCompletedAt: result.lightCompletedAt,
-      nextLightAt: new Date(Date.parse(finalNow) + lightInterval).toISOString(),
-      ...(mode === "DEEP" ? { lastDeepCompletedAt: result.deepCompletedAt, nextDeepAt: new Date(Date.parse(finalNow) + deepInterval).toISOString() } : {}),
-      lastError: undefined,
-      consecutiveFailures: 0,
-      lastSuccessfulResearchAt: finalNow,
-    });
-
-    return { outcome: mode, light: result.light, deep: result.deep, state };
   } catch (error) {
     if (error instanceof AyasExecutionAuthorityLockError && error.code === "AYAS_LOCK_BUSY") {
       return { outcome: "ANOTHER_RUN_ACTIVE", state };
     }
-    // A genuinely unexpected failure (not the per-source-soft-failure paths
-    // already handled inside the light/deep engines themselves) — record it
-    // and STILL advance the schedule, so a persistent bug never turns into a
-    // tight retry loop on every subsequent observer heartbeat.
-    const finalNow = now();
-    const message = error instanceof Error ? error.message : String(error);
-    state = stateStore.write({
-      ...state,
-      currentRunId: undefined,
-      currentMode: undefined,
-      nextLightAt: new Date(Date.parse(finalNow) + lightInterval).toISOString(),
-      ...(mode === "DEEP" ? { nextDeepAt: new Date(Date.parse(finalNow) + deepInterval).toISOString() } : {}),
-      lastError: message,
-      consecutiveFailures: (state.consecutiveFailures ?? 0) + 1,
-    });
-    return { outcome: mode, state };
+    // Never clear an in-flight reservation on a thrown provider/storage
+    // error: the external result may already exist even if this process
+    // cannot prove it. The next tick reconciles it without replay.
+    throw error;
   }
 }

@@ -1,5 +1,6 @@
 import { createAyasGoalStore, type AyasGoal } from "./AyasGoalStore";
 import { createAyasExternalResearchStore, type AyasExternalResearchFinding } from "./AyasExternalResearchStore";
+import { createAyasResearchSchedulerStateStore } from "./AyasResearchSchedulerStateStore";
 
 /**
  * M22.14 — the read-only Gelişim Merkezi projection of AYAS's goal +
@@ -14,6 +15,7 @@ import { createAyasExternalResearchStore, type AyasExternalResearchFinding } fro
 export interface AyasGoalDevelopmentEntry extends AyasGoal {
   /** Resolved research findings this goal's candidates reference, in candidate order. `undefined` for a candidate whose finding could not be resolved (deleted/corrupt) — never crashes the view. */
   readonly resolvedCandidateFindings: readonly (AyasExternalResearchFinding | undefined)[];
+  readonly scheduledResearchFindings: readonly AyasExternalResearchFinding[];
 }
 
 export interface AyasGoalDevelopmentView {
@@ -28,12 +30,25 @@ export function loadAyasGoalDevelopmentView(): AyasGoalDevelopmentView {
     const goalStore = createAyasGoalStore();
     const researchStore = createAyasExternalResearchStore();
     const allResearch = [...researchStore.list()].sort((a, b) => Date.parse(b.recordedAt) - Date.parse(a.recordedAt));
+    // Scheduler state only links scheduled findings to their Goal; if it cannot
+    // be read, goals and research stay visible without that projection.
+    let goalByOccurrence = new Map<string, string>();
+    try {
+      goalByOccurrence = new Map((createAyasResearchSchedulerStateStore().read().goalResearchJobs ?? []).map((job) => [job.occurrenceId, job.goalId] as const));
+    } catch { /* fail soft: display projection only */ }
     const findingById = new Map(allResearch.map((f) => [f.findingId, f] as const));
+    const findingsByGoal = new Map<string, AyasExternalResearchFinding[]>();
+    for (const finding of allResearch) if (finding.goalId && finding.occurrenceId && goalByOccurrence.get(finding.occurrenceId) === finding.goalId) {
+      const group = findingsByGoal.get(finding.goalId) ?? [];
+      group.push(finding);
+      findingsByGoal.set(finding.goalId, group);
+    }
     const goals = [...goalStore.list()]
       .sort((a, b) => Date.parse(b.lastUpdatedAt) - Date.parse(a.lastUpdatedAt))
       .map((goal): AyasGoalDevelopmentEntry => ({
         ...goal,
         resolvedCandidateFindings: goal.candidates.map((c) => findingById.get(c.reference)),
+        scheduledResearchFindings: findingsByGoal.get(goal.goalId) ?? [],
       }));
     return { connected: true, goals, research: allResearch };
   } catch (error) {

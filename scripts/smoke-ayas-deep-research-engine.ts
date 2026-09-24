@@ -106,11 +106,18 @@ async function main() {
         atolyeGapNotes: `entry title contained adversarial-looking text: ${ADVERSARIAL_TITLE}`,
         isNoteworthy: true,
       }));
-      const result = await runAyasDeepResearchScan({ noveltyStore, sources: [source(base)], researchStore, provider, dangerouslyAllowPrivateNetworkForTests: true });
+      const scheduledFor = "2026-09-20T23:00:00.000Z";
+      const result = await runAyasDeepResearchScan({ noveltyStore, sources: [source(base)], researchStore, provider, scheduleContext: {
+        scheduledFor, runId: "11111111-1111-4111-8111-111111111111", occurrenceId: "a".repeat(64),
+      }, dangerouslyAllowPrivateNetworkForTests: true });
       assert.equal(result.findingsRecorded, 1);
       const [finding] = researchStore.list();
       assert.ok(finding);
       assert.equal(finding!.treatedSourceAsUntrusted, true);
+      assert.equal(finding!.scheduledFor, scheduledFor);
+      assert.ok(Date.parse(finding!.executedAt!) > Date.parse(scheduledFor));
+      assert.equal(finding!.researchRunId, "11111111-1111-4111-8111-111111111111");
+      assert.equal(finding!.occurrenceId, "a".repeat(64));
       // The adversarial text is present only as inert data inside a string field of a JSON file — never anywhere that could be interpreted as a command.
       assert.ok(typeof finding!.atolyeGapNotes === "string");
     });

@@ -1,5 +1,15 @@
 ---
 
+## AYAS PC-Off Safe Research — 2026-09-24
+
+- [x] Workstation-only reality documented: no execution while powered off; restart-time missed detection, reconciliation and bounded catch-up.
+- [x] LIGHT/DEEP cadence restart-safe: lock across reservation and final checkpoint, uncertain runs never replayed, missed windows coalesced, due vs. actual time kept apart, stability/health counters unchanged in meaning.
+- [x] One-shot Goal Research on up to three registered official feeds: liveness-based missed detection, catch-up/skip/owner-confirmation policies, per-Goal coalescing, policy-bounded pacing, scope-fingerprint staleness, single attempt, explicit insufficient-evidence and failure codes, bounded capacity.
+- [x] TEMP-only proof: two-process race, restart children, crash windows, source insufficiency; relevant regressions, TypeScript and changed-file ESLint pass.
+- [ ] Not done here: a browser pass over the new panel controls (the running server predates this build), a physical power-loss test, and the pre-existing `smoke-ayas-observer-autostart` isolation fix (its unregister scenarios can remove the real autostart task).
+
+**Next roadmap stage: Security / Supply-Chain Defense.**
+
 ## AYAS Retrieval Evaluation — 2026-09-24
 
 - [x] Preserve Claude's partial implementation and recover a genuine pre-remediation baseline from a clean TEMP archive of `bebb9ba` using the same fixture/evaluator contract.

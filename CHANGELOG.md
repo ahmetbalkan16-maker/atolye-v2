@@ -1,5 +1,13 @@
 ---
 
+## 2026-09-24 — AYAS PC-Off Safe Research
+
+- Kept the workstation reality explicit: nothing runs while the PC is off; missed research is detected and reconciled on the first heartbeat after restart, and no result is labelled as produced at its planned time.
+- LIGHT/DEEP cadence: the research lock now covers re-read, fsynced reservation, run and final checkpoint. A surviving reservation becomes a non-replayed uncertain occurrence, missed windows coalesce into one cycle, and due/actual times are stored separately. `consecutiveFailures` again counts only uncertain or thrown cycles, so a flaky feed never trips the stability/health guards.
+- Owner-scheduled one-shot Goal Research on up to three registered official feeds, through the existing DEEP/Ollama path and the same lock. Missed means "AYAS was not running at the planned time", judged from a durable heartbeat record. Policies are catch-up-once, skip or owner confirmation, with per-Goal backlog coalescing and pacing only inside the policy window. Jobs carry scope fingerprints, a single attempt and explicit completion codes, including insufficient evidence. Capacity pruning is bounded.
+- The Brain action is now session check plus service call; the panel shows job reasons and counts.
+- `smoke-ayas-goal-research-schedule` (33) and `smoke-ayas-research-scheduler` (17), including a two-process race and restart children, plus 26 more relevant suites pass. Details: `docs/AYAS_PC_OFF_SAFE_RESEARCH.md`.
+
 ## 2026-09-24 — AYAS Retrieval Evaluation
 
 - Recovered Claude's partial retrieval work and measured a genuine pre-remediation `bebb9ba` baseline in a clean TEMP archive against the same 74-case synthetic ground truth.

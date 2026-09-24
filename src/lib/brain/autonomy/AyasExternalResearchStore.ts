@@ -57,6 +57,12 @@ export interface AyasExternalResearchFinding {
   readonly disposition?: AyasResearchDisposition;
   readonly dispositionReason?: string;
   readonly researchMode?: "LIGHT" | "DEEP";
+  /** Present for scheduler-originated findings; legacy/manual findings remain readable. */
+  readonly scheduledFor?: string;
+  readonly executedAt?: string;
+  readonly researchRunId?: string;
+  readonly occurrenceId?: string;
+  readonly goalId?: string;
 }
 
 export class AyasExternalResearchStoreError extends Error {
@@ -116,6 +122,13 @@ export function createAyasExternalResearchStore(options: AyasExternalResearchSto
       if (!input.provider?.trim() || !input.capability?.trim() || !input.problemSolved?.trim()) {
         throw new AyasExternalResearchStoreError("AYAS_RESEARCH_INVALID", "provider, capability, and problemSolved are required");
       }
+      if ((input.scheduledFor !== undefined && (!Number.isFinite(Date.parse(input.scheduledFor)) || new Date(Date.parse(input.scheduledFor)).toISOString() !== input.scheduledFor)) ||
+        (input.executedAt !== undefined && (!Number.isFinite(Date.parse(input.executedAt)) || new Date(Date.parse(input.executedAt)).toISOString() !== input.executedAt)) ||
+        (input.researchRunId !== undefined && !/^[0-9a-f-]{36}$/i.test(input.researchRunId)) ||
+        (input.occurrenceId !== undefined && !/^[0-9a-f]{64}$/.test(input.occurrenceId)) ||
+        (input.goalId !== undefined && !/^ayas-goal-[0-9a-f-]{36}$/i.test(input.goalId))) {
+        throw new AyasExternalResearchStoreError("AYAS_RESEARCH_INVALID", "research execution identity or time is invalid");
+      }
       const now = new Date().toISOString();
       const finding: AyasExternalResearchFinding = {
         schemaVersion: ayasExternalResearchSchemaVersion,
@@ -138,6 +151,11 @@ export function createAyasExternalResearchStore(options: AyasExternalResearchSto
         ...(input.disposition ? { disposition: input.disposition } : {}),
         ...(input.dispositionReason ? { dispositionReason: scrub(input.dispositionReason, 120) } : {}),
         ...(input.researchMode ? { researchMode: input.researchMode } : {}),
+        ...(input.scheduledFor ? { scheduledFor: input.scheduledFor } : {}),
+        ...(input.executedAt ? { executedAt: input.executedAt } : {}),
+        ...(input.researchRunId ? { researchRunId: input.researchRunId } : {}),
+        ...(input.occurrenceId ? { occurrenceId: input.occurrenceId } : {}),
+        ...(input.goalId ? { goalId: input.goalId } : {}),
       };
       fs.mkdirSync(dir, { recursive: true });
       const target = path.join(dir, `${finding.findingId}.json`);

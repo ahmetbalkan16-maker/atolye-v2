@@ -1,4 +1,5 @@
 import { createAyasResearchSchedulerStateStore } from "./AyasResearchSchedulerStateStore";
+import type { AyasGoalResearchJob } from "./AyasResearchSchedulerStateStore";
 import { createAyasResearchSourceStateStore } from "./AyasResearchSourceStateStore";
 import { createAyasExternalResearchStore } from "./AyasExternalResearchStore";
 import { resolveAyasResearchSourceRegistry } from "./AyasResearchSourceRegistry";
@@ -47,6 +48,21 @@ export interface AyasResearchEngineStatusView {
   readonly lastError?: string;
   readonly consecutiveFailures: number;
   readonly lastSuccessfulResearchAt?: string;
+  readonly lastScheduledFor?: string;
+  readonly lastAttemptAt?: string;
+  readonly lastExecutedAt?: string;
+  readonly lastReconciledAt?: string;
+  readonly lastGoalFaultAt?: string;
+  readonly lastMissedCount?: number;
+  readonly totalMissedOccurrences?: number;
+  readonly totalAttempts?: number;
+  readonly uncertainOutcomePendingReview?: boolean;
+  readonly goalResearchJobs?: readonly Pick<AyasGoalResearchJob, "jobId" | "goalId" | "scheduledFor" | "status" | "attempt" | "executedAt" | "findingsRecorded" | "errorCode">[];
+  readonly pendingGoalCatchUpCount?: number;
+  readonly awaitingOwnerGoalCount?: number;
+  readonly skippedGoalCount?: number;
+  readonly runningGoalCount?: number;
+  readonly uncertainGoalCount?: number;
   readonly sources: readonly AyasResearchEngineSourceView[];
   readonly digest: AyasResearchEngineDigest;
   readonly localDiscovery?: {
@@ -107,6 +123,23 @@ export function loadAyasResearchEngineStatusView(now: string = new Date().toISOS
       lastError: schedulerState.lastError,
       consecutiveFailures: schedulerState.consecutiveFailures,
       lastSuccessfulResearchAt: schedulerState.lastSuccessfulResearchAt,
+      lastScheduledFor: schedulerState.lastScheduledFor,
+      lastAttemptAt: schedulerState.lastAttemptAt,
+      lastExecutedAt: schedulerState.lastExecutedAt,
+      lastReconciledAt: schedulerState.lastReconciledAt,
+      lastGoalFaultAt: schedulerState.lastGoalFaultAt,
+      lastMissedCount: schedulerState.lastMissedCount,
+      totalMissedOccurrences: schedulerState.totalMissedOccurrences,
+      totalAttempts: schedulerState.totalAttempts,
+      // Pending until a later cycle completes; an in-flight run is running, not uncertain.
+      uncertainOutcomePendingReview: Boolean(schedulerState.lastUncertainRunId && schedulerState.lastReconciledAt &&
+        (!schedulerState.lastExecutedAt || Date.parse(schedulerState.lastReconciledAt) >= Date.parse(schedulerState.lastExecutedAt))),
+      goalResearchJobs: (schedulerState.goalResearchJobs ?? []).map((job) => ({ jobId: job.jobId, goalId: job.goalId, scheduledFor: job.scheduledFor, status: job.status, attempt: job.attempt, executedAt: job.executedAt, findingsRecorded: job.findingsRecorded, errorCode: job.errorCode })),
+      pendingGoalCatchUpCount: (schedulerState.goalResearchJobs ?? []).filter((job) => job.status === "SCHEDULED" && Date.parse(job.scheduledFor) < nowMs).length,
+      awaitingOwnerGoalCount: (schedulerState.goalResearchJobs ?? []).filter((job) => job.status === "AWAITING_OWNER").length,
+      skippedGoalCount: (schedulerState.goalResearchJobs ?? []).filter((job) => job.status === "SKIPPED_STALE").length,
+      runningGoalCount: (schedulerState.goalResearchJobs ?? []).filter((job) => job.status === "RUNNING").length,
+      uncertainGoalCount: (schedulerState.goalResearchJobs ?? []).filter((job) => job.status === "UNCERTAIN").length,
       sources,
       digest,
       ...(latestDiscovery ? { localDiscovery: {

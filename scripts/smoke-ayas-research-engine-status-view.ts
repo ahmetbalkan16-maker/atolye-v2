@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -42,12 +43,21 @@ scenario("a scheduler state file with a recorded cadence is reflected verbatim i
     createAyasResearchSchedulerStateStore().write({
       schemaVersion: "1", nextLightAt: "2026-09-17T18:00:00.000Z", nextDeepAt: "2026-09-18T12:00:00.000Z",
       lastLightCompletedAt: NOW, consecutiveFailures: 0, lastSuccessfulResearchAt: NOW,
+      lastScheduledFor: "2026-09-17T06:00:00.000Z", lastAttemptAt: NOW, lastExecutedAt: NOW,
+      lastMissedCount: 2, totalMissedOccurrences: 7, totalAttempts: 3,
     });
     return loadAyasResearchEngineStatusView(NOW);
   });
   assert.equal(view.nextLightAt, "2026-09-17T18:00:00.000Z");
   assert.equal(view.nextDeepAt, "2026-09-18T12:00:00.000Z");
   assert.equal(view.lastSuccessfulResearchAt, NOW);
+  assert.equal(view.lastScheduledFor, "2026-09-17T06:00:00.000Z");
+  assert.equal(view.lastExecutedAt, NOW);
+  assert.equal(view.lastMissedCount, 2);
+  assert.equal(view.totalMissedOccurrences, 7);
+  assert.equal(view.totalAttempts, 3);
+  assert.equal(view.pendingGoalCatchUpCount, 0);
+  assert.equal(view.awaitingOwnerGoalCount, 0);
 });
 
 scenario("a source's per-check state (OK/ERROR + failure count) is resolved into that source's own row", () => {
@@ -82,6 +92,32 @@ scenario("findings recorded in the last 24h are counted; an older finding is not
     return loadAyasResearchEngineStatusView(NOW);
   });
   assert.equal(view.digest.findingsLast24h, 1);
+});
+
+scenario("an uncertain recovery stays pending only until a later cycle completes; a running goal job is running, not uncertain", () => {
+  const pending = withTempCwd(() => {
+    createAyasResearchSchedulerStateStore().write({ schemaVersion: "1", consecutiveFailures: 1, lastUncertainRunId: "old-run", lastReconciledAt: "2026-09-17T11:00:00.000Z", lastExecutedAt: "2026-09-17T05:00:00.000Z" });
+    return loadAyasResearchEngineStatusView(NOW);
+  });
+  assert.equal(pending.uncertainOutcomePendingReview, true);
+  const settled = withTempCwd(() => {
+    createAyasResearchSchedulerStateStore().write({ schemaVersion: "1", consecutiveFailures: 0, lastUncertainRunId: "old-run", lastReconciledAt: "2026-09-17T05:00:00.000Z", lastExecutedAt: "2026-09-17T11:00:00.000Z" });
+    return loadAyasResearchEngineStatusView(NOW);
+  });
+  assert.equal(settled.uncertainOutcomePendingReview, false, "a later completed cycle settles the old uncertain run");
+  const running = withTempCwd(() => {
+    const jobId = "ayas-goal-research-00000000-0000-4000-8000-000000000001";
+    const scheduledFor = "2026-09-17T11:00:00.000Z";
+    createAyasResearchSchedulerStateStore().write({ schemaVersion: "1", consecutiveFailures: 0, currentRunId: "11111111-1111-4111-8111-111111111111", currentMode: "LIGHT", goalResearchJobs: [{
+      jobId, goalId: "ayas-goal-00000000-0000-4000-8000-000000000002", goalFingerprint: "0".repeat(64), sourceIds: ["fixture-source"], scheduledFor,
+      catchUpPolicy: "CATCH_UP_ONCE", maxLatenessMs: 0, status: "RUNNING", attempt: 1, runId: "22222222-2222-4222-8222-222222222222", startedAt: scheduledFor,
+      occurrenceId: crypto.createHash("sha256").update(`ayas-goal-research:${jobId}:${scheduledFor}`).digest("hex"),
+    }] });
+    return loadAyasResearchEngineStatusView(NOW);
+  });
+  assert.equal(running.uncertainOutcomePendingReview, false, "an in-flight run is not an uncertain outcome");
+  assert.equal(running.runningGoalCount, 1);
+  assert.equal(running.uncertainGoalCount, 0);
 });
 
 console.log(`AYAS research engine status view smoke: PASS (${count} scenarios)`);

@@ -63,6 +63,7 @@ export interface AyasDeepResearchDeps {
   readonly timeoutMs?: number;
   readonly maxTokens?: number;
   readonly now?: () => string;
+  readonly scheduleContext?: { readonly scheduledFor: string; readonly runId: string; readonly occurrenceId: string; readonly goalId?: string; readonly goalIntent?: string };
   /** Test-only passthrough — see `AyasSafePublicFetch`'s own doc comment. Never set by the real scheduler. */
   readonly dangerouslyAllowPrivateNetworkForTests?: boolean;
 }
@@ -155,7 +156,7 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
       let raw: AIProviderOutput;
       try {
         raw = await provider.generate(
-          buildAyasDeepAnalysisPrompt({ source: { provider: source.provider, category: source.category }, entry }),
+          buildAyasDeepAnalysisPrompt({ source: { provider: source.provider, category: source.category }, entry, goalIntent: deps.scheduleContext?.goalIntent }),
           { maxTokens: deps.maxTokens ?? AYAS_DEEP_SCAN_DEFAULT_MAX_TOKENS, jsonSchema: AYAS_DEEP_ANALYSIS_JSON_SCHEMA as unknown as Record<string, unknown> },
         );
       } catch (error) {
@@ -210,6 +211,13 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
           disposition,
           dispositionReason,
           researchMode: "DEEP",
+          ...(deps.scheduleContext ? {
+            scheduledFor: deps.scheduleContext.scheduledFor,
+            executedAt: now(),
+            researchRunId: deps.scheduleContext.runId,
+            occurrenceId: deps.scheduleContext.occurrenceId,
+            ...(deps.scheduleContext.goalId ? { goalId: deps.scheduleContext.goalId } : {}),
+          } : {}),
         });
         noveltyStore.remember(observation, { disposition, findingId: finding.findingId, judgedNotNoteworthy: false });
         entryOutcomes.push({ sourceId: source.sourceId, entryTitle: entry.title, outcome: "RECORDED", findingId: finding.findingId, gapClaimDowngraded: corroboration.downgraded, disposition, noveltyReason: novelty.reasonCode });

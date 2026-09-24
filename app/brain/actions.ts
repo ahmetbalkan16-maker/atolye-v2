@@ -41,6 +41,9 @@ import { createAyasApprovalInboxStore, type AyasInboxDecision } from "@/lib/brai
 import { loadAyasApprovalInboxView, type AyasApprovalInboxView } from "@/lib/brain/autonomy/AyasApprovalInboxView";
 import { loadAyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
 import { loadAyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
+import { scheduleAyasGoalResearch, createAndScheduleAyasGoalResearch, controlAyasGoalResearchJob } from "@/lib/brain/autonomy/AyasGoalResearchSchedule";
+import { resolveAyasResearchGateRoot } from "@/lib/brain/autonomy/AyasResearchScheduler";
+import type { AyasGoalResearchCatchUpPolicy } from "@/lib/brain/autonomy/AyasResearchSchedulerStateStore";
 import { detectAyasResearchStatusIntent, buildAyasResearchStatusSpokenAnswer } from "@/lib/brain/autonomy/AyasResearchStatusIntent";
 import { executeAyasApprovedProposalWith, defaultAyasProposalExecutionDeps, AyasProposalExecutionError } from "@/lib/brain/autonomy/AyasProposalExecutionService";
 import { approveAndExecuteAyasMicroBatch, defaultAyasMicroBatchApprovalDeps, AyasMicroBatchApprovalError } from "@/lib/brain/autonomy/AyasMicroBatchApprovalService";
@@ -137,6 +140,37 @@ async function requireBrainSession(): Promise<void> {
   if (!verifySession(token, gate.key as string)) {
     throw new Error("authentication_required");
   }
+}
+
+/** Owner-requested, read-only external research from up to three registered official feeds. */
+export async function scheduleAyasGoalResearchAction(input: {
+  readonly goalId: string;
+  readonly sourceIds: readonly string[];
+  readonly scheduledFor: string;
+  readonly catchUpPolicy: AyasGoalResearchCatchUpPolicy;
+  readonly maxLatenessMs?: number;
+}): Promise<{ readonly jobId: string; readonly status: string }> {
+  await requireBrainSession();
+  const job = await scheduleAyasGoalResearch(input, { gateRoot: resolveAyasResearchGateRoot() });
+  return { jobId: job.jobId, status: job.status };
+}
+
+export async function createAndScheduleAyasGoalResearchAction(input: {
+  readonly userIntent: string;
+  readonly sourceIds: readonly string[];
+  readonly scheduledFor: string;
+  readonly catchUpPolicy: AyasGoalResearchCatchUpPolicy;
+  readonly maxLatenessMs?: number;
+}): Promise<{ readonly goalId: string; readonly jobId: string; readonly status: string }> {
+  await requireBrainSession();
+  const { goal, job } = await createAndScheduleAyasGoalResearch(input, { gateRoot: resolveAyasResearchGateRoot() });
+  return { goalId: goal.goalId, jobId: job.jobId, status: job.status };
+}
+
+export async function controlAyasGoalResearchAction(jobId: string, action: "CONFIRM" | "CANCEL" | "SKIP"): Promise<{ readonly jobId: string; readonly status: string }> {
+  await requireBrainSession();
+  const job = await controlAyasGoalResearchJob(jobId, action, { gateRoot: resolveAyasResearchGateRoot() });
+  return { jobId: job.jobId, status: job.status };
 }
 
 /** Re-read the self-heal / AYAS Report Center snapshot (read-only). */

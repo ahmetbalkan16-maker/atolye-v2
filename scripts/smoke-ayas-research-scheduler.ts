@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
+import crypto from "node:crypto";
 
 import { tickAyasResearchScheduler, AYAS_RESEARCH_LIGHT_INTERVAL_MS, AYAS_RESEARCH_DEEP_INTERVAL_MS, resolveAyasResearchGateRoot } from "../src/lib/brain/autonomy/AyasResearchScheduler";
-import { AyasResearchSchedulerStateError, createAyasResearchSchedulerStateStore } from "../src/lib/brain/autonomy/AyasResearchSchedulerStateStore";
+import { AyasResearchSchedulerStateError, createAyasResearchSchedulerStateStore, type AyasResearchSchedulerStateStore } from "../src/lib/brain/autonomy/AyasResearchSchedulerStateStore";
 import { createAyasResearchSourceStateStore, type AyasResearchSourceStateStore } from "../src/lib/brain/autonomy/AyasResearchSourceStateStore";
 import type { AyasLightResearchDeps } from "../src/lib/brain/autonomy/AyasLightResearchEngine";
 import { createAyasExternalResearchStore } from "../src/lib/brain/autonomy/AyasExternalResearchStore";
@@ -45,6 +47,13 @@ function deepDepsFor(gateRoot: string): Omit<AyasDeepResearchDeps, "sources"> {
 }
 
 async function main() {
+  if (process.argv[2] === "--restart-child") {
+    const gateRoot = process.argv[3];
+    if (!gateRoot || !path.resolve(gateRoot).startsWith(path.resolve(os.tmpdir()) + path.sep)) throw new Error("child root must be TEMP");
+    const result = await tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, sources: [], light: lightDepsFor(gateRoot), deep: deepDepsFor(gateRoot) });
+    console.log(JSON.stringify({ outcome: result.outcome, state: result.state }));
+    return;
+  }
   await scenario("missing state defaults, but malformed, unknown-version and invalid state fail closed without launching research", async () => {
     const gateRoot = tempDir("ayas-sched-corrupt-");
     const stateStore = createAyasResearchSchedulerStateStore({ rootDir: gateRoot });
@@ -54,6 +63,10 @@ async function main() {
       [JSON.stringify({ schemaVersion: "2", consecutiveFailures: 0 }), "SCHEMA_MISMATCH"],
       [JSON.stringify({ schemaVersion: "1", consecutiveFailures: -1 }), "INVALID"],
       [JSON.stringify({ schemaVersion: "1", consecutiveFailures: 0, nextDeepAt: "not-a-date" }), "INVALID"],
+      [JSON.stringify({ schemaVersion: "1", consecutiveFailures: 0, nextDeepAt: "2026-09-24 08:00" }), "INVALID"],
+      [JSON.stringify({ schemaVersion: "1", consecutiveFailures: 0, totalAttempts: -1 }), "INVALID"],
+      [JSON.stringify({ schemaVersion: "1", consecutiveFailures: 0, currentOccurrenceId: "forged" }), "INVALID"],
+      [JSON.stringify({ schemaVersion: "1", consecutiveFailures: 0, currentRunId: "run", currentMode: "DEEP", currentScheduledFor: "2026-09-24T08:00:00.000Z", currentOccurrenceId: "forged" }), "INVALID"],
     ] as const;
     for (const [contents, code] of invalid) {
       fs.writeFileSync(stateStore.file, contents);
@@ -143,6 +156,58 @@ async function main() {
     // reschedule is now+interval, never longAgo+interval*N — proves no interval-replay bookkeeping exists
     const nextDeepMs = Date.parse(result.state.nextDeepAt!);
     assert.ok(nextDeepMs > Date.now(), "the rescheduled nextDeepAt must be in the future, derived from now — not still in the past from replaying old intervals");
+    assert.ok(result.state.lastMissedCount! >= 10, "coalesced skipped slots remain visible");
+    assert.ok(Date.parse(result.state.lastScheduledFor!) < Date.parse(result.state.lastExecutedAt!), "actual execution time is distinct from due time");
+    assert.equal(result.state.totalAttempts, 1);
+  });
+
+  await scenario("a completed cycle whose sources fail is still a completed cycle: per-source failures stay in source state, not in consecutiveFailures", async () => {
+    const gateRoot = tempDir("ayas-sched-source-failure-");
+    const stateStore = createAyasResearchSchedulerStateStore({ rootDir: gateRoot });
+    const light = lightDepsFor(gateRoot);
+    const result = await tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, sources: STUB_SOURCES, stateStore, light, deep: deepDepsFor(gateRoot) });
+    assert.equal(result.outcome, "DEEP");
+    assert.ok((result.light?.sourcesFailed ?? 0) > 0, "the stub source is unreachable by design");
+    assert.equal(result.state.consecutiveFailures, 0, "the stability/health guards count only thrown or uncertain cycles");
+    assert.equal(result.state.lastError, undefined);
+    assert.ok(result.state.lastSuccessfulResearchAt);
+    assert.equal(light.stateStore!.read("stub-a")?.status, "ERROR", "the source failure is tracked, with backoff, on the source itself");
+  });
+
+  await scenario("a separate process recovers an interrupted reservation and does not invoke research", () => {
+    const gateRoot = tempDir("ayas-sched-process-restart-");
+    const store = createAyasResearchSchedulerStateStore({ rootDir: gateRoot });
+    const scheduledFor = "2026-09-20T23:00:00.000Z";
+    store.write({ schemaVersion: "1", consecutiveFailures: 0, currentRunId: "prior-process-run", currentMode: "DEEP", currentOccurrenceId: crypto.createHash("sha256").update(`ayas-research:DEEP:${scheduledFor}`).digest("hex"), currentScheduledFor: scheduledFor, nextDeepAt: scheduledFor });
+    const child = spawnSync(process.execPath, [...process.execArgv, __filename, "--restart-child", gateRoot], { encoding: "utf8", timeout: 15_000, env: { ...process.env, AYAS_RESEARCH_SCHEDULER_ENABLED: "0" } });
+    assert.equal(child.status, 0, child.stderr);
+    const result = JSON.parse(child.stdout.trim()) as { outcome: string; state: { lastUncertainRunId: string; currentRunId?: string } };
+    assert.equal(result.outcome, "RECOVERED_UNCERTAIN");
+    assert.equal(result.state.lastUncertainRunId, "prior-process-run");
+    assert.equal(store.read().currentRunId, undefined);
+  });
+
+  await scenario("two daemon ticks use the same lock and reserve only one occurrence", async () => {
+    const gateRoot = tempDir("ayas-sched-two-daemons-");
+    const results = await Promise.all([0, 1].map(() => tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, sources: [], light: lightDepsFor(gateRoot), deep: deepDepsFor(gateRoot) })));
+    assert.equal(results.filter((r) => r.outcome === "DEEP").length, 1);
+    assert.equal(createAyasResearchSchedulerStateStore({ rootDir: gateRoot }).read().totalAttempts, 1);
+  });
+
+  await scenario("a failed final checkpoint leaves the reservation and never retries the same occurrence", async () => {
+    const gateRoot = tempDir("ayas-sched-final-write-");
+    const store = createAyasResearchSchedulerStateStore({ rootDir: gateRoot });
+    let writes = 0;
+    const failingStore: AyasResearchSchedulerStateStore = {
+      file: store.file,
+      read: () => store.read(),
+      write: (state) => { if (++writes === 2) throw new Error("simulated final checkpoint failure"); return store.write(state); },
+    };
+    await assert.rejects(tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, sources: [], stateStore: failingStore, light: lightDepsFor(gateRoot), deep: deepDepsFor(gateRoot) }), /simulated final checkpoint failure/);
+    assert.ok(store.read().currentRunId);
+    const recovery = await tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, sources: [], stateStore: store, light: lightDepsFor(gateRoot), deep: deepDepsFor(gateRoot) });
+    assert.equal(recovery.outcome, "RECOVERED_UNCERTAIN");
+    assert.equal(store.read().totalAttempts, 1);
   });
 
   await scenario("two concurrent ticks against the same gateRoot: only one actually runs, the other reports ANOTHER_RUN_ACTIVE — never a duplicate scan", async () => {
@@ -155,13 +220,16 @@ async function main() {
     });
   });
 
-  await scenario("a process that died mid-run (stale currentRunId left in state) self-heals on the next tick rather than staying stuck", async () => {
+  await scenario("a process that died mid-run is reconciled without replaying the uncertain occurrence", async () => {
     const gateRoot = tempDir("ayas-sched-stuck-");
     const stateStore = createAyasResearchSchedulerStateStore({ rootDir: gateRoot });
     stateStore.write({ schemaVersion: "1", currentRunId: "dead-run-id", currentMode: "DEEP", consecutiveFailures: 0 });
     const result = await tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, sources: STUB_SOURCES, stateStore, light: lightDepsFor(gateRoot), deep: deepDepsFor(gateRoot) });
     assert.equal(result.state.currentRunId, undefined, "a completed tick must never leave currentRunId set");
-    assert.notEqual(result.outcome, "ANOTHER_RUN_ACTIVE", "a stale marker with no real lock held must not be treated as an active run");
+    assert.equal(result.outcome, "RECOVERED_UNCERTAIN");
+    assert.equal(result.state.lastUncertainRunId, "dead-run-id");
+    assert.ok(Date.parse(result.state.nextDeepAt!) > Date.now());
+    assert.equal((await tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, sources: STUB_SOURCES, stateStore })).outcome, "NONE_DUE");
   });
 
   await scenario("the research scheduler's lock is completely independent from Package C's own execution-authority lock (different gateRoot) — a research run in progress never blocks a governed source-mutation execution", async () => {
@@ -179,7 +247,7 @@ async function main() {
     assert.equal(packageCRanWhileResearchLockHeld, true);
   });
 
-  await scenario("a research run that throws an unexpected error still advances the schedule (never a tight retry loop) and records lastError/consecutiveFailures", async () => {
+  await scenario("an unexpected error leaves the durable reservation uncertain, then restart reconciles without a retry", async () => {
     const gateRoot = tempDir("ayas-sched-error-");
     const stateStore = createAyasResearchSchedulerStateStore({ rootDir: gateRoot });
     const throwingStateStore: AyasResearchSourceStateStore = {
@@ -189,10 +257,12 @@ async function main() {
       write: () => { throw new Error("unreachable"); },
     };
     const light: Omit<AyasLightResearchDeps, "sources"> = { stateStore: throwingStateStore };
-    const result = await tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, sources: STUB_SOURCES, stateStore, light });
-    assert.ok(result.state.nextLightAt, "the schedule must still advance despite the failure");
-    assert.equal(result.state.consecutiveFailures, 1);
-    assert.ok(result.state.lastError, "the failure must be recorded, not swallowed silently");
+    await assert.rejects(tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, sources: STUB_SOURCES, stateStore, light }), /simulated durable-store failure/);
+    assert.ok(stateStore.read().currentRunId, "reservation must survive the unexpected failure");
+    const recovered = await tickAyasResearchScheduler({ repoRoot: gateRoot, gateRoot, sources: STUB_SOURCES, stateStore });
+    assert.equal(recovered.outcome, "RECOVERED_UNCERTAIN");
+    assert.equal(recovered.state.consecutiveFailures, 1);
+    assert.equal(recovered.state.lastError, "RESEARCH_OUTCOME_UNCERTAIN");
   });
 
   console.log(`AYAS research scheduler smoke: PASS (${count} scenarios)`);

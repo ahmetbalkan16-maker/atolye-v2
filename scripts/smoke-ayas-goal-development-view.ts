@@ -72,5 +72,18 @@ scenario("goals are sorted newest-updated first", () => {
   assert.equal(view.goals[0]!.userIntent, "newer");
 });
 
+scenario("an unreadable scheduler state never takes goals and research offline (display projection only)", () => {
+  const view = withTempCwd(() => {
+    createAyasGoalStore().create({ userIntent: "still visible", scope: "x", allowedDomains: [], successCriteria: [] });
+    const dir = path.join(process.cwd(), "data", "brain", "self-improvement", "research");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "scheduler-state.json"), "{ not json");
+    return loadAyasGoalDevelopmentView();
+  });
+  assert.equal(view.connected, true);
+  assert.equal(view.goals.length, 1);
+  assert.deepEqual(view.goals[0]!.scheduledResearchFindings, []);
+});
+
 console.log(`AYAS goal development view smoke: PASS (${count} scenarios)`);
 console.log(JSON.stringify({ status: "PASS", suite: "ayas-goal-development-view", scenarios: count }));

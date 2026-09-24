@@ -70,6 +70,16 @@ async function main(): Promise<void> {
 
   try {
 
+  // One lock-protected scheduler tick per child process. Reconcile durable
+  // research before unrelated discovery/inbox work, so their failures do
+  // not suppress missed-window detection. Operator opt-out remains honored.
+  let research: AyasResearchSchedulerTickResult | undefined;
+  const researchSchedulerEnabled = process.env.AYAS_RESEARCH_SCHEDULER_ENABLED !== "0";
+  if (researchSchedulerEnabled) {
+    try { research = await tickAyasResearchScheduler({ repoRoot: root }); }
+    catch (error) { observation.gaps.push(`research scheduler tick failed: ${error instanceof Error ? error.message : String(error)}`); }
+  }
+
   const inbox = createAyasApprovalInboxStore();
   // Backend-authoritative staleness reconciliation: unconditional, since it
   // only ever flips PENDING/APPROVED -> STALE (see AyasProposalStaleness.ts)
@@ -128,34 +138,6 @@ async function main(): Promise<void> {
     microBatch = await accumulateAyasMicroBatchCandidates({ repoRoot: root, observation, batchStore: microBatchStore, itemStore: microItemStore });
   } catch (error) {
     observation.gaps.push(`micro batch accumulation failed: ${error instanceof Error ? error.message : String(error)}`);
-  }
-
-  // AYAS CONTINUOUS EXTERNAL INTELLIGENCE sprint (Part B/Q) — one scheduler
-  // tick per discovery-daemon tick, the exact same "spawned once per cycle,
-  // never a second parallel mechanism" posture as everything else in this
-  // script. `tickAyasResearchScheduler` is itself a fast no-op the
-  // overwhelming majority of the time (cadence not due yet) and is
-  // independently lease-protected against a second concurrent daemon
-  // process, so this can never produce a duplicate scan. A research failure
-  // (network down, every source erroring) is folded into `gaps` exactly
-  // like the other best-effort signals above — it must never abort
-  // discovery, staleness reconciliation, or anything else in this script.
-  // `AYAS_RESEARCH_SCHEDULER_ENABLED=0` is a real operator opt-out (e.g. "I
-  // don't want AYAS reaching the internet right now"), and is also how a
-  // repo-root-spawning test that has nothing to do with research (e.g.
-  // smoke-ayas-discovery-registry.ts's isolated-fixture-repo integration
-  // test) avoids incurring a real, first-ever-tick network+local-model
-  // research cycle as an unrelated side effect — confirmed live: without
-  // this, that test's spawned child process could exceed its own timeout
-  // budget waiting on a real DEEP scan it never asked for.
-  let research: AyasResearchSchedulerTickResult | undefined;
-  const researchSchedulerEnabled = process.env.AYAS_RESEARCH_SCHEDULER_ENABLED !== "0";
-  if (researchSchedulerEnabled) {
-    try {
-      research = await tickAyasResearchScheduler({ repoRoot: root });
-    } catch (error) {
-      observation.gaps.push(`research scheduler tick failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
   }
 
   ledger.complete(ledgerRun.runId, {

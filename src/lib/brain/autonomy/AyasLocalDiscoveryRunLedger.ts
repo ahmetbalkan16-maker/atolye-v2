@@ -26,7 +26,7 @@ export interface AyasLocalDiscoveryRun {
   readonly duplicateCount: number;
   readonly staleProposalCount: number;
   readonly staleBatchCount: number;
-  readonly researchOutcome?: "NONE_DUE" | "ANOTHER_RUN_ACTIVE" | "LIGHT" | "DEEP" | "DISABLED" | "ERROR";
+  readonly researchOutcome?: "NONE_DUE" | "ANOTHER_RUN_ACTIVE" | "RECOVERED_UNCERTAIN" | "GOAL_RECONCILED" | "GOAL_WAITING" | "GOAL_SKIPPED" | "GOAL_DEFERRED" | "GOAL_SUCCEEDED" | "GOAL_FAILED" | "LIGHT" | "DEEP" | "DISABLED" | "ERROR";
   /** Stable local code only; never a raw exception or external-content string. */
   readonly failureCode?: "LOCAL_DISCOVERY_FAILED";
 }
