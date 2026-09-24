@@ -102,35 +102,35 @@ function sseFetch(events: readonly AyasChatStreamEvent[]): typeof fetch {
 
 async function run(): Promise<void> {
   await scenario("INTENT", "clear direct request does not trigger clarification", () => {
-    assert.equal(context("Mimar Sinan için üç başlık öner.").clarification, null);
+    assert.equal(context("Mimar Sinan için üç başlık öner.").clarification, null, "assert.equal(context(\"Mimar Sinan için üç başlık öner.\").clarification, null)");
   });
 
   await scenario("CLARIFICATION", "unbound demonstrative genuinely needs clarification", () => {
-    assert.ok(context("Bunu yap.").clarification);
+    assert.ok(context("Bunu yap.").clarification, "assert.ok(context(\"Bunu yap.\").clarification)");
   });
 
   await scenario("REFERENT", "ambiguous-looking demonstrative is resolved by one prior task", () => {
     const c = context("Bunu yap.", turns(["user", "Giriş paragrafını daha kısa yaz."], ["brain", "İki farklı kısaltma yolu önerebilirim."]));
-    assert.equal(c.clarification, null);
+    assert.equal(c.clarification, null, "assert.equal(c.clarification, null)");
     assert.match(c.resolvedReferents.join(" "), /Giriş paragrafını/i);
   });
 
   await scenario("REFERENT", "aynısını reuses the prior format instead of resetting context", () => {
     const c = context("İkinci sahne için de aynısını yap.", turns(["user", "İlk sahneyi üç kısa cümleyle özetle."], ["brain", "İlk sahnenin kısa özeti hazır."]));
-    assert.equal(c.clarification, null);
+    assert.equal(c.clarification, null, "assert.equal(c.clarification, null)");
     assert.match(c.resolvedReferents.join(" "), /İlk sahnenin kısa özeti hazır/i);
   });
 
   await scenario("CORRECTION", "bare rejection does not silently keep the rejected referent", () => {
     const c = context("Hayır, ben onu demedim.", turns(["user", "Renk paletini konuşalım."], ["brain", "Mavi paleti mi kastediyorsun?"]));
-    assert.ok(c.clarification);
-    assert.equal(c.resolvedReferents.length, 0);
+    assert.ok(c.clarification, "assert.ok(c.clarification)");
+    assert.equal(c.resolvedReferents.length, 0, "assert.equal(c.resolvedReferents.length, 0)");
   });
 
   await scenario("CONTEXT", "a clear subject change does not drag the old topic into the turn", () => {
     const c = context("Akşam ne yesem?", turns(["user", "Render ayarlarını konuşalım."], ["brain", "Bitrate ile başlayabiliriz."]));
-    assert.equal(c.clarification, null);
-    assert.equal(c.resolvedReferents.length, 0);
+    assert.equal(c.clarification, null, "assert.equal(c.clarification, null)");
+    assert.equal(c.resolvedReferents.length, 0, "assert.equal(c.resolvedReferents.length, 0)");
   });
 
   await scenario("CONTEXT", "öncekine dön selects the previous distinct topic", () => {
@@ -139,47 +139,47 @@ async function run(): Promise<void> {
       ["user", "Şimdi thumbnail tarafını konuşalım."], ["brain", "Başlık okunabilirliğiyle başlayalım."],
     );
     const c = context("Öncekine dön.", history);
-    assert.equal(c.clarification, null);
+    assert.equal(c.clarification, null, "assert.equal(c.clarification, null)");
     assert.match(c.resolvedReferents.join(" "), /ses tasar/i);
   });
 
   await scenario("MEMORY", "current explicit preference overrides older memory", () => {
     const result = retrieveAyasMemory([record("cevapları kısa tut")], "Bu sefer uzun ve ayrıntılı anlat.", { nowIso: NOW });
-    assert.equal(result.selected.length, 0);
-    assert.equal(result.quarantined[0]?.quarantineReason, "current-request-overrides-memory");
+    assert.equal(result.selected.length, 0, "assert.equal(result.selected.length, 0)");
+    assert.equal(result.quarantined[0]?.quarantineReason, "current-request-overrides-memory", "assert.equal(result.quarantined[0]?.quarantineReason, \"current-request-overrides-memory\")");
   });
 
   await scenario("MEMORY", "stale memory cannot present itself as current", () => {
     const result = retrieveAyasMemory([record("aktif proje eski-belgesel", ["proje"], "2025-01-01T00:00:00.000Z")], "aktif projem ne", { nowIso: NOW });
-    assert.equal(result.selected.length, 0);
-    assert.equal(result.quarantined[0]?.quarantineReason, "stale-fact");
+    assert.equal(result.selected.length, 0, "assert.equal(result.selected.length, 0)");
+    assert.equal(result.quarantined[0]?.quarantineReason, "stale-fact", "assert.equal(result.quarantined[0]?.quarantineReason, \"stale-fact\")");
   });
 
   await scenario("MEMORY", "relevant identity memory is selected", () => {
     const result = retrieveAyasMemory([record("beni Ahmet olarak hatırla", ["kimlik"])], "ismim ne", { nowIso: NOW });
-    assert.equal(result.selected.length, 1);
+    assert.equal(result.selected.length, 1, "assert.equal(result.selected.length, 1)");
   });
 
   await scenario("MEMORY", "irrelevant memorable fact stays out", () => {
     const result = retrieveAyasMemory([record("cevapları kısa tut")], "Ankara'nın başkenti olduğu hangi yıl ilan edildi", { nowIso: NOW });
-    assert.equal(result.selected.length, 0);
+    assert.equal(result.selected.length, 0, "assert.equal(result.selected.length, 0)");
   });
 
   await scenario("TURKISH", "typo-heavy next-step question continues the active topic", () => {
     const c = context("simdi ne yapcaz", turns(["user", "Ses temizliğini bitirdik."], ["brain", "Sırada miks kontrolü var."]));
-    assert.equal(c.clarification, null);
-    assert.ok(c.trace.resolvedReferences > 0);
+    assert.equal(c.clarification, null, "assert.equal(c.clarification, null)");
+    assert.ok(c.trace.resolvedReferences > 0, "assert.ok(c.trace.resolvedReferences > 0)");
   });
 
   await scenario("TURKISH", "colloquial tamam ver continues the pending deliverable", () => {
     const c = context("tamam ver", turns(["user", "Kısa özet hazırlar mısın?"], ["brain", "Üç cümlelik özet uygun olur mu?"]));
-    assert.equal(c.clarification, null);
-    assert.ok(c.trace.resolvedReferences > 0);
+    assert.equal(c.clarification, null, "assert.equal(c.clarification, null)");
+    assert.ok(c.trace.resolvedReferences > 0, "assert.ok(c.trace.resolvedReferences > 0)");
   });
 
   await scenario("TURKISH", "omitted-subject pronoun follows the only concrete request", () => {
     const c = context("Buna bir de kapanış ekle.", turns(["user", "Giriş metnini sadeleştir."], ["brain", "Giriş metnini sadeleştirdim."]));
-    assert.equal(c.clarification, null);
+    assert.equal(c.clarification, null, "assert.equal(c.clarification, null)");
     assert.match(c.resolvedReferents.join(" "), /Giriş metnini/i);
   });
 
@@ -191,7 +191,7 @@ async function run(): Promise<void> {
   });
 
   await scenario("INTENT", "direct action wording remains explicit and is not mistaken for a question", () => {
-    assert.equal(context("Bu taslağı iki paragrafa indir.").clarification, null);
+    assert.equal(context("Bu taslağı iki paragrafa indir.").clarification, null, "assert.equal(context(\"Bu taslağı iki paragrafa indir.\").clarification, null)");
   });
 
   await scenario("INTENT", "explanation-only request does not acquire execution intent", () => {
@@ -207,13 +207,13 @@ async function run(): Promise<void> {
 
   await scenario("CORRECTION", "assistant mistake followed by rejection requires a new binding", () => {
     const c = context("Hayır, onu demedim; diğerini kastettim.", turns(["user", "Prompt ve context olmak üzere iki seçenek var."], ["brain", "Prompt seçeneğini uygulayalım."]));
-    assert.equal(c.clarification, null);
+    assert.equal(c.clarification, null, "assert.equal(c.clarification, null)");
     assert.match(c.resolvedReferents.join(" "), /context/i);
   });
 
   await scenario("REFERENT", "devam et follows the most recent assistant turn", () => {
     const c = context("Devam et.", turns(["user", "Miks adımlarını anlat."], ["brain", "Önce gürültü temizliği yapılır."]));
-    assert.equal(c.clarification, null);
+    assert.equal(c.clarification, null, "assert.equal(c.clarification, null)");
     assert.match(c.resolvedReferents.join(" "), /gürültü temizliği/i);
   });
 
@@ -246,8 +246,8 @@ async function run(): Promise<void> {
         { type: "done", text: "Kısa özet.", source: "llm", corrected: false },
       ]),
     });
-    assert.equal(result.ok, true);
-    if (result.ok) assert.equal(result.text, deltas.join(""));
+    assert.equal(result.ok, true, "assert.equal(result.ok, true)");
+    if (result.ok) assert.equal(result.text, deltas.join(""), "assert.equal(result.text, deltas.join(\"\"))");
   });
 
   await scenario("STREAM", "first terminal is final and late deltas/duplicate terminal are ignored", async () => {
@@ -261,9 +261,9 @@ async function run(): Promise<void> {
         { type: "done", text: "ESKİ", source: "fallback", corrected: true, reason: "late" },
       ]),
     });
-    assert.deepEqual(deltas, ["Doğru cevap."]);
-    assert.equal(result.ok, true);
-    if (result.ok) assert.equal(result.text, "Doğru cevap.");
+    assert.deepEqual(deltas, ["Doğru cevap."], "assert.deepEqual(deltas, [\"Doğru cevap.\"])");
+    assert.equal(result.ok, true, "assert.equal(result.ok, true)");
+    if (result.ok) assert.equal(result.text, "Doğru cevap.", "assert.equal(result.text, \"Doğru cevap.\")");
   });
 
   await scenario("IDENTITY", "identity reference continuity uses relevant memory only", () => {
@@ -272,71 +272,71 @@ async function run(): Promise<void> {
       "Benim adım ne?",
       { nowIso: NOW },
     );
-    assert.equal(result.selected.length, 1);
+    assert.equal(result.selected.length, 1, "assert.equal(result.selected.length, 1)");
     assert.match(result.selected[0]?.record.body ?? "", /Eylül/i);
   });
 
   await scenario("REFERENT", "şimdi ne yapacağız asks for the next step in the active task", () => {
     const c = context("Şimdi ne yapacağız?", turns(["user", "Araştırmayı tamamladık."], ["brain", "Sırada senaryo taslağı var."]));
-    assert.equal(c.clarification, null);
-    assert.ok(c.trace.resolvedReferences > 0);
+    assert.equal(c.clarification, null, "assert.equal(c.clarification, null)");
+    assert.ok(c.trace.resolvedReferences > 0, "assert.ok(c.trace.resolvedReferences > 0)");
   });
 
   await scenario("REFERENT", "tamam ver binds to the pending assistant question", () => {
     const c = context("Tamam, ver.", turns(["user", "Bana bir özet çıkar."], ["brain", "Kısa sürümü şimdi paylaşayım mı?"]));
-    assert.equal(c.clarification, null);
-    assert.ok(c.trace.resolvedReferences > 0);
+    assert.equal(c.clarification, null, "assert.equal(c.clarification, null)");
+    assert.ok(c.trace.resolvedReferences > 0, "assert.ok(c.trace.resolvedReferences > 0)");
   });
 
   await scenario("REFERENT", "aynı şekilde yap preserves the prior method", () => {
     const c = context("Bunu da aynı şekilde yap.", turns(["user", "İlk bölümü sade Türkçeyle yaz."], ["brain", "İlk bölümü sadeleştirdim."]));
-    assert.equal(c.clarification, null);
-    assert.ok(c.trace.resolvedReferences > 0);
+    assert.equal(c.clarification, null, "assert.equal(c.clarification, null)");
+    assert.ok(c.trace.resolvedReferences > 0, "assert.ok(c.trace.resolvedReferences > 0)");
   });
 
   await scenario("CLARIFICATION", "complete request does not provoke a redundant question", () => {
-    assert.equal(context("Metni 120 kelimeye indir ve resmi bir ton kullan.").clarification, null);
+    assert.equal(context("Metni 120 kelimeye indir ve resmi bir ton kullan.").clarification, null, "assert.equal(context(\"Metni 120 kelimeye indir ve resmi bir ton kullan.\").clarification, null)");
   });
 
   await scenario("REFERENT", "bunu değil diğerini selects the only alternative", () => {
     const c = context("Bunu değil, diğerini seç.", turns(["brain", "İki seçenek var: kısa anlatım ve ayrıntılı anlatım."], ["user", "İlkini seçelim."], ["brain", "Kısa anlatımı seçtim."]));
-    assert.equal(c.clarification, null);
+    assert.equal(c.clarification, null, "assert.equal(c.clarification, null)");
     assert.match(c.resolvedReferents.join(" "), /ayrintili anlatim/i);
   });
 
   await scenario("CONTEXT", "explicit prior-context opt-out prevents old referent injection", () => {
     const c = context("Önceki bağlamı kullanma; yeni konu olarak renk teorisini anlat.", turns(["user", "Render ayarlarını konuşalım."], ["brain", "Bitrate ile başlayalım."]));
-    assert.equal(c.clarification, null);
-    assert.equal(c.resolvedReferents.length, 0);
+    assert.equal(c.clarification, null, "assert.equal(c.clarification, null)");
+    assert.equal(c.resolvedReferents.length, 0, "assert.equal(c.resolvedReferents.length, 0)");
   });
 
   await scenario("REFERENT", "az önce söylediğim şeyi kullan resolves to the user's prior instruction", () => {
     const c = context("Az önce söylediğim şeyi kullan.", turns(["user", "Başlıkta soru cümlesi kullan."], ["brain", "Anladım."]));
-    assert.equal(c.clarification, null);
+    assert.equal(c.clarification, null, "assert.equal(c.clarification, null)");
     assert.match(c.resolvedReferents.join(" "), /Başlıkta soru cümlesi/i);
   });
 
   await scenario("TEMPORAL", "deferred topic remains bound without pretending to execute it", () => {
     const c = context("Buna sonra bakarız.", turns(["user", "Thumbnail rengini konuşalım."], ["brain", "Mavi ve turuncu seçenekleri var."]));
-    assert.equal(c.clarification, null);
-    assert.ok(c.trace.resolvedReferences > 0);
+    assert.equal(c.clarification, null, "assert.equal(c.clarification, null)");
+    assert.ok(c.trace.resolvedReferences > 0, "assert.ok(c.trace.resolvedReferences > 0)");
   });
 
   await scenario("TEMPORAL", "first finish this binds the immediate task", () => {
     const c = context("İlk önce bunu bitirelim.", turns(["user", "Senaryo girişini kısalt."], ["brain", "İki cümleye indirebilirim."]));
-    assert.equal(c.clarification, null);
-    assert.ok(c.trace.resolvedReferences > 0);
+    assert.equal(c.clarification, null, "assert.equal(c.clarification, null)");
+    assert.ok(c.trace.resolvedReferences > 0, "assert.ok(c.trace.resolvedReferences > 0)");
   });
 
   await scenario("MEMORY", "cross-computer continuation without available memory does not fabricate", () => {
     const c = context("Öbür bilgisayardaki kaldığımız yerden devam et.");
-    assert.ok(c.clarification);
-    assert.equal(c.resolvedReferents.length, 0);
+    assert.ok(c.clarification, "assert.ok(c.clarification)");
+    assert.equal(c.resolvedReferents.length, 0, "assert.equal(c.resolvedReferents.length, 0)");
   });
 
   await scenario("CLARIFICATION", "one pronoun with two live options asks rather than guessing", () => {
     const c = context("Onu yap.", turns(["brain", "İki seçenek var: kısa kurgu ve uzun kurgu."]));
-    assert.ok(c.clarification);
+    assert.ok(c.clarification, "assert.ok(c.clarification)");
   });
 
   await scenario("PROMPT", "answer-quality contract prioritizes directness and current context", () => {
