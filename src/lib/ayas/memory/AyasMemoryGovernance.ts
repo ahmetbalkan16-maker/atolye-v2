@@ -62,6 +62,14 @@ export function scoreAyasMemoryCandidate(candidate: AyasMemoryCandidate): AyasMe
   if (containsBrainSecret(title) || containsBrainSecret(body)) {
     return reject("sır / anahtar içeriyor");
   }
+  // An explicitly temporary instruction must not become a durable preference
+  // or decision merely because the extractor also sees "tercih ederim" or
+  // "karar verdik". Without a known end time, retaining it only in this
+  // conversation is safer than inventing a permanent memory interval.
+  const scope = body.toLocaleLowerCase("tr").replace(/ı/g, "i").normalize("NFD").replace(/\p{M}/gu, "");
+  if (/\b(?:simdilik|su anlik|bu sefer(?:lik)?|bu kez(?:lik)?|bu yanitta|bu cevapta)\b/.test(scope)) {
+    return reject("geçici kullanıcı kapsamı — kalıcı hafızaya alınmaz");
+  }
   // Transient chit-chat: a candidate the extractor would only emit as
   // `ayas-inferred` with no tags and no durable kind → drop.
   const durableKind =

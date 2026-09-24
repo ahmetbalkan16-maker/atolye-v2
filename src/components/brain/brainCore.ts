@@ -810,13 +810,25 @@ function ayasReplyOffersFileWriteCapability(text: string): boolean {
   return FILE_WRITE_CAPABILITY_VERB.test(t) && FILE_WRITE_TARGET_HINT.test(t);
 }
 
+// The chat path cannot write source files. A past-tense claim with an explicit
+// file/code target is therefore false even when it does not mention the
+// pipeline, a commit, or a flag value. Keep the target and verb in the same
+// short clause so an unrelated mention elsewhere does not trip the guard.
+const FILE_WRITE_DONE_VERB = String.raw`(?:de[ğg]i[şs]tird[ıi]m|d[üu]zenledim|g[üu]ncelledim|kaydettim|yazd[ıi]m|uygulad[ıi]m)`;
+const FILE_WRITE_DONE_TARGET = String.raw`(?:dosya\p{L}*|kaynak\s+kod\p{L}*|kod\p{L}*|repo\p{L}*)`;
+const FILE_WRITE_DONE_CLAIM = new RegExp(
+  String.raw`(?:^|[^\p{L}])(?:${FILE_WRITE_DONE_TARGET}[^.!?\n]{0,100}${FILE_WRITE_DONE_VERB}|${FILE_WRITE_DONE_VERB}[^.!?\n]{0,100}${FILE_WRITE_DONE_TARGET})(?:$|[^\p{L}])`,
+  "iu",
+);
+
 export function ayasReplyClaimsExecution(text: string): boolean {
   const t = String(text ?? "");
   return (
     AYAS_FALSE_EXECUTION_CLAIM.test(t) ||
     ayasReplyClaimsMutationCapability(t) ||
     DELETE_CLAIM.test(t) ||
-    ayasReplyOffersFileWriteCapability(t)
+    ayasReplyOffersFileWriteCapability(t) ||
+    FILE_WRITE_DONE_CLAIM.test(t)
   );
 }
 

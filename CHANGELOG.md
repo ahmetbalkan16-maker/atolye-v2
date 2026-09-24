@@ -1,5 +1,13 @@
 ---
 
+## 2026-09-24 — AYAS Cognitive Self-Improvement & Answer Quality
+
+- Added an OS-TEMP-only deterministic 55-case evaluator across 17 quality dimensions and five held-out cases, with advisory failure taxonomy and bounded improvement evidence. The same evaluator on clean `f1c8e8a` and final code improves 46/55 to 53/55; unexpected failures fall from 7 to 0.
+- Kept later corrections in bounded older-turn context, excluded explicitly temporary requests from durable memory and rejected false past-tense file-write claims in final chat/reasoning output.
+- Documented two measured free-text supersession failures and the distinction between prompt/guard checks and real model answer quality. TypeScript, lint and relevant regressions pass; see `docs/AYAS_COGNITIVE_SELF_IMPROVEMENT.md`.
+
+---
+
 ## 2026-09-24 — AYAS PC-Off Safe Research
 
 - Kept the workstation reality explicit: nothing runs while the PC is off; missed research is detected and reconciled on the first heartbeat after restart, and no result is labelled as produced at its planned time.

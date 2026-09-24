@@ -1,5 +1,14 @@
 ---
 
+## AYAS Cognitive Self-Improvement & Answer Quality — 2026-09-24
+
+- [x] Same-hash 17-dimension, 55-case deterministic baseline/final evaluator on a clean `f1c8e8a` archive and current worktree: 46/55 to 53/55, unexpected failures 7 to 0, held-out 4/5.
+- [x] Preserve newer corrections in bounded older-turn summaries, reject explicitly temporary durable-memory candidates and guard against false file-write claims in final answers.
+- [x] Emit category/component/evidence/bounded-improvement quality gaps without mutation or approval authority; TypeScript, lint and relevant regression suites pass. See `docs/AYAS_COGNITIVE_SELF_IMPROVEMENT.md`.
+- [ ] Existing free-text supersession debt remains measured (two cognitive cases; retrieval's free-text stale-selection subset remains 100%). Live model prose/naturalness has no human-rated acceptance claim.
+
+---
+
 ## AYAS PC-Off Safe Research — 2026-09-24
 
 - [x] Workstation-only reality documented: no execution while powered off; restart-time missed detection, reconciliation and bounded catch-up.

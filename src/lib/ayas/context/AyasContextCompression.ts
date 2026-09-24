@@ -52,14 +52,17 @@ export function compressAyasHistory(
   const older = turns.slice(0, recentStart);
   const recent = turns.slice(recentStart);
 
-  const userAsks = older.filter((t) => t.role === "user").map((t) => firstSentence(t.text));
+  // A bounded summary must retain the newest correction/constraint before
+  // older, possibly superseded requests consume its character budget.
+  const userAsks = older.filter((t) => t.role === "user").reverse().map((t) => firstSentence(t.text));
   const ayasQuestions = older
     .filter((t) => t.role !== "user" && t.text.trim().endsWith("?"))
+    .reverse()
     .map((t) => lastSentence(t.text));
 
   const lines: string[] = [];
   if (userAsks.length) {
-    lines.push(`Daha önce konuşulan konular: ${dedupeJoin(userAsks, maxChars)}`);
+    lines.push(`Daha önce konuşulan konular (en yenisi önce): ${dedupeJoin(userAsks, maxChars)}`);
   }
   if (ayasQuestions.length) {
     lines.push(`AYAS'ın daha önce sorduğu: ${dedupeJoin(ayasQuestions, Math.floor(maxChars / 2))}`);
