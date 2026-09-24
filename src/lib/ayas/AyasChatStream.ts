@@ -41,8 +41,15 @@ import { routeAyasModel, type AyasModelRoute } from "./model/AyasModelRouter";
 import type { AyasModelProvider, AyasModelProviderId, AyasChatComplexity } from "./model/AyasModelTypes";
 import { assembleAyasContext } from "./context/AyasContextAssembly";
 import { deriveAyasConversationState } from "./context/AyasConversationState";
-import { recallAyasMemoryWithTrace, persistAyasMemoryFromTurn } from "./memory/AyasMemoryRecall";
+import {
+  recallAyasMemoryWithTrace,
+  persistAyasMemoryFromTurn,
+  stripAyasMemoryLineAnnotation,
+  type AyasMemoryPersistOutcome,
+} from "./memory/AyasMemoryRecall";
 import type { AyasMemoryStoreOptions } from "./memory/AyasMemoryStore";
+import { isAyasIdentityStatement } from "./memory/AyasMemoryCandidate";
+import { ayasMemoryNameKey, detectAyasMemoryTemporalQuery, readAyasIdentityStatement } from "./memory/AyasMemoryTemporal";
 import { shouldUseAyasReasoning, runAyasReasoning } from "./reasoning/AyasReasoningCore";
 import type { AyasReasoningTrace } from "./reasoning/AyasReasoningTypes";
 import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
@@ -208,7 +215,7 @@ function relevantMemoryLinesForTurn(
   const query = meaningfulMemoryTokens(text);
   const selfReferential = isSelfReferentialQuery(text);
   return entries
-    .filter((entry) => (selfReferential && entry.identity) || hasMeaningfulMemoryOverlap(query, entry.line))
+    .filter((entry) => (selfReferential && entry.identity) || hasMeaningfulMemoryOverlap(query, stripAyasMemoryLineAnnotation(entry.line)))
     .map((entry) => entry.line);
 }
 
@@ -655,6 +662,16 @@ function toolDispatchTraceStatus(dispatch: AyasToolDispatchAttempt | null, toolN
   return { status: "error", errorCode: outcome.stage === "timeout" ? "TOOL_TIMEOUT" : "TOOL_EXECUTOR_FAILURE" };
 }
 
+/** A memory write that failed is an error on the trace, never "ok / 0 stored". Counts and a stable code only. */
+function endPersistSpan(span: AyasTraceSpanHandle | undefined, outcome: AyasMemoryPersistOutcome): void {
+  const failed = outcome.failed ?? 0;
+  span?.end(
+    failed > 0 ? "error" : "ok",
+    { candidateCount: outcome.candidates, storedCount: outcome.stored, failedCount: failed },
+    failed > 0 ? outcome.errorCode ?? "AYAS_MEMORY_PERSIST_FAILED" : undefined,
+  );
+}
+
 function replyHasPersonalStatementDrift(reply: string, userText: string): boolean {
   const user = fold(userText);
   const answer = fold(reply);
@@ -665,27 +682,45 @@ function replyHasPersonalStatementDrift(reply: string, userText: string): boolea
   return false;
 }
 
+/** The name as the user wrote it: the word in `text` whose folded, accent-free form is the resolved `value`. */
+function displayIdentityName(text: string, value: string): string {
+  const word = (text.match(/[\p{L}][\p{L}\p{N}]*/gu) ?? []).find((token) => ayasMemoryNameKey(token) === value);
+  return word ?? `${value.charAt(0).toLocaleUpperCase("tr")}${value.slice(1)}`;
+}
+
+/**
+ * Memory Temporal v2: the recalled name is the resolver's current value for
+ * a line that reached the prompt — never the first "adım X" re-parsed from
+ * free text, which would read "Adım Ahmet değil, Mehmet" as Ahmet.
+ */
+function recalledIdentityNameFromMemory(
+  entries: readonly { readonly line: string; readonly identityValue?: string }[],
+  promptLines: readonly string[],
+): string | null {
+  const entry = entries.find((candidate) => candidate.identityValue && promptLines.includes(candidate.line));
+  return entry?.identityValue ? displayIdentityName(stripAyasMemoryLineAnnotation(entry.line), entry.identityValue) : null;
+}
+
 function identityNameFromContext(
-  lines: readonly string[],
+  memoryIdentityName: string | null,
   history: readonly { readonly role: BrainChatMessage["role"]; readonly text: string }[],
   userText: string,
 ): string | null {
   if (!/\b(adim|ismim)\b/.test(fold(userText))) return null;
+  // A turn that states a name is telling, not asking: never answer it with a recalled one.
+  if (isAyasIdentityStatement(userText)) return null;
   // A current conversation correction must beat both durable recall and an
   // older user turn. History arrives oldest-first from the UI, so inspect it
-  // newest-first before consulting recalled memory. This keeps the final
-  // identity safeguard aligned with retrieval's current-request-overrides-
-  // memory rule instead of reviving a superseded name in its fallback reply.
-  const candidates = [
-    ...history.filter((turn) => turn.role === "user").map((turn) => turn.text).reverse(),
-    ...lines,
-  ];
-  for (const line of candidates) {
-    const match = line.match(/\bBeni\s+([\p{L}][\p{L}\p{N}'’-]{1,40})\s+olarak\s+hatırla\b/iu)
-      ?? line.match(/\badım\s+([\p{L}][\p{L}\p{N}'’-]{1,40})\b/iu);
-    if (match?.[1] && !/^(?:ne|nedir|neydi|kim|kimdir)$/u.test(fold(match[1]))) return match[1];
+  // newest-first before consulting recalled memory. Only a turn the memory
+  // extractor would take as an identity statement counts, read with the
+  // writer's naming rules. When the newest such turn names nobody as current
+  // ("hayır, adım Ali değil"), no name is forced at all.
+  for (const turn of history.filter((entry) => entry.role === "user").reverse()) {
+    if (!isAyasIdentityStatement(turn.text)) continue;
+    const reading = readAyasIdentityStatement(turn.text);
+    return reading && "value" in reading ? displayIdentityName(turn.text, reading.value) : null;
   }
-  return null;
+  return memoryIdentityName;
 }
 
 function isIdentityQuestion(text: string): boolean {
@@ -771,6 +806,10 @@ interface AyasFinalizationInput {
   readonly hasPendingContinuation: boolean;
   readonly resolvedReferents: readonly string[];
   readonly memoryLines: readonly string[];
+  /** The resolver's current name among `memoryLines`, if one reached the prompt. */
+  readonly memoryIdentityName?: string | null;
+  /** The turn asked about an earlier time; the present-identity guard must not rewrite the answer. */
+  readonly historicalMemoryQuery?: boolean;
   readonly provider: AyasModelProvider;
   readonly complexity: AyasChatComplexity;
   readonly env: NodeJS.ProcessEnv;
@@ -825,7 +864,9 @@ function replyIssue(reply: string, input: AyasFinalizationInput): string | null 
 
 async function finalizeAyasReply(input: AyasFinalizationInput): Promise<AyasFinalizationResult> {
   const cleaned = stripAyasReplyLabelEcho(input.rawReply.trim(), input.userText);
-  const recalledIdentityName = identityNameFromContext(input.memoryLines, input.recentHistory, input.userText);
+  const recalledIdentityName = input.historicalMemoryQuery
+    ? null
+    : identityNameFromContext(input.memoryIdentityName ?? null, input.recentHistory, input.userText);
   const foldedIdentityName = recalledIdentityName ? fold(recalledIdentityName) : "";
   const identitySatisfied = recalledIdentityName
     ? new RegExp(`(?:ad[ıi]n|ismin)\\s+${foldedIdentityName}\\b|^${foldedIdentityName}[,.!\\s]`).test(fold(cleaned))
@@ -1008,15 +1049,41 @@ async function* streamAyasChatTurn(
   // Memory is part of context assembly, not a provider capability. Resolve it
   // before model routing so a temporarily unavailable local model cannot turn
   // a known trusted identity into a question echo or generic fallback.
+  // Memory Temporal v2: a question naming a past month/year (or asking what it
+  // used to be) reads that time explicitly; every other turn is current recall.
+  const temporalQuery = detectAyasMemoryTemporalQuery(text, new Date().toISOString());
+  const historicalMemoryQuery = temporalQuery.mode === "as-of" || temporalQuery.includeHistory === true;
   const memorySpan = trace?.startSpan("memory", "ayas-memory", "recall", conversationSpan?.spanId);
   memorySpan?.event("memory-query", "running");
   const memoryRecall = await recallAyasMemoryWithTrace(text, {
     ...(ctx.trace.activeProject ? { activeProject: ctx.trace.activeProject } : {}),
     ...(input.memoryStore ? { store: input.memoryStore } : {}),
-  }).catch(() => ({ status: "unreadable" as const, candidateCount: 0, lines: [] as readonly string[], entries: [] as readonly { readonly line: string; readonly identity: boolean }[], recallCount: 0, identityRecallCount: 0 }));
+    temporal: temporalQuery,
+  }).catch(() => ({ status: "unreadable" as const, candidateCount: 0, lines: [] as readonly string[], entries: [] as readonly { readonly line: string; readonly identity: boolean }[], recallCount: 0, identityRecallCount: 0, conflictCount: 0, temporal: null }));
   memorySpan?.event("retrieval-query", memoryRecall.status === "ok" ? "ok" : "error", { candidateCount: memoryRecall.candidateCount, selectedCount: memoryRecall.recallCount });
-  memorySpan?.end(memoryRecall.status === "ok" ? "ok" : "error", { candidateCount: memoryRecall.candidateCount, selectedCount: memoryRecall.recallCount, identityCount: memoryRecall.identityRecallCount }, memoryRecall.status === "ok" ? undefined : "MEMORY_UNREADABLE");
+  memorySpan?.end(
+    memoryRecall.status === "ok" ? "ok" : "error",
+    {
+      candidateCount: memoryRecall.candidateCount,
+      selectedCount: memoryRecall.recallCount,
+      identityCount: memoryRecall.identityRecallCount,
+      temporalAsOf: temporalQuery.mode === "as-of",
+      temporalHistory: temporalQuery.mode === "current" && temporalQuery.includeHistory === true,
+      // An unreadable store has no counts; zeros would read as "nothing there".
+      ...(memoryRecall.status === "ok" && memoryRecall.temporal
+        ? {
+            conflictCount: memoryRecall.conflictCount,
+            currentCount: memoryRecall.temporal.currentCount,
+            historicalCount: memoryRecall.temporal.historicalCount,
+            supersededCount: memoryRecall.temporal.supersededCount,
+            uncertainCount: memoryRecall.temporal.uncertainCount,
+          }
+        : {}),
+    },
+    memoryRecall.status === "ok" ? undefined : "MEMORY_UNREADABLE",
+  );
   const memoryLinesForPrompt = relevantMemoryLinesForTurn(memoryRecall.entries, text);
+  const memoryIdentityName = recalledIdentityNameFromMemory(memoryRecall.entries, memoryLinesForPrompt);
 
   // 1 — route: which model answers this turn (availability + complexity).
   const routingSpan = trace?.startSpan("model", "ayas-model", "route", conversationSpan?.spanId);
@@ -1028,7 +1095,8 @@ async function* streamAyasChatTurn(
 
   if (!route || !route.provider) {
     conversationSpan?.end("fallback");
-    const recalledIdentityName = identityNameFromContext(memoryLinesForPrompt, input.history ?? [], text);
+    // A historical question is not answered with a present-tense identity shortcut.
+    const recalledIdentityName = historicalMemoryQuery ? null : identityNameFromContext(memoryIdentityName, input.history ?? [], text);
     const memoryTrace: AyasMemoryTrace = {
       candidateCount: 0,
       persisted: false,
@@ -1049,7 +1117,7 @@ async function* streamAyasChatTurn(
       };
       return;
     }
-    if (isIdentityQuestion(text)) {
+    if (isIdentityQuestion(text) && !historicalMemoryQuery) {
       yield {
         type: "done",
         text: "Bunu bilmiyorum; adını söylersen hatırlayabilirim.",
@@ -1225,6 +1293,8 @@ async function* streamAyasChatTurn(
       hasPendingContinuation,
       resolvedReferents: ctx.resolvedReferents,
       memoryLines: memoryLinesForPrompt,
+      memoryIdentityName,
+      historicalMemoryQuery,
       provider: route.provider,
       complexity: route.decision.complexity,
       env,
@@ -1238,8 +1308,8 @@ async function* streamAyasChatTurn(
       userText: text,
       ayasReply: finalized.text,
       ...(input.memoryStore ? { store: input.memoryStore } : {}),
-    }).catch(() => ({ candidates: 0, stored: 0, rejected: 0 }));
-    persistSpan?.end("ok", { candidateCount: persistOutcome.candidates, storedCount: persistOutcome.stored });
+    }).catch((): AyasMemoryPersistOutcome => ({ candidates: 0, stored: 0, rejected: 0, failed: 1, errorCode: "AYAS_MEMORY_PERSIST_FAILED" }));
+    endPersistSpan(persistSpan, persistOutcome);
     conversationSpan?.end(finalized.source === "llm" ? "ok" : "fallback");
 
     for (const chunk of validatedReplyChunks(finalized.text)) yield { type: "delta", text: chunk };
@@ -1332,6 +1402,8 @@ async function* streamAyasChatTurn(
     hasPendingContinuation,
     resolvedReferents: ctx.resolvedReferents,
     memoryLines: memoryLinesForPrompt,
+    memoryIdentityName,
+    historicalMemoryQuery,
     provider: route.provider,
     complexity: route.decision.complexity,
     env,
@@ -1353,8 +1425,8 @@ async function* streamAyasChatTurn(
     userText: text,
     ayasReply: finalized.text,
     ...(input.memoryStore ? { store: input.memoryStore } : {}),
-  }).catch(() => ({ candidates: 0, stored: 0, rejected: 0 }));
-  persistSpan?.end("ok", { candidateCount: persistOutcome.candidates, storedCount: persistOutcome.stored });
+  }).catch((): AyasMemoryPersistOutcome => ({ candidates: 0, stored: 0, rejected: 0, failed: 1, errorCode: "AYAS_MEMORY_PERSIST_FAILED" }));
+  endPersistSpan(persistSpan, persistOutcome);
   conversationSpan?.end(finalized.source === "llm" ? "ok" : "fallback");
 
   for (const chunk of validatedReplyChunks(finalized.text)) yield { type: "delta", text: chunk };

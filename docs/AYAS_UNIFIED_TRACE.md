@@ -27,7 +27,7 @@ Tests: `scripts/smoke-ayas-unified-trace.ts`, plus trace assertions in
 | span kind | `conversation`, `context`, `memory`, `retrieval`, `model`, `tool`, `approval`, `execution`, `persistence`, `outcome` |
 | event type | `started`, `completed`, `failed`, `fallback`, `retry`, `cancelled`, `gate-result`, `memory-query`, `retrieval-query` |
 | component / operation | closed allowlists; anything else is stored as `unknown` |
-| metadata keys | `historyCount`, `resolvedCount`, `droppedCount`, `candidateCount`, `selectedCount`, `identityCount`, `storedCount`, `attempted`, `executed`, `attempt`. Values must be finite numbers, booleans or `null`. |
+| metadata keys | `historyCount`, `resolvedCount`, `droppedCount`, `candidateCount`, `selectedCount`, `identityCount`, `storedCount`, `attempted`, `executed`, `attempt`; Memory Temporal v2 adds `failedCount`, `temporalAsOf`, `temporalHistory`, `currentCount`, `historicalCount`, `supersededCount`, `conflictCount`, `uncertainCount`. Values must be finite numbers, booleans or `null`. |
 | errorCode | `UPPER_SNAKE`, 2–64 characters, dropped if it contains `SECRET`, `PASSWORD`, `PRIVATE`, `TOKEN` or `API_KEY` |
 
 IDs are `crypto.randomUUID()` values. A trace ID is only a lookup key and never an authority token;
@@ -73,7 +73,11 @@ chat-turn                                   owner-approval
 - **Memory / retrieval hooks.** The recall span records query start/end events, `candidateCount`
   (records considered), `selectedCount`, `identityCount`, duration and `MEMORY_UNREADABLE` on a
   failed read. No memory body or query text is recorded. These are the hooks later retrieval
-  evaluation can build on; the scoring itself is out of scope.
+  evaluation can build on; the scoring itself is out of scope. Memory Temporal v2 adds the query
+  mode flags (`temporalAsOf`, `temporalHistory`, always present) and, when the store was readable,
+  `conflictCount`, `currentCount`, `historicalCount`, `supersededCount` and `uncertainCount` — counts
+  only, never a body, name, fact value or date (see `docs/AYAS_MEMORY_TEMPORAL.md`). The `persist`
+  span is `error` with `failedCount` and the store's stable error code when a write fails.
 
 ## Privacy and redaction
 
@@ -142,8 +146,9 @@ No per-event disk I/O, cloning or body serialization. The numbers are reported, 
 
 ## Known coverage gaps
 
-- `persistAyasMemoryFromTurn` swallows write failures by contract, so a failed memory write shows as
-  `persist` `ok` with `storedCount: 0`.
+- ~~`persistAyasMemoryFromTurn` swallows write failures by contract, so a failed memory write shows
+  as `persist` `ok` with `storedCount: 0`.~~ Closed by Memory Temporal v2: the outcome carries
+  `failed` + a stable `errorCode`, and the span ends `error`.
 - Owner-approval traces have no read surface (intentional; no session identity is threaded into
   authority deps).
 - The chat route's `cancel()` / setup-throw lifecycle and the router-crash (`MODEL_ROUTE_FAILURE`)

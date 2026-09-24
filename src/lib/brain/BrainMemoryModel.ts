@@ -13,15 +13,34 @@ import { stableBrainId } from "./BrainId";
 import { containsBrainSecret, redactBrainLines, redactBrainText } from "./BrainRedaction";
 import {
   brainMemorySchemaVersion,
+  brainMemoryTemporalVersion,
   type BrainMemoryImportance,
   type BrainMemoryQuery,
   type BrainMemoryRecall,
   type BrainMemoryRecord,
   type BrainMemoryRecordInput,
+  type BrainMemoryTemporal,
+  type BrainMemoryTemporalInput,
   type BrainMemoryValidation,
 } from "@/types/brainMemory";
 
 const MAX_BODY_LENGTH = 4_000;
+
+const TEMPORAL_ASSERTIONS = new Set(["current", "historical", "future"]);
+const TEMPORAL_PRECISIONS = new Set(["instant", "day", "month", "year"]);
+const TEMPORAL_PROVENANCES = new Set([
+  "direct-user-statement",
+  "explicit-correction",
+  "conversation-derived",
+  "system-observation",
+  "imported-history",
+]);
+const TEMPORAL_KEYS = new Set([
+  "version", "assertion", "provenance", "recordedAt", "effectiveFrom", "effectiveUntil",
+  "heldFrom", "heldUntil", "effectivePrecision", "factKey", "factValue", "fingerprint",
+]);
+const FACT_KEY = /^[a-z][a-z0-9.-]{2,63}$/;
+const FACT_VALUE = /^[a-z0-9][a-z0-9'-]{0,39}$/;
 
 const IMPORTANCE_RANK: Readonly<Record<BrainMemoryImportance, number>> = Object.freeze({
   transient: 0,
@@ -59,13 +78,79 @@ export function buildBrainMemoryRecord(input: BrainMemoryRecordInput): BrainMemo
   };
 
   const contentFingerprint = stableBrainId("brain-memory-content", canonical);
+  const recordId = stableBrainId("brain-memory", { canonical, contentFingerprint });
   return {
     schemaVersion: brainMemorySchemaVersion,
     ...canonical,
-    recordId: stableBrainId("brain-memory", { canonical, contentFingerprint }),
+    recordId,
     redacted: titleResult.redacted || bodyResult.redacted || linkResult.redacted,
     contentFingerprint,
+    ...(input.temporal ? { temporal: buildTemporalBlock(recordId, input.temporal) } : {}),
   };
+}
+
+function canonicalTemporal(input: BrainMemoryTemporalInput): BrainMemoryTemporalInput {
+  return {
+    assertion: input.assertion,
+    provenance: input.provenance,
+    recordedAt: input.recordedAt,
+    ...(input.effectiveFrom !== undefined ? { effectiveFrom: input.effectiveFrom } : {}),
+    ...(input.effectiveUntil !== undefined ? { effectiveUntil: input.effectiveUntil } : {}),
+    ...(input.heldFrom !== undefined ? { heldFrom: input.heldFrom } : {}),
+    ...(input.heldUntil !== undefined ? { heldUntil: input.heldUntil } : {}),
+    ...(input.effectivePrecision !== undefined ? { effectivePrecision: input.effectivePrecision } : {}),
+    ...(input.factKey !== undefined ? { factKey: input.factKey } : {}),
+    ...(input.factValue !== undefined ? { factValue: input.factValue } : {}),
+  };
+}
+
+/** The temporal block sits outside `recordId` (v1 readers stay compatible); this binds it to the record. */
+function temporalFingerprint(recordId: string, input: BrainMemoryTemporalInput): string {
+  return stableBrainId("brain-memory-temporal", { recordId, temporal: canonicalTemporal(input) });
+}
+
+function buildTemporalBlock(recordId: string, input: BrainMemoryTemporalInput): BrainMemoryTemporal {
+  const canonical = canonicalTemporal(input);
+  return { version: brainMemoryTemporalVersion, ...canonical, fingerprint: temporalFingerprint(recordId, canonical) };
+}
+
+/** `true` when the record has no temporal block, or a well-formed one bound to this record. */
+export function isValidBrainMemoryTemporal(record: BrainMemoryRecord): boolean {
+  return record.temporal === undefined || isValidTemporalBlock(record);
+}
+
+function isValidTemporalBlock(record: BrainMemoryRecord): boolean {
+  const temporal = record.temporal as unknown;
+  if (!temporal || typeof temporal !== "object" || Array.isArray(temporal)) return false;
+  const t = temporal as Partial<BrainMemoryTemporal>;
+  if (!Object.keys(t).every((key) => TEMPORAL_KEYS.has(key))) return false;
+  if (t.version !== brainMemoryTemporalVersion) return false;
+  if (typeof t.assertion !== "string" || !TEMPORAL_ASSERTIONS.has(t.assertion)) return false;
+  if (typeof t.provenance !== "string" || !TEMPORAL_PROVENANCES.has(t.provenance)) return false;
+  if (typeof t.recordedAt !== "string" || !isIsoInstant(t.recordedAt)) return false;
+  for (const bound of [t.effectiveFrom, t.effectiveUntil, t.heldFrom, t.heldUntil]) {
+    if (bound !== undefined && (typeof bound !== "string" || !isIsoInstant(bound))) return false;
+  }
+  const hasBound = t.effectiveFrom !== undefined || t.effectiveUntil !== undefined || t.heldFrom !== undefined;
+  if (hasBound !== (t.effectivePrecision !== undefined)) return false;
+  if (t.effectivePrecision !== undefined && !TEMPORAL_PRECISIONS.has(t.effectivePrecision)) return false;
+  if (
+    t.effectiveFrom !== undefined &&
+    t.effectiveUntil !== undefined &&
+    Date.parse(t.effectiveUntil) <= Date.parse(t.effectiveFrom)
+  ) {
+    return false;
+  }
+  if ((t.heldFrom === undefined) !== (t.heldUntil === undefined)) return false;
+  // Coherence with the moment it was said: a named period, or a past fact's
+  // start, cannot lie after the statement itself.
+  const observed = Date.parse(record.observedAt);
+  if (t.heldFrom !== undefined && (Date.parse(t.heldUntil!) <= Date.parse(t.heldFrom) || Date.parse(t.heldFrom) > observed)) return false;
+  if (t.assertion === "historical" && t.effectiveFrom !== undefined && Date.parse(t.effectiveFrom) > observed) return false;
+  if ((t.factKey === undefined) !== (t.factValue === undefined)) return false;
+  if (t.factKey !== undefined && (typeof t.factKey !== "string" || !FACT_KEY.test(t.factKey))) return false;
+  if (t.factValue !== undefined && (typeof t.factValue !== "string" || !FACT_VALUE.test(t.factValue))) return false;
+  return typeof t.fingerprint === "string" && t.fingerprint === temporalFingerprint(record.recordId, t as BrainMemoryTemporal);
 }
 
 /** Fail-closed validation. A record that still contains a secret is invalid. */
@@ -79,10 +164,14 @@ export function validateBrainMemoryRecord(record: BrainMemoryRecord): BrainMemor
   if (!isIsoInstant(record.observedAt) || (record.expiresAt && !isIsoInstant(record.expiresAt))) {
     return { valid: false, reasonCode: "BRAIN_MEMORY_TIMESTAMP_INVALID" };
   }
+  if (record.temporal !== undefined && !isValidTemporalBlock(record)) {
+    return { valid: false, reasonCode: "BRAIN_MEMORY_TEMPORAL_INVALID" };
+  }
   if (
     containsBrainSecret(record.title) ||
     containsBrainSecret(record.body) ||
-    record.links.some(containsBrainSecret)
+    record.links.some(containsBrainSecret) ||
+    (record.temporal?.factValue !== undefined && containsBrainSecret(record.temporal.factValue))
   ) {
     return { valid: false, reasonCode: "BRAIN_MEMORY_SECRET_LEAK" };
   }

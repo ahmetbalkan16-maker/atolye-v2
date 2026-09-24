@@ -8,6 +8,14 @@
 
 import { recallBrainMemory } from "@/lib/brain/BrainMemoryModel";
 import type { BrainMemoryRecord } from "@/types/brainMemory";
+import {
+  containsAyasMemoryInstructionInjection,
+  formatAyasMemoryTemporalAnnotation,
+  isAyasMemoryKnownAt,
+  resolveAyasMemoryTemporal,
+  type AyasMemoryTemporalQuery,
+  type AyasMemoryTemporalView,
+} from "./AyasMemoryTemporal";
 
 export type AyasMemoryTrustClass = "user-reported" | "system-observed" | "ayas-inferred";
 export type AyasMemoryFreshness = "fresh" | "aging" | "stale" | "pinned";
@@ -26,11 +34,20 @@ export interface AyasMemoryRetrievalDecision {
   readonly rerankScore: number;
   readonly quarantined: boolean;
   readonly quarantineReason?:
+    | "invalid-temporal"
     | "conflicting-fact"
     | "future-timestamp"
+    | "superseded-fact"
+    | "historical-fact"
+    | "not-yet-effective"
+    | "outside-as-of-window"
     | "stale-fact"
     | "current-request-overrides-memory"
     | "memory-instruction-injection";
+  /** Memory Temporal v2 view of this record for the query's time. */
+  readonly temporal: AyasMemoryTemporalView;
+  /** Safe dates + state label for historical/as-of context lines; absent in plain current recall. */
+  readonly temporalAnnotation?: string;
 }
 
 export interface AyasMemoryRetrievalResult {
@@ -38,6 +55,10 @@ export interface AyasMemoryRetrievalResult {
   readonly quarantined: readonly AyasMemoryRetrievalDecision[];
   readonly droppedExpired: number;
   readonly droppedDuplicates: number;
+  /** Records observed/written after an as-of `knownAt` — not known yet at that time. */
+  readonly droppedNotYetKnown: number;
+  /** A malformed as-of query selects nothing; current state is never substituted. */
+  readonly invalidTemporalQuery: boolean;
 }
 
 const TOP_K = 4;
@@ -125,114 +146,6 @@ function concepts(text: string, tags: readonly string[] = []): Set<string> {
   return out;
 }
 
-function identityValue(record: BrainMemoryRecord): string | null {
-  if (!record.tags.includes("kimlik")) return null;
-  const value = fold(record.body);
-  const patterns = [
-    /\bbeni\s+([a-z][a-z0-9'-]{1,40})\s+olarak\b/,
-    /\badim\s+([a-z][a-z0-9'-]{1,40})\b/,
-    /\bben\s+([a-z][a-z0-9'-]{1,40})\s*(?:im|yim)\b/,
-    /\bbana\s+([a-z][a-z0-9'-]{1,40})\s+diye\b/,
-  ];
-  for (const pattern of patterns) {
-    const match = value.match(pattern);
-    if (match?.[1]) return match[1];
-  }
-  return null;
-}
-
-interface ConflictClaim {
-  readonly domain: string;
-  readonly value: string;
-}
-
-function conflictClaim(record: BrainMemoryRecord): ConflictClaim | null {
-  const identity = identityValue(record);
-  if (identity) return { domain: "identity", value: identity };
-  if (record.kind !== "user-preference") return null;
-  const value = fold(`${record.body} ${record.tags.join(" ")}`);
-  const polarity = /\b(kisa|oz|ozet)\b/.test(value)
-    ? "short"
-    : /\b(uzun|detayli|ayrintili)\b/.test(value)
-      ? "long"
-      : null;
-  if (!polarity) return null;
-  const domain = /\b(ses|sesli|tts|voice)\b/.test(value) ? "voice-length" : "response-length";
-  return { domain, value: polarity };
-}
-
-function isExplicitUserIdentityDeclaration(record: BrainMemoryRecord): boolean {
-  return record.kind === "user-preference" &&
-    record.confidence === "reported" &&
-    record.tags.includes("kimlik") &&
-    record.title === "Kullanıcı kimliği / hitap tercihi" &&
-    identityValue(record) !== null;
-}
-
-function conflictingRecordIds(records: readonly BrainMemoryRecord[], nowMs: number): Set<string> {
-  const groups = new Map<string, { record: BrainMemoryRecord; claim: ConflictClaim }[]>();
-  for (const record of records) {
-    const claim = conflictClaim(record);
-    if (!claim) continue;
-    const group = groups.get(claim.domain) ?? [];
-    group.push({ record, claim });
-    groups.set(claim.domain, group);
-  }
-
-  const conflicts = new Set<string>();
-  for (const group of groups.values()) {
-    if (new Set(group.map((entry) => entry.claim.value)).size <= 1) continue;
-    const topTrust = Math.max(...group.map((entry) => TRUST_WEIGHT[trustClass(entry.record)]));
-    const topValues = new Set(
-      group
-        .filter((entry) => TRUST_WEIGHT[trustClass(entry.record)] === topTrust)
-        .map((entry) => entry.claim.value),
-    );
-    if (topValues.size !== 1) {
-      // An explicit user identity correction is naturally temporal: the
-      // newest equally-trusted declaration supersedes older declarations.
-      // Keep the fail-closed behavior if competing declarations share the
-      // same latest timestamp; there is then no defensible ordering.
-      if (group[0]?.claim.domain === "identity" && topTrust === TRUST_WEIGHT["user-reported"]) {
-        const trusted = group.filter((entry) => {
-          const observedAtMs = Date.parse(entry.record.observedAt);
-          return TRUST_WEIGHT[trustClass(entry.record)] === topTrust &&
-            isExplicitUserIdentityDeclaration(entry.record) &&
-            !containsInstructionInjection(entry.record) &&
-            Number.isFinite(observedAtMs) &&
-            observedAtMs <= nowMs + 5 * 60_000;
-        });
-        const latestMs = Math.max(...trusted.map((entry) => Date.parse(entry.record.observedAt)));
-        const latestValues = new Set(
-          trusted
-            .filter((entry) => Date.parse(entry.record.observedAt) === latestMs)
-            .map((entry) => entry.claim.value),
-        );
-        if (latestValues.size === 1) {
-          const trustedValue = [...latestValues][0];
-          group
-            .filter((entry) => entry.claim.value !== trustedValue)
-            .forEach((entry) => conflicts.add(entry.record.recordId));
-          continue;
-        }
-      }
-      group.forEach((entry) => conflicts.add(entry.record.recordId));
-      continue;
-    }
-    const trustedValue = [...topValues][0];
-    group
-      .filter((entry) => entry.claim.value !== trustedValue)
-      .forEach((entry) => conflicts.add(entry.record.recordId));
-  }
-  return conflicts;
-}
-
-function containsInstructionInjection(record: BrainMemoryRecord): boolean {
-  const value = fold(record.body);
-  return /\b(?:onceki|tum|sistem|gelistirici|developer)\s+(?:talimatlari|kurallari|mesaji|promptu)\s+(?:yok say|unut|gormezden gel|ez)\b/.test(value) ||
-    /\b(?:system prompt|developer message|ignore previous instructions)\b/.test(value);
-}
-
 function currentRequestOverrides(record: BrainMemoryRecord, query: string): boolean {
   if (record.kind !== "user-preference") return false;
   const current = fold(query);
@@ -288,17 +201,30 @@ function rankMap(values: readonly { id: string; score: number }[]): Map<string, 
 export function retrieveAyasMemory(
   records: readonly BrainMemoryRecord[],
   query: string,
-  options: { readonly activeProject?: string; readonly nowIso?: string; readonly limit?: number } = {},
+  options: {
+    readonly activeProject?: string;
+    readonly nowIso?: string;
+    readonly limit?: number;
+    /** Omitted = current recall (the chat default). */
+    readonly temporal?: AyasMemoryTemporalQuery;
+  } = {},
 ): AyasMemoryRetrievalResult {
   const effectiveNowIso = options.nowIso ?? new Date().toISOString();
   const recalled = recallBrainMemory(records, {}, effectiveNowIso);
   const seenFingerprints = new Set<string>();
-  const candidates = recalled.records.filter((record) => {
+  const unique = recalled.records.filter((record) => {
     if (seenFingerprints.has(record.contentFingerprint)) return false;
     seenFingerprints.add(record.contentFingerprint);
     return true;
   });
+  const candidates = unique.filter((record) => isAyasMemoryKnownAt(record, options.temporal));
   const nowMs = Date.parse(effectiveNowIso);
+  const temporal = resolveAyasMemoryTemporal(candidates, {
+    nowIso: effectiveNowIso,
+    ...(options.temporal ? { query: options.temporal } : {}),
+  });
+  const asOf = options.temporal?.mode === "as-of";
+  const withHistory = options.temporal?.mode === "current" && options.temporal.includeHistory === true;
   const lexical = lexicalScores(candidates, query);
   const queryConcepts = concepts(query);
   const projectTokens = new Set(tokenList(options.activeProject ?? ""));
@@ -313,9 +239,8 @@ export function retrieveAyasMemory(
   const lexicalRanks = rankMap(candidates.map((record) => ({ id: record.recordId, score: lexical.get(record.recordId) ?? 0 })));
   const conceptRanks = rankMap(conceptValues);
 
-  const conflictIds = conflictingRecordIds(candidates, nowMs);
-
   const decisions = candidates.map((record): AyasMemoryRetrievalDecision => {
+    const view = temporal.views.get(record.recordId)!;
     const source = trustClass(record);
     const state = freshness(record, nowMs);
     const lexicalScore = lexical.get(record.recordId) ?? 0;
@@ -326,12 +251,28 @@ export function retrieveAyasMemory(
     const reciprocalRank =
       (lexicalRanks.has(record.recordId) ? 1 / (RRF_K + lexicalRanks.get(record.recordId)!) : 0) +
       (conceptRanks.has(record.recordId) ? 1 / (RRF_K + conceptRanks.get(record.recordId)!) : 0);
-    const isConflict = conflictIds.has(record.recordId);
+    const isInvalid = view.state === "invalid";
+    const isConflict = view.state === "disputed" || view.state === "conflicting";
     const isFuture = Date.parse(record.observedAt) > nowMs + 5 * 60_000;
-    const isStale = state === "stale";
+    // Current recall shows only what is true now; history/as-of recall is the
+    // explicit, separate way to reach older versions.
+    const temporalReason = asOf
+      ? temporal.invalidQuery || view.asOf === "none" ? ("outside-as-of-window" as const) : null
+      : withHistory
+        ? null
+        : view.state === "superseded"
+          ? ("superseded-fact" as const)
+          : view.state === "historical"
+            ? ("historical-fact" as const)
+            : view.state === "future"
+              ? ("not-yet-effective" as const)
+              : null;
+    // Freshness is a current-relevance policy; it never hides history the query asked for.
+    const isStale = state === "stale" && !asOf && (!withHistory || view.state === "current");
     const overridden = currentRequestOverrides(record, query);
-    const instructionInjection = containsInstructionInjection(record);
-    const quarantined = isConflict || isFuture || isStale || overridden || instructionInjection;
+    const instructionInjection = containsAyasMemoryInstructionInjection(record);
+    const quarantined = isInvalid || isConflict || isFuture || temporalReason !== null || isStale || overridden || instructionInjection;
+    const temporalAnnotation = formatAyasMemoryTemporalAnnotation(view, record.observedAt, options.temporal);
     const rerankScore =
       IMPORTANCE_WEIGHT[record.importance] +
       TRUST_WEIGHT[source] +
@@ -352,24 +293,35 @@ export function retrieveAyasMemory(
       conceptScore,
       rerankScore,
       quarantined,
-      ...(isConflict
-        ? { quarantineReason: "conflicting-fact" as const }
-        : isFuture
-          ? { quarantineReason: "future-timestamp" as const }
-          : isStale
-            ? { quarantineReason: "stale-fact" as const }
-            : overridden
-              ? { quarantineReason: "current-request-overrides-memory" as const }
-              : instructionInjection
-                ? { quarantineReason: "memory-instruction-injection" as const }
-                : {}),
+      ...(isInvalid
+        ? { quarantineReason: "invalid-temporal" as const }
+        : isConflict
+          ? { quarantineReason: "conflicting-fact" as const }
+          : isFuture
+            ? { quarantineReason: "future-timestamp" as const }
+            : temporalReason
+              ? { quarantineReason: temporalReason }
+              : isStale
+                ? { quarantineReason: "stale-fact" as const }
+                : overridden
+                  ? { quarantineReason: "current-request-overrides-memory" as const }
+                  : instructionInjection
+                    ? { quarantineReason: "memory-instruction-injection" as const }
+                    : {}),
+      temporal: view,
+      ...(temporalAnnotation ? { temporalAnnotation } : {}),
     };
   });
 
+  // As-of: facts known to hold in the window come before possible ones. With
+  // history: the current version comes before older ones.
+  const tier = (decision: AyasMemoryRetrievalDecision): number =>
+    asOf ? (decision.temporal.asOf === "certain" ? 0 : 1) : withHistory ? (decision.temporal.state === "current" ? 0 : 1) : 0;
   const selected = decisions
     .filter((decision) => !decision.quarantined)
     .filter((decision) => decision.lexicalScore > 0 || decision.conceptScore > 0)
     .sort((left, right) =>
+      tier(left) - tier(right) ||
       right.rerankScore - left.rerankScore ||
       Date.parse(right.record.observedAt) - Date.parse(left.record.observedAt) ||
       left.record.recordId.localeCompare(right.record.recordId),
@@ -380,6 +332,8 @@ export function retrieveAyasMemory(
     selected,
     quarantined: decisions.filter((decision) => decision.quarantined),
     droppedExpired: recalled.droppedExpired,
-    droppedDuplicates: recalled.records.length - candidates.length,
+    droppedDuplicates: recalled.records.length - unique.length,
+    droppedNotYetKnown: unique.length - candidates.length,
+    invalidTemporalQuery: temporal.invalidQuery,
   };
 }

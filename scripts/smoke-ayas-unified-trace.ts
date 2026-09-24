@@ -330,7 +330,8 @@ async function main(): Promise<void> {
     const memory = record.spans.find((span) => span.kind === "memory");
     assert.equal(memory?.status, "error");
     assert.equal(memory?.errorCode, "MEMORY_UNREADABLE");
-    assert.deepEqual(memory?.metadata, { candidateCount: 0, selectedCount: 0, identityCount: 0 });
+    // Memory Temporal v2 adds the query-mode flags; an unreadable store reports no temporal counts.
+    assert.deepEqual(memory?.metadata, { candidateCount: 0, selectedCount: 0, identityCount: 0, temporalAsOf: false, temporalHistory: false });
     assert.equal(fs.readFileSync(path.join(brokenMemory, "memory", "records.json"), "utf8"), "{ not json", "tracing never repairs or rewrites domain state");
     assertCausallyClosed(record);
   });

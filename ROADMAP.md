@@ -1,5 +1,19 @@
 ---
 
+## AYAS Memory Temporal v2 — Current vs Historical Memory — 2026-09-24
+
+- [x] Optional, versioned, fingerprint-bound `temporal` block (assertion, provenance, recordedAt, effectiveFrom/Until, heldFrom/Until, precision, fact slot); v1 records stay valid and keep their `recordId`.
+- [x] Supersession derived at read time over a closed registry of exclusive slots (identity name, response length, voice length) — no stored pointers, one append per version change, history kept.
+- [x] Current recall excludes superseded/historical/future facts; history and as-of (`at`/`until`/`knownAt`) recall are explicit, graded certain/possible, and a malformed as-of query selects nothing.
+- [x] Deterministic conflicts: trust class first, then an authoritative version chain; unorderable values stay `disputed`, weaker disagreeing ones `conflicting` — never silently overwritten.
+- [x] Write-side time classification per clause and per slot; identity reading never stores or forces a wrong name (withdrawn/null instead); chat identity guard follows the resolver and stands down when uncertain.
+- [x] Store: exclusive writer lock, revision CAS, ownership re-check and fsync before rename, bounded retention that never revives a replaced value; two-process race proven lossless.
+- [x] Legacy: no migration; live store (28 v1 records) analyzed read-only — all readable, identity derivation identical to v1.
+- [x] Unified Trace: temporal counts/flags only; persist failures now visible (closes the trace sprint's known gap).
+- [x] 13 synthetic ground-truth fixtures for Retrieval Evaluation (scoring deferred).
+- [ ] Known limitations (see `docs/AYAS_MEMORY_TEMPORAL.md`): free-text facts have no exclusive slot; a bare name withdrawal does not close the old version; multi-word names are not slotted.
+- [ ] **Next stage: Retrieval Evaluation.**
+
 ## AYAS Unified Trace — End-to-End Causal Observability — 2026-09-23
 
 - [x] Trace/span/event contract (schema v1): random UUID IDs used only as lookup keys, parent/child causality, attempts, monotonic durations, idempotent terminal status.
@@ -9,7 +23,7 @@
 - [x] Bounded, process-wide, in-memory storage (128 traces / 1 h / 64 spans / 128 events); failure-isolated writes; measured overhead reported.
 - [x] Memory/retrieval hooks: body-free query start/end, candidate/selected/identity counts, duration, `MEMORY_UNREADABLE`.
 - [ ] Known gaps (see `docs/AYAS_UNIFIED_TRACE.md`): persist write failures are invisible because the domain swallows them; owner-approval traces have no read surface; voice, research scheduler, micro-batch approval, daemon and production pipeline are not instrumented yet.
-- [ ] **Next stage: Memory Temporal v2.** Retrieval evaluation remains deferred.
+- [x] **Next stage: Memory Temporal v2** — completed 2026-09-24 (section above). Retrieval evaluation remains deferred.
 
 ## AYAS Shared Project Root + Silent Fallback Safety — 2026-09-23
 

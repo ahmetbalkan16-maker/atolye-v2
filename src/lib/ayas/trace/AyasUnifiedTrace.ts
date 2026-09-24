@@ -64,7 +64,11 @@ type MutableTrace = {
 const STATUS = new Set<AyasTraceStatus>(["running", "ok", "error", "fallback", "cancelled", "denied"]);
 const KINDS = new Set<AyasTraceSpanKind>(["conversation", "context", "memory", "retrieval", "model", "tool", "approval", "execution", "persistence", "outcome"]);
 const EVENTS = new Set<AyasTraceEventType>(["started", "completed", "failed", "fallback", "retry", "cancelled", "gate-result", "memory-query", "retrieval-query"]);
-const METADATA_KEYS = new Set(["historyCount", "resolvedCount", "droppedCount", "candidateCount", "selectedCount", "identityCount", "storedCount", "attempted", "executed", "attempt"]);
+const METADATA_KEYS = new Set([
+  "historyCount", "resolvedCount", "droppedCount", "candidateCount", "selectedCount", "identityCount", "storedCount", "attempted", "executed", "attempt",
+  // Memory Temporal v2 — counts and flags only.
+  "failedCount", "temporalAsOf", "temporalHistory", "currentCount", "historicalCount", "supersededCount", "conflictCount", "uncertainCount",
+]);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function safeIso(value: unknown): string {

@@ -12,6 +12,7 @@
  */
 
 import type { AyasMemoryCandidate } from "./AyasMemoryGovernance";
+import { deriveAyasMemoryFact } from "./AyasMemoryTemporal";
 
 function fold(text: string): string {
   return String(text ?? "")
@@ -21,7 +22,9 @@ function fold(text: string): string {
     .replace(/ö/g, "o")
     .replace(/ü/g, "u")
     .replace(/ş/g, "s")
-    .replace(/ğ/g, "g");
+    .replace(/ğ/g, "g")
+    // Phone keyboards type a curly apostrophe ("Mehmet’im").
+    .replace(/[’‘ʼ´`]/g, "'");
 }
 
 function clean(s: string, max = 400): string {
@@ -64,8 +67,18 @@ const BUG = /\b(bug var|hata (veriyor|aliyorum|var)|calismiyor|bilinen (sorun|ha
  * common Turkish interrogatives that can immediately follow "adım" in a
  * question ("adım ne", "adım nedir", "adım neydi", "adım kim" — the last a
  * malformed-but-real way people sometimes ask).
+ *
+ * ROUND 3 (Memory Temporal v2 review): "adım" is also the noun "step"
+ * ("sonraki adım testleri çalıştırmak", "ilk adım olarak …"), so it names
+ * someone only at the start of the message or a clause, after a greeting or
+ * "hayır", or as "benim adım".
  */
-const IDENTITY = /\b(beni .* olarak hatirla|adim (?!ne\b|nedir\b|neydi\b|kim\b)[a-z][a-z0-9'-]*|ben [a-z][a-z0-9'-]*'(im|yim)\b|bana .* diye (hitap et|cagir))\b/;
+const IDENTITY = /\b(beni .* olarak hatirla|(?:^|[,.;!?]\s*|\bbenim |\b(?:merhaba|selam|hayir|evet|tamam|aslinda|yani|peki|bu arada|ama|fakat|ancak|artik|ve|eskiden|onceden|gecmiste|bir zamanlar|o zamanlar) )adim (?!ne\b|nedir\b|neydi\b|kim\b)[a-z][a-z0-9'-]*|ben [a-z][a-z0-9'-]*'(im|yim)\b|bana .* diye (hitap et|cagir))\b/;
+
+/** The extractor's identity gate, for callers that read a user turn as an identity statement (the chat identity guard). */
+export function isAyasIdentityStatement(text: string): boolean {
+  return IDENTITY.test(fold(String(text ?? "").trim()));
+}
 
 export function extractAyasMemoryCandidates(input: {
   readonly userText: string;
@@ -131,12 +144,18 @@ export function extractAyasMemoryCandidates(input: {
     });
   }
 
-  // de-dupe by kind+body
-  const seen = new Set<string>();
-  return out.filter((c) => {
-    const key = `${c.kind}:${fold(c.body)}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  // de-dupe by kind+body — but never across two different exclusive fact
+  // slots (Memory Temporal v2). "Artık kısa cevap ver, adım Ahmet" states a
+  // response length AND a name: both are kept. When only one reading fills a
+  // slot ("artık beni X olarak hatırla" is also a generic preference), that
+  // one wins, so a correction can supersede the old value.
+  const kept: { candidate: AyasMemoryCandidate; key: string; slot: string | null }[] = [];
+  for (const candidate of out) {
+    const key = `${candidate.kind}:${fold(candidate.body)}`;
+    const slot = deriveAyasMemoryFact(candidate)?.key ?? null;
+    const same = kept.findIndex((entry) => entry.key === key && (entry.slot === slot || entry.slot === null || slot === null));
+    if (same < 0) kept.push({ candidate, key, slot });
+    else if (kept[same].slot === null && slot !== null) kept[same] = { candidate, key, slot };
+  }
+  return kept.map((entry) => entry.candidate);
 }
