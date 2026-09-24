@@ -57,6 +57,8 @@ export interface AyasMemoryRetrievalResult {
   readonly droppedDuplicates: number;
   /** Records observed/written after an as-of `knownAt` — not known yet at that time. */
   readonly droppedNotYetKnown: number;
+  /** Matched only by category label (title/tag/broad concept) while the question's words matched other memories. */
+  readonly droppedCategoryOnly: number;
   /** A malformed as-of query selects nothing; current state is never substituted. */
   readonly invalidTemporalQuery: boolean;
 }
@@ -87,14 +89,31 @@ const FRESHNESS_WEIGHT: Readonly<Record<AyasMemoryFreshness, number>> = {
 
 const STOPWORDS = new Set([
   "acaba", "ama", "bana", "ben", "beni", "benim", "bir", "bu", "icin", "ile", "mi", "mu",
-  "nasıl", "nasil", "ne", "nedir", "olan", "olarak", "su", "şu", "ve", "veya", "yok",
+  "nasıl", "nasil", "ne", "nedir", "olan", "olarak", "su", "şu", "var", "ve", "veya", "yok",
   "the", "a", "an", "is", "to", "of",
 ]);
 
+/**
+ * Common Turkish inflection, in folded form (ı→i, ü→u, ö→o, ş→s, ç→c, ğ→g):
+ * plural, possessive, case (accusative, dative, locative, ablative,
+ * genitive, instrumental), `-lık` (incl. its softened `-lığ-` stem), copula
+ * and relative `-ki`. Stripped repeatedly, longest first, and only while at
+ * least four letters remain — the same rule for questions and memories, so
+ * "bilgisayarı", "bilgisayarımda" and "bilgisayar" meet on one stem.
+ */
 const SUFFIXES = [
-  "larimiz", "lerimiz", "larınız", "leriniz", "lari", "leri", "dan", "den", "nin", "nın", "nun",
-  "nün", "dir", "dır", "dur", "dür", "lik", "lık", "luk", "lük", "yi", "yı", "yu", "yü",
-];
+  "lari", "leri", "imiz", "umuz", "iniz", "unuz", "ndan", "nden",
+  "lar", "ler", "dan", "den", "tan", "ten", "nda", "nde", "nin", "nun", "yla", "yle",
+  "lik", "luk", "lig", "lug", "dir", "dur", "tir", "tur",
+  "da", "de", "ta", "te", "in", "un", "la", "le", "yi", "yu", "ya", "ye", "ni", "nu", "na", "ne",
+  "si", "su", "im", "um", "ki",
+  "i", "u", "a", "e", "m",
+].sort((left, right) => right.length - left.length);
+const MIN_STEM = 4;
+const MAX_STRIPS = 4;
+/** Pure memo (same input → same stem); bounded so arbitrary query words cannot grow it forever. */
+const STEM_CACHE = new Map<string, string>();
+const STEM_CACHE_MAX = 20_000;
 
 function fold(text: string): string {
   return String(text ?? "")
@@ -108,16 +127,27 @@ function fold(text: string): string {
     .replace(/[^\p{L}\p{N}\s]/gu, " ");
 }
 
-function stem(word: string): string {
-  const suffix = SUFFIXES.find((candidate) => word.endsWith(candidate) && word.length - candidate.length >= 4);
-  return suffix ? word.slice(0, -suffix.length) : word;
+/** Stem one folded, lower-case word (see `SUFFIXES`). Shared with the chat relevance gate. */
+export function stemAyasMemoryWord(word: string): string {
+  const cached = STEM_CACHE.get(word);
+  if (cached !== undefined) return cached;
+  let stem = word;
+  for (let round = 0; round < MAX_STRIPS; round += 1) {
+    const suffix = SUFFIXES.find((candidate) => stem.endsWith(candidate) && stem.length - candidate.length >= MIN_STEM);
+    if (!suffix) break;
+    stem = stem.slice(0, -suffix.length);
+  }
+  if (STEM_CACHE.size >= STEM_CACHE_MAX) STEM_CACHE.clear();
+  STEM_CACHE.set(word, stem);
+  return stem;
 }
 
 function tokenList(text: string): string[] {
   return fold(text)
     .split(/\s+/)
-    .map(stem)
-    .filter((word) => word.length >= 3 && !STOPWORDS.has(word));
+    .filter((word) => word.length >= 3 && !STOPWORDS.has(word))
+    .map(stemAyasMemoryWord)
+    .filter((word) => !STOPWORDS.has(word));
 }
 
 function trustClass(record: BrainMemoryRecord): AyasMemoryTrustClass {
@@ -134,8 +164,9 @@ function freshness(record: BrainMemoryRecord, nowMs: number): AyasMemoryFreshnes
   return "stale";
 }
 
-function concepts(text: string, tags: readonly string[] = []): Set<string> {
-  const value = fold(`${text} ${tags.join(" ")}`);
+function concepts(text: string, tags: readonly string[] = [], tokens: readonly string[] = tokenList(`${text} ${tags.join(" ")}`)): Set<string> {
+  // Surface words plus their stems, so "kararım" / "bilgisayarı" / "isimle" reach their concept.
+  const value = `${fold(`${text} ${tags.join(" ")}`)} ${tokens.join(" ")}`;
   const out = new Set<string>();
   if (/\b(adim|isim|ismim|kimim|kimlik|hitap)\b/.test(value)) out.add("identity");
   if (/\b(tercih|isterim|istemiyorum|kisa|uzun|varsayilan)\b/.test(value)) out.add("preference");
@@ -161,9 +192,13 @@ function currentRequestOverrides(record: BrainMemoryRecord, query: string): bool
   return (asksShort && rememberedLong) || (asksLong && rememberedShort);
 }
 
-function lexicalScores(records: readonly BrainMemoryRecord[], query: string): Map<string, number> {
+function lexicalScores(
+  records: readonly BrainMemoryRecord[],
+  query: string,
+  documentTokens: ReadonlyMap<string, readonly string[]>,
+): Map<string, number> {
   const queryTokens = [...new Set(tokenList(query))];
-  const docs = records.map((record) => tokenList(`${record.title} ${record.body} ${record.tags.join(" ")}`));
+  const docs = records.map((record) => documentTokens.get(record.recordId) ?? []);
   const averageLength = docs.length ? docs.reduce((sum, doc) => sum + doc.length, 0) / docs.length : 1;
   const documentFrequency = new Map<string, number>();
   for (const doc of docs) {
@@ -225,16 +260,33 @@ export function retrieveAyasMemory(
   });
   const asOf = options.temporal?.mode === "as-of";
   const withHistory = options.temporal?.mode === "current" && options.temporal.includeHistory === true;
-  const lexical = lexicalScores(candidates, query);
+  // Tokenize each memory once per read: its own words (body), then the whole
+  // document — title and tags, the category label, included — for BM25.
+  const bodyTokens = new Map(candidates.map((record) => [record.recordId, tokenList(record.body)]));
+  const documentTokens = new Map(candidates.map((record) => [
+    record.recordId,
+    [...tokenList(record.title), ...bodyTokens.get(record.recordId)!, ...tokenList(record.tags.join(" "))],
+  ]));
+  const lexical = lexicalScores(candidates, query, documentTokens);
   const queryConcepts = concepts(query);
   const projectTokens = new Set(tokenList(options.activeProject ?? ""));
 
   const conceptValues = candidates.map((record) => {
-    const recordConcepts = concepts(`${record.title} ${record.body}`, record.tags);
+    const recordConcepts = concepts(`${record.title} ${record.body}`, record.tags, documentTokens.get(record.recordId));
     let score = 0;
     for (const concept of queryConcepts) if (recordConcepts.has(concept)) score += 1;
-    return { id: record.recordId, score };
+    return { id: record.recordId, score, identity: queryConcepts.has("identity") && recordConcepts.has("identity") };
   });
+  // Evidence from a memory's own words, as opposed to its category label (the
+  // "Kullanıcı tercihi" / "Alınan karar" title, the tag, a broad concept).
+  const queryTokenSet = new Set(tokenList(query));
+  const contentMatched = new Set(
+    candidates.filter((record) => bodyTokens.get(record.recordId)!.some((token) => queryTokenSet.has(token))).map((record) => record.recordId),
+  );
+  const contentSlots = new Set(
+    candidates.filter((record) => contentMatched.has(record.recordId)).map((record) => temporal.views.get(record.recordId)?.fact?.key).filter(Boolean),
+  );
+  const identityMatched = new Set(conceptValues.filter((value) => value.identity).map((value) => value.id));
   const conceptScores = new Map(conceptValues.map((value) => [value.id, value.score]));
   const lexicalRanks = rankMap(candidates.map((record) => ({ id: record.recordId, score: lexical.get(record.recordId) ?? 0 })));
   const conceptRanks = rankMap(conceptValues);
@@ -245,9 +297,9 @@ export function retrieveAyasMemory(
     const state = freshness(record, nowMs);
     const lexicalScore = lexical.get(record.recordId) ?? 0;
     const conceptScore = conceptScores.get(record.recordId) ?? 0;
-    const documentTokens = new Set(tokenList(`${record.title} ${record.body} ${record.tags.join(" ")}`));
+    const recordTokens = new Set(documentTokens.get(record.recordId));
     let projectScore = 0;
-    for (const token of projectTokens) if (documentTokens.has(token)) projectScore += 2;
+    for (const token of projectTokens) if (recordTokens.has(token)) projectScore += 2;
     const reciprocalRank =
       (lexicalRanks.has(record.recordId) ? 1 / (RRF_K + lexicalRanks.get(record.recordId)!) : 0) +
       (conceptRanks.has(record.recordId) ? 1 / (RRF_K + conceptRanks.get(record.recordId)!) : 0);
@@ -268,7 +320,9 @@ export function retrieveAyasMemory(
               ? ("not-yet-effective" as const)
               : null;
     // Freshness is a current-relevance policy; it never hides history the query asked for.
-    const isStale = state === "stale" && !asOf && (!withHistory || view.state === "current");
+    // A name does not age: the current identity slot stays true until the user replaces it.
+    const standingName = view.state === "current" && view.fact?.key === "user.identity.name";
+    const isStale = state === "stale" && !standingName && !asOf && (!withHistory || view.state === "current");
     const overridden = currentRequestOverrides(record, query);
     const instructionInjection = containsAyasMemoryInstructionInjection(record);
     const quarantined = isInvalid || isConflict || isFuture || temporalReason !== null || isStale || overridden || instructionInjection;
@@ -317,9 +371,22 @@ export function retrieveAyasMemory(
   // history: the current version comes before older ones.
   const tier = (decision: AyasMemoryRetrievalDecision): number =>
     asOf ? (decision.temporal.asOf === "certain" ? 0 : 1) : withHistory ? (decision.temporal.state === "current" ? 0 : 1) : 0;
-  const selected = decisions
+  // A memory matched only by its category label answers a broad question
+  // ("tercihlerim neler?"). Once the question's own words match something in
+  // memory — even a superseded or disputed version — the question is specific:
+  // only content matches, the current version of a content-matched fact, and
+  // identity (a name statement never shares words with "adım ne?") remain.
+  const admitted = (decision: AyasMemoryRetrievalDecision): boolean => {
+    const id = decision.record.recordId;
+    if (contentMatched.has(id) || identityMatched.has(id)) return true;
+    const slot = decision.temporal.fact?.key;
+    return contentMatched.size === 0 || (slot !== undefined && contentSlots.has(slot));
+  };
+  const eligible = decisions
     .filter((decision) => !decision.quarantined)
-    .filter((decision) => decision.lexicalScore > 0 || decision.conceptScore > 0)
+    .filter((decision) => decision.lexicalScore > 0 || decision.conceptScore > 0);
+  const selected = eligible
+    .filter(admitted)
     .sort((left, right) =>
       tier(left) - tier(right) ||
       right.rerankScore - left.rerankScore ||
@@ -334,6 +401,7 @@ export function retrieveAyasMemory(
     droppedExpired: recalled.droppedExpired,
     droppedDuplicates: recalled.records.length - unique.length,
     droppedNotYetKnown: unique.length - candidates.length,
+    droppedCategoryOnly: eligible.filter((decision) => !admitted(decision)).length,
     invalidTemporalQuery: temporal.invalidQuery,
   };
 }

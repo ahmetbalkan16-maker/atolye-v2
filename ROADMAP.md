@@ -1,5 +1,15 @@
 ---
 
+## AYAS Retrieval Evaluation — 2026-09-24
+
+- [x] Preserve Claude's partial implementation and recover a genuine pre-remediation baseline from a clean TEMP archive of `bebb9ba` using the same fixture/evaluator contract.
+- [x] Deterministic 74-case ground truth: 13 temporal seeds, 61 new cases, 8 held-out; candidate, ranking, recall-context and chat-context layers measured separately.
+- [x] Turkish morphology/word order, temporal modes, conflict, abstention, distractors, legacy v1, deletion, cross-scope isolation and trace privacy evaluated with strict safety gates.
+- [x] Bounded production improvement: shared Turkish stemming, standing current-name freshness and category-only distractor admission; no benchmark answer/phrase in production code.
+- [x] TEMP-only evaluator, repeated/shuffled/time-zone determinism, 50–2,000 record scaling, TypeScript, changed-file lint and relevant AYAS/Brain regressions pass. See `docs/AYAS_RETRIEVAL_EVALUATION.md`.
+- [ ] Known retrieval-quality limits remain measured: arbitrary free-text corrections lack an exclusive slot; same-topic attribute confusion, unsupported synonyms and two natural-language time patterns. These are not silently accepted as correct answers.
+- [x] **Retrieval Evaluation stage:** deterministic baseline and regression gates established; PC-off safe research is the next roadmap stage after Git closure.
+
 ## AYAS Memory Temporal v2 — Current vs Historical Memory — 2026-09-24
 
 - [x] Optional, versioned, fingerprint-bound `temporal` block (assertion, provenance, recordedAt, effectiveFrom/Until, heldFrom/Until, precision, fact slot); v1 records stay valid and keep their `recordId`.
@@ -12,7 +22,7 @@
 - [x] Unified Trace: temporal counts/flags only; persist failures now visible (closes the trace sprint's known gap).
 - [x] 13 synthetic ground-truth fixtures for Retrieval Evaluation (scoring deferred).
 - [ ] Known limitations (see `docs/AYAS_MEMORY_TEMPORAL.md`): free-text facts have no exclusive slot; a bare name withdrawal does not close the old version; multi-word names are not slotted.
-- [ ] **Next stage: Retrieval Evaluation.**
+- [x] **Next stage: Retrieval Evaluation.** Completed 2026-09-24 (section above).
 
 ## AYAS Unified Trace — End-to-End Causal Observability — 2026-09-23
 

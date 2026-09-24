@@ -1,5 +1,12 @@
 ---
 
+## 2026-09-24 — AYAS Retrieval Evaluation
+
+- Recovered Claude's partial retrieval work and measured a genuine pre-remediation `bebb9ba` baseline in a clean TEMP archive against the same 74-case synthetic ground truth.
+- Added separate candidate, ranking, recall-block and chat-prompt evaluation with Turkish, temporal, negative, legacy, held-out, privacy and determinism gates. Corrected candidate measurement to observe signal before admission and made TEMP report output fail closed.
+- Kept bounded Turkish stemming, current-name freshness and category-only distractor admission changes. Candidate recall improved 82.3% → 98.4%, Recall@4 79.0% → 96.8%, and required chat-context delivery 55.0% → 81.7%. Explicit as-of and exact negatives remain 100%; free-text stale leakage remains a documented limitation.
+- Retrieval smoke and ten relevant regression suites pass; TypeScript, changed-file ESLint and data integrity checks pass. Details: `docs/AYAS_RETRIEVAL_EVALUATION.md`.
+
 ## 2026-09-23 — AYAS Unified Trace (end-to-end causal observability, observer-only)
 
 - Added `src/lib/ayas/trace/AyasUnifiedTrace.ts`: schema-v1 trace/span/event contract, allowlisted labels and metadata, sanitized error codes, a bounded process-wide in-memory store, and a tolerant reader.

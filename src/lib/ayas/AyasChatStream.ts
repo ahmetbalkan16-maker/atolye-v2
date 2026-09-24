@@ -47,6 +47,7 @@ import {
   stripAyasMemoryLineAnnotation,
   type AyasMemoryPersistOutcome,
 } from "./memory/AyasMemoryRecall";
+import { stemAyasMemoryWord } from "./memory/AyasMemoryRetrieval";
 import type { AyasMemoryStoreOptions } from "./memory/AyasMemoryStore";
 import { isAyasIdentityStatement } from "./memory/AyasMemoryCandidate";
 import { ayasMemoryNameKey, detectAyasMemoryTemporalQuery, readAyasIdentityStatement } from "./memory/AyasMemoryTemporal";
@@ -187,17 +188,13 @@ const MEMORY_RELEVANCE_STOPWORDS = new Set([
   "ile", "mi", "midir", "nasil", "neden", "nedir", "olan", "olarak", "simdi", "sonra", "ve",
   "veya", "yapabiliriz", "yapalım", "yapalim",
 ]);
-const MEMORY_SUFFIXES = ["larimiz", "lerimiz", "lari", "leri", "dan", "den", "nin", "nın", "nun", "nün", "dir", "dır", "dur", "dür", "yi", "yı", "yu", "yü"];
-
 function meaningfulMemoryTokens(text: string): Set<string> {
   const words = fold(text).replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/);
   const tokens = new Set<string>();
   for (const word of words) {
     if (word.length < 4 || MEMORY_RELEVANCE_STOPWORDS.has(word)) continue;
-    let root = word;
-    const suffix = MEMORY_SUFFIXES.find((candidate) => word.endsWith(candidate) && word.length - candidate.length >= 4);
-    if (suffix) root = word.slice(0, -suffix.length);
-    tokens.add(root);
+    // Same stemming as retrieval, so a fact recall selected is not dropped here over an inflection.
+    tokens.add(stemAyasMemoryWord(word));
   }
   return tokens;
 }
