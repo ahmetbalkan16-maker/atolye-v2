@@ -45,7 +45,7 @@ async function main() {
   await scenario("an isolated root can be locked and released", async () => {
     const gateRoot = root();
     const result = await withAyasExecutionAuthorityLock(gateRoot, async () => 42);
-    assert.equal(result, 42);
+    assert.equal(result, 42, "assert.equal(result, 42)");
     assert.equal(fs.existsSync(path.join(gateRoot, "execution", ".authority-lock")), false, "the lock directory must be removed on release");
   });
 
@@ -92,9 +92,9 @@ async function main() {
       return "b";
     });
     const [resultA, resultB] = await Promise.all([a, b]);
-    assert.equal(resultA, "a");
-    assert.equal(resultB, "b");
-    assert.equal(concurrentlyInsideBoth, true);
+    assert.equal(resultA, "a", "assert.equal(resultA, \"a\")");
+    assert.equal(resultB, "b", "assert.equal(resultB, \"b\")");
+    assert.equal(concurrentlyInsideBoth, true, "assert.equal(concurrentlyInsideBoth, true)");
   });
 
   await scenario("this represents Bridge-vs-autonomy: two conceptually different callers sharing one gateRoot still cannot interleave", async () => {
@@ -121,7 +121,7 @@ async function main() {
     );
     releaseDaemonLike?.();
     await daemonLike;
-    assert.equal(overlap, false);
+    assert.equal(overlap, false, "assert.equal(overlap, false)");
   });
 
   await scenario("a dead owner (confirmed-exited PID) is safely reclaimed once stale", async () => {
@@ -129,7 +129,7 @@ async function main() {
     const pid = await deadPid();
     writeFixtureLock(gateRoot, { schemaVersion: "1", gateRoot: path.resolve(gateRoot), ownerNonce: "fixture-dead", pid, processStartEpochMs: 0, acquiredAt: new Date(0).toISOString() }, 20 * 60_000);
     const result = await withAyasExecutionAuthorityLock(gateRoot, async () => "reclaimed", { staleAfterMs: 60_000 });
-    assert.equal(result, "reclaimed");
+    assert.equal(result, "reclaimed", "assert.equal(result, \"reclaimed\")");
   });
 
   await scenario("a live owner is NOT reclaimed merely due to lock age", async () => {
@@ -157,7 +157,7 @@ async function main() {
     // simulating "a different process now happens to reuse this PID".
     writeFixtureLock(gateRoot, { schemaVersion: "1", gateRoot: path.resolve(gateRoot), ownerNonce: "fixture-reused-pid", pid: process.pid, processStartEpochMs: 1, acquiredAt: new Date(0).toISOString() }, 20 * 60_000);
     const result = await withAyasExecutionAuthorityLock(gateRoot, async () => "reclaimed-despite-live-pid", { staleAfterMs: 60_000 });
-    assert.equal(result, "reclaimed-despite-live-pid");
+    assert.equal(result, "reclaimed-despite-live-pid", "assert.equal(result, \"reclaimed-despite-live-pid\")");
   });
 
   await scenario("a lock that changes between the two observations is NOT deleted", async () => {
