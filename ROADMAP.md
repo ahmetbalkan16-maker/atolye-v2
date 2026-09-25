@@ -35,6 +35,9 @@
 - [x] PR #3 fix round (local validation of `d678b16`). The MAJOR (identity-conflict safety depended on arrival order) is fixed: the conflict is now symmetric current register truth for both records. The hand-off builder and the watch transitions re-check it against the register. The related MINOR (a blocked record could display an allowed zero cost) is also fixed.
   - The new `identity` group has 14 scenarios, all failing on `d678b16`. The evaluator now has 112 scenarios (clean base 112 MISSING, `d678b16` 97/15, fixed 112/112).
   - All 23 mutations are caught. The regressions pass. BLOCKER 0, unresolved MAJOR 0.
+- [x] PR #3 second fix round (local validation of `0b6a33a`, done locally). The MAJOR (a hand-off built before an identity conflict could still be submitted after it) is fixed. Submission re-assesses the current register and environment, rebuilds the hand-off and accepts only an identical one. The same check-then-use gap is closed for hand-off recording and the Stage 10 context.
+  - The new `stale` group has 17 scenarios. The evaluator now has 129 (clean base 129 MISSING, `0b6a33a` 113/16, fixed 129/129).
+  - All 13 mutations are caught, and the fuzz found 0 violations. The regressions pass. BLOCKER 0, unresolved MAJOR 0.
 - [ ] Owner-side: **LOCAL_GRAPHIFY_REVALIDATION_REQUIRED** (Graphify was unavailable in the cloud), repeated local validation, PR review, controlled promotion.
 - [ ] Deferred:
   - keyed tamper evidence for a persisted register;

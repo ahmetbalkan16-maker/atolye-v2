@@ -673,8 +673,10 @@ type TransitionKind = "SURFACE" | "HANDOFF" | "DISMISS";
  * it was handed to Stage 13, or that the owner dismissed it. It grants nothing.
  * The assessment must be current (same material fingerprint), time only moves
  * forward, and surfacing or handing off is refused while the watch suppresses it.
+ * A hand-off also needs the current environment: its eligibility depends on
+ * time and environment facts, not only on the register.
  */
-function transition(register: AyasTechnologyRegister, assessment: AyasTechnologyAssessment, at: string, kind: TransitionKind, opportunityId?: string): AyasTechnologyRegister {
+function transition(register: AyasTechnologyRegister, assessment: AyasTechnologyAssessment, at: string, kind: TransitionKind, opportunityId?: string, env?: AyasTechnologyWatchEnvironment): AyasTechnologyRegister {
   const refuse = (reason: string): never => { throw new AyasTechnologyError("AYAS_TECHNOLOGY_TRANSITION_REFUSED", reason); };
   const checked = assertAyasTechnologyRegister(register);
   if (!isAyasTechnologyAssessmentProduced(assessment)) return refuse("an assessment produced by this engine is required");
@@ -696,6 +698,11 @@ function transition(register: AyasTechnologyRegister, assessment: AyasTechnology
     if (!assessment.handoffEligible || assessment.readiness !== "HANDOFF_ELIGIBLE" || assessment.suppression.state !== "NONE" || suppression.code !== null) refuse("the technology is not eligible for hand-off");
     if (relations.identityConflicts.length > 0 || relations.duplicateOf !== null) refuse("an unresolved identity conflict or duplicate is never handed off");
     if (typeof opportunityId !== "string" || !OPPORTUNITY_ID.test(opportunityId)) refuse("hand-off must name the Stage 13 opportunity");
+    // An assessment made earlier or under other facts is a request, not permission: eligibility is re-derived at the hand-off moment.
+    if (!isAyasTechnologyPlainObject(env)) return refuse("recording a hand-off needs the current environment");
+    assertAyasTechnologyEnvironment(env);
+    if (ayasTechnologyIso(env.now) !== time) refuse("the environment must describe the moment of the hand-off");
+    if (!assessCandidate(candidate, env, analyzeRegister(checked)).handoffEligible) refuse("the technology is not eligible for hand-off now; re-assess first");
   }
   const reopening = kind !== "DISMISS" && watch.state !== "WATCHING" && last !== undefined && last.fingerprint !== fingerprint;
   if (reopening && watch.reopenCount >= AYAS_TECHNOLOGY_REOPEN_LIMIT) refuse("reopen limit reached");
@@ -721,10 +728,13 @@ export function markAyasTechnologySurfaced(register: AyasTechnologyRegister, ass
   return transition(register, assessment, at, "SURFACE");
 }
 
-/** The technology was given to Stage 13 as `opportunityId`; the same facts are never handed off twice. */
-export function recordAyasTechnologyHandoff(register: AyasTechnologyRegister, assessment: AyasTechnologyAssessment, handoff: { readonly opportunityId: string; readonly at: string }): AyasTechnologyRegister {
+/**
+ * The technology was given to Stage 13 as `opportunityId`; the same facts are never handed off twice. `env` is the
+ * environment at `handoff.at` (its `now`): the technology must still be eligible there, whatever the assessment says.
+ */
+export function recordAyasTechnologyHandoff(register: AyasTechnologyRegister, assessment: AyasTechnologyAssessment, handoff: { readonly opportunityId: string; readonly at: string }, env: AyasTechnologyWatchEnvironment): AyasTechnologyRegister {
   if (!isAyasTechnologyPlainObject(handoff)) throw new AyasTechnologyError("AYAS_TECHNOLOGY_TRANSITION_REFUSED", "hand-off record is malformed");
-  return transition(register, assessment, handoff.at, "HANDOFF", handoff.opportunityId);
+  return transition(register, assessment, handoff.at, "HANDOFF", handoff.opportunityId, env);
 }
 
 /** The owner is not interested in these facts; only a material change brings the technology back. It suppresses; it never authorizes. */

@@ -4,6 +4,8 @@ Status: **STAGE 14 — PR READY / PENDING LOCAL GRAPHIFY VALIDATION AND OWNER-SI
 
 Owner-side local validation of cloud head `d678b16` found one unresolved MAJOR: identity-conflict safety depended on arrival order. It also found one related MINOR: a blocked record could display an allowed zero cost. Both are fixed in the PR #3 fix round (§22).
 
+Local validation of the fix-round head `0b6a33a` found one more unresolved MAJOR: a hand-off built before an identity conflict could still be submitted after it. It is fixed in the PR #3 second fix round, done locally: submission, hand-off recording and the Stage 10 context are validated against the current register and environment (§23).
+
 Stage 14 lets AYAS notice that a technology exists and answer twelve questions about it:
 
 1. What it is.
@@ -269,18 +271,28 @@ The input is built as follows:
   - The target key is `tech.<slug>-<key6>`, the domain is `technology.<category>`, and compatibility is `UNKNOWN`.
 - **Omitted fields.** It never supplies a lifecycle, id, issue, signal, approval, evidence class or authority field.
 
-`submitAyasTechnologyHandoff` works as follows:
+`submitAyasTechnologyHandoff(evolutionRegister, handoff, env, current)` treats a hand-off as a request built at one moment, never as standing permission. `current` is the Stage 14 state now: `{ register, env }`. It is required, and its `env.now` must be the Stage 13 `env.now`. Submission works as follows:
 
-1. It checks:
-   - the closed field set;
+1. It checks the hand-off itself:
+   - the closed field sets of the hand-off and of its input, so a carried assessment, eligibility or approval claim is refused, not ignored;
    - that the input digest matches;
    - that the origin is `RESEARCH_LOOP`;
    - that the authority fields are `NONE`;
    - the Stage 13 register shape.
-2. It re-normalizes through Stage 13, appends only if the opportunity is absent (so it is idempotent), and qualifies.
-3. Stage 13 then decides readiness, risk, cost and required authority.
+2. It re-derives current truth, trusting nothing the hand-off carries:
+   - it re-assesses the whole current register under the current environment (current relations, identity conflicts, duplicates, cost, freshness and security);
+   - it finds the hand-off's technology there;
+   - it rebuilds the hand-off with the same builder.
 
-`recordAyasTechnologyHandoff` is gated. It requires a produced, current, eligible, unsuppressed assessment and a Stage 13 opportunity id.
+   It refuses when the current state is missing or malformed, when the technology is gone or not eligible now, or when the rebuilt hand-off differs in material fingerprint, input digest or opportunity.
+3. It appends the **rebuilt** opportunity only if it is absent (so it is idempotent), and qualifies.
+4. Stage 13 then decides readiness, risk, cost and required authority.
+
+The three-argument form is deprecated and always refused.
+
+A re-observation of unchanged facts moves the evidence times, so the old object no longer matches. The rebuilt hand-off keeps the same Stage 13 id, so resubmitting it appends nothing. After a hand-off is recorded, current truth is ALREADY_HANDED_OFF, so resubmitting is refused; Stage 13 already holds it.
+
+`recordAyasTechnologyHandoff(register, assessment, { opportunityId, at }, env)` is gated. It requires a produced, current, eligible, unsuppressed assessment and a Stage 13 opportunity id. It also needs the environment at the moment of the hand-off: `env.now` must equal `at`. The technology must still be eligible there when re-assessed, whatever the assessment says.
 
 Every watch transition also recomputes the record's duplicate and conflict relations from the register it is given:
 
@@ -289,7 +301,11 @@ Every watch transition also recomputes the record's duplicate and conflict relat
 
 ## 14. Stage 10 advisory context
 
-`buildAyasTechnologyDeveloperContext` returns one redacted `investigation` context item, for example: "Technology watch <key> (advisory; not installed): …". It returns nothing for a BLOCKED candidate. It carries no install, dispatch or approval.
+`buildAyasTechnologyDeveloperContext(assessment, current)` returns one redacted `investigation` context item, for example: "Technology watch <key> (advisory; not installed): …".
+
+- It shows the current assessment of the technology in `current` (`{ register, env }`).
+- It returns nothing for a BLOCKED candidate, or for an assessment that no longer matches current truth (fingerprint, recommendation or reason).
+- It carries no install, dispatch or approval.
 
 ## 15. Authority
 
@@ -353,13 +369,14 @@ The evaluator was written before the production code, and it is deterministic, o
 | adversarial | 10 (incl. a 400-record seeded fuzz) | combinations, spoofing, typosquats, truncation, reordering |
 | review | 10 | regressions added after implementation; each fails on the fault it pins |
 | identity | 14 | PR #3 fix round: symmetric, order-independent identity conflicts; hand-off defense in depth; blocked-record display (§22) |
+| stale | 17 | PR #3 second fix round: submission, hand-off recording and Stage 10 context are checked against current truth (§23) |
 
-- **Differential.** The same final evaluator (SHA-256 `0ff88d7b71e55d0943dfd010a9c895b65ddb343305b2fe499030e3f36a3694c7`) was run on three trees:
-  - a clean `cb7db64` archive: all 112 scenarios `MISSING`;
-  - the pre-fix cloud head `d678b16`: 97 PASS and 15 FAIL (A04 and I01–I14);
-  - this branch: 112/112 `PASS`.
+- **Differential.** The same final evaluator (SHA-256 `f988d63fd1a2ce0dccd99af3ec88aad7a63b40aef5bfb98d764f0bfcea166b24`) was run on three trees:
+  - a clean `cb7db64` archive: all 129 scenarios `MISSING`;
+  - the first fix-round head `0b6a33a`: 113 PASS and 16 FAIL (S01–S09 and S11–S17; S10 is the no-change control);
+  - this branch: 129/129 `PASS`.
 
-  The first round's final evaluator (`af909f7d…`) reported 98 MISSING → 98/98.
+  The first fix round's evaluator (`0ff88d7b…`) reported 112 MISSING → 97 PASS / 15 FAIL on `d678b16` → 112/112. The first round's evaluator (`af909f7d…`) reported 98 MISSING → 98/98.
 - **Frozen scenarios.** The held-out block is byte-identical to the version frozen before implementation. Every other pre-review group is also byte-identical, except the header comment, `TOTALS` and A04. A04 asserted that the genuine record stays HANDOFF_ELIGIBLE next to a lookalike, which is the order-dependent defect (§22).
 - **Mutation testing.** 23 targeted mutations, and every one is caught. Examples:
   - a malformed price read as free;
@@ -407,6 +424,7 @@ The evaluator was written before the production code, and it is deterministic, o
   - A weak restrictive claim resolved an open question, which made a candidate more ready: for example, a forum "paid" claim cleared `COST_UNKNOWN` (V07–V09).
   - A confirmed source that said the delivery was `UNKNOWN` settled the delivery (V10).
 - **PR #3 fix round** (§22): one MAJOR and one related MINOR from local validation, both fixed.
+- **PR #3 second fix round** (§23): one MAJOR from local validation (stale hand-off submission), plus two check-then-use gaps found by its audit (hand-off recording and the Stage 10 context), all fixed.
 - **Totals:** BLOCKER 0, unresolved MAJOR 0.
 
 ### Graphify: cloud vs local
@@ -431,7 +449,8 @@ The evaluator was written before the production code, and it is deterministic, o
   - It is merged into one record, which carries `IDENTITY_AMBIGUOUS` or `IDENTITY_ANCHOR_CONFLICT`.
   - While the conflict stands, both records are held in every order.
   - Which record holds that evidence still depends on arrival. An owner resolution path must re-attribute it rather than inherit arrival order.
-- **A hand-off value built before a conflicting record arrived is not re-validated at submission (DEFERRED).** `submitAyasTechnologyHandoff` receives only the Stage 13 register. The builder and the watch transition refuse such a value, and Stage 13 still qualifies it as RESEARCH_REQUIRED.
+- **Current Stage 14 state is supplied by the caller.** Submission, recording and context re-derive everything from the register and environment passed in, but there is no persisted Stage 14 store yet to supply them. This is the same deferred owner decision as daemon wiring.
+- **A recorded hand-off's opportunity id is only checked for shape (DEFERRED).** Recording re-checks eligibility now, but it does not prove that Stage 13 holds that opportunity. This is the Stage 13 "HANDED_OFF semantic verification" item: the id is attention metadata and grants nothing.
 - **Lookalikes with a different name are not detected (DEFERRED, needs design).** There is no fuzzy vendor or name matching, because it could create false conflicts.
 - **Pre-existing:**
   - Stage 13 uses `every` on lists that could be sparse;
@@ -494,3 +513,90 @@ Owner-side local validation of cloud head `d678b160f142280e61dc5c31b112872fafdb9
 Totals: 55 + 12 + 3 + 8 + 10 + 10 + 14 = **112**. The held-out block is unchanged (`9aa208c8…`). A04 was updated as described in §19.
 
 **Authority.** No authority, approval, install, spend, publication, daemon wiring, scheduler or provider execution was added. Every result still carries `executionAuthority: NONE` and all `may*` flags are false. There is no fuzzy name or vendor matching (see §21).
+
+## 23. PR #3 second fix round: hand-offs are validated against current truth
+
+Owner-side local validation of the first fix-round head `0b6a33a1d4e0028d53f6888406fc75ccfb4c6aef` found one unresolved MAJOR. This round was done locally, not in the cloud. It used a separate TEMP worktree on the PR branch, and the live canonical checkout was never switched.
+
+**MAJOR: a hand-off built before an identity conflict could still be submitted after it.**
+
+- **Reproduced** (S01, both arrival orders):
+  1. The genuine record is alone and HANDOFF_ELIGIBLE, and its hand-off is built.
+  2. The lookalike arrives, and current truth becomes SECURITY_REVIEW_REQUIRED.
+  3. The old hand-off is submitted, `submitAyasTechnologyHandoff` accepts it, and Stage 13 appends it as RESEARCH_REQUIRED.
+- **Root cause.** `submitAyasTechnologyHandoff` received only the Stage 13 register. It checked that the hand-off agreed with itself (fields, origin, digest, opportunity id) but never looked at Stage 14 state, so a hand-off object was perpetual permission to submit. The same held:
+  - after a reload of the register;
+  - for a JSON clone;
+  - for a hand-off returned by an earlier watch cycle;
+  - after a duplicate, security, cost, freshness or material change.
+
+**Fix: one current truth at the submission boundary (§13).** Nothing new decides eligibility:
+- `current = { register, env }` is required.
+- The existing `assessAyasTechnologyRegister` re-assesses the current register under the current environment. It covers the current relations, identity conflicts, duplicates, cost, freshness and security.
+- The existing `buildAyasTechnologyEvolutionHandoff` rebuilds the hand-off. The two must match exactly in material fingerprint, input digest and opportunity id, and the rebuilt value is what Stage 13 receives.
+- The Stage 14 environment must describe the Stage 13 moment (`env.now` equal).
+- The hand-off's own field set is closed, so a carried assessment, eligibility or approval claim is refused.
+- The three-argument form remains only as a deprecated overload that is always refused. The frozen held-out H1 calls it inside a branch its fixture never reaches, and it must stay byte-identical.
+
+**Check-then-use audit.** Every Stage 14 function that takes an assessment, hand-off, candidate or register and then acts:
+
+| Function | Finding | Result |
+|---|---|---|
+| `submitAyasTechnologyHandoff` | the MAJOR | fixed |
+| `recordAyasTechnologyHandoff` | It re-checked the fingerprint and relations but trusted the assessment's eligibility, which also depends on time and environment facts (freshness, coverage, installed packages). An assessment made while eligible could record a hand-off after the evidence aged. | fixed: it takes the environment at the hand-off moment (`env.now` = `at`) and re-assesses |
+| `buildAyasTechnologyDeveloperContext` | It put whatever assessment it was given into a Stage 10 packet, so an assessment from before a conflict or a compromise still advertised HANDOFF_ELIGIBLE. | fixed: it renders the current assessment; a stale or blocked one contributes nothing |
+| `markAyasTechnologySurfaced`, `dismissAyasTechnologyCandidate` | `surfaceable` depends only on register relations and watch suppression, both already recomputed at `at`. Dismissal only suppresses attention. | no change |
+| `buildAyasTechnologyEvolutionHandoff` | It may consume an older assessment, but its output is rebuilt and compared at submission, so nothing stale reaches Stage 13. | no change |
+| `runAyasTechnologyWatchCycle` | It computes everything from its own inputs in one pass. | no change |
+
+**Consequences, pinned by S11:**
+- A re-observation of unchanged facts moves the evidence times, so the old object must be rebuilt. The rebuilt hand-off keeps the Stage 13 id, and resubmitting it appends nothing.
+- After a hand-off is recorded, current truth is ALREADY_HANDED_OFF, so a resubmission is refused.
+
+**New evaluator group `stale`** (S01–S17). All fail on `0b6a33a` except S10, the no-change control:
+
+- S01: conflict added after the build, in both orders.
+- S02: the same after a reload.
+- S03: a JSON-cloned hand-off.
+- S04: a hand-off from a pre-conflict watch cycle.
+- S05: a duplicate relation appears after the build. The hand-off is refused when the record is demoted and stays valid when it is still canonical.
+- S06: a material change.
+- S07: a new security advisory.
+- S08: a new spend requirement or paid pricing.
+- S09: aging, stale or withdrawn evidence.
+- S10: no material or safety change. The hand-off stays valid across a reload, key and record order, a clone, an unrelated record, unrelated facts and an hour's delay.
+- S11: idempotency.
+- S12: tampered key, fingerprint, digest, opportunity or re-signed input, and carried claims.
+- S13: missing or malformed current state.
+- S14: recording under the current environment.
+- S15: the required combinations.
+- S16: all 2⁷ × 2⁴ × 2 combinations of seven safety changes, four neutral changes and a clone. Every safety change refuses; neutral changes alone keep the hand-off valid.
+- S17: the Stage 10 context.
+
+Totals: 55 + 12 + 3 + 8 + 10 + 10 + 14 + 17 = **129**. Final evaluator SHA-256 `f988d63fd1a2ce0dccd99af3ec88aad7a63b40aef5bfb98d764f0bfcea166b24`.
+
+- **Unchanged checks.** The held-out block is byte-identical (`9aa208c8…`, 11,382 bytes). The existing call sites (P03, P24, P33–P35, P40, A05, A08, V05, I05 and the `recordHandoff` helper) now pass real current state, so each refusal still tests what it names. No assertion was weakened.
+- **Differential.** A clean `cb7db64` archive: 129 MISSING. `0b6a33a`: 113 PASS / 16 FAIL. Fixed: 129/129.
+- **Mutations.** All 13 are caught:
+  - on submission: no fingerprint, digest or opportunity comparison; no single-moment binding; unknown current-state fields; a missing record skipped; carried claims ignored;
+  - on recording: no re-assessment, no moment binding, an optional environment;
+  - on the context: a stale or a blocked assessment rendered;
+  - the previous round's relation recheck in the builder.
+- **Out-of-repo fuzz.** 3,000 seeded post-build histories: random safety and neutral changes, random tampering. 0 violations (154 accepted, 2,846 refused), where every acceptance was checked against an independent fresh assessment. The same probe on `0b6a33a`: 2,846 violations.
+- **Previous fixes preserved.** The order-independence group I01–I14 (24 permutations, reload, record, source and duplicate reorder) and the blocked-record pricing display (I12) pass unchanged.
+
+**Local validation before commit** (real PC Graphify 0.17.1, on the remediation worktree):
+- The graph has 0 duplicate IDs or edges, 0 dangling edges and 0 self-loops.
+- The graph neighbors of the technology modules are the same module set as before. `review-analysis` rates the blast radius "high"; that comes from community spread over the technology communities and the existing bridge imports.
+- The runtime import closure is still 17 identical files, with externals `node:crypto`, `node:fs` and `node:path`.
+- Regressions:
+  - Stage 13: 109/109.
+  - Stage 8: 36 + 55.
+  - Stage 10: 39/39 + 61/61 + 14/14, with the pre-existing held-out 9/10.
+  - Stage 7: 41/41 + 5/5.
+  - Taxonomy 4, zero-cost 8, proposal impact 27, dedup 19, Stage 9 17/17.
+  - Execution gate 16, authority 29, lock 11, daemon boundary 23, research scheduler 17, external research store 8, autonomous execution gate 26.
+- TypeScript `--noEmit --incremental false`, changed-file ESLint `--max-warnings 0` and `git diff --check` pass.
+- **Runtime/Test Mutation: NONE.** The only `data/brain` changes came from the running discovery daemon (base head `cb7db64`, 5-minute cadence).
+
+**Authority.** Nothing was added: no approval, execution, gate bypass, install, spend, publication, deployment, daemon, scheduler, provider, process or network path. Every result still carries `executionAuthority: NONE` and all `may*` flags are false.

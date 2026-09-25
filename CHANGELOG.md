@@ -2,6 +2,16 @@
 
 ## 2026-09-25 — AYAS Autonomous Technology Watch & Capability Discovery (Stage 14) — PR READY, pending local Graphify validation and owner-side promotion
 
+- **PR #3 second fix round (local validation of `0b6a33a`: 1 unresolved MAJOR, done locally).**
+  - **MAJOR fixed: a hand-off built before an identity conflict could still be submitted after it.** `submitAyasTechnologyHandoff` never looked at Stage 14 state, so a hand-off object was perpetual permission.
+    - Submission now requires the current register and environment.
+    - It re-assesses them with the existing engine, rebuilds the hand-off with the existing builder, and accepts only an identical one (fingerprint, digest, opportunity).
+    - The rebuilt value is what Stage 13 receives.
+    - Missing or malformed current state, or carried claims, are refused.
+  - **Audit:** the same check-then-use gap is fixed for `recordAyasTechnologyHandoff`, which now takes the environment at the hand-off moment, and for the Stage 10 context, which now shows only the current assessment.
+  - The new evaluator group `stale` has 17 scenarios. Totals: 129. Clean base: 129 MISSING. `0b6a33a`: 113/16. Fixed: 129/129. Final evaluator SHA-256 `f988d63f…`. The held-out block is unchanged. All 13 mutations are caught, and a 3,000-case fuzz found 0 violations.
+  - The regressions pass. Runtime/Test Mutation: NONE. No authority was added.
+
 - **PR #3 fix round (local validation of `d678b16`: 1 unresolved MAJOR, 1 related MINOR).**
   - **MAJOR fixed: identity-conflict safety was order-dependent.** Only the record that arrived second was held. With the lookalike first, the lookalike became HANDOFF_ELIGIBLE and a Stage 13 hand-off could be built, and this survived reload.
     - The conflict is now symmetric current register truth, held for both records at SECURITY_REVIEW_REQUIRED, and no longer recorded at ingest.

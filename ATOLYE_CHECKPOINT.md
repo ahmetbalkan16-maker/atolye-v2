@@ -1,3 +1,39 @@
+## AYAS STAGE 14 — PR #3 SECOND FIX ROUND (STALE HAND-OFF SUBMISSION) — LOCAL — 2026-09-25
+
+- **State: STAGE 14 — PR READY, locally revalidated, pending promotion.** It is not COMPLETED yet. Stage 15 has not started.
+  - The owner authorized the remaining Stage 14 workflow on this PC: fix, push to the same PR branch, revalidate, conditionally merge PR #3, then post-merge closure.
+  - The work was done in a separate TEMP worktree on `cloud/stage14-technology-watch`. The live canonical checkout stayed on `wip/ayas-graphify-final-execution` @ `cb7db64`, so the autonomy daemon was never exposed to a branch change.
+- **Input.** Local validation of `0b6a33a1d4e0028d53f6888406fc75ccfb4c6aef` found 1 unresolved MAJOR. The start state was verified against the real remote: PR #3 OPEN and not merged, 2 commits ahead and 0 behind, 9 files, +4701/−0.
+- **Root cause.** `submitAyasTechnologyHandoff` received only the Stage 13 register. It checked the hand-off against itself, never against Stage 14 state.
+  - So a hand-off built while the genuine record was alone was accepted after the lookalike arrived and current truth had become SECURITY_REVIEW_REQUIRED. Stage 13 appended it as RESEARCH_REQUIRED.
+  - The same held after a reload, for clones, for a hand-off from an earlier cycle, and after any duplicate, security, cost, freshness or material change.
+  - This was the item the previous round had deferred.
+- **Fix** (`AyasTechnologyIntegration.ts`, `AyasTechnologyWatch.ts`). One current truth, with no new assessor or authority:
+  - **Submission** requires `current = { register, env }` at the Stage 13 moment. The existing engine re-assesses the current register and the existing builder rebuilds the hand-off. Only an identical rebuild is accepted (fingerprint, digest, opportunity), and the rebuilt value is what Stage 13 receives.
+  - Missing or malformed state is refused, and so are carried claims (closed field set). The old three-argument form is a deprecated overload that is always refused; H1 must stay byte-identical.
+  - **TOCTOU audit, two more fixes.** `recordAyasTechnologyHandoff` now takes the environment at the hand-off moment and re-assesses; it had trusted the assessment's time- and environment-dependent eligibility. `buildAyasTechnologyDeveloperContext` now renders only the current assessment; it had advertised stale eligibility to Stage 10.
+  - Surface, dismiss, the builder and the cycle were reviewed. They need no change.
+- **Evaluator.** The new group `stale` has S01–S17: the required S01–S12, plus missing/malformed state, recording, the required combinations, a 4,096-submission sweep (2⁷ safety × 2⁴ neutral changes × clone), and the Stage 10 context.
+  - Totals: 55 + 12 + 3 + 8 + 10 + 10 + 14 + 17 = **129**. The held-out block is byte-identical (`9aa208c8…`, 11,382 bytes). Final evaluator SHA-256 `f988d63fd1a2ce0dccd99af3ec88aad7a63b40aef5bfb98d764f0bfcea166b24`.
+  - Differential on clean TEMP archives: `cb7db64` 129 MISSING; `0b6a33a` 113 PASS / 16 FAIL (only S10, the no-change control, passes); fixed 129/129.
+  - All 13 mutations are caught. A 3,000-case seeded fuzz found 0 violations; the same probe on `0b6a33a` found 2,846.
+  - The existing call sites now pass real current state, and no assertion was weakened.
+  - The order-independence group I01–I14 and the pricing-display check pass unchanged.
+- **Local validation** (before commit; all suites classified before running; observer-autostart not run):
+  - Graphify 0.17.1 on the worktree: 0 duplicate IDs or edges, 0 dangling edges, 0 self-loops, and the technology neighbors are unchanged.
+  - The runtime closure is 17 files, unchanged, with `node:crypto/fs/path` only.
+  - Stage 13: 109/109. Stage 8: 36 + 55. Stage 10: 39/39 + 61/61 + 14/14, with the pre-existing held-out 9/10. Stage 7: 41/41 + 5/5.
+  - Taxonomy 4, zero-cost 8, proposal impact 27, dedup 19, Stage 9 17/17.
+  - Execution gate 16, authority 29, lock 11, daemon boundary 23, research scheduler 17, external store 8, autonomous gate 26.
+  - TypeScript, changed-file ESLint and `git diff --check`: PASS.
+- **Runtime/Test Mutation: NONE.** Runtime 2,374, authority 4, legacy projects 2,399, the rest of `data/`, memory and both usage ledgers (4 records, `5f896a8c…`) are byte-identical. The only `data/brain` changes are the live discovery daemon's runs (base head `cb7db64`, 5-minute cadence) and the phone-access heartbeat.
+- **Review.** Pass 1 covered stale replay, the current-register bypass, idempotency, order and serialization. Pass 2 tried to bypass current truth with every listed vector plus fuzz. BLOCKER 0, unresolved MAJOR 0.
+- **Deferred:**
+  - the current Stage 14 state is caller-supplied until a persisted register exists;
+  - a recorded hand-off's opportunity id is only shape-checked (the Stage 13 HANDED_OFF verification item);
+  - the previous deferred list.
+- Details are in `docs/AYAS_TECHNOLOGY_WATCH.md` §23. The Graphify state of the pushed head, the merge and the closure are recorded in the post-merge closure entry.
+
 ## AYAS STAGE 14 — PR #3 FIX ROUND (ORDER-INDEPENDENT IDENTITY CONFLICTS) — CLOUD — 2026-09-25
 
 - **State: STAGE 14 — PR READY / PENDING LOCAL GRAPHIFY VALIDATION AND OWNER-SIDE PROMOTION.** It is not COMPLETED. Stage 15 has not started. PR #3 is updated on the same branch `cloud/stage14-technology-watch` and is **not merged**.

@@ -117,6 +117,7 @@ export interface AyasTechnologyEvolutionHandoff {
   readonly authority: "NONE";
 }
 
+const HANDOFF_FIELDS: readonly string[] = ["technologyKey", "materialFingerprint", "input", "inputDigest", "opportunity", "executionAuthority", "authority"];
 const HANDOFF_INPUT_FIELDS: readonly string[] = ["schemaVersion", "createdAt", "origin", "kind", "need", "evidence", "target", "prerequisites", "constraints", "impact", "requiredAuthority"];
 const STAGE13_EVIDENCE_LIMIT = 24;
 const DELIVERY_CLASS: Readonly<Record<AyasTechnologyDelivery, AyasEvolutionCapabilityClass>> = Object.freeze({
@@ -257,27 +258,56 @@ export interface AyasTechnologyHandoffSubmission {
   readonly appended: boolean;
 }
 
+/** The Stage 14 state as it is at submission: the register and environment facts now, never the ones a hand-off was built from. */
+export interface AyasTechnologyCurrentState {
+  readonly register: AyasTechnologyRegister;
+  /** `now` must be the Stage 13 submission time. */
+  readonly env: AyasTechnologyWatchEnvironment;
+}
+
 /**
  * Appends the hand-off to a Stage 13 register through Stage 13's own API and
- * returns Stage 13's qualification, which is authoritative. An edited
- * hand-off, one that names a lifecycle, id, approval or authority, or one
- * whose origin is not RESEARCH_LOOP, is refused. Submitting the same facts
- * twice appends nothing. The result is still a register value: nothing is
- * persisted, proposed or executed here.
+ * returns Stage 13's qualification, which is authoritative. A hand-off is a
+ * request built at one moment, never standing permission: the technology is
+ * re-assessed in the CURRENT register and environment, its hand-off is rebuilt
+ * with the same builder, and only an identical one (same technology, material
+ * fingerprint, input digest and opportunity) is accepted; the rebuilt value is
+ * what gets appended. A conflict, duplicate, security, cost, freshness or
+ * material change since the hand-off was built refuses it, and so does missing
+ * or malformed current state. An edited hand-off, one that names a lifecycle,
+ * id, approval or authority, or one whose origin is not RESEARCH_LOOP, is
+ * refused. Submitting the same facts twice appends nothing. The result is
+ * still a register value: nothing is persisted, proposed or executed here.
  */
-export function submitAyasTechnologyHandoff(evolutionRegister: AyasEvolutionRegister, handoff: AyasTechnologyEvolutionHandoff, env: AyasEvolutionEnvironment): AyasTechnologyHandoffSubmission {
+export function submitAyasTechnologyHandoff(evolutionRegister: AyasEvolutionRegister, handoff: AyasTechnologyEvolutionHandoff, env: AyasEvolutionEnvironment, current: AyasTechnologyCurrentState): AyasTechnologyHandoffSubmission;
+/** @deprecated Always refused: without the current Stage 14 register and environment there is nothing to validate the hand-off against. */
+export function submitAyasTechnologyHandoff(evolutionRegister: AyasEvolutionRegister, handoff: AyasTechnologyEvolutionHandoff, env: AyasEvolutionEnvironment): AyasTechnologyHandoffSubmission;
+export function submitAyasTechnologyHandoff(evolutionRegister: AyasEvolutionRegister, handoff: AyasTechnologyEvolutionHandoff, env: AyasEvolutionEnvironment, current?: AyasTechnologyCurrentState): AyasTechnologyHandoffSubmission {
   const refuse = (reason: string): never => { throw new AyasTechnologyError("AYAS_TECHNOLOGY_HANDOFF_REFUSED", reason); };
   const h: unknown = handoff;
   if (!isAyasTechnologyPlainObject(h) || h.executionAuthority !== "NONE" || h.authority !== "NONE") return refuse("a hand-off carries no authority");
+  if (Object.keys(h).some((field) => !HANDOFF_FIELDS.includes(field))) refuse("a hand-off carries no assessment, eligibility, approval or other claim of its own");
   const input = h.input;
   if (!isAyasTechnologyPlainObject(input) || Object.keys(input).some((field) => !HANDOFF_INPUT_FIELDS.includes(field))) return refuse("a hand-off input may not name a lifecycle, id, issue, signal, approval or authority");
   if (input.origin !== AYAS_TECHNOLOGY_HANDOFF_ORIGIN) refuse("a technology-watch hand-off always has the research-loop origin");
   if (sha256(ayasTechnologyCanonicalJson(input)) !== h.inputDigest) refuse("the hand-off was edited after it was built");
-  const opportunity = normalizeAyasEvolutionOpportunity(input as AyasEvolutionOpportunityInput);
-  if (opportunity.normalizationIssues.some(isAyasEvolutionBlockingIssue) || opportunity.instructionSignals.length > 0) refuse("Stage 13 normalization found a blocking issue");
-  if (!isAyasTechnologyPlainObject(h.opportunity) || h.opportunity.opportunityId !== opportunity.opportunityId) refuse("the hand-off does not describe its own input");
   const target: unknown = evolutionRegister;
   if (!isAyasTechnologyPlainObject(target) || !Array.isArray(target.opportunities)) refuse("the Stage 13 register is malformed");
+
+  // Current Stage 14 truth decides, never the hand-off: nothing it carries (assessment, eligibility, relations) is trusted.
+  const state: unknown = current;
+  if (!isAyasTechnologyPlainObject(state) || Object.keys(state).some((field) => field !== "register" && field !== "env")) return refuse("submission needs the current Stage 14 register and environment");
+  const assessments = assessAyasTechnologyRegister(state.register as AyasTechnologyRegister, state.env as AyasTechnologyWatchEnvironment);
+  const at = ayasTechnologyIso((state.env as AyasTechnologyWatchEnvironment).now);
+  if (at === null || at !== ayasTechnologyIso(isAyasTechnologyPlainObject(env) ? env.now : undefined)) refuse("the Stage 14 environment must describe the moment of submission");
+  const assessment = assessments.find((a) => a.technologyKey === h.technologyKey) ?? refuse("the technology is not in the current Stage 14 register");
+  const rebuilt = buildAyasTechnologyEvolutionHandoff(state.register as AyasTechnologyRegister, assessment)
+    ?? refuse(`the technology is not eligible for hand-off now (${assessment.recommendation}: ${assessment.primaryReason})`);
+  if (rebuilt.materialFingerprint !== h.materialFingerprint || rebuilt.inputDigest !== h.inputDigest
+    || !isAyasTechnologyPlainObject(h.opportunity) || h.opportunity.opportunityId !== rebuilt.opportunity.opportunityId) {
+    refuse("the hand-off no longer matches the current Stage 14 facts; rebuild it from the current register");
+  }
+  const opportunity = rebuilt.opportunity;
   const exists = evolutionRegister.opportunities.some((item) => item.opportunityId === opportunity.opportunityId);
   const register = exists ? evolutionRegister : appendAyasEvolutionOpportunity(evolutionRegister, opportunity);
   return { register, qualification: qualifyAyasEvolutionOpportunity(opportunity.opportunityId, register, env), opportunityId: opportunity.opportunityId, appended: !exists };
@@ -288,12 +318,18 @@ export function submitAyasTechnologyHandoff(evolutionRegister: AyasEvolutionRegi
 /**
  * Advisory context for a Stage 10 task packet: a discovered tool, library or
  * skill may be described as relevant, never installed, enabled or dispatched.
- * A blocked candidate (directive-shaped or corrupted data) contributes nothing.
+ * It shows the CURRENT assessment: one that no longer matches the current
+ * register and environment contributes nothing, and neither does a blocked
+ * candidate (directive-shaped or corrupted data).
  */
-export function buildAyasTechnologyDeveloperContext(assessment: AyasTechnologyAssessment): readonly AyasContextItem[] {
-  if (!isAyasTechnologyAssessmentProduced(assessment) || assessment.readiness === "BLOCKED") return [];
-  const text = redactAyasHandoffText(`Technology watch ${assessment.technologyKey} (advisory; not installed): ${assessment.identity.displayName} [${assessment.identity.category}, delivery ${assessment.compatibility.deliveries.join("+")}] — ${assessment.recommendation} (${assessment.primaryReason}). AYAS has no authority to install, enable, dispatch or spend; any adoption goes through the owner-controlled Stage 9 review and Stage 13.`, 600);
-  return Object.freeze([Object.freeze({ id: `technology-watch:${assessment.technologyKey}`, kind: "investigation" as const, text, at: assessment.assessedAt })]);
+export function buildAyasTechnologyDeveloperContext(assessment: AyasTechnologyAssessment, current: AyasTechnologyCurrentState): readonly AyasContextItem[] {
+  if (!isAyasTechnologyAssessmentProduced(assessment)) return [];
+  const state: unknown = current;
+  if (!isAyasTechnologyPlainObject(state)) throw new AyasTechnologyError("AYAS_TECHNOLOGY_ENVIRONMENT_INVALID", "context needs the current Stage 14 register and environment");
+  const now = assessAyasTechnologyRegister(state.register as AyasTechnologyRegister, state.env as AyasTechnologyWatchEnvironment).find((a) => a.technologyKey === assessment.technologyKey);
+  if (!now || now.readiness === "BLOCKED" || now.materialFingerprint !== assessment.materialFingerprint || now.recommendation !== assessment.recommendation || now.primaryReason !== assessment.primaryReason) return [];
+  const text = redactAyasHandoffText(`Technology watch ${now.technologyKey} (advisory; not installed): ${now.identity.displayName} [${now.identity.category}, delivery ${now.compatibility.deliveries.join("+")}] — ${now.recommendation} (${now.primaryReason}). AYAS has no authority to install, enable, dispatch or spend; any adoption goes through the owner-controlled Stage 9 review and Stage 13.`, 600);
+  return Object.freeze([Object.freeze({ id: `technology-watch:${now.technologyKey}`, kind: "investigation" as const, text, at: now.assessedAt })]);
 }
 
 // ---------------------------------------------------------------- one bounded watch cycle
