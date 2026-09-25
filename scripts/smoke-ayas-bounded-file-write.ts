@@ -103,8 +103,8 @@ async function main() {
         { filePath: "src/b.ts", expectedHash: hash("b-old\n"), content: "b-new\n" },
       ], async () => undefined), /injected second-file commit failure/);
     } finally { (fs as { renameSync: typeof fs.renameSync }).renameSync = original; }
-    assert.equal(fs.readFileSync(path.join(r, "src/a.ts"), "utf8"), "a-old\n");
-    assert.equal(fs.readFileSync(path.join(r, "src/b.ts"), "utf8"), "b-old\n");
+    assert.equal(fs.readFileSync(path.join(r, "src/a.ts"), "utf8"), "a-old\n", "assert.equal(fs.readFileSync(path.join(r, \"src/a.ts\"), \"utf8\"), \"a-old\\n\")");
+    assert.equal(fs.readFileSync(path.join(r, "src/b.ts"), "utf8"), "b-old\n", "assert.equal(fs.readFileSync(path.join(r, \"src/b.ts\"), \"utf8\"), \"b-old\\n\")");
   });
 
   console.log(`AYAS bounded file write smoke: PASS (${count} scenarios)`);
