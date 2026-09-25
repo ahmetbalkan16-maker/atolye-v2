@@ -93,16 +93,16 @@ async function run() {
   await scenario("prompt ends with the { reply } JSON envelope instruction", () => {
     const prompt = buildAyasChatPrompt({ userText: "x", snapshot: snap(), history: [] });
     assert.match(prompt, /"reply":/);
-    assert.equal(AYAS_CHAT_JSON_SCHEMA.type, "object");
+    assert.equal(AYAS_CHAT_JSON_SCHEMA.type, "object", "assert.equal(AYAS_CHAT_JSON_SCHEMA.type, \"object\")");
   });
 
   await scenario("extractAyasReplyText unwraps the envelope; tolerates raw prose; drops empty {}", () => {
-    assert.equal(extractAyasReplyText('{"reply":"Ben AYAS."}'), "Ben AYAS.");
-    assert.equal(extractAyasReplyText('  {"reply": "  boşluklu  "}  '), "boşluklu");
-    assert.equal(extractAyasReplyText("Zarfsız düz metin yanıt."), "Zarfsız düz metin yanıt.");
-    assert.equal(extractAyasReplyText("{}"), "");
-    assert.equal(extractAyasReplyText('{ "" }'), "");
-    assert.equal(extractAyasReplyText(""), "");
+    assert.equal(extractAyasReplyText('{"reply":"Ben AYAS."}'), "Ben AYAS.", "assert.equal(extractAyasReplyText('{\"reply\":\"Ben AYAS.\"}'), \"Ben AYAS.\")");
+    assert.equal(extractAyasReplyText('  {"reply": "  boşluklu  "}  '), "boşluklu", "assert.equal(extractAyasReplyText('  {\"reply\": \"  boşluklu  \"}  '), \"boşluklu\")");
+    assert.equal(extractAyasReplyText("Zarfsız düz metin yanıt."), "Zarfsız düz metin yanıt.", "assert.equal(extractAyasReplyText(\"Zarfsız düz metin yanıt.\"), \"Zarfsız düz metin yanıt.\")");
+    assert.equal(extractAyasReplyText("{}"), "", "assert.equal(extractAyasReplyText(\"{}\"), \"\")");
+    assert.equal(extractAyasReplyText('{ "" }'), "", "assert.equal(extractAyasReplyText('{ \"\" }'), \"\")");
+    assert.equal(extractAyasReplyText(""), "", "assert.equal(extractAyasReplyText(\"\"), \"\")");
   });
 
   await scenario("A. LLM success (JSON envelope) → the model's reply is used", async () => {
@@ -110,7 +110,7 @@ async function run() {
       text: "selam", snapshot: snap(), history: [], seq: 1,
       generate: async () => extractAyasReplyText('{"reply":"Merhaba! Ben AYAS."}'),
     });
-    assert.equal(out.source, "llm");
+    assert.equal(out.source, "llm", "assert.equal(out.source, \"llm\")");
     assert.match(out.message.text, /Ben AYAS/);
   });
 
@@ -122,8 +122,8 @@ async function run() {
       seq: 1,
       generate: async () => "Merhaba! Ben AYAS, Atölye'nin yapay zekâ çekirdeğiyim. Nasıl yardımcı olabilirim?",
     });
-    assert.equal(out.source, "llm");
-    assert.equal(out.message.role, "brain");
+    assert.equal(out.source, "llm", "assert.equal(out.source, \"llm\")");
+    assert.equal(out.message.role, "brain", "assert.equal(out.message.role, \"brain\")");
     assert.match(out.message.text, /Ben AYAS/);
   });
 
@@ -137,7 +137,7 @@ async function run() {
         throw new Error("ECONNREFUSED 127.0.0.1:11434");
       },
     });
-    assert.equal(out.source, "fallback");
+    assert.equal(out.source, "fallback", "assert.equal(out.source, \"fallback\")");
     assert.match(out.message.text, /konuşma katmanı .* henüz bağlı değil/i);
     assert.match(out.message.text, /KAPALI/);
   });
@@ -150,12 +150,12 @@ async function run() {
       });
       assert.equal(out.source, "fallback", `reply ${JSON.stringify(reply)} should fall back`);
     }
-    assert.equal(isUsableAyasReply("Gerçek bir yanıt."), true);
-    assert.equal(isUsableAyasReply(""), false);
+    assert.equal(isUsableAyasReply("Gerçek bir yanıt."), true, "assert.equal(isUsableAyasReply(\"Gerçek bir yanıt.\"), true)");
+    assert.equal(isUsableAyasReply(""), false, "assert.equal(isUsableAyasReply(\"\"), false)");
   });
 
   await scenario("D. AYAS identity — name is AYAS in prompt, welcome and fallback", () => {
-    assert.equal(AYAS_NAME, "AYAS");
+    assert.equal(AYAS_NAME, "AYAS", "assert.equal(AYAS_NAME, \"AYAS\")");
     const prompt = buildAyasChatPrompt({ userText: "x", snapshot: snap(), history: [] });
     assert.match(prompt, /Adın AYAS/);
     const fb = brainDeterministicReply("x", snap(), 1);
@@ -198,7 +198,7 @@ async function run() {
       // a well-behaved model reply
       generate: async () => "Bunu ben yapamam — yürütme kapısı kapalı. Bu ayrı bir onay adımı gerektirir.",
     });
-    assert.equal(out.source, "llm");
+    assert.equal(out.source, "llm", "assert.equal(out.source, \"llm\")");
     // the prompt instructs the model to refuse execution; the wiring itself
     // runs nothing regardless of what the text says.
     const prompt = buildAyasChatPrompt({ userText: "pipeline'ı çalıştır", snapshot: snap(), history: [] });
