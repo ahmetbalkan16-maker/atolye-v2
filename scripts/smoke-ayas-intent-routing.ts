@@ -17,20 +17,20 @@ function expectRoute(text: string, kind: ReturnType<typeof resolveAyasPreReasoni
   assert.equal(resolveAyasPreReasoningIntent(text).kind, kind, text);
 }
 
-scenario("Bugün is not a repair token", () => assert.equal(isAyasGuidedRepairQuery("Bugün nasılsın?"), false));
-scenario("standalone bug is a repair token", () => assert.equal(isAyasGuidedRepairQuery("bug var"), true));
-scenario("bug in a sentence is a repair token", () => assert.equal(isAyasGuidedRepairQuery("bir bug buldum"), true));
-scenario("bug repair imperative is detected", () => assert.equal(isAyasGuidedRepairQuery("bug düzelt"), true));
-scenario("Turkish uppercase Bugün remains negative", () => assert.equal(isAyasGuidedRepairQuery("BUGÜN"), false));
-scenario("Unicode uppercase repair term is detected", () => assert.equal(isAyasGuidedRepairQuery("ÇALIŞMIYOR"), true));
-scenario("one-character Turkish typo in a long repair term is tolerated", () => assert.equal(isAyasGuidedRepairQuery("uygulama çalşmıyor"), true));
-scenario("short near-match remains ordinary text", () => assert.equal(isAyasGuidedRepairQuery("düzlem geometrisi"), false));
-scenario("punctuated bug is detected", () => assert.equal(isAyasGuidedRepairQuery("(bug), var!"), true));
-scenario("adjacent debug is not a repair token", () => assert.equal(isAyasGuidedRepairQuery("debug çıktısını göster"), false));
-scenario("hata remains detected", () => assert.equal(isAyasGuidedRepairQuery("bir hata var"), true));
-scenario("exception remains detected", () => assert.equal(isAyasGuidedRepairQuery("Exception aldım"), true));
-scenario("çöktü remains detected", () => assert.equal(isAyasGuidedRepairQuery("uygulama çöktü"), true));
-scenario("düzelt remains detected", () => assert.equal(isAyasGuidedRepairQuery("şunu düzelt"), true));
+scenario("Bugün is not a repair token", () => assert.equal(isAyasGuidedRepairQuery("Bugün nasılsın?"), false, "assert.equal(isAyasGuidedRepairQuery(\"Bugün nasılsın?\"), false)"));
+scenario("standalone bug is a repair token", () => assert.equal(isAyasGuidedRepairQuery("bug var"), true, "assert.equal(isAyasGuidedRepairQuery(\"bug var\"), true)"));
+scenario("bug in a sentence is a repair token", () => assert.equal(isAyasGuidedRepairQuery("bir bug buldum"), true, "assert.equal(isAyasGuidedRepairQuery(\"bir bug buldum\"), true)"));
+scenario("bug repair imperative is detected", () => assert.equal(isAyasGuidedRepairQuery("bug düzelt"), true, "assert.equal(isAyasGuidedRepairQuery(\"bug düzelt\"), true)"));
+scenario("Turkish uppercase Bugün remains negative", () => assert.equal(isAyasGuidedRepairQuery("BUGÜN"), false, "assert.equal(isAyasGuidedRepairQuery(\"BUGÜN\"), false)"));
+scenario("Unicode uppercase repair term is detected", () => assert.equal(isAyasGuidedRepairQuery("ÇALIŞMIYOR"), true, "assert.equal(isAyasGuidedRepairQuery(\"ÇALIŞMIYOR\"), true)"));
+scenario("one-character Turkish typo in a long repair term is tolerated", () => assert.equal(isAyasGuidedRepairQuery("uygulama çalşmıyor"), true, "assert.equal(isAyasGuidedRepairQuery(\"uygulama çalşmıyor\"), true)"));
+scenario("short near-match remains ordinary text", () => assert.equal(isAyasGuidedRepairQuery("düzlem geometrisi"), false, "assert.equal(isAyasGuidedRepairQuery(\"düzlem geometrisi\"), false)"));
+scenario("punctuated bug is detected", () => assert.equal(isAyasGuidedRepairQuery("(bug), var!"), true, "assert.equal(isAyasGuidedRepairQuery(\"(bug), var!\"), true)"));
+scenario("adjacent debug is not a repair token", () => assert.equal(isAyasGuidedRepairQuery("debug çıktısını göster"), false, "assert.equal(isAyasGuidedRepairQuery(\"debug çıktısını göster\"), false)"));
+scenario("hata remains detected", () => assert.equal(isAyasGuidedRepairQuery("bir hata var"), true, "assert.equal(isAyasGuidedRepairQuery(\"bir hata var\"), true)"));
+scenario("exception remains detected", () => assert.equal(isAyasGuidedRepairQuery("Exception aldım"), true, "assert.equal(isAyasGuidedRepairQuery(\"Exception aldım\"), true)"));
+scenario("çöktü remains detected", () => assert.equal(isAyasGuidedRepairQuery("uygulama çöktü"), true, "assert.equal(isAyasGuidedRepairQuery(\"uygulama çöktü\"), true)"));
+scenario("düzelt remains detected", () => assert.equal(isAyasGuidedRepairQuery("şunu düzelt"), true, "assert.equal(isAyasGuidedRepairQuery(\"şunu düzelt\"), true)"));
 
 scenario("repair statement routes to Guided Repair", () => expectRoute("Bir bug buldum", "guided-repair"));
 scenario("broken feature routes to Guided Repair", () => expectRoute("Bu özellik çalışmıyor", "guided-repair"));
@@ -50,7 +50,7 @@ scenario("today report availability routes to Report Center", () => expectRoute(
 scenario("reporting the day remains ordinary reasoning", () => expectRoute("Bugünü raporla", "reasoning"));
 
 scenario("development status resolves to its deterministic read-only tool", () => {
-  assert.equal(resolveDeterministicToolCandidate("Benden ne onay bekliyorsun?")?.action, "ayas-development-status");
+  assert.equal(resolveDeterministicToolCandidate("Benden ne onay bekliyorsun?")?.action, "ayas-development-status", "assert.equal(resolveDeterministicToolCandidate(\"Benden ne onay bekliyorsun?\")?.action, \"ayas-development-status\")");
 });
 scenario("report-only phrasing does not resolve to development-status tool", () => {
   assert.notEqual(resolveDeterministicToolCandidate("Onay bekleyen raporları göster")?.action, "ayas-development-status");
