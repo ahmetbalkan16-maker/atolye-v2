@@ -28,11 +28,14 @@
   - A read-only CLI.
 
   Every result carries `executionAuthority: NONE`, and every `may*` flag is false.
-- [x] Evaluator written before the implementation. The final evaluator reports 98 MISSING on a clean `cb7db64` archive and 98/98 PASS on the branch: 55 primary, 12 frozen held-out, 3 matrix (508 cases), 8 round-trip, 10 adversarial and 10 review.
+- [x] Evaluator written before the implementation. In the first round, the final evaluator reported 98 MISSING on a clean `cb7db64` archive and 98/98 PASS on the branch (now 112 after the PR #3 fix round, below): 55 primary, 12 frozen held-out, 3 matrix (508 cases), 8 round-trip, 10 adversarial and 10 review.
   - All 16 targeted mutations are caught.
   - The required Stage 7, 8, 9, 10 and 13 suites, the zero-cost, proposal and authority/execution regressions, TypeScript, changed-file ESLint and the diff check all pass.
   - Runtime/Test Mutation: NONE. See `docs/AYAS_TECHNOLOGY_WATCH.md`.
-- [ ] Owner-side: **LOCAL_GRAPHIFY_REVALIDATION_REQUIRED** (Graphify was unavailable in the cloud), PR review, controlled promotion.
+- [x] PR #3 fix round (local validation of `d678b16`). The MAJOR (identity-conflict safety depended on arrival order) is fixed: the conflict is now symmetric current register truth for both records. The hand-off builder and the watch transitions re-check it against the register. The related MINOR (a blocked record could display an allowed zero cost) is also fixed.
+  - The new `identity` group has 14 scenarios, all failing on `d678b16`. The evaluator now has 112 scenarios (clean base 112 MISSING, `d678b16` 97/15, fixed 112/112).
+  - All 23 mutations are caught. The regressions pass. BLOCKER 0, unresolved MAJOR 0.
+- [ ] Owner-side: **LOCAL_GRAPHIFY_REVALIDATION_REQUIRED** (Graphify was unavailable in the cloud), repeated local validation, PR review, controlled promotion.
 - [ ] Deferred:
   - keyed tamper evidence for a persisted register;
   - daemon wiring and a persisted register (an owner decision);

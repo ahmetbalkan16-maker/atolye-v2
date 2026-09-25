@@ -2,6 +2,17 @@
 
 ## 2026-09-25 — AYAS Autonomous Technology Watch & Capability Discovery (Stage 14) — PR READY, pending local Graphify validation and owner-side promotion
 
+- **PR #3 fix round (local validation of `d678b16`: 1 unresolved MAJOR, 1 related MINOR).**
+  - **MAJOR fixed: identity-conflict safety was order-dependent.** Only the record that arrived second was held. With the lookalike first, the lookalike became HANDOFF_ELIGIBLE and a Stage 13 hand-off could be built, and this survived reload.
+    - The conflict is now symmetric current register truth, held for both records at SECURITY_REVIEW_REQUIRED, and no longer recorded at ingest.
+    - The hand-off builder and every watch transition recompute relations from the register they are given, so a stale assessment builds and records nothing.
+  - **MINOR fixed: a blocked record could display an allowed zero cost** (malformed pricing requirements, an unknown requirement code, or a misspelled field).
+    - A restrictive claim malformed anywhere keeps its most restrictive value.
+    - A BLOCKED record never shows an allowed zero cost.
+  - The new evaluator group `identity` has 14 scenarios, and all fail on `d678b16`. A04's order-dependent "genuine stays eligible" assertion was updated. The held-out block is unchanged.
+  - Totals: 112. Clean base: 112 MISSING. `d678b16`: 97/15. Fixed: 112/112. Final evaluator SHA-256 `0ff88d7b…`. All 23 mutations are caught.
+  - The mandatory regressions pass. Runtime/Test Mutation: NONE. No authority was added. Still pending local Graphify validation; not COMPLETED.
+
 - Added `src/lib/ayas/technology/`:
   - `AyasTechnologyCandidate.ts`: the canonical candidate, observation normalization, identity and anchors, the bounded register and integrity-checked serialization.
   - `AyasTechnologyWatch.ts`: the assessment engine and the attention-only watch transitions.
@@ -22,7 +33,7 @@
   - A serialize → parse round trip never reduces safety. The digest is a content digest, not authentication; keyed tamper evidence is deferred.
 - **Stage 13 hand-off.** It is built only for a produced, current, unsuppressed HANDOFF_ELIGIBLE assessment with a genuine gap or a complementary relation. Origin is `RESEARCH_LOOP`, and no lifecycle, id, issue, signal, approval, evidence-class or authority field is supplied. Submission is digest-checked and idempotent, re-normalized and qualified by Stage 13, which stays authoritative.
 - **Evaluation.**
-  - The evaluator was written first. On a clean `cb7db64` archive it reports 98 MISSING; the final result is 98/98: 55 primary, 12 held-out (frozen, SHA-256 `9aa208c8…`), 3 matrix (508 cases), 8 round-trip, 10 adversarial and 10 review. The final evaluator's SHA-256 is `af909f7d…`.
+  - The evaluator was written first. In the first round, a clean `cb7db64` archive reported 98 MISSING and the final result was 98/98 (112 after the PR #3 fix round, above): 55 primary, 12 held-out (frozen, SHA-256 `9aa208c8…`), 3 matrix (508 cases), 8 round-trip, 10 adversarial and 10 review. The final evaluator's SHA-256 is `af909f7d…`.
   - 16/16 mutations are caught.
   - Review pass 1 found 5 MINOR; pass 2 found 3 MAJOR. All are fixed, each pinned by a review scenario that fails on the fault. BLOCKER 0, unresolved MAJOR 0.
 - **Regressions:** Stage 8 loop 36 + 55, Stage 13 109/109, Stage 10, Stage 7 routing and taxonomy, Stage 9 security suites, zero-cost, proposal impact, proposal dedup, execution gate/authority/lock, daemon authority boundary, research scheduler and store.

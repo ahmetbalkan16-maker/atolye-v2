@@ -1,3 +1,48 @@
+## AYAS STAGE 14 — PR #3 FIX ROUND (ORDER-INDEPENDENT IDENTITY CONFLICTS) — CLOUD — 2026-09-25
+
+- **State: STAGE 14 — PR READY / PENDING LOCAL GRAPHIFY VALIDATION AND OWNER-SIDE PROMOTION.** It is not COMPLETED. Stage 15 has not started. PR #3 is updated on the same branch `cloud/stage14-technology-watch` and is **not merged**.
+- **Input.** Owner-side local validation of `d678b160f142280e61dc5c31b112872fafdb9ace` returned "STAGE 14 FINAL LOCAL VALIDATION FAIL — DO NOT MERGE". It found:
+  - 1 unresolved MAJOR: identity/lookalike conflict safety was order-dependent;
+  - 1 related MINOR: a malformed pricing-requirements field blocked the record, but the display still said `local-zero-cost` and allowed.
+- **Root cause.** Ingest stored `IDENTITY_CONFLICT_WITH_EXISTING` only on the record that arrived second, and it was the only blocker. Symmetric analysis existed but only fed `security.concerns`.
+  - Reproduced on `d678b16`: in the lookalike-first order, `npm:clip-scoot` was HANDOFF_ELIGIBLE with `identityConflicts=1` and a hand-off was built, while `npm:clip-scout` was held. The same held after reload.
+  - A second gap: an assessment made before the conflicting record arrived still built a hand-off, and could be recorded or surfaced, against the current register.
+- **Fix** (`AyasTechnologyCandidate.ts`, `AyasTechnologyWatch.ts`, `AyasTechnologyIntegration.ts`):
+  - `ayasTechnologyIdentitiesConflict` is a symmetric predicate over the current register.
+  - The assessment blocks both records at SECURITY_REVIEW_REQUIRED.
+  - Ingest no longer records the conflict. A legacy carried flag only adds review.
+  - `ayasTechnologyRegisterRelations` is re-checked by the hand-off builder (no hand-off while a conflict or duplicate stands) and by every transition (a stale assessment gets "re-assess first").
+  - A restrictive claim malformed anywhere keeps its most restrictive value.
+  - A BLOCKED record never shows an allowed zero cost.
+  - No fuzzy matching and no authority were added.
+- **Evaluator.** The new group `identity` has I01–I14, all failing on a TEMP `git archive d678b16` and passing after the fix.
+  - A04's assertion that the genuine record stays HANDOFF_ELIGIBLE next to a lookalike encoded the defect, so it now requires both records to be held and the genuine record to be unchanged.
+  - The held-out H1–H12 block is byte-identical: `9aa208c8…`, 11,382 bytes.
+  - Final evaluator SHA-256 `0ff88d7b71e55d0943dfd010a9c895b65ddb343305b2fe499030e3f36a3694c7`. Clean `cb7db64`: 112 MISSING. `d678b16`: 97 PASS / 15 FAIL. Fixed: **112/112** (55 + 12 + 3 + 8 + 10 + 10 + 14; matrix 508 cases; fuzz 400).
+  - Mutations: 23/23 caught. M1 was redefined to break both pricing layers.
+  - Order fuzz: 1,500 anchored + 1,500 name-only cases, 0 violations.
+  - Adversarial harness: 0 violations, including 462,848 monotone pairs, and 0 persisted readiness increases.
+- **Regressions** (storage fingerprint before and after each suite, all unchanged; observer-autostart not run):
+  - Stage 8 loop: 36 + 55. Stage 13: 109/109.
+  - Stage 10: 39/39, held-out 9/10 (pre-existing), 61/61, 14/14.
+  - Stage 7 routing: 41/41. Taxonomy: 4.
+  - Zero-cost 8, proposal impact 27, dedup 19.
+  - Stage 9 supply chain: 17/17.
+  - Execution gate 16, authority 29, lock 11, daemon boundary 23, research scheduler 17, external research store 8.
+  - TypeScript, changed-file ESLint `--max-warnings 0` and `git diff --check`: PASS.
+- **Runtime/Test Mutation: NONE.**
+- **Review.**
+  - Pass 1 (identity logic): insertion order, one-sided conflicts, stored vs current truth, reload, duplicates, supersession and hand-off bypass. It found and fixed the stale-assessment hand-off gap and extended the display fix to evidence-level malformation.
+  - Pass 2 (make a lookalike eligible by any ordering): no ordering succeeded.
+  - Totals: BLOCKER 0, unresolved MAJOR 0.
+- **Deferred (disclosed):**
+  - evidence from an observation that is ambiguous between two identities is attributed at arrival (both records are still held in every order);
+  - a hand-off value built before a conflict is not re-validated by `submitAyasTechnologyHandoff`;
+  - lookalikes with a different name (fuzzy matching needs design);
+  - the display-name flow into the Stage 13 and Stage 10 text;
+  - the previous deferred list.
+- **Graphify.** CLOUD_GRAPHIFY_UNAVAILABLE. **LOCAL_GRAPHIFY_REVALIDATION_REQUIRED.** Details are in `docs/AYAS_TECHNOLOGY_WATCH.md` §22.
+
 ## AYAS AUTONOMOUS TECHNOLOGY WATCH & CAPABILITY DISCOVERY — STAGE 14 — CLOUD — 2026-09-25
 
 - **State: STAGE 14 — PR READY / PENDING LOCAL GRAPHIFY VALIDATION AND OWNER-SIDE PROMOTION.** It is not canonically COMPLETED. Stage 15 has not started.

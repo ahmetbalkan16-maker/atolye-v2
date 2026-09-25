@@ -7,7 +7,7 @@ import {
   AYAS_TECHNOLOGY_COOLDOWN_DAYS, AYAS_TECHNOLOGY_LICENSE_RANK, AYAS_TECHNOLOGY_LIMITS, AYAS_TECHNOLOGY_LOCAL_DELIVERIES, AYAS_TECHNOLOGY_MAINTENANCE_RANK,
   AYAS_TECHNOLOGY_PACKAGE_ECOSYSTEMS, AYAS_TECHNOLOGY_PACKAGE_REGISTRY_HOSTS, AYAS_TECHNOLOGY_PRICING_RANK, AYAS_TECHNOLOGY_REOPEN_LIMIT, AYAS_TECHNOLOGY_REQUIREMENTS,
   AYAS_TECHNOLOGY_SCHEMA_VERSION, AYAS_TECHNOLOGY_SURFACE_LIMIT, AyasTechnologyError, assertAyasTechnologyRegister, ayasTechnologyAddDays,
-  ayasTechnologyAnchorsConflict, ayasTechnologyCanonicalOrder, ayasTechnologyEpistemicClass, ayasTechnologyIso, ayasTechnologyIssueSeverity, ayasTechnologyMaxVersion,
+  ayasTechnologyAnchorsConflict, ayasTechnologyCanonicalJson, ayasTechnologyCanonicalOrder, ayasTechnologyEpistemicClass, ayasTechnologyIdentitiesConflict, ayasTechnologyIso, ayasTechnologyIssueSeverity, ayasTechnologyMaxVersion,
   ayasTechnologyPackageAnchor, ayasTechnologySlug, compareAyasTechnologyVersions, computeAyasTechnologyMaterialFingerprint, describeAyasTechnologySource,
   isAyasTechnologyDenseArray, isAyasTechnologyPlainObject, isAyasTechnologyTierEligible, updateAyasTechnologyWatchRecord,
   type AyasTechnologyAnchors, type AyasTechnologyCandidate, type AyasTechnologyCategory, type AyasTechnologyClaim, type AyasTechnologyClaimKind,
@@ -260,8 +260,10 @@ function push(map: Map<string, string[]>, key: string, value: string): void { co
  * Two records of one technology (a shared package or repository, or the same
  * name with no contradicting anchor) are one cluster; its canonical record is
  * the one furthest along the watch, then the earliest. The same name with a
- * contradicting anchor is an identity conflict, and a shared source URL
- * between different technologies is overlap — reported, never merged.
+ * contradicting anchor is an identity conflict, recorded for BOTH records from
+ * the register as it is now, so arrival order cannot decide which one is held.
+ * A shared source URL between different technologies is overlap — reported,
+ * never merged.
  */
 function analyzeRegister(register: AyasTechnologyRegister): RegisterAnalysis {
   const candidates = register.candidates;
@@ -272,10 +274,8 @@ function analyzeRegister(register: AyasTechnologyRegister): RegisterAnalysis {
     for (let j = i + 1; j < candidates.length; j += 1) {
       const a = candidates[i]!.identity.anchors; const b = candidates[j]!.identity.anchors;
       const strong = shares(a.packages, b.packages) || shares(a.repositories, b.repositories);
-      const named = shares(a.names, b.names);
-      const conflict = ayasTechnologyAnchorsConflict(a, b);
-      if (strong || (named && !conflict)) parent.set(find(candidates[i]!.technologyKey), find(candidates[j]!.technologyKey));
-      else if (named) { push(identityConflicts, candidates[i]!.technologyKey, candidates[j]!.technologyKey); push(identityConflicts, candidates[j]!.technologyKey, candidates[i]!.technologyKey); }
+      if (strong || (shares(a.names, b.names) && !ayasTechnologyAnchorsConflict(a, b))) parent.set(find(candidates[i]!.technologyKey), find(candidates[j]!.technologyKey));
+      else if (ayasTechnologyIdentitiesConflict(a, b)) { push(identityConflicts, candidates[i]!.technologyKey, candidates[j]!.technologyKey); push(identityConflicts, candidates[j]!.technologyKey, candidates[i]!.technologyKey); }
     }
   }
   const clusters = new Map<string, AyasTechnologyCandidate[]>();
@@ -296,6 +296,12 @@ function analyzeRegister(register: AyasTechnologyRegister): RegisterAnalysis {
     }
   }
   return { duplicateOf, duplicates, identityConflicts, sourceOverlap };
+}
+
+/** How one record stands in the register NOW: the canonical record it duplicates, and every record it is in identity conflict with. */
+export function ayasTechnologyRegisterRelations(register: AyasTechnologyRegister, technologyKey: string): { readonly duplicateOf: string | null; readonly identityConflicts: readonly string[] } {
+  const analysis = analyzeRegister(assertAyasTechnologyRegister(register));
+  return { duplicateOf: analysis.duplicateOf.get(technologyKey) ?? null, identityConflicts: [...(analysis.identityConflicts.get(technologyKey) ?? [])].sort() };
 }
 
 // ---------------------------------------------------------------- watch suppression
@@ -552,6 +558,8 @@ function assessCandidate(candidate: AyasTechnologyCandidate, env: AyasTechnology
   }
   if (hosted) for (const requirement of HOSTED_MUST_KNOW) { const open = requirementOpen(requirement); if (open) { block("RESEARCH_REQUIRED", open); unknowns.push(requirement); } }
   const identityConflicts = [...(analysis.identityConflicts.get(candidate.technologyKey) ?? [])].sort();
+  // Either record of a conflicting pair may be the impersonation: both are held, whatever arrived first.
+  if (identityConflicts.length > 0) block("SECURITY_REVIEW_REQUIRED", "IDENTITY_CONFLICT_WITH_EXISTING");
   const concerns = uniqueSorted([
     ...(["NATIVE_BINARY", "EXECUTES_CODE", "NETWORK_REQUIRED", "SENDS_DATA_EXTERNALLY", "SECRET_OR_API_KEY", "EXTERNAL_ACCOUNT", ...SECURITY_SENSITIVE] as const).filter((r) => requirements[r] === "PRESENT"),
     ...(affecting.length > 0 ? ["ACTIVE_SECURITY_ADVISORY"] : []), ...(historical.length > 0 ? ["HISTORICAL_SECURITY_ADVISORY"] : []),
@@ -583,6 +591,8 @@ function assessCandidate(candidate: AyasTechnologyCandidate, env: AyasTechnology
     .filter((item, index, list) => list.findIndex((other) => other.level === item.level && other.code === item.code && other.reference === item.reference) === index)
     .sort((a, b) => LEVEL_ORDER.indexOf(a.level) - LEVEL_ORDER.indexOf(b.level) || a.code.localeCompare(b.code) || String(a.reference).localeCompare(String(b.reference)));
   const readiness: AyasTechnologyReadiness = ordered.length > 0 ? ordered[0]!.level : "HANDOFF_ELIGIBLE";
+  // A blocked record's input is corrupt or instruction-shaped: its cost answer never claims zero cost or an allowed decision.
+  const shownCost = readiness === "BLOCKED" && decision.allowed ? { costClass: "unknown-cost" as const, decision: evaluateAyasZeroCost("unknown-cost") } : { costClass, decision };
   const recommendation: AyasTechnologyAssessment["recommendation"] = readiness === "BLOCKED" ? "BLOCKED" : suppression.state === "NONE" ? readiness : suppression.state;
   const handoffEligible = readiness === "HANDOFF_ELIGIBLE" && suppression.state === "NONE";
   const next: AyasTechnologyAssessment["next"] = recommendation === "HANDOFF_ELIGIBLE" ? "STAGE13_HANDOFF" : recommendation === "RESEARCH_REQUIRED" ? "RESEARCH"
@@ -617,7 +627,7 @@ function assessCandidate(candidate: AyasTechnologyCandidate, env: AyasTechnology
       overlap, partial, gaps, unknown, replacementPossible: relation === "OVERLAP_ONLY",
     },
     compatibility: { deliveries, deliveryKnown, locallyExecuted, requirements },
-    cost: { model, spendRequirements, costClass, decision, conflict: costConflict, deliveryMismatch },
+    cost: { model, spendRequirements, costClass: shownCost.costClass, decision: shownCost.decision, conflict: costConflict, deliveryMismatch },
     licensing: { licenseClass, identifiers: uniqueSorted(countedLicenses.flatMap((c) => c.claim.identifier ? [c.claim.identifier] : [])), conflict: licenseConflict, uncertainties: uniqueSorted(licenseUncertainties) },
     security: { provenance, provenanceBasis, maintenance, advisoriesAffectingLatest: affecting.length, historicalAdvisories: historical.length, compromised, concerns, unknowns: uniqueSorted(unknowns) },
     prerequisites,
@@ -672,6 +682,11 @@ function transition(register: AyasTechnologyRegister, assessment: AyasTechnology
   const time = ayasTechnologyIso(at) ?? refuse("transition time is not an ISO timestamp");
   const fingerprint = computeAyasTechnologyMaterialFingerprint(candidate);
   if (assessment.materialFingerprint !== fingerprint) refuse("the assessment is stale; re-assess first");
+  // The register may have changed around an unchanged record: a record that arrived since can make it a duplicate or an identity conflict.
+  const relations = ayasTechnologyRegisterRelations(checked, candidate.technologyKey);
+  if (relations.duplicateOf !== assessment.novelty.duplicateOf || ayasTechnologyCanonicalJson(relations.identityConflicts) !== ayasTechnologyCanonicalJson(assessment.novelty.identityConflicts)) {
+    refuse("the register changed since the assessment; re-assess first");
+  }
   const watch = candidate.watch;
   const last = watch.history.at(-1);
   if (last && time < last.at) refuse("transition time precedes history");
@@ -679,6 +694,7 @@ function transition(register: AyasTechnologyRegister, assessment: AyasTechnology
   if (kind === "SURFACE" && (!assessment.surfaceable || assessment.suppression.state !== "NONE" || suppression.code !== null)) refuse("the technology is suppressed");
   if (kind === "HANDOFF") {
     if (!assessment.handoffEligible || assessment.readiness !== "HANDOFF_ELIGIBLE" || assessment.suppression.state !== "NONE" || suppression.code !== null) refuse("the technology is not eligible for hand-off");
+    if (relations.identityConflicts.length > 0 || relations.duplicateOf !== null) refuse("an unresolved identity conflict or duplicate is never handed off");
     if (typeof opportunityId !== "string" || !OPPORTUNITY_ID.test(opportunityId)) refuse("hand-off must name the Stage 13 opportunity");
   }
   const reopening = kind !== "DISMISS" && watch.state !== "WATCHING" && last !== undefined && last.fingerprint !== fingerprint;

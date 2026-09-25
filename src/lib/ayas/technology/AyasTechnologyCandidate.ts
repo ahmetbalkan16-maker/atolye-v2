@@ -152,6 +152,7 @@ export const AYAS_TECHNOLOGY_ISSUE_SEVERITY = Object.freeze({
   SECURITY_EVIDENCE_UNREADABLE: "BLOCKING",
   IDENTITY_ANCHOR_CONFLICT: "REVIEW",
   IDENTITY_AMBIGUOUS: "REVIEW",
+  /** Derived for BOTH records from the current register at assessment time; still accepted when carried by an older register, where it can only add review. */
   IDENTITY_CONFLICT_WITH_EXISTING: "REVIEW",
   CATEGORY_UNRECOGNIZED: "RESEARCH",
   CATEGORY_CONFLICT: "RESEARCH",
@@ -497,14 +498,37 @@ const CLAIM_FIELDS: Readonly<Record<AyasTechnologyClaimKind, readonly string[]>>
 });
 
 /**
- * A claim of a restrictive kind with a malformed value is KEPT at its most
- * restrictive value (a malformed advisory stays an advisory affecting the
- * latest release, a malformed price is PAID, a malformed delivery is UNKNOWN)
- * AND blocks. A malformed claim that could only have resolved an uncertainty
- * (existence, release, capability, an unknown requirement code) is dropped
- * and blocks. Either way the loss is recorded, never silent.
+ * A claim of a restrictive kind that is malformed ANYWHERE — a bad value, a
+ * bad list entry or an unknown (possibly misspelled) field — is KEPT at its
+ * most restrictive value AND blocks: a malformed advisory stays an advisory
+ * affecting the latest release, a malformed price is PAID, a malformed
+ * delivery is UNKNOWN. A blocked record therefore never displays a permissive
+ * answer taken from the claim that blocked it. A malformed claim that could
+ * only have resolved an uncertainty (existence, release, capability, an
+ * unknown requirement code) is dropped and blocks. Either way the loss is
+ * recorded, never silent.
  */
 function normalizeClaim(value: unknown, issues: Issues, scan: (value: unknown) => void): AyasTechnologyClaim | null {
+  const before = issues.length;
+  const claim = normalizeClaimValue(value, issues, scan);
+  return claim !== null && issues.length > before ? mostRestrictive(claim) : claim;
+}
+
+function mostRestrictive(claim: AyasTechnologyClaim): AyasTechnologyClaim {
+  switch (claim.kind) {
+    case "WITHDRAWN": case "COMPROMISE": return { ...claim, version: null };
+    case "DELIVERY": return { ...claim, delivery: "UNKNOWN" };
+    case "REQUIREMENT": return { ...claim, present: true };
+    case "PRICING": return { ...claim, model: "PAID" };
+    case "LICENSE": return { ...claim, licenseClass: "NON_COMMERCIAL" };
+    case "PROVENANCE": return { ...claim, status: "UNVERIFIED_PUBLISHER" };
+    case "MAINTENANCE": return { ...claim, status: "ARCHIVED" };
+    case "SECURITY_ADVISORY": return { ...claim, severity: "UNKNOWN", fixedInVersion: null };
+    default: return claim;
+  }
+}
+
+function normalizeClaimValue(value: unknown, issues: Issues, scan: (value: unknown) => void): AyasTechnologyClaim | null {
   if (!isPlainObject(value)) { issues.push("CLAIM_MALFORMED"); scan(value); return null; }
   if (!oneOf(AYAS_TECHNOLOGY_CLAIM_KINDS, value.kind)) { issues.push("CLAIM_KIND_INVALID"); scan(value); return null; }
   const kind = value.kind;
@@ -915,6 +939,15 @@ export function ayasTechnologyAnchorsConflict(a: AyasTechnologyAnchors, b: AyasT
   return a.packages.some((left) => !b.packages.includes(left) && b.packages.some((right) => ecosystemOf(right) === ecosystemOf(left)))
     && !shares(a.packages, b.packages);
 }
+/**
+ * Two records are in identity conflict when they share a name but no strong
+ * anchor and contradict each other on one: a possible impersonation. Nothing
+ * tells which one is genuine, so the relation is symmetric and depends only on
+ * the two records as they are now, never on which one arrived first.
+ */
+export function ayasTechnologyIdentitiesConflict(a: AyasTechnologyAnchors, b: AyasTechnologyAnchors): boolean {
+  return shares(a.names, b.names) && !shares(a.packages, b.packages) && !shares(a.repositories, b.repositories) && ayasTechnologyAnchorsConflict(a, b);
+}
 const WATCH_RANK: Readonly<Record<AyasTechnologyWatchState, number>> = { HANDED_OFF: 3, DISMISSED: 2, SURFACED: 1, WATCHING: 0 };
 /** The established record of a technology: the one furthest along in the watch, then the earliest, then the lowest key. */
 export function ayasTechnologyCanonicalOrder(a: AyasTechnologyCandidate, b: AyasTechnologyCandidate): number {
@@ -1011,7 +1044,9 @@ export interface AyasTechnologyIngestResult {
  * repository anchor is the same technology, whatever the URL or wording; a
  * name match merges only when no strong anchor contradicts it. A name match
  * WITH a contradicting anchor is a possible impersonation: it becomes its own
- * candidate carrying IDENTITY_CONFLICT_WITH_EXISTING. Evidence is append-only
+ * candidate. The conflict is NOT recorded here — that would mark whichever
+ * record arrived second — but derived from the whole register at assessment
+ * time (`ayasTechnologyIdentitiesConflict`), for both records alike. Evidence is append-only
  * (a re-seen claim only extends its observation window), issues and signals
  * only accumulate, and nothing is ever deleted except bounded same-source
  * compaction.
@@ -1027,7 +1062,6 @@ export function ingestAyasTechnologyObservation(register: AyasTechnologyRegister
   const issues: Issues = [...observation.issues];
   let target: AyasTechnologyCandidate | undefined = strong[0] ?? compatible[0];
   if (strong.length > 1 || (strong.length === 0 && compatible.length > 1)) issues.push("IDENTITY_AMBIGUOUS");
-  if (!target && named.length > 0) issues.push("IDENTITY_CONFLICT_WITH_EXISTING");
 
   if (!target) {
     const technologyKey = deriveKey(incoming.anchors);

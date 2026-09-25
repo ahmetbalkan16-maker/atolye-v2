@@ -15,7 +15,7 @@ import {
   type AyasTechnologyClaim, type AyasTechnologyDelivery, type AyasTechnologyEvidence, type AyasTechnologyObservation, type AyasTechnologyRegister,
 } from "./AyasTechnologyCandidate";
 import {
-  assertAyasTechnologyEnvironment, assessAyasTechnologyRegister, isAyasTechnologyAssessmentProduced,
+  assertAyasTechnologyEnvironment, assessAyasTechnologyRegister, ayasTechnologyRegisterRelations, isAyasTechnologyAssessmentProduced,
   type AyasTechnologyAssessment, type AyasTechnologyWatchEnvironment,
 } from "./AyasTechnologyWatch";
 
@@ -161,6 +161,10 @@ export function buildAyasTechnologyEvolutionHandoff(register: AyasTechnologyRegi
   if (!assessment.handoffEligible || assessment.readiness !== "HANDOFF_ELIGIBLE" || assessment.suppression.state !== "NONE" || assessment.executionAuthority !== "NONE") return null;
   if (computeAyasTechnologyMaterialFingerprint(candidate) !== assessment.materialFingerprint) return null;
   if (candidate.instructionSignals.length > 0 || candidate.issues.length > 0) return null;
+  // Defense in depth, from the register passed in (never from the assessment alone): a record in identity conflict or
+  // duplicating another is never handed off, even with an assessment made before the other record arrived.
+  const relations = ayasTechnologyRegisterRelations(checked, candidate.technologyKey);
+  if (relations.identityConflicts.length > 0 || relations.duplicateOf !== null || assessment.novelty.identityConflicts.length > 0 || assessment.novelty.duplicateOf !== null) return null;
   const relation = assessment.capability.relation;
   if (relation !== "GENUINE_GAP" && relation !== "COMPLEMENTARY") return null;
 

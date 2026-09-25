@@ -2,6 +2,8 @@
 
 Status: **STAGE 14 — PR READY / PENDING LOCAL GRAPHIFY VALIDATION AND OWNER-SIDE PROMOTION.** It is not canonically COMPLETED. Stage 14 was built on the isolated cloud branch `cloud/stage14-technology-watch`, which was created from exactly `cb7db6436d9201e56691304e412b5779e803d31a` (the tip of `wip/ayas-graphify-final-execution`). Graphify was unavailable in the cloud, so **LOCAL_GRAPHIFY_REVALIDATION_REQUIRED** (§20).
 
+Owner-side local validation of cloud head `d678b16` found one unresolved MAJOR: identity-conflict safety depended on arrival order. It also found one related MINOR: a blocked record could display an allowed zero cost. Both are fixed in the PR #3 fix round (§22).
+
 Stage 14 lets AYAS notice that a technology exists and answer twelve questions about it:
 
 1. What it is.
@@ -60,7 +62,7 @@ Readiness, freshness, cost and risk are **not stored**. They are derived at asse
 
 - **Identity.** Anchors are package coordinates (`NPM:name`, `PYPI:name`, ...), repositories (code host + owner + repo), homepages and version-free name slugs. The slug folds Turkish characters and drops `v1`/`2` segments. The key is `ayas-tech-<sha256(first package ?? repository ?? name)[0..24]>`.
   - The same package or repository merges into one candidate.
-  - The same name with a *different* repository is `IDENTITY_CONFLICT_WITH_EXISTING` (possible impersonation), so it is never merged.
+  - The same name with a contradicting package or repository and no shared strong anchor is an **identity conflict** (a possible impersonation). It is never merged, and it holds for **both** records (§5).
   - A conflicting anchor on a strong match is recorded as `IDENTITY_ANCHOR_CONFLICT` and not adopted.
 - **Category.** A closed list with **no harmless OTHER**. An unrecognized category is `UNKNOWN`, keeps its slug as `categoryKey`, and needs research.
 - **Claims.** There are twelve claim kinds: `EXISTS`, `RELEASE`, `WITHDRAWN`, `CAPABILITY`, `DELIVERY`, `REQUIREMENT`, `PRICING`, `LICENSE`, `PROVENANCE`, `MAINTENANCE`, `SECURITY_ADVISORY` and `COMPROMISE`. Each claim records:
@@ -132,6 +134,12 @@ Each release is labelled `LATEST`, `SUPERSEDED`, `WITHDRAWN`, `UNVERIFIED` or `U
 ## 5. Novelty
 
 - **Duplicates.** One technology seen from several sources is one candidate. Two records of one technology in a register (anchor union-find) report the later one as `DUPLICATE_OF_CANONICAL`. A shared source between different technologies is *overlap*, not duplication.
+- **Identity conflicts** are current register truth, never ingest history.
+  - `ayasTechnologyIdentitiesConflict` defines a conflict as: a shared name, no shared package or repository, and a contradicting one. It is symmetric, and it is evaluated at assessment time over the whole bounded register.
+  - Arrival, record, source, duplicate, key and serialization order therefore cannot change which record is held.
+  - Every record in a conflict carries three markers: `IDENTITY_CONFLICT_WITH_EXISTING` at SECURITY_REVIEW_REQUIRED, the `IDENTITY_CONFLICT` security concern, and `novelty.identityConflicts`.
+  - Nothing tells which record is genuine, so a lookalike appearing also holds the genuine record while the conflict stands.
+  - A one-sided flag carried by a register from an older build is still accepted, and it can only add review.
 - **Material fingerprint.** A time-independent SHA-256 over the facts:
   - the latest major version;
   - capability domains and keys;
@@ -248,6 +256,7 @@ It **submits nothing and writes nothing**. It returns the new register, the refu
 - it is `handoffEligible`;
 - the material fingerprint is current;
 - the candidate carries no issues or signals;
+- the current register passed in shows the record in no identity conflict and duplicating no other record (`ayasTechnologyRegisterRelations`); this is checked against the register itself, never taken from the assessment. An assessment made before a conflicting record arrived therefore builds nothing;
 - the relation is `GENUINE_GAP` (kind `NEW_CAPABILITY`) or `COMPLEMENTARY` (kind `EXTENSION`).
 
 The input is built as follows:
@@ -272,6 +281,11 @@ The input is built as follows:
 3. Stage 13 then decides readiness, risk, cost and required authority.
 
 `recordAyasTechnologyHandoff` is gated. It requires a produced, current, eligible, unsuppressed assessment and a Stage 13 opportunity id.
+
+Every watch transition also recomputes the record's duplicate and conflict relations from the register it is given:
+
+- If they no longer match the assessment, the transition is refused ("re-assess first").
+- A hand-off is refused while a conflict or duplicate stands.
 
 ## 14. Stage 10 advisory context
 
@@ -302,14 +316,16 @@ The input is built as follows:
 
 - An absent field takes its documented default.
 - A present value of the wrong shape, outside its closed vocabulary, or in a sparse array is a BLOCKING issue or a refusal. An unknown field is `UNKNOWN_FIELD`.
-- A malformed restrictive claim keeps its most restrictive value rather than being dropped:
+- A restrictive claim that is malformed **anywhere** keeps its most restrictive value rather than being dropped. That covers a bad value, a bad list entry (for example an unknown spend-requirement code), and an unknown or misspelled field:
   - pricing becomes `PAID`;
   - licence becomes `NON_COMMERCIAL`;
   - provenance becomes `UNVERIFIED_PUBLISHER`;
   - maintenance becomes `ARCHIVED`;
+  - delivery becomes `UNKNOWN`;
   - a requirement becomes present;
-  - an advisory's severity becomes `UNKNOWN`;
+  - an advisory's severity becomes `UNKNOWN`, and its fix version becomes `null`;
   - a version becomes `null`.
+- A BLOCKED record never displays a zero-cost or allowed cost answer, whatever blocked it. Its cost is shown as `unknown-cost`, not allowed. UNKNOWN is not FREE.
 - Environment facts, the register boundary, the Stage 13 submission and the CLI all fail closed.
 
 ## 18. Invocation path
@@ -336,10 +352,16 @@ The evaluator was written before the production code, and it is deterministic, o
 | roundTrip | 8 | serialize → parse never reduces safety |
 | adversarial | 10 (incl. a 400-record seeded fuzz) | combinations, spoofing, typosquats, truncation, reordering |
 | review | 10 | regressions added after implementation; each fails on the fault it pins |
+| identity | 14 | PR #3 fix round: symmetric, order-independent identity conflicts; hand-off defense in depth; blocked-record display (§22) |
 
-- **Clean-base differential.** The same final evaluator (SHA-256 `af909f7d20340f7c13da5f3e465cae04668a062aa796bc78f6a35c6fcd0e5d4c`) reports all 98 scenarios `MISSING` on a clean `cb7db64` archive, and 98/98 `PASS` on this branch.
-- **Frozen scenarios.** Every pre-review group is byte-identical to the version frozen before implementation, except the header comment and `TOTALS`.
-- **Mutation testing.** 16 targeted mutations, and every one is caught. Examples:
+- **Differential.** The same final evaluator (SHA-256 `0ff88d7b71e55d0943dfd010a9c895b65ddb343305b2fe499030e3f36a3694c7`) was run on three trees:
+  - a clean `cb7db64` archive: all 112 scenarios `MISSING`;
+  - the pre-fix cloud head `d678b16`: 97 PASS and 15 FAIL (A04 and I01–I14);
+  - this branch: 112/112 `PASS`.
+
+  The first round's final evaluator (`af909f7d…`) reported 98 MISSING → 98/98.
+- **Frozen scenarios.** The held-out block is byte-identical to the version frozen before implementation. Every other pre-review group is also byte-identical, except the header comment, `TOTALS` and A04. A04 asserted that the genuine record stays HANDOFF_ELIGIBLE next to a lookalike, which is the order-dependent defect (§22).
+- **Mutation testing.** 23 targeted mutations, and every one is caught. Examples:
   - a malformed price read as free;
   - carried issues dropped on load;
   - an unknown category folded into a known one;
@@ -355,7 +377,17 @@ The evaluator was written before the production code, and it is deterministic, o
   - a weak price settling cost;
   - an `UNKNOWN` delivery settling delivery;
   - a withdrawal hiding freshness questions;
-  - a present requirement counted as established.
+  - a present requirement counted as established;
+  - an identity conflict treated only as a concern;
+  - a conflict recorded for one record only;
+  - the pre-fix "second arrival" semantics;
+  - the hand-off builder trusting the assessment's relations;
+  - transitions ignoring register changes;
+  - a malformed restrictive claim keeping its permissive value;
+  - a blocked record showing an allowed zero cost.
+
+  M1 (a malformed price read as free) now breaks both the fallback default and the most-restrictive rule, because either layer alone keeps the answer PAID.
+- **Out-of-repo order fuzz (PR #3 fix round).** 1,500 anchored cases: sampled insertion orders, shuffled source order, and a record-order reload. Every ordering gave an identical safety view. 1,500 cases with anchorless name-only observations: no record in a conflict was ever eligible or yielded a hand-off.
 - **Out-of-repo adversarial harness.** It found 0 violations:
   - 10,000 fresh corruptions;
   - 8,000 re-signed persisted edits: 0 readiness increases; the only attention changes are cooldowns lifted by a material change, which is reopen-on-change by design;
@@ -374,6 +406,7 @@ The evaluator was written before the production code, and it is deterministic, o
   - Sparse arrays were accepted at the parse and environment boundaries (V06).
   - A weak restrictive claim resolved an open question, which made a candidate more ready: for example, a forum "paid" claim cleared `COST_UNKNOWN` (V07–V09).
   - A confirmed source that said the delivery was `UNKNOWN` settled the delivery (V10).
+- **PR #3 fix round** (§22): one MAJOR and one related MINOR from local validation, both fixed.
 - **Totals:** BLOCKER 0, unresolved MAJOR 0.
 
 ### Graphify: cloud vs local
@@ -394,9 +427,70 @@ The evaluator was written before the production code, and it is deterministic, o
 - **The reopen limit can suppress a new advisory's resurfacing (DEFERRED).** The advisory still shows in the assessment; only attention is limited.
 - **A Stage 8-only path cannot reach hand-off.** Its readings are model summaries, so this is by design: local or primary corroboration is needed.
 - **Source independence is approximated** by code-host owner or registrable domain.
+- **Evidence from an observation that is ambiguous between two identities is attributed at arrival (DEFERRED).** Such an observation is either anchorless (name only) or carries anchors of both identities.
+  - It is merged into one record, which carries `IDENTITY_AMBIGUOUS` or `IDENTITY_ANCHOR_CONFLICT`.
+  - While the conflict stands, both records are held in every order.
+  - Which record holds that evidence still depends on arrival. An owner resolution path must re-attribute it rather than inherit arrival order.
+- **A hand-off value built before a conflicting record arrived is not re-validated at submission (DEFERRED).** `submitAyasTechnologyHandoff` receives only the Stage 13 register. The builder and the watch transition refuse such a value, and Stage 13 still qualifies it as RESEARCH_REQUIRED.
+- **Lookalikes with a different name are not detected (DEFERRED, needs design).** There is no fuzzy vendor or name matching, because it could create false conflicts.
 - **Pre-existing:**
   - Stage 13 uses `every` on lists that could be sparse;
   - Stage 10 has its `heldout-closure-written` held-out miss;
   - `GRAPH_PARTIAL` covers the `.ps1` files and the thumbnails route;
   - the autonomous-execution-gate smoke needs the Graphify module and fails identically on the clean base in the cloud;
   - the Stage 10 static test-safety classifier rates this evaluator `REQUIRES_TEMP_ROOT` only because it imports a `/brain/` module, a read-only registry constant. This is the known over-flag already listed as a Stage 11 follow-up; the evaluator is TEMP-only.
+
+## 22. PR #3 fix round: order-independent identity conflicts
+
+Owner-side local validation of cloud head `d678b160f142280e61dc5c31b112872fafdb9ace` returned **STAGE 14 FINAL LOCAL VALIDATION FAIL — DO NOT MERGE**. It found one unresolved MAJOR and one related MINOR.
+
+**MAJOR: identity-conflict safety depended on arrival order.**
+
+- **Root cause.** Ingest attached `IDENTITY_CONFLICT_WITH_EXISTING` only to the record that arrived second, and that stored issue was the only thing that held a record. The register analysis already found the conflict for both records, but it reported it only as a security concern.
+- **Effect.** Reproduced on `d678b16` (fresh and after reload):
+
+  | Order | `npm:clip-scout` (genuine) | `npm:clip-scoot` (lookalike) |
+  |---|---|---|
+  | genuine first | HANDOFF_ELIGIBLE, hand-off built | SECURITY_REVIEW_REQUIRED |
+  | lookalike first | SECURITY_REVIEW_REQUIRED | HANDOFF_ELIGIBLE, hand-off built |
+
+- **Second gap.** An assessment made *before* the conflicting record arrived still built a hand-off against the current register, and could still be recorded or surfaced. Only the record's own material fingerprint was checked.
+
+**Fix.**
+
+- The conflict is current register truth:
+  - `ayasTechnologyIdentitiesConflict` is symmetric and evaluated at assessment time.
+  - Both records carry `IDENTITY_CONFLICT_WITH_EXISTING` at SECURITY_REVIEW_REQUIRED.
+  - Ingest no longer records it.
+  - A one-sided flag from an older register only adds review.
+- **Defense in depth.** `buildAyasTechnologyEvolutionHandoff` and every watch transition recompute the record's relations from the register they are given (`ayasTechnologyRegisterRelations`).
+  - The builder returns nothing while a conflict or duplicate stands.
+  - A transition refuses an assessment whose relations no longer match.
+- **Resolution is also current truth.** The same genuine record in a register without the lookalike is eligible again. No owner API removes a record yet; that is deferred.
+
+**MINOR: a blocked record could display an allowed zero cost.**
+
+- **Defect.** A malformed pricing `requirements` field, an unknown spend-requirement code or a misspelled field blocked the record, but left, for example, `OPEN_SOURCE_SELF_HOSTED` displayed as `local-zero-cost`, allowed.
+- **Fix, in two layers:**
+  - a restrictive claim malformed anywhere keeps its most restrictive value (§17);
+  - a BLOCKED record never shows an allowed zero cost, whatever blocked it.
+
+**New evaluator group `identity`** (I01–I14). All 14 fail on `d678b16` and pass after the fix:
+
+- I01 and I02: both arrival orders.
+- I03: reload.
+- I04: independent assessment of each record.
+- I05: hand-off attempts, including from a stale assessment.
+- I06: record and key order.
+- I07: duplicates and source order.
+- I08: an unrelated record placed anywhere, which stays eligible itself.
+- I09: repeated assessment, surfacing and dismissal.
+- I10: a material update, and resolution by current truth.
+- I11: all 24 insertion orders of genuine, lookalike, unrelated and duplicate, fresh and reloaded, with byte-identical registers.
+- I12: blocked-record display.
+- I13: combined uncertainty in both orders.
+- I14: one-sided legacy metadata.
+
+Totals: 55 + 12 + 3 + 8 + 10 + 10 + 14 = **112**. The held-out block is unchanged (`9aa208c8…`). A04 was updated as described in §19.
+
+**Authority.** No authority, approval, install, spend, publication, daemon wiring, scheduler or provider execution was added. Every result still carries `executionAuthority: NONE` and all `may*` flags are false. There is no fuzzy name or vendor matching (see §21).
