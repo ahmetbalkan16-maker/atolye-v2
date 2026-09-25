@@ -1,3 +1,67 @@
+## AYAS STAGE 13 — PR #2 SECOND FIX ROUND (MALFORMED CONTAINERS) — CLOUD — 2026-09-25
+
+- **State: CLOUD SECOND FIX ROUND COMPLETE, NOT CLOSED, DO NOT MERGE.**
+  - Owner-side second local validation of fix-round head `351de917f7064c6eef0a117a31b3d2579abea671` failed with one unresolved MAJOR class: present but malformed containers were silently dropped. The class was already present in `80b15eb`.
+  - It is fixed on `cloud/stage13-open-ended-evolution`. PR #2 is updated, not merged, and no new PR was opened. The canonical `wip/ayas-graphify-final-execution` branch was not touched.
+  - Pre-fix runs used an isolated TEMP worktree detached at `351de917`, and regressions ran in a second TEMP worktree. The observer/daemon was never started.
+  - Remaining: **third local Graphify validation (LOCAL_GRAPHIFY_REVALIDATION_REQUIRED)**, owner review, controlled promotion. Details: `docs/AYAS_OPEN_ENDED_EVOLUTION_ARCHITECTURE.md` §22.
+- **Root cause.** The normalizer read containers with truthy/shape coercion (`?? {}`, `Array.isArray(x) ? x : []`, enum defaults), so a present value of the wrong shape read as an absent one. `lifecycle: "REJECTED"` / `["REJECTED"]` / `0` loaded as a fresh OBSERVED record, and a REJECTED opportunity came back as PROPOSAL_READY. Non-array `constraints`, `prerequisites`, `requiredAuthority`, `replacesCapabilities`, `retiresCapabilities` and `evidence` vanished the same way.
+- **Fixed. PRESENT + MALFORMED is never ABSENT:**
+  - A malformed lifecycle (or one without its state and history), a `null` or non-array carried list, target or register is refused.
+  - Every other wrong-shape container, text or closed-vocabulary value (`null` included), and every unknown or misspelled field, is a BLOCKING issue. There are 18 new codes, so the vocabulary is now 61, and `SUPERSEDED_BY_INVALID` is now BLOCKING.
+  - A persisted record must carry its carried issues and signals.
+  - A BLOCKING record lists every authority class as required; none is granted.
+  - Malformed resources or side effects become an explicit UNKNOWN resource or side effect.
+  - Directives hidden in malformed shapes are still detected.
+  - The register boundary (build and qualify) validates in-memory record shape.
+  - The environment facts and the CLI refuse malformed input.
+  - A garbled REJECTED record still blocks its revival (DUPLICATE when declarations are unverifiable).
+  - An existing-benchmark plan with an unmappable category is NEEDS_INVESTIGATION.
+  - No authority was added.
+- **Evaluation.**
+  - The evaluator was extended with a `container` group, C01–C27, for 54 + 8 + 20 + 27 = **109** (SHA-256 `5acb6303690d099a6c0fafd41c71abd4159973b6069808a38a298192ab31e47b`). Held-out is unchanged, and scenario 52's needles were extended (stricter).
+  - `351de917` sources: 54/54, 8/8, 20/20, **container 0/27**. Fixed: 109/109.
+  - The bounded shape matrix covers 443 cases. The round-trip, adversarial (32 subsets) and garbled-rejected-revival scenarios pass.
+  - Seeded scratch fuzz of 8,883 corrupted records: 0 violations on the fix, and 7,281 on `351de917` (728 reached PROPOSAL_READY).
+- **Regressions:**
+  - Stage 8 loop: 36 + 55.
+  - Stage 7: 41/41 + 5/5.
+  - Stage 10: 39/39 flow, 61/61 component, 14/14 integration (the pre-existing held-out miss is unchanged).
+  - Zero-cost 8, proposal impact 27, terminal dedup 19, Stage 12 director 53 + 8.
+  - The `data/` fingerprint is unchanged. TypeScript, changed-file ESLint `--max-warnings 0` and `git diff --check` pass. Observer-autostart was not run.
+- **Review.** PASS 1 (every normalization and deserialization path) and PASS 2 (malformed data only blocks, rejects or stays unknown, including cross-record effects). BLOCKER 0, unresolved MAJOR 0.
+- **Deferred:**
+  - Persisted-record tamper evidence against multi-key deletion or valid-looking edits (Stage 14 store integrity).
+  - IO/criteria/case-id truncation reporting.
+  - The first-round minors, unchanged.
+  - Stage 14 not started.
+
+## AYAS STAGE 13 — PR #2 LOCAL-VALIDATION FIX ROUND — CLOUD — 2026-09-25
+
+- **State: CLOUD FIX ROUND COMPLETE, NOT CLOSED, DO NOT MERGE.** Owner-side local validation of cloud head `80b15ebec7661c388dff04463372761f620224fe` failed with 4 MAJOR fail-open defects. All are fixed on `cloud/stage13-open-ended-evolution` (PR #2 updated, not merged; canonical `wip/ayas-graphify-final-execution` untouched). Work and every pre-fix run used isolated scratch `git worktree`s; the canonical checkout was never switched and no daemon/observer ran. Remaining: **repeated local Graphify validation (LOCAL_GRAPHIFY_REVALIDATION_REQUIRED)**, owner review, controlled promotion. Details: `docs/AYAS_OPEN_ENDED_EVOLUTION_ARCHITECTURE.md` §21.
+- **Fixed.**
+  - MAJOR 1: truncated or misspelled-source (security) evidence now BLOCKS, `addAyasEvolutionEvidence` records the loss, and the builders refuse BLOCKING records.
+  - MAJOR 2: closed issue/signal vocabularies (`AYAS_EVOLUTION_ISSUE_SEVERITY`); over-long carried lists are refused and unknown entries are BLOCKING, so a round trip can never clear a block.
+  - MAJOR 3: `assertAyasEvolutionLifecycle` runs on parse and on every register build/update (legal chained transitions, monotonic time from `createdAt`, exact bounded reopen count, hand-off/supersession references, no coercion).
+  - MAJOR 4: invalid capability class/side effect/resource kind → explicit `UNKNOWN` + BLOCKING, and UNKNOWN derives the union of its vocabulary's authorities.
+  - MINOR: SECURITY_POLICY_APPROVAL blocks at SECURITY_REVIEW_REQUIRED.
+  - MINOR: an UNKNOWN resource keeps `unknown-cost`.
+  - Also fixed: invalid replace/retire keys now block; an unrecognized carried signal keeps `UNTRUSTED_INSTRUCTION_CONTENT`.
+  - No authority class added.
+- **Evaluation.** Evaluator extended (SHA-256 `349eb542cf5b0e7eddeca4927bbafc2315dbef02e9421ddfdc92dfa758e2cd12`): 54 primary + 8 held-out (held-out unchanged) + 20 regression = **82**. Pre-fix `80b15eb` sources: regression 0/20, held-out 8/8, primary 53/54 (38's new load-refusal assertion). Fixed: 82/82. Scenario 38's seeded illegal history is now refused at load; scenario 52's needle list gained the regression fixture values. Seeded fuzz (3 × 4,000, scratch only) found no weaker round trip and no PROPOSAL_READY with an UNKNOWN descriptor, elevated authority, disallowed cost or security evidence.
+- **Regressions.** Stage 8 loop 36 + 55 (one uncaptured exit 1 in a batch, then 2 isolated passes; no import path from the diff), Stage 7 41/41 + 5/5, Stage 10 39/39 flow + 14/14 integration (pre-existing held-out miss unchanged), zero-cost 8, proposal impact 27, terminal dedup 19, Stage 12 director 53 + 8. TypeScript, changed-file ESLint `--max-warnings 0` and `git diff --check` pass; observer-autostart not run.
+- **Review.** Pass 1 (evidence, serialization, history, class/authority, unknown cost, security approval, proposal gating) and pass 2 (adversarial combinations R19/R20 + fuzz). BLOCKER 0, unresolved MAJOR 0. Deferred minors unchanged: research-loop benchmark cross-check, one-sided `supersedes`, candidate provenance label, HANDED_OFF semantic verification, IO/criteria truncation reporting. Stage 14 not started.
+
+## AYAS OPEN-ENDED EVOLUTION ARCHITECTURE — STAGE 13 — CLOUD — 2026-09-25
+
+- **State: CLOUD PR READY, NOT CLOSED.** Implemented on the isolated cloud branch `cloud/stage13-open-ended-evolution` from trusted `43a2a171cdfde4aa404aafd12767f6d1917cbdac` (start verified: branch, HEAD, clean worktree, origin/cloud and origin/wip both at `43a2a17`). `wip/ayas-graphify-final-execution` was not modified. Remaining before closure: owner PR review, **LOCAL_GRAPHIFY_REVALIDATION_REQUIRED** (no Graphify CLI or `.graphify/` in the cloud; nothing was claimed), controlled promotion. See `docs/AYAS_OPEN_ENDED_EVOLUTION_ARCHITECTURE.md`.
+- **What was built.** `src/lib/ayas/evolution/AyasEvolutionOpportunity.ts` (model, normalization, lifecycle, append-only register, supersession, serialization), `AyasEvolutionQualification.ts` (prerequisite graph with Tarjan cycles, conflicts, structural dedup, risk/cost/authority derivation, ordered readiness, Stage 8 gap mapping, gated transitions), `AyasEvolutionIntegration.ts` (unregistered `evolution-opportunity-plan:v1` design-review candidate for the existing daemon/inbox, Stage 8 hypothesis hand-over, Stage 10 hand-off draft, inbox decision reader), read-only CLI `scripts/ayas-evolution-qualify.ts`, evaluator `scripts/smoke-ayas-open-ended-evolution.ts`. Reused: Stage 7 inventory, Stage 8 taxonomy/registry/hypothesis/instruction detector/neutralizer/token hashing, zero-cost policy, structured proposal impact, `classifyPatchSet`, Stage 10 change areas/task model/redaction. No existing source file changed; no new store (no producer exists until Stage 14). Runtime import closure: 14 files, `node:crypto/fs/path` only, no process/network/approval/gate/mutation/publication module.
+- **Authority.** Ceiling is EXPERIMENT_READY / PROPOSAL_READY; every result has `executionAuthority: NONE`, `authority.granted: NONE`, `mayExecute/mayInstall/maySpend/mayPublish: false`. Required authorities map to existing paths (inbox + gate, Stage 8 strategy registration, zero-cost policy, production acceptance, publish path, reviewed policy commits). No lifecycle APPROVED/EXECUTED state.
+- **Evaluation.** Held-out 8 scenarios written before production code; passed first run untuned. Final evaluator SHA-256 `353ce564706eb9b2ec8af102b373931a5eda87454eed0669fd4c3adbcbb00cd2`: clean OS-TEMP `git archive 43a2a17` (evaluator overlaid, `node_modules` symlink, removed) → 54 primary + 8 held-out MISSING; final 54/54 + 8/8. Regressions: Stage 8 loop 36 decision + 55 integration, Stage 7 routing 41/41 (held-out 5/5), Stage 10 39+61+14 (documented pre-existing held-out miss unchanged), zero-cost 8, proposal impact 27, Stage 12 director 53+8, proposal terminal dedup 19. Suites chosen via the Stage 10 test-safety classifier (auto-runnable only; zero-cost manually reviewed pure); the evaluator classifies SAFE_ISOLATED. TypeScript, changed-file ESLint `--max-warnings 0`, diff check pass. Repository `data/` fingerprint identical before/after; no network, paid call, live runtime or deploy; observer-autostart smoke not run.
+- **Review.** Pass 1: MAJOR silent drop of malformed/over-limit prerequisites/constraints/modules (now BLOCKED `INVALID_SAFETY_DECLARATION`) and history truncation (now refused); MINOR unknown side effect/resource dropped (now UNKNOWN), old-HEAD/future evidence counted current, host-binary resource over-required install while process execution skipped security review, closed-duplicate order dependence. Pass 2: MAJOR serialization dropped normalization issues, and `update` could rewrite declarations or clear instruction signals; both fixed with regression assertions. BLOCKER 0, unresolved MAJOR 0.
+- **Skills.** REGISTERED_AND_USED: none. AVAILABLE_NOT_USED: `code-review`, `security-review`, `simplify` (manual two-pass review instead). UNAVAILABLE: Graphify skill/CLI; project-local `.claude/skills/ayas/*` (gitignored, absent in the cloud checkout). READ_AS_PROJECT_GUIDANCE: `CLAUDE.md`, `AGENTS.md`, Stage 6–12 docs.
+- **Deferred.** Persisted register (Stage 14 producer), Brain tile, licensing modeling. Stage 14 (technology watch) and Stage 15 (self-evolution) not started. Next after promotion: 14 — Autonomous Technology Watch & Capability Discovery.
+
 ## AYAS STAGE 12 — PUBLICATION CLOSURE — 2026-09-25
 
 - The 8 Stage 12 files were staged by explicit path (cached diff check clean; no `.graphify`, runtime, data, env or media paths) and committed as `87929ef9dbe2e84b69756be6aec7a43efd6a3052` (`feat(ayas): add atolye director readiness`, +1,656/−0), then pushed normally. Local HEAD, tracking branch and real GitHub origin all matched `87929ef`, ahead/behind 0/0, clean worktree.
