@@ -1,7 +1,12 @@
 ---
 
-## 2026-09-25 — AYAS Open-Ended Evolution Architecture (Stage 13, cloud PR ready — pending promotion)
+## 2026-09-25 — AYAS Open-Ended Evolution Architecture (Stage 13) — ✅ COMPLETED
 
+- **Post-merge closure.** PR #2 was merged into `wip/ayas-graphify-final-execution` as `4a29c02ad71ee965686c75ef65c6f9f8d6f6ea52`. On that head:
+  - Local Graphify was revalidated: 15,158 nodes, 43,875 edges and 317 communities, `stale=false`, and no duplicate, dangling or self-loop edges. `GRAPH_PARTIAL` still covers only the documented pre-existing 7 `.ps1` files and the thumbnails route.
+  - The evaluator passed 109/109, and the Stage 8, zero-cost and authority sanity suites passed.
+  - Stage 13 still cannot execute, install, spend or publish, and it cannot bypass approval or the execution gate. Runtime/Test Mutation: NONE.
+  - BLOCKER 0, unresolved MAJOR 0. Stage 14 has not started.
 - **Second fix round (PR #2): malformed containers fail closed.** Owner-side validation of `351de917` (and of `80b15eb` before it) found that present but malformed containers were silently read as absent. For example, `lifecycle: "REJECTED"` loaded as a fresh OBSERVED record, and `constraints: { kind: "CONFLICTS_WITH_SECURITY_POLICY" }` vanished; both could reach PROPOSAL_READY.
   - PRESENT + MALFORMED is now never ABSENT. A malformed lifecycle, carried list, target or register is refused.
   - Every other container, text or closed-vocabulary value of the wrong shape (`null` included), and every unknown or misspelled field, is a BLOCKING issue. Such a record lists every authority class as required, and none is granted.

@@ -1,6 +1,6 @@
 ---
 
-## AYAS Open-Ended Evolution Architecture — Stage 13 — 2026-09-25 — CLOUD PR READY (pending promotion)
+## AYAS Open-Ended Evolution Architecture — Stage 13 — 2026-09-25 — ✅ COMPLETED
 
 - [x] One canonical, schema-versioned evolution-opportunity model (gap, improvement, new capability, extension, replacement, retirement) with extensible capability descriptors over closed vocabularies; reuses the Stage 7 capability inventory, Stage 8 registry/hypothesis/instruction detector, zero-cost policy, structured proposal impact, patch safety and Stage 10 task model. No new proposal, experiment, approval, execution, scheduler, memory or capability system; no new store.
 - [x] Derived evidence classes (fact, inference, research claim, owner request, hypothesis); prerequisite graph with cycle and incompatibility detection; symmetric conflicts; supersession/retirement with preserved history; structural duplicate/overlap detection; unknown-stays-unknown cost, risk and facts; explicit authority requirements mapped to existing owner paths, never granted.
@@ -8,10 +8,11 @@
 - [x] Same evaluator on clean `43a2a17` archive and final source: 54 primary + 8 held-out MISSING → 54/54 + 8/8; Stage 8, Stage 7, Stage 10, Stage 12, zero-cost, proposal-impact and proposal-dedup regressions pass. See `docs/AYAS_OPEN_ENDED_EVOLUTION_ARCHITECTURE.md`.
 - [x] Local-validation fix round (PR #2): 4 MAJOR + 2 related MINOR fail-open defects from local validation of `80b15eb` fixed; 20 regression scenarios fail on `80b15eb` and pass after (evaluator 54 + 8 + 20 = 82).
 - [x] Second fix round (PR #2): present-but-malformed containers now fail closed (refused or BLOCKING, never absent), including the register boundary, environment facts and CLI; 27 container scenarios fail on `351de917` and pass after (evaluator 54 + 8 + 20 + 27 = 109).
-- [ ] Before closure: owner review, **local Graphify revalidation** (the cloud had no Graphify) and controlled promotion from `cloud/stage13-open-ended-evolution` into `wip/ayas-graphify-final-execution`.
+- [x] Owner review and controlled promotion: PR #2 merged into `wip/ayas-graphify-final-execution` as `4a29c02ad71ee965686c75ef65c6f9f8d6f6ea52` (BLOCKER 0, unresolved MAJOR 0).
+- [x] Post-merge closure on `4a29c02`: local Graphify revalidation (15,158 nodes / 43,875 edges / 317 communities, `stale=false`, zero duplicate/dangling/self-loop, only the documented pre-existing `GRAPH_PARTIAL` files), evaluator 109/109, Stage 8 and zero-cost/authority sanity, no authority to execute, install, spend, publish or bypass approval/the execution gate; Runtime/Test Mutation NONE. See `docs/AYAS_OPEN_ENDED_EVOLUTION_ARCHITECTURE.md` §23.
 - [ ] Follow-up: a persisted register once a producer exists (Stage 14), a Brain read-only tile once there is something measured to show, licensing in structured impact.
 
-**Next roadmap stage after promotion: 14 — Autonomous Technology Watch & Capability Discovery.**
+**Next roadmap stage: 14 — Autonomous Technology Watch & Capability Discovery (not started).**
 
 ---
 

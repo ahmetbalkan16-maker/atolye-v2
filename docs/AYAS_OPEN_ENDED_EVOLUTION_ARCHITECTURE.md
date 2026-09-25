@@ -1,12 +1,10 @@
 # AYAS Open-Ended Evolution Architecture — Stage 13
 
-Status on the cloud branch `cloud/stage13-open-ended-evolution`: **implemented, tested and reviewed.**
+Status: **✅ COMPLETED.** PR #2 was merged into `wip/ayas-graphify-final-execution` as `4a29c02ad71ee965686c75ef65c6f9f8d6f6ea52`, and the post-merge closure passed (§23).
 
 - Local validation of the first cloud head (`80b15eb`) found 4 MAJOR and 2 related MINOR fail-open defects. All were fixed in the fix round (§21).
 - The second local validation, of `351de917`, found present-but-malformed containers silently dropped. This was fixed in the second fix round (§22).
-- Still pending: a third local Graphify validation, owner review and controlled promotion.
-
-Stage 13 is not closed on `wip/ayas-graphify-final-execution` until that promotion is verified.
+- The owner-side pre-merge validation of the second fix round passed (BLOCKER 0, unresolved MAJOR 0, Runtime/Test Mutation NONE). The local Graphify revalidation and the post-merge sanity and authority checks then passed on `4a29c02` (§23).
 
 Stage 13 lets AYAS represent and reason about improvements and capabilities that were not hardcoded when it was built, under governance. **Open-ended does not mean unbounded autonomy.** Stage 13 represents and plans evolution. It cannot modify source, install anything, call a service, spend money, execute a discovered capability, approve its own proposals, publish, promote experiments, or alter security or execution policy. Owner approval and execution authority stay in the existing inbox, gate and policy modules.
 
@@ -351,6 +349,8 @@ graphify review-analysis --files src/lib/ayas/evolution/AyasEvolutionOpportunity
 
 Expected: no edge from the evolution modules to approval, execution-gate, mutation-registry, publication, process or network modules.
 
+**Resolved locally after the merge; see §23.**
+
 ## 20. Boundaries and limitations
 
 - **Stage 14 boundary.** No technology watch, fetch, scheduler or discovery daemon. Stage 13 can say `RESEARCH_REQUIRED`; it never researches.
@@ -556,4 +556,91 @@ TypeScript `--noEmit --incremental false`, changed-file ESLint `--max-warnings 0
 - Carried over from the first round: the research-loop benchmark cross-check, the one-sided `supersedes`, the candidate provenance label, and semantic HANDED_OFF verification.
 - Out of Stage 13's scope: inbox proposal status parsing (`readAyasEvolutionOwnerDecision`) and Stage 8's own snapshot and registry typing (Stage 13 now refuses a malformed snapshot or registry container at its own boundary).
 
-**LOCAL_GRAPHIFY_REVALIDATION_REQUIRED** still applies (§19). The cloud container has no Graphify CLI or module, and `.graphify/` is absent (gitignored), so no Graphify result is claimed.
+**LOCAL_GRAPHIFY_REVALIDATION_REQUIRED** still applies (§19). The cloud container has no Graphify CLI or module, and `.graphify/` is absent (gitignored), so no Graphify result is claimed. *(Resolved after the merge; see §23.)*
+
+## 23. Post-merge closure
+
+**Result: Stage 13 ✅ COMPLETED.** Stage 14 has not started.
+
+**Merged head.** PR #2 (`cloud/stage13-open-ended-evolution`, head `c1cea1103c77d1b105674f7996b42effb6b3f21e`) was merged into `wip/ayas-graphify-final-execution` as `4a29c02ad71ee965686c75ef65c6f9f8d6f6ea52`, with parents `43a2a17` and `c1cea11`. At the start of the closure:
+
+- the checkout was on that branch at that head;
+- local HEAD, the tracking branch and the real remote were all equal (ahead/behind 0/0);
+- the worktree was clean.
+
+The owner-side pre-merge validation had already passed (BLOCKER 0, unresolved MAJOR 0, Runtime/Test Mutation NONE).
+
+**Graphify.** The graph was refreshed with `graphify update --scope all --no-description --no-label .` (Graphify 0.17.1, 1,370 included files, no scope warnings). `scripts/ayas-graphify-status.ts` and a direct read of `graph.json` then gave:
+
+| Check | Result |
+|---|---|
+| `lastAnalyzedHead` / `graph.built_from_commit` / provenance `source_hash` | all `4a29c02` |
+| `stale` | `false` |
+| Worktree | CLEAN |
+| Nodes / edges / communities | 15,158 / 43,875 / 317 |
+| Duplicate node IDs / duplicate edges / dangling edges / self-loops | 0 / 0 / 0 / 0 |
+| Classification | `GRAPH_PARTIAL`, unchanged. It still covers only the documented 7 `.ps1` files (`tree-sitter-powershell` is not installed) plus `app/api/assets/thumbnails/[slug]/[fileName]/route.ts` |
+| Semantic marker | PENDING (pre-existing; no paid semantic run) |
+
+Every Stage 13 file has nodes: 130 in `AyasEvolutionOpportunity.ts`, 53 in `AyasEvolutionQualification.ts`, 12 in `AyasEvolutionIntegration.ts`, 15 in the CLI and 4 in the evaluator.
+
+**`review-analysis`** (§19 command) rates the blast radius "high" (score 128), but that rating comes from community spread:
+
+- The only impacted files are the five Stage 13 files.
+- All eight bridge nodes are inside `AyasEvolutionOpportunity.ts`.
+- The three impacted communities (111, 36, 66) are 90–99% Stage 13 nodes. Their names ("Audio Compensation & Publication Storage", "Export Package Engine", "Portable No-Clobber File Publisher") are stale semantic labels left over from older community IDs, not coupling.
+- Its test-gap hints miss the evaluator, which is itself a smoke script.
+
+**Authority, rechecked after the merge.**
+
+- **Graph edges.** Graph edges from Stage 13 nodes reach 15 files. The only ones in approval or daemon modules are the `import type` of `AyasInboxProposal` (`AyasApprovalInboxStore.ts`) and of `AyasDaemonCandidate` (`AyasAutonomyDaemon.ts`), which are erased at runtime.
+- **Runtime imports.** The runtime (non-type) import closure of the three library modules is 14 files. Its only externals are `node:crypto`, `node:fs` and `node:path`. It contains no approval, execution-gate, mutation-registry, publication, pipeline, production, daemon, process or network module.
+- **Importers.** Only `scripts/ayas-evolution-qualify.ts` and the evaluator import `src/lib/ayas/evolution/`. No app route, daemon or gate does.
+- **Mutation kind.** `evolution-opportunity-plan:v1` appears only in `AyasEvolutionIntegration.ts`. It is unregistered, so the existing gate refuses to execute it.
+- **Typed results.** Results are typed `executionAuthority: "NONE"`, `authority.granted: "NONE"`, and `mayExecute`/`mayInstall`/`maySpend`/`mayPublish: false`. No source file sets any of these to another value.
+- **Lifecycle and owner decision.** There is no APPROVED or EXECUTED lifecycle state. `readAyasEvolutionOwnerDecision` is a pure reader, and even `APPROVED_EXTERNALLY` grants nothing.
+- **Side effects.** The three library modules and the CLI contain no file write, spawn or network call. Besides reading its explicit input file and printing, the CLI's only side effect is `process.exit(2)` on malformed input.
+
+So Stage 13 has **no** authority to execute, install, spend or publish, and it cannot bypass owner approval or the execution gate.
+
+**Sanity on `4a29c02`.** Every suite was classified SAFE_ISOLATED before it ran (pure or static, or OS-TEMP roots only). `scripts/smoke-ayas-observer-autostart.ts` was not run.
+
+| Suite | Result |
+|---|---|
+| Stage 13 evaluator (SHA-256 `5acb6303690d099a6c0fafd41c71abd4159973b6069808a38a298192ab31e47b`, unchanged) | **109/109**: 54 primary + 8 held-out + 20 regression + 27 container |
+| TypeScript `--noEmit --incremental false` | PASS |
+| `git diff --check` | PASS |
+| Stage 8 research-improvement loop | 36 decision (held-out 8/8) + 55 integration (held-out 5/5) |
+| zero-cost policy | 8 |
+| proposal impact policy | 27 |
+| execution gate | 16 |
+| execution authority | 29 |
+| daemon authority boundary | 23 |
+| autonomous execution gate | 26 |
+
+**Runtime/Test Mutation: NONE.** Path/size/mtime/SHA-256 inventories were taken before and after the suites:
+
+- The live runtime (2,374 files), authority (4) and legacy `data/projects` (2,399) were byte-identical.
+- `data/` outside `data/projects` went from 1,996 to 2,001 files. All ten changes came from the already-running autonomy daemon and `next start` server, not from a test:
+  - Five files were added: two micro-items and three patch artifacts. They came from the daemon's discovery run `ayas-local-discovery-b6840175-7493-471b-b65f-7f85a4bc34f9` (13:21:47.751Z–13:22:15.314Z, base `4a29c02`), from generators `ayas-detector:diagnostic-quality-gap-v1` and `ayas-detector:error-code-contract-gap-v1`. The fresh graph had reopened the proposal lanes, as after Stage 10A.
+  - Five files were updated: daemon state, micro-batch inbox, discovery ledger, research scheduler heartbeat, and the phone-access heartbeat. These are cadence and inbox files.
+- The resulting micro-batch is bound to `4a29c02` and goes STALE by design once the closure commit moves HEAD. None of these files is tracked or committed.
+
+**Review.** BLOCKER 0, unresolved MAJOR 0. No new finding after the merge.
+
+**Pre-existing findings** (unchanged; not Stage 13):
+
+- `GRAPH_PARTIAL` for the 7 `.ps1` files plus the thumbnails route, and the semantic PENDING marker.
+- `.vscode/mcp.json` is a LIMITED remote-MCP consumer (Stage 10A deferred).
+- Two hook guards in the gitignored, machine-local `.claude/settings.local.json` point at a Python `graphify.EXE` that is no longer installed (`HOOK_BINARY_MISSING`). The status is the same before and after the refresh. The file was left untouched and is an owner decision.
+- Stage 10's documented held-out miss `heldout-closure-written`.
+
+**Deferred findings** (unchanged):
+
+- Persisted-record tamper evidence against multi-key deletion or valid-looking edits (needs the Stage 14 persisted store).
+- IO, criteria and benchmark case-id truncation reporting.
+- The first-round minors: research-loop benchmark cross-check, one-sided `supersedes`, candidate provenance label, and semantic HANDED_OFF verification.
+- Inbox proposal status parsing and Stage 8 snapshot and registry typing (outside Stage 13).
+- The persisted register (Stage 14 producer), a Brain tile, and licensing modeling.
+
+This closure is a single docs-only commit. Use `git log -1` and `.graphify/branch.json` for its final HEAD and graph parity.
