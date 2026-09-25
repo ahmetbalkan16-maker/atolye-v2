@@ -1,5 +1,14 @@
 ---
 
+## 2026-09-25 — Atölye Director & Media Intelligence Readiness (Stage 12)
+
+- Added a pure advisory director model and read-only project adapter/CLI. Existing research, scene, visual, animation, audio and asset records feed explicit narrative, relevance, provenance, rights, variety, motion, pacing, continuity and assembly findings; no production or publication authority was added.
+- Recommendations use existing rights policy and factual metadata; research search hits stay reference-only, source quality needs evidence, and unknown provider/host state cannot pass. The old project schema's missing scene purpose, citations and reconstruction label remain visible rather than invented.
+- Code review fixed false findings on real projects (whole-chapter narration copied onto every scene gave 10–11 false repetition findings per multi-scene project; Turkish `İstanbul` vs English `Istanbul` failed to match). Unevidenced scene audio can no longer pass. Generated explanatory diagrams/text cards are no longer origin conflicts. `zoom-out` is mapped. The CLI now names the storage root it read and is documented with `--env-file-if-exists=.env.local`.
+- Clean `5da7aa2` TEMP baseline with the final evaluator: 53 primary and 8 held-out MISSING. Final: 53/53 primary and 8/8 held-out; TEMP CLI integrity/traversal plus rights-policy, real-media ladder, project-folder-index and implicit-root write-safety regressions pass. See `docs/AYAS_ATOLYE_DIRECTOR_READINESS.md`.
+
+---
+
 ## 2026-09-25 — AYAS Homepage / Brain Control Center (Stage 11)
 
 - Extended `/brain` into the AYAS Brain Control Center. The home screen now opens with owner attention, twelve domain tiles and a bounded activity feed. The Araştırma and Atölye tabs are real, and a new Sistem tab adds Graphify, capabilities and security. Gelişim Merkezi, Memory and Autonomous gain repository, memory-count and health sections. The stale "Research / Production: Not connected" status is gone.

@@ -1,5 +1,17 @@
 ---
 
+## Atölye Director & Media Intelligence Readiness — Stage 12 — 2026-09-25
+
+- [x] Add an advisory director task, scene and media-candidate model over existing project artifacts; no duplicate production pipeline, provider router, store or authority.
+- [x] Evaluate narrative order/repetition, scene purpose, subject/place/period relevance, real vs generated media, source and rights evidence, visual reuse, motion, clip suitability, narration/audio pacing, continuity and assembly metadata as explicit dimensions and findings.
+- [x] Produce bounded per-scene recommendations and separate production readiness, dependency and pre/post-assembly review states. Research hits stay reference-only, provider liveness stays unverified without a safe probe, and generated documentary scenes require reconstruction labels.
+- [x] Same evaluator on clean `5da7aa2` archive and final source: 53 primary + 8 held-out MISSING → 53/53 + 8/8; TEMP CLI read/no-mutation, storage-root and traversal checks; rights-policy 8, real-media ladder 8, project-folder-index 9 and implicit-root write-safety 30 regressions. See `docs/AYAS_ATOLYE_DIRECTOR_READINESS.md`.
+- [ ] Follow-up: a reviewed owner decision/persistence path for director plans and an optional governed production integration; scene-level citations/purpose in future artifacts; media-pixel and audio-level evaluation. Stage 10A and Stage 11 deferred items stay deferred.
+
+**Next roadmap stage: 13 — Open-Ended Evolution Architecture.**
+
+---
+
 ## AYAS Homepage / Brain Control Center — Stage 11 — 2026-09-25
 
 - [x] One owner-centred Control Center on the existing `/brain`: owner attention first (deterministic levels with reason, source, fact time and a classified next action), twelve domain tiles with data freshness, a bounded activity feed of real state transitions; research, Atölye and a new Sistem tab are backed by real read models instead of "Not connected" placeholders.
