@@ -49,7 +49,9 @@ function htmlFor(input: AyasApprovalInboxReadState): string { return renderToSta
 
 async function main() {
   await scenario("main AYAS panel registry exposes Gelişim Merkezi", () => assert.ok(BRAIN_PANELS.some((item) => item.id === "development" && item.connected)));
-  await scenario("main Brain UI has a first-class development status card and navigation handler", () => { const src = fs.readFileSync(path.join(process.cwd(), "src/components/brain/BrainConsoleView.tsx"), "utf8"); assert.match(src, /bc-card-development/); assert.match(src, /onOpenDevelopment/); assert.match(src, /case "development"/); });
+  // Stage 11: the home "Gelişim Merkezi" card became the Control Center's approvals/development tiles and
+  // owner-attention items, which open this panel through the generic select-and-scroll `onOpenPanel`.
+  await scenario("main Brain UI has a first-class development entry and navigation handler", () => { const src = fs.readFileSync(path.join(process.cwd(), "src/components/brain/BrainConsoleView.tsx"), "utf8"); assert.match(src, /AyasDomainTiles/); assert.match(src, /onOpenPanel/); assert.match(src, /case "development"/); const model = fs.readFileSync(path.join(process.cwd(), "src/lib/brain/ui/AyasControlCenterModel.ts"), "utf8"); assert.match(model, /id: "approvals", title: "Onaylar"[^}]*panel: "development"/); });
   await scenario("pending SAFE proposal appears", () => assert.match(htmlFor(state([proposal()])), /AYAS yanıt gecikmesini görünür kıl/));
   await scenario("expectedUserBenefit is displayed as the approval answer", () => assert.match(htmlFor(state([proposal()])), /Yanıt hazırlanırken sistemin çalıştığını göreceksin/));
   await scenario("currentProblem is displayed", () => assert.match(htmlFor(state([proposal()])), /Kullanıcı uzun yanıt sırasında ilerlemeyi göremiyor/));

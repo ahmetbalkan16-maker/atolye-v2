@@ -16,6 +16,8 @@ import { loadAyasGoalDevelopmentView, type AyasGoalDevelopmentView } from "@/lib
 import { loadAyasResearchEngineStatusView, type AyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
 import { loadAyasOwnerRecommendationsView, type AyasOwnerRecommendationsView } from "@/lib/brain/autonomy/AyasOwnerRecommendationsView";
 import { reconcileAyasDevelopmentCenterFreshness } from "@/lib/brain/autonomy/AyasDevelopmentCenterReconciliation";
+import { loadAyasControlCenterFacts } from "@/lib/brain/ui/AyasControlCenterCollector";
+import type { AyasControlCenterServerFacts } from "@/lib/brain/ui/AyasControlCenterModel";
 
 function reconcileForDisplay(): void {
   // Fail closed for presentation too: if HEAD or durable state cannot be
@@ -59,4 +61,13 @@ export async function refreshAyasGoalDevelopment(): Promise<AyasGoalDevelopmentV
 // file's import chain.
 export async function refreshAyasResearchEngineStatus(): Promise<AyasResearchEngineStatusView> {
   return loadAyasResearchEngineStatusView();
+}
+
+// Stage 11 — Brain Control Center refresh. Read-only like every other action
+// in this file: health, repository, Graphify, experiments, memory counts,
+// capabilities, security and Atölye inventory, each through its existing
+// read-only collector. It performs no reconciliation write of its own (the
+// approval views above keep theirs) and cannot decide, approve or execute.
+export async function refreshAyasControlCenter(): Promise<AyasControlCenterServerFacts> {
+  return loadAyasControlCenterFacts();
 }

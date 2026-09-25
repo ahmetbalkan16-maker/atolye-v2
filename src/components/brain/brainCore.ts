@@ -406,6 +406,7 @@ export type BrainPanelId =
   | "selfheal"
   | "research"
   | "production"
+  | "system"
   | "learning"
   | "safety";
 
@@ -425,20 +426,13 @@ export const BRAIN_PANELS: readonly BrainPanelInfo[] = Object.freeze([
   { id: "autonomous", label: "Autonomous", icon: "∞", connected: true },
   { id: "development", label: "Gelişim Merkezi", icon: "◇", connected: true },
   { id: "selfheal", label: "AYAS Raporları", icon: "🧠", connected: true },
-  {
-    id: "research",
-    label: "Research",
-    icon: "❍",
-    connected: false,
-    placeholder: "Research role not connected — a later, approved phase.",
-  },
-  {
-    id: "production",
-    label: "Production",
-    icon: "▷",
-    connected: false,
-    placeholder: "Production execution is gated — the Brain cannot run the pipeline yet.",
-  },
+  // Stage 11: research, Atölye and system panels are backed by real read
+  // models (Stage 8 research/experiments, the read-only project catalog, and
+  // Graphify/capability/security state). Production execution stays gated —
+  // the Atölye panel is inventory only.
+  { id: "research", label: "Araştırma", icon: "❍", connected: true },
+  { id: "production", label: "Atölye", icon: "▷", connected: true },
+  { id: "system", label: "Sistem", icon: "⌘", connected: true },
   { id: "learning", label: "Learning", icon: "✦", connected: true },
   { id: "safety", label: "Safety", icon: "⛨", connected: true },
 ]);

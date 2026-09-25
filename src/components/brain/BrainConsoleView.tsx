@@ -1,11 +1,12 @@
 /**
  * AYAS / Brain Core — command-center view (Sprint 186).
  *
- * Pure presentational. Renders the living orb, the AYAS status line, minimal
- * snapshot-only status cards, the execution-gate badge, and the command-center
- * panel (chat / tasks / memory / autonomous / research / production / learning /
- * safety). Interaction handlers + the voice/autonomous view are optional so
- * `renderToStaticMarkup` can render it with data alone.
+ * Pure presentational. Renders the living orb, the AYAS status line, the
+ * Stage 11 Brain Control Center (owner attention, domain tiles, recent
+ * activity), the execution-gate badge, and the command-center panel (chat /
+ * tasks / memory / autonomous / development / research / Atölye / system /
+ * learning / safety). Interaction handlers + the voice/autonomous view are
+ * optional so `renderToStaticMarkup` can render it with data alone.
  *
  * Never fabricates data: a panel or card with no backing state renders an
  * honest "Not connected" / empty state.
@@ -41,6 +42,18 @@ import type { AyasApprovalBindingSnapshot } from "@/lib/brain/autonomy/AyasAppro
 import type { AyasGoalDevelopmentView } from "@/lib/brain/autonomy/AyasGoalDevelopmentView";
 import type { AyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResearchEngineStatusView";
 import { AyasGoalResearchPanel } from "./AyasGoalResearchPanel";
+import {
+  AyasAtolyePanel,
+  AyasDomainTiles,
+  AyasExperimentsSection,
+  AyasHealthSection,
+  AyasMemoryStatsSection,
+  AyasOwnerAttention,
+  AyasRepositorySection,
+  AyasSystemPanel,
+  type AyasControlCenterInputs,
+  type AyasControlCenterSources,
+} from "./AyasControlCenter";
 import type { BrainSelfHealSnapshot } from "@/lib/brain/selfheal/BrainSelfHealSnapshot";
 import type { BrainReportCenterView } from "@/lib/brain/selfheal/BrainReportCenter";
 
@@ -141,13 +154,15 @@ export interface BrainConsoleViewProps {
   /** A reload (iOS eviction / SW update) interrupted an active voice session. */
   readonly voiceSessionInterrupted?: boolean;
   readonly onSelectPanel?: (id: BrainPanelId) => void;
+  /** Stage 11 — select a panel AND scroll the command center into view (mobile). Navigation only. */
+  readonly onOpenPanel?: (id: BrainPanelId) => void;
+  /** Stage 11 — the server read model: the page's streamed facts and/or a refreshed value. */
+  readonly controlCenter?: AyasControlCenterSources;
   /**
    * The "🧠 AYAS Raporları" home card. On mobile the command-center panel stacks
    * far below the fold, so a plain panel switch looks like nothing happened —
    * this handler selects the panel AND scrolls it into view.
    */
-  readonly onOpenReports?: () => void;
-  readonly onOpenDevelopment?: () => void;
   readonly onDraftChange?: (value: string) => void;
   readonly onSend?: () => void;
   /** ChatGPT-style stop control — present only while a reply is actually streaming (`chatPending`). */
@@ -190,6 +205,8 @@ export function BrainConsoleView(props: BrainConsoleViewProps) {
           </div>
           <p className="bc-character">{stateCharacter(coreState)}</p>
 
+          <AyasOwnerAttention sources={props.controlCenter} inputs={controlCenterInputs(props)} onOpenPanel={openPanelHandler(props)} />
+
           <AyasPresenceCard {...props} />
 
           {snapshot.errors.length > 0 ? (
@@ -200,20 +217,7 @@ export function BrainConsoleView(props: BrainConsoleViewProps) {
             </div>
           ) : null}
 
-          <StatusCards
-            snapshot={snapshot}
-            autonomous={props.autonomous}
-            reportCenter={props.reportCenter ?? null}
-            approvalInbox={props.approvalInbox}
-            onOpenReports={
-              props.onOpenReports ??
-              (props.onSelectPanel ? () => props.onSelectPanel!("selfheal") : undefined)
-            }
-            onOpenDevelopment={
-              props.onOpenDevelopment ??
-              (props.onSelectPanel ? () => props.onSelectPanel!("development") : undefined)
-            }
-          />
+          <AyasDomainTiles sources={props.controlCenter} inputs={controlCenterInputs(props)} onOpenPanel={openPanelHandler(props)} />
 
           <button
             type="button"
@@ -405,134 +409,29 @@ function AyasPresenceCard(props: BrainConsoleViewProps) {
   );
 }
 
-/* ---------------------------------------------------------- status cards --- */
+/* ------------------------------------------------- control center --- */
 
-function StatusCards({
-  snapshot,
-  autonomous,
-  reportCenter,
-  approvalInbox,
-  onOpenReports,
-  onOpenDevelopment,
-}: {
-  snapshot: BrainConsoleSnapshot;
-  autonomous?: AyasAutonomousView;
-  reportCenter?: BrainReportCenterView | null;
-  approvalInbox?: AyasApprovalInboxView;
-  onOpenReports?: () => void;
-  onOpenDevelopment?: () => void;
-}) {
-  const pending = snapshot.tasks.pendingApproval;
-  const rc = reportCenter;
-  return (
-    <div className="bc-cards" data-testid="bc-cards">
-      <StatCard
-        k="◇ Gelişim Merkezi"
-        v={String(approvalInbox?.pending.length ?? 0)}
-        s={(approvalInbox?.pending.length ?? 0) > 0 ? "kararın bekleniyor" : "onay bekleyen yok"}
-        tone={(approvalInbox?.pending.length ?? 0) > 0 ? "warn" : undefined}
-        onClick={onOpenDevelopment}
-        testid="bc-card-development"
-      />
-      {rc ? (
-        <StatCard
-          k="🧠 AYAS Raporları"
-          v={`%${rc.systemHealthPercent}`}
-          s={
-            rc.counts.failed > 0
-              ? `${rc.counts.failed} insan gerekli · ${rc.counts.awaitingApproval} onay`
-              : rc.counts.awaitingApproval > 0
-                ? `${rc.counts.awaitingApproval} onay · ${rc.counts.investigating} inceleniyor · ${rc.counts.resolved} çözüldü`
-                : `${rc.counts.investigating} inceleniyor · ${rc.counts.resolved} çözüldü · ${rc.counts.learnedPatterns} öğrenildi`
-          }
-          tone={rc.counts.failed > 0 || rc.counts.awaitingApproval > 0 ? "warn" : undefined}
-          onClick={onOpenReports}
-          testid="bc-card-reports"
-        />
-      ) : null}
-      <StatCard
-        k="Tasks"
-        v={String(snapshot.tasks.total)}
-        s={pending > 0 ? `${pending} onay bekliyor` : "onay bekleyen yok"}
-        tone={pending > 0 ? "warn" : undefined}
-      />
-      <StatCard
-        k="Memory"
-        v={snapshot.connected.experience ? String(snapshot.experience.total) : "—"}
-        s={
-          snapshot.connected.experience
-            ? `son: ${snapshot.experience.lastTopic ?? "—"}`
-            : "Not connected"
-        }
-        tone={snapshot.connected.experience ? undefined : "off"}
-      />
-      <StatCard
-        k="Learning"
-        v={String(snapshot.cyclesRecorded)}
-        s={snapshot.lastCycle ? `son cycle işlenen: ${snapshot.lastCycle.tasksRun}` : "cycle kaydı yok"}
-      />
-      <StatCard
-        k="Autonomous"
-        v={autonomous?.connected ? String(autonomous.cycleCount) : "—"}
-        s={
-          autonomous?.connected
-            ? `${autonomous.awaitingApprovalCount} onay bekliyor`
-            : "başlatılmadı"
-        }
-        tone={autonomous?.awaitingApprovalCount ? "warn" : autonomous?.connected ? undefined : "off"}
-      />
-      <StatCard
-        k="Safety"
-        v={snapshot.safety.decision}
-        s="probe yok — muhafazakâr"
-        tone={
-          snapshot.safety.decision === "hold" || snapshot.safety.decision === "abort"
-            ? "warn"
-            : undefined
-        }
-      />
-      <StatCard k="Research" v="Not connected" s="onaylı sonraki aşama" tone="off" />
-      <StatCard k="Production" v="Not connected" s="yürütme kapısı kapalı" tone="off" />
-    </div>
-  );
+/**
+ * Stage 11 — the views this console already holds, handed to the Control
+ * Center model as-is (never re-read), so every domain keeps one source.
+ */
+function controlCenterInputs(props: BrainConsoleViewProps): AyasControlCenterInputs {
+  return {
+    approvalInbox: props.approvalInbox,
+    microBatch: props.microBatch,
+    ownerRecommendations: props.ownerRecommendations
+      ? { connected: true, recommendations: props.ownerRecommendations, pendingExecution: props.ownerApprovalPendingExecution ?? [] }
+      : undefined,
+    researchEngineStatus: props.researchEngineStatus,
+    goalDevelopment: props.goalDevelopment,
+    reportCenter: props.reportCenter ?? null,
+    autonomous: props.autonomous,
+  };
 }
 
-function StatCard({
-  k,
-  v,
-  s,
-  tone,
-  onClick,
-  testid,
-}: {
-  k: string;
-  v: string;
-  s?: string;
-  tone?: "warn" | "off";
-  onClick?: () => void;
-  testid?: string;
-}) {
-  const cls =
-    "bc-statcard" + (tone === "warn" ? " bc-statcard--warn" : tone === "off" ? " bc-statcard--off" : "");
-  const body = (
-    <>
-      <span className="bc-statcard__k">{k}</span>
-      <span className="bc-statcard__v">{v}</span>
-      {s ? <span className="bc-statcard__s">{s}</span> : null}
-    </>
-  );
-  if (onClick) {
-    return (
-      <button type="button" className={`${cls} bc-statcard--link`} onClick={onClick} data-testid={testid}>
-        {body}
-      </button>
-    );
-  }
-  return (
-    <div className={cls} data-testid={testid}>
-      {body}
-    </div>
-  );
+/** Navigation only: select a panel (and, via the console, scroll it into view). */
+function openPanelHandler(props: BrainConsoleViewProps): ((panel: BrainPanelId) => void) | undefined {
+  return props.onOpenPanel ?? props.onSelectPanel;
 }
 
 /* ---------------------------------------------------------------- panels --- */
@@ -556,16 +455,39 @@ function PanelBody(props: BrainConsoleViewProps) {
     case "tasks":
       return <TasksPanel snapshot={snapshot} />;
     case "memory":
-      return <MemoryPanel snapshot={snapshot} />;
+      return (
+        <>
+          <AyasMemoryStatsSection sources={props.controlCenter} />
+          <p className="bc-panel__title" style={{ margin: "18px 0 8px" }}>Beyin deneyim deposu</p>
+          <MemoryPanel snapshot={snapshot} />
+        </>
+      );
     case "autonomous":
-      return <AutonomousPanel autonomous={props.autonomous} />;
+      return (
+        <>
+          <AyasHealthSection sources={props.controlCenter} />
+          <p className="bc-panel__title" style={{ margin: "18px 0 8px" }}>Otonom döngü kontrol noktası</p>
+          <AutonomousPanel autonomous={props.autonomous} />
+        </>
+      );
     case "development":
       return (
         <>
+          <AyasRepositorySection sources={props.controlCenter} />
           <AyasDevelopmentCenter inbox={props.approvalInbox ?? { connected: true, pending: [], today: [], history: [] }} microBatch={props.microBatch ?? { connected: true, active: null, history: [] }} pendingId={props.approvalPendingId} onDecision={props.onApprovalDecision} executingId={props.executionPendingId} executionError={props.executionError} onExecute={props.onExecuteProposal} batchOnaylaPending={props.batchOnaylaPending} batchOnaylaError={props.batchOnaylaError} onBatchOnaylaVeUygula={props.onBatchOnaylaVeUygula} proposalOnaylaPendingId={props.proposalOnaylaPendingId} proposalOnaylaError={props.proposalOnaylaError} onProposalOnaylaVeUygula={props.onProposalOnaylaVeUygula} ownerRecommendations={props.ownerRecommendations} ownerDecisionPendingId={props.ownerDecisionPendingId} ownerDecisionError={props.ownerDecisionError} onOwnerApprovalDecision={props.onOwnerApprovalDecision} ownerApprovalPendingExecution={props.ownerApprovalPendingExecution} />
-          <AyasGoalResearchPanel view={props.goalDevelopment ?? { connected: true, goals: [], research: [] }} researchEngineStatus={props.researchEngineStatus ?? { connected: true, consecutiveFailures: 0, sources: [], digest: { sourcesRegistered: 0, sourcesChangedLast24h: 0, sourcesFailingNow: 0, findingsLast24h: 0 } }} />
         </>
       );
+    case "research":
+      return (
+        <>
+          <AyasGoalResearchPanel view={props.goalDevelopment ?? { connected: true, goals: [], research: [] }} researchEngineStatus={props.researchEngineStatus ?? { connected: true, consecutiveFailures: 0, sources: [], digest: { sourcesRegistered: 0, sourcesChangedLast24h: 0, sourcesFailingNow: 0, findingsLast24h: 0 } }} />
+          <AyasExperimentsSection sources={props.controlCenter} approvalInbox={props.approvalInbox} />
+        </>
+      );
+    case "production":
+      return <AyasAtolyePanel sources={props.controlCenter} />;
+    case "system":
+      return <AyasSystemPanel sources={props.controlCenter} />;
     case "selfheal":
       return (
         <BrainSelfHealingPanel

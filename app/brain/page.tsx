@@ -18,6 +18,7 @@ import { loadAyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasResea
 import { loadBrainSelfHealSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
 import { loadAyasOwnerRecommendationsView } from "@/lib/brain/autonomy/AyasOwnerRecommendationsView";
 import { reconcileAyasDevelopmentCenterFreshness } from "@/lib/brain/autonomy/AyasDevelopmentCenterReconciliation";
+import { loadAyasControlCenterFacts } from "@/lib/brain/ui/AyasControlCenterCollector";
 import {
   askAyas,
   ayasModelConfigured,
@@ -32,7 +33,7 @@ import {
 } from "./actions";
 // Stage 7A: read-only inbox refresh comes from its own observer-only action
 // module, independent of the Package B decision action above.
-import { refreshAyasApprovalInbox, refreshAyasMicroBatch, refreshAyasGoalDevelopment, refreshAyasResearchEngineStatus, refreshAyasOwnerRecommendations } from "./observerActions";
+import { refreshAyasApprovalInbox, refreshAyasMicroBatch, refreshAyasGoalDevelopment, refreshAyasResearchEngineStatus, refreshAyasOwnerRecommendations, refreshAyasControlCenter } from "./observerActions";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,12 @@ export default async function BrainCorePage() {
   // If it cannot complete, fail closed instead of rendering stale PENDING
   // state as actionable.
   reconcileAyasDevelopmentCenterFreshness();
+  // Stage 11 — the Brain Control Center's server-side read (health, repository,
+  // Graphify, experiments, memory counts, capabilities, security, Atölye). Not
+  // awaited: it streams to the client, so the orb and chat render immediately.
+  // The collector is fail-soft per source and never throws; the catch is a
+  // last resort that renders every server domain as unavailable.
+  const controlCenter = loadAyasControlCenterFacts().catch(() => null);
   const [snapshot, modelConfigured, autonomous, approvalInbox, microBatch] = await Promise.all([
     loadBrainConsoleSnapshot(),
     ayasModelConfigured(),
@@ -71,6 +78,7 @@ export default async function BrainCorePage() {
       initialResearchEngineStatus={researchEngineStatus}
       initialSelfHeal={selfHeal}
       initialOwnerRecommendations={ownerRecommendations}
+      initialControlCenter={controlCenter}
       modelConfigured={modelConfigured}
       refresh={refreshBrainConsole}
       refreshSelfHeal={refreshBrainSelfHeal}
@@ -79,6 +87,7 @@ export default async function BrainCorePage() {
       refreshGoalDevelopment={refreshAyasGoalDevelopment}
       refreshResearchEngineStatus={refreshAyasResearchEngineStatus}
       refreshOwnerRecommendations={refreshAyasOwnerRecommendations}
+      refreshControlCenter={refreshAyasControlCenter}
       decideApproval={decideAyasApproval}
       executeProposal={executeAyasApprovedProposal}
       batchOnaylaVeUygula={batchOnaylaVeUygula}

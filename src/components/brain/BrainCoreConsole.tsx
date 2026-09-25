@@ -56,6 +56,7 @@ import type { AyasResearchEngineStatusView } from "@/lib/brain/autonomy/AyasRese
 import type { BrainSelfHealConsoleSnapshot } from "@/lib/brain/ui/BrainSelfHealConsoleSnapshot";
 import type { BrainReportStatusFilter } from "@/lib/brain/selfheal/BrainReportCenter";
 import type { BrainSelfHealDecisionKind } from "@/lib/brain/selfheal/BrainSelfHealDecision";
+import type { AyasControlCenterServerFacts } from "@/lib/brain/ui/AyasControlCenterModel";
 
 /** `useSyncExternalStore` subscribe: the browser's own connectivity signal. */
 function subscribeOnline(onChange: () => void): () => void {
@@ -98,6 +99,10 @@ export interface BrainCoreConsoleProps {
   readonly initialSelfHeal?: BrainSelfHealConsoleSnapshot | null;
   /** Owner-approval model — read-only initial snapshot of AYAS's own filtered recommendations (RECOMMEND_FOR_APPROVAL + executable only). */
   readonly initialOwnerRecommendations?: AyasOwnerRecommendationsView;
+  /** Stage 11 — the server's Control Center facts, streamed as a promise so the orb and chat never wait on them. */
+  readonly initialControlCenter?: Promise<AyasControlCenterServerFacts | null>;
+  /** Stage 11 — read-only Server Action that re-reads the Control Center facts (same single refresh click, no polling). */
+  readonly refreshControlCenter?: () => Promise<AyasControlCenterServerFacts>;
   readonly modelConfigured?: boolean;
   /** Server Action that re-reads the snapshot (read-only). */
   readonly refresh?: () => Promise<BrainConsoleSnapshot>;
@@ -142,6 +147,8 @@ export function BrainCoreConsole({
   initialResearchEngineStatus,
   initialSelfHeal,
   initialOwnerRecommendations,
+  initialControlCenter,
+  refreshControlCenter,
   modelConfigured,
   refresh,
   refreshSelfHeal,
@@ -173,6 +180,9 @@ export function BrainCoreConsole({
   const [ownerDecisionError, setOwnerDecisionError] = useState<{ proposalId: string; code: string } | null>(null);
   const [microBatch, setMicroBatch] = useState(initialMicroBatch ?? { connected: false, active: null, history: [] });
   const [goalDevelopment, setGoalDevelopment] = useState(initialGoalDevelopment ?? { connected: false, goals: [], research: [] });
+  // Stage 11: `undefined` until the first refresh — the streamed page read is used until then.
+  const [controlCenterOverride, setControlCenterOverride] = useState<AyasControlCenterServerFacts | null | undefined>(undefined);
+  const controlCenter = useMemo(() => ({ facts: initialControlCenter, override: controlCenterOverride }), [initialControlCenter, controlCenterOverride]);
   const [researchEngineStatus, setResearchEngineStatus] = useState(initialResearchEngineStatus ?? { connected: false, consecutiveFailures: 0, sources: [], digest: { sourcesRegistered: 0, sourcesChangedLast24h: 0, sourcesFailingNow: 0, findingsLast24h: 0 } });
   const [reportFilter, setReportFilter] = useState<{ status: BrainReportStatusFilter; category: string }>({
     status: "all",
@@ -553,6 +563,11 @@ export function BrainCoreConsole({
         try { setResearchEngineStatus(await refreshResearchEngineStatus()); } catch { /* keep the last durable research-engine status view */ }
       });
     }
+    if (refreshControlCenter) {
+      startSelfHeal(async () => {
+        try { setControlCenterOverride(await refreshControlCenter()); } catch { /* keep the last Control Center read; its own timestamps stay visible */ }
+      });
+    }
   };
 
   // Record an operator ONAYLA / REDDET / DAHA SONRA decision. This writes a
@@ -701,17 +716,18 @@ export function BrainCoreConsole({
     if (v.capability.stt && !v.listening) v.toggleListening();
   }, [dismissInterrupted]);
 
-  // The "🧠 AYAS Raporları" home card. On mobile `.bc-panel` (the command center)
-  // stacks far below the orb + presence card + status cards, so switching the
-  // active tab alone looks like nothing happened. Select the panel AND scroll it
-  // into view. NOT an execution / gate action — a read-only panel switch.
-  const openReports = useCallback(() => {
-    setActivePanel("selfheal");
+  // Every Control Center "open" action (Stage 11 tiles and owner-attention
+  // items; formerly the separate Raporlar / Gelişim Merkezi cards). On mobile
+  // `.bc-panel` (the command center) stacks far below the orb + Control Center,
+  // so switching the active tab alone looks like nothing happened. Select the
+  // panel AND scroll it into view. NOT an execution / gate action — a read-only
+  // panel switch; the panel's own controls keep their own authority path.
+  const openPanel = useCallback((panel: BrainPanelId) => {
+    setActivePanel(panel);
     if (typeof document === "undefined") return;
     // The command-center <section id="bc-command-center"> is always mounted (only
     // its inner tab panel swaps), so we can scroll to it synchronously — no
-    // timer / rAF. On mobile this is the whole point: the panel is far below the
-    // orb + presence card + status cards.
+    // timer / rAF.
     const el = document.getElementById("bc-command-center");
     if (!el) return;
     try {
@@ -719,14 +735,6 @@ export function BrainCoreConsole({
     } catch {
       el.scrollIntoView(); // old engine — no options object
     }
-  }, []);
-
-  const openDevelopment = useCallback(() => {
-    setActivePanel("development");
-    if (typeof document === "undefined") return;
-    const el = document.getElementById("bc-command-center");
-    if (!el) return;
-    try { el.scrollIntoView({ behavior: "smooth", block: "start" }); } catch { el.scrollIntoView(); }
   }, []);
 
   // Explicit "turn voice off" — forget the persisted intent so a later reload
@@ -839,8 +847,8 @@ export function BrainCoreConsole({
       secureContext={secureContext}
       voiceSessionInterrupted={lifecycle.voiceSessionInterrupted}
       onSelectPanel={setActivePanel}
-      onOpenReports={openReports}
-      onOpenDevelopment={openDevelopment}
+      onOpenPanel={openPanel}
+      controlCenter={controlCenter}
       onDraftChange={setDraft}
       onSend={send}
       onStopGenerating={chatPending ? stopGenerating : undefined}

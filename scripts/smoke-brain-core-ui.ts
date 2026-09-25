@@ -188,12 +188,18 @@ async function run() {
     assert.ok(html.includes('data-testid="bc-refresh"'));
   });
 
-  await scenario("7. research + production panels render an honest 'Not connected' state", () => {
-    for (const panel of ["research", "production"] as const) {
+  // Stage 11: research (Stage 8 research + experiments), Atölye (read-only
+  // project catalog) and the new system panel are backed by real read models,
+  // so the Sprint 183/184 "Not connected" placeholder no longer applies. With
+  // no server read they still never fabricate: they say the read is missing.
+  await scenario("7. research / Atölye / system panels are connected and honest without server facts", () => {
+    for (const [panel, testid] of [["research", "bc-cc-experiments"], ["production", "bc-cc-atolye"], ["system", "bc-cc-system"]] as const) {
       const html = renderView({ snapshot: baseSnapshot(), activePanel: panel });
-      assert.ok(html.includes('data-testid="bc-not-connected"'));
-      assert.ok(html.includes("Not connected"));
+      assert.ok(!html.includes('data-testid="bc-not-connected"'), `${panel} is no longer a placeholder`);
+      assert.ok(html.includes(`data-testid="${testid}"`), `${panel} renders its Stage 11 section`);
+      assert.ok(html.includes("sunucu okuması başarısız"), `${panel} states the missing server read instead of inventing data`);
     }
+    assert.ok(BRAIN_PANELS.every((panel) => panel.connected), "every panel is backed by real state");
   });
 
   await scenario("8. tasks panel — empty state vs real rows with status badges", () => {
@@ -268,26 +274,30 @@ async function run() {
     }
   });
 
-  await scenario("11c. status cards are drawn only from the real snapshot; research/production are 'off'", () => {
+  // Stage 11: the home status cards became the Control Center (owner
+  // attention + domain tiles + activity). Without server facts every server
+  // domain says it could not be read — never a placeholder number.
+  await scenario("11c. home shows the Control Center; server domains are honest when unread; real numbers stay in their panels", () => {
     const empty = renderView({ snapshot: baseSnapshot() });
-    assert.ok(empty.includes('data-testid="bc-cards"'));
-    for (const k of ["Tasks", "Memory", "Learning", "Safety", "Research", "Production"]) {
-      assert.ok(empty.includes(k), `missing status card ${k}`);
+    assert.ok(empty.includes('data-testid="bc-control-center"'), "owner-attention block is on the home screen");
+    assert.ok(empty.includes('data-testid="bc-cc-domains"'), "domain tiles replace the old status cards");
+    assert.ok(!empty.includes('data-testid="bc-cards"'), "the old snapshot-only cards are gone");
+    for (const id of ["health", "graphify", "development", "memory", "security", "atolye"]) {
+      assert.match(empty, new RegExp(`data-testid="bc-cc-domain-${id}"[^>]*data-availability="UNAVAILABLE"`), `${id} is unavailable without a server read`);
     }
-    assert.ok(empty.includes("bc-statcard--off"), "research/production render as an 'off' card");
+    assert.ok(!/Not connected/.test(empty), "no stale 'Not connected' research/production card");
 
-    const withData = renderView({
-      snapshot: baseSnapshot({
-        connected: { tasks: true, cycles: true, experience: true },
-        tasks: { ...baseSnapshot().tasks, total: 7, pendingApproval: 2 },
-        cyclesRecorded: 3,
-        experience: { total: 4, lastTopic: "İstanbul 1453" },
-      }),
+    const snapshot = baseSnapshot({
+      connected: { tasks: true, cycles: true, experience: true },
+      tasks: { ...baseSnapshot().tasks, total: 7, pendingApproval: 2 },
+      cyclesRecorded: 3,
+      experience: { total: 4, lastTopic: "İstanbul 1453" },
     });
-    assert.ok(withData.includes(">7<"), "tasks total card shows the real number");
-    assert.ok(withData.includes("2 onay bekliyor"));
-    assert.ok(withData.includes("bc-statcard--warn"), "pending approval marks the tasks card as a warning");
-    assert.ok(withData.includes("İstanbul 1453"));
+    const tasks = renderView({ snapshot, activePanel: "tasks" });
+    assert.ok(tasks.includes("7 görev") && tasks.includes("2 onay bekliyor"), "tasks panel keeps the real numbers");
+    const memory = renderView({ snapshot, activePanel: "memory" });
+    assert.ok(memory.includes("İstanbul 1453"), "memory panel keeps the experience store");
+    assert.ok(memory.includes('data-testid="bc-cc-memory"'), "memory panel adds the long-term memory counts section");
   });
 
   /* --------------------- AYAS presence (mobile + voice) -------------- */
@@ -586,15 +596,18 @@ async function run() {
     // command-center panel carries a scroll anchor id so mobile can scroll it
     // into view (the panel stacks far below the orb + presence card there —
     // a plain panel switch looked like nothing happened).
-    const home = renderView({ snapshot: baseSnapshot(), reportCenter: rc, onOpenReports: () => {} });
-    assert.ok(home.includes('data-testid="bc-card-reports"'), "AYAS Raporları status card is drawn");
+    // Stage 11: the reports card is now the Control Center's "AYAS Raporları"
+    // domain tile plus an owner-attention item that opens the same panel.
+    const home = renderView({ snapshot: baseSnapshot(), reportCenter: rc, onOpenPanel: () => {} });
+    assert.ok(home.includes('data-testid="bc-cc-domain-reports"'), "AYAS Raporları domain tile is drawn");
     assert.ok(/AYAS Raporlar/.test(home));
     assert.ok(/1 onay/.test(home));
-    assert.ok(/<button[^>]*data-testid="bc-card-reports"/.test(home), "the card is a real <button>, not an inert <div>");
+    assert.ok(/<button[^>]*data-testid="bc-cc-domain-reports"/.test(home), "the tile is a real <button>, not an inert <div>");
+    assert.ok(home.includes('data-testid="bc-cc-go-reports:owner"'), "the attention item opens the report panel");
     assert.ok(/id="bc-command-center"/.test(home), "the command-center panel has the scroll anchor");
-    // no handler passed at all → still falls back to a plain panel switch (a button, not dead)
+    // only the plain panel switch passed → still a button, not dead
     const homeNoHandler = renderView({ snapshot: baseSnapshot(), reportCenter: rc, onSelectPanel: () => {} });
-    assert.ok(/<button[^>]*data-testid="bc-card-reports"/.test(homeNoHandler), "card stays clickable via the onSelectPanel fallback");
+    assert.ok(/<button[^>]*data-testid="bc-cc-domain-reports"/.test(homeNoHandler), "tile stays clickable via the onSelectPanel fallback");
 
     // the report panel with the incident expanded + decision handlers
     const panel = renderView({

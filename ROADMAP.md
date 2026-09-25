@@ -1,5 +1,17 @@
 ---
 
+## AYAS Homepage / Brain Control Center — Stage 11 — 2026-09-25
+
+- [x] One owner-centred Control Center on the existing `/brain`: owner attention first (deterministic levels with reason, source, fact time and a classified next action), twelve domain tiles with data freshness, a bounded activity feed of real state transitions; research, Atölye and a new Sistem tab are backed by real read models instead of "Not connected" placeholders.
+- [x] Real sources only: M26 health, Stage 10 repository recovery (merge-base baseline, never "clean" unless provably clean), Stage 10A Graphify semantics (GRAPH_PARTIAL never shown as current), Stage 8 experiments and proposal links, counts-only memory, Stage 7 capabilities with a live local-model probe, live access-gate mode plus the recorded Stage 9 review, the read-only Atölye catalog.
+- [x] No new authority, store, scheduler or polling: approvals route to the existing Gelişim Merkezi / Araştırma / Raporlar controls; commands are shown, never run; the server read streams to the client and is coalesced; auth, privacy and mobile verified, including a TEMP production build.
+- [x] Same evaluator on clean `ae47309` archive and final source: primary 1 PASS / 1 FAIL / 19 MISSING → 21/21, held-out 0/0/13 → 13/13, integration 0/0/4 → 4/4; relevant regressions pass; Runtime/Test Mutation NONE. See `docs/AYAS_BRAIN_CONTROL_CENTER.md`.
+- [ ] Follow-up (owner decisions): `/api/runtime/health` module-instance finding; a write-free provider/media readiness read for the Atölye panel; static test-safety classifier over-flag for `/brain/` imports; plus the unchanged Stage 10A deferred list.
+
+**Next roadmap stage: 12 — Atölye Director & Media Intelligence Readiness.**
+
+---
+
 ## AYAS Graphify Validation, Recovery & Integration Normalization — Stage 10A — 2026-09-25
 
 - [x] One canonical graph (`.graphify/graph.json`), with legacy `graphify-out/` references removed from the Claude and Cursor rules; one status model that keeps structural freshness (HEAD, `built_from_commit`, `stale`, `needs_update`, dirty-worktree coverage + fingerprint, anomalies, extraction gaps) apart from semantic pending, host configs and MCP; read-only `scripts/ayas-graphify-status.ts`.

@@ -29,7 +29,9 @@ import { buildBrainMemoryRecord, validateBrainMemoryRecord } from "@/lib/brain/B
 import { brainMemorySchemaVersion, type BrainMemoryRecord } from "@/types/brainMemory";
 import { ayasMemoryRecordFact, currentAyasMemoryFactRecords, isAyasMemoryFactKey } from "./AyasMemoryTemporal";
 
-const MAX_RECORDS = 500;
+/** Hard cap on stored records; `prune` trims the oldest non-pinned beyond it. */
+export const AYAS_MEMORY_MAX_RECORDS = 500;
+const MAX_RECORDS = AYAS_MEMORY_MAX_RECORDS;
 /** A lock older than this belongs to a writer that died mid-write. */
 const LOCK_STALE_MS = 30_000;
 

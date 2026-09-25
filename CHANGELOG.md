@@ -1,5 +1,13 @@
 ---
 
+## 2026-09-25 — AYAS Homepage / Brain Control Center (Stage 11)
+
+- Extended `/brain` into the AYAS Brain Control Center. The home screen now opens with owner attention, twelve domain tiles and a bounded activity feed. The Araştırma and Atölye tabs are real, and a new Sistem tab adds Graphify, capabilities and security. Gelişim Merkezi, Memory and Autonomous gain repository, memory-count and health sections. The stale "Research / Production: Not connected" status is gone.
+- Added a pure read model (`src/lib/brain/ui/AyasControlCenterModel.ts`) and a read-only, fail-soft, coalesced server collector (`AyasControlCenterCollector.ts`) over the existing health, repository, Graphify, experiment, memory, capability, access-gate, security-review, Atölye and roadmap sources, plus `refreshAyasControlCenter` in the observer-only actions. No new authority, store, scheduler or polling. Approvals keep their existing controls, and commands are shown, never executed.
+- Same-evaluator clean `ae47309` TEMP baseline 1/21 primary (19 MISSING, 1 real stale-status FAIL) → 21/21, held-out 0 → 13/13, integration 0 → 4/4. Relevant Brain UI, approval, memory and chat regressions pass; live runtime, authority, legacy projects, memory and ledgers unchanged. See `docs/AYAS_BRAIN_CONTROL_CENTER.md`.
+
+---
+
 ## 2026-09-25 — AYAS Graphify Validation, Recovery & Integration Normalization (Stage 10A)
 
 - Added a pure Graphify status model and a read-only collector (`src/lib/ayas/developer/AyasGraphifyState*.ts`) plus `scripts/ayas-graphify-status.ts`: structural vs semantic vs MCP status, dirty-worktree coverage and fingerprint, extraction-gap classification, host-config findings, fail-closed work policy and bounded recovery. `.graphify/graph.json` is canonical; the Claude/Cursor instructions no longer point at `graphify-out/` or the nonexistent `affected` command.
