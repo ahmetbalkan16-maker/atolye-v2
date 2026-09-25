@@ -158,6 +158,14 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
   /** Prefers the artifact's own M19 `graphifyImportCounts` (self-declared, content-derived, correct per-file even when a generator's output import count varies); falls back to the legacy per-generatorIdentity constant only for an artifact frozen before that field existed. */
   const expectedImportCountFor = (artifact: { readonly generatorIdentity: string; readonly graphifyImportCounts?: Readonly<Record<string, number>> }, file: string): number | undefined =>
     artifact.graphifyImportCounts?.[file] ?? legacyExpectedImportCounts[artifact.generatorIdentity];
+  /**
+   * Stage 10A: only a count DERIVED FROM the artifact's own content can go stale against that same content, so only then
+   * is the approved content passed for byte-verified reconciliation. The legacy per-generator constant is an independent
+   * shape contract (e.g. "exactly assert + one target import") and stays strict — reconciling it would let a generator
+   * that emits an extra import pass just because the approved bytes contain it.
+   */
+  const approvedContentFor = (artifact: { readonly graphifyImportCounts?: Readonly<Record<string, number>>; readonly replacements: readonly { readonly filePath: string; readonly content: string }[] }, file: string): string | undefined =>
+    artifact.graphifyImportCounts?.[file] === undefined ? undefined : artifact.replacements.find((r) => r.filePath === file)?.content;
 
   const batchBefore = batchStore.load().batches.find((b) => b.batchId === batchId);
   if (!batchBefore) throw new AyasMicroBatchApprovalError("NOT_FOUND", "batch not found");
@@ -205,7 +213,7 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
         for (const file of item.exactFiles) {
           const expected = expectedImportCountFor(artifact, file);
           if (expected === undefined) throw new AyasBatchGraphifyCheckError("AYAS_GRAPHIFY_UNEXPECTED_DEPENDENCY", `no declared Graphify import-count contract for generator "${artifact.generatorIdentity}" file "${file}" — refusing to guess`);
-          checkAyasItemWithGraphifyEvidenced({ repoRoot: deps.repoRoot, evidenceStore: graphifyEvidenceStore, itemId: item.microItemId, file, expectedImportCount: expected }); // throws (and still records a FAIL record) on mismatch — never swallowed
+          checkAyasItemWithGraphifyEvidenced({ repoRoot: deps.repoRoot, evidenceStore: graphifyEvidenceStore, itemId: item.microItemId, file, expectedImportCount: expected, approvedContent: approvedContentFor(artifact, file) }); // throws (and still records a FAIL record) on mismatch — never swallowed
           graphifyEvidenceItemIds.add(item.microItemId);
         }
       },
@@ -225,7 +233,7 @@ export async function approveAndExecuteAyasMicroBatch(batchId: string, approvedB
       const artifact = artifactStore.loadVerified(item.patchArtifactId);
       const expected = expectedImportCountFor(artifact, file) ?? 0;
       // final refresh, re-derived from the now-committed working tree, not reused from the pre-commit check
-      checkAyasItemWithGraphifyEvidenced({ repoRoot: deps.repoRoot, evidenceStore: graphifyEvidenceStore, itemId: item.microItemId, file, expectedImportCount: expected });
+      checkAyasItemWithGraphifyEvidenced({ repoRoot: deps.repoRoot, evidenceStore: graphifyEvidenceStore, itemId: item.microItemId, file, expectedImportCount: expected, approvedContent: approvedContentFor(artifact, file) });
       graphifyEvidenceItemIds.add(item.microItemId);
     }
     const tscEntry = path.join(deps.repoRoot, "node_modules", "typescript", "bin", "tsc");

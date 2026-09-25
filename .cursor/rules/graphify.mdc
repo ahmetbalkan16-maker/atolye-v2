@@ -3,19 +3,17 @@ description: graphify knowledge graph context
 alwaysApply: true
 ---
 
-This project has a graphify knowledge graph at graphify-out/.
+This project has a graphify knowledge graph at .graphify/ (canonical file `.graphify/graph.json`; the legacy `graphify-out` directory is not used). Contract: `docs/AYAS_GRAPHIFY_INTEGRATION.md`.
 
-**MANDATORY: Before using Read, Grep, Glob, or Bash to explore the codebase, you MUST run graphify first:**
+Before using Read, Grep, Glob, or Bash to explore the codebase, orient with graphify first — and include this rule in every subagent prompt that explores code:
 - `graphify query "<question>"` — scoped subgraph for any codebase or architecture question
 - `graphify path "<A>" "<B>"` — dependency path between two symbols
-- `graphify explain "<concept>"` — all nodes related to a concept
+- `graphify explain "<concept>"` — all nodes related to a concept, including what depends on it
+- `graphify review-analysis --files <changed files> --graph .graphify/graph.json` — blast radius of a change
 
-This applies to YOU and to every subagent you spawn. Include this rule explicitly in every subagent prompt that involves code exploration. Do not skip graphify because files are "already known" or because you are executing a plan — the graph surfaces cross-file dependencies and INFERRED edges that grep and Read cannot find.
+Use Read/Grep/Glob directly when graphify has already oriented you and you need specific lines, when `.graphify/graph.json` does not exist, or for the `.ps1` startup scripts (Graphify has no PowerShell grammar installed here, so the graph has no nodes for them).
 
-Only use Read/Grep/Glob directly when:
-1. graphify has already oriented you and you need to modify or debug specific lines
-2. `graphify-out/graph.json` does not exist yet
-
-- If `graphify-out/wiki/index.md` exists, navigate it instead of reading raw files
-- Read `graphify-out/GRAPH_REPORT.md` only for broad architecture review when query/path/explain do not surface enough context
-- After modifying code files, run `graphify update .` to keep the graph current (AST-only, no API cost)
+- Check freshness with `npx tsx scripts/ayas-graphify-status.ts`; if `STRUCTURAL_STATUS` is STALE, refresh before relying on the graph. A pending semantic description marker alone does not block.
+- If `.graphify/wiki/index.md` exists, navigate it instead of reading raw files
+- Read `.graphify/GRAPH_REPORT.md` only for broad architecture review when query/path/explain do not surface enough context
+- After modifying code files, run `graphify update --scope all --no-description --no-label .` to keep the graph current (AST-only, local, no API cost)

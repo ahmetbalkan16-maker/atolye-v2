@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-import { checkAyasBatchItemWithGraphify, AyasBatchGraphifyCheckError, type AyasBatchGraphifyCheckResult } from "./AyasBatchGraphifyCheck";
+import { checkAyasBatchItemWithGraphify, AyasBatchGraphifyCheckError, type AyasBatchGraphifyCheckResult, type AyasDependencyExpectationVerdict } from "./AyasBatchGraphifyCheck";
 
 /**
  * M19 — "Per-Item Graphify Durability Follow-up". Before this module, the
@@ -39,6 +39,8 @@ export interface AyasGraphifyEvidenceRecord {
   readonly edgeCount?: number;
   readonly errorCode?: string;
   readonly errorMessage?: string;
+  /** Stage 10A (additive): how a declared/actual difference was classified — STALE_EXPECTATION records a reconciled, byte-verified PASS. */
+  readonly verdict?: AyasDependencyExpectationVerdict;
 }
 
 export class AyasGraphifyEvidenceStoreError extends Error {
@@ -111,10 +113,12 @@ export function checkAyasItemWithGraphifyEvidenced(params: {
   readonly itemId: string;
   readonly file: string;
   readonly expectedImportCount: number;
+  /** The frozen artifact's replacement content for `file`; lets a stale declaration be reconciled against byte-identical landed content. */
+  readonly approvedContent?: string;
 }): AyasBatchGraphifyCheckResult {
   const startedAt = new Date().toISOString();
   try {
-    const result = checkAyasBatchItemWithGraphify(params.repoRoot, params.file, params.expectedImportCount);
+    const result = checkAyasBatchItemWithGraphify(params.repoRoot, params.file, params.expectedImportCount, { approvedContent: params.approvedContent });
     params.evidenceStore.record({
       itemId: params.itemId,
       file: params.file,
@@ -125,6 +129,7 @@ export function checkAyasItemWithGraphifyEvidenced(params: {
       actualImportCount: result.importEdgeCount,
       nodeCount: result.nodeCount,
       edgeCount: result.edgeCount,
+      verdict: result.verdict,
     });
     return result;
   } catch (error) {

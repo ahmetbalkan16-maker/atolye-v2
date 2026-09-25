@@ -28,8 +28,13 @@ function git(args: readonly string[]): string {
   return execFileSync("git", [...args], { cwd: root, encoding: "utf8", windowsHide: true }).trim();
 }
 
-function graphifyFresh(): boolean {
-  return fs.existsSync(path.join(root, ".graphify", "graph.json"));
+/** Same gate as the discovery/autonomy daemons: the graph must exist AND be analyzed at this exact HEAD and not marked stale — existence alone let a stale graph through (Stage 10A). */
+function graphifyFresh(head: string): boolean {
+  try {
+    if (!fs.statSync(path.join(root, ".graphify", "graph.json")).isFile()) return false;
+    const branch = JSON.parse(fs.readFileSync(path.join(root, ".graphify", "branch.json"), "utf8")) as { readonly lastAnalyzedHead?: unknown; readonly stale?: unknown };
+    return branch.lastAnalyzedHead === head && branch.stale === false && !fs.existsSync(path.join(root, ".graphify", "needs_update"));
+  } catch { return false; }
 }
 
 /**
@@ -76,7 +81,7 @@ function main(): void {
   const branch = git(["branch", "--show-current"]);
   const head = git(["rev-parse", "HEAD"]);
   const repoClean = git(["status", "--porcelain"]).length === 0;
-  const fresh = graphifyFresh();
+  const fresh = graphifyFresh(head);
   const now = new Date().toISOString();
 
   if (!repoClean) throw new Error("AYAS_PROPOSE_REPO_DIRTY");

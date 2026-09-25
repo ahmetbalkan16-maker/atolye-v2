@@ -10,6 +10,7 @@ import type { AyasDeveloperGate, AyasRepositoryRecovery } from "./AyasRepository
 import type { AyasReviewPlan } from "./AyasDeveloperReviewIntelligence";
 import type { AyasSkillSelection } from "./AyasDeveloperSkillIntelligence";
 import { AYAS_KNOWN_UNSAFE_TESTS, type AyasTestStrategy } from "./AyasDeveloperTestIntelligence";
+import { AYAS_GRAPHIFY_REFRESH_COMMAND } from "./AyasGraphifyState";
 
 export type AyasAgentTarget = AyasDeveloperAgentId | "any-developer-agent" | "local-tool" | "none";
 export type AyasAgentDelivery = "LOCAL_READ_ONLY_TOOLS" | "MANUAL_OWNER_PASTE" | "ADAPTER_REQUIRES_OWNER_APPROVAL" | "WAIT_FOR_AGENT_AVAILABILITY" | "NO_AGENT_NEEDED" | "OWNER_DECISION_REQUIRED";
@@ -149,13 +150,13 @@ function gateInstruction(gate: AyasDeveloperGate, input: AyasTaskPacketInput): s
       }
       return `Re-run only what is not already accepted: ${list(open)}. Reuse accepted: ${list(r.acceptedEvidence)}; recorded and reusable: ${list(r.reusableRecordedEvidence)}.`;
     }
-    case "GRAPHIFY_REFRESH": return "graphify update . (AST-only); verify lastAnalyzedHead == HEAD, stale=false, zero duplicate/dangling/self-loop edges.";
+    case "GRAPHIFY_REFRESH": return `${AYAS_GRAPHIFY_REFRESH_COMMAND} (AST-only, no description batches); verify lastAnalyzedHead == HEAD, stale=false, zero duplicate/dangling/self-loop edges.`;
     case "REVIEW": return `Focused review (${input.review?.passes ?? 2} passes) on: ${list(input.review?.dimensions ?? ["correctness", "scope"])}. Fix valid findings only.`;
     case "DOCUMENTATION": return "Update docs/checkpoint with verified facts only.";
     // Never truncated: a partial list would stage a partial change.
     case "STAGE": return `Stage explicitly: git add -- ${r.dirtyExpectedPaths.join(" ")}; then git diff --cached --name-status and git diff --cached --check.`;
     case "COMMIT": return "Conventional commit of the staged set only; never --no-verify or --amend of published commits.";
-    case "POST_COMMIT_GRAPHIFY": return "Refresh Graphify to the new HEAD and verify structure before pushing.";
+    case "POST_COMMIT_GRAPHIFY": return `Refresh Graphify to the new HEAD (${AYAS_GRAPHIFY_REFRESH_COMMAND}) and verify structure before pushing.`;
     case "PUSH": return "Normal git push (never force); verify local HEAD == tracking == git ls-remote origin.";
     case "CLOSURE": return "Separate docs-only closure commit recording verified post-push facts, then normal push.";
     case "REMOTE_VERIFICATION": return "Verify git ls-remote origin <branch> equals HEAD; ahead/behind 0/0; worktree/index clean.";
@@ -213,7 +214,7 @@ export function compileAyasTaskPacket(input: AyasTaskPacketInput): AyasTaskPacke
     const coverage = g?.lastAnalyzedHead === r.head ? (g.coversWorktree === false ? " (== HEAD, dirty files not yet in graph)" : " (== HEAD)") : " (behind HEAD)";
     const graphState = g ? `lastAnalyzedHead ${g.lastAnalyzedHead ?? "unknown"}${coverage}, stale=${g.stale}` : "graph state unknown";
     add("graphify", "GRAPHIFY", [
-      `${graphState}. Graphify CLI: query/explain/path for ownership, affected --depth 2 before changing a symbol, review-delta/review-analysis on the final diff.`,
+      `${graphState}. Graphify CLI: query/explain/path for ownership, explain for a symbol's dependents before changing it, review-delta/review-analysis on the final diff.`,
       ...(input.plan?.impactedFiles.length ? [`Graph-affected files: ${list(input.plan.impactedFiles)}.`] : []),
       ...(input.plan?.needsGraphFirst ? ["No graph evidence yet: locate symbols with Graphify first — do not read the whole repository."] : []),
     ], true);

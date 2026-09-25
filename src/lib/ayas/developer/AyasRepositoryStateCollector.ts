@@ -14,6 +14,7 @@ import { promisify } from "node:util";
 
 import { parseAyasGitStatusPorcelainV2, type AyasCommitSummary, type AyasRepositorySnapshot } from "./AyasRepositoryRecovery";
 import { classifyAyasTestSafety, extractAyasTestSourceFacts, type AyasTestIndexEntry } from "./AyasDeveloperTestIntelligence";
+import { ayasGraphifyNodeProducingExtensions, computeAyasGraphifyWorktreeCoverage, summarizeAyasGraphifyGraph } from "./AyasGraphifyStateCollector";
 import type { AyasSkillEvidence, AyasSkillHost } from "./AyasDeveloperSkillIntelligence";
 
 const execFileAsync = promisify(execFile);
@@ -87,22 +88,31 @@ function readGraphifyState(cwd: string, head: string | null, entries: AyasReposi
   let branch: { lastAnalyzedHead?: unknown; stale?: unknown };
   try { branch = JSON.parse(fs.readFileSync(branchFile, "utf8")) as typeof branch; } catch { return null; }
   const lastAnalyzedHead = typeof branch.lastAnalyzedHead === "string" ? branch.lastAnalyzedHead : null;
+  // Stage 10A: Graphify's own `needs_update` flag is a staleness signal branch.json alone does not carry.
+  const stale = branch.stale === true || fs.existsSync(path.join(cwd, ".graphify", "needs_update"));
   let coversWorktree = lastAnalyzedHead !== null && lastAnalyzedHead === head;
   const dirtySource = entries.filter((e) => e.kind !== "ignored" && /^(src|scripts|app)\/|^[^/]+\.md$/.test(e.path) && e.worktree !== "D" && e.index !== "D");
   if (coversWorktree && dirtySource.length) {
     try {
       const manifest = JSON.parse(fs.readFileSync(path.join(cwd, ".graphify", "manifest.json"), "utf8")) as Record<string, { hash?: unknown }>;
-      const root = path.resolve(cwd).replace(/\\/g, "/").toLowerCase();
-      const byPath = new Map(Object.entries(manifest).map(([key, value]) => [key.replace(/\\/g, "/").toLowerCase(), value]));
-      coversWorktree = dirtySource.every((entry) => {
-        const recorded = byPath.get(`${root}/${entry.path}`.toLowerCase())?.hash;
-        if (typeof recorded !== "string") return false;
-        const absolute = path.join(cwd, entry.path);
-        return fs.statSync(absolute).size <= MAX_FINGERPRINT_BYTES && crypto.createHash("md5").update(fs.readFileSync(absolute)).digest("hex") === recorded;
-      });
+      const root = path.resolve(cwd);
+      const manifestHashes = new Map<string, string>();
+      for (const [key, value] of Object.entries(manifest)) if (typeof value?.hash === "string") manifestHashes.set(path.relative(root, key).replace(/\\/g, "/").toLowerCase(), value.hash);
+      // Stage 10A: a dirty file Graphify never indexes (e.g. `.css`) must not read as "not covered" — no refresh can
+      // cover it, so counting it made recovery return GRAPHIFY_REFRESH forever. The graph is parsed only if a NEW file needs it.
+      let nodeExtensions: ReadonlySet<string> | "UNKNOWN" | null = null;
+      const isIndexableNewFile = (file: string): boolean => {
+        if (nodeExtensions === null) {
+          const summary = (() => { try { return summarizeAyasGraphifyGraph(JSON.parse(fs.readFileSync(path.join(cwd, ".graphify", "graph.json"), "utf8"))); } catch { return null; } })();
+          nodeExtensions = summary ? ayasGraphifyNodeProducingExtensions(summary.filesWithNodes) : "UNKNOWN";
+        }
+        return nodeExtensions === "UNKNOWN" || nodeExtensions.has(path.posix.extname(file).toLowerCase()); // unknown scope fails closed
+      };
+      const newPaths = new Set(dirtySource.filter((e) => e.kind === "untracked" || e.index === "A" || e.index === "R" || e.index === "C").map((e) => e.path));
+      coversWorktree = computeAyasGraphifyWorktreeCoverage({ root, dirty: { all: dirtySource.map((e) => e.path), newPaths }, manifestHashes, isIndexableNewFile }).length === 0;
     } catch { coversWorktree = false; }
   }
-  return Object.freeze({ lastAnalyzedHead, stale: branch.stale === true, coversWorktree });
+  return Object.freeze({ lastAnalyzedHead, stale, coversWorktree });
 }
 
 /** Lists skill directories only; SKILL.md bodies are not parsed. */

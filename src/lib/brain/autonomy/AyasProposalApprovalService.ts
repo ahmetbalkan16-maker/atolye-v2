@@ -337,9 +337,10 @@ async function runAyasProposalPublishPipeline(approved: AyasInboxProposal, deps:
   // --- post-execution validation: per-file Graphify (evidenced) + project TypeScript + git diff --check ---
   try {
     for (const file of files) {
+      // Always content-derived here (a missing per-file count is refused just below), so byte-verified reconciliation applies.
       const expected = artifact.graphifyImportCounts?.[file];
       if (expected === undefined) throw new AyasBatchGraphifyCheckError("AYAS_GRAPHIFY_UNEXPECTED_DEPENDENCY", `no declared Graphify import-count contract for generator "${artifact.generatorIdentity}" file "${file}" — refusing to guess`);
-      checkAyasItemWithGraphifyEvidenced({ repoRoot: deps.repoRoot, evidenceStore: graphifyEvidenceStore, itemId: approved.proposalId, file, expectedImportCount: expected });
+      checkAyasItemWithGraphifyEvidenced({ repoRoot: deps.repoRoot, evidenceStore: graphifyEvidenceStore, itemId: approved.proposalId, file, expectedImportCount: expected, approvedContent: artifact.replacements.find((r) => r.filePath === file)?.content });
       graphifyEvidenceItemIds.add(approved.proposalId);
     }
     const tscEntry = path.join(deps.repoRoot, "node_modules", "typescript", "bin", "tsc");

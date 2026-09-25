@@ -305,8 +305,9 @@ function evaluateRepo(repo: AyasHealthRepoFacts, out: AyasHealthFinding[]): void
   } else if (!/^[0-9a-f]{40}$/.test(repo.graph.value)) {
     out.push(finding("GRAPH_METADATA_UNREADABLE", "WARN", "graph", "Graphify branch metadata does not contain a valid analyzed HEAD"));
   } else if (headOk && repo.graph.value !== repo.head.value) {
-    // The daemon's own `graphifyFresh` gate only checks that graph.json EXISTS, so it would pass here; this is the check it does not make.
-    out.push(finding("GRAPH_STALE_VS_HEAD", "WARN", "graph", "the Graphify graph was analyzed at a different commit than HEAD (the daemon's freshness gate only checks that a graph file exists)", { head: shortSha(repo.head.value), analyzedHead: shortSha(repo.graph.value) }));
+    // The daemons' `graphifyFresh` gate (lastAnalyzedHead === HEAD && !stale) closes here too; this finding makes the
+    // resulting pause visible and names the refresh that reopens it (Stage 10A).
+    out.push(finding("GRAPH_STALE_VS_HEAD", "WARN", "graph", "the Graphify graph was analyzed at a different commit than HEAD, so graph-dependent discovery is paused until `graphify update --scope all --no-description --no-label .` runs", { head: shortSha(repo.head.value), analyzedHead: shortSha(repo.graph.value) }));
   }
 }
 

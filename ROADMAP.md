@@ -1,5 +1,17 @@
 ---
 
+## AYAS Graphify Validation, Recovery & Integration Normalization — Stage 10A — 2026-09-25
+
+- [x] One canonical graph (`.graphify/graph.json`), with legacy `graphify-out/` references removed from the Claude and Cursor rules; one status model that keeps structural freshness (HEAD, `built_from_commit`, `stale`, `needs_update`, dirty-worktree coverage + fingerprint, anomalies, extraction gaps) apart from semantic pending, host configs and MCP; read-only `scripts/ayas-graphify-status.ts`.
+- [x] Source truth over stale expectation: byte-verified reconciliation of content-derived import-count declarations, AST-measured counts on new artifacts, TEMP extraction, empty extraction fails closed; no RECOVERY_REQUIRED loop; bounded graph recovery.
+- [x] Startup/PC-off: every proposal-producing lane pauses on a stale graph while research catch-up proceeds; Graphify is not a universal blocker. Host schemas (VS Code `servers`, others `mcpServers`) are understood and preserved; remote MCP is never local truth.
+- [x] Same evaluator on clean `4cc7503` archive and final source: primary 1 → 33 of 33, held-out 0 → 13 of 13; relevant regressions pass; no authority widening; Runtime/Test Mutation NONE. See `docs/AYAS_GRAPHIFY_INTEGRATION.md`.
+- [ ] Follow-up (owner decisions): dead Claude Graphify hooks, Antigravity pinning/graph path, PowerShell grammar, remote MCP, daemons honouring `needs_update`, clean rebuild against phantom edges, crash-injection smoke expectation, novel-discovery smoke isolation.
+
+**Next roadmap stage: 11 — AYAS Homepage / Brain Control Center.**
+
+---
+
 ## AYAS Codex Skill + Developer Intelligence — Stage 10 — 2026-09-24
 
 - [x] Recover the real repository state (staged/unstaged/untracked/ignored, committed vs pushed vs closed, tracking vs real remote) and resume from the first unfinished gate without restarting; detect scope drift, divergence and unknown state and stop for the owner.

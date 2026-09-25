@@ -1,5 +1,13 @@
 ---
 
+## 2026-09-25 — AYAS Graphify Validation, Recovery & Integration Normalization (Stage 10A)
+
+- Added a pure Graphify status model and a read-only collector (`src/lib/ayas/developer/AyasGraphifyState*.ts`) plus `scripts/ayas-graphify-status.ts`: structural vs semantic vs MCP status, dirty-worktree coverage and fingerprint, extraction-gap classification, host-config findings, fail-closed work policy and bounded recovery. `.graphify/graph.json` is canonical; the Claude/Cursor instructions no longer point at `graphify-out/` or the nonexistent `affected` command.
+- Fixed the stale dependency expectation class: a byte-identical approved file is no longer reverted because a text-derived import count disagrees with Graphify's AST; new artifacts carry AST-measured counts; extraction runs in TEMP and an empty extraction fails closed. Novel discovery and `ayas-propose.ts` now require a graph analyzed at HEAD; Stage 10 recovery honours `needs_update` and stops looping on never-indexed dirty files.
+- Same-evaluator clean `4cc7503` TEMP baseline 1/33 → 33/33 primary, 0/13 → 13/13 held-out; relevant approval, discovery, publication and developer-intelligence regressions pass. See `docs/AYAS_GRAPHIFY_INTEGRATION.md`.
+
+---
+
 ## 2026-09-24 — AYAS Codex Skill + Developer Intelligence (Stage 10)
 
 - Added pure, advisory developer intelligence in `src/lib/ayas/developer/`: task model, repository recovery (first unfinished gate, lifecycle, Git readiness, scope drift, evidence trust), host-aware minimum-skill selection, test strategy with root-safety classification and a known-unsafe registry, failure triage, baseline decisions, review planning and finding classification, and a redacted task-packet compiler for manual Claude/Codex/owner handoff.

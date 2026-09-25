@@ -6,6 +6,8 @@ Stage 10 makes AYAS better at the software-development loop around this reposito
 
 The seven modules in `src/lib/ayas/developer/` are pure and advisory. They import only one another and Node built-ins. The one process call is read-only `git` in the collector (`status`, `rev-parse`, `merge-base --is-ancestor`, `log`, and `ls-remote` only when the caller opts in). Nothing in `app/`, chat, approval, the execution gate, the mutation registry or publication imports them. Graphify confirms zero outgoing edges from these modules and incoming edges only from the CLI and the evaluator. Planning, skill selection, agent selection, packet compilation and review classification therefore have no path to execution, approval, mutation or publication. Owner approval and the execution gate stay exactly where they were.
 
+Stage 10A adds `AyasGraphifyState` (pure status model) and `AyasGraphifyStateCollector` (read-only `git rev-parse` / `git status` plus `.graphify/` and host-config reads) under the same boundary; the repository collector uses them for worktree coverage. Imported only by the CLIs and evaluators. See `docs/AYAS_GRAPHIFY_INTEGRATION.md`.
+
 | Module | Responsibility |
 | --- | --- |
 | `AyasDeveloperTaskModel.ts` | Task kind, dimension flags, path → change-area rules, graph-first change plan |

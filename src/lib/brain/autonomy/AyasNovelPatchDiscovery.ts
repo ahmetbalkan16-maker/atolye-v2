@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { classifyPatchSet } from "../selfheal/BrainPatchSafety";
 import type { AyasDaemonCandidate, AyasDaemonObservation } from "./AyasAutonomyDaemon";
+import { measureAyasGraphifyImportCount } from "./AyasBatchGraphifyCheck";
 import { AYAS_GENERATOR_SOURCES, checkAyasNovelPatchLimits, runAyasDiscoveryFindings, type AyasDiscoveryFinding, type AyasGeneratedNovelPatch } from "./AyasPatchDetectors";
 import { classifyAyasMicroCandidate } from "./AyasMicroClassifier";
 import { createAyasPatchSandbox, applyAyasPatchReplacementsInSandbox, runAyasPatchSandboxValidators, captureAyasPatchSandboxDiff, destroyAyasPatchSandbox } from "./AyasPatchSandbox";
@@ -36,6 +37,27 @@ export interface AyasNovelPatchDiscoveryDeps {
   /** Bounded retry budget — at most this many gap candidates are drafted-and-sandbox-validated per tick (server-owned, never proposal-configurable). Each attempt is a genuinely different candidate, never a re-attempt of identical failing content. */
   readonly maxAttemptsPerTick?: number;
   readonly sandboxUnvalidatableStore?: AyasSandboxUnvalidatableStore;
+  /** Test seam only. Production measures with the same Graphify AST extraction the execution-time check uses. */
+  readonly measureGraphifyImportCount?: (content: string, filePath: string) => number;
+}
+
+/**
+ * Stage 10A — the artifact's Graphify import-count contract is MEASURED from the exact bytes being frozen, with the
+ * same extractor the post-execution check runs, instead of trusting the generator's text-derived declaration
+ * (which misses multi-line imports and re-exports). A disagreement is kept as visible evidence, never hidden.
+ */
+function measureArtifactImportCounts(generated: AyasGeneratedNovelPatch, measure: (content: string, filePath: string) => number): { readonly counts: Readonly<Record<string, number>>; readonly evidence: readonly string[] } {
+  const counts: Record<string, number> = {};
+  const evidence: string[] = [];
+  for (const replacement of generated.replacements) {
+    const measured = measure(replacement.content, replacement.filePath);
+    counts[replacement.filePath] = measured;
+    const declared = generated.expectedGraphifyImportCounts[replacement.filePath];
+    if (declared !== undefined && declared !== measured) {
+      evidence.push(`Graphify AST import count for ${replacement.filePath}: ${measured} (generator's text-derived declaration ${declared} superseded by source truth)`);
+    }
+  }
+  return { counts, evidence };
 }
 
 function writeRejectionLog(repoRoot: string, rejection: AyasNovelPatchRejection & { readonly at: string }): void {
@@ -87,8 +109,12 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
   const artifactStore = deps.artifactStore ?? createAyasPatchArtifactStore({ rootDir: path.join(repoRoot, "data", "brain", "self-improvement", "patch-artifacts") });
   const sandboxUnvalidatableStore = deps.sandboxUnvalidatableStore ?? createAyasSandboxUnvalidatableStore({ rootDir: path.join(repoRoot, "data", "brain", "self-improvement", "sandbox-unvalidatable") });
   const findings = runAyasDiscoveryFindings(repoRoot);
+  const measureImportCount = deps.measureGraphifyImportCount ?? ((content: string, filePath: string) => measureAyasGraphifyImportCount(content, filePath).importEdgeCount);
 
-  if (!observation.repoClean || observation.machineAction === "PAUSE" || observation.machineAction === "STOP OWN WORKLOAD") {
+  // Stage 10A — same freshness gate as the sibling lanes (micro-batch accumulation, research improvement,
+  // daemon.discover): a candidate drafted against a stale graph would only be dropped by discover() after the
+  // sandbox work and an orphaned frozen artifact.
+  if (!observation.repoClean || observation.graphifyFresh !== true || observation.machineAction === "PAUSE" || observation.machineAction === "STOP OWN WORKLOAD") {
     return { candidates: [], rejections: [], findings };
   }
 
@@ -170,6 +196,20 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
       continue;
     }
 
+    // Measured outside the freeze try-block below on purpose: an unavailable/failed Graphify is an
+    // environment condition, not a property of this content, so it must never be fingerprint-suppressed.
+    let measuredCounts: ReturnType<typeof measureArtifactImportCounts>;
+    try {
+      measuredCounts = measureArtifactImportCounts(generated, measureImportCount);
+    } catch (error) {
+      const reason = `Graphify import-count measurement failed: ${error instanceof Error ? error.message : String(error)}`;
+      rejections.push({ candidateId: generated.candidateId, reason });
+      writeRejectionLog(repoRoot, { candidateId: generated.candidateId, reason, at: observation.now });
+      await destroyAyasPatchSandbox(sandbox);
+      continue;
+    }
+    const graphifyEvidence = [...generated.graphifyEvidence, ...measuredCounts.evidence];
+
     try {
       const diff = await captureAyasPatchSandboxDiff(sandbox);
       const safety = classifyPatchSet(generated.exactFiles);
@@ -183,8 +223,8 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
         allowedRoots: ["scripts/"],
         replacements: generated.replacements,
         validatorScripts: generated.validatorScripts,
-        graphifyEvidence: generated.graphifyEvidence,
-        graphifyImportCounts: generated.expectedGraphifyImportCounts,
+        graphifyEvidence,
+        graphifyImportCounts: measuredCounts.counts,
         safetyClassification: safety.level,
         problemStatement: generated.currentProblem,
         rationale: generated.rationale,
@@ -210,7 +250,7 @@ export async function discoverAyasNovelPatchCandidates(deps: AyasNovelPatchDisco
         productionImpact: generated.productionImpact,
         rationale: generated.rationale,
         evidence: [...generated.evidence, `sandbox diff (${diff.split("\n").length} lines): validated in isolated git worktree at ${observation.head}`],
-        graphifyEvidence: generated.graphifyEvidence,
+        graphifyEvidence,
         exactFiles: generated.exactFiles,
         expectedDiffScope: generated.expectedDiffScope,
         testsPlanned: generated.validatorScripts,

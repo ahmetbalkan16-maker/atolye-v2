@@ -161,11 +161,15 @@ This project is developed across many sequential AI sessions under strict, check
 
 ## graphify
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+This project has a knowledge graph at `.graphify/` (canonical file `.graphify/graph.json`; the legacy
+`graphify-out` directory is not used by anything) with god nodes, community structure, and cross-file
+relationships. The full contract — canonical path, freshness fields, fail-closed rules, host configs — is
+in `docs/AYAS_GRAPHIFY_INTEGRATION.md`.
 
 Rules:
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- Before modifying or removing a symbol, run `graphify affected "<symbol>" --depth 2` to see what depends on it (reverse traversal over calls/imports/inherits/etc.) — surfaces real fan-in before you touch shared code, especially anything in `src/lib/pipeline/` or `src/lib/production/`.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- For codebase questions, first run `graphify query "<question>"` when .graphify/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- Before modifying or removing a symbol, run `graphify explain "<symbol>"` to see what depends on it, and `graphify review-analysis --files <changed files> --graph .graphify/graph.json` for blast radius — surfaces real fan-in before you touch shared code, especially anything in `src/lib/pipeline/` or `src/lib/production/`. (The installed Graphify 0.17 CLI has no `affected` command.)
+- Check freshness with `npx tsx scripts/ayas-graphify-status.ts`. Structural freshness (`lastAnalyzedHead == HEAD`, `stale=false`, worktree covered) is what gates work; the semantic description/label marker is separate and never blocks. The graph has no nodes for the `.ps1` startup scripts (optional `tree-sitter-powershell` grammar not installed) — review those directly.
+- If .graphify/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read .graphify/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update --scope all --no-description --no-label .` to keep the graph current (AST-only, local, no API cost; the two flags stop it from writing assistant-mode description batches and the semantic pending marker).

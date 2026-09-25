@@ -15,6 +15,7 @@ import { createAyasExecutionJournal, classifyExecutionRecovery } from "../src/li
 import { executeAyasApprovedProposalWith } from "../src/lib/brain/autonomy/AyasProposalExecutionService";
 import { finalizeAyasDeferredPublication, AyasDeferredPublicationFinalizerError } from "../src/lib/brain/autonomy/AyasDeferredPublicationFinalizer";
 import { ayasTraceStore } from "../src/lib/ayas/trace/AyasUnifiedTrace";
+import { createAyasGraphifyEvidenceStore } from "../src/lib/brain/autonomy/AyasGraphifyEvidenceStore";
 
 /**
  * M20.7 — "ONAYLA VE UYGULA" for an individual patch-artifact-backed
@@ -145,16 +146,17 @@ function seedEditProposal(f: Fixture, opts: { readonly newContent: string }) {
 }
 
 /** A new-file proposal whose DECLARED graphifyImportCounts deliberately does not match what Graphify's own AST extraction will find in the real written content — proves the Graphify check actually blocks publication on mismatch for the individual-proposal lane (the batch lane's equivalent is already proven in smoke-ayas-micro-batch-approval-service.ts). */
-function seedGraphifyMismatchProposal(f: Fixture) {
+function seedGraphifyMismatchProposal(f: Fixture, declaredImportCount = 2) {
   const head = git(f.repoRoot, "rev-parse", "HEAD");
-  // Real content has exactly ONE import (node:path) — but the artifact declares TWO, a contract the real file will never satisfy.
+  // Real content has exactly ONE import (node:path). The default declaration (TWO) is a stale, content-disagreeing
+  // contract (Stage 10A: reconciled when the landed bytes are these bytes); 1 is the correct, content-derived one.
   const content = 'import path from "node:path";\nconsole.log(JSON.stringify({ status: "PASS", suite: "fixture-generated", scenarios: 1, sep: path.sep }));\n';
   const artifact = f.artifactStore.freeze({
     artifactId: `ayas-patch-artifact-${Math.random().toString(36).slice(2)}`,
     candidateId: "ayas-novel-mismatch-fixture", generatorIdentity: "ayas-detector:diagnostic-quality-gap-v1",
     baseBranch: "master", baseHead: head, exactFiles: ["scripts/smoke-fixture-generated.ts"], allowedRoots: ["scripts/"],
     replacements: [{ filePath: "scripts/smoke-fixture-generated.ts", expectedHash: null, content, allowCreate: true }],
-    validatorScripts: [], graphifyEvidence: ["fixture"], graphifyImportCounts: { "scripts/smoke-fixture-generated.ts": 2 },
+    validatorScripts: [], graphifyEvidence: ["fixture"], graphifyImportCounts: { "scripts/smoke-fixture-generated.ts": declaredImportCount },
     safetyClassification: "SAFE", problemStatement: "p", rationale: "r", expectedUserBenefit: "b", expectedBehaviorChange: "c",
     unchangedBehavior: "u", risk: "low", productionImpact: "none", sandboxValidationSummary: ["PASS"], generatedAt: "2026-09-16T00:00:00.000Z",
   } as never);
@@ -506,13 +508,27 @@ async function main(): Promise<void> {
     assert.equal(f.inbox.load().proposals.find((p) => p.proposalId === proposal.proposalId)!.status, "STALE");
   });
 
-  await scenario("M21.4 — a real import-count mismatch (Graphify's own AST extraction disagrees with the artifact's declared contract) blocks publication: no commit, no push, write rolled back", async () => {
+  await scenario("Stage 10A — a stale declared import count on byte-identical approved content is reconciled, not failed: publication proceeds and the durable Graphify evidence records STALE_EXPECTATION", async () => {
     const f = makeFixture();
     const { proposal } = seedGraphifyMismatchProposal(f);
-    const beforeCount = Number(git(f.repoRoot, "rev-list", "--count", "HEAD"));
     const result = await approveAndExecuteAyasProposal(proposal.proposalId, proposal.proposalHash, f);
+    assert.equal(result.ok, true, "the landed file IS the approved artifact; a stale declaration must not revert it as RECOVERY_REQUIRED");
+    const records = createAyasGraphifyEvidenceStore({ rootDir: path.join(f.gateRoot, "graphify-evidence") }).listForItem(proposal.proposalId);
+    assert.ok(records.length >= 1, "the reconciliation is recorded, never silent");
+    assert.ok(records.every((r) => r.outcome === "PASS" && r.verdict === "STALE_EXPECTATION" && r.expectedImportCount === 2 && r.actualImportCount === 1));
+  });
+
+  await scenario("M21.4 — a real import-count mismatch (an extra dependency lands AFTER Package C wrote the approved bytes, so Graphify's own AST extraction disagrees with the declared contract) blocks publication: no commit, no push, write rolled back", async () => {
+    const f = makeFixture();
+    const { proposal } = seedGraphifyMismatchProposal(f, 1);
+    const target = path.join(f.repoRoot, "scripts/smoke-fixture-generated.ts");
+    const beforeCount = Number(git(f.repoRoot, "rev-list", "--count", "HEAD"));
+    const result = await approveAndExecuteAyasProposal(proposal.proposalId, proposal.proposalHash, {
+      ...f,
+      onJournalPhase: (phase) => { if (phase === "MUTATION_COMPLETED_PENDING_PUBLICATION") fs.appendFileSync(target, 'import os from "node:os";\nconsole.log(os.EOL.length);\n'); },
+    });
     assert.equal(result.ok, false);
-    if (!result.ok) assert.equal(result.code, "AYAS_GRAPHIFY_UNEXPECTED_DEPENDENCY");
+    if (!result.ok) { assert.equal(result.code, "AYAS_GRAPHIFY_UNEXPECTED_DEPENDENCY"); assert.match(result.message, /REAL_STRUCTURAL_REGRESSION/); }
     const afterCount = Number(git(f.repoRoot, "rev-list", "--count", "HEAD"));
     assert.equal(afterCount, beforeCount, "no commit must be created when Graphify's real check disagrees with the declared contract");
     assert.equal(fs.existsSync(path.join(f.repoRoot, "scripts/smoke-fixture-generated.ts")), false, "the write must be rolled back, not left half-applied");

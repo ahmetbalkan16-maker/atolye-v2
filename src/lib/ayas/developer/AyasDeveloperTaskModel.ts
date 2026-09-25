@@ -231,7 +231,8 @@ export function planAyasDeveloperChange(task: AyasDeveloperTask, graph: AyasGrap
   const needsGraphFirst = graph.targetSymbols.length === 0 && graph.candidateFiles.length === 0;
   if (!graph.current && task.requiresGraphify) add("graphify-refresh", "Refresh Graphify (AST-only) so lastAnalyzedHead matches HEAD before relying on it.");
   if (needsGraphFirst && task.requiresGraphify) add("graphify-locate", "Locate owning symbols with graphify query/explain; do not read the whole repository.");
-  if (graph.targetSymbols.length) add("graphify-affected", `Run graphify affected --depth 2 for: ${graph.targetSymbols.slice(0, 6).join(", ")}.`);
+  // Graphify 0.17 has no `affected` command: fan-in comes from `explain`, change impact from `review-analysis`.
+  if (graph.targetSymbols.length) add("graphify-affected", `Check dependents with graphify explain for: ${graph.targetSymbols.slice(0, 6).join(", ")}; then graphify review-analysis --files <changed files> for blast radius.`);
   const likelyFiles = graph.candidateFiles.slice(0, MAX_PLAN_FILES);
   if (likelyFiles.length) add("read-candidates", `Read only the graph-named candidates (${likelyFiles.length}).`);
   const boundaries: string[] = [];
