@@ -12,7 +12,7 @@ function root() { return fs.mkdtempSync(path.join(os.tmpdir(), "ayas-isolated-ro
 async function main() {
   await scenario("an isolated temporary root is accepted", () => {
     const isolated = createAyasIsolatedGateRoot(root());
-    assert.ok(typeof isolated === "string" && isolated.length > 0);
+    assert.ok(typeof isolated === "string" && isolated.length > 0, "assert.ok(typeof isolated === \"string\" && isolated.length > 0)");
   });
 
   await scenario("the exact real production root is rejected", () => {
