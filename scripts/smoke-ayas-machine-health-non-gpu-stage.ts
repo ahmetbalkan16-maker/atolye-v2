@@ -26,7 +26,7 @@ for (const stage of NON_GPU_STAGES) {
 for (const stage of GPU_STAGES) {
   const decision = evaluateAyasMachineHealth({ ...base, gpuPercent: undefined }, { stage, ownedActive: false });
   assert.equal(decision.action, "THROTTLE", `stage "${stage}" is GPU-likely — missing gpuPercent must still throttle it`);
-  assert.equal(decision.reasonCode, "MACHINE_HEALTH_TELEMETRY_PARTIAL");
+  assert.equal(decision.reasonCode, "MACHINE_HEALTH_TELEMETRY_PARTIAL", "assert.equal(decision.reasonCode, \"MACHINE_HEALTH_TELEMETRY_PARTIAL\")");
 }
 
 // The OTHER half of the same condition — missing cpuPercent — applies
