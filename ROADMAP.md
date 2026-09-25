@@ -1,5 +1,55 @@
 ---
 
+## AYAS Autonomous Technology Watch & Capability Discovery — Stage 14 — 2026-09-25 — PR READY (not closed)
+
+- [x] One canonical, schema-versioned technology candidate (identity + anchors, bounded append-only source claims, bounded watch record). Readiness, freshness, cost and risk are derived and never stored. There is no OTHER category: an unknown category stays UNKNOWN. It reuses:
+  - the Stage 8 instruction detector, neutralizer, URL normalization, source registry, freshness windows and capability taxonomy;
+  - the zero-cost policy;
+  - the Stage 7 inventory;
+  - the Stage 13 opportunity API;
+  - the Stage 10 redaction and context items.
+
+  No new scheduler, daemon, research engine, proposal, experiment, approval, execution, router, memory, capability authority or store.
+- [x] Claim-centric evidence. Source tiers, extraction and origin epistemics, identity-host and registered-official verification, and independent confirmation. Any source can add a restriction; only current, adequate, confirmed evidence can answer an open question.
+- [x] The twelve questions are answered explicitly:
+  - freshness: verified, recent, aging, stale, unavailable, unknown or superseded;
+  - novelty: duplicate/overlap detection, a time-independent material fingerprint, cooldown, and bounded surfacing and reopening;
+  - gap mapping against local facts only, where unknown is never a gap;
+  - compatibility and prerequisites;
+  - cost: UNKNOWN is not FREE and FREE TIER is not ZERO;
+  - licence and provenance;
+  - supply-chain security;
+  - readiness: BLOCKED < RESEARCH_REQUIRED < WATCH < SECURITY_REVIEW_REQUIRED < HANDOFF_ELIGIBLE.
+- [x] Integration:
+  - Stage 8 findings go through provenance validation and extraction into a candidate.
+  - The Stage 13 hand-off goes through the existing API, with origin `RESEARCH_LOOP` and no forged lifecycle, evidence class, approval or authority.
+  - Stage 10 receives advisory context only.
+  - One bounded, pure watch cycle.
+  - A read-only CLI.
+
+  Every result carries `executionAuthority: NONE`, and every `may*` flag is false.
+- [x] Evaluator written before the implementation. In the first round, the final evaluator reported 98 MISSING on a clean `cb7db64` archive and 98/98 PASS on the branch (now 112 after the PR #3 fix round, below): 55 primary, 12 frozen held-out, 3 matrix (508 cases), 8 round-trip, 10 adversarial and 10 review.
+  - All 16 targeted mutations are caught.
+  - The required Stage 7, 8, 9, 10 and 13 suites, the zero-cost, proposal and authority/execution regressions, TypeScript, changed-file ESLint and the diff check all pass.
+  - Runtime/Test Mutation: NONE. See `docs/AYAS_TECHNOLOGY_WATCH.md`.
+- [x] PR #3 fix round (local validation of `d678b16`). The MAJOR (identity-conflict safety depended on arrival order) is fixed: the conflict is now symmetric current register truth for both records. The hand-off builder and the watch transitions re-check it against the register. The related MINOR (a blocked record could display an allowed zero cost) is also fixed.
+  - The new `identity` group has 14 scenarios, all failing on `d678b16`. The evaluator now has 112 scenarios (clean base 112 MISSING, `d678b16` 97/15, fixed 112/112).
+  - All 23 mutations are caught. The regressions pass. BLOCKER 0, unresolved MAJOR 0.
+- [x] PR #3 second fix round (local validation of `0b6a33a`, done locally). The MAJOR (a hand-off built before an identity conflict could still be submitted after it) is fixed. Submission re-assesses the current register and environment, rebuilds the hand-off and accepts only an identical one. The same check-then-use gap is closed for hand-off recording and the Stage 10 context.
+  - The new `stale` group has 17 scenarios. The evaluator now has 129 (clean base 129 MISSING, `0b6a33a` 113/16, fixed 129/129).
+  - All 13 mutations are caught, and the fuzz found 0 violations. The regressions pass. BLOCKER 0, unresolved MAJOR 0.
+- [ ] Owner-side: **LOCAL_GRAPHIFY_REVALIDATION_REQUIRED** (Graphify was unavailable in the cloud), repeated local validation, PR review, controlled promotion.
+- [ ] Deferred:
+  - keyed tamper evidence for a persisted register;
+  - daemon wiring and a persisted register (an owner decision);
+  - an owner unblock path for permanent blocks;
+  - reopen-limit handling for new advisories;
+  - a better source-independence model.
+
+**Status: STAGE 14 — PR READY / PENDING LOCAL GRAPHIFY VALIDATION AND OWNER-SIDE PROMOTION. Stage 15 not started.**
+
+---
+
 ## AYAS Open-Ended Evolution Architecture — Stage 13 — 2026-09-25 — ✅ COMPLETED
 
 - [x] One canonical, schema-versioned evolution-opportunity model (gap, improvement, new capability, extension, replacement, retirement) with extensible capability descriptors over closed vocabularies; reuses the Stage 7 capability inventory, Stage 8 registry/hypothesis/instruction detector, zero-cost policy, structured proposal impact, patch safety and Stage 10 task model. No new proposal, experiment, approval, execution, scheduler, memory or capability system; no new store.
