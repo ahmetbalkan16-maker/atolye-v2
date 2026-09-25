@@ -44,7 +44,7 @@ function freshStore() {
 /* -------------------------------- pure SM -------------------------------- */
 
 scenario("SM — default is CLOSED", () => {
-  assert.equal(AYAS_EXECUTION_GATE_DEFAULT, "CLOSED");
+  assert.equal(AYAS_EXECUTION_GATE_DEFAULT, "CLOSED", "assert.equal(AYAS_EXECUTION_GATE_DEFAULT, \"CLOSED\")");
 });
 
 scenario("SM — the full happy path", () => {
@@ -63,15 +63,15 @@ scenario("SM — the full happy path", () => {
     path_.push([s, t.to]);
     s = t.to;
   }
-  assert.equal(s, "READY");
-  assert.deepEqual(path_.map(([, to]) => to), ["ARMED", "READY", "OPEN", "EXECUTING", "COMPLETED", "READY"]);
+  assert.equal(s, "READY", "assert.equal(s, \"READY\")");
+  assert.deepEqual(path_.map(([, to]) => to), ["ARMED", "READY", "OPEN", "EXECUTING", "COMPLETED", "READY"], "assert.deepEqual(path_.map(([, to]) => to), [\"ARMED\", \"READY\", \"OPEN\", \"EXECUTING\", \"COMPLETED\", \"READY\"])");
 });
 
 scenario("SM — `open` without an activation id does NOT move the gate", () => {
   const t = nextAyasExecutionGateState("READY", "open", {});
-  assert.equal(t.to, "READY");
-  assert.equal(t.faulted, false);
-  assert.equal(isAyasExecutionGateOpenState(t.to), false);
+  assert.equal(t.to, "READY", "assert.equal(t.to, \"READY\")");
+  assert.equal(t.faulted, false, "assert.equal(t.faulted, false)");
+  assert.equal(isAyasExecutionGateOpenState(t.to), false, "assert.equal(isAyasExecutionGateOpenState(t.to), false)");
 });
 
 scenario("SM — `open` from any non-READY state is a refused no-op, never a fault", () => {
@@ -99,8 +99,8 @@ scenario("SM — a disallowed (state,event) pair FAULTS to CLOSED", () => {
 
 scenario("SM — `fault` and `close` always land CLOSED from any state", () => {
   for (const state of ["CLOSED", "ARMED", "READY", "OPEN", "EXECUTING", "COMPLETED"] as const) {
-    assert.equal(nextAyasExecutionGateState(state, "fault").to, "CLOSED");
-    assert.equal(nextAyasExecutionGateState(state, "close").to, "CLOSED");
+    assert.equal(nextAyasExecutionGateState(state, "fault").to, "CLOSED", "assert.equal(nextAyasExecutionGateState(state, \"fault\").to, \"CLOSED\")");
+    assert.equal(nextAyasExecutionGateState(state, "close").to, "CLOSED", "assert.equal(nextAyasExecutionGateState(state, \"close\").to, \"CLOSED\")");
   }
 });
 
@@ -109,24 +109,24 @@ scenario("SM — `fault` and `close` always land CLOSED from any state", () => {
 scenario("store — absent gate.json reads as CLOSED sequence 0", () => {
   const { store } = freshStore();
   const rec = store.read();
-  assert.equal(rec.state, "CLOSED");
-  assert.equal(rec.sequence, 0);
-  assert.equal(store.readStateFailClosed().state, "CLOSED");
+  assert.equal(rec.state, "CLOSED", "assert.equal(rec.state, \"CLOSED\")");
+  assert.equal(rec.sequence, 0, "assert.equal(rec.sequence, 0)");
+  assert.equal(store.readStateFailClosed().state, "CLOSED", "assert.equal(store.readStateFailClosed().state, \"CLOSED\")");
 });
 
 scenario("store — transitions bump the sequence by exactly 1 and append a log entry", () => {
   const { store } = freshStore();
   const a = store.transition({ event: "arm" });
-  assert.equal(a.sequence, 1);
-  assert.equal(a.state, "ARMED");
+  assert.equal(a.sequence, 1, "assert.equal(a.sequence, 1)");
+  assert.equal(a.state, "ARMED", "assert.equal(a.state, \"ARMED\")");
   const b = store.transition({ event: "confirm-ready" });
-  assert.equal(b.sequence, 2);
+  assert.equal(b.sequence, 2, "assert.equal(b.sequence, 2)");
   const log = store.readLog();
-  assert.equal(log.length, 2);
-  assert.deepEqual(log.map((e) => e.event), ["arm", "confirm-ready"]);
-  assert.deepEqual(log.map((e) => e.state), ["ARMED", "READY"]);
-  assert.deepEqual(log.map((e) => e.from), ["CLOSED", "ARMED"]);
-  assert.deepEqual(log.map((e) => e.sequence), [1, 2]);
+  assert.equal(log.length, 2, "assert.equal(log.length, 2)");
+  assert.deepEqual(log.map((e) => e.event), ["arm", "confirm-ready"], "assert.deepEqual(log.map((e) => e.event), [\"arm\", \"confirm-ready\"])");
+  assert.deepEqual(log.map((e) => e.state), ["ARMED", "READY"], "assert.deepEqual(log.map((e) => e.state), [\"ARMED\", \"READY\"])");
+  assert.deepEqual(log.map((e) => e.from), ["CLOSED", "ARMED"], "assert.deepEqual(log.map((e) => e.from), [\"CLOSED\", \"ARMED\"])");
+  assert.deepEqual(log.map((e) => e.sequence), [1, 2], "assert.deepEqual(log.map((e) => e.sequence), [1, 2])");
 });
 
 scenario("store — `open` needs an activation id; without one it is a no-op (no sequence bump)", () => {
@@ -136,10 +136,10 @@ scenario("store — `open` needs an activation id; without one it is a no-op (no
   const before = store.read();
   const after = store.transition({ event: "open" });
   assert.equal(after.sequence, before.sequence, "refused open must not bump the sequence");
-  assert.equal(after.state, "READY");
+  assert.equal(after.state, "READY", "assert.equal(after.state, \"READY\")");
   const opened = store.transition({ event: "open", activationAuthorizationId: ACT });
-  assert.equal(opened.state, "OPEN");
-  assert.equal(opened.activationAuthorizationId, ACT);
+  assert.equal(opened.state, "OPEN", "assert.equal(opened.state, \"OPEN\")");
+  assert.equal(opened.activationAuthorizationId, ACT, "assert.equal(opened.activationAuthorizationId, ACT)");
 });
 
 scenario("store — CAS: a stale expectedSequence is rejected", () => {
@@ -151,7 +151,7 @@ scenario("store — CAS: a stale expectedSequence is rejected", () => {
   );
   // the correct expected sequence still works
   const ok = store.transition({ event: "confirm-ready", expectedSequence: 1 });
-  assert.equal(ok.sequence, 2);
+  assert.equal(ok.sequence, 2, "assert.equal(ok.sequence, 2)");
 });
 
 scenario("store — the append-only log rejects a duplicate sequence (replay/concurrent)", () => {
@@ -176,8 +176,8 @@ scenario("store — restart: a fresh instance reloads the persisted state", () =
   store.transition({ event: "confirm-ready" });
   store.transition({ event: "open", activationAuthorizationId: ACT });
   const reloaded = new AyasExecutionGateStore({ rootDir: dir });
-  assert.equal(reloaded.read().state, "OPEN");
-  assert.equal(reloaded.read().sequence, 3);
+  assert.equal(reloaded.read().state, "OPEN", "assert.equal(reloaded.read().state, \"OPEN\")");
+  assert.equal(reloaded.read().sequence, 3, "assert.equal(reloaded.read().sequence, 3)");
 });
 
 scenario("store — `fault` lands CLOSED whatever the persisted state, and is logged", () => {
@@ -187,9 +187,9 @@ scenario("store — `fault` lands CLOSED whatever the persisted state, and is lo
   store.transition({ event: "open", activationAuthorizationId: ACT });
   store.transition({ event: "begin-execution" });
   const faulted = store.transition({ event: "fault", reason: "executor blew up" });
-  assert.equal(faulted.state, "CLOSED");
-  assert.equal(new AyasExecutionGateStore({ rootDir: dir }).read().state, "CLOSED");
-  assert.equal(store.readLog().at(-1)?.faulted, true);
+  assert.equal(faulted.state, "CLOSED", "assert.equal(faulted.state, \"CLOSED\")");
+  assert.equal(new AyasExecutionGateStore({ rootDir: dir }).read().state, "CLOSED", "assert.equal(new AyasExecutionGateStore({ rootDir: dir }).read().state, \"CLOSED\")");
+  assert.equal(store.readLog().at(-1)?.faulted, true, "assert.equal(store.readLog().at(-1)?.faulted, true)");
 });
 
 scenario("store — corrupt gate.json: loud on read(), fail-closed for a decision, never overwritten", () => {
@@ -202,8 +202,8 @@ scenario("store — corrupt gate.json: loud on read(), fail-closed for a decisio
     (e: unknown) => e instanceof AyasExecutionGateStoreError && e.code === "AYAS_EXECUTION_GATE_CORRUPT",
   );
   const decision = reloaded.readStateFailClosed();
-  assert.equal(decision.state, "CLOSED");
-  assert.equal(decision.degraded, true);
+  assert.equal(decision.state, "CLOSED", "assert.equal(decision.state, \"CLOSED\")");
+  assert.equal(decision.degraded, true, "assert.equal(decision.degraded, true)");
   assert.equal(fs.readFileSync(store.file, "utf8"), "{ not json", "corrupt file must be left untouched");
 });
 
@@ -224,7 +224,7 @@ scenario("store — a leftover temp file from a crash is ignored on the next rea
   const { dir, store } = freshStore();
   store.transition({ event: "arm" });
   fs.writeFileSync(path.join(dir, "execution", ".gate.json.999.deadbeef.tmp"), "garbage");
-  assert.equal(new AyasExecutionGateStore({ rootDir: dir }).read().state, "ARMED");
+  assert.equal(new AyasExecutionGateStore({ rootDir: dir }).read().state, "ARMED", "assert.equal(new AyasExecutionGateStore({ rootDir: dir }).read().state, \"ARMED\")");
 });
 
 console.log(`AYAS execution gate smoke: PASS (${count} scenarios)`);
