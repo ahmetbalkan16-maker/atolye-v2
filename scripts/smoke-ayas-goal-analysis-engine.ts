@@ -22,8 +22,8 @@ scenario("a goal with an unrelated scope (a domain nothing real matches) is corr
   const goalStore = createAyasGoalStore({ rootDir: tmpDir() });
   const goal = goalStore.create({ userIntent: "improve something extremely specific and unmatched", scope: "a domain nothing matches", allowedDomains: ["src/lib/this-path-does-not-exist-anywhere/"], successCriteria: [] });
   const result = analyzeAyasGoal(goal, { repoRoot: process.cwd(), researchStore: createAyasExternalResearchStore({ rootDir: tmpDir() }) });
-  assert.equal(result.matchedDiscoveryCandidates.length, 0);
-  assert.equal(result.suggestedStatus, "BLOCKED");
+  assert.equal(result.matchedDiscoveryCandidates.length, 0, "assert.equal(result.matchedDiscoveryCandidates.length, 0)");
+  assert.equal(result.suggestedStatus, "BLOCKED", "assert.equal(result.suggestedStatus, \"BLOCKED\")");
 });
 
 scenario("a goal scoped to a real, broad domain (scripts/) finds real discovery candidates from the actual repo", () => {
@@ -31,7 +31,7 @@ scenario("a goal scoped to a real, broad domain (scripts/) finds real discovery 
   const goal = goalStore.create({ userIntent: "improve test diagnostics", scope: "smoke test quality", allowedDomains: ["scripts/"], successCriteria: [] });
   const result = analyzeAyasGoal(goal, { repoRoot: process.cwd() });
   assert.ok(result.matchedDiscoveryCandidates.length > 0, "a scripts/-scoped goal must find at least one real candidate from the live discovery pipeline");
-  for (const c of result.matchedDiscoveryCandidates) assert.ok(c.exactFiles.every((f) => f.startsWith("scripts/")));
+  for (const c of result.matchedDiscoveryCandidates) assert.ok(c.exactFiles.every((f) => f.startsWith("scripts/")), "assert.ok(c.exactFiles.every((f) => f.startsWith(\"scripts/\")))");
 });
 
 scenario("excludedDomains removes a candidate even when it would otherwise match allowedDomains", () => {
@@ -46,8 +46,8 @@ scenario("every matched candidate carries its OWN real safety/value classificati
   const goal = goalStore.create({ userIntent: "x", scope: "x", allowedDomains: ["scripts/"], successCriteria: [] });
   const result = analyzeAyasGoal(goal, { repoRoot: process.cwd() });
   for (const c of result.matchedDiscoveryCandidates) {
-    assert.ok(["SAFE", "REVIEW_REQUIRED", "FORBIDDEN_AUTONOMOUS"].includes(c.safetyClassification));
-    assert.ok(["TEST_QUALITY", "PRODUCT_BEHAVIOR", "RELIABILITY_RECOVERY", "OBSERVABILITY", "PERFORMANCE"].includes(c.valueClass));
+    assert.ok(["SAFE", "REVIEW_REQUIRED", "FORBIDDEN_AUTONOMOUS"].includes(c.safetyClassification), "assert.ok([\"SAFE\", \"REVIEW_REQUIRED\", \"FORBIDDEN_AUTONOMOUS\"].includes(c.safetyClassification))");
+    assert.ok(["TEST_QUALITY", "PRODUCT_BEHAVIOR", "RELIABILITY_RECOVERY", "OBSERVABILITY", "PERFORMANCE"].includes(c.valueClass), "assert.ok([\"TEST_QUALITY\", \"PRODUCT_BEHAVIOR\", \"RELIABILITY_RECOVERY\", \"OBSERVABILITY\", \"PERFORMANCE\"].includes(c.valueClass))");
   }
 });
 
@@ -61,7 +61,7 @@ scenario("a research finding already marked already-supported is never surfaced,
   const goalStore = createAyasGoalStore({ rootDir: tmpDir() });
   const goal = goalStore.create({ userIntent: "improve subtitle generation quality", scope: "subtitles", allowedDomains: [], successCriteria: [] });
   const result = analyzeAyasGoal(goal, { repoRoot: process.cwd(), researchStore });
-  assert.equal(result.matchedResearchFindings.length, 0);
+  assert.equal(result.matchedResearchFindings.length, 0, "assert.equal(result.matchedResearchFindings.length, 0)");
 });
 
 scenario("a research finding that is missing/partially-supported AND textually relevant to the goal IS surfaced", () => {
@@ -74,7 +74,7 @@ scenario("a research finding that is missing/partially-supported AND textually r
   const goalStore = createAyasGoalStore({ rootDir: tmpDir() });
   const goal = goalStore.create({ userIntent: "improve caption timing accuracy", scope: "subtitle/caption quality", allowedDomains: [], successCriteria: [] });
   const result = analyzeAyasGoal(goal, { repoRoot: process.cwd(), researchStore });
-  assert.equal(result.matchedResearchFindings.length, 1);
+  assert.equal(result.matchedResearchFindings.length, 1, "assert.equal(result.matchedResearchFindings.length, 1)");
 });
 
 scenario("analysis is pure — it never mutates the goal store or the research store", () => {
