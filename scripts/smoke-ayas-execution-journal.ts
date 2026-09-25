@@ -35,12 +35,12 @@ async function main() {
     const journal = createAyasExecutionJournal({ rootDir: root() });
     const entry = baseEntry();
     journal.record(entry);
-    assert.deepEqual(journal.read(entry.executionId), entry);
+    assert.deepEqual(journal.read(entry.executionId), entry, "assert.deepEqual(journal.read(entry.executionId), entry)");
   });
 
   await scenario("reading an unjournaled executionId returns undefined, not an error", () => {
     const journal = createAyasExecutionJournal({ rootDir: root() });
-    assert.equal(journal.read("ayas-exec-never-happened"), undefined);
+    assert.equal(journal.read("ayas-exec-never-happened"), undefined, "assert.equal(journal.read(\"ayas-exec-never-happened\"), undefined)");
   });
 
   await scenario("each record() call is a full atomic replace — a crash mid-write cannot torn-write a phase (simulated by overwriting twice)", () => {
@@ -49,7 +49,7 @@ async function main() {
     journal.record(entry);
     const advanced = { ...entry, phase: "AUTHORIZATION_RESERVED" as const, authorizationId: "auth-1", reservationId: "res-1", updatedAt: "2026-09-15T12:01:00.000Z" };
     journal.record(advanced);
-    assert.deepEqual(journal.read(entry.executionId), advanced);
+    assert.deepEqual(journal.read(entry.executionId), advanced, "assert.deepEqual(journal.read(entry.executionId), advanced)");
   });
 
   await scenario("list() returns every journaled entry", () => {
@@ -58,8 +58,8 @@ async function main() {
     journal.record(baseEntry({ executionId: "ayas-exec-a" }));
     journal.record(baseEntry({ executionId: "ayas-exec-b", phase: "EXECUTING" }));
     const all = journal.list();
-    assert.equal(all.length, 2);
-    assert.deepEqual(new Set(all.map((e) => e.executionId)), new Set(["ayas-exec-a", "ayas-exec-b"]));
+    assert.equal(all.length, 2, "assert.equal(all.length, 2)");
+    assert.deepEqual(new Set(all.map((e) => e.executionId)), new Set(["ayas-exec-a", "ayas-exec-b"]), "assert.deepEqual(new Set(all.map((e) => e.executionId)), new Set([\"ayas-exec-a\", \"ayas-exec-b\"]))");
   });
 
   await scenario("a corrupt journal entry fails closed on read (not silently reinterpreted)", () => {
@@ -98,7 +98,7 @@ async function main() {
     const entry = baseEntry({ phase: "GATE_OPEN" });
     first.record(entry);
     const second = createAyasExecutionJournal({ rootDir: workspace });
-    assert.deepEqual(second.read(entry.executionId), entry);
+    assert.deepEqual(second.read(entry.executionId), entry, "assert.deepEqual(second.read(entry.executionId), entry)");
   });
 
   const windowCases: readonly [AyasExecutionJournalPhase, "NONE" | "A" | "B" | "C" | "D" | "E", boolean][] = [
@@ -120,9 +120,9 @@ async function main() {
   for (const [phase, expectedWindow, expectedMutationPossible] of windowCases) {
     await scenario(`classifyExecutionRecovery(${phase}) -> window ${expectedWindow}, mutationPossible ${expectedMutationPossible}`, () => {
       const classification = classifyExecutionRecovery(baseEntry({ phase }));
-      assert.equal(classification.window, expectedWindow);
-      assert.equal(classification.mutationPossible, expectedMutationPossible);
-      if (expectedMutationPossible) assert.equal(classification.recommendation, "HUMAN_REVIEW_REQUIRED");
+      assert.equal(classification.window, expectedWindow, "assert.equal(classification.window, expectedWindow)");
+      assert.equal(classification.mutationPossible, expectedMutationPossible, "assert.equal(classification.mutationPossible, expectedMutationPossible)");
+      if (expectedMutationPossible) assert.equal(classification.recommendation, "HUMAN_REVIEW_REQUIRED", "assert.equal(classification.recommendation, \"HUMAN_REVIEW_REQUIRED\")");
     });
   }
 
