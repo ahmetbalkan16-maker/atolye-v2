@@ -46,7 +46,8 @@ export type AyasEvolutionEvidenceSource = typeof AYAS_EVOLUTION_EVIDENCE_SOURCES
 export type AyasEvolutionEpistemicClass = "OBSERVED_FACT" | "INFERENCE" | "RESEARCH_CLAIM" | "OWNER_REQUEST" | "HYPOTHESIS";
 export type AyasEvolutionEvidenceTrust = "LOCAL_MEASUREMENT" | "LOCAL_OBSERVATION" | "OWNER_STATEMENT" | "UNTRUSTED_EXTERNAL" | "SELF_GENERATED";
 
-export const AYAS_EVOLUTION_CAPABILITY_CLASSES = ["TOOL", "SKILL", "MODEL", "AGENT", "STORAGE_ADAPTER", "EVALUATOR", "PIPELINE_EXTENSION", "LIBRARY", "SERVICE_INTEGRATION", "UI_SURFACE", "POLICY", "OTHER"] as const;
+/** `UNKNOWN` is explicit: an undeclared or unrecognized class is never read as the harmless `OTHER`. */
+export const AYAS_EVOLUTION_CAPABILITY_CLASSES = ["TOOL", "SKILL", "MODEL", "AGENT", "STORAGE_ADAPTER", "EVALUATOR", "PIPELINE_EXTENSION", "LIBRARY", "SERVICE_INTEGRATION", "UI_SURFACE", "POLICY", "OTHER", "UNKNOWN"] as const;
 export type AyasEvolutionCapabilityClass = typeof AYAS_EVOLUTION_CAPABILITY_CLASSES[number];
 
 export const AYAS_EVOLUTION_IO_KINDS = ["TEXT", "AUDIO", "VIDEO", "IMAGE", "STRUCTURED_DATA", "SOURCE_CODE", "PROJECT_MANIFEST", "MEDIA_METADATA", "METRIC", "DOCUMENT", "OTHER"] as const;
@@ -136,6 +137,71 @@ export const AYAS_EVOLUTION_TRANSITIONS: Readonly<Record<AyasEvolutionLifecycleS
   SUPERSEDED: [],
   RETIRED: [],
 });
+
+/**
+ * The closed vocabulary of normalization issues, each with a fixed severity.
+ * BLOCKING marks a loss that may have discarded, truncated or invalidated
+ * safety-relevant input — evidence, a safety declaration, or a descriptor
+ * value that drives authority — so judging what remains would fail open.
+ * Because the vocabulary is closed, a record can never hold more distinct
+ * issues than it has entries: persistence carries every issue and never
+ * truncates, and a carried code outside the vocabulary is itself BLOCKING.
+ */
+export const AYAS_EVOLUTION_ISSUE_SEVERITY = Object.freeze({
+  EVIDENCE_SOURCE_INVALID: "BLOCKING",
+  EVIDENCE_TRUNCATED: "BLOCKING",
+  EVIDENCE_REFERENCE_INVALID: "RECORDED",
+  EVIDENCE_REFERENCE_MISSING: "RECORDED",
+  OWNER_REQUEST_NOT_FROM_OWNER: "RECORDED",
+  BENCHMARK_EVIDENCE_INCOMPLETE: "RECORDED",
+  REPEATED_FAILURE_NEEDS_TWO_OCCURRENCES: "RECORDED",
+  CAPABILITY_CLASS_INVALID: "BLOCKING",
+  CAPABILITY_CLASS_UNDECLARED: "RECORDED",
+  SIDE_EFFECT_INVALID: "BLOCKING",
+  SIDE_EFFECTS_UNDECLARED: "RECORDED",
+  RESOURCE_KIND_INVALID: "BLOCKING",
+  RESOURCES_TRUNCATED: "BLOCKING",
+  PAID_RESOURCE_DECLARED_FREE: "RECORDED",
+  UNKNOWN_RESOURCE_COST_DECLARED: "RECORDED",
+  KNOWN_CATEGORY_UNRECOGNIZED: "RECORDED",
+  IO_KIND_INVALID: "RECORDED",
+  PREREQUISITE_INVALID: "BLOCKING",
+  PREREQUISITES_TRUNCATED: "BLOCKING",
+  CONSTRAINT_INVALID: "BLOCKING",
+  CONSTRAINT_KEY_REQUIRED: "BLOCKING",
+  CONSTRAINTS_TRUNCATED: "BLOCKING",
+  AFFECTED_MODULE_INVALID: "BLOCKING",
+  AFFECTED_MODULE_TRUNCATED: "BLOCKING",
+  AUTHORITY_CLASS_INVALID: "BLOCKING",
+  REPLACES_KEY_INVALID: "BLOCKING",
+  REPLACES_KEY_TRUNCATED: "BLOCKING",
+  RETIRES_KEY_INVALID: "BLOCKING",
+  RETIRES_KEY_TRUNCATED: "BLOCKING",
+  AFFECTED_CAPABILITY_KEY_INVALID: "RECORDED",
+  AFFECTED_CAPABILITY_KEY_TRUNCATED: "RECORDED",
+  AFFECTED_FLOW_INVALID: "RECORDED",
+  AFFECTED_FLOW_TRUNCATED: "RECORDED",
+  EVALUATION_BENCHMARK_ID_INVALID: "RECORDED",
+  REGRESSION_SUITE_INVALID: "RECORDED",
+  REGRESSION_SUITE_TRUNCATED: "RECORDED",
+  SUPERSEDED_BY_INVALID: "RECORDED",
+  SUPERSEDES_INVALID: "RECORDED",
+  SUPERSEDES_TRUNCATED: "RECORDED",
+  MIGRATES_FROM_KEY_INVALID: "RECORDED",
+  MIGRATES_FROM_KEY_TRUNCATED: "RECORDED",
+  NORMALIZATION_ISSUE_UNRECOGNIZED: "BLOCKING",
+  INSTRUCTION_SIGNAL_UNRECOGNIZED: "BLOCKING",
+} as const);
+export type AyasEvolutionNormalizationIssue = keyof typeof AYAS_EVOLUTION_ISSUE_SEVERITY;
+type Issues = AyasEvolutionNormalizationIssue[];
+
+const isNormalizationIssue = (value: unknown): value is AyasEvolutionNormalizationIssue =>
+  typeof value === "string" && Object.prototype.hasOwnProperty.call(AYAS_EVOLUTION_ISSUE_SEVERITY, value);
+
+/** Fail closed: a code outside the closed vocabulary counts as blocking. */
+export function isAyasEvolutionBlockingIssue(code: string): boolean {
+  return !isNormalizationIssue(code) || AYAS_EVOLUTION_ISSUE_SEVERITY[code] === "BLOCKING";
+}
 
 export interface AyasEvolutionBenchmarkRef {
   readonly benchmarkId: string;
@@ -235,7 +301,7 @@ export interface AyasEvolutionOpportunity {
   readonly instructionSignals: readonly AyasResearchInstructionSignal[];
   /** Hashed need tokens, as in Stage 8; the need text itself is never used as a key. */
   readonly needTokenHashes: readonly string[];
-  readonly normalizationIssues: readonly string[];
+  readonly normalizationIssues: readonly AyasEvolutionNormalizationIssue[];
   readonly authority: "NONE";
 }
 
@@ -261,7 +327,10 @@ export interface AyasEvolutionOpportunityInput {
   readonly requiredAuthority?: unknown;
   readonly relations?: Record<string, unknown>;
   readonly lifecycle?: Record<string, unknown>;
-  /** Carried across serialization so a round trip can only ADD issues and signals, never clear them. */
+  /**
+   * Carried across serialization so a round trip can only ADD issues and signals, never clear them.
+   * Both are closed vocabularies: an over-long list is refused, an unrecognized entry becomes BLOCKING.
+   */
   readonly normalizationIssues?: unknown;
   readonly instructionSignals?: unknown;
 }
@@ -303,7 +372,7 @@ function canonicalIso(value: unknown): string | null {
 }
 
 /** Over-limit lists are never silently truncated: the loss is recorded, and safety-relevant losses block qualification. */
-function bounded<T>(value: readonly T[], max: number, issues: string[], issue: string): readonly T[] {
+function bounded<T>(value: readonly T[], max: number, issues: Issues, issue: AyasEvolutionNormalizationIssue): readonly T[] {
   if (value.length > max) issues.push(issue);
   return value.slice(0, max);
 }
@@ -316,19 +385,27 @@ function textList(value: unknown, maxItems: number, maxChars: number): string[] 
   return Array.isArray(value) ? value.map((item) => text(item, maxChars)).filter(Boolean).slice(0, maxItems) : [];
 }
 
-function patternList(value: unknown, pattern: RegExp, maxItems: number, issues: string[], issue: string): string[] {
+/** A carried list longer than its closed vocabulary cannot be one this module produced: refuse it, never truncate it. */
+function carriedList(value: unknown, max: number, field: string): readonly unknown[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_INVALID", `carried ${field} must be an array`);
+  if (value.length > max) throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_LIMIT", `carried ${field} exceed their closed vocabulary; they are never truncated`);
+  return value;
+}
+
+function patternList(value: unknown, pattern: RegExp, maxItems: number, issues: Issues, invalid: AyasEvolutionNormalizationIssue, truncated: AyasEvolutionNormalizationIssue): string[] {
   if (!Array.isArray(value)) return [];
   const out: string[] = [];
   for (const item of value) {
     if (typeof item === "string" && pattern.test(item) && !item.includes("..")) out.push(item);
-    else issues.push(issue);
+    else issues.push(invalid);
   }
   const unique = [...new Set(out)].sort();
-  if (unique.length > maxItems) issues.push(`${issue.replace(/_INVALID$/, "")}_TRUNCATED`);
+  if (unique.length > maxItems) issues.push(truncated);
   return unique.slice(0, maxItems);
 }
 
-function enumList<T extends string>(values: readonly T[], value: unknown, maxItems: number, issues: string[], issue: string): T[] {
+function enumList<T extends string>(values: readonly T[], value: unknown, maxItems: number, issues: Issues, issue: AyasEvolutionNormalizationIssue): T[] {
   if (!Array.isArray(value)) return [];
   const out = new Set<T>();
   for (const item of value) {
@@ -365,7 +442,7 @@ const LOCAL_ORIGINS: ReadonlySet<AyasEvolutionOrigin> = new Set(["OWNER", "LOCAL
  * Records produced by the research loop or by AYAS reflection cannot turn
  * their own statements into facts; only a complete local measurement can.
  */
-function deriveEvidenceClass(source: AyasEvolutionEvidenceSource, origin: AyasEvolutionOrigin, reference: string | null, benchmark: AyasEvolutionBenchmarkRef | null, occurrences: number | null, issues: string[]): { epistemicClass: AyasEvolutionEpistemicClass; trust: AyasEvolutionEvidenceTrust } {
+function deriveEvidenceClass(source: AyasEvolutionEvidenceSource, origin: AyasEvolutionOrigin, reference: string | null, benchmark: AyasEvolutionBenchmarkRef | null, occurrences: number | null, issues: Issues):{ epistemicClass: AyasEvolutionEpistemicClass; trust: AyasEvolutionEvidenceTrust } {
   if (source === "RESEARCH_RESULT") return { epistemicClass: "RESEARCH_CLAIM", trust: "UNTRUSTED_EXTERNAL" };
   if (source === "AYAS_SUGGESTION") return { epistemicClass: "HYPOTHESIS", trust: "SELF_GENERATED" };
   if (source === "OWNER_REQUEST") {
@@ -387,7 +464,8 @@ function deriveEvidenceClass(source: AyasEvolutionEvidenceSource, origin: AyasEv
   return { epistemicClass: "INFERENCE", trust: LOCAL_ORIGINS.has(origin) ? "LOCAL_OBSERVATION" : "SELF_GENERATED" };
 }
 
-export function normalizeAyasEvolutionEvidence(input: AyasEvolutionEvidenceInput, origin: AyasEvolutionOrigin, issues: string[]): AyasEvolutionEvidence | null {
+/** An unrecognized source returns `null` and records the BLOCKING `EVIDENCE_SOURCE_INVALID`: dropped evidence is never silent. */
+export function normalizeAyasEvolutionEvidence(input: AyasEvolutionEvidenceInput, origin: AyasEvolutionOrigin, issues: Issues): AyasEvolutionEvidence | null {
   if (!oneOf(AYAS_EVOLUTION_EVIDENCE_SOURCES, input?.source)) {
     issues.push("EVIDENCE_SOURCE_INVALID");
     return null;
@@ -404,7 +482,7 @@ export function normalizeAyasEvolutionEvidence(input: AyasEvolutionEvidenceInput
   return Object.freeze({ evidenceId, source, epistemicClass, trust, reference, observedAt: canonicalIso(input.observedAt), statement, benchmark, occurrences, researchFindingId });
 }
 
-function normalizeIo(value: unknown, issues: string[]): AyasEvolutionIo[] {
+function normalizeIo(value: unknown, issues: Issues): AyasEvolutionIo[] {
   if (!Array.isArray(value)) return [];
   const out: AyasEvolutionIo[] = [];
   for (const item of value.slice(0, AYAS_EVOLUTION_LIMITS.io)) {
@@ -415,14 +493,22 @@ function normalizeIo(value: unknown, issues: string[]): AyasEvolutionIo[] {
   return out;
 }
 
-/** Phase 13 — cost is declared per resource; absence is `unknown-cost`, and a paid kind can never be declared free. */
-function normalizeResources(value: unknown, issues: string[]): AyasEvolutionResource[] {
+/**
+ * Phase 13 — cost is declared per resource; absence is `unknown-cost`, a paid
+ * kind can never be declared free, and an UNKNOWN kind keeps an unknown cost
+ * whatever the producer claims: no free or paid assumption without evidence.
+ */
+function normalizeResources(value: unknown, issues: Issues): AyasEvolutionResource[] {
   if (!Array.isArray(value)) return [];
   const out: AyasEvolutionResource[] = [];
   for (const item of bounded(value, AYAS_EVOLUTION_LIMITS.resources, issues, "RESOURCES_TRUNCATED")) {
     const v = (item ?? {}) as Record<string, unknown>;
     if (!oneOf(AYAS_EVOLUTION_RESOURCE_KINDS, v.kind)) { issues.push("RESOURCE_KIND_INVALID"); out.push({ kind: "UNKNOWN", costClass: "unknown-cost", key: null }); continue; }
     let costClass = parseAyasCostClass(v.costClass);
+    if (v.kind === "UNKNOWN" && costClass !== "unknown-cost") {
+      issues.push("UNKNOWN_RESOURCE_COST_DECLARED");
+      costClass = "unknown-cost";
+    }
     if ((v.kind === "PAID_MODEL" || v.kind === "PAID_API") && (costClass === "local-zero-cost" || costClass === "free-public" || costClass === "unknown-cost")) {
       if (costClass !== "unknown-cost") issues.push("PAID_RESOURCE_DECLARED_FREE");
       costClass = "paid";
@@ -432,7 +518,18 @@ function normalizeResources(value: unknown, issues: string[]): AyasEvolutionReso
   return out;
 }
 
-function normalizeDescriptor(value: Record<string, unknown> | undefined, issues: string[]): AyasEvolutionCapabilityDescriptor {
+/**
+ * An unrecognized class, side effect or resource kind is recorded as the
+ * explicit UNKNOWN value (which derives the union of every requirement in its
+ * vocabulary) AND as a BLOCKING issue — never as a harmless substitute.
+ */
+function normalizeCapabilityClass(value: unknown, issues: Issues): AyasEvolutionCapabilityClass {
+  if (oneOf(AYAS_EVOLUTION_CAPABILITY_CLASSES, value)) return value;
+  issues.push(value === undefined || value === null ? "CAPABILITY_CLASS_UNDECLARED" : "CAPABILITY_CLASS_INVALID");
+  return "UNKNOWN";
+}
+
+function normalizeDescriptor(value: Record<string, unknown> | undefined, issues: Issues): AyasEvolutionCapabilityDescriptor {
   const v = value ?? {};
   if (typeof v.key !== "string" || !MACHINE_KEY.test(v.key)) throw new AyasEvolutionError("AYAS_EVOLUTION_INVALID_TARGET", "target capability key is not a bounded machine key");
   if (typeof v.domain !== "string" || !DOMAIN_KEY.test(v.domain)) throw new AyasEvolutionError("AYAS_EVOLUTION_INVALID_TARGET", "target capability domain is not a bounded domain key");
@@ -449,7 +546,7 @@ function normalizeDescriptor(value: Record<string, unknown> | undefined, issues:
     key: v.key,
     domain: v.domain,
     knownCategory,
-    capabilityClass: oneOf(AYAS_EVOLUTION_CAPABILITY_CLASSES, v.capabilityClass) ? v.capabilityClass : "OTHER",
+    capabilityClass: normalizeCapabilityClass(v.capabilityClass, issues),
     inputs: normalizeIo(v.inputs, issues),
     outputs: normalizeIo(v.outputs, issues),
     sideEffects: effective,
@@ -458,7 +555,7 @@ function normalizeDescriptor(value: Record<string, unknown> | undefined, issues:
   });
 }
 
-function normalizePrerequisites(value: unknown, issues: string[]): AyasEvolutionPrerequisite[] {
+function normalizePrerequisites(value: unknown, issues: Issues): AyasEvolutionPrerequisite[] {
   if (!Array.isArray(value)) return [];
   const out = new Map<string, AyasEvolutionPrerequisite>();
   for (const item of bounded(value, AYAS_EVOLUTION_LIMITS.prerequisites, issues, "PREREQUISITES_TRUNCATED")) {
@@ -473,7 +570,7 @@ function normalizePrerequisites(value: unknown, issues: string[]): AyasEvolution
   return [...out.values()].sort((a, b) => `${a.kind}:${a.key}`.localeCompare(`${b.kind}:${b.key}`));
 }
 
-function normalizeConstraints(value: unknown, issues: string[]): AyasEvolutionConstraint[] {
+function normalizeConstraints(value: unknown, issues: Issues): AyasEvolutionConstraint[] {
   if (!Array.isArray(value)) return [];
   const out = new Map<string, AyasEvolutionConstraint>();
   for (const item of bounded(value, AYAS_EVOLUTION_LIMITS.constraints, issues, "CONSTRAINTS_TRUNCATED")) {
@@ -491,7 +588,7 @@ function normalizeRisk(value: Record<string, unknown> | undefined): AyasEvolutio
   return Object.freeze(Object.fromEntries(AYAS_EVOLUTION_RISK_DIMENSIONS.map((dimension) => [dimension, oneOf(AYAS_EVOLUTION_RISK_LEVELS, v[dimension]) ? v[dimension] : "UNKNOWN"])) as Record<AyasEvolutionRiskDimension, AyasEvolutionRiskLevel>);
 }
 
-function normalizeEvaluation(value: Record<string, unknown> | undefined, issues: string[]): AyasEvolutionEvaluationPlan {
+function normalizeEvaluation(value: Record<string, unknown> | undefined, issues: Issues): AyasEvolutionEvaluationPlan {
   const v = value ?? {};
   const benchmarkId = typeof v.benchmarkId === "string" && BENCHMARK_ID.test(v.benchmarkId) ? v.benchmarkId : null;
   if (v.benchmarkId !== undefined && v.benchmarkId !== null && benchmarkId === null) issues.push("EVALUATION_BENCHMARK_ID_INVALID");
@@ -500,40 +597,92 @@ function normalizeEvaluation(value: Record<string, unknown> | undefined, issues:
     benchmarkId,
     acceptanceCriteria: textList(v.acceptanceCriteria, AYAS_EVOLUTION_LIMITS.criteria, AYAS_EVOLUTION_LIMITS.shortText),
     heldOutCriteria: textList(v.heldOutCriteria, AYAS_EVOLUTION_LIMITS.criteria, AYAS_EVOLUTION_LIMITS.shortText),
-    regressionSuites: patternList(v.regressionSuites, REGRESSION_SUITE, AYAS_EVOLUTION_LIMITS.suites, issues, "REGRESSION_SUITE_INVALID"),
+    regressionSuites: patternList(v.regressionSuites, REGRESSION_SUITE, AYAS_EVOLUTION_LIMITS.suites, issues, "REGRESSION_SUITE_INVALID", "REGRESSION_SUITE_TRUNCATED"),
   });
 }
 
-function normalizeRelations(value: Record<string, unknown> | undefined, issues: string[]): AyasEvolutionRelations {
+function normalizeRelations(value: Record<string, unknown> | undefined, issues: Issues): AyasEvolutionRelations {
   const v = value ?? {};
   const supersededBy = typeof v.supersededBy === "string" && OPPORTUNITY_ID.test(v.supersededBy) ? v.supersededBy : null;
   if (v.supersededBy !== undefined && v.supersededBy !== null && supersededBy === null) issues.push("SUPERSEDED_BY_INVALID");
   return Object.freeze({
-    supersedes: patternList(v.supersedes, OPPORTUNITY_ID, AYAS_EVOLUTION_LIMITS.relations, issues, "SUPERSEDES_INVALID"),
+    supersedes: patternList(v.supersedes, OPPORTUNITY_ID, AYAS_EVOLUTION_LIMITS.relations, issues, "SUPERSEDES_INVALID", "SUPERSEDES_TRUNCATED"),
     supersededBy,
-    replacesCapabilities: patternList(v.replacesCapabilities, MACHINE_KEY, AYAS_EVOLUTION_LIMITS.relations, issues, "REPLACES_KEY_INVALID"),
-    retiresCapabilities: patternList(v.retiresCapabilities, MACHINE_KEY, AYAS_EVOLUTION_LIMITS.relations, issues, "RETIRES_KEY_INVALID"),
-    migratesFrom: patternList(v.migratesFrom, MACHINE_KEY, AYAS_EVOLUTION_LIMITS.relations, issues, "MIGRATES_FROM_KEY_INVALID"),
+    replacesCapabilities: patternList(v.replacesCapabilities, MACHINE_KEY, AYAS_EVOLUTION_LIMITS.relations, issues, "REPLACES_KEY_INVALID", "REPLACES_KEY_TRUNCATED"),
+    retiresCapabilities: patternList(v.retiresCapabilities, MACHINE_KEY, AYAS_EVOLUTION_LIMITS.relations, issues, "RETIRES_KEY_INVALID", "RETIRES_KEY_TRUNCATED"),
+    migratesFrom: patternList(v.migratesFrom, MACHINE_KEY, AYAS_EVOLUTION_LIMITS.relations, issues, "MIGRATES_FROM_KEY_INVALID", "MIGRATES_FROM_KEY_TRUNCATED"),
   });
 }
 
+/** Every field of a persisted history entry must be well-formed; a malformed entry is refused, never coerced. */
 function normalizeHistory(value: unknown): AyasEvolutionTransitionRecord[] {
-  if (!Array.isArray(value)) return [];
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_INVALID", "lifecycle history must be an array");
   if (value.length > AYAS_EVOLUTION_LIMITS.history) throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_LIMIT", "lifecycle history exceeds its limit; history is never truncated");
   const out: AyasEvolutionTransitionRecord[] = [];
   for (const item of value) {
     const v = (item ?? {}) as Record<string, unknown>;
     const at = canonicalIso(v.at);
-    if (!oneOf(AYAS_EVOLUTION_LIFECYCLE_STATES, v.to) || at === null || typeof v.reasonCode !== "string" || !REASON_CODE.test(v.reasonCode)) {
+    const fromValid = v.from === null || v.from === undefined || oneOf(AYAS_EVOLUTION_LIFECYCLE_STATES, v.from);
+    const referenceValid = v.reference === null || v.reference === undefined || (typeof v.reference === "string" && REFERENCE.test(v.reference));
+    if (!oneOf(AYAS_EVOLUTION_LIFECYCLE_STATES, v.to) || !fromValid || at === null || typeof v.reasonCode !== "string" || !REASON_CODE.test(v.reasonCode)
+      || (v.actor !== "OWNER" && v.actor !== "AYAS") || !referenceValid) {
       throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_INVALID", "lifecycle history entry is malformed");
     }
     out.push({
       from: oneOf(AYAS_EVOLUTION_LIFECYCLE_STATES, v.from) ? v.from : null,
-      to: v.to, at, actor: v.actor === "OWNER" ? "OWNER" : "AYAS", reasonCode: v.reasonCode,
-      reference: typeof v.reference === "string" && REFERENCE.test(v.reference) ? v.reference : null,
+      to: v.to, at, actor: v.actor, reasonCode: v.reasonCode,
+      reference: typeof v.reference === "string" ? v.reference : null,
     });
   }
   return out;
+}
+
+/** Hand-off must point into the existing Stage 8 path: the exact hypothesis for an experiment, an inbox proposal for a design review. */
+export const AYAS_EVOLUTION_HANDOFF_HYPOTHESIS_REFERENCE = /^hypothesis:ayas-hypothesis-[0-9a-f]{32}$/;
+export const AYAS_EVOLUTION_HANDOFF_PROPOSAL_REFERENCE = /^proposal:ayas-[A-Za-z0-9-]{8,120}$/;
+
+function handoffReferenceValid(from: AyasEvolutionLifecycleState | null, reference: string | null): boolean {
+  if (reference === null) return false;
+  if (from === "EXPERIMENT_READY") return AYAS_EVOLUTION_HANDOFF_HYPOTHESIS_REFERENCE.test(reference);
+  return from === "PROPOSAL_READY" && AYAS_EVOLUTION_HANDOFF_PROPOSAL_REFERENCE.test(reference);
+}
+
+const isReopen = (entry: Pick<AyasEvolutionTransitionRecord, "from" | "to">) => entry.from !== null && entry.from !== "OBSERVED" && entry.to === "INVESTIGATING";
+
+/**
+ * The lifecycle invariants every record must satisfy, whether it was built
+ * by transitions or loaded from storage: one initial OBSERVED entry, a
+ * chained history in which every step is a legal transition, non-decreasing
+ * timestamps from `createdAt`, a reopen count equal to the reopens actually
+ * recorded (and within its bound), hand-offs and supersessions carrying their
+ * required references, and a current state equal to the last entry. There
+ * is no repair: an invalid persisted lifecycle is refused.
+ */
+export function assertAyasEvolutionLifecycle(opportunity: Pick<AyasEvolutionOpportunity, "createdAt" | "lifecycle" | "relations">): void {
+  const fail = (reason: string): never => { throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_INVALID", `lifecycle history is invalid: ${reason}`); };
+  const { state, history, reopenCount, deferredUntil } = opportunity.lifecycle;
+  if (!oneOf(AYAS_EVOLUTION_LIFECYCLE_STATES, state)) fail("unknown state");
+  if (history.length === 0 || history.length > AYAS_EVOLUTION_LIMITS.history) fail("history is empty or over its limit");
+  if (history.some((entry) => !Number.isFinite(Date.parse(entry.at)) || !REASON_CODE.test(entry.reasonCode) || (entry.actor !== "OWNER" && entry.actor !== "AYAS"))) fail("an entry is malformed");
+  const first = history[0]!;
+  if (first.from !== null || first.to !== "OBSERVED") fail("it must begin with the initial OBSERVED entry");
+  if (Date.parse(first.at) < Date.parse(opportunity.createdAt)) fail("an entry precedes the record's creation");
+  let reopens = 0;
+  for (let i = 1; i < history.length; i += 1) {
+    const previous = history[i - 1]!;
+    const entry = history[i]!;
+    if (entry.from !== previous.to) fail("entries do not chain");
+    if (entry.from === null || !AYAS_EVOLUTION_TRANSITIONS[entry.from].includes(entry.to)) fail(`${String(entry.from)} -> ${entry.to} is not a legal transition`);
+    if (Date.parse(entry.at) < Date.parse(previous.at)) fail("timestamps go backwards");
+    if (isReopen(entry)) reopens += 1;
+    if (entry.to === "HANDED_OFF" && !handoffReferenceValid(entry.from, entry.reference)) fail("a hand-off lacks its Stage 8 reference");
+    if (entry.to === "SUPERSEDED" && (opportunity.relations.supersededBy === null || entry.reference !== `evolution:${opportunity.relations.supersededBy}`)) fail("a supersession does not name its successor");
+  }
+  if (reopens > AYAS_EVOLUTION_LIMITS.reopen) fail("reopen limit exceeded");
+  if (reopenCount !== reopens) fail("reopen count does not match the recorded reopens");
+  if (history[history.length - 1]!.to !== state) fail("state does not match its history");
+  if (deferredUntil !== null && state !== "DEFERRED") fail("only a DEFERRED record carries a deferral date");
 }
 
 /** Deterministic identity: the same producer, target and evidence always yield the same id. */
@@ -551,7 +700,7 @@ export function normalizeAyasEvolutionOpportunity(input: AyasEvolutionOpportunit
   if (input?.schemaVersion !== undefined && input.schemaVersion !== AYAS_EVOLUTION_SCHEMA_VERSION) {
     throw new AyasEvolutionError("AYAS_EVOLUTION_SCHEMA_MISMATCH", "unsupported evolution opportunity schema version");
   }
-  const issues: string[] = [];
+  const issues: Issues = [];
   const createdAt = canonicalIso(input?.createdAt);
   if (createdAt === null) throw new AyasEvolutionError("AYAS_EVOLUTION_INVALID_TIME", "createdAt is not a valid timestamp");
   const origin = requireEnum(AYAS_EVOLUTION_ORIGINS, input.origin, "origin");
@@ -572,13 +721,22 @@ export function normalizeAyasEvolutionOpportunity(input: AyasEvolutionOpportunit
     rawTexts.push({ value: item.statement, trusted: normalized.trust === "LOCAL_OBSERVATION" || normalized.trust === "LOCAL_MEASUREMENT" || normalized.trust === "OWNER_STATEMENT" });
     if (!evidence.some((prior) => prior.evidenceId === normalized.evidenceId)) evidence.push(normalized);
   }
+  // Carried state from a prior normalization may only add. Both vocabularies are closed, so a record
+  // this module produced never carries more entries than the vocabulary has; a longer list is refused
+  // rather than truncated, and an unrecognized entry becomes a BLOCKING issue rather than vanishing.
+  const priorSignals: AyasResearchInstructionSignal[] = [];
+  for (const signal of carriedList(input.instructionSignals, INSTRUCTION_SIGNALS.length, "instruction signals")) {
+    if (oneOf(INSTRUCTION_SIGNALS, signal)) priorSignals.push(signal);
+    else issues.push("INSTRUCTION_SIGNAL_UNRECOGNIZED");
+  }
+  for (const issue of carriedList(input.normalizationIssues, Object.keys(AYAS_EVOLUTION_ISSUE_SEVERITY).length, "normalization issues")) {
+    issues.push(isNormalizationIssue(issue) ? issue : "NORMALIZATION_ISSUE_UNRECOGNIZED");
+  }
   // Local text may legitimately name a module; every directive signal still applies to it.
-  const priorSignals = Array.isArray(input.instructionSignals) ? input.instructionSignals.filter((signal): signal is AyasResearchInstructionSignal => oneOf(INSTRUCTION_SIGNALS, signal)) : [];
   const instructionSignals = [...new Set([...priorSignals, ...rawTexts.flatMap(({ value, trusted }) => {
     const signals = detectAyasResearchInstructionSignals(typeof value === "string" ? value : "");
     return trusted ? signals.filter((signal) => signal !== "PATH_REFERENCE") : signals;
   })])].sort();
-  if (Array.isArray(input.normalizationIssues)) for (const issue of input.normalizationIssues.slice(0, 64)) if (typeof issue === "string" && REASON_CODE.test(issue)) issues.push(issue);
 
   const summary = text(input.need?.summary, AYAS_EVOLUTION_LIMITS.longText);
   const opportunityId = input.opportunityId === undefined
@@ -588,10 +746,23 @@ export function normalizeAyasEvolutionOpportunity(input: AyasEvolutionOpportunit
 
   const lifecycleInput = input.lifecycle ?? {};
   const history = normalizeHistory(lifecycleInput.history);
+  if (lifecycleInput.state !== undefined && !oneOf(AYAS_EVOLUTION_LIFECYCLE_STATES, lifecycleInput.state)) throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_INVALID", "lifecycle state is not a recognized value");
   const state = oneOf(AYAS_EVOLUTION_LIFECYCLE_STATES, lifecycleInput.state) ? lifecycleInput.state : "OBSERVED";
   if (history.length > 0 && history[history.length - 1]!.to !== state) throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_INVALID", "lifecycle state does not match its history");
   if (history.length === 0 && state !== "OBSERVED") throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_INVALID", "a non-initial lifecycle state requires history");
-  const reopenCount = typeof lifecycleInput.reopenCount === "number" && Number.isSafeInteger(lifecycleInput.reopenCount) && lifecycleInput.reopenCount >= 0 ? Math.min(lifecycleInput.reopenCount, AYAS_EVOLUTION_LIMITS.reopen) : 0;
+  // An absent count is derived from the history; a present one must be exact — never clamped or reset.
+  const reopenCount = lifecycleInput.reopenCount === undefined ? history.filter(isReopen).length : lifecycleInput.reopenCount;
+  if (typeof reopenCount !== "number" || !Number.isSafeInteger(reopenCount) || reopenCount < 0) throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_INVALID", "reopen count is malformed");
+  const deferredUntil = lifecycleInput.deferredUntil === undefined || lifecycleInput.deferredUntil === null ? null : canonicalIso(lifecycleInput.deferredUntil);
+  if (deferredUntil === null && lifecycleInput.deferredUntil !== undefined && lifecycleInput.deferredUntil !== null) throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_INVALID", "deferral date is malformed");
+  const relations = normalizeRelations(input.relations, issues);
+  const lifecycle: AyasEvolutionLifecycle = Object.freeze({
+    state,
+    history: Object.freeze(history.length > 0 ? history : [{ from: null, to: "OBSERVED" as const, at: createdAt, actor: "AYAS" as const, reasonCode: "RECORDED", reference: null }]),
+    reopenCount,
+    deferredUntil,
+  });
+  assertAyasEvolutionLifecycle({ createdAt, lifecycle, relations });
 
   return Object.freeze({
     schemaVersion: AYAS_EVOLUTION_SCHEMA_VERSION,
@@ -601,7 +772,7 @@ export function normalizeAyasEvolutionOpportunity(input: AyasEvolutionOpportunit
     kind,
     need: Object.freeze({
       summary,
-      affectedCapabilityKeys: patternList(input.need?.affectedCapabilityKeys, MACHINE_KEY, AYAS_EVOLUTION_LIMITS.relations, issues, "AFFECTED_CAPABILITY_KEY_INVALID"),
+      affectedCapabilityKeys: patternList(input.need?.affectedCapabilityKeys, MACHINE_KEY, AYAS_EVOLUTION_LIMITS.relations, issues, "AFFECTED_CAPABILITY_KEY_INVALID", "AFFECTED_CAPABILITY_KEY_TRUNCATED"),
       consequences: textList(input.need?.consequences, AYAS_EVOLUTION_LIMITS.consequences, AYAS_EVOLUTION_LIMITS.shortText),
     }),
     evidence: Object.freeze(evidence),
@@ -613,20 +784,15 @@ export function normalizeAyasEvolutionOpportunity(input: AyasEvolutionOpportunit
     prerequisites: Object.freeze(normalizePrerequisites(input.prerequisites, issues)),
     constraints: Object.freeze(normalizeConstraints(input.constraints, issues)),
     impact: Object.freeze({
-      affectedModules: patternList(input.impact?.affectedModules, MODULE_PATH, AYAS_EVOLUTION_LIMITS.modules, issues, "AFFECTED_MODULE_INVALID"),
-      affectedFlows: patternList(input.impact?.affectedFlows, MACHINE_KEY, AYAS_EVOLUTION_LIMITS.flows, issues, "AFFECTED_FLOW_INVALID"),
+      affectedModules: patternList(input.impact?.affectedModules, MODULE_PATH, AYAS_EVOLUTION_LIMITS.modules, issues, "AFFECTED_MODULE_INVALID", "AFFECTED_MODULE_TRUNCATED"),
+      affectedFlows: patternList(input.impact?.affectedFlows, MACHINE_KEY, AYAS_EVOLUTION_LIMITS.flows, issues, "AFFECTED_FLOW_INVALID", "AFFECTED_FLOW_TRUNCATED"),
       compatibility: oneOf(AYAS_EVOLUTION_COMPATIBILITY, input.impact?.compatibility) ? input.impact.compatibility : "UNKNOWN",
     }),
     declaredRisk: normalizeRisk(input.risk),
     evaluation: normalizeEvaluation(input.evaluation, issues),
     declaredAuthority: enumList(AYAS_EVOLUTION_AUTHORITY_CLASSES, input.requiredAuthority, AYAS_EVOLUTION_AUTHORITY_CLASSES.length, issues, "AUTHORITY_CLASS_INVALID"),
-    relations: normalizeRelations(input.relations, issues),
-    lifecycle: Object.freeze({
-      state,
-      history: Object.freeze(history.length > 0 ? history : [{ from: null, to: "OBSERVED" as const, at: createdAt, actor: "AYAS" as const, reasonCode: "RECORDED", reference: null }]),
-      reopenCount,
-      deferredUntil: canonicalIso(lifecycleInput.deferredUntil),
-    }),
+    relations,
+    lifecycle,
     instructionSignals,
     needTokenHashes: ayasResearchClaimTokenHashes(`${summary} ${text(input.target?.intendedOutcome, AYAS_EVOLUTION_LIMITS.longText)}`),
     normalizationIssues: Object.freeze([...new Set(issues)].sort()),
@@ -642,7 +808,9 @@ export function addAyasEvolutionEvidence(opportunity: AyasEvolutionOpportunity, 
   if (opportunity.evidence.length >= AYAS_EVOLUTION_LIMITS.evidence) throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_LIMIT", "evidence limit reached");
   const issues = [...opportunity.normalizationIssues];
   const evidence = normalizeAyasEvolutionEvidence(input, opportunity.origin, issues);
-  if (!evidence || opportunity.evidence.some((prior) => prior.evidenceId === evidence.evidenceId)) return opportunity;
+  // A refused evidence item is recorded as a BLOCKING issue on the record, never dropped silently.
+  if (!evidence) return Object.freeze({ ...opportunity, normalizationIssues: Object.freeze([...new Set(issues)].sort()) });
+  if (opportunity.evidence.some((prior) => prior.evidenceId === evidence.evidenceId)) return opportunity;
   const trusted = evidence.trust === "LOCAL_OBSERVATION" || evidence.trust === "LOCAL_MEASUREMENT" || evidence.trust === "OWNER_STATEMENT";
   const signals = detectAyasResearchInstructionSignals(typeof input.statement === "string" ? input.statement : "").filter((signal) => !trusted || signal !== "PATH_REFERENCE");
   return Object.freeze({
@@ -688,6 +856,7 @@ export function applyAyasEvolutionTransition(opportunity: AyasEvolutionOpportuni
   }
   const reference = request.reference === undefined ? null : REFERENCE.test(request.reference) ? request.reference : undefined;
   if (reference === undefined) throw new AyasEvolutionError("AYAS_EVOLUTION_TRANSITION_REFUSED", "transition reference is malformed");
+  if (request.to === "HANDED_OFF" && !handoffReferenceValid(from, reference)) throw new AyasEvolutionError("AYAS_EVOLUTION_TRANSITION_REFUSED", "hand-off reference must point into the existing Stage 8 path");
   return Object.freeze({
     ...opportunity,
     lifecycle: Object.freeze({
@@ -712,6 +881,8 @@ function assertRegisterIntegrity(opportunities: readonly AyasEvolutionOpportunit
     byId.set(opportunity.opportunityId, opportunity);
   }
   for (const opportunity of opportunities) {
+    // Every register — built, updated or parsed — holds only lifecycles that satisfy the same invariants.
+    assertAyasEvolutionLifecycle(opportunity);
     const next = opportunity.relations.supersededBy;
     if ((opportunity.lifecycle.state === "SUPERSEDED") !== (next !== null)) throw new AyasEvolutionError("AYAS_EVOLUTION_SUPERSESSION_INVALID", "SUPERSEDED state and supersededBy must agree");
     if (next !== null && !byId.get(next)?.relations.supersedes.includes(opportunity.opportunityId)) throw new AyasEvolutionError("AYAS_EVOLUTION_SUPERSESSION_INVALID", "supersession link is dangling or one-sided");

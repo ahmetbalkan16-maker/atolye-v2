@@ -10,10 +10,11 @@ import { collectAyasChangeAreas, type AyasChangeArea } from "../developer/AyasDe
 import { evaluateAyasZeroCost, type AyasCostClass, type AyasCostDecision } from "../policy/AyasZeroCostPolicy";
 import type { AyasCapability } from "../routing/AyasAgenticRouting";
 import {
-  AYAS_EVOLUTION_AUTHORITY_CLASSES, AYAS_EVOLUTION_AUTHORITY_PATHS, AYAS_EVOLUTION_TERMINAL_STATES,
-  AyasEvolutionError, applyAyasEvolutionTransition, updateAyasEvolutionOpportunity,
-  type AyasEvolutionAuthorityClass, type AyasEvolutionOpportunity, type AyasEvolutionPrerequisite, type AyasEvolutionRegister,
-  type AyasEvolutionRisk, type AyasEvolutionRiskDimension, type AyasEvolutionRiskLevel, type AyasEvolutionTransitionRequest,
+  AYAS_EVOLUTION_AUTHORITY_CLASSES, AYAS_EVOLUTION_AUTHORITY_PATHS, AYAS_EVOLUTION_HANDOFF_PROPOSAL_REFERENCE, AYAS_EVOLUTION_TERMINAL_STATES,
+  AyasEvolutionError, applyAyasEvolutionTransition, isAyasEvolutionBlockingIssue, updateAyasEvolutionOpportunity,
+  type AyasEvolutionAuthorityClass, type AyasEvolutionCapabilityClass, type AyasEvolutionOpportunity, type AyasEvolutionPrerequisite, type AyasEvolutionRegister,
+  type AyasEvolutionResourceKind, type AyasEvolutionRisk, type AyasEvolutionRiskDimension, type AyasEvolutionRiskLevel, type AyasEvolutionSideEffect,
+  type AyasEvolutionTransitionRequest,
 } from "./AyasEvolutionOpportunity";
 
 /**
@@ -296,7 +297,6 @@ function summarizeEvidence(opportunity: AyasEvolutionOpportunity, env: AyasEvolu
 
 // ---------------------------------------------------------------- risk, cost, authority
 
-const UNSAFE_NORMALIZATION = new Set(["PREREQUISITE_INVALID", "PREREQUISITES_TRUNCATED", "CONSTRAINT_INVALID", "CONSTRAINT_KEY_REQUIRED", "CONSTRAINTS_TRUNCATED", "AFFECTED_MODULE_INVALID", "AFFECTED_MODULE_TRUNCATED", "RESOURCES_TRUNCATED", "AUTHORITY_CLASS_INVALID"]);
 const POLICY_CONFLICTS = new Set(["CONFLICTS_WITH_APPROVAL_POLICY", "CONFLICTS_WITH_EXECUTION_POLICY", "CONFLICTS_WITH_SECURITY_POLICY"]);
 const MIGRATION_CONSTRAINTS = new Set(["REQUIRES_STORAGE_MIGRATION", "INCOMPATIBLE_WITH_STORAGE_SCHEMA", "BREAKS_BACKWARD_COMPATIBILITY"]);
 const SENSITIVE_AREAS: ReadonlySet<AyasChangeArea> = new Set(["authority", "execution-gate", "security", "secret"]);
@@ -321,6 +321,8 @@ function deriveRisk(opportunity: AyasEvolutionOpportunity, areas: readonly AyasC
   const lift = (dimension: AyasEvolutionRiskDimension, floor: AyasEvolutionRiskLevel) => { risk[dimension] = raise(risk[dimension], floor); };
   const effects = new Set(opportunity.target.capability.sideEffects);
   if (effects.has("UNKNOWN")) for (const dimension of ["security", "execution", "dataMutation", "externalDependency"] as const) lift(dimension, "UNKNOWN");
+  if (opportunity.target.capability.capabilityClass === "UNKNOWN") lift("security", "UNKNOWN");
+  if (opportunity.target.capability.resources.some((resource) => resource.kind === "UNKNOWN")) lift("externalDependency", "UNKNOWN");
   if (effects.has("WRITES_SOURCE") || effects.has("SPAWNS_PROCESS")) { lift("execution", "MEDIUM"); lift("security", "MEDIUM"); }
   if (effects.has("INSTALLS_DEPENDENCY")) { lift("externalDependency", "HIGH"); lift("security", "HIGH"); }
   if (effects.has("NETWORK_READ")) { lift("externalDependency", "MEDIUM"); lift("privacy", "MEDIUM"); }
@@ -345,25 +347,51 @@ function deriveRisk(opportunity: AyasEvolutionOpportunity, areas: readonly AyasC
   return Object.freeze(risk);
 }
 
+/**
+ * Authority each closed descriptor value implies. An explicit UNKNOWN value
+ * implies the UNION of its whole vocabulary: an undeclared or unrecognized
+ * class, side effect or resource can never look less demanding than any real
+ * value it might stand for. The tables are typed exhaustively, so a new
+ * vocabulary entry cannot be added without deciding its authority.
+ */
+type Known<T extends string> = Exclude<T, "UNKNOWN">;
+const CLASS_AUTHORITY: Readonly<Record<Known<AyasEvolutionCapabilityClass>, readonly AyasEvolutionAuthorityClass[]>> = {
+  TOOL: [], SKILL: [], MODEL: [], AGENT: [], STORAGE_ADAPTER: [], EVALUATOR: [], PIPELINE_EXTENSION: [], UI_SURFACE: [], OTHER: [],
+  LIBRARY: ["DEPENDENCY_INSTALL_APPROVAL"], SERVICE_INTEGRATION: ["EXTERNAL_SERVICE_APPROVAL"], POLICY: ["SECURITY_POLICY_APPROVAL"],
+};
+const EFFECT_AUTHORITY: Readonly<Record<Known<AyasEvolutionSideEffect>, readonly AyasEvolutionAuthorityClass[]>> = {
+  NONE: [], READS_LOCAL_FILES: [], WRITES_LOCAL_FILES: [], WRITES_SOURCE: [], SPAWNS_PROCESS: [], SPENDS_MONEY: [],
+  INSTALLS_DEPENDENCY: ["DEPENDENCY_INSTALL_APPROVAL"], NETWORK_READ: ["EXTERNAL_SERVICE_APPROVAL"], NETWORK_WRITE: ["EXTERNAL_SERVICE_APPROVAL"],
+  WRITES_RUNTIME_STORAGE: ["PRODUCTION_APPROVAL"], PUBLISHES: ["PUBLISH_APPROVAL"], MODIFIES_POLICY: ["SECURITY_POLICY_APPROVAL"],
+};
+/** HOST_BINARY needs install approval unless a HOST_BINARY prerequisite with the same key is satisfied. */
+const RESOURCE_AUTHORITY: Readonly<Record<Known<AyasEvolutionResourceKind>, readonly AyasEvolutionAuthorityClass[]>> = {
+  FREE_LOCAL: [], GPU_REQUIRED: [], DISK_SPACE: [],
+  LOCAL_MODEL_WEIGHTS: ["DEPENDENCY_INSTALL_APPROVAL"], HOST_BINARY: ["DEPENDENCY_INSTALL_APPROVAL"],
+  PAID_MODEL: ["EXTERNAL_SERVICE_APPROVAL"], PAID_API: ["EXTERNAL_SERVICE_APPROVAL"], NETWORK_REQUIRED: ["EXTERNAL_SERVICE_APPROVAL"], EXTERNAL_ACCOUNT: ["EXTERNAL_SERVICE_APPROVAL"],
+};
+function implied<T extends string>(table: Readonly<Record<Known<T>, readonly AyasEvolutionAuthorityClass[]>>, value: T): readonly AyasEvolutionAuthorityClass[] {
+  return value === "UNKNOWN" ? Object.values<readonly AyasEvolutionAuthorityClass[]>(table).flat() : table[value as Known<T>];
+}
+
 function deriveAuthority(opportunity: AyasEvolutionOpportunity, areas: readonly AyasChangeArea[], cost: AyasCostDecision, prerequisites: readonly AyasEvolutionPrerequisiteResolution[]): AyasEvolutionAuthorityClass[] {
   const required = new Set<AyasEvolutionAuthorityClass>(["READ_ONLY", "SOURCE_MUTATION_APPROVAL", ...opportunity.declaredAuthority]);
   const capability = opportunity.target.capability;
-  const effects = new Set(capability.sideEffects);
-  const resources = new Set(capability.resources.map((resource) => resource.kind));
+  const add = (authorities: readonly AyasEvolutionAuthorityClass[]) => { for (const authority of authorities) required.add(authority); };
   if (opportunity.evaluation.baselineStrategy === "EXISTING_BENCHMARK" || opportunity.evaluation.baselineStrategy === "NEW_DETERMINISTIC_EVALUATOR") required.add("EXPERIMENT_APPROVAL");
-  const installable = new Set(["TOOL", "SKILL", "MODEL", "HOST_BINARY"]);
+  add(implied(CLASS_AUTHORITY, capability.capabilityClass));
+  for (const effect of capability.sideEffects) add(implied(EFFECT_AUTHORITY, effect));
   const satisfiedBinaries = new Set(prerequisites.filter((p) => p.prerequisite.kind === "HOST_BINARY" && p.status === "SATISFIED").map((p) => p.prerequisite.key));
-  const uncoveredBinary = capability.resources.some((resource) => resource.kind === "HOST_BINARY" && (resource.key === null || !satisfiedBinaries.has(resource.key)));
-  if (effects.has("INSTALLS_DEPENDENCY") || capability.capabilityClass === "LIBRARY" || resources.has("LOCAL_MODEL_WEIGHTS") || uncoveredBinary
-    || prerequisites.some((p) => installable.has(p.prerequisite.kind) && p.status !== "SATISFIED" && !p.prerequisite.optional)) required.add("DEPENDENCY_INSTALL_APPROVAL");
-  if (effects.has("NETWORK_READ") || effects.has("NETWORK_WRITE") || resources.has("NETWORK_REQUIRED") || resources.has("EXTERNAL_ACCOUNT")
-    || resources.has("PAID_API") || resources.has("PAID_MODEL") || capability.capabilityClass === "SERVICE_INTEGRATION"
-    || prerequisites.some((p) => p.external && !p.prerequisite.optional)) required.add("EXTERNAL_SERVICE_APPROVAL");
+  for (const resource of capability.resources) {
+    if (resource.kind === "HOST_BINARY" && resource.key !== null && satisfiedBinaries.has(resource.key)) continue;
+    add(implied(RESOURCE_AUTHORITY, resource.kind));
+  }
+  const installable = new Set(["TOOL", "SKILL", "MODEL", "HOST_BINARY"]);
+  if (prerequisites.some((p) => installable.has(p.prerequisite.kind) && p.status !== "SATISFIED" && !p.prerequisite.optional)) required.add("DEPENDENCY_INSTALL_APPROVAL");
+  if (prerequisites.some((p) => p.external && !p.prerequisite.optional)) required.add("EXTERNAL_SERVICE_APPROVAL");
   if (!cost.allowed) required.add("PAID_PROVIDER_APPROVAL");
-  if (effects.has("WRITES_RUNTIME_STORAGE") || areas.includes("production-pipeline")) required.add("PRODUCTION_APPROVAL");
-  if (effects.has("PUBLISHES")) required.add("PUBLISH_APPROVAL");
-  if (effects.has("MODIFIES_POLICY") || capability.capabilityClass === "POLICY" || areas.includes("authority") || areas.includes("execution-gate")
-    || opportunity.constraints.some((c) => POLICY_CONFLICTS.has(c.kind))) required.add("SECURITY_POLICY_APPROVAL");
+  if (areas.includes("production-pipeline")) required.add("PRODUCTION_APPROVAL");
+  if (areas.includes("authority") || areas.includes("execution-gate") || opportunity.constraints.some((c) => POLICY_CONFLICTS.has(c.kind))) required.add("SECURITY_POLICY_APPROVAL");
   return AYAS_EVOLUTION_AUTHORITY_CLASSES.filter((authority) => required.has(authority));
 }
 
@@ -496,9 +524,10 @@ function qualifyWithAnalysis(opportunity: AyasEvolutionOpportunity, register: Ay
   }
 
   // Blocked: untrusted instructions, dropped safety declarations, policy conflicts, cycles, incompatible prerequisites, operating mode
-  if (opportunity.instructionSignals.length > 0) block("BLOCKED", "UNTRUSTED_INSTRUCTION_CONTENT");
-  // A malformed or over-limit prerequisite, constraint or module entry was not kept; judging the rest would fail open.
-  for (const issue of opportunity.normalizationIssues) if (UNSAFE_NORMALIZATION.has(issue)) block("BLOCKED", "INVALID_SAFETY_DECLARATION", issue);
+  // A carried signal this build does not recognize is still instruction-shaped content.
+  if (opportunity.instructionSignals.length > 0 || opportunity.normalizationIssues.includes("INSTRUCTION_SIGNAL_UNRECOGNIZED")) block("BLOCKED", "UNTRUSTED_INSTRUCTION_CONTENT");
+  // Evidence, safety declarations or authority-driving descriptors may have been discarded or invalidated; judging the rest would fail open.
+  for (const issue of opportunity.normalizationIssues) if (isAyasEvolutionBlockingIssue(issue)) block("BLOCKED", "INVALID_SAFETY_DECLARATION", issue);
   for (const constraint of opportunity.constraints) if (POLICY_CONFLICTS.has(constraint.kind)) block("BLOCKED", constraint.kind);
   const cycle = analysis.cycles.get(id) ?? null;
   if (cycle) block("BLOCKED", "CIRCULAR_PREREQUISITE", cycle.join(","));
@@ -569,6 +598,8 @@ function qualifyWithAnalysis(opportunity: AyasEvolutionOpportunity, register: Ay
   if (areas.some((area) => SENSITIVE_AREAS.has(area))) block("SECURITY_REVIEW_REQUIRED", "SENSITIVE_AREA_AFFECTED");
   if (effects.has("MODIFIES_POLICY")) block("SECURITY_REVIEW_REQUIRED", "POLICY_MODIFICATION_REQUIRES_REVIEWED_COMMIT");
   if (effects.has("SPAWNS_PROCESS")) block("SECURITY_REVIEW_REQUIRED", "PROCESS_EXECUTION_REQUIRES_REVIEW");
+  // Its path is a reviewed owner commit to the policy module; a design-review proposal cannot stand in for it.
+  if (required.includes("SECURITY_POLICY_APPROVAL")) block("SECURITY_REVIEW_REQUIRED", "SECURITY_POLICY_APPROVAL_REQUIRED");
 
   // Owner decision
   const ownerAuthorities: readonly AyasEvolutionAuthorityClass[] = ["DEPENDENCY_INSTALL_APPROVAL", "EXTERNAL_SERVICE_APPROVAL", "PAID_PROVIDER_APPROVAL", "PRODUCTION_APPROVAL", "PUBLISH_APPROVAL"];
@@ -654,7 +685,7 @@ export function transitionAyasEvolutionLifecycle(register: AyasEvolutionRegister
       const from = opportunity.lifecycle.state;
       if (q.readiness !== from) refuse(`readiness drifted to ${q.readiness}; re-qualify first`);
       const expected = from === "EXPERIMENT_READY" && q.stage8.hypothesis ? `hypothesis:${q.stage8.hypothesis.hypothesisId}` : null;
-      if (expected ? request.reference !== expected : !/^proposal:ayas-[A-Za-z0-9-]{8,120}$/.test(String(request.reference ?? ""))) refuse("hand-off reference must point into the existing Stage 8 path");
+      if (expected ? request.reference !== expected : !AYAS_EVOLUTION_HANDOFF_PROPOSAL_REFERENCE.test(String(request.reference ?? ""))) refuse("hand-off reference must point into the existing Stage 8 path");
     }
   }
   return updateAyasEvolutionOpportunity(register, applyAyasEvolutionTransition(opportunity, request));

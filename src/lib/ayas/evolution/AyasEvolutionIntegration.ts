@@ -4,7 +4,7 @@ import type { AyasImpactLevel, AyasProposalStructuredImpact } from "../../brain/
 import type { AyasImprovementHypothesis } from "../../brain/autonomy/AyasResearchImprovementLoop";
 import { redactAyasHandoffText } from "../developer/AyasDeveloperHandoff";
 import { describeAyasDeveloperTask, type AyasDeveloperTask } from "../developer/AyasDeveloperTaskModel";
-import type { AyasEvolutionOpportunity, AyasEvolutionRiskLevel } from "./AyasEvolutionOpportunity";
+import { isAyasEvolutionBlockingIssue, type AyasEvolutionOpportunity, type AyasEvolutionRiskLevel } from "./AyasEvolutionOpportunity";
 import type { AyasEvolutionQualification } from "./AyasEvolutionQualification";
 
 /**
@@ -22,6 +22,9 @@ import type { AyasEvolutionQualification } from "./AyasEvolutionQualification";
  */
 export const AYAS_EVOLUTION_PLAN_MUTATION_KIND = "evolution-opportunity-plan:v1";
 export const AYAS_EVOLUTION_PROPOSAL_EVIDENCE_PREFIX = "evolution-opportunity:";
+
+/** Defense in depth: a record that lost or invalidated safety-relevant input never leaves Stage 13, whatever qualification object is supplied. */
+const carriesBlockingIssue = (opportunity: AyasEvolutionOpportunity) => opportunity.normalizationIssues.some(isAyasEvolutionBlockingIssue);
 
 const LEVEL: Readonly<Record<AyasEvolutionRiskLevel, AyasImpactLevel>> = { NONE: "none", LOW: "low", MEDIUM: "medium", HIGH: "high", UNKNOWN: "unresolved" };
 
@@ -56,7 +59,7 @@ export function ayasEvolutionStructuredImpact(opportunity: AyasEvolutionOpportun
  * already blocked anything directive-shaped before this point.
  */
 export function buildAyasEvolutionProposalCandidate(opportunity: AyasEvolutionOpportunity, q: AyasEvolutionQualification, rank = 30_000): AyasDaemonCandidate | null {
-  if (q.opportunityId !== opportunity.opportunityId || q.readiness !== "PROPOSAL_READY" || q.executionAuthority !== "NONE" || opportunity.instructionSignals.length > 0) return null;
+  if (q.opportunityId !== opportunity.opportunityId || q.readiness !== "PROPOSAL_READY" || q.executionAuthority !== "NONE" || opportunity.instructionSignals.length > 0 || carriesBlockingIssue(opportunity)) return null;
   const key = opportunity.target.capability.key;
   const planningFile = `docs/brain/proposals/evolution-${opportunity.opportunityId}.md`;
   const summary = opportunity.need.summary.slice(0, 300);
@@ -125,7 +128,7 @@ const ANALYSIS_READY = new Set(["NEEDS_INVESTIGATION", "RESEARCH_REQUIRED", "PRE
  * no hand-off at all.
  */
 export function buildAyasEvolutionDeveloperHandoff(opportunity: AyasEvolutionOpportunity, q: AyasEvolutionQualification, baselineHead: string | null): AyasEvolutionDeveloperHandoff | null {
-  if (q.opportunityId !== opportunity.opportunityId || opportunity.instructionSignals.length > 0) return null;
+  if (q.opportunityId !== opportunity.opportunityId || opportunity.instructionSignals.length > 0 || carriesBlockingIssue(opportunity)) return null;
   const style = IMPLEMENTATION_READY.has(q.readiness) ? "IMPLEMENTATION" : ANALYSIS_READY.has(q.readiness) ? "ANALYSIS" : null;
   if (!style) return null;
   const mission = redactAyasHandoffText(style === "IMPLEMENTATION"

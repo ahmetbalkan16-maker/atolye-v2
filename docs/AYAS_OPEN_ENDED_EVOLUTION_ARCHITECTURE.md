@@ -1,6 +1,6 @@
 # AYAS Open-Ended Evolution Architecture — Stage 13
 
-Status on the cloud branch `cloud/stage13-open-ended-evolution`: **implemented, tested and reviewed; PR ready; pending owner review, local Graphify revalidation and controlled promotion.** Stage 13 is not closed on `wip/ayas-graphify-final-execution` until that promotion is verified.
+Status on the cloud branch `cloud/stage13-open-ended-evolution`: **implemented, tested and reviewed; local validation of the first cloud head (`80b15eb`) found 4 MAJOR and 2 related MINOR fail-open defects, all fixed in the fix round (§21); pending repeated local Graphify validation, owner review and controlled promotion.** Stage 13 is not closed on `wip/ayas-graphify-final-execution` until that promotion is verified.
 
 Stage 13 lets AYAS represent and reason about improvements and capabilities that were not hardcoded when it was built, under governance. **Open-ended does not mean unbounded autonomy.** Stage 13 represents and plans evolution. It cannot modify source, install anything, call a service, spend money, execute a discovered capability, approve its own proposals, publish, promote experiments, or alter security or execution policy. Owner approval and execution authority stay in the existing inbox, gate and policy modules.
 
@@ -55,7 +55,16 @@ One record, `AyasEvolutionOpportunity` (schema `"1"`), covers gaps, improvements
 | Lifecycle | state, append-only history, reopen count, `deferredUntil` |
 | Safety | detected `instructionSignals`, `normalizationIssues`, constant `authority: "NONE"` |
 
-Normalization fails closed on an invalid id, time, origin, kind, target key or schema version. A malformed or over-limit entry is never silently dropped from a safety-relevant list. A prerequisite, constraint or module that cannot be kept is recorded as a normalization issue, and qualification then BLOCKS with `INVALID_SAFETY_DECLARATION`. An unrecognized side effect or resource kind becomes `UNKNOWN`. History longer than its limit is refused, never truncated.
+Normalization fails closed on an invalid id, time, origin, kind, target key or schema version. A malformed or over-limit entry is never silently dropped from a safety-relevant list.
+
+Normalization issues form a **closed vocabulary with a fixed severity** (`AYAS_EVOLUTION_ISSUE_SEVERITY`). A BLOCKING issue means something safety-relevant may have been discarded, truncated or invalidated, and qualification then BLOCKS with `INVALID_SAFETY_DECLARATION` (reference = the issue). The BLOCKING issues cover:
+
+- evidence: an unrecognized source, or evidence over its limit;
+- safety declarations: prerequisites, constraints, affected modules, replaced or retired capability keys, and authority classes that are invalid or over their limit;
+- descriptors: an unrecognized capability class, side effect or resource kind, and resources over their limit;
+- carried state: an unrecognized carried issue code or instruction signal.
+
+An issue code outside the vocabulary also counts as BLOCKING (`isAyasEvolutionBlockingIssue`). An unrecognized class, side effect or resource kind is recorded as the explicit `UNKNOWN` value, never a harmless substitute. History longer than its limit is refused, never truncated.
 
 ## 3. Evidence and provenance (Phase 3)
 
@@ -78,7 +87,7 @@ A `RESEARCH_LOOP` record cannot promote its own statements to facts, and neither
 
 A capability is a descriptor, not an enum entry. It has a bounded dotted `key` and namespaced `domain` (both validated machine keys), an optional closed-taxonomy `knownCategory`, and closed vocabularies:
 
-- `capabilityClass`: TOOL, SKILL, MODEL, AGENT, STORAGE_ADAPTER, EVALUATOR, PIPELINE_EXTENSION, LIBRARY, SERVICE_INTEGRATION, UI_SURFACE, POLICY, OTHER
+- `capabilityClass`: TOOL, SKILL, MODEL, AGENT, STORAGE_ADAPTER, EVALUATOR, PIPELINE_EXTENSION, LIBRARY, SERVICE_INTEGRATION, UI_SURFACE, POLICY, OTHER, UNKNOWN. An undeclared class is `UNKNOWN` (recorded). An unrecognized one, such as a misspelling or wrong case, is `UNKNOWN` plus the BLOCKING `CAPABILITY_CLASS_INVALID`. It is never `OTHER`.
 - `inputs` / `outputs`: IO kinds (TEXT, AUDIO, VIDEO, IMAGE, STRUCTURED_DATA, SOURCE_CODE, PROJECT_MANIFEST, MEDIA_METADATA, METRIC, DOCUMENT, OTHER)
 - `sideEffects`: NONE, READS_LOCAL_FILES, WRITES_LOCAL_FILES, WRITES_RUNTIME_STORAGE, WRITES_SOURCE, NETWORK_READ, NETWORK_WRITE, SPAWNS_PROCESS, INSTALLS_DEPENDENCY, SPENDS_MONEY, PUBLISHES, MODIFIES_POLICY, UNKNOWN (an empty declaration is `UNKNOWN`)
 - `resources` with a cost class (§8)
@@ -135,6 +144,7 @@ Declared risk can only be raised. Unknown dominates every known level below HIGH
 Resource kinds are FREE_LOCAL, PAID_MODEL, PAID_API, EXTERNAL_ACCOUNT, GPU_REQUIRED, HOST_BINARY, NETWORK_REQUIRED, LOCAL_MODEL_WEIGHTS, DISK_SPACE and UNKNOWN. Each carries an `AyasCostClass`; an absent class is `unknown-cost`.
 
 - A paid kind declared free is forced to `paid` and recorded.
+- An `UNKNOWN` kind always keeps `unknown-cost`, whatever cost class the producer claims (`UNKNOWN_RESOURCE_COST_DECLARED` is recorded). There is no free or paid assumption without evidence.
 - No declared resource means `unknown-cost`; availability never implies free.
 - The aggregate is the worst non-zero class, else `unknown-cost` if anything is unknown, else the worst zero class.
 - `evaluateAyasZeroCost` decides. Anything but `local-zero-cost`/`free-public` needs an owner cost decision (`COST_UNKNOWN` or `COST_AUTHORIZATION_REQUIRED`).
@@ -149,12 +159,21 @@ Each required authority class maps to an existing owner or policy path (`AYAS_EV
 | READ_ONLY | always | the qualification itself |
 | SOURCE_MUTATION_APPROVAL | always (implementing any evolution changes the system) | owner inbox + execution gate + a registered mutation kind |
 | EXPERIMENT_APPROVAL | existing-benchmark or new-evaluator baseline | Stage 8 strategy registration by a reviewed commit + experiment admission |
-| DEPENDENCY_INSTALL_APPROVAL | installs, LIBRARY class, local model weights, uncovered host binary, missing installable prerequisite | no AYAS path; owner-controlled install (Stage 9 rules) |
-| EXTERNAL_SERVICE_APPROVAL | network effects/resources, external accounts, paid APIs, service integrations, external prerequisites | no AYAS path |
+| DEPENDENCY_INSTALL_APPROVAL | installs, LIBRARY class, local model weights, uncovered host binary, missing installable prerequisite, any UNKNOWN class/side effect/resource | no AYAS path; owner-controlled install (Stage 9 rules) |
+| EXTERNAL_SERVICE_APPROVAL | network effects/resources, external accounts, paid APIs, service integrations, external prerequisites, any UNKNOWN class/side effect/resource | no AYAS path |
 | PAID_PROVIDER_APPROVAL | cost not allowed (including unknown) | `AyasZeroCostPolicy` denies; only an owner policy change outside AYAS |
-| PRODUCTION_APPROVAL | runtime-storage writes, production-pipeline area | production acceptance gate |
-| PUBLISH_APPROVAL | PUBLISHES | owner-driven publish path |
-| SECURITY_POLICY_APPROVAL | policy change/class/conflict, authority or execution-gate area | reviewed owner commit to the policy module |
+| PRODUCTION_APPROVAL | runtime-storage writes, production-pipeline area, UNKNOWN side effect | production acceptance gate |
+| PUBLISH_APPROVAL | PUBLISHES, UNKNOWN side effect | owner-driven publish path |
+| SECURITY_POLICY_APPROVAL | policy change/class/conflict, authority or execution-gate area, UNKNOWN class or side effect | reviewed owner commit to the policy module |
+
+The class, side-effect and resource derivations are exhaustive typed tables. An explicit `UNKNOWN` value implies the **union** of every requirement in its vocabulary, so an unknown descriptor can never look less demanding than a real value it might stand for. The one exemption is a HOST_BINARY resource covered by a satisfied host-binary prerequisite.
+
+Every required authority other than READ_ONLY, SOURCE_MUTATION_APPROVAL and EXPERIMENT_APPROVAL blocks PROPOSAL_READY:
+
+- DEPENDENCY_INSTALL, EXTERNAL_SERVICE, PAID_PROVIDER, PRODUCTION and PUBLISH block at OWNER_DECISION_REQUIRED;
+- SECURITY_POLICY_APPROVAL blocks at SECURITY_REVIEW_REQUIRED (`SECURITY_POLICY_APPROVAL_REQUIRED`), because a design-review proposal cannot stand in for its reviewed-commit path.
+
+No authority class was added.
 
 ## 10. Lifecycle, supersession and retirement (Phase 7)
 
@@ -169,7 +188,21 @@ Every lifecycle loop passes through a reopen (a return to INVESTIGATING), and re
 
 Supersession keeps both records, with a two-way link. The register refuses dangling, one-sided or cyclic supersession. Dependents follow the link to the successor. Retirement is its own kind, and it and replacement need an owner decision. A retired capability blocks dependents, and reintroducing it needs an owner decision.
 
-Updates may only advance the lifecycle and append evidence, instruction signals or issues. Declarations are immutable; a changed declaration is a new opportunity that supersedes the old one. Serialization carries issues and signals, so a round trip can never clear a block. Nothing is deleted.
+Updates may only advance the lifecycle and append evidence, instruction signals or issues. Declarations are immutable; a changed declaration is a new opportunity that supersedes the old one. Nothing is deleted.
+
+**Lifecycle invariants (`assertAyasEvolutionLifecycle`).** They hold for every record in every register, whether built, updated or parsed. There is no repair: a violating record is refused.
+
+- The history starts with one initial `OBSERVED` entry.
+- Each later entry chains from the previous state and is a legal transition in the table, so nothing follows a terminal state.
+- Timestamps never go backwards and never precede `createdAt`.
+- Each entry has a valid time, reason code and actor (`OWNER`/`AYAS`); a malformed `from`, actor or reference is refused, not coerced.
+- The reopen count equals the reopens actually recorded, and stays within its limit. An absent count is derived from the history; a present one is never clamped or reset.
+- A HANDED_OFF entry carries its Stage 8 reference: `hypothesis:` from EXPERIMENT_READY, `proposal:` from PROPOSAL_READY. `applyAyasEvolutionTransition` enforces the same shape.
+- A SUPERSEDED entry names the recorded successor.
+- The state equals the last entry, and only a DEFERRED record carries a deferral date.
+- An unknown state value is refused rather than defaulting to OBSERVED.
+
+**Serialization never reduces safety.** Issues and instruction signals are carried across a round trip. Both are closed vocabularies, so a record this module produced never carries more entries than the vocabulary has. A longer carried list is refused (`...never truncated`), and an unrecognized carried entry becomes a BLOCKING issue instead of vanishing. An unrecognized carried signal also keeps `UNTRUSTED_INSTRUCTION_CONTENT`. The proposal-candidate and hand-off builders additionally refuse any record carrying a BLOCKING issue, whatever qualification object they are given.
 
 ## 11. Duplicate and overlap detection (Phase 8)
 
@@ -202,7 +235,7 @@ Readiness is the first level among all blockers, in this order:
 Every blocker is listed with a closed code and reference, so "interesting" is never conflated with "ready":
 
 - NEEDS_INVESTIGATION covers an inadequate evaluation plan (baseline, acceptance, held-out and regression suites are all required), undeclared modules, unknown compatibility, unknown execution/dependency risk, an unregistered benchmark, a missing measurement at HEAD, and a gap not reproduced at HEAD.
-- SECURITY_REVIEW_REQUIRED covers security findings, HIGH or UNKNOWN security/privacy/authority risk, forbidden targets, sensitive areas, policy modification and process execution.
+- SECURITY_REVIEW_REQUIRED covers security findings, HIGH or UNKNOWN security/privacy/authority risk (an UNKNOWN capability class raises security risk to UNKNOWN), forbidden targets, sensitive areas, policy modification, process execution and a required SECURITY_POLICY_APPROVAL.
 - The engine cannot decide "approved for execution".
 
 ## 13. Stage 8 integration (Phase 10)
@@ -319,3 +352,61 @@ Expected: no edge from the evolution modules to approval, execution-gate, mutati
   - `origin` trust assumes the producer sets it honestly; a future Stage 14 producer must hardcode `RESEARCH_LOOP`;
   - owner-written text containing directive wording also blocks (fail-closed);
   - the CLI is the only operator surface.
+
+## 21. Local-validation fix round (PR #2)
+
+Owner-side local validation of cloud head `80b15ebec7661c388dff04463372761f620224fe` failed with **4 MAJOR** fail-open defects. All four, plus the two related MINORs, are fixed on the same branch. Development and every pre-fix run used isolated scratch `git worktree`s (one detached at `80b15eb` for the pre-fix runs, one for the fix). The canonical checkout was never switched and the observer/daemon was never started.
+
+| Defect | Pre-fix behavior (80b15eb) | Fix |
+|---|---|---|
+| MAJOR 1: security evidence silently dropped | security evidence at index 24, or a source spelled `SECURITY_FINDNG`, left only a non-blocking issue → PROPOSAL_READY; `addAyasEvolutionEvidence` with a bad source returned the record unchanged | `EVIDENCE_TRUNCATED`/`EVIDENCE_SOURCE_INVALID` are BLOCKING; append records the loss; builders refuse any record with a BLOCKING issue |
+| MAJOR 2: round trip clears a block | 64 carried codes + `PREREQUISITE_INVALID`: BLOCKED → serialize → parse → PROPOSAL_READY (reload kept the first 64 sorted codes) | closed issue/signal vocabularies; over-long carried lists refused, unknown entries BLOCKING; no truncation anywhere in the round trip |
+| MAJOR 3: load accepts invalid history | REJECTED→OBSERVED, direct HANDED_OFF, backwards time, reset/clamped reopen count, misspelled state → loaded as active (PROPOSAL_READY) | `assertAyasEvolutionLifecycle` on parse and on every register build/update; strict entry parsing |
+| MAJOR 4: bad capability class → OTHER | `library`, `SERVICE_INTEGRATON`, `POLICIES` → OTHER → authority dropped → PROPOSAL_READY | explicit `UNKNOWN` + BLOCKING `CAPABILITY_CLASS_INVALID`; UNKNOWN class/side effect/resource derives the union of its vocabulary's authorities; misspelled side effect/resource kind also BLOCKING |
+| MINOR: SECURITY_POLICY_APPROVAL | POLICY class alone → PROPOSAL_READY | blocks at SECURITY_REVIEW_REQUIRED; no new authority |
+| MINOR: UNKNOWN resource zero-cost | `{kind: UNKNOWN, costClass: local-zero-cost}` → aggregate local-zero-cost → PROPOSAL_READY | UNKNOWN kind keeps `unknown-cost` |
+
+A PASS 1 finding in the same class was also fixed: invalid or over-limit `replacesCapabilities`/`retiresCapabilities` keys silently removed the retirement owner decision and replacement conflicts. They are now BLOCKING. A PASS 2 finding was fixed as well: an unrecognized carried signal kept the record BLOCKED but lost `UNTRUSTED_INSTRUCTION_CONTENT`.
+
+**Evaluator.** `scripts/smoke-ayas-open-ended-evolution.ts` was extended, not duplicated. It keeps the 54 original primary and 8 original held-out scenarios (held-out unchanged) and adds a separate `regression` group of 20 scenarios (R01–R20), for **82 total**:
+
+- MAJOR 1: R01–R03
+- MAJOR 2: R04–R06
+- MAJOR 3: R07–R12
+- MAJOR 4: R13–R16
+- MINOR 1: R17
+- MINOR 2: R18
+- PASS 2 combinations: R19–R20 (invalid class + unknown paid resource + truncated/misspelled security evidence + reload, over all 15 perturbation subsets)
+
+Two original primary scenarios changed, both made stricter:
+
+- Scenario 38's third assertion seeded a history (63 × `null→OBSERVED`, then an unchained DEFERRED) that is not a legal lifecycle. It now asserts that load **refuses** it, and still checks the transition-level history limit on the same history held in memory.
+- Scenario 52's anti-hardcoding needle list now also includes every malformed value the regression group feeds in.
+
+| Run (isolated worktrees) | Primary | Held-out | Regression |
+|---|---|---|---|
+| pre-fix `80b15eb` sources + fix-round evaluator | 53/54 (38 fails on its new load-refusal assertion) | 8/8 | **0/20** (every scenario fails) |
+| fixed sources | 54/54 | 8/8 | 20/20 |
+
+A seeded pass-2 fuzz (scratch only, not committed) ran 3 seeds × 4,000 random records with injected misspelled sources, classes, side effects and resource kinds, over-limit evidence, random cost claims and declared authorities. Every injected malformed value blocked. No record with an UNKNOWN descriptor, a non-baseline required authority, disallowed cost or security evidence reached PROPOSAL_READY. Every round trip was equal or stricter and idempotent.
+
+Fix-round evaluator SHA-256: `349eb542cf5b0e7eddeca4927bbafc2315dbef02e9421ddfdc92dfa758e2cd12`.
+
+Regressions, re-run on the fixed sources in the isolated worktree:
+
+| Suite | Result |
+|---|---|
+| Stage 13 evaluator | 54/54 + 8/8 + 20/20 |
+| Stage 8 research-improvement loop | 36 decision + 55 integration |
+| Stage 7 agentic routing | 41/41, held-out 5/5 |
+| Stage 10 developer intelligence | 39/39 flow, 14/14 integration; the documented pre-existing held-out miss `heldout-closure-written` unchanged |
+| zero-cost policy | 8 |
+| proposal impact policy | 27 |
+| proposal terminal-state dedup | 19 |
+| Stage 12 director readiness | 53 + 8 |
+
+The Stage 8 loop exited 1 once during a sequential batch run; its output was not captured. It then passed twice in isolation. Nothing outside `src/lib/ayas/evolution/` and its two scripts imports the changed modules, so that run is reported, not attributed. TypeScript, changed-file ESLint `--max-warnings 0` and `git diff --check` pass. `smoke-ayas-observer-autostart.ts` was not run.
+
+**Still deferred (documented, not widened):** research-loop benchmark evidence cross-check hardening, one-sided `supersedes` relationship, proposal-candidate display provenance label, semantic verification of HANDED_OFF proposal references (only the reference shape is checked), and IO/criteria truncation issue reporting.
+
+**LOCAL_GRAPHIFY_REVALIDATION_REQUIRED** still applies (§19); the cloud container has no Graphify.
