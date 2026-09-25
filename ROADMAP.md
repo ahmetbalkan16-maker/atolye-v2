@@ -1,6 +1,6 @@
 ---
 
-## AYAS Autonomous Technology Watch & Capability Discovery — Stage 14 — 2026-09-25 — PR READY (not closed)
+## AYAS Autonomous Technology Watch & Capability Discovery — Stage 14 — 2026-09-25 — ✅ COMPLETED
 
 - [x] One canonical, schema-versioned technology candidate (identity + anchors, bounded append-only source claims, bounded watch record). Readiness, freshness, cost and risk are derived and never stored. There is no OTHER category: an unknown category stays UNKNOWN. It reuses:
   - the Stage 8 instruction detector, neutralizer, URL normalization, source registry, freshness windows and capability taxonomy;
@@ -38,7 +38,7 @@
 - [x] PR #3 second fix round (local validation of `0b6a33a`, done locally). The MAJOR (a hand-off built before an identity conflict could still be submitted after it) is fixed. Submission re-assesses the current register and environment, rebuilds the hand-off and accepts only an identical one. The same check-then-use gap is closed for hand-off recording and the Stage 10 context.
   - The new `stale` group has 17 scenarios. The evaluator now has 129 (clean base 129 MISSING, `0b6a33a` 113/16, fixed 129/129).
   - All 13 mutations are caught, and the fuzz found 0 violations. The regressions pass. BLOCKER 0, unresolved MAJOR 0.
-- [ ] Owner-side: **LOCAL_GRAPHIFY_REVALIDATION_REQUIRED** (Graphify was unavailable in the cloud), repeated local validation, PR review, controlled promotion.
+- [x] Owner-side local Graphify revalidation PASS; validated PR head `483e7a24cb5d344a5a5b8b015d9597b2b651c552` promoted by PR #3 into canonical as `d01070737a4f61b908ef7263e7507c40d900da4f`; post-merge sanity PASS.
 - [ ] Deferred:
   - keyed tamper evidence for a persisted register;
   - daemon wiring and a persisted register (an owner decision);
@@ -46,7 +46,7 @@
   - reopen-limit handling for new advisories;
   - a better source-independence model.
 
-**Status: STAGE 14 — PR READY / PENDING LOCAL GRAPHIFY VALIDATION AND OWNER-SIDE PROMOTION. Stage 15 not started.**
+**Status: STAGE 14 — ✅ COMPLETED. Stage 15 — Controlled Self-Evolution Pipeline is NEXT and has not started.**
 
 ---
 
