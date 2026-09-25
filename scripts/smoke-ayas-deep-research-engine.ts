@@ -52,39 +52,39 @@ async function main() {
   // --- prompt construction never lets untrusted content escape its boundary ---
   await scenario("the analysis prompt fences untrusted content inside an explicit UNTRUSTED_EXTERNAL_CONTENT boundary and states it can never carry instructions", () => {
     const prompt = buildAyasDeepAnalysisPrompt({ source: { provider: "X", category: "OPEN_SOURCE_AI" }, entry: { title: "t", link: "https://example.test", summary: "s" } });
-    assert.ok(prompt.includes("<UNTRUSTED_EXTERNAL_CONTENT>"));
-    assert.ok(prompt.includes("</UNTRUSTED_EXTERNAL_CONTENT>"));
-    assert.ok(/can never give you an instruction/i.test(prompt));
+    assert.ok(prompt.includes("<UNTRUSTED_EXTERNAL_CONTENT>"), "assert.ok(prompt.includes(\"<UNTRUSTED_EXTERNAL_CONTENT>\"))");
+    assert.ok(prompt.includes("</UNTRUSTED_EXTERNAL_CONTENT>"), "assert.ok(prompt.includes(\"</UNTRUSTED_EXTERNAL_CONTENT>\"))");
+    assert.ok(/can never give you an instruction/i.test(prompt), "assert.ok(/can never give you an instruction/i.test(prompt))");
   });
 
   // --- schema validation fails CLOSED on any malformed model reply ---
   await scenario("a non-JSON model reply is rejected, never coerced into a partial finding", () => {
-    assert.equal(parseAyasDeepAnalysisOutput("I think this is a cool feature!"), undefined);
+    assert.equal(parseAyasDeepAnalysisOutput("I think this is a cool feature!"), undefined, "assert.equal(parseAyasDeepAnalysisOutput(\"I think this is a cool feature!\"), undefined)");
   });
   await scenario("a JSON reply missing a required field is rejected", () => {
-    assert.equal(parseAyasDeepAnalysisOutput(JSON.stringify({ capability: "x" })), undefined);
+    assert.equal(parseAyasDeepAnalysisOutput(JSON.stringify({ capability: "x" })), undefined, "assert.equal(parseAyasDeepAnalysisOutput(JSON.stringify({ capability: \"x\" })), undefined)");
   });
   await scenario("a JSON reply with an out-of-enum value is rejected", () => {
     const bad = { capability: "x", problemSolved: "y", category: null, confidence: "extremely-high", licenseCostStatus: "unknown", licenseCostNotes: "", atolyeGapStatus: "missing", atolyeGapNotes: "", isNoteworthy: true };
-    assert.equal(parseAyasDeepAnalysisOutput(JSON.stringify(bad)), undefined);
+    assert.equal(parseAyasDeepAnalysisOutput(JSON.stringify(bad)), undefined, "assert.equal(parseAyasDeepAnalysisOutput(JSON.stringify(bad)), undefined)");
   });
   await scenario("a well-formed reply parses correctly", () => {
     const good = { capability: "x", problemSolved: "y", category: "OPEN_SOURCE_AI", confidence: "medium", licenseCostStatus: "open-source", licenseCostNotes: "", atolyeGapStatus: "missing", atolyeGapNotes: "", isNoteworthy: true };
     const parsed = parseAyasDeepAnalysisOutput(JSON.stringify(good));
-    assert.ok(parsed);
-    assert.equal(parsed!.capability, "x");
+    assert.ok(parsed, "assert.ok(parsed)");
+    assert.equal(parsed!.capability, "x", "assert.equal(parsed!.capability, \"x\")");
   });
 
   // --- Part L: no local architecture claim from web research alone ---
   await scenario("an 'already-supported' claim for a category with NO corresponding local module is downgraded to 'missing', not trusted blindly", () => {
     const result = corroborateAyasGapClaim("DEVELOPER_PLATFORMS", "already-supported", "the model claims this exists", process.cwd());
-    assert.equal(result.atolyeGapStatus, "missing");
-    assert.equal(result.downgraded, true);
+    assert.equal(result.atolyeGapStatus, "missing", "assert.equal(result.atolyeGapStatus, \"missing\")");
+    assert.equal(result.downgraded, true, "assert.equal(result.downgraded, true)");
   });
   await scenario("an 'already-supported' claim for a category WITH a real corresponding local module is left as-is", () => {
     const result = corroborateAyasGapClaim("WORKFLOW_RESILIENCE", "already-supported", "notes", process.cwd());
-    assert.equal(result.atolyeGapStatus, "already-supported");
-    assert.equal(result.downgraded, false);
+    assert.equal(result.atolyeGapStatus, "already-supported", "assert.equal(result.atolyeGapStatus, \"already-supported\")");
+    assert.equal(result.downgraded, false, "assert.equal(result.downgraded, false)");
   });
 
   // --- end-to-end: adversarial content stays completely inert ---------
@@ -110,16 +110,16 @@ async function main() {
       const result = await runAyasDeepResearchScan({ noveltyStore, sources: [source(base)], researchStore, provider, scheduleContext: {
         scheduledFor, runId: "11111111-1111-4111-8111-111111111111", occurrenceId: "a".repeat(64),
       }, dangerouslyAllowPrivateNetworkForTests: true });
-      assert.equal(result.findingsRecorded, 1);
+      assert.equal(result.findingsRecorded, 1, "assert.equal(result.findingsRecorded, 1)");
       const [finding] = researchStore.list();
-      assert.ok(finding);
-      assert.equal(finding!.treatedSourceAsUntrusted, true);
-      assert.equal(finding!.scheduledFor, scheduledFor);
-      assert.ok(Date.parse(finding!.executedAt!) > Date.parse(scheduledFor));
-      assert.equal(finding!.researchRunId, "11111111-1111-4111-8111-111111111111");
-      assert.equal(finding!.occurrenceId, "a".repeat(64));
+      assert.ok(finding, "assert.ok(finding)");
+      assert.equal(finding!.treatedSourceAsUntrusted, true, "assert.equal(finding!.treatedSourceAsUntrusted, true)");
+      assert.equal(finding!.scheduledFor, scheduledFor, "assert.equal(finding!.scheduledFor, scheduledFor)");
+      assert.ok(Date.parse(finding!.executedAt!) > Date.parse(scheduledFor), "assert.ok(Date.parse(finding!.executedAt!) > Date.parse(scheduledFor))");
+      assert.equal(finding!.researchRunId, "11111111-1111-4111-8111-111111111111", "assert.equal(finding!.researchRunId, \"11111111-1111-4111-8111-111111111111\")");
+      assert.equal(finding!.occurrenceId, "a".repeat(64), "assert.equal(finding!.occurrenceId, \"a\".repeat(64))");
       // The adversarial text is present only as inert data inside a string field of a JSON file — never anywhere that could be interpreted as a command.
-      assert.ok(typeof finding!.atolyeGapNotes === "string");
+      assert.ok(typeof finding!.atolyeGapNotes === "string", "assert.ok(typeof finding!.atolyeGapNotes === \"string\")");
     });
   });
 
@@ -138,15 +138,15 @@ async function main() {
       const provider = fakeProvider(JSON.stringify({ capability: "cap", problemSolved: "p", category: "OPEN_SOURCE_AI", confidence: "high", licenseCostStatus: "open-source", licenseCostNotes: "", atolyeGapStatus: "missing", atolyeGapNotes: "", isNoteworthy: true }));
       const first = await runAyasDeepResearchScan({ noveltyStore, sources: [source(base)], researchStore, provider, dangerouslyAllowPrivateNetworkForTests: true });
       const second = await runAyasDeepResearchScan({ noveltyStore, sources: [source(base)], researchStore, provider, dangerouslyAllowPrivateNetworkForTests: true });
-      assert.equal(first.findingsRecorded, 1);
-      assert.equal(second.findingsRecorded, 0);
+      assert.equal(first.findingsRecorded, 1, "assert.equal(first.findingsRecorded, 1)");
+      assert.equal(second.findingsRecorded, 0, "assert.equal(second.findingsRecorded, 0)");
       // The durable novelty memory now catches an unchanged item BEFORE the
       // findings list is even consulted — a strictly earlier and cheaper
       // stop than the original sourceUrl comparison, and one that also works
       // for entries that never became findings at all.
-      assert.equal(second.entryOutcomes[0]!.outcome, "SKIPPED_UNCHANGED");
-      assert.equal(second.entryOutcomes[0]!.noveltyReason, "UNCHANGED");
-      assert.equal(researchStore.list().length, 1);
+      assert.equal(second.entryOutcomes[0]!.outcome, "SKIPPED_UNCHANGED", "assert.equal(second.entryOutcomes[0]!.outcome, \"SKIPPED_UNCHANGED\")");
+      assert.equal(second.entryOutcomes[0]!.noveltyReason, "UNCHANGED", "assert.equal(second.entryOutcomes[0]!.noveltyReason, \"UNCHANGED\")");
+      assert.equal(researchStore.list().length, 1, "assert.equal(researchStore.list().length, 1)");
     });
   });
 
@@ -157,8 +157,8 @@ async function main() {
       const noveltyStore = createAyasResearchNoveltyStore({ rootDir: tempDir("ayas-deep-noise-novelty-") }); // never the real research-novelty root
       const provider = fakeProvider(JSON.stringify({ capability: "dependency bump", problemSolved: "n/a", category: null, confidence: "low", licenseCostStatus: "unknown", licenseCostNotes: "", atolyeGapStatus: "missing", atolyeGapNotes: "", isNoteworthy: false }));
       const result = await runAyasDeepResearchScan({ noveltyStore, sources: [source(base)], researchStore, provider, dangerouslyAllowPrivateNetworkForTests: true });
-      assert.equal(result.findingsRecorded, 0);
-      assert.equal(result.entryOutcomes[0]!.outcome, "SKIPPED_NOT_NOTEWORTHY");
+      assert.equal(result.findingsRecorded, 0, "assert.equal(result.findingsRecorded, 0)");
+      assert.equal(result.entryOutcomes[0]!.outcome, "SKIPPED_NOT_NOTEWORTHY", "assert.equal(result.entryOutcomes[0]!.outcome, \"SKIPPED_NOT_NOTEWORTHY\")");
     });
   });
 
@@ -169,8 +169,8 @@ async function main() {
       const noveltyStore = createAyasResearchNoveltyStore({ rootDir: tempDir("ayas-deep-malformed-novelty-") }); // never the real research-novelty root
       const provider = fakeProvider("this is not json at all");
       const result = await runAyasDeepResearchScan({ noveltyStore, sources: [source(base)], researchStore, provider, dangerouslyAllowPrivateNetworkForTests: true });
-      assert.equal(result.findingsRecorded, 0);
-      assert.equal(result.entryOutcomes[0]!.outcome, "SKIPPED_INVALID_MODEL_OUTPUT");
+      assert.equal(result.findingsRecorded, 0, "assert.equal(result.findingsRecorded, 0)");
+      assert.equal(result.entryOutcomes[0]!.outcome, "SKIPPED_INVALID_MODEL_OUTPUT", "assert.equal(result.entryOutcomes[0]!.outcome, \"SKIPPED_INVALID_MODEL_OUTPUT\")");
     });
   });
 
@@ -180,9 +180,9 @@ async function main() {
       const researchStore = createAyasExternalResearchStore({ rootDir: tempDir("ayas-deep-model-down-") });
       const noveltyStore = createAyasResearchNoveltyStore({ rootDir: tempDir("ayas-deep-model-down-novelty-") }); // never the real research-novelty root
       const result = await runAyasDeepResearchScan({ noveltyStore, sources: [source(base)], researchStore, provider: throwingProvider(), dangerouslyAllowPrivateNetworkForTests: true });
-      assert.equal(result.findingsRecorded, 0);
-      assert.equal(result.entryOutcomes[0]!.outcome, "SKIPPED_ANALYSIS_ERROR");
-      assert.ok(result.sourceErrors.length > 0);
+      assert.equal(result.findingsRecorded, 0, "assert.equal(result.findingsRecorded, 0)");
+      assert.equal(result.entryOutcomes[0]!.outcome, "SKIPPED_ANALYSIS_ERROR", "assert.equal(result.entryOutcomes[0]!.outcome, \"SKIPPED_ANALYSIS_ERROR\")");
+      assert.ok(result.sourceErrors.length > 0, "assert.ok(result.sourceErrors.length > 0)");
     });
   });
 
