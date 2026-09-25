@@ -1,3 +1,63 @@
+## AYAS AUTONOMOUS TECHNOLOGY WATCH & CAPABILITY DISCOVERY — STAGE 14 — CLOUD — 2026-09-25
+
+- **State: STAGE 14 — PR READY / PENDING LOCAL GRAPHIFY VALIDATION AND OWNER-SIDE PROMOTION.** It is not canonically COMPLETED. Stage 15 has not started.
+  - The work was implemented on the isolated cloud branch `cloud/stage14-technology-watch`, created from exactly `cb7db6436d9201e56691304e412b5779e803d31a`.
+  - The starting gate was verified: branch, HEAD, a clean worktree, and origin `wip/ayas-graphify-final-execution` and origin `cloud/stage14-technology-watch` both at `cb7db64` (rechecked before commit).
+  - The PR targets `wip/ayas-graphify-final-execution` and must not be merged from the cloud.
+  - Remaining before closure: **LOCAL_GRAPHIFY_REVALIDATION_REQUIRED**, owner PR review, controlled promotion. See `docs/AYAS_TECHNOLOGY_WATCH.md`.
+- **What was built.** There are three pure modules in `src/lib/ayas/technology/`:
+  - `AyasTechnologyCandidate.ts`: the model, normalization, identity/anchors, bounded register, material fingerprint and integrity-checked serialization.
+  - `AyasTechnologyWatch.ts`: the assessment engine answering the twelve questions, plus the attention-only watch transitions.
+  - `AyasTechnologyIntegration.ts`: Stage 8 finding extraction, the Stage 13 hand-off and submit, Stage 10 context and one bounded cycle.
+
+  Also added: the read-only CLI `scripts/ayas-technology-watch.ts` and the evaluator `scripts/smoke-ayas-technology-watch.ts`. No existing source file changed, and there is no new store, scheduler or daemon wiring. The existing invocation path is documented in §18 of the doc.
+- **Authority.** Discovery is not approval, installation, execution, spend or publication. Every assessment carries `executionAuthority`/`authority: "NONE"` and all eight `may*` flags are false.
+  - The runtime import closure is 17 files, with externals `node:crypto/fs/path` only. The Stage 14 modules themselves import only `node:crypto`.
+  - The closure has no approval, gate, mutation, publication, daemon, process or network module.
+  - Only the CLI and the evaluator import the module.
+  - The Stage 13 hand-off uses the existing API with origin `RESEARCH_LOOP`, and never supplies a lifecycle, id, issue, signal, approval, evidence class or authority field.
+- **Evaluation.** Held-out scenarios H1–H12 were written before the implementation and frozen: SHA-256 `9aa208c8b03cab2e81eca36a1ed9934bd751707b3ae69f7d6d668b9b228bd7eb`, 11,382 bytes, byte-identical to the pre-implementation freeze. Every pre-review group is also byte-identical to that freeze apart from the header and `TOTALS`.
+  - The final evaluator (SHA-256 `af909f7d20340f7c13da5f3e465cae04668a062aa796bc78f6a35c6fcd0e5d4c`) reports 98 MISSING on a clean `cb7db64` archive and **98/98 PASS** on the branch: primary 55, held-out 12, matrix 3 (508 cases: 187 fresh, 257 persisted, 64 vocabulary), round-trip 8, adversarial 10 (400 fuzz records) and review 10.
+  - Mutation testing: 16/16 caught.
+  - The out-of-repo adversarial harness found 0 violations across 10,000 fresh corruptions, 8,000 re-signed persisted edits (0 readiness increases), 462,848 monotone uncertainty pairs and 63 suppression-bypass attempts.
+- **Regressions.** Each suite was checked for write targets before it ran, and the storage fingerprint was taken before and after every suite; all were unchanged. Observer-autostart was not run.
+  - Stage 8 loop: 36 decision + 55 integration.
+  - Stage 13: 109/109.
+  - Stage 10: flow 39/39, held-out 9/10 (the pre-existing `heldout-closure-written` miss), components 61/61, integration 14/14.
+  - Stage 7 routing: 41/41 (held-out 5/5). Capability taxonomy: 4.
+  - Zero-cost 8, proposal impact 27, proposal terminal dedup 19.
+  - Stage 9 supply chain 17/17 (held-out 7/7); isolated request body 2/2; isolated source read 1/1. The source-read suite's own POSIX cleanup (`rmdirSync` on a symlink) then throws ENOTDIR. That is pre-existing, and the suite is unchanged.
+  - Execution gate 16, execution authority 29, authority lock 11, daemon authority boundary 23, research scheduler 17, external research store 8.
+  - `smoke-ayas-autonomous-execution-gate` fails at scenario 5 on `Cannot find module '@sentropic/graphify'`, **identically on the clean `cb7db64` archive**. This is CLOUD_GRAPHIFY_UNAVAILABLE, and it needs local revalidation.
+  - TypeScript `--noEmit --incremental false`: PASS. Changed-file ESLint `--max-warnings 0`: PASS. `git diff --check`: PASS.
+- **Runtime/Test Mutation: NONE.** Storage fingerprints (the `data/` tree, git status including ignored files, and the home runtime dirs) were identical before and after every suite. There was no network access, paid call, account, install or deploy.
+- **Review.** BLOCKER 0, unresolved MAJOR 0. Each fix is pinned by a review scenario that fails on the fault.
+  - Pass 1, 5 MINOR, all fixed (V02–V05):
+    - dropped security evidence was invisible in the answers;
+    - the capacity drop order was wrong;
+    - the hand-off `createdAt` was unstable;
+    - future-dated capability claims were excluded from what is claimed;
+    - a malformed Stage 13 register crashed submission.
+  - Pass 2, 3 MAJOR, all fixed:
+    - sparse arrays were accepted at the boundaries (V06);
+    - a weak restrictive claim closed an open question and made a candidate more ready (V07–V09);
+    - an `UNKNOWN` delivery claim settled the delivery (V10).
+  - Mutation M1 (a malformed price read as free) was caught only after V01 was added.
+- **Graphify.** CLOUD_GRAPHIFY_UNAVAILABLE. Nothing was installed or bootstrapped, and no Graphify PASS is claimed. The review compensated with static import-closure analysis, an importer search, two manual passes, the evaluator, held-out scenarios, mutation testing, the adversarial harness and the regressions.
+- **Pre-existing:**
+  - the Stage 10 held-out miss;
+  - `GRAPH_PARTIAL`;
+  - the Stage 10 test-safety classifier rates this evaluator `REQUIRES_TEMP_ROOT` (`BRAIN_ROOT_LIVE_POSSIBLE`) only because it imports the Stage 8 source-registry constant (the known `/brain/` import over-flag);
+  - Stage 13 uses `every` on lists that could be sparse.
+- **Deferred:**
+  - keyed tamper evidence for a persisted register;
+  - daemon wiring and a persisted register (an owner decision);
+  - an owner unblock path for permanent blocks;
+  - the reopen limit suppressing a new advisory's resurfacing;
+  - a Stage 8-only path that can never reach hand-off (by design);
+  - the source-independence approximation.
+- **Next.** Owner-side: local Graphify update, freshness status and `review-analysis` for the 5 new source files; PR review; controlled promotion. Stage 15 has not started.
+
 ## AYAS STAGE 13 — POST-MERGE CLOSURE — 2026-09-25
 
 - **State: Stage 13 — Open-Ended Evolution Architecture ✅ COMPLETED.** This entry supersedes the "NOT CLOSED, DO NOT MERGE" states below. Stage 14 has not started.

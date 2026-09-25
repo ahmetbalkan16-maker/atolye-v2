@@ -1,5 +1,37 @@
 ---
 
+## 2026-09-25 — AYAS Autonomous Technology Watch & Capability Discovery (Stage 14) — PR READY, pending local Graphify validation and owner-side promotion
+
+- Added `src/lib/ayas/technology/`:
+  - `AyasTechnologyCandidate.ts`: the canonical candidate, observation normalization, identity and anchors, the bounded register and integrity-checked serialization.
+  - `AyasTechnologyWatch.ts`: the assessment engine and the attention-only watch transitions.
+  - `AyasTechnologyIntegration.ts`: Stage 8 extraction, the Stage 13 hand-off, Stage 10 context and one bounded cycle.
+
+  Also added the read-only `scripts/ayas-technology-watch.ts` CLI and the evaluator `scripts/smoke-ayas-technology-watch.ts`. All three modules are pure, and no existing source file changed.
+- **Discovery is not approval, installation, execution, spend or publication.** Every assessment carries `executionAuthority: NONE` and `authority: NONE`, and all `may*` flags are false.
+  - The runtime import closure is 17 files. Its only externals are `node:crypto`, `node:fs` and `node:path`. The Stage 14 modules themselves import only `node:crypto`, and the closure contains no approval, gate, mutation, publication, daemon or network module.
+  - Only the CLI and the evaluator import the module.
+  - There is no new store or scheduler. The cycle is not wired into the daemon.
+- **Evidence semantics.** Every dimension keeps its most restrictive *value* (any source can worsen it) separate from whether it is *established* (current, tier-eligible, confirmed evidence). A weak claim can never close an open question.
+  - UNKNOWN is not FREE, and FREE TIER is not ZERO.
+  - Unknown coverage is never a gap.
+  - An unknown category is never OTHER.
+  - Advisories, compromises and withdrawals count from any source and never expire.
+  - Directive-shaped content blocks.
+  - PRESENT + MALFORMED is never ABSENT: a malformed restrictive claim keeps its most restrictive value.
+  - A serialize → parse round trip never reduces safety. The digest is a content digest, not authentication; keyed tamper evidence is deferred.
+- **Stage 13 hand-off.** It is built only for a produced, current, unsuppressed HANDOFF_ELIGIBLE assessment with a genuine gap or a complementary relation. Origin is `RESEARCH_LOOP`, and no lifecycle, id, issue, signal, approval, evidence-class or authority field is supplied. Submission is digest-checked and idempotent, re-normalized and qualified by Stage 13, which stays authoritative.
+- **Evaluation.**
+  - The evaluator was written first. On a clean `cb7db64` archive it reports 98 MISSING; the final result is 98/98: 55 primary, 12 held-out (frozen, SHA-256 `9aa208c8…`), 3 matrix (508 cases), 8 round-trip, 10 adversarial and 10 review. The final evaluator's SHA-256 is `af909f7d…`.
+  - 16/16 mutations are caught.
+  - Review pass 1 found 5 MINOR; pass 2 found 3 MAJOR. All are fixed, each pinned by a review scenario that fails on the fault. BLOCKER 0, unresolved MAJOR 0.
+- **Regressions:** Stage 8 loop 36 + 55, Stage 13 109/109, Stage 10, Stage 7 routing and taxonomy, Stage 9 security suites, zero-cost, proposal impact, proposal dedup, execution gate/authority/lock, daemon authority boundary, research scheduler and store.
+  - The autonomous-execution-gate smoke needs the Graphify module. It fails identically on the clean base in the cloud.
+  - Runtime/Test Mutation: NONE.
+- Graphify was unavailable in the cloud: **LOCAL_GRAPHIFY_REVALIDATION_REQUIRED** before promotion. Stage 14 is not marked COMPLETED. See `docs/AYAS_TECHNOLOGY_WATCH.md`.
+
+---
+
 ## 2026-09-25 — AYAS Open-Ended Evolution Architecture (Stage 13) — ✅ COMPLETED
 
 - **Post-merge closure.** PR #2 was merged into `wip/ayas-graphify-final-execution` as `4a29c02ad71ee965686c75ef65c6f9f8d6f6ea52`. On that head:
