@@ -26,9 +26,9 @@ function withTempCwd<T>(fn: () => T): T {
 
 scenario("an empty environment returns connected:true with empty goals/research — never crashes", () => {
   const view = withTempCwd(() => loadAyasGoalDevelopmentView());
-  assert.equal(view.connected, true);
-  assert.deepEqual(view.goals, []);
-  assert.deepEqual(view.research, []);
+  assert.equal(view.connected, true, "assert.equal(view.connected, true)");
+  assert.deepEqual(view.goals, [], "assert.deepEqual(view.goals, [])");
+  assert.deepEqual(view.research, [], "assert.deepEqual(view.research, [])");
 });
 
 scenario("a goal's candidate is resolved to its real referenced research finding", () => {
@@ -44,10 +44,10 @@ scenario("a goal's candidate is resolved to its real referenced research finding
     goalStore.addCandidate(goal.goalId, { reference: finding.findingId, note: "test note" }, "2026-09-17T00:00:01.000Z");
     return loadAyasGoalDevelopmentView();
   });
-  assert.equal(view.goals.length, 1);
-  assert.equal(view.goals[0]!.candidates.length, 1);
+  assert.equal(view.goals.length, 1, "assert.equal(view.goals.length, 1)");
+  assert.equal(view.goals[0]!.candidates.length, 1, "assert.equal(view.goals[0]!.candidates.length, 1)");
   assert.ok(view.goals[0]!.resolvedCandidateFindings[0], "the candidate's referenced finding must resolve");
-  assert.equal(view.goals[0]!.resolvedCandidateFindings[0]!.provider, "TestProvider");
+  assert.equal(view.goals[0]!.resolvedCandidateFindings[0]!.provider, "TestProvider", "assert.equal(view.goals[0]!.resolvedCandidateFindings[0]!.provider, \"TestProvider\")");
 });
 
 scenario("a candidate referencing a finding that no longer exists resolves to undefined, never crashes the view", () => {
@@ -57,7 +57,7 @@ scenario("a candidate referencing a finding that no longer exists resolves to un
     goalStore.addCandidate(goal.goalId, { reference: "ayas-research-does-not-exist", note: "x" }, "2026-09-17T00:00:01.000Z");
     return loadAyasGoalDevelopmentView();
   });
-  assert.equal(view.goals[0]!.resolvedCandidateFindings[0], undefined);
+  assert.equal(view.goals[0]!.resolvedCandidateFindings[0], undefined, "assert.equal(view.goals[0]!.resolvedCandidateFindings[0], undefined)");
 });
 
 scenario("goals are sorted newest-updated first", () => {
@@ -69,7 +69,7 @@ scenario("goals are sorted newest-updated first", () => {
     void older;
     return loadAyasGoalDevelopmentView();
   });
-  assert.equal(view.goals[0]!.userIntent, "newer");
+  assert.equal(view.goals[0]!.userIntent, "newer", "assert.equal(view.goals[0]!.userIntent, \"newer\")");
 });
 
 scenario("an unreadable scheduler state never takes goals and research offline (display projection only)", () => {
@@ -80,9 +80,9 @@ scenario("an unreadable scheduler state never takes goals and research offline (
     fs.writeFileSync(path.join(dir, "scheduler-state.json"), "{ not json");
     return loadAyasGoalDevelopmentView();
   });
-  assert.equal(view.connected, true);
-  assert.equal(view.goals.length, 1);
-  assert.deepEqual(view.goals[0]!.scheduledResearchFindings, []);
+  assert.equal(view.connected, true, "assert.equal(view.connected, true)");
+  assert.equal(view.goals.length, 1, "assert.equal(view.goals.length, 1)");
+  assert.deepEqual(view.goals[0]!.scheduledResearchFindings, [], "assert.deepEqual(view.goals[0]!.scheduledResearchFindings, [])");
 });
 
 console.log(`AYAS goal development view smoke: PASS (${count} scenarios)`);
