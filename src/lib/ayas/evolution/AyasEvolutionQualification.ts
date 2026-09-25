@@ -10,8 +10,8 @@ import { collectAyasChangeAreas, type AyasChangeArea } from "../developer/AyasDe
 import { evaluateAyasZeroCost, type AyasCostClass, type AyasCostDecision } from "../policy/AyasZeroCostPolicy";
 import type { AyasCapability } from "../routing/AyasAgenticRouting";
 import {
-  AYAS_EVOLUTION_AUTHORITY_CLASSES, AYAS_EVOLUTION_AUTHORITY_PATHS, AYAS_EVOLUTION_HANDOFF_PROPOSAL_REFERENCE, AYAS_EVOLUTION_TERMINAL_STATES,
-  AyasEvolutionError, applyAyasEvolutionTransition, isAyasEvolutionBlockingIssue, updateAyasEvolutionOpportunity,
+  AYAS_EVOLUTION_AUTHORITY_CLASSES, AYAS_EVOLUTION_AUTHORITY_PATHS, AYAS_EVOLUTION_HANDOFF_PROPOSAL_REFERENCE, AYAS_EVOLUTION_SCHEMA_VERSION, AYAS_EVOLUTION_TERMINAL_STATES,
+  AyasEvolutionError, applyAyasEvolutionTransition, createAyasEvolutionRegister, isAyasEvolutionBlockingIssue, isAyasEvolutionPlainObject, updateAyasEvolutionOpportunity,
   type AyasEvolutionAuthorityClass, type AyasEvolutionCapabilityClass, type AyasEvolutionOpportunity, type AyasEvolutionPrerequisite, type AyasEvolutionRegister,
   type AyasEvolutionResourceKind, type AyasEvolutionRisk, type AyasEvolutionRiskDimension, type AyasEvolutionRiskLevel, type AyasEvolutionSideEffect,
   type AyasEvolutionTransitionRequest,
@@ -29,7 +29,8 @@ import {
  *
  * Facts it does not have stay unknown: a missing environment entry is
  * UNKNOWN, never AVAILABLE; an undeclared cost is `unknown-cost`, never
- * free; an undeclared risk dimension is UNKNOWN, never NONE.
+ * free; an undeclared risk dimension is UNKNOWN, never NONE. A PRESENT but
+ * malformed fact is not a missing one: the environment is refused.
  */
 export type AyasEvolutionFact = "AVAILABLE" | "UNAVAILABLE" | "UNKNOWN";
 
@@ -251,6 +252,9 @@ export function compareAyasEvolutionOpportunities(a: AyasEvolutionOpportunity, b
   const succession = a.relations.supersedes.includes(b.opportunityId) || b.relations.supersedes.includes(a.opportunityId)
     || a.relations.replacesCapabilities.includes(b.target.capability.key) || b.relations.replacesCapabilities.includes(a.target.capability.key);
   const textSimilar = ayasResearchTokenSimilarity(a.needTokenHashes, b.needTokenHashes) >= AYAS_RESEARCH_SEMANTIC_DUPLICATE_JACCARD;
+  // A record whose safety-relevant input was lost or invalidated cannot prove it is structurally different: the same
+  // target, domain and kind group is enough, so a garbled REJECTED or RETIRED record still stops a revival of itself.
+  const unverifiable = a.normalizationIssues.some(isAyasEvolutionBlockingIssue) || b.normalizationIssues.some(isAyasEvolutionBlockingIssue);
   if (sameTarget) reasons.push("SAME_TARGET");
   if (sameDomain) reasons.push("SAME_DOMAIN");
   if (refOverlap) reasons.push("SHARED_EVIDENCE_REFERENCE");
@@ -259,7 +263,8 @@ export function compareAyasEvolutionOpportunities(a: AyasEvolutionOpportunity, b
   if (dependency) reasons.push("PREREQUISITE_LINK");
   if (succession) reasons.push("SUCCESSION_LINK");
   if (textSimilar) reasons.push("TEXT_SIMILAR");
-  if (sameTarget && sameDomain && sameGroup && (refOverlap || sameSignature || sameModules)) return { relation: "DUPLICATE", reasons };
+  if (unverifiable) reasons.push("DECLARATIONS_UNVERIFIABLE");
+  if (sameTarget && sameDomain && sameGroup && (refOverlap || sameSignature || sameModules || unverifiable)) return { relation: "DUPLICATE", reasons };
   if (sameTarget || (sameDomain && moduleOverlap && refOverlap)) return { relation: "OVERLAPPING", reasons };
   if (sameDomain || moduleOverlap || refOverlap || dependency || succession) return { relation: "RELATED", reasons };
   return { relation: "INDEPENDENT", reasons: textSimilar ? ["TEXT_SIMILAR_ONLY"] : [] };
@@ -375,6 +380,9 @@ function implied<T extends string>(table: Readonly<Record<Known<T>, readonly Aya
 }
 
 function deriveAuthority(opportunity: AyasEvolutionOpportunity, areas: readonly AyasChangeArea[], cost: AyasCostDecision, prerequisites: readonly AyasEvolutionPrerequisiteResolution[]): AyasEvolutionAuthorityClass[] {
+  // A record that lost or invalidated safety-relevant input cannot bound what it would need, so it lists every
+  // class as REQUIRED — the UNKNOWN rule applied to the whole record. Required is never granted: `granted` stays NONE.
+  if (opportunity.normalizationIssues.some(isAyasEvolutionBlockingIssue)) return [...AYAS_EVOLUTION_AUTHORITY_CLASSES];
   const required = new Set<AyasEvolutionAuthorityClass>(["READ_ONLY", "SOURCE_MUTATION_APPROVAL", ...opportunity.declaredAuthority]);
   const capability = opportunity.target.capability;
   const add = (authorities: readonly AyasEvolutionAuthorityClass[]) => { for (const authority of authorities) required.add(authority); };
@@ -570,6 +578,8 @@ function qualifyWithAnalysis(opportunity: AyasEvolutionOpportunity, register: Ay
   if (plan.heldOutCriteria.length === 0) evaluationIssues.push("NO_HELD_OUT_CRITERIA");
   if (plan.regressionSuites.length === 0) evaluationIssues.push("NO_REGRESSION_SUITES");
   if (stage8.outcome === "NO_LOCAL_BENCHMARK") evaluationIssues.push("BENCHMARK_NOT_REGISTERED");
+  // A registered benchmark Stage 8 cannot map to the target (no, future or misspelled category) measures nothing about it.
+  if (stage8.outcome === "NO_CAPABILITY_MAPPING") evaluationIssues.push("BENCHMARK_NOT_MAPPED_TO_TARGET");
   if (stage8.outcome === "GAP_NOT_MEASURED") evaluationIssues.push("MEASUREMENT_REQUIRED_AT_CURRENT_HEAD");
   if (stage8.outcome === "NO_LOCAL_GAP") evaluationIssues.push("GAP_NOT_REPRODUCED_AT_CURRENT_HEAD");
   for (const issue of evaluationIssues) block("NEEDS_INVESTIGATION", issue);
@@ -650,10 +660,50 @@ function qualifyWithAnalysis(opportunity: AyasEvolutionOpportunity, register: Ay
   });
 }
 
+const FACT_VALUES: readonly string[] = ["AVAILABLE", "UNAVAILABLE", "UNKNOWN"];
+const FACT_MAPS: readonly (readonly [keyof AyasEvolutionEnvironment, readonly string[]])[] = [
+  ["capabilityKeys", ["AVAILABLE", "UNAVAILABLE", "RETIRED"]], ["hostBinaries", FACT_VALUES], ["dataSets", FACT_VALUES],
+  ["providerCapabilities", FACT_VALUES], ["externalServices", FACT_VALUES], ["externalAccounts", FACT_VALUES],
+];
+
+/**
+ * Environment FACTS fail closed like records: a fact map that is not an object
+ * map, a fact outside its vocabulary, or a capability whose availability or
+ * locality is not the declared type would otherwise read as absent — and a
+ * vanished RETIRED, AVAILABLE, OFFLINE or external fact is a lifted
+ * restriction. The environment is refused, never read as UNKNOWN.
+ */
+function assertAyasEvolutionEnvironment(env: AyasEvolutionEnvironment): void {
+  const fail = (field: string): never => { throw new AyasEvolutionError("AYAS_EVOLUTION_ENVIRONMENT_INVALID", `environment ${field} is malformed`); };
+  const e: unknown = env;
+  if (!isAyasEvolutionPlainObject(e)) return fail("shape");
+  if (typeof e.now !== "string" || !Number.isFinite(Date.parse(e.now))) throw new AyasEvolutionError("AYAS_EVOLUTION_INVALID_TIME", "environment time is invalid");
+  if (e.currentHead !== null && (typeof e.currentHead !== "string" || !/^[0-9a-f]{40}$/.test(e.currentHead))) fail("currentHead");
+  if (!Array.isArray(e.capabilities) || !e.capabilities.every((item: unknown) => isAyasEvolutionPlainObject(item) && typeof item.id === "string" && typeof item.type === "string"
+    && typeof item.available === "boolean" && (item.costClass === "zero" || item.costClass === "unknown") && (item.locality === "local" || item.locality === "external"))) fail("capabilities");
+  for (const [field, allowed] of FACT_MAPS) {
+    const facts = e[field];
+    if (facts !== undefined && (!isAyasEvolutionPlainObject(facts) || !Object.values(facts).every((fact) => typeof fact === "string" && allowed.includes(fact)))) fail(field);
+  }
+  if (e.operatingMode !== undefined && e.operatingMode !== "OFFLINE" && e.operatingMode !== "ONLINE" && e.operatingMode !== "UNKNOWN") fail("operatingMode");
+  const registry = e.improvementRegistry;
+  if (registry !== undefined && (!isAyasEvolutionPlainObject(registry) || !Array.isArray(registry.benchmarks) || !Array.isArray(registry.strategies) || !isAyasEvolutionPlainObject(registry.capabilityMap))) fail("improvementRegistry");
+  // A failing row whose held-out flag is not a boolean could otherwise be targeted by a hypothesis.
+  if (e.gapSnapshots !== undefined && (!Array.isArray(e.gapSnapshots) || !e.gapSnapshots.every((snapshot: unknown) => isAyasEvolutionPlainObject(snapshot)
+    && typeof snapshot.benchmarkId === "string" && typeof snapshot.measuredAtHead === "string" && typeof snapshot.evaluatorSha256 === "string" && Array.isArray(snapshot.failing)
+    && snapshot.failing.every((row: unknown) => isAyasEvolutionPlainObject(row) && typeof row.id === "string" && typeof row.dimension === "string" && typeof row.heldOut === "boolean")))) fail("gapSnapshots");
+}
+
 export function qualifyAyasEvolutionRegister(register: AyasEvolutionRegister, env: AyasEvolutionEnvironment): readonly AyasEvolutionQualification[] {
-  if (!Number.isFinite(Date.parse(env.now))) throw new AyasEvolutionError("AYAS_EVOLUTION_INVALID_TIME", "environment time is invalid");
-  const analysis = analyzeRegister(register, env);
-  return Object.freeze(register.opportunities.map((opportunity) => qualifyWithAnalysis(opportunity, register, env, analysis)));
+  assertAyasEvolutionEnvironment(env);
+  // The register boundary is re-checked: a register literal assembled around the register functions gets no shortcut.
+  const candidate: unknown = register;
+  if (!isAyasEvolutionPlainObject(candidate) || candidate.schemaVersion !== AYAS_EVOLUTION_SCHEMA_VERSION || !Array.isArray(candidate.opportunities)) {
+    throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_INVALID", "register is malformed");
+  }
+  const checked = createAyasEvolutionRegister(register.opportunities);
+  const analysis = analyzeRegister(checked, env);
+  return Object.freeze(checked.opportunities.map((opportunity) => qualifyWithAnalysis(opportunity, checked, env, analysis)));
 }
 
 export function qualifyAyasEvolutionOpportunity(opportunityId: string, register: AyasEvolutionRegister, env: AyasEvolutionEnvironment): AyasEvolutionQualification {

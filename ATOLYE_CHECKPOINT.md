@@ -1,3 +1,41 @@
+## AYAS STAGE 13 — PR #2 SECOND FIX ROUND (MALFORMED CONTAINERS) — CLOUD — 2026-09-25
+
+- **State: CLOUD SECOND FIX ROUND COMPLETE, NOT CLOSED, DO NOT MERGE.**
+  - Owner-side second local validation of fix-round head `351de917f7064c6eef0a117a31b3d2579abea671` failed with one unresolved MAJOR class: present but malformed containers were silently dropped. The class was already present in `80b15eb`.
+  - It is fixed on `cloud/stage13-open-ended-evolution`. PR #2 is updated, not merged, and no new PR was opened. The canonical `wip/ayas-graphify-final-execution` branch was not touched.
+  - Pre-fix runs used an isolated TEMP worktree detached at `351de917`, and regressions ran in a second TEMP worktree. The observer/daemon was never started.
+  - Remaining: **third local Graphify validation (LOCAL_GRAPHIFY_REVALIDATION_REQUIRED)**, owner review, controlled promotion. Details: `docs/AYAS_OPEN_ENDED_EVOLUTION_ARCHITECTURE.md` §22.
+- **Root cause.** The normalizer read containers with truthy/shape coercion (`?? {}`, `Array.isArray(x) ? x : []`, enum defaults), so a present value of the wrong shape read as an absent one. `lifecycle: "REJECTED"` / `["REJECTED"]` / `0` loaded as a fresh OBSERVED record, and a REJECTED opportunity came back as PROPOSAL_READY. Non-array `constraints`, `prerequisites`, `requiredAuthority`, `replacesCapabilities`, `retiresCapabilities` and `evidence` vanished the same way.
+- **Fixed. PRESENT + MALFORMED is never ABSENT:**
+  - A malformed lifecycle (or one without its state and history), a `null` or non-array carried list, target or register is refused.
+  - Every other wrong-shape container, text or closed-vocabulary value (`null` included), and every unknown or misspelled field, is a BLOCKING issue. There are 18 new codes, so the vocabulary is now 61, and `SUPERSEDED_BY_INVALID` is now BLOCKING.
+  - A persisted record must carry its carried issues and signals.
+  - A BLOCKING record lists every authority class as required; none is granted.
+  - Malformed resources or side effects become an explicit UNKNOWN resource or side effect.
+  - Directives hidden in malformed shapes are still detected.
+  - The register boundary (build and qualify) validates in-memory record shape.
+  - The environment facts and the CLI refuse malformed input.
+  - A garbled REJECTED record still blocks its revival (DUPLICATE when declarations are unverifiable).
+  - An existing-benchmark plan with an unmappable category is NEEDS_INVESTIGATION.
+  - No authority was added.
+- **Evaluation.**
+  - The evaluator was extended with a `container` group, C01–C27, for 54 + 8 + 20 + 27 = **109** (SHA-256 `5acb6303690d099a6c0fafd41c71abd4159973b6069808a38a298192ab31e47b`). Held-out is unchanged, and scenario 52's needles were extended (stricter).
+  - `351de917` sources: 54/54, 8/8, 20/20, **container 0/27**. Fixed: 109/109.
+  - The bounded shape matrix covers 443 cases. The round-trip, adversarial (32 subsets) and garbled-rejected-revival scenarios pass.
+  - Seeded scratch fuzz of 8,883 corrupted records: 0 violations on the fix, and 7,281 on `351de917` (728 reached PROPOSAL_READY).
+- **Regressions:**
+  - Stage 8 loop: 36 + 55.
+  - Stage 7: 41/41 + 5/5.
+  - Stage 10: 39/39 flow, 61/61 component, 14/14 integration (the pre-existing held-out miss is unchanged).
+  - Zero-cost 8, proposal impact 27, terminal dedup 19, Stage 12 director 53 + 8.
+  - The `data/` fingerprint is unchanged. TypeScript, changed-file ESLint `--max-warnings 0` and `git diff --check` pass. Observer-autostart was not run.
+- **Review.** PASS 1 (every normalization and deserialization path) and PASS 2 (malformed data only blocks, rejects or stays unknown, including cross-record effects). BLOCKER 0, unresolved MAJOR 0.
+- **Deferred:**
+  - Persisted-record tamper evidence against multi-key deletion or valid-looking edits (Stage 14 store integrity).
+  - IO/criteria/case-id truncation reporting.
+  - The first-round minors, unchanged.
+  - Stage 14 not started.
+
 ## AYAS STAGE 13 — PR #2 LOCAL-VALIDATION FIX ROUND — CLOUD — 2026-09-25
 
 - **State: CLOUD FIX ROUND COMPLETE, NOT CLOSED, DO NOT MERGE.** Owner-side local validation of cloud head `80b15ebec7661c388dff04463372761f620224fe` failed with 4 MAJOR fail-open defects. All are fixed on `cloud/stage13-open-ended-evolution` (PR #2 updated, not merged; canonical `wip/ayas-graphify-final-execution` untouched). Work and every pre-fix run used isolated scratch `git worktree`s; the canonical checkout was never switched and no daemon/observer ran. Remaining: **repeated local Graphify validation (LOCAL_GRAPHIFY_REVALIDATION_REQUIRED)**, owner review, controlled promotion. Details: `docs/AYAS_OPEN_ENDED_EVOLUTION_ARCHITECTURE.md` §21.

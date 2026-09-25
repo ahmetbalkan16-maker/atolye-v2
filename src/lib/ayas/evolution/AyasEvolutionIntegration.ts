@@ -4,7 +4,7 @@ import type { AyasImpactLevel, AyasProposalStructuredImpact } from "../../brain/
 import type { AyasImprovementHypothesis } from "../../brain/autonomy/AyasResearchImprovementLoop";
 import { redactAyasHandoffText } from "../developer/AyasDeveloperHandoff";
 import { describeAyasDeveloperTask, type AyasDeveloperTask } from "../developer/AyasDeveloperTaskModel";
-import { isAyasEvolutionBlockingIssue, type AyasEvolutionOpportunity, type AyasEvolutionRiskLevel } from "./AyasEvolutionOpportunity";
+import { isAyasEvolutionBlockingIssue, isAyasEvolutionRecordWellFormed, type AyasEvolutionOpportunity, type AyasEvolutionRiskLevel } from "./AyasEvolutionOpportunity";
 import type { AyasEvolutionQualification } from "./AyasEvolutionQualification";
 
 /**
@@ -23,8 +23,11 @@ import type { AyasEvolutionQualification } from "./AyasEvolutionQualification";
 export const AYAS_EVOLUTION_PLAN_MUTATION_KIND = "evolution-opportunity-plan:v1";
 export const AYAS_EVOLUTION_PROPOSAL_EVIDENCE_PREFIX = "evolution-opportunity:";
 
-/** Defense in depth: a record that lost or invalidated safety-relevant input never leaves Stage 13, whatever qualification object is supplied. */
-const carriesBlockingIssue = (opportunity: AyasEvolutionOpportunity) => opportunity.normalizationIssues.some(isAyasEvolutionBlockingIssue);
+/**
+ * Defense in depth: a record that lost or invalidated safety-relevant input — or that is not in the exact
+ * shape normalization produces — never leaves Stage 13, whatever qualification object is supplied.
+ */
+const carriesBlockingIssue = (opportunity: AyasEvolutionOpportunity) => !isAyasEvolutionRecordWellFormed(opportunity) || opportunity.normalizationIssues.some(isAyasEvolutionBlockingIssue);
 
 const LEVEL: Readonly<Record<AyasEvolutionRiskLevel, AyasImpactLevel>> = { NONE: "none", LOW: "low", MEDIUM: "medium", HIGH: "high", UNKNOWN: "unresolved" };
 

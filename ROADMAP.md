@@ -7,6 +7,7 @@
 - [x] Readiness engine with EXPERIMENT_READY (real Stage 8 hypothesis) and PROPOSAL_READY (unregistered `evolution-opportunity-plan:v1` design-review candidate for the existing inbox) as its ceiling; Stage 10 hand-off draft for manual paste; read-only operator CLI.
 - [x] Same evaluator on clean `43a2a17` archive and final source: 54 primary + 8 held-out MISSING → 54/54 + 8/8; Stage 8, Stage 7, Stage 10, Stage 12, zero-cost, proposal-impact and proposal-dedup regressions pass. See `docs/AYAS_OPEN_ENDED_EVOLUTION_ARCHITECTURE.md`.
 - [x] Local-validation fix round (PR #2): 4 MAJOR + 2 related MINOR fail-open defects from local validation of `80b15eb` fixed; 20 regression scenarios fail on `80b15eb` and pass after (evaluator 54 + 8 + 20 = 82).
+- [x] Second fix round (PR #2): present-but-malformed containers now fail closed (refused or BLOCKING, never absent), including the register boundary, environment facts and CLI; 27 container scenarios fail on `351de917` and pass after (evaluator 54 + 8 + 20 + 27 = 109).
 - [ ] Before closure: owner review, **local Graphify revalidation** (the cloud had no Graphify) and controlled promotion from `cloud/stage13-open-ended-evolution` into `wip/ayas-graphify-final-execution`.
 - [ ] Follow-up: a persisted register once a producer exists (Stage 14), a Brain read-only tile once there is something measured to show, licensing in structured impact.
 

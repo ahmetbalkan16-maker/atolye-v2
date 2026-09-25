@@ -1,6 +1,12 @@
 # AYAS Open-Ended Evolution Architecture — Stage 13
 
-Status on the cloud branch `cloud/stage13-open-ended-evolution`: **implemented, tested and reviewed; local validation of the first cloud head (`80b15eb`) found 4 MAJOR and 2 related MINOR fail-open defects, all fixed in the fix round (§21); pending repeated local Graphify validation, owner review and controlled promotion.** Stage 13 is not closed on `wip/ayas-graphify-final-execution` until that promotion is verified.
+Status on the cloud branch `cloud/stage13-open-ended-evolution`: **implemented, tested and reviewed.**
+
+- Local validation of the first cloud head (`80b15eb`) found 4 MAJOR and 2 related MINOR fail-open defects. All were fixed in the fix round (§21).
+- The second local validation, of `351de917`, found present-but-malformed containers silently dropped. This was fixed in the second fix round (§22).
+- Still pending: a third local Graphify validation, owner review and controlled promotion.
+
+Stage 13 is not closed on `wip/ayas-graphify-final-execution` until that promotion is verified.
 
 Stage 13 lets AYAS represent and reason about improvements and capabilities that were not hardcoded when it was built, under governance. **Open-ended does not mean unbounded autonomy.** Stage 13 represents and plans evolution. It cannot modify source, install anything, call a service, spend money, execute a discovered capability, approve its own proposals, publish, promote experiments, or alter security or execution policy. Owner approval and execution authority stay in the existing inbox, gate and policy modules.
 
@@ -55,16 +61,19 @@ One record, `AyasEvolutionOpportunity` (schema `"1"`), covers gaps, improvements
 | Lifecycle | state, append-only history, reopen count, `deferredUntil` |
 | Safety | detected `instructionSignals`, `normalizationIssues`, constant `authority: "NONE"` |
 
-Normalization fails closed on an invalid id, time, origin, kind, target key or schema version. A malformed or over-limit entry is never silently dropped from a safety-relevant list.
+Normalization fails closed on an invalid id, time, origin, kind, target or schema version, and on a present but malformed lifecycle or carried list. A malformed or over-limit entry is never silently dropped from a safety-relevant list.
 
-Normalization issues form a **closed vocabulary with a fixed severity** (`AYAS_EVOLUTION_ISSUE_SEVERITY`). A BLOCKING issue means something safety-relevant may have been discarded, truncated or invalidated, and qualification then BLOCKS with `INVALID_SAFETY_DECLARATION` (reference = the issue). The BLOCKING issues cover:
+**PRESENT + MALFORMED is never ABSENT** (second fix round, §22). An absent field takes its documented default. A present container, text or closed-vocabulary value of the wrong shape — `null` included, an array where an object map belongs, a scalar where a list belongs — is never read as absent. So is a present field this schema does not know (`UNKNOWN_FIELD`), which could be a misspelled safety declaration.
 
-- evidence: an unrecognized source, or evidence over its limit;
-- safety declarations: prerequisites, constraints, affected modules, replaced or retired capability keys, and authority classes that are invalid or over their limit;
-- descriptors: an unrecognized capability class, side effect or resource kind, and resources over their limit;
+Normalization issues form a **closed vocabulary with a fixed severity** (`AYAS_EVOLUTION_ISSUE_SEVERITY`, 61 codes). A BLOCKING issue means something safety-relevant may have been discarded, truncated or invalidated, and qualification then BLOCKS with `INVALID_SAFETY_DECLARATION` (reference = the issue). The BLOCKING issues cover:
+
+- evidence: an unrecognized source, evidence over its limit, or an evidence list that is not a list;
+- safety declarations: prerequisites, constraints, affected modules, replaced or retired capability keys, and authority classes that are invalid or over their limit, and any of their containers in the wrong shape;
+- descriptors: an unrecognized capability class, side effect, resource kind, resource cost class or key, or trust level; resources over their limit;
+- containers and text: `need`, `target` lists, `impact`, `risk`, `evaluation` and `relations` in the wrong shape, or with an unrecognized compatibility, risk level or baseline strategy; non-string text; a malformed successor id; an unknown field;
 - carried state: an unrecognized carried issue code or instruction signal.
 
-An issue code outside the vocabulary also counts as BLOCKING (`isAyasEvolutionBlockingIssue`). An unrecognized class, side effect or resource kind is recorded as the explicit `UNKNOWN` value, never a harmless substitute. History longer than its limit is refused, never truncated.
+An issue code outside the vocabulary also counts as BLOCKING (`isAyasEvolutionBlockingIssue`). An unrecognized class, side effect or resource kind is recorded as the explicit `UNKNOWN` value, never a harmless substitute. A record with any BLOCKING issue lists every authority class as required; none is granted. History longer than its limit is refused, never truncated.
 
 ## 3. Evidence and provenance (Phase 3)
 
@@ -87,11 +96,11 @@ A `RESEARCH_LOOP` record cannot promote its own statements to facts, and neither
 
 A capability is a descriptor, not an enum entry. It has a bounded dotted `key` and namespaced `domain` (both validated machine keys), an optional closed-taxonomy `knownCategory`, and closed vocabularies:
 
-- `capabilityClass`: TOOL, SKILL, MODEL, AGENT, STORAGE_ADAPTER, EVALUATOR, PIPELINE_EXTENSION, LIBRARY, SERVICE_INTEGRATION, UI_SURFACE, POLICY, OTHER, UNKNOWN. An undeclared class is `UNKNOWN` (recorded). An unrecognized one, such as a misspelling or wrong case, is `UNKNOWN` plus the BLOCKING `CAPABILITY_CLASS_INVALID`. It is never `OTHER`.
+- `capabilityClass`: TOOL, SKILL, MODEL, AGENT, STORAGE_ADAPTER, EVALUATOR, PIPELINE_EXTENSION, LIBRARY, SERVICE_INTEGRATION, UI_SURFACE, POLICY, OTHER, UNKNOWN. An absent class is `UNKNOWN` (recorded). An unrecognized one, such as a misspelling, the wrong case or `null`, is `UNKNOWN` plus the BLOCKING `CAPABILITY_CLASS_INVALID`. It is never `OTHER`.
 - `inputs` / `outputs`: IO kinds (TEXT, AUDIO, VIDEO, IMAGE, STRUCTURED_DATA, SOURCE_CODE, PROJECT_MANIFEST, MEDIA_METADATA, METRIC, DOCUMENT, OTHER)
 - `sideEffects`: NONE, READS_LOCAL_FILES, WRITES_LOCAL_FILES, WRITES_RUNTIME_STORAGE, WRITES_SOURCE, NETWORK_READ, NETWORK_WRITE, SPAWNS_PROCESS, INSTALLS_DEPENDENCY, SPENDS_MONEY, PUBLISHES, MODIFIES_POLICY, UNKNOWN (an empty declaration is `UNKNOWN`)
 - `resources` with a cost class (§8)
-- `trustLevel`: FIRST_PARTY_REVIEWED, LOCAL_UNREVIEWED, THIRD_PARTY, UNKNOWN
+- `trustLevel`: FIRST_PARTY_REVIEWED, LOCAL_UNREVIEWED, THIRD_PARTY, UNKNOWN (absent is `UNKNOWN`; an unrecognized value is `UNKNOWN` plus the BLOCKING `TRUST_LEVEL_INVALID`)
 
 Authority and risk are derived from these structured facts. No free-text field is read as authority. The evaluator exercises domains that appear nowhere in production code: accessibility audio description, a flame-graph developer tool, a local vision model, a storage archive adapter, an evaluation framework, sign-language avatars, and camera-path motion.
 
@@ -270,6 +279,8 @@ The runtime import closure of the three modules is 14 files with only `node:cryp
 
 **No new store.** Existing stores cannot represent pre-qualification opportunity state (§1), but Stage 13 also has no autonomous producer that would write one: continuous discovery is Stage 14. A store without a writer would be dead weight and an extra root. The register is an immutable value with a versioned, bounded, fail-closed `parseAyasEvolutionRegister`/`serializeAyasEvolutionRegister`, so a later stage can persist it through the existing atomic-write utilities under an explicit root. The CLI reads one explicit operator file and writes nothing.
 
+A record that carries a `lifecycle` is in persisted form. Its lifecycle must be a lifecycle object with its state and a non-empty history. It must also carry its `normalizationIssues` and `instructionSignals`, which are the only memory of losses that cannot be re-detected. Only a fresh producer input omits all three. The register refuses unknown register-level fields. At the register boundary (`createAyasEvolutionRegister`, and again in `qualifyAyasEvolutionRegister`), every in-memory record must have exactly the shape normalization produces (`assertAyasEvolutionRecordShape`), or it is refused (§22).
+
 ## 17. Evaluation
 
 Final evaluator SHA-256: `353ce564706eb9b2ec8af102b373931a5eda87454eed0669fd4c3adbcbb00cd2`.
@@ -410,3 +421,139 @@ The Stage 8 loop exited 1 once during a sequential batch run; its output was not
 **Still deferred (documented, not widened):** research-loop benchmark evidence cross-check hardening, one-sided `supersedes` relationship, proposal-candidate display provenance label, semantic verification of HANDED_OFF proposal references (only the reference shape is checked), and IO/criteria truncation issue reporting.
 
 **LOCAL_GRAPHIFY_REVALIDATION_REQUIRED** still applies (§19); the cloud container has no Graphify.
+
+## 22. Second fix round (PR #2): malformed containers fail closed
+
+The owner's second local validation of fix-round head `351de917f7064c6eef0a117a31b3d2579abea671` failed with one unresolved MAJOR class: **present but malformed containers were silently dropped**. The defect was already in the original `80b15eb`. It is fixed on the same branch, and no authority was added.
+
+Pre-fix runs used an isolated TEMP `git worktree` detached at `351de917`, and regressions ran in a second TEMP worktree. The canonical `wip/ayas-graphify-final-execution` branch was not touched, and `smoke-ayas-observer-autostart.ts` was not run.
+
+**Root cause.** The normalizer read containers with truthy or shape coercion instead of schema validation: `input.lifecycle ?? {}`, `Array.isArray(value) ? … : []`, `value ?? {}`, `oneOf(…) ? value : default`. A present value of the wrong shape (a string, number, boolean, `null`, an array where an object belongs, or an object where a list belongs) read exactly like an absent one, and nothing was recorded. The result was a fresh `OBSERVED` lifecycle, an empty list or a default enum. `lifecycle: "REJECTED"` revived an owner-rejected record as a fresh OBSERVED record, which could then reach PROPOSAL_READY.
+
+The same coercion existed in four more places:
+
+- the register boundary: in-memory records were only lifecycle-checked, so a string `declaredAuthority` was spread into characters and the authority was lost;
+- the environment facts: a malformed fact map read as "no facts";
+- the operator CLI: malformed facts were filtered out and unknown fields were ignored;
+- text fields: a non-string summary or statement escaped the instruction scan entirely.
+
+**The rule now.**
+
+| The field is | Result |
+|---|---|
+| absent | its documented default (fresh OBSERVED lifecycle, empty list, UNKNOWN or NONE value) |
+| present and valid | normalized |
+| present, wrong shape, `null` included, for the lifecycle, a carried list, the target or the register | **refused**; nothing is rebuilt |
+| present, wrong shape or unrecognized value, anywhere else | a **BLOCKING** issue that names the field |
+| present under a field name the schema does not know | BLOCKING `UNKNOWN_FIELD` (it could be a misspelled safety declaration) |
+
+`null` is never read as absent for a container or a text field. For nullable scalars (reference, observed time, benchmark, occurrences, finding id, known category, IO/resource/constraint keys, benchmark id, successor, deferral date, history `from`/`reference`) it means "none". Malformed provenance scalars (observed time, occurrence count, finding id) and IO keys are RECORDED; they can only make evidence weaker or drop a descriptive key.
+
+**Fields audited** (PASS 1). The container fields are listed first, then the scalars found by the systematic audit.
+
+| Field | On `351de917` | Now |
+|---|---|---|
+| `lifecycle` as string, array, number, boolean, `null`, `{}`, or without state/history | fresh OBSERVED record; a REJECTED record came back as PROPOSAL_READY | refused |
+| `normalizationIssues` / `instructionSignals` as `null` | read as `[]`; a carried block or directive was cleared | refused. A persisted record (one with a lifecycle) must carry both |
+| `evidence` not a list | `[]`; a security finding vanished (INSUFFICIENT_EVIDENCE, then PROPOSAL_READY after one appended item) | `EVIDENCE_MALFORMED` |
+| `prerequisites`, `constraints`, `requiredAuthority` not lists | `[]` → PROPOSAL_READY | `PREREQUISITES_` / `CONSTRAINTS_` / `AUTHORITY_MALFORMED` |
+| `relations` not an object, or any of its five lists not a list | defaults; retirement and replacement restrictions lost | `RELATIONS_MALFORMED` |
+| `relations.supersededBy` malformed | RECORDED, PROPOSAL_READY (a well-formed one on a non-SUPERSEDED record is refused) | `SUPERSEDED_BY_INVALID` is now BLOCKING |
+| `need` not an object; `summary`, `consequences`, `affectedCapabilityKeys` malformed | defaults; text escaped the scan | `NEED_MALFORMED` / `TEXT_MALFORMED` |
+| `target` / `target.capability` not objects | refused (by the key check) | refused (explicit) |
+| `target.nonGoals`, `capability.inputs`/`outputs` not lists; `knownCategory` not a string | `[]` / `null` | `TARGET_MALFORMED` |
+| `capability.sideEffects` not a list | UNKNOWN, recorded only as undeclared | UNKNOWN + `SIDE_EFFECTS_MALFORMED` |
+| `capability.resources` not a list | `[]`: resource authorities and the offline need were lost | one explicit UNKNOWN resource + `RESOURCES_MALFORMED` |
+| resource `costClass` / `key` malformed | `unknown-cost` / `null` | `RESOURCE_FIELD_INVALID` |
+| `trustLevel` unrecognized; `capabilityClass: null` | UNKNOWN / undeclared | `TRUST_LEVEL_INVALID` / `CAPABILITY_CLASS_INVALID` |
+| `impact` not an object; its lists not lists; `compatibility` unrecognized | defaults; a sensitive module read as "undeclared" | `IMPACT_MALFORMED` |
+| `risk` not an object, or a level unrecognized | UNKNOWN | UNKNOWN + `RISK_MALFORMED` |
+| `evaluation` not an object; lists not lists; `baselineStrategy` unrecognized | defaults (`EXPERIMENT_APPROVAL` dropped) | `EVALUATION_MALFORMED` |
+| any text field or text-list item that is not a string | `""`, not scanned | `TEXT_MALFORMED`, and the value is scanned as untrusted JSON text |
+| prerequisite `optional` not a boolean | required | still required + `PREREQUISITE_INVALID` |
+| constraint `key` malformed (non-exclusive kind) | `null` | constraint kept + `CONSTRAINT_INVALID` |
+| benchmark with a malformed case id | the id was dropped and it was still a fact | incomplete measurement (INFERENCE) |
+| evidence `observedAt` / `occurrences` / `researchFindingId`; IO `key` | `null` | `EVIDENCE_FIELD_INVALID` / `IO_KEY_INVALID` (RECORDED) |
+| unknown or misspelled field at any level, including a register written with `JSON.stringify` instead of the serializer (`declaredAuthority` in place of `requiredAuthority`) | ignored; the authority requirement was lost | `UNKNOWN_FIELD` |
+| unknown register-level field | ignored | refused |
+| in-memory record at `createAyasEvolutionRegister` / `qualifyAyasEvolutionRegister` | only its lifecycle was checked; a register literal skipped even that | full shape and vocabulary check (`assertAyasEvolutionRecordShape`), refused |
+| transition request `actor` / `deferredUntil` malformed | `AYAS` / `null` | refused |
+| environment: fact maps, capabilities (`available`, `locality`), operating mode, HEAD, registry, gap snapshots | a malformed map read as "no facts" (a RETIRED, AVAILABLE or OFFLINE fact was lost) | refused (`AYAS_EVOLUTION_ENVIRONMENT_INVALID`) |
+| CLI input and environment | malformed facts filtered, unknown fields ignored, over-long lists truncated | exit 2 |
+
+**Lifecycle fix.** `normalizeLifecycle` builds the fresh OBSERVED lifecycle only when `lifecycle` is absent. A present one must be a plain object with a recognized state and a non-empty, valid history, or the record is refused. It is never rebuilt. `REJECTED`, `DEFERRED`, `HANDED_OFF`, `SUPERSEDED`, `RETIRED`, the reopen count and the history can therefore not be reset by a malformed lifecycle. `assertAyasEvolutionLifecycle` still validates the whole chain.
+
+**Structured field fix.** The normalizer now reads fields only through shape-checked helpers (`objectField`, `arrayField`, `enumField`, `nullableField`, `textField`, `closedFields`); none uses truthy/falsy coercion. `isAyasEvolutionPlainObject` accepts only a JSON-style object map, so arrays, `null`, `Map`s and class instances do not count.
+
+**Restrictions are kept, not just blocked.**
+
+- A record with any BLOCKING issue lists **every authority class as required**. This is the UNKNOWN union applied to the whole record, so a malformed declaration can never show a smaller authority set than any well-formed one. `granted` stays `NONE`, `mayExecute`/`mayInstall`/`maySpend`/`mayPublish` stay `false`, and no authority class was added.
+- A malformed resource list becomes one UNKNOWN resource, and an unreadable side-effect list becomes UNKNOWN.
+- A malformed `optional` flag keeps its prerequisite required, and a malformed constraint key keeps its constraint.
+- A directive stays detectable when it is hidden in a malformed text shape, under an unknown field, or in an evidence item refused for its source. The instruction scan reads such values as untrusted JSON.
+- **Cross-record:** a record with a BLOCKING issue cannot prove it is structurally different. The same target, domain and kind group is enough for DUPLICATE, so a garbled REJECTED record still stops its own revival (`PREVIOUSLY_REJECTED`).
+- An EXISTING_BENCHMARK plan whose category Stage 8 cannot map (absent, future or misspelled) is NEEDS_INVESTIGATION (`BENCHMARK_NOT_MAPPED_TO_TARGET`). A misspelled category can no longer skip the current-HEAD measurement gate. An unrecognized category name on its own stays RECORDED, so scenario 22's future domain is unchanged.
+
+**Evaluator.** `scripts/smoke-ayas-open-ended-evolution.ts` was extended, not duplicated, with a separate `container` group C01–C27, bringing the total to **54 primary + 8 held-out + 20 regression + 27 container = 109**. The held-out scenarios are unchanged. The only change to an existing scenario is that scenario 52's anti-hardcoding needles now also include every malformed name and value the container group feeds in, which makes it stricter.
+
+- C01–C13: the required cases (lifecycle as string, array, number; constraints as object and string; prerequisites; required authority; replaced and retired capabilities; instruction signals; evidence; resources; affected modules). Each case asserts the malformed form is never weaker than the well-formed declaration it garbles.
+- C14–C23: the other shapes found by the audit (object containers, remaining lists, text, closed-vocabulary scalars, unknown fields, carried state, the in-memory register boundary, environment facts, the CLI, the category and benchmark gate).
+- C24: bounded shape matrix. 47 fields × {string, number, boolean, object, array, null} minus the accepted shapes, in fresh and persisted form, for 443 cases. Each must be refused, or BLOCKED with every authority required, release nothing and reload no weaker.
+- C25: round trip. Twelve blocked records keep their issues exactly across serialize → parse, and a second trip is a fixed point. REJECTED, DEFERRED, RETIRED, HANDED_OFF, SUPERSEDED and reopened records with a malformed lifecycle are refused.
+- C26: adversarial combinations. All 32 subsets of {malformed lifecycle, malformed constraints, unknown resource, malformed capability class, truncated security evidence} are loaded and reloaded. Every non-empty subset is refused (exactly when it includes the lifecycle) or BLOCKED. Adding one more corruption never loosens the result.
+- C27: a garbled REJECTED record still stops its revival.
+
+| Run (TEMP worktrees, same evaluator, SHA-256 `5acb6303690d099a6c0fafd41c71abd4159973b6069808a38a298192ab31e47b`) | Primary | Held-out | Regression | Container |
+|---|---|---|---|---|
+| `351de917` sources | 54/54 | 8/8 | 20/20 | **0/27**: every scenario fails with the fail-open outcome (PROPOSAL_READY, a fresh-load lifecycle, CLI exit 0) |
+| fixed sources | 54/54 | 8/8 | 20/20 | 27/27 |
+
+The 14 required cases on `351de917` behaved as follows:
+
+- **PROPOSAL_READY:** lifecycle as string, array or number (a REJECTED record came back as OBSERVED), constraints as object or string, prerequisites as object, required authority as object or string, replaced or retired capabilities as a string, and instruction signals as `null`.
+- **INSUFFICIENT_EVIDENCE:** evidence as an object (the security finding vanished).
+- **OWNER_DECISION_REQUIRED:** resources as an object (paid API dropped).
+- **NEEDS_INVESTIGATION:** affected modules as a string (the sensitive module vanished).
+- **Already refused:** instruction signals as an object or a string.
+
+On the fixed sources, all 14 are refused or BLOCKED with the field's issue.
+
+**Fuzz** (scratch only, not committed). Three seeds × 3,000 records, each with 1–4 corruptions drawn from a 248-entry catalogue (the matrix plus misspelled fields and values), in fresh and persisted form over four base shapes, gave 8,883 corrupted records:
+
+- **Fixed sources:** 2,027 refused, 6,856 BLOCKED, **0 violations**. The checks were: never above BLOCKED, `INVALID_SAFETY_DECLARATION` present, every authority required, no candidate or hand-off even with a forged PROPOSAL_READY, never laxer or with fewer authorities than the uncorrupted base, reload no weaker, reload a fixed point.
+- **`351de917` sources:** 7,281 violating records; 728 reached PROPOSAL_READY outright.
+
+**Regressions** (fixed sources, isolated worktree; `data/` fingerprint identical before and after):
+
+| Suite | Result |
+|---|---|
+| Stage 13 evaluator | 54/54 + 8/8 + 20/20 + 27/27 |
+| Stage 8 research-improvement loop | 36 decision + 55 integration |
+| Stage 7 agentic routing | 41/41, held-out 5/5 |
+| Stage 10 developer intelligence | 39/39 flow, 61/61 component, 14/14 integration; the documented pre-existing held-out miss `heldout-closure-written` is unchanged |
+| zero-cost policy | 8 |
+| proposal impact policy | 27 |
+| proposal terminal-state dedup | 19 |
+| Stage 12 director readiness | 53 + 8 |
+
+TypeScript `--noEmit --incremental false`, changed-file ESLint `--max-warnings 0` and `git diff --check` pass.
+
+**Review.**
+
+- **PASS 1** audited every normalization and deserialization path for "present malformed → silently omitted or defaulted": the record normalizer, evidence, benchmark, IO, resources, prerequisites, constraints, risk, evaluation, relations, lifecycle and history, carried lists, the register parse and boundary, transitions, evidence append, the environment and the CLI. Every coercion found is now refused or BLOCKING, or it is RECORDED and only weakens evidence (table above).
+- **PASS 2** checked that malformed data can only block, reject, or stay unknown and review-required:
+  - C24–C27 and the fuzz found no path to a laxer readiness, fewer required authorities, a released candidate or hand-off, or a reload that loosens.
+  - Cross-record effects were reviewed:
+    - A garbled record's lost exclusions or replacements cannot restrict another record, but the garbled record itself cannot proceed.
+    - Its lost prerequisite edges leave its dependents PREREQUISITES_MISSING.
+    - A garbled successor's `supersedes` makes the register refuse the one-sided link.
+    - A garbled closed record still blocks its duplicate (C27).
+
+**Still deferred (documented, not widened):**
+
+- **Key deletion in persisted form.** A persisted record whose lifecycle *and* carried lists are all deleted is indistinguishable from a fresh producer input. So is a valid-looking edit, such as `constraints: []`. Tamper evidence for persisted records needs the Stage 14 persisted store, with its own integrity. Deleting only the carried lists from a record that keeps its lifecycle is refused.
+- IO, criteria and benchmark case-id truncation reporting (descriptive and not safety-bearing; the raw instruction scan already reads every item).
+- Carried over from the first round: the research-loop benchmark cross-check, the one-sided `supersedes`, the candidate provenance label, and semantic HANDED_OFF verification.
+- Out of Stage 13's scope: inbox proposal status parsing (`readAyasEvolutionOwnerDecision`) and Stage 8's own snapshot and registry typing (Stage 13 now refuses a malformed snapshot or registry container at its own boundary).
+
+**LOCAL_GRAPHIFY_REVALIDATION_REQUIRED** still applies (§19). The cloud container has no Graphify CLI or module, and `.graphify/` is absent (gitignored), so no Graphify result is claimed.

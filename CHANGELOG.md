@@ -2,6 +2,15 @@
 
 ## 2026-09-25 — AYAS Open-Ended Evolution Architecture (Stage 13, cloud PR ready — pending promotion)
 
+- **Second fix round (PR #2): malformed containers fail closed.** Owner-side validation of `351de917` (and of `80b15eb` before it) found that present but malformed containers were silently read as absent. For example, `lifecycle: "REJECTED"` loaded as a fresh OBSERVED record, and `constraints: { kind: "CONFLICTS_WITH_SECURITY_POLICY" }` vanished; both could reach PROPOSAL_READY.
+  - PRESENT + MALFORMED is now never ABSENT. A malformed lifecycle, carried list, target or register is refused.
+  - Every other container, text or closed-vocabulary value of the wrong shape (`null` included), and every unknown or misspelled field, is a BLOCKING issue. Such a record lists every authority class as required, and none is granted.
+  - A persisted record must carry its carried issues and signals.
+  - The register boundary, the environment facts and the operator CLI refuse malformed input.
+  - A garbled REJECTED record still blocks its own revival.
+  - An existing-benchmark plan with an unmappable category needs investigation.
+  - No authority was added.
+  - The evaluator now has 54 primary + 8 held-out (unchanged) + 20 regression + 27 container = 109. The 27 container scenarios all fail on `351de917` and pass after the fix. Local Graphify revalidation is still required.
 - **Local-validation fix round (PR #2).** Owner-side validation of cloud head `80b15eb` found 4 MAJOR fail-open defects; all fixed, plus two related MINORs. Security evidence that was truncated or had a misspelled source now blocks. A serialize/parse round trip can no longer clear a block (closed issue and signal vocabularies, refused rather than truncated). Persisted lifecycle history is validated against the same invariants as live transitions. A misspelled capability class, side effect or resource kind is explicit `UNKNOWN`, requires every authority its vocabulary could imply, and blocks. A required SECURITY_POLICY_APPROVAL blocks PROPOSAL_READY. An UNKNOWN resource can never be declared zero-cost. No authority class added. The evaluator now has 54 primary + 8 held-out (unchanged) + 20 regression = 82. The 20 regression scenarios fail on `80b15eb` and pass after the fix. Local Graphify revalidation is still required.
 
 - Added `src/lib/ayas/evolution/`: a canonical, bounded evolution-opportunity model, a pure qualification engine and Stage 8/10 integration, plus the read-only `scripts/ayas-evolution-qualify.ts` CLI. Future capabilities are described by machine keys and closed descriptors (class, IO, side effects, resources, trust), not a feature enum.
