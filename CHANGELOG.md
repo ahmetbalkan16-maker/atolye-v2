@@ -1,5 +1,14 @@
 ---
 
+## 2026-09-25 — AYAS Open-Ended Evolution Architecture (Stage 13, cloud PR ready — pending promotion)
+
+- Added `src/lib/ayas/evolution/`: a canonical, bounded evolution-opportunity model, a pure qualification engine and Stage 8/10 integration, plus the read-only `scripts/ayas-evolution-qualify.ts` CLI. Future capabilities are described by machine keys and closed descriptors (class, IO, side effects, resources, trust), not a feature enum.
+- Evidence classes are derived (research is always a claim, AYAS suggestions are hypotheses, owner requests count only from the owner, benchmark facts only with a complete current-HEAD measurement). Prerequisite cycles and incompatibilities block; conflicts, migration, retirement, paid/unknown cost, installs, external services, production and publish need an owner decision. Unknown facts, cost and risk stay unknown.
+- The ceiling is EXPERIMENT_READY (a Stage 8 hypothesis) or PROPOSAL_READY (a non-executable design-review candidate with an unregistered mutation kind for the existing inbox). Every result carries `executionAuthority: NONE`; no source-mutation, install, spend or publish authority was added. No existing source file changed; no new store.
+- Clean `43a2a17` TEMP baseline with the final evaluator: 54 primary + 8 held-out MISSING; final 54/54 + 8/8. Graphify was unavailable in the cloud: local Graphify revalidation is required before promotion. See `docs/AYAS_OPEN_ENDED_EVOLUTION_ARCHITECTURE.md`.
+
+---
+
 ## 2026-09-25 — Atölye Director & Media Intelligence Readiness (Stage 12)
 
 - Added a pure advisory director model and read-only project adapter/CLI. Existing research, scene, visual, animation, audio and asset records feed explicit narrative, relevance, provenance, rights, variety, motion, pacing, continuity and assembly findings; no production or publication authority was added.
