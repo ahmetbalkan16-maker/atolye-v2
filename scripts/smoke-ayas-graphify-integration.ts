@@ -322,6 +322,11 @@ async function main(): Promise<void> {
     const disagree = envs.filter((env) => gc!.resolveAyasGraphifyModulesForStatus(env) !== bc!.resolveAyasGraphifyGlobalModules(env)).length;
     return outside.length === 0 && disagree === 0 ? true : `outside imports: ${outside.join(", ") || "none"}; resolver disagreements: ${disagree}`;
   });
+  await run("P34", "primary", "proposal-producing discovery honors the needs_update lifecycle marker", true, () => {
+    const source = fs.readFileSync(path.join(REPO, "scripts", "ayas-discovery-daemon.ts"), "utf8");
+    return /existsSync\(path\.join\(graphifyRoot,\s*["']needs_update["']\)\)/.test(source)
+      ? true : "discovery graphifyFresh() does not fail closed on .graphify/needs_update";
+  });
 
   // ======================= HELD-OUT =======================
   await run("H01", "held-out", "alternate stale metadata: lifecycle stale flag at the analyzed HEAD", hasGs, () => S(facts({ branch: { lastSeenHead: HEAD, lastAnalyzedHead: HEAD, stale: true, staleReason: "post-checkout" } })).structuralReasons.some((r) => r.startsWith("BRANCH_MARKED_STALE")));

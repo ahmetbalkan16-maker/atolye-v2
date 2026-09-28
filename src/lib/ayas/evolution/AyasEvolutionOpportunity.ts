@@ -418,6 +418,13 @@ export function isAyasEvolutionPlainObject(value: unknown): value is Record<stri
 }
 const isPlainObject = isAyasEvolutionPlainObject;
 
+/** Sparse arrays must not pass `.every()` or JSON-container validation. */
+export function isAyasEvolutionDenseArray(value: unknown): value is readonly unknown[] {
+  if (!Array.isArray(value)) return false;
+  for (let index = 0; index < value.length; index += 1) if (!Object.hasOwn(value, index)) return false;
+  return true;
+}
+
 /**
  * PRESENT + MALFORMED is never ABSENT. An absent container takes its documented
  * default; a present one of the wrong shape — null, an array where an object map
@@ -433,7 +440,7 @@ function objectField(value: unknown, issues: Issues, issue: AyasEvolutionNormali
 
 function arrayField(value: unknown, issues: Issues, issue: AyasEvolutionNormalizationIssue): readonly unknown[] {
   if (value === undefined) return [];
-  if (Array.isArray(value)) return value;
+  if (isAyasEvolutionDenseArray(value)) return value;
   issues.push(issue);
   return [];
 }
@@ -851,7 +858,7 @@ const EVIDENCE_TRUST: readonly AyasEvolutionEvidenceTrust[] = ["LOCAL_MEASUREMEN
 export function assertAyasEvolutionRecordShape(value: unknown): asserts value is AyasEvolutionOpportunity {
   const fail = (field: string): never => { throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_INVALID", `record ${field} is malformed`); };
   const object = (item: unknown, field: string): Record<string, unknown> => isPlainObject(item) ? item : fail(field);
-  const list = (item: unknown, field: string, valid: (entry: unknown) => boolean): readonly unknown[] => Array.isArray(item) && item.every(valid) ? item : fail(field);
+  const list = (item: unknown, field: string, valid: (entry: unknown) => boolean): readonly unknown[] => isAyasEvolutionDenseArray(item) && item.every(valid) ? item : fail(field);
   const text = (entry: unknown) => typeof entry === "string";
   const matches = (pattern: RegExp) => (entry: unknown) => typeof entry === "string" && pattern.test(entry);
   const orNull = (valid: (entry: unknown) => boolean) => (entry: unknown) => entry === null || valid(entry);
@@ -863,7 +870,7 @@ export function assertAyasEvolutionRecordShape(value: unknown): asserts value is
   if (!text(need.summary)) fail("need");
   list(need.affectedCapabilityKeys, "need", matches(MACHINE_KEY));
   list(need.consequences, "need", text);
-  const benchmark = (entry: unknown) => isPlainObject(entry) && matches(BENCHMARK_ID)(entry.benchmarkId) && matches(DIMENSION)(entry.dimension) && Array.isArray(entry.caseIds)
+  const benchmark = (entry: unknown) => isPlainObject(entry) && matches(BENCHMARK_ID)(entry.benchmarkId) && matches(DIMENSION)(entry.dimension) && isAyasEvolutionDenseArray(entry.caseIds)
     && entry.caseIds.length > 0 && entry.caseIds.every(matches(CASE_ID)) && matches(HEAD)(entry.measuredAtHead) && matches(SHA256)(entry.evaluatorSha256);
   list(record.evidence, "evidence", (entry) => isPlainObject(entry) && text(entry.evidenceId) && oneOf(AYAS_EVOLUTION_EVIDENCE_SOURCES, entry.source)
     && oneOf(EPISTEMIC_CLASSES, entry.epistemicClass) && oneOf(EVIDENCE_TRUST, entry.trust) && orNull(matches(REFERENCE))(entry.reference) && orNull(iso)(entry.observedAt)
@@ -1154,7 +1161,7 @@ export interface AyasEvolutionRegister {
 }
 
 function assertRegisterIntegrity(opportunities: readonly AyasEvolutionOpportunity[]): void {
-  if (!Array.isArray(opportunities)) throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_INVALID", "opportunities must be an array");
+  if (!isAyasEvolutionDenseArray(opportunities)) throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_INVALID", "opportunities must be a dense array");
   if (opportunities.length > AYAS_EVOLUTION_LIMITS.opportunities) throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_LIMIT", "register holds too many opportunities");
   const byId = new Map<string, AyasEvolutionOpportunity>();
   for (const opportunity of opportunities) {
@@ -1233,7 +1240,7 @@ export function parseAyasEvolutionRegister(value: unknown): AyasEvolutionRegiste
   // A register has no issue list to carry a loss: a field it does not know is refused, never skipped.
   if (unknownValues(v, ["schemaVersion", "opportunities"]).length > 0) throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_INVALID", "register holds an unknown field");
   if (v.schemaVersion !== AYAS_EVOLUTION_SCHEMA_VERSION) throw new AyasEvolutionError("AYAS_EVOLUTION_SCHEMA_MISMATCH", "unsupported register schema version");
-  if (!Array.isArray(v.opportunities)) throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_INVALID", "opportunities must be an array");
+  if (!isAyasEvolutionDenseArray(v.opportunities)) throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_INVALID", "opportunities must be a dense array");
   if (v.opportunities.length > AYAS_EVOLUTION_LIMITS.opportunities) throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_LIMIT", "register holds too many opportunities");
   return createAyasEvolutionRegister(v.opportunities.map((item) => normalizeAyasEvolutionOpportunity(item as AyasEvolutionOpportunityInput)));
 }

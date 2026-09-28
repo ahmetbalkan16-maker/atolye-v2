@@ -94,6 +94,7 @@ const MUTATION = re("duzelt|onar|fix|ekle|add|yaz(?!ilim)|olustur|create|impleme
 const RECOVERY = re("devam|kaldig|resume|continu|yarim|yarida|surdur|devral|kesil|interrupt");
 const EXHAUSTED = /\b(token|limit|kota|quota|oturum|session|context)\w*\s+(\w+\s+){0,2}(bitti|doldu|asildi|tukendi|kesildi|ran out|exhausted|ended|expired|hit|reached)\b|\b(limit|kota|quota)\w*\s+(doldu|asildi|hit|reached)\b/;
 const LIFECYCLE_CLAIM = /\b(commit|push|stage|closure|kapanis)\w*\s+(\w+\s+){0,2}(oldu|olmadi|edildi|edilmedi|yapildi|yapilmadi|gitti|gitmedi|done|pending|blocked|bekli\w*|engellendi|reddedildi)\b/;
+const DOCUMENTED_BUT_UNCOMMITTED = /\b(?:closure|kapanis)\w*\b[^.!?]{0,80}\b(?:yazildi|hazirlandi|tamamlandi|written|completed)\b[^.!?]{0,80}\b(?:commitlenmedi|commit edilmedi|not committed|uncommitted)\b/;
 const GRAPHIFY = /\bgraphify\w*|\bgraph\w*\b/;
 const SCOPE_CONCERN = /\b(dosya\w*|file\w*)\b.*\b(farkli|beklenmedik|unexpected|degismis|changed|drift|kaymis|alakasiz|unrelated)\b|\b(farkli|beklenmedik|alakasiz|unrelated|unexpected)\b.*\b(dosya\w*|file\w*)\b/;
 const FAILURE = /\b(permission|izin|yetki|erisim|eperm|eacces|access denied|timeout|zaman asimi|basarisiz|fail\w*|hata ver\w*|calismadi|calismiyor|patladi|kirmizi)\b/;
@@ -132,7 +133,7 @@ export function describeAyasDeveloperTask(input: { readonly text: string; readon
   const reasons: string[] = [];
   const question = QUESTION.test(t) && !POLITE_REQUEST.test(t);
   const exhausted = EXHAUSTED.test(t);
-  const lifecycleClaim = LIFECYCLE_CLAIM.test(t);
+  const lifecycleClaim = LIFECYCLE_CLAIM.test(t) || DOCUMENTED_BUT_UNCOMMITTED.test(t);
   const recovery = RECOVERY.test(t) || exhausted || lifecycleClaim;
   const scopeConcern = SCOPE_CONCERN.test(t);
   const failureTriage = FAILURE.test(t) && TEST_WORD.test(t);

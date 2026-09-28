@@ -46,3 +46,23 @@
 - Validation: memory-temporal 52 PASS, memory 30 PASS, context 34 PASS, chat-quality 36 PASS, conversation-quality-master 37 PASS, cognitive-quality 53/55 with two known limitations, retrieval evaluator PASS 74 cases with 29 unchanged known limitations, TypeScript PASS, changed-file lint PASS, `git diff --check` PASS.
 - Graphify refreshed on dirty source: `stale=false`, 15,442 nodes / 44,719 edges, no duplicate/dangling/self-loop. Review-analysis blast score 194 over 19 impacted files, nine communities, eight bridge nodes, two test-gap hints (tests ran). No approval, execution or persistent-state mutation authority was added.
 - Existing temporal records with no `factKey` remain untyped by the current read-side contract. The evaluator's historical PC plan fixture uses that form, so it does not improve; no known limitation was removed or falsely marked solved. Retyping prior records would require separate migration/read-side authority review.
+
+### Typed-plan packet committed
+
+- Commit `9e51840c2645447e3b8ee18d9277c209ffa4b852` (`feat(ayas): type explicit computer purchase plans`) contains five reviewed source/test/checkpoint files. No push; branch ahead origin by three commits and worktree clean immediately after commit.
+- Post-commit Graphify: `lastAnalyzedHead=9e51840`, `stale=false`, 15,443 nodes / 44,723 edges, duplicate node/edge 0/0, dangling 0, self-loop 0. Semantic description and seven PowerShell parser limitations remain.
+- Next: system-static remediation patch, reviewed independently against current code. The observer-autostart suite remains unsafe without owner-supervised proof of the real Scheduled Task state.
+
+### Continuation audit at `9e51840`
+
+- Actual branch/upstream: `wip/ayas-graphify-final-execution` tracking `origin/wip/ayas-graphify-final-execution`; local ahead/behind `3/0`. HEAD `9e51840c2645447e3b8ee18d9277c209ffa4b852` is the last committed green packet, with its recorded 52 temporal scenarios, 74-case retrieval gate, TypeScript, focused lint and diff checks. No push occurred.
+- Completed the post-commit Graphify binding/integrity check: `branch.lastAnalyzedHead=graph.built_from_commit=HEAD=9e51840`, `stale=false`, `needs_update` absent, 15,443 nodes / 44,723 edges, duplicate node/edge 0/0, dangling 0, self-loop 0. Semantic description pending and seven PowerShell parser limitations remain known.
+- Preserved uncommitted work, with no reset/clean/stash. All eight initial dirty files belong to the partially implemented Phase 0 system-static packet: `ACTIVE_CHECKPOINT.json` and `EXECUTION_LEDGER.md` are progress documentation; `ayas-discovery-daemon.ts`, `AyasDeveloperTaskModel.ts`, `AyasEvolutionOpportunity.ts`, `AyasEvolutionQualification.ts` are partial source changes; `smoke-ayas-graphify-integration.ts` and `smoke-ayas-open-ended-evolution.ts` are partial regressions. No unrelated dirty file or completed uncommitted packet was found.
+- Continue from this exact partial diff. Do not repeat the earlier conversation or typed-plan remediation. The observer-autostart test is still `UNSAFE_KNOWN` and must not run without the documented owner-supervised Scheduled Task proof.
+
+### Phase 0 system-static remediation — safe packet validated
+
+- Discovery now refuses Graphify freshness when `.graphify/needs_update` exists. Evolution record and environment containers reject sparse arrays, including arrays with inherited numeric entries. Developer task classification recognizes an explicitly written but uncommitted closure. The model-routing document now matches the verified zero-cost router: unknown-cost cloud is not auto-selected.
+- Every nine `-ForceStartupShortcut` invocation in the observer-autostart smoke now supplies a unique test `-TaskName`; static scan found zero misses. The suite remains `UNSAFE_KNOWN` in the real test index and was not executed, because owner-supervised proof of the live Scheduled Task's XML/state is a prerequisite.
+- Validation: Graphify integration 47 PASS, open-ended evolution 110 PASS, developer intelligence main 39/39 and held-out 10/10, model router 17 PASS, TypeScript PASS, changed-file lint PASS, full lint 0 errors / 13 pre-existing warnings, `git diff --check` PASS. The observer-autostart smoke has no run result.
+- Graphify refreshed after the final source change: `lastAnalyzedHead=graph.built_from_commit=9e51840`, `stale=false`, `needs_update` absent, 15,444 nodes / 44,728 edges, duplicate node/edge 0/0, dangling 0, self-loop 0. Review-analysis blast score 158, nine communities, eight bridge nodes, five test-gap hints; no authority coupling was introduced. Rebind the graph after the packet commit.

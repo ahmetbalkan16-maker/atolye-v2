@@ -27,7 +27,7 @@ const MODULE_DIR = path.join(ROOT, "src/lib/ayas/evolution");
 const PRIMARY_TOTAL = 54;
 const HELD_OUT_TOTAL = 8;
 const REGRESSION_TOTAL = 20;
-const CONTAINER_TOTAL = 27;
+const CONTAINER_TOTAL = 28;
 
 if (!existsSync(path.join(MODULE_DIR, "AyasEvolutionOpportunity.ts"))) {
   console.log(JSON.stringify({
@@ -1421,6 +1421,28 @@ async function main(): Promise<void> {
     const revived = byId(qs, revival.opportunityId);
     assert.notEqual(revived.readiness, "PROPOSAL_READY", "the owner-rejected opportunity came back to life");
     hasCode(revived, "PREVIOUSLY_REJECTED");
+  }, "container");
+  check("C28 sparse arrays fail closed instead of bypassing every()-based validation", () => {
+    const item = opp({ key: "c28.target" });
+    const sparseEvidence = new Array(1) as AyasEvolutionOpportunity["evidence"];
+    assert.throws(
+      () => model.createAyasEvolutionRegister([{ ...item, evidence: sparseEvidence }]),
+      (error: unknown) => error instanceof model.AyasEvolutionError && error.code === "AYAS_EVOLUTION_REGISTER_INVALID",
+    );
+    const sparseCapabilities = new Array(1) as AyasEvolutionEnvironment["capabilities"];
+    assert.throws(
+      () => engine.qualifyAyasEvolutionRegister(reg(item), { ...baseEnv(), capabilities: sparseCapabilities }),
+      (error: unknown) => error instanceof model.AyasEvolutionError && error.code === "AYAS_EVOLUTION_ENVIRONMENT_INVALID",
+    );
+    const inheritedEvidence = new Array(1) as AyasEvolutionOpportunity["evidence"];
+    const inheritedPrototype = Object.create(Array.prototype) as Record<number, unknown>;
+    inheritedPrototype[0] = finding(0);
+    Object.setPrototypeOf(inheritedEvidence, inheritedPrototype);
+    assert.throws(
+      () => model.createAyasEvolutionRegister([{ ...item, evidence: inheritedEvidence }]),
+      (error: unknown) => error instanceof model.AyasEvolutionError && error.code === "AYAS_EVOLUTION_REGISTER_INVALID",
+      "an inherited numeric property does not make a sparse array dense",
+    );
   }, "container");
 
   // ------------------------------------------------------------------ run

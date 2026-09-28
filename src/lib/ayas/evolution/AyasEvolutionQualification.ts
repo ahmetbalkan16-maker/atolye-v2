@@ -11,7 +11,7 @@ import { evaluateAyasZeroCost, type AyasCostClass, type AyasCostDecision } from 
 import type { AyasCapability } from "../routing/AyasAgenticRouting";
 import {
   AYAS_EVOLUTION_AUTHORITY_CLASSES, AYAS_EVOLUTION_AUTHORITY_PATHS, AYAS_EVOLUTION_HANDOFF_PROPOSAL_REFERENCE, AYAS_EVOLUTION_SCHEMA_VERSION, AYAS_EVOLUTION_TERMINAL_STATES,
-  AyasEvolutionError, applyAyasEvolutionTransition, createAyasEvolutionRegister, isAyasEvolutionBlockingIssue, isAyasEvolutionPlainObject, updateAyasEvolutionOpportunity,
+  AyasEvolutionError, applyAyasEvolutionTransition, createAyasEvolutionRegister, isAyasEvolutionBlockingIssue, isAyasEvolutionDenseArray, isAyasEvolutionPlainObject, updateAyasEvolutionOpportunity,
   type AyasEvolutionAuthorityClass, type AyasEvolutionCapabilityClass, type AyasEvolutionOpportunity, type AyasEvolutionPrerequisite, type AyasEvolutionRegister,
   type AyasEvolutionResourceKind, type AyasEvolutionRisk, type AyasEvolutionRiskDimension, type AyasEvolutionRiskLevel, type AyasEvolutionSideEffect,
   type AyasEvolutionTransitionRequest,
@@ -679,7 +679,7 @@ function assertAyasEvolutionEnvironment(env: AyasEvolutionEnvironment): void {
   if (!isAyasEvolutionPlainObject(e)) return fail("shape");
   if (typeof e.now !== "string" || !Number.isFinite(Date.parse(e.now))) throw new AyasEvolutionError("AYAS_EVOLUTION_INVALID_TIME", "environment time is invalid");
   if (e.currentHead !== null && (typeof e.currentHead !== "string" || !/^[0-9a-f]{40}$/.test(e.currentHead))) fail("currentHead");
-  if (!Array.isArray(e.capabilities) || !e.capabilities.every((item: unknown) => isAyasEvolutionPlainObject(item) && typeof item.id === "string" && typeof item.type === "string"
+  if (!isAyasEvolutionDenseArray(e.capabilities) || !e.capabilities.every((item: unknown) => isAyasEvolutionPlainObject(item) && typeof item.id === "string" && typeof item.type === "string"
     && typeof item.available === "boolean" && (item.costClass === "zero" || item.costClass === "unknown") && (item.locality === "local" || item.locality === "external"))) fail("capabilities");
   for (const [field, allowed] of FACT_MAPS) {
     const facts = e[field];
@@ -687,10 +687,10 @@ function assertAyasEvolutionEnvironment(env: AyasEvolutionEnvironment): void {
   }
   if (e.operatingMode !== undefined && e.operatingMode !== "OFFLINE" && e.operatingMode !== "ONLINE" && e.operatingMode !== "UNKNOWN") fail("operatingMode");
   const registry = e.improvementRegistry;
-  if (registry !== undefined && (!isAyasEvolutionPlainObject(registry) || !Array.isArray(registry.benchmarks) || !Array.isArray(registry.strategies) || !isAyasEvolutionPlainObject(registry.capabilityMap))) fail("improvementRegistry");
+  if (registry !== undefined && (!isAyasEvolutionPlainObject(registry) || !isAyasEvolutionDenseArray(registry.benchmarks) || !isAyasEvolutionDenseArray(registry.strategies) || !isAyasEvolutionPlainObject(registry.capabilityMap))) fail("improvementRegistry");
   // A failing row whose held-out flag is not a boolean could otherwise be targeted by a hypothesis.
-  if (e.gapSnapshots !== undefined && (!Array.isArray(e.gapSnapshots) || !e.gapSnapshots.every((snapshot: unknown) => isAyasEvolutionPlainObject(snapshot)
-    && typeof snapshot.benchmarkId === "string" && typeof snapshot.measuredAtHead === "string" && typeof snapshot.evaluatorSha256 === "string" && Array.isArray(snapshot.failing)
+  if (e.gapSnapshots !== undefined && (!isAyasEvolutionDenseArray(e.gapSnapshots) || !e.gapSnapshots.every((snapshot: unknown) => isAyasEvolutionPlainObject(snapshot)
+    && typeof snapshot.benchmarkId === "string" && typeof snapshot.measuredAtHead === "string" && typeof snapshot.evaluatorSha256 === "string" && isAyasEvolutionDenseArray(snapshot.failing)
     && snapshot.failing.every((row: unknown) => isAyasEvolutionPlainObject(row) && typeof row.id === "string" && typeof row.dimension === "string" && typeof row.heldOut === "boolean")))) fail("gapSnapshots");
 }
 
@@ -698,7 +698,7 @@ export function qualifyAyasEvolutionRegister(register: AyasEvolutionRegister, en
   assertAyasEvolutionEnvironment(env);
   // The register boundary is re-checked: a register literal assembled around the register functions gets no shortcut.
   const candidate: unknown = register;
-  if (!isAyasEvolutionPlainObject(candidate) || candidate.schemaVersion !== AYAS_EVOLUTION_SCHEMA_VERSION || !Array.isArray(candidate.opportunities)) {
+  if (!isAyasEvolutionPlainObject(candidate) || candidate.schemaVersion !== AYAS_EVOLUTION_SCHEMA_VERSION || !isAyasEvolutionDenseArray(candidate.opportunities)) {
     throw new AyasEvolutionError("AYAS_EVOLUTION_REGISTER_INVALID", "register is malformed");
   }
   const checked = createAyasEvolutionRegister(register.opportunities);

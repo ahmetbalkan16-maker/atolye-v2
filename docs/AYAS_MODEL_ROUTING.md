@@ -7,9 +7,9 @@ through `AyasModelRouter` (`src/lib/ayas/model/`):
                     AYAS MODEL ROUTER
                            │
                 ┌──────────┴──────────┐
-          LOCAL / OLLAMA          CLOUD LLM
-       (PC on, primary, $0)   (PC on but Ollama
-                               down → fallback)
+          LOCAL / OLLAMA          CLOUD LLM CONFIG
+       (PC on, primary, $0)   (provider abstraction exists;
+                               unknown-cost cloud is not selected)
 ```
 
 ## Decision (per turn)
@@ -19,11 +19,10 @@ through `AyasModelRouter` (`src/lib/ayas/model/`):
    **not** change which provider answers).
 2. probe the local model — a 2.5 s `GET {OLLAMA_HOST}/api/tags`.
 3. **Ollama healthy** → answer with Ollama (`AYAS_OLLAMA_MODEL` or the pipeline model).
-   **Ollama down + `AYAS_CLOUD_API_KEY` set** → answer with the cloud model. This
-   fallback is **visible** — the operational trace records
-   `"yerel model kapalı … → bulut modeline geçildi"`, never a silent switch.
-   **neither** → no model. The user sees an honest sentence with **no config or
-   secret detail**; text chat's deterministic replies still work.
+   **Ollama unavailable or unconfigured** → the current router returns `no-provider`.
+   A configured cloud endpoint still has `unknown-cost`, so the zero-cost policy
+   refuses automatic cloud fallback. The user sees an honest sentence with no
+   secret detail; text chat's deterministic replies still work.
 
 The router only turns a prompt into text. It runs nothing, touches no gate. The
 Execution Gate stays `CLOSED`; `writeActionsEnabled` stays `false`.
@@ -33,7 +32,7 @@ Execution Gate stays `CLOSED`; `writeActionsEnabled` stays `false`.
 | var | default | notes |
 |---|---|---|
 | `AYAS_OLLAMA_MODEL` | pipeline `OLLAMA_MODEL` | (existing) AYAS-chat-only local model override |
-| `AYAS_CLOUD_API_KEY` | *(unset)* | bearer token for the cloud fallback. **Presence ⇒ the cloud provider is "configured".** Read only by `getAyasCloudApiKey()`, used only for the `Authorization` header. Put it in `.env.local` (gitignored). |
+| `AYAS_CLOUD_API_KEY` | *(unset)* | bearer token for the cloud provider abstraction. Presence can make its config valid, but the current AYAS router refuses automatic `unknown-cost` cloud fallback under the zero-cost policy. |
 | `AYAS_CLOUD_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible base, no trailing slash. Must be `https://` (or `http://127.0.0.1` / `http://localhost` for a local proxy under test). Works with OpenAI, OpenRouter, Groq, Together, vLLM, … |
 | `AYAS_CLOUD_MODEL` | `gpt-4o-mini` | cloud model tag |
 | `AYAS_CLOUD_TIMEOUT_MS` | `60000` | per-request timeout (1 000–300 000) |
@@ -54,6 +53,7 @@ Architecture Decision — see `AYAS_PHONE_RUNTIME_DECISION.md`. This phase leave
 the provider abstraction ready for it (the cloud provider is a drop-in for such a
 proxy) but adds no external service.
 
-**The value delivered now:** while the PC is on, an Ollama outage (crash, model
-swap, thermal throttle, timeout) no longer takes AYAS chat down — the router
-falls over to the cloud model, visibly, with the key staying server-side.
+**Current behavior:** while the PC is on, AYAS uses healthy local Ollama. If it
+is unavailable, deterministic chat fallbacks remain available, but the model
+router does not automatically spend through a cloud provider. A future cloud
+route must establish an allowed cost class explicitly.

@@ -44,8 +44,10 @@ function git(args: readonly string[]): string {
 }
 function graphifyFresh(head: string): boolean {
   try {
-    if (!fs.statSync(path.join(root, ".graphify", "graph.json")).isFile()) return false;
-    const branch = JSON.parse(fs.readFileSync(path.join(root, ".graphify", "branch.json"), "utf8")) as { readonly lastAnalyzedHead?: unknown; readonly stale?: unknown };
+    const graphifyRoot = path.join(root, ".graphify");
+    if (!fs.statSync(path.join(graphifyRoot, "graph.json")).isFile()) return false;
+    if (fs.existsSync(path.join(graphifyRoot, "needs_update"))) return false;
+    const branch = JSON.parse(fs.readFileSync(path.join(graphifyRoot, "branch.json"), "utf8")) as { readonly lastAnalyzedHead?: unknown; readonly stale?: unknown };
     return branch.lastAnalyzedHead === head && branch.stale === false;
   } catch { return false; }
 }
