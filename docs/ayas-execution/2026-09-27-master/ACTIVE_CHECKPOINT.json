@@ -2,19 +2,19 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "bc1838d7150d21a124576e8d5f5356f514cdfc73",
-  "currentHead": "bc1838d7150d21a124576e8d5f5356f514cdfc73",
+  "lastGreenHead": "0ef362c394ce4269bc7f29772f733a160cf30a01",
+  "currentHead": "0ef362c394ce4269bc7f29772f733a160cf30a01",
   "stage": "STAGE_15",
-  "subtask": "15.1-generic-experiment-primitive",
+  "subtask": "15.2-evidence-source-binding",
   "status": "READY_TO_COMMIT",
   "completedStages": ["PHASE_0_LOCAL_CODE"],
-  "completedSubtasks": ["canonical-package-import", "conversation-safe-remediation", "temporal-plan-supersession", "system-static-remediation", "safe-ci", "runtime-health-evidence", "phone-model-immutable-pinning"],
+  "completedSubtasks": ["canonical-package-import", "conversation-safe-remediation", "temporal-plan-supersession", "system-static-remediation", "safe-ci", "runtime-health-evidence", "phone-model-immutable-pinning", "15.1-generic-experiment-primitive"],
   "currentFiles": [
     "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
     "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md",
-    "scripts/smoke-ayas-registered-improvement-experiment.ts",
+    "src/lib/brain/autonomy/AyasResearchExperimentEvaluation.ts",
     "src/lib/brain/autonomy/AyasRegisteredImprovementExperiment.ts",
-    "src/lib/brain/autonomy/AyasResearchImprovementCycle.ts"
+    "scripts/smoke-ayas-registered-improvement-experiment.ts"
   ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
@@ -28,10 +28,11 @@
     "Safe CI local gate: TypeScript PASS; full lint 0 errors/13 existing warnings; cognitive 53/55 with two known; retrieval 74 PASS; developer 39/39 and held-out 10/10; evolution 110 PASS; technology watch 129 PASS; hosted CI not run",
     "Runtime-health: real Next bundle before fix initialized worker ready but route returned created/503; after fix isolated HTTP health 200 ready; bundle regression PASS; health API 25/25; status 15/15; startup 11/11; production readiness 26 PASS; TypeScript/lint/diff check PASS",
     "Phone immutable pinning: capability 11; IDB storage 13; diagnostics 11; memory probe 8; diagnostic tests 5; range 8; precache 23; runner 10; Worker runtime 40; TypeScript PASS; changed-file lint PASS; git diff --check PASS",
-    "Stage 15.1: Stage 8 before/after full smoke decision 28/28 plus held-out 8/8, integration 55/55 plus held-out 5/5, evaluator SHA unchanged; generic admission refusals 9/9 with no store access; TypeScript PASS; changed-file lint PASS; git diff --check PASS"
+    "Stage 15.1: Stage 8 before/after full smoke decision 28/28 plus held-out 8/8, integration 55/55 plus held-out 5/5, evaluator SHA unchanged; generic admission refusals 9/9 with no store access; TypeScript PASS; changed-file lint PASS; git diff --check PASS",
+    "Stage 15.2: 9 generic admission refusals and 9 source-binding/legacy evidence cases PASS; Stage 8 decision 28/28 plus held-out 8/8 and integration 55/55 plus held-out 5/5 PASS, evaluator SHA unchanged, advisory-only; TypeScript PASS; changed-file lint PASS; git diff --check PASS"
   ],
   "graphify": {
-    "head": "bc1838d7150d21a124576e8d5f5356f514cdfc73",
+    "head": "0ef362c394ce4269bc7f29772f733a160cf30a01",
     "stale": false,
     "needsUpdate": false,
     "duplicateNodes": 0,
@@ -41,6 +42,6 @@
     "semanticPending": true
   },
   "blockers": ["External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority."],
-  "nextAction": "Commit the validated Stage 15.1 generic experiment primitive packet locally, then Graphify refresh/verify binding to the resulting HEAD. Continue exactly at Stage 15.2 additive evidence sourceBindings and hash/verification compatibility; no production strategy registration, owner approval, or push.",
-  "updatedAt": "2026-09-28T13:16:52+03:00"
+  "nextAction": "Commit the validated Stage 15.2 evidence source-binding packet locally and rebind Graphify to the new HEAD. Then continue Stage 15.3 pure/current-truth planner using the canonical design and Stage 13 qualification, without production strategy registration, owner approval, or push. Preserve the owner-reported phone recovery observation for Stage 17 validation.",
+  "updatedAt": "2026-09-28T17:06:42+03:00"
 }

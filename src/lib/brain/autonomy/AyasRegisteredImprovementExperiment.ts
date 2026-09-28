@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
 import { selectAyasAgenticRoute, type AyasAvailabilityEvidence } from "../../ayas/routing/AyasAgenticRouting";
-import { AYAS_EXPERIMENT_ISOLATION, ayasBaselineReproducesHypothesis, ayasEvidenceContainsSecret, boundAyasExperimentDiff, evaluateAyasExperiment, toAyasEvidenceMeasurement, type AyasBenchmarkRunOutcome, type AyasExperimentAbortCode, type AyasExperimentAnalysisRoute, type AyasExperimentEvidence, type AyasRegressionSuiteResult } from "./AyasResearchExperimentEvaluation";
+import { AYAS_EXPERIMENT_ISOLATION, ayasBaselineReproducesHypothesis, ayasEvidenceContainsSecret, boundAyasExperimentDiff, evaluateAyasExperiment, toAyasEvidenceMeasurement, validAyasExperimentSourceBindings, type AyasBenchmarkRunOutcome, type AyasExperimentAbortCode, type AyasExperimentAnalysisRoute, type AyasExperimentEvidence, type AyasExperimentSourceBinding, type AyasRegressionSuiteResult } from "./AyasResearchExperimentEvaluation";
 import { AYAS_EXPERIMENT_MAX_CHANGED_LINES, type AyasImprovementBenchmark, type AyasImprovementStrategy } from "./AyasResearchExperimentRegistry";
 import { applyAyasStrategyInSandbox, captureAyasSandboxChange, createAyasResearchExperimentSandbox, destroyAyasResearchExperimentSandbox, readAyasSandboxToolVersions, runAyasBenchmarkInSandbox, runAyasRegressionSuiteInSandbox, stampAyasNodeModules, type AyasResearchExperimentSandbox } from "./AyasResearchExperimentSandbox";
 import type { AyasExperimentRecord, AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
@@ -10,7 +10,7 @@ import { AYAS_RESEARCH_IMPROVEMENT_SCHEMA_VERSION, type AyasImprovementHypothesi
 import type { AyasResearchImprovementCycleDeps, AyasResearchImprovementObservation, AyasResearchExperimentFaultPoint } from "./AyasResearchImprovementCycle";
 
 export type AyasRegisteredExperimentObservation = AyasResearchImprovementObservation;
-export interface AyasRegisteredExperimentSourceBinding { readonly kind: "RESEARCH_FINDING" | "EVOLUTION_OPPORTUNITY"; readonly id: string }
+export type AyasRegisteredExperimentSourceBinding = AyasExperimentSourceBinding;
 export interface AyasRegisteredExperimentResult { readonly record: AyasExperimentRecord; readonly verdict: string; readonly reasonCodes: readonly string[] }
 
 const execFileAsync = promisify(execFile);
@@ -54,7 +54,7 @@ export async function runAyasRegisteredImprovementExperiment(ctx: AyasRegistered
     || record.strategyId !== strategy.strategyId || record.strategyVersion !== strategy.version
     || hypothesis.strategyId !== strategy.strategyId || hypothesis.strategyVersion !== strategy.version
     || hypothesis.benchmarkId !== benchmark.benchmarkId || strategy.benchmarkId !== benchmark.benchmarkId
-    || ctx.sourceBindings.length === 0 || ctx.sourceBindings.some((binding) => !["RESEARCH_FINDING", "EVOLUTION_OPPORTUNITY"].includes(binding.kind) || !binding.id.trim())) {
+    || !validAyasExperimentSourceBindings(ctx.sourceBindings, hypothesis.findingIds)) {
     throw new Error("EXPERIMENT_SOURCE_NOT_READY");
   }
   const before = await liveWorkspaceState(deps.repoRoot);
@@ -139,6 +139,7 @@ export async function runAyasRegisteredImprovementExperiment(ctx: AyasRegistered
     baseHead: record.baseHead,
     findingIds: hypothesis.findingIds,
     sourceIds: [...ctx.sourceIds],
+    sourceBindings: ctx.sourceBindings.map((binding) => ({ kind: binding.kind, id: binding.id })),
     hypothesis,
     baseline: toAyasEvidenceMeasurement(baseline),
     experiment: toAyasEvidenceMeasurement(experiment),

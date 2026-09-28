@@ -226,6 +226,8 @@ export interface AyasExperimentEvidence {
   readonly baseHead: string;
   readonly findingIds: readonly string[];
   readonly sourceIds: readonly string[];
+  /** Absent in historical Stage 8 evidence; present packages bind exact source identity into the existing hash. */
+  readonly sourceBindings?: readonly AyasExperimentSourceBinding[];
   readonly hypothesis: AyasImprovementHypothesis;
   readonly baseline: AyasEvidenceMeasurement | { readonly error: string } | null;
   readonly experiment: AyasEvidenceMeasurement | { readonly error: string } | null;
@@ -246,6 +248,36 @@ export interface AyasExperimentEvidence {
   readonly remainingTargetFailures: number;
   readonly completedAt: string;
   readonly authority: "NONE";
+}
+
+export interface AyasExperimentSourceBinding {
+  readonly kind: "RESEARCH_FINDING" | "EVOLUTION_OPPORTUNITY";
+  readonly id: string;
+}
+
+const RESEARCH_BINDING_ID = /^ayas-research-[0-9a-f-]{36}$/i;
+const EVOLUTION_BINDING_ID = /^ayas-evo-[0-9a-f]{16,64}$/;
+
+export function validAyasExperimentSourceBindings(bindings: unknown, findingIds: readonly string[]): bindings is readonly AyasExperimentSourceBinding[] {
+  if (!Array.isArray(bindings) || bindings.length === 0 || !Array.isArray(findingIds)) return false;
+  const seen = new Set<string>();
+  const researchIds: string[] = [];
+  let opportunityCount = 0;
+  for (const binding of bindings) {
+    if (!binding || typeof binding !== "object" || typeof binding.id !== "string") return false;
+    if (binding.kind === "RESEARCH_FINDING") {
+      if (!RESEARCH_BINDING_ID.test(binding.id)) return false;
+      researchIds.push(binding.id);
+    } else if (binding.kind === "EVOLUTION_OPPORTUNITY") {
+      if (!EVOLUTION_BINDING_ID.test(binding.id) || ++opportunityCount > 1) return false;
+    } else return false;
+    const key = `${binding.kind}:${binding.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+  }
+  return researchIds.length === findingIds.length
+    && researchIds.every((id) => findingIds.includes(id))
+    && new Set(findingIds).size === findingIds.length;
 }
 
 export const AYAS_EXPERIMENT_DIFF_EXCERPT_MAX = 16_000;
@@ -299,6 +331,10 @@ export function verifyAyasExperimentEvidence(evidence: unknown, expectedHash: st
   if (!evidence || typeof evidence !== "object" || !HEX64.test(String(expectedHash ?? ""))) return false;
   const candidate = evidence as AyasExperimentEvidence;
   if (candidate.schemaVersion !== AYAS_RESEARCH_IMPROVEMENT_SCHEMA_VERSION || candidate.authority !== "NONE" || typeof candidate.experimentId !== "string" || !candidate.hypothesis) return false;
+  if (candidate.sourceBindings !== undefined && (!Array.isArray(candidate.findingIds) || !Array.isArray(candidate.hypothesis.findingIds)
+    || !validAyasExperimentSourceBindings(candidate.sourceBindings, candidate.findingIds)
+    || candidate.findingIds.length !== candidate.hypothesis.findingIds.length
+    || !candidate.findingIds.every((id) => candidate.hypothesis.findingIds.includes(id)))) return false;
   if (ayasEvidenceContainsSecret(candidate)) return false;
   return hashAyasExperimentEvidence(candidate) === expectedHash;
 }
