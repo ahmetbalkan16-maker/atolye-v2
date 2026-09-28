@@ -2,23 +2,23 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "c417593c9fa2cb0dd2a9efd1188deb76acded3a8",
-  "currentHead": "c417593c9fa2cb0dd2a9efd1188deb76acded3a8",
+  "lastGreenHead": "b2e8f5c122a8392cedd888122526f87ff3f51547",
+  "currentHead": "b2e8f5c122a8392cedd888122526f87ff3f51547",
   "stage": "STAGE_15",
-  "subtask": "15.6-discovery-daemon-wiring",
-  "status": "READY_TO_COMMIT",
+  "subtask": "15.7-first-production-strategy-owner-review",
+  "status": "IN_PROGRESS",
   "completedStages": ["PHASE_0_LOCAL_CODE"],
-  "completedSubtasks": ["canonical-package-import", "conversation-safe-remediation", "temporal-plan-supersession", "system-static-remediation", "safe-ci", "runtime-health-evidence", "phone-model-immutable-pinning", "15.1-generic-experiment-primitive", "15.2-evidence-source-binding", "15.3-pure-current-truth-planner", "15.4-immutable-patch-artifact-promotion", "15.5-proposal-bridge"],
+  "completedSubtasks": ["canonical-package-import", "conversation-safe-remediation", "temporal-plan-supersession", "system-static-remediation", "safe-ci", "runtime-health-evidence", "phone-model-immutable-pinning", "15.1-generic-experiment-primitive", "15.2-evidence-source-binding", "15.3-pure-current-truth-planner", "15.4-immutable-patch-artifact-promotion", "15.5-proposal-bridge", "15.6-discovery-daemon-wiring", "15.7-temporal-test-contract-migration"],
   "currentFiles": [
     "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
     "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md",
-    "scripts/ayas-discovery-daemon.ts",
-    "src/lib/ayas/evolution/AyasControlledSelfEvolutionCycle.ts",
-    "src/lib/brain/autonomy/AyasResearchImprovementCycle.ts",
-    "src/lib/ayas/evolution/AyasControlledSelfEvolutionBridge.ts",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/STAGE15_7_OWNER_REVIEW_PACKET.md",
+    "scripts/smoke-ayas-stage15-7-candidate.ts",
+    "scripts/smoke-ayas-stage15-7-temporal-acceptance.ts",
+    "scripts/smoke-ayas-retrieval-evaluation.ts",
     "scripts/smoke-ayas-controlled-self-evolution-cycle.ts",
-    "scripts/smoke-ayas-controlled-self-evolution-artifact.ts",
-    "docs/AYAS_CONTROLLED_SELF_EVOLUTION.md"
+    "scripts/smoke-ayas-open-ended-evolution.ts",
+    "src/lib/brain/autonomy/AyasResearchExperimentRegistry.ts"
   ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
@@ -37,10 +37,11 @@
     "Stage 15.3: pure planner 14 deterministic + 3 held-out PASS; Stage 13 open-ended evolution 110/110 PASS; TypeScript PASS; changed-file lint PASS; git diff --check PASS",
     "Stage 15.4: real TEMP sandbox retention and SAFE artifact freeze/refusals PASS; Stage 8 decision 28/28 plus held-out 8/8, integration 55/55 plus held-out 5/5 PASS; patch-artifact 15/15, mutation 11/11, Graphify check 5/5, execution integration 9/9 PASS; TypeScript PASS; changed-file lint PASS; git diff --check PASS",
     "Stage 15.5: verified candidate/daemon PENDING and fail-closed refusal smoke PASS; Stage 8 decision 28/28 plus held-out 8/8, integration 55/55 plus held-out 5/5 PASS on stable Git index; artifact 15/15, mutation 11/11, approval 29/29, durable approval 24/24, execution integration 9/9, daemon 9/9, planner 14+3 PASS; TypeScript PASS; changed-file lint PASS; diff check PASS",
-    "Stage 15.6: TEMP full cycle and closed-gate smoke 19 PASS; planner 14+3, Stage 13 110/110, approval 29/29, durable approval 24/24, daemon 9/9, artifact 15/15, mutation 11/11, patch execution integration 9/9, Graphify check 5/5 PASS; full Stage 8 decision 28/28 plus held-out 8/8, integration 55/55 plus held-out 5/5 PASS; TypeScript, changed-file lint and staged diff check PASS"
+    "Stage 15.6: TEMP full cycle and closed-gate smoke 19 PASS; planner 14+3, Stage 13 110/110, approval 29/29, durable approval 24/24, daemon 9/9, artifact 15/15, mutation 11/11, patch execution integration 9/9, Graphify check 5/5 PASS; full Stage 8 decision 28/28 plus held-out 8/8, integration 55/55 plus held-out 5/5 PASS; TypeScript, changed-file lint and staged diff check PASS",
+    "Stage 15.7 TEMP precommit: baseline cognitive 53/55, held-out 4/5, retrieval 74 with exact known limitation, temporal 52/52; candidate cognitive 54/55, held-out 4/5, exact retrieval RESOLVED_KNOWN_LIMITATION, acceptance PASS, 15 changed lines only in temporal source; four declared regressions PASS before and after; full Stage 8 28+8/55+5, Stage 13 110, Stage 15 cycle 19, approval 29, durable 24, daemon 9, artifact 15, mutation 11, execution 9, TypeScript/lint/diff PASS"
   ],
   "graphify": {
-    "head": "c417593c9fa2cb0dd2a9efd1188deb76acded3a8",
+    "head": "b2e8f5c122a8392cedd888122526f87ff3f51547",
     "stale": false,
     "needsUpdate": false,
     "duplicateNodes": 0,
@@ -50,6 +51,6 @@
     "semanticPending": true
   },
   "blockers": ["External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority."],
-  "nextAction": "Commit only the validated nine-file Stage 15.6 packet locally, rebind Graphify to the resulting HEAD and verify integrity. Then begin exact Stage 15.7 first narrow real strategy: inspect the current measured conversation defect, prepare a concrete owner-review packet with <=2 exact files and <=80 changed lines, and stop before registering/committing that production strategy without owner review. No push.",
-  "updatedAt": "2026-09-28T22:04:07+03:00"
+  "nextAction": "Finish Stage 15.7 Graphify source/integrity and authority review; explicitly commit the owner-reviewed registry/evaluator/diagnostic/test/docs packet locally and rebind Graphify. Then run the real clean-tree Stage 8 controlled cycle for durable IMPROVED evidence, immutable artifact and normal owner proposal. Do not promote the live temporal source, approve/execute the proposal, push or merge. Present exact artifact/proposal scope at the owner gate.",
+  "updatedAt": "2026-09-28T23:07:15+03:00"
 }

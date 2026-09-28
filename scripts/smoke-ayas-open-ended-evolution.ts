@@ -259,7 +259,7 @@ async function main(): Promise<void> {
     assert.equal(bridge.buildAyasEvolutionProposalCandidate(item, q), null, "an experiment goes through Stage 8, not a proposal");
     const production = q1(item, baseEnv({ gapSnapshots: [snapshot] }));
     assert.equal(production.readiness, "PROPOSAL_READY"); assert.equal(production.stage8.outcome, "NEEDS_EXPERIMENT_DESIGN");
-    assert.equal(registryModule.AYAS_IMPROVEMENT_STRATEGIES.length, 0, "production strategy registry stays empty");
+    assert.ok(!registryModule.AYAS_IMPROVEMENT_STRATEGIES.some((strategy) => strategy.strategyId === fixtureStrategy.strategyId), "fixture strategy must not enter the production registry");
   });
   check("17 proposal-ready opportunity becomes a non-executable design-review candidate", () => {
     const item = opp(); const q = q1(item);

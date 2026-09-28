@@ -74,7 +74,7 @@ async function main(): Promise<void> {
       fs.writeFileSync(file, " ".repeat(2 * 1024 * 1024 + 1));
       assert.throws(() => readAyasControlledEvolutionRegister(file), /SIZE_INVALID/);
     });
-    const base = { repoRoot: root, observation, register, inbox: forbidden as never,
+    const base = { repoRoot: root, observation, register, registry: { ...AYAS_DEFAULT_IMPROVEMENT_REGISTRY, strategies: [] }, inbox: forbidden as never,
       experimentStore: forbidden as never, artifactStore: forbidden as never, remainingMs: () => 100_000 };
     await expect("unregistered strategy touches no store", async () => assert.equal(await runAyasControlledSelfEvolutionCycle(base), null));
     await expect("dirty repo touches no store", async () => assert.equal(await runAyasControlledSelfEvolutionCycle({ ...base, registry: fakeRegistry, observation: { ...observation, repoClean: false } }), null));

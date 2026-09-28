@@ -9,11 +9,10 @@ import type { AyasCapabilityCategory } from "./AyasCapabilityTaxonomy";
  * Every one of those comes from this module, which only a reviewed commit can
  * change — the same posture as `AyasMutationRegistry`.
  *
- * The production strategy list is intentionally EMPTY. A strategy is a
- * pre-reviewed, bounded code change generator; writing one per research
- * finding would be the controlled self-evolution of a later roadmap stage.
- * Until a strategy is registered, a finding that maps to a measured local gap
- * stops at `NEEDS_EXPERIMENT_DESIGN` evidence and never runs an experiment.
+ * The production strategy list contains only owner-reviewed, bounded code
+ * change generators. A research finding cannot register one. If no registered
+ * strategy matches a measured local gap, the finding stops at
+ * `NEEDS_EXPERIMENT_DESIGN` and cannot run an experiment.
  */
 export interface AyasImprovementBenchmark {
   readonly benchmarkId: string;
@@ -74,7 +73,57 @@ export const AYAS_IMPROVEMENT_BENCHMARKS: readonly AyasImprovementBenchmark[] = 
   { benchmarkId: "cognitive-quality", script: "scripts/smoke-ayas-cognitive-quality.ts", args: ["--baseline"], reportFlag: "--report", timeoutMs: 120_000, dimensions: COGNITIVE_DIMENSIONS },
 ]);
 
-export const AYAS_IMPROVEMENT_STRATEGIES: readonly AyasImprovementStrategy[] = Object.freeze([]);
+const RENDER_TOOL_SOURCE = "src/lib/ayas/memory/AyasMemoryTemporal.ts";
+const RENDER_TOOL_SOURCE_SHA256 = "eba4907c9f69df03188f708abe5ffe20c68a214c3d47eaac0c7bb6e3c23fdfec";
+
+/** Fixed, source-hash-bound sandbox patch. The live source is never written here. */
+export function generateAyasRenderToolSupersessionPatch(source: string): string {
+  if (crypto.createHash("sha256").update(source, "utf8").digest("hex") !== RENDER_TOOL_SOURCE_SHA256) throw new Error("render-tool strategy source mismatch");
+  const eol = source.includes("\r\n") ? "\r\n" : "\n";
+  const once = (input: string, before: string, after: string): string => {
+    if (input.split(before).length !== 2) throw new Error("render-tool strategy anchor mismatch");
+    return input.replace(before, after);
+  };
+  let content = once(source,
+    '  "user.decision.computer-purchase-plan",' + eol,
+    '  "user.decision.computer-purchase-plan",' + eol + '  "user.decision.render-tool",' + eol);
+  content = once(content,
+    '    return isAyasMemoryFactKey(factKey) && typeof factValue === "string" ? { key: factKey, value: factValue } : null;' + eol,
+    '    if (isAyasMemoryFactKey(factKey) && typeof factValue === "string") {' + eol +
+    '      if (factKey !== "user.decision.render-tool") return { key: factKey, value: factValue };' + eol +
+    '      const derived = deriveAyasMemoryFact(record);' + eol +
+    '      return isAuthoritative(record) && derived?.key === factKey && derived.value === factValue ? derived : null;' + eol +
+    '    }' + eol +
+    '    if (factKey !== undefined || factValue !== undefined) return null;' + eol +
+    '    const derived = deriveAyasMemoryFact(record);' + eol +
+    '    return derived?.key === "user.decision.render-tool" && isAuthoritative(record) ? derived : null;' + eol);
+  content = once(content,
+    '    const value = fold(input.body).replace(/\\s+/g, " ").trim();' + eol +
+    '    const computer = /\\b(?:bilgisayar|masaustu|dizustu|laptop|notebook|pc)\\b/.test(value);' + eol,
+    '    const value = fold(input.body).replace(/\\s+/g, " ").trim();' + eol +
+    '    const render = /^(?:artik )?render icin ([a-z][a-z0-9]{1,39}) kullanacagiz$/.exec(value);' + eol +
+    '    if (render) return { fact: { key: "user.decision.render-tool", value: render[1]! }, clause: null };' + eol +
+    '    const computer = /\\b(?:bilgisayar|masaustu|dizustu|laptop|notebook|pc)\\b/.test(value);' + eol);
+  content = once(content,
+    '  const evidence = deriveFactEvidence(input);' + eol,
+    '  const derived = deriveFactEvidence(input);' + eol +
+    '  const evidence = input.source === "ayas-inferred" && derived?.fact.key === "user.decision.render-tool" ? null : derived;' + eol);
+  return content;
+}
+
+export const AYAS_IMPROVEMENT_STRATEGIES: readonly AyasImprovementStrategy[] = Object.freeze([{
+  strategyId: "exp-memory-render-tool-supersession", version: 1,
+  capability: "conversation-memory-context", benchmarkId: "cognitive-quality",
+  dimensions: ["STALE_CONTEXT_LEAKAGE"], component: "AyasMemoryTemporal",
+  summary: "Read-side supersession for explicit user render-tool decisions only",
+  exactFiles: [RENDER_TOOL_SOURCE], maxChangedLines: 80,
+  regressionSuites: ["scripts/smoke-ayas-memory-temporal.ts", "scripts/smoke-ayas-memory.ts", "scripts/smoke-ayas-retrieval-evaluation.ts", "scripts/smoke-ayas-conversation-quality-master.ts"],
+  generate: ({ readFile }) => {
+    const source = readFile(RENDER_TOOL_SOURCE);
+    if (source === null) throw new Error("render-tool source missing");
+    return [{ filePath: RENDER_TOOL_SOURCE, content: generateAyasRenderToolSupersessionPatch(source) }];
+  },
+}]);
 
 const cognitive = (dimensions: readonly (typeof COGNITIVE_DIMENSIONS)[number][]) => [{ benchmarkId: "cognitive-quality", dimensions }];
 const unmeasured = (capability: string, component: string): AyasResearchCapabilityTarget => ({ capability, component, benchmarks: [] });

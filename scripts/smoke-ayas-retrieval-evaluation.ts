@@ -35,6 +35,7 @@ import { retrieveAyasMemory } from "../src/lib/ayas/memory/AyasMemoryRetrieval";
 import { createAyasMemoryStore } from "../src/lib/ayas/memory/AyasMemoryStore";
 import { BoundedAyasTraceStore, startAyasTrace } from "../src/lib/ayas/trace/AyasUnifiedTrace";
 import { buildBrainMemoryRecord } from "../src/lib/brain/BrainMemoryModel";
+import { generateAyasRenderToolSupersessionPatch } from "../src/lib/brain/autonomy/AyasResearchExperimentRegistry";
 import type { BrainMemoryRecordInput } from "../src/types/brainMemory";
 import {
   AYAS_RETRIEVAL_EVALUATION_CASES,
@@ -195,7 +196,24 @@ function sha(file: string): string {
 
 /* ------------------------------------------------------------------ */
 
-async function checkLimitations(results: readonly AyasRetrievalCaseResult[]): Promise<void> {
+/** Exact Stage 15.7 candidate evidence; ordinary baseline and unrelated diffs return null. */
+function renderToolCandidateEvidence(): { readonly baseHead: string; readonly diffSha256: string; readonly candidateSourceSha256: string } | null {
+  const target = "src/lib/ayas/memory/AyasMemoryTemporal.ts";
+  try {
+    const changed = execFileSync("git", ["diff", "--name-only", "HEAD", "--"], { cwd: process.cwd(), encoding: "utf8" }).trim().split(/\r?\n/).filter(Boolean);
+    if (changed.length !== 1 || changed[0] !== target) return null;
+    const baseHead = execFileSync("git", ["rev-parse", "HEAD"], { cwd: process.cwd(), encoding: "utf8" }).trim();
+    const base = execFileSync("git", ["show", `HEAD:${target}`], { cwd: process.cwd(), encoding: "utf8", maxBuffer: 1_000_000 });
+    const actual = fs.readFileSync(path.join(process.cwd(), target), "utf8");
+    if (actual !== generateAyasRenderToolSupersessionPatch(base)) return null;
+    const diff = execFileSync("git", ["diff", "--no-ext-diff", "--binary", "HEAD", "--", target], { cwd: process.cwd(), encoding: "utf8", maxBuffer: 1_000_000 });
+    return { baseHead, diffSha256: createHash("sha256").update(diff, "utf8").digest("hex"), candidateSourceSha256: createHash("sha256").update(actual, "utf8").digest("hex") };
+  } catch { return null; }
+}
+
+async function checkLimitations(results: readonly AyasRetrievalCaseResult[]): Promise<readonly { readonly caseId: string; readonly status: "RESOLVED_KNOWN_LIMITATION"; readonly evidence: NonNullable<ReturnType<typeof renderToolCandidateEvidence>> }[]> {
+  const candidateEvidence = renderToolCandidateEvidence();
+  const resolved: { caseId: string; status: "RESOLVED_KNOWN_LIMITATION"; evidence: NonNullable<ReturnType<typeof renderToolCandidateEvidence>> }[] = [];
   const ids = new Set(results.map((r) => r.caseId));
   for (const id of Object.keys(KNOWN_LIMITATIONS)) gate(ids.has(id), `limitation ${id} names no case`);
   for (const result of results) {
@@ -205,10 +223,13 @@ async function checkLimitations(results: readonly AyasRetrievalCaseResult[]): Pr
       gate(result.pass, `REGRESSION ${result.caseId}: failed ${failed.join(",")} (${result.failures.map((f) => f.code).join(" ")})`);
       continue;
     }
-    gate(!result.pass, `IMPROVED ${result.caseId}: now passes — remove it from KNOWN_LIMITATIONS`);
+    if (result.caseId === "seed:project-decision-free-text" && result.pass && candidateEvidence) {
+      resolved.push({ caseId: result.caseId, status: "RESOLVED_KNOWN_LIMITATION", evidence: candidateEvidence });
+    } else gate(!result.pass, `IMPROVED ${result.caseId}: now passes — remove it from KNOWN_LIMITATIONS`);
     const unexpected = failed.filter((layer) => !limitation.layers.includes(layer));
     gate(unexpected.length === 0, `REGRESSION ${result.caseId}: new failing layer(s) ${unexpected.join(",")}`);
   }
+  return resolved;
 }
 
 /** Layer A counts a category-label match even if admission later removes it. */
@@ -502,7 +523,7 @@ async function main(): Promise<void> {
   atMost("chat distractor delivery", metrics.context.chat.distractorDeliveryRate, CEILINGS.chatDistractorDelivery);
   atMost("chat abstain leak", metrics.context.chat.abstainLeakRate, CEILINGS.chatAbstainLeak);
 
-  await checkLimitations(results);
+  const resolvedKnownLimitations = await checkLimitations(results);
   const errorCases = await withAyasRetrievalNetworkGuard(checkErrorCases);
   const isolation = await withAyasRetrievalNetworkGuard(checkIsolationAndPrivacy);
   const chains = await withAyasRetrievalNetworkGuard(checkChatChains);
@@ -520,7 +541,7 @@ async function main(): Promise<void> {
     const report = buildAyasRetrievalReport({
       cases, fixtureVersion: AYAS_RETRIEVAL_EVALUATION_FIXTURE_VERSION, commit: commit(), results, networkAttempts, scale: scale.value, determinism,
     });
-    fs.writeFileSync(resolvedReport, `${JSON.stringify({ ...report, knownLimitations: KNOWN_LIMITATIONS, gateFailures }, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+    fs.writeFileSync(resolvedReport, `${JSON.stringify({ ...report, knownLimitations: KNOWN_LIMITATIONS, resolvedKnownLimitations, gateFailures }, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
   }
 
   const c = metrics.counts;
@@ -536,6 +557,7 @@ async function main(): Promise<void> {
     `determinism ${Object.entries(determinism).map(([k, v]) => `${k}=${v}`).join(" ")} | error cases ${errorCases.value} | isolation/privacy ${isolation.value} | chat chains ${chains.value} | leakage scan ${scannedFiles} files`,
   ];
   for (const line of lines) console.log(line);
+  for (const resolution of resolvedKnownLimitations) console.log(`${resolution.status} ${resolution.caseId} source=${resolution.evidence.candidateSourceSha256} diff=${resolution.evidence.diffSha256}`);
   if (process.argv.includes("--failures")) console.log(JSON.stringify(ayasRetrievalFailureRows(results), null, 2));
 
   if (gateFailures.length > 0) {
