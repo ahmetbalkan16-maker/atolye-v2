@@ -102,12 +102,11 @@ const KNOWN_LIMITATIONS: Readonly<Record<string, KnownLimitation>> = {
   "heldout-voice-length": { classification: "CONTEXT_ASSEMBLY", layers: ["chat-context"], reason: CHAT_GATE },
   "attribute-pc-ram": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: SAME_TOPIC },
   "attribute-pc-current-card": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: SAME_TOPIC },
-  "heldout-ram-bellek": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: `${SAME_TOPIC}; "bellek"/"RAM" synonymy is not modelled` },
+  "heldout-ram-bellek": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: `${SAME_TOPIC}; retrieval ranking still lacks "bellek"/"RAM" synonymy` },
   "none-same-word-other-meaning": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: "a general question sharing a word with personal memories is indistinguishable lexically" },
   "syn-edit-montaj": { classification: "EXPECTED_LIMITATION", layers: ["candidate", ...RANK_CTX], reason: "no synonym lexicon (montaj/kurgu); no embeddings by design" },
   "future-plan-question": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: "plans are reachable only through as-of/history; current recall never presents a plan (by design)" },
   "seed:identity-known-at-january": { classification: "QUERY_NORMALIZATION", layers: ["query", "chat-context"], reason: 'the temporal detector does not read "<month> sonunda … biliniyordu" (explicit query is correct)' },
-  "seed:historical-recorded-today": { classification: "QUERY_NORMALIZATION", layers: ["query", "chat-context"], reason: 'the temporal detector does not read "ne zaman … -dum" as a history question' },
 };
 
 /**

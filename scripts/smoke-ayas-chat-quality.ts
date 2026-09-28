@@ -349,6 +349,22 @@ async function run() {
     fs.rmSync(root, { recursive: true, force: true });
   });
 
+  await scenario("e2e — a RAM question surfaces a recalled bellek fact in the real prompt", async () => {
+    const root = tmpMemRoot();
+    createAyasMemoryStore({ rootDir: root }).append(buildBrainMemoryRecord({
+      kind: "environment-note", title: "Bilgisayar belleği", body: "Bilgisayarımda 32 GB bellek bulunuyor.",
+      importance: "durable", confidence: "reported", tags: ["donanım"],
+      observedAt: "2026-09-14T00:00:00.000Z", links: [],
+    }));
+    const bodies: string[] = [];
+    await collectDone(streamAyasChat({
+      text: "Bilgisayarımın RAM kapasitesi nedir?", snapshot: snap(), seq: 1,
+      fetcher: capturingMockOllamaStream(["32 GB."], bodies), memoryStore: { rootDir: root },
+    }) as never);
+    assert.match(promptFromCapturedBody(bodies[0]!), /32 GB bellek/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
   await scenario("e2e — unrelated simple question: memory NOT surfaced even though an identity record exists", async () => {
     const root = tmpMemRoot();
     seedIdentityRecord(root);

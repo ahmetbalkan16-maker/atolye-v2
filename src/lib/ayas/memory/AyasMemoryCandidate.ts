@@ -36,7 +36,7 @@ function clean(s: string, max = 400): string {
 const PREFERENCE = /\b(bundan sonra|her (zaman|seferinde)|artik|surekli|lutfen .* (yap|yapma|kullan|kullanma)|tercih ederim|istemiyorum|istiyorum ki|(bu|su)nu (unutma|hatirla|not al)|kural olarak|varsayilan olarak)\b/;
 
 /** "… karar verdik / … yapmaya karar / … kullanacagiz / … olsun dedik" */
-const DECISION = /\b(karar (verdik|verildi)|karar aldik|yapmaya karar|kullanacagiz|kullanmayacagiz|.* olsun dedik|kesinlestirdik|uzerinde anlastik)\b/;
+const DECISION = /\b(karar (verdik|verdim|verildi|aldik|aldim)|yapmaya karar|(?:alma|topla|kur|kullan|gec|sec)m[ae]y[ae] karar|kullanacagiz|kullanmayacagiz|vazgectim|.* olsun dedik|kesinlestirdik|uzerinde anlastik)\b/;
 
 /** "benim … / … kullaniyorum / makinemde … / repo(m) … / ortam(im) …" — an environment/structure fact. */
 const ENV_FACT = /\b(benim (makinem|bilgisayarim|gpu'?m|kurulumum)|.* kullaniyorum|makinemde|repo(m|mda|da)|ortam(im|imda)|projelerim .* disk(te|inde)|.* yolunu kullaniyorum)\b/;
@@ -86,8 +86,10 @@ export function extractAyasMemoryCandidates(input: {
   readonly tags?: readonly string[];
 }): AyasMemoryCandidate[] {
   const user = String(input.userText ?? "").trim();
-  if (!user || user.length < 12) return [];
+  if (!user) return [];
   const f = fold(user);
+  // The governance gate still rejects bodies shorter than its own minimum.
+  if (user.length < 12 && !IDENTITY.test(f)) return [];
   const baseTags = [...new Set((input.tags ?? []).map((t) => t.trim().toLowerCase()).filter(Boolean))];
 
   const out: AyasMemoryCandidate[] = [];

@@ -54,7 +54,7 @@ export function compressAyasHistory(
 
   // A bounded summary must retain the newest correction/constraint before
   // older, possibly superseded requests consume its character budget.
-  const userAsks = older.filter((t) => t.role === "user").reverse().map((t) => firstSentence(t.text));
+  const userAsks = older.filter((t) => t.role === "user").reverse().map((t) => summarySentence(t.text));
   const ayasQuestions = older
     .filter((t) => t.role !== "user" && t.text.trim().endsWith("?"))
     .reverse()
@@ -81,9 +81,11 @@ export function compressAyasHistory(
   return { summary: boundedLines, recent, droppedTurns: older.length };
 }
 
-function firstSentence(text: string): string {
+const CORRECTION_CUE = /\b(?:ama|fakat|ancak|artik|düzeltme|duzeltme|vazgeçtim|vazgectim|yanlış|yanlis|değişti|degisti)\b/i;
+function summarySentence(text: string): string {
   const t = text.replace(/\s+/g, " ").trim();
-  const m = t.split(/(?<=[.!?])\s+/)[0] ?? t;
+  const parts = t.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const m = [...parts].reverse().find((part) => CORRECTION_CUE.test(part)) ?? parts[0] ?? t;
   return m.length <= 90 ? m : `${m.slice(0, 89)}…`;
 }
 

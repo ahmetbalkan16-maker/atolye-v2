@@ -70,6 +70,19 @@ async function run() {
       h(["user", "yeni video başlat"], ["brain", "Hangi konu hakkında olsun?"], ["user", "Fatih Sultan Mehmet"]),
     );
     assert.equal(answered.unresolvedQuestions.length, 0);
+    const deferred = deriveAyasConversationState(
+      h(["user", "yeni video başlat"], ["brain", "Hangi konu hakkında olsun?"], ["user", "Bir dakika"]),
+    );
+    assert.equal(deferred.unresolvedQuestions.length, 1);
+  });
+
+  await scenario("state — only an explicit matching topic release removes a temporary constraint", () => {
+    const history = h(["user", "Memory tarafına bugün dokunmayalım."], ["user", "Production tarafına dokunmayalım."]);
+    const unrelated = deriveAyasConversationState([...history, { role: "user", text: "Artık memory hakkında konuşabiliriz." }]);
+    assert.equal(unrelated.temporaryConstraints.length, 2, "ambiguous release leaves constraints intact");
+    const released = deriveAyasConversationState([...history, { role: "user", text: "Artık memory tarafına girebiliriz." }]);
+    assert.equal(released.temporaryConstraints.length, 1);
+    assert.match(released.temporaryConstraints[0], /Production/);
   });
 
   await scenario("state — empty / system-only history → empty state", () => {
@@ -372,6 +385,16 @@ async function run() {
     const a = assembleAyasContext({ userText: "Devam et.", history: hist });
     assert.match(a.block.stateLines?.join("\n") ?? "", /production'a dokunma/i);
     assert.ok(a.trace.droppedTurns > 0);
+  });
+
+  await scenario("long-session summary — a later correction sentence survives compression", () => {
+    const hist = h(
+      ["user", "İlk plan masaüstüydü. Ama artık laptop alacağız."],
+      ["brain", "Düzeltmeyi aldım."],
+      ...Array.from({ length: 20 }, (_, index) => [index % 2 ? "brain" : "user", `Bağlam turu ${index + 1} hakkında ayrıntı.`] as ["user" | "brain", string]),
+    );
+    const a = assembleAyasContext({ userText: "Plan neydi?", history: hist });
+    assert.match(a.block.historySummary?.join("\n") ?? "", /artık laptop/i);
   });
 
   console.log(`AYAS context smoke: PASS (${count} scenarios)`);

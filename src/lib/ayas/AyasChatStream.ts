@@ -189,13 +189,17 @@ const MEMORY_RELEVANCE_STOPWORDS = new Set([
   "ile", "mi", "midir", "nasil", "neden", "nedir", "olan", "olarak", "simdi", "sonra", "ve",
   "veya", "yapabiliriz", "yapalım", "yapalim",
 ]);
+const STRONG_MEMORY_TOKENS = new Set(["ram"]);
 function meaningfulMemoryTokens(text: string): Set<string> {
   const words = fold(text).replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/);
   const tokens = new Set<string>();
   for (const word of words) {
-    if (word.length < 4 || MEMORY_RELEVANCE_STOPWORDS.has(word)) continue;
+    if ((word.length < 4 && !STRONG_MEMORY_TOKENS.has(word)) || MEMORY_RELEVANCE_STOPWORDS.has(word)) continue;
     // Same stemming as retrieval, so a fact recall selected is not dropped here over an inflection.
-    tokens.add(stemAyasMemoryWord(word));
+    const stem = stemAyasMemoryWord(word);
+    tokens.add(stem);
+    if (stem === "ram") tokens.add("bellek");
+    if (stem === "bellek") tokens.add("ram");
   }
   return tokens;
 }
@@ -203,7 +207,7 @@ function meaningfulMemoryTokens(text: string): Set<string> {
 function hasMeaningfulMemoryOverlap(query: Set<string>, line: string): boolean {
   const memory = meaningfulMemoryTokens(line);
   const matches = [...query].filter((token) => memory.has(token));
-  return matches.length >= 2 || matches.some((token) => token.length >= 7);
+  return matches.length >= 2 || matches.some((token) => token.length >= 7 || STRONG_MEMORY_TOKENS.has(token));
 }
 
 function relevantMemoryLinesForTurn(

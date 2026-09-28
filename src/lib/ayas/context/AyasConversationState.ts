@@ -166,6 +166,22 @@ function immediateConstraint(text: string): string | null {
   return compact(text, 140);
 }
 
+/** Only an explicit release of the same named topic can remove a turn-local constraint. */
+function releaseImmediateConstraints(text: string, constraints: readonly string[]): string[] {
+  const value = fold(text).replace(/\s+/g, " ").trim();
+  if (/^(?:artik|simdi) tum (?:kisitlari|yasaklari) kaldir(?:alim)?[.!]?$/.test(value)) return [];
+  const release = value.match(/^(?:artik|simdi) ([a-z0-9 ]{3,60}?) (?:tarafina|konusuna) (?:girebiliriz|dokunabiliriz|devam edebiliriz|konusabiliriz)[.!]?$/);
+  if (!release) return [...constraints];
+  const topic = release[1].trim();
+  return constraints.filter((constraint) =>
+    !new RegExp(`(?:^|\\s)${topic.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} (?:tarafina|konusuna)(?:\\s|$)`).test(fold(constraint)),
+  );
+}
+
+function defersPendingQuestion(text: string): boolean {
+  return /^(?:bir dakika\b|bekle\b|dur\b|bunu sonra\b|sonra cevapla\w*\b|once baska\b|konuyu degistir\w*\b)/.test(fold(text).replace(/\s+/g, " ").trim());
+}
+
 function explicitTopic(text: string): string | null {
   const value = fold(text);
   const match = value.match(/^(.{2,100}?)\s+(?:konusalim|inceleyelim|ele alalim|uzerinden gidelim)\b/);
@@ -260,6 +276,8 @@ export function deriveAyasConversationState(
       if (constraint) {
         constraints.push(constraint);
         if (constraints.length > MAX_CONSTRAINTS) constraints.shift();
+      } else if (constraints.length) {
+        constraints.splice(0, constraints.length, ...releaseImmediateConstraints(turn.text, constraints));
       }
       const topic = explicitTopic(turn.text);
       if (topic) {
@@ -268,7 +286,7 @@ export function deriveAyasConversationState(
         note(topic, "topic", idx);
       }
       // answering clears the most recent pending question
-      if (unresolved.length && turn.text.trim().length > 0) unresolved.length = 0;
+      if (unresolved.length && turn.text.trim().length > 0 && !defersPendingQuestion(turn.text)) unresolved.length = 0;
     } else {
       lastAssistantText = turn.text.trim();
       const q = pendingQuestion(turn.text);

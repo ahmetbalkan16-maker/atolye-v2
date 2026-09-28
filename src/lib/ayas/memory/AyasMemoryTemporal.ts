@@ -914,7 +914,7 @@ export function buildAyasMemoryTemporalInput(input: {
 /* ------------------------------------------------------------------ */
 
 const KNOWLEDGE_CUE = /\b(?:biliyordu[mnk]?|biliyor muydu[mnk]?|hatirliyordu[mnk]?|kayitliydi)\b/;
-const HISTORY_QUESTION_CUE = /\b(?:eskiden|onceden|daha once|ilk basta|gecmiste|onceki|eski)\b/;
+const HISTORY_QUESTION_CUE = /\b(?:eskiden|onceden|daha once|ilk basta|gecmiste|onceki|eski|gecen (?:ay|yil|sene)|o zamanlar|ne zaman)\b/;
 const QUESTION_WORD = /\b(?:ne|neydi|nedir|nasil|nasildi|hangi|hangisi|hangisiydi|kim|kimdi|nerede|neredeydi|niye|neden|mi|mu|miydi|muydu|misin|musun|miyim|muyum)\b/;
 
 /**

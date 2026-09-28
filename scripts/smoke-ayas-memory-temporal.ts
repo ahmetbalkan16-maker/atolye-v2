@@ -611,6 +611,8 @@ async function run() {
       mode: "as-of", at: "2026-09-01T00:00:00.000Z", until: "2026-09-23T12:00:00.001Z", knownAt: "2026-09-23T12:00:00.000Z",
     }, "the current month is cut at now");
     assert.deepEqual(detectAyasMemoryTemporalQuery("Eskiden adım neydi?", NOW), { mode: "current", includeHistory: true });
+    assert.deepEqual(detectAyasMemoryTemporalQuery("Geçen ay hangi laptopu düşünüyorduk?", NOW), { mode: "current", includeHistory: true });
+    assert.deepEqual(detectAyasMemoryTemporalQuery("Ne zaman bunu kullanıyordum?", NOW), { mode: "current", includeHistory: true });
     for (const current of ["Benim adım ne?", "Benim adım Ahmet", "2026 planımda yardım lazım", "eski projem ne durumda", "Ocak ayı için plan yapalım", "2030'da ne olacak?", "Bugün ne yapabiliriz?"]) {
       assert.deepEqual(detectAyasMemoryTemporalQuery(current, NOW), { mode: "current" }, current);
     }

@@ -64,6 +64,12 @@ async function run() {
     assert.equal(env[0]?.kind, "environment-note");
   });
 
+  await scenario("candidate — first-person decision and withdrawal are retained without a broad future-tense match", () => {
+    assert.equal(extractAyasMemoryCandidates({ userText: "Laptop almaya karar verdim.", ayasReply: "Tamam." }).some((candidate) => candidate.kind === "decision"), true);
+    assert.equal(extractAyasMemoryCandidates({ userText: "Masaüstünden vazgeçtim, artık laptop alacağım.", ayasReply: "Tamam." }).some((candidate) => candidate.kind === "decision"), true);
+    assert.equal(extractAyasMemoryCandidates({ userText: "Yarın laptop alacağım.", ayasReply: "Tamam." }).some((candidate) => candidate.kind === "decision"), false);
+  });
+
   /* ---------------- identity / "remember me as X" (real-user-test bug fix) ---------------- */
 
   await scenario('candidate — TEST 1: "beni Ahmet olarak hatırla ben Atölye projesinin sahibiyim…" (the EXACT real-user-test message) is extracted as a "kimlik"-tagged user-preference', () => {
@@ -87,6 +93,7 @@ async function run() {
   });
 
   await scenario('candidate — "adım Ahmet" and "ben Ahmet\'im" (apostrophe form) are both caught', () => {
+    assert.equal(extractAyasMemoryCandidates({ userText: "Adım Ahmet", ayasReply: "Anladım." })[0]?.tags.includes("kimlik"), true);
     assert.equal(extractAyasMemoryCandidates({ userText: "merhaba, adım Ahmet, memnun oldum", ayasReply: "Ben de." })[0]?.tags.includes("kimlik"), true);
     assert.equal(extractAyasMemoryCandidates({ userText: "ben Ahmet'im, Atölye'yi ben kurdum", ayasReply: "Anladım." })[0]?.tags.includes("kimlik"), true);
     assert.equal(extractAyasMemoryCandidates({ userText: "Benim adım AyasTest9381.", ayasReply: "Anladım." })[0]?.tags.includes("kimlik"), true);
