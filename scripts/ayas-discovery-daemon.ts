@@ -19,6 +19,7 @@ import { createAyasLocalDiscoveryRunLedger } from "../src/lib/brain/autonomy/Aya
 import { createAyasExternalResearchStore } from "../src/lib/brain/autonomy/AyasExternalResearchStore";
 import { discoverAyasResearchExperimentProposalCandidates, discoverAyasResearchProposalCandidates } from "../src/lib/brain/autonomy/AyasResearchProposalBridge";
 import { AYAS_RESEARCH_DESIGN_REVIEW_CLOSED_GATE, runAyasResearchImprovementCycle, type AyasResearchImprovementCycleResult } from "../src/lib/brain/autonomy/AyasResearchImprovementCycle";
+import { readAyasControlledEvolutionRegister, resolveAyasControlledEvolutionRegisterFile, runAyasControlledSelfEvolutionCycle } from "../src/lib/ayas/evolution/AyasControlledSelfEvolutionCycle";
 
 /**
  * AYAS discovery daemon (M16) — a single-shot, read-mostly companion to the
@@ -131,7 +132,22 @@ async function main(): Promise<void> {
     ...discoverAyasResearchProposalCandidates(researchFindings, inbox.load().proposals, researchImprovementEnabled ? (improvement?.designReviewGate ?? AYAS_RESEARCH_DESIGN_REVIEW_CLOSED_GATE) : undefined),
     ...discoverAyasResearchExperimentProposalCandidates(improvement?.proposalEvidence ?? [], inbox.load().proposals, observation.head),
   ];
-  const candidates = [...discoverAyasSafeCandidates({ repoRoot: root, observation }), ...novel.candidates, ...researchCandidates];
+  // Stage 15 — the optional Stage 13 JSON source uses the same canonical parser
+  // as the read-only qualification CLI. Missing input admits nothing. Any
+  // failure is isolated before the existing discovery and owner-review flow.
+  let controlledEvolutionCandidate: Awaited<ReturnType<typeof runAyasControlledSelfEvolutionCycle>> = null;
+  const evolutionFile = resolveAyasControlledEvolutionRegisterFile(root, process.env.AYAS_CONTROLLED_EVOLUTION_REGISTER_FILE);
+  if (evolutionFile && observation.repoClean && observation.graphifyFresh && observation.machineAction === "ALLOW") {
+    try {
+      controlledEvolutionCandidate = await runAyasControlledSelfEvolutionCycle({ repoRoot: root, observation,
+        register: readAyasControlledEvolutionRegister(evolutionFile), inbox,
+        remainingMs: () => Math.max(0, AYAS_DISCOVERY_CHILD_WORK_CEILING_MS - (Date.now() - childStartedAt)) });
+    } catch (error) {
+      observation.gaps.push(`controlled evolution cycle failed: ${(error instanceof Error ? error.message : String(error)).slice(0, 160)}`);
+    }
+  }
+  const candidates = [...discoverAyasSafeCandidates({ repoRoot: root, observation }), ...novel.candidates, ...researchCandidates,
+    ...(controlledEvolutionCandidate ? [controlledEvolutionCandidate] : [])];
   const proposalIdsBefore = new Set(inbox.load().proposals.map((proposal) => proposal.proposalId));
   const discovered = daemon.discover(observation, candidates);
   const proposalCount = inbox.load().proposals.filter((proposal) => !proposalIdsBefore.has(proposal.proposalId)).length;
@@ -181,6 +197,7 @@ async function main(): Promise<void> {
     repoClean: observation.repoClean,
     graphifyFresh: observation.graphifyFresh,
     machineAction: observation.machineAction,
+    gaps: observation.gaps,
     staleReconciled: staled.map((p) => p.proposalId),
     discovered: discovered.map((p) => p.proposalId),
     novelRejections: novel.rejections,

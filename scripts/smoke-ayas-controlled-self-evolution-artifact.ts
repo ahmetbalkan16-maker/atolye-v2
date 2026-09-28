@@ -12,6 +12,7 @@ import { createAyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatc
 import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "../src/lib/brain/autonomy/AyasNovelPatchDiscovery";
 import { createAyasAutonomyDaemon } from "../src/lib/brain/autonomy/AyasAutonomyDaemon";
 import { createAyasApprovalInboxStore } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
+import { evaluateAyasInternalDecision } from "../src/lib/brain/autonomy/AyasInternalDecision";
 import { AYAS_EXPERIMENT_ISOLATION, type AyasExperimentEvidence } from "../src/lib/brain/autonomy/AyasResearchExperimentEvaluation";
 import { ayasImprovementRegistryDigest, AYAS_DEFAULT_IMPROVEMENT_REGISTRY } from "../src/lib/brain/autonomy/AyasResearchExperimentRegistry";
 import { createAyasResearchExperimentStore, type AyasExperimentRecord } from "../src/lib/brain/autonomy/AyasResearchExperimentStore";
@@ -155,6 +156,7 @@ async function frozenArtifact(): Promise<void> {
     assert.equal(discovered[0]?.status, "PENDING");
     assert.equal(discovered[0]?.mutationKind, AYAS_PATCH_ARTIFACT_MUTATION_KIND);
     assert.equal(discovered[0]?.patchHash, artifact.patchHash);
+    assert.equal(evaluateAyasInternalDecision(discovered[0]!).decision, "DEFER", "unknown impact cannot reach owner recommendation");
     assert.equal(inbox.load().decisions.length, 0, "discovery must not grant owner approval");
     assert.equal(await buildAyasControlledEvolutionProposalCandidate({ ...bridgeInput, experimentId: "missing" }), null);
     assert.equal(await buildAyasControlledEvolutionProposalCandidate({ ...bridgeInput, artifactId: "missing" }), null);

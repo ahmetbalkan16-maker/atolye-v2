@@ -4,6 +4,7 @@ import { promisify } from "node:util";
 
 import type { AyasDaemonCandidate } from "../../brain/autonomy/AyasAutonomyDaemon";
 import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "../../brain/autonomy/AyasNovelPatchDiscovery";
+import { AYAS_UNRESOLVED_STRUCTURED_IMPACT } from "../../brain/autonomy/AyasProposalImpact";
 import type { AyasPatchArtifactStore } from "../../brain/autonomy/AyasPatchArtifact";
 import { validAyasExperimentSourceBindings, verifyAyasExperimentEvidence } from "../../brain/autonomy/AyasResearchExperimentEvaluation";
 import { ayasImprovementRegistryDigest, validateAyasImprovementStrategy, type AyasImprovementRegistry } from "../../brain/autonomy/AyasResearchExperimentRegistry";
@@ -122,6 +123,7 @@ export async function buildAyasControlledEvolutionProposalCandidate(input: AyasC
       mutationKind: AYAS_PATCH_ARTIFACT_MUTATION_KIND,
       patchArtifactId: artifact.artifactId,
       patchHash: artifact.patchHash,
+      structuredImpact: AYAS_UNRESOLVED_STRUCTURED_IMPACT,
       discoverySource: "LOCAL_DISCOVERY",
       sourceReference: candidate.opportunityId,
     };

@@ -1,0 +1,11 @@
+# AYAS Controlled Self-Evolution (Stage 15)
+
+The discovery daemon can read an explicitly supplied Stage 13 register JSON through `AYAS_CONTROLLED_EVOLUTION_REGISTER_FILE`. Its shape is `{ "schemaVersion": "1", "opportunities": [...] }`; the existing `parseAyasEvolutionRegister` remains the validation boundary. The file is read-only and limited to 2 MiB. No register is invented when this setting is absent.
+
+The daemon uses its observed Git HEAD, repo cleanliness, Graphify freshness and machine health. It never treats environment facts embedded in a register file as current authority. Missing or stale measurements, absent or mismatched registered strategies, unsafe scope, and insufficient time budget yield no Stage 15 candidate. The production Stage 8 strategy registry is currently empty, so configuring a register alone cannot start an experiment.
+
+For one eligible opportunity, Stage 15 shares the Stage 8 experiment budget, durable records, isolated sandbox and evidence store. It requalifies the opportunity, admits at most one attempt, freezes only verified IMPROVED evidence as a SAFE content-bound patch artifact, and rechecks both before yielding an ordinary `patch-artifact:v1` candidate. A frozen artifact can be recovered after a crash before proposal discovery; a completed experiment without a frozen artifact is not promoted. Existing proposals for the same opportunity and HEAD, including owner-rejected proposals, are not replayed.
+
+The candidate enters the existing `AyasAutonomyDaemon.discover` and Approval Inbox. Stage 15 does not decide, reserve approval, execute, install, publish, commit, push, or grant owner authority. The current proposal bridge sets structured impact explicitly to unresolved because the experiment has not established licensing and external-service facts; internal review therefore defers it instead of using the legacy text heuristic. A production strategy requires its own owner-reviewed commit, dedicated benchmark evidence and reviewable impact facts before an owner-facing approval request can be recommended.
+
+Errors in this optional cycle produce a bounded discovery gap; research, stale proposal reconciliation, static discovery and owner review continue. Current known Graphify parser and semantic-description limitations remain separate from code-graph freshness and integrity.

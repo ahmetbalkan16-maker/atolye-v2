@@ -280,7 +280,7 @@ async function gitRead(repoRoot: string, args: readonly string[]): Promise<strin
 }
 
 /** Identity of everything an experiment reads that a strategy or benchmark declares: blob ids at the base commit. */
-async function experimentInputsDigest(repoRoot: string, head: string, benchmark: AyasImprovementBenchmark, strategy: AyasImprovementStrategy): Promise<string> {
+export async function experimentInputsDigest(repoRoot: string, head: string, benchmark: AyasImprovementBenchmark, strategy: AyasImprovementStrategy): Promise<string> {
   const paths = [benchmark.script, ...strategy.exactFiles, ...strategy.regressionSuites];
   // One `ls-tree` for every declared path; an absent path is part of the identity too.
   let listing = "";
