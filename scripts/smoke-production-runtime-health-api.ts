@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import { createProductionRuntimeHealthResponse, GET } from "../app/api/runtime/health/route";
 import type { ProductionRuntimeHealthResponse } from "../src/types/productionRuntimeHealth";
 import type { ProductionRuntimeStatus } from "../src/types/productionRuntimeStatus";
+import { registerProductionRuntimeStatusReader } from "../src/lib/runtime/ProductionRuntimeStatusProjection";
 
 const observedAt = "2026-07-13T16:00:00.000Z";
 
@@ -257,6 +258,23 @@ async function main() {
     assert.match(firstResponse.headers.get("content-type") ?? "", /^application\/json\b/);
   });
 
+  await scenario("production GET reads the registered process runtime status", async () => {
+    let status = runtimeStatus("ready");
+    const reader = () => status;
+    registerProductionRuntimeStatusReader(reader);
+    registerProductionRuntimeStatusReader(reader);
+    const ready = GET();
+    assert.equal(ready.status, 200);
+    assert.equal((await ready.json()).runtime.lifecycleState, "ready");
+    status = runtimeStatus("draining", { activeExecutionCount: 2 });
+    const draining = GET();
+    assert.equal(draining.status, 503);
+    assert.equal((await draining.json()).runtime.activeExecutionCount, 2);
+    assert.throws(() => registerProductionRuntimeStatusReader(() => runtimeStatus("ready")), {
+      message: "PRODUCTION_RUNTIME_STATUS_READER_CONFLICT",
+    });
+  });
+
   await scenario("route is a narrow server-side projection boundary", async () => {
     const source = await fs.readFile("app/api/runtime/health/route.ts", "utf8");
     assert.match(source, /export const runtime = "nodejs"/);
@@ -268,8 +286,8 @@ async function main() {
     assert.ok(!/initializeProductionProcessRuntime|\.initialize\(|bootstrapRecovery|\.execute\(|\.write\(|persist|schedule|new Production/.test(source));
   });
 
-  assert.equal(scenarios, 24);
-  console.log(`Sprint 112 production runtime health API smoke: PASS (${scenarios}/24 scenarios)`);
+  assert.equal(scenarios, 25);
+  console.log(`Sprint 112 production runtime health API smoke: PASS (${scenarios}/25 scenarios)`);
 }
 
 void main();

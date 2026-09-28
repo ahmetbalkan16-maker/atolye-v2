@@ -257,7 +257,11 @@ async function main() {
   await scenario("status path shares composition lifecycle and has no runtime side effects", async () => {
     const root = await fs.readFile("src/lib/runtime/ProductionRuntimeCompositionRoot.ts", "utf8");
     const lifecycle = await fs.readFile("src/lib/production/ProductionWorkerLifecycle.ts", "utf8");
-    assert.match(root, /return productionWorkerLifecycle\.statusSnapshot\(\)/);
+    const projection = await fs.readFile("src/lib/runtime/ProductionRuntimeStatusProjection.ts", "utf8");
+    assert.match(root, /localRuntimeStatus = \(\) => productionWorkerLifecycle\.statusSnapshot\(\)/);
+    assert.match(root, /registerProductionRuntimeStatusReader\(localRuntimeStatus\)/);
+    assert.match(root, /return readProductionRuntimeStatus\(localRuntimeStatus\)/);
+    assert.ok(!/initialize\(|execute\(|\.write\(|persist|schedule/.test(projection));
     assert.match(root, /workerLifecycle:\s*productionWorkerLifecycle/);
     assert.match(root, /runtimeOperationContext:\s*processRuntimeOperationContext/);
     const statusBody = lifecycle.slice(lifecycle.indexOf("statusSnapshot():"), lifecycle.indexOf("beginInitialization("));

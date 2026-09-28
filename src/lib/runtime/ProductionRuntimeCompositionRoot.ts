@@ -9,6 +9,7 @@ import { ProductionWorkerLifecycle } from "@/lib/production/ProductionWorkerLife
 import { configureProductionPipelineExecution } from "@/lib/production/ProductionPipelineExecutionConfiguration";
 import type { ProductionRuntimeInitializationSuccess } from "@/types/productionRuntimeInitialization";
 import type { ProductionRuntimeStatus } from "@/types/productionRuntimeStatus";
+import { readProductionRuntimeStatus, registerProductionRuntimeStatusReader } from "./ProductionRuntimeStatusProjection";
 import { createRuntimeStorageContext } from "./RuntimeStoragePaths";
 import {
   createProductionRuntimeOperationContext,
@@ -30,6 +31,7 @@ const processRuntimeOperationContext = createProductionRuntimeOperationContext({
 });
 const productionWorkerLifecycle = new ProductionWorkerLifecycle(runtimeNow);
 productionWorkerLifecycle.bindRuntimeOperationContext(processRuntimeOperationContext);
+const localRuntimeStatus = () => productionWorkerLifecycle.statusSnapshot();
 const processRuntimeInitializer = new ProductionRuntimeInitializer({
   now: runtimeNow,
   listProjectSlugs: listProjectSlugsReadOnly,
@@ -57,6 +59,7 @@ export async function initializeProductionProcessRuntime(): Promise<ProductionRu
     processRuntimeStorageContext,
     initialRuntimeAuthorityGeneration,
   );
+  registerProductionRuntimeStatusReader(localRuntimeStatus);
   const result = await runWithProductionRuntimeOperationContext(
     processRuntimeOperationContext,
     () => processRuntimeInitializer.initialize(),
@@ -70,7 +73,7 @@ export async function initializeProductionProcessRuntime(): Promise<ProductionRu
 }
 
 export function getProductionRuntimeStatus(): ProductionRuntimeStatus {
-  return productionWorkerLifecycle.statusSnapshot();
+  return readProductionRuntimeStatus(localRuntimeStatus);
 }
 
 export async function shutdownProductionProcessRuntime(): Promise<void> {
