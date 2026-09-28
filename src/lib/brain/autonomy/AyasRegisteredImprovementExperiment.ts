@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process";
+import crypto from "node:crypto";
+import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import { selectAyasAgenticRoute, type AyasAvailabilityEvidence } from "../../ayas/routing/AyasAgenticRouting";
@@ -11,7 +13,11 @@ import type { AyasResearchImprovementCycleDeps, AyasResearchImprovementObservati
 
 export type AyasRegisteredExperimentObservation = AyasResearchImprovementObservation;
 export type AyasRegisteredExperimentSourceBinding = AyasExperimentSourceBinding;
-export interface AyasRegisteredExperimentResult { readonly record: AyasExperimentRecord; readonly verdict: string; readonly reasonCodes: readonly string[] }
+export interface AyasRegisteredExperimentRetainedSource {
+  readonly diffSha256: string;
+  readonly replacements: readonly { readonly filePath: string; readonly expectedHash: string; readonly content: string }[];
+}
+export interface AyasRegisteredExperimentResult { readonly record: AyasExperimentRecord; readonly verdict: string; readonly reasonCodes: readonly string[]; readonly retainedSource?: AyasRegisteredExperimentRetainedSource }
 
 const execFileAsync = promisify(execFile);
 const ANALYSIS_TASK_TEXT = "Sandbox deneyi için smoke test planı hazırla ve benchmark sonucunu doğrula";
@@ -74,6 +80,7 @@ export async function runAyasRegisteredImprovementExperiment(ctx: AyasRegistered
   const experimentSuites: AyasRegressionSuiteResult[] = [];
   let abortCode: AyasExperimentAbortCode | undefined;
   let change: Awaited<ReturnType<typeof captureAyasSandboxChange>> | null = null;
+  let retainedSource: AyasRegisteredExperimentRetainedSource | null = null;
   let liveUnchanged = false;
   let discarded = false;
   let tools: { readonly tsx: string | null; readonly typescript: string | null } = { tsx: null, typescript: null };
@@ -113,6 +120,19 @@ export async function runAyasRegisteredImprovementExperiment(ctx: AyasRegistered
             // Anything the benchmark or suites wrote into the tree is a hermeticity breach.
             if (post.diff !== pre.diff || post.changedPaths.join("\n") !== pre.changedPaths.join("\n")) abortCode = "SANDBOX_ESCAPE";
             change = post;
+            if (!abortCode && ctx.sourceBindings.some((binding) => binding.kind === "EVOLUTION_OPPORTUNITY")) {
+              const replacements = await Promise.all(post.changedPaths.map(async (filePath) => {
+                if (!strategy.exactFiles.includes(filePath)) throw new Error("RETAINED_SOURCE_OUTSIDE_SCOPE");
+                const target = path.join(sandbox!.repoDir, filePath);
+                const stat = fs.lstatSync(target);
+                if (!stat.isFile() || stat.isSymbolicLink()) throw new Error("RETAINED_SOURCE_NOT_REGULAR_FILE");
+                const bytes = fs.readFileSync(target);
+                const base = (await execFileAsync("git", ["--no-optional-locks", "show", `HEAD:${filePath}`], { cwd: sandbox!.repoDir, encoding: "buffer", windowsHide: true, timeout: 30_000, maxBuffer: 1_000_000 })).stdout;
+                if (bytes.length > 400_000 || !Buffer.from(bytes.toString("utf8"), "utf8").equals(bytes) || !Buffer.from(base.toString("utf8"), "utf8").equals(base)) throw new Error("RETAINED_SOURCE_NOT_BOUNDED_UTF8");
+                return { filePath, expectedHash: crypto.createHash("sha256").update(base).digest("hex"), content: bytes.toString("utf8") };
+              }));
+              retainedSource = { diffSha256: crypto.createHash("sha256").update(post.diff, "utf8").digest("hex"), replacements };
+            }
           }
         }
       }
@@ -140,6 +160,7 @@ export async function runAyasRegisteredImprovementExperiment(ctx: AyasRegistered
     findingIds: hypothesis.findingIds,
     sourceIds: [...ctx.sourceIds],
     sourceBindings: ctx.sourceBindings.map((binding) => ({ kind: binding.kind, id: binding.id })),
+    ...(comparison.verdict === "IMPROVED" && retainedSource ? { replacementDigest: crypto.createHash("sha256").update(JSON.stringify(retainedSource.replacements), "utf8").digest("hex") } : {}),
     hypothesis,
     baseline: toAyasEvidenceMeasurement(baseline),
     experiment: toAyasEvidenceMeasurement(experiment),
@@ -199,7 +220,8 @@ export async function runAyasRegisteredImprovementExperiment(ctx: AyasRegistered
     targetGain: written.targetGain, heldOutDelta: comparison.heldOutDelta,
     regressionCount: comparison.newlyFailingCaseIds.length, improved: written.verdict === "IMPROVED",
   }, written.verdict === "IMPROVED" ? undefined : written.verdict);
-  return { record: finalRecord, verdict: written.verdict, reasonCodes: written.reasonCodes };
+  return { record: finalRecord, verdict: written.verdict, reasonCodes: written.reasonCodes,
+    ...(written.verdict === "IMPROVED" && finalRecord.status === "COMPLETED" && finalRecord.evidenceHash === boundHash && retainedSource ? { retainedSource } : {}) };
 }
 
 function readAyasSandboxToolVersionsSafe(sandbox: AyasResearchExperimentSandbox): { readonly tsx: string | null; readonly typescript: string | null } {

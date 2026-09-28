@@ -228,6 +228,8 @@ export interface AyasExperimentEvidence {
   readonly sourceIds: readonly string[];
   /** Absent in historical Stage 8 evidence; present packages bind exact source identity into the existing hash. */
   readonly sourceBindings?: readonly AyasExperimentSourceBinding[];
+  /** Present only when a controlled-evolution sandbox retained exact replacement bytes before cleanup. */
+  readonly replacementDigest?: string;
   readonly hypothesis: AyasImprovementHypothesis;
   readonly baseline: AyasEvidenceMeasurement | { readonly error: string } | null;
   readonly experiment: AyasEvidenceMeasurement | { readonly error: string } | null;
@@ -335,6 +337,7 @@ export function verifyAyasExperimentEvidence(evidence: unknown, expectedHash: st
     || !validAyasExperimentSourceBindings(candidate.sourceBindings, candidate.findingIds)
     || candidate.findingIds.length !== candidate.hypothesis.findingIds.length
     || !candidate.findingIds.every((id) => candidate.hypothesis.findingIds.includes(id)))) return false;
+  if (candidate.replacementDigest !== undefined && (!HEX64.test(candidate.replacementDigest) || !candidate.sourceBindings?.some((binding) => binding.kind === "EVOLUTION_OPPORTUNITY"))) return false;
   if (ayasEvidenceContainsSecret(candidate)) return false;
   return hashAyasExperimentEvidence(candidate) === expectedHash;
 }
