@@ -1,5 +1,11 @@
 ---
 
+## 2026-09-28 — AYAS pending approval display reconciliation (uncommitted)
+
+- Ana ekran ve Gelişim Merkezi aynı salt okunur approval inbox seçicisini kullanıyor. Geçmiş kurtarma, geleceğe ertelenmiş ve zaten onaylanmış öneriler yeni owner kararı bekleyen sayıya katılmıyor.
+- Kurtarma/yürütme uyarıları ve onaylanamayan öneriler ayrı görünür kalıyor. Küçük geliştirme paketi kendi akışında kalıyor; kalıcı kayıtlar ve approval authority değişmedi.
+- İki ekranın 0, 1 ve çoklu önerilerde; stale, superseded, deferred, tamamlanmış, reddedilmiş, kurtarma ve yeniden yükleme durumlarında eşleşmesi smoke testine eklendi.
+
 ## 2026-09-25 — AYAS Stage 14 — ✅ COMPLETED
 
 - PR #3 validated head `483e7a24cb5d344a5a5b8b015d9597b2b651c552` merged into canonical as `d01070737a4f61b908ef7263e7507c40d900da4f`.

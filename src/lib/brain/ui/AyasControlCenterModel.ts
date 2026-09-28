@@ -25,6 +25,7 @@
  */
 
 import type { AyasApprovalInboxView, AyasDevelopmentProposal } from "../autonomy/AyasApprovalInboxView";
+import { selectAyasPendingOwnerApprovals } from "../autonomy/AyasPendingApprovalSelector";
 import type { AyasMicroBatchDevelopmentView } from "../autonomy/AyasMicroBatchDevelopmentView";
 import type { AyasOwnerRecommendationsView } from "../autonomy/AyasOwnerRecommendationsView";
 import type { AyasResearchEngineStatusView } from "../autonomy/AyasResearchEngineStatusView";
@@ -493,7 +494,9 @@ function approvalsDomain(input: AyasControlCenterInput, items: AyasCcAttentionIt
   for (const proposal of [...inbox.history, ...inbox.today, ...inbox.pending]) byId.set(proposal.proposalId, proposal);
   const classified = [...byId.values()].map((proposal) => ({ proposal, requirement: ayasCcApprovalRequirement(proposal) }));
   const group = (level: string) => classified.filter((entry) => entry.requirement.level === level).map((entry) => entry.proposal);
-  const actionable = group("ACTION_REQUIRED");
+  const actionable = selectAyasPendingOwnerApprovals(inbox);
+  const recovery = classified.filter((entry) => entry.proposal.status === "RECOVERY_REQUIRED").map((entry) => entry.proposal);
+  const awaitingExecution = classified.filter((entry) => entry.proposal.status === "APPROVED" && entry.requirement.level === "ACTION_REQUIRED").map((entry) => entry.proposal);
   const blocked = group("WARNING");
   const moving = group("IN_PROGRESS");
   const stale = classified.filter((entry) => entry.proposal.status === "STALE").length;
@@ -515,6 +518,12 @@ function approvalsDomain(input: AyasControlCenterInput, items: AyasCcAttentionIt
       next: { kind: "OWNER_APPROVAL", label: "Gelişim Merkezi'nde karar ver", panel: "development" },
       details: actionable.slice(0, AYAS_CC_DETAIL_LIMIT).map(ayasCcProposalLine),
     });
+  }
+  if (recovery.length > 0) {
+    items.push({ id: "approvals:recovery", domain: "approvals", level: "ACTION_REQUIRED", title: `${pluralCount(recovery.length, "öneri")} kurtarma incelemesi bekliyor`, reason: "Yürütme sonucu belirsiz; yeni onay kararı verilemez.", source: "AyasApprovalInboxView", at: latest(recovery), next: { kind: "READ_ONLY", label: "Gelişim Merkezi'nde incele", panel: "development" }, details: recovery.slice(0, AYAS_CC_DETAIL_LIMIT).map(ayasCcProposalLine) });
+  }
+  if (awaitingExecution.length > 0) {
+    items.push({ id: "approvals:awaiting-execution", domain: "approvals", level: "ACTION_REQUIRED", title: `${pluralCount(awaitingExecution.length, "öneri")} onaylandı, yürütme bekliyor`, reason: "Sahibin onay kararı kayıtlı; yürütme ayrı bir adımdır.", source: "AyasApprovalInboxView", at: latest(awaitingExecution), next: { kind: "READ_ONLY", label: "Gelişim Merkezi'nde incele", panel: "development" }, details: awaitingExecution.slice(0, AYAS_CC_DETAIL_LIMIT).map(ayasCcProposalLine) });
   }
   if (batchReady && batch) {
     items.push({
@@ -558,9 +567,9 @@ function approvalsDomain(input: AyasControlCenterInput, items: AyasCcAttentionIt
       details: moving.slice(0, AYAS_CC_DETAIL_LIMIT).map(ayasCcProposalLine),
     });
   }
-  const attention: AyasCcAttention = actionable.length || batchReady || batchRecovery ? "ACTION_REQUIRED" : blocked.length ? "WARNING" : moving.length || batch ? "IN_PROGRESS" : "HEALTHY";
-  const label = attention === "ACTION_REQUIRED" ? "KARAR BEKLİYOR" : attention === "WARNING" ? "İNCELEME" : attention === "IN_PROGRESS" ? "SÜRÜYOR" : "BEKLEYEN YOK";
-  const parts = [`${actionable.length} karar bekliyor`, `${blocked.length} onaylanamaz`, `${moving.length} süren`, `${stale} bayat`];
+  const attention: AyasCcAttention = actionable.length || recovery.length || awaitingExecution.length || batchReady || batchRecovery ? "ACTION_REQUIRED" : blocked.length ? "WARNING" : moving.length || batch ? "IN_PROGRESS" : "HEALTHY";
+  const label = actionable.length ? "KARAR BEKLİYOR" : recovery.length ? "KURTARMA İNCELEMESİ" : awaitingExecution.length ? "YÜRÜTME BEKLİYOR" : batchReady ? "PAKET ONAYI" : batchRecovery ? "PAKET KURTARMA" : attention === "WARNING" ? "İNCELEME" : attention === "IN_PROGRESS" ? "SÜRÜYOR" : "BEKLEYEN YOK";
+  const parts = [`${actionable.length} karar bekliyor`, `${recovery.length} kurtarma incelemesi`, `${awaitingExecution.length} yürütme bekliyor`, `${blocked.length} onaylanamaz`, `${moving.length} süren`, `${stale} bayat`];
   if (batch) parts.push(`paket: ${batch.status}`);
   return { ...seed, attention, statusLabel: label, summary: parts.join(" · "), availability: "OK", observedAt: null, dataAt: latest([...byId.values()]), dataAtLabel: "son öneri güncellemesi" };
 }

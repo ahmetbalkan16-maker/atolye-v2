@@ -25,6 +25,9 @@ import os from "node:os";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { AyasDevelopmentCenter } from "../src/components/brain/AyasDevelopmentCenter";
+import { buildAyasApprovalInboxView } from "../src/lib/brain/autonomy/AyasApprovalInboxView";
+import type { AyasInboxProposalRead } from "../src/lib/brain/autonomy/AyasApprovalInboxReader";
 
 type ModelModule = typeof import("../src/lib/brain/ui/AyasControlCenterModel");
 type CollectorModule = typeof import("../src/lib/brain/ui/AyasControlCenterCollector");
@@ -242,6 +245,40 @@ async function main(): Promise<void> {
     const line = item.details[0]!;
     for (const part of ["prop-0000000000", "SAFE", `baseHead ${HEAD.slice(0, 7)}`, "1 kanıt", "2 Graphify kanıtı", "patch-artifact", "LOCAL_DISCOVERY", "Karar bekliyor"]) assert.ok(line.includes(part), `detail shows ${part}`);
     assert.equal(view.overall.level, "ACTION_REQUIRED");
+  });
+
+  await scenario("primary", "P4a", "home and development use the same durable pending projection across lifecycle and reload", async () => {
+    const server = await healthyServer();
+    const batch = { connected: true, active: { batchId: "accumulating-1", batchVersion: 1, baseHead: HEAD, baseBranch: "main", items: [{ microItemId: "item-1", semanticKey: "small-change", exactFiles: ["scripts/small.ts"] }], exactFilesUnion: ["scripts/small.ts"], validatorUnion: [], batchHash: "batch-hash", createdAt: NOW, lastUpdatedAt: NOW, validationSummary: [], aggregateRisk: "LOW", status: "ACCUMULATING", displayState: "NORMAL" }, history: [] } as unknown as NonNullable<Input["microBatch"]>;
+    const pending = (id: string) => proposal({ proposalId: id, createdAt: NOW });
+    const cases: { name: string; records: Proposal[]; expected: number; microBatch?: Input["microBatch"] }[] = [
+      { name: "zero", records: [], expected: 0 },
+      { name: "one", records: [pending("one")], expected: 1 },
+      { name: "multiple", records: [pending("one"), pending("two"), pending("three")], expected: 3 },
+      { name: "superseded", records: [proposal({ proposalId: "old", status: "STALE", createdAt: NOW }), proposal({ proposalId: "new", status: "COMPLETED", createdAt: NOW })], expected: 0 },
+      { name: "expired-deferred", records: [proposal({ status: "DEFERRED", nextEligibleAt: "2026-09-26T10:00:00.000Z", createdAt: NOW })], expected: 0 },
+      { name: "stale-head", records: [proposal({ baseHead: OLD_HEAD, createdAt: NOW })], expected: 0 },
+      { name: "approved-executed", records: [proposal({ proposalId: "approved", status: "APPROVED", createdAt: NOW }), proposal({ proposalId: "executed", status: "COMPLETED", createdAt: NOW })], expected: 0 },
+      { name: "rejected", records: [proposal({ status: "REJECTED", createdAt: NOW })], expected: 0 },
+      { name: "recovery-history", records: Array.from({ length: 7 }, (_, i) => proposal({ proposalId: `recovery-${i}`, status: "RECOVERY_REQUIRED", createdAt: minutesAgo(1440) })), expected: 0 },
+      { name: "small-accumulation", records: [], expected: 0, microBatch: batch },
+    ];
+    for (const testCase of cases) {
+      const state = { proposals: testCase.records as readonly AyasInboxProposalRead[], decisions: [], results: [] };
+      for (const loaded of [state, JSON.parse(JSON.stringify(state)) as typeof state]) {
+        const inbox = buildAyasApprovalInboxView(loaded, NOW, { liveCurrentHead: HEAD, publicationActive: false });
+        const inputs = { ...healthyInputs(), approvalInbox: inbox, microBatch: testCase.microBatch ?? healthyInputs().microBatch };
+        const home = build(server, inputs);
+        const item = home.attention.find((entry) => entry.id === "approvals:actionable");
+        const homeCount = item ? Number(item.title.match(/^\d+/)?.[0]) : 0;
+        const html = renderToStaticMarkup(createElement(AyasDevelopmentCenter, { inbox, microBatch: testCase.microBatch }));
+        const developmentCount = Number(html.match(/Onay Bekleyenler <span>(\d+)<\/span>/)?.[1]);
+        assert.equal(homeCount, testCase.expected, `${testCase.name} home`);
+        assert.equal(developmentCount, testCase.expected, `${testCase.name} development`);
+        if (testCase.name === "recovery-history") assert.equal(home.attention.find((entry) => entry.id === "approvals:recovery")?.level, "ACTION_REQUIRED");
+        if (testCase.name === "small-accumulation") assert.match(html, /Biriken Küçük Geliştirme Paketi/);
+      }
+    }
   });
 
   await scenario("primary", "P5", "stale / revalidating proposals are never shown as actionable", async () => {
