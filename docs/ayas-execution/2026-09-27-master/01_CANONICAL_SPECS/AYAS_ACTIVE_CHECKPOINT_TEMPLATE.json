@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1",
+  "masterSprint": "AYAS_MASTER_SPRINT_V3",
+  "branch": null,
+  "lastGreenHead": null,
+  "currentHead": null,
+  "stage": "PHASE_0",
+  "subtask": "baseline-and-remediation-import",
+  "status": "NOT_STARTED",
+  "completedStages": [],
+  "completedSubtasks": [],
+  "currentFiles": [],
+  "lastGreenTests": [],
+  "graphify": {
+    "head": null,
+    "stale": null,
+    "needsUpdate": null
+  },
+  "blockers": [],
+  "nextAction": "Verify current branch/HEAD/upstream/worktree and Graphify; then establish focused baseline before applying remediation.",
+  "updatedAt": "2026-09-27T00:00:00+03:00"
+}
