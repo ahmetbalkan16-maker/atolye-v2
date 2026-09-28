@@ -19,6 +19,7 @@
  * Deterministic, no model, no IO. Calendar periods are evaluated in UTC.
  */
 
+import { createHash } from "node:crypto";
 import type {
   BrainMemoryKind,
   BrainMemoryProvenance,
@@ -42,6 +43,7 @@ export const AYAS_MEMORY_FACT_KEYS = [
   "user.identity.name",
   "user.preference.response-length",
   "user.preference.voice-length",
+  "user.decision.computer-purchase-plan",
 ] as const;
 
 export type AyasMemoryFactKey = (typeof AYAS_MEMORY_FACT_KEYS)[number];
@@ -202,7 +204,18 @@ function deriveFactEvidence(input: {
   const identity = identityEvidence(input.body, input.tags);
   if (identity && "value" in identity) return { fact: { key: "user.identity.name", value: identity.value }, clause: identity.clause };
   // An identity statement fills only the identity slot — a withdrawn or unreadable one fills none.
-  if (identity || input.tags.includes("kimlik") || input.kind !== "user-preference") return null;
+  if (identity || input.tags.includes("kimlik")) return null;
+  if (input.kind === "decision") {
+    const value = fold(input.body).replace(/\s+/g, " ").trim();
+    const computer = /\b(?:bilgisayar|masaustu|dizustu|laptop|notebook|pc)\b/.test(value);
+    // A generic PC-related decision or hardware specification is not an exclusive purchase plan.
+    const purchaseDecision = /\b(?:almaya|toplamaya|kurmaya|satin almaya) karar\b/.test(value);
+    if (!computer || !purchaseDecision) return null;
+    // The memory model permits only a <=40-character token; hash the full
+    // normalized statement so distinct plans do not collide on a shared prefix.
+    return { fact: { key: "user.decision.computer-purchase-plan", value: createHash("sha256").update(value).digest("hex").slice(0, 40) }, clause: null };
+  }
+  if (input.kind !== "user-preference") return null;
   const whole = fold(`${input.body} ${input.tags.join(" ")}`);
   const segments = statementSegments(input.body).map((segment) => segment.replace(NEGATED_LENGTH, " "));
   const hasCue = (segment: string) => SHORT_CUE.test(segment) || LONG_CUE.test(segment);

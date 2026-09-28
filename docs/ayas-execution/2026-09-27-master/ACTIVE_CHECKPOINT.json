@@ -2,24 +2,19 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "efbd27b7c59faa221408aafa7638ada31e20f679",
-  "currentHead": "efbd27b7c59faa221408aafa7638ada31e20f679",
+  "lastGreenHead": "747c6d292f599fec1bab1f00fe1d36037cc73851",
+  "currentHead": "747c6d292f599fec1bab1f00fe1d36037cc73851",
   "stage": "PHASE_0",
-  "subtask": "conversation-safe-remediation",
+  "subtask": "temporal-plan-supersession",
   "status": "READY_TO_COMMIT",
   "completedStages": [],
-  "completedSubtasks": ["canonical-package-import"],
+  "completedSubtasks": ["canonical-package-import", "conversation-safe-remediation"],
   "currentFiles": [
-    "src/lib/ayas/memory/AyasMemoryCandidate.ts",
-    "src/lib/ayas/context/AyasConversationState.ts",
-    "src/lib/ayas/context/AyasContextCompression.ts",
     "src/lib/ayas/memory/AyasMemoryTemporal.ts",
-    "src/lib/ayas/AyasChatStream.ts",
-    "scripts/smoke-ayas-memory.ts",
-    "scripts/smoke-ayas-context.ts",
     "scripts/smoke-ayas-memory-temporal.ts",
-    "scripts/smoke-ayas-chat-quality.ts",
-    "scripts/smoke-ayas-retrieval-evaluation.ts"
+    "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
+    "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md",
+    "docs/ayas-execution/2026-09-27-master/NEW_FINDINGS.md"
   ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
@@ -27,10 +22,11 @@
     "cognitive-quality: 53/55 with two known limitations; conversation-quality-master: 37 PASS",
     "retrieval-evaluation: PASS 74 cases, 29 known limitations, 4 determinism, 8 error, 8 isolation/privacy, 7 chat chains",
     "Graphify integration: 46 PASS; developer intelligence gate: PASS; open-ended evolution: 109 PASS; technology watch: 129 PASS",
-    "TypeScript PASS; changed-file lint PASS; full lint 0 errors/13 unrelated warnings; git diff --check PASS"
+    "TypeScript PASS; changed-file lint PASS; full lint 0 errors/13 unrelated warnings; git diff --check PASS",
+    "Typed computer-plan supersession: memory-temporal 52 PASS; retrieval evaluator 74 PASS with 29 unchanged known limitations"
   ],
   "graphify": {
-    "head": "efbd27b7c59faa221408aafa7638ada31e20f679",
+    "head": "747c6d292f599fec1bab1f00fe1d36037cc73851",
     "stale": false,
     "needsUpdate": false,
     "duplicateNodes": 0,
@@ -40,6 +36,6 @@
     "semanticPending": true
   },
   "blockers": [],
-  "nextAction": "Commit the validated conversation-safe packet without pushing, refresh Graphify at new HEAD, then review temporal plan supersession patch against current code.",
-  "updatedAt": "2026-09-28T08:35:00+03:00"
+  "nextAction": "Commit the validated typed-plan packet without pushing, refresh Graphify at new HEAD, then review the system-static remediation patch against current runtime and owner authority.",
+  "updatedAt": "2026-09-28T09:10:00+03:00"
 }

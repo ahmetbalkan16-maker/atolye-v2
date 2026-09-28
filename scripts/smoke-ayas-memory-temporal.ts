@@ -163,6 +163,43 @@ function selectedBodies(records: readonly BrainMemoryRecord[], query: string, te
 }
 
 async function run() {
+  await scenario("typed computer purchase decisions supersede only their own explicit plan slot", () => {
+    const make = (body: string, observedAt: string, over: Partial<BrainMemoryRecordInput> = {}) => {
+      const input: BrainMemoryRecordInput = {
+        kind: "decision", title: "Alınan karar", body, importance: "durable", confidence: "reported",
+        tags: ["karar"], observedAt, links: [], ...over,
+      };
+      return buildBrainMemoryRecord({ ...input, temporal: buildAyasMemoryTemporalInput({
+        kind: input.kind, body: input.body, tags: input.tags, source: "user-decision",
+        userText: input.body, nowIso: input.observedAt,
+      }) });
+    };
+    const oldPlan = make("RTX 4070 ekran kartlı masaüstü bilgisayar almaya karar verdim", "2026-07-05T10:00:00.000Z");
+    const newPlan = make("Vazgeçtim, artık RTX 5080 ekran kartlı masaüstü bilgisayar almaya karar verdim", "2026-09-10T18:00:00.000Z");
+    const specs = make("Bilgisayarın RAM ölçümünü kaydetmeye karar verdim", "2026-09-11T10:00:00.000Z", { kind: "environment-note", title: "Çalışma ortamı bilgisi" });
+    const otherDecision = make("Bilgisayarın SSD alanını temizlemeye karar verdim", "2026-09-12T10:00:00.000Z");
+    const preference = make("Hafif bir laptop tercih ederim", "2026-09-13T10:00:00.000Z", { kind: "user-preference", title: "Kullanıcı tercihi" });
+    assert.equal(oldPlan.temporal?.factKey, "user.decision.computer-purchase-plan");
+    assert.equal(newPlan.temporal?.factKey, "user.decision.computer-purchase-plan");
+    for (const independent of [specs, otherDecision, preference]) assert.equal(independent.temporal?.factKey, undefined);
+    const views = resolveAyasMemoryTemporal([oldPlan, newPlan, specs, otherDecision, preference], { nowIso: NOW }).views;
+    assert.equal(views.get(oldPlan.recordId)?.state, "superseded");
+    assert.equal(views.get(newPlan.recordId)?.state, "current");
+    for (const independent of [specs, otherDecision, preference]) assert.equal(views.get(independent.recordId)?.state, "current");
+    const selected = retrieveAyasMemory([oldPlan, newPlan, specs, otherDecision, preference], "hangi bilgisayarı almayı planlıyorum", { nowIso: NOW });
+    assert.equal(selected.selected.some((item) => item.record.recordId === oldPlan.recordId), false);
+    assert.equal(selected.quarantined.find((item) => item.record.recordId === oldPlan.recordId)?.quarantineReason, "superseded-fact");
+    const root = tmpRoot();
+    const store = createAyasMemoryStore({ rootDir: root });
+    assert.equal(store.append(oldPlan), "stored");
+    assert.equal(store.append(newPlan), "stored");
+    assert.deepEqual(store.load().map((record) => record.recordId), [oldPlan.recordId, newPlan.recordId]);
+    const reloadedViews = resolveAyasMemoryTemporal(createAyasMemoryStore({ rootDir: root }).load(), { nowIso: NOW }).views;
+    assert.equal(reloadedViews.get(oldPlan.recordId)?.state, "superseded", "restart must retain the same derived read-only result");
+    const inferred = make("Yeni laptop almaya karar verdim", "2026-09-14T10:00:00.000Z", { confidence: "inferred" });
+    const untrustedViews = resolveAyasMemoryTemporal([newPlan, inferred], { nowIso: NOW }).views;
+    assert.equal(untrustedViews.get(newPlan.recordId)?.state, "current", "inferred text cannot supersede an explicit owner decision");
+  });
   /* ---------------- write semantics ---------------- */
 
   await scenario("1 new current fact — stored as a v2 record; unknown effective time stays unknown; v1 identity preserved", async () => {
