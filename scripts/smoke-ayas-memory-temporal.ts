@@ -23,6 +23,7 @@ import { persistAyasMemoryFromTurn, recallAyasMemoryWithTrace, stripAyasMemoryLi
 import { retrieveAyasMemory } from "../src/lib/ayas/memory/AyasMemoryRetrieval";
 import { AyasMemoryStoreError, createAyasMemoryStore } from "../src/lib/ayas/memory/AyasMemoryStore";
 import {
+  ayasMemoryRecordFact,
   buildAyasMemoryTemporalInput,
   classifyAyasMemoryStatement,
   currentAyasMemoryFactValue,
@@ -400,7 +401,8 @@ async function run() {
     ];
     const result = retrieveAyasMemory(records, "render için ne kullanacağız", { nowIso: NOW });
     assert.equal(result.selected.length, 3);
-    assert.ok(result.selected.every((decision) => decision.temporal.state === "current" && decision.temporal.fact === null));
+    assert.ok(result.selected.every((decision) => decision.temporal.state === "current"));
+    assert.ok(result.selected.filter((decision) => decision.record.recordId !== records[0]!.recordId).every((decision) => decision.temporal.fact === null), "ambiguous second decision and unrelated environment note stay outside exclusive slots");
   });
 
   await scenario("13 exclusive slot — never two certain values at once; a contradicting early start is clamped and reported", () => {
@@ -681,6 +683,29 @@ async function run() {
       const labelOf = new Map(built.map((item) => [item.record.recordId, item.label]));
       const result = retrieveAyasMemory(built.map((item) => item.record), entry.query.text, { nowIso: entry.nowIso, ...(entry.query.temporal ? { temporal: entry.query.temporal } : {}) });
       const decisions = [...result.selected, ...result.quarantined];
+      if (entry.invariantContract === "render-tool-history-preserved") {
+        assert.deepEqual(built.map((item) => item.label), ["ffmpeg", "remotion"]);
+        assert.ok(Date.parse(built[0]!.record.observedAt) < Date.parse(built[1]!.record.observedAt), "render decisions retain observation order");
+        const original = JSON.stringify(built.map((item) => item.record));
+        const views = resolveAyasMemoryTemporal(built.map((item) => item.record), { nowIso: entry.nowIso }).views;
+        assert.ok(built.every((item) => views.has(item.record.recordId)), "both decisions remain addressable");
+        const historical = retrieveAyasMemory(built.map((item) => item.record), entry.query.text, { nowIso: entry.nowIso, temporal: { mode: "as-of", at: "2026-08-20T00:00:00.000Z" } });
+        assert.ok(historical.selected.some((item) => labelOf.get(item.record.recordId) === "ffmpeg"), "earlier decision remains historically retrievable");
+        const unrelated = buildBrainMemoryRecord({ ...entry.records[0]!.input, body: "Mimar Sinan belgeselinde anlatıcı olarak erkek ses kullanacağız" });
+        const ambiguous = buildBrainMemoryRecord({ ...entry.records[0]!.input, body: "belki render için iki araç kullanacağız" });
+        const otherTopic = buildBrainMemoryRecord({ ...entry.records[0]!.input, body: "ses için FFmpeg kullanacağız" });
+        assert.ok([unrelated, ambiguous, otherTopic].every((record) => ayasMemoryRecordFact(record) === null), "unrelated or ambiguous text cannot enter the render-tool slot");
+        const root = tmpRoot();
+        writeRecords(root, built.map((item) => item.record));
+        const bytes = fs.readFileSync(storeFile(root), "utf8");
+        const reloaded = createAyasMemoryStore({ rootDir: root }).load();
+        assert.equal(JSON.stringify(reloaded), original, "restart preserves both original records and bodies");
+        resolveAyasMemoryTemporal(reloaded, { nowIso: entry.nowIso });
+        assert.equal(fs.readFileSync(storeFile(root), "utf8"), bytes, "read-side derivation never rewrites persistence");
+        assert.equal(JSON.stringify(built.map((item) => item.record)), original, "retrieval never mutates the input records");
+        continue;
+      }
+      assert.ok(entry.expectedStates && entry.expectedSelected, `${entry.id}: exact contract missing`);
       for (const [label, state] of Object.entries(entry.expectedStates)) {
         assert.equal(decisions.find((decision) => labelOf.get(decision.record.recordId) === label)?.temporal.state, state, `${entry.id}: ${label}`);
       }

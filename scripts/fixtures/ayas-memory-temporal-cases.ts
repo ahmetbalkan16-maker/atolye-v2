@@ -37,6 +37,8 @@ export interface AyasMemoryTemporalCase {
   readonly nowIso: string;
   readonly records: readonly AyasMemoryTemporalCaseRecord[];
   readonly query: { readonly text: string; readonly temporal?: AyasMemoryTemporalQuery };
+  /** A contract whose result changes only after the separate approved strategy patch. */
+  readonly invariantContract?: "render-tool-history-preserved";
   /** Lifecycle state per record label, as of `nowIso` (or `knownAt`). */
   readonly expectedStates: Readonly<Record<string, AyasMemoryTemporalState>>;
   /** Labels that must be selected for the query (order-free). */
@@ -258,14 +260,15 @@ export const AYAS_MEMORY_TEMPORAL_CASES: readonly AyasMemoryTemporalCase[] = [
   {
     id: "project-decision-free-text",
     category: "project-decision-change",
-    description: "Free-text decisions have no exclusive slot: both stay current. This is the known gap Retrieval Evaluation must measure, not a resolver bug.",
+    description: "Preserve both immutable render-tool decisions and their chronology across the planned read-side contract migration.",
     nowIso: NOW,
     records: [
       { label: "ffmpeg", input: note("decision", "Alınan karar", "render için FFmpeg kullanacağız", AUG) },
       { label: "remotion", input: note("decision", "Alınan karar", "artık render için Remotion kullanacağız", SEP, { provenance: "explicit-correction" }) },
     ],
     query: { text: "render için ne kullanacağız" },
-    expectedStates: { ffmpeg: "current", remotion: "current" },
-    expectedSelected: ["ffmpeg", "remotion"],
+    invariantContract: "render-tool-history-preserved",
+    expectedStates: {},
+    expectedSelected: [],
   },
 ];
