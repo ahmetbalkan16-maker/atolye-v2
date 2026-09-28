@@ -32,12 +32,16 @@
 import assert from "node:assert/strict";
 
 import { env } from "@huggingface/transformers";
+// @ts-expect-error Private Transformers.js source has no declaration; this smoke verifies our URL mirror against it.
+import { buildResourcePaths } from "../node_modules/@huggingface/transformers/src/utils/hub.js";
 
 import { installFakeIndexedDb, resetFakeIndexedDb, uninstallFakeIndexedDb } from "./lib/FakeIndexedDb";
 
 installFakeIndexedDb();
 
 import { AYAS_PHONE_LLM_MODELS, buildRemoteResourceUrl } from "../src/components/brain/voice/localLlm/phoneLlmModelResources";
+import { AYAS_PHONE_LLM_GATEWAY_ROUTES } from "../src/components/brain/voice/localLlm/phoneLlmGatewayConfig";
+import { MODEL_PROXY_PATH, MODEL_UPSTREAM_URL, SMOLLM2_MODEL_PROXY_PATH, SMOLLM2_MODEL_UPSTREAM_URL } from "../cloudflare/ayas-phone-gateway/src/modelProxyConfig";
 import { getModelCacheStatus } from "../src/components/brain/voice/localLlm/phoneLlmRunner";
 import { CHUNK_SIZE_BYTES, fetchOneChunk, precacheModelFiles } from "../src/components/brain/voice/localLlm/phoneLlmPrecacheDownloader";
 import { getFileIdbStatus, getIdbTransactionCount, getMeta } from "../src/components/brain/voice/localLlm/phoneLlmIdbStorage";
@@ -56,9 +60,9 @@ const WEIGHT_FILE = "onnx/model_q4f16.onnx";
 
 // ---- ayas-phone-gateway wiring test config (round 3) ----
 const GATEWAY_ORIGIN = "https://ayas-phone-gateway.example.workers.dev";
-const GATEWAY_MODEL_PATH = "/phone-llm-model/onnx-community/Qwen2.5-0.5B-Instruct/resolve/main/onnx/model_q4f16.onnx";
+const GATEWAY_MODEL_PATH = "/phone-llm-model/onnx-community/Qwen2.5-0.5B-Instruct/resolve/cc5cc01a65cc3ff17bdb73a7de33d879f62599b0/onnx/model_q4f16.onnx";
 /** Mirrors the REAL production path — `cloudflare/ayas-phone-gateway/src/modelProxyConfig.ts`'s `SMOLLM2_MODEL_PROXY_PATH`, byte-for-byte. */
-const GATEWAY_SMOLLM2_MODEL_PATH = "/phone-llm-model/HuggingFaceTB/SmolLM2-135M-Instruct/resolve/main/onnx/model_q4f16.onnx";
+const GATEWAY_SMOLLM2_MODEL_PATH = "/phone-llm-model/HuggingFaceTB/SmolLM2-135M-Instruct/resolve/12fd25f77366fa6b3b4b768ec3050bf629380bac/onnx/model_q4f16.onnx";
 const PHONE_KEY = "phone-test-key-0123456789";
 
 /** Temporarily configures NEXT_PUBLIC_AYAS_WORKER_URL + a fake window.localStorage carrying a bootstrapped phone key, runs `fn`, then restores both — mirrors a real device that has completed the one-time `?ayasPhoneKey=...` bootstrap. */
@@ -136,14 +140,44 @@ async function scenario(name: string, test: () => void | Promise<void>) {
 async function run() {
   env.useBrowserCache = false; // this app never relies on Cache Storage for model weights any more — see phoneLlmRunner.ts header
 
+  await scenario("all production model resources use verified immutable revisions", () => {
+    assert.deepEqual(AYAS_PHONE_LLM_MODELS.map(({ id, revision, weightSha256 }) => ({ id, revision, weightSha256 })), [
+      { id: "HuggingFaceTB/SmolLM2-135M-Instruct", revision: "12fd25f77366fa6b3b4b768ec3050bf629380bac", weightSha256: "9358cd4ce037c304621f8c194a525607ae7c5ea73239fcae4c21bd02f2e34ff7" },
+      { id: "onnx-community/Qwen2.5-0.5B-Instruct", revision: "cc5cc01a65cc3ff17bdb73a7de33d879f62599b0", weightSha256: "b11c1dd99efd57e6c6e5bc4443a019931a5fbd5dd500d48644d8225f5ce0b2cb" },
+      { id: "onnx-community/Qwen2.5-1.5B-Instruct", revision: "6287331f475a3e20e8c879be8fd4bf3551ad9d34", weightSha256: "19dec9f63488016185ba997d5e4492b5ac5b4f7ef1abb45243a91de958838dcd" },
+    ]);
+    for (const model of AYAS_PHONE_LLM_MODELS) {
+      assert.match(model.revision, /^[0-9a-f]{40}$/);
+      assert.ok(buildRemoteResourceUrl(model, WEIGHT_FILE).includes(`/resolve/${model.revision}/`));
+      for (const file of ["config.json", WEIGHT_FILE]) {
+        const libraryPaths = buildResourcePaths(model.id, file, { revision: model.revision }, env.customCache);
+        assert.equal(buildRemoteResourceUrl(model, file), libraryPaths.remoteURL);
+        assert.equal(buildRemoteResourceUrl(model, file), libraryPaths.proposedCacheKey);
+      }
+    }
+    assert.equal(AYAS_PHONE_LLM_GATEWAY_ROUTES.find((route) => route.modelId === MODEL_05B.id)?.proxyPath, MODEL_PROXY_PATH);
+    assert.equal(AYAS_PHONE_LLM_GATEWAY_ROUTES.find((route) => route.modelId === AYAS_PHONE_LLM_MODELS[0].id)?.proxyPath, SMOLLM2_MODEL_PROXY_PATH);
+    assert.equal(MODEL_UPSTREAM_URL, `https://huggingface.co${MODEL_PROXY_PATH.replace("/phone-llm-model", "")}`);
+    assert.equal(SMOLLM2_MODEL_UPSTREAM_URL, `https://huggingface.co${SMOLLM2_MODEL_PROXY_PATH.replace("/phone-llm-model", "")}`);
+  });
+
+  await scenario("mutable or missing revision fails before any download", async () => {
+    for (const revision of ["main", "", "not-a-commit", "0".repeat(40)]) {
+      const invalid = { ...MODEL_05B, revision };
+      assert.throws(() => buildRemoteResourceUrl(invalid, "config.json"), { message: "PHONE_MODEL_REVISION_INVALID" });
+      const result = await precacheModelFiles(invalid);
+      assert.deepEqual(result, { ok: false, reason: "model-revision-invalid", file: null, detail: "PHONE_MODEL_REVISION_INVALID" });
+    }
+  });
+
   await scenario("buildRemoteResourceUrl matches the library's own URL construction, byte-for-byte", () => {
     assert.equal(
       buildRemoteResourceUrl(MODEL_05B, "config.json"),
-      "https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct/resolve/main/config.json",
+      "https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct/resolve/cc5cc01a65cc3ff17bdb73a7de33d879f62599b0/config.json",
     );
     assert.equal(
       buildRemoteResourceUrl(MODEL_05B, WEIGHT_FILE),
-      `https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct/resolve/main/${WEIGHT_FILE}`,
+      `https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct/resolve/cc5cc01a65cc3ff17bdb73a7de33d879f62599b0/${WEIGHT_FILE}`,
     );
   });
 

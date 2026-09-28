@@ -26,10 +26,10 @@
  * readability (so a `curl` against this Worker and a `curl` against HF look
  * obviously related in logs) — it carries no routing logic of its own.
  */
-export const MODEL_PROXY_PATH = "/phone-llm-model/onnx-community/Qwen2.5-0.5B-Instruct/resolve/main/onnx/model_q4f16.onnx";
+export const MODEL_PROXY_PATH = "/phone-llm-model/onnx-community/Qwen2.5-0.5B-Instruct/resolve/cc5cc01a65cc3ff17bdb73a7de33d879f62599b0/onnx/model_q4f16.onnx";
 
 /** The ONLY upstream URL the Qwen route will ever fetch. Hardcoded — never derived from request input. */
-export const MODEL_UPSTREAM_URL = "https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct/resolve/main/onnx/model_q4f16.onnx";
+export const MODEL_UPSTREAM_URL = "https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct/resolve/cc5cc01a65cc3ff17bdb73a7de33d879f62599b0/onnx/model_q4f16.onnx";
 
 /**
  * Route 2's SECOND path — the SmolLM2-135M phone-fallback model's weight
@@ -45,11 +45,11 @@ export const MODEL_UPSTREAM_URL = "https://huggingface.co/onnx-community/Qwen2.5
  * proven broken for large ONNX files on this device class.
  */
 export const SMOLLM2_MODEL_PROXY_PATH =
-  "/phone-llm-model/HuggingFaceTB/SmolLM2-135M-Instruct/resolve/main/onnx/model_q4f16.onnx";
+  "/phone-llm-model/HuggingFaceTB/SmolLM2-135M-Instruct/resolve/12fd25f77366fa6b3b4b768ec3050bf629380bac/onnx/model_q4f16.onnx";
 
 /** The ONLY upstream URL the SmolLM2 route will ever fetch. Hardcoded — never derived from request input. */
 export const SMOLLM2_MODEL_UPSTREAM_URL =
-  "https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct/resolve/main/onnx/model_q4f16.onnx";
+  "https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct/resolve/12fd25f77366fa6b3b4b768ec3050bf629380bac/onnx/model_q4f16.onnx";
 
 export interface ModelProxyRoute {
   readonly path: string;

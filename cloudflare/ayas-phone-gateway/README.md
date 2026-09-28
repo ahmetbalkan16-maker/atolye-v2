@@ -109,7 +109,7 @@ beyond `AYAS_PHONE_KEY` (reused — this route requires the same Bearer key).
 ```sh
 GATEWAY=https://ayas-phone-gateway.<your-subdomain>.workers.dev
 PHONE_KEY=<the phone key from `wrangler secret put AYAS_PHONE_KEY`>
-PATH_SEG=/phone-llm-model/onnx-community/Qwen2.5-0.5B-Instruct/resolve/main/onnx/model_q4f16.onnx
+PATH_SEG=/phone-llm-model/onnx-community/Qwen2.5-0.5B-Instruct/resolve/cc5cc01a65cc3ff17bdb73a7de33d879f62599b0/onnx/model_q4f16.onnx
 
 # Expect: HTTP/1.1 206, Content-Range: bytes 0-8388607/483003582
 curl -sD - -o /dev/null "$GATEWAY$PATH_SEG" \

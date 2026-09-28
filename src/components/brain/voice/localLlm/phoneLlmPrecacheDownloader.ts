@@ -134,9 +134,9 @@
  * to `putChunkAndMeta()`. Nothing accumulates across chunks; no chunk's
  * bytes outlive their own loop iteration.
  *
- * `curl` proof the SERVER supports Range for this URL (does not by itself
- * prove what a real on-device `fetch()` receives on every attempt — see
- * above):
+ * Historical pre-pin `curl` proof the SERVER supports Range for the same
+ * weight via mutable `main` (the pinned URL still needs device validation;
+ * this did not prove what a real on-device `fetch()` receives):
  *   curl -sI -L -H "Range: bytes=0-8388607" \
  *     https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct/resolve/main/onnx/model_q4f16.onnx
  *   → HTTP/1.1 206 Partial Content
@@ -277,6 +277,7 @@ import { env } from "@huggingface/transformers";
 
 import { getStoredAyasPhoneKey, resolveAyasWorkerUrl } from "@/components/brain/ayasPhoneFallback";
 import {
+  assertPinnedPhoneModelRevision,
   buildRemoteResourceUrl,
   getRequiredModelCacheFiles,
   type AyasPhoneLlmModelSpec,
@@ -324,7 +325,8 @@ export type AyasPhoneLlmPrecacheFailureReason =
   /** VERIFYING: summed bytes don't match the server-reported total, or the final chunk isn't readable back — the corrupt record is deleted so a retry starts clean. */
   | "integrity-mismatch"
   /** This (model, file) pair is gateway-scoped (has a route in `AYAS_PHONE_LLM_GATEWAY_ROUTES`, see `phoneLlmGatewayConfig.ts`) but this device hasn't got the gateway configured yet (`NEXT_PUBLIC_AYAS_WORKER_URL` unset at build time, or no `ayasPhoneKey` bootstrapped in `localStorage` on this device) — checked BEFORE any network call, so this never silently falls back to the direct HF URL already proven broken on this device class. */
-  | "gateway-not-configured";
+  | "gateway-not-configured"
+  | "model-revision-invalid";
 
 export type AyasPhoneLlmPrecacheOutcome =
   | { readonly ok: true }
@@ -1143,6 +1145,11 @@ export async function precacheModelFiles(
   onProgress?: (progress: AyasPhoneLlmLoadProgress) => void,
   timeouts: { fetchTimeoutMs?: number; storageWriteTimeoutMs?: number; verifyTimeoutMs?: number } = {},
 ): Promise<AyasPhoneLlmPrecacheOutcome> {
+  try {
+    assertPinnedPhoneModelRevision(model);
+  } catch {
+    return { ok: false, reason: "model-revision-invalid", file: null, detail: "PHONE_MODEL_REVISION_INVALID" };
+  }
   if (!isIndexedDbAvailable()) {
     return {
       ok: false,

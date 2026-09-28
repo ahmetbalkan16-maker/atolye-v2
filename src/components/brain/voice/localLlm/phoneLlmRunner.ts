@@ -48,7 +48,7 @@ import {
   type ProgressInfo,
 } from "@huggingface/transformers";
 
-import { getRequiredModelCacheFiles, buildRemoteResourceUrl, type AyasPhoneLlmModelSpec } from "./phoneLlmModelResources";
+import { getRequiredModelCacheFiles, buildRemoteResourceUrl, assertPinnedPhoneModelRevision, type AyasPhoneLlmModelSpec } from "./phoneLlmModelResources";
 import { recordPhoneLlmCheckpoint } from "./phoneLlmDiagnostics";
 import { phoneLlmIdbCache } from "./phoneLlmIdbCache";
 import { getFileIdbStatus, isIndexedDbAvailable } from "./phoneLlmIdbStorage";
@@ -163,6 +163,7 @@ export class AyasPhoneLlmRunner {
   async load(model: AyasPhoneLlmModelSpec, onProgress?: (p: AyasPhoneLlmLoadProgress) => void): Promise<AyasPhoneLlmLoadOutcome> {
     if (this.disposed) return { ok: false, reason: "disposed", detail: "runner dispose edildi, yeniden kullanılamaz." };
     try {
+      assertPinnedPhoneModelRevision(model);
       // A previously-loaded model is disposed first — only one resident at a time.
       if (this.generator) {
         await this.generator.dispose().catch(() => {});
@@ -174,6 +175,7 @@ export class AyasPhoneLlmRunner {
         pipeline("text-generation", model.id, {
           device: "webgpu",
           dtype: model.dtype,
+          revision: model.revision,
           progress_callback: onProgress ? (info: ProgressInfo) => onProgress(toLoadProgress(info)) : undefined,
         }),
         RUNTIME_LOAD_TIMEOUT_MS,

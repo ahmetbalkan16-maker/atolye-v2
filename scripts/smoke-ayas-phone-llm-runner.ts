@@ -18,6 +18,7 @@ installFakeIndexedDb();
 
 import {
   AYAS_PHONE_LLM_MODELS,
+  AyasPhoneLlmRunner,
   getModelCacheStatus,
   isModelCached,
 } from "../src/components/brain/voice/localLlm/phoneLlmRunner";
@@ -61,6 +62,28 @@ async function run() {
   await scenario("empty storage → none, never throws", async () => {
     assert.equal(await getModelCacheStatus(MODEL_05B), "none");
     assert.equal(await isModelCached(MODEL_05B), false);
+  });
+
+  await scenario("old mutable-main cache entries never satisfy a pinned revision", async () => {
+    for (const file of required) {
+      const oldUrl = `https://huggingface.co/${MODEL_05B.id}/resolve/main/${file}`;
+      await putMeta({
+        key: oldUrl, modelId: MODEL_05B.id, file,
+        totalBytes: 1000, chunkSize: 1000, chunkCount: 1,
+        downloadedBytes: 1000, downloadedChunkCount: 1,
+        etag: null, complete: true, updatedAt: Date.now(),
+      });
+    }
+    assert.equal(await getModelCacheStatus(MODEL_05B), "none");
+    assert.equal(await isModelCached(MODEL_05B), false);
+  });
+
+  await scenario("runner rejects a non-catalog revision before pipeline loading", async () => {
+    const runner = new AyasPhoneLlmRunner();
+    const result = await runner.load({ ...MODEL_05B, revision: "0".repeat(40) });
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.match(result.detail, /PHONE_MODEL_REVISION_INVALID/);
+    assert.equal(runner.loadedModelId, null);
   });
 
   await scenario("only the .onnx weight file complete (the old single-file check's blind spot) → partial, not complete", async () => {

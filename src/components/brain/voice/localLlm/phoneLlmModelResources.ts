@@ -24,6 +24,9 @@ import { env, type DataType } from "@huggingface/transformers";
 
 export interface AyasPhoneLlmModelSpec {
   readonly id: string;
+  readonly revision: string;
+  /** Published LFS SHA256 evidence for the q4f16 weight; the browser does not hash the full download. */
+  readonly weightSha256: string;
   readonly label: string;
   readonly dtype: DataType;
   readonly approxSizeLabel: string;
@@ -48,6 +51,8 @@ export interface AyasPhoneLlmModelSpec {
 export const AYAS_PHONE_LLM_MODELS: readonly AyasPhoneLlmModelSpec[] = [
   {
     id: "HuggingFaceTB/SmolLM2-135M-Instruct",
+    revision: "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+    weightSha256: "9358cd4ce037c304621f8c194a525607ae7c5ea73239fcae4c21bd02f2e34ff7",
     label: "SmolLM2-135M-Instruct (test)",
     dtype: "q4f16",
     approxSizeLabel: "~112 MB",
@@ -55,6 +60,8 @@ export const AYAS_PHONE_LLM_MODELS: readonly AyasPhoneLlmModelSpec[] = [
   },
   {
     id: "onnx-community/Qwen2.5-0.5B-Instruct",
+    revision: "cc5cc01a65cc3ff17bdb73a7de33d879f62599b0",
+    weightSha256: "b11c1dd99efd57e6c6e5bc4443a019931a5fbd5dd500d48644d8225f5ce0b2cb",
     label: "Qwen2.5-0.5B-Instruct",
     dtype: "q4f16",
     approxSizeLabel: "~460 MB",
@@ -62,6 +69,8 @@ export const AYAS_PHONE_LLM_MODELS: readonly AyasPhoneLlmModelSpec[] = [
   },
   {
     id: "onnx-community/Qwen2.5-1.5B-Instruct",
+    revision: "6287331f475a3e20e8c879be8fd4bf3551ad9d34",
+    weightSha256: "19dec9f63488016185ba997d5e4492b5ac5b4f7ef1abb45243a91de958838dcd",
     label: "Qwen2.5-1.5B-Instruct",
     dtype: "q4f16",
     approxSizeLabel: "~1.17 GB",
@@ -138,14 +147,26 @@ function pathJoin(...parts: string[]): string {
  * Verified by hand for both required files here against the library's own
  * source: for `onnx-community/Qwen2.5-0.5B-Instruct` + `"config.json"` this
  * produces exactly
- * `https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct/resolve/main/config.json`;
+ * `https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct/resolve/cc5cc01a65cc3ff17bdb73a7de33d879f62599b0/config.json`;
  * for the weight file, exactly
- * `https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct/resolve/main/onnx/model_q4f16.onnx`
+ * `https://huggingface.co/onnx-community/Qwen2.5-0.5B-Instruct/resolve/cc5cc01a65cc3ff17bdb73a7de33d879f62599b0/onnx/model_q4f16.onnx`
  * — both covered by `scripts/smoke-ayas-phone-llm-precache.ts`.
  */
-export function buildRemoteResourceUrl(model: AyasPhoneLlmModelSpec, file: string, revision = "main"): string {
+export function assertPinnedPhoneModelRevision(model: AyasPhoneLlmModelSpec): void {
+  const canonical = AYAS_PHONE_LLM_MODELS.find((entry) => entry.id === model.id);
+  if (
+    !/^[0-9a-f]{40}$/.test(model.revision) ||
+    !canonical ||
+    canonical.revision !== model.revision ||
+    canonical.weightSha256 !== model.weightSha256 ||
+    canonical.dtype !== model.dtype
+  ) throw new Error("PHONE_MODEL_REVISION_INVALID");
+}
+
+export function buildRemoteResourceUrl(model: AyasPhoneLlmModelSpec, file: string): string {
+  assertPinnedPhoneModelRevision(model);
   const pathSegment = env.remotePathTemplate
     .replaceAll("{model}", model.id)
-    .replaceAll("{revision}", encodeURIComponent(revision));
+    .replaceAll("{revision}", encodeURIComponent(model.revision));
   return pathJoin(env.remoteHost, pathSegment, file);
 }

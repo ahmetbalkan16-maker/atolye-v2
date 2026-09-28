@@ -273,7 +273,7 @@ async function run() {
         sawGatewayRequest = true;
         assert.equal(
           url,
-          "https://ayas-phone-gateway.example.workers.dev/phone-llm-model/onnx-community/Qwen2.5-0.5B-Instruct/resolve/main/onnx/model_q4f16.onnx",
+          "https://ayas-phone-gateway.example.workers.dev/phone-llm-model/onnx-community/Qwen2.5-0.5B-Instruct/resolve/cc5cc01a65cc3ff17bdb73a7de33d879f62599b0/onnx/model_q4f16.onnx",
         );
         assert.equal((init?.headers as Record<string, string>).Authorization, `Bearer ${PHONE_KEY}`);
         assert.equal((init?.headers as Record<string, string>).Range, "bytes=0-8388607");

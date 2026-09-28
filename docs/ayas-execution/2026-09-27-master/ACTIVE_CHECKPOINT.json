@@ -2,21 +2,25 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "b865b6b8c8f0d9d8a22c6a0ca32a27773bd5f7bc",
-  "currentHead": "b865b6b8c8f0d9d8a22c6a0ca32a27773bd5f7bc",
+  "lastGreenHead": "ad3b16e481bd9c3f8e6aa8f7f10457debc1910e3",
+  "currentHead": "ad3b16e481bd9c3f8e6aa8f7f10457debc1910e3",
   "stage": "PHASE_0",
-  "subtask": "runtime-health-evidence",
+  "subtask": "phone-model-immutable-pinning",
   "status": "READY_TO_COMMIT",
   "completedStages": [],
-  "completedSubtasks": ["canonical-package-import", "conversation-safe-remediation", "temporal-plan-supersession", "system-static-remediation", "safe-ci"],
+  "completedSubtasks": ["canonical-package-import", "conversation-safe-remediation", "temporal-plan-supersession", "system-static-remediation", "safe-ci", "runtime-health-evidence"],
   "currentFiles": [
+    "cloudflare/ayas-phone-gateway/README.md",
+    "cloudflare/ayas-phone-gateway/src/modelProxyConfig.ts",
     "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
     "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md",
-    "src/lib/runtime/ProductionRuntimeCompositionRoot.ts",
-    "src/lib/runtime/ProductionRuntimeStatusProjection.ts",
-    "scripts/smoke-production-runtime-health-api.ts",
-    "scripts/smoke-production-runtime-health-bundle.ts",
-    "scripts/smoke-production-runtime-status.ts"
+    "scripts/smoke-ayas-phone-llm-precache.ts",
+    "scripts/smoke-ayas-phone-llm-range-diagnostic.ts",
+    "scripts/smoke-ayas-phone-llm-runner.ts",
+    "src/components/brain/voice/localLlm/phoneLlmGatewayConfig.ts",
+    "src/components/brain/voice/localLlm/phoneLlmModelResources.ts",
+    "src/components/brain/voice/localLlm/phoneLlmPrecacheDownloader.ts",
+    "src/components/brain/voice/localLlm/phoneLlmRunner.ts"
   ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
@@ -28,10 +32,11 @@
     "Typed computer-plan supersession: memory-temporal 52 PASS; retrieval evaluator 74 PASS with 29 unchanged known limitations",
     "System-static: Graphify integration 47 PASS; open-ended evolution 110 PASS; developer intelligence held-out 10/10; model router 17 PASS; TypeScript PASS; changed-file lint PASS; full lint 0 errors/13 pre-existing warnings; observer-autostart UNSAFE_KNOWN and not run",
     "Safe CI local gate: TypeScript PASS; full lint 0 errors/13 existing warnings; cognitive 53/55 with two known; retrieval 74 PASS; developer 39/39 and held-out 10/10; evolution 110 PASS; technology watch 129 PASS; hosted CI not run",
-    "Runtime-health: real Next bundle before fix initialized worker ready but route returned created/503; after fix isolated HTTP health 200 ready; bundle regression PASS; health API 25/25; status 15/15; startup 11/11; production readiness 26 PASS; TypeScript/lint/diff check PASS"
+    "Runtime-health: real Next bundle before fix initialized worker ready but route returned created/503; after fix isolated HTTP health 200 ready; bundle regression PASS; health API 25/25; status 15/15; startup 11/11; production readiness 26 PASS; TypeScript/lint/diff check PASS",
+    "Phone immutable pinning: capability 11; IDB storage 13; diagnostics 11; memory probe 8; diagnostic tests 5; range 8; precache 23; runner 10; Worker runtime 40; TypeScript PASS; changed-file lint PASS; git diff --check PASS"
   ],
   "graphify": {
-    "head": "b865b6b8c8f0d9d8a22c6a0ca32a27773bd5f7bc",
+    "head": "ad3b16e481bd9c3f8e6aa8f7f10457debc1910e3",
     "stale": false,
     "needsUpdate": false,
     "duplicateNodes": 0,
@@ -41,6 +46,6 @@
     "semanticPending": true
   },
   "blockers": [],
-  "nextAction": "Commit the validated runtime-health projection packet without pushing, refresh Graphify and bind its new HEAD, then verify exact immutable phone-model revisions and required files. Keep observer-autostart UNSAFE_KNOWN.",
-  "updatedAt": "2026-09-28T12:30:40+03:00"
+  "nextAction": "Commit the locally validated phone-model pinning packet without pushing; refresh Graphify at the new HEAD. Then audit Phase 0 closure and enter the exact Stage 15 nextAction only if all required local gates are green. Cloudflare deployment and observer-autostart remain outside this packet.",
+  "updatedAt": "2026-09-28T12:46:59+03:00"
 }
