@@ -6,8 +6,12 @@ import os from "node:os";
 import path from "node:path";
 
 import { freezeAyasControlledEvolutionArtifact } from "../src/lib/ayas/evolution/AyasControlledSelfEvolutionArtifact";
+import { buildAyasControlledEvolutionProposalCandidate } from "../src/lib/ayas/evolution/AyasControlledSelfEvolutionBridge";
 import { ayasControlledEvolutionDedupeKey, type AyasControlledEvolutionCandidate } from "../src/lib/ayas/evolution/AyasControlledSelfEvolution";
 import { createAyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatchArtifact";
+import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "../src/lib/brain/autonomy/AyasNovelPatchDiscovery";
+import { createAyasAutonomyDaemon } from "../src/lib/brain/autonomy/AyasAutonomyDaemon";
+import { createAyasApprovalInboxStore } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
 import { AYAS_EXPERIMENT_ISOLATION, type AyasExperimentEvidence } from "../src/lib/brain/autonomy/AyasResearchExperimentEvaluation";
 import { ayasImprovementRegistryDigest, AYAS_DEFAULT_IMPROVEMENT_REGISTRY } from "../src/lib/brain/autonomy/AyasResearchExperimentRegistry";
 import { createAyasResearchExperimentStore, type AyasExperimentRecord } from "../src/lib/brain/autonomy/AyasResearchExperimentStore";
@@ -82,7 +86,8 @@ async function frozenArtifact(): Promise<void> {
     const sourceBindings = [{ kind: "EVOLUTION_OPPORTUNITY" as const, id: OPPORTUNITY_ID }];
     const candidate: AyasControlledEvolutionCandidate = { opportunityId: OPPORTUNITY_ID, baseHead: head, registryDigest,
       dedupeKey: ayasControlledEvolutionDedupeKey({ opportunityId: OPPORTUNITY_ID, hypothesisId: hypothesis.hypothesisId, baseHead: head, registryDigest }),
-      hypothesis, strategy, benchmark, sourceBindings, qualification: {} as AyasControlledEvolutionCandidate["qualification"] };
+      hypothesis, strategy, benchmark, sourceBindings, qualification: { readiness: "EXPERIMENT_READY", blockers: [], executionAuthority: "NONE",
+        authority: { granted: "NONE" }, mayExecute: false, mayInstall: false, maySpend: false, mayPublish: false } as unknown as AyasControlledEvolutionCandidate["qualification"] };
     const replacements = [{ filePath, expectedHash: hash(oldContent), content }];
     const diffSha256 = "d".repeat(64);
     const evidence: AyasExperimentEvidence = { schemaVersion: AYAS_RESEARCH_IMPROVEMENT_SCHEMA_VERSION, experimentId: `ayas-experiment-${crypto.randomUUID()}`,
@@ -100,7 +105,7 @@ async function frozenArtifact(): Promise<void> {
     const experimentStore = createAyasResearchExperimentStore({ rootDir: path.join(root, "private-experiment-store") });
     const artifactStore = createAyasPatchArtifactStore({ rootDir: path.join(root, "private-artifact-store") });
     // The test stores are under this TEMP root and ignored by the fixture Git repository.
-    fs.writeFileSync(path.join(root, ".gitignore"), "private-experiment-store/\nprivate-artifact-store/\n");
+    fs.writeFileSync(path.join(root, ".gitignore"), "private-experiment-store/\nprivate-artifact-store/\nprivate-inbox/\n");
     git(root, "add", ".gitignore"); git(root, "commit", "--quiet", "-m", "ignore isolated fixture stores");
     const boundHead = git(root, "rev-parse", "HEAD");
     const boundCandidate = { ...candidate, baseHead: boundHead, hypothesis: { ...hypothesis, gapEvidence: { ...hypothesis.gapEvidence, measuredAtHead: boundHead } },
@@ -112,6 +117,7 @@ async function frozenArtifact(): Promise<void> {
       inputsDigest: "f".repeat(64), status: "COMPLETED" as const, reservedAt: FIXTURE_NOW, updatedAt: FIXTURE_NOW,
       owner: { pid: process.pid, processStartEpochMs: Date.now() - 1_000, runId: crypto.randomUUID() }, leaseExpiresAt: FIXTURE_NOW,
       verdict: "IMPROVED" as const, evidenceHash, completedAt: FIXTURE_NOW };
+    experimentStore.writeExperiment(record);
     const result: AyasRegisteredExperimentResult = { record, verdict: "IMPROVED", reasonCodes: [], retainedSource: { diffSha256, replacements } };
     const input = { repoRoot: root, candidate: boundCandidate, registry, result, experimentStore, artifactStore, now: FIXTURE_NOW };
     assert.equal(await freezeAyasControlledEvolutionArtifact({ ...input, result: { ...result, verdict: "NEUTRAL" } }), null);
@@ -127,8 +133,46 @@ async function frozenArtifact(): Promise<void> {
     assert.equal(artifact.graphifyImportCounts?.[filePath], 0);
     assert.deepEqual(artifact.validatorScripts, [benchmark.script, strategy.regressionSuites[0]]);
     assert.equal(artifactStore.loadVerified(artifact.artifactId).patchHash, artifact.patchHash);
+    assert.deepEqual(artifact.controlledEvolutionBinding, { opportunityId: OPPORTUNITY_ID, experimentId: record.experimentId,
+      evidenceHash, hypothesisId: hypothesis.hypothesisId, strategyId: strategy.strategyId, strategyVersion: strategy.version, registryDigest });
+    const bridgeInput = { repoRoot: root, candidate: boundCandidate, registry, experimentId: record.experimentId,
+      artifactId: artifact.artifactId, experimentStore, artifactStore };
+    const proposal = await buildAyasControlledEvolutionProposalCandidate(bridgeInput);
+    assert.ok(proposal, "verified evidence and frozen artifact must produce one candidate");
+    assert.equal(proposal.mutationKind, AYAS_PATCH_ARTIFACT_MUTATION_KIND);
+    assert.equal(proposal.patchArtifactId, artifact.artifactId);
+    assert.equal(proposal.patchHash, artifact.patchHash);
+    assert.equal(proposal.sourceReference, OPPORTUNITY_ID);
+    assert.deepEqual(proposal.exactFiles, [filePath]);
+    assert.ok(proposal.evidence.includes(`evidenceSha256:${evidenceHash}`));
+    const inbox = createAyasApprovalInboxStore({ rootDir: path.join(root, "private-inbox") });
+    const daemon = createAyasAutonomyDaemon({ inbox, repoRoot: root, now: () => FIXTURE_NOW });
+    const observation = { now: FIXTURE_NOW, branch: "main", head: boundHead, repoClean: true, graphifyFresh: true,
+      machineAction: "ALLOW" as const, gaps: [] };
+    daemon.observe(observation);
+    const discovered = daemon.discover(observation, [proposal]);
+    assert.equal(discovered.length, 1);
+    assert.equal(discovered[0]?.status, "PENDING");
+    assert.equal(discovered[0]?.mutationKind, AYAS_PATCH_ARTIFACT_MUTATION_KIND);
+    assert.equal(discovered[0]?.patchHash, artifact.patchHash);
+    assert.equal(inbox.load().decisions.length, 0, "discovery must not grant owner approval");
+    assert.equal(await buildAyasControlledEvolutionProposalCandidate({ ...bridgeInput, experimentId: "missing" }), null);
+    assert.equal(await buildAyasControlledEvolutionProposalCandidate({ ...bridgeInput, artifactId: "missing" }), null);
+    assert.equal(await buildAyasControlledEvolutionProposalCandidate({ ...bridgeInput, candidate: { ...boundCandidate, baseHead: "0".repeat(40) } }), null);
+    assert.equal(await buildAyasControlledEvolutionProposalCandidate({ ...bridgeInput, candidate: { ...boundCandidate, qualification: { ...boundCandidate.qualification, readiness: "BLOCKED" } } }), null);
+    assert.equal(await buildAyasControlledEvolutionProposalCandidate({ ...bridgeInput, artifactStore: { ...artifactStore,
+      loadVerified: () => ({ ...artifact, controlledEvolutionBinding: { ...artifact.controlledEvolutionBinding!, evidenceHash: "0".repeat(64) } }) } }), null);
+    assert.equal(await buildAyasControlledEvolutionProposalCandidate({ ...bridgeInput, experimentStore: { ...experimentStore,
+      readEvidence: () => ({ ...boundEvidence, verdict: "NEUTRAL" }) } }), null);
+    const artifactPath = path.join(artifactStore.dir, `${artifact.artifactId}.json`);
+    const originalArtifact = fs.readFileSync(artifactPath, "utf8");
+    fs.writeFileSync(artifactPath, originalArtifact.replace(evidenceHash, "0".repeat(64)), "utf8");
+    assert.equal(await buildAyasControlledEvolutionProposalCandidate(bridgeInput), null, "hash-bound evidence identity cannot be edited on disk");
+    fs.writeFileSync(artifactPath, originalArtifact, "utf8");
+    assert.ok(await buildAyasControlledEvolutionProposalCandidate(bridgeInput), "restored immutable artifact still bridges");
     fs.writeFileSync(path.join(root, "dirty.txt"), "not committed");
     assert.equal(await freezeAyasControlledEvolutionArtifact(input), null, "dirty current workspace cannot freeze another artifact");
+    assert.equal(await buildAyasControlledEvolutionProposalCandidate(bridgeInput), null, "dirty workspace cannot bridge an artifact");
   } finally {
     const resolved = path.resolve(root);
     const temp = fs.realpathSync(os.tmpdir());
@@ -140,6 +184,6 @@ async function frozenArtifact(): Promise<void> {
 async function main(): Promise<void> {
   await retainedSandboxSource();
   await frozenArtifact();
-  console.log("PASS (controlled evolution sandbox retention, evidence digest, SAFE artifact freeze and refusal cases)");
+  console.log("PASS (controlled evolution sandbox retention, SAFE artifact, verified proposal bridge and refusal cases)");
 }
 void main().catch((error) => { console.error(error); process.exitCode = 1; });

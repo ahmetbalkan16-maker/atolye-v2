@@ -54,6 +54,16 @@ export interface AyasPatchArtifact {
    * ever touch.
    */
   readonly graphifyImportCounts?: Readonly<Record<string, number>>;
+  /** Stage 15: immutable, hash-bound provenance. Omitted by older and non-evolution artifacts. */
+  readonly controlledEvolutionBinding?: {
+    readonly opportunityId: string;
+    readonly experimentId: string;
+    readonly evidenceHash: string;
+    readonly hypothesisId: string;
+    readonly strategyId: string;
+    readonly strategyVersion: number;
+    readonly registryDigest: string;
+  };
   readonly safetyClassification: "SAFE" | "REVIEW_REQUIRED" | "FORBIDDEN_AUTONOMOUS";
   readonly problemStatement: string;
   readonly rationale: string;
