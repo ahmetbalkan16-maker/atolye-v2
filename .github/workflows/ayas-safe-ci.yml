@@ -1,0 +1,47 @@
+name: AYAS Safe CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - wip/ayas-graphify-final-execution
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ayas-safe-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-and-deterministic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - name: TypeScript
+        run: npx tsc --noEmit --incremental false
+      - name: ESLint
+        run: npm run lint
+      - name: Cognitive quality
+        run: npx tsx scripts/smoke-ayas-cognitive-quality.ts
+      - name: Retrieval evaluation
+        run: npx tsx scripts/smoke-ayas-retrieval-evaluation.ts
+      - name: Developer intelligence
+        run: npx tsx scripts/smoke-ayas-developer-intelligence.ts --gate
+      - name: Open-ended evolution
+        run: npx tsx scripts/smoke-ayas-open-ended-evolution.ts
+      - name: Technology watch
+        run: npx tsx scripts/smoke-ayas-technology-watch.ts
+
+# Intentionally excluded from hosted CI:
+# - scripts/smoke-ayas-observer-autostart.ts (Windows Scheduled Task surface)
+# - Graphify host/MCP validation (depends on the owner's installed Graphify state)
+# - production/provider/network/live-runtime suites
+# Those remain owner-PC gates.

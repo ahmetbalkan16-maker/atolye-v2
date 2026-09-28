@@ -2,24 +2,17 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "9e51840c2645447e3b8ee18d9277c209ffa4b852",
-  "currentHead": "9e51840c2645447e3b8ee18d9277c209ffa4b852",
+  "lastGreenHead": "b8515013a0114d2922180caa4a7ea618db928e28",
+  "currentHead": "b8515013a0114d2922180caa4a7ea618db928e28",
   "stage": "PHASE_0",
-  "subtask": "system-static-remediation",
+  "subtask": "safe-ci",
   "status": "READY_TO_COMMIT",
   "completedStages": [],
-  "completedSubtasks": ["canonical-package-import", "conversation-safe-remediation", "temporal-plan-supersession"],
+  "completedSubtasks": ["canonical-package-import", "conversation-safe-remediation", "temporal-plan-supersession", "system-static-remediation"],
   "currentFiles": [
-    "docs/AYAS_MODEL_ROUTING.md",
+    ".github/workflows/ayas-safe-ci.yml",
     "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
-    "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md",
-    "scripts/ayas-discovery-daemon.ts",
-    "scripts/smoke-ayas-graphify-integration.ts",
-    "scripts/smoke-ayas-observer-autostart.ts",
-    "scripts/smoke-ayas-open-ended-evolution.ts",
-    "src/lib/ayas/developer/AyasDeveloperTaskModel.ts",
-    "src/lib/ayas/evolution/AyasEvolutionOpportunity.ts",
-    "src/lib/ayas/evolution/AyasEvolutionQualification.ts"
+    "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md"
   ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
@@ -32,7 +25,7 @@
     "System-static: Graphify integration 47 PASS; open-ended evolution 110 PASS; developer intelligence held-out 10/10; model router 17 PASS; TypeScript PASS; changed-file lint PASS; full lint 0 errors/13 pre-existing warnings; observer-autostart UNSAFE_KNOWN and not run"
   ],
   "graphify": {
-    "head": "9e51840c2645447e3b8ee18d9277c209ffa4b852",
+    "head": "b8515013a0114d2922180caa4a7ea618db928e28",
     "stale": false,
     "needsUpdate": false,
     "duplicateNodes": 0,
@@ -42,6 +35,6 @@
     "semanticPending": true
   },
   "blockers": [],
-  "nextAction": "Refresh Graphify after the final dense-array edit, verify integrity, commit the validated system-static packet without push, refresh Graphify at the new HEAD, then review the safe CI patch. Observer-autostart remains UNSAFE_KNOWN until owner-supervised proof.",
-  "updatedAt": "2026-09-28T10:00:00+03:00"
+  "nextAction": "Commit the locally validated safe CI workflow without pushing, refresh Graphify at its new HEAD, then continue Phase 0 runtime-health evidence collection. Do not patch runtime-health without proving Next module identity; keep observer-autostart UNSAFE_KNOWN.",
+  "updatedAt": "2026-09-28T10:20:00+03:00"
 }
