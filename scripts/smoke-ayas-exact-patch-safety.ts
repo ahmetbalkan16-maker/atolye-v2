@@ -10,14 +10,45 @@ import { AYAS_DEFAULT_IMPROVEMENT_REGISTRY, ayasImprovementRegistryDigest,
   generateAyasRenderToolSupersessionPatch } from "../src/lib/brain/autonomy/AyasResearchExperimentRegistry";
 
 const file = "src/lib/ayas/memory/AyasMemoryTemporal.ts";
-const before = fs.readFileSync(path.join(process.cwd(), file), "utf8");
-const after = generateAyasRenderToolSupersessionPatch(before);
-const diff = diffAyasExactPatch(before, after);
-assert.ok(diff);
+const live = fs.readFileSync(path.join(process.cwd(), file), "utf8");
 const strategy = AYAS_DEFAULT_IMPROVEMENT_REGISTRY.strategies.find((item) => item.strategyId === "exp-memory-render-tool-supersession");
 assert.ok(strategy?.reviewedExactPatch);
 const manifest = strategy.reviewedExactPatch;
 assert.ok(validAyasReviewedExactPatch(manifest));
+// Before promotion, the live source is the reviewed baseline. Afterwards, recover
+// that baseline from the approved hunk reversals and verify its hash below.
+const reverse = (text: string, added: string, removed: string): string => {
+  assert.equal(text.split(added).length, 2, "reviewed hunk must occur exactly once");
+  return text.replace(added, removed);
+};
+const eol = live.includes("\r\n") ? "\r\n" : "\n";
+let before = live;
+if (ayasExactPatchSha256(live) === manifest.afterSha256) {
+  before = reverse(before, '  "user.decision.render-tool",' + eol, "");
+  before = reverse(before,
+    '    const render = /^(?:artik )?render icin ([a-z][a-z0-9]{1,39}) kullanacagiz$/.exec(value);' + eol +
+    '    if (render) return { fact: { key: "user.decision.render-tool", value: render[1]! }, clause: null };' + eol, "");
+  before = reverse(before,
+    '    if (isAyasMemoryFactKey(factKey) && typeof factValue === "string") {' + eol +
+    '      if (factKey !== "user.decision.render-tool") return { key: factKey, value: factValue };' + eol +
+    '      const derived = deriveAyasMemoryFact(record);' + eol +
+    '      return isAuthoritative(record) && derived?.key === factKey && derived.value === factValue ? derived : null;' + eol +
+    '    }' + eol +
+    '    if (factKey !== undefined || factValue !== undefined) return null;' + eol +
+    '    const derived = deriveAyasMemoryFact(record);' + eol +
+    '    return derived?.key === "user.decision.render-tool" && isAuthoritative(record) ? derived : null;' + eol,
+    '    return isAyasMemoryFactKey(factKey) && typeof factValue === "string" ? { key: factKey, value: factValue } : null;' + eol);
+  before = reverse(before,
+    '  const derived = deriveFactEvidence(input);' + eol +
+    '  const evidence = input.source === "ayas-inferred" && derived?.fact.key === "user.decision.render-tool" ? null : derived;' + eol,
+    '  const evidence = deriveFactEvidence(input);' + eol);
+}
+assert.equal(ayasExactPatchSha256(before), manifest.beforeSha256);
+const after = generateAyasRenderToolSupersessionPatch(before);
+assert.equal(ayasExactPatchSha256(after), manifest.afterSha256);
+assert.ok(ayasExactPatchSha256(live) === manifest.beforeSha256 || live === after, "live source must match the reviewed before/after state");
+const diff = diffAyasExactPatch(before, after);
+assert.ok(diff);
 assert.deepEqual(verifyAyasReviewedExactPatch(manifest, file, before, after), diff);
 assert.equal(ayasExactPatchSha256(before), manifest.beforeSha256);
 assert.equal(ayasExactPatchSha256(after), manifest.afterSha256);

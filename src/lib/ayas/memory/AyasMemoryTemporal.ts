@@ -44,6 +44,7 @@ export const AYAS_MEMORY_FACT_KEYS = [
   "user.preference.response-length",
   "user.preference.voice-length",
   "user.decision.computer-purchase-plan",
+  "user.decision.render-tool",
 ] as const;
 
 export type AyasMemoryFactKey = (typeof AYAS_MEMORY_FACT_KEYS)[number];
@@ -207,6 +208,8 @@ function deriveFactEvidence(input: {
   if (identity || input.tags.includes("kimlik")) return null;
   if (input.kind === "decision") {
     const value = fold(input.body).replace(/\s+/g, " ").trim();
+    const render = /^(?:artik )?render icin ([a-z][a-z0-9]{1,39}) kullanacagiz$/.exec(value);
+    if (render) return { fact: { key: "user.decision.render-tool", value: render[1]! }, clause: null };
     const computer = /\b(?:bilgisayar|masaustu|dizustu|laptop|notebook|pc)\b/.test(value);
     // A generic PC-related decision or hardware specification is not an exclusive purchase plan.
     const purchaseDecision = /\b(?:almaya|toplamaya|kurmaya|satin almaya) karar\b/.test(value);
@@ -242,7 +245,14 @@ export function deriveAyasMemoryFact(input: {
 export function ayasMemoryRecordFact(record: BrainMemoryRecord): AyasMemoryFact | null {
   if (record.temporal) {
     const { factKey, factValue } = record.temporal;
-    return isAyasMemoryFactKey(factKey) && typeof factValue === "string" ? { key: factKey, value: factValue } : null;
+    if (isAyasMemoryFactKey(factKey) && typeof factValue === "string") {
+      if (factKey !== "user.decision.render-tool") return { key: factKey, value: factValue };
+      const derived = deriveAyasMemoryFact(record);
+      return isAuthoritative(record) && derived?.key === factKey && derived.value === factValue ? derived : null;
+    }
+    if (factKey !== undefined || factValue !== undefined) return null;
+    const derived = deriveAyasMemoryFact(record);
+    return derived?.key === "user.decision.render-tool" && isAuthoritative(record) ? derived : null;
   }
   return deriveAyasMemoryFact(record);
 }
@@ -903,7 +913,8 @@ export function buildAyasMemoryTemporalInput(input: {
   readonly nowIso: string;
 }): BrainMemoryTemporalInput {
   const whole = classifyAyasMemoryStatement(input.userText, input.kind, input.nowIso);
-  const evidence = deriveFactEvidence(input);
+  const derived = deriveFactEvidence(input);
+  const evidence = input.source === "ayas-inferred" && derived?.fact.key === "user.decision.render-tool" ? null : derived;
   // A slot's time is read from the clause that fills it: "Ocak'tan beri kısa
   // cevap tercih ederim, adım Ahmet" dates the preference, never the name.
   // Whether the message corrects something is a property of the whole turn.
