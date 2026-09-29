@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { parseAyasBenchmarkReport, type AyasEvidenceMeasurement } from "./AyasResearchExperimentEvaluation";
 
 /**
  * Bounded, server-owned validators a mutation registry entry may declare.
@@ -57,6 +58,36 @@ export function createAyasSmokeTestValidator(scriptRelativePath: string): AyasVa
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       return { validator: scriptRelativePath, pass: false, summary: safeSummary(`smoke test run failed: ${detail}`) };
+    }
+  };
+}
+
+/** The cognitive evaluator reports measured JSON, not a smoke-test PASS marker. */
+export function createAyasCognitiveEvidenceValidator(expected: AyasEvidenceMeasurement): AyasValidator {
+  const script = "scripts/smoke-ayas-cognitive-quality.ts";
+  return async (repoRoot): Promise<AyasValidatorResult> => {
+    const tsxCli = path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs");
+    if (!fs.existsSync(tsxCli) || !fs.existsSync(path.join(repoRoot, script))) {
+      return { validator: script, pass: false, summary: "cognitive evaluator or local tsx CLI is unavailable" };
+    }
+    try {
+      const stdout = execFileSync(process.execPath, [tsxCli, script, "--baseline"], {
+        cwd: repoRoot, encoding: "utf8", timeout: 120_000, windowsHide: true,
+        maxBuffer: 2_000_000, stdio: ["ignore", "pipe", "pipe"],
+      });
+      const raw: unknown = JSON.parse(stdout);
+      const measured = parseAyasBenchmarkReport("cognitive-quality", raw, 0);
+      const unexpected = raw && typeof raw === "object" && !Array.isArray(raw)
+        ? (raw as { unexpectedFailures?: unknown }).unexpectedFailures : undefined;
+      const pass = !!measured && Array.isArray(unexpected) && unexpected.length === 0
+        && measured.evaluatorSha256 === expected.evaluatorSha256
+        && measured.caseCount === expected.caseCount && measured.passed === expected.passed
+        && measured.heldOut.passed === expected.heldOut.passed && measured.heldOut.total === expected.heldOut.total
+        && JSON.stringify(measured.dimensions) === JSON.stringify(expected.dimensions)
+        && JSON.stringify(measured.failing.map((row) => row.id).sort()) === JSON.stringify([...expected.failingCaseIds].sort());
+      return { validator: script, pass, summary: pass ? "cognitive measurement matches bound IMPROVED evidence" : "cognitive measurement differs from bound IMPROVED evidence" };
+    } catch {
+      return { validator: script, pass: false, summary: "cognitive evaluator failed or returned invalid JSON" };
     }
   };
 }

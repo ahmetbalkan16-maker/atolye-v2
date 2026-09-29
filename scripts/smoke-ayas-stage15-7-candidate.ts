@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 
 import { AYAS_IMPROVEMENT_BENCHMARKS, AYAS_IMPROVEMENT_STRATEGIES, validateAyasImprovementStrategy } from "../src/lib/brain/autonomy/AyasResearchExperimentRegistry";
 import { applyAyasStrategyInSandbox, buildAyasExperimentChildEnv, captureAyasSandboxChange, createAyasResearchExperimentSandbox, destroyAyasResearchExperimentSandbox, runAyasBenchmarkInSandbox, runAyasRegressionSuiteInSandbox } from "../src/lib/brain/autonomy/AyasResearchExperimentSandbox";
+import { createAyasCognitiveEvidenceValidator } from "../src/lib/brain/autonomy/AyasMutationValidators";
 
 async function main(): Promise<void> {
   const workspaceRoot = path.resolve(__dirname, "..");
@@ -41,6 +42,11 @@ async function main(): Promise<void> {
     assert.deepEqual(change.changedPaths, strategy.exactFiles);
     assert.ok(change.files.reduce((sum, file) => sum + file.addedLines + file.removedLines, 0) <= strategy.maxChangedLines, "candidate exceeds line budget");
     assert.ok(before.ok && after.ok, "cognitive benchmark unavailable");
+    const expected = { ...after.measurement, failingCaseIds: after.measurement.failing.map((row) => row.id) };
+    const cognitiveValidator = createAyasCognitiveEvidenceValidator(expected);
+    assert.equal((await cognitiveValidator(sandbox.repoDir)).pass, true, "candidate measurement must match its bound evidence");
+    assert.equal((await createAyasCognitiveEvidenceValidator({ ...expected, passed: expected.passed + 1 })(sandbox.repoDir)).pass, false,
+      "a higher claimed score without matching evaluator evidence must fail closed");
     assert.equal(before.measurement.evaluatorSha256, after.measurement.evaluatorSha256);
     assert.ok(before.measurement.failing.some((failure) => failure.id === "stale-free-text-seed"));
     assert.ok(!after.measurement.failing.some((failure) => failure.id === "stale-free-text-seed"));

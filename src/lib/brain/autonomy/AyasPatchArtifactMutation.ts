@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { runAyasBoundedMutationWithValidators } from "./AyasMutationRegistry";
 import type { AyasMutationImplementation } from "./AyasMutationRegistry";
-import { createAyasSmokeTestValidator } from "./AyasMutationValidators";
+import { createAyasCognitiveEvidenceValidator, createAyasSmokeTestValidator } from "./AyasMutationValidators";
 import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "./AyasPatchArtifact";
 import type { AyasInboxProposal } from "./AyasApprovalInboxStore";
 import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "./AyasNovelPatchDiscovery";
@@ -11,7 +11,7 @@ import { classifyPatchSet } from "../selfheal/BrainPatchSafety";
 import { verifyAyasExecutedExactPatch } from "../selfheal/AyasExactPatchSafety";
 import { verifyAyasExactProposalSafety } from "./AyasExactProposalSafety";
 import { AYAS_DEFAULT_IMPROVEMENT_REGISTRY } from "./AyasResearchExperimentRegistry";
-import type { AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
+import { createAyasResearchExperimentStore, type AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
 
 /**
  * M17 — the one, generic resolution path for every `mutationKind:
@@ -85,6 +85,13 @@ export function resolveAyasPatchArtifactMutation(proposal: AyasInboxProposal, st
         throw new AyasPatchArtifactMutationError("AYAS_PATCH_ARTIFACT_MUTATION_UNSAFE", "exact proof changed before execution");
       }
       const proof = proposal.exactPatchSafetyProof;
+      const evidence = exactReview && proof ? (experimentStore ?? createAyasResearchExperimentStore()).readEvidence(proof.evidenceHash) : undefined;
+      const expectedMeasurement = evidence?.experiment;
+      const cognitiveMeasurement = expectedMeasurement && "benchmarkId" in expectedMeasurement ? expectedMeasurement : null;
+      if (exactReview && (!evidence || evidence.verdict !== "IMPROVED" || evidence.experimentId !== proof?.experimentId
+        || cognitiveMeasurement?.benchmarkId !== "cognitive-quality")) {
+        throw new AyasPatchArtifactMutationError("AYAS_PATCH_ARTIFACT_MUTATION_UNSAFE", "bound cognitive evidence is missing or mismatched");
+      }
       const manifest = AYAS_DEFAULT_IMPROVEMENT_REGISTRY.strategies.find((strategy) => strategy.strategyId === proof?.strategyId
         && strategy.version === proof.strategyVersion)?.reviewedExactPatch;
       const base = exactReview && proof && proposal.exactFiles[0]
@@ -101,7 +108,8 @@ export function resolveAyasPatchArtifactMutation(proposal: AyasInboxProposal, st
         } catch { return { validator: "exact-patch-effect-proof", pass: false, summary: "actual replacement cannot be verified" }; }
       }] : [];
       return runAyasBoundedMutationWithValidators(executionRoot, artifact.allowedRoots, artifact.replacements,
-        [...exactValidator, ...artifact.validatorScripts.map((script) => createAyasSmokeTestValidator(script))]);
+        [...exactValidator, ...artifact.validatorScripts.map((script) => exactReview && script === "scripts/smoke-ayas-cognitive-quality.ts"
+          ? createAyasCognitiveEvidenceValidator(cognitiveMeasurement!) : createAyasSmokeTestValidator(script))]);
     },
   };
 }
