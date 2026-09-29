@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { parseAyasBenchmarkReport, type AyasEvidenceMeasurement } from "./AyasResearchExperimentEvaluation";
@@ -88,6 +89,34 @@ export function createAyasCognitiveEvidenceValidator(expected: AyasEvidenceMeasu
       return { validator: script, pass, summary: pass ? "cognitive measurement matches bound IMPROVED evidence" : "cognitive measurement differs from bound IMPROVED evidence" };
     } catch {
       return { validator: script, pass: false, summary: "cognitive evaluator failed or returned invalid JSON" };
+    }
+  };
+}
+
+/** Retrieval's text report must prove the exact known limitation resolved for these reviewed bytes. */
+export function createAyasRetrievalResolutionValidator(expectedSourceSha256: string, expectedDiffSha256: string): AyasValidator {
+  const script = "scripts/smoke-ayas-retrieval-evaluation.ts";
+  const target = "src/lib/ayas/memory/AyasMemoryTemporal.ts";
+  return async (repoRoot): Promise<AyasValidatorResult> => {
+    const tsxCli = path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs");
+    if (!/^[a-f0-9]{64}$/.test(expectedSourceSha256) || !/^[a-f0-9]{64}$/.test(expectedDiffSha256)
+      || !fs.existsSync(tsxCli) || !fs.existsSync(path.join(repoRoot, script))) {
+      return { validator: script, pass: false, summary: "retrieval evidence or local evaluator is unavailable" };
+    }
+    try {
+      const sourceHash = crypto.createHash("sha256").update(fs.readFileSync(path.join(repoRoot, target))).digest("hex");
+      if (sourceHash !== expectedSourceSha256) return { validator: script, pass: false, summary: "reviewed retrieval source hash differs" };
+      const stdout = execFileSync(process.execPath, [tsxCli, script], {
+        cwd: repoRoot, encoding: "utf8", timeout: 120_000, windowsHide: true,
+        maxBuffer: 2_000_000, stdio: ["ignore", "pipe", "pipe"],
+      });
+      const lines = stdout.split(/\r?\n/);
+      const resolution = `RESOLVED_KNOWN_LIMITATION seed:project-decision-free-text source=${expectedSourceSha256} diff=${expectedDiffSha256}`;
+      const pass = lines.some((line) => /^PASS \(74 cases, \d+ determinism checks, \d+ error cases, \d+ isolation\/privacy checks, \d+ chat chains\)$/.test(line))
+        && lines.includes(resolution);
+      return { validator: script, pass, summary: pass ? "retrieval gates and exact resolution match evidence" : "retrieval gates or exact resolution differ from evidence" };
+    } catch {
+      return { validator: script, pass: false, summary: "retrieval evaluator failed or timed out" };
     }
   };
 }

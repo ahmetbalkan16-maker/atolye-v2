@@ -1,12 +1,14 @@
 /** Stage 15.7: the registered strategy is exercised only in an isolated TEMP clone. */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import fs from "node:fs";
 import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
 import { AYAS_IMPROVEMENT_BENCHMARKS, AYAS_IMPROVEMENT_STRATEGIES, validateAyasImprovementStrategy } from "../src/lib/brain/autonomy/AyasResearchExperimentRegistry";
 import { applyAyasStrategyInSandbox, buildAyasExperimentChildEnv, captureAyasSandboxChange, createAyasResearchExperimentSandbox, destroyAyasResearchExperimentSandbox, runAyasBenchmarkInSandbox, runAyasRegressionSuiteInSandbox } from "../src/lib/brain/autonomy/AyasResearchExperimentSandbox";
-import { createAyasCognitiveEvidenceValidator } from "../src/lib/brain/autonomy/AyasMutationValidators";
+import { createAyasCognitiveEvidenceValidator, createAyasRetrievalResolutionValidator } from "../src/lib/brain/autonomy/AyasMutationValidators";
 
 async function main(): Promise<void> {
   const workspaceRoot = path.resolve(__dirname, "..");
@@ -47,6 +49,13 @@ async function main(): Promise<void> {
     assert.equal((await cognitiveValidator(sandbox.repoDir)).pass, true, "candidate measurement must match its bound evidence");
     assert.equal((await createAyasCognitiveEvidenceValidator({ ...expected, passed: expected.passed + 1 })(sandbox.repoDir)).pass, false,
       "a higher claimed score without matching evaluator evidence must fail closed");
+    const candidateHash = createHash("sha256").update(fs.readFileSync(path.join(sandbox.repoDir, strategy.exactFiles[0]!))).digest("hex");
+    const resolution = retrievalEvidence.stdout.match(/RESOLVED_KNOWN_LIMITATION seed:project-decision-free-text source=[a-f0-9]{64} diff=([a-f0-9]{64})/);
+    assert.ok(resolution);
+    assert.equal((await createAyasRetrievalResolutionValidator(candidateHash, resolution[1]!)(sandbox.repoDir)).pass, true,
+      "candidate retrieval resolution must match the exact reviewed bytes and diff evidence");
+    assert.equal((await createAyasRetrievalResolutionValidator("f".repeat(64), resolution[1]!)(sandbox.repoDir)).pass, false,
+      "a different source hash must never inherit retrieval resolution");
     assert.equal(before.measurement.evaluatorSha256, after.measurement.evaluatorSha256);
     assert.ok(before.measurement.failing.some((failure) => failure.id === "stale-free-text-seed"));
     assert.ok(!after.measurement.failing.some((failure) => failure.id === "stale-free-text-seed"));

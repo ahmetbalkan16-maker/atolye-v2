@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { runAyasBoundedMutationWithValidators } from "./AyasMutationRegistry";
 import type { AyasMutationImplementation } from "./AyasMutationRegistry";
-import { createAyasCognitiveEvidenceValidator, createAyasSmokeTestValidator } from "./AyasMutationValidators";
+import { createAyasCognitiveEvidenceValidator, createAyasRetrievalResolutionValidator, createAyasSmokeTestValidator } from "./AyasMutationValidators";
 import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "./AyasPatchArtifact";
 import type { AyasInboxProposal } from "./AyasApprovalInboxStore";
 import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "./AyasNovelPatchDiscovery";
@@ -88,8 +88,9 @@ export function resolveAyasPatchArtifactMutation(proposal: AyasInboxProposal, st
       const evidence = exactReview && proof ? (experimentStore ?? createAyasResearchExperimentStore()).readEvidence(proof.evidenceHash) : undefined;
       const expectedMeasurement = evidence?.experiment;
       const cognitiveMeasurement = expectedMeasurement && "benchmarkId" in expectedMeasurement ? expectedMeasurement : null;
+      const retrievalDiffSha256 = evidence?.change?.diffSha256;
       if (exactReview && (!evidence || evidence.verdict !== "IMPROVED" || evidence.experimentId !== proof?.experimentId
-        || cognitiveMeasurement?.benchmarkId !== "cognitive-quality")) {
+        || cognitiveMeasurement?.benchmarkId !== "cognitive-quality" || !retrievalDiffSha256)) {
         throw new AyasPatchArtifactMutationError("AYAS_PATCH_ARTIFACT_MUTATION_UNSAFE", "bound cognitive evidence is missing or mismatched");
       }
       const manifest = AYAS_DEFAULT_IMPROVEMENT_REGISTRY.strategies.find((strategy) => strategy.strategyId === proof?.strategyId
@@ -109,7 +110,10 @@ export function resolveAyasPatchArtifactMutation(proposal: AyasInboxProposal, st
       }] : [];
       return runAyasBoundedMutationWithValidators(executionRoot, artifact.allowedRoots, artifact.replacements,
         [...exactValidator, ...artifact.validatorScripts.map((script) => exactReview && script === "scripts/smoke-ayas-cognitive-quality.ts"
-          ? createAyasCognitiveEvidenceValidator(cognitiveMeasurement!) : createAyasSmokeTestValidator(script))]);
+          ? createAyasCognitiveEvidenceValidator(cognitiveMeasurement!)
+          : exactReview && script === "scripts/smoke-ayas-retrieval-evaluation.ts"
+            ? createAyasRetrievalResolutionValidator(proof!.afterSha256, retrievalDiffSha256!)
+            : createAyasSmokeTestValidator(script))]);
     },
   };
 }
