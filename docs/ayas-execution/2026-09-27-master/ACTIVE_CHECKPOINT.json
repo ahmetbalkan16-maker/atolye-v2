@@ -2,16 +2,16 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "b42093cc68b26ac77a09473000ca3dce536c5889",
-  "currentHead": "3ceae6b18cfc6612898636411a2cf01583b4182d",
+  "lastGreenHead": "cea460ad5d80500b3aced172a86f7fc70c1dc419",
+  "currentHead": "cea460ad5d80500b3aced172a86f7fc70c1dc419",
   "stage": "STAGE_15A",
-  "subtask": "15A.2a-local-container-plan",
+  "subtask": "15A.2b-container-inspection-contract",
   "status": "IN_PROGRESS",
   "completedStages": ["PHASE_0_LOCAL_CODE"],
-  "completedSubtasks": ["canonical-package-import", "conversation-safe-remediation", "temporal-plan-supersession", "system-static-remediation", "safe-ci", "runtime-health-evidence", "phone-model-immutable-pinning", "15.1-generic-experiment-primitive", "15.2-evidence-source-binding", "15.3-pure-current-truth-planner", "15.4-immutable-patch-artifact-promotion", "15.5-proposal-bridge", "15.6-discovery-daemon-wiring", "15.7-governed-render-tool-supersession", "15A.1-bounded-coding-task-contract"],
+  "completedSubtasks": ["canonical-package-import", "conversation-safe-remediation", "temporal-plan-supersession", "system-static-remediation", "safe-ci", "runtime-health-evidence", "phone-model-immutable-pinning", "15.1-generic-experiment-primitive", "15.2-evidence-source-binding", "15.3-pure-current-truth-planner", "15.4-immutable-patch-artifact-promotion", "15.5-proposal-bridge", "15.6-discovery-daemon-wiring", "15.7-governed-render-tool-supersession", "15A.1-bounded-coding-task-contract", "15A.2a-local-container-plan"],
   "currentFiles": [
-    "src/lib/brain/autonomy/AyasLocalCodingContainerPlan.ts",
-    "scripts/smoke-ayas-local-coding-container-plan.ts",
+    "src/lib/brain/autonomy/AyasLocalCodingContainerInspection.ts",
+    "scripts/smoke-ayas-local-coding-container-inspection.ts",
     "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/IMPLEMENTATION_NOTES.md",
     "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md",
     "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json"
@@ -39,10 +39,11 @@
     "Stage 15.7 exact-diff safety prerequisite: exact patch 19, isolated proposal/artifact 28, Stage 8 28+8/55+5 on stable index, Stage 13 110, temporal 52, memory 30, retrieval 74, conversation 37, cognitive baseline 53/55 and held-out 4/5, targeted approval/artifact/execution, TypeScript, changed-file lint and diff check PASS; Graphify tracked-source 15599 nodes/45382 edges, integrity zero, source HEAD aa00fe2. Exact proof is refused by automatic commit/push publication and remote resume; its two security verifier modules are FORBIDDEN_AUTONOMOUS.",
     "Stage 15.7 governed execution: fresh IMPROVED experiment b3e1dfbb, artifact d6e2d034, proposal f06691c8 COMPLETED; exact 15-line temporal source and after-hash matched approved manifest. Post-execution cognitive 54/55, held-out 4/5, resolved exact stale seed, temporal 52, memory 30, retrieval 74, conversation 37, Stage 8 decision 28+8/integration 55+5, Stage 13 110, Stage 15 19, approval 24, execution 29, artifact 9, exact patch 19, exact proposal 28, mutation 11, TypeScript/lint/diff PASS.",
     "Stage 15A.1: bounded local coding task contract smoke 21/21, TypeScript, changed-file lint and diff check PASS. No backend or execution authority granted; local independence remains DEGRADED pending hard sandbox and real model qualification.",
-    "Stage 15A.2a: local container plan adversarial smoke 8/8, task contract 21/21, Stage 15 cycle 19/19, TypeScript, changed-file lint and diff check PASS. Plan only; no container run or admission."
+    "Stage 15A.2a: local container plan adversarial smoke 8/8, task contract 21/21, Stage 15 cycle 19/19, TypeScript, changed-file lint and diff check PASS. Plan only; no container run or admission.",
+    "Stage 15A.2b: synthetic inspection contract 21/21, plan 8/8, task contract 21/21, Stage 15 cycle 19/19, TypeScript/lint/diff PASS. No actual engine inspection or admission."
   ],
   "graphify": {
-    "head": "3ceae6b18cfc6612898636411a2cf01583b4182d",
+    "head": "cea460ad5d80500b3aced172a86f7fc70c1dc419",
     "stale": false,
     "needsUpdate": false,
     "duplicateNodes": 0,
@@ -52,6 +53,6 @@
     "semanticPending": true
   },
   "blockers": ["External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority."],
-  "nextAction": "Finish 15A.2a plan packet: run task/plan focused and Stage 15 regression, TypeScript/lint/staged diff, Graphify staged-source integrity and authority review; explicit local commit, no push. Then continue 15A.2b real hard-sandbox probe/admission. Docker/Podman are currently absent; do not claim admission or enable execution from a plan or mocked probe.",
+  "nextAction": "Finish 15A.2b with explicit stage, Graphify staged-source integrity/authority review and local commit; rebind Graphify to new HEAD. Continue 15A.2c real local engine create/inspect/probe harness with fail-closed unavailable result. No installed Docker/Podman or WSL distribution was found, so no actual admission or execution claim. No push.",
   "updatedAt": "2026-09-29T00:00:00+03:00"
 }
