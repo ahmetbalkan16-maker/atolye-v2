@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "b2e8f5c122a8392cedd888122526f87ff3f51547",
-  "currentHead": "b2e8f5c122a8392cedd888122526f87ff3f51547",
+  "lastGreenHead": "aa00fe26e458030a9331c943f855ee0394ab8587",
+  "currentHead": "aa00fe26e458030a9331c943f855ee0394ab8587",
   "stage": "STAGE_15",
-  "subtask": "15.7-first-production-strategy-owner-review",
+  "subtask": "15.7-exact-diff-effect-bound-safety-prerequisite",
   "status": "IN_PROGRESS",
   "completedStages": ["PHASE_0_LOCAL_CODE"],
   "completedSubtasks": ["canonical-package-import", "conversation-safe-remediation", "temporal-plan-supersession", "system-static-remediation", "safe-ci", "runtime-health-evidence", "phone-model-immutable-pinning", "15.1-generic-experiment-primitive", "15.2-evidence-source-binding", "15.3-pure-current-truth-planner", "15.4-immutable-patch-artifact-promotion", "15.5-proposal-bridge", "15.6-discovery-daemon-wiring", "15.7-temporal-test-contract-migration"],
@@ -13,12 +13,26 @@
     "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
     "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md",
     "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/STAGE15_7_OWNER_REVIEW_PACKET.md",
-    "scripts/smoke-ayas-stage15-7-candidate.ts",
-    "scripts/smoke-ayas-stage15-7-temporal-acceptance.ts",
-    "scripts/smoke-ayas-retrieval-evaluation.ts",
-    "scripts/smoke-ayas-controlled-self-evolution-cycle.ts",
-    "scripts/smoke-ayas-open-ended-evolution.ts",
-    "src/lib/brain/autonomy/AyasResearchExperimentRegistry.ts"
+    "src/lib/brain/selfheal/AyasExactPatchSafety.ts",
+    "src/lib/brain/autonomy/AyasExactProposalSafety.ts",
+    "src/lib/brain/autonomy/AyasResearchExperimentRegistry.ts",
+    "src/lib/ayas/evolution/AyasControlledSelfEvolution.ts",
+    "src/lib/ayas/evolution/AyasControlledSelfEvolutionCycle.ts",
+    "src/lib/ayas/evolution/AyasControlledSelfEvolutionArtifact.ts",
+    "src/lib/ayas/evolution/AyasControlledSelfEvolutionBridge.ts",
+    "src/lib/brain/autonomy/AyasPatchArtifact.ts",
+    "src/lib/brain/autonomy/AyasApprovalInboxStore.ts",
+    "src/lib/brain/autonomy/AyasAutonomyDaemon.ts",
+    "src/lib/brain/autonomy/AyasAutonomousExecutionGate.ts",
+    "src/lib/brain/autonomy/AyasInternalDecision.ts",
+    "src/lib/brain/autonomy/AyasOwnerApprovalResume.ts",
+    "src/lib/brain/autonomy/AyasPatchArtifactMutation.ts",
+    "src/lib/brain/autonomy/AyasProposalApprovalService.ts",
+    "src/lib/brain/autonomy/AyasProposalExecutionService.ts",
+    "scripts/smoke-ayas-exact-patch-safety.ts",
+    "scripts/smoke-ayas-exact-proposal-safety.ts",
+    "scripts/smoke-ayas-patch-artifact-execution-integration.ts",
+    "scripts/smoke-ayas-proposal-approval-service.ts"
   ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
@@ -38,10 +52,12 @@
     "Stage 15.4: real TEMP sandbox retention and SAFE artifact freeze/refusals PASS; Stage 8 decision 28/28 plus held-out 8/8, integration 55/55 plus held-out 5/5 PASS; patch-artifact 15/15, mutation 11/11, Graphify check 5/5, execution integration 9/9 PASS; TypeScript PASS; changed-file lint PASS; git diff --check PASS",
     "Stage 15.5: verified candidate/daemon PENDING and fail-closed refusal smoke PASS; Stage 8 decision 28/28 plus held-out 8/8, integration 55/55 plus held-out 5/5 PASS on stable Git index; artifact 15/15, mutation 11/11, approval 29/29, durable approval 24/24, execution integration 9/9, daemon 9/9, planner 14+3 PASS; TypeScript PASS; changed-file lint PASS; diff check PASS",
     "Stage 15.6: TEMP full cycle and closed-gate smoke 19 PASS; planner 14+3, Stage 13 110/110, approval 29/29, durable approval 24/24, daemon 9/9, artifact 15/15, mutation 11/11, patch execution integration 9/9, Graphify check 5/5 PASS; full Stage 8 decision 28/28 plus held-out 8/8, integration 55/55 plus held-out 5/5 PASS; TypeScript, changed-file lint and staged diff check PASS",
-    "Stage 15.7 TEMP precommit: baseline cognitive 53/55, held-out 4/5, retrieval 74 with exact known limitation, temporal 52/52; candidate cognitive 54/55, held-out 4/5, exact retrieval RESOLVED_KNOWN_LIMITATION, acceptance PASS, 15 changed lines only in temporal source; four declared regressions PASS before and after; full Stage 8 28+8/55+5, Stage 13 110, Stage 15 cycle 19, approval 29, durable 24, daemon 9, artifact 15, mutation 11, execution 9, TypeScript/lint/diff PASS"
+    "Stage 15.7 TEMP precommit: baseline cognitive 53/55, held-out 4/5, retrieval 74 with exact known limitation, temporal 52/52; candidate cognitive 54/55, held-out 4/5, exact retrieval RESOLVED_KNOWN_LIMITATION, acceptance PASS, 15 changed lines only in temporal source; four declared regressions PASS before and after; full Stage 8 28+8/55+5, Stage 13 110, Stage 15 cycle 19, approval 29, durable 24, daemon 9, artifact 15, mutation 11, execution 9, TypeScript/lint/diff PASS",
+    "Stage 15.7 reviewed packet local commit aa00fe2; Graphify bound/stale=false/needs_update=false, 15566 nodes/45215 edges, duplicate/dangling/self-loop zero; clean worktree. Real Stage 13 qualification EXPERIMENT_READY; Stage 15 controlled candidate refused before store access because temporal source patch safety and hypothesis risk are REVIEW_REQUIRED, while normal candidate/artifact gates require SAFE. No durable IMPROVED evidence, artifact or proposal.",
+    "Stage 15.7 exact-diff safety prerequisite: exact patch 19, isolated proposal/artifact 28, Stage 8 28+8/55+5 on stable index, Stage 13 110, temporal 52, memory 30, retrieval 74, conversation 37, cognitive baseline 53/55 and held-out 4/5, targeted approval/artifact/execution, TypeScript, changed-file lint and diff check PASS; Graphify tracked-source 15599 nodes/45382 edges, integrity zero, source HEAD aa00fe2. Exact proof is refused by automatic commit/push publication and remote resume; its two security verifier modules are FORBIDDEN_AUTONOMOUS."
   ],
   "graphify": {
-    "head": "b2e8f5c122a8392cedd888122526f87ff3f51547",
+    "head": "aa00fe26e458030a9331c943f855ee0394ab8587",
     "stale": false,
     "needsUpdate": false,
     "duplicateNodes": 0,
@@ -51,6 +67,6 @@
     "semanticPending": true
   },
   "blockers": ["External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority."],
-  "nextAction": "Finish Stage 15.7 Graphify source/integrity and authority review; explicitly commit the owner-reviewed registry/evaluator/diagnostic/test/docs packet locally and rebind Graphify. Then run the real clean-tree Stage 8 controlled cycle for durable IMPROVED evidence, immutable artifact and normal owner proposal. Do not promote the live temporal source, approve/execute the proposal, push or merge. Present exact artifact/proposal scope at the owner gate.",
-  "updatedAt": "2026-09-28T23:07:15+03:00"
+  "nextAction": "Commit the verified Stage 15.7 exact-diff safety prerequisite locally, rebind Graphify to the new HEAD, then run the real clean-tree Stage 8 controlled cycle to create durable evidence, immutable artifact and normal owner proposal. Do not push or promote temporal source outside the normal proposal/execution chain.",
+  "updatedAt": "2026-09-29T00:00:00+03:00"
 }

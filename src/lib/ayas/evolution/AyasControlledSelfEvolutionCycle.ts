@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -12,6 +13,8 @@ import { AYAS_RESEARCH_EXPERIMENT_BUDGET, createAyasResearchExperimentStore, dec
   reconcileAyasInterruptedExperiments, resolveAyasResearchImprovementRoot, type AyasExperimentRecord, type AyasResearchExperimentStore } from "../../brain/autonomy/AyasResearchExperimentStore";
 import { AYAS_RESEARCH_IMPROVEMENT_SCHEMA_VERSION } from "../../brain/autonomy/AyasResearchImprovementLoop";
 import { runAyasRegisteredImprovementExperiment } from "../../brain/autonomy/AyasRegisteredImprovementExperiment";
+import { verifyAyasReviewedExactPatch } from "../../brain/selfheal/AyasExactPatchSafety";
+import { classifyPatchSet } from "../../brain/selfheal/BrainPatchSafety";
 import { readProcessStartEpochMs } from "../../brain/autonomy/AyasProcessLiveness";
 import { inventoryAyasCapabilities } from "../routing/AyasAgenticRouting";
 import { parseAyasEvolutionRegister, type AyasEvolutionRegister } from "./AyasEvolutionOpportunity";
@@ -23,6 +26,25 @@ import { buildAyasControlledEvolutionProposalCandidate } from "./AyasControlledS
 const MAX_REGISTER_BYTES = 2 * 1024 * 1024;
 const HEX64 = /^[0-9a-f]{64}$/;
 const sha256 = (value: string): string => crypto.createHash("sha256").update(value, "utf8").digest("hex");
+
+/** REVIEW_REQUIRED remains the path default; only the exact reviewed output can enter TEMP. */
+function currentReviewedPatchMatches(repoRoot: string, head: string, strategy: AyasControlledEvolutionCandidate["strategy"]): boolean {
+  if (classifyPatchSet(strategy.exactFiles).level === "SAFE") return true;
+  const manifest = strategy.reviewedExactPatch;
+  if (!manifest || strategy.exactFiles.length !== 1) return false;
+  try {
+    const git = (...args: string[]) => execFileSync("git", ["--no-optional-locks", ...args],
+      { cwd: repoRoot, encoding: "utf8", windowsHide: true, timeout: 30_000, maxBuffer: 1_000_000 }).trim();
+    if (git("rev-parse", "HEAD") !== head || git("status", "--porcelain") !== "") return false;
+    const file = strategy.exactFiles[0]!;
+    const before = execFileSync("git", ["show", `${head}:${file}`],
+      { cwd: repoRoot, encoding: "utf8", windowsHide: true, timeout: 30_000, maxBuffer: 1_000_000 });
+    if (fs.readFileSync(path.join(repoRoot, file), "utf8") !== before) return false;
+    const generated = strategy.generate({ readFile: (requested) => requested === file ? before : null });
+    return generated.length === 1 && generated[0]?.filePath === file
+      && verifyAyasReviewedExactPatch(manifest, file, before, generated[0].content) !== null;
+  } catch { return false; }
+}
 
 /** The Stage 13 CLI's validated JSON shape is the only optional daemon input; no parallel register is created. */
 export function readAyasControlledEvolutionRegister(file: string): AyasEvolutionRegister {
@@ -95,6 +117,7 @@ export async function runAyasControlledSelfEvolutionCycle(input: AyasControlledE
   const plan = planAyasControlledSelfEvolution({ register: input.register, environment });
   const candidate = plan.candidate;
   if (!candidate) return null;
+  if (!currentReviewedPatchMatches(input.repoRoot, observation.head, candidate.strategy)) return null;
   const prior = input.inbox.load().proposals.filter((proposal) => proposal.mutationKind === AYAS_PATCH_ARTIFACT_MUTATION_KIND
     && proposal.sourceReference === candidate.opportunityId && proposal.baseHead === candidate.baseHead);
   if (prior.length > 0) return null;

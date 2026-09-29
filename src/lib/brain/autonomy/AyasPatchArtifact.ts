@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { containsBrainSecret } from "../BrainRedaction";
+import type { AyasExactPatchSafetyProof } from "../selfheal/AyasExactPatchSafety";
 
 /**
  * M17 — the canonical immutable artifact for an AI-generated (not
@@ -64,6 +65,8 @@ export interface AyasPatchArtifact {
     readonly strategyVersion: number;
     readonly registryDigest: string;
   };
+  /** Exact replacement/effect proof; only populated for a reviewed path-level REVIEW_REQUIRED artifact. */
+  readonly exactPatchSafetyProof?: AyasExactPatchSafetyProof;
   readonly safetyClassification: "SAFE" | "REVIEW_REQUIRED" | "FORBIDDEN_AUTONOMOUS";
   readonly problemStatement: string;
   readonly rationale: string;
@@ -108,6 +111,15 @@ export function computeAyasPatchHash(input: Record<string, unknown>): string {
 
 export interface AyasPatchArtifactStoreOptions { readonly rootDir?: string; }
 
+/** JSON escaping may synthesize a path-shaped token from safe source code; inspect raw values instead. */
+function containsArtifactSecret(value: unknown, depth = 0): boolean {
+  if (typeof value === "string") return containsBrainSecret(value);
+  if (!value || typeof value !== "object") return false;
+  if (depth > 12) return true;
+  if (Array.isArray(value)) return value.some((entry) => containsArtifactSecret(entry, depth + 1));
+  return Object.entries(value).some(([key, entry]) => containsBrainSecret(key) || containsArtifactSecret(entry, depth + 1));
+}
+
 export interface AyasPatchArtifactStore {
   readonly dir: string;
   /** Create-only: throws `AYAS_PATCH_ARTIFACT_ALREADY_FROZEN` if `artifactId` already exists on disk. */
@@ -128,7 +140,7 @@ export function createAyasPatchArtifactStore(options: AyasPatchArtifactStoreOpti
       const patchHash = computeAyasPatchHash(input);
       const artifact: AyasPatchArtifact = { ...input, schemaVersion: ayasPatchArtifactSchemaVersion, patchHash };
       const text = JSON.stringify(artifact, null, 2);
-      if (containsBrainSecret(text)) throw new AyasPatchArtifactError("AYAS_PATCH_ARTIFACT_SECRET_LEAK", "patch artifact contains a secret-like value");
+      if (containsArtifactSecret(artifact)) throw new AyasPatchArtifactError("AYAS_PATCH_ARTIFACT_SECRET_LEAK", "patch artifact contains a secret-like value");
       fs.mkdirSync(dir, { recursive: true });
       const target = fileFor(artifact.artifactId);
       if (fs.existsSync(target)) throw new AyasPatchArtifactError("AYAS_PATCH_ARTIFACT_ALREADY_FROZEN", `artifact already frozen: ${artifact.artifactId}`);

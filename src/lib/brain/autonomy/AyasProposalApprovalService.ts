@@ -13,6 +13,7 @@ import { closeAyasPostPublication } from "./AyasPostPublicationClosure";
 import { finalizeAyasDeferredPublication, markAyasDeferredPublicationRecoveryRequired } from "./AyasDeferredPublicationFinalizer";
 import { classifyAyasRuntimeImpact } from "./AyasProposalRuntimeImpact";
 import { ayasTraceErrorCode, startAyasTrace, type AyasTraceHandle, type AyasTraceSpanHandle, type AyasTraceStore } from "../../ayas/trace/AyasUnifiedTrace";
+import type { AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
 
 /**
  * M20.7 — "ONAYLA VE UYGULA": the individual-PRIORITY_SAFE-proposal
@@ -64,6 +65,7 @@ export interface AyasProposalApprovalDeps {
   /** Observer-only test seam for failure isolation. Production uses the bounded memory store. */
   readonly traceStore?: AyasTraceStore;
   readonly artifactStore?: AyasPatchArtifactStore;
+  readonly exactExperimentStore?: AyasResearchExperimentStore;
   readonly graphifyEvidenceStore?: AyasGraphifyEvidenceStore;
   /**
    * Runtime Stability Guard wiring. Production leaves this undefined: the
@@ -134,6 +136,9 @@ function loadAyasProposalForPublish(proposalId: string, approvedProposalHash: st
   if (proposal.safetyClassification !== "SAFE") throw new AyasProposalApprovalError("NOT_SAFE", "proposal is not SAFE-classified — never eligible for single-approval execution");
   if (proposal.mutationKind !== AYAS_PATCH_ARTIFACT_MUTATION_KIND || !proposal.patchArtifactId) {
     throw new AyasProposalApprovalError("NOT_PATCH_ARTIFACT", "single-approval execution is only wired for patch-artifact-backed proposals");
+  }
+  if (proposal.exactPatchSafetyProof) {
+    throw new AyasProposalApprovalError("EXACT_PATCH_LOCAL_EXECUTION_ONLY", "a reviewed exact patch cannot enter the automatic commit/push publication path");
   }
   // Runtime-impact eligibility is checked HERE, before any decision is minted,
   // rather than inside the publish pipeline: `approveAndExecuteAyasProposal`

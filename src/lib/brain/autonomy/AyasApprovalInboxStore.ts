@@ -5,6 +5,11 @@ import path from "node:path";
 import { containsBrainSecret, redactBrainText } from "../BrainRedaction";
 import { isAyasDeferredEligibleNow } from "./AyasDeferredEligibility";
 import type { AyasProposalStructuredImpact } from "./AyasProposalImpact";
+import type { AyasExactPatchSafetyProof } from "../selfheal/AyasExactPatchSafety";
+import { classifyPatchSet } from "../selfheal/BrainPatchSafety";
+import { verifyAyasExactProposalSafety } from "./AyasExactProposalSafety";
+import type { AyasPatchArtifactStore } from "./AyasPatchArtifact";
+import type { AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
 
 export const ayasApprovalInboxSchemaVersion = "1" as const;
 export type AyasInboxDecision = "APPROVE" | "REJECT" | "LATER";
@@ -59,6 +64,8 @@ export interface AyasInboxProposal {
   /** M17 — present only when `mutationKind` is `"patch-artifact:v1"`: the frozen, immutable `AyasPatchArtifact` this proposal reviews/executes exactly. Both fields are ordinary proposal fields, so they participate in `proposalHash` like every other field above — no artifact can be silently swapped onto an already-created proposal. */
   readonly patchArtifactId?: string;
   readonly patchHash?: string;
+  /** Content-bound safety evidence copied from the immutable artifact and covered by proposalHash. */
+  readonly exactPatchSafetyProof?: AyasExactPatchSafetyProof;
   /** Optional on reads for backward compatibility with proposals created before this field existed (see `AyasProposalImpact.ts`) — such a proposal is treated as fully unresolved impact by `evaluateAyasImpactPolicy`, never as a free pass. Participates in `proposalHash` like every other field, so it cannot be silently attached to an already-created proposal. */
   readonly structuredImpact?: AyasProposalStructuredImpact;
   /** Provenance only — never an authority signal. Missing on legacy proposals means LOCAL_DISCOVERY. */
@@ -153,7 +160,7 @@ function proposalHash(input: Record<string, unknown>): string {
   return digest({ ...material, schemaVersion: ayasApprovalInboxSchemaVersion });
 }
 
-export interface AyasApprovalInboxStoreOptions { readonly rootDir?: string; }
+export interface AyasApprovalInboxStoreOptions { readonly rootDir?: string; readonly repoRoot?: string; readonly artifactStore?: AyasPatchArtifactStore; readonly experimentStore?: AyasResearchExperimentStore; }
 
 export const ayasApprovalExplanationFields = [
   "objective",
@@ -223,6 +230,12 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
   const root = path.resolve(options.rootDir ?? path.join(process.cwd(), "data", "brain"));
   const dir = path.join(root, "autonomy");
   const stateFile = path.join(dir, "approval-inbox.json");
+  const exactSafetyReady = (proposal: AyasInboxProposal): boolean => {
+    if (proposal.exactPatchSafetyProof) return verifyAyasExactProposalSafety(proposal, {
+      repoRoot: options.repoRoot, artifactStore: options.artifactStore, experimentStore: options.experimentStore,
+    });
+    return proposal.mutationKind !== "patch-artifact:v1" || classifyPatchSet(proposal.exactFiles).level === "SAFE";
+  };
 
   const writeAtomic = (state: AyasApprovalInboxState): void => {
     fs.mkdirSync(dir, { recursive: true });
@@ -306,6 +319,7 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       // or FORBIDDEN_AUTONOMOUS proposal by omitting its own pre-check.
       if (decision === "APPROVE" && existing.safetyClassification !== "SAFE") throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", `only SAFE proposals may be approved, got: ${existing.safetyClassification}`);
       if (decision === "APPROVE" && !isAyasProposalApprovalReady(existing)) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", "SAFE proposal explanation or approval evidence is incomplete");
+      if (decision === "APPROVE" && !exactSafetyReady(existing)) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", "exact patch safety evidence is missing or stale");
       const nextStatus: AyasInboxProposalStatus = decision === "APPROVE" ? "APPROVED" : decision === "REJECT" ? "REJECTED" : "DEFERRED";
       const record: AyasInboxDecisionRecord = { decisionId: `ayas-decision-${crypto.randomUUID()}`, proposalId, proposalHash: existing.proposalHash, decision, decidedAt: now, ...(reason ? { reason: scrub(reason, 400) } : {}), evidenceFingerprint: digest(existing.evidence), ...(decision === "APPROVE" ? { authorizationId: `ayas-dev-auth-${crypto.randomUUID()}` } : {}) };
       const proposal = { ...existing, status: nextStatus, lastUpdatedAt: now, ...(decision === "LATER" ? { nextEligibleAt: new Date(Date.parse(now) + 24 * 60 * 60 * 1000).toISOString() } : {}) };
@@ -339,6 +353,7 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       // non-SAFE proposals — this re-check is defense-in-depth against any
       // future path that could otherwise flip `status` to "APPROVED" directly.
       if (!isAyasProposalApprovalReady(proposal) || !decision.authorizationId) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", `refusing to consume authorization for an unsafe or explanation-incomplete proposal: ${proposal.safetyClassification}`);
+      if (!exactSafetyReady(proposal)) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", "exact patch safety evidence changed before authorization consumption");
       if (proposal.proposalHash !== proposalHashValue || proposal.baseHead !== baseHead || JSON.stringify([...proposal.exactFiles]) !== JSON.stringify([...exactFiles])) throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "approval scope or HEAD is stale");
       const consumed = { ...decision, authorizationConsumedAt: now };
       save({ ...state, decisions: state.decisions.map((d) => d.decisionId === decision.decisionId ? consumed : d) });
@@ -357,6 +372,7 @@ export function createAyasApprovalInboxStore(options: AyasApprovalInboxStoreOpti
       if (!isAyasProposalApprovalReady(proposal) || !decision.authorizationId) {
         throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", `refusing to reserve authorization for an unsafe or explanation-incomplete proposal: ${proposal.safetyClassification}`);
       }
+      if (!exactSafetyReady(proposal)) throw new AyasApprovalInboxStoreError("AYAS_INBOX_UNSAFE_APPROVAL", "exact patch safety evidence changed before authorization reservation");
       if (proposal.proposalHash !== proposalHashValue || proposal.baseHead !== baseHead || JSON.stringify([...proposal.exactFiles]) !== JSON.stringify([...exactFiles])) {
         throw new AyasApprovalInboxStoreError("AYAS_INBOX_INVALID", "approval scope or HEAD is stale");
       }

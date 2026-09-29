@@ -3,6 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { classifyPatchSet } from "../selfheal/BrainPatchSafety";
+import type { AyasExactPatchSafetyProof } from "../selfheal/AyasExactPatchSafety";
+import { verifyAyasExactProposalSafety } from "./AyasExactProposalSafety";
+import { verifyAyasExecutedExactPatch } from "../selfheal/AyasExactPatchSafety";
+import { AYAS_DEFAULT_IMPROVEMENT_REGISTRY } from "./AyasResearchExperimentRegistry";
+import { execFileSync } from "node:child_process";
+import type { AyasPatchArtifactStore } from "./AyasPatchArtifact";
+import type { AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
 import { AyasExecutionGateStore } from "../../ayas/execution/AyasExecutionGateStore";
 import { applyVerifiedGateTransition } from "./AyasVerifiedGateTransition";
 import { createAyasExecutionJournal, classifyExecutionRecovery, ayasExecutionJournalSchemaVersion, type AyasExecutionJournalPhase } from "./AyasExecutionJournal";
@@ -42,6 +49,7 @@ export interface AyasDaemonCandidate {
   /** M17 — set only for a sandbox-drafted, frozen `AyasPatchArtifact` (`mutationKind: "patch-artifact:v1"`); absent for every statically pre-written registry entry. Both fields participate in `proposalHash`, so neither can be silently rebound after the proposal is created. */
   readonly patchArtifactId?: string;
   readonly patchHash?: string;
+  readonly exactPatchSafetyProof?: AyasExactPatchSafetyProof;
   /** Optional — see `AyasProposalImpact.ts`. A discovery source that doesn't model this yet simply omits it; `evaluateAyasImpactPolicy` treats that exactly like an explicit fully-unresolved impact, never a free pass. */
   readonly structuredImpact?: AyasProposalStructuredImpact;
   readonly discoverySource?: AyasProposalDiscoverySource;
@@ -56,6 +64,8 @@ export interface AyasDeferredPublicationReceipt {
 }
 export interface AyasDaemonOptions {
   readonly inbox?: AyasApprovalInboxHandle;
+  readonly exactPatchArtifactStore?: AyasPatchArtifactStore;
+  readonly exactExperimentStore?: AyasResearchExperimentStore;
   readonly stateFile?: string;
   readonly gateRoot?: string;
   readonly repoRoot?: string;
@@ -111,7 +121,12 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
     if (state.phase === "PAUSED_DIRTY_REPO" || state.phase === "PAUSED_MACHINE_HEALTH" || !observation.repoClean || !observation.graphifyFresh) return [];
     const proposals = candidates.map((candidate) => {
       const safety = classifyPatchSet(candidate.exactFiles);
-      return inbox.createProposal({ createdAt: observation.now, baseBranch: observation.branch, baseHead: observation.head, objective: candidate.objective, currentProblem: candidate.currentProblem, selectionReason: candidate.selectionReason, expectedUserBenefit: candidate.expectedUserBenefit, expectedBehaviorChange: candidate.expectedBehaviorChange, unchangedBehavior: candidate.unchangedBehavior, riskIfNotDone: candidate.riskIfNotDone, technicalRisk: candidate.technicalRisk, productionImpact: candidate.productionImpact, rationale: candidate.rationale, evidence: candidate.evidence, graphifyEvidence: candidate.graphifyEvidence, candidateRank: candidate.rank, risk: candidate.risk, safetyClassification: safety.level, exactFiles: candidate.exactFiles, expectedDiffScope: candidate.expectedDiffScope, testsPlanned: candidate.testsPlanned, estimatedCost: "zero-cost", mutationKind: candidate.mutationKind, ...(candidate.patchArtifactId ? { patchArtifactId: candidate.patchArtifactId } : {}), ...(candidate.patchHash ? { patchHash: candidate.patchHash } : {}), ...(candidate.structuredImpact ? { structuredImpact: candidate.structuredImpact } : {}), ...(candidate.discoverySource ? { discoverySource: candidate.discoverySource } : {}), ...(candidate.sourceReference ? { sourceReference: candidate.sourceReference } : {}) });
+      const exactSafety = safety.level === "REVIEW_REQUIRED" && verifyAyasExactProposalSafety({
+        baseHead: observation.head, exactFiles: candidate.exactFiles, safetyClassification: "SAFE",
+        mutationKind: candidate.mutationKind, patchArtifactId: candidate.patchArtifactId,
+        patchHash: candidate.patchHash, exactPatchSafetyProof: candidate.exactPatchSafetyProof,
+      }, { repoRoot, artifactStore: options.exactPatchArtifactStore, experimentStore: options.exactExperimentStore });
+      return inbox.createProposal({ createdAt: observation.now, baseBranch: observation.branch, baseHead: observation.head, objective: candidate.objective, currentProblem: candidate.currentProblem, selectionReason: candidate.selectionReason, expectedUserBenefit: candidate.expectedUserBenefit, expectedBehaviorChange: candidate.expectedBehaviorChange, unchangedBehavior: candidate.unchangedBehavior, riskIfNotDone: candidate.riskIfNotDone, technicalRisk: candidate.technicalRisk, productionImpact: candidate.productionImpact, rationale: candidate.rationale, evidence: candidate.evidence, graphifyEvidence: candidate.graphifyEvidence, candidateRank: candidate.rank, risk: candidate.risk, safetyClassification: exactSafety ? "SAFE" : safety.level, exactFiles: candidate.exactFiles, expectedDiffScope: candidate.expectedDiffScope, testsPlanned: candidate.testsPlanned, estimatedCost: "zero-cost", mutationKind: candidate.mutationKind, ...(candidate.patchArtifactId ? { patchArtifactId: candidate.patchArtifactId } : {}), ...(candidate.patchHash ? { patchHash: candidate.patchHash } : {}), ...(exactSafety ? { exactPatchSafetyProof: candidate.exactPatchSafetyProof } : {}), ...(candidate.structuredImpact ? { structuredImpact: candidate.structuredImpact } : {}), ...(candidate.discoverySource ? { discoverySource: candidate.discoverySource } : {}), ...(candidate.sourceReference ? { sourceReference: candidate.sourceReference } : {}) });
     }).filter((proposal, index, all) => all.findIndex((other) => other.proposalHash === proposal.proposalHash) === index);
     if (proposals.length) transition("WAITING_APPROVAL", { activeProposalId: proposals[0]?.proposalId });
     return proposals;
@@ -186,6 +201,24 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
         const boundary = await createAyasMutationBoundary(repoRoot, input.exactFiles);
         const reported = await input.applyWhileExecuting(reservation.authorizationId);
         const actual = await boundary.verify();
+        const executedProposal = inbox.load().proposals.find((entry) => entry.proposalId === input.proposalId);
+        if (executedProposal?.exactPatchSafetyProof) {
+          const proof = executedProposal.exactPatchSafetyProof;
+          const file = proof.exactFiles[0];
+          const manifest = AYAS_DEFAULT_IMPROVEMENT_REGISTRY.strategies.find((entry) => entry.strategyId === proof.strategyId
+            && entry.version === proof.strategyVersion)?.reviewedExactPatch;
+          if (!file || !manifest || !verifyAyasExactProposalSafety(executedProposal, { repoRoot,
+            artifactStore: options.exactPatchArtifactStore, experimentStore: options.exactExperimentStore, requireUnchangedSource: false })) {
+            throw new Error("AYAS_EXACT_PATCH_POST_VERIFICATION_FAILED");
+          }
+          const base = execFileSync("git", ["show", `${proof.baseHead}:${file}`],
+            { cwd: repoRoot, encoding: "utf8", windowsHide: true, timeout: 30_000, maxBuffer: 1_000_000 });
+          const applied = fs.readFileSync(path.join(repoRoot, file), "utf8");
+          if (!verifyAyasExecutedExactPatch(proof, manifest, file, base, applied)
+            || JSON.stringify(actual.changedFiles) !== JSON.stringify(proof.exactFiles)) {
+            throw new Error("AYAS_EXACT_PATCH_POST_VERIFICATION_FAILED");
+          }
+        }
         writeJournal("MUTATION_COMPLETED", { gateSequence: record.sequence, mutationFingerprint: actual.diffFingerprint });
         record = applyVerifiedGateTransition(gate, { event: "complete-execution" }, "COMPLETED");
         writeJournal("GATE_COMPLETED", { gateSequence: record.sequence, mutationFingerprint: actual.diffFingerprint });

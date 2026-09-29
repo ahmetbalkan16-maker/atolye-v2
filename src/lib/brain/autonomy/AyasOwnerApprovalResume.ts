@@ -53,6 +53,7 @@ export async function resumeAyasOwnerApprovedProposals(deps: AyasOwnerApprovalRe
   const state = deps.inbox.load();
   const eligible = state.proposals.filter((proposal) => {
     if (proposal.status !== "APPROVED") return false;
+    if (proposal.exactPatchSafetyProof) return false; // local governed execution only; this worker publishes to the remote
     const decision = [...state.decisions].reverse().find((d) => d.proposalId === proposal.proposalId && d.decision === "APPROVE");
     return isAyasOwnerApprovedDecisionReason(decision?.reason);
   });

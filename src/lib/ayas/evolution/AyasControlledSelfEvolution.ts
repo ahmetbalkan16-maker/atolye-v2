@@ -2,6 +2,7 @@ import { AYAS_DEFAULT_IMPROVEMENT_REGISTRY, ayasImprovementRegistryDigest, valid
 import type { AyasImprovementHypothesis } from "../../brain/autonomy/AyasResearchImprovementLoop";
 import type { AyasExperimentSourceBinding } from "../../brain/autonomy/AyasResearchExperimentEvaluation";
 import { classifyPatchSet } from "../../brain/selfheal/BrainPatchSafety";
+import { validAyasReviewedExactPatch } from "../../brain/selfheal/AyasExactPatchSafety";
 import { qualifyAyasEvolutionRegister, type AyasEvolutionEnvironment, type AyasEvolutionQualification } from "./AyasEvolutionQualification";
 import type { AyasEvolutionOpportunity, AyasEvolutionRegister } from "./AyasEvolutionOpportunity";
 
@@ -40,6 +41,16 @@ function sourceBindings(opportunity: AyasEvolutionOpportunity, hypothesis: AyasI
   return [{ kind: "EVOLUTION_OPPORTUNITY", id: opportunity.opportunityId }, ...realFindings.map((id) => ({ kind: "RESEARCH_FINDING" as const, id }))];
 }
 
+function admissiblePatchScope(strategy: AyasImprovementStrategy, riskClass: AyasImprovementHypothesis["riskClass"], impactSafety: AyasEvolutionQualification["impact"]["patchSafety"]): boolean {
+  const pathLevel = classifyPatchSet(strategy.exactFiles).level;
+  if (pathLevel === "SAFE") return riskClass === "SAFE" && impactSafety === "SAFE";
+  const reviewed = strategy.reviewedExactPatch;
+  return pathLevel === "REVIEW_REQUIRED" && riskClass === "REVIEW_REQUIRED" && impactSafety === "REVIEW_REQUIRED"
+    && validAyasReviewedExactPatch(reviewed)
+    && JSON.stringify(reviewed.exactFiles) === JSON.stringify(strategy.exactFiles)
+    && reviewed.changedLines <= strategy.maxChangedLines;
+}
+
 function safeCurrentCandidate(opportunity: AyasEvolutionOpportunity, qualification: AyasEvolutionQualification, env: AyasEvolutionEnvironment): AyasControlledEvolutionCandidate | null {
   const head = env.currentHead;
   const registry = env.improvementRegistry ?? AYAS_DEFAULT_IMPROVEMENT_REGISTRY;
@@ -47,7 +58,7 @@ function safeCurrentCandidate(opportunity: AyasEvolutionOpportunity, qualificati
   if (!head || !FULL_HEAD.test(head) || qualification.readiness !== "EXPERIMENT_READY" || qualification.blockers.length > 0
     || qualification.executionAuthority !== "NONE" || qualification.authority.granted !== "NONE"
     || qualification.mayExecute || qualification.mayInstall || qualification.maySpend || qualification.mayPublish
-    || qualification.stage8.outcome !== "HYPOTHESIS" || !hypothesis || qualification.impact.patchSafety !== "SAFE"
+    || qualification.stage8.outcome !== "HYPOTHESIS" || !hypothesis
     || !qualification.cost.decision.allowed || qualification.cost.unknownResources > 0
     || qualification.authority.required.some((authority) => FORBIDDEN_AUTHORITIES.has(authority))
     || RISK_DIMENSIONS.some((dimension) => ["HIGH", "UNKNOWN"].includes(qualification.risk[dimension]))
@@ -60,7 +71,7 @@ function safeCurrentCandidate(opportunity: AyasEvolutionOpportunity, qualificati
   const benchmark = registry.benchmarks.find((item) => item.benchmarkId === hypothesis.benchmarkId);
   const snapshot = env.gapSnapshots?.find((item) => item.benchmarkId === hypothesis.benchmarkId && item.measuredAtHead === head && item.evaluatorSha256 === hypothesis.gapEvidence.evaluatorSha256);
   if (!strategy || !benchmark || !snapshot || validateAyasImprovementStrategy(strategy).length > 0
-    || classifyPatchSet(strategy.exactFiles).level !== "SAFE" || hypothesis.riskClass !== "SAFE"
+    || !admissiblePatchScope(strategy, hypothesis.riskClass, qualification.impact.patchSafety)
     || JSON.stringify([...new Set(opportunity.impact.affectedModules)].sort()) !== JSON.stringify([...new Set(strategy.exactFiles)].sort())
     || hypothesis.gapEvidence.measuredAtHead !== head || hypothesis.gapEvidence.failingTargetCount < 1
     || hypothesis.strategyId !== strategy.strategyId || hypothesis.strategyVersion !== strategy.version

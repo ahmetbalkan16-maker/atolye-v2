@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 
 import type { AyasCapabilityCategory } from "./AyasCapabilityTaxonomy";
+import { validAyasReviewedExactPatch, type AyasReviewedExactPatch } from "../selfheal/AyasExactPatchSafety";
 
 /**
  * Stage 8 — the CLOSED, server-owned registry behind research-driven
@@ -46,6 +47,8 @@ export interface AyasImprovementStrategy {
   readonly exactFiles: readonly string[];
   readonly maxChangedLines: number;
   readonly regressionSuites: readonly string[];
+  /** Optional, owner-reviewed exact replacement; never changes the path classifier itself. */
+  readonly reviewedExactPatch?: AyasReviewedExactPatch;
   generate(context: AyasImprovementStrategyContext): readonly AyasImprovementStrategyChange[];
 }
 
@@ -118,6 +121,15 @@ export const AYAS_IMPROVEMENT_STRATEGIES: readonly AyasImprovementStrategy[] = O
   summary: "Read-side supersession for explicit user render-tool decisions only",
   exactFiles: [RENDER_TOOL_SOURCE], maxChangedLines: 80,
   regressionSuites: ["scripts/smoke-ayas-memory-temporal.ts", "scripts/smoke-ayas-memory.ts", "scripts/smoke-ayas-retrieval-evaluation.ts", "scripts/smoke-ayas-conversation-quality-master.ts"],
+  reviewedExactPatch: {
+    effectClass: "READ_SIDE_DERIVATION", operationType: "REPLACE_EXISTING_SOURCE", exactFiles: [RENDER_TOOL_SOURCE],
+    beforeSha256: RENDER_TOOL_SOURCE_SHA256,
+    afterSha256: "ba8de8096f42e8c4de0d712cd48394ef6b587f835c97c9afd1a512e21e46bace",
+    normalizedDiffSha256: "d87c40fd1164eb6c2c687472b0dd906d08d669997acbe6fb0871cb0a707e8a73",
+    changedLines: 15,
+    effects: { persistentWrite: false, externalIo: false, network: false, dependency: false, provider: false,
+      spend: false, publish: false, ownerAuthority: false, securityAuthority: false },
+  },
   generate: ({ readFile }) => {
     const source = readFile(RENDER_TOOL_SOURCE);
     if (source === null) throw new Error("render-tool source missing");
@@ -215,6 +227,9 @@ export function validateAyasImprovementStrategy(strategy: AyasImprovementStrateg
     else if (isAyasExperimentProtectedPath(file)) violations.push("STRATEGY_FILE_PROTECTED");
   }
   if (!Number.isSafeInteger(strategy.maxChangedLines) || strategy.maxChangedLines < 1 || strategy.maxChangedLines > AYAS_EXPERIMENT_MAX_CHANGED_LINES) violations.push("STRATEGY_LINE_BUDGET_INVALID");
+  if (strategy.reviewedExactPatch && (!validAyasReviewedExactPatch(strategy.reviewedExactPatch)
+    || JSON.stringify(strategy.reviewedExactPatch.exactFiles) !== JSON.stringify(strategy.exactFiles)
+    || strategy.reviewedExactPatch.changedLines > strategy.maxChangedLines)) violations.push("STRATEGY_EXACT_PATCH_INVALID");
   for (const suite of strategy.regressionSuites) if (!/^scripts\/smoke-[a-z0-9-]+\.ts$/.test(suite)) violations.push("STRATEGY_REGRESSION_SUITE_INVALID");
   return [...new Set(violations)];
 }
@@ -235,7 +250,7 @@ export function selectAyasImprovementStrategy(registry: AyasImprovementRegistry,
 export function ayasImprovementRegistryDigest(registry: AyasImprovementRegistry): string {
   const material = {
     benchmarks: registry.benchmarks.map((b) => [b.benchmarkId, b.script, b.args, b.reportFlag]),
-    strategies: registry.strategies.map((s) => [s.strategyId, s.version, s.capability, s.benchmarkId, s.dimensions, s.exactFiles, s.maxChangedLines, s.regressionSuites, s.component, s.summary]),
+    strategies: registry.strategies.map((s) => [s.strategyId, s.version, s.capability, s.benchmarkId, s.dimensions, s.exactFiles, s.maxChangedLines, s.regressionSuites, s.component, s.summary, ...(s.reviewedExactPatch ? [s.reviewedExactPatch] : [])]),
     capabilityMap: Object.entries(registry.capabilityMap).sort(([a], [b]) => a.localeCompare(b)),
   };
   return crypto.createHash("sha256").update(JSON.stringify(material), "utf8").digest("hex");

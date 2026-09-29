@@ -41,6 +41,7 @@ import { approveAndExecuteAyasProposal, type AyasProposalApprovalDeps, type Ayas
 import { reevaluateAyasApprovalBinding, type AyasApprovalBindingInvalidReason, type AyasApprovalBindingSnapshot } from "./AyasApprovalBinding";
 import { AYAS_OWNER_APPROVED_PENDING_EXECUTION_REASON } from "./AyasOwnerApprovalProvenance";
 import type { AyasApprovalInboxHandle } from "./AyasApprovalInboxStore";
+import { verifyAyasExactProposalSafety } from "./AyasExactProposalSafety";
 
 /** Off unless explicitly set to "1" — no existing repo-wide convention for a boolean autonomy kill switch was found (the provider-router env vars are select-one-of-N, a different shape), so this introduces the narrowest new one rather than reusing a mismatched pattern. */
 export const AYAS_AUTONOMOUS_EXECUTION_ENV_VAR = "AYAS_AUTONOMOUS_EXECUTION_ENABLED";
@@ -104,6 +105,17 @@ export async function decideAyasOwnerApproval(
       reason: "NOT_EXECUTABLE_CLASSIFICATION",
       detail: `safetyClassification is ${current!.safetyClassification} — the existing approval-inbox invariant refuses to execute anything that is not SAFE, regardless of any recommendation`,
     };
+  }
+
+  // Exact reviewed patches can receive a durable owner decision, but this UI
+  // path must never hand them to the automatic commit/push publisher.
+  if (current!.exactPatchSafetyProof) {
+    if (!verifyAyasExactProposalSafety(current!, { repoRoot: deps.repoRoot, artifactStore: deps.artifactStore,
+      experimentStore: deps.exactExperimentStore })) {
+      return { executed: false, reason: "NOT_EXECUTABLE_CLASSIFICATION", detail: "exact patch evidence is stale or mismatched" };
+    }
+    deps.inbox.decide(binding.proposalId, "APPROVE", now(), "owner-approved: exact patch awaiting local governed execution");
+    return { executed: false, reason: "APPROVED_PENDING_EXECUTION" };
   }
 
   if (!isAyasAutonomousExecutionEnabled(deps.envOverride)) {

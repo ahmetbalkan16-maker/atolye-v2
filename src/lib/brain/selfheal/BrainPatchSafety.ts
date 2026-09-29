@@ -59,7 +59,9 @@ const RULES: readonly Rule[] = Object.freeze([
       p === "src/lib/brain/selfheal/BrainUntrustedInput.ts" ||
       p === "src/lib/brain/selfheal/BrainSelfHealGuards.ts" ||
       p === "src/lib/brain/selfheal/BrainSelfHealSandbox.ts" ||
-      p === "src/lib/brain/selfheal/BrainSelfHealRunner.ts",
+      p === "src/lib/brain/selfheal/BrainSelfHealRunner.ts" ||
+      p === "src/lib/brain/selfheal/AyasExactPatchSafety.ts" ||
+      p === "src/lib/brain/autonomy/AyasExactProposalSafety.ts",
   },
   {
     level: "FORBIDDEN_AUTONOMOUS",

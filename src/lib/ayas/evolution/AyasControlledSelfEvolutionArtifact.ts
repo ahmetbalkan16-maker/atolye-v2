@@ -12,6 +12,7 @@ import { ayasImprovementRegistryDigest, type AyasImprovementRegistry } from "../
 import type { AyasResearchExperimentStore } from "../../brain/autonomy/AyasResearchExperimentStore";
 import type { AyasRegisteredExperimentResult } from "../../brain/autonomy/AyasRegisteredImprovementExperiment";
 import { classifyPatchSet } from "../../brain/selfheal/BrainPatchSafety";
+import { createAyasExactPatchSafetyProof } from "../../brain/selfheal/AyasExactPatchSafety";
 import { ayasControlledEvolutionDedupeKey, type AyasControlledEvolutionCandidate } from "./AyasControlledSelfEvolution";
 
 const execFileAsync = promisify(execFile);
@@ -48,11 +49,15 @@ export interface AyasControlledEvolutionArtifactInput {
 export async function freezeAyasControlledEvolutionArtifact(input: AyasControlledEvolutionArtifactInput): Promise<AyasPatchArtifact | null> {
   const { candidate, result, experimentStore, artifactStore } = input;
   const { record, retainedSource } = result;
+  const pathSafety = classifyPatchSet(candidate.strategy.exactFiles).level;
+  const ordinarySafe = pathSafety === "SAFE" && candidate.hypothesis.riskClass === "SAFE";
+  const exactReview = pathSafety === "REVIEW_REQUIRED" && candidate.hypothesis.riskClass === "REVIEW_REQUIRED"
+    && candidate.strategy.reviewedExactPatch !== undefined;
   if (result.verdict !== "IMPROVED" || record.status !== "COMPLETED" || record.verdict !== "IMPROVED" || !record.evidenceHash || !retainedSource
     || !FULL_HEAD.test(candidate.baseHead) || record.baseHead !== candidate.baseHead || record.hypothesisId !== candidate.hypothesis.hypothesisId
     || record.strategyId !== candidate.strategy.strategyId || record.strategyVersion !== candidate.strategy.version
     || retainedSource.replacements.length === 0 || !HEX64.test(retainedSource.diffSha256)
-    || classifyPatchSet(candidate.strategy.exactFiles).level !== "SAFE" || candidate.hypothesis.riskClass !== "SAFE"
+    || (!ordinarySafe && !exactReview)
     || candidate.registryDigest !== ayasImprovementRegistryDigest(input.registry)
     || candidate.strategy !== input.registry.strategies.find((strategy) => strategy.strategyId === record.strategyId && strategy.version === record.strategyVersion)
     || candidate.benchmark !== input.registry.benchmarks.find((benchmark) => benchmark.benchmarkId === candidate.hypothesis.benchmarkId)
@@ -69,7 +74,7 @@ export async function freezeAyasControlledEvolutionArtifact(input: AyasControlle
     || evidence.change.strategyVersion !== candidate.strategy.version || evidence.change.diffSha256 !== retainedSource.diffSha256
     || evidence.replacementDigest !== sha256(JSON.stringify(retainedSource.replacements))
     || JSON.stringify(evidence.sourceBindings) !== JSON.stringify(candidate.sourceBindings)
-    || !evidence.risk.liveWorkspaceUnchanged || !evidence.risk.sandboxDiscarded || evidence.risk.riskClass !== "SAFE"
+    || !evidence.risk.liveWorkspaceUnchanged || !evidence.risk.sandboxDiscarded || evidence.risk.riskClass !== candidate.hypothesis.riskClass
     || evidence.targetGain < 1 || evidence.regressions.newlyFailingCaseIds.length > 0 || evidence.regressions.heldOutDelta < 0
     || !baseline || "error" in baseline || !experiment || "error" in experiment
     || baseline.benchmarkId !== candidate.benchmark.benchmarkId || experiment.benchmarkId !== candidate.benchmark.benchmarkId
@@ -98,6 +103,18 @@ export async function freezeAyasControlledEvolutionArtifact(input: AyasControlle
       if (!Buffer.from(baseBytes.toString("utf8"), "utf8").equals(baseBytes) || sha256(baseBytes.toString("utf8")) !== replacement.expectedHash) return null;
     } catch { return null; }
   }
+  const exactProof = exactReview ? (() => {
+    if (retainedSource.replacements.length !== 1 || !candidate.strategy.reviewedExactPatch) return null;
+    const replacement = retainedSource.replacements[0]!;
+    try {
+      return createAyasExactPatchSafetyProof({ manifest: candidate.strategy.reviewedExactPatch,
+        file: replacement.filePath, before: fs.readFileSync(resolveAyasBoundedPath(input.repoRoot, replacement.filePath, allowedRoots), "utf8"),
+        after: replacement.content, baseHead: candidate.baseHead, strategyId: candidate.strategy.strategyId,
+        strategyVersion: candidate.strategy.version, registryDigest: candidate.registryDigest,
+        experimentId: record.experimentId, evidenceHash: record.evidenceHash });
+    } catch { return null; }
+  })() : null;
+  if (exactReview && !exactProof) return null;
   const graphifyImportCounts: Record<string, number> = {};
   const graphifyEvidence: string[] = [];
   for (const replacement of retainedSource.replacements) {
@@ -119,12 +136,14 @@ export async function freezeAyasControlledEvolutionArtifact(input: AyasControlle
       evidenceHash: record.evidenceHash, hypothesisId: candidate.hypothesis.hypothesisId,
       strategyId: candidate.strategy.strategyId, strategyVersion: candidate.strategy.version,
       registryDigest: candidate.registryDigest },
+    ...(exactProof ? { exactPatchSafetyProof: exactProof } : {}),
     problemStatement: `Measured gap for ${candidate.opportunityId}`,
     rationale: `Stage 15 sandbox improvement bound to ${record.experimentId} and evidence ${record.evidenceHash}`,
     expectedUserBenefit: "The measured target case improves without held-out or regression loss.",
     expectedBehaviorChange: `Target gain ${evidence.targetGain}; changed files ${files.join(", ")}`,
     unchangedBehavior: "Protected and held-out cases retain their baseline behavior.",
-    risk: "SAFE source-only scope; owner approval remains required before execution.",
+    risk: exactProof ? "Path REVIEW_REQUIRED; this immutable replacement has a verified exact read-side effect proof. Owner approval remains required."
+      : "SAFE source-only scope; owner approval remains required before execution.",
     productionImpact: "No live production change during experiment or artifact freeze.",
     sandboxValidationSummary: [`Matched baseline: ${evidence.baseline !== null ? "recorded" : "missing"}`, `Target gain: ${evidence.targetGain}`, `Held-out delta: ${evidence.regressions.heldOutDelta}`, `Regression suites: ${evidence.regressions.suites.length}`, `Evidence SHA256: ${record.evidenceHash}`],
     generatedAt: input.now,

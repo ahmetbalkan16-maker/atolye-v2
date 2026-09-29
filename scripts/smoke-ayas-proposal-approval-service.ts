@@ -125,7 +125,7 @@ function seedNewFileProposal(f: Fixture) {
 
 /** An EDIT proposal against a pre-existing, already-committed file — exercises the M19 `revertToHead` fix (a genuinely new file has no HEAD blob to restore; an edited one does). */
 function seedEditProposal(f: Fixture, opts: { readonly newContent: string }) {
-  const targetFile = "scripts/existing-editable.ts";
+  const targetFile = "scripts/smoke-existing-editable.ts";
   const originalContent = "export const value = 1;\n";
   fs.writeFileSync(path.join(f.repoRoot, targetFile), originalContent, "utf8");
   git(f.repoRoot, "add", "--", targetFile);

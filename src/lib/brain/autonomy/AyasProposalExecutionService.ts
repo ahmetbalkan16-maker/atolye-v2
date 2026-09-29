@@ -8,6 +8,7 @@ import { resolveAyasMutation, AyasMutationRegistryError, type AyasMutationImplem
 import { resolveAyasPatchArtifactMutation, AyasPatchArtifactMutationError } from "./AyasPatchArtifactMutation";
 import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "./AyasNovelPatchDiscovery";
 import type { AyasPatchArtifactStore } from "./AyasPatchArtifact";
+import type { AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
 import { reconcileAyasStaleProposals } from "./AyasProposalStaleness";
 
 /**
@@ -41,6 +42,7 @@ export interface AyasProposalExecutionDeps {
   readonly registry?: ReadonlyMap<string, AyasMutationImplementation>;
   /** Test-only override for `resolveAyasPatchArtifactMutation` — omitted in production, where it reads/verifies from the one real, durable `data/brain/self-improvement/patch-artifacts` store. Never touches `data/brain` when a test supplies its own isolated store. */
   readonly patchArtifactStore?: AyasPatchArtifactStore;
+  readonly exactExperimentStore?: AyasResearchExperimentStore;
   /** M21.1 — test-only pass-through to `AyasAutonomyDaemon`'s crash-injection hook. Never set in production. */
   readonly onJournalPhase?: (phase: AyasExecutionJournalPhase) => void;
   readonly deferredPublication?: boolean;
@@ -66,7 +68,7 @@ export async function executeAyasApprovedProposalWith(proposalId: string, deps: 
   let mutation;
   try {
     mutation = proposal.mutationKind === AYAS_PATCH_ARTIFACT_MUTATION_KIND
-      ? resolveAyasPatchArtifactMutation(proposal, deps.patchArtifactStore)
+      ? resolveAyasPatchArtifactMutation(proposal, deps.patchArtifactStore, deps.repoRoot, deps.exactExperimentStore)
       : deps.registry ? resolveAyasMutation(proposal.mutationKind ?? "", proposal.exactFiles, deps.registry) : resolveAyasMutation(proposal.mutationKind ?? "", proposal.exactFiles);
   } catch (error) {
     const code = error instanceof AyasMutationRegistryError || error instanceof AyasPatchArtifactMutationError ? error.code : "MUTATION_BINDING_UNRESOLVED";
@@ -88,7 +90,8 @@ export async function executeAyasApprovedProposalWith(proposalId: string, deps: 
   const freshProposal = deps.inbox.load().proposals.find((entry) => entry.proposalId === proposalId);
   if (!freshProposal || freshProposal.status !== "APPROVED") throw new AyasProposalExecutionError("STALE_APPROVAL", "proposal state changed since lookup");
 
-  const daemon = createAyasAutonomyDaemon({ inbox: deps.inbox, gateRoot: deps.gateRoot, repoRoot: deps.repoRoot, onJournalPhase: deps.onJournalPhase });
+  const daemon = createAyasAutonomyDaemon({ inbox: deps.inbox, gateRoot: deps.gateRoot, repoRoot: deps.repoRoot,
+    exactPatchArtifactStore: deps.patchArtifactStore, exactExperimentStore: deps.exactExperimentStore, onJournalPhase: deps.onJournalPhase });
   let receipt: AyasDeferredPublicationReceipt | undefined;
   await daemon.executeApproved({
     proposalId: proposal.proposalId,

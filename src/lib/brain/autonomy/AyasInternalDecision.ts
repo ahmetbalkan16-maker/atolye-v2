@@ -7,7 +7,8 @@
  * `RECOMMEND_FOR_APPROVAL` ever reaches an owner-facing approval request
  * (see `AyasOwnerApprovalRequest.ts`).
  *
- * Deterministic and pure — no LLM call, no I/O. This mirrors the rest of
+ * Deterministic and read-only — no LLM call or mutation. Exact-patch review
+ * verifies durable artifact/evidence and Git HEAD before recommending. This mirrors the rest of
  * this pipeline's own philosophy (`BrainPatchSafety`, `AyasMicroClassifier`):
  * a safety-relevant decision is an ordered, inspectable, testable rule list,
  * not a model judgment call. Any rule that cannot be confidently evaluated
@@ -27,6 +28,7 @@
  */
 
 import { classifyPatchSet } from "../selfheal/BrainPatchSafety";
+import { verifyAyasExactProposalSafety } from "./AyasExactProposalSafety";
 import { isAyasProposalApprovalReady, missingAyasApprovalExplanation, type AyasInboxProposal } from "./AyasApprovalInboxStore";
 import { evaluateAyasImpactPolicy } from "./AyasProposalImpact";
 import { isAyasMutationKindRegistered } from "./AyasMutationRegistry";
@@ -37,7 +39,7 @@ export interface AyasInternalDecisionResult {
   readonly decision: AyasInternalDecisionKind;
   /** Ordered — the first reason is the one that actually determined the outcome; later reasons (if any) are additional context. */
   readonly reasons: readonly string[];
-  /** True only when the proposal's own safetyClassification is SAFE, i.e. an owner APPROVE could actually reach execution. */
+  /** True only for an eligible SAFE path or a currently verified exact reviewed artifact. */
   readonly executable: boolean;
 }
 
@@ -63,7 +65,11 @@ function hasNoExecutionPath(proposal: AyasInboxProposal): boolean {
 
 export function evaluateAyasInternalDecision(proposal: AyasInboxProposal): AyasInternalDecisionResult {
   const domain = classifyPatchSet(proposal.exactFiles);
-  const executable = proposal.safetyClassification === "SAFE";
+  const exactReviewVerified = domain.level === "REVIEW_REQUIRED" && verifyAyasExactProposalSafety(proposal);
+  const effectiveSafe = domain.level === "SAFE" || exactReviewVerified;
+  const executable = proposal.safetyClassification === "SAFE" && effectiveSafe;
+  const safeReason = exactReviewVerified ? "verified exact patch and classification, evidence present, no unresolved concern found"
+    : "SAFE domain and classification, evidence present, no unresolved concern found";
 
   if (proposal.status !== "PENDING") {
     return { decision: "REJECT", reasons: [`proposal is not in a decidable state (status: ${proposal.status})`], executable };
@@ -107,12 +113,12 @@ export function evaluateAyasInternalDecision(proposal: AyasInboxProposal): AyasI
     if (impactPolicy.mustDefer) {
       return { decision: "DEFER", reasons: impactPolicy.reasons, executable: false };
     }
-    if (proposal.safetyClassification === "SAFE" && domain.level === "SAFE" && isAyasProposalApprovalReady(proposal)) {
+    if (proposal.safetyClassification === "SAFE" && effectiveSafe && isAyasProposalApprovalReady(proposal)) {
       return {
         decision: "RECOMMEND_FOR_APPROVAL",
         reasons: impactPolicy.mustNeverExecute
-          ? ["SAFE domain and classification, evidence present", ...impactPolicy.reasons]
-          : ["SAFE domain and classification, evidence present, no unresolved concern found"],
+          ? [exactReviewVerified ? "verified exact patch, evidence present" : "SAFE domain and classification, evidence present", ...impactPolicy.reasons]
+          : [safeReason],
         executable: !impactPolicy.mustNeverExecute,
       };
     }
@@ -129,8 +135,8 @@ export function evaluateAyasInternalDecision(proposal: AyasInboxProposal): AyasI
       return { decision: "DEFER", reasons: [`non-zero estimated cost (${String(proposal.estimatedCost)}) — external cost/dependency must be resolved first`], executable };
     }
 
-    if (proposal.safetyClassification === "SAFE" && domain.level === "SAFE" && isAyasProposalApprovalReady(proposal)) {
-      return { decision: "RECOMMEND_FOR_APPROVAL", reasons: ["SAFE domain and classification, evidence present, no unresolved concern found"], executable: true };
+    if (proposal.safetyClassification === "SAFE" && effectiveSafe && isAyasProposalApprovalReady(proposal)) {
+      return { decision: "RECOMMEND_FOR_APPROVAL", reasons: [safeReason], executable: true };
     }
   }
 
@@ -144,7 +150,7 @@ export function evaluateAyasInternalDecision(proposal: AyasInboxProposal): AyasI
   // (not REJECT) is the fail-closed default here since a REVIEW_REQUIRED
   // domain match on its own says nothing about whether the underlying idea
   // is good — only that this version cannot safely act on it yet.
-  if (proposal.safetyClassification === "REVIEW_REQUIRED" || domain.level === "REVIEW_REQUIRED") {
+  if (proposal.safetyClassification === "REVIEW_REQUIRED" || (domain.level === "REVIEW_REQUIRED" && !exactReviewVerified)) {
     return {
       decision: "DEFER",
       reasons: [

@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
 import { execFile } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import { promisify } from "node:util";
 
 import type { AyasDaemonCandidate } from "../../brain/autonomy/AyasAutonomyDaemon";
@@ -10,6 +12,8 @@ import { validAyasExperimentSourceBindings, verifyAyasExperimentEvidence } from 
 import { ayasImprovementRegistryDigest, validateAyasImprovementStrategy, type AyasImprovementRegistry } from "../../brain/autonomy/AyasResearchExperimentRegistry";
 import type { AyasResearchExperimentStore } from "../../brain/autonomy/AyasResearchExperimentStore";
 import { classifyPatchSet } from "../../brain/selfheal/BrainPatchSafety";
+import { verifyAyasExactPatchSafetyProof, verifyAyasReviewedExactPatch } from "../../brain/selfheal/AyasExactPatchSafety";
+import type { AyasProposalStructuredImpact } from "../../brain/autonomy/AyasProposalImpact";
 import type { AyasControlledEvolutionCandidate } from "./AyasControlledSelfEvolution";
 
 const execFileAsync = promisify(execFile);
@@ -17,6 +21,11 @@ const FULL_HEAD = /^[0-9a-f]{40}$/;
 const HEX64 = /^[0-9a-f]{64}$/;
 const sha256 = (value: string): string => crypto.createHash("sha256").update(value, "utf8").digest("hex");
 const same = (a: readonly string[], b: readonly string[]): boolean => JSON.stringify(a) === JSON.stringify(b);
+const EXACT_READ_SIDE_IMPACT: AyasProposalStructuredImpact = {
+  dependencyImpact: "none", externalServiceImpact: "none", estimatedCost: "zero-cost", paidCommitmentRequired: false,
+  licensingImpact: "none", licensingStatus: "not-applicable", securityImpact: "none", authorityImpact: "none",
+  storageImpact: "none", productionImpact: "low", reversibility: "fully-reversible", validationConfidence: "high",
+};
 
 async function currentWorkspace(repoRoot: string): Promise<{ readonly branch: string; readonly head: string; readonly clean: boolean }> {
   const git = async (...args: string[]) => (await execFileAsync("git", ["--no-optional-locks", ...args], {
@@ -38,12 +47,15 @@ export interface AyasControlledEvolutionBridgeInput {
 /** Read-only Stage 15 boundary: verified experiment + frozen SAFE patch become a candidate, never an approval. */
 export async function buildAyasControlledEvolutionProposalCandidate(input: AyasControlledEvolutionBridgeInput): Promise<AyasDaemonCandidate | null> {
   const { candidate, registry } = input;
+  const pathSafety = classifyPatchSet(candidate.strategy.exactFiles).level;
+  const ordinarySafe = pathSafety === "SAFE" && candidate.hypothesis.riskClass === "SAFE";
+  const exactReview = pathSafety === "REVIEW_REQUIRED" && candidate.hypothesis.riskClass === "REVIEW_REQUIRED"
+    && candidate.strategy.reviewedExactPatch !== undefined;
   if (!FULL_HEAD.test(candidate.baseHead) || candidate.qualification.readiness !== "EXPERIMENT_READY"
     || candidate.qualification.blockers.length > 0 || candidate.qualification.executionAuthority !== "NONE"
     || candidate.qualification.authority.granted !== "NONE"
     || candidate.qualification.mayExecute || candidate.qualification.mayInstall || candidate.qualification.maySpend || candidate.qualification.mayPublish
-    || candidate.hypothesis.riskClass !== "SAFE" || validateAyasImprovementStrategy(candidate.strategy).length > 0
-    || classifyPatchSet(candidate.strategy.exactFiles).level !== "SAFE"
+    || (!ordinarySafe && !exactReview) || validateAyasImprovementStrategy(candidate.strategy).length > 0
     || candidate.registryDigest !== ayasImprovementRegistryDigest(registry)
     || candidate.strategy !== registry.strategies.find((item) => item.strategyId === candidate.strategy.strategyId && item.version === candidate.strategy.version)
     || candidate.benchmark !== registry.benchmarks.find((item) => item.benchmarkId === candidate.benchmark.benchmarkId)
@@ -64,7 +76,7 @@ export async function buildAyasControlledEvolutionProposalCandidate(input: AyasC
       || !same(evidence.sourceBindings?.map((binding) => `${binding.kind}:${binding.id}`) ?? [], candidate.sourceBindings.map((binding) => `${binding.kind}:${binding.id}`))
       || !evidence.change || evidence.change.strategyId !== candidate.strategy.strategyId || evidence.change.strategyVersion !== candidate.strategy.version
       || !HEX64.test(evidence.change.diffSha256) || !evidence.replacementDigest || !HEX64.test(evidence.replacementDigest)
-      || evidence.risk.riskClass !== "SAFE" || !evidence.risk.liveWorkspaceUnchanged || !evidence.risk.sandboxDiscarded
+      || evidence.risk.riskClass !== candidate.hypothesis.riskClass || !evidence.risk.liveWorkspaceUnchanged || !evidence.risk.sandboxDiscarded
       || evidence.targetGain < 1 || evidence.regressions.heldOutDelta < 0 || evidence.regressions.newlyFailingCaseIds.length > 0
       || evidence.regressions.suites.some((suite) => !suite.baselinePass || !suite.experimentPass)
       || !evidence.baseline || "error" in evidence.baseline || !evidence.experiment || "error" in evidence.experiment
@@ -96,17 +108,30 @@ export async function buildAyasControlledEvolutionProposalCandidate(input: AyasC
       || sha256(JSON.stringify(artifact.replacements.map(({ filePath, expectedHash, content }) => ({ filePath, expectedHash, content })))) !== evidence.replacementDigest
       || !HEX64.test(artifact.patchHash)) return null;
 
+    const exactProof = artifact.exactPatchSafetyProof;
+    if (exactReview) {
+      const replacement = artifact.replacements[0];
+      const file = candidate.strategy.exactFiles[0];
+      if (!replacement || !file || artifact.replacements.length !== 1 || !candidate.strategy.reviewedExactPatch
+        || !verifyAyasExactPatchSafetyProof(exactProof, candidate.strategy.reviewedExactPatch, {
+          baseHead: candidate.baseHead, exactFiles: candidate.strategy.exactFiles, registryDigest: candidate.registryDigest,
+          strategyId: candidate.strategy.strategyId, strategyVersion: candidate.strategy.version,
+          experimentId: record.experimentId, evidenceHash: record.evidenceHash,
+        }) || !verifyAyasReviewedExactPatch(candidate.strategy.reviewedExactPatch, file,
+          fs.readFileSync(path.join(input.repoRoot, file), "utf8"), replacement.content)) return null;
+    } else if (exactProof) return null;
+
     const after = await currentWorkspace(input.repoRoot).catch(() => null);
     if (!after?.clean || after.head !== before.head || after.branch !== before.branch) return null;
     return {
       objective: `Measured ${candidate.hypothesis.capability} improvement for owner review`,
       currentProblem: `${candidate.benchmark.benchmarkId} has ${candidate.hypothesis.targetCaseIds.length} measured failing target cases at ${candidate.baseHead}.`,
-      selectionReason: "Verified current-HEAD IMPROVED evidence and matching immutable SAFE patch artifact.",
+      selectionReason: "Verified current-HEAD IMPROVED evidence and matching immutable patch artifact.",
       expectedUserBenefit: `${evidence.targetGain} target cases improved; held-out delta ${evidence.regressions.heldOutDelta}; no newly failing cases.`,
       expectedBehaviorChange: candidate.hypothesis.expectedImprovement.statement,
       unchangedBehavior: "Approval and execution remain exclusively governed by the existing owner, inbox and execution gates.",
       riskIfNotDone: "A measured, bounded improvement remains unapplied.",
-      technicalRisk: `SAFE source-only scope; ${artifact.exactFiles.length} exact files, at most ${candidate.strategy.maxChangedLines} changed lines.`,
+      technicalRisk: `${exactProof ? "Path REVIEW_REQUIRED with exact effect proof" : "SAFE source-only scope"}; ${artifact.exactFiles.length} exact files, at most ${candidate.strategy.maxChangedLines} changed lines.`,
       productionImpact: "No production change before owner approval and guarded execution.",
       rationale: `Stage 15 opportunity ${candidate.opportunityId}; experiment ${record.experimentId}; hypothesis ${candidate.hypothesis.hypothesisId}; strategy ${candidate.strategy.strategyId}@${candidate.strategy.version}.`,
       evidence: [`opportunity:${candidate.opportunityId}`, `experiment:${record.experimentId}`, `evidenceSha256:${record.evidenceHash}`,
@@ -118,12 +143,13 @@ export async function buildAyasControlledEvolutionProposalCandidate(input: AyasC
       exactFiles: [...artifact.exactFiles],
       expectedDiffScope: `${artifact.exactFiles.join(", ")}; patch hash ${artifact.patchHash}`,
       testsPlanned: [...artifact.validatorScripts],
-      risk: "SAFE artifact; owner approval and guarded execution required",
+      risk: exactProof ? "Exact patch only; owner approval and guarded execution required" : "SAFE artifact; owner approval and guarded execution required",
       rank: 10_000,
       mutationKind: AYAS_PATCH_ARTIFACT_MUTATION_KIND,
       patchArtifactId: artifact.artifactId,
       patchHash: artifact.patchHash,
-      structuredImpact: AYAS_UNRESOLVED_STRUCTURED_IMPACT,
+      ...(exactProof ? { exactPatchSafetyProof: exactProof } : {}),
+      structuredImpact: exactProof ? EXACT_READ_SIDE_IMPACT : AYAS_UNRESOLVED_STRUCTURED_IMPACT,
       discoverySource: "LOCAL_DISCOVERY",
       sourceReference: candidate.opportunityId,
     };

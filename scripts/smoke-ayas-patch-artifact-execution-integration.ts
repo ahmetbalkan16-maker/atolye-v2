@@ -151,7 +151,10 @@ async function main() {
     // Directly corrupt the durable proposal's exactFiles after creation (simulating a hypothetical future bug elsewhere) — execution must still fail closed.
     const state = inbox.load();
     inbox.save({ ...state, proposals: state.proposals.map((p) => p.proposalId === proposal.proposalId ? { ...p, exactFiles: ["scripts/tampered.ts"] } : p) });
-    inbox.decide(proposal.proposalId, "APPROVE", "2026-09-16T09:01:00.000Z");
+    assert.throws(() => inbox.decide(proposal.proposalId, "APPROVE", "2026-09-16T09:01:00.000Z"),
+      "a changed proposal scope cannot mint a new approval");
+    const changed = inbox.load();
+    inbox.save({ ...changed, proposals: changed.proposals.map((p) => p.proposalId === proposal.proposalId ? { ...p, status: "APPROVED" } : p) });
     await assert.rejects(executeAyasApprovedProposalWith(proposal.proposalId, deps), (e: unknown) => e instanceof AyasProposalExecutionError && e.code === "AYAS_PATCH_ARTIFACT_MUTATION_SCOPE_MISMATCH");
   });
 
