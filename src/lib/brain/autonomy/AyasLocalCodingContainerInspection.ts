@@ -19,7 +19,8 @@ const empty = (value: unknown): boolean => value === null || value === undefined
  * Compare a real local engine's inspect JSON against the reviewed probe plan.
  * The caller must obtain inspect from the engine; model output is never evidence.
  */
-export function inspectAyasLocalCodingContainer(plan: AyasLocalCodingContainerPlan, inspected: unknown): AyasLocalCodingInspectionResult {
+export function inspectAyasLocalCodingContainer(plan: AyasLocalCodingContainerPlan, inspected: unknown,
+  phase: "run" | "retained-probe" = "run"): AyasLocalCodingInspectionResult {
   const root = object(inspected);
   const host = object(root?.HostConfig);
   const config = object(root?.Config);
@@ -35,7 +36,8 @@ export function inspectAyasLocalCodingContainer(plan: AyasLocalCodingContainerPl
     && env.includes("HOME=/tmp") && env.includes("ATOLYE_RUNTIME_ROOT=/tmp/runtime"));
   check("NETWORK", host.NetworkMode === "none" && empty(host.PortBindings) && host.PublishAllPorts === false
     && empty(host.ExtraHosts) && empty(host.Dns));
-  check("ROOT", host.ReadonlyRootfs === true && host.Privileged === false && host.AutoRemove === true);
+  check("ROOT", host.ReadonlyRootfs === true && host.Privileged === false
+    && host.AutoRemove === (phase === "run"));
   check("CAPABILITIES", array(host.CapDrop).includes("ALL") && empty(host.CapAdd)
     && array(host.SecurityOpt).includes("no-new-privileges"));
   check("PROCESS", (host.PidMode === "" || host.PidMode === "private")

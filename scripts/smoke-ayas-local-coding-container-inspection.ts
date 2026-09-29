@@ -18,6 +18,10 @@ const good = {
     { Type: "tmpfs", Source: "", Destination: "/tmp", RW: true }],
 };
 assert.deepEqual(inspectAyasLocalCodingContainer(plan, good), { configMatchesPlan: true, mismatches: [] });
+const retained = structuredClone(good);
+retained.HostConfig.AutoRemove = false;
+assert.equal(inspectAyasLocalCodingContainer(plan, retained, "retained-probe").configMatchesPlan, true);
+assert.equal(inspectAyasLocalCodingContainer(plan, retained).configMatchesPlan, false);
 const clone = () => structuredClone(good);
 const tamper: Array<(item: typeof good) => void> = [
   (x) => { x.Config.Image = "local/ayas-coder:latest"; },
@@ -48,4 +52,4 @@ for (const mutate of tamper) {
   assert.ok(result.mismatches.length > 0);
 }
 assert.equal(inspectAyasLocalCodingContainer(plan, null).configMatchesPlan, false);
-console.log(JSON.stringify({ status: "PASS", suite: "ayas-local-coding-container-inspection", scenarios: tamper.length + 2, evidence: "synthetic-config-only" }));
+console.log(JSON.stringify({ status: "PASS", suite: "ayas-local-coding-container-inspection", scenarios: tamper.length + 4, evidence: "synthetic-config-only" }));

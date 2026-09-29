@@ -19,3 +19,9 @@ This is a construction check, **not** hard-sandbox admission. It runs no image a
 ## 15A.2b Engine inspection contract
 
 `AyasLocalCodingContainerInspection` compares local engine `inspect` data to the fixed plan. It rejects image/entrypoint/user/env mismatches, host networking or published ports, writable root/workspace, elevated capabilities, host process namespace, missing resource caps, devices, extra mounts and unsafe tmpfs. Synthetic positive and adversarial fixtures verify the structural comparison only. Neither task/model output nor this comparator can mint an execution permit. An actual locally executed image, engine inspection and independent containment probes remain required.
+
+## 15A.2c Local engine diagnostic harness
+
+`AyasLocalCodingEngineProbe` is a bounded diagnostic sequence: verify locally present image digest, start the pinned probe image without pull/network, wait for its exit, compare engine `inspect` output to the fixed plan, evaluate the fixed probe report, and remove only its randomly named container even after failure. The retained probe requires `AutoRemove=false` during inspection and explicit cleanup; the ordinary plan still requires `AutoRemove=true`. Command failure, missing digest, nonzero probe exit, unsafe engine configuration and incomplete probe report refuse. The production wrapper requires a reviewed absolute local CLI binary/hash and forces the local Docker endpoint with an empty CLI config root.
+
+The reviewed engine registry is intentionally empty on this machine. The harness therefore returns `LOCAL_ENGINE_UNAVAILABLE`; its positive test uses a synthetic runner and is not containment evidence. No execution permit, adapter activation, image installation or model qualification was created. Actual hard-sandbox proof remains pending an owner-reviewed local engine/image; independent Stage 15A benchmark and artifact work can continue.
