@@ -2,37 +2,18 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "aa00fe26e458030a9331c943f855ee0394ab8587",
-  "currentHead": "aa00fe26e458030a9331c943f855ee0394ab8587",
+  "lastGreenHead": "960b8837d465cdfda17a1adde09401a65a50b6ed",
+  "currentHead": "960b8837d465cdfda17a1adde09401a65a50b6ed",
   "stage": "STAGE_15",
-  "subtask": "15.7-exact-diff-effect-bound-safety-prerequisite",
+  "subtask": "15.7-machine-telemetry-admission-fix",
   "status": "IN_PROGRESS",
   "completedStages": ["PHASE_0_LOCAL_CODE"],
   "completedSubtasks": ["canonical-package-import", "conversation-safe-remediation", "temporal-plan-supersession", "system-static-remediation", "safe-ci", "runtime-health-evidence", "phone-model-immutable-pinning", "15.1-generic-experiment-primitive", "15.2-evidence-source-binding", "15.3-pure-current-truth-planner", "15.4-immutable-patch-artifact-promotion", "15.5-proposal-bridge", "15.6-discovery-daemon-wiring", "15.7-temporal-test-contract-migration"],
   "currentFiles": [
     "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
     "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/STAGE15_7_OWNER_REVIEW_PACKET.md",
-    "src/lib/brain/selfheal/AyasExactPatchSafety.ts",
-    "src/lib/brain/autonomy/AyasExactProposalSafety.ts",
-    "src/lib/brain/autonomy/AyasResearchExperimentRegistry.ts",
-    "src/lib/ayas/evolution/AyasControlledSelfEvolution.ts",
-    "src/lib/ayas/evolution/AyasControlledSelfEvolutionCycle.ts",
-    "src/lib/ayas/evolution/AyasControlledSelfEvolutionArtifact.ts",
-    "src/lib/ayas/evolution/AyasControlledSelfEvolutionBridge.ts",
-    "src/lib/brain/autonomy/AyasPatchArtifact.ts",
-    "src/lib/brain/autonomy/AyasApprovalInboxStore.ts",
-    "src/lib/brain/autonomy/AyasAutonomyDaemon.ts",
-    "src/lib/brain/autonomy/AyasAutonomousExecutionGate.ts",
-    "src/lib/brain/autonomy/AyasInternalDecision.ts",
-    "src/lib/brain/autonomy/AyasOwnerApprovalResume.ts",
-    "src/lib/brain/autonomy/AyasPatchArtifactMutation.ts",
-    "src/lib/brain/autonomy/AyasProposalApprovalService.ts",
-    "src/lib/brain/autonomy/AyasProposalExecutionService.ts",
-    "scripts/smoke-ayas-exact-patch-safety.ts",
-    "scripts/smoke-ayas-exact-proposal-safety.ts",
-    "scripts/smoke-ayas-patch-artifact-execution-integration.ts",
-    "scripts/smoke-ayas-proposal-approval-service.ts"
+    "src/lib/ayas/machine/AyasMachineTelemetry.ts",
+    "scripts/smoke-ayas-machine-health.ts"
   ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
@@ -57,7 +38,7 @@
     "Stage 15.7 exact-diff safety prerequisite: exact patch 19, isolated proposal/artifact 28, Stage 8 28+8/55+5 on stable index, Stage 13 110, temporal 52, memory 30, retrieval 74, conversation 37, cognitive baseline 53/55 and held-out 4/5, targeted approval/artifact/execution, TypeScript, changed-file lint and diff check PASS; Graphify tracked-source 15599 nodes/45382 edges, integrity zero, source HEAD aa00fe2. Exact proof is refused by automatic commit/push publication and remote resume; its two security verifier modules are FORBIDDEN_AUTONOMOUS."
   ],
   "graphify": {
-    "head": "aa00fe26e458030a9331c943f855ee0394ab8587",
+    "head": "960b8837d465cdfda17a1adde09401a65a50b6ed",
     "stale": false,
     "needsUpdate": false,
     "duplicateNodes": 0,
@@ -67,6 +48,6 @@
     "semanticPending": true
   },
   "blockers": ["External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority."],
-  "nextAction": "Commit the verified Stage 15.7 exact-diff safety prerequisite locally, rebind Graphify to the new HEAD, then run the real clean-tree Stage 8 controlled cycle to create durable evidence, immutable artifact and normal owner proposal. Do not push or promote temporal source outside the normal proposal/execution chain.",
+  "nextAction": "Commit the validated four-file Windows CPU telemetry admission fix locally, rebind Graphify to that HEAD, then retry the real clean-tree Stage 8 controlled cycle for durable evidence, immutable artifact and normal owner proposal. Do not push or promote temporal source outside the normal proposal/execution chain.",
   "updatedAt": "2026-09-29T00:00:00+03:00"
 }

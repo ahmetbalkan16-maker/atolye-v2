@@ -52,6 +52,13 @@ export async function collectAyasMachineTelemetry(deps: AyasMachineTelemetryDeps
       : output.split(/\s+/).map(Number).filter(Number.isFinite);
     if (values.length) cpuPercent = Math.min(100, values.reduce((sum, value) => sum + value, 0) / (platform === "win32" ? values.length : Math.max(1, os.cpus().length)));
   } catch { /* optional OS command */ }
+  // WMIC is absent on some Windows installations. Sample the same host's
+  // cumulative CPU times; an invalid sample stays unavailable and THROTTLEs.
+  if (cpuPercent === undefined && platform === "win32" && !deps.run) {
+    const before = os.cpus();
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    cpuPercent = ayasCpuPercentFromSamples(before, os.cpus());
+  }
   if (cpuPercent === undefined) unavailable.push("cpu");
 
   let gpuPercent: number | undefined;
@@ -87,6 +94,23 @@ export async function collectAyasMachineTelemetry(deps: AyasMachineTelemetryDeps
     ...(localModelRunning === undefined ? {} : { localModelRunning }),
     unavailable: Object.freeze(unavailable),
   });
+}
+
+export function ayasCpuPercentFromSamples(before: readonly os.CpuInfo[], after: readonly os.CpuInfo[]): number | undefined {
+  if (before.length === 0 || before.length !== after.length) return undefined;
+  let idle = 0;
+  let total = 0;
+  // Windows can redistribute idle ticks between logical cores. Aggregate
+  // first, then reject a negative or non-finite host-wide delta.
+  for (const key of ["user", "nice", "sys", "idle", "irq"] as const) {
+    const start = before.reduce((sum, core) => sum + core.times[key], 0);
+    const end = after.reduce((sum, core) => sum + core.times[key], 0);
+    const delta = end - start;
+    if (!Number.isFinite(delta) || delta < 0) return undefined;
+    total += delta;
+    if (key === "idle") idle += delta;
+  }
+  return total > 0 ? Number(Math.max(0, Math.min(100, 100 * (1 - idle / total))).toFixed(2)) : undefined;
 }
 
 async function runLocal(file: string, args: readonly string[]): Promise<string> {
