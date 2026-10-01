@@ -74,3 +74,79 @@ export function canonicalAyasCapabilityScope(scope: AyasCapabilityScope): string
     scope.resource.projectSlug, scope.costClass, scope.classification,
   ]);
 }
+
+/** Data only: the existing owner decision/reservation remains the authority. */
+export interface AyasOwnerCapabilityRequest {
+  readonly action: "self-development.apply-approved-proposal";
+  readonly proposalId: string;
+  readonly proposalHash: string;
+  readonly baseHead: string;
+  readonly exactFiles: readonly string[];
+  readonly mutationKind: string;
+  readonly authorizationId: string;
+  readonly reservationId: string;
+}
+export interface AyasOwnerCapabilityProof {
+  /** The app has one shared-passcode owner role, no named user accounts. */
+  readonly ownerId: "shared-passcode-owner";
+  readonly decisionId: string;
+  readonly reservedAt: string;
+  readonly request: AyasOwnerCapabilityRequest;
+}
+export interface AyasOwnerCapabilityScope {
+  readonly schemaVersion: "1";
+  readonly agentId: "ayas-server";
+  readonly runId: string;
+  readonly taskId: string;
+  readonly ownerId: AyasOwnerCapabilityProof["ownerId"];
+  readonly delegationId: string;
+  readonly capabilities: readonly [AyasOwnerCapabilityRequest["action"]];
+  readonly resource: { readonly repoRoot: string; readonly platform: "LOCAL"; readonly request: AyasOwnerCapabilityRequest };
+  readonly costClass: "ZERO_LOCAL";
+  readonly classification: "WRITE";
+}
+export interface AyasOwnerCapabilityLeaseAudit {
+  readonly leaseId: string;
+  readonly scope: AyasOwnerCapabilityScope;
+  readonly createdAt: string;
+  readonly expiresAt: string;
+  readonly state: "granted" | "consumed" | "revoked";
+  readonly consumedAt?: string;
+}
+const ID = /^[a-zA-Z0-9._:-]{1,200}$/;
+export function isAyasOwnerCapabilityRequest(raw: unknown): raw is AyasOwnerCapabilityRequest {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+  const r = raw as Record<string, unknown>;
+  return exactKeys(r, ["action", "proposalId", "proposalHash", "baseHead", "exactFiles", "mutationKind", "authorizationId", "reservationId"]) &&
+    r.action === "self-development.apply-approved-proposal" && [r.proposalId, r.mutationKind, r.authorizationId, r.reservationId].every((id) => typeof id === "string" && ID.test(id)) &&
+    typeof r.proposalHash === "string" && HASH.test(r.proposalHash) && typeof r.baseHead === "string" && /^[a-f0-9]{40,64}$/.test(r.baseHead) &&
+    Array.isArray(r.exactFiles) && r.exactFiles.length > 0 && r.exactFiles.length <= 100 && new Set(r.exactFiles).size === r.exactFiles.length &&
+    r.exactFiles.every((f) => typeof f === "string" && f.length > 0 && f.length <= 4096 && !/[\\:\0]/.test(f) &&
+      !f.startsWith("/") && f !== "." && f !== ".." && !f.startsWith("../") && path.posix.normalize(f) === f);
+}
+export function canonicalAyasOwnerCapabilityRequest(r: AyasOwnerCapabilityRequest): string {
+  return JSON.stringify([r.action, r.proposalId, r.proposalHash, r.baseHead, r.exactFiles, r.mutationKind, r.authorizationId, r.reservationId]);
+}
+export function canonicalAyasOwnerCapabilityScope(s: AyasOwnerCapabilityScope): string {
+  return JSON.stringify([s.schemaVersion, s.agentId, s.runId, s.taskId, s.ownerId, s.delegationId, s.capabilities,
+    s.resource.repoRoot, s.resource.platform, canonicalAyasOwnerCapabilityRequest(s.resource.request), s.costClass, s.classification]);
+}
+export function isAyasOwnerCapabilityLeaseAudit(raw: unknown): raw is AyasOwnerCapabilityLeaseAudit {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+  const a = raw as Record<string, unknown>;
+  const consumed = a.state === "consumed";
+  if (!exactKeys(a, ["leaseId", "scope", "createdAt", "expiresAt", "state", ...(consumed ? ["consumedAt"] : [])]) ||
+      typeof a.leaseId !== "string" || !UUID.test(a.leaseId) || !["granted", "consumed", "revoked"].includes(String(a.state)) ||
+      typeof a.createdAt !== "string" || typeof a.expiresAt !== "string" || !a.scope || typeof a.scope !== "object" || Array.isArray(a.scope)) return false;
+  const start = Date.parse(a.createdAt), end = Date.parse(a.expiresAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - start > AYAS_CAPABILITY_MAX_TTL_MS ||
+      (consumed && (typeof a.consumedAt !== "string" || !Number.isFinite(Date.parse(a.consumedAt)) || Date.parse(a.consumedAt) < start || Date.parse(a.consumedAt) >= end))) return false;
+  const s = a.scope as Record<string, unknown>;
+  if (!exactKeys(s, ["schemaVersion", "agentId", "runId", "taskId", "ownerId", "delegationId", "capabilities", "resource", "costClass", "classification"]) ||
+      s.schemaVersion !== "1" || s.agentId !== "ayas-server" || typeof s.runId !== "string" || !UUID.test(s.runId) || typeof s.taskId !== "string" || !UUID.test(s.taskId) ||
+      s.ownerId !== "shared-passcode-owner" || typeof s.delegationId !== "string" || !ID.test(s.delegationId) || s.costClass !== "ZERO_LOCAL" || s.classification !== "WRITE" ||
+      !Array.isArray(s.capabilities) || s.capabilities.length !== 1 || s.capabilities[0] !== "self-development.apply-approved-proposal" ||
+      !s.resource || typeof s.resource !== "object" || Array.isArray(s.resource)) return false;
+  const r = s.resource as Record<string, unknown>;
+  return exactKeys(r, ["repoRoot", "platform", "request"]) && isAyasLocalCapabilityRoot(r.repoRoot) && r.platform === "LOCAL" && isAyasOwnerCapabilityRequest(r.request);
+}

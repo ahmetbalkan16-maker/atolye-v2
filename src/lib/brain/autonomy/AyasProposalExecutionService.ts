@@ -96,6 +96,7 @@ export async function executeAyasApprovedProposalWith(proposalId: string, deps: 
   await daemon.executeApproved({
     proposalId: proposal.proposalId,
     proposalHash: proposal.proposalHash,
+    mutationKind: proposal.mutationKind,
     baseHead: proposal.baseHead,
     currentHead,
     exactFiles: proposal.exactFiles,

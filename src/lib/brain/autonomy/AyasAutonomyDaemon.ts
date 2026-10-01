@@ -18,8 +18,10 @@ import type { AyasProposalStructuredImpact } from "./AyasProposalImpact";
 import { createAyasIsolatedGateRoot, type AyasIsolatedGateRoot } from "./AyasIsolatedGateRoot";
 import { withAyasExecutionAuthorityLock } from "./AyasExecutionAuthorityLock";
 import { revalidateAyasExecution, type AyasExecutionRevalidationDeps } from "./AyasExecutionRevalidation";
-import { createAyasMutationBoundary } from "./AyasMutationScope";
+import { canonicalizeAyasExactFiles, createAyasMutationBoundary } from "./AyasMutationScope";
 import { classifyAyasRestartRecovery } from "./AyasExecutionRecoveryPolicy";
+import { createAyasActionFirewall } from "../../ayas/execution/AyasActionFirewall";
+import type { AyasOwnerCapabilityLeaseAudit, AyasOwnerCapabilityRequest } from "../../ayas/execution/AyasCapabilityScope";
 
 export const ayasAutonomyDaemonSchemaVersion = "1" as const;
 export type AyasAutonomyDaemonPhase = "STARTING" | "OBSERVING" | "PROPOSAL_PENDING" | "WAITING_APPROVAL" | "APPROVED_PENDING_EXECUTION" | "EXECUTING" | "WAITING_REVIEW" | "DEFERRED" | "PAUSED_MACHINE_HEALTH" | "PAUSED_DIRTY_REPO" | "BACKOFF" | "ERROR" | "STOPPED";
@@ -138,7 +140,9 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
     transition(decision === "APPROVE" ? "APPROVED_PENDING_EXECUTION" : decision === "LATER" ? "DEFERRED" : "OBSERVING", { activeProposalId: proposalId });
     return result.proposal;
   };
-  const executeApproved = async (input: { readonly proposalId: string; readonly proposalHash: string; readonly baseHead: string; readonly currentHead: string; readonly exactFiles: readonly string[]; readonly currentExactFiles: readonly string[]; readonly repoClean: boolean; readonly deferredPublication?: boolean; readonly onDeferredReceipt?: (receipt: AyasDeferredPublicationReceipt) => void; readonly applyWhileExecuting: (authorizationId: string) => Promise<{ readonly changedFiles: readonly string[]; readonly diffFingerprint: string; readonly testsRun: readonly string[]; readonly testResults: readonly string[] }>; }): Promise<AyasInboxProposal> => {
+  const executeApproved = async (input: { readonly mutationKind?: string; readonly proposalId: string; readonly proposalHash: string; readonly baseHead: string; readonly currentHead: string; readonly exactFiles: readonly string[]; readonly currentExactFiles: readonly string[]; readonly repoClean: boolean; readonly deferredPublication?: boolean; readonly onDeferredReceipt?: (receipt: AyasDeferredPublicationReceipt) => void; readonly applyWhileExecuting: (authorizationId: string) => Promise<{ readonly changedFiles: readonly string[]; readonly diffFingerprint: string; readonly testsRun: readonly string[]; readonly testResults: readonly string[] }>; }): Promise<AyasInboxProposal> => {
+    // Isolate authority scope from caller arrays while asynchronous checks are running.
+    input = { ...input, mutationKind: input.mutationKind ?? inbox.load().proposals.find((p) => p.proposalId === input.proposalId)?.mutationKind, exactFiles: Object.freeze([...input.exactFiles]), currentExactFiles: Object.freeze([...input.currentExactFiles]) };
     if (!input.repoClean) { transition("PAUSED_DIRTY_REPO", { lastError: "working tree became dirty before execution" }); throw new Error("AYAS_DAEMON_DIRTY_REPO"); }
     if (!isolatedGateRoot) throw new Error("AYAS_DAEMON_DEVELOPMENT_GATE_ROOT_REQUIRED");
     if (input.currentHead !== input.baseHead) { transition("ERROR", { lastError: "proposal HEAD is stale" }); throw new Error("AYAS_DAEMON_STALE_HEAD"); }
@@ -152,7 +156,7 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
     const executionId = `ayas-exec-${crypto.randomUUID()}`;
     const journal = createAyasExecutionJournal({ rootDir: isolatedGateRoot });
     const startedAt = now();
-    const journalContext: { authorizationId?: string; reservationId?: string } = {};
+    const journalContext: { authorizationId?: string; reservationId?: string; capabilityLease?: AyasOwnerCapabilityLeaseAudit } = {};
     const writeJournal = (phase: AyasExecutionJournalPhase, extra: { readonly gateSequence?: number; readonly mutationFingerprint?: string; readonly lastError?: string; readonly changedFiles?: readonly string[]; readonly testsRun?: readonly string[]; readonly testResults?: readonly string[]; readonly mutationCompletedAt?: string } = {}): void => {
       journal.record({
         schemaVersion: ayasExecutionJournalSchemaVersion,
@@ -166,6 +170,7 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
         updatedAt: now(),
         ...(journalContext.authorizationId ? { authorizationId: journalContext.authorizationId } : {}),
         ...(journalContext.reservationId ? { reservationId: journalContext.reservationId } : {}),
+        ...(journalContext.capabilityLease ? { capabilityLease: journalContext.capabilityLease } : {}),
         ...extra,
       });
       options.onJournalPhase?.(phase);
@@ -195,10 +200,46 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
         record = applyVerifiedGateTransition(gate, { event: "open", activationAuthorizationId: reservation.authorizationId }, "OPEN");
         writeJournal("GATE_OPEN", { gateSequence: record.sequence });
         await revalidateAyasExecution(binding, validationDeps);
+        // This adapter reads ONLY the already-reserved owner decision. It cannot approve,
+        // widen scope or mint an alternative authorization. Both journal writes occur while
+        // holding the existing authority lock; restart never reconstructs its live handle.
+        const readOwnerProof = () => {
+          const current = inbox.load();
+          const proposal = current.proposals.find((p) => p.proposalId === input.proposalId);
+          const decision = [...current.decisions].reverse().find((d) => d.proposalId === input.proposalId);
+          if (!proposal || proposal.status !== "RESERVED" || proposal.safetyClassification !== "SAFE" || proposal.estimatedCost !== "zero-cost" ||
+              proposal.proposalHash !== binding.proposalHash || proposal.baseHead !== binding.baseHead || !proposal.mutationKind || proposal.mutationKind !== input.mutationKind ||
+              !decision || decision.decision !== "APPROVE" || decision.decisionId !== reservation.decisionId || decision.proposalHash !== binding.proposalHash ||
+              decision.authorizationId !== reservation.authorizationId || decision.reservationId !== reservation.reservationId || !decision.reservedAt ||
+              decision.finalizedAt || decision.authorizationConsumedAt) return undefined;
+          const exactFiles = canonicalizeAyasExactFiles(repoRoot, proposal.exactFiles);
+          if (JSON.stringify(exactFiles) !== JSON.stringify(canonicalizeAyasExactFiles(repoRoot, binding.exactFiles))) return undefined;
+          const request: AyasOwnerCapabilityRequest = { action: "self-development.apply-approved-proposal", proposalId: proposal.proposalId,
+            proposalHash: proposal.proposalHash, baseHead: proposal.baseHead, exactFiles, mutationKind: proposal.mutationKind,
+            authorizationId: reservation.authorizationId, reservationId: reservation.reservationId };
+          return { ownerId: "shared-passcode-owner" as const, decisionId: decision.decisionId, reservedAt: decision.reservedAt, request };
+        };
+        const firewall = createAyasActionFirewall({ repoRoot, now: () => new Date(now()), ownerReservation: {
+          readProof: readOwnerProof,
+          readLease: () => journal.read(executionId)?.capabilityLease,
+          recordLease: (lease) => {
+            if (gate.read().state !== "OPEN" || journal.read(executionId)?.phase !== "GATE_OPEN") throw new Error("AYAS_DAEMON_LEASE_GATE_CHANGED");
+            journalContext.capabilityLease = lease;
+            writeJournal("GATE_OPEN", { gateSequence: record.sequence });
+          },
+        } });
+        const ownerRequest = readOwnerProof()?.request;
+        const issued = firewall.bindOwnerReservation(ownerRequest);
+        if (!issued.allowed) throw new Error(issued.reason);
+        // The mutation boundary can await Git. Re-check owner, repository and health after
+        // that wait, then consume the lease durably immediately before entering execution.
+        const boundary = await createAyasMutationBoundary(repoRoot, input.exactFiles);
+        await revalidateAyasExecution(binding, validationDeps);
+        const admitted = firewall.admitOwnerReservation(issued.lease, ownerRequest);
+        if (!admitted.allowed) throw new Error(admitted.reason);
         record = applyVerifiedGateTransition(gate, { event: "begin-execution" }, "EXECUTING");
         writeJournal("EXECUTING", { gateSequence: record.sequence });
 
-        const boundary = await createAyasMutationBoundary(repoRoot, input.exactFiles);
         const reported = await input.applyWhileExecuting(reservation.authorizationId);
         const actual = await boundary.verify();
         const executedProposal = inbox.load().proposals.find((entry) => entry.proposalId === input.proposalId);

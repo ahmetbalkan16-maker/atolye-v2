@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { AyasExecutionAuthorizationError, AyasExecutionAuthorizationStore } from "./AyasExecutionAuthorization";
 import { ayasCapabilityRequestDigest, ayasLocalActionClassification, canonicalAyasCapabilityScope, isAyasLocalCapabilityRoot, type AyasActionFirewallDecision, type AyasCapabilityScope } from "./AyasCapabilityScope";
 import { AYAS_EXECUTION_RESERVED_ACTIONS, validateAyasExecutionRequest, type AyasExecutionRequest } from "./AyasExecutionPolicy";
+import { AYAS_CAPABILITY_MAX_TTL_MS, canonicalAyasOwnerCapabilityRequest, canonicalAyasOwnerCapabilityScope, isAyasOwnerCapabilityRequest, isAyasOwnerCapabilityLeaseAudit, type AyasOwnerCapabilityProof, type AyasOwnerCapabilityRequest, type AyasOwnerCapabilityLeaseAudit } from "./AyasCapabilityScope";
 
 /** Opaque server object. Its serialization/clone has no authority; even a real handle from another run is refused. */
 declare const leaseBrand: unique symbol;
@@ -32,14 +33,22 @@ interface IssuedLease {
 export interface AyasActionFirewallOptions {
   /** Trusted code only. Must be the root the adapter actually uses, never a request field. */
   readonly repoRoot: string;
-  readonly authorizations: AyasExecutionAuthorizationStore;
+  readonly authorizations?: AyasExecutionAuthorizationStore;
   /** Trusted adapter resolver, re-evaluated at admission. Project/catalog targets fail closed if absent. */
   readonly resolveResourceRoot?: (request: AyasExecutionRequest) => string;
+  /** Server-owned adapter over the EXISTING reserved approval and journal, held under its authority lock. */
+  readonly ownerReservation?: {
+    readProof(): AyasOwnerCapabilityProof | undefined;
+    readLease(): AyasOwnerCapabilityLeaseAudit | undefined;
+    recordLease(lease: AyasOwnerCapabilityLeaseAudit): void;
+  };
+  readonly now?: () => Date;
 }
 
 /**
  * Stage 15D additive admission layer over the ONE existing authorization store/allowlist.
- * No write activation, financial issuer, owner approval state or alternative authority store.
+ * No financial issuer, new owner approval state or alternative authority store.
+ * Existing owner reservations may bind one local mutation through their original journal/lock.
  * Instantiate once per bounded server task. A restart loses all live handles; durable records
  * remain audit evidence and never silently restore authority. Call admit immediately before dispatch.
  */
@@ -50,6 +59,8 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
   const taskId = crypto.randomUUID();
   const leases = new WeakMap<object, IssuedLease>();
   const attachedAuthorizationIds = new Set<string>();
+  const ownerLeases = new WeakMap<object, { audit: AyasOwnerCapabilityLeaseAudit; consumed: boolean; revoked: boolean }>();
+  const now = options.now ?? (() => new Date());
 
   function snapshotRequest(raw: unknown): AyasExecutionRequest | undefined {
     const validated = validateAyasExecutionRequest(raw);
@@ -92,7 +103,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
   /** Pure classification is informative, never a permission. Reserved effects retain owner control. */
   function classify(raw: unknown): AyasActionFirewallDecision {
     const action = raw && typeof raw === "object" ? (raw as { action?: unknown }).action : undefined;
-    if (typeof action === "string" && AYAS_EXECUTION_RESERVED_ACTIONS.includes(action)) return "REQUIRE_OWNER";
+    if (action === "self-development.apply-approved-proposal" || (typeof action === "string" && AYAS_EXECUTION_RESERVED_ACTIONS.includes(action))) return "REQUIRE_OWNER";
     const v = validateAyasExecutionRequest(raw);
     if (!v.ok) return "DENY";
     const classification = ayasLocalActionClassification(v.request.action);
@@ -104,6 +115,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
     const decision = classify(raw);
     if (decision === "DENY" || decision === "REQUIRE_OWNER") return refuse("AYAS_FIREWALL_SCOPE_NOT_ISSUABLE", decision);
     try {
+      if (!options.authorizations) return refuse("AYAS_FIREWALL_AUTHORITY_UNAVAILABLE");
       const request = snapshotRequest(raw);
       if (!request) return refuse("AYAS_FIREWALL_REQUEST_INVALID");
       const scope = scopeFor(request);
@@ -123,6 +135,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
     if (issued.revoked) return refuse("AYAS_EXEC_AUTH_REVOKED");
     if (issued.consumed) return refuse("AYAS_FIREWALL_REPLAY");
     try {
+      if (!options.authorizations) return refuse("AYAS_FIREWALL_AUTHORITY_UNAVAILABLE");
       const request = snapshotRequest(raw);
       if (!request) return refuse("AYAS_FIREWALL_REQUEST_INVALID");
       // Resolve the adapter root again. A changed symlink/root is not the resource that received this lease.
@@ -146,9 +159,70 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
   function revoke(lease: unknown): AyasActionFirewallRefusal | { readonly allowed: true } {
     const issued = lease && typeof lease === "object" ? leases.get(lease) : undefined;
     if (!issued) return refuse("AYAS_FIREWALL_HANDLE_UNKNOWN");
-    try { options.authorizations.revoke(issued.authorizationId); issued.revoked = true; return { allowed: true }; }
+    try { if (!options.authorizations) return refuse("AYAS_FIREWALL_AUTHORITY_UNAVAILABLE"); options.authorizations.revoke(issued.authorizationId); issued.revoked = true; return { allowed: true }; }
     catch { return refuse("AYAS_FIREWALL_REVOCATION_FAILED"); }
   }
 
-  return Object.freeze({ classify, issue, admit, revoke });
+  function ownerProof(raw: unknown): AyasOwnerCapabilityProof | undefined {
+    if (!isAyasOwnerCapabilityRequest(raw)) return undefined;
+    const proof = options.ownerReservation?.readProof();
+    if (!proof || proof.ownerId !== "shared-passcode-owner" || !isAyasOwnerCapabilityRequest(proof.request) ||
+        canonicalAyasOwnerCapabilityRequest(proof.request) !== canonicalAyasOwnerCapabilityRequest(raw)) return undefined;
+    return proof;
+  }
+  function ownerClock(audit: AyasOwnerCapabilityLeaseAudit): boolean {
+    const t = now().getTime();
+    return Number.isFinite(t) && t >= Date.parse(audit.createdAt) && t < Date.parse(audit.expiresAt);
+  }
+  function bindOwnerReservation(raw: unknown): AyasActionFirewallRefusal | { readonly allowed: true; readonly lease: AyasCapabilityLeaseHandle } {
+    try {
+      const adapter = options.ownerReservation;
+      const proof = ownerProof(raw);
+      if (!adapter || !proof) return refuse("AYAS_FIREWALL_OWNER_PROOF_REQUIRED", "REQUIRE_OWNER");
+      if (adapter.readLease()) return refuse("AYAS_FIREWALL_REPLAY");
+      const request = Object.freeze({ ...proof.request, exactFiles: Object.freeze([...proof.request.exactFiles]) });
+      const audit: AyasOwnerCapabilityLeaseAudit = {
+        leaseId: crypto.randomUUID(), createdAt: proof.reservedAt, expiresAt: new Date(Date.parse(proof.reservedAt) + AYAS_CAPABILITY_MAX_TTL_MS).toISOString(), state: "granted",
+        scope: { schemaVersion: "1", agentId: "ayas-server", runId, taskId, ownerId: proof.ownerId, delegationId: proof.decisionId,
+          capabilities: [request.action], resource: { repoRoot, platform: "LOCAL", request }, costClass: "ZERO_LOCAL", classification: "WRITE" },
+      };
+      if (!isAyasOwnerCapabilityLeaseAudit(audit) || !ownerClock(audit)) return refuse("AYAS_FIREWALL_OWNER_LEASE_EXPIRED");
+      // Record a plain detached snapshot; a tool/adapter retaining it cannot mutate captured authority.
+      adapter.recordLease(JSON.parse(JSON.stringify(audit)) as AyasOwnerCapabilityLeaseAudit);
+      const lease = Object.freeze(Object.create(null)) as AyasCapabilityLeaseHandle;
+      ownerLeases.set(lease, { audit, consumed: false, revoked: false });
+      return { allowed: true, lease };
+    } catch { return refuse("AYAS_FIREWALL_OWNER_BIND_FAILED"); }
+  }
+  function admitOwnerReservation(lease: unknown, raw: unknown): AyasActionFirewallRefusal | { readonly allowed: true; readonly decision: "ALLOW_BOUNDED_LOCAL"; readonly request: AyasOwnerCapabilityRequest } {
+    const issued = lease && typeof lease === "object" ? ownerLeases.get(lease) : undefined;
+    if (!issued) return refuse("AYAS_FIREWALL_HANDLE_UNKNOWN");
+    if (issued.revoked) return refuse("AYAS_EXEC_AUTH_REVOKED");
+    if (issued.consumed) return refuse("AYAS_FIREWALL_REPLAY");
+    try {
+      const adapter = options.ownerReservation;
+      const proof = ownerProof(raw);
+      if (!adapter || !proof) return refuse("AYAS_FIREWALL_OWNER_PROOF_REQUIRED", "REQUIRE_OWNER");
+      const current = adapter.readLease();
+      if (!current || !isAyasOwnerCapabilityLeaseAudit(current) || current.state !== "granted" || current.leaseId !== issued.audit.leaseId ||
+          current.createdAt !== issued.audit.createdAt || current.expiresAt !== issued.audit.expiresAt || proof.reservedAt !== issued.audit.createdAt ||
+          canonicalAyasOwnerCapabilityRequest(proof.request) !== canonicalAyasOwnerCapabilityRequest(issued.audit.scope.resource.request) ||
+          proof.decisionId !== issued.audit.scope.delegationId || canonicalAyasOwnerCapabilityScope(current.scope) !== canonicalAyasOwnerCapabilityScope(issued.audit.scope) ||
+          fs.realpathSync(options.repoRoot) !== repoRoot) return refuse("AYAS_FIREWALL_OWNER_SCOPE_CHANGED");
+      if (!ownerClock(issued.audit)) return refuse("AYAS_FIREWALL_OWNER_LEASE_EXPIRED");
+      const consumed: AyasOwnerCapabilityLeaseAudit = { ...issued.audit, state: "consumed", consumedAt: now().toISOString() };
+      if (!isAyasOwnerCapabilityLeaseAudit(consumed)) return refuse("AYAS_FIREWALL_OWNER_LEASE_EXPIRED");
+      adapter.recordLease(JSON.parse(JSON.stringify(consumed)) as AyasOwnerCapabilityLeaseAudit);
+      issued.consumed = true;
+      return { allowed: true, decision: "ALLOW_BOUNDED_LOCAL", request: issued.audit.scope.resource.request };
+    } catch { return refuse("AYAS_FIREWALL_OWNER_ADMISSION_FAILED"); }
+  }
+  function revokeOwnerReservation(lease: unknown): AyasActionFirewallRefusal | { readonly allowed: true } {
+    const issued = lease && typeof lease === "object" ? ownerLeases.get(lease) : undefined;
+    if (!issued) return refuse("AYAS_FIREWALL_HANDLE_UNKNOWN");
+    if (issued.consumed) return refuse("AYAS_FIREWALL_REPLAY");
+    try { options.ownerReservation!.recordLease(JSON.parse(JSON.stringify({ ...issued.audit, state: "revoked" })) as AyasOwnerCapabilityLeaseAudit); issued.revoked = true; return { allowed: true }; }
+    catch { return refuse("AYAS_FIREWALL_REVOCATION_FAILED"); }
+  }
+  return Object.freeze({ classify, issue, admit, revoke, bindOwnerReservation, admitOwnerReservation, revokeOwnerReservation });
 }

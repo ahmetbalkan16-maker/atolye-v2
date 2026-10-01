@@ -171,6 +171,7 @@ export async function executeAyasApprovedMicroBatchWith(batchId: string, deps: A
 
   let receipt: AyasDeferredPublicationReceipt | undefined;
   await daemon.executeApproved({
+    mutationKind: "micro-batch:v1",
     proposalId: batch.batchId,
     proposalHash: batch.batchHash,
     baseHead: batch.baseHead,

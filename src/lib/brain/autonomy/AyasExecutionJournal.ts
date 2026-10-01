@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { isAyasOwnerCapabilityLeaseAudit, type AyasOwnerCapabilityLeaseAudit } from "../../ayas/execution/AyasCapabilityScope";
 
 /**
  * A crash-recoverable record of one execution attempt's progress. Written
@@ -36,6 +37,8 @@ export interface AyasExecutionJournalEntry {
   readonly proposalHash: string;
   readonly authorizationId?: string;
   readonly reservationId?: string;
+  /** Audit only. Serialized records never restore an opaque capability handle. */
+  readonly capabilityLease?: AyasOwnerCapabilityLeaseAudit;
   readonly baseHead: string;
   readonly exactFiles: readonly string[];
   readonly gateSequence?: number;
@@ -104,6 +107,9 @@ function validate(raw: unknown, executionId: string): AyasExecutionJournalEntry 
     (record.mutationCompletedAt !== undefined && typeof record.mutationCompletedAt !== "string")) {
     throw new AyasExecutionJournalError("AYAS_JOURNAL_CORRUPT", `journal entry ${executionId} has an invalid deferred receipt`);
   }
+  if (record.capabilityLease !== undefined && !isAyasOwnerCapabilityLeaseAudit(record.capabilityLease)) {
+    throw new AyasExecutionJournalError("AYAS_JOURNAL_CORRUPT", `journal entry ${executionId} has invalid capability audit metadata`);
+  }
   return record as unknown as AyasExecutionJournalEntry;
 }
 
@@ -124,6 +130,9 @@ export function createAyasExecutionJournal(options: AyasExecutionJournalOptions 
   return {
     dir,
     record(entry) {
+      if (entry.capabilityLease !== undefined && !isAyasOwnerCapabilityLeaseAudit(entry.capabilityLease)) {
+        throw new AyasExecutionJournalError("AYAS_JOURNAL_INVALID", "invalid capability audit metadata");
+      }
       fs.mkdirSync(dir, { recursive: true });
       const file = fileFor(entry.executionId);
       const tmp = path.join(dir, `.${entry.executionId}.${process.pid}.${crypto.randomUUID()}.tmp`);
