@@ -10,6 +10,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { classifyPatchSet } from "@/lib/brain/selfheal/BrainPatchSafety";
+import { canonicalizeAyasExactFiles } from "@/lib/brain/autonomy/AyasMutationScope";
+import { AYAS_CAPABILITY_MAX_TTL_MS, isAyasLocalCapabilityRoot } from "./AyasCapabilityScope";
 
 export type AyasRepairRootCauseStatus = "suspected" | "strongly-supported" | "reproduced";
 export type AyasRepairLifecycle = "proposed" | "approved" | "active" | "validating" | "completed" | "revoked" | "expired" | "blocked" | "failed";
@@ -48,10 +50,17 @@ const OPS = new Set<AyasRepairOperation>(["patch-source", "patch-test", "create-
 const digest = (value: unknown) => crypto.createHash("sha256").update(JSON.stringify(value), "utf8").digest("hex");
 const textHash = (value: string) => crypto.createHash("sha256").update(value, "utf8").digest("hex");
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+interface RepairApprovalContext { readonly workspaceRoot: string; readonly issuer: object; }
+const standaloneRepairIssuer = Object.freeze({});
+// Original receipts from the EXISTING explicit user-turn approval primitive only.
+// JSON and fingerprints remain audit data; they cannot recreate this live proof.
+const repairApprovalReceipts = new WeakMap<object, { readonly snapshot: string; readonly workspaceRoot: string; readonly issuer: object; revoked: boolean; consumed: boolean }>();
 function proposalFingerprintOf(proposal: AyasRepairProposal): string { const unsigned = Object.fromEntries(Object.entries(proposal).filter(([key]) => key !== "proposalFingerprint")); return digest(unsigned); }
 export function isAyasRepairProposalAuthentic(proposal: AyasRepairProposal): boolean { return proposalFingerprintOf(proposal) === proposal.proposalFingerprint; }
 
 export function revokeAyasRepairAuthorization(auth: AyasRepairAuthorization): AyasRepairAuthorization {
+  const receipt = repairApprovalReceipts.get(auth);
+  if (receipt) receipt.revoked = true;
   return { ...auth, status: "revoked" };
 }
 
@@ -74,7 +83,7 @@ export function diagnoseAyasRepair(input: AyasDiagnosisInput): AyasDiagnosisResu
 
 function safeRelative(root: string, filePath: string): string {
   const n = filePath.replace(/\\/g, "/").replace(/^\.\//, "");
-  if (!n || n.includes("..") || n.includes("\0") || path.isAbsolute(n) || /^[A-Za-z]:/.test(n) || /(?:^|\/)(?:\.git|node_modules|data|secrets|\.env)(?:\/|$)/i.test(n)) throw new Error("repair path denied");
+  if (!n || n.includes("..") || n.includes("\0") || n.includes(":") || path.isAbsolute(n) || /(?:^|\/)(?:\.git|node_modules|data|secrets|\.env)(?:\/|$)/i.test(n)) throw new Error("repair path denied");
   if (!ALLOWED_ROOTS.some((r) => n.startsWith(r)) && !DOC_RE.test(n)) throw new Error("repair path outside allowlist");
   return n;
 }
@@ -91,10 +100,16 @@ export function createAyasRepairProposal(input: Omit<AyasRepairProposal, "schema
   return { ...base, proposalFingerprint: digest(base) };
 }
 
-export function approveAyasRepair(proposal: AyasRepairProposal, approval: { proposalId: string; proposalFingerprint: string; issueFingerprint: string; workspaceId: string; approvedByUser: boolean; userTurnId?: string; currentTurnId?: string; now?: string; ttlMs?: number }): AyasRepairAuthorization {
+export function approveAyasRepair(proposal: AyasRepairProposal, approval: { proposalId: string; proposalFingerprint: string; issueFingerprint: string; workspaceId: string; approvedByUser: boolean; userTurnId?: string; currentTurnId?: string; now?: string; ttlMs?: number }, context: RepairApprovalContext = { workspaceRoot: process.cwd(), issuer: standaloneRepairIssuer }): AyasRepairAuthorization {
   if (!isAyasRepairProposalAuthentic(proposal) || !approval.approvedByUser || !approval.userTurnId || approval.userTurnId !== approval.currentTurnId || approval.proposalId !== proposal.proposalId || approval.proposalFingerprint !== proposal.proposalFingerprint || approval.issueFingerprint !== proposal.issueFingerprint || approval.workspaceId !== proposal.workspaceId || proposal.status !== "proposed") throw new Error("repair approval provenance mismatch");
   const now = approval.now ?? new Date().toISOString();
-  return { authorizationId: `repair-authz-${crypto.randomUUID()}`, proposalId: proposal.proposalId, proposalFingerprint: proposal.proposalFingerprint, issueFingerprint: proposal.issueFingerprint, workspaceId: proposal.workspaceId, approvedFiles: clone(proposal.approvedFiles), operationClasses: clone(proposal.operationClasses), validationActions: clone(proposal.validationActions), forbiddenOperations: clone(proposal.forbiddenOperations), createdAt: now, expiresAt: new Date(Date.parse(now) + (approval.ttlMs ?? 5 * 60 * 1000)).toISOString(), status: "approved", provenance: "explicit-user-approval" };
+  const ttlMs = approval.ttlMs ?? AYAS_CAPABILITY_MAX_TTL_MS;
+  if (!Number.isFinite(Date.parse(now)) || !Number.isInteger(ttlMs) || ttlMs <= 0 || ttlMs > AYAS_CAPABILITY_MAX_TTL_MS || !isAyasLocalCapabilityRoot(context.workspaceRoot)) throw new Error("repair approval time/resource invalid");
+  const workspaceRoot = fs.realpathSync(context.workspaceRoot);
+  canonicalizeAyasExactFiles(workspaceRoot, proposal.approvedFiles);
+  const auth: AyasRepairAuthorization = Object.freeze({ authorizationId: `repair-authz-${crypto.randomUUID()}`, proposalId: proposal.proposalId, proposalFingerprint: proposal.proposalFingerprint, issueFingerprint: proposal.issueFingerprint, workspaceId: proposal.workspaceId, approvedFiles: Object.freeze(clone(proposal.approvedFiles)), operationClasses: Object.freeze(clone(proposal.operationClasses)), validationActions: Object.freeze(clone(proposal.validationActions)), forbiddenOperations: Object.freeze(clone(proposal.forbiddenOperations)), createdAt: now, expiresAt: new Date(Date.parse(now) + ttlMs).toISOString(), status: "approved", provenance: "explicit-user-approval" });
+  repairApprovalReceipts.set(auth, { snapshot: JSON.stringify(auth), workspaceRoot, issuer: context.issuer, revoked: false, consumed: false });
+  return auth;
 }
 
 export async function runAyasRegisteredValidation(action: AyasValidationAction, validators: AyasGuidedRepairDeps["validators"] = {}): Promise<{ action: AyasValidationAction; ok: boolean; result?: unknown; detail?: string }> {
@@ -106,13 +121,17 @@ export async function runAyasRegisteredValidation(action: AyasValidationAction, 
 
 export function createAyasGuidedRepairService(deps: AyasGuidedRepairDeps = {}) {
   const root = path.resolve(deps.workspaceRoot ?? process.cwd()); const now = deps.now ?? (() => new Date()); const ttl = deps.ttlMs ?? 5 * 60 * 1000;
-  const consumedAuthorizations = new Set<string>();
+  const approvalContext: RepairApprovalContext = { workspaceRoot: root, issuer: deps.workspaceRoot === undefined ? standaloneRepairIssuer : Object.freeze({}) };
   const journal = (e: AyasJournalEntry) => deps.journal?.(e);
   async function applyInternal(proposal: AyasRepairProposal, auth: AyasRepairAuthorization, patches: readonly AyasPatch[], consumeAuthorization: boolean): Promise<{ ok: true; lifecycle: "completed"; repairId: string; files: readonly string[]; validations: readonly unknown[]; provenance: readonly AyasPatchProvenance[] } | { ok: false; lifecycle: "blocked" | "failed"; reason: string; repairId?: string; provenance?: readonly AyasPatchProvenance[] }> {
+    proposal = clone(proposal);
+    patches = patches.map((patch) => Object.freeze({ ...patch }));
     const repairId = `repair-${crypto.randomUUID()}`;
     const startedAt = now().getTime();
-    if (auth.status !== "approved" || Date.parse(auth.expiresAt) <= now().getTime()) return { ok: false, lifecycle: "blocked", reason: "authorization expired or revoked", repairId };
-    if (consumeAuthorization && consumedAuthorizations.has(auth.authorizationId)) return { ok: false, lifecycle: "blocked", reason: "authorization replay denied", repairId };
+    const receipt = repairApprovalReceipts.get(auth);
+    if (!receipt || receipt.issuer !== approvalContext.issuer || JSON.stringify(auth) !== receipt.snapshot || (deps.workspaceId && deps.workspaceId !== auth.workspaceId)) return { ok: false, lifecycle: "blocked", reason: "authorization issuer proof required", repairId };
+    if (receipt.revoked || auth.status !== "approved" || !Number.isFinite(startedAt) || startedAt < Date.parse(auth.createdAt) || Date.parse(auth.expiresAt) <= startedAt) return { ok: false, lifecycle: "blocked", reason: "authorization expired or revoked", repairId };
+    if ((consumeAuthorization && receipt.consumed) || (!consumeAuthorization && !receipt.consumed)) return { ok: false, lifecycle: "blocked", reason: "authorization replay denied", repairId };
     if (!isAyasRepairProposalAuthentic(proposal) || auth.proposalId !== proposal.proposalId || auth.proposalFingerprint !== proposal.proposalFingerprint || auth.issueFingerprint !== proposal.issueFingerprint || auth.workspaceId !== proposal.workspaceId) return { ok: false, lifecycle: "blocked", reason: "proposal authorization mismatch", repairId };
     if (patches.length > proposal.bounds.maxFiles || classifyAyasRepairScope(patches.map((p) => p.filePath), proposal) === "material-expansion") return { ok: false, lifecycle: "blocked", reason: "scope expansion requires a new proposal", repairId };
     const forbiddenTargets = classifyPatchSet(patches.map((p) => p.filePath)).forbidden;
@@ -120,6 +139,8 @@ export function createAyasGuidedRepairService(deps: AyasGuidedRepairDeps = {}) {
     if (proposal.validationActions.length > proposal.bounds.maxValidationCycles) return { ok: false, lifecycle: "blocked", reason: "validation cycle bound exceeded", repairId };
     const files: string[] = []; const before: Array<{ abs: string; old: string | null; patch: AyasPatch }> = []; const provenance: AyasPatchProvenance[] = [];
     try {
+      if (fs.realpathSync(root) !== receipt.workspaceRoot) throw new Error("authorization workspace changed");
+      canonicalizeAyasExactFiles(root, patches.map((patch) => patch.filePath));
       let newFileCount = 0;
       for (const patch of patches) {
         if (!auth.approvedFiles.includes(patch.filePath)) throw new Error("file is outside approved scope");
@@ -131,7 +152,7 @@ export function createAyasGuidedRepairService(deps: AyasGuidedRepairDeps = {}) {
         if (!exists && patch.expectedHash !== null) throw new Error("new file must use null precondition");
         before.push({ abs, old, patch });
       }
-      if (consumeAuthorization) consumedAuthorizations.add(auth.authorizationId);
+      if (consumeAuthorization) receipt.consumed = true;
       journal({ at: now().toISOString(), event: "repair-started", proposalId: proposal.proposalId, authorizationId: auth.authorizationId, detail: "bounded patch" });
       for (const item of before) { fs.mkdirSync(path.dirname(item.abs), { recursive: true }); fs.writeFileSync(item.abs, item.patch.content, "utf8"); files.push(item.patch.filePath); provenance.push({ repairId, authorizationId: auth.authorizationId, file: item.patch.filePath, beforeHash: item.old === null ? null : textHash(item.old), afterHash: textHash(item.patch.content), operation: item.patch.operation, success: true, evidence: `bounded replacement (${item.patch.content.length} chars)` }); }
       const validations = []; for (const action of proposal.validationActions) { if (now().getTime() - startedAt > proposal.bounds.maxDurationMs) throw new Error("repair duration bound exceeded"); validations.push(await runAyasRegisteredValidation(action, deps.validators)); }
@@ -145,12 +166,15 @@ export function createAyasGuidedRepairService(deps: AyasGuidedRepairDeps = {}) {
   }
   const apply = (proposal: AyasRepairProposal, auth: AyasRepairAuthorization, patches: readonly AyasPatch[]) => applyInternal(proposal, auth, patches, true);
   async function applyWithBoundedRemediation(proposal: AyasRepairProposal, auth: AyasRepairAuthorization, first: readonly AyasPatch[], remediation: () => Promise<readonly AyasPatch[]>): Promise<Awaited<ReturnType<typeof apply>>> {
-    const initial = await applyInternal(proposal, auth, first, true); if (initial.ok || proposal.bounds.maxRepairCycles < 1) return initial;
+    const initial = await applyInternal(proposal, auth, first, true);
+    const receipt = repairApprovalReceipts.get(auth), currentTime = now().getTime();
+    if (initial.ok || initial.lifecycle === "blocked" || !receipt?.consumed || receipt.revoked || !Number.isFinite(currentTime) ||
+        currentTime < Date.parse(auth.createdAt) || currentTime >= Date.parse(auth.expiresAt) || proposal.bounds.maxRepairCycles < 1) return initial;
     const next = await remediation();
     if (classifyAyasRepairScope(next.map((p) => p.filePath), proposal) !== "same-scope") return { ok: false, lifecycle: "blocked", reason: "remediation requires scope-expansion proposal" };
     return applyInternal(proposal, auth, next, false);
   }
-  return { workspaceRoot: root, createProposal: createAyasRepairProposal, diagnose: diagnoseAyasRepair, approve: (p: AyasRepairProposal, a: Omit<Parameters<typeof approveAyasRepair>[1], "now" | "ttlMs">) => approveAyasRepair(p, { ...a, now: now().toISOString(), ttlMs: ttl }), revoke: revokeAyasRepairAuthorization, classifyScope: classifyAyasRepairScope, apply, applyWithBoundedRemediation, validate: (a: AyasValidationAction) => runAyasRegisteredValidation(a, deps.validators) };
+  return { workspaceRoot: root, createProposal: createAyasRepairProposal, diagnose: diagnoseAyasRepair, approve: (p: AyasRepairProposal, a: Omit<Parameters<typeof approveAyasRepair>[1], "now" | "ttlMs">) => approveAyasRepair(p, { ...a, now: now().toISOString(), ttlMs: ttl }, approvalContext), revoke: revokeAyasRepairAuthorization, classifyScope: classifyAyasRepairScope, apply, applyWithBoundedRemediation, validate: (a: AyasValidationAction) => runAyasRegisteredValidation(a, deps.validators) };
 }
 
 export const AyasGuidedRepair = createAyasGuidedRepairService;
