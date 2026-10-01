@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "1",
+  "observedOn": "2026-10-01",
+  "evidenceClass": "LIVE_HOST_AND_VM_MEMORY_OBSERVATIONS_READ_ONLY",
+  "trigger": "Owner PC health guard: Task Manager showed RAM 91 % with VmmemWSL about 15.6 GB while one inference container was running.",
+  "host": {
+    "cpu": "13th Gen Intel Core i9-13900 (32 logical processors)",
+    "totalVisibleMemoryMiB": 32457,
+    "wslConfigFile": "ABSENT at %USERPROFILE%\\.wslconfig, so WSL defaults apply",
+    "podmanMachineConfigured": { "cpus": 8, "memoryMiB": 8192, "diskGiB": 40, "rootful": false, "provider": "wsl" }
+  },
+  "vmAsSeenFromInside": { "memTotalKiB": 16213712, "swapMiB": 4096, "logicalCpus": 32 },
+  "rootCause": [
+    "The Podman WSL provider does not enforce the machine's configured 8 GiB / 8 CPUs. Every WSL distribution shares one WSL2 utility VM, and with no .wslconfig that VM is sized by WSL defaults: about half of host RAM (16.2 GB here) and all 32 logical CPUs. The only effective bound is therefore the per-container cgroup limit.",
+    "The inference container was capped at 14 GiB. The pinned engine loads weights through mmap, repacks most Q4_K tensors into anonymous memory and pre-allocates the full 16k-token KV buffer, so resident memory filled the whole cap. Cap plus VM overhead is the 15.6 GB the owner observed.",
+    "When the container exits its anonymous memory is returned at once, but the VM keeps the model file and image layers in page cache. WSL hands that back to Windows only gradually, so VmmemWSL stayed near 6.4 GB while idle."
+  ],
+  "measurements": {
+    "idleAfterContainerExit": { "hostUsedPct": 62.9, "hostFreeMiB": 12029, "vmmemWslMiB": 6478, "vmCachedKiB": 5751024, "vmAnonPagesKiB": 72448, "runningContainers": 0 },
+    "vmPageCacheRelease": {
+      "action": "sync; echo 1 > /proc/sys/vm/drop_caches inside the Podman machine (non-persistent, no setting changed)",
+      "before": { "hostUsedPct": 63.1, "hostFreeMiB": 11972, "vmmemWslMiB": 6447 },
+      "after20s": { "hostUsedPct": 47.2, "hostFreeMiB": 17144, "vmmemWslMiB": 1235 }
+    },
+    "inferenceAt14GiBCap": { "hostUsedPctObservedByOwner": 91, "promptTokensPerSecond": 24.8, "generationTokensPerSecond": 4.37, "cgroupMemoryPeakBytes": 15032385536 },
+    "inferenceAt12_5GiBCap": {
+      "source": "LLAMA_SERVER_SMOKE_EVIDENCE.json",
+      "cgroupMemoryMaxBytes": 13421772800, "anonGiB": 9.16, "fileGiB": 3.29, "fileMappedGiB": 2.52, "kernelGiB": 0.04,
+      "residentNeedGiB": 11.7, "oomKill": 0, "pidsPeak": 19, "pidsMax": 64,
+      "hostUsedPctBefore": 46.9, "hostPeakUsedPct": 85.5, "hostMinFreeGiB": 4.6,
+      "promptTokensPerSecond": 31.5, "generationTokensPerSecond": 5.5,
+      "hostUsedPctAfterCleanup": 46.3, "vmmemWslMiBAfterCleanup": 1108
+    }
+  },
+  "sizing": "12.5 GiB = measured resident need 11.7 GiB (9.16 anon + 2.52 mapped weights + kernel) plus about 0.8 GiB slack. Speed did not drop against the 14 GiB run. The 16k context and the frozen request contract are unchanged.",
+  "guardRules": {
+    "implementedIn": "scripts/run-ayas-local-coding-container.ts",
+    "oneHeavyWorkloadAtATime": "A model run refuses to start while any container is running. The model server is sampled and removed before the evaluator container starts.",
+    "startCondition": "Host free memory must cover the whole container limit plus 1 GiB of VM overhead and still leave 10 % of host RAM free (projected use below 90 %). The guard waits up to 5 minutes, then stops with HOST_PROTECTION_PAUSE (exit 3) and records the event.",
+    "duringRun": "Host memory is sampled every 5 s. Free memory below 3 % of host RAM for three samples aborts the run as RESOURCE_ABORT / HOST_PROTECTION. A container OOM kill is treated the same way. Neither is counted as a model failure; the repeat stays pending.",
+    "afterRun": "The container is removed and the VM page cache is released so memory returns to Windows before the next start.",
+    "containerLimits": "memory 12.5 GiB with no swap, 8 CPUs, 64 tasks, bounded generation timeout; asserted from inside the container (memory.max, memory.swap.max, cpu.max, pids.max) before generation.",
+    "serverFlags": "--cache-ram 0 and --ctx-checkpoints 0: one request per disposable server, so the default 8 GiB prompt cache and context checkpoints would only add resident memory."
+  },
+  "notChanged": [
+    "No host setting, service, admin action or WSL global configuration.",
+    "No .wslconfig was created.",
+    "Podman stays rootless; machine configuration untouched.",
+    "No model, engine archive or image was re-downloaded or rebuilt for this guard."
+  ],
+  "ownerOnlyOption": "A [wsl2] memory= limit in .wslconfig would bound the shared VM for every distribution. It is a global WSL setting and was deliberately not applied."
+}

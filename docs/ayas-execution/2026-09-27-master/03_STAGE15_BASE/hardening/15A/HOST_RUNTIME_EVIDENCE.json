@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "1",
+  "observedAt": "2026-10-01T06:44:32.785Z",
+  "repositoryHead": "390d8272c590a8603c0eaf3ba6501c7bf9ba4248",
+  "evidenceClass": "LIVE_HOST_RUNTIME_READINESS_ONLY",
+  "cli": {
+    "path": "C:/Users/Metod/AppData/Local/Programs/Podman/podman.exe",
+    "sha256": "f6a555b075654fdb12580bdaf570ee90c2225f94a05781ecd6c1a16c8a5c95ea",
+    "version": {
+      "Client": {
+        "APIVersion": "6.0.2",
+        "Version": "6.0.2",
+        "GoVersion": "go1.26.5",
+        "GitCommit": "b28edb9ad70ce4317dc762ee9ce0a6d081d154e9",
+        "BuiltTime": "Wed Jul 22 05:57:30 2026",
+        "Built": 1784689050,
+        "OsArch": "windows/amd64",
+        "Os": "windows"
+      },
+      "Server": {
+        "APIVersion": "6.0.2",
+        "Version": "6.0.2",
+        "GoVersion": "go1.26.5-X:nodwarf5",
+        "GitCommit": "b28edb9ad70ce4317dc762ee9ce0a6d081d154e9",
+        "BuiltTime": "Tue Jul 21 03:00:00 2026",
+        "Built": 1784592000,
+        "OsArch": "linux/amd64",
+        "Os": "linux"
+      }
+    }
+  },
+  "wsl": {
+    "version": "2.7.10.0",
+    "kernel": "6.18.33.2-microsoft-standard-WSL2",
+    "distribution": "podman-machine-default",
+    "state": "Running",
+    "versionNumber": 2
+  },
+  "configuredResources": {
+    "CPUs": 8,
+    "DiskSize": 40,
+    "Memory": 8192,
+    "USBs": []
+  },
+  "visibleResources": {
+    "cpus": 32,
+    "ramBytes": 16602841088,
+    "swapBytes": 4294967296
+  },
+  "rootful": false,
+  "security": {
+    "apparmorEnabled": false,
+    "capabilities": "CAP_CHOWN,CAP_DAC_OVERRIDE,CAP_FOWNER,CAP_FSETID,CAP_KILL,CAP_NET_BIND_SERVICE,CAP_SETFCAP,CAP_SETGID,CAP_SETPCAP,CAP_SETUID,CAP_SYS_CHROOT",
+    "rootless": true,
+    "seccompEnabled": true,
+    "seccompProfilePath": "/usr/share/containers/seccomp.json",
+    "selinuxEnabled": false
+  },
+  "cgroupVersion": "v2",
+  "cgroupControllers": [
+    "cpu",
+    "io",
+    "memory",
+    "pids"
+  ],
+  "ociRuntime": {
+    "name": "crun",
+    "package": "crun-1.28-1.fc44.x86_64",
+    "path": "/usr/bin/crun",
+    "version": "crun version 1.28\ncommit: 54f16ffbefcd022bf032af768b5c5ce075c18bfc\nrundir: /run/user/1000/crun\nspec: 1.0.0\n+SYSTEMD +SELINUX +APPARMOR +CAP +SECCOMP +EBPF +CRIU +LIBKRUN +WASM:wasmedge +JSON_C"
+  },
+  "distribution": {
+    "distribution": "fedora",
+    "variant": "podman-machine-os",
+    "version": "44"
+  },
+  "oldInstallationBlocker": "RESOLVED",
+  "systemMutation": "NONE_BY_AGENT",
+  "runtimeAdmission": "NONE"
+}

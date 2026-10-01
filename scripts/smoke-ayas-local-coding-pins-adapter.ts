@@ -7,7 +7,7 @@ import path from "node:path";
 
 import { ayasLocalCodingCandidatePins as pins, parseAyasLocalCodingModelManifest,
   verifyAyasLocalCodingArtifact, parseAyasLocalCodingRuntimeIdentity, inspectAyasLocalCodingImageIdentity } from "../src/lib/brain/autonomy/AyasLocalCodingPins";
-import { buildAyasLocalCodingModelRequest, diagnoseAyasLocalCodingModelWith, parseAyasLocalCodingPatch } from "../src/lib/brain/autonomy/AyasLocalCodingModelAdapter";
+import { AYAS_LOCAL_CODING_MODEL_MAX_TIMEOUT_MS, buildAyasLocalCodingModelRequest, diagnoseAyasLocalCodingModelWith, parseAyasLocalCodingPatch } from "../src/lib/brain/autonomy/AyasLocalCodingModelAdapter";
 import type { AyasLocalCodingTaskContract } from "../src/lib/brain/autonomy/AyasLocalCodingTaskContract";
 
 const digest = (value: string): string => crypto.createHash("sha256").update(value).digest("hex");
@@ -15,8 +15,9 @@ const task: AyasLocalCodingTaskContract = { schemaVersion: "1", taskId: "ayas-co
   baseHead: "a".repeat(40), objective: "Repair the bounded example expression.", exactFiles: ["src/example.ts"], maxChangedLines: 80 };
 const sources = [{ path: "src/example.ts", content: "export const value = false;\n" }];
 const patch = { schemaVersion: "1", edits: [{ path: "src/example.ts", beforeSha256: digest(sources[0]!.content), search: "false", replace: "true" }] };
-const response = (candidate: unknown = patch): string => JSON.stringify({ model: "ayas-qwen2.5-coder-14b-q4-k-m", choices: [{ index: 0, finish_reason: "tool_calls",
-  message: { role: "assistant", content: null, tool_calls: [{ id: "call_1", type: "function", function: { name: "submit_patch", arguments: JSON.stringify(candidate) } }] } }] });
+const response = (candidate: unknown = patch): string => JSON.stringify({ model: "ayas-qwen2.5-coder-14b-q4-k-m", choices: [{ index: 0, finish_reason: "stop",
+  message: { role: "assistant", content: JSON.stringify(candidate) } }] });
+const withMessage = (message: unknown, finish = "stop"): string => JSON.stringify({ model: "ayas-qwen2.5-coder-14b-q4-k-m", choices: [{ index: 0, finish_reason: finish, message }] });
 const input = { task, sources, modelManifest: pins.model, endpoint: "http://127.0.0.1:8080/v1/chat/completions", timeoutMs: 1000 };
 let count = 0;
 async function test(name: string, run: () => void | Promise<void>): Promise<void> { await run(); count++; console.log(`PASS ${count}: ${name}`); }
@@ -73,12 +74,37 @@ async function main(): Promise<void> {
     }
   });
   await test("malformed/truncated/unbound/oversized output refused", async () => {
-    for (const text of ["{", response().replace('"tool_calls"', '"length"'), response().replace('"submit_patch"', '"host_shell"'), response().replace('ayas-qwen2.5-coder-14b-q4-k-m', 'alternate'), "x".repeat(256001)]) {
+    const json = JSON.stringify(patch); const call = [{ id: "call_1", type: "function", function: { name: "host_shell", arguments: json } }];
+    for (const text of ["{", response().replace('"stop"', '"length"'), response().replace('ayas-qwen2.5-coder-14b-q4-k-m', 'alternate'), "x".repeat(256001),
+      // Real engine observation: a fenced object followed by prose, cut at max_tokens, must never be salvaged.
+      withMessage({ role: "assistant", content: "```json\n" + JSON.stringify({ name: "submit_patch", arguments: patch }) + "\n```\nThis patch ..." }, "length"),
+      withMessage({ role: "assistant", content: "```json\n" + json + "\n```" }), withMessage({ role: "assistant", content: json + " Explanation." }),
+      withMessage({ role: "assistant", content: null, tool_calls: call }, "tool_calls"), withMessage({ role: "assistant", content: json, tool_calls: call }),
+      withMessage({ role: "assistant", content: "" }), withMessage({ role: "assistant", content: json, reasoning_content: "hidden" })]) {
       await assert.rejects(diagnoseAyasLocalCodingModelWith({ ...input, transport: async () => text }));
     }
   });
   await test("pre-cancelled run makes no transport call", async () => { const controller = new AbortController(); controller.abort(); let invoked = false; await assert.rejects(diagnoseAyasLocalCodingModelWith({ ...input, signal: controller.signal, transport: async () => { invoked = true; return response(); } }), /CANCELLED/); assert.equal(invoked, false); });
   await test("timeout aborts even an uncooperative transport", async () => { let signal: AbortSignal | undefined; await assert.rejects(diagnoseAyasLocalCodingModelWith({ ...input, timeoutMs: 10, transport: async (request) => { signal = request.signal; return new Promise<string>(() => {}); } }), /TIMEOUT/); assert.equal(signal?.aborted, true); });
+  await test("engine-enforced structured output: strict JSON schema response format and no tool surface", () => {
+    // Regression: the pinned llama.cpp server did not constrain a tool call (object tool_choice ignored; "required" unenforced).
+    const request = buildAyasLocalCodingModelRequest(task, sources) as { response_format: { type: string; json_schema: { name: string; strict: boolean; schema: { additionalProperties: boolean; required: string[] } } } };
+    assert.equal(request.response_format.type, "json_schema"); assert.equal(request.response_format.json_schema.strict, true);
+    assert.equal(request.response_format.json_schema.schema.additionalProperties, false);
+    assert.deepEqual(request.response_format.json_schema.schema.required, ["schemaVersion", "edits"]);
+    for (const absent of ["tools", "tool_choice", "parallel_tool_calls", "grammar"]) assert.equal(absent in request, false);
+  });
+  await test("whitespace-only padding around the single object is the only tolerated slack", async () => {
+    const result = await diagnoseAyasLocalCodingModelWith({ ...input, transport: async () => withMessage({ role: "assistant", content: "  " + JSON.stringify(patch) + "\n", tool_calls: [] }) });
+    assert.equal(result.candidate.changedLines, 2);
+  });
+  await test("timeout stays bounded: zero, fractional and above-ceiling refused before transport; ceiling itself accepted", async () => {
+    assert.equal(AYAS_LOCAL_CODING_MODEL_MAX_TIMEOUT_MS, 1_800_000);
+    for (const timeoutMs of [0, 1.5, AYAS_LOCAL_CODING_MODEL_MAX_TIMEOUT_MS + 1, Number.POSITIVE_INFINITY]) {
+      let invoked = false; await assert.rejects(diagnoseAyasLocalCodingModelWith({ ...input, timeoutMs, transport: async () => { invoked = true; return response(); } }), /ENDPOINT_OR_TIMEOUT_INVALID/); assert.equal(invoked, false);
+    }
+    assert.equal((await diagnoseAyasLocalCodingModelWith({ ...input, timeoutMs: AYAS_LOCAL_CODING_MODEL_MAX_TIMEOUT_MS, transport: async () => response() })).status, "UNVERIFIED_HOST_DIAGNOSTIC");
+  });
   await test("in-flight cancellation aborts transport", async () => { const controller = new AbortController(); const result = diagnoseAyasLocalCodingModelWith({ ...input, signal: controller.signal, transport: async () => { controller.abort(); return new Promise<string>(() => {}); } }); await assert.rejects(result, /CANCELLED/); });
   await test("repeated requests retain identical seeds and no prior response context", async () => {
     const requests: string[] = []; const candidates: string[] = [];

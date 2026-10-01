@@ -1,6 +1,6 @@
 # Stage 15A — Local Coding Runtime
 
-Status: IN_PROGRESS. Local independence is `LOCAL_INDEPENDENCE_DEGRADED` until an actual local backend passes qualification inside an attested hard sandbox. No fallback to a paid or cloud coding service is active.
+Status: 15A.3 CLOSED as `LOCAL_INDEPENDENCE_DEGRADED` on 2026-10-01 (see 15A.3j and QUALIFICATION_CLOSURE.json). The real hard sandbox, sealed evaluator chain and pinned engine work; the pinned local model did not repair the real defect it was run on, and no canonical numeric threshold exists. No backend is registered or active. No fallback to a paid or cloud coding service is active.
 
 ## 15A.1 Bounded task contract
 
@@ -79,3 +79,60 @@ Current entry supersedes the earlier candidate-selection blocker and the one-fil
 New pin/diagnostic protocol and image-payload contracts have 35/13 offline scenarios. They grant no authority or default transport. A separate two-file/49-line retrieval case passes the full unchanged frozen 29-case evaluator, while baseline, each partial repair and wrong no-op fail at exact assertions. Original five cases/evaluators unchanged. Git-free prompt projection does not reveal host case/fix/evaluator identity.
 
 BLOCKED_OWNER_ACTION — host sandbox runtime installation required. WSL has no distributions; Podman/Docker absent. Image remains DRAFT_ONLY; model bytes, final image, actual containment, runtime process/Podman inspection, sealed Linux toolchain and real repeated quality/telemetry remain pending. TypeScript-refactor domain case remains unfilled; no evaluator/threshold weakening. LOCAL_INDEPENDENCE_DEGRADED and Stage 15B unopened; no canonical push. The full evidence boundaries, validation and exact remaining work are in QUALIFICATION_PREPARATION_REPORT.md.
+
+## 15A.3i Real sandbox, sealed executor chain and engine liveness
+
+Current entry supersedes the runtime-installation blocker above: the owner installed rootless Podman 6.0.2 on WSL2 (HOST_RUNTIME_EVIDENCE.json). The pinned GGUF (8,988,110,272 bytes) and the Linux engine archive match their pins byte for byte; nothing was re-downloaded.
+
+**Images.** `Containerfile` now pins the official full Debian `node:24.18.0-bookworm` linux/amd64 manifest `sha256:4e9cb555…` (index `sha256:5711a0d4…`); the slim base could not load `libssl.so.3` for the verified `llama-server`. Two targets are built offline (`--pull=never --network=none`, no package install) from separately prepared TEMP contexts. The inference image holds only the model and archive-derived engine members; the evaluator image holds the probe, the loader, the frozen evaluator import closure and the sealed toolchain. Image IDs, manifest digests, recipe and payload digests are in IMAGE_BUILD_EVIDENCE.json.
+
+**Sealed executor chain.** The frozen temporal evaluator starts its concurrent writers through the tsx CLI, which needs the Linux esbuild binary. tsx 4.23.1, esbuild 0.28.1 and `@esbuild/linux-x64` 0.28.1 are taken from archives that match the `package-lock.json` SHA-512 integrity; the native member is checked as an ELF64 x86-64 binary of the lockfile's exact version. The payload verifier accepts the scoped `@esbuild/linux-x64` path for the evaluator role only. Frozen evaluator bytes are still loaded from their pinned Git blobs; `controls` recomputes each blob ID from the sealed bytes.
+
+**Root cause of the temporal positive-control failure.** The exact historical fix exited 134 inside the container. Measured cause: the evaluator's process tree (loader, two tsx CLIs, two inner Node processes, two esbuild services) needs about 90 tasks with default thread pools, above the 64-task cap, so the Go runtime failed with `failed to create new OS thread (errno=11)` (`pids.events max 40`). `evaluate.cjs` now bounds the pools (`GOMAXPROCS=2`, `UV_THREADPOOL_SIZE=1`, `--v8-pool-size=1`): the same unchanged evaluator passes 52 scenarios at a peak of 41 tasks with zero cap events. The cap and the evaluator were not changed.
+
+**Disposable overlay.** The evaluator copies the sealed case into its `noexec` tmpfs and overlays the candidate there. The host repository is never mounted; `/workspace` is a read-only bind of one TEMP directory holding `candidate.json`.
+
+**Evidence on the rebuilt evaluator image.** Isolation matrix 23/23 plus OOM kill, timeout stop and unexpected-mount refusal (HARD_SANDBOX_EVIDENCE.json). Frozen controls in the container: five cases each baseline FAIL → exact historical fix PASS → wrong candidate FAIL at the expected assertion. The Windows-only Graphify launcher evaluator reports zero scenarios on Linux and is recorded as `PLATFORM_UNAVAILABLE`, never as a pass (FROZEN_CONTAINER_NEGATIVE_CONTROLS.json). These are host-oracle controls, not model results.
+
+**Engine liveness.** The pinned `llama-server` and model load and answer inside the rootless, network-none inference container with the live boundary asserted from inside (LLAMA_SERVER_SMOKE_EVIDENCE.json). CPU-only speeds are about 25–32 prompt tokens/s and 4–5.5 generated tokens/s.
+
+**Three harness defects found by the first real engine contact**, all in code that had only ever met synthetic transports. None is a model result, and every attempt made under a defective harness is kept as a `supersededAttempts` record that is neither counted nor deleted:
+
+- The in-container HTTP helper used `fetch`, whose client aborts after a fixed 300 s without response headers (`UND_ERR_HEADERS_TIMEOUT`). A non-streamed completion sends its headers only when generation ends, so every generation longer than 300 s was cut while the server was still producing tokens (1,051 at the cut). The helper now uses `node:http` with the bounded socket timeout and reports a single clean `CLIENT_ERROR:` line. Attempts are bound to the exact helper bytes (`transportClientSha256`).
+
+- The adapter refused any timeout above 60 s, yet a 1.7k-token prompt alone takes about 71 s on this CPU-only engine, so no real attempt could complete. The ceiling is now `AYAS_LOCAL_CODING_MODEL_MAX_TIMEOUT_MS` = 30 min: an operational kill bound covering a full 16k-token prompt plus the fixed `max_tokens` at the measured speeds. It is not a latency or quality threshold.
+- The pinned server ignored the OpenAI object form of `tool_choice` (`Wrong type supplied for parameter 'tool_choice' … type must be string`) and silently fell back to `auto`, so the forced single `submit_patch` call was never enforced and the model answered in prose. The request was changed to the string form `tool_choice: "required"`; section 15A.3j records what the engine did with that.
+
+**PC health guard.** See HOST_RESOURCE_GUARD_EVIDENCE.json. The Podman WSL provider does not enforce the machine's 8 GiB; the per-container limit is the only bound. The inference profile went from 14 GiB to the measured 12.5 GiB, one heavy workload runs at a time, a run starts only if the host stays under 90 % RAM, and resource aborts are never counted as model failures.
+
+New offline regression `smoke-ayas-local-coding-model-boundary.ts` checks all six real cases: the model-facing workspace holds only the exact baseline sources and the request carries no case ID, split, base/fix commit, evaluator identity or any substantial line the historical fix adds.
+
+No engine is registered, no default transport exists, and no approval, proposal or execution authority changed. `LOCAL_INDEPENDENCE_DEGRADED` remains; Stage 15B is unopened; nothing was pushed.
+
+## 15A.3j Real local-model qualification and closure
+
+**Result: Stage 15A.3 is closed as `LOCAL_INDEPENDENCE_DEGRADED`.** The pinned Qwen2.5-Coder-14B Q4_K_M on the pinned CPU llama.cpp engine did not repair the one real historical defect it was run on. No engine is registered and local coding stays disabled. The full record is QUALIFICATION_CLOSURE.json.
+
+Three real model observations were made, all on the security case `historical-atomic-bounded-write` (one source file, 57-line historical fix, frozen 18-scenario evaluator):
+
+| Protocol | Repeat | Outcome | Tokens (prompt / generated) | Generation | Evaluator |
+| --- | --- | --- | --- | --- | --- |
+| tool call, `tool_choice: "required"` | 1 | `INVALID_OUTPUT` (`finish_reason: length`) | 1,981 / 4,096 | 1,116 s | not reached |
+| tool call, `tool_choice: "required"` | 2 | `INVALID_OUTPUT`, byte-identical output | 1,981 / 4,096 | 1,088 s | not reached |
+| structured output (JSON schema) | 1 | `FAIL` | 1,706 / 181 | 99 s | exit 1, same assertion as the baseline |
+
+**Tool-call protocol.** Neither repeat is an infrastructure failure: the engine accepted the request, generation ran uninterrupted to the fixed `max_tokens`, and no timeout, OOM, PID-cap or host-protection event occurred. The existing output and the server's `/props` response show why it ran long. The model wrote a complete `submit_patch` object in about 195 tokens, but inside a markdown `json` fence instead of the `<tool_call>` tags its own chat template asks for. The engine reports `supports_tool_calls: true` for the template yet did not constrain generation under `"required"`, so nothing stopped the model: it went on to explain the patch and, at temperature 0, repeated one paragraph until the limit. A third deterministic repeat was not run. Frozen record: LOCAL_MODEL_RUN_EVIDENCE_TOOL_CALL_PROTOCOL.json.
+
+**One narrow protocol correction.** The single-call contract assumed engine enforcement that this engine does not provide for this model. The request now carries no tool surface and asks for `response_format: json_schema` with the same patch schema, which the engine enforces by grammar and which ends when the object closes. The adapter accepts exactly one complete JSON object as content; a truncated answer, any tool call, prose or a fenced block is refused, so the earlier fenced output can never be salvaged. `max_tokens`, the frozen evaluator, the scope limits and the strict in-memory patch validation are unchanged, and the model was given nothing beyond the task and baseline source.
+
+**Verification run (one, as bounded by the owner).** With the correction the model produced a schema-valid patch that passed the strict adapter (exact file, matching source hash, unique search, 2 changed lines). The frozen evaluator ran it in the container and failed at `Missing expected rejection` (`smoke-ayas-bounded-file-write.ts:115`), the assertion the unrepaired baseline also fails. The candidate is a one-line path-normalisation change that does not add the rollback behaviour the evaluator requires. This is a real capacity result, not a format or harness artefact.
+
+**What was not measured.** Four evaluable cases (memory-temporal primary, UI, two-file retrieval and the held-out render-tool case) were not run with the model: the owner bounded further heavy inference to the minimum needed for the closure decision, and with no canonical numeric threshold more runs could not change it. The Graphify case is `PLATFORM_UNAVAILABLE`. Full-matrix pass@1/pass^k and held-out quality are therefore unmeasured, not zero. GPU and VRAM are `null`: the pinned engine is CPU-only.
+
+**Resources.** About 25–28 prompt tokens/s and 3.9–5.0 generated tokens/s on 8 CPUs; model load about 12 s; container memory at its 12.5 GiB limit with no OOM; 19–23 of 64 tasks; host RAM peak 84.8–87.9 %, back to about 45 % after each run. No resource abort and no host-protection pause.
+
+**Not counted.** Four attempts made under harness defects (two under the ignored object-form `tool_choice`, two cut by the 300 s `fetch` headers timeout) stay in the evidence as `supersededAttempts`.
+
+**Regression at closure.** Pins/adapter 38/38, image payload 17/17, model boundary 12/12, retrieval case full evaluator 29/29 with negatives, host oracle baseline (five cases baseline FAIL → fix PASS → wrong FAIL), vault 5/5, workspace 10/10, task contract 21/21, container plan 10/10, inspection 23/23 and probe 9/9 (synthetic), report 13/13 (synthetic). TypeScript passes; changed-file lint has zero warnings; full lint 0 errors / 13 pre-existing warnings.
+
+Re-qualification needs an owner decision on at least one of: a numeric threshold, a different pinned model or engine, or GPU passthrough into the sandbox. There is no cloud fallback.

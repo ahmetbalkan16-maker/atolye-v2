@@ -1,49 +1,82 @@
-# Stage 15A.3 local image draft
+# Stage 15A.3 local qualification images
 
-This recipe is reviewable preparation, not a built image or a hard-sandbox probe.
-Do not add it to the reviewed engine registry. The current production probe remains
-closed; this draft's entrypoint deliberately does not impersonate `/ayas-sandbox-probe`.
+Diagnostic recipe for the local coding qualification. Building or running it admits no
+engine and qualifies no model: the reviewed production engine registry stays empty and
+`LOCAL_INDEPENDENCE_DEGRADED` remains the state until a canonical threshold is met.
 
-Repository toolchain: npm/package-lock.json, Next 16.2.10 requires Node >=20.9.0;
-tsx 4.23.1 and TypeScript 5.9.3. The exact Node 24.18.0 linux/amd64 base matches
-the host Node version. Linux esbuild and any native dependencies must be prepared
-and sealed for Linux; the Windows dependency tree is not a usable payload.
-The full application includes ONNX install hooks and must not be copied into this image.
+## Two separate images
 
-Prepare TWO separate, fresh TEMP build contexts. Inference gets only the exact model,
-verified official engine archive and archive-derived binaries/libraries, including licenses.
-The evaluator gets the frozen evaluator import closure and sealed Linux TypeScript
-toolchain. Never include Git, golden patches, production/private data, credentials,
-the host repository, or evaluator internals in an inference payload/prompt.
-This separation keeps historical answers outside the model's context.
+`Containerfile` has two targets built from two separately prepared TEMP contexts.
 
-Each context holds this Containerfile, verify-payload.mjs, BUILD_INPUT.json and payload/.
-BUILD_INPUT schema is exactly `{schemaVersion:"1",role:"INFERENCE"|"EVALUATOR",files:
-[{path,sizeBytes,sha256}]}`. Every regular payload file must be declared and hash-matched;
-links, traversal, missing files, extra files and alternate model/archive pins fail closed.
-The engine extraction must separately prove every extracted binary came from the verified
-archive, and pass glibc/library compatibility checks; a caller-written manifest is not provenance.
-The evaluator payload must separately bind package-lock and frozen blobs. No package install
-is permitted in a qualification run. These preparation/compatibility gates are still pending.
+- `inference`: the exact pinned GGUF model, the verified official llama.cpp Linux CPU
+  archive and its archive-derived members. No probe, evaluator, case, toolchain, Git
+  history, historical fix or vault.
+- `evaluator`: `probe.mjs`, `evaluate.cjs`, the frozen evaluator import closure per case
+  and the sealed Linux toolchain. It never receives the model and is never model-facing.
 
-After an approved local Podman/WSL2 runtime exists, cache the exact base platform manifest
-and confirm its bytes/digest/platform against the official registry. Build only with no
-network and pull=never, using the TEMP context. Record the recipe, every payload digest,
-base platform manifest and final image content ID. An image label alone proves nothing.
-Inspect with the existing image/containment contracts; unsupported Podman inspection
-shapes must refuse rather than be guessed from Docker-shaped synthetic fixtures.
+Both are `scratch` plus Node and the Linux runtime libraries of the official
+`node:24.18.0-bookworm` linux/amd64 manifest, pinned by digest in `AyasLocalCodingPins`.
+The full Debian base (not slim) is required because the pinned `llama-server` needs
+`libssl.so.3`. There is no shell, package manager or Git in either image, the user is
+`65534:65534`, and nothing is installed at build or run time.
 
-Qualification must use network=none, pull=never, read-only root, dropped capabilities,
-no-new-privileges, non-root 65534:65534, 2 CPU/4 GiB/64 PID limits and host-enforced
-timeouts/cleanup. Mount only a validated Git-free exact baseline TEMP projection read-only;
-candidate patches stay in memory or bounded TEMP storage. No external mount, host shell,
-runtime socket, package installation or credentials. Model inference can use loopback
-inside its network-none container; a host loopback endpoint is HOST_DIAGNOSTIC only.
-The 9 GB model cannot fit under the existing 4 GiB probe cap: a separately reviewed
-inference resource plan must derive sufficient explicit RAM limits. Do not silently
-widen the existing probe plan or claim this draft qualifies inference.
+## Sealed evaluator toolchain
 
-Remaining actual runtime work: fixed probe entrypoint, adversarial containment observations,
-retained container inspection, model process supervision, offline evaluator toolchain,
-final image content digest, repeated generated candidates and measured telemetry. No final
-qualification command is provided before these facts exist. Keep LOCAL_INDEPENDENCE_DEGRADED.
+`scripts/prepare-ayas-local-coding-image.ts <temp-root> evaluator` reads npm archives that
+must already be present in the TEMP root and match the `package-lock.json` SHA-512
+integrity: TypeScript, React, ReactDOM, scheduler, tsx, esbuild and `@esbuild/linux-x64`.
+The native esbuild member must be an ELF64 x86-64 binary of the lockfile's exact esbuild
+version. Frozen evaluator bytes are copied from their pinned Git blob and are never
+rewritten; `evaluate.cjs` only loads them. Windows `node_modules` is never a payload.
+
+The frozen temporal evaluator starts child processes through the tsx CLI, which in turn
+starts the esbuild service. Unbounded Node/Go thread pools need about 90 tasks, above the
+64-task cap, so `evaluate.cjs` bounds the pools (`GOMAXPROCS`, `UV_THREADPOOL_SIZE`,
+`--v8-pool-size`). The cap and the evaluator are unchanged; the observed peak is 41.
+
+`verify-payload.mjs` is a build gate and the default entrypoint: every payload file must be
+declared in `BUILD_INPUT.json` with matching size and SHA-256. Links, traversal, extra or
+missing files, credentials and alternate inference pins refuse. The scoped
+`@esbuild/linux-x64` path is accepted for the `EVALUATOR` role only.
+
+## Host runner
+
+`scripts/run-ayas-local-coding-container.ts <temp-root> <phase>` drives rootless Podman:
+
+| Phase | What it records |
+| --- | --- |
+| `build-evaluator`, `build-inference` | offline build (`--pull=never --network=none`), image ID, recipe and payload digests |
+| `matrix` | isolation probes, PID cap, OOM kill, timeout, unexpected-mount refusal |
+| `controls` | frozen evaluator in the container: baseline FAIL, historical fix PASS, wrong candidate FAIL |
+| `smoke` | real pinned `llama-server` and model liveness and speed |
+| `qualify [caseId] [maxAttempts]` | real model attempts through the strict adapter and the frozen evaluator |
+
+Every container runs with `--network=none --pull=never --read-only --cap-drop=ALL
+--security-opt=no-new-privileges --pids-limit=64`, explicit memory and CPU limits, a single
+read-only bind of a validated TEMP directory at `/workspace`, and a `noexec,nosuid` tmpfs
+at `/tmp`. The host repository, user home, credentials and runtime sockets are never
+mounted. The evaluator copies a sealed case into its disposable tmpfs and overlays the
+candidate there; that copy is the only writable source. Limits are asserted from inside the
+container, and the OCI inspection is checked before each start.
+
+## Host protection
+
+The Podman WSL provider does not enforce the machine's configured memory or CPUs: all
+distributions share one WSL2 VM sized by WSL defaults. The per-container cgroup limit is
+the only real bound, so the inference profile is sized to the measured need (12.5 GiB,
+8 CPUs, 64 tasks, no swap) and asserted from inside. Only one heavy workload runs at a
+time. A model run starts only if the host would stay under 90 % RAM with the whole limit
+resident; otherwise the runner stops with `HOST_PROTECTION_PAUSE` (exit 3) and can be
+resumed. Sustained critical host memory or a container OOM kill is recorded as
+`RESOURCE_ABORT`, never as a model failure. After each run the container is removed and
+the VM page cache is released. No host or WSL global setting is changed. Measurements are
+in `HOST_RESOURCE_GUARD_EVIDENCE.json`.
+
+`controls` are host-oracle evidence, not model results. A frozen evaluator that reports
+zero scenarios or `skipped` on Linux is recorded as `PLATFORM_UNAVAILABLE`, never as a pass,
+and no model candidate for that case is executed on the host.
+
+The model sees only the task objective, the exact baseline source bytes and their hashes.
+It has no tool surface: the request asks for one JSON object under an engine-enforced
+JSON-schema response format, and the host parses and validates that object strictly.
+Evidence is written to `docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/`.

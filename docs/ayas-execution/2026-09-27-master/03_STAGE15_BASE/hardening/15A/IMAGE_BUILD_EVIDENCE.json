@@ -1,0 +1,817 @@
+{
+  "schemaVersion": "1",
+  "observedAt": "2026-10-01T07:18:25.862Z",
+  "evidenceClass": "ACTUAL_OFFLINE_ROOTLESS_IMAGE_BUILDS",
+  "roles": [
+    {
+      "role": "inference",
+      "imageId": "sha256:93efcff91170304e3612912a3fca940ce0b887f1f5be108be670519c9d382962",
+      "manifestDigest": "sha256:1302f04165f4e3d31cd7fa26c20be5971405cf926fd096a2b46039ea4ab7302e",
+      "repoDigests": [],
+      "architecture": "amd64",
+      "os": "linux",
+      "user": "65534:65534",
+      "baseDigest": "sha256:4e9cb555d708e0829c9d93e5eeae9dfab0617b832ca436a690680e0fca735ef5",
+      "recipeSha256": "5469a521ab472560b4095f600e66c47e53be8170c1909ec5e3c579124c91d9b2",
+      "payloadManifestSha256": "8beb1ccfd481b7557ef7a5dfd47e837cfd4d76ec33ae8d7728a6332d0136f92e",
+      "payloadFiles": 63,
+      "sizeBytes": 10133540984,
+      "buildNetwork": "none",
+      "basePull": "official exact digest only",
+      "admission": "NONE"
+    },
+    {
+      "role": "evaluator",
+      "imageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "manifestDigest": "sha256:c6b4a6eaf1b55e2ad0eb2ed8808fcc713b748654d82831c00330cd62a39f5b23",
+      "repoDigests": [],
+      "architecture": "amd64",
+      "os": "linux",
+      "user": "65534:65534",
+      "baseDigest": "sha256:4e9cb555d708e0829c9d93e5eeae9dfab0617b832ca436a690680e0fca735ef5",
+      "baseImage": "docker.io/library/node@sha256:4e9cb555d708e0829c9d93e5eeae9dfab0617b832ca436a690680e0fca735ef5",
+      "baseVersion": "24.18.0-bookworm",
+      "recipeSha256": "5469a521ab472560b4095f600e66c47e53be8170c1909ec5e3c579124c91d9b2",
+      "supportSha256": {
+        "Containerfile": "5469a521ab472560b4095f600e66c47e53be8170c1909ec5e3c579124c91d9b2",
+        "verify-payload.mjs": "a30c1b9dcffac8673a9a4011867789f07a074e3673f8a05d326ffa9f07955f5f",
+        "probe.mjs": "1736ff60b0562729be27cca22341f9d0a4a8789bd8d94d1d4850ec08353a2909",
+        "evaluate.cjs": "98c95c0f203ddbefcbafa6011dabe42c2e9e7bc5b8b96da1e1f0a3c20d2803b4"
+      },
+      "payloadManifestSha256": "d8cdb5fc91aa230ab5c1fae2e717615db035ad455fd50823e5c66b277edd2416",
+      "payloadFiles": 346,
+      "inImagePayloadVerification": "PAYLOAD_BYTES_VERIFIED_NOT_ADMITTED",
+      "sizeBytes": 1089817246,
+      "buildNetwork": "none",
+      "basePull": "never (exact digest already local)",
+      "packageInstall": "NONE",
+      "buildMs": 14405.4014,
+      "repositoryHead": "390d8272c590a8603c0eaf3ba6501c7bf9ba4248",
+      "observedAt": "2026-10-01T07:44:07.460Z",
+      "admission": "NONE",
+      "toolchain": {
+        "archives": [
+          {
+            "name": "typescript",
+            "version": "5.9.3",
+            "resolved": "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz",
+            "lockfileIntegrity": "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="
+          },
+          {
+            "name": "react",
+            "version": "19.2.4",
+            "resolved": "https://registry.npmjs.org/react/-/react-19.2.4.tgz",
+            "lockfileIntegrity": "sha512-9nfp2hYpCwOjAN+8TZFGhtWEwgvWHXqESH8qT89AT/lWklpLON22Lc8pEtnpsZz7VmawabSU0gCjnj8aC0euHQ=="
+          },
+          {
+            "name": "react-dom",
+            "version": "19.2.4",
+            "resolved": "https://registry.npmjs.org/react-dom/-/react-dom-19.2.4.tgz",
+            "lockfileIntegrity": "sha512-AXJdLo8kgMbimY95O2aKQqsz2iWi9jMgKJhRBAxECE4IFxfcazB2LmzloIoibJI3C12IlY20+KFaLv+71bUJeQ=="
+          },
+          {
+            "name": "scheduler",
+            "version": "0.27.0",
+            "resolved": "https://registry.npmjs.org/scheduler/-/scheduler-0.27.0.tgz",
+            "lockfileIntegrity": "sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q=="
+          },
+          {
+            "name": "tsx",
+            "version": "4.23.1",
+            "resolved": "https://registry.npmjs.org/tsx/-/tsx-4.23.1.tgz",
+            "lockfileIntegrity": "sha512-GQHnkIfxyx1wYCOS/wonik5MVRZU9hi1TEZmzGZSCJB1y9YgoZ8H6itNE/u4suE+yLmOzuE4E5S4TZ/ZX2wcWQ=="
+          },
+          {
+            "name": "esbuild",
+            "version": "0.28.1",
+            "resolved": "https://registry.npmjs.org/esbuild/-/esbuild-0.28.1.tgz",
+            "lockfileIntegrity": "sha512-HrJrvZv5ayxBzPfwphOoNzkzOIIlifzk0KJrGK2c8R4+LKpMtpYLQeUdjnwjWv/LZlkH2laZk+4w78pi99D4Vw=="
+          },
+          {
+            "name": "@esbuild/linux-x64",
+            "version": "0.28.1",
+            "resolved": "https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-0.28.1.tgz",
+            "lockfileIntegrity": "sha512-u/anNYF2mmVOEDwLtnQ1wOr3EZ9sTNGLWrsYGYwHWzGA3Si84IOkHXlbWTD1NB+9/1lcnweYKO54uhxZydNzfA=="
+          }
+        ],
+        "nativeExecutor": {
+          "path": "toolchain/node_modules/@esbuild/linux-x64/bin/esbuild",
+          "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+          "sizeBytes": 11407472,
+          "elf": "ELF64 little-endian x86-64",
+          "os": [
+            "linux"
+          ],
+          "cpu": [
+            "x64"
+          ]
+        },
+        "childExecutorCli": "toolchain/node_modules/tsx/dist/cli.mjs",
+        "packageInstall": "NONE"
+      }
+    }
+  ],
+  "engineArchiveVerified": true,
+  "engineArchiveSha256": "c150306eb16b5ab696f76a8bdf810c35fd98a24e82158742e6fa28f420ff8410",
+  "engineDerivation": [
+    {
+      "path": "libggml-cpu-cooperlake.so",
+      "sourceMember": "llama-b11146/libggml-cpu-cooperlake.so",
+      "sha256": "5cb2ce6bda931e19742c0cbec44ed258ac57afe2801cc2324d752a19bf8d6707",
+      "flattenedLink": false
+    },
+    {
+      "path": "libllama-quantize-impl.so",
+      "sourceMember": "llama-b11146/libllama-quantize-impl.so",
+      "sha256": "510e169cfd384703bd504c92be4871959530f593ad5f7dbd32e04fcec6eaf3d5",
+      "flattenedLink": false
+    },
+    {
+      "path": "llama-completion",
+      "sourceMember": "llama-b11146/llama-completion",
+      "sha256": "7119bef261611b26f326f7c4da4dc3fdeb7bb28e2faf1ec392bda7b21215ef52",
+      "flattenedLink": false
+    },
+    {
+      "path": "llama-tts",
+      "sourceMember": "llama-b11146/llama-tts",
+      "sha256": "9b8b8076e4a95fc7ef8e97f889e5ebce44237383b1cfa1a39cbe40b6c22a8bf8",
+      "flattenedLink": false
+    },
+    {
+      "path": "llama-fit-params",
+      "sourceMember": "llama-b11146/llama-fit-params",
+      "sha256": "b2ad073a0c093706e5dfdfe2c9864d199ed921e49ea0383a7d0013e2ad8a81c8",
+      "flattenedLink": false
+    },
+    {
+      "path": "libllama-fit-params-impl.so",
+      "sourceMember": "llama-b11146/libllama-fit-params-impl.so",
+      "sha256": "64659e27caad6d884fa093d33b9aa631a4def6cbbff0aa85bf6218a153565cc2",
+      "flattenedLink": false
+    },
+    {
+      "path": "LICENSE",
+      "sourceMember": "llama-b11146/LICENSE",
+      "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
+      "flattenedLink": false
+    },
+    {
+      "path": "libllama-server-impl.so",
+      "sourceMember": "llama-b11146/libllama-server-impl.so",
+      "sha256": "448901d999734830ff3ba6d81b3df230910ee534ac4584571fce4ce1896d450d",
+      "flattenedLink": false
+    },
+    {
+      "path": "llama-minicpmv-cli",
+      "sourceMember": "llama-b11146/llama-minicpmv-cli",
+      "sha256": "053ff1b820407b8a1836b0b05d1ffcc91e56b6531f08d9b00b8dfb97a41de294",
+      "flattenedLink": false
+    },
+    {
+      "path": "libmtmd.so",
+      "sourceMember": "llama-b11146/libmtmd.so.0.5.0",
+      "sha256": "9bfb7fc0005de64f160763476a326a54a9a56ffd0a5b1e24111981a90c02d84f",
+      "flattenedLink": true
+    },
+    {
+      "path": "libggml-cpu-piledriver.so",
+      "sourceMember": "llama-b11146/libggml-cpu-piledriver.so",
+      "sha256": "bb4d2dfe4cb107b06d7841904bf87460c42854dbf9c56d9dc3eed861e7a7bb92",
+      "flattenedLink": false
+    },
+    {
+      "path": "llama-mtmd-debug",
+      "sourceMember": "llama-b11146/llama-mtmd-debug",
+      "sha256": "f9971e899d985249af8639f78bf1b958c63642eb2631924ee8f4e9d378166411",
+      "flattenedLink": false
+    },
+    {
+      "path": "libggml-cpu-zen4.so",
+      "sourceMember": "llama-b11146/libggml-cpu-zen4.so",
+      "sha256": "e636cd0e2c623b7fb74ed32e76a6d6139ee1dba1f8c552dd2c497a242db96b52",
+      "flattenedLink": false
+    },
+    {
+      "path": "llama-gemma3-cli",
+      "sourceMember": "llama-b11146/llama-gemma3-cli",
+      "sha256": "053ff1b820407b8a1836b0b05d1ffcc91e56b6531f08d9b00b8dfb97a41de294",
+      "flattenedLink": false
+    },
+    {
+      "path": "llama-tokenize",
+      "sourceMember": "llama-b11146/llama-tokenize",
+      "sha256": "c635c75630b67f5759252ac75401bff23f9c057ba34dcfdf6994c5f8827c495f",
+      "flattenedLink": false
+    },
+    {
+      "path": "libllama-completion-impl.so",
+      "sourceMember": "llama-b11146/libllama-completion-impl.so",
+      "sha256": "251871f192308edca2b2d7ec253832e27aca2aafc18c242a7f1c8418496efa0a",
+      "flattenedLink": false
+    },
+    {
+      "path": "libllama-common.so.0",
+      "sourceMember": "llama-b11146/libllama-common.so.0.5.0",
+      "sha256": "6686de2e183ac053f6d965bd06af6c4eb62aff44353a3c2664b854c72a492dda",
+      "flattenedLink": true
+    },
+    {
+      "path": "llama-results",
+      "sourceMember": "llama-b11146/llama-results",
+      "sha256": "27b97ada88d7e69a3b31619877c460e33aff29280ba32eb4814af7e7f4e84ccb",
+      "flattenedLink": false
+    },
+    {
+      "path": "llama-server",
+      "sourceMember": "llama-b11146/llama-server",
+      "sha256": "22de090746c114569367998ec930b28f27f12e078e593ff21175a54b409d26fe",
+      "flattenedLink": false
+    },
+    {
+      "path": "libggml-rpc.so",
+      "sourceMember": "llama-b11146/libggml-rpc.so",
+      "sha256": "bd8dffadf26f130935742016b8f8711bb35e3187f16f44d75db5639daa2c6cfa",
+      "flattenedLink": false
+    },
+    {
+      "path": "llama-batched-bench",
+      "sourceMember": "llama-b11146/llama-batched-bench",
+      "sha256": "3b70e62c5c5cf43c8c436622a845ad4b80c01837d6ba3a10c90e39b219bbd2ab",
+      "flattenedLink": false
+    },
+    {
+      "path": "llama-llava-cli",
+      "sourceMember": "llama-b11146/llama-llava-cli",
+      "sha256": "053ff1b820407b8a1836b0b05d1ffcc91e56b6531f08d9b00b8dfb97a41de294",
+      "flattenedLink": false
+    },
+    {
+      "path": "libllama.so",
+      "sourceMember": "llama-b11146/libllama.so.0.5.0",
+      "sha256": "7e3dd3d60fada6e76cc0bbccd076c90e0b2f1c01cc1c18bf3bb0b2df5ee2c67f",
+      "flattenedLink": true
+    },
+    {
+      "path": "libggml-cpu-alderlake.so",
+      "sourceMember": "llama-b11146/libggml-cpu-alderlake.so",
+      "sha256": "8c0a8861351221a1dbe5fd43df5fbdbb00aeff0face86aed47ddc166323c2228",
+      "flattenedLink": false
+    },
+    {
+      "path": "libggml-cpu-sse42.so",
+      "sourceMember": "llama-b11146/libggml-cpu-sse42.so",
+      "sha256": "4f4e9d6bf9a3f3a6c709fb5e48c684d1fa4c931db23ee0f2c0bbf14d78fff1f4",
+      "flattenedLink": false
+    },
+    {
+      "path": "libggml-base.so.0.25.1",
+      "sourceMember": "llama-b11146/libggml-base.so.0.25.1",
+      "sha256": "5edd28e54a19d75ccf3bcd1a729a5d5327f822514c274969b8b83d878e5ef3bd",
+      "flattenedLink": false
+    },
+    {
+      "path": "llama-qwen2vl-cli",
+      "sourceMember": "llama-b11146/llama-qwen2vl-cli",
+      "sha256": "053ff1b820407b8a1836b0b05d1ffcc91e56b6531f08d9b00b8dfb97a41de294",
+      "flattenedLink": false
+    },
+    {
+      "path": "libggml-cpu-haswell.so",
+      "sourceMember": "llama-b11146/libggml-cpu-haswell.so",
+      "sha256": "984064c44e5a92558e01ace8cf18cde33356d2d21bdb93166f0faf57885fe234",
+      "flattenedLink": false
+    },
+    {
+      "path": "libllama-perplexity-impl.so",
+      "sourceMember": "llama-b11146/libllama-perplexity-impl.so",
+      "sha256": "b37f8c9dd0f6b2e43df448e18d1afb81ca31e979d865f49e81f2c3014a0a9409",
+      "flattenedLink": false
+    },
+    {
+      "path": "llama",
+      "sourceMember": "llama-b11146/llama",
+      "sha256": "03ca7cf8c26a7c1ea28f2430c12a8d55f10ca228751513eb7a217db663be4c43",
+      "flattenedLink": false
+    },
+    {
+      "path": "libmtmd.so.0.5.0",
+      "sourceMember": "llama-b11146/libmtmd.so.0.5.0",
+      "sha256": "9bfb7fc0005de64f160763476a326a54a9a56ffd0a5b1e24111981a90c02d84f",
+      "flattenedLink": false
+    },
+    {
+      "path": "libllama-cli-impl.so",
+      "sourceMember": "llama-b11146/libllama-cli-impl.so",
+      "sha256": "55c9a9db29646b8a88d87f276f10278b9c7ed835a9672d442e9ecafad1c0cdc1",
+      "flattenedLink": false
+    },
+    {
+      "path": "libggml-cpu-cannonlake.so",
+      "sourceMember": "llama-b11146/libggml-cpu-cannonlake.so",
+      "sha256": "efc6d0d0cb92e5ff7c3a2b2a995068a810e72aab23174bd6d84484f92e145643",
+      "flattenedLink": false
+    },
+    {
+      "path": "llama-imatrix",
+      "sourceMember": "llama-b11146/llama-imatrix",
+      "sha256": "000846dd94cc7caf28c9d886871efce108388dfc0185c5d95f47d66df6440ce5",
+      "flattenedLink": false
+    },
+    {
+      "path": "libggml.so.0",
+      "sourceMember": "llama-b11146/libggml.so.0.25.1",
+      "sha256": "569c53469aceca5dd357d2c3e1570014ed73e676abb08d44971be4cb784d855c",
+      "flattenedLink": true
+    },
+    {
+      "path": "llama-perplexity",
+      "sourceMember": "llama-b11146/llama-perplexity",
+      "sha256": "1c06240ed8594fd377d655aef2dab0865431e3e779c06638474c96b38e6d74a0",
+      "flattenedLink": false
+    },
+    {
+      "path": "libggml-cpu-sapphirerapids.so",
+      "sourceMember": "llama-b11146/libggml-cpu-sapphirerapids.so",
+      "sha256": "b19ce9b822c569e514c8a99f6df2996f553eb295838c78bd544d791a124d3919",
+      "flattenedLink": false
+    },
+    {
+      "path": "libggml.so",
+      "sourceMember": "llama-b11146/libggml.so.0.25.1",
+      "sha256": "569c53469aceca5dd357d2c3e1570014ed73e676abb08d44971be4cb784d855c",
+      "flattenedLink": true
+    },
+    {
+      "path": "libggml.so.0.25.1",
+      "sourceMember": "llama-b11146/libggml.so.0.25.1",
+      "sha256": "569c53469aceca5dd357d2c3e1570014ed73e676abb08d44971be4cb784d855c",
+      "flattenedLink": false
+    },
+    {
+      "path": "libmtmd.so.0",
+      "sourceMember": "llama-b11146/libmtmd.so.0.5.0",
+      "sha256": "9bfb7fc0005de64f160763476a326a54a9a56ffd0a5b1e24111981a90c02d84f",
+      "flattenedLink": true
+    },
+    {
+      "path": "libllama-common.so",
+      "sourceMember": "llama-b11146/libllama-common.so.0.5.0",
+      "sha256": "6686de2e183ac053f6d965bd06af6c4eb62aff44353a3c2664b854c72a492dda",
+      "flattenedLink": true
+    },
+    {
+      "path": "llama-cli",
+      "sourceMember": "llama-b11146/llama-cli",
+      "sha256": "e307ffc61e310365a518918e15c170b86c3b921f50f182b9fd4f4532d6015342",
+      "flattenedLink": false
+    },
+    {
+      "path": "libggml-base.so",
+      "sourceMember": "llama-b11146/libggml-base.so.0.25.1",
+      "sha256": "5edd28e54a19d75ccf3bcd1a729a5d5327f822514c274969b8b83d878e5ef3bd",
+      "flattenedLink": true
+    },
+    {
+      "path": "libggml-cpu-cascadelake.so",
+      "sourceMember": "llama-b11146/libggml-cpu-cascadelake.so",
+      "sha256": "0e12697fe79d6209486fb4ab6e38ee279b8b80481208a7e1f7b61e803af6ee8c",
+      "flattenedLink": false
+    },
+    {
+      "path": "libggml-cpu-sandybridge.so",
+      "sourceMember": "llama-b11146/libggml-cpu-sandybridge.so",
+      "sha256": "ced91e5db35c922b2e081daa079c0057f3862ad285f92dd1cfd1f6847985701a",
+      "flattenedLink": false
+    },
+    {
+      "path": "libllama.so.0.5.0",
+      "sourceMember": "llama-b11146/libllama.so.0.5.0",
+      "sha256": "7e3dd3d60fada6e76cc0bbccd076c90e0b2f1c01cc1c18bf3bb0b2df5ee2c67f",
+      "flattenedLink": false
+    },
+    {
+      "path": "libllama-bench-impl.so",
+      "sourceMember": "llama-b11146/libllama-bench-impl.so",
+      "sha256": "bec94a1255db087838211878fda2be5528ff5886d2088551f48446473bd413c0",
+      "flattenedLink": false
+    },
+    {
+      "path": "libggml-cpu-ivybridge.so",
+      "sourceMember": "llama-b11146/libggml-cpu-ivybridge.so",
+      "sha256": "a90c3b1a96f150cba36e0abae4dd8d15384db29fee49106c0f4664619ec01fe3",
+      "flattenedLink": false
+    },
+    {
+      "path": "llama-mtmd-cli",
+      "sourceMember": "llama-b11146/llama-mtmd-cli",
+      "sha256": "9378a6b9582c67c0c280487c07ebb483043c94779a975bf1e297af7ea115d271",
+      "flattenedLink": false
+    },
+    {
+      "path": "ggml-rpc-server",
+      "sourceMember": "llama-b11146/ggml-rpc-server",
+      "sha256": "9a3bfa0d9eda6f89efe90487aa9102f3333277408d0136d1dfdf1ca0398b054b",
+      "flattenedLink": false
+    },
+    {
+      "path": "libllama.so.0",
+      "sourceMember": "llama-b11146/libllama.so.0.5.0",
+      "sha256": "7e3dd3d60fada6e76cc0bbccd076c90e0b2f1c01cc1c18bf3bb0b2df5ee2c67f",
+      "flattenedLink": true
+    },
+    {
+      "path": "libllama-batched-bench-impl.so",
+      "sourceMember": "llama-b11146/libllama-batched-bench-impl.so",
+      "sha256": "51708700c784ce0a58214aad58f5a259b519d94cb625c7e7c9e8435f9e94b460",
+      "flattenedLink": false
+    },
+    {
+      "path": "libggml-cpu-skylakex.so",
+      "sourceMember": "llama-b11146/libggml-cpu-skylakex.so",
+      "sha256": "cf4a4bc0daf9ca620d1df6ee66a7d9132899f33e3ff797d6b6fb5b29911ccbc0",
+      "flattenedLink": false
+    },
+    {
+      "path": "llama-quantize",
+      "sourceMember": "llama-b11146/llama-quantize",
+      "sha256": "4dae745e3197da81e17d5ea1dbe6351ba3d559e2a887af2df3715c4293a21c32",
+      "flattenedLink": false
+    },
+    {
+      "path": "libggml-base.so.0",
+      "sourceMember": "llama-b11146/libggml-base.so.0.25.1",
+      "sha256": "5edd28e54a19d75ccf3bcd1a729a5d5327f822514c274969b8b83d878e5ef3bd",
+      "flattenedLink": true
+    },
+    {
+      "path": "libllama-common.so.0.5.0",
+      "sourceMember": "llama-b11146/libllama-common.so.0.5.0",
+      "sha256": "6686de2e183ac053f6d965bd06af6c4eb62aff44353a3c2664b854c72a492dda",
+      "flattenedLink": false
+    },
+    {
+      "path": "libggml-cpu-icelake.so",
+      "sourceMember": "llama-b11146/libggml-cpu-icelake.so",
+      "sha256": "6cefaed8ad0d4b7e2e661e850b16936e4265283cb7fda004b6c6923d87e9241f",
+      "flattenedLink": false
+    },
+    {
+      "path": "llama-gguf-split",
+      "sourceMember": "llama-b11146/llama-gguf-split",
+      "sha256": "d371cd59cb824765a02ba4e9eb2d4590f80d866e47558a3426778d66836f1d33",
+      "flattenedLink": false
+    },
+    {
+      "path": "libggml-cpu-x64.so",
+      "sourceMember": "llama-b11146/libggml-cpu-x64.so",
+      "sha256": "2cf499f61c4e9888c47e404f9359e53e9ca79cf1f33e5b5bd706ce4642051149",
+      "flattenedLink": false
+    },
+    {
+      "path": "llama-bench",
+      "sourceMember": "llama-b11146/llama-bench",
+      "sha256": "d120d842f014d4e4fd5c4cc0b163440bece621b63efb3abbd588dbab0c546241",
+      "flattenedLink": false
+    }
+  ],
+  "modelLocalSha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
+  "modelLocalSizeBytes": 8988110272,
+  "tempBundle": "C:/Users/Metod/AppData/Local/Temp/ayas-qualification-bf066321-8e0a-431f-a561-cee5125fd442",
+  "admission": "NONE",
+  "supersededSlimBuilds": [
+    {
+      "role": "evaluator",
+      "imageId": "sha256:1997139027f08c2b9b230eb06e4cf9f3f3789b8f18c38508df25967dd9fac196",
+      "manifestDigest": "sha256:dab2184a3a10af636aaa9f2e772f4403be6443f83b3a1b6c7ad55a4645293f87",
+      "repoDigests": [],
+      "architecture": "amd64",
+      "os": "linux",
+      "user": "65534:65534",
+      "baseDigest": "sha256:d45d78e7929b46875bbd4e29bea672d5bc48186c6c3588306521c815e78352d6",
+      "recipeSha256": "a065ed49892f37cd01d8bad0742866edface36c743ca9e69be2460448338e3ed",
+      "payloadManifestSha256": "baff8bc74a3cc74572fc1eac4f74b27782d3b03529ee68a61ac1c1b86e8fe8df",
+      "payloadFiles": 276,
+      "sizeBytes": 224107371,
+      "buildNetwork": "none",
+      "basePull": "official exact digest only",
+      "admission": "NONE"
+    },
+    {
+      "role": "inference",
+      "imageId": "sha256:9c8c8d2925230b2d6d1f5a9bb29b37547d5f474f935a772165201bf3ec8e4cec",
+      "manifestDigest": "sha256:856d4ebe779e7aec0c471d2e7efdbc6c3b4ce32a4fdbe816394d9e97f155ee29",
+      "repoDigests": [],
+      "architecture": "amd64",
+      "os": "linux",
+      "user": "65534:65534",
+      "baseDigest": "sha256:d45d78e7929b46875bbd4e29bea672d5bc48186c6c3588306521c815e78352d6",
+      "recipeSha256": "a065ed49892f37cd01d8bad0742866edface36c743ca9e69be2460448338e3ed",
+      "payloadManifestSha256": "8beb1ccfd481b7557ef7a5dfd47e837cfd4d76ec33ae8d7728a6332d0136f92e",
+      "payloadFiles": 63,
+      "sizeBytes": 9280090738,
+      "buildNetwork": "none",
+      "basePull": "official exact digest only",
+      "admission": "NONE"
+    }
+  ],
+  "engineRuntimeVersion": "0.00.000.328 I srv  llama_server: initializing ...\r\nversion: 0.5.0-dev (build 11146, commit 7fe450e19)\r\nbuilt with GNU 11.4.0 for Linux x86_64\r\n",
+  "runtimeCompatibilityObserved": true,
+  "compilerAndEvaluatorManifests": [
+    {
+      "caseId": "historical-explicit-computer-plan",
+      "evaluatorScript": "scripts/smoke-ayas-memory-temporal.ts",
+      "evaluatorBlob": "39c786bc544fa9c706ccf3139e8e967ad71ec369",
+      "evaluatorSha256": "a7d9cbf5c21f888c8a67c8c6e9090155201a38f2595ddf4614430f32b89a6ff7",
+      "exactFiles": [
+        "src/lib/ayas/memory/AyasMemoryTemporal.ts"
+      ],
+      "files": [
+        "scripts/fixtures/ayas-memory-temporal-cases.ts",
+        "scripts/fixtures/ayas-memory-temporal-writer-child.ts",
+        "scripts/smoke-ayas-memory-temporal.ts",
+        "src/components/brain/ayasVoice.ts",
+        "src/components/brain/brainCore.ts",
+        "src/lib/ai/AIResponseError.ts",
+        "src/lib/ai/OllamaConfig.ts",
+        "src/lib/ai/providers/OllamaProvider.ts",
+        "src/lib/animation/AnimationMotionPlanError.ts",
+        "src/lib/animation/AnimationStructuredOutput.ts",
+        "src/lib/assets/storage/StoragePathSecurity.ts",
+        "src/lib/audio/AudioAssetError.ts",
+        "src/lib/audio/AudioCompensationStore.ts",
+        "src/lib/audio/AudioDescriptorBoundVerification.ts",
+        "src/lib/audio/AudioIdentifierPolicy.ts",
+        "src/lib/ayas/AyasChatStream.ts",
+        "src/lib/ayas/AyasModelProfile.ts",
+        "src/lib/ayas/AyasProjectCatalog.ts",
+        "src/lib/ayas/context/AyasContextAssembly.ts",
+        "src/lib/ayas/context/AyasContextCompression.ts",
+        "src/lib/ayas/context/AyasConversationState.ts",
+        "src/lib/ayas/context/AyasReferenceResolver.ts",
+        "src/lib/ayas/execution/AyasActionContracts.ts",
+        "src/lib/ayas/execution/AyasActionRuntime.ts",
+        "src/lib/ayas/execution/AyasDeveloperEvidence.ts",
+        "src/lib/ayas/execution/AyasDevelopmentStatus.ts",
+        "src/lib/ayas/execution/AyasExecutionPolicy.ts",
+        "src/lib/ayas/execution/AyasSafeExecutors.ts",
+        "src/lib/ayas/machine/AyasMachineHealthGuard.ts",
+        "src/lib/ayas/machine/AyasMachineTelemetry.ts",
+        "src/lib/ayas/memory/AyasMemoryCandidate.ts",
+        "src/lib/ayas/memory/AyasMemoryGovernance.ts",
+        "src/lib/ayas/memory/AyasMemoryRecall.ts",
+        "src/lib/ayas/memory/AyasMemoryRetrieval.ts",
+        "src/lib/ayas/memory/AyasMemoryStore.ts",
+        "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+        "src/lib/ayas/model/AyasCloudConfig.ts",
+        "src/lib/ayas/model/AyasComplexityRouter.ts",
+        "src/lib/ayas/model/AyasModelRouter.ts",
+        "src/lib/ayas/model/CloudAyasProvider.ts",
+        "src/lib/ayas/model/OllamaAyasProvider.ts",
+        "src/lib/ayas/policy/AyasZeroCostPolicy.ts",
+        "src/lib/ayas/reasoning/AyasReasoningCore.ts",
+        "src/lib/ayas/reasoning/AyasReasoningParser.ts",
+        "src/lib/ayas/reasoning/AyasReasoningPrompt.ts",
+        "src/lib/ayas/reasoning/AyasToolRegistry.ts",
+        "src/lib/ayas/routing/AyasAgenticRouting.ts",
+        "src/lib/ayas/trace/AyasUnifiedTrace.ts",
+        "src/lib/brain/BrainId.ts",
+        "src/lib/brain/BrainMemoryModel.ts",
+        "src/lib/brain/BrainRedaction.ts",
+        "src/lib/brain/autonomy/AyasApprovalInboxReader.ts",
+        "src/lib/brain/autonomy/AyasApprovalInboxView.ts",
+        "src/lib/brain/autonomy/AyasDeferredEligibility.ts",
+        "src/lib/brain/autonomy/AyasFindingValueClass.ts",
+        "src/lib/brain/autonomy/AyasMicroBatchDevelopmentView.ts",
+        "src/lib/brain/autonomy/AyasMicroBatchReader.ts",
+        "src/lib/brain/autonomy/AyasOwnerApprovalProvenance.ts",
+        "src/lib/brain/autonomy/AyasPatchArtifact.ts",
+        "src/lib/brain/autonomy/AyasPublicationActivity.ts",
+        "src/lib/brain/selfheal/BrainIncident.ts",
+        "src/lib/brain/selfheal/BrainLearnedPattern.ts",
+        "src/lib/brain/selfheal/BrainPatchSafety.ts",
+        "src/lib/brain/selfheal/BrainReportCenter.ts",
+        "src/lib/brain/selfheal/BrainSelfHealDecision.ts",
+        "src/lib/brain/selfheal/BrainSelfHealSnapshot.ts",
+        "src/lib/brain/selfheal/BrainSelfHealStore.ts",
+        "src/lib/brain/selfheal/BrainUntrustedInput.ts",
+        "src/lib/brain/selfheal/BrainVoiceLatency.ts",
+        "src/lib/brain/ui/BrainSelfHealConsoleSnapshot.ts",
+        "src/lib/pipeline/PipelineErrorEvidence.ts",
+        "src/lib/pipeline/PipelineJobManager.ts",
+        "src/lib/pipeline/PipelineJobMutationLock.ts",
+        "src/lib/pipeline/PipelineRecoveryPlanner.ts",
+        "src/lib/pipeline/PipelineRetryAdmission.ts",
+        "src/lib/pipeline/PipelineStageRegenerationStore.ts",
+        "src/lib/pipeline/PipelineStateError.ts",
+        "src/lib/production/ProductionAcceptanceConfigurationFingerprint.ts",
+        "src/lib/production/ProductionAcceptanceExecutionScope.ts",
+        "src/lib/production/ProductionAcceptanceLegacyAdmissionContext.ts",
+        "src/lib/production/ProductionAcceptanceLegacyAuthorityStore.ts",
+        "src/lib/production/ProductionAcceptanceLegacyDurableRecoverySnapshot.ts",
+        "src/lib/production/ProductionAcceptanceLegacyReauthorization.ts",
+        "src/lib/production/ProductionAcceptanceLegacyReauthorizationPreflight.ts",
+        "src/lib/production/ProductionAcceptanceMarkerDescriptorReader.ts",
+        "src/lib/production/ProductionAcceptancePolicy.ts",
+        "src/lib/production/ProductionAcceptanceTopic.ts",
+        "src/lib/production/ProductionCanonicalDurableLineage.ts",
+        "src/lib/production/ProductionCompletedStageRegenerationPaths.ts",
+        "src/lib/production/ProductionCompletedStageRegenerationStore.ts",
+        "src/lib/production/ProductionDeterminism.ts",
+        "src/lib/production/ProductionDurableAttemptLineageBoundary.ts",
+        "src/lib/production/ProductionDurableAttemptLineageClassifier.ts",
+        "src/lib/production/ProductionDurableIdentityDerivation.ts",
+        "src/lib/production/ProductionExecutionCoordinator.ts",
+        "src/lib/production/ProductionExecutionDescriptorBoundReadAdapter.ts",
+        "src/lib/production/ProductionExecutionDurableAttempt.ts",
+        "src/lib/production/ProductionExecutionDurableAttemptIntegrity.ts",
+        "src/lib/production/ProductionExecutionDurableClaim.ts",
+        "src/lib/production/ProductionExecutionDurableLease.ts",
+        "src/lib/production/ProductionExecutionDurableStorage.ts",
+        "src/lib/production/ProductionExecutionIdempotency.ts",
+        "src/lib/production/ProductionExecutionLifecycle.ts",
+        "src/lib/production/ProductionExecutionPersistence.ts",
+        "src/lib/production/ProductionExecutionRecoveryBootstrap.ts",
+        "src/lib/production/ProductionExecutionTransaction.ts",
+        "src/lib/production/ProductionExecutionWorker.ts",
+        "src/lib/production/ProductionGlobalTerminalQuiescence.ts",
+        "src/lib/production/ProductionLegacyPipelineExecutionIdentity.ts",
+        "src/lib/production/ProductionOperationJournal.ts",
+        "src/lib/production/ProductionOrphanReservationToleranceAuthority.ts",
+        "src/lib/production/ProductionPipelineEnvironmentalFailureRetryExtension.ts",
+        "src/lib/production/ProductionPipelineExecutionAdapter.ts",
+        "src/lib/production/ProductionPipelineExecutionCanonicalRuntime.ts",
+        "src/lib/production/ProductionPipelineExecutionFactory.ts",
+        "src/lib/production/ProductionPipelineExecutionIdentity.ts",
+        "src/lib/production/ProductionPipelineExecutionInstrumentation.ts",
+        "src/lib/production/ProductionPipelineExecutionSemantics.ts",
+        "src/lib/production/ProductionPipelineRegenerationRetryBudgetExtension.ts",
+        "src/lib/production/ProductionPipelineRetryAdmissionBinding.ts",
+        "src/lib/production/ProductionPipelineRetryBudgetExtensionSchema.ts",
+        "src/lib/production/ProductionPipelineRetryBudgetExtensionStore.ts",
+        "src/lib/production/ProductionPipelineRetryReconciliation.ts",
+        "src/lib/production/ProductionPipelineTerminalSettlement.ts",
+        "src/lib/production/ProductionProjectSlug.ts",
+        "src/lib/production/ProductionRegenerationPhysicalGuard.ts",
+        "src/lib/production/ProductionSupersededDuplicateReservationAuthority.ts",
+        "src/lib/production/ProductionWorkerLifecycle.ts",
+        "src/lib/projects/ProjectFolderIndex.ts",
+        "src/lib/projects/ProjectManager.ts",
+        "src/lib/projects/ProjectReader.ts",
+        "src/lib/projects/ProjectWriter.ts",
+        "src/lib/providers/ProviderDispatchAdapterAuthority.ts",
+        "src/lib/runtime/ProductionRuntimeOperationContext.ts",
+        "src/lib/runtime/RuntimeOperationScope.ts",
+        "src/lib/runtime/RuntimeStoragePaths.ts",
+        "src/lib/thumbnail/ThumbnailAssetError.ts",
+        "src/lib/video/VideoDataValidation.ts",
+        "src/lib/youtube/YouTubePackageValidation.ts",
+        "src/lib/youtube/publish/YouTubePublishValidation.ts",
+        "src/types/aiResponse.ts",
+        "src/types/animation.ts",
+        "src/types/animationError.ts",
+        "src/types/audioError.ts",
+        "src/types/brainMemory.ts",
+        "src/types/productionExecutionDurableLease.ts",
+        "src/types/productionExecutionDurableRecovery.ts",
+        "src/types/productionExecutionDurableStorage.ts",
+        "src/types/productionExecutionIdempotency.ts",
+        "src/types/productionExecutionTransaction.ts",
+        "src/types/productionOperationJournal.ts",
+        "src/types/thumbnailError.ts",
+        "tsconfig.json"
+      ]
+    },
+    {
+      "caseId": "heldout-render-tool-supersession",
+      "evaluatorScript": "scripts/smoke-ayas-stage15-7-temporal-acceptance.ts",
+      "evaluatorBlob": "2934d7402abdc048e02e6ce95d54fc98eeb49e78",
+      "evaluatorSha256": "107acf5cff968d04fbce846c680fcf2579bb8534693a9e93b104b665970f2942",
+      "exactFiles": [
+        "src/lib/ayas/memory/AyasMemoryTemporal.ts"
+      ],
+      "files": [
+        "scripts/fixtures/ayas-memory-temporal-cases.ts",
+        "scripts/smoke-ayas-stage15-7-temporal-acceptance.ts",
+        "src/lib/ayas/memory/AyasMemoryRetrieval.ts",
+        "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+        "src/lib/brain/BrainId.ts",
+        "src/lib/brain/BrainMemoryModel.ts",
+        "src/lib/brain/BrainRedaction.ts",
+        "src/types/brainMemory.ts",
+        "tsconfig.json"
+      ]
+    },
+    {
+      "caseId": "historical-atomic-bounded-write",
+      "evaluatorScript": "scripts/smoke-ayas-bounded-file-write.ts",
+      "evaluatorBlob": "70df46f3c7a474a449c78e2c8f2f0da3383beebc",
+      "evaluatorSha256": "231d3b5515bd6787f98db1ae3db6e25baee407b77c40033bfde87d752ff37214",
+      "exactFiles": [
+        "src/lib/brain/autonomy/AyasBoundedFileWrite.ts"
+      ],
+      "files": [
+        "scripts/smoke-ayas-bounded-file-write.ts",
+        "src/lib/brain/autonomy/AyasBoundedFileWrite.ts",
+        "tsconfig.json"
+      ]
+    },
+    {
+      "caseId": "historical-daily-development-view",
+      "evaluatorScript": "scripts/smoke-ayas-development-center.ts",
+      "evaluatorBlob": "6ff859f5996ea8623f823a5f7986296c5e965adb",
+      "evaluatorSha256": "7571d63c55fc7b6d6a025e99651056719846eeb40bd786f3996af061c5c346cb",
+      "exactFiles": [
+        "src/lib/brain/autonomy/AyasApprovalInboxView.ts"
+      ],
+      "files": [
+        "scripts/smoke-ayas-development-center.ts",
+        "src/components/brain/AyasDevelopmentCenter.tsx",
+        "src/components/brain/BrainConsoleView.tsx",
+        "src/components/brain/BrainCore.css",
+        "src/components/brain/ayasVoice.ts",
+        "src/components/brain/brainCore.ts",
+        "src/lib/brain/BrainRedaction.ts",
+        "src/lib/brain/autonomy/AyasApprovalInboxReader.ts",
+        "src/lib/brain/autonomy/AyasApprovalInboxStore.ts",
+        "src/lib/brain/autonomy/AyasApprovalInboxView.ts",
+        "src/lib/brain/autonomy/AyasDeferredEligibility.ts",
+        "src/lib/brain/autonomy/AyasFindingValueClass.ts",
+        "src/lib/brain/autonomy/AyasOwnerApprovalProvenance.ts",
+        "src/lib/brain/autonomy/AyasPatchArtifact.ts",
+        "src/lib/brain/autonomy/AyasPublicationActivity.ts",
+        "tsconfig.json"
+      ]
+    },
+    {
+      "caseId": "historical-windows-graphify-launch",
+      "evaluatorScript": "scripts/smoke-ayas-post-publication-closure-windows-launcher.ts",
+      "evaluatorBlob": "58c7d098272f6d7d83c1b78ca4b8940839fdbc5b",
+      "evaluatorSha256": "bc513aed6553c58c5909cf4560ecf7724e8b9b7bcd7b7e89f4f10b0906adfb27",
+      "exactFiles": [
+        "src/lib/brain/autonomy/AyasPostPublicationClosure.ts"
+      ],
+      "files": [
+        "scripts/smoke-ayas-post-publication-closure-windows-launcher.ts",
+        "src/lib/brain/autonomy/AyasPostPublicationClosure.ts",
+        "tsconfig.json"
+      ]
+    },
+    {
+      "caseId": "historical-two-source-identity-retrieval",
+      "evaluatorScript": "scripts/smoke-ayas-memory.ts",
+      "evaluatorBlob": "7f621a3992d7fdf46f0e2eab8e4cfe34e1bfd82f",
+      "evaluatorSha256": "5160c020ba4f2b9f3eb4e2375ed6715babb681422410bf0cf724bea898123fdf",
+      "exactFiles": [
+        "src/lib/ayas/memory/AyasMemoryRetrieval.ts",
+        "src/lib/ayas/memory/AyasMemoryCandidate.ts"
+      ],
+      "files": [
+        "scripts/smoke-ayas-memory.ts",
+        "src/lib/ayas/memory/AyasMemoryCandidate.ts",
+        "src/lib/ayas/memory/AyasMemoryGovernance.ts",
+        "src/lib/ayas/memory/AyasMemoryRecall.ts",
+        "src/lib/ayas/memory/AyasMemoryRetrieval.ts",
+        "src/lib/ayas/memory/AyasMemoryStore.ts",
+        "src/lib/brain/BrainId.ts",
+        "src/lib/brain/BrainMemoryModel.ts",
+        "src/lib/brain/BrainRedaction.ts",
+        "src/types/brainMemory.ts",
+        "tsconfig.json"
+      ]
+    },
+    {
+      "caseId": "historical-atomic-bounded-write-oracle",
+      "evaluatorScript": "scripts/smoke-ayas-bounded-file-write.ts",
+      "evaluatorBlob": "70df46f3c7a474a449c78e2c8f2f0da3383beebc",
+      "evaluatorSha256": "231d3b5515bd6787f98db1ae3db6e25baee407b77c40033bfde87d752ff37214",
+      "exactFiles": [
+        "src/lib/brain/autonomy/AyasBoundedFileWrite.ts"
+      ],
+      "files": [
+        "scripts/smoke-ayas-bounded-file-write.ts",
+        "src/lib/brain/autonomy/AyasBoundedFileWrite.ts",
+        "tsconfig.json"
+      ]
+    }
+  ],
+  "supersededBuilds": [
+    {
+      "role": "evaluator",
+      "imageId": "sha256:001575d1365cc5d9445fc64a155533fc700e1ebb950d7e1ebb96fe3184fcad7c",
+      "manifestDigest": "sha256:2481f32ff1353e2cda159017bd5fe1c82a5b69e00de03e871e9f2c47aeb045a1",
+      "repoDigests": [],
+      "architecture": "amd64",
+      "os": "linux",
+      "user": "65534:65534",
+      "baseDigest": "sha256:4e9cb555d708e0829c9d93e5eeae9dfab0617b832ca436a690680e0fca735ef5",
+      "recipeSha256": "5469a521ab472560b4095f600e66c47e53be8170c1909ec5e3c579124c91d9b2",
+      "payloadManifestSha256": "baff8bc74a3cc74572fc1eac4f74b27782d3b03529ee68a61ac1c1b86e8fe8df",
+      "payloadFiles": 276,
+      "sizeBytes": 1077557615,
+      "buildNetwork": "none",
+      "basePull": "official exact digest only",
+      "admission": "NONE"
+    }
+  ]
+}

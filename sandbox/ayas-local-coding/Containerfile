@@ -1,13 +1,14 @@
-# DRAFT ONLY: no build, runtime admission or model qualification has occurred.
+# Diagnostic recipe: building it does not admit an engine or qualify a model.
 # Build context MUST be a newly prepared TEMP bundle, never the repository root.
 # Exact official linux/amd64 manifest, not an index or mutable tag.
-FROM docker.io/library/node@sha256:d45d78e7929b46875bbd4e29bea672d5bc48186c6c3588306521c815e78352d6 AS node_runtime
+FROM docker.io/library/node@sha256:4e9cb555d708e0829c9d93e5eeae9dfab0617b832ca436a690680e0fca735ef5 AS node_runtime
 
 # A scratch image contains Node and Linux runtime libraries, without a shell,
 # package manager, Git, host credentials or the Next application.
 FROM scratch AS qualification_runtime
 COPY --from=node_runtime /usr/local/bin/node /usr/local/bin/node
 COPY --from=node_runtime /lib/ /lib/
+COPY --from=node_runtime /lib64/ /lib64/
 COPY --from=node_runtime /usr/lib/x86_64-linux-gnu/ /usr/lib/x86_64-linux-gnu/
 COPY --chmod=0555 verify-payload.mjs /opt/ayas/verify-payload.mjs
 COPY --chmod=0444 BUILD_INPUT.json /opt/ayas/BUILD_INPUT.json
@@ -17,10 +18,17 @@ RUN ["/usr/local/bin/node", "/opt/ayas/verify-payload.mjs"]
 USER 65534:65534
 WORKDIR /workspace
 ENV HOME=/tmp ATOLYE_RUNTIME_ROOT=/tmp/runtime
-LABEL org.ayas.base.digest="sha256:d45d78e7929b46875bbd4e29bea672d5bc48186c6c3588306521c815e78352d6"
+LABEL org.ayas.base.digest="sha256:4e9cb555d708e0829c9d93e5eeae9dfab0617b832ca436a690680e0fca735ef5"
 LABEL org.ayas.engine.commit="7fe450e19305b828c199d602c23a8337aaa1f03b"
 LABEL org.ayas.model.sha256="c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940"
-LABEL org.ayas.admission="DRAFT_NOT_ADMITTED"
+LABEL org.ayas.admission="DIAGNOSTIC_NOT_ADMITTED"
 # This default only re-verifies sealed bytes; an owner-reviewed probe/runner is
 # still needed. It deliberately cannot emit the existing containment report.
 ENTRYPOINT ["/usr/local/bin/node", "/opt/ayas/verify-payload.mjs"]
+
+FROM qualification_runtime AS evaluator
+COPY --chmod=0555 probe.mjs /opt/ayas/probe.mjs
+COPY --chmod=0555 evaluate.cjs /opt/ayas/evaluate.cjs
+
+# No probe, evaluator implementation, historical solution or vault in this target.
+FROM qualification_runtime AS inference

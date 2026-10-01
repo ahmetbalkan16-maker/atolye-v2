@@ -6,10 +6,12 @@
 - [x] Provider-neutral diagnostic protocol, bounded prompt/patch validation, cancellation, synthetic repeat consistency and provenance; no backend activation.
 - [x] Reviewable minimal local image draft and offline payload rejection tests; no image-build or containment claim.
 - [x] Original five frozen host oracle cases preserved; an additional two-file/49-line retrieval case passes its full unchanged 29-case evaluator, with partial/wrong candidates refused.
-- [ ] TypeScript-refactor frozen domain case; sealed Linux toolchain/engine payload provenance and compatibility; real model process/containment/Podman inspection and measured qualification.
-- [ ] **BLOCKED_OWNER_ACTION — host sandbox runtime installation required** (WSL has no distribution, Docker/Podman absent).
+- [x] Owner-installed rootless Podman/WSL2 runtime; sealed Linux evaluator toolchain; offline evaluator and inference images; isolation matrix; in-container frozen controls; real pinned engine and model liveness.
+- [x] Real local-model qualification executed on one historical security case under two request protocols: no pass. PC health guard keeps the host under 90 % RAM.
+- [ ] Not measured: four other evaluable cases including the held-out case, the Graphify domain (Windows-only evaluator), GPU inference, a TypeScript-refactor case.
+- [ ] Owner decisions needed before any re-qualification: a numeric threshold, a different pinned model or engine, or GPU passthrough.
 
-**Stage 15A.3 remains IN_PROGRESS / LOCAL_INDEPENDENCE_DEGRADED. Stage 15B stays unopened. No push.**
+**Stage 15A.3 CLOSED as LOCAL_INDEPENDENCE_DEGRADED (2026-10-01). Local coding stays disabled; no cloud fallback. Stage 15B is next and not yet opened. No push.**
 
 ## AYAS Autonomous Technology Watch & Capability Discovery — Stage 14 — 2026-09-25 — ✅ COMPLETED
 

@@ -2,7 +2,7 @@
   "schemaVersion": "1",
   "observedOn": "2026-10-01",
   "repositoryHeadAtDiscovery": "87fca074cea9c4482c57718e9151b64124e0403d",
-  "evidenceClass": "OFFICIAL_METADATA_HOST_DISCOVERY_AND_VERIFIED_ENGINE_ARCHIVE_BYTES",
+  "evidenceClass": "LIVE_HOST_READINESS_HASH_VERIFIED_BYTES_BUILT_IMAGES_AND_REAL_ENGINE_LIVENESS",
   "status": "LOCAL_INDEPENDENCE_DEGRADED",
   "engine": {
     "source": "https://github.com/ggml-org/llama.cpp/releases/tag/v0.5.0",
@@ -42,8 +42,10 @@
     "sizeBytes": 8988110272,
     "sha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
     "ownerExpectedDigestMatches": true,
-    "localBytesVerified": false,
-    "splitGgufFilesSelected": false
+    "localBytesVerified": true,
+    "splitGgufFilesSelected": false,
+    "localPath": "C:/Users/Metod/AppData/Local/Temp/ayas-qualification-bf066321-8e0a-431f-a561-cee5125fd442/qwen2.5-coder-14b-instruct-q4_k_m.gguf",
+    "localVerification": "Exact size/SHA256 matched after official download; bounded verifier and INFERENCE build payload verifier both matched"
   },
   "runtimeRequirements": {
     "packageManager": "npm",
@@ -63,19 +65,107 @@
       "version": "5.9.3",
       "node": ">=14.17"
     },
-    "nativeDependency": "onnxruntime-node 1.24.3 has an install script; esbuild also needs a platform-specific binary. Windows node_modules cannot be copied as Linux toolchain proof.",
-    "qualificationScope": "Only reviewed Linux evaluator import closure; no Next application, ONNX or production data in model workspace. Offline toolchain payload still must be sealed from the lockfile. No package installation during qualification."
+    "nativeDependency": "onnxruntime-node 1.24.3 has an install script and is not part of any qualification image. The only native toolchain member is @esbuild/linux-x64/bin/esbuild, evaluator image only.",
+    "qualificationScope": "Offline lockfile-SHA512-verified archives only: TypeScript 5.9.3, React/ReactDOM 19.2.4, scheduler 0.27.0, tsx 4.23.1, esbuild 0.28.1 and @esbuild/linux-x64 0.28.1 (official registry URL from package-lock.json). The native esbuild member is checked as an ELF64 x86-64 binary of the lockfile version. Frozen evaluator TypeScript bytes are loaded without rewriting; tsx and esbuild exist only because the frozen temporal evaluator starts child processes through the tsx CLI. No Windows node_modules tree and no package install at build or run time."
   },
   "base": {
     "source": "https://hub.docker.com/_/node",
-    "tagAtObservation": "24.18.0-bookworm-slim",
-    "indexDigest": "sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d",
+    "tagAtObservation": "24.18.0-bookworm",
+    "indexDigest": "sha256:5711a0d445a1af54af9589066c646df387d1831a608226f4cd694fc59e745059",
     "platform": "linux/amd64",
-    "platformManifestDigest": "sha256:d45d78e7929b46875bbd4e29bea672d5bc48186c6c3588306521c815e78352d6",
-    "finalLocalImageContentDigest": null,
-    "imageBuilt": false
+    "platformManifestDigest": "sha256:4e9cb555d708e0829c9d93e5eeae9dfab0617b832ca436a690680e0fca735ef5",
+    "reason": "Same official Node version full Debian base required: hash-verified llama-server could not load libssl.so.3 from slim base. No package installation.",
+    "imageBuilt": true,
+    "verification": "Local image inspect: RepoDigest docker.io/library/node@sha256:4e9cb555d708e0829c9d93e5eeae9dfab0617b832ca436a690680e0fca735ef5, linux/amd64, NODE_VERSION=24.18.0. The recorded official index lists this digest as its only linux/amd64 manifest."
   },
   "host": {
+    "schemaVersion": "1",
+    "observedAt": "2026-10-01T06:44:32.785Z",
+    "repositoryHead": "390d8272c590a8603c0eaf3ba6501c7bf9ba4248",
+    "evidenceClass": "LIVE_HOST_RUNTIME_READINESS_ONLY",
+    "cli": {
+      "path": "C:/Users/Metod/AppData/Local/Programs/Podman/podman.exe",
+      "sha256": "f6a555b075654fdb12580bdaf570ee90c2225f94a05781ecd6c1a16c8a5c95ea",
+      "version": {
+        "Client": {
+          "APIVersion": "6.0.2",
+          "Version": "6.0.2",
+          "GoVersion": "go1.26.5",
+          "GitCommit": "b28edb9ad70ce4317dc762ee9ce0a6d081d154e9",
+          "BuiltTime": "Wed Jul 22 05:57:30 2026",
+          "Built": 1784689050,
+          "OsArch": "windows/amd64",
+          "Os": "windows"
+        },
+        "Server": {
+          "APIVersion": "6.0.2",
+          "Version": "6.0.2",
+          "GoVersion": "go1.26.5-X:nodwarf5",
+          "GitCommit": "b28edb9ad70ce4317dc762ee9ce0a6d081d154e9",
+          "BuiltTime": "Tue Jul 21 03:00:00 2026",
+          "Built": 1784592000,
+          "OsArch": "linux/amd64",
+          "Os": "linux"
+        }
+      }
+    },
+    "wsl": {
+      "version": "2.7.10.0",
+      "kernel": "6.18.33.2-microsoft-standard-WSL2",
+      "distribution": "podman-machine-default",
+      "state": "Running",
+      "versionNumber": 2
+    },
+    "configuredResources": {
+      "CPUs": 8,
+      "DiskSize": 40,
+      "Memory": 8192,
+      "USBs": []
+    },
+    "visibleResources": {
+      "cpus": 32,
+      "ramBytes": 16602841088,
+      "swapBytes": 4294967296
+    },
+    "rootful": false,
+    "security": {
+      "apparmorEnabled": false,
+      "capabilities": "CAP_CHOWN,CAP_DAC_OVERRIDE,CAP_FOWNER,CAP_FSETID,CAP_KILL,CAP_NET_BIND_SERVICE,CAP_SETFCAP,CAP_SETGID,CAP_SETPCAP,CAP_SETUID,CAP_SYS_CHROOT",
+      "rootless": true,
+      "seccompEnabled": true,
+      "seccompProfilePath": "/usr/share/containers/seccomp.json",
+      "selinuxEnabled": false
+    },
+    "cgroupVersion": "v2",
+    "cgroupControllers": [
+      "cpu",
+      "io",
+      "memory",
+      "pids"
+    ],
+    "ociRuntime": {
+      "name": "crun",
+      "package": "crun-1.28-1.fc44.x86_64",
+      "path": "/usr/bin/crun",
+      "version": "crun version 1.28\ncommit: 54f16ffbefcd022bf032af768b5c5ce075c18bfc\nrundir: /run/user/1000/crun\nspec: 1.0.0\n+SYSTEMD +SELINUX +APPARMOR +CAP +SECCOMP +EBPF +CRIU +LIBKRUN +WASM:wasmedge +JSON_C"
+    },
+    "distribution": {
+      "distribution": "fedora",
+      "variant": "podman-machine-os",
+      "version": "44"
+    },
+    "oldInstallationBlocker": "RESOLVED",
+    "systemMutation": "NONE_BY_AGENT",
+    "runtimeAdmission": "NONE",
+    "agentSystemMutation": "NONE"
+  },
+  "blocker": "NONE_FOR_CLOSURE: Stage 15A.3 closed as LOCAL_INDEPENDENCE_DEGRADED. Re-qualification needs an owner decision (numeric threshold, different pinned model or engine, or GPU passthrough).",
+  "modelRuns": "3 real observations on one case; see QUALIFICATION_CLOSURE.json",
+  "hardSandboxRuns": "see HARD_SANDBOX_EVIDENCE.json and FROZEN_CONTAINER_NEGATIVE_CONTROLS.json",
+  "readinessAuthority": "NONE",
+  "stage15BOpened": false,
+  "canonicalPush": false,
+  "priorHostDiscovery": {
     "wsl": "2.7.10.0",
     "wslKernel": "6.18.33.2-2",
     "wslDistributions": [],
@@ -97,10 +187,103 @@
     },
     "systemMutation": "NONE"
   },
-  "blocker": "BLOCKED_OWNER_ACTION — host sandbox runtime installation required",
-  "modelRuns": 0,
-  "hardSandboxRuns": 0,
-  "readinessAuthority": "NONE",
-  "stage15BOpened": false,
-  "canonicalPush": false
+  "priorBasePreparation": {
+    "source": "https://hub.docker.com/_/node",
+    "tagAtObservation": "24.18.0-bookworm-slim",
+    "indexDigest": "sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d",
+    "platform": "linux/amd64",
+    "platformManifestDigest": "sha256:d45d78e7929b46875bbd4e29bea672d5bc48186c6c3588306521c815e78352d6",
+    "finalLocalImageContentDigest": null,
+    "imageBuilt": false
+  },
+  "oldRuntimeInstallationBlocker": "RESOLVED",
+  "images": [
+    {
+      "role": "inference",
+      "imageId": "sha256:93efcff91170304e3612912a3fca940ce0b887f1f5be108be670519c9d382962",
+      "manifestDigest": "sha256:1302f04165f4e3d31cd7fa26c20be5971405cf926fd096a2b46039ea4ab7302e",
+      "recipeSha256": "5469a521ab472560b4095f600e66c47e53be8170c1909ec5e3c579124c91d9b2",
+      "payloadManifestSha256": "8beb1ccfd481b7557ef7a5dfd47e837cfd4d76ec33ae8d7728a6332d0136f92e",
+      "payloadFiles": 63
+    },
+    {
+      "role": "evaluator",
+      "imageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "manifestDigest": "sha256:c6b4a6eaf1b55e2ad0eb2ed8808fcc713b748654d82831c00330cd62a39f5b23",
+      "recipeSha256": "5469a521ab472560b4095f600e66c47e53be8170c1909ec5e3c579124c91d9b2",
+      "payloadManifestSha256": "d8cdb5fc91aa230ab5c1fae2e717615db035ad455fd50823e5c66b277edd2416",
+      "payloadFiles": 346
+    }
+  ],
+  "imageEvidence": "IMAGE_BUILD_EVIDENCE.json",
+  "evaluatorToolchain": {
+    "archives": [
+      {
+        "name": "typescript",
+        "version": "5.9.3",
+        "resolved": "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz",
+        "lockfileIntegrity": "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="
+      },
+      {
+        "name": "react",
+        "version": "19.2.4",
+        "resolved": "https://registry.npmjs.org/react/-/react-19.2.4.tgz",
+        "lockfileIntegrity": "sha512-9nfp2hYpCwOjAN+8TZFGhtWEwgvWHXqESH8qT89AT/lWklpLON22Lc8pEtnpsZz7VmawabSU0gCjnj8aC0euHQ=="
+      },
+      {
+        "name": "react-dom",
+        "version": "19.2.4",
+        "resolved": "https://registry.npmjs.org/react-dom/-/react-dom-19.2.4.tgz",
+        "lockfileIntegrity": "sha512-AXJdLo8kgMbimY95O2aKQqsz2iWi9jMgKJhRBAxECE4IFxfcazB2LmzloIoibJI3C12IlY20+KFaLv+71bUJeQ=="
+      },
+      {
+        "name": "scheduler",
+        "version": "0.27.0",
+        "resolved": "https://registry.npmjs.org/scheduler/-/scheduler-0.27.0.tgz",
+        "lockfileIntegrity": "sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q=="
+      },
+      {
+        "name": "tsx",
+        "version": "4.23.1",
+        "resolved": "https://registry.npmjs.org/tsx/-/tsx-4.23.1.tgz",
+        "lockfileIntegrity": "sha512-GQHnkIfxyx1wYCOS/wonik5MVRZU9hi1TEZmzGZSCJB1y9YgoZ8H6itNE/u4suE+yLmOzuE4E5S4TZ/ZX2wcWQ=="
+      },
+      {
+        "name": "esbuild",
+        "version": "0.28.1",
+        "resolved": "https://registry.npmjs.org/esbuild/-/esbuild-0.28.1.tgz",
+        "lockfileIntegrity": "sha512-HrJrvZv5ayxBzPfwphOoNzkzOIIlifzk0KJrGK2c8R4+LKpMtpYLQeUdjnwjWv/LZlkH2laZk+4w78pi99D4Vw=="
+      },
+      {
+        "name": "@esbuild/linux-x64",
+        "version": "0.28.1",
+        "resolved": "https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-0.28.1.tgz",
+        "lockfileIntegrity": "sha512-u/anNYF2mmVOEDwLtnQ1wOr3EZ9sTNGLWrsYGYwHWzGA3Si84IOkHXlbWTD1NB+9/1lcnweYKO54uhxZydNzfA=="
+      }
+    ],
+    "nativeExecutor": {
+      "path": "toolchain/node_modules/@esbuild/linux-x64/bin/esbuild",
+      "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+      "sizeBytes": 11407472,
+      "elf": "ELF64 little-endian x86-64",
+      "os": [
+        "linux"
+      ],
+      "cpu": [
+        "x64"
+      ]
+    },
+    "childExecutorCli": "toolchain/node_modules/tsx/dist/cli.mjs",
+    "packageInstall": "NONE"
+  },
+  "engineLiveness": "LLAMA_SERVER_SMOKE_EVIDENCE.json: pinned llama-server b11146 and the pinned GGUF load and answer inside the rootless network-none inference container.",
+  "inferenceResourceProfile": {
+    "memoryBytes": 13421772800,
+    "swap": "none",
+    "cpus": 8,
+    "pidsLimit": 64,
+    "contextTokens": 16384,
+    "basis": "HOST_RESOURCE_GUARD_EVIDENCE.json"
+  },
+  "qualification": "QUALIFICATION_CLOSURE.json"
 }

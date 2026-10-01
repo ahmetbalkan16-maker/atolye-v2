@@ -19,7 +19,8 @@ export function verifyAyasLocalCodingPayload(root = "/opt/ayas/payload", manifes
   const declared = new Map();
   for (const file of manifest.files) {
     if (!keys(file, ["path", "sizeBytes", "sha256"]) || typeof file.path !== "string"
-      || !/^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/.test(file.path)
+      || !(/^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/.test(file.path)
+        || (manifest.role === "EVALUATOR" && /^toolchain\/node_modules\/@esbuild\/linux-x64\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/.test(file.path)))
       || file.path.split("/").some((part) => [".", "..", ".git", ".ssh", ".aws", ".npmrc", "id_rsa", "id_ed25519", "data"].includes(part.toLowerCase()) || part.toLowerCase().startsWith(".env"))
       || !Number.isSafeInteger(file.sizeBytes) || file.sizeBytes < 1 || file.sizeBytes > 10000000000
       || !/^[a-f0-9]{64}$/.test(file.sha256) || declared.has(file.path)) reject("file declaration");

@@ -1,0 +1,329 @@
+{
+  "schemaVersion": "1",
+  "stage": "STAGE_15A",
+  "subtask": "15A.3",
+  "closedOn": "2026-10-01",
+  "closureStatus": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
+  "readiness": "LOCAL_INDEPENDENCE_DEGRADED",
+  "qualified": false,
+  "engineRegistered": false,
+  "cloudFallback": false,
+  "stage15BOpened": false,
+  "canonicalPush": false,
+  "decision": {
+    "canonicalNumericThreshold": null,
+    "thresholdRule": "No numeric qualification threshold exists in the canonical specs; none was invented and readiness fails closed.",
+    "observedResult": "The one executed case failed under both request protocols, so this evidence could not have met any pass threshold either.",
+    "ownerDirective": "Measure real capacity, record the honest result and close the stage; no further heavy repeats; minimum tests only."
+  },
+  "identities": {
+    "inferenceImageId": "sha256:93efcff91170304e3612912a3fca940ce0b887f1f5be108be670519c9d382962",
+    "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+    "baseImage": "docker.io/library/node@sha256:4e9cb555d708e0829c9d93e5eeae9dfab0617b832ca436a690680e0fca735ef5",
+    "engineRelease": "llama.cpp b11146",
+    "engineCommit": "7fe450e19305b828c199d602c23a8337aaa1f03b",
+    "modelFile": "qwen2.5-coder-14b-instruct-q4_k_m.gguf",
+    "modelSha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
+    "adapterSha256": {
+      "toolCallProtocol": "1a2bdd52b4b3677d69f97117da7b9dfe2741dcb41ea14db728a0c198fe32933a",
+      "structuredOutputProtocol": "88eb1342532fe6ed68682de2aff1d98ba176b16758db53b8a31357cddc9a7542"
+    },
+    "transportClientSha256": "61b2af82162da7fcb15c95424201d3c1a6ed6b559b9a300ed1dbacb986dc263b",
+    "serverArgs": [
+      "--model",
+      "/opt/ayas/payload/model/qwen2.5-coder-14b-instruct-q4_k_m.gguf",
+      "--alias",
+      "ayas-qwen2.5-coder-14b-q4-k-m",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "8080",
+      "--ctx-size",
+      "16384",
+      "--threads",
+      "8",
+      "--threads-http",
+      "2",
+      "--n-gpu-layers",
+      "0",
+      "--parallel",
+      "1",
+      "--jinja",
+      "--offline",
+      "--cache-ram",
+      "0",
+      "--ctx-checkpoints",
+      "0"
+    ],
+    "inferenceProfile": {
+      "memory": 13421772800,
+      "cpus": 8,
+      "tmpSize": "64m"
+    },
+    "generationTimeoutMs": 1800000
+  },
+  "infrastructure": {
+    "hostRuntime": "HOST_RUNTIME_EVIDENCE.json",
+    "images": "IMAGE_BUILD_EVIDENCE.json",
+    "hostGuard": "HOST_RESOURCE_GUARD_EVIDENCE.json",
+    "isolationMatrix": {
+      "imageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "probesPassed": 23,
+      "probes": 23,
+      "stress": [
+        "memory:PASS",
+        "sleep:PASS"
+      ],
+      "unexpectedMountRejected": true,
+      "fullMatrixPass": true
+    },
+    "frozenOracleControlsInContainer": {
+      "imageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "allControlsValid": true,
+      "frozenEvaluatorsUnchanged": true,
+      "evaluable": [
+        "historical-explicit-computer-plan",
+        "historical-atomic-bounded-write",
+        "historical-daily-development-view",
+        "historical-two-source-identity-retrieval",
+        "heldout-render-tool-supersession"
+      ],
+      "platformUnavailable": [
+        "historical-windows-graphify-launch"
+      ],
+      "pattern": "baseline FAIL, exact historical fix PASS, wrong candidate FAIL"
+    },
+    "engineLiveness": {
+      "pass": true,
+      "evidence": "LLAMA_SERVER_SMOKE_EVIDENCE.json"
+    }
+  },
+  "realModelObservations": {
+    "toolCallProtocol": {
+      "evidence": "LOCAL_MODEL_RUN_EVIDENCE_TOOL_CALL_PROTOCOL.json",
+      "infrastructureFailure": false,
+      "attempts": [
+        {
+          "caseId": "historical-atomic-bounded-write",
+          "repeat": 1,
+          "outcome": "INVALID_OUTPUT",
+          "adapterReason": "MODEL_TOOL_CALL_INVALID",
+          "finishReason": "length",
+          "promptTokens": 1981,
+          "completionTokens": 4096,
+          "promptTokensPerSecond": 28.3,
+          "generationTokensPerSecond": 3.9,
+          "loadAndSandboxStartupMs": 11928,
+          "generationMs": 1116127,
+          "totalMs": 1130590,
+          "cpuMs": 8930226,
+          "cgroupMemoryPeakBytes": 13421772800,
+          "cgroupMemoryMaxBytes": 13421772800,
+          "pidsPeak": 19,
+          "pidsMax": 64,
+          "oomKilled": false,
+          "hostPeakUsedPct": 87.9,
+          "workspaceUnchanged": true,
+          "toolMisuse": false,
+          "retries": 0,
+          "candidateReachedEvaluator": false,
+          "evaluatorExit": null,
+          "changedFiles": null,
+          "changedLines": null,
+          "candidateSha256": null
+        },
+        {
+          "caseId": "historical-atomic-bounded-write",
+          "repeat": 2,
+          "outcome": "INVALID_OUTPUT",
+          "adapterReason": "MODEL_TOOL_CALL_INVALID",
+          "finishReason": "length",
+          "promptTokens": 1981,
+          "completionTokens": 4096,
+          "promptTokensPerSecond": 25.8,
+          "generationTokensPerSecond": 4.1,
+          "loadAndSandboxStartupMs": 13327,
+          "generationMs": 1088091,
+          "totalMs": 1104017,
+          "cpuMs": 8706174,
+          "cgroupMemoryPeakBytes": 13421772800,
+          "cgroupMemoryMaxBytes": 13421772800,
+          "pidsPeak": 23,
+          "pidsMax": 64,
+          "oomKilled": false,
+          "hostPeakUsedPct": 85.1,
+          "workspaceUnchanged": true,
+          "toolMisuse": false,
+          "retries": 0,
+          "candidateReachedEvaluator": false,
+          "evaluatorExit": null,
+          "changedFiles": null,
+          "changedLines": null,
+          "candidateSha256": null
+        }
+      ],
+      "repeatedConsistency": {
+        "caseId": "historical-atomic-bounded-write",
+        "repeats": 2,
+        "identicalOutcome": true,
+        "identicalRawContent": true,
+        "rawContentSha256Prefix": "871e0053361d070f",
+        "rawContentChars": 17593,
+        "promptTokens": 1981,
+        "completionTokens": 4096,
+        "finishReason": "length",
+        "outcome": "INVALID_OUTPUT",
+        "adapterReason": "MODEL_TOOL_CALL_INVALID",
+        "candidateReachedEvaluator": false,
+        "furtherRepeats": "NOT_RUN: a third identical deterministic repeat would add no information (owner directive)"
+      }
+    },
+    "structuredOutputProtocol": {
+      "evidence": "LOCAL_MODEL_RUN_EVIDENCE.json",
+      "infrastructureFailure": false,
+      "purpose": "Single verification run after one narrow, general protocol correction: an engine-enforced JSON-schema response format.",
+      "attempts": [
+        {
+          "caseId": "historical-atomic-bounded-write",
+          "repeat": 1,
+          "outcome": "FAIL",
+          "adapterReason": null,
+          "finishReason": "stop",
+          "promptTokens": 1706,
+          "completionTokens": 181,
+          "promptTokensPerSecond": 27.4,
+          "generationTokensPerSecond": 5,
+          "loadAndSandboxStartupMs": 12304,
+          "generationMs": 98705,
+          "totalMs": 115264,
+          "cpuMs": 798160,
+          "cgroupMemoryPeakBytes": 13421772800,
+          "cgroupMemoryMaxBytes": 13421772800,
+          "pidsPeak": 19,
+          "pidsMax": 64,
+          "oomKilled": false,
+          "hostPeakUsedPct": 84.8,
+          "workspaceUnchanged": true,
+          "toolMisuse": false,
+          "retries": 0,
+          "candidateReachedEvaluator": true,
+          "evaluatorExit": 1,
+          "changedFiles": [
+            "src/lib/brain/autonomy/AyasBoundedFileWrite.ts"
+          ],
+          "changedLines": 2,
+          "candidateSha256": "aa58e5a770794e45225a3b0d20202444895f2fb56a13794ea188e5986d14d06d"
+        }
+      ],
+      "evaluatorVerdict": {
+        "exit": 1,
+        "sameFailureAsBaseline": true,
+        "assertion": "AssertionError: Missing expected rejection (smoke-ayas-bounded-file-write.ts:115), the assertion the unrepaired baseline also fails"
+      },
+      "candidate": {
+        "patch": {
+          "schemaVersion": "1",
+          "edits": [
+            {
+              "path": "src/lib/brain/autonomy/AyasBoundedFileWrite.ts",
+              "beforeSha256": "860ed0c28a93c5fc005c1e5b36c295040fbbd5302fb53e3bee1ecb6551c06c7a",
+              "search": "const n = filePath.replace(/\\\\/g, \"/\").replace(/^\\.\\//, \"\");",
+              "replace": "const n = filePath.replace(/\\\\/g, \"/\").replace(/^\\.\\//, \"\").replace(/\\.$/, \"\");"
+            }
+          ]
+        },
+        "note": "A one-line path-normalisation change. It does not add the rollback behaviour the frozen evaluator requires; the historical fix changes 57 lines."
+      }
+    }
+  },
+  "metrics": {
+    "executedCases": [
+      "historical-atomic-bounded-write"
+    ],
+    "executedCaseCount": 1,
+    "evaluableCaseCount": 5,
+    "matrixComplete": false,
+    "passAt1": {
+      "passed": 0,
+      "executedCases": 1,
+      "value": 0,
+      "scope": "executed cases only; not a full-matrix pass@1"
+    },
+    "passPowerK": {
+      "k": 2,
+      "passed": 0,
+      "executedCases": 1,
+      "value": 0,
+      "scope": "tool-call protocol, two byte-identical repeats"
+    },
+    "heldOutPassAt1": null,
+    "heldOutStatus": "NOT_EXECUTED",
+    "realAttempts": 3,
+    "outcomes": {
+      "PASS": 0,
+      "FAIL": 1,
+      "INVALID_OUTPUT": 2,
+      "TIMEOUT": 0
+    },
+    "wrongCandidateRejectionPreserved": true,
+    "scopeViolationsReachingEvaluator": 0,
+    "toolMisuse": 0,
+    "unauthorizedNetwork": 0,
+    "unauthorizedWrite": 0,
+    "unauthorizedShell": 0,
+    "unauthorizedActivityBasis": "The model has no tool surface: one in-memory JSON patch object is parsed by the host. Each run asserts a loopback-only network namespace, read-only root/workspace, zero capabilities and an unchanged workspace digest.",
+    "retries": 0,
+    "resourceAborts": 0,
+    "hostProtectionPauses": 0,
+    "gpu": null,
+    "vram": null,
+    "gpuBasis": "Pinned engine is the official CPU archive; no GPU is passed into the rootless container."
+  },
+  "notExecuted": [
+    {
+      "caseId": "historical-explicit-computer-plan",
+      "status": "NOT_EXECUTED",
+      "reason": "Owner directive: no unnecessary repeated heavy inference, only the minimum needed for the closure decision. No canonical threshold exists, so further runs could not change the decision."
+    },
+    {
+      "caseId": "historical-daily-development-view",
+      "status": "NOT_EXECUTED",
+      "reason": "Owner directive: no unnecessary repeated heavy inference, only the minimum needed for the closure decision. No canonical threshold exists, so further runs could not change the decision."
+    },
+    {
+      "caseId": "historical-two-source-identity-retrieval",
+      "status": "NOT_EXECUTED",
+      "reason": "Owner directive: no unnecessary repeated heavy inference, only the minimum needed for the closure decision. No canonical threshold exists, so further runs could not change the decision."
+    },
+    {
+      "caseId": "heldout-render-tool-supersession",
+      "status": "NOT_EXECUTED",
+      "reason": "Owner directive: no unnecessary repeated heavy inference, only the minimum needed for the closure decision. No canonical threshold exists, so further runs could not change the decision."
+    },
+    {
+      "caseId": "historical-windows-graphify-launch",
+      "status": "PLATFORM_UNAVAILABLE",
+      "reason": "The frozen evaluator is Windows-only and reports zero scenarios on Linux; never counted as a pass."
+    }
+  ],
+  "notCounted": {
+    "harnessDefectAttempts": 4,
+    "detail": "Two attempts under the ignored object-form tool_choice and two cut by the 300 s fetch headers timeout. Kept in the evidence files, never counted as model results."
+  },
+  "unchanged": [
+    "frozen evaluators (blob IDs re-derived from the sealed bytes)",
+    "max_tokens 4096",
+    "strict in-memory patch validation",
+    "file and line scope limits",
+    "production engine registry (empty)",
+    "approval, proposal and execution gates"
+  ],
+  "unmeasured": [
+    "pass@1 and pass^k over the full evaluable matrix",
+    "held-out quality",
+    "memory-temporal, UI and retrieval cases with a real model",
+    "Graphify domain (platform unavailable)",
+    "GPU inference"
+  ],
+  "nextAction": "Stage 15B is next in the master order and is not opened by this record. Local coding stays disabled. Re-qualification needs an owner decision on at least one of: a numeric threshold, a different pinned model or engine, GPU passthrough."
+}

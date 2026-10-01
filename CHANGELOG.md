@@ -1,5 +1,13 @@
 ---
 
+## 2026-10-01 — Stage 15A.3 real local qualification — CLOSED as LOCAL_INDEPENDENCE_DEGRADED
+
+- Built the evaluator and inference images offline on the owner-installed rootless Podman/WSL2 runtime from the exact official `node:24.18.0-bookworm` digest. Sealed tsx, esbuild and the Linux esbuild binary from lockfile-verified archives; no package install.
+- Fixed the temporal positive control: bounded thread pools keep the unchanged frozen evaluator inside the unchanged 64-task cap. Isolation matrix 23/23 plus OOM, timeout and mount refusal; five cases baseline FAIL, historical fix PASS, wrong candidate FAIL in the container; Graphify case recorded as PLATFORM_UNAVAILABLE.
+- First real engine contact exposed and fixed three harness defects (60 s timeout ceiling, ignored object-form `tool_choice`, 300 s `fetch` headers timeout). Attempts made under them are kept and not counted.
+- PC health guard: the Podman WSL provider does not enforce the machine's memory, so the inference container limit went from 14 GiB to the measured 12.5 GiB; one heavy workload at a time; start only if the host stays under 90 % RAM; resource aborts are never model failures.
+- Real model result on one historical security case: two byte-identical tool-call repeats ran to `max_tokens` without a valid call; after one narrow correction to an engine-enforced JSON-schema response, the model's valid in-scope patch failed the frozen evaluator at the baseline assertion. No canonical numeric threshold exists. Local coding stays disabled; no cloud fallback; Stage 15B not opened; no push.
+
 ## 2026-10-01 — Stage 15A.3h pinned local qualification preparation
 
 - Added exact official llama.cpp v0.5.0/b11146 commit/archive provenance, Qwen single-file Q4_K_M manifest/hash, Node linux/amd64 base pin and read-only host runtime inventory. Verified the exact Linux CPU archive bytes and hashed 50 members in memory; no installation, member execution or model download/run. Recorded the runtime-installation owner blocker.

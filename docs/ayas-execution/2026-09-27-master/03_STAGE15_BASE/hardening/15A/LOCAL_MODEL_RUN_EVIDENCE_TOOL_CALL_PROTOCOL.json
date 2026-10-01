@@ -1,0 +1,726 @@
+{
+  "schemaVersion": "1",
+  "evidenceClass": "REAL_LOCAL_MODEL_OBSERVATIONS_TOOL_CALL_PROTOCOL_FROZEN_RECORD",
+  "frozenAt": "2026-10-01T08:57:20.163Z",
+  "protocol": "OpenAI-compatible tools + tool_choice=\"required\" (one tool: submit_patch), stream=false, temperature 0, seed 0, max_tokens 4096",
+  "infrastructureFailure": false,
+  "infrastructureBasis": "The engine accepted the request, generation ran uninterrupted to the fixed max_tokens, no timeout, OOM, PID-cap, host-protection or transport event occurred, and the workspace digest was unchanged. Both repeats are real model observations.",
+  "repeatedConsistency": {
+    "caseId": "historical-atomic-bounded-write",
+    "repeats": 2,
+    "identicalOutcome": true,
+    "identicalRawContent": true,
+    "rawContentSha256Prefix": "871e0053361d070f",
+    "rawContentChars": 17593,
+    "promptTokens": 1981,
+    "completionTokens": 4096,
+    "finishReason": "length",
+    "outcome": "INVALID_OUTPUT",
+    "adapterReason": "MODEL_TOOL_CALL_INVALID",
+    "candidateReachedEvaluator": false,
+    "furtherRepeats": "NOT_RUN: a third identical deterministic repeat would add no information (owner directive)"
+  },
+  "outputAnalysis": {
+    "basis": "Existing raw output of repeat 1 and the running server /props response only; no extra inference.",
+    "findings": [
+      "Within about the first 195 tokens the model wrote a complete submit_patch JSON object (schemaVersion, one edit with path, beforeSha256, search, replace).",
+      "It wrapped that object in a markdown json fence in plain content instead of the <tool_call></tool_call> tags its own chat template asks for.",
+      "The engine reports supports_tool_calls=true for this template, yet under tool_choice=\"required\" it did not constrain generation to a tool call: message.tool_calls is absent and no grammar stop followed the object.",
+      "With no stop, the model continued into an explanation and, at temperature 0, fell into a loop repeating the same paragraph until max_tokens."
+    ],
+    "conclusion": "The single-call contract assumed engine enforcement that this engine build does not provide for this template, and the model does not follow the tag format on its own. Not a harness or resource fault."
+  },
+  "notChanged": [
+    "frozen evaluator",
+    "max_tokens",
+    "quality bar",
+    "no golden answer supplied",
+    "no cloud fallback"
+  ],
+  "binding": {
+    "imageId": "sha256:93efcff91170304e3612912a3fca940ce0b887f1f5be108be670519c9d382962",
+    "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+    "modelSha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
+    "adapterSha256": "1a2bdd52b4b3677d69f97117da7b9dfe2741dcb41ea14db728a0c198fe32933a",
+    "transportClientSha256": "61b2af82162da7fcb15c95424201d3c1a6ed6b559b9a300ed1dbacb986dc263b",
+    "timeoutMs": 1800000,
+    "serverArgs": [
+      "--model",
+      "/opt/ayas/payload/model/qwen2.5-coder-14b-instruct-q4_k_m.gguf",
+      "--alias",
+      "ayas-qwen2.5-coder-14b-q4-k-m",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "8080",
+      "--ctx-size",
+      "16384",
+      "--threads",
+      "8",
+      "--threads-http",
+      "2",
+      "--n-gpu-layers",
+      "0",
+      "--parallel",
+      "1",
+      "--jinja",
+      "--offline",
+      "--cache-ram",
+      "0",
+      "--ctx-checkpoints",
+      "0"
+    ],
+    "profile": {
+      "memory": 13421772800,
+      "cpus": 8,
+      "tmpSize": "64m"
+    }
+  },
+  "attempts": [
+    {
+      "caseId": "historical-atomic-bounded-write",
+      "split": "PRIMARY",
+      "domain": "SECURITY",
+      "repeat": 1,
+      "imageId": "sha256:93efcff91170304e3612912a3fca940ce0b887f1f5be108be670519c9d382962",
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelSha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
+      "evaluatorBlob": "70df46f3c7a474a449c78e2c8f2f0da3383beebc",
+      "baseHead": "2397edf0b55233d101668657f1451e37c5334fdf",
+      "harness": {
+        "repositoryHead": "390d8272c590a8603c0eaf3ba6501c7bf9ba4248",
+        "runnerSha256": "22cbddc959cbdde6341fadc6e199339778891e932c6207b007826ad3f3ba0679",
+        "adapterSha256": "1a2bdd52b4b3677d69f97117da7b9dfe2741dcb41ea14db728a0c198fe32933a"
+      },
+      "observedAt": "2026-10-01T08:37:22.567Z",
+      "modelRequestSent": true,
+      "requestSha256": "337d0e249758984082b40df51f031b61713900ef90bdb85fbf6a9372734875c4",
+      "requestBytes": 7572,
+      "retries": 0,
+      "timeoutMs": 1800000,
+      "sandboxCreateMs": 524.3054000000002,
+      "loadAndSandboxStartupMs": 11927.5494,
+      "totalMs": 1130589.9925,
+      "resources": {
+        "cpuStat": "usage_usec 8930226406\nuser_usec 8919514617\nsystem_usec 10711788\nnice_usec 0\nnr_periods 11274\nnr_throttled 2734\nthrottled_usec 1949808\nnr_bursts 0\nburst_usec 0",
+        "memoryMaxBytes": 13421772800,
+        "memoryPeakBytes": 13421772800,
+        "memoryCurrentBytes": 13411643392,
+        "memoryStat": {
+          "anon": 9881325568,
+          "file": 3484364800,
+          "kernel": 43917312,
+          "shmem": 0,
+          "file_mapped": 2499833856,
+          "workingset_refault_file": 546959,
+          "pgmajfault": 167148
+        },
+        "pidsMax": 64,
+        "pidsPeak": 19,
+        "pidsEvents": "max 0",
+        "memoryEvents": "low 0\nhigh 0\nmax 49\noom 0\noom_kill 0\noom_group_kill 0",
+        "cpuOnly": true,
+        "gpuTelemetry": null,
+        "vramTelemetry": null
+      },
+      "serverState": {
+        "status": "running",
+        "exitCode": 0,
+        "oomKilled": false
+      },
+      "workspaceUnchanged": true,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 19110666240,
+          "usedPct": 43.8,
+          "requiredFreeBytes": 17898849485,
+          "waitedMs": 0
+        },
+        "peakUsedPct": 87.9,
+        "minFreeBytes": 4116070400,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 5307154432,
+          "usedPct": 84.4
+        }
+      },
+      "toolMisuse": false,
+      "response": {
+        "finishReason": "length",
+        "usage": {
+          "completion_tokens": 4096,
+          "prompt_tokens": 1981,
+          "total_tokens": 6077,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 1981,
+          "prompt_ms": 69982.901,
+          "prompt_per_token_ms": 35.32705754669359,
+          "prompt_per_second": 28.306914570460574,
+          "predicted_n": 4096,
+          "predicted_ms": 1045639.147,
+          "predicted_per_token_ms": 255.34533504273503,
+          "predicted_per_second": 3.916265005713295
+        },
+        "toolCalls": null,
+        "toolArguments": null,
+        "contentChars": 17593
+      },
+      "outcome": "INVALID_OUTPUT",
+      "reason": "MODEL_TOOL_CALL_INVALID",
+      "generationMs": 1116127.1485
+    },
+    {
+      "caseId": "historical-atomic-bounded-write",
+      "split": "PRIMARY",
+      "domain": "SECURITY",
+      "repeat": 2,
+      "imageId": "sha256:93efcff91170304e3612912a3fca940ce0b887f1f5be108be670519c9d382962",
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelSha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
+      "evaluatorBlob": "70df46f3c7a474a449c78e2c8f2f0da3383beebc",
+      "baseHead": "2397edf0b55233d101668657f1451e37c5334fdf",
+      "harness": {
+        "repositoryHead": "390d8272c590a8603c0eaf3ba6501c7bf9ba4248",
+        "runnerSha256": "22cbddc959cbdde6341fadc6e199339778891e932c6207b007826ad3f3ba0679",
+        "adapterSha256": "1a2bdd52b4b3677d69f97117da7b9dfe2741dcb41ea14db728a0c198fe32933a"
+      },
+      "observedAt": "2026-10-01T08:56:17.551Z",
+      "modelRequestSent": true,
+      "requestSha256": "337d0e249758984082b40df51f031b61713900ef90bdb85fbf6a9372734875c4",
+      "requestBytes": 7572,
+      "retries": 0,
+      "timeoutMs": 1800000,
+      "sandboxCreateMs": 491.98080000001937,
+      "loadAndSandboxStartupMs": 13327.20940000005,
+      "totalMs": 1104017.0283000001,
+      "resources": {
+        "cpuStat": "usage_usec 8706173845\nuser_usec 8694066459\nsystem_usec 12107386\nnice_usec 0\nnr_periods 11006\nnr_throttled 2184\nthrottled_usec 5444919\nnr_bursts 0\nburst_usec 0",
+        "memoryMaxBytes": 13421772800,
+        "memoryPeakBytes": 13421772800,
+        "memoryCurrentBytes": 13395402752,
+        "memoryStat": {
+          "anon": 9881382912,
+          "file": 3467321344,
+          "kernel": 44814336,
+          "shmem": 0,
+          "file_mapped": 2246717440,
+          "workingset_refault_file": 636434,
+          "pgmajfault": 168735
+        },
+        "pidsMax": 64,
+        "pidsPeak": 23,
+        "pidsEvents": "max 0",
+        "memoryEvents": "low 0\nhigh 0\nmax 99\noom 0\noom_kill 0\noom_group_kill 0",
+        "cpuOnly": true,
+        "gpuTelemetry": null,
+        "vramTelemetry": null
+      },
+      "serverState": {
+        "status": "running",
+        "exitCode": 0,
+        "oomKilled": false
+      },
+      "workspaceUnchanged": true,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 18002485248,
+          "usedPct": 47.1,
+          "requiredFreeBytes": 17898849485,
+          "waitedMs": 30000
+        },
+        "peakUsedPct": 85.1,
+        "minFreeBytes": 5082005504,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 5422698496,
+          "usedPct": 84.1
+        }
+      },
+      "toolMisuse": false,
+      "response": {
+        "finishReason": "length",
+        "usage": {
+          "completion_tokens": 4096,
+          "prompt_tokens": 1981,
+          "total_tokens": 6077,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 1981,
+          "prompt_ms": 76715,
+          "prompt_per_token_ms": 38.72539121655729,
+          "prompt_per_second": 25.822850811444958,
+          "predicted_n": 4096,
+          "predicted_ms": 1010871.668,
+          "predicted_per_token_ms": 246.85510818070816,
+          "predicted_per_second": 4.050959315243169
+        },
+        "toolCalls": null,
+        "toolArguments": null,
+        "contentChars": 17593
+      },
+      "outcome": "INVALID_OUTPUT",
+      "reason": "MODEL_TOOL_CALL_INVALID",
+      "generationMs": 1088091.3305000002
+    }
+  ],
+  "harnessDefectAttemptsNotCounted": [
+    {
+      "caseId": "historical-atomic-bounded-write",
+      "split": "PRIMARY",
+      "domain": "SECURITY",
+      "repeat": 1,
+      "imageId": "sha256:93efcff91170304e3612912a3fca940ce0b887f1f5be108be670519c9d382962",
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelSha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
+      "evaluatorBlob": "70df46f3c7a474a449c78e2c8f2f0da3383beebc",
+      "baseHead": "2397edf0b55233d101668657f1451e37c5334fdf",
+      "modelRequestSent": true,
+      "requestSha256": "dd9292317714a3308349d3b728dd846de19d71334e0b3946703287b16f8886c8",
+      "requestBytes": 7616,
+      "retries": 0,
+      "timeoutMs": 1800000,
+      "sandboxCreateMs": 499.2427,
+      "loadAndSandboxStartupMs": 11797.673200000001,
+      "totalMs": 141835.44139999998,
+      "resources": {
+        "cpuStat": "usage_usec 1028980457\nuser_usec 1022812542\nsystem_usec 6167915\nnice_usec 0\nnr_periods 1386\nnr_throttled 406\nthrottled_usec 637738\nnr_bursts 0\nburst_usec 0",
+        "memoryPeakBytes": 12128681984,
+        "memoryCurrentBytes": 12106465280,
+        "pidsPeak": 19,
+        "pidsEvents": "max 0",
+        "memoryEvents": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+        "cpuOnly": true,
+        "gpuTelemetry": null,
+        "vramTelemetry": null
+      },
+      "serverState": {
+        "status": "running",
+        "exitCode": 0,
+        "oomKilled": false
+      },
+      "workspaceUnchanged": true,
+      "toolMisuse": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "completion_tokens": 195,
+          "prompt_tokens": 1981,
+          "total_tokens": 2176,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 1981,
+          "prompt_ms": 77792.785,
+          "prompt_per_token_ms": 39.26945229681979,
+          "prompt_per_second": 25.465086511557594,
+          "predicted_n": 195,
+          "predicted_ms": 49505.791,
+          "predicted_per_token_ms": 255.18448969072165,
+          "predicted_per_second": 3.9187334669594516
+        },
+        "toolCalls": null,
+        "toolArguments": null,
+        "contentChars": 485
+      },
+      "outcome": "INVALID_OUTPUT",
+      "reason": "MODEL_TOOL_CALL_INVALID",
+      "generationMs": 127851.89679999999,
+      "supersededAt": "2026-10-01T08:05:29.354Z",
+      "supersededBinding": {
+        "imageId": "sha256:93efcff91170304e3612912a3fca940ce0b887f1f5be108be670519c9d382962",
+        "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+        "modelSha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
+        "timeoutMs": 1800000,
+        "serverArgs": [
+          "--model",
+          "/opt/ayas/payload/model/qwen2.5-coder-14b-instruct-q4_k_m.gguf",
+          "--alias",
+          "ayas-qwen2.5-coder-14b-q4-k-m",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8080",
+          "--ctx-size",
+          "16384",
+          "--threads",
+          "8",
+          "--threads-http",
+          "2",
+          "--n-gpu-layers",
+          "0",
+          "--parallel",
+          "1",
+          "--jinja",
+          "--offline"
+        ],
+        "profile": {
+          "memory": 15032385536,
+          "cpus": 8,
+          "tmpSize": "64m"
+        }
+      },
+      "bindingFieldsChanged": [
+        "adapterSha256",
+        "serverArgs",
+        "profile"
+      ]
+    },
+    {
+      "caseId": "historical-atomic-bounded-write",
+      "split": "PRIMARY",
+      "domain": "SECURITY",
+      "repeat": 2,
+      "imageId": "sha256:93efcff91170304e3612912a3fca940ce0b887f1f5be108be670519c9d382962",
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelSha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
+      "evaluatorBlob": "70df46f3c7a474a449c78e2c8f2f0da3383beebc",
+      "baseHead": "2397edf0b55233d101668657f1451e37c5334fdf",
+      "modelRequestSent": true,
+      "requestSha256": "dd9292317714a3308349d3b728dd846de19d71334e0b3946703287b16f8886c8",
+      "requestBytes": 7616,
+      "retries": 0,
+      "timeoutMs": 1800000,
+      "sandboxCreateMs": 590.1381999999867,
+      "loadAndSandboxStartupMs": 10924.074099999998,
+      "totalMs": 145505.19329999998,
+      "resources": {
+        "cpuStat": "usage_usec 1065274598\nuser_usec 1059992655\nsystem_usec 5281943\nnice_usec 0\nnr_periods 1425\nnr_throttled 457\nthrottled_usec 297741\nnr_bursts 0\nburst_usec 0",
+        "memoryPeakBytes": 12628258816,
+        "memoryCurrentBytes": 12567379968,
+        "pidsPeak": 19,
+        "pidsEvents": "max 0",
+        "memoryEvents": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+        "cpuOnly": true,
+        "gpuTelemetry": null,
+        "vramTelemetry": null
+      },
+      "serverState": {
+        "status": "running",
+        "exitCode": 0,
+        "oomKilled": false
+      },
+      "workspaceUnchanged": true,
+      "toolMisuse": false,
+      "response": {
+        "finishReason": "stop",
+        "usage": {
+          "completion_tokens": 195,
+          "prompt_tokens": 1981,
+          "total_tokens": 2176,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 1981,
+          "prompt_ms": 84601.069,
+          "prompt_per_token_ms": 42.70624381625442,
+          "prompt_per_second": 23.41577976987501,
+          "predicted_n": 195,
+          "predicted_ms": 47494.731,
+          "predicted_per_token_ms": 244.81820103092784,
+          "predicted_per_second": 4.0846636230027284
+        },
+        "toolCalls": null,
+        "toolArguments": null,
+        "contentChars": 485
+      },
+      "outcome": "INVALID_OUTPUT",
+      "reason": "MODEL_TOOL_CALL_INVALID",
+      "generationMs": 132630.4222,
+      "supersededAt": "2026-10-01T08:05:29.354Z",
+      "supersededBinding": {
+        "imageId": "sha256:93efcff91170304e3612912a3fca940ce0b887f1f5be108be670519c9d382962",
+        "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+        "modelSha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
+        "timeoutMs": 1800000,
+        "serverArgs": [
+          "--model",
+          "/opt/ayas/payload/model/qwen2.5-coder-14b-instruct-q4_k_m.gguf",
+          "--alias",
+          "ayas-qwen2.5-coder-14b-q4-k-m",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8080",
+          "--ctx-size",
+          "16384",
+          "--threads",
+          "8",
+          "--threads-http",
+          "2",
+          "--n-gpu-layers",
+          "0",
+          "--parallel",
+          "1",
+          "--jinja",
+          "--offline"
+        ],
+        "profile": {
+          "memory": 15032385536,
+          "cpus": 8,
+          "tmpSize": "64m"
+        }
+      },
+      "bindingFieldsChanged": [
+        "adapterSha256",
+        "serverArgs",
+        "profile"
+      ]
+    },
+    {
+      "caseId": "historical-atomic-bounded-write",
+      "split": "PRIMARY",
+      "domain": "SECURITY",
+      "repeat": 1,
+      "imageId": "sha256:93efcff91170304e3612912a3fca940ce0b887f1f5be108be670519c9d382962",
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelSha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
+      "evaluatorBlob": "70df46f3c7a474a449c78e2c8f2f0da3383beebc",
+      "baseHead": "2397edf0b55233d101668657f1451e37c5334fdf",
+      "harness": {
+        "repositoryHead": "390d8272c590a8603c0eaf3ba6501c7bf9ba4248",
+        "runnerSha256": "7015efd2401010bb46c8f3d1cf0187a5a456354a5fd948547e52fe96baa25a68",
+        "adapterSha256": "1a2bdd52b4b3677d69f97117da7b9dfe2741dcb41ea14db728a0c198fe32933a"
+      },
+      "observedAt": "2026-10-01T08:10:46.458Z",
+      "modelRequestSent": true,
+      "requestSha256": "337d0e249758984082b40df51f031b61713900ef90bdb85fbf6a9372734875c4",
+      "requestBytes": 7572,
+      "retries": 0,
+      "timeoutMs": 1800000,
+      "sandboxCreateMs": 488.1295,
+      "loadAndSandboxStartupMs": 12337.1842,
+      "totalMs": 316308.1745,
+      "resources": {
+        "cpuStat": "usage_usec 2394687810\nuser_usec 2384523411\nsystem_usec 10164399\nnice_usec 0\nnr_periods 3132\nnr_throttled 1470\nthrottled_usec 567051\nnr_bursts 0\nburst_usec 0",
+        "memoryMaxBytes": 13421772800,
+        "memoryPeakBytes": 13421772800,
+        "memoryCurrentBytes": 13415378944,
+        "memoryStat": {
+          "anon": 9881292800,
+          "file": 3485655040,
+          "kernel": 46538752,
+          "shmem": 0,
+          "file_mapped": 2201137152,
+          "workingset_refault_file": 862596,
+          "pgmajfault": 316260
+        },
+        "pidsMax": 64,
+        "pidsPeak": 19,
+        "pidsEvents": "max 0",
+        "memoryEvents": "low 0\nhigh 0\nmax 148\noom 0\noom_kill 0\noom_group_kill 0",
+        "cpuOnly": true,
+        "gpuTelemetry": null,
+        "vramTelemetry": null
+      },
+      "serverState": {
+        "status": "running",
+        "exitCode": 0,
+        "oomKilled": false
+      },
+      "workspaceUnchanged": true,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 18148376576,
+          "usedPct": 46.7,
+          "requiredFreeBytes": 17898849485,
+          "waitedMs": 0
+        },
+        "peakUsedPct": 85.2,
+        "minFreeBytes": 5035327488,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 6127976448,
+          "usedPct": 82
+        }
+      },
+      "toolMisuse": false,
+      "response": null,
+      "outcome": "TIMEOUT",
+      "reason": "LOCAL_HTTP_TRANSPORT:1:node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\n[TypeError: fetch failed] {\n  [cause]: HeadersTimeoutError: Headers Timeout Error\n      at FastTimer.onParserTimeout [as _onTimeout] (node:internal/deps/undici/undici:7709:32)\n      at Timeout.onTick [as _onTimeout] (node:internal/deps/undici/undici:731:17)\n      at listOnTimeout (node:internal/timers:605:17)\n      at process.processTimers (node:internal/timers:541:7) {\n    code: 'UND_ERR_HEADERS_TIMEOUT'\n  }\n}\n\nNode.js v24.18.0\n",
+      "generationMs": 301338.74649999995,
+      "supersededAt": "2026-10-01T08:18:31.103Z",
+      "supersededBinding": {
+        "imageId": "sha256:93efcff91170304e3612912a3fca940ce0b887f1f5be108be670519c9d382962",
+        "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+        "modelSha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
+        "adapterSha256": "1a2bdd52b4b3677d69f97117da7b9dfe2741dcb41ea14db728a0c198fe32933a",
+        "timeoutMs": 1800000,
+        "serverArgs": [
+          "--model",
+          "/opt/ayas/payload/model/qwen2.5-coder-14b-instruct-q4_k_m.gguf",
+          "--alias",
+          "ayas-qwen2.5-coder-14b-q4-k-m",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8080",
+          "--ctx-size",
+          "16384",
+          "--threads",
+          "8",
+          "--threads-http",
+          "2",
+          "--n-gpu-layers",
+          "0",
+          "--parallel",
+          "1",
+          "--jinja",
+          "--offline",
+          "--cache-ram",
+          "0",
+          "--ctx-checkpoints",
+          "0"
+        ],
+        "profile": {
+          "memory": 13421772800,
+          "cpus": 8,
+          "tmpSize": "64m"
+        }
+      },
+      "bindingFieldsChanged": [
+        "transportClientSha256"
+      ]
+    },
+    {
+      "caseId": "historical-atomic-bounded-write",
+      "split": "PRIMARY",
+      "domain": "SECURITY",
+      "repeat": 2,
+      "imageId": "sha256:93efcff91170304e3612912a3fca940ce0b887f1f5be108be670519c9d382962",
+      "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "modelSha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
+      "evaluatorBlob": "70df46f3c7a474a449c78e2c8f2f0da3383beebc",
+      "baseHead": "2397edf0b55233d101668657f1451e37c5334fdf",
+      "harness": {
+        "repositoryHead": "390d8272c590a8603c0eaf3ba6501c7bf9ba4248",
+        "runnerSha256": "7015efd2401010bb46c8f3d1cf0187a5a456354a5fd948547e52fe96baa25a68",
+        "adapterSha256": "1a2bdd52b4b3677d69f97117da7b9dfe2741dcb41ea14db728a0c198fe32933a"
+      },
+      "observedAt": "2026-10-01T08:16:47.464Z",
+      "modelRequestSent": true,
+      "requestSha256": "337d0e249758984082b40df51f031b61713900ef90bdb85fbf6a9372734875c4",
+      "requestBytes": 7572,
+      "retries": 0,
+      "timeoutMs": 1800000,
+      "sandboxCreateMs": 529.0210999999545,
+      "loadAndSandboxStartupMs": 16090.546399999992,
+      "totalMs": 320005.96109999996,
+      "resources": {
+        "cpuStat": "usage_usec 2426415979\nuser_usec 2415533757\nsystem_usec 10882222\nnice_usec 0\nnr_periods 3171\nnr_throttled 572\nthrottled_usec 2074961\nnr_bursts 0\nburst_usec 0",
+        "memoryMaxBytes": 13421772800,
+        "memoryPeakBytes": 13421772800,
+        "memoryCurrentBytes": 13420789760,
+        "memoryStat": {
+          "anon": 9881305088,
+          "file": 3490525184,
+          "kernel": 48414720,
+          "shmem": 0,
+          "file_mapped": 2209988608,
+          "workingset_refault_file": 1215354,
+          "pgmajfault": 346446
+        },
+        "pidsMax": 64,
+        "pidsPeak": 19,
+        "pidsEvents": "max 0",
+        "memoryEvents": "low 0\nhigh 0\nmax 473\noom 0\noom_kill 0\noom_group_kill 0",
+        "cpuOnly": true,
+        "gpuTelemetry": null,
+        "vramTelemetry": null
+      },
+      "serverState": {
+        "status": "running",
+        "exitCode": 0,
+        "oomKilled": false
+      },
+      "workspaceUnchanged": true,
+      "hostMemory": {
+        "before": {
+          "totalBytes": 34033348608,
+          "freeBytes": 19219857408,
+          "usedPct": 43.5,
+          "requiredFreeBytes": 17898849485,
+          "waitedMs": 40000
+        },
+        "peakUsedPct": 83.6,
+        "minFreeBytes": 5596925952,
+        "aborted": false,
+        "afterCleanup": {
+          "totalBytes": 34033348608,
+          "freeBytes": 6029008896,
+          "usedPct": 82.3
+        }
+      },
+      "toolMisuse": false,
+      "response": null,
+      "outcome": "TIMEOUT",
+      "reason": "LOCAL_HTTP_TRANSPORT:1:node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\n[TypeError: fetch failed] {\n  [cause]: HeadersTimeoutError: Headers Timeout Error\n      at FastTimer.onParserTimeout [as _onTimeout] (node:internal/deps/undici/undici:7709:32)\n      at Timeout.onTick [as _onTimeout] (node:internal/deps/undici/undici:731:17)\n      at listOnTimeout (node:internal/timers:605:17)\n      at process.processTimers (node:internal/timers:541:7) {\n    code: 'UND_ERR_HEADERS_TIMEOUT'\n  }\n}\n\nNode.js v24.18.0\n",
+      "generationMs": 301367.8792,
+      "supersededAt": "2026-10-01T08:18:31.104Z",
+      "supersededBinding": {
+        "imageId": "sha256:93efcff91170304e3612912a3fca940ce0b887f1f5be108be670519c9d382962",
+        "evaluatorImageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+        "modelSha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
+        "adapterSha256": "1a2bdd52b4b3677d69f97117da7b9dfe2741dcb41ea14db728a0c198fe32933a",
+        "timeoutMs": 1800000,
+        "serverArgs": [
+          "--model",
+          "/opt/ayas/payload/model/qwen2.5-coder-14b-instruct-q4_k_m.gguf",
+          "--alias",
+          "ayas-qwen2.5-coder-14b-q4-k-m",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8080",
+          "--ctx-size",
+          "16384",
+          "--threads",
+          "8",
+          "--threads-http",
+          "2",
+          "--n-gpu-layers",
+          "0",
+          "--parallel",
+          "1",
+          "--jinja",
+          "--offline",
+          "--cache-ram",
+          "0",
+          "--ctx-checkpoints",
+          "0"
+        ],
+        "profile": {
+          "memory": 13421772800,
+          "cpus": 8,
+          "tmpSize": "64m"
+        }
+      },
+      "bindingFieldsChanged": [
+        "transportClientSha256"
+      ]
+    }
+  ],
+  "resourceAborts": [],
+  "hostProtectionEvents": [],
+  "readiness": "LOCAL_INDEPENDENCE_DEGRADED"
+}

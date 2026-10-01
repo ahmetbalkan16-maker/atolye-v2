@@ -1,0 +1,125 @@
+{
+  "evidenceClass": "REAL_PINNED_ENGINE_MODEL_LIVENESS_NOT_QUALIFICATION",
+  "observedAt": "2026-10-01T08:04:32.883Z",
+  "repositoryHead": "390d8272c590a8603c0eaf3ba6501c7bf9ba4248",
+  "imageId": "sha256:93efcff91170304e3612912a3fca940ce0b887f1f5be108be670519c9d382962",
+  "engineCommit": "7fe450e19305b828c199d602c23a8337aaa1f03b",
+  "modelSha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
+  "serverArgs": [
+    "--model",
+    "/opt/ayas/payload/model/qwen2.5-coder-14b-instruct-q4_k_m.gguf",
+    "--alias",
+    "ayas-qwen2.5-coder-14b-q4-k-m",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "8080",
+    "--ctx-size",
+    "16384",
+    "--threads",
+    "8",
+    "--threads-http",
+    "2",
+    "--n-gpu-layers",
+    "0",
+    "--parallel",
+    "1",
+    "--jinja",
+    "--offline",
+    "--cache-ram",
+    "0",
+    "--ctx-checkpoints",
+    "0"
+  ],
+  "profile": {
+    "memory": 13421772800,
+    "cpus": 8,
+    "tmpSize": "64m"
+  },
+  "liveBoundaryAssertion": "asserted inside the container: memory.max 13421772800, no swap, cpu.max 8 CPUs, 64 tasks, zero capabilities, no-new-privileges, seccomp filter, loopback-only netns, no evaluator/cases/toolchain/.git, read-only root and workspace",
+  "engineBanner": [
+    "0.11.658.817 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 16384, kv_unified = 'false'"
+  ],
+  "observation": {
+    "loadAndSandboxStartupMs": 12835.4012,
+    "requestMs": 58356.246399999996,
+    "model": "ayas-qwen2.5-coder-14b-q4-k-m",
+    "finishReason": "stop",
+    "content": "const value_160 = 160;",
+    "usage": {
+      "completion_tokens": 13,
+      "prompt_tokens": 1751,
+      "total_tokens": 1764,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 1751,
+      "prompt_ms": 55603.351,
+      "prompt_per_token_ms": 31.755197601370647,
+      "prompt_per_second": 31.49090780517886,
+      "predicted_n": 13,
+      "predicted_ms": 2201.685,
+      "predicted_per_token_ms": 183.47375,
+      "predicted_per_second": 5.450370965873865
+    }
+  },
+  "resources": {
+    "cpuStat": "usage_usec 478741454\nuser_usec 471519803\nsystem_usec 7221651\nnice_usec 0\nnr_periods 705\nnr_throttled 204\nthrottled_usec 29159\nnr_bursts 0\nburst_usec 0",
+    "memoryMaxBytes": 13421772800,
+    "memoryPeakBytes": 13421772800,
+    "memoryCurrentBytes": 13413687296,
+    "memoryStat": {
+      "anon": 9833861120,
+      "file": 3533131776,
+      "kernel": 43417600,
+      "shmem": 0,
+      "file_mapped": 2702675968,
+      "workingset_refault_file": 492833,
+      "pgmajfault": 151789
+    },
+    "pidsMax": 64,
+    "pidsPeak": 19,
+    "pidsEvents": "max 0",
+    "memoryEvents": "low 0\nhigh 0\nmax 39\noom 0\noom_kill 0\noom_group_kill 0",
+    "cpuOnly": true,
+    "gpuTelemetry": null,
+    "vramTelemetry": null
+  },
+  "serverState": {
+    "OciVersion": "1.3.0",
+    "Status": "running",
+    "Running": true,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 28480,
+    "ConmonPid": 28478,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-10-01T11:03:19.902630014+03:00",
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "CgroupPath": "/user.slice/user-1000.slice/user@1000.service/user.slice/libpod-114898fa628c73e45ad8dc75f4d905a34d1e2b7e507380d750aa274590cda1ad.scope",
+    "CheckpointedAt": "0001-01-01T00:00:00Z",
+    "RestoredAt": "0001-01-01T00:00:00Z"
+  },
+  "hostMemory": {
+    "before": {
+      "totalBytes": 34033348608,
+      "freeBytes": 18067308544,
+      "usedPct": 46.9,
+      "requiredFreeBytes": 17898849485,
+      "waitedMs": 0
+    },
+    "peakUsedPct": 85.5,
+    "minFreeBytes": 4936699904,
+    "aborted": false,
+    "hostMaxUsedTarget": 0.9
+  },
+  "pass": true,
+  "resourceAbort": null,
+  "admission": "NONE"
+}

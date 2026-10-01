@@ -47,6 +47,17 @@ async function main(): Promise<void> {
     fs.writeFileSync(path.join(root, ".env.local"), "secret");
     (manifest.files as unknown[]).push({ path: ".env.local", sizeBytes: 6, sha256: hash("secret") });
   });
+  const scoped = (root: string, manifest: Record<string, unknown>, scope: string): void => {
+    const file = `toolchain/node_modules/${scope}/linux-x64/bin/esbuild`;
+    fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true }); fs.writeFileSync(path.join(root, file), "bin");
+    (manifest.files as unknown[]).push({ path: file, sizeBytes: 3, sha256: hash("bin") });
+  };
+  run("exact evaluator-only Linux esbuild namespace", (root, manifest) => scoped(root, manifest, "@esbuild"), true);
+  run("unregistered scoped namespace refused", (root, manifest) => scoped(root, manifest, "@other"));
+  run("inference cannot declare evaluator native toolchain", (root, manifest) => { scoped(root, manifest, "@esbuild"); manifest.role = "INFERENCE"; });
+  run("scoped native toolchain traversal refused", (_, manifest) => {
+    (manifest.files as Record<string, unknown>[])[0]!.path = "toolchain/node_modules/@esbuild/linux-x64/../escape";
+  });
   console.log(`Image payload verifier: ${count}/${count} PASS; fixture bytes only, image builds 0.`);
 }
 main().catch((error: unknown) => { console.error(error); process.exitCode = 1; });

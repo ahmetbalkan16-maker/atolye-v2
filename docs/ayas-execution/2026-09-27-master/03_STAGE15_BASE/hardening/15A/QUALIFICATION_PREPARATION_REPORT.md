@@ -164,3 +164,7 @@ and evaluators are byte-unchanged. This is a sixth **host oracle**, not a sixth 
    candidates, measuring real pass@1/pass^k, consistency, scope/misuse and resource usage.
 7. Close 15A.3 only after every required pin, containment, quality, regression, Graphify and
    durable-evidence threshold passes. Until then DEGRADED; no 15B/cloud fallback/push.
+
+## Superseded by the 2026-10-01 closure
+
+This report describes preparation before any runtime existed. Remaining-work items 2 to 7 were then carried out on the owner-installed rootless Podman/WSL2 runtime: sealed toolchain, offline image builds, isolation matrix, in-container frozen controls, real engine liveness and real model attempts. Item 1 (a TypeScript-refactor case) was not added. Stage 15A.3 closed as `LOCAL_INDEPENDENCE_DEGRADED`. Current truth is IMPLEMENTATION_NOTES.md sections 15A.3i and 15A.3j and QUALIFICATION_CLOSURE.json.

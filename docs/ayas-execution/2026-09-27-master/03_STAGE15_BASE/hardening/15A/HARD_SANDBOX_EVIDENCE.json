@@ -1,0 +1,498 @@
+{
+  "evidenceClass": "ACTUAL_PODMAN_DIAGNOSTIC_MATRIX",
+  "imageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+  "ociInspection": {
+    "Id": "15a8a305f85bac1c528c83d8b02eb9fea6a0669293f7bffead279adcb9d87098",
+    "Created": "2026-10-01T10:44:17.5658174+03:00",
+    "Path": "/usr/local/bin/node",
+    "Args": [
+      "/opt/ayas/probe.mjs"
+    ],
+    "State": {
+      "OciVersion": "1.3.0",
+      "Status": "created",
+      "Running": false,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 0,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "0001-01-01T00:00:00Z",
+      "FinishedAt": "0001-01-01T00:00:00Z",
+      "CheckpointedAt": "0001-01-01T00:00:00Z",
+      "RestoredAt": "0001-01-01T00:00:00Z"
+    },
+    "Image": "75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+    "ImageDigest": "sha256:c6b4a6eaf1b55e2ad0eb2ed8808fcc713b748654d82831c00330cd62a39f5b23",
+    "ImageName": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+    "Rootfs": "",
+    "Pod": "",
+    "ResolvConfPath": "",
+    "HostnamePath": "",
+    "HostsPath": "",
+    "StaticDir": "/home/user/.local/share/containers/storage/overlay-containers/15a8a305f85bac1c528c83d8b02eb9fea6a0669293f7bffead279adcb9d87098/userdata",
+    "OCIRuntime": "crun",
+    "ConmonPidFile": "/run/user/1000/containers/overlay-containers/15a8a305f85bac1c528c83d8b02eb9fea6a0669293f7bffead279adcb9d87098/userdata/conmon.pid",
+    "PidFile": "/run/user/1000/containers/overlay-containers/15a8a305f85bac1c528c83d8b02eb9fea6a0669293f7bffead279adcb9d87098/userdata/pidfile",
+    "Name": "ayas-qualification-d7ddcb3e-1b3e-4655-8727-140319e88083",
+    "RestartCount": 0,
+    "Driver": "overlay",
+    "MountLabel": "",
+    "ProcessLabel": "",
+    "AppArmorProfile": "",
+    "EffectiveCaps": null,
+    "BoundingCaps": null,
+    "ExecIDs": [],
+    "GraphDriver": {
+      "Name": "overlay",
+      "Data": {
+        "LowerDir": "/home/user/.local/share/containers/storage/overlay/77943d16a922494d4a6639bbfad394c63c1843ace99bc00e6eeb37aa8f95cafb/diff:/home/user/.local/share/containers/storage/overlay/fd0f4439418c8c59e3895b71f9bcd5457f5f35a9e809e64f30505852dddb7b07/diff:/home/user/.local/share/containers/storage/overlay/1f152d91c6c8c2af1034e81faf2c20d79ef8db4596fd5b738a4b31f9f4667b75/diff:/home/user/.local/share/containers/storage/overlay/a4cb582a8f584c01eb586111a96f3a04cab619be3281430909c16cb40a4b2d59/diff:/home/user/.local/share/containers/storage/overlay/866b137526877694e5ddc24b3af180a2bf15c42be668e23e1550424d02108e6f/diff:/home/user/.local/share/containers/storage/overlay/d0ea12335391f75f28048788e7cda56af787bf55b749c28204c00a0a048da8b9/diff:/home/user/.local/share/containers/storage/overlay/2d1460b2ded3c4173e12589a5de9d7d55882056df39d63294f2c09d909a2506e/diff:/home/user/.local/share/containers/storage/overlay/35e0037edfd472789110d474e01058899e3822dcd8e47c154c3f73a65dc92f40/diff:/home/user/.local/share/containers/storage/overlay/8709e4abcf80a2c1d08e647e9a2ea025544dad8b2a63cf3c4996b9e4ddd139a3/diff:/home/user/.local/share/containers/storage/overlay/2f480f204ccde2d1878464bd6a8418ca09eda80efbba6450daed3b7599fab2ef/diff",
+        "UpperDir": "/home/user/.local/share/containers/storage/overlay/b02990f654370c9e302f5ad2a094c3bf864a78e5842891d269385ac1e2a59244/diff",
+        "WorkDir": "/home/user/.local/share/containers/storage/overlay/b02990f654370c9e302f5ad2a094c3bf864a78e5842891d269385ac1e2a59244/work"
+      }
+    },
+    "Mounts": [
+      {
+        "Type": "bind",
+        "Source": "/mnt/c/Users/Metod/AppData/Local/Temp/ayas-qualification-bf066321-8e0a-431f-a561-cee5125fd442/probe-workspace-ttzIhT",
+        "Destination": "/workspace",
+        "Driver": "",
+        "Mode": "",
+        "Options": [
+          "rbind"
+        ],
+        "RW": false,
+        "Propagation": "rprivate"
+      }
+    ],
+    "Dependencies": [],
+    "NetworkSettings": {
+      "EndpointID": "",
+      "Gateway": "",
+      "IPAddress": "",
+      "IPPrefixLen": 0,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "MacAddress": "",
+      "Bridge": "",
+      "SandboxID": "",
+      "HairpinMode": false,
+      "LinkLocalIPv6Address": "",
+      "LinkLocalIPv6PrefixLen": 0,
+      "Ports": {},
+      "SandboxKey": "",
+      "Networks": {
+        "none": {
+          "EndpointID": "",
+          "Gateway": "",
+          "IPAddress": "",
+          "IPPrefixLen": 0,
+          "IPv6Gateway": "",
+          "GlobalIPv6Address": "",
+          "GlobalIPv6PrefixLen": 0,
+          "MacAddress": "",
+          "NetworkID": "none",
+          "DriverOpts": null,
+          "IPAMConfig": null,
+          "Links": null
+        }
+      }
+    },
+    "Namespace": "",
+    "IsInfra": false,
+    "IsService": false,
+    "KubeExitCodePropagation": "invalid",
+    "lockNumber": 0,
+    "Config": {
+      "Hostname": "15a8a305f85b",
+      "Domainname": "",
+      "User": "65534:65534",
+      "AttachStdin": false,
+      "AttachStdout": false,
+      "AttachStderr": false,
+      "Tty": false,
+      "OpenStdin": false,
+      "StdinOnce": false,
+      "Env": [
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "container=podman",
+        "HOME=/tmp",
+        "ATOLYE_RUNTIME_ROOT=/tmp/runtime"
+      ],
+      "Cmd": [
+        "/opt/ayas/probe.mjs"
+      ],
+      "Image": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+      "Volumes": null,
+      "WorkingDir": "/workspace",
+      "Entrypoint": [
+        "/usr/local/bin/node"
+      ],
+      "OnBuild": null,
+      "Labels": {
+        "io.buildah.version": "1.44.1",
+        "org.ayas.admission": "DIAGNOSTIC_NOT_ADMITTED",
+        "org.ayas.base.digest": "sha256:4e9cb555d708e0829c9d93e5eeae9dfab0617b832ca436a690680e0fca735ef5",
+        "org.ayas.engine.commit": "7fe450e19305b828c199d602c23a8337aaa1f03b",
+        "org.ayas.model.sha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940"
+      },
+      "Annotations": {
+        "io.podman.annotations.pids-limit": "64"
+      },
+      "StopSignal": "SIGTERM",
+      "HealthcheckOnFailureAction": "none",
+      "HealthLogDestination": "local",
+      "HealthcheckMaxLogCount": 5,
+      "HealthcheckMaxLogSize": 500,
+      "CreateCommand": [
+        "C:/Users/Metod/AppData/Local/Programs/Podman/podman.exe",
+        "create",
+        "--name",
+        "ayas-qualification-d7ddcb3e-1b3e-4655-8727-140319e88083",
+        "--pull=never",
+        "--network=none",
+        "--read-only",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--pids-limit=64",
+        "--memory=4294967296",
+        "--memory-swap=4294967296",
+        "--cpus=2",
+        "--user=65534:65534",
+        "--pid=private",
+        "--ipc=private",
+        "--uts=private",
+        "--mount",
+        "type=bind,src=/mnt/c/Users/Metod/AppData/Local/Temp/ayas-qualification-bf066321-8e0a-431f-a561-cee5125fd442/probe-workspace-ttzIhT,dst=/workspace,readonly",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,size=256m",
+        "--workdir=/workspace",
+        "--env=HOME=/tmp",
+        "--env=ATOLYE_RUNTIME_ROOT=/tmp/runtime",
+        "--entrypoint=/usr/local/bin/node",
+        "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+        "/opt/ayas/probe.mjs"
+      ],
+      "Umask": "0022",
+      "Timeout": 0,
+      "StopTimeout": 10,
+      "Passwd": true,
+      "sdNotifyMode": "container"
+    },
+    "HostConfig": {
+      "Binds": [
+        "/mnt/c/Users/Metod/AppData/Local/Temp/ayas-qualification-bf066321-8e0a-431f-a561-cee5125fd442/probe-workspace-ttzIhT:/workspace:ro,rprivate,rbind"
+      ],
+      "CgroupManager": "systemd",
+      "CgroupMode": "private",
+      "ContainerIDFile": "",
+      "LogConfig": {
+        "Type": "journald",
+        "Config": null,
+        "Path": "",
+        "Tag": "",
+        "Size": "-1B"
+      },
+      "NetworkMode": "none",
+      "PortBindings": {},
+      "RestartPolicy": {
+        "Name": "no",
+        "MaximumRetryCount": 0
+      },
+      "AutoRemove": false,
+      "AutoRemoveImage": false,
+      "Annotations": {
+        "io.podman.annotations.pids-limit": "64"
+      },
+      "VolumeDriver": "",
+      "VolumesFrom": null,
+      "CapAdd": [],
+      "CapDrop": [
+        "CAP_CHOWN",
+        "CAP_DAC_OVERRIDE",
+        "CAP_FOWNER",
+        "CAP_FSETID",
+        "CAP_KILL",
+        "CAP_NET_BIND_SERVICE",
+        "CAP_SETFCAP",
+        "CAP_SETGID",
+        "CAP_SETPCAP",
+        "CAP_SETUID",
+        "CAP_SYS_CHROOT"
+      ],
+      "Dns": [],
+      "DnsOptions": null,
+      "DnsSearch": null,
+      "ExtraHosts": null,
+      "HostsFile": "",
+      "GroupAdd": null,
+      "IpcMode": "private",
+      "Cgroup": "",
+      "Cgroups": "default",
+      "Links": null,
+      "OomScoreAdj": 0,
+      "PidMode": "private",
+      "Privileged": false,
+      "PublishAllPorts": false,
+      "ReadonlyRootfs": true,
+      "SecurityOpt": [
+        "no-new-privileges"
+      ],
+      "Tmpfs": {
+        "/tmp": "rw,noexec,nosuid,size=256m,rprivate,nodev,tmpcopyup"
+      },
+      "UTSMode": "private",
+      "UsernsMode": "",
+      "ShmSize": 65536000,
+      "Runtime": "oci",
+      "ConsoleSize": [
+        0,
+        0
+      ],
+      "Isolation": "",
+      "CpuShares": 0,
+      "Memory": 4294967296,
+      "NanoCpus": 2000000000,
+      "CgroupParent": "user.slice",
+      "BlkioWeight": 0,
+      "BlkioWeightDevice": null,
+      "BlkioDeviceReadBps": null,
+      "BlkioDeviceWriteBps": null,
+      "BlkioDeviceReadIOps": null,
+      "BlkioDeviceWriteIOps": null,
+      "CpuPeriod": 100000,
+      "CpuQuota": 200000,
+      "CpuRealtimePeriod": 0,
+      "CpuRealtimeRuntime": 0,
+      "CpusetCpus": "",
+      "CpusetMems": "",
+      "Devices": [],
+      "DiskQuota": 0,
+      "KernelMemory": 0,
+      "MemoryReservation": 0,
+      "MemorySwap": 4294967296,
+      "MemorySwappiness": null,
+      "OomKillDisable": false,
+      "PidsLimit": 64,
+      "Ulimits": [],
+      "CpuCount": 0,
+      "CpuPercent": 0,
+      "IOMaximumIOps": 0,
+      "IOMaximumBandwidth": 0,
+      "CgroupConf": null
+    },
+    "UseImageHosts": false,
+    "UseImageHostname": false
+  },
+  "rows": [
+    {
+      "name": "intended-temp-read",
+      "pass": true,
+      "detail": "exact mounted sentinel"
+    },
+    {
+      "name": "intended-temp-write",
+      "pass": true,
+      "detail": "/tmp tmpfs"
+    },
+    {
+      "name": "readonly-workspace",
+      "pass": true,
+      "detail": "EROFS"
+    },
+    {
+      "name": "readonly-root",
+      "pass": true,
+      "detail": "EROFS"
+    },
+    {
+      "name": "absent-host:/workspace/.git/config",
+      "pass": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "absent-host:/root/.ssh/id_rsa",
+      "pass": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "absent-host:/home/user/.ssh/id_ed25519",
+      "pass": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "absent-host:/root/.aws/credentials",
+      "pass": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "absent-host:/host-repo/README.md",
+      "pass": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "absent-host:/mnt/c/Users/Metod/.env",
+      "pass": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "absent-host:/workspace/../host-private-canary.txt",
+      "pass": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "environment-no-secrets",
+      "pass": true,
+      "detail": [
+        "PATH",
+        "container",
+        "HOME",
+        "ATOLYE_RUNTIME_ROOT",
+        "HOSTNAME"
+      ]
+    },
+    {
+      "name": "symlink-host-escape",
+      "pass": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "no-package-manager",
+      "pass": true,
+      "detail": "npm/apt/shell absent from scratch image"
+    },
+    {
+      "name": "nonroot-root-escalation",
+      "pass": true,
+      "detail": "EPERM"
+    },
+    {
+      "name": "capabilities-no-new-privileges-seccomp",
+      "pass": true,
+      "detail": [
+        "CapInh:\t0000000000000000",
+        "CapPrm:\t0000000000000000",
+        "CapEff:\t0000000000000000",
+        "CapBnd:\t0000000000000000",
+        "CapAmb:\t0000000000000000",
+        "NoNewPrivs:\t1",
+        "Seccomp:\t2",
+        "Seccomp_filters:\t1"
+      ]
+    },
+    {
+      "name": "privileged-kernel-write",
+      "pass": true,
+      "detail": "EROFS"
+    },
+    {
+      "name": "cgroup-limits",
+      "pass": true,
+      "detail": {
+        "pids": "64",
+        "memory": "4294967296",
+        "cpu": "200000 100000"
+      }
+    },
+    {
+      "name": "registered-frozen-evaluator",
+      "pass": true,
+      "detail": {
+        "status": 0,
+        "stdout": "AYAS bounded file write smoke: PASS (18 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-bounded-file-write\",\"scenarios\":18}\n"
+      }
+    },
+    {
+      "name": "network-namespace-loopback-only",
+      "pass": true,
+      "detail": {
+        "interfaces": [
+          "lo"
+        ],
+        "routes": "Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT"
+      }
+    },
+    {
+      "name": "network-connect",
+      "pass": true,
+      "detail": "ENETUNREACH"
+    },
+    {
+      "name": "dns",
+      "pass": true,
+      "detail": {
+        "code": "ECONNREFUSED",
+        "networkNamespaceHasOnlyLoopback": [
+          "lo"
+        ]
+      }
+    },
+    {
+      "name": "excessive-process-pid-cap",
+      "pass": true,
+      "detail": {
+        "events": "max 12",
+        "peak": "64",
+        "refused": false
+      }
+    }
+  ],
+  "stress": [
+    {
+      "mode": "memory",
+      "pass": true,
+      "elapsedMs": 696.0945000000002,
+      "state": {
+        "OciVersion": "1.3.0",
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": true,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 137,
+        "Error": "",
+        "StartedAt": "2026-10-01T10:44:22.003160254+03:00",
+        "FinishedAt": "2026-10-01T10:44:22.064332331+03:00",
+        "CheckpointedAt": "0001-01-01T00:00:00Z",
+        "RestoredAt": "0001-01-01T00:00:00Z"
+      },
+      "error": null,
+      "stdout": "{\"before\":\"134217728\"}\n",
+      "stderr": ""
+    },
+    {
+      "mode": "sleep",
+      "pass": true,
+      "elapsedMs": 4579.8526,
+      "state": {
+        "OciVersion": "1.3.0",
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 137,
+        "Error": "",
+        "StartedAt": "2026-10-01T10:44:23.46952962+03:00",
+        "FinishedAt": "2026-10-01T10:44:27.460329972+03:00",
+        "CheckpointedAt": "0001-01-01T00:00:00Z",
+        "RestoredAt": "0001-01-01T00:00:00Z",
+        "StoppedByUser": true
+      },
+      "error": "ETIMEDOUT",
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "unexpectedMountRejected": true,
+  "fullMatrixPass": true,
+  "admission": "NONE",
+  "distinction": "Diagnostic 4GiB/2CPU profile verified here; inference 14GiB/8CPU independently inspected per run. Production registry remains empty."
+}

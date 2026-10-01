@@ -1,0 +1,224 @@
+{
+  "evidenceClass": "FROZEN_EVALUATOR_CONTAINER_ORACLE_CONTROLS_NOT_MODEL_RUNS",
+  "imageId": "sha256:75fc384f0a232f041a2584b619fb039cd5f61132703b83647a07a3a3236765b5",
+  "repositoryHead": "390d8272c590a8603c0eaf3ba6501c7bf9ba4248",
+  "observedAt": "2026-10-01T07:45:00.234Z",
+  "allControlsValid": true,
+  "frozenEvaluatorsUnchanged": true,
+  "evaluable": [
+    "historical-explicit-computer-plan",
+    "historical-atomic-bounded-write",
+    "historical-daily-development-view",
+    "historical-two-source-identity-retrieval",
+    "heldout-render-tool-supersession"
+  ],
+  "platformUnavailable": [
+    "historical-windows-graphify-launch"
+  ],
+  "negatives": [
+    {
+      "caseId": "historical-explicit-computer-plan",
+      "split": "PRIMARY",
+      "domain": "MEMORY_TEMPORAL",
+      "evaluatorBlob": "39c786bc544fa9c706ccf3139e8e967ad71ec369",
+      "sealedEvaluatorBlob": "39c786bc544fa9c706ccf3139e8e967ad71ec369",
+      "platform": "EVALUABLE",
+      "observations": [
+        {
+          "kind": "baseline",
+          "status": "EXPECTED_REJECTION",
+          "exit": 1,
+          "stdout": "",
+          "stderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-OawAHF/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-OawAHF/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-OawAHF/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-OawAHF/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+          "evaluatorBlob": "39c786bc544fa9c706ccf3139e8e967ad71ec369"
+        },
+        {
+          "kind": "wrong-noop",
+          "status": "EXPECTED_REJECTION",
+          "exit": 1,
+          "stdout": "",
+          "stderr": "AYAS memory temporal smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.computer-purchase-plan'\n\n    at /tmp/ayas-evaluator-wchg26/scripts/smoke-ayas-memory-temporal.ts:166:26\n    at scenario (/tmp/ayas-evaluator-wchg26/scripts/smoke-ayas-memory-temporal.ts:34:11)\n    at run (/tmp/ayas-evaluator-wchg26/scripts/smoke-ayas-memory-temporal.ts:150:11)\n    at Object.<anonymous> (/tmp/ayas-evaluator-wchg26/scripts/smoke-ayas-memory-temporal.ts:1028:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.computer-purchase-plan',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+          "evaluatorBlob": "39c786bc544fa9c706ccf3139e8e967ad71ec369"
+        },
+        {
+          "kind": "historical-fix",
+          "status": "CORRECT_HISTORICAL_REPAIR_PASS",
+          "exit": 0,
+          "stdout": "AYAS memory temporal smoke: PASS (52 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-memory-temporal\",\"scenarios\":52,\"fixtures\":13}\n",
+          "stderr": "",
+          "evaluatorBlob": "39c786bc544fa9c706ccf3139e8e967ad71ec369"
+        }
+      ]
+    },
+    {
+      "caseId": "historical-atomic-bounded-write",
+      "split": "PRIMARY",
+      "domain": "SECURITY",
+      "evaluatorBlob": "70df46f3c7a474a449c78e2c8f2f0da3383beebc",
+      "sealedEvaluatorBlob": "70df46f3c7a474a449c78e2c8f2f0da3383beebc",
+      "platform": "EVALUABLE",
+      "observations": [
+        {
+          "kind": "baseline",
+          "status": "EXPECTED_REJECTION",
+          "exit": 1,
+          "stdout": "",
+          "stderr": "node:internal/process/promises:394\n    triggerUncaughtException(err, true /* fromPromise */);\n    ^\n\nAssertionError [ERR_ASSERTION]: Missing expected rejection.\n    at async /tmp/ayas-evaluator-LGcfsE/scripts/smoke-ayas-bounded-file-write.ts:115:13\n    at async main (/tmp/ayas-evaluator-LGcfsE/scripts/smoke-ayas-bounded-file-write.ts:101:5) {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: /injected second-file commit failure/,\n  operator: 'rejects',\n  diff: 'simple'\n}\n\nNode.js v24.18.0\n",
+          "evaluatorBlob": "70df46f3c7a474a449c78e2c8f2f0da3383beebc"
+        },
+        {
+          "kind": "wrong-noop",
+          "status": "EXPECTED_REJECTION",
+          "exit": 1,
+          "stdout": "",
+          "stderr": "node:internal/process/promises:394\n    triggerUncaughtException(err, true /* fromPromise */);\n    ^\n\nAssertionError [ERR_ASSERTION]: Missing expected rejection.\n    at async /tmp/ayas-evaluator-Vmtuxs/scripts/smoke-ayas-bounded-file-write.ts:115:13\n    at async main (/tmp/ayas-evaluator-Vmtuxs/scripts/smoke-ayas-bounded-file-write.ts:101:5) {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: /injected second-file commit failure/,\n  operator: 'rejects',\n  diff: 'simple'\n}\n\nNode.js v24.18.0\n",
+          "evaluatorBlob": "70df46f3c7a474a449c78e2c8f2f0da3383beebc"
+        },
+        {
+          "kind": "historical-fix",
+          "status": "CORRECT_HISTORICAL_REPAIR_PASS",
+          "exit": 0,
+          "stdout": "AYAS bounded file write smoke: PASS (18 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-bounded-file-write\",\"scenarios\":18}\n",
+          "stderr": "",
+          "evaluatorBlob": "70df46f3c7a474a449c78e2c8f2f0da3383beebc"
+        }
+      ]
+    },
+    {
+      "caseId": "historical-daily-development-view",
+      "split": "PRIMARY",
+      "domain": "UI",
+      "evaluatorBlob": "6ff859f5996ea8623f823a5f7986296c5e965adb",
+      "sealedEvaluatorBlob": "6ff859f5996ea8623f823a5f7986296c5e965adb",
+      "platform": "EVALUABLE",
+      "observations": [
+        {
+          "kind": "baseline",
+          "status": "EXPECTED_REJECTION",
+          "exit": 1,
+          "stdout": "",
+          "stderr": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   {\n+     approvalReady: true,\n+     baseHead: 'b6808e314f33337875c7906247e09a4a055f2401',\n+     createdAt: '2026-09-14T12:00:00.000Z',\n+     currentProblem: 'Kullanıcı uzun yanıt sırasında ilerlemeyi göremiyor.',\n+     decision: undefined,\n+     displayState: 'STALE_AWAITING_REDISCOVERY',\n+     evidence: [\n+       'chat duration fixture'\n+     ],\n+     exactFiles: [\n+       'src/components/brain/BrainConsoleView.tsx'\n+     ],\n+     expectedBehaviorChange: 'Uzun yanıtlarda mevcut bekleme alanında ilerleme durumu gösterilecek.',\n+     expectedDiffScope: 'Bir mevcut durum satırı ve regresyon testi',\n+     expectedUserBenefit: 'Yanıt hazırlanırken sistemin çalıştığını göreceksin ve gereksiz tekrar göndermeyeceksin.',\n+     graphifyEvidence: [\n+       'BrainCoreConsole → BrainConsoleView'\n+     ],\n+     lastUpdatedAt: '2026-09-15T12:00:00.000Z',\n+     missingExplanation: [],\n+     mutationKind: 'test-fixture-mutation',\n+     objective: 'AYAS yanıt gecikmesini görünür kıl',\n+     ownerApprovedPendingExecution: false,\n+     patchArtifact: undefined,\n+     productionImpact: 'Üretim yürütmesi yok; yalnızca AYAS arayüzü etkilenir.',\n+     proposalHash: 'hash-safe',\n+     proposalId: 'stale-yesterday',\n+     rationale: 'Ölçülen gecikmeyi daha anlaşılır yap.',\n+     result: undefined,\n+     risk: 'low and reversible',\n+     riskIfNotDone: 'Belirsiz bekleme, aynı isteğin tekrar gönderilmesine yol açabilir.',\n+     safetyClassification: 'SAFE',\n+     selectionReason: 'Ölçülen bekleme süresi ve kullanıcı geri bildirimi aynı sorunu gösteriyor.',\n+     status: 'STALE',\n+     supersededByProposalId: undefined,\n+     technicalRisk: 'Düşük; yalnızca mevcut UI durumunun gösterimi değişir.',\n+     testsPlanned: [\n+       'smoke-brain-core-ui',\n+       'npx tsc --noEmit'\n+     ],\n+     unchangedBehavior: 'Model seçimi, yanıt içeriği ve üretim yürütme kapısı değişmeyecek.',\n+     valueClass: 'PRODUCT_BEHAVIOR'\n+   },\n+   {\n+     approvalReady: true,\n+     baseHead: 'b6808e314f33337875c7906247e09a4a055f2401',\n+     createdAt: '2026-09-14T12:00:00.000Z',\n+     currentProblem: 'Kullanıcı uzun yanıt sırasında ilerlemeyi göremiyor.',\n+     decision: undefined,\n+     displayState: 'NORMAL',\n+     evidence: [\n+       'chat duration fixture'\n+     ],\n+     exactFiles: [\n+       'src/components/brain/BrainConsoleView.tsx'\n+     ],\n+     expectedBehaviorChange: 'Uzun yanıtlarda mevcut bekleme alanında ilerleme durumu gösterilecek.',\n+     expectedDiffScope: 'Bir mevcut durum satırı ve regresyon testi',\n+     expectedUserBenefit: 'Yanıt hazırlanırken sistemin çalıştığını göreceksin ve gereksiz tekrar göndermeyeceksin.',\n+     graphifyEvidence: [\n+       'BrainCoreConsole → BrainConsoleView'\n+     ],\n+     lastUpdatedAt: '2026-09-15T12:00:00.000Z',\n+     missingExplanation: [],\n+     mutationKind: 'test-fixture-mutation',\n+     objective: 'AYAS yanıt gecikmesini görünür kıl',\n+     ownerApprovedPendingExecution: false,\n+     patchArtifact: undefined,\n+     productionImpact: 'Üretim yürütmesi yok; yalnızca AYAS arayüzü etkilenir.',\n+     proposalHash: 'hash-safe',\n+     proposalId: 'completed-yesterday',\n+     rationale: 'Ölçülen gecikmeyi daha anlaşılır yap.',\n+     result: undefined,\n+     risk: 'low and reversible',\n+     riskIfNotDone: 'Belirsiz bekleme, aynı isteğin tekrar gönderilmesine yol açabilir.',\n+     safetyClassification: 'SAFE',\n+     selectionReason: 'Ölçülen bekleme süresi ve kullanıcı geri bildirimi aynı sorunu gösteriyor.',\n+     status: 'COMPLETED',\n+     supersededByProposalId: undefined,\n+     technicalRisk: 'Düşük; yalnızca mevcut UI durumunun gösterimi değişir.',\n+     testsPlanned: [\n+       'smoke-brain-core-ui',\n+       'npx tsc --noEmit'\n+     ],\n+     unchangedBehavior: 'Model seçimi, yanıt içeriği ve üretim yürütme kapısı değişmeyecek.',\n+     valueClass: 'PRODUCT_BEHAVIOR'\n+   }\n+ ]\n- []\n\n    at /tmp/ayas-evaluator-4LSndJ/scripts/smoke-ayas-development-center.ts:85:26\n    at scenario (/tmp/ayas-evaluator-4LSndJ/scripts/smoke-ayas-development-center.ts:18:45)\n    at main (/tmp/ayas-evaluator-4LSndJ/scripts/smoke-ayas-development-center.ts:82:11) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: [Array],\n  expected: [],\n  operator: 'deepStrictEqual',\n  diff: 'simple'\n}\n",
+          "evaluatorBlob": "6ff859f5996ea8623f823a5f7986296c5e965adb"
+        },
+        {
+          "kind": "wrong-noop",
+          "status": "EXPECTED_REJECTION",
+          "exit": 1,
+          "stdout": "",
+          "stderr": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   {\n+     approvalReady: true,\n+     baseHead: 'b6808e314f33337875c7906247e09a4a055f2401',\n+     createdAt: '2026-09-14T12:00:00.000Z',\n+     currentProblem: 'Kullanıcı uzun yanıt sırasında ilerlemeyi göremiyor.',\n+     decision: undefined,\n+     displayState: 'STALE_AWAITING_REDISCOVERY',\n+     evidence: [\n+       'chat duration fixture'\n+     ],\n+     exactFiles: [\n+       'src/components/brain/BrainConsoleView.tsx'\n+     ],\n+     expectedBehaviorChange: 'Uzun yanıtlarda mevcut bekleme alanında ilerleme durumu gösterilecek.',\n+     expectedDiffScope: 'Bir mevcut durum satırı ve regresyon testi',\n+     expectedUserBenefit: 'Yanıt hazırlanırken sistemin çalıştığını göreceksin ve gereksiz tekrar göndermeyeceksin.',\n+     graphifyEvidence: [\n+       'BrainCoreConsole → BrainConsoleView'\n+     ],\n+     lastUpdatedAt: '2026-09-15T12:00:00.000Z',\n+     missingExplanation: [],\n+     mutationKind: 'test-fixture-mutation',\n+     objective: 'AYAS yanıt gecikmesini görünür kıl',\n+     ownerApprovedPendingExecution: false,\n+     patchArtifact: undefined,\n+     productionImpact: 'Üretim yürütmesi yok; yalnızca AYAS arayüzü etkilenir.',\n+     proposalHash: 'hash-safe',\n+     proposalId: 'stale-yesterday',\n+     rationale: 'Ölçülen gecikmeyi daha anlaşılır yap.',\n+     result: undefined,\n+     risk: 'low and reversible',\n+     riskIfNotDone: 'Belirsiz bekleme, aynı isteğin tekrar gönderilmesine yol açabilir.',\n+     safetyClassification: 'SAFE',\n+     selectionReason: 'Ölçülen bekleme süresi ve kullanıcı geri bildirimi aynı sorunu gösteriyor.',\n+     status: 'STALE',\n+     supersededByProposalId: undefined,\n+     technicalRisk: 'Düşük; yalnızca mevcut UI durumunun gösterimi değişir.',\n+     testsPlanned: [\n+       'smoke-brain-core-ui',\n+       'npx tsc --noEmit'\n+     ],\n+     unchangedBehavior: 'Model seçimi, yanıt içeriği ve üretim yürütme kapısı değişmeyecek.',\n+     valueClass: 'PRODUCT_BEHAVIOR'\n+   },\n+   {\n+     approvalReady: true,\n+     baseHead: 'b6808e314f33337875c7906247e09a4a055f2401',\n+     createdAt: '2026-09-14T12:00:00.000Z',\n+     currentProblem: 'Kullanıcı uzun yanıt sırasında ilerlemeyi göremiyor.',\n+     decision: undefined,\n+     displayState: 'NORMAL',\n+     evidence: [\n+       'chat duration fixture'\n+     ],\n+     exactFiles: [\n+       'src/components/brain/BrainConsoleView.tsx'\n+     ],\n+     expectedBehaviorChange: 'Uzun yanıtlarda mevcut bekleme alanında ilerleme durumu gösterilecek.',\n+     expectedDiffScope: 'Bir mevcut durum satırı ve regresyon testi',\n+     expectedUserBenefit: 'Yanıt hazırlanırken sistemin çalıştığını göreceksin ve gereksiz tekrar göndermeyeceksin.',\n+     graphifyEvidence: [\n+       'BrainCoreConsole → BrainConsoleView'\n+     ],\n+     lastUpdatedAt: '2026-09-15T12:00:00.000Z',\n+     missingExplanation: [],\n+     mutationKind: 'test-fixture-mutation',\n+     objective: 'AYAS yanıt gecikmesini görünür kıl',\n+     ownerApprovedPendingExecution: false,\n+     patchArtifact: undefined,\n+     productionImpact: 'Üretim yürütmesi yok; yalnızca AYAS arayüzü etkilenir.',\n+     proposalHash: 'hash-safe',\n+     proposalId: 'completed-yesterday',\n+     rationale: 'Ölçülen gecikmeyi daha anlaşılır yap.',\n+     result: undefined,\n+     risk: 'low and reversible',\n+     riskIfNotDone: 'Belirsiz bekleme, aynı isteğin tekrar gönderilmesine yol açabilir.',\n+     safetyClassification: 'SAFE',\n+     selectionReason: 'Ölçülen bekleme süresi ve kullanıcı geri bildirimi aynı sorunu gösteriyor.',\n+     status: 'COMPLETED',\n+     supersededByProposalId: undefined,\n+     technicalRisk: 'Düşük; yalnızca mevcut UI durumunun gösterimi değişir.',\n+     testsPlanned: [\n+       'smoke-brain-core-ui',\n+       'npx tsc --noEmit'\n+     ],\n+     unchangedBehavior: 'Model seçimi, yanıt içeriği ve üretim yürütme kapısı değişmeyecek.',\n+     valueClass: 'PRODUCT_BEHAVIOR'\n+   }\n+ ]\n- []\n\n    at /tmp/ayas-evaluator-3pTW09/scripts/smoke-ayas-development-center.ts:85:26\n    at scenario (/tmp/ayas-evaluator-3pTW09/scripts/smoke-ayas-development-center.ts:18:45)\n    at main (/tmp/ayas-evaluator-3pTW09/scripts/smoke-ayas-development-center.ts:82:11) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: [Array],\n  expected: [],\n  operator: 'deepStrictEqual',\n  diff: 'simple'\n}\n",
+          "evaluatorBlob": "6ff859f5996ea8623f823a5f7986296c5e965adb"
+        },
+        {
+          "kind": "historical-fix",
+          "status": "CORRECT_HISTORICAL_REPAIR_PASS",
+          "exit": 0,
+          "stdout": "AYAS Gelişim Merkezi smoke: PASS (59 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-development-center\",\"scenarios\":59}\n",
+          "stderr": "",
+          "evaluatorBlob": "6ff859f5996ea8623f823a5f7986296c5e965adb"
+        }
+      ]
+    },
+    {
+      "caseId": "historical-windows-graphify-launch",
+      "split": "PRIMARY",
+      "domain": "GRAPHIFY",
+      "evaluatorBlob": "58c7d098272f6d7d83c1b78ca4b8940839fdbc5b",
+      "sealedEvaluatorBlob": "58c7d098272f6d7d83c1b78ca4b8940839fdbc5b",
+      "platform": "PLATFORM_UNAVAILABLE",
+      "observations": [
+        {
+          "kind": "baseline",
+          "status": "PLATFORM_UNSUPPORTED",
+          "exit": 0,
+          "stdout": "{\"status\":\"PASS\",\"suite\":\"ayas-post-publication-closure-windows-launcher\",\"scenarios\":0,\"skipped\":\"Windows-only launcher contract\"}\n",
+          "stderr": "",
+          "evaluatorBlob": "58c7d098272f6d7d83c1b78ca4b8940839fdbc5b"
+        },
+        {
+          "kind": "wrong-noop",
+          "status": "PLATFORM_UNSUPPORTED",
+          "exit": 0,
+          "stdout": "{\"status\":\"PASS\",\"suite\":\"ayas-post-publication-closure-windows-launcher\",\"scenarios\":0,\"skipped\":\"Windows-only launcher contract\"}\n",
+          "stderr": "",
+          "evaluatorBlob": "58c7d098272f6d7d83c1b78ca4b8940839fdbc5b"
+        },
+        {
+          "kind": "historical-fix",
+          "status": "PLATFORM_UNSUPPORTED",
+          "exit": 0,
+          "stdout": "{\"status\":\"PASS\",\"suite\":\"ayas-post-publication-closure-windows-launcher\",\"scenarios\":0,\"skipped\":\"Windows-only launcher contract\"}\n",
+          "stderr": "",
+          "evaluatorBlob": "58c7d098272f6d7d83c1b78ca4b8940839fdbc5b"
+        }
+      ]
+    },
+    {
+      "caseId": "historical-two-source-identity-retrieval",
+      "split": "PRIMARY",
+      "domain": "MEMORY_RETRIEVAL",
+      "evaluatorBlob": "7f621a3992d7fdf46f0e2eab8e4cfe34e1bfd82f",
+      "sealedEvaluatorBlob": "7f621a3992d7fdf46f0e2eab8e4cfe34e1bfd82f",
+      "platform": "EVALUABLE",
+      "observations": [
+        {
+          "kind": "baseline",
+          "status": "EXPECTED_REJECTION",
+          "exit": 1,
+          "stdout": "",
+          "stderr": "AYAS memory smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- true\n\n    at /tmp/ayas-evaluator-wYI2IR/scripts/smoke-ayas-memory.ts:82:26\n    at scenario (/tmp/ayas-evaluator-wYI2IR/scripts/smoke-ayas-memory.ts:26:11)\n    at run (/tmp/ayas-evaluator-wYI2IR/scripts/smoke-ayas-memory.ts:79:11) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: true,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+          "evaluatorBlob": "7f621a3992d7fdf46f0e2eab8e4cfe34e1bfd82f"
+        },
+        {
+          "kind": "wrong-noop",
+          "status": "EXPECTED_REJECTION",
+          "exit": 1,
+          "stdout": "",
+          "stderr": "AYAS memory smoke FAILED: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- true\n\n    at /tmp/ayas-evaluator-5wazkT/scripts/smoke-ayas-memory.ts:82:26\n    at scenario (/tmp/ayas-evaluator-5wazkT/scripts/smoke-ayas-memory.ts:26:11)\n    at run (/tmp/ayas-evaluator-5wazkT/scripts/smoke-ayas-memory.ts:79:11) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: true,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n",
+          "evaluatorBlob": "7f621a3992d7fdf46f0e2eab8e4cfe34e1bfd82f"
+        },
+        {
+          "kind": "historical-fix",
+          "status": "CORRECT_HISTORICAL_REPAIR_PASS",
+          "exit": 0,
+          "stdout": "AYAS memory smoke: PASS (29 scenarios)\n{\"status\":\"PASS\",\"suite\":\"ayas-memory\",\"scenarios\":29}\n",
+          "stderr": "",
+          "evaluatorBlob": "7f621a3992d7fdf46f0e2eab8e4cfe34e1bfd82f"
+        }
+      ]
+    },
+    {
+      "caseId": "heldout-render-tool-supersession",
+      "split": "HELD_OUT",
+      "domain": "MEMORY_TEMPORAL",
+      "evaluatorBlob": "2934d7402abdc048e02e6ce95d54fc98eeb49e78",
+      "sealedEvaluatorBlob": "2934d7402abdc048e02e6ce95d54fc98eeb49e78",
+      "platform": "EVALUABLE",
+      "observations": [
+        {
+          "kind": "baseline",
+          "status": "EXPECTED_REJECTION",
+          "exit": 1,
+          "stdout": "",
+          "stderr": "node:assert:152\n  throw new AssertionError(obj);\n  ^\n\nAssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.render-tool'\n\n    at Object.<anonymous> (/tmp/ayas-evaluator-BDziYA/scripts/smoke-ayas-stage15-7-temporal-acceptance.ts:19:18)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12)\n    at require (node:internal/modules/helpers:153:16)\n    at Object.<anonymous> (/opt/ayas/evaluate.cjs:51:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.render-tool',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n\nNode.js v24.18.0\n",
+          "evaluatorBlob": "2934d7402abdc048e02e6ce95d54fc98eeb49e78"
+        },
+        {
+          "kind": "wrong-noop",
+          "status": "EXPECTED_REJECTION",
+          "exit": 1,
+          "stdout": "",
+          "stderr": "node:assert:152\n  throw new AssertionError(obj);\n  ^\n\nAssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- 'user.decision.render-tool'\n\n    at Object.<anonymous> (/tmp/ayas-evaluator-q8vAOh/scripts/smoke-ayas-stage15-7-temporal-acceptance.ts:19:18)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14)\n    at require.extensions..ts (/opt/ayas/evaluate.cjs:45:10)\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n    at Module.require (node:internal/modules/cjs/loader:1617:12)\n    at require (node:internal/modules/helpers:153:16)\n    at Object.<anonymous> (/opt/ayas/evaluate.cjs:51:1)\n    at Module._compile (node:internal/modules/cjs/loader:1871:14) {\n  generatedMessage: true,\n  code: 'ERR_ASSERTION',\n  actual: undefined,\n  expected: 'user.decision.render-tool',\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n\nNode.js v24.18.0\n",
+          "evaluatorBlob": "2934d7402abdc048e02e6ce95d54fc98eeb49e78"
+        },
+        {
+          "kind": "historical-fix",
+          "status": "CORRECT_HISTORICAL_REPAIR_PASS",
+          "exit": 0,
+          "stdout": "Stage 15.7 render-tool supersession acceptance PASS\n",
+          "stderr": "",
+          "evaluatorBlob": "2934d7402abdc048e02e6ce95d54fc98eeb49e78"
+        }
+      ]
+    }
+  ]
+}

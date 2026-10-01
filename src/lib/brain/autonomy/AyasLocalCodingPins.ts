@@ -25,9 +25,9 @@ export const ayasLocalCodingCandidatePins = Object.freeze({
     url: "https://huggingface.co/Qwen/Qwen2.5-Coder-14B-Instruct-GGUF/resolve/d0a692ef765eefbf2fabb130b3cb2e8917e3d225/qwen2.5-coder-14b-instruct-q4_k_m.gguf",
   }),
   base: Object.freeze({
-    image: "docker.io/library/node@sha256:d45d78e7929b46875bbd4e29bea672d5bc48186c6c3588306521c815e78352d6",
-    indexDigest: "sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d",
-    platform: "linux/amd64", version: "24.18.0-bookworm-slim",
+    image: "docker.io/library/node@sha256:4e9cb555d708e0829c9d93e5eeae9dfab0617b832ca436a690680e0fca735ef5",
+    indexDigest: "sha256:5711a0d445a1af54af9589066c646df387d1831a608226f4cd694fc59e745059",
+    platform: "linux/amd64", version: "24.18.0-bookworm",
   }),
 });
 
