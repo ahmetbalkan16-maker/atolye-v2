@@ -1,5 +1,11 @@
 ---
 
+## AYAS Stage 15B — Durable Long-Horizon Task Runtime — opened 2026-10-01
+
+- [x] 15B.1 Shared task contract for the four domains, append-only hash-chained event journal, one-step runtime with idempotency keys, deterministic attempt identity, timeouts, bounded retry, current-state reread and an uncertain terminal state. Framework only: nothing is wired and no production activity is registered.
+- [ ] 15B.2 Recovery sweep for a daemon tick and the first owner-reviewed activity set.
+- [ ] Domain adapters: self-development, research, revenue, Atölye supervision.
+
 ## AYAS Stage 15A.3 — local qualification preparation — 2026-10-01
 
 - [x] Official immutable engine/model/base metadata, candidate contracts and offline local artifact SHA verifier.
@@ -11,7 +17,7 @@
 - [ ] Not measured: four other evaluable cases including the held-out case, the Graphify domain (Windows-only evaluator), GPU inference, a TypeScript-refactor case.
 - [ ] Owner decisions needed before any re-qualification: a numeric threshold, a different pinned model or engine, or GPU passthrough.
 
-**Stage 15A.3 CLOSED as LOCAL_INDEPENDENCE_DEGRADED (2026-10-01). Local coding stays disabled; no cloud fallback. Stage 15B is next and not yet opened. No push.**
+**Stage 15A.3 CLOSED as LOCAL_INDEPENDENCE_DEGRADED (2026-10-01). Local coding stays disabled; no cloud fallback. Verified artifacts are in the gitignored `bin/ayas-local-coding/`; the local coding runtime is on-demand only. No push.**
 
 ## AYAS Autonomous Technology Watch & Capability Discovery — Stage 14 — 2026-09-25 — ✅ COMPLETED
 

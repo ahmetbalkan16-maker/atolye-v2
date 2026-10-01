@@ -1,5 +1,13 @@
 ---
 
+## 2026-10-01 — Stage 15B.1 durable task contract, event journal and one-step runtime
+
+- Added one shared durable task contract for self-development, research, revenue and Atölye supervision tasks: ordered steps, an append-only hash-chained event journal, and state that is always replayed from the events.
+- Every activity step carries an idempotency key, an exact target, a deterministic attempt identity, a timeout and a retry bound. A recorded result is never produced again. An unconfirmed side effect is reread before anything else and ends as `UNCERTAIN` when the reread cannot prove either outcome.
+- Two daemons racing for one step record it once: events are published with an exclusive link at their sequence number.
+- Framework only. No existing module changed, nothing is wired to a daemon, gate or approval path, and no production activity is registered.
+- Smoke 17 scenarios in TEMP roots; mutation audit 28 of 28 caught; TypeScript passes; full lint 0 errors / 13 pre-existing warnings.
+
 ## 2026-10-01 — Stage 15A.3 closure addendum — durable artifacts and on-demand runtime
 
 - Moved the hash-verified qualification artifacts (pinned GGUF, llama.cpp Linux archive, npm toolchain archives, image IDs, run logs) out of `%TEMP%` into the gitignored per-machine `bin/ayas-local-coding/`, re-verified them against the pins and the lockfile, and wrote `ARTIFACT_MANIFEST.json` there. Nothing was downloaded again and nothing is tracked by Git.
