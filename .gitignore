@@ -172,6 +172,12 @@ graphify-out/
 /.venv-wake/
 /bin/whisper/
 
+# Stage 15A.3 — hash-verified local coding qualification artifacts (pinned GGUF,
+# llama.cpp Linux archive, lockfile-verified npm toolchain archives, run logs).
+# Same per-machine convention as /bin/piper/ and /bin/whisper/: never committed.
+# Restore and on-demand lifecycle: sandbox/ayas-local-coding/README.md.
+/bin/ayas-local-coding/
+
 # onnxruntime-web WASM (copied from node_modules by scripts/setup-wake-assets.ts)
 /public/ort/
 

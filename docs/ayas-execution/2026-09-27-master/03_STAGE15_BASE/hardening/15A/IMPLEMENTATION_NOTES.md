@@ -136,3 +136,20 @@ Three real model observations were made, all on the security case `historical-at
 **Regression at closure.** Pins/adapter 38/38, image payload 17/17, model boundary 12/12, retrieval case full evaluator 29/29 with negatives, host oracle baseline (five cases baseline FAIL → fix PASS → wrong FAIL), vault 5/5, workspace 10/10, task contract 21/21, container plan 10/10, inspection 23/23 and probe 9/9 (synthetic), report 13/13 (synthetic). TypeScript passes; changed-file lint has zero warnings; full lint 0 errors / 13 pre-existing warnings.
 
 Re-qualification needs an owner decision on at least one of: a numeric threshold, a different pinned model or engine, or GPU passthrough into the sandbox. There is no cloud fallback.
+
+## 15A.3k Artifact durability and on-demand runtime policy
+
+The owner accepted the qualification result as recorded and bounded this step to closure work: no further optimisation, model trial, heavy inference, GPU passthrough, threshold or alternative pin. The classification is unchanged.
+
+**Durable artifacts.** The verified inputs sat only in `%TEMP%`, where a cleanup could remove a 9 GB download. The repository has no dedicated model or artifact cache mechanism. Its existing convention for per-machine local AI binaries and models is a gitignored `bin/<tool>/` directory (`bin/whisper/`, `bin/piper/`), so the artifacts now live in `bin/ayas-local-coding/` and one `.gitignore` line covers it. Nothing was downloaded again and nothing is tracked by Git.
+
+- The model was moved by a same-volume rename; the other 56 files were copied and compared hash-equal with their TEMP source.
+- Re-verification at the durable path: the model and the Linux engine archive match their pins through `verifyAyasLocalCodingArtifact`; seven npm archives match the `package-lock.json` SHA-512 integrity; the evaluator and inference `BUILD_INPUT.json` match `payloadManifestSha256` in IMAGE_BUILD_EVIDENCE.json; both image ID files match the recorded IDs; the model's `candidate.json` matches the recorded SHA-256.
+- `ARTIFACT_MANIFEST.json` in that directory lists 57 files, 9,016,238,513 bytes, each with size and SHA-256.
+- Only after that was the TEMP root deleted. Not persisted, because they are derived and regenerable: the three build contexts (one held a second 9 GB copy of the model), the oracle negative-control inputs and the empty probe workspaces. The support files and manifests of all three contexts, including the superseded evaluator context, are kept under `build-manifests/`.
+
+The runner and the preparation script are unchanged and still require an owned `%TEMP%\ayas-qualification-<uuid>` root. The README describes how to stage one from the durable directory.
+
+**On-demand runtime policy.** The local coding runtime is not a resident service. Idle means no `llama-server`, no model or qualification container and no model in RAM. A coding task starts the Podman machine if needed, runs one bounded workload and removes the container; the runner already does the removal and the page-cache release in `finally` blocks. With no task queued the Podman machine is stopped. The repository registers no startup entry, service, scheduled task or container restart policy for the model, `llama-server` or an inference container. One heavy workload at a time, under 90 % host RAM.
+
+State at this closure: zero containers, Podman machine stopped, no `llama-server` process.

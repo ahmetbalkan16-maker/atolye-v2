@@ -44,8 +44,32 @@
     "ownerExpectedDigestMatches": true,
     "localBytesVerified": true,
     "splitGgufFilesSelected": false,
-    "localPath": "C:/Users/Metod/AppData/Local/Temp/ayas-qualification-bf066321-8e0a-431f-a561-cee5125fd442/qwen2.5-coder-14b-instruct-q4_k_m.gguf",
-    "localVerification": "Exact size/SHA256 matched after official download; bounded verifier and INFERENCE build payload verifier both matched"
+    "localPath": "bin/ayas-local-coding/qwen2.5-coder-14b-instruct-q4_k_m.gguf",
+    "priorLocalPath": "C:/Users/Metod/AppData/Local/Temp/ayas-qualification-bf066321-8e0a-431f-a561-cee5125fd442/qwen2.5-coder-14b-instruct-q4_k_m.gguf",
+    "localVerification": "Exact size/SHA256 matched after official download; bounded verifier and INFERENCE build payload verifier both matched. Re-verified with the bounded verifier at the durable path on 2026-10-01 after a same-volume move; not downloaded again."
+  },
+  "durableArtifacts": {
+    "location": "bin/ayas-local-coding",
+    "convention": "gitignored per-machine directory, as bin/whisper and bin/piper; no dedicated artifact-cache mechanism exists in the repository",
+    "manifest": "bin/ayas-local-coding/ARTIFACT_MANIFEST.json",
+    "movedOn": "2026-10-01",
+    "movedFrom": "%TEMP%/ayas-qualification-bf066321-8e0a-431f-a561-cee5125fd442",
+    "redownloaded": false,
+    "files": 57,
+    "totalBytes": 9016238513,
+    "verification": {
+      "model": "verifyAyasLocalCodingArtifact: size and SHA-256 match the pin",
+      "linuxEngineArchive": "verifyAyasLocalCodingArtifact: size and SHA-256 match the pin",
+      "npmToolchainArchives": "7 of 7 match the package-lock.json SHA-512 integrity",
+      "buildManifests": "evaluator and inference BUILD_INPUT.json match payloadManifestSha256 in IMAGE_BUILD_EVIDENCE.json",
+      "imageIds": "both image ID files match IMAGE_BUILD_EVIDENCE.json and QUALIFICATION_CLOSURE.json",
+      "modelCandidate": "candidate.json SHA-256 aa58e5a7… matches QUALIFICATION_CLOSURE.json",
+      "copiedFiles": "56 copied files compared byte-hash-equal with their TEMP source before the source was deleted"
+    },
+    "notPersisted": "Derived build contexts (including the duplicate 9 GB model copy), oracle negative-control inputs and empty probe workspaces. They are regenerable from the durable inputs and the pinned Git blobs; their identities stay in the 15A evidence files.",
+    "tempSourceDeleted": true,
+    "imageStore": "Built images and the pinned Node base image exist only in the Podman machine image store.",
+    "gitTracked": false
   },
   "runtimeRequirements": {
     "packageManager": "npm",

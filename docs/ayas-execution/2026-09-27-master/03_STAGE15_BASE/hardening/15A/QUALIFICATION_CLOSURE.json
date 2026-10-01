@@ -325,5 +325,33 @@
     "Graphify domain (platform unavailable)",
     "GPU inference"
   ],
-  "nextAction": "Stage 15B is next in the master order and is not opened by this record. Local coding stays disabled. Re-qualification needs an owner decision on at least one of: a numeric threshold, a different pinned model or engine, GPU passthrough."
+  "nextAction": "Stage 15B is next in the master order and is not opened by this record. Local coding stays disabled. Re-qualification needs an owner decision on at least one of: a numeric threshold, a different pinned model or engine, GPU passthrough.",
+  "closureAddendum": {
+    "recordedOn": "2026-10-01",
+    "ownerDecision": "The qualification result is accepted as recorded. No further optimisation, model trial, heavy inference, GPU passthrough, threshold or alternative pin for Stage 15A.3.",
+    "classificationUnchanged": "LOCAL_INDEPENDENCE_DEGRADED",
+    "notClaimed": [
+      "full qualification PASS",
+      "full matrix FAIL",
+      "the model failed entirely",
+      "local coding READY"
+    ],
+    "artifactDurability": {
+      "location": "bin/ayas-local-coding",
+      "manifest": "bin/ayas-local-coding/ARTIFACT_MANIFEST.json",
+      "record": "CANDIDATE_PROVENANCE.json durableArtifacts",
+      "redownloaded": false,
+      "tempSourceDeleted": true
+    },
+    "runtimePolicy": {
+      "mode": "ON_DEMAND_ONLY",
+      "idle": "no llama-server, no qualification or model container, no model in RAM; the Podman machine may be stopped",
+      "task": "start the Podman machine if needed, load the pinned model, run one bounded coding workload, then sandbox, evaluator, tests and Graphify",
+      "afterTask": "container removed, llama-server gone with it, VM page cache released; stop the Podman machine when no task is queued",
+      "windowsStartup": "the repository registers no startup entry, service, scheduled task or container restart policy for the model, llama-server or an inference container",
+      "heavyWorkloads": "one at a time, only while the host stays under 90 % RAM; PC health before execution speed",
+      "stateAtClosure": "0 containers, Podman machine stopped, no llama-server process",
+      "record": "sandbox/ayas-local-coding/README.md, On-demand lifecycle"
+    }
+  }
 }

@@ -42,9 +42,17 @@
     "15A.3i-real-sandbox-sealed-executor-chain-engine-liveness",
     "15A.3-pc-health-guard",
     "15A.3j-real-local-model-qualification",
-    "15A.3-closure-LOCAL_INDEPENDENCE_DEGRADED"
+    "15A.3-closure-LOCAL_INDEPENDENCE_DEGRADED",
+    "15A.3k-artifact-durability-and-on-demand-runtime-policy"
   ],
   "currentFiles": [
+    ".gitignore",
+    "sandbox/ayas-local-coding/README.md",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/CANDIDATE_PROVENANCE.json",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/QUALIFICATION_CLOSURE.json",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/IMPLEMENTATION_NOTES.md",
+    "docs/ayas-execution/2026-09-27-master/NEW_FINDINGS.md",
+    "CHANGELOG.md",
     "ATOLYE_CHECKPOINT.md",
     "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md",
     "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json"
@@ -104,8 +112,8 @@
     "External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority.",
     "OWNER_DECISION for any local-coding re-qualification: define a numeric qualification threshold; and/or pin a different local model or engine; and/or allow GPU passthrough into the rootless sandbox. Not a blocker for Stage 15B."
   ],
-  "nextAction": "Verify actual Git and Graphify HEAD (git rev-parse HEAD; currentHead here is the tested source packet and a documentation-only closure commit descends from it). Stage 15A.3 is CLOSED as LOCAL_INDEPENDENCE_DEGRADED: do not reopen it, do not register an engine, no cloud fallback. Open Stage 15B (Durable Long-Horizon Task Runtime) per the master order: read its canonical section and update this checkpoint before the first atomic subtask. Keep the PC health guard for any container work: one heavy workload at a time, host RAM under 90 %. Reuse the %TEMP%/ayas-qualification-bf066321-… artifacts; never re-download the model. No push.",
-  "updatedAt": "2026-10-01T09:11:40.965Z",
+  "nextAction": "Verify actual Git and Graphify HEAD (git rev-parse HEAD; currentHead here is the tested source packet and a documentation-only closure commit descends from it). Stage 15A.3 is CLOSED as LOCAL_INDEPENDENCE_DEGRADED: do not reopen it, do not register an engine, no cloud fallback. Open Stage 15B (Durable Long-Horizon Task Runtime) per the master order: read its canonical section and update this checkpoint before the first atomic subtask. Keep the PC health guard for any container work: one heavy workload at a time, host RAM under 90 %. The verified artifacts are in bin/ayas-local-coding (gitignored, ARTIFACT_MANIFEST.json); never re-download the model. The local coding runtime is on-demand only and the Podman machine is stopped. No push.",
+  "updatedAt": "2026-10-01T09:24:03.563Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -137,7 +145,33 @@
     "engineRegistered": false,
     "cloudFallback": false,
     "stage15BOpened": false,
-    "canonicalPush": false
+    "canonicalPush": false,
+    "unmeasured": [
+      "pass@1 and pass^k over the full evaluable matrix",
+      "held-out quality",
+      "memory-temporal, UI and retrieval cases with a real model",
+      "Graphify domain (platform unavailable)",
+      "GPU inference"
+    ],
+    "supersededAttemptsPreserved": true,
+    "resourceTelemetryPreserved": "HOST_RESOURCE_GUARD_EVIDENCE.json and LOCAL_MODEL_RUN_EVIDENCE*.json",
+    "durableArtifacts": {
+      "location": "bin/ayas-local-coding",
+      "manifest": "bin/ayas-local-coding/ARTIFACT_MANIFEST.json",
+      "files": 57,
+      "totalBytes": 9016238513,
+      "modelAndEngineReverifiedAgainstPins": true,
+      "redownloaded": false,
+      "tempSourceDeleted": true,
+      "gitTracked": false
+    },
+    "runtimePolicy": {
+      "mode": "ON_DEMAND_ONLY",
+      "record": "sandbox/ayas-local-coding/README.md",
+      "containersAtClosure": 0,
+      "podmanMachineAtClosure": "stopped",
+      "startupAutostartOfModelOrServer": false
+    }
   },
   "sourcePacketFiles": [
     "sandbox/ayas-local-coding/Containerfile",

@@ -72,6 +72,51 @@ resumed. Sustained critical host memory or a container OOM kill is recorded as
 the VM page cache is released. No host or WSL global setting is changed. Measurements are
 in `HOST_RESOURCE_GUARD_EVIDENCE.json`.
 
+## Durable artifacts
+
+The hash-verified inputs live in `bin/ayas-local-coding/`: gitignored and per-machine, the
+same convention as `bin/whisper/` and `bin/piper/`. `ARTIFACT_MANIFEST.json` in that
+directory lists every file with its size and SHA-256 and records the re-verification
+against `AyasLocalCodingPins` and the `package-lock.json` integrity values. Do not
+download anything again while that directory verifies.
+
+| Content | Use |
+| --- | --- |
+| pinned GGUF, llama.cpp Linux archive | inputs of `prepare … inference` |
+| seven npm archives | inputs of `prepare … evaluator` |
+| `*-image-id.txt`, inspect and version JSON | image identities the runner reads |
+| server logs, raw responses, `candidates/`, `build-manifests/` | evidence the 15A reports refer to |
+
+The built images and the pinned Node base image exist only in the Podman machine's image
+store. Removing or resetting that machine, or pruning its images, loses them; a rebuild
+then needs the base digest pulled again.
+
+Both scripts still require an owned `%TEMP%\ayas-qualification-<uuid>` root, because a
+container may bind only a validated TEMP directory. To run with the existing images,
+create a fresh root and copy the two `*-image-id.txt` files into it. To rebuild an image,
+also copy the archives that role needs (the 9 GB model only for `inference`), then prepare
+and build. Delete the root afterwards. A rebuilt image may get a new ID, and `qualify`
+refuses an image whose `controls` and `smoke` evidence was recorded for another ID.
+
+## On-demand lifecycle
+
+The local coding runtime is never a resident service.
+
+- **Idle.** No `llama-server`, no qualification or model container, no model in RAM. The
+  Podman machine may be stopped.
+- **Task.** Start the Podman machine if it is stopped (`podman machine start`; the runner
+  refuses a machine that is not running). Then run one bounded workload: the runner
+  creates the inference container, loads the pinned model, takes one answer and runs the
+  evaluator container.
+- **End of task.** The runner removes each container in a `finally` block and releases
+  the VM page cache. When no further task is queued, stop the machine
+  (`podman machine stop`) and delete the TEMP root.
+- **Windows startup.** Nothing in this repository registers a startup entry, service,
+  scheduled task or container restart policy for the model, `llama-server` or an
+  inference container.
+- One heavy workload at a time, and only while the host stays under 90 % RAM. PC health
+  comes before execution speed.
+
 `controls` are host-oracle evidence, not model results. A frozen evaluator that reports
 zero scenarios or `skipped` on Linux is recorded as `PLATFORM_UNAVAILABLE`, never as a pass,
 and no model candidate for that case is executed on the host.

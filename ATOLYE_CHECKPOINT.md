@@ -1,3 +1,14 @@
+## AYAS MASTER — STAGE 15A.3 CLOSURE ADDENDUM: DURABLE ARTIFACTS + ON-DEMAND RUNTIME — 2026-10-01
+
+- **State: Stage 15A.3 stays CLOSED / `LOCAL_INDEPENDENCE_DEGRADED`.** The owner accepted the result as recorded. Nothing was optimised, no model was run, no test of 15A.3 was repeated. Not claimed: full qualification PASS, full-matrix FAIL, total model failure, local coding READY. Unmeasured items stay unmeasured (full-matrix pass@1/pass^k, held-out quality, four evaluable cases, Graphify domain, GPU).
+- Startup truth: clean `4e22825d9e034fd409ed99a2786eae7f0eeff0e2`, origin ahead/behind **38/0**. Graphify bound to that HEAD, stale=false, worktree clean; known partial extraction (9 files, .ps1 and two others) and semantic pending unchanged.
+- **Artifacts are no longer in TEMP.** They are in **`bin/ayas-local-coding/`** (gitignored, per-machine, same convention as `bin/whisper/`). The repository has no dedicated model or artifact cache mechanism; none was invented. `ARTIFACT_MANIFEST.json` there lists 57 files / 9,016,238,513 bytes with SHA-256. Model and Linux engine archive re-verified against their pins, seven npm archives against the lockfile, build manifests and image IDs against the evidence. Nothing downloaded again. The TEMP root (16.9 GB, it held the model twice) was deleted only after that.
+- **On-demand runtime policy** is recorded in `sandbox/ayas-local-coding/README.md`: idle means no `llama-server`, no model container, no model in RAM; a task runs one bounded workload and removes its container; with no task queued the Podman machine is stopped; nothing starts at Windows login from this repository. One heavy workload at a time, host RAM under 90 %.
+- State now: 0 containers, **Podman machine stopped** (`podman machine start` before any container work), no `llama-server` process. Built images are only in the Podman machine store; do not reset the machine or prune images.
+- Owner-side notes, nothing changed by the agent: Podman Desktop is registered to start at Windows login and may start the machine (unverified); Ollama starts at login and loads chat models on request.
+- Evidence: `QUALIFICATION_CLOSURE.json` `closureAddendum`, `CANDIDATE_PROVENANCE.json` `durableArtifacts`, `IMPLEMENTATION_NOTES.md` 15A.3k, `NEW_FINDINGS.md`. No push.
+- **Next:** Stage 15B (Durable Long-Horizon Task Runtime).
+
 ## AYAS MASTER — STAGE 15A.3 CLOSED AS LOCAL_INDEPENDENCE_DEGRADED — 2026-10-01
 
 - **State: Stage 15A.3 CLOSED / `LOCAL_INDEPENDENCE_DEGRADED`.** Local coding stays disabled, no engine is registered, no cloud fallback. **Stage 15B is next in the master order and has NOT been opened.** No push.

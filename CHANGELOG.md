@@ -1,5 +1,11 @@
 ---
 
+## 2026-10-01 — Stage 15A.3 closure addendum — durable artifacts and on-demand runtime
+
+- Moved the hash-verified qualification artifacts (pinned GGUF, llama.cpp Linux archive, npm toolchain archives, image IDs, run logs) out of `%TEMP%` into the gitignored per-machine `bin/ayas-local-coding/`, re-verified them against the pins and the lockfile, and wrote `ARTIFACT_MANIFEST.json` there. Nothing was downloaded again and nothing is tracked by Git.
+- Recorded the on-demand local coding runtime policy: no resident `llama-server` or model container, one bounded workload per task, containers removed afterwards, Podman machine stopped when idle, nothing started at Windows login.
+- Classification unchanged: `LOCAL_INDEPENDENCE_DEGRADED`. No model run, no test repeated, no push.
+
 ## 2026-10-01 — Stage 15A.3 real local qualification — CLOSED as LOCAL_INDEPENDENCE_DEGRADED
 
 - Built the evaluator and inference images offline on the owner-installed rootless Podman/WSL2 runtime from the exact official `node:24.18.0-bookworm` digest. Sealed tsx, esbuild and the Linux esbuild binary from lockfile-verified archives; no package install.
