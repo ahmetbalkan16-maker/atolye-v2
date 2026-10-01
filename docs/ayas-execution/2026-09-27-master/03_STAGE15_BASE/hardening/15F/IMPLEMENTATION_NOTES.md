@@ -23,3 +23,9 @@ IN PROGRESS. Opened 2026-10-01 at b05283a.
 ## Open
 
 F11: three security smokes red at HEAD (pre-existing). Next packet.
+
+## 15F.R repair of red security smokes (finding F11) — FIXED in feb1817
+
+- `smoke-ayas-exact-patch-safety` (23) and `smoke-ayas-exact-proposal-safety` (28) now take the reviewed baseline from commit 71f554e instead of the live or HEAD source.
+- `smoke-ayas-guarded-publication` (33): the SOURCE_ONLY scope is checked at `runGuardedAyasPublication`; an unproven source proposal is asserted to be refused at approval; the rollback scenario targets `scripts/smoke-existing-editable.ts`.
+- Observation recorded, not changed: the one-click lane can publish only proposals whose every file is on a SAFE patch path (in practice smoke and test files). A reviewed exact patch is local-execution only. This is the Stage 15.7 design and is now pinned by a scenario.

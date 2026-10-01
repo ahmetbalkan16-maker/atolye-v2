@@ -1,3 +1,9 @@
+# AYAS MASTER CURRENT — 15F.R GREEN / 15F.3 NEXT — 2026-10-01
+
+Tested source feb18171e0f12e078cdaff812c3041ff9d3f68fb plus documentation descendant; resolve actual HEAD. Stage 15F in progress. Finding F11 is fixed: the three security smokes that were red at HEAD since the governed render-tool patch are green again (exact-patch-safety 23, exact-proposal-safety 28, guarded-publication 33) with no source change and no assertion lowered; a mutation audit caught 4 of 4 defects.
+
+Next packet 15F.3: telemetry summary over the evidence stream, a read-only live operational state view, and authorization-record compaction (dry-run by default, operator-invoked only). Then eval governance with a regression-suite manifest and a full baseline run, the five reliability SLO counters, and closure of 15F. Detailed ACTIVE_CHECKPOINT is authoritative. NO PUSH without new explicit owner approval. PC health and on-demand runtime rules unchanged; no model or container started by this session.
+
 # AYAS MASTER CURRENT — 15F.2 GREEN / 15F.R NEXT — 2026-10-01
 
 Tested source 874340f27c85340b9d1ccedfe8ab9587e114114d plus documentation descendant; resolve actual HEAD. Stage 15F in progress. Done: the durable authorization record no longer keeps a tool request's free text (digest and length instead); finished traces and capability leases now produce one privacy-bounded evidence line each (task, agent, model version, tool and lease, approval binding, retries, duration, outcome, error code, digest) in a daily file under the audit root, with retention by day file. Firewall 54, operation evidence 11, mutation audits clean, regression set PASS.

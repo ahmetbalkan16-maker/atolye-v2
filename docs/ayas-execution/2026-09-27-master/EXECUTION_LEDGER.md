@@ -530,3 +530,13 @@ Isolation note: the approval service's default sink follows its gate root, so fi
 FOUND (F11): three security smokes are red at HEAD and have been since the governed render-tool patch was applied. Confirmed against an export of HEAD; not caused by these packets. Repair is the next packet.
 
 TEST/ADVERSARIAL: firewall 54, operation evidence 11, mutation audits 9/9 and 33 plus 3 equivalent, regression set PASS. TypeScript, lint, diff PASS. GRAPHIFY precommit 480dc5c, worktree covered: 16340 nodes / 47291 links, anomalies 0, PARTIAL 9 known files, semantic pending. LOCAL COMMITS; NO PUSH.
+
+## 15F.R repair of three security smokes that were red at HEAD — 2026-10-01
+
+Source feb18171e0f12e078cdaff812c3041ff9d3f68fb. Finding F11 fixed. No source file changed.
+
+ROOT CAUSE. (1) exact-patch-safety and exact-proposal-safety built their fixture from the live or HEAD copy of AyasMemoryTemporal.ts. The governed strategy was applied in 3367d41 and Stage 15C changed the file again, so that copy is neither the reviewed baseline nor the applied result. (2) guarded-publication published an edit to a non-smoke scripts/ file through the one-click lane. Since Stage 15.7 the inbox refuses to approve a source proposal without a reviewed exact-patch proof, and the one-click lane refuses a proposal that has one, so no source proposal can reach publication through that entry point.
+
+FIX. (1) The reviewed baseline is read from the immutable pre-application commit 71f554e (its SHA-256 is the strategy's pinned hash). exact-patch-safety also asserts that the applied commit holds exactly the reviewed result, that its parent is the reviewed baseline, and that the strategy refuses both the applied result and today's file. (2) The SOURCE_ONLY lightweight scope is exercised at the guard itself with a real commit and push in the fixture repository; a new scenario pins the refusal boundary (no decision, no guard transaction, no journal entry, no mutation); the post-validation rollback scenario edits an existing file on an approvable path so restoring committed content is still exercised.
+
+TEST/ADVERSARIAL: 23 / 28 / 33 / approval service 28 PASS. Mutation audit 4/4 in a TEMP overlay. TypeScript, lint, diff PASS. GRAPHIFY precommit c2ef8e1, worktree covered: 16343 nodes / 47306 links, anomalies 0, PARTIAL 9 known files, semantic pending. LOCAL COMMIT; NO PUSH.
