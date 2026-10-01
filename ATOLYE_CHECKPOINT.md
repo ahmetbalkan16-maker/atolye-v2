@@ -1,3 +1,19 @@
+## AYAS MASTER — STAGE 15B OPENED: 15B.1 DURABLE TASK CONTRACT + JOURNAL + RUNTIME — 2026-10-01
+
+- **State: Stage 15B IN PROGRESS. 15B.1 is green and committed locally; 15B.2 has not started.** Stage 15A.3 stays closed as `LOCAL_INDEPENDENCE_DEGRADED` and must not be reopened or optimised. No push.
+- Source packet: **`5ad56f77a58331129814aa6a12cc4c1137ce84d4`** on `wip/ayas-graphify-final-execution`, origin ahead/behind **40/0** at that commit. Graphify bound to that HEAD: **15,932 nodes / 46,165 edges**, stale=false, no needs-update marker, duplicate node/edge 0/0, dangling 0, self-loop 0. Known partial extraction (9 files) and semantic pending unchanged. This checkpoint adds one documentation-only descendant commit; use `git rev-parse HEAD` on resume.
+- **What exists.** One shared durable task contract for the four domains (self-development, research, revenue, Atölye supervision):
+  - `src/lib/brain/autonomy/AyasDurableTask.ts`: pure contract, reducer and next-step decision. State is replayed from an append-only, hash-chained event list and never stored.
+  - `AyasDurableTaskJournal.ts`: one file per event under `<root>/durable-tasks/<taskId>/events/`, published with an exclusive link, validated by replay before it is written. Default root `data/brain/autonomy` (already gitignored).
+  - `AyasDurableTaskRuntime.ts`: `advanceAyasDurableTask` performs at most one bounded action per call.
+- **Guarantees tested.** A recorded result is never produced again after a restart. A dead owner's attempt is closed as unconfirmed. An unconfirmed side effect is reread first: applied, not applied (one bounded retry with the same idempotency key) or unknown (`UNCERTAIN`, terminal, human review). Timeouts, retry bound, owner wait of days, duplicate daemon, journal edits and gaps, and secret-like content are covered.
+- **Framework only.** No existing module changed. Nothing imports the new modules, nothing is wired to a daemon, gate or approval path, and no production activity is registered. `OWNER_SIGNAL_RECORDED` releases a waiting step; it is not an approval.
+- Verification: `npx tsx scripts/smoke-ayas-durable-task-runtime.ts` **17/17** (TEMP roots only); mutation audit **28/28** caught after the suite was extended (first run 20/24); TypeScript PASS; changed-file lint 0 warnings; full lint 0 errors / 13 pre-existing warnings.
+- Browser-session idle watchdog: evaluated, not added. No browser-session executor exists; overdue attempts are already reported and recovered without replay.
+- Earlier in this session: 15A.3 closure addendum `f7e19c1` (artifacts moved to `bin/ayas-local-coding/`, on-demand runtime policy). Podman machine is **stopped**.
+- Details: `docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15B/IMPLEMENTATION_NOTES.md`, `ACTIVE_CHECKPOINT.json`, `EXECUTION_LEDGER.md`.
+- **Next:** 15B.2 — a recovery sweep a daemon tick can call, and the first owner-reviewed activity set (one read-only activity in one domain). Inspect `AyasAutonomyDaemon` and `AyasResearchScheduler` first; the live autonomy observer runs from this checkout.
+
 ## AYAS MASTER — STAGE 15A.3 CLOSURE ADDENDUM: DURABLE ARTIFACTS + ON-DEMAND RUNTIME — 2026-10-01
 
 - **State: Stage 15A.3 stays CLOSED / `LOCAL_INDEPENDENCE_DEGRADED`.** The owner accepted the result as recorded. Nothing was optimised, no model was run, no test of 15A.3 was repeated. Not claimed: full qualification PASS, full-matrix FAIL, total model failure, local coding READY. Unmeasured items stay unmeasured (full-matrix pass@1/pass^k, held-out quality, four evaluable cases, Graphify domain, GPU).

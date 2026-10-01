@@ -2,11 +2,44 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "773accd21cabc796aeb381ed85332274d1814b7d",
-  "currentHead": "773accd21cabc796aeb381ed85332274d1814b7d",
-  "stage": "STAGE_15A",
-  "subtask": "15A.3-closed-local-independence-degraded",
-  "status": "CLOSED_DEGRADED",
+  "lastGreenHead": "5ad56f77a58331129814aa6a12cc4c1137ce84d4",
+  "currentHead": "5ad56f77a58331129814aa6a12cc4c1137ce84d4",
+  "stage": "STAGE_15B",
+  "subtask": "15B.2-recovery-sweep-and-first-activity-set",
+  "status": "NOT_STARTED",
+  "stage15B": {
+    "openedOn": "2026-10-01",
+    "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
+    "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md, STAGE 15B",
+    "packet": "15B.1 committed: pure task contract and reducer, append-only hash-chained event journal, one-step runtime, TEMP-isolated smoke. Additive only.",
+    "reusedPrimitives": [
+      "AyasProcessLiveness (PID plus start-time owner identity)",
+      "AyasExecutionGateStore append-once exclusive-create idiom",
+      "AyasExecutionJournal temp-file, fsync, rename/link atomic write idiom",
+      "BrainRedaction containsBrainSecret / redactBrainText",
+      "AyasExecutionRecoveryPolicy rule: no automatic replay of an uncertain mutation"
+    ],
+    "packetCommit": "5ad56f77a58331129814aa6a12cc4c1137ce84d4",
+    "files": [
+      "src/lib/brain/autonomy/AyasDurableTask.ts",
+      "src/lib/brain/autonomy/AyasDurableTaskJournal.ts",
+      "src/lib/brain/autonomy/AyasDurableTaskRuntime.ts",
+      "scripts/smoke-ayas-durable-task-runtime.ts"
+    ],
+    "wiredTo": "NOTHING: no daemon, gate, approval path or route imports the new modules",
+    "productionActivitiesRegistered": 0,
+    "smokeScenarios": 17,
+    "mutationsCaught": "28/28",
+    "notes": "03_STAGE15_BASE/hardening/15B/IMPLEMENTATION_NOTES.md",
+    "idleWatchdog": "Evaluated: no browser-session executor exists; overdue attempts are already reported and recovered without replay. No separate watchdog, no parallel stage.",
+    "next": "15B.2 recovery sweep and first owner-reviewed activity set"
+  },
+  "previousStage": {
+    "stage": "STAGE_15A",
+    "subtask": "15A.3-closed-local-independence-degraded",
+    "status": "CLOSED_DEGRADED",
+    "closureAddendumCommit": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a"
+  },
   "completedStages": [
     "PHASE_0_LOCAL_CODE"
   ],
@@ -43,16 +76,10 @@
     "15A.3-pc-health-guard",
     "15A.3j-real-local-model-qualification",
     "15A.3-closure-LOCAL_INDEPENDENCE_DEGRADED",
-    "15A.3k-artifact-durability-and-on-demand-runtime-policy"
+    "15A.3k-artifact-durability-and-on-demand-runtime-policy",
+    "15B.1-durable-task-contract-journal-runtime"
   ],
   "currentFiles": [
-    ".gitignore",
-    "sandbox/ayas-local-coding/README.md",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/CANDIDATE_PROVENANCE.json",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/QUALIFICATION_CLOSURE.json",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/IMPLEMENTATION_NOTES.md",
-    "docs/ayas-execution/2026-09-27-master/NEW_FINDINGS.md",
-    "CHANGELOG.md",
     "ATOLYE_CHECKPOINT.md",
     "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md",
     "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json"
@@ -94,10 +121,11 @@
     "Exact official Linux CPU engine archive local byte verifier PASS: 16998357 bytes / c150306eb16b5ab696f76a8bdf810c35fd98a24e82158742e6fa28f420ff8410; 50 regular members hashed in memory, no install/member execution. Model bytes and final image unverified.",
     "Stage 15A.3i: evaluator image sha256:75fc384f0a23… rebuilt offline, in-image payload verification PASS (346 files); isolation matrix 23/23 plus OOM kill, timeout stop and unexpected-mount refusal; in-container frozen controls five cases baseline FAIL / historical fix PASS / wrong candidate FAIL, Graphify PLATFORM_UNAVAILABLE; frozen evaluator blob IDs re-derived from sealed bytes; pinned llama-server/model liveness PASS.",
     "Stage 15A.3 closure regression: pins/adapter 38/38, image payload 17/17, model boundary 12/12, retrieval evaluator 29/29 plus negatives, host oracle baseline 5 cases, vault 5/5, workspace 10/10, task 21/21, plan 10/10, inspection 23/23 synthetic, probe 9/9 synthetic, report 13/13 synthetic; TypeScript PASS; changed-file lint 0 warnings; full lint 0 errors/13 pre-existing warnings; diff checks PASS.",
-    "Stage 15A.3j real model: Qwen2.5-Coder-14B Q4_K_M on historical-atomic-bounded-write: tool-call protocol 2x INVALID_OUTPUT byte-identical at max_tokens; structured-output protocol 1x FAIL at the baseline assertion. 0 of 1 executed case passed. Host peak 84.8-87.9 %, zero resource aborts."
+    "Stage 15A.3j real model: Qwen2.5-Coder-14B Q4_K_M on historical-atomic-bounded-write: tool-call protocol 2x INVALID_OUTPUT byte-identical at max_tokens; structured-output protocol 1x FAIL at the baseline assertion. 0 of 1 executed case passed. Host peak 84.8-87.9 %, zero resource aborts.",
+    "Stage 15B.1: durable task runtime smoke 17/17 in TEMP journal roots (contract, happy path, restart, crash during read, crash during landed and unlanded side effect, uncertain terminal, network loss and hanging reread, tool timeout, model restart and retry bound, duplicate daemon and exclusive-link race, live owner, real process liveness, owner delay, journal integrity, illegal histories, registry and secret guards); mutation audit 28/28 caught; TypeScript PASS; changed-file lint 0 warnings; full lint 0 errors/13 pre-existing warnings; diff check PASS. No Stage 15A.3 test re-run, no model or container run."
   ],
   "graphify": {
-    "head": "773accd21cabc796aeb381ed85332274d1814b7d",
+    "head": "5ad56f77a58331129814aa6a12cc4c1137ce84d4",
     "stale": false,
     "needsUpdate": false,
     "duplicateNodes": 0,
@@ -105,15 +133,16 @@
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
-    "nodes": 15842,
-    "edges": 45963
+    "nodes": 15932,
+    "edges": 46165,
+    "structuralPartialFiles": 9
   },
   "blockers": [
     "External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority.",
     "OWNER_DECISION for any local-coding re-qualification: define a numeric qualification threshold; and/or pin a different local model or engine; and/or allow GPU passthrough into the rootless sandbox. Not a blocker for Stage 15B."
   ],
-  "nextAction": "Verify actual Git and Graphify HEAD (git rev-parse HEAD; currentHead here is the tested source packet and a documentation-only closure commit descends from it). Stage 15A.3 is CLOSED as LOCAL_INDEPENDENCE_DEGRADED: do not reopen it, do not register an engine, no cloud fallback. Open Stage 15B (Durable Long-Horizon Task Runtime) per the master order: read its canonical section and update this checkpoint before the first atomic subtask. Keep the PC health guard for any container work: one heavy workload at a time, host RAM under 90 %. The verified artifacts are in bin/ayas-local-coding (gitignored, ARTIFACT_MANIFEST.json); never re-download the model. The local coding runtime is on-demand only and the Podman machine is stopped. No push.",
-  "updatedAt": "2026-10-01T09:24:03.563Z",
+  "nextAction": "Verify actual Git and Graphify HEAD (git rev-parse HEAD; currentHead here is the tested 15B.1 source packet and a documentation-only checkpoint commit descends from it). Stage 15A.3 is CLOSED as LOCAL_INDEPENDENCE_DEGRADED: do not reopen it, do not optimise it, no model trial, no cloud fallback. Continue Stage 15B with 15B.2: read 03_STAGE15_BASE/hardening/15B/IMPLEMENTATION_NOTES.md, then add a recovery sweep a daemon tick can call (advance each active durable task by one step) and propose the first owner-reviewed activity set, starting with one READ_ONLY activity in one domain. Inspect AyasAutonomyDaemon and AyasResearchScheduler before wiring anything; the live autonomy observer runs from this checkout. Keep the runtime framework-only until the owner has reviewed the first activity set. Local coding runtime is on-demand only and the Podman machine is stopped (podman machine start before any container work; one heavy workload at a time; host RAM under 90 %). Verified artifacts are in bin/ayas-local-coding; never re-download. No push.",
+  "updatedAt": "2026-10-01T09:48:46.544Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -144,7 +173,7 @@
     "readinessAuthority": "NONE",
     "engineRegistered": false,
     "cloudFallback": false,
-    "stage15BOpened": false,
+    "stage15BOpened": true,
     "canonicalPush": false,
     "unmeasured": [
       "pass@1 and pass^k over the full evaluable matrix",
@@ -171,7 +200,8 @@
       "containersAtClosure": 0,
       "podmanMachineAtClosure": "stopped",
       "startupAutostartOfModelOrServer": false
-    }
+    },
+    "stage15BOpenedNote": "Opened on 2026-10-01 at f7e19c1, after the closure. QUALIFICATION_CLOSURE.json records the state at closure."
   },
   "sourcePacketFiles": [
     "sandbox/ayas-local-coding/Containerfile",
@@ -194,12 +224,15 @@
     "ROADMAP.md"
   ],
   "localClosure": {
-    "sourcePacketCommit": "773accd21cabc796aeb381ed85332274d1814b7d",
+    "sourcePacketCommit": "5ad56f77a58331129814aa6a12cc4c1137ce84d4",
     "sourcePacketClean": true,
-    "sourcePacketAhead": 37,
+    "sourcePacketAhead": 40,
     "sourcePacketBehind": 0,
     "documentationOnlyClosure": true,
-    "headSemantics": "currentHead/lastGreenHead identify the tested source packet; this documentation-only closure adds a descendant. Verify actual git rev-parse HEAD and Graphify binding on resume.",
+    "headSemantics": "currentHead/lastGreenHead identify the tested 15B.1 source packet; this documentation-only checkpoint adds a descendant. Verify actual git rev-parse HEAD and Graphify binding on resume.",
+    "earlierCommitsThisSession": [
+      "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a docs(ayas): make 15A.3 artifacts durable, record on-demand runtime policy"
+    ],
     "push": false
   }
 }
