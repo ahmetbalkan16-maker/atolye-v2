@@ -56,7 +56,9 @@ export function planAyasLocalCodingContainer(input: {
   const inspect = (directory: string): void => {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
       if (++entries > MAX_ENTRIES) throw new AyasLocalCodingContainerPlanError("workspace is too large to inspect");
-      if (entry.isSymbolicLink() || entry.name === ".git" || entry.name === "node_modules" || entry.name === "data" || entry.name === ".env") {
+      const name = entry.name.toLowerCase();
+      if (entry.isSymbolicLink() || name === ".git" || name === "node_modules" || name === "data" || name === ".env"
+        || name.startsWith("ayas-local-coding-qualification-")) {
         throw new AyasLocalCodingContainerPlanError("workspace contains a forbidden path or link");
       }
       if (entry.isDirectory()) inspect(path.join(directory, entry.name));

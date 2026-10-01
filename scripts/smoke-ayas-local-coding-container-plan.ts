@@ -39,9 +39,18 @@ try {
   fs.mkdirSync(path.join(root, ".git"));
   assert.throws(() => planAyasLocalCodingContainer(input), AyasLocalCodingContainerPlanError);
   fs.rmdirSync(path.join(root, ".git"));
+  fs.mkdirSync(path.join(root, "scripts", "fixtures"), { recursive: true });
+  const vault = path.join(root, "scripts", "fixtures", "ayas-local-coding-qualification-vault.ts");
+  fs.writeFileSync(vault, "hidden evaluator identity");
+  assert.throws(() => planAyasLocalCodingContainer(input), AyasLocalCodingContainerPlanError);
+  fs.unlinkSync(vault);
+  const mixedCaseVault = path.join(root, "scripts", "fixtures", "AYAS-LOCAL-CODING-QUALIFICATION-heldout.ts");
+  fs.writeFileSync(mixedCaseVault, "hidden evaluator identity");
+  assert.throws(() => planAyasLocalCodingContainer(input), AyasLocalCodingContainerPlanError);
+  fs.unlinkSync(mixedCaseVault);
   fs.rmSync(path.join(root, file));
   assert.throws(() => planAyasLocalCodingContainer(input), AyasLocalCodingContainerPlanError);
-  console.log(JSON.stringify({ status: "PASS", suite: "ayas-local-coding-container-plan", scenarios: 2 + denied.length + 3 }));
+  console.log(JSON.stringify({ status: "PASS", suite: "ayas-local-coding-container-plan", scenarios: 2 + denied.length + 5 }));
 } finally {
   const safe = path.dirname(root).toLowerCase() === fs.realpathSync(os.tmpdir()).toLowerCase() && path.basename(root).startsWith("ayas-local-coding-");
   if (safe) fs.rmSync(root, { recursive: true, force: false });
