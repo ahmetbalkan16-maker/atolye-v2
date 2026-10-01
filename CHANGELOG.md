@@ -1,3 +1,8 @@
+## 2026-10-01 — AYAS Stage15D.5a repair approval proof
+
+- Require original immutable scoped repair receipts from the existing user-turn approval primitive; enforce task/workspace/TTL/revoke/replay and reject reparse/ADS targets. Snapshot patches for reliable rollback and stop revoked remediation.
+- Proof19 and affected regressions PASS. Common repair lease/durable audit remains next;15D in progress. NO PUSH.
+
 ## 2026-10-01 — AYAS Stage15D.4b owner reservation lease
 
 - Bind existing owner approvals to exact run/task/mutation/file scope and five-minute leases through the SAME firewall, journal and authority lock; durably consume before callback. Preserve approval/result/recovery and closed write defaults.

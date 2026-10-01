@@ -1,3 +1,9 @@
+# AYAS MASTER CURRENT — 15D.5a GREEN / 15D.5b NEXT — 2026-10-01
+
+Tested source 677853eaf710faf355627dd794b2a1e73c136766 plus documentation descendant; resolve actual HEAD. Guided repair requires the original immutable receipt from its existing user-turn approval primitive, bound to physical workspace/service and valid TTL; JSON/restart/revoke/replay fail closed. Proof19 and existing repair/durability/workflow/recovery regressions PASS; TypeScript/lint/diff PASS. Graphify current PARTIAL9/semantic pending, anomalies0.
+
+Stage15D remains IN_PROGRESS: next15D.5b SAME common firewall repair lease plus mandatory durable audit; bounded remediation preserves original approval/scope/expiry. Dormant write bridge and durable/direct-context coverage plus full audit remain before automatic15E. Detailed ACTIVE_CHECKPOINT is authoritative. NO PUSH without new explicit owner approval; prior36fa deviation recorded, no history rewrite. PC health/on-demand runtime unchanged; no model/container activation.
+
 # AYAS MASTER CURRENT — 15D.4b GREEN / 15D.5 NEXT — 2026-10-01
 
 Tested source 2f4168fb48d5166e851fe37c621b7a71f0a37f75 plus documentation descendant; resolve actual HEAD. Existing owner approval/reservation now receives an opaque exact-scope lease in the SAME firewall and existing journal/lock before self-development/micro-batch callback. No new approval engine. Owner identity is the existing shared-passcode role + exact decision; no named accounts. Owner31 / lease49 / read12 / bridge12 and affected regressions PASS; TypeScript/lint/diff PASS (full lint13existing warnings). Graphify current PARTIAL9/semantic pending, anomalies0.
