@@ -7,9 +7,8 @@
  *  - the executor (mock runner): one bounded stage, a plan re-check, a run that
  *    overshoots its bound → fail closed, a runner failure → throw;
  *  - the bridge: `resume-stage` is DENIED `write-execution-disabled` by default;
- *    with `writeActionsEnabled: true` + a TEST-opened gate it runs end to end,
- *    audits, settles to READY; a crash faults the gate to CLOSED and the
- *    single-use authorization can never be replayed; the request's
+ *    a true code switch + OPEN gate + generic grant still REQUIRE_OWNER and
+ *    dispatch no project read or pipeline; repeats cannot bypass it. The request's
  *    `authorizationId` must match the supplied one.
  */
 
@@ -213,15 +212,16 @@ async function run() {
     assert.equal(gate.read().state, "OPEN", "a denied write must not move the gate");
   });
 
-  await scenario("bridge — with writeActionsEnabled + a TEST-opened gate, resume-stage runs end to end", async () => {
+  await scenario("bridge — code switch + OPEN gate + generic grant do not prove an owner capability", async () => {
     const root = tmpRoot();
     const gate = openTestGate(root);
     const authorizations = new AyasExecutionAuthorizationStore({ rootDir: root });
+    let calls = 0;
     const bridge = createAyasExecutionBridge({
       gate,
       authorizations,
       writeActionsEnabled: true,
-      resumeStageExecutor: createAyasResumeStageExecutor({ runner: okRunner() }),
+      resumeStageExecutor: async (request) => { calls++; return createAyasResumeStageExecutor({ runner: okRunner() })(request); },
       resumePlanStages: async () => ["visuals", "animation"],
     });
     const v = validateAyasResumeStageRequest(req(), { planStages: ["visuals", "animation"] });
@@ -236,14 +236,16 @@ async function run() {
     // the request must name the authorization it consumes
     const raw = req({ authorizationId: grant.authorizationId });
     const out = await bridge.requestExecution({ rawRequest: raw, authorizationId: grant.authorizationId });
-    assert.equal(out.ok, true, out.ok ? "" : `${out.stage}/${out.reason}: ${out.detail}`);
-    if (out.ok) {
-      assert.equal(out.gateStateAfter, "READY");
-      assert.equal(out.result.write, true);
-      assert.equal(out.result.sideEffectApplied, true);
+    assert.equal(out.ok, false);
+    if (!out.ok) {
+      assert.equal(out.stage, "authorization");
+      assert.equal(out.reason, "owner-capability-lease-required");
+      assert.equal(out.detail, "REQUIRE_OWNER");
     }
-    assert.equal(authorizations.read(grant.authorizationId).state, "completed");
-    assert.deepEqual(gate.readLog().map((e) => e.event).slice(-3), ["begin-execution", "complete-execution", "settle"]);
+    assert.equal(calls, 0);
+    assert.equal(authorizations.read(grant.authorizationId).state, "granted");
+    assert.equal(gate.read().state, "OPEN");
+    assert.ok(gate.readLog().every((e) => e.event !== "begin-execution"));
   });
 
   await scenario("bridge — request.authorizationId must match the supplied id", async () => {
@@ -262,15 +264,16 @@ async function run() {
     if (!out.ok) assert.equal(out.reason, "authorization-id-mismatch");
   });
 
-  await scenario("bridge — a write executor crash FAULTS the gate to CLOSED; the authz can't be replayed", async () => {
+  await scenario("bridge — owner gate refuses before a crashing executor; retry cannot bypass it", async () => {
     const root = tmpRoot();
     const gate = openTestGate(root);
     const authorizations = new AyasExecutionAuthorizationStore({ rootDir: root });
+    let calls = 0;
     const bridge = createAyasExecutionBridge({
       gate,
       authorizations,
       writeActionsEnabled: true,
-      resumeStageExecutor: async () => { throw new Error("simulated pipeline crash"); },
+      resumeStageExecutor: async () => { calls++; throw new Error("simulated pipeline crash"); },
       resumePlanStages: async () => ["visuals"],
     });
     const v = validateAyasResumeStageRequest(req(), { planStages: ["visuals"] });
@@ -282,33 +285,30 @@ async function run() {
     const raw = req({ authorizationId: grant.authorizationId });
     const out = await bridge.requestExecution({ rawRequest: raw, authorizationId: grant.authorizationId });
     assert.equal(out.ok, false);
-    if (!out.ok) assert.equal(out.stage, "executor");
-    assert.equal(gate.readStateFailClosed().state, "CLOSED");
-    assert.equal(authorizations.read(grant.authorizationId).state, "failed");
-
-    // replay: a fault CLOSED the gate — bring it back through the real path, then
-    // re-send → the single-use authorization is already `failed` → DENY at authz.
-    gate.transition({ event: "arm" });
-    gate.transition({ event: "confirm-ready" });
-    gate.transition({ event: "open", activationAuthorizationId: ACT_ID });
+    if (!out.ok) { assert.equal(out.stage, "authorization"); assert.equal(out.reason, "owner-capability-lease-required"); }
+    assert.equal(calls, 0);
+    assert.equal(authorizations.read(grant.authorizationId).state, "granted");
     assert.equal(gate.read().state, "OPEN");
     const replay = await bridge.requestExecution({ rawRequest: raw, authorizationId: grant.authorizationId });
     assert.equal(replay.ok, false);
     if (!replay.ok) assert.equal(replay.stage, "authorization");
+    assert.equal(calls, 0);
   });
 
-  await scenario("bridge — stage-not-in-plan is rejected at the bridge via resumePlanStages", async () => {
+  await scenario("bridge — missing owner lease denies before any project resume-plan read", async () => {
     const root = tmpRoot();
+    let planReads = 0;
     const bridge = createAyasExecutionBridge({
       gate: openTestGate(root),
       authorizations: new AyasExecutionAuthorizationStore({ rootDir: root }),
       writeActionsEnabled: true,
       resumeStageExecutor: createAyasResumeStageExecutor({ runner: okRunner() }),
-      resumePlanStages: async () => ["animation", "video"], // "visuals" is NOT in the plan
+      resumePlanStages: async () => { planReads++; return ["animation", "video"]; },
     });
     const out = await bridge.requestExecution({ rawRequest: req(), authorizationId: AUTHZ });
     assert.equal(out.ok, false);
-    if (!out.ok) assert.equal(out.reason, "stage-not-in-plan");
+    if (!out.ok) assert.equal(out.reason, "owner-capability-lease-required");
+    assert.equal(planReads, 0);
   });
 
   console.log(`AYAS write action smoke: PASS (${count} scenarios)`);

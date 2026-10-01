@@ -10,7 +10,7 @@
  *        │
  *        ▼  gate.transition("begin-execution")  → EXECUTING
  *        │
- *        ▼  executor (read-only, or the resume-stage write executor when enabled)
+ *        ▼  executor (read-only, after exact capability admission)
  *        │
  *        ▼  gate.transition("complete-execution") → COMPLETED → "settle" → READY
  *
@@ -19,8 +19,8 @@
  * object; no shell, no arbitrary fs.
  *
  * WRITE actions (`resume-stage`) are refused with `write-execution-disabled`
- * unless the bridge is constructed with `writeActionsEnabled: true` — a future
- * gated step (operator + activation), never a default.
+ * by default. Even a true code switch requires an existing owner capability
+ * adapter, currently absent: REQUIRE_OWNER, with no project/pipeline dispatch.
  */
 
 import crypto from "node:crypto";
@@ -39,11 +39,10 @@ import {
 } from "./AyasExecutionPolicy";
 import {
   validateAyasResumeStageRequest,
-  canonicalAyasResumeStageRequest,
   isAyasWriteActionId,
 } from "./AyasWriteActionPolicy";
 import { resolveAyasExecutor, type AyasExecutorResult } from "./AyasSafeExecutors";
-import { createAyasResumeStageExecutor, type AyasWriteExecutor } from "./AyasWriteExecutor";
+import type { AyasWriteExecutor } from "./AyasWriteExecutor";
 import { createAyasReadActionFirewall } from "./AyasActionRuntime";
 
 export type AyasExecutionDenyStage = "policy" | "gate" | "authorization" | "executor" | "internal";
@@ -93,11 +92,9 @@ export interface RequestAyasExecutionInput {
   readonly authorizationId: string;
 }
 
-const WRITE_MAX_DURATION_MS = 15 * 60 * 1000;
 
 export function createAyasExecutionBridge(deps: AyasExecutionBridgeDeps) {
   const resolveExecutor = deps.resolveExecutor ?? resolveAyasExecutor;
-  const writeMaxDurationMs = deps.writeMaxDurationMs ?? WRITE_MAX_DURATION_MS;
 
   const gateState = () => deps.gate.readStateFailClosed().state;
 
@@ -105,9 +102,9 @@ export function createAyasExecutionBridge(deps: AyasExecutionBridgeDeps) {
   async function runFromOpenGate(
     descriptor: AyasExecutionGrantDescriptor,
     authorizationId: string,
-    run: (admittedRead?: AyasExecutionRequest) => Promise<AyasExecutorResult>,
+    run: (admittedRead: AyasExecutionRequest) => Promise<AyasExecutorResult>,
     maxDurationMs: number,
-    readRequest?: AyasExecutionRequest,
+    readRequest: AyasExecutionRequest,
   ): Promise<AyasExecutionOutcome> {
     const gateBefore = deps.gate.readStateFailClosed();
     if (gateBefore.degraded) {
@@ -118,19 +115,15 @@ export function createAyasExecutionBridge(deps: AyasExecutionBridgeDeps) {
     }
 
     let consumed: { readonly executionId: string };
-    let admittedRead: AyasExecutionRequest | undefined;
+    let admittedRead: AyasExecutionRequest;
     try {
-      if (readRequest) {
-        const firewall = createAyasReadActionFirewall(deps.authorizations);
-        const issued = firewall.issue(readRequest, authorizationId);
-        if (!issued.allowed) return deny("authorization", issued.reason, issued.decision, gateState());
-        const admission = firewall.admit(issued.lease, readRequest);
-        if (!admission.allowed) return deny("authorization", admission.reason, admission.decision, gateState());
-        consumed = { executionId: admission.executionId };
-        admittedRead = admission.request;
-      } else {
-        consumed = deps.authorizations.consume(authorizationId, descriptor);
-      }
+      const firewall = createAyasReadActionFirewall(deps.authorizations);
+      const issued = firewall.issue(readRequest, authorizationId);
+      if (!issued.allowed) return deny("authorization", issued.reason, issued.decision, gateState());
+      const admission = firewall.admit(issued.lease, readRequest);
+      if (!admission.allowed) return deny("authorization", admission.reason, admission.decision, gateState());
+      consumed = { executionId: admission.executionId };
+      admittedRead = admission.request;
     } catch (error) {
       const code = error instanceof AyasExecutionAuthorizationError ? error.code : "AYAS_EXEC_AUTH_UNKNOWN";
       return deny("authorization", code, error instanceof Error ? error.message : String(error), gateState());
@@ -194,16 +187,7 @@ export function createAyasExecutionBridge(deps: AyasExecutionBridgeDeps) {
           gateState(),
         );
       }
-      let planStages: readonly string[] | undefined;
-      const rawSlug = (input.rawRequest as { projectSlug?: unknown }).projectSlug;
-      if (deps.resumePlanStages && typeof rawSlug === "string" && rawSlug.length > 0 && rawSlug.length < 129) {
-        try {
-          planStages = await deps.resumePlanStages(rawSlug);
-        } catch {
-          return deny("policy", "plan-unavailable", `could not read the resume plan for "${rawSlug}"`, gateState());
-        }
-      }
-      const wv = validateAyasResumeStageRequest(input.rawRequest, planStages ? { planStages } : {});
+      const wv = validateAyasResumeStageRequest(input.rawRequest);
       if (!wv.ok) {
         return deny("policy", wv.reason, wv.detail, gateState());
       }
@@ -211,16 +195,11 @@ export function createAyasExecutionBridge(deps: AyasExecutionBridgeDeps) {
       if (wv.request.authorizationId !== input.authorizationId) {
         return deny("authorization", "authorization-id-mismatch", "request.authorizationId does not match the supplied id", gateState());
       }
-      const descriptor: AyasExecutionGrantDescriptor = {
-        action: "resume-stage",
-        requestedBy: wv.request.requestedBy,
-        intent: wv.request.intent,
-        projectSlug: wv.request.projectSlug,
-        plan: { stage: wv.request.stage },
-        canonical: canonicalAyasResumeStageRequest(wv.request),
-      };
-      const executor = deps.resumeStageExecutor ?? createAyasResumeStageExecutor();
-      return runFromOpenGate(descriptor, input.authorizationId, () => executor(wv.request), writeMaxDurationMs);
+      // A code switch or generic request-bound grant is not an owner capability.
+      // This reserved production action has no owner lease adapter in this bridge;
+      // preserve its current disabled activation boundary without invoking a pipeline.
+      const ownerDecision = createAyasReadActionFirewall(deps.authorizations).classify(wv.request);
+      return deny("authorization", "owner-capability-lease-required", ownerDecision === "REQUIRE_OWNER" ? ownerDecision : "DENY", gateState());
     }
 
     // ── READ-ONLY actions ────────────────────────────────────────────────────
