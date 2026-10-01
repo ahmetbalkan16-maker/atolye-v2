@@ -58,9 +58,10 @@ async function main(): Promise<void> {
         ? "user.decision.computer-purchase-plan"
         : item.caseId === "heldout-render-tool-supersession" ? "user.decision.render-tool" : null;
       const expectedFailure = expectedFactKey ? `- '${expectedFactKey}'`
-        : item.caseId === "historical-atomic-bounded-write" ? "Missing expected rejection" : null;
+        : item.caseId === "historical-atomic-bounded-write" ? "Missing expected rejection"
+          : item.caseId === "historical-daily-development-view" ? "proposalId: 'stale-yesterday'" : null;
       assert.ok(expectedFailure, "every historical case needs an explicit expected failure");
-      assert.ok(baseline.stderr.includes(expectedFailure), `${item.caseId}: baseline failed for a different reason: ${baseline.stderr.slice(0, 500)}`);
+      assert.ok(baseline.stderr.includes(expectedFailure), `${item.caseId}: baseline failed for a different reason: ${baseline.stderr.slice(0, 1500)}`);
 
       fs.writeFileSync(sourcePath, candidateBytes);
       assert.equal(sha256(fs.readFileSync(sourcePath)), sha256(candidateBytes), "candidate must use exact fix blob");

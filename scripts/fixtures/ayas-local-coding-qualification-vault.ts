@@ -4,7 +4,7 @@ import { parseAyasLocalCodingTaskContract, type AyasLocalCodingTaskContract } fr
 export interface AyasLocalCodingQualificationCase {
   readonly caseId: string;
   readonly split: "PRIMARY" | "HELD_OUT";
-  readonly domain: "MEMORY_TEMPORAL" | "SECURITY";
+  readonly domain: "MEMORY_TEMPORAL" | "SECURITY" | "UI";
   readonly taskId: string;
   readonly baseHead: string;
   readonly fixHead: string;
@@ -46,6 +46,16 @@ export const AYAS_LOCAL_CODING_QUALIFICATION_VAULT: readonly AyasLocalCodingQual
     exactFiles: Object.freeze(["src/lib/brain/autonomy/AyasBoundedFileWrite.ts"]), maxChangedLines: 80,
     evaluatorScript: "scripts/smoke-ayas-bounded-file-write.ts",
     evaluatorBlob: "70df46f3c7a474a449c78e2c8f2f0da3383beebc",
+  }),
+  Object.freeze({
+    caseId: "historical-daily-development-view", split: "PRIMARY", domain: "UI",
+    taskId: "ayas-coding-12345678-1234-4234-8234-123456789abc",
+    baseHead: "ce6652beb3d845f29132264265e5a1342292fb93",
+    fixHead: "2a13c348c75aabc3e839a51bfad75124167750d1",
+    objective: "Keep the development center's daily proposal view focused on today's records while older action-required proposals remain visible.",
+    exactFiles: Object.freeze(["src/lib/brain/autonomy/AyasApprovalInboxView.ts"]), maxChangedLines: 80,
+    evaluatorScript: "scripts/smoke-ayas-development-center.ts",
+    evaluatorBlob: "6ff859f5996ea8623f823a5f7986296c5e965adb",
   }),
 ]);
 
