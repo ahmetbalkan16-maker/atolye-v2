@@ -6,13 +6,13 @@ import os from "node:os";
 import path from "node:path";
 
 import { approveAndExecuteAyasProposal, publishAlreadyOwnerApprovedAyasProposal, AyasProposalApprovalError, type AyasProposalApprovalDeps } from "../src/lib/brain/autonomy/AyasProposalApprovalService";
-import { createAyasApprovalInboxStore, type AyasApprovalInboxHandle, type AyasInboxProposal } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
+import { createAyasApprovalInboxStore, AyasApprovalInboxStoreError, type AyasApprovalInboxHandle, type AyasInboxProposal } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
 import { createAyasPatchArtifactStore, type AyasPatchArtifactStore } from "../src/lib/brain/autonomy/AyasPatchArtifact";
 import { AYAS_PATCH_ARTIFACT_MUTATION_KIND } from "../src/lib/brain/autonomy/AyasNovelPatchDiscovery";
 import { createAyasStabilityTransactionStore, recoverInterruptedAyasStabilityTransactions, type AyasStabilityTransaction, type AyasStabilityTransactionStore } from "../src/lib/brain/autonomy/AyasRuntimeStabilityTransaction";
 import { createAyasResearchSchedulerStateStore, ayasResearchSchedulerStateSchemaVersion, type AyasResearchSchedulerStateStore } from "../src/lib/brain/autonomy/AyasResearchSchedulerStateStore";
 import { createAyasExecutionJournal, ayasExecutionJournalSchemaVersion } from "../src/lib/brain/autonomy/AyasExecutionJournal";
-import { ayasPublicationOperationName, findUnresolvedAyasPublicationState, type AyasGuardedPublicationGuardDeps } from "../src/lib/brain/autonomy/AyasGuardedPublication";
+import { ayasPublicationOperationName, findUnresolvedAyasPublicationState, runGuardedAyasPublication, type AyasGuardedPublicationGuardDeps } from "../src/lib/brain/autonomy/AyasGuardedPublication";
 import { classifyAyasRuntimeImpact, classifyAyasRuntimeImpactFile } from "../src/lib/brain/autonomy/AyasProposalRuntimeImpact";
 
 /**
@@ -174,9 +174,14 @@ function seedTestOnlyProposal(f: Fixture) {
   return { proposal, artifact, head };
 }
 
-/** A SOURCE_ONLY proposal: an edit to a pre-existing, non-smoke `scripts/` file. */
-function seedSourceOnlyProposal(f: Fixture, opts: { readonly newContent: string }) {
-  const targetFile = "scripts/existing-editable.ts";
+/**
+ * A proposal that edits a PRE-EXISTING file (so a failed publication has real content to restore, not just a file to
+ * remove). By default the target is a non-smoke `scripts/` file: SOURCE_ONLY impact and, for patch safety,
+ * REVIEW_REQUIRED — which since Stage 15.7 the inbox refuses to approve without a reviewed exact-patch proof. A
+ * scenario that needs the edit to actually be published passes a `scripts/smoke-*` target instead.
+ */
+function seedSourceOnlyProposal(f: Fixture, opts: { readonly newContent: string; readonly targetFile?: string }) {
+  const targetFile = opts.targetFile ?? "scripts/existing-editable.ts";
   const originalContent = "export const value = 1;\n";
   fs.writeFileSync(path.join(f.repoRoot, targetFile), originalContent, "utf8");
   git(f.repoRoot, "add", "--", targetFile);
@@ -329,20 +334,72 @@ async function main(): Promise<void> {
     assert.deepEqual(scope.allowedPorts, [], "a publication may never take a port's ownership");
   });
 
-  await scenario("a SOURCE_ONLY proposal uses the same lightweight guard scope, declaring SOURCE_ONLY rather than TEST_ONLY", async () => {
+  await scenario("a SOURCE_ONLY publication uses the same lightweight guard scope, declaring SOURCE_ONLY rather than TEST_ONLY", async () => {
+    // Exercised at the guard itself. Since Stage 15.7 no source proposal can
+    // reach the guard through the one-click lane (next scenario), but the
+    // micro-batch lane and any future reviewed lane hand the guard the same
+    // request, so the SOURCE_ONLY scope stays a checked property of the guard.
     const f = makeFixture();
-    const { proposal } = seedSourceOnlyProposal(f, { newContent: "export const value = 2;\n" });
-    const result = await approveAndExecuteAyasProposal(proposal.proposalId, proposal.proposalHash, f);
-    assert.equal(result.ok, true);
+    const targetFile = "scripts/existing-editable.ts";
+    fs.writeFileSync(path.join(f.repoRoot, targetFile), "export const value = 1;\n", "utf8");
+    git(f.repoRoot, "add", "--", targetFile); git(f.repoRoot, "commit", "-q", "-m", "add editable file");
+    git(f.repoRoot, "push", "-q", "origin", "master");
+    const headBefore = git(f.repoRoot, "rev-parse", "HEAD");
+    const subjectId = `ayas-proposal-${crypto.randomUUID()}`;
 
-    const transaction = transactionsFor(f, proposal.proposalId)[0]!;
+    const guarded = await runGuardedAyasPublication<{ readonly ok: boolean }>({
+      lane: "proposal", subjectId, exactFiles: [targetFile], repoRoot: f.repoRoot, gateRoot: f.gateRoot, inbox: f.inbox, guard: f.stabilityGuard,
+      publish: async () => {
+        fs.writeFileSync(path.join(f.repoRoot, targetFile), "export const value = 2;\n", "utf8");
+        git(f.repoRoot, "add", "--", targetFile); git(f.repoRoot, "commit", "-q", "-m", "guarded source edit");
+        git(f.repoRoot, "push", "-q", "origin", "master");
+        return { ok: true };
+      },
+    });
+    assert.equal(guarded.state, "COMPLETED");
+    if (guarded.state !== "COMPLETED") return;
+    assert.equal(guarded.impact.impactClass, "SOURCE_ONLY");
+
+    const transactions = transactionsFor(f, subjectId);
+    assert.equal(transactions.length, 1);
+    const transaction = transactions[0]!;
+    assert.equal(transaction.transactionId, guarded.transaction.transactionId);
     assert.equal(transaction.state, "COMPLETED");
     assert.equal(transaction.scope.impactClass, "SOURCE_ONLY");
+    assert.deepEqual([...transaction.scope.allowed].sort(), ["git-history", "proposal-state", "research-scheduler", "source"], "source gets no wider a scope than a test file does");
+    assert.deepEqual(transaction.scope.allowedPorts, []);
+    assert.deepEqual(transaction.violations, []);
+    assert.equal(transaction.before.repo.head, headBefore);
+    assert.equal(transaction.after?.repo.head, git(f.repoRoot, "rev-parse", "HEAD"));
+    assert.notEqual(transaction.after?.repo.head, headBefore, "the guard must have observed the real source commit");
     // "Lightweight" is a real, checked property: for a class that can never
     // restart a service, process-identity fingerprinting is skipped outright
     // and — crucially — skipping it records no snapshot gap.
     assert.equal(transaction.before.services.find((s) => s.port === FIXTURE_SERVICE_PORT)?.commandFingerprint, undefined);
     assert.deepEqual(transaction.before.gaps, []);
+  });
+
+  await scenario("a source proposal with no reviewed exact-patch proof is refused at approval: no decision, no guard transaction, no mutation — SOURCE_ONLY impact is not an approval", async () => {
+    const f = makeFixture();
+    const { proposal, targetFile } = seedSourceOnlyProposal(f, { newContent: "export const value = 2;\n" });
+    const headBefore = git(f.repoRoot, "rev-parse", "HEAD");
+    // The runtime-impact class says a restart is not needed; it says nothing
+    // about whether the edit is safe. That second question is the inbox's.
+    assert.equal(classifyAyasRuntimeImpact(proposal.exactFiles).publishable, true);
+
+    await assert.rejects(
+      () => approveAndExecuteAyasProposal(proposal.proposalId, proposal.proposalHash, f),
+      (error: unknown) => error instanceof AyasApprovalInboxStoreError && error.code === "AYAS_INBOX_UNSAFE_APPROVAL",
+    );
+
+    const state = f.inbox.load();
+    assert.equal(state.proposals.find((p) => p.proposalId === proposal.proposalId)!.status, "PENDING");
+    assert.deepEqual(state.decisions.filter((d) => d.proposalId === proposal.proposalId), [], "a refused approval must not leave a durable APPROVE behind");
+    assert.deepEqual(transactionsFor(f, proposal.proposalId), [], "nothing was attempted, so nothing was snapshotted");
+    assert.equal(createAyasExecutionJournal({ rootDir: f.gateRoot }).list().filter((entry) => entry.proposalId === proposal.proposalId).length, 0);
+    assert.equal(git(f.repoRoot, "rev-parse", "HEAD"), headBefore);
+    assert.equal(git(f.repoRoot, "show", `HEAD:${targetFile}`), "export const value = 1;");
+    assert.equal(git(f.repoRoot, "status", "--short"), "");
   });
 
   await scenario("a TEST_ONLY publication restarts nothing: the observed service keeps its pid, and an unrelated listener is untouched", async () => {
@@ -501,7 +558,9 @@ async function main(): Promise<void> {
   await scenario("a post-execution validation failure is ROLLED_BACK with its ORIGINAL code and stage preserved — the guard reports the lane's truth, it does not relabel it", async () => {
     const f = makeFixture();
     // Valid JS, a real TypeScript error: passes Package C, fails the project-wide tsc.
-    const { proposal, targetFile } = seedSourceOnlyProposal(f, { newContent: 'export const value: number = "not a number";\n' });
+    // The target is an EXISTING file on an approvable path, so the rollback
+    // has committed content to restore rather than a new file to delete.
+    const { proposal, targetFile } = seedSourceOnlyProposal(f, { targetFile: "scripts/smoke-existing-editable.ts", newContent: 'export const value: number = "not a number";\n' });
     const headBefore = git(f.repoRoot, "rev-parse", "HEAD");
     const contentAtHead = git(f.repoRoot, "show", `HEAD:${targetFile}`);
 

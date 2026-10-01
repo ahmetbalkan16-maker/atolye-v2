@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -10,43 +11,27 @@ import { AYAS_DEFAULT_IMPROVEMENT_REGISTRY, ayasImprovementRegistryDigest,
   generateAyasRenderToolSupersessionPatch } from "../src/lib/brain/autonomy/AyasResearchExperimentRegistry";
 
 const file = "src/lib/ayas/memory/AyasMemoryTemporal.ts";
-const live = fs.readFileSync(path.join(process.cwd(), file), "utf8");
 const strategy = AYAS_DEFAULT_IMPROVEMENT_REGISTRY.strategies.find((item) => item.strategyId === "exp-memory-render-tool-supersession");
 assert.ok(strategy?.reviewedExactPatch);
 const manifest = strategy.reviewedExactPatch;
 assert.ok(validAyasReviewedExactPatch(manifest));
-// Before promotion, the live source is the reviewed baseline. Afterwards, recover
-// that baseline from the approved hunk reversals and verify its hash below.
-const reverse = (text: string, added: string, removed: string): string => {
-  assert.equal(text.split(added).length, 2, "reviewed hunk must occur exactly once");
-  return text.replace(added, removed);
-};
-const eol = live.includes("\r\n") ? "\r\n" : "\n";
-let before = live;
-if (ayasExactPatchSha256(live) === manifest.afterSha256) {
-  before = reverse(before, '  "user.decision.render-tool",' + eol, "");
-  before = reverse(before,
-    '    const render = /^(?:artik )?render icin ([a-z][a-z0-9]{1,39}) kullanacagiz$/.exec(value);' + eol +
-    '    if (render) return { fact: { key: "user.decision.render-tool", value: render[1]! }, clause: null };' + eol, "");
-  before = reverse(before,
-    '    if (isAyasMemoryFactKey(factKey) && typeof factValue === "string") {' + eol +
-    '      if (factKey !== "user.decision.render-tool") return { key: factKey, value: factValue };' + eol +
-    '      const derived = deriveAyasMemoryFact(record);' + eol +
-    '      return isAuthoritative(record) && derived?.key === factKey && derived.value === factValue ? derived : null;' + eol +
-    '    }' + eol +
-    '    if (factKey !== undefined || factValue !== undefined) return null;' + eol +
-    '    const derived = deriveAyasMemoryFact(record);' + eol +
-    '    return derived?.key === "user.decision.render-tool" && isAuthoritative(record) ? derived : null;' + eol,
-    '    return isAyasMemoryFactKey(factKey) && typeof factValue === "string" ? { key: factKey, value: factValue } : null;' + eol);
-  before = reverse(before,
-    '  const derived = deriveFactEvidence(input);' + eol +
-    '  const evidence = input.source === "ayas-inferred" && derived?.fact.key === "user.decision.render-tool" ? null : derived;' + eol,
-    '  const evidence = deriveFactEvidence(input);' + eol);
-}
+// The reviewed baseline and the applied result are immutable history, not the live file. The governed patch was
+// applied in APPLIED_COMMIT and the file has changed again since (Stage 15C), so the live source is neither state.
+// Reading both from the commits themselves also proves what was applied is exactly what was reviewed.
+const REVIEWED_BASE_COMMIT = "71f554eb72e6f5aaafb272f31bff402664f602cc";
+const APPLIED_COMMIT = "3367d415b12a6214a7f58fb95d6d849ccd0cd66a";
+const atCommit = (commit: string): string => execFileSync("git", ["show", `${commit}:${file}`], { cwd: process.cwd(), encoding: "utf8", windowsHide: true, maxBuffer: 16_000_000 });
+const before = atCommit(REVIEWED_BASE_COMMIT);
 assert.equal(ayasExactPatchSha256(before), manifest.beforeSha256);
 const after = generateAyasRenderToolSupersessionPatch(before);
 assert.equal(ayasExactPatchSha256(after), manifest.afterSha256);
-assert.ok(ayasExactPatchSha256(live) === manifest.beforeSha256 || live === after, "live source must match the reviewed before/after state");
+assert.equal(atCommit(APPLIED_COMMIT), after, "the applied commit must hold exactly the reviewed patch result");
+assert.equal(execFileSync("git", ["rev-parse", `${APPLIED_COMMIT}^`], { cwd: process.cwd(), encoding: "utf8", windowsHide: true }).trim(), REVIEWED_BASE_COMMIT);
+// A strategy bound to its reviewed baseline cannot be replayed against any other source: not the applied result,
+// and not the file as it stands today.
+const live = fs.readFileSync(path.join(process.cwd(), file), "utf8");
+assert.throws(() => generateAyasRenderToolSupersessionPatch(after), /render-tool strategy source mismatch/);
+if (ayasExactPatchSha256(live) !== manifest.beforeSha256) assert.throws(() => generateAyasRenderToolSupersessionPatch(live), /render-tool strategy source mismatch/);
 const diff = diffAyasExactPatch(before, after);
 assert.ok(diff);
 assert.deepEqual(verifyAyasReviewedExactPatch(manifest, file, before, after), diff);
@@ -80,4 +65,4 @@ assert.equal(verifyAyasExactPatchSafetyProof(proof, manifest, { ...expected, reg
 assert.equal(verifyAyasExecutedExactPatch(proof, manifest, file, before, after), true);
 assert.equal(verifyAyasExecutedExactPatch(proof, manifest, file, before, `${after}\n// execution changed content`), false);
 assert.equal(verifyAyasExecutedExactPatch(proof, manifest, file, `${before}\n// stale base`, after), false);
-console.log(JSON.stringify({ status: "PASS", suite: "ayas-exact-patch-safety", scenarios: 19, changedLines: diff.changedLines }));
+console.log(JSON.stringify({ status: "PASS", suite: "ayas-exact-patch-safety", scenarios: 23, changedLines: diff.changedLines }));

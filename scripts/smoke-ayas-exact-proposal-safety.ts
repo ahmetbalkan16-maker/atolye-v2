@@ -33,7 +33,10 @@ git("init", "-q");
 git("config", "user.email", "smoke@example.invalid");
 git("config", "user.name", "Smoke");
 fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
-const before = execFileSync("git", ["show", `HEAD:${file}`], { cwd: sourceRoot, encoding: "utf8", windowsHide: true });
+// The strategy is bound to the source it was reviewed against. That is immutable history (the commit just before
+// the governed patch was applied), not HEAD: the patch has landed and the file has changed again since.
+const REVIEWED_BASE_COMMIT = "71f554eb72e6f5aaafb272f31bff402664f602cc";
+const before = execFileSync("git", ["show", `${REVIEWED_BASE_COMMIT}:${file}`], { cwd: sourceRoot, encoding: "utf8", windowsHide: true, maxBuffer: 16_000_000 });
 fs.writeFileSync(path.join(root, file), before);
 fs.writeFileSync(path.join(root, ".gitignore"), "data/\n");
 git("add", "-A");
