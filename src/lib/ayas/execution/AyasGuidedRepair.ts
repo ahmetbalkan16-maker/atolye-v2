@@ -116,7 +116,9 @@ export function approveAyasRepair(proposal: AyasRepairProposal, approval: { prop
   return auth;
 }
 
-export async function runAyasRegisteredValidation(action: AyasValidationAction, validators: AyasGuidedRepairDeps["validators"] = {}): Promise<{ action: AyasValidationAction; ok: boolean; result?: unknown; detail?: string }> {
+// Module-private: a registered validator runs a process (some write, e.g. a graph refresh), so it is reachable
+// only from an admitted repair attempt below, never as a standalone entry point.
+async function runAyasRegisteredValidation(action: AyasValidationAction, validators: AyasGuidedRepairDeps["validators"] = {}): Promise<{ action: AyasValidationAction; ok: boolean; result?: unknown; detail?: string }> {
   if (!VALIDATIONS.has(action)) return { action, ok: false, detail: "validation action is not registered" };
   const fn = validators[action];
   if (!fn) return { action, ok: false, detail: "validation adapter unavailable" };
@@ -212,7 +214,7 @@ export function createAyasGuidedRepairService(deps: AyasGuidedRepairDeps = {}) {
     if (classifyAyasRepairScope(next.map((p) => p.filePath), proposal) !== "same-scope") return { ok: false, lifecycle: "blocked", reason: "remediation requires scope-expansion proposal" };
     return applyInternal(proposal, auth, next, false);
   }
-  return { workspaceRoot: root, createProposal: createAyasRepairProposal, diagnose: diagnoseAyasRepair, approve: (p: AyasRepairProposal, a: Omit<Parameters<typeof approveAyasRepair>[1], "now" | "ttlMs">) => approveAyasRepair(p, { ...a, now: now().toISOString(), ttlMs: ttl }, approvalContext), revoke: revokeAyasRepairAuthorization, classifyScope: classifyAyasRepairScope, apply, applyWithBoundedRemediation, validate: (a: AyasValidationAction) => runAyasRegisteredValidation(a, deps.validators) };
+  return { workspaceRoot: root, createProposal: createAyasRepairProposal, diagnose: diagnoseAyasRepair, approve: (p: AyasRepairProposal, a: Omit<Parameters<typeof approveAyasRepair>[1], "now" | "ttlMs">) => approveAyasRepair(p, { ...a, now: now().toISOString(), ttlMs: ttl }, approvalContext), revoke: revokeAyasRepairAuthorization, classifyScope: classifyAyasRepairScope, apply, applyWithBoundedRemediation };
 }
 
 export const AyasGuidedRepair = createAyasGuidedRepairService;
