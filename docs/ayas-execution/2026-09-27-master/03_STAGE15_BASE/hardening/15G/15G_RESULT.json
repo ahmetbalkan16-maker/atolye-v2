@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "stage": "STAGE_15G",
+  "title": "SBOM / Provenance / Release Trust",
+  "result": "CLOSED_GREEN_WITH_DECLARED_GAPS",
+  "sourceCommit": "5ad8c0c86ed484157845168c8a2ca73fc6366d3b",
+  "date": "2026-10-02",
+  "evidenceClass": "DETERMINISTIC_TEST_AND_LOCAL_READ",
+  "installs": 0,
+  "upgrades": 0,
+  "networkCalls": 0,
+  "modelRuns": 0,
+  "push": false,
+  "release": {
+    "manifest": { "file": "release/RELEASE_PROVENANCE.json", "sha256": "fc0d5069747478da0d64883993968374bc727fb7b0940e54137e1ae1dc817201", "manifestDigest": "3011a0d3e609e415c8ed404d05b32215f199c5f30b038e669549135aece08bb7", "seal": "INTACT" },
+    "sbom": { "file": "release/SBOM.cdx.json", "sha256": "f844c258d8e9ebc232cb1ad684c5ffa3d7bc401a1284fa87c2b7405156cfb8f0", "format": "CycloneDX 1.5", "components": 550, "lockEntries": 557, "shipped": 65, "optional": 33, "development": 452, "blockingFindings": 0, "reviewFindings": 0 },
+    "generatedFrom": { "head": "5ad8c0c86ed484157845168c8a2ca73fc6366d3b", "treeState": "CLEAN", "lockfileSha256": "bd863aed704fcf68ecadfc3cb3aad1c99c7ecf8c19245bcc906085c454943fde" },
+    "completeness": { "status": "INCOMPLETE", "gaps": ["ADVISORIES_NOT_CURRENT", "GRAPHIFY_STRUCTURE_INCOMPLETE", "BUILD_NOT_BOUND_TO_HEAD"] }
+  },
+  "gapsExplained": {
+    "ADVISORIES_NOT_CURRENT": "Only the offline npm cache was read (NPM_AUDIT_OFFLINE.json: 0 advisories over 557 dependencies). A cached zero is not a current zero. A live query sends the dependency list to the public npm registry and needs the owner's authorization.",
+    "GRAPHIFY_STRUCTURE_INCOMPLETE": "The graph is built from this commit with no anomaly, but 9 known files have no nodes (seven PowerShell scripts, one workflow, one bracketed route): the PowerShell grammar is not installed.",
+    "BUILD_NOT_BOUND_TO_HEAD": "The build on this machine was made before the stamp existed (978 files, build id pV4E1mG2rmwhSniDHDK64). It is digested but cannot be tied to a commit. The owner's next `npm run build` writes a stamp."
+  },
+  "licenses": {
+    "distinct": 16,
+    "forOwnerReview": { "components": 42, "byLicense": { "LGPL-3.0-or-later": 20, "MPL-2.0": 13, "Apache-2.0 AND LGPL-3.0-or-later": 6, "Apache-2.0 AND LGPL-3.0-or-later AND MIT": 2, "CC-BY-4.0": 1 } },
+    "note": "A list of what is not on a short permissive list. Not a legal judgement."
+  },
+  "installScripts": { "packages": 7, "allReviewedAtTheirVersion": true, "reviewSource": "docs/AYAS_SECURITY_SUPPLY_CHAIN.md (Stage 9)" },
+  "artifacts": { "pinnedIdentities": 17, "localCheck": { "MATCH": 10, "SIZE_MATCH": 2, "NOT_OBSERVED": 2, "NOT_CHECKABLE": 3, "MISMATCH": 0 }, "localCodingManifest": { "files": 57, "totalBytes": 9016238513 }, "note": "SIZE_MATCH: large files compared by size, not hashed in this run. NOT_OBSERVED: the served model digests were not asked for. NOT_CHECKABLE: hosted or unpinned entries have nothing local to compare." },
+  "tests": {
+    "releaseProvenance": { "script": "scripts/smoke-ayas-release-provenance.ts", "scenarios": 18, "result": "PASS" },
+    "negativeControls": { "script": "scripts/smoke-ayas-release-provenance-mutations.ts", "caught": 28, "total": 28 },
+    "firewallClosure": "12 scenarios PASS; one operator entry point and one off-surface module declared",
+    "buildHook": "npm run build in a TEMP clone with its own node_modules: exit 0, stamp written; the repository's .next untouched",
+    "typescript": "PASS",
+    "changedFileLint": "0 warnings",
+    "fullBaseline": { "report": "15G_FULL_BASELINE.json", "sha256": "c1163577ee8fdb0c165aa816da120680e26d1f240b12c55e1b407c02127fccc5", "sourceHead": "5ad8c0c86ed484157845168c8a2ca73fc6366d3b", "manifestVersion": "15F.4-v9", "suites": 74, "failed": [], "outcome": "PASS_WITH_KNOWN_LIMITATIONS", "hostRamPeakPercent": 53.58 }
+  },
+  "graphify": { "builtFrom": "5ad8c0c86ed484157845168c8a2ca73fc6366d3b", "nodes": 16633, "edges": 47982, "anomalies": 0, "structural": "PARTIAL (9 known files)", "semantic": "PENDING" },
+  "ownerActions": [
+    { "id": "live-advisory-query", "blocking": false, "action": "Authorize and run `npm audit --json > report.json`, then `npx tsx scripts/ayas-release-provenance.ts --advisory-report report.json --advisory-source registry`. Until then the advisory state is not current." },
+    { "id": "rebuild", "blocking": false, "action": "`npm run build` writes the build stamp; after it the manifest can bind the build to a commit." },
+    { "id": "license-review", "blocking": false, "action": "Look at the 42 components listed in the manifest under sbom.summary.licensesForOwnerReview." },
+    { "id": "signing", "blocking": false, "action": "Optional. Nothing signs today; the manifest is an offline hash manifest." }
+  ],
+  "authority": "NONE: the SBOM and the manifest describe. They approve nothing, install nothing and gate nothing."
+}

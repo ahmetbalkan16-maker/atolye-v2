@@ -1,3 +1,8 @@
+## 2026-10-02 — AYAS Stage15G SBOM and release provenance
+
+- CycloneDX 1.5 SBOM built from the lockfile alone (550 components, no blocking finding) and a sealed offline release provenance manifest: commit, lockfile, SBOM, licenses, install scripts, advisory state, pinned model and binary identities, Graphify state, test matrix, build output. Operator script `scripts/ayas-release-provenance.ts`; `npm run build` writes a build stamp.
+- The record for this commit is INCOMPLETE for three declared reasons (offline-only advisories, 9 files without Graphify nodes, an unstamped build). Nothing installed, upgraded or fetched. 18 scenarios, 28/28 negative controls, 74-suite baseline with no failure. Stage 15H opened. Local commits only; NO PUSH.
+
 ## 2026-10-02 — AYAS post-freeze audit complete
 
 - Telemetry counts one retry once and has timeout, owner-wait and resource-abort classes; an owner wait or a host-protection abort cannot lower the success rate.

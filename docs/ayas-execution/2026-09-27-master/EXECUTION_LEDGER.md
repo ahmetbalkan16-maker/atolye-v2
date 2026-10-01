@@ -648,3 +648,27 @@ From here every stage reads its canonical pack first and then the addendum secti
 ## Stage 15G — SBOM / Provenance / Release Trust — OPEN (2026-10-02)
 
 Opened at `5c31024`. Canonical section: master order STAGE 15G and `AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md` STAGE 15G. No addendum section is specific to it; section 5 (artifact identity) and section 0 (unknown state fails closed) apply. Carried from Stage 9: a live npm advisory query sends dependency metadata to the public registry and needs explicit owner authorization, so the advisory state is reported from what can be read locally and the live state stays UNKNOWN until the owner authorizes it. No dependency is installed or upgraded.
+
+## Stage 15G — CLOSED GREEN, three declared gaps in the release record (2026-10-02)
+
+Source `5ad8c0c86ed484157845168c8a2ca73fc6366d3b`. Closure `03_STAGE15_BASE/hardening/15G/CLOSURE.md`; summary `15G_RESULT.json`.
+
+SEAMS REUSED. The lockfile as the only source of dependency facts; the Stage 9 audit's seven install-time scripts as the reviewed set; the Stage 15E lifecycle registry and verifier for model and binary identities; the Graphify state collector; the Stage 15F eval manifest and baseline report.
+
+WHAT. `AyasSbom` builds a CycloneDX 1.5 SBOM from `package-lock.json` alone: one component per package and version with exact version, registry tarball, SHA-512 integrity, license, shipped/optional/development scope and install-script class; npm-style dependency edges; the same lockfile gives the same bytes. `AyasReleaseProvenance` seals one manifest of commit, lockfile, SBOM, licenses, install scripts, advisory state, pinned identities, Graphify state, test matrix and build output; `gaps` names what was not read, not bound to the commit or not clean, and a manifest relabelled COMPLETE and re-hashed is refused. The collector is read-only and puts nothing machine-specific in the manifest. `npm run build` now writes a build stamp. The operator script prints by default, writes new files only, and verifies a stored manifest.
+
+RECORD FOR THIS COMMIT, generated from a clean tree: 550 components from 557 lockfile entries, no blocking finding; seven install-time scripts, all reviewed at their version; 17 pinned identities, none mismatched on this machine; baseline bound to the commit. Gaps: `ADVISORIES_NOT_CURRENT` (offline cache only: 0 over 557; a live query needs the owner's authorization), `GRAPHIFY_STRUCTURE_INCOMPLETE` (9 known files without nodes), `BUILD_NOT_BOUND_TO_HEAD` (the build predates the stamp). The manifest says INCOMPLETE, as designed.
+
+FOUND. The 15D closure audit caught the new operator script and the new effectful module as undeclared. Both are now declared (one operator entry, one off-surface module), and the build hook was split so that it reaches no leased module.
+
+TEST. Release provenance 18 scenarios; negative controls 28/28 in a TEMP overlay; firewall closure 12; eval governance 10 and 8/8; `npm run build` with the stamp hook in a TEMP clone; declared 74-suite baseline at the commit with no failure (cognitive 54/55, held-out 4/5 unchanged), host RAM peak 53.58 %. TypeScript, changed-file lint, diff check PASS. Eval manifest `15F.4-v9`; v8 kept. Nothing installed, upgraded, fetched or pushed; no model run.
+
+GRAPHIFY built from `5ad8c0c`: 16,633 nodes / 47,982 edges, anomalies 0, PARTIAL 9 known files, semantic pending.
+
+OWNER, none blocking: authorize a live advisory query; rebuild to stamp the build; look at 42 components whose license is outside the short permissive list; signing if wanted.
+
+LOCAL COMMITS; NO PUSH.
+
+## Stage 15H — Autonomy Burn-In / No-Cloud Independence Certification Framework — OPEN (2026-10-02)
+
+Opened at `5ad8c0c`. Canonical section: master order STAGE 15H and `AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md` STAGE 15H. Addendum sections 0 and 1 apply. Cloud coding stays off. Stage 15A closed `LOCAL_INDEPENDENCE_DEGRADED`, so the honest result here is expected to be DEGRADED with the exact gap named; READY is never faked.

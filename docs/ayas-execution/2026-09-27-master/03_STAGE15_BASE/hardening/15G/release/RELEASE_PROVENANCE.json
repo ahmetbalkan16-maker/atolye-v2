@@ -1,0 +1,637 @@
+{
+  "schemaVersion": "1",
+  "generatedAt": "2026-10-01T23:28:01.563Z",
+  "subject": {
+    "name": "atolye-v2",
+    "version": "0.1.0"
+  },
+  "git": {
+    "head": "5ad8c0c86ed484157845168c8a2ca73fc6366d3b",
+    "branch": "wip/ayas-graphify-final-execution",
+    "treeState": "CLEAN",
+    "dirtyPaths": 0
+  },
+  "lockfile": {
+    "file": "package-lock.json",
+    "sha256": "bd863aed704fcf68ecadfc3cb3aad1c99c7ecf8c19245bcc906085c454943fde",
+    "lockfileVersion": 3,
+    "packageJsonSha256": "a16971bdbbc152f4593fa6740e5686ac23b89fd685087b92c71f2a8a2a8189e6"
+  },
+  "sbom": {
+    "format": "CycloneDX",
+    "specVersion": "1.5",
+    "serialNumber": "urn:uuid:55ccf7c3-693a-51e3-bd14-9ee22917bc48",
+    "sha256": "f844c258d8e9ebc232cb1ad684c5ffa3d7bc401a1284fa87c2b7405156cfb8f0",
+    "summary": {
+      "components": 550,
+      "lockEntries": 557,
+      "byScope": {
+        "required": 65,
+        "optional": 33,
+        "excluded": 452
+      },
+      "licenses": [
+        {
+          "license": "MIT",
+          "components": 406
+        },
+        {
+          "license": "Apache-2.0",
+          "components": 54
+        },
+        {
+          "license": "LGPL-3.0-or-later",
+          "components": 20
+        },
+        {
+          "license": "ISC",
+          "components": 17
+        },
+        {
+          "license": "BSD-3-Clause",
+          "components": 15
+        },
+        {
+          "license": "MPL-2.0",
+          "components": 13
+        },
+        {
+          "license": "BSD-2-Clause",
+          "components": 7
+        },
+        {
+          "license": "Apache-2.0 AND LGPL-3.0-or-later",
+          "components": 6
+        },
+        {
+          "license": "MIT OR Apache-2.0",
+          "components": 3
+        },
+        {
+          "license": "Apache-2.0 AND LGPL-3.0-or-later AND MIT",
+          "components": 2
+        },
+        {
+          "license": "CC0-1.0",
+          "components": 2
+        },
+        {
+          "license": "(MIT OR CC0-1.0)",
+          "components": 1
+        },
+        {
+          "license": "0BSD",
+          "components": 1
+        },
+        {
+          "license": "BlueOak-1.0.0",
+          "components": 1
+        },
+        {
+          "license": "CC-BY-4.0",
+          "components": 1
+        },
+        {
+          "license": "Python-2.0",
+          "components": 1
+        }
+      ],
+      "licensesForOwnerReview": [
+        {
+          "component": "@img/sharp-libvips-darwin-arm64@1.2.4",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-darwin-arm64@1.3.3",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-darwin-x64@1.2.4",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-darwin-x64@1.3.3",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-linux-arm64@1.2.4",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-linux-arm64@1.3.3",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-linux-arm@1.2.4",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-linux-arm@1.3.3",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-linux-ppc64@1.2.4",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-linux-ppc64@1.3.3",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-linux-riscv64@1.2.4",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-linux-riscv64@1.3.3",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-linux-s390x@1.2.4",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-linux-s390x@1.3.3",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-linux-x64@1.2.4",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-linux-x64@1.3.3",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-linuxmusl-arm64@1.2.4",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-linuxmusl-arm64@1.3.3",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-linuxmusl-x64@1.2.4",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-libvips-linuxmusl-x64@1.3.3",
+          "license": "LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-wasm32@0.34.5",
+          "license": "Apache-2.0 AND LGPL-3.0-or-later AND MIT"
+        },
+        {
+          "component": "@img/sharp-wasm32@0.35.4",
+          "license": "Apache-2.0 AND LGPL-3.0-or-later AND MIT"
+        },
+        {
+          "component": "@img/sharp-win32-arm64@0.34.5",
+          "license": "Apache-2.0 AND LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-win32-arm64@0.35.4",
+          "license": "Apache-2.0 AND LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-win32-ia32@0.34.5",
+          "license": "Apache-2.0 AND LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-win32-ia32@0.35.4",
+          "license": "Apache-2.0 AND LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-win32-x64@0.34.5",
+          "license": "Apache-2.0 AND LGPL-3.0-or-later"
+        },
+        {
+          "component": "@img/sharp-win32-x64@0.35.4",
+          "license": "Apache-2.0 AND LGPL-3.0-or-later"
+        },
+        {
+          "component": "axe-core@4.12.1",
+          "license": "MPL-2.0"
+        },
+        {
+          "component": "caniuse-lite@1.0.30001800",
+          "license": "CC-BY-4.0"
+        },
+        {
+          "component": "lightningcss-android-arm64@1.32.0",
+          "license": "MPL-2.0"
+        },
+        {
+          "component": "lightningcss-darwin-arm64@1.32.0",
+          "license": "MPL-2.0"
+        },
+        {
+          "component": "lightningcss-darwin-x64@1.32.0",
+          "license": "MPL-2.0"
+        },
+        {
+          "component": "lightningcss-freebsd-x64@1.32.0",
+          "license": "MPL-2.0"
+        },
+        {
+          "component": "lightningcss-linux-arm-gnueabihf@1.32.0",
+          "license": "MPL-2.0"
+        },
+        {
+          "component": "lightningcss-linux-arm64-gnu@1.32.0",
+          "license": "MPL-2.0"
+        },
+        {
+          "component": "lightningcss-linux-arm64-musl@1.32.0",
+          "license": "MPL-2.0"
+        },
+        {
+          "component": "lightningcss-linux-x64-gnu@1.32.0",
+          "license": "MPL-2.0"
+        },
+        {
+          "component": "lightningcss-linux-x64-musl@1.32.0",
+          "license": "MPL-2.0"
+        },
+        {
+          "component": "lightningcss-win32-arm64-msvc@1.32.0",
+          "license": "MPL-2.0"
+        },
+        {
+          "component": "lightningcss-win32-x64-msvc@1.32.0",
+          "license": "MPL-2.0"
+        },
+        {
+          "component": "lightningcss@1.32.0",
+          "license": "MPL-2.0"
+        }
+      ],
+      "installScripts": [
+        {
+          "component": "esbuild@0.28.1",
+          "scope": "excluded",
+          "class": "REVIEWED",
+          "note": "development build tool; has a registry binary-download fallback"
+        },
+        {
+          "component": "fsevents@2.3.3",
+          "scope": "excluded",
+          "class": "REVIEWED",
+          "note": "optional, macOS only, development tree"
+        },
+        {
+          "component": "onnxruntime-node@1.24.3",
+          "scope": "required",
+          "class": "REVIEWED",
+          "note": "postinstall fetches native packages from NuGet"
+        },
+        {
+          "component": "protobufjs@7.6.6",
+          "scope": "required",
+          "class": "REVIEWED",
+          "note": "declares a lifecycle script"
+        },
+        {
+          "component": "sharp@0.34.5",
+          "scope": "required",
+          "class": "REVIEWED",
+          "note": "declares a lifecycle script"
+        },
+        {
+          "component": "unrs-resolver@1.12.2",
+          "scope": "excluded",
+          "class": "REVIEWED",
+          "note": "development tree; declares a lifecycle script"
+        },
+        {
+          "component": "workerd@1.20260910.1",
+          "scope": "excluded",
+          "class": "REVIEWED",
+          "note": "development tree; has a registry binary-download fallback"
+        }
+      ],
+      "blockingFindings": 0,
+      "reviewFindings": 0
+    },
+    "blockingFindings": []
+  },
+  "advisories": {
+    "state": "REPORT",
+    "source": "npm-offline-cache",
+    "current": false,
+    "reportSha256": "0c52cf5be8a601ad4e9fc0f3860af0a61a2b7764c6519844c3cb01671ddf55dd",
+    "reportedAt": "2026-10-01T23:27:52.963Z",
+    "counts": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    }
+  },
+  "artifacts": {
+    "lifecycle": [
+      {
+        "id": "llm.local-text.qwen2.5-3b",
+        "kind": "llm",
+        "role": "local-text-generation",
+        "state": "PINNED",
+        "admission": "OWNER_SELECTED",
+        "identity": {
+          "type": "ollama-digest",
+          "tag": "qwen2.5:3b",
+          "digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b"
+        },
+        "local": "NOT_OBSERVED"
+      },
+      {
+        "id": "llm.local-text.qwen2.5-7b",
+        "kind": "llm",
+        "role": "local-text-generation",
+        "state": "PINNED",
+        "admission": "OWNER_SELECTED",
+        "identity": {
+          "type": "ollama-digest",
+          "tag": "qwen2.5:7b",
+          "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e"
+        },
+        "local": "NOT_OBSERVED"
+      },
+      {
+        "id": "coding-model.local-coding.qwen2.5-coder-14b-q4km",
+        "kind": "coding-model",
+        "role": "local-coding",
+        "state": "DEGRADED",
+        "admission": "NONE",
+        "identity": {
+          "type": "hf-revision",
+          "repository": "Qwen/Qwen2.5-Coder-14B-Instruct-GGUF",
+          "revision": "d0a692ef765eefbf2fabb130b3cb2e8917e3d225",
+          "file": "qwen2.5-coder-14b-instruct-q4_k_m.gguf",
+          "sha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940"
+        },
+        "local": "SIZE_MATCH"
+      },
+      {
+        "id": "speech-model.stt.whisper-large-v3-turbo",
+        "kind": "speech-model",
+        "role": "speech-to-text",
+        "state": "PINNED",
+        "admission": "OWNER_SELECTED",
+        "identity": {
+          "type": "sha256-file",
+          "sha256": "1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69",
+          "sizeBytes": 1624555275,
+          "locator": "bin/whisper/ggml-large-v3-turbo.bin"
+        },
+        "local": "SIZE_MATCH"
+      },
+      {
+        "id": "speech-model.wake-word.ayas-openwakeword",
+        "kind": "speech-model",
+        "role": "wake-word",
+        "state": "PINNED",
+        "admission": "OWNER_SELECTED",
+        "identity": {
+          "type": "sha256-file",
+          "sha256": "37aaab151f88fbd2fe795593176718aa10067a5526b8e41c94784aa08a80539c",
+          "sizeBytes": 870176,
+          "locator": "public/wake/ayas.onnx"
+        },
+        "local": "MATCH"
+      },
+      {
+        "id": "speech-model.narration-tts.piper-tr-dfki-medium",
+        "kind": "speech-model",
+        "role": "narration-tts",
+        "state": "PINNED",
+        "admission": "OWNER_SELECTED",
+        "identity": {
+          "type": "sha256-file",
+          "sha256": "2844717f524ab965d3fe86e60562cbb601d3e456836efcc2196cc3a14112a8fb",
+          "sizeBytes": 63201294,
+          "locator": "bin/piper/tr_TR-dfki-medium.onnx"
+        },
+        "local": "MATCH"
+      },
+      {
+        "id": "speech-model.narration-tts.hosted-provider",
+        "kind": "speech-model",
+        "role": "narration-tts",
+        "state": "DISCOVERED",
+        "admission": "OWNER_SELECTED",
+        "identity": {
+          "type": "UNPINNED",
+          "reason": "a vendor-hosted voice has no digest the caller can pin; the vendor can change it without notice"
+        },
+        "local": "NOT_CHECKABLE"
+      },
+      {
+        "id": "speech-model.assistant-tts.browser-speech-synthesis",
+        "kind": "speech-model",
+        "role": "assistant-voice-tts",
+        "state": "DISCOVERED",
+        "admission": "OWNER_SELECTED",
+        "identity": {
+          "type": "UNPINNED",
+          "reason": "the device and browser choose the voice; nothing fixes which one speaks"
+        },
+        "local": "NOT_CHECKABLE"
+      },
+      {
+        "id": "media-helper.ffmpeg.9.0-gyan-full",
+        "kind": "media-helper",
+        "role": "video-audio-processing",
+        "state": "PINNED",
+        "admission": "OWNER_SELECTED",
+        "identity": {
+          "type": "sha256-file",
+          "sha256": "05f4251bce9293c2ab492cb17ca7724a0ffd0d06c881ba2ee83b82a89c2fc740",
+          "sizeBytes": 222248960,
+          "locator": "env:FFMPEG_PATH"
+        },
+        "local": "NOT_CHECKABLE"
+      },
+      {
+        "id": "prompt.ayas-reasoning.2026-10-01",
+        "kind": "prompt",
+        "role": "ayas-reasoning-prompt",
+        "state": "PINNED",
+        "admission": "OWNER_SELECTED",
+        "identity": {
+          "type": "source-digest",
+          "files": [
+            "src/lib/ayas/reasoning/AyasReasoningPrompt.ts"
+          ],
+          "sha256": "5212ff568f51e43e9e140be3b2185ece391fd076f244be6ef617868daaf66a51"
+        },
+        "local": "MATCH"
+      },
+      {
+        "id": "improvement-strategy.discovery.second-safe-smoke-coverage-v1",
+        "kind": "improvement-strategy",
+        "role": "safe-candidate-discovery",
+        "state": "PINNED",
+        "admission": "OWNER_SELECTED",
+        "identity": {
+          "type": "source-digest",
+          "files": [
+            "src/lib/brain/autonomy/AyasDiscoveryRegistry.ts"
+          ],
+          "sha256": "df8bc834fb8d89d211023ff9d1bf15be625dcf263fb3be905bbadbae4247ddc2"
+        },
+        "local": "MATCH"
+      },
+      {
+        "id": "improvement-strategy.research-experiment.exp-memory-render-tool-supersession",
+        "kind": "improvement-strategy",
+        "role": "registered-research-experiment",
+        "state": "PINNED",
+        "admission": "OWNER_SELECTED",
+        "identity": {
+          "type": "source-digest",
+          "files": [
+            "src/lib/brain/autonomy/AyasResearchExperimentRegistry.ts"
+          ],
+          "sha256": "214204bcf365ed7e1cd9b5d724867b1b879b5c534c2b8b18fbedd327bd45a143"
+        },
+        "local": "MATCH"
+      },
+      {
+        "id": "evaluator.cognitive-quality.2026-10-01",
+        "kind": "evaluator",
+        "role": "cognitive-quality-evaluator",
+        "state": "PINNED",
+        "admission": "OWNER_SELECTED",
+        "identity": {
+          "type": "source-digest",
+          "files": [
+            "scripts/smoke-ayas-cognitive-quality.ts"
+          ],
+          "sha256": "a46db05431345e463e5044d94937a03d9fceda2afe38cbd0983bc22bc1d69271"
+        },
+        "local": "MATCH"
+      },
+      {
+        "id": "evaluator.research-improvement.2026-10-01",
+        "kind": "evaluator",
+        "role": "research-improvement-evaluator",
+        "state": "PINNED",
+        "admission": "NONE",
+        "identity": {
+          "type": "source-digest",
+          "files": [
+            "scripts/smoke-ayas-research-improvement-loop.ts"
+          ],
+          "sha256": "32f6fdb2262781a38d6609c41aba2b16b2c9c5725af7eadfd3c92920bbb092ab",
+          "revision": "76aa4b1f0238e1cbaf3accef0558ee78325961b3"
+        },
+        "local": "MATCH"
+      },
+      {
+        "id": "evaluator.research-improvement.15f4-v2",
+        "kind": "evaluator",
+        "role": "research-improvement-evaluator",
+        "state": "PINNED",
+        "admission": "NONE",
+        "identity": {
+          "type": "source-digest",
+          "files": [
+            "scripts/smoke-ayas-research-improvement-loop.ts"
+          ],
+          "sha256": "5d1901da1169cab5d2b496ed26522c4df0526ea9e47ae094b898f281572e66a9"
+        },
+        "local": "MATCH"
+      },
+      {
+        "id": "evaluator.retrieval.2026-10-01",
+        "kind": "evaluator",
+        "role": "retrieval-evaluator",
+        "state": "PINNED",
+        "admission": "NONE",
+        "identity": {
+          "type": "source-digest",
+          "files": [
+            "scripts/smoke-ayas-retrieval-evaluation.ts",
+            "scripts/lib/AyasRetrievalEvaluation.ts"
+          ],
+          "sha256": "b4c454a68d36977012b97e2df6755d7ed66e7788d4e6500aff86a7e7c1f5e5d5",
+          "revision": "09e1c68825830924ee5c44ec815598704f443dcb"
+        },
+        "local": "MATCH"
+      },
+      {
+        "id": "evaluator.retrieval.pf15c-v2",
+        "kind": "evaluator",
+        "role": "retrieval-evaluator",
+        "state": "PINNED",
+        "admission": "NONE",
+        "identity": {
+          "type": "source-digest",
+          "files": [
+            "scripts/smoke-ayas-retrieval-evaluation.ts",
+            "scripts/lib/AyasRetrievalEvaluation.ts"
+          ],
+          "sha256": "cee4eeb022a557f3f697188a5a512bf4d72a8c333f45a196b003fcbd2f177a72"
+        },
+        "local": "MATCH"
+      }
+    ],
+    "localVerification": "DONE",
+    "localCodingManifest": {
+      "state": "PRESENT",
+      "sha256": "d7935c280cba8d82fc54ccd761b9d766a2606647ad9e5b1a9033d365a1be0fc0",
+      "files": 57,
+      "totalBytes": 9016238513
+    }
+  },
+  "graphify": {
+    "state": "PRESENT",
+    "builtFromHead": "5ad8c0c86ed484157845168c8a2ca73fc6366d3b",
+    "lastAnalyzedHead": "5ad8c0c86ed484157845168c8a2ca73fc6366d3b",
+    "structural": "PARTIAL",
+    "semantic": "PENDING",
+    "nodes": 16633,
+    "links": 47982,
+    "anomalies": 0,
+    "incompleteCodeFiles": 9,
+    "graphSha256": "8b151c80dcc9b50957f3c8e1cb4e60a2bca3388cf80f86cb317f4ebd187bd376"
+  },
+  "testMatrix": {
+    "manifestVersion": "15F.4-v9",
+    "manifestDigest": "ff009ee38f5f8d45d1b13706112fe017b2d70b935f32585485ff147924f0367c",
+    "suites": 74,
+    "baseline": {
+      "state": "PRESENT",
+      "sha256": "c1163577ee8fdb0c165aa816da120680e26d1f240b12c55e1b407c02127fccc5",
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "sourceHead": "5ad8c0c86ed484157845168c8a2ca73fc6366d3b",
+      "suites": 74,
+      "failed": 0,
+      "complete": true
+    }
+  },
+  "build": {
+    "state": "PRESENT",
+    "buildId": "pV4E1mG2rmwhSniDHDK64",
+    "sha256": "068773d44e4fd377972358b96b08055a0941c7993db67677626280ccd4cc996b",
+    "files": 978,
+    "bytes": 122370141,
+    "stampedHead": null,
+    "stampedLockfileSha256": null
+  },
+  "signature": {
+    "state": "UNSIGNED",
+    "note": "An offline hash manifest. Online signing is optional and is the owner's decision."
+  },
+  "completeness": {
+    "status": "INCOMPLETE",
+    "gaps": [
+      "ADVISORIES_NOT_CURRENT",
+      "GRAPHIFY_STRUCTURE_INCOMPLETE",
+      "BUILD_NOT_BOUND_TO_HEAD"
+    ]
+  },
+  "manifestDigest": "3011a0d3e609e415c8ed404d05b32215f199c5f30b038e669549135aece08bb7"
+}

@@ -1,4 +1,18 @@
-# AYAS MASTER CURRENT — POST-FREEZE AUDIT COMPLETE / STAGE 15G OPEN — 2026-10-02
+# AYAS MASTER CURRENT — STAGE 15G CLOSED / STAGE 15H OPEN — 2026-10-02
+
+Resolve the real HEAD with `git rev-parse HEAD`; the last tested source packet is `5ad8c0c86ed484157845168c8a2ca73fc6366d3b`. Branch `wip/ayas-graphify-final-execution`, local commits only, NO PUSH.
+
+Stage 15G (SBOM / Provenance / Release Trust) is closed green. A CycloneDX SBOM is built from the lockfile alone (550 components, no blocking finding) and a sealed release provenance manifest records commit, lockfile, SBOM, licenses, install scripts, advisory state, pinned model and binary identities, Graphify state, test matrix and build output. Operator script: `npx tsx scripts/ayas-release-provenance.ts`. `npm run build` now writes a build stamp. Nothing was installed, upgraded or fetched.
+
+The record for this commit says INCOMPLETE for three honest reasons: advisories were read from the offline cache only (a live query needs the owner's authorization), 9 known files have no Graphify nodes, and the build on this machine predates the stamp. Evidence: `docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15G/`.
+
+Tests: 18 scenarios, 28/28 negative controls, declared 74-suite baseline at the commit with no failure (cognitive 54/55, held-out 4/5 unchanged).
+
+Owner actions, none blocking: authorize a live `npm audit`; rebuild; look at 42 components whose license is outside the short permissive list; plus the post-freeze items below.
+
+Next: canonical Stage 15H (Autonomy Burn-In / No-Cloud Independence Certification Framework). Expected honest result: LOCAL_INDEPENDENCE_DEGRADED, because Stage 15A closed degraded. Cloud coding stays off.
+
+# AYAS MASTER — POST-FREEZE AUDIT COMPLETE / STAGE 15G OPEN — 2026-10-02
 
 Resolve the real HEAD with `git rev-parse HEAD`; the last tested source packet is `5c31024d414627d043281193a948d2e6248b1ab9`. Branch `wip/ayas-graphify-final-execution`, local commits only, NO PUSH.
 
