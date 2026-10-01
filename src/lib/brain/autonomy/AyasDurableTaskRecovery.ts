@@ -40,17 +40,31 @@ import { AyasExecutionAuthorityLockError, withAyasExecutionAuthorityLock, type A
  *    the sweep moves on. Nothing is repaired, taken over or cancelled here.
  *  - **Dry run.** Reads only: no lock, no event, no activity call.
  *
- * Until the owner approves the live binding, an applying sweep refuses the
- * journal directory the autonomy observer would use by default.
+ * The live journal, the directory the autonomy observer uses by default,
+ * accepts an applying sweep only while `ayasDurableTaskLiveBinding()` says
+ * the owner approved it.
  */
 export type AyasDurableTaskLiveBinding = "REQUIRE_OWNER" | "OWNER_APPROVED";
 
-/** Whether a sweep may write to the live journal. An owner decision, changed only by a reviewed source change. */
-export function ayasDurableTaskLiveBinding(): AyasDurableTaskLiveBinding { return "REQUIRE_OWNER"; }
+/**
+ * Whether a sweep may write to the live journal. An owner decision, changed only by a reviewed source change.
+ *
+ * `OWNER_APPROVED` since 2026-10-01: the owner approved binding the sweep, with the first activity set, to the
+ * autonomy observer's tick (`LIVE_BINDING_REVIEW_PACKET.md`). The approval covers that one read-only activity; it
+ * does not enable side-effect starts. Returning `REQUIRE_OWNER` again turns the live sweep off.
+ */
+export function ayasDurableTaskLiveBinding(): AyasDurableTaskLiveBinding { return "OWNER_APPROVED"; }
 
 /** `true` for the journal directory a production caller gets by default (`data/brain/autonomy` under the working directory). */
 export function isAyasDurableTaskLiveJournal(journalDir: string, cwd: string = process.cwd()): boolean {
   return path.resolve(journalDir).toLowerCase() === path.join(path.resolve(cwd), "data", "brain", "autonomy", "durable-tasks").toLowerCase();
+}
+
+/** Refuses an applying sweep over the live journal unless the binding is approved. A dry run is allowed in any state. */
+export function assertAyasDurableTaskSweepAllowed(binding: AyasDurableTaskLiveBinding, journalDir: string, dryRun: boolean, cwd: string = process.cwd()): void {
+  if (!dryRun && binding !== "OWNER_APPROVED" && isAyasDurableTaskLiveJournal(journalDir, cwd)) {
+    throw new AyasDurableTaskError("AYAS_DURABLE_TASK_LIVE_BINDING_REQUIRES_OWNER", "the live durable task journal accepts no sweep until the owner approves the binding");
+  }
 }
 
 export type AyasDurableTaskSweepOutcome =
@@ -147,9 +161,7 @@ export async function sweepAyasDurableTasks(deps: AyasDurableTaskRuntimeDeps, op
   const allowSideEffectStarts = options.allowSideEffectStarts === true;
   const { journal } = deps;
   // Checked before the first disk access: a refused sweep leaves no trace in the live directory.
-  if (!dryRun && ayasDurableTaskLiveBinding() !== "OWNER_APPROVED" && isAyasDurableTaskLiveJournal(journal.dir)) {
-    throw new AyasDurableTaskError("AYAS_DURABLE_TASK_LIVE_BINDING_REQUIRES_OWNER", "the live durable task journal accepts no sweep until the owner approves the binding");
-  }
+  assertAyasDurableTaskSweepAllowed(ayasDurableTaskLiveBinding(), journal.dir, dryRun);
   const nowMs = deps.nowMs ?? Date.now;
   const at = new Date(nowMs()).toISOString();
   const report = (result: AyasDurableTaskSweepReport["result"], journals: number, entries: readonly AyasDurableTaskSweepEntry[], activityCalls: number): AyasDurableTaskSweepReport => {

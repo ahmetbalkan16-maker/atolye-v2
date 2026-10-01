@@ -1,20 +1,22 @@
 /**
  * Stage 15B — durable task recovery scan and sweep.
  *
- *   npx tsx scripts/ayas-durable-task-recovery.ts [--root <dir>] [--apply] [--enqueue-graphify-check]
+ *   npx tsx scripts/ayas-durable-task-recovery.ts [--root <dir>] [--apply] [--enqueue-head-check]
  *
  * Without --apply this is a dry run: it reads the journal and prints what a
  * sweep would do. It takes no lock, records nothing and runs no activity.
  *
  * --apply runs one sweep with the first activity set (one read-only
- * activity). It is refused for the live journal under data/brain/autonomy
- * until the owner approves the live binding; pass --root to use another
- * journal directory.
+ * activity). The default journal is the live one under data/brain/autonomy;
+ * it is refused (exit 2) whenever the live binding is not owner-approved.
+ * Pass --root to use another journal directory.
  *
- * --enqueue-graphify-check (with --apply) first creates the task that
+ * --enqueue-head-check (with --apply) first creates the task that
  * records the Graphify state of the current HEAD, if it does not exist.
  *
- * No daemon runs this script.
+ * The autonomy observer's tick runs this script as a child process with
+ * --apply --enqueue-head-check (owner-approved on 2026-10-01). Nothing
+ * else runs it.
  */
 import { execFileSync } from "node:child_process";
 
@@ -26,13 +28,13 @@ import { createAyasDurableTask, createAyasDurableTaskOwner } from "../src/lib/br
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  const known = new Set(["--root", "--apply", "--enqueue-graphify-check"]);
+  const known = new Set(["--root", "--apply", "--enqueue-head-check"]);
   const rootIndex = args.indexOf("--root");
   const rootDir = rootIndex >= 0 ? args[rootIndex + 1] : undefined;
   const isRootValue = (index: number): boolean => rootIndex >= 0 && index === rootIndex + 1;
   if (args.some((arg, index) => !known.has(arg) && !isRootValue(index)) || (rootIndex >= 0 && (!rootDir || rootDir.startsWith("--")))) throw new Error("AYAS_DURABLE_TASK_RECOVERY_ARGUMENTS_INVALID");
   const apply = args.includes("--apply");
-  const enqueue = args.includes("--enqueue-graphify-check");
+  const enqueue = args.includes("--enqueue-head-check");
   if (enqueue && !apply) throw new Error("AYAS_DURABLE_TASK_RECOVERY_ENQUEUE_NEEDS_APPLY");
 
   const journal = createAyasDurableTaskJournal(rootDir ? { rootDir } : {});

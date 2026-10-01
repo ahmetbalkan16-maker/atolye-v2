@@ -1,6 +1,8 @@
 # Stage 15B — first live activity binding: owner review
 
-**State: `REQUIRE_OWNER`.** Nothing is bound. The durable task runtime, the recovery sweep and the first activity set exist and are tested, but no daemon, route or scheduled task calls them, and an applying sweep refuses the live journal directory. This packet asks for one decision: bind the recovery sweep to the live autonomy observer, or not.
+**State: `OWNER_APPROVED` on 2026-10-01.** The owner answered "Onaylıyorum, bağla" to this packet. The binding in section 5 is implemented; section 10 records what was done and the one difference from the text below. It takes effect when the owner restarts the observer's Scheduled Task.
+
+The packet as reviewed follows. It asked for one decision: bind the recovery sweep to the live autonomy observer, or not.
 
 ## 1. What would be bound
 
@@ -8,7 +10,7 @@
 | --- | --- |
 | Component | The `tick()` of `scripts/ayas-autonomy-daemon.ts`, the process behind the Scheduled Task "AYAS Autonomy Observer" (runs from this checkout, every 5 minutes). |
 | How | As a separate child process, the same way the tick already runs `scripts/ayas-discovery-daemon.ts`. The observer imports nothing new, so its module graph stays free of approval and execution code. |
-| Command | `tsx scripts/ayas-durable-task-recovery.ts --apply --enqueue-graphify-check`, 150 s timeout (longer than the step's own 120 s bound, so the step's timeout decides). A failure becomes one line in the tick's `gaps`; it cannot stop the tick. |
+| Command | `tsx scripts/ayas-durable-task-recovery.ts --apply --enqueue-graphify-check` (implemented as `--enqueue-head-check`, see section 10), 150 s timeout (longer than the step's own 120 s bound, so the step's timeout decides). A failure becomes one line in the tick's `gaps`; it cannot stop the tick. |
 | When skipped | When Machine Health says anything other than `ALLOW` or `THROTTLE`. |
 
 ## 2. The activity set
@@ -76,3 +78,13 @@ No data migration and no state outside that directory.
 
 - **Approve**: the change in section 5 is made, tested, committed locally and reported. No push.
 - **Reject or later**: nothing changes. The runtime stays framework-only and Stage 15B stays open at this gate.
+
+## 10. Decision record and implementation
+
+- **Decision:** approved by the owner on 2026-10-01, in the session that produced this packet. The approval covers the one read-only activity in section 2. It does not enable side-effect starts and grants no other authority.
+- **Implemented as reviewed:** `ayasDurableTaskLiveBinding()` returns `OWNER_APPROVED`; the observer's `tick()` runs the operator script as a child process, skips it unless Machine Health is `ALLOW` or `THROTTLE`, and folds a failure or a non-empty review list into `gaps`.
+- **One difference from the reviewed text: the flag is named `--enqueue-head-check`, not `--enqueue-graphify-check`.** An existing invariant test (`scripts/smoke-ayas-continuous-self-improvement.ts`) forbids the word "graphify" on the observer's child-process line, so that the observer can never start a graph rebuild. The script runs no Graphify, but the flag name tripped the test. The flag was renamed and the test was left untouched. Behaviour is identical.
+- **Off switch kept and tested:** the refusal moved into `assertAyasDurableTaskSweepAllowed`, tested for both states. Returning `REQUIRE_OWNER` from `ayasDurableTaskLiveBinding()` refuses an applying sweep over the live journal again.
+- **Smoke suites:** both durable task suites no longer assert that the live journal directory is absent, because the observer now creates it. They assert instead that no task they created exists in it.
+- **Known limit found while implementing:** a commit's graph state is recorded once, at the first sweep after that commit. If the graph is rebound a minute later, the record still says what was true at that sweep. The record carries its event time; nothing reads it as the graph's current state.
+- **Still required from the owner:** restart the "AYAS Autonomy Observer" Scheduled Task. Until then the running observer process uses its old code and does not call the sweep.

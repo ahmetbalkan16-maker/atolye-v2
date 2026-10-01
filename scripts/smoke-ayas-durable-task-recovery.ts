@@ -31,6 +31,7 @@ import {
 } from "../src/lib/brain/autonomy/AyasDurableTaskActivities";
 import { createAyasDurableTaskJournal, type AyasDurableTaskJournal } from "../src/lib/brain/autonomy/AyasDurableTaskJournal";
 import {
+  assertAyasDurableTaskSweepAllowed,
   ayasDurableTaskLiveBinding,
   isAyasDurableTaskLiveJournal,
   sweepAyasDurableTasks,
@@ -52,6 +53,8 @@ const base = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-durable-recovery-"));
 assert.ok(fs.realpathSync(base).toLowerCase().startsWith(fs.realpathSync(os.tmpdir()).toLowerCase() + path.sep), "TEMP_ROOT_REQUIRED");
 let scenarios = 0;
 let roots = 0;
+/** The task the operator script creates in the TEMP checkout. */
+let fixtureTaskId = "";
 
 type World = { journal: AyasDurableTaskJournal; root: string; clock: { ms: number }; deps: (activities: Record<string, AyasDurableActivity>, owner?: AyasDurableTaskOwner, alive?: boolean) => AyasDurableTaskRuntimeDeps };
 /**
@@ -62,8 +65,11 @@ function world(same?: World): World {
   const root = same?.root ?? path.join(base, `root-${++roots}`);
   const clock = same?.clock ?? { ms: Date.parse("2026-10-01T10:00:00.000Z") };
   const journal = createAyasDurableTaskJournal({ rootDir: root, now: () => new Date(clock.ms) });
+  journals.push(journal);
   return { journal, root, clock, deps: (activities, owner = self, alive) => ({ journal, activities, owner, nowMs: () => clock.ms, ...(alive === undefined ? {} : { isOwnerAlive: async () => alive }) }) };
 }
+/** Every TEMP journal this suite opened, to prove at the end that none of its tasks reached the live journal. */
+const journals: AyasDurableTaskJournal[] = [];
 const self: AyasDurableTaskOwner = { pid: process.pid, startEpochMs: 1, nonce: "owner-self" };
 const other: AyasDurableTaskOwner = { pid: 999_999, startEpochMs: 2, nonce: "owner-crashed" };
 const quick = { acquireRetryLimit: 2, acquireRetryDelayMs: 5 };
@@ -633,38 +639,46 @@ async function main(): Promise<void> {
     assert.ok(!stored.includes(base) && !stored.toLowerCase().includes(repo.toLowerCase()) && !/[A-Za-z]:\\\\/.test(stored), "a path reached the journal");
   });
 
-  await scenario("live binding: REQUIRE_OWNER, refused before any disk access, no daemon wired", async () => {
-    assert.equal(ayasDurableTaskLiveBinding(), "REQUIRE_OWNER");
+  await scenario("live binding: owner-approved, the off switch still works, only the observer runs the script", async () => {
+    // The owner approved the binding on 2026-10-01. The state is a reviewed constant, not configuration.
+    assert.equal(ayasDurableTaskLiveBinding(), "OWNER_APPROVED");
     const cwd = path.join(base, "checkout");
     const liveDir = path.join(cwd, "data", "brain", "autonomy", "durable-tasks");
     assert.deepEqual([isAyasDurableTaskLiveJournal(liveDir, cwd), isAyasDurableTaskLiveJournal(liveDir.toUpperCase(), cwd), isAyasDurableTaskLiveJournal(path.join(liveDir, "..", "durable-tasks"), cwd),
       isAyasDurableTaskLiveJournal(path.join(cwd, "data", "brain", "autonomy"), cwd), isAyasDurableTaskLiveJournal(path.join(base, "root-1", "durable-tasks"), cwd)], [true, true, true, false, false]);
-    // The default journal of this checkout is the live one. Building the handle touches no disk; the sweep refuses it first.
-    const live = createAyasDurableTaskJournal();
-    assert.ok(isAyasDurableTaskLiveJournal(live.dir));
-    let listed = 0;
-    const guarded: AyasDurableTaskJournal = { ...live, list: () => { listed++; return []; } };
-    await expectCode("AYAS_DURABLE_TASK_LIVE_BINDING_REQUIRES_OWNER", () => sweepAyasDurableTasks({ journal: guarded, activities: {}, owner: self }));
-    await expectCode("AYAS_DURABLE_TASK_LIVE_BINDING_REQUIRES_OWNER", () => sweepAyasDurableTasks({ journal: guarded, activities: {}, owner: self }, { allowSideEffectStarts: true }));
-    assert.equal(listed, 0);
+    assert.ok(isAyasDurableTaskLiveJournal(path.join(repo, "data", "brain", "autonomy", "durable-tasks")));
+    // The guard for both states: withdrawing the approval refuses an applying sweep over the live journal and
+    // nothing else. A dry run and any other journal are never refused.
+    const refusal = (error: unknown): boolean => error instanceof AyasDurableTaskError && error.code === "AYAS_DURABLE_TASK_LIVE_BINDING_REQUIRES_OWNER";
+    assert.throws(() => assertAyasDurableTaskSweepAllowed("REQUIRE_OWNER", liveDir, false, cwd), refusal);
+    assert.throws(() => assertAyasDurableTaskSweepAllowed("REQUIRE_OWNER", liveDir.toUpperCase(), false, cwd), refusal);
+    assert.doesNotThrow(() => assertAyasDurableTaskSweepAllowed("REQUIRE_OWNER", liveDir, true, cwd));
+    assert.doesNotThrow(() => assertAyasDurableTaskSweepAllowed("REQUIRE_OWNER", path.join(base, "root-1", "durable-tasks"), false, cwd));
+    assert.doesNotThrow(() => assertAyasDurableTaskSweepAllowed("OWNER_APPROVED", liveDir, false, cwd));
+    // The approval does not enable side effects: a sweep still starts none unless its caller says so in code.
+    const policy = world(); const untouched = target();
+    const sideEffect = createAyasDurableTask(policy.journal, task("approved-binding-policy", [write("apply")], "REVENUE"));
+    assert.deepEqual([entry(await sweep(policy, untouched.activities), sideEffect.taskId).outcome, untouched.runs.length], ["REFUSED", 0]);
 
-    // The operator script: dry run by default, --apply refused for the live journal, usable against another root.
+    // The operator script: dry run by default; --apply over an empty journal creates nothing.
     const script = path.join(repo, "scripts", "ayas-durable-task-recovery.ts");
     const cli = (cwdDir: string, args: readonly string[]): { status: number | null; stdout: string; stderr: string } => {
       const run = spawnSync(process.execPath, [path.join(repo, "node_modules", "tsx", "dist", "cli.mjs"), "--tsconfig", path.join(repo, "tsconfig.json"), script, ...args], { cwd: cwdDir, encoding: "utf8", windowsHide: true, timeout: 120_000 });
       return { status: run.status, stdout: run.stdout, stderr: run.stderr };
     };
     fs.mkdirSync(cwd, { recursive: true });
-    const refused = cli(cwd, ["--apply"]);
-    assert.deepEqual([refused.status, JSON.parse(refused.stdout)], [2, { status: "REQUIRE_OWNER", code: "AYAS_DURABLE_TASK_LIVE_BINDING_REQUIRES_OWNER" }]);
-    assert.equal(cli(cwd, ["--apply", "--enqueue-graphify-check"]).status, 2);
+    const idle = cli(cwd, ["--apply"]);
+    const idleReport = (JSON.parse(idle.stdout) as { liveBinding: string; report: AyasDurableTaskSweepReport }).report;
+    assert.deepEqual([idle.status, idleReport.mode, idleReport.result, idleReport.journals], [0, "APPLY", "SWEPT", 0]);
+    // Outside a repository there is no HEAD to enqueue a task for: the script fails and writes nothing.
+    assert.equal(cli(cwd, ["--apply", "--enqueue-head-check"]).status, 1);
     assert.deepEqual(fs.readdirSync(cwd), []);
     const w = world();
     const queued = createAyasDurableTask(w.journal, ayasGraphifyStateTaskInput(head));
     const before = snapshot(w.root);
     const dry = cli(cwd, ["--root", w.root]);
     const plan = JSON.parse(dry.stdout) as { status: string; liveBinding: string; report: AyasDurableTaskSweepReport };
-    assert.deepEqual([dry.status, plan.status, plan.liveBinding, plan.report.mode, plan.report.outcomes, snapshot(w.root)], [0, "OK", "REQUIRE_OWNER", "DRY_RUN", { PLANNED: 1 }, before]);
+    assert.deepEqual([dry.status, plan.status, plan.liveBinding, plan.report.mode, plan.report.outcomes, snapshot(w.root)], [0, "OK", "OWNER_APPROVED", "DRY_RUN", { PLANNED: 1 }, before]);
     // --apply against a TEMP root runs the real set; the script's working directory is not a repository.
     const applied = cli(cwd, ["--root", w.root, "--apply"]);
     assert.deepEqual([applied.status, (JSON.parse(applied.stdout) as { report: AyasDurableTaskSweepReport }).report.outcomes, w.journal.load(queued.taskId)!.stepStates[0]!.status], [0, { ADVANCED: 1 }, "RETRY_WAIT"]);
@@ -679,29 +693,40 @@ async function main(): Promise<void> {
       return run.stdout.trim();
     };
     git("init", "-q"); git("config", "user.email", "f@example.invalid"); git("config", "user.name", "fixture");
+    // Like the real repository, the fixture ignores its runtime data directory.
     fs.writeFileSync(path.join(checkout, "README.md"), "fixture\n");
-    git("add", "README.md"); git("commit", "-q", "-m", "fixture");
+    fs.writeFileSync(path.join(checkout, ".gitignore"), "/data/\n");
+    git("add", "README.md", ".gitignore"); git("commit", "-q", "-m", "fixture");
     const checkoutHead = git("rev-parse", "HEAD");
-    assert.equal(cli(checkout, ["--enqueue-graphify-check"]).status, 1);
-    assert.equal(cli(checkout, ["--root", path.join(checkout, "journal"), "--enqueue-graphify-check"]).status, 1);
-    assert.deepEqual(fs.readdirSync(checkout).sort(), [".git", "README.md"]);
-    // The whole non-live path with the real collector: enqueue the task for this HEAD, read the state, record it once.
-    const journalRoot = path.join(base, "git-checkout-journal");
-    const run = cli(checkout, ["--root", journalRoot, "--apply", "--enqueue-graphify-check"]);
+    assert.equal(cli(checkout, ["--enqueue-head-check"]).status, 1);
+    assert.equal(cli(checkout, ["--root", path.join(checkout, "journal"), "--enqueue-head-check"]).status, 1);
+    assert.deepEqual(fs.readdirSync(checkout).sort(), [".git", ".gitignore", "README.md"]);
+    // Exactly what the observer's tick runs, in a TEMP checkout: the default journal under the working directory,
+    // the real collector, the task for this HEAD enqueued, its state read and recorded once.
+    const observerCommand = ["--apply", "--enqueue-head-check"];
+    const run = cli(checkout, observerCommand);
     assert.deepEqual([run.status, (JSON.parse(run.stdout) as { report: AyasDurableTaskSweepReport }).report.outcomes], [0, { ADVANCED: 1 }]);
-    const recorded = createAyasDurableTaskJournal({ rootDir: journalRoot });
-    const state = recorded.load(defineAyasDurableTask(ayasGraphifyStateTaskInput(checkoutHead)).taskId)!;
+    const recorded = createAyasDurableTaskJournal({ rootDir: path.join(checkout, "data", "brain", "autonomy") });
+    fixtureTaskId = defineAyasDurableTask(ayasGraphifyStateTaskInput(checkoutHead)).taskId;
+    const state = recorded.load(fixtureTaskId)!;
     const result = state.stepStates[0]!.result as Record<string, unknown>;
-    // The fixture has no graph: the activity records that, it does not fail and it creates nothing in the checkout.
+    // The fixture has no graph: the activity records that and does not fail. The journal does not dirty the checkout.
     assert.deepEqual([state.status, result.sourceHead, result.boundToHead, result.structuralStatus, result.classification, result.worktreeState], ["COMPLETED", checkoutHead, false, "MISSING", "GRAPH_MISSING", "CLEAN"]);
-    const again = cli(checkout, ["--root", journalRoot, "--apply", "--enqueue-graphify-check"]);
+    const again = cli(checkout, observerCommand);
     assert.deepEqual([again.status, (JSON.parse(again.stdout) as { report: AyasDurableTaskSweepReport }).report.activityCalls, recorded.read(state.taskId).length], [0, 0, 3]);
-    assert.deepEqual(fs.readdirSync(checkout).sort(), [".git", "README.md"]);
+    assert.deepEqual([git("status", "--porcelain"), fs.readdirSync(checkout).sort(), fs.existsSync(path.join(recorded.dir, "execution", ".authority-lock"))], ["", [".git", ".gitignore", "README.md", "data"], false]);
 
-    // Nothing but the operator script and the smoke suites imports the runtime: no daemon, route or autostart is bound.
+    // The observer script is the one caller, and it stays at arm's length: it runs the operator script as a child
+    // process with exactly the approved arguments and imports nothing from the durable task runtime.
+    const observer = fs.readFileSync(path.join(repo, "scripts", "ayas-autonomy-daemon.ts"), "utf8");
+    assert.match(observer, /execFileSync\(process\.execPath, \[tsxCli, script, "--apply", "--enqueue-head-check"\]/);
+    assert.equal(observer.split("ayas-durable-task-recovery").length - 1, 1);
+    assert.doesNotMatch(observer, /AyasDurableTask|allowSideEffectStarts|--root/);
+    assert.match(observer, /observation\.machineAction === "ALLOW" \|\| observation\.machineAction === "THROTTLE" \? runDurableTaskRecovery\(\)/);
+    // Nothing else refers to the runtime: no route, no other daemon, no autostart script, no package script.
     const modules = /AyasDurableTask(?:Recovery|Activities|Runtime|Journal)?\b|ayas-durable-task-recovery/;
     const allowed = new Set(["src/lib/brain/autonomy/AyasDurableTask.ts", "src/lib/brain/autonomy/AyasDurableTaskJournal.ts", "src/lib/brain/autonomy/AyasDurableTaskRuntime.ts", "src/lib/brain/autonomy/AyasDurableTaskRecovery.ts",
-      "src/lib/brain/autonomy/AyasDurableTaskActivities.ts", "scripts/ayas-durable-task-recovery.ts", "scripts/smoke-ayas-durable-task-runtime.ts", "scripts/smoke-ayas-durable-task-recovery.ts"]);
+      "src/lib/brain/autonomy/AyasDurableTaskActivities.ts", "scripts/ayas-durable-task-recovery.ts", "scripts/ayas-autonomy-daemon.ts", "scripts/smoke-ayas-durable-task-runtime.ts", "scripts/smoke-ayas-durable-task-recovery.ts"]);
     const importers: string[] = [];
     const walk = (dir: string): void => {
       for (const item of fs.readdirSync(path.join(repo, dir), { withFileTypes: true })) {
@@ -715,8 +740,11 @@ async function main(): Promise<void> {
     assert.ok(!modules.test(fs.readFileSync(path.join(repo, "package.json"), "utf8")), "package.json runs the recovery script");
   });
 
-  // Nothing was written outside the TEMP base, and no default root was created in the working directory.
-  assert.ok(!fs.existsSync(path.join(repo, "data", "brain", "autonomy", "durable-tasks")), "DEFAULT_ROOT_TOUCHED");
+  // The repository's live journal may exist now (the observer writes it). No task this suite created may be in it.
+  const liveJournal = path.join(repo, "data", "brain", "autonomy", "durable-tasks");
+  const created = new Set([...journals.flatMap((journal) => journal.list()), fixtureTaskId]);
+  assert.ok(created.size > 10 && fixtureTaskId.length > 0);
+  for (const taskId of created) assert.ok(!fs.existsSync(path.join(liveJournal, taskId)), "LIVE_JOURNAL_TOUCHED");
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-durable-task-recovery", scenarios, journalRoots: roots }));
 }
 

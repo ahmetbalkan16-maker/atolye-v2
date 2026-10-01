@@ -1,5 +1,12 @@
 ---
 
+## 2026-10-01 — Stage 15B.2 live binding (owner-approved)
+
+- The autonomy observer's tick now runs the durable task recovery sweep as a child process (`scripts/ayas-durable-task-recovery.ts --apply --enqueue-head-check`) when Machine Health allows. Through one read-only activity it records the Graphify state of each new commit once. A failure becomes a line in the tick's gaps.
+- `ayasDurableTaskLiveBinding()` returns `OWNER_APPROVED`. The off switch is kept and tested: returning `REQUIRE_OWNER` refuses an applying sweep over the live journal. The approval does not enable side-effect starts.
+- The script's flag is `--enqueue-head-check`, renamed so that an existing invariant test on the observer script stays untouched.
+- Takes effect when the owner restarts the "AYAS Autonomy Observer" Scheduled Task.
+
 ## 2026-10-01 — Stage 15B.2 recovery sweep and first activity set (not bound)
 
 - Added `sweepAyasDurableTasks`, one daemon tick over the durable task journal: it closes dead owners' attempts, rereads unconfirmed side effects, then starts new attempts oldest first, one step per task, within a call and time budget. One sweeper at a time through the existing execution authority lock; a dry run reads only.

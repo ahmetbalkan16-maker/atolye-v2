@@ -37,12 +37,15 @@ const base = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-durable-task-"));
 assert.ok(fs.realpathSync(base).toLowerCase().startsWith(fs.realpathSync(os.tmpdir()).toLowerCase() + path.sep), "TEMP_ROOT_REQUIRED");
 let scenarios = 0;
 let roots = 0;
+/** Every TEMP journal this suite opened, to prove at the end that none of its tasks reached the live journal. */
+const journals: AyasDurableTaskJournal[] = [];
 
 /** A clock both the journal and the runtime read, so a test can move time without waiting. */
 function world(): { journal: AyasDurableTaskJournal; root: string; clock: { ms: number }; deps: (activities: Record<string, AyasDurableActivity>, owner?: AyasDurableTaskOwner, alive?: boolean) => AyasDurableTaskRuntimeDeps } {
   const root = path.join(base, `root-${++roots}`);
   const clock = { ms: Date.parse("2026-10-01T10:00:00.000Z") };
   const journal = createAyasDurableTaskJournal({ rootDir: root, now: () => new Date(clock.ms) });
+  journals.push(journal);
   return { journal, root, clock, deps: (activities, owner = self, alive) => ({ journal, activities, owner, nowMs: () => clock.ms, ...(alive === undefined ? {} : { isOwnerAlive: async () => alive }) }) };
 }
 const self: AyasDurableTaskOwner = { pid: process.pid, startEpochMs: 1, nonce: "owner-self" };
@@ -484,8 +487,12 @@ async function main(): Promise<void> {
     assert.match(stored, /redacted:bearer-token/);
   });
 
-  // Nothing was written outside the TEMP base, and no default root was created in the working directory.
-  assert.ok(!fs.existsSync(path.join(process.cwd(), "data", "brain", "autonomy", "durable-tasks")), "DEFAULT_ROOT_TOUCHED");
+  // Nothing was written outside the TEMP base. The repository's live journal may exist since the 15B.2 binding (the
+  // observer writes it); no task this suite created may be in it. A journal that fails replay still lists its tasks.
+  const liveJournal = path.join(process.cwd(), "data", "brain", "autonomy", "durable-tasks");
+  const created = new Set(journals.flatMap((journal) => journal.list()));
+  assert.ok(created.size > 10);
+  for (const taskId of created) assert.ok(!fs.existsSync(path.join(liveJournal, taskId)), "LIVE_JOURNAL_TOUCHED");
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-durable-task-runtime", scenarios, journalRoots: roots }));
 }
 

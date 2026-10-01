@@ -46,6 +46,24 @@ function runAyasDiscoveryDaemon(nextExpectedAt?: string): { readonly ok: boolean
   }
 }
 
+// Stage 15B — the durable task recovery sweep, owner-approved on 2026-10-01.
+// Same arm's-length child process as the discovery step above: this file
+// imports nothing from the durable task runtime. The script runs one
+// read-only activity (the Graphify state of the current HEAD) and never
+// starts a side effect. A failure is folded into `gaps`; it cannot stop the tick.
+function runDurableTaskRecovery(): { readonly ok: boolean; readonly summary: string; readonly needsReview: number } {
+  const tsxCli = path.join(root, "node_modules", "tsx", "dist", "cli.mjs");
+  const script = path.join(root, "scripts", "ayas-durable-task-recovery.ts");
+  try {
+    // Longer than the step's own 120_000ms bound, so the step's timeout decides, not this one.
+    const stdout = execFileSync(process.execPath, [tsxCli, script, "--apply", "--enqueue-head-check"], { cwd: root, encoding: "utf8", windowsHide: true, timeout: 150_000, maxBuffer: 2_000_000, stdio: ["ignore", "pipe", "pipe"] });
+    const { report } = JSON.parse(stdout) as { readonly report: { readonly result: string; readonly activityCalls: number; readonly outcomes: Readonly<Record<string, number>>; readonly needsReview: readonly string[] } };
+    return { ok: true, summary: JSON.stringify({ result: report.result, activityCalls: report.activityCalls, outcomes: report.outcomes }), needsReview: report.needsReview.length };
+  } catch (error) {
+    return { ok: false, summary: error instanceof Error ? error.message : String(error), needsReview: 0 };
+  }
+}
+
 async function tick(observer: ReturnType<typeof createAyasAutonomyObserver>, intervalMs: number, continuous: boolean): Promise<void> {
   const now = new Date().toISOString();
   const telemetry = await collectAyasMachineTelemetry({ cwd: root, now: () => now });
@@ -61,7 +79,10 @@ async function tick(observer: ReturnType<typeof createAyasAutonomyObserver>, int
   const nextExpectedAt = continuous ? new Date(Date.parse(now) + intervalMs).toISOString() : undefined;
   const discovery = runAyasDiscoveryDaemon(nextExpectedAt);
   if (!discovery.ok) observation.gaps.push(`discovery daemon failed: ${discovery.summary}`);
-  console.log(JSON.stringify({ status: "OBSERVED", phase: observer.state.phase, branch: observation.branch, head: observation.head, repoClean: observation.repoClean, graphifyFresh: observation.graphifyFresh, machineAction: observation.machineAction, gaps: observation.gaps.length, discovery: discovery.ok ? discovery.summary : "FAILED" }));
+  const durableTasks = observation.machineAction === "ALLOW" || observation.machineAction === "THROTTLE" ? runDurableTaskRecovery() : { ok: true, summary: "SKIPPED_MACHINE_HEALTH", needsReview: 0 };
+  if (!durableTasks.ok) observation.gaps.push(`durable task recovery failed: ${durableTasks.summary}`);
+  if (durableTasks.needsReview > 0) observation.gaps.push(`${durableTasks.needsReview} durable task(s) need review`);
+  console.log(JSON.stringify({ status: "OBSERVED", phase: observer.state.phase, branch: observation.branch, head: observation.head, repoClean: observation.repoClean, graphifyFresh: observation.graphifyFresh, machineAction: observation.machineAction, gaps: observation.gaps.length, discovery: discovery.ok ? discovery.summary : "FAILED", durableTasks: durableTasks.ok ? durableTasks.summary : "FAILED" }));
 }
 
 async function main(): Promise<void> {

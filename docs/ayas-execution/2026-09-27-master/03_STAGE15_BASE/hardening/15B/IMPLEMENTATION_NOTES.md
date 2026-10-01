@@ -79,7 +79,7 @@ The earlier idea of a browser-session idle watchdog with safe recovery was check
 
 ## 15B.2 Recovery sweep and the first activity set
 
-**State: built and tested, not bound. Live binding is `REQUIRE_OWNER`.** The owner review is in `LIVE_BINDING_REVIEW_PACKET.md`.
+**State: bound. The owner approved the live binding on 2026-10-01** (`LIVE_BINDING_REVIEW_PACKET.md`, section 10). The sections below describe the packet as built before the approval; "15B.2 live binding" at the end describes the binding.
 
 | File | Role |
 | --- | --- |
@@ -164,6 +164,27 @@ One task per commit (`graphify-state:<HEAD>`), so a commit's graph state is reco
 
 `NOT_CURRENTLY_APPLICABLE — NO BROWSER SESSION EXECUTOR`. Checked again for 15B.2: the repository has no Puppeteer, Playwright or WebDriver dependency and no browser-session executor. The two text matches are a trace read scope and a research source entry. The sweep already reports a late attempt (`OVERDUE`), an idle active task (`stale`) and an unproven side effect (`UNCERTAIN`) without replaying anything. If a browser-session executor is added, it registers as an activity and this requirement is evaluated again.
 
+## 15B.2 live binding (owner-approved 2026-10-01)
+
+| File | Change |
+| --- | --- |
+| `src/lib/brain/autonomy/AyasDurableTaskRecovery.ts` | `ayasDurableTaskLiveBinding()` returns `OWNER_APPROVED`. The refusal is now `assertAyasDurableTaskSweepAllowed(binding, journalDir, dryRun)`, so the off switch can be tested for both states. |
+| `scripts/ayas-autonomy-daemon.ts` | `runDurableTaskRecovery()` runs `scripts/ayas-durable-task-recovery.ts --apply --enqueue-head-check` as a child process (150 s timeout). `tick()` calls it when Machine Health is `ALLOW` or `THROTTLE`; a failure and a non-empty review list each add one line to `gaps`. |
+| `scripts/ayas-durable-task-recovery.ts` | Flag renamed to `--enqueue-head-check`. |
+| Both smoke suites | The live journal may now exist; they assert that none of their own tasks is in it. |
+
+- **Why the flag was renamed.** `scripts/smoke-ayas-continuous-self-improvement.ts` forbids the word "graphify" on any `execFileSync(` line of the observer script, so the observer can never start a graph rebuild. `--enqueue-graphify-check` tripped that test although the script runs no Graphify. The flag was renamed; the test was not changed.
+- **The observer still imports nothing new.** Its source contains no reference to the durable task modules. The smoke suite asserts that, the exact child-process arguments, the machine-health condition, and that the script is referenced once. Every existing source invariant on the observer script was evaluated against the changed file and holds.
+- **The approval does not enable side effects.** A sweep with the approved binding still refuses a `SIDE_EFFECT` start; the binding scenario asserts it.
+- **Verification.** Recovery smoke 16 scenarios and runtime smoke 17, plus the three observer suites that are safe to run: `smoke-ayas-autonomy-observer` 22, `smoke-ayas-micro-batch-authority-firewall` 10, `smoke-ayas-continuous-self-improvement` 10. `smoke-ayas-observer-autostart` was not run (it is classified unsafe on this machine); its assertions on the observer source were evaluated directly and hold. A second mutation audit over the binding change caught 10 of 10. TypeScript passes; changed-file lint has zero warnings.
+- **What the binding scenario runs.** The exact observer command in a TEMP Git checkout whose `.gitignore` ignores `/data/`, like this repository. The task for that HEAD is created in the default journal under the checkout, the real collector records the state, a second run makes no activity call, the checkout stays clean and the lock is released.
+- **Takes effect** when the owner restarts the "AYAS Autonomy Observer" Scheduled Task. The running observer process keeps its old code until then.
+
+### Known limits added by the binding
+
+- A commit's graph state is recorded once, at the first sweep after the commit. A graph rebound later is not recorded again for that commit.
+- Each commit adds one journal directory with three small files; they are never pruned.
+
 ### Next
 
-Owner decision on the live binding. Until then Stage 15B stays open at that gate and the runtime stays framework-only.
+Stage 15B closes with this binding. Next: Stage 15C, Memory Integrity / Context-Poisoning Firewall.
