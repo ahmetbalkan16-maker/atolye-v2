@@ -57,23 +57,25 @@ function fixtureRepo(): { readonly repoRoot: string; readonly head: string } {
   // actually matter (discover() refuses to run against a dirty repo).
   git(repoRoot, "config", "core.autocrlf", "false");
   fs.writeFileSync(path.join(repoRoot, "fixture.txt"), "fixture\n");
+  // Mirrors the real repo's own .gitignore for `data/brain/` and `.graphify/`:
+  // the durable inbox this test writes under `<repoRoot>/data/brain/` and the
+  // Graphify state below must not make the fixture look dirty to git (the
+  // exact self-inflicted-dirty-repo class of bug this project has hit for
+  // real before) — discover()'s own repoClean gate would refuse to run.
+  fs.writeFileSync(path.join(repoRoot, ".gitignore"), "/data/\n.graphify/\n");
+  git(repoRoot, "add", "fixture.txt", ".gitignore");
+  git(repoRoot, "commit", "-qm", "base");
+  const head = git(repoRoot, "rev-parse", "HEAD");
   // `AyasAutonomyDaemon.discover()` gates on `observation.graphifyFresh`,
-  // which `ayas-discovery-daemon.ts` derives from a plain file-existence
-  // check — a fixture .graphify/graph.json (content irrelevant) is enough
-  // to make the real spawned process exercise real discovery, not just
-  // staleness reconciliation. It must be COMMITTED (not merely present),
-  // or the fixture repo would show as dirty (an untracked file) and
-  // discover()'s own repoClean gate would refuse to run at all.
+  // which `ayas-discovery-daemon.ts` derives from a graph file plus a
+  // `branch.json` bound to the current HEAD and not stale. The binding names
+  // the commit, so it is written after the commit and stays untracked, as in
+  // the real repository. Without it the real spawned process would only
+  // reconcile staleness and never exercise discovery.
   fs.mkdirSync(path.join(repoRoot, ".graphify"), { recursive: true });
   fs.writeFileSync(path.join(repoRoot, ".graphify", "graph.json"), "{}\n");
-  // Mirrors the real repo's own .gitignore for `data/brain/` — the durable
-  // inbox this test writes under `<repoRoot>/data/brain/` must not itself
-  // make the fixture look dirty to git (the exact self-inflicted-dirty-repo
-  // class of bug this project has hit for real before).
-  fs.writeFileSync(path.join(repoRoot, ".gitignore"), "/data/\n");
-  git(repoRoot, "add", "fixture.txt", ".graphify/graph.json", ".gitignore");
-  git(repoRoot, "commit", "-qm", "base");
-  return { repoRoot, head: git(repoRoot, "rev-parse", "HEAD") };
+  fs.writeFileSync(path.join(repoRoot, ".graphify", "branch.json"), `${JSON.stringify({ lastSeenHead: head, lastAnalyzedHead: head, stale: false })}\n`);
+  return { repoRoot, head };
 }
 
 function staleProposalInput(baseHead: string) {
