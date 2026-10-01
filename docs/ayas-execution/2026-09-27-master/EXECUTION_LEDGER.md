@@ -576,3 +576,27 @@ The daemon formerly accepted a callback's explicit FAIL report as completion; it
 Validation: 22 TEMP scenarios and 9/9 mutation controls, governance 10 and 8/8 controls, telemetry 23; complete current 69 suite baseline PASS_WITH_KNOWN_LIMITATIONS with no unexpected failures. Cognitive 54/55 and held-out 4/5 remain unchanged. TypeScript and lint PASS (13 existing full-lint warnings). Baseline RAM peak 51.18%. The read-only live snapshot has 44 legacy executions with UNKNOWN coverage, zero correlated durable admissions (UNKNOWN), and no live external receipt adapter (UNKNOWN). These are not failed synthetic tests and not a global SLO certificate.
 
 15F source implementation is closed with declared live/calibration limits. Final per-machine exact HEAD Graphify refresh follows the documentation commit. User requested stop after 15F and a report: do not start 15G until a new user instruction. NO PUSH.
+
+## 2026-10-01 — owner-adopted post-freeze supplement / audit IN_PROGRESS
+
+Baseline exact HEAD `09e1c68825830924ee5c44ec815598704f443dcb`, clean branch `wip/ayas-graphify-final-execution`, ahead 39 / behind 0 after startup pull. Graph built from exact baseline HEAD, CLEAN structural fact, known PARTIAL 9 / semantic PENDING. Stage 15F remains closed; this is a targeted conformance audit, not a new stage or a redo. Later owner request revokes the earlier stop after 15F and authorizes canonical continuation after audit. Local commits only; NO PUSH. Original supplement copied byte-for-byte and referenced by source map/master order. Conformance matrix and verified fixes pending.
+
+## Post-freeze 15C: whole-prompt context budget — FIXED (2026-10-02)
+
+Source `97463c94f6eacf8f14e0776b262f830d4782597b`. Addendum section 2. Stage 15C stays closed; this is the targeted repair of the first gap the retroactive audit found. Finding PF1; findings PF4 to PF8 were found on the way.
+
+HANDOFF. The previous session left this fix as an uncommitted draft with the checkpoint saying "do not call this dirty packet GREEN". Before validating it the real prompt sizes were measured against this workstation's real window (`OLLAMA_NUM_CTX=8192`): the draft estimated tokens as UTF-8 bytes, so the system prompt alone was 5,715 of 7,772 usable and an ordinary 12-turn conversation with recalled memory was refused. Its tests passed only at a pinned 32,768. It also made every earlier owner turn mandatory and removed the Stage 15C memory-envelope wiring. The draft was replaced, not committed. One draft line in `scripts/ayas-eval-baseline.ts` was reverted with `git checkout -- <file>`; its content is recorded in `post-freeze-audit/PF15C_RESULT.json`.
+
+WHAT. `AyasContextBudget`: declared window, reply reserve, deterministic shedding (AYAS's earlier replies, then ordinary recalled memory, then the owner's oldest turns), mandatory text and protected memory always kept, `CONTEXT_BUDGET_UNSAFE` when the mandatory part does not fit, an unknown window never guessed. Chat and reasoning prompts are budgeted; both transports refuse before the request; the local transport checks the prompt size Ollama reports and withholds a reply produced past the window. The trace's model span records window, reserve, estimate, measured size and counts. The phone gateway Worker makes no cloud call without a declared window. When nothing is shed the prompt is byte-identical to before.
+
+GOVERNANCE. Five smokes that drive the real local provider declare the window. One of them is the owner-selected retrieval evaluator library, so it became lifecycle entry `evaluator.retrieval.pf15c-v2` (admission NONE) with the previous identity kept as rollback target at `09e1c68`. Eval manifest `15F.4-v6`, 71 suites; v5 kept.
+
+TEST. Context budget 21 scenarios. Negative controls 19/19 in a 219-file TEMP overlay. Six chat-path suites byte-identical before and after (cognitive 54/55, held-out 4/5); retrieval differs only in timing and scanned-file count. Full declared baseline at the commit: 71 suites, no failure, host RAM peak 50.76 %. TypeScript, changed-file lint, diff check PASS; full lint 0 errors and the 13 existing warnings. No model, container or network.
+
+GRAPHIFY built from `97463c9`: 16,521 nodes / 47,741 edges, duplicate, dangling and self-loop counts 0, PARTIAL 9 known files, semantic pending. Blast radius high through four bridge nodes, all changed additively.
+
+LIMITS. The size is an estimate that has not been compared with the real tokenizer. Id-level budget evidence is not durably stored. Pipeline and research model calls use a different provider and are not budgeted.
+
+OWNER, none blocking: set `OLLAMA_NUM_CTX` on every machine that runs AYAS chat; set `AYAS_CLOUD_CONTEXT_TOKENS` before the next Worker deployment; accept or reject the new retrieval evaluator identity.
+
+LOCAL COMMIT; NO PUSH. Next: post-freeze 15F (retry counted twice; timeout, owner-wait and resource-abort classes), then voice and console state, then the final matrix, then Stage 15G.

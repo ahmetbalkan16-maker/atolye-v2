@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "packet": "post-freeze 15C: whole-prompt context budget",
+  "designAuthority": "01_CANONICAL_SPECS/AYAS_POST_FREEZE_DESIGN_ADDENDUM_V1.md section 2",
+  "auditFinding": "GAP_SAFE_TO_FIX",
+  "result": "FIXED",
+  "baselineHead": "09e1c68825830924ee5c44ec815598704f443dcb",
+  "sourceCommit": "97463c94f6eacf8f14e0776b262f830d4782597b",
+  "date": "2026-10-02",
+  "evidenceClass": "DETERMINISTIC_TEST",
+  "modelRuns": 0,
+  "containerRuns": 0,
+  "networkCalls": 0,
+  "push": false,
+  "windowUnderTest": {
+    "tokens": 8192,
+    "source": "OLLAMA_NUM_CTX on this workstation, read from .env.local",
+    "replyReserve": { "chat": 420, "reasoning": 900 }
+  },
+  "promptSizesAtWindow": [
+    { "prompt": "chat, no history", "characters": 5186, "utf8Bytes": 5651, "estimatePlusReserve": 3495 },
+    { "prompt": "chat, 12 short turns", "characters": 6466, "utf8Bytes": 7089, "estimatePlusReserve": 4248 },
+    { "prompt": "chat, largest assembled history and 700 characters of memory", "characters": 13206, "utf8Bytes": 14638, "estimatePlusReserve": 8130, "shed": 0 },
+    { "prompt": "reasoning, no context", "characters": 6358, "utf8Bytes": 6887, "estimatePlusReserve": 4700 },
+    { "prompt": "reasoning, 12 short turns", "characters": 7384, "utf8Bytes": 8045, "estimatePlusReserve": 5303 }
+  ],
+  "rejectedDraft": {
+    "what": "The previous session's uncommitted draft estimated tokens as UTF-8 bytes, made every earlier owner turn mandatory and removed the Stage 15C memory-envelope wiring.",
+    "measured": "At 8192 the system prompt alone was 5715 of 7772 usable; a 12-turn conversation with recalled memory threw CONTEXT_BUDGET_UNSAFE. Its tests pinned a 32768 window.",
+    "disposition": "Replaced before any commit. One draft line in scripts/ayas-eval-baseline.ts (injecting 32768 into every suite's environment) was reverted with git checkout; suites now declare their own window."
+  },
+  "tests": {
+    "contextBudget": { "script": "scripts/smoke-ayas-context-budget.ts", "scenarios": 21, "result": "PASS", "isolation": "TEMP memory root, fake transports" },
+    "negativeControls": { "script": "scripts/smoke-ayas-context-budget-mutations.ts", "caught": 19, "total": 19, "overlayFiles": 219, "isolation": "TEMP overlay that is also the working directory" },
+    "beforeAfterIdenticalOutput": {
+      "method": "the same suites run in an isolated TEMP clone at committed HEAD 09e1c68 and with the change; stdout compared byte for byte",
+      "identical": ["smoke-ayas-cognitive-quality (54/55, held-out 4/5)", "smoke-ayas-chat-quality (36)", "smoke-ayas-conversation-quality-master (37)", "smoke-ayas-memory-temporal (52)", "smoke-ayas-chat-stream (31)", "smoke-ayas-reasoning (48)"],
+      "differsOnlyInTimingAndScannedFileCount": ["smoke-ayas-retrieval-evaluation (74 cases)"]
+    },
+    "otherSuitesRunInIsolatedClone": {
+      "passed": ["chat 12", "reasoning-schema 14", "agentic-routing", "tool-candidate-resolution 34", "unified-trace 17", "memory-integrity 27", "memory 30", "context 34", "model-router 22", "brain-core-ui 41", "model-profile 6", "lifecycle 14 (17 registry entries)", "lifecycle-revision-mutations 5/5", "eval-governance 10", "eval-governance-mutations 8/8", "phone-runtime 42", "phone-llm-precache 23", "phone-llm-range-diagnostic 8", "autonomous-execution-gate 26", "autonomous-foundation-acceptance 42", "autonomy-approval 29", "brain-control-center", "chat-stream-client 10", "development-center 59", "intent-routing 32", "mobile-voice-regression 36", "product-brain 9", "studio-context 26", "voice 76", "brain-selfheal-observe-ui 13"],
+      "notRun": [{ "suite": "smoke-ayas-security-request-body-isolated", "reason": "refuses to run outside its own TEMP archive layout (AYAS_STAGE9_REQUIRES_TEMP_ARCHIVE); the declared bounded-request-body suite passed" }]
+    },
+    "typescript": "PASS",
+    "changedFileLint": "0 warnings",
+    "fullLint": "0 errors, 13 warnings that existed before",
+    "diffCheck": "PASS"
+  },
+  "fullBaseline": {
+    "atCommit": {
+      "report": "post-freeze-audit/PF15C_FULL_BASELINE.json",
+      "sha256": "affa39cee52d7e04cf66208db4cfa2dca0bd850196591d492a1579dd81735513",
+      "sourceHead": "97463c94f6eacf8f14e0776b262f830d4782597b",
+      "manifestVersion": "15F.4-v6",
+      "manifestDigest": "176e9bbdf57a3ee71999b6c4a54ba59379402cd472062b36cb56ad2de6233b16",
+      "suites": 71,
+      "failed": [],
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "knownLimitationSuites": ["cognitive-quality"],
+      "hostRamPeakPercent": 50.76
+    },
+    "beforeCommit": {
+      "report": "post-freeze-audit/PF15C_PRECOMMIT_BASELINE.json",
+      "sha256": "009ffcb7c953e8e252195ddbf9b67cf3d4277195370300bdd05cd0e561d7775f",
+      "sourceHead": "09e1c68825830924ee5c44ec815598704f443dcb",
+      "note": "Working tree before the phone gateway and import-path edits. Kept, not overwritten.",
+      "suites": 71,
+      "failed": [],
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "hostRamPeakPercent": 49.44
+    }
+  },
+  "evalManifest": { "version": "15F.4-v6", "suites": 71, "added": ["context-budget", "context-budget-mutations"], "previous": "03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V5.json" },
+  "lifecycle": {
+    "newEntry": "evaluator.retrieval.pf15c-v2",
+    "admission": "NONE",
+    "rollbackTarget": "evaluator.retrieval.2026-10-01 at revision 09e1c68825830924ee5c44ec815598704f443dcb",
+    "change": "one environment value (the declared chat window) in scripts/lib/AyasRetrievalEvaluation.ts",
+    "registryEntries": 17
+  },
+  "graphify": {
+    "builtFrom": "97463c94f6eacf8f14e0776b262f830d4782597b",
+    "nodes": 16521,
+    "edges": 47741,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structural": "PARTIAL: 9 known files (PowerShell scripts, one workflow, one bracketed route)",
+    "semantic": "PENDING",
+    "blastRadius": "high (score 193): bridge nodes AyasChatStreamEvent, buildAyasChatPrompt, AyasModelProvider, startAyasTrace. All four changes are additive; the prompt is byte-identical when nothing is shed."
+  },
+  "knownLimits": [
+    "The size is a deterministic estimate that has not been compared with the real tokenizer; no model was run. The local transport's measured prompt size is checked after each reply and recorded in the trace.",
+    "The cloud path has the estimate only.",
+    "A server that reports no prompt size leaves the estimate as the only check.",
+    "Id-level budget evidence is not durably stored; the trace holds counts, and the trace store is process memory.",
+    "Pipeline stages and the research engine use the pipeline's Ollama provider and are not budgeted by this guard.",
+    "The studio block and the conversation summary are mandatory; a request whose mandatory part exceeds the window is refused."
+  ],
+  "ownerActions": [
+    { "id": "OLLAMA_NUM_CTX", "blocking": false, "action": "Set OLLAMA_NUM_CTX on every machine that runs AYAS chat. This workstation has 8192." },
+    { "id": "AYAS_CLOUD_CONTEXT_TOKENS", "blocking": false, "action": "Set it in cloudflare/ayas-phone-gateway/wrangler.toml to the configured cloud model's window before the Worker is deployed again. The deployed Worker is unchanged." },
+    { "id": "evaluator.retrieval.pf15c-v2", "blocking": false, "action": "Accept or reject the new retrieval evaluator identity." }
+  ],
+  "authority": "NONE: the budget decides what text is sent to a model. It grants no approval, lease, capability or spend."
+}

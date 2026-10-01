@@ -1,0 +1,1833 @@
+{
+  "schemaVersion": "1",
+  "manifestVersion": "15F.4-v6",
+  "manifestDigest": "176e9bbdf57a3ee71999b6c4a54ba59379402cd472062b36cb56ad2de6233b16",
+  "sourceHead": "09e1c68825830924ee5c44ec815598704f443dcb",
+  "sourceWorktreeDigest": "af6cbe3cdd9b9a5257667a2f97264b50bb91be641ec66830fd6c087b6834e3bf",
+  "evidenceClass": "DETERMINISTIC_TEST",
+  "fixture": "TEMP_LOCAL_CLONE_NO_REMOTE_NO_MODEL_OR_CREDENTIAL_ENV",
+  "selectedSuites": 71,
+  "declaredSuites": 71,
+  "completeDeclaredBaseline": true,
+  "trials": 1,
+  "failed": [],
+  "knownLimitationSuites": [
+    "cognitive-quality"
+  ],
+  "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+  "results": [
+    {
+      "id": "access-gate",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 228,
+          "stdoutDigest": "f57797eb3010cfd9002abcea4032a71e9f62b58a057b7cab76140bb548ac5d2f",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "bounded-request-body",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 162,
+          "stdoutDigest": "576c9d2a52e28cdfa25b52ac2b1c7fc8434f2595af54817dfa87ae5584e19137",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "bounded-file-write",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 188,
+          "stdoutDigest": "8bc119fba4be90b1f871eb3ac1be4e7403a3b94f5a1602f9117a11ba3e8fea37",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "action-runtime",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 5635,
+          "stdoutDigest": "c5ce6cd91302859b0c91b9aaca9b9c3a7cf9c85f6ea06fb9dc16abb7a968cd9a",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "action-firewall",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 761,
+          "stdoutDigest": "a57eff256cfdf5e5a95b40cb6fa8ee460f5d31e53f99d4b31976580ac7315c42",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "action-firewall-runtime",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 433,
+          "stdoutDigest": "7877bd30ea82e1b06888d10cb9d430ac97cbad9658eea756126e2ad68a4c72f8",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "action-firewall-bridge",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 761,
+          "stdoutDigest": "43e6b4b54e1ad6b782187d3c9b1436621cd3f3ab98aa1f791585f1c25329476c",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "action-firewall-closure",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 1300,
+          "stdoutDigest": "d0d337a15b183b839815d10dcb0aac8451ee5702b6ab9e080eec9ae7b4dfa730",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "owner-session-admission",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 428,
+          "stdoutDigest": "b967c377446187f6f85022d5aebc658b706e9b8e64aece72d10edb93b37e6dec",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "owner-capability-firewall",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 4369,
+          "stdoutDigest": "86de3bd42b9d51ac46b7c1cb828009623a5725352b90e0ef25f196e8ab6a7215",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "repair-approval-proof",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 685,
+          "stdoutDigest": "03997025c48d70492cf5f2c01e8745c640c3e2e93c086ebccb8d4edb03a3e5c4",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "discovery-run-firewall",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 3394,
+          "stdoutDigest": "1464d7d8c86b9b54dc4f703e92b7b2cb9e7703002a8afa4405cc08833dbd9ce3",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "execution-gate",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 324,
+          "stdoutDigest": "3ed5e87639d55c6fe2c7d8dc976e496c7ef1fa8f3c239fad8bebf242cd36f879",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "execution-bridge",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 5647,
+          "stdoutDigest": "ad93c2f0e2b874b569925f704919337215c01719e1b255a2f63e277be1bc0b71",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "write-action",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 773,
+          "stdoutDigest": "0fee9da6518f5e8aa6b9d99b2a30264ff58afe097f451f9ce55600e12ea0a0a0",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "execution-authority",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 32167,
+          "stdoutDigest": "e70895f31511164031903355585fc5fe47e6b57d97e898ce60e766c5e4083a1e",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "execution-authority-lock",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 4381,
+          "stdoutDigest": "b602f35ba590bedf18cc2966b050fb0fd95128636ca843078a654f1a021243aa",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "execution-journal",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 195,
+          "stdoutDigest": "201df3860af77e58ef84d23c8a7e216230047d3ab0069d42e09a1a73879ca39e",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "execution-revalidation-scope-recovery",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 2578,
+          "stdoutDigest": "637970b7a6755467b00f387cef962aae1eaf5461385a81035f28573b5a96cc0c",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "authorization-reservation",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 459,
+          "stdoutDigest": "d1050e7d04abde9df19b939c304a29d3435082b7984db3ebf169a83588e0079f",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "approval-durable-state-compatibility",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 415,
+          "stdoutDigest": "cf96e5a6215ffd841a3318b41b4e61e2e37fc30af27c4c4e38a130df400cdd68",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "daemon-authority-boundary",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 360,
+          "stdoutDigest": "db336fa5de10dd3cdbe0bdf0d70d75fc56e0a5e3b305848425982463e8dfd2c7",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "autonomy-daemon",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 2351,
+          "stdoutDigest": "11b158bbbb7a930952f74db19e44b5d19c78fb4a8ec1cbfa408692e8341a563c",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "isolated-gate-root",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 152,
+          "stdoutDigest": "e6009ba8fb7db1162fd1fdc275ad6cfa84d7f7d13c1e430afb56489d61758dc8",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "verified-gate-transition",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 309,
+          "stdoutDigest": "0a5a737f8988ec6eb71c00397bc465a1ad9125c21909f8cd55ea1e477d620725",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "runtime-stability-guard",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 706,
+          "stdoutDigest": "8ab1fb3ac7c2b5b733b73fca10fe1837787cbbf0936082268a7a508dcc594b85",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "exact-patch-safety",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 244,
+          "stdoutDigest": "c9d700fc0afca8d61b3da67631fac8c865a2d39b9c443b61e9c214e2bc403822",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "exact-proposal-safety",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 1463,
+          "stdoutDigest": "12dc05c716bb679262079a33ec241d99ab655c7714b33a6f993b16bfcfe836bb",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "guarded-publication",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 46297,
+          "stdoutDigest": "5b4ae11a088c498182364c231787e85db5ac15cf6d541e96ca7b707f0b351100",
+          "stderrDigest": "d0ccecc69092d0a6b34cc2a8bd9f712cbd326cd01df6afcc48bc262322dc51d0",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "proposal-approval-service",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 151050,
+          "stdoutDigest": "a2cd84deb9d68099e56fbad89e7f2e9120d264b8d151b41b126974065590fbf3",
+          "stderrDigest": "bf5af9b8d6abda253d68c54354911f322a6c6ce072e89b8df9937a4e1c25b3d6",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "proposal-execution-service",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 22493,
+          "stdoutDigest": "c5aaccdec310328acb46474856f6ee6ad8a5af763c6a849b3900bae2d3e6b32c",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "micro-batch-approval-service",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 42821,
+          "stdoutDigest": "27e88eff9daca397f5b20425c84c23c4e5430999b1808f61c3beb0841c461e6c",
+          "stderrDigest": "7a9d2a65ec95f4a094af49617d4487a798b260df3cf337c8b318d438d3c9b034",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "micro-batch-execution-service",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 8153,
+          "stdoutDigest": "5f83e25aeb94f6c56515ab58c5d65ce5256c5893bc19e345dbe71872b0e138ed",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "patch-artifact",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 190,
+          "stdoutDigest": "390007a7bbb54b7cd6ea35607b74668d8802b7786d2e436063eef139191d666d",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "patch-artifact-mutation",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 840,
+          "stdoutDigest": "5c243b96237987d638e4e45a783d29ca2ab379edfd69d94b209c9c3aea80c97c",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "patch-artifact-execution-integration",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 10333,
+          "stdoutDigest": "711246ffc8bf773d54dcd0051987a6f7265df8030dd55c8d8550b88d5e2364aa",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "guided-repair",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 1005,
+          "stdoutDigest": "d8c93e6868f9e256ca2d19b04136dbec0944aa377a49b647bbc1cfa0d82e3905",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "guided-repair-durability",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 477,
+          "stdoutDigest": "c2cb6a5d5975b38f030b74a8554a9931fabc3670450d5591316b26933bbba5bf",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "developer-workflow",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 453,
+          "stdoutDigest": "f07f65ffa7566f3156fb5f924ae43818b204cd521f321a71b44ac13f01191b88",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "workflow-recovery",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 349,
+          "stdoutDigest": "7c5f8a028e18646754c8ffbad8d5f9e7a68c1f1cd573ae7b38b20bb8b7a8848c",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "workflow-store",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 428,
+          "stdoutDigest": "7974a58bdf6bf991a578507b75ad26b7239f1faa61765ba6edc29a96623fd6d2",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "durable-task-runtime",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 1279,
+          "stdoutDigest": "8a0eeeb6f8aff97452569fd5c51d6a78434875a581fa4431d1126d0d2e2d1908",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "durable-task-recovery",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 20757,
+          "stdoutDigest": "6a35df283f926ddce183ece0a2e956bf9dedb1fe62663a0d0c7e0119c4e65e3f",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "memory-integrity",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 1050,
+          "stdoutDigest": "44a4373048efe0457219bc59e1565bfa72f37570b9b92ca27dc7b33acbfaa4b8",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "memory",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 255,
+          "stdoutDigest": "c3a92c726c3acc2be10464223f1f208b017b5a6d62d8846be298b1f30861a92a",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "memory-temporal",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 2975,
+          "stdoutDigest": "862a6a11d1b0ee6292ab7df8d4311ce255ff337a48a218f90cb8fc0376667bfb",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "context",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 303,
+          "stdoutDigest": "7c46b0f7b0ba2a7f9ff7a0a4de060e3ad2f68404dcde455ad837683458c4b665",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "unified-trace",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 898,
+          "stdoutDigest": "a98560bfd792b487082cd42fb999ae6b2fc8c6e52dacfb62a6b83d7332dc7f90",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "operation-evidence",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 975,
+          "stdoutDigest": "3044b9f5232b2e21ed27380455d5cf03fdd887f5bc6ba82a3c25a86c404d01f3",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "operation-telemetry",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 1085,
+          "stdoutDigest": "07fd9a836f51cb9551fd104704fedf77f3ce6c2e58400bdb6e95bf2bfea61159",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "operation-telemetry-mutations",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 3275,
+          "stdoutDigest": "0c8b49c466c4c33f130c5f5951d058e719eda6306a82f76a825f94604bf7db08",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "lifecycle",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 710,
+          "stdoutDigest": "f699b75987ecb1a043979a36d73626eb55543aca3fc41ecb3d68bcc1f86aa924",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "model-router",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 191,
+          "stdoutDigest": "20a74975e036cfa9cd4bc285b3bfbc7ee1750ea6ecf2d6e94b1183b6a83768a6",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "zero-cost-policy",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 152,
+          "stdoutDigest": "37851844c601ee016b7bab6e232d29e2f1685e88e635a6c09d5cf6d9d959bdc8",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "safe-public-fetch",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 2213,
+          "stdoutDigest": "b70e5cf76e90a84104eee5bdeb874d1b792e29cdec217500e5750824a150ea90",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "external-research-store",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 176,
+          "stdoutDigest": "4e4ee1f8450a0d2de2c3e0043412e1a4f6aa74ae96803955eaf4750edbc42426",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "research-scheduler",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 5787,
+          "stdoutDigest": "a0d972271c5c640638e4f635c81a92a2fdba772d4eb24d72cfaaa310069c3fcd",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "research-improvement-loop",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 188997,
+          "stdoutDigest": "a70108b52691e02001136edbe2a468b7c5a80cc5655454d71b3bfe61783a8987",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "controlled-self-evolution-cycle",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 3740,
+          "stdoutDigest": "692931c57d55b242877da772cbec2821453c43c0c3f290a078cc908d15d80294",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "controlled-self-evolution-artifact",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 3831,
+          "stdoutDigest": "2209ba76e3e0c8635f638d37fd1c8d25c936cdc08f078d6dfec41cbf10b95489",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "storage-hygiene",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 203,
+          "stdoutDigest": "d7e1975fdc8a4adc94e8430797f0a55b981045a049cc441591e186e1aadaf7c5",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "discovery-registry",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 1883,
+          "stdoutDigest": "ebb6b7e8489775e63468ae590ee35557d79f581d528b7583cd80d831fe10b3c3",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "cognitive-quality",
+      "kind": "CAPABILITY",
+      "trials": [
+        {
+          "durationMs": 544,
+          "stdoutDigest": "1cd748763c7f30d7bd691f13c14bfaa1e7659620bd39efe681bb203696add489",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+          "quality": {
+            "passed": 54,
+            "total": 55,
+            "heldOutPassed": 4,
+            "heldOutTotal": 5,
+            "knownLimitations": [
+              "heldout-free-text"
+            ]
+          }
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": false,
+        "status": "PASS_WITH_KNOWN_LIMITATIONS"
+      }
+    },
+    {
+      "id": "conversation-quality-master",
+      "kind": "CAPABILITY",
+      "trials": [
+        {
+          "durationMs": 443,
+          "stdoutDigest": "1172440bbc361a5f7ea86d54890bef80dfdadeaacaa17e05c9ff6e8a3c6f012b",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "chat-quality",
+      "kind": "CAPABILITY",
+      "trials": [
+        {
+          "durationMs": 448,
+          "stdoutDigest": "e33532bfa3e69195f3e4a2b96f8cc07645f024f69b326825793e42c2cdcfcc70",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "retrieval-evaluation",
+      "kind": "CAPABILITY",
+      "trials": [
+        {
+          "durationMs": 14365,
+          "stdoutDigest": "8b87071b7a108dedad5294b2ad95f41dd601786862446330e8220f0dc3633ab9",
+          "stderrDigest": "b0f2f1592543c076d3f0e2486a4e4ac0d81f6f326ec10585d884504a69a121f1",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "open-ended-evolution",
+      "kind": "CAPABILITY",
+      "trials": [
+        {
+          "durationMs": 3130,
+          "stdoutDigest": "269395d302e1a041e341c9116e05d646382e6439d26d2ded1517194ab1275ebe",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "technology-watch",
+      "kind": "CAPABILITY",
+      "trials": [
+        {
+          "durationMs": 9408,
+          "stdoutDigest": "27cb99c5cda8d634b25a7f07fa60835e23a706d9fbbb75ed611bc6efc6643c21",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "developer-intelligence",
+      "kind": "FROZEN_HELD_OUT",
+      "trials": [
+        {
+          "durationMs": 4079,
+          "stdoutDigest": "f8e4680cc821850f0330b32dad0d1d0a7ee91ad3737b3b10fc7d94861f6c0e0d",
+          "stderrDigest": "2ad09ce5f370ca3394e9a7848b82fcc10962c17d475fe81d7d48c97313364e94",
+          "exitCode": 0,
+          "outcome": "PASS",
+          "quality": {
+            "passed": 49,
+            "total": 49,
+            "heldOutPassed": 10,
+            "heldOutTotal": 10,
+            "knownLimitations": []
+          }
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "context-budget",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 483,
+          "stdoutDigest": "38f521b8b9243384e0249ae008a0bc1ee3532731f8bb3c5116b31a1b8847449d",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "context-budget-mutations",
+      "kind": "REGRESSION",
+      "trials": [
+        {
+          "durationMs": 8873,
+          "stdoutDigest": "a18756bb8f2b56577b2d906eb156a9c9711b447f0ef8d46078581ee02eb90dc1",
+          "stderrDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "exitCode": 0,
+          "outcome": "PASS"
+        }
+      ],
+      "summary": {
+        "trials": 1,
+        "requiredTrials": 1,
+        "passAt1": 1,
+        "passPowerK": 1,
+        "rawQualityPassedAllTrials": true,
+        "status": "PASS"
+      }
+    }
+  ],
+  "resourceSamples": [
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17904242688
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17918676992
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17926012928
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17931329536
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17982332928
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17980182528
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17965326336
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17987710976
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17925259264
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17942888448
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17911885824
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17927016448
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17920077824
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17907777536
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17964109824
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17966964736
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17940635648
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 18042396672
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 18044936192
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 18001686528
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17997058048
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 18003681280
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17995636736
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 18011127808
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 18000515072
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 18015477760
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 18005471232
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17982930944
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 18004750336
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17615810560
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17580331008
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17460146176
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17418440704
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17382449152
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17417678848
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17424650240
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17352957952
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17334640640
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17349271552
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17345204224
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17310244864
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17409052672
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17396092928
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17401757696
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17425342464
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17448923136
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17422819328
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17327837184
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17206165504
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17376858112
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17421189120
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17374896128
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17400811520
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17392087040
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17399164928
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17403965440
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17415999488
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17426542592
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17272823808
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17274056704
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17311031296
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17294635008
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17293410304
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17274298368
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17293406208
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17270747136
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17280131072
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17272590336
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17316810752
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17303707648
+    },
+    {
+      "totalBytes": 34033348608,
+      "freeBytes": 17284497408
+    }
+  ],
+  "ownerCalibration": "PENDING",
+  "grantsAuthority": false,
+  "excluded": [
+    {
+      "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+      "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+    },
+    {
+      "scope": "local-coding qualification and model binaries",
+      "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+    },
+    {
+      "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+      "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+    },
+    {
+      "scope": "Model grading and owner/human benchmark calibration",
+      "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+    }
+  ]
+}

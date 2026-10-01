@@ -2,11 +2,11 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "25a08cba5a509c4ed494a1d1775ffd4b2248560e",
-  "currentHead": "25a08cba5a509c4ed494a1d1775ffd4b2248560e",
+  "lastGreenHead": "97463c94f6eacf8f14e0776b262f830d4782597b",
+  "currentHead": "97463c94f6eacf8f14e0776b262f830d4782597b",
   "stage": "STAGE_15F",
-  "subtask": "15F-closed-source-implementation-live-certification-pending",
-  "status": "CLOSED_GREEN",
+  "subtask": "post-freeze-retroactive-audit-15F-outcome-classes-and-retry-accounting",
+  "status": "POST_FREEZE_AUDIT_IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -159,7 +159,9 @@
     "15F.3-telemetry-live-state-authorization-compaction",
     "15F.4-eval-governance-regression-manifest",
     "15F.5-reliability-SLO-counters",
-    "15F-closure-source-GREEN-live-uncertified"
+    "15F-closure-source-GREEN-live-uncertified",
+    "post-freeze-addendum-adopted-and-referenced",
+    "post-freeze-15C-whole-prompt-context-budget"
   ],
   "currentFiles": [],
   "lastGreenTests": [
@@ -267,31 +269,38 @@
     "Complete declared 69 suite isolated TEMP baseline PASS_WITH_KNOWN_LIMITATIONS, unexpected failures 0",
     "Eval governance 10 and mutations 8/8 PASS",
     "Existing telemetry/state/compaction 23 PASS",
-    "TypeScript PASS; changed lint PASS; full lint 0 errors/13 existing warnings; diff check PASS"
+    "TypeScript PASS; changed lint PASS; full lint 0 errors/13 existing warnings; diff check PASS",
+    "Post-freeze 15C: context budget 21 scenarios (TEMP memory root, fake transports, real 8192 window); negative controls 19/19 in a 219-file TEMP overlay",
+    "Post-freeze 15C: six chat-path suites byte-identical at 09e1c68 and with the change (cognitive 54/55, held-out 4/5, chat quality 36, conversation quality 37, memory temporal 52, chat stream 31, reasoning 48); retrieval 74 differs only in timing and scanned-file count",
+    "Post-freeze 15C: declared 71-suite baseline at 97463c9 PASS_WITH_KNOWN_LIMITATIONS, no failure, host RAM peak 50.76 %; lifecycle 14 (17 entries); eval governance 10 and 8/8; phone runtime 42; voice 76; brain core UI 41",
+    "Post-freeze 15C: TypeScript PASS; changed-file lint 0 warnings; full lint 0 errors/13 existing warnings; diff check PASS. No model, container or network. NOT_RUN: smoke-ayas-security-request-body-isolated (needs its own TEMP archive layout)"
   ],
   "graphify": {
-    "head": "ea252cd9b57d651a178ef36aa5e59b0946cb1b75",
-    "testedSourcePacket": "25a08cba5a509c4ed494a1d1775ffd4b2248560e",
+    "head": "97463c94f6eacf8f14e0776b262f830d4782597b",
+    "testedSourcePacket": "97463c94f6eacf8f14e0776b262f830d4782597b",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 16474,
-    "edges": 47594,
+    "nodes": 16521,
+    "edges": 47741,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Precommit full AST covers tested 15F.5 worktree. Exact final HEAD refresh follows this documentation commit; per-machine graph metadata untracked; actual Git/status wins."
+    "headSemantics": "Built from the post-freeze 15C source commit. A documentation commit descends from it; per-machine graph metadata is untracked; actual Git status wins."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
     "External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority.",
     "OWNER_DECISION for any local-coding re-qualification: define a numeric qualification threshold; and/or pin a different local model or engine; and/or allow GPU passthrough into the rootless sandbox. Not a blocker for Stage 15B.",
-    "OWNER_CALIBRATION (qualification only, not implementation blocker): review eval task/grader definitions against human judgement before any model qualification/promotion."
+    "OWNER_CALIBRATION (qualification only, not implementation blocker): review eval task/grader definitions against human judgement before any model qualification/promotion.",
+    "OWNER_ACTION (not blocking): OLLAMA_NUM_CTX must be set on every machine that runs AYAS chat. This workstation has 8192. Without it every model turn answers that the window is not configured.",
+    "OWNER_ACTION (not blocking, at the next Worker deployment): set AYAS_CLOUD_CONTEXT_TOKENS in cloudflare/ayas-phone-gateway/wrangler.toml to the configured cloud model's window. The deployed Worker is unchanged.",
+    "OWNER_DECISION (not blocking): accept or reject lifecycle entry evaluator.retrieval.pf15c-v2 (one declared-window line; cases, graders and known limitations unchanged; previous identity kept as rollback target)."
   ],
-  "nextAction": "STOP_AFTER_STAGE15F_BY_USER: 15F closure/report only. Do not start Stage 15G until a new explicit user instruction. Canonical next stage is 15G, NOT_STARTED. NO PUSH.",
-  "updatedAt": "2026-10-01T20:32:41.441Z",
+  "nextAction": "Post-freeze 15F packet: count one retry once in trace evidence; derive timeout, owner-wait and resource-abort classes in telemetry without changing the evidence schema. Then voice barge-in and the tool-action console state. Then the final conformance matrix. Then STAGE_15G. Local commits only; NO PUSH.",
+  "updatedAt": "2026-10-01T22:06:32.000Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -641,13 +650,14 @@
     ],
     "evalGovernance": {
       "path": "EVAL_MANIFEST.json",
-      "version": "15F.4-v5",
-      "digest": "0cd4c0d1d5cf5a216ca6546fa55c893e86b7fdd3414db88b68504f8577f9b53b",
-      "suites": 69,
-      "regression": 62,
+      "version": "15F.4-v6",
+      "digest": "176e9bbdf57a3ee71999b6c4a54ba59379402cd472062b36cb56ad2de6233b16",
+      "previousVersion": "15F.4-v5 (EVAL_MANIFEST_V5.json, digest 0cd4c0d1d5cf5a216ca6546fa55c893e86b7fdd3414db88b68504f8577f9b53b, 69 suites)",
+      "suites": 71,
+      "regression": 64,
       "capability": 6,
       "frozenHeldOut": 1,
-      "pinnedScriptFiles": 77,
+      "pinnedScriptFiles": 79,
       "review": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
       "modelGrader": "NONE"
     },
@@ -661,10 +671,33 @@
     "sloEvidence": "03_STAGE15_BASE/hardening/15F/15F5_RESULT.json"
   },
   "executionControl": {
-    "state": "STOP_AFTER_STAGE15F_BY_USER",
-    "requestedAt": "2026-10-01T20:32:41.441Z",
-    "userInstruction": "15F yi bitir rapor ver 15G ye geçme",
-    "nextCanonicalStage": "STAGE_15G",
-    "startNextStage": false
+    "mode": "AUTONOMOUS_CANONICAL_MASTER_CONTINUATION",
+    "source": "OWNER_REQUEST_2026-10-01_POST_FREEZE_ADDENDUM",
+    "startNextStage": true,
+    "push": false,
+    "priorStopRevoked": true,
+    "prerequisite": "Complete targeted post-freeze conformance audit and safe gap fixes first; preserve genuine owner-only gates."
+  },
+  "postFreezeAudit": {
+    "status": "IN_PROGRESS",
+    "baselineHead": "09e1c68825830924ee5c44ec815598704f443dcb",
+    "supplement": "01_CANONICAL_SPECS/AYAS_POST_FREEZE_DESIGN_ADDENDUM_V1.md",
+    "supplementSha256": "83000846508d32529918b00464c33d6a4fed4f1b1b25a3d67849baa2a584b9fa",
+    "matrix": "post-freeze-audit/CONFORMANCE_MATRIX.json",
+    "packets": {
+      "15C-whole-prompt-context-budget": {
+        "state": "FIXED",
+        "sourceCommit": "97463c94f6eacf8f14e0776b262f830d4782597b",
+        "evidence": "post-freeze-audit/PF15C_RESULT.json",
+        "notes": "03_STAGE15_BASE/hardening/15C/IMPLEMENTATION_NOTES.md",
+        "lifecycleRegistryEntries": 17,
+        "evalManifest": "15F.4-v6, 71 suites"
+      },
+      "15F-outcome-classes-and-retry-accounting": { "state": "NEXT" },
+      "voice-barge-in-and-tool-action-state": { "state": "PENDING" },
+      "final-matrix": { "state": "PENDING" }
+    },
+    "findings": "NEW_FINDINGS.md, PF1 to PF8",
+    "nextAction": "15F packet, then voice and console state, then the final matrix, then canonical STAGE_15G."
   }
 }

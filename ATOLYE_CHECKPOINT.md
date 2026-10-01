@@ -1,3 +1,19 @@
+# AYAS MASTER CURRENT — POST-FREEZE AUDIT: 15C FIXED, 15F AND VOICE NEXT — 2026-10-02
+
+The owner adopted `AYAS_POST_FREEZE_DESIGN_ADDENDUM_V1` as a canonical supplement and revoked the earlier stop after 15F. Resolve the real HEAD with `git rev-parse HEAD`; the last tested source packet is `97463c94f6eacf8f14e0776b262f830d4782597b`.
+
+Done: the addendum is in `01_CANONICAL_SPECS/` and referenced by the source map and the master order. Post-freeze 15C is fixed and committed locally: every AYAS prompt is admitted against the declared model window, earlier turns and ordinary memory are shed before anything is refused, and an unknown window sends nothing. 21 scenarios, 19/19 negative controls, 71-suite baseline with no failure, cognitive 54/55 and held-out 4/5 unchanged. The previous session's draft of this fix refused ordinary conversations at the real 8192 window and was replaced before commit.
+
+Open in the audit: 15F counts one retry twice and has no timeout, owner-wait or resource-abort classes; voice has no barge-in and the console shows "thinking" while a tool runs. Matrix: `docs/ayas-execution/2026-09-27-master/post-freeze-audit/CONFORMANCE_MATRIX.json`.
+
+Owner actions, none blocking: `OLLAMA_NUM_CTX` on every machine that runs AYAS chat (this one has 8192); `AYAS_CLOUD_CONTEXT_TOKENS` before the next phone-gateway Worker deployment; accept or reject `evaluator.retrieval.pf15c-v2`.
+
+Next: post-freeze 15F packet, then voice and console state, then the final matrix, then canonical Stage 15G onward. NO PUSH.
+
+# AYAS MASTER — POST-FREEZE AUDIT STARTED — 2026-10-01
+
+Latest owner request adopts canonical post-freeze addendum and revokes the earlier stop after 15F. Exact baseline HEAD 09e1c68825830924ee5c44ec815598704f443dcb. Canonical audit matrix: docs/ayas-execution/2026-09-27-master/post-freeze-audit/CONFORMANCE_MATRIX.json. The 15C draft left in the working tree at this point was not GREEN and was later replaced (see the entry above).
+
 # AYAS MASTER CURRENT — STAGE 15F SOURCE CLOSED / USER STOP BEFORE 15G — 2026-10-01
 
 Tested source 25a08cba5a509c4ed494a1d1775ffd4b2248560e plus documentation descendant; resolve actual HEAD. 15F source implementation is complete: durable safe evidence, telemetry/read-only state, locked dry-run compaction, versioned eval governance and all five scoped reliability counters. Current full 69-suite baseline has no unexpected failure; cognitive quality remains 54/55 and held-out 4/5. SLO 22 and mutants 9/9; TypeScript/lint PASS, 13 old warnings. Global live SLO certification is NOT_PROVEN: 44 legacy execution journals and unbound external receipts stay UNKNOWN; eval owner calibration PENDING, local coding DEGRADED. Graphify precommit 16474/47594, anomalies0, known PARTIAL9/semantic pending; exact final HEAD refresh follows docs commit.

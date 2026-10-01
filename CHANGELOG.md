@@ -1,3 +1,9 @@
+## 2026-10-02 — AYAS post-freeze addendum adopted; whole-prompt context budget
+
+- `AYAS_POST_FREEZE_DESIGN_ADDENDUM_V1` is a canonical supplement (no stage or order change). Its retroactive audit is in progress.
+- Every AYAS prompt is admitted against the declared model window (`OLLAMA_NUM_CTX`, `AYAS_CLOUD_CONTEXT_TOKENS`): earlier turns and ordinary recalled memory are shed before anything is refused, mandatory text and protected memory are kept, an unknown window sends nothing, and a reply the local server measured past the window is withheld. Unchanged prompts when nothing is shed.
+- Context budget 21 scenarios, 19/19 negative controls, 71-suite baseline with no failure; cognitive 54/55 and held-out 4/5 unchanged. Retrieval evaluator has a new lifecycle identity (owner decision pending). Local commits only; NO PUSH.
+
 ## 2026-10-01 — AYAS Stage15F source closure
 
 - Durable privacy-bounded evidence, telemetry/read-only state, locked dry-run compaction, pinned eval governance and five scoped SLO counters completed. Common daemon refuses failed/malformed callback reports and snapshots report arrays.
