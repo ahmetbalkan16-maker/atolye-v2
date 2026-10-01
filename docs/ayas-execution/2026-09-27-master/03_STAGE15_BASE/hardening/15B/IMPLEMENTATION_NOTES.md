@@ -77,6 +77,93 @@ No new dependency was added, and no external workflow engine.
 
 The earlier idea of a browser-session idle watchdog with safe recovery was checked against this design. The repository has no browser-session executor and the runtime has no session concept. What the idea needs is already how any activity behaves here: a late attempt is reported with `overdueMs`, a dead owner's attempt becomes unconfirmed, and a side effect is reread instead of replayed. A browser session can be registered as an activity once such an executor exists. No separate watchdog and no parallel stage were added.
 
+## 15B.2 Recovery sweep and the first activity set
+
+**State: built and tested, not bound. Live binding is `REQUIRE_OWNER`.** The owner review is in `LIVE_BINDING_REVIEW_PACKET.md`.
+
+| File | Role |
+| --- | --- |
+| `src/lib/brain/autonomy/AyasDurableTaskRecovery.ts` | `sweepAyasDurableTasks`: one daemon tick over the journal. Also the live-binding state. |
+| `src/lib/brain/autonomy/AyasDurableTaskActivities.ts` | The first activity set: one read-only activity, and the task definition that uses it. |
+| `src/lib/brain/autonomy/AyasDurableTaskRuntime.ts` | Three additions: `inspectAyasDurableTask` (reads only), an optional in-code declaration on an activity, and an `admitStart` hook. |
+| `scripts/ayas-durable-task-recovery.ts` | Operator script: dry run by default, `--apply` against a non-live root. |
+| `scripts/smoke-ayas-durable-task-recovery.ts` | 16 scenarios, TEMP journal roots only. |
+
+### What the sweep adds, and what it does not
+
+The sweep adds no second recovery mechanism. Whether an attempt may start, must be reread or is finished is still decided by the 15B.1 contract. The sweep decides only order and budget:
+
+1. It inspects every journal and classifies each task: advanced, waiting for a retry, waiting for the owner, running, overdue, reread unavailable, refused, terminal, unreadable.
+2. It acts in a fixed order: close dead owners' attempts, then reread unconfirmed side effects, then start new attempts, oldest task first. Each task moves at most one step per sweep.
+3. Activity calls run one after another and stop at `maxActivityCalls` (default 4) or `budgetMs` (default two minutes). The rest waits for the next tick.
+4. A task that cannot be read or advanced is reported and skipped. The sweep repairs, takes over and cancels nothing.
+
+Tasks that will not resolve on their own are listed in `needsReview`: an `UNCERTAIN` task, an unreadable journal, an overdue attempt, a refused step, a storage fault, and an active task with no event for a day. A task waiting for the owner is never stale, however long it waits.
+
+### Reused primitives
+
+- `AyasExecutionAuthorityLock` on the journal directory makes the sweep single: a second daemon gets `ANOTHER_SWEEP_ACTIVE`, and a dead sweeper's lock is reclaimed by that module's own rule (older than 10 minutes and owner not alive). The research scheduler uses the same lock the same way. The journal's exclusive link from 15B.1 remains the guarantee underneath.
+- `collectAyasGraphifyFacts` and `evaluateAyasGraphifyState`, the read-only pair behind `scripts/ayas-graphify-status.ts`, are the whole implementation of the first activity.
+- The arm's-length child-process pattern of the observer's discovery step is the proposed binding shape. It is not used yet.
+
+### Authority
+
+- **Side effects are off by default.** A sweep starts a `SIDE_EFFECT` attempt only when its caller passes `allowSideEffectStarts`. The check runs before the call and again inside it (`admitStart`), because a task can move between inspection and action. Rereads always run: they start nothing new.
+- **A step cannot misdescribe its activity.** An activity may declare its effect, domains and exact targets in code. A step that disagrees is refused before anything is recorded. Without this, a side effect described as a read would be retried without a reread.
+- **`admitStart`** is the one place a later capability lease (15D) or resource governor (15Q) can refuse a new attempt. It cannot refuse recovery.
+- **Live journal.** `ayasDurableTaskLiveBinding()` returns `REQUIRE_OWNER`. While it does, an applying sweep throws on the default journal directory before any disk access, and the script exits with status 2. A dry run is allowed anywhere: it takes no lock, records nothing and calls no activity.
+
+### First activity set
+
+`self-development.graphify-state.read`, domain `SELF_DEVELOPMENT`, `READ_ONLY`, target `repository:graphify-state`, empty input. The result is commit IDs, enums and counts: `boundToHead`, `stale`, `needsUpdate`, node and edge counts, duplicate, dangling and self-loop counts, structural and semantic status. A graph that is behind is a recorded result, not a failure. A repository with no readable HEAD is a definite failure with no effect and is retried within the bound.
+
+One task per commit (`graphify-state:<HEAD>`), so a commit's graph state is recorded once.
+
+### Required recovery cases
+
+| Case | Scenario |
+| --- | --- |
+| Process crash | process crash |
+| Windows reboot | reboot |
+| Restart after a persisted result | restart |
+| Result persisted, acknowledgement missing | restart (both halves: result in the journal; effect at the target only) |
+| Action started, result uncertain | uncertain side effect |
+| Duplicate daemon | duplicate daemon; concurrent writer |
+| Timeout | timeout and retry bound |
+| Bounded retry, retry exhaustion | timeout and retry bound |
+| Model restart, network loss | timeout and retry bound; owner delay and stale tasks (reread unavailable) |
+| Owner delay | owner delay and stale tasks |
+| Stale task | owner delay and stale tasks |
+| Concurrent writer | concurrent writer; side effects (task moves between inspection and action) |
+| Corrupted event or hash | corrupt journal |
+| Current-state reread | uncertain side effect; side effects |
+| `UNCERTAIN` terminal | uncertain side effect |
+| Idempotency preservation | side effects |
+
+### Verification
+
+- Smoke: 16 scenarios pass, each in its own TEMP journal root. The operator script is run as a child process from TEMP working directories, including a TEMP Git repository where the real collector records a real (graph-less) state. The suite asserts that the repository's default journal directory was never created.
+- 15B.1 smoke: 17 scenarios, unchanged, pass after the runtime additions.
+- Mutation audit (scratch script, not committed; every source restored byte for byte): 67 deliberate defects in the sweep, the runtime additions, the activity set and the operator script. First run 64 caught, 3 survived:
+  - `maxTasks` bounded the report but not what was advanced. A real gap in the suite: an applying sweep with `maxTasks` is now asserted to touch only the inspected journals.
+  - `--enqueue-graphify-check` without `--apply` was only tested where Git could not answer, so the refusal and a Git failure looked the same. It is now run in a TEMP Git repository and must create nothing.
+  - "Repository root taken from the step input" is an equivalent mutant: the empty-input check returns before the collector is called, and removing that check is a separate mutation that is caught. The suite now also asserts the collector only ever receives the root given in code.
+  Final: 66 of 67 caught, 1 equivalent. Per-mutation results: `RECOVERY_SWEEP_EVIDENCE.json`.
+- One incident during the audit: the first run was stopped by hand part-way and left one deliberate defect (`staleAfterMs * 1000`) in `AyasDurableTaskRecovery.ts`. It was found by inspection and reverted before anything else ran; the audit script was then changed to keep backups, mark the mutation in progress and verify a passing baseline first. The second run's baseline passed on the restored sources.
+- TypeScript passes. Changed-file lint has zero warnings. Full lint: 0 errors, 13 pre-existing warnings. `git diff --check` is clean.
+- Graphify review analysis of the five changed source files: blast radius "high" (score 160, 14 impacted files, 4 communities). The bridge nodes are helpers these files call (`BrainRedaction`, `AyasExecutionAuthorityLock`, `AyasProcessLiveness`, the Graphify collector), not callers of the new code. Nothing but the operator script and the two smoke suites refers to the durable task modules; the suite fails if that changes.
+
+### Known limits
+
+- Every sweep replays every journal, finished ones included, and finished journals are never pruned. `maxTasks` (default 5000) caps one sweep; beyond it the report says `truncated` and the remainder is not inspected. Archiving finished journals is a later packet.
+- A sweeper that dies holding the lock delays the next sweep until the lock is 10 minutes old.
+- An attempt owned by a live but stuck process is reported as overdue and not taken over (unchanged from 15B.1).
+- The first activity's call is bounded by the step timeout, but the collector it calls takes no abort signal: a timed-out read finishes in the background and its result is discarded.
+
+### Browser-session idle watchdog
+
+`NOT_CURRENTLY_APPLICABLE — NO BROWSER SESSION EXECUTOR`. Checked again for 15B.2: the repository has no Puppeteer, Playwright or WebDriver dependency and no browser-session executor. The two text matches are a trace read scope and a research source entry. The sweep already reports a late attempt (`OVERDUE`), an idle active task (`stale`) and an unproven side effect (`UNCERTAIN`) without replaying anything. If a browser-session executor is added, it registers as an activity and this requirement is evaluated again.
+
 ### Next
 
-15B.2: a recovery sweep that a daemon tick can call (advance each active task by one step), and the first owner-reviewed activity set, starting with one read-only activity in one domain. Nothing is wired until then.
+Owner decision on the live binding. Until then Stage 15B stays open at that gate and the runtime stays framework-only.

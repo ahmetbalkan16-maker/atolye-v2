@@ -1,0 +1,505 @@
+{
+  "schemaVersion": "1",
+  "stage": "STAGE_15B",
+  "subtask": "15B.2-recovery-sweep-and-first-activity-set",
+  "recordedOn": "2026-10-01",
+  "liveBinding": "REQUIRE_OWNER",
+  "mutationAudit": {
+    "script": "scratch, not committed",
+    "suite": "scripts/smoke-ayas-durable-task-recovery.ts",
+    "total": 67,
+    "firstRun": {
+      "caught": 64,
+      "survived": [
+        32,
+        63,
+        67
+      ]
+    },
+    "final": {
+      "caught": 66,
+      "equivalent": [
+        63
+      ],
+      "survived": []
+    },
+    "equivalentRationale": {
+      "63": "The empty-input check returns before the collector is called, so the step input can never reach the root argument. Removing that check is mutation 50, which is caught."
+    },
+    "sourcesRestoredByteForByte": true,
+    "incident": "The first run was stopped by hand during mutation 17 and left that defect in AyasDurableTaskRecovery.ts. Found by inspection and reverted before any other command ran; the resumed run verified a passing baseline first.",
+    "results": [
+      {
+        "index": 1,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "live binding approved",
+        "verdict": "CAUGHT",
+        "caughtBy": "live binding"
+      },
+      {
+        "index": 2,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "live journal case-sensitive",
+        "verdict": "CAUGHT",
+        "caughtBy": "live binding"
+      },
+      {
+        "index": 3,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "live guard disabled",
+        "verdict": "CAUGHT",
+        "caughtBy": "live binding"
+      },
+      {
+        "index": 4,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "live guard also blocks nothing in apply (dryRun inverted)",
+        "verdict": "CAUGHT",
+        "caughtBy": "live binding"
+      },
+      {
+        "index": 5,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "new work before rereads",
+        "verdict": "CAUGHT",
+        "caughtBy": "uncertain side effect"
+      },
+      {
+        "index": 6,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "newest task first",
+        "verdict": "CAUGHT",
+        "caughtBy": "sweep"
+      },
+      {
+        "index": 7,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "side-effect policy off",
+        "verdict": "CAUGHT",
+        "caughtBy": "side effects"
+      },
+      {
+        "index": 8,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "side-effect policy inverted flag",
+        "verdict": "CAUGHT",
+        "caughtBy": "side effects"
+      },
+      {
+        "index": 9,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "call budget ignored",
+        "verdict": "CAUGHT",
+        "caughtBy": "budget"
+      },
+      {
+        "index": 10,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "time budget ignored",
+        "verdict": "CAUGHT",
+        "caughtBy": "budget"
+      },
+      {
+        "index": 11,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "dry run executes",
+        "verdict": "CAUGHT",
+        "caughtBy": "dry run"
+      },
+      {
+        "index": 12,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "dry run takes the lock",
+        "verdict": "CAUGHT",
+        "caughtBy": "dry run"
+      },
+      {
+        "index": 13,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "idle tick takes the lock",
+        "verdict": "CAUGHT",
+        "caughtBy": "sweep"
+      },
+      {
+        "index": 14,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "busy lock rethrown",
+        "verdict": "CAUGHT",
+        "caughtBy": "dry run"
+      },
+      {
+        "index": 15,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "no sweep lock",
+        "verdict": "CAUGHT",
+        "caughtBy": "dry run"
+      },
+      {
+        "index": 16,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "owner wait counted stale",
+        "verdict": "CAUGHT",
+        "caughtBy": "owner delay and stale tasks"
+      },
+      {
+        "index": 17,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "never stale",
+        "verdict": "CAUGHT",
+        "caughtBy": "owner delay and stale tasks"
+      },
+      {
+        "index": 18,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "uncertain not in review",
+        "verdict": "CAUGHT",
+        "caughtBy": "uncertain side effect"
+      },
+      {
+        "index": 19,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "stale not in review",
+        "verdict": "CAUGHT",
+        "caughtBy": "owner delay and stale tasks"
+      },
+      {
+        "index": 20,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "overdue not in review",
+        "verdict": "CAUGHT",
+        "caughtBy": "owner delay and stale tasks"
+      },
+      {
+        "index": 21,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "refused not in review",
+        "verdict": "CAUGHT",
+        "caughtBy": "side effects"
+      },
+      {
+        "index": 22,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "fault not in review",
+        "verdict": "CAUGHT",
+        "caughtBy": "corrupt journal"
+      },
+      {
+        "index": 23,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "unreadable not in review",
+        "verdict": "CAUGHT",
+        "caughtBy": "corrupt journal"
+      },
+      {
+        "index": 24,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "overdue reported as running",
+        "verdict": "CAUGHT",
+        "caughtBy": "owner delay and stale tasks"
+      },
+      {
+        "index": 25,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "corrupt journal reported as fault",
+        "verdict": "CAUGHT",
+        "caughtBy": "corrupt journal"
+      },
+      {
+        "index": 26,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "mismatch reported as fault",
+        "verdict": "CAUGHT",
+        "caughtBy": "activity declarations"
+      },
+      {
+        "index": 27,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "inspection fault stops the sweep",
+        "verdict": "CAUGHT",
+        "caughtBy": "corrupt journal"
+      },
+      {
+        "index": 28,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "action fault stops the sweep",
+        "verdict": "CAUGHT",
+        "caughtBy": "corrupt journal"
+      },
+      {
+        "index": 29,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "clean terminals listed",
+        "verdict": "CAUGHT",
+        "caughtBy": "sweep"
+      },
+      {
+        "index": 30,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "failed counted clean",
+        "verdict": "CAUGHT",
+        "caughtBy": "timeout and retry bound"
+      },
+      {
+        "index": 31,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "truncation hidden",
+        "verdict": "CAUGHT",
+        "caughtBy": "budget"
+      },
+      {
+        "index": 32,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "maxTasks ignored",
+        "verdict": "CAUGHT_AFTER_SUITE_EXTENSION",
+        "firstRun": "SURVIVED",
+        "caughtBy": "budget"
+      },
+      {
+        "index": 33,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "rereads not counted",
+        "verdict": "CAUGHT",
+        "caughtBy": "dry run"
+      },
+      {
+        "index": 34,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "starts not counted",
+        "verdict": "CAUGHT",
+        "caughtBy": "sweep"
+      },
+      {
+        "index": 35,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "dry run skips the activity check",
+        "verdict": "CAUGHT",
+        "caughtBy": "activity declarations"
+      },
+      {
+        "index": 36,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "options not validated",
+        "verdict": "CAUGHT",
+        "caughtBy": "budget"
+      },
+      {
+        "index": 37,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "default call budget",
+        "verdict": "CAUGHT",
+        "caughtBy": "budget"
+      },
+      {
+        "index": 38,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "caller admission dropped",
+        "verdict": "CAUGHT",
+        "caughtBy": "side effects"
+      },
+      {
+        "index": 39,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "policy not enforced inside the call",
+        "verdict": "CAUGHT",
+        "caughtBy": "side effects"
+      },
+      {
+        "index": 40,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "dry run reports calls",
+        "verdict": "CAUGHT",
+        "caughtBy": "dry run"
+      },
+      {
+        "index": 41,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "lost race reported as advanced",
+        "verdict": "CAUGHT",
+        "caughtBy": "concurrent writer"
+      },
+      {
+        "index": 42,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "reread unavailable hidden",
+        "verdict": "CAUGHT",
+        "caughtBy": "owner delay and stale tasks"
+      },
+      {
+        "index": 43,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "busy report loses journal count",
+        "verdict": "CAUGHT",
+        "caughtBy": "duplicate daemon"
+      },
+      {
+        "index": 44,
+        "file": "AyasDurableTaskRecovery.ts",
+        "defect": "error detail not redacted to a line",
+        "verdict": "CAUGHT",
+        "caughtBy": "corrupt journal"
+      },
+      {
+        "index": 45,
+        "file": "AyasDurableTaskRuntime.ts",
+        "defect": "declared effect unchecked",
+        "verdict": "CAUGHT",
+        "caughtBy": "activity declarations"
+      },
+      {
+        "index": 46,
+        "file": "AyasDurableTaskRuntime.ts",
+        "defect": "declared domain unchecked",
+        "verdict": "CAUGHT",
+        "caughtBy": "activity declarations"
+      },
+      {
+        "index": 47,
+        "file": "AyasDurableTaskRuntime.ts",
+        "defect": "declared target unchecked",
+        "verdict": "CAUGHT",
+        "caughtBy": "activity declarations"
+      },
+      {
+        "index": 48,
+        "file": "AyasDurableTaskRuntime.ts",
+        "defect": "admission ignored",
+        "verdict": "CAUGHT",
+        "caughtBy": "side effects"
+      },
+      {
+        "index": 49,
+        "file": "AyasDurableTaskRuntime.ts",
+        "defect": "admission refusal text lost",
+        "verdict": "CAUGHT",
+        "caughtBy": "side effects"
+      },
+      {
+        "index": 50,
+        "file": "AyasDurableTaskActivities.ts",
+        "defect": "input accepted",
+        "verdict": "CAUGHT",
+        "caughtBy": "first activity set"
+      },
+      {
+        "index": 51,
+        "file": "AyasDurableTaskActivities.ts",
+        "defect": "input failure retryable",
+        "verdict": "CAUGHT",
+        "caughtBy": "first activity set"
+      },
+      {
+        "index": 52,
+        "file": "AyasDurableTaskActivities.ts",
+        "defect": "missing HEAD accepted",
+        "verdict": "CAUGHT",
+        "caughtBy": "first activity set"
+      },
+      {
+        "index": 53,
+        "file": "AyasDurableTaskActivities.ts",
+        "defect": "missing HEAD not retryable",
+        "verdict": "CAUGHT",
+        "caughtBy": "first activity set"
+      },
+      {
+        "index": 54,
+        "file": "AyasDurableTaskActivities.ts",
+        "defect": "bound ignores stale",
+        "verdict": "CAUGHT",
+        "caughtBy": "first activity set"
+      },
+      {
+        "index": 55,
+        "file": "AyasDurableTaskActivities.ts",
+        "defect": "bound ignores needs_update",
+        "verdict": "CAUGHT",
+        "caughtBy": "first activity set"
+      },
+      {
+        "index": 56,
+        "file": "AyasDurableTaskActivities.ts",
+        "defect": "bound ignores HEAD",
+        "verdict": "CAUGHT",
+        "caughtBy": "first activity set"
+      },
+      {
+        "index": 57,
+        "file": "AyasDurableTaskActivities.ts",
+        "defect": "declared as side effect",
+        "verdict": "CAUGHT",
+        "caughtBy": "first activity set"
+      },
+      {
+        "index": 58,
+        "file": "AyasDurableTaskActivities.ts",
+        "defect": "declared for every target",
+        "verdict": "CAUGHT",
+        "caughtBy": "first activity set"
+      },
+      {
+        "index": 59,
+        "file": "AyasDurableTaskActivities.ts",
+        "defect": "declared for another domain too",
+        "verdict": "CAUGHT",
+        "caughtBy": "first activity set"
+      },
+      {
+        "index": 60,
+        "file": "AyasDurableTaskActivities.ts",
+        "defect": "registry not frozen",
+        "verdict": "CAUGHT",
+        "caughtBy": "first activity set"
+      },
+      {
+        "index": 61,
+        "file": "AyasDurableTaskActivities.ts",
+        "defect": "task head unchecked",
+        "verdict": "CAUGHT",
+        "caughtBy": "first activity set"
+      },
+      {
+        "index": 62,
+        "file": "AyasDurableTaskActivities.ts",
+        "defect": "edges reported as nodes",
+        "verdict": "CAUGHT",
+        "caughtBy": "first activity set"
+      },
+      {
+        "index": 63,
+        "file": "AyasDurableTaskActivities.ts",
+        "defect": "root taken from input",
+        "verdict": "EQUIVALENT",
+        "firstRun": "SURVIVED"
+      },
+      {
+        "index": 64,
+        "file": "ayas-durable-task-recovery.ts",
+        "defect": "script live guard removed",
+        "verdict": "CAUGHT",
+        "caughtBy": "live binding"
+      },
+      {
+        "index": 65,
+        "file": "ayas-durable-task-recovery.ts",
+        "defect": "script applies by default",
+        "verdict": "CAUGHT",
+        "caughtBy": "live binding"
+      },
+      {
+        "index": 66,
+        "file": "ayas-durable-task-recovery.ts",
+        "defect": "script accepts unknown arguments",
+        "verdict": "CAUGHT",
+        "caughtBy": "live binding"
+      },
+      {
+        "index": 67,
+        "file": "ayas-durable-task-recovery.ts",
+        "defect": "script enqueues without apply",
+        "verdict": "CAUGHT_AFTER_SUITE_EXTENSION",
+        "firstRun": "SURVIVED",
+        "caughtBy": "live binding"
+      }
+    ]
+  }
+}

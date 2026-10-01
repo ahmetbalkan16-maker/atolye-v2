@@ -1,5 +1,14 @@
 ---
 
+## 2026-10-01 — Stage 15B.2 recovery sweep and first activity set (not bound)
+
+- Added `sweepAyasDurableTasks`, one daemon tick over the durable task journal: it closes dead owners' attempts, rereads unconfirmed side effects, then starts new attempts oldest first, one step per task, within a call and time budget. One sweeper at a time through the existing execution authority lock; a dry run reads only.
+- A sweep never starts a side effect unless its caller enables that in code. An activity can declare its effect, domains and targets, and a step that disagrees is refused. A new `admitStart` hook can refuse a new attempt, never a recovery.
+- Added the first activity set: one read-only activity that records whether the knowledge graph is bound to the current commit, one task per commit.
+- Added the operator script `scripts/ayas-durable-task-recovery.ts`: dry run by default.
+- Live binding is `REQUIRE_OWNER`: an applying sweep refuses the live journal directory, and no daemon, route or scheduled task calls the sweep.
+- Smoke 16 scenarios in TEMP roots; 15B.1 smoke 17 unchanged; mutation audit 66 of 67 caught, 1 equivalent; TypeScript passes; full lint 0 errors / 13 pre-existing warnings.
+
 ## 2026-10-01 — Stage 15B.1 durable task contract, event journal and one-step runtime
 
 - Added one shared durable task contract for self-development, research, revenue and Atölye supervision tasks: ordered steps, an append-only hash-chained event journal, and state that is always replayed from the events.

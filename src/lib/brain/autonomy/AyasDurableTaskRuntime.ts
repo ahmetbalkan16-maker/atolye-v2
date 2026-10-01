@@ -68,10 +68,23 @@ export type AyasDurableRereadOutcome =
   | { readonly observation: "APPLIED"; readonly result: AyasDurableJson; readonly evidence: string }
   | { readonly observation: "NOT_APPLIED" | "UNKNOWN"; readonly evidence: string };
 
+/** What an activity is, stated in code next to its implementation. */
+export interface AyasDurableActivityDeclaration {
+  readonly effect: "READ_ONLY" | "SIDE_EFFECT";
+  readonly domains: readonly AyasDurableTaskDomain[];
+  /** The closed list of exact targets the activity accepts. */
+  readonly targets: readonly string[];
+}
+
 export interface AyasDurableActivity {
   run(context: AyasDurableActivityContext): Promise<AyasDurableActivityOutcome>;
   /** Looks at the target's current state. Required for a `SIDE_EFFECT` step; throw if the state cannot be observed right now. */
   reread?(context: AyasDurableActivityContext): Promise<AyasDurableRereadOutcome>;
+  /**
+   * When present, a step naming this activity must agree with it. A step's own `effect` is only the task author's
+   * claim: a side effect declared as a read would be retried without a reread.
+   */
+  readonly declared?: AyasDurableActivityDeclaration;
 }
 
 export interface AyasDurableTaskRuntimeDeps {
@@ -81,6 +94,11 @@ export interface AyasDurableTaskRuntimeDeps {
   readonly nowMs?: () => number;
   /** Whether the process that started a running attempt still exists. Defaults to a PID plus start-time check. */
   readonly isOwnerAlive?: (owner: AyasDurableTaskOwner) => Promise<boolean>;
+  /**
+   * Asked before a new attempt starts. A returned reason refuses the start: nothing is recorded and nothing runs.
+   * Recovery of an earlier attempt (a dead owner, a reread) is never refused, because it starts nothing new.
+   */
+  readonly admitStart?: (step: AyasDurableActivityStep, state: AyasDurableTaskState) => string | undefined;
 }
 
 export interface AyasDurableTaskAdvance {
@@ -88,8 +106,12 @@ export interface AyasDurableTaskAdvance {
   /** Event types this call recorded, in order. Empty when it only waited. */
   readonly recorded: readonly AyasDurableTaskEventBody["type"][];
   readonly state: AyasDurableTaskState;
-  /** `LOST_RACE`: another writer recorded the step first. `REREAD_UNAVAILABLE`: the current state could not be observed; nothing was recorded. */
-  readonly note?: "LOST_RACE" | "REREAD_UNAVAILABLE";
+  /**
+   * `LOST_RACE`: another writer recorded the step first. `REREAD_UNAVAILABLE`: the current state could not be
+   * observed; nothing was recorded. `START_NOT_ADMITTED`: `admitStart` refused the attempt; see `refusal`.
+   */
+  readonly note?: "LOST_RACE" | "REREAD_UNAVAILABLE" | "START_NOT_ADMITTED";
+  readonly refusal?: string;
 }
 
 /** This process's identity for the attempts it starts. The start time makes a reused PID distinguishable. */
@@ -189,11 +211,25 @@ async function attemptOutcome(step: AyasDurableActivityStep, activity: AyasDurab
   return unconfirmed("ACTIVITY_ERROR", outcome?.outcome === "UNKNOWN" ? line(outcome.reason) : "activity returned an unrecognised outcome");
 }
 
-/** Advances one task by at most one bounded step. See the module comment for what each decision does. */
-export async function advanceAyasDurableTask(taskId: string, deps: AyasDurableTaskRuntimeDeps): Promise<AyasDurableTaskAdvance> {
-  const { journal } = deps;
-  const state = requireState(journal, taskId);
-  const step = state.steps[state.currentStepIndex];
+/**
+ * The registered activity for a step. A missing activity, a side effect without a reread, or a step that disagrees
+ * with the activity's own declaration is a deployment fault: it throws before anything is recorded.
+ */
+export function resolveAyasDurableActivity(state: AyasDurableTaskState, step: AyasDurableActivityStep, activities: Readonly<Record<string, AyasDurableActivity>>): AyasDurableActivity {
+  const activity = Object.hasOwn(activities, step.activity) ? activities[step.activity] : undefined;
+  if (!activity || typeof activity.run !== "function" || (step.effect === "SIDE_EFFECT" && typeof activity.reread !== "function")) {
+    throw new AyasDurableTaskError("AYAS_DURABLE_TASK_ACTIVITY_NOT_REGISTERED", `activity ${step.activity} is not registered${step.effect === "SIDE_EFFECT" ? " with a reread" : ""}`);
+  }
+  const declared = activity.declared;
+  if (declared && (declared.effect !== step.effect || !declared.domains.includes(state.domain) || !declared.targets.includes(step.exactTarget))) {
+    throw new AyasDurableTaskError("AYAS_DURABLE_TASK_ACTIVITY_MISMATCH", `step ${step.stepId} does not match the declared effect, domain or target of activity ${step.activity}`);
+  }
+  return activity;
+}
+
+/** The task's replayed state and what may happen next. Reads only: nothing is recorded and no activity runs. */
+export async function inspectAyasDurableTask(taskId: string, deps: Pick<AyasDurableTaskRuntimeDeps, "journal" | "owner" | "nowMs" | "isOwnerAlive">): Promise<{ readonly decision: AyasDurableTaskDecision; readonly state: AyasDurableTaskState }> {
+  const state = requireState(deps.journal, taskId);
   const current = state.stepStates[state.currentStepIndex];
   let runningOwnerAlive: boolean | undefined;
   if (state.status === "ACTIVE" && current?.status === "RUNNING" && current.owner) {
@@ -201,7 +237,15 @@ export async function advanceAyasDurableTask(taskId: string, deps: AyasDurableTa
       ? inFlight.has(`${taskId}:${current.attemptId}`)
       : await (deps.isOwnerAlive ?? ((owner) => isSameLiveProcess(owner.pid, owner.startEpochMs)))(current.owner);
   }
-  const decision = decideAyasDurableTaskNext(state, { nowMs: (deps.nowMs ?? Date.now)(), runningOwnerAlive });
+  return { decision: decideAyasDurableTaskNext(state, { nowMs: (deps.nowMs ?? Date.now)(), runningOwnerAlive }), state };
+}
+
+/** Advances one task by at most one bounded step. See the module comment for what each decision does. */
+export async function advanceAyasDurableTask(taskId: string, deps: AyasDurableTaskRuntimeDeps): Promise<AyasDurableTaskAdvance> {
+  const { journal } = deps;
+  const { decision, state } = await inspectAyasDurableTask(taskId, deps);
+  const step = state.steps[state.currentStepIndex];
+  const current = state.stepStates[state.currentStepIndex];
   const waited = (note?: AyasDurableTaskAdvance["note"], latest: AyasDurableTaskState = state): AyasDurableTaskAdvance => ({ decision, recorded: [], state: latest, ...(note ? { note } : {}) });
   const lostRace = (): AyasDurableTaskAdvance => waited("LOST_RACE", requireState(journal, taskId));
 
@@ -213,12 +257,9 @@ export async function advanceAyasDurableTask(taskId: string, deps: AyasDurableTa
   }
   if (decision.action !== "START_ATTEMPT" && decision.action !== "REREAD_CURRENT_STATE") return waited();
 
-  // Both remaining decisions need the step's registered activity. A missing one is a deployment fault: nothing is recorded.
+  // Both remaining decisions need the step's registered activity. A missing or mismatched one is a deployment fault: nothing is recorded.
   const activityStep = step as AyasDurableActivityStep;
-  const activity = Object.hasOwn(deps.activities, activityStep.activity) ? deps.activities[activityStep.activity] : undefined;
-  if (!activity || typeof activity.run !== "function" || (activityStep.effect === "SIDE_EFFECT" && typeof activity.reread !== "function")) {
-    throw new AyasDurableTaskError("AYAS_DURABLE_TASK_ACTIVITY_NOT_REGISTERED", `activity ${activityStep.activity} is not registered${activityStep.effect === "SIDE_EFFECT" ? " with a reread" : ""}`);
-  }
+  const activity = resolveAyasDurableActivity(state, activityStep, deps.activities);
 
   if (decision.action === "REREAD_CURRENT_STATE") {
     let observed: AyasDurableRereadOutcome | undefined;
@@ -236,6 +277,9 @@ export async function advanceAyasDurableTask(taskId: string, deps: AyasDurableTa
       return { decision, recorded: ["STATE_REREAD"], state: next };
     } catch (error) { if (isConflict(error)) return lostRace(); throw error; }
   }
+
+  const refusal = deps.admitStart?.(activityStep, state);
+  if (refusal !== undefined) return { ...waited("START_NOT_ADMITTED"), refusal: line(refusal) };
 
   let started: AyasDurableTaskState;
   try { started = journal.append(taskId, state.lastSequence, { type: "ATTEMPT_STARTED", stepId: decision.stepId, attempt: decision.attempt, attemptId: decision.attemptId, owner: deps.owner }); }

@@ -3,7 +3,8 @@
 ## AYAS Stage 15B — Durable Long-Horizon Task Runtime — opened 2026-10-01
 
 - [x] 15B.1 Shared task contract for the four domains, append-only hash-chained event journal, one-step runtime with idempotency keys, deterministic attempt identity, timeouts, bounded retry, current-state reread and an uncertain terminal state. Framework only: nothing is wired and no production activity is registered.
-- [ ] 15B.2 Recovery sweep for a daemon tick and the first owner-reviewed activity set.
+- [x] 15B.2 Recovery sweep for a daemon tick (single sweeper, recovery before new work, bounded, dry run, no side-effect start by default) and the first activity set: one read-only Graphify state read in the self-development domain. Built and tested in TEMP roots; not bound to any daemon.
+- [ ] 15B.2 live binding to the autonomy observer: `REQUIRE_OWNER`. Review packet: `docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15B/LIVE_BINDING_REVIEW_PACKET.md`.
 - [ ] Domain adapters: self-development, research, revenue, Atölye supervision.
 
 ## AYAS Stage 15A.3 — local qualification preparation — 2026-10-01
