@@ -1,6 +1,6 @@
 # Targeted post-freeze conformance audit
 
-Status: **IN_PROGRESS**. Supplement: `01_CANONICAL_SPECS/AYAS_POST_FREEZE_DESIGN_ADDENDUM_V1.md`. Audit baseline: `09e1c68825830924ee5c44ec815598704f443dcb`. Resolve the current HEAD with `git rev-parse HEAD`.
+Status: **COMPLETE**. Supplement: `01_CANONICAL_SPECS/AYAS_POST_FREEZE_DESIGN_ADDENDUM_V1.md`. Audit baseline: `09e1c68825830924ee5c44ec815598704f443dcb`. Resolve the current HEAD with `git rev-parse HEAD`.
 
 This audit creates no stage and re-runs no closed stage. It checks only the requirements the addendum added. A row found as a safe gap and then fixed reads SATISFIED and names what the audit found.
 

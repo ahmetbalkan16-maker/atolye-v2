@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "IN_PROGRESS",
+  "status": "COMPLETE",
   "baselineHead": "09e1c68825830924ee5c44ec815598704f443dcb",
   "supplement": "01_CANONICAL_SPECS/AYAS_POST_FREEZE_DESIGN_ADDENDUM_V1.md",
   "supplementSha256": "83000846508d32529918b00464c33d6a4fed4f1b1b25a3d67849baa2a584b9fa",
@@ -254,7 +254,7 @@
         "03_STAGE15_BASE/hardening/15A/IMPLEMENTATION_NOTES.md",
         ".gitignore"
       ],
-      "note": "bin/ayas-local-coding holds 57 files (9,016,238,513 bytes) with a manifest of names, sizes and SHA-256 values; the directory is git-ignored (line 179 of .gitignore), the TEMP source was deleted only after the copy was re-verified against the pins, and nothing was downloaded in this audit. The manifest file itself is local and untracked, as the convention says."
+      "note": "bin/ayas-local-coding holds 57 files (9,016,238,513 bytes) with a manifest of names, sizes and SHA-256 values; the directory is git-ignored (line 179 of .gitignore), the TEMP source was deleted only after the copy was re-verified against the pins, and nothing was downloaded in this audit. The manifest file itself is local and untracked, as the convention says. Checked on 2026-10-02 by presence and size (57 of 57, no size mismatch), not re-hashed."
     },
     {
       "id": "15S-manifest",
@@ -357,7 +357,7 @@
       "requirement": "TOOL_ACTION shown when a real tool executes and withdrawn when it returns",
       "status": "SATISFIED",
       "auditFinding": "GAP_SAFE_TO_FIX",
-      "fixedBy": "post-freeze voice and turn-state packet (EXECUTION_LEDGER.md)",
+      "fixedBy": "5c31024d414627d043281193a948d2e6248b1ab9",
       "evidence": [
         "src/lib/ayas/AyasChatStream.ts",
         "src/components/brain/ayasChatStreamClient.ts",
@@ -405,7 +405,7 @@
       "requirement": "The owner can cut in while AYAS speaks: speech stops, AYAS listens, the turn and recorded results are untouched",
       "status": "SATISFIED",
       "auditFinding": "GAP_SAFE_TO_FIX",
-      "fixedBy": "post-freeze voice and turn-state packet (EXECUTION_LEDGER.md)",
+      "fixedBy": "5c31024d414627d043281193a948d2e6248b1ab9",
       "evidence": [
         "src/components/brain/voice/ayasVoiceEngine.ts",
         "src/components/brain/useAyasVoice.ts",

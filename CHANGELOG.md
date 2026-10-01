@@ -1,3 +1,9 @@
+## 2026-10-02 — AYAS post-freeze audit complete
+
+- Telemetry counts one retry once and has timeout, owner-wait and resource-abort classes; an owner wait or a host-protection abort cannot lower the success rate.
+- The console shows a real tool-action state reported by the chat stream, and the owner can cut in while AYAS speaks (mic button or "sözünü kes"); it stops audio only.
+- Retroactive audit of the addendum: 32 requirements, four safe gaps fixed, none open, two owner-gated, fourteen not applicable until their stages exist. 72-suite baseline with no failure. Stage 15G opened. Local commits only; NO PUSH.
+
 ## 2026-10-02 — AYAS post-freeze addendum adopted; whole-prompt context budget
 
 - `AYAS_POST_FREEZE_DESIGN_ADDENDUM_V1` is a canonical supplement (no stage or order change). Its retroactive audit is in progress.

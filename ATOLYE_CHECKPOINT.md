@@ -1,4 +1,21 @@
-# AYAS MASTER CURRENT — POST-FREEZE AUDIT: 15C FIXED, 15F AND VOICE NEXT — 2026-10-02
+# AYAS MASTER CURRENT — POST-FREEZE AUDIT COMPLETE / STAGE 15G OPEN — 2026-10-02
+
+Resolve the real HEAD with `git rev-parse HEAD`; the last tested source packet is `5c31024d414627d043281193a948d2e6248b1ab9`. Branch `wip/ayas-graphify-final-execution`, local commits only, NO PUSH.
+
+The post-freeze addendum is integrated and its retroactive audit is complete: 32 requirements, four safe gaps found and fixed, none open, two owner-gated, fourteen not applicable until their stages exist. Closure: `docs/ayas-execution/2026-09-27-master/post-freeze-audit/CLOSURE.md`.
+
+Fixed in three local packets:
+- `97463c9` every AYAS prompt is admitted against the declared model window; earlier turns and ordinary memory are shed before anything is refused; an unknown window sends nothing.
+- `9d3a159` one retry is counted once; telemetry has timeout, owner-wait and resource-abort classes, and an owner wait or a host-protection abort cannot lower the success rate.
+- `5c31024` the console shows a real tool-action state; the owner can cut in while AYAS speaks.
+
+Evidence: declared 72-suite baseline at `5c31024` with no failure (cognitive 54/55, held-out 4/5 unchanged); negative controls 19/19, 16/16 and 12/12; production build in a TEMP clone. No model was run and nothing was pushed.
+
+Owner actions, none blocking: set `OLLAMA_NUM_CTX` on every machine that runs AYAS chat (this one has 8192); set `AYAS_CLOUD_CONTEXT_TOKENS` before the next phone-gateway Worker deployment; accept or reject `evaluator.retrieval.pf15c-v2`; rebuild and restart the Next server, then look once at the "Araç çalışıyor" state and the "sözünü kes" control; a device test before acoustic barge-in.
+
+Next: canonical Stage 15G (SBOM / Provenance / Release Trust), then the master order as written. Each stage reads its canonical pack first, then the addendum section named in the closure.
+
+# AYAS MASTER — POST-FREEZE AUDIT: 15C FIXED, 15F AND VOICE NEXT — 2026-10-02
 
 The owner adopted `AYAS_POST_FREEZE_DESIGN_ADDENDUM_V1` as a canonical supplement and revoked the earlier stop after 15F. Resolve the real HEAD with `git rev-parse HEAD`; the last tested source packet is `97463c94f6eacf8f14e0776b262f830d4782597b`.
 

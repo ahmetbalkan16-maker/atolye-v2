@@ -630,3 +630,21 @@ TEST. Voice 79 (three new); console 43 (two new); stream client 11 (one new); re
 GRAPHIFY precommit: 16,540 nodes / 47,781 edges, PARTIAL 9 known files, semantic pending. Blast radius high through the chat stream and console bridge nodes; the stream event is additive and ignored by a client that does not know it.
 
 LOCAL COMMIT; NO PUSH. Next: one full declared baseline at the commit, the final matrix, then Stage 15G.
+
+## Post-freeze addendum: retroactive audit COMPLETE (2026-10-02)
+
+Last source packet `5c31024d414627d043281193a948d2e6248b1ab9`. Closure: `post-freeze-audit/CLOSURE.md`. Matrix: `post-freeze-audit/CONFORMANCE_MATRIX.json`.
+
+32 requirements checked. 10 satisfied (four of them found as safe gaps and fixed in the three packets above), 6 satisfied by an equivalent implementation, 2 owner-gated (the declared model window on each machine and on the Worker; acoustic barge-in), 14 not currently applicable (no browser or session executor; Stages 15Q, 15S and 15T not reached). No safe gap is open. Not-applicable rows are not passes and each names what must exist first.
+
+All ten of the addendum's own closure criteria are met. No stage was created, reordered or reopened; 15C and 15F stay closed and their notes gained a post-freeze section each.
+
+Full declared baseline at `5c31024`: 72 suites, no failure, `PASS_WITH_KNOWN_LIMITATIONS` (cognitive 54/55, held-out 4/5, unchanged), host RAM peak 52.75 %. GRAPHIFY built from `5c31024`: 16,541 nodes / 47,796 edges, PARTIAL 9 known files, semantic pending.
+
+Owner actions, none blocking: `OLLAMA_NUM_CTX` on every machine that runs AYAS chat; `AYAS_CLOUD_CONTEXT_TOKENS` before the next Worker deployment; accept or reject `evaluator.retrieval.pf15c-v2`; rebuild and restart the Next server to load the packets, then look once at the new console state and control; a device test before acoustic barge-in.
+
+From here every stage reads its canonical pack first and then the addendum section named in the closure. LOCAL COMMITS ONLY; NO PUSH.
+
+## Stage 15G — SBOM / Provenance / Release Trust — OPEN (2026-10-02)
+
+Opened at `5c31024`. Canonical section: master order STAGE 15G and `AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md` STAGE 15G. No addendum section is specific to it; section 5 (artifact identity) and section 0 (unknown state fails closed) apply. Carried from Stage 9: a live npm advisory query sends dependency metadata to the public registry and needs explicit owner authorization, so the advisory state is reported from what can be read locally and the live state stays UNKNOWN until the owner authorizes it. No dependency is installed or upgraded.
