@@ -25,6 +25,7 @@ import {
   type AyasExecutionRequest,
 } from "./AyasExecutionPolicy";
 import { AYAS_CAPABILITY_MAX_TTL_MS, canonicalAyasCapabilityScope, isAyasCapabilityScope, type AyasCapabilityScope } from "./AyasCapabilityScope";
+import { containsBrainSecret } from "../../brain/BrainRedaction";
 
 /**
  * A grant can be minted from a validated read-only `AyasExecutionRequest` or
@@ -41,16 +42,49 @@ export interface AyasExecutionGrantDescriptor {
   readonly canonical: string;
 }
 
+/**
+ * Stage 15F — what a tool request leaves in the durable audit record.
+ *
+ * The record must say which tool ran on which target, not what the user wrote. A tool request's intent and plan
+ * come from the conversation, so free text is stored as its digest and length, never as text. Identifiers, repository
+ * paths, enums, numbers and booleans are kept. The grant stays bound to the exact request through `requestDigest`,
+ * which is computed from the original request before any of this.
+ */
+const AUDIT_TOKEN = /^[A-Za-z0-9_.:/@+\-[\]#=,]{1,300}$/;
+const AUDIT_LABEL = /^[A-Za-z0-9 _.:/()-]{1,80}$/;
+/** Plan fields that carry a message body by definition, whatever they contain. */
+const AUDIT_FREE_TEXT_KEYS: ReadonlySet<string> = new Set(["userText", "text", "prompt", "message", "content"]);
+export interface AyasAuditRedactedText { readonly redacted: "FREE_TEXT"; readonly sha256: string; readonly length: number; }
+function auditText(value: string): AyasAuditRedactedText { return { redacted: "FREE_TEXT", sha256: sha256(value), length: value.length }; }
+function auditValue(key: string, value: unknown, depth: number): unknown {
+  if (value === null || typeof value === "boolean") return value;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") return !AUDIT_FREE_TEXT_KEYS.has(key) && AUDIT_TOKEN.test(value) && !containsBrainSecret(value) ? value : auditText(value);
+  if (depth >= 3) return auditText(JSON.stringify(value) ?? "");
+  if (Array.isArray(value)) return value.slice(0, 50).map((item) => auditValue(key, item, depth + 1));
+  if (typeof value === "object") return Object.fromEntries(Object.entries(value as Record<string, unknown>).slice(0, 50).map(([name, item]) => [AUDIT_TOKEN.test(name) ? name : `key-${sha256(name).slice(0, 12)}`, auditValue(name, item, depth + 1)]));
+  return auditText(String(value));
+}
+/** The plan as the audit record keeps it. */
+export function boundAyasAuditPlan(plan: Readonly<Record<string, unknown>> | undefined): Readonly<Record<string, unknown>> {
+  return auditValue("", plan ?? {}, 0) as Record<string, unknown>;
+}
+/** The intent as the audit record keeps it: a short code-style label verbatim, anything else as digest and length. */
+export function boundAyasAuditIntent(intent: string): string {
+  return AUDIT_LABEL.test(intent) && !containsBrainSecret(intent) ? intent : `sha256:${sha256(intent)};len=${intent.length}`;
+}
+
 function toDescriptor(
   input: AyasExecutionRequest | AyasExecutionGrantDescriptor,
 ): AyasExecutionGrantDescriptor {
+  // A descriptor is built by trusted code and names its own audit fields (the run scope, the write binding).
   if ("canonical" in input) return input;
   return {
     action: input.action,
-    requestedBy: input.requestedBy,
-    intent: input.intent,
+    requestedBy: boundAyasAuditIntent(input.requestedBy),
+    intent: boundAyasAuditIntent(input.intent),
     ...(input.projectSlug ? { projectSlug: input.projectSlug } : {}),
-    plan: input.plan,
+    plan: boundAyasAuditPlan(input.plan),
     canonical: canonicalAyasExecutionRequest(input),
   };
 }

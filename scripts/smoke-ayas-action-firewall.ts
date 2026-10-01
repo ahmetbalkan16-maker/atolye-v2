@@ -252,6 +252,45 @@ async function main() {
     assert.equal(Object.hasOwn(scope.resource, "additionalReadRoots"), false);
     assert.equal(JSON.parse(canonicalAyasCapabilityScope(scope)).length, 14);
   });
+  await scenario("15F: the durable record keeps identifiers and never the user's words", () => {
+    const { dir, store, firewall } = setup();
+    const userText = "Annemin doktor randevusu yarın, bunu kimseye söyleme. Durum ne?";
+    const intent = "Kullanıcı özel bir not paylaştı ve gelişim durumunu soruyor";
+    const input = { schemaVersion: "1", action: "ayas-development-status", requestedBy: "ayas-chat", intent, plan: { userText, mode: "summary", count: 3, deep: { note: "iki kelime", id: "ayas-proposal-1" } } };
+    const lease = issue(firewall, input); const record = store.list()[0]!;
+    const sha = (value: string) => crypto.createHash("sha256").update(value, "utf8").digest("hex");
+    assert.equal(record.intent, `sha256:${sha(intent)};len=${intent.length}`);
+    assert.deepEqual(record.plan, { userText: { redacted: "FREE_TEXT", sha256: sha(userText), length: userText.length }, mode: "summary", count: 3,
+      deep: { note: { redacted: "FREE_TEXT", sha256: sha("iki kelime"), length: 10 }, id: "ayas-proposal-1" } });
+    assert.equal(record.requestedBy, "ayas-chat");
+    // Nothing of the conversation is on disk, in any state the record goes through.
+    const onDisk = () => fs.readFileSync(authFile(dir, record.authorizationId), "utf8");
+    for (const fragment of ["Annemin", "randevusu", "söyleme", "özel bir not", "iki kelime"]) assert.ok(!onDisk().includes(fragment), fragment);
+    // The grant is still bound to the exact request: the same text admits, other text does not.
+    assert.equal(firewall.admit(lease, { ...input, plan: { ...input.plan, userText: "başka bir metin" } }).allowed, false);
+    const admitted = firewall.admit(lease, input); assert.ok(admitted.allowed);
+    assert.equal(admitted.request.plan.userText, userText, "the adapter still receives the real request");
+    store.settle(admitted.authorizationId, { ok: true, resultDigest: "a".repeat(64) });
+    for (const fragment of ["Annemin", "randevusu", "özel bir not"]) assert.ok(!onDisk().includes(fragment), fragment);
+    assert.equal(store.read(admitted.authorizationId).state, "completed");
+  });
+  await scenario("15F: a body field is never kept, a secret-shaped token is never kept, a code label is", () => {
+    // The fixture clock is fixed, so each record gets its own store.
+    const recorded = (input: unknown) => { const { store, firewall } = setup(); issue(firewall, input); return store.list()[0]!; };
+    const email = "ahmet.ozel@example.com";
+    for (const key of ["userText", "text", "prompt", "message", "content"]) {
+      const record = recorded({ schemaVersion: "1", action: "ayas-development-status", requestedBy: "ayas-chat", intent: "development status", plan: { [key]: "tekkelime" } });
+      assert.deepEqual(Object.keys(record.plan[key] as object).sort(), ["length", "redacted", "sha256"], key);
+      assert.equal(record.intent, "development status");
+    }
+    const record = recorded({ schemaVersion: "1", action: "ayas-development-status", requestedBy: email, intent: email, plan: { contact: email, filePath: "src/lib/ayas/AyasChatStream.ts", symbol: "createAyasActionFirewall" } });
+    assert.ok(!JSON.stringify(record).includes("ahmet"));
+    assert.deepEqual([record.plan.filePath, record.plan.symbol], ["src/lib/ayas/AyasChatStream.ts", "createAyasActionFirewall"]);
+    assert.match(record.intent, /^sha256:[a-f0-9]{64};len=22$/);
+    assert.match(record.requestedBy, /^sha256:[a-f0-9]{64};len=22$/);
+    // An over-long label is not a label.
+    assert.match(recorded({ ...raw, intent: "a".repeat(81) }).intent, /^sha256:[a-f0-9]{64};len=81$/);
+  });
   console.log(`Stage 15D action firewall: PASS (${count} scenarios; TEMP only; network/model/production actions 0)`);
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => fs.rmSync(root, { recursive: true, force: true }));
