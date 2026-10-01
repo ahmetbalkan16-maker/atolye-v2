@@ -107,7 +107,7 @@ async function main() {
       return new Response(`${JSON.stringify(payload)}\n`, { status: 200 });
     }) as typeof fetch;
     const { createOllamaAyasProvider } = await import("../src/lib/ayas/model/OllamaAyasProvider");
-    const provider = createOllamaAyasProvider({} as NodeJS.ProcessEnv, fakeFetch);
+    const provider = createOllamaAyasProvider({ NODE_ENV: "test", OLLAMA_NUM_CTX: "8192" }, fakeFetch);
     await provider.chat({ prompt: "test", complexity: "TOOL", maxTokens: 100, responseSchema: AYAS_REASONING_JSON_SCHEMA });
     assert.ok(capturedBody, "fetch must have been called");
     assert.deepEqual((capturedBody as Record<string, unknown>).format, AYAS_REASONING_JSON_SCHEMA);
@@ -121,7 +121,7 @@ async function main() {
       return new Response(`${JSON.stringify(payload)}\n`, { status: 200 });
     }) as typeof fetch;
     const { createOllamaAyasProvider } = await import("../src/lib/ayas/model/OllamaAyasProvider");
-    const provider = createOllamaAyasProvider({} as NodeJS.ProcessEnv, fakeFetch);
+    const provider = createOllamaAyasProvider({ NODE_ENV: "test", OLLAMA_NUM_CTX: "8192" }, fakeFetch);
     await provider.chat({ prompt: "merhaba", complexity: "SIMPLE", maxTokens: 100 });
     assert.ok(capturedBody);
     assert.equal("format" in (capturedBody as Record<string, unknown>), false, "an ordinary chat call must not gain a format field it never asked for");

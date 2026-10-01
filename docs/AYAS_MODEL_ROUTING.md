@@ -36,6 +36,15 @@ Execution Gate stays `CLOSED`; `writeActionsEnabled` stays `false`.
 | `AYAS_CLOUD_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible base, no trailing slash. Must be `https://` (or `http://127.0.0.1` / `http://localhost` for a local proxy under test). Works with OpenAI, OpenRouter, Groq, Together, vLLM, … |
 | `AYAS_CLOUD_MODEL` | `gpt-4o-mini` | cloud model tag |
 | `AYAS_CLOUD_TIMEOUT_MS` | `60000` | per-request timeout (1 000–300 000) |
+| `OLLAMA_NUM_CTX` | *(unset)* | **required for AYAS chat.** The local model's context window in tokens (2 048–131 072), sent to Ollama as `num_ctx`. Unset or invalid = unknown window: AYAS sends no prompt and answers that the window is not configured. Raising it costs GPU memory. |
+| `AYAS_CLOUD_CONTEXT_TOKENS` | *(unset)* | **required before any cloud call.** The context window of `AYAS_CLOUD_MODEL` in tokens (2 048–131 072). Unset or invalid = unknown window: no billed request is made. |
+
+Every AYAS prompt is admitted against the declared window before it is sent
+(`src/lib/ayas/context/AyasContextBudget.ts`): identity, limits, runtime state,
+the current request and protected memory are always kept; earlier turns and
+ordinary recalled memory are shed lowest value first; if the mandatory part does
+not fit, no call is made. The size is a deterministic estimate, and when Ollama
+reports the prompt size it actually evaluated, that measurement decides.
 
 `resolveAyasCloudConfig()` returns a plain object that is **safe to log/serialise**
 — it carries no key. A present-but-invalid value (e.g. a non-https base) leaves

@@ -21,6 +21,13 @@ workers_dev = true
 # AYAS_CLOUD_MODEL = "gpt-4o-mini"
 # AYAS_CLOUD_BASE_URL = "https://api.openai.com/v1"
 # AYAS_CLOUD_TIMEOUT_MS = "60000"
+#
+# REQUIRED for the chat route: the context window of AYAS_CLOUD_MODEL, in tokens
+# (2048–131072). There is no default: while it is unset the Worker answers with
+# its "not configured" reply and makes no cloud request, because a prompt is
+# never sent to a model whose window is unknown. Take the number from the model
+# vendor's documentation for the exact model configured above.
+# AYAS_CLOUD_CONTEXT_TOKENS = ""
 # AYAS_EXTRA_ORIGIN = "https://your-named-tunnel-domain.example"
 
 # SECRETS — never put these here. Set with:

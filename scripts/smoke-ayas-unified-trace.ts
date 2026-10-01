@@ -15,6 +15,9 @@ import { AYAS_SESSION_COOKIE, issueSession } from "../src/lib/auth/accessGate";
 import { GET as readTrace } from "../app/api/ayas/trace/[traceId]/route";
 import { ayasTraceErrorCode, ayasTraceSessionScope, ayasTraceStore, isAyasTraceId } from "../src/lib/ayas/trace/AyasUnifiedTrace";
 
+// Post-freeze 15C: a turn reaches the local transport only when its context window is declared.
+process.env.OLLAMA_NUM_CTX = "8192";
+
 let passed = 0;
 async function scenario(name: string, run: () => void | Promise<void>): Promise<void> {
   await run();

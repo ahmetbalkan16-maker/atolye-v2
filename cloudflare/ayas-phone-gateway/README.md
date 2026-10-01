@@ -39,7 +39,12 @@ Run from `cloudflare/ayas-phone-gateway/`:
 export CLOUDFLARE_API_TOKEN="..."      # this shell/process only — never a file
 export CLOUDFLARE_ACCOUNT_ID="..."
 
-# 2. Deploy the Worker code (no secrets in it — see worker.ts).
+# 2. Declare the cloud model's context window before deploying: uncomment
+#    AYAS_CLOUD_CONTEXT_TOKENS in wrangler.toml [vars] and set it to the window
+#    (in tokens) the vendor documents for the configured AYAS_CLOUD_MODEL.
+#    It has no default. While it is unset the chat route answers "not
+#    configured" (reason cloud-context-window-unknown) and makes no cloud call.
+#    Then deploy the Worker code (no secrets in it — see worker.ts).
 npx wrangler deploy
 
 # 3. Set the two secrets (each prompts on stdin; not passed as an argv/env

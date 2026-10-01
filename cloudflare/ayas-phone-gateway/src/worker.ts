@@ -75,6 +75,7 @@
  */
 
 import { createCloudAyasProvider } from "../../../src/lib/ayas/model/CloudAyasProvider";
+import { AyasContextBudgetError } from "../../../src/lib/ayas/context/AyasContextBudget";
 import { isUsableAyasReply, ayasReplyClaimsExecution } from "../../../src/components/brain/brainCore";
 import { MODEL_PROXY_ROUTES } from "./modelProxyConfig";
 
@@ -84,6 +85,8 @@ export interface AyasWorkerEnv {
   readonly AYAS_CLOUD_MODEL?: string;
   readonly AYAS_CLOUD_BASE_URL?: string;
   readonly AYAS_CLOUD_TIMEOUT_MS?: string;
+  /** Context window of the configured cloud model, in tokens. Non-secret. Unset = unknown: no prompt is sent. */
+  readonly AYAS_CLOUD_CONTEXT_TOKENS?: string;
   readonly AYAS_PHONE_KEY?: string;
   /** Extra allowed CORS origin, e.g. a named tunnel domain added later. Non-secret. */
   readonly AYAS_EXTRA_ORIGIN?: string;
@@ -340,7 +343,9 @@ async function handleChatStream(request: Request, env: AyasWorkerEnv, origin: st
     : [];
 
   const provider = createCloudAyasProvider(env as unknown as NodeJS.ProcessEnv, fetch);
-  if (!provider.configured) {
+  // Post-freeze 15C: a cloud model whose context window is not declared is not called at all.
+  const windowUnknown = provider.configured && provider.contextWindowTokens == null;
+  if (!provider.configured || windowUnknown) {
     // Honest, config-free — never reveals which var is missing.
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -351,7 +356,7 @@ async function handleChatStream(request: Request, env: AyasWorkerEnv, origin: st
               text: "AYAS bulut yedeği şu an yapılandırılmamış.",
               source: "fallback",
               corrected: true,
-              reason: "cloud-not-configured",
+              reason: windowUnknown ? "cloud-context-window-unknown" : "cloud-not-configured",
             }),
           ),
         );
@@ -381,6 +386,23 @@ async function handleChatStream(request: Request, env: AyasWorkerEnv, origin: st
           }
         }
       } catch (error) {
+        if (error instanceof AyasContextBudgetError) {
+          // Refused before any request left this Worker: the prompt does not fit the declared window.
+          controller.enqueue(
+            encoder.encode(
+              sse({
+                type: "done",
+                text: "Bu istek AYAS bulut yedeğinin model penceresine sığmıyor; gönderilmedi. İsteği kısaltıp yeniden dener misin?",
+                source: "fallback",
+                corrected: true,
+                reason: "CONTEXT_BUDGET_UNSAFE",
+                provider: "cloud",
+              }),
+            ),
+          );
+          controller.close();
+          return;
+        }
         // Transport failure only — never the provider's error body (may echo the key/org id).
         // Safe operational diagnostic only: error NAME/constructor + a redacted message —
         // never headers, never the request, never anything that could carry the key.

@@ -67,7 +67,13 @@ export interface AyasModelRequest {
 
 export type AyasModelStreamChunk =
   | { readonly type: "delta"; readonly text: string }
-  | { readonly type: "done"; readonly text: string; readonly finishReason: string };
+  | {
+      readonly type: "done";
+      readonly text: string;
+      readonly finishReason: string;
+      /** The prompt size the transport reports having evaluated, when it reports one. A measurement, not an estimate. */
+      readonly promptTokens?: number;
+    };
 
 /** Safe, secret-free health probe result. `detail` is shown only in the operational trace. */
 export interface AyasModelHealth {
@@ -86,6 +92,12 @@ export interface AyasModelProvider {
   readonly model: string;
   /** Config-level readiness — `cloud` is `false` until `AYAS_CLOUD_API_KEY` is set. */
   readonly configured: boolean;
+  /**
+   * The context window of the transport behind this provider. `null` is an unknown window: no prompt is sent.
+   * A provider that sends a prompt to a model must declare it and must refuse an unknown or exceeded window itself;
+   * the chat path uses it to shed context before that point. Only an in-process double with no transport omits it.
+   */
+  readonly contextWindowTokens?: number | null;
   /** Cheap reachability check. `local` pings the server; `cloud` reports config only (no billed call). */
   health(signal?: AbortSignal): Promise<AyasModelHealth>;
   /** One-shot completion. */

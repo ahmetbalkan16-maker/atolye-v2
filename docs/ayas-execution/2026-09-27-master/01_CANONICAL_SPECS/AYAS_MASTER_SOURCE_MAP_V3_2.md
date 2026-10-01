@@ -140,3 +140,7 @@ Do NOT:
 - reopen an already resolved design choice because another implementation is possible.
 
 The only allowed design deviation is a narrowly documented reconciliation required by newer repository truth, a failing test, an incompatible current API, or a verified security issue.
+
+## Owner-adopted post-freeze canonical supplement (2026-10-01)
+
+`01_CANONICAL_SPECS/AYAS_POST_FREEZE_DESIGN_ADDENDUM_V1.md` is the later owner-adopted design authority for its covered requirements. SHA-256: `83000846508d32529918b00464c33d6a4fed4f1b1b25a3d67849baa2a584b9fa`. It supplements the existing packs; it creates no stage, changes no master order, and weakens no owner/security/approval/cost boundary. Verified correct current behavior is preserved, including equivalent implementations. For each new stage read its existing canonical pack first, then the relevant addendum section. Adoption and targeted retroactive conformance evidence: `post-freeze-audit/ADOPTION.json` and `post-freeze-audit/CONFORMANCE_MATRIX.json`. Original design packs remain intact.

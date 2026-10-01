@@ -106,7 +106,9 @@ function sse(pieces: string[]): Response {
 }
 
 const NO_CLOUD_ENV: AyasWorkerEnv = { AYAS_PHONE_KEY: PHONE_KEY };
-const CLOUD_ENV: AyasWorkerEnv = { AYAS_PHONE_KEY: PHONE_KEY, AYAS_CLOUD_API_KEY: CLOUD_KEY };
+const CLOUD_ENV: AyasWorkerEnv = { AYAS_PHONE_KEY: PHONE_KEY, AYAS_CLOUD_API_KEY: CLOUD_KEY, AYAS_CLOUD_CONTEXT_TOKENS: "16384" };
+/** A cloud key with no declared model window (post-freeze 15C): the Worker must not call the model. */
+const CLOUD_ENV_NO_WINDOW: AyasWorkerEnv = { AYAS_PHONE_KEY: PHONE_KEY, AYAS_CLOUD_API_KEY: CLOUD_KEY };
 
 async function run() {
   /* ---------------- routing / method / path ---------------- */
@@ -247,6 +249,44 @@ async function run() {
       assert.equal(done?.provider, "cloud");
       assert.ok(!raw.includes(CLOUD_KEY));
       assert.ok(!raw.toLowerCase().includes("authorization"));
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+
+  await scenario("worker — cloud key without a declared context window → no cloud call, honest config-free reply", async () => {
+    const real = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => { calls += 1; return sse(["Merhaba."]); }) as unknown as typeof fetch;
+    try {
+      for (const env of [CLOUD_ENV_NO_WINDOW, { ...CLOUD_ENV_NO_WINDOW, AYAS_CLOUD_CONTEXT_TOKENS: "not-a-number" }, { ...CLOUD_ENV_NO_WINDOW, AYAS_CLOUD_CONTEXT_TOKENS: "512" }]) {
+        const res = await ayasPhoneGatewayWorker.fetch(req({ headers: { Authorization: `Bearer ${PHONE_KEY}` }, body: { text: "merhaba" } }), env);
+        const { deltas, done, raw } = await readSse(res);
+        assert.deepEqual(deltas, []);
+        assert.equal(done?.source, "fallback");
+        assert.equal(done?.reason, "cloud-context-window-unknown");
+        assert.ok(!/AYAS_CLOUD_|CONTEXT_TOKENS/.test(raw), "the reply names no configuration variable");
+      }
+      assert.equal(calls, 0);
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+
+  await scenario("worker — a request that does not fit the declared window is refused before any cloud call", async () => {
+    const real = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => { calls += 1; return sse(["Merhaba."]); }) as unknown as typeof fetch;
+    try {
+      const res = await ayasPhoneGatewayWorker.fetch(
+        req({ headers: { Authorization: `Bearer ${PHONE_KEY}` }, body: { text: "uzun bir istek ".repeat(260) } }),
+        { ...CLOUD_ENV, AYAS_CLOUD_CONTEXT_TOKENS: "2048" },
+      );
+      const { deltas, done } = await readSse(res);
+      assert.deepEqual(deltas, []);
+      assert.equal(done?.reason, "CONTEXT_BUDGET_UNSAFE");
+      assert.equal(done?.source, "fallback");
+      assert.equal(calls, 0);
     } finally {
       globalThis.fetch = real;
     }

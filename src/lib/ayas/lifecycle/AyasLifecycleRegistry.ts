@@ -215,11 +215,20 @@ export const AYAS_LIFECYCLE_REGISTRY: readonly AyasLifecycleEntry[] = deepFreeze
   },
   {
     id: "evaluator.retrieval.2026-10-01", kind: "evaluator", role: "retrieval-evaluator", label: "smoke-ayas-retrieval-evaluation",
-    identity: { type: "source-digest", files: ["scripts/smoke-ayas-retrieval-evaluation.ts", "scripts/lib/AyasRetrievalEvaluation.ts"], sha256: "b4c454a68d36977012b97e2df6755d7ed66e7788d4e6500aff86a7e7c1f5e5d5" },
-    state: "PINNED", admission: "OWNER_SELECTED", compatibility: "deterministic; 74 cases with recorded known limitations.",
+    identity: { type: "source-digest", files: ["scripts/smoke-ayas-retrieval-evaluation.ts", "scripts/lib/AyasRetrievalEvaluation.ts"], sha256: "b4c454a68d36977012b97e2df6755d7ed66e7788d4e6500aff86a7e7c1f5e5d5", revision: "09e1c68825830924ee5c44ec815598704f443dcb" },
+    state: "PINNED", admission: "NONE", compatibility: "archived evaluator from before the post-freeze context budget; preserved in Git as a rollback artifact, never admitted as current source.",
     record: unmeasured("an evaluator is the measure, not the measured"), rollbackTarget: null,
     history: recordedAtOpening("source digest recorded"),
-    notes: "Known limitations are part of the evaluator's recorded output and must not be relaxed to pass a candidate.",
+    notes: "Original owner-selected identity retained. Its chat turns declared no model context window, and since the post-freeze context budget an undeclared window sends no prompt, so this version can no longer drive a chat turn. Known limitations are part of the evaluator's recorded output and must not be relaxed to pass a candidate.",
+  },
+  {
+    id: "evaluator.retrieval.pf15c-v2", kind: "evaluator", role: "retrieval-evaluator", label: "smoke-ayas-retrieval-evaluation (declared context window)",
+    identity: { type: "source-digest", files: ["scripts/smoke-ayas-retrieval-evaluation.ts", "scripts/lib/AyasRetrievalEvaluation.ts"], sha256: "cee4eeb022a557f3f697188a5a512bf4d72a8c333f45a196b003fcbd2f177a72" },
+    state: "PINNED", admission: "NONE", compatibility: "deterministic; 74 cases with recorded known limitations; chat turns declare an 8192-token local window.",
+    record: unmeasured("new evaluator identity; owner acceptance pending"), rollbackTarget: "evaluator.retrieval.2026-10-01",
+    history: [{ state: "DISCOVERED", on: "2026-10-02", basis: "the post-freeze context budget refuses a chat turn whose model window is undeclared" },
+      { state: "PINNED", on: "2026-10-02", basis: "one environment value added to the evaluator's chat turn; cases, graders, assertions and known limitations unchanged" }],
+    notes: "No qualification, promotion or serving admission. The only change is the declared window of the evaluator's chat turn. Old bytes and their digest are preserved at the rollback target. The owner selected the previous identity; accepting this one is an owner decision.",
   },
 ] satisfies readonly AyasLifecycleEntry[]);
 

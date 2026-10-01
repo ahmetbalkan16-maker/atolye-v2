@@ -1,0 +1,368 @@
+{
+  "schemaVersion": 1,
+  "status": "IN_PROGRESS",
+  "baselineHead": "09e1c68825830924ee5c44ec815598704f443dcb",
+  "supplement": "01_CANONICAL_SPECS/AYAS_POST_FREEZE_DESIGN_ADDENDUM_V1.md",
+  "allowedStatuses": [
+    "SATISFIED",
+    "SATISFIED_BY_EQUIVALENT_IMPLEMENTATION",
+    "NOT_CURRENTLY_APPLICABLE",
+    "GAP_SAFE_TO_FIX",
+    "GAP_OWNER_GATED"
+  ],
+  "rows": [
+    {
+      "id": "15B-applicability",
+      "stage": "15B",
+      "section": "1",
+      "requirement": "Real browser/session executor applicability gate",
+      "status": "NOT_CURRENTLY_APPLICABLE",
+      "evidence": [
+        "src/lib/brain/autonomy/AyasDurableTaskActivities.ts",
+        "03_STAGE15_BASE/hardening/15B/IMPLEMENTATION_NOTES.md#browser-session-idle-watchdog"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Re-evaluate when a real browser/session executor registers a capability/activity; then bind session identity and last progress to the existing journal, no separate engine."
+    },
+    {
+      "id": "15B-durable-recovery",
+      "stage": "15B",
+      "section": "1",
+      "requirement": "Durable identities, bounded timeout/retry, inspect/reread first, no blind replay or UNCERTAIN success",
+      "status": "SATISFIED_BY_EQUIVALENT_IMPLEMENTATION",
+      "evidence": [
+        "src/lib/brain/autonomy/AyasDurableTask.ts",
+        "src/lib/brain/autonomy/AyasDurableTaskJournal.ts",
+        "src/lib/brain/autonomy/AyasDurableTaskRuntime.ts",
+        "src/lib/brain/autonomy/AyasDurableTaskRecovery.ts",
+        "scripts/smoke-ayas-durable-task-runtime.ts",
+        "scripts/smoke-ayas-durable-task-recovery.ts"
+      ]
+    },
+    {
+      "id": "15C-dynamic-budget",
+      "stage": "15C",
+      "section": "2",
+      "requirement": "Total context ceiling/output reserve/deterministic trimming/protected retention/fail-closed overflow",
+      "status": "SATISFIED",
+      "auditFinding": "GAP_SAFE_TO_FIX",
+      "fixedBy": "post-freeze 15C packet, 2026-10-02 (EXECUTION_LEDGER.md)",
+      "evidence": [
+        "src/lib/ayas/context/AyasContextBudget.ts",
+        "src/lib/ayas/AyasChatStream.ts",
+        "src/components/brain/brainCore.ts",
+        "src/lib/ayas/reasoning/AyasReasoningCore.ts",
+        "src/lib/ayas/model/OllamaAyasProvider.ts",
+        "src/lib/ayas/model/CloudAyasProvider.ts",
+        "cloudflare/ayas-phone-gateway/src/worker.ts",
+        "scripts/smoke-ayas-context-budget.ts",
+        "scripts/smoke-ayas-context-budget-mutations.ts",
+        "03_STAGE15_BASE/hardening/15C/IMPLEMENTATION_NOTES.md",
+        "post-freeze-audit/PF15C_RESULT.json"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Fixed and tested: 21 scenarios, 19/19 negative controls, 71-suite baseline with no failure. Known limits: the size is an estimate that has not been compared with the real tokenizer (the local transport's measured prompt size is checked after each reply); id-level budget evidence is not durably stored; pipeline and research model calls use a different provider and are not budgeted."
+    },
+    {
+      "id": "15C-memory-firewall",
+      "stage": "15C",
+      "section": "2",
+      "requirement": "Quarantine/external DATA/no protected authority promotion/temporal supersession/reset",
+      "status": "SATISFIED",
+      "evidence": [
+        "src/lib/brain/BrainMemoryIntegrity.ts",
+        "src/lib/ayas/memory/AyasMemoryRetrieval.ts",
+        "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+        "scripts/smoke-ayas-memory-integrity.ts",
+        "scripts/smoke-ayas-memory-temporal.ts",
+        "03_STAGE15_BASE/hardening/15C/IMPLEMENTATION_NOTES.md"
+      ]
+    },
+    {
+      "id": "15C-live-window-config",
+      "stage": "15C",
+      "section": "2",
+      "requirement": "Known runtime context ceiling for actual live call",
+      "status": "GAP_OWNER_GATED",
+      "evidence": [
+        "src/lib/ayas/context/AyasContextBudget.ts",
+        "docs/AYAS_MODEL_ROUTING.md",
+        "cloudflare/ayas-phone-gateway/wrangler.toml"
+      ],
+      "prerequisiteOrReevaluationTrigger": "BLOCKED_OWNER_ACTION, not blocking the master order. (1) OLLAMA_NUM_CTX must be set on every machine that runs AYAS chat; this workstation has 8192, a machine without it answers every model turn with the window-not-configured reply. (2) AYAS_CLOUD_CONTEXT_TOKENS must be set in wrangler.toml before the phone gateway Worker is deployed again; the deployed Worker is unchanged. No window is chosen or raised autonomously."
+    },
+    {
+      "id": "15F-tool-measurements",
+      "stage": "15F",
+      "section": "3",
+      "requirement": "Measured success/failure/tool latency/retry/lease binding/model/evidence digest, dedupe and unknown state",
+      "status": "SATISFIED_BY_EQUIVALENT_IMPLEMENTATION",
+      "evidence": [
+        "src/lib/ayas/observability/AyasOperationEvidence.ts",
+        "src/lib/ayas/observability/AyasOperationTelemetry.ts",
+        "src/lib/ayas/observability/AyasOperationalState.ts",
+        "scripts/smoke-ayas-operation-evidence.ts",
+        "scripts/smoke-ayas-operation-telemetry.ts",
+        "03_STAGE15_BASE/hardening/15F/CLOSURE.md"
+      ]
+    },
+    {
+      "id": "15F-outcome-detail",
+      "stage": "15F",
+      "section": "3",
+      "requirement": "Explicit timeout/resource abort/owner wait categories separate from quality failure; no duplicate retry observation",
+      "status": "GAP_SAFE_TO_FIX",
+      "evidence": [
+        "src/lib/ayas/observability/AyasOperationTelemetry.ts",
+        "src/lib/ayas/observability/AyasOperationEvidence.ts"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Narrow observer-only classification and distinct retry accounting regression pending; preserve evidence schema/history and gate authority."
+    },
+    {
+      "id": "15F-privacy",
+      "stage": "15F",
+      "section": "3",
+      "requirement": "Privacy-bounded live operational state and durable evidence; no fake success/zero/live certification",
+      "status": "SATISFIED",
+      "evidence": [
+        "src/lib/ayas/trace/AyasUnifiedTrace.ts",
+        "src/lib/ayas/observability/AyasOperationalState.ts",
+        "src/lib/ayas/observability/AyasReliabilityState.ts",
+        "03_STAGE15_BASE/hardening/15F/15F5_LIVE_READONLY.json"
+      ]
+    },
+    {
+      "id": "15Q-health",
+      "stage": "15Q",
+      "section": "4,9",
+      "requirement": "PC Health available measured sensors / UNKNOWN / resource classes",
+      "status": "NOT_CURRENTLY_APPLICABLE",
+      "evidence": [
+        "01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Stage 15Q not reached. Re-evaluate with canonical 15Q resource governor implementation, real sensor/task admission adapters; do not instantiate a fake subsystem during this retroactive audit. Global on-demand/one-heavy/host-protection constraints already bind this session."
+    },
+    {
+      "id": "15Q-single-heavy",
+      "stage": "15Q",
+      "section": "4,9",
+      "requirement": "Single-heavy job and >=90% RAM admission, RESOURCE_ABORT/HOST_PROTECTION distinct",
+      "status": "NOT_CURRENTLY_APPLICABLE",
+      "evidence": [
+        "01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Stage 15Q not reached. Re-evaluate with canonical 15Q resource governor implementation, real sensor/task admission adapters; do not instantiate a fake subsystem during this retroactive audit. Global on-demand/one-heavy/host-protection constraints already bind this session."
+    },
+    {
+      "id": "15Q-on-demand",
+      "stage": "15Q",
+      "section": "4,9",
+      "requirement": "On-demand Qwen/Podman state lifecycle, idle unload, bounded Podman idle stop and no automatic WSL shutdown",
+      "status": "NOT_CURRENTLY_APPLICABLE",
+      "evidence": [
+        "01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Stage 15Q not reached. Re-evaluate with canonical 15Q resource governor implementation, real sensor/task admission adapters; do not instantiate a fake subsystem during this retroactive audit. Global on-demand/one-heavy/host-protection constraints already bind this session."
+    },
+    {
+      "id": "15Q-lazy-prewarm",
+      "stage": "15Q",
+      "section": "4,9",
+      "requirement": "Lazy load / measured bounded prewarm cancellation",
+      "status": "NOT_CURRENTLY_APPLICABLE",
+      "evidence": [
+        "01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Stage 15Q not reached. Re-evaluate with canonical 15Q resource governor implementation, real sensor/task admission adapters; do not instantiate a fake subsystem during this retroactive audit. Global on-demand/one-heavy/host-protection constraints already bind this session."
+    },
+    {
+      "id": "15Q-active-app",
+      "stage": "15Q",
+      "section": "4,9",
+      "requirement": "Coarse active-app awareness with no screenshots/keystrokes/window-title collection",
+      "status": "NOT_CURRENTLY_APPLICABLE",
+      "evidence": [
+        "01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Stage 15Q not reached. Re-evaluate with canonical 15Q resource governor implementation, real sensor/task admission adapters; do not instantiate a fake subsystem during this retroactive audit. Global on-demand/one-heavy/host-protection constraints already bind this session."
+    },
+    {
+      "id": "15Q-image-cleanup",
+      "stage": "15Q",
+      "section": "4,9",
+      "requirement": "Required/rebuildable/stale/reclaimable/UNKNOWN image classification, no blind prune",
+      "status": "NOT_CURRENTLY_APPLICABLE",
+      "evidence": [
+        "01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Stage 15Q not reached. Re-evaluate with canonical 15Q resource governor implementation, real sensor/task admission adapters; do not instantiate a fake subsystem during this retroactive audit. Global on-demand/one-heavy/host-protection constraints already bind this session."
+    },
+    {
+      "id": "artifacts-local",
+      "stage": "GLOBAL",
+      "section": "5",
+      "requirement": "Local gitignored pinned model/engine artifacts, no redownload/Git upload/redundant copies; verified destination before moves",
+      "status": "SATISFIED",
+      "evidence": [
+        "src/lib/brain/autonomy/AyasLocalCodingPins.ts",
+        "03_STAGE15_BASE/hardening/15A/CANDIDATE_PROVENANCE.json",
+        "03_STAGE15_BASE/hardening/15A/IMPLEMENTATION_NOTES.md",
+        "bin/ayas-local-coding/ARTIFACT_MANIFEST.json"
+      ]
+    },
+    {
+      "id": "15S-manifest",
+      "stage": "15S",
+      "section": "6",
+      "requirement": "Local model/engine/tool/voice hashes and resource/startup policies in migration manifest",
+      "status": "NOT_CURRENTLY_APPLICABLE",
+      "evidence": [
+        "01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Stage 15S not reached. Re-evaluate during canonical migration design/implementation; owner hardware activation and secure credential rebind remain gated. No old-PC cleanup is authorized by this audit."
+    },
+    {
+      "id": "15S-images",
+      "stage": "15S",
+      "section": "6",
+      "requirement": "Per required Podman image EXPORT_IMPORT or pinned REBUILD decision",
+      "status": "NOT_CURRENTLY_APPLICABLE",
+      "evidence": [
+        "01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Stage 15S not reached. Re-evaluate during canonical migration design/implementation; owner hardware activation and secure credential rebind remain gated. No old-PC cleanup is authorized by this audit."
+    },
+    {
+      "id": "15S-restore",
+      "stage": "15S",
+      "section": "6",
+      "requirement": "Verified destination restore/Graph rebuild/hardware rebenchmark/TEMP drill",
+      "status": "NOT_CURRENTLY_APPLICABLE",
+      "evidence": [
+        "01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Stage 15S not reached. Re-evaluate during canonical migration design/implementation; owner hardware activation and secure credential rebind remain gated. No old-PC cleanup is authorized by this audit."
+    },
+    {
+      "id": "15S-old-pc",
+      "stage": "15S",
+      "section": "6",
+      "requirement": "No old-PC cleanup before destination verified restore and owner confirmation",
+      "status": "NOT_CURRENTLY_APPLICABLE",
+      "evidence": [
+        "01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Stage 15S not reached. Re-evaluate during canonical migration design/implementation; owner hardware activation and secure credential rebind remain gated. No old-PC cleanup is authorized by this audit."
+    },
+    {
+      "id": "15T-priority",
+      "stage": "15T",
+      "section": "7",
+      "requirement": "CRITICAL/ACTION_REQUIRED/MATERIAL_INFO/ROUTINE evidence-based priority",
+      "status": "NOT_CURRENTLY_APPLICABLE",
+      "evidence": [
+        "01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Stage 15T not reached. Re-evaluate canonical briefing stage; no background notification scheduler or privileged initiative during retroactive audit."
+    },
+    {
+      "id": "15T-cooldown-dedupe",
+      "stage": "15T",
+      "section": "7",
+      "requirement": "One underlying issue/dedupe identity/cooldown/ack/material escalation",
+      "status": "NOT_CURRENTLY_APPLICABLE",
+      "evidence": [
+        "01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Stage 15T not reached. Re-evaluate canonical briefing stage; no background notification scheduler or privileged initiative during retroactive audit."
+    },
+    {
+      "id": "15T-discipline",
+      "stage": "15T",
+      "section": "7",
+      "requirement": "Notify-only initiative, routine audit-only and unchanged warnings stay quiet",
+      "status": "NOT_CURRENTLY_APPLICABLE",
+      "evidence": [
+        "01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Stage 15T not reached. Re-evaluate canonical briefing stage; no background notification scheduler or privileged initiative during retroactive audit."
+    },
+    {
+      "id": "voice-existing-state",
+      "stage": "BRAIN_UI_VOICE",
+      "section": "8",
+      "requirement": "Existing IDLE/LISTENING/THINKING/SPEAKING are backed by real turn/recognizer/TTS callbacks; faults leave text available",
+      "status": "SATISFIED_BY_EQUIVALENT_IMPLEMENTATION",
+      "evidence": [
+        "src/components/brain/voice/ayasVoiceEngine.ts",
+        "src/components/brain/BrainCoreConsole.tsx",
+        "src/components/brain/useAyasVoice.ts",
+        "scripts/smoke-ayas-voice.ts",
+        "scripts/smoke-ayas-mobile-voice-regression.ts"
+      ]
+    },
+    {
+      "id": "voice-tool-owner-recovery",
+      "stage": "BRAIN_UI_VOICE",
+      "section": "8",
+      "requirement": "Real TOOL_ACTION/WAITING_OWNER/RECOVERING semantic state display",
+      "status": "GAP_SAFE_TO_FIX",
+      "evidence": [
+        "src/components/brain/BrainCoreConsole.tsx",
+        "src/lib/ayas/AyasChatStream.ts",
+        "07_BRAIN_UI_V2/AYAS_BRAIN_UI_V2_IMPLEMENTATION_PLAN.md"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Audit found existing console folds ongoing chat/tool into thinking. Add honest closed real-event state projection; recovery only when real recovery evidence exists, never a cosmetic timer."
+    },
+    {
+      "id": "voice-barge-in",
+      "stage": "BRAIN_UI_VOICE",
+      "section": "8",
+      "requirement": "Barge-in cancels audio only, preserves conversation/task and durable tool results",
+      "status": "GAP_SAFE_TO_FIX",
+      "evidence": [
+        "src/components/brain/voice/ayasVoiceEngine.ts",
+        "src/components/brain/useAyasVoice.ts",
+        "scripts/smoke-ayas-voice.ts"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Current self-hearing protection tears down recognition during TTS. Implement safe explicit owner interruption path with tests. Automatic acoustic interruption requires a real supported audio/echo-discrimination adapter; do not falsely certify it from a tap/mock."
+    },
+    {
+      "id": "voice-gate",
+      "stage": "BRAIN_UI_VOICE",
+      "section": "8",
+      "requirement": "UI/voice cannot grant approval/lease/spend/clear SAFE_READ_ONLY or fake executed tool",
+      "status": "SATISFIED",
+      "evidence": [
+        "src/components/brain/voice/ayasVoiceEngine.ts",
+        "src/lib/ayas/execution/AyasActionRuntime.ts",
+        "src/lib/ayas/AyasChatStream.ts",
+        "scripts/smoke-ayas-voice.ts",
+        "scripts/smoke-ayas-reasoning.ts"
+      ]
+    },
+    {
+      "id": "continuation",
+      "stage": "GLOBAL",
+      "section": "10,12",
+      "requirement": "Codex/Claude exact HEAD/worktree/checkpoint/ledger/Graph/nextAction continuity; no destructive shortcuts",
+      "status": "SATISFIED_BY_EQUIVALENT_IMPLEMENTATION",
+      "evidence": [
+        "01_CANONICAL_SPECS/AYAS_CONTINUATION_PROTOCOL_V1.md",
+        "post-freeze-audit/ADOPTION.json",
+        "ACTIVE_CHECKPOINT.json",
+        "EXECUTION_LEDGER.md"
+      ],
+      "prerequisiteOrReevaluationTrigger": "Every packet/handoff resolves actual Git and Graph; documented source commit can have documentation descendants. Historical checkpoints remain historical."
+    },
+    {
+      "id": "targeted-work",
+      "stage": "GLOBAL",
+      "section": "11,13",
+      "requirement": "Relevant skills only, no broad catalogue/research/stage redo; TEST -> GRAPH -> local commit -> checkpoint; NO PUSH",
+      "status": "SATISFIED",
+      "evidence": [
+        "post-freeze-audit/ADOPTION.json"
+      ],
+      "prerequisiteOrReevaluationTrigger": "No skill required for current TypeScript/Markdown audit. Applicable future skills are read only when used."
+    }
+  ]
+}

@@ -24,6 +24,7 @@
 
 import {
   buildAyasChatPrompt,
+  buildBudgetedAyasChatPrompt,
   brainDeterministicReply,
   isUsableAyasReply,
   ayasReplyClaimsExecution,
@@ -40,6 +41,7 @@ import type { AyasTraceHandle, AyasTraceSpanHandle, AyasTraceStatus } from "./tr
 import { routeAyasModel, type AyasModelRoute } from "./model/AyasModelRouter";
 import { selectAyasAgenticRoute } from "./routing/AyasAgenticRouting";
 import type { AyasModelProvider, AyasModelProviderId, AyasChatComplexity } from "./model/AyasModelTypes";
+import { AyasContextBudgetError, ayasContextBudgetTraceMetadata, type AyasContextBudgetEvidence } from "./context/AyasContextBudget";
 import { assembleAyasContext } from "./context/AyasContextAssembly";
 import { deriveAyasConversationState } from "./context/AyasConversationState";
 import {
@@ -67,6 +69,15 @@ import {
   resolveAyasProjectCatalogFilterKind,
   isAyasDevelopmentStatusQuery,
 } from "./model/AyasComplexityRouter";
+
+/**
+ * Post-freeze 15C — what the owner hears when no prompt was sent because the model window could not be honoured.
+ * Spoken replies: plain sentences, no symbols.
+ */
+export const AYAS_CONTEXT_WINDOW_UNKNOWN_REPLY =
+  "Modelin bağlam penceresi tanımlı değil. Güvenlik kurallarının modele eksiksiz ulaştığını doğrulayamadığım için model çağrısını yapmadım. Yerel model için OLLAMA_NUM_CTX değerinin ayarlanması gerekiyor.";
+export const AYAS_CONTEXT_OVERFLOW_REPLY =
+  "Bu isteğin zorunlu bağlamı model penceresine sığmıyor. Güvenlik kurallarını kırpmak yerine model çağrısını durdurdum. İsteği kısaltıp yeniden dener misin?";
 
 /**
  * Safe, secret-free memory observability trace (real-user-test root-cause
@@ -1124,8 +1135,13 @@ async function* streamAyasChatTurn(
     agentic.requirement.requiresFreshExternalEvidence && agentic.selectedToolId === null ? "REQUIRED_TOOL_UNAVAILABLE" : undefined,
   );
 
-  if (!route || !route.provider) {
-    conversationSpan?.end("fallback");
+  // Post-freeze 15C — the window of the transport that would answer. `undefined` only for an in-process double
+  // with no transport; `null` is a real transport whose window is unknown, and nothing is sent to it.
+  const contextCeiling = route?.provider?.contextWindowTokens;
+  const contextWindowUnknown = Boolean(route?.provider) && contextCeiling === null;
+
+  if (!route || !route.provider || contextCeiling === null) {
+    conversationSpan?.end(contextWindowUnknown ? "denied" : "fallback", undefined, contextWindowUnknown ? "CONTEXT_BUDGET_UNSAFE" : undefined);
     // A historical question is not answered with a present-tense identity shortcut.
     const recalledIdentityName = historicalMemoryQuery ? null : identityNameFromContext(memoryIdentityName, input.history ?? [], text);
     const memoryTrace: AyasMemoryTrace = {
@@ -1162,15 +1178,17 @@ async function* streamAyasChatTurn(
     }
     yield {
       type: "done",
-      text: route?.decision.unavailableMessage ?? deterministic(),
+      text: contextWindowUnknown ? AYAS_CONTEXT_WINDOW_UNKNOWN_REPLY : (route?.decision.unavailableMessage ?? deterministic()),
       source: "fallback",
       corrected: true,
-      reason: route?.decision.reason ?? "no-provider",
+      reason: contextWindowUnknown ? "CONTEXT_BUDGET_UNSAFE" : (route?.decision.reason ?? "no-provider"),
       ...(complexity ? { complexity } : {}),
     };
     return;
   }
   const providerId = route.decision.providerId!;
+  // Recalled identity lines are the protected part of memory: the budget never sheds them.
+  const protectedMemoryLines = memoryRecall.entries.filter((entry) => entry.identity).map((entry) => entry.line);
 
   // There is no live, user-request research lookup executor. A fresh external
   // fact cannot be silently answered from Ollama's internal knowledge.
@@ -1217,12 +1235,6 @@ async function* streamAyasChatTurn(
       ...(ctx.block.stateLines ?? []),
       ...(ctx.block.referenceLines ?? []),
       ...(ctx.block.historySummary ?? []),
-      ...(ctx.recentHistory.length
-        ? [
-            "Yakın konuşma turları (en güncel bağlam; kalıcı hafızadan önceliklidir):",
-            ...ctx.recentHistory.map((turn) => `${turn.role === "user" ? "Kullanıcı" : "AYAS"}: ${turn.text}`),
-          ]
-        : []),
     ];
     // REPAIR only — a redacted, read-only self-heal summary. Never fetched for
     // any other complexity (no reason to touch that store otherwise).
@@ -1247,23 +1259,32 @@ async function* streamAyasChatTurn(
         userText: text,
         complexity: route.decision.complexity,
         provider: route.provider,
+        // Earlier turns go in as turns, not as fixed lines: they are what the budget sheds first.
+        ...(contextCeiling !== undefined ? { contextCeiling, protectedMemoryLines } : {}),
         ...(contextLines.length ? { contextLines } : {}),
+        ...(ctx.recentHistory.length ? { historyTurns: ctx.recentHistory } : {}),
         ...(memoryLinesForPrompt.length ? { memoryLines: memoryLinesForPrompt } : {}),
         ...(selfHealLines?.length ? { selfHealLines } : {}),
         ...(input.signal ? { signal: input.signal } : {}),
         deferAnswerGuards: true,
       });
-      reasoningSpan?.end(outcome.ok ? "ok" : "fallback");
+      const budgetUnsafe = !outcome.ok && outcome.reason === "CONTEXT_BUDGET_UNSAFE";
+      reasoningSpan?.end(
+        outcome.ok ? "ok" : budgetUnsafe ? "denied" : "fallback",
+        outcome.contextBudget ? ayasContextBudgetTraceMetadata(outcome.contextBudget) : undefined,
+        budgetUnsafe ? "CONTEXT_BUDGET_UNSAFE" : undefined,
+      );
     } catch (error) {
       reasoningSpan?.end("error", undefined, "PROVIDER_FAILURE");
       throw error;
     }
 
     if (!outcome.ok) {
-      conversationSpan?.end("fallback");
+      const budgetUnsafe = outcome.reason === "CONTEXT_BUDGET_UNSAFE";
+      conversationSpan?.end(budgetUnsafe ? "denied" : "fallback", undefined, budgetUnsafe ? "CONTEXT_BUDGET_UNSAFE" : undefined);
       yield {
         type: "done",
-        text: deterministic(),
+        text: budgetUnsafe ? AYAS_CONTEXT_OVERFLOW_REPLY : deterministic(),
         source: "fallback",
         corrected: true,
         reason: outcome.reason,
@@ -1392,22 +1413,45 @@ async function* streamAyasChatTurn(
   // turn, and the studio/project-state block only for a project-topical one.
   const studioForPrompt = input.studio && isStudioRelevantQuery(text) ? input.studio : undefined;
 
-  const prompt = buildAyasChatPrompt({
+  const promptInput = {
     userText: text,
     snapshot: input.snapshot,
     history: ctx.recentHistory,
-    format: "text",
+    format: "text" as const,
     conversation: ctx.block,
     complexity: route.decision.complexity,
     ...(memoryLinesForPrompt.length ? { memoryLines: memoryLinesForPrompt } : {}),
     ...(studioForPrompt ? { studio: studioForPrompt } : {}),
-  });
+  };
 
   // 2 — consume the provider stream internally. Raw model chunks never cross
   // the SSE/UI boundary; only a fully validated final answer is emitted below.
   let full = "";
   const providerSpan = trace?.startSpan("model", "ayas-model", "stream", conversationSpan?.spanId);
+  // Post-freeze 15C: one refusal for a prompt whose mandatory part does not fit the window, whether the budget
+  // found it before the call or the transport measured it afterwards. No reply text from such a call is used.
+  const refuseContextBudget = (evidence: AyasContextBudgetEvidence): AyasChatStreamEvent => {
+    providerSpan?.end("denied", ayasContextBudgetTraceMetadata(evidence), "CONTEXT_BUDGET_UNSAFE");
+    conversationSpan?.end("denied", undefined, "CONTEXT_BUDGET_UNSAFE");
+    return { type: "done", text: AYAS_CONTEXT_OVERFLOW_REPLY, source: "fallback", corrected: true, reason: "CONTEXT_BUDGET_UNSAFE", provider: providerId, complexity: route.decision.complexity };
+  };
+  let prompt: string;
+  let contextBudget: AyasContextBudgetEvidence | undefined;
+  if (contextCeiling === undefined) {
+    prompt = buildAyasChatPrompt(promptInput);
+  } else {
+    try {
+      const budgeted = buildBudgetedAyasChatPrompt({ ...promptInput, contextBudget: { ceiling: contextCeiling, outputReserve: AYAS_MAX_REPLY_TOKENS, protectedMemoryLines } });
+      prompt = budgeted.prompt;
+      contextBudget = budgeted.evidence;
+    } catch (error) {
+      if (!(error instanceof AyasContextBudgetError)) throw error;
+      yield refuseContextBudget(error.evidence);
+      return;
+    }
+  }
   try {
+    let promptTokens: number | undefined;
     for await (const chunk of route.provider.stream({
       prompt,
       complexity: route.decision.complexity,
@@ -1417,10 +1461,16 @@ async function* streamAyasChatTurn(
     })) {
       if (chunk.type === "delta") {
         full += chunk.text;
+      } else {
+        promptTokens = chunk.promptTokens;
       }
     }
-    providerSpan?.end("ok");
+    providerSpan?.end("ok", contextBudget ? { ...ayasContextBudgetTraceMetadata(contextBudget), ...(promptTokens !== undefined ? { promptTokens } : {}) } : undefined);
   } catch (error) {
+    if (error instanceof AyasContextBudgetError) {
+      yield refuseContextBudget(error.evidence);
+      return;
+    }
     const name = (error as Error)?.name === "AbortError" ? "aborted" : "fetch-failed";
     providerSpan?.end(name === "aborted" ? "cancelled" : "error", undefined, name === "aborted" ? "ABORTED" : "PROVIDER_FAILURE");
     conversationSpan?.end(name === "aborted" ? "cancelled" : "fallback");

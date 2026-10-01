@@ -109,6 +109,9 @@ function capturingMockOllamaStream(pieces: string[], capturedBodies: string[]): 
   }) as unknown as typeof fetch;
 }
 
+// Post-freeze 15C: a turn reaches the local transport only when its context window is declared.
+process.env.OLLAMA_NUM_CTX = "8192";
+
 const testMemoryRoots = new Set<string>();
 
 function tmpMemRoot(): string {

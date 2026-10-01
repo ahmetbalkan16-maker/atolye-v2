@@ -35,6 +35,9 @@ import { buildBrainMemoryRecord } from "../src/lib/brain/BrainMemoryModel";
 import type { BrainConsoleSnapshot } from "../src/lib/brain/ui/BrainConsoleSnapshot";
 import type { AyasStudioContextView } from "../src/components/brain/brainCore";
 
+// Post-freeze 15C: a turn reaches the local transport only when its context window is declared.
+process.env.OLLAMA_NUM_CTX = "8192";
+
 let count = 0;
 async function scenario(name: string, test: () => Promise<void> | void) {
   await test();

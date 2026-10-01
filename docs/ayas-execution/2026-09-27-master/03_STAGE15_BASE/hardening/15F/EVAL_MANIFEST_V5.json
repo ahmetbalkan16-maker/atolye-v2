@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v6",
+  "version": "15F.4-v5",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -745,7 +745,7 @@
         },
         {
           "file": "scripts/lib/AyasRetrievalEvaluation.ts",
-          "sha256": "d3c2f021592fb945e82ee38966435baacd062ed34762fba06c99670a770a148e"
+          "sha256": "2f50f4822768cb335b71aa0ca70147f2d7f3d29f925788e83569f72830d4815e"
         },
         {
           "file": "scripts/smoke-ayas-memory-integrity.ts",
@@ -785,7 +785,7 @@
         },
         {
           "file": "scripts/smoke-ayas-memory-temporal.ts",
-          "sha256": "3df128a6d290cc5c65a1d75725f059a2a7ca637017ce47853c69b70af82e51ef"
+          "sha256": "f7849d71b098b22116d1bbe206738619ba0a1b9c31f59c54302f90f2b1535ea7"
         }
       ],
       "slices": [
@@ -821,7 +821,7 @@
         },
         {
           "file": "scripts/smoke-ayas-unified-trace.ts",
-          "sha256": "09dea5feae18b95a8f06ff2d6744b53b7d2a577c4e5185240fc9b6c9dc51baa5"
+          "sha256": "404a5ff7d3eb18dcdeaeb02c246ae360c99f135afb90dbbcc4f625b024476be1"
         }
       ],
       "slices": [
@@ -901,7 +901,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-model-router.ts",
-          "sha256": "40d2b03cf8dc844fed58baf1969fede7eab7e67831b3450f0539d44017935ac2"
+          "sha256": "c6e1ff6d792522ff682a0902d72b4dfcad30143292bd56d911c34e910f0958d3"
         }
       ],
       "slices": [
@@ -1093,7 +1093,7 @@
         },
         {
           "file": "scripts/lib/AyasRetrievalEvaluation.ts",
-          "sha256": "d3c2f021592fb945e82ee38966435baacd062ed34762fba06c99670a770a148e"
+          "sha256": "2f50f4822768cb335b71aa0ca70147f2d7f3d29f925788e83569f72830d4815e"
         },
         {
           "file": "scripts/smoke-ayas-cognitive-quality.ts",
@@ -1131,7 +1131,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-chat-quality.ts",
-          "sha256": "57c90b43077a80ed4dff728602e2a0941d6bfba3f6ed2ec0fdfff1a3913ee952"
+          "sha256": "40a87ad61c182d19e6826761f71ebecc3af8d132eaa67479a51f504b363f6181"
         }
       ],
       "slices": [
@@ -1155,7 +1155,7 @@
         },
         {
           "file": "scripts/lib/AyasRetrievalEvaluation.ts",
-          "sha256": "d3c2f021592fb945e82ee38966435baacd062ed34762fba06c99670a770a148e"
+          "sha256": "2f50f4822768cb335b71aa0ca70147f2d7f3d29f925788e83569f72830d4815e"
         },
         {
           "file": "scripts/smoke-ayas-retrieval-evaluation.ts",
@@ -1222,45 +1222,6 @@
         "embedded-frozen-held-out",
         "component-held-out",
         "integration"
-      ]
-    },
-    {
-      "id": "context-budget",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-context-budget.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-context-budget.ts",
-          "sha256": "e462ed2d95cfb44d883d394fa27bc0a62cc2f04ba66607547f6687b80eb5fbdc"
-        },
-        {
-          "file": "scripts/lib/AyasRetrievalEvaluation.ts",
-          "sha256": "d3c2f021592fb945e82ee38966435baacd062ed34762fba06c99670a770a148e"
-        }
-      ],
-      "slices": [
-        "protected-context",
-        "fail-closed-overflow",
-        "privacy",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "context-budget-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-context-budget-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-context-budget-mutations.ts",
-          "sha256": "d91f21d85b5b10a66b4d07cbe9107d977fd0fa79e2f777a3be15c2902de5a053"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
       ]
     }
   ],

@@ -407,7 +407,8 @@ export async function runAyasRetrievalChatTurn(
       snapshot: ayasRetrievalEvalSnapshot(),
       seq: 1,
       // No cloud key, no provider override: the local fake model is the only route.
-      env: { NODE_ENV: "test" },
+      // The window this workstation runs the local chat model with; an undeclared window sends nothing.
+      env: { NODE_ENV: "test", OLLAMA_NUM_CTX: "8192" },
       fetcher: ayasRetrievalCapturingModel(options.reply ?? "Anladım.", prompts),
       memoryStore: { rootDir: root },
       ...(options.history ? { history: options.history } : {}),

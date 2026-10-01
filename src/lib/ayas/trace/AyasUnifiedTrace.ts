@@ -119,6 +119,8 @@ const METADATA_KEYS = new Set([
   "failedCount", "temporalAsOf", "temporalHistory", "currentCount", "historicalCount", "supersededCount", "conflictCount", "uncertainCount",
   // Research → improvement loop — counts and flags only; ids and text stay in the durable experiment record.
   "findingCount", "ignoredCount", "hypothesisCount", "experimentCount", "caseCount", "targetGain", "heldOutDelta", "regressionCount", "improved",
+  // Post-freeze 15C context budget — window, reserve, estimate, measured prompt size, counts and one flag.
+  "contextCeiling", "outputReserve", "contextEstimate", "promptTokens", "excludedCount", "protectedRetained",
 ]);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

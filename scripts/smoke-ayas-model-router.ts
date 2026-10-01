@@ -28,7 +28,7 @@ async function scenario(name: string, test: () => void | Promise<void>) {
 }
 
 const env = (o: Record<string, string>): NodeJS.ProcessEnv => o as unknown as NodeJS.ProcessEnv;
-const OLLAMA_ENV = env({ OLLAMA_HOST: "127.0.0.1:11434", OLLAMA_MODEL: "qwen2.5:7b" });
+const OLLAMA_ENV = env({ OLLAMA_HOST: "127.0.0.1:11434", OLLAMA_MODEL: "qwen2.5:7b", OLLAMA_NUM_CTX: "8192" });
 const SECRET = "sk-THIS-IS-A-FAKE-TEST-KEY-0123456789";
 
 /** URL-aware mock fetch. */
@@ -171,7 +171,7 @@ async function run() {
 
   await scenario("cloud provider — health reports config only, never pings (no billed call)", async () => {
     let called = false;
-    const p = createCloudAyasProvider(env({ AYAS_CLOUD_API_KEY: SECRET }), (async () => {
+    const p = createCloudAyasProvider(env({ AYAS_CLOUD_API_KEY: SECRET, AYAS_CLOUD_CONTEXT_TOKENS: "32768" }), (async () => {
       called = true;
       return new Response("{}", { status: 200 });
     }) as unknown as typeof fetch);
@@ -296,7 +296,7 @@ async function run() {
   await scenario("cloud provider — OpenAI-compatible SSE stream yields deltas; Authorization uses the key, body never echoes it", async () => {
     let sawAuth = "";
     const p = createCloudAyasProvider(
-      env({ AYAS_CLOUD_API_KEY: SECRET }),
+      env({ AYAS_CLOUD_API_KEY: SECRET, AYAS_CLOUD_CONTEXT_TOKENS: "32768" }),
       (async (url: string, init?: RequestInit) => {
         sawAuth = String((init?.headers as Record<string, string>)?.Authorization ?? "");
         const body = String(init?.body ?? "");
@@ -311,7 +311,7 @@ async function run() {
 
   await scenario("cloud provider — a non-200 throws a status-only error (never the body)", async () => {
     const p = createCloudAyasProvider(
-      env({ AYAS_CLOUD_API_KEY: SECRET }),
+      env({ AYAS_CLOUD_API_KEY: SECRET, AYAS_CLOUD_CONTEXT_TOKENS: "32768" }),
       (async () => new Response(`{"error":"invalid api key ${SECRET}"}`, { status: 401 })) as unknown as typeof fetch,
     );
     await assert.rejects(

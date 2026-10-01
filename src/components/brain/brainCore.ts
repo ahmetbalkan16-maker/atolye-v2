@@ -6,6 +6,8 @@
  * is testable without a browser.
  */
 
+// Relative, not `@/`: this module is bundled into the phone gateway Worker, and every other `@/` import here is type-only.
+import { ayasHistoryContextCandidates, ayasMemoryContextCandidates, buildBudgetedAyasPrompt, type AyasContextBudgetEvidence } from "../../lib/ayas/context/AyasContextBudget";
 import { resolveAyasVoiceReadiness, type AyasMicPermissionState, type AyasVoiceReadiness, type AyasVoiceState } from "./ayasVoice";
 import type { BrainConsoleSnapshot } from "@/lib/brain/ui/BrainConsoleSnapshot";
 import type { BrainTaskStatus } from "@/types/brainWorker";
@@ -608,7 +610,21 @@ export interface AyasConversationPromptBlock {
   readonly historySummary?: readonly string[];
 }
 
+/**
+ * Post-freeze 15C — the model window this prompt must fit. Identity, limits, state, the conversation block, the
+ * studio block and the current request are always rendered. Earlier turns and unprotected recalled lines are shed
+ * under pressure; `protectedMemoryLines` never are. An unknown ceiling or mandatory text that does not fit throws
+ * `AyasContextBudgetError` instead of returning a prompt.
+ */
+export interface AyasChatContextBudget {
+  readonly ceiling: number | null;
+  readonly outputReserve: number;
+  readonly protectedMemoryLines?: readonly string[];
+}
+
 export interface AyasChatPromptInput {
+  /** Omitted (every caller without a model transport) renders exactly as before this field existed. */
+  readonly contextBudget?: AyasChatContextBudget;
   readonly userText: string;
   readonly snapshot: BrainConsoleSnapshot;
   readonly history: readonly { readonly role: BrainChatMessage["role"]; readonly text: string }[];
@@ -901,6 +917,38 @@ function ayasImmediateTurnGuidance(input: AyasChatPromptInput): string[] {
   return lines.length ? ["Bu tur için son yanıt kontrolü:", ...lines] : [];
 }
 
+type AyasPromptTurn = AyasChatPromptInput["history"][number];
+
+/** The turns the prompt renders verbatim. The UI welcome line is never conversational context. */
+function ayasPromptHistoryWindow(history: AyasChatPromptInput["history"]): AyasPromptTurn[] {
+  return history.filter((turn) => turn.role !== "system").slice(-AYAS_HISTORY_TURNS);
+}
+
+function ayasPromptHistoryLine(turn: { readonly role: string; readonly text: string }): string {
+  return `${turn.role === "user" ? "Kullanıcı" : "AYAS"}: ${turn.text}`;
+}
+
+/** `buildAyasChatPrompt` admitted against a model window, with the body-free record of what was kept and shed. */
+export function buildBudgetedAyasChatPrompt(
+  input: AyasChatPromptInput & { readonly contextBudget: AyasChatContextBudget },
+): { readonly prompt: string; readonly evidence: AyasContextBudgetEvidence } {
+  const { contextBudget, ...base } = input;
+  const window = ayasPromptHistoryWindow(input.history);
+  const memory = input.memoryLines ?? [];
+  const protectedMemory = new Set(contextBudget.protectedMemoryLines ?? []);
+  return buildBudgetedAyasPrompt({
+    ceiling: contextBudget.ceiling,
+    outputReserve: contextBudget.outputReserve,
+    candidates: [...ayasHistoryContextCandidates(window, ayasPromptHistoryLine), ...ayasMemoryContextCandidates(memory, protectedMemory)],
+    render: (selected) =>
+      buildAyasChatPrompt({
+        ...base,
+        history: window.filter((_, index) => selected.has(`history:${index}`)),
+        memoryLines: memory.filter((line, index) => protectedMemory.has(line) || selected.has(`memory:${index}`)),
+      }),
+  });
+}
+
 /**
  * Build the full prompt sent to the local model. Deterministic. It carries:
  *  - AYAS's identity and hard limits (no execution authority, don't invent
@@ -909,6 +957,7 @@ function ayasImmediateTurnGuidance(input: AyasChatPromptInput): string[] {
  *  - the last few conversation turns.
  */
 export function buildAyasChatPrompt(input: AyasChatPromptInput): string {
+  if (input.contextBudget) return buildBudgetedAyasChatPrompt({ ...input, contextBudget: input.contextBudget }).prompt;
   const s = input.snapshot;
   const state: string[] = [
     `- yürütme kapısı: ${s.executionGate} (sen yürütme yapamazsın: görev çalıştıramaz, pipeline başlatamaz, GPU/render tetikleyemez, onay veremezsin)`,
@@ -919,10 +968,7 @@ export function buildAyasChatPrompt(input: AyasChatPromptInput): string {
     ...(s.errors.length ? [`- okuma hataları: ${s.errors.join(" | ")}`] : []),
   ];
 
-  const turns = input.history
-    .filter((turn) => turn.role !== "system") // the UI welcome line is never conversational context
-    .slice(-AYAS_HISTORY_TURNS)
-    .map((turn) => `${turn.role === "user" ? "Kullanıcı" : "AYAS"}: ${turn.text}`);
+  const turns = ayasPromptHistoryWindow(input.history).map(ayasPromptHistoryLine);
   const immediateGuidance = ayasImmediateTurnGuidance(input);
 
   return [

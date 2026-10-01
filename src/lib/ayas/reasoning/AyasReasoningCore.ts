@@ -16,6 +16,13 @@
  * not special-cased past them.
  */
 
+import {
+  AyasContextBudgetError,
+  ayasHistoryContextCandidates,
+  ayasMemoryContextCandidates,
+  buildBudgetedAyasPrompt,
+  type AyasContextBudgetEvidence,
+} from "../context/AyasContextBudget";
 import { isUsableAyasReply, ayasReplyClaimsExecution } from "@/components/brain/brainCore";
 import type { AyasModelProvider, AyasChatComplexity } from "../model/AyasModelTypes";
 import { buildAyasReasoningPrompt } from "./AyasReasoningPrompt";
@@ -30,7 +37,23 @@ export function shouldUseAyasReasoning(complexity: AyasChatComplexity): boolean 
   return REASONING_COMPLEXITIES.includes(complexity);
 }
 
+/** Heading the earlier turns are rendered under. */
+const RECENT_TURNS_HEADING = "Yakın konuşma turları (en güncel bağlam; kalıcı hafızadan önceliklidir):";
+
+function reasoningTurnLine(turn: { readonly role: string; readonly text: string }): string {
+  return `${turn.role === "user" ? "Kullanıcı" : "AYAS"}: ${turn.text}`;
+}
+
 export interface RunAyasReasoningInput {
+  /**
+   * Post-freeze 15C — the model window. When given, the prompt is admitted against it: `historyTurns` and the
+   * recalled lines outside `protectedMemoryLines` are shed under pressure, the rest is kept or the call is refused
+   * with `CONTEXT_BUDGET_UNSAFE`. `null` is an unknown window and always refuses. Omitted = no admission here.
+   */
+  readonly contextCeiling?: number | null;
+  /** Earlier turns, rendered after `contextLines` under the recent-turns heading. */
+  readonly historyTurns?: readonly { readonly role: string; readonly text: string }[];
+  readonly protectedMemoryLines?: readonly string[];
   readonly userText: string;
   readonly complexity: AyasChatComplexity;
   readonly provider: AyasModelProvider;
@@ -58,8 +81,10 @@ export type RunAyasReasoningOutcome =
        * most likely.
        */
       readonly anyToolNamedBeforeFilter: boolean;
+      /** Body-free record of what the context budget kept and shed; present when a window was given. */
+      readonly contextBudget?: AyasContextBudgetEvidence;
     }
-  | { readonly ok: false; readonly reason: string };
+  | { readonly ok: false; readonly reason: string; readonly contextBudget?: AyasContextBudgetEvidence };
 
 /** Builds the safe, secret-free trace (spec §10) — never the raw model JSON, never a CoT. */
 export function buildAyasReasoningTrace(result: AyasReasoningResult): AyasReasoningTrace {
@@ -74,13 +99,43 @@ export function buildAyasReasoningTrace(result: AyasReasoningResult): AyasReason
 }
 
 export async function runAyasReasoning(input: RunAyasReasoningInput): Promise<RunAyasReasoningOutcome> {
-  const prompt = buildAyasReasoningPrompt({
-    userText: input.userText,
-    complexity: input.complexity,
-    ...(input.contextLines ? { contextLines: input.contextLines } : {}),
-    ...(input.memoryLines ? { memoryLines: input.memoryLines } : {}),
-    ...(input.selfHealLines ? { selfHealLines: input.selfHealLines } : {}),
-  });
+  const turns = input.historyTurns ?? [];
+  const memory = input.memoryLines ?? [];
+  const render = (keptTurns: typeof turns, keptMemory: readonly string[]) => {
+    const contextLines = [...(input.contextLines ?? []), ...(keptTurns.length ? [RECENT_TURNS_HEADING, ...keptTurns.map(reasoningTurnLine)] : [])];
+    return buildAyasReasoningPrompt({
+      userText: input.userText,
+      complexity: input.complexity,
+      ...(contextLines.length ? { contextLines } : {}),
+      ...(keptMemory.length ? { memoryLines: keptMemory } : {}),
+      ...(input.selfHealLines ? { selfHealLines: input.selfHealLines } : {}),
+    });
+  };
+
+  let prompt: string;
+  let contextBudget: AyasContextBudgetEvidence | undefined;
+  if (input.contextCeiling === undefined) {
+    prompt = render(turns, memory);
+  } else {
+    const protectedMemory = new Set(input.protectedMemoryLines ?? []);
+    try {
+      const budgeted = buildBudgetedAyasPrompt({
+        ceiling: input.contextCeiling,
+        outputReserve: REASONING_MAX_TOKENS,
+        candidates: [...ayasHistoryContextCandidates(turns, reasoningTurnLine), ...ayasMemoryContextCandidates(memory, protectedMemory)],
+        render: (selected) =>
+          render(
+            turns.filter((_, index) => selected.has(`history:${index}`)),
+            memory.filter((line, index) => protectedMemory.has(line) || selected.has(`memory:${index}`)),
+          ),
+      });
+      prompt = budgeted.prompt;
+      contextBudget = budgeted.evidence;
+    } catch (error) {
+      if (!(error instanceof AyasContextBudgetError)) throw error;
+      return { ok: false, reason: "CONTEXT_BUDGET_UNSAFE", contextBudget: error.evidence };
+    }
+  }
 
   let raw: string;
   try {
@@ -110,7 +165,9 @@ export async function runAyasReasoning(input: RunAyasReasoningInput): Promise<Ru
       ...(input.signal ? { signal: input.signal } : {}),
     });
     raw = out.text;
-  } catch {
+  } catch (error) {
+    // The transport refused the prompt, or measured it past the window after the fact: not a transport fault.
+    if (error instanceof AyasContextBudgetError) return { ok: false, reason: "CONTEXT_BUDGET_UNSAFE", contextBudget: error.evidence };
     return { ok: false, reason: "reasoning-transport-failed" };
   }
 
@@ -134,5 +191,11 @@ export async function runAyasReasoning(input: RunAyasReasoningInput): Promise<Ru
     return { ok: false, reason: "reasoning-execution-claim" };
   }
 
-  return { ok: true, result, trace: buildAyasReasoningTrace(result), anyToolNamedBeforeFilter: parsed.rawToolCount > 0 };
+  return {
+    ok: true,
+    result,
+    trace: buildAyasReasoningTrace(result),
+    anyToolNamedBeforeFilter: parsed.rawToolCount > 0,
+    ...(contextBudget ? { contextBudget } : {}),
+  };
 }

@@ -18,6 +18,7 @@
  */
 
 import { getAyasCloudApiKey, resolveAyasCloudConfig } from "./AyasCloudConfig";
+import { assertAyasPromptFits, resolveAyasContextCeiling } from "../context/AyasContextBudget";
 import type {
   AyasModelHealth,
   AyasModelProvider,
@@ -41,6 +42,10 @@ export function createCloudAyasProvider(
     model: cfg.model,
     configured: cfg.configured,
 
+    get contextWindowTokens() {
+      return resolveAyasContextCeiling("cloud", env);
+    },
+
     async health(): Promise<AyasModelHealth> {
       return {
         available: cfg.configured,
@@ -63,6 +68,8 @@ export function createCloudAyasProvider(
       const key = getAyasCloudApiKey(env);
       if (!cfg.configured || !key) throw new Error("cloud-not-configured");
 
+      // Post-freeze 15C: no billed request for an unknown window (AYAS_CLOUD_CONTEXT_TOKENS) or a prompt that does not fit it.
+      assertAyasPromptFits(req.prompt, resolveAyasContextCeiling("cloud", env), req.maxTokens);
       const controller = new AbortController();
       const onAbort = () => controller.abort();
       req.signal?.addEventListener("abort", onAbort);

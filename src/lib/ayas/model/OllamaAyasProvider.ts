@@ -12,6 +12,7 @@
 
 import { resolveOllamaConfig } from "@/lib/ai/OllamaConfig";
 import { resolveAyasChatModelProfile } from "../AyasModelProfile";
+import { assertAyasMeasuredPromptFits, assertAyasPromptFits, resolveAyasContextCeiling } from "../context/AyasContextBudget";
 import type {
   AyasModelHealth,
   AyasModelProvider,
@@ -23,6 +24,8 @@ interface OllamaStreamLine {
   message?: { content?: string | null };
   done?: boolean;
   done_reason?: string | null;
+  /** Prompt tokens the server evaluated; present on the final line. */
+  prompt_eval_count?: unknown;
 }
 
 /** How long to wait on the `/api/tags` reachability probe before calling Ollama "down". */
@@ -41,6 +44,10 @@ export function createOllamaAyasProvider(
     kind: "local",
     model,
     configured: base !== null,
+
+    get contextWindowTokens() {
+      return resolveAyasContextCeiling("local", env, base?.numCtx);
+    },
 
     async health(signal?: AbortSignal): Promise<AyasModelHealth> {
       const now = Date.now();
@@ -87,6 +94,9 @@ export function createOllamaAyasProvider(
 
     async *stream(req: AyasModelRequest): AsyncGenerator<AyasModelStreamChunk, void, unknown> {
       if (!base) throw new Error("ollama-not-configured");
+      // Post-freeze 15C: an unknown window or a prompt that does not fit it is refused before any request is made.
+      const ceiling = resolveAyasContextCeiling("local", env, req.numCtx ?? base.numCtx);
+      assertAyasPromptFits(req.prompt, ceiling, req.maxTokens);
       const controller = new AbortController();
       const onAbort = () => controller.abort();
       req.signal?.addEventListener("abort", onAbort);
@@ -94,6 +104,7 @@ export function createOllamaAyasProvider(
 
       let full = "";
       let finishReason = "stop";
+      let measuredPromptTokens: unknown;
       try {
         const response = await fetcher(`${base.baseUrl}/api/chat`, {
           method: "POST",
@@ -152,6 +163,7 @@ export function createOllamaAyasProvider(
             }
             if (parsed.done) {
               if (parsed.done_reason) finishReason = parsed.done_reason;
+              measuredPromptTokens = parsed.prompt_eval_count;
               break;
             }
           }
@@ -160,7 +172,10 @@ export function createOllamaAyasProvider(
         clearTimeout(timeout);
         req.signal?.removeEventListener("abort", onAbort);
       }
-      yield { type: "done", text: full.trim(), finishReason };
+      // The server's own count is the measurement the estimate above stands in for. A prompt that reached the
+      // window may have been truncated on the server, so its reply is not handed on.
+      const promptTokens = assertAyasMeasuredPromptFits(measuredPromptTokens, ceiling, req.maxTokens);
+      yield { type: "done", text: full.trim(), finishReason, ...(promptTokens !== undefined ? { promptTokens } : {}) };
     },
   };
 }
