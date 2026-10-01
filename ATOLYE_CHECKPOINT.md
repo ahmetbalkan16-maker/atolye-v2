@@ -1,3 +1,10 @@
+## AYAS MASTER — 15A.3h LOCAL COMMIT CLOSURE — 2026-10-01
+
+- Tested source/evidence package committed locally as **`6051bf698d04440526b6d66016bc8fd0c1b91d1a`**, no push. At that commit the worktree was clean and origin ahead/behind was **35/0**. Post-commit Graphify bound to that exact HEAD: **15,782 nodes/45,792 edges**, stale=false, needs_update=false, duplicate node/edge 0/0, dangling 0, self-loop 0. Known partial extraction and semantic pending remain.
+- This documentation-only closure follows the source package; ACTIVE_CHECKPOINT records that tested source hash and explicitly requires reading actual `git rev-parse HEAD`/Graphify binding on resume. No source/evaluator/runtime/authority change in the closure. The branch will be one more local documentation commit ahead; no push is authorized.
+- Stage **15A.3 remains IN_PROGRESS / LOCAL_INDEPENDENCE_DEGRADED**; model/hard-sandbox executions **0**, actual pass@1/pass^k/resource usage unmeasured, Stage 15B unopened. Owner-selected model metadata and real Linux engine archive bytes are verified; GGUF/model bytes, images, containment and model quality are not.
+- Blocker: **BLOCKED_OWNER_ACTION — host sandbox runtime installation required**. Exact remaining steps are in the preparation report and ACTIVE_CHECKPOINT nextAction. The bounded TypeScript-refactor full-evaluator case is still missing; no case, evaluator or threshold was invented to hide that gap.
+
 ## AYAS MASTER — 15A.3h QUALIFICATION PREPARATION — 2026-10-01
 
 - Active: **Stage 15A.3 IN_PROGRESS**, `LOCAL_INDEPENDENCE_DEGRADED`; Stage 15B unopened. Startup Git truth was clean `87fca074cea9c4482c57718e9151b64124e0403d`, origin 34 behind/0 ahead. `git pull` succeeded; no canonical push is authorized.

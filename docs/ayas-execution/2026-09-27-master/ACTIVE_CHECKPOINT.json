@@ -2,8 +2,8 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "87fca074cea9c4482c57718e9151b64124e0403d",
-  "currentHead": "87fca074cea9c4482c57718e9151b64124e0403d",
+  "lastGreenHead": "6051bf698d04440526b6d66016bc8fd0c1b91d1a",
+  "currentHead": "6051bf698d04440526b6d66016bc8fd0c1b91d1a",
   "stage": "STAGE_15A",
   "subtask": "15A.3h-pinned-qualification-preparation-and-extra-retrieval-oracle",
   "status": "IN_PROGRESS",
@@ -41,22 +41,7 @@
     "15A.3h-extra-two-file-retrieval-host-oracle"
   ],
   "currentFiles": [
-    "src/lib/brain/autonomy/AyasLocalCodingPins.ts",
-    "src/lib/brain/autonomy/AyasLocalCodingModelAdapter.ts",
-    "scripts/smoke-ayas-local-coding-pins-adapter.ts",
-    "sandbox/ayas-local-coding/Containerfile",
-    "sandbox/ayas-local-coding/verify-payload.mjs",
-    "sandbox/ayas-local-coding/README.md",
-    "scripts/smoke-ayas-local-coding-image-payload.ts",
-    "scripts/fixtures/ayas-local-coding-qualification-retrieval-case.ts",
-    "scripts/smoke-ayas-local-coding-retrieval-case.ts",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/CANDIDATE_PROVENANCE.json",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/ENGINE_ARCHIVE_MEMBERS.json",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/QUALIFICATION_PREPARATION_REPORT.md",
     "ATOLYE_CHECKPOINT.md",
-    "ROADMAP.md",
-    "CHANGELOG.md",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/IMPLEMENTATION_NOTES.md",
     "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md",
     "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json"
   ],
@@ -97,21 +82,23 @@
     "Exact official Linux CPU engine archive local byte verifier PASS: 16998357 bytes / c150306eb16b5ab696f76a8bdf810c35fd98a24e82158742e6fa28f420ff8410; 50 regular members hashed in memory, no install/member execution. Model bytes and final image unverified."
   ],
   "graphify": {
-    "head": "87fca074cea9c4482c57718e9151b64124e0403d",
+    "head": "6051bf698d04440526b6d66016bc8fd0c1b91d1a",
     "stale": false,
     "needsUpdate": false,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
-    "semanticPending": true
+    "semanticPending": true,
+    "nodes": 15782,
+    "edges": 45792
   },
   "blockers": [
     "External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority.",
     "BLOCKED_OWNER_ACTION — host sandbox runtime installation required. WSL 2.7.10.0 has no distributions; Docker/Podman absent. Owner-selected llama.cpp/Qwen official metadata now verified; Linux CPU archive bytes verified without execution. No runtime install or model run."
   ],
   "nextAction": "Verify actual Git and Graphify HEAD. Preserve original five frozen cases and the separate two-file retrieval case. Complete independent bounded TypeScript case selection and sealed offline Linux engine/toolchain preparation; actual engine/image/probe/inference/Podman inspection require a compatible owner-installed runtime and verified local bytes. Keep closed registry and LOCAL_INDEPENDENCE_DEGRADED. No 15B, cloud fallback, threshold reduction or push. A docs-only closure commit may follow the tested source packet recorded in currentHead; use git rev-parse HEAD on resume.",
-  "updatedAt": "2026-10-01T09:02:46+03:00",
+  "updatedAt": "2026-10-01T09:09:53+03:00",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "originalFrozenCases": 5,
@@ -127,5 +114,34 @@
     "readinessAuthority": "NONE",
     "stage15BOpened": false,
     "canonicalPush": false
+  },
+  "sourcePacketFiles": [
+    "src/lib/brain/autonomy/AyasLocalCodingPins.ts",
+    "src/lib/brain/autonomy/AyasLocalCodingModelAdapter.ts",
+    "scripts/smoke-ayas-local-coding-pins-adapter.ts",
+    "sandbox/ayas-local-coding/Containerfile",
+    "sandbox/ayas-local-coding/verify-payload.mjs",
+    "sandbox/ayas-local-coding/README.md",
+    "scripts/smoke-ayas-local-coding-image-payload.ts",
+    "scripts/fixtures/ayas-local-coding-qualification-retrieval-case.ts",
+    "scripts/smoke-ayas-local-coding-retrieval-case.ts",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/CANDIDATE_PROVENANCE.json",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/ENGINE_ARCHIVE_MEMBERS.json",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/QUALIFICATION_PREPARATION_REPORT.md",
+    "ATOLYE_CHECKPOINT.md",
+    "ROADMAP.md",
+    "CHANGELOG.md",
+    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15A/IMPLEMENTATION_NOTES.md",
+    "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md",
+    "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json"
+  ],
+  "localClosure": {
+    "sourcePacketCommit": "6051bf698d04440526b6d66016bc8fd0c1b91d1a",
+    "sourcePacketClean": true,
+    "sourcePacketAhead": 35,
+    "sourcePacketBehind": 0,
+    "documentationOnlyClosure": true,
+    "headSemantics": "currentHead/lastGreenHead identify the tested source packet; this documentation-only closure adds a descendant. Verify actual git rev-parse HEAD and refresh Graphify to that exact HEAD on resume.",
+    "push": false
   }
 }
