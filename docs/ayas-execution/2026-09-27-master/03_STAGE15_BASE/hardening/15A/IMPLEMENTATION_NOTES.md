@@ -41,3 +41,9 @@ The clone is a host-only evaluator surface and shares Git history and local depe
 ## 15A.3c Security qualification seed
 
 The vault now includes the real `1c1ab79` bounded-file-write fix from its direct parent. Its single source file changes 57 lines within the 80-line task contract. The frozen evaluator blob adds a second-file commit failure: the old source does not reject/roll back as required, the exact fix passes, and a wrong no-op candidate fails on the same expected rejection assertion. This covers one historical security task only. The evaluated clone is still host-only and cannot be used as a model workspace. Graphify, UI, retrieval and TypeScript task domains and actual local-model measurements remain pending.
+
+## 15A.3d Git-free model workspace projection
+
+`AyasLocalCodingWorkspace` constructs a new OS-TEMP directory from only the task's exact baseline Git blobs. It checks the repository root and baseline ancestry, accepts regular UTF-8 source blobs within a byte limit, and refuses evaluator/fixture paths, symlink Git entries and missing objects. It copies no `.git`, answer commit, evaluator, dependencies or scripts outside the exact task files. Blob IDs and hashes are returned to the host as provenance, never written into the model-facing directory. The directory is compatible with the existing fixed container plan, but this remains a construction check, not containment proof or model admission.
+
+Workspace smoke: three real vault tasks each expose only exact baseline source bytes, not the fix or evaluator; forbidden evaluator/fixture paths, absent baseline and non-owned cleanup are refused (8 cases). TypeScript and changed-file lint pass. The approved engine registry remains empty, Docker/Podman are absent and WSL has no distribution. **BLOCKED_OWNER_ACTION — owner-reviewed local engine/image selection required** for real qualification. `LOCAL_INDEPENDENCE_DEGRADED` remains; no model/engine run occurred.
