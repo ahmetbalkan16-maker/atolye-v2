@@ -33,3 +33,15 @@ Read-only probe of the registry Run keys, the Startup folder, Scheduled Tasks, r
 - **Podman Desktop starts at login** (`HKCU\…\Run`, enabled in `StartupApproved`). Its settings file holds five keys, none about login or engine autostart, so those run on the product defaults. **Whether launching Podman Desktop also starts the machine remains unverified**: proving it would mean provoking a start, and the only observation available (machine helper `win-sshproxy` started 3 min 41 s after Podman Desktop) cannot be separated from a manual `podman machine start` in the same period. A stale `win-sshproxy` (24 MB) was still running with the machine stopped.
 - **Ollama starts at login** through a Startup-folder shortcut and holds no model in RAM while idle.
 - **Assessment:** the idle cost of both is about 0.5 GB RAM and no heavy workload. The on-demand policy is met on the AYAS side without changing a host startup setting. If the machine is later seen to start with Podman Desktop, turning off Podman Desktop's start-at-login is an owner-only host change; no request is raised now.
+
+## 2026-10-01 — Stage 15C repository-truth and security findings
+
+- Starting HEAD d898b29aee843d2f901379d6518208af5b086b90; upstream 823e7a547bc2a8fd9f80ce72bcedcef7b33d772a; ahead/behind 45/0; one uncommitted integrity type draft. Draft preserved and completed. Stage 15B closure verified from source/evidence without changing it.
+- Baseline retrieval gate itself was stale: pristine HEAD archive reproduced the same already-passing render-tool known-limit case. Removing its obsolete exception strengthens the gate; all-layer metrics unchanged.
+- Integrity migration must preserve legacy conflict/dispute evidence and duplicate multiplicity. Regressions caught and corrected during this packet; existing temporal tests remain unchanged.
+- Unknown reported writer is imported, never owner-direct. Source metadata is not authenticated owner authority; unkeyed hashes cannot detect malicious recomputation or stripping the entire versioned envelope. Root authenticity remains future 15D/15N work.
+- Dynamic memory budget is character crowding control, not an assertion of tokenizer/model-window fit.
+- Snapshot restore has no live binding, requires independent digest and current CAS, and keeps current revision monotonic. No secret or live memory contents entered evidence.
+- Stage 15D inspection found separate tool execution and self-development owner gates; no existing general capability lease/global guard. Mutual-exclusion locks and owner reason prefixes are not capability authority. Actual executor paths are recorded in 15D/INSPECTION_NOTES.md.
+
+- Final security review found that unknown top-level record properties could bypass screened/redacted fields. The closed record-key registry now rejects them on append/load; added a dedicated regression, integrity suite 27/27. Valid legacy/v2 fields retained.

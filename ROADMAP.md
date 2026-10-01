@@ -1,3 +1,10 @@
+## AYAS Stage 15C — Memory Integrity / Context-Poisoning Firewall — 2026-10-01
+
+- [x] Additive strict integrity/provenance/trust metadata, digest, security-screen/write policy, quarantine, protected keys, rapid-change detection and read-time filtering.
+- [x] Revision-bound manifest, independently anchored operator rollback and dynamic memory content budget.
+- [x] TEMP poisoning after empty history and fresh process restart, affected regression suites, TypeScript/lint, Graphify structural integrity.
+- [ ] Stage 15D: run identity, capability leases and common action firewall. INSPECT in progress; no new authority issued or adapter activated. Exact continuation: ACTIVE_CHECKPOINT.json and hardening/15D/INSPECTION_NOTES.md.
+
 ---
 
 ## AYAS Stage 15B — Durable Long-Horizon Task Runtime — opened 2026-10-01

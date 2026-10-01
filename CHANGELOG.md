@@ -1,3 +1,10 @@
+## 2026-10-01 — Stage 15C memory integrity and context firewall
+
+- Strict optional integrity metadata, digest and revision manifest; deterministic security screen, quarantine, source/trust filtering, protected keys and rapid-change detection.
+- Anchored operator snapshot rollback and dynamic memory content budget; prompts treat all memory as data without approval or execution authority.
+- TEMP adversarial/restart smoke 26 scenarios and affected regressions pass. Reconciled one obsolete retrieval known-limit entry, preserving every assertion/threshold.
+- Stage 15D inspection opened; implementation is next.
+
 ---
 
 ## 2026-10-01 — Stage 15B.2 live binding (owner-approved)
