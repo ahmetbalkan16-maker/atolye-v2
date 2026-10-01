@@ -18,7 +18,8 @@ import type { AyasProposalStructuredImpact } from "./AyasProposalImpact";
 import { createAyasIsolatedGateRoot, type AyasIsolatedGateRoot } from "./AyasIsolatedGateRoot";
 import { withAyasExecutionAuthorityLock } from "./AyasExecutionAuthorityLock";
 import { revalidateAyasExecution, type AyasExecutionRevalidationDeps } from "./AyasExecutionRevalidation";
-import { canonicalizeAyasExactFiles, createAyasMutationBoundary } from "./AyasMutationScope";
+import { AyasMutationScopeError, canonicalizeAyasExactFiles, createAyasMutationBoundary } from "./AyasMutationScope";
+import { classifyAyasRegressionReport, type AyasMutationReliabilityAudit } from "../../ayas/observability/AyasReliabilitySlo";
 import { classifyAyasRestartRecovery } from "./AyasExecutionRecoveryPolicy";
 import { createAyasActionFirewall } from "../../ayas/execution/AyasActionFirewall";
 import type { AyasOwnerCapabilityLeaseAudit, AyasOwnerCapabilityRequest } from "../../ayas/execution/AyasCapabilityScope";
@@ -157,6 +158,8 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
     const journal = createAyasExecutionJournal({ rootDir: isolatedGateRoot });
     const startedAt = now();
     const journalContext: { authorizationId?: string; reservationId?: string; capabilityLease?: AyasOwnerCapabilityLeaseAudit } = {};
+    let reliabilityAudit: AyasMutationReliabilityAudit = { version: "1", mutationStarted: false, observedBaseHead: null,
+      scopeVerified: false, violation: "NONE", regression: "NOT_REPORTED", testCount: 0, completionRecorded: false };
     const writeJournal = (phase: AyasExecutionJournalPhase, extra: { readonly gateSequence?: number; readonly mutationFingerprint?: string; readonly lastError?: string; readonly changedFiles?: readonly string[]; readonly testsRun?: readonly string[]; readonly testResults?: readonly string[]; readonly mutationCompletedAt?: string } = {}): void => {
       journal.record({
         schemaVersion: ayasExecutionJournalSchemaVersion,
@@ -168,6 +171,7 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
         phase,
         startedAt,
         updatedAt: now(),
+        reliabilityAudit,
         ...(journalContext.authorizationId ? { authorizationId: journalContext.authorizationId } : {}),
         ...(journalContext.reservationId ? { reservationId: journalContext.reservationId } : {}),
         ...(journalContext.capabilityLease ? { capabilityLease: journalContext.capabilityLease } : {}),
@@ -234,14 +238,24 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
         // The mutation boundary can await Git. Re-check owner, repository and health after
         // that wait, then consume the lease durably immediately before entering execution.
         const boundary = await createAyasMutationBoundary(repoRoot, input.exactFiles);
+        reliabilityAudit = { ...reliabilityAudit, observedBaseHead: boundary.baseHead };
         await revalidateAyasExecution(binding, validationDeps);
         const admitted = firewall.admitOwnerReservation(issued.lease, ownerRequest);
         if (!admitted.allowed) throw new Error(admitted.reason);
         record = applyVerifiedGateTransition(gate, { event: "begin-execution" }, "EXECUTING");
+        reliabilityAudit = { ...reliabilityAudit, mutationStarted: true };
         writeJournal("EXECUTING", { gateSequence: record.sequence });
 
-        const reported = await input.applyWhileExecuting(reservation.authorizationId);
+        const callbackReport = await input.applyWhileExecuting(reservation.authorizationId);
+        reliabilityAudit = { ...reliabilityAudit, ...classifyAyasRegressionReport(callbackReport.testsRun, callbackReport.testResults) };
+        // Preserve the report checked here across the awaited boundary and phase hooks.
+        const reported = { ...callbackReport, testsRun: Object.freeze(Array.isArray(callbackReport.testsRun) ? [...callbackReport.testsRun] : []),
+          testResults: Object.freeze(Array.isArray(callbackReport.testResults) ? [...callbackReport.testResults] : []) };
         const actual = await boundary.verify();
+        reliabilityAudit = { ...reliabilityAudit, scopeVerified: true };
+        // The callback cannot mark a failed or malformed regression report COMPLETED.
+        // Empty legacy reports remain compatible and explicitly unmeasured.
+        if (reliabilityAudit.regression === "FAIL" || reliabilityAudit.regression === "INVALID") throw new Error("AYAS_DAEMON_REGRESSION_REPORT_REFUSED");
         const executedProposal = inbox.load().proposals.find((entry) => entry.proposalId === input.proposalId);
         if (executedProposal?.exactPatchSafetyProof) {
           const proof = executedProposal.exactPatchSafetyProof;
@@ -276,6 +290,7 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
         }
         inbox.recordResult({ resultId: `ayas-result-${input.proposalId}-${Date.now()}`, proposalId: input.proposalId, authorizationId: reservation.authorizationId, startedAt: state.updatedAt, completedAt: now(), changedFiles: result.changedFiles, diffFingerprint: result.diffFingerprint, testsRun: result.testsRun, testResults: result.testResults, outcome: "COMPLETED", gateAuditIdentity: reservation.authorizationId, operatorReviewStatus: "WAITING_REVIEW" }, "COMPLETED");
         inbox.finalizeApproval(reservation.reservationId, "EXECUTED", now());
+        reliabilityAudit = { ...reliabilityAudit, completionRecorded: true };
         writeJournal("RESULT_RECORDED", { mutationFingerprint: result.diffFingerprint });
         const proposal = inbox.load().proposals.find((entry) => entry.proposalId === input.proposalId);
         if (!proposal) throw new Error("AYAS_DAEMON_RESULT_PROPOSAL_MISSING");
@@ -284,6 +299,9 @@ export function createAyasAutonomyDaemon(options: AyasDaemonOptions = {}) {
       transition("WAITING_REVIEW", { activeProposalId: input.proposalId });
       return result;
     } catch (error) {
+      if (error instanceof AyasMutationScopeError && (error.code === "HEAD_CHANGED" || error.code === "UNAUTHORIZED_MUTATION")) {
+        reliabilityAudit = { ...reliabilityAudit, scopeVerified: false, violation: error.code };
+      }
       // Fail-closed recovery classification: read back the last durably
       // journaled phase (never trust in-memory state alone, since a real
       // crash would have lost it) and finalize the reservation accordingly.

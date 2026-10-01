@@ -8,6 +8,8 @@ import { AYAS_AUTHORIZATION_COMPACTION_DEFAULT_MIN_AGE_MS } from "./AyasAuthoriz
 import { deriveAyasLeaseEvidence, type AyasOperationEvidence } from "./AyasOperationEvidence";
 import { createAyasOperationEvidenceStore, type AyasOperationEvidenceStore } from "./AyasOperationEvidenceStore";
 import { summarizeAyasOperationTelemetry, type AyasOperationTelemetry } from "./AyasOperationTelemetry";
+import { readAyasReliabilityState } from "./AyasReliabilityState";
+import type { AyasReliabilitySloReport } from "./AyasReliabilitySlo";
 
 /**
  * Stage 15F — the live operational state, read-only.
@@ -69,6 +71,7 @@ export interface AyasOperationalState {
   readonly telemetry: AyasStateSection<AyasOperationTelemetry>;
   readonly observer: AyasStateSection<AyasObserverState>;
   readonly gate: AyasStateSection<AyasGateState>;
+  readonly reliability: AyasReliabilitySloReport;
 }
 
 export interface AyasOperationalStateOptions {
@@ -160,5 +163,6 @@ export function readAyasOperationalState(options: AyasOperationalStateOptions = 
 
   const gate = section((): AyasGateState => { const record = gateStore.read(); return { state: record.state, updatedAt: record.updatedAt }; });
 
-  return { generatedAt: new Date(nowMs).toISOString(), windowHours, leases, evidence, telemetry, observer, gate };
+  const reliability = readAyasReliabilityState({ rootDir, authorizations });
+  return { generatedAt: new Date(nowMs).toISOString(), windowHours, leases, evidence, telemetry, observer, gate, reliability };
 }

@@ -827,8 +827,13 @@ async function main(): Promise<void> {
     const allowed = new Set(["src/lib/brain/autonomy/AyasDurableTask.ts", "src/lib/brain/autonomy/AyasDurableTaskJournal.ts", "src/lib/brain/autonomy/AyasDurableTaskRuntime.ts", "src/lib/brain/autonomy/AyasDurableTaskRecovery.ts",
       "src/lib/brain/autonomy/AyasDurableTaskActivities.ts", "scripts/ayas-durable-task-recovery.ts", "scripts/ayas-autonomy-daemon.ts", "scripts/smoke-ayas-durable-task-runtime.ts", "scripts/smoke-ayas-durable-task-recovery.ts",
       // The Stage 15D closure audit names these files in its static adapter map; it reads their source and imports none of them.
-      "scripts/smoke-ayas-action-firewall-closure.ts"]);
+      "scripts/smoke-ayas-action-firewall-closure.ts",
+      // Stage 15F observes existing journals only; it registers no activity and cannot append/recover.
+      "src/lib/ayas/observability/AyasReliabilityState.ts", "scripts/smoke-ayas-reliability-slo.ts"]);
     assert.doesNotMatch(fs.readFileSync(path.join(repo, "scripts", "smoke-ayas-action-firewall-closure.ts"), "utf8"), /from\s+["'][^"']*AyasDurableTask/);
+    const sloReader = fs.readFileSync(path.join(repo, "src/lib/ayas/observability/AyasReliabilityState.ts"), "utf8");
+    assert.doesNotMatch(sloReader, /AyasDurableTask(?:Runtime|Recovery|Activities)\b|\.append\s*\(|\.run\s*\(|\.sweep\s*\(/);
+    assert.match(sloReader, /Pick<AyasDurableTaskJournal, "load">/);
     const importers: string[] = [];
     const walk = (dir: string): void => {
       for (const item of fs.readdirSync(path.join(repo, dir), { withFileTypes: true })) {

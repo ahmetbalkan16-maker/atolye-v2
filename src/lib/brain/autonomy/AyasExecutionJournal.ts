@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { isAyasOwnerCapabilityLeaseAudit, type AyasOwnerCapabilityLeaseAudit } from "../../ayas/execution/AyasCapabilityScope";
+import { isAyasMutationReliabilityAudit, type AyasMutationReliabilityAudit } from "../../ayas/observability/AyasReliabilitySlo";
 
 /**
  * A crash-recoverable record of one execution attempt's progress. Written
@@ -39,6 +40,8 @@ export interface AyasExecutionJournalEntry {
   readonly reservationId?: string;
   /** Audit only. Serialized records never restore an opaque capability handle. */
   readonly capabilityLease?: AyasOwnerCapabilityLeaseAudit;
+  /** Bounded observer metadata; old entries remain valid and have UNKNOWN coverage. */
+  readonly reliabilityAudit?: AyasMutationReliabilityAudit;
   readonly baseHead: string;
   readonly exactFiles: readonly string[];
   readonly gateSequence?: number;
@@ -110,6 +113,9 @@ function validate(raw: unknown, executionId: string): AyasExecutionJournalEntry 
   if (record.capabilityLease !== undefined && !isAyasOwnerCapabilityLeaseAudit(record.capabilityLease)) {
     throw new AyasExecutionJournalError("AYAS_JOURNAL_CORRUPT", `journal entry ${executionId} has invalid capability audit metadata`);
   }
+  if (record.reliabilityAudit !== undefined && !isAyasMutationReliabilityAudit(record.reliabilityAudit)) {
+    throw new AyasExecutionJournalError("AYAS_JOURNAL_CORRUPT", `journal entry ${executionId} has invalid reliability metadata`);
+  }
   return record as unknown as AyasExecutionJournalEntry;
 }
 
@@ -132,6 +138,9 @@ export function createAyasExecutionJournal(options: AyasExecutionJournalOptions 
     record(entry) {
       if (entry.capabilityLease !== undefined && !isAyasOwnerCapabilityLeaseAudit(entry.capabilityLease)) {
         throw new AyasExecutionJournalError("AYAS_JOURNAL_INVALID", "invalid capability audit metadata");
+      }
+      if (entry.reliabilityAudit !== undefined && !isAyasMutationReliabilityAudit(entry.reliabilityAudit)) {
+        throw new AyasExecutionJournalError("AYAS_JOURNAL_INVALID", "invalid reliability metadata");
       }
       fs.mkdirSync(dir, { recursive: true });
       const file = fileFor(entry.executionId);
