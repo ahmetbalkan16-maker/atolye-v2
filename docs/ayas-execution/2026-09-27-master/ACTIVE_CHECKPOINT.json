@@ -2,16 +2,16 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "143e39f8f71bf4b87bcf7ef00b92d6257ffdd090",
-  "currentHead": "143e39f8f71bf4b87bcf7ef00b92d6257ffdd090",
-  "stage": "STAGE_15B",
-  "subtask": "15B.2-live-binding-owner-review",
-  "status": "REQUIRE_OWNER",
+  "lastGreenHead": "557c94604212c65cff7a4e8c023877a34cf990af",
+  "currentHead": "557c94604212c65cff7a4e8c023877a34cf990af",
+  "stage": "STAGE_15C",
+  "subtask": "15C.0-inspect-and-plan",
+  "status": "NOT_STARTED",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md, STAGE 15B",
-    "packet": "15B.1 committed: pure task contract and reducer, append-only hash-chained event journal, one-step runtime. 15B.2 committed: recovery sweep, activity declaration and admitStart, first activity set, operator script. Not bound to any daemon.",
+    "packet": "15B.1 contract, journal, one-step runtime. 15B.2 recovery sweep, activity declaration and admitStart, first activity set, operator script. Live binding to the observer tick, owner-approved.",
     "reusedPrimitives": [
       "AyasProcessLiveness (PID plus start-time owner identity)",
       "AyasExecutionGateStore append-once exclusive-create idiom",
@@ -22,7 +22,7 @@
       "collectAyasGraphifyFacts / evaluateAyasGraphifyState as the first activity",
       "Observer discovery child-process pattern as the proposed binding shape (not used yet)"
     ],
-    "packetCommit": "143e39f8f71bf4b87bcf7ef00b92d6257ffdd090",
+    "packetCommit": "557c94604212c65cff7a4e8c023877a34cf990af",
     "files": [
       "src/lib/brain/autonomy/AyasDurableTask.ts",
       "src/lib/brain/autonomy/AyasDurableTaskJournal.ts",
@@ -31,31 +31,37 @@
       "src/lib/brain/autonomy/AyasDurableTaskActivities.ts",
       "scripts/ayas-durable-task-recovery.ts",
       "scripts/smoke-ayas-durable-task-runtime.ts",
-      "scripts/smoke-ayas-durable-task-recovery.ts"
+      "scripts/smoke-ayas-durable-task-recovery.ts",
+      "scripts/ayas-autonomy-daemon.ts"
     ],
-    "wiredTo": "NOTHING: only scripts/ayas-durable-task-recovery.ts (operator script, run by nobody) and the two smoke suites import the modules; the recovery smoke fails if that changes",
-    "productionActivitiesRegistered": 0,
+    "wiredTo": "scripts/ayas-autonomy-daemon.ts tick(), as a child process running scripts/ayas-durable-task-recovery.ts --apply --enqueue-head-check when Machine Health is ALLOW or THROTTLE. Nothing else refers to the durable task modules; the recovery smoke fails if that changes.",
+    "productionActivitiesRegistered": 1,
     "smokeScenarios": {
       "runtime": 17,
       "recovery": 16
     },
     "mutationsCaught": {
       "15B.1": "28/28",
-      "15B.2": "66/67, 1 equivalent (first run 64/67)"
+      "15B.2": "66/67, 1 equivalent (first run 64/67)",
+      "15B.2-live-binding": "10/10"
     },
     "notes": "03_STAGE15_BASE/hardening/15B/IMPLEMENTATION_NOTES.md",
     "idleWatchdog": "NOT_CURRENTLY_APPLICABLE - NO BROWSER SESSION EXECUTOR. Re-checked in 15B.2: no browser automation dependency or executor; the sweep reports OVERDUE, stale and UNCERTAIN tasks without replay.",
-    "next": "Owner decision on the live binding; then close 15B and start 15C",
+    "next": "Stage 15C",
     "packetCommits": {
       "15B.1": "5ad56f77a58331129814aa6a12cc4c1137ce84d4",
-      "15B.2": "143e39f8f71bf4b87bcf7ef00b92d6257ffdd090"
+      "15B.2": "143e39f8f71bf4b87bcf7ef00b92d6257ffdd090",
+      "15B.2-live-binding": "557c94604212c65cff7a4e8c023877a34cf990af"
     },
     "liveBinding": {
-      "state": "REQUIRE_OWNER",
-      "guard": "ayasDurableTaskLiveBinding() in AyasDurableTaskRecovery.ts; an applying sweep throws AYAS_DURABLE_TASK_LIVE_BINDING_REQUIRES_OWNER on data/brain/autonomy/durable-tasks before any disk access; the script exits 2",
+      "state": "OWNER_APPROVED",
+      "approvedOn": "2026-10-01",
+      "ownerAnswer": "Onaylıyorum, bağla",
+      "scope": "one READ_ONLY activity; side-effect starts stay off",
+      "offSwitch": "ayasDurableTaskLiveBinding() returning REQUIRE_OWNER refuses an applying sweep over the live journal (assertAyasDurableTaskSweepAllowed, tested for both states)",
       "reviewPacket": "03_STAGE15_BASE/hardening/15B/LIVE_BINDING_REVIEW_PACKET.md",
-      "proposedComponent": "tick() of scripts/ayas-autonomy-daemon.ts, as a child process",
-      "ownerDecision": null
+      "activation": "PENDING_OWNER_ACTION: restart the AYAS Autonomy Observer Scheduled Task",
+      "firstLiveSweep": "done by hand at the binding commit: boundToHead true, second run 0 activity calls, lock released, repository clean"
     },
     "firstActivitySet": [
       {
@@ -66,16 +72,27 @@
       }
     ],
     "sideEffectStartsByDefault": false,
-    "evidence": "03_STAGE15_BASE/hardening/15B/RECOVERY_SWEEP_EVIDENCE.json"
+    "evidence": "03_STAGE15_BASE/hardening/15B/RECOVERY_SWEEP_EVIDENCE.json",
+    "state": "CLOSED",
+    "closedOn": "2026-10-01",
+    "knownLimits": [
+      "A commit's graph state is recorded once, at the first sweep after the commit.",
+      "Finished journals are never pruned; every sweep replays every journal (maxTasks 5000, truncated is reported).",
+      "A sweeper that dies holding the lock delays the next sweep until the lock is 10 minutes old.",
+      "A live but stuck attempt is reported as OVERDUE and not taken over.",
+      "Domain adapters for research, revenue and Atölye supervision belong to the stages that own those domains."
+    ]
   },
   "previousStage": {
-    "stage": "STAGE_15A",
-    "subtask": "15A.3-closed-local-independence-degraded",
-    "status": "CLOSED_DEGRADED",
-    "closureAddendumCommit": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a"
+    "stage": "STAGE_15B",
+    "subtask": "15B.2-live-binding",
+    "status": "CLOSED",
+    "closingCommit": "557c94604212c65cff7a4e8c023877a34cf990af",
+    "activation": "PENDING_OWNER_ACTION: restart the AYAS Autonomy Observer Scheduled Task"
   },
   "completedStages": [
-    "PHASE_0_LOCAL_CODE"
+    "PHASE_0_LOCAL_CODE",
+    "STAGE_15B"
   ],
   "completedSubtasks": [
     "canonical-package-import",
@@ -112,7 +129,8 @@
     "15A.3-closure-LOCAL_INDEPENDENCE_DEGRADED",
     "15A.3k-artifact-durability-and-on-demand-runtime-policy",
     "15B.1-durable-task-contract-journal-runtime",
-    "15B.2-recovery-sweep-first-activity-set-non-live"
+    "15B.2-recovery-sweep-first-activity-set-non-live",
+    "15B.2-live-binding-owner-approved"
   ],
   "currentFiles": [
     "ATOLYE_CHECKPOINT.md",
@@ -159,10 +177,11 @@
     "Stage 15A.3 closure regression: pins/adapter 38/38, image payload 17/17, model boundary 12/12, retrieval evaluator 29/29 plus negatives, host oracle baseline 5 cases, vault 5/5, workspace 10/10, task 21/21, plan 10/10, inspection 23/23 synthetic, probe 9/9 synthetic, report 13/13 synthetic; TypeScript PASS; changed-file lint 0 warnings; full lint 0 errors/13 pre-existing warnings; diff checks PASS.",
     "Stage 15A.3j real model: Qwen2.5-Coder-14B Q4_K_M on historical-atomic-bounded-write: tool-call protocol 2x INVALID_OUTPUT byte-identical at max_tokens; structured-output protocol 1x FAIL at the baseline assertion. 0 of 1 executed case passed. Host peak 84.8-87.9 %, zero resource aborts.",
     "Stage 15B.1: durable task runtime smoke 17/17 in TEMP journal roots (contract, happy path, restart, crash during read, crash during landed and unlanded side effect, uncertain terminal, network loss and hanging reread, tool timeout, model restart and retry bound, duplicate daemon and exclusive-link race, live owner, real process liveness, owner delay, journal integrity, illegal histories, registry and secret guards); mutation audit 28/28 caught; TypeScript PASS; changed-file lint 0 warnings; full lint 0 errors/13 pre-existing warnings; diff check PASS. No Stage 15A.3 test re-run, no model or container run.",
-    "Stage 15B.2: recovery smoke 16/16 in TEMP roots (crash, reboot, restart, lost acknowledgement, uncertain side effect, duplicate daemon and crashed sweeper lock, concurrent writer, timeout, retry bound and exhaustion, owner delay, stale/overdue, corrupt/missing event, storage fault, reread ordering, side-effect policy, idempotency, activity declarations, first activity set, operator script child processes, binding and wiring guards); 15B.1 smoke 17/17; mutation audit 66/67 caught and 1 equivalent; TypeScript PASS; changed-file lint 0 warnings; full lint 0 errors/13 pre-existing warnings; diff check PASS. Non-live real run at 143e39f recorded boundToHead true in 1.3 s. No model, container or network use."
+    "Stage 15B.2: recovery smoke 16/16 in TEMP roots (crash, reboot, restart, lost acknowledgement, uncertain side effect, duplicate daemon and crashed sweeper lock, concurrent writer, timeout, retry bound and exhaustion, owner delay, stale/overdue, corrupt/missing event, storage fault, reread ordering, side-effect policy, idempotency, activity declarations, first activity set, operator script child processes, binding and wiring guards); 15B.1 smoke 17/17; mutation audit 66/67 caught and 1 equivalent; TypeScript PASS; changed-file lint 0 warnings; full lint 0 errors/13 pre-existing warnings; diff check PASS. Non-live real run at 143e39f recorded boundToHead true in 1.3 s. No model, container or network use.",
+    "Stage 15B.2 live binding: recovery smoke 16/16 and runtime smoke 17/17 (also re-run with the live journal present, journal unchanged); smoke-ayas-autonomy-observer 22, smoke-ayas-micro-batch-authority-firewall 10, smoke-ayas-continuous-self-improvement 10; 14 existing source invariants on the observer script evaluated and holding; mutation audit 10/10; TypeScript PASS; changed-file lint 0 warnings. First live sweep at 557c946 recorded boundToHead true; second run 0 activity calls."
   ],
   "graphify": {
-    "head": "143e39f8f71bf4b87bcf7ef00b92d6257ffdd090",
+    "head": "557c94604212c65cff7a4e8c023877a34cf990af",
     "stale": false,
     "needsUpdate": false,
     "duplicateNodes": 0,
@@ -170,17 +189,17 @@
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
-    "nodes": 15976,
-    "edges": 46292,
+    "nodes": 15982,
+    "edges": 46309,
     "structuralPartialFiles": 9
   },
   "blockers": [
-    "OWNER_DECISION (Stage 15B gate): approve or reject binding the durable task recovery sweep to the live autonomy observer. Packet: 03_STAGE15_BASE/hardening/15B/LIVE_BINDING_REVIEW_PACKET.md. Until approved nothing is bound.",
+    "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
     "External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority.",
     "OWNER_DECISION for any local-coding re-qualification: define a numeric qualification threshold; and/or pin a different local model or engine; and/or allow GPU passthrough into the rootless sandbox. Not a blocker for Stage 15B."
   ],
-  "nextAction": "Verify actual Git and Graphify HEAD (git rev-parse HEAD; currentHead here is the tested 15B.2 source packet and a documentation-only checkpoint commit descends from it). Stage 15B is at an owner gate: REQUIRE_OWNER for the live binding of the recovery sweep. Do NOT bind the sweep to scripts/ayas-autonomy-daemon.ts, do NOT change ayasDurableTaskLiveBinding(), and do NOT run the operator script with --apply against the live root without the owner approving 03_STAGE15_BASE/hardening/15B/LIVE_BINDING_REVIEW_PACKET.md. If approved: apply section 5 of that packet, run both durable task smoke suites plus the observer smoke suites that are safe to run, commit locally, ask the owner to restart the AYAS Autonomy Observer Scheduled Task, close 15B, start 15C. If not yet approved: 15B stays open; independent non-live Stage 15C work (Memory Integrity / Context-Poisoning Firewall plus dynamic context budget; inspect src/lib/ayas/memory first, the store schema is strict so integrity metadata needs a sidecar or a versioned optional block) may proceed without marking 15B closed. Stage 15A.3 is CLOSED as LOCAL_INDEPENDENCE_DEGRADED: do not reopen. Local coding runtime is on-demand only; Podman machine is stopped. No push.",
-  "updatedAt": "2026-10-01T10:36:38.135Z",
+  "nextAction": "Verify actual Git and Graphify HEAD (git rev-parse HEAD; currentHead here is the tested 15B.2 live-binding commit and a documentation-only checkpoint commit descends from it). Stage 15B is CLOSED: the recovery sweep is bound to the observer tick with owner approval; do not widen the activity set or enable side-effect starts without a new owner review. Start Stage 15C, Memory Integrity / Context-Poisoning Firewall, with the dynamic context budget: read the canonical section, finish INSPECT (AyasMemoryTemporal.ts, BrainMemoryModel.ts, where recall enters the prompt in AyasChatStream.ts, the memory smoke suites and their isolation), then PLAN an additive integrity layer over the existing governance, atomic store, revisions and temporal model: provenance, trust class, content digest, producer identity, evidence reference, write-policy and security-screen results, quarantine, protected keys, rapid-change anomaly detection, integrity snapshot/manifest, known-good rollback, read-time trust filtering. External, web, platform and repository text stays data only. Poisoning must be tested after a context reset. Classify every memory smoke for TEMP isolation before running it. Stage 15A.3 is CLOSED as LOCAL_INDEPENDENCE_DEGRADED: do not reopen. Local coding runtime is on-demand only; Podman machine is stopped. No push.",
+  "updatedAt": "2026-10-01T10:54:34.897Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -262,15 +281,49 @@
     "ROADMAP.md"
   ],
   "localClosure": {
-    "sourcePacketCommit": "143e39f8f71bf4b87bcf7ef00b92d6257ffdd090",
+    "sourcePacketCommit": "557c94604212c65cff7a4e8c023877a34cf990af",
     "sourcePacketClean": true,
-    "sourcePacketAhead": 42,
+    "sourcePacketAhead": 44,
     "sourcePacketBehind": 0,
     "documentationOnlyClosure": true,
-    "headSemantics": "currentHead/lastGreenHead identify the tested 15B.2 source packet; this documentation-only checkpoint adds a descendant. Verify actual git rev-parse HEAD and Graphify binding on resume.",
+    "headSemantics": "currentHead/lastGreenHead identify the tested 15B.2 live-binding commit; this documentation-only checkpoint adds a descendant. Verify actual git rev-parse HEAD and Graphify binding on resume.",
     "earlierCommitsThisSession": [
-      "143e39f8f71bf4b87bcf7ef00b92d6257ffdd090 feat(ayas): add Stage 15B.2 recovery sweep and first activity set"
+      "143e39f8f71bf4b87bcf7ef00b92d6257ffdd090 feat(ayas): add Stage 15B.2 recovery sweep and first activity set",
+      "8adf115d3c59ba57b7a8db777d9caa397dad9825 docs(ayas): checkpoint Stage 15B.2, live binding REQUIRE_OWNER",
+      "557c94604212c65cff7a4e8c023877a34cf990af feat(ayas): bind the durable task recovery sweep to the observer tick"
     ],
     "push": false
+  },
+  "stageHistory": [
+    {
+      "stage": "STAGE_15A",
+      "subtask": "15A.3-closed-local-independence-degraded",
+      "status": "CLOSED_DEGRADED",
+      "closureAddendumCommit": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a"
+    },
+    {
+      "stage": "STAGE_15B",
+      "status": "CLOSED",
+      "closingCommit": "557c94604212c65cff7a4e8c023877a34cf990af"
+    }
+  ],
+  "stage15C": {
+    "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md, STAGE 15C",
+    "status": "NOT_STARTED",
+    "ownerAddition": "DYNAMIC CONTEXT BUDGET: prevent context overflow, prioritise trusted and relevant context, work with the poisoning and trust filters, never silently drop security context to fit tokens.",
+    "inspectedSoFar": [
+      "src/lib/ayas/memory/AyasMemoryStore.ts: one JSON file, strict record schema (a record is rebuilt and compared on read), writer lock, monotonic revision, atomic write.",
+      "src/lib/ayas/memory/AyasMemoryGovernance.ts: write gate on kind, length, secrets, temporary scope, source (user-stated, user-decision, ayas-inferred).",
+      "src/lib/ayas/memory/AyasMemoryRetrieval.ts: read-time trust class derived from confidence, freshness, conflict quarantine, memory-instruction-injection quarantine.",
+      "src/lib/ayas/memory/AyasMemoryRecall.ts: top-4, 700-character block, persistAyasMemoryFromTurn write path.",
+      "src/types/brainMemory.ts: optional temporal v2 block with provenance class, outside recordId and contentFingerprint."
+    ],
+    "notYetInspected": [
+      "src/lib/ayas/memory/AyasMemoryTemporal.ts",
+      "src/lib/brain/BrainMemoryModel.ts",
+      "src/lib/ayas/AyasChatStream.ts (where recall enters the prompt)",
+      "existing memory smoke suites and their isolation"
+    ],
+    "designConstraint": "The stored record schema is strict, so integrity metadata needs a sidecar ledger or a versioned optional block; do not weaken isStoredMemoryRecord."
   }
 }

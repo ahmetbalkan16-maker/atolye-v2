@@ -3,7 +3,7 @@
   "stage": "STAGE_15B",
   "subtask": "15B.2-recovery-sweep-and-first-activity-set",
   "recordedOn": "2026-10-01",
-  "liveBinding": "REQUIRE_OWNER",
+  "liveBinding": "OWNER_APPROVED",
   "sourcePacketCommit": "143e39f8f71bf4b87bcf7ef00b92d6257ffdd090",
   "verification": {
     "recoverySmokeScenarios": 16,
@@ -108,6 +108,168 @@
     "note": "No heavy workload was started in this packet."
   },
   "browserSessionIdleWatchdog": "NOT_CURRENTLY_APPLICABLE - NO BROWSER SESSION EXECUTOR",
+  "liveBindingDecision": {
+    "decision": "APPROVED",
+    "by": "owner",
+    "on": "2026-10-01",
+    "answer": "Onaylıyorum, bağla",
+    "packet": "LIVE_BINDING_REVIEW_PACKET.md",
+    "scope": "One READ_ONLY activity (self-development.graphify-state.read) run by the observer tick as a child process. No side-effect start.",
+    "bindingCommit": "557c94604212c65cff7a4e8c023877a34cf990af",
+    "differenceFromReviewedText": "The script flag is --enqueue-head-check instead of --enqueue-graphify-check, so that an existing invariant test on the observer script stays untouched. Behaviour is identical.",
+    "activation": "PENDING_OWNER_ACTION: restart the AYAS Autonomy Observer Scheduled Task. The running observer process keeps its old code until then."
+  },
+  "bindingVerification": {
+    "recoverySmokeScenarios": 16,
+    "runtimeSmokeScenarios": 17,
+    "observerSuites": {
+      "smoke-ayas-autonomy-observer": 22,
+      "smoke-ayas-micro-batch-authority-firewall": 10,
+      "smoke-ayas-continuous-self-improvement": 10
+    },
+    "observerAutostartSuite": "NOT_RUN (classified unsafe on this machine); its assertions on the observer source were evaluated directly and hold",
+    "existingObserverSourceInvariantsEvaluated": 14,
+    "existingObserverSourceInvariantsHolding": 14,
+    "mutationAudit": {
+      "total": 10,
+      "caught": 10,
+      "survived": [],
+      "results": [
+        {
+          "index": 1,
+          "file": "AyasDurableTaskRecovery.ts",
+          "defect": "binding withdrawn",
+          "verdict": "CAUGHT"
+        },
+        {
+          "index": 2,
+          "file": "AyasDurableTaskRecovery.ts",
+          "defect": "guard inverted",
+          "verdict": "CAUGHT"
+        },
+        {
+          "index": 3,
+          "file": "AyasDurableTaskRecovery.ts",
+          "defect": "guard refuses dry runs",
+          "verdict": "CAUGHT"
+        },
+        {
+          "index": 4,
+          "file": "AyasDurableTaskRecovery.ts",
+          "defect": "guard ignores which journal",
+          "verdict": "CAUGHT"
+        },
+        {
+          "index": 5,
+          "file": "AyasDurableTaskRecovery.ts",
+          "defect": "guard ignores the given working directory",
+          "verdict": "CAUGHT"
+        },
+        {
+          "index": 6,
+          "file": "ayas-autonomy-daemon.ts",
+          "defect": "observer sweeps regardless of machine health",
+          "verdict": "CAUGHT"
+        },
+        {
+          "index": 7,
+          "file": "ayas-autonomy-daemon.ts",
+          "defect": "observer passes a journal root",
+          "verdict": "CAUGHT"
+        },
+        {
+          "index": 8,
+          "file": "ayas-autonomy-daemon.ts",
+          "defect": "observer imports the runtime",
+          "verdict": "CAUGHT"
+        },
+        {
+          "index": 9,
+          "file": "ayas-autonomy-daemon.ts",
+          "defect": "observer runs the script twice",
+          "verdict": "CAUGHT"
+        },
+        {
+          "index": 10,
+          "file": "ayas-autonomy-daemon.ts",
+          "defect": "observer drops --apply",
+          "verdict": "CAUGHT"
+        }
+      ]
+    },
+    "typescript": "PASS",
+    "changedFileLintWarnings": 0
+  },
+  "graphifyAtBindingCommit": {
+    "head": "557c94604212c65cff7a4e8c023877a34cf990af",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 15982,
+    "edges": 46309,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralPartialFiles": 9,
+    "semanticPending": true,
+    "worktree": "CLEAN",
+    "source": "recorded by the first live sweep, see firstLiveSweep.result"
+  },
+  "firstLiveSweep": {
+    "description": "The approved observer command, scripts/ayas-durable-task-recovery.ts --apply --enqueue-head-check, run once by hand from this checkout at the binding commit to verify the live path before the observer is restarted.",
+    "journal": "data/brain/autonomy/durable-tasks (gitignored)",
+    "run1": {
+      "result": "SWEPT",
+      "journals": 1,
+      "activityCalls": 1,
+      "outcomes": {
+        "ADVANCED": 1
+      },
+      "needsReview": 0
+    },
+    "run2": {
+      "result": "SWEPT",
+      "journals": 1,
+      "activityCalls": 0,
+      "outcomes": {
+        "TERMINAL": 1
+      },
+      "needsReview": 0
+    },
+    "taskKey": "graphify-state:557c94604212c65cff7a4e8c023877a34cf990af",
+    "events": [
+      "TASK_CREATED",
+      "ATTEMPT_STARTED",
+      "ATTEMPT_SUCCEEDED"
+    ],
+    "result": {
+      "sourceHead": "557c94604212c65cff7a4e8c023877a34cf990af",
+      "lastAnalyzedHead": "557c94604212c65cff7a4e8c023877a34cf990af",
+      "graphBuiltFromHead": "557c94604212c65cff7a4e8c023877a34cf990af",
+      "boundToHead": true,
+      "stale": false,
+      "needsUpdate": false,
+      "worktreeState": "CLEAN",
+      "structuralStatus": "PARTIAL",
+      "structuralReasons": [
+        "INCOMPLETE_CODE_FILES:9"
+      ],
+      "semanticStatus": "PENDING",
+      "classification": "GRAPH_PARTIAL",
+      "nodes": 15982,
+      "edges": 46309,
+      "duplicateNodes": 0,
+      "duplicateEdges": 0,
+      "danglingEdges": 0,
+      "selfLoops": 0,
+      "incompleteCodeFiles": 9,
+      "criticalIncompleteFiles": 7
+    },
+    "lockReleased": true,
+    "repositoryCleanAfterwards": true,
+    "smokeSuitesRerunWithLiveJournalPresent": "both PASS; live journal listing unchanged"
+  },
   "mutationAudit": {
     "script": "scratch, not committed",
     "suite": "scripts/smoke-ayas-durable-task-recovery.ts",
