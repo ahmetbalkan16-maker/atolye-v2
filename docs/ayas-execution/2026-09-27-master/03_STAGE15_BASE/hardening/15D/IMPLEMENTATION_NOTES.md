@@ -144,3 +144,19 @@ Source 0f5c3939a5ceb5c0ce130dcd98fc785644d56096. Default write-execution-disable
 TEST/ADVERSARIAL: write16, original bridge23 and legacy guard12 PASS; zero executor/plan calls and no gate begin under fabricated authority; original one-stage bounds/failure tests retained. TypeScript/changed lint/diff PASS. GRAPHIFY precommit9904ddf current PARTIAL9/semantic pending:16141nodes/46818links, duplicate/dangling/self-loop0. LOCAL COMMIT; NO PUSH.
 
 Next15D.6b: one approved durable Graphify read activity, direct product catalogue/self-heal and standalone validator/complete actual adapter coverage. Stage15D IN_PROGRESS/globalGuardBound=false;15E unopened. PC health/on-demand rules unchanged; no model/container/observer restart/production/publication/spend/push activation.
+
+## 15D.6b durable read activity lease — 2026-10-01
+
+Source cd24e0c822ef2a7ad978b653c43837b3bdc5f2c8. The one approved durable activity is bound to the SAME firewall and the existing authorization store. `createAyasFirstDurableActivitySet` resolves the physical repository root and the Graphify install root once, re-resolves both at each run, and builds one firewall per attempt. The grant request is `query-graphify` / `operation: state` plus the task, step, attempt, attempt ID, idempotency key and exact target, so the persisted record names the durable attempt it admitted. Consume is durable before the collector runs. An in-memory set refuses a second run of the same attempt ID in one process; a new process gets a new grant for the journal's next attempt and never recovers an old one.
+
+Outcomes: context or scope refusal, changed resource, grant/consume failure and expiry are `FAILED_NO_EFFECT`, not retried, with zero collector calls. A collector error or a failed outcome write after the read is `UNKNOWN`; the runtime records it as an unconfirmed attempt and, for a read-only step, starts the next bounded attempt with a new grant.
+
+`AyasCapabilityScope.resource.additionalReadRoots` is optional, 1 to 8 distinct local roots, validated like the other roots and appended to the canonical form only when present. The Action Runtime firewall declares the same root for the new native `query-graphify` `state` operation, which takes no other plan field.
+
+Audit location: the default journal uses the existing `data/brain/execution/authorizations`; a `--root` journal keeps its audit beside it. The operator script as first left would have created `data/brain/autonomy/execution/authorizations` for live sweeps; corrected before commit and asserted in the smoke.
+
+Unchanged: observer approval and off switch, one registered activity, `admitStart`, reread and dead-owner recovery, no side-effect starts.
+
+TEST: recovery 22, lease/firewall 52, durable runtime 17 and the affected regression set (listed in ACTIVE_CHECKPOINT and the ledger) PASS in TEMP roots. TypeScript, changed-file lint and diff check PASS. Graphify precommit 19d3ec9: 16145 nodes / 46849 links, anomalies 0, PARTIAL 9 known files, semantic pending. LOCAL COMMIT; NO PUSH.
+
+Next 15D.6c: direct product-context catalogue/self-heal reads. Then standalone registered repair validators and the complete actual-adapter closure audit. Stage 15D IN_PROGRESS / globalGuardBound=false; 15E unopened.

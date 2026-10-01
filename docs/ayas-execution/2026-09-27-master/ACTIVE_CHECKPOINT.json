@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096",
-  "currentHead": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096",
+  "lastGreenHead": "cd24e0c822ef2a7ad978b653c43837b3bdc5f2c8",
+  "currentHead": "cd24e0c822ef2a7ad978b653c43837b3bdc5f2c8",
   "stage": "STAGE_15D",
-  "subtask": "15D.6b-durable-read-activity-lease-binding",
+  "subtask": "15D.6c-direct-product-context-read-coverage",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -139,11 +139,12 @@
     "15D.4b-owner-reservation-journal-lease-binding",
     "15D.5a-original-repair-approval-proof",
     "15D.5b-repair-common-firewall-and-durable-audit",
-    "15D.6a-dormant-write-owner-refusal"
+    "15D.6a-dormant-write-owner-refusal",
+    "15D.6b-durable-read-activity-lease-binding"
   ],
   "currentFiles": [
-    "src/lib/ayas/execution/AyasExecutionBridge.ts",
-    "scripts/smoke-ayas-write-action.ts"
+    "src/lib/ayas/AyasProductBrain.ts",
+    "scripts/smoke-ayas-product-brain.ts"
   ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
@@ -213,15 +214,19 @@
     "15D.5b repair proof/common audit26 TEMP scenarios PASS: mandatory durable grant/consume before patch, short original TTL, exact scope/class/cost, grant/consume IO zero writes/validators, outcome IO bounded rollback, two bounded attempts same approval/expiry, expired remediation no renewal",
     "lease49/read dispatch12/legacy bridge12/owner31 PASS; guided repair25assertions+5productE2E/durability8/workflow11scenarios38assertions/store17/recovery15/controlledimprovement7 PASS",
     "TypeScript and changed-file lint PASS; diff PASS; Graphify PARTIAL9/semantic pending,16139nodes46805links, anomalies0",
-    "15D.6a write16/bridge23/legacy bridge guard12 PASS; generic grant + OPEN gate + enabled code switch still REQUIRE_OWNER, zero pipeline/executor/project plan reads, repeat refused. TypeScript/changed lint/diff PASS; Graphify16141nodes/46818links, anomalies0, PARTIAL9/semantic pending."
+    "15D.6a write16/bridge23/legacy bridge guard12 PASS; generic grant + OPEN gate + enabled code switch still REQUIRE_OWNER, zero pipeline/executor/project plan reads, repeat refused. TypeScript/changed lint/diff PASS; Graphify16141nodes/46818links, anomalies0, PARTIAL9/semantic pending.",
+    "15D.6b durable recovery 22 scenarios PASS (6 new: exact task/attempt/resource audit consumed before the collector, forged context and aborted signal, redirected junction and unknown/UNC root, grant/consume/expiry faults with 0 collector calls, outcome-audit loss reported UNKNOWN with no replay, native state operation through the real dispatcher in a fresh TEMP process); operator script audit location asserted for both a --root journal and the default journal in a TEMP checkout",
+    "lease/firewall 52 (3 new: additional read roots pinned and re-resolved, duplicate/network/empty/unknown roots refused, old scopes keep their 14-field canonical form); durable runtime 17; read dispatch 12; legacy bridge 12; action runtime 17; developer actions 31; bridge 23; write 16; owner 31; repair proof 26 PASS",
+    "developer workflow 11/38; planner 16; workflow store 17; workflow recovery 15; fault localization 16; guided repair 25 + 5 product E2E; repair durability 8; controlled improvement 7; unified trace 17; autonomy observer 22 PASS",
+    "TypeScript (non-incremental) PASS; changed-file lint 0 warnings; diff check PASS; Graphify precommit 19d3ec9 worktree covered: 16145 nodes / 46849 links, duplicate/dangling/self-loop 0, PARTIAL 9 known files, semantic pending. Product-brain smoke and the disposable-archive junction test not run (unchanged code paths; the first reads default roots)."
   ],
   "graphify": {
-    "head": "9904ddff3a6581ae7d99f8e07239e8f0e8ea531d",
-    "testedSourcePacket": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096",
+    "head": "19d3ec9b6af5ff8ce5f5a7150e5adb615e5d8dcd",
+    "testedSourcePacket": "cd24e0c822ef2a7ad978b653c43837b3bdc5f2c8",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 16141,
-    "edges": 46818,
+    "nodes": 16145,
+    "edges": 46849,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
@@ -235,8 +240,8 @@
     "External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority.",
     "OWNER_DECISION for any local-coding re-qualification: define a numeric qualification threshold; and/or pin a different local model or engine; and/or allow GPU passthrough into the rootless sandbox. Not a blocker for Stage 15B."
   ],
-  "nextAction": "15D.6b bind the ONE existing approved READ_ONLY durable Graphify collector to the SAME firewall before dispatch, using exact physical repository/task/activity scope and existing authorization/audit primitives. Preserve observer approval/off-switch and recovery boundaries; no side-effect activity or replay authority. Then direct product catalogue/self-heal reads, standalone registered repair validators and complete actual adapter closure audit. Close15D only after full green coverage, then auto15E. NO PUSH.",
-  "updatedAt": "2026-10-01T15:03:49.321Z",
+  "nextAction": "15D.6c: the product-context composition (AyasProductBrain) calls catalogue and self-heal readers directly, outside Action Runtime. Map each direct read, then route it through the SAME read firewall or prove it is not an action dispatch; keep TEMP isolation (the product-brain smoke reads default roots and must not be run unisolated). Then 15D.6d standalone registered repair validators, then 15D.7 complete actual-adapter closure audit. Close 15D only after full green coverage, then open 15E automatically. NO PUSH.",
+  "updatedAt": "2026-10-01T15:34:25.139Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -318,7 +323,7 @@
     "ROADMAP.md"
   ],
   "localClosure": {
-    "sourcePacketCommit": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096",
+    "sourcePacketCommit": "cd24e0c822ef2a7ad978b653c43837b3bdc5f2c8",
     "push": false,
     "documentationOnlyClosure": true,
     "headSemantics": "Full tested source-packet HEAD. The checkpoint documentation commit descends from it; resolve actual current HEAD with git rev-parse HEAD. Per-machine final Graphify metadata is not committed."
@@ -407,8 +412,8 @@
     "globalGuardBound": false,
     "ownerIssuerImplemented": false,
     "remaining": [
-      "durable activity/recovery binding without widening observer scope",
-      "direct product-context catalogue/self-heal read coverage; standalone registered repair validators and complete actual adapter map",
+      "direct product-context catalogue/self-heal read coverage",
+      "standalone registered repair validators and complete actual adapter map",
       "complete coverage / closure audit, then automatic Stage15E"
     ],
     "knownLimits": [
@@ -421,7 +426,10 @@
       "Owner identity is the existing singleton shared-passcode role, not per-person attribution. The unchanged explicit local-dev auth policy remains.",
       "Owner capability journal is audit evidence only; existing reservation and authority lock are mandatory. It is not keyed/root authenticity and never restores live authority.",
       "Guided-repair journal marks baseHead as NOT_APPLICABLE_REPAIR_WORKSPACE; it pins physical workspace and patch precondition/digest rather than fabricating a Git commit for non-Git workspaces.",
-      "Audit destination context is trusted server logging data, not an approval or resource selector from model/tool input. All affected repair tests inherit TEMP audit context."
+      "Audit destination context is trusted server logging data, not an approval or resource selector from model/tool input. All affected repair tests inherit TEMP audit context.",
+      "Durable Graphify read: a refused or unrecordable admission, or a missing Graphify install root, is recorded as a non-retried failure; that commit's graph state is then not recorded.",
+      "Durable read audit records accumulate under data/brain/execution/authorizations, one per executed attempt; nothing prunes them.",
+      "query-graphify has a native state operation behind the same read firewall; it returns HEAD, enums and counts only and accepts no target field."
     ],
     "packetCommits": {
       "foundation": "2d621626edb2fbc0f8cd1ed2b552b392e6d93c48",
@@ -431,7 +439,8 @@
       "ownerReservationLease": "2f4168fb48d5166e851fe37c621b7a71f0a37f75",
       "repairProof": "677853eaf710faf355627dd794b2a1e73c136766",
       "repairCommonLease": "af91b8e62121d741f3b174734f9a65a64b18d6f4",
-      "dormantWriteOwnerRefusal": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096"
+      "dormantWriteOwnerRefusal": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096",
+      "durableReadActivityLease": "cd24e0c822ef2a7ad978b653c43837b3bdc5f2c8"
     },
     "readRuntimeGuardBound": true,
     "legacyReadBridgeGuardBound": true,
@@ -442,7 +451,8 @@
     "repairOriginalApprovalProofBound": true,
     "repairCommonFirewallBound": true,
     "repairDurableAuditBound": true,
-    "dormantWriteGuardBound": true
+    "dormantWriteGuardBound": true,
+    "durableReadActivityGuardBound": true
   },
   "pushPolicy": {
     "state": "NO_PUSH",

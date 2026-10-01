@@ -1,3 +1,9 @@
+# AYAS MASTER CURRENT — 15D.6b GREEN / 15D.6c NEXT — 2026-10-01
+
+Tested source cd24e0c822ef2a7ad978b653c43837b3bdc5f2c8 plus documentation descendant; resolve actual HEAD. Agent handoff: this packet was found uncommitted in the worktree, reviewed, verified and closed. The one owner-approved durable Graphify read now takes and consumes an exact-scope grant from the existing authorization store before its collector runs (task, attempt, physical repository root and Graphify install root pinned). Live sweeps audit into the existing data/brain/execution root. Recovery 22 / lease 52 / durable runtime 17 and the affected regression set PASS; TypeScript, lint, diff PASS. Graphify PARTIAL 9 known files, semantic pending, anomalies 0.
+
+Stage 15D IN_PROGRESS / globalGuardBound=false. Next 15D.6c direct product-context catalogue/self-heal reads; then standalone registered repair validators; then the complete actual-adapter closure audit. Close 15D before automatic 15E. Detailed ACTIVE_CHECKPOINT is authoritative. NO PUSH without new explicit owner approval; the earlier 36fa76b push deviation stays recorded with no reset, force or history rewrite. Observer Scheduled Task restart is still a pending owner action. PC health and on-demand runtime rules unchanged; no model or container started.
+
 # AYAS MASTER CURRENT — 15D.6a GREEN / 15D.6b NEXT — 2026-10-01
 
 Tested source 0f5c3939a5ceb5c0ce130dcd98fc785644d56096 plus documentation descendant; resolve actual HEAD. Dormant write bridge now REQUIRE_OWNER before any project plan or pipeline dispatch even with a generic grant, OPEN gate and enabled switch. Read bridge always uses exact common lease admission. Write16 / bridge23 / legacy guard12 and TypeScript/lint/diff PASS; Graphify PARTIAL9/semantic pending, anomalies0.
