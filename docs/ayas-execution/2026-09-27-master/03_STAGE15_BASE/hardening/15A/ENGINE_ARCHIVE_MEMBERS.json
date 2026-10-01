@@ -1,0 +1,414 @@
+{
+  "schemaVersion": "1",
+  "observedOn": "2026-10-01",
+  "evidenceClass": "VERIFIED_OFFICIAL_ARCHIVE_BYTES_STATIC_MEMBERS_NOT_ADMITTED",
+  "source": "https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-ubuntu-x64.tar.gz",
+  "archiveSizeBytes": 16998357,
+  "archiveSha256": "c150306eb16b5ab696f76a8bdf810c35fd98a24e82158742e6fa28f420ff8410",
+  "verifierStatus": "LOCAL_BYTES_VERIFIED_NOT_ADMITTED",
+  "binaryExecuted": false,
+  "containerCompatibilityVerified": false,
+  "note": "Regular-member SHA/ELF symbol strings computed directly from the hash-verified archive buffer. No archive member was installed or executed. Symbol scans are not complete runtime dependency proof.",
+  "regularMembers": [
+    {
+      "path": "llama-b11146/libggml-cpu-cooperlake.so",
+      "sizeBytes": 1364840,
+      "sha256": "5cb2ce6bda931e19742c0cbec44ed258ac57afe2801cc2324d752a19bf8d6707",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/libllama-quantize-impl.so",
+      "sizeBytes": 85936,
+      "sha256": "510e169cfd384703bd504c92be4871959530f593ad5f7dbd32e04fcec6eaf3d5",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.14",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/llama-completion",
+      "sizeBytes": 15968,
+      "sha256": "7119bef261611b26f326f7c4da4dc3fdeb7bb28e2faf1ec392bda7b21215ef52",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": null
+    },
+    {
+      "path": "llama-b11146/llama-tts",
+      "sizeBytes": 44960,
+      "sha256": "9b8b8076e4a95fc7ef8e97f889e5ebce44237383b1cfa1a39cbe40b6c22a8bf8",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.21"
+    },
+    {
+      "path": "llama-b11146/llama-fit-params",
+      "sizeBytes": 15968,
+      "sha256": "b2ad073a0c093706e5dfdfe2c9864d199ed921e49ea0383a7d0013e2ad8a81c8",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": null
+    },
+    {
+      "path": "llama-b11146/libllama-fit-params-impl.so",
+      "sizeBytes": 39760,
+      "sha256": "64659e27caad6d884fa093d33b9aa631a4def6cbbff0aa85bf6218a153565cc2",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.14",
+      "glibcxxHighest": "GLIBCXX_3.4.21"
+    },
+    {
+      "path": "llama-b11146/LICENSE",
+      "sizeBytes": 1078,
+      "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
+      "elf": false,
+      "glibcHighest": null,
+      "glibcxxHighest": null
+    },
+    {
+      "path": "llama-b11146/libllama-server-impl.so",
+      "sizeBytes": 7218272,
+      "sha256": "448901d999734830ff3ba6d81b3df230910ee534ac4584571fce4ce1896d450d",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.30"
+    },
+    {
+      "path": "llama-b11146/llama-minicpmv-cli",
+      "sizeBytes": 16952,
+      "sha256": "053ff1b820407b8a1836b0b05d1ffcc91e56b6531f08d9b00b8dfb97a41de294",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.21"
+    },
+    {
+      "path": "llama-b11146/libggml-cpu-piledriver.so",
+      "sizeBytes": 1177384,
+      "sha256": "bb4d2dfe4cb107b06d7841904bf87460c42854dbf9c56d9dc3eed861e7a7bb92",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/llama-mtmd-debug",
+      "sizeBytes": 54376,
+      "sha256": "f9971e899d985249af8639f78bf1b958c63642eb2631924ee8f4e9d378166411",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/libggml-cpu-zen4.so",
+      "sizeBytes": 1364840,
+      "sha256": "e636cd0e2c623b7fb74ed32e76a6d6139ee1dba1f8c552dd2c497a242db96b52",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/llama-gemma3-cli",
+      "sizeBytes": 16952,
+      "sha256": "053ff1b820407b8a1836b0b05d1ffcc91e56b6531f08d9b00b8dfb97a41de294",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.21"
+    },
+    {
+      "path": "llama-b11146/llama-tokenize",
+      "sizeBytes": 45168,
+      "sha256": "c635c75630b67f5759252ac75401bff23f9c057ba34dcfdf6994c5f8827c495f",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.26"
+    },
+    {
+      "path": "llama-b11146/libllama-completion-impl.so",
+      "sizeBytes": 118536,
+      "sha256": "251871f192308edca2b2d7ec253832e27aca2aafc18c242a7f1c8418496efa0a",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.14",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/llama-results",
+      "sizeBytes": 50232,
+      "sha256": "27b97ada88d7e69a3b31619877c460e33aff29280ba32eb4814af7e7f4e84ccb",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.21"
+    },
+    {
+      "path": "llama-b11146/llama-server",
+      "sizeBytes": 17864,
+      "sha256": "22de090746c114569367998ec930b28f27f12e078e593ff21175a54b409d26fe",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.21"
+    },
+    {
+      "path": "llama-b11146/libggml-rpc.so",
+      "sizeBytes": 251224,
+      "sha256": "bd8dffadf26f130935742016b8f8711bb35e3187f16f44d75db5639daa2c6cfa",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.30"
+    },
+    {
+      "path": "llama-b11146/llama-batched-bench",
+      "sizeBytes": 15976,
+      "sha256": "3b70e62c5c5cf43c8c436622a845ad4b80c01837d6ba3a10c90e39b219bbd2ab",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": null
+    },
+    {
+      "path": "llama-b11146/llama-llava-cli",
+      "sizeBytes": 16952,
+      "sha256": "053ff1b820407b8a1836b0b05d1ffcc91e56b6531f08d9b00b8dfb97a41de294",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.21"
+    },
+    {
+      "path": "llama-b11146/libggml-cpu-alderlake.so",
+      "sizeBytes": 1223880,
+      "sha256": "8c0a8861351221a1dbe5fd43df5fbdbb00aeff0face86aed47ddc166323c2228",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/libggml-cpu-sse42.so",
+      "sizeBytes": 977064,
+      "sha256": "4f4e9d6bf9a3f3a6c709fb5e48c684d1fa4c931db23ee0f2c0bbf14d78fff1f4",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/libggml-base.so.0.25.1",
+      "sizeBytes": 920080,
+      "sha256": "5edd28e54a19d75ccf3bcd1a729a5d5327f822514c274969b8b83d878e5ef3bd",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.29",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/llama-qwen2vl-cli",
+      "sizeBytes": 16952,
+      "sha256": "053ff1b820407b8a1836b0b05d1ffcc91e56b6531f08d9b00b8dfb97a41de294",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.21"
+    },
+    {
+      "path": "llama-b11146/libggml-cpu-haswell.so",
+      "sizeBytes": 1227976,
+      "sha256": "984064c44e5a92558e01ace8cf18cde33356d2d21bdb93166f0faf57885fe234",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/libllama-perplexity-impl.so",
+      "sizeBytes": 171616,
+      "sha256": "b37f8c9dd0f6b2e43df448e18d1afb81ca31e979d865f49e81f2c3014a0a9409",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.29",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/llama",
+      "sizeBytes": 62376,
+      "sha256": "03ca7cf8c26a7c1ea28f2430c12a8d55f10ca228751513eb7a217db663be4c43",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.26"
+    },
+    {
+      "path": "llama-b11146/libmtmd.so.0.5.0",
+      "sizeBytes": 1878192,
+      "sha256": "9bfb7fc0005de64f160763476a326a54a9a56ffd0a5b1e24111981a90c02d84f",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.32",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/libllama-cli-impl.so",
+      "sizeBytes": 259512,
+      "sha256": "55c9a9db29646b8a88d87f276f10278b9c7ed835a9672d442e9ecafad1c0cdc1",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.32",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/libggml-cpu-cannonlake.so",
+      "sizeBytes": 1368864,
+      "sha256": "efc6d0d0cb92e5ff7c3a2b2a995068a810e72aab23174bd6d84484f92e145643",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/llama-imatrix",
+      "sizeBytes": 339464,
+      "sha256": "000846dd94cc7caf28c9d886871efce108388dfc0185c5d95f47d66df6440ce5",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/llama-perplexity",
+      "sizeBytes": 15968,
+      "sha256": "1c06240ed8594fd377d655aef2dab0865431e3e779c06638474c96b38e6d74a0",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": null
+    },
+    {
+      "path": "llama-b11146/libggml-cpu-sapphirerapids.so",
+      "sizeBytes": 1631216,
+      "sha256": "b19ce9b822c569e514c8a99f6df2996f553eb295838c78bd544d791a124d3919",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/libggml.so.0.25.1",
+      "sizeBytes": 55184,
+      "sha256": "569c53469aceca5dd357d2c3e1570014ed73e676abb08d44971be4cb784d855c",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.26"
+    },
+    {
+      "path": "llama-b11146/llama-cli",
+      "sizeBytes": 1458280,
+      "sha256": "e307ffc61e310365a518918e15c170b86c3b921f50f182b9fd4f4532d6015342",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.30"
+    },
+    {
+      "path": "llama-b11146/libggml-cpu-cascadelake.so",
+      "sizeBytes": 1364768,
+      "sha256": "0e12697fe79d6209486fb4ab6e38ee279b8b80481208a7e1f7b61e803af6ee8c",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/libggml-cpu-sandybridge.so",
+      "sizeBytes": 1172168,
+      "sha256": "ced91e5db35c922b2e081daa079c0057f3862ad285f92dd1cfd1f6847985701a",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/libllama.so.0.5.0",
+      "sizeBytes": 4616400,
+      "sha256": "7e3dd3d60fada6e76cc0bbccd076c90e0b2f1c01cc1c18bf3bb0b2df5ee2c67f",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/libllama-bench-impl.so",
+      "sizeBytes": 481768,
+      "sha256": "bec94a1255db087838211878fda2be5528ff5886d2088551f48446473bd413c0",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.32",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/libggml-cpu-ivybridge.so",
+      "sizeBytes": 1181480,
+      "sha256": "a90c3b1a96f150cba36e0abae4dd8d15384db29fee49106c0f4664619ec01fe3",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/llama-mtmd-cli",
+      "sizeBytes": 87984,
+      "sha256": "9378a6b9582c67c0c280487c07ebb483043c94779a975bf1e297af7ea115d271",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/ggml-rpc-server",
+      "sizeBytes": 194744,
+      "sha256": "9a3bfa0d9eda6f89efe90487aa9102f3333277408d0136d1dfdf1ca0398b054b",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/libllama-batched-bench-impl.so",
+      "sizeBytes": 48856,
+      "sha256": "51708700c784ce0a58214aad58f5a259b519d94cb625c7e7c9e8435f9e94b460",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.14",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/libggml-cpu-skylakex.so",
+      "sizeBytes": 1368864,
+      "sha256": "cf4a4bc0daf9ca620d1df6ee66a7d9132899f33e3ff797d6b6fb5b29911ccbc0",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/llama-quantize",
+      "sizeBytes": 17864,
+      "sha256": "4dae745e3197da81e17d5ea1dbe6351ba3d559e2a887af2df3715c4293a21c32",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.21"
+    },
+    {
+      "path": "llama-b11146/libllama-common.so.0.5.0",
+      "sizeBytes": 6331832,
+      "sha256": "6686de2e183ac053f6d965bd06af6c4eb62aff44353a3c2664b854c72a492dda",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.30"
+    },
+    {
+      "path": "llama-b11146/libggml-cpu-icelake.so",
+      "sizeBytes": 1364768,
+      "sha256": "6cefaed8ad0d4b7e2e661e850b16936e4265283cb7fda004b6c6923d87e9241f",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/llama-gguf-split",
+      "sizeBytes": 48224,
+      "sha256": "d371cd59cb824765a02ba4e9eb2d4590f80d866e47558a3426778d66836f1d33",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.21"
+    },
+    {
+      "path": "llama-b11146/libggml-cpu-x64.so",
+      "sizeBytes": 973144,
+      "sha256": "2cf499f61c4e9888c47e404f9359e53e9ca79cf1f33e5b5bd706ce4642051149",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.29"
+    },
+    {
+      "path": "llama-b11146/llama-bench",
+      "sizeBytes": 17864,
+      "sha256": "d120d842f014d4e4fd5c4cc0b163440bece621b63efb3abbd588dbab0c546241",
+      "elf": true,
+      "glibcHighest": "GLIBC_2.34",
+      "glibcxxHighest": "GLIBCXX_3.4.21"
+    }
+  ]
+}

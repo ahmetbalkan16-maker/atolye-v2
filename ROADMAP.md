@@ -1,5 +1,16 @@
 ---
 
+## AYAS Stage 15A.3 — local qualification preparation — 2026-10-01
+
+- [x] Official immutable engine/model/base metadata, candidate contracts and offline local artifact SHA verifier.
+- [x] Provider-neutral diagnostic protocol, bounded prompt/patch validation, cancellation, synthetic repeat consistency and provenance; no backend activation.
+- [x] Reviewable minimal local image draft and offline payload rejection tests; no image-build or containment claim.
+- [x] Original five frozen host oracle cases preserved; an additional two-file/49-line retrieval case passes its full unchanged 29-case evaluator, with partial/wrong candidates refused.
+- [ ] TypeScript-refactor frozen domain case; sealed Linux toolchain/engine payload provenance and compatibility; real model process/containment/Podman inspection and measured qualification.
+- [ ] **BLOCKED_OWNER_ACTION — host sandbox runtime installation required** (WSL has no distribution, Docker/Podman absent).
+
+**Stage 15A.3 remains IN_PROGRESS / LOCAL_INDEPENDENCE_DEGRADED. Stage 15B stays unopened. No push.**
+
 ## AYAS Autonomous Technology Watch & Capability Discovery — Stage 14 — 2026-09-25 — ✅ COMPLETED
 
 - [x] One canonical, schema-versioned technology candidate (identity + anchors, bounded append-only source claims, bounded watch record). Readiness, freshness, cost and risk are derived and never stored. There is no OTHER category: an unknown category stays UNKNOWN. It reuses:

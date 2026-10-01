@@ -1,5 +1,13 @@
 ---
 
+## 2026-10-01 — Stage 15A.3h pinned local qualification preparation
+
+- Added exact official llama.cpp v0.5.0/b11146 commit/archive provenance, Qwen single-file Q4_K_M manifest/hash, Node linux/amd64 base pin and read-only host runtime inventory. Verified the exact Linux CPU archive bytes and hashed 50 members in memory; no installation, member execution or model download/run. Recorded the runtime-installation owner blocker.
+- Added streaming artifact SHA verification, strict runtime/image claims and a provider-neutral diagnostic model protocol with allowlisted context, bounded in-memory submit_patch validation, timeout/cancellation, provenance and synthetic repeat checks. No production activation or readiness authority.
+- Added reviewable shell-free scratch/Node image draft and offline payload hash/escape/secret rejection tests; image and containment remain unverified.
+- Preserved the five frozen historical cases. Added a separate two-file/49-line retrieval oracle with complete immutable 29-case evaluator; baseline, each partial fix and wrong no-op fail, exact historical pair passes.
+- Pins/adapter 35, payload 13, retrieval evaluator 29 + negatives and affected Stage 15A/controlled-evolution matrix PASS; TypeScript PASS; changed-file lint clean; full lint 0 errors/13 existing warnings. Local independence remains DEGRADED and Stage 15B unopened.
+
 ## 2026-09-28 — AYAS pending approval display reconciliation (uncommitted)
 
 - Ana ekran ve Gelişim Merkezi aynı salt okunur approval inbox seçicisini kullanıyor. Geçmiş kurtarma, geleceğe ertelenmiş ve zaten onaylanmış öneriler yeni owner kararı bekleyen sayıya katılmıyor.

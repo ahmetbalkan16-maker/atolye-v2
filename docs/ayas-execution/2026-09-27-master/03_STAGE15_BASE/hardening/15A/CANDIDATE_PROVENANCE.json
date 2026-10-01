@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "1",
+  "observedOn": "2026-10-01",
+  "repositoryHeadAtDiscovery": "87fca074cea9c4482c57718e9151b64124e0403d",
+  "evidenceClass": "OFFICIAL_METADATA_HOST_DISCOVERY_AND_VERIFIED_ENGINE_ARCHIVE_BYTES",
+  "status": "LOCAL_INDEPENDENCE_DEGRADED",
+  "engine": {
+    "source": "https://github.com/ggml-org/llama.cpp/releases/tag/v0.5.0",
+    "refApi": "https://api.github.com/repos/ggml-org/llama.cpp/git/ref/tags/v0.5.0",
+    "annotatedTagObject": "c13fcbf684171d5e0bca3fc5c34be6a99174b05f",
+    "tagObjectApi": "https://api.github.com/repos/ggml-org/llama.cpp/git/tags/c13fcbf684171d5e0bca3fc5c34be6a99174b05f",
+    "resolvedCommit": "7fe450e19305b828c199d602c23a8337aaa1f03b",
+    "releaseTargetCommitishIsNotTagProof": "d2e54583c7452353eb35d40431281f6ee984332f",
+    "binaryRelease": "https://github.com/ggml-org/llama.cpp/releases/tag/b11146",
+    "nightlyPointer": "https://github.com/ggml-org/llama.cpp/releases/download/v0.5.0/nightly-tag.txt",
+    "binaryReleaseCommit": "7fe450e19305b828c199d602c23a8337aaa1f03b",
+    "windowsCpuArchive": {
+      "file": "llama-b11146-bin-win-cpu-x64.zip",
+      "sizeBytes": 18560055,
+      "sha256": "14cf1303ca9ac3abd94816850532f9f9a69ac66fbaca3776fc6f9061c2fac1d1"
+    },
+    "linuxCpuArchive": {
+      "file": "llama-b11146-bin-ubuntu-x64.tar.gz",
+      "sizeBytes": 16998357,
+      "sha256": "c150306eb16b5ab696f76a8bdf810c35fd98a24e82158742e6fa28f420ff8410"
+    },
+    "localArchiveBytesVerified": true,
+    "extractedBinarySha256": "22de090746c114569367998ec930b28f27f12e078e593ff21175a54b409d26fe",
+    "containerCompatibilityVerified": false,
+    "license": "MIT",
+    "licenseSource": "https://raw.githubusercontent.com/ggml-org/llama.cpp/7fe450e19305b828c199d602c23a8337aaa1f03b/LICENSE",
+    "binaryHashSemantics": "llama-server regular archive member bytes hashed in memory, not installed or executed",
+    "archiveMemberEvidence": "ENGINE_ARCHIVE_MEMBERS.json"
+  },
+  "model": {
+    "sourceApi": "https://huggingface.co/api/models/Qwen/Qwen2.5-Coder-14B-Instruct-GGUF?blobs=true",
+    "repository": "Qwen/Qwen2.5-Coder-14B-Instruct-GGUF",
+    "ref": "d0a692ef765eefbf2fabb130b3cb2e8917e3d225",
+    "file": "qwen2.5-coder-14b-instruct-q4_k_m.gguf",
+    "quantization": "Q4_K_M",
+    "license": "apache-2.0",
+    "sizeBytes": 8988110272,
+    "sha256": "c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940",
+    "ownerExpectedDigestMatches": true,
+    "localBytesVerified": false,
+    "splitGgufFilesSelected": false
+  },
+  "runtimeRequirements": {
+    "packageManager": "npm",
+    "lockfile": "package-lock.json",
+    "hostNode": "24.18.0",
+    "hostNpm": "11.16.0",
+    "packageJsonEngines": null,
+    "next": {
+      "version": "16.2.10",
+      "node": ">=20.9.0"
+    },
+    "tsx": {
+      "version": "4.23.1",
+      "node": ">=18.0.0"
+    },
+    "typescript": {
+      "version": "5.9.3",
+      "node": ">=14.17"
+    },
+    "nativeDependency": "onnxruntime-node 1.24.3 has an install script; esbuild also needs a platform-specific binary. Windows node_modules cannot be copied as Linux toolchain proof.",
+    "qualificationScope": "Only reviewed Linux evaluator import closure; no Next application, ONNX or production data in model workspace. Offline toolchain payload still must be sealed from the lockfile. No package installation during qualification."
+  },
+  "base": {
+    "source": "https://hub.docker.com/_/node",
+    "tagAtObservation": "24.18.0-bookworm-slim",
+    "indexDigest": "sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d",
+    "platform": "linux/amd64",
+    "platformManifestDigest": "sha256:d45d78e7929b46875bbd4e29bea672d5bc48186c6c3588306521c815e78352d6",
+    "finalLocalImageContentDigest": null,
+    "imageBuilt": false
+  },
+  "host": {
+    "wsl": "2.7.10.0",
+    "wslKernel": "6.18.33.2-2",
+    "wslDistributions": [],
+    "dockerCliFound": false,
+    "podmanCliFound": false,
+    "cpu": "13th Gen Intel(R) Core(TM) i9-13900",
+    "ramBytes": 34033348608,
+    "hypervisorPresent": true,
+    "vmcomputeService": "Stopped",
+    "processorVirtualizationFirmwareEnabledReported": false,
+    "processorSlatReported": false,
+    "virtualizationInterpretation": "Hypervisor present; CIM CPU flags under an active hypervisor do not establish that firmware virtualization is unavailable. No BIOS/feature change authorized or performed.",
+    "gpuAndVram": {
+      "gpu": "NVIDIA RTX A2000 12GB",
+      "vramMiB": 12282,
+      "driver": "596.71",
+      "source": "nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader,nounits",
+      "evidenceClass": "HOST_CAPACITY_ONLY_NOT_MODEL_TELEMETRY"
+    },
+    "systemMutation": "NONE"
+  },
+  "blocker": "BLOCKED_OWNER_ACTION — host sandbox runtime installation required",
+  "modelRuns": 0,
+  "hardSandboxRuns": 0,
+  "readinessAuthority": "NONE",
+  "stage15BOpened": false,
+  "canonicalPush": false
+}
