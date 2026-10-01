@@ -1,3 +1,12 @@
+## AYAS MASTER — STAGE 15D.2 READ DISPATCH GREEN; 15D.3 NEXT — 2026-10-01
+
+- Tested source HEAD: `bbf7aa9c3ee3632bd122dafa91be6b7786bb6add`; this documentation commit is a descendant. Stage 15D IN_PROGRESS, Stage 15C CLOSED/GREEN, Stage 15E not started.
+- Common capability firewall now guards Action Runtime reads/developer tools with durable audit admission and exact physical resource binding. Request snapshots are frozen; captured server scope defeats recomputed disk digests; audit IDs remain unique.
+- Tests: lease 49; dispatch 12; runtime 17; developer actions 31 assertions; workflow 11/38; planner/store/recovery 16/17/15; fault 16; repair 25 assertions + 5 E2E; repair durability 8; improvement 7; trace 17; foundation 42; bridge/write 23/16; isolated junction 1 PASS. TypeScript/lint/diff PASS; full lint 13 existing warnings. Test authorization writes stay TEMP; no write executor uses a real pipeline.
+- Graphify source worktree current: 16072 nodes/46594 edges, integrity counts 0; nine known partial files and semantic pending. Final doc descendant rebind is local.
+- Exact nextAction: Stage 15D.3 legacy read bridge should attach scope to its existing unconsumed authorization under the same store lock, then common admission before begin-execution. Retain one grant, original expiry and gate/default-write semantics. Then owner/write/self-development/guided-repair/durable/direct-context adapter coverage, closure audit and automatic Stage 15E.
+- **NO PUSH without new explicit owner approval. Prior WIP push deviation remains recorded; history preserved.**
+
 ## AYAS MASTER — STAGE 15D.1 FOUNDATION GREEN; 15D.2 NEXT — 2026-10-01
 
 - Tested source HEAD: `2d621626edb2fbc0f8cd1ed2b552b392e6d93c48`; documentation-only descendant semantics apply. Stage 15D.0 inspection complete; Stage 15D is IN_PROGRESS. Stage 15C remains CLOSED/GREEN.

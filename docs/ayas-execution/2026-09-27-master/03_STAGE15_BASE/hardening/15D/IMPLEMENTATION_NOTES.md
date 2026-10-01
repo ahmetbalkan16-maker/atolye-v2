@@ -82,3 +82,11 @@ executor is bound yet. Next: 15D.2 common-guard binding for read dispatch, actua
 resource resolution, TEMP isolation and failure-before-executor regression.
 Then owner-proof/write/self-development/durable activity coverage and closure
 audit. Stage 15E follows only after the complete Stage 15D scope is green.
+
+## 15D.2 read dispatch bound
+
+Source packet bbf7aa9c3ee3632bd122dafa91be6b7786bb6add. The common guard is now bound to AyasActionRuntime before every executor call, retaining the separate closed mutation gate. Project/catalog scope uses the same authoritative physical storage resolver as its adapters. Trusted AsyncLocalStorage contexts retain one task identity for related reads and isolate test audit writes in TEMP; absent a context, each read gets a new bounded server task. Owner/delegation still means built-in local read policy only.
+
+Admission-write failure prevents execution; outcome-write failure preserves the true dispatch result, carries a closed auditFailure code through chat diagnostics and stops the developer workflow without retries or continuation. Captured scopes are checked independently of disk hashes, and a frozen plain request snapshot is passed to the adapter. Same-clock grants now have distinct execution IDs. The final lease suite has 49 scenarios; dispatch integration has 12. Affected regression evidence is in ACTIVE_CHECKPOINT/ledger. Product-context smoke has default-root reads and is not run; the source-junction test is executed in a verified disposable archive with current-source overlay.
+
+The initial next-packet paragraph above is superseded: next is 15D.3 legacy bridge read binding using its SAME existing grant, then remaining owner/delegation/write/self-development/guided-repair/durable/direct-context seams. Direct product composition currently calls catalogue/self-heal readers outside Action Runtime; those are an explicit remaining coverage gap. No global closure or Stage 15E claim. NO PUSH.

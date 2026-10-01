@@ -1,3 +1,8 @@
+## 2026-10-01 — AYAS Stage 15D.2 guarded read dispatch
+
+- Bind existing read/developer dispatch to exact-scope leases backed by the existing grant store. Physical resource resolver, immutable admitted request, captured scope comparison and unique audit execution IDs prevent scope drift.
+- Fail before dispatch on admission/audit refusal; surface post-dispatch audit loss accurately and stop workflow continuation. Add TEMP audit context wrappers without removing existing assertions. Lease 49 / dispatch 12 / affected regressions PASS; Stage 15D remains in progress. NO PUSH.
+
 ## 2026-10-01 — AYAS Stage 15D.1 capability lease foundation
 
 - Reuse existing execution grants for exact server run/task/action/resource/platform scope, bounded TTL and revocation; opaque handles cannot be restored from model/tool text. Add concurrent consume locking and fail-closed time/state/scope validation.
