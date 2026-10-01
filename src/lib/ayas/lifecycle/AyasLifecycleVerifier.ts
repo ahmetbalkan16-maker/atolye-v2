@@ -22,6 +22,8 @@ export interface AyasLifecycleIdentityCheck { readonly id: string; readonly stat
 
 export interface AyasLifecycleVerifyOptions {
   readonly repoRoot: string;
+  /** An operator supplies exact historical bytes; the shared verifier starts no process. */
+  readonly readHistoricalSource?: (revision: string, file: string) => string;
   /** Hash every file, however large. Without it, a file above `hashLimitBytes` is compared by size only. */
   readonly deep?: boolean;
   readonly hashLimitBytes?: number;
@@ -34,10 +36,12 @@ export interface AyasLifecycleVerifyOptions {
 const DEFAULT_HASH_LIMIT = 128 * 1024 * 1024;
 
 /** The digest recorded for `source-digest` identities: each file's repository path and LF-normalized text, in order. */
-export function computeAyasLifecycleSourceDigest(repoRoot: string, files: readonly string[]): string {
+export function computeAyasLifecycleSourceDigest(repoRoot: string, files: readonly string[], revision?: string, readHistoricalSource?: (revision: string, file: string) => string): string {
+  if (revision !== undefined && !/^[a-f0-9]{40}$/.test(revision)) throw new Error("AYAS_LIFECYCLE_REVISION_INVALID");
+  if (revision !== undefined && !readHistoricalSource) throw new Error("AYAS_LIFECYCLE_HISTORY_UNAVAILABLE");
   const hash = crypto.createHash("sha256");
   for (const file of files) {
-    const text = fs.readFileSync(path.join(repoRoot, file), "utf8").replace(/\r\n/g, "\n");
+    const text = (revision === undefined ? fs.readFileSync(path.join(repoRoot, file), "utf8") : readHistoricalSource!(revision, file)).replace(/\r\n/g, "\n");
     hash.update(file, "utf8").update("\0").update(text, "utf8").update("\0");
   }
   return hash.digest("hex");
@@ -71,9 +75,12 @@ export function verifyAyasLifecycleIdentities(registry: readonly AyasLifecycleEn
     switch (identity.type) {
       case "UNPINNED": return { id: entry.id, status: "NOT_CHECKABLE", detail: "unpinned" };
       case "source-digest": {
-        try { return computeAyasLifecycleSourceDigest(options.repoRoot, identity.files) === identity.sha256
-          ? { id: entry.id, status: "MATCH", detail: "source digest matches" } : { id: entry.id, status: "MISMATCH", detail: "the source changed since it was recorded" }; }
-        catch { return { id: entry.id, status: "ABSENT", detail: "a listed source file is missing" }; }
+        if (identity.revision !== undefined && (entry.admission !== "NONE" || !["PINNED", "RETIRED"].includes(entry.state)))
+          return { id: entry.id, status: "MISMATCH", detail: "a historical pin cannot attest admitted or qualified source" };
+        try { return computeAyasLifecycleSourceDigest(options.repoRoot, identity.files, identity.revision, options.readHistoricalSource) === identity.sha256
+          ? { id: entry.id, status: "MATCH", detail: identity.revision ? `historical source at ${identity.revision} matches; no serving admission` : "source digest matches" }
+          : { id: entry.id, status: "MISMATCH", detail: "the source differs from the recorded identity" }; }
+        catch { return { id: entry.id, status: "ABSENT", detail: identity.revision ? "a historical source object is unavailable; no fallback to current files" : "a listed source file is missing" }; }
       }
       case "sha256-file": {
         // A locator that is a plain repository path is where the file lives; anything else needs the caller to name it.

@@ -17,6 +17,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 
 import { resolveOllamaConfig } from "../src/lib/ai/OllamaConfig";
 import { auditAyasLifecycleRegistry, findAyasLifecycleFindings } from "../src/lib/ayas/lifecycle/AyasLifecycle";
@@ -58,7 +59,9 @@ async function main(): Promise<void> {
     }
   }
   const live = args.includes("--live") ? await servedDigests() : undefined;
-  const checks = verifyAyasLifecycleIdentities(AYAS_LIFECYCLE_REGISTRY, { repoRoot, deep: args.includes("--deep"), localFiles, ...(live ? { servedDigests: live } : {}) });
+  const readHistoricalSource = (revision: string, file: string): string => execFileSync("git", ["--no-optional-locks", "-c", `safe.directory=${path.resolve(repoRoot)}`, "show", `${revision}:${file}`],
+    { cwd: repoRoot, encoding: "utf8", windowsHide: true, timeout: 10_000, maxBuffer: 8_000_000, stdio: ["ignore", "pipe", "pipe"] });
+  const checks = verifyAyasLifecycleIdentities(AYAS_LIFECYCLE_REGISTRY, { repoRoot, readHistoricalSource, deep: args.includes("--deep"), localFiles, ...(live ? { servedDigests: live } : {}) });
   const violations = auditAyasLifecycleRegistry(AYAS_LIFECYCLE_REGISTRY);
   const findings = findAyasLifecycleFindings(AYAS_LIFECYCLE_REGISTRY);
   const rows = AYAS_LIFECYCLE_REGISTRY.map((entry) => ({ id: entry.id, kind: entry.kind, role: entry.role, state: entry.state, admission: entry.admission, identity: entry.identity.type,

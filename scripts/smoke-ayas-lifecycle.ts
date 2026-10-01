@@ -21,6 +21,8 @@ import { computeAyasLifecycleSourceDigest, verifyAyasLifecycleIdentities } from 
 import { ayasLocalCodingCandidatePins } from "../src/lib/brain/autonomy/AyasLocalCodingPins";
 
 const repo = process.cwd();
+const readHistoricalSource = (revision: string, file: string): string => execFileSync("git", ["--no-optional-locks", "-c", `safe.directory=${path.resolve(repo)}`, "show", `${revision}:${file}`],
+  { cwd: repo, encoding: "utf8", windowsHide: true, timeout: 10_000, maxBuffer: 8_000_000, stdio: ["ignore", "pipe", "pipe"] });
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-lifecycle-"));
 let count = 0;
 async function scenario(name: string, test: () => void | Promise<void>) { await test(); count++; if (process.env.SMOKE_TRACE === "1") console.log(`PASS ${count}: ${name}`); }
@@ -254,7 +256,7 @@ async function main() {
   });
 
   await scenario("identities: the recorded source digests match this HEAD, and a change is seen", () => {
-    const checks = verifyAyasLifecycleIdentities(AYAS_LIFECYCLE_REGISTRY, { repoRoot: repo });
+    const checks = verifyAyasLifecycleIdentities(AYAS_LIFECYCLE_REGISTRY, { repoRoot: repo, readHistoricalSource });
     const sourceEntries = AYAS_LIFECYCLE_REGISTRY.filter((entry) => entry.identity.type === "source-digest");
     assert.ok(sourceEntries.length >= 6);
     for (const entry of sourceEntries) assert.equal(checks.find((check) => check.id === entry.id)!.status, "MATCH", `${entry.id}: the source changed; record a new entry with the new digest and keep this one as its rollback target`);
@@ -273,6 +275,31 @@ async function main() {
     const source = candidate("PINNED", { id: "prompt.fixture", identity: { type: "source-digest", files: ["src/a.ts"], sha256: lf } });
     assert.equal(verifyAyasLifecycleIdentities([source], { repoRoot: temp })[0]!.status, "MISMATCH");
     assert.equal(verifyAyasLifecycleIdentities([{ ...source, identity: { type: "source-digest", files: ["src/missing.ts"], sha256: lf } }], { repoRoot: temp })[0]!.status, "ABSENT");
+  });
+
+  await scenario("evaluator replacement preserves historical bytes without blessing current or serving source", () => {
+    const previous = findAyasLifecycleEntry("evaluator.research-improvement.2026-10-01")!;
+    const current = findAyasLifecycleEntry("evaluator.research-improvement.15f4-v2")!;
+    assert.equal(previous.identity.type, "source-digest"); assert.equal(current.identity.type, "source-digest");
+    if (previous.identity.type !== "source-digest" || current.identity.type !== "source-digest") throw new Error("fixture identity");
+    const previousIdentity = previous.identity;
+    assert.equal(current.rollbackTarget, previous.id); assert.equal(previous.identity.sha256, "32f6fdb2262781a38d6609c41aba2b16b2c9c5725af7eadfd3c92920bbb092ab");
+    assert.equal(previous.admission, "NONE"); assert.equal(current.admission, "NONE"); assert.equal(current.identity.revision, undefined);
+    assert.notEqual(computeAyasLifecycleSourceDigest(repo, previous.identity.files), previous.identity.sha256);
+    assert.equal(computeAyasLifecycleSourceDigest(repo, previous.identity.files, previous.identity.revision, readHistoricalSource), previous.identity.sha256);
+    assert.equal(computeAyasLifecycleSourceDigest(repo, current.identity.files), current.identity.sha256);
+    for (const task of AYAS_LIFECYCLE_TASK_CLASSES) { assert.equal(ayasLifecycleMayServe(previous, task), false); assert.equal(ayasLifecycleMayServe(current, task), false); }
+    const forged = { ...previous, admission: "OWNER_SELECTED" as const };
+    assert.ok(auditAyasLifecycleEntry(forged).some((v) => v.code === "IDENTITY_INVALID"));
+    assert.equal(verifyAyasLifecycleIdentities([forged], { repoRoot: repo })[0]!.status, "MISMATCH");
+    assert.equal(verifyAyasLifecycleIdentities([previous], { repoRoot: repo })[0]!.status, "ABSENT", "missing historical reader must not attest current files");
+    const missing = { ...previous, identity: { ...previous.identity, revision: "f".repeat(40) } };
+    assert.equal(verifyAyasLifecycleIdentities([missing], { repoRoot: repo, readHistoricalSource })[0]!.status, "ABSENT");
+    for (const revision of ["HEAD", "main", "--help", "a".repeat(41)]) {
+      const bad = { ...previous, identity: { ...previous.identity, revision } };
+      assert.ok(auditAyasLifecycleEntry(bad).some((v) => v.code === "IDENTITY_INVALID"));
+      assert.throws(() => computeAyasLifecycleSourceDigest(repo, previousIdentity.files, revision), /REVISION_INVALID/);
+    }
   });
 
   await scenario("identities: files and served model digests are compared, never assumed", () => {

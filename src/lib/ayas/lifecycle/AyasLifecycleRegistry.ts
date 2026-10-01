@@ -198,11 +198,20 @@ export const AYAS_LIFECYCLE_REGISTRY: readonly AyasLifecycleEntry[] = deepFreeze
   },
   {
     id: "evaluator.research-improvement.2026-10-01", kind: "evaluator", role: "research-improvement-evaluator", label: "smoke-ayas-research-improvement-loop (Stage 8)",
-    identity: { type: "source-digest", files: ["scripts/smoke-ayas-research-improvement-loop.ts"], sha256: "32f6fdb2262781a38d6609c41aba2b16b2c9c5725af7eadfd3c92920bbb092ab" },
-    state: "PINNED", admission: "OWNER_SELECTED", compatibility: "deterministic decision and integration suites with held-out cases; runs against a TEMP clone.",
+    identity: { type: "source-digest", files: ["scripts/smoke-ayas-research-improvement-loop.ts"], sha256: "32f6fdb2262781a38d6609c41aba2b16b2c9c5725af7eadfd3c92920bbb092ab", revision: "76aa4b1f0238e1cbaf3accef0558ee78325961b3" },
+    state: "PINNED", admission: "NONE", compatibility: "archived pre-15F.4 evaluator; preserved in Git as a rollback artifact, never admitted as current source.",
     record: unmeasured("an evaluator is the measure, not the measured"), rollbackTarget: null,
     history: recordedAtOpening("source digest recorded"),
-    notes: "The Stage 8 evaluator whose SHA earlier packets already tracked as unchanged.",
+    notes: "Original identity retained. 15F.4 found its HEAD-derived historical-gap fixture stale after Stage 15.7. This version remains a pinned rollback artifact; human calibration is pending for its replacement.",
+  },
+  {
+    id: "evaluator.research-improvement.15f4-v2", kind: "evaluator", role: "research-improvement-evaluator", label: "smoke-ayas-research-improvement-loop (frozen historical gap)",
+    identity: { type: "source-digest", files: ["scripts/smoke-ayas-research-improvement-loop.ts"], sha256: "5d1901da1169cab5d2b496ed26522c4df0526ea9e47ae094b898f281572e66a9" },
+    state: "PINNED", admission: "NONE", compatibility: "developer TEMP baseline only; current loop and grader with the independently hashed pre-repair temporal input; every assertion retained.",
+    record: unmeasured("new evaluator identity; owner/human calibration pending"), rollbackTarget: "evaluator.research-improvement.2026-10-01",
+    history: [{ state: "DISCOVERED", on: OPENED, basis: "15F.4 baseline exposed a stale historical-gap fixture" },
+      { state: "PINNED", on: OPENED, basis: "fixture input pinned to immutable history; assertions and held-out expectations unchanged" }],
+    notes: "No qualification, promotion or serving admission. Old bytes and their digest are preserved at the rollback target; the cognitive and retrieval graders did not change.",
   },
   {
     id: "evaluator.retrieval.2026-10-01", kind: "evaluator", role: "retrieval-evaluator", label: "smoke-ayas-retrieval-evaluation",

@@ -1087,15 +1087,25 @@ const SCENARIOS: readonly Scenario[] = [
       assert.equal(Object.values(h.store.loadIndex().hypotheses)[0]!.hypothesis.findingIds.length, 2);
     });
   } },
-  // The real Stage 6 evaluator on a TEMP clone of this repository at HEAD.
+  // The real Stage 6 evaluator on current modules with an immutable historical gap fixture.
   { id: "real-cognitive-evaluator-neutral-and-regression", real: true, async run(s8) {
     const clone = s8.fixtures.tempDir("ayas-research-real-clone-");
     const storeDir = s8.fixtures.tempDir("ayas-research-real-store-");
     try {
       execFileSync("git", ["clone", "--quiet", "--shared", "--no-tags", "--", REPO_ROOT, path.join(clone, "repo")], { stdio: "ignore" });
       const repoRoot = path.join(clone, "repo");
-      const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
       const temporal = "src/lib/ayas/memory/AyasMemoryTemporal.ts";
+      // The governed Stage 15.7 repair resolved this gap. Today's source cannot
+      // exercise a neutral/regressed experiment against the former 53/55 baseline.
+      // Freeze only its input, preserving every evaluator case and assertion.
+      const historical = execFileSync("git", ["show", `71f554eb72e6f5aaafb272f31bff402664f602cc:${temporal}`],
+        { cwd: repoRoot, encoding: "utf8", windowsHide: true, timeout: 30_000, maxBuffer: 1_000_000 });
+      assert.equal(crypto.createHash("sha256").update(historical).digest("hex"), "eba4907c9f69df03188f708abe5ffe20c68a214c3d47eaac0c7bb6e3c23fdfec");
+      fs.writeFileSync(path.join(repoRoot, temporal), historical);
+      execFileSync("git", ["add", "--", temporal], { cwd: repoRoot, windowsHide: true, timeout: 30_000 });
+      execFileSync("git", ["-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "commit", "-q", "-m", "frozen historical gap fixture"],
+        { cwd: repoRoot, windowsHide: true, timeout: 30_000 });
+      const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
       const real = (name: string, edit: (source: string) => string) => ({
         strategyId: `exp-real-${name}`, version: 1, capability: "conversation-memory-context", benchmarkId: "cognitive-quality", dimensions: ["STALE_CONTEXT_LEAKAGE"],
         component: "AyasMemoryTemporal", summary: `real-evaluator fixture ${name}`, exactFiles: [temporal], maxChangedLines: 6, regressionSuites: [],

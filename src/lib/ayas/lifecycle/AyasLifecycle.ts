@@ -46,7 +46,7 @@ export type AyasLifecycleIdentity =
   | { readonly type: "ollama-digest"; readonly digest: string; readonly tag: string }
   | { readonly type: "hf-revision"; readonly repository: string; readonly revision: string; readonly file: string; readonly sha256: string }
   /** SHA-256 over the listed repository files, in order, each with line endings normalized to LF. */
-  | { readonly type: "source-digest"; readonly files: readonly string[]; readonly sha256: string }
+  | { readonly type: "source-digest"; readonly files: readonly string[]; readonly sha256: string; readonly revision?: string }
   | { readonly type: "UNPINNED"; readonly reason: string };
 
 export type AyasLifecycleEvidenceResult = "PASS" | "PARTIAL" | "FAIL" | "NOT_MEASURED";
@@ -128,7 +128,7 @@ function identityValid(identity: AyasLifecycleIdentity): boolean {
     case "ollama-digest": return HASH.test(identity.digest) && text(identity.tag, 200);
     case "hf-revision": return text(identity.repository, 200) && /^[a-f0-9]{40}$/.test(identity.revision) && text(identity.file, 300) && HASH.test(identity.sha256);
     case "source-digest": return Array.isArray(identity.files) && identity.files.length > 0 && identity.files.length <= 20 && identity.files.every(repoPath) &&
-      new Set(identity.files).size === identity.files.length && HASH.test(identity.sha256);
+      new Set(identity.files).size === identity.files.length && HASH.test(identity.sha256) && (identity.revision === undefined || /^[a-f0-9]{40}$/.test(identity.revision));
     case "UNPINNED": return text(identity.reason, 400);
     default: return false;
   }
@@ -147,6 +147,9 @@ export function auditAyasLifecycleEntry(entry: AyasLifecycleEntry): readonly Aya
       !text(entry.notes, 1200) || !entry.record || typeof entry.record !== "object" || !Array.isArray(entry.history) ||
       !(entry.rollbackTarget === null || ID.test(String(entry.rollbackTarget)))) { add("ENTRY_SHAPE_INVALID", "a required field is missing or malformed"); return out; }
   if (!identityValid(entry.identity)) add("IDENTITY_INVALID", "identity is not a well-formed pin");
+  // A historical pin preserves a rollback artifact, never attests the currently served files.
+  if (entry.identity?.type === "source-digest" && entry.identity.revision !== undefined &&
+      (entry.admission !== "NONE" || !["PINNED", "RETIRED"].includes(entry.state))) add("IDENTITY_INVALID", "historical source pins must remain unadmitted and pinned or retired");
   const checks = [...AYAS_LIFECYCLE_PROMOTION_CHECKS, "resourceUse"] as const;
   for (const key of checks) {
     const evidence = entry.record[key];
