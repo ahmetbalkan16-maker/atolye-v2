@@ -113,3 +113,21 @@ Source 0f5c3939a5ceb5c0ce130dcd98fc785644d56096. Default write-execution-disable
 TEST/ADVERSARIAL: write16, original bridge23 and legacy guard12 PASS; zero executor/plan calls and no gate begin under fabricated authority; original one-stage bounds/failure tests retained. TypeScript/changed lint/diff PASS. GRAPHIFY precommit9904ddf current PARTIAL9/semantic pending:16141nodes/46818links, duplicate/dangling/self-loop0. LOCAL COMMIT; NO PUSH.
 
 Next15D.6b: one approved durable Graphify read activity, direct product catalogue/self-heal and standalone validator/complete actual adapter coverage. Stage15D IN_PROGRESS/globalGuardBound=false;15E unopened. PC health/on-demand rules unchanged; no model/container/observer restart/production/publication/spend/push activation.
+
+## Findings of the 15D.6b to 15F.1 session — 2026-10-01
+
+Real findings only. Each names where it was found and what became of it.
+
+| # | Finding | Found in | Status |
+| --- | --- | --- | --- |
+| F1 | The observer's discovery child (public research reads, sandboxed experiments, proposal writes, every five minutes) ran outside the common action firewall. | 15D.6c adapter inventory | FIXED in 15D.7a (efd176c): one run lease per tick; verified live |
+| F2 | `smoke-ayas-discovery-registry` failed at HEAD: its fixture predated the HEAD-bound freshness gate of 4fc5b64, so the spawned run discovered nothing. | 15D.7a regression | FIXED (ccc4056): fixture repaired, gate unchanged |
+| F3 | No test covered revoke-after-consume for owner leases; a mutation removing the check survived. | 15D.7a mutation audit | FIXED (34cdebe): scenario added |
+| F4 | Guided repair exported its validator runner and offered it as a service method: a process-spawning entry point with no lease and no caller. | 15D.7b | FIXED (5cbe607): runner is private to an admitted attempt |
+| F5 | The product context read the production catalogue directly, beside the guarded tool that reads the same data. | 15D.7b | FIXED (5cbe607): routed through the tool |
+| F6 | The operator script sent the live durable sweep's audit to a new directory instead of the existing execution audit root. | 15D.6b handoff review | FIXED (cd24e0c) |
+| F7 | Durable authorization records stored a tool request's intent and plan verbatim. For one tool the plan carries the user's message; the intent is model-written text derived from it. Records are never pruned. | 15F.0 inspection | FIXED in 15F.1: free text is stored as digest and length; retention follows in 15F |
+| F8 | Nothing AYAS uses has been qualified under a lifecycle: models, voices, prompt, strategies and evaluators are owner-selected. Two hosted or platform voices cannot be pinned at all. | 15E | OPEN by design: recorded as 14 registry findings; qualification needs frozen benchmarks (owner decision) |
+| F9 | On this workstation the Atölye pipeline is configured with a hosted, metered narration provider and a hosted image provider. No AYAS surface reaches them, but a production run spends money. | 15E inspection of non-secret configuration keys | OPEN: input to 15K (Production Cost Governor); no change made |
+| F10 | The running observer process predates the durable sweep binding; it runs discovery (fresh child each tick) but not the sweep. | repository truth at session start | OPEN: owner action, restart the observer Scheduled Task |
+| F11 | Three security smokes are red at HEAD and have been since the governed render-tool patch was applied (3367d41): `smoke-ayas-exact-patch-safety`, `smoke-ayas-exact-proposal-safety` and `smoke-ayas-guarded-publication` (from its ninth scenario). The first two build their fixture from the live or HEAD copy of a source the applied strategy has since changed; the third creates a source proposal without the exact-patch safety proof the inbox now requires. Later packets did not re-run them. | 15F.2 regression, confirmed against an export of HEAD | OPEN: repair packet 15F.R is next, before any further 15F work |

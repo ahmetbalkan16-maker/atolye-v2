@@ -514,3 +514,19 @@ TRUTH RECORDED. Nothing is QUALIFIED or promoted. Everything in use is owner-sel
 TEST/ADVERSARIAL: lifecycle 13, model router 22, mutation audit 43/43 in a TEMP overlay, affected regression PASS, TypeScript/lint/diff PASS. LIVE_READ_ONLY: 13 of 13 pinned identities MATCH on this workstation. GRAPHIFY precommit 3d18a9d, worktree covered: 16285 nodes / 47154 links, anomalies 0, PARTIAL 9 known files, semantic pending. No model loaded, nothing installed, no container. LOCAL COMMITS; NO PUSH.
 
 STAGE 15F OPENED automatically. Next 15F.0 inspection of the Unified Trace and the durable records 15D and 15E now produce.
+
+## 15F.0 inspection, 15F.1 audit privacy bound, 15F.2 durable operation evidence — 2026-10-01
+
+Source 480dc5c024688ab105cc7d4b4929a2b3979443fa (15F.1) and 874340f27c85340b9d1ccedfe8ab9587e114114d (15F.2).
+
+15F.0 INSPECT. The Unified Trace is sanitized (allowlisted labels, numeric or boolean metadata, closed error codes) but process-local: 128 records, one hour. The durable records are the authorization store (every lease since Stage 15D), the execution journals and the discovery ledger. Finding F7: the authorization store wrote a tool request's intent and plan verbatim, and for one tool the plan carries the user's message.
+
+15F.1. For a tool request the durable record now keeps identifiers, repository paths, enums, numbers and booleans, and stores free text, body fields (userText, text, prompt, message, content) and secret-shaped tokens as digest and length. A short code-style label is kept. The request digest is computed from the original request first, so the grant stays bound to it and the adapter still receives the real request. Descriptors built by trusted code are unchanged.
+
+15F.2. One evidence shape for a finished trace and for a capability lease: task, agent, model version (the Stage 15E lifecycle entry and its pin status), tools with the admitting lease, approval binding, retries, duration, outcome, error code, digest of the source record. Every string is checked against a closed pattern on write and again on read. The trace gained closed-pattern attributes and an optional sink called once at finish; the chat route and the owner approval service pass a sink that appends to a daily file under the audit root. A lease becomes evidence from its identity, times and state; its plan and intent are not read. The approval binding is a digest of the proposal id and approved hash, because an existing invariant forbids the proposal id in a trace. The stream is written and never consulted; retention removes whole old day files and is not wired to a daemon.
+
+Isolation note: the approval service's default sink follows its gate root, so fixture runs keep their evidence outside the fixture repository and outside the live stream; only the live gate root shares the one audit root.
+
+FOUND (F11): three security smokes are red at HEAD and have been since the governed render-tool patch was applied. Confirmed against an export of HEAD; not caused by these packets. Repair is the next packet.
+
+TEST/ADVERSARIAL: firewall 54, operation evidence 11, mutation audits 9/9 and 33 plus 3 equivalent, regression set PASS. TypeScript, lint, diff PASS. GRAPHIFY precommit 480dc5c, worktree covered: 16340 nodes / 47291 links, anomalies 0, PARTIAL 9 known files, semantic pending. LOCAL COMMITS; NO PUSH.
