@@ -869,6 +869,69 @@ async function run() {
     engine.dispose();
   });
 
+  await scenario("barge-in — the owner cuts in while AYAS speaks: speech stops, the engine listens, the next utterance is the command", () => {
+    const platform = new MockVoicePlatform({ speakMode: "manual" });
+    const { engine, cap } = makeEngine(platform);
+    engine.enableListening();
+    engine.speak("Kuyrukta üç görev var ve bunların ikisi onay bekliyor ...");
+    platform.startSpeaking();
+    assert.equal(engine.state, "speaking");
+    const listensBefore = platform.calls.startListening; const cancelsBefore = platform.calls.cancelSpeech; const wakesBefore = cap.wakes;
+    assert.equal(engine.interruptSpeech(), true);
+    assert.equal(engine.state, "listening", "SPEAKING → LISTENING");
+    assert.ok(platform.calls.cancelSpeech > cancelsBefore, "the speech was cancelled");
+    assert.equal(platform.calls.startListening, listensBefore + 1, "one fresh recognition session");
+    assert.equal(cap.wakes, wakesBefore + 1);
+    assert.deepEqual(cap.commands, [], "cutting in is not a command and starts no turn by itself");
+    // The reply that was cut off ending late must not move the state or re-arm anything.
+    platform.finishSpeaking();
+    assert.equal(engine.state, "listening");
+    assert.equal(platform.calls.startListening, listensBefore + 1);
+    // Already addressed: no wake word needed for what is said next.
+    platform.fireTranscript("onay bekleyenleri listele");
+    assert.deepEqual(cap.commands, ["onay bekleyenleri listele"]);
+    assert.equal(engine.state, "thinking");
+    engine.dispose();
+  });
+
+  await scenario("barge-in — only speech can be cut: nothing happens while thinking (a tool may be running), idle, off or disposed", () => {
+    const platform = new MockVoicePlatform({ speakMode: "manual" });
+    const { engine, cap } = makeEngine(platform);
+    assert.equal(engine.interruptSpeech(), false, "off");
+    engine.enableListening();
+    assert.equal(engine.interruptSpeech(), false, "idle");
+    platform.fireTranscript("AYAS kaç proje var");
+    assert.equal(engine.state, "thinking");
+    const before = { ...platform.calls }; const states = cap.states.length;
+    assert.equal(engine.interruptSpeech(), false, "a turn being answered is not speech: barge-in leaves it alone");
+    assert.equal(engine.state, "thinking"); assert.deepEqual(platform.calls, before); assert.equal(cap.states.length, states);
+    assert.deepEqual(cap.commands, ["kaç proje var"], "the turn that was sent is still the only one");
+    engine.dispose();
+    assert.equal(engine.interruptSpeech(), false, "disposed");
+  });
+
+  await scenario("barge-in — with voice mode off (a typed turn read aloud) it only stops the audio; single-shot starts inside the tap", () => {
+    const typed = new MockVoicePlatform({ speakMode: "manual" });
+    const { engine: reader } = makeEngine(typed);
+    reader.speak("Yazılı bir soruya sesli yanıt.");
+    typed.startSpeaking();
+    assert.equal(reader.interruptSpeech(), true);
+    assert.equal(reader.state, "off"); assert.equal(typed.calls.startListening, 0, "the mic is not opened for an owner who never turned voice on");
+    reader.dispose();
+
+    const ios = new MockVoicePlatform({ speakMode: "manual", recognitionMode: "single-shot" });
+    const { engine, cap } = makeEngine(ios);
+    engine.enableListening();
+    engine.speak("Uzun bir yanıt ...");
+    ios.startSpeaking();
+    const listens = ios.calls.startListening;
+    assert.equal(engine.interruptSpeech(), true);
+    assert.equal(engine.state, "listening"); assert.equal(ios.calls.startListening, listens + 1); assert.equal(ios.lastListenOptions?.singleShot, true);
+    ios.fireTranscript("devam et");
+    assert.deepEqual(cap.commands, ["devam et"]);
+    engine.dispose();
+  });
+
   await scenario("14. self-hearing prevention — mic is torn down before speaking; its own TTS text is ignored", () => {
     const platform = new MockVoicePlatform({ speakMode: "manual" });
     const { engine, cap } = makeEngine(platform);

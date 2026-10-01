@@ -28,6 +28,7 @@ import {
   BRAIN_CORE_STATES,
   BRAIN_PANELS,
   deriveAyasPresence,
+  deriveBrainCoreLiveState,
   deriveBrainCoreState,
   mapTaskStatusToDisplay,
   brainDeterministicReply,
@@ -714,6 +715,54 @@ async function run() {
     assert.ok(errored.includes('data-testid="bc-voice-error"'));
     assert.ok(errored.includes("Mikrofon izni reddedildi."));
     assert.ok(errored.includes('data-testid="bc-voice-replay"'));
+  });
+
+  await scenario("12d3. live state — every state comes from a real signal; a tool is shown only for a turn in flight whose stream said so", () => {
+    const rest = { connectivity: "online" as const, restingState: "idle" as const, voiceState: "idle" as const, chatPending: false, refreshPending: false, toolActive: false, draftNonEmpty: false, autonomousWaiting: false };
+    assert.equal(deriveBrainCoreLiveState(rest), "idle");
+    assert.equal(deriveBrainCoreLiveState({ ...rest, chatPending: true }), "thinking");
+    assert.equal(deriveBrainCoreLiveState({ ...rest, chatPending: true, toolActive: true }), "tool");
+    // No turn in flight: a stale tool flag shows nothing, and a refresh alone is never a tool.
+    assert.equal(deriveBrainCoreLiveState({ ...rest, toolActive: true }), "idle");
+    assert.equal(deriveBrainCoreLiveState({ ...rest, refreshPending: true, toolActive: true }), "thinking");
+    assert.equal(deriveBrainCoreLiveState({ ...rest, voiceState: "thinking", toolActive: true }), "thinking");
+    // Voice states come from the voice engine and win over a turn in flight; errors and offline win over everything.
+    assert.equal(deriveBrainCoreLiveState({ ...rest, chatPending: true, toolActive: true, voiceState: "speaking" }), "speaking");
+    assert.equal(deriveBrainCoreLiveState({ ...rest, chatPending: true, toolActive: true, voiceState: "listening" }), "listening");
+    assert.equal(deriveBrainCoreLiveState({ ...rest, chatPending: true, toolActive: true, restingState: "error" }), "error");
+    assert.equal(deriveBrainCoreLiveState({ ...rest, chatPending: true, toolActive: true, connectivity: "offline" }), "offline");
+    // Waiting for the owner is the snapshot's pending approval, shown as the existing attention state.
+    assert.equal(deriveBrainCoreLiveState({ ...rest, restingState: deriveBrainCoreState(baseSnapshot({ tasks: { ...baseSnapshot().tasks, pendingApproval: 1 } })) }), "warning");
+    assert.equal(deriveBrainCoreLiveState({ ...rest, voiceState: "error" }), "warning");
+    assert.equal(deriveBrainCoreLiveState({ ...rest, connectivity: "degraded" }), "warning");
+    assert.equal(deriveBrainCoreLiveState({ ...rest, draftNonEmpty: true }), "active");
+    assert.equal(deriveBrainCoreLiveState({ ...rest, autonomousWaiting: true }), "autonomous");
+    assert.equal(deriveBrainCoreLiveState({ ...rest, restingState: "working", autonomousWaiting: true }), "working");
+    // The state has its own honest label and renders through the orb's generic hue and intensity.
+    assert.deepEqual([BRAIN_CORE_STATES.tool.tr, BRAIN_CORE_STATES.tool.hue], ["Araç çalışıyor", "violet"]);
+    const html = renderView({ snapshot: baseSnapshot(), coreState: "tool" });
+    assert.ok(html.includes('data-state="tool"') && html.includes("Araç çalışıyor") && html.includes(BRAIN_CORE_STATES.tool.characterTr));
+  });
+
+  await scenario("12d4. chat panel — the turn line says a tool is running only while one is; barge-in is offered only while AYAS speaks", () => {
+    const voice = (state: "speaking" | "idle" | "thinking", onInterruptSpeech?: () => void) => ({
+      state, capability: { stt: true, tts: true, sttCloudBacked: false }, listening: true, muted: false, disclosureAccepted: true,
+      ...(onInterruptSpeech ? { onInterruptSpeech } : {}),
+    });
+    const thinking = renderView({ snapshot: baseSnapshot(), chatPending: true });
+    assert.ok(thinking.includes('data-turn-state="thinking"') && thinking.includes("AYAS düşünüyor…") && !thinking.includes("araç çalıştırıyor"));
+    const tool = renderView({ snapshot: baseSnapshot(), chatPending: true, turnTool: "inspect-source-file" });
+    assert.ok(tool.includes('data-turn-state="tool-action"') && tool.includes("AYAS salt-okunur bir araç çalıştırıyor (inspect-source-file)…") && !tool.includes("AYAS düşünüyor…"));
+    assert.ok(renderView({ snapshot: baseSnapshot(), chatPending: true, turnTool: "" }).includes("AYAS salt-okunur bir araç çalıştırıyor…"));
+    // No turn in flight: a leftover tool id renders nothing at all.
+    const stale = renderView({ snapshot: baseSnapshot(), chatPending: false, turnTool: "inspect-source-file" });
+    assert.ok(!stale.includes("bc-turn-state") && !stale.includes("araç çalıştırıyor"));
+
+    const speaking = renderView({ snapshot: baseSnapshot(), voice: voice("speaking", () => {}) });
+    assert.ok(speaking.includes('data-testid="bc-voice-interrupt"') && speaking.includes("sözünü kes"));
+    assert.ok(speaking.includes("sözünü kesip konuşmak için dokun"), "the mic itself says a tap cuts in");
+    for (const state of ["idle", "thinking"] as const) assert.ok(!renderView({ snapshot: baseSnapshot(), voice: voice(state, () => {}) }).includes("bc-voice-interrupt"), state);
+    assert.ok(!renderView({ snapshot: baseSnapshot(), voice: voice("speaking") }).includes("bc-voice-interrupt"), "no handler, no control");
   });
 
   await scenario("12d2. voice UI — an open conversation session shows the 'Konuşma aktif' pill", () => {

@@ -29,6 +29,11 @@ export interface RunAyasChatStreamInput {
   readonly headers?: Readonly<Record<string, string>>;
   /** Fired for every incremental token. */
   readonly onDelta: (delta: string) => void;
+  /**
+   * Fired when the server reports what the turn is really doing: a read-only tool was handed to the action runtime
+   * (`tool-action`, with its id) or that call returned (`thinking`). Display only.
+   */
+  readonly onState?: (state: "tool-action" | "thinking", tool?: string) => void;
 }
 
 export type RunAyasChatStreamResult =
@@ -80,6 +85,9 @@ export async function runAyasChatStream(input: RunAyasChatStreamInput): Promise<
       input.onDelta(event.text);
     } else if (event.type === "done") {
       terminal = event;
+    } else if (event.type === "state" && (event.state === "tool-action" || event.state === "thinking")) {
+      // Only the two known states and a well-formed tool id reach the UI; anything else on the wire is ignored.
+      input.onState?.(event.state, typeof event.tool === "string" && /^[a-z][a-z0-9.-]{1,63}$/.test(event.tool) ? event.tool : undefined);
     }
   };
 

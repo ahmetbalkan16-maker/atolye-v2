@@ -614,6 +614,10 @@ async function run() {
     assert.equal(done.source, "llm");
     assert.equal(done.actionTrace?.tool, "inspect-source-file");
     assert.equal(done.actionTrace?.executed, true);
+    // Post-freeze section 8: the console's tool state is reported by the stream itself, once, around the real
+    // dispatch, before any reply text, and it carries the tool id and nothing else.
+    assert.deepEqual(events.filter((e) => e.type === "state"), [{ type: "state", state: "tool-action", tool: "inspect-source-file" }, { type: "state", state: "thinking" }]);
+    assert.ok(events.findIndex((e) => e.type === "state") < events.findIndex((e) => e.type === "delta" || e.type === "done"));
     assert.match(done.text!, /izinli-eylem/i, "the final answer must come from the real grounded call, not the reasoning pass's own guess");
     assert.equal(provider.prompts.length, 2, "exactly one reasoning call + exactly one grounding call — no more");
     // The grounding prompt must carry the REAL file content and frame it as data.
@@ -654,6 +658,9 @@ async function run() {
     const done = events.at(-1)!;
     assert.equal(done.actionTrace?.tool, "inspect-source-file");
     assert.equal(done.actionTrace?.executed, false);
+    // The request really was handed to the action runtime, which refused it: the tool state was shown for that
+    // attempt and withdrawn when it returned. It never outlives the call.
+    assert.deepEqual(events.filter((e) => e.type === "state").map((e) => (e as { state?: string }).state), ["tool-action", "thinking"]);
     assert.ok(!done.text!.includes("kontrol ettim") && !done.text!.includes("Kontrol ettim"), "a false completion claim must never reach the user when the tool never actually ran, even after the one bounded correction attempt");
     // Reasoning call + exactly one bounded correction attempt — never more.
     assert.equal(provider.prompts.length, 2);
@@ -701,6 +708,7 @@ async function run() {
     const done = events.at(-1)!;
     assert.equal(done.actionTrace, undefined, "no tool named → no actionTrace at all, same shape as before this sprint");
     assert.equal(provider.prompts.length, 1, "no grounding call when nothing was dispatched");
+    assert.deepEqual(events.filter((e) => e.type === "state"), [], "nothing was handed to the action runtime, so no tool state is ever reported");
   });
 
   await scenario("ACTION RUNTIME — a real tool-grounded reply becomes ordinary recent-turn context for an immediate follow-up", async () => {

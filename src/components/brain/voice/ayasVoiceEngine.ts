@@ -541,6 +541,38 @@ export class AyasVoiceEngine {
     this.afterOutput();
   }
 
+  /**
+   * Barge-in: the owner cut in while AYAS was speaking. Speech stops at once and, when voice mode is on, the engine
+   * listens for the command straight away, without asking for the wake word again.
+   *
+   * It stops audio and nothing else. A turn that is still being answered, a tool that is running and anything already
+   * recorded are untouched: this engine has no handle on them. Outside SPEAKING it does nothing and returns `false`.
+   * It is called from the owner's own gesture, which is what lets a single-shot (iOS) recogniser start here.
+   */
+  interruptSpeech(): boolean {
+    if (this.disposed || this._state !== "speaking") return false;
+    this.bumpEpoch();
+    this.clearTimer("speakStartTimer");
+    if (this.speakHandle) {
+      try {
+        this.speakHandle.cancel();
+      } catch {
+        /* ignore */
+      }
+      this.speakHandle = null;
+    }
+    this.safeCancelSpeech();
+    this.transition("speak-end");
+    if (!this._listening || !this.capability.stt) return true;
+    // Already addressed: the next utterance is the command.
+    this.woke = true;
+    this.cb.onWake();
+    this.transition("wake");
+    this.armWakeTimeout();
+    this.startRecognition();
+    return true;
+  }
+
   /** A typed turn was sent; show THINKING and pause the mic. */
   markThinking(): void {
     if (this.disposed) return;

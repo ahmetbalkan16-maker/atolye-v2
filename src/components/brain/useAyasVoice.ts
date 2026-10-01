@@ -165,9 +165,16 @@ export interface UseAyasVoiceResult {
    * The mic button. First tap: enable voice mode + listen. On the single-shot
    * (iOS) path a later tap while at rest starts a FRESH recognition session
    * inside that tap's gesture (tap → "AYAS" → tap → command). On the continuous
-   * path a later tap toggles listening off.
+   * path a later tap toggles listening off. While AYAS is speaking the tap is a
+   * barge-in instead: see `interruptSpeech`.
    */
   toggleListening(): void;
+  /**
+   * Barge-in from the owner's own gesture: stop the reply being read aloud and
+   * listen for the next command. Audio only — the turn, a running tool and
+   * anything already recorded are untouched. No-op unless AYAS is speaking.
+   */
+  interruptSpeech(): void;
   /** The explicit "turn voice off" control (the "dinlemeyi kapat" link). */
   stopListening(): void;
   toggleMute(): void;
@@ -458,9 +465,27 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
     setListening(engine.listening);
   }, [primeMicrophone]);
 
+  const interruptSpeech = useCallback(() => {
+    const engine = engineRef.current;
+    if (!engine || engine.state !== "speaking") return;
+    setErrorMessage(null);
+    // The tap is the gesture a single-shot recogniser needs; keep the mic request inside it.
+    primeMicrophone();
+    const wasListening = engine.listening;
+    engine.interruptSpeech();
+    // Voice mode was off (a typed turn read aloud): the tap asks to talk, so listen once the speech has stopped.
+    if (!wasListening) engine.enableListening();
+    setListening(engine.listening);
+  }, [primeMicrophone]);
+
   const toggleListening = useCallback(() => {
     const engine = engineRef.current;
     if (!engine) return;
+    // AYAS is talking: the mic tap cuts in. It never turns voice mode off mid-sentence.
+    if (engine.state === "speaking") {
+      interruptSpeech();
+      return;
+    }
     if (engine.listening) {
       // A paused wake pipeline: this tap is the user gesture that lets iOS hand
       // the mic back — retry now, never toggle listening off.
@@ -484,7 +509,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
       engine.enableListening();
     }
     setListening(engine.listening);
-  }, [primeMicrophone, retryVoice]);
+  }, [primeMicrophone, retryVoice, interruptSpeech]);
 
   const stopListening = useCallback(() => {
     const engine = engineRef.current;
@@ -566,6 +591,7 @@ export function useAyasVoice(options: UseAyasVoiceOptions): UseAyasVoiceResult {
     acceptDisclosure,
     retryVoice,
     toggleListening,
+    interruptSpeech,
     stopListening,
     toggleMute,
     speak,

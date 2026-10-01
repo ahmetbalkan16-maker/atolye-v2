@@ -26,6 +26,7 @@ import {
   AYAS_HISTORY_TURNS,
   brainDeterministicReply,
   brainWelcomeMessage,
+  deriveBrainCoreLiveState,
   deriveBrainCoreState,
   type BrainChatMessage,
   type BrainCoreState,
@@ -282,6 +283,9 @@ export function BrainCoreConsole({
   const [lastReplySource, setLastReplySource] = useState<"llm" | "fallback" | undefined>(undefined);
   const [pending, startTransition] = useTransition();
   const [chatPending, startChat] = useTransition();
+  // The read-only tool the turn in flight is running, as the chat stream reports it ("" = running, id not given).
+  // `null` whenever the stream has not said so: the console never guesses that a tool is running.
+  const [turnTool, setTurnTool] = useState<string | null>(null);
 
   // Coarse client reachability for the AYAS presence card — the browser's own
   // `online`/`offline` signal + whether the last read-only refresh threw. NO
@@ -446,6 +450,8 @@ export function BrainCoreConsole({
             history,
             seq: seq + 1,
             signal: controller.signal,
+            // What the server says the turn is doing. Cleared when the turn settles, whatever its outcome.
+            onState: (state, tool) => setTurnTool(state === "tool-action" ? (tool ?? "") : null),
             onDelta: (delta) => {
               streamText += delta;
               const current = messagesRef.current;
@@ -458,6 +464,7 @@ export function BrainCoreConsole({
             },
           });
           if (chatAbortRef.current === controller) chatAbortRef.current = null;
+          setTurnTool(null);
           if (streamResult.ok) {
             setLastReplySource(streamResult.source);
             const current = messagesRef.current;
@@ -747,34 +754,20 @@ export function BrainCoreConsole({
 
   const restingState = useMemo(() => deriveBrainCoreState(snapshot), [snapshot]);
   const autonomousWaiting = (initialAutonomous?.awaitingApprovalCount ?? 0) > 0;
-  const coreState: BrainCoreState =
-    // Premium 3D Brain Orb sprint — the browser itself is offline overrides
-    // everything else (voice/chat state is moot with no network at all); this
-    // consumes the EXISTING `connectivity` signal computed above, no new
-    // detection logic. "degraded" (a refresh failed while still online) maps
-    // onto the existing "warning" treatment, same as every other soft-attention
-    // case below.
-    connectivity === "offline"
-      ? "offline"
-      : restingState === "error"
-        ? "error"
-        : voice.state === "speaking"
-          ? "speaking"
-          : voice.state === "listening"
-            ? "listening"
-            : voice.state === "thinking" || chatPending || pending
-              ? "thinking"
-              : restingState === "warning"
-                ? "warning"
-                : voice.state === "error"
-                  ? "warning"
-                  : connectivity === "degraded"
-                    ? "warning"
-                    : draft.trim().length > 0
-                      ? "active"
-                      : autonomousWaiting && restingState === "idle"
-                        ? "autonomous"
-                        : restingState;
+  // Premium 3D Brain Orb sprint — the browser itself offline overrides everything
+  // else; "degraded" maps onto the existing "warning" treatment. The order lives
+  // in `deriveBrainCoreLiveState` (pure, smoke-tested); every input is an
+  // existing real signal, plus the tool state the chat stream itself reports.
+  const coreState: BrainCoreState = deriveBrainCoreLiveState({
+    connectivity,
+    restingState,
+    voiceState: voice.state,
+    chatPending,
+    refreshPending: pending,
+    toolActive: turnTool !== null,
+    draftNonEmpty: draft.trim().length > 0,
+    autonomousWaiting,
+  });
 
   return (
     <>
@@ -786,6 +779,7 @@ export function BrainCoreConsole({
       draft={draft}
       refreshing={pending}
       chatPending={chatPending}
+      turnTool={chatPending ? turnTool : null}
       modelConfigured={modelConfigured}
       lastReplySource={lastReplySource}
       autonomous={initialAutonomous}
@@ -838,6 +832,7 @@ export function BrainCoreConsole({
         readiness: voice.readiness,
         micPermission: voice.micPermission,
         onToggleListening: voice.toggleListening,
+        onInterruptSpeech: voice.interruptSpeech,
         onStopListening: stopListening,
         onToggleMute: voice.toggleMute,
         onAcceptDisclosure: voice.acceptDisclosure,

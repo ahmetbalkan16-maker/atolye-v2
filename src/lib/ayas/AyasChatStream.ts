@@ -101,6 +101,12 @@ export interface AyasMemoryTrace {
 
 export type AyasChatStreamEvent =
   | { readonly type: "delta"; readonly text: string }
+  /**
+   * What the turn is really doing right now, for the console. `tool-action` is sent when a read-only tool request
+   * is handed to the action runtime and `thinking` when that call has returned. Display only: it carries no
+   * authority and a consumer that ignores it loses nothing but the label.
+   */
+  | { readonly type: "state"; readonly state: "tool-action" | "thinking"; /** The read-only tool id. */ readonly tool?: string }
   | {
       readonly type: "done";
       /** The final text to show — the streamed text, or the corrected fallback. */
@@ -625,7 +631,7 @@ export function resolveDeterministicToolCandidate(userText: string): AyasDetermi
  * therefore checked FIRST, unconditionally, covering both branches — not a
  * new signal, the same one the deterministic resolver already uses.
  */
-async function attemptAyasToolDispatch(input: {
+function planAyasToolDispatch(input: {
   readonly userText: string;
   readonly selectedToolId?: string | null;
   readonly selectionBlocksToolDispatch: boolean;
@@ -633,7 +639,7 @@ async function attemptAyasToolDispatch(input: {
   readonly toolInput: AyasToolInputHint | undefined;
   readonly intent: string;
   readonly activeProjectSlug: string | null;
-}): Promise<AyasToolDispatchAttempt | null> {
+}): { readonly toolId: AyasExecutionActionId; readonly rawRequest: unknown } | null {
   if (input.selectionBlocksToolDispatch) return null;
   if (hasMultipleAyasFilePathMentions(input.userText)) return null;
   const deterministic = resolveDeterministicToolCandidate(input.userText);
@@ -670,8 +676,7 @@ async function attemptAyasToolDispatch(input: {
     plan: toolInput ?? {},
     ...(spec.requiresProject ? { projectSlug: input.activeProjectSlug! } : {}),
   };
-  const actionOutcome = await runAyasReadOnlyAction({ rawRequest });
-  return { toolId, actionOutcome };
+  return { toolId, rawRequest };
 }
 
 /**
@@ -1300,9 +1305,9 @@ async function* streamAyasChatTurn(
     // answer is kept, but `guardAgainstFakeToolClaim` below makes sure it
     // cannot claim the read happened anyway.
     const toolSpan = trace?.startSpan("tool", "ayas-tool", "dispatch", conversationSpan?.spanId);
-    let dispatch: Awaited<ReturnType<typeof attemptAyasToolDispatch>>;
+    let dispatch: AyasToolDispatchAttempt | null;
     try {
-      dispatch = await attemptAyasToolDispatch({
+      const planned = planAyasToolDispatch({
         userText: text,
         selectedToolId: agentic.selectedToolId,
         selectionBlocksToolDispatch: agentic.requirement.mutation || agentic.requirement.ambiguous,
@@ -1311,6 +1316,14 @@ async function* streamAyasChatTurn(
         intent: outcome.result.intent,
         activeProjectSlug: ctx.trace.activeProjectSlug,
       });
+      // Post-freeze section 8: the console's TOOL_ACTION state comes from this event and from nothing else. It is
+      // sent only when a request is really handed to the action runtime, and withdrawn as soon as that call returns.
+      if (planned) yield { type: "state", state: "tool-action", tool: planned.toolId };
+      try {
+        dispatch = planned ? { toolId: planned.toolId, actionOutcome: await runAyasReadOnlyAction({ rawRequest: planned.rawRequest }) } : null;
+      } finally {
+        if (planned) yield { type: "state", state: "thinking" };
+      }
       const toolTrace = toolDispatchTraceStatus(dispatch, outcome.anyToolNamedBeforeFilter);
       toolSpan?.end(toolTrace.status, { attempted: Boolean(dispatch), executed: Boolean(dispatch?.actionOutcome.executed) }, toolTrace.errorCode);
       // Observer only: the tool id and the lease that admitted it. One attribute per dispatch span, in the same order.

@@ -137,6 +137,34 @@ async function run() {
     }
   });
 
+  await scenario("turn state — the tool state the server reports reaches the caller; anything else on the wire does not", async () => {
+    const states: [string, string | undefined][] = [];
+    const deltas: string[] = [];
+    const res = await runAyasChatStream({
+      ...base,
+      onDelta: (delta) => deltas.push(delta),
+      onState: (state, tool) => states.push([state, tool]),
+      fetcher: sseFetch([
+        { type: "state", state: "tool-action", tool: "inspect-source-file" },
+        { type: "state", state: "thinking" },
+        // Not one of the two states, and a tool id that is not an id: neither may reach the UI as given.
+        { type: "state", state: "approved" } as unknown as AyasChatStreamEvent,
+        { type: "state", state: "tool-action", tool: "<img src=x onerror=alert(1)>" },
+        { type: "state", state: "tool-action", tool: 7 } as unknown as AyasChatStreamEvent,
+        { type: "delta", text: "Tamam." },
+        { type: "done", text: "Tamam.", source: "llm", corrected: false },
+        // After the terminal event nothing is delivered, a state included.
+        { type: "state", state: "tool-action", tool: "inspect-source-file" },
+      ]),
+    });
+    assert.deepEqual(states, [["tool-action", "inspect-source-file"], ["thinking", undefined], ["tool-action", undefined], ["tool-action", undefined]]);
+    assert.deepEqual(deltas, ["Tamam."]);
+    assert.equal(res.ok, true);
+    // A caller that passes no handler is unaffected: the same stream still resolves with its terminal text.
+    const plain = await runAyasChatStream({ ...base, onDelta: () => {}, fetcher: sseFetch([{ type: "state", state: "tool-action", tool: "inspect-source-file" }, { type: "done", text: "Tamam.", source: "llm", corrected: false }]) });
+    assert.equal(plain.ok && plain.text, "Tamam.");
+  });
+
   await scenario("non-OK response → ok:false http-<status>", async () => {
     const res = await runAyasChatStream({ ...base, onDelta: () => {}, fetcher: sseFetch([], { status: 401 }) });
     assert.equal(res.ok, false, "assert.equal(res.ok, false)");

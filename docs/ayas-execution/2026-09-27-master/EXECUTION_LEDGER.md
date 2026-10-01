@@ -614,3 +614,19 @@ TEST. Operation evidence 12; telemetry 25; negative controls 16/16 (eight new) i
 GRAPHIFY built from `9d3a159`: 16,526 nodes / 47,756 edges, PARTIAL 9 known files, semantic pending. Dependents of the two changed functions: the operational state view and their own suites.
 
 LOCAL COMMIT; NO PUSH. Next: voice barge-in and a real tool-action state, then the final matrix with one full baseline, then Stage 15G.
+
+## Post-freeze section 8: voice barge-in and the real tool-action state — FIXED (2026-10-02)
+
+Addendum section 8, audited against the voice and console code that exists today. Brain UI V2 (master order section 14) is not started and applies section 8 again when it is built. Finding PF3.
+
+FOUND. Every state the console shows is backed by something real, and nothing in voice or UI can grant authority. Two things were missing: the console said "thinking" while a tool ran, and a reply being read aloud could only be stopped by muting.
+
+WHAT. The chat stream sends a `state` event (`tool-action` with the tool id, then `thinking`) around the real hand-over to the action runtime. The stream client passes on the two known states and a well-formed tool id and drops anything else. The console keeps the state only while the turn is in flight; the orb has a `tool` state and the chat line names the tool. The order the orb picks its state in moved unchanged into `deriveBrainCoreLiveState`, a pure function. `AyasVoiceEngine.interruptSpeech()` stops the speech and, with voice mode on, listens for the command without the wake word; the mic button does this while AYAS speaks, and a "sözünü kes" control appears for as long as it speaks. It stops audio only: the engine has no handle on a turn or a tool, and outside SPEAKING it does nothing.
+
+OPEN, owner-gated: acoustic barge-in (speech stops by itself when the owner talks) needs device validation and is not built. The new state and control have not been seen in a browser from this session.
+
+TEST. Voice 79 (three new); console 43 (two new); stream client 11 (one new); reasoning 48 (three scenarios extended); negative controls 12/12 in a 411-file TEMP overlay that is its own Git repository; chat stream 31, mobile voice regression 36, wake adapter 54, unified trace 17, phone runtime 42, context budget 21 unchanged. TypeScript, changed-file lint, diff check PASS. Production build PASS in a TEMP clone with its own copy of node_modules (the owner's server is running from the repository's `.next`, which was not touched). Eval manifest `15F.4-v8`, 72 suites; v7 kept. No model, container, network, microphone or browser.
+
+GRAPHIFY precommit: 16,540 nodes / 47,781 edges, PARTIAL 9 known files, semantic pending. Blast radius high through the chat stream and console bridge nodes; the stream event is additive and ignored by a client that does not know it.
+
+LOCAL COMMIT; NO PUSH. Next: one full declared baseline at the commit, the final matrix, then Stage 15G.

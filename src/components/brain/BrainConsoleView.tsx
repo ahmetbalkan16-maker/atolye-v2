@@ -90,8 +90,10 @@ export interface BrainConsoleVoiceView {
   readonly readiness?: AyasVoiceReadiness;
   /** Best-effort; `"unknown"` on Safari/WebKit, which cannot be queried at all. */
   readonly micPermission?: AyasMicPermissionState;
-  /** Mic button — enable / recapture (single-shot) / toggle off (continuous). */
+  /** Mic button — enable / recapture (single-shot) / toggle off (continuous); a barge-in while AYAS is speaking. */
   readonly onToggleListening?: () => void;
+  /** Barge-in — stop the reply being read aloud and listen. Audio only; shown only while AYAS is speaking. */
+  readonly onInterruptSpeech?: () => void;
   /** Explicit "turn voice off" — the "dinlemeyi kapat" link. */
   readonly onStopListening?: () => void;
   readonly onToggleMute?: () => void;
@@ -108,6 +110,11 @@ export interface BrainConsoleViewProps {
   readonly refreshing?: boolean;
   /** `true` while a chat reply is in flight. */
   readonly chatPending?: boolean;
+  /**
+   * The read-only tool the turn in flight is running, as the chat stream reported it (`""` = running, id not
+   * given). `null`/omitted = the stream has not said a tool is running, and the view does not say so either.
+   */
+  readonly turnTool?: string | null;
   /** Whether the local model backend is configured (drops the "not connected" note). */
   readonly modelConfigured?: boolean;
   /** Where the last chat reply came from. */
@@ -289,7 +296,7 @@ function onlineLabel(state: BrainCoreState): string {
 }
 function stateLabel(state: BrainCoreState): string {
   return {
-    idle: "Idle", active: "Active", thinking: "Thinking", learning: "Learning",
+    idle: "Idle", active: "Active", thinking: "Thinking", tool: "Tool action", learning: "Learning",
     working: "Working", warning: "Warning", error: "Error",
     listening: "Listening", speaking: "Speaking", autonomous: "Autonomous",
     offline: "Offline",
@@ -297,7 +304,7 @@ function stateLabel(state: BrainCoreState): string {
 }
 function stateTr(state: BrainCoreState): string {
   return {
-    idle: "Hazır", active: "Etkin", thinking: "Düşünüyor", learning: "Öğreniyor",
+    idle: "Hazır", active: "Etkin", thinking: "Düşünüyor", tool: "Araç çalışıyor", learning: "Öğreniyor",
     working: "Çalışıyor", warning: "Uyarı", error: "Hata",
     listening: "Dinliyor", speaking: "Konuşuyor", autonomous: "Otonom",
     offline: "Çevrim Dışı",
@@ -308,6 +315,7 @@ function stateCharacter(state: BrainCoreState): string {
     idle: "Sakin nefes alan çekirdek — beklemede.",
     active: "Girdini alıyor — enerji canlanıyor.",
     thinking: "Halkalar dönüyor, tarama sürüyor — güvenli analiz.",
+    tool: "Salt-okunur bir araç çalışıyor — sonucu bekleniyor.",
     learning: "Bilgi akışı yoğunlaşıyor — deneyim taranıyor.",
     working: "Güçlü ama kontrollü aktivite — worker cycle işliyor.",
     warning: "Dikkat gerekiyor — onay veya inceleme bekleyen bir durum var.",
@@ -514,6 +522,8 @@ function ChatPanel(props: BrainConsoleViewProps) {
   const needsDisclosure =
     voice && voice.capability.stt && voice.capability.sttCloudBacked && !voice.disclosureAccepted;
   const llmLive = props.modelConfigured && props.lastReplySource !== "fallback";
+  // A tool is shown as running only for a turn in flight whose stream said so.
+  const toolRunning = Boolean(props.chatPending) && props.turnTool !== null && props.turnTool !== undefined;
 
   return (
     <div className="bc-chat">
@@ -528,8 +538,8 @@ function ChatPanel(props: BrainConsoleViewProps) {
           ))
         )}
         {props.chatPending ? (
-          <p className="bc-msg bc-msg--brain bc-msg--typing">
-            AYAS düşünüyor…
+          <p className="bc-msg bc-msg--brain bc-msg--typing" data-turn-state={toolRunning ? "tool-action" : "thinking"} data-testid="bc-turn-state">
+            {toolRunning ? `AYAS salt-okunur bir araç çalıştırıyor${props.turnTool ? ` (${props.turnTool})` : ""}…` : "AYAS düşünüyor…"}
             {props.onStopGenerating ? (
               <button
                 type="button"
@@ -576,6 +586,16 @@ function ChatPanel(props: BrainConsoleViewProps) {
               data-testid="bc-voice-toggle"
             >
               dinlemeyi kapat
+            </button>
+          ) : null}
+          {voice.state === "speaking" && voice.onInterruptSpeech ? (
+            <button
+              type="button"
+              className="bc-link"
+              onClick={voice.onInterruptSpeech}
+              data-testid="bc-voice-interrupt"
+            >
+              sözünü kes
             </button>
           ) : null}
           {voice.listening && voice.recognitionMode === "single-shot" ? (
@@ -640,6 +660,8 @@ function ChatPanel(props: BrainConsoleViewProps) {
           title={
             needsDisclosure
               ? "Sesli modu açmadan önce bilgilendirmeyi kabul et"
+              : voice?.capability.stt && voice.state === "speaking"
+              ? "AYAS konuşuyor — sözünü kesip konuşmak için dokun"
               : voice?.capability.stt
               ? // Hands-free (wake-engine) is the on-device openWakeWord AUDIO
                 // model, trained only on "AYAS" — every other mode goes through

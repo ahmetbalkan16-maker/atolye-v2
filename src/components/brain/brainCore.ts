@@ -21,6 +21,8 @@ export type BrainCoreState =
   | "idle"
   | "active"
   | "thinking"
+  /** A read-only tool is running for the turn in progress. Shown only while the chat stream itself reports it. */
+  | "tool"
   | "learning"
   | "working"
   | "warning"
@@ -74,6 +76,15 @@ export const BRAIN_CORE_STATES: Readonly<Record<BrainCoreState, BrainCoreStateIn
       description: "Running a safe analysis or planning step.",
       characterTr: "Halkalar dönüyor, tarama sürüyor — güvenli analiz.",
       intensity: 0.75,
+      hue: "violet",
+    },
+    tool: {
+      state: "tool",
+      label: "Tool action",
+      tr: "Araç çalışıyor",
+      description: "A read-only tool is running for the turn in progress.",
+      characterTr: "Salt-okunur bir araç çalışıyor — sonucu bekleniyor.",
+      intensity: 0.8,
       hue: "violet",
     },
     learning: {
@@ -175,6 +186,45 @@ export function deriveBrainCoreState(snapshot: BrainConsoleSnapshot): BrainCoreS
 
 function hasRunningTask(byStatus: Readonly<Record<BrainTaskStatus, number>>): boolean {
   return (byStatus.running ?? 0) > 0;
+}
+
+export interface BrainCoreLiveStateInput {
+  readonly connectivity: AyasConnectivity;
+  /** `deriveBrainCoreState(snapshot)`. */
+  readonly restingState: BrainCoreState;
+  readonly voiceState: AyasVoiceState;
+  /** A chat turn is in flight. */
+  readonly chatPending: boolean;
+  /** A read-only refresh is in flight. */
+  readonly refreshPending: boolean;
+  /** The chat stream of the turn in flight last reported `tool-action`. */
+  readonly toolActive: boolean;
+  readonly draftNonEmpty: boolean;
+  /** The autonomous loop has proposals waiting for the owner. */
+  readonly autonomousWaiting: boolean;
+}
+
+/**
+ * The state the orb shows, from signals that each come from something real: the browser's connectivity, the
+ * snapshot, the voice engine's own state, a turn in flight and the tool state the chat stream reports. Nothing here
+ * is timed or assumed, and `tool` cannot be shown without a turn in flight.
+ */
+export function deriveBrainCoreLiveState(input: BrainCoreLiveStateInput): BrainCoreState {
+  // The browser itself is offline: voice and chat state are moot with no network at all.
+  if (input.connectivity === "offline") return "offline";
+  if (input.restingState === "error") return "error";
+  if (input.voiceState === "speaking") return "speaking";
+  if (input.voiceState === "listening") return "listening";
+  if (input.voiceState === "thinking" || input.chatPending || input.refreshPending) {
+    return input.toolActive && input.chatPending ? "tool" : "thinking";
+  }
+  if (input.restingState === "warning") return "warning";
+  if (input.voiceState === "error") return "warning";
+  // A refresh failed while still online: the same soft-attention treatment as the cases above.
+  if (input.connectivity === "degraded") return "warning";
+  if (input.draftNonEmpty) return "active";
+  if (input.autonomousWaiting && input.restingState === "idle") return "autonomous";
+  return input.restingState;
 }
 
 /* ------------------------------------------------------------------------- *

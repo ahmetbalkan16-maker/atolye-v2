@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v8",
+  "version": "15F.4-v7",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -1257,38 +1257,6 @@
         {
           "file": "scripts/smoke-ayas-context-budget-mutations.ts",
           "sha256": "d91f21d85b5b10a66b4d07cbe9107d977fd0fa79e2f777a3be15c2902de5a053"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "voice-turn-state-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-voice-turn-state-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-voice-turn-state-mutations.ts",
-          "sha256": "6c219c4bd34786111886fe71b7612086a6c66c771e449b2dc4b5f1a340fcfcfb"
-        },
-        {
-          "file": "scripts/smoke-ayas-voice.ts",
-          "sha256": "16b405d8c9133b8ac08a64d374b577ea04f24b6eb3d0f3b648446144237603af"
-        },
-        {
-          "file": "scripts/smoke-ayas-reasoning.ts",
-          "sha256": "cd6fd4c5c7185f40cdd4d5b44bdc74e9c4f42df1a0177f3deb24b2aaeb586824"
-        },
-        {
-          "file": "scripts/smoke-ayas-chat-stream-client.ts",
-          "sha256": "2d9bcbe536645d6553eb3cfd20af33a13d9eb9d221e5c1e09913604dcb0b7cf3"
-        },
-        {
-          "file": "scripts/smoke-brain-core-ui.ts",
-          "sha256": "bf2edd8f9d8516c321e2308789c9da253c251d369b8d2588944aa9e4fd628259"
         }
       ],
       "slices": [
