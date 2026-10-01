@@ -4,8 +4,8 @@ import { execFileSync } from "node:child_process";
 import { AYAS_LOCAL_CODING_QUALIFICATION_VAULT, projectAyasLocalCodingQualificationTask } from "./fixtures/ayas-local-coding-qualification-vault";
 
 const git = (...args: string[]) => execFileSync("git", args, { encoding: "utf8", windowsHide: true }).trim();
-assert.equal(AYAS_LOCAL_CODING_QUALIFICATION_VAULT.length, 2);
-assert.deepEqual(AYAS_LOCAL_CODING_QUALIFICATION_VAULT.map((item) => item.split), ["PRIMARY", "HELD_OUT"]);
+assert.equal(AYAS_LOCAL_CODING_QUALIFICATION_VAULT.length, 3);
+assert.deepEqual(AYAS_LOCAL_CODING_QUALIFICATION_VAULT.map((item) => item.split), ["PRIMARY", "HELD_OUT", "PRIMARY"]);
 const seenIds = new Set<string>();
 for (const item of AYAS_LOCAL_CODING_QUALIFICATION_VAULT) {
   assert.ok(Object.isFrozen(item) && Object.isFrozen(item.exactFiles));

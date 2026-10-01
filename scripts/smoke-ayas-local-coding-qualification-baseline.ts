@@ -57,8 +57,10 @@ async function main(): Promise<void> {
       const expectedFactKey = item.caseId === "historical-explicit-computer-plan"
         ? "user.decision.computer-purchase-plan"
         : item.caseId === "heldout-render-tool-supersession" ? "user.decision.render-tool" : null;
-      assert.ok(expectedFactKey, "every historical case needs an explicit expected failure");
-      assert.ok(baseline.stderr.includes(`- '${expectedFactKey}'`), `${item.caseId}: baseline failed for a different reason`);
+      const expectedFailure = expectedFactKey ? `- '${expectedFactKey}'`
+        : item.caseId === "historical-atomic-bounded-write" ? "Missing expected rejection" : null;
+      assert.ok(expectedFailure, "every historical case needs an explicit expected failure");
+      assert.ok(baseline.stderr.includes(expectedFailure), `${item.caseId}: baseline failed for a different reason: ${baseline.stderr.slice(0, 500)}`);
 
       fs.writeFileSync(sourcePath, candidateBytes);
       assert.equal(sha256(fs.readFileSync(sourcePath)), sha256(candidateBytes), "candidate must use exact fix blob");
@@ -72,7 +74,7 @@ async function main(): Promise<void> {
       assert.ok(!wrong.timedOut && wrong.exit === 1,
         `${item.caseId}: wrong candidate must fail normally: ${wrong.stderr.slice(0, 800)}`);
       assert.match(wrong.stderr, /AssertionError|ERR_ASSERTION/, `${item.caseId}: wrong-candidate failure must be an assertion`);
-      assert.ok(wrong.stderr.includes(`- '${expectedFactKey}'`), `${item.caseId}: wrong candidate failed for a different reason`);
+      assert.ok(wrong.stderr.includes(expectedFailure), `${item.caseId}: wrong candidate failed for a different reason`);
       results.push({ caseId: item.caseId, split: item.split, baseline: "FAIL", candidate: "PASS",
         wrongCandidate: "FAIL", baselineMs: baseline.durationMs, candidateMs: candidate.durationMs,
         wrongCandidateMs: wrong.durationMs, modelRuns: 0 });

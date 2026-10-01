@@ -4,7 +4,7 @@ import { parseAyasLocalCodingTaskContract, type AyasLocalCodingTaskContract } fr
 export interface AyasLocalCodingQualificationCase {
   readonly caseId: string;
   readonly split: "PRIMARY" | "HELD_OUT";
-  readonly domain: "MEMORY_TEMPORAL";
+  readonly domain: "MEMORY_TEMPORAL" | "SECURITY";
   readonly taskId: string;
   readonly baseHead: string;
   readonly fixHead: string;
@@ -36,6 +36,16 @@ export const AYAS_LOCAL_CODING_QUALIFICATION_VAULT: readonly AyasLocalCodingQual
     exactFiles: Object.freeze([source]), maxChangedLines: 80,
     evaluatorScript: "scripts/smoke-ayas-stage15-7-temporal-acceptance.ts",
     evaluatorBlob: "2934d7402abdc048e02e6ce95d54fc98eeb49e78",
+  }),
+  Object.freeze({
+    caseId: "historical-atomic-bounded-write", split: "PRIMARY", domain: "SECURITY",
+    taskId: "ayas-coding-99999999-8888-7777-6666-555555555555",
+    baseHead: "2397edf0b55233d101668657f1451e37c5334fdf",
+    fixHead: "1c1ab791411df904b904d52b26b6415da89b8f05",
+    objective: "When a second bounded file update fails, the first file must be restored, and allowed paths must not escape the repository.",
+    exactFiles: Object.freeze(["src/lib/brain/autonomy/AyasBoundedFileWrite.ts"]), maxChangedLines: 80,
+    evaluatorScript: "scripts/smoke-ayas-bounded-file-write.ts",
+    evaluatorBlob: "70df46f3c7a474a449c78e2c8f2f0da3383beebc",
   }),
 ]);
 
