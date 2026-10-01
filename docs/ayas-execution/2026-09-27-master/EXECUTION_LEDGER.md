@@ -482,3 +482,19 @@ TEST/ADVERSARIAL: discovery run firewall 13; mutation audit 21/21 in a TEMP over
 Live effect, stated plainly: the running observer loads this script every tick, so the lease is already in force. It adds one small audit file per tick under the git-ignored data/brain/execution/authorizations. No owner gate was involved because nothing was widened.
 
 Next 15D.7b: standalone repair validator entry points, product-brain catalogue read, closure map smoke. Then close 15D and open 15E. Stage 15D IN_PROGRESS / globalGuardBound=false.
+
+## 15D.7b last seams and closure audit; STAGE 15D CLOSED GREEN — 2026-10-01
+
+Source 5cbe607a0f22501070e3ce5924a5e102bfbbf42c (packet) and 3c515891ecc96fedd135b982cbcc5dcee7a8ed25 (test fix). Closure record: 03_STAGE15_BASE/hardening/15D/CLOSURE.md.
+
+15D.7b. (1) Guided repair exported its validator runner and offered it as a service method; neither had a caller, and a validator runs a process (one of them refreshes the graph). The runner is now private and has one call site, after the owner lease is admitted. (2) The product context read the production catalogue directly; it now calls the guarded `list-production-projects` tool and reports the catalogue as unavailable, not as zero projects, when the read is refused. The self-heal summary stays fixed server context. (3) New closure audit `smoke-ayas-action-firewall-closure`: it builds the import graph and pins, for eight surfaces, the 41 modules that spawn a process or call the network, each with the guard that admits it. It fails on an unclassified effectful module, on a new entry point reaching leased or owner-only work, on an agent surface reaching publication, a production provider, a paid model, the pipeline runner or the dormant write bridge, on any dispatch that can run before its admission, on a fifth decision value and on a model router that could select the cloud provider. No MCP client exists.
+
+One existing suite broke and was corrected: the durable recovery smoke's guard that nothing else refers to the durable runtime flagged the closure audit's static references. The guard now lists the audit and asserts it imports none of those modules.
+
+CLOSURE. One-HEAD regression: 42 suites PASS, 0 FAIL. TypeScript PASS; full lint 0 errors / 13 pre-existing warnings; diff PASS. Mutation audits in a TEMP overlay: discovery lease 21/21, closure audit 17/17 plus one equivalent. LIVE_READ_ONLY: the running observer's discovery child has run the leased script since 15:49Z. GRAPHIFY precommit 4eb92f1, worktree covered: 16208 nodes / 47004 links, anomalies 0, PARTIAL 9 known files, semantic pending; rebound to the documentation HEAD afterwards. LOCAL COMMITS; NO PUSH.
+
+globalGuardBound=true, with ten recorded limits (CLOSURE.md): publication takes no second lease; local inference is policy-governed, not leased; fixed server context is not a dispatch; the discovery lease is per run; a refused discovery admission skips that tick's staleness reconciliation; audit files are unkeyed (15N) and unpruned (15F); owner identity is the shared-passcode role; revocation cannot undo a finished effect; the map sees static imports only.
+
+Owner actions outstanding, none blocking: restart the observer Scheduled Task (durable sweep binding); push stays off.
+
+STAGE 15E OPENED automatically. Next 15E.0 inspection of existing model and strategy pinning before any new registry.

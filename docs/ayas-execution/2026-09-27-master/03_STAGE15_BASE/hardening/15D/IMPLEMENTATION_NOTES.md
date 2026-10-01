@@ -176,3 +176,11 @@ Script: admission follows the ledger start and precedes every capability. The sc
 Why run-level and not per call: the canonical text gives each run an identity and an exact capability set; one record per tick keeps the audit at about 288 files a day instead of several times that.
 
 Next 15D.7b, then closure.
+
+## 15D.7b last seams and closure audit — 2026-10-01
+
+Source 5cbe607a0f22501070e3ce5924a5e102bfbbf42c and 3c515891ecc96fedd135b982cbcc5dcee7a8ed25. Guided repair: `runAyasRegisteredValidation` is module-private and `service.validate` is gone; the production validators are built in one place and handed only to the repair session runtime. Product context: three guarded reads (`inspect-repository-status`, `read-project-document`, `list-production-projects`), no direct catalogue import.
+
+Closure audit design: static import graph (type-only imports excluded); an effectful module is one that imports child_process or has a real fetch/http call site; each surface lists its reachable effectful modules with a guard from a closed set (TOOL_LEASE, OWNER_LEASE, OWNER_PUBLICATION, DISCOVERY_LEASE, DURABLE_LEASE, OWNER_REQUEST, READ_ONLY_PROBE, LOCAL_MODEL, CLOUD_MODEL_DENIED, IMPORT_ONLY). IMPORT_ONLY is allowed on owner-session surfaces only; on agent surfaces every effect must be a probe, the local model or lease-admitted. Entry points other than the surfaces that reach leased work are pinned with who runs them (the Brain page, the crash-injection worker, operator CLIs, live acceptance scripts).
+
+Stage 15D is CLOSED GREEN. See CLOSURE.md for the lease table, the evidence and the known limits.

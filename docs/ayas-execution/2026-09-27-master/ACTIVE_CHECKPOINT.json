@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "efd176c71d358159b8f8974a5459afe1d635de4a",
-  "currentHead": "efd176c71d358159b8f8974a5459afe1d635de4a",
-  "stage": "STAGE_15D",
-  "subtask": "15D.7b-standalone-validator-product-context-and-closure-map",
+  "lastGreenHead": "3c515891ecc96fedd135b982cbcc5dcee7a8ed25",
+  "currentHead": "3c515891ecc96fedd135b982cbcc5dcee7a8ed25",
+  "stage": "STAGE_15E",
+  "subtask": "15E.0-existing-seam-inspection",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -84,14 +84,15 @@
     ]
   },
   "previousStage": {
-    "stage": "STAGE_15C",
+    "stage": "STAGE_15D",
     "status": "CLOSED_GREEN",
-    "closingCommit": "6a81b95cfe849e8c133d85a65be387d247b01ff6"
+    "closingCommit": "3c515891ecc96fedd135b982cbcc5dcee7a8ed25"
   },
   "completedStages": [
     "PHASE_0_LOCAL_CODE",
     "STAGE_15B",
-    "STAGE_15C"
+    "STAGE_15C",
+    "STAGE_15D"
   ],
   "completedSubtasks": [
     "canonical-package-import",
@@ -142,13 +143,11 @@
     "15D.6a-dormant-write-owner-refusal",
     "15D.6b-durable-read-activity-lease-binding",
     "15D.6c-adapter-inventory",
-    "15D.7a-observer-discovery-run-lease"
+    "15D.7a-observer-discovery-run-lease",
+    "15D.7b-standalone-validator-product-context-and-closure-map",
+    "15D-closure-GREEN"
   ],
-  "currentFiles": [
-    "src/lib/ayas/execution/AyasGuidedRepair.ts",
-    "src/lib/ayas/AyasProductBrain.ts",
-    "scripts/smoke-ayas-action-firewall-closure.ts"
-  ],
+  "currentFiles": [],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
     "smoke-ayas-memory: 30 PASS; context: 34 PASS; memory-temporal: 51 PASS; chat-quality: 36 PASS",
@@ -227,15 +226,19 @@
     "discovery registry 15 (fixture repaired: failed at HEAD before this packet), daemon authority boundary 23, owner approval daemon integration 5, micro-batch authority firewall 10, continuous self-improvement 10, deferred re-eligibility 34, Graphify integration 47 PASS",
     "lease/firewall 52; read dispatch 12; legacy bridge 12; owner 32; repair proof 26; durable recovery 22; bridge 23; write 16; action runtime 17; developer actions 31; guided repair 25 + 5 E2E PASS",
     "TypeScript (non-incremental) PASS; changed-file lint 0 warnings; diff check PASS. Not run: observer-autostart (UNSAFE_KNOWN), Stage 8 research-improvement evaluator and product-brain smoke (code paths unchanged).",
-    "LIVE_READ_ONLY evidence: the running observer's discovery child ran the leased script at 2026-10-01T15:49Z and 15:54Z; each left one completed lease record under data/brain/execution/authorizations bound to HEAD fba9271, and the ledger shows SUCCEEDED (15:54 included a LIGHT research read under the lease)."
+    "LIVE_READ_ONLY evidence: the running observer's discovery child ran the leased script at 2026-10-01T15:49Z and 15:54Z; each left one completed lease record under data/brain/execution/authorizations bound to HEAD fba9271, and the ledger shows SUCCEEDED (15:54 included a LIGHT research read under the lease).",
+    "15D.7b closure audit 12 scenarios PASS: closed four-decision vocabulary; every allowlisted tool classifies with one executor, reserved/owner actions REQUIRE_OWNER, others DENY with zero records; executors dispatched from two places after admit; owner work, durable collector and discovery capabilities after admission; adapter map of 8 surfaces / 41 effectful modules; no surface reaches a production provider, paid model, pipeline runner, publisher or the dormant write bridge; entry points reaching leased work pinned; model router never selects cloud; product context in a TEMP process takes three leases and reads the TEMP runtime catalogue",
+    "closure audit mutation audit in a TEMP overlay: 17/17 caught, 1 equivalent (comment-only)",
+    "15D closure regression on one HEAD: 42 suites PASS, 0 FAIL (firewall 52, read dispatch 12, legacy bridge 12, closure 12, owner 32, owner session 11, access gate 19, repair proof 26, discovery run 13, durable recovery 22, durable runtime 17, bridge 23, write 16, action runtime 17, developer actions 31, developer workflow 11/38, planner 16, workflow store 17, workflow recovery 15, fault localization 16, guided repair 25+5, repair durability 8, controlled improvement 7, unified trace 17, foundation acceptance 42, autonomy observer 22, daemon authority boundary 23, discovery registry 15, owner daemon integration 5, micro-batch authority 10, continuous 10, deferred 34, Graphify integration 47, revalidation 37, autonomy daemon 9, approval compatibility 24, execution journal 24, execution authority 29, reservation 23, proposal execution 29, micro-batch execution 13, patch artifact integration 9)",
+    "TypeScript (non-incremental) PASS; full lint 0 errors / 13 pre-existing warnings; diff check PASS"
   ],
   "graphify": {
-    "head": "fba9271b8a08ebdba2c49a6f7e47bb27dc8a854c",
-    "testedSourcePacket": "efd176c71d358159b8f8974a5459afe1d635de4a",
+    "head": "4eb92f1da400d9740d0c5cccb82f3442283d6f50",
+    "testedSourcePacket": "3c515891ecc96fedd135b982cbcc5dcee7a8ed25",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 16176,
-    "edges": 46939,
+    "nodes": 16208,
+    "edges": 47004,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
@@ -249,8 +252,8 @@
     "External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority.",
     "OWNER_DECISION for any local-coding re-qualification: define a numeric qualification threshold; and/or pin a different local model or engine; and/or allow GPU passthrough into the rootless sandbox. Not a blocker for Stage 15B."
   ],
-  "nextAction": "15D.7b: (1) remove the standalone guided-repair validator entry points (exported runAyasRegisteredValidation and service.validate have no caller and no lease); (2) route the product-brain catalogue read through the guarded list-production-projects tool and record the self-heal snapshot as fixed server context; (3) add a closure smoke that maps every process-spawning or network-capable module in src/app to its guard class and fails on an unmapped one. Then 15D closure audit and close; open 15E automatically. NO PUSH.",
-  "updatedAt": "2026-10-01T15:58:22.748Z",
+  "nextAction": "Stage 15E — Model / Strategy Lifecycle Manager. 15E.0: inspect what already pins or selects models and strategies (AyasModelRouter, AyasModelProfile, AyasLocalCodingPins, AyasComplexityRouter, the Stage 15A qualification closure, TTS/STT/wake model paths, prompt and evaluator versions) before adding anything. Then one additive lifecycle registry (DISCOVERED > PINNED > QUALIFIED > SHADOW > CANARY > ACTIVE > DEGRADED > RETIRED) with immutable identity/digest, promotion evidence and rollback target. The local Qwen coding model must be recorded as DEGRADED from its real Stage 15A result. No model or container run unless a task needs it; no promotion without evidence. NO PUSH.",
+  "updatedAt": "2026-10-01T16:24:05.406Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -332,7 +335,7 @@
     "ROADMAP.md"
   ],
   "localClosure": {
-    "sourcePacketCommit": "efd176c71d358159b8f8974a5459afe1d635de4a",
+    "sourcePacketCommit": "3c515891ecc96fedd135b982cbcc5dcee7a8ed25",
     "push": false,
     "documentationOnlyClosure": true,
     "headSemantics": "Full tested source-packet HEAD. The checkpoint documentation commit descends from it; resolve actual current HEAD with git rev-parse HEAD. Per-machine final Graphify metadata is not committed."
@@ -348,6 +351,16 @@
       "stage": "STAGE_15B",
       "status": "CLOSED",
       "closingCommit": "557c94604212c65cff7a4e8c023877a34cf990af"
+    },
+    {
+      "stage": "STAGE_15C",
+      "status": "CLOSED_GREEN",
+      "closingCommit": "6a81b95cfe849e8c133d85a65be387d247b01ff6"
+    },
+    {
+      "stage": "STAGE_15D",
+      "status": "CLOSED_GREEN",
+      "closingCommit": "3c515891ecc96fedd135b982cbcc5dcee7a8ed25"
     }
   ],
   "stage15C": {
@@ -383,7 +396,7 @@
   },
   "headSemantics": "Full tested source-packet HEAD. The checkpoint documentation commit descends from it; resolve actual current HEAD with git rev-parse HEAD. Per-machine final Graphify metadata is not committed.",
   "stage15D": {
-    "state": "READ_OWNER_REPAIR_GREEN_REMAINING_SEAMS_PENDING",
+    "state": "CLOSED_GREEN",
     "sourcePacketCommit": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096",
     "inspectionComplete": true,
     "sourceChanges": [
@@ -417,14 +430,10 @@
       "TypeScript and changed-file lint PASS; diff PASS; Graphify PARTIAL9/semantic pending,16139nodes46805links, anomalies0",
       "15D.6a write16/bridge23/legacy bridge guard12 PASS; generic grant + OPEN gate + enabled code switch still REQUIRE_OWNER, zero pipeline/executor/project plan reads, repeat refused. TypeScript/changed lint/diff PASS; Graphify16141nodes/46818links, anomalies0, PARTIAL9/semantic pending."
     ],
-    "liveLeaseIssued": false,
-    "globalGuardBound": false,
+    "liveLeaseIssued": true,
+    "globalGuardBound": true,
     "ownerIssuerImplemented": false,
-    "remaining": [
-      "standalone repair validator entry points",
-      "product-brain catalogue read through the guarded tool",
-      "closure map smoke over every process/network module, then stage closure and automatic Stage15E"
-    ],
+    "remaining": [],
     "knownLimits": [
       "Revocation blocks new admission; it cannot undo an already running effect.",
       "Crashed per-record lock fails closed; no automatic stale takeover.",
@@ -442,7 +451,11 @@
       "Discovery run lease: one record per observer tick (about 288 a day) under data/brain/execution/authorizations; nothing prunes them (retention belongs to 15F).",
       "Discovery run lease is run-level: capabilities are checked in-process against the durably admitted set; individual capability calls are not separately recorded (the discovery ledger and the run summary digest are the outcome evidence).",
       "A refused discovery admission also skips that tick's staleness reconciliation; execution-time revalidation still rejects a stale approval.",
-      "The research tick's source digest pins the list handed to the scheduler; it does not authenticate what a remote host serves."
+      "The research tick's source digest pins the list handed to the scheduler; it does not authenticate what a remote host serves.",
+      "Publication (commit/push) runs only inside the owner-approved execution services after the owner lease for the same proposal; it takes no second lease record.",
+      "Local model inference is governed by the zero-cost model router, not leased per call.",
+      "Fixed server context (console snapshot, self-heal summary, memory, studio context) is not a tool dispatch and takes no lease.",
+      "The adapter map is built from static import specifiers; a computed dynamic import would not be seen."
     ],
     "packetCommits": {
       "foundation": "2d621626edb2fbc0f8cd1ed2b552b392e6d93c48",
@@ -456,7 +469,9 @@
       "durableReadActivityLease": "cd24e0c822ef2a7ad978b653c43837b3bdc5f2c8",
       "discoveryRegistryFixtureFix": "ccc4056",
       "ownerRevokeAfterConsumeTest": "34cdebe",
-      "observerDiscoveryRunLease": "efd176c71d358159b8f8974a5459afe1d635de4a"
+      "observerDiscoveryRunLease": "efd176c71d358159b8f8974a5459afe1d635de4a",
+      "closureAuditAndLastSeams": "5cbe607a0f22501070e3ce5924a5e102bfbbf42c",
+      "durableWiringGuardTestFix": "3c515891ecc96fedd135b982cbcc5dcee7a8ed25"
     },
     "readRuntimeGuardBound": true,
     "legacyReadBridgeGuardBound": true,
@@ -469,7 +484,19 @@
     "repairDurableAuditBound": true,
     "dormantWriteGuardBound": true,
     "durableReadActivityGuardBound": true,
-    "observerDiscoveryRunLeaseBound": true
+    "observerDiscoveryRunLeaseBound": true,
+    "closedOn": "2026-10-01",
+    "closingCommit": "3c515891ecc96fedd135b982cbcc5dcee7a8ed25",
+    "closure": "03_STAGE15_BASE/hardening/15D/CLOSURE.md",
+    "globalGuardBoundMeaning": "Every tool/adapter dispatch on the mapped AYAS surfaces admits through the one firewall, or is a classified read-only probe or the local model. Proven by the closure audit; see CLOSURE.md for the ten known limits.",
+    "liveLeaseNote": "Chat read tools, the product context and the observer's discovery runs take real leases in the live repository. No owner or financial issuer exists: owner leases bind existing approvals only.",
+    "standaloneRepairValidatorRemoved": true,
+    "productContextCatalogueGuardBound": true,
+    "adapterMap": {
+      "surfaces": 8,
+      "mappedModules": 41,
+      "suite": "scripts/smoke-ayas-action-firewall-closure.ts"
+    }
   },
   "pushPolicy": {
     "state": "NO_PUSH",
@@ -482,5 +509,12 @@
       "reason": "The session-end exception was incorrectly applied over the explicit owner PUSH YOK rule. Remote permissions and auto-review acceptance were not owner approval.",
       "remediation": "Recorded only. No reset, force push or history rewrite. All subsequent packets use local commits only."
     }
+  },
+  "stage15E": {
+    "state": "IN_PROGRESS",
+    "openedOn": "2026-10-01",
+    "openedAtHead": "3c515891ecc96fedd135b982cbcc5dcee7a8ed25",
+    "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md, STAGE 15E; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md, STAGE 15E",
+    "notes": "03_STAGE15_BASE/hardening/15E/IMPLEMENTATION_NOTES.md"
   }
 }
