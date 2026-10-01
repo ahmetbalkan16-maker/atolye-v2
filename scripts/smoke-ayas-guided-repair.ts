@@ -1,3 +1,4 @@
+import { withAyasActionRuntimeFixture } from "./helpers/ayas-action-runtime-fixture";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -48,4 +49,4 @@ fs.rmSync(productRoot, { recursive: true, force: true });
 console.log("AYAS guided repair smoke passed (25 assertions; product E2E=5)");
 fs.rmSync(root, { recursive: true, force: true });
 }
-void main();
+withAyasActionRuntimeFixture(main);

@@ -1,3 +1,4 @@
+import { withAyasActionRuntimeFixture } from "./helpers/ayas-action-runtime-fixture";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -33,4 +34,4 @@ async function main() {
     console.log(JSON.stringify({ status: "PASS", suite: "ayas-controlled-self-improvement", scenarios: 7 }));
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 }
-main().catch((error) => { console.error(error); process.exitCode = 1; });
+withAyasActionRuntimeFixture(main).catch((error) => { console.error(error); process.exitCode = 1; });

@@ -1,3 +1,4 @@
+import { withAyasActionRuntimeFixture } from "./helpers/ayas-action-runtime-fixture";
 import assert from "node:assert/strict";
 import { localizeAyasFault } from "../src/lib/ayas/execution/AyasFaultLocalization";
 import { runAyasReadOnlyAction } from "../src/lib/ayas/execution/AyasActionRuntime";
@@ -25,4 +26,4 @@ await check("source search result is bounded", async () => { const r = await run
 
 console.log(`AYAS fault localization smoke: PASS (${scenarios} scenarios)`);
 }
-void main();
+withAyasActionRuntimeFixture(main);

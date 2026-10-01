@@ -1,3 +1,4 @@
+import { withAyasActionRuntimeFixture } from "./helpers/ayas-action-runtime-fixture";
 /**
  * AYAS Durable Guided-Repair Session product-level E2E suite.
  *
@@ -265,7 +266,7 @@ async function main() {
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-guided-repair-durability", scenarios: count }));
 }
 
-main().catch((error) => {
+withAyasActionRuntimeFixture(main).catch((error) => {
   console.error("AYAS guided repair durability smoke FAILED:", error);
   process.exitCode = 1;
 });

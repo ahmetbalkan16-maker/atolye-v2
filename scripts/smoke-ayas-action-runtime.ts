@@ -1,3 +1,4 @@
+import { withAyasActionRuntimeFixture } from "./helpers/ayas-action-runtime-fixture";
 /**
  * AYAS Action Runtime smoke suite (Action Runtime sprint).
  *
@@ -249,7 +250,7 @@ async function run() {
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-action-runtime", scenarios: count }));
 }
 
-run().catch((error) => {
+withAyasActionRuntimeFixture(run).catch((error) => {
   console.error("AYAS action runtime smoke FAILED:", error);
   process.exitCode = 1;
 });

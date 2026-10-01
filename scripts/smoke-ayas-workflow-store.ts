@@ -1,3 +1,4 @@
+import { withAyasActionRuntimeFixture } from "./helpers/ayas-action-runtime-fixture";
 /**
  * AYAS Durable Workflow Persistence smoke suite.
  *
@@ -324,7 +325,7 @@ async function main() {
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-workflow-store", scenarios: count }));
 }
 
-main().catch((error) => {
+withAyasActionRuntimeFixture(main).catch((error) => {
   console.error("AYAS workflow store smoke FAILED:", error);
   process.exitCode = 1;
 });

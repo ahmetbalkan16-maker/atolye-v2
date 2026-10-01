@@ -89,9 +89,14 @@ export function createAyasDeveloperWorkflow(input: { readonly kind: "developer" 
 }
 
 function classifyActionFailure(outcome: Extract<AyasActionRuntimeOutcome, { executed: false }>): AyasWorkflowFailure {
+  if (outcome.stage === "authorization") return { code: "invalid-authorization", detail: outcome.reason, retryable: false };
   if (outcome.stage === "policy") return { code: outcome.reason === "malformed-plan" || outcome.reason === "malformed-request" ? "invalid-action-input" : "policy-rejection", detail: outcome.detail, retryable: false };
   if (outcome.stage === "timeout") return { code: "timeout", detail: outcome.detail, retryable: true };
   return { code: outcome.stage === "executor" ? "executor-failure" : "read-action-failure", detail: outcome.detail, retryable: outcome.stage === "executor" };
+}
+function actionFailure(outcome: AyasActionRuntimeOutcome): AyasWorkflowFailure | undefined {
+  if (!outcome.executed) return classifyActionFailure(outcome);
+  return outcome.auditFailure ? { code: "invalid-authorization", detail: outcome.auditFailure, retryable: false } : undefined;
 }
 function graphifyFailure(data: Readonly<Record<string, unknown>>): AyasWorkflowFailure | undefined {
   const status = data.status;
@@ -144,16 +149,16 @@ export async function runAyasDeveloperWorkflow(workflow: AyasDeveloperWorkflow, 
     if (record.step.kind !== "repair") {
       workflow.usage.actions += 1; if (record.step.kind === "graphify") workflow.usage.graphifyQueries += 1; if (record.step.kind === "validation") { workflow.usage.validations += 1; workflow.state = "validating"; }
       let outcome = await read({ rawRequest: record.step.request });
-      let failure = outcome.executed ? undefined : classifyActionFailure(outcome);
+      let failure = actionFailure(outcome);
       if (!failure && record.step.kind === "graphify" && outcome.executed) failure = graphifyFailure(outcome.result.data);
       if (failure?.retryable && record.step.kind !== "validation" && workflow.usage.readRetries < workflow.budget.maxReadRetries && workflow.usage.actions < workflow.budget.maxActions && (record.step.kind !== "graphify" || workflow.usage.graphifyQueries < workflow.budget.maxGraphifyQueries)) {
         workflow.usage.readRetries += 1; workflow.usage.actions += 1; if (record.step.kind === "graphify") workflow.usage.graphifyQueries += 1; record.attempts += 1; event(workflow, "read-retry", failure.detail, record.step.id);
-        outcome = await read({ rawRequest: record.step.request }); failure = outcome.executed ? undefined : classifyActionFailure(outcome); if (!failure && record.step.kind === "graphify" && outcome.executed) failure = graphifyFailure(outcome.result.data);
+        outcome = await read({ rawRequest: record.step.request }); failure = actionFailure(outcome); if (!failure && record.step.kind === "graphify" && outcome.executed) failure = graphifyFailure(outcome.result.data);
       }
       record.result = outcome; workflow.usage.outputChars += JSON.stringify(outcome).length;
       if (workflow.usage.outputChars > workflow.budget.maxOutputChars) { record.state = "failed"; record.failure = { code: "output-truncation", detail: "workflow output budget exceeded", retryable: false }; workflow.state = "budget-exhausted"; workflow.terminalReason = record.failure.detail; event(workflow, "budget-exhausted", record.failure.detail, record.step.id); await checkpoint("workflow-terminal"); return workflow; }
       if (!failure && record.step.kind === "validation" && outcome.executed && outcome.result.data.status !== "passed") failure = { code: outcome.result.data.status === "unavailable" ? "command-unavailable" : "validation-failure", detail: outcome.result.summary, retryable: false };
-      if (failure) { record.state = failure.code === "policy-rejection" || failure.code === "invalid-action-input" ? "rejected" : "failed"; record.failure = failure; event(workflow, "step-failed", `${failure.code}: ${failure.detail}`, record.step.id); if (!record.step.allowAfterValidationFailure && failure.code !== "graphify-stale" && failure.code !== "graphify-unavailable" && failure.code !== "graphify-failure") { workflow.state = record.state === "rejected" ? "rejected" : "failed"; workflow.terminalReason = failure.detail; await checkpoint("workflow-terminal"); return workflow; } }
+      if (failure) { record.state = failure.code === "policy-rejection" || failure.code === "invalid-action-input" ? "rejected" : "failed"; record.failure = failure; event(workflow, "step-failed", `${failure.code}: ${failure.detail}`, record.step.id); if (failure.code === "invalid-authorization" || (!record.step.allowAfterValidationFailure && failure.code !== "graphify-stale" && failure.code !== "graphify-unavailable" && failure.code !== "graphify-failure")) { workflow.state = record.state === "rejected" ? "rejected" : "failed"; workflow.terminalReason = failure.detail; await checkpoint("workflow-terminal"); return workflow; } }
       else { record.state = "succeeded"; event(workflow, "step-succeeded", record.step.expectedEvidence, record.step.id); }
       workflow.state = "running"; await checkpoint("step-terminal"); continue;
     }

@@ -1,3 +1,4 @@
+import { withAyasActionRuntimeFixture } from "./helpers/ayas-action-runtime-fixture";
 /**
  * Run only from a disposable git-archive copy with node_modules linked in.
  * The junction fixture must never be created in the working checkout.
@@ -33,4 +34,4 @@ async function main(): Promise<void> {
   }
 }
 
-void main();
+withAyasActionRuntimeFixture(main);

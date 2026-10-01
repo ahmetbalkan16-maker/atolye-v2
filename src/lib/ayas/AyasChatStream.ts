@@ -671,7 +671,8 @@ async function attemptAyasToolDispatch(input: {
 function toolDispatchTraceStatus(dispatch: AyasToolDispatchAttempt | null, toolNamed: boolean): { readonly status: AyasTraceStatus; readonly errorCode?: string } {
   if (!dispatch) return toolNamed ? { status: "denied", errorCode: "TOOL_NOT_DISPATCHED" } : { status: "ok" };
   const outcome = dispatch.actionOutcome;
-  if (outcome.executed) return { status: "ok" };
+  if (outcome.executed) return outcome.auditFailure ? { status: "error", errorCode: outcome.auditFailure } : { status: "ok" };
+  if (outcome.stage === "authorization") return { status: "denied", errorCode: "TOOL_AUTHORIZATION_DENIED" };
   if (outcome.stage === "policy") return { status: "denied", errorCode: "TOOL_POLICY_DENIED" };
   if (outcome.stage === "safety") return { status: "denied", errorCode: "TOOL_SAFETY_DENIED" };
   return { status: "error", errorCode: outcome.stage === "timeout" ? "TOOL_TIMEOUT" : "TOOL_EXECUTOR_FAILURE" };
@@ -1372,7 +1373,7 @@ async function* streamAyasChatTurn(
               tool: dispatch.toolId,
               executed: dispatch.actionOutcome.executed,
               ...(dispatch.actionOutcome.executed
-                ? {}
+                ? (dispatch.actionOutcome.auditFailure ? { auditFailure: dispatch.actionOutcome.auditFailure } : {})
                 : { stage: dispatch.actionOutcome.stage, reason: String(dispatch.actionOutcome.reason) }),
               durationMs: dispatch.actionOutcome.durationMs,
             },

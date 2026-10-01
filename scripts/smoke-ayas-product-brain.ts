@@ -1,3 +1,4 @@
+import { withAyasActionRuntimeFixture } from "./helpers/ayas-action-runtime-fixture";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { loadBrainConsoleSnapshot } from "../src/lib/brain/ui/BrainConsoleSnapshot";
@@ -14,4 +15,4 @@ async function main() {
   assert.match(route, /productBrainLines: productBrain\.lines/);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-product-brain", scenarios: 9 }));
 }
-main().catch((error) => { console.error(error); process.exitCode = 1; });
+withAyasActionRuntimeFixture(main).catch((error) => { console.error(error); process.exitCode = 1; });

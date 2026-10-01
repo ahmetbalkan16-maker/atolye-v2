@@ -11,10 +11,10 @@
  * not a safety requirement, just an accidental conflation this sprint is
  * explicitly asked to narrow.
  *
- * This module does NOT touch `AyasExecutionGateStore` or
- * `AyasExecutionAuthorizationStore` at all — the write path, its gate, and its
- * authorization ceremony are completely untouched and equally protected. This
- * runtime instead:
+ * Stage 15D: each read now receives a short-lived exact-scope lease backed by
+ * the existing `AyasExecutionAuthorizationStore`. The mutation gate and its
+ * activation ceremony remain separate. The common firewall must durably admit
+ * the lease immediately before an executor is invoked. This runtime follows:
  *
  *   raw request ──▶ validateAyasExecutionRequest()  (existing, unchanged policy)
  *        │               DENY: unknown / reserved / malformed / shell-like / oversize
@@ -42,12 +42,20 @@ import {
   type AyasExecutionActionId,
   type AyasExecutionPolicyDenyReason,
 } from "./AyasExecutionPolicy";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { getExistingProjectRoot, getProjectsRoot } from "../../runtime/RuntimeStoragePaths";
+import { createAyasActionFirewall } from "./AyasActionFirewall";
+import { AyasExecutionAuthorizationStore } from "./AyasExecutionAuthorization";
+import type { AyasExecutionRequest } from "./AyasExecutionPolicy";
 import { resolveAyasExecutor, AyasActionValidationError, type AyasExecutorResult } from "./AyasSafeExecutors";
 
 /** Structural ceiling this sprint enforces: one real dispatch per user turn. `AyasChatStream.ts` calls this function at most once per turn — never in a loop. */
 export const AYAS_ACTION_RUNTIME_MAX_PER_TURN = 1;
 
-export type AyasActionRuntimeDenyStage = "policy" | "safety" | "executor" | "timeout";
+export type AyasActionRuntimeDenyStage = "policy" | "safety" | "authorization" | "executor" | "timeout";
 
 export type AyasActionRuntimeOutcome =
   | {
@@ -55,6 +63,8 @@ export type AyasActionRuntimeOutcome =
       readonly action: AyasExecutionActionId;
       readonly result: AyasExecutorResult;
       readonly durationMs: number;
+      /** Dispatch already happened; an outcome-write failure must never be reported as no execution. */
+      readonly auditFailure?: "AYAS_ACTION_AUDIT_SETTLE_FAILED";
     }
   | {
       readonly executed: false;
@@ -70,6 +80,28 @@ export interface RunAyasReadOnlyActionInput {
   readonly rawRequest: unknown;
   /** Test seam — defaults to the real read-only executor registry. */
   readonly resolveExecutor?: typeof resolveAyasExecutor;
+}
+
+// Same module-load root as the existing safe/developer adapters. A later chdir cannot rebind authority.
+const ADAPTER_REPO_ROOT = process.cwd();
+type AuthorizationContext = { readonly store: AyasExecutionAuthorizationStore; readonly firewall: ReturnType<typeof createAyasActionFirewall> };
+const authorizationContext = new AsyncLocalStorage<AuthorizationContext>();
+
+function resourceRoot(request: AyasExecutionRequest): string {
+  if (process.cwd() !== ADAPTER_REPO_ROOT) throw new Error("AYAS_ACTION_ADAPTER_ROOT_CHANGED");
+  if (request.projectSlug) return getExistingProjectRoot(request.projectSlug);
+  if (request.action === "list-production-projects") return getProjectsRoot();
+  if (request.action === "ayas-development-status") return path.join(ADAPTER_REPO_ROOT, "data", "brain");
+  return fs.realpathSync(ADAPTER_REPO_ROOT);
+}
+
+function createAuthorizationContext(store: AyasExecutionAuthorizationStore): AuthorizationContext {
+  return { store, firewall: createAyasActionFirewall({ repoRoot: ADAPTER_REPO_ROOT, authorizations: store, resolveResourceRoot: resourceRoot }) };
+}
+
+/** Trusted server/test context only; never accepts a scope, owner claim or store root from a tool/model request. */
+export function withAyasActionRuntimeAuthorizationStore<T>(store: AyasExecutionAuthorizationStore, operation: () => T): T {
+  return authorizationContext.run(createAuthorizationContext(store), operation);
 }
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -117,10 +149,31 @@ export async function runAyasReadOnlyAction(input: RunAyasReadOnlyActionInput): 
     return denied(validation.request.action, "policy", "unknown-action", "allowlisted action has no registered executor", Date.now() - started);
   }
 
+  let context: AuthorizationContext;
+  let authorizationId: string;
+  let admittedRequest: AyasExecutionRequest;
   try {
-    const result = await withTimeout(executor(validation.request), validation.spec.maxDurationMs, validation.request.action);
-    return { executed: true, action: validation.request.action, result, durationMs: Date.now() - started };
+    context = authorizationContext.getStore() ?? createAuthorizationContext(new AyasExecutionAuthorizationStore());
+    const issued = context.firewall.issue(validation.request);
+    if (!issued.allowed) return denied(validation.request.action, "authorization", issued.reason, issued.decision, Date.now() - started);
+    const admission = context.firewall.admit(issued.lease, validation.request);
+    if (!admission.allowed) return denied(validation.request.action, "authorization", admission.reason, admission.decision, Date.now() - started);
+    authorizationId = admission.authorizationId;
+    admittedRequest = admission.request;
+  } catch {
+    return denied(validation.request.action, "authorization", "AYAS_ACTION_AUTHORIZATION_FAILED", "DENY", Date.now() - started);
+  }
+
+  try {
+    const result = await withTimeout(executor(admittedRequest), validation.spec.maxDurationMs, validation.request.action);
+    let auditFailure: "AYAS_ACTION_AUDIT_SETTLE_FAILED" | undefined;
+    try { context.store.settle(authorizationId, { ok: true, resultDigest: crypto.createHash("sha256").update(JSON.stringify(result)).digest("hex") }); }
+    catch { auditFailure = "AYAS_ACTION_AUDIT_SETTLE_FAILED"; }
+    return { executed: true, action: validation.request.action, result, durationMs: Date.now() - started, ...(auditFailure ? { auditFailure } : {}) };
   } catch (error) {
+    // Only a closed code is persisted, never an arbitrary tool/error payload or secret.
+    try { context.store.settle(authorizationId, { ok: false, failureReason: error instanceof AyasActionValidationError ? "TOOL_INPUT_DENIED" : "EXECUTOR_FAILED" }); }
+    catch { /* durable consumed record still proves admission; no replay or authority recovery */ }
     if (error instanceof AyasActionValidationError) {
       return denied(validation.request.action, "safety", error.reasonCode, error.message, Date.now() - started);
     }

@@ -145,8 +145,8 @@ export class AyasExecutionAuthorizationStore {
     }
     const createdAt = this.now();
     const requestDigest = sha256(descriptor.canonical);
-    const executionId = "exec-" + sha256(requestDigest + "|" + createdAt.toISOString()).slice(0, 24);
     const authorizationId = "authz-" + crypto.randomUUID();
+    const executionId = "exec-" + sha256(requestDigest + "|" + createdAt.toISOString() + "|" + authorizationId).slice(0, 24);
     const record: AyasExecutionAuthorizationRecord = {
       schemaVersion: "1",
       authorizationId,

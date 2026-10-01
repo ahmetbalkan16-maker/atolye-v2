@@ -1,3 +1,4 @@
+import { withAyasActionRuntimeFixture } from "./helpers/ayas-action-runtime-fixture";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -24,6 +25,18 @@ function proposal(workspaceId: string, filePath: string, before: string, after: 
 function approve(service: ReturnType<typeof createAyasGuidedRepairService>, value: AyasRepairProposal, turn: string) { return service.approve(value, { proposalId: value.proposalId, proposalFingerprint: value.proposalFingerprint, issueFingerprint: value.issueFingerprint, workspaceId: value.workspaceId, approvedByUser: true, userTurnId: turn, currentTurnId: turn }); }
 
 async function main() {
+  for (const auditFailed of [false, true]) await scenario(`authority/audit refusal stops without retry even with continuation flag: ${auditFailed}`, async () => {
+    let calls = 0;
+    const workflow = createAyasDeveloperWorkflow({ kind: "developer", goal: "audit must hold", steps: [
+      { id: "first", kind: "read", request: request("inspect-repository-status"), expectedEvidence: "status", allowAfterValidationFailure: true },
+      { id: "second", kind: "read", request: request("inspect-repository-status"), expectedEvidence: "status" },
+    ] });
+    await runAyasDeveloperWorkflow(workflow, { runReadOnlyAction: async () => {
+      calls++; return auditFailed ? { executed: true, action: "inspect-repository-status", durationMs: 0, auditFailure: "AYAS_ACTION_AUDIT_SETTLE_FAILED", result: { action: "inspect-repository-status", write: false, summary: "fixture", data: {} } }
+        : { executed: false, action: "inspect-repository-status", stage: "authorization", reason: "AYAS_FIREWALL_REVOKED", detail: "DENY", durationMs: 0 };
+    }, applyRepair: async () => { throw new Error("no repair may run"); } });
+    check(workflow.state === "failed", "workflow fails closed"); check(calls === 1, "no retry or next step");
+  });
   await scenario("A-E: Graphify diagnosis → authorization pause → failed validation re-analysis → second authorized success", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-developer-workflow-"));
     try {
@@ -129,4 +142,4 @@ async function main() {
   console.log(`AYAS developer workflow smoke: PASS (${scenarios} scenarios / ${assertions} assertions)`);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-developer-workflow", scenarios, assertions }));
 }
-void main();
+withAyasActionRuntimeFixture(main);

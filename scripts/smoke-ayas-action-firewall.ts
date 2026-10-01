@@ -7,7 +7,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { createAyasActionFirewall } from "../src/lib/ayas/execution/AyasActionFirewall";
 import { AyasExecutionAuthorizationStore, AyasExecutionAuthorizationError } from "../src/lib/ayas/execution/AyasExecutionAuthorization";
-import { isAyasCapabilityScope, type AyasCapabilityScope } from "../src/lib/ayas/execution/AyasCapabilityScope";
+import { ayasCapabilityRequestDigest, canonicalAyasCapabilityScope, isAyasCapabilityScope, type AyasCapabilityScope } from "../src/lib/ayas/execution/AyasCapabilityScope";
 import { validateAyasExecutionRequest } from "../src/lib/ayas/execution/AyasExecutionPolicy";
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-firewall-"));
@@ -39,6 +39,11 @@ async function main() {
     assert.equal(record.capabilityScope?.resource.platform, "LOCAL");
     const admitted = firewall.admit(lease, raw); assert.ok(admitted.allowed); assert.equal(admitted.decision, "ALLOW_READ");
     assert.equal(store.read(admitted.authorizationId).state, "consumed");
+  });
+  await scenario("same request and clock still produce unique audit execution identities", () => {
+    const { store, firewall } = setup(); issue(firewall); issue(firewall);
+    const records = store.list(); assert.equal(records.length, 2);
+    assert.notEqual(records[0]!.executionId, records[1]!.executionId);
   });
   await scenario("process validation is bounded local, not pure read", () => {
     const { firewall } = setup(); const input = { ...raw, action: "run-developer-validation", plan: { validationId: "typescript" } };
@@ -105,6 +110,17 @@ async function main() {
     assert.equal(firewall.admit(lease, raw).allowed, true);
     fs.writeFileSync(authFile(dir, original.authorizationId), JSON.stringify(original));
     assert.equal(firewall.admit(lease, raw).allowed, false);
+  });
+  for (const changed of [
+    { ...raw, plan: { filePath: "src/other.ts" } },
+    { ...raw, action: "run-developer-validation", plan: { validationId: "typecheck" } },
+  ]) await scenario("recomputed persisted digests cannot widen the server-captured lease", () => {
+    const { firewall, store, dir } = setup(); const lease = issue(firewall); const record = store.list()[0]!;
+    const target = request(changed); const requestDigest = ayasCapabilityRequestDigest(target);
+    const scope: AyasCapabilityScope = { ...record.capabilityScope!, capabilities: [target.action], resource: { ...record.capabilityScope!.resource, requestDigest }, classification: target.action === "run-developer-validation" ? "BOUNDED_LOCAL" : "READ" };
+    const capabilityScopeDigest = crypto.createHash("sha256").update(canonicalAyasCapabilityScope(scope)).digest("hex");
+    fs.writeFileSync(authFile(dir, record.authorizationId), JSON.stringify({ ...record, action: target.action, plan: target.plan, requestDigest, capabilityScope: scope, capabilityScopeDigest }));
+    assert.equal(firewall.admit(lease, changed).allowed, false); assert.equal(store.read(record.authorizationId).state, "granted");
   });
   await scenario("revocation after admission remains revoked when outcome settles", () => {
     const { firewall, store } = setup(); const lease = issue(firewall); const result = firewall.admit(lease, raw); assert.ok(result.allowed);

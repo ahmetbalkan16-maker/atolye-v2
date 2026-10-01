@@ -1,3 +1,4 @@
+import { withAyasActionRuntimeFixture } from "./helpers/ayas-action-runtime-fixture";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -455,7 +456,7 @@ async function main(): Promise<void> {
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-unified-trace", scenarios: passed }));
 }
 
-main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => {
+withAyasActionRuntimeFixture(main).catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => {
   const temp = path.resolve(os.tmpdir()) + path.sep;
   for (const root of roots) if (path.resolve(root).startsWith(temp)) fs.rmSync(root, { recursive: true, force: true });
 });

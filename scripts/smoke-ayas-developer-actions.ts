@@ -1,3 +1,4 @@
+import { withAyasActionRuntimeFixture } from "./helpers/ayas-action-runtime-fixture";
 import assert from "node:assert/strict";
 import { runAyasReadOnlyAction } from "../src/lib/ayas/execution/AyasActionRuntime";
 
@@ -46,4 +47,4 @@ async function main() {
   console.log(`AYAS developer actions smoke: PASS (${assertions} assertions)`);
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-developer-actions", assertions }));
 }
-void main();
+withAyasActionRuntimeFixture(main);

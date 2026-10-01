@@ -1,3 +1,4 @@
+import { withAyasActionRuntimeFixture } from "./helpers/ayas-action-runtime-fixture";
 /**
  * AYAS Schema-Bound Workflow Planner smoke suite.
  *
@@ -203,7 +204,7 @@ async function main() {
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-workflow-planner", scenarios: count }));
 }
 
-main().catch((error) => {
+withAyasActionRuntimeFixture(main).catch((error) => {
   console.error("AYAS workflow planner smoke FAILED:", error);
   process.exitCode = 1;
 });
