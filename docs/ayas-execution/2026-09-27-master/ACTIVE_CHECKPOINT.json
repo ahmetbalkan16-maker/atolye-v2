@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "677853eaf710faf355627dd794b2a1e73c136766",
-  "currentHead": "677853eaf710faf355627dd794b2a1e73c136766",
+  "lastGreenHead": "af91b8e62121d741f3b174734f9a65a64b18d6f4",
+  "currentHead": "af91b8e62121d741f3b174734f9a65a64b18d6f4",
   "stage": "STAGE_15D",
-  "subtask": "15D.5b-guided-repair-common-firewall-and-durable-audit-binding",
+  "subtask": "15D.6-dormant-write-and-remaining-read-seam-coverage",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -137,11 +137,19 @@
     "15D.3-legacy-read-bridge-common-guard",
     "15D.4a-owner-session-and-current-decision-proof",
     "15D.4b-owner-reservation-journal-lease-binding",
-    "15D.5a-original-repair-approval-proof"
+    "15D.5a-original-repair-approval-proof",
+    "15D.5b-repair-common-firewall-and-durable-audit"
   ],
   "currentFiles": [
+    "src/lib/ayas/execution/AyasActionFirewall.ts",
+    "src/lib/ayas/execution/AyasActionRuntime.ts",
+    "src/lib/ayas/execution/AyasCapabilityScope.ts",
+    "src/lib/ayas/execution/AyasExecutionAuthorization.ts",
     "src/lib/ayas/execution/AyasGuidedRepair.ts",
-    "scripts/smoke-ayas-repair-approval-proof.ts"
+    "src/lib/ayas/execution/AyasExecutionAuditContext.ts",
+    "scripts/smoke-ayas-owner-capability-firewall.ts",
+    "scripts/smoke-ayas-repair-approval-proof.ts",
+    "scripts/smoke-ayas-workflow-store.ts"
   ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
@@ -207,15 +215,18 @@
     "TypeScript PASS; changed-file lint0 warnings; full lint0 errors/13 existing warnings; diff PASS; Graphify PARTIAL9/semantic pending, nodes16118 links46739, anomalies0",
     "15D.5a repair approval proof19 adversarial scenarios PASS (original receipt, JSON/spread/prototype/fabricated ID, fresh Node restart, service/root isolation, TTL/clock/revoke, junction/ADS, snapshot rollback and revoked remediation)",
     "guided repair25 assertions +5 productE2E; durability8; developer workflow11/38; controlled improvement7; recovery15 PASS",
-    "TypeScript/changed lint/diff PASS; Graphify current PARTIAL9/semantic pending, nodes16131/links46773, anomalies0"
+    "TypeScript/changed lint/diff PASS; Graphify current PARTIAL9/semantic pending, nodes16131/links46773, anomalies0",
+    "15D.5b repair proof/common audit26 TEMP scenarios PASS: mandatory durable grant/consume before patch, short original TTL, exact scope/class/cost, grant/consume IO zero writes/validators, outcome IO bounded rollback, two bounded attempts same approval/expiry, expired remediation no renewal",
+    "lease49/read dispatch12/legacy bridge12/owner31 PASS; guided repair25assertions+5productE2E/durability8/workflow11scenarios38assertions/store17/recovery15/controlledimprovement7 PASS",
+    "TypeScript and changed-file lint PASS; diff PASS; Graphify PARTIAL9/semantic pending,16139nodes46805links, anomalies0"
   ],
   "graphify": {
-    "head": "3b59c32f2a66b9c2ba0d7016ee9ef8ad306a1403",
-    "testedSourcePacket": "677853eaf710faf355627dd794b2a1e73c136766",
+    "head": "2972426f06227294f4c9cbf721d58b21e69b3e95",
+    "testedSourcePacket": "af91b8e62121d741f3b174734f9a65a64b18d6f4",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 16131,
-    "edges": 46773,
+    "nodes": 16139,
+    "edges": 46805,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
@@ -229,8 +240,8 @@
     "External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority.",
     "OWNER_DECISION for any local-coding re-qualification: define a numeric qualification threshold; and/or pin a different local model or engine; and/or allow GPU passthrough into the rootless sandbox. Not a blocker for Stage 15B."
   ],
-  "nextAction": "15D.5b: extend the SAME firewall owner scope data contract for the existing guided-repair action, preserving exact physical workspace/files/operations/validation/bounds, original approval expiry and current user-turn identity. Derive proof only from private original repair receipt; add mandatory pre-effect audit using the existing journal, with trusted TEMP context for every test. One owner-approved bounded remediation may reuse its existing scope/expiry without an authority renewal or replay. Then dormant write bridge, durable/direct-context seams and full15D closure before15E. NO PUSH.",
-  "updatedAt": "2026-10-01T14:19:25.120Z",
+  "nextAction": "15D.6 inspect dormant bridge write: default writeActionsEnabled=false and no production callers; enabled legacy branch still only consumes generic request grant, so common owner/resource scope is outstanding. Reuse existing owner/production primitives or fail closed REQUIRE_OWNER; do not activate pipeline/publication/financial flows. Then bind the one approved durable Graphify collector start/recovery and direct product catalogue/self-heal reads, preserving existing registered policies. Standalone repair validation and any other actual adapters need explicit mapping. Close15D only after full green coverage, then auto15E. NO PUSH.",
+  "updatedAt": "2026-10-01T14:41:07.032Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -312,7 +323,7 @@
     "ROADMAP.md"
   ],
   "localClosure": {
-    "sourcePacketCommit": "677853eaf710faf355627dd794b2a1e73c136766",
+    "sourcePacketCommit": "af91b8e62121d741f3b174734f9a65a64b18d6f4",
     "push": false,
     "documentationOnlyClosure": true,
     "headSemantics": "Full tested source-packet HEAD. The checkpoint documentation commit descends from it; resolve actual current HEAD with git rev-parse HEAD. Per-machine final Graphify metadata is not committed."
@@ -363,12 +374,19 @@
   },
   "headSemantics": "Full tested source-packet HEAD. The checkpoint documentation commit descends from it; resolve actual current HEAD with git rev-parse HEAD. Per-machine final Graphify metadata is not committed.",
   "stage15D": {
-    "state": "OWNER_RESERVATION_GREEN_REMAINING_SEAMS_PENDING",
-    "sourcePacketCommit": "677853eaf710faf355627dd794b2a1e73c136766",
+    "state": "READ_OWNER_REPAIR_GREEN_REMAINING_SEAMS_PENDING",
+    "sourcePacketCommit": "af91b8e62121d741f3b174734f9a65a64b18d6f4",
     "inspectionComplete": true,
     "sourceChanges": [
+      "src/lib/ayas/execution/AyasActionFirewall.ts",
+      "src/lib/ayas/execution/AyasActionRuntime.ts",
+      "src/lib/ayas/execution/AyasCapabilityScope.ts",
+      "src/lib/ayas/execution/AyasExecutionAuthorization.ts",
       "src/lib/ayas/execution/AyasGuidedRepair.ts",
-      "scripts/smoke-ayas-repair-approval-proof.ts"
+      "src/lib/ayas/execution/AyasExecutionAuditContext.ts",
+      "scripts/smoke-ayas-owner-capability-firewall.ts",
+      "scripts/smoke-ayas-repair-approval-proof.ts",
+      "scripts/smoke-ayas-workflow-store.ts"
     ],
     "notes": "03_STAGE15_BASE/hardening/15D/IMPLEMENTATION_NOTES.md",
     "tests": [
@@ -391,16 +409,18 @@
       "TypeScript PASS; changed-file lint0 warnings; full lint0 errors/13 existing warnings; diff PASS; Graphify PARTIAL9/semantic pending, nodes16118 links46739, anomalies0",
       "15D.5a repair approval proof19 adversarial scenarios PASS (original receipt, JSON/spread/prototype/fabricated ID, fresh Node restart, service/root isolation, TTL/clock/revoke, junction/ADS, snapshot rollback and revoked remediation)",
       "guided repair25 assertions +5 productE2E; durability8; developer workflow11/38; controlled improvement7; recovery15 PASS",
-      "TypeScript/changed lint/diff PASS; Graphify current PARTIAL9/semantic pending, nodes16131/links46773, anomalies0"
+      "TypeScript/changed lint/diff PASS; Graphify current PARTIAL9/semantic pending, nodes16131/links46773, anomalies0",
+      "15D.5b repair proof/common audit26 TEMP scenarios PASS: mandatory durable grant/consume before patch, short original TTL, exact scope/class/cost, grant/consume IO zero writes/validators, outcome IO bounded rollback, two bounded attempts same approval/expiry, expired remediation no renewal",
+      "lease49/read dispatch12/legacy bridge12/owner31 PASS; guided repair25assertions+5productE2E/durability8/workflow11scenarios38assertions/store17/recovery15/controlledimprovement7 PASS",
+      "TypeScript and changed-file lint PASS; diff PASS; Graphify PARTIAL9/semantic pending,16139nodes46805links, anomalies0"
     ],
     "liveLeaseIssued": false,
     "globalGuardBound": false,
     "ownerIssuerImplemented": false,
     "remaining": [
-      "guided repair SAME common firewall lease and mandatory durable audit (original approval proof is green)",
-      "dormant bridge write path owner guard coverage; preserve closed defaults",
+      "dormant bridge write path owner guard coverage; preserve closed defaults and reuse existing production/security authority",
       "durable activity/recovery binding without widening observer scope",
-      "direct product-context catalogue/self-heal read coverage and full actual adapter map",
+      "direct product-context catalogue/self-heal read coverage; standalone registered repair validators and complete actual adapter map",
       "complete coverage / closure audit, then automatic Stage15E"
     ],
     "knownLimits": [
@@ -411,7 +431,9 @@
       "Audit admission is durable; outcome-write failure is surfaced and prevents workflow continuation. This does not cancel an already-running adapter.",
       "Product brain smoke not run because it also reads default brain/self-heal/catalog roots; its authorization fixture wrapper compiles.",
       "Owner identity is the existing singleton shared-passcode role, not per-person attribution. The unchanged explicit local-dev auth policy remains.",
-      "Owner capability journal is audit evidence only; existing reservation and authority lock are mandatory. It is not keyed/root authenticity and never restores live authority."
+      "Owner capability journal is audit evidence only; existing reservation and authority lock are mandatory. It is not keyed/root authenticity and never restores live authority.",
+      "Guided-repair journal marks baseHead as NOT_APPLICABLE_REPAIR_WORKSPACE; it pins physical workspace and patch precondition/digest rather than fabricating a Git commit for non-Git workspaces.",
+      "Audit destination context is trusted server logging data, not an approval or resource selector from model/tool input. All affected repair tests inherit TEMP audit context."
     ],
     "packetCommits": {
       "foundation": "2d621626edb2fbc0f8cd1ed2b552b392e6d93c48",
@@ -419,7 +441,8 @@
       "legacyReadBridge": "e28b54cc643b87fad4d01c6476197a3c1b2fed64",
       "ownerProof": "19c9e944003861081bb3f2bec074c1c628dae1d5",
       "ownerReservationLease": "2f4168fb48d5166e851fe37c621b7a71f0a37f75",
-      "repairProof": "677853eaf710faf355627dd794b2a1e73c136766"
+      "repairProof": "677853eaf710faf355627dd794b2a1e73c136766",
+      "repairCommonLease": "af91b8e62121d741f3b174734f9a65a64b18d6f4"
     },
     "readRuntimeGuardBound": true,
     "legacyReadBridgeGuardBound": true,
@@ -428,7 +451,8 @@
     "ownerReservationLeaseBound": true,
     "ownerIdentity": "shared-passcode-owner: existing singleton app owner role; exact current decision ID is delegation identity. No named user accounts or invented person.",
     "repairOriginalApprovalProofBound": true,
-    "repairCommonFirewallBound": false
+    "repairCommonFirewallBound": true,
+    "repairDurableAuditBound": true
   },
   "pushPolicy": {
     "state": "NO_PUSH",

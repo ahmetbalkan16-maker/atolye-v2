@@ -1,3 +1,8 @@
+## 2026-10-01 — AYAS Stage15D.5b guarded repair audit
+
+- Bind exact repair scope to the SAME firewall and existing execution journal; persist grant/consume before patch and preserve original approval expiry across bounded remediation. Trusted TEMP audit context is shared with read tests.
+- Repair26 and affected regressions PASS; restart fixture verifies both original-receipt denial and stale precondition under fresh owner approval. Remaining write/durable/direct-context coverage keeps15D open. NO PUSH.
+
 ## 2026-10-01 — AYAS Stage15D.5a repair approval proof
 
 - Require original immutable scoped repair receipts from the existing user-turn approval primitive; enforce task/workspace/TTL/revoke/replay and reject reparse/ADS targets. Snapshot patches for reliable rollback and stop revoked remediation.

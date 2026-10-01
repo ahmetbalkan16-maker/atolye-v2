@@ -1,3 +1,9 @@
+# AYAS MASTER CURRENT — 15D.5b GREEN / 15D.6 NEXT — 2026-10-01
+
+Tested source af91b8e62121d741f3b174734f9a65a64b18d6f4 plus documentation descendant; resolve actual HEAD. Guided repair is bound to the SAME common firewall and existing durable journal before patch/validation, using its original receipt and expiry. One bounded remediation keeps the same approval/scope/expiry. Repair26 / lease49 / read12 / bridge12 / owner31 and affected regressions PASS; TypeScript/lint/diff PASS. Graphify current PARTIAL9/semantic pending, anomalies0.
+
+Stage15D stays IN_PROGRESS/globalGuardBound=false. Next15D.6 dormant bridge write owner/resource guard, approved durable collector start/recovery, direct product catalogue/self-heal and standalone registered validator coverage; full actual adapter audit precedes closure and automatic15E. Detailed ACTIVE_CHECKPOINT is authoritative. NO PUSH without new explicit owner approval; prior36fa deviation recorded, no reset/force/history rewrite. PC health/on-demand runtime unchanged; no model/container activation.
+
 # AYAS MASTER CURRENT — 15D.5a GREEN / 15D.5b NEXT — 2026-10-01
 
 Tested source 677853eaf710faf355627dd794b2a1e73c136766 plus documentation descendant; resolve actual HEAD. Guided repair requires the original immutable receipt from its existing user-turn approval primitive, bound to physical workspace/service and valid TTL; JSON/restart/revoke/replay fail closed. Proof19 and existing repair/durability/workflow/recovery regressions PASS; TypeScript/lint/diff PASS. Graphify current PARTIAL9/semantic pending, anomalies0.
