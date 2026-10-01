@@ -2,11 +2,11 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "1d42c4e8f3a182f12604508749dc7f1015800df2",
-  "currentHead": "1d42c4e8f3a182f12604508749dc7f1015800df2",
+  "lastGreenHead": "25a08cba5a509c4ed494a1d1775ffd4b2248560e",
+  "currentHead": "25a08cba5a509c4ed494a1d1775ffd4b2248560e",
   "stage": "STAGE_15F",
-  "subtask": "15F.5-reliability-SLO-counters",
-  "status": "IN_PROGRESS",
+  "subtask": "15F-closed-source-implementation-live-certification-pending",
+  "status": "CLOSED_GREEN",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -93,7 +93,8 @@
     "STAGE_15B",
     "STAGE_15C",
     "STAGE_15D",
-    "STAGE_15E"
+    "STAGE_15E",
+    "STAGE_15F"
   ],
   "completedSubtasks": [
     "canonical-package-import",
@@ -156,7 +157,9 @@
     "15F.2-durable-operation-evidence",
     "15F.R-repair-preexisting-red-security-smokes",
     "15F.3-telemetry-live-state-authorization-compaction",
-    "15F.4-eval-governance-regression-manifest"
+    "15F.4-eval-governance-regression-manifest",
+    "15F.5-reliability-SLO-counters",
+    "15F-closure-source-GREEN-live-uncertified"
   ],
   "currentFiles": [],
   "lastGreenTests": [
@@ -258,22 +261,28 @@
     "model router 22; firewall closure 12, original 8 surfaces/41 modules",
     "complete 69 suite TEMP baseline PASS_WITH_KNOWN_LIMITATIONS",
     "three representative suites x three trials",
-    "TypeScript PASS; changed lint 0; full lint 0 errors/13 existing warnings; diff check PASS"
+    "TypeScript PASS; changed lint 0; full lint 0 errors/13 existing warnings; diff check PASS",
+    "Reliability SLO 22 TEMP scenarios PASS",
+    "Reproducible SLO mutation controls 9/9 caught",
+    "Complete declared 69 suite isolated TEMP baseline PASS_WITH_KNOWN_LIMITATIONS, unexpected failures 0",
+    "Eval governance 10 and mutations 8/8 PASS",
+    "Existing telemetry/state/compaction 23 PASS",
+    "TypeScript PASS; changed lint PASS; full lint 0 errors/13 existing warnings; diff check PASS"
   ],
   "graphify": {
-    "head": "76aa4b1f0238e1cbaf3accef0558ee78325961b3",
-    "testedSourcePacket": "1d42c4e8f3a182f12604508749dc7f1015800df2",
+    "head": "ea252cd9b57d651a178ef36aa5e59b0946cb1b75",
+    "testedSourcePacket": "25a08cba5a509c4ed494a1d1775ffd4b2248560e",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 16439,
-    "edges": 47498,
+    "nodes": 16474,
+    "edges": 47594,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Precommit source worktree covered at baseline source HEAD. Final exact HEAD refresh is required after this documentation commit before 15F.5 source mutation; actual Git/status wins."
+    "headSemantics": "Precommit full AST covers tested 15F.5 worktree. Exact final HEAD refresh follows this documentation commit; per-machine graph metadata untracked; actual Git/status wins."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -281,8 +290,8 @@
     "OWNER_DECISION for any local-coding re-qualification: define a numeric qualification threshold; and/or pin a different local model or engine; and/or allow GPU passthrough into the rootless sandbox. Not a blocker for Stage 15B.",
     "OWNER_CALIBRATION (qualification only, not implementation blocker): review eval task/grader definitions against human judgement before any model qualification/promotion."
   ],
-  "nextAction": "15F.5: five reliability SLO counters with explicit measured/unknown coverage, then 15F closure and 15G. NO PUSH. Do not infer global SLO zero from empty/unavailable evidence, old base HEAD or expired unsettled leases.",
-  "updatedAt": "2026-10-01T19:54:57.387Z",
+  "nextAction": "STOP_AFTER_STAGE15F_BY_USER: 15F closure/report only. Do not start Stage 15G until a new explicit user instruction. Canonical next stage is 15G, NOT_STARTED. NO PUSH.",
+  "updatedAt": "2026-10-01T20:32:41.441Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -364,7 +373,7 @@
     "ROADMAP.md"
   ],
   "localClosure": {
-    "sourcePacketCommit": "1d42c4e8f3a182f12604508749dc7f1015800df2",
+    "sourcePacketCommit": "25a08cba5a509c4ed494a1d1775ffd4b2248560e",
     "push": false,
     "documentationOnlyClosure": true,
     "headSemantics": "Full tested source-packet HEAD. The checkpoint documentation commit descends from it; resolve actual current HEAD with git rev-parse HEAD. Per-machine final Graphify metadata is not committed."
@@ -395,6 +404,11 @@
       "stage": "STAGE_15E",
       "status": "CLOSED_GREEN",
       "closingCommit": "b05283a7ef2a7c20b527a55cb3972a5893ebb248"
+    },
+    {
+      "stage": "STAGE_15F",
+      "status": "CLOSED_GREEN_SOURCE_IMPLEMENTATION_LIVE_UNCERTIFIED",
+      "closingCommit": "25a08cba5a509c4ed494a1d1775ffd4b2248560e"
     }
   ],
   "stage15C": {
@@ -582,7 +596,7 @@
     ]
   },
   "stage15F": {
-    "state": "IN_PROGRESS",
+    "state": "CLOSED_GREEN",
     "openedOn": "2026-10-01",
     "openedAtHead": "b05283a7ef2a7c20b527a55cb3972a5893ebb248",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md, STAGE 15F; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md, STAGE 15F",
@@ -598,31 +612,37 @@
       "durableOperationEvidence": "874340f27c85340b9d1ccedfe8ab9587e114114d",
       "repairedRedSecuritySmokes": "feb18171e0f12e078cdaff812c3041ff9d3f68fb",
       "telemetryLiveStateCompaction": "e0d10f2d1e6e55b3171c0e757482233e96075ff3",
-      "evalGovernance": "1d42c4e8f3a182f12604508749dc7f1015800df2"
+      "evalGovernance": "1d42c4e8f3a182f12604508749dc7f1015800df2",
+      "reliabilitySlo": "25a08cba5a509c4ed494a1d1775ffd4b2248560e"
     },
     "done": [
       "15F.1 free text kept out of the durable authorization record",
       "15F.2 durable privacy-bounded evidence stream from traces and leases, with retention by day file",
       "15F.R three pre-existing red security smokes repaired without weakening them (finding F11 fixed)",
       "15F.3 per-task/tool telemetry, read-only operational state and operator-only locked evidence-first compaction",
-      "15F.4 versioned eval manifest, full 69 suite baseline, bounded repeated trials and historical evaluator provenance"
+      "15F.4 versioned eval manifest, full 69 suite baseline, bounded repeated trials and historical evaluator provenance",
+      "15F.5 five scoped reliability SLO counters and common callback regression refusal"
     ],
-    "remaining": [
-      "15F.5 reliability SLO counters",
-      "closure"
-    ],
+    "remaining": [],
     "knownLimits": [
       "The audit record keeps a short ASCII code-style label verbatim (up to 80 characters); a model-written intent of that shape is not digested.",
       "Evidence is written at trace finish; a process killed mid-turn leaves no trace evidence for that turn (its leases remain in the authorization store).",
       "The chat route's sink takes effect when the Next server is rebuilt and restarted.",
       "Retention exists as a function and is not run by any daemon.",
       "Authorization/evidence enumeration reads all records in the selected stores; output lists and telemetry row count are bounded. No daemon schedules compaction. Unsettled consumed leases are kept indefinitely for review and possible late settlement.",
-      "Eval definition owner calibration pending; no model grader or lifecycle qualification; full v3 baseline only plus equivalent canonical v4 EOL/focused evidence; k=3 sampled three representative suites only."
+      "Eval definition owner calibration pending; no model grader or lifecycle qualification; full v3 baseline only plus equivalent canonical v4 EOL/focused evidence; k=3 sampled three representative suites only.",
+      "Counts cover only the explicitly described journals/receipts, not arbitrary filesystem or external effects",
+      "Callback regression report is not an independent grader attestation; empty historical reports stay UNKNOWN",
+      "Journal/evidence digests detect drift but are not keyed root authenticity",
+      "Existing journals/authorizations are scanned in full; snapshots are independent, not cross-store transactions",
+      "Compacted admissions and disappeared entire historical stores limit coverage; accepted-task correlation does not prove universal task retention",
+      "No external writer receipt adapter, live SLO certification, owner/human eval calibration, model grading or model promotion",
+      "No live compaction or server/observer restart performed; new runtime code takes effect on the next owner-managed load"
     ],
     "evalGovernance": {
       "path": "EVAL_MANIFEST.json",
-      "version": "15F.4-v4",
-      "digest": "6fb98b0a979e47454ab3d11ce5e252b34e2ffbc12c94e286e4b862fae9e4670e",
+      "version": "15F.4-v5",
+      "digest": "0cd4c0d1d5cf5a216ca6546fa55c893e86b7fdd3414db88b68504f8577f9b53b",
       "suites": 69,
       "regression": 62,
       "capability": 6,
@@ -631,6 +651,20 @@
       "review": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
       "modelGrader": "NONE"
     },
-    "evalEvidence": "03_STAGE15_BASE/hardening/15F/15F4_RESULT.json"
+    "evalEvidence": "03_STAGE15_BASE/hardening/15F/15F4_RESULT.json",
+    "closedOn": "2026-10-01",
+    "closingCommit": "25a08cba5a509c4ed494a1d1775ffd4b2248560e",
+    "closure": "03_STAGE15_BASE/hardening/15F/CLOSURE.md",
+    "globalSloCertified": false,
+    "evalCalibration": "PENDING_OWNER",
+    "fullBaseline": "03_STAGE15_BASE/hardening/15F/15F5_FULL_BASELINE.json",
+    "sloEvidence": "03_STAGE15_BASE/hardening/15F/15F5_RESULT.json"
+  },
+  "executionControl": {
+    "state": "STOP_AFTER_STAGE15F_BY_USER",
+    "requestedAt": "2026-10-01T20:32:41.441Z",
+    "userInstruction": "15F yi bitir rapor ver 15G ye geçme",
+    "nextCanonicalStage": "STAGE_15G",
+    "startNextStage": false
   }
 }

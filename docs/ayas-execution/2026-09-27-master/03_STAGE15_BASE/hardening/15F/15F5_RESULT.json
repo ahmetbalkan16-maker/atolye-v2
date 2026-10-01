@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "1",
+  "packet": "15F.5",
+  "implementationStatus": "CLOSED_GREEN",
+  "sourcePacketCommit": "25a08cba5a509c4ed494a1d1775ffd4b2248560e",
+  "recordedAt": "2026-10-01T20:32:41.441Z",
+  "files": [
+    {
+      "file": "src/lib/ayas/observability/AyasReliabilitySlo.ts",
+      "sha256": "c8371106eec57bf8cdf8f26de9e4d801384b40952562c3717fa1321d38df8bf6"
+    },
+    {
+      "file": "src/lib/ayas/observability/AyasReliabilityState.ts",
+      "sha256": "dab3f245337754cce6feb13637823ce91cec6a339e4dc48ef72fe5ed69e58c0a"
+    },
+    {
+      "file": "src/lib/ayas/observability/AyasOperationalState.ts",
+      "sha256": "fde5dcd8ae9ff3630f7b067b43b7046bc7bb981793b36a99bb0586c9ae212164"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasExecutionJournal.ts",
+      "sha256": "4868f4e1319b1e93afecc1983ba677bfdd8d876d90b898683f05cb9cb3401309"
+    },
+    {
+      "file": "src/lib/brain/autonomy/AyasAutonomyDaemon.ts",
+      "sha256": "b4d11f7d3dc347f463a235a8db2dc5b342b81b4c3026cadc4ad2e62013203cc8"
+    },
+    {
+      "file": "scripts/smoke-ayas-reliability-slo.ts",
+      "sha256": "7d71ccde03739da0ff5a2dbc1578deb31528fedbbce7de7b78604074cbf00519"
+    },
+    {
+      "file": "scripts/smoke-ayas-reliability-slo-mutations.ts",
+      "sha256": "e41feae2e1fc146825483fb3d460e0abe160260856c3d0d4c75d21d5039b0e30"
+    },
+    {
+      "file": "scripts/smoke-ayas-durable-task-recovery.ts",
+      "sha256": "491a476ca96a96b4e1d2fdff9c7e3df8d43717fcea1ab771dbc9abbb6cdc1e73"
+    }
+  ],
+  "implementation": [
+    "Existing execution journal stores optional closed privacy-bounded mutation/HEAD/scope/regression audit facts, preserved across success and failure phases",
+    "Pure counters distinguish BREACH, SCOPED_ZERO and UNKNOWN; globalSloCertified is always false",
+    "Independent read-only view correlates consumed durable Graphify admission with the existing task journal; expired or unsettled lease alone never means task loss",
+    "Confirmed external receipt counting contract exists; live external writer/receipt adapter remains unbound and UNKNOWN",
+    "Daemon refuses explicit FAIL or malformed callback reports before completion, snapshots callback report arrays; empty legacy reports remain compatible and unmeasured",
+    "Durable wiring guard explicitly classifies only the new read-only journal observer and checks no runtime/recovery/activity/append binding"
+  ],
+  "tests": [
+    "Reliability SLO 22 TEMP scenarios PASS",
+    "Reproducible SLO mutation controls 9/9 caught",
+    "Complete declared 69 suite isolated TEMP baseline PASS_WITH_KNOWN_LIMITATIONS, unexpected failures 0",
+    "Eval governance 10 and mutations 8/8 PASS",
+    "Existing telemetry/state/compaction 23 PASS",
+    "TypeScript PASS; changed lint PASS; full lint 0 errors/13 existing warnings; diff check PASS"
+  ],
+  "baseline": {
+    "artifact": "15F5_FULL_BASELINE.json",
+    "sha256": "56bddf9a2eef0bcf31ad5a3386b36d6339a92756e1d9fe3339673290921eed68",
+    "version": "15F.4-v5",
+    "manifestDigest": "0cd4c0d1d5cf5a216ca6546fa55c893e86b7fdd3414db88b68504f8577f9b53b",
+    "sourceBaseHead": "ea252cd9b57d651a178ef36aa5e59b0946cb1b75",
+    "sourceWorktreeDigest": "41193b531d307a9fff8fc9e9cfb4d5e2a7810522ebcc8c174e23e73c527ad037",
+    "completeDeclaredBaseline": true,
+    "suites": 69,
+    "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+    "knownLimitationSuites": [
+      "cognitive-quality"
+    ],
+    "rawCognitiveQuality": "54/55, held-out 4/5; one unchanged known limitation"
+  },
+  "liveReadOnly": {
+    "artifact": "15F5_LIVE_READONLY.json",
+    "sha256": "2287997a6b30a9bbe5b39b16f324aa78cc3579cb28dc5c54e68ea33f2f05a55d",
+    "globalSloCertified": false,
+    "legacyExecutionRecords": 44,
+    "mutationCounters": "UNKNOWN: all 44 legacy entries lack new audit fields",
+    "acceptedDurableTasksInCurrentAudit": "0 correlated admissions; UNKNOWN, not a zero task-loss certificate",
+    "externalWrites": "NOT_INSTRUMENTED; UNKNOWN"
+  },
+  "resources": {
+    "peakBaselineRamUsedPercent": 51.183901932897925,
+    "modelsStarted": 0,
+    "containersStarted": 0,
+    "externalTestNetwork": 0,
+    "cpuLoad": "UNAVAILABLE"
+  },
+  "knownLimits": [
+    "Counts cover only the explicitly described journals/receipts, not arbitrary filesystem or external effects",
+    "Callback regression report is not an independent grader attestation; empty historical reports stay UNKNOWN",
+    "Journal/evidence digests detect drift but are not keyed root authenticity",
+    "Existing journals/authorizations are scanned in full; snapshots are independent, not cross-store transactions",
+    "Compacted admissions and disappeared entire historical stores limit coverage; accepted-task correlation does not prove universal task retention",
+    "No external writer receipt adapter, live SLO certification, owner/human eval calibration, model grading or model promotion",
+    "No live compaction or server/observer restart performed; new runtime code takes effect on the next owner-managed load"
+  ],
+  "authority": {
+    "grantsAuthority": false,
+    "globalSloCertified": false,
+    "ownerCalibration": "PENDING",
+    "localCoding": "DEGRADED",
+    "push": false
+  },
+  "graphify": {
+    "precommitHead": "ea252cd9b57d651a178ef36aa5e59b0946cb1b75",
+    "nodes": 16474,
+    "links": 47594,
+    "anomalies": 0,
+    "knownPartialFiles": 9,
+    "semanticPending": true,
+    "exactFinalHeadRefresh": "Required after documentation commit; runtime Graphify files are per-machine and not tracked"
+  },
+  "continuation": {
+    "state": "STOP_AFTER_STAGE15F_BY_USER",
+    "userInstruction": "15F yi bitir rapor ver 15G ye geçme",
+    "nextCanonicalStage": "STAGE_15G",
+    "startNextStage": false
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "1",
+  "recordedAt": "2026-10-01T20:27:25.861Z",
+  "state": {
+    "version": "1",
+    "authority": "NONE",
+    "globalSloCertified": false,
+    "unauthorizedWrites": {
+      "target": 0,
+      "scope": "instrumented self-development journal; exact consumed lease and verified diff",
+      "status": "UNKNOWN",
+      "violations": null,
+      "observedViolations": 0,
+      "samples": 44,
+      "unknownSamples": 44,
+      "sourceStatus": "AVAILABLE"
+    },
+    "staleHeadMutation": {
+      "target": 0,
+      "scope": "instrumented self-development boundary HEAD at execution; not today's HEAD",
+      "status": "UNKNOWN",
+      "violations": null,
+      "observedViolations": 0,
+      "samples": 44,
+      "unknownSamples": 44,
+      "sourceStatus": "AVAILABLE"
+    },
+    "regressionGateBypass": {
+      "target": 0,
+      "scope": "recorded self-development completion versus callback regression report; grader attestation separate",
+      "status": "UNKNOWN",
+      "violations": null,
+      "observedViolations": 0,
+      "samples": 44,
+      "unknownSamples": 44,
+      "sourceStatus": "AVAILABLE"
+    },
+    "unexplainedTaskLoss": {
+      "target": 0,
+      "scope": "durable Graphify tasks with independent consumed admission record in this configured root",
+      "status": "UNKNOWN",
+      "violations": null,
+      "observedViolations": 0,
+      "samples": 0,
+      "unknownSamples": 0,
+      "sourceStatus": "AVAILABLE"
+    },
+    "duplicateExternalWrites": {
+      "target": 0,
+      "scope": "confirmed external receipts sharing one exact effect key; live adapter unbound",
+      "status": "UNKNOWN",
+      "violations": null,
+      "observedViolations": 0,
+      "samples": 0,
+      "unknownSamples": 0,
+      "sourceStatus": "NOT_INSTRUMENTED"
+    }
+  },
+  "scope": "Independent read-only current stores; no mutation; legacy entries and unbound external receipts remain UNKNOWN"
+}

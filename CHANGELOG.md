@@ -1,3 +1,8 @@
+## 2026-10-01 — AYAS Stage15F source closure
+
+- Durable privacy-bounded evidence, telemetry/read-only state, locked dry-run compaction, pinned eval governance and five scoped SLO counters completed. Common daemon refuses failed/malformed callback reports and snapshots report arrays.
+- Full 69-suite baseline PASS_WITH_KNOWN_LIMITATIONS; SLO22/mutants9; TypeScript/lint PASS. Live SLO coverage UNKNOWN and owner eval calibration pending; no model promotion or activation. User requested stop before15G. Local commits only; NO PUSH.
+
 ## 2026-10-01 — AYAS Stage15D.6a dormant write refusal
 
 - Require an actual owner capability adapter before dormant bridge write dispatch; generic grants, code switches and OPEN gates cannot authorize it. Remove the generic consume bypass; read grants always receive exact common guard.
