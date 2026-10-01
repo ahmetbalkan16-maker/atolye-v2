@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "19c9e944003861081bb3f2bec074c1c628dae1d5",
-  "currentHead": "19c9e944003861081bb3f2bec074c1c628dae1d5",
+  "lastGreenHead": "2f4168fb48d5166e851fe37c621b7a71f0a37f75",
+  "currentHead": "2f4168fb48d5166e851fe37c621b7a71f0a37f75",
   "stage": "STAGE_15D",
-  "subtask": "15D.4b-bind-owner-reservation-lease-to-existing-journal",
+  "subtask": "15D.5-guided-repair-approval-authenticity-and-common-lease-binding",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -135,13 +135,17 @@
     "15D.1-exact-scope-lease-foundation",
     "15D.2-read-dispatch-common-guard",
     "15D.3-legacy-read-bridge-common-guard",
-    "15D.4a-owner-session-and-current-decision-proof"
+    "15D.4a-owner-session-and-current-decision-proof",
+    "15D.4b-owner-reservation-journal-lease-binding"
   ],
   "currentFiles": [
-    "app/brain/actions.ts",
-    "src/lib/brain/autonomy/AyasExecutionRevalidation.ts",
-    "scripts/smoke-ayas-owner-session-admission.ts",
-    "scripts/smoke-ayas-execution-revalidation-scope-recovery.ts"
+    "src/lib/ayas/execution/AyasCapabilityScope.ts",
+    "src/lib/ayas/execution/AyasActionFirewall.ts",
+    "src/lib/brain/autonomy/AyasAutonomyDaemon.ts",
+    "src/lib/brain/autonomy/AyasExecutionJournal.ts",
+    "src/lib/brain/autonomy/AyasProposalExecutionService.ts",
+    "src/lib/brain/autonomy/AyasMicroBatchExecutionService.ts",
+    "scripts/smoke-ayas-owner-capability-firewall.ts"
   ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
@@ -201,15 +205,18 @@
     "TypeScript PASS; changed-file lint PASS; diff check PASS; Graphify current PARTIAL (9 known files), semantic pending; duplicate node/edge 0/0, dangling/self-loop 0/0",
     "15D.4a actual owner server-action guard 11 scenarios PASS; real access gate 19 PASS; revalidation/scope/recovery 37 PASS (7 additional current-decision adversarial cases)",
     "daemon 9; proposal execution service 29; micro batch execution service 13; durable approval compatibility 24; daemon authority boundary 23 PASS",
-    "TypeScript PASS; changed-file lint PASS; diff check PASS; Graphify current PARTIAL (9 known gaps), 16097 nodes / 46673 links, graph anomalies 0"
+    "TypeScript PASS; changed-file lint PASS; diff check PASS; Graphify current PARTIAL (9 known gaps), 16097 nodes / 46673 links, graph anomalies 0",
+    "15D.4b owner capability firewall 31 adversarial/TEMP integration scenarios PASS; real journal before mutation, same approval/reservation IDs, fixed owner role/decision, TTL/revoke, forged JSON, task/restart, scope drift, clock/expiry and audit failure refusals",
+    "lease49, read-dispatch12, legacy bridge12, owner session11 PASS; daemon9, journal24, authority29, reservation23, proposal execution29, micro batch13, patch artifact integration9, revalidation37, daemon boundary23 PASS",
+    "TypeScript PASS; changed-file lint0 warnings; full lint0 errors/13 existing warnings; diff PASS; Graphify PARTIAL9/semantic pending, nodes16118 links46739, anomalies0"
   ],
   "graphify": {
-    "head": "716c5ebe86f0705005334b7a872bce14fc1f161b",
-    "testedSourcePacket": "19c9e944003861081bb3f2bec074c1c628dae1d5",
+    "head": "07c90d15dcb84377b4efb45cc28aa5efe27b2508",
+    "testedSourcePacket": "2f4168fb48d5166e851fe37c621b7a71f0a37f75",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 16097,
-    "edges": 46673,
+    "nodes": 16118,
+    "edges": 46739,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
@@ -223,8 +230,8 @@
     "External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority.",
     "OWNER_DECISION for any local-coding re-qualification: define a numeric qualification threshold; and/or pin a different local model or engine; and/or allow GPU passthrough into the rootless sandbox. Not a blocker for Stage 15B."
   ],
-  "nextAction": "Bind one short-lived owner-reservation lease through the SAME action firewall, existing approval inbox/micro-batch adapter, authority lock and execution journal before the self-development callback. Owner identity must reflect the current single shared-passcode owner role and exact decision identity, never a reason prefix or invented person. No new authority store. Then guided repair/write/durable/direct-context coverage and complete 15D before 15E. NO PUSH.",
-  "updatedAt": "2026-10-01T13:44:48.222Z",
+  "nextAction": "15D.5: guided repair currently accepts a plain authorization object and proposal SHA is integrity only, not issuer proof. Reuse approveAyasRepair and conversation user-turn approval primitive; bind server-owned opaque proof/lease to the SAME global firewall, exact physical workspace/files/operations, TTL, revoke and audit BEFORE patch/validation. Preserve bounded remediation and TEMP durable recovery. Then dormant write, durable/direct-context seams; do not close15D or start15E early. NO PUSH.",
+  "updatedAt": "2026-10-01T14:02:45.881Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -306,7 +313,7 @@
     "ROADMAP.md"
   ],
   "localClosure": {
-    "sourcePacketCommit": "19c9e944003861081bb3f2bec074c1c628dae1d5",
+    "sourcePacketCommit": "2f4168fb48d5166e851fe37c621b7a71f0a37f75",
     "push": false,
     "documentationOnlyClosure": true,
     "headSemantics": "Full tested source-packet HEAD. The checkpoint documentation commit descends from it; resolve actual current HEAD with git rev-parse HEAD. Per-machine final Graphify metadata is not committed."
@@ -357,14 +364,17 @@
   },
   "headSemantics": "Full tested source-packet HEAD. The checkpoint documentation commit descends from it; resolve actual current HEAD with git rev-parse HEAD. Per-machine final Graphify metadata is not committed.",
   "stage15D": {
-    "state": "READ_DISPATCH_GREEN_REMAINING_SEAMS_PENDING",
-    "sourcePacketCommit": "19c9e944003861081bb3f2bec074c1c628dae1d5",
+    "state": "OWNER_RESERVATION_GREEN_REMAINING_SEAMS_PENDING",
+    "sourcePacketCommit": "2f4168fb48d5166e851fe37c621b7a71f0a37f75",
     "inspectionComplete": true,
     "sourceChanges": [
-      "app/brain/actions.ts",
-      "src/lib/brain/autonomy/AyasExecutionRevalidation.ts",
-      "scripts/smoke-ayas-owner-session-admission.ts",
-      "scripts/smoke-ayas-execution-revalidation-scope-recovery.ts"
+      "src/lib/ayas/execution/AyasCapabilityScope.ts",
+      "src/lib/ayas/execution/AyasActionFirewall.ts",
+      "src/lib/brain/autonomy/AyasAutonomyDaemon.ts",
+      "src/lib/brain/autonomy/AyasExecutionJournal.ts",
+      "src/lib/brain/autonomy/AyasProposalExecutionService.ts",
+      "src/lib/brain/autonomy/AyasMicroBatchExecutionService.ts",
+      "scripts/smoke-ayas-owner-capability-firewall.ts"
     ],
     "notes": "03_STAGE15_BASE/hardening/15D/IMPLEMENTATION_NOTES.md",
     "tests": [
@@ -381,16 +391,20 @@
       "TypeScript PASS; changed-file lint PASS; diff check PASS; Graphify current PARTIAL (9 known files), semantic pending; duplicate node/edge 0/0, dangling/self-loop 0/0",
       "15D.4a actual owner server-action guard 11 scenarios PASS; real access gate 19 PASS; revalidation/scope/recovery 37 PASS (7 additional current-decision adversarial cases)",
       "daemon 9; proposal execution service 29; micro batch execution service 13; durable approval compatibility 24; daemon authority boundary 23 PASS",
-      "TypeScript PASS; changed-file lint PASS; diff check PASS; Graphify current PARTIAL (9 known gaps), 16097 nodes / 46673 links, graph anomalies 0"
+      "TypeScript PASS; changed-file lint PASS; diff check PASS; Graphify current PARTIAL (9 known gaps), 16097 nodes / 46673 links, graph anomalies 0",
+      "15D.4b owner capability firewall 31 adversarial/TEMP integration scenarios PASS; real journal before mutation, same approval/reservation IDs, fixed owner role/decision, TTL/revoke, forged JSON, task/restart, scope drift, clock/expiry and audit failure refusals",
+      "lease49, read-dispatch12, legacy bridge12, owner session11 PASS; daemon9, journal24, authority29, reservation23, proposal execution29, micro batch13, patch artifact integration9, revalidation37, daemon boundary23 PASS",
+      "TypeScript PASS; changed-file lint0 warnings; full lint0 errors/13 existing warnings; diff PASS; Graphify PARTIAL9/semantic pending, nodes16118 links46739, anomalies0"
     ],
     "liveLeaseIssued": false,
     "globalGuardBound": false,
     "ownerIssuerImplemented": false,
     "remaining": [
-      "owner/write/self-development/guided repair proof and scope binding",
+      "guided repair existing explicit approval authenticity / exact scope / common lease binding",
+      "dormant bridge write path owner guard coverage; preserve closed defaults",
       "durable activity/recovery binding without widening observer scope",
-      "direct product-context catalog/self-heal adapter coverage and other actual execution seams",
-      "complete coverage/closure audit, then Stage 15E"
+      "direct product-context catalogue/self-heal read coverage and full actual adapter map",
+      "complete coverage / closure audit, then automatic Stage15E"
     ],
     "knownLimits": [
       "Revocation blocks new admission; it cannot undo an already running effect.",
@@ -398,18 +412,23 @@
       "Scope digests detect drift; no claim of filesystem/root authenticity.",
       "No authority is recovered from serialized grants after restart.",
       "Audit admission is durable; outcome-write failure is surfaced and prevents workflow continuation. This does not cancel an already-running adapter.",
-      "Product brain smoke not run because it also reads default brain/self-heal/catalog roots; its authorization fixture wrapper compiles."
+      "Product brain smoke not run because it also reads default brain/self-heal/catalog roots; its authorization fixture wrapper compiles.",
+      "Owner identity is the existing singleton shared-passcode role, not per-person attribution. The unchanged explicit local-dev auth policy remains.",
+      "Owner capability journal is audit evidence only; existing reservation and authority lock are mandatory. It is not keyed/root authenticity and never restores live authority."
     ],
     "packetCommits": {
       "foundation": "2d621626edb2fbc0f8cd1ed2b552b392e6d93c48",
       "readDispatch": "bbf7aa9c3ee3632bd122dafa91be6b7786bb6add",
       "legacyReadBridge": "e28b54cc643b87fad4d01c6476197a3c1b2fed64",
-      "ownerProof": "19c9e944003861081bb3f2bec074c1c628dae1d5"
+      "ownerProof": "19c9e944003861081bb3f2bec074c1c628dae1d5",
+      "ownerReservationLease": "2f4168fb48d5166e851fe37c621b7a71f0a37f75"
     },
     "readRuntimeGuardBound": true,
     "legacyReadBridgeGuardBound": true,
     "ownerSessionAsyncCheckFixed": true,
-    "currentDecisionRevalidated": true
+    "currentDecisionRevalidated": true,
+    "ownerReservationLeaseBound": true,
+    "ownerIdentity": "shared-passcode-owner: existing singleton app owner role; exact current decision ID is delegation identity. No named user accounts or invented person."
   },
   "pushPolicy": {
     "state": "NO_PUSH",

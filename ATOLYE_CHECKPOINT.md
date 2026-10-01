@@ -1,3 +1,9 @@
+# AYAS MASTER CURRENT — 15D.4b GREEN / 15D.5 NEXT — 2026-10-01
+
+Tested source 2f4168fb48d5166e851fe37c621b7a71f0a37f75 plus documentation descendant; resolve actual HEAD. Existing owner approval/reservation now receives an opaque exact-scope lease in the SAME firewall and existing journal/lock before self-development/micro-batch callback. No new approval engine. Owner identity is the existing shared-passcode role + exact decision; no named accounts. Owner31 / lease49 / read12 / bridge12 and affected regressions PASS; TypeScript/lint/diff PASS (full lint13existing warnings). Graphify current PARTIAL9/semantic pending, anomalies0.
+
+Stage15D remains IN_PROGRESS. Next15D.5 guided repair plain authorization authenticity/common lease binding; then dormant write, durable/direct-context coverage and complete audit before automatic15E. Detailed ACTIVE_CHECKPOINT is authoritative. NO PUSH without new explicit owner approval; prior36fa deviation retained with no reset/force/history rewrite. No model/container activation; PC health/on-demand rules unchanged.
+
 # AYAS MASTER CURRENT — 15D.4a GREEN / 15D.4b NEXT — 2026-10-01
 
 Tested source 19c9e944003861081bb3f2bec074c1c628dae1d5 plus documentation descendant; resolve actual HEAD on resume. Owner session async verification bug fixed; current APPROVE decision/hash/latest identity and reservation times now revalidated. Session11/access19/revalidation37 plus daemon/proposal/micro-batch regressions PASS; TypeScript/lint/diff PASS. Graphify current PARTIAL9/semantic pending, anomalies0.

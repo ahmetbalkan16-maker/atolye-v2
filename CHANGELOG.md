@@ -1,3 +1,8 @@
+## 2026-10-01 — AYAS Stage15D.4b owner reservation lease
+
+- Bind existing owner approvals to exact run/task/mutation/file scope and five-minute leases through the SAME firewall, journal and authority lock; durably consume before callback. Preserve approval/result/recovery and closed write defaults.
+- Owner31 adversarial/integration cases and affected regressions PASS. Guided repair/write/durable/direct-context coverage remains. Local commit only, NO PUSH.
+
 ## 2026-10-01 — AYAS Stage15D.4a owner proof correction
 
 - Await asynchronous session verification before protected owner actions; reject stale/replaced/consumed approval decisions during execution revalidation.
