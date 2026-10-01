@@ -825,7 +825,10 @@ async function main(): Promise<void> {
     // Nothing else refers to the runtime: no route, no other daemon, no autostart script, no package script.
     const modules = /AyasDurableTask(?:Recovery|Activities|Runtime|Journal)?\b|ayas-durable-task-recovery/;
     const allowed = new Set(["src/lib/brain/autonomy/AyasDurableTask.ts", "src/lib/brain/autonomy/AyasDurableTaskJournal.ts", "src/lib/brain/autonomy/AyasDurableTaskRuntime.ts", "src/lib/brain/autonomy/AyasDurableTaskRecovery.ts",
-      "src/lib/brain/autonomy/AyasDurableTaskActivities.ts", "scripts/ayas-durable-task-recovery.ts", "scripts/ayas-autonomy-daemon.ts", "scripts/smoke-ayas-durable-task-runtime.ts", "scripts/smoke-ayas-durable-task-recovery.ts"]);
+      "src/lib/brain/autonomy/AyasDurableTaskActivities.ts", "scripts/ayas-durable-task-recovery.ts", "scripts/ayas-autonomy-daemon.ts", "scripts/smoke-ayas-durable-task-runtime.ts", "scripts/smoke-ayas-durable-task-recovery.ts",
+      // The Stage 15D closure audit names these files in its static adapter map; it reads their source and imports none of them.
+      "scripts/smoke-ayas-action-firewall-closure.ts"]);
+    assert.doesNotMatch(fs.readFileSync(path.join(repo, "scripts", "smoke-ayas-action-firewall-closure.ts"), "utf8"), /from\s+["'][^"']*AyasDurableTask/);
     const importers: string[] = [];
     const walk = (dir: string): void => {
       for (const item of fs.readdirSync(path.join(repo, dir), { withFileTypes: true })) {
