@@ -55,7 +55,12 @@ export async function revalidateAyasExecution(binding: AyasExecutionBinding, dep
   }
   const proposalFiles = canonicalizeAyasExactFiles(deps.repoRoot, proposal.exactFiles);
   if (JSON.stringify(proposalFiles) !== JSON.stringify(exactFiles)) throw new AyasExecutionRevalidationError("EXACT_FILES_MISMATCH", "durable exact-file scope no longer matches authorization");
-  if (!decision || decision.proposalId !== binding.proposalId || decision.authorizationId !== binding.authorizationId || decision.finalizedAt || !decision.reservedAt) {
+  const latestDecision = [...state.decisions].reverse().find((item) => item.proposalId === binding.proposalId);
+  if (!decision || decision.decision !== "APPROVE" || decision.proposalHash !== binding.proposalHash ||
+      latestDecision?.decisionId !== decision.decisionId || decision.proposalId !== binding.proposalId ||
+      decision.authorizationId !== binding.authorizationId || decision.authorizationConsumedAt || decision.finalizedAt ||
+      !decision.reservedAt || !Number.isFinite(Date.parse(decision.decidedAt)) ||
+      !Number.isFinite(Date.parse(decision.reservedAt)) || Date.parse(decision.reservedAt) < Date.parse(decision.decidedAt)) {
     throw new AyasExecutionRevalidationError("RESERVATION_INVALID", "authorization reservation is missing, finalized, or mismatched");
   }
 }

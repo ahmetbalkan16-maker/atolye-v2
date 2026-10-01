@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { createAyasApprovalInboxStore } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
+import { createAyasApprovalInboxStore, type AyasInboxDecisionRecord } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
 import { revalidateAyasExecution, AyasExecutionRevalidationError } from "../src/lib/brain/autonomy/AyasExecutionRevalidation";
 import { canonicalizeAyasExactFiles, createAyasMutationBoundary, AyasMutationScopeError } from "../src/lib/brain/autonomy/AyasMutationScope";
 import { classifyAyasRestartRecovery } from "../src/lib/brain/autonomy/AyasExecutionRecoveryPolicy";
@@ -31,6 +31,28 @@ async function main() {
     await scenario("8 invalid reservation rejected", () => assert.rejects(() => revalidateAyasExecution({ ...a.binding, reservationId: "wrong" }, deps), /reservation/));
     await scenario("9 state change between two validations detected", async () => { let reads = 0; const changing = { ...deps, readRepository: async () => ({ head: a.binding.baseHead, clean: ++reads === 1 }) }; await revalidateAyasExecution(a.binding, changing); await assert.rejects(() => revalidateAyasExecution(a.binding, changing), /not clean/); });
     await scenario("10 callback count zero on failed second validation", async () => { let callbacks = 0; await assert.rejects(async () => { await revalidateAyasExecution(a.binding, deps); await revalidateAyasExecution(a.binding, { ...deps, readMachineHealth: async () => health("PAUSE") }); callbacks += 1; }); assert.equal(callbacks, 0); });
+    const original = a.inbox.load();
+    for (const [name, patch] of [
+      ["reservation must still be an APPROVE decision", { decision: "REJECT" }],
+      ["decision hash must match exact approved proposal", { proposalHash: "changed" }],
+      ["legacy consumed decision cannot delegate", { authorizationConsumedAt: new Date(3).toISOString() }],
+      ["invalid reservation time cannot delegate", { reservedAt: "not-a-time" }],
+      ["reservation cannot predate decision", { reservedAt: new Date(0).toISOString() }],
+      ["finalized decision cannot delegate", { finalizedAt: new Date(3).toISOString() }],
+    ] as readonly (readonly [string, Partial<AyasInboxDecisionRecord>])[]) {
+      await scenario(name, async () => {
+        fs.writeFileSync(a.inbox.stateFile, JSON.stringify({ ...original, decisions: original.decisions.map((d) => ({ ...d, ...patch })) }));
+        let callbacks = 0;
+        try { await assert.rejects(async () => { await revalidateAyasExecution(a.binding, deps); callbacks += 1; }, /reservation/); assert.equal(callbacks, 0); }
+        finally { fs.writeFileSync(a.inbox.stateFile, JSON.stringify(original)); }
+      });
+    }
+    await scenario("newer owner decision invalidates old reservation", async () => {
+      const decision = original.decisions[0]!;
+      fs.writeFileSync(a.inbox.stateFile, JSON.stringify({ ...original, decisions: [...original.decisions, { ...decision, decisionId: "ayas-decision-newer", decision: "REJECT", reservationId: undefined }] }));
+      try { await assert.rejects(() => revalidateAyasExecution(a.binding, deps), /reservation/); }
+      finally { fs.writeFileSync(a.inbox.stateFile, JSON.stringify(original)); }
+    });
   }
   await scenario("11 authorized single-file change accepted", async () => { const r = repo(); const b = await createAyasMutationBoundary(r, ["allowed.txt"]); fs.writeFileSync(path.join(r, "allowed.txt"), "new\n"); assert.deepEqual((await b.verify()).changedFiles, ["allowed.txt"]); });
   await scenario("12 authorized multi-file change accepted", async () => { const r = repo({ "a.txt": "a", "b.txt": "b" }); const b = await createAyasMutationBoundary(r, ["a.txt", "b.txt"]); fs.writeFileSync(path.join(r, "a.txt"), "A"); fs.writeFileSync(path.join(r, "b.txt"), "B"); assert.equal((await b.verify()).changedFiles.length, 2); });

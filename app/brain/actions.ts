@@ -137,7 +137,7 @@ async function requireBrainSession(): Promise<void> {
     throw new Error("brain_report_decision_unavailable");
   }
   const token = (await cookies()).get(AYAS_SESSION_COOKIE)?.value;
-  if (!verifySession(token, gate.key as string)) {
+  if (!await verifySession(token, gate.key as string)) {
     throw new Error("authentication_required");
   }
 }
