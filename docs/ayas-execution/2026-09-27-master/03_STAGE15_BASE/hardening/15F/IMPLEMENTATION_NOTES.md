@@ -29,3 +29,15 @@ F11: three security smokes red at HEAD (pre-existing). Next packet.
 - `smoke-ayas-exact-patch-safety` (23) and `smoke-ayas-exact-proposal-safety` (28) now take the reviewed baseline from commit 71f554e instead of the live or HEAD source.
 - `smoke-ayas-guarded-publication` (33): the SOURCE_ONLY scope is checked at `runGuardedAyasPublication`; an unproven source proposal is asserted to be refused at approval; the rollback scenario targets `scripts/smoke-existing-editable.ts`.
 - Observation recorded, not changed: the one-click lane can publish only proposals whose every file is on a SAFE patch path (in practice smoke and test files). A reviewed exact patch is local-execution only. This is the Stage 15.7 design and is now pinned by a scenario.
+
+## 15F.3 telemetry, live operational state and authorization compaction — GREEN
+
+Source e0d10f2d1e6e55b3171c0e757482233e96075ff3. Claude left three drafted observability modules and the authorization enumeration/removal additions uncommitted; they were retained, inspected and completed. Two defects were corrected: evidence IO failures could masquerade as an empty store, and a long-expired consumed lease could still settle after removal.
+
+- Telemetry counts each bound tool dispatch once, prefers durable lease outcomes, keeps denied/unsettled results separate from failures, reports nearest-rank p50/p95/max and bounded retry buckets, model pin mismatch and rejected evidence.
+- The operator read-only view reads each source independently, returns safe unavailable reasons on IO errors, and reports outstanding/running/lost leases, observer runs and gate state. Missing stores retain existing empty-state contracts; the default absent gate is synthetic CLOSED.
+- Compaction defaults to dry-run, is never wired to a daemon, and was never applied against the live root. Default age is seven days past expiry, with a 24-hour hard floor. Consumed/unsettled records are always kept. Under the existing mutation lock the exact record is reread, its evidence is appended/flushed/read back, and only then is it unlinked. Stale evidence or record drift refuses deletion.
+- Tests: 23 focused scenarios; 8/8 mutation negative controls in a 15-file TEMP overlay; full affected regression set, TypeScript and changed lint PASS; full lint 0 errors/13 unchanged warnings. Graphify 16400 nodes/47433 links, anomalies0, known PARTIAL9 and semantic pending. Result: 15F3_RESULT.json.
+- Limits: stores are scanned in full although output rows/lists are bounded; read-only sections are independent snapshots, not a transaction across stores; evidence hashes are not cryptographic root authenticity; indefinitely unsettled leases require operator review. No model, container, live compaction, authority expansion or push.
+
+Next 15F.4: versioned eval manifest, frozen grader identities and serial TEMP-safe baseline; then SLOs and closure.

@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "1",
+  "packet": "15F.3",
+  "status": "GREEN",
+  "sourceCommit": "e0d10f2d1e6e55b3171c0e757482233e96075ff3",
+  "resumedFrom": {
+    "head": "e91109eaf3148b969487dae794f18f2a08e865cf",
+    "lastGreenPacket": "15F.R",
+    "worktree": "one modified authorization module plus three untracked observability modules; preserved and completed",
+    "graphify": "HEAD-bound but four uncovered dirty files; refreshed before mutation"
+  },
+  "tests": {
+    "focusedScenarios": 23,
+    "mutationCaught": 8,
+    "mutationTotal": 8,
+    "evidenceScenarios": 11,
+    "firewallScenarios": 54,
+    "readDispatch": 12,
+    "legacyFirewall": 12,
+    "discoveryFirewall": 13,
+    "durableRecovery": 22,
+    "legacyBridge": 23,
+    "writeAction": 16,
+    "closure": 12,
+    "ownerCapability": 32,
+    "guidedRepairAssertions": 25,
+    "guidedRepairProductE2E": 5,
+    "storageHygiene": 11,
+    "typeScript": "PASS",
+    "changedLint": "PASS",
+    "fullLint": {
+      "errors": 0,
+      "preexistingWarnings": 13
+    }
+  },
+  "graphify": {
+    "head": "e91109eaf3148b969487dae794f18f2a08e865cf",
+    "testedSourcePacket": "e0d10f2d1e6e55b3171c0e757482233e96075ff3",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 16400,
+    "edges": 47433,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "semanticPending": true,
+    "structuralPartialFiles": 9,
+    "headSemantics": "Verified GREEN precommit AST covers the entire 15F.3 source worktree at this base HEAD; exact source commit recorded separately. Native lifecycle-only rebind does not change graph.built_from_commit, so a full refresh is required after the documentation commit before 15F.4 source mutation."
+  },
+  "resource": {
+    "totalRamKiB": 33235692,
+    "availableRamKiB": 18143412,
+    "diskFreeBytes": 130888290304,
+    "cpuLoad": "UNAVAILABLE",
+    "heavyModelStarted": false
+  },
+  "liveSideEffects": {
+    "compactionApplied": false,
+    "modelOrContainerStarted": false,
+    "push": false
+  },
+  "nextAction": "15F.4: inspect and version a reviewed eval-suite manifest separating deterministic capability, near-100% regression and frozen held-out suites. Pin scripts and graders; run the entire declared TEMP-safe baseline serially, capture failures honestly, preserve existing known limitations; support bounded multiple trials with pass@1 and pass^k. Do not change a grader just to pass or run live/provider/host-mutation suites. Then 15F.5 five reliability SLO signals with measured/unknown coverage; close 15F and open 15G. NO PUSH."
+}

@@ -1,3 +1,9 @@
+# AYAS MASTER CURRENT — 15F.3 GREEN / 15F.4 IN PROGRESS — 2026-10-01
+
+Source e0d10f2d1e6e55b3171c0e757482233e96075ff3 plus documentation descendant; resolve actual HEAD. Claude's uncommitted 15F.3 packet was preserved and completed. Done: privacy-bounded task/tool rates, latency and retry buckets; independent read-only live state with explicit unavailable errors; operator-only evidence-first locked compaction, dry-run by default, retaining unsettled consumed leases. 23 focused scenarios and 8/8 mutation controls PASS; affected regressions and TypeScript PASS; full lint 0 errors/13 pre-existing warnings. Graphify 16400 nodes/47433 links, anomalies0, PARTIAL9/semantic pending. No live compaction, model/container, activation or push.
+
+Exact next: 15F.4: inspect and version a reviewed eval-suite manifest separating deterministic capability, near-100% regression and frozen held-out suites. Pin scripts and graders; run the entire declared TEMP-safe baseline serially, capture failures honestly, preserve existing known limitations; support bounded multiple trials with pass@1 and pass^k. Do not change a grader just to pass or run live/provider/host-mutation suites. Then 15F.5 five reliability SLO signals with measured/unknown coverage; close 15F and open 15G. NO PUSH. Detailed ACTIVE_CHECKPOINT and hardening/15F/15F3_RESULT.json carry tests, resource snapshot, blockers and continuation.
+
 # AYAS MASTER CURRENT — 15F.R GREEN / 15F.3 NEXT — 2026-10-01
 
 Tested source feb18171e0f12e078cdaff812c3041ff9d3f68fb plus documentation descendant; resolve actual HEAD. Stage 15F in progress. Finding F11 is fixed: the three security smokes that were red at HEAD since the governed render-tool patch are green again (exact-patch-safety 23, exact-proposal-safety 28, guarded-publication 33) with no source change and no assertion lowered; a mutation audit caught 4 of 4 defects.

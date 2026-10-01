@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "feb18171e0f12e078cdaff812c3041ff9d3f68fb",
-  "currentHead": "feb18171e0f12e078cdaff812c3041ff9d3f68fb",
+  "lastGreenHead": "e0d10f2d1e6e55b3171c0e757482233e96075ff3",
+  "currentHead": "e0d10f2d1e6e55b3171c0e757482233e96075ff3",
   "stage": "STAGE_15F",
-  "subtask": "15F.3-telemetry-live-state-authorization-compaction",
+  "subtask": "15F.4-eval-governance-regression-manifest",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -154,7 +154,8 @@
     "15F.0-existing-seam-inspection",
     "15F.1-authorization-audit-privacy-bound",
     "15F.2-durable-operation-evidence",
-    "15F.R-repair-preexisting-red-security-smokes"
+    "15F.R-repair-preexisting-red-security-smokes",
+    "15F.3-telemetry-live-state-authorization-compaction"
   ],
   "currentFiles": [],
   "lastGreenTests": [
@@ -249,29 +250,30 @@
     "15F.2 operation evidence 11 scenarios PASS (TEMP only): finished trace to one evidence line (task, agent, model version, tool and lease, retries, duration, outcome, error code, digest); closed-pattern attributes drop text, paths and claims; nothing a conversation says reaches the file; sink best-effort; lease evidence from identity, times and state only; real dispatch reports its lease; store append/read validation, moved lines, first record stands; retention by whole day files with dry run. Mutation audit 33 caught and 3 equivalent (bounds enforced again on read).",
     "regression: unified trace 17, chat stream 31, proposal approval service 28, reasoning 48, memory temporal 52, action runtime 17, read dispatch 12, firewall 54, closure audit 12, developer workflow 11/38, workflow store 17, workflow recovery 15, model router 22, daemon authority boundary 23, durable recovery 22 PASS; TypeScript PASS; changed-file lint 0 warnings; diff PASS",
     "RED AT HEAD, pre-existing, confirmed against an export of HEAD and not caused by these packets: smoke-ayas-exact-patch-safety, smoke-ayas-exact-proposal-safety, smoke-ayas-guarded-publication (finding F11).",
-    "15F.R: exact-patch-safety 23, exact-proposal-safety 28, guarded-publication 33 (was failing from its ninth scenario), proposal-approval-service 28 PASS. No source file changed. Mutation audit in a TEMP overlay 4/4 caught: inbox approving an unproven source proposal, guard fingerprinting a publishable class, source declared TEST_ONLY, failed validation not reverted. TypeScript PASS; changed-file lint 0 warnings; diff PASS."
+    "15F.R: exact-patch-safety 23, exact-proposal-safety 28, guarded-publication 33 (was failing from its ninth scenario), proposal-approval-service 28 PASS. No source file changed. Mutation audit in a TEMP overlay 4/4 caught: inbox approving an unproven source proposal, guard fingerprinting a publishable class, source declared TEST_ONLY, failed validation not reverted. TypeScript PASS; changed-file lint 0 warnings; diff PASS.",
+    "15F.3 telemetry/state/compaction23, mutation8/8, evidence11, firewall54/read12/bridge12/discovery13/durable22/legacy23/write16/closure12/owner32/guided25+5/storage11 PASS; TypeScript PASS; changed lint0; full lint0errors/13 unchanged warnings; Graphify16400/47433 anomalies0, PARTIAL9/semantic pending. No live compaction, model, production or push."
   ],
   "graphify": {
-    "head": "c2ef8e11fa803378f29fa50bff5f618b242fe079",
-    "testedSourcePacket": "feb18171e0f12e078cdaff812c3041ff9d3f68fb",
+    "head": "e91109eaf3148b969487dae794f18f2a08e865cf",
+    "testedSourcePacket": "e0d10f2d1e6e55b3171c0e757482233e96075ff3",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 16343,
-    "edges": 47306,
+    "nodes": 16400,
+    "edges": 47433,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Verified pre-commit graph covers the complete source worktree. Final per-machine metadata rebind after documentation descendant; verify actual HEAD on resume."
+    "headSemantics": "Verified GREEN precommit AST covers the entire 15F.3 source worktree at this base HEAD; exact source commit recorded separately. Native lifecycle-only rebind does not change graph.built_from_commit, so a full refresh is required after the documentation commit before 15F.4 source mutation."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
     "External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority.",
     "OWNER_DECISION for any local-coding re-qualification: define a numeric qualification threshold; and/or pin a different local model or engine; and/or allow GPU passthrough into the rootless sandbox. Not a blocker for Stage 15B."
   ],
-  "nextAction": "15F.3: (a) pure telemetry summary over the evidence stream: per task and per tool success/failure counts, latency p50/p95/max, retries, model pin mismatches, with each dispatch counted once (a lease id seen as a trace action binding is not counted again as a lease record); (b) a read-only live operational state view and operator script (outstanding and unsettled leases derived on the fly from the authorization store, last observer runs from the discovery ledger, execution gate state, telemetry for a window), every section reporting unavailable with a reason instead of zeros; (c) authorization-record compaction following the AyasStorageHygiene audit/apply pattern: a terminal or long-expired record is first written to the evidence stream, then removed; dry-run by default, operator-invoked only, never wired to a daemon, never run with --apply against the live root by an agent. Then 15F.4 eval governance with a regression-suite manifest and a full TEMP-safe baseline run; 15F.5 the five reliability SLO counters; then close 15F and open 15G. NO PUSH.",
+  "nextAction": "15F.4: inspect and version a reviewed eval-suite manifest separating deterministic capability, near-100% regression and frozen held-out suites. Pin scripts and graders; run the entire declared TEMP-safe baseline serially, capture failures honestly, preserve existing known limitations; support bounded multiple trials with pass@1 and pass^k. Do not change a grader just to pass or run live/provider/host-mutation suites. Then 15F.5 five reliability SLO signals with measured/unknown coverage; close 15F and open 15G. NO PUSH.",
   "updatedAt": "2026-10-01T17:40:12.937Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
@@ -586,15 +588,16 @@
     "packetCommits": {
       "authorizationAuditPrivacyBound": "480dc5c024688ab105cc7d4b4929a2b3979443fa",
       "durableOperationEvidence": "874340f27c85340b9d1ccedfe8ab9587e114114d",
-      "repairedRedSecuritySmokes": "feb18171e0f12e078cdaff812c3041ff9d3f68fb"
+      "repairedRedSecuritySmokes": "feb18171e0f12e078cdaff812c3041ff9d3f68fb",
+      "telemetryLiveStateCompaction": "e0d10f2d1e6e55b3171c0e757482233e96075ff3"
     },
     "done": [
       "15F.1 free text kept out of the durable authorization record",
       "15F.2 durable privacy-bounded evidence stream from traces and leases, with retention by day file",
-      "15F.R three pre-existing red security smokes repaired without weakening them (finding F11 fixed)"
+      "15F.R three pre-existing red security smokes repaired without weakening them (finding F11 fixed)",
+      "15F.3 per-task/tool telemetry, read-only operational state and operator-only locked evidence-first compaction"
     ],
     "remaining": [
-      "15F.3 telemetry, live operational state, authorization-record compaction",
       "15F.4 eval governance and regression-suite manifest with a full baseline run",
       "15F.5 reliability SLO counters",
       "closure"
@@ -603,7 +606,8 @@
       "The audit record keeps a short ASCII code-style label verbatim (up to 80 characters); a model-written intent of that shape is not digested.",
       "Evidence is written at trace finish; a process killed mid-turn leaves no trace evidence for that turn (its leases remain in the authorization store).",
       "The chat route's sink takes effect when the Next server is rebuilt and restarted.",
-      "Retention exists as a function and is not run by any daemon."
+      "Retention exists as a function and is not run by any daemon.",
+      "Authorization/evidence enumeration reads all records in the selected stores; output lists and telemetry row count are bounded. No daemon schedules compaction. Unsettled consumed leases are kept indefinitely for review and possible late settlement."
     ]
   }
 }
