@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v9",
+  "version": "15F.4-v8",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -129,7 +129,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-action-firewall-closure.ts",
-          "sha256": "6ecfdec575038e35d93cc8b4930047c15975520ef574e438bdf365c34bdfc7f7"
+          "sha256": "0908375a48a9b3c386ece4a30c75b4b18e840be07d47ec477b4bfeb6f954baf7"
         }
       ],
       "slices": [
@@ -1289,40 +1289,6 @@
         {
           "file": "scripts/smoke-brain-core-ui.ts",
           "sha256": "bf2edd8f9d8516c321e2308789c9da253c251d369b8d2588944aa9e4fd628259"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "release-provenance",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-release-provenance.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-release-provenance.ts",
-          "sha256": "896c6668e57405da68b6e1f973e900174f016939236b0f2ec51492d42cf8f9b6"
-        }
-      ],
-      "slices": [
-        "supply-chain",
-        "provenance",
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "release-provenance-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-release-provenance-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-release-provenance-mutations.ts",
-          "sha256": "c06d56b4fbe705123b97d96b10c62bf5cf094d57bd02c114b8e52f2acd6196cf"
         }
       ],
       "slices": [

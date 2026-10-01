@@ -231,6 +231,7 @@ const OTHER_ENTRIES: Readonly<Record<string, string>> = {
   "scripts/ayas-developer-handoff.ts": "operator CLI; read-only Graphify and repository state",
   "scripts/ayas-graphify-status.ts": "operator CLI; read-only Graphify state",
   "scripts/ayas-propose.ts": "operator CLI (npm run ayas:propose); a person-triggered proposal producer",
+  "scripts/ayas-release-provenance.ts": "operator CLI; read-only SBOM and release provenance (lockfile, Graphify state, pinned identities)",
   "scripts/lib/AyasRetrievalEvaluation.ts": "evaluation library; imported only by evaluation smokes",
   "scripts/live-ayas-action-runtime-reliability.ts": "operator-run live acceptance with the real local model; read tools only",
   "scripts/live-ayas-action-runtime.ts": "operator-run live acceptance with the real local model; read tools only",
@@ -241,6 +242,7 @@ const OTHER_ENTRIES: Readonly<Record<string, string>> = {
 const PACKAGE_SCRIPTS: readonly string[] = ["scripts/ayas-propose.ts"];
 /** Effectful AYAS/Brain modules that none of the surfaces above reaches, with the one way each is run. */
 const OFF_SURFACE: Readonly<Record<string, string>> = {
+  "src/lib/ayas/provenance/AyasBuildStamp.ts": "read-only Git probe; operator CLI scripts/ayas-release-provenance.ts and the npm postbuild stamp scripts/ayas-build-stamp.ts",
   "src/lib/brain/autonomy/AyasLocalCodingEngineProbe.ts": "no entry point; the Stage 15A probe is used by its smoke only",
   "src/lib/brain/autonomy/AyasLocalCodingWorkspace.ts": "operator CLI scripts/run-ayas-local-coding-container.ts",
   "src/lib/brain/probe/BrainRenderProbe.ts": "read-only probe; production health route and operator CLIs",

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "tsx scripts/ayas-build-stamp.ts",
     "start": "next start",
     "lint": "eslint",
     "authority:status": "tsx --env-file-if-exists=.env.local scripts/run-authority-transition.ts status",

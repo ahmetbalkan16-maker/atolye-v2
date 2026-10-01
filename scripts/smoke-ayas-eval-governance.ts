@@ -17,7 +17,7 @@ const cognitiveReport = { caseCount: 55, passed: 54, heldOut: { passed: 4, total
 const developerReport = { flow: { mainPass: "39/39", heldOut: "10/10" }, components: { safety: "5/5" }, componentHeldOut: "2/2", integration: "3/3" };
 
 scenario("versioned manifest separates suite kinds, pins graders and exposes exclusions/calibration", () => {
-  assert.equal(manifest.suites.length, 72); assert.equal(new Set(manifest.suites.map((s) => s.kind)).size, 3);
+  assert.equal(manifest.suites.length, 74); assert.equal(new Set(manifest.suites.map((s) => s.kind)).size, 3);
   assert.equal(manifest.modelGrader, "NONE"); assert.equal(manifest.definitionReview, "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING"); assert.equal(manifest.excluded.length, 4);
   const files = new Set(manifest.suites.flatMap((s) => s.pins.map((p) => p.file)));
   assert.ok(files.has("scripts/lib/AyasRetrievalEvaluation.ts")); assert.ok(files.has("scripts/fixtures/ayas-retrieval-evaluation-cases.ts"));
