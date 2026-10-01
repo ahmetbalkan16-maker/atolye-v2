@@ -1109,6 +1109,8 @@ async function* streamAyasChatTurn(
     input.route ?? (await routeAyasModel({ text, env, fetcher, signal: input.signal }).catch(() => null));
   // `null` only when the router itself threw; a route without a provider is an ordinary fallback.
   routingSpan?.end(route === null ? "error" : route.provider ? "ok" : "fallback", undefined, route === null ? "MODEL_ROUTE_FAILURE" : undefined);
+  // Observer only: which lifecycle entry answered, and whether its served bytes were the pinned ones.
+  if (route?.decision.lifecycle) trace?.annotate({ model: route.decision.lifecycle });
   const complexity = route?.decision.complexity;
   const agentic = selectAyasAgenticRoute({
     text,
@@ -1290,6 +1292,8 @@ async function* streamAyasChatTurn(
       });
       const toolTrace = toolDispatchTraceStatus(dispatch, outcome.anyToolNamedBeforeFilter);
       toolSpan?.end(toolTrace.status, { attempted: Boolean(dispatch), executed: Boolean(dispatch?.actionOutcome.executed) }, toolTrace.errorCode);
+      // Observer only: the tool id and the lease that admitted it. One attribute per dispatch span, in the same order.
+      trace?.annotate({ tool: { action: dispatch?.toolId ?? "not-dispatched", authorizationId: dispatch?.actionOutcome.authorizationId ?? null } });
     } catch (error) {
       toolSpan?.end("error", undefined, "TOOL_FAILURE");
       throw error;

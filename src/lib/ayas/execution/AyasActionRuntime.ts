@@ -67,6 +67,8 @@ export type AyasActionRuntimeOutcome =
       readonly durationMs: number;
       /** Dispatch already happened; an outcome-write failure must never be reported as no execution. */
       readonly auditFailure?: "AYAS_ACTION_AUDIT_SETTLE_FAILED";
+      /** The lease that admitted this dispatch. An audit identifier for the trace; it authorizes nothing. Absent only in test doubles. */
+      readonly authorizationId?: string;
     }
   | {
       readonly executed: false;
@@ -76,6 +78,8 @@ export type AyasActionRuntimeOutcome =
       readonly reason: AyasExecutionPolicyDenyReason | string;
       readonly detail: string;
       readonly durationMs: number;
+      /** Present when a lease was admitted before the executor failed or refused its input. */
+      readonly authorizationId?: string;
     };
 
 export interface RunAyasReadOnlyActionInput {
@@ -178,16 +182,16 @@ export async function runAyasReadOnlyAction(input: RunAyasReadOnlyActionInput): 
     let auditFailure: "AYAS_ACTION_AUDIT_SETTLE_FAILED" | undefined;
     try { context.store.settle(authorizationId, { ok: true, resultDigest: crypto.createHash("sha256").update(JSON.stringify(result)).digest("hex") }); }
     catch { auditFailure = "AYAS_ACTION_AUDIT_SETTLE_FAILED"; }
-    return { executed: true, action: validation.request.action, result, durationMs: Date.now() - started, ...(auditFailure ? { auditFailure } : {}) };
+    return { executed: true, action: validation.request.action, result, durationMs: Date.now() - started, authorizationId, ...(auditFailure ? { auditFailure } : {}) };
   } catch (error) {
     // Only a closed code is persisted, never an arbitrary tool/error payload or secret.
     try { context.store.settle(authorizationId, { ok: false, failureReason: error instanceof AyasActionValidationError ? "TOOL_INPUT_DENIED" : "EXECUTOR_FAILED" }); }
     catch { /* durable consumed record still proves admission; no replay or authority recovery */ }
     if (error instanceof AyasActionValidationError) {
-      return denied(validation.request.action, "safety", error.reasonCode, error.message, Date.now() - started);
+      return { ...denied(validation.request.action, "safety", error.reasonCode, error.message, Date.now() - started), authorizationId };
     }
     const message = error instanceof Error ? error.message : String(error);
     const isTimeout = /exceeded \d+ms budget/.test(message);
-    return denied(validation.request.action, isTimeout ? "timeout" : "executor", isTimeout ? "timeout" : "executor-failed", message, Date.now() - started);
+    return { ...denied(validation.request.action, isTimeout ? "timeout" : "executor", isTimeout ? "timeout" : "executor-failed", message, Date.now() - started), authorizationId };
   }
 }

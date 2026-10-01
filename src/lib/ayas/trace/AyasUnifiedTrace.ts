@@ -39,6 +39,20 @@ export interface AyasTraceEvent {
   readonly metadata?: AyasTraceMetadata;
 }
 
+/**
+ * Stage 15F — identifiers a trace may carry beside its counts: which model version answered, which tools were
+ * dispatched under which lease, which approval an execution was bound to. Closed shapes only: every value is an id,
+ * an enum or a digest, validated on write and again on read. Never text.
+ */
+export interface AyasTraceModelAttribute { readonly entryId: string | null; readonly state: string; readonly pin: string; }
+export interface AyasTraceToolAttribute { readonly action: string; readonly authorizationId: string | null; }
+export interface AyasTraceAttributes {
+  readonly model?: AyasTraceModelAttribute;
+  readonly tools?: readonly AyasTraceToolAttribute[];
+  readonly approvalBinding?: string;
+}
+export const AYAS_TRACE_MAX_TOOL_ATTRIBUTES = 8;
+
 export interface AyasTraceSnapshot {
   readonly schemaVersion: typeof AYAS_TRACE_SCHEMA_VERSION;
   readonly traceId: string;
@@ -48,7 +62,11 @@ export interface AyasTraceSnapshot {
   readonly status: AyasTraceStatus;
   readonly spans: readonly AyasTraceSpan[];
   readonly events: readonly AyasTraceEvent[];
+  readonly attributes?: AyasTraceAttributes;
 }
+
+/** Receives a finished trace once. Best-effort: a sink that throws never changes a domain result. */
+export interface AyasTraceEvidenceSink { record(snapshot: AyasTraceSnapshot): void; }
 
 type MutableTrace = {
   schemaVersion: typeof AYAS_TRACE_SCHEMA_VERSION;
@@ -59,7 +77,38 @@ type MutableTrace = {
   status: AyasTraceStatus;
   spans: AyasTraceSpan[];
   events: AyasTraceEvent[];
+  attributes?: { model?: AyasTraceModelAttribute; tools?: AyasTraceToolAttribute[]; approvalBinding?: string };
 };
+
+const LIFECYCLE_ID = /^[a-z0-9][a-z0-9._-]{2,119}$/;
+const LIFECYCLE_STATES = new Set(["DISCOVERED", "PINNED", "QUALIFIED", "SHADOW", "CANARY", "ACTIVE", "DEGRADED", "RETIRED", "UNREGISTERED"]);
+const PIN_STATES = new Set(["MATCH", "MISMATCH", "NOT_OBSERVED", "UNREGISTERED"]);
+const ACTION_ID = /^[a-z][a-z0-9.-]{1,63}$/;
+const AUTHORIZATION_ID = /^authz-[a-f0-9-]{36}$/;
+const BINDING_ID = /^[a-z0-9][a-z0-9:._-]{7,119}$/;
+
+/** Reads only the known keys and keeps only well-formed identifiers; anything else is dropped, never copied. */
+function safeAttributes(value: unknown): AyasTraceAttributes | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const source = value as { model?: unknown; tools?: unknown; approvalBinding?: unknown };
+  const out: { model?: AyasTraceModelAttribute; tools?: AyasTraceToolAttribute[]; approvalBinding?: string } = {};
+  const model = source.model as { entryId?: unknown; state?: unknown; pin?: unknown } | null | undefined;
+  if (model && typeof model === "object" && (model.entryId === null || (typeof model.entryId === "string" && LIFECYCLE_ID.test(model.entryId))) &&
+      typeof model.state === "string" && LIFECYCLE_STATES.has(model.state) && typeof model.pin === "string" && PIN_STATES.has(model.pin)) {
+    out.model = { entryId: model.entryId, state: model.state, pin: model.pin };
+  }
+  if (Array.isArray(source.tools)) {
+    const tools: AyasTraceToolAttribute[] = [];
+    for (const raw of source.tools.slice(0, AYAS_TRACE_MAX_TOOL_ATTRIBUTES)) {
+      const tool = raw as { action?: unknown; authorizationId?: unknown } | null;
+      if (!tool || typeof tool !== "object" || typeof tool.action !== "string" || !ACTION_ID.test(tool.action)) continue;
+      tools.push({ action: tool.action, authorizationId: typeof tool.authorizationId === "string" && AUTHORIZATION_ID.test(tool.authorizationId) ? tool.authorizationId : null });
+    }
+    if (tools.length) out.tools = tools;
+  }
+  if (typeof source.approvalBinding === "string" && BINDING_ID.test(source.approvalBinding)) out.approvalBinding = source.approvalBinding;
+  return Object.keys(out).length ? out : undefined;
+}
 
 const STATUS = new Set<AyasTraceStatus>(["running", "ok", "error", "fallback", "cancelled", "denied"]);
 const KINDS = new Set<AyasTraceSpanKind>(["conversation", "context", "memory", "retrieval", "model", "tool", "approval", "execution", "persistence", "outcome", "research", "experiment"]);
@@ -197,13 +246,15 @@ export interface AyasTraceHandle {
   readonly traceId: string;
   startSpan(kind: AyasTraceSpanKind, component: string, operation: string, parentSpanId?: string | null, attempt?: number): AyasTraceSpanHandle;
   event(type: AyasTraceEventType, status: AyasTraceStatus, metadata?: AyasTraceMetadata, errorCode?: string): void;
+  /** Adds identifiers to the trace. The model and the approval binding are set once; tools accumulate up to a bound. */
+  annotate(attributes: { readonly model?: AyasTraceModelAttribute; readonly tool?: AyasTraceToolAttribute; readonly approvalBinding?: string }): void;
   finish(status: AyasTraceStatus, errorCode?: string): void;
 }
 
 const NOOP_SPAN: AyasTraceSpanHandle = { spanId: null, event() {}, end() {} };
 
 /** Every write is best-effort and catches store/clock/serialization failures. */
-export function startAyasTrace(input: { rootKind: AyasTraceRootKind; scope?: string; store?: AyasTraceStore; enabled?: boolean }): AyasTraceHandle {
+export function startAyasTrace(input: { rootKind: AyasTraceRootKind; scope?: string; store?: AyasTraceStore; enabled?: boolean; evidence?: AyasTraceEvidenceSink }): AyasTraceHandle {
   let traceId: string;
   try { traceId = crypto.randomUUID(); } catch { traceId = "unavailable"; }
   const store = input.store ?? ayasTraceStore;
@@ -248,12 +299,29 @@ export function startAyasTrace(input: { rootKind: AyasTraceRootKind; scope?: str
       } catch { return NOOP_SPAN; }
     },
     event(type, status, metadata, errorCode) { addEvent(null, type, status, metadata, errorCode); },
+    annotate(attributes) {
+      try {
+        if (!record || record.status !== "running") return;
+        const safe = safeAttributes({ ...(attributes.model ? { model: attributes.model } : {}), ...(attributes.tool ? { tools: [attributes.tool] } : {}),
+          ...(attributes.approvalBinding ? { approvalBinding: attributes.approvalBinding } : {}) });
+        if (!safe) return;
+        const current = record.attributes ?? (record.attributes = {});
+        if (safe.model && !current.model) current.model = safe.model;
+        if (safe.approvalBinding && !current.approvalBinding) current.approvalBinding = safe.approvalBinding;
+        if (safe.tools && (current.tools?.length ?? 0) < AYAS_TRACE_MAX_TOOL_ATTRIBUTES) (current.tools ?? (current.tools = [])).push(safe.tools[0]!);
+      } catch { /* best effort */ }
+    },
     finish(status, errorCode) {
       try {
         if (!record || record.status !== "running" || !STATUS.has(status)) return;
         record.status = status;
         record.endedAt = new Date().toISOString();
         addEvent(null, status === "error" ? "failed" : status === "cancelled" ? "cancelled" : status === "fallback" ? "fallback" : "completed", status, undefined, errorCode);
+      } catch { /* best effort */ }
+      // Stage 15F — hand the finished, sanitized snapshot to the durable sink, once. A failing sink changes nothing.
+      try {
+        const snapshot = record && record.status !== "running" && input.evidence ? readAyasTraceSnapshot(record) : undefined;
+        if (snapshot) input.evidence!.record(snapshot);
       } catch { /* best effort */ }
     },
   };
@@ -290,5 +358,7 @@ export function readAyasTraceSnapshot(raw: unknown): AyasTraceSnapshot | undefin
     const event = rawEvent as Record<string, unknown>;
     events.push({ traceId: value.traceId, spanId: typeof event.spanId === "string" && UUID_RE.test(event.spanId) ? event.spanId : null, at: safeIso(event.at), type: EVENTS.has(event.type as AyasTraceEventType) ? event.type as AyasTraceEventType : "completed", status: STATUS.has(event.status as AyasTraceStatus) ? event.status as AyasTraceStatus : "error", ...safeDetail(event.metadata, event.errorCode) });
   }
-  return { schemaVersion: AYAS_TRACE_SCHEMA_VERSION, traceId: value.traceId, rootKind: value.rootKind, createdAt: safeIso(value.createdAt), ...(typeof value.endedAt === "string" ? { endedAt: safeIso(value.endedAt) } : {}), status: STATUS.has(value.status as AyasTraceStatus) ? value.status as AyasTraceStatus : "error", spans, events };
+  const attributes = safeAttributes(value.attributes);
+  return { schemaVersion: AYAS_TRACE_SCHEMA_VERSION, traceId: value.traceId, rootKind: value.rootKind, createdAt: safeIso(value.createdAt), ...(typeof value.endedAt === "string" ? { endedAt: safeIso(value.endedAt) } : {}), status: STATUS.has(value.status as AyasTraceStatus) ? value.status as AyasTraceStatus : "error", spans, events,
+    ...(attributes ? { attributes } : {}) };
 }

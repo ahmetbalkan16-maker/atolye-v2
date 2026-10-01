@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -12,7 +13,8 @@ import { runGuardedAyasPublication, type AyasGuardedPublicationGuardDeps } from 
 import { closeAyasPostPublication } from "./AyasPostPublicationClosure";
 import { finalizeAyasDeferredPublication, markAyasDeferredPublicationRecoveryRequired } from "./AyasDeferredPublicationFinalizer";
 import { classifyAyasRuntimeImpact } from "./AyasProposalRuntimeImpact";
-import { ayasTraceErrorCode, startAyasTrace, type AyasTraceHandle, type AyasTraceSpanHandle, type AyasTraceStore } from "../../ayas/trace/AyasUnifiedTrace";
+import { ayasTraceErrorCode, startAyasTrace, type AyasTraceEvidenceSink, type AyasTraceHandle, type AyasTraceSpanHandle, type AyasTraceStore } from "../../ayas/trace/AyasUnifiedTrace";
+import { createAyasOperationEvidenceStore, createAyasTraceEvidenceSink } from "../../ayas/observability/AyasOperationEvidenceStore";
 import type { AyasResearchExperimentStore } from "./AyasResearchExperimentStore";
 
 /**
@@ -64,6 +66,8 @@ export interface AyasProposalApprovalDeps {
   readonly traceEnabled?: boolean;
   /** Observer-only test seam for failure isolation. Production uses the bounded memory store. */
   readonly traceStore?: AyasTraceStore;
+  /** Observer-only test seam. Production appends to the evidence stream under `repoRoot`. */
+  readonly traceEvidence?: AyasTraceEvidenceSink;
   readonly artifactStore?: AyasPatchArtifactStore;
   readonly exactExperimentStore?: AyasResearchExperimentStore;
   readonly graphifyEvidenceStore?: AyasGraphifyEvidenceStore;
@@ -160,6 +164,7 @@ function loadAyasProposalForPublish(proposalId: string, approvedProposalHash: st
  */
 export async function approveAndExecuteAyasProposal(proposalId: string, approvedProposalHash: string, deps: AyasProposalApprovalDeps): Promise<AyasProposalApprovalOutcome> {
   const trace = startAyasApprovalTrace(deps);
+  trace.annotate({ approvalBinding: ayasApprovalBindingDigest(proposalId, approvedProposalHash) });
   const approvalSpan = trace.startSpan("approval", "ayas-approval", "decide");
   let approved: AyasInboxProposal;
   try {
@@ -209,6 +214,7 @@ export async function approveAndExecuteAyasProposal(proposalId: string, approved
  */
 export async function publishAlreadyOwnerApprovedAyasProposal(proposalId: string, approvedProposalHash: string, deps: AyasProposalApprovalDeps): Promise<AyasProposalApprovalOutcome> {
   const trace = startAyasApprovalTrace(deps);
+  trace.annotate({ approvalBinding: ayasApprovalBindingDigest(proposalId, approvedProposalHash) });
   const approvalSpan = trace.startSpan("approval", "ayas-approval", "resume");
   let approved: AyasInboxProposal;
   try {
@@ -229,7 +235,28 @@ export async function publishAlreadyOwnerApprovedAyasProposal(proposalId: string
  * replace a result or an error.
  */
 function startAyasApprovalTrace(deps: AyasProposalApprovalDeps): AyasTraceHandle {
-  return startAyasTrace({ rootKind: "owner-approval", enabled: deps.traceEnabled !== false, ...(deps.traceStore ? { store: deps.traceStore } : {}) });
+  // Stage 15F: a finished approval trace leaves one privacy-bounded evidence line. The sink is write-only, like the
+  // trace: nothing reads it back and a failed write changes no outcome.
+  return startAyasTrace({ rootKind: "owner-approval", enabled: deps.traceEnabled !== false, ...(deps.traceStore ? { store: deps.traceStore } : {}),
+    evidence: deps.traceEvidence ?? createAyasTraceEvidenceSink(createAyasOperationEvidenceStore({ rootDir: ayasApprovalEvidenceRoot(deps) })) });
+}
+
+/**
+ * The approval binding a trace may carry: a digest of the proposal id and the exact hash the owner approved. Whoever
+ * holds both can verify it; the trace itself never holds the identifier or the proposal.
+ */
+export function ayasApprovalBindingDigest(proposalId: string, approvedProposalHash: string): string {
+  return `sha256:${crypto.createHash("sha256").update(`${proposalId}\n${approvedProposalHash}`, "utf8").digest("hex")}`;
+}
+
+/**
+ * Where an approval's evidence goes. With the live gate root it is the one audit root every other AYAS surface
+ * writes to (`data/brain`, git-ignored). With any other gate root (an isolated or fixture run) it stays under that
+ * gate root, so it never lands inside the repository being changed and never reaches the live stream.
+ */
+export function ayasApprovalEvidenceRoot(deps: Pick<AyasProposalApprovalDeps, "repoRoot" | "gateRoot">): string {
+  const liveBrain = path.join(path.resolve(deps.repoRoot), "data", "brain");
+  return path.resolve(deps.gateRoot) === path.join(liveBrain, "self-improvement") ? liveBrain : path.resolve(deps.gateRoot);
 }
 
 function traceAyasApprovalRefusal(trace: AyasTraceHandle, span: AyasTraceSpanHandle, error: unknown): void {

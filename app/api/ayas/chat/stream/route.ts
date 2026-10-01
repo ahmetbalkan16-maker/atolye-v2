@@ -14,6 +14,7 @@ import { loadAyasProductBrainContext } from "@/lib/ayas/AyasProductBrain";
 import { streamAyasChat, ayasChatStreamEventToSse } from "@/lib/ayas/AyasChatStream";
 import { readAyasBoundedJsonBody } from "@/lib/ayas/security/AyasBoundedRequestBody";
 import { ayasTraceSessionScope, startAyasTrace, type AyasTraceHandle, type AyasTraceSpanHandle, type AyasTraceStatus } from "@/lib/ayas/trace/AyasUnifiedTrace";
+import { createAyasTraceEvidenceSink } from "@/lib/ayas/observability/AyasOperationEvidenceStore";
 import { AyasGuidedRepairSessionRuntime, type AyasGuidedRepairDurability } from "@/lib/ayas/execution/AyasGuidedRepairSessionRuntime";
 import { createAyasProductionRepairDeps } from "@/lib/ayas/execution/AyasGuidedRepairProduction";
 import { AyasGuidedRepairSessionStore } from "@/lib/ayas/execution/AyasGuidedRepairSessionStore";
@@ -36,6 +37,9 @@ import type { BrainChatMessage } from "@/components/brain/brainCore";
  */
 
 export const dynamic = "force-dynamic";
+
+// Stage 15F: each finished turn leaves one privacy-bounded evidence line (ids, enums, counts and durations only).
+const chatTraceEvidence = createAyasTraceEvidenceSink();
 
 const MAX_BODY_BYTES = 32 * 1024;
 const MAX_TEXT = 4_000;
@@ -106,7 +110,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   // approval from assistant, source, log or tool text.
   const sessionToken = request.cookies.get(AYAS_SESSION_COOKIE)?.value ?? "dev-session";
   const sessionKey = crypto.createHash("sha256").update(sessionToken).digest("hex");
-  const trace = startAyasTrace({ rootKind: "chat-turn", scope: ayasTraceSessionScope(request.cookies.get(AYAS_SESSION_COOKIE)?.value) });
+  const trace = startAyasTrace({ rootKind: "chat-turn", scope: ayasTraceSessionScope(request.cookies.get(AYAS_SESSION_COOKIE)?.value), evidence: chatTraceEvidence });
   const turnSpan = trace.startSpan("conversation", "ayas-route", "route-turn");
   // One observer lifecycle per turn: every branch ends through finishTurn, and a
   // throw before the stream takes over is recorded as an error, never left running.
