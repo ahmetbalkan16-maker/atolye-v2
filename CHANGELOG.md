@@ -1,3 +1,8 @@
+## 2026-10-01 — AYAS Stage 15D.3 legacy read bridge guard
+
+- Bind exact scope to the same existing read authorization under its mutation lock; preserve grant identity and expiry, refuse rebinding/replay and undeclared network/device roots.
+- Bridge guard 12 adversarial/integration scenarios and affected regressions PASS. Owner/write, durable and direct-context coverage remain; 15D in progress. Local commit only, NO PUSH.
+
 ## 2026-10-01 — AYAS Stage 15D.2 guarded read dispatch
 
 - Bind existing read/developer dispatch to exact-scope leases backed by the existing grant store. Physical resource resolver, immutable admitted request, captured scope comparison and unique audit execution IDs prevent scope drift.

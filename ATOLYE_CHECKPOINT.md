@@ -1,3 +1,9 @@
+# AYAS MASTER CURRENT — 15D.3 GREEN / 15D.4 NEXT — 2026-10-01
+
+Stage 15C CLOSED/GREEN; 15D IN_PROGRESS. Tested source e28b54cc643b87fad4d01c6476197a3c1b2fed64 plus a documentation descendant (resolve actual HEAD on resume). Legacy read bridge now uses the same existing grant and exact-scope firewall, preserving expiry and closed write defaults. Tests: bridge guard 12, lease 49, dispatch 12, original runtime 17 / bridge 23 / write 16 PASS; TypeScript/lint/diff PASS. Graphify current PARTIAL: 9 known gaps, semantic pending, no graph anomalies.
+
+Next: 15D.4 protected owner/delegation proof and exact write/self-development/guided-repair scope binding; then durable/direct-context guard coverage and full 15D closure before automatic 15E. No global closure claimed. Current detailed truth: docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json. NO PUSH without new explicit owner approval; prior 36fa76b WIP push deviation recorded, no reset/force/history rewrite. PC health/on-demand rules unchanged; no model/container started.
+
 ## AYAS MASTER — STAGE 15D.2 READ DISPATCH GREEN; 15D.3 NEXT — 2026-10-01
 
 - Tested source HEAD: `bbf7aa9c3ee3632bd122dafa91be6b7786bb6add`; this documentation commit is a descendant. Stage 15D IN_PROGRESS, Stage 15C CLOSED/GREEN, Stage 15E not started.
