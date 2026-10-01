@@ -55,7 +55,7 @@ incoming uncommitted integrity type draft was preserved and completed.
 
 ## Verification and review
 
-TEMP-only integrity suite: 26 scenarios, including attacks on every text
+TEMP-only integrity suite: 27 scenarios, including attacks on every text
 surface, source spoofing, rehashed policy forgery, protected keys, digest drift,
 strict base records, quarantine vs current identity, unknown reported writer,
 rapid-change threshold, manifest drift, legacy duplicates, snapshot corruption,
@@ -96,3 +96,9 @@ Rollback refuses malformed/unreadable revision envelopes and oversized or
 duplicate snapshots. The rapid-change detector covers explicit temporal slots;
 arbitrary free text has no invented exclusive key. Stage 15A.3 stays degraded,
 Stage 15B closed, observer restart still an owner activation action.
+
+Final security review follow-up: the inherited record validator accepted unknown
+top-level properties, which could persist arbitrary unvalidated data outside
+redaction/screened fields. Record keys are now closed at append and load; valid
+legacy/v2/integrity fields remain accepted. Unknown-field rejection has its own
+TEMP append/load regression. This does not alter IDs or valid stored records.

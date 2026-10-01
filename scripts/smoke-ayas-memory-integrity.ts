@@ -99,6 +99,14 @@ async function main() {
       fs.writeFileSync(store.file, JSON.stringify({ schemaVersion: "1", revision: snapshot.revision, records: [{ ...altered, body: "modified" }] }));
       assert.throws(() => store.load(), (e) => e instanceof AyasMemoryStoreError && e.code === "AYAS_MEMORY_STORE_INVALID");
     });
+    await scenario("unknown record fields cannot bypass the secret screen", () => {
+      const store = makeStore("unknown-fields");
+      const unknown = { ...rec(), unvalidatedEvidence: "opaque user data outside the schema" };
+      assert.equal(store.append(unknown), "rejected");
+      fs.mkdirSync(path.dirname(store.file), { recursive: true });
+      fs.writeFileSync(store.file, JSON.stringify({ schemaVersion: "1", records: [unknown] }));
+      assert.throws(() => store.load(), (e) => e instanceof AyasMemoryStoreError && e.code === "AYAS_MEMORY_STORE_INVALID");
+    });
     await scenario("store reseals under lock without spreading caller metadata", () => {
       const store = makeStore("canonical"); assert.equal(store.append(seal(rec())), "stored");
       const a = store.load()[0]; assert(isValidBrainMemoryIntegrity(a)); assert.equal(a.integrity!.writeDecision, "admitted");

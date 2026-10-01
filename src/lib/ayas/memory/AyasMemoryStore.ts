@@ -99,9 +99,14 @@ const PRODUCTION_STAGES = new Set([
   "research", "script", "scenes", "visuals", "animation", "video", "audio",
   "assembly", "thumbnail", "seo", "youtube", "export",
 ]);
+const RECORD_KEYS = new Set([
+  "schemaVersion", "recordId", "contentFingerprint", "redacted", "kind", "title", "body",
+  "importance", "confidence", "tags", "stage", "observedAt", "links", "expiresAt", "temporal", "integrity",
+]);
 
 function isStoredMemoryRecord(value: unknown): value is BrainMemoryRecord {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  if (!Object.keys(value).every((key) => RECORD_KEYS.has(key))) return false;
   const record = value as Partial<BrainMemoryRecord>;
   if (!(
     record.schemaVersion === brainMemorySchemaVersion &&
