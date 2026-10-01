@@ -109,12 +109,18 @@
       "stage": "15F",
       "section": "3",
       "requirement": "Explicit timeout/resource abort/owner wait categories separate from quality failure; no duplicate retry observation",
-      "status": "GAP_SAFE_TO_FIX",
+      "status": "SATISFIED",
+      "auditFinding": "GAP_SAFE_TO_FIX",
+      "fixedBy": "post-freeze 15F packet, 2026-10-02 (EXECUTION_LEDGER.md)",
       "evidence": [
         "src/lib/ayas/observability/AyasOperationTelemetry.ts",
-        "src/lib/ayas/observability/AyasOperationEvidence.ts"
+        "src/lib/ayas/observability/AyasOperationEvidence.ts",
+        "scripts/smoke-ayas-operation-telemetry.ts",
+        "scripts/smoke-ayas-operation-evidence.ts",
+        "scripts/smoke-ayas-operation-telemetry-mutations.ts",
+        "03_STAGE15_BASE/hardening/15F/IMPLEMENTATION_NOTES.md"
       ],
-      "prerequisiteOrReevaluationTrigger": "Narrow observer-only classification and distinct retry accounting regression pending; preserve evidence schema/history and gate authority."
+      "prerequisiteOrReevaluationTrigger": "Fixed and tested: one retry counted once; nine outcome classes with timeout, owner wait and resource abort decided by a closed error-code rule; success rate excludes owner waits and resource aborts. Evidence schema unchanged. Two classes have no producer yet and read zero by absence, not by measurement: owner wait starts counting when an owner-gated dispatch leaves an evidence record, resource abort when the Stage 15Q governor writes its code. A provider timeout is still recorded as cancelled/ABORTED."
     },
     {
       "id": "15F-privacy",

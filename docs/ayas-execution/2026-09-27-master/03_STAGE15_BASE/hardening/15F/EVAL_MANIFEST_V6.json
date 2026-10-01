@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v7",
+  "version": "15F.4-v6",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -837,7 +837,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-operation-evidence.ts",
-          "sha256": "bf31b77fe167058a90ac0e20b84fc7d88d05c2287f1a167cdf83d67da500a547"
+          "sha256": "460898f274892792c90fcf6eea830faa4af6aaf109cd6276775daa16d6e1937d"
         }
       ],
       "slices": [
@@ -853,7 +853,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-operation-telemetry.ts",
-          "sha256": "eb19cbebcee8d57362ac12f2f7b8b8a1f8a9bed4bc9d09f35c4c27949354eb47"
+          "sha256": "16865271422fd56db06c4550488026536d00190685f2301f6ea2aade7bbd5ea5"
         }
       ],
       "slices": [
@@ -869,7 +869,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-operation-telemetry-mutations.ts",
-          "sha256": "81ebc216f64848f7901038c62797c532b35ddffc3ca84418610d39982981605c"
+          "sha256": "cb2231fb837a3bed631c91f10f91f24e0a33fe1c64154b04235416e23c6e8193"
         }
       ],
       "slices": [

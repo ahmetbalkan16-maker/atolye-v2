@@ -102,12 +102,16 @@ export function deriveAyasTraceEvidence(snapshot: AyasTraceSnapshot): AyasOperat
       binding: lease && typeof lease.authorizationId === "string" && AUTHORIZATION_ID.test(lease.authorizationId) ? lease.authorizationId : null });
   }
   const model = snapshot.attributes?.model;
+  // A retry is written twice in a trace: as the span of the later attempt and as that span's own retry event.
+  // It is one retry. A retry event with no later-attempt span of its own is counted by itself.
+  const retriedSpans = new Set(snapshot.spans.filter((span) => span.attempt > 1).map((span) => span.spanId));
+  const loneRetryEvents = snapshot.events.filter((event) => event.type === "retry" && (event.spanId === null || !retriedSpans.has(event.spanId))).length;
   const record: Omit<AyasOperationEvidence, "evidenceDigest"> = {
     schemaVersion: AYAS_OPERATION_EVIDENCE_SCHEMA_VERSION, source: "trace", id: snapshot.traceId, task: snapshot.rootKind, agent: "ayas-server",
     startedAt: snapshot.createdAt, endedAt, durationMs: between(snapshot.createdAt, endedAt), outcome: snapshot.status, errorCode: code(failed?.errorCode),
     model: model ? { entryId: model.entryId, state: model.state, pin: model.pin } : null, actions,
     approvalBinding: typeof snapshot.attributes?.approvalBinding === "string" && BINDING.test(snapshot.attributes.approvalBinding) ? snapshot.attributes.approvalBinding : null,
-    retries: snapshot.events.filter((event) => event.type === "retry").length + snapshot.spans.filter((span) => span.attempt > 1).length,
+    retries: retriedSpans.size + loneRetryEvents,
   };
   return finish(record, JSON.stringify(snapshot));
 }

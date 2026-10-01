@@ -59,13 +59,41 @@ async function main() {
     assert.deepEqual(evidence.model, MODEL);
     assert.equal(evidence.actions.length, 1);
     assert.deepEqual([evidence.actions[0]!.action, evidence.actions[0]!.binding, evidence.actions[0]!.outcome, evidence.actions[0]!.attempt], ["inspect-source-file", AUTHZ, "ok", 1]);
-    // One retry event and one second-attempt span.
-    assert.equal(evidence.retries, 2);
+    // The second-attempt span and its own retry event are one retry, not two.
+    assert.equal(evidence.retries, 1);
     assert.ok(evidence.durationMs !== null && evidence.durationMs >= 0 && Number.isInteger(evidence.durationMs));
     assert.match(evidence.evidenceDigest, /^[a-f0-9]{64}$/);
     assert.ok(isAyasOperationEvidence(evidence));
     const file = fs.readdirSync(store.dir);
     assert.deepEqual(file, [`${evidence.endedAt!.slice(0, 10)}.jsonl`]);
+  });
+
+  await scenario("retries are counted once each: per later-attempt span, plus retry events that have no such span", () => {
+    const retriesOf = (build: (trace: ReturnType<typeof startAyasTrace>, turnSpanId: string | null) => void): number => {
+      const store = createAyasOperationEvidenceStore({ rootDir: dir() });
+      const trace = startAyasTrace({ rootKind: "chat-turn", store: new BoundedAyasTraceStore(), evidence: createAyasTraceEvidenceSink(store) });
+      const turn = trace.startSpan("conversation", "ayas-chat", "stream-turn");
+      build(trace, turn.spanId);
+      turn.end("ok"); trace.finish("ok");
+      return store.read().records[0]!.retries;
+    };
+    assert.equal(retriesOf(() => {}), 0);
+    // A later attempt that never wrote a retry event is still one retry.
+    assert.equal(retriesOf((trace, turn) => { trace.startSpan("model", "ayas-model", "correction", turn, 2).end("ok"); }), 1);
+    // Two later attempts, each with its own event: two retries, not four.
+    assert.equal(retriesOf((trace, turn) => {
+      for (const attempt of [2, 3]) { const span = trace.startSpan("model", "ayas-model", "correction", turn, attempt); span.event("retry", "running", { attempt }); span.end("ok"); }
+    }), 2);
+    // A retry event on a first-attempt span, and one on the trace itself, each stand for a retry of their own.
+    assert.equal(retriesOf((trace, turn) => {
+      const first = trace.startSpan("model", "ayas-model", "stream", turn); first.event("retry", "running", { attempt: 2 }); first.end("ok");
+      trace.event("retry", "running", { attempt: 2 });
+    }), 2);
+    // Both kinds together: one later-attempt span with its event, and one lone event.
+    assert.equal(retriesOf((trace, turn) => {
+      const later = trace.startSpan("model", "ayas-model", "correction", turn, 2); later.event("retry", "running", { attempt: 2 }); later.end("ok");
+      trace.event("retry", "running", { attempt: 3 });
+    }), 2);
   });
 
   await scenario("the outcome and its error code are recorded; a secret-shaped code is not", () => {

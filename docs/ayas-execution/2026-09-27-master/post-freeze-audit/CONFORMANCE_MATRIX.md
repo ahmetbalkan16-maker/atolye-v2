@@ -10,7 +10,7 @@ Baseline exact HEAD: `09e1c68825830924ee5c44ec815598704f443dcb`. Current Git/Gra
 | 15C-memory-firewall | SATISFIED | Quarantine/external DATA/no protected authority promotion/temporal supersession/reset |
 | 15C-live-window-config | GAP_OWNER_GATED | Known runtime context ceiling for actual live call |
 | 15F-tool-measurements | SATISFIED_BY_EQUIVALENT_IMPLEMENTATION | Measured success/failure/tool latency/retry/lease binding/model/evidence digest, dedupe and unknown state |
-| 15F-outcome-detail | GAP_SAFE_TO_FIX | Explicit timeout/resource abort/owner wait categories separate from quality failure; no duplicate retry observation |
+| 15F-outcome-detail | SATISFIED (found GAP_SAFE_TO_FIX, fixed 2026-10-02) | Explicit timeout/resource abort/owner wait categories separate from quality failure; no duplicate retry observation |
 | 15F-privacy | SATISFIED | Privacy-bounded live operational state and durable evidence; no fake success/zero/live certification |
 | 15Q-health | NOT_CURRENTLY_APPLICABLE | PC Health available measured sensors / UNKNOWN / resource classes |
 | 15Q-single-heavy | NOT_CURRENTLY_APPLICABLE | Single-heavy job and >=90% RAM admission, RESOURCE_ABORT/HOST_PROTECTION distinct |

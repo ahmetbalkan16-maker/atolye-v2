@@ -19,6 +19,36 @@ import { isAyasOperationEvidence, type AyasOperationEvidence, type AyasOperation
 export const AYAS_TELEMETRY_MAX_ROWS = 64;
 export const AYAS_TELEMETRY_MAX_ERROR_CODES = 8;
 
+/**
+ * Post-freeze 15F — the outcome classes of one sample. Every sample is in exactly one. A recorded error code that
+ * names a timeout, a host-protection abort or an owner gate decides the class before the recorded outcome does,
+ * because those are not what "error" or "denied" alone would say:
+ *   - a resource abort is the host protecting itself, never a failure of the tool or the model;
+ *   - waiting for the owner is a decision that has not been made, never a failure.
+ * A class with no record carrying its code reads zero. That is the absence of records, not a measured guarantee.
+ */
+export type AyasTelemetryOutcomeClass = "success" | "failure" | "timeout" | "denied" | "requireOwner" | "resourceAbort" | "uncertain" | "cancelled" | "other";
+export const AYAS_TELEMETRY_OUTCOME_CLASSES: readonly AyasTelemetryOutcomeClass[] = Object.freeze(["success", "failure", "timeout", "denied", "requireOwner", "resourceAbort", "uncertain", "cancelled", "other"]);
+
+// Closed by suffix: `TOOL_TIMEOUT` is a timeout, `ENDPOINT_OR_TIMEOUT_INVALID` is not.
+const TIMEOUT_CODE = /(?:^|_)(?:TIMEOUT|TIMED_OUT)$/;
+const RESOURCE_ABORT_CODE = /(?:^|_)(?:RESOURCE_ABORT|HOST_PROTECTION)$/;
+const REQUIRE_OWNER_CODE = /(?:^|_)(?:REQUIRE_OWNER|OWNER_REQUIRED|OWNER_PROOF_REQUIRED)$/;
+
+export function classifyAyasTelemetryOutcome(outcome: AyasOperationOutcome, errorCode: string | null): AyasTelemetryOutcomeClass {
+  if (errorCode !== null && RESOURCE_ABORT_CODE.test(errorCode)) return "resourceAbort";
+  if (errorCode !== null && REQUIRE_OWNER_CODE.test(errorCode)) return "requireOwner";
+  if (errorCode !== null && TIMEOUT_CODE.test(errorCode)) return "timeout";
+  switch (outcome) {
+    case "ok": return "success";
+    case "error": return "failure";
+    case "denied": return "denied";
+    case "unsettled": return "uncertain";
+    case "cancelled": return "cancelled";
+    default: return "other";
+  }
+}
+
 export interface AyasLatencySummary {
   readonly samples: number;
   readonly p50Ms: number | null;
@@ -29,6 +59,7 @@ export interface AyasLatencySummary {
 export interface AyasTelemetryRow {
   readonly name: string;
   readonly total: number;
+  /** By recorded outcome, whatever the error code says: `ok`, `error`, `denied`. `classes` splits these further. */
   readonly ok: number;
   readonly failed: number;
   readonly denied: number;
@@ -36,8 +67,15 @@ export interface AyasTelemetryRow {
   readonly unsettled: number;
   /** fallback, cancelled, expired, revoked. */
   readonly other: number;
-  /** ok / (ok + failed). Null when nothing settled either way. */
+  /**
+   * success / (success + failure + timeout), over the outcome classes. A resource abort and an owner wait are in
+   * neither part. Null when nothing settled either way.
+   */
   readonly successRate: number | null;
+  /** One count per outcome class; they add up to `total`. */
+  readonly classes: Readonly<Record<AyasTelemetryOutcomeClass, number>>;
+  /** Samples that were retried at least once. A retried sample still has its own outcome class. */
+  readonly retried: number;
   readonly latency: AyasLatencySummary;
   readonly retries: number;
   readonly retryDistribution: { readonly none: number; readonly one: number; readonly two: number; readonly threeOrMore: number };
@@ -82,9 +120,13 @@ function row(name: string, samples: readonly Sample[]): AyasTelemetryRow {
   const codes = new Map<string, number>();
   for (const sample of samples) if (sample.errorCode !== null) codes.set(sample.errorCode, (codes.get(sample.errorCode) ?? 0) + 1);
   const errorCodes = Object.fromEntries([...codes.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, AYAS_TELEMETRY_MAX_ERROR_CODES));
+  const classes = Object.fromEntries(AYAS_TELEMETRY_OUTCOME_CLASSES.map((name) => [name, 0])) as Record<AyasTelemetryOutcomeClass, number>;
+  for (const sample of samples) classes[classifyAyasTelemetryOutcome(sample.outcome, sample.errorCode)] += 1;
+  const settled = classes.success + classes.failure + classes.timeout;
   return {
     name, total: samples.length, ok, failed, denied: count(["denied"]), unsettled: count(["unsettled"]), other: count(["fallback", "cancelled", "expired", "revoked"]),
-    successRate: ok + failed === 0 ? null : ok / (ok + failed),
+    successRate: settled === 0 ? null : classes.success / settled,
+    classes, retried: samples.filter((sample) => sample.retries > 0).length,
     latency: { samples: durations.length, p50Ms: percentile(durations, 0.5), p95Ms: percentile(durations, 0.95), maxMs: durations.length ? durations[durations.length - 1]! : null },
     retries: samples.reduce((sum, sample) => sum + sample.retries, 0),
     retryDistribution: { none: samples.filter((s) => s.retries === 0).length, one: samples.filter((s) => s.retries === 1).length,

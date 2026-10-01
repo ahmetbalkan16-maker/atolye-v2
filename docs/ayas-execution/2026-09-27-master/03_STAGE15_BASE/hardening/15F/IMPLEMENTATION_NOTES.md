@@ -65,3 +65,29 @@ The daemon formerly accepted a callback's explicit FAIL report as completion; it
 Validation: 22 TEMP scenarios and 9/9 mutation controls, governance 10 and 8/8 controls, telemetry 23; complete current 69 suite baseline PASS_WITH_KNOWN_LIMITATIONS with no unexpected failures. Cognitive 54/55 and held-out 4/5 remain unchanged. TypeScript and lint PASS (13 existing full-lint warnings). Baseline RAM peak 51.18%. The read-only live snapshot has 44 legacy executions with UNKNOWN coverage, zero correlated durable admissions (UNKNOWN), and no live external receipt adapter (UNKNOWN). These are not failed synthetic tests and not a global SLO certificate.
 
 15F source implementation is closed with declared live/calibration limits. Final per-machine exact HEAD Graphify refresh follows the documentation commit. User requested stop after 15F and a report: do not start 15G until a new user instruction. NO PUSH.
+
+## Post-freeze addendum section 3 — outcome classes and retry accounting (2026-10-02)
+
+Design authority: `01_CANONICAL_SPECS/AYAS_POST_FREEZE_DESIGN_ADDENDUM_V1.md` section 3. The stage stays closed. The audit found the evidence stream, the dedupe, the latency and the privacy bounds satisfied by what 15F.1 to 15F.3 built, and two gaps. Both are in the observer and neither changes the evidence schema.
+
+**One retry was counted twice.** A trace writes a retry as the span of the later attempt and as that span's own `retry` event. `deriveAyasTraceEvidence` added the two, so one correction attempt gave `retries: 2`, and the 15F.2 test had pinned that number. A later-attempt span and its event are now one retry; a retry event with no later-attempt span of its own (on a first-attempt span, or on the trace) still counts by itself. Evidence lines written before this change keep the number they were written with: for a chat turn that used its one correction, that is 2 where 1 happened.
+
+**No timeout, owner-wait or resource-abort class.** The recorded outcomes are `ok`, `error`, `denied`, `fallback`, `cancelled`, `expired`, `revoked`, `unsettled`. Telemetry rows now also carry `classes`, in which every sample is in exactly one of `success`, `failure`, `timeout`, `denied`, `requireOwner`, `resourceAbort`, `uncertain`, `cancelled`, `other`, and `retried`, the number of samples retried at least once. A recorded error code decides the class before the recorded outcome does, by a closed suffix rule:
+
+| Class | Error code ends with | Producer today |
+|---|---|---|
+| `timeout` | `TIMEOUT`, `TIMED_OUT` | Yes: `TOOL_TIMEOUT` on a chat tool dispatch that timed out. |
+| `requireOwner` | `REQUIRE_OWNER`, `OWNER_REQUIRED`, `OWNER_PROOF_REQUIRED` | No record. A refused owner-gated request leaves no lease, and the chat path names no owner-gated tool to dispatch. |
+| `resourceAbort` | `RESOURCE_ABORT`, `HOST_PROTECTION` | No record. The resource governor is Stage 15Q. |
+
+`successRate` is `success / (success + failure + timeout)`. A resource abort and an owner wait are in neither part, so neither can lower it. For every record that carries none of those codes the rate is what it was. `ok`, `failed`, `denied`, `unsettled` and `other` still count by recorded outcome.
+
+The addendum's other classes map onto what exists: `SUCCESS` is `ok`, `FAILURE` is `error`, `DENIED` is `denied`, `CANCELLED` is `cancelled`, `UNCERTAIN` is `unsettled` (admitted, never settled), `RETRIED` is `retried` and the retry distribution.
+
+Limits:
+
+- Two of the three new classes have no producer yet, so they read zero. That is the absence of records, not a measurement. The owner-wait class starts counting when an owner-gated dispatch leaves an evidence record; the resource-abort class when the Stage 15Q governor writes its abort code.
+- A provider timeout is recorded as `cancelled` with `ABORTED`, the same as a cancel by the owner: both end the same abort signal. It is in the `cancelled` class, not `timeout`. Telling them apart needs the provider to name its own timeout.
+- Evidence lines written before the retry fix are not rewritten.
+
+Validation: operation evidence 12 scenarios (one new), telemetry 25 (two new), negative controls 16/16 (eight new, including both retry directions), reliability SLO 22 and 9/9, unified trace 17, chat stream 31, action firewall 54, firewall closure 12, proposal approval service 28, eval governance 10. TypeScript, changed-file lint and diff check PASS. Eval manifest `15F.4-v7` (three pins changed; v6 kept as `EVAL_MANIFEST_V6.json`). No model, container or network.

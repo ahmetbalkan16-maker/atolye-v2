@@ -12,7 +12,7 @@ import { auditAyasAuthorizationCompaction, applyAyasAuthorizationCompaction } fr
 import { deriveAyasLeaseEvidence, type AyasOperationEvidence } from "../src/lib/ayas/observability/AyasOperationEvidence";
 import { createAyasOperationEvidenceStore } from "../src/lib/ayas/observability/AyasOperationEvidenceStore";
 import { readAyasOperationalState, AYAS_OPERATIONAL_STATE_MAX_WINDOW_HOURS } from "../src/lib/ayas/observability/AyasOperationalState";
-import { summarizeAyasOperationTelemetry, AYAS_TELEMETRY_MAX_ROWS } from "../src/lib/ayas/observability/AyasOperationTelemetry";
+import { classifyAyasTelemetryOutcome, summarizeAyasOperationTelemetry, AYAS_TELEMETRY_MAX_ROWS, AYAS_TELEMETRY_OUTCOME_CLASSES } from "../src/lib/ayas/observability/AyasOperationTelemetry";
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-telemetry-"));
 const NOW = Date.parse("2026-10-01T12:00:00.000Z");
@@ -72,6 +72,39 @@ try {
     assert.equal(summary.unsettled, 1); assert.equal(summary.actions[0]!.successRate, null);
     assert.equal(summary.tasks.find((row) => row.name === "chat-turn")!.denied, 1);
     assert.equal(summary.tasks.find((row) => row.name === "chat-turn")!.latency.samples, 0);
+  });
+  scenario("outcome classes: every sample in exactly one; a timeout is its own class and still counts against success", () => {
+    const tool = (outcome: AyasOperationEvidence["outcome"], errorCode: string | null, attempt = 1) =>
+      trace({ actions: [{ action: "inspect-source-file", outcome, errorCode, durationMs: 10, attempt, binding: null }] });
+    const input = [tool("ok", null), tool("ok", null, 2), tool("error", "TOOL_EXECUTOR_FAILURE"), tool("error", "TOOL_TIMEOUT"), tool("error", "MODEL_TIMEOUT", 3),
+      tool("error", "SOMETHING_NEVER_SEEN_BEFORE"), tool("error", null), tool("denied", "TOOL_POLICY_DENIED"), tool("cancelled", "ABORTED"), tool("unsettled", null), tool("fallback", null)];
+    const row = summarizeAyasOperationTelemetry(input).actions[0]!;
+    assert.deepEqual(row.classes, { success: 2, failure: 3, timeout: 2, denied: 1, requireOwner: 0, resourceAbort: 0, uncertain: 1, cancelled: 1, other: 1 });
+    assert.equal(Object.values(row.classes).reduce((sum, n) => sum + n, 0), row.total);
+    assert.deepEqual(Object.keys(row.classes), [...AYAS_TELEMETRY_OUTCOME_CLASSES]);
+    // The recorded-outcome counts are unchanged: five errors, whatever their code.
+    assert.deepEqual([row.total, row.ok, row.failed, row.denied, row.unsettled, row.other], [11, 2, 5, 1, 1, 2]);
+    assert.equal(row.successRate, 2 / 7);
+    // An unknown error code is a failure and stays visible; a retried sample keeps its own class.
+    assert.equal(row.errorCodes.SOMETHING_NEVER_SEEN_BEFORE, 1); assert.equal(row.retried, 2); assert.equal(row.retries, 3);
+    // A configuration code that merely contains the word is not a timeout.
+    assert.equal(classifyAyasTelemetryOutcome("error", "ENDPOINT_OR_TIMEOUT_INVALID"), "failure");
+    assert.equal(classifyAyasTelemetryOutcome("error", "TIMEOUT"), "timeout"); assert.equal(classifyAyasTelemetryOutcome("cancelled", "SUITE_TIMED_OUT"), "timeout");
+  });
+  scenario("an owner wait and a host-protection abort are never a failure and never move the success rate", () => {
+    const tool = (outcome: AyasOperationEvidence["outcome"], errorCode: string | null) =>
+      trace({ actions: [{ action: "inspect-source-file", outcome, errorCode, durationMs: 10, attempt: 1, binding: null }] });
+    const clean = [tool("ok", null), tool("ok", null), tool("ok", null), tool("error", "TOOL_EXECUTOR_FAILURE")];
+    const before = summarizeAyasOperationTelemetry(clean).actions[0]!;
+    const after = summarizeAyasOperationTelemetry([...clean, tool("denied", "TOOL_REQUIRE_OWNER"), tool("denied", "AYAS_FIREWALL_OWNER_PROOF_REQUIRED"), tool("error", "RESOURCE_ABORT"),
+      tool("error", "HOST_PROTECTION"), tool("cancelled", "AYAS_LOCAL_CODING_RESOURCE_ABORT")]).actions[0]!;
+    assert.equal(before.successRate, 0.75); assert.equal(after.successRate, 0.75);
+    assert.deepEqual([after.classes.requireOwner, after.classes.resourceAbort, after.classes.failure, after.classes.denied, after.classes.cancelled], [2, 3, 1, 0, 0]);
+    // Only owner waits and aborts recorded: nothing settled, so no rate is invented.
+    assert.equal(summarizeAyasOperationTelemetry([tool("denied", "TOOL_REQUIRE_OWNER"), tool("error", "RESOURCE_ABORT")]).actions[0]!.successRate, null);
+    // The code decides before the outcome does, in a fixed order.
+    assert.equal(classifyAyasTelemetryOutcome("ok", "HOST_PROTECTION"), "resourceAbort"); assert.equal(classifyAyasTelemetryOutcome("error", "OWNER_REQUIRED"), "requireOwner");
+    assert.equal(classifyAyasTelemetryOutcome("denied", null), "denied"); assert.equal(classifyAyasTelemetryOutcome("expired", null), "other"); assert.equal(classifyAyasTelemetryOutcome("revoked", null), "other");
   });
   scenario("window boundaries, malformed records, and invalid clock windows", () => {
     assert.equal(summarizeAyasOperationTelemetry([trace()], { sinceMs: NOW, untilMs: NOW }).records, 1);
