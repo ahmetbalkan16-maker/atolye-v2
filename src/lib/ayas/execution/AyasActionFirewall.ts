@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
-import { AyasExecutionAuthorizationError, AyasExecutionAuthorizationStore } from "./AyasExecutionAuthorization";
+import os from "node:os";
+import { AyasExecutionAuthorizationError, AyasExecutionAuthorizationStore, type AyasExecutionGrantDescriptor } from "./AyasExecutionAuthorization";
+import { AYAS_DISCOVERY_RUN_ACTION, canonicalAyasDiscoveryRunScope, isAyasDiscoveryRunRequest, type AyasDiscoveryRunRequest, type AyasDiscoveryRunScope } from "./AyasCapabilityScope";
 import { ayasCapabilityRequestDigest, ayasLocalActionClassification, canonicalAyasCapabilityScope, isAyasLocalCapabilityRoot, type AyasActionFirewallDecision, type AyasCapabilityScope } from "./AyasCapabilityScope";
 import { AYAS_EXECUTION_RESERVED_ACTIONS, validateAyasExecutionRequest, type AyasExecutionRequest } from "./AyasExecutionPolicy";
 import { AYAS_CAPABILITY_MAX_TTL_MS, canonicalAyasOwnerCapabilityRequest, canonicalAyasOwnerCapabilityScope, isAyasOwnerCapabilityRequest, isAyasOwnerCapabilityLeaseAudit, type AyasOwnerCapabilityProof, type AyasOwnerCapabilityRequest, type AyasOwnerCapabilityLeaseAudit } from "./AyasCapabilityScope";
@@ -62,6 +64,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
   const leases = new WeakMap<object, IssuedLease>();
   const attachedAuthorizationIds = new Set<string>();
   const ownerLeases = new WeakMap<object, { audit: AyasOwnerCapabilityLeaseAudit; consumed: boolean; revoked: boolean }>();
+  const discoveryRuns = new WeakMap<object, { readonly authorizationId: string; readonly createdAt: string; readonly expiresAt: string; readonly scope: AyasDiscoveryRunScope; consumed: boolean; revoked: boolean }>();
   const now = options.now ?? (() => new Date());
 
   function snapshotRequest(raw: unknown): AyasExecutionRequest | undefined {
@@ -111,6 +114,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
   function classify(raw: unknown): AyasActionFirewallDecision {
     const action = raw && typeof raw === "object" ? (raw as { action?: unknown }).action : undefined;
     if (action === "self-development.apply-approved-proposal" || action === "guided-repair.apply-approved-scope" || (typeof action === "string" && AYAS_EXECUTION_RESERVED_ACTIONS.includes(action))) return "REQUIRE_OWNER";
+    if (action === AYAS_DISCOVERY_RUN_ACTION) return isAyasDiscoveryRunRequest(raw) ? "ALLOW_BOUNDED_LOCAL" : "DENY";
     const v = validateAyasExecutionRequest(raw);
     if (!v.ok) return "DENY";
     const classification = ayasLocalActionClassification(v.request.action);
@@ -121,6 +125,8 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
     if (existingAuthorizationId !== undefined && attachedAuthorizationIds.has(existingAuthorizationId)) return refuse("AYAS_FIREWALL_REPLAY");
     const decision = classify(raw);
     if (decision === "DENY" || decision === "REQUIRE_OWNER") return refuse("AYAS_FIREWALL_SCOPE_NOT_ISSUABLE", decision);
+    // A discovery run is leased only through issueDiscoveryRun, by the observer's own child; never as a tool request.
+    if ((raw as { action?: unknown } | null)?.action === AYAS_DISCOVERY_RUN_ACTION) return refuse("AYAS_FIREWALL_SCOPE_NOT_ISSUABLE");
     try {
       if (!options.authorizations) return refuse("AYAS_FIREWALL_AUTHORITY_UNAVAILABLE");
       const request = snapshotRequest(raw);
@@ -164,7 +170,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
   }
 
   function revoke(lease: unknown): AyasActionFirewallRefusal | { readonly allowed: true } {
-    const issued = lease && typeof lease === "object" ? leases.get(lease) : undefined;
+    const issued = lease && typeof lease === "object" ? leases.get(lease) ?? discoveryRuns.get(lease) : undefined;
     if (!issued) return refuse("AYAS_FIREWALL_HANDLE_UNKNOWN");
     try { if (!options.authorizations) return refuse("AYAS_FIREWALL_AUTHORITY_UNAVAILABLE"); options.authorizations.revoke(issued.authorizationId); issued.revoked = true; return { allowed: true }; }
     catch { return refuse("AYAS_FIREWALL_REVOCATION_FAILED"); }
@@ -232,5 +238,65 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
     try { options.ownerReservation!.recordLease(JSON.parse(JSON.stringify({ ...issued.audit, state: "revoked" })) as AyasOwnerCapabilityLeaseAudit); issued.revoked = true; return { allowed: true }; }
     catch { return refuse("AYAS_FIREWALL_REVOCATION_FAILED"); }
   }
-  return Object.freeze({ classify, issue, admit, revoke, bindOwnerReservation, admitOwnerReservation, revokeOwnerReservation });
+
+  // One lease per observer discovery run, in the SAME store. The run's exact capability set, repository,
+  // sandbox root, base HEAD and ledger identity are bound by the grant's request digest.
+  function discoveryScope(request: AyasDiscoveryRunRequest): AyasDiscoveryRunScope {
+    return {
+      schemaVersion: "1", agentId: "ayas-observer-discovery", runId, taskId, ownerId: null, delegationId: "builtin-observer-discovery-v1",
+      capabilities: [...request.capabilities],
+      resource: { repoRoot, sandboxRoot: fs.realpathSync(os.tmpdir()), platform: "LOCAL", request: { ...request, capabilities: [...request.capabilities] } },
+      costClass: "ZERO_LOCAL", classification: "BOUNDED_LOCAL",
+    };
+  }
+  function discoveryDescriptor(scope: AyasDiscoveryRunScope): AyasExecutionGrantDescriptor {
+    return { action: AYAS_DISCOVERY_RUN_ACTION, requestedBy: "ayas-observer-discovery", intent: "bounded observer discovery run",
+      plan: JSON.parse(JSON.stringify(scope)) as Record<string, unknown>, canonical: canonicalAyasDiscoveryRunScope(scope) };
+  }
+  function issueDiscoveryRun(raw: unknown): AyasActionFirewallRefusal | { readonly allowed: true; readonly lease: AyasCapabilityLeaseHandle } {
+    try {
+      if (!options.authorizations) return refuse("AYAS_FIREWALL_AUTHORITY_UNAVAILABLE");
+      if (!isAyasDiscoveryRunRequest(raw)) return refuse("AYAS_FIREWALL_REQUEST_INVALID");
+      const scope = discoveryScope(raw);
+      const grant = options.authorizations.grant(discoveryDescriptor(scope));
+      const lease = Object.freeze(Object.create(null)) as AyasCapabilityLeaseHandle;
+      discoveryRuns.set(lease, { authorizationId: grant.authorizationId, createdAt: grant.createdAt, expiresAt: grant.expiresAt, scope, consumed: false, revoked: false });
+      return { allowed: true, lease };
+    } catch (error) { return refuse(error instanceof AyasExecutionAuthorizationError ? error.code : "AYAS_FIREWALL_ISSUE_FAILED"); }
+  }
+  function admitDiscoveryRun(lease: unknown, raw: unknown): AyasActionFirewallRefusal | {
+    readonly allowed: true; readonly decision: "ALLOW_BOUNDED_LOCAL"; readonly authorizationId: string; readonly executionId: string;
+    /** True only for a capability in the admitted set, before expiry, while the durable record is still consumed and unrevoked. */
+    readonly permits: (capability: unknown) => boolean;
+  } {
+    const issued = lease && typeof lease === "object" ? discoveryRuns.get(lease) : undefined;
+    if (!issued) return refuse("AYAS_FIREWALL_HANDLE_UNKNOWN");
+    if (issued.revoked) return refuse("AYAS_EXEC_AUTH_REVOKED");
+    if (issued.consumed) return refuse("AYAS_FIREWALL_REPLAY");
+    try {
+      const store = options.authorizations;
+      if (!store) return refuse("AYAS_FIREWALL_AUTHORITY_UNAVAILABLE");
+      if (!isAyasDiscoveryRunRequest(raw)) return refuse("AYAS_FIREWALL_REQUEST_INVALID");
+      if (fs.realpathSync(options.repoRoot) !== repoRoot) return refuse("AYAS_FIREWALL_RESOURCE_CHANGED");
+      const expected = discoveryScope(raw);
+      if (canonicalAyasDiscoveryRunScope(expected) !== canonicalAyasDiscoveryRunScope(issued.scope)) return refuse("AYAS_FIREWALL_SCOPE_CHANGED");
+      if (store.read(issued.authorizationId).expiresAt !== issued.expiresAt) return refuse("AYAS_FIREWALL_EXPIRY_CHANGED");
+      const consumed = store.consume(issued.authorizationId, discoveryDescriptor(expected));
+      issued.consumed = true;
+      const permits = (capability: unknown): boolean => {
+        try {
+          if (issued.revoked || typeof capability !== "string" || !(issued.scope.capabilities as readonly string[]).includes(capability)) return false;
+          const t = now().getTime();
+          if (!Number.isFinite(t) || t < Date.parse(issued.createdAt) || t >= Date.parse(issued.expiresAt)) return false;
+          if (fs.realpathSync(options.repoRoot) !== repoRoot) return false;
+          // The durable record decides: a revocation written by any process stops the rest of the run.
+          return store.read(issued.authorizationId).state === "consumed";
+        } catch { return false; }
+      };
+      return { allowed: true, decision: "ALLOW_BOUNDED_LOCAL", authorizationId: consumed.authorizationId, executionId: consumed.executionId, permits };
+    } catch (error) {
+      return refuse(error instanceof AyasExecutionAuthorizationError ? error.code : "AYAS_FIREWALL_ADMISSION_FAILED");
+    }
+  }
+  return Object.freeze({ classify, issue, admit, revoke, bindOwnerReservation, admitOwnerReservation, revokeOwnerReservation, issueDiscoveryRun, admitDiscoveryRun });
 }

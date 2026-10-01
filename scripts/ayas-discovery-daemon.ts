@@ -2,10 +2,12 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
+import type { AyasDiscoveryRunCapability } from "../src/lib/ayas/execution/AyasCapabilityScope";
 import { collectAyasMachineTelemetry } from "../src/lib/ayas/machine/AyasMachineTelemetry";
 import { evaluateAyasMachineHealth } from "../src/lib/ayas/machine/AyasMachineHealthGuard";
 import { createAyasApprovalInboxStore } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
 import { createAyasAutonomyDaemon } from "../src/lib/brain/autonomy/AyasAutonomyDaemon";
+import { admitAyasDiscoveryRun, type AyasDiscoveryRunGuard } from "../src/lib/brain/autonomy/AyasDiscoveryRunGuard";
 import { reconcileAyasStaleProposals } from "../src/lib/brain/autonomy/AyasProposalStaleness";
 import { reviewAyasPendingProposals } from "../src/lib/brain/autonomy/AyasAutonomousReview";
 import { discoverAyasSafeCandidates } from "../src/lib/brain/autonomy/AyasDiscoveryRegistry";
@@ -15,6 +17,7 @@ import { createAyasMicroBatchStore } from "../src/lib/brain/autonomy/AyasMicroBa
 import { createAyasMicroItemStore } from "../src/lib/brain/autonomy/AyasMicroItem";
 import { reconcileAyasMicroBatchStaleness } from "../src/lib/brain/autonomy/AyasMicroBatchStaleness";
 import { tickAyasResearchScheduler, type AyasResearchSchedulerTickResult } from "../src/lib/brain/autonomy/AyasResearchScheduler";
+import { resolveAyasResearchSourceRegistry } from "../src/lib/brain/autonomy/AyasResearchSourceRegistry";
 import { createAyasLocalDiscoveryRunLedger } from "../src/lib/brain/autonomy/AyasLocalDiscoveryRunLedger";
 import { createAyasExternalResearchStore } from "../src/lib/brain/autonomy/AyasExternalResearchStore";
 import { discoverAyasResearchExperimentProposalCandidates, discoverAyasResearchProposalCandidates } from "../src/lib/brain/autonomy/AyasResearchProposalBridge";
@@ -37,6 +40,10 @@ import { readAyasControlledEvolutionRegister, resolveAyasControlledEvolutionRegi
  * and calls the existing, unmodified `AyasAutonomyDaemon.discover()` with
  * server-owned SAFE candidates from `AyasDiscoveryRegistry`. It never
  * decides, reserves, executes, opens a gate, or runs a mutation's `run()`.
+ *
+ * Stage 15D: each run first takes one exact-scope lease from the common
+ * action firewall (`AyasDiscoveryRunGuard`). The lease names the run's
+ * capability set and can only withhold work; it grants no new authority.
  */
 const root = process.cwd();
 
@@ -75,24 +82,47 @@ async function main(): Promise<void> {
   const nextExpectedAt = nextExpectedArg >= 0 ? process.argv[nextExpectedArg + 1] : undefined;
   const ledger = createAyasLocalDiscoveryRunLedger();
   const ledgerRun = ledger.start({ startedAt: now, baseHead: observation.head, ...(nextExpectedAt ? { nextExpectedAt } : {}) });
+  let run: AyasDiscoveryRunGuard | undefined;
 
   try {
+
+  // Stage 15D — one lease for this run, durably admitted before anything below. A refused admission (for
+  // example, the audit record cannot be written) throws here and the run does nothing. Afterwards every
+  // capability asks the lease first: one that is not in the set, or whose lease has expired or been revoked,
+  // is skipped and reported as a gap.
+  const researchSchedulerEnabled = process.env.AYAS_RESEARCH_SCHEDULER_ENABLED !== "0";
+  const researchImprovementEnabled = process.env.AYAS_RESEARCH_IMPROVEMENT_ENABLED !== "0";
+  const evolutionFile = resolveAyasControlledEvolutionRegisterFile(root, process.env.AYAS_CONTROLLED_EVOLUTION_REGISTER_FILE);
+  const evolutionDue = Boolean(evolutionFile) && observation.repoClean && observation.graphifyFresh && observation.machineAction === "ALLOW";
+  const researchSources = resolveAyasResearchSourceRegistry();
+  const capabilities: AyasDiscoveryRunCapability[] = ["discovery.proposal-inbox", "discovery.novel-patch-sandbox", "discovery.micro-batch-accumulation"];
+  if (researchSchedulerEnabled) capabilities.push("discovery.research-scheduler-tick");
+  if (researchImprovementEnabled) capabilities.push("discovery.research-improvement-cycle");
+  if (evolutionDue) capabilities.push("discovery.controlled-evolution-cycle");
+  const lease = admitAyasDiscoveryRun({ repoRoot: root, ledgerRunId: ledgerRun.runId, baseHead: observation.head, capabilities, publicReadSources: researchSources });
+  run = lease;
+  const withheld = new Set<AyasDiscoveryRunCapability>();
+  const leased = (capability: AyasDiscoveryRunCapability): boolean => {
+    if (lease.permits(capability)) return true;
+    if (!withheld.has(capability)) { withheld.add(capability); observation.gaps.push(`capability not leased: ${capability}`); }
+    return false;
+  };
 
   // One lock-protected scheduler tick per child process. Reconcile durable
   // research before unrelated discovery/inbox work, so their failures do
   // not suppress missed-window detection. Operator opt-out remains honored.
   let research: AyasResearchSchedulerTickResult | undefined;
-  const researchSchedulerEnabled = process.env.AYAS_RESEARCH_SCHEDULER_ENABLED !== "0";
-  if (researchSchedulerEnabled) {
-    try { research = await tickAyasResearchScheduler({ repoRoot: root }); }
+  if (researchSchedulerEnabled && leased("discovery.research-scheduler-tick")) {
+    // The scheduler reads exactly the source list whose digest the lease recorded.
+    try { research = await tickAyasResearchScheduler({ repoRoot: root, sources: researchSources }); }
     catch (error) { observation.gaps.push(`research scheduler tick failed: ${error instanceof Error ? error.message : String(error)}`); }
   }
 
   const inbox = createAyasApprovalInboxStore();
-  // Backend-authoritative staleness reconciliation: unconditional, since it
-  // only ever flips PENDING/APPROVED -> STALE (see AyasProposalStaleness.ts)
-  // and never reserves/executes/opens a gate.
-  const staled = reconcileAyasStaleProposals(inbox, observation.head, now);
+  // Backend-authoritative staleness reconciliation: it only ever flips
+  // PENDING/APPROVED -> STALE (see AyasProposalStaleness.ts) and never
+  // reserves/executes/opens a gate. It runs first under the run's lease.
+  const staled = leased("discovery.proposal-inbox") ? reconcileAyasStaleProposals(inbox, observation.head, now) : [];
 
   const daemon = createAyasAutonomyDaemon({ inbox, now: () => now });
   daemon.observe(observation);
@@ -107,10 +137,12 @@ async function main(): Promise<void> {
   // in this script — it never aborts staleness reconciliation or the
   // existing static-source discovery below.
   let novel: Awaited<ReturnType<typeof discoverAyasNovelPatchCandidates>> = { candidates: [], rejections: [], findings: [] };
-  try {
-    novel = await discoverAyasNovelPatchCandidates({ repoRoot: root, observation });
-  } catch (error) {
-    observation.gaps.push(`novel patch discovery failed: ${error instanceof Error ? error.message : String(error)}`);
+  if (leased("discovery.novel-patch-sandbox")) {
+    try {
+      novel = await discoverAyasNovelPatchCandidates({ repoRoot: root, observation });
+    } catch (error) {
+      observation.gaps.push(`novel patch discovery failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   // Stage 8 — research → improvement loop. Bounded and restart-safe: it can
@@ -119,8 +151,7 @@ async function main(): Promise<void> {
   // mirrors the research scheduler's.
   const researchFindings = createAyasExternalResearchStore().list();
   let improvement: AyasResearchImprovementCycleResult | undefined;
-  const researchImprovementEnabled = process.env.AYAS_RESEARCH_IMPROVEMENT_ENABLED !== "0";
-  if (researchImprovementEnabled) {
+  if (researchImprovementEnabled && leased("discovery.research-improvement-cycle")) {
     try {
       improvement = await runAyasResearchImprovementCycle({ repoRoot: root, observation, findings: researchFindings, inbox, timeBudgetMs: Math.max(0, Math.min(90_000, AYAS_DISCOVERY_CHILD_WORK_CEILING_MS - (Date.now() - childStartedAt))) });
     } catch (error) {
@@ -136,8 +167,7 @@ async function main(): Promise<void> {
   // as the read-only qualification CLI. Missing input admits nothing. Any
   // failure is isolated before the existing discovery and owner-review flow.
   let controlledEvolutionCandidate: Awaited<ReturnType<typeof runAyasControlledSelfEvolutionCycle>> = null;
-  const evolutionFile = resolveAyasControlledEvolutionRegisterFile(root, process.env.AYAS_CONTROLLED_EVOLUTION_REGISTER_FILE);
-  if (evolutionFile && observation.repoClean && observation.graphifyFresh && observation.machineAction === "ALLOW") {
+  if (evolutionFile && evolutionDue && leased("discovery.controlled-evolution-cycle")) {
     try {
       controlledEvolutionCandidate = await runAyasControlledSelfEvolutionCycle({ repoRoot: root, observation,
         register: readAyasControlledEvolutionRegister(evolutionFile), inbox,
@@ -149,7 +179,7 @@ async function main(): Promise<void> {
   const candidates = [...discoverAyasSafeCandidates({ repoRoot: root, observation }), ...novel.candidates, ...researchCandidates,
     ...(controlledEvolutionCandidate ? [controlledEvolutionCandidate] : [])];
   const proposalIdsBefore = new Set(inbox.load().proposals.map((proposal) => proposal.proposalId));
-  const discovered = daemon.discover(observation, candidates);
+  const discovered = leased("discovery.proposal-inbox") ? daemon.discover(observation, candidates) : [];
   const proposalCount = inbox.load().proposals.filter((proposal) => !proposalIdsBefore.has(proposal.proposalId)).length;
 
   // Owner-approval model — AYAS's own internal REJECT/DEFER/RECOMMEND_FOR_APPROVAL
@@ -160,10 +190,12 @@ async function main(): Promise<void> {
   // `AyasOwnerRecommendationsView`'s read-only projection. Never executes
   // anything — same best-effort posture as every other signal in this tick.
   let ownerReview: ReturnType<typeof reviewAyasPendingProposals> = { rejected: [], deferred: [], recommended: [] };
-  try {
-    ownerReview = reviewAyasPendingProposals(inbox, () => now);
-  } catch (error) {
-    observation.gaps.push(`owner-approval internal review failed: ${error instanceof Error ? error.message : String(error)}`);
+  if (leased("discovery.proposal-inbox")) {
+    try {
+      ownerReview = reviewAyasPendingProposals(inbox, () => now);
+    } catch (error) {
+      observation.gaps.push(`owner-approval internal review failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   // M18 — MICRO_SAFE candidates never reach the line above (AyasNovelPatchDiscovery
@@ -173,12 +205,15 @@ async function main(): Promise<void> {
   // or the individual-proposal discovery already completed.
   const microBatchStore = createAyasMicroBatchStore();
   const microItemStore = createAyasMicroItemStore();
-  const staledBatches = reconcileAyasMicroBatchStaleness(microBatchStore, microItemStore, observation.head, now);
+  const microBatchLeased = leased("discovery.micro-batch-accumulation");
+  const staledBatches = microBatchLeased ? reconcileAyasMicroBatchStaleness(microBatchStore, microItemStore, observation.head, now) : [];
   let microBatch: Awaited<ReturnType<typeof accumulateAyasMicroBatchCandidates>> = { itemsAdded: [], batch: null, rejections: [], readyForReview: false, staledPreviousBatchId: null };
-  try {
-    microBatch = await accumulateAyasMicroBatchCandidates({ repoRoot: root, observation, batchStore: microBatchStore, itemStore: microItemStore });
-  } catch (error) {
-    observation.gaps.push(`micro batch accumulation failed: ${error instanceof Error ? error.message : String(error)}`);
+  if (microBatchLeased) {
+    try {
+      microBatch = await accumulateAyasMicroBatchCandidates({ repoRoot: root, observation, batchStore: microBatchStore, itemStore: microItemStore });
+    } catch (error) {
+      observation.gaps.push(`micro batch accumulation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   ledger.complete(ledgerRun.runId, {
@@ -190,6 +225,10 @@ async function main(): Promise<void> {
     staleBatchCount: staledBatches.length,
     researchOutcome: research?.outcome ?? (researchSchedulerEnabled ? "ERROR" : "DISABLED"),
   });
+  // Counts only; a lost outcome record leaves the consumed admission as the run's evidence.
+  if (!lease.settle({ ok: true, summary: { candidates: candidates.length, proposals: proposalCount, staleProposals: staled.length, staleBatches: staledBatches.length, withheld: [...withheld].sort() } })) {
+    observation.gaps.push("discovery run outcome audit failed");
+  }
 
   console.log(JSON.stringify({
     status: "OK",
@@ -224,8 +263,10 @@ async function main(): Promise<void> {
     localDiscoveryRunId: ledgerRun.runId,
     localCandidateCount: candidates.length,
     localProposalCount: proposalCount,
+    capabilityLease: lease.authorizationId,
   }));
   } catch (error) {
+    run?.settle({ ok: false });
     try { ledger.fail(ledgerRun.runId, new Date().toISOString()); } catch { /* preserve the original failure */ }
     throw error;
   }

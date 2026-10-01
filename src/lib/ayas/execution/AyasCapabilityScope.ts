@@ -80,6 +80,66 @@ export function canonicalAyasCapabilityScope(scope: AyasCapabilityScope): string
   ]);
 }
 
+/**
+ * What the observer's discovery child may do in one run. Closed, and absent from the chat tool allowlist:
+ * no request from a model or a tool can name one of these. Every entry is local bounded work; the research
+ * tick also reads a fixed list of public sources, pinned by digest in the run request.
+ */
+export const AYAS_DISCOVERY_RUN_CAPABILITIES = Object.freeze([
+  "discovery.controlled-evolution-cycle",
+  "discovery.micro-batch-accumulation",
+  "discovery.novel-patch-sandbox",
+  "discovery.proposal-inbox",
+  "discovery.research-improvement-cycle",
+  "discovery.research-scheduler-tick",
+] as const);
+export type AyasDiscoveryRunCapability = (typeof AYAS_DISCOVERY_RUN_CAPABILITIES)[number];
+export const AYAS_DISCOVERY_RUN_ACTION = "observer-discovery.run";
+export interface AyasDiscoveryRunRequest {
+  readonly action: typeof AYAS_DISCOVERY_RUN_ACTION;
+  /** The existing discovery ledger's run identity. */
+  readonly ledgerRunId: string;
+  readonly baseHead: string;
+  /** Exact set: unique and in ascending order, so one set has one canonical form. */
+  readonly capabilities: readonly AyasDiscoveryRunCapability[];
+  /** Digest of the source list the research tick may read. Null exactly when that capability is absent. */
+  readonly publicReadSourceDigest: string | null;
+}
+export interface AyasDiscoveryRunScope {
+  readonly schemaVersion: "1";
+  readonly agentId: "ayas-observer-discovery";
+  readonly runId: string;
+  readonly taskId: string;
+  /** Built-in delegation for the owner-supervised observer; this is NOT an owner identity. */
+  readonly ownerId: null;
+  readonly delegationId: "builtin-observer-discovery-v1";
+  readonly capabilities: readonly AyasDiscoveryRunCapability[];
+  readonly resource: { readonly repoRoot: string; readonly sandboxRoot: string; readonly platform: "LOCAL"; readonly request: AyasDiscoveryRunRequest };
+  readonly costClass: "ZERO_LOCAL";
+  readonly classification: "BOUNDED_LOCAL";
+}
+export function isAyasDiscoveryRunRequest(raw: unknown): raw is AyasDiscoveryRunRequest {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+  const r = raw as Record<string, unknown>;
+  if (!exactKeys(r, ["action", "ledgerRunId", "baseHead", "capabilities", "publicReadSourceDigest"]) || r.action !== AYAS_DISCOVERY_RUN_ACTION ||
+      typeof r.ledgerRunId !== "string" || !/^ayas-local-discovery-[a-f0-9-]{36}$/.test(r.ledgerRunId) ||
+      typeof r.baseHead !== "string" || !/^[a-f0-9]{40,64}$/.test(r.baseHead) ||
+      !Array.isArray(r.capabilities) || r.capabilities.length === 0 || r.capabilities.length > AYAS_DISCOVERY_RUN_CAPABILITIES.length) return false;
+  const known: readonly string[] = AYAS_DISCOVERY_RUN_CAPABILITIES;
+  const listed = r.capabilities as readonly unknown[];
+  if (!listed.every((item, index) => typeof item === "string" && known.includes(item) && (index === 0 || String(listed[index - 1]) < item))) return false;
+  return listed.includes("discovery.research-scheduler-tick")
+    ? typeof r.publicReadSourceDigest === "string" && HASH.test(r.publicReadSourceDigest)
+    : r.publicReadSourceDigest === null;
+}
+/** Fixed serialization. Validate the request before calling. */
+export function canonicalAyasDiscoveryRunScope(scope: AyasDiscoveryRunScope): string {
+  const r = scope.resource.request;
+  return JSON.stringify([scope.schemaVersion, scope.agentId, scope.runId, scope.taskId, scope.ownerId, scope.delegationId, scope.capabilities,
+    scope.resource.repoRoot, scope.resource.sandboxRoot, scope.resource.platform,
+    [r.action, r.ledgerRunId, r.baseHead, r.capabilities, r.publicReadSourceDigest], scope.costClass, scope.classification]);
+}
+
 /** Data only: the existing owner decision/reservation remains the authority. */
 export interface AyasSelfDevelopmentCapabilityRequest {
   readonly action: "self-development.apply-approved-proposal";
