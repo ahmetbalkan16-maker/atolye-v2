@@ -1,3 +1,10 @@
+## AYAS MASTER — CURRENT HANDOFF — 2026-10-01
+
+- Branch `wip/ayas-graphify-final-execution`; Stage 15A.3 is in progress. Repository truth and `docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json` take precedence over older entries below.
+- Stage 15A.3a historical qualification vault was committed locally as `a9cf53cebb126415d2a018429dc2cfb34a8ff597`. Graphify was rebound to that HEAD: 15,672 nodes / 45,559 edges, stale=false, no `needs_update`, and zero duplicate/dangling/self-loop anomalies.
+- Stage 15A.3b host-only oracle checks on two frozen historical cases: baseline FAIL, exact historical fix PASS, deliberately wrong no-op candidate FAIL for each. This is **not** a model pass or hard-sandbox qualification. Docker/Podman/image admission is still absent; `LOCAL_INDEPENDENCE_DEGRADED` and coding execution disabled.
+- Exact next action: finish the 15A.3b packet (TypeScript, lint, Graphify integrity, explicit local commit and HEAD rebind), then expand 15A.3 qualification to independent Graphify, security, UI, retrieval and TypeScript cases. Keep the master order; do not start 15B until 15A.3 and Stage 15A are actually green.
+
 ## AYAS STAGE 14 — POST-MERGE CLOSURE — 2026-09-25
 
 - **State: Stage 14 — Autonomous Technology Watch & Capability Discovery ✅ COMPLETED.**
