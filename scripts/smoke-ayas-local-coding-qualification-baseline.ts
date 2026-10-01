@@ -53,13 +53,16 @@ async function main(): Promise<void> {
       const baseline = runFrozenEvaluator(sandbox.repoDir, sandbox.runRoot, item.evaluatorScript);
       assert.ok(!baseline.timedOut && baseline.exit === 1,
         `${item.caseId}: baseline must fail normally, not timeout/crash: ${baseline.stderr.slice(0, 800)}`);
-      assert.match(baseline.stderr, /AssertionError|ERR_ASSERTION/, `${item.caseId}: baseline failure must be an assertion`);
+      const expectedErrorClass = item.caseId === "historical-windows-graphify-launch"
+        ? /\[AyasPostPublicationClosureError: spawnSync npx\.cmd EINVAL\]/ : /AssertionError|ERR_ASSERTION/;
+      assert.match(baseline.stderr, expectedErrorClass, `${item.caseId}: baseline failure must match the frozen target`);
       const expectedFactKey = item.caseId === "historical-explicit-computer-plan"
         ? "user.decision.computer-purchase-plan"
         : item.caseId === "heldout-render-tool-supersession" ? "user.decision.render-tool" : null;
       const expectedFailure = expectedFactKey ? `- '${expectedFactKey}'`
         : item.caseId === "historical-atomic-bounded-write" ? "Missing expected rejection"
-          : item.caseId === "historical-daily-development-view" ? "proposalId: 'stale-yesterday'" : null;
+          : item.caseId === "historical-daily-development-view" ? "proposalId: 'stale-yesterday'"
+            : item.caseId === "historical-windows-graphify-launch" ? "AYAS_POST_PUBLICATION_GRAPHIFY_REFRESH_FAILED" : null;
       assert.ok(expectedFailure, "every historical case needs an explicit expected failure");
       assert.ok(baseline.stderr.includes(expectedFailure), `${item.caseId}: baseline failed for a different reason: ${baseline.stderr.slice(0, 1500)}`);
 
@@ -74,7 +77,7 @@ async function main(): Promise<void> {
       const wrong = runFrozenEvaluator(sandbox.repoDir, sandbox.runRoot, item.evaluatorScript);
       assert.ok(!wrong.timedOut && wrong.exit === 1,
         `${item.caseId}: wrong candidate must fail normally: ${wrong.stderr.slice(0, 800)}`);
-      assert.match(wrong.stderr, /AssertionError|ERR_ASSERTION/, `${item.caseId}: wrong-candidate failure must be an assertion`);
+      assert.match(wrong.stderr, expectedErrorClass, `${item.caseId}: wrong-candidate failure must match the frozen target`);
       assert.ok(wrong.stderr.includes(expectedFailure), `${item.caseId}: wrong candidate failed for a different reason`);
       results.push({ caseId: item.caseId, split: item.split, baseline: "FAIL", candidate: "PASS",
         wrongCandidate: "FAIL", baselineMs: baseline.durationMs, candidateMs: candidate.durationMs,

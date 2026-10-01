@@ -4,7 +4,7 @@ import { parseAyasLocalCodingTaskContract, type AyasLocalCodingTaskContract } fr
 export interface AyasLocalCodingQualificationCase {
   readonly caseId: string;
   readonly split: "PRIMARY" | "HELD_OUT";
-  readonly domain: "MEMORY_TEMPORAL" | "SECURITY" | "UI";
+  readonly domain: "MEMORY_TEMPORAL" | "SECURITY" | "UI" | "GRAPHIFY";
   readonly taskId: string;
   readonly baseHead: string;
   readonly fixHead: string;
@@ -56,6 +56,16 @@ export const AYAS_LOCAL_CODING_QUALIFICATION_VAULT: readonly AyasLocalCodingQual
     exactFiles: Object.freeze(["src/lib/brain/autonomy/AyasApprovalInboxView.ts"]), maxChangedLines: 80,
     evaluatorScript: "scripts/smoke-ayas-development-center.ts",
     evaluatorBlob: "6ff859f5996ea8623f823a5f7986296c5e965adb",
+  }),
+  Object.freeze({
+    caseId: "historical-windows-graphify-launch", split: "PRIMARY", domain: "GRAPHIFY",
+    taskId: "ayas-coding-abcdef01-2345-4234-8234-abcdef012345",
+    baseHead: "88d662eaf4534b668159639a7195b7bd761bf430",
+    fixHead: "0e54633ff36a32d1620fb7ef423049b6712d25dc",
+    objective: "Launch the fixed local Graphify refresh command on Windows and preserve failure reporting when that command fails.",
+    exactFiles: Object.freeze(["src/lib/brain/autonomy/AyasPostPublicationClosure.ts"]), maxChangedLines: 80,
+    evaluatorScript: "scripts/smoke-ayas-post-publication-closure-windows-launcher.ts",
+    evaluatorBlob: "58c7d098272f6d7d83c1b78ca4b8940839fdbc5b",
   }),
 ]);
 
