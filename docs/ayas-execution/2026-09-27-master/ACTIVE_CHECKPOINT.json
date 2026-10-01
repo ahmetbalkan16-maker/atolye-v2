@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "e28b54cc643b87fad4d01c6476197a3c1b2fed64",
-  "currentHead": "e28b54cc643b87fad4d01c6476197a3c1b2fed64",
+  "lastGreenHead": "19c9e944003861081bb3f2bec074c1c628dae1d5",
+  "currentHead": "19c9e944003861081bb3f2bec074c1c628dae1d5",
   "stage": "STAGE_15D",
-  "subtask": "15D.4-owner-write-proof-and-exact-scope-binding",
+  "subtask": "15D.4b-bind-owner-reservation-lease-to-existing-journal",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -134,21 +134,14 @@
     "15D.0-existing-seam-inspection",
     "15D.1-exact-scope-lease-foundation",
     "15D.2-read-dispatch-common-guard",
-    "15D.3-legacy-read-bridge-common-guard"
+    "15D.3-legacy-read-bridge-common-guard",
+    "15D.4a-owner-session-and-current-decision-proof"
   ],
   "currentFiles": [
-    "src/lib/ayas/execution/AyasActionFirewall.ts",
-    "src/lib/ayas/execution/AyasActionRuntime.ts",
-    "src/lib/ayas/execution/AyasCapabilityScope.ts",
-    "src/lib/ayas/execution/AyasExecutionAuthorization.ts",
-    "src/lib/ayas/execution/AyasExecutionBridge.ts",
-    "scripts/smoke-ayas-action-firewall-bridge.ts",
-    "ATOLYE_CHECKPOINT.md",
-    "docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json",
-    "docs/ayas-execution/2026-09-27-master/EXECUTION_LEDGER.md",
-    "docs/ayas-execution/2026-09-27-master/NEW_FINDINGS.md",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15D/IMPLEMENTATION_NOTES.md",
-    "CHANGELOG.md"
+    "app/brain/actions.ts",
+    "src/lib/brain/autonomy/AyasExecutionRevalidation.ts",
+    "scripts/smoke-ayas-owner-session-admission.ts",
+    "scripts/smoke-ayas-execution-revalidation-scope-recovery.ts"
   ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
@@ -205,15 +198,18 @@
     "TypeScript PASS; changed-file lint 0 warnings; full lint 0 errors / 13 existing warnings; diff PASS",
     "15D.3 legacy read bridge 12 adversarial/integration scenarios PASS: same grant/expiry, closed gate, unknown grant, request/classification tamper, revocation/expiry, task rebinding, duplicate attachment, mutation lock, two fresh process race, undeclared network/device roots",
     "lease firewall 49; read dispatch 12; original action runtime 17; bridge 23; write action 16 PASS",
-    "TypeScript PASS; changed-file lint PASS; diff check PASS; Graphify current PARTIAL (9 known files), semantic pending; duplicate node/edge 0/0, dangling/self-loop 0/0"
+    "TypeScript PASS; changed-file lint PASS; diff check PASS; Graphify current PARTIAL (9 known files), semantic pending; duplicate node/edge 0/0, dangling/self-loop 0/0",
+    "15D.4a actual owner server-action guard 11 scenarios PASS; real access gate 19 PASS; revalidation/scope/recovery 37 PASS (7 additional current-decision adversarial cases)",
+    "daemon 9; proposal execution service 29; micro batch execution service 13; durable approval compatibility 24; daemon authority boundary 23 PASS",
+    "TypeScript PASS; changed-file lint PASS; diff check PASS; Graphify current PARTIAL (9 known gaps), 16097 nodes / 46673 links, graph anomalies 0"
   ],
   "graphify": {
-    "head": "997478362a767ed85255f8b8b586c94792e80575",
-    "testedSourcePacket": "e28b54cc643b87fad4d01c6476197a3c1b2fed64",
+    "head": "716c5ebe86f0705005334b7a872bce14fc1f161b",
+    "testedSourcePacket": "19c9e944003861081bb3f2bec074c1c628dae1d5",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 16085,
-    "edges": 46647,
+    "nodes": 16097,
+    "edges": 46673,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
@@ -227,8 +223,8 @@
     "External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority.",
     "OWNER_DECISION for any local-coding re-qualification: define a numeric qualification threshold; and/or pin a different local model or engine; and/or allow GPU passthrough into the rootless sandbox. Not a blocker for Stage 15B."
   ],
-  "nextAction": "Inspect and bind the current protected owner approval/reservation and write/self-development/guided-repair execution seams to the common capability guard. Reuse existing approvals, authority lock, revalidation, journal and mutation boundary; do not create a second authority engine or infer owner identity from text. Keep write defaults closed. Then durable/direct-context coverage and full 15D closure; automatically continue to 15E only when green. NO PUSH.",
-  "updatedAt": "2026-10-01T13:35:02.621Z",
+  "nextAction": "Bind one short-lived owner-reservation lease through the SAME action firewall, existing approval inbox/micro-batch adapter, authority lock and execution journal before the self-development callback. Owner identity must reflect the current single shared-passcode owner role and exact decision identity, never a reason prefix or invented person. No new authority store. Then guided repair/write/durable/direct-context coverage and complete 15D before 15E. NO PUSH.",
+  "updatedAt": "2026-10-01T13:44:48.222Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -310,7 +306,7 @@
     "ROADMAP.md"
   ],
   "localClosure": {
-    "sourcePacketCommit": "e28b54cc643b87fad4d01c6476197a3c1b2fed64",
+    "sourcePacketCommit": "19c9e944003861081bb3f2bec074c1c628dae1d5",
     "push": false,
     "documentationOnlyClosure": true,
     "headSemantics": "Full tested source-packet HEAD. The checkpoint documentation commit descends from it; resolve actual current HEAD with git rev-parse HEAD. Per-machine final Graphify metadata is not committed."
@@ -362,15 +358,13 @@
   "headSemantics": "Full tested source-packet HEAD. The checkpoint documentation commit descends from it; resolve actual current HEAD with git rev-parse HEAD. Per-machine final Graphify metadata is not committed.",
   "stage15D": {
     "state": "READ_DISPATCH_GREEN_REMAINING_SEAMS_PENDING",
-    "sourcePacketCommit": "e28b54cc643b87fad4d01c6476197a3c1b2fed64",
+    "sourcePacketCommit": "19c9e944003861081bb3f2bec074c1c628dae1d5",
     "inspectionComplete": true,
     "sourceChanges": [
-      "src/lib/ayas/execution/AyasActionFirewall.ts",
-      "src/lib/ayas/execution/AyasActionRuntime.ts",
-      "src/lib/ayas/execution/AyasCapabilityScope.ts",
-      "src/lib/ayas/execution/AyasExecutionAuthorization.ts",
-      "src/lib/ayas/execution/AyasExecutionBridge.ts",
-      "scripts/smoke-ayas-action-firewall-bridge.ts"
+      "app/brain/actions.ts",
+      "src/lib/brain/autonomy/AyasExecutionRevalidation.ts",
+      "scripts/smoke-ayas-owner-session-admission.ts",
+      "scripts/smoke-ayas-execution-revalidation-scope-recovery.ts"
     ],
     "notes": "03_STAGE15_BASE/hardening/15D/IMPLEMENTATION_NOTES.md",
     "tests": [
@@ -384,7 +378,10 @@
       "TypeScript PASS; changed-file lint 0 warnings; full lint 0 errors / 13 existing warnings; diff PASS",
       "15D.3 legacy read bridge 12 adversarial/integration scenarios PASS: same grant/expiry, closed gate, unknown grant, request/classification tamper, revocation/expiry, task rebinding, duplicate attachment, mutation lock, two fresh process race, undeclared network/device roots",
       "lease firewall 49; read dispatch 12; original action runtime 17; bridge 23; write action 16 PASS",
-      "TypeScript PASS; changed-file lint PASS; diff check PASS; Graphify current PARTIAL (9 known files), semantic pending; duplicate node/edge 0/0, dangling/self-loop 0/0"
+      "TypeScript PASS; changed-file lint PASS; diff check PASS; Graphify current PARTIAL (9 known files), semantic pending; duplicate node/edge 0/0, dangling/self-loop 0/0",
+      "15D.4a actual owner server-action guard 11 scenarios PASS; real access gate 19 PASS; revalidation/scope/recovery 37 PASS (7 additional current-decision adversarial cases)",
+      "daemon 9; proposal execution service 29; micro batch execution service 13; durable approval compatibility 24; daemon authority boundary 23 PASS",
+      "TypeScript PASS; changed-file lint PASS; diff check PASS; Graphify current PARTIAL (9 known gaps), 16097 nodes / 46673 links, graph anomalies 0"
     ],
     "liveLeaseIssued": false,
     "globalGuardBound": false,
@@ -406,10 +403,13 @@
     "packetCommits": {
       "foundation": "2d621626edb2fbc0f8cd1ed2b552b392e6d93c48",
       "readDispatch": "bbf7aa9c3ee3632bd122dafa91be6b7786bb6add",
-      "legacyReadBridge": "e28b54cc643b87fad4d01c6476197a3c1b2fed64"
+      "legacyReadBridge": "e28b54cc643b87fad4d01c6476197a3c1b2fed64",
+      "ownerProof": "19c9e944003861081bb3f2bec074c1c628dae1d5"
     },
     "readRuntimeGuardBound": true,
-    "legacyReadBridgeGuardBound": true
+    "legacyReadBridgeGuardBound": true,
+    "ownerSessionAsyncCheckFixed": true,
+    "currentDecisionRevalidated": true
   },
   "pushPolicy": {
     "state": "NO_PUSH",

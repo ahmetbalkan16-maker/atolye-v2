@@ -1,3 +1,8 @@
+## 2026-10-01 — AYAS Stage15D.4a owner proof correction
+
+- Await asynchronous session verification before protected owner actions; reject stale/replaced/consumed approval decisions during execution revalidation.
+- Actual guard11 and revalidation37 adversarial scenarios plus affected regressions PASS. Owner lease and global coverage remain pending. NO PUSH.
+
 ## 2026-10-01 — AYAS Stage 15D.3 legacy read bridge guard
 
 - Bind exact scope to the same existing read authorization under its mutation lock; preserve grant identity and expiry, refuse rebinding/replay and undeclared network/device roots.

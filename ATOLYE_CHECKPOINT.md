@@ -1,3 +1,9 @@
+# AYAS MASTER CURRENT — 15D.4a GREEN / 15D.4b NEXT — 2026-10-01
+
+Tested source 19c9e944003861081bb3f2bec074c1c628dae1d5 plus documentation descendant; resolve actual HEAD on resume. Owner session async verification bug fixed; current APPROVE decision/hash/latest identity and reservation times now revalidated. Session11/access19/revalidation37 plus daemon/proposal/micro-batch regressions PASS; TypeScript/lint/diff PASS. Graphify current PARTIAL9/semantic pending, anomalies0.
+
+15D stays IN_PROGRESS: next bind owner reservation lease to common guard and existing journal/lock; guided repair/write/durable/direct-context scope then closure precede15E. Detailed ACTIVE_CHECKPOINT is authoritative. NO PUSH without new explicit owner approval; prior36fa deviation retained with no history rewrite. PC health/on-demand runtime unchanged; no model/container activation.
+
 # AYAS MASTER CURRENT — 15D.3 GREEN / 15D.4 NEXT — 2026-10-01
 
 Stage 15C CLOSED/GREEN; 15D IN_PROGRESS. Tested source e28b54cc643b87fad4d01c6476197a3c1b2fed64 plus a documentation descendant (resolve actual HEAD on resume). Legacy read bridge now uses the same existing grant and exact-scope firewall, preserving expiry and closed write defaults. Tests: bridge guard 12, lease 49, dispatch 12, original runtime 17 / bridge 23 / write 16 PASS; TypeScript/lint/diff PASS. Graphify current PARTIAL: 9 known gaps, semantic pending, no graph anomalies.
