@@ -1,6 +1,13 @@
 import { evaluateAyasGraphifyState, type AyasGraphifyFacts } from "../../ayas/developer/AyasGraphifyState";
-import { collectAyasGraphifyFacts } from "../../ayas/developer/AyasGraphifyStateCollector";
-import { ayasDurableCanonicalJson, type AyasDurableJson, type AyasDurableTaskDefinitionInput } from "./AyasDurableTask";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { collectAyasGraphifyFacts, resolveAyasGraphifyModulesForStatus } from "../../ayas/developer/AyasGraphifyStateCollector";
+import { createAyasActionFirewall } from "../../ayas/execution/AyasActionFirewall";
+import { AyasExecutionAuthorizationStore } from "../../ayas/execution/AyasExecutionAuthorization";
+import { resolveAyasExecutionAuditRoot } from "../../ayas/execution/AyasExecutionAuditContext";
+import { isAyasLocalCapabilityRoot } from "../../ayas/execution/AyasCapabilityScope";
+import { AYAS_DURABLE_TASK_ID, ayasDurableAttemptId, ayasDurableCanonicalJson, type AyasDurableJson, type AyasDurableTaskDefinitionInput } from "./AyasDurableTask";
 import type { AyasDurableActivity } from "./AyasDurableTaskRuntime";
 
 /**
@@ -14,7 +21,9 @@ import type { AyasDurableActivity } from "./AyasDurableTaskRuntime";
  * current HEAD, using the same read-only collector as
  * `scripts/ayas-graphify-status.ts`: two read-only Git queries with optional
  * locks disabled and local file reads. It never runs or refreshes Graphify,
- * never contacts a network endpoint and writes nothing.
+ * never contacts a network endpoint and writes no target data. Stage 15D adds
+ * mandatory grant/consume/outcome audit through the existing authorization store
+ * before this ONE native read; recorded results never restore live authority.
  *
  * The repository root comes from the caller in code. The step's target is a
  * fixed logical name and its input must be empty, so no task, model or tool
@@ -30,18 +39,62 @@ export interface AyasFirstDurableActivitySetDeps {
   readonly repoRoot: string;
   /** Replaces the collector. Tests pass fixed facts. */
   readonly collectFacts?: (repoRoot: string) => Promise<AyasGraphifyFacts>;
+  /** Trusted server/test store only. No task input can select an audit destination. */
+  readonly authorizations?: AyasExecutionAuthorizationStore;
 }
 
 const HEAD = /^[a-f0-9]{40}$/;
 
 /** The closed registry a sweep is given. Frozen: nothing can be added to it at run time. */
 export function createAyasFirstDurableActivitySet(deps: AyasFirstDurableActivitySetDeps): Readonly<Record<string, AyasDurableActivity>> {
-  const collectFacts = deps.collectFacts ?? ((repoRoot: string) => collectAyasGraphifyFacts({ cwd: repoRoot }));
+  const repoRoot = deps.repoRoot;
+  const env = Object.freeze({ ...process.env });
+  const modulesRoot = path.resolve(resolveAyasGraphifyModulesForStatus(env));
+  let physicalRoot: string | undefined;
+  let physicalModulesRoot: string | undefined;
+  try {
+    if (isAyasLocalCapabilityRoot(repoRoot) && isAyasLocalCapabilityRoot(modulesRoot)) {
+      physicalRoot = fs.realpathSync(repoRoot);
+      physicalModulesRoot = fs.realpathSync(modulesRoot);
+    }
+  } catch { /* unknown resource stays denied before any collector */ }
+  const collectFacts = deps.collectFacts ?? ((root: string) => collectAyasGraphifyFacts({ cwd: root,
+    env: { ...env, AYAS_GRAPHIFY_GLOBAL_MODULES: physicalModulesRoot }, includeUserConsumers: false }));
+  const authorizations = deps.authorizations ?? new AyasExecutionAuthorizationStore({ rootDir: resolveAyasExecutionAuditRoot(), ttlMs: 120_000 });
+  const startedAttempts = new Set<string>();
   const graphifyState: AyasDurableActivity = {
     declared: Object.freeze({ effect: "READ_ONLY", domains: Object.freeze(["SELF_DEVELOPMENT"] as const), targets: Object.freeze([AYAS_GRAPHIFY_STATE_TARGET]) }),
     async run(context) {
       if (ayasDurableCanonicalJson(context.input) !== "{}") return { outcome: "FAILED_NO_EFFECT", reason: "this activity takes no input", retryable: false };
-      const facts = await collectFacts(deps.repoRoot);
+      if (context.domain !== "SELF_DEVELOPMENT" || context.exactTarget !== AYAS_GRAPHIFY_STATE_TARGET || context.stepId !== "read-graphify-state" ||
+          !AYAS_DURABLE_TASK_ID.test(context.taskId) || !/^[a-f0-9]{64}$/.test(context.idempotencyKey) ||
+          !Number.isSafeInteger(context.attempt) || context.attempt < 1 || context.attempt > 3 ||
+          context.attemptId !== ayasDurableAttemptId(context.idempotencyKey, context.attempt) || context.signal.aborted) {
+        return { outcome: "FAILED_NO_EFFECT", reason: "durable activity scope refused", retryable: false };
+      }
+      const request = { schemaVersion: "1", action: "query-graphify", requestedBy: "ayas-durable-runtime", intent: "read repository Graphify state",
+        plan: { operation: "state", activity: AYAS_GRAPHIFY_STATE_ACTIVITY, taskId: context.taskId, stepId: context.stepId,
+          attempt: context.attempt, attemptId: context.attemptId, idempotencyKey: context.idempotencyKey, exactTarget: context.exactTarget } };
+      let authorizationId: string;
+      try {
+        if (!physicalRoot || !physicalModulesRoot || fs.realpathSync(repoRoot) !== physicalRoot || fs.realpathSync(modulesRoot) !== physicalModulesRoot ||
+            startedAttempts.has(context.attemptId)) throw new Error("resource or attempt changed");
+        startedAttempts.add(context.attemptId);
+        const firewall = createAyasActionFirewall({ repoRoot, authorizations, resolveResourceRoot: () => fs.realpathSync(repoRoot), resolveAdditionalReadRoots: () => [modulesRoot] });
+        const issued = firewall.issue(request);
+        if (!issued.allowed) throw new Error("grant refused");
+        const admitted = firewall.admit(issued.lease, request);
+        if (!admitted.allowed) throw new Error("admission refused");
+        authorizationId = admitted.authorizationId;
+      } catch { return { outcome: "FAILED_NO_EFFECT", reason: "durable capability admission refused", retryable: false }; }
+      let facts: AyasGraphifyFacts;
+      try {
+        facts = await collectFacts(physicalRoot);
+        authorizations.settle(authorizationId, { ok: true, resultDigest: crypto.createHash("sha256").update(JSON.stringify(facts)).digest("hex") });
+      } catch {
+        // The read may already have run: never claim zero dispatch or restore a consumed lease.
+        return { outcome: "UNKNOWN", reason: "durable read or outcome audit failed" };
+      }
       if (!facts.sourceHead || !HEAD.test(facts.sourceHead)) return { outcome: "FAILED_NO_EFFECT", reason: "repository HEAD could not be read", retryable: true };
       const status = evaluateAyasGraphifyState(facts);
       const branch = typeof facts.branch === "string" ? undefined : facts.branch;

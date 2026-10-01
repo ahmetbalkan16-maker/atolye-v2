@@ -50,6 +50,7 @@ import { getExistingProjectRoot, getProjectsRoot } from "../../runtime/RuntimeSt
 import { createAyasActionFirewall } from "./AyasActionFirewall";
 import { AyasExecutionAuthorizationStore } from "./AyasExecutionAuthorization";
 import { withAyasExecutionAuditRoot } from "./AyasExecutionAuditContext";
+import { resolveAyasGraphifyModulesForStatus } from "../developer/AyasGraphifyStateCollector";
 import type { AyasExecutionRequest } from "./AyasExecutionPolicy";
 import { resolveAyasExecutor, AyasActionValidationError, type AyasExecutorResult } from "./AyasSafeExecutors";
 
@@ -85,6 +86,7 @@ export interface RunAyasReadOnlyActionInput {
 
 // Same module-load root as the existing safe/developer adapters. A later chdir cannot rebind authority.
 const ADAPTER_REPO_ROOT = process.cwd();
+const GRAPHIFY_MODULES_ROOT = path.resolve(resolveAyasGraphifyModulesForStatus());
 type AuthorizationContext = { readonly store: AyasExecutionAuthorizationStore; readonly firewall: ReturnType<typeof createAyasActionFirewall> };
 const authorizationContext = new AsyncLocalStorage<AuthorizationContext>();
 
@@ -98,7 +100,8 @@ function resourceRoot(request: AyasExecutionRequest): string {
 
 /** Trusted code uses this same adapter binding in both current read dispatchers. */
 export function createAyasReadActionFirewall(store: AyasExecutionAuthorizationStore): ReturnType<typeof createAyasActionFirewall> {
-  return createAyasActionFirewall({ repoRoot: ADAPTER_REPO_ROOT, authorizations: store, resolveResourceRoot: resourceRoot });
+  return createAyasActionFirewall({ repoRoot: ADAPTER_REPO_ROOT, authorizations: store, resolveResourceRoot: resourceRoot,
+    resolveAdditionalReadRoots: (request) => request.action === "query-graphify" && request.plan.operation === "state" ? [GRAPHIFY_MODULES_ROOT] : undefined });
 }
 
 function createAuthorizationContext(store: AyasExecutionAuthorizationStore): AuthorizationContext {

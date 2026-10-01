@@ -19,6 +19,8 @@
  * else runs it.
  */
 import { execFileSync } from "node:child_process";
+import path from "node:path";
+import { AyasExecutionAuthorizationStore } from "../src/lib/ayas/execution/AyasExecutionAuthorization";
 
 import { AyasDurableTaskError } from "../src/lib/brain/autonomy/AyasDurableTask";
 import { ayasGraphifyStateTaskInput, createAyasFirstDurableActivitySet } from "../src/lib/brain/autonomy/AyasDurableTaskActivities";
@@ -48,7 +50,10 @@ async function main(): Promise<void> {
     const head = execFileSync("git", ["rev-parse", "--verify", "HEAD"], { cwd: repoRoot, encoding: "utf8", windowsHide: true, timeout: 15_000 }).trim();
     createAyasDurableTask(journal, ayasGraphifyStateTaskInput(head));
   }
-  const report = await sweepAyasDurableTasks({ journal, activities: createAyasFirstDurableActivitySet({ repoRoot }), owner: await createAyasDurableTaskOwner() }, { dryRun: !apply });
+  // The live journal audits into the one existing execution audit root (data/brain/execution). A --root journal
+  // keeps its audit beside it, so a run against another journal never writes under the working directory.
+  const authorizations = rootDir ? new AyasExecutionAuthorizationStore({ rootDir: path.dirname(journal.dir), ttlMs: 120_000 }) : undefined;
+  const report = await sweepAyasDurableTasks({ journal, activities: createAyasFirstDurableActivitySet({ repoRoot, ...(authorizations ? { authorizations } : {}) }), owner: await createAyasDurableTaskOwner() }, { dryRun: !apply });
   console.log(JSON.stringify({ status: "OK", liveBinding: ayasDurableTaskLiveBinding(), report }, null, 2));
 }
 

@@ -7,9 +7,12 @@ import { promisify } from "node:util";
 
 import type { AyasExecutionActionId, AyasExecutionRequest } from "./AyasExecutionPolicy";
 import { AyasActionValidationError, type AyasExecutor, type AyasExecutorResult } from "./AyasActionContracts";
+import { collectAyasGraphifyFacts } from "../developer/AyasGraphifyStateCollector";
+import { evaluateAyasGraphifyState } from "../developer/AyasGraphifyState";
 
 const execFileAsync = promisify(execFile);
 const ROOT = process.cwd();
+const GRAPHIFY_STATE_ENV = Object.freeze({ ...process.env });
 const MAX_OUTPUT_CHARS = 48_000;
 const MAX_SOURCE_LINES = 240;
 const SAFE_ROOTS = ["src/", "scripts/", "app/"] as const;
@@ -143,6 +146,17 @@ const inspectSourceRange: AyasExecutor = async (request) => {
 };
 
 const queryGraphify: AyasExecutor = async (request) => {
+  if (field(request, "operation") === "state") {
+    // Native collector operation: no model/tool field selects a root or dependency location.
+    if (Object.keys(request.plan).some((key) => key !== "operation")) throw new AyasActionValidationError("invalid-graphify-state-input", "Graphify state takes no target or authority fields");
+    const facts = await collectAyasGraphifyFacts({ cwd: ROOT, env: GRAPHIFY_STATE_ENV, includeUserConsumers: false });
+    const status = evaluateAyasGraphifyState(facts);
+    return result("query-graphify", "Repository Graphify state inspected without refresh.", {
+      sourceHead: facts.sourceHead, structuralStatus: status.structuralStatus, semanticStatus: status.semanticStatus,
+      classification: status.classification, lastAnalyzedHead: status.lastAnalyzedHead, graphBuiltFromHead: status.graphBuiltFromHead,
+      worktreeState: status.worktreeState, incompleteCodeFiles: status.incompleteCodeFiles.length,
+    });
+  }
   const symbol = field(request, "symbol");
   if (typeof symbol !== "string" || !SAFE_SYMBOL.test(symbol)) throw new AyasActionValidationError("invalid-graphify-symbol", "Graphify symbol has an unsafe shape");
   const operation = field(request, "operation") ?? "explain";

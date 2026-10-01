@@ -13,6 +13,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { withAyasExecutionAuditRoot } from "../src/lib/ayas/execution/AyasExecutionAuditContext";
+import { AyasExecutionAuthorizationStore } from "../src/lib/ayas/execution/AyasExecutionAuthorization";
 
 import type { AyasGraphifyFacts } from "../src/lib/ayas/developer/AyasGraphifyState";
 import {
@@ -45,6 +47,7 @@ import {
   inspectAyasDurableTask,
   recordAyasDurableTaskOwnerSignal,
   type AyasDurableActivity,
+  type AyasDurableActivityContext,
   type AyasDurableTaskRuntimeDeps,
 } from "../src/lib/brain/autonomy/AyasDurableTaskRuntime";
 
@@ -564,6 +567,7 @@ async function main(): Promise<void> {
   await scenario("first activity set: one read-only Graphify state read, recorded once per commit", async () => {
     const w = world(); let collected = 0; let current = facts();
     const givenRoot = path.join(base, "not-read"); const readRoots = new Set<string>();
+    fs.mkdirSync(givenRoot);
     const set = createAyasFirstDurableActivitySet({ repoRoot: givenRoot, collectFacts: async (root) => { collected++; readRoots.add(root); return current; } });
     assert.deepEqual(Object.keys(set), [AYAS_GRAPHIFY_STATE_ACTIVITY]);
     assert.ok(Object.isFrozen(set) && Object.isFrozen(set[AYAS_GRAPHIFY_STATE_ACTIVITY]) && Object.isFrozen(set[AYAS_GRAPHIFY_STATE_ACTIVITY]!.declared));
@@ -639,6 +643,93 @@ async function main(): Promise<void> {
     assert.ok(!stored.includes(base) && !stored.toLowerCase().includes(repo.toLowerCase()) && !/[A-Za-z]:\\\\/.test(stored), "a path reached the journal");
   });
 
+  const guardedFixture = () => {
+    const w = world(); const repoRoot = path.join(w.root, "repository"); fs.mkdirSync(repoRoot, { recursive: true });
+    const state = createAyasDurableTask(w.journal, ayasGraphifyStateTaskInput(head));
+    const step = state.steps[0]!; assert.equal(step.kind, "ACTIVITY");
+    const context: AyasDurableActivityContext = { taskId: state.taskId, domain: state.domain, stepId: step.stepId, attempt: 1,
+      attemptId: ayasDurableAttemptId(step.idempotencyKey, 1), idempotencyKey: step.idempotencyKey, exactTarget: step.exactTarget,
+      input: {}, results: {}, signal: new AbortController().signal };
+    const store = new AyasExecutionAuthorizationStore({ rootDir: path.join(w.root, "audit") });
+    return { w, repoRoot, context, store };
+  };
+  await scenario("durable native read consumes exact task/attempt/resource audit before the collector and refuses replay", async () => {
+    const { repoRoot, context, store } = guardedFixture(); let calls = 0;
+    const deps = { repoRoot, authorizations: store, collectFacts: async (root: string) => {
+      calls++; assert.equal(root, fs.realpathSync(repoRoot));
+      const record = store.list()[0]!; assert.equal(record.state, "consumed");
+      assert.equal(record.plan.taskId, context.taskId); assert.equal(record.plan.attemptId, context.attemptId);
+      assert.equal(record.plan.exactTarget, AYAS_GRAPHIFY_STATE_TARGET);
+      assert.deepEqual(record.capabilityScope!.capabilities, ["query-graphify"]);
+      assert.equal(record.capabilityScope!.resource.repoRoot, fs.realpathSync(repoRoot));
+      assert.equal(record.capabilityScope!.classification, "READ"); assert.equal(record.capabilityScope!.costClass, "ZERO_LOCAL");
+      assert.equal(record.capabilityScope!.ownerId, null); assert.equal(record.capabilityScope!.resource.additionalReadRoots!.length, 1);
+      assert.ok(Date.parse(record.expiresAt) - Date.parse(record.createdAt) <= 300_000);
+      return facts();
+    } };
+    const activity = createAyasFirstDurableActivitySet(deps)[AYAS_GRAPHIFY_STATE_ACTIVITY]!;
+    deps.repoRoot = path.join(repoRoot, "ignored-caller-mutation");
+    assert.equal((await activity.run(context)).outcome, "SUCCEEDED");
+    assert.equal(store.list()[0]!.state, "completed");
+    assert.equal((await activity.run(context)).outcome, "FAILED_NO_EFFECT"); assert.equal(calls, 1);
+  });
+  await scenario("durable native read rejects forged context or aborted input before grant and collector", async () => {
+    const { repoRoot, context, store } = guardedFixture(); let calls = 0;
+    const activity = createAyasFirstDurableActivitySet({ repoRoot, authorizations: store, collectFacts: async () => { calls++; return facts(); } })[AYAS_GRAPHIFY_STATE_ACTIVITY]!;
+    const controller = new AbortController(); controller.abort();
+    for (const variant of [{ domain: "REVENUE" }, { exactTarget: "repository:elsewhere" }, { stepId: "other-step" }, { taskId: "owner-approved" },
+      { attempt: 4 }, { attemptId: "forged-tool-output" }, { idempotencyKey: "" }, { input: { ownerApproved: true } }, { signal: controller.signal }]) {
+      assert.equal((await activity.run({ ...context, ...variant } as AyasDurableActivityContext)).outcome, "FAILED_NO_EFFECT");
+    }
+    assert.deepEqual([calls, store.list().length], [0, 0]);
+  });
+  await scenario("durable native read refuses unknown or redirected physical repository", async () => {
+    const { repoRoot, context, store } = guardedFixture(); let calls = 0;
+    const realA = path.join(repoRoot, "a"); const realB = path.join(repoRoot, "b"); const link = path.join(repoRoot, "binding");
+    fs.mkdirSync(realA); fs.mkdirSync(realB); fs.symlinkSync(realA, link, process.platform === "win32" ? "junction" : "dir");
+    const activity = createAyasFirstDurableActivitySet({ repoRoot: link, authorizations: store, collectFacts: async () => { calls++; return facts(); } })[AYAS_GRAPHIFY_STATE_ACTIVITY]!;
+    fs.unlinkSync(link); fs.symlinkSync(realB, link, process.platform === "win32" ? "junction" : "dir");
+    assert.equal((await activity.run(context)).outcome, "FAILED_NO_EFFECT");
+    for (const unknown of [path.join(repoRoot, "missing"), "\\\\untrusted-server\\share"]) {
+      const denied = createAyasFirstDurableActivitySet({ repoRoot: unknown, authorizations: store, collectFacts: async () => { calls++; return facts(); } })[AYAS_GRAPHIFY_STATE_ACTIVITY]!;
+      assert.equal((await denied.run(context)).outcome, "FAILED_NO_EFFECT");
+    }
+    assert.deepEqual([calls, store.list().length], [0, 0]);
+  });
+  await scenario("durable native grant/consume audit failure or expiry causes zero collector calls", async () => {
+    for (const fault of ["grant", "consume", "expiry"] as const) {
+      const { repoRoot, context, store } = guardedFixture(); let calls = 0;
+      if (fault === "grant") store.grant = () => { throw new Error("fixture grant IO"); };
+      if (fault === "consume") store.consume = () => { throw new Error("fixture consume IO"); };
+      const clock = { ms: Date.now() };
+      const chosen = fault === "expiry" ? new AyasExecutionAuthorizationStore({ rootDir: path.join(repoRoot, "expiry-audit"), ttlMs: 1, now: () => new Date(clock.ms) }) : store;
+      if (fault === "expiry") { const grant = chosen.grant.bind(chosen); chosen.grant = (...args) => { const record = grant(...args); clock.ms += 1; return record; }; }
+      const activity = createAyasFirstDurableActivitySet({ repoRoot, authorizations: chosen, collectFacts: async () => { calls++; return facts(); } })[AYAS_GRAPHIFY_STATE_ACTIVITY]!;
+      const result = await activity.run(context); assert.equal(result.outcome, "FAILED_NO_EFFECT"); assert.equal(calls, 0);
+    }
+  });
+  await scenario("durable read outcome audit loss is UNKNOWN after one read, never zero-dispatch or replay authority", async () => {
+    const { repoRoot, context, store } = guardedFixture(); let calls = 0;
+    store.settle = () => { throw new Error("fixture outcome IO"); };
+    const activity = createAyasFirstDurableActivitySet({ repoRoot, authorizations: store, collectFacts: async () => { calls++; return facts(); } })[AYAS_GRAPHIFY_STATE_ACTIVITY]!;
+    assert.equal((await activity.run(context)).outcome, "UNKNOWN"); assert.equal(calls, 1); assert.equal(store.list()[0]!.state, "consumed");
+    assert.equal((await activity.run(context)).outcome, "FAILED_NO_EFFECT"); assert.equal(calls, 1);
+  });
+  await scenario("native Graphify state uses the existing real dispatcher in a fresh TEMP process", async () => {
+    const { repoRoot } = guardedFixture();
+    const script = path.join(repoRoot, "native-state.cjs");
+    fs.writeFileSync(script, `const assert=require('node:assert/strict');const {runAyasReadOnlyAction}=require(${JSON.stringify(path.join(repo, "src/lib/ayas/execution/AyasActionRuntime.ts"))});
+      (async()=>{const raw={schemaVersion:'1',action:'query-graphify',requestedBy:'native-fixture',intent:'state',plan:{operation:'state'}};
+      const out=await runAyasReadOnlyAction({rawRequest:raw});assert.equal(out.executed,true,JSON.stringify(out));assert.equal(out.result.data.sourceHead,null);
+      assert.equal(out.result.data.structuralStatus,'MISSING');const deny=await runAyasReadOnlyAction({rawRequest:{...raw,plan:{operation:'state',repoRoot:'elsewhere'}}});
+      assert.equal(deny.executed,false);assert.equal(deny.reason,'invalid-graphify-state-input');console.log('PASS');})().catch(e=>{console.error(e);process.exitCode=1});`);
+    const child = spawnSync(process.execPath, ["--require", path.join(repo, "node_modules", "tsx", "dist", "cjs", "index.cjs"), script], {
+      cwd: repoRoot, env: { ...process.env, TSX_TSCONFIG_PATH: path.join(repo, "tsconfig.json") }, encoding: "utf8", windowsHide: true, timeout: 60_000,
+    });
+    assert.equal(child.status, 0, child.stderr + child.stdout); assert.match(child.stdout, /PASS/);
+    assert.ok(fs.existsSync(path.join(repoRoot, "data", "brain", "execution", "authorizations")));
+  });
+
   await scenario("live binding: owner-approved, the off switch still works, only the observer runs the script", async () => {
     // The owner approved the binding on 2026-10-01. The state is a reviewed constant, not configuration.
     assert.equal(ayasDurableTaskLiveBinding(), "OWNER_APPROVED");
@@ -682,6 +773,8 @@ async function main(): Promise<void> {
     // --apply against a TEMP root runs the real set; the script's working directory is not a repository.
     const applied = cli(cwd, ["--root", w.root, "--apply"]);
     assert.deepEqual([applied.status, (JSON.parse(applied.stdout) as { report: AyasDurableTaskSweepReport }).report.outcomes, w.journal.load(queued.taskId)!.stepStates[0]!.status], [0, { ADVANCED: 1 }, "RETRY_WAIT"]);
+    // A --root journal keeps its one audit record beside it; nothing is written under the working directory.
+    assert.deepEqual(new AyasExecutionAuthorizationStore({ rootDir: w.root }).list().map((record) => [record.state, record.plan.taskId]), [["completed", queued.taskId]]);
     assert.equal(cli(cwd, ["--publish"]).status, 1);
     assert.deepEqual(fs.readdirSync(cwd), []);
     // In a real (TEMP) repository: enqueueing is a write, so it needs --apply, and a dry run creates no task.
@@ -715,6 +808,12 @@ async function main(): Promise<void> {
     const again = cli(checkout, observerCommand);
     assert.deepEqual([again.status, (JSON.parse(again.stdout) as { report: AyasDurableTaskSweepReport }).report.activityCalls, recorded.read(state.taskId).length], [0, 0, 3]);
     assert.deepEqual([git("status", "--porcelain"), fs.readdirSync(checkout).sort(), fs.existsSync(path.join(recorded.dir, "execution", ".authority-lock"))], ["", [".git", ".gitignore", "README.md", "data"], false]);
+    // The live journal's read is audited once, in the existing execution audit root and nowhere else: the second
+    // run made no call and so no grant.
+    const liveAudit = new AyasExecutionAuthorizationStore({ rootDir: path.join(checkout, "data", "brain") }).list();
+    assert.deepEqual(liveAudit.map((record) => [record.state, record.action, record.plan.taskId, record.capabilityScope!.resource.repoRoot]), [["completed", "query-graphify", fixtureTaskId, fs.realpathSync(checkout)]]);
+    assert.deepEqual(fs.readdirSync(path.join(checkout, "data", "brain")).sort(), ["autonomy", "execution"]);
+    assert.deepEqual(fs.readdirSync(path.join(checkout, "data", "brain", "autonomy")), ["durable-tasks"]);
 
     // The observer script is the one caller, and it stays at arm's length: it runs the operator script as a child
     // process with exactly the approved arguments and imports nothing from the durable task runtime.
@@ -748,4 +847,4 @@ async function main(): Promise<void> {
   console.log(JSON.stringify({ status: "PASS", suite: "ayas-durable-task-recovery", scenarios, journalRoots: roots }));
 }
 
-main().then(() => fs.rmSync(base, { recursive: true, force: true }), (error) => { fs.rmSync(base, { recursive: true, force: true }); console.error(error); process.exitCode = 1; });
+withAyasExecutionAuditRoot(path.join(base, "capability-audit"), main).then(() => fs.rmSync(base, { recursive: true, force: true }), (error) => { fs.rmSync(base, { recursive: true, force: true }); console.error(error); process.exitCode = 1; });

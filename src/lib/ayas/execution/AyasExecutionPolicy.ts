@@ -132,7 +132,7 @@ export const AYAS_EXECUTION_ALLOWLIST: Readonly<Record<AyasExecutionActionId, Ay
     },
     "query-graphify": {
       id: "query-graphify",
-      summary: "Aktif ve güncel Graphify grafiğinde doğrulanmış bir sembolü sınırlı biçimde açıklar.",
+      summary: "Graphify durumunu salt okunur toplar veya güncel grafikte doğrulanmış bir sembolü sınırlı biçimde açıklar.",
       write: false, destructive: false, requiresProject: false, maxDurationMs: 20_000,
     },
     "run-developer-validation": {

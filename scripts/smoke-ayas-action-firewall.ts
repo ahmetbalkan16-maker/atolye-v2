@@ -228,6 +228,30 @@ async function main() {
     assert.ok(results.some((s) => s === "AYAS_EXEC_AUTH_REPLAY" || s === "AYAS_EXEC_AUTH_CONFLICT"));
     assert.equal(store.read(record.authorizationId).state, "consumed");
   });
+  await scenario("native read pins additional physical roots and cannot accept a changed dependency", () => {
+    const { dir, store } = setup(); const other = fs.mkdtempSync(path.join(root, "dependency-"));
+    let selected = dir;
+    const firewall = createAyasActionFirewall({ repoRoot: dir, authorizations: store, resolveAdditionalReadRoots: () => [selected] });
+    const lease = issue(firewall); const record = store.list()[0]!;
+    assert.deepEqual(record.capabilityScope!.resource.additionalReadRoots, [fs.realpathSync(dir)]);
+    selected = other;
+    assert.equal(firewall.admit(lease, raw).allowed, false);
+    assert.equal(store.read(record.authorizationId).state, "granted");
+  });
+  await scenario("native read scope rejects duplicate/network/empty/unknown dependency roots", () => {
+    const { dir, store } = setup();
+    for (const roots of [[], [dir, dir], ["\\\\server\\share"], [path.join(dir, "missing")]]) {
+      const firewall = createAyasActionFirewall({ repoRoot: dir, authorizations: store, resolveAdditionalReadRoots: () => roots });
+      assert.equal(firewall.issue(raw).allowed, false);
+    }
+    assert.equal(store.list().length, 0);
+  });
+  await scenario("old scopes keep their canonical audit representation without added roots", () => {
+    const { store, firewall } = setup(); issue(firewall);
+    const scope = store.list()[0]!.capabilityScope!;
+    assert.equal(Object.hasOwn(scope.resource, "additionalReadRoots"), false);
+    assert.equal(JSON.parse(canonicalAyasCapabilityScope(scope)).length, 14);
+  });
   console.log(`Stage 15D action firewall: PASS (${count} scenarios; TEMP only; network/model/production actions 0)`);
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => fs.rmSync(root, { recursive: true, force: true }));

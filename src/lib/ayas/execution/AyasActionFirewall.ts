@@ -36,6 +36,8 @@ export interface AyasActionFirewallOptions {
   readonly authorizations?: AyasExecutionAuthorizationStore;
   /** Trusted adapter resolver, re-evaluated at admission. Project/catalog targets fail closed if absent. */
   readonly resolveResourceRoot?: (request: AyasExecutionRequest) => string;
+  /** Fixed native dependency read roots, re-resolved at admission; never taken from request fields. */
+  readonly resolveAdditionalReadRoots?: (request: AyasExecutionRequest) => readonly string[] | undefined;
   /** Server-owned adapter over the EXISTING reserved approval and journal, held under its authority lock. */
   readonly ownerReservation?: {
     readProof(): AyasOwnerCapabilityProof | undefined;
@@ -87,11 +89,16 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
     if (!isAyasLocalCapabilityRoot(resourceRoot)) {
       throw new Error("AYAS_FIREWALL_RESOURCE_UNKNOWN");
     }
+    const additionalReadRoots = options.resolveAdditionalReadRoots?.(request);
+    if (additionalReadRoots && (additionalReadRoots.length === 0 || additionalReadRoots.length > 8 || !additionalReadRoots.every(isAyasLocalCapabilityRoot))) {
+      throw new Error("AYAS_FIREWALL_RESOURCE_UNKNOWN");
+    }
     return {
       schemaVersion: "1", agentId: "ayas-server", runId, taskId,
       ownerId: null, delegationId: "builtin-bounded-local-v1",
       capabilities: [request.action],
-      resource: { repoRoot, resourceRoot, platform: "LOCAL", requestDigest: ayasCapabilityRequestDigest(request), projectSlug: request.projectSlug ?? null },
+      resource: { repoRoot, resourceRoot, platform: "LOCAL", requestDigest: ayasCapabilityRequestDigest(request), projectSlug: request.projectSlug ?? null,
+        ...(additionalReadRoots ? { additionalReadRoots: additionalReadRoots.map((root) => fs.realpathSync(root)) } : {}) },
       costClass: "ZERO_LOCAL", classification,
     };
   }

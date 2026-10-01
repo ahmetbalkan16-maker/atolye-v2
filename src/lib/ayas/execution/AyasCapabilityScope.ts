@@ -22,6 +22,8 @@ export interface AyasCapabilityScope {
     readonly platform: "LOCAL";
     readonly requestDigest: string;
     readonly projectSlug: string | null;
+    /** Additional physical read roots selected only by the trusted native adapter. */
+    readonly additionalReadRoots?: readonly string[];
   };
   readonly costClass: "ZERO_LOCAL";
   readonly classification: "READ" | "BOUNDED_LOCAL";
@@ -56,7 +58,9 @@ export function isAyasCapabilityScope(raw: unknown): raw is AyasCapabilityScope 
       typeof s.capabilities[0] !== "string" || ayasLocalActionClassification(s.capabilities[0]) !== s.classification ||
       !s.resource || typeof s.resource !== "object" || Array.isArray(s.resource)) return false;
   const r = s.resource as Record<string, unknown>;
-  return exactKeys(r, ["repoRoot", "resourceRoot", "platform", "requestDigest", "projectSlug"]) &&
+  return exactKeys(r, ["repoRoot", "resourceRoot", "platform", "requestDigest", "projectSlug", ...(Object.hasOwn(r, "additionalReadRoots") ? ["additionalReadRoots"] : [])]) &&
+    (!Object.hasOwn(r, "additionalReadRoots") || (Array.isArray(r.additionalReadRoots) && r.additionalReadRoots.length > 0 && r.additionalReadRoots.length <= 8 &&
+      r.additionalReadRoots.every(isAyasLocalCapabilityRoot) && new Set(r.additionalReadRoots).size === r.additionalReadRoots.length)) &&
     isAyasLocalCapabilityRoot(r.repoRoot) && isAyasLocalCapabilityRoot(r.resourceRoot) &&
     r.platform === "LOCAL" && typeof r.requestDigest === "string" && HASH.test(r.requestDigest) &&
     (r.projectSlug === null || (typeof r.projectSlug === "string" && /^[a-z0-9][a-z0-9_-]{0,127}$/i.test(r.projectSlug)));
@@ -72,6 +76,7 @@ export function canonicalAyasCapabilityScope(scope: AyasCapabilityScope): string
     scope.schemaVersion, scope.agentId, scope.runId, scope.taskId, scope.ownerId, scope.delegationId,
     scope.capabilities, scope.resource.repoRoot, scope.resource.resourceRoot, scope.resource.platform, scope.resource.requestDigest,
     scope.resource.projectSlug, scope.costClass, scope.classification,
+    ...(scope.resource.additionalReadRoots === undefined ? [] : [scope.resource.additionalReadRoots]),
   ]);
 }
 
