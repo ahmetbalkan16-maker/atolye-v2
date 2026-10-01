@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "97463c94f6eacf8f14e0776b262f830d4782597b",
-  "currentHead": "97463c94f6eacf8f14e0776b262f830d4782597b",
+  "lastGreenHead": "9d3a15915d4a89c158c3ccd6b2a55cb01ce648a1",
+  "currentHead": "9d3a15915d4a89c158c3ccd6b2a55cb01ce648a1",
   "stage": "STAGE_15F",
-  "subtask": "post-freeze-retroactive-audit-15F-outcome-classes-and-retry-accounting",
+  "subtask": "post-freeze-retroactive-audit-voice-barge-in-and-tool-action-state",
   "status": "POST_FREEZE_AUDIT_IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -161,7 +161,8 @@
     "15F.5-reliability-SLO-counters",
     "15F-closure-source-GREEN-live-uncertified",
     "post-freeze-addendum-adopted-and-referenced",
-    "post-freeze-15C-whole-prompt-context-budget"
+    "post-freeze-15C-whole-prompt-context-budget",
+    "post-freeze-15F-outcome-classes-and-retry-accounting"
   ],
   "currentFiles": [],
   "lastGreenTests": [
@@ -273,22 +274,23 @@
     "Post-freeze 15C: context budget 21 scenarios (TEMP memory root, fake transports, real 8192 window); negative controls 19/19 in a 219-file TEMP overlay",
     "Post-freeze 15C: six chat-path suites byte-identical at 09e1c68 and with the change (cognitive 54/55, held-out 4/5, chat quality 36, conversation quality 37, memory temporal 52, chat stream 31, reasoning 48); retrieval 74 differs only in timing and scanned-file count",
     "Post-freeze 15C: declared 71-suite baseline at 97463c9 PASS_WITH_KNOWN_LIMITATIONS, no failure, host RAM peak 50.76 %; lifecycle 14 (17 entries); eval governance 10 and 8/8; phone runtime 42; voice 76; brain core UI 41",
-    "Post-freeze 15C: TypeScript PASS; changed-file lint 0 warnings; full lint 0 errors/13 existing warnings; diff check PASS. No model, container or network. NOT_RUN: smoke-ayas-security-request-body-isolated (needs its own TEMP archive layout)"
+    "Post-freeze 15C: TypeScript PASS; changed-file lint 0 warnings; full lint 0 errors/13 existing warnings; diff check PASS. No model, container or network. NOT_RUN: smoke-ayas-security-request-body-isolated (needs its own TEMP archive layout)",
+    "Post-freeze 15F: operation evidence 12; telemetry 25; negative controls 16/16 in a 95-file TEMP overlay; reliability SLO 22 and 9/9; unified trace 17; chat stream 31; action firewall 54; closure 12; proposal approval service 28; eval governance 10 and 8/8; TypeScript, changed-file lint, diff check PASS. Full declared baseline not re-run for this packet: it runs once at audit closure."
   ],
   "graphify": {
-    "head": "97463c94f6eacf8f14e0776b262f830d4782597b",
-    "testedSourcePacket": "97463c94f6eacf8f14e0776b262f830d4782597b",
+    "head": "9d3a15915d4a89c158c3ccd6b2a55cb01ce648a1",
+    "testedSourcePacket": "9d3a15915d4a89c158c3ccd6b2a55cb01ce648a1",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 16521,
-    "edges": 47741,
+    "nodes": 16526,
+    "edges": 47756,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Built from the post-freeze 15C source commit. A documentation commit descends from it; per-machine graph metadata is untracked; actual Git status wins."
+    "headSemantics": "Built from the post-freeze 15F source commit. A documentation commit descends from it; per-machine graph metadata is untracked; actual Git status wins."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -299,8 +301,8 @@
     "OWNER_ACTION (not blocking, at the next Worker deployment): set AYAS_CLOUD_CONTEXT_TOKENS in cloudflare/ayas-phone-gateway/wrangler.toml to the configured cloud model's window. The deployed Worker is unchanged.",
     "OWNER_DECISION (not blocking): accept or reject lifecycle entry evaluator.retrieval.pf15c-v2 (one declared-window line; cases, graders and known limitations unchanged; previous identity kept as rollback target)."
   ],
-  "nextAction": "Post-freeze 15F packet: count one retry once in trace evidence; derive timeout, owner-wait and resource-abort classes in telemetry without changing the evidence schema. Then voice barge-in and the tool-action console state. Then the final conformance matrix. Then STAGE_15G. Local commits only; NO PUSH.",
-  "updatedAt": "2026-10-01T22:06:32.000Z",
+  "nextAction": "Voice and console packet: explicit barge-in (stop speech, listen) and a real tool-action state from the chat stream. Then the final conformance matrix with one full declared baseline. Then STAGE_15G. Local commits only; NO PUSH.",
+  "updatedAt": "2026-10-01T22:18:21.685Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -650,9 +652,9 @@
     ],
     "evalGovernance": {
       "path": "EVAL_MANIFEST.json",
-      "version": "15F.4-v6",
-      "digest": "176e9bbdf57a3ee71999b6c4a54ba59379402cd472062b36cb56ad2de6233b16",
-      "previousVersion": "15F.4-v5 (EVAL_MANIFEST_V5.json, digest 0cd4c0d1d5cf5a216ca6546fa55c893e86b7fdd3414db88b68504f8577f9b53b, 69 suites)",
+      "version": "15F.4-v7",
+      "digest": "4138c820645b9fdc86c3ffef842c855205c6816c0dd47201ebbcf48403133ac2",
+      "previousVersion": "15F.4-v6 (EVAL_MANIFEST_V6.json, digest 176e9bbdf57a3ee71999b6c4a54ba59379402cd472062b36cb56ad2de6233b16, 71 suites)",
       "suites": 71,
       "regression": 64,
       "capability": 6,
@@ -693,11 +695,20 @@
         "lifecycleRegistryEntries": 17,
         "evalManifest": "15F.4-v6, 71 suites"
       },
-      "15F-outcome-classes-and-retry-accounting": { "state": "NEXT" },
-      "voice-barge-in-and-tool-action-state": { "state": "PENDING" },
-      "final-matrix": { "state": "PENDING" }
+      "15F-outcome-classes-and-retry-accounting": {
+        "state": "FIXED",
+        "sourceCommit": "9d3a15915d4a89c158c3ccd6b2a55cb01ce648a1",
+        "notes": "03_STAGE15_BASE/hardening/15F/IMPLEMENTATION_NOTES.md",
+        "limits": "owner-wait and resource-abort classes have no producer yet; a provider timeout is still recorded as cancelled/ABORTED; older evidence lines keep their retry number"
+      },
+      "voice-barge-in-and-tool-action-state": {
+        "state": "NEXT"
+      },
+      "final-matrix": {
+        "state": "PENDING"
+      }
     },
-    "findings": "NEW_FINDINGS.md, PF1 to PF8",
-    "nextAction": "15F packet, then voice and console state, then the final matrix, then canonical STAGE_15G."
+    "findings": "NEW_FINDINGS.md, PF1 to PF9",
+    "nextAction": "Voice and console state, then the final matrix with one full baseline, then canonical STAGE_15G."
   }
 }

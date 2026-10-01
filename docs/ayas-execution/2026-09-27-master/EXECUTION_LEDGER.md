@@ -600,3 +600,17 @@ LIMITS. The size is an estimate that has not been compared with the real tokeniz
 OWNER, none blocking: set `OLLAMA_NUM_CTX` on every machine that runs AYAS chat; set `AYAS_CLOUD_CONTEXT_TOKENS` before the next Worker deployment; accept or reject the new retrieval evaluator identity.
 
 LOCAL COMMIT; NO PUSH. Next: post-freeze 15F (retry counted twice; timeout, owner-wait and resource-abort classes), then voice and console state, then the final matrix, then Stage 15G.
+
+## Post-freeze 15F: outcome classes and retry accounting — FIXED (2026-10-02)
+
+Source `9d3a15915d4a89c158c3ccd6b2a55cb01ce648a1`. Addendum section 3. Stage 15F stays closed. Findings PF2 (fixed) and PF9 (open, not blocking).
+
+WHAT. Observer only; evidence schema, stores and gates unchanged. A trace writes one retry as the later-attempt span and as that span's own retry event; evidence added the two, so one correction attempt was recorded as two retries and the 15F.2 test had pinned that. They are now one. Telemetry rows carry nine outcome classes in which every sample is in exactly one, and the number of retried samples; a closed error-code suffix rule decides timeout, owner wait and resource abort before the recorded outcome does. The success rate is success over success, failure and timeout, so an owner wait or a host-protection abort cannot lower it; records without those codes give the same rate as before.
+
+LIMITS. Owner-wait and resource-abort classes have no producer yet and read zero by absence, not by measurement. A provider timeout is still recorded as cancelled/ABORTED (PF9). Evidence lines written before the fix keep their retry number.
+
+TEST. Operation evidence 12; telemetry 25; negative controls 16/16 (eight new) in a 95-file TEMP overlay; reliability SLO 22 and 9/9; unified trace 17; chat stream 31; action firewall 54; closure 12; proposal approval service 28; eval governance 10 and 8/8. TypeScript, changed-file lint, diff check PASS. Eval manifest `15F.4-v7`; v6 kept. The full declared baseline runs once at audit closure. No model, container or network.
+
+GRAPHIFY built from `9d3a159`: 16,526 nodes / 47,756 edges, PARTIAL 9 known files, semantic pending. Dependents of the two changed functions: the operational state view and their own suites.
+
+LOCAL COMMIT; NO PUSH. Next: voice barge-in and a real tool-action state, then the final matrix with one full baseline, then Stage 15G.
