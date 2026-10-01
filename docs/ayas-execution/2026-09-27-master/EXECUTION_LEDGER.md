@@ -498,3 +498,19 @@ globalGuardBound=true, with ten recorded limits (CLOSURE.md): publication takes 
 Owner actions outstanding, none blocking: restart the observer Scheduled Task (durable sweep binding); push stays off.
 
 STAGE 15E OPENED automatically. Next 15E.0 inspection of existing model and strategy pinning before any new registry.
+
+## STAGE 15E CLOSED GREEN — model and strategy lifecycle — 2026-10-01
+
+Source 139bab6ced7acadeb4c8842a899f99755c8d7404 (contract, registry, verifier, status script) and b05283a7ef2a7c20b527a55cb3972a5893ebb248 (router binding). Notes: 03_STAGE15_BASE/hardening/15E/IMPLEMENTATION_NOTES.md.
+
+15E.0 INSPECT. Before this stage a model was whatever tag the owner's configuration named. Only the local coding model and the phone model had immutable pins. Speech models, FFmpeg, the prompt, the discovery strategy, the research experiment and the evaluators had no recorded identity. Nothing selected or promoted a model, and there was no runtime engine registration to bind to.
+
+15E.1. A pure lifecycle contract: eight states, one table of legal moves, and the rule that an entry's state must be backed by what it records (immutable identity from PINNED, six passed checks from QUALIFIED, rollback target and a comparison against the incumbent to serve by promotion, a cause on record for DEGRADED). It answers whether a move would be allowed and drafts a rollback proposal; it promotes nothing, and no route, daemon or tool calls it. Serving policy: canary is bounded internal tasks only, shadow is compared only, owner selection never gives an external write or autonomous coding. The registry of record is a deep-frozen constant of 15 real entries. A read-only verifier and an operator status script compare recorded identities with this machine.
+
+15E.2. The chat model router now reports, per route, the registry entry for the configured tag, its state, and whether the digest the runtime serves is the pinned one. A re-pulled or unregistered tag stays the owner's choice: used and reported. An entry the registry withdrew or retired is refused, and that never opens the cloud path.
+
+TRUTH RECORDED. Nothing is QUALIFIED or promoted. Everything in use is owner-selected; 13 entries are pinned, two hosted or platform voices cannot be pinned. The local Qwen coding model is DEGRADED from its real Stage 15A run and may serve nothing. 14 owner findings state this instead of labelling anything ACTIVE.
+
+TEST/ADVERSARIAL: lifecycle 13, model router 22, mutation audit 43/43 in a TEMP overlay, affected regression PASS, TypeScript/lint/diff PASS. LIVE_READ_ONLY: 13 of 13 pinned identities MATCH on this workstation. GRAPHIFY precommit 3d18a9d, worktree covered: 16285 nodes / 47154 links, anomalies 0, PARTIAL 9 known files, semantic pending. No model loaded, nothing installed, no container. LOCAL COMMITS; NO PUSH.
+
+STAGE 15F OPENED automatically. Next 15F.0 inspection of the Unified Trace and the durable records 15D and 15E now produce.
