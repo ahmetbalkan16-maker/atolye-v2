@@ -1,3 +1,8 @@
+## 2026-10-01 — AYAS Stage 15D.1 capability lease foundation
+
+- Reuse existing execution grants for exact server run/task/action/resource/platform scope, bounded TTL and revocation; opaque handles cannot be restored from model/tool text. Add concurrent consume locking and fail-closed time/state/scope validation.
+- Firewall 46 adversarial scenarios plus existing bridge/write regressions PASS. Dispatch binding remains the next packet; no live authority activation. Explicit NO PUSH supersedes the earlier session-end exception; prior WIP push deviation is recorded.
+
 ## 2026-10-01 — Stage 15C memory integrity and context firewall
 
 - Strict optional integrity metadata, digest and revision manifest; deterministic security screen, quarantine, source/trust filtering, protected keys and rapid-change detection.

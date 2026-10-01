@@ -1,7 +1,9 @@
 # Stage 15D — exact resumption point
 
-Opened after the Stage 15C source packet, 2026-10-01. INSPECT in progress;
-no Stage 15D source changes, issuer, lease, activation or authority exists yet.
+Opened after the Stage 15C source packet, 2026-10-01. **15D.0 inspection is
+complete; superseded continuation: 15D.1 reusable lease foundation, then 15D.2
+dispatch binding.** See IMPLEMENTATION_NOTES.md for current evidence. The
+remaining text records the original inspection, not current activation claims.
 
 Canonical spec: `00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md`, Stage
 15D; `01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md`, Stage 15D.
