@@ -44,6 +44,7 @@ import {
 } from "./AyasWriteActionPolicy";
 import { resolveAyasExecutor, type AyasExecutorResult } from "./AyasSafeExecutors";
 import { createAyasResumeStageExecutor, type AyasWriteExecutor } from "./AyasWriteExecutor";
+import { createAyasReadActionFirewall } from "./AyasActionRuntime";
 
 export type AyasExecutionDenyStage = "policy" | "gate" | "authorization" | "executor" | "internal";
 
@@ -104,8 +105,9 @@ export function createAyasExecutionBridge(deps: AyasExecutionBridgeDeps) {
   async function runFromOpenGate(
     descriptor: AyasExecutionGrantDescriptor,
     authorizationId: string,
-    run: () => Promise<AyasExecutorResult>,
+    run: (admittedRead?: AyasExecutionRequest) => Promise<AyasExecutorResult>,
     maxDurationMs: number,
+    readRequest?: AyasExecutionRequest,
   ): Promise<AyasExecutionOutcome> {
     const gateBefore = deps.gate.readStateFailClosed();
     if (gateBefore.degraded) {
@@ -115,9 +117,20 @@ export function createAyasExecutionBridge(deps: AyasExecutionBridgeDeps) {
       return deny("gate", "gate-not-open", `execution gate is ${gateBefore.state}; a request is only run from OPEN`, gateBefore.state);
     }
 
-    let consumed;
+    let consumed: { readonly executionId: string };
+    let admittedRead: AyasExecutionRequest | undefined;
     try {
-      consumed = deps.authorizations.consume(authorizationId, descriptor);
+      if (readRequest) {
+        const firewall = createAyasReadActionFirewall(deps.authorizations);
+        const issued = firewall.issue(readRequest, authorizationId);
+        if (!issued.allowed) return deny("authorization", issued.reason, issued.decision, gateState());
+        const admission = firewall.admit(issued.lease, readRequest);
+        if (!admission.allowed) return deny("authorization", admission.reason, admission.decision, gateState());
+        consumed = { executionId: admission.executionId };
+        admittedRead = admission.request;
+      } else {
+        consumed = deps.authorizations.consume(authorizationId, descriptor);
+      }
     } catch (error) {
       const code = error instanceof AyasExecutionAuthorizationError ? error.code : "AYAS_EXEC_AUTH_UNKNOWN";
       return deny("authorization", code, error instanceof Error ? error.message : String(error), gateState());
@@ -138,7 +151,7 @@ export function createAyasExecutionBridge(deps: AyasExecutionBridgeDeps) {
     }
 
     try {
-      const result = await withTimeout(run(), maxDurationMs, descriptor.action);
+      const result = await withTimeout(run(admittedRead), maxDurationMs, descriptor.action);
       const completed = deps.gate.transition({
         event: "complete-execution",
         expectedSequence: beginSeq,
@@ -227,12 +240,14 @@ export function createAyasExecutionBridge(deps: AyasExecutionBridgeDeps) {
     return runFromOpenGate(
       descriptor,
       input.authorizationId,
-      async () => {
-        const executor = resolveExecutor(request.action);
-        if (!executor) throw new Error(`no executor for allowlisted action ${request.action}`);
-        return executor(request);
+      async (admitted) => {
+        if (!admitted) throw new Error("read capability admission missing");
+        const executor = resolveExecutor(admitted.action);
+        if (!executor) throw new Error(`no executor for allowlisted action ${admitted.action}`);
+        return executor(admitted);
       },
       validation.spec.maxDurationMs,
+      request,
     );
   }
 

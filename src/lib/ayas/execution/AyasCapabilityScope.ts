@@ -29,6 +29,11 @@ export interface AyasCapabilityScope {
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 const HASH = /^[a-f0-9]{64}$/;
+/** LOCAL/ZERO_LOCAL does not cover an undeclared network share or device namespace. */
+export function isAyasLocalCapabilityRoot(value: unknown): value is string {
+  return typeof value === "string" && value.length <= 4096 && !value.includes("\0") &&
+    !value.startsWith("\\\\") && !value.startsWith("//") && path.isAbsolute(value) && path.resolve(value) === value;
+}
 function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
   return Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
 }
@@ -52,8 +57,7 @@ export function isAyasCapabilityScope(raw: unknown): raw is AyasCapabilityScope 
       !s.resource || typeof s.resource !== "object" || Array.isArray(s.resource)) return false;
   const r = s.resource as Record<string, unknown>;
   return exactKeys(r, ["repoRoot", "resourceRoot", "platform", "requestDigest", "projectSlug"]) &&
-    typeof r.repoRoot === "string" && r.repoRoot.length <= 4096 && path.isAbsolute(r.repoRoot) && path.resolve(r.repoRoot) === r.repoRoot &&
-    typeof r.resourceRoot === "string" && r.resourceRoot.length <= 4096 && path.isAbsolute(r.resourceRoot) && path.resolve(r.resourceRoot) === r.resourceRoot &&
+    isAyasLocalCapabilityRoot(r.repoRoot) && isAyasLocalCapabilityRoot(r.resourceRoot) &&
     r.platform === "LOCAL" && typeof r.requestDigest === "string" && HASH.test(r.requestDigest) &&
     (r.projectSlug === null || (typeof r.projectSlug === "string" && /^[a-z0-9][a-z0-9_-]{0,127}$/i.test(r.projectSlug)));
 }

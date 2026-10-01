@@ -1,8 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
-import path from "node:path";
 import { AyasExecutionAuthorizationError, AyasExecutionAuthorizationStore } from "./AyasExecutionAuthorization";
-import { ayasCapabilityRequestDigest, ayasLocalActionClassification, canonicalAyasCapabilityScope, type AyasActionFirewallDecision, type AyasCapabilityScope } from "./AyasCapabilityScope";
+import { ayasCapabilityRequestDigest, ayasLocalActionClassification, canonicalAyasCapabilityScope, isAyasLocalCapabilityRoot, type AyasActionFirewallDecision, type AyasCapabilityScope } from "./AyasCapabilityScope";
 import { AYAS_EXECUTION_RESERVED_ACTIONS, validateAyasExecutionRequest, type AyasExecutionRequest } from "./AyasExecutionPolicy";
 
 /** Opaque server object. Its serialization/clone has no authority; even a real handle from another run is refused. */
@@ -45,10 +44,12 @@ export interface AyasActionFirewallOptions {
  * remain audit evidence and never silently restore authority. Call admit immediately before dispatch.
  */
 export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
+  if (!isAyasLocalCapabilityRoot(options.repoRoot)) throw new Error("AYAS_FIREWALL_REPOSITORY_UNKNOWN");
   const repoRoot = fs.realpathSync(options.repoRoot);
   const runId = crypto.randomUUID();
   const taskId = crypto.randomUUID();
   const leases = new WeakMap<object, IssuedLease>();
+  const attachedAuthorizationIds = new Set<string>();
 
   function snapshotRequest(raw: unknown): AyasExecutionRequest | undefined {
     const validated = validateAyasExecutionRequest(raw);
@@ -72,7 +73,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
       throw new Error("AYAS_FIREWALL_RESOURCE_UNKNOWN");
     }
     const resourceRoot = options.resolveResourceRoot ? options.resolveResourceRoot(request) : repoRoot;
-    if (typeof resourceRoot !== "string" || !path.isAbsolute(resourceRoot) || path.resolve(resourceRoot) !== resourceRoot) {
+    if (!isAyasLocalCapabilityRoot(resourceRoot)) {
       throw new Error("AYAS_FIREWALL_RESOURCE_UNKNOWN");
     }
     return {
@@ -98,18 +99,21 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
     return classification === "READ" ? "ALLOW_READ" : classification === "BOUNDED_LOCAL" ? "ALLOW_BOUNDED_LOCAL" : "DENY";
   }
 
-  function issue(raw: unknown): AyasActionFirewallRefusal | { readonly allowed: true; readonly lease: AyasCapabilityLeaseHandle } {
+  function issue(raw: unknown, existingAuthorizationId?: string): AyasActionFirewallRefusal | { readonly allowed: true; readonly lease: AyasCapabilityLeaseHandle } {
+    if (existingAuthorizationId !== undefined && attachedAuthorizationIds.has(existingAuthorizationId)) return refuse("AYAS_FIREWALL_REPLAY");
     const decision = classify(raw);
     if (decision === "DENY" || decision === "REQUIRE_OWNER") return refuse("AYAS_FIREWALL_SCOPE_NOT_ISSUABLE", decision);
     try {
       const request = snapshotRequest(raw);
       if (!request) return refuse("AYAS_FIREWALL_REQUEST_INVALID");
       const scope = scopeFor(request);
-      const grant = options.authorizations.grant(request, scope);
+      const grant = existingAuthorizationId === undefined ? options.authorizations.grant(request, scope)
+        : options.authorizations.bindReadCapabilityScope(existingAuthorizationId, request, scope);
       const lease = Object.freeze(Object.create(null)) as AyasCapabilityLeaseHandle;
       leases.set(lease, { authorizationId: grant.authorizationId, expiresAt: grant.expiresAt, scope, consumed: false, revoked: false });
+      attachedAuthorizationIds.add(grant.authorizationId);
       return { allowed: true, lease };
-    } catch { return refuse("AYAS_FIREWALL_ISSUE_FAILED"); }
+    } catch (error) { return refuse(error instanceof AyasExecutionAuthorizationError ? error.code : "AYAS_FIREWALL_ISSUE_FAILED"); }
   }
 
   function admit(lease: unknown, raw: unknown): AyasActionFirewallAdmission {

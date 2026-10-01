@@ -189,6 +189,33 @@ export class AyasExecutionAuthorizationStore {
     return this.validate(raw, authorizationId);
   }
 
+  /** Trusted read admission only: attach scope to the SAME legacy grant, preserving identity/expiry and single-use state. */
+  bindReadCapabilityScope(authorizationId: string, input: AyasExecutionRequest, scope: AyasCapabilityScope): AyasExecutionAuthorizationRecord {
+    return this.withRecordLock(authorizationId, () => {
+      const record = this.read(authorizationId);
+      if (record.state === "revoked" || record.revokedAt) throw new AyasExecutionAuthorizationError("AYAS_EXEC_AUTH_REVOKED", "authorization was revoked");
+      if (record.state !== "granted") throw new AyasExecutionAuthorizationError("AYAS_EXEC_AUTH_REPLAY", "only an unused authorization can receive read scope");
+      const digest = sha256(canonicalAyasExecutionRequest(input));
+      if (!isAyasCapabilityScope(scope) || record.requestDigest !== digest || scope.resource.requestDigest !== digest ||
+          record.action !== input.action || scope.capabilities[0] !== input.action || scope.resource.projectSlug !== (record.projectSlug ?? null)) {
+        throw new AyasExecutionAuthorizationError("AYAS_EXEC_AUTH_BINDING_MISMATCH", "read scope does not match the existing exact authorization");
+      }
+      const scopeDigest = sha256(canonicalAyasCapabilityScope(scope));
+      if (record.capabilityScope && record.capabilityScopeDigest !== scopeDigest) {
+        throw new AyasExecutionAuthorizationError("AYAS_EXEC_AUTH_BINDING_MISMATCH", "an existing run scope cannot be rebound");
+      }
+      const nowMs = this.now().getTime();
+      if (!Number.isFinite(nowMs) || nowMs < Date.parse(record.createdAt)) throw new AyasExecutionAuthorizationError("AYAS_EXEC_AUTH_CORRUPT", "invalid authorization clock");
+      if (nowMs >= Date.parse(record.expiresAt)) {
+        this.update(authorizationId, { ...record, state: "expired" });
+        throw new AyasExecutionAuthorizationError("AYAS_EXEC_AUTH_EXPIRED", "existing authorization expired");
+      }
+      const bound = { ...record, capabilityScope: JSON.parse(JSON.stringify(scope)) as AyasCapabilityScope, capabilityScopeDigest: scopeDigest };
+      this.update(authorizationId, bound);
+      return bound;
+    });
+  }
+
   /**
    * Single-use: verify binding + expiry, mark `consumed`. A second call is a
    * replay. Returns the consumed record.

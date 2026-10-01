@@ -95,8 +95,13 @@ function resourceRoot(request: AyasExecutionRequest): string {
   return fs.realpathSync(ADAPTER_REPO_ROOT);
 }
 
+/** Trusted code uses this same adapter binding in both current read dispatchers. */
+export function createAyasReadActionFirewall(store: AyasExecutionAuthorizationStore): ReturnType<typeof createAyasActionFirewall> {
+  return createAyasActionFirewall({ repoRoot: ADAPTER_REPO_ROOT, authorizations: store, resolveResourceRoot: resourceRoot });
+}
+
 function createAuthorizationContext(store: AyasExecutionAuthorizationStore): AuthorizationContext {
-  return { store, firewall: createAyasActionFirewall({ repoRoot: ADAPTER_REPO_ROOT, authorizations: store, resolveResourceRoot: resourceRoot }) };
+  return { store, firewall: createAyasReadActionFirewall(store) };
 }
 
 /** Trusted server/test context only; never accepts a scope, owner claim or store root from a tool/model request. */
