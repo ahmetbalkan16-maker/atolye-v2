@@ -103,7 +103,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
   /** Pure classification is informative, never a permission. Reserved effects retain owner control. */
   function classify(raw: unknown): AyasActionFirewallDecision {
     const action = raw && typeof raw === "object" ? (raw as { action?: unknown }).action : undefined;
-    if (action === "self-development.apply-approved-proposal" || (typeof action === "string" && AYAS_EXECUTION_RESERVED_ACTIONS.includes(action))) return "REQUIRE_OWNER";
+    if (action === "self-development.apply-approved-proposal" || action === "guided-repair.apply-approved-scope" || (typeof action === "string" && AYAS_EXECUTION_RESERVED_ACTIONS.includes(action))) return "REQUIRE_OWNER";
     const v = validateAyasExecutionRequest(raw);
     if (!v.ok) return "DENY";
     const classification = ayasLocalActionClassification(v.request.action);
@@ -182,7 +182,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
       if (adapter.readLease()) return refuse("AYAS_FIREWALL_REPLAY");
       const request = Object.freeze({ ...proof.request, exactFiles: Object.freeze([...proof.request.exactFiles]) });
       const audit: AyasOwnerCapabilityLeaseAudit = {
-        leaseId: crypto.randomUUID(), createdAt: proof.reservedAt, expiresAt: new Date(Date.parse(proof.reservedAt) + AYAS_CAPABILITY_MAX_TTL_MS).toISOString(), state: "granted",
+        leaseId: crypto.randomUUID(), createdAt: proof.reservedAt, expiresAt: proof.expiresAt ?? new Date(Date.parse(proof.reservedAt) + AYAS_CAPABILITY_MAX_TTL_MS).toISOString(), state: "granted",
         scope: { schemaVersion: "1", agentId: "ayas-server", runId, taskId, ownerId: proof.ownerId, delegationId: proof.decisionId,
           capabilities: [request.action], resource: { repoRoot, platform: "LOCAL", request }, costClass: "ZERO_LOCAL", classification: "WRITE" },
       };
@@ -206,6 +206,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
       const current = adapter.readLease();
       if (!current || !isAyasOwnerCapabilityLeaseAudit(current) || current.state !== "granted" || current.leaseId !== issued.audit.leaseId ||
           current.createdAt !== issued.audit.createdAt || current.expiresAt !== issued.audit.expiresAt || proof.reservedAt !== issued.audit.createdAt ||
+          (proof.expiresAt !== undefined && proof.expiresAt !== issued.audit.expiresAt) ||
           canonicalAyasOwnerCapabilityRequest(proof.request) !== canonicalAyasOwnerCapabilityRequest(issued.audit.scope.resource.request) ||
           proof.decisionId !== issued.audit.scope.delegationId || canonicalAyasOwnerCapabilityScope(current.scope) !== canonicalAyasOwnerCapabilityScope(issued.audit.scope) ||
           fs.realpathSync(options.repoRoot) !== repoRoot) return refuse("AYAS_FIREWALL_OWNER_SCOPE_CHANGED");

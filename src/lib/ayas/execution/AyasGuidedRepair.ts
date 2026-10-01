@@ -12,6 +12,10 @@ import path from "node:path";
 import { classifyPatchSet } from "@/lib/brain/selfheal/BrainPatchSafety";
 import { canonicalizeAyasExactFiles } from "@/lib/brain/autonomy/AyasMutationScope";
 import { AYAS_CAPABILITY_MAX_TTL_MS, isAyasLocalCapabilityRoot } from "./AyasCapabilityScope";
+import type { AyasOwnerCapabilityLeaseAudit, AyasRepairCapabilityRequest } from "./AyasCapabilityScope";
+import { createAyasActionFirewall } from "./AyasActionFirewall";
+import { resolveAyasExecutionAuditRoot } from "./AyasExecutionAuditContext";
+import { createAyasExecutionJournal, AyasExecutionJournalError, type AyasExecutionJournalPhase } from "@/lib/brain/autonomy/AyasExecutionJournal";
 
 export type AyasRepairRootCauseStatus = "suspected" | "strongly-supported" | "reproduced";
 export type AyasRepairLifecycle = "proposed" | "approved" | "active" | "validating" | "completed" | "revoked" | "expired" | "blocked" | "failed";
@@ -54,7 +58,7 @@ interface RepairApprovalContext { readonly workspaceRoot: string; readonly issue
 const standaloneRepairIssuer = Object.freeze({});
 // Original receipts from the EXISTING explicit user-turn approval primitive only.
 // JSON and fingerprints remain audit data; they cannot recreate this live proof.
-const repairApprovalReceipts = new WeakMap<object, { readonly snapshot: string; readonly workspaceRoot: string; readonly issuer: object; revoked: boolean; consumed: boolean }>();
+const repairApprovalReceipts = new WeakMap<object, { readonly snapshot: string; readonly workspaceRoot: string; readonly issuer: object; readonly userTurnId: string; revoked: boolean; consumed: boolean }>();
 function proposalFingerprintOf(proposal: AyasRepairProposal): string { const unsigned = Object.fromEntries(Object.entries(proposal).filter(([key]) => key !== "proposalFingerprint")); return digest(unsigned); }
 export function isAyasRepairProposalAuthentic(proposal: AyasRepairProposal): boolean { return proposalFingerprintOf(proposal) === proposal.proposalFingerprint; }
 
@@ -108,7 +112,7 @@ export function approveAyasRepair(proposal: AyasRepairProposal, approval: { prop
   const workspaceRoot = fs.realpathSync(context.workspaceRoot);
   canonicalizeAyasExactFiles(workspaceRoot, proposal.approvedFiles);
   const auth: AyasRepairAuthorization = Object.freeze({ authorizationId: `repair-authz-${crypto.randomUUID()}`, proposalId: proposal.proposalId, proposalFingerprint: proposal.proposalFingerprint, issueFingerprint: proposal.issueFingerprint, workspaceId: proposal.workspaceId, approvedFiles: Object.freeze(clone(proposal.approvedFiles)), operationClasses: Object.freeze(clone(proposal.operationClasses)), validationActions: Object.freeze(clone(proposal.validationActions)), forbiddenOperations: Object.freeze(clone(proposal.forbiddenOperations)), createdAt: now, expiresAt: new Date(Date.parse(now) + ttlMs).toISOString(), status: "approved", provenance: "explicit-user-approval" });
-  repairApprovalReceipts.set(auth, { snapshot: JSON.stringify(auth), workspaceRoot, issuer: context.issuer, revoked: false, consumed: false });
+  repairApprovalReceipts.set(auth, { snapshot: JSON.stringify(auth), workspaceRoot, issuer: context.issuer, userTurnId: approval.userTurnId, revoked: false, consumed: false });
   return auth;
 }
 
@@ -138,6 +142,18 @@ export function createAyasGuidedRepairService(deps: AyasGuidedRepairDeps = {}) {
     if (forbiddenTargets.length > 0) return { ok: false, lifecycle: "blocked", reason: `repair target forbidden: ${forbiddenTargets.map((t) => t.path).join(", ")}`, repairId };
     if (proposal.validationActions.length > proposal.bounds.maxValidationCycles) return { ok: false, lifecycle: "blocked", reason: "validation cycle bound exceeded", repairId };
     const files: string[] = []; const before: Array<{ abs: string; old: string | null; patch: AyasPatch }> = []; const provenance: AyasPatchProvenance[] = [];
+    // Reuse the existing execution journal. Each private bounded attempt records its
+    // own admission; a remediation keeps the SAME approval and original expiry.
+    const audit = createAyasExecutionJournal({ rootDir: resolveAyasExecutionAuditRoot() });
+    const executionId = `ayas-exec-${crypto.randomUUID()}`;
+    let capabilityLease: AyasOwnerCapabilityLeaseAudit | undefined;
+    const recordAudit = (phase: AyasExecutionJournalPhase) => {
+      try { audit.record({ schemaVersion: "1", executionId,
+        proposalId: proposal.proposalId, proposalHash: proposal.proposalFingerprint, baseHead: "NOT_APPLICABLE_REPAIR_WORKSPACE",
+        exactFiles: [...proposal.approvedFiles], authorizationId: auth.authorizationId, startedAt: auth.createdAt, updatedAt: now().toISOString(), phase,
+        ...(capabilityLease ? { capabilityLease } : {}) }); }
+      catch { throw new AyasExecutionJournalError("AYAS_JOURNAL_IO", "durable repair audit unavailable"); }
+    };
     try {
       if (fs.realpathSync(root) !== receipt.workspaceRoot) throw new Error("authorization workspace changed");
       canonicalizeAyasExactFiles(root, patches.map((patch) => patch.filePath));
@@ -152,16 +168,38 @@ export function createAyasGuidedRepairService(deps: AyasGuidedRepairDeps = {}) {
         if (!exists && patch.expectedHash !== null) throw new Error("new file must use null precondition");
         before.push({ abs, old, patch });
       }
+      const request: AyasRepairCapabilityRequest = { action: "guided-repair.apply-approved-scope", proposalId: proposal.proposalId,
+        proposalFingerprint: proposal.proposalFingerprint, issueFingerprint: proposal.issueFingerprint, workspaceId: proposal.workspaceId,
+        authorizationId: auth.authorizationId, exactFiles: canonicalizeAyasExactFiles(root, proposal.approvedFiles),
+        operationClasses: [...new Set(auth.operationClasses)].sort(), validationActions: [...new Set(auth.validationActions)].sort(),
+        boundsDigest: digest(proposal.bounds), patchDigest: digest(patches) };
+      recordAudit("APPROVED_NOT_STARTED");
+      const firewall = createAyasActionFirewall({ repoRoot: root, now, ownerReservation: {
+        readProof: () => !receipt.revoked && JSON.stringify(auth) === receipt.snapshot && receipt.issuer === approvalContext.issuer &&
+          fs.realpathSync(root) === receipt.workspaceRoot ? { ownerId: "shared-passcode-owner", decisionId: `repair-turn:${digest(receipt.userTurnId)}`,
+            reservedAt: auth.createdAt, expiresAt: auth.expiresAt, request } : undefined,
+        readLease: () => audit.read(executionId)?.capabilityLease,
+        recordLease: (lease) => { capabilityLease = lease; recordAudit("APPROVED_NOT_STARTED"); },
+      } });
+      const issued = firewall.bindOwnerReservation(request);
+      if (!issued.allowed) throw new Error(`authorization guard denied: ${issued.reason}`);
+      const admitted = firewall.admitOwnerReservation(issued.lease, request);
+      if (!admitted.allowed) throw new Error(`authorization guard denied: ${admitted.reason}`);
+      recordAudit("EXECUTING");
       if (consumeAuthorization) receipt.consumed = true;
       journal({ at: now().toISOString(), event: "repair-started", proposalId: proposal.proposalId, authorizationId: auth.authorizationId, detail: "bounded patch" });
       for (const item of before) { fs.mkdirSync(path.dirname(item.abs), { recursive: true }); fs.writeFileSync(item.abs, item.patch.content, "utf8"); files.push(item.patch.filePath); provenance.push({ repairId, authorizationId: auth.authorizationId, file: item.patch.filePath, beforeHash: item.old === null ? null : textHash(item.old), afterHash: textHash(item.patch.content), operation: item.patch.operation, success: true, evidence: `bounded replacement (${item.patch.content.length} chars)` }); }
       const validations = []; for (const action of proposal.validationActions) { if (now().getTime() - startedAt > proposal.bounds.maxDurationMs) throw new Error("repair duration bound exceeded"); validations.push(await runAyasRegisteredValidation(action, deps.validators)); }
       const failed = validations.find((v) => !(v as { ok?: boolean }).ok); if (failed) throw new Error(`validation failed: ${JSON.stringify(failed)}`);
+      recordAudit("RESULT_RECORDED");
       journal({ at: now().toISOString(), event: "repair-completed", proposalId: proposal.proposalId, authorizationId: auth.authorizationId, detail: "validated", evidence: files });
       return { ok: true, lifecycle: "completed", repairId, files, validations, provenance };
     } catch (e) {
       for (let i = before.length - 1; i >= 0; i--) { const item = before[i]!; try { const current = fs.existsSync(item.abs) ? fs.readFileSync(item.abs, "utf8") : null; if (current !== item.patch.content) continue; if (item.old === null) fs.rmSync(item.abs, { force: true }); else fs.writeFileSync(item.abs, item.old, "utf8"); } catch { /* fail closed; journal records failure */ } }
-      const reason = e instanceof Error ? e.message : String(e); journal({ at: now().toISOString(), event: "repair-failed", proposalId: proposal.proposalId, authorizationId: auth.authorizationId, detail: reason }); return { ok: false, lifecycle: "failed", reason, repairId, provenance };
+      const reason = e instanceof AyasExecutionJournalError ? "authorization audit unavailable" : e instanceof Error ? e.message : String(e);
+      try { recordAudit("FAILED"); } catch { /* admission refusal still prevents dispatch; existing durable phase remains */ }
+      journal({ at: now().toISOString(), event: "repair-failed", proposalId: proposal.proposalId, authorizationId: auth.authorizationId, detail: reason });
+      return { ok: false, lifecycle: files.length === 0 && /authorization/iu.test(reason) ? "blocked" : "failed", reason, repairId, provenance };
     }
   }
   const apply = (proposal: AyasRepairProposal, auth: AyasRepairAuthorization, patches: readonly AyasPatch[]) => applyInternal(proposal, auth, patches, true);

@@ -49,6 +49,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { getExistingProjectRoot, getProjectsRoot } from "../../runtime/RuntimeStoragePaths";
 import { createAyasActionFirewall } from "./AyasActionFirewall";
 import { AyasExecutionAuthorizationStore } from "./AyasExecutionAuthorization";
+import { withAyasExecutionAuditRoot } from "./AyasExecutionAuditContext";
 import type { AyasExecutionRequest } from "./AyasExecutionPolicy";
 import { resolveAyasExecutor, AyasActionValidationError, type AyasExecutorResult } from "./AyasSafeExecutors";
 
@@ -106,7 +107,7 @@ function createAuthorizationContext(store: AyasExecutionAuthorizationStore): Aut
 
 /** Trusted server/test context only; never accepts a scope, owner claim or store root from a tool/model request. */
 export function withAyasActionRuntimeAuthorizationStore<T>(store: AyasExecutionAuthorizationStore, operation: () => T): T {
-  return authorizationContext.run(createAuthorizationContext(store), operation);
+  return withAyasExecutionAuditRoot(store.auditRoot, () => authorizationContext.run(createAuthorizationContext(store), operation));
 }
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {

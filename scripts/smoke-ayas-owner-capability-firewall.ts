@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createAyasActionFirewall } from "../src/lib/ayas/execution/AyasActionFirewall";
-import { AYAS_CAPABILITY_MAX_TTL_MS, type AyasOwnerCapabilityProof, type AyasOwnerCapabilityLeaseAudit } from "../src/lib/ayas/execution/AyasCapabilityScope";
+import { AYAS_CAPABILITY_MAX_TTL_MS, type AyasOwnerCapabilityProof, type AyasSelfDevelopmentCapabilityRequest, type AyasOwnerCapabilityLeaseAudit } from "../src/lib/ayas/execution/AyasCapabilityScope";
 import { createAyasExecutionJournal, type AyasExecutionJournalPhase } from "../src/lib/brain/autonomy/AyasExecutionJournal";
 import { createAyasAutonomyDaemon } from "../src/lib/brain/autonomy/AyasAutonomyDaemon";
 import { createAyasApprovalInboxStore } from "../src/lib/brain/autonomy/AyasApprovalInboxStore";
@@ -23,7 +23,7 @@ function fixture() {
   let proof: AyasOwnerCapabilityProof | undefined = { ownerId: "shared-passcode-owner", decisionId: `ayas-decision-${crypto.randomUUID()}`, reservedAt: new Date(time).toISOString(),
     request: { action: "self-development.apply-approved-proposal", proposalId: `ayas-proposal-${crypto.randomUUID()}`, proposalHash: "a".repeat(64), baseHead: "b".repeat(40),
       exactFiles: ["scripts/smoke-allowed.ts"], mutationKind: "fixture:v1", authorizationId: `ayas-dev-auth-${crypto.randomUUID()}`, reservationId: `ayas-reservation-${crypto.randomUUID()}` } };
-  const request = clone(proof.request), executionId = `ayas-exec-${crypto.randomUUID()}`;
+  const request = clone(proof.request as AyasSelfDevelopmentCapabilityRequest), executionId = `ayas-exec-${crypto.randomUUID()}`;
   let failWrite = false;
   const record = (capabilityLease?: AyasOwnerCapabilityLeaseAudit) => journal.record({ schemaVersion: "1", executionId, proposalId: request.proposalId,
     proposalHash: request.proposalHash, baseHead: request.baseHead, exactFiles: request.exactFiles, phase: "GATE_OPEN", startedAt: new Date(time).toISOString(), updatedAt: new Date(clock).toISOString(), ...(capabilityLease ? { capabilityLease } : {}) });

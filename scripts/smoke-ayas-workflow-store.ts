@@ -310,9 +310,14 @@ async function main() {
       assert.equal(firstApply.ok, true);
       assert.equal(fs.readFileSync(fixture.absolute, "utf8"), "export const answer = 42;\n");
 
-      // Recovery naively replays the SAME patch against a FRESH service instance (fresh in-memory consumedAuthorizations Set) — the write itself must still refuse, via the precondition hash, since the file no longer matches the patch's expectedHash (the pre-patch content).
+      // Restart cannot restore authority from the old service receipt. Even a fresh
+      // explicit owner approval cannot replay the old patch's stale precondition.
       const freshService = createAyasGuidedRepairService({ workspaceRoot: wsRoot, validators: { "run-registered-smoke-test": async () => ({ ok: true }) } });
-      const replay = await freshService.apply(fixture.proposal, authorization, fixture.patches);
+      const oldReceipt = await freshService.apply(fixture.proposal, authorization, fixture.patches);
+      assert.equal(oldReceipt.ok, false);
+      assert.match((oldReceipt as { reason: string }).reason, /authorization issuer proof required/i);
+      const freshAuthorization = freshService.approve(fixture.proposal, { proposalId: fixture.proposal.proposalId, proposalFingerprint: fixture.proposal.proposalFingerprint, issueFingerprint: fixture.proposal.issueFingerprint, workspaceId: fixture.proposal.workspaceId, approvedByUser: true, userTurnId: "fresh-owner", currentTurnId: "fresh-owner" });
+      const replay = await freshService.apply(fixture.proposal, freshAuthorization, fixture.patches);
       assert.equal(replay.ok, false, "a replayed already-applied patch must be refused");
       assert.match((replay as { reason: string }).reason, /precondition hash mismatch/i);
       assert.equal(fs.readFileSync(fixture.absolute, "utf8"), "export const answer = 42;\n", "content is unchanged by the refused replay — no double-write, no corruption");

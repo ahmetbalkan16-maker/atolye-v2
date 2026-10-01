@@ -116,6 +116,7 @@ export interface AyasExecutionAuthorizationStoreOptions {
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
 
 export class AyasExecutionAuthorizationStore {
+  readonly auditRoot: string;
   private readonly dir: string;
   private readonly now: () => Date;
   private readonly ttlMs: number;
@@ -125,6 +126,7 @@ export class AyasExecutionAuthorizationStore {
       ? path.resolve(options.rootDir)
       : path.join(process.cwd(), "data", "brain");
     this.dir = path.join(rootDir, "execution", "authorizations");
+    this.auditRoot = rootDir;
     this.now = options.now ?? (() => new Date());
     this.ttlMs = options.ttlMs ?? DEFAULT_TTL_MS;
     if (!Number.isSafeInteger(this.ttlMs) || this.ttlMs <= 0 || this.ttlMs > AYAS_CAPABILITY_MAX_TTL_MS) {

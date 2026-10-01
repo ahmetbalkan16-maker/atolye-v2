@@ -6,6 +6,9 @@ import os from "node:os";
 import path from "node:path";
 import { createAyasGuidedRepairService, createAyasRepairProposal, revokeAyasRepairAuthorization, type AyasPatch, type AyasRepairAuthorization } from "../src/lib/ayas/execution/AyasGuidedRepair";
 import { AYAS_CAPABILITY_MAX_TTL_MS } from "../src/lib/ayas/execution/AyasCapabilityScope";
+import { withAyasActionRuntimeFixture } from "./helpers/ayas-action-runtime-fixture";
+import { resolveAyasExecutionAuditRoot, withAyasExecutionAuditRoot } from "../src/lib/ayas/execution/AyasExecutionAuditContext";
+import { createAyasExecutionJournal, type AyasExecutionJournalEntry } from "../src/lib/brain/autonomy/AyasExecutionJournal";
 
 const roots: string[] = [];
 const temp = () => { const root = fs.mkdtempSync(path.join(os.tmpdir(), "ayas-repair-proof-")); roots.push(root); return root; };
@@ -48,8 +51,39 @@ async function main() {
   await scenario("ADS/device-like repair path denied", () => { const f = fixture(); assert.throws(() => createAyasRepairProposal({ ...f.proposal, approvedFiles: ["src/fixture.ts:secret"] }), /path denied/); });
   await scenario("tool/caller patch mutation during async validation cannot break rollback", async () => { const f: ReturnType<typeof fixture> = fixture({ validator: async () => { Reflect.set(f.patches[0]!, "content", "tool changed patch"); Reflect.set(f.patches[0]!, "filePath", "src/elsewhere.ts"); throw new Error("fixture validation fails"); } }); assert.equal((await f.service.apply(f.proposal, f.approve(), f.patches)).ok, false); assert.equal(fs.readFileSync(f.file, "utf8"), f.before); });
   await scenario("revocation during validation prevents bounded remediation", async () => { const f = fixture({ validator: async () => { f.service.revoke(a); throw new Error("fixture failure"); } }); const a = f.approve(); let calls = 0; const r = await f.service.applyWithBoundedRemediation(f.proposal, a, f.patches, async () => { calls++; return f.patches; }); assert.equal(r.ok, false); assert.equal(fs.readFileSync(f.file, "utf8"), f.before); assert.equal(calls, 0); });
+  const journal = () => createAyasExecutionJournal({ rootDir: resolveAyasExecutionAuditRoot() });
+  await scenario("common guard durably consumes exact repair scope BEFORE first patch", async () => {
+    const f = fixture({ ttlMs: 1234 });
+    // Notification also fires after completion; inspect pre-write invariants on start only.
+    const service = createAyasGuidedRepairService({ workspaceRoot: f.root, workspaceId: "fixture", ttlMs: 1234, now: () => new Date(start),
+      journal: (event) => { if (event.event === "repair-started") { const entry = journal().list().find((e) => e.authorizationId === a.authorizationId)!; assert.equal(entry.phase, "EXECUTING"); assert.equal(entry.capabilityLease?.state, "consumed"); assert.equal(fs.readFileSync(f.file, "utf8"), f.before); assert.equal(entry.capabilityLease?.scope.resource.repoRoot, fs.realpathSync(f.root)); assert.equal(entry.capabilityLease?.expiresAt, a.expiresAt); assert.equal(entry.capabilityLease?.scope.capabilities[0], "guided-repair.apply-approved-scope"); } },
+      validators: { "run-registered-smoke-test": async () => true } });
+    const a = service.approve(f.proposal, { proposalId: f.proposal.proposalId, proposalFingerprint: f.proposal.proposalFingerprint, issueFingerprint: f.proposal.issueFingerprint, workspaceId: "fixture", approvedByUser: true, userTurnId: "audit-owner", currentTurnId: "audit-owner" });
+    assert.equal((await service.apply(f.proposal, a, f.patches)).ok, true);
+    const completed = journal().list().find((e) => e.authorizationId === a.authorizationId)!;
+    assert.equal(completed.phase, "RESULT_RECORDED"); assert.equal(completed.capabilityLease?.scope.classification, "WRITE"); assert.equal(completed.capabilityLease?.scope.costClass, "ZERO_LOCAL");
+  });
+  await scenario("audit root IO failure prevents every patch and validator", async () => { let calls = 0; const f = fixture({ validator: async () => { calls++; return true; } }), a = f.approve(); const blocker = path.join(temp(), "audit-is-file"); fs.writeFileSync(blocker, "blocked"); const result = await withAyasExecutionAuditRoot(blocker, () => f.service.apply(f.proposal, a, f.patches)); assert.equal(result.ok, false); if (!result.ok) { assert.equal(result.lifecycle, "blocked"); assert.equal(result.reason, "authorization audit unavailable"); } assert.equal(calls, 0); assert.equal(fs.readFileSync(f.file, "utf8"), f.before); });
+  for (const [name, phase, state, expectedCalls] of [["grant audit refusal", "APPROVED_NOT_STARTED", "granted", 0], ["consume audit refusal", "APPROVED_NOT_STARTED", "consumed", 0], ["outcome audit refusal rolls back bounded patch", "RESULT_RECORDED", "consumed", 1]] as const) await scenario(name, async () => {
+    let calls = 0; const f = fixture({ validator: async () => { calls++; return true; } }), a = f.approve(); const originalRename = fs.renameSync;
+    fs.renameSync = (from, to) => {
+      const root = resolveAyasExecutionAuditRoot(), rel = path.relative(root, String(from));
+      if (!rel.startsWith("..") && !path.isAbsolute(rel) && String(from).endsWith(".tmp")) { const entry = JSON.parse(fs.readFileSync(from, "utf8")) as AyasExecutionJournalEntry; if (entry.authorizationId === a.authorizationId && entry.phase === phase && entry.capabilityLease?.state === state) throw new Error("fixture audit IO refusal"); }
+      return originalRename(from, to);
+    };
+    try { assert.equal((await f.service.apply(f.proposal, a, f.patches)).ok, false); assert.equal(calls, expectedCalls); assert.equal(fs.readFileSync(f.file, "utf8"), f.before); }
+    finally { fs.renameSync = originalRename; }
+  });
+  await scenario("bounded remediation keeps same approval and original expiry, separate consumed attempts", async () => {
+    let calls = 0; const f = fixture({ ttlMs: 1234, validator: async () => { if (++calls === 1) throw new Error("fixture failure"); return true; } }), a = f.approve();
+    assert.equal((await f.service.applyWithBoundedRemediation(f.proposal, a, f.patches, async () => f.patches)).ok, true);
+    const entries = journal().list().filter((e) => e.authorizationId === a.authorizationId); assert.equal(entries.length, 2);
+    for (const e of entries) { assert.equal(e.capabilityLease?.state, "consumed"); assert.equal(e.capabilityLease?.expiresAt, a.expiresAt); assert.equal(e.capabilityLease?.createdAt, a.createdAt); }
+    assert.equal(new Set(entries.map((e) => e.capabilityLease?.leaseId)).size, 2);
+  });
+  await scenario("expiry during failed validation prevents remediation and TTL renewal", async () => { const f = fixture({ ttlMs: 10, validator: async () => { f.clock(start + 10); throw new Error("fixture failure"); } }), a = f.approve(); let calls = 0; assert.equal((await f.service.applyWithBoundedRemediation(f.proposal, a, f.patches, async () => { calls++; return f.patches; })).ok, false); assert.equal(calls, 0); assert.equal(journal().list().filter((e) => e.authorizationId === a.authorizationId).length, 1); });
   console.log(`AYAS repair approval proof: PASS (${scenarios} scenarios; TEMP only)`);
 }
-main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => {
+withAyasActionRuntimeFixture(main).catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => {
   for (const root of roots) { const resolved = path.resolve(root), rel = path.relative(os.tmpdir(), resolved); if (!rel.startsWith("..") && !path.isAbsolute(rel) && path.basename(resolved).startsWith("ayas-repair-proof-")) fs.rmSync(resolved, { recursive: true, force: true }); }
 });

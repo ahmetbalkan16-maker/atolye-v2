@@ -76,7 +76,7 @@ export function canonicalAyasCapabilityScope(scope: AyasCapabilityScope): string
 }
 
 /** Data only: the existing owner decision/reservation remains the authority. */
-export interface AyasOwnerCapabilityRequest {
+export interface AyasSelfDevelopmentCapabilityRequest {
   readonly action: "self-development.apply-approved-proposal";
   readonly proposalId: string;
   readonly proposalHash: string;
@@ -86,11 +86,27 @@ export interface AyasOwnerCapabilityRequest {
   readonly authorizationId: string;
   readonly reservationId: string;
 }
+export interface AyasRepairCapabilityRequest {
+  readonly action: "guided-repair.apply-approved-scope";
+  readonly proposalId: string;
+  readonly proposalFingerprint: string;
+  readonly issueFingerprint: string;
+  readonly workspaceId: string;
+  readonly authorizationId: string;
+  readonly exactFiles: readonly string[];
+  readonly operationClasses: readonly string[];
+  readonly validationActions: readonly string[];
+  readonly boundsDigest: string;
+  readonly patchDigest: string;
+}
+export type AyasOwnerCapabilityRequest = AyasSelfDevelopmentCapabilityRequest | AyasRepairCapabilityRequest;
 export interface AyasOwnerCapabilityProof {
   /** The app has one shared-passcode owner role, no named user accounts. */
   readonly ownerId: "shared-passcode-owner";
   readonly decisionId: string;
   readonly reservedAt: string;
+  /** Existing repair approvals may have a shorter TTL; a lease must never renew it. */
+  readonly expiresAt?: string;
   readonly request: AyasOwnerCapabilityRequest;
 }
 export interface AyasOwnerCapabilityScope {
@@ -117,14 +133,25 @@ const ID = /^[a-zA-Z0-9._:-]{1,200}$/;
 export function isAyasOwnerCapabilityRequest(raw: unknown): raw is AyasOwnerCapabilityRequest {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
   const r = raw as Record<string, unknown>;
+  const filesValid = Array.isArray(r.exactFiles) && r.exactFiles.length > 0 && r.exactFiles.length <= 100 && new Set(r.exactFiles).size === r.exactFiles.length &&
+    r.exactFiles.every((f) => typeof f === "string" && f.length > 0 && f.length <= 4096 && !/[\\:\0]/.test(f) &&
+      !f.startsWith("/") && f !== "." && f !== ".." && !f.startsWith("../") && path.posix.normalize(f) === f);
+  if (r.action === "guided-repair.apply-approved-scope") {
+    const labels = (v: unknown, max: number): boolean => Array.isArray(v) && v.length <= max && new Set(v).size === v.length && v.every((s) => typeof s === "string" && ID.test(s));
+    return exactKeys(r, ["action", "proposalId", "proposalFingerprint", "issueFingerprint", "workspaceId", "authorizationId", "exactFiles", "operationClasses", "validationActions", "boundsDigest", "patchDigest"]) &&
+      [r.proposalId, r.authorizationId].every((v) => typeof v === "string" && ID.test(v)) &&
+      [r.proposalFingerprint, r.boundsDigest, r.patchDigest].every((v) => typeof v === "string" && HASH.test(v)) &&
+      [r.issueFingerprint, r.workspaceId].every((v) => typeof v === "string" && v.length > 0 && v.length <= 200 && !v.includes("\0")) &&
+      filesValid && labels(r.operationClasses, 5) && labels(r.validationActions, 7);
+  }
   return exactKeys(r, ["action", "proposalId", "proposalHash", "baseHead", "exactFiles", "mutationKind", "authorizationId", "reservationId"]) &&
     r.action === "self-development.apply-approved-proposal" && [r.proposalId, r.mutationKind, r.authorizationId, r.reservationId].every((id) => typeof id === "string" && ID.test(id)) &&
     typeof r.proposalHash === "string" && HASH.test(r.proposalHash) && typeof r.baseHead === "string" && /^[a-f0-9]{40,64}$/.test(r.baseHead) &&
-    Array.isArray(r.exactFiles) && r.exactFiles.length > 0 && r.exactFiles.length <= 100 && new Set(r.exactFiles).size === r.exactFiles.length &&
-    r.exactFiles.every((f) => typeof f === "string" && f.length > 0 && f.length <= 4096 && !/[\\:\0]/.test(f) &&
-      !f.startsWith("/") && f !== "." && f !== ".." && !f.startsWith("../") && path.posix.normalize(f) === f);
+    filesValid;
 }
 export function canonicalAyasOwnerCapabilityRequest(r: AyasOwnerCapabilityRequest): string {
+  if (r.action === "guided-repair.apply-approved-scope") return JSON.stringify([r.action, r.proposalId, r.proposalFingerprint, r.issueFingerprint, r.workspaceId,
+    r.authorizationId, r.exactFiles, r.operationClasses, r.validationActions, r.boundsDigest, r.patchDigest]);
   return JSON.stringify([r.action, r.proposalId, r.proposalHash, r.baseHead, r.exactFiles, r.mutationKind, r.authorizationId, r.reservationId]);
 }
 export function canonicalAyasOwnerCapabilityScope(s: AyasOwnerCapabilityScope): string {
@@ -145,8 +172,8 @@ export function isAyasOwnerCapabilityLeaseAudit(raw: unknown): raw is AyasOwnerC
   if (!exactKeys(s, ["schemaVersion", "agentId", "runId", "taskId", "ownerId", "delegationId", "capabilities", "resource", "costClass", "classification"]) ||
       s.schemaVersion !== "1" || s.agentId !== "ayas-server" || typeof s.runId !== "string" || !UUID.test(s.runId) || typeof s.taskId !== "string" || !UUID.test(s.taskId) ||
       s.ownerId !== "shared-passcode-owner" || typeof s.delegationId !== "string" || !ID.test(s.delegationId) || s.costClass !== "ZERO_LOCAL" || s.classification !== "WRITE" ||
-      !Array.isArray(s.capabilities) || s.capabilities.length !== 1 || s.capabilities[0] !== "self-development.apply-approved-proposal" ||
+      !Array.isArray(s.capabilities) || s.capabilities.length !== 1 || !["self-development.apply-approved-proposal", "guided-repair.apply-approved-scope"].includes(String(s.capabilities[0])) ||
       !s.resource || typeof s.resource !== "object" || Array.isArray(s.resource)) return false;
   const r = s.resource as Record<string, unknown>;
-  return exactKeys(r, ["repoRoot", "platform", "request"]) && isAyasLocalCapabilityRoot(r.repoRoot) && r.platform === "LOCAL" && isAyasOwnerCapabilityRequest(r.request);
+  return exactKeys(r, ["repoRoot", "platform", "request"]) && isAyasLocalCapabilityRoot(r.repoRoot) && r.platform === "LOCAL" && isAyasOwnerCapabilityRequest(r.request) && r.request.action === s.capabilities[0];
 }
