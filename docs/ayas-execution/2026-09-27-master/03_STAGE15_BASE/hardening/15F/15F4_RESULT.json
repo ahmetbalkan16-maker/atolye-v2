@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "1",
+  "packet": "15F.4",
+  "status": "GREEN_WITH_DECLARED_LIMITATIONS",
+  "sourcePacketCommit": "1d42c4e8f3a182f12604508749dc7f1015800df2",
+  "recordedAt": "2026-10-01T19:54:57.387Z",
+  "definition": {
+    "path": "EVAL_MANIFEST.json",
+    "version": "15F.4-v4",
+    "digest": "6fb98b0a979e47454ab3d11ce5e252b34e2ffbc12c94e286e4b862fae9e4670e",
+    "suites": 69,
+    "regression": 62,
+    "capability": 6,
+    "frozenHeldOut": 1,
+    "pinnedScriptFiles": 77,
+    "review": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
+    "modelGrader": "NONE"
+  },
+  "baseline": {
+    "artifact": "15F4_BASELINE_V3.json",
+    "sha256": "37c97162db79415e107552917bc81ee582f5dd50563ca0a51229a97f86076ed2",
+    "manifestVersion": "15F.4-v3",
+    "manifestDigest": "3f525404bb712cafad46077b460fa78fd0e0a08b98da6da04069fb10836b0916",
+    "sourceHead": "76aa4b1f0238e1cbaf3accef0558ee78325961b3",
+    "sourceWorktreeDigest": "605a6451f1ee4a50bbd949ce63b70b21ddc71e73c99602de6113e6163da691e4",
+    "completeDeclaredBaseline": true,
+    "suites": 69,
+    "unexpectedFailures": 0,
+    "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+    "knownLimitationSuites": [
+      "cognitive-quality"
+    ],
+    "rawCognitiveQuality": "54/55; held-out 4/5; existing free-text held-out limitation"
+  },
+  "canonicalByteProvenance": {
+    "artifact": "15F4_EOL_PROVENANCE.json",
+    "fullRawV4Baseline": "NOT_RUN",
+    "change": "One legacy CRLF grader normalized to repository LF; no logical Git diff; identical emitted JavaScript proved",
+    "focusedRecheck": "15F4_CANONICAL_EOL_RECOVERY.json; patch-artifact-mutation PASS"
+  },
+  "multipleTrials": {
+    "trials": 3,
+    "suites": [
+      "cognitive-quality",
+      "action-firewall",
+      "developer-intelligence-heldout"
+    ],
+    "artifacts": [
+      "15F4_COGNITIVE_THREE_TRIALS.json",
+      "15F4_FIREWALL_THREE_TRIALS.json",
+      "15F4_HELDOUT_THREE_TRIALS.json"
+    ],
+    "semantics": "Empirical pass@1 and pass^k indicators for k=1..3 only; no full-matrix repeat or independence/probability claim; raw quality remains distinct"
+  },
+  "failedAttemptsPreserved": [
+    "15F4_BASELINE_INITIAL.json",
+    "15F4_BASELINE.json",
+    "15F4_BASELINE_V2.json"
+  ],
+  "fixes": [
+    "Serial harness timeout raised only for two measured long suites; timeout stops further admission",
+    "Research fixture freezes the reviewed historical TEMP temporal source with independent SHA; existing assertions unchanged",
+    "Historical evaluator identity retained at immutable Git revision as PINNED/admission NONE; new current source identity is separately versioned",
+    "One legacy grader CRLF pin corrected with emitted-JS equivalence evidence"
+  ],
+  "tests": [
+    "eval governance 10; mutation controls 8/8",
+    "lifecycle 14, registry 16; historical revision mutation controls 5/5",
+    "model router 22; firewall closure 12, original 8 surfaces/41 modules",
+    "complete 69 suite TEMP baseline PASS_WITH_KNOWN_LIMITATIONS",
+    "three representative suites x three trials",
+    "TypeScript PASS; changed lint 0; full lint 0 errors/13 existing warnings; diff check PASS"
+  ],
+  "resource": {
+    "baselineMaxRamUsedPercent": 47.27806479853045,
+    "modelsStarted": 0,
+    "containersStarted": 0,
+    "externalNetwork": 0,
+    "cpuLoad": "UNAVAILABLE"
+  },
+  "authority": {
+    "ownerCalibration": "PENDING",
+    "promoted": 0,
+    "grantsAuthority": false,
+    "localCoding": "DEGRADED",
+    "push": false
+  },
+  "knownLimits": [
+    {
+      "scope": "live-* / observer-autostart / provider and deployed runtime suites",
+      "reason": "Real model, host configuration, network, production or external effects require separate live/owner evidence; not run by this baseline."
+    },
+    {
+      "scope": "local-coding qualification and model binaries",
+      "reason": "Stage 15A remains LOCAL_INDEPENDENCE_DEGRADED. Qualification vault is preserved; no inference/requalification or artifact download."
+    },
+    {
+      "scope": "Other AYAS, phone/voice/browser and Atolye production suites",
+      "reason": "Outside this Stage 15F declared safety/cognitive baseline. Stage 17 and final certifications retain their wider matrices."
+    },
+    {
+      "scope": "Model grading and owner/human benchmark calibration",
+      "reason": "No model grader; owner calibration pending. Results grant no lifecycle promotion or execution authority."
+    }
+  ],
+  "nextAction": "15F.5: five reliability SLO counters with explicit measured/unknown coverage, then 15F closure and 15G"
+}

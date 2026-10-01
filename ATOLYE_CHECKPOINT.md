@@ -1,3 +1,9 @@
+# AYAS MASTER CURRENT — 15F.4 GREEN WITH LIMITATIONS / 15F.5 IN PROGRESS — 2026-10-01
+
+Source 1d42c4e8f3a182f12604508749dc7f1015800df2 plus documentation descendant; resolve actual HEAD. Done: versioned 69-suite eval manifest, 77 pinned grader/fixture files, serial isolated full v3 baseline with no unexpected failures, bounded pass@1/pass^k trials, immutable historical evaluator provenance. Cognitive quality remains 54/55 and held-out 4/5. Owner calibration PENDING; no model grading or promotion. Canonical v4 differs only by one legacy CRLF-to-LF grader pin: emitted JavaScript identical and focused suite PASS; full raw v4 matrix NOT_RUN. Failed attempts and prior manifests are preserved. TypeScript/lint PASS, 13 old warnings. Graphify precommit 16439/47498, anomalies0, known PARTIAL9/semantic pending; exact rebind follows docs commit.
+
+Exact next: 15F.5 five reliability SLO counters using existing evidence/journals with explicit measured/UNKNOWN coverage; then 15F closure and automatic 15G. No global zero claim from missing evidence. No model/container/activation/push. ACTIVE_CHECKPOINT and hardening/15F/15F4_RESULT.json retain evidence, limitations, owner gates and continuation. NO PUSH.
+
 # AYAS MASTER CURRENT — 15F.3 GREEN / 15F.4 IN PROGRESS — 2026-10-01
 
 Source e0d10f2d1e6e55b3171c0e757482233e96075ff3 plus documentation descendant; resolve actual HEAD. Claude's uncommitted 15F.3 packet was preserved and completed. Done: privacy-bounded task/tool rates, latency and retry buckets; independent read-only live state with explicit unavailable errors; operator-only evidence-first locked compaction, dry-run by default, retaining unsettled consumed leases. 23 focused scenarios and 8/8 mutation controls PASS; affected regressions and TypeScript PASS; full lint 0 errors/13 pre-existing warnings. Graphify 16400 nodes/47433 links, anomalies0, PARTIAL9/semantic pending. No live compaction, model/container, activation or push.

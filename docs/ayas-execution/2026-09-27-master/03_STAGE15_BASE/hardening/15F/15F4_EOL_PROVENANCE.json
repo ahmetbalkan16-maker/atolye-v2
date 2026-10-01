@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1",
+  "testedManifestVersion": "15F.4-v3",
+  "testedManifestDigest": "3f525404bb712cafad46077b460fa78fd0e0a08b98da6da04069fb10836b0916",
+  "currentManifestVersion": "15F.4-v4",
+  "currentManifestDigest": "6fb98b0a979e47454ab3d11ce5e252b34e2ffbc12c94e286e4b862fae9e4670e",
+  "file": "scripts/smoke-ayas-patch-artifact-mutation.ts",
+  "reason": "Existing tracked worktree used CRLF despite repository eol=lf. New checkout would not match the raw-byte grader pin.",
+  "beforeSha256": "3ea00d838598d9e1eff6cb329e25f83183827b11d5fc67eb85f5af9d212f4d7a",
+  "afterSha256": "3b5c8bb784aa5813ca9f786ee0dc27fcf98cefc22228fd3108a30e0c9f70a79f",
+  "emittedJavaScriptIdentical": true,
+  "emittedJavaScriptDigest": "1118e64331e9f910b3bef9a0c4a1c6776d043f7d208e5603790252f11a4ac802",
+  "graderLogicChanged": false,
+  "fullMatrixEvidence": "15F4_BASELINE_V3.json",
+  "focusedRecheck": "15F4_CANONICAL_EOL_RECOVERY.json",
+  "completeRawV4Baseline": "NOT_RUN; only byte EOL differs; same emitted grader plus focused recheck"
+}

@@ -552,3 +552,15 @@ Source e0d10f2d1e6e55b3171c0e757482233e96075ff3. Claude left three drafted obser
 - Limits: stores are scanned in full although output rows/lists are bounded; read-only sections are independent snapshots, not a transaction across stores; evidence hashes are not cryptographic root authenticity; indefinitely unsettled leases require operator review. No model, container, live compaction, authority expansion or push.
 
 Next 15F.4: versioned eval manifest, frozen grader identities and serial TEMP-safe baseline; then SLOs and closure.
+
+## 15F.4 eval governance and frozen grader provenance — GREEN WITH DECLARED LIMITATIONS
+
+Source 1d42c4e8f3a182f12604508749dc7f1015800df2. A strict manifest declares 62 regression, 6 deterministic capability and 1 frozen held-out suites, pinning 77 scripts/fixture dependencies by raw SHA-256. A serial TEMP local-clone runner removes the fixture remote, isolates credential/model environment, refuses RAM pressure, verifies grader bytes before/after and leaves the actual source HEAD/worktree unchanged. Three trials are supported; pass@1 and pass^k are empirical indicators, with incomplete/raw-quality states distinct. No model grading, qualification or execution authority. Owner calibration remains pending.
+
+The complete v3 baseline ran all 69 suites: no unexpected failure; cognitive quality remains 54/55 and held-out 4/5. Three representative suites ran three times. Failed initial/v1/v2 baselines are retained, not overwritten. Two real stale-fixture/provenance failures were repaired: research improvement now uses only the immutable reviewed temporal source in its TEMP fixture, keeping every original assertion; the changed evaluator gets a new lifecycle version and the previous PINNED/admission NONE identity is read at exact historical Git revision. Historical identities can never grant admission. The common verifier starts no process; the existing operator supplies a historical-reader callback.
+
+Current manifest v4 changes only the raw pin of one pre-existing CRLF grader to repository LF. The emitted TypeScript JavaScript is byte-identical and the relevant suite passes; the raw full v4 matrix was NOT_RUN. EVAL_MANIFEST_V1/V2/V3 and every failed/successful report remain available. 15F4_RESULT.json and 15F4_EOL_PROVENANCE.json describe this distinction.
+
+Validation: governance 10, mutants 8/8, lifecycle 14/16 entries, historical mutants 5/5, router 22, unchanged adapter closure 12 (8 surfaces/41 modules), full baseline 69, TypeScript and lint PASS (13 old full-lint warnings). Peak baseline RAM 47.28%; no model/container/activation/push. Graphify precommit source worktree: 16439 nodes/47498 links, all four anomaly counts 0, known PARTIAL9/semantic pending. Exact HEAD refresh follows the documentation commit.
+
+Next 15F.5: instrument the five SLO signals using the existing evidence/journals, report partial/absent observation as UNKNOWN, and preserve all existing authority gates.
