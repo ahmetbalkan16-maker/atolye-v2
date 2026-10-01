@@ -79,7 +79,6 @@ const SAME_TOPIC = "lexical retrieval cannot tell attributes of one topic apart;
 const RANK_CTX: readonly AyasRetrievalLayer[] = ["ranking", "recall-context", "chat-context"];
 
 const KNOWN_LIMITATIONS: Readonly<Record<string, KnownLimitation>> = {
-  "seed:project-decision-free-text": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: FREE_TEXT },
   "exact-pc-plan": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: FREE_TEXT },
   "para-pc-thinking": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: FREE_TEXT },
   "para-pc-plan": { classification: "EXPECTED_LIMITATION", layers: RANK_CTX, reason: FREE_TEXT },

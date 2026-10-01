@@ -20,6 +20,7 @@
  */
 
 import { createHash } from "node:crypto";
+import { brainMemoryReadAllowed } from "@/lib/brain/BrainMemoryIntegrity";
 import type {
   BrainMemoryKind,
   BrainMemoryProvenance,
@@ -262,6 +263,10 @@ export function ayasMemoryRecordFact(record: BrainMemoryRecord): AyasMemoryFact 
 /* ------------------------------------------------------------------ */
 
 export function ayasMemoryProvenance(record: BrainMemoryRecord): BrainMemoryProvenance {
+  if (record.integrity) {
+    const source = record.integrity.source;
+    return ["external-web", "external-platform", "repository-text", "tool-output"].includes(source) ? "imported-history" : source as BrainMemoryProvenance;
+  }
   if (record.temporal) return record.temporal.provenance;
   if (record.confidence === "observed") return "system-observation";
   if (record.confidence === "inferred") return "conversation-derived";
@@ -270,10 +275,12 @@ export function ayasMemoryProvenance(record: BrainMemoryRecord): BrainMemoryProv
 
 /** reported (user) > observed (system) > inferred (AYAS) — unchanged from v1. */
 export function ayasMemoryTrustRank(record: BrainMemoryRecord): number {
+  if (record.integrity) return record.integrity.trust === "owner-direct" ? 2 : record.integrity.trust === "system-observed" ? 1 : 0;
   return record.confidence === "reported" ? 2 : record.confidence === "observed" ? 1 : 0;
 }
 
 export function containsAyasMemoryInstructionInjection(record: BrainMemoryRecord): boolean {
+  if (!brainMemoryReadAllowed(record)) return true;
   const value = fold(record.body);
   return /\b(?:onceki|tum|sistem|gelistirici|developer)\s+(?:talimatlari|kurallari|mesaji|promptu)\s+(?:yok say|unut|gormezden gel|ez)\b/.test(value) ||
     /\b(?:system prompt|developer message|ignore previous instructions)\b/.test(value);

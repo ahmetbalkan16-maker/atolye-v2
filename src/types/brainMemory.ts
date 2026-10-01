@@ -90,6 +90,47 @@ export interface BrainMemoryTemporal extends BrainMemoryTemporalInput {
   readonly fingerprint: string;
 }
 
+/**
+ * Memory Integrity v1 (Stage 15C) — optional, versioned block. Like the
+ * temporal block it sits outside `recordId`/`contentFingerprint`, so older
+ * readers keep accepting the record; its own `fingerprint` binds it. A record
+ * without it is a legacy record: its trust is derived from its other fields.
+ */
+export const brainMemoryIntegrityVersion = 1 as const;
+
+/**
+ * Where the text came from. The first five are the temporal provenance
+ * classes. The others are never the owner's own voice: stored, they stay data.
+ */
+export type BrainMemorySource = BrainMemoryProvenance | "external-web" | "external-platform" | "repository-text" | "tool-output";
+
+/** Fixed by the source in code. A writer never chooses its own trust class. */
+export type BrainMemoryTrustClass = "owner-direct" | "system-observed" | "ayas-derived" | "imported" | "external-data";
+
+export interface BrainMemoryIntegrity {
+  readonly version: typeof brainMemoryIntegrityVersion;
+  readonly source: BrainMemorySource;
+  readonly trust: BrainMemoryTrustClass;
+  /** Which writer produced the record: an id from a closed registry. */
+  readonly producer: string;
+  /** Optional pointer to what the record rests on (`turn:<trace id>`, `source:<id>`). Never the content itself. */
+  readonly evidenceRef?: string;
+  /** SHA-256 of the record's canonical content, the temporal block included. */
+  readonly contentDigest: string;
+  /** The write policy's result. A quarantined record is stored for review and never recalled. */
+  readonly writeDecision: "admitted" | "quarantined";
+  /** Closed reason codes behind `writeDecision`, sorted. */
+  readonly writeReasons: readonly string[];
+  /** Version of the security screen that produced `screenFindings`. */
+  readonly screenVersion: number;
+  readonly screenVerdict: "clean" | "suspicious";
+  /** Closed finding codes, sorted. Empty exactly when the verdict is clean. */
+  readonly screenFindings: readonly string[];
+  /** ISO instant the write policy ran. */
+  readonly admittedAt: string;
+  readonly fingerprint: string;
+}
+
 export interface BrainMemoryRecordInput {
   readonly kind: BrainMemoryKind;
   readonly title: string;
@@ -116,6 +157,8 @@ export interface BrainMemoryRecord extends Omit<BrainMemoryRecordInput, "tempora
   readonly redacted: boolean;
   readonly contentFingerprint: string;
   readonly temporal?: BrainMemoryTemporal;
+  /** Stage 15C: advisory provenance and tamper detection, never approval authority. */
+  readonly integrity?: BrainMemoryIntegrity;
 }
 
 export interface BrainMemoryQuery {
@@ -140,7 +183,8 @@ export type BrainMemoryValidationReasonCode =
   | "BRAIN_MEMORY_TIMESTAMP_INVALID"
   | "BRAIN_MEMORY_SECRET_LEAK"
   | "BRAIN_MEMORY_BODY_TOO_LARGE"
-  | "BRAIN_MEMORY_TEMPORAL_INVALID";
+  | "BRAIN_MEMORY_TEMPORAL_INVALID"
+  | "BRAIN_MEMORY_INTEGRITY_INVALID";
 
 export interface BrainMemoryValidation {
   readonly valid: boolean;

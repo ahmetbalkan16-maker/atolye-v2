@@ -10,6 +10,7 @@
  */
 
 import { stableBrainId } from "./BrainId";
+import { isValidBrainMemoryIntegrity } from "./BrainMemoryIntegrity";
 import { containsBrainSecret, redactBrainLines, redactBrainText } from "./BrainRedaction";
 import {
   brainMemorySchemaVersion,
@@ -155,6 +156,9 @@ function isValidTemporalBlock(record: BrainMemoryRecord): boolean {
 
 /** Fail-closed validation. A record that still contains a secret is invalid. */
 export function validateBrainMemoryRecord(record: BrainMemoryRecord): BrainMemoryValidation {
+  if (!isValidBrainMemoryIntegrity(record)) {
+    return { valid: false, reasonCode: "BRAIN_MEMORY_INTEGRITY_INVALID" };
+  }
   if (!record.body.trim()) {
     return { valid: false, reasonCode: "BRAIN_MEMORY_EMPTY_BODY" };
   }

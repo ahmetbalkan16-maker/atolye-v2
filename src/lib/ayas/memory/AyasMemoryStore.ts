@@ -26,6 +26,7 @@ import path from "node:path";
 
 import { containsBrainSecret } from "@/lib/brain/BrainRedaction";
 import { buildBrainMemoryRecord, validateBrainMemoryRecord } from "@/lib/brain/BrainMemoryModel";
+import { buildBrainMemoryIntegritySnapshot, isValidBrainMemoryIntegritySnapshot, legacyBrainMemoryWriter, sealBrainMemoryIntegrity, type BrainMemoryIntegritySnapshot } from "@/lib/brain/BrainMemoryIntegrity";
 import { brainMemorySchemaVersion, type BrainMemoryRecord } from "@/types/brainMemory";
 import { ayasMemoryRecordFact, currentAyasMemoryFactRecords, isAyasMemoryFactKey } from "./AyasMemoryTemporal";
 
@@ -69,6 +70,10 @@ export interface AyasMemoryStoreHandle {
   readonly file: string;
   load(): BrainMemoryRecord[];
   snapshot(): AyasMemoryStoreSnapshot;
+  integritySnapshot(): BrainMemoryIntegritySnapshot;
+  /** Operator primitive only, no route/daemon binding. Explicit anchor and CAS
+   * required. Restores exact bytes as records, increments the current revision. */
+  restoreIntegritySnapshot(snapshot: unknown, options: { readonly expectedDigest: string; readonly expectedRevision: number }): void;
   /** Append one record (dedupes on `contentFingerprint`; refuses a secret leak). Returns `"stored" | "duplicate" | "rejected"`. */
   append(record: BrainMemoryRecord, options?: AyasMemoryWriteOptions): "stored" | "duplicate" | "rejected";
   /** Remove expired non-pinned records + trim to `MAX_RECORDS` (oldest non-pinned first). Returns how many were removed. */
@@ -81,6 +86,7 @@ interface StoreFile {
   schemaVersion: typeof brainMemorySchemaVersion;
   revision?: number;
   records: BrainMemoryRecord[];
+  integrityManifest?: Omit<BrainMemoryIntegritySnapshot, "records">;
 }
 
 const MEMORY_KINDS = new Set([
@@ -247,6 +253,7 @@ function withWriterLock<T>(dir: string, lockFile: string, run: (assertOwned: () 
 function readRevision(file: string): number {
   try {
     const parsed = JSON.parse(fs.readFileSync(file, "utf-8")) as { revision?: unknown };
+    if (parsed?.revision !== undefined && (!Number.isSafeInteger(parsed.revision) || (parsed.revision as number) < 0)) throw new Error("invalid revision");
     return typeof parsed?.revision === "number" ? parsed.revision : 0;
   } catch (error) {
     if ((error as NodeJS.ErrnoException)?.code === "ENOENT") return 0;
@@ -304,10 +311,22 @@ export function createAyasMemoryStore(options: AyasMemoryStoreOptions = {}): Aya
     if (!envelope.records.every(isStoredMemoryRecord)) {
       throw new AyasMemoryStoreError("AYAS_MEMORY_STORE_INVALID", "memory store contains an invalid record");
     }
+    if (envelope.integrityManifest !== undefined) {
+      const manifest = envelope.integrityManifest;
+      // Older envelopes may contain exact duplicate records. Preserve them;
+      // the digest binds multiplicity too. Operator rollback stays stricter.
+      const expected = buildBrainMemoryIntegritySnapshot(envelope.revision ?? 0, envelope.records);
+      if (!manifest || Object.keys(manifest).sort().join(",") !== "digest,manifest,revision,version" || manifest.version !== 1 || manifest.digest !== expected.digest || JSON.stringify(manifest.manifest) !== JSON.stringify(expected.manifest) || manifest.revision !== (envelope.revision ?? 0)) {
+        throw new AyasMemoryStoreError("AYAS_MEMORY_STORE_INVALID", "memory integrity manifest is invalid");
+      }
+    }
     return { schemaVersion: brainMemorySchemaVersion, revision: envelope.revision ?? 0, records: envelope.records };
   };
 
   const writeFile = (data: StoreFile, readRevisionAtStart: number, assertOwned: () => void): void => {
+    const { records: _snapshotRecords, ...manifest } = buildBrainMemoryIntegritySnapshot(data.revision ?? 0, data.records);
+    void _snapshotRecords;
+    const sealedData = { ...data, integrityManifest: manifest };
     const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
     try {
       // fsync before the rename: after a crash the store is either the old
@@ -315,7 +334,7 @@ export function createAyasMemoryStore(options: AyasMemoryStoreOptions = {}): Aya
       const fd = fs.openSync(tmp, "w");
       try {
         // writeFileSync on a descriptor writes the whole buffer (a bare writeSync may write less).
-        fs.writeFileSync(fd, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
+        fs.writeFileSync(fd, `${JSON.stringify(sealedData, null, 2)}\n`, "utf-8");
         fs.fsyncSync(fd);
       } finally {
         fs.closeSync(fd);
@@ -413,13 +432,32 @@ export function createAyasMemoryStore(options: AyasMemoryStoreOptions = {}): Aya
       return { revision: data.revision ?? 0, records: data.records };
     },
 
+    integritySnapshot() {
+      const data = readFile();
+      return buildBrainMemoryIntegritySnapshot(data.revision ?? 0, data.records);
+    },
+
+    restoreIntegritySnapshot(snapshot, options) {
+      if (!Number.isSafeInteger(options.expectedRevision) || options.expectedRevision < 0 || !isValidBrainMemoryIntegritySnapshot(snapshot, options.expectedDigest) || !snapshot.records.every(isStoredMemoryRecord)) {
+        throw new AyasMemoryStoreError("AYAS_MEMORY_STORE_INVALID", "memory snapshot is not known-good");
+      }
+      // Copy before lock acquisition: mutation of a caller's object cannot change
+      // what was validated. No automatic restoration or owner authority here.
+      const restored = structuredClone([...snapshot.records]);
+      withWriterLock(dir, lockFile, (assertOwned) => {
+        const revision = readRevision(file);
+        if (revision !== options.expectedRevision) throw new AyasMemoryStoreError("AYAS_MEMORY_STORE_CONFLICT", "memory snapshot restore revision changed");
+        writeFile({ schemaVersion: brainMemorySchemaVersion, revision: revision + 1, records: restored }, revision, assertOwned);
+      });
+    },
+
     append(record, options = {}) {
       try {
         assertNoLeak(record);
       } catch {
         return "rejected";
       }
-      if (!validateBrainMemoryRecord(record).valid) return "rejected";
+      if (!isStoredMemoryRecord(record)) return "rejected";
       if (record.temporal?.factKey !== undefined && !isAyasMemoryFactKey(record.temporal.factKey)) return "rejected";
       return mutate(options, (records) => {
         // A restatement of a fact's current value is kept (it is the latest
@@ -428,7 +466,9 @@ export function createAyasMemoryStore(options: AyasMemoryStoreOptions = {}): Aya
         if (records.some((r) => r.contentFingerprint === record.contentFingerprint)) {
           return { result: "duplicate" as const, next: null };
         }
-        return { result: "stored" as const, next: bounded([...records, record], new Date().toISOString()) };
+        const now = new Date().toISOString();
+        const sealed = sealBrainMemoryIntegrity(record, record.integrity ?? legacyBrainMemoryWriter(record), now, records);
+        return { result: "stored" as const, next: bounded([...records, sealed], now) };
       });
     },
 

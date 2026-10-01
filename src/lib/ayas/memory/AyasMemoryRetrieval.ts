@@ -151,6 +151,7 @@ function tokenList(text: string): string[] {
 }
 
 function trustClass(record: BrainMemoryRecord): AyasMemoryTrustClass {
+  if (record.integrity) return record.integrity.trust === "owner-direct" ? "user-reported" : record.integrity.trust === "system-observed" ? "system-observed" : "ayas-inferred";
   if (record.confidence === "reported") return "user-reported";
   if (record.confidence === "observed") return "system-observed";
   return "ayas-inferred";

@@ -16,6 +16,7 @@
  */
 
 import { buildBrainMemoryRecord } from "@/lib/brain/BrainMemoryModel";
+import { sealBrainMemoryIntegrity } from "@/lib/brain/BrainMemoryIntegrity";
 import type { BrainMemoryRecord } from "@/types/brainMemory";
 import { AyasMemoryStoreError, createAyasMemoryStore, type AyasMemoryStoreOptions } from "./AyasMemoryStore";
 import { extractAyasMemoryCandidates } from "./AyasMemoryCandidate";
@@ -52,6 +53,15 @@ export interface RecallAyasMemoryOptions {
   readonly store?: AyasMemoryStoreOptions;
   /** Omitted = current recall. `as-of` / `includeHistory` reach older versions explicitly. */
   readonly temporal?: AyasMemoryTemporalQuery;
+  /** A remaining content allowance. Never raises the existing 700-char cap. */
+  readonly contentCharBudget?: number;
+}
+
+/** Deterministic crowding control over the existing character envelope.
+ * This bounds memory only; it is not a tokenizer or a model capacity claim. */
+export function ayasMemoryContentBudget(contextChars: number): number {
+  if (!Number.isSafeInteger(contextChars) || contextChars < 0) return 0;
+  return Math.max(0, Math.min(MAX_BLOCK_CHARS, 8_000 - contextChars));
 }
 
 /** Score + rank records against the query; deterministic. */
@@ -154,6 +164,8 @@ export async function recallAyasMemoryWithTrace(
     let identityRecallCount = 0;
     let uncertainCount = 0;
     let chars = 0;
+    const budget = options.contentCharBudget === undefined ? MAX_BLOCK_CHARS :
+      Number.isFinite(options.contentCharBudget) ? Math.max(0, Math.min(MAX_BLOCK_CHARS, Math.floor(options.contentCharBudget))) : 0;
     // The resolver's name is exposed only when it is unambiguous: a newer (or
     // simultaneous) identity statement it could not read ("adım Ali değil",
     // "eskiden adım Ali'ydi") leaves the current name uncertain, and no caller
@@ -168,7 +180,7 @@ export async function recallAyasMemoryWithTrace(
       const r = decision.record;
       const line = toLine(decision);
       const contentLength = stripAyasMemoryLineAnnotation(line).length;
-      if (chars + contentLength > MAX_BLOCK_CHARS) break;
+      if (chars + contentLength > budget) break;
       lines.push(line);
       entries.push({
         line,
@@ -286,7 +298,11 @@ export async function persistAyasMemoryFromTurn(input: {
       let result: "stored" | "duplicate" | "rejected" | null = null;
       for (let attempt = 0; attempt < PERSIST_BACKOFF_MS.length + 1 && result === null; attempt += 1) {
         try {
-          result = store.append(record);
+          const source = record.temporal!.provenance;
+          result = store.append(sealBrainMemoryIntegrity(record, {
+            source,
+            producer: source === "conversation-derived" ? "chat-derived" : "chat-user",
+          }, now));
         } catch (error) {
           const code = error instanceof AyasMemoryStoreError ? error.code : "AYAS_MEMORY_STORE_WRITE_FAILED";
           if (code !== "AYAS_MEMORY_STORE_CONFLICT" || attempt === PERSIST_BACKOFF_MS.length) {

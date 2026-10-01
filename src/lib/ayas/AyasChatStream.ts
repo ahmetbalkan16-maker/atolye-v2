@@ -44,6 +44,7 @@ import { assembleAyasContext } from "./context/AyasContextAssembly";
 import { deriveAyasConversationState } from "./context/AyasConversationState";
 import {
   recallAyasMemoryWithTrace,
+  ayasMemoryContentBudget,
   persistAyasMemoryFromTurn,
   stripAyasMemoryLineAnnotation,
   type AyasMemoryPersistOutcome,
@@ -1070,6 +1071,8 @@ async function* streamAyasChatTurn(
   const memorySpan = trace?.startSpan("memory", "ayas-memory", "recall", conversationSpan?.spanId);
   memorySpan?.event("memory-query", "running");
   const memoryRecall = await recallAyasMemoryWithTrace(text, {
+    contentCharBudget: ayasMemoryContentBudget(text.length + ctx.trace.recentHistoryChars +
+      [...(ctx.block.stateLines ?? []), ...(ctx.block.referenceLines ?? []), ...(ctx.block.historySummary ?? []), ...(input.productBrainLines ?? [])].reduce((sum, line) => sum + line.length, 0)),
     ...(ctx.trace.activeProject ? { activeProject: ctx.trace.activeProject } : {}),
     ...(input.memoryStore ? { store: input.memoryStore } : {}),
     temporal: temporalQuery,
