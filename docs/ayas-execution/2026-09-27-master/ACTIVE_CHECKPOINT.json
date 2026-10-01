@@ -2,8 +2,8 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "9a6ecbf972dd491e779748fd22a46d018e95bdba",
-  "currentHead": "9a6ecbf972dd491e779748fd22a46d018e95bdba",
+  "lastGreenHead": "1a6c2cf59d692ecbe425fd7982f526e7e0ee6cc7",
+  "currentHead": "1a6c2cf59d692ecbe425fd7982f526e7e0ee6cc7",
   "stage": "STAGE_15A",
   "subtask": "15A.3g-historical-graphify-seed",
   "status": "IN_PROGRESS",
@@ -53,7 +53,7 @@
     "Stage 15A.3g: Graphify primary Windows launcher historical seed one source/9 changed lines: baseline FAIL, exact fix PASS, wrong no-op FAIL on the same EINVAL/code; vault/oracle 5/5, workspace 10/10, synthetic report 13/13, container plan 10/10, Stage 15 cycle 19/19, TypeScript/lint/diff PASS. Model and engine runs zero."
   ],
   "graphify": {
-    "head": "9a6ecbf972dd491e779748fd22a46d018e95bdba",
+    "head": "1a6c2cf59d692ecbe425fd7982f526e7e0ee6cc7",
     "stale": false,
     "needsUpdate": false,
     "duplicateNodes": 0,
@@ -63,6 +63,6 @@
     "semanticPending": true
   },
   "blockers": ["External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority.", "BLOCKED_OWNER_ACTION — owner-reviewed local engine/image selection required for real Stage 15A model qualification. Registry empty, Docker/Podman absent, WSL has no distribution. Local coding remains disabled; independent qualification harness work may continue."],
-  "nextAction": "Commit the seven-file Stage 15A.3g Graphify historical seed packet locally and rebind Graphify, then continue independent retrieval/TypeScript case selection. Real qualification waits for an owner-reviewed local engine/image and containment proof. Keep LOCAL_INDEPENDENCE_DEGRADED; do not open 15B or push.",
-  "updatedAt": "2026-10-01T08:00:00+03:00"
+  "nextAction": "Seek a bounded retrieval/TypeScript historical case only with a complete frozen evaluator and the existing two-file/80-line task limit. Real qualification waits for an owner-reviewed local engine/image, actual containment proof and measured repeated model runs. Keep LOCAL_INDEPENDENCE_DEGRADED; do not open 15B or push. Repository HEAD may include a subsequent docs-only closure commit; verify git truth before resuming.",
+  "updatedAt": "2026-10-01T08:05:00+03:00"
 }
