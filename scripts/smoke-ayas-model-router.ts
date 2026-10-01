@@ -18,6 +18,7 @@ import { resolveAyasCloudConfig, getAyasCloudApiKey } from "../src/lib/ayas/mode
 import { createOllamaAyasProvider } from "../src/lib/ayas/model/OllamaAyasProvider";
 import { createCloudAyasProvider } from "../src/lib/ayas/model/CloudAyasProvider";
 import { routeAyasModel } from "../src/lib/ayas/model/AyasModelRouter";
+import { findAyasLifecycleEntry } from "../src/lib/ayas/lifecycle/AyasLifecycleRegistry";
 
 let count = 0;
 async function scenario(name: string, test: () => void | Promise<void>) {
@@ -226,6 +227,62 @@ async function run() {
     assert.equal(r.decision.providerId, null);
     assert.match(r.decision.unavailableMessage ?? "", /yapılandırılmamış/);
     assert.doesNotMatch(r.decision.unavailableMessage ?? "", /http|127\.0\.0\.1|key|sk-/i);
+  });
+
+  /* ---------------- Stage 15E lifecycle binding ---------------- */
+
+  const PIN_7B = findAyasLifecycleEntry("llm.local-text.qwen2.5-7b")!;
+  const digest7b = PIN_7B.identity.type === "ollama-digest" ? PIN_7B.identity.digest : "";
+  const tags = (models: unknown[]) => mockFetch({ tags: () => new Response(JSON.stringify({ models }), { status: 200 }), chat: () => { throw new Error("the model must not be called while routing"); } });
+
+  await scenario("lifecycle — a registered tag serving its pinned digest is traced as MATCH", async () => {
+    const r = await routeAyasModel({ text: "selam", env: OLLAMA_ENV, fetcher: tags([{ name: "other:1", digest: "f".repeat(64) }, { name: "qwen2.5:7b", digest: digest7b }]) });
+    assert.deepEqual(r.decision.lifecycle, { entryId: "llm.local-text.qwen2.5-7b", state: "PINNED", pin: "MATCH" });
+    assert.equal(r.provider?.id, "ollama");
+    assert.doesNotMatch(r.decision.reason, /pin|kaydında/);
+  });
+
+  await scenario("lifecycle — a tag that now serves other bytes is still the owner's choice, and is reported as MISMATCH", async () => {
+    const r = await routeAyasModel({ text: "selam", env: OLLAMA_ENV, fetcher: tags([{ name: "qwen2.5:7b", digest: "e".repeat(64) }]) });
+    assert.deepEqual(r.decision.lifecycle, { entryId: "llm.local-text.qwen2.5-7b", state: "PINNED", pin: "MISMATCH" });
+    assert.equal(r.provider?.id, "ollama");
+    assert.match(r.decision.reason, /kayıtlı pin ile aynı değil/);
+  });
+
+  await scenario("lifecycle — a probe without a usable digest is NOT_OBSERVED, never assumed to match", async () => {
+    for (const models of [[{}], [{ name: "qwen2.5:7b" }], [{ name: "qwen2.5:7b", digest: "sha256:" + digest7b }], [{ name: "qwen2.5:7b", digest: digest7b.toUpperCase() }], [{ name: "qwen2.5:3b", digest: digest7b }]]) {
+      const r = await routeAyasModel({ text: "selam", env: OLLAMA_ENV, fetcher: tags(models) });
+      assert.deepEqual(r.decision.lifecycle, { entryId: "llm.local-text.qwen2.5-7b", state: "PINNED", pin: "NOT_OBSERVED" }, JSON.stringify(models));
+    }
+  });
+
+  await scenario("lifecycle — the chat override decides which tag is traced; an unregistered tag is used and reported", async () => {
+    const override = await routeAyasModel({ text: "selam", env: env({ ...(OLLAMA_ENV as Record<string, string>), AYAS_OLLAMA_MODEL: "qwen2.5:3b" }), fetcher: tags([{ name: "qwen2.5:3b", digest: digest7b }]) });
+    assert.deepEqual(override.decision.lifecycle, { entryId: "llm.local-text.qwen2.5-3b", state: "PINNED", pin: "MISMATCH" });
+    const unknown = await routeAyasModel({ text: "selam", env: env({ OLLAMA_HOST: "127.0.0.1:11434", OLLAMA_MODEL: "llama9:latest" }), fetcher: tags([{ name: "llama9:latest", digest: digest7b }]) });
+    assert.deepEqual(unknown.decision.lifecycle, { entryId: null, state: "UNREGISTERED", pin: "UNREGISTERED" });
+    assert.equal(unknown.provider?.id, "ollama");
+    assert.match(unknown.decision.reason, /yaşam döngüsü kaydında yok/);
+  });
+
+  await scenario("lifecycle — an entry the registry withdrew or retired is not used, whatever the configuration says", async () => {
+    const withdrawn = (state: "DEGRADED" | "RETIRED", admission: "NONE" | "OWNER_SELECTED") => ({ ...PIN_7B, state, admission,
+      record: { ...PIN_7B.record, capability: { result: "FAIL" as const, ref: "docs/fixture.md", summary: "fixture regression" } },
+      history: [...PIN_7B.history, { state, on: "2026-10-02", basis: "fixture" }] });
+    for (const state of ["DEGRADED", "RETIRED"] as const) {
+      const r = await routeAyasModel({ text: "selam", env: OLLAMA_ENV, fetcher: tags([{ name: "qwen2.5:7b", digest: digest7b }]), findLifecycleEntry: () => withdrawn(state, "NONE") });
+      assert.deepEqual([r.provider, r.decision.providerId, r.decision.model], [null, null, null], state);
+      assert.deepEqual(r.decision.lifecycle, { entryId: "llm.local-text.qwen2.5-7b", state, pin: "MATCH" });
+      assert.match(r.decision.unavailableMessage ?? "", /kullanım dışı/);
+      assert.doesNotMatch(r.decision.unavailableMessage ?? "", /http|127.0.0.1|key|sk-/i);
+    }
+    // Degraded but still the owner's selection: the owner's own interactive use continues, and the trace says DEGRADED.
+    const kept = await routeAyasModel({ text: "selam", env: OLLAMA_ENV, fetcher: tags([{ name: "qwen2.5:7b", digest: digest7b }]), findLifecycleEntry: () => withdrawn("DEGRADED", "OWNER_SELECTED") });
+    assert.equal(kept.provider?.id, "ollama");
+    assert.equal(kept.decision.lifecycle?.state, "DEGRADED");
+    // A withdrawn local model never opens the cloud path.
+    const paid = await routeAyasModel({ text: "selam", env: env({ ...(OLLAMA_ENV as Record<string, string>), AYAS_CLOUD_API_KEY: SECRET }), fetcher: tags([{ name: "qwen2.5:7b", digest: digest7b }]), findLifecycleEntry: () => withdrawn("RETIRED", "NONE") });
+    assert.deepEqual([paid.provider, paid.decision.providerKind], [null, null]);
   });
 
   /* ---------------- provider stream round-trips ---------------- */

@@ -33,8 +33,13 @@
 import { classifyAyasComplexity } from "./AyasComplexityRouter";
 import { createCloudAyasProvider } from "./CloudAyasProvider";
 import { createOllamaAyasProvider } from "./OllamaAyasProvider";
-import type { AyasModelProvider, AyasModelRouteDecision } from "./AyasModelTypes";
+import type { AyasModelHealth, AyasModelLifecycleTrace, AyasModelProvider, AyasModelRouteDecision } from "./AyasModelTypes";
+import { ayasLifecycleMayServe, type AyasLifecycleEntry } from "../lifecycle/AyasLifecycle";
+import { findAyasLifecycleEntryForOllamaTag } from "../lifecycle/AyasLifecycleRegistry";
 import { evaluateAyasZeroCost } from "../policy/AyasZeroCostPolicy";
+
+const WITHDRAWN_MODEL_MESSAGE =
+  "AYAS şu an yanıt veremiyor: seçili yerel model yaşam döngüsü kaydında kullanım dışı. Başka bir yerel model seçilmeli.";
 
 const NO_PROVIDER_MESSAGE =
   "AYAS şu an yanıt veremiyor: yerel model kapalı ve bulut modeli yapılandırılmamış. Metin sohbeti çalışmaya devam ediyor.";
@@ -50,6 +55,8 @@ export interface RouteAyasModelInput {
   readonly fetcher?: typeof fetch;
   /** Test seam — inject providers. */
   readonly providers?: AyasModelRouterProviders;
+  /** Test seam — the lifecycle lookup for a local model tag. Defaults to the registry of record. */
+  readonly findLifecycleEntry?: (tag: string) => AyasLifecycleEntry | undefined;
   readonly signal?: AbortSignal;
 }
 
@@ -78,17 +85,27 @@ export async function routeAyasModel(input: RouteAyasModelInput): Promise<AyasMo
 
   // 1 — try the local model first (unless it isn't even configured).
   if (ollama.configured) {
-    const health = await ollama.health(input.signal).catch(
+    const health: AyasModelHealth = await ollama.health(input.signal).catch(
       () => ({ available: false, detail: "ollama: probe hatası", checkedAtMs: Date.now() }),
     );
     if (health.available) {
+      // Stage 15E — the tag the owner configured is a label. The registry says which bytes it was pinned to and whether
+      // the entry may still serve. An unregistered tag is the owner's own choice: it is used and reported. An entry the
+      // registry has withdrawn or retired is not used, whatever the configuration says.
+      const entry = (input.findLifecycleEntry ?? findAyasLifecycleEntryForOllamaTag)(ollama.model);
+      const lifecycle = traceAyasModelLifecycle(entry, health.servedDigest);
+      if (entry && !ayasLifecycleMayServe(entry, "OWNER_INTERACTIVE")) {
+        return { decision: { complexity, providerId: null, providerKind: null, model: null, reason: `yerel model yaşam döngüsünde kullanım dışı (${entry.state})`, unavailableMessage: WITHDRAWN_MODEL_MESSAGE, lifecycle }, provider: null };
+      }
+      const note = lifecycle.pin === "MISMATCH" ? "; servis edilen model kayıtlı pin ile aynı değil" : lifecycle.pin === "UNREGISTERED" ? "; model yaşam döngüsü kaydında yok" : "";
       return {
         decision: {
           complexity,
           providerId: "ollama",
           providerKind: "local",
           model: ollama.model,
-          reason: `yerel model sağlıklı (${health.detail})`,
+          reason: `yerel model sağlıklı (${health.detail})${note}`,
+          lifecycle,
         },
         provider: ollama,
       };
@@ -104,6 +121,12 @@ export async function routeAyasModel(input: RouteAyasModelInput): Promise<AyasMo
   const cloudCost = evaluateAyasZeroCost("unknown-cost");
   void cloudCost;
   return noProvider(complexity, "yerel model yapılandırılmamış; ücretli veya maliyeti belirsiz fallback sıfır-maliyet politikasıyla kapalı");
+}
+
+/** Where a local tag stands: its registry entry, its state, and whether the served bytes are the pinned ones. */
+export function traceAyasModelLifecycle(entry: AyasLifecycleEntry | undefined, servedDigest: string | undefined): AyasModelLifecycleTrace {
+  if (!entry || entry.identity.type !== "ollama-digest") return { entryId: null, state: "UNREGISTERED", pin: "UNREGISTERED" };
+  return { entryId: entry.id, state: entry.state, pin: servedDigest === undefined ? "NOT_OBSERVED" : servedDigest === entry.identity.digest ? "MATCH" : "MISMATCH" };
 }
 
 function noProvider(

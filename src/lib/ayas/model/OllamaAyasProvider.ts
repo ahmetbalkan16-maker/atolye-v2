@@ -53,13 +53,19 @@ export function createOllamaAyasProvider(
         const res = await fetcher(`${base.baseUrl}/api/tags`, { signal: ctrl.signal, redirect: "error" });
         if (!res.ok) return { available: false, detail: `ollama: HTTP ${res.status}`, checkedAtMs: Date.now() };
         let count = 0;
+        let servedDigest: string | undefined;
         try {
           const body = (await res.json()) as { models?: unknown[] };
           count = Array.isArray(body.models) ? body.models.length : 0;
+          // Stage 15E: the digest served under this tag, so the router can tell a re-pulled model from the pinned one.
+          for (const item of Array.isArray(body.models) ? body.models : []) {
+            const served = item as { name?: unknown; model?: unknown; digest?: unknown } | null;
+            if (served && (served.name === model || served.model === model) && typeof served.digest === "string" && /^[a-f0-9]{64}$/.test(served.digest)) servedDigest = served.digest;
+          }
         } catch {
           /* a 200 with an unreadable body still means the server is up */
         }
-        return { available: true, detail: `ollama: ${count} model`, checkedAtMs: Date.now() };
+        return { available: true, detail: `ollama: ${count} model`, checkedAtMs: Date.now(), ...(servedDigest ? { servedDigest } : {}) };
       } catch (error) {
         const name = (error as Error)?.name === "AbortError" ? "zaman aşımı" : "erişilemedi";
         return { available: false, detail: `ollama: ${name}`, checkedAtMs: Date.now() };

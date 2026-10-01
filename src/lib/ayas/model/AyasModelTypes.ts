@@ -16,6 +16,8 @@
  * not a bypass.
  */
 
+import type { AyasLifecycleState } from "../lifecycle/AyasLifecycle";
+
 /**
  * Coarse task shape, decided BEFORE any model call. Phase D's reasoning core
  * branches on this; a future config can route (e.g.) `COMPLEX` to a stronger
@@ -70,6 +72,8 @@ export type AyasModelStreamChunk =
 /** Safe, secret-free health probe result. `detail` is shown only in the operational trace. */
 export interface AyasModelHealth {
   readonly available: boolean;
+  /** The digest the runtime reports for this provider's model tag right now, when the probe returned one. Not a secret. */
+  readonly servedDigest?: string;
   /** e.g. `"ollama: 3 model"` / `"cloud: yapılandırılmadı"` / `"cloud: yapılandırıldı"`. Never a URL or key. */
   readonly detail: string;
   readonly checkedAtMs: number;
@@ -90,6 +94,17 @@ export interface AyasModelProvider {
   stream(req: AyasModelRequest): AsyncGenerator<AyasModelStreamChunk, void, unknown>;
 }
 
+/**
+ * Stage 15E — where the routed model stands in the lifecycle registry. A tag is a label: `pin` says whether the bytes
+ * the runtime serves under it are the recorded ones.
+ */
+export interface AyasModelLifecycleTrace {
+  /** The registry entry for this tag, or null when the lifecycle has no record of it. */
+  readonly entryId: string | null;
+  readonly state: AyasLifecycleState | "UNREGISTERED";
+  readonly pin: "MATCH" | "MISMATCH" | "NOT_OBSERVED" | "UNREGISTERED";
+}
+
 /** The router's decision for one turn — a safe, serialisable trace object (no secret). */
 export interface AyasModelRouteDecision {
   readonly complexity: AyasChatComplexity;
@@ -100,4 +115,6 @@ export interface AyasModelRouteDecision {
   readonly reason: string;
   /** Set when `providerId === null` — a user-facing sentence with NO config/secret detail. */
   readonly unavailableMessage?: string;
+  /** Present whenever a local model was considered. */
+  readonly lifecycle?: AyasModelLifecycleTrace;
 }
