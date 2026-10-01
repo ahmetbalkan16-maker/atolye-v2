@@ -148,6 +148,9 @@ export interface AyasExecutionAuthorizationStoreOptions {
 }
 
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
+/** Minimum age past expiry for retention. Unsettled consumed records are always kept. */
+export const AYAS_AUTHORIZATION_RETENTION_FLOOR_MS = 24 * 60 * 60 * 1000;
+const AUTHORIZATION_FILE_ID = /^authz-[a-zA-Z0-9-]{8,80}$/;
 
 export class AyasExecutionAuthorizationStore {
   readonly auditRoot: string;
@@ -354,10 +357,57 @@ export class AyasExecutionAuthorizationStore {
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
+  /**
+   * Observability enumeration. Unlike `list()`, one unreadable file does not
+   * hide the others: it is counted, named when its name is a well-formed id,
+   * and left in place for review.
+   */
+  scan(): { readonly records: readonly AyasExecutionAuthorizationRecord[]; readonly unreadable: readonly string[] } {
+    let names: string[];
+    try { names = fs.readdirSync(this.dir); }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return { records: [], unreadable: [] };
+      throw new AyasExecutionAuthorizationError("AYAS_EXEC_AUTH_IO", "cannot enumerate authorizations");
+    }
+    const records: AyasExecutionAuthorizationRecord[] = [];
+    const unreadable: string[] = [];
+    for (const name of names.filter((n) => n.endsWith(".json")).sort()) {
+      const id = name.replace(/\.json$/, "");
+      try { records.push(this.read(id)); } catch { unreadable.push(AUTHORIZATION_FILE_ID.test(id) ? id : "invalid-name"); }
+    }
+    records.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    return { records, unreadable };
+  }
+
+  /**
+   * Retention only. Removes a record that can no longer admit, consume or
+   * settle anything: one whose expiry lies a full retention floor in the
+   * past and has no consumed attempt awaiting settlement. Anything younger is refused, so this
+   * can never erase the record of a recent action. A removed id is unknown
+   * afterwards and a handle to it is denied like a forged one.
+   */
+  removeInert(authorizationId: string, preserveEvidence: (record: AyasExecutionAuthorizationRecord) => boolean): AyasExecutionAuthorizationRecord {
+    return this.withRecordLock(authorizationId, () => {
+      const record = this.read(authorizationId);
+      const nowMs = this.now().getTime();
+      if (!Number.isFinite(nowMs) || !(nowMs - Date.parse(record.expiresAt) >= AYAS_AUTHORIZATION_RETENTION_FLOOR_MS) ||
+          (record.consumedAt !== undefined && record.settledAt === undefined)) {
+        throw new AyasExecutionAuthorizationError("AYAS_EXEC_AUTH_CONFLICT", `authorization ${authorizationId} is inside the retention floor`);
+      }
+      // Preserve the exact reread record under the SAME mutation lock, before unlink.
+      if (!preserveEvidence(record)) throw new AyasExecutionAuthorizationError("AYAS_EXEC_AUTH_IO", "authorization evidence was not preserved");
+      try { fs.unlinkSync(this.fileFor(authorizationId)); }
+      catch (error) {
+        throw new AyasExecutionAuthorizationError("AYAS_EXEC_AUTH_IO", `cannot remove ${authorizationId}`, error instanceof Error ? error.message : String(error));
+      }
+      return record;
+    });
+  }
+
   /* ------------------------------------------------------------- internals --- */
 
   private fileFor(authorizationId: string): string {
-    if (!/^authz-[a-zA-Z0-9-]{8,80}$/.test(authorizationId)) {
+    if (!AUTHORIZATION_FILE_ID.test(authorizationId)) {
       throw new AyasExecutionAuthorizationError("AYAS_EXEC_AUTH_UNKNOWN", "malformed authorizationId");
     }
     return path.join(this.dir, `${authorizationId}.json`);

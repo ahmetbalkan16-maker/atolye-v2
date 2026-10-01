@@ -57,7 +57,11 @@ export function createAyasOperationEvidenceStore(options: { readonly rootDir?: s
   };
 
   const dayFiles = (): string[] => {
-    try { return fs.readdirSync(dir).filter((name) => DAY_FILE.test(name)).sort(); } catch { return []; }
+    try { return fs.readdirSync(dir).filter((name) => DAY_FILE.test(name)).sort(); }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw Object.assign(new Error("evidence directory unreadable"), { code: "AYAS_EVIDENCE_READ_FAILED" });
+    }
   };
 
   const read = (readOptions: { readonly sinceDay?: string } = {}): AyasOperationEvidenceRead => {
@@ -69,7 +73,8 @@ export function createAyasOperationEvidenceStore(options: { readonly rootDir?: s
       if (readOptions.sinceDay && day < readOptions.sinceDay) continue;
       days.push(day);
       let text: string;
-      try { text = fs.readFileSync(path.join(dir, name), "utf8"); } catch { rejectedLines += 1; continue; }
+      try { text = fs.readFileSync(path.join(dir, name), "utf8"); }
+      catch { throw Object.assign(new Error("evidence day unreadable"), { code: "AYAS_EVIDENCE_READ_FAILED" }); }
       for (const line of text.split("\n")) {
         if (!line) continue;
         let parsed: unknown;
