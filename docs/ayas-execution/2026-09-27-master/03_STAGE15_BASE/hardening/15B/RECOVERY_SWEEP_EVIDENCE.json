@@ -4,6 +4,110 @@
   "subtask": "15B.2-recovery-sweep-and-first-activity-set",
   "recordedOn": "2026-10-01",
   "liveBinding": "REQUIRE_OWNER",
+  "sourcePacketCommit": "143e39f8f71bf4b87bcf7ef00b92d6257ffdd090",
+  "verification": {
+    "recoverySmokeScenarios": 16,
+    "runtimeSmokeScenarios": 17,
+    "typescript": "PASS",
+    "changedFileLintWarnings": 0,
+    "fullLint": "0 errors / 13 pre-existing warnings",
+    "diffCheck": "PASS"
+  },
+  "graphifyAtSourcePacket": {
+    "head": "143e39f8f71bf4b87bcf7ef00b92d6257ffdd090",
+    "stale": false,
+    "needsUpdate": false,
+    "nodes": 15976,
+    "edges": 46292,
+    "duplicateNodes": 0,
+    "duplicateEdges": 0,
+    "danglingEdges": 0,
+    "selfLoops": 0,
+    "structuralStatus": "PARTIAL",
+    "structuralPartialFiles": 9,
+    "semanticPending": true,
+    "worktree": "CLEAN",
+    "source": "recorded by the first activity itself, see nonLiveRealRun.result"
+  },
+  "graphifyReviewAnalysis": {
+    "changedFiles": 5,
+    "blastRadius": "high",
+    "score": 160,
+    "impactedFiles": 14,
+    "impactedCommunities": 4,
+    "note": "Bridge nodes are helpers the new code calls, not callers of it. Nothing but the operator script and the two smoke suites refers to the durable task modules."
+  },
+  "operatorScriptRuns": {
+    "dryRunOnLiveRoot": {
+      "status": "OK",
+      "mode": "DRY_RUN",
+      "journals": 0,
+      "wrote": "nothing"
+    },
+    "applyOnLiveRoot": {
+      "exitCode": 2,
+      "status": "REQUIRE_OWNER",
+      "code": "AYAS_DURABLE_TASK_LIVE_BINDING_REQUIRES_OWNER"
+    },
+    "liveJournalDirectoryExistsAfterwards": false
+  },
+  "nonLiveRealRun": {
+    "description": "scripts/ayas-durable-task-recovery.ts --root <TEMP> --apply --enqueue-graphify-check, run from this checkout at the source packet commit. Real collector, real repository, journal in a TEMP root.",
+    "durationSeconds": 1.3,
+    "run1": {
+      "outcomes": {
+        "ADVANCED": 1
+      },
+      "activityCalls": 1,
+      "recorded": [
+        "ATTEMPT_STARTED",
+        "ATTEMPT_SUCCEEDED"
+      ]
+    },
+    "run2": {
+      "outcomes": {
+        "TERMINAL": 1
+      },
+      "activityCalls": 0
+    },
+    "events": [
+      "TASK_CREATED",
+      "ATTEMPT_STARTED",
+      "ATTEMPT_SUCCEEDED"
+    ],
+    "taskKey": "graphify-state:143e39f8f71bf4b87bcf7ef00b92d6257ffdd090",
+    "result": {
+      "sourceHead": "143e39f8f71bf4b87bcf7ef00b92d6257ffdd090",
+      "lastAnalyzedHead": "143e39f8f71bf4b87bcf7ef00b92d6257ffdd090",
+      "graphBuiltFromHead": "143e39f8f71bf4b87bcf7ef00b92d6257ffdd090",
+      "boundToHead": true,
+      "stale": false,
+      "needsUpdate": false,
+      "worktreeState": "CLEAN",
+      "structuralStatus": "PARTIAL",
+      "structuralReasons": [
+        "INCOMPLETE_CODE_FILES:9"
+      ],
+      "semanticStatus": "PENDING",
+      "classification": "GRAPH_PARTIAL",
+      "nodes": 15976,
+      "edges": 46292,
+      "duplicateNodes": 0,
+      "duplicateEdges": 0,
+      "danglingEdges": 0,
+      "selfLoops": 0,
+      "incompleteCodeFiles": 9,
+      "criticalIncompleteFiles": 7
+    },
+    "secondRunNote": "The second run found the recorded result and made no activity call."
+  },
+  "hostStateDuringWork": {
+    "podmanMachine": "stopped",
+    "modelOrContainerRuns": 0,
+    "hostRamUsedPercent": 41.7,
+    "note": "No heavy workload was started in this packet."
+  },
+  "browserSessionIdleWatchdog": "NOT_CURRENTLY_APPLICABLE - NO BROWSER SESSION EXECUTOR",
   "mutationAudit": {
     "script": "scratch, not committed",
     "suite": "scripts/smoke-ayas-durable-task-recovery.ts",
