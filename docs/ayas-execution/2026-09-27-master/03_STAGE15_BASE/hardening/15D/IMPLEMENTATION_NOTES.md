@@ -160,3 +160,19 @@ Unchanged: observer approval and off switch, one registered activity, `admitStar
 TEST: recovery 22, lease/firewall 52, durable runtime 17 and the affected regression set (listed in ACTIVE_CHECKPOINT and the ledger) PASS in TEMP roots. TypeScript, changed-file lint and diff check PASS. Graphify precommit 19d3ec9: 16145 nodes / 46849 links, anomalies 0, PARTIAL 9 known files, semantic pending. LOCAL COMMIT; NO PUSH.
 
 Next 15D.6c: direct product-context catalogue/self-heal reads. Then standalone registered repair validators and the complete actual-adapter closure audit. Stage 15D IN_PROGRESS / globalGuardBound=false; 15E unopened.
+
+## 15D.6c adapter inventory and 15D.7a observer discovery run lease — 2026-10-01
+
+Source efd176c71d358159b8f8974a5459afe1d635de4a. Inventory result: of the modules that spawn a process or read the network, the only live autonomous dispatch outside the common guard was the observer's discovery child. It is now leased per run.
+
+Contract (`AyasCapabilityScope.ts`): `AYAS_DISCOVERY_RUN_CAPABILITIES` is a frozen, sorted list of six names; `AyasDiscoveryRunRequest` is exact-key, with a sorted unique capability set, the ledger run ID, the base HEAD and a source digest that is present exactly when the research tick is. `AyasDiscoveryRunScope` adds agent `ayas-observer-discovery`, run and task UUIDs, null owner, delegation `builtin-observer-discovery-v1`, repository and sandbox roots, ZERO_LOCAL and BOUNDED_LOCAL.
+
+Firewall (`AyasActionFirewall.ts`): `issueDiscoveryRun` grants through the existing store's descriptor path (the scope travels in the record's plan; its canonical form is the request digest). `admitDiscoveryRun` re-resolves the repository, rebuilds and compares the scope, checks the expiry is unchanged and consumes. It returns `permits(capability)`, which re-reads the durable record every time. `classify` answers ALLOW_BOUNDED_LOCAL for a well-formed run request; `issue` (the tool path) refuses it. `revoke` accepts a run lease.
+
+Guard (`AyasDiscoveryRunGuard.ts`): `admitAyasDiscoveryRun` dedupes and sorts the set, digests the source list, throws `AyasDiscoveryRunNotAdmittedError` with the firewall's reason, and settles once with a digest of counts or the closed code DISCOVERY_RUN_FAILED.
+
+Script: admission follows the ledger start and precedes every capability. The scheduler receives the same resolved source list that was digested. Withheld capabilities are reported once each as gaps and in the settled summary.
+
+Why run-level and not per call: the canonical text gives each run an identity and an exact capability set; one record per tick keeps the audit at about 288 files a day instead of several times that.
+
+Next 15D.7b, then closure.

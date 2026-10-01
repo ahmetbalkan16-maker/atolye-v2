@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "cd24e0c822ef2a7ad978b653c43837b3bdc5f2c8",
-  "currentHead": "cd24e0c822ef2a7ad978b653c43837b3bdc5f2c8",
+  "lastGreenHead": "efd176c71d358159b8f8974a5459afe1d635de4a",
+  "currentHead": "efd176c71d358159b8f8974a5459afe1d635de4a",
   "stage": "STAGE_15D",
-  "subtask": "15D.6c-direct-product-context-read-coverage",
+  "subtask": "15D.7b-standalone-validator-product-context-and-closure-map",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -140,11 +140,14 @@
     "15D.5a-original-repair-approval-proof",
     "15D.5b-repair-common-firewall-and-durable-audit",
     "15D.6a-dormant-write-owner-refusal",
-    "15D.6b-durable-read-activity-lease-binding"
+    "15D.6b-durable-read-activity-lease-binding",
+    "15D.6c-adapter-inventory",
+    "15D.7a-observer-discovery-run-lease"
   ],
   "currentFiles": [
+    "src/lib/ayas/execution/AyasGuidedRepair.ts",
     "src/lib/ayas/AyasProductBrain.ts",
-    "scripts/smoke-ayas-product-brain.ts"
+    "scripts/smoke-ayas-action-firewall-closure.ts"
   ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
@@ -218,15 +221,21 @@
     "15D.6b durable recovery 22 scenarios PASS (6 new: exact task/attempt/resource audit consumed before the collector, forged context and aborted signal, redirected junction and unknown/UNC root, grant/consume/expiry faults with 0 collector calls, outcome-audit loss reported UNKNOWN with no replay, native state operation through the real dispatcher in a fresh TEMP process); operator script audit location asserted for both a --root journal and the default journal in a TEMP checkout",
     "lease/firewall 52 (3 new: additional read roots pinned and re-resolved, duplicate/network/empty/unknown roots refused, old scopes keep their 14-field canonical form); durable runtime 17; read dispatch 12; legacy bridge 12; action runtime 17; developer actions 31; bridge 23; write 16; owner 31; repair proof 26 PASS",
     "developer workflow 11/38; planner 16; workflow store 17; workflow recovery 15; fault localization 16; guided repair 25 + 5 product E2E; repair durability 8; controlled improvement 7; unified trace 17; autonomy observer 22 PASS",
-    "TypeScript (non-incremental) PASS; changed-file lint 0 warnings; diff check PASS; Graphify precommit 19d3ec9 worktree covered: 16145 nodes / 46849 links, duplicate/dangling/self-loop 0, PARTIAL 9 known files, semantic pending. Product-brain smoke and the disposable-archive junction test not run (unchanged code paths; the first reads default roots)."
+    "TypeScript (non-incremental) PASS; changed-file lint 0 warnings; diff check PASS; Graphify precommit 19d3ec9 worktree covered: 16145 nodes / 46849 links, duplicate/dangling/self-loop 0, PARTIAL 9 known files, semantic pending. Product-brain smoke and the disposable-archive junction test not run (unchanged code paths; the first reads default roots).",
+    "15D.7a discovery run firewall 13 scenarios PASS (TEMP only): durable identity/exact set/resource/TTL before admission; closed vocabulary refused on the tool path; 21 malformed or self-widened requests with zero records; scope change between issue and admit; forged/serialized/foreign handles and restart; expiry before and after admission; own and other-process revocation; grant/consume/read failure and on-disk tamper; junction redirect; guard sorting, source digest and single outcome; script source invariants; two real spawned daemon runs (one leased and discovering, one refused with no effect)",
+    "mutation audit in a TEMP overlay copy (the repository and the live observer never see a mutated file): 21/21 caught for the run lease; one mis-targeted mutation exposed an untested owner-path check, now covered (owner smoke 32)",
+    "discovery registry 15 (fixture repaired: failed at HEAD before this packet), daemon authority boundary 23, owner approval daemon integration 5, micro-batch authority firewall 10, continuous self-improvement 10, deferred re-eligibility 34, Graphify integration 47 PASS",
+    "lease/firewall 52; read dispatch 12; legacy bridge 12; owner 32; repair proof 26; durable recovery 22; bridge 23; write 16; action runtime 17; developer actions 31; guided repair 25 + 5 E2E PASS",
+    "TypeScript (non-incremental) PASS; changed-file lint 0 warnings; diff check PASS. Not run: observer-autostart (UNSAFE_KNOWN), Stage 8 research-improvement evaluator and product-brain smoke (code paths unchanged).",
+    "LIVE_READ_ONLY evidence: the running observer's discovery child ran the leased script at 2026-10-01T15:49Z and 15:54Z; each left one completed lease record under data/brain/execution/authorizations bound to HEAD fba9271, and the ledger shows SUCCEEDED (15:54 included a LIGHT research read under the lease)."
   ],
   "graphify": {
-    "head": "19d3ec9b6af5ff8ce5f5a7150e5adb615e5d8dcd",
-    "testedSourcePacket": "cd24e0c822ef2a7ad978b653c43837b3bdc5f2c8",
+    "head": "fba9271b8a08ebdba2c49a6f7e47bb27dc8a854c",
+    "testedSourcePacket": "efd176c71d358159b8f8974a5459afe1d635de4a",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 16145,
-    "edges": 46849,
+    "nodes": 16176,
+    "edges": 46939,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
@@ -240,8 +249,8 @@
     "External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority.",
     "OWNER_DECISION for any local-coding re-qualification: define a numeric qualification threshold; and/or pin a different local model or engine; and/or allow GPU passthrough into the rootless sandbox. Not a blocker for Stage 15B."
   ],
-  "nextAction": "15D.6c: the product-context composition (AyasProductBrain) calls catalogue and self-heal readers directly, outside Action Runtime. Map each direct read, then route it through the SAME read firewall or prove it is not an action dispatch; keep TEMP isolation (the product-brain smoke reads default roots and must not be run unisolated). Then 15D.6d standalone registered repair validators, then 15D.7 complete actual-adapter closure audit. Close 15D only after full green coverage, then open 15E automatically. NO PUSH.",
-  "updatedAt": "2026-10-01T15:34:25.139Z",
+  "nextAction": "15D.7b: (1) remove the standalone guided-repair validator entry points (exported runAyasRegisteredValidation and service.validate have no caller and no lease); (2) route the product-brain catalogue read through the guarded list-production-projects tool and record the self-heal snapshot as fixed server context; (3) add a closure smoke that maps every process-spawning or network-capable module in src/app to its guard class and fails on an unmapped one. Then 15D closure audit and close; open 15E automatically. NO PUSH.",
+  "updatedAt": "2026-10-01T15:58:22.748Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -323,7 +332,7 @@
     "ROADMAP.md"
   ],
   "localClosure": {
-    "sourcePacketCommit": "cd24e0c822ef2a7ad978b653c43837b3bdc5f2c8",
+    "sourcePacketCommit": "efd176c71d358159b8f8974a5459afe1d635de4a",
     "push": false,
     "documentationOnlyClosure": true,
     "headSemantics": "Full tested source-packet HEAD. The checkpoint documentation commit descends from it; resolve actual current HEAD with git rev-parse HEAD. Per-machine final Graphify metadata is not committed."
@@ -412,9 +421,9 @@
     "globalGuardBound": false,
     "ownerIssuerImplemented": false,
     "remaining": [
-      "direct product-context catalogue/self-heal read coverage",
-      "standalone registered repair validators and complete actual adapter map",
-      "complete coverage / closure audit, then automatic Stage15E"
+      "standalone repair validator entry points",
+      "product-brain catalogue read through the guarded tool",
+      "closure map smoke over every process/network module, then stage closure and automatic Stage15E"
     ],
     "knownLimits": [
       "Revocation blocks new admission; it cannot undo an already running effect.",
@@ -429,7 +438,11 @@
       "Audit destination context is trusted server logging data, not an approval or resource selector from model/tool input. All affected repair tests inherit TEMP audit context.",
       "Durable Graphify read: a refused or unrecordable admission, or a missing Graphify install root, is recorded as a non-retried failure; that commit's graph state is then not recorded.",
       "Durable read audit records accumulate under data/brain/execution/authorizations, one per executed attempt; nothing prunes them.",
-      "query-graphify has a native state operation behind the same read firewall; it returns HEAD, enums and counts only and accepts no target field."
+      "query-graphify has a native state operation behind the same read firewall; it returns HEAD, enums and counts only and accepts no target field.",
+      "Discovery run lease: one record per observer tick (about 288 a day) under data/brain/execution/authorizations; nothing prunes them (retention belongs to 15F).",
+      "Discovery run lease is run-level: capabilities are checked in-process against the durably admitted set; individual capability calls are not separately recorded (the discovery ledger and the run summary digest are the outcome evidence).",
+      "A refused discovery admission also skips that tick's staleness reconciliation; execution-time revalidation still rejects a stale approval.",
+      "The research tick's source digest pins the list handed to the scheduler; it does not authenticate what a remote host serves."
     ],
     "packetCommits": {
       "foundation": "2d621626edb2fbc0f8cd1ed2b552b392e6d93c48",
@@ -440,7 +453,10 @@
       "repairProof": "677853eaf710faf355627dd794b2a1e73c136766",
       "repairCommonLease": "af91b8e62121d741f3b174734f9a65a64b18d6f4",
       "dormantWriteOwnerRefusal": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096",
-      "durableReadActivityLease": "cd24e0c822ef2a7ad978b653c43837b3bdc5f2c8"
+      "durableReadActivityLease": "cd24e0c822ef2a7ad978b653c43837b3bdc5f2c8",
+      "discoveryRegistryFixtureFix": "ccc4056",
+      "ownerRevokeAfterConsumeTest": "34cdebe",
+      "observerDiscoveryRunLease": "efd176c71d358159b8f8974a5459afe1d635de4a"
     },
     "readRuntimeGuardBound": true,
     "legacyReadBridgeGuardBound": true,
@@ -452,7 +468,8 @@
     "repairCommonFirewallBound": true,
     "repairDurableAuditBound": true,
     "dormantWriteGuardBound": true,
-    "durableReadActivityGuardBound": true
+    "durableReadActivityGuardBound": true,
+    "observerDiscoveryRunLeaseBound": true
   },
   "pushPolicy": {
     "state": "NO_PUSH",
