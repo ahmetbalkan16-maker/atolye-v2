@@ -2,10 +2,10 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "af91b8e62121d741f3b174734f9a65a64b18d6f4",
-  "currentHead": "af91b8e62121d741f3b174734f9a65a64b18d6f4",
+  "lastGreenHead": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096",
+  "currentHead": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096",
   "stage": "STAGE_15D",
-  "subtask": "15D.6-dormant-write-and-remaining-read-seam-coverage",
+  "subtask": "15D.6b-durable-read-activity-lease-binding",
   "status": "IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
@@ -138,18 +138,12 @@
     "15D.4a-owner-session-and-current-decision-proof",
     "15D.4b-owner-reservation-journal-lease-binding",
     "15D.5a-original-repair-approval-proof",
-    "15D.5b-repair-common-firewall-and-durable-audit"
+    "15D.5b-repair-common-firewall-and-durable-audit",
+    "15D.6a-dormant-write-owner-refusal"
   ],
   "currentFiles": [
-    "src/lib/ayas/execution/AyasActionFirewall.ts",
-    "src/lib/ayas/execution/AyasActionRuntime.ts",
-    "src/lib/ayas/execution/AyasCapabilityScope.ts",
-    "src/lib/ayas/execution/AyasExecutionAuthorization.ts",
-    "src/lib/ayas/execution/AyasGuidedRepair.ts",
-    "src/lib/ayas/execution/AyasExecutionAuditContext.ts",
-    "scripts/smoke-ayas-owner-capability-firewall.ts",
-    "scripts/smoke-ayas-repair-approval-proof.ts",
-    "scripts/smoke-ayas-workflow-store.ts"
+    "src/lib/ayas/execution/AyasExecutionBridge.ts",
+    "scripts/smoke-ayas-write-action.ts"
   ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
@@ -218,15 +212,16 @@
     "TypeScript/changed lint/diff PASS; Graphify current PARTIAL9/semantic pending, nodes16131/links46773, anomalies0",
     "15D.5b repair proof/common audit26 TEMP scenarios PASS: mandatory durable grant/consume before patch, short original TTL, exact scope/class/cost, grant/consume IO zero writes/validators, outcome IO bounded rollback, two bounded attempts same approval/expiry, expired remediation no renewal",
     "lease49/read dispatch12/legacy bridge12/owner31 PASS; guided repair25assertions+5productE2E/durability8/workflow11scenarios38assertions/store17/recovery15/controlledimprovement7 PASS",
-    "TypeScript and changed-file lint PASS; diff PASS; Graphify PARTIAL9/semantic pending,16139nodes46805links, anomalies0"
+    "TypeScript and changed-file lint PASS; diff PASS; Graphify PARTIAL9/semantic pending,16139nodes46805links, anomalies0",
+    "15D.6a write16/bridge23/legacy bridge guard12 PASS; generic grant + OPEN gate + enabled code switch still REQUIRE_OWNER, zero pipeline/executor/project plan reads, repeat refused. TypeScript/changed lint/diff PASS; Graphify16141nodes/46818links, anomalies0, PARTIAL9/semantic pending."
   ],
   "graphify": {
-    "head": "2972426f06227294f4c9cbf721d58b21e69b3e95",
-    "testedSourcePacket": "af91b8e62121d741f3b174734f9a65a64b18d6f4",
+    "head": "9904ddff3a6581ae7d99f8e07239e8f0e8ea531d",
+    "testedSourcePacket": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 16139,
-    "edges": 46805,
+    "nodes": 16141,
+    "edges": 46818,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
@@ -240,8 +235,8 @@
     "External closure pending: owner-supervised observer Scheduled Task evidence; deployed Cloudflare Worker update and real-phone pinned Range proof. These do not grant execution or approval authority.",
     "OWNER_DECISION for any local-coding re-qualification: define a numeric qualification threshold; and/or pin a different local model or engine; and/or allow GPU passthrough into the rootless sandbox. Not a blocker for Stage 15B."
   ],
-  "nextAction": "15D.6 inspect dormant bridge write: default writeActionsEnabled=false and no production callers; enabled legacy branch still only consumes generic request grant, so common owner/resource scope is outstanding. Reuse existing owner/production primitives or fail closed REQUIRE_OWNER; do not activate pipeline/publication/financial flows. Then bind the one approved durable Graphify collector start/recovery and direct product catalogue/self-heal reads, preserving existing registered policies. Standalone repair validation and any other actual adapters need explicit mapping. Close15D only after full green coverage, then auto15E. NO PUSH.",
-  "updatedAt": "2026-10-01T14:41:07.032Z",
+  "nextAction": "15D.6b bind the ONE existing approved READ_ONLY durable Graphify collector to the SAME firewall before dispatch, using exact physical repository/task/activity scope and existing authorization/audit primitives. Preserve observer approval/off-switch and recovery boundaries; no side-effect activity or replay authority. Then direct product catalogue/self-heal reads, standalone registered repair validators and complete actual adapter closure audit. Close15D only after full green coverage, then auto15E. NO PUSH.",
+  "updatedAt": "2026-10-01T15:03:49.321Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -323,7 +318,7 @@
     "ROADMAP.md"
   ],
   "localClosure": {
-    "sourcePacketCommit": "af91b8e62121d741f3b174734f9a65a64b18d6f4",
+    "sourcePacketCommit": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096",
     "push": false,
     "documentationOnlyClosure": true,
     "headSemantics": "Full tested source-packet HEAD. The checkpoint documentation commit descends from it; resolve actual current HEAD with git rev-parse HEAD. Per-machine final Graphify metadata is not committed."
@@ -375,18 +370,11 @@
   "headSemantics": "Full tested source-packet HEAD. The checkpoint documentation commit descends from it; resolve actual current HEAD with git rev-parse HEAD. Per-machine final Graphify metadata is not committed.",
   "stage15D": {
     "state": "READ_OWNER_REPAIR_GREEN_REMAINING_SEAMS_PENDING",
-    "sourcePacketCommit": "af91b8e62121d741f3b174734f9a65a64b18d6f4",
+    "sourcePacketCommit": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096",
     "inspectionComplete": true,
     "sourceChanges": [
-      "src/lib/ayas/execution/AyasActionFirewall.ts",
-      "src/lib/ayas/execution/AyasActionRuntime.ts",
-      "src/lib/ayas/execution/AyasCapabilityScope.ts",
-      "src/lib/ayas/execution/AyasExecutionAuthorization.ts",
-      "src/lib/ayas/execution/AyasGuidedRepair.ts",
-      "src/lib/ayas/execution/AyasExecutionAuditContext.ts",
-      "scripts/smoke-ayas-owner-capability-firewall.ts",
-      "scripts/smoke-ayas-repair-approval-proof.ts",
-      "scripts/smoke-ayas-workflow-store.ts"
+      "src/lib/ayas/execution/AyasExecutionBridge.ts",
+      "scripts/smoke-ayas-write-action.ts"
     ],
     "notes": "03_STAGE15_BASE/hardening/15D/IMPLEMENTATION_NOTES.md",
     "tests": [
@@ -412,13 +400,13 @@
       "TypeScript/changed lint/diff PASS; Graphify current PARTIAL9/semantic pending, nodes16131/links46773, anomalies0",
       "15D.5b repair proof/common audit26 TEMP scenarios PASS: mandatory durable grant/consume before patch, short original TTL, exact scope/class/cost, grant/consume IO zero writes/validators, outcome IO bounded rollback, two bounded attempts same approval/expiry, expired remediation no renewal",
       "lease49/read dispatch12/legacy bridge12/owner31 PASS; guided repair25assertions+5productE2E/durability8/workflow11scenarios38assertions/store17/recovery15/controlledimprovement7 PASS",
-      "TypeScript and changed-file lint PASS; diff PASS; Graphify PARTIAL9/semantic pending,16139nodes46805links, anomalies0"
+      "TypeScript and changed-file lint PASS; diff PASS; Graphify PARTIAL9/semantic pending,16139nodes46805links, anomalies0",
+      "15D.6a write16/bridge23/legacy bridge guard12 PASS; generic grant + OPEN gate + enabled code switch still REQUIRE_OWNER, zero pipeline/executor/project plan reads, repeat refused. TypeScript/changed lint/diff PASS; Graphify16141nodes/46818links, anomalies0, PARTIAL9/semantic pending."
     ],
     "liveLeaseIssued": false,
     "globalGuardBound": false,
     "ownerIssuerImplemented": false,
     "remaining": [
-      "dormant bridge write path owner guard coverage; preserve closed defaults and reuse existing production/security authority",
       "durable activity/recovery binding without widening observer scope",
       "direct product-context catalogue/self-heal read coverage; standalone registered repair validators and complete actual adapter map",
       "complete coverage / closure audit, then automatic Stage15E"
@@ -442,7 +430,8 @@
       "ownerProof": "19c9e944003861081bb3f2bec074c1c628dae1d5",
       "ownerReservationLease": "2f4168fb48d5166e851fe37c621b7a71f0a37f75",
       "repairProof": "677853eaf710faf355627dd794b2a1e73c136766",
-      "repairCommonLease": "af91b8e62121d741f3b174734f9a65a64b18d6f4"
+      "repairCommonLease": "af91b8e62121d741f3b174734f9a65a64b18d6f4",
+      "dormantWriteOwnerRefusal": "0f5c3939a5ceb5c0ce130dcd98fc785644d56096"
     },
     "readRuntimeGuardBound": true,
     "legacyReadBridgeGuardBound": true,
@@ -452,7 +441,8 @@
     "ownerIdentity": "shared-passcode-owner: existing singleton app owner role; exact current decision ID is delegation identity. No named user accounts or invented person.",
     "repairOriginalApprovalProofBound": true,
     "repairCommonFirewallBound": true,
-    "repairDurableAuditBound": true
+    "repairDurableAuditBound": true,
+    "dormantWriteGuardBound": true
   },
   "pushPolicy": {
     "state": "NO_PUSH",

@@ -1,3 +1,8 @@
+## 2026-10-01 — AYAS Stage15D.6a dormant write refusal
+
+- Require an actual owner capability adapter before dormant bridge write dispatch; generic grants, code switches and OPEN gates cannot authorize it. Remove the generic consume bypass; read grants always receive exact common guard.
+- Write16/bridge23/legacy guard12 and TypeScript/lint/diff PASS. Durable/direct-context/validator coverage remains;15D open. LOCAL COMMIT, NO PUSH.
+
 ## 2026-10-01 — AYAS Stage15D.5b guarded repair audit
 
 - Bind exact repair scope to the SAME firewall and existing execution journal; persist grant/consume before patch and preserve original approval expiry across bounded remediation. Trusted TEMP audit context is shared with read tests.

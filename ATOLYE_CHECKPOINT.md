@@ -1,3 +1,9 @@
+# AYAS MASTER CURRENT — 15D.6a GREEN / 15D.6b NEXT — 2026-10-01
+
+Tested source 0f5c3939a5ceb5c0ce130dcd98fc785644d56096 plus documentation descendant; resolve actual HEAD. Dormant write bridge now REQUIRE_OWNER before any project plan or pipeline dispatch even with a generic grant, OPEN gate and enabled switch. Read bridge always uses exact common lease admission. Write16 / bridge23 / legacy guard12 and TypeScript/lint/diff PASS; Graphify PARTIAL9/semantic pending, anomalies0.
+
+Stage15D IN_PROGRESS/globalGuardBound=false. Next bind the ONE approved durable Graphify read to SAME firewall/existing audit before collector; then direct product catalogue/self-heal, standalone validator and full actual adapter audit. Complete15D before automatic15E. Detailed ACTIVE_CHECKPOINT authoritative. NO PUSH without new explicit owner approval; prior36fa deviation retained without reset/force/history rewrite. PC health/on-demand rules unchanged; no runtime activation.
+
 # AYAS MASTER CURRENT — 15D.5b GREEN / 15D.6 NEXT — 2026-10-01
 
 Tested source af91b8e62121d741f3b174734f9a65a64b18d6f4 plus documentation descendant; resolve actual HEAD. Guided repair is bound to the SAME common firewall and existing durable journal before patch/validation, using its original receipt and expiry. One bounded remediation keeps the same approval/scope/expiry. Repair26 / lease49 / read12 / bridge12 / owner31 and affected regressions PASS; TypeScript/lint/diff PASS. Graphify current PARTIAL9/semantic pending, anomalies0.
