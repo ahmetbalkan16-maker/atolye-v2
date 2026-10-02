@@ -1534,12 +1534,12 @@
     {
       "id": "production-quality-gate",
       "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-production-quality-gate.ts",
+      "script": "scripts/smoke-production-quality-gate.ts",
       "args": [],
       "grading": "EXIT_STATUS",
       "pins": [
         {
-          "file": "scripts/smoke-ayas-production-quality-gate.ts",
+          "file": "scripts/smoke-production-quality-gate.ts",
           "sha256": "f37fbac70c781a8a8e51083b2738fac66b89e71460e5b8bcb6eb8bfe6e43b7cb"
         }
       ],
@@ -1550,13 +1550,13 @@
     {
       "id": "production-quality-gate-mutations",
       "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-production-quality-gate-mutations.ts",
+      "script": "scripts/smoke-production-quality-gate-mutations.ts",
       "args": [],
       "grading": "EXIT_STATUS",
       "pins": [
         {
-          "file": "scripts/smoke-ayas-production-quality-gate-mutations.ts",
-          "sha256": "6e9d6005bde5331e5a3a7be7636ab616ef9ef1d9a8892cf8d13312db1eed18ed"
+          "file": "scripts/smoke-production-quality-gate-mutations.ts",
+          "sha256": "9414667103807bb71f134378df27709af7b9d003fb146c1b1d0436b88b9cf2a1"
         }
       ],
       "slices": [

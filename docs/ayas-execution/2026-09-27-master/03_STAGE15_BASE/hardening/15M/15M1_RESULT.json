@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1",
+  "packet": "15M.1",
+  "outcome": "GREEN_EVIDENCE_COVERAGE_KERNEL_NOT_WIRED",
+  "testedWorktreeBaseHead": "277c840783b768879ae0345c112e98851062b34b",
+  "stageComplete": false,
+  "criteria": 29,
+  "domains": 5,
+  "deliveryItems": 10,
+  "tests": {
+    "focused": 14,
+    "mutations": "23/23 caught",
+    "typeScript": "PASS",
+    "changedFileLint": "PASS",
+    "diffCheck": "PASS",
+    "regressions": {
+      "documentaryQuality": 4,
+      "subtitleSplit": 9,
+      "actionFirewallClosure": 12,
+      "evalGovernance": 10,
+      "evalGovernanceMutations": "8/8"
+    },
+    "isolatedPinVerified": [
+      "15M1_GATE_ISOLATED.json",
+      "15M1_MUTATIONS_ISOLATED.json"
+    ],
+    "manifest": "15F.4-v17 / 88 suites",
+    "fullV17Baseline": "NOT_RUN",
+    "lastFullBaseline": "15F.4-v16 / 86 suites / PASS_WITH_KNOWN_LIMITATIONS at Stage 15L"
+  },
+  "authority": "NONE",
+  "publication": "OWNER_ONLY",
+  "remaining": "15M.2 package construction and actual file/technical evidence collection. Missing acoustic/editorial measurements remain UNMEASURED.",
+  "runtime": "ON_DEMAND; no model/container/provider/live production/upload/push"
+}

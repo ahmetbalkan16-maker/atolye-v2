@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v17",
+  "version": "15F.4-v16",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -1525,38 +1525,6 @@
         {
           "file": "scripts/smoke-ayas-production-fault-repair-mutations.ts",
           "sha256": "ae2f41db49ded0ba9735265890b027fea2b8d22d15ff77be98378ed2548b1b66"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "production-quality-gate",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-production-quality-gate.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-production-quality-gate.ts",
-          "sha256": "f37fbac70c781a8a8e51083b2738fac66b89e71460e5b8bcb6eb8bfe6e43b7cb"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "production-quality-gate-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-production-quality-gate-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-production-quality-gate-mutations.ts",
-          "sha256": "6e9d6005bde5331e5a3a7be7636ab616ef9ef1d9a8892cf8d13312db1eed18ed"
         }
       ],
       "slices": [

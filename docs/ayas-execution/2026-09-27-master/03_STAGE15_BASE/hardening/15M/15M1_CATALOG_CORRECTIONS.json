@@ -1,0 +1,11 @@
+{
+  "evidenceClass": "OBSERVED_VALIDATION_FAILURE_AND_FIX",
+  "firstFailure": "Standalone governance catalog assertion 86 !== 84. It is deliberately outside the declared baseline.",
+  "secondFailure": "New suite names did not meet existing /^scripts\\/smoke-ayas-[a-z0-9-]+\\.ts$/ validator.",
+  "correction": "Use required smoke-ayas names; retain exact 88-suite assertion and add explicit IDs of all four new suites.",
+  "manifestValidatorChanged": false,
+  "productionGradingThresholdsChanged": false,
+  "priorGovernanceSourceHead": "277c840783b768879ae0345c112e98851062b34b",
+  "rejectedDraft": "15M1_MANIFEST_REJECTED_DRAFT.json",
+  "grantsAuthority": false
+}

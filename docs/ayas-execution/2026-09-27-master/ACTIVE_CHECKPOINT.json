@@ -3,10 +3,10 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
-  "currentHead": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
+  "currentHead": "277c840783b768879ae0345c112e98851062b34b",
   "stage": "STAGE_15M",
-  "subtask": "15M.0-existing-seam-inspection",
-  "status": "STAGE_15M_OPEN",
+  "subtask": "15M.1-five-domain-evidence-coverage-gate",
+  "status": "STAGE_15M_IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -192,7 +192,12 @@
     "15L.R-existing-bridge-fixture-race-correction",
     "15L-closure-GREEN-not-live"
   ],
-  "currentFiles": [],
+  "currentFiles": [
+    "src/lib/production/ProductionQualityGate.ts",
+    "scripts/smoke-ayas-production-quality-gate.ts",
+    "scripts/smoke-ayas-production-quality-gate-mutations.ts",
+    "scripts/smoke-ayas-eval-governance.ts"
+  ],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
     "smoke-ayas-memory: 30 PASS; context: 34 PASS; memory-temporal: 51 PASS; chat-quality: 36 PASS",
@@ -321,7 +326,7 @@
   "graphify": {
     "head": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
     "testedSourcePacket": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
-    "stale": false,
+    "stale": true,
     "needsUpdate": false,
     "nodes": 17067,
     "edges": 48893,
@@ -331,7 +336,7 @@
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Graph built from the tested Stage 15L source commit; checkpoint documentation descendant and later packets require actual HEAD resolution/refresh."
+    "headSemantics": "Last local graph refreshed at the 15L documentation descendant 277c840; current untracked quality gate packet needs worktree refresh after tests."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -350,7 +355,7 @@
     "OWNER_DECISION (not blocking): when to wire the Stage 15J fact pack and character scenes into a production. Until then productions render as before; scenes can be drawn by hand with scripts/ayas-character-scene.ts.",
     "OWNER_DECISION (not blocking): whether sharp should be declared in package.json. The character rasterizer uses it as installed with the framework."
   ],
-  "nextAction": "STAGE_15M 15M.0 existing-seam inspection: reuse Stage 12 director review, Stage 15J fact pack/narrative/character contracts, BrainQualityModel and read-only ffprobe, YouTubePackagePipeline/Validation, ExportBundleMaterializer/SubtitleGenerator and cost reports. Build the canonical five-domain quality gate plus complete YouTube-ready owner-review package; unmeasured/unknown criteria never become PASS. Publication remains owner-only, existing production authority/rights/cost guards retained. Read only relevant canonical 15M/addendum sections. TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT -> NEXT. NO PUSH.",
+  "nextAction": "Finish GREEN packet 15M.1: relevant regressions and pin-verified isolated gate suites, Graphify worktree refresh, local commit and checkpoint. Then 15M.2 YouTube-ready package builder/collector through existing YouTube metadata, subtitles, export materializer and cost/quality evidence; do not fabricate acoustic/editorial measurements or READY from unknown data. Stage 15M stays in progress until its canonical package work is done. No owner-only gate identified yet. NO PUSH; no live stage/model/container/paid call.",
   "updatedAt": "2026-10-02",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
@@ -1051,12 +1056,22 @@
     "next": "STAGE_15M"
   },
   "stage15M": {
-    "state": "OPEN",
+    "state": "IN_PROGRESS",
     "openedOn": "2026-10-02",
     "openedAtHead": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE 15M; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md STAGE 15M",
     "addendumSections": "0: unknown evidence/rights/cost fails closed; no unauthorized publication. Global 9 remains in force.",
     "notes": "03_STAGE15_BASE/hardening/15M/IMPLEMENTATION_NOTES.md",
-    "constraints": "No automatic public upload. Real quality observations must not be invented or upgraded from unmeasured data."
+    "constraints": "No automatic public upload. Real quality observations must not be invented or upgraded from unmeasured data.",
+    "packet": "15M.1: five domains / 29 criteria, 10 delivery items, exact revision binding; no write/publication authority. Not wired into production; remaining package construction/collection belongs to 15M.2.",
+    "tests": {
+      "focused": "14 scenarios PASS",
+      "mutations": "23/23 caught",
+      "typeScript": "PASS",
+      "changedFileLint": "PASS",
+      "manifest": "15F.4-v17 / 88 suites; full v17 NOT_RUN; last complete v16 / 86 retained",
+      "catalogCorrection": "Standalone governance smoke expected 84 while declared catalog had 86; update to exact 88 and assert all four 15L/15M suites. New suites renamed to the already-required smoke-ayas namespace; validator unchanged. Rejected draft preserved.",
+      "isolatedSuites": "2/2 pin-verified PASS"
+    }
   }
 }
