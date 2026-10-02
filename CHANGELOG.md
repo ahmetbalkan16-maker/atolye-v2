@@ -1,3 +1,8 @@
+## 2026-10-02 — AYAS Stage15I production director session
+
+- A read model of one production: sixteen bindings from read/status evidence, fault classes from the pipeline's structured evidence, and one decision per stage (nothing, wait, one of four safe operations, a question for the owner, or a code defect routed to controlled self-evolution with the production held). Read-only collector and operator script `scripts/ayas-production-director.ts`.
+- Every safe operation is a plan AYAS cannot start: the write action stays switched off and owner-gated; a paid stage, publication, a rights or quality gate and a budget change are always the owner's. 17 scenarios, 45/45 negative controls, 80-suite baseline with no failure. Stage 15J opened. Local commits only; NO PUSH.
+
 ## 2026-10-02 — AYAS Stage15H no-cloud independence certification
 
 - The 21 faults of the master order's matrix, the ten links of the representative maintenance task and the cloud-off condition are bound to 93 named scenarios of declared suites. A read-only collector and a pure evaluator produce a sealed record; READY needs no gap at all. Operator script `scripts/ayas-independence-certification.ts`. The record grants no authority.

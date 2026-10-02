@@ -1,3 +1,15 @@
+# AYAS MASTER CURRENT — STAGE 15I CLOSED / STAGE 15J OPEN — 2026-10-02
+
+Resolve the real HEAD with `git rev-parse HEAD`; the last tested source packet is `ebc373cbbd5b5e734d2ee9c2b44eb043262c9a2a`. Branch `wip/ayas-graphify-final-execution`, local commits only, NO PUSH.
+
+Stage 15I (AYAS ↔ Atölye Live Production Director) is closed green as a control plane. A director session binds the sixteen things of the canonical design for one production from read/status evidence and decides, per stage, nothing, wait, a safe operation (four classes), a question for the owner, or a code defect routed to controlled self-evolution with the production held. Operator script: `npx tsx --env-file-if-exists=.env.local scripts/ayas-production-director.ts --project <slug> [--owner-request file.json]`. Evidence: `docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15I/`.
+
+AYAS can read a production and say what the next safe step is. It cannot start one: every safe operation is a plan, the `resume-stage` write action stays switched off and owner-gated, and a paid stage is always the owner's question. Not built and declared: a live watch on the observer tick (needs the owner's approval), dispatch, a stored owner request and a chat tool (Brain UI V2).
+
+Tests: 17 scenarios, 45/45 negative controls, declared 80-suite baseline at `ebc373c` with no failure, eval manifest `15F.4-v12`. The stage's first baseline failed one suite (`durable-task-recovery`: the 15B wiring guard caught the new suite naming the recovery script); the fix is in that suite only.
+
+Next: canonical Stage 15J (Historical Storytelling + Character / Stick-Figure Engine), starting with 15J.0 existing-seam inspection. Reuse the Stage 12 review's narrative findings; build the fact pack and the local SVG character engine as deterministic local code. No paid generation, no dependency install, no live production run.
+
 # AYAS MASTER CURRENT — STAGE 15H CLOSED / STAGE 15I OPEN — 2026-10-02
 
 Resolve the real HEAD with `git rev-parse HEAD`; the last tested source packet is `930b53797fa8d84693d6c4d1d6e234bddf0e6b31`. Branch `wip/ayas-graphify-final-execution`, local commits only, NO PUSH.

@@ -696,3 +696,29 @@ LOCAL COMMITS; NO PUSH.
 ## Stage 15I — AYAS ↔ Atölye Live Production Director — OPEN (2026-10-02)
 
 Opened at `930b537`. Canonical section: master order STAGE 15I and `AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md` STAGE 15I; directive V3.2 section 11 (implement the designed behaviour on the existing media architecture). Addendum sections 0 and 3 apply (unknown state fails closed; an added operation records evidence with a closed outcome class). First subtask: 15I.0 existing-seam inspection. No paid provider call and no live production run is made to prove this stage. The existing AYAS write action (`resume-stage`) is disabled and needs the owner; this stage does not open it.
+
+## Stage 15I — CLOSED GREEN as a control plane; live binding and dispatch owner-gated (2026-10-02)
+
+Source `ebc373cbbd5b5e734d2ee9c2b44eb043262c9a2a`. Closure `03_STAGE15_BASE/hardening/15I/CLOSURE.md`; summary `15I_RESULT.json`.
+
+15I.0 INSPECTION. Reusable as found: the Stage 12 director review and project adapter; context-bound read methods (`ProjectReader.readJSONState`, `ProjectManager.getManifest`, `PipelineJobManager.listJobsReadOnly`); the pipeline's structured failure evidence, stage order, dependency table and retry bound; the production path's provider resolution; the cost summary and technical ceiling; AYAS's zero money authority; one AYAS write action (`resume-stage`), switched off. No per-project record of the owner's request exists.
+
+WHAT. `AyasProductionDirectorSession` (pure) binds the sixteen things of the canonical design, each as BOUND, NOT_PROVIDED, NOT_PRODUCED_YET or UNREADABLE, classifies a stage's fault from the pipeline's evidence, and decides per stage one of NONE, WAIT, SAFE_OPERATION (four classes), REQUIRE_OWNER (with the exact question and the facts) or ROUTE_CODE_DEFECT (with a hold on the production). `AyasProductionDirectorCollector` reads through the pipeline's own readers in an explicit storage context and writes nothing; a transient read failure is read again at most twice. Operator script `scripts/ayas-production-director.ts`.
+
+BOUNDARIES. A safe operation needs a zero-cost provider, a known cost state, the retry bound and no rights or quality block; a paid stage is always the owner's. Publishing, spending, raising a cap, passing a gate and patching source are not values of any decision. Every safe operation is a plan with `executableByAyas: false`: this stage opens no write path.
+
+NOT BUILT, declared: live watch on the observer tick (owner approval); dispatch (owner's write activation); a stored owner request and a chat tool (Brain UI V2); per-run provider override.
+
+FOUND. The first baseline, at `10367e8`, failed one suite of 80: `durable-task-recovery`. The Stage 15B wiring guard lets no file other than the observer name the durable recovery script, and the new director suite named it. The feature commit had been made without running that suite. Fixed in the new suite only (`ebc373c`); the guard is unchanged; the failed report is kept as `15I_BASELINE_10367e8_FAILED.json`.
+
+TEST. Production director 17 scenarios; negative controls 45/45 in a TEMP overlay; eval governance 10 and 8/8; firewall closure 12; durable task recovery 22; declared 80-suite baseline at `ebc373c` with no failure (cognitive 54/55 and held-out 4/5 unchanged), host RAM peak 53.77 %. TypeScript, changed-file lint, diff check PASS; full lint 0 errors / 13 existing warnings. One read-only run on a real project. Eval manifest `15F.4-v12`; v10 and v11 kept. No provider call, stage run, model or push.
+
+GRAPHIFY built from `ebc373c`: 16,805 nodes / 48,352 edges, anomalies 0, PARTIAL 9 known files, semantic pending.
+
+OWNER, none blocking: approve or decline a read-only director watch on the observer tick; the write activation is unchanged from Stage 15D.
+
+LOCAL COMMITS; NO PUSH.
+
+## Stage 15J — Historical Storytelling + Character / Stick-Figure Engine — OPEN (2026-10-02)
+
+Opened at `ebc373c`. Canonical section: master order STAGE 15J and `AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md` STAGE 15J; directive V3.2 section 11. Addendum section 0 applies (no autonomous spend; unknown rights fail closed). First subtask: 15J.0 existing-seam inspection. Already seen: the Stage 12 review holds chronology, transition, beat order, repetition, factual-source and synthetic-label findings and is to be reused; no fact pack with claims and claim-to-scene mapping exists; no character or SVG scene engine exists. No paid image generation, no new dependency install and no live production run is made to prove this stage.

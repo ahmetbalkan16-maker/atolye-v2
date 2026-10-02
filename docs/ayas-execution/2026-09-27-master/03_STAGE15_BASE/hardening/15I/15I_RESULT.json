@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "stage": "STAGE_15I",
+  "title": "AYAS <-> Atolye Live Production Director",
+  "result": "CLOSED_GREEN_CONTROL_PLANE_LIVE_BINDING_AND_DISPATCH_OWNER_GATED",
+  "sourceCommit": "ebc373cbbd5b5e734d2ee9c2b44eb043262c9a2a",
+  "packetCommits": {
+    "directorSessionAndDecisionPlane": "10367e86905c4a7ea29848b2c74b8d0246f0677b",
+    "directorSuiteFix": "ebc373cbbd5b5e734d2ee9c2b44eb043262c9a2a"
+  },
+  "date": "2026-10-02",
+  "evidenceClass": "DETERMINISTIC_TEST_AND_LOCAL_READ",
+  "found": {
+    "baselineAt": "10367e86905c4a7ea29848b2c74b8d0246f0677b",
+    "report": "15I_BASELINE_10367e8_FAILED.json",
+    "failed": [
+      "durable-task-recovery"
+    ],
+    "cause": "The Stage 15B wiring guard lets no file other than the observer name the durable recovery script; the new director suite named it. The feature commit was made without running that suite.",
+    "fix": "The name was removed from the new suite's list (commit ebc373c). The guard is unchanged.",
+    "productionCodeChanged": false
+  },
+  "providerCalls": 0,
+  "stageRuns": 0,
+  "modelRuns": 0,
+  "liveProduction": "NOT_RUN",
+  "push": false,
+  "session": {
+    "bindings": 16,
+    "bindingStates": [
+      "BOUND",
+      "NOT_PROVIDED",
+      "NOT_PRODUCED_YET",
+      "UNREADABLE"
+    ],
+    "decisionKinds": [
+      "NONE",
+      "WAIT",
+      "SAFE_OPERATION",
+      "REQUIRE_OWNER",
+      "ROUTE_CODE_DEFECT"
+    ],
+    "safeOperations": [
+      "BOUNDED_TRANSIENT_RETRY",
+      "ZERO_COST_PROVIDER_FALLBACK",
+      "REGENERATE_LOCAL_ARTIFACT",
+      "RESUME_AUTHORIZED_STAGE"
+    ],
+    "neverDecided": [
+      "SOURCE_CODE_HOT_PATCH",
+      "BUDGET_CAP_INCREASE",
+      "RIGHTS_CLASSIFICATION_BYPASS",
+      "PUBLISH",
+      "PRODUCTION_GATE_BYPASS"
+    ],
+    "autonomousBudgetUsd": 0,
+    "authority": "NONE"
+  },
+  "dispatch": {
+    "resume-stage": "AYAS_WRITE_ACTION_DISABLED (owner-gated since Stage 15D)",
+    "retry-stage": "NO_AYAS_WRITE_ACTION",
+    "regenerate-stage": "NO_AYAS_WRITE_ACTION",
+    "select-provider": "NO_AYAS_WRITE_ACTION",
+    "executableByAyas": false
+  },
+  "notBuilt": [
+    {
+      "what": "Live watch on the observer tick",
+      "decidedBy": "owner approval, as for the Stage 15B live binding"
+    },
+    {
+      "what": "Dispatch of a safe operation",
+      "decidedBy": "the owner's write activation (Stage 15D)"
+    },
+    {
+      "what": "A stored owner request per project",
+      "decidedBy": "Brain UI V2, Director Session tile"
+    },
+    {
+      "what": "A chat tool for the session",
+      "decidedBy": "Brain UI V2"
+    },
+    {
+      "what": "Per-run provider override in the pipeline",
+      "decidedBy": "a later pipeline change"
+    }
+  ],
+  "liveReadOnly": "One read-only run against a real project of this workstation's runtime root, no owner request bound: 8 of 16 bindings bound, one failed stage without structured evidence sent to the owner, nothing planned, nothing written.",
+  "tests": {
+    "productionDirector": {
+      "script": "scripts/smoke-ayas-production-director.ts",
+      "scenarios": 17,
+      "result": "PASS"
+    },
+    "negativeControls": {
+      "script": "scripts/smoke-ayas-production-director-mutations.ts",
+      "caught": 45,
+      "total": 45
+    },
+    "evalGovernance": "10 scenarios PASS; negative controls 8/8",
+    "firewallClosure": "12 scenarios PASS; no new surface or leased module",
+    "typescript": "PASS (non-incremental)",
+    "changedFileLint": "0 warnings",
+    "fullLint": "0 errors, 13 existing warnings",
+    "fullBaseline": {
+      "report": "15I_FULL_BASELINE.json",
+      "sha256": "36517f480f3ef640300a6561a1e83853c01b0cd2b0039a8c478ba100cc129382",
+      "sourceHead": "ebc373cbbd5b5e734d2ee9c2b44eb043262c9a2a",
+      "manifestVersion": "15F.4-v12",
+      "manifestDigest": "96cb3ec8dd86679fade6b43fda7ee9dfc50b48942ac3e77da76868db83211a85",
+      "suites": 80,
+      "trialsPerSuite": 1,
+      "failed": [],
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "knownLimitationSuites": [
+        "cognitive-quality"
+      ],
+      "cognitive": "54/55 and held-out 4/5, unchanged",
+      "hostRamPeakPercent": 53.77
+    }
+  },
+  "evalManifest": {
+    "version": "15F.4-v12",
+    "suites": 80,
+    "added": [
+      "production-director",
+      "production-director-mutations"
+    ],
+    "previous": "EVAL_MANIFEST_V11.json (15F.4-v11, 80 suites; one pin changed by the fix) and EVAL_MANIFEST_V10.json (15F.4-v10, 78 suites)"
+  },
+  "graphify": {
+    "builtFrom": "ebc373cbbd5b5e734d2ee9c2b44eb043262c9a2a",
+    "nodes": 16805,
+    "edges": 48352,
+    "anomalies": 0,
+    "structural": "PARTIAL (9 known files)",
+    "semantic": "PENDING"
+  },
+  "ownerActions": [
+    {
+      "id": "director-live-watch",
+      "blocking": false,
+      "action": "Approve or decline binding a read-only director watch to the observer tick."
+    },
+    {
+      "id": "write-activation",
+      "blocking": false,
+      "action": "Unchanged from Stage 15D: the AYAS write action stays switched off until the owner activates it."
+    }
+  ],
+  "authority": "NONE: the session is a read model. Every safe operation in it is a plan that still needs the gated path it names."
+}
