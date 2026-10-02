@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1",
+  "stage": "STAGE_15O",
+  "packet": "15O.3",
+  "state": "GREEN_DETERMINISTIC_GOLDEN_PROJECTS",
+  "stageSourceClosed": true,
+  "sourceBaseHead": "c93aeac98e3e1e276a55f6fd240d2921508b75ce",
+  "sourceCommit": "d08fed060c0dff8601cf968715f2b2469f328d4a",
+  "authority": "NONE",
+  "vault": {
+    "version": 2,
+    "digest": "5f2fbf0b529f381caecd44651af2e642280bbfbc1bd7e761ca79d87dc2024a3f",
+    "cases": 18,
+    "projects": 3,
+    "scenes": 24,
+    "publishedVersion1Unchanged": true
+  },
+  "tests": {
+    "focused": "15O3_FOCUSED.json",
+    "fullBaseline": {
+      "manifest": "15F.4-v25",
+      "manifestDigest": "e3c14df4d65ce7798787da784279b35a2b5649ee9ce6667ef733b92c18fb02f4",
+      "sourceHead": "d08fed060c0dff8601cf968715f2b2469f328d4a",
+      "worktree": "clean at the source commit",
+      "suites": 104,
+      "complete": true,
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "failed": [],
+      "knownLimitationSuites": [
+        "cognitive-quality"
+      ],
+      "cognitive": "54/55, held-out 4/5 unchanged",
+      "report": "15O3_FULL_BASELINE_V25.json"
+    },
+    "exactHeadPins": "122 unique grader files match committed Git blobs",
+    "goldenSandbox": "18 cases held in real experiment sandbox; 33 seconds",
+    "typeScript": "PASS",
+    "lint": "0 errors / 13 existing warnings",
+    "diffCheck": "PASS",
+    "v24Archive": "byte-identical to c93aeac committed manifest"
+  },
+  "ramPeakPercent": 54.72,
+  "graphify": "GRAPHIFY_15O3_SOURCE_COMMIT.json",
+  "declaredGaps": [
+    "REVENUE_DRY_RUN until Stage 16",
+    "Owner-approved real reference productions: audio, assembled video and measured quality"
+  ],
+  "next": "Stage 15P Source Trust and Evidence Graph",
+  "runtime": "ON_DEMAND; no model/container/provider/live production/upload/push"
+}

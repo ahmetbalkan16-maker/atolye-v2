@@ -153,3 +153,5 @@ Vault version 2 (digest `5f2fbf0b…2024a3f`): every case of version 1 with the 
 What these projects are not: productions. No audio, no video, no provider, no cost; the SVG is not rasterized by the suite (pixel output depends on the installed image library). The historical statements are well-established and the sources are real works, but the fixtures were written for regression, not reviewed by a historian; an edition detail could be wrong. They enter no production.
 
 Tests: project suite 6 scenarios; negative controls 17/17 in a TEMP copy; vault contract 13 with published-digest and version-2 checks; all 18 cases held in this tree and inside a real experiment sandbox (34 s). Eval manifest v25: 104 suites, 122 unique pins; v24 archived unchanged.
+
+15O.3 exact source `d08fed060c0dff8601cf968715f2b2469f328d4a`: full declared v25 baseline 104/104, no failure; cognitive 54/55 and held-out4/5 unchanged, RAM54.72%. Graphify17344/49711 with zero anomalies. Stage source closed; evidence: 15O3_RESULT.json and CLOSURE.md. Automatically continued with canonical 15P.

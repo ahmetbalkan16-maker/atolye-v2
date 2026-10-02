@@ -2,11 +2,11 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "9cbe62d3eb62ce9748a3776dcd5dddbc5b662d74",
-  "currentHead": "c93aeac98e3e1e276a55f6fd240d2921508b75ce",
-  "stage": "STAGE_15O",
-  "subtask": "15O.3-deterministic-historical-video-golden-projects",
-  "status": "STAGE_15O_IN_PROGRESS",
+  "lastGreenHead": "d08fed060c0dff8601cf968715f2b2469f328d4a",
+  "currentHead": "d08fed060c0dff8601cf968715f2b2469f328d4a",
+  "stage": "STAGE_15P",
+  "subtask": "15P.1-contextual-source-evidence-kernel-and-record-integration",
+  "status": "STAGE_15P_IN_PROGRESS",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -84,9 +84,9 @@
     ]
   },
   "previousStage": {
-    "stage": "STAGE_15N",
-    "status": "CLOSED_GREEN_SOURCE_NOT_ADOPTED",
-    "closingCommit": "9cdf5dbdede418dd35c6a9a1c5057299c20af693"
+    "stage": "STAGE_15O",
+    "status": "CLOSED_GREEN_DETERMINISTIC_SOURCE",
+    "closingCommit": "d08fed060c0dff8601cf968715f2b2469f328d4a"
   },
   "completedStages": [
     "PHASE_0_LOCAL_CODE",
@@ -102,7 +102,8 @@
     "STAGE_15K",
     "STAGE_15L",
     "STAGE_15M_SOURCE",
-    "STAGE_15N_SOURCE"
+    "STAGE_15N_SOURCE",
+    "STAGE_15O_SOURCE"
   ],
   "completedSubtasks": [
     "canonical-package-import",
@@ -202,21 +203,12 @@
     "15N-closure-GREEN-source-not-adopted",
     "15O.0-existing-seam-inspection",
     "15O.1-golden-vault-contract-registry-path-protection-GREEN-not-wired",
-    "15O.2-golden-gate-in-the-improvement-flow-GREEN"
+    "15O.2-golden-gate-in-the-improvement-flow-GREEN",
+    "15O.3-three-deterministic-historical-video-golden-projects-vault-v2-GREEN",
+    "15O-closure-GREEN-with-declared-gaps",
+    "15P.0-existing-seam-inspection"
   ],
-  "currentFiles": [
-    "scripts/fixtures/ayas-golden-video-projects.ts",
-    "scripts/fixtures/ayas-golden-video-projects-expected.ts",
-    "scripts/smoke-ayas-golden-video-projects.ts",
-    "scripts/smoke-ayas-golden-video-projects-mutations.ts",
-    "src/lib/ayas/golden/AyasGoldenVaultRegistry.ts",
-    "src/lib/brain/selfheal/BrainPatchSafety.ts",
-    "scripts/smoke-ayas-golden-vault.ts",
-    "scripts/smoke-ayas-golden-vault-mutations.ts",
-    "scripts/smoke-ayas-eval-governance.ts",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST.json",
-    "docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15F/EVAL_MANIFEST_V24.json"
-  ],
+  "currentFiles": [],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
     "smoke-ayas-memory: 30 PASS; context: 34 PASS; memory-temporal: 51 PASS; chat-quality: 36 PASS",
@@ -346,22 +338,23 @@
     "Stage 15O.1: golden vault contract 13 scenarios; operator and runner 3 (one TEMP copy); negative controls 39/39 in a TEMP copy; all 17 golden cases held in 28 s; patch-safety consumers (brain-selfheal 41, brain-selfheal-security 14, exact-proposal-safety 28, autonomous-foundation-acceptance 42, patch-detectors 37, adaptation-pipeline 7); TypeScript; changed-file lint; diff check.",
     "Stage 15O.1: declared 99-suite baseline on manifest v23 at 143178c with a clean tree PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 56.87 %. 113 unique grader pins match the committed blobs. No model, container, provider or push.",
     "Stage 15O.2: golden experiment gate 11 scenarios (real experiments in TEMP fixture repositories); negative controls 35/35 in a TEMP copy; the vault of record held inside a real experiment sandbox (17 of 17, no pin drift, tree untouched); vault contract 13 and 40/40; controlled-evolution artifact and cycle 20, exact proposal safety 28, lifecycle 14 (18 entries) and revision controls 5/5; TypeScript; changed-file lint; diff check.",
-    "Stage 15O.2: declared 102-suite baseline on manifest v24 at 9cbe62d with a clean tree PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 58.94 %. 118 unique grader pins match the committed blobs. No model, container, provider or push."
+    "Stage 15O.2: declared 102-suite baseline on manifest v24 at 9cbe62d with a clean tree PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 58.94 %. 118 unique grader pins match the committed blobs. No model, container, provider or push.",
+    "15O.3 source d08fed0: v25 declared 104/104 baseline PASS_WITH_KNOWN_LIMITATIONS, no failures; cognitive 54/55 / heldout 4/5 unchanged; projects 6 / 24 scenes, mutants17/17, vault13 / mutants40/40, 122 Git-blob pins; TypeScript/lint/diff PASS; RAM54.72%; Graphify17344/49711, zero anomalies, PARTIAL9/semantic pending."
   ],
   "graphify": {
-    "head": "c93aeac98e3e1e276a55f6fd240d2921508b75ce",
-    "testedSourcePacket": "9cbe62d3eb62ce9748a3776dcd5dddbc5b662d74",
+    "head": "d08fed060c0dff8601cf968715f2b2469f328d4a",
+    "testedSourcePacket": "d08fed060c0dff8601cf968715f2b2469f328d4a",
     "stale": false,
     "needsUpdate": false,
-    "nodes": 17343,
-    "edges": 49700,
+    "nodes": 17344,
+    "edges": 49711,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Current structural graph covers inherited 15O.3 working source before its local commit; exact-commit full baseline pending. PARTIAL 9 / semantic pending retained."
+    "headSemantics": "Graph built at the clean 15O.3 source commit; refresh required after the closing documentation commit. PARTIAL 9 / semantic pending retained."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -382,7 +375,7 @@
     "OWNER_ACTION (not blocking): adopt the Owner Constitution. Rebuild and restart the Next server, open /brain/constitution, compare the digest with 03_STAGE15_BASE/hardening/15N/OWNER_REVIEW_PACKET.json (916500ef…2f473), activate with the owner session, then restart the AYAS Autonomy Observer Scheduled Task. Until then the state is MISSING and behaviour is as before Stage 15N.",
     "OWNER_DECISION (not blocking): an owner route for a later constitution version. The writer can append a signed version; the page offers the first adoption only."
   ],
-  "nextAction": "Stage 15O.3 inherited implementation preserved at c93aeac. Focused project suite 6/24 scenes, mutations 17/17, vault 13 and mutations 40/40, governance 10, TypeScript, changed-file lint and full lint (0 errors/13 existing warnings) PASS. Finish structural Graphify refresh, local source commit and full declared 104-suite v25 baseline at that exact commit; then record evidence, close Stage 15O and automatically open canonical Stage 15P existing-seam inspection. TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT -> NEXT. NO PUSH; PC HEALTH and ON_DEMAND retained.",
+  "nextAction": "Stage 15P.1: implement the bounded source/claim/evidence graph and four contextual trust policies; reuse existing URL/source identity primitives, attach derived metadata to newly recorded external findings in the existing store, explicitly report legacy evidence UNMEASURED, and add offline query/scenario/negative-control suites. Plan and affected seams: hardening/15P/IMPLEMENTATION_NOTES.md. TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT -> NEXT. Canonical 15P-15T before 16; NO PUSH; PC HEALTH and ON_DEMAND retained.",
   "updatedAt": "2026-10-02",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
@@ -540,6 +533,11 @@
       "stage": "STAGE_15N",
       "status": "CLOSED_GREEN_SOURCE_NOT_ADOPTED",
       "closingCommit": "9cdf5dbdede418dd35c6a9a1c5057299c20af693"
+    },
+    {
+      "stage": "STAGE_15O",
+      "sourceCommit": "d08fed060c0dff8601cf968715f2b2469f328d4a",
+      "status": "CLOSED_GREEN_SOURCE_WITH_DECLARED_GAPS"
     }
   ],
   "stage15C": {
@@ -1201,7 +1199,7 @@
     "next": "STAGE_15O"
   },
   "stage15O": {
-    "state": "IN_PROGRESS_15O.3",
+    "state": "CLOSED_GREEN_SOURCE_WITH_DECLARED_GAPS",
     "openedOn": "2026-10-02",
     "openedAtHead": "9cdf5dbdede418dd35c6a9a1c5057299c20af693",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE 15O; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md 15O",
@@ -1248,11 +1246,36 @@
       }
     },
     "packet15O3": {
-      "state": "FOCUSED_GREEN_FULL_BASELINE_PENDING",
-      "sourceBaseHead": "c93aeac98e3e1e276a55f6fd240d2921508b75ce",
-      "result": "03_STAGE15_BASE/hardening/15O/15O3_FOCUSED.json",
-      "vaultVersion": 2,
-      "cases": 18
-    }
+      "state": "GREEN_DETERMINISTIC_GOLDEN_PROJECTS",
+      "sourceCommit": "d08fed060c0dff8601cf968715f2b2469f328d4a",
+      "result": "03_STAGE15_BASE/hardening/15O/15O3_RESULT.json",
+      "fullBaseline": {
+        "manifest": "15F.4-v25",
+        "manifestDigest": "e3c14df4d65ce7798787da784279b35a2b5649ee9ce6667ef733b92c18fb02f4",
+        "sourceHead": "d08fed060c0dff8601cf968715f2b2469f328d4a",
+        "worktree": "clean at the source commit",
+        "suites": 104,
+        "complete": true,
+        "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+        "failed": [],
+        "knownLimitationSuites": [
+          "cognitive-quality"
+        ],
+        "cognitive": "54/55, held-out 4/5 unchanged",
+        "report": "15O3_FULL_BASELINE_V25.json"
+      }
+    },
+    "closedOn": "2026-10-02",
+    "sourceCommit": "d08fed060c0dff8601cf968715f2b2469f328d4a",
+    "closure": "03_STAGE15_BASE/hardening/15O/CLOSURE.md"
+  },
+  "stage15P": {
+    "state": "IN_PROGRESS_15P.1",
+    "openedOn": "2026-10-02",
+    "openedAtHead": "d08fed060c0dff8601cf968715f2b2469f328d4a",
+    "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE 15P; final freeze addendum 15P",
+    "addendumSections": "0 and 9",
+    "notes": "03_STAGE15_BASE/hardening/15P/IMPLEMENTATION_NOTES.md",
+    "authority": "NONE"
   }
 }
