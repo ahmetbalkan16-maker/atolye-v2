@@ -932,3 +932,11 @@ Canonical 15R only (final execution order, freeze addendum, post-freeze 0 and 8.
 - 14 scenarios / 55 negative controls; a real Next server in a TEMP clone drove the owner page end to end (enter, 423 on a production route, four refused exits, owner exit with five passing checks); 32 affected declared suites on the overlay after two packet-caused failures were fixed (F34); 36 production-path suites in an isolated clone, 26 PASS and 10 not passing exactly as at clean HEAD; TypeScript, lint (0 errors / 13 existing warnings), diff check. Manifest v32, 114 suites, 133 pins. Graphify precommit recorded.
 - The live mode was never entered: status on this workstation reads NORMAL and nothing was written.
 - Next: local source commit, full declared v32 baseline at the exact clean commit, packet GREEN record, Stage 15R closure, then canonical 15S. No model, container, provider, production stage, publish, host setting or push.
+
+### 2026-10-03 — inherited 15R baseline completed; source closure; owner master/push authorization
+
+Initial git pull: Already up to date; branch wip/ayas-graphify-final-execution, clean source a00091fdcc68f4588b2403b67e008ce796e117a1, real origin 36fa76b48662f491df59a21fe27cc434da02b876, 82 ahead / 0 behind. Latest owner instruction supersedes prior STOP/NO PUSH and authorizes current WIP branch source publication; owner-only activation, spend, external writes and canonical promotion stay gated.
+
+The pre-existing exact clean v32 run finished: 114/114 suites, no failure, PASS_WITH_KNOWN_LIMITATIONS; cognitive 54/55, held-out 4/5; sampled RAM peak 65.51%. All 133 unique grader pins verified against worktree and committed bytes. Current-session TypeScript PASS; full lint 0 errors / 13 old warnings; diff check PASS. Graphify bound to a00091f, stale=false, 17620 nodes/50455 links, integrity anomaly counts zero, PARTIAL 9/semantic PENDING explicit. A duplicate run started during handoff was interrupted after process discovery; not used as evidence.
+
+15R source CLOSED, live mode never entered, live rebuild/restart and OS reboot not run. Stage 15 whole remains OPEN. Evidence hardening/15R/15R_RESULT.json, 15R_FULL_BASELINE_V32.json, GRAPHIFY_15R_SOURCE_COMMIT.json and CLOSURE.md. Next canonical 15S, then 15T and combined closure gate. F33 production fixture/nonpassing matrix is not PASS.

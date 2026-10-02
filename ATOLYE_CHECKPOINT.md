@@ -1,3 +1,13 @@
+# AYAS continuation — 2026-10-03 / Stage 15R source GREEN; canonical 15S next
+
+Current tested source: `a00091fdcc68f4588b2403b67e008ce796e117a1`. The existing 15R work was continued, not reimplemented. Its pre-existing full v32 baseline completed on that exact clean commit: 114/114 suites, no failed suite, PASS_WITH_KNOWN_LIMITATIONS; cognitive 54/55 and held-out 4/5 remain declared limitations. All 133 grader pins match both worktree and committed bytes. Graphify is bound to this source, stale=false, 17,620 nodes / 50,455 links, no duplicate/dangling/self-loop anomalies; PARTIAL 9 / semantic PENDING remain explicit. TypeScript PASS; current-session lint/diff closure follows in the evidence file.
+
+Stage 15R is source-closed; live rebuild/restart, OS reboot and hydrated browser validation remain unmeasured. The live safe mode was never entered. Evidence: `docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15R/CLOSURE.md`, `15R_RESULT.json`, `15R_FULL_BASELINE_V32.json`. Stage 15 as a whole is still OPEN: 15S and 15T are next, then the combined regression/closure gate. Production fixture failures (F33) are not counted as PASS.
+
+Latest owner command authorizes uninterrupted canonical master continuation and commit/push on the current WIP branch. It supersedes every older STOP / NO PUSH entry below. No canonical merge, production/live promotion, external write, spend, or owner-only activation is authorized by that source publication. ON_DEMAND / PC HEALTH remain mandatory.
+
+Exact next: complete the documentation-only 15R closure commit, then 15S Portable Brain Snapshot / Hardware Migration using existing canonical design plus post-freeze section 6; 15T follows. `ACTIVE_CHECKPOINT.json` carries current status. Initial pull succeeded; local branch was 82 ahead / 0 behind, clean. A duplicate baseline started during handoff was interrupted once the existing run was discovered; it is not evidence.
+
 # AYAS continuation — 2026-10-02 / Stage 15P source implemented, full validation pending
 
 ## AYAS Stage 15R — global SAFE_READ_ONLY emergency stop; focused GREEN, bound baseline pending

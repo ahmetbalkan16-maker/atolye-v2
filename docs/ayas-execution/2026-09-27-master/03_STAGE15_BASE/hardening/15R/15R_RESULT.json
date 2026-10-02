@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1",
+  "stage": "15R",
+  "state": "CLOSED_GREEN_SOURCE_WITH_DECLARED_LIVE_GAPS",
+  "sourceHead": "a00091fdcc68f4588b2403b67e008ce796e117a1",
+  "sourceWorktree": "CLEAN",
+  "baseline": {
+    "manifest": "15F.4-v32",
+    "manifestDigest": "32fa998aa9e6e9960ca02686a99f1ce5718f3576d3f7a2029ba69fa5f2252eee",
+    "suites": 114,
+    "failed": [],
+    "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+    "cognitive": "54/55, held-out 4/5",
+    "report": "15R_FULL_BASELINE_V32.json",
+    "ramPeakPercent": 65.51
+  },
+  "pins": {
+    "unique": 133,
+    "committedBytesVerified": true
+  },
+  "typescript": "PASS",
+  "lint": "PASS: 0 errors / 13 existing warnings",
+  "diff": "PASS",
+  "graphify": "GRAPHIFY_15R_SOURCE_COMMIT.json",
+  "liveMode": "NEVER_ENTERED",
+  "authority": "NONE",
+  "next": "15S",
+  "interruptedDuplicateBaseline": "NOT_EVIDENCE; only the pre-existing completed exact-HEAD baseline is used"
+}

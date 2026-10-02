@@ -1,3 +1,12 @@
+## AYAS Stage 15 continuation — 2026-10-03 (latest status)
+
+- [x] 15R source: exact clean `a00091f`, complete v32 baseline 114/114 with no failure; declared cognitive/held-out limitations retained. See `hardening/15R/CLOSURE.md` under the canonical execution documentation.
+- [ ] 15S Portable Brain Snapshot / Hardware Migration: canonical seam inspection next; encrypted private payload, no secrets/absolute machine paths/executable approval transfer, validated import and owner activation boundary.
+- [ ] 15T Owner Executive Briefing / Alert Priority: after 15S, with durable evidence, dedupe, cooldown, acknowledgement and no alert-derived authority.
+- [ ] Stage 15 combined regression, Graphify/clean checkpoint, commit/push and remote parity, then Stage 16 in master order. Live qualification and F33 gaps remain visible; no synthetic PASS.
+
+The 2026-10-03 owner command supersedes historical STOP / NO PUSH entries. Stage 15 as a whole remains OPEN. Current continuation: `docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json`.
+
 ## AYAS Stage 15C — Memory Integrity / Context-Poisoning Firewall — 2026-10-01
 
 - [x] Additive strict integrity/provenance/trust metadata, digest, security-screen/write policy, quarantine, protected keys, rapid-change detection and read-time filtering.
