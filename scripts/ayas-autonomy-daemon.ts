@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
+import { bindAyasConstitutionRun, readAyasOwnerConstitution } from "../src/lib/ayas/governance/AyasOwnerConstitutionReader";
 
 import { collectAyasMachineTelemetry } from "../src/lib/ayas/machine/AyasMachineTelemetry";
 import { evaluateAyasMachineHealth } from "../src/lib/ayas/machine/AyasMachineHealthGuard";
@@ -64,10 +66,11 @@ function runDurableTaskRecovery(): { readonly ok: boolean; readonly summary: str
   }
 }
 
-async function tick(observer: ReturnType<typeof createAyasAutonomyObserver>, intervalMs: number, continuous: boolean): Promise<void> {
+async function tick(observer: ReturnType<typeof createAyasAutonomyObserver>, intervalMs: number, continuous: boolean, constitution: ReturnType<typeof bindAyasConstitutionRun>): Promise<void> {
   const now = new Date().toISOString();
   const telemetry = await collectAyasMachineTelemetry({ cwd: root, now: () => now });
-  const health = evaluateAyasMachineHealth(telemetry, { stage: "video", ownedActive: false });
+  const policy = readAyasOwnerConstitution(root);
+  const health = evaluateAyasMachineHealth(telemetry, { stage: "video", ownedActive: false }, policy.state === "ACTIVE" ? policy.policy.rules.maxRamAdmissionPercent : policy.state === "MISSING" ? 90 : NaN);
   const head = git(["rev-parse", "HEAD"]);
   const observation = { now, branch: git(["branch", "--show-current"]), head, repoClean: git(["status", "--porcelain"]).length === 0, graphifyFresh: graphifyFresh(head), machineAction: health.action, gaps: [] as string[] };
   try {
@@ -76,13 +79,18 @@ async function tick(observer: ReturnType<typeof createAyasAutonomyObserver>, int
     if (snapshot.tasks.pendingApproval > 0) observation.gaps.push(`${snapshot.tasks.pendingApproval} task(s) await operator approval`);
   } catch (error) { observation.gaps.push(error instanceof Error ? error.message : String(error)); }
   observer.observe(observation);
+  const constitutionRefusal = constitution.refusal();
+  if (constitutionRefusal) {
+    console.log(JSON.stringify({ status: "CONSTITUTION_HOLD", code: constitutionRefusal, constitution: constitution.evidence, machineAction: observation.machineAction }));
+    return; // observation/cleanup remain available; no new discovery or activity dispatch
+  }
   const nextExpectedAt = continuous ? new Date(Date.parse(now) + intervalMs).toISOString() : undefined;
   const discovery = runAyasDiscoveryDaemon(nextExpectedAt);
   if (!discovery.ok) observation.gaps.push(`discovery daemon failed: ${discovery.summary}`);
   const durableTasks = observation.machineAction === "ALLOW" || observation.machineAction === "THROTTLE" ? runDurableTaskRecovery() : { ok: true, summary: "SKIPPED_MACHINE_HEALTH", needsReview: 0 };
   if (!durableTasks.ok) observation.gaps.push(`durable task recovery failed: ${durableTasks.summary}`);
   if (durableTasks.needsReview > 0) observation.gaps.push(`${durableTasks.needsReview} durable task(s) need review`);
-  console.log(JSON.stringify({ status: "OBSERVED", phase: observer.state.phase, branch: observation.branch, head: observation.head, repoClean: observation.repoClean, graphifyFresh: observation.graphifyFresh, machineAction: observation.machineAction, gaps: observation.gaps.length, discovery: discovery.ok ? discovery.summary : "FAILED", durableTasks: durableTasks.ok ? durableTasks.summary : "FAILED" }));
+  console.log(JSON.stringify({ status: "OBSERVED", phase: observer.state.phase, branch: observation.branch, head: observation.head, repoClean: observation.repoClean, graphifyFresh: observation.graphifyFresh, machineAction: observation.machineAction, gaps: observation.gaps.length, discovery: discovery.ok ? discovery.summary : "FAILED", durableTasks: durableTasks.ok ? durableTasks.summary : "FAILED", constitution: constitution.evidence }));
 }
 
 async function main(): Promise<void> {
@@ -94,8 +102,9 @@ async function main(): Promise<void> {
   await acquireAyasObserverLock(autonomyDir, lockFile);
   process.on("exit", () => releaseAyasObserverLock(lockFile));
   const observer = createAyasAutonomyObserver({ stateFile, now: () => new Date().toISOString() });
+  const constitution = bindAyasConstitutionRun(root, "AGENT", randomUUID());
   try {
-    do { await tick(observer, intervalMs, continuous); if (continuous) await new Promise((resolve) => setTimeout(resolve, intervalMs)); } while (continuous);
+    do { await tick(observer, intervalMs, continuous, constitution); if (continuous) await new Promise((resolve) => setTimeout(resolve, intervalMs)); } while (continuous);
     console.log(JSON.stringify({ status: observer.state.phase, stateFile }));
   } finally { releaseAyasObserverLock(lockFile); }
 }

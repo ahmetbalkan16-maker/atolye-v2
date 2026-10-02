@@ -73,7 +73,9 @@ function main() {
         if (memory.totalBytes > 0 && memory.freeBytes / memory.totalBytes <= 0.1) { resourceAbort = true; break; }
         const started = performance.now();
         // A complete suite contains multiple internally bounded operations (e.g. 180s validation).
-        const timeoutMs = ["proposal-approval-service", "research-improvement-loop"].includes(suite.id) ? 600_000 : 120_000;
+        // The constitution negative-control suites contain many separate 30/60s-bounded TEMP trials.
+        const timeoutMs = ["proposal-approval-service", "research-improvement-loop"].includes(suite.id) ? 600_000
+          : ["owner-constitution-mutations", "constitution-run-binding-mutations"].includes(suite.id) ? 300_000 : 120_000;
         const run = spawnSync(process.execPath, ["--import", "tsx", suite.script, ...suite.args], { cwd: checkout, env, encoding: "utf8", windowsHide: true, timeout: timeoutMs, maxBuffer: 2_000_000 });
         timedOut = (run.error as NodeJS.ErrnoException | undefined)?.code === "ETIMEDOUT";
         const result = gradeAyasEvalTrial(suite, { exitCode: run.status, stdout: run.stdout ?? "", stderr: run.stderr ?? "", durationMs: performance.now() - started });

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "version": "15F.4-v22",
+  "version": "15F.4-v19",
   "definitionReview": "SOURCE_REVIEWED_OWNER_CALIBRATION_PENDING",
   "modelGrader": "NONE",
   "suites": [
@@ -721,7 +721,7 @@
       "pins": [
         {
           "file": "scripts/smoke-ayas-durable-task-recovery.ts",
-          "sha256": "ba9defb3974dc535cbbd33a513526c6e0a45ced7acb7290838eb9e0d5862bf0f"
+          "sha256": "491a476ca96a96b4e1d2fdff9c7e3df8d43717fcea1ab771dbc9abbb6cdc1e73"
         }
       ],
       "slices": [
@@ -1609,70 +1609,6 @@
         {
           "file": "scripts/smoke-sprint-132-export-packaging.ts",
           "sha256": "542293fc5331813b88a21e20c15857c9b4e5c87e97c928b257aba8ff42e44b9c"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "owner-constitution",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-owner-constitution.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-owner-constitution.ts",
-          "sha256": "a7bc5b2e8978e7262481beadb954fa0394447d27a7806d7c9462d1a0781d4671"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "owner-constitution-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-owner-constitution-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-owner-constitution-mutations.ts",
-          "sha256": "c07a4d0735f9b28fdbae12f634484282c5a1b2a0ab07caa3ccd82bd2f99b03c5"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "constitution-run-binding",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-constitution-run-binding.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-constitution-run-binding.ts",
-          "sha256": "e2343fd9226939a7bf7ea52c503b17617deaec93cf970cae20a885f54876e512"
-        }
-      ],
-      "slices": [
-        "deterministic-outcome"
-      ]
-    },
-    {
-      "id": "constitution-run-binding-mutations",
-      "kind": "REGRESSION",
-      "script": "scripts/smoke-ayas-constitution-run-binding-mutations.ts",
-      "args": [],
-      "grading": "EXIT_STATUS",
-      "pins": [
-        {
-          "file": "scripts/smoke-ayas-constitution-run-binding-mutations.ts",
-          "sha256": "762d19716e23174b8796b5bd5b8876f077d08ddac296c5d65be794b40734d67b"
         }
       ],
       "slices": [

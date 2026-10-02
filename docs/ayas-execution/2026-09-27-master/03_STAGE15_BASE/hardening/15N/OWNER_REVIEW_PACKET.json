@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1",
+  "stage": "STAGE_15N",
+  "proposal": {
+    "schemaVersion": "1",
+    "version": 1,
+    "previousDigest": null,
+    "rules": {
+      "approval": "EXACT_OWNER_SCOPE",
+      "autonomousSpendUsd": 0,
+      "publishing": "OWNER_ONLY",
+      "production": "OWNER_ONLY",
+      "protectedPaths": [
+        ".git",
+        ".env",
+        ".agents",
+        ".codex",
+        ".aws",
+        "data/brain/owner-constitution",
+        "src/lib/ayas/governance",
+        "app/brain/constitution"
+      ],
+      "privacy": "NO_SECRETS_IN_MEMORY_LEDGER_LOG",
+      "zeroCostDefault": true,
+      "graphifyFirst": true,
+      "silentCloudFallback": false,
+      "selfApproval": false,
+      "selfPromotion": false,
+      "localRuntime": "ON_DEMAND",
+      "maxRamAdmissionPercent": 90
+    }
+  },
+  "proposalDigest": "916500ef826bce17de9f95c60be562e2e0f22e1b11e3222ba06f7cdc1232f473",
+  "authority": "NONE",
+  "runtimeState": "MISSING",
+  "activation": "NOT_PERFORMED",
+  "ownerRoute": "/brain/constitution",
+  "expectedPreviousDigest": null,
+  "reviewBinding": "Existing authenticated HttpOnly owner session; exact proposalDigest form; no model/tool owner flag",
+  "versionChanges": "Signed append-only service requires current digest and owner session; UI currently exposes bootstrap only",
+  "liveAcceptance": "NOT_RUN",
+  "validation": "IN_PROGRESS"
+}

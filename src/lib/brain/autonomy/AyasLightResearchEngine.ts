@@ -1,4 +1,6 @@
 import { ayasSafePublicFetch, type AyasFetchFailureClass } from "./AyasSafePublicFetch";
+import { randomUUID } from "node:crypto";
+import { bindAyasConstitutionRun } from "../../ayas/governance/AyasOwnerConstitutionReader";
 import { createAyasResearchSourceStateStore, ayasContentHash, type AyasResearchSourceCheckState, type AyasResearchSourceStateStore } from "./AyasResearchSourceStateStore";
 import { resolveAyasResearchSourceRegistry, resolveAyasResearchSourcePolicy, type AyasResearchSource } from "./AyasResearchSourceRegistry";
 
@@ -33,6 +35,7 @@ export interface AyasLightScanSourceResult {
 }
 
 export interface AyasLightScanResult {
+  readonly constitution?: ReturnType<typeof bindAyasConstitutionRun>["evidence"];
   readonly startedAt: string;
   readonly completedAt: string;
   readonly sourcesChecked: number;
@@ -43,6 +46,9 @@ export interface AyasLightScanResult {
 }
 
 export interface AyasLightResearchDeps {
+  readonly repoRoot?: string;
+  /** Additional restrictive parent-run check. Cannot bypass this scan's own binding. */
+  readonly admitEffect?: () => void;
   readonly sources?: readonly AyasResearchSource[];
   readonly stateStore?: AyasResearchSourceStateStore;
   readonly maxBodyBytes?: number;
@@ -89,6 +95,9 @@ function rateIntervalElapsed(prior: AyasResearchSourceCheckState | undefined, no
 }
 
 export async function runAyasLightResearchScan(deps: AyasLightResearchDeps = {}): Promise<AyasLightScanResult> {
+  const constitution = bindAyasConstitutionRun(deps.repoRoot ?? process.cwd(), "AGENT", randomUUID());
+  const admitEffect = () => { const refusal = constitution.refusal(); if (refusal) throw new Error(refusal); deps.admitEffect?.(); };
+  admitEffect();
   const sources = deps.sources ?? resolveAyasResearchSourceRegistry();
   const stateStore = deps.stateStore ?? createAyasResearchSourceStateStore();
   const now = deps.now ?? (() => new Date().toISOString());
@@ -96,6 +105,7 @@ export async function runAyasLightResearchScan(deps: AyasLightResearchDeps = {})
   const results: AyasLightScanSourceResult[] = [];
 
   for (const source of sources) {
+    admitEffect();
     const policy = resolveAyasResearchSourcePolicy(source);
     const prior = stateStore.read(source.sourceId);
     const tickNow = now();
@@ -111,6 +121,7 @@ export async function runAyasLightResearchScan(deps: AyasLightResearchDeps = {})
 
     try {
       const outcome = await ayasSafePublicFetch(source.url, {
+        admitRequest: admitEffect,
         timeoutMs: deps.timeoutMs ?? 8000,
         maxBodyBytes: deps.maxBodyBytes ?? policy.lightMaxBodyBytes,
         ifNoneMatch: prior?.etag,
@@ -125,6 +136,7 @@ export async function runAyasLightResearchScan(deps: AyasLightResearchDeps = {})
         ...(deps.retryBaseDelayMs === undefined ? {} : { retryBaseDelayMs: deps.retryBaseDelayMs }),
         dangerouslyAllowPrivateNetworkForTests: deps.dangerouslyAllowPrivateNetworkForTests,
       });
+      admitEffect();
 
       if (!outcome.ok) {
         stateStore.write({
@@ -157,6 +169,7 @@ export async function runAyasLightResearchScan(deps: AyasLightResearchDeps = {})
       });
       results.push({ sourceId: source.sourceId, changed, status: "OK", truncated: outcome.truncated });
     } catch (error) {
+      admitEffect(); // a revoked run is not an ordinary per-source network error
       stateStore.write({
         sourceId: source.sourceId, lastCheckedAt: tickNow, lastChangedAt: prior?.lastChangedAt,
         etag: prior?.etag, lastModified: prior?.lastModified, contentHash: prior?.contentHash,
@@ -168,7 +181,9 @@ export async function runAyasLightResearchScan(deps: AyasLightResearchDeps = {})
   }
 
   const completedAt = now();
+  admitEffect();
   return {
+    constitution: constitution.evidence,
     startedAt,
     completedAt,
     sourcesChecked: results.length,

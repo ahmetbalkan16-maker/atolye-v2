@@ -20,6 +20,8 @@
  */
 import { execFileSync } from "node:child_process";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
+import { bindAyasConstitutionRun } from "../src/lib/ayas/governance/AyasOwnerConstitutionReader";
 import { AyasExecutionAuthorizationStore } from "../src/lib/ayas/execution/AyasExecutionAuthorization";
 
 import { AyasDurableTaskError } from "../src/lib/brain/autonomy/AyasDurableTask";
@@ -46,15 +48,18 @@ async function main(): Promise<void> {
     return;
   }
   const repoRoot = process.cwd();
+  const constitution = bindAyasConstitutionRun(repoRoot, "AGENT", randomUUID());
   if (enqueue) {
+    const refusal = constitution.refusal();
+    if (refusal) { console.log(JSON.stringify({ status: "REQUIRE_OWNER", code: refusal, constitution: constitution.evidence })); process.exitCode = 2; return; }
     const head = execFileSync("git", ["rev-parse", "--verify", "HEAD"], { cwd: repoRoot, encoding: "utf8", windowsHide: true, timeout: 15_000 }).trim();
     createAyasDurableTask(journal, ayasGraphifyStateTaskInput(head));
   }
   // The live journal audits into the one existing execution audit root (data/brain/execution). A --root journal
   // keeps its audit beside it, so a run against another journal never writes under the working directory.
   const authorizations = rootDir ? new AyasExecutionAuthorizationStore({ rootDir: path.dirname(journal.dir), ttlMs: 120_000 }) : undefined;
-  const report = await sweepAyasDurableTasks({ journal, activities: createAyasFirstDurableActivitySet({ repoRoot, ...(authorizations ? { authorizations } : {}) }), owner: await createAyasDurableTaskOwner() }, { dryRun: !apply });
-  console.log(JSON.stringify({ status: "OK", liveBinding: ayasDurableTaskLiveBinding(), report }, null, 2));
+  const report = await sweepAyasDurableTasks({ journal, activities: createAyasFirstDurableActivitySet({ repoRoot, ...(authorizations ? { authorizations } : {}) }), owner: await createAyasDurableTaskOwner(), admitStart: () => constitution.refusal() }, { dryRun: !apply });
+  console.log(JSON.stringify({ status: "OK", liveBinding: ayasDurableTaskLiveBinding(), report, constitution: constitution.evidence }, null, 2));
 }
 
 main().catch((error: unknown) => {

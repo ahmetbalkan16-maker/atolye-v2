@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import path from "node:path";
+import { bindAyasConstitutionRun } from "../../ayas/governance/AyasOwnerConstitutionReader";
 
 import { withAyasExecutionAuthorityLock, AyasExecutionAuthorityLockError } from "./AyasExecutionAuthorityLock";
 import { createAyasResearchSchedulerHeartbeatStore, createAyasResearchSchedulerStateStore, isAyasCanonicalUtc, type AyasResearchSchedulerState, type AyasResearchSchedulerStateStore } from "./AyasResearchSchedulerStateStore";
@@ -42,6 +43,7 @@ function isDue(nextAt: string | undefined, nowIso: string): boolean {
 export type AyasResearchSchedulerTickOutcome = "NONE_DUE" | "ANOTHER_RUN_ACTIVE" | "RECOVERED_UNCERTAIN" | "GOAL_RECONCILED" | "GOAL_WAITING" | "GOAL_SKIPPED" | "GOAL_DEFERRED" | "GOAL_SUCCEEDED" | "GOAL_FAILED" | "LIGHT" | "DEEP";
 
 export interface AyasResearchSchedulerTickResult {
+  readonly constitution?: ReturnType<typeof bindAyasConstitutionRun>["evidence"];
   readonly outcome: AyasResearchSchedulerTickOutcome;
   readonly light?: AyasLightScanResult;
   readonly deep?: AyasDeepScanResult;
@@ -73,6 +75,10 @@ export interface AyasResearchSchedulerDeps {
  */
 export async function tickAyasResearchScheduler(deps: AyasResearchSchedulerDeps = {}): Promise<AyasResearchSchedulerTickResult> {
   const repoRoot = deps.repoRoot ?? process.cwd();
+  const constitution = bindAyasConstitutionRun(repoRoot, "AGENT", crypto.randomUUID());
+  const admitEffect = () => { const refusal = constitution.refusal(); if (refusal) throw new Error(refusal); };
+  const lightDeps = { ...deps.light, repoRoot, admitEffect: () => { admitEffect(); deps.light?.admitEffect?.(); } };
+  const deepDeps = { ...deps.deep, admitEffect: () => { admitEffect(); deps.deep?.admitEffect?.(); } };
   const gateRoot = deps.gateRoot ?? resolveAyasResearchGateRoot(repoRoot);
   const stateStore = deps.stateStore ?? createAyasResearchSchedulerStateStore({ rootDir: gateRoot });
   const sources = deps.sources ?? resolveAyasResearchSourceRegistry();
@@ -116,29 +122,31 @@ export async function tickAyasResearchScheduler(deps: AyasResearchSchedulerDeps 
           nextLightAt: new Date(nowMs + lightInterval).toISOString(),
           ...(interruptedMode !== "LIGHT" ? { nextDeepAt: new Date(nowMs + deepInterval).toISOString() } : {}),
         });
-        return { outcome: "RECOVERED_UNCERTAIN", state };
+        return { outcome: "RECOVERED_UNCERTAIN", state, constitution: constitution.evidence };
       }
 
+      admitEffect(); // reconciliation above is cleanup; everything below may start new work
       if (state.goalResearchJobs?.length) {
         let goalTick: Awaited<ReturnType<typeof tickDueAyasGoalResearchJob>>;
         try {
           goalTick = await tickDueAyasGoalResearchJob(state, {
             repoRoot, gateRoot, stateStore, goalStore: deps.goalStore, sourceStateStore: deps.sourceStateStore,
-            sources, now, deep: deps.deep, liveSince,
+            sources, now, deep: deepDeps, liveSince,
           });
         } catch {
+          admitEffect(); // never fall back to regular research after constitution refusal
           // A Goal-path fault must never stall the regular cadence. A job it
           // left RUNNING becomes UNCERTAIN on the next tick (never replayed).
           // `lastGoalFaultAt` keeps the fault visible after later cycles.
           state = stateStore.write({ ...stateStore.read(), lastError: "GOAL_RESEARCH_TICK_FAILED", lastGoalFaultAt: nowIso, lastReconciledAt: nowIso });
           goalTick = undefined;
         }
-        if (goalTick) return { outcome: goalTick.outcome, state: goalTick.state, deep: goalTick.deep };
+        if (goalTick) return { outcome: goalTick.outcome, state: goalTick.state, deep: goalTick.deep, constitution: constitution.evidence };
       }
 
       const lightDue = isDue(state.nextLightAt, nowIso);
       const deepDue = isDue(state.nextDeepAt, nowIso);
-      if (!lightDue && !deepDue) return { outcome: "NONE_DUE", state };
+      if (!lightDue && !deepDue) return { outcome: "NONE_DUE", state, constitution: constitution.evidence };
 
       const mode: "LIGHT" | "DEEP" = deepDue ? "DEEP" : "LIGHT";
       const scheduledFor = (mode === "DEEP" ? state.nextDeepAt : state.nextLightAt) ?? nowIso;
@@ -164,7 +172,7 @@ export async function tickAyasResearchScheduler(deps: AyasResearchSchedulerDeps 
         ...(mode === "LIGHT" ? { lastLightStartedAt: nowIso } : { lastLightStartedAt: nowIso, lastDeepStartedAt: nowIso }),
       });
 
-      const light = await runAyasLightResearchScan({ ...deps.light, sources });
+      const light = await runAyasLightResearchScan({ ...lightDeps, sources });
       const lightCompletedAt = now();
 
       let deep: AyasDeepScanResult | undefined;
@@ -172,7 +180,8 @@ export async function tickAyasResearchScheduler(deps: AyasResearchSchedulerDeps 
       if (mode === "DEEP") {
         const changedSourceIds = new Set(light.results.filter((r) => r.changed).map((r) => r.sourceId));
         const changedSources = sources.filter((s) => changedSourceIds.has(s.sourceId));
-        deep = await runAyasDeepResearchScan({ ...deps.deep, sources: changedSources, repoRoot, scheduleContext: { scheduledFor, runId, occurrenceId } });
+        admitEffect();
+        deep = await runAyasDeepResearchScan({ ...deepDeps, sources: changedSources, repoRoot, scheduleContext: { scheduledFor, runId, occurrenceId } });
         deepCompletedAt = now();
       }
 
@@ -196,11 +205,11 @@ export async function tickAyasResearchScheduler(deps: AyasResearchSchedulerDeps 
         consecutiveFailures: 0,
         lastSuccessfulResearchAt: finalNow,
       });
-      return { outcome: mode, light, deep, state };
+      return { outcome: mode, light, deep, state, constitution: constitution.evidence };
     });
   } catch (error) {
     if (error instanceof AyasExecutionAuthorityLockError && error.code === "AYAS_LOCK_BUSY") {
-      return { outcome: "ANOTHER_RUN_ACTIVE", state };
+      return { outcome: "ANOTHER_RUN_ACTIVE", state, constitution: constitution.evidence };
     }
     // Never clear an in-flight reservation on a thrown provider/storage
     // error: the external result may already exist even if this process

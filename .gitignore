@@ -73,6 +73,14 @@ graphify-out/
 /data/brain/selfheal/
 /data/brain/memory/
 /data/brain/phone-access/
+# Stage 15N — the owner constitution's trust anchor and signed versions, its
+# writer lock and its bootstrap staging are this machine's adoption state
+# (each record is bound to this repository's physical path), never source.
+# Left untracked-but-visible, the owner's adoption would make the repository
+# look dirty to every cleanliness gate and to the eval baseline's overlay check.
+/data/brain/owner-constitution/
+/data/brain/.owner-constitution-authority/
+/data/brain/.owner-constitution-staging-*/
 # Package C's isolated self-improvement execution root (M15) — only the
 # execution/ subtree (gate/gate-log/journal/authority-lock), narrower than
 # the parent so it can later legitimately hold tracked documentation or

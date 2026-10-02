@@ -828,9 +828,17 @@ async function main(): Promise<void> {
       "src/lib/brain/autonomy/AyasDurableTaskActivities.ts", "scripts/ayas-durable-task-recovery.ts", "scripts/ayas-autonomy-daemon.ts", "scripts/smoke-ayas-durable-task-runtime.ts", "scripts/smoke-ayas-durable-task-recovery.ts",
       // The Stage 15D closure audit names these files in its static adapter map; it reads their source and imports none of them.
       "scripts/smoke-ayas-action-firewall-closure.ts",
+      // Stage15N probes/copies the actual CLI in TEMP; neither fixture imports the durable runtime.
+      "scripts/smoke-ayas-constitution-run-binding.ts", "scripts/smoke-ayas-constitution-run-binding-mutations.ts",
       // Stage 15F observes existing journals only; it registers no activity and cannot append/recover.
       "src/lib/ayas/observability/AyasReliabilityState.ts", "scripts/smoke-ayas-reliability-slo.ts"]);
     assert.doesNotMatch(fs.readFileSync(path.join(repo, "scripts", "smoke-ayas-action-firewall-closure.ts"), "utf8"), /from\s+["'][^"']*AyasDurableTask/);
+    for (const file of ["smoke-ayas-constitution-run-binding.ts", "smoke-ayas-constitution-run-binding-mutations.ts"]) {
+      const probe = fs.readFileSync(path.join(repo, "scripts", file), "utf8");
+      assert.doesNotMatch(probe, /from\s+["'][^"']*AyasDurableTask/);
+      assert.match(probe, /fs\.mkdtempSync\(path\.join\(os\.tmpdir\(\), "ayas-(?:constitution-binding|binding-audit)-"\)\)/);
+    }
+    assert.match(fs.readFileSync(path.join(repo, "scripts", "smoke-ayas-constitution-run-binding.ts"), "utf8"), /cwd: r, env: childEnv/);
     const sloReader = fs.readFileSync(path.join(repo, "src/lib/ayas/observability/AyasReliabilityState.ts"), "utf8");
     assert.doesNotMatch(sloReader, /AyasDurableTask(?:Runtime|Recovery|Activities)\b|\.append\s*\(|\.run\s*\(|\.sweep\s*\(/);
     assert.match(sloReader, /Pick<AyasDurableTaskJournal, "load">/);

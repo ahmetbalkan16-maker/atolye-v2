@@ -1,4 +1,6 @@
 import type { AIProvider, AIProviderOutput } from "../../ai/providers/AIProvider";
+import { randomUUID } from "node:crypto";
+import { bindAyasConstitutionRun } from "../../ayas/governance/AyasOwnerConstitutionReader";
 import { createAyasChatProvider } from "../../ayas/AyasModelProfile";
 import { ayasSafePublicFetch } from "./AyasSafePublicFetch";
 import { extractAyasFeedEntries, type AyasFeedEntry } from "./AyasFeedEntryExtractor";
@@ -39,6 +41,7 @@ export interface AyasDeepScanEntryOutcome {
 }
 
 export interface AyasDeepScanResult {
+  readonly constitution?: ReturnType<typeof bindAyasConstitutionRun>["evidence"];
   readonly startedAt: string;
   readonly completedAt: string;
   readonly sourcesAnalyzed: number;
@@ -50,6 +53,8 @@ export interface AyasDeepScanResult {
 }
 
 export interface AyasDeepResearchDeps {
+  /** Additional restrictive parent-run check. Cannot bypass this scan's own binding. */
+  readonly admitEffect?: () => void;
   readonly sources: readonly AyasResearchSource[];
   readonly researchStore?: AyasExternalResearchStore;
   readonly noveltyStore?: AyasResearchNoveltyStore;
@@ -86,6 +91,9 @@ function resolveEntryUrl(entry: AyasFeedEntry, source: AyasResearchSource): stri
 }
 
 export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promise<AyasDeepScanResult> {
+  const constitution = bindAyasConstitutionRun(deps.repoRoot ?? process.cwd(), "AGENT", randomUUID());
+  const admitEffect = () => { const refusal = constitution.refusal(); if (refusal) throw new Error(refusal); deps.admitEffect?.(); };
+  admitEffect();
   const researchStore = deps.researchStore ?? createAyasExternalResearchStore();
   const noveltyStore = deps.noveltyStore ?? createAyasResearchNoveltyStore();
   const provider = deps.provider ?? createAyasChatProvider();
@@ -100,11 +108,13 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
   let entriesConsidered = 0;
 
   for (const source of deps.sources) {
+    admitEffect();
     let body: string;
     let contentType: string;
     try {
       const policy = resolveAyasResearchSourcePolicy(source);
       const fetched = await ayasSafePublicFetch(source.url, {
+        admitRequest: admitEffect,
         timeoutMs: deps.timeoutMs ?? 12000,
         maxBodyBytes: deps.maxBodyBytes ?? policy.deepMaxBodyBytes ?? AYAS_DEEP_SCAN_DEFAULT_MAX_BODY_BYTES,
         // The DEEP scan reads at most `maxEntriesPerSource` entries, and a
@@ -122,6 +132,7 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
       body = fetched.body;
       contentType = fetched.contentType;
     } catch (error) {
+      admitEffect();
       sourceErrors.push({ sourceId: source.sourceId, error: error instanceof Error ? error.message : String(error) });
       continue;
     }
@@ -131,6 +142,7 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
     const existing = researchStore.list();
 
     for (const entry of entries) {
+      admitEffect();
       entriesConsidered += 1;
       const entryUrl = resolveEntryUrl(entry, source);
       const observation = { sourceId: source.sourceId, url: entryUrl, versionTag: entry.title?.trim() || null, contentText: `${entry.title}\n${entry.summary}` };
@@ -154,17 +166,20 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
       }
 
       let raw: AIProviderOutput;
+      admitEffect();
       try {
         raw = await provider.generate(
           buildAyasDeepAnalysisPrompt({ source: { provider: source.provider, category: source.category }, entry, goalIntent: deps.scheduleContext?.goalIntent }),
           { maxTokens: deps.maxTokens ?? AYAS_DEEP_SCAN_DEFAULT_MAX_TOKENS, jsonSchema: AYAS_DEEP_ANALYSIS_JSON_SCHEMA as unknown as Record<string, unknown> },
         );
       } catch (error) {
+        admitEffect();
         entryOutcomes.push({ sourceId: source.sourceId, entryTitle: entry.title, outcome: "SKIPPED_ANALYSIS_ERROR" });
         sourceErrors.push({ sourceId: source.sourceId, error: `model call failed: ${error instanceof Error ? error.message : String(error)}` });
         continue;
       }
 
+      admitEffect();
       const parsed = parseAyasDeepAnalysisOutput(textOf(raw));
       if (!parsed) {
         entryOutcomes.push({ sourceId: source.sourceId, entryTitle: entry.title, outcome: "SKIPPED_INVALID_MODEL_OUTPUT" });
@@ -229,7 +244,9 @@ export async function runAyasDeepResearchScan(deps: AyasDeepResearchDeps): Promi
   }
 
   const completedAt = now();
+  admitEffect();
   return {
+    constitution: constitution.evidence,
     startedAt,
     completedAt,
     sourcesAnalyzed,

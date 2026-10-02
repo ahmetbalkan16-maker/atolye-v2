@@ -226,13 +226,14 @@ async function main(): Promise<void> {
     researchOutcome: research?.outcome ?? (researchSchedulerEnabled ? "ERROR" : "DISABLED"),
   });
   // Counts only; a lost outcome record leaves the consumed admission as the run's evidence.
-  if (!lease.settle({ ok: true, summary: { candidates: candidates.length, proposals: proposalCount, staleProposals: staled.length, staleBatches: staledBatches.length, withheld: [...withheld].sort() } })) {
+  if (!lease.settle({ ok: true, summary: { candidates: candidates.length, proposals: proposalCount, staleProposals: staled.length, staleBatches: staledBatches.length, withheld: [...withheld].sort(), constitution: lease.constitution } })) {
     observation.gaps.push("discovery run outcome audit failed");
   }
 
   console.log(JSON.stringify({
     status: "OK",
     head: observation.head,
+    constitution: lease.constitution,
     repoClean: observation.repoClean,
     graphifyFresh: observation.graphifyFresh,
     machineAction: observation.machineAction,

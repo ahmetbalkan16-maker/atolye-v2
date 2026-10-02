@@ -22,6 +22,7 @@ import { AyasExecutionAuthorizationStore } from "../../ayas/execution/AyasExecut
  * authority, and the capability names are not chat tools.
  */
 export interface AyasDiscoveryRunGuard {
+  readonly constitution: ReturnType<ReturnType<typeof createAyasActionFirewall>["constitutionEvidence"]>;
   readonly authorizationId: string;
   readonly capabilities: readonly AyasDiscoveryRunCapability[];
   /** Ask before each capability. False once the lease expires, is revoked by any process, or the run is settled. */
@@ -75,6 +76,7 @@ export function admitAyasDiscoveryRun(input: AyasDiscoveryRunAdmissionInput): Ay
   const admitted = firewall.admitDiscoveryRun(issued.lease, request);
   if (!admitted.allowed) throw new AyasDiscoveryRunNotAdmittedError(admitted.reason);
   return Object.freeze({
+    constitution: firewall.constitutionEvidence(),
     authorizationId: admitted.authorizationId,
     capabilities: request.capabilities,
     permits: (capability: AyasDiscoveryRunCapability) => admitted.permits(capability),

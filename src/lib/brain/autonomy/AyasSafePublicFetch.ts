@@ -96,6 +96,8 @@ export function classifyAyasFetchFailure(code: AyasSafeFetchErrorCode): AyasFetc
 }
 
 export interface AyasSafeFetchOptions {
+  /** Trusted caller's restrictive guard, checked before every redirect/retry request. Throw to refuse. */
+  readonly admitRequest?: () => void;
   readonly timeoutMs?: number;
   readonly maxBodyBytes?: number;
   readonly maxRedirects?: number;
@@ -440,6 +442,7 @@ async function ayasSafePublicFetchOnce(rawUrl: string, options: AyasSafeFetchOpt
     const validated = validateUrlSyntax(currentUrl, allowPrivateNetwork);
     if (!validated.ok) return fail(validated.code, validated.message);
 
+    options.admitRequest?.();
     const result = await performOneRequest(validated.url, { timeoutMs, maxBodyBytes, ifNoneMatch: options.ifNoneMatch, ifModifiedSince: options.ifModifiedSince, dangerouslyAllowPrivateNetworkForTests: allowPrivateNetwork });
     if ("error" in result) return result.error;
 

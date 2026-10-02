@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
+import { bindAyasConstitutionRun } from "../governance/AyasOwnerConstitutionReader";
 import { AyasExecutionAuthorizationError, AyasExecutionAuthorizationStore, type AyasExecutionGrantDescriptor } from "./AyasExecutionAuthorization";
 import { AYAS_DISCOVERY_RUN_ACTION, canonicalAyasDiscoveryRunScope, isAyasDiscoveryRunRequest, type AyasDiscoveryRunRequest, type AyasDiscoveryRunScope } from "./AyasCapabilityScope";
 import { ayasCapabilityRequestDigest, ayasLocalActionClassification, canonicalAyasCapabilityScope, isAyasLocalCapabilityRoot, type AyasActionFirewallDecision, type AyasCapabilityScope } from "./AyasCapabilityScope";
@@ -60,6 +61,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
   if (!isAyasLocalCapabilityRoot(options.repoRoot)) throw new Error("AYAS_FIREWALL_REPOSITORY_UNKNOWN");
   const repoRoot = fs.realpathSync(options.repoRoot);
   const runId = crypto.randomUUID();
+  const constitution = bindAyasConstitutionRun(repoRoot, "TOOL", runId);
   const taskId = crypto.randomUUID();
   const leases = new WeakMap<object, IssuedLease>();
   const attachedAuthorizationIds = new Set<string>();
@@ -122,6 +124,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
   }
 
   function issue(raw: unknown, existingAuthorizationId?: string): AyasActionFirewallRefusal | { readonly allowed: true; readonly lease: AyasCapabilityLeaseHandle } {
+    const constitutionRefusal = constitution.refusal(); if (constitutionRefusal) return refuse(constitutionRefusal);
     if (existingAuthorizationId !== undefined && attachedAuthorizationIds.has(existingAuthorizationId)) return refuse("AYAS_FIREWALL_REPLAY");
     const decision = classify(raw);
     if (decision === "DENY" || decision === "REQUIRE_OWNER") return refuse("AYAS_FIREWALL_SCOPE_NOT_ISSUABLE", decision);
@@ -142,6 +145,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
   }
 
   function admit(lease: unknown, raw: unknown): AyasActionFirewallAdmission {
+    const constitutionRefusal = constitution.refusal(); if (constitutionRefusal) return refuse(constitutionRefusal);
     if (!lease || typeof lease !== "object") return refuse("AYAS_FIREWALL_HANDLE_UNKNOWN");
     const issued = leases.get(lease);
     if (!issued) return refuse("AYAS_FIREWALL_HANDLE_UNKNOWN");
@@ -188,6 +192,8 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
     return Number.isFinite(t) && t >= Date.parse(audit.createdAt) && t < Date.parse(audit.expiresAt);
   }
   function bindOwnerReservation(raw: unknown): AyasActionFirewallRefusal | { readonly allowed: true; readonly lease: AyasCapabilityLeaseHandle } {
+    const constitutionRefusal = constitution.refusal(); if (constitutionRefusal) return refuse(constitutionRefusal);
+    if (isAyasOwnerCapabilityRequest(raw) && raw.exactFiles.some((file) => constitution.protectsPath(file))) return refuse("AYAS_CONSTITUTION_PROTECTED_PATH", "REQUIRE_OWNER");
     try {
       const adapter = options.ownerReservation;
       const proof = ownerProof(raw);
@@ -208,6 +214,8 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
     } catch { return refuse("AYAS_FIREWALL_OWNER_BIND_FAILED"); }
   }
   function admitOwnerReservation(lease: unknown, raw: unknown): AyasActionFirewallRefusal | { readonly allowed: true; readonly decision: "ALLOW_BOUNDED_LOCAL"; readonly request: AyasOwnerCapabilityRequest } {
+    const constitutionRefusal = constitution.refusal(); if (constitutionRefusal) return refuse(constitutionRefusal);
+    if (isAyasOwnerCapabilityRequest(raw) && raw.exactFiles.some((file) => constitution.protectsPath(file))) return refuse("AYAS_CONSTITUTION_PROTECTED_PATH", "REQUIRE_OWNER");
     const issued = lease && typeof lease === "object" ? ownerLeases.get(lease) : undefined;
     if (!issued) return refuse("AYAS_FIREWALL_HANDLE_UNKNOWN");
     if (issued.revoked) return refuse("AYAS_EXEC_AUTH_REVOKED");
@@ -254,6 +262,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
       plan: JSON.parse(JSON.stringify(scope)) as Record<string, unknown>, canonical: canonicalAyasDiscoveryRunScope(scope) };
   }
   function issueDiscoveryRun(raw: unknown): AyasActionFirewallRefusal | { readonly allowed: true; readonly lease: AyasCapabilityLeaseHandle } {
+    const constitutionRefusal = constitution.refusal(); if (constitutionRefusal) return refuse(constitutionRefusal);
     try {
       if (!options.authorizations) return refuse("AYAS_FIREWALL_AUTHORITY_UNAVAILABLE");
       if (!isAyasDiscoveryRunRequest(raw)) return refuse("AYAS_FIREWALL_REQUEST_INVALID");
@@ -270,6 +279,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
     readonly permits: (capability: unknown) => boolean;
   } {
     const issued = lease && typeof lease === "object" ? discoveryRuns.get(lease) : undefined;
+    const constitutionRefusal = constitution.refusal(); if (constitutionRefusal) return refuse(constitutionRefusal);
     if (!issued) return refuse("AYAS_FIREWALL_HANDLE_UNKNOWN");
     if (issued.revoked) return refuse("AYAS_EXEC_AUTH_REVOKED");
     if (issued.consumed) return refuse("AYAS_FIREWALL_REPLAY");
@@ -285,6 +295,7 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
       issued.consumed = true;
       const permits = (capability: unknown): boolean => {
         try {
+          if (constitution.refusal()) return false;
           if (issued.revoked || typeof capability !== "string" || !(issued.scope.capabilities as readonly string[]).includes(capability)) return false;
           const t = now().getTime();
           if (!Number.isFinite(t) || t < Date.parse(issued.createdAt) || t >= Date.parse(issued.expiresAt)) return false;
@@ -298,5 +309,6 @@ export function createAyasActionFirewall(options: AyasActionFirewallOptions) {
       return refuse(error instanceof AyasExecutionAuthorizationError ? error.code : "AYAS_FIREWALL_ADMISSION_FAILED");
     }
   }
-  return Object.freeze({ classify, issue, admit, revoke, bindOwnerReservation, admitOwnerReservation, revokeOwnerReservation, issueDiscoveryRun, admitDiscoveryRun });
+  return Object.freeze({ classify, issue, admit, revoke, bindOwnerReservation, admitOwnerReservation, revokeOwnerReservation, issueDiscoveryRun, admitDiscoveryRun,
+    constitutionEvidence: () => constitution.evidence });
 }

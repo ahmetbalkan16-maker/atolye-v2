@@ -1,0 +1,67 @@
+{
+  "stage": "15N",
+  "evidenceClass": "DETERMINISTIC_TEST_DEVELOPMENT",
+  "ownerActivation": false,
+  "findings": [
+    {
+      "issue": "Owner session negative fixture substituted default valid session for undefined",
+      "resolution": "Use null sentinel; real session guard unchanged"
+    },
+    {
+      "issue": "Sequence guard mutation persisted invalid version before post-write reader refused",
+      "resolution": "Assert no rejected3.json and independently valid-signed malformed reader records; sequence guard kept"
+    },
+    {
+      "issue": "Empty-version explicit check removal is safety-equivalent due final record access refusal",
+      "resolution": "Retained explicit equivalent control; dangerous MISSING fallback mutant is caught"
+    },
+    {
+      "issue": "Retry fixture used503 which existing taxonomy intentionally does not retry",
+      "resolution": "Use real loopback connection abort classified TRANSIENT; taxonomy unchanged"
+    },
+    {
+      "issue": "Windows absolute loader import is not an ESM file URL",
+      "resolution": "Fixture uses pathToFileURL; actual durable CLI now passes"
+    },
+    {
+      "issue": "Fullv20/95 failed only durable recovery static importer inventory: two new TEMP CLI tests were not declared",
+      "resolution": "Whitelist only those two fixtures, separately assert no durable runtime imports, TEMP root creation and isolated child cwd; no production caller or off switch added"
+    },
+    {
+      "issue": "Binding mutation suite valid run took117166ms, near generic120000ms whole-suite timeout",
+      "resolution": "Only new aggregate mutation suites have300000ms outer deadline; each TEMP trial retains30/60s bounds and all negative assertions. Old suite deadlines/production guards unchanged"
+    },
+    {
+      "issue": "Handoff review: the bound repository digest followed the caller's spelling of the path. fs.realpathSync keeps the drive-letter and casing spelling on Windows, and a child inherits its parent's spelling of the working directory. Measured on this workstation: c:\\Users\\... and C:\\Users\\... gave different root digests for one directory, so after adoption one process would read the policy as unverifiable and refuse all new work",
+      "resolution": "One helper, constitutionPhysicalRoot (fs.realpathSync.native), used by the reader, the run binding and the owner writer. New scenario over three other spellings of one adopted TEMP repository (read, bind, append). Windows-only negative control restores the old call and is caught. Failed closed before the fix; no rule was weakened"
+    },
+    {
+      "issue": "Handoff review: the adoption directory, the writer lock directory and the bootstrap staging directory had no .gitignore rule, unlike every sibling data/brain runtime subtree. Adoption would have made the repository look dirty to the observer, the cleanliness gates and the eval baseline overlay check",
+      "resolution": "Three anchored .gitignore rules, confirmed with git check-ignore. New scenario asserts the rules and that they name everything the writer creates. Negative control removes the rule and is caught"
+    }
+  ],
+  "intermediateBindingMutation": {
+    "caught": 12,
+    "total": 12,
+    "status": "PASS_SUPERSEDED_BY_PROTECTED_PATH_EXTENSION"
+  },
+  "liveAcceptance": "NOT_RUN",
+  "finalBindingMutation": {
+    "caught": 13,
+    "total": 13,
+    "status": "PASS",
+    "isolatedV20": true
+  },
+  "finalOwnerConstitutionMutation": {
+    "caught": 19,
+    "total": 19,
+    "safetyEquivalentControls": 1,
+    "status": "PASS",
+    "windowsOnlyControls": 1
+  },
+  "manifest": {
+    "v20": "full run, 94 of 95, one failure (durable-task-recovery importer inventory), report retained",
+    "v21": "prepared after the v20 repair, archived unchanged, never run in full",
+    "v22": "95 suites, 108 unique pins; differs from v21 only in the two owner-constitution grader pins"
+  }
+}
