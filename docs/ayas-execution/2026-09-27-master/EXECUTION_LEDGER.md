@@ -790,3 +790,7 @@ Five domains, 29 criteria, 10 delivery items, current production revision bindin
 ## Stage 15M.2 — GREEN opt-in delivery source, live quality uncertified (2026-10-02)
 
 Reuses the existing materializer lease/verified assets/subtitles/atomic promotion and rollback. Fixed delivery companions, cost/quality reports; physical contained path/manifest/hash verification and read-only ffprobe collection. 4 measured criteria, 25 UNMEASURED; rights/cost UNKNOWN; packaged PASS never consumed as truth. Focused collector 13, mutants 20/20, physical export 16 PASS. Full v18 91 suites no unexpected failure; cognitive 54/55, heldout4/5 unchanged, RAM peak47.9885%. Final evidence serialization and LF normalization validated by 3 isolated pinned v19 suites; full v19 NOT_RUN. TypeScript/lint/diff and relevant guard/governance PASS (13 existing lint warnings). Initial mutation/manifest failures retained. Live read-only pilot unavailable; no live run manufactured. Source closure ready for Graphify/local commit/checkpoint; next canonical Stage16.0 inspection. NO PUSH.
+
+## Stage15M source closure / Stage15N open (2026-10-02)
+
+Source e1241dfd5246adb03690080a1b8a8ac0c3bbba65; all104 unique grader pins match Git HEAD blobs. ORDER CORRECTION: priority2 final order adds15N–15T before16; lower-priority direct16 pointers above are superseded. No16 code changed. Stage15N opened automatically; inspect constitution/owner authority/run digest seams. Source quality closure remains live-uncertified. LOCAL COMMITS; NO PUSH.

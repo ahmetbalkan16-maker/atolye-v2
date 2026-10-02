@@ -2,11 +2,11 @@
   "schemaVersion": "1",
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
-  "lastGreenHead": "e1eefa8a9ba9befa3f466542bfe8484b754007ab",
-  "currentHead": "e1eefa8a9ba9befa3f466542bfe8484b754007ab",
-  "stage": "STAGE_15M",
-  "subtask": "15M.2-youtube-ready-companions-and-readonly-collector",
-  "status": "STAGE_15M_IN_PROGRESS",
+  "lastGreenHead": "e1241dfd5246adb03690080a1b8a8ac0c3bbba65",
+  "currentHead": "e1241dfd5246adb03690080a1b8a8ac0c3bbba65",
+  "stage": "STAGE_15N",
+  "subtask": "15N.0-owner-constitution-existing-seam-inspection",
+  "status": "STAGE_15N_OPEN",
   "stage15B": {
     "openedOn": "2026-10-01",
     "openedAtHead": "f7e19c1f5b4ea3db538ab2fa70b862b81bda8b4a",
@@ -84,9 +84,9 @@
     ]
   },
   "previousStage": {
-    "stage": "STAGE_15L",
-    "status": "GREEN_REPAIR_PLANNER_AND_BOUNDED_TASK_BRIDGE_NO_LIVE_DISPATCH",
-    "closingCommit": "144f16b06e11649dfbe2ee4bc431c6428f278a60"
+    "stage": "STAGE_15M",
+    "status": "CLOSED_GREEN_SOURCE_LIVE_QUALITY_UNCERTIFIED",
+    "closingCommit": "e1241dfd5246adb03690080a1b8a8ac0c3bbba65"
   },
   "completedStages": [
     "PHASE_0_LOCAL_CODE",
@@ -100,7 +100,8 @@
     "STAGE_15I",
     "STAGE_15J",
     "STAGE_15K",
-    "STAGE_15L"
+    "STAGE_15L",
+    "STAGE_15M_SOURCE"
   ],
   "completedSubtasks": [
     "canonical-package-import",
@@ -191,13 +192,10 @@
     "15L.1-bounded-repair-plans-and-coding-task-bridge",
     "15L.R-existing-bridge-fixture-race-correction",
     "15L-closure-GREEN-not-live",
-    "15M.1-five-domain-evidence-coverage-gate-GREEN"
+    "15M.1-five-domain-evidence-coverage-gate-GREEN",
+    "15M.2-verified-opt-in-delivery-and-readonly-quality-source"
   ],
-  "currentFiles": [
-    "src/lib/export/ExportBundleMaterializer.ts",
-    "src/lib/export/YouTubeReadyPackage.ts",
-    "src/lib/production/ProductionQualityCollector.ts"
-  ],
+  "currentFiles": [],
   "lastGreenTests": [
     "Package import: 75/75 original archive entries verified before one EOF whitespace normalization; JSON parse 2/2; no patches imported",
     "smoke-ayas-memory: 30 PASS; context: 34 PASS; memory-temporal: 51 PASS; chat-quality: 36 PASS",
@@ -324,19 +322,19 @@
     "Stage 15L: 24 scenarios; 24/25 mutants caught, 1 safety equivalent; bridge 8/8 focused trials with existing assertions; complete v16 86-suite baseline no unexpected failure; TypeScript/changed lint/diff PASS, full lint 0 errors/13 existing warnings. Cognitive 54/55, held-out 4/5 unchanged; no model/provider/live stage/push."
   ],
   "graphify": {
-    "head": "e1eefa8a9ba9befa3f466542bfe8484b754007ab",
-    "testedSourcePacket": "e1eefa8a9ba9befa3f466542bfe8484b754007ab",
+    "head": "e1241dfd5246adb03690080a1b8a8ac0c3bbba65",
+    "testedSourcePacket": "e1241dfd5246adb03690080a1b8a8ac0c3bbba65",
     "stale": true,
     "needsUpdate": false,
-    "nodes": 17100,
-    "edges": 48940,
+    "nodes": 17137,
+    "edges": 49060,
     "duplicateNodes": 0,
     "duplicateEdges": 0,
     "danglingEdges": 0,
     "selfLoops": 0,
     "semanticPending": true,
     "structuralPartialFiles": 9,
-    "headSemantics": "Precommit graph covered the tested 15M.1 worktree, source e1eefa8; CLI refresh at the documentation descendant follows. Semantic pending and PARTIAL9 retained."
+    "headSemantics": "Precommit graph covers15M.2 worktree; refresh at documentation checkpoint HEAD follows. PARTIAL9/semantic pending retained."
   },
   "blockers": [
     "OWNER_ACTION (activation only, not a code blocker): restart the AYAS Autonomy Observer Scheduled Task so the running observer loads the bound tick. Until then the sweep runs only when the operator script is run by hand.",
@@ -355,7 +353,7 @@
     "OWNER_DECISION (not blocking): when to wire the Stage 15J fact pack and character scenes into a production. Until then productions render as before; scenes can be drawn by hand with scripts/ayas-character-scene.ts.",
     "OWNER_DECISION (not blocking): whether sharp should be declared in package.json. The character rasterizer uses it as installed with the framework."
   ],
-  "nextAction": "Finish GREEN 15M.2: Graphify worktree refresh, LOCAL COMMIT, exact source/checkpoint; then automatically Stage16.0 inspect only canonical Stage16 sections and existing revenue seams, preserving prior work. Source quality closure does not certify live production: 4 measured/25 UNMEASURED, rights/cost UNKNOWN. No new blocking owner gate. NO PUSH; PC HEALTH / ON_DEMAND retained.",
+  "nextAction": "Stage15N.0 inspect current immutable owner/session/action-firewall/configuration fingerprint and long-running-run seams. Implement versioned constitution proposal/verification/digest binding without autonomous edit or activation. Relevant source/tests first; only stop at a concrete owner-only activation boundary. TEST -> GRAPHIFY -> LOCAL COMMIT -> CHECKPOINT -> NEXT; canonical15N–15T before16. NO PUSH; PC HEALTH and ON_DEMAND retained.",
   "updatedAt": "2026-10-02",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
@@ -1056,7 +1054,7 @@
     "next": "STAGE_15M"
   },
   "stage15M": {
-    "state": "IN_PROGRESS",
+    "state": "CLOSED_GREEN_SOURCE_LIVE_QUALITY_UNCERTIFIED",
     "openedOn": "2026-10-02",
     "openedAtHead": "144f16b06e11649dfbe2ee4bc431c6428f278a60",
     "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE 15M; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_PRE_ATOLYE.md STAGE 15M",
@@ -1103,7 +1101,20 @@
       "state": "GREEN_OPT_IN_DELIVERY_SOURCE_LIVE_QUALITY_UNCERTIFIED",
       "result": "03_STAGE15_BASE/hardening/15M/15M_RESULT.json",
       "closure": "03_STAGE15_BASE/hardening/15M/CLOSURE.md",
-      "sourceCommit": "PENDING_LOCAL_COMMIT"
-    }
+      "sourceCommit": "e1241dfd5246adb03690080a1b8a8ac0c3bbba65"
+    },
+    "sourceCommit": "e1241dfd5246adb03690080a1b8a8ac0c3bbba65",
+    "closedOn": "2026-10-02",
+    "next": "STAGE_15N",
+    "orderCorrection": "Final execution order priority2 adds15N–15T before16; lower-priority PRE_ATOLYE direct16 pointer superseded."
+  },
+  "stage15N": {
+    "state": "OPEN_INSPECTION",
+    "openedOn": "2026-10-02",
+    "openedAtHead": "e1241dfd5246adb03690080a1b8a8ac0c3bbba65",
+    "canonicalSection": "00_COMMAND/AYAS_FINAL_CODEX_MASTER_EXECUTION_ORDER.md STAGE15N; 01_CANONICAL_SPECS/AYAS_MASTER_SPRINT_V3_1_FINAL_FREEZE_ADDENDUM.md 15N",
+    "addendumSections": "Post-freeze section0/global9 retained; no separate15N override located",
+    "notes": "03_STAGE15_BASE/hardening/15N/IMPLEMENTATION_NOTES.md",
+    "constraints": "AYAS may propose but may never autonomously edit/activate constitution. Every long-running run must bind current digest; live activation remains owner-only."
   }
 }

@@ -5,7 +5,7 @@
   "state": "GREEN_OPT_IN_DELIVERY_SOURCE_LIVE_QUALITY_UNCERTIFIED",
   "stageSourceClosed": true,
   "sourceBaseHead": "0738cc063909cd5fbdf823768a05a5cc70b7b7fd",
-  "sourceCommit": "Recorded by post-commit checkpoint; resolve actual HEAD through git",
+  "sourceCommit": "e1241dfd5246adb03690080a1b8a8ac0c3bbba65",
   "criteria": 29,
   "domains": 5,
   "measuredCollectorCriteria": 4,
@@ -36,7 +36,8 @@
     "fullLint": "0 errors / 13 pre-existing warnings",
     "diffCheck": "PASS",
     "authorityAudit": "12 PASS; 8 existing surfaces / 41 mapped modules",
-    "governance": "10 PASS, mutations 8/8"
+    "governance": "10 PASS, mutations 8/8",
+    "exactHeadPins": "104 unique grader files match committed Git blobs; no drift"
   },
   "ramPeakPercent": 47.988517886132776,
   "knownLimits": [
@@ -48,6 +49,6 @@
     "No existing verified live quality package for the read-only pilot; live quality not certified.",
     "Graphify PARTIAL9 and semantic pending retained."
   ],
-  "next": "STAGE_16.0 existing-seam inspection; canonical order. No new blocking owner gate asserted.",
+  "next": "STAGE_15N Owner Constitution / Root of Trust, per higher-priority FINAL_CODEX_MASTER_EXECUTION_ORDER.md; Stage16 deferred until 15N–15T.",
   "runtime": "ON_DEMAND; no model/container/provider/live production/upload/push"
 }

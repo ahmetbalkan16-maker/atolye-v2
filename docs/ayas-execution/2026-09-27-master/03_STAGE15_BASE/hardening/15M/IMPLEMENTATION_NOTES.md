@@ -39,3 +39,7 @@ Collector 13 TEMP/synthetic scenarios PASS; mutation audit 20/20 caught; existin
 ### 15M.2 final validation / source closure
 
 Complete v18 91-suite baseline PASS_WITH_KNOWN_LIMITATIONS, no unexpected failure; cognitive 54/55 and held-out 4/5 unchanged; RAM peak 47.9885%. Final report now retains genuine probe/receipt evidence with no staged absolute path or self-hash. Modified CRLF sources normalized to LF to keep grader pins stable across checkouts; v18 snapshot retained and v19 declared. Three affected isolated v19 suites PASS (collector 13, mutants 20/20, physical export 16); full v19 NOT_RUN. TypeScript/changed lint/diff PASS; full lint 0 errors/13 existing warnings. Initial manifest definitionReview draft was rejected by the unchanged validator; required literal restored and rejected draft retained. Source closure details and limitations in CLOSURE.md/15M_RESULT.json. Four measured technical criteria, 25 UNMEASURED; no live-quality certification, no automatic pipeline/API activation or publication. Next canonical stage is 16.0 inspection.
+
+### Canonical order correction
+
+Next-stage pointer was initially projected from lower-priority PRE_ATOLYE (15M to16). Final execution order priority2 includes15N–15T before16. Actual next is15N Owner Constitution. No Stage16 implementation began; only16.0 spec inventory was read while resolving the sequence. Earlier next16 entries are historical and superseded.
