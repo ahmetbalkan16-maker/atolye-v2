@@ -456,7 +456,7 @@ async function main() {
       assert.deepEqual([...code(collectorModule).matchAll(/readAyasGit\(options\.repoRoot, \[([^\]]*)\]/g)].map((match) => match[1]), ['"rev-parse", "HEAD"']);
       assert.equal(code(collectorModule).split("process.env").length - 1, 1, "the environment is read in one place: which providers are selected");
       // Nothing in the application, the daemons or a package script starts it.
-      for (const starter of ["scripts/ayas-autonomy-daemon.ts", "scripts/ayas-discovery-daemon.ts", "scripts/ayas-durable-task-recovery.ts", "package.json"]) {
+      for (const starter of ["scripts/ayas-autonomy-daemon.ts", "scripts/ayas-discovery-daemon.ts", "package.json"]) {
         if (fs.existsSync(path.join(repo, starter))) assert.ok(!/ayas-production-director|AyasProductionDirector/.test(fs.readFileSync(path.join(repo, starter), "utf8")), starter);
       }
     });

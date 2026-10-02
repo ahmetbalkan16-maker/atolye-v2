@@ -58,4 +58,10 @@ No per-project record of what the owner asked for exists: no target duration, fo
 - `scripts/smoke-ayas-production-director.ts`: 17 scenarios on fixture facts and a TEMP runtime root.
 - `scripts/smoke-ayas-production-director-mutations.ts`: 45 of 45 negative controls caught, in a TEMP overlay.
 - One read-only run against a real project of this workstation's runtime root (no owner request bound): eight of sixteen bindings bound, one failed stage classed as unexplained and sent to the owner, nothing planned, nothing written.
-- Eval manifest `15F.4-v11`: 80 suites (two added); v10 kept.
+- Eval manifest `15F.4-v12`: 80 suites (two added in v11); v10 and v11 kept.
+
+## Found by the baseline
+
+The first baseline of this stage, at `10367e8`, failed one suite of 80: `durable-task-recovery`. The Stage 15B wiring guard lets no file other than the observer name the durable recovery script, and the new director suite named it in its list of things that must not start the director. The source packet had been committed without running that suite.
+
+The fix is in the new suite only: the name is gone from its list (the observer, which is the sweep's one starter, is still checked). The guard is unchanged. The failed report is kept as `15I_BASELINE_10367e8_FAILED.json`; the stage's baseline is the one at the fix commit.
