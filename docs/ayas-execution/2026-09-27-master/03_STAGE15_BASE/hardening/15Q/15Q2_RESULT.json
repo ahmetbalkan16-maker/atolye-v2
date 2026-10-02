@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1",
+  "packet": "15Q.2",
+  "state": "GREEN_SOURCE_CONTROLLER_IMAGE_CONTRACT_NOT_WIRED",
+  "sourceCommit": "0763db5b6c006c5adae7764a3c94b546f79c44f6",
+  "exactValidationCommit": "8d1c28cc33d46d2e0059d5e889fe6c940faad40f",
+  "validationCommitSemantics": "Documentation-only descendant; four packet source/test blobs identical to0763db5",
+  "stage15QClosed": false,
+  "ownerStopAfterPacket": true,
+  "authority": "NONE",
+  "tests": {
+    "focused": "15Q2_FOCUSED.json",
+    "controllerScenarios": 11,
+    "lifecycleNegativeControls": "24/24",
+    "recovery": 22,
+    "durableRuntime": 17,
+    "resource": "19/34 controls",
+    "eval": "10/8 controls",
+    "typeScript": "PASS",
+    "lint": "0 errors/13 existing warnings",
+    "exactCommittedGraderPins": 129,
+    "fullBaseline": {
+      "sourceHead": "8d1c28cc33d46d2e0059d5e889fe6c940faad40f",
+      "worktree": "CLEAN",
+      "manifest": "15F.4-v30",
+      "manifestDigest": "d5bd5bf05ab14514cb53846cb4ee87f1b9c6a91f47110fd300909a970d8f229c",
+      "suites": 110,
+      "completeDeclaredBaseline": true,
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "failed": [],
+      "report": "15Q2_FULL_BASELINE_V30.json"
+    }
+  },
+  "sampledRamPeakPercent": 55.11,
+  "graphify": "GRAPHIFY_15Q2_VALIDATION_COMMIT.json",
+  "evidenceClass": "SYNTHETIC_CONTROLLER_REAL_TEMP_JOURNAL_BOUNDARY_NOT_HARDWARE_QUALIFICATION",
+  "limits": [
+    "Real engine remains unregistered; controller has required injected ports and no live/default backend",
+    "Actual model unload/Podman stop/prewarm/hardware qualification not measured",
+    "Existing production/render/common-capacity source integration remains15Q.3 and is not authorized in this resumed scope",
+    "Image classification is read-only; no image deleted; dependency facts must cover all evidence versions"
+  ],
+  "runtime": "No physical model/container/provider/production/host-global mutation; PC HEALTH/ON_DEMAND/NO PUSH",
+  "next": "STOP per owner; do not start15Q.3 or later stages"
+}

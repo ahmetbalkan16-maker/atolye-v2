@@ -1,5 +1,9 @@
 ## 2026-10-02 — Stage15O deterministic golden vault source closure
 
+## 2026-10-02 — AYAS15Q.2 ON_DEMAND source controller
+
+Bounded explicit-demand lifecycle through existing durable task/evidence/capacity contracts, verified persistence before scoped unload, pending DEFER/resume and active/UNCERTAIN/unknown dependency protection. Idle600000ms exact-machine stop and read-only protected image classification. Fullv30 110/110 at clean8d1c28c;129 grader pins, TypeScript/lint PASS. Injected controller only; actual engine/hardware activation remains unqualified. Owner stopped after this packet; no push.
+
 ## 2026-10-02 — AYAS15Q.1 resource admission
 
 Five contextual workload classes through current Machine Health, projected/unknown pressure and owner/production priority, host-protection resource abort distinct from model failure, shared heavy capacity with post-lock reread. Invalid percentages no longer allow work; resource policy/graders protected across Windows spellings. v29 baseline108/108 at exactb381ed4;19 scenarios/34 mutants; TypeScript/lint/diff PASS. Source primitives only; ON_DEMAND lifecycle next. No push.

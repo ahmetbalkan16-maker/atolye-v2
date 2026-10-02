@@ -1,0 +1,8 @@
+{
+  "state": "OWNER_STOPPED_AFTER_15Q2",
+  "appliedAt": "2026-10-02T18:30:19.106Z",
+  "latestRequest": "15Q.2 bitir öyle dur",
+  "effectiveStopBoundary": "AFTER_15Q.2",
+  "requestedPacketComplete": true,
+  "nextStageAuthorized": false
+}
