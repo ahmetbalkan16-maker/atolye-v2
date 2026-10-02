@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "1",
+  "stage": "STAGE_15O",
+  "packet": "15O.1",
+  "state": "GREEN_VAULT_AND_PATH_PROTECTION_NOT_WIRED",
+  "stageSourceClosed": false,
+  "sourceBaseHead": "7470367f58a1b92bc476843a1580601167586327",
+  "sourceCommit": "143178caeef99ef778b44de0c7d135ecdf4c287d",
+  "authority": "NONE",
+  "vault": {
+    "version": 1,
+    "digest": "1532277d2b7220fbc6eb774dbd623e648e5cab74e17cdb7ad3953584eedeba1c",
+    "cases": 17,
+    "pinnedFiles": 22,
+    "domainsWithCases": ["CONVERSATION", "MEMORY_RETRIEVAL", "CODING_REPAIR", "SECURITY_ADVERSARIAL", "PRODUCTION_RECOVERY", "HISTORICAL_VIDEO", "BRAIN_UI"],
+    "declaredGaps": [
+      { "domain": "REVENUE_DRY_RUN", "why": "no revenue adapter exists before Stage 16", "reevaluate": "when a Stage 16 adapter is built, before it is activated" },
+      { "domain": "HISTORICAL_VIDEO", "why": "the two cases cover the storytelling contracts and the quality gate, not a whole project", "reevaluate": "packet 15O.3 for deterministic projects; the owner for a project rendered by a real production" }
+    ],
+    "allCasesHeldSeconds": 28.4
+  },
+  "decisionRule": "Candidate tree only. A moved vault or drifted pin is not a comparison; a missing measurement is not held; one red case stops promotion. A baseline run only says whether the change broke the case.",
+  "wired": false,
+  "wiredNote": "No promotion path reads the vault in this packet; the contract suite asserts the importer list.",
+  "pathProtection": "BrainPatchSafety: the vault modules, every file any vault version pins, the operator script and its suites, the eval manifest with its validator and runner, src/lib/ayas/governance and app/brain/constitution are FORBIDDEN_AUTONOMOUS in any spelling (finding F23).",
+  "tests": {
+    "contract": 13,
+    "operatorAndRunner": 3,
+    "mutations": "39/39 caught",
+    "goldenVaultRun": "17 of 17 held",
+    "fullBaseline": {
+      "manifest": "15F.4-v23",
+      "manifestDigest": "b77e19d7c2feac0b4187a9937b04605d321337475379a32a23e8f47a2b6bf87f",
+      "sourceHead": "143178caeef99ef778b44de0c7d135ecdf4c287d",
+      "worktree": "clean at the commit",
+      "suites": 99,
+      "complete": true,
+      "outcome": "PASS_WITH_KNOWN_LIMITATIONS",
+      "failed": [],
+      "knownLimitationSuites": ["cognitive-quality"],
+      "cognitive": "54/55, held-out 4/5, unchanged",
+      "report": "15O1_FULL_BASELINE_V23.json"
+    },
+    "exactHeadPins": "113 unique grader files match the committed Git blobs; no drift",
+    "typeScript": "PASS",
+    "changedLint": "PASS",
+    "diffCheck": "PASS",
+    "patchSafetyConsumers": "brain-selfheal 41, brain-selfheal-security 14 (after F24), exact-proposal-safety 28, autonomous-foundation-acceptance 42, patch-detectors 37, adaptation-pipeline 7"
+  },
+  "ramPeakPercent": 56.87,
+  "graphify": "GRAPHIFY_15O1_SOURCE_COMMIT.json",
+  "findings": ["F23 resolved", "F24 found and resolved"],
+  "knownLimits": [
+    "Not wired: an improvement is not yet stopped by the vault. That is packet 15O.2.",
+    "The golden cases are deterministic offline suites. They do not measure a model's quality; a model promotion still rests on the lifecycle checks.",
+    "The experiment registry's own protected-path list is unchanged, because that file is the identity of a lifecycle entry. The patch-safety table already stops an artifact that touches a protected file.",
+    "Graphify PARTIAL 9 and semantic pending retained."
+  ],
+  "next": "15O.2 golden gate inside the existing improvement flow",
+  "runtime": "ON_DEMAND; no model, container, provider, live production or push"
+}

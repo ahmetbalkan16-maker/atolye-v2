@@ -1,3 +1,15 @@
+# AYAS continuation — 2026-10-02 / Stage 15O.1 GREEN (golden vault, not wired), 15O.2 next
+
+Tested source `143178caeef99ef778b44de0c7d135ecdf4c287d`; resolve the real HEAD with `git rev-parse HEAD`. Branch `wip/ayas-graphify-final-execution`, local commits only, NO PUSH.
+
+Stage 15O (Golden Benchmark and Regression Vault) is in progress. 15O.1 is done: `src/lib/ayas/golden/` holds the vault contract and the versions of record. Version 1 has 17 golden cases over seven of the eight canonical domains, each an existing deterministic offline suite with its grader and fixture files pinned; revenue dry-run and whole historical-video projects are declared gaps. `npx tsx scripts/ayas-golden-vault.ts [--run | --draft-next]` is the read-only operator script. The patch-safety table makes the vault, what it pins, the eval yardstick and the Stage 15N governance code never-autonomous.
+
+Not wired yet: an improvement is not stopped by the vault until 15O.2, which runs the vault in the existing experiment sandbox and makes a red golden case stop the artifact freeze and the proposal bridges. 15O.3 adds two or three deterministic historical-video golden projects as vault version 2.
+
+Tests: declared 99-suite baseline on manifest `15F.4-v23` at the commit, no failure, cognitive 54/55 and held-out 4/5 unchanged, RAM peak 56.87 %. Contract 13, operator 3, negative controls 39/39, all 17 cases held in 28 s. Graphify 17,271 / 49,440, no anomaly, PARTIAL 9 and semantic pending. Evidence: `docs/ayas-execution/2026-09-27-master/03_STAGE15_BASE/hardening/15O/`.
+
+Unchanged OWNER ACTION, not blocking: adopt the Owner Constitution at `/brain/constitution` after a server rebuild and restart, then restart the observer task. Exact nextAction: `docs/ayas-execution/2026-09-27-master/ACTIVE_CHECKPOINT.json`.
+
 # AYAS continuation — 2026-10-02 / Stage 15N source CLOSED GREEN (not adopted), Stage 15O OPEN
 
 Tested source `9cdf5dbdede418dd35c6a9a1c5057299c20af693`; resolve the real HEAD with `git rev-parse HEAD`. Branch `wip/ayas-graphify-final-execution`, local commits only, NO PUSH.

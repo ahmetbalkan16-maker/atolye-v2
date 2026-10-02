@@ -819,3 +819,13 @@ Not claimed: nothing was adopted; the host state is MISSING and behaviour is as 
 ## Stage 15O — Golden Benchmark and Regression Vault — OPEN (2026-10-02)
 
 Opened after the 15N source commit. Existing-seam inspection done read-only: eval manifest and pinned graders, the Stage 8 experiment evaluation and its sandbox runner, the three promotion consumers of an evidence package, the lifecycle promotion checks and the patch-safety table. Plan in `03_STAGE15_BASE/hardening/15O/IMPLEMENTATION_NOTES.md`: 15O.1 the vault contract, registry of record and path protection, not wired; 15O.2 the golden gate inside the existing improvement flow; 15O.3 deterministic historical-video golden projects. Revenue dry-run is a declared gap until Stage 16. No owner gate expected. NO PUSH.
+
+## Stage 15O.1 — GREEN: golden vault, registry of record and path protection; not wired (2026-10-02)
+
+Source commit `143178caeef99ef778b44de0c7d135ecdf4c287d`. Vault version 1 (digest `1532277d…eba1c`): 17 golden cases over seven of the eight canonical domains, each an existing deterministic offline suite with every grader and fixture file it imports pinned (22 files). Revenue dry-run and whole historical-video projects are declared gaps, reported with every decision and never counted as held. Versions are append-only and chained; a case leaves only by name. The decision rests on the candidate tree: moved yardstick, missing measurement, a red case, held, in that order. The patch-safety table makes the vault, what it pins, the eval yardstick and the Stage 15N governance code never-autonomous in any spelling (F23).
+
+Measured before deciding: the whole vault takes about 28 s here and the live improvement cycle has 90 s in total, so the gate checks the candidate tree once.
+
+Evidence: contract 13 scenarios, operator and runner 3, negative controls 39/39, all 17 cases held. Declared 99-suite baseline on manifest v23 at the commit with a clean tree: PASS_WITH_KNOWN_LIMITATIONS, no failure, cognitive 54/55 and held-out 4/5 unchanged, host RAM peak 56.87 %. 113 grader pins match the committed blobs. Graphify at the commit 17,271 nodes / 49,440 links, no anomaly, PARTIAL 9 and semantic pending.
+
+Found and fixed on the way (F24): `smoke-brain-selfheal-security`, outside the declared baseline, was already red at HEAD because a text scan matched a word inside a denylist. Not wired yet: no promotion path reads the vault; that is 15O.2. Evidence in `03_STAGE15_BASE/hardening/15O/`. LOCAL COMMITS; NO PUSH.
