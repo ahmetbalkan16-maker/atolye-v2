@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "1",
+  "recordedAt": "2026-10-02T22:40:13.675Z",
+  "baseHead": "402d7bb668d4d6bc327b7baef882181f17fd110e",
+  "finding": "F35",
+  "priorBaseline": "v33_402d7bb_INTENTIONALLY_INTERRUPTED_NOT_COMPLETE_NOT_PASS",
+  "evidenceClass": "DETERMINISTIC_TEST",
+  "fixture": "OWNED_TEMP_ONLY",
+  "scenarios": 24,
+  "negativeControls": {
+    "caught": 34,
+    "total": 34
+  },
+  "typeScript": "PASS",
+  "changedLint": "PASS",
+  "diff": "PASS",
+  "manifest": {
+    "version": "15F.4-v34",
+    "suites": 116,
+    "uniquePins": 136
+  },
+  "sourceFiles": [
+    {
+      "file": "src/lib/ayas/migration/AyasPortableBrainStore.ts",
+      "sha256": "0fe8c9d045aedcbc740e1e0be6b1aa3e45f89f1c1a63823ca91fa6b480a971f4"
+    },
+    {
+      "file": "scripts/ayas-portable-brain.ts",
+      "sha256": "5ca12e7f80eaa0990c63c584036e387d557e028c66710dccbeb0aaf1603b0f0a"
+    },
+    {
+      "file": "scripts/smoke-ayas-portable-brain.ts",
+      "sha256": "caa81329de85e9fa63eea6498719f98c750c74873321eea63f9a1dceafaeabe1"
+    },
+    {
+      "file": "scripts/smoke-ayas-portable-brain-mutations.ts",
+      "sha256": "566ff2802bb3b5063f6f8804d116023bf3f3c294645ab16918f43e7e2ce60033"
+    }
+  ],
+  "graphify": {
+    "boundHead": "402d7bb668d4d6bc327b7baef882181f17fd110e",
+    "stale": false,
+    "nodes": 17685,
+    "edges": 50615,
+    "integrity": {
+      "duplicateNodes": 0,
+      "duplicateEdges": 0,
+      "dangling": 0,
+      "selfLoops": 0
+    },
+    "structuralCoverage": "PARTIAL_9_INHERITED",
+    "semanticCoverage": "PENDING"
+  },
+  "fullCorrectedBaseline": "PENDING_EXACT_CLEAN_COMMIT",
+  "liveModeEntered": false,
+  "realMigration": "NOT_RUN",
+  "grantsAuthority": false
+}

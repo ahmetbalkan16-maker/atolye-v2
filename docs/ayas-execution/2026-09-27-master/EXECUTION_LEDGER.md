@@ -944,3 +944,7 @@ The pre-existing exact clean v32 run finished: 114/114 suites, no failure, PASS_
 ### 2026-10-03 — Stage 15S source implemented; focused GREEN; exact clean baseline pending
 
 Portable domain/manifest/encryption contract, owner-session/review/source-bound write-once export, actual confined TEMP restore/audit, immutable runtime/image metadata, bounded artifact hash verification, ordered advisory migration gates and operator commands. 23 TEMP scenarios /33 negative controls PASS; TypeScript and changed lint PASS. v33 declares116 suites/136 pins; v32 preserved unchanged. No live state export/import, model/container launch, real migration certification, activation or old-PC removal. Next: source commit and full exact-clean v33 baseline, source closure, then15T. Stage15 whole remains OPEN.
+
+### 2026-10-03 — 15S F35 safe-mode export correction
+
+Source402d7bb clean fullv33 was intentionally interrupted when review found missing global safe-mode export binding; incomplete, not PASS. Existing mode reader now guards before payload work and before archive effects.24 TEMP scenarios/34 negative controls PASS, changed lint PASS; TypeScript completion/Graphify/source correction commit/fullv34 baseline next. Real migration/activation remain unmeasured.

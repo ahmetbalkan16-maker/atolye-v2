@@ -14,6 +14,7 @@ import { AYAS_PORTABLE_SECTIONS, assertAyasPortableBrain, assertAyasPortableJson
 import { exportAyasPortableBrain, restoreAyasPortableBrainInTemp } from "../src/lib/ayas/migration/AyasPortableBrainStore";
 import { AYAS_MIGRATION_CHECKS, evaluateAyasPortableMigration, portableMigrationScope, type AyasMigrationContext } from "../src/lib/ayas/migration/AyasPortableMigration";
 import { verifyAyasPortableArtifacts } from "../src/lib/ayas/migration/AyasPortableArtifacts";
+import { enterAyasSafeMode } from "../src/lib/ayas/safety/AyasSafeModeStore";
 
 const parent = fs.realpathSync.native(os.tmpdir()), root = fs.mkdtempSync(path.join(parent, "ayas-portable-smoke-"));
 const KEY = "fixture-portable-owner-key-0001", PASS = "fixture-portable-archive-passphrase-0001", NOW = Date.parse("2026-10-03T00:00:00.000Z");
@@ -23,7 +24,7 @@ const selected = process.env.AYAS_PORTABLE_MUTATION_CASE;
 if (selected !== undefined) {
   const cwd = fs.realpathSync.native(process.cwd());
   assert.equal(path.dirname(cwd).toLowerCase(), parent.toLowerCase()); assert.ok(path.basename(cwd).startsWith("ayas-portable-audit-"));
-  assert.ok(!fs.existsSync(path.join(cwd, ".git"))); assert.match(selected, /^(?:[1-9]|1[0-9]|2[0-3])$/);
+  assert.ok(!fs.existsSync(path.join(cwd, ".git"))); assert.match(selected, /^(?:[1-9]|1[0-9]|2[0-4])$/);
 }
 let index = 0;
 async function scenario(name: string, action: () => void | Promise<void>) {
@@ -236,7 +237,18 @@ async function main() {
     const refused = run(["verify", archive, expected], { ...privateEnv, AYAS_PORTABLE_PASSPHRASE: PASS + "wrong" });
     assert.notEqual(refused.status, 0); assert.match(refused.stderr, /ARCHIVE_UNVERIFIED/); assert.ok(!refused.stderr.includes(PASS));
   });
-  assert.equal(index, 23); assert.equal(scenarios, selected === undefined ? 23 : 1);
+  await scenario("global safe mode and unreadable mode refuse owner export while verification stays readable", async () => {
+    const p = { ...payload(), createdAt: new Date(NOW + 2).toISOString() }, expected = portableBrainDigest(manifestAyasPortableBrain(p));
+    await enterAyasSafeMode({ repoRoot: root, ownerSession: await issueSession(KEY, NOW), env, nowMs: () => NOW });
+    const base = { repoRoot: root, payload: p, expectedManifestDigest: expected, passphrase: PASS, ownerSession: await issueSession(KEY, NOW), env, nowMs: () => NOW };
+    await assert.rejects(exportAyasPortableBrain(base), /AYAS_SAFE_READ_ONLY/);
+    assert.equal(fs.existsSync(path.join(root, "data", "brain", "execution", "portable-brain", `${expected}.encrypted.json`)), false);
+    const a = encryptAyasPortableBrain(p, PASS); assert.deepEqual(decryptAyasPortableBrain(a, PASS, expected), p);
+    const modeRoot = path.join(root, "data", "brain", "execution", "safe-mode");
+    const record = fs.readdirSync(modeRoot).find(name => /^[0-9]+\.json$/.test(name)); assert.ok(record);
+    fs.writeFileSync(path.join(modeRoot, record), "{}"); await assert.rejects(exportAyasPortableBrain(base), /AYAS_SAFE_MODE_UNAVAILABLE/);
+  });
+  assert.equal(index, 24); assert.equal(scenarios, selected === undefined ? 24 : 1);
   console.log(`Stage15S portable brain smoke: PASS (${scenarios} scenarios; TEMP only, no real migration certification)`);
 }
 void main().finally(() => {

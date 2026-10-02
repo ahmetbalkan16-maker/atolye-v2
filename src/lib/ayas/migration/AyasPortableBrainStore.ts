@@ -7,6 +7,7 @@ import { resolveAccessGate, verifySession } from "../../auth/accessGate";
 import { ensureSafeContainedDirectory, requireContainedRealDirectory } from "../../runtime/RuntimeStoragePaths";
 import { canonicalAyasJson } from "../provenance/AyasReleaseProvenance";
 import { readAyasGit } from "../provenance/AyasBuildStamp";
+import { assertAyasSafeModeAllowsMutation } from "../safety/AyasSafeModeReader";
 import { decryptAyasPortableBrain, encryptAyasPortableBrain, manifestAyasPortableBrain, portableBrainDigest, type AyasPortableBrain, type AyasPortableEnvelope } from "./AyasPortableBrain";
 
 const hash = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
@@ -26,6 +27,7 @@ export async function exportAyasPortableBrain(input: {
     if (gate.mode !== "enforced" || !gate.key || !await verifySession(input.ownerSession, gate.key, now())) throw new Error("AYAS_PORTABLE_OWNER_SESSION_REQUIRED");
   };
   await requireOwner();
+  assertAyasSafeModeAllowsMutation(input.repoRoot);
   const manifest = manifestAyasPortableBrain(input.payload), digest = portableBrainDigest(manifest);
   if (digest !== input.expectedManifestDigest) throw new Error("AYAS_PORTABLE_OWNER_REVIEW_MISMATCH");
   const archive = encryptAyasPortableBrain(input.payload, input.passphrase);
@@ -34,6 +36,7 @@ export async function exportAyasPortableBrain(input: {
   const root = fs.realpathSync.native(input.repoRoot);
   if (readAyasGit(root, ["rev-parse", "HEAD"]).trim() !== manifest.sourceHead
     || readAyasGit(root, ["status", "--porcelain=v1", "-z"]).trim() !== "") throw new Error("AYAS_PORTABLE_SOURCE_BINDING_REFUSED");
+  assertAyasSafeModeAllowsMutation(input.repoRoot);
   const dir = ensureSafeContainedDirectory(root, path.join(root, "data", "brain", "execution", "portable-brain"));
   const file = path.join(dir, `${digest}.encrypted.json`);
   // Write-once. No raw private manifest/payload or credential is written to disk.

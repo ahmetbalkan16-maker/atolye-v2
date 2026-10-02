@@ -40,5 +40,5 @@ async function main() {
   }
 }
 void main().catch(error => {
-  console.error(error instanceof Error && /^AYAS_PORTABLE_[A-Z_]+$/.test(error.message) ? error.message : "AYAS_PORTABLE_OPERATION_FAILED"); process.exitCode = 1;
+  console.error(error instanceof Error && /^(?:AYAS_PORTABLE_[A-Z_]+|AYAS_SAFE_READ_ONLY|AYAS_SAFE_MODE_UNAVAILABLE)$/.test(error.message) ? error.message : "AYAS_PORTABLE_OPERATION_FAILED"); process.exitCode = 1;
 });

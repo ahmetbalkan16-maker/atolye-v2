@@ -21,7 +21,7 @@ function copy(file: string) {
   }
 }
 /** Each removal weakens a real contract; its existing scenario must fail with an assertion, not a loader error. */
-const mutants: readonly (readonly [string, string, string, string, number])[] = [
+const mutants: readonly (readonly [string, string, string, string, number, number?])[] = [
   ["portable module rewrites itself", safety, 'p.toLowerCase().startsWith("src/lib/ayas/migration/")', "false", 1],
   ["operator rewrites itself", safety, '  "scripts/ayas-portable-brain.ts",\n', "", 1],
   ["grader rewrites itself", safety, '  "scripts/smoke-ayas-portable-brain.ts",\n', "", 1],
@@ -55,6 +55,7 @@ const mutants: readonly (readonly [string, string, string, string, number])[] = 
   ["duplicate evidence accepted", migration, "seen.has(e.check)", "false", 19],
   ["artifact bytes hash ignored", artifacts, 'hash.digest("hex") !== a.sha256', "false", 21],
   ["unexecuted image rebuild accepted", artifacts, 'a.transfer === "REBUILD_PINNED_IMAGE"', "false", 22],
+  ["owner export bypasses global safe mode", store, "assertAyasSafeModeAllowsMutation(input.repoRoot);", "", 24, 2],
 ];
 const env: NodeJS.ProcessEnv = { NODE_ENV: "test" };
 for (const key of ["SystemRoot", "WINDIR", "COMSPEC", "PATH", "PATHEXT", "TEMP", "TMP", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "HOME"]) if (process.env[key]) env[key] = process.env[key];
@@ -63,10 +64,10 @@ try {
   for (const file of [test, "scripts/ayas-portable-brain.ts", "tsconfig.json", "package.json", ".gitignore"]) copy(file);
   fs.symlinkSync(fs.realpathSync(path.join(repo, "node_modules")), link, process.platform === "win32" ? "junction" : "dir");
   const baseline = run(); assert.equal(baseline.status, 0, `${baseline.stderr}${baseline.stdout}`.slice(0, 2000));
-  for (const [name, file, before, after, selected] of mutants) {
-    const target = path.join(temp, file), original = fs.readFileSync(target, "utf8"); assert.equal(original.split(before).length - 1, 1, `${name}: exact mutation`);
+  for (const [name, file, before, after, selected, occurrences = 1] of mutants) {
+    const target = path.join(temp, file), original = fs.readFileSync(target, "utf8"); assert.equal(original.split(before).length - 1, occurrences, `${name}: exact mutation`);
     let result: ReturnType<typeof run>;
-    try { fs.writeFileSync(target, original.replace(before, () => after)); result = run(selected); } finally { fs.writeFileSync(target, original); }
+    try { fs.writeFileSync(target, original.replaceAll(before, () => after)); result = run(selected); } finally { fs.writeFileSync(target, original); }
     assert.equal(result.signal, null, `${name}: timeout`); assert.notEqual(result.status, 0, `${name}: survived`);
     assert.doesNotMatch(result.stderr, /SyntaxError|TransformError|ERR_MODULE_NOT_FOUND|Cannot find module|is not defined|is not a function/, `${name}: ${result.stderr.slice(0, 500)}`);
     assert.match(result.stderr, /AssertionError|ERR_ASSERTION/, `${name}: ${result.stderr.slice(0, 500)}`);

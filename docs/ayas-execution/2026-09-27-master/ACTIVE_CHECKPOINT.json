@@ -3,7 +3,7 @@
   "masterSprint": "AYAS_MASTER_SPRINT_V3",
   "branch": "wip/ayas-graphify-final-execution",
   "lastGreenHead": "a00091fdcc68f4588b2403b67e008ce796e117a1",
-  "currentHead": "06668502911a69ca2be71fe093f4af885af87b32",
+  "currentHead": "402d7bb668d4d6bc327b7baef882181f17fd110e",
   "stage": "STAGE_15S",
   "subtask": "15S-source-packet-exact-clean-baseline-pending",
   "status": "IN_PROGRESS",
@@ -396,8 +396,8 @@
     "OWNER_DECISION (not blocking): the coarse owner-activity signal for the resource governor (an AYAS chat turn in flight, a recent-chat window and its length, or an operating-system idle time; never keystrokes, screens or window titles). Until then owner interaction is UNKNOWN and a new heavy local model start is deferred.",
     "OWNER_DECISION (not blocking, host-global): whether Podman Desktop and Ollama keep their logon startup entries. Observed and unchanged; AYAS adds no startup preload."
   ],
-  "nextAction": "Finish Graphify/whole lint/diff; commit 15S source packet, bind Graphify to it and run full declared v33 baseline without changing evaluated bytes. Record exact-commit evidence, close source only if passed, then canonical 15T. Real hardware migration and owner activation are unmeasured, not TEMP-certified. Stage15 remains OPEN; subsequent combined closure/push/parity then Stage16 in master order. Preserve ON_DEMAND/PC HEALTH.",
-  "updatedAt": "2026-10-02T22:26:10.419Z",
+  "nextAction": "Finish Graphify/whole lint/diff; commit 15S source packet, bind Graphify to it and run full declared v34 baseline without changing evaluated bytes. Record exact-commit evidence, close source only if passed, then canonical 15T. Real hardware migration and owner activation are unmeasured, not TEMP-certified. Stage15 remains OPEN; subsequent combined closure/push/parity then Stage16 in master order. Preserve ON_DEMAND/PC HEALTH.",
+  "updatedAt": "2026-10-02T22:37:44.663Z",
   "qualificationEvidence": {
     "state": "LOCAL_INDEPENDENCE_DEGRADED",
     "closure": "CLOSED_LOCAL_INDEPENDENCE_DEGRADED",
@@ -1595,21 +1595,28 @@
     "baseHead": "06668502911a69ca2be71fe093f4af885af87b32",
     "notes": "03_STAGE15_BASE/hardening/15S/IMPLEMENTATION_NOTES.md",
     "focused": {
-      "scenarios": 23,
-      "negativeControls": "33/33",
+      "scenarios": 24,
+      "negativeControls": "34/34",
       "typeScript": "PASS",
       "changedLint": "PASS",
       "fixture": "OWNED_TEMP_ONLY"
     },
     "manifest": {
-      "version": "15F.4-v33",
+      "version": "15F.4-v34",
       "suites": 116,
       "uniquePins": 136
     },
     "fullBaseline": "PENDING_EXACT_CLEAN_SOURCE_COMMIT",
     "liveMigration": "NOT_RUN",
     "ownerActivation": "BLOCKED_OWNER_ACTION",
-    "oldPcCleanup": "BLOCKED_OWNER_ACTION_AFTER_VERIFIED_MIGRATION"
+    "oldPcCleanup": "BLOCKED_OWNER_ACTION_AFTER_VERIFIED_MIGRATION",
+    "correction": "F35_EXPORT_RESPECTS_GLOBAL_SAFE_MODE",
+    "sourcePacket": "402d7bb668d4d6bc327b7baef882181f17fd110e",
+    "interruptedBaseline": {
+      "sourceHead": "402d7bb668d4d6bc327b7baef882181f17fd110e",
+      "version": "15F.4-v33",
+      "status": "INTENTIONALLY_INTERRUPTED_F35_NOT_COMPLETE_NOT_PASS"
+    }
   },
   "sessionStart": {
     "date": "2026-10-03",
